@@ -214,7 +214,7 @@
        orbitam o núcleo, energia ESQUENTA (warmth: ciano→branco→dourado estelar).
        Timeline mestre própria; subsistemas SÓ observam. */
     sing: {
-      active: false, phase: 'idle', gen: 0,
+      active: false, phase: 'idle',
       amp: 0,       /* envelope global 0..1 */
       grip: 0,      /* domínio da IA 0..1 → autoridade do cursor = 1-grip */
       warmth: 0,    /* temperatura 0..1: 0=ciano, .5=branco incandescente, 1=dourado estelar */
@@ -629,7 +629,6 @@
       s.amp = 0; s.grip = 0; s.warmth = 0; s.depth = 0; s.front = 0; s.reveal = 0;
       s.breath = 0; s.strain = 0; s.hush = 0;
       AICore.exhaust();                  /* o núcleo não desliga: fica exausto e se recupera */
-      s.gen++;
       resDoneCount = 0;                  /* energia acumulada volta ao início */
       rollSingular();                    /* novo ciclo já nasce com a chance de base */
       resCdUntil = now + SING_CD;
