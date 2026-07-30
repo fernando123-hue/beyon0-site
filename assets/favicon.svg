@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="14" fill="#000000"/>
+  <!-- .0 — o zero assentado na baseline, marca da correção -->
+  <circle cx="16" cy="47" r="4.5" fill="#00F5FF"/>
+  <ellipse cx="38" cy="33" rx="12.5" ry="19.5" fill="none" stroke="#9FF8FF" stroke-width="5"/>
+</svg>

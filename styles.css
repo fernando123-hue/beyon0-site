@@ -1,0 +1,1999 @@
+/* ============================================================
+   beyon.0 — identidade H≈160°, estrutura dark (modelo aprovado)
+   Fonte da verdade: docs/design-tokens.md (rampa imutável).
+   Exceções de matiz: conteúdo emoldurado em .mock__screen + LED.
+   ============================================================ */
+
+:root {
+  /* Rampa elétrica (Rev 2) — ciano #00F5FF como energia principal */
+  --void: #000000;
+  --deep: #06272B;
+  --mid:  #0F6A73;
+  --glow: #00F5FF;
+  --hi:   #9FF8FF;
+  --core: #F2FEFF;
+
+  --void-rgb: 0 0 0;
+  --deep-rgb: 6 39 43;
+  --mid-rgb:  15 106 115;
+  --glow-rgb: 0 245 255;
+  --hi-rgb:   159 248 255;
+  --core-rgb: 242 254 255;
+
+  /* energia secundária: dourado tecnológico — uso raro (pulsos do campo) */
+  --gold: #FFC96B;
+  --gold-rgb: 255 201 107;
+
+  --led: #E61A1A;
+
+  --font: 'Sora', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, 'Courier New', monospace;
+
+  --maxw: 1160px;
+  --radius: 16px;
+
+  --ease-micro: cubic-bezier(.2, .9, .25, 1);
+  --ease-reveal: cubic-bezier(.16, 1, .3, 1);
+  --t-micro: 140ms;
+  --t-ui: 320ms;
+  --t-reveal: 700ms;
+
+  --ef-e: 0;   /* energia global acumulada 0..1 — escrita pelo JS (Fase 1) */
+
+  /* RESSONÂNCIA — escritas pelo JS só durante o evento; 0 em repouso.
+     A onda percorre a cadeia: cada elo DOM recebe sua fatia em ordem. */
+  --res: 0;         /* amplitude global 0..1 */
+  --res-reveal: 0;  /* envelope da revelação (grade + bordas) 0..1 */
+  --res-space: 0;   /* compressão espacial 0..1 (o campo/vazio participa) */
+  --res-cards: 0;   /* excitação do elo cards/mocks */
+  --res-btns: 0;    /* excitação do elo botões */
+  --res-bg: 0;      /* excitação do elo fundo (último) */
+
+  /* ESTADO SINGULAR — escritas pelo JS só durante o evento raro */
+  --sing: 0;             /* amplitude 0..1 */
+  --sing-depth: 0;       /* expansão de profundidade 0..1 */
+  --sing-reveal: 0;      /* spike de revelação 0..1 */
+  --sing-rgb: 0 245 255; /* TEMPERATURA atual: ciano→branco→dourado estelar */
+}
+
+/* energia por-elemento 0..1 — escrita pelo JS (Fase 2). Tipada p/ calc estável;
+   fallback var(--energy,0) garante 0 sem JS / navegador sem @property. */
+@property --energy {
+  syntax: '<number>';
+  inherits: true;    /* precisa herdar p/ o Shine Border (::after) ler a energia do card */
+  initial-value: 0;
+}
+
+/* fases dos dois fluxos energéticos da borda (@property → interpolação suave de
+   ângulo; sem @property, caem estáticos e o circuito-base ainda dá vida) */
+@property --shine-a {
+  syntax: '<angle>';
+  inherits: true;
+  initial-value: 0deg;
+}
+@property --shine-b {
+  syntax: '<angle>';
+  inherits: true;
+  initial-value: 0deg;
+}
+@property --shine-k {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: .72;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font);
+  font-weight: 400;
+  background: var(--void);
+  color: var(--hi);
+  line-height: 1.6;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+a { color: inherit; text-decoration: none; }
+img { max-width: 100%; display: block; }
+
+::selection { background: var(--glow); color: var(--void); }
+
+:focus-visible {
+  outline: 2px solid var(--glow);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.skip-link {
+  position: fixed;
+  top: -60px;
+  left: 1rem;
+  z-index: 100;
+  padding: .7rem 1.2rem;
+  border-radius: 999px;
+  background: var(--core);
+  color: var(--void);
+  font-weight: 600;
+  font-size: .9rem;
+  transition: top var(--t-micro) var(--ease-micro);
+}
+.skip-link:focus { top: 1rem; }
+
+/* ============================================================
+   INTRO — vídeo de abertura ("sistema iniciando")
+   ============================================================ */
+.intro {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: var(--void);
+  display: grid;
+  place-items: center;
+  opacity: 1;
+  transition: opacity .9s var(--ease-reveal);
+}
+.intro--done {
+  opacity: 0;
+  pointer-events: none;
+}
+.intro__video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.intro__skip {
+  position: absolute;
+  right: clamp(1rem, 3vw, 2rem);
+  bottom: clamp(1rem, 3vw, 2rem);
+  font-family: var(--mono);
+  font-size: .72rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--hi);
+  background: rgb(var(--void-rgb) / .4);
+  border: 1px solid rgb(var(--glow-rgb) / .35);
+  border-radius: 999px;
+  padding: .6rem 1.2rem;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity .5s ease, background var(--t-micro) var(--ease-micro), box-shadow var(--t-ui) var(--ease-micro);
+}
+.intro__skip.show { opacity: 1; }
+.intro__skip:hover {
+  background: rgb(var(--void-rgb) / .7);
+  box-shadow: 0 0 24px rgb(var(--glow-rgb) / .35);
+}
+/* trava scroll enquanto a intro roda */
+body.intro-active { overflow: hidden; height: 100vh; }
+
+/* fundo ambiente: acende de baixo pra cima conforme a energia acumula (Fase 1);
+   deriva de leve com o scroll → profundidade entre camadas (Fase 5). Oversized
+   (inset negativo) pra o parallax nunca revelar bordas. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: -25% 0;
+  z-index: 0;
+  pointer-events: none;
+  transform: translate3d(0, var(--par-amb, 0px), 0);
+  will-change: transform;
+  background:
+    radial-gradient(120% 82% at 50% 100%, rgb(var(--glow-rgb) / calc(var(--ef-e) * .14)), transparent 68%),
+    radial-gradient(100% 60% at 50% 0%, rgb(var(--hi-rgb) / calc(var(--ef-e) * .06)), transparent 60%),
+    /* fundo = último elo da cadeia: acende quando a ressonância chega ao fim */
+    radial-gradient(140% 100% at 50% 42%, rgb(var(--glow-rgb) / calc(var(--res-bg) * .10)), transparent 62%);
+}
+
+/* grão de material sobre todo o escuro */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  pointer-events: none;
+  opacity: .04;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ---------- tipografia ---------- */
+h2 {
+  font-size: clamp(1.9rem, 4.2vw, 3rem);
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  line-height: 1.12;
+  color: var(--core);
+  text-wrap: balance;
+}
+h3 { font-size: 1.1rem; font-weight: 600; letter-spacing: -0.01em; color: var(--core); }
+
+.grad {
+  position: relative;              /* âncora dos ecos do glitch Singular */
+  display: inline-block;
+  background: linear-gradient(100deg, var(--hi) 0%, var(--glow) 40%, var(--core) 52%, var(--glow) 64%, var(--hi) 100%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  /* fill transparente explícito: quando o .grad cai sobre um elemento com `color`
+     mais específico (o <b> do AI Core, a .section__lead), só `color:transparent`
+     perderia a batalha de especificidade e a aurora não apareceria — o fill
+     vazado garante que o gradiente sempre atravesse o texto. */
+  -webkit-text-fill-color: transparent;
+  animation: grad-pan 9s ease-in-out infinite;
+}
+@keyframes grad-pan {
+  0%, 100% { background-position: 0% 0; }
+  50% { background-position: 100% 0; }
+}
+/* --- porte do glitch por palavra + aurora em texto de bloco --- */
+.grad--sm { --gl: .45; }   /* <em> dos serviços, "AI Core" — glitch discreto */
+.grad--md { --gl: .7; }    /* numerais 01/02/03 — glitch médio */
+.grad--block { display: block; }  /* frase corrida (lead): mantém fluxo/centralização */
+/* leitor de tela: texto estável fora de tela para os trechos que reescrevem */
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* ==========================================================================
+   EVENTO SINGULAR — a fratura das palavras que a IA toma para si.
+   A aurora do .grad (matiz vivo, luminância varrendo o texto) é a assinatura
+   de repouso. Quando o universo muda de estado — body.singularity-active,
+   metamorfose escreve os tokens em plasma — essas mesmas palavras se PARTEM:
+   dois ecos sólidos em `screen` (aditivo, como o campo de energia) deslizam e
+   fraturam em bandas horizontais. É RGB-split adaptado à rampa — não laranja
+   arco-íris: branco-plasma (--core-rgb) contra corona dourada (--sing-rgb),
+   ambos já metamorfados. Sem duplicar texto no HTML: content: attr(data-text).
+   Só no evento; volta 100% à aurora limpa ao fim. Fora de reduced-motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .singularity-active .grad {
+    /* a própria matéria acelera e treme 1px: a base participa, não só os ecos */
+    animation: grad-pan 3.4s ease-in-out infinite,
+               sing-glitch-core .82s steps(3, jump-none) infinite;
+  }
+  .singularity-active .grad::before,
+  .singularity-active .grad::after {
+    content: attr(data-text);
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    pointer-events: none;
+    background: none;
+    -webkit-text-fill-color: currentColor;   /* o .grad herda transparent — reverter */
+    mix-blend-mode: screen;                   /* eco só soma luz, nunca oculta */
+    will-change: transform, clip-path, opacity;
+  }
+  .singularity-active .grad::before {
+    color: rgb(var(--core-rgb, 242 254 255) / .82);
+    animation: sing-glitch-a .82s linear infinite;
+  }
+  .singularity-active .grad::after {
+    color: rgb(var(--sing-rgb, 255 208 0) / .9);
+    animation: sing-glitch-b .82s linear infinite;
+  }
+}
+/* Offsets ≤2,5px: fratura de fio, "material tecnológico" — não CRT quebrado.
+   As bandas de clip-path recortam faixas horizontais diferentes por quadro:
+   é o que dá o corte digital em vez de simples sombra dupla.
+   --gl escala a AMPLITUDE do deslocamento por palavra: 1 no hero (grande),
+   menor nas palavras pequenas (o dono pediu glitch menos intenso nelas). O clip
+   é em %, então não precisa escalar — a fratura horizontal fica proporcional. */
+@keyframes sing-glitch-a {
+  0%,  100% { transform: translate(0, 0);                                      clip-path: inset(0 0 68% 0);   opacity: .9; }
+  14%       { transform: translate(calc(var(--gl,1) * -2.5px), calc(var(--gl,1) * -1px));  clip-path: inset(12% 0 46% 0); }
+  28%       { transform: translate(calc(var(--gl,1) * 2px),    calc(var(--gl,1) * 1px));   clip-path: inset(38% 0 20% 0); opacity: .68; }
+  42%       { transform: translate(calc(var(--gl,1) * -1.5px), calc(var(--gl,1) * 1.5px)); clip-path: inset(58% 0 6% 0); }
+  56%       { transform: translate(calc(var(--gl,1) * 2.5px),  calc(var(--gl,1) * -1.5px));clip-path: inset(22% 0 40% 0); opacity: .95; }
+  70%       { transform: translate(calc(var(--gl,1) * -1px),   calc(var(--gl,1) * 1px));   clip-path: inset(46% 0 14% 0); opacity: .74; }
+  84%       { transform: translate(calc(var(--gl,1) * 1.5px),  calc(var(--gl,1) * -1px));  clip-path: inset(4% 0 62% 0); }
+}
+@keyframes sing-glitch-b {
+  0%,  100% { transform: translate(0, 0);                                      clip-path: inset(58% 0 4% 0);  opacity: .85; }
+  14%       { transform: translate(calc(var(--gl,1) * 2.5px),  calc(var(--gl,1) * 1px));   clip-path: inset(30% 0 34% 0); opacity: .7; }
+  28%       { transform: translate(calc(var(--gl,1) * -2px),   calc(var(--gl,1) * -1.5px));clip-path: inset(6% 0 60% 0); }
+  42%       { transform: translate(calc(var(--gl,1) * 2px),    calc(var(--gl,1) * -1px));  clip-path: inset(50% 0 12% 0); opacity: .95; }
+  56%       { transform: translate(calc(var(--gl,1) * -2.5px), calc(var(--gl,1) * 1.5px)); clip-path: inset(20% 0 44% 0); }
+  70%       { transform: translate(calc(var(--gl,1) * 1px),    calc(var(--gl,1) * -1px));  clip-path: inset(66% 0 2% 0);  opacity: .8; }
+  84%       { transform: translate(calc(var(--gl,1) * -1.5px), calc(var(--gl,1) * 1px));   clip-path: inset(36% 0 28% 0); }
+}
+@keyframes sing-glitch-core {
+  0%, 100% { transform: translate(0, 0); }
+  33%      { transform: translate(-0.6px, 0.4px); }
+  66%      { transform: translate(0.6px, -0.4px); }
+}
+
+.kicker {
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--glow);
+  margin-bottom: 1.1rem;
+}
+.kicker::before {
+  content: "";
+  display: inline-block;
+  width: 26px;
+  height: 1px;
+  background: var(--glow);
+  vertical-align: middle;
+  margin-right: .6rem;
+}
+
+/* [hidden] precisa vencer o display das regras abaixo (UA style perde para classe) */
+[hidden] { display: none !important; }
+
+/* ---------- logotipo: a arte em vídeo, com wordmark de fallback ---------- */
+.logo-art {
+  display: block;
+  height: 36px;
+  width: auto;
+  object-fit: contain;
+  mix-blend-mode: screen;   /* recorta o fundo preto do vídeo */
+  pointer-events: none;
+}
+.logo-art--lg { height: 40px; }
+
+.wordmark {
+  display: block;
+  font-family: var(--mono);
+  font-size: 1.05rem;
+  font-weight: 500;
+  letter-spacing: .04em;
+  line-height: 1;
+  color: var(--core);
+  white-space: nowrap;
+}
+.wordmark b {
+  font-weight: 500;
+  color: var(--glow);
+  text-shadow: 0 0 14px rgb(var(--glow-rgb) / .7);
+}
+.wordmark--lg { font-size: 1.35rem; }
+
+/* ============================================================
+   NAV
+   ============================================================ */
+.nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .9rem clamp(1.1rem, 4vw, 2.6rem);
+  border-bottom: 1px solid transparent;
+  transition: background var(--t-ui) var(--ease-micro),
+              border-color var(--t-ui) var(--ease-micro);
+}
+.nav.scrolled {
+  background: rgb(var(--void-rgb) / .75);
+  backdrop-filter: blur(14px);
+  border-bottom-color: rgb(var(--hi-rgb) / .07);
+}
+.nav__links {
+  display: flex;
+  align-items: center;
+  gap: clamp(.9rem, 2.2vw, 1.9rem);
+  font-size: 0.9rem;
+}
+.nav__links a { color: var(--hi); transition: color var(--t-micro) var(--ease-micro); }
+.nav__links a:hover { color: var(--core); }
+
+.nav__cta {
+  font-family: var(--mono);
+  font-size: .7rem;
+  font-weight: 500;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--void) !important;
+  background: var(--glow);
+  padding: .65rem 1.1rem;
+  border-radius: 9px;
+  box-shadow: 0 0 14px rgb(var(--glow-rgb) / .35);
+  will-change: transform;
+}
+/* Precisa vencer `.nav__links a` (0,1,1), que declara `transition: color` e
+   substituía esta por inteiro — o hover do CTA saltava sem easing, ao
+   contrário de todos os outros botões. A cor não entra: o token é
+   `!important` aqui e nunca muda. */
+.nav__links .nav__cta {
+  transition: background var(--t-micro) var(--ease-micro),
+              box-shadow var(--t-ui) var(--ease-micro);
+}
+.nav__cta:hover {
+  background: var(--hi);
+  box-shadow:
+    0 0 18px rgb(var(--glow-rgb) / .6),
+    0 0 44px rgb(var(--glow-rgb) / .35);
+}
+
+@media (max-width: 720px) {
+  .nav__links a:not(.nav__cta) { display: none; }
+}
+@media (pointer: coarse) {
+  .nav__cta { padding: .8rem 1.2rem; }
+}
+
+/* ============================================================
+   HERO — a arte viva, composição central
+   ============================================================ */
+.hero {
+  position: relative;
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  overflow: hidden;
+  background: var(--void);
+  padding: 7rem clamp(1.2rem, 5vw, 3rem) 6rem;
+}
+/* aura central: profundidade volumétrica sem imagem */
+.hero__aura {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(42% 46% at 50% 44%, rgb(var(--glow-rgb) / .1), transparent 70%),
+    radial-gradient(80% 60% at 50% 120%, rgb(var(--deep-rgb) / .55), transparent 70%);
+  animation: aura-breathe 8s ease-in-out infinite;
+}
+@keyframes aura-breathe {
+  0%, 100% { opacity: .75; }
+  50%      { opacity: 1; }
+}
+.hero__content {
+  position: relative;
+  z-index: 3;
+  max-width: 800px;
+}
+
+.hero__emblem {
+  display: inline-block;
+  color: var(--glow);
+  margin-bottom: 2rem;
+  filter: drop-shadow(0 0 26px rgb(var(--glow-rgb) / .6));
+  animation: emblem-breathe 5s ease-in-out infinite;
+}
+.emblem__ring { transform-origin: 48px 48px; }
+.emblem__ring--dash { animation: ring-spin 24s linear infinite; transform-origin: 48px 48px; }
+@keyframes ring-spin { to { transform: rotate(360deg); } }
+@keyframes emblem-breathe {
+  0%, 100% { filter: drop-shadow(0 0 16px rgb(var(--glow-rgb) / .4)); }
+  50%      { filter: drop-shadow(0 0 34px rgb(var(--glow-rgb) / .7)); }
+}
+
+/* ---------- AI CORE — o reator do hero (canvas) ----------
+   Substitui o emblema-átomo por uma reconstrução do reator de referência. O
+   desenho (camadas, plasma, órbitas, base, brackets) vive no canvas e é dirigido
+   por EnergyField.core — o mesmo cérebro do núcleo, sem estado paralelo. */
+.hero__reactor {
+  display: block;
+  width: clamp(260px, 38vw, 400px);
+  height: clamp(260px, 38vw, 400px);
+  margin: -1.6rem auto 1.2rem;
+  /* o brilho é pintado no próprio canvas; nada de filtro CSS por cima.
+     A caixa já inclui o ar do halo/órbitas — não estoura o hero. */
+}
+
+/* Glitch da REESCRITA: quando uma frase troca no evento, o próprio trecho ganha
+   um RGB-split breve enquanto se reescreve (o singText liga .sys-rewriting só
+   durante o morph). Ecoa o glitch das palavras .grad, mas temporário e sem
+   depender do estado — vale nas duas direções (ciano→dourado e volta). */
+.sys-rewriting { position: relative; }
+.sys-rewriting::before,
+.sys-rewriting::after {
+  content: attr(data-text);
+  position: absolute;
+  left: 0; top: 0;
+  width: 100%;
+  pointer-events: none;
+  -webkit-text-fill-color: currentColor;
+  mix-blend-mode: screen;
+  --gl: .5;
+}
+.sys-rewriting::before { color: rgb(var(--glow-rgb) / .7); animation: sing-glitch-a .5s linear infinite; }
+.sys-rewriting::after  { color: rgb(var(--hi-rgb) / .7);  animation: sing-glitch-b .5s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .sys-rewriting::before, .sys-rewriting::after { display: none; }
+}
+
+/* etiqueta de sistema — reforça "interface de IA" */
+.hero__status {
+  display: inline-flex;
+  align-items: center;
+  gap: .55rem;
+  font-family: var(--mono);
+  font-size: .72rem;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  color: var(--glow);
+  margin-bottom: 1.6rem;
+  padding: .4rem .95rem;
+  border: 1px solid rgb(var(--glow-rgb) / .25);
+  border-radius: 999px;
+  background: rgb(var(--glow-rgb) / .05);
+}
+.hero__status-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--glow);
+  box-shadow: 0 0 10px rgb(var(--glow-rgb) / .9);
+  animation: status-pulse 2s ease-in-out infinite;
+}
+@keyframes status-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 10px rgb(var(--glow-rgb) / .9); }
+  50%      { opacity: .4; box-shadow: 0 0 4px rgb(var(--glow-rgb) / .5); }
+}
+
+.hero__title {
+  font-size: clamp(2.3rem, 5.8vw, 4.3rem);
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--core);
+  margin-bottom: 1.4rem;
+  /* distribui as linhas: nunca deixa uma palavra órfã caindo sozinha, em
+     qualquer largura. O <br> continua marcando a quebra do punchline. */
+  text-wrap: balance;
+}
+.hero__sub {
+  font-size: clamp(1rem, 1.3vw, 1.15rem);
+  color: var(--hi);
+  max-width: 34em;
+  margin: 0 auto 2.6rem;
+}
+.hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: .9rem;
+}
+
+/* ---------- botões (mono, uppercase — modelo) ---------- */
+.btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  gap: .5rem;
+  font-family: var(--mono);
+  font-size: .74rem;
+  font-weight: 500;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  padding: 1rem 1.7rem;
+  border-radius: 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: box-shadow var(--t-ui) var(--ease-micro),
+              background var(--t-micro) var(--ease-micro),
+              border-color var(--t-micro) var(--ease-micro);
+  will-change: transform;
+}
+.btn--primary {
+  color: var(--void);
+  background: var(--glow);
+  border: 1px solid rgb(var(--hi-rgb) / .45);
+  box-shadow:
+    0 0 14px rgb(var(--glow-rgb) / .5),
+    0 0 38px rgb(var(--glow-rgb) / .3),
+    0 4px 30px rgb(var(--void-rgb) / .4);
+  animation: primary-neon 3.2s ease-in-out infinite;
+}
+@keyframes primary-neon {
+  0%, 100% {
+    box-shadow:
+      0 0 14px rgb(var(--glow-rgb) / .5),
+      0 0 38px rgb(var(--glow-rgb) / .3),
+      0 4px 30px rgb(var(--void-rgb) / .4);
+  }
+  50% {
+    box-shadow:
+      0 0 22px rgb(var(--glow-rgb) / .75),
+      0 0 58px rgb(var(--glow-rgb) / .45),
+      0 4px 30px rgb(var(--void-rgb) / .4);
+  }
+}
+.btn--primary:hover {
+  background: var(--hi);
+  box-shadow:
+    0 0 28px rgb(var(--hi-rgb) / .8),
+    0 0 72px rgb(var(--glow-rgb) / .5),
+    0 6px 44px rgb(var(--void-rgb) / .4);
+  animation-play-state: paused;
+}
+.btn--ghost {
+  color: var(--hi);
+  border: 1px solid rgb(var(--hi-rgb) / .2);
+  background: rgb(var(--deep-rgb) / .4);
+}
+.btn--ghost:hover {
+  border-color: rgb(var(--glow-rgb) / .6);
+  box-shadow: 0 0 30px rgb(var(--glow-rgb) / .2);
+  background: rgb(var(--deep-rgb) / .75);
+  color: var(--core);
+  text-shadow: 0 0 14px rgb(var(--glow-rgb) / .7);
+}
+.btn--lg { padding: 1.15rem 2.2rem; font-size: .8rem; }
+
+/* energia percorre o botão ao interagir */
+.btn::before {
+  content: "";
+  position: absolute;
+  top: -20%; bottom: -20%;
+  left: -45%; width: 36%;
+  transform: translateX(-160%) skewX(-14deg);
+  background: linear-gradient(100deg,
+    transparent,
+    rgb(var(--core-rgb) / .06) 35%,
+    rgb(var(--core-rgb) / .22) 50%,
+    rgb(var(--core-rgb) / .06) 65%,
+    transparent);
+  opacity: 0;
+  pointer-events: none;
+}
+.btn:hover::before,
+.btn:focus-visible::before {
+  animation: energy-sweep .8s var(--ease-reveal) .05s 1 both;
+}
+/* pulso de comando no clique */
+.btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.btn:active::after {
+  animation: btn-pulse .45s ease-out 1;
+}
+@keyframes btn-pulse {
+  0%   { box-shadow: inset 0 0 0 1px rgb(var(--hi-rgb) / .7), 0 0 0 0 rgb(var(--glow-rgb) / .5); }
+  100% { box-shadow: inset 0 0 0 1px transparent, 0 0 0 16px transparent; }
+}
+@keyframes energy-sweep {
+  0%   { opacity: 0; transform: translateX(-160%) skewX(-14deg); }
+  12%  { opacity: 1; }
+  100% { opacity: 0; transform: translateX(620%) skewX(-14deg); }
+}
+
+/* scroll hint */
+.scroll-hint {
+  position: absolute;
+  bottom: 1.5rem; left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .5rem;
+}
+.scroll-hint__label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .3em;
+  text-transform: uppercase;
+  color: var(--glow);
+}
+.scroll-hint__bar {
+  width: 1px; height: 34px;
+  background: linear-gradient(var(--glow), transparent);
+  animation: hint-drop 2s var(--ease-reveal) infinite;
+  transform-origin: top;
+}
+@keyframes hint-drop {
+  0% { transform: scaleY(0); opacity: 0; }
+  40% { transform: scaleY(1); opacity: 1; }
+  100% { transform: scaleY(1) translateY(8px); opacity: 0; }
+}
+
+/* ============================================================
+   SEÇÕES
+   ============================================================ */
+.section {
+  position: relative;
+  z-index: 2;
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: clamp(4rem, 9vw, 7.5rem) clamp(1.2rem, 5vw, 2rem);
+  /* a nav é fixa: sem isto o título da seção para embaixo dela ao clicar no menu */
+  scroll-margin-top: 5.5rem;
+}
+.section__head { max-width: 46rem; margin-bottom: 3rem; }
+.section__lead { margin-top: .9rem; font-size: 1.03rem; color: var(--glow); }
+
+/* superfície densa de material desconhecido (base) */
+.pain, .service, .step, .qa {
+  position: relative;
+  border-radius: var(--radius);
+  border: 1px solid rgb(var(--hi-rgb) / .08);
+  /* Matéria densa: ruído orgânico + luz profunda + fundo escuro */
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.25'/%3E%3C/svg%3E"),
+    radial-gradient(120% 90% at 100% 0%, rgb(var(--glow-rgb) / .15), transparent 55%),
+    linear-gradient(170deg, rgb(var(--deep-rgb) / .85), rgb(var(--void-rgb) / .6));
+  background-blend-mode: overlay, normal, normal;
+  transition: border-color var(--t-ui) var(--ease-micro),
+              box-shadow var(--t-ui) var(--ease-micro),
+              transform var(--t-ui) var(--ease-micro);
+}
+/* ---------- acender o card: texto + contorno ----------
+   hover (desktop) ou toque (mobile, via .is-lit no JS).
+   As palavras ganham luz; o card ganha um halo ao redor. */
+.lit h3,
+.lit p,
+.lit .step__n,
+.lit .pain__icon,
+.lit .service__icon {
+  transition:
+    color 240ms var(--ease-micro),
+    opacity 240ms var(--ease-micro),
+    text-shadow 420ms var(--ease-micro),
+    box-shadow 420ms var(--ease-micro),
+    border-color 240ms var(--ease-micro),
+    background 240ms var(--ease-micro);
+}
+/* ativação em estágios: borda → ícone → título → texto */
+.lit .pain__icon,
+.lit .service__icon { transition-delay: 60ms; }
+.lit h3,
+.lit .step__n { transition-delay: 130ms; }
+.lit p { transition-delay: 230ms; }
+
+/* ============================================================
+   MÓDULOS ENERGÉTICOS — mesma matéria, três superfícies.
+   --energy é percepção + memória (domReactors); --res* é a propagação;
+   --sing* é a alteração de matéria. Não há lógica própria de hover aqui. */
+.lit,
+.cta-panel,
+.mock__frame {
+  --module-e: min(1, calc(var(--energy, 0) + var(--res-cards, 0) * .55));
+  --module-sing: var(--sing, 0);
+  --module-drive: min(1, calc(var(--module-e) + var(--module-sing) * .72));
+  /* condutividade efetiva da borda = fase animada × ganho do tipo de módulo.
+     --shine-gain deixa cada superfície calibrar quanta energia o material segura
+     sem duplicar uma linha da lógica do anel. */
+  --shine-m: calc(var(--shine-k) * var(--shine-gain, 1));
+  isolation: isolate;
+  animation:
+    circuit-drift-a 16s cubic-bezier(.45, 0, .55, 1) infinite alternate,
+    circuit-drift-b 23s cubic-bezier(.45, 0, .55, 1) infinite alternate-reverse,
+    circuit-conductivity 9s ease-in-out infinite;
+}
+.cta-panel {
+  --module-e: min(1, calc(var(--energy, 0) + var(--res, 0) * .42));
+}
+
+/* A câmara interna agora é um plasma vivo e termodinâmico.
+   O material dilata (scale) e esquenta (color-dodge + opacity) quando a energia flui. */
+.lit::before,
+.cta-panel::before,
+.mock__frame::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  z-index: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  /* Opacidade reage à aproximação; Base maior pra mostrar que algo circula mesmo em repouso */
+  opacity: calc(.18 + var(--module-drive) * .42 + var(--module-sing) * .4);
+  /* Dilatação física do material com a energia/singularity */
+  transform: scale(calc(1 + var(--module-drive) * .018 + var(--module-sing) * .022));
+  transform-origin: center;
+  background:
+    /* Textura de plasma (ruído para circularidade física) */
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.6' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.4'/%3E%3C/svg%3E"),
+    /* Núcleo subjacente: expande violentamente durante Singularity */
+    radial-gradient(100% 100% at 50% 50%,
+      rgb(var(--glow-rgb) / calc(.08 + var(--module-drive) * .2 + var(--module-sing) * .65)) 0%,
+      transparent calc(45% + var(--module-sing) * 35%)),
+    /* Convecção direcional */
+    radial-gradient(90% 72% at 82% 8%,
+      rgb(var(--glow-rgb) / calc(.04 + var(--module-drive) * .18)) 0%,
+      transparent 66%),
+    radial-gradient(76% 88% at 12% 100%,
+      rgb(var(--hi-rgb) / calc(.03 + var(--module-drive) * .15)) 0%,
+      transparent 70%),
+    /* Campo magnético rotativo */
+    conic-gradient(from var(--shine-b),
+      transparent 0deg 60deg,
+      rgb(var(--hi-rgb) / calc(.08 + var(--module-drive) * .25 + var(--module-sing) * .35)) 110deg 170deg,
+      transparent 210deg 290deg,
+      rgb(var(--glow-rgb) / calc(.07 + var(--module-drive) * .18 + var(--module-sing) * .25)) 320deg 350deg,
+      transparent 360deg),
+    /* Estrutura atômica em malha fina */
+    repeating-linear-gradient(112deg,
+      rgb(var(--hi-rgb) / calc(.015 + var(--module-drive) * .035)) 0 1px,
+      transparent 1px 19px);
+  /* overlay na textura + color-dodge no núcleo incendeia a mistura criando a ilusão de plasma denso */
+  background-blend-mode: overlay, color-dodge, screen, screen, screen, normal;
+  transition: opacity 480ms var(--ease-micro), transform 760ms var(--ease-reveal);
+}
+
+/* O conteúdo fica numa camada própria; a borda/câmara nunca parecem uma película
+   aplicada por cima da informação. */
+/* .energy-glow precisa ficar de fora: ele é injetado como primeiro filho pelo JS
+   e é uma camada óptica (absolute, z-index -1). Sem excluí-lo aqui, esta regra
+   (especificidade maior) o transformava num bloco relativo de altura 0 no topo
+   do painel — o halo virava uma barra de luz horizontal. */
+.lit > *,
+.cta-panel > :not(.cta-panel__glow, .energy-glow),
+.mock__frame > * {
+  position: relative;
+  z-index: 1;
+}
+.cta-panel__glow { z-index: 0; }
+
+.lit:hover,
+.lit.is-lit {
+  border-color: rgb(var(--glow-rgb) / .8);
+  /* fallback sem JS: o módulo só sobe; com JS, --energy já conduz a luz
+     antes do hover e a profundidade nasce do mesmo estado compartilhado. */
+  transform: translateY(-2px);
+}
+.lit:hover h3,
+.lit.is-lit h3 {
+  color: var(--core);
+  text-shadow:
+    0 0 12px rgb(var(--hi-rgb) / .8),
+    0 0 34px rgb(var(--glow-rgb) / .6);
+}
+.lit:hover p,
+.lit.is-lit p {
+  color: var(--core);
+  opacity: 1;
+  text-shadow: 0 0 16px rgb(var(--glow-rgb) / .5);
+}
+.lit:hover .step__n,
+.lit.is-lit .step__n {
+  color: var(--hi);
+  text-shadow: 0 0 20px rgb(var(--glow-rgb) / .9);
+}
+.lit:hover .pain__icon,
+.lit:hover .service__icon,
+.lit.is-lit .pain__icon,
+.lit.is-lit .service__icon {
+  color: var(--hi);
+  border-color: rgb(var(--glow-rgb) / .55);
+  background: rgb(var(--glow-rgb) / .16);
+  box-shadow:
+    0 0 24px rgb(var(--glow-rgb) / .4),
+    inset 0 0 24px rgb(var(--glow-rgb) / .18);
+}
+
+/* ============================================================
+   REATORES DOM — glow por proximidade via --energy (Fase 2)
+   O JS escreve --energy conforme o campo; e injeta .energy-glow
+   para lidar com a luminescência exterior via GPU (opacity). */
+/* Transições base dos módulos; as sombras agora vivem no ::before e no
+   .energy-glow.
+   .btn e .nav__cta ficam FORA desta lista de propósito: eles declaram a
+   própria transição (box-shadow/background/border-color) mais acima, e esta
+   regra — mesma especificidade, mais abaixo no arquivo — a substituía por
+   inteiro. O efeito era duplo e indesejado: o hover deles passava a saltar
+   sem easing, e `transform` entrava na transição justamente nos elementos
+   `.magnetic`, cujo transform o main.js escreve a cada frame — a mola do
+   magnetismo era então re-amortecida por 320 ms de CSS e ficava arrastada.
+   .wa-float, também magnético, nunca esteve nesta lista: agora os três
+   botões se comportam igual. */
+.lit,
+.cta-panel,
+.mock__frame {
+  transition: border-color var(--t-ui) var(--ease-micro),
+              transform var(--t-ui) var(--ease-micro);
+}
+
+/* Camada interna reaproveita o inset dinâmico para dar profundidade ao material */
+.lit::before,
+.mock__frame::before {
+  box-shadow:
+    inset 0 1px 0 rgb(var(--hi-rgb) / .3),
+    inset 0 -34px 52px rgb(var(--void-rgb) / .5);
+}
+.cta-panel::before {
+  box-shadow:
+    inset 0 1px 0 rgb(var(--hi-rgb) / .35),
+    inset 0 -72px 110px rgb(var(--void-rgb) / .6);
+}
+
+/* Camada externa puramente óptica e com aceleração de GPU */
+.energy-glow {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: var(--module-drive, var(--energy, 0));
+  /* sem transition: opacity segue o frame-rate do --energy em main.js */
+}
+/* Intensidades do halo de luz */
+.lit > .energy-glow,
+.mock > .energy-glow {
+  box-shadow:
+    0 0 0 1px rgb(var(--glow-rgb) / .55),
+    0 0 24px rgb(var(--glow-rgb) / .45),
+    0 0 66px rgb(var(--glow-rgb) / .35),
+    0 0 120px rgb(var(--glow-rgb) / .28),
+    0 12px 34px rgb(var(--void-rgb) / .5);
+}
+.cta-panel > .energy-glow {
+  box-shadow:
+    0 0 60px rgb(var(--glow-rgb) / .22);
+}
+
+
+/* ============================================================
+   BORDA CONDUTIVA — referência: Shine Border / Magic UI, mas a
+   adaptação é uma superfície energética, não um brilho em rotação.
+
+   Três estratos ficam no MESMO anel recortado por máscara:
+   1) circuito-base fixo e irregular (o material do card);
+   2) dois campos largos, com deriva curta e períodos diferentes;
+   3) micro-variação de condutividade.
+   Como nenhum campo completa uma volta e os ciclos são longos e
+   desencontrados, pontos de carga se formam/desfazem sem virar scanner.
+   Cor e intensidade continuam vindo dos tokens/energia já globais.
+   ============================================================ */
+.lit::after,
+.cta-panel::after,
+.mock__frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  padding: var(--shine-w, 1.45px);   /* espessura do anel; módulos calibram a sua */
+  pointer-events: none;
+  background:
+    /* matéria condutiva mais densa (reage com mais solidez física) */
+    conic-gradient(from 14deg,
+      transparent 0deg 24deg,
+      rgb(var(--glow-rgb) / calc((.060 + var(--module-drive) * .20 + var(--module-sing) * .25) * var(--shine-m))) 40deg 72deg,
+      transparent 96deg 168deg,
+      rgb(var(--hi-rgb) / calc((.042 + var(--module-drive) * .18 + var(--module-sing) * .20) * var(--shine-m))) 190deg 224deg,
+      transparent 248deg 314deg,
+      rgb(var(--glow-rgb) / calc((.038 + var(--module-drive) * .15 + var(--module-sing) * .15) * var(--shine-m))) 334deg 348deg,
+      transparent 360deg),
+    /* onda primária espessa — com um NÓ que satura até o branco da rampa (--core):
+       é onde a matéria não dá conta e a energia aflora */
+    conic-gradient(from var(--shine-a),
+      transparent 0deg 44deg,
+      rgb(var(--hi-rgb) / calc((.150 + var(--module-drive) * .40 + var(--module-sing) * .50) * var(--shine-m))) 74deg,
+      rgb(var(--core-rgb) / calc((.135 + var(--module-drive) * .42 + var(--module-sing) * .5) * var(--shine-m))) 95deg 105deg,
+      rgb(var(--hi-rgb) / calc((.150 + var(--module-drive) * .40 + var(--module-sing) * .50) * var(--shine-m))) 128deg,
+      rgb(var(--glow-rgb) / calc((.065 + var(--module-drive) * .25 + var(--module-sing) * .40) * var(--shine-m))) 158deg,
+      transparent 212deg 360deg),
+    /* contra-onda magnética */
+    conic-gradient(from var(--shine-b),
+      transparent 0deg 126deg,
+      rgb(var(--glow-rgb) / calc((.115 + var(--module-drive) * .35 + var(--module-sing) * .45) * var(--shine-m))) 166deg 224deg,
+      rgb(var(--hi-rgb) / calc((.055 + var(--module-drive) * .20 + var(--module-sing) * .30) * var(--shine-m))) 254deg,
+      transparent 306deg 360deg);
+  background-blend-mode: screen;
+  /* BLOOM NÃO-UNIFORME: o drop-shadow segue o alfa DO PRÓPRIO ANEL, então só
+     os trechos carregados irradiam. Um box-shadow daria um halo uniforme e
+     entregaria o truque; aqui a luz nasce onde a energia está. */
+  filter:
+    drop-shadow(0 0 4px rgb(var(--glow-rgb) / calc((.30 + var(--module-drive) * .34) * var(--bloom-gain, 1))))
+    drop-shadow(0 0 13px rgb(var(--glow-rgb) / calc((.13 + var(--module-drive) * .28) * var(--bloom-gain, 1))));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask-composite: exclude;
+}
+/* .mock__frame precisa ancorar o anel (as demais já são position:relative) */
+.mock__frame { position: relative; }
+
+/* desincroniza as superfícies; sem padrões de grade/lockstep */
+.lit:nth-child(2n) { animation-delay: -7s, -19s, -3s; }
+.lit:nth-child(3n) { animation-delay: -16s, -8s, -11s; }
+.lit:nth-child(5n) { animation-delay: -2s, -31s, -14s; }
+.mock:nth-child(2n) .mock__frame { animation-delay: -12s, -24s, -6s; }
+.cta-panel { animation-delay: -11s, -4s, -7s; }
+
+/* as fases só oscilam dentro de setores locais; nenhum brilho dá a volta */
+@keyframes circuit-drift-a {
+  0%   { --shine-a: -32deg; }
+  38%  { --shine-a: 82deg; }
+  69%  { --shine-a: 6deg; }
+  100% { --shine-a: 108deg; }
+}
+@keyframes circuit-drift-b {
+  0%   { --shine-b: 132deg; }
+  31%  { --shine-b: 278deg; }
+  74%  { --shine-b: 176deg; }
+  100% { --shine-b: 304deg; }
+}
+@keyframes circuit-conductivity {
+  0%, 100% { --shine-k: .44; }
+  23%      { --shine-k: .92; }
+  61%      { --shine-k: .58; }
+  83%      { --shine-k: 1; }
+}
+
+/* rede de fps (JS adiciona .no-shine ao degradar) + reduced-motion:
+   a borda vira estática, sem repaint por frame */
+.no-shine .lit,
+.no-shine .cta-panel,
+.no-shine .mock__frame { animation: none; }
+/* o bloom por drop-shadow é o item mais caro do anel: cai no primeiro degrau */
+.no-shine .lit::after,
+.no-shine .cta-panel::after,
+.no-shine .mock__frame::after { filter: none; }
+
+/* módulo fora da viewport não precisa repintar conic-gradient a cada frame.
+   O JS marca .is-idle (IntersectionObserver); ao reaparecer a fase retoma de
+   onde parou — play-state, não animation:none, então nada "pipoca". */
+.lit.is-idle,
+.cta-panel.is-idle,
+.mock__frame.is-idle { animation-play-state: paused; }
+
+/* ---------- dores ---------- */
+.pains {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.1rem;
+}
+.pain { padding: 1.9rem 1.7rem 2rem; }
+.pain__icon {
+  width: 40px; height: 40px;
+  display: grid; place-items: center;
+  border-radius: 10px;
+  color: var(--glow);
+  background: rgb(var(--glow-rgb) / .1);
+  border: 1px solid rgb(var(--glow-rgb) / .22);
+  margin-bottom: 1.2rem;
+}
+.pain h3 { margin-bottom: .55rem; }
+.pain p { font-size: .93rem; color: var(--hi); opacity: .85; }
+
+/* ---------- serviços (grid 3×2 — módulos altos, muito espaço negativo) ----------
+   Estes seis módulos são a REFERÊNCIA DE MATERIAL do site (spec: energy-system.md
+   §Cards de serviço). O card é uma placa de matéria condutiva: interior quase
+   vazio, energia toda na estrutura — anel externo + câmara interna. O ícone tem
+   um tile próprio no topo, o título abre com régua de circuito e os três nós do
+   rodapé dizem que a placa está no barramento. Nada de vidro/plástico. */
+/* BARRAMENTO — o canvas fica ATRÁS da grade e só aparece no vazio entre os
+   módulos: é ali que os filamentos e o núcleo da seção vivem. O row-gap maior
+   não é respiro estético, é o espaço físico que o núcleo ocupa. */
+.bus { position: relative; }
+.bus__cv {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: calc(.62 + var(--ef-e, 0) * .3 + var(--sing, 0) * .45);
+}
+.services {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(288px, 1fr));
+  column-gap: 1.5rem;
+  row-gap: 1.5rem;
+}
+@media (min-width: 760px) {
+  /* O vão não é respiro decorativo: é o caminho que a energia percorre. Curto
+     demais, o fluxo não tem onde acontecer e o núcleo encosta nas placas. */
+  .services { row-gap: 8.5rem; }
+}
+@media (min-width: 1040px) {
+  .services { row-gap: 9.5rem; column-gap: 1.9rem; }
+}
+
+/* a legenda do barramento: o site declarando de onde vem a energia */
+.bus__label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.1rem;
+  margin-top: 2.6rem;
+  font-family: var(--mono);
+  font-size: .66rem;
+  letter-spacing: .42em;
+  text-transform: uppercase;
+  color: rgb(var(--hi-rgb) / calc(.3 + var(--ef-e, 0) * .22));
+}
+.bus__label b {
+  font-weight: 400;
+  color: rgb(var(--glow-rgb) / calc(.62 + var(--ef-e, 0) * .38));
+  text-shadow: 0 0 14px rgb(var(--glow-rgb) / calc(.2 + var(--ef-e, 0) * .4));
+}
+.bus__wave {
+  width: clamp(64px, 12vw, 128px);
+  height: 16px;
+  flex: none;
+  color: rgb(var(--glow-rgb) / calc(.3 + var(--ef-e, 0) * .35 + var(--res-cards, 0) * .3));
+  /* o traço se estica quando a seção carrega — mesma energia da grade */
+  transform: scaleY(calc(.7 + var(--ef-e, 0) * .5 + var(--res-cards, 0) * .8));
+}
+.bus__wave--r { transform: scaleX(-1) scaleY(calc(.7 + var(--ef-e, 0) * .5 + var(--res-cards, 0) * .8)); }
+.service {
+  /* Estes módulos são a referência de material do site: a borda segura muito
+     mais carga que os demais. Em repouso o anel já vive (respira ~.29→.68 com
+     --shine-k); sob o cursor os trechos fortes saturam — é o nó aflorando. */
+  --shine-gain: 4.4;
+  --bloom-gain: 1.9;
+  --shine-w: 1.7px;
+  --pad-x: 2rem;
+  border-color: rgb(var(--glow-rgb) / calc(.10 + var(--module-drive) * .32));
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 2.15rem var(--pad-x) 2.5rem;
+  min-height: 16.5rem;
+  border-radius: 22px;
+  /* CORPO — ENERGIA CONDENSADA (leitura de Liquid Glass, não cópia).
+     O Liquid Glass da Apple/kokonut resolve refração com feDisplacementMap na
+     BORDA. Aqui a borda é território travado, então o conceito entra pelo corpo:
+     profundidade por camadas de luz + um lençol especular que atravessa a placa,
+     e a refração de verdade vem do backdrop (o barramento atrás vira luz difusa
+     dentro da matéria, não desenho nítido).
+
+     Duas regras que mataram a estranheza do fundo anterior:
+     1. NENHUM stop usa `transparent` — a palavra-chave interpola para PRETO
+        transparente e, sob `screen`/`overlay`, deixava uma faixa suja atravessando
+        o card. Todo desvanecimento agora é a própria cor com alpha 0.
+     2. Nenhum gradiente termina dentro da placa (`64%`, `62%`) criando aresta:
+        todos vazam além de 100% ou fecham em alpha 0. */
+  background:
+    /* grão de energia: fino e quase subliminar — não é textura de material */
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.35' numOctaves='1'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E"),
+    /* VÉU DE LEITURA — zero em repouso (--module-sing = 0), então não existe na
+       estética normal. No Singular o fundo da página vira dourado incandescente
+       e todas as camadas de luz saturam: sem isto o texto fica ilegível. Não é
+       uma caixa atrás do texto — é a matéria assentando onde ela é mais densa. */
+    linear-gradient(to top,
+      rgb(var(--void-rgb) / calc(var(--module-sing) * .30)) 0%,
+      rgb(var(--void-rgb) / calc(var(--module-sing) * .22)) 44%,
+      rgb(var(--void-rgb) / calc(var(--module-sing) * .06)) 78%,
+      rgb(var(--void-rgb) / 0) 100%),
+    /* LENÇOL ESPECULAR — o reflexo que dá o aspecto líquido. Faixa larguíssima,
+       alpha mínimo, sem aresta: se move na percepção, não na tela. Recua no
+       Singular, onde soft-light sobre dourado saturado vira uma listra chapada. */
+    linear-gradient(146deg,
+      rgb(var(--core-rgb) / calc((.042 + var(--module-drive) * .045) * (1 - var(--module-sing) * .5))) 0%,
+      rgb(var(--hi-rgb) / calc((.015 + var(--module-drive) * .022) * (1 - var(--module-sing) * .5))) 30%,
+      rgb(var(--hi-rgb) / 0) 54%,
+      rgb(var(--glow-rgb) / calc((.011 + var(--module-drive) * .022) * (1 - var(--module-sing) * .5))) 76%,
+      rgb(var(--hi-rgb) / calc((.022 + var(--module-drive) * .038) * (1 - var(--module-sing) * .5))) 100%),
+    /* luz interna: focos AMPLOS (>100%) para nunca fechar dentro do corpo.
+       Também recuam no Singular — `screen` sobre dourado só sabe estourar. */
+    radial-gradient(145% 125% at 10% 2%,
+      rgb(var(--glow-rgb) / calc((.058 + var(--module-drive) * .11) * (1 - var(--module-sing) * .42))) 0%,
+      rgb(var(--glow-rgb) / 0) 72%),
+    radial-gradient(135% 115% at 97% 101%,
+      rgb(var(--mid-rgb) / calc((.085 + var(--module-drive) * .1) * (1 - var(--module-sing) * .4))) 0%,
+      rgb(var(--mid-rgb) / 0) 74%),
+    /* TINTA da identidade — o teal que dá temperatura fria à matéria. Sai de cena
+       no Singular: teal escurecendo dourado produz VERDE-OLIVA, e era isso que
+       sujava a placa no evento. Densidade e cor viraram camadas separadas. */
+    linear-gradient(176deg,
+      rgb(var(--deep-rgb) / calc(.42 * (1 - var(--module-sing)))) 0%,
+      rgb(var(--deep-rgb) / calc(.32 * (1 - var(--module-sing)))) 58%,
+      rgb(var(--deep-rgb) / calc(.46 * (1 - var(--module-sing)))) 100%),
+    /* DENSIDADE — neutra por definição. Preto não desloca matiz, então no
+       Singular o dourado escurece para âmbar e o impacto do evento sobrevive.
+       Stops extras porque poucos stops em área grande sobre preto dão banding. */
+    linear-gradient(176deg,
+      rgb(var(--void-rgb) / calc(.035 + var(--module-sing) * .30)) 0%,
+      rgb(var(--void-rgb) / calc(.065 + var(--module-sing) * .34)) 34%,
+      rgb(var(--void-rgb) / calc(.095 + var(--module-sing) * .36)) 68%,
+      rgb(var(--void-rgb) / calc(.14 + var(--module-sing) * .34)) 100%);
+  background-blend-mode: overlay, normal, soft-light, screen, screen, normal, normal;
+}
+/* A placa cede ao campo. Um único transform composto: o `.tilt` dos mocks escreve
+   `style.transform` direto e o `.lit:hover` tem translateY próprio — dois donos do
+   mesmo canal se atropelam. Aqui a elevação do hover entra como VARIÁVEL, então
+   inclinação, recuo e elevação convivem numa expressão só.
+   Seletor `.service.lit` para empatar com `.lit:hover` e vencer por ordem.
+   --dim: quando outra placa está sendo observada, esta recua meio passo — o foco
+   é uma decisão do sistema, não um estado local do elemento sob o cursor. */
+.service.lit {
+  transform:
+    perspective(900px)
+    rotateX(var(--tilt-x, 0deg))
+    rotateY(var(--tilt-y, 0deg))
+    translateY(calc(var(--dim, 0) * 1.5px - var(--lift, 0px)))
+    scale(calc(1 - var(--dim, 0) * .012));
+  transform-origin: center;
+}
+.service:hover, .service.is-lit { --lift: 2px; }
+/* recuo também na luz: a placa observada é a única que respira inteira */
+.service { filter: saturate(calc(1 - var(--dim, 0) * .3)); }
+/* rede de FPS: transform 3D + backdrop-filter + anel animado é o pico de custo */
+.no-shine .service.lit { transform: none; }
+.no-shine .service { filter: none; }
+/* REFRAÇÃO — o que está atrás (barramento, aurora) entra como luz difusa em vez
+   de desenho legível: é isso que faz a placa parecer matéria, e não uma janela.
+   Caro por natureza; cai junto com o resto no degrau da rede de FPS. */
+@supports (backdrop-filter: blur(2px)) {
+  .service { backdrop-filter: blur(11px) saturate(1.1); }
+  .no-shine .service { backdrop-filter: none; }
+}
+/* FRAME DUPLO — a câmara energética interna também é a segunda moldura.
+   Não é decoração: é o limite visível do material que conduz. */
+.service::before {
+  inset: 10px;
+  border-radius: 14px;
+  border: 1px solid rgb(var(--hi-rgb) / calc(.055 + var(--module-drive) * .17 + var(--module-sing) * .2));
+  /* a base do módulo não é mais uma sombra pesada: só o suficiente pra assentar */
+  box-shadow:
+    inset 0 1px 0 rgb(var(--hi-rgb) / .14),
+    inset 0 -24px 44px rgb(var(--void-rgb) / .2);
+  /* Câmara própria, mais rarefeita que a dos outros módulos: dois focos suaves,
+     sem color-dodge, sem malha e sem campo cônico. O color-dodge herdado é o que
+     estourava a placa no Singular, e a malha era justamente a "aspereza".
+     `border`/`opacity` seguem intactos — são o frame duplo, território da borda. */
+  background:
+    radial-gradient(125% 105% at 50% 44%,
+      rgb(var(--glow-rgb) / calc((.045 + var(--module-drive) * .12) * (1 - var(--module-sing) * .58))) 0%,
+      rgb(var(--glow-rgb) / 0) 72%),
+    radial-gradient(95% 85% at 86% 4%,
+      rgb(var(--hi-rgb) / calc((.028 + var(--module-drive) * .09) * (1 - var(--module-sing) * .5))) 0%,
+      rgb(var(--hi-rgb) / 0) 70%);
+  background-blend-mode: screen, screen;
+}
+.service__icon {
+  flex: none;
+  width: 64px; height: 64px;
+  display: grid; place-items: center;
+  border-radius: 16px;
+  color: var(--glow);
+  background: rgb(var(--glow-rgb) / calc(.045 + var(--module-drive) * .1));
+  border: 1px solid rgb(var(--glow-rgb) / calc(.24 + var(--module-drive) * .34));
+  box-shadow:
+    0 0 18px rgb(var(--glow-rgb) / calc(.06 + var(--module-drive) * .26)),
+    inset 0 0 22px rgb(var(--glow-rgb) / calc(.05 + var(--module-drive) * .14));
+  margin-bottom: 2.35rem;
+}
+.service__body { width: 100%; }
+.service h3 {
+  font-family: var(--font);
+  font-size: clamp(1.18rem, 1.6vw, 1.42rem);
+  font-weight: 300;
+  line-height: 1.22;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+  color: var(--core);
+  margin-bottom: .95rem;
+  /* No Singular o entorno vira luz; o texto precisa de um assento escuro
+     próprio, senão some. Zero em repouso — não existe fora do evento. */
+  text-shadow: 0 1px 14px rgb(var(--void-rgb) / calc(var(--module-sing) * .62));
+}
+/* régua condutiva sob o título — o primeiro trecho de circuito exposto */
+.service__rule {
+  display: block;
+  width: 42px; height: 2px;
+  margin-bottom: 1.15rem;
+  border-radius: 2px;
+  background: linear-gradient(90deg,
+    rgb(var(--glow-rgb) / calc(.75 + var(--module-drive) * .25)),
+    rgb(var(--glow-rgb) / calc(.25 + var(--module-drive) * .5)));
+  box-shadow: 0 0 12px rgb(var(--glow-rgb) / calc(.25 + var(--module-drive) * .5));
+  transform-origin: left center;
+  transform: scaleX(calc(1 + var(--module-drive) * .16 + var(--res-cards, 0) * .1));
+}
+.service p {
+  font-size: .95rem;
+  line-height: 1.62;
+  color: var(--hi);
+  /* no Singular o corpo do texto recupera opacidade cheia: com o entorno
+     saturado, .74 vira névoa */
+  opacity: calc(.74 + var(--module-sing) * .26);
+  text-shadow: 0 1px 12px rgb(var(--void-rgb) / calc(var(--module-sing) * .58));
+}
+.service p em {
+  font-style: normal;
+  color: var(--glow);
+  opacity: calc(.88 + var(--module-drive) * .12);
+  text-shadow: 0 0 14px rgb(var(--glow-rgb) / calc(.18 + var(--module-drive) * .42));
+}
+/* três nós de conexão em repouso — o card sinaliza que está no barramento */
+.service__nodes {
+  position: absolute;
+  right: calc(var(--pad-x) + 16px);
+  bottom: 1.65rem;
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: rgb(var(--glow-rgb) / calc(.34 + var(--module-drive) * .5));
+  box-shadow:
+    8px 0 0 rgb(var(--glow-rgb) / calc(.26 + var(--module-drive) * .52)),
+    16px 0 0 rgb(var(--glow-rgb) / calc(.18 + var(--module-drive) * .56));
+}
+/* em telas estreitas o módulo encolhe sem perder o vazio que o define */
+@media (max-width: 560px) {
+  .service {
+    --pad-x: 1.5rem;
+    padding-top: 1.8rem;
+    padding-bottom: 2rem;
+    min-height: 14.5rem;
+  }
+  .service__icon { width: 56px; height: 56px; border-radius: 14px; margin-bottom: 1.8rem; }
+  .service h3 { letter-spacing: .045em; }
+}
+
+/* ==========================================================================
+   MODELO DE MATERIAL PORTADO — .card-mat
+   O corpo aprovado dos cards de serviço, levado aos demais cards do site
+   (dores, processo, faq, projetos, CTA). Espelha o material do .service em vez
+   de refatorar seus seletores: os cards de serviço aprovados ficam INTOCADOS, e
+   o modelo pode ser afinado ou revertido aqui sem risco a eles. Fora de escopo:
+   o barramento / mini AI core (não é card). Repartição por tipo de card:
+   · corpo multicamada + backdrop-filter → cards de texto e CTA (todo card-mat
+     que NÃO seja mock; no mock o screenshot cobriria o corpo e mataria a sombra
+     de profundidade da moldura);
+   · knobs de borda/bloom + frame duplo → TODOS (inclusive mock, pra igualar a
+     assinatura condutiva da borda);
+   · tilt/dim 3D → só os cards de texto (.card-mat.lit). Mock já inclina pelo
+     módulo .tilt; o CTA é grande demais pra inclinar sem parecer errado. */
+.card-mat {
+  --shine-gain: 4.4;
+  --bloom-gain: 1.9;
+  --shine-w: 1.7px;
+  border-color: rgb(var(--glow-rgb) / calc(.10 + var(--module-drive) * .32));
+}
+/* CORPO — energia condensada. Valores idênticos ao .service; o racional completo
+   está lá (nenhum stop `transparent`; densidade neutra separada da tinta teal;
+   camadas recuam no Singular pra não estourar nem virar oliva). Mock excluído. */
+.card-mat:not(.mock__frame) {
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.35' numOctaves='1'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E"),
+    linear-gradient(to top,
+      rgb(var(--void-rgb) / calc(var(--module-sing) * .30)) 0%,
+      rgb(var(--void-rgb) / calc(var(--module-sing) * .22)) 44%,
+      rgb(var(--void-rgb) / calc(var(--module-sing) * .06)) 78%,
+      rgb(var(--void-rgb) / 0) 100%),
+    linear-gradient(146deg,
+      rgb(var(--core-rgb) / calc((.042 + var(--module-drive) * .045) * (1 - var(--module-sing) * .5))) 0%,
+      rgb(var(--hi-rgb) / calc((.015 + var(--module-drive) * .022) * (1 - var(--module-sing) * .5))) 30%,
+      rgb(var(--hi-rgb) / 0) 54%,
+      rgb(var(--glow-rgb) / calc((.011 + var(--module-drive) * .022) * (1 - var(--module-sing) * .5))) 76%,
+      rgb(var(--hi-rgb) / calc((.022 + var(--module-drive) * .038) * (1 - var(--module-sing) * .5))) 100%),
+    radial-gradient(145% 125% at 10% 2%,
+      rgb(var(--glow-rgb) / calc((.058 + var(--module-drive) * .11) * (1 - var(--module-sing) * .42))) 0%,
+      rgb(var(--glow-rgb) / 0) 72%),
+    radial-gradient(135% 115% at 97% 101%,
+      rgb(var(--mid-rgb) / calc((.085 + var(--module-drive) * .1) * (1 - var(--module-sing) * .4))) 0%,
+      rgb(var(--mid-rgb) / 0) 74%),
+    linear-gradient(176deg,
+      rgb(var(--deep-rgb) / calc(.42 * (1 - var(--module-sing)))) 0%,
+      rgb(var(--deep-rgb) / calc(.32 * (1 - var(--module-sing)))) 58%,
+      rgb(var(--deep-rgb) / calc(.46 * (1 - var(--module-sing)))) 100%),
+    linear-gradient(176deg,
+      rgb(var(--void-rgb) / calc(.035 + var(--module-sing) * .30)) 0%,
+      rgb(var(--void-rgb) / calc(.065 + var(--module-sing) * .34)) 34%,
+      rgb(var(--void-rgb) / calc(.095 + var(--module-sing) * .36)) 68%,
+      rgb(var(--void-rgb) / calc(.14 + var(--module-sing) * .34)) 100%);
+  background-blend-mode: overlay, normal, soft-light, screen, screen, normal, normal;
+}
+@supports (backdrop-filter: blur(2px)) {
+  .card-mat:not(.mock__frame) { backdrop-filter: blur(11px) saturate(1.1); }
+  .no-shine .card-mat:not(.mock__frame) { backdrop-filter: none; }
+}
+/* FRAME DUPLO — câmara interna rarefeita (sem color-dodge/malha/cônico, que eram
+   o que estourava a placa e dava a aspereza). Sobrepõe a câmara ocupada herdada.
+   No mock fica atrás do conteúdo opaco: inofensivo. */
+.card-mat::before {
+  inset: 10px;
+  border-radius: 14px;
+  border: 1px solid rgb(var(--hi-rgb) / calc(.055 + var(--module-drive) * .17 + var(--module-sing) * .2));
+  box-shadow:
+    inset 0 1px 0 rgb(var(--hi-rgb) / .14),
+    inset 0 -24px 44px rgb(var(--void-rgb) / .2);
+  background:
+    radial-gradient(125% 105% at 50% 44%,
+      rgb(var(--glow-rgb) / calc((.045 + var(--module-drive) * .12) * (1 - var(--module-sing) * .58))) 0%,
+      rgb(var(--glow-rgb) / 0) 72%),
+    radial-gradient(95% 85% at 86% 4%,
+      rgb(var(--hi-rgb) / calc((.028 + var(--module-drive) * .09) * (1 - var(--module-sing) * .5))) 0%,
+      rgb(var(--hi-rgb) / 0) 70%);
+  background-blend-mode: screen, screen;
+}
+/* TILT/DIM — só cards de texto. Hover entra como --lift (senão o translateY do
+   .lit:hover atropelaria o transform 3D — mesma solução do .service). */
+.card-mat.lit {
+  transform:
+    perspective(900px)
+    rotateX(var(--tilt-x, 0deg))
+    rotateY(var(--tilt-y, 0deg))
+    translateY(calc(var(--dim, 0) * 1.5px - var(--lift, 0px)))
+    scale(calc(1 - var(--dim, 0) * .012));
+  transform-origin: center;
+}
+.card-mat.lit:hover, .card-mat.lit.is-lit { --lift: 2px; }
+.card-mat { filter: saturate(calc(1 - var(--dim, 0) * .3)); }
+.no-shine .card-mat.lit { transform: none; }
+.no-shine .card-mat { filter: none; }
+/* No Singular o entorno vira luz incandescente; o texto precisa de um assento
+   escuro próprio ou some. Zero em repouso (--module-sing = 0) — não existe fora
+   do evento. Espelha os assistentes que o .service já tinha. Especificidade
+   baixa de propósito: o glow do hover (.lit:hover h3) continua vencendo. */
+.card-mat :is(h2, h3) {
+  text-shadow: 0 1px 14px rgb(var(--void-rgb) / calc(var(--module-sing) * .62));
+}
+.card-mat p {
+  text-shadow: 0 1px 12px rgb(var(--void-rgb) / calc(var(--module-sing) * .58));
+}
+
+/* ---------- processo ---------- */
+.steps {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.2rem;
+}
+.step { padding: 1.8rem 1.6rem; }
+.step__n {
+  font-family: var(--mono);
+  font-size: 2.2rem;
+  font-weight: 400;
+  color: var(--glow);
+  display: block;
+  margin-bottom: .7rem;
+}
+.step h3 { margin-bottom: .45rem; }
+.step p { font-size: .93rem; color: var(--hi); opacity: .85; }
+
+/* ---------- projetos (molduras na rampa, conteúdo livre) ---------- */
+.showcase {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.4rem;
+}
+.mock { will-change: transform; }
+.mock__frame {
+  border: 1px solid rgb(var(--hi-rgb) / .1);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--deep);
+  box-shadow: 0 22px 60px rgb(var(--void-rgb) / .6);
+}
+.mock__bar {
+  display: flex; gap: 6px;
+  padding: 10px 12px;
+  background: rgb(var(--deep-rgb) / .9);
+  border-bottom: 1px solid rgb(var(--hi-rgb) / .07);
+}
+.mock__bar i { width: 9px; height: 9px; border-radius: 50%; background: rgb(var(--mid-rgb) / .6); }
+.mock__screen {
+  aspect-ratio: 16 / 10.5;
+  padding: 1.4rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: .7rem;
+  position: relative;
+  overflow: hidden;
+}
+
+/* conteúdo emoldurado: matiz livre SÓ aqui dentro */
+.mock__screen--neo {
+  background:
+    radial-gradient(80% 80% at 75% 20%, rgb(var(--glow-rgb) / .5), transparent 55%),
+    radial-gradient(60% 60% at 20% 90%, rgb(var(--hi-rgb) / .2), transparent 60%),
+    var(--void);
+  justify-content: center;
+  align-items: flex-start;
+}
+.mock__hero-txt {
+  font-weight: 300; font-size: 2.1rem; line-height: .95;
+  color: var(--core); letter-spacing: -.02em;
+  text-shadow: 0 0 26px rgb(var(--glow-rgb) / .7);
+}
+.mock__pill {
+  margin-top: 1rem; width: 42%; height: 13px; border-radius: 999px;
+  background: var(--core);
+  box-shadow: 0 0 18px rgb(var(--glow-rgb) / .5);
+}
+.mock__screen--warm {
+  background:
+    radial-gradient(90% 70% at 80% 10%, rgba(255, 150, 90, .38), transparent 55%),
+    radial-gradient(70% 70% at 10% 100%, rgba(255, 90, 120, .22), transparent 60%),
+    #120a09;
+}
+.mock__blocks { display: flex; gap: 8px; margin-bottom: .3rem; }
+.mock__blocks span {
+  flex: 1; height: 46px; border-radius: 8px;
+  background: rgba(255, 255, 255, .09);
+  border: 1px solid rgba(255, 180, 120, .28);
+}
+.mock__screen--saas {
+  background: linear-gradient(180deg, #eef4f2, #dfe9e6);
+}
+.mock__screen--saas .mock__line { background: rgb(var(--mid-rgb) / .3); }
+.mock__screen--saas .mock__line.short { background: rgb(var(--mid-rgb) / .18); }
+.mock__chart { display: flex; align-items: flex-end; gap: 7px; height: 60px; margin-bottom: .4rem; }
+.mock__chart span {
+  flex: 1; border-radius: 4px 4px 0 0;
+  background: linear-gradient(180deg, var(--glow), var(--mid));
+}
+.mock__chart span:nth-child(1) { height: 40%; }
+.mock__chart span:nth-child(2) { height: 68%; }
+.mock__chart span:nth-child(3) { height: 52%; }
+.mock__chart span:nth-child(4) { height: 88%; }
+.mock__chart span:nth-child(5) { height: 62%; }
+
+.mock__line { height: 9px; width: 80%; border-radius: 999px; background: rgba(255, 255, 255, .16); }
+.mock__line.short { width: 52%; background: rgba(255, 255, 255, .09); }
+
+.mock__label {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: .5rem; margin-top: 1rem; padding: 0 .2rem;
+}
+.mock__label span { color: var(--core); font-weight: 600; font-size: .92rem; }
+.mock__label em {
+  font-family: var(--mono); font-style: normal;
+  font-size: .7rem; color: var(--glow); letter-spacing: .04em;
+}
+
+/* ---------- faq ---------- */
+.faq {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+.qa { padding: 1.5rem 1.5rem 1.6rem; }
+.qa h3 { font-size: 1rem; margin-bottom: .45rem; }
+.qa p { font-size: .92rem; color: var(--hi); opacity: .85; }
+
+/* ============================================================
+   CTA — painel destacado (modelo)
+   ============================================================ */
+.section--cta { padding-bottom: clamp(4rem, 8vw, 6rem); }
+.cta-panel {
+  position: relative;
+  text-align: center;
+  border-radius: 24px;
+  border: 1px solid rgb(var(--hi-rgb) / .1);
+  background:
+    radial-gradient(90% 120% at 50% 0%, rgb(var(--glow-rgb) / .12), transparent 55%),
+    linear-gradient(170deg, rgb(var(--deep-rgb) / .85), rgb(var(--void-rgb) / .6));
+  padding: clamp(4rem, 9vw, 7rem) clamp(1.6rem, 6vw, 5rem);
+  overflow: hidden;
+}
+.cta-panel__glow {
+  position: absolute;
+  left: 50%; top: -40%;
+  width: 700px; height: 700px;
+  transform: translateX(-50%);
+  background: radial-gradient(circle, rgb(var(--glow-rgb) / .16), transparent 60%);
+  filter: blur(16px);
+  pointer-events: none;
+}
+.cta-panel h2 {
+  font-size: clamp(2rem, 4.6vw, 3.2rem);
+  line-height: 1.15;
+  margin-bottom: 1.6rem;
+  position: relative;
+}
+.cta-panel > p:not(.cta-panel__fine) {
+  position: relative;
+  max-width: 32em;
+  margin: 0 auto 3rem;
+  font-size: 1.05rem;
+  line-height: 1.65;
+  color: var(--hi);
+  opacity: .9;
+}
+.cta-panel .btn { position: relative; }
+.cta-panel__fine {
+  position: relative;
+  margin-top: 1.8rem;
+  font-family: var(--mono);
+  font-size: .72rem;
+  letter-spacing: .04em;
+  color: var(--glow);
+}
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+.footer {
+  position: relative;
+  z-index: 2;
+  background: rgb(var(--deep-rgb) / .35);
+  border-top: 1px solid rgb(var(--hi-rgb) / .07);
+  padding: clamp(2.5rem, 6vw, 4rem) clamp(1.2rem, 5vw, 2rem) 2.2rem;
+}
+.footer__grid {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2.4rem;
+}
+.footer__brand p {
+  margin-top: 1.1rem;
+  font-size: .92rem;
+  color: var(--hi);
+  opacity: .8;
+}
+.footer__copy {
+  font-family: var(--mono);
+  font-size: .7rem !important;
+  color: var(--glow) !important;
+  opacity: 1 !important;
+  margin-top: 1.4rem !important;
+}
+.footer__links {
+  display: flex;
+  flex-direction: column;
+  gap: .55rem;
+  font-size: .92rem;
+}
+.footer__links-title {
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  color: var(--glow);
+  margin-bottom: .4rem;
+}
+.footer__links a { color: var(--hi); opacity: .85; transition: opacity var(--t-micro) var(--ease-micro), color var(--t-micro) var(--ease-micro); }
+.footer__links a:hover { opacity: 1; color: var(--core); }
+
+/* ============================================================
+   O MEDIDOR (assinatura)
+   ============================================================ */
+.medidor {
+  position: fixed;
+  left: clamp(.9rem, 2.4vw, 1.6rem);
+  bottom: clamp(.9rem, 2.4vw, 1.6rem);
+  z-index: 70;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgb(var(--glow-rgb) / .25);
+  border-radius: 999px;
+  padding: .42rem .8rem;
+  background: rgb(var(--deep-rgb) / .78);
+  backdrop-filter: blur(8px);
+  color: var(--hi);
+  font-family: var(--mono);
+  font-size: .72rem;
+  font-weight: 500;
+  letter-spacing: .04em;
+  cursor: pointer;
+  transition: border-color var(--t-micro) var(--ease-micro);
+}
+.medidor:hover { border-color: rgb(var(--glow-rgb) / .55); }
+.medidor::after {
+  content: "";
+  position: absolute;
+  inset: -9px;
+  border-radius: inherit;
+}
+.medidor__line { display: inline-flex; align-items: center; gap: .55rem; }
+.medidor__led {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--led);
+  flex: none;
+}
+.medidor__led.measuring { animation: led-pulse 1.1s ease-in-out infinite; }
+@keyframes led-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .25; }
+}
+
+.medidor__panel {
+  position: fixed;
+  left: clamp(.9rem, 2.4vw, 1.6rem);
+  bottom: calc(clamp(.9rem, 2.4vw, 1.6rem) + 46px);
+  z-index: 70;
+  min-width: 240px;
+  border: 1px solid rgb(var(--glow-rgb) / .25);
+  border-radius: 12px;
+  padding: .9rem 1rem .7rem;
+  background: rgb(var(--deep-rgb) / .9);
+  backdrop-filter: blur(10px);
+  color: var(--hi);
+  font-family: var(--mono);
+  font-size: .74rem;
+}
+.medidor__rows { display: grid; gap: .3rem; }
+.medidor__rows .row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1.6rem;
+}
+.medidor__rows .row b { font-weight: 500; color: var(--core); }
+.medidor__note {
+  margin-top: .7rem;
+  padding-top: .55rem;
+  border-top: 1px solid rgb(var(--glow-rgb) / .18);
+  color: var(--glow);
+  font-size: .66rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 480px) {
+  .medidor { font-size: .64rem; padding: .36rem .66rem; }
+}
+
+/* ============================================================
+   FLUTUANTE WHATSAPP
+   ============================================================ */
+.wa-float {
+  position: fixed;
+  right: clamp(1rem, 3vw, 1.8rem);
+  bottom: clamp(1rem, 3vw, 1.8rem);
+  z-index: 60;
+  width: 54px; height: 54px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  color: var(--void);
+  background: var(--glow);
+  border: 1px solid rgb(var(--hi-rgb) / .5);
+  box-shadow:
+    0 0 16px rgb(var(--glow-rgb) / .6),
+    0 0 44px rgb(var(--glow-rgb) / .35),
+    0 8px 28px rgb(var(--void-rgb) / .5);
+  transition: box-shadow var(--t-ui) var(--ease-micro), background var(--t-micro) var(--ease-micro);
+  will-change: transform;
+  animation: wa-neon 2.6s ease-in-out infinite;
+}
+/* anel de energia expandindo */
+.wa-float::before {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 2px solid rgb(var(--glow-rgb) / .65);
+  animation: wa-ring 2.6s ease-out infinite;
+  pointer-events: none;
+}
+@keyframes wa-ring {
+  0%   { transform: scale(.92); opacity: .9; }
+  70%  { transform: scale(1.55); opacity: 0; }
+  100% { transform: scale(1.55); opacity: 0; }
+}
+@keyframes wa-neon {
+  0%, 100% {
+    box-shadow:
+      0 0 16px rgb(var(--glow-rgb) / .6),
+      0 0 44px rgb(var(--glow-rgb) / .35),
+      0 8px 28px rgb(var(--void-rgb) / .5);
+  }
+  50% {
+    box-shadow:
+      0 0 26px rgb(var(--glow-rgb) / .85),
+      0 0 70px rgb(var(--glow-rgb) / .5),
+      0 8px 28px rgb(var(--void-rgb) / .5);
+  }
+}
+.wa-float:hover {
+  background: var(--hi);
+  box-shadow:
+    0 0 30px rgb(var(--hi-rgb) / .8),
+    0 0 80px rgb(var(--glow-rgb) / .55),
+    0 10px 38px rgb(var(--void-rgb) / .5);
+  animation-play-state: paused;
+}
+
+/* ============================================================
+   CAMPO DE ENERGIA (atmosfera viva)
+   ============================================================ */
+#atmos {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  /* o campo comprime de leve na compressão da ressonância (origem no núcleo)
+     e solta no release → o próprio espaço participa. Compositor-only. */
+  transform: scale(calc(1 - var(--res-space, 0) * 0.018));
+  transform-origin: 50% 42%;
+}
+
+/* Camada de REVELAÇÃO da ressonância: estrutura de bordas internas que só aparece
+   durante o evento (opacidade = --res-reveal, escrita pelo JS). Sem grade — só o
+   brilho das bordas + adensamento central. Fica atrás do conteúdo; some no eco.
+   Os filamentos escondidos ficam no canvas (neural). */
+#resfx {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: var(--res-reveal, 0);
+  mix-blend-mode: screen;
+  transform: scale(calc(1 - var(--res-space, 0) * 0.018));
+  transform-origin: 50% 42%;
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--glow-rgb) / .10),
+    inset 0 0 160px rgb(var(--glow-rgb) / .07);
+}
+
+/* ESTADO SINGULAR: banho de TEMPERATURA a partir do núcleo + EXPANSÃO de
+   profundidade. Cor = --sing-rgb (ciano→branco→dourado, escrita pelo JS).
+   Fica atrás do conteúdo → fundo escuro, sensação de universo além da viewport. */
+#singfx {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: var(--sing, 0);
+  mix-blend-mode: screen;
+  background:
+    radial-gradient(125% 100% at 50% 42%, rgb(var(--sing-rgb) / .15), transparent 68%),
+    radial-gradient(65% 52% at 50% 42%, rgb(var(--sing-rgb) / .10), transparent 60%);
+  transform: scale(calc(1 + var(--sing-depth, 0) * 0.05));
+  transform-origin: 50% 42%;
+  /* sem will-change permanente: camada de viewport inteiro ociosa 99% do tempo;
+     o browser promove sozinho durante a animação de opacity/transform */
+}
+
+/* METAMORFOSE (Estado Singular): os tokens de cor (--glow etc.) já são reescritos
+   ao vivo pelo JS — ciano→branco→dourado plasma — então todo glow/borda/texto vira
+   dourado sozinho. Aqui só o que precisa de regra própria: seleção, scrollbar e a
+   moldura interna (circuitos) dos componentes, cuja opacidade segue --sing-reveal. */
+.singularity-active ::selection { background: rgb(var(--glow-rgb) / .35); color: #05201f; }
+.singularity-active ::-webkit-scrollbar-thumb { background: rgb(var(--glow-rgb) / .6); }
+
+/* tudo aqui é dirigido por --sing-reveal (que rampa de 0): adicionar a classe
+   não pode acender nada de imediato, senão a borda "pipoca" no t=0 e no t=20000 */
+.singularity-active .lit {
+  /* repete a lista base e SOMA os circuitos: em --sing-reveal:0 esta regra é
+     idêntica à de repouso, então entrar/sair do Singular não muda nada de golpe */
+  box-shadow:
+    0 0 0 1px rgb(var(--glow-rgb) / calc((var(--energy, 0) + var(--res-cards, 0) * .5 + var(--sing-reveal, 0)) * .55)),
+    0 0 24px rgb(var(--glow-rgb) / calc(var(--energy, 0) * .35)),
+    0 0 66px rgb(var(--glow-rgb) / calc((var(--energy, 0) + var(--res-cards, 0)) * .3)),
+    0 0 120px rgb(var(--glow-rgb) / calc(var(--res-cards, 0) * .28)),
+    0 12px 34px rgb(var(--void-rgb) / calc(var(--energy, 0) * .5)),
+    inset 0 0 0 1px rgb(var(--glow-rgb) / calc(var(--sing-reveal, 0) * .55)),
+    inset 0 0 26px rgb(var(--glow-rgb) / calc(var(--sing-reveal, 0) * .28)),
+    0 0 46px rgb(var(--glow-rgb) / calc(var(--sing-reveal, 0) * .34));
+}
+.singularity-active .mock {
+  box-shadow:
+    0 0 calc((var(--energy, 0) + var(--res-cards, 0)) * 40px) rgb(var(--glow-rgb) / calc((var(--energy, 0) + var(--res-cards, 0)) * .3)),
+    inset 0 0 0 1px rgb(var(--glow-rgb) / calc(var(--sing-reveal, 0) * .5)),
+    0 0 50px rgb(var(--glow-rgb) / calc(var(--sing-reveal, 0) * .3));
+}
+.singularity-active .cta-panel {
+  box-shadow:
+    0 0 calc((var(--energy, 0) + var(--res, 0) * .6) * 60px) rgb(var(--glow-rgb) / calc((var(--energy, 0) + var(--res, 0) * .5) * .22)),
+    inset 0 0 0 1px rgb(var(--glow-rgb) / calc(var(--sing-reveal, 0) * .5)),
+    0 0 50px rgb(var(--glow-rgb) / calc(var(--sing-reveal, 0) * .3));
+}
+
+/* ============================================================
+   BOOT — "sistema iniciado" (entrada cinematográfica)
+   ============================================================ */
+/* O boot só dispara quando a intro termina (body.booted).
+   Sem .booted (no-JS / antes da intro) os elementos ficam
+   visíveis normalmente — nenhuma animação = opacity padrão. */
+
+/* scanline varre o hero uma vez */
+.booted .hero::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; top: 0;
+  height: 2px;
+  z-index: 4;
+  pointer-events: none;
+  background: linear-gradient(90deg,
+    transparent,
+    rgb(var(--glow-rgb) / .7) 30%,
+    rgb(var(--core-rgb) / .9) 50%,
+    rgb(var(--glow-rgb) / .7) 70%,
+    transparent);
+  box-shadow: 0 0 24px rgb(var(--glow-rgb) / .5);
+  animation: boot-scan 1.3s var(--ease-reveal) 0s 1 both;
+}
+@keyframes boot-scan {
+  0%   { transform: translateY(0); opacity: 0; }
+  8%   { opacity: 1; }
+  85%  { opacity: .9; }
+  100% { transform: translateY(100svh); opacity: 0; }
+}
+
+.booted .nav { animation: boot-down .7s var(--ease-reveal) 0s both; }
+@keyframes boot-down {
+  from { opacity: 0; transform: translateY(-14px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.booted .hero__emblem {
+  animation:
+    boot-pop .8s var(--ease-reveal) .2s both,
+    emblem-breathe 5s ease-in-out 1.2s infinite;
+}
+@keyframes boot-pop {
+  from { opacity: 0; transform: scale(.7); filter: blur(6px); }
+  to   { opacity: 1; transform: none; filter: blur(0); }
+}
+
+/* título revelado como se fosse carregado, linha a linha */
+.hero__title .line { display: inline-block; }
+.booted .hero__title .line {
+  animation: boot-line .85s var(--ease-reveal) .35s both;
+}
+.booted .hero__title .line--2 { animation-delay: .65s; }
+@keyframes boot-line {
+  from { opacity: 0; clip-path: inset(0 100% 0 0); filter: blur(5px); transform: translateY(6px); }
+  to   { opacity: 1; clip-path: inset(0 -6% 0 0); filter: blur(0); transform: none; }
+}
+
+.booted .hero__status { animation: boot-rise .6s var(--ease-reveal) .5s both; }
+.booted .hero__sub { animation: boot-rise .7s var(--ease-reveal) .95s both; }
+.booted .hero__actions { animation: boot-rise .7s var(--ease-reveal) 1.12s both; }
+.booted .scroll-hint { animation: boot-rise .8s var(--ease-reveal) 1.5s both; }
+@keyframes boot-rise {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ============================================================
+   REVEAL — scroll cinematográfico
+   ============================================================ */
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition:
+    opacity var(--t-reveal) var(--ease-reveal),
+    transform var(--t-reveal) var(--ease-reveal),
+    filter 900ms var(--ease-reveal);
+  transition-delay: var(--rd, 0ms);
+}
+.reveal.in { opacity: 1; transform: none; }
+
+/* cabeçalhos entram desfocados e ganham foco */
+.section__head.reveal { filter: blur(10px); }
+.section__head.reveal.in { filter: blur(0); }
+
+/* a linha do kicker se desenha quando a seção acorda */
+.reveal .kicker::before {
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform .9s var(--ease-reveal) .25s;
+}
+.reveal.in .kicker::before { transform: scaleX(1); }
+
+/* ============================================================
+   REDUCED MOTION
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .scroll-hint__bar,
+  .medidor__led.measuring,
+  .hero__emblem,
+  .hero__aura,
+  .emblem__ring--dash,
+  .hero__status-dot,
+  .hero::after,
+  .nav,
+  .hero__title .line,
+  .hero__status,
+  .hero__sub,
+  .hero__actions,
+  .scroll-hint,
+  .grad,
+  .lit::before,
+  .btn::before,
+  .btn::after,
+  .btn--primary,
+  .wa-float,
+  .wa-float::before { animation: none !important; }
+  .reveal,
+  .section__head.reveal { opacity: 1; transform: none; transition: none; filter: none; }
+  .reveal .kicker::before { transform: none; transition: none; }
+  #atmos { display: none; }
+  #resfx { display: none; }
+  #singfx { display: none; }
+  body::before { background: none; }
+  .lit, .cta-panel, .mock__frame { animation: none; }
+}

@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>beyon.0 — interfaces de elite para o seu negócio</title>
+  <meta name="description" content="Websites de alta conversão para empresas que buscam liderança digital. Landing pages, sites institucionais e e-commerce. Solicite um orçamento." />
+
+  <meta property="og:title" content="beyon.0 — interfaces de elite" />
+  <meta property="og:description" content="Websites de alta conversão para empresas que buscam liderança digital." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="assets/og-cover.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <!-- [PREENCHER: quando houver domínio, trocar og:image por URL absoluta e adicionar
+       <link rel="canonical" href="https://SEU-DOMINIO.com.br/"> + og:url -->
+
+  <meta name="theme-color" content="#000000" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+
+  <!-- Superfície de ataque mínima: nada externo além das fontes do Google.
+       'unsafe-inline' em style-src é exigido pelo <style> do <noscript> e pelos
+       style="" do markup; script-src fica sem 'unsafe-inline' (blocos
+       application/ld+json não são executáveis, então não são afetados).
+       [PREENCHER: em produção servir também os cabeçalhos que META não suporta —
+        X-Frame-Options: DENY (ou CSP frame-ancestors 'none'), HSTS,
+        X-Content-Type-Options: nosniff, Permissions-Policy] -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self';
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+    font-src 'self' https://fonts.gstatic.com;
+    img-src 'self' data:;
+    media-src 'self';
+    connect-src 'self';
+    object-src 'none';
+    base-uri 'self';
+    form-action 'none'" />
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "ProfessionalService",
+    "name": "beyon.0",
+    "description": "Criação de websites de alta conversão: landing pages, sites institucionais e e-commerce.",
+    "telephone": "+55-21-97716-7944",
+    "priceRange": "$$"
+  }
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="styles.css" />
+
+  <noscript>
+    <style>
+      .reveal { opacity: 1 !important; transform: none !important; }
+      .medidor, .medidor__panel { display: none !important; }
+      /* sem JS o vídeo não é controlado: pula a intro direto pro site */
+      .intro { display: none !important; }
+      body { overflow: auto !important; height: auto !important; }
+    </style>
+  </noscript>
+</head>
+<body>
+  <a href="#hero" class="skip-link">Pular para o conteúdo</a>
+
+  <!-- INTRO: vídeo de abertura; ao terminar, entra no site.
+       O container NÃO pode ser aria-hidden: ele contém o botão "pular", que
+       precisa continuar alcançável por leitor de tela e teclado. -->
+  <div class="intro" id="intro">
+    <!-- src em data-src de propósito: com ele no markup, o parser começaria a
+         baixar os 4,2 MB do vídeo ANTES de o JS (defer) poder decidir que esta
+         visita — saveData, 2G/3G ou reduced-motion — não deve pagar por eles.
+         O script atribui o src só quando a intro vai realmente rodar. -->
+    <video class="intro__video" id="introVid" muted playsinline preload="auto"
+           data-src="assets/intro.mp4" aria-hidden="true"></video>
+    <button class="intro__skip" id="introSkip" type="button">Pular introdução</button>
+  </div>
+
+  <!-- atmosfera viva: campo de energia (partículas + brumas) -->
+  <canvas id="atmos" aria-hidden="true"></canvas>
+
+  <!-- ===== NAV ===== -->
+  <header class="nav" id="nav">
+    <!-- Logo oficial em vídeo (fundo preto + mix-blend-mode: screen no CSS).
+         O wordmark fica como fallback automático caso o arquivo suma ou o codec
+         falhe — a marca nunca desaparece da nav. -->
+    <a href="#hero" class="nav__logo" aria-label="beyon.0 — início">
+      <video class="logo-art" data-logo src="assets/Logo-definitiva.mp4" width="640" height="200" autoplay loop muted playsinline aria-hidden="true"></video>
+      <span class="wordmark" data-logo-fallback hidden>beyon<b>.0</b></span>
+    </a>
+    <nav class="nav__links" aria-label="Navegação principal">
+      <a href="#servicos">Serviços</a>
+      <a href="#processo">Processo</a>
+      <a href="#projetos">Projetos</a>
+      <a href="#faq">FAQ</a>
+      <a data-wa href="https://wa.me/5521977167944?text=Oi!%20Vim%20pelo%20site%20da%20beyon.0%20e%20quero%20um%20or%C3%A7amento%20pro%20meu%20site." target="_blank" class="nav__cta magnetic" rel="noopener noreferrer">Solicitar orçamento</a>
+    </nav>
+  </header>
+
+  <main>
+  <!-- ===== HERO (limpo: campo neural + aura, sem imagem) ===== -->
+  <section class="hero" id="hero">
+    <div class="hero__aura" aria-hidden="true"></div>
+
+    <div class="hero__content">
+      <canvas class="hero__reactor" aria-hidden="true"></canvas>
+
+      <p class="hero__status">
+        <span class="hero__status-dot" aria-hidden="true"></span>
+        Sistema online · beyon.0
+      </p>
+
+      <h1 class="hero__title">
+        <span class="line">Transformamos ideias</span><br />
+        <span class="line line--2">em <span class="grad" data-text="interfaces de elite">interfaces de elite</span>.</span>
+      </h1>
+      <p class="hero__sub">
+        Websites de alta conversão para empresas que buscam liderança digital.
+      </p>
+      <div class="hero__actions">
+        <a class="btn btn--primary magnetic" data-wa href="https://wa.me/5521977167944?text=Oi!%20Vim%20pelo%20site%20da%20beyon.0%20e%20quero%20um%20or%C3%A7amento%20pro%20meu%20site." target="_blank" rel="noopener">Solicitar orçamento</a>
+        <a class="btn btn--ghost magnetic" href="#projetos">Ver projetos <span aria-hidden="true">→</span></a>
+      </div>
+    </div>
+
+    <a href="#dores" class="scroll-hint" aria-label="Rolar para baixo">
+      <span class="scroll-hint__label">scroll</span>
+      <span class="scroll-hint__bar"></span>
+    </a>
+  </section>
+
+  <!-- ===== DORES ===== -->
+  <section class="section" id="dores">
+    <div class="section__head reveal">
+      <p class="kicker">// o problema</p>
+      <h2>Por que sua empresa precisa<br />de um site profissional?</h2>
+    </div>
+
+    <div class="pains" data-stagger>
+      <article class="pain lit card-mat reveal">
+        <div class="pain__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 12s3.5-6.5 10-6.5c1.6 0 3 .38 4.3 1M22 12s-3.5 6.5-10 6.5c-1.6 0-3-.38-4.3-1"/>
+            <circle cx="12" cy="12" r="2.6"/>
+            <path d="M3 3l18 18"/>
+          </svg>
+        </div>
+        <h3>Invisibilidade digital</h3>
+        <p>Sem presença online sólida, seu cliente encontra o concorrente primeiro. Quem não aparece no Google não existe para quem procura.</p>
+      </article>
+
+      <article class="pain lit card-mat reveal">
+        <div class="pain__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="13" r="8"/>
+            <path d="M12 9v4l2.5 2.5M9 2h6"/>
+          </svg>
+        </div>
+        <h3>Performance lenta</h3>
+        <p>Sites que demoram mais de 3 segundos perdem metade dos visitantes. Velocidade é receita — e o Google também pensa assim.</p>
+      </article>
+
+      <article class="pain lit card-mat reveal">
+        <div class="pain__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <path d="M3 9h18M9 21V9M14 13l4 4M18 13l-4 4"/>
+          </svg>
+        </div>
+        <h3>Design amador</h3>
+        <p>Uma estética datada destrói a credibilidade do negócio antes da primeira conversa. A primeira impressão só acontece uma vez.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ===== O QUE FAZEMOS ===== -->
+  <section class="section" id="servicos">
+    <div class="section__head reveal">
+      <p class="kicker">// o que fazemos</p>
+      <h2>Soluções sob medida para<br />cada modelo de negócio.</h2>
+    </div>
+
+    <div class="bus">
+      <canvas class="bus__cv" aria-hidden="true"></canvas>
+      <div class="services" data-stagger>
+      <article class="service lit reveal">
+        <div class="service__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3l9 5-9 5-9-5 9-5zM3 13l9 5 9-5"/>
+          </svg>
+        </div>
+        <div class="service__body">
+          <h3>Landing pages</h3>
+          <span class="service__rule" aria-hidden="true"></span>
+          <p>Páginas de <em class="grad grad--sm" data-text="conversão">conversão</em> para campanhas e ofertas específicas.</p>
+        </div>
+        <span class="service__nodes" aria-hidden="true"></span>
+      </article>
+
+      <article class="service lit reveal">
+        <div class="service__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="3" width="16" height="18" rx="1.5"/>
+            <path d="M9 7h6M9 11h6M9 15h4"/>
+          </svg>
+        </div>
+        <div class="service__body">
+          <h3>Sites institucionais</h3>
+          <span class="service__rule" aria-hidden="true"></span>
+          <p>A vitrine completa da sua empresa para o <em class="grad grad--sm" data-text="mundo digital">mundo digital</em>.</p>
+        </div>
+        <span class="service__nodes" aria-hidden="true"></span>
+      </article>
+
+      <article class="service lit reveal">
+        <div class="service__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="9" cy="20" r="1.6"/><circle cx="18" cy="20" r="1.6"/>
+            <path d="M2 3h3l2.6 12.4a1.5 1.5 0 0 0 1.5 1.2h8.6a1.5 1.5 0 0 0 1.5-1.2L21 8H6"/>
+          </svg>
+        </div>
+        <div class="service__body">
+          <h3>E-commerce</h3>
+          <span class="service__rule" aria-hidden="true"></span>
+          <p>Loja online rápida, segura e pronta para <em class="grad grad--sm" data-text="vender">vender</em>.</p>
+        </div>
+        <span class="service__nodes" aria-hidden="true"></span>
+      </article>
+
+      <article class="service lit reveal">
+        <div class="service__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 21s-7-4.6-9.5-9A5.6 5.6 0 0 1 12 6a5.6 5.6 0 0 1 9.5 6c-2.5 4.4-9.5 9-9.5 9z"/>
+            <path d="M9 12h2l1.5-3 2 5L16 12h2" stroke-width="1.3"/>
+          </svg>
+        </div>
+        <div class="service__body">
+          <h3>Clínicas &amp; consultórios</h3>
+          <span class="service__rule" aria-hidden="true"></span>
+          <p>Presença que transmite <em class="grad grad--sm" data-text="confiança">confiança</em> e facilita o agendamento.</p>
+        </div>
+        <span class="service__nodes" aria-hidden="true"></span>
+      </article>
+
+      <article class="service lit reveal">
+        <div class="service__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 3v7a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V3M6 3v18M18 3c-1.7 0-3 2-3 5v4h3v9M4 3h4"/>
+          </svg>
+        </div>
+        <div class="service__body">
+          <h3>Restaurantes &amp; locais</h3>
+          <span class="service__rule" aria-hidden="true"></span>
+          <p>Cardápio, reservas e o caminho mais curto até a <em class="grad grad--sm" data-text="sua mesa">sua mesa</em>.</p>
+        </div>
+        <span class="service__nodes" aria-hidden="true"></span>
+      </article>
+
+      <article class="service lit reveal">
+        <div class="service__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2.5l2.9 5.9 6.6.9-4.8 4.6 1.2 6.5L12 17.3l-5.9 3.1 1.2-6.5L2.5 9.3l6.6-.9L12 2.5z"/>
+          </svg>
+        </div>
+        <div class="service__body">
+          <h3>Marcas &amp; portfólios</h3>
+          <span class="service__rule" aria-hidden="true"></span>
+          <p>Identidade e trabalho apresentados com o <em class="grad grad--sm" data-text="impacto">impacto</em> que merecem.</p>
+        </div>
+        <span class="service__nodes" aria-hidden="true"></span>
+      </article>
+      </div>
+    </div>
+
+    <p class="bus__label" aria-hidden="true">
+      <svg class="bus__wave" viewBox="0 0 120 16" preserveAspectRatio="none" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M0 8h34l4-5 4 10 5-13 5 16 4-8h64"/>
+      </svg>
+      <span><span class="bus__swap" data-sing-text="Sistema sob controle do">Conectado ao</span> <b class="grad grad--sm" data-text="AI Core">AI Core</b><span class="bus__swap" data-sing-text=".">​</span></span>
+      <svg class="bus__wave bus__wave--r" viewBox="0 0 120 16" preserveAspectRatio="none" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M0 8h34l4-5 4 10 5-13 5 16 4-8h64"/>
+      </svg>
+    </p>
+  </section>
+
+  <!-- ===== PROCESSO ===== -->
+  <section class="section" id="processo">
+    <div class="section__head reveal">
+      <p class="kicker">// processo</p>
+      <h2>Três passos. Zero dor de cabeça.</h2>
+    </div>
+
+    <ol class="steps" data-stagger>
+      <li class="step lit card-mat reveal">
+        <span class="step__n grad grad--md" data-text="01">01</span>
+        <h3>Conversa</h3>
+        <p>Você conta o que precisa. Eu digo o que resolve, quanto custa e quando fica pronto.</p>
+      </li>
+      <li class="step lit card-mat reveal">
+        <span class="step__n grad grad--md" data-text="02">02</span>
+        <h3>Design</h3>
+        <p>Crio o layout e te mostro. Ajustamos juntos até ficar certo.</p>
+      </li>
+      <li class="step lit card-mat reveal">
+        <span class="step__n grad grad--md" data-text="03">03</span>
+        <h3>Entrega</h3>
+        <p>Publico, configuro domínio e e-mail, e te ensino o básico. O site é seu.</p>
+      </li>
+    </ol>
+  </section>
+
+  <!-- ===== PROJETOS (conceitos) ===== -->
+  <section class="section" id="projetos">
+    <div class="section__head reveal">
+      <p class="kicker">// projetos</p>
+      <h2>Cada negócio pede uma cara.</h2>
+      <p class="section__lead">
+        <span class="sr-only">Conceitos autorais. Seu projeto nasce do zero, com a sua identidade.</span>
+        <span class="section__lead-fx grad grad--block grad--sm" aria-hidden="true" data-text="Conceitos autorais. Seu projeto nasce do zero, com a sua identidade." data-sing-text="Arquitetura elevada. A identidade assume sua forma máxima.">Conceitos autorais. Seu projeto nasce do zero, com a sua identidade.</span>
+      </p>
+    </div>
+
+    <div class="showcase" data-stagger>
+      <article class="mock tilt reveal">
+        <div class="mock__frame card-mat">
+          <div class="mock__bar"><i></i><i></i><i></i></div>
+          <div class="mock__screen mock__screen--neo">
+            <div class="mock__hero-txt">NOVA<br />ERA</div>
+            <div class="mock__pill"></div>
+          </div>
+        </div>
+        <div class="mock__label"><span>Marca / Estúdio</span><em>escuro · luz · impacto</em></div>
+      </article>
+
+      <article class="mock tilt reveal">
+        <div class="mock__frame card-mat">
+          <div class="mock__bar"><i></i><i></i><i></i></div>
+          <div class="mock__screen mock__screen--warm">
+            <div class="mock__blocks"><span></span><span></span><span></span></div>
+            <div class="mock__line"></div><div class="mock__line short"></div>
+          </div>
+        </div>
+        <div class="mock__label"><span>Restaurante / Local</span><em>quente · convidativo</em></div>
+      </article>
+
+      <article class="mock tilt reveal">
+        <div class="mock__frame card-mat">
+          <div class="mock__bar"><i></i><i></i><i></i></div>
+          <div class="mock__screen mock__screen--saas">
+            <div class="mock__chart"><span></span><span></span><span></span><span></span><span></span></div>
+            <div class="mock__line"></div><div class="mock__line short"></div>
+          </div>
+        </div>
+        <div class="mock__label"><span>SaaS / Produto</span><em>limpo · técnico · confiável</em></div>
+      </article>
+    </div>
+  </section>
+
+  <!-- ===== FAQ ===== -->
+  <section class="section" id="faq">
+    <div class="section__head reveal">
+      <p class="kicker">// faq</p>
+      <h2>O que você deve estar se perguntando.</h2>
+    </div>
+
+    <div class="faq" data-stagger>
+      <div class="qa lit card-mat reveal">
+        <h3>Quanto custa?</h3>
+        <p>Depende do tamanho do projeto. O orçamento é fechado antes de começar — sem surpresa no fim.</p>
+      </div>
+      <div class="qa lit card-mat reveal">
+        <h3>Demora quanto?</h3>
+        <p>Prazo combinado na primeira conversa. Você acompanha o andamento, sem sumiço.</p>
+      </div>
+      <div class="qa lit card-mat reveal">
+        <h3>Vou ficar dependente de você?</h3>
+        <p>Não. O site é seu, os acessos são seus, e te ensino a mudar o básico sozinho.</p>
+      </div>
+      <div class="qa lit card-mat reveal">
+        <h3>Funciona bem no celular?</h3>
+        <p>É feito primeiro para o celular — é lá que seu cliente está. Este site aqui é a prova.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== CTA ===== -->
+  <section class="section section--cta" id="contato">
+    <div class="cta-panel card-mat reveal">
+      <div class="cta-panel__glow" aria-hidden="true"></div>
+      <h2>Pronto para elevar<br /><span class="grad" data-text="seu negócio">seu negócio</span>?</h2>
+      <p>Não deixe sua marca invisível. Vamos construir o ativo digital mais importante da sua empresa.</p>
+      <a class="btn btn--primary btn--lg magnetic" data-wa href="https://wa.me/5521977167944?text=Oi!%20Vim%20pelo%20site%20da%20beyon.0%20e%20quero%20um%20or%C3%A7amento%20pro%20meu%20site." target="_blank" rel="noopener">Solicitar orçamento</a>
+      <p class="cta-panel__fine">Resposta humana, sem robô. Orçamento sem compromisso.</p>
+    </div>
+  </section>
+  </main>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="footer">
+    <div class="footer__grid">
+      <div class="footer__brand">
+        <a href="#hero" aria-label="beyon.0 — voltar ao topo">
+          <video class="logo-art logo-art--lg" data-logo src="assets/Logo-definitiva.mp4" width="640" height="200" autoplay loop muted playsinline aria-hidden="true"></video>
+          <span class="wordmark wordmark--lg" data-logo-fallback hidden>beyon<b>.0</b></span>
+        </a>
+        <p>Websites de alta conversão para<br />empresas que buscam liderança digital.</p>
+        <p class="footer__copy">© <span id="year">2026</span> beyon.0. Todos os direitos reservados.</p>
+      </div>
+      <nav class="footer__links" aria-label="Links do rodapé">
+        <p class="footer__links-title">links</p>
+        <a href="#servicos">Serviços</a>
+        <a href="#processo">Processo</a>
+        <a href="#projetos">Projetos</a>
+        <a href="#faq">FAQ</a>
+        <a data-wa href="https://wa.me/5521977167944?text=Oi!%20Vim%20pelo%20site%20da%20beyon.0%20e%20quero%20um%20or%C3%A7amento%20pro%20meu%20site." target="_blank" rel="noopener">WhatsApp</a>
+        <!-- [PREENCHER: Instagram / LinkedIn / GitHub quando existirem URLs reais] -->
+      </nav>
+    </div>
+  </footer>
+
+  <!-- ===== O MEDIDOR (assinatura) ===== -->
+  <button class="medidor" id="medidor" type="button" aria-expanded="false" aria-controls="medidorPanel"
+          aria-label="Métricas de performance deste site, medidas ao vivo. Toque para detalhes.">
+    <span class="medidor__line" aria-hidden="true">
+      <span id="mMain">medindo</span>
+      <i class="medidor__led" id="mLed"></i>
+    </span>
+  </button>
+  <div class="medidor__panel" id="medidorPanel" hidden>
+    <div class="medidor__rows" id="mRows"></div>
+    <p class="medidor__note">números medidos agora, neste aparelho — nada estimado.</p>
+  </div>
+
+  <!-- Botão flutuante WhatsApp -->
+  <a data-wa href="https://wa.me/5521977167944?text=Oi!%20Vim%20pelo%20site%20da%20beyon.0%20e%20quero%20um%20or%C3%A7amento%20pro%20meu%20site." target="_blank" class="wa-float magnetic" aria-label="Falar no WhatsApp" rel="noopener">
+    <svg viewBox="0 0 32 32" width="24" height="24" aria-hidden="true">
+      <path fill="currentColor" d="M16.04 3.2c-7.1 0-12.86 5.76-12.86 12.86 0 2.27.6 4.48 1.73 6.43L3.2 28.8l6.5-1.7a12.8 12.8 0 0 0 6.33 1.66h.01c7.1 0 12.86-5.76 12.86-12.86S23.14 3.2 16.04 3.2zm0 23.3h-.01a10.7 10.7 0 0 1-5.44-1.49l-.39-.23-3.86 1.01 1.03-3.76-.25-.4a10.66 10.66 0 0 1-1.63-5.68c0-5.9 4.8-10.7 10.7-10.7 2.86 0 5.54 1.11 7.56 3.13a10.62 10.62 0 0 1 3.13 7.57c0 5.9-4.8 10.7-10.7 10.7zm5.87-8.01c-.32-.16-1.9-.94-2.2-1.05-.3-.11-.51-.16-.72.16-.21.32-.83 1.05-1.02 1.26-.19.21-.37.24-.69.08-.32-.16-1.36-.5-2.59-1.6-.96-.85-1.6-1.91-1.79-2.23-.19-.32-.02-.5.14-.66.14-.14.32-.37.48-.56.16-.19.21-.32.32-.53.11-.21.05-.4-.03-.56-.08-.16-.72-1.74-.99-2.38-.26-.62-.52-.54-.72-.55l-.61-.01c-.21 0-.56.08-.85.4-.29.32-1.11 1.09-1.11 2.66 0 1.57 1.14 3.08 1.3 3.29.16.21 2.24 3.42 5.43 4.8.76.33 1.35.52 1.81.67.76.24 1.45.21 2 .13.61-.09 1.9-.78 2.17-1.53.27-.75.27-1.39.19-1.53-.08-.14-.29-.21-.61-.37z"/>
+    </svg>
+  </a>
+
+  <script src="vendor/anime.umd.min.js" defer></script>
+  <script src="main.js" defer></script>
+</body>
+</html>
