@@ -960,6 +960,28 @@ cards. Medido: 42.988 → 59.109 px acesos com o pulso a 1. Agora o AI Core é a
 visível da propagação, não um reativo. Verificado: reator 400px, `overflowX 0`, zero
 erro; `node --check` limpo; sem refs mortas a `fils`/`probes`/`AICore.draw`.
 
+### Correções pós-deploy + auditoria
+
+**3 bugs do dono (no ar):** (1) *bordas pretas no dourado* — os brackets do reator
+pintavam corpo preto (`source-over rgba(0,0,0,.55)`) que ocluía o brilho; trocados por
+arestas de luz aditivas (0 pixels escuros-opacos medidos). (2) *reescrita sem sal* —
+`singText` DUR 620→1300ms + destabilização antes do reveal (o texto perde estabilidade
+em onda L→R e só então reescreve) + RGB-split mais forte. (3) *efeitos de título no
+mobile* — `livingType` era desktop-only (`pointer:coarse` saía); liberado no touch (a
+onda de ressonância/singular acende os glifos sem cursor).
+
+**Auditoria técnica.** O codebase estava genuinamente limpo: reduced-motion +
+saveData + deviceMemory no campo, `:focus-visible` global, skip-link, `noopener` em
+todos os externos, vídeos `aria-hidden`, sem `console.log`, sem img sem alt, sem
+`influenceAt` morto. Único código morto: `sing.gen` (incrementado, nunca lido — só
+`res.gen` é lido) → removido. Assets sem referência (`Logo.gif` 20MB, `introdução.mp4`
+30MB) → destrancados do git (ficam no disco). Repo 55→4,9MB. *Tradeoff conhecido, NÃO
+"corrigido":* main.js é um monólito de ~2400 linhas numa IIFE — é DELIBERADO (1 rAF
+único, sem build); quebrar em módulos exigiria bundler e arriscaria a arquitetura.
+*Recomendações abertas (não aplicadas):* `intro.mp4` 4,4MB autoplay (perf de load —
+comprimir/poster); história do git ainda carrega os 50MB (só um rewrite destrutivo
+limpa — só se o tamanho do repo importar).
+
 PENDENTE (fila pedida pelo dono, nesta ordem):
 - **Auditoria técnica + refatoração ampla** do projeto inteiro (bugs, código morto,
   perf, responsividade, a11y, segurança, redundância) — preservando comportamento/
