@@ -499,10 +499,10 @@ h3 { font-size: 1.1rem; font-weight: 600; letter-spacing: -0.01em; color: var(--
   pointer-events: none;
   -webkit-text-fill-color: currentColor;
   mix-blend-mode: screen;
-  --gl: .5;
+  --gl: .85;                 /* fratura mais forte durante a reescrita — dramático */
 }
-.sys-rewriting::before { color: rgb(var(--glow-rgb) / .7); animation: sing-glitch-a .5s linear infinite; }
-.sys-rewriting::after  { color: rgb(var(--hi-rgb) / .7);  animation: sing-glitch-b .5s linear infinite; }
+.sys-rewriting::before { color: rgb(var(--glow-rgb) / .85); animation: sing-glitch-a .42s linear infinite; }
+.sys-rewriting::after  { color: rgb(var(--hi-rgb) / .85);  animation: sing-glitch-b .42s linear infinite; }
 @media (prefers-reduced-motion: reduce) {
   .sys-rewriting::before, .sys-rewriting::after { display: none; }
 }

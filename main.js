@@ -2025,8 +2025,12 @@
      cursor: onda L→R + brilho conforme o cursor + faíscas que escapam e voltam.
      Em repouso não desenha nada (título limpo). Só desktop ponteiro fino. */
   (function livingType() {
-    if (reduced || !pointerFine) return;
-    if (window.matchMedia('(pointer: coarse)').matches) return;
+    /* Antes era DESKTOP-ONLY (saía em `!pointerFine` / `pointer: coarse`) — por
+       isso "os efeitos atrás das palavras" não apareciam no celular. Agora roda em
+       touch também: sem cursor, a parte de proximidade fica em 0, mas a onda de
+       RESSONÂNCIA/SINGULAR acende os glifos igual (é dirigida por energia, não por
+       ponteiro). Só reduced-motion ainda desliga. */
+    if (reduced) return;
 
     var TARGETS = document.querySelectorAll('.hero__title, .section h2, .cta-panel h2');
     if (!TARGETS.length) return;
@@ -2238,18 +2242,20 @@
         isGrad: el.classList.contains('grad'), prog: 0, shown: null
       };
     });
-    var DUR = 620, last = 0;                       /* ms — rápido, elegante */
+    var DUR = 1300, last = 0;   /* mais lento e dramático — a reescrita tem que ser sentida */
 
     function glyph() { return GL.charAt((Math.random() * GL.length) | 0); }
-    /* calm em prog=0, sing em prog=1; no meio, glifos. Escalonado L→R (janela
-       0.42) — lê como varredura de reescrita, não um corte único. */
+    /* calm em prog=0, sing em prog=1; no meio, glifos. Cada caractere DESESTABILIZA
+       antes de assentar: a janela de ruído abre bem ANTES do reveal (r desce até
+       -0.6), então o texto "perde estabilidade" e só depois se reescreve — mais
+       caos simultâneo, leitura de reescrita do sistema, não um corte seco. */
     function morph(calm, sing, p) {
       var L = Math.max(calm.length, sing.length), out = '', i, r, from, to;
       for (i = 0; i < L; i++) {
         from = calm.charAt(i); to = sing.charAt(i);
-        r = (p - (i / (L || 1)) * 0.58) / 0.42;
+        r = (p - (i / (L || 1)) * 0.5) / 0.4;
         if (r >= 1) out += to;
-        else if (r <= 0) out += from;
+        else if (r <= -0.35) out += from;
         else out += (to === ' ' && from === ' ') ? ' ' : glyph();
       }
       return out;
@@ -2312,7 +2318,7 @@
        vêm direto dos tokens (estáticos — no Singular o MID é trocado por plasma). */
     var _cs = getComputedStyle(document.documentElement);
     function _trip(name, fb) { var v = (_cs.getPropertyValue(name) || '').trim(); return v ? v.split(/[\s,]+/).slice(0, 3).join(',') : fb; }
-    var MIDBASE = _trip('--mid-rgb', '15,106,115'), VOIDBASE = _trip('--void-rgb', '0,0,0');
+    var MIDBASE = _trip('--mid-rgb', '15,106,115');
     var S = 0, CX = 0, CY = 0, Rs = 0, vis = true, T = 0, last = 0, dirty = true;
     var docCX = 0, docCY = 0;                 /* centro em coords de documento (sem reflow/frame) */
 
@@ -2487,16 +2493,26 @@
       ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(' + CORE + ',' + (0.14 * lum).toFixed(3) + ')';
       ctx.beginPath(); ctx.arc(CX, CY, Rc * 0.99, Math.PI * 1.05, Math.PI * 1.5); ctx.stroke();
 
-      /* 6) BRACKETS — housing dark glossy com fio ciano (occlui: source-over) */
-      ctx.globalCompositeOperation = 'source-over';
+      /* 6) BRACKETS — housing luminoso (segmentos de arco). Antes tinham CORPO
+         PRETO (source-over rgba(0,0,0,.55)) que, no dourado, ocluía o brilho atrás
+         e virava "bordas pretas em volta do núcleo". Agora são só arestas de luz
+         (aditivo, no mesmo 'lighter' de tudo) + tampas radiais nas pontas pra dar o
+         aspecto de peça montada — leem como estrutura sem escurecer nada. */
       for (var k = 0; k < brackets.length; k++) {
         var bk = brackets[k];
-        ctx.lineWidth = Rc * 0.14; ctx.strokeStyle = 'rgba(' + VOIDBASE + ',0.55)';
-        ctx.beginPath(); ctx.arc(CX, CY, Rc * 1.06, bk.a0, bk.a1); ctx.stroke();
-        ctx.lineWidth = 1.2; ctx.strokeStyle = 'rgba(' + GLOW + ',' + (0.4 * lum).toFixed(3) + ')';
-        ctx.beginPath(); ctx.arc(CX, CY, Rc * 0.99, bk.a0, bk.a1); ctx.stroke();
+        ctx.lineWidth = 2.6; ctx.strokeStyle = 'rgba(' + GLOW + ',' + (0.42 * lum).toFixed(3) + ')';
+        ctx.beginPath(); ctx.arc(CX, CY, Rc * 1.07, bk.a0, bk.a1); ctx.stroke();
+        ctx.lineWidth = 1.1; ctx.strokeStyle = 'rgba(' + CORE + ',' + (0.34 * lum).toFixed(3) + ')';
+        ctx.beginPath(); ctx.arc(CX, CY, Rc * 1.0, bk.a0, bk.a1); ctx.stroke();
+        for (var ecap = 0; ecap < 2; ecap++) {
+          var ea = ecap ? bk.a1 : bk.a0;
+          ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(' + HI + ',' + (0.3 * lum).toFixed(3) + ')';
+          ctx.beginPath();
+          ctx.moveTo(CX + Math.cos(ea) * Rc * 0.99, CY + Math.sin(ea) * Rc * 0.99);
+          ctx.lineTo(CX + Math.cos(ea) * Rc * 1.14, CY + Math.sin(ea) * Rc * 1.14);
+          ctx.stroke();
+        }
       }
-      ctx.globalCompositeOperation = 'lighter';
 
       /* 7) ANEL EQUATORIAL principal + anéis internos */
       ctx.lineWidth = 2.2; ctx.strokeStyle = 'rgba(' + GLOW + ',' + (0.5 * lum + strain * 0.2 + star * 0.3).toFixed(3) + ')';
