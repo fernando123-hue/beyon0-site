@@ -2362,6 +2362,17 @@
 
     function bloom(x, y, r, rgb, a) {
       if (a < 0.004 || r <= 0) return;
+      /* A MOLDURA QUADRADA que aparecia no dourado era isto: o halo (item 1) e o
+         bloom da estrela (item 9) tinham raio MAIOR que a metade do canvas (até
+         ~0.73S contra 0.5S de meia-caixa). ctx.arc desenha um círculo; quando o
+         raio passa da borda do canvas, o corte acontece com o alfa do gradiente
+         AINDA MAIOR QUE ZERO ali — e como o canvas é quadrado, esse corte lê como
+         uma moldura reta. Grampo único aqui resolve pra TODAS as camadas de uma
+         vez: nenhum bloom passa de 47% do lado do canvas, deixando ~3% de folga
+         onde o gradiente já chegou a alfa 0 — o brilho sempre se apaga ANTES da
+         borda, então ele se dissolve no fundo do hero como o resto do site, sem
+         nunca "bater na caixa". */
+      r = Math.min(r, S * 0.47);
       var g = ctx.createRadialGradient(x, y, 0, x, y, r);
       g.addColorStop(0, 'rgba(' + rgb + ',' + a.toFixed(3) + ')');
       g.addColorStop(1, 'rgba(' + rgb + ',0)');
