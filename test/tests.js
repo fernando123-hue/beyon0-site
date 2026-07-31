@@ -224,7 +224,21 @@ check('brackets sao LineSegments (sem corpo preto)', () => {
 
 check('plasma tem nucleo e 3 eletrons', () => {
   const p = stage.registry.nodes['plasma__pivot'];
-  return p.children.length === 4 ? true : `veio ${p.children.length}`;
+  if (p.children.length !== 4) return `veio ${p.children.length}`;
+  const nucleo = p.children.filter((c) => c.name === 'nucleus');
+  const eletrons = p.children.filter((c) => c.name.startsWith('electron_'));
+  return nucleo.length === 1 && eletrons.length === 3
+    ? true
+    : `composicao errada: ${p.children.map((c) => c.name).join(', ')}`;
+});
+
+check('todo mesh registrado via stage.add aparece em nodes e materials', () => {
+  const nomes = Object.keys(stage.registry.meshes);
+  const semNode = nomes.filter((k) => stage.registry.nodes[k] !== stage.registry.meshes[k]);
+  const semMaterial = nomes.filter((k) => stage.registry.materials[k] !== stage.registry.meshes[k].material);
+  return semNode.length === 0 && semMaterial.length === 0
+    ? true
+    : `sem node: ${semNode.join(', ')}; sem material: ${semMaterial.join(', ')}`;
 });
 
 check('o objeto cabe no enquadramento da camera', () => {

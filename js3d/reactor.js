@@ -33,8 +33,7 @@ export function createReactor(stage, mats) {
   const shellPivot = pivot(stage, 'shell__pivot', 'aiCore');
   const shell = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 24), mats.shell);
   shell.name = 'shell';
-  shellPivot.add(shell);
-  stage.registry.meshes.shell = shell;
+  stage.add('shell', shell, 'shell__pivot');
 
   const rim = new THREE.Mesh(new THREE.SphereGeometry(1.07, 32, 24), mats.rim);
   rim.name = 'shellRim';
@@ -49,8 +48,7 @@ export function createReactor(stage, mats) {
   const ring = new THREE.Mesh(new THREE.TorusGeometry(1.46, 0.028, 8, 96), mats.orbit);
   ring.name = 'ring';
   ring.rotation.x = Math.PI / 2;
-  ringPivot.add(ring);
-  stage.registry.meshes.ring = ring;
+  stage.add('ring', ring, 'ring__pivot');
 
   const ringInner = new THREE.Mesh(new THREE.TorusGeometry(1.28, 0.014, 6, 64), mats.orbit);
   ringInner.name = 'ringInner';
@@ -65,13 +63,13 @@ export function createReactor(stage, mats) {
     { r: 1.58, rx: -0.68, rz: 0.55 },
     { r: 1.85, rx: 1.15, rz: -0.35 }
   ];
+  const nodeGeo = new THREE.SphereGeometry(0.028, 8, 6);
   ORBITS.forEach((o, i) => {
     const g = new THREE.Group();
     g.name = 'orbit_' + i;
     g.rotation.set(o.rx, 0, o.rz);
     const line = new THREE.Mesh(new THREE.TorusGeometry(o.r, 0.005, 6, 128), mats.orbit);
     g.add(line);
-    const nodeGeo = new THREE.SphereGeometry(0.028, 8, 6);
     for (let n = 0; n < NODES_FULL; n += 1) {
       const m = new THREE.Mesh(nodeGeo, mats.node);
       const a = (n / NODES_FULL) * TAU;
@@ -101,8 +99,7 @@ export function createReactor(stage, mats) {
   const base = new THREE.Mesh(new THREE.CylinderGeometry(0.52, 0.68, 0.16, 24), mats.shell);
   base.name = 'base';
   base.position.y = -1.62;
-  basePivot.add(base);
-  stage.registry.meshes.base = base;
+  stage.add('base', base, 'base__pivot');
 
   const baseBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.16, 0.62, 16), mats.orbit);
   baseBeam.name = 'baseBeam';
@@ -113,8 +110,7 @@ export function createReactor(stage, mats) {
   const emitter = new THREE.Mesh(new THREE.ConeGeometry(0.20, 0.34, 20), mats.shell);
   emitter.name = 'emitter';
   emitter.position.y = 1.58;
-  emitterPivot.add(emitter);
-  stage.registry.meshes.emitter = emitter;
+  stage.add('emitter', emitter, 'emitter__pivot');
 
   const emitterBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.10, 0.52, 16), mats.orbit);
   emitterBeam.name = 'emitterBeam';
@@ -125,12 +121,12 @@ export function createReactor(stage, mats) {
   const plasmaPivot = pivot(stage, 'plasma__pivot', 'aiCore');
   const nucleus = new THREE.Mesh(new THREE.SphereGeometry(0.17, 16, 12), mats.plasma);
   nucleus.name = 'nucleus';
-  plasmaPivot.add(nucleus);
-  stage.registry.meshes.nucleus = nucleus;
+  stage.add('nucleus', nucleus, 'plasma__pivot');
 
   const electrons = [];
+  const electronGeo = new THREE.SphereGeometry(0.045, 10, 8);
   for (let i = 0; i < 3; i += 1) {
-    const e = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), mats.plasma);
+    const e = new THREE.Mesh(electronGeo, mats.plasma);
     e.name = 'electron_' + i;
     e.userData.phase = (i / 3) * TAU;
     e.userData.tilt = i * 0.9;
@@ -148,9 +144,9 @@ export function createReactor(stage, mats) {
     _plasma: plasmaPivot,
     _t: 0,
 
-    tick() { /* implementado na Task 5 */ },
+    tick(core, energy, warmth, dt) { /* implementado na Task 5 */ },
 
-    setQuality() { /* implementado na Task 6 */ },
+    setQuality(q) { /* implementado na Task 6 */ },
 
     dispose() {
       root.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
