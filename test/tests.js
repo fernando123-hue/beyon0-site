@@ -100,6 +100,20 @@ function plasmaStub(w, role) {
 
 const mats = createMaterials(plasmaStub);
 
+/* update() e gated por mudanca real (Math.abs(warmth - _warmth) < 0.002), o
+   que e o comportamento certo em producao mas deixa os testes acoplados a
+   ordem: se o teste anterior ja deixou mats._warmth no valor que este quer,
+   a chamada update(w) vira um no-op silencioso e o teste so passa por
+   sobra de estado alheio. forceUpdate garante uma escrita real: primeiro
+   pula para um warmth certamente diferente do alvo, depois aplica o alvo —
+   sem tocar no gate em si (por isso o teste de gating abaixo continua
+   chamando mats.update diretamente). */
+function forceUpdate(w) {
+  const away = w < 0.5 ? 1 : 0;
+  mats.update(away);
+  mats.update(w);
+}
+
 check('materiais expostos existem', () => {
   const missing = ['shell', 'rim', 'wire', 'edge', 'orbit', 'plasma', 'node']
     .filter((k) => !mats[k]);
@@ -107,7 +121,7 @@ check('materiais expostos existem', () => {
 });
 
 check('em repouso a cor e o ciano exato da rampa', () => {
-  mats.update(0);
+  forceUpdate(0);
   const c = mats.rim.color;
   return near(Math.round(c.r * 255), 0, 1) === true &&
          near(Math.round(c.g * 255), 245, 1) === true &&
@@ -116,18 +130,36 @@ check('em repouso a cor e o ciano exato da rampa', () => {
 });
 
 check('no Singular a cor vira dourado plasma', () => {
-  mats.update(1);
+  forceUpdate(1);
   const c = mats.rim.color;
   return Math.round(c.r * 255) === 255 && Math.round(c.g * 255) === 208 && Math.round(c.b * 255) === 0
     ? true : `veio ${Math.round(c.r*255)},${Math.round(c.g*255)},${Math.round(c.b*255)}`;
 });
 
 check('volta ao ciano quando o Singular acaba', () => {
-  mats.update(1);
+  forceUpdate(1);
   mats.update(0);
   const c = mats.rim.color;
   return Math.round(c.g * 255) === 245 && Math.round(c.b * 255) === 255
     ? true : `nao voltou: ${Math.round(c.r*255)},${Math.round(c.g*255)},${Math.round(c.b*255)}`;
+});
+
+check('shell fica escuro em repouso (albedo nao bypassa plasmaColor)', () => {
+  forceUpdate(0);
+  const c = mats.shell.color;
+  const r = Math.round(c.r * 255), g = Math.round(c.g * 255), b = Math.round(c.b * 255);
+  /* escuro: bem abaixo do ciano pleno (0,245,255) de onde o tom deriva */
+  return g < 60 && b < 60 ? true : `shell nao esta escuro em repouso: ${r},${g},${b}`;
+});
+
+check('shell desloca para dourado no Singular, sem perder o escurecimento', () => {
+  forceUpdate(1);
+  const c = mats.shell.color;
+  const r = Math.round(c.r * 255), g = Math.round(c.g * 255), b = Math.round(c.b * 255);
+  /* dourado pleno seria 255,208,0 — escurecido deve manter a proporcao
+     (vermelho dominante, azul quase nulo) mas com magnitude baixa */
+  return r > g && r > b && r < 60 && b < 10
+    ? true : `shell nao migrou para dourado escurecido: ${r},${g},${b}`;
 });
 
 check('rim e aditivo e desenha por dentro (fresnel barato)', () =>

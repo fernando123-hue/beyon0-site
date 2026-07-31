@@ -11,6 +11,14 @@ import * as THREE from '../vendor/three.module.min.js';
 
 const GLOW = 0, HI = 1, CORE = 2;
 
+/* O casco precisa ficar escuro para o emissive ler como brilho, mas a cor
+   base ainda tem que vir de plasmaColor (lei do projeto: nenhuma cor chega
+   a tela sem passar por ele). SHELL_TINT escala o token de GLOW para baixo —
+   0.12 foi escolhido comparando com o hex antigo (0x061a1e = 6,26,30 sobre
+   o ciano de repouso 0,245,255): 245*0.12≈29 e 255*0.12≈31, a poucos passos
+   do teal original, então o repouso visual não muda perceptivelmente. */
+const SHELL_TINT = 0.12;
+
 function applyTriple(color, triple) {
   const p = triple.split(',');
   color.setRGB(+p[0] / 255, +p[1] / 255, +p[2] / 255);
@@ -18,7 +26,7 @@ function applyTriple(color, triple) {
 
 export function createMaterials(plasmaColor) {
   const shell = new THREE.MeshStandardMaterial({
-    color: 0x061a1e, roughness: 0.42, metalness: 0.12, emissiveIntensity: 1
+    roughness: 0.42, metalness: 0.12, emissiveIntensity: 1
   });
   shell.emissive = new THREE.Color();
 
@@ -72,6 +80,8 @@ export function createMaterials(plasmaColor) {
       applyTriple(node.color, h);
       applyTriple(plasma.color, c);
       applyTriple(shell.emissive, g);
+      applyTriple(shell.color, g);
+      shell.color.multiplyScalar(SHELL_TINT);
     },
 
     dispose() {
