@@ -32,11 +32,13 @@ export function createStage(canvas) {
 
   const registry = { nodes: {}, meshes: {}, materials: {} };
 
-  /* Como quase tudo no reator é emissivo/aditivo, é preciso pouca luz: uma
-     direcional que dá FORMA à esfera (senão o MeshStandardMaterial some) e uma
-     hemisférica de preenchimento. Cor branca de propósito: a cor do objeto vem
-     dos materiais, que saem de plasmaColor. Luz colorida introduziria um
-     segundo croma pela porta dos fundos. */
+  /* Pouca luz basta: os objetos que este stage costuma hospedar são, em
+     grande parte, emissivos/aditivos e não dependem de iluminação forte para
+     aparecer. Ainda assim, uma direcional dá FORMA a superfícies com
+     MeshStandardMaterial (que sem nenhuma luz ficam pretas) e uma hemisférica
+     preenche as sombras. Luzes brancas de propósito: a cor final vem sempre
+     dos materiais de cada objeto, nunca da luz — luz colorida introduziria um
+     segundo canal de croma pela porta dos fundos. */
   const key = new THREE.DirectionalLight(0xffffff, 1.15);
   key.position.set(2.4, 3.0, 3.2);
   scene.add(key);
@@ -60,11 +62,18 @@ export function createStage(canvas) {
       parent.add(obj);
       registry.nodes[name] = obj;
       if (obj.isMesh) registry.meshes[name] = obj;
+      /* Mesmo nome usado em nodes/meshes: se o objeto carrega material
+         (Mesh, Line, LineSegments, Points...), fica endereçável por aqui —
+         é o que torna materiais editáveis independentemente do resto. */
+      if (obj.material) registry.materials[name] = obj.material;
       return obj;
     },
 
-    /* watchQuality é UMA VIA (1 → 0.62 → 0.38). Cada degrau reduz
-       QUANTIDADE, nunca presença: o objeto continua inteiro. */
+    /* setQuality() é chamado de fora — pelo watchQuality de main.js, o
+       sistema de degradação por FPS deste projeto, externo a este módulo.
+       Esse sistema é UMA VIA (1 → 0.62 → 0.38, nunca sobe). Aqui dentro,
+       cada degrau reduz QUANTIDADE, nunca presença: o objeto continua
+       inteiro. */
     setQuality(q) {
       stage.quality = q;
       const full = q >= 0.999;

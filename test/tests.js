@@ -43,6 +43,13 @@ check('add com parentName aninha no pai', () => {
   return filho.parent === stage.registry.nodes.teste ? true : 'pai errado';
 });
 
+check('add registra o material pelo nome quando o objeto tem material', () => {
+  const mat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 4, 4), mat);
+  stage.add('comMaterial', mesh);
+  return stage.registry.materials.comMaterial === mat ? true : 'nao registrou o material';
+});
+
 check('quality nasce em 1', () => near(stage.quality, 1, 0.001));
 
 check('setQuality(0.62) desliga sombras', () => {
@@ -50,9 +57,15 @@ check('setQuality(0.62) desliga sombras', () => {
   return stage.renderer.shadowMap.enabled === false ? true : 'sombra continua ligada';
 });
 
-check('setQuality(0.62) desliga o ambiente refletido', () =>
-  stage.scene.environment === null ? true : 'environment continua setado'
-);
+check('setEnvironment aplica em qualidade cheia e some quando a qualidade cai', () => {
+  const tex = new THREE.Texture();
+  stage.setQuality(1);
+  stage.setEnvironment(tex);
+  if (stage.scene.environment !== tex) return `nao aplicou em qualidade cheia: ${stage.scene.environment}`;
+  stage.setQuality(0.62);
+  if (stage.scene.environment !== null) return `nao removeu em qualidade baixa: ${stage.scene.environment}`;
+  return stage._env === tex ? true : 'perdeu o valor desejado (_env) ao cair de qualidade';
+});
 
 check('a cena tem as duas luzes que dao volume a esfera', () =>
   stage.lights && stage.lights.key && stage.lights.key.isDirectionalLight === true &&
