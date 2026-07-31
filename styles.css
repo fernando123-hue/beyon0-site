@@ -1997,3 +1997,162 @@ h3 { font-size: 1.1rem; font-weight: 600; letter-spacing: -0.01em; color: var(--
   body::before { background: none; }
   .lit, .cta-panel, .mock__frame { animation: none; }
 }
+
+/* ==========================================================================
+   TIPOGRAFIA VIVA — a informação como parte do organismo (JS: §3g)
+   O JS não anima nada aqui: ele PUBLICA o estado do AI Core em variáveis e o
+   CSS decide como cada grupo responde. Toda a cor sai dos tokens VIVOS
+   (--core-rgb / --glow-rgb / --hi-rgb), então a metamorfose do Singular leva a
+   tipografia inteira por ciano → branco incandescente → dourado plasma →
+   estabilização → volta ao ciano sem uma linha de código a mais.
+   Só transform / translate / opacity / paint — nada que force layout.
+   ========================================================================== */
+:root {
+  /* energia por GRUPO (hierarquia: quanto maior a autoridade, maior o ganho) */
+  --ty-hero: 0;
+  --ty-title: 0;
+  --ty-lead: 0;
+  --ty-body: 0;
+  --ty-label: 0;
+  --ty-sys: 0;
+  --ty-front: -1;   /* frente local varrendo os caracteres (-1 = inativa) */
+  --ty-fw: 0;       /* peso da frente */
+  --ty-load: 0;     /* OVERLOAD — ressonâncias acumuladas 0..1 */
+  --ty-sing: 0;     /* Estado Singular 0..1 */
+  --ty-q: 1;        /* rede de FPS: reduz a QUANTIDADE de vida, nunca a presença */
+}
+
+/* ---------- o organismo: palavra inteira, caractere independente ---------- */
+.ty-w {
+  display: inline-block;
+  white-space: nowrap;        /* a palavra nunca se parte no meio */
+}
+.ty-c {
+  display: inline-block;
+  /* posição do glifo na frase (0..1) — base de toda a física por caractere */
+  --cp: calc(var(--ci, 0) / var(--cn, 1));
+  /* CAMPO DE PERCEPÇÃO: distância até o cursor DENTRO do elemento. A energia
+     nasce onde o cursor está e decai para os vizinhos — sem hover, sem
+     holofote: o glifo é que conduz. */
+  --td: max(calc(var(--cp) - var(--tcx, 0.5)), calc(var(--tcx, 0.5) - var(--cp)));
+  --tnear: clamp(0, calc((0.34 - var(--td)) / 0.34), 1);
+  /* PROPAGAÇÃO: a frente do Pulso varre os caracteres em ordem */
+  --fd: max(calc(var(--cp) - var(--ty-front)), calc(var(--ty-front) - var(--cp)));
+  --fhit: clamp(0, calc((0.26 - var(--fd)) / 0.26), 1);
+  /* energia final do caractere */
+  --ce: clamp(0, calc(
+      var(--tier, 0) * 0.40
+    + var(--tnear) * var(--tprox, 0) * 0.85
+    + var(--fhit) * var(--ty-fw, 0) * 0.80
+    + var(--ty-sing, 0) * 0.30
+  ), 1);
+  /* MATERIALIZAÇÃO: o glifo emerge escalonado pelos vizinhos — a palavra se
+     materializa como um corpo só, não como letras entrando em fila.
+     Sem JS (--tmat ausente) o padrão é 1: o texto nasce visível. */
+  --mp: clamp(0, calc(var(--tmat, 1) * 1.5 - var(--cp) * 0.5), 1);
+
+  /* a COR não é tocada: o glifo herda exatamente o token do título, então em
+     repouso a rampa fica idêntica ao que já estava no ar (e a metamorfose do
+     Singular continua levando tudo ao dourado pelo próprio token). A vida vem
+     de luz, elevação e escala — nunca de rebaixar a leitura. */
+  text-shadow: 0 0 calc(var(--ce) * 15px) rgb(var(--glow-rgb) / calc(var(--ce) * .46));
+  transform:
+    translate3d(0, calc((1 - var(--mp)) * .38em + var(--ce) * -.05em), 0)
+    scale(calc(1 + var(--ce) * .012 + var(--tchg, 0) * .01));
+  opacity: calc(.02 + var(--mp) * .98);
+  /* a velocidade da propagação varia de leve por caractere (--cj) — o fluxo
+     nunca lê como loop mecânico. Só propriedades de pintura: o transform da
+     materialização continua exato. */
+  transition: text-shadow 260ms linear;
+  transition-delay: calc(var(--cj, 0) * 40ms);
+}
+
+/* ---------- ESTADO IDLE: nada morto, nada chamativo ----------
+   respiração mínima só no HERO (o maior condutor da hierarquia); os demais
+   grupos respiram no nível do grupo, pela base de --ty-*. Usa a propriedade
+   independente `translate` para não brigar com o transform da energia. */
+@keyframes ty-breathe {
+  0%, 100% { translate: 0 0; }
+  50%      { translate: 0 calc(var(--ty-q, 1) * -.6px); }
+}
+.hero__title .ty-c {
+  animation: ty-breathe 6.2s ease-in-out infinite;
+  animation-delay: calc(var(--cj, 0) * -6.2s);
+}
+
+/* ---------- HIERARQUIA: cada grupo recebe o seu próprio elo ---------- */
+.hero__title { --tier: var(--ty-hero); }
+.section h2,
+.cta-panel h2 { --tier: var(--ty-title); }
+
+/* auxiliares: discretos por princípio — a leitura vem antes do efeito */
+.hero__sub,
+.section__lead {
+  --tier: var(--ty-lead);
+  text-shadow: 0 0 calc((var(--tier) * .55 + var(--tprox, 0) * .45) * 12px)
+               rgb(var(--glow-rgb) / calc((var(--tier) * .5 + var(--tprox, 0) * .5) * .30));
+}
+.pain p, .service p, .step p, .qa p {
+  --tier: var(--ty-body);
+  text-shadow: 0 0 calc(var(--tier) * 9px) rgb(var(--glow-rgb) / calc(var(--tier) * .16));
+}
+
+/* rótulos técnicos: a régua do kicker cresce com a energia do grupo */
+.kicker,
+.scroll-hint__label,
+.mock__label {
+  --tier: var(--ty-label);
+  text-shadow: 0 0 calc((var(--tier) + var(--tprox, 0) * .6) * 13px)
+               rgb(var(--glow-rgb) / calc((var(--tier) + var(--tprox, 0) * .6) * .42));
+}
+.kicker::before {
+  transform: scaleX(calc(1 + var(--ty-label, 0) * .5 + var(--ty-load, 0) * .12));
+  transform-origin: left center;
+}
+
+/* ---------- STATUS TÉCNICOS: a voz do sistema operacional do AI Core ----------
+   o grupo mais "vivo" dos auxiliares — é ele que anuncia o estado da máquina. */
+.hero__status,
+.bus__label,
+.medidor__line,
+.medidor__note { --tier: var(--ty-sys); }
+
+.hero__status {
+  border-color: rgb(var(--glow-rgb) / calc(.25 + var(--tier) * .45 + var(--ty-load) * .1));
+  background: rgb(var(--glow-rgb) / calc(.05 + var(--tier) * .07));
+  box-shadow: 0 0 calc(var(--tier) * 26px) rgb(var(--glow-rgb) / calc(var(--tier) * .22));
+}
+.hero__status-txt {
+  font-variant-numeric: tabular-nums;   /* a reescrita não empurra o balão */
+  text-shadow: 0 0 calc(var(--tier) * 12px) rgb(var(--glow-rgb) / calc(var(--tier) * .5));
+}
+
+/* ---------- OVERLOAD: mais atividade, mesma elegância ---------- */
+body[data-type-state="overload"] .ty-c,
+body[data-type-state="singularity"] .ty-c {
+  text-shadow:
+    0 0 calc(var(--ce) * 18px) rgb(var(--glow-rgb) / calc(var(--ce) * .55)),
+    0 0 calc(var(--ce) * 40px) rgb(var(--hi-rgb) / calc(var(--ce) * var(--ty-load, 0) * .3));
+}
+
+/* ---------- COOLING: o organismo relaxa depois do evento ---------- */
+body[data-type-state="cooling"] .ty-c { transition-duration: 720ms; }
+
+/* rede de FPS: em qualidade baixa a vida perde QUANTIDADE, não presença */
+@media (prefers-reduced-motion: no-preference) {
+  html.ty-on body[data-type-state="idle"] .ty-c { transition-duration: 380ms; }
+}
+
+/* ---------- acessibilidade / reduced motion ----------
+   sem movimento: o texto é só texto — legível, estável, sem materialização. */
+@media (prefers-reduced-motion: reduce) {
+  .ty-c {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+    translate: none !important;
+    opacity: 1 !important;
+    text-shadow: none;
+  }
+  .kicker::before { transform: none; }
+}

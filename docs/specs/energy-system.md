@@ -989,9 +989,12 @@ PENDENTE (fila pedida pelo dono, nesta ordem):
 - **Revisão profunda do AI Core + ecossistema** (presença, comportamento, animações,
   interações, fluxo de energia) e implementação das melhorias. Depende do olho do dono
   no reator primeiro.
-- **C**: máquina de estados explícita (Idle → Perceiving → Charging → Active →
-  Resonating → Singularity → Cooling) na timeline mestre Anime.js. Hoje os estados
-  existem de fato, mas emergem de `--energy`/`--res`/`--sing`, sem nomes.
+- ~~**C**: máquina de estados explícita (Idle → Perceiving → Charging → Active →
+  Resonating → Singularity → Cooling)~~ **FEITO** — nasceu com a TIPOGRAFIA VIVA
+  (§3g, no fim deste doc), com Overload no meio: `idle → perceiving → charging →
+  active → resonating → overload → singularity → cooling`. Publicada em
+  `body[data-type-state]` e em `EnergyField.type`, e narrada em voz alta pelos
+  status técnicos do hero. O motor deixou de ser Anime.js e passou a ser GSAP.
 
 ## Estado atual (o que já servia de fundação)
 
@@ -1000,3 +1003,150 @@ PENDENTE (fila pedida pelo dono, nesta ordem):
   locais, pulsos, anel quando parado. ~60% da ParticleLayer.
 - `.lit`/`.magnetic`/`.tilt`: registries DOM já no HTML.
 - `watchPerf` do vórtice (<45fps → degrade): reciclável para cap dinâmico.
+
+---
+
+# MOTOR: Anime.js -> GSAP 3.13 (substituicao completa)
+
+Anime.js foi **removido** (vendor, `<script>`, dependencia). O motor agora e GSAP
+3.13 UMD vendorado em `vendor/`, com os plugins ScrollTrigger, SplitText,
+TextPlugin e ScrambleTextPlugin registrados no boot. Projeto continua **sem
+build**: nada de importacao ES `from "gsap"` — o CSP e `script-src 'self'`, os
+plugins chegam como globais por `<script defer>` e o `main.js` so detecta e
+registra (`hasGsap` / `GSAP`).
+
+A regra sagrada continua: timelines `paused:true` + `seek()` pelo loop unico.
+`gsap.ticker.lagSmoothing(0)` desliga o ajuste de relogio interno — quem manda no
+tempo e o nosso loop. GSAP e motor de interpolacao, **nunca** um 2o rAF.
+
+**Conversao (validada prop-a-prop contra as timelines Anime originais, diff < 1e-6
+nos 4 arquetipos e nas 8 propriedades do Singular):**
+
+| Armadilha | Regra |
+|---|---|
+| Easing off-by-one | anime `pow(n)` = expoente n; gsap `power1` = quad (exp 2). Map: `pow(n)` -> `power(n-1)`. `out(2)`->`power1.out`, `out(3)`->`power2.out`, `inOut(2)`->`power1.inOut` |
+| Keyframe sem ease | keyframes do GSAP **ignoram** o `defaults.ease` da timeline (usam `power1.inOut` proprio). Ease **explicito em todo keyframe** |
+| Unidades | anime = ms, gsap = **segundos**. Timelines em `*0.001`; `duration()*1000` e `seek(ms*0.001)` so na fronteira. Thresholds (`_c/_r/_e`) e `resElapsed` continuam em ms |
+
+O fallback stepper numerico (`hasGsap` false) foi preservado: o organismo nunca
+quebra.
+
+---
+
+# 3g. TIPOGRAFIA VIVA — a informacao como parte do organismo
+
+A tipografia nao e sistema paralelo: e a extensao do AI Core no texto. Sem rAF,
+sem timeline mestre e sem estado proprio — tudo e **derivado** de `EnergyField` e
+publicado como CSS Variables. O JS nao anima nada; o CSS decide como cada grupo
+responde.
+
+## 1. Hierarquia comportamental (autoridade visual = autoridade energetica)
+
+A tipografia deixou de ser UM elo (0.55) e virou uma **banda** da cadeia:
+particulas .40 -> **[.50 ... .68]** -> cards .70. Como cada grupo ocupa uma posicao
+diferente, o Pulso os atravessa em **momentos diferentes** — nunca sincronizados.
+
+| Grupo | pos | ganho | decompoe | seletor |
+|---|---|---|---|---|
+| hero | .500 | 1.00 | sim | `.hero__title` |
+| title | .545 | 0.84 | sim | `.section h2, .cta-panel h2` |
+| lead | .578 | 0.58 | nao | `.hero__sub, .section__lead` |
+| body | .612 | 0.34 | nao | `.pain p, .service p, .step p, .qa p` |
+| label | .645 | 0.52 | nao | `.kicker, .scroll-hint__label, .mock__label` |
+| sys | .680 | 0.74 | nao | `.hero__status, .bus__label, .medidor__line, .medidor__note` |
+
+Medido em repouso (nada morto, nada chamativo):
+`hero .090 > title .076 > sys .067 > lead .052 > label .047 > body .031`.
+
+Medido com a frente varrendo (o Pulso ATRAVESSA a informacao em ordem):
+
+| front | hero | lead | sys |
+|---|---|---|---|
+| .46 | 1.000 | .535 | .376 |
+| .58 | 1.000 | .690 | .733 |
+| .70 | .584 | .526 | .874 |
+
+## 2. Caractere como unidade fisica
+
+So hero e titulos de secao sao decompostos (205 glifos / 7 elementos). A palavra
+continua **um organismo**: `.ty-w` e `inline-block; white-space:nowrap` (nunca
+parte no meio) e `.ty-c` e a unidade fisica, com `--ci` (indice), `--cn` (total) e
+`--cj` (jitter estavel — a velocidade varia de leve, o fluxo nunca vira loop).
+
+**NUNCA decompor** (`NOSPLIT`): `.grad` (o gradiente morre picotado e os ecos de
+glitch sao por elemento), `[data-sing-text]` (3e sobrescreve `textContent` —
+apagaria os glifos), `.sr-only`, `canvas`, `svg`. Verificado: 13 `.grad` intactas,
+0 glifos dentro delas, 0 dentro de `[data-sing-text]`.
+
+A11y: o elemento recebe `aria-label` com a frase inteira e estavel (o `<br>` do
+hero e resolvido por `innerText`); as palavras geradas ficam `aria-hidden` — senao
+o leitor de tela soletraria.
+
+## 3. Fisica (tudo em CSS, zero JS por caractere)
+
+- **`--cp`** = `--ci / --cn` — posicao do glifo na frase.
+- **Campo de percepcao**: o JS publica `--tprox` (proximidade do cursor ao
+  elemento, com **memoria energetica**: sobe a 0.16/frame ~100ms, desce a
+  0.030/frame ~2.5s) e `--tcx` (posicao do cursor DENTRO do elemento). O CSS mede
+  a distancia de cada glifo ate `--tcx` -> a energia nasce onde o cursor esta e
+  decai para os vizinhos. Sem hover, sem holofote.
+- **Propagacao temporal**: `--ty-front` e a frente da cadeia remapeada para a
+  banda tipografica — varre os caracteres 0->1 durante o Pulso.
+- **Materializacao**: UMA timeline GSAP normalizada (`rise` / `chg` / `set`),
+  `paused`, reaproveitada por todos os elementos via `seek()`. O escalonamento
+  entre vizinhos e do CSS (`--mp` usa `--cp`), entao a palavra se materializa como
+  um corpo so, nao como letras em fila. Medido: `--tmat` 0 -> .965 -> 1.000.
+- **Idle**: respiracao de 0.6px so no hero (maior condutor), na propriedade
+  independente `translate` — nao briga com o `transform` da energia. Os outros
+  grupos respiram no nivel do grupo, pela base que inclui `core.breath`.
+
+## 4. Maquina de estados (fecha a Etapa C)
+
+`idle -> perceiving -> charging -> active -> resonating -> overload -> singularity
+-> cooling -> idle`, publicada em `body[data-type-state]` e em `EnergyField.type`.
+Overload nasce de `resDoneCount` (ressonancias sucessivas), o mesmo contador da
+escada do Singular.
+
+## 5. Status dinamicos = a voz do sistema
+
+`.hero__status-txt` **narra a maquina de estados** e se reescreve pelo glitch —
+nunca troca seca. O motor de reescrita (`txtGlyph`/`txtMorph`) foi hoisted e agora
+e **compartilhado** com a reescrita do Singular (3e). Rotulos: `Sistema online ·
+beyon.0` / `Presenca detectada` / `Acumulando energia` / `Canal aberto` /
+`Ressonancia em curso` / `Sobrecarga controlada` / `AI Core no comando` /
+`Estabilizando sistema`. O texto do leitor de tela fica estavel (`.sr-only`).
+
+## 6. Identidade preservada
+
+A cor dos glifos **nao e tocada** — herda o token do titulo. Em repouso o
+`text-shadow` tem alfa **0**: o site esta pixel-a-pixel como estava. A vida vem de
+luz, elevacao e escala. Como tudo usa os tokens VIVOS (`--core-rgb`/`--glow-rgb`),
+a metamorfose do Singular leva a tipografia inteira por ciano -> branco -> dourado
+-> volta, sem uma linha a mais.
+
+## 7. Armadilhas aprendidas
+
+- **`--tmat` parte de 0 -> opacidade ~0.** Se o loop nao rodar, o titulo ficaria
+  ilegivel. Duas redes: `setTimeout(2600)` que assume o estado final se nenhum tick
+  aconteceu, e o padrao do CSS (`var(--tmat, 1)`) que faz o texto nascer visivel se
+  o JS nunca escrever.
+- **Nao depender do IntersectionObserver.** `vis` nasce `true` e o `remeasure()`
+  liga a materializacao do que ja esta em cena; o observador so REFINA. (O teste
+  pegou isso: com IO nao disparado, percepcao e materializacao ficavam mortas.)
+- **`bootGate`**: a materializacao espera a intro sair, senao o hero se
+  materializa ATRAS do video. Prazo de 9s como rede.
+- **Verificacao neste ambiente**: `getComputedStyle` de propriedade com
+  `transition` volta CONGELADA (o pane e `document.hidden`). `text-shadow` lia
+  zerado ate eu desligar a transicao inline. `transform`/`opacity` (sem transition)
+  leem ao vivo.
+
+## 8. Nao feito / honesto
+
+- **SplitText nao e usado**: o splitter e proprio, porque SplitText picotaria
+  `.grad` e `[data-sing-text]`. ScrollTrigger, TextPlugin e ScrambleTextPlugin
+  estao instalados e registrados, mas **nao usados** — a reescrita usa o glitch
+  proprio do projeto (o pedido foi explicito: "o sistema de glitch existente").
+- **Propagacao por cursor e espacial + suavizada**, nao uma cascata temporal
+  caractere-a-caractere. A cascata temporal real acontece no Pulso (`--ty-front`).
+- **Nada de movimento foi julgado visualmente** — o pane congela rAF. Ritmo,
+  amplitude e elegancia dependem do olho do dono.

@@ -38,11 +38,25 @@
   })();
   function rgbTriple(s) { var p = s.split(','); return [+p[0], +p[1], +p[2]]; }
 
-  /* Anime.js é o motor da timeline mestre da ressonância. Vendorado local
-     (vendor/anime.umd.min.js). Se faltar, cai num stepper numérico equivalente
-     — o organismo nunca quebra. */
-  var hasAnime = typeof window.anime !== 'undefined' &&
-    typeof window.anime.createTimeline === 'function';
+  /* ========== GSAP — motor de animação (window.gsap, UMD vendorado) ==========
+     Plugins registrados no boot: ScrollTrigger, SplitText, TextPlugin,
+     ScrambleTextPlugin. Config padrão de importação p/ projeto SEM build:
+     a lib e os plugins chegam como globais via <script defer> no index.html;
+     aqui só detectamos e registramos.
+
+     REGRA SAGRADA (1 rAF único): as timelines mestre devem rodar `paused:true` +
+     seek() pelo loop único do organismo — o gsap é motor de interpolação/
+     keyframes, NUNCA um segundo loop. `lagSmoothing(0)` desliga o ajuste de
+     tempo do ticker interno (quem controla o relógio é o nosso loop). */
+  var GSAP = window.gsap || null;
+  var hasGsap = !!GSAP && typeof GSAP.timeline === 'function';
+  if (hasGsap) {
+    var gsapPlugins = ['ScrollTrigger', 'SplitText', 'TextPlugin', 'ScrambleTextPlugin']
+      .map(function (n) { return window[n]; })
+      .filter(Boolean);
+    if (gsapPlugins.length) GSAP.registerPlugin.apply(GSAP, gsapPlugins);
+    GSAP.ticker.lagSmoothing(0);
+  }
 
   document.querySelectorAll('[data-wa]').forEach(function (el) {
     el.setAttribute('href', WA_LINK);
@@ -410,42 +424,47 @@
     r._r = r._c + a.durC * 0.6;
     r._e = r._r + a.durR * 0.62;
     resElapsed = 0; resNowLast = now;
-    if (hasAnime) { resTL = buildResonanceTL(a, r); resDur = resTL.duration; }
+    if (hasGsap) { resTL = buildResonanceTL(a, r); resDur = resTL.duration() * 1000; }
     else { resTL = null; resDur = r._r + a.durR + a.durE; }
   }
 
-  /* TIMELINE MESTRE (Anime.js): tweena os números do estado com keyframes que se
-     sobrepõem. autoplay:false → o loop único do organismo faz seek() a cada frame
-     (1 rAF só; o anime é motor de interpolação/keyframes, não um segundo loop). */
+  /* TIMELINE MESTRE (GSAP): tweena os números do estado com keyframes que se
+     sobrepõem. paused:true → o loop único do organismo faz seek() a cada frame
+     (1 rAF só; o gsap é motor de interpolação/keyframes, não um segundo loop).
+     Durações em SEGUNDOS (ms * 0.001). Easing anime→gsap: pow(n) → power(n-1)
+     (anime power=expoente; gsap power1=quad/exp2). Cada keyframe leva ease
+     explícito — keyframes do gsap ignoram o `defaults.ease` da timeline.
+     Validado prop-a-prop contra a timeline anime original (diff < 1e-6). */
   function buildResonanceTL(a, r) {
-    var tl = anime.createTimeline({ autoplay: false });
+    var ms = 0.001;
+    var tl = GSAP.timeline({ paused: true });
     /* charge: sobe no silêncio → segura na compressão → cai no release */
-    tl.add(r, { charge: [
-      { to: 1, duration: a.durS, ease: 'inOut(2)' },
-      { to: 1, duration: r._r - a.durS + a.durR * 0.18 },
-      { to: 0, duration: a.durR * 0.82, ease: 'out(2)' }
+    tl.to(r, { keyframes: [
+      { charge: 1, duration: a.durS * ms, ease: 'power1.inOut' },
+      { charge: 1, duration: (r._r - a.durS + a.durR * 0.18) * ms, ease: 'power1.out' },
+      { charge: 0, duration: a.durR * 0.82 * ms, ease: 'power1.out' }
     ] }, 0);
     /* space: o vazio comprime junto da carga e relaxa ao começar a percorrer */
-    tl.add(r, { space: [
-      { to: 1, duration: a.durS + a.durC * 0.5, ease: 'inOut(2)' },
-      { to: 0, duration: a.durR * 0.7, ease: 'out(3)' }
+    tl.to(r, { keyframes: [
+      { space: 1, duration: (a.durS + a.durC * 0.5) * ms, ease: 'power1.inOut' },
+      { space: 0, duration: a.durR * 0.7 * ms, ease: 'power2.out' }
     ] }, 0);
     /* amp: mínimo no acúmulo → dispara no release → decai devagar no eco.
        (o segmento do acúmulo vai direto até r._r — expressá-lo como
        "durS + (r._r - durS)" dava duração NEGATIVA nos 4 arquétipos) */
-    tl.add(r, { amp: [
-      { to: 0.12, duration: r._r, ease: 'in(2)' },
-      { to: a.power, duration: a.durR, ease: 'out(3)' },
-      { to: 0, duration: a.durE, ease: 'out(2)' }
+    tl.to(r, { keyframes: [
+      { amp: 0.12, duration: r._r * ms, ease: 'power1.in' },
+      { amp: a.power, duration: a.durR * ms, ease: 'power2.out' },
+      { amp: 0, duration: a.durE * ms, ease: 'power1.out' }
     ] }, 0);
     /* front: só percorre a cadeia no release (posicionado em r._r) */
-    tl.add(r, { front: [0, 1], duration: a.durR, ease: 'out(3)' }, r._r);
+    tl.fromTo(r, { front: 0 }, { front: 1, duration: a.durR * ms, ease: 'power2.out' }, r._r * ms);
     /* reveal: nasce na compressão, pico no release, some no eco */
-    tl.add(r, { reveal: [
-      { to: 0.28, duration: a.durC, ease: 'in(2)' },
-      { to: 1, duration: a.durR },
-      { to: 0, duration: a.durE * 1.1, ease: 'out(2)' }
-    ] }, r._c);
+    tl.to(r, { keyframes: [
+      { reveal: 0.28, duration: a.durC * ms, ease: 'power1.in' },
+      { reveal: 1, duration: a.durR * ms, ease: 'power1.out' },
+      { reveal: 0, duration: a.durE * 1.1 * ms, ease: 'power1.out' }
+    ] }, r._c * ms);
     return tl;
   }
 
@@ -456,7 +475,7 @@
     if (!r.active) return;
     var dt = Math.min(50, now - resNowLast); resNowLast = now;
     resElapsed += dt;
-    if (hasAnime && resTL) { resTL.seek(Math.min(resElapsed, resDur)); }
+    if (hasGsap && resTL) { resTL.seek(Math.min(resElapsed, resDur) * 0.001); }
     else { stepResonanceFallback(r); }
     r.phase = resElapsed < r._c ? 'silence' : resElapsed < r._r ? 'compression'
       : resElapsed < r._e ? 'release' : 'echo';
@@ -474,7 +493,7 @@
     }
   }
 
-  /* fallback sem Anime.js: mesmas envelopes, aproximação eased manual */
+  /* fallback sem GSAP: mesmas envelopes, aproximação eased manual */
   function stepResonanceFallback(r) {
     var a = r.w, te = resElapsed, relEnd = r._r + a.durR;
     var sil = Math.min(1, te / a.durS);
@@ -546,69 +565,72 @@
     s._t = 4200;                         /* fim da transcendência */
     s._a = 17000;                        /* fim do ápice → resfriamento (total 20000) */
     singElapsed = 0; singNowLast = now;
-    if (hasAnime) { singTL = buildSingularityTL(s); singDur = singTL.duration; }
+    if (hasGsap) { singTL = buildSingularityTL(s); singDur = singTL.duration() * 1000; }
     else { singTL = null; singDur = 20000; }
   }
 
-  /* TIMELINE MESTRE (Anime.js) — 20s: compressão 2.6s / transcendência 1.6s /
+  /* TIMELINE MESTRE (GSAP) — 20s: compressão 2.6s / transcendência 1.6s /
      ápice 12.8s / resfriamento 3s. O evento NÃO começa na interface: começa DENTRO
      do núcleo (strain), que comprime a própria energia até o limite físico, passa
      por um instante de silêncio absoluto (hush) e só então transcende.
-     autoplay:false → seek pelo loop único (1 rAF). */
+     paused:true → seek pelo loop único (1 rAF). Durações em SEGUNDOS (ms*0.001);
+     ease anime→gsap pow(n)→power(n-1), explícito por keyframe.
+     Validado prop-a-prop contra a timeline anime original (diff < 1e-6). */
   function buildSingularityTL(s) {
-    var tl = anime.createTimeline({ autoplay: false });
+    var ms = 0.001;
+    var tl = GSAP.timeline({ paused: true });
     var S = 2600, T = 1600, A = 12800, C = 3000;
     /* strain: o núcleo comprime a própria energia; solta ao transcender */
-    tl.add(s, { strain: [
-      { to: 1, duration: S, ease: 'in(2)' },
-      { to: 0, duration: T * 0.75, ease: 'out(2)' },
-      { to: 0, duration: A + C + T * 0.25 }
+    tl.to(s, { keyframes: [
+      { strain: 1, duration: S * ms, ease: 'power1.in' },
+      { strain: 0, duration: T * 0.75 * ms, ease: 'power1.out' },
+      { strain: 0, duration: (A + C + T * 0.25) * ms, ease: 'power1.out' }
     ] }, 0);
     /* hush: instante de silêncio visual absoluto, imediatamente antes do release */
-    tl.add(s, { hush: [
-      { to: 0, duration: S - 300 },
-      { to: 1, duration: 150, ease: 'in(2)' },
-      { to: 0, duration: 380, ease: 'out(2)' },
-      { to: 0, duration: 20000 - S - 230 }
+    tl.to(s, { keyframes: [
+      { hush: 0, duration: (S - 300) * ms, ease: 'power1.out' },
+      { hush: 1, duration: 150 * ms, ease: 'power1.in' },
+      { hush: 0, duration: 380 * ms, ease: 'power1.out' },
+      { hush: 0, duration: (20000 - S - 230) * ms, ease: 'power1.out' }
     ] }, 0);
     /* warmth: ciano→BRANCO acontece dentro da compressão (aquecimento);
        branco→dourado só na transcendência; esfria devagar no fim */
-    tl.add(s, { warmth: [
-      { to: 0, duration: S * 0.45 },
-      { to: 0.5, duration: S * 0.55, ease: 'in(2)' },
-      { to: 1, duration: T, ease: 'out(2)' },
-      { to: 1, duration: A },
-      { to: 0, duration: C, ease: 'inOut(2)' }
+    tl.to(s, { keyframes: [
+      { warmth: 0, duration: S * 0.45 * ms, ease: 'power1.out' },
+      { warmth: 0.5, duration: S * 0.55 * ms, ease: 'power1.in' },
+      { warmth: 1, duration: T * ms, ease: 'power1.out' },
+      { warmth: 1, duration: A * ms, ease: 'power1.out' },
+      { warmth: 0, duration: C * ms, ease: 'power1.inOut' }
     ] }, 0);
     /* grip: o campo gravitacional já se intensifica na compressão */
-    tl.add(s, { grip: [
-      { to: 0.55, duration: S, ease: 'in(2)' },
-      { to: 1, duration: T, ease: 'out(3)' },
-      { to: 1, duration: A },
-      { to: 0, duration: C, ease: 'in(2)' }
+    tl.to(s, { keyframes: [
+      { grip: 0.55, duration: S * ms, ease: 'power1.in' },
+      { grip: 1, duration: T * ms, ease: 'power2.out' },
+      { grip: 1, duration: A * ms, ease: 'power1.out' },
+      { grip: 0, duration: C * ms, ease: 'power1.in' }
     ] }, 0);
     /* amp: a interface fica QUIETA na compressão; só explode na transcendência */
-    tl.add(s, { amp: [
-      { to: 0.12, duration: S, ease: 'in(2)' },
-      { to: 1, duration: T, ease: 'out(3)' },
-      { to: 1, duration: A },
-      { to: 0, duration: C, ease: 'out(2)' }
+    tl.to(s, { keyframes: [
+      { amp: 0.12, duration: S * ms, ease: 'power1.in' },
+      { amp: 1, duration: T * ms, ease: 'power2.out' },
+      { amp: 1, duration: A * ms, ease: 'power1.out' },
+      { amp: 0, duration: C * ms, ease: 'power1.out' }
     ] }, 0);
     /* depth: expansão espacial (só a partir da transcendência) */
-    tl.add(s, { depth: [
-      { to: 0.1, duration: S },
-      { to: 1, duration: T, ease: 'out(3)' },
-      { to: 1, duration: A },
-      { to: 0, duration: C, ease: 'inOut(2)' }
+    tl.to(s, { keyframes: [
+      { depth: 0.1, duration: S * ms, ease: 'power1.out' },
+      { depth: 1, duration: T * ms, ease: 'power2.out' },
+      { depth: 1, duration: A * ms, ease: 'power1.out' },
+      { depth: 0, duration: C * ms, ease: 'power1.inOut' }
     ] }, 0);
     /* front: a reorganização propaga do núcleo pra fora, após o release */
-    tl.add(s, { front: [0, 1], duration: T + A * 0.3, ease: 'out(3)' }, S);
+    tl.fromTo(s, { front: 0 }, { front: 1, duration: (T + A * 0.3) * ms, ease: 'power2.out' }, S * ms);
     /* reveal: circuitos/bordas SUSTENTADOS o ápice inteiro (não spike) */
-    tl.add(s, { reveal: [
-      { to: 1, duration: T, ease: 'out(2)' },
-      { to: 1, duration: A },
-      { to: 0, duration: C, ease: 'in(2)' }
-    ] }, S);
+    tl.to(s, { keyframes: [
+      { reveal: 1, duration: T * ms, ease: 'power1.out' },
+      { reveal: 1, duration: A * ms, ease: 'power1.out' },
+      { reveal: 0, duration: C * ms, ease: 'power1.in' }
+    ] }, S * ms);
     return tl;
   }
 
@@ -617,7 +639,7 @@
     if (!s.active) return;
     var dt = Math.min(50, now - singNowLast); singNowLast = now;
     singElapsed += dt;
-    if (hasAnime && singTL) { singTL.seek(Math.min(singElapsed, singDur)); }
+    if (hasGsap && singTL) { singTL.seek(Math.min(singElapsed, singDur) * 0.001); }
     else { stepSingularityFallback(s); }
     s.phase = singElapsed < s._s ? 'strain' : singElapsed < s._t ? 'transcend'
       : singElapsed < s._a ? 'apex' : 'cooling';
@@ -847,7 +869,7 @@
         '\nstrain ' + _ds.strain.toFixed(2) + ' hush ' + _ds.hush.toFixed(2) +
         '\nCORE   pow ' + _cb.pow.toFixed(2) + ' br ' + _cb.breath.toFixed(2) +
         '\n       R ' + _cb.R.toFixed(0) + ' fat ' + _cb.fatigue.toFixed(2) + ' g ' + _cb.grav.toFixed(2) +
-        '\ncnt ' + resDoneCount + '  eng ' + (hasAnime ? 'anime' : 'fallbk') +
+        '\ncnt ' + resDoneCount + '  eng ' + (hasGsap ? 'gsap' : 'fallbk') +
         '\nreach  ' + efReach.toFixed(2) + '  fps ' + Math.round(fpsEMA) + ' q' + EnergyField.quality.toFixed(2);
     }
 
@@ -2023,6 +2045,376 @@
      Overlay de canvas por título; pontos amostrados sobre a letra. Perto do
      cursor: onda L→R + brilho conforme o cursor + faíscas que escapam e voltam.
      Em repouso não desenha nada (título limpo). Só desktop ponteiro fino. */
+  /* ===== MOTOR DE REESCRITA (compartilhado) =====
+     Alfabeto do ruído + morph caractere-a-caractere. UM só motor: a reescrita do
+     Singular (§3e) e os STATUS DINÂMICOS (§3g) passam por aqui, então nenhum
+     texto do site "troca" — ele sempre se REESCREVE. Cada caractere desestabiliza
+     antes de assentar (a janela abre em r=-0.35, antes do reveal). */
+  var TXT_GL = '01<>/\\[]{}=+*#%&ABCDEF';
+  function txtGlyph() { return TXT_GL.charAt((Math.random() * TXT_GL.length) | 0); }
+  function txtMorph(calm, sing, p) {
+    var L = Math.max(calm.length, sing.length), out = '', i, r, from, to;
+    for (i = 0; i < L; i++) {
+      from = calm.charAt(i); to = sing.charAt(i);
+      r = (p - (i / (L || 1)) * 0.5) / 0.4;
+      if (r >= 1) out += to;
+      else if (r <= -0.35) out += from;
+      else out += (to === ' ' && from === ' ') ? ' ' : txtGlyph();
+    }
+    return out;
+  }
+
+  /* ========== 3g. TIPOGRAFIA VIVA — a informação também é energia ==========
+     A tipografia NÃO é um sistema paralelo: é a extensão do AI Core no texto.
+     Nada aqui tem rAF, timeline mestre ou estado próprio — tudo é DERIVADO de
+     EnergyField (res/sing/E/core/quality) e publicado como CSS Variables que a
+     folha de estilo consome. Três primitivas:
+
+       1. HIERARQUIA — 6 grupos, cada um um elo PRÓPRIO dentro da banda
+          tipográfica da cadeia (partículas .40 → [.50 … .68] → cards .70).
+          Autoridade visual = autoridade energética: o hero é o maior condutor,
+          o corpo de texto quase não conduz, e os indicadores técnicos falam
+          como o sistema operacional do núcleo. Como cada grupo tem posição
+          diferente na cadeia, o Pulso os atravessa em momentos diferentes —
+          nunca sincronizados.
+       2. CARACTERE — os títulos são decompostos em glifos (--ci/--cn/--cj). A
+          palavra continua UM organismo: a divisão só existe para permitir
+          física por caractere (propagação, materialização, respiração).
+       3. ESTADO — máquina explícita e nomeada:
+          idle → perceiving → charging → active → resonating → overload →
+          singularity → cooling → idle. Publicada em body[data-type-state] e em
+          EnergyField.type. Os STATUS DINÂMICOS a NARRAM, reescrevendo-se pelo
+          mesmo glitch do Singular (txtMorph) — jamais uma troca seca.
+
+     GSAP entra só como maestro do envelope de materialização: UMA timeline
+     paused, seek()ada pelo loop único — motor de interpolação, nunca 2º loop.
+     Zero reflow por frame: os retângulos são cacheados e só remedidos em
+     scroll/resize (mesmo idioma do livingType). */
+  (function livingTypography() {
+    var root = document.documentElement;
+
+    var TIERS = [
+      /* pos = elo na cadeia · gain = autoridade · split = vira caractere       */
+      { k: 'hero',  pos: 0.500, gain: 1.00, split: true,  range: 300, fall: 0.030,
+        sel: '.hero__title' },
+      { k: 'title', pos: 0.545, gain: 0.84, split: true,  range: 250, fall: 0.034,
+        sel: '.section h2, .cta-panel h2' },
+      { k: 'lead',  pos: 0.578, gain: 0.58, split: false, range: 210, fall: 0.042,
+        sel: '.hero__sub, .section__lead' },
+      { k: 'body',  pos: 0.612, gain: 0.34, split: false, range: 165, fall: 0.052,
+        sel: '.pain p, .service p, .step p, .qa p' },
+      { k: 'label', pos: 0.645, gain: 0.52, split: false, range: 175, fall: 0.046,
+        sel: '.kicker, .scroll-hint__label, .mock__label' },
+      { k: 'sys',   pos: 0.680, gain: 0.74, split: false, range: 185, fall: 0.028,
+        sel: '.hero__status, .bus__label, .medidor__line, .medidor__note' }
+    ];
+
+    /* o que NUNCA é decomposto: as palavras aurora (.grad têm gradiente e ecos
+       de glitch próprios, e background-clip morre se picotado), os textos que se
+       reescrevem (§3e sobrescreve textContent — apagaria os glifos), o texto
+       só-leitor-de-tela e as camadas de canvas/svg do livingType. */
+    var NOSPLIT = '.grad, [data-sing-text], .sr-only, canvas, svg';
+
+    /* ---- decomposição: palavra = organismo (inline-block, nunca quebra no
+       meio), caractere = unidade física. --ci/--cn dão a POSIÇÃO do glifo na
+       frase (propagação) e --cj um jitter estável por caractere (a velocidade
+       varia de leve — nunca vira loop mecânico). */
+    function splitChars(el) {
+      var label = (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
+      var chars = [];
+      (function walk(node) {
+        var next;
+        for (var c = node.firstChild; c; c = next) {
+          next = c.nextSibling;
+          if (c.nodeType === 3) {
+            if (!/\S/.test(c.nodeValue)) continue;
+            var frag = document.createDocumentFragment();
+            var parts = c.nodeValue.split(/(\s+)/);
+            for (var i = 0; i < parts.length; i++) {
+              var s = parts[i];
+              if (!s) continue;
+              if (!/\S/.test(s)) { frag.appendChild(document.createTextNode(s)); continue; }
+              var w = document.createElement('span');
+              w.className = 'ty-w';
+              w.setAttribute('aria-hidden', 'true');
+              for (var j = 0; j < s.length; j++) {
+                var ch = document.createElement('span');
+                ch.className = 'ty-c';
+                ch.textContent = s.charAt(j);
+                w.appendChild(ch);
+                chars.push(ch);
+              }
+              frag.appendChild(w);
+            }
+            node.replaceChild(frag, c);
+          } else if (c.nodeType === 1 && !c.matches(NOSPLIT)) {
+            walk(c);
+          }
+        }
+      })(el);
+      if (!chars.length) return 0;
+      /* o leitor de tela recebe a frase inteira e estável; os glifos somem da
+         árvore de acessibilidade (senão seriam soletrados). */
+      if (label) el.setAttribute('aria-label', label);
+      for (var n = 0; n < chars.length; n++) {
+        var jit = (Math.sin((n + 1) * 12.9898) * 43758.5453);
+        jit = jit - Math.floor(jit);
+        chars[n].style.setProperty('--ci', n);
+        chars[n].style.setProperty('--cj', jit.toFixed(3));
+      }
+      el.style.setProperty('--cn', chars.length);
+      /* parte do nada: o título se MATERIALIZA ao entrar em cena. Se o JS não
+         chegar a escrever (reduced-motion, falha), o padrão do CSS é 1 — o
+         texto nasce visível e legível. */
+      el.style.setProperty('--tmat', '0');
+      el.classList.add('ty-split');
+      return chars.length;
+    }
+
+    /* ---- coleta */
+    var items = [], anySplit = false;
+    TIERS.forEach(function (t) {
+      t.els = [];
+      [].forEach.call(document.querySelectorAll(t.sel), function (el) {
+        /* vis nasce TRUE de propósito: se o IntersectionObserver atrasar ou não
+           existir, o campo de percepção continua vivo — o observador só REFINA
+           o que já funciona, nunca é pré-requisito. */
+        var it = { el: el, t: t, prox: 0, mat: t.split ? 0 : 1, matOn: !t.split,
+          vis: true, x: 0, y: 0, w: 1, h: 1, v: {} };
+        if (t.split && !reduced && splitChars(el)) { anySplit = true; it.mat = 0; }
+        else { it.mat = 1; it.matOn = true; }
+        t.els.push(it); items.push(it);
+      });
+    });
+    if (!items.length) return;
+
+    /* ---- MATERIALIZAÇÃO (maestro GSAP): UMA timeline normalizada 0..1,
+       reaproveitada por todos os elementos via seek(). Três curvas distintas —
+       o glifo EMERGE (rise), RECEBE ENERGIA (chg) e ESTABILIZA (set). O
+       escalonamento entre caracteres vizinhos é feito no CSS por --ci, então a
+       palavra se materializa como um corpo só, não como letras em fila. */
+    var MAT = { rise: 0, chg: 0, set: 0 }, matTL = null, matDur = 1;
+    if (hasGsap) {
+      matTL = GSAP.timeline({ paused: true });
+      matTL.to(MAT, { keyframes: [
+        { rise: 1, duration: 0.60, ease: 'power3.out' }
+      ] }, 0);
+      matTL.to(MAT, { keyframes: [
+        { chg: 1, duration: 0.30, ease: 'power2.out' },
+        { chg: 0.16, duration: 0.62, ease: 'power2.inOut' }
+      ] }, 0.12);
+      matTL.to(MAT, { keyframes: [
+        { set: 1, duration: 0.46, ease: 'power2.inOut' }
+      ] }, 0.54);
+      matDur = matTL.duration();
+    }
+    var MAT_MS = 980;
+
+    /* ---- medição sem reflow por frame */
+    var dirty = true;
+    function remeasure() {
+      for (var i = 0; i < items.length; i++) {
+        var b = items[i].el.getBoundingClientRect();
+        items[i].x = b.left; items[i].y = b.top;
+        items[i].w = b.width || 1; items[i].h = b.height || 1;
+        /* o que já está em cena materializa sem esperar o observador */
+        if (!items[i].matOn && b.top < innerHeight + 10 && b.bottom > -10) items[i].matOn = true;
+      }
+      dirty = false;
+    }
+    window.addEventListener('scroll', function () { dirty = true; }, { passive: true });
+    window.addEventListener('resize', debounce(function () { dirty = true; }, 180));
+
+    if ('IntersectionObserver' in window) {
+      var io = new IntersectionObserver(function (ents) {
+        ents.forEach(function (en) {
+          for (var i = 0; i < items.length; i++) {
+            if (items[i].el !== en.target) continue;
+            items[i].vis = en.isIntersecting;
+            if (en.isIntersecting) items[i].matOn = true;   /* materializa ao entrar */
+          }
+        });
+      }, { rootMargin: '10px' });
+      items.forEach(function (it) { io.observe(it.el); });
+    } else {
+      items.forEach(function (it) { it.vis = true; it.matOn = true; });
+    }
+
+    /* ---- publicação de variáveis (gated: só escreve o que mudou) */
+    var rootV = {};
+    function setRoot(n, val) {
+      var s = val.toFixed(3);
+      if (rootV[n] === s) return;
+      rootV[n] = s; root.style.setProperty(n, s);
+    }
+    function setEl(it, n, val) {
+      var s = val.toFixed(3);
+      if (it.v[n] === s) return;
+      it.v[n] = s; it.el.style.setProperty(n, s);
+    }
+    function cl01(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
+
+    /* ---- MÁQUINA DE ESTADOS (explícita e nomeada) */
+    var state = 'idle', stateSince = 0, coolUntil = 0, wasSing = false, wasRes = false;
+    EnergyField.type = { state: 'idle', load: 0, prox: 0, since: 0 };
+
+    /* ---- STATUS DINÂMICOS: o texto técnico NARRA a máquina de estados e se
+       reescreve pelo glitch (nunca troca seca). É a voz do sistema operacional
+       do AI Core. */
+    var LABELS = {
+      idle:        'Sistema online · beyon.0',
+      perceiving:  'Presença detectada',
+      charging:    'Acumulando energia',
+      active:      'Canal aberto',
+      resonating:  'Ressonância em curso',
+      overload:    'Sobrecarga controlada',
+      singularity: 'AI Core no comando',
+      cooling:     'Estabilizando sistema'
+    };
+    var stEl = document.querySelector('.hero__status-txt');
+    var stFrom = LABELS.idle, stTo = LABELS.idle, stP = 1, stShown = null;
+    var ST_MS = 780;
+    function stApply(str) {
+      if (!stEl || str === stShown) return;
+      stShown = str; stEl.textContent = str;
+    }
+    function stDrive(dt) {
+      if (!stEl) return;
+      if (stP >= 1) {
+        if (stShown !== stTo) stApply(stTo);
+        if (stEl.classList.contains('sys-rewriting')) stEl.classList.remove('sys-rewriting');
+        return;
+      }
+      stP = Math.min(1, stP + dt / ST_MS);
+      if (reduced) { stP = 1; stApply(stTo); return; }
+      stEl.classList.add('sys-rewriting');
+      stApply(stP >= 1 ? stTo : txtMorph(stFrom, stTo, stP));
+    }
+
+    var last = 0, ticked = false, t0 = 0, bootGate = false;
+    function tick(now) {
+      if (document.hidden) return;
+      ticked = true;
+      if (!t0) t0 = now;
+      /* a materialização espera a intro sair: senão o título se materializaria
+         ATRÁS do vídeo e o usuário só veria o resultado. O prazo é a rede de
+         segurança — se `booted` nunca chegar, o texto materializa mesmo assim. */
+      if (!bootGate) bootGate = document.body.classList.contains('booted') || (now - t0) > 9000;
+      var dt = last ? Math.min(60, now - last) : 16; last = now;
+      if (dirty) remeasure();
+
+      var R = EnergyField.res, S = EnergyField.sing, C = EnergyField.core;
+      var qual = EnergyField.quality;
+      /* OVERLOAD: ressonâncias sucessivas acumulam atividade (o mesmo contador
+         que rege a escada do Singular) — cresce gradual, nunca estoura. */
+      var load = Math.min(1, resDoneCount / 3);
+
+      /* --- percepção por elemento: campo de influência (não espera o hover),
+         com MEMÓRIA ENERGÉTICA — acende rápido, esfria devagar, como material
+         que acabou de conduzir. Gated pela rede de FPS: em qualidade baixa
+         reduzo a QUANTIDADE de elementos observados, nunca a presença. */
+      var maxProx = 0, probe = (qual >= 0.5) ? items.length : (qual >= 0.4 ? 12 : 4);
+      for (var i = 0; i < items.length; i++) {
+        var it = items[i], t = it.t, target = 0;
+        if (it.vis && pointerActive && pointerFine && i < probe && fpsEMA > 32) {
+          var nx = Math.max(it.x, Math.min(px, it.x + it.w));
+          var ny = Math.max(it.y, Math.min(py, it.y + it.h));
+          var d = Math.hypot(px - nx, py - ny);
+          target = d < t.range ? 1 - d / t.range : 0;
+        }
+        it.prox += (target - it.prox) * (target > it.prox ? 0.16 : t.fall);
+        if (it.prox < 0.002) it.prox = 0;
+        if (it.prox > maxProx) maxProx = it.prox;
+
+        /* materialização: só os títulos decompostos; anda no loop único */
+        if (it.mat < 1 && it.matOn && bootGate) {
+          it.mat = Math.min(1, it.mat + dt / MAT_MS);
+          if (matTL) {
+            matTL.seek(cl01(it.mat) * matDur);
+            setEl(it, '--tmat', MAT.rise);
+            setEl(it, '--tchg', MAT.chg);
+            setEl(it, '--tset', MAT.set);
+          } else {
+            setEl(it, '--tmat', it.mat); setEl(it, '--tchg', 0); setEl(it, '--tset', it.mat);
+          }
+        }
+        if (!it.vis) continue;
+        if (it.prox > 0 || it.v['--tprox'] !== '0.000') {
+          setEl(it, '--tprox', it.prox);
+          /* posição do cursor DENTRO do elemento: é o que faz a energia nascer
+             onde o cursor está e propagar aos vizinhos (o CSS mede a distância
+             de cada glifo até aqui). */
+          if (it.prox > 0) setEl(it, '--tcx', cl01((px - it.x) / it.w));
+        }
+      }
+
+      /* --- estado (prioridade: o mais raro vence) */
+      if (wasSing && !S.active) coolUntil = now + 2600;
+      if (wasRes && !R.active && !S.active) coolUntil = Math.max(coolUntil, now + 900);
+      wasSing = S.active; wasRes = R.active;
+      var next;
+      if (S.active) next = 'singularity';
+      else if (now < coolUntil) next = 'cooling';
+      else if (R.active) next = (load >= 0.66 ? 'overload' : 'resonating');
+      else if (maxProx > 0.42) next = 'active';
+      else if (resCharge > 0.58 || EnergyField.E > 0.62) next = 'charging';
+      else if (maxProx > 0.05) next = 'perceiving';
+      else next = 'idle';
+      if (next !== state) {
+        state = next; stateSince = now;
+        document.body.setAttribute('data-type-state', state);
+        EnergyField.type.state = state; EnergyField.type.since = now;
+        if (LABELS[state] && stEl) {          /* o sistema anuncia o próprio estado */
+          stFrom = stShown || stFrom; stTo = LABELS[state]; stP = 0;
+        }
+      }
+      EnergyField.type.load = load; EnergyField.type.prox = maxProx;
+      stDrive(dt);
+
+      /* --- energia por GRUPO: a onda chega em cada elo no seu tempo, ponderada
+         pelo arquétipo (wType) e pela autoridade do grupo. Em repouso nada fica
+         morto: uma base mínima respira com o núcleo. */
+      var wType = R.w ? R.w.wType : 1;
+      var sgE = S.active ? S.amp * (0.55 + S.grip * 0.45) : 0;
+      var breath = (C.breath - 0.5) * 0.06 * (C.pres || 0);
+      for (var k = 0; k < TIERS.length; k++) {
+        var tr = TIERS[k];
+        var wave = EnergyField.stageExc(tr.pos) * wType;
+        var base = 0.06 + EnergyField.E * 0.15 + breath;
+        var e = (base + wave * 1.10 + sgE) * tr.gain * (1 + load * 0.30);
+        setRoot('--ty-' + tr.k, cl01(e));
+      }
+      /* frente LOCAL dos títulos: quando a frente da cadeia atravessa a banda
+         tipográfica, um front varre os caracteres 0→1 — a energia PERCORRE a
+         palavra em vez de acendê-la inteira. */
+      var fr = R.active ? R.front : (S.active ? S.front : -1);
+      setRoot('--ty-front', fr < 0 ? -1 : cl01((fr - 0.42) / 0.20));
+      setRoot('--ty-fw', R.active ? R.amp : (S.active ? S.amp * 0.7 : 0));
+      setRoot('--ty-load', load);
+      setRoot('--ty-sing', S.active ? S.amp : 0);
+      setRoot('--ty-q', qual);
+    }
+
+    if (anySplit) document.documentElement.classList.add('ty-on');
+    document.body.setAttribute('data-type-state', 'idle');
+    EnergyField.add(tick);
+
+    /* REDE DE SEGURANÇA: a materialização parte de --tmat 0 (opacidade ~0). Se o
+       loop não chegar a rodar — aba aberta em segundo plano, rAF congelado, ou
+       qualquer falha a montante — o título ficaria ilegível. Este timer roda
+       mesmo com a aba oculta: passou o prazo sem um único tick, o texto assume o
+       estado final e a legibilidade nunca depende da animação. */
+    setTimeout(function () {
+      if (ticked) return;
+      for (var i = 0; i < items.length; i++) {
+        var it = items[i];
+        if (it.mat >= 1) continue;
+        it.mat = 1;
+        setEl(it, '--tmat', 1); setEl(it, '--tchg', 0); setEl(it, '--tset', 1);
+      }
+    }, 2600);
+  })();
+
   (function livingType() {
     /* Antes era DESKTOP-ONLY (saía em `!pointerFine` / `pointer: coarse`) — por
        isso "os efeitos atrás das palavras" não apareciam no celular. Agora roda em
@@ -2233,7 +2625,6 @@
     var els = [].slice.call(document.querySelectorAll('[data-sing-text]'));
     if (!els.length) return;
     var ZW = /​/g;                          /* o ZWSP dos vãos vazios conta como "" */
-    var GL = '01<>/\\[]{}=+*#%&ABCDEF';           /* alfabeto do ruído — techy, mono */
     var items = els.map(function (el) {
       var calm = (el.textContent || '').replace(ZW, '');
       return {
@@ -2243,22 +2634,8 @@
     });
     var DUR = 1300, last = 0;   /* mais lento e dramático — a reescrita tem que ser sentida */
 
-    function glyph() { return GL.charAt((Math.random() * GL.length) | 0); }
-    /* calm em prog=0, sing em prog=1; no meio, glifos. Cada caractere DESESTABILIZA
-       antes de assentar: a janela de ruído abre bem ANTES do reveal (r desce até
-       -0.6), então o texto "perde estabilidade" e só depois se reescreve — mais
-       caos simultâneo, leitura de reescrita do sistema, não um corte seco. */
-    function morph(calm, sing, p) {
-      var L = Math.max(calm.length, sing.length), out = '', i, r, from, to;
-      for (i = 0; i < L; i++) {
-        from = calm.charAt(i); to = sing.charAt(i);
-        r = (p - (i / (L || 1)) * 0.5) / 0.4;
-        if (r >= 1) out += to;
-        else if (r <= -0.35) out += from;
-        else out += (to === ' ' && from === ' ') ? ' ' : glyph();
-      }
-      return out;
-    }
+    /* calm em prog=0, sing em prog=1; no meio, glifos — via txtMorph(), o motor
+       de reescrita compartilhado com os STATUS DINÂMICOS (§3g). */
     function apply(it, str) {
       if (str === it.shown) return;
       it.shown = str;
@@ -2295,7 +2672,7 @@
         it.prog = np;
         if (np === 0) apply(it, it.calm);
         else if (np === 1) apply(it, it.sing);
-        else apply(it, morph(it.calm, it.sing, np));
+        else apply(it, txtMorph(it.calm, it.sing, np));
       }
     }
     EnergyField.add(tick);

@@ -110,9 +110,13 @@
     <div class="hero__content">
       <canvas class="hero__reactor" aria-hidden="true"></canvas>
 
+      <!-- o texto técnico NARRA a máquina de estados do AI Core e se reescreve
+           pelo glitch (§3g). O rótulo do leitor de tela fica estável: só a
+           camada visual muda. -->
       <p class="hero__status">
         <span class="hero__status-dot" aria-hidden="true"></span>
-        Sistema online · beyon.0
+        <span class="sr-only">Sistema online · beyon.0</span>
+        <span class="hero__status-txt" aria-hidden="true">Sistema online · beyon.0</span>
       </p>
 
       <h1 class="hero__title">
@@ -443,7 +447,14 @@
     </svg>
   </a>
 
-  <script src="vendor/anime.umd.min.js" defer></script>
+  <!-- GSAP 3.13 (UMD, vendorado local — CSP script-src 'self'). Core primeiro,
+       depois plugins; todos expõem globais (window.gsap, window.ScrollTrigger…).
+       defer preserva a ordem de execução. main.js registra os plugins no boot. -->
+  <script src="vendor/gsap.min.js" defer></script>
+  <script src="vendor/ScrollTrigger.min.js" defer></script>
+  <script src="vendor/SplitText.min.js" defer></script>
+  <script src="vendor/TextPlugin.min.js" defer></script>
+  <script src="vendor/ScrambleTextPlugin.min.js" defer></script>
   <script src="main.js" defer></script>
 </body>
 </html>

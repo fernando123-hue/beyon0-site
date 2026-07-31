@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "description": "Landing page beyon.0 — HTML/CSS/JS puro, sem build.",
-  "comment": "animejs fica declarado só como referência de versão: o runtime usa a cópia vendorada em vendor/anime.umd.min.js, então o site publicado não depende de node_modules.",
+  "comment": "gsap fica declarado só como referência de versão: o runtime usa as cópias vendoradas em vendor/ (gsap.min.js + plugins ScrollTrigger/SplitText/TextPlugin/ScrambleTextPlugin), então o site publicado não depende de node_modules.",
   "dependencies": {
-    "animejs": "^4.5.0"
+    "gsap": "^3.13.0"
   }
 }
