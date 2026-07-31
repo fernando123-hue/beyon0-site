@@ -83,4 +83,68 @@ check('render() desenha alguma coisa (pixels acesos)', () => {
   return px[1] > 200 && px[2] > 200 ? true : `pixel veio [${px}]`;
 });
 
+import { createMaterials } from '../js3d/materials.js';
+
+/* Stub fiel ao plasmaColor real do main.js: em w=0 devolve a rampa ciano,
+   em w=1 devolve o dourado plasma. */
+const REST = [[0, 245, 255], [159, 248, 255], [242, 254, 255]];
+const GOLD = [[255, 208, 0], [255, 234, 159], [255, 244, 214]];
+const WHITE = [255, 251, 240];
+function plasmaStub(w, role) {
+  const i = role | 0;
+  let c1, c2, f;
+  if (w < 0.5) { f = w / 0.5; c1 = REST[i]; c2 = WHITE; }
+  else { f = (w - 0.5) / 0.5; c1 = WHITE; c2 = GOLD[i]; }
+  return [0, 1, 2].map((k) => Math.round(c1[k] + (c2[k] - c1[k]) * f)).join(',');
+}
+
+const mats = createMaterials(plasmaStub);
+
+check('materiais expostos existem', () => {
+  const missing = ['shell', 'rim', 'wire', 'edge', 'orbit', 'plasma', 'node']
+    .filter((k) => !mats[k]);
+  return missing.length === 0 ? true : 'faltando: ' + missing.join(', ');
+});
+
+check('em repouso a cor e o ciano exato da rampa', () => {
+  mats.update(0);
+  const c = mats.rim.color;
+  return near(Math.round(c.r * 255), 0, 1) === true &&
+         near(Math.round(c.g * 255), 245, 1) === true &&
+         near(Math.round(c.b * 255), 255, 1) === true
+    ? true : `veio ${Math.round(c.r*255)},${Math.round(c.g*255)},${Math.round(c.b*255)}`;
+});
+
+check('no Singular a cor vira dourado plasma', () => {
+  mats.update(1);
+  const c = mats.rim.color;
+  return Math.round(c.r * 255) === 255 && Math.round(c.g * 255) === 208 && Math.round(c.b * 255) === 0
+    ? true : `veio ${Math.round(c.r*255)},${Math.round(c.g*255)},${Math.round(c.b*255)}`;
+});
+
+check('volta ao ciano quando o Singular acaba', () => {
+  mats.update(1);
+  mats.update(0);
+  const c = mats.rim.color;
+  return Math.round(c.g * 255) === 245 && Math.round(c.b * 255) === 255
+    ? true : `nao voltou: ${Math.round(c.r*255)},${Math.round(c.g*255)},${Math.round(c.b*255)}`;
+});
+
+check('rim e aditivo e desenha por dentro (fresnel barato)', () =>
+  mats.rim.blending === THREE.AdditiveBlending && mats.rim.side === THREE.BackSide
+    ? true : 'blending/side errados'
+);
+
+check('brackets sao linha aditiva, sem corpo preto', () =>
+  mats.edge.isLineBasicMaterial === true && mats.edge.blending === THREE.AdditiveBlending
+    ? true : 'edge nao e linha aditiva'
+);
+
+check('update e gated: nao reescreve com o mesmo warmth', () => {
+  mats.update(0.5);
+  const antes = mats._writes;
+  mats.update(0.5);
+  return mats._writes === antes ? true : 'reescreveu sem mudanca';
+});
+
 close();
