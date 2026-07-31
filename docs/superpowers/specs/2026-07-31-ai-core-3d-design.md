@@ -48,19 +48,29 @@ gzip e o `intro.mp4` pesa 4.400 KB. O Three.js custa 1,9% do vídeo de intro.
 | Decisão | Escolha | Razão |
 |---|---|---|
 | Carregamento | **ESM nativo + ponte** | Preserva "sem build" e a CSP `script-src 'self'`. Sem bundler, sem import map. |
-| Reator canvas 2D | **Deletado** | Uma verdade só, mais fácil de evoluir. Redes de segurança cobrem a ausência. |
+| Reator canvas 2D | **Deletado — mas só depois** | Uma verdade só, mais fácil de evoluir. Removido em commit isolado após o 3D estar aprovado no ar; até lá fica escondido e intacto. Ver "Decisões adiadas". |
 | Referência visual | **Evoluir o reator atual** | Continuidade de identidade, risco menor, alvo objetivo de comparação. |
 | Arquitetura | **Fundação com contratos de crescimento** | Ganho visível agora sem comprar o risco do sub-projeto 5; fronteiras limpas evitam refazer a fundação depois. |
 | Degradação | **Sombras/IBL primeiro, depois população** | Escolha do dono. Nenhum degrau remove presença. |
 | Pós-processamento | **Nenhum** | Passe de tela cheia é caro no celular e reintroduz o risco de moldura quadrada. Brilho vem de geometria aditiva. |
 | Materiais | **Técnico-emissivo, não PBR realista** | A lei do projeto proíbe vidro/plástico; emissivo é mais barato e é a linguagem atual. |
 
-### Decisão adiada
+### Decisões adiadas
 
-Ao final do projeto inteiro (após o sub-projeto 5), revisar e otimizar o código —
-incluindo a possibilidade de adotar um bundler ou converter o `main.js` para módulos, se
-o ganho justificar. Não fazer isso agora: seria refactor grande antes de provar que o 3D
-vale.
+Três coisas ficam explicitamente para depois. **Estrutura primeiro, vida depois** — nenhuma
+delas bloqueia a construção, e todas voltam à mesa quando o objeto já existir e puder ser
+julgado no aparelho do dono.
+
+| Adiado | Quando volta | Por quê |
+|---|---|---|
+| **Remover o reator canvas 2D** | Depois do 3D no ar e aprovado | O 2D fica vivo no código durante a construção; o módulo 3D apenas o esconde ao montar. A remoção é um commit próprio e isolado, então reverter é trivial. Evita ficar sem reator se o 3D precisar voltar atrás. |
+| **Pós-processamento (bloom, DOF)** | Na etapa de "dar vida" | Brilho por geometria aditiva é mais barato, mas não é idêntico a bloom real e pode ficar menos dramático que o canvas de hoje. Avaliar com o objeto pronto na frente, não no papel. |
+| **Otimização e possível bundler** | Após o sub-projeto 5 | Adotar bundler ou converter o `main.js` para módulos seria refactor grande antes de provar que o 3D vale. |
+
+Consequência prática para o plano de implementação: durante toda esta etapa **existem dois
+reatores no código** — o canvas 2D (escondido, intacto) e o 3D (visível). Isso é
+intencional. O SVG de fallback continua sendo a rede para ausência de WebGL, porque o 2D
+sairá em seguida.
 
 ---
 
@@ -99,7 +109,8 @@ orbitar o reator; sem ela, as partículas voltariam ao centro da tela.
 
 ### O que sai e o que fica
 
-- **Sai:** a IIFE `heroReactor` inteira (272 linhas).
+- **Sai (em etapa posterior):** a IIFE `heroReactor` inteira (272 linhas). Durante esta
+  etapa ela continua no código, apenas escondida.
 - **Intocado:** `AICore`, `EnergyField`, ressonância, Estado Singular, tipografia viva,
   barramento, medidor, cards.
 
