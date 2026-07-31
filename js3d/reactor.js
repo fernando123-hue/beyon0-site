@@ -1,0 +1,161 @@
+/* REATOR — o AI Core em volume.
+   Evolui a linguagem do reator canvas: esfera com fresnel e globo wireframe,
+   anel equatorial com internos, órbitas com nós, brackets de luz, base e
+   emissor, e o plasma-átomo.
+
+   Hierarquia pivô-por-peça: cada peça é um Group com o mesh dentro. O pivô é
+   o alvo de animação (GSAP mexe nele) e o mesh guarda geometria e material.
+   Essa separação é o que torna o sub-projeto 3 (peças clicáveis, arrastar
+   para girar) quase de graça. */
+import * as THREE from '../vendor/three.module.min.js';
+
+const TAU = Math.PI * 2;
+
+/* População por degrau de qualidade: reduz QUANTIDADE, nunca presença.
+   NODES_LOW divide NODES_FULL exatamente — o passo da degradação é inteiro,
+   sem módulo em ponto flutuante. */
+const NODES_FULL = 12;
+const NODES_LOW = 6;
+
+function pivot(stage, name, parentName) {
+  const g = new THREE.Group();
+  g.name = name;
+  stage.add(name, g, parentName);
+  return g;
+}
+
+export function createReactor(stage, mats) {
+  const root = new THREE.Group();
+  root.name = 'aiCore';
+  stage.add('aiCore', root);
+
+  /* --- esfera: corpo + fresnel aditivo + globo wireframe --- */
+  const shellPivot = pivot(stage, 'shell__pivot', 'aiCore');
+  const shell = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 24), mats.shell);
+  shell.name = 'shell';
+  shellPivot.add(shell);
+  stage.registry.meshes.shell = shell;
+
+  const rim = new THREE.Mesh(new THREE.SphereGeometry(1.07, 32, 24), mats.rim);
+  rim.name = 'shellRim';
+  shellPivot.add(rim);
+
+  const wire = new THREE.Mesh(new THREE.SphereGeometry(1.02, 16, 12), mats.wire);
+  wire.name = 'shellWire';
+  shellPivot.add(wire);
+
+  /* --- anel equatorial + interno --- */
+  const ringPivot = pivot(stage, 'ring__pivot', 'aiCore');
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(1.46, 0.028, 8, 96), mats.orbit);
+  ring.name = 'ring';
+  ring.rotation.x = Math.PI / 2;
+  ringPivot.add(ring);
+  stage.registry.meshes.ring = ring;
+
+  const ringInner = new THREE.Mesh(new THREE.TorusGeometry(1.28, 0.014, 6, 64), mats.orbit);
+  ringInner.name = 'ringInner';
+  ringInner.rotation.x = Math.PI / 2;
+  ringPivot.add(ringInner);
+
+  /* --- órbitas com nós: a oclusão frente/trás sai de graça em 3D --- */
+  const orbitsPivot = pivot(stage, 'orbits__pivot', 'aiCore');
+  const orbitNodes = [];
+  const ORBITS = [
+    { r: 1.72, rx: 0.42, rz: 0.15 },
+    { r: 1.58, rx: -0.68, rz: 0.55 },
+    { r: 1.85, rx: 1.15, rz: -0.35 }
+  ];
+  ORBITS.forEach((o, i) => {
+    const g = new THREE.Group();
+    g.name = 'orbit_' + i;
+    g.rotation.set(o.rx, 0, o.rz);
+    const line = new THREE.Mesh(new THREE.TorusGeometry(o.r, 0.005, 6, 128), mats.orbit);
+    g.add(line);
+    const nodeGeo = new THREE.SphereGeometry(0.028, 8, 6);
+    for (let n = 0; n < NODES_FULL; n += 1) {
+      const m = new THREE.Mesh(nodeGeo, mats.node);
+      const a = (n / NODES_FULL) * TAU;
+      m.position.set(Math.cos(a) * o.r, Math.sin(a) * o.r, 0);
+      m.userData.baseAngle = a;
+      m.userData.radius = o.r;
+      g.add(m);
+      orbitNodes.push(m);
+    }
+    orbitsPivot.add(g);
+  });
+
+  /* --- brackets: arestas de luz, SEM corpo preto --- */
+  const bracketsPivot = pivot(stage, 'brackets__pivot', 'aiCore');
+  const bracketGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(0.20, 0.62, 0.20));
+  for (let i = 0; i < 4; i += 1) {
+    const seg = new THREE.LineSegments(bracketGeo, mats.edge);
+    seg.name = 'bracket_' + i;
+    const a = (i / 4) * TAU + Math.PI / 4;
+    seg.position.set(Math.cos(a) * 1.30, 0, Math.sin(a) * 1.30);
+    seg.rotation.y = -a;
+    bracketsPivot.add(seg);
+  }
+
+  /* --- base e emissor --- */
+  const basePivot = pivot(stage, 'base__pivot', 'aiCore');
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.52, 0.68, 0.16, 24), mats.shell);
+  base.name = 'base';
+  base.position.y = -1.62;
+  basePivot.add(base);
+  stage.registry.meshes.base = base;
+
+  const baseBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.16, 0.62, 16), mats.orbit);
+  baseBeam.name = 'baseBeam';
+  baseBeam.position.y = -1.22;
+  basePivot.add(baseBeam);
+
+  const emitterPivot = pivot(stage, 'emitter__pivot', 'aiCore');
+  const emitter = new THREE.Mesh(new THREE.ConeGeometry(0.20, 0.34, 20), mats.shell);
+  emitter.name = 'emitter';
+  emitter.position.y = 1.58;
+  emitterPivot.add(emitter);
+  stage.registry.meshes.emitter = emitter;
+
+  const emitterBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.10, 0.52, 16), mats.orbit);
+  emitterBeam.name = 'emitterBeam';
+  emitterBeam.position.y = 1.24;
+  emitterPivot.add(emitterBeam);
+
+  /* --- plasma-átomo --- */
+  const plasmaPivot = pivot(stage, 'plasma__pivot', 'aiCore');
+  const nucleus = new THREE.Mesh(new THREE.SphereGeometry(0.17, 16, 12), mats.plasma);
+  nucleus.name = 'nucleus';
+  plasmaPivot.add(nucleus);
+  stage.registry.meshes.nucleus = nucleus;
+
+  const electrons = [];
+  for (let i = 0; i < 3; i += 1) {
+    const e = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), mats.plasma);
+    e.name = 'electron_' + i;
+    e.userData.phase = (i / 3) * TAU;
+    e.userData.tilt = i * 0.9;
+    plasmaPivot.add(e);
+    electrons.push(e);
+  }
+
+  const reactor = {
+    root,
+    _orbitNodes: orbitNodes,
+    _electrons: electrons,
+    _orbits: orbitsPivot,
+    _ring: ringPivot,
+    _shell: shellPivot,
+    _plasma: plasmaPivot,
+    _t: 0,
+
+    tick() { /* implementado na Task 5 */ },
+
+    setQuality() { /* implementado na Task 6 */ },
+
+    dispose() {
+      root.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
+    }
+  };
+
+  return reactor;
+}

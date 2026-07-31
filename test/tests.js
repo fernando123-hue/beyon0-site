@@ -179,4 +179,60 @@ check('update e gated: nao reescreve com o mesmo warmth', () => {
   return mats._writes === antes ? true : 'reescreveu sem mudanca';
 });
 
+import { createReactor } from '../js3d/reactor.js';
+
+const reactor = createReactor(stage, mats);
+
+check('reactor devolve um root Group', () =>
+  reactor.root && reactor.root.isGroup === true ? true : 'root nao e Group'
+);
+
+check('todas as pecas viram pivo registrado', () => {
+  const esperados = ['shell__pivot', 'ring__pivot', 'orbits__pivot',
+    'brackets__pivot', 'base__pivot', 'emitter__pivot', 'plasma__pivot'];
+  const missing = esperados.filter((k) => !stage.registry.nodes[k]);
+  return missing.length === 0 ? true : 'faltando: ' + missing.join(', ');
+});
+
+check('todo pivo e Group, nunca Mesh (alvo limpo de GSAP)', () => {
+  const ruins = Object.keys(stage.registry.nodes)
+    .filter((k) => k.endsWith('__pivot'))
+    .filter((k) => stage.registry.nodes[k].isGroup !== true);
+  return ruins.length === 0 ? true : 'nao sao Group: ' + ruins.join(', ');
+});
+
+check('pivos sao filhos do root do reator', () => {
+  const p = stage.registry.nodes['shell__pivot'];
+  return p.parent === reactor.root ? true : 'pai errado';
+});
+
+check('a esfera tem mesh dentro do pivo', () => {
+  const p = stage.registry.nodes['shell__pivot'];
+  return p.children.some((c) => c.isMesh) ? true : 'pivo sem mesh';
+});
+
+check('existem 3 orbitas', () => {
+  const o = stage.registry.nodes['orbits__pivot'];
+  return o.children.length === 3 ? true : `veio ${o.children.length}`;
+});
+
+check('brackets sao LineSegments (sem corpo preto)', () => {
+  const b = stage.registry.nodes['brackets__pivot'];
+  const todos = b.children.every((c) => c.isLineSegments === true);
+  return todos && b.children.length === 4 ? true : `${b.children.length} filhos, todos linha: ${todos}`;
+});
+
+check('plasma tem nucleo e 3 eletrons', () => {
+  const p = stage.registry.nodes['plasma__pivot'];
+  return p.children.length === 4 ? true : `veio ${p.children.length}`;
+});
+
+check('o objeto cabe no enquadramento da camera', () => {
+  const box = new THREE.Box3().setFromObject(reactor.root);
+  const size = box.getSize(new THREE.Vector3());
+  const alturaVisivel = 2 * 6.2 * Math.tan((35 / 2) * Math.PI / 180);
+  return size.y < alturaVisivel && size.x < alturaVisivel * 1.4
+    ? true : `objeto ${size.x.toFixed(2)}x${size.y.toFixed(2)}, visivel ${alturaVisivel.toFixed(2)}`;
+});
+
 close();
