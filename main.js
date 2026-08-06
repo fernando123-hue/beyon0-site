@@ -556,6 +556,19 @@
       Math.round(c1[2] + (c2[2] - c1[2]) * f);
   }
 
+  /* PONTE — a única coisa que sai desta IIFE, e de propósito. A camada 3D é um
+     ES module (o Three.js não distribui mais UMD), então não compartilha
+     escopo com este arquivo. Superfície mínima e explícita: o módulo só LÊ o
+     que está aqui, com uma exceção obrigatória — ele escreve `coreAnchor` no
+     EnergyField todo frame, que é o que faz o campo de partículas orbitar o
+     reator em vez de voltar ao centro da tela. */
+  window.__beyon3d = {
+    field: EnergyField,
+    palette: PALETTE,
+    plasmaColor: plasmaColor,
+    reduced: reduced
+  };
+
   function igniteSingularity(now) {
     var s = EnergyField.sing;
     s.active = true; s.phase = 'transcend';
@@ -2687,6 +2700,12 @@
   (function heroReactor() {
     var cv = document.querySelector('.hero__reactor');
     if (!cv) return;
+    /* O reator 3D assume o hero quando o canvas dele existe. Este canvas 2D
+       fica INTACTO no código, apenas escondido e sem tick — a remoção é uma
+       etapa posterior, em commit isolado, só depois do 3D aprovado no ar.
+       Enquanto isso ele é a rede: basta tirar o canvas 3D do HTML para o
+       reator antigo voltar a funcionar inteiro. */
+    if (document.querySelector('.hero__reactor3d')) { cv.style.display = 'none'; return; }
     var ctx = cv.getContext('2d');
     var dpr = Math.min(devicePixelRatio || 1, 1.75);
     var TAU = 6.28318530718;

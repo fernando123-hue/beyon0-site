@@ -2156,3 +2156,22 @@ body[data-type-state="cooling"] .ty-c { transition-duration: 720ms; }
   }
   .kicker::before { transform: none; }
 }
+
+/* ==========================================================================
+   AI CORE 3D — o canvas do reator e a rede estática
+   O canvas 2D antigo (.hero__reactor) continua no CSS e no JS; o módulo 3D o
+   esconde ao montar. Nada aqui introduz cor: o SVG puxa os tokens vivos, então
+   a metamorfose do Singular o leva ao dourado junto com o resto.
+   ========================================================================== */
+/* Caixa IDÊNTICA à do canvas 2D que estes substituem (mesma largura, mesma
+   altura, mesma margem negativa no topo). Substituição de verdade: o hero não
+   se desloca um pixel ao trocar o reator. */
+.hero__reactor3d,
+.hero__reactor-fallback {
+  display: block;
+  width: clamp(260px, 38vw, 400px);
+  height: clamp(260px, 38vw, 400px);
+  margin: -1.6rem auto 1.2rem;
+  pointer-events: none;
+}
+.hero__reactor-fallback { opacity: .8; }

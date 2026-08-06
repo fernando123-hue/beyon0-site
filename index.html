@@ -109,6 +109,19 @@
 
     <div class="hero__content">
       <canvas class="hero__reactor" aria-hidden="true"></canvas>
+      <canvas class="hero__reactor3d" aria-hidden="true"></canvas>
+      <!-- Rede de segurança: nasce visível e o módulo 3D só a esconde depois
+           de a cena existir. Sem WebGL, sem módulo, ou com erro de montagem,
+           o hero mostra isto em vez de ficar vazio. -->
+      <svg class="hero__reactor-fallback" viewBox="0 0 200 200" aria-hidden="true" fill="none">
+        <circle cx="100" cy="100" r="46" stroke="rgb(var(--glow-rgb))" stroke-width="1" opacity=".55"/>
+        <circle cx="100" cy="100" r="46" fill="rgb(var(--glow-rgb))" opacity=".05"/>
+        <ellipse cx="100" cy="100" rx="70" ry="20" stroke="rgb(var(--glow-rgb))" stroke-width="1" opacity=".45"/>
+        <ellipse cx="100" cy="100" rx="62" ry="17" stroke="rgb(var(--hi-rgb))" stroke-width=".6" opacity=".3"/>
+        <circle cx="100" cy="100" r="8" fill="rgb(var(--core-rgb))" opacity=".9"/>
+        <path d="M64 62v-12h12M136 62v-12h-12M64 138v12h12M136 138v12h-12"
+              stroke="rgb(var(--hi-rgb))" stroke-width="1.4" opacity=".7"/>
+      </svg>
 
       <!-- o texto técnico NARRA a máquina de estados do AI Core e se reescreve
            pelo glitch (§3g). O rótulo do leitor de tela fica estável: só a
@@ -456,5 +469,9 @@
   <script src="vendor/TextPlugin.min.js" defer></script>
   <script src="vendor/ScrambleTextPlugin.min.js" defer></script>
   <script src="main.js" defer></script>
+  <!-- O Three.js nao distribui mais UMD, entao a camada 3D e ESM nativo.
+       Modulos sao adiados por padrao e executam DEPOIS dos scripts defer, logo
+       a ponte publicada pelo main.js ja existe quando este acorda. -->
+  <script type="module" src="js3d/boot.js"></script>
 </body>
 </html>
