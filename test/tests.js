@@ -390,4 +390,168 @@ check('a degradacao e reversivel no sentido do estado, nao do watchQuality', () 
     ? true : `nao restaurou: ${visiveis}`;
 });
 
+/* ===== Task 7 — boot: ponte, fallback, ancora ===== */
+
+import { boot } from '../js3d/index.js';
+
+/* cada boot cria um contexto WebGL; o browser limita quantos ficam vivos,
+   entao os testes descartam o stage assim que terminam de inspecionar */
+const bootsAbertos = [];
+function docFalso(comCanvas) {
+  const host = document.createElement('div');
+  if (comCanvas) {
+    const c = document.createElement('canvas');
+    c.className = 'hero__reactor3d';
+    c.width = 200; c.height = 200;
+    host.appendChild(c);
+  }
+  const svg = document.createElement('div');
+  svg.className = 'hero__reactor-fallback';
+  host.appendChild(svg);
+  document.body.appendChild(host);
+  return { querySelector: (sel) => host.querySelector(sel), _host: host };
+}
+
+function ponteFalsa(extra) {
+  const added = [];
+  return Object.assign({
+    field: {
+      core: { ...coreStub },
+      sing: { warmth: 0 },
+      E: 0.3,
+      quality: 1,
+      add: (fn) => added.push(fn),
+      _added: added
+    },
+    plasmaColor: plasmaStub,
+    reduced: false
+  }, extra || {});
+}
+
+function bootar(doc, ponte) {
+  const r = boot(doc, ponte);
+  if (r && r.stage) bootsAbertos.push(r.stage);
+  return r;
+}
+
+check('sem ponte, desiste sem lancar', () => {
+  const r = bootar(docFalso(true), null);
+  return r.ok === false && r.reason === 'sem-ponte' ? true : JSON.stringify(r);
+});
+
+check('ponte sem plasmaColor tambem desiste', () => {
+  const r = bootar(docFalso(true), { field: {} });
+  return r.ok === false && r.reason === 'sem-ponte' ? true : JSON.stringify(r);
+});
+
+check('sem canvas, desiste sem lancar', () => {
+  const r = bootar(docFalso(false), ponteFalsa());
+  return r.ok === false && r.reason === 'sem-canvas' ? true : JSON.stringify(r);
+});
+
+check('boot normal monta e registra o tick no loop unico', () => {
+  const p = ponteFalsa();
+  const r = bootar(docFalso(true), p);
+  return r.ok === true && p.field._added.length === 1
+    ? true : `ok=${r.ok} reason=${r.reason} ticks=${p.field._added.length}`;
+});
+
+check('boot normal esconde o SVG de fallback', () => {
+  const d = docFalso(true);
+  bootar(d, ponteFalsa());
+  return d.querySelector('.hero__reactor-fallback').style.display === 'none'
+    ? true : 'SVG continua visivel';
+});
+
+check('boot que falha NAO esconde o SVG de fallback', () => {
+  const d = docFalso(true);
+  bootar(d, null);
+  return d.querySelector('.hero__reactor-fallback').style.display !== 'none'
+    ? true : 'escondeu o fallback mesmo tendo falhado';
+});
+
+check('reduced-motion renderiza 1 frame e NAO registra tick', () => {
+  const p = ponteFalsa({ reduced: true });
+  const r = bootar(docFalso(true), p);
+  return r.ok === true && p.field._added.length === 0
+    ? true : `ok=${r.ok} ticks registrados: ${p.field._added.length}`;
+});
+
+/* O tick comeca com `if (document.hidden) return` — comportamento de producao
+   que queremos manter. Mas o pane deste ambiente roda SEMPRE com
+   document.hidden=true, entao sem isto o corpo do tick jamais executa e os
+   testes passariam vazios. Falseia a visibilidade so durante a chamada. */
+function comAbaVisivel(fn) {
+  const desc = Object.getOwnPropertyDescriptor(Document.prototype, 'hidden');
+  Object.defineProperty(document, 'hidden', { value: false, configurable: true });
+  try { return fn(); }
+  finally {
+    delete document.hidden;
+    if (desc && !Object.getOwnPropertyDescriptor(document, 'hidden')) { /* volta ao getter herdado */ }
+  }
+}
+
+check('o guard de visibilidade realmente barra o tick', () => {
+  const p = ponteFalsa();
+  const r = bootar(docFalso(true), p);
+  p.field.coreAnchor = null;
+  r.tick(1000);                       /* aba oculta: nao deve fazer nada */
+  return p.field.coreAnchor === null
+    ? true : 'tick rodou com a aba oculta';
+});
+
+check('o tick escreve coreAnchor para o campo de particulas', () => {
+  const p = ponteFalsa();
+  const r = bootar(docFalso(true), p);
+  p.field.coreAnchor = null;          /* apaga o que o boot escreveu */
+  comAbaVisivel(() => r.tick(1000));
+  const a = p.field.coreAnchor;
+  return a && typeof a.x === 'number' && typeof a.y === 'number'
+    ? true : 'coreAnchor nao foi reescrito pelo tick';
+});
+
+check('o tick repassa a qualidade para stage e reator', () => {
+  const p = ponteFalsa();
+  const r = bootar(docFalso(true), p);
+  comAbaVisivel(() => {
+    r.tick(1000);
+    p.field.quality = 0.38;
+    r.tick(1016);
+  });
+  const nosVisiveis = r.reactor._orbitNodes.filter((n) => n.visible).length;
+  return r.stage.quality === 0.38 && nosVisiveis < r.reactor._orbitNodes.length
+    ? true : `stage=${r.stage.quality} nos=${nosVisiveis}`;
+});
+
+check('o tick desenha de fato (pixels acesos no framebuffer)', () => {
+  const p = ponteFalsa();
+  const r = bootar(docFalso(true), p);
+  comAbaVisivel(() => { for (let i = 0; i < 5; i += 1) r.tick(1000 + i * 16); });
+  const gl = r.stage.renderer.getContext();
+  const w = gl.drawingBufferWidth, h = gl.drawingBufferHeight;
+  const buf = new Uint8Array(w * h * 4);
+  gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+  let acesos = 0;
+  for (let i = 0; i < buf.length; i += 4) {
+    if (Math.max(buf[i], buf[i + 1], buf[i + 2]) > 25) acesos += 1;
+  }
+  return acesos > (w * h) * 0.01
+    ? true : `so ${acesos} de ${w * h} pixels acesos`;
+});
+
+check('o tick nao lanca quando o cerebro vem incompleto', () => {
+  const p = ponteFalsa();
+  p.field.core = {};
+  p.field.sing = {};
+  delete p.field.E;
+  delete p.field.quality;
+  const r = bootar(docFalso(true), p);
+  r.tick(1000);
+  r.tick(1016);
+  return true;
+});
+
+/* libera os contextos WebGL abertos pelos testes de boot */
+bootsAbertos.forEach((s) => { if (s && s.dispose) s.dispose(); });
+
 close();
