@@ -551,6 +551,74 @@ check('o tick nao lanca quando o cerebro vem incompleto', () => {
   return true;
 });
 
+/* ===== Task 9 — prova por pixels: o reator desenha e respeita a rampa =====
+   O pane congela o rAF, mas tem WebGL 2.0 com GPU real e readPixels funciona.
+   Os ticks sao chamados a mao, entao a medicao e deterministica.
+   Matiz de referencia: ciano #00F5FF ~182 graus, dourado plasma #FFD000 ~49. */
+
+function medirCena(stageAlvo, reactorAlvo, warmth) {
+  const gl = stageAlvo.renderer.getContext();
+  const w = gl.drawingBufferWidth, h = gl.drawingBufferHeight;
+  for (let i = 0; i < 20; i += 1) reactorAlvo.tick(coreStub, 0.8, warmth, 16);
+  stageAlvo.render();
+  const buf = new Uint8Array(w * h * 4);
+  gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+  let acesos = 0, somaSin = 0, somaCos = 0;
+  for (let p = 0; p < buf.length; p += 4) {
+    const r = buf[p] / 255, g = buf[p + 1] / 255, b = buf[p + 2] / 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    if (max < 0.10) continue;
+    acesos += 1;
+    const d = max - min;
+    let hue = 0;
+    if (d > 0.0001) {
+      if (max === r) hue = 60 * (((g - b) / d) % 6);
+      else if (max === g) hue = 60 * ((b - r) / d + 2);
+      else hue = 60 * ((r - g) / d + 4);
+    }
+    if (hue < 0) hue += 360;
+    const rad = hue * Math.PI / 180;
+    somaSin += Math.sin(rad); somaCos += Math.cos(rad);
+  }
+  /* media CIRCULAR: matiz e angulo, entao media aritmetica erraria feio
+     perto de 0/360 */
+  let matiz = Math.atan2(somaSin / (acesos || 1), somaCos / (acesos || 1)) * 180 / Math.PI;
+  if (matiz < 0) matiz += 360;
+  return { acesos, matiz, total: w * h };
+}
+
+const emRepouso = medirCena(stage, reactor, 0);
+
+check('o reator DESENHA (pixels acesos suficientes)', () =>
+  emRepouso.acesos > emRepouso.total * 0.01
+    ? true : `so ${emRepouso.acesos} de ${emRepouso.total} acesos`
+);
+
+check('em repouso o matiz e o ciano da rampa (~182)', () =>
+  near(emRepouso.matiz, 182, 22)
+);
+
+const noSingular = medirCena(stage, reactor, 1);
+
+check('no Singular o matiz vira dourado plasma (~49)', () =>
+  near(noSingular.matiz, 49, 25)
+);
+
+const devolta = medirCena(stage, reactor, 0);
+
+check('sai do Singular e VOLTA ao ciano', () =>
+  near(devolta.matiz, 182, 22)
+);
+
+check('o reator ainda desenha depois do ciclo do Singular', () =>
+  devolta.acesos > devolta.total * 0.01
+    ? true : `so ${devolta.acesos} acesos`
+);
+
+/* diagnostico: os matizes medidos ficam disponiveis para inspecao manual e
+   para comparar entre sessoes (o teste so afirma a faixa, nao o valor) */
+window.__medidas = { emRepouso, noSingular, devolta };
+
 /* libera os contextos WebGL abertos pelos testes de boot */
 bootsAbertos.forEach((s) => { if (s && s.dispose) s.dispose(); });
 
