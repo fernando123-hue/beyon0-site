@@ -43,7 +43,11 @@ export function createStage(canvas) {
   key.position.set(2.4, 3.0, 3.2);
   scene.add(key);
 
-  const fill = new THREE.HemisphereLight(0xffffff, 0x0b2f35, 0.55);
+  /* A cor de CHÃO da hemisférica também é neutra. Um teal aqui pareceria
+     inofensivo, mas seria um croma que não passa pelos materiais: ficaria
+     preso no ciano enquanto o resto do objeto aquece para o dourado no Estado
+     Singular. Cinza escuro dá o contraste de baixo sem matiz nenhum. */
+  const fill = new THREE.HemisphereLight(0xffffff, 0x222222, 0.55);
   scene.add(fill);
 
   const stage = {
