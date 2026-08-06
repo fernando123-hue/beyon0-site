@@ -144,7 +144,64 @@ export function createReactor(stage, mats) {
     _plasma: plasmaPivot,
     _t: 0,
 
-    tick(core, energy, warmth, dt) { /* implementado na Task 5 */ },
+    /* Só OBSERVA o cérebro — nunca escreve nele, e nunca registra um rAF
+       próprio. É chamado pelo loop único do organismo. Tolerante a um `core`
+       incompleto: no boot, e enquanto a intro roda, vários campos ainda não
+       existem, e o reator não pode ser o que quebra a página. */
+    tick(core, energy, warmth, dt) {
+      const c = core || {};
+      const step = (dt || 16) / 16;
+      reactor._t += dt || 16;
+      const t = reactor._t * 0.001;
+      const e = energy || 0;
+      const pow = c.pow || 0;
+      const breath = c.breath == null ? 0.5 : c.breath;
+      const strain = c.strain || 0;
+      const star = c.star || 0;
+
+      mats.update(warmth || 0);
+
+      /* esfera: respira com o núcleo, comprime na pré-Singularidade e incha na
+         ignição estelar */
+      shellPivot.scale.setScalar(
+        1 + breath * 0.035 * (0.4 + pow) - strain * 0.06 + star * 0.05
+      );
+
+      /* órbitas e anel giram em sentidos opostos: dá leitura de profundidade
+         sem precisar de sombra */
+      orbitsPivot.rotation.y += (0.0016 + e * 0.0042) * step;
+      ringPivot.rotation.y -= (0.0009 + e * 0.0021) * step;
+
+      /* nós percorrem as órbitas */
+      for (let i = 0; i < orbitNodes.length; i += 1) {
+        const n = orbitNodes[i];
+        const a = n.userData.baseAngle + t * (0.35 + e * 0.5);
+        n.position.set(Math.cos(a) * n.userData.radius, Math.sin(a) * n.userData.radius, 0);
+      }
+
+      /* plasma: elétrons em órbitas inclinadas, núcleo pulsando com a energia */
+      for (let i = 0; i < electrons.length; i += 1) {
+        const el = electrons[i];
+        const a = el.userData.phase + t * (1.1 + e * 1.4);
+        const r = 0.46 + e * 0.08;
+        const tilt = el.userData.tilt;
+        el.position.set(
+          Math.cos(a) * r,
+          Math.sin(a) * r * Math.cos(tilt),
+          Math.sin(a) * r * Math.sin(tilt)
+        );
+      }
+      plasmaPivot.scale.setScalar(0.9 + pow * 0.25 + star * 0.3);
+
+      /* PARALAXE — o reator olha para onde o cérebro já estava olhando.
+         attX/attY são a atenção que o AICore calcula: zero estado novo. A
+         convergência é por lerp e o alvo é limitado, então isto inclina,
+         nunca gira. */
+      const alvoY = (c.attX || 0) * 0.28;
+      const alvoX = -(c.attY || 0) * 0.20;
+      root.rotation.y += (alvoY - root.rotation.y) * 0.06 * step;
+      root.rotation.x += (alvoX - root.rotation.x) * 0.06 * step;
+    },
 
     setQuality(q) { /* implementado na Task 6 */ },
 

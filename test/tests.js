@@ -249,4 +249,96 @@ check('o objeto cabe no enquadramento da camera', () => {
     ? true : `objeto ${size.x.toFixed(2)}x${size.y.toFixed(2)}, visivel ${alturaVisivel.toFixed(2)}`;
 });
 
+/* ===== Task 5 — tick: respiracao, orbitas, plasma, paralaxe ===== */
+
+const coreStub = { pow: 0, breath: 0.5, pres: 1, strain: 0, star: 0, attX: 1, attY: 0 };
+
+/* zera a inclinacao acumulada entre testes de paralaxe: o tick converge por
+   lerp, entao sem reset um teste herda a rotacao deixada pelo anterior */
+function resetRot() {
+  reactor.root.rotation.set(0, 0, 0);
+}
+
+check('tick sem energia mantem escala perto de 1', () => {
+  reactor.tick(coreStub, 0, 0, 16);
+  const s = stage.registry.nodes['shell__pivot'].scale.x;
+  return near(s, 1, 0.06);
+});
+
+check('energia alta aumenta a escala da esfera', () => {
+  reactor.tick({ ...coreStub, pow: 1, breath: 1 }, 1, 0, 16);
+  const s = stage.registry.nodes['shell__pivot'].scale.x;
+  return s > 1.01 ? true : `escala ficou ${s.toFixed(3)}`;
+});
+
+check('a compressao pre-Singular encolhe a esfera', () => {
+  reactor.tick({ ...coreStub, strain: 1 }, 0, 0, 16);
+  const comprimida = stage.registry.nodes['shell__pivot'].scale.x;
+  reactor.tick({ ...coreStub, strain: 0 }, 0, 0, 16);
+  const solta = stage.registry.nodes['shell__pivot'].scale.x;
+  return comprimida < solta ? true : `comprimida ${comprimida.toFixed(3)} >= solta ${solta.toFixed(3)}`;
+});
+
+check('as orbitas giram com o tempo', () => {
+  const antes = stage.registry.nodes['orbits__pivot'].rotation.y;
+  for (let i = 0; i < 10; i += 1) reactor.tick(coreStub, 0.5, 0, 16);
+  const depois = stage.registry.nodes['orbits__pivot'].rotation.y;
+  return depois !== antes ? true : 'orbitas paradas';
+});
+
+check('o anel gira no sentido oposto ao das orbitas', () => {
+  const oAntes = stage.registry.nodes['orbits__pivot'].rotation.y;
+  const rAntes = stage.registry.nodes['ring__pivot'].rotation.y;
+  for (let i = 0; i < 10; i += 1) reactor.tick(coreStub, 0.5, 0, 16);
+  const dOrb = stage.registry.nodes['orbits__pivot'].rotation.y - oAntes;
+  const dRing = stage.registry.nodes['ring__pivot'].rotation.y - rAntes;
+  return dOrb > 0 && dRing < 0 ? true : `orbitas ${dOrb.toFixed(4)}, anel ${dRing.toFixed(4)}`;
+});
+
+check('os nos percorrem as orbitas', () => {
+  const n = reactor._orbitNodes[0];
+  const antes = n.position.x;
+  for (let i = 0; i < 10; i += 1) reactor.tick(coreStub, 0.5, 0, 16);
+  return n.position.x !== antes ? true : 'no parado';
+});
+
+check('os eletrons se movem', () => {
+  const e = reactor._electrons[1];
+  const antes = e.position.x;
+  for (let i = 0; i < 10; i += 1) reactor.tick(coreStub, 0.5, 0, 16);
+  return e.position.x !== antes ? true : 'eletron parado';
+});
+
+check('a atencao do nucleo inclina o objeto (paralaxe)', () => {
+  resetRot();
+  for (let i = 0; i < 40; i += 1) reactor.tick({ ...coreStub, attX: 1, attY: 0 }, 0.5, 0, 16);
+  const a = reactor.root.rotation.y;
+  resetRot();
+  for (let i = 0; i < 40; i += 1) reactor.tick({ ...coreStub, attX: -1, attY: 0 }, 0.5, 0, 16);
+  const b = reactor.root.rotation.y;
+  return a > 0.05 && b < -0.05
+    ? true : `nao seguiu a atencao: a=${a.toFixed(3)} b=${b.toFixed(3)}`;
+});
+
+check('a inclinacao e contida (nunca vira giro completo)', () => {
+  resetRot();
+  for (let i = 0; i < 200; i += 1) reactor.tick({ ...coreStub, attX: 1, attY: 1 }, 1, 0, 16);
+  const r = reactor.root.rotation;
+  return Math.abs(r.y) < 0.45 && Math.abs(r.x) < 0.45
+    ? true : `inclinou demais: x=${r.x.toFixed(2)} y=${r.y.toFixed(2)}`;
+});
+
+check('tick repassa o warmth para os materiais', () => {
+  reactor.tick(coreStub, 0.5, 1, 16);
+  const dourado = Math.round(mats.rim.color.r * 255) === 255 && Math.round(mats.rim.color.b * 255) === 0;
+  reactor.tick(coreStub, 0.5, 0, 16);
+  const ciano = Math.round(mats.rim.color.g * 255) === 245;
+  return dourado && ciano ? true : `dourado=${dourado} ciano=${ciano}`;
+});
+
+check('o tick nao lanca quando o cerebro vem vazio', () => {
+  reactor.tick({}, 0, 0, 16);
+  return true;
+});
+
 close();
