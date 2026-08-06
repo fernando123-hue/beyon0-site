@@ -341,4 +341,53 @@ check('o tick nao lanca quando o cerebro vem vazio', () => {
   return true;
 });
 
+/* ===== Task 6 — escada de degradacao do reator ===== */
+
+check('em qualidade cheia todos os nos aparecem', () => {
+  reactor.setQuality(1);
+  const visiveis = reactor._orbitNodes.filter((n) => n.visible).length;
+  return visiveis === reactor._orbitNodes.length
+    ? true : `${visiveis}/${reactor._orbitNodes.length}`;
+});
+
+check('0.62 corta sombra/IBL mas mantem a populacao cheia', () => {
+  reactor.setQuality(0.62);
+  const visiveis = reactor._orbitNodes.filter((n) => n.visible).length;
+  return visiveis === reactor._orbitNodes.length
+    ? true : `populacao caiu cedo demais: ${visiveis}`;
+});
+
+check('no piso a populacao de nos cai pela metade', () => {
+  reactor.setQuality(0.38);
+  const visiveis = reactor._orbitNodes.filter((n) => n.visible).length;
+  const esperado = reactor._orbitNodes.length / 2;
+  return visiveis === esperado
+    ? true : `${visiveis} visiveis, esperado ${esperado}`;
+});
+
+check('a reducao e distribuida, nao um bloco continuo', () => {
+  reactor.setQuality(0.38);
+  /* dentro de UMA orbita os nos visiveis tem que ficar alternados; se
+     sumissem em bloco, metade da orbita ficaria vazia */
+  const primeiraOrbita = reactor._orbitNodes.slice(0, 12);
+  const padrao = primeiraOrbita.map((n) => (n.visible ? 1 : 0)).join('');
+  return padrao === '101010101010' ? true : `padrao ${padrao}`;
+});
+
+check('degradar reduz QUANTIDADE mas nunca remove presenca', () => {
+  reactor.setQuality(0.38);
+  const pecas = ['shell__pivot', 'ring__pivot', 'orbits__pivot',
+    'brackets__pivot', 'base__pivot', 'emitter__pivot', 'plasma__pivot'];
+  const sumiram = pecas.filter((k) => stage.registry.nodes[k].visible === false);
+  return sumiram.length === 0 ? true : 'sumiram: ' + sumiram.join(', ');
+});
+
+check('a degradacao e reversivel no sentido do estado, nao do watchQuality', () => {
+  reactor.setQuality(0.38);
+  reactor.setQuality(1);
+  const visiveis = reactor._orbitNodes.filter((n) => n.visible).length;
+  return visiveis === reactor._orbitNodes.length
+    ? true : `nao restaurou: ${visiveis}`;
+});
+
 close();

@@ -203,7 +203,25 @@ export function createReactor(stage, mats) {
       root.rotation.x += (alvoX - root.rotation.x) * 0.06 * step;
     },
 
-    setQuality(q) { /* implementado na Task 6 */ },
+    /* Sombras e ambiente refletido já saem no stage em 0.62. Aqui, no piso,
+       cai a POPULAÇÃO dos nós de órbita — nenhuma peça é escondida, então o
+       objeto continua inteiro: reduz quantidade, nunca presença.
+
+       Os nós excedentes ficam invisíveis em vez de destruídos: degradar sai
+       barato, não realoca geometria, e o estado é reversível se a qualidade
+       for reposta (o watchQuality do main.js nunca sobe, mas quem chama isto
+       não precisa saber disso).
+
+       O passo é inteiro por construção (NODES_LOW divide NODES_FULL), e a
+       alternância deixa os sobreviventes distribuídos pela órbita — sumir em
+       bloco deixaria metade do anel vazia. */
+    setQuality(q) {
+      const porOrbita = q < 0.5 ? NODES_LOW : NODES_FULL;
+      const passo = NODES_FULL / porOrbita;
+      for (let i = 0; i < orbitNodes.length; i += 1) {
+        orbitNodes[i].visible = ((i % NODES_FULL) % passo) === 0;
+      }
+    },
 
     dispose() {
       root.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
