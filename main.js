@@ -67,34 +67,9 @@
   var yearEl = document.getElementById('year');
   if (yearEl) yearEl.textContent = new Date().getFullYear();
 
-  /* LOGO — o vídeo é a arte oficial; o wordmark é a rede de segurança. Se o
-     arquivo faltar (hoje é o caso de assets/Logo-definitiva.mp4) ou o codec
-     falhar, a marca continua visível. Subir o .mp4 restaura o vídeo sozinho.
-     NETWORK_NO_SOURCE (3) cobre o caso do erro ter acontecido antes do defer. */
-  document.querySelectorAll('[data-logo]').forEach(function (vid) {
-    var fallback = vid.parentNode && vid.parentNode.querySelector('[data-logo-fallback]');
-    if (!fallback) return;
-    function degrade() {
-      if (vid.hidden) return;
-      vid.hidden = true;
-      fallback.hidden = false;
-    }
-    if (vid.networkState === 3 || vid.error) degrade();
-    vid.addEventListener('error', degrade);
-    window.addEventListener('load', function () { if (vid.networkState === 3) degrade(); });
-
-    /* o logo do rodapé passa quase toda a sessão fora de tela: decodificar 30fps
-       ali é trabalho puro jogado fora. Pausa fora da viewport, retoma ao entrar. */
-    if ('IntersectionObserver' in window) {
-      new IntersectionObserver(function (ents) {
-        ents.forEach(function (en) {
-          if (vid.hidden) return;
-          if (en.isIntersecting) { var p = vid.play(); if (p && p.catch) p.catch(function () {}); }
-          else vid.pause();
-        });
-      }, { rootMargin: '120px' }).observe(vid);
-    }
-  });
+  /* LOGO — a marca é o wordmark em texto. O logo em vídeo foi removido a pedido
+     do dono; com ele saiu todo este subsistema (detecção de codec, fallback e
+     o IntersectionObserver que pausava o vídeo do rodapé fora de tela). */
 
   /* ---------- INTRO (vídeo de abertura) ---------- */
   (function introSequence() {
@@ -704,9 +679,13 @@
     }
   }
 
+  /* PERF: epsilon subiu de 0.006 para 0.018. Estas variáveis controlam a
+     opacidade e a escala de #singfx — uma camada de viewport inteira. Cada
+     escrita recompõe a tela; 55 degraus já são imperceptíveis num banho de luz
+     que leva segundos para subir. */
   var singCss = { amp: -1, depth: -1, rev: -1 }, singLastRgb = '';
   function setSingCss(prop, val, key) {
-    if (Math.abs(val - singCss[key]) > 0.006 || (val === 0 && singCss[key] !== 0)) {
+    if (Math.abs(val - singCss[key]) > 0.018 || (val === 0 && singCss[key] !== 0)) {
       singCss[key] = val;
       document.documentElement.style.setProperty(prop, val.toFixed(3));
     }
@@ -723,10 +702,19 @@
   function setTok(prop, val) {
     if (singTok[prop] !== val) { singTok[prop] = val; document.documentElement.style.setProperty(prop, val); }
   }
+  /* PERF — DEGRAUS DE TEMPERATURA. --glow-rgb é lido por 126 regras de CSS e
+     --hi-rgb por 41. Reescrever esses tokens é, na prática, mandar o browser
+     re-avaliar e repintar a página inteira. Antes isso acontecia a cada frame
+     da rampa (~96 vezes), e era isso que derrubava o FPS ao virar dourado.
+     Quantizando warmth em degraus, a página é recalculada ~24 vezes em vez de
+     ~96 — e como a temperatura já varia devagar (1,6s de subida), o degrau não
+     aparece a olho nu. No ápice warmth fica em 1: zero escrita. */
+  var WARMTH_STEPS = 24;
   function metamorph(s) {
-    var g = plasmaColor(s.warmth, 0), gsp = g.replace(/,/g, ' ');
-    var hi = plasmaColor(s.warmth, 1), hisp = hi.replace(/,/g, ' ');
-    var co = plasmaColor(s.warmth, 2);
+    var w = Math.round(s.warmth * WARMTH_STEPS) / WARMTH_STEPS;
+    var g = plasmaColor(w, 0), gsp = g.replace(/,/g, ' ');
+    var hi = plasmaColor(w, 1), hisp = hi.replace(/,/g, ' ');
+    var co = plasmaColor(w, 2);
     setTok('--glow', 'rgb(' + g + ')');
     setTok('--glow-rgb', gsp);
     setTok('--hi', 'rgb(' + hi + ')');
@@ -745,9 +733,10 @@
 
   /* ressonância → CSS (cards/botões/fundo/revelação). Gated por epsilon:
      0 escritas em repouso. */
+  /* PERF: idem — #resfx também é viewport inteira e sua opacidade sai daqui. */
   var efResCss = { amp: -1, rev: -1, cards: -1, btns: -1, bg: -1, space: -1 };
   function setResCss(prop, val, key) {
-    if (Math.abs(val - efResCss[key]) > 0.006 || (val === 0 && efResCss[key] !== 0)) {
+    if (Math.abs(val - efResCss[key]) > 0.018 || (val === 0 && efResCss[key] !== 0)) {
       efResCss[key] = val;
       document.documentElement.style.setProperty(prop, val.toFixed(3));
     }
@@ -2272,13 +2261,21 @@
 
     /* ---- publicação de variáveis (gated: só escreve o que mudou) */
     var rootV = {};
+    /* PERF — DEGRAUS. Estas variáveis vivem no :root e alimentam a cadeia de
+       calc() dos 205 glifos: cada escrita recalcula o estilo de todos eles.
+       Com toFixed(3) praticamente todo frame escrevia, e era isso que fazia o
+       FPS cair durante o Pulso. Quantizando em 1/50, a energia continua fluida
+       a olho nu e o recálculo acontece uma fração das vezes. */
+    var TY_STEP = 50;
     function setRoot(n, val) {
-      var s = val.toFixed(3);
+      var s = (Math.round(val * TY_STEP) / TY_STEP).toFixed(2);
       if (rootV[n] === s) return;
       rootV[n] = s; root.style.setProperty(n, s);
     }
+    /* por elemento o custo é local (um elemento, não 205), mas --tcx e --tprox
+       também entram na conta de cada glifo do título — mesmo tratamento */
     function setEl(it, n, val) {
-      var s = val.toFixed(3);
+      var s = (Math.round(val * TY_STEP) / TY_STEP).toFixed(2);
       if (it.v[n] === s) return;
       it.v[n] = s; it.el.style.setProperty(n, s);
     }
@@ -2369,7 +2366,10 @@
           }
         }
         if (!it.vis) continue;
-        if (it.prox > 0 || it.v['--tprox'] !== '0.000') {
+        /* compara com o formato que setEl grava (quantizado, 2 casas) — com a
+           string errada aqui a condição seria sempre verdadeira e o gate
+           deixaria de existir */
+        if (it.prox > 0 || (it.v['--tprox'] !== undefined && it.v['--tprox'] !== '0.00')) {
           setEl(it, '--tprox', it.prox);
           /* posição do cursor DENTRO do elemento: é o que faz a energia nascer
              onde o cursor está e propagar aos vizinhos (o CSS mede a distância

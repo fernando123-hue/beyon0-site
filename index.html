@@ -86,12 +86,10 @@
 
   <!-- ===== NAV ===== -->
   <header class="nav" id="nav">
-    <!-- Logo oficial em vídeo (fundo preto + mix-blend-mode: screen no CSS).
-         O wordmark fica como fallback automático caso o arquivo suma ou o codec
-         falhe — a marca nunca desaparece da nav. -->
+    <!-- A marca é o wordmark em texto. O logo em vídeo saiu a pedido do dono
+         (e era custo: vídeo em loop com mix-blend-mode compondo todo frame). -->
     <a href="#hero" class="nav__logo" aria-label="beyon.0 — início">
-      <video class="logo-art" data-logo src="assets/Logo-definitiva.mp4" width="640" height="200" autoplay loop muted playsinline aria-hidden="true"></video>
-      <span class="wordmark" data-logo-fallback hidden>beyon<b>.0</b></span>
+      <span class="wordmark">beyon<b>.0</b></span>
     </a>
     <nav class="nav__links" aria-label="Navegação principal">
       <a href="#servicos">Serviços</a>
@@ -409,8 +407,7 @@
     <div class="footer__grid">
       <div class="footer__brand">
         <a href="#hero" aria-label="beyon.0 — voltar ao topo">
-          <video class="logo-art logo-art--lg" data-logo src="assets/Logo-definitiva.mp4" width="640" height="200" autoplay loop muted playsinline aria-hidden="true"></video>
-          <span class="wordmark wordmark--lg" data-logo-fallback hidden>beyon<b>.0</b></span>
+          <span class="wordmark wordmark--lg">beyon<b>.0</b></span>
         </a>
         <p>Websites de alta conversão para<br />empresas que buscam liderança digital.</p>
         <p class="footer__copy">© <span id="year">2026</span> beyon.0. Todos os direitos reservados.</p>

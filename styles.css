@@ -330,17 +330,7 @@ h3 { font-size: 1.1rem; font-weight: 600; letter-spacing: -0.01em; color: var(--
 /* [hidden] precisa vencer o display das regras abaixo (UA style perde para classe) */
 [hidden] { display: none !important; }
 
-/* ---------- logotipo: a arte em vídeo, com wordmark de fallback ---------- */
-.logo-art {
-  display: block;
-  height: 36px;
-  width: auto;
-  object-fit: contain;
-  mix-blend-mode: screen;   /* recorta o fundo preto do vídeo */
-  pointer-events: none;
-}
-.logo-art--lg { height: 40px; }
-
+/* ---------- logotipo: wordmark em texto (o logo em vídeo foi removido) ---------- */
 .wordmark {
   display: block;
   font-family: var(--mono);
@@ -1818,7 +1808,11 @@ h3 { font-size: 1.1rem; font-weight: 600; letter-spacing: -0.01em; color: var(--
   z-index: 1;
   pointer-events: none;
   opacity: var(--res-reveal, 0);
-  mix-blend-mode: screen;
+  /* PERF: sem mix-blend-mode. Numa camada de viewport inteira cuja opacidade
+     muda a cada frame, o blend impede o browser de compor a camada sozinha —
+     ele tem que reler e remisturar a tela toda por frame. Sobre o fundo quase
+     preto do site, screen(a, ~0) ≈ a: o resultado visual é praticamente o
+     mesmo, e a animação de opacidade volta a ser barata. */
   transform: scale(calc(1 - var(--res-space, 0) * 0.018));
   transform-origin: 50% 42%;
   box-shadow:
@@ -1835,7 +1829,9 @@ h3 { font-size: 1.1rem; font-weight: 600; letter-spacing: -0.01em; color: var(--
   z-index: 2;
   pointer-events: none;
   opacity: var(--sing, 0);
-  mix-blend-mode: screen;
+  /* PERF: sem mix-blend-mode, mesmo motivo do #resfx. Esta é a camada que mais
+     doía: viewport inteira, opacidade mudando por frame durante os 20s do
+     Singular, e ainda dois gradientes radiais repintando junto. */
   background:
     radial-gradient(125% 100% at 50% 42%, rgb(var(--sing-rgb) / .15), transparent 68%),
     radial-gradient(65% 52% at 50% 42%, rgb(var(--sing-rgb) / .10), transparent 60%);
