@@ -311,20 +311,42 @@
   /* REDE DE PROTEÇÃO DE FPS (substitui o watchPerf do vórtice, que morreu com a
      seção 5). Uma só, cobrindo o canvas neural + AI Core. Só desce (nunca sobe):
      evita oscilação. Os subsistemas leem EnergyField.quality e cortam trabalho. */
-  var qLowMs = 0;
+  var qLowMs = 0, qHighMs = 0, shineOn = false, shineBurned = false;
+  /* REFRAÇÃO CARA (backdrop-filter nas placas) — política INVERTIDA.
+     Antes ela nascia ligada e só era desligada no PISO da escada, o que exigia
+     dois degraus (≥4,4s de FPS ruim) e, num aparelho oscilando por volta dos
+     46fps, nunca acontecia: o site travava para sempre no custo máximo.
+     Agora ela nasce DESLIGADA e só entra se o aparelho provar folga sustentada.
+     Uma vez perdida, não volta — a escada de qualidade é de via única, e
+     religar a refração seria justamente o que derrubaria o FPS de novo. */
+  var SHINE_FPS = 57, SHINE_MS = 2500;
+  function setShine(on) {
+    if (on === shineOn) return;
+    shineOn = on;
+    document.body.classList.toggle('shine-ok', on);
+  }
   function watchQuality() {
     if (EnergyField.t < 150) return;                 /* aquecimento ~2.5s */
     if (fpsEMA < 46) {
       qLowMs += efDt;
+      qHighMs = 0;
       if (qLowMs > 2200) {                           /* 2.2s abaixo do alvo → desce um degrau */
         qLowMs = 0;
         EnergyField.quality = EnergyField.quality > 0.62 ? 0.62 : 0.38;   /* piso 0.38 */
         /* no primeiro degrau mantém a borda viva; só o piso real a congela.
            Assim qualidade moderada não mata justamente o movimento que dá vida aos cards. */
         document.body.classList.toggle('no-shine', EnergyField.quality <= 0.38);
+        setShine(false);
+        shineBurned = true;                          /* queimou: não tenta de novo */
       }
     } else {
       qLowMs = Math.max(0, qLowMs - efDt);
+      if (!shineBurned && !shineOn && EnergyField.quality >= 0.999 && fpsEMA >= SHINE_FPS) {
+        qHighMs += efDt;
+        if (qHighMs > SHINE_MS) setShine(true);      /* folga provada → liga a refração */
+      } else if (fpsEMA < SHINE_FPS) {
+        qHighMs = 0;
+      }
     }
   }
   function measureScroll() {
@@ -1602,7 +1624,15 @@
 
       if (Math.abs(r.tx - r.wtx) > 0.02) { r.wtx = r.tx; r.el.style.setProperty('--tilt-x', r.tx.toFixed(2) + 'deg'); }
       if (Math.abs(r.ty - r.wty) > 0.02) { r.wty = r.ty; r.el.style.setProperty('--tilt-y', r.ty.toFixed(2) + 'deg'); }
-      if (Math.abs(r.dim - r.wdim) > 0.01) { r.wdim = r.dim; r.el.style.setProperty('--dim', r.dim.toFixed(3)); }
+      if (Math.abs(r.dim - r.wdim) > 0.01) {
+        r.wdim = r.dim;
+        r.el.style.setProperty('--dim', r.dim.toFixed(3));
+        /* PERF: a classe é o gatilho do filtro no CSS. Sem ela, a placa em
+           repouso carregaria uma camada de composição para computar
+           saturate(1) — custo permanente por efeito nenhum. */
+        var querDim = r.dim > 0.01;
+        if (querDim !== r.dimOn) { r.dimOn = querDim; r.el.classList.toggle('is-dim', querDim); }
+      }
     }
 
     function tick() {

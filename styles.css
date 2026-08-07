@@ -1211,7 +1211,10 @@ h3 { font-size: 1.1rem; font-weight: 600; letter-spacing: -0.01em; color: var(--
 }
 .service:hover, .service.is-lit { --lift: 2px; }
 /* recuo também na luz: a placa observada é a única que respira inteira */
-.service { filter: saturate(calc(1 - var(--dim, 0) * .3)); }
+/* PERF: o filtro só existe quando a placa está de fato recuada. Antes ele era
+   incondicional e, em repouso (--dim:0), computava saturate(1) — nada visual,
+   mas uma camada de composição permanente em cada placa. O JS marca .is-dim. */
+.service.is-dim { filter: saturate(calc(1 - var(--dim, 0) * .3)); }
 /* rede de FPS: transform 3D + backdrop-filter + anel animado é o pico de custo */
 .no-shine .service.lit { transform: none; }
 .no-shine .service { filter: none; }
@@ -1219,8 +1222,14 @@ h3 { font-size: 1.1rem; font-weight: 600; letter-spacing: -0.01em; color: var(--
    de desenho legível: é isso que faz a placa parecer matéria, e não uma janela.
    Caro por natureza; cai junto com o resto no degrau da rede de FPS. */
 @supports (backdrop-filter: blur(2px)) {
-  .service { backdrop-filter: blur(11px) saturate(1.1); }
-  .no-shine .service { backdrop-filter: none; }
+  /* PERF — INVERTIDO: nasce DESLIGADO e o JS só liga (.shine-ok) depois que o
+     aparelho sustenta FPS alto por alguns segundos. Antes era o contrário: o
+     site nascia no custo máximo e só aliviava depois de já ter travado muito,
+     e num desktop oscilando na faixa dos 40fps o alívio nunca chegava.
+     O custo real não é o raio do blur: é o browser reler e recompor o fundo
+     atrás de cada placa a cada frame — e atrás delas há um canvas de partículas
+     em tela cheia repintando sem parar. */
+  .shine-ok .service { backdrop-filter: blur(11px) saturate(1.1); }
 }
 /* FRAME DUPLO — a câmara energética interna também é a segunda moldura.
    Não é decoração: é o limite visível do material que conduz. */
@@ -1380,8 +1389,8 @@ h3 { font-size: 1.1rem; font-weight: 600; letter-spacing: -0.01em; color: var(--
   background-blend-mode: overlay, normal, soft-light, screen, screen, normal, normal;
 }
 @supports (backdrop-filter: blur(2px)) {
-  .card-mat:not(.mock__frame) { backdrop-filter: blur(11px) saturate(1.1); }
-  .no-shine .card-mat:not(.mock__frame) { backdrop-filter: none; }
+  /* PERF — INVERTIDO, mesmo motivo do .service acima */
+  .shine-ok .card-mat:not(.mock__frame) { backdrop-filter: blur(11px) saturate(1.1); }
 }
 /* FRAME DUPLO — câmara interna rarefeita (sem color-dodge/malha/cônico, que eram
    o que estourava a placa e dava a aspereza). Sobrepõe a câmara ocupada herdada.
@@ -1414,7 +1423,8 @@ h3 { font-size: 1.1rem; font-weight: 600; letter-spacing: -0.01em; color: var(--
   transform-origin: center;
 }
 .card-mat.lit:hover, .card-mat.lit.is-lit { --lift: 2px; }
-.card-mat { filter: saturate(calc(1 - var(--dim, 0) * .3)); }
+/* PERF: idem .service — camada de filtro só quando a placa recua de verdade */
+.card-mat.is-dim { filter: saturate(calc(1 - var(--dim, 0) * .3)); }
 .no-shine .card-mat.lit { transform: none; }
 .no-shine .card-mat { filter: none; }
 /* No Singular o entorno vira luz incandescente; o texto precisa de um assento
@@ -2063,8 +2073,11 @@ h3 { font-size: 1.1rem; font-weight: 600; letter-spacing: -0.01em; color: var(--
   /* a velocidade da propagação varia de leve por caractere (--cj) — o fluxo
      nunca lê como loop mecânico. Só propriedades de pintura: o transform da
      materialização continua exato. */
-  transition: text-shadow 260ms linear;
-  transition-delay: calc(var(--cj, 0) * 40ms);
+  /* PERF: NENHUMA transição aqui. text-shadow é propriedade de PINTURA, e
+     --ce muda a cada frame — transicioná-la reiniciava a transição em 205
+     glifos por frame, pintando todos eles sem parar. A suavidade não se perde:
+     --tprox já é amortecido no JS e a frente do Pulso já varre os caracteres
+     ao longo do tempo. A variação por caractere continua vindo de --cj. */
 }
 
 /* ---------- ESTADO IDLE: nada morto, nada chamativo ----------
@@ -2135,13 +2148,8 @@ body[data-type-state="singularity"] .ty-c {
     0 0 calc(var(--ce) * 40px) rgb(var(--hi-rgb) / calc(var(--ce) * var(--ty-load, 0) * .3));
 }
 
-/* ---------- COOLING: o organismo relaxa depois do evento ---------- */
-body[data-type-state="cooling"] .ty-c { transition-duration: 720ms; }
-
-/* rede de FPS: em qualidade baixa a vida perde QUANTIDADE, não presença */
-@media (prefers-reduced-motion: no-preference) {
-  html.ty-on body[data-type-state="idle"] .ty-c { transition-duration: 380ms; }
-}
+/* (as regras de transition-duration por estado saíram junto com a transição:
+   sem transição em .ty-c, elas não faziam nada além de ocupar a cascata) */
 
 /* ---------- acessibilidade / reduced motion ----------
    sem movimento: o texto é só texto — legível, estável, sem materialização. */
