@@ -16,6 +16,53 @@
   var WA_LINK = 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encodeURIComponent(WHATSAPP_MSG);
 
 
+  /* ---- PROFILADOR: desligado por padrão, zero custo sem ?perf ---- */
+  var PERF = /[?&]perf\b/.test(location.search);
+  var perfSubs = Object.create(null), perfFrames = [], perfLast = 0, perfWorst = null;
+  function perfFrame(now) {
+    if (perfLast) {
+      var dt = now - perfLast;
+      perfFrames.push(dt);
+      if (perfFrames.length > 2000) perfFrames.shift();
+      /* guarda o retrato do organismo no pior frame visto até agora */
+      if (!perfWorst || dt > perfWorst.dt) {
+        var R = EnergyField.res, S = EnergyField.sing;
+        perfWorst = {
+          dt: dt,
+          res: R.active ? R.phase : 'idle',
+          sing: S.active ? S.phase : 'idle',
+          warmth: +(S.warmth || 0).toFixed(2),
+          quality: EnergyField.quality
+        };
+      }
+    }
+    perfLast = now;
+  }
+  function perfSub(name, ms) {
+    var e = perfSubs[name] || (perfSubs[name] = { n: 0, soma: 0, pior: 0 });
+    e.n++; e.soma += ms; if (ms > e.pior) e.pior = ms;
+  }
+  if (PERF) {
+    window.__perf = function (reset) {
+      var f = perfFrames.slice().sort(function (a, b) { return a - b; });
+      var p = function (q) { return f.length ? +f[Math.min(f.length - 1, Math.floor(f.length * q))].toFixed(1) : 0; };
+      var linhas = Object.keys(perfSubs).map(function (k) {
+        var e = perfSubs[k];
+        return { subsistema: k, mediaMs: +(e.soma / e.n).toFixed(2), piorMs: +e.pior.toFixed(2) };
+      }).sort(function (a, b) { return b.piorMs - a.piorMs; });
+      var out = {
+        frames: f.length,
+        fpsMediano: f.length ? +(1000 / f[Math.floor(f.length / 2)]).toFixed(1) : 0,
+        frameMs: { p50: p(0.5), p95: p(0.95), p99: p(0.99), pior: p(0.999) },
+        travas_acima_de_33ms: f.filter(function (d) { return d > 33; }).length,
+        piorFrame: perfWorst,
+        porSubsistema: linhas
+      };
+      if (reset) { perfSubs = Object.create(null); perfFrames = []; perfWorst = null; }
+      return out;
+    };
+  }
+
   var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var pointerFine = window.matchMedia('(pointer: fine)').matches;
 
@@ -215,7 +262,12 @@
       hush: 0,      /* instante de silêncio visual absoluto antes da transcendência */
       power: 1, _s: 0, _t: 0, _a: 0   /* fim da compressão / transcendência / ápice */
     },
-    add: function (tick) { this.subs.push(tick); return tick; },
+    add: function (tick, name) { tick._n = name || ('sub' + this.subs.length); this.subs.push(tick); return tick; },
+    /* ---- PROFILADOR (só com ?perf) ----
+       Mede o custo de cada subsistema por frame e guarda o pior frame de cada
+       um, junto do estado do organismo no instante do pico. Serve para achar
+       QUEM causa a queda repentina no Pulso e no Singular, em vez de deduzir.
+       Uso: abrir o site com ?perf e chamar __perf() no console. */
     /* PRIMITIVA 1: excitação de um elo da cadeia na posição pos∈[0..1]
        (núcleo=0, campo=0.12, conexões=0.25, partículas=0.40, tipografia=0.55,
        cards=0.70, botões=0.85, fundo=1.0). Uma corcova gaussiana viaja com a
@@ -867,7 +919,16 @@
     }
 
     /* subsistemas do organismo (ParticleLayer, e mais nas próximas fases) */
-    for (var s = 0; s < EnergyField.subs.length; s++) EnergyField.subs[s](now);
+    if (PERF) {
+      perfFrame(now);
+      for (var s = 0; s < EnergyField.subs.length; s++) {
+        var _p0 = performance.now();
+        EnergyField.subs[s](now);
+        perfSub(EnergyField.subs[s]._n, performance.now() - _p0);
+      }
+    } else {
+      for (var s = 0; s < EnergyField.subs.length; s++) EnergyField.subs[s](now);
+    }
 
     if (efDebug && EnergyField.t % 6 === 0) {
       var _dr = EnergyField.res, _ds = EnergyField.sing;
@@ -1516,7 +1577,7 @@
         }
       } else if (beamTick) { beamTick = 0; beamCenters.length = 0; }
     }
-    EnergyField.add(frame);   /* plugado no loop único do organismo */
+    EnergyField.add(frame, 'neuralEnergyField');   /* plugado no loop único do organismo */
   })();
 
   /* ========== 3c. REATORES DOM (Fase 2) ==========
@@ -1681,7 +1742,7 @@
       }
     }
 
-    EnergyField.add(tick);
+    EnergyField.add(tick, 'domReactors');
   })();
 
   /* ========== 3c-ter. BARRAMENTO DA SEÇÃO (filamentos card ↔ núcleo) ==========
@@ -2038,7 +2099,7 @@
       ctx.restore();
     }
 
-    EnergyField.add(tick);
+    EnergyField.add(tick, 'serviceBus');
   })();
 
   /* ========== 3c-bis. ECONOMIA DE REPINTURA ==========
@@ -2427,7 +2488,7 @@
 
     if (anySplit) document.documentElement.classList.add('ty-on');
     document.body.setAttribute('data-type-state', 'idle');
-    EnergyField.add(tick);
+    EnergyField.add(tick, 'livingTypography');
 
     /* REDE DE SEGURANÇA: a materialização parte de --tmat 0 (opacidade ~0). Se o
        loop não chegar a rodar — aba aberta em segundo plano, rAF congelado, ou
@@ -2640,7 +2701,7 @@
       }
     }
 
-    EnergyField.add(tick);
+    EnergyField.add(tick, 'livingType');
   })();
 
   /* ========== 3e. REESCRITA DO SISTEMA — texto que muda no Singular ==========
@@ -2705,7 +2766,7 @@
         else apply(it, txtMorph(it.calm, it.sing, np));
       }
     }
-    EnergyField.add(tick);
+    EnergyField.add(tick, 'singText');
   })();
 
   /* ========== 3f. AI CORE — o reator do hero ==========
@@ -2985,7 +3046,7 @@
 
       ctx.globalCompositeOperation = 'source-over';
     }
-    EnergyField.add(tick);
+    EnergyField.add(tick, 'heroReactor');
   })();
 
   /* ========== 4. O MEDIDOR ========== */
