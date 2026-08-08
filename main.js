@@ -85,6 +85,46 @@
   })();
   function rgbTriple(s) { var p = s.split(','); return [+p[0], +p[1], +p[2]]; }
 
+  /* ===== HALO EM SPRITE — a otimização mais importante do desenho =====
+     Praticamente todo brilho do site é o mesmo desenho: um degradê radial que
+     vai da cor até transparente. Criar esse degradê a cada chamada obriga a CPU
+     a rasterizar o círculo inteiro toda vez, e o site fazia isso dezenas de
+     vezes por frame — as duas brumas do campo, os até 22 halos de memória, e um
+     bloom por NÓ DE ÓRBITA do reator (laço aninhado). Era o custo contínuo que
+     segurava tudo na casa dos 20-30fps.
+
+     Aqui o degradê é desenhado UMA vez por cor num sprite pequeno; depois cada
+     halo é só um drawImage escalado — cópia acelerada em vez de rasterização.
+     O sprite pode ser pequeno porque é um degradê liso: não há detalhe algum
+     para preservar ao ampliar.
+
+     A cor muda durante o Singular, então o cache é limitado por um teto. */
+  var HALO_PX = 192, haloCache = Object.create(null), haloKeys = [];
+  function haloSprite(rgb) {
+    var s = haloCache[rgb];
+    if (s) return s;
+    var c = document.createElement('canvas');
+    c.width = c.height = HALO_PX;
+    var g = c.getContext('2d'), h = HALO_PX / 2;
+    var gr = g.createRadialGradient(h, h, 0, h, h, h);
+    gr.addColorStop(0, 'rgba(' + rgb + ',1)');
+    gr.addColorStop(1, 'rgba(' + rgb + ',0)');
+    g.fillStyle = gr;
+    g.fillRect(0, 0, HALO_PX, HALO_PX);
+    haloCache[rgb] = c;
+    haloKeys.push(rgb);
+    if (haloKeys.length > 48) delete haloCache[haloKeys.shift()];
+    return c;
+  }
+  /* desenha um halo de raio r centrado em (x,y) com opacidade a */
+  function drawHalo(ctx, x, y, r, rgb, a) {
+    if (!(a > 0.002) || !(r > 0)) return;
+    var prev = ctx.globalAlpha;
+    ctx.globalAlpha = prev * (a > 1 ? 1 : a);
+    ctx.drawImage(haloSprite(rgb), x - r, y - r, r * 2, r * 2);
+    ctx.globalAlpha = prev;
+  }
+
   /* ========== GSAP — motor de animação (window.gsap, UMD vendorado) ==========
      Plugins registrados no boot: ScrollTrigger, SplitText, TextPlugin,
      ScrambleTextPlugin. Config padrão de importação p/ projeto SEM build:
@@ -1222,13 +1262,18 @@
       }
     }
 
-    function mist(x, y, r, rgb, a) {
-      var g = ctx.createRadialGradient(x, y, 0, x, y, r);
-      g.addColorStop(0, 'rgba(' + rgb + ',' + a + ')');
-      g.addColorStop(1, 'rgba(' + rgb + ',0)');
-      ctx.fillStyle = g;
-      ctx.fillRect(x - r, y - r, r * 2, r * 2);
-    }
+    /* BRUMA — sprite em cache, não gradiente por chamada.
+       Antes, cada bruma criava um createRadialGradient novo e mandava a CPU
+       rasterizar um quadrado de r*2 lado. Somando as duas brumas grandes com os
+       até 22 halos dos nós de memória, dava ~2,6 megapixels rasterizados e 24
+       objetos de gradiente alocados TODO FRAME — o custo contínuo que segurava
+       o site na casa dos 20-30fps.
+
+       Agora o degradê é desenhado UMA vez por cor num sprite pequeno, e cada
+       bruma é só um drawImage escalado: cópia acelerada em vez de rasterização.
+       O sprite é pequeno de propósito — é um degradê suave, sem detalhe algum
+       para preservar, então ampliar não aparece. */
+    function mist(x, y, r, rgb, a) { drawHalo(ctx, x, y, r, rgb, a); }
 
     function frame(now) {
       if (document.hidden) return;
@@ -2841,10 +2886,11 @@
          borda, então ele se dissolve no fundo do hero como o resto do site, sem
          nunca "bater na caixa". */
       r = Math.min(r, S * 0.47);
-      var g = ctx.createRadialGradient(x, y, 0, x, y, r);
-      g.addColorStop(0, 'rgba(' + rgb + ',' + a.toFixed(3) + ')');
-      g.addColorStop(1, 'rgba(' + rgb + ',0)');
-      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+      /* PERF: sprite em cache no lugar de um gradiente por chamada. Isto aqui
+         roda dentro de laço aninhado (um bloom por nó de cada órbita), então
+         era dezenas de rasterizações por frame só no reator. O grampo de raio
+         acima continua valendo — é ele que impede a moldura quadrada. */
+      drawHalo(ctx, x, y, r, rgb, a);
     }
 
     function tick(now) {
