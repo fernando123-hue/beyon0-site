@@ -1,0 +1,160 @@
+/* ==========================================================================
+   DOM E EVENTOS
+
+   Regra que este arquivo respeita à risca: o CSS só é tocado em EVENTOS
+   discretos — uma classe que entra ou sai, poucas vezes por minuto. O Pulso e o
+   Estado Singular escrevem NÚMEROS no estado compartilhado, e quem os desenha
+   é o canvas. Nenhuma variável de CSS muda por frame.
+   ========================================================================== */
+(function () {
+  'use strict';
+
+  var B = window.BEYON;
+  if (!B) return;
+  var S = B.S;
+
+  /* ---------- WhatsApp: o número vive num lugar só ---------- */
+  var WA = 'https://wa.me/5521977167944?text=' +
+    encodeURIComponent('Oi! Vim pelo site da beyon.0 e quero um orçamento pro meu site.');
+  var links = document.querySelectorAll('[data-wa]');
+  for (var i = 0; i < links.length; i++) {
+    links[i].href = WA;
+    links[i].rel = 'noopener noreferrer';
+    links[i].target = '_blank';
+  }
+
+  var ano = document.getElementById('year');
+  if (ano) ano.textContent = new Date().getFullYear();
+
+  /* ---------- reveals: uma transição, disparada uma vez ---------- */
+  var reveals = document.querySelectorAll('.reveal');
+  if ('IntersectionObserver' in window && !B.reduced) {
+    var io = new IntersectionObserver(function (ents) {
+      for (var k = 0; k < ents.length; k++) {
+        if (!ents[k].isIntersecting) continue;
+        ents[k].target.classList.add('is-in');
+        io.unobserve(ents[k].target);        /* cumpriu o papel, sai da lista */
+      }
+    }, { rootMargin: '0px 0px -8% 0px' });
+    for (var r = 0; r < reveals.length; r++) io.observe(reveals[r]);
+  } else {
+    for (var r2 = 0; r2 < reveals.length; r2++) reveals[r2].classList.add('is-in');
+  }
+
+  /* ---------- nav: uma classe, no cruzamento do limiar ---------- */
+  var nav = document.getElementById('nav');
+  var presa = false;
+  window.addEventListener('scroll', function () {
+    var quer = window.scrollY > 40;
+    if (quer !== presa) { presa = quer; nav.classList.toggle('is-stuck', quer); }
+  }, { passive: true });
+
+  /* ---------- reescrita de texto pelo glitch ----------
+     Um elemento só. O efeito custa o que custa mexer em um textContent. */
+  var GL = '01<>/\\[]{}=+*#%&ABCDEF';
+  function morph(de, para, p) {
+    var L = Math.max(de.length, para.length), out = '';
+    for (var i = 0; i < L; i++) {
+      var r = (p - (i / (L || 1)) * .5) / .4;
+      if (r >= 1) out += para.charAt(i);
+      else if (r <= -.35) out += de.charAt(i);
+      else out += (para.charAt(i) === ' ' && de.charAt(i) === ' ')
+        ? ' ' : GL.charAt((Math.random() * GL.length) | 0);
+    }
+    return out;
+  }
+
+  var stEl = document.querySelector('.hero__status-txt');
+  var stDe = 'Sistema online · beyon.0', stPara = stDe, stP = 1, stMostrado = stDe;
+  function anunciar(txt) {
+    if (txt === stPara) return;
+    stDe = stMostrado; stPara = txt; stP = 0;
+  }
+  function driveStatus(dt) {
+    if (!stEl || stP >= 1) return;
+    stP = Math.min(1, stP + dt / 700);
+    var s = stP >= 1 ? stPara : morph(stDe, stPara, stP);
+    if (s !== stMostrado) { stMostrado = s; stEl.textContent = s; }
+  }
+
+  /* ---------- PULSO ----------
+     Uma onda que atravessa a cadeia. O canvas lê S.pulse e S.pulseFront; o DOM
+     recebe UMA classe no começo e perde no fim. */
+  var pulsoAte = 0, proxPulso = 0, DUR = 2600;
+  function agendarPulso(now) {
+    proxPulso = now + 9000 + Math.random() * 11000;
+  }
+
+  function drivePulso(now, dt) {
+    if (now < pulsoAte) {
+      var u = 1 - (pulsoAte - now) / DUR;                 /* 0..1 */
+      S.pulseFront = u;
+      S.pulse = Math.sin(u * Math.PI) * .9;              /* sobe e volta */
+      return;
+    }
+    if (S.pulse !== 0) {
+      S.pulse = 0; S.pulseFront = 0;
+      document.body.classList.remove('is-pulse');
+      anunciar('Sistema online · beyon.0');
+      agendarPulso(now);
+    }
+    if (proxPulso && now > proxPulso && !S.singular) {
+      pulsoAte = now + DUR;
+      document.body.classList.add('is-pulse');
+      anunciar('Ressonância em curso');
+    }
+  }
+
+  /* ---------- ESTADO SINGULAR ----------
+     Raro. Aquece de ciano a dourado, sustenta e volta. A cor do canvas sai de
+     S.warmth; o DOM só ganha a classe .is-singular, e o CSS resolve a transição
+     de cor sozinho nos poucos pontos onde ela é assinatura. */
+  var singAte = 0, proxSing = 0, SDUR = 14000;
+  function driveSingular(now) {
+    if (now < singAte) {
+      var u = 1 - (singAte - now) / SDUR;
+      /* sobe em 1,5s, sustenta, esfria nos 3s finais */
+      var w = u < .11 ? u / .11 : (u > .78 ? Math.max(0, (1 - u) / .22) : 1);
+      S.singular = w; S.warmth = w;
+      return;
+    }
+    if (S.singular !== 0) {
+      S.singular = 0; S.warmth = 0;
+      document.body.classList.remove('is-singular');
+      anunciar('Sistema online · beyon.0');
+      proxSing = now + 70000 + Math.random() * 60000;
+    }
+    if (proxSing && now > proxSing && !S.pulse) {
+      singAte = now + SDUR;
+      document.body.classList.add('is-singular');
+      anunciar('AI Core no comando');
+    }
+  }
+
+  var iniciou = 0;
+  B.add('eventos', function (s) {
+    if (!iniciou) {
+      iniciou = s.now;
+      agendarPulso(s.now);
+      proxSing = s.now + 45000 + Math.random() * 40000;
+    }
+    drivePulso(s.now, s.dt);
+    driveSingular(s.now);
+    driveStatus(s.dt);
+  });
+
+  /* ---------- medidor: números reais, atualizado 2x por segundo ---------- */
+  var med = document.querySelector('.medidor__txt');
+  var led = document.querySelector('.medidor__led');
+  var ultMed = 0;
+  if (med) {
+    B.add('medidor', function (s) {
+      if (s.now - ultMed < 500) return;
+      ultMed = s.now;
+      med.textContent = Math.round(s.fps) + ' fps · ' + Math.round(s.budget * 100) + '%';
+      led.style.background = s.fps > 50 ? 'var(--glow)' : (s.fps > 35 ? 'var(--gold)' : 'var(--led)');
+    });
+  }
+
+  B.iniciar();
+})();
