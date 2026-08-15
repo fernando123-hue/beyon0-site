@@ -454,3 +454,48 @@ body { transition: none; }
   background: rgb(0 0 0 / .7);
   box-shadow: 0 0 24px rgb(var(--glow-rgb) / .35);
 }
+
+/* ============================================================
+   BOOT — scanline varre o hero uma vez, elementos entram em cascata.
+   Disparado por .booted (js/intro.js, ao fim da intro). Puro @keyframes:
+   nenhuma variável CSS escrita por frame, nenhum JS por tick — cai
+   automaticamente sob prefers-reduced-motion (styles.css:400).
+   ============================================================ */
+.booted .hero::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; top: 0;
+  height: 2px;
+  z-index: 4;
+  pointer-events: none;
+  background: linear-gradient(90deg,
+    transparent,
+    rgb(var(--glow-rgb) / .7) 30%,
+    rgb(var(--core-rgb) / .9) 50%,
+    rgb(var(--glow-rgb) / .7) 70%,
+    transparent);
+  box-shadow: 0 0 24px rgb(var(--glow-rgb) / .5);
+  animation: boot-scan 1.3s var(--ease) 0s 1 both;
+}
+@keyframes boot-scan {
+  0%   { transform: translateY(0); opacity: 0; }
+  8%   { opacity: 1; }
+  85%  { opacity: .9; }
+  100% { transform: translateY(100svh); opacity: 0; }
+}
+
+.booted .nav { animation: boot-down .7s var(--ease) 0s both; }
+@keyframes boot-down {
+  from { opacity: 0; transform: translateY(-14px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.booted .hero__status  { animation: boot-rise .6s var(--ease) .5s both; }
+.booted .hero__title   { animation: boot-rise .7s var(--ease) .65s both; }
+.booted .hero__sub     { animation: boot-rise .7s var(--ease) .95s both; }
+.booted .hero__actions { animation: boot-rise .7s var(--ease) 1.12s both; }
+.booted .scroll-hint   { animation: boot-rise .8s var(--ease) 1.5s both; }
+@keyframes boot-rise {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: none; }
+}
