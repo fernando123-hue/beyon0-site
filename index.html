@@ -56,6 +56,16 @@
 <body>
   <a href="#hero" class="skip-link">Pular para o conteúdo</a>
 
+  <!-- INTRO — overlay de vídeo no boot. src fica em data-src de propósito: com
+       ele no markup, o parser começaria a baixar os 4,2 MB do vídeo antes de o
+       JS (defer) poder decidir, pelas guardas de rede/motion, que esta visita
+       não deve pagar por eles. Ver js/intro.js. -->
+  <div class="intro" id="intro">
+    <video class="intro__video" id="introVid" muted playsinline preload="auto"
+           data-src="assets/intro.mp4" aria-hidden="true"></video>
+    <button class="intro__skip" id="introSkip" type="button">Pular introdução</button>
+  </div>
+
   <!-- CAMADA DE ENERGIA — um canvas só, em tela cheia, atrás de tudo.
        Todo movimento contínuo do site vive aqui: campo de partículas, reator do
        hero e o brilho da tipografia. Desenhar a cena inteira custa ~1ms; fazer
@@ -269,5 +279,6 @@
   <script src="js/core.js" defer></script>
   <script src="js/field.js" defer></script>
   <script src="js/dom.js" defer></script>
+  <script src="js/intro.js" defer></script>
 </body>
 </html>
