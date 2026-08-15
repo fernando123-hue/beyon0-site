@@ -64,7 +64,7 @@ body {
   pointer-events: none;
   display: block;
 }
-body > *:not(#fx) { position: relative; z-index: 1; }
+body > *:not(#fx):not(.intro) { position: relative; z-index: 1; }
 
 img, svg, canvas { display: block; max-width: 100%; }
 
@@ -481,7 +481,7 @@ body { transition: none; }
   0%   { transform: translateY(0); opacity: 0; }
   8%   { opacity: 1; }
   85%  { opacity: .9; }
-  100% { transform: translateY(100svh); opacity: 0; }
+  100% { transform: translateY(100%); opacity: 0; }
 }
 
 .booted .nav { animation: boot-down .7s var(--ease) 0s both; }
@@ -494,8 +494,12 @@ body { transition: none; }
 .booted .hero__title   { animation: boot-rise .7s var(--ease) .65s both; }
 .booted .hero__sub     { animation: boot-rise .7s var(--ease) .95s both; }
 .booted .hero__actions { animation: boot-rise .7s var(--ease) 1.12s both; }
-.booted .scroll-hint   { animation: boot-rise .8s var(--ease) 1.5s both; }
+.booted .scroll-hint   { animation: boot-rise-x .8s var(--ease) 1.5s both; }
 @keyframes boot-rise {
   from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: none; }
+}
+@keyframes boot-rise-x {
+  from { opacity: 0; transform: translate(-50%, 16px); }
+  to   { opacity: 1; transform: translateX(-50%); }
 }

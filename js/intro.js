@@ -10,7 +10,7 @@
   'use strict';
 
   var B = window.BEYON;
-  if (!B) return;
+  if (!B) { document.body.classList.add('booted'); return; }
 
   var intro = document.getElementById('intro');
   var vid = document.getElementById('introVid');
