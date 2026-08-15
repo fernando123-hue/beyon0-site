@@ -9,18 +9,21 @@
 (function () {
   'use strict';
 
+  function bootSemIntro() {
+    document.body.classList.add('booted');
+    var el = document.getElementById('intro');
+    if (el && el.parentNode) el.parentNode.removeChild(el);
+  }
+
   var B = window.BEYON;
-  if (!B) { document.body.classList.add('booted'); return; }
+  if (!B) { bootSemIntro(); return; }
 
   var intro = document.getElementById('intro');
   var vid = document.getElementById('introVid');
   var skip = document.getElementById('introSkip');
 
   /* markup ausente: não trava o boot esperando um evento que nunca vem */
-  if (!intro || !vid) {
-    document.body.classList.add('booted');
-    return;
-  }
+  if (!intro || !vid) { bootSemIntro(); return; }
 
   var done = false;
   function finish(instant) {

@@ -465,16 +465,19 @@ body { transition: none; }
   content: "";
   position: absolute;
   left: 0; right: 0; top: 0;
-  height: 2px;
+  height: 100%;
   z-index: 4;
   pointer-events: none;
-  background: linear-gradient(90deg,
+  background-image: linear-gradient(90deg,
     transparent,
     rgb(var(--glow-rgb) / .7) 30%,
     rgb(var(--core-rgb) / .9) 50%,
     rgb(var(--glow-rgb) / .7) 70%,
     transparent);
-  box-shadow: 0 0 24px rgb(var(--glow-rgb) / .5);
+  background-size: 100% 2px;
+  background-repeat: no-repeat;
+  background-position: 0 0;
+  filter: drop-shadow(0 0 12px rgb(var(--glow-rgb) / .5));
   animation: boot-scan 1.3s var(--ease) 0s 1 both;
 }
 @keyframes boot-scan {
