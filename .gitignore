@@ -3,6 +3,7 @@ node_modules/
 
 # local / máquina
 .claude/settings.local.json
+.claude/worktrees/
 *.log
 .DS_Store
 Thumbs.db
