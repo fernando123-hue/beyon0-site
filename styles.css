@@ -64,7 +64,7 @@ body {
   pointer-events: none;
   display: block;
 }
-body > *:not(#fx):not(.intro) { position: relative; z-index: 1; }
+body > *:not(#fx):not(.intro):not(.nav):not(.wa) { position: relative; z-index: 1; }
 
 img, svg, canvas { display: block; max-width: 100%; }
 
