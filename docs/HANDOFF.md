@@ -1,6 +1,6 @@
 # beyon.0 — transferência de contexto
 
-**Última atualização:** 2026-08-16 · **Branch ativa:** `rebuild` · **HEAD:** `e267d45`
+**Última atualização:** 2026-08-16 · **Branch ativa:** `rebuild` · **HEAD:** `349f202`
 
 Leia este arquivo primeiro. Depois `docs/auditoria-performance.md` — ele contém
 as medições que justificam toda a arquitetura atual e evita repetir erros caros.
@@ -28,7 +28,7 @@ Landing page one-page para captar clientes que querem site.
 | `origin/main` (**no ar**) | `0d1ea34` | Site publicado. **Não tem nada das sessões recentes.** Roda a 20–30fps. |
 | `main` (local) | `716bf35` | 9 commits **não pushados**: tipografia viva, GSAP, specs do 3D, 3 rodadas de otimização. Roda a 8–10fps. **Caminho abandonado.** |
 | `feat/ai-core-3d` | `df0458f` | 13 commits: Three.js + reator 3D, 66 testes passando. **Pausado**, não descartado. |
-| **`rebuild`** (atual) | `e267d45` | **A reconstrução + intro em vídeo + linha viva que persegue o scroll. É onde o trabalho continua.** |
+| **`rebuild`** (atual) | `349f202` | **A reconstrução + intro em vídeo + entrada em 2 níveis (linha única no load + fade sutil no scroll). É onde o trabalho continua.** |
 
 O dono pediu a reconstrução do zero depois que a otimização incremental falhou.
 Nada foi deletado: `main` e `feat/ai-core-3d` seguem intactas como referência.
@@ -102,15 +102,15 @@ Sem vidro/plástico — "material tecnológico". Sem holofote seguindo o cursor.
 
 ```
 index.html      286 linhas   markup semântico, UM canvas (#fx), overlay #intro
-styles.css      506 linhas   identidade estática, zero var por frame, linha viva
+styles.css      523 linhas   identidade estática, zero var por frame, entrada 2 níveis
 js/core.js      166 linhas   estado, loop único, orçamento, profilador
 js/field.js     209 linhas   o canvas: campo + reator + brilho da tipografia
-js/dom.js       160 linhas   reveals, nav, eventos (Pulso/Singular), medidor
-js/intro.js      84 linhas   overlay de vídeo no boot — evento-só, sem rAF
-js/sweep.js      92 linhas   a linha viva — dentro do loop único, persegue o scroll
+js/dom.js       178 linhas   reveal sutil (nível 2), nav, eventos, medidor
+js/intro.js      85 linhas   overlay de vídeo no boot — evento-só, sem rAF
+js/entrada.js    76 linhas   a LINHA (nível 1) — checagem única no boot, sem rAF loop
 ```
 
-Total **1.503 linhas**, contra 5.783 antes.
+Total **~1.540 linhas**, contra 5.783 antes.
 
 ### `js/intro.js`
 Overlay de vídeo (`assets/intro.mp4`) que toca antes do conteúdo aparecer.
@@ -120,46 +120,62 @@ Overlay de vídeo (`assets/intro.mp4`) que toca antes do conteúdo aparecer.
 qualquer uma disparar, ou se `#intro`/`#introVid` não existir no markup, pula
 direto pro `bootSemIntro()` — nunca trava o boot esperando um evento que não
 vem. Ao terminar, adiciona `.booted` no `<body>` **e emite `'booted'`** — a
-cascata do hero (CSS) e a linha viva (`js/sweep.js`) escutam os dois.
+cascata do hero (CSS) e a checagem de entrada (`js/entrada.js`) escutam os dois.
 
-### `js/sweep.js` (novo desde a última transferência)
-A linha que varre a página, dentro do loop único — não é mais CSS puro. Um
-elemento real (`.sweep`), UM `transform` escrito por frame, nada mais.
-Três estados, sem lógica de alvo: **atrás** do que o usuário vê → corre
-rápido (5x); **dentro** da viewport → ritmo devagar (o da scanline antiga,
-1287px/1,3s); **adiante** → para e espera, nunca foge de quem não rolou.
-Ao cruzar cada `.reveal`, adiciona `.is-in` — a mesma classe que o
-`IntersectionObserver` de `js/dom.js` já usa (intocado; os dois convivem,
-quem chegar primeiro revela). Escuta o evento `'booted'` de `js/intro.js`
-com uma checagem defensiva (`emit` não tem memória — se o listener registra
-depois do disparo, perde o evento pra sempre; por isso os scripts carregam
-nessa ordem: `sweep.js` antes de `intro.js`, e ainda assim `sweep.js` checa
-se `.booted` já está no `<body>` antes de só esperar o evento).
+### ENTRADA EM DOIS NÍVEIS (a assinatura visual — leia com atenção)
+Duas animações de entrada **independentes**, separadas de propósito. Pedido
+explícito do dono depois de rejeitar uma linha global que perseguia o scroll.
 
-Substituiu a scanline CSS estática (`body.booted::after` + `@keyframes
-boot-scan`) do handoff anterior — pedido do dono depois de ver a linha
-antiga parar só no hero: "eu gostaria que ela não parasse apenas no Hero...
-o ideal é que dê a impressão que ela percorre sobre o site inteiro."
-Primeira tentativa (só esticar o percurso da linha CSS pro tamanho do
-documento, mesma duração) rodou visível pro dono e falhou — rápida demais
-pra enxergar, sem parecer animação nenhuma. É a `js/sweep.js` atual que
-resolve isso de verdade.
+**Nível 1 — a LINHA (`js/entrada.js` + CSS `.revelando`/`.booted .hero::after`).**
+Evento **único por carregamento**. A mesma scanline + cascata do hero, mas
+disparada **só na seção que está na viewport no momento do load**:
+- Carregou no topo → o **hero** roda via `.booted` (comportamento original,
+  intacto).
+- F5 no meio/fim → `js/entrada.js` detecta qual `main > .section` intersecta
+  a viewport e aplica `.revelando` nela (mesma linha, mesmo `@keyframes
+  boot-scan`, stagger `--rd` escrito UMA vez nos filhos `.reveal`).
+- **Nunca reaparece no scroll. Nunca repete.** Não é IntersectionObserver,
+  não é elemento persistente, não é timeline global.
+- **Puro @keyframes CSS one-shot.** `js/entrada.js` NÃO entra no loop `B.add`,
+  não escreve estilo por frame. Usa `requestAnimationFrame` só duas vezes
+  (defer pós-load, não é loop).
+
+**Timing crítico** (`js/entrada.js`): a checagem da seção visível espera
+`booted` **E** `load` + 2 rAF, pra rodar só depois de o navegador restaurar
+a posição de scroll no F5. Ler os retângulos cedo demais veria `scrollY=0`
+transitório e concluiria "estou no hero" por engano. Lê `getBoundingClientRect`
+(relativo à viewport), então basta a restauração ter **acontecido**, não
+importa o valor. Ao terminar, emite `'entrada-pronta'`.
+
+**Nível 2 — o FADE sutil (`js/dom.js`, `.reveal`→`.is-in`).** O reveal
+discreto de sempre (opacity 0→1, translateY pequeno) continua pro resto do
+conteúdo conforme se rola — **sem linha**. Só **liga depois de
+`'entrada-pronta'`** (não revela nada por baixo do overlay de vídeo, e não
+compete com a linha) e **pula qualquer `.reveal` dentro de `.revelando`**
+(`alvo.closest('.revelando')`) — os dois níveis nunca tocam o mesmo conteúdo.
+Rede de segurança: se `entrada.js` sumir/falhar, um fallback preso ao
+`'booted'` (+4s, nunca antes de `'entrada-pronta'`) liga o IO mesmo assim.
+
+Regra de ouro: **LINHA = evento único de entrada da página. FADE = comportamento
+contínuo de navegação.** Voltar a uma seção já vista → sem linha, sem replay.
 
 ### Armadilha de CSS conhecida — `styles.css:68`
 ```css
-body > *:not(#fx):not(.intro):not(.nav):not(.wa):not(.sweep) { position: relative; z-index: 1; }
+body > *:not(#fx):not(.intro):not(.nav):not(.wa) { position: relative; z-index: 1; }
 ```
 `:not(#fx)` carrega a especificidade do seletor de ID que nega, então essa
 regra tem especificidade (1,0,1) — mais alta que qualquer seletor de classe,
 não importa a ordem no arquivo. **Qualquer filho direto de `<body>` que
 precise de `position` diferente de `relative` tem que entrar nessa lista de
-exclusão**, senão essa regra ganha e o elemento para de flutuar/varrer.
+exclusão**, senão essa regra ganha e o elemento para de flutuar.
 Já mordeu três vezes: `.intro` (overlay de vídeo), `.nav`/`.wa` (nav fixo e
-botão de WhatsApp, corrigido em `cc36558`) e `.sweep` (a linha viva, pega
-nesta mesma sessão antes de virar bug — `.sweep` é `position: absolute`,
-não `fixed`, mas a regra intercepta qualquer valor não-`relative` do mesmo
-jeito). Antes de adicionar um novo filho direto de `<body>` com `position`
-próprio, checar esta linha primeiro.
+botão de WhatsApp, corrigido em `cc36558`) e a extinta `.sweep` (a linha que
+perseguia o scroll, já removida). Nota: a linha atual (`.revelando::after`,
+`.booted .hero::after`) é pseudo-elemento em `.hero`/`.section`, filhos de
+`<main>` — **não** de `<body>` —, então essa regra não a intercepta; ela só
+precisa que o host seja contexto de posicionamento (`.revelando { position:
+relative }`, `.hero` já é). Antes de adicionar um novo filho direto de
+`<body>` com `position` próprio, checar esta linha primeiro.
 
 ### `js/core.js`
 Expõe `window.BEYON = { S, add, on, emit, iniciar, reduced, fine, saveData, weak, PERF }`.
@@ -221,30 +237,35 @@ preso em `127.0.0.1`. E abrir `index.html` por `file://` quebra tudo: a CSP
 ## 8. PONTO EXATO ONDE PAROU
 
 A base da reconstrução (gargalo eliminado, `9b43e59`) recebeu de volta a
-**intro em vídeo** que tinha sido cortada, mais uma **linha viva** que varre
-o boot e persegue o scroll — nenhuma dessas é o Three.js/reator 3D antigo,
-são feitas do zero dentro da arquitetura nova (canvas único + CSS estático).
+**intro em vídeo** que tinha sido cortada, mais um sistema de **entrada em
+dois níveis** (a LINHA como evento único de load + o fade sutil no scroll,
+seção 6) — nenhuma dessas é o Three.js/reator 3D antigo, são feitas do zero
+dentro da arquitetura nova (canvas único + CSS estático).
 
-Sequência desta sessão: spec → plano → implementação da intro
-(`9b48883`) → scanline + cascata CSS (`1f3c032`) → três rodadas de fix
-(overlay z-index/posição, fallback sem vídeo, scanline com percentual
-errado) → bug pré-existente de `.nav`/`.wa` achado num review e corrigido
-(`cc36558`) → dono testou ao vivo, **97-100fps confirmado, aprovado** →
-dono pediu a linha percorrendo o site inteiro, não só o hero → primeira
-tentativa (esticar a linha CSS pro tamanho do documento, mesma duração,
-`a9f787e`) rodou pro dono e **falhou visualmente** ("rápida demais, sem
-nenhuma animação") → brainstorm da versão certa: linha vira subsistema no
-loop único, velocidade adaptada a estar dentro/atrás/adiante da viewport
-do usuário → implementada (`js/sweep.js`) → review achou **2 bugs
-críticos** antes de qualquer teste do dono: `emit('booted')` podia disparar
-antes do listener registrar (linha nascia parada), e a lógica acelerava nos
-dois sentidos (linha fugia e revelava o site inteiro em ~2,3s se o usuário
-não rolasse) → corrigidos, re-revisados, aprovados → **`e267d45`**.
+Sequência da linha (três formas até acertar):
+1. **Scanline CSS estática** no hero (`1f3c032`) — aprovada pelo dono, 97-100fps.
+2. Dono pediu "a linha percorrendo o site inteiro". Primeira tentativa: só
+   esticar o percurso da linha CSS pro documento todo (`a9f787e`). **Falhou
+   visualmente** — rápida demais, sem parecer animação.
+3. Segunda tentativa: linha vira subsistema no loop único, perseguindo o
+   scroll com velocidade adaptada (`js/sweep.js`, `e267d45`). Review pegou 2
+   bugs críticos antes do teste do dono. Mas o **dono rejeitou o conceito**:
+   não queria linha acompanhando a navegação.
+4. **Forma atual (`349f202`)**: o dono especificou com precisão um sistema de
+   dois níveis (seção 6). A linha virou **evento único por carregamento**, só
+   na seção visível no load (hero no topo via `.booted`; qualquer `.section`
+   no F5-no-meio via `js/entrada.js`). O fade sutil (`.reveal`→`.is-in`)
+   voltou a ser o comportamento normal de scroll. `js/sweep.js` foi
+   **removido por completo**. Review aprovou; um fallback frágil (preso ao
+   `load`) foi corrigido pra prender ao `booted`.
 
 **Ainda não visto rodando pelo dono** nesta forma — mesma ressalva da seção 7:
-o agente não consegue ver nada animar neste ambiente. A matemática da
-velocidade foi validada por simulação isolada (fora do rAF real, que não
-roda aqui), não por olho humano.
+o agente não consegue ver nada animar neste ambiente (`document.hidden`, rAF
+não dispara). O que dá pra afirmar foi verificado por `getComputedStyle`:
+a linha escopa na seção certa, cascata com stagger correto, conteúdo termina
+visível/estável, hero intacto no topo, zero refs à `sweep`, console limpo.
+O **feel e o timing de restauração de scroll no F5 real precisam do olho do
+dono**.
 
 ### Deixado deliberadamente de fora (herdado da reconstrução original)
 - **Glitch/aurora nas palavras-chave** (`<em>` dos serviços) — hoje só cor.
@@ -253,9 +274,11 @@ roda aqui), não por olho humano.
 - **Reescrita de frases no Singular** (só o status do hero reescreve hoje).
 
 ### Próximos passos naturais
-1. Dono roda e dá o veredito visual da linha viva (`js/sweep.js`) — ela
-   varre certo, para na borda da viewport quando ele não rola, acelera
-   quando ele pula longe? Número de fps (`?perf`).
+1. Dono roda e dá o veredito visual da entrada em dois níveis: (a) load no
+   topo → só o hero anima com a linha; (b) F5 no meio/fim → a seção visível
+   roda a linha + cascata (não aparece pronta); (c) rolar depois → só o fade
+   sutil, nunca a linha; (d) voltar a uma seção já vista → sem replay. Fps
+   pelo `?perf`.
 2. Trazer de volta o que fizer falta da lista acima, **um por vez**, cada um
    com orçamento de performance medido pelo `?perf`.
 3. Decidir o destino de `feat/ai-core-3d` (o reator 3D em Three.js, 66 testes
