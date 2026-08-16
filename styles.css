@@ -46,6 +46,7 @@
 html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
 
 body {
+  position: relative;
   background: var(--void);
   color: var(--hi);
   font-family: var(--sans);
@@ -456,12 +457,14 @@ body { transition: none; }
 }
 
 /* ============================================================
-   BOOT — scanline varre o hero uma vez, elementos entram em cascata.
+   BOOT — scanline varre a página inteira uma vez, elementos do hero entram
+   em cascata. Pseudo-elemento vive em body (não em .hero) pra percorrer a
+   altura total do documento, não só a do hero.
    Disparado por .booted (js/intro.js, ao fim da intro). Puro @keyframes:
    nenhuma variável CSS escrita por frame, nenhum JS por tick — cai
    automaticamente sob prefers-reduced-motion (styles.css:400).
    ============================================================ */
-.booted .hero::after {
+body.booted::after {
   content: "";
   position: absolute;
   left: 0; right: 0; top: 0;
