@@ -1,6 +1,6 @@
 # beyon.0 — transferência de contexto
 
-**Última atualização:** 2026-08-15 · **Branch ativa:** `rebuild` · **HEAD:** `cc36558`
+**Última atualização:** 2026-08-16 · **Branch ativa:** `rebuild` · **HEAD:** `e267d45`
 
 Leia este arquivo primeiro. Depois `docs/auditoria-performance.md` — ele contém
 as medições que justificam toda a arquitetura atual e evita repetir erros caros.
@@ -28,7 +28,7 @@ Landing page one-page para captar clientes que querem site.
 | `origin/main` (**no ar**) | `0d1ea34` | Site publicado. **Não tem nada das sessões recentes.** Roda a 20–30fps. |
 | `main` (local) | `716bf35` | 9 commits **não pushados**: tipografia viva, GSAP, specs do 3D, 3 rodadas de otimização. Roda a 8–10fps. **Caminho abandonado.** |
 | `feat/ai-core-3d` | `df0458f` | 13 commits: Three.js + reator 3D, 66 testes passando. **Pausado**, não descartado. |
-| **`rebuild`** (atual) | `cc36558` | **A reconstrução + intro em vídeo + boot scanline. É onde o trabalho continua.** |
+| **`rebuild`** (atual) | `e267d45` | **A reconstrução + intro em vídeo + linha viva que persegue o scroll. É onde o trabalho continua.** |
 
 O dono pediu a reconstrução do zero depois que a otimização incremental falhou.
 Nada foi deletado: `main` e `feat/ai-core-3d` seguem intactas como referência.
@@ -101,39 +101,65 @@ Sem vidro/plástico — "material tecnológico". Sem holofote seguindo o cursor.
 ## 6. Arquitetura atual (branch `rebuild`)
 
 ```
-index.html      285 linhas   markup semântico, UM canvas (#fx), overlay #intro
-styles.css      508 linhas   identidade estática, zero var por frame, scanline de boot
+index.html      286 linhas   markup semântico, UM canvas (#fx), overlay #intro
+styles.css      506 linhas   identidade estática, zero var por frame, linha viva
 js/core.js      166 linhas   estado, loop único, orçamento, profilador
 js/field.js     209 linhas   o canvas: campo + reator + brilho da tipografia
 js/dom.js       160 linhas   reveals, nav, eventos (Pulso/Singular), medidor
-js/intro.js      82 linhas   overlay de vídeo no boot — evento-só, sem rAF
+js/intro.js      84 linhas   overlay de vídeo no boot — evento-só, sem rAF
+js/sweep.js      92 linhas   a linha viva — dentro do loop único, persegue o scroll
 ```
 
-Total **1.410 linhas**, contra 5.783 antes.
+Total **1.503 linhas**, contra 5.783 antes.
 
-### `js/intro.js` (novo desde a última transferência)
+### `js/intro.js`
 Overlay de vídeo (`assets/intro.mp4`) que toca antes do conteúdo aparecer.
 **Não entra no loop `B.add`** — só ouve eventos do `<video>` (`ended`, `error`,
 `loadedmetadata`) e do botão de pular. Guardas antes de baixar o vídeo:
 `prefers-reduced-motion`, `saveData`, e `effectiveType` 2g/3g/slow-2g. Se
 qualquer uma disparar, ou se `#intro`/`#introVid` não existir no markup, pula
 direto pro `bootSemIntro()` — nunca trava o boot esperando um evento que não
-vem. Ao terminar, adiciona `.booted` no `<body>` (dispara a scanline de boot,
-que é puro CSS) e remove o `#intro` do DOM.
+vem. Ao terminar, adiciona `.booted` no `<body>` **e emite `'booted'`** — a
+cascata do hero (CSS) e a linha viva (`js/sweep.js`) escutam os dois.
 
-### Armadilha de CSS conhecida — `styles.css:67`
+### `js/sweep.js` (novo desde a última transferência)
+A linha que varre a página, dentro do loop único — não é mais CSS puro. Um
+elemento real (`.sweep`), UM `transform` escrito por frame, nada mais.
+Três estados, sem lógica de alvo: **atrás** do que o usuário vê → corre
+rápido (5x); **dentro** da viewport → ritmo devagar (o da scanline antiga,
+1287px/1,3s); **adiante** → para e espera, nunca foge de quem não rolou.
+Ao cruzar cada `.reveal`, adiciona `.is-in` — a mesma classe que o
+`IntersectionObserver` de `js/dom.js` já usa (intocado; os dois convivem,
+quem chegar primeiro revela). Escuta o evento `'booted'` de `js/intro.js`
+com uma checagem defensiva (`emit` não tem memória — se o listener registra
+depois do disparo, perde o evento pra sempre; por isso os scripts carregam
+nessa ordem: `sweep.js` antes de `intro.js`, e ainda assim `sweep.js` checa
+se `.booted` já está no `<body>` antes de só esperar o evento).
+
+Substituiu a scanline CSS estática (`body.booted::after` + `@keyframes
+boot-scan`) do handoff anterior — pedido do dono depois de ver a linha
+antiga parar só no hero: "eu gostaria que ela não parasse apenas no Hero...
+o ideal é que dê a impressão que ela percorre sobre o site inteiro."
+Primeira tentativa (só esticar o percurso da linha CSS pro tamanho do
+documento, mesma duração) rodou visível pro dono e falhou — rápida demais
+pra enxergar, sem parecer animação nenhuma. É a `js/sweep.js` atual que
+resolve isso de verdade.
+
+### Armadilha de CSS conhecida — `styles.css:68`
 ```css
-body > *:not(#fx):not(.intro):not(.nav):not(.wa) { position: relative; z-index: 1; }
+body > *:not(#fx):not(.intro):not(.nav):not(.wa):not(.sweep) { position: relative; z-index: 1; }
 ```
 `:not(#fx)` carrega a especificidade do seletor de ID que nega, então essa
 regra tem especificidade (1,0,1) — mais alta que qualquer seletor de classe,
 não importa a ordem no arquivo. **Qualquer filho direto de `<body>` que
-precise de `position: fixed` tem que entrar nessa lista de exclusão**, senão
-o `position: relative` ganha e o elemento para de flutuar. Já mordeu duas
-vezes: `.intro` (overlay de vídeo) e `.nav`/`.wa` (nav fixo e botão de
-WhatsApp) — este último corrigido em `cc36558`, achado num review de feature
-não relacionada. Antes de adicionar um novo filho direto de `<body>` com
-`position: fixed`, checar esta linha primeiro.
+precise de `position` diferente de `relative` tem que entrar nessa lista de
+exclusão**, senão essa regra ganha e o elemento para de flutuar/varrer.
+Já mordeu três vezes: `.intro` (overlay de vídeo), `.nav`/`.wa` (nav fixo e
+botão de WhatsApp, corrigido em `cc36558`) e `.sweep` (a linha viva, pega
+nesta mesma sessão antes de virar bug — `.sweep` é `position: absolute`,
+não `fixed`, mas a regra intercepta qualquer valor não-`relative` do mesmo
+jeito). Antes de adicionar um novo filho direto de `<body>` com `position`
+próprio, checar esta linha primeiro.
 
 ### `js/core.js`
 Expõe `window.BEYON = { S, add, on, emit, iniciar, reduced, fine, saveData, weak, PERF }`.
@@ -195,21 +221,30 @@ preso em `127.0.0.1`. E abrir `index.html` por `file://` quebra tudo: a CSP
 ## 8. PONTO EXATO ONDE PAROU
 
 A base da reconstrução (gargalo eliminado, `9b43e59`) recebeu de volta a
-**intro em vídeo** que tinha sido cortada, mais uma **scanline de boot** e
-**cascata de entrada do hero** — nenhuma dessas é o Three.js/reator 3D antigo,
+**intro em vídeo** que tinha sido cortada, mais uma **linha viva** que varre
+o boot e persegue o scroll — nenhuma dessas é o Three.js/reator 3D antigo,
 são feitas do zero dentro da arquitetura nova (canvas único + CSS estático).
 
 Sequência desta sessão: spec → plano → implementação da intro
-(`9b48883`) → scanline + cascata (`1f3c032`) → três rodadas de fix
+(`9b48883`) → scanline + cascata CSS (`1f3c032`) → três rodadas de fix
 (overlay z-index/posição, fallback sem vídeo, scanline com percentual
-errado) → **hoje**, revisando essa feature de intro em vídeo, achado um
-bug pré-existente e não relacionado: nav e botão de WhatsApp perdendo
-`position: fixed` pela mesma armadilha de especificidade CSS que já tinha
-mordido o `.intro` (ver seção 6). Corrigido em `cc36558`, testado ao vivo
-via `getComputedStyle` — ambos voltam a `fixed`, sem regressão no `.intro`.
+errado) → bug pré-existente de `.nav`/`.wa` achado num review e corrigido
+(`cc36558`) → dono testou ao vivo, **97-100fps confirmado, aprovado** →
+dono pediu a linha percorrendo o site inteiro, não só o hero → primeira
+tentativa (esticar a linha CSS pro tamanho do documento, mesma duração,
+`a9f787e`) rodou pro dono e **falhou visualmente** ("rápida demais, sem
+nenhuma animação") → brainstorm da versão certa: linha vira subsistema no
+loop único, velocidade adaptada a estar dentro/atrás/adiante da viewport
+do usuário → implementada (`js/sweep.js`) → review achou **2 bugs
+críticos** antes de qualquer teste do dono: `emit('booted')` podia disparar
+antes do listener registrar (linha nascia parada), e a lógica acelerava nos
+dois sentidos (linha fugia e revelava o site inteiro em ~2,3s se o usuário
+não rolasse) → corrigidos, re-revisados, aprovados → **`e267d45`**.
 
 **Ainda não visto rodando pelo dono** nesta forma — mesma ressalva da seção 7:
-o agente não consegue ver nada animar neste ambiente.
+o agente não consegue ver nada animar neste ambiente. A matemática da
+velocidade foi validada por simulação isolada (fora do rAF real, que não
+roda aqui), não por olho humano.
 
 ### Deixado deliberadamente de fora (herdado da reconstrução original)
 - **Glitch/aurora nas palavras-chave** (`<em>` dos serviços) — hoje só cor.
@@ -218,17 +253,15 @@ o agente não consegue ver nada animar neste ambiente.
 - **Reescrita de frases no Singular** (só o status do hero reescreve hoje).
 
 ### Próximos passos naturais
-1. Dono roda e dá o veredito visual da intro em vídeo + scanline + cascata,
-   com número de fps (`?perf`).
-2. Verificar em dispositivo real se o fix de `.nav`/`.wa` (`cc36558`) resolveu
-   visualmente — o nav deve grudar no topo ao rolar, o botão de WhatsApp deve
-   continuar visível durante o scroll.
-3. Trazer de volta o que fizer falta da lista acima, **um por vez**, cada um
+1. Dono roda e dá o veredito visual da linha viva (`js/sweep.js`) — ela
+   varre certo, para na borda da viewport quando ele não rola, acelera
+   quando ele pula longe? Número de fps (`?perf`).
+2. Trazer de volta o que fizer falta da lista acima, **um por vez**, cada um
    com orçamento de performance medido pelo `?perf`.
-4. Decidir o destino de `feat/ai-core-3d` (o reator 3D em Three.js, 66 testes
+3. Decidir o destino de `feat/ai-core-3d` (o reator 3D em Three.js, 66 testes
    passando) — a reconstrução mudou a fundação, então aquela branch precisará de
    adaptação se for retomada.
-5. Quando aprovado: merge `rebuild` → `main` e push (que publica).
+4. Quando aprovado: merge `rebuild` → `main` e push (que publica).
 
 ---
 
