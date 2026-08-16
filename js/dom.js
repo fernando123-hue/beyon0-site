@@ -26,19 +26,46 @@
   var ano = document.getElementById('year');
   if (ano) ano.textContent = new Date().getFullYear();
 
-  /* ---------- reveals: uma transição, disparada uma vez ---------- */
+  /* ---------- reveals — nível 2: o fade sutil da navegação ----------
+     Uma transição, disparada uma vez ao entrar na viewport. Só LIGA depois
+     de 'entrada-pronta' (js/entrada.js): assim não revela nada por baixo do
+     overlay de vídeo, e a seção que a LINHA (nível 1) já revelou é pulada
+     aqui — os dois níveis não competem pelo mesmo conteúdo. */
   var reveals = document.querySelectorAll('.reveal');
-  if ('IntersectionObserver' in window && !B.reduced) {
-    var io = new IntersectionObserver(function (ents) {
-      for (var k = 0; k < ents.length; k++) {
-        if (!ents[k].isIntersecting) continue;
-        ents[k].target.classList.add('is-in');
-        io.unobserve(ents[k].target);        /* cumpriu o papel, sai da lista */
-      }
-    }, { rootMargin: '0px 0px -8% 0px' });
-    for (var r = 0; r < reveals.length; r++) io.observe(reveals[r]);
+  function ligarReveals() {
+    if ('IntersectionObserver' in window) {
+      var io = new IntersectionObserver(function (ents) {
+        for (var k = 0; k < ents.length; k++) {
+          if (!ents[k].isIntersecting) continue;
+          var alvo = ents[k].target;
+          io.unobserve(alvo);                        /* cumpriu o papel, sai da lista */
+          if (alvo.closest('.revelando')) continue;  /* a linha cuida desses */
+          alvo.classList.add('is-in');
+        }
+      }, { rootMargin: '0px 0px -8% 0px' });
+      for (var r = 0; r < reveals.length; r++) io.observe(reveals[r]);
+    } else {
+      for (var r2 = 0; r2 < reveals.length; r2++) reveals[r2].classList.add('is-in');
+    }
+  }
+
+  var reveladoLigado = false;
+  function ligarUmaVez() { if (reveladoLigado) return; reveladoLigado = true; ligarReveals(); }
+
+  if (B.reduced) {
+    ligarUmaVez();                       /* sem linha, sem espera: revela tudo */
   } else {
-    for (var r2 = 0; r2 < reveals.length; r2++) reveals[r2].classList.add('is-in');
+    B.on('entrada-pronta', ligarUmaVez);
+    /* rede de segurança: se js/entrada.js sumir/falhar e nunca emitir
+       'entrada-pronta', não deixa os reveals presos escondidos. Presa ao
+       'booted' (não ao 'load'): 'booted' só dispara DEPOIS da intro, então
+       o fallback nunca ganha a corrida do caminho normal — entrada.js emite
+       'entrada-pronta' em booted+2rAF, bem antes destes 4s. Assim o IO nunca
+       arma antes de `.revelando`, e a garantia de não-flicker não depende do
+       overlay opaco. `reveladoLigado` faz o perdedor virar no-op. */
+    var comBooted = function () { setTimeout(ligarUmaVez, 4000); };
+    if (document.body.classList.contains('booted')) comBooted();
+    else B.on('booted', comBooted);
   }
 
   /* ---------- nav: uma classe, no cruzamento do limiar ---------- */

@@ -4,7 +4,8 @@
    Evento-só: sem tick de rAF, não se registra em B.add(). Só alterna classes
    do <body> em resposta a eventos do <video> (ended/error/loadedmetadata) e
    do botão de pular. Ao terminar, adiciona .booted e emite 'booted' — a
-   cascata do hero (styles.css) e a linha viva (js/sweep.js) escutam os dois.
+   cascata do hero (styles.css) e a checagem de entrada (js/entrada.js)
+   escutam os dois.
    ========================================================================== */
 (function () {
   'use strict';

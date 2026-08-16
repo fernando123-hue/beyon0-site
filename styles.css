@@ -65,7 +65,7 @@ body {
   pointer-events: none;
   display: block;
 }
-body > *:not(#fx):not(.intro):not(.nav):not(.wa):not(.sweep) { position: relative; z-index: 1; }
+body > *:not(#fx):not(.intro):not(.nav):not(.wa) { position: relative; z-index: 1; }
 
 img, svg, canvas { display: block; max-width: 100%; }
 
@@ -457,34 +457,56 @@ body { transition: none; }
 }
 
 /* ============================================================
-   VARREDURA — a linha viva (js/sweep.js). Elemento real, não pseudo:
-   posição vem de UM transform escrito por frame pelo loop único de
-   core.js — compositor puro, não recalcula estilo de mais nada. Nasce
-   filha direta de <body>, por isso entra na exclusão da linha 68 (mesma
-   armadilha de especificidade que já mordeu .intro/.nav/.wa).
+   ENTRADA — nível 1: a LINHA. Evento único de entrada da página.
+   Puro @keyframes, one-shot, disparado por classe. Zero JS por frame.
+
+   Acontece uma vez por carregamento, só na seção que está na viewport no
+   load: o hero (via `.booted`, quando se carrega no topo) ou uma `.section`
+   qualquer (via `.revelando`, aplicada uma única vez por js/entrada.js
+   quando se dá F5 no meio/fim). A MESMA linha e o MESMO keyframe nos dois
+   — o hero é o padrão, as seções replicam. A linha nunca reaparece no
+   scroll; o reveal sutil da navegação (nível 2) é o `.reveal`/`.is-in`
+   lá em cima, intocado. Cai sob prefers-reduced-motion (styles.css:400).
    ============================================================ */
-.sweep {
+.revelando { position: relative; }   /* .hero já é relative; .section não */
+
+.booted .hero::after,
+.revelando::after {
+  content: "";
   position: absolute;
   left: 0; right: 0; top: 0;
-  height: 2px;
+  height: 100%;
   z-index: 4;
   pointer-events: none;
-  background: linear-gradient(90deg,
+  background-image: linear-gradient(90deg,
     transparent,
     rgb(var(--glow-rgb) / .7) 30%,
     rgb(var(--core-rgb) / .9) 50%,
     rgb(var(--glow-rgb) / .7) 70%,
     transparent);
+  background-size: 100% 2px;
+  background-repeat: no-repeat;
+  background-position: 0 0;
   filter: drop-shadow(0 0 12px rgb(var(--glow-rgb) / .5));
+  animation: boot-scan 1.3s var(--ease) 0s 1 both;
+}
+@keyframes boot-scan {
+  0%   { transform: translateY(0); opacity: 0; }
+  8%   { opacity: 1; }
+  85%  { opacity: .9; }
+  100% { transform: translateY(100%); opacity: 0; }
 }
 
-/* ============================================================
-   BOOT — cascata de entrada do hero, disparada por .booted
-   (js/intro.js, ao fim da intro). Puro @keyframes: nenhuma variável CSS
-   escrita por frame — cai automaticamente sob prefers-reduced-motion
-   (styles.css:400). A linha viva acima varre o hero no mesmo tempo que
-   esta cascata roda; os dois foram calibrados juntos (js/sweep.js).
-   ============================================================ */
+/* conteúdo da seção revelada entra em cascata conforme a linha passa — o
+   stagger (--rd) é escrito UMA vez por js/entrada.js, não por frame. É
+   distinto e mais forte que o fade sutil do nível 2; vem depois de
+   `.reveal.is-in` no arquivo, então ganha por ordem quando ambos incidem. */
+.revelando .reveal {
+  opacity: 1;
+  transform: none;
+  animation: boot-rise var(--t-slow) var(--ease) var(--rd, 0ms) both;
+}
+
 .booted .nav { animation: boot-down .7s var(--ease) 0s both; }
 @keyframes boot-down {
   from { opacity: 0; transform: translateY(-14px); }
