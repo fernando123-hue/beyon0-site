@@ -3,14 +3,15 @@
 
    Evento-só: sem tick de rAF, não se registra em B.add(). Só alterna classes
    do <body> em resposta a eventos do <video> (ended/error/loadedmetadata) e
-   do botão de pular. Quem desenha a scanline de boot é puro CSS (styles.css),
-   disparado pela classe .booted que este arquivo adiciona ao terminar.
+   do botão de pular. Ao terminar, adiciona .booted e emite 'booted' — a
+   cascata do hero (styles.css) e a linha viva (js/sweep.js) escutam os dois.
    ========================================================================== */
 (function () {
   'use strict';
 
   function bootSemIntro() {
     document.body.classList.add('booted');
+    if (window.BEYON) window.BEYON.emit('booted');
     var el = document.getElementById('intro');
     if (el && el.parentNode) el.parentNode.removeChild(el);
   }
@@ -31,6 +32,7 @@
     done = true;
     document.body.classList.remove('intro-active');
     document.body.classList.add('booted');
+    B.emit('booted');
     intro.classList.add('intro--done');
     try { vid.pause(); } catch (e) {}
     if (instant) {

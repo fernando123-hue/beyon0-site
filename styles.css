@@ -65,7 +65,7 @@ body {
   pointer-events: none;
   display: block;
 }
-body > *:not(#fx):not(.intro):not(.nav):not(.wa) { position: relative; z-index: 1; }
+body > *:not(#fx):not(.intro):not(.nav):not(.wa):not(.sweep) { position: relative; z-index: 1; }
 
 img, svg, canvas { display: block; max-width: 100%; }
 
@@ -457,39 +457,34 @@ body { transition: none; }
 }
 
 /* ============================================================
-   BOOT — scanline varre a página inteira uma vez, elementos do hero entram
-   em cascata. Pseudo-elemento vive em body (não em .hero) pra percorrer a
-   altura total do documento, não só a do hero.
-   Disparado por .booted (js/intro.js, ao fim da intro). Puro @keyframes:
-   nenhuma variável CSS escrita por frame, nenhum JS por tick — cai
-   automaticamente sob prefers-reduced-motion (styles.css:400).
+   VARREDURA — a linha viva (js/sweep.js). Elemento real, não pseudo:
+   posição vem de UM transform escrito por frame pelo loop único de
+   core.js — compositor puro, não recalcula estilo de mais nada. Nasce
+   filha direta de <body>, por isso entra na exclusão da linha 68 (mesma
+   armadilha de especificidade que já mordeu .intro/.nav/.wa).
    ============================================================ */
-body.booted::after {
-  content: "";
+.sweep {
   position: absolute;
   left: 0; right: 0; top: 0;
-  height: 100%;
+  height: 2px;
   z-index: 4;
   pointer-events: none;
-  background-image: linear-gradient(90deg,
+  background: linear-gradient(90deg,
     transparent,
     rgb(var(--glow-rgb) / .7) 30%,
     rgb(var(--core-rgb) / .9) 50%,
     rgb(var(--glow-rgb) / .7) 70%,
     transparent);
-  background-size: 100% 2px;
-  background-repeat: no-repeat;
-  background-position: 0 0;
   filter: drop-shadow(0 0 12px rgb(var(--glow-rgb) / .5));
-  animation: boot-scan 1.3s var(--ease) 0s 1 both;
-}
-@keyframes boot-scan {
-  0%   { transform: translateY(0); opacity: 0; }
-  8%   { opacity: 1; }
-  85%  { opacity: .9; }
-  100% { transform: translateY(100%); opacity: 0; }
 }
 
+/* ============================================================
+   BOOT — cascata de entrada do hero, disparada por .booted
+   (js/intro.js, ao fim da intro). Puro @keyframes: nenhuma variável CSS
+   escrita por frame — cai automaticamente sob prefers-reduced-motion
+   (styles.css:400). A linha viva acima varre o hero no mesmo tempo que
+   esta cascata roda; os dois foram calibrados juntos (js/sweep.js).
+   ============================================================ */
 .booted .nav { animation: boot-down .7s var(--ease) 0s both; }
 @keyframes boot-down {
   from { opacity: 0; transform: translateY(-14px); }
