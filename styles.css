@@ -277,6 +277,24 @@ em {
   font-family: var(--mono); font-weight: 400; font-size: .82rem;
   letter-spacing: .13em; text-transform: uppercase; color: var(--core);
 }
+/* o cartão de serviço é um link: precisa parecer clicável sem virar botão.
+   A seta é a única afordância, e só ela se move — transform/opacity, o
+   compositor resolve sozinho. */
+.card--service { display: flex; flex-direction: column; }
+.card__cta {
+  margin-top: auto; padding-top: 1.1rem;
+  display: inline-flex; align-items: center; gap: .4rem;
+  font-family: var(--mono); font-size: .68rem;
+  letter-spacing: .12em; text-transform: uppercase;
+  color: var(--glow); opacity: .72;
+  transition: opacity var(--t-fast) var(--ease);
+}
+.card__cta span {
+  display: inline-block;
+  transition: transform var(--t-fast) var(--ease);
+}
+.card--service:hover .card__cta { opacity: 1; }
+.card--service:hover .card__cta span { transform: translateX(3px); }
 .rule {
   display: block; height: 1px; margin: .85rem 0 .9rem;
   background: linear-gradient(90deg, rgb(var(--glow-rgb) / .45), transparent);

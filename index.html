@@ -217,31 +217,41 @@
         <p class="kicker">// o que fazemos</p>
         <h2 class="glow">Soluções sob medida<br />para cada modelo de negócio.</h2>
       </div>
+      <!-- Cada serviço é um link, não um cartão morto: quem se reconhece em
+           "Restaurantes" age ali, no momento do reconhecimento, em vez de rolar
+           atrás de um CTA. O valor de data-wa vai na mensagem do WhatsApp, então
+           a conversa já começa qualificada (js/dom.js monta o texto). -->
       <div class="grid grid--3">
-        <article class="card card--service reveal">
+        <a class="card card--service reveal" data-wa="uma landing page">
           <h3>Landing pages</h3><span class="rule" aria-hidden="true"></span>
           <p>Páginas de <em>conversão</em> para campanhas e ofertas específicas.</p>
-        </article>
-        <article class="card card--service reveal">
+          <span class="card__cta" aria-hidden="true">Falar sobre isso <span>→</span></span>
+        </a>
+        <a class="card card--service reveal" data-wa="um site institucional">
           <h3>Sites institucionais</h3><span class="rule" aria-hidden="true"></span>
           <p>A vitrine completa da sua empresa para o <em>mundo digital</em>.</p>
-        </article>
-        <article class="card card--service reveal">
+          <span class="card__cta" aria-hidden="true">Falar sobre isso <span>→</span></span>
+        </a>
+        <a class="card card--service reveal" data-wa="uma loja online">
           <h3>E-commerce</h3><span class="rule" aria-hidden="true"></span>
           <p>Loja online rápida, segura e pronta para <em>vender</em>.</p>
-        </article>
-        <article class="card card--service reveal">
+          <span class="card__cta" aria-hidden="true">Falar sobre isso <span>→</span></span>
+        </a>
+        <a class="card card--service reveal" data-wa="um site para minha clínica">
           <h3>Clínicas &amp; consultórios</h3><span class="rule" aria-hidden="true"></span>
           <p>Presença que transmite <em>confiança</em> e facilita o agendamento.</p>
-        </article>
-        <article class="card card--service reveal">
+          <span class="card__cta" aria-hidden="true">Falar sobre isso <span>→</span></span>
+        </a>
+        <a class="card card--service reveal" data-wa="um site para meu restaurante">
           <h3>Restaurantes &amp; locais</h3><span class="rule" aria-hidden="true"></span>
           <p>Cardápio, reservas e o caminho mais curto até a <em>sua mesa</em>.</p>
-        </article>
-        <article class="card card--service reveal">
+          <span class="card__cta" aria-hidden="true">Falar sobre isso <span>→</span></span>
+        </a>
+        <a class="card card--service reveal" data-wa="um site de portfólio">
           <h3>Marcas &amp; portfólios</h3><span class="rule" aria-hidden="true"></span>
           <p>Identidade e trabalho apresentados com o <em>impacto</em> que merecem.</p>
-        </article>
+          <span class="card__cta" aria-hidden="true">Falar sobre isso <span>→</span></span>
+        </a>
       </div>
       <p class="bus" aria-hidden="true"><span class="bus__txt">Conectado ao <b>AI Core</b></span></p>
     </section>
