@@ -1,5 +1,12 @@
 node_modules/
 .claude/
+.superpowers/
 docs/
 *.log
 .vercel/
+
+# arte-mestre: fontes pesadas que geram os assets servidos.
+# Nunca são baixadas pelo visitante — não têm por que subir no deploy.
+assets/Logo.gif
+assets/introdução.mp4
+assets/README.txt

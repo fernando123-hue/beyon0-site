@@ -6,12 +6,25 @@
   <title>beyon.0 — interfaces de elite para o seu negócio</title>
   <meta name="description" content="Websites de alta conversão para empresas que buscam liderança digital. Landing pages, sites institucionais e e-commerce. Solicite um orçamento." />
 
+  <!-- URLs absolutas de propósito: crawlers de rede social não resolvem
+       caminho relativo. Se o domínio mudar, trocar og:image, twitter:image e
+       canonical juntos (ver assets/README.txt). -->
+  <link rel="canonical" href="https://beyon0-site.vercel.app/" />
+  <meta property="og:url" content="https://beyon0-site.vercel.app/" />
+  <meta property="og:site_name" content="beyon.0" />
+  <meta property="og:locale" content="pt_BR" />
   <meta property="og:title" content="beyon.0 — interfaces de elite" />
   <meta property="og:description" content="Websites de alta conversão para empresas que buscam liderança digital." />
   <meta property="og:type" content="website" />
-  <meta property="og:image" content="assets/og-cover.jpg" />
+  <meta property="og:image" content="https://beyon0-site.vercel.app/assets/og-cover.jpg" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="beyon.0 — vórtice de energia ciano sobre fundo preto" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="beyon.0 — interfaces de elite" />
+  <meta name="twitter:description" content="Websites de alta conversão para empresas que buscam liderança digital." />
+  <meta name="twitter:image" content="https://beyon0-site.vercel.app/assets/og-cover.jpg" />
 
   <meta name="theme-color" content="#000000" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
@@ -34,9 +47,57 @@
     "@context": "https://schema.org",
     "@type": "ProfessionalService",
     "name": "beyon.0",
+    "url": "https://beyon0-site.vercel.app/",
+    "image": "https://beyon0-site.vercel.app/assets/og-cover.jpg",
     "description": "Criação de websites de alta conversão: landing pages, sites institucionais e e-commerce.",
     "telephone": "+55-21-97716-7944",
-    "priceRange": "$$"
+    "priceRange": "$$",
+    "areaServed": { "@type": "Country", "name": "Brasil" },
+    "address": { "@type": "PostalAddress", "addressRegion": "RJ", "addressCountry": "BR" },
+    "knowsLanguage": "pt-BR",
+    "hasOfferCatalog": {
+      "@type": "OfferCatalog",
+      "name": "Serviços",
+      "itemListElement": [
+        { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Landing pages" } },
+        { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Sites institucionais" } },
+        { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "E-commerce" } },
+        { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Sites para clínicas e consultórios" } },
+        { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Sites para restaurantes e locais" } },
+        { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Sites de marca e portfólio" } }
+      ]
+    }
+  }
+  </script>
+
+  <!-- FAQPage: o texto aqui é idêntico ao da seção #faq visível na página.
+       O Google exige que bata palavra por palavra; se editar um, edite o outro. -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "Quanto custa?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Depende do tamanho do projeto. O orçamento é fechado antes de começar — sem surpresa no fim." }
+      },
+      {
+        "@type": "Question",
+        "name": "Demora quanto?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Prazo combinado na primeira conversa. Você acompanha o andamento, sem sumiço." }
+      },
+      {
+        "@type": "Question",
+        "name": "Vou ficar dependente de você?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Não. O site é seu, os acessos são seus, e te ensino a mudar o básico sozinho." }
+      },
+      {
+        "@type": "Question",
+        "name": "Funciona bem no celular?",
+        "acceptedAnswer": { "@type": "Answer", "text": "É feito primeiro para o celular — é lá que seu cliente está. Este site aqui é a prova." }
+      }
+    ]
   }
   </script>
 

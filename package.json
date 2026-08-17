@@ -2,9 +2,5 @@
   "name": "beyon0-site",
   "version": "1.0.0",
   "private": true,
-  "description": "Landing page beyon.0 — HTML/CSS/JS puro, sem build.",
-  "comment": "gsap fica declarado só como referência de versão: o runtime usa as cópias vendoradas em vendor/ (gsap.min.js + plugins ScrollTrigger/SplitText/TextPlugin/ScrambleTextPlugin), então o site publicado não depende de node_modules.",
-  "dependencies": {
-    "gsap": "^3.13.0"
-  }
+  "description": "Landing page beyon.0 — HTML/CSS/JS puro, sem build, sem dependência de runtime."
 }
