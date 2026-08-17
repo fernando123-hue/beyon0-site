@@ -78,6 +78,20 @@
 
   if (skip) setTimeout(function () { skip.classList.add('show'); }, 1200);
 
+  /* DEGRADAÇÃO PREVENTIVA (lei 5) — a guarda que faltava.
+     As guardas de cima só pegam rede DECLARADA como fraca (saveData, 2g/3g).
+     Um 4G congestionado passa por elas e baixa os 4,2 MB do vídeo com o site
+     inteiro escondido atrás de uma tela preta. As travas antigas só reagiam
+     depois: metadata em 8s, e mais duração+2s a partir dali — até ~14s de
+     preto no pior caso, que é conversão perdida antes da primeira palavra.
+
+     Esta trava olha o que importa: o vídeo COMEÇOU A TOCAR? Se em 3s a
+     imagem não andou, a rede não dá conta desta intro hoje — entra direto no
+     site. Quem tem banda vê a intro; quem não tem, vê o site. */
+  setTimeout(function () {
+    if (!done && vid.currentTime === 0) finish(true);
+  }, 3000);
+
   /* fallback se metadata nunca carregar */
   setTimeout(function () {
     if (!done && (!vid.duration || isNaN(vid.duration))) finish(true);
