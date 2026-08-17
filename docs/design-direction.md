@@ -1,5 +1,23 @@
 # beyon.0 — Plano de Direção de Arte (Fase 1)
 
+> ## ⚠️ DOCUMENTO HISTÓRICO — NÃO IMPLEMENTAR
+>
+> Escrito em 2026-07-30, no primeiro commit do projeto. Descreve uma direção
+> que **nunca foi executada e foi abandonada**: paleta esverdeada (H≈160°,
+> `--glow: #7FAB9D`), **corpo claro** ("o escuro vira moldura rara"), fonte
+> Outfit no logotipo, arco de luz escuro→claro→escuro.
+>
+> **O site real é outro:** rampa CIANO (`--glow: #00F5FF`), 100% dark, Sora +
+> JetBrains Mono. Essa identidade está declarada como SAGRADA na seção 5 do
+> `docs/HANDOFF.md`, foi aprovada pelo dono e está publicada.
+>
+> Implementar a partir daqui **quebra a identidade do site**. Guardado só como
+> registro do que foi considerado e descartado. A fonte de verdade é o
+> `docs/HANDOFF.md`.
+>
+> Aproveitável (neutro de paleta): a ideia de "Processo — três passos numa
+> linha do tempo, não três caixas" (§4), implementada em 2026-08-17.
+
 > Entrada imutável: `docs/design-tokens.md`. Este plano decide; as fases 2–5 executam.
 
 ---

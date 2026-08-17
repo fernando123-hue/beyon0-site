@@ -353,10 +353,64 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
   background: linear-gradient(90deg, rgb(var(--glow-rgb) / .45), transparent);
 }
 
-.steps { list-style: none; counter-reset: none; }
+/* ---------- processo: linha do tempo ----------
+   Três passos são uma SEQUÊNCIA, não três caixas soltas — a forma diz isso
+   antes do texto. O trilho e os nós são pseudo-elementos: nenhum elemento a
+   mais no DOM, nada animado, custo de runtime zero. */
+.steps {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--gap);
+}
+.step {
+  position: relative;
+  padding-top: 2.6rem;                  /* espaço do trilho e do nó */
+}
+/* o trilho: cada passo desenha o seu trecho, e cada trecho avança METADE do
+   vão da grade para os dois lados — assim os três se encontram e a linha sai
+   contínua, em vez de cortada em cada vão. Começa e termina nos nós das
+   pontas: a sequência não vaza para fora de si. */
+.step::before {
+  content: "";
+  position: absolute; top: 7px;
+  left: calc(var(--gap) / -2); right: calc(var(--gap) / -2);
+  height: 1px;
+  background: rgb(var(--glow-rgb) / .22);
+}
+.step:first-child::before { left: 50%; }
+.step:last-child::before  { right: 50%; }
+/* o nó: onde o passo toca o trilho */
+.step::after {
+  content: "";
+  position: absolute; top: 3px; left: 50%;
+  width: 9px; height: 9px; margin-left: -4.5px;
+  border-radius: 50%;
+  background: var(--void);
+  box-shadow: inset 0 0 0 1px var(--glow), 0 0 12px rgb(var(--glow-rgb) / .5);
+}
 .step__n {
   display: block; font-family: var(--mono); font-size: 1.6rem; font-weight: 500;
   color: var(--glow); margin-bottom: .5rem; letter-spacing: -.02em;
+}
+.step h3 { margin-bottom: .55rem; }
+.step p { color: rgb(var(--hi-rgb) / .78); font-size: .95rem; }
+
+/* no estreito a linha vira vertical: a sequência continua legível de cima
+   para baixo, que é como se lê no celular */
+@media (max-width: 760px) {
+  .steps { grid-template-columns: 1fr; gap: 0; }
+  .step {
+    padding-top: 0; padding-left: 2.5rem; padding-bottom: 2.2rem;
+  }
+  .step:last-child { padding-bottom: 0; }
+  .step::before {
+    top: 0; bottom: 0; left: 4px; right: auto;
+    width: 1px; height: auto;
+  }
+  .step:first-child::before { top: 7px; left: 4px; }
+  .step:last-child::before  { bottom: auto; height: 7px; right: auto; }
+  .step::after { top: 3px; left: 0; margin-left: 0; }
 }
 
 /* ---------- vitrine de conceitos ----------

@@ -272,13 +272,25 @@
         <p class="kicker">// processo</p>
         <h2 class="glow" id="processo-titulo">Três passos.<br />Zero dor de cabeça.</h2>
       </div>
-      <ol class="grid grid--3 steps">
-        <li class="card reveal"><span class="step__n" aria-hidden="true">01</span>
-          <h3>Conversa</h3><p>Você conta o que precisa. Eu digo o que resolve, quanto custa e quando fica pronto.</p></li>
-        <li class="card reveal"><span class="step__n" aria-hidden="true">02</span>
-          <h3>Design</h3><p>Crio o layout e te mostro. Ajustamos juntos até ficar certo.</p></li>
-        <li class="card reveal"><span class="step__n" aria-hidden="true">03</span>
-          <h3>Entrega</h3><p>Publico, configuro domínio e e-mail, e te ensino o básico. O site é seu.</p></li>
+      <!-- Linha do tempo, não três caixas soltas: um processo tem ordem, e a
+           forma precisa dizer isso antes do texto. O trilho e os nós são
+           pseudo-elementos — nenhum elemento a mais no DOM. -->
+      <ol class="steps">
+        <li class="step reveal">
+          <span class="step__n" aria-hidden="true">01</span>
+          <h3>Conversa</h3>
+          <p>Você conta o que precisa. Eu digo o que resolve, quanto custa e quando fica pronto.</p>
+        </li>
+        <li class="step reveal">
+          <span class="step__n" aria-hidden="true">02</span>
+          <h3>Design</h3>
+          <p>Crio o layout e te mostro. Ajustamos juntos até ficar certo.</p>
+        </li>
+        <li class="step reveal">
+          <span class="step__n" aria-hidden="true">03</span>
+          <h3>Entrega</h3>
+          <p>Publico, configuro domínio e e-mail, e te ensino o básico. O site é seu.</p>
+        </li>
       </ol>
     </section>
 
