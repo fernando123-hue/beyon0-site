@@ -1,6 +1,6 @@
 # beyon.0 — transferência de contexto
 
-**Última atualização:** 2026-08-17 · **Branch ativa:** `rebuild` · **HEAD:** `16c5800`
+**Última atualização:** 2026-08-17 · **Branch ativa:** `rebuild` · **HEAD:** `0d74b89`
 
 Leia este arquivo primeiro. Depois `docs/auditoria-performance.md` — ele contém
 as medições que justificam toda a arquitetura atual e evita repetir erros caros.
@@ -28,7 +28,7 @@ Landing page one-page para captar clientes que querem site.
 | `origin/main` (**no ar**) | `0d1ea34` | Site publicado. **Não tem nada das sessões recentes.** Roda a 20–30fps. |
 | `main` (local) | `716bf35` | 9 commits **não pushados**: tipografia viva, GSAP, specs do 3D, 3 rodadas de otimização. Roda a 8–10fps. **Caminho abandonado.** |
 | `feat/ai-core-3d` | `df0458f` | 13 commits: Three.js + reator 3D, 66 testes passando. **Pausado**, não descartado. |
-| **`rebuild`** (atual) | `16c5800` | **A reconstrução + intro em vídeo + entrada em 2 níveis (linha única no load + fade sutil no scroll). É onde o trabalho continua.** |
+| **`rebuild`** (atual) | `0d74b89` | **A reconstrução + intro em vídeo + entrada em 2 níveis (linha única no load + fade sutil no scroll). É onde o trabalho continua.** |
 
 O dono pediu a reconstrução do zero depois que a otimização incremental falhou.
 Nada foi deletado: `main` e `feat/ai-core-3d` seguem intactas como referência.
@@ -330,18 +330,44 @@ CTA.
 3,8:1) foram para 5:1; links do rodapé passaram de 24px com 8px de intervalo
 para 44px contínuos.
 
+### Posicionamento: ESTÚDIO ANÔNIMO (decidido pelo dono, 2026-08-17)
+Perguntei se valia colocar nome/rosto para fechar a lacuna de confiança. O
+dono respondeu: **por ora, estúdio anônimo**. Então nada de nome, foto ou
+assinatura pessoal. A confiança tem que vir de outras fontes — o processo em
+3 passos, o orçamento fechado antes de começar, o FAQ que responde as
+objeções, e o próprio site como demonstração. Não reabrir sem ele pedir.
+
+### Refinamento de experiência (mesma data)
+- **Âncoras**: não existia `scroll-margin-top`. A nav é fixa (78,6px medidos),
+  então todo clique de navegação enfiava o título da seção atrás dela. Token
+  `--nav-h` + `scroll-margin-top` nas `section[id]`; o hero fica em 0.
+- **Menu no celular**: abaixo de 780px os links viravam `display:none` e não
+  sobrava navegação nenhuma. Agora a nav quebra em duas linhas e o painel
+  abre por classe (evento discreto). Botão 44×44, links a 48px, Esc fecha e
+  devolve o foco, escolher destino fecha. Nasce `[hidden]`, revelado pelo JS.
+- **Seção atual acende na nav**, via IntersectionObserver (nada por frame),
+  com `aria-current`. Resolve o "onde eu estou" de site de página única.
+- **7 seções ganharam nome acessível** (`aria-labelledby` → próprio título).
+- Jornada por teclado conferida: 24 paradas, zero `tabindex` positivo, ordem
+  natural, foco visível, e o CTA do painel do medidor fica fora da ordem
+  enquanto fechado.
+
+### Armadilha de MEDIÇÃO neste ambiente (custou tempo, anote)
+`getComputedStyle` devolve o valor **interpolado no instante**, e aqui nada
+progride (`document.hidden`, sem rAF, sem composição). Ler uma propriedade
+logo após trocar a classe devolve o valor ANTIGO se houver `transition` nela
+— parece bug e não é. Para verificar a regra de verdade: zere a transição
+(`el.style.transition='none'`) antes de ler, ou inspecione o CSSOM. Isso
+aconteceu três vezes seguidas (cor do link ativo, `max-height` do menu,
+altura do painel).
+
 ### Próximos passos naturais
-1. Dono roda e dá o veredito visual: (a) load no topo → só o hero anima com a
-   linha; (b) F5 no meio/fim → a seção visível roda a linha + cascata; (c)
-   rolar depois → só o fade sutil, nunca a linha; (d) a aura das palavras e a
-   luz do barramento durante o Pulso — **estas nunca foram vistas por
-   ninguém**; (e) as três molduras de conceito lidas como imagem. Fps no
-   `?perf`.
-2. **Decisão que ficou para o dono:** o site não tem nenhum sinal de quem
-   está por trás — nome, rosto, tempo de resposta. Para quem vai confiar o
-   site do próprio negócio a um desconhecido, é a maior lacuna de conversão
-   que restou. Não implementei porque muda o posicionamento (freelancer com
-   nome vs. estúdio anônimo) e isso é chamada do dono, não minha.
+1. Dono roda e dá o veredito visual. O que **nunca foi visto por ninguém**:
+   (a) a aura das palavras-chave e a luz do barramento durante o Pulso;
+   (b) as três molduras de conceito lidas como imagem; (c) o menu do celular
+   abrindo; (d) o medidor flutuando — ele nunca flutuou de verdade até agora.
+2. Comprimir `assets/intro.mp4` (4,2 MB) e decidir o vídeo oficial — o atual
+   é placeholder.
 3. Decidir o destino de `feat/ai-core-3d` (o reator 3D em Three.js, 66 testes
    passando) — a reconstrução mudou a fundação, então aquela branch precisará de
    adaptação se for retomada.
