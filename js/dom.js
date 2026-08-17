@@ -173,13 +173,36 @@
   /* ---------- medidor: números reais, atualizado 2x por segundo ---------- */
   var med = document.querySelector('.medidor__txt');
   var led = document.querySelector('.medidor__led');
-  var ultMed = 0;
+  var ultMed = 0, ultTxt = '', ultCor = '';
   if (med) {
     B.add('medidor', function (s) {
       if (s.now - ultMed < 500) return;
       ultMed = s.now;
-      med.textContent = Math.round(s.fps) + ' fps · ' + Math.round(s.budget * 100) + '%';
-      led.style.background = s.fps > 50 ? 'var(--glow)' : (s.fps > 35 ? 'var(--gold)' : 'var(--led)');
+      /* só escreve quando o valor MUDA: escrever a mesma string 2x por segundo
+         sujava o elemento à toa. */
+      var txt = Math.round(s.fps) + ' fps · ' + Math.round(s.budget * 100) + '%';
+      if (txt !== ultTxt) { ultTxt = txt; med.textContent = txt; }
+      var cor = s.fps > 50 ? 'var(--glow)' : (s.fps > 35 ? 'var(--gold)' : 'var(--led)');
+      if (cor !== ultCor) { ultCor = cor; led.style.background = cor; }
+    });
+  }
+
+  /* a nota do medidor: o número sozinho não diz nada a quem não é técnico.
+     Uma classe, por clique — nada por frame. */
+  var medBtn = document.querySelector('.medidor__btn');
+  var medNota = document.getElementById('medidor-nota');
+  if (medBtn && medNota) {
+    medBtn.addEventListener('click', function () {
+      var abrindo = medNota.hidden;
+      medNota.hidden = !abrindo;
+      medBtn.setAttribute('aria-expanded', abrindo ? 'true' : 'false');
+    });
+    /* Esc fecha, como qualquer painel sobreposto */
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape' || medNota.hidden) return;
+      medNota.hidden = true;
+      medBtn.setAttribute('aria-expanded', 'false');
+      medBtn.focus();
     });
   }
 

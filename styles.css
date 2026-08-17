@@ -338,14 +338,40 @@ em {
 /* ---------- medidor + whatsapp ---------- */
 .medidor {
   position: fixed; left: 16px; bottom: 16px; z-index: 40;
+  display: flex; flex-direction: column; align-items: flex-start; gap: .5rem;
+  max-width: min(19rem, calc(100vw - 32px));
+}
+.medidor__btn {
   display: inline-flex; align-items: center; gap: .5rem;
   padding: .5rem .8rem; border-radius: 999px;
   background: rgb(0 0 0 / .6);
   border: 1px solid rgb(var(--glow-rgb) / .16);
   font-family: var(--mono); font-size: .62rem; letter-spacing: .1em;
   color: rgb(var(--hi-rgb) / .7); cursor: pointer;
+  transition: border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
 }
+.medidor__btn:hover { border-color: rgb(var(--glow-rgb) / .45); color: var(--hi); }
 .medidor__led { width: 6px; height: 6px; border-radius: 50%; background: var(--led); flex: none; }
+
+/* a nota abre por clique — evento discreto, uma classe. O `hidden` do HTML
+   sai junto, então quem não tem JS nunca vê um painel preso aberto. */
+.medidor__nota {
+  order: -1;                       /* abre para CIMA: o botão vive no rodapé */
+  padding: .9rem 1rem;
+  border-radius: var(--r);
+  background: rgb(0 0 0 / .88);
+  border: 1px solid rgb(var(--glow-rgb) / .22);
+  animation: medidor-abre var(--t) var(--ease) both;
+}
+.medidor__nota p { font-size: .78rem; line-height: 1.5; color: rgb(var(--hi-rgb) / .8); }
+.medidor__nota p + p { margin-top: .5rem; }
+.medidor__nota b { color: var(--glow); font-weight: 400; }
+.medidor__nota .btn { margin-top: .85rem; }
+@keyframes medidor-abre {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
 @media (max-width: 620px) { .medidor { display: none; } }
 
 .wa {

@@ -327,10 +327,22 @@
     </div>
   </footer>
 
-  <button class="medidor" type="button" aria-label="Métricas de performance deste site, medidas ao vivo">
-    <span class="medidor__led" aria-hidden="true"></span>
-    <span class="medidor__txt">—</span>
-  </button>
+  <!-- MEDIDOR — o número é medido de verdade, no aparelho de quem visita.
+       Sozinho ele não diz nada para um dono de negócio, então o botão abre
+       a leitura em português: o argumento de venda é a própria medição. -->
+  <div class="medidor" data-medidor>
+    <button class="medidor__btn" type="button" aria-expanded="false" aria-controls="medidor-nota">
+      <span class="medidor__led" aria-hidden="true"></span>
+      <span class="medidor__txt">—</span>
+      <span class="sr-only">— o que este número significa</span>
+    </button>
+    <div class="medidor__nota" id="medidor-nota" hidden>
+      <p>Quadros por segundo, medidos <b>agora</b>, no seu aparelho.</p>
+      <p>Site lento perde metade dos visitantes antes de carregar. Este é o
+        padrão que entrego — e você acabou de testar.</p>
+      <a class="btn btn--sm btn--primary" data-wa href="#" target="_blank" rel="noopener noreferrer">Quero um site assim</a>
+    </div>
+  </div>
 
   <a data-wa class="wa" href="#" target="_blank" rel="noopener noreferrer" aria-label="Falar no WhatsApp">
     <svg viewBox="0 0 32 32" width="24" height="24" aria-hidden="true">
