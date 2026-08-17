@@ -1,6 +1,6 @@
 # beyon.0 — transferência de contexto
 
-**Última atualização:** 2026-08-16 · **Branch ativa:** `rebuild` · **HEAD:** `349f202`
+**Última atualização:** 2026-08-17 · **Branch ativa:** `rebuild` · **HEAD:** `16c5800`
 
 Leia este arquivo primeiro. Depois `docs/auditoria-performance.md` — ele contém
 as medições que justificam toda a arquitetura atual e evita repetir erros caros.
@@ -28,7 +28,7 @@ Landing page one-page para captar clientes que querem site.
 | `origin/main` (**no ar**) | `0d1ea34` | Site publicado. **Não tem nada das sessões recentes.** Roda a 20–30fps. |
 | `main` (local) | `716bf35` | 9 commits **não pushados**: tipografia viva, GSAP, specs do 3D, 3 rodadas de otimização. Roda a 8–10fps. **Caminho abandonado.** |
 | `feat/ai-core-3d` | `df0458f` | 13 commits: Three.js + reator 3D, 66 testes passando. **Pausado**, não descartado. |
-| **`rebuild`** (atual) | `349f202` | **A reconstrução + intro em vídeo + entrada em 2 níveis (linha única no load + fade sutil no scroll). É onde o trabalho continua.** |
+| **`rebuild`** (atual) | `16c5800` | **A reconstrução + intro em vídeo + entrada em 2 níveis (linha única no load + fade sutil no scroll). É onde o trabalho continua.** |
 
 O dono pediu a reconstrução do zero depois que a otimização incremental falhou.
 Nada foi deletado: `main` e `feat/ai-core-3d` seguem intactas como referência.
@@ -285,20 +285,63 @@ visível/estável, hero intacto no topo, zero refs à `sweep`, console limpo.
 O **feel e o timing de restauração de scroll no F5 real precisam do olho do
 dono**.
 
-### Deixado deliberadamente de fora (herdado da reconstrução original)
-- **Glitch/aurora nas palavras-chave** (`<em>` dos serviços) — hoje só cor.
-- **Barramento animado** sob os serviços — hoje é texto estático.
-- **Tilt nos cards** e o campo de "memória" do cursor.
-- **Reescrita de frases no Singular** (só o status do hero reescreve hoje).
+### Sessão autônoma de 2026-08-17 (9 commits, `7b589e4`..`16c5800`)
+O dono pediu autonomia total: mapear, concluir, auditar, refinar, sem parar
+para perguntar. O que mudou:
+
+**Código morto** — `main.js` (159 KB, versão pré-reconstrução), `vendor/`
+(GSAP + 4 plugins, 146 KB) e `Logo-definitiva.mp4` (172 KB) saíram. Nenhum
+tinha referência no `index.html`, mas todos subiam no deploy. `package.json`
+declarava `gsap` sem uso: o projeto **não tem dependência de runtime**.
+
+**A armadilha de especificidade, morta na raiz** — a regra
+`body > *:not(#fx)...` valia (1,0,1) e derrubava o `position` de qualquer
+filho de `<body>` fora da lista. Já tinha quebrado `.intro`, `.nav`, `.wa` e
+a extinta `.sweep`; medindo, achei mais duas vítimas silenciosas: o
+**`.medidor` nunca flutuou** (ficava parado no fim do documento) e o
+**`.skip-link` não escondia** (bug de acessibilidade). Trocada por alvo
+explícito `body > main, body > footer`. A lista de exceções não existe mais.
+
+**Recuperado da lista de cortes** (desenhado no canvas, não estilizado):
+aura nas 6 palavras-chave dos serviços e a luz do Pulso atravessando o
+barramento. Ambos só existem durante Pulso/Singular — em repouso o laço nem
+roda. Medido: 0,09-0,10ms/frame em todos os estados.
+
+**Fica de fora, por decisão:** tilt nos cards e holofote do cursor. A seção 5
+fixa a identidade como "sem vidro/plástico" e **"sem holofote seguindo o
+cursor"** — são os efeitos mais genéricos da lista e contradizem a identidade.
+A reescrita no Singular também não foi estendida: a máquina já roda 3 frases
+no status do hero, e reescrever texto de conteúdo que o usuário está lendo é
+hostil.
+
+**Vitrine de conceitos** — as três molduras eram retângulos vazios numa seção
+que promete "conceitos autorais". Agora cada uma desenha um layout em
+miniatura com composição própria (editorial / convidativo / técnico), feito
+com camadas de gradiente: zero DOM extra, zero custo de runtime.
+
+**Conversão** — os 6 cartões de serviço eram informação sem saída; viraram
+links, e o `data-wa` de cada um qualifica a mensagem do WhatsApp ("...para um
+site para meu restaurante"). O medidor deixou de ser um `<button>` sem
+handler e virou prova de venda: o número explica a si mesmo em português, com
+CTA.
+
+**Acessibilidade e mobile, medidos:** três textos abaixo do contraste mínimo
+(o pior era a linha "Resposta humana, sem robô" logo abaixo do CTA, em
+3,8:1) foram para 5:1; links do rodapé passaram de 24px com 8px de intervalo
+para 44px contínuos.
 
 ### Próximos passos naturais
-1. Dono roda e dá o veredito visual da entrada em dois níveis: (a) load no
-   topo → só o hero anima com a linha; (b) F5 no meio/fim → a seção visível
-   roda a linha + cascata (não aparece pronta); (c) rolar depois → só o fade
-   sutil, nunca a linha; (d) voltar a uma seção já vista → sem replay. Fps
-   pelo `?perf`.
-2. Trazer de volta o que fizer falta da lista acima, **um por vez**, cada um
-   com orçamento de performance medido pelo `?perf`.
+1. Dono roda e dá o veredito visual: (a) load no topo → só o hero anima com a
+   linha; (b) F5 no meio/fim → a seção visível roda a linha + cascata; (c)
+   rolar depois → só o fade sutil, nunca a linha; (d) a aura das palavras e a
+   luz do barramento durante o Pulso — **estas nunca foram vistas por
+   ninguém**; (e) as três molduras de conceito lidas como imagem. Fps no
+   `?perf`.
+2. **Decisão que ficou para o dono:** o site não tem nenhum sinal de quem
+   está por trás — nome, rosto, tempo de resposta. Para quem vai confiar o
+   site do próprio negócio a um desconhecido, é a maior lacuna de conversão
+   que restou. Não implementei porque muda o posicionamento (freelancer com
+   nome vs. estúdio anônimo) e isso é chamada do dono, não minha.
 3. Decidir o destino de `feat/ai-core-3d` (o reator 3D em Three.js, 66 testes
    passando) — a reconstrução mudou a fundação, então aquela branch precisará de
    adaptação se for retomada.
@@ -308,9 +351,15 @@ dono**.
 
 ## 9. Pendências antigas ainda abertas
 
-- `assets/intro.mp4` (4,4 MB) está religado no boot desde `9b48883`, com
-  guardas de rede/motion (seção 6). Vale comprimir antes do dono aprovar
-  definitivo — ainda não medido o impacto real em conexão lenta.
+- `assets/intro.mp4` (4,2 MB) segue sendo o objeto mais pesado do site.
+  Além das guardas de rede declarada, ganhou em `16c5800` uma **trava de
+  playback**: se em 3s a imagem não andou, entra direto no site em vez de
+  segurar o visitante atrás de uma tela preta (um 4G congestionado passava
+  pelas guardas antigas e podia dar ~14s de preto). Ainda assim: **comprimir
+  vale**, e o vídeo oficial nem foi escolhido — o atual é placeholder.
+- O medidor de fps aparece para todo visitante. Continua sendo uma escolha do
+  dono; agora pelo menos se explica sozinho ao ser clicado, em vez de mostrar
+  um número que só faz sentido para quem é técnico.
 - Histórico do git carrega ~50 MB de assets mortos (`Logo.gif` 20 MB,
   `introdução.mp4` 30 MB — nome antigo, não confundir com `intro.mp4` atual).
   Só `git filter-repo` limpa, e é destrutivo.
