@@ -65,7 +65,18 @@ body {
   pointer-events: none;
   display: block;
 }
-body > *:not(#fx):not(.intro):not(.nav):not(.wa) { position: relative; z-index: 1; }
+/* main e footer precisam de contexto próprio para pintar ACIMA do canvas: um
+   elemento posicionado com z-index 0 (o #fx) pinta depois do conteúdo em fluxo
+   normal, então sem isto o campo cobriria o texto.
+
+   ALVO EXPLÍCITO, de propósito. Aqui existia `body > *:not(#fx):not(.intro)
+   :not(.nav):not(.wa)`, e `:not(#fx)` carrega especificidade de ID — a regra
+   valia (1,0,1) e derrubava o `position` de QUALQUER filho de <body> que não
+   estivesse na lista. Isso já quebrou cinco elementos em sessões diferentes
+   (.intro, .nav, .wa, a extinta .sweep, e — sem ninguém notar — .medidor e
+   .skip-link). Listar quem PRECISA da regra remove a armadilha: quem cuida do
+   próprio posicionamento simplesmente não é alvo. */
+body > main, body > footer { position: relative; z-index: 1; }
 
 img, svg, canvas { display: block; max-width: 100%; }
 
@@ -353,7 +364,7 @@ em {
   margin-top: 2.6rem; text-align: center;
   font-family: var(--mono); font-size: .64rem;
   letter-spacing: .4em; text-transform: uppercase;
-  color: rgb(var(--hi-rgb) / .4);
+  color: rgb(var(--hi-rgb) / .53);
 }
 .bus b { color: var(--glow); font-weight: 400; }
 
@@ -369,9 +380,13 @@ em {
 }
 .cta h2 { margin-bottom: 1rem; }
 .cta > p { margin: 0 auto 2rem; color: var(--hi); }
+/* .53 é o mínimo que dá 5:1 sobre o preto — margem sobre os 4,5 do WCAG AA,
+   porque o fundo real aqui é o painel do CTA, um pouco mais claro que o preto.
+   Antes estava .45 (3,8:1): a linha que tira o medo de pedir orçamento era a
+   mais difícil de ler da página. */
 .cta .fine {
   margin: 1.2rem auto 0; font-family: var(--mono);
-  font-size: .66rem; letter-spacing: .1em; color: rgb(var(--hi-rgb) / .45);
+  font-size: .66rem; letter-spacing: .1em; color: rgb(var(--hi-rgb) / .53);
 }
 
 /* ---------- rodapé ---------- */
@@ -384,13 +399,22 @@ em {
   display: flex; flex-wrap: wrap; gap: 2.4rem; justify-content: space-between;
 }
 .footer p { font-size: .9rem; color: rgb(var(--hi-rgb) / .6); margin-top: .9rem; }
-.footer__copy { font-size: .76rem !important; color: rgb(var(--hi-rgb) / .38) !important; }
-.footer__links { display: flex; flex-direction: column; gap: .5rem; }
+.footer__copy { font-size: .76rem !important; color: rgb(var(--hi-rgb) / .53) !important; }
+.footer__links { display: flex; flex-direction: column; }
 .footer__links-title {
   font-family: var(--mono); font-size: .66rem; letter-spacing: .2em;
   text-transform: uppercase; color: rgb(var(--hi-rgb) / .4); margin: 0 0 .3rem !important;
 }
-.footer__links a { font-size: .9rem; transition: color var(--t-fast) var(--ease); }
+/* o alvo de toque vem do padding, não de `gap`: com gap o dedo que erra por
+   pouco não acerta nada. Antes eram 24px de altura com 8px de intervalo —
+   passo de 32px, contra os 44px que iOS e WCAG 2.5.8 pedem. */
+.footer__links a {
+  font-size: .9rem;
+  display: flex; align-items: center;
+  min-height: 44px;                 /* em px, não em rem: o alvo de toque não
+                                       pode encolher junto com a fonte raiz */
+  transition: color var(--t-fast) var(--ease);
+}
 .footer__links a:hover { color: var(--core); }
 
 /* ---------- medidor + whatsapp ---------- */
