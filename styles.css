@@ -36,6 +36,7 @@
   --gap: clamp(16px, 2.4vw, 26px);
 
   --r: 4px;
+  --nav-h: 80px;          /* altura medida da nav fixa (78,6px) + folga de arredondamento */
   --t-fast: 180ms;
   --t: 420ms;
   --t-slow: 800ms;
@@ -140,6 +141,12 @@ em {
 }
 .section__head { margin-bottom: clamp(32px, 5vw, 56px); }
 
+/* a nav é fixa: sem isto toda âncora joga o kicker e o título PARA BAIXO dela,
+   e como o scroll é suave a página ainda desliza até a posição errada. O alvo
+   para antes, com respiro. O hero é o topo do documento — não precisa. */
+section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
+#hero { scroll-margin-top: 0; }
+
 .grid { display: grid; gap: var(--gap); }
 .grid--2 { grid-template-columns: repeat(2, 1fr); }
 .grid--3 { grid-template-columns: repeat(3, 1fr); }
@@ -171,7 +178,42 @@ em {
 .nav__links { display: flex; align-items: center; gap: 1.6rem; }
 .nav__links a { font-size: .9rem; color: var(--hi); transition: color var(--t-fast) var(--ease); }
 .nav__links a:hover { color: var(--core); }
-@media (max-width: 780px) { .nav__links a:not(.btn) { display: none; } }
+
+/* ---------- menu do celular ----------
+   Abre por CLASSE, um evento discreto — nada por frame. Abaixo de 780px a nav
+   vira duas linhas: barra sempre visível em cima, painel de links embaixo.
+   O botão só existe nesta faixa. */
+.nav__toggle {
+  display: none;
+  width: 44px; height: 44px;          /* alvo de toque cheio */
+  flex: none;
+  background: none; border: 0; cursor: pointer;
+  flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+}
+.nav__toggle-bar {
+  width: 20px; height: 1.5px; background: var(--hi);
+  transition: transform var(--t-fast) var(--ease), opacity var(--t-fast) var(--ease);
+}
+/* as duas barras viram um X quando aberto — só transform, sem repintura */
+.nav.is-open .nav__toggle-bar:first-child { transform: translateY(3.25px) rotate(45deg); }
+.nav.is-open .nav__toggle-bar:last-child  { transform: translateY(-3.25px) rotate(-45deg); }
+
+@media (max-width: 780px) {
+  .nav { flex-wrap: wrap; }
+  .nav__toggle { display: flex; }
+  .nav__links {
+    flex-direction: column; align-items: stretch; gap: 0;
+    width: 100%; order: 3;
+    max-height: 0; overflow: hidden;
+    transition: max-height var(--t) var(--ease);
+  }
+  .nav.is-open .nav__links { max-height: 22rem; }
+  .nav__links a {
+    display: flex; align-items: center; min-height: 48px;
+    border-top: 1px solid rgb(var(--glow-rgb) / .1);
+  }
+  .nav__links a.btn { justify-content: center; margin: .9rem 0 1rem; border-top: 0; }
+}
 
 /* ---------- botões ---------- */
 .btn {

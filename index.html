@@ -142,17 +142,25 @@
     <a href="#hero" class="nav__logo" aria-label="beyon.0 — início">
       <span class="wordmark">beyon<b>.0</b></span>
     </a>
-    <nav class="nav__links" aria-label="Navegação principal">
+    <nav class="nav__links" id="nav-links" aria-label="Navegação principal">
       <a href="#servicos">Serviços</a>
       <a href="#processo">Processo</a>
       <a href="#projetos">Projetos</a>
       <a href="#faq">FAQ</a>
       <a class="btn btn--sm" data-wa href="#" target="_blank" rel="noopener noreferrer">Solicitar orçamento</a>
     </nav>
+    <!-- No celular os links viravam `display:none` e não sobrava navegação
+         nenhuma — num site que promete ser "feito primeiro para o celular".
+         Este botão só existe abaixo de 780px; js/dom.js o revela. -->
+    <button class="nav__toggle" type="button" hidden
+            aria-expanded="false" aria-controls="nav-links" aria-label="Abrir menu">
+      <span class="nav__toggle-bar" aria-hidden="true"></span>
+      <span class="nav__toggle-bar" aria-hidden="true"></span>
+    </button>
   </header>
 
   <main>
-    <section class="hero" id="hero">
+    <section class="hero" id="hero" aria-labelledby="hero-titulo">
       <div class="hero__reactor" aria-hidden="true"></div>
 
       <p class="hero__status">
@@ -161,7 +169,7 @@
         <span class="hero__status-txt" aria-hidden="true">Sistema online · beyon.0</span>
       </p>
 
-      <h1 class="hero__title glow">
+      <h1 class="hero__title glow" id="hero-titulo">
         Transformamos ideias<br />em <em>interfaces de elite</em>.
       </h1>
       <p class="hero__sub">
@@ -178,10 +186,10 @@
       </a>
     </section>
 
-    <section class="section" id="dores">
+    <section class="section" id="dores" aria-labelledby="dores-titulo">
       <div class="section__head reveal">
         <p class="kicker">// o problema</p>
-        <h2 class="glow">Por que sua empresa precisa<br />de um site profissional?</h2>
+        <h2 class="glow" id="dores-titulo">Por que sua empresa precisa<br />de um site profissional?</h2>
       </div>
       <div class="grid grid--3">
         <article class="card reveal">
@@ -215,10 +223,10 @@
       </div>
     </section>
 
-    <section class="section" id="servicos">
+    <section class="section" id="servicos" aria-labelledby="servicos-titulo">
       <div class="section__head reveal">
         <p class="kicker">// o que fazemos</p>
-        <h2 class="glow">Soluções sob medida<br />para cada modelo de negócio.</h2>
+        <h2 class="glow" id="servicos-titulo">Soluções sob medida<br />para cada modelo de negócio.</h2>
       </div>
       <!-- Cada serviço é um link, não um cartão morto: quem se reconhece em
            "Restaurantes" age ali, no momento do reconhecimento, em vez de rolar
@@ -259,10 +267,10 @@
       <p class="bus" aria-hidden="true"><span class="bus__txt">Conectado ao <b>AI Core</b></span></p>
     </section>
 
-    <section class="section" id="processo">
+    <section class="section" id="processo" aria-labelledby="processo-titulo">
       <div class="section__head reveal">
         <p class="kicker">// processo</p>
-        <h2 class="glow">Três passos.<br />Zero dor de cabeça.</h2>
+        <h2 class="glow" id="processo-titulo">Três passos.<br />Zero dor de cabeça.</h2>
       </div>
       <ol class="grid grid--3 steps">
         <li class="card reveal"><span class="step__n" aria-hidden="true">01</span>
@@ -274,10 +282,10 @@
       </ol>
     </section>
 
-    <section class="section" id="projetos">
+    <section class="section" id="projetos" aria-labelledby="projetos-titulo">
       <div class="section__head reveal">
         <p class="kicker">// projetos</p>
-        <h2 class="glow">Cada negócio pede uma cara.</h2>
+        <h2 class="glow" id="projetos-titulo">Cada negócio pede uma cara.</h2>
         <p class="lead">Conceitos autorais. Seu projeto nasce do zero, com a sua identidade.</p>
       </div>
       <div class="grid grid--3">
@@ -296,10 +304,10 @@
       </div>
     </section>
 
-    <section class="section" id="faq">
+    <section class="section" id="faq" aria-labelledby="faq-titulo">
       <div class="section__head reveal">
         <p class="kicker">// faq</p>
-        <h2 class="glow">O que você deve estar se perguntando.</h2>
+        <h2 class="glow" id="faq-titulo">O que você deve estar se perguntando.</h2>
       </div>
       <div class="grid grid--2">
         <div class="card reveal"><h3>Quanto custa?</h3>
@@ -313,9 +321,9 @@
       </div>
     </section>
 
-    <section class="section section--cta" id="contato">
+    <section class="section section--cta" id="contato" aria-labelledby="contato-titulo">
       <div class="cta reveal">
-        <h2 class="glow">Pronto para elevar <em>seu negócio</em>?</h2>
+        <h2 class="glow" id="contato-titulo">Pronto para elevar <em>seu negócio</em>?</h2>
         <p>Não deixe sua marca invisível. Vamos construir o ativo digital mais importante da sua empresa.</p>
         <a class="btn btn--primary btn--lg" data-wa href="#" target="_blank" rel="noopener">Solicitar orçamento</a>
         <p class="fine">Resposta humana, sem robô. Orçamento sem compromisso.</p>

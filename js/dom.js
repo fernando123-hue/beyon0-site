@@ -76,6 +76,36 @@
     else B.on('booted', comBooted);
   }
 
+  /* ---------- menu do celular: uma classe, por clique ----------
+     O botão nasce [hidden] e só é revelado aqui: se este script falhar, ninguém
+     vê um controle inerte (o CSS sozinho deixaria os links fechados e sem saída). */
+  var navEl = document.getElementById('nav');
+  var navBtn = document.querySelector('.nav__toggle');
+  var navLista = document.getElementById('nav-links');
+  if (navEl && navBtn && navLista) {
+    navBtn.hidden = false;
+    var fecharMenu = function (devolverFoco) {
+      if (!navEl.classList.contains('is-open')) return;
+      navEl.classList.remove('is-open');
+      navBtn.setAttribute('aria-expanded', 'false');
+      navBtn.setAttribute('aria-label', 'Abrir menu');
+      if (devolverFoco) navBtn.focus();
+    };
+    navBtn.addEventListener('click', function () {
+      var abrindo = !navEl.classList.contains('is-open');
+      navEl.classList.toggle('is-open', abrindo);
+      navBtn.setAttribute('aria-expanded', abrindo ? 'true' : 'false');
+      navBtn.setAttribute('aria-label', abrindo ? 'Fechar menu' : 'Abrir menu');
+    });
+    /* escolher um destino fecha o menu — senão ele tampa a seção recém-aberta */
+    navLista.addEventListener('click', function (e) {
+      if (e.target.closest('a')) fecharMenu(false);
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') fecharMenu(true);
+    });
+  }
+
   /* ---------- nav: uma classe, no cruzamento do limiar ---------- */
   var nav = document.getElementById('nav');
   var presa = false;
