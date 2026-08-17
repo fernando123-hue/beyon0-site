@@ -163,4 +163,16 @@
     S: S, add: add, on: on, emit: emit, iniciar: iniciar,
     reduced: reduced, fine: fine, saveData: saveData, weak: weak, PERF: PERF
   };
+  /* só com ?perf: roda um frame na mão, fora do rAF. Serve para medir o custo
+     de um estado específico (Pulso, Singular, orçamento baixo) sem esperar ele
+     acontecer — e para verificar o desenho em ambiente que não compõe frames.
+     Lei 4: a instrumentação fica no código, não em edição temporária. */
+  if (PERF) {
+    window.__frame = function (vezes) {
+      var n = vezes || 1, t0 = performance.now();
+      for (var v = 0; v < n; v++) for (var i = 0; i < subs.length; i++) subs[i].f(S);
+      return { frames: n, msPorFrame: +((performance.now() - t0) / n).toFixed(3),
+               subsistemas: subs.map(function (s) { return s.n; }) };
+    };
+  }
 })();

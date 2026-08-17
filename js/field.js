@@ -35,7 +35,7 @@
 
   var W = 0, H = 0, dpr = 1;
   var ps = [], nAlvo = 0;
-  var reator = null, titulos = [];
+  var reator = null, titulos = [], palavras = [], barramento = null;
   var sujo = true;
 
   function dimensionar() {
@@ -78,6 +78,27 @@
       var r = alvos[i].getBoundingClientRect();
       if (r.bottom < -120 || r.top > H + 120) continue;   /* fora de cena: nem entra na lista */
       titulos.push({ x: r.left, y: r.top, w: r.width, h: r.height });
+    }
+
+    /* palavras-chave dos serviços: a aura por trás delas é desenhada aqui, não
+       estilizada. A versão antiga quebrava cada palavra em spans — 205 deles,
+       68% dos 76ms de recálculo. Aqui são 6 retângulos em cache. */
+    palavras.length = 0;
+    var chaves = document.querySelectorAll('.card--service em');
+    for (var j = 0; j < chaves.length; j++) {
+      var rp = chaves[j].getBoundingClientRect();
+      if (rp.bottom < 0 || rp.top > H || !rp.width) continue;
+      palavras.push({ x: rp.left + rp.width / 2, y: rp.top + rp.height / 2, w: rp.width, h: rp.height });
+    }
+
+    /* barramento: a linha por onde a luz do Pulso viaja até os serviços */
+    var bus = document.querySelector('.bus');
+    barramento = null;
+    if (bus) {
+      var rb = bus.getBoundingClientRect();
+      if (rb.bottom > 0 && rb.top < H && rb.width) {
+        barramento = { x: rb.left, y: rb.top + rb.height / 2, w: rb.width };
+      }
     }
     sujo = false;
   }
@@ -199,6 +220,37 @@
         ctx.fillRect(tt.x, tt.y, tt.w, tt.h);
         halo(fx, tt.y + tt.h / 2, tt.h * .9, alta, .12 * acende);
       }
+    }
+
+    /* ---- 5. aura nas palavras-chave ----
+       Só existe quando o organismo está em evento: em repouso o laço nem roda,
+       então o custo é literalmente zero na maior parte do tempo. */
+    var aura = pulso * .85 + S.singular * .7;
+    if (aura > .02 && orc > .6) {
+      for (var q = 0; q < palavras.length; q++) {
+        var pw = palavras[q];
+        ctx.save();
+        ctx.translate(pw.x, pw.y);
+        /* achata o halo: a palavra é larga e baixa, um círculo vazaria demais */
+        ctx.scale(1, Math.max(.3, pw.h / pw.w));
+        halo(0, 0, pw.w * .8, alta, .17 * aura);
+        ctx.restore();
+      }
+    }
+
+    /* ---- 6. barramento: a luz do Pulso atravessando até os serviços ----
+       Não é um loop eterno: existe só enquanto o Pulso passa, e é ELE que a
+       frente (S.pulseFront) posiciona. Serve para tornar o Pulso legível. */
+    if (barramento && pulso > .02) {
+      var bx = barramento.x + barramento.w * S.pulseFront;
+      var bg = ctx.createLinearGradient(barramento.x, 0, barramento.x + barramento.w, 0);
+      var bp = Math.max(0, Math.min(1, S.pulseFront));
+      bg.addColorStop(Math.max(0, bp - .16), 'rgba(' + cy + ',0)');
+      bg.addColorStop(bp, 'rgba(' + nuc + ',' + (.5 * pulso).toFixed(3) + ')');
+      bg.addColorStop(Math.min(1, bp + .16), 'rgba(' + cy + ',0)');
+      ctx.fillStyle = bg;
+      ctx.fillRect(barramento.x, barramento.y - 1, barramento.w, 2);
+      halo(bx, barramento.y, 26, alta, .3 * pulso);
     }
 
     ctx.globalCompositeOperation = 'source-over';
