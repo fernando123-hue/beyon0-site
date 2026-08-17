@@ -114,6 +114,41 @@
     if (quer !== presa) { presa = quer; nav.classList.toggle('is-stuck', quer); }
   }, { passive: true });
 
+  /* ---------- onde estou: a seção atual acende na nav ----------
+     Num site de página única a pessoa perde a referência de lugar. O
+     IntersectionObserver só dispara ao cruzar o limiar — nada por frame. A
+     faixa de leitura é o terço superior da tela, logo abaixo da nav. */
+  if ('IntersectionObserver' in window) {
+    var doNav = {};
+    var ancoras = nav.querySelectorAll('.nav__links a[href^="#"]');
+    for (var a = 0; a < ancoras.length; a++) {
+      var alvo = ancoras[a].getAttribute('href').slice(1);
+      if (alvo) doNav[alvo] = ancoras[a];
+    }
+    var visiveis = {};
+    var atual = null;
+    var ioSecao = new IntersectionObserver(function (ents) {
+      for (var i = 0; i < ents.length; i++) visiveis[ents[i].target.id] = ents[i].isIntersecting;
+      /* a primeira seção visível na ordem do documento manda */
+      var novo = null;
+      for (var id in doNav) if (visiveis[id]) { novo = id; break; }
+      if (novo === atual) return;
+      if (atual && doNav[atual]) {
+        doNav[atual].classList.remove('is-current');
+        doNav[atual].removeAttribute('aria-current');
+      }
+      atual = novo;
+      if (atual) {
+        doNav[atual].classList.add('is-current');
+        doNav[atual].setAttribute('aria-current', 'true');
+      }
+    }, { rootMargin: '-80px 0px -66% 0px' });   /* -80px = altura da nav fixa */
+    for (var idSec in doNav) {
+      var sec = document.getElementById(idSec);
+      if (sec) ioSecao.observe(sec);
+    }
+  }
+
   /* ---------- reescrita de texto pelo glitch ----------
      Um elemento só. O efeito custa o que custa mexer em um textContent. */
   var GL = '01<>/\\[]{}=+*#%&ABCDEF';

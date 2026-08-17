@@ -179,6 +179,16 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
 .nav__links a { font-size: .9rem; color: var(--hi); transition: color var(--t-fast) var(--ease); }
 .nav__links a:hover { color: var(--core); }
 
+/* seção atual: um traço fino sob o link. Só cor e um pseudo-elemento — a
+   classe entra por IntersectionObserver, nunca por frame. */
+.nav__links a:not(.btn) { position: relative; }
+.nav__links a.is-current { color: var(--core); }
+.nav__links a.is-current::after {
+  content: "";
+  position: absolute; left: 0; right: 0; bottom: -6px;
+  height: 1px; background: var(--glow);
+}
+
 /* ---------- menu do celular ----------
    Abre por CLASSE, um evento discreto — nada por frame. Abaixo de 780px a nav
    vira duas linhas: barra sempre visível em cima, painel de links embaixo.
