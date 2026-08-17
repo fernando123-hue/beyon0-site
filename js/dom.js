@@ -199,7 +199,9 @@
      Uma classe, por clique — nada por frame. */
   var medBtn = document.querySelector('.medidor__btn');
   var medNota = document.getElementById('medidor-nota');
+  var medCaixa = document.querySelector('.medidor');
   if (medBtn && medNota) {
+    if (medCaixa) medCaixa.hidden = false;   /* só aparece depois de ligado */
     medBtn.addEventListener('click', function () {
       var abrindo = medNota.hidden;
       medNota.hidden = !abrindo;

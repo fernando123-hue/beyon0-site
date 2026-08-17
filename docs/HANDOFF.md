@@ -101,16 +101,34 @@ Sem vidro/plástico — "material tecnológico". Sem holofote seguindo o cursor.
 ## 6. Arquitetura atual (branch `rebuild`)
 
 ```
-index.html      286 linhas   markup semântico, UM canvas (#fx), overlay #intro
-styles.css      523 linhas   identidade estática, zero var por frame, entrada 2 níveis
-js/core.js      166 linhas   estado, loop único, orçamento, profilador
-js/field.js     209 linhas   o canvas: campo + reator + brilho da tipografia
-js/dom.js       178 linhas   reveal sutil (nível 2), nav, eventos, medidor
-js/intro.js      85 linhas   overlay de vídeo no boot — evento-só, sem rAF
-js/entrada.js    76 linhas   a LINHA (nível 1) — checagem única no boot, sem rAF loop
+index.html      372 linhas   markup semântico, UM canvas (#fx), overlay #intro
+styles.css      654 linhas   identidade estática, zero var por frame, entrada 2 níveis
+js/core.js      178 linhas   estado, loop único, orçamento, profilador
+js/field.js     261 linhas   o canvas: campo + reator + tipografia + aura + barramento
+js/dom.js       218 linhas   reveal sutil (nível 2), nav, eventos, medidor, CTAs
+js/intro.js      99 linhas   overlay de vídeo no boot — evento-só, sem rAF
+js/entrada.js    80 linhas   a LINHA (nível 1) — checagem única no boot, sem rAF loop
 ```
 
-Total **~1.540 linhas**, contra 5.783 antes.
+Total **~1.860 linhas**, contra 5.783 antes. Não há mais `main.js` nem
+`vendor/` (GSAP): eram 305 KB de código morto, sem nenhuma referência no
+`index.html`, que ainda assim subiam no deploy. **O projeto não tem
+dependência de runtime nenhuma.**
+
+### Custo de frame medido (sessão de 2026-08-17)
+`window.__frame(n)` (só com `?perf`) roda N frames na mão e devolve ms/frame:
+
+| estado | ms/frame |
+|---|---|
+| repouso | 0,100 |
+| Pulso | 0,097 |
+| Singular | 0,083 |
+| Pulso + Singular juntos | 0,092 |
+
+**1% do orçamento de 100fps** em todos os estados. Ressalva honesta: isso
+mede JS + chamadas do canvas 2D. Rasterização de GPU não é mensurável no
+ambiente do agente (`document.hidden`) — o fps real continua vindo do olho
+e do medidor do dono.
 
 ### `js/intro.js`
 Overlay de vídeo (`assets/intro.mp4`) que toca antes do conteúdo aparecer.

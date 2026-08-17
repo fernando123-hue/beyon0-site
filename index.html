@@ -343,11 +343,13 @@
   <!-- MEDIDOR — o número é medido de verdade, no aparelho de quem visita.
        Sozinho ele não diz nada para um dono de negócio, então o botão abre
        a leitura em português: o argumento de venda é a própria medição. -->
-  <div class="medidor" data-medidor>
-    <button class="medidor__btn" type="button" aria-expanded="false" aria-controls="medidor-nota">
+  <!-- nasce oculto: js/dom.js revela ao ligar o clique. Se o JS falhar (não
+       só se estiver desligado), ninguém vê um controle inerte. -->
+  <div class="medidor" hidden>
+    <button class="medidor__btn" type="button" aria-expanded="false" aria-controls="medidor-nota"
+            aria-label="Performance medida ao vivo — o que este número significa">
       <span class="medidor__led" aria-hidden="true"></span>
-      <span class="medidor__txt">—</span>
-      <span class="sr-only">— o que este número significa</span>
+      <span class="medidor__txt" aria-hidden="true">—</span>
     </button>
     <div class="medidor__nota" id="medidor-nota" hidden>
       <p>Quadros por segundo, medidos <b>agora</b>, no seu aparelho.</p>

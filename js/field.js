@@ -38,6 +38,13 @@
   var reator = null, titulos = [], palavras = [], barramento = null;
   var sujo = true;
 
+  /* o DOM é estático: buscar os mesmos elementos a cada scroll é trabalho
+     jogado fora. medir() só relê os retângulos. */
+  var elReator = document.querySelector('.hero__reactor');
+  var elGlow = document.querySelectorAll('.glow');
+  var elChaves = document.querySelectorAll('.card--service em');
+  var elBus = document.querySelector('.bus');
+
   function dimensionar() {
     var S = B.S;
     dpr = S.dpr;
@@ -67,15 +74,13 @@
 
   /* medir DOM: só em scroll/resize. Nunca por frame. */
   function medir() {
-    var el = document.querySelector('.hero__reactor');
-    if (el) {
-      var b = el.getBoundingClientRect();
+    if (elReator) {
+      var b = elReator.getBoundingClientRect();
       reator = { x: b.left + b.width / 2, y: b.top + b.height / 2, r: Math.min(b.width, b.height) / 2 };
     }
     titulos.length = 0;
-    var alvos = document.querySelectorAll('.glow');
-    for (var i = 0; i < alvos.length; i++) {
-      var r = alvos[i].getBoundingClientRect();
+    for (var i = 0; i < elGlow.length; i++) {
+      var r = elGlow[i].getBoundingClientRect();
       if (r.bottom < -120 || r.top > H + 120) continue;   /* fora de cena: nem entra na lista */
       titulos.push({ x: r.left, y: r.top, w: r.width, h: r.height });
     }
@@ -84,18 +89,16 @@
        estilizada. A versão antiga quebrava cada palavra em spans — 205 deles,
        68% dos 76ms de recálculo. Aqui são 6 retângulos em cache. */
     palavras.length = 0;
-    var chaves = document.querySelectorAll('.card--service em');
-    for (var j = 0; j < chaves.length; j++) {
-      var rp = chaves[j].getBoundingClientRect();
+    for (var j = 0; j < elChaves.length; j++) {
+      var rp = elChaves[j].getBoundingClientRect();
       if (rp.bottom < 0 || rp.top > H || !rp.width) continue;
       palavras.push({ x: rp.left + rp.width / 2, y: rp.top + rp.height / 2, w: rp.width, h: rp.height });
     }
 
     /* barramento: a linha por onde a luz do Pulso viaja até os serviços */
-    var bus = document.querySelector('.bus');
     barramento = null;
-    if (bus) {
-      var rb = bus.getBoundingClientRect();
+    if (elBus) {
+      var rb = elBus.getBoundingClientRect();
       if (rb.bottom > 0 && rb.top < H && rb.width) {
         barramento = { x: rb.left, y: rb.top + rb.height / 2, w: rb.width };
       }
@@ -104,6 +107,10 @@
   }
   window.addEventListener('scroll', function () { sujo = true; }, { passive: true });
   B.on('resize', function () { dimensionar(); sujo = true; });
+  /* .reveal nasce com translateY(18px), e getBoundingClientRect devolve a caixa
+     JÁ transformada — os retângulos medidos antes da revelação ficam 18px fora
+     do lugar. Ao fim da entrada, remede uma vez. */
+  B.on('entrada-pronta', function () { sujo = true; });
 
   /* halo: um gradiente por chamada é barato (~1ms para 64 halos, medido) e é
      mais rápido que um sprite escalado — a tentativa com sprite foi 1,4x pior

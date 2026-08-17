@@ -169,7 +169,7 @@
      Lei 4: a instrumentação fica no código, não em edição temporária. */
   if (PERF) {
     window.__frame = function (vezes) {
-      var n = vezes || 1, t0 = performance.now();
+      var n = Math.min(2000, vezes || 1), t0 = performance.now();   /* teto: não congela a aba */
       for (var v = 0; v < n; v++) for (var i = 0; i < subs.length; i++) subs[i].f(S);
       return { frames: n, msPorFrame: +((performance.now() - t0) / n).toFixed(3),
                subsistemas: subs.map(function (s) { return s.n; }) };

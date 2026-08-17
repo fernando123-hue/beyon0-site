@@ -1,4 +1,5 @@
-# deps (o runtime usa vendor/anime.umd.min.js; node_modules é só dev)
+# deps — o projeto NÃO tem dependência de runtime. O vendor/ com GSAP e o
+# main.js da versão pré-reconstrução foram removidos: eram código morto.
 node_modules/
 
 # local / máquina

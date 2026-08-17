@@ -5,8 +5,7 @@ docs/
 *.log
 .vercel/
 
-# arte-mestre: fontes pesadas que geram os assets servidos.
-# Nunca são baixadas pelo visitante — não têm por que subir no deploy.
-assets/Logo.gif
-assets/introdução.mp4
+# documentação dos assets: útil no repo, inútil no deploy.
+# (a arte-mestre Logo.gif e introdução.mp4 não aparece aqui porque o
+#  .gitignore já a mantém fora do repo, e o deploy vem do git.)
 assets/README.txt
