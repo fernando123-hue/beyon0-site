@@ -277,15 +277,73 @@ em {
   color: var(--glow); margin-bottom: .5rem; letter-spacing: -.02em;
 }
 
+/* ---------- vitrine de conceitos ----------
+   Cada moldura desenha um layout em miniatura: barra de navegação, título,
+   blocos de conteúdo. São CAMADAS DE GRADIENTE, não elementos — zero DOM
+   extra, zero custo de runtime, e escalam sozinhas porque tudo é em %.
+   Três composições diferentes de propósito: a seção promete que cada
+   negócio pede uma cara, então as molduras precisam provar isso.
+   Não são capturas de trabalho real (não há cliente ainda) — são conceitos
+   autorais, e a estilização abstrata deixa isso honesto. */
 .mock__frame {
   aspect-ratio: 16 / 10; border-radius: var(--r); margin-bottom: .9rem;
-  background:
+  background-repeat: no-repeat;
+  box-shadow: inset 0 0 0 1px rgb(var(--glow-rgb) / .14);
+
+  /* MARCA / ESTÚDIO — editorial: título grande, muito respiro, um foco de luz */
+  background-image:
+    linear-gradient(rgb(var(--core-rgb) / .5), rgb(var(--core-rgb) / .5)),      /* wordmark */
+    linear-gradient(rgb(var(--hi-rgb) / .22), rgb(var(--hi-rgb) / .22)),        /* nav */
+    linear-gradient(rgb(var(--core-rgb) / .72), rgb(var(--core-rgb) / .72)),    /* título l.1 */
+    linear-gradient(rgb(var(--core-rgb) / .52), rgb(var(--core-rgb) / .52)),    /* título l.2 */
+    linear-gradient(rgb(var(--glow-rgb) / .5), rgb(var(--glow-rgb) / .5)),      /* botão */
+    radial-gradient(circle, rgb(var(--glow-rgb) / .3), transparent 70%),        /* foco de luz */
     linear-gradient(140deg, rgb(var(--glow-rgb) / .16), transparent 60%),
     linear-gradient(0deg, #04161a, #061f24);
-  box-shadow: inset 0 0 0 1px rgb(var(--glow-rgb) / .14);
+  background-size:
+    13% 4%,  16% 2%,  50% 8%,  34% 8%,  17% 6%,  46% 66%,  100% 100%, 100% 100%;
+  background-position:
+    7% 13%,  93% 14%,  7% 44%,  7% 60%,  7% 80%,  92% 62%,  0 0,       0 0;
 }
-.mock__frame--warm { background: linear-gradient(140deg, rgb(255 201 107 / .14), transparent 60%), linear-gradient(0deg, #04161a, #061f24); }
-.mock__frame--clean { background: linear-gradient(140deg, rgb(var(--core-rgb) / .12), transparent 60%), linear-gradient(0deg, #04161a, #061f24); }
+
+/* RESTAURANTE / LOCAL — convidativo: título ao centro, vitrine de fotos embaixo */
+.mock__frame--warm {
+  background-image:
+    linear-gradient(rgb(255 201 107 / .5), rgb(255 201 107 / .5)),              /* wordmark */
+    linear-gradient(rgb(var(--core-rgb) / .66), rgb(var(--core-rgb) / .66)),    /* título */
+    linear-gradient(rgb(var(--hi-rgb) / .3), rgb(var(--hi-rgb) / .3)),          /* subtítulo */
+    linear-gradient(rgb(255 201 107 / .26), rgb(255 201 107 / .26)),            /* foto 1 */
+    linear-gradient(rgb(255 201 107 / .2),  rgb(255 201 107 / .2)),             /* foto 2 */
+    linear-gradient(rgb(255 201 107 / .26), rgb(255 201 107 / .26)),            /* foto 3 */
+    linear-gradient(140deg, rgb(255 201 107 / .14), transparent 60%),
+    linear-gradient(0deg, #04161a, #061f24);
+  background-size:
+    12% 3.5%, 44% 8%,  28% 3%,  26% 26%, 26% 26%, 26% 26%, 100% 100%, 100% 100%;
+  background-position:
+    50% 12%,  50% 34%, 50% 50%, 12% 88%, 50% 88%, 88% 88%, 0 0,       0 0;
+}
+
+/* SAAS / PRODUTO — técnico: coluna lateral e grade de módulos */
+.mock__frame--clean {
+  background-image:
+    linear-gradient(rgb(var(--core-rgb) / .5), rgb(var(--core-rgb) / .5)),      /* wordmark */
+    linear-gradient(rgb(var(--core-rgb) / .07), rgb(var(--core-rgb) / .07)),    /* coluna */
+    linear-gradient(rgb(var(--hi-rgb) / .3), rgb(var(--hi-rgb) / .3)),          /* item */
+    linear-gradient(rgb(var(--hi-rgb) / .18), rgb(var(--hi-rgb) / .18)),        /* item */
+    linear-gradient(rgb(var(--core-rgb) / .6), rgb(var(--core-rgb) / .6)),      /* título */
+    linear-gradient(rgb(var(--core-rgb) / .12), rgb(var(--core-rgb) / .12)),    /* módulo */
+    linear-gradient(rgb(var(--glow-rgb) / .2), rgb(var(--glow-rgb) / .2)),      /* módulo ativo */
+    linear-gradient(rgb(var(--core-rgb) / .12), rgb(var(--core-rgb) / .12)),    /* módulo */
+    linear-gradient(140deg, rgb(var(--core-rgb) / .12), transparent 60%),
+    linear-gradient(0deg, #04161a, #061f24);
+  /* as posições em X do conteúdo começam depois da coluna lateral: em
+     porcentagem o offset é (moldura - camada) * pct, então uma camada larga
+     precisa de pct alto para não invadir a coluna nem colidir com a vizinha. */
+  background-size:
+    11% 3.5%, 22% 78%, 13% 2.5%, 13% 2.5%, 38% 6%, 30% 22%, 30% 22%, 63% 16%, 100% 100%, 100% 100%;
+  background-position:
+    6% 11%,   0 100%,  5% 34%,   5% 46%,   40% 30%, 35% 58%, 85% 58%, 67% 88%, 0 0, 0 0;
+}
 .mock__label { display: flex; flex-direction: column; gap: .1rem; }
 .mock__label span { color: var(--core); font-weight: 600; font-size: .92rem; }
 .mock__label em { font-family: var(--mono); font-size: .68rem; letter-spacing: .1em; color: rgb(var(--hi-rgb) / .5); }
