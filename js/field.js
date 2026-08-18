@@ -264,7 +264,7 @@
       for (var c = 0; c < cards.length; c++) {
         var cc = cards[c];
         var pr = prox(S, cc.cx, cc.cy, 300);
-        var inten = .05 + e * .05 + pr * pr * .9;         /* quadrática: suave longe, forte perto */
+        var inten = .03 + e * .04 + pr * pr * .9;         /* quase apagado em repouso; acende na aproximação */
         if (inten < .02) continue;
         ctx.save();
         ctx.translate(cc.cx, cc.cy);
