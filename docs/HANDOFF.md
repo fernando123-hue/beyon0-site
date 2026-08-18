@@ -1,6 +1,6 @@
 # beyon.0 — transferência de contexto
 
-**Última atualização:** 2026-08-17 · **Branch ativa:** `rebuild` · **HEAD:** `81a787a`
+**Última atualização:** 2026-08-18 · **Branch ativa:** `rebuild` · **HEAD:** publicado
 
 Leia este arquivo primeiro. Depois `docs/auditoria-performance.md` — ele contém
 as medições que justificam toda a arquitetura atual e evita repetir erros caros.
@@ -123,11 +123,11 @@ primeiro a cortar é o `backdrop-filter` do desktop, depois a borda.
 ## 6. Arquitetura atual (branch `rebuild`)
 
 ```
-index.html      ~410 linhas  markup semântico, UM canvas (#fx), overlay #intro, FAQ accordion
-styles.css      ~870 linhas  identidade estática, zero var por frame, entrada 2 níveis, HUD
-js/core.js      178 linhas   estado, loop único, orçamento, profilador
-js/field.js     ~360 linhas  o canvas: campo + reator + CARDS(proximidade) + AI Core + tipografia viva + aura + barramento
-js/dom.js       285 linhas   reveal sutil, nav+menu mobile, seção-atual, eventos, medidor, CTAs
+index.html      411 linhas   markup semântico, UM canvas (#fx), overlay #intro, FAQ accordion
+styles.css      985 linhas   identidade estática, zero var por frame, entrada 2 níveis, vidro+borda de energia
+js/core.js      180 linhas   estado, loop único, orçamento, profilador
+js/field.js     580 linhas   o canvas: campo + reator + cards + AI Core + TIPOGRAFIA POR GLIFO + Singular (aurora, onda, overdrive)
+js/dom.js       344 linhas   reveal, nav+menu mobile, seção-atual, Pulso, SINGULAR em 4 fases, medidor, CTAs
 js/intro.js      99 linhas   overlay de vídeo no boot — evento-só, sem rAF
 js/entrada.js    80 linhas   a LINHA (nível 1) — checagem única no boot, sem rAF loop
 ```
@@ -474,6 +474,68 @@ site já usa.
 pegaria. Toda mudança foi verificada ao vivo no browser e commitada em
 separado, com a mensagem explicando o PORQUÊ. O dono valoriza bug apontado
 sem ser perguntado e decisão de não-fazer justificada (tilt, holofote).
+
+### Passada de 2026-08-18 — vidro, tipografia por glifo, Singular reformulado
+Três pedidos do dono, com autonomia total e ciclo executar-revisar-corrigir.
+Publicado ao fim (ele pediu).
+
+**1. Cards: vidro + borda de energia** (`b9b0463`) — pedido explícito de trazer
+de volta o efeito da versão antiga. Ver a EXCEÇÃO registrada na seção 5. O
+`@property --nrg` anima só o ângulo de um anel de 1px mascarado; **não** é a
+var-CSS-por-frame que causou os 76ms. Pausa fora da viewport (`.is-idle`, IO).
+`backdrop-filter` só no desktop. Depois estendido ao painel de CTA (`30861d1`),
+mais lento (7,5s) porque a peça é grande.
+
+**2. Tipografia viva por CARACTERE** (`37e5419`, `568d64a`) — a alma do efeito
+antigo (energia por glifo: campo ao redor do cursor, frente varrendo letra a
+letra) SEM os 205 spans que custavam 68% do gargalo. O truque: **um Range sobre
+o nó de texto devolve a caixa de qualquer caractere** — nenhum elemento novo,
+nada para recalcular. As caixas são medidas só em mudança de LAYOUT (boot,
+`document.fonts.ready`, resize com debounce de 180ms, `entrada-pronta`) e ficam
+RELATIVAS ao título, então rolar custa 1 retângulo por título.
+- Fontes de energia por glifo: percepção (cursor, raio 170px), frente do Pulso
+  (na ORDEM DA FRASE via `cp`, então título de duas linhas acende certo) e a
+  onda de choque do Singular.
+- **A vida ambiente é UM gradiente por título, não um halo por letra.** Isto foi
+  uma correção: na primeira versão o "respiro" somava energia e passava do
+  limiar, fazendo TODO glifo visível desenhar um halo por frame (~40 halos,
+  ≈0,6ms constantes — 6× o custo total do site). Agora o respiro MODULA a luz
+  existente: em repouso, zero halos.
+
+**3. Estado Singular reformulado — BRANCO + DOURADO** (`16a7993`, `43a450d`) —
+pedido de "algo exagerado, que gere desejo". Virou evento em 4 fases (18s):
+CARGA (campo puxado para o reator) → IGNIÇÃO (estouro branco + onda de choque
+que **acende as letras que atravessa**) → REINADO (dourado com núcleos brancos,
+aurora, reator em overdrive com serpentinas) → RESFRIAMENTO.
+- `cor()` ganhou 2º estágio: ciano → dourado → branco.
+- **O primeiro Singular agora vem aos 22-30s** (antes 45-85s). Motivo: a sessão
+  típica de landing page é mais curta, e a maioria ia embora sem ver o
+  espetáculo — que é o argumento de venda mais forte do site.
+
+**Bugs pegos por medição, não por leitura** (o dono valoriza isto):
+- Alfas passando de 1 (`rgba(...,3.380)`) com o Singular somando luminância.
+  Alfa inválido em canvas é recusado em SILÊNCIO — o desenho sairia com a cor
+  anterior, só no auge. Todos travados por `a1()`.
+- Energia por glifo chegando a ~4 na ignição, inflando o raio do halo a 2,6× a
+  letra: teto em 1,5.
+- **Dois degraus na curva do Singular**, achados simulando a máquina de fases
+  fora do browser (4000 amostras, medindo variação entre passos): `whiteHot`
+  saltava 1,00→0,30 na virada ignição→reinado (a cena "pipocava") e dava outro
+  degrau de 4% no resfriamento. Hoje a maior variação por passo é 0,007.
+- `var(--nrg)` sem fallback: eu tinha DOCUMENTADO que o anel degradaria para
+  estático sem `@property`. Era falso — um var() sem fallback invalida a
+  declaração inteira e o anel sumiria. Corrigido para `var(--nrg, 0deg)`.
+
+**Invariantes conferidas ao fim:** 3 subsistemas no loop
+(`campo`,`eventos`,`medidor`), zero escrita de estilo por frame (só o LED do
+medidor, 2×/s e guardado por comparação).
+
+**Continua NÃO verificado ao vivo:** o servidor do agente segue inalcançável e
+`file://` cai em snapshot sem a folha externa. Nada disto foi visto animando.
+O que substituiu o olho: `node --check`, balanço de chaves, simulação numérica
+das fases, e revisão linha a linha. **O medidor de fps do dono é o juiz** — e o
+maior risco a vigiar é o `backdrop-filter` no desktop (primeiro a cortar se
+travar; depois a borda de energia).
 
 ### Ainda pendente
 1. **Publicar todo o lote** (`rebuild` está **6 commits à frente do ar**: linha
