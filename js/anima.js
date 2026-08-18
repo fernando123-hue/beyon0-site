@@ -31,6 +31,21 @@
 
   var feito = false;
 
+  /* ---------- CARACTERE VIVO ----------
+     Quebra um título em .char (com índice --i) e liga a ressonância do CSS.
+     Split por words,chars: 'words' impede a letra de quebrar no meio da palavra
+     ao mudar de linha. Não reverte — a vida é permanente. Falhar aqui não
+     quebra nada: o título fica normal. */
+  function vivaChars(el) {
+    if (!el || el._viva || !window.SplitText) return;
+    el._viva = true;
+    try {
+      var sp = new window.SplitText(el, { type: 'words,chars', charsClass: 'char', wordsClass: 'palavra-viva' });
+      for (var i = 0; i < sp.chars.length; i++) sp.chars[i].style.setProperty('--i', i);
+      el.classList.add('viva');
+    } catch (e) { el._viva = false; }
+  }
+
   /* ---------- ENTRADA DO HERO: a primeira impressão ----------
      O título sobe por LINHAS atrás de uma máscara (SplitText mask), depois vêm
      status, subtítulo, botões e a dica de scroll, em cascata. Split por linha
@@ -64,6 +79,10 @@
     if (sub) tl.from(sub, { autoAlpha: 0, y: 18, duration: 1 }, '-=.8');
     if (acoes) tl.from(acoes.children, { autoAlpha: 0, y: 16, stagger: .14, duration: .9 }, '-=.6');
     if (hint) tl.from(hint, { autoAlpha: 0, duration: .9 }, '-=.3');
+
+    /* só DEPOIS da entrada por linhas (que já reverteu o split): agora quebra o
+       título em caracteres e liga a ressonância permanente. */
+    tl.call(function () { vivaChars(titulo); });
   }
 
   /* dispara quando o conteúdo entra — depois da intro em vídeo (evento 'booted').
@@ -114,6 +133,11 @@
     } catch (e) {
       gsap.set(alvos, { opacity: 1, y: 0 });                  /* falhou: conteúdo NUNCA fica oculto */
     }
+
+    /* CARACTERE VIVO nos títulos das seções e do CTA (o do hero é ligado na
+       entrada). Split é permanente; o custo só existe com o título visível. */
+    var titulos = document.querySelectorAll('.section h2, .cta h2');
+    for (var t = 0; t < titulos.length; t++) vivaChars(titulos[t]);
 
     /* PARALLAX DO REATOR: o núcleo do hero deriva devagar ao rolar (o canvas o
        segue, pois field.js remede o retângulo no scroll). Profundidade sutil. */
