@@ -486,7 +486,13 @@ var-CSS-por-frame que causou os 76ms. Pausa fora da viewport (`.is-idle`, IO).
 `backdrop-filter` só no desktop. Depois estendido ao painel de CTA (`30861d1`),
 mais lento (7,5s) porque a peça é grande.
 
-**2. Tipografia viva por CARACTERE** (`37e5419`, `568d64a`) — a alma do efeito
+**2. Tipografia viva por CARACTERE** (`37e5419`, `568d64a`) — **⚠ REMOVIDA em
+`fcb7d15` (2026-08-18b).** O dono viu rodando e rejeitou: a luz redonda difusa
+atrás dos títulos dava cara de mal feito ("não quero luzes"). Saiu inteira, com
+todo o aparato (medirGlifos por Range, caches de glifo/palavra/card). Junto
+saíram o brilho de proximidade dos cards e os glows externos (hover/Pulso/
+Singular). **Não reintroduzir brilho atrás de texto ou card sem ele pedir.** O
+registro abaixo fica como história do que foi tentado. — a alma do efeito
 antigo (energia por glifo: campo ao redor do cursor, frente varrendo letra a
 letra) SEM os 205 spans que custavam 68% do gargalo. O truque: **um Range sobre
 o nó de texto devolve a caixa de qualquer caractere** — nenhum elemento novo,
