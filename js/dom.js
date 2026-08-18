@@ -76,6 +76,21 @@
     else B.on('booted', comBooted);
   }
 
+  /* ---------- borda de energia: pausa fora da viewport ----------
+     A borda de luz dos cards anima um @property em CSS. Fora da tela ela não
+     precisa pintar: o IO marca .is-idle e o CSS pausa (animation-play-state).
+     Discreto — dispara no cruzamento do limiar, nada por frame. Ao voltar,
+     retoma de onde parou, sem pipocar. */
+  if ('IntersectionObserver' in window) {
+    var ioBorda = new IntersectionObserver(function (ents) {
+      for (var b = 0; b < ents.length; b++) {
+        ents[b].target.classList.toggle('is-idle', !ents[b].isIntersecting);
+      }
+    }, { rootMargin: '140px 0px 140px 0px' });
+    var cardsBorda = document.querySelectorAll('.card');
+    for (var cb = 0; cb < cardsBorda.length; cb++) ioBorda.observe(cardsBorda[cb]);
+  }
+
   /* ---------- menu do celular: uma classe, por clique ----------
      O botão nasce [hidden] e só é revelado aqui: se este script falhar, ninguém
      vê um controle inerte (o CSS sozinho deixaria os links fechados e sem saída). */

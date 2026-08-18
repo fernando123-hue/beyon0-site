@@ -310,20 +310,26 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
 .scroll-hint__bar { width: 1px; height: 34px; background: linear-gradient(rgb(var(--glow-rgb) / .6), transparent); }
 
 /* ---------- cards ----------
-   O "material" é pintado uma vez: gradientes estáticos e uma borda de luz.
-   Nada aqui reage por frame — o brilho que responde à energia é desenhado no
-   canvas, atrás. Sem backdrop-filter: ele obrigava o browser a reborrar ~2
-   megapixels de fundo a cada frame do campo de partículas. */
+   Vidro (backdrop-filter) + uma BORDA DE ENERGIA que corre a borda: o efeito
+   que o dono pediu de volta. O backdrop-filter foi cortado na reconstrução por
+   reborrar ~2 MP/frame; aqui ele volta SÓ no desktop, com fallback opaco no
+   celular (ver responsivo) — e o gargalo real de antes não era ele, era var
+   CSS animada por JS lida por 126 regras. Nada disso volta: a borda anima um
+   único @property local, pausado fora da viewport. */
 .card {
   position: relative;
   padding: clamp(1.4rem, 2.4vw, 1.9rem);
   border-radius: var(--r);
+  /* vidro: fundo translúcido para o blur aparecer. O material continua
+     "tecnológico", mas agora com profundidade de câmara — pedido do dono. */
   background:
-    linear-gradient(158deg, rgb(var(--glow-rgb) / .05), transparent 46%),
-    linear-gradient(0deg, rgb(var(--deep-rgb) / .5), rgb(var(--deep-rgb) / .22));
+    linear-gradient(158deg, rgb(var(--glow-rgb) / .07), transparent 48%),
+    linear-gradient(0deg, rgb(var(--deep-rgb) / .34), rgb(var(--deep-rgb) / .12));
   box-shadow:
     inset 0 0 0 1px rgb(var(--glow-rgb) / .12),
-    inset 0 1px 0 0 rgb(var(--hi-rgb) / .07);
+    inset 0 1px 0 0 rgb(var(--hi-rgb) / .1);
+  backdrop-filter: blur(11px) saturate(1.15);
+  -webkit-backdrop-filter: blur(11px) saturate(1.15);
   transition: box-shadow var(--t) var(--ease), transform var(--t) var(--ease);
 }
 .card:hover {
@@ -333,18 +339,34 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
     inset 0 1px 0 0 rgb(var(--hi-rgb) / .12),
     0 0 34px rgb(var(--glow-rgb) / .07);
 }
-/* colchetes HUD: dois cantos que marcam o card como instrumento, não caixa.
-   Fracos em repouso, acendem no hover/foco. Compositor-friendly (opacity). O
-   brilho por proximidade do cursor é do canvas; isto é a resposta ao clique. */
-.card::before, .card::after {
-  content: ""; position: absolute; width: 12px; height: 12px;
-  pointer-events: none; opacity: .32;
-  transition: opacity var(--t) var(--ease);
+/* a borda de energia: um nó de luz que dá a volta na borda do card. Um
+   conic-gradient mascarado só na moldura de 1px, com o ângulo animado por
+   @property --nrg. É PAINT de um anel fino localizado — não o recálculo de
+   estilo que matou a versão antiga (aquele vinha de --shine-a/b lidas por
+   conic-gradients em todo card + 205 spans). Pausa fora da viewport (.is-idle,
+   IO em js/dom.js) e em reduced-motion. Sem @property, o anel fica estático —
+   degrada para uma moldura de luz parada, não some. */
+@property --nrg { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+.card::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  padding: 1px; pointer-events: none;
+  opacity: .6; transition: opacity var(--t) var(--ease);
+  background: conic-gradient(from var(--nrg),
+    transparent 0deg 40deg,
+    rgb(var(--glow-rgb) / .5) 66deg,
+    rgb(var(--hi-rgb) / .95) 82deg,          /* o nó: satura ao quase-branco da rampa */
+    rgb(var(--glow-rgb) / .5) 98deg,
+    transparent 128deg 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask-composite: exclude;
+  animation: nrg-run 5.5s linear infinite;
 }
-.card::before { top: 8px; left: 8px; border-top: 1px solid var(--glow); border-left: 1px solid var(--glow); }
-.card::after { right: 8px; bottom: 8px; border-bottom: 1px solid var(--glow); border-right: 1px solid var(--glow); }
-.card:hover::before, .card:hover::after,
-.card:focus-visible::before, .card:focus-visible::after { opacity: .95; }
+.card:hover::before, .card:focus-visible::before { opacity: 1; animation-duration: 2.6s; }
+.card.is-idle::before { animation-play-state: paused; }   /* fora da viewport: não pinta */
+@keyframes nrg-run { to { --nrg: 360deg; } }
+@media (prefers-reduced-motion: reduce) { .card::before { animation: none; } }
 .card h3 { margin-bottom: .55rem; }
 .card p { color: rgb(var(--hi-rgb) / .78); font-size: .95rem; }
 
@@ -751,6 +773,15 @@ body { transition: none; }
 @media (max-width: 620px) {
   .hero { padding-top: 6.5rem; }
   .footer__grid { flex-direction: column; gap: 1.8rem; }
+  /* celular: sem backdrop-filter. É o aparelho onde reborrar o fundo por frame
+     mais dói e onde o medidor de fps some — o vidro cede lugar a um fundo opaco
+     legível. A borda de energia (barata) fica. */
+  .card {
+    backdrop-filter: none; -webkit-backdrop-filter: none;
+    background:
+      linear-gradient(158deg, rgb(var(--glow-rgb) / .06), transparent 46%),
+      linear-gradient(0deg, rgb(var(--deep-rgb) / .55), rgb(var(--deep-rgb) / .3));
+  }
 }
 
 /* ---------- acessibilidade ---------- */

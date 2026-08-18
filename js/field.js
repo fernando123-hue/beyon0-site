@@ -159,18 +159,6 @@
     return d >= R ? 0 : 1 - d / R;
   }
 
-  /* retângulo arredondado: o aro de luz que acende atrás do card ao chegar
-     perto. Fica ATRÁS do conteúdo, então só a borda que vaza do card aparece. */
-  function rrect(x, y, w, h, r) {
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.arcTo(x + w, y, x + w, y + h, r);
-    ctx.arcTo(x + w, y + h, x, y + h, r);
-    ctx.arcTo(x, y + h, x, y, r);
-    ctx.arcTo(x, y, x + w, y, r);
-    ctx.closePath();
-  }
-
   function tick(S) {
     if (sujo) medir();
 
@@ -269,14 +257,8 @@
         ctx.save();
         ctx.translate(cc.cx, cc.cy);
         ctx.scale(1, Math.max(.4, cc.h / cc.w));          /* achata ao formato do card */
-        halo(0, 0, cc.w * .78, cy, .09 * inten);
+        halo(0, 0, cc.w * .78, cy, .09 * inten);           /* sob o vidro vira brilho fosco */
         ctx.restore();
-        if (pr > .04) {                                    /* aro só quando o cursor está perto */
-          rrect(cc.x - 2, cc.y - 2, cc.w + 4, cc.h + 4, 5);
-          ctx.lineWidth = 1.4;
-          ctx.strokeStyle = 'rgba(' + alta + ',' + (.5 * pr).toFixed(3) + ')';
-          ctx.stroke();
-        }
       }
     }
 
