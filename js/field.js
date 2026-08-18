@@ -36,6 +36,7 @@
   var W = 0, H = 0, dpr = 1;
   var ps = [], nAlvo = 0;
   var reator = null, titulos = [], palavras = [], barramento = null;
+  var cards = [], servNos = [], nucleo = null;
   var sujo = true;
 
   /* o DOM é estático: buscar os mesmos elementos a cada scroll é trabalho
@@ -44,6 +45,8 @@
   var elGlow = document.querySelectorAll('.glow');
   var elChaves = document.querySelectorAll('.card--service em');
   var elBus = document.querySelector('.bus');
+  var elCards = document.querySelectorAll('.card');          /* brilho de proximidade */
+  var elServ = document.querySelectorAll('.card--service');  /* elos do mini AI Core */
 
   function dimensionar() {
     var S = B.S;
@@ -103,6 +106,30 @@
         barramento = { x: rb.left, y: rb.top + rb.height / 2, w: rb.width };
       }
     }
+
+    /* cards visíveis: centro em cache para o brilho de proximidade. Medir 16
+       retângulos em scroll/resize é ruído perto do orçamento (a auditoria mediu
+       574 getBoundingClientRect em 1,06ms). Culling: fora de cena nem entra. */
+    cards.length = 0;
+    for (var c = 0; c < elCards.length; c++) {
+      var rc = elCards[c].getBoundingClientRect();
+      if (rc.bottom < -80 || rc.top > H + 80 || !rc.width) continue;
+      cards.push({ x: rc.left, y: rc.top, w: rc.width, h: rc.height,
+                   cx: rc.left + rc.width / 2, cy: rc.top + rc.height / 2 });
+    }
+
+    /* centros dos cards de serviço: destino dos elos do mini AI Core */
+    servNos.length = 0;
+    for (var sv = 0; sv < elServ.length; sv++) {
+      var rv = elServ[sv].getBoundingClientRect();
+      if (rv.bottom < -80 || rv.top > H + 80 || !rv.width) continue;
+      servNos.push({ cx: rv.left + rv.width / 2, cy: rv.top + rv.height / 2 });
+    }
+
+    /* o núcleo flutua logo acima do rótulo "Conectado ao AI Core": o texto
+       aponta para ele, os elos sobem dele até os cards. */
+    nucleo = barramento ? { x: barramento.x + barramento.w / 2, y: barramento.y - 42, r: 30 } : null;
+
     sujo = false;
   }
   window.addEventListener('scroll', function () { sujo = true; }, { passive: true });
@@ -122,6 +149,26 @@
     g.addColorStop(1, 'rgba(' + rgb + ',0)');
     ctx.fillStyle = g;
     ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+  }
+
+  /* proximidade do cursor a um ponto: 1 encostado, 0 além do raio. Sem ponteiro
+     (toque), é sempre 0 — os cards mantêm só a aura ambiente. */
+  function prox(S, x, y, R) {
+    if (!S.pointerOn) return 0;
+    var dx = S.px - x, dy = S.py - y, d = Math.sqrt(dx * dx + dy * dy);
+    return d >= R ? 0 : 1 - d / R;
+  }
+
+  /* retângulo arredondado: o aro de luz que acende atrás do card ao chegar
+     perto. Fica ATRÁS do conteúdo, então só a borda que vaza do card aparece. */
+  function rrect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
   }
 
   function tick(S) {
@@ -208,24 +255,91 @@
       ctx.beginPath(); ctx.arc(cx, cyy, R * .05 * resp, 0, TAU); ctx.fill();
     }
 
-    /* ---- 4. brilho da tipografia ----
-       O efeito que antes custava 76ms com 205 spans: uma frente de luz que
-       percorre o título. Aqui é um gradiente por título visível — e só quando
-       há energia de fato para mostrar. */
+    /* ---- 3b. cards: aura ambiente + brilho por proximidade ----
+       Contínuo, logo vive no canvas — foi um efeito assim, feito com var CSS
+       por frame, que custou 76ms de recálculo antes. A borda nítida do clique
+       fica no :hover (CSS, evento). Aqui é o halo que ACENDE conforme o cursor
+       chega: cada card responde por conta, sem holofote global perseguindo. */
+    if (orc > .5 && cards.length) {
+      for (var c = 0; c < cards.length; c++) {
+        var cc = cards[c];
+        var pr = prox(S, cc.cx, cc.cy, 300);
+        var inten = .05 + e * .05 + pr * pr * .9;         /* quadrática: suave longe, forte perto */
+        if (inten < .02) continue;
+        ctx.save();
+        ctx.translate(cc.cx, cc.cy);
+        ctx.scale(1, Math.max(.4, cc.h / cc.w));          /* achata ao formato do card */
+        halo(0, 0, cc.w * .78, cy, .09 * inten);
+        ctx.restore();
+        if (pr > .04) {                                    /* aro só quando o cursor está perto */
+          rrect(cc.x - 2, cc.y - 2, cc.w + 4, cc.h + 4, 5);
+          ctx.lineWidth = 1.4;
+          ctx.strokeStyle = 'rgba(' + alta + ',' + (.5 * pr).toFixed(3) + ')';
+          ctx.stroke();
+        }
+      }
+    }
+
+    /* ---- 3c. mini AI Core: o nó dos serviços, ligado a cada card ----
+       O barramento já dizia "Conectado ao AI Core" em texto; agora o núcleo
+       existe e os elos vão até os cards. Interativo: o elo do card sob o cursor
+       acende. Durante o Pulso, a frente sobe pelos elos até os cards. */
+    if (nucleo && orc > .55 && nucleo.y > -80 && nucleo.y < H + 80) {
+      var hx = nucleo.x, hy = nucleo.y, hr = nucleo.r;
+      for (var L = 0; L < servNos.length; L++) {          /* elos primeiro, atrás do núcleo */
+        var sn = servNos[L];
+        var pl = prox(S, sn.cx, sn.cy, 300);
+        var aL = .05 + e * .05 + pl * .5 + pulso * .3;
+        ctx.strokeStyle = 'rgba(' + cy + ',' + Math.min(.6, aL).toFixed(3) + ')';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(sn.cx, sn.cy); ctx.stroke();
+        if (pulso > .02) {
+          var f = Math.max(0, Math.min(1, S.pulseFront));
+          halo(hx + (sn.cx - hx) * f, hy + (sn.cy - hy) * f, 10, nuc, .5 * pulso);
+        }
+      }
+      var resp2 = 1 + Math.sin(S.t * .03) * .05 + pulso * .12;
+      halo(hx, hy, hr * 1.5, cy, (.08 + e * .06 + pulso * .16) * lum);
+      ctx.strokeStyle = 'rgba(' + cy + ',' + (.4 * lum).toFixed(3) + ')';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(hx, hy, hr * .6 * resp2, 0, TAU); ctx.stroke();
+      ctx.strokeStyle = 'rgba(' + alta + ',' + (.28 * lum).toFixed(3) + ')';
+      ctx.beginPath(); ctx.ellipse(hx, hy, hr * .9, hr * .26, S.t * .01, 0, TAU); ctx.stroke();
+      halo(hx, hy, hr * .3 * (1 + pulso), nuc, (.4 + pulso * .4 + S.singular * .4) * lum);
+      ctx.fillStyle = 'rgba(' + nuc + ',' + Math.min(1, .8 * lum).toFixed(3) + ')';
+      ctx.beginPath(); ctx.arc(hx, hy, hr * .09 * resp2, 0, TAU); ctx.fill();
+    }
+
+    /* ---- 4. tipografia viva ----
+       O efeito que antes custava 76ms com 205 spans, agora desenhado: um realce
+       que percorre o título. Duas camadas — VIDA contínua (baixa, sempre, para a
+       tipografia nunca parecer morta) e a FRENTE do Pulso por cima quando há
+       evento. Um gradiente por título visível; sob orçamento apertado, some. */
     var acende = pulso * .9 + S.singular * .5 + (e - .3) * .2;
-    if (acende > .02 && orc > .5) {
+    var viva = .05 + e * .08;
+    if (orc > .5 && titulos.length) {
       for (var k = 0; k < titulos.length; k++) {
         var tt = titulos[k];
-        /* a frente atravessa a largura do título conforme o Pulso avança */
-        var fx = tt.x + tt.w * S.pulseFront;
-        var g2 = ctx.createLinearGradient(tt.x, 0, tt.x + tt.w, 0);
-        var pos = Math.max(0, Math.min(1, S.pulseFront));
-        g2.addColorStop(Math.max(0, pos - .22), 'rgba(' + cy + ',0)');
-        g2.addColorStop(pos, 'rgba(' + alta + ',' + (.2 * acende).toFixed(3) + ')');
-        g2.addColorStop(Math.min(1, pos + .22), 'rgba(' + cy + ',0)');
-        ctx.fillStyle = g2;
+        /* vida: um realce suave desliza devagar, com fase própria por título */
+        var vp = Math.sin(S.t * .012 + tt.x * .004) * .5 + .5;
+        var gv = ctx.createLinearGradient(tt.x, 0, tt.x + tt.w, 0);
+        gv.addColorStop(Math.max(0, vp - .3), 'rgba(' + cy + ',0)');
+        gv.addColorStop(vp, 'rgba(' + alta + ',' + (.16 * viva).toFixed(3) + ')');
+        gv.addColorStop(Math.min(1, vp + .3), 'rgba(' + cy + ',0)');
+        ctx.fillStyle = gv;
         ctx.fillRect(tt.x, tt.y, tt.w, tt.h);
-        halo(fx, tt.y + tt.h / 2, tt.h * .9, alta, .12 * acende);
+        /* frente do Pulso: mais forte, atravessa conforme S.pulseFront avança */
+        if (acende > .02) {
+          var fx = tt.x + tt.w * S.pulseFront;
+          var pos = Math.max(0, Math.min(1, S.pulseFront));
+          var g2 = ctx.createLinearGradient(tt.x, 0, tt.x + tt.w, 0);
+          g2.addColorStop(Math.max(0, pos - .22), 'rgba(' + cy + ',0)');
+          g2.addColorStop(pos, 'rgba(' + alta + ',' + (.2 * acende).toFixed(3) + ')');
+          g2.addColorStop(Math.min(1, pos + .22), 'rgba(' + cy + ',0)');
+          ctx.fillStyle = g2;
+          ctx.fillRect(tt.x, tt.y, tt.w, tt.h);
+          halo(fx, tt.y + tt.h / 2, tt.h * .9, alta, .12 * acende);
+        }
       }
     }
 
