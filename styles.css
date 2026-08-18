@@ -127,14 +127,24 @@ p { max-width: 62ch; }
 em, .aurora { font-style: normal; color: var(--glow); }
 @supports ((-webkit-background-clip: text) or (background-clip: text)) {
   em, .aurora {
-    background-image: linear-gradient(100deg,
-      var(--glow), var(--hi) 28%, var(--core) 50%, var(--hi) 72%, var(--glow));
-    background-size: 220% auto;
+    /* DUAS camadas clipadas no texto, contra-movendo:
+       1) GLINT — uma faixa branca estreita que VARRE a palavra (o "wow").
+       2) AURORA — a rampa com muitas paradas (glow↔hi↔core repetidos), rica e
+          brilhante. As duas com background-size diferente, então o mesmo keyframe
+          de posição as desloca em velocidades diferentes: interferem e cintilam. */
+    background-image:
+      linear-gradient(120deg, transparent 32%, rgb(var(--core-rgb) / .95) 48%, rgb(var(--hi-rgb) / .6) 52%, transparent 66%),
+      linear-gradient(100deg,
+        var(--glow) 0%, var(--hi) 14%, var(--core) 28%, var(--glow) 42%,
+        var(--hi) 56%, var(--core) 70%, var(--hi) 84%, var(--glow) 100%);
+    background-size: 220% 100%, 320% 100%;
+    background-position: 0% 0, 0% 0;
     -webkit-background-clip: text; background-clip: text;
     -webkit-text-fill-color: transparent; color: transparent;
-    animation: aurora-flow 9s linear infinite;
+    animation: aurora-flow 6s linear infinite;
   }
-  @keyframes aurora-flow { to { background-position: 220% center; } }
+  /* glint corre para a esquerda, aurora para a direita — o cruzamento é o brilho */
+  @keyframes aurora-flow { to { background-position: -220% 0, 320% 0; } }
 }
 
 .kicker {
@@ -892,37 +902,38 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
 }
 .reveal.is-in { opacity: 1; transform: none; }
 
-/* ---------- GLITCH — personalidade, minimalista ----------
-   Aberração cromática curta (ciano/branco, dentro da rampa) com um tremor de
-   1-2px. Presente em vários pontos, mas sempre BREVE: nunca vira ruído.
-   - kicker: glitcha UMA vez ao revelar (distribui o efeito por toda seção).
-   - wordmark: um flicker raro em repouso + no hover.
-   - links da nav: um flicker no hover.
-   Compositor-friendly (transform + text-shadow). Off em reduced-motion. */
+/* ---------- GLITCH — personalidade, agora bem visível ----------
+   Fatias horizontais deslocadas (clip-path) + aberração cromática forte
+   (ciano/branco, dentro da rampa) + tremor de 2-3px. Cada valor se SEGURA e
+   depois SALTA (pares de keyframes) para ler como corte digital, não como
+   tremor suave. Ainda BREVE: um estouro rápido, nunca ruído contínuo.
+   clip-path exige caixa não-inline (ver `.wordmark { display: inline-block }`). */
 @keyframes glitch {
-  0%, 100% { transform: translateX(0); text-shadow: none; }
-  20% { transform: translateX(-1.5px); text-shadow: 1.5px 0 rgb(var(--glow-rgb) / .7), -1.5px 0 rgb(var(--core-rgb) / .5); }
-  40% { transform: translateX(1.5px);  text-shadow: -1.5px 0 rgb(var(--glow-rgb) / .7), 1.5px 0 rgb(var(--hi-rgb) / .5); }
-  60% { transform: translateX(-1px); text-shadow: 1px 0 rgb(var(--glow-rgb) / .6); }
-  80% { transform: translateX(1px);  text-shadow: -1px 0 rgb(var(--hi-rgb) / .6); }
+  0%, 10%   { transform: translateX(0); clip-path: inset(0 0 0 0); text-shadow: none; }
+  12%, 19%  { transform: translateX(-3px); clip-path: inset(18% 0 52% 0); text-shadow: 2px 0 rgb(var(--glow-rgb) / .9), -2px 0 rgb(var(--core-rgb) / .7); }
+  21%, 28%  { transform: translateX(3px);  clip-path: inset(56% 0 16% 0); text-shadow: -2px 0 rgb(var(--glow-rgb) / .9), 2px 0 rgb(var(--hi-rgb) / .7); }
+  30%, 37%  { transform: translateX(-2px); clip-path: inset(36% 0 40% 0); text-shadow: 2px 0 rgb(var(--glow-rgb) / .8); }
+  39%, 46%  { transform: translateX(2px);  clip-path: inset(72% 0 8% 0);  text-shadow: -2px 0 rgb(var(--hi-rgb) / .8); }
+  48%, 100% { transform: translateX(0); clip-path: inset(0 0 0 0); text-shadow: none; }
 }
-/* mesma assinatura, mas quase todo o tempo em repouso: um flicker curto e raro */
+/* quase todo o tempo em repouso: um estouro visível a cada ciclo */
 @keyframes glitch-raro {
-  0%, 92%, 100% { transform: translateX(0); text-shadow: none; }
-  93% { transform: translateX(-1.5px); text-shadow: 1.5px 0 rgb(var(--glow-rgb) / .7), -1.5px 0 rgb(var(--hi-rgb) / .5); }
-  95% { transform: translateX(1.5px);  text-shadow: -1.5px 0 rgb(var(--glow-rgb) / .7); }
-  97% { transform: translateX(-1px); text-shadow: 1px 0 rgb(var(--hi-rgb) / .6); }
+  0%, 89%, 100% { transform: translateX(0); clip-path: inset(0 0 0 0); text-shadow: none; }
+  90%, 91% { transform: translateX(-3px); clip-path: inset(20% 0 55% 0); text-shadow: 2px 0 rgb(var(--glow-rgb) / .9), -2px 0 rgb(var(--core-rgb) / .7); }
+  92%, 93% { transform: translateX(3px);  clip-path: inset(58% 0 18% 0); text-shadow: -2px 0 rgb(var(--glow-rgb) / .9); }
+  94%, 95% { transform: translateX(-2px); clip-path: inset(38% 0 42% 0); text-shadow: 2px 0 rgb(var(--hi-rgb) / .8); }
+  96%, 97% { transform: translateX(2px);  clip-path: inset(10% 0 78% 0); text-shadow: -2px 0 rgb(var(--hi-rgb) / .7); }
 }
 /* o kicker se monta com um glitch ao entrar (scroll normal e F5-no-meio) */
 .section__head.is-in .kicker,
-.revelando .section__head .kicker { animation: glitch .5s linear 1; }
-/* a marca pisca de leve, sozinha e no hover; mais rápida durante o Pulso */
-.wordmark { animation: glitch-raro 9s linear infinite; }
-.footer .wordmark { animation-delay: -4.5s; }   /* dessincroniza da marca da nav */
-.is-pulse .wordmark { animation-duration: 3.4s; }
+.revelando .section__head .kicker { animation: glitch .55s linear 1; }
+/* a marca glitcha sozinha (visível, a cada ~6s) e no hover; mais no Pulso */
+.wordmark { display: inline-block; animation: glitch-raro 6s linear infinite; }
+.footer .wordmark { animation-delay: -3s; }   /* dessincroniza da marca da nav */
+.is-pulse .wordmark { animation-duration: 2.6s; }
 .nav__logo:hover .wordmark,
-.footer a:hover .wordmark { animation: glitch .32s linear 1; }
-.nav__links a:not(.btn):hover { animation: glitch .32s linear 1; }
+.footer a:hover .wordmark { animation: glitch .38s linear 1; }
+.nav__links a:not(.btn):hover { animation: glitch .38s linear 1; }   /* já é flex item: clip-path funciona */
 /* reduced-motion: o bloco global (`*{animation-duration:.001ms !important}`)
    já neutraliza glitch e aurora — não precisa repetir aqui. */
 
