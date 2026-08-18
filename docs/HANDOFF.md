@@ -107,7 +107,16 @@ Rampa ciano, matiz único. Nenhum hex fora dela em repouso.
 ```
 
 Fontes: **Sora** (300/400/600) + **JetBrains Mono**. Site 100% dark.
-Sem vidro/plástico — "material tecnológico". Sem holofote seguindo o cursor.
+Sem holofote seguindo o cursor.
+
+**EXCEÇÃO do dono (2026-08-18): "sem vidro" foi revogado para os cards.** Ele
+pediu de volta o efeito antigo — glass (`backdrop-filter`) + borda de energia
+correndo a moldura (`b9b0463`). Não é regressão a corrigir: é decisão explícita
+de quem manda na identidade. O `backdrop-filter` volta SÓ no desktop (fallback
+opaco no celular). A borda de energia é um `@property --nrg` local (paint de
+anel fino), pausado fora da viewport — **não** é a var-CSS-por-frame que causou
+os 76ms (essa continua proibida). Se o medidor do dono acusar travada, o
+primeiro a cortar é o `backdrop-filter` do desktop, depois a borda.
 
 ---
 
