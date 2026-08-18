@@ -167,10 +167,9 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
 #hero { scroll-margin-top: 0; }
 
 .grid { display: grid; gap: var(--gap); }
-.grid--2 { grid-template-columns: repeat(2, 1fr); }
 .grid--3 { grid-template-columns: repeat(3, 1fr); }
 @media (max-width: 900px) { .grid--3 { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 620px) { .grid--2, .grid--3 { grid-template-columns: 1fr; } }
+@media (max-width: 620px) { .grid--3 { grid-template-columns: 1fr; } }
 
 /* ---------- nav ---------- */
 .nav {

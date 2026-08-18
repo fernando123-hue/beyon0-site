@@ -73,9 +73,14 @@
 
   /* ---- medidas: só em scroll/resize, nunca por frame ---- */
   var alcance = 1;
+  /* teto de DPR por aparelho: o canvas é tela cheia e o custo de fill-rate cresce
+     com DPR². Num celular DPR 2.5-3.5 dobra o trabalho de pintura à toa — a cena
+     é feita de brilhos suaves, não de texto fino, então 1,5 é indistinguível e
+     corta ~40% do fill. Desktop (ponteiro fino) fica em 2; aparelho fraco, 1,25. */
+  var TETO_DPR = weak ? 1.25 : (fine ? 2 : 1.5);
   function medir() {
     S.w = window.innerWidth; S.h = window.innerHeight;
-    S.dpr = Math.min(window.devicePixelRatio || 1, 2);
+    S.dpr = Math.min(window.devicePixelRatio || 1, TETO_DPR);
     alcance = Math.max(1, document.documentElement.scrollHeight - S.h);
     S.scroll = Math.min(1, window.scrollY / alcance);
   }

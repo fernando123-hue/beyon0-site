@@ -105,32 +105,49 @@
      Só com ponteiro fino: no toque não há cursor a seguir. */
   if (B.fine) {
     var cardsNear = document.querySelectorAll('.card');
+    /* CENTROS EM CACHE, em coordenadas de DOCUMENTO. Antes, varrer() lia
+       getBoundingClientRect de todos os cards a CADA frame de movimento — e logo
+       depois de escrever --near, forçando layout síncrono (read-after-write). O
+       centro em coordenadas de documento não muda com o scroll: guardo uma vez e
+       no frame só subtraio o scroll. Zero leitura de layout por frame. */
+    var centros = [];
+    var medirCentros = function () {
+      centros.length = 0;
+      var sx = window.pageXOffset, sy = window.pageYOffset;
+      for (var i = 0; i < cardsNear.length; i++) {
+        var r = cardsNear[i].getBoundingClientRect();
+        centros.push({ el: cardsNear[i], dcx: r.left + sx + r.width / 2,
+                       dcy: r.top + sy + r.height / 2, h: r.height });
+      }
+    };
     var mx = -9999, my = -9999, agendado = false;
     var RAIO = 340;
     var varrer = function () {
       agendado = false;
-      var h = window.innerHeight;
-      for (var i = 0; i < cardsNear.length; i++) {
-        var el = cardsNear[i], r = el.getBoundingClientRect();
-        var n = 0;
-        if (r.bottom > 0 && r.top < h) {                 /* fora da tela: fica em 0 */
-          var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-          var dx = mx - cx, dy = my - cy, d = Math.sqrt(dx * dx + dy * dy);
-          if (d < RAIO) { n = 1 - d / RAIO; n = n * n; } /* quadrática: sobe forte de perto */
+      var sx = window.pageXOffset, sy = window.pageYOffset, vh = window.innerHeight;
+      for (var i = 0; i < centros.length; i++) {
+        var c = centros[i], vy = c.dcy - sy, n = 0;   /* centro no viewport */
+        if (vy > -c.h && vy < vh + c.h) {
+          var dx = mx - (c.dcx - sx), dy = my - vy, d = Math.sqrt(dx * dx + dy * dy);
+          if (d < RAIO) { n = 1 - d / RAIO; n = n * n; }
         }
-        var q = Math.round(n * 20) / 20;                 /* passos de .05: menos escritas */
-        if (q !== el._near) {
-          el._near = q;
-          if (q > 0) el.style.setProperty('--near', String(q));
-          else el.style.removeProperty('--near');
+        var q = Math.round(n * 20) / 20;               /* passos de .05: menos escritas */
+        if (q !== c.el._near) {
+          c.el._near = q;
+          if (q > 0) c.el.style.setProperty('--near', String(q));
+          else c.el.style.removeProperty('--near');
         }
       }
     };
     var pedir = function () { if (!agendado) { agendado = true; requestAnimationFrame(varrer); } };
+    medirCentros();
     window.addEventListener('pointermove', function (e) { mx = e.clientX; my = e.clientY; pedir(); }, { passive: true });
     window.addEventListener('pointerleave', function () { mx = -9999; my = -9999; pedir(); }, { passive: true });
-    /* o scroll move os cards sob um cursor parado: reavalia com a última posição */
-    window.addEventListener('scroll', pedir, { passive: true });
+    window.addEventListener('scroll', pedir, { passive: true });   /* cards passam sob o cursor parado */
+    /* os centros só mudam quando o LAYOUT muda: recalcula aí, nunca por frame. */
+    window.addEventListener('resize', medirCentros, { passive: true });
+    window.addEventListener('load', medirCentros, { passive: true });
+    B.on('entrada-pronta', medirCentros);
   }
 
   /* ---------- menu do celular: uma classe, por clique ----------

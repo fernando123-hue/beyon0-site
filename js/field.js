@@ -28,6 +28,15 @@
   var TAU = Math.PI * 2;
   var CIANO = '0,245,255', ALTA = '159,248,255', NUCLEO = '242,254,255', OURO = '255,201,107';
 
+  /* geometria estática do reator, IZADA para fora do loop: recriar estes arrays
+     a cada frame era lixo para o GC à toa. spMul multiplica `giro` no frame. */
+  var GRADE = [.30, .50, .68];
+  var ANEIS = [
+    { rx: .82, ry: .30, incl:  .35, spMul:  1.0, nn: 12 },
+    { rx: .70, ry: .52, incl: 1.15, spMul: -1.3, nn: 10 },
+    { rx: .56, ry: .56, incl:  .00, spMul:  0.8, nn:  8 }
+  ];
+
   /* mistura ciano→dourado→BRANCO conforme o Estado Singular. Uma função só, sem
      token de CSS envolvido: a cor do canvas nunca passa pela folha de estilo.
      Dois estágios, nesta ordem: primeiro o dourado toma o ciano (warmth),
@@ -294,9 +303,8 @@
       /* --- GRADE CONCÊNTRICA: profundidade de blueprint --- */
       ctx.lineWidth = 1;
       ctx.strokeStyle = 'rgba(' + cy + ',' + a1(.08 * lum).toFixed(3) + ')';
-      var gr = [.30, .50, .68];
-      for (var ig = 0; ig < gr.length; ig++) {
-        ctx.beginPath(); ctx.arc(cx, cyy, R * gr[ig] * resp, 0, TAU); ctx.stroke();
+      for (var ig = 0; ig < GRADE.length; ig++) {
+        ctx.beginPath(); ctx.arc(cx, cyy, R * GRADE[ig] * resp, 0, TAU); ctx.stroke();
       }
 
       /* --- RAIOS ESTRUTURAIS: uma roda de 12 raios girando devagar --- */
@@ -312,20 +320,16 @@
 
       /* --- GIROSCÓPIO: três anéis inclinados, ritmos e sentidos diferentes,
          nós em divisões regulares. A oclusão (frente/trás) vem do alfa. --- */
-      var aneis = [
-        { rx: .82, ry: .30, incl:  .35, sp:  giro,       nn: 12 },
-        { rx: .70, ry: .52, incl: 1.15, sp: -giro * 1.3, nn: 10 },
-        { rx: .56, ry: .56, incl:  .00, sp:  giro * .8,  nn:  8 }
-      ];
-      for (var o = 0; o < aneis.length; o++) {
-        var A = aneis[o], erx = R * A.rx * resp, ery = R * A.ry * resp;
+      for (var o = 0; o < ANEIS.length; o++) {
+        var A = ANEIS[o], erx = R * A.rx * resp, ery = R * A.ry * resp;
+        var Asp = giro * A.spMul;
         var ci = Math.cos(A.incl), si = Math.sin(A.incl);
         ctx.lineWidth = 1;
         ctx.strokeStyle = 'rgba(' + cy + ',' + a1(.16 * lum).toFixed(3) + ')';
         ctx.beginPath(); ctx.ellipse(cx, cyy, erx, ery, A.incl, 0, TAU); ctx.stroke();
         var nn = Math.max(4, Math.round(A.nn * det));
         for (var n = 0; n < nn; n++) {
-          var ang = A.sp + n / nn * TAU;
+          var ang = Asp + n / nn * TAU;
           var ex = Math.cos(ang) * erx, ey = Math.sin(ang) * ery;
           var nx = cx + ex * ci - ey * si;
           var ny = cyy + ex * si + ey * ci;
