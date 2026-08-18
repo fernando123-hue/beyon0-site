@@ -317,28 +317,33 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
    CSS animada por JS lida por 126 regras. Nada disso volta: a borda anima um
    único @property local, pausado fora da viewport. */
 .card {
+  --near: 0;   /* proximidade do cursor 0..1 — js/dom.js escreve só nos cards
+                  perto e só quando o mouse move. A ESTRUTURA do card responde:
+                  borda, vidro e acentos sobem; nada de luz em volta. */
   position: relative;
   padding: clamp(1.4rem, 2.4vw, 1.9rem);
   border-radius: var(--r);
-  /* vidro: fundo translúcido para o blur aparecer. O material continua
-     "tecnológico", mas agora com profundidade de câmara — pedido do dono. */
+  /* vidro: fundo translúcido para o blur aparecer. A camada de topo (o ciano)
+     ACENDE com a proximidade — a cor do próprio card sobe conforme o cursor
+     chega, sem mancha em volta. */
   background:
-    linear-gradient(158deg, rgb(var(--glow-rgb) / .07), transparent 48%),
+    linear-gradient(158deg, rgb(var(--glow-rgb) / calc(.07 + var(--near) * .12)), transparent 52%),
     linear-gradient(0deg, rgb(var(--deep-rgb) / .34), rgb(var(--deep-rgb) / .12));
   box-shadow:
-    inset 0 0 0 1px rgb(var(--glow-rgb) / .12),
-    inset 0 1px 0 0 rgb(var(--hi-rgb) / .1);
-  backdrop-filter: blur(11px) saturate(1.15);
-  -webkit-backdrop-filter: blur(11px) saturate(1.15);
-  transition: box-shadow var(--t) var(--ease), transform var(--t) var(--ease);
+    inset 0 0 0 1px rgb(var(--glow-rgb) / calc(.12 + var(--near) * .5)),
+    inset 0 1px 0 0 rgb(var(--hi-rgb) / calc(.1 + var(--near) * .16));
+  backdrop-filter: blur(11px) saturate(calc(1.15 + var(--near) * .35));
+  -webkit-backdrop-filter: blur(11px) saturate(calc(1.15 + var(--near) * .35));
+  transition: box-shadow 200ms linear, background 200ms linear, transform var(--t) var(--ease);
 }
-.card:hover {
+/* SELECIONADO (hover/foco): o pico. Sobrepõe a proximidade — a borda vai ao
+   máximo e o card se eleva. Property cheia, não via --near (o inline do JS
+   venceria a folha), então isto ganha mesmo com o cursor parado sobre ele. */
+.card:hover, .card:focus-visible, .card:focus-within {
   transform: translateY(-2px);
-  /* sem glow externo: a resposta ao hover é a elevação + a borda mais viva, não
-     uma mancha de luz em volta (o dono cortou as luzes redondas). */
   box-shadow:
-    inset 0 0 0 1px rgb(var(--glow-rgb) / .34),
-    inset 0 1px 0 0 rgb(var(--hi-rgb) / .12);
+    inset 0 0 0 1px rgb(var(--glow-rgb) / .62),
+    inset 0 1px 0 0 rgb(var(--hi-rgb) / .28);
 }
 /* a borda de energia: um nó de luz que dá a volta na borda do card. Um
    conic-gradient mascarado só na moldura de 1px, com o ângulo animado por
@@ -355,7 +360,9 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
 .card::before {
   content: ""; position: absolute; inset: 0; border-radius: inherit;
   padding: 1px; pointer-events: none;
-  opacity: .6; transition: opacity var(--t) var(--ease);
+  /* a borda de energia também sobe com a proximidade: em repouso é discreta,
+     acende conforme o cursor chega. */
+  opacity: calc(.5 + var(--near) * .5); transition: opacity 200ms linear;
   background: conic-gradient(from var(--nrg, 0deg),
     transparent 0deg 40deg,
     rgb(var(--glow-rgb) / .5) 66deg,
@@ -380,8 +387,10 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
   display: grid; place-items: center;
   border-radius: var(--r);
   color: var(--glow);
-  background: rgb(var(--glow-rgb) / .07);
-  box-shadow: inset 0 0 0 1px rgb(var(--glow-rgb) / .16);
+  /* o ícone é a cor mais forte do card de dor: acende com a proximidade */
+  background: rgb(var(--glow-rgb) / calc(.07 + var(--near) * .16));
+  box-shadow: inset 0 0 0 1px rgb(var(--glow-rgb) / calc(.16 + var(--near) * .4));
+  transition: background 200ms linear, box-shadow 200ms linear;
 }
 /* seção dores: os 3 ícones eram os únicos do site e destoavam. Viram um
    SISTEMA — badge de canto cortado (motivo técnico, repetido igual nos três),
@@ -389,13 +398,13 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
 .card--dor .card__icon {
   border-radius: 0;
   clip-path: polygon(0 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%);
-  background: rgb(var(--glow-rgb) / .06);
-  box-shadow: inset 0 0 0 1px rgb(var(--glow-rgb) / .24);
-  transition: background var(--t) var(--ease), box-shadow var(--t) var(--ease);
+  background: rgb(var(--glow-rgb) / calc(.06 + var(--near) * .12));
+  box-shadow: inset 0 0 0 1px rgb(var(--glow-rgb) / calc(.24 + var(--near) * .3));
+  transition: background 200ms linear, box-shadow 200ms linear;
 }
-.card--dor:hover .card__icon {
-  background: rgb(var(--glow-rgb) / .13);
-  box-shadow: inset 0 0 0 1px rgb(var(--glow-rgb) / .5);
+.card--dor:hover .card__icon, .card--dor:focus-within .card__icon {
+  background: rgb(var(--glow-rgb) / .15);
+  box-shadow: inset 0 0 0 1px rgb(var(--glow-rgb) / .55);
 }
 
 .card--service h3 {
@@ -411,18 +420,20 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
   display: inline-flex; align-items: center; gap: .4rem;
   font-family: var(--mono); font-size: .68rem;
   letter-spacing: .12em; text-transform: uppercase;
-  color: var(--glow); opacity: .72;
-  transition: opacity var(--t-fast) var(--ease);
+  color: var(--glow); opacity: calc(.62 + var(--near) * .34);   /* acende ao aproximar */
+  transition: opacity 200ms linear;
 }
 .card__cta span {
   display: inline-block;
   transition: transform var(--t-fast) var(--ease);
 }
-.card--service:hover .card__cta { opacity: 1; }
+.card--service:hover .card__cta, .card--service:focus-within .card__cta { opacity: 1; }
 .card--service:hover .card__cta span { transform: translateX(3px); }
+/* a régua sob o título também sobe com a proximidade */
 .rule {
   display: block; height: 1px; margin: .85rem 0 .9rem;
-  background: linear-gradient(90deg, rgb(var(--glow-rgb) / .45), transparent);
+  background: linear-gradient(90deg, rgb(var(--glow-rgb) / calc(.45 + var(--near) * .45)), transparent);
+  transition: background 200ms linear;
 }
 
 /* ---------- processo: linha do tempo ----------

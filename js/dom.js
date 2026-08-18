@@ -91,6 +91,48 @@
     for (var cb = 0; cb < cardsBorda.length; cb++) ioBorda.observe(cardsBorda[cb]);
   }
 
+  /* ---------- proximidade: a ESTRUTURA do card reage ao cursor ----------
+     O dono não quer luz em volta — quer o próprio card acendendo conforme o
+     cursor chega. Este bloco escreve `--near` (0..1) no card, e o CSS usa isso
+     para subir a borda, o vidro e os acentos. O hover/foco é o pico (CSS puro).
+
+     Por que isto NÃO é a var-CSS-por-frame que causou os 76ms:
+       · roda só quando o mouse MOVE (pointermove), no máximo 1x por frame (rAF);
+         mouse parado = zero trabalho.
+       · escreve só nos cards cujo valor MUDOU (quantizado em passos de .05).
+       · o recálculo atinge o card e seus filhos — não o :root lido por 126
+         regras. São 1-3 cards por movimento, não 205 spans.
+     Só com ponteiro fino: no toque não há cursor a seguir. */
+  if (B.fine) {
+    var cardsNear = document.querySelectorAll('.card');
+    var mx = -9999, my = -9999, agendado = false;
+    var RAIO = 340;
+    var varrer = function () {
+      agendado = false;
+      var h = window.innerHeight;
+      for (var i = 0; i < cardsNear.length; i++) {
+        var el = cardsNear[i], r = el.getBoundingClientRect();
+        var n = 0;
+        if (r.bottom > 0 && r.top < h) {                 /* fora da tela: fica em 0 */
+          var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+          var dx = mx - cx, dy = my - cy, d = Math.sqrt(dx * dx + dy * dy);
+          if (d < RAIO) { n = 1 - d / RAIO; n = n * n; } /* quadrática: sobe forte de perto */
+        }
+        var q = Math.round(n * 20) / 20;                 /* passos de .05: menos escritas */
+        if (q !== el._near) {
+          el._near = q;
+          if (q > 0) el.style.setProperty('--near', String(q));
+          else el.style.removeProperty('--near');
+        }
+      }
+    };
+    var pedir = function () { if (!agendado) { agendado = true; requestAnimationFrame(varrer); } };
+    window.addEventListener('pointermove', function (e) { mx = e.clientX; my = e.clientY; pedir(); }, { passive: true });
+    window.addEventListener('pointerleave', function () { mx = -9999; my = -9999; pedir(); }, { passive: true });
+    /* o scroll move os cards sob um cursor parado: reavalia com a última posição */
+    window.addEventListener('scroll', pedir, { passive: true });
+  }
+
   /* ---------- menu do celular: uma classe, por clique ----------
      O botão nasce [hidden] e só é revelado aqui: se este script falhar, ninguém
      vê um controle inerte (o CSS sozinho deixaria os links fechados e sem saída). */
