@@ -220,22 +220,52 @@
     }
   }
 
-  /* ---------- ESTADO SINGULAR ----------
-     Raro. Aquece de ciano a dourado, sustenta e volta. A cor do canvas sai de
-     S.warmth; o DOM só ganha a classe .is-singular, e o CSS resolve a transição
-     de cor sozinho nos poucos pontos onde ela é assinatura. */
-  var singAte = 0, proxSing = 0, SDUR = 14000;
+  /* ---------- ESTADO SINGULAR — o espetáculo ----------
+     Raro e caro de assistir: quem vê tem que querer um site que faça isso.
+     Quatro fases, e o DOM só recebe CLASSES (nenhum estilo por frame):
+
+       CARGA (0–7%)        o sistema puxa energia; o branco começa a nascer
+       IGNIÇÃO (7–13%)     estouro BRANCO + onda de choque saindo do reator
+       REINADO (13–76%)    dourado plasma com núcleos brancos
+       RESFRIAMENTO (76%+) volta ao ciano
+
+     Publica em S: `singular` (intensidade), `warmth` (ciano→dourado),
+     `whiteHot` (mistura de branco) e `shock` (0..1 da onda; -1 desligada).
+     Quem desenha é o canvas. */
+  var singAte = 0, proxSing = 0, SDUR = 18000;
+  var ignitindo = false;
   function driveSingular(now) {
     if (now < singAte) {
       var u = 1 - (singAte - now) / SDUR;
-      /* sobe em 1,5s, sustenta, esfria nos 3s finais */
-      var w = u < .11 ? u / .11 : (u > .78 ? Math.max(0, (1 - u) / .22) : 1);
-      S.singular = w; S.warmth = w;
+
+      if (u < .07) {                                  /* CARGA */
+        var c = u / .07;
+        S.singular = c * .55; S.whiteHot = c * c; S.warmth = 0; S.shock = -1;
+      } else if (u < .13) {                           /* IGNIÇÃO */
+        var g = (u - .07) / .06;
+        S.singular = .55 + g * .45;
+        S.whiteHot = 1;                               /* branco no auge */
+        S.warmth = g * .35;
+        S.shock = g;                                  /* a onda atravessa a tela */
+        if (!ignitindo) { ignitindo = true; document.body.classList.add('is-igniting'); }
+      } else if (u < .76) {                           /* REINADO */
+        var r = (u - .13) / .63;
+        S.singular = 1;
+        S.warmth = Math.min(1, .35 + r * 1.6);        /* fecha no dourado cedo */
+        /* o branco não some: fica como núcleo, respirando devagar */
+        S.whiteHot = .3 + Math.sin(r * 9) * .1;
+        S.shock = -1;
+        if (ignitindo) { ignitindo = false; document.body.classList.remove('is-igniting'); }
+      } else {                                        /* RESFRIAMENTO */
+        var f = Math.max(0, (1 - u) / .24);
+        S.singular = f; S.warmth = f; S.whiteHot = f * .3; S.shock = -1;
+      }
       return;
     }
     if (S.singular !== 0) {
-      S.singular = 0; S.warmth = 0;
-      document.body.classList.remove('is-singular');
+      S.singular = 0; S.warmth = 0; S.whiteHot = 0; S.shock = -1;
+      ignitindo = false;
+      document.body.classList.remove('is-singular', 'is-igniting');
       anunciar('Sistema online · beyon.0');
       proxSing = now + 70000 + Math.random() * 60000;
     }

@@ -36,6 +36,8 @@
     pulseFront: 0,   /* 0..1 — a frente percorrendo a cadeia */
     singular: 0,     /* 0..1 — o Estado Singular */
     warmth: 0,       /* 0..1 — ciano → dourado */
+    whiteHot: 0,     /* 0..1 — branco incandescente (auge na ignição do Singular) */
+    shock: -1,       /* 0..1 — a onda de choque atravessando a tela; -1 = desligada */
     budget: 1,       /* 0..1 — quanto trabalho cabe neste frame */
     fps: 60
   };

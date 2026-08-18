@@ -757,9 +757,11 @@ body { transition: none; }
 .is-pulse .kicker, .is-pulse .bus b { color: var(--hi); }
 .card, .kicker, .bus b { transition: box-shadow var(--t) var(--ease), color var(--t) var(--ease); }
 
-/* Estado Singular: o dourado toma o canvas inteiro; no DOM ele aparece só nos
-   poucos pontos onde a cor é assinatura. Custo de um punhado de elementos, não
-   da folha inteira. */
+/* ---------- ESTADO SINGULAR: branco + dourado ----------
+   O espetáculo acontece no canvas (aurora, onda de choque, reator em
+   overdrive). Aqui o DOM só ACOMPANHA, e só nos pontos onde a cor é
+   assinatura: uma classe entra, o CSS resolve a transição. Nenhuma variável
+   muda por frame — a troca acontece 1 vez a cada ~2 minutos. */
 .is-singular { --glow: var(--gold); --glow-rgb: var(--gold-rgb); }
 .is-singular em,
 .is-singular .kicker,
@@ -768,6 +770,48 @@ body { transition: none; }
 .is-singular .bus b { color: var(--gold); }
 .is-singular em, .is-singular .kicker, .is-singular .step__n,
 .is-singular .wordmark b, .is-singular .bus b { transition: color 900ms var(--ease); }
+
+/* os títulos ficam BRANCOS incandescentes com halo dourado — é a assinatura
+   do estado: branco no corpo da letra, ouro no ar em volta. */
+h1, h2 { transition: color 900ms var(--ease), text-shadow 900ms var(--ease); }
+.is-singular h1, .is-singular h2 {
+  color: #fff;
+  text-shadow:
+    0 0 18px rgb(var(--gold-rgb) / .55),
+    0 0 46px rgb(var(--gold-rgb) / .3),
+    0 0 90px rgb(var(--gold-rgb) / .16);
+}
+/* a borda de energia dos cards acelera e vira ouro-branco no Singular */
+.is-singular .card::before { animation-duration: 1.9s; opacity: 1; }
+.is-singular .card {
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--gold-rgb) / .34),
+    inset 0 1px 0 0 rgb(255 255 255 / .14),
+    0 0 46px rgb(var(--gold-rgb) / .09);
+}
+
+/* IGNIÇÃO: o estouro branco. Um overlay de tela cheia que nasce forte e some
+   em menos de um segundo — o pico do evento. Pseudo-elemento no <body>, então
+   não é filho de <body> e passa longe da armadilha de especificidade. */
+body::after {
+  content: ""; position: fixed; inset: 0; z-index: 60;
+  pointer-events: none; opacity: 0;
+  background:
+    radial-gradient(60% 50% at 50% 38%, rgb(255 255 255 / .85), transparent 70%),
+    linear-gradient(0deg, rgb(var(--gold-rgb) / .1), rgb(255 255 255 / .18));
+}
+/* Um único estouro a cada ~2 minutos, subindo em ~200ms: fica longe do
+   critério de fotossensibilidade da WCAG 2.3.1 (que trata de 3+ flashes por
+   segundo), e quem pede movimento reduzido não vê nenhum. */
+.is-igniting::after { animation: sing-flash 1s var(--ease) both; }
+@keyframes sing-flash {
+  0%   { opacity: 0; }
+  20%  { opacity: .82; }        /* o estouro */
+  100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .is-igniting::after { animation: none; }   /* nada de flash para quem pediu calma */
+}
 
 /* ---------- responsivo ---------- */
 @media (max-width: 620px) {

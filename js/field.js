@@ -23,14 +23,24 @@
   var TAU = Math.PI * 2;
   var CIANO = '0,245,255', ALTA = '159,248,255', NUCLEO = '242,254,255', OURO = '255,201,107';
 
-  /* mistura ciano→dourado conforme o Estado Singular. Uma função só, sem token
-     de CSS envolvido: a cor do canvas nunca passa pela folha de estilo. */
-  function cor(base, w) {
+  /* mistura ciano→dourado→BRANCO conforme o Estado Singular. Uma função só, sem
+     token de CSS envolvido: a cor do canvas nunca passa pela folha de estilo.
+     Dois estágios, nesta ordem: primeiro o dourado toma o ciano (warmth),
+     depois o branco incandescente toma o resultado (whiteHot). É o que dá a
+     assinatura BRANCO+DOURADO: na ignição tudo satura ao branco, no reinado o
+     dourado reina com núcleos brancos. */
+  var BRANCO = '255,255,255';
+  function mistura(base, alvo, w) {
     if (w < 0.01) return base;
-    var a = base.split(','), b = OURO.split(',');
+    if (w > 0.99) return alvo;
+    var a = base.split(','), b = alvo.split(',');
     return Math.round(+a[0] + (+b[0] - +a[0]) * w) + ',' +
            Math.round(+a[1] + (+b[1] - +a[1]) * w) + ',' +
            Math.round(+a[2] + (+b[2] - +a[2]) * w);
+  }
+  function cor(base, w, hot) {
+    var c = mistura(base, OURO, w || 0);
+    return hot ? mistura(c, BRANCO, hot) : c;
   }
 
   var W = 0, H = 0, dpr = 1;
@@ -83,11 +93,9 @@
      spans: um Range sobre o nó de texto devolve a caixa de qualquer caractere.
      Sem elemento novo, sem estilo para recalcular.
 
-     Roda só quando o LAYOUT muda (boot, fontes prontas, resize) — não em
-     scroll. As caixas ficam relativas ao título, então rolar não invalida nada.
-
-     Palavra por palavra também importa: guardo `pal` (0=inicial de palavra) para
-     a luz nunca cortar uma palavra ao meio quando a frente passa. */
+     Roda só quando o LAYOUT muda (boot, fontes prontas, resize, fim da
+     entrada) — nunca em scroll. As caixas ficam relativas ao título, então
+     rolar não invalida nada: basta somar a posição atual do título. */
   function medirGlifos() {
     glifos.length = 0;
     for (var i = 0; i < elGlow.length; i++) {
@@ -197,7 +205,14 @@
   /* halo: um gradiente por chamada é barato (~1ms para 64 halos, medido) e é
      mais rápido que um sprite escalado — a tentativa com sprite foi 1,4x pior
      e está registrada na auditoria para não ser repetida. */
+  /* alfa acima de 1 não é um exagero inofensivo: `rgba(...,3.38)` pode ser
+     recusado inteiro pelo parser, e uma atribuição recusada em fillStyle é
+     SILENCIOSA — o desenho sai com a cor anterior. Com o Singular somando
+     luminância (lum chega a ~2,6), vários pontos passavam de 1. Trava aqui. */
+  function a1(v) { return v < 0 ? 0 : (v > 1 ? 1 : v); }
+
   function halo(x, y, r, rgb, a) {
+    a = a1(a);
     if (a < .004 || r <= 0) return;
     var g = ctx.createRadialGradient(x, y, 0, x, y, r);
     g.addColorStop(0, 'rgba(' + rgb + ',' + a.toFixed(3) + ')');
@@ -220,10 +235,14 @@
     ctx.clearRect(0, 0, W, H);
     ctx.globalCompositeOperation = 'lighter';
 
-    var w = S.warmth;
-    var cy = cor(CIANO, w), alta = cor(ALTA, w), nuc = cor(NUCLEO, w);
+    var w = S.warmth, hot = S.whiteHot || 0;
+    /* o núcleo satura ao branco ANTES do resto (é a fonte da luz), então recebe
+       um ganho de branco maior — é isso que faz a ignição parecer um estouro e
+       não uma troca de paleta. */
+    var cy = cor(CIANO, w, hot * .55), alta = cor(ALTA, w, hot * .8), nuc = cor(NUCLEO, w, hot);
     var e = S.energy, pulso = S.pulse, orc = S.budget;
-    var lum = .55 + e * .45 + pulso * .5 + S.singular * .6;
+    var sing = S.singular;
+    var lum = .55 + e * .45 + pulso * .5 + sing * .6 + hot * .5;
 
     /* ---- 1. campo de partículas ---- */
     var quantas = Math.round(ps.length * orc);
@@ -239,11 +258,23 @@
         var dx = S.px - p.x, dy = S.py - p.y, d2 = dx * dx + dy * dy;
         if (d2 < 52900) { var k = .00018 * (1 - d2 / 52900); p.vx += dx * k; p.vy += dy * k; }
       }
+      /* no Singular o campo inteiro é puxado para o reator: a poeira vira
+         corrente, e dá para VER de onde a energia está vindo. */
+      if (sing > .05 && reator) {
+        var rx = reator.x - p.x, ry = reator.y - p.y;
+        var kr = .00004 * sing;
+        p.vx += rx * kr; p.vy += ry * kr;
+      }
       p.vx *= .995; p.vy *= .995;
 
       var br = (.18 + p.f * .3) * lum;
-      ctx.fillStyle = 'rgba(' + cy + ',' + br.toFixed(3) + ')';
-      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, TAU); ctx.fill();
+      ctx.fillStyle = 'rgba(' + cy + ',' + a1(br).toFixed(3) + ')';
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (1 + sing * .5), 0, TAU); ctx.fill();
+      /* núcleo branco nas maiores durante o Singular: a poeira vira brasa */
+      if (sing > .3 && p.f > .55) {
+        ctx.fillStyle = 'rgba(' + nuc + ',' + (.5 * sing).toFixed(3) + ')';
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r * .45, 0, TAU); ctx.fill();
+      }
     }
 
     /* ---- 2. brumas: só quando há folga de orçamento ---- */
@@ -251,6 +282,42 @@
       var t = S.t * .001;
       halo(W * .5 + Math.cos(t * .21) * W * .2, H * .38 + Math.sin(t * .17) * H * .15,
            Math.min(W, H) * .5, cy, .022 * lum);
+    }
+
+    /* ---- 2b. AURORA DO SINGULAR ----
+       Duas cortinas de luz atravessando a tela inteira, uma de cada borda. Só
+       existem durante o Singular: são o "não é mais o mesmo site" que faz quem
+       assiste querer uma página assim. Dois gradientes lineares, custo fixo. */
+    if (sing > .04 && orc > .7) {
+      var au = sing * (.5 + Math.sin(S.t * .014) * .12);
+      var ga = ctx.createLinearGradient(0, 0, 0, H * .55);
+      ga.addColorStop(0, 'rgba(' + alta + ',' + (.14 * au).toFixed(3) + ')');
+      ga.addColorStop(1, 'rgba(' + alta + ',0)');
+      ctx.fillStyle = ga; ctx.fillRect(0, 0, W, H * .55);
+      var gb = ctx.createLinearGradient(0, H, 0, H * .45);
+      gb.addColorStop(0, 'rgba(' + cy + ',' + (.12 * au).toFixed(3) + ')');
+      gb.addColorStop(1, 'rgba(' + cy + ',0)');
+      ctx.fillStyle = gb; ctx.fillRect(0, H * .45, W, H * .55);
+    }
+
+    /* ---- 2c. ONDA DE CHOQUE ----
+       A ignição do Singular manda um anel de luz do reator para fora, que
+       atravessa a tela toda. É o momento de maior impacto do site — e dura
+       menos de um segundo, por isso não cansa. Um anel + um rastro. */
+    if (S.shock >= 0) {
+      var sk = S.shock;
+      var ox = reator ? reator.x : W * .5;
+      var oy = reator ? reator.y : H * .35;
+      var alcanceS = Math.sqrt(W * W + H * H) * .78;
+      var raioS = sk * alcanceS;
+      var forca = (1 - sk) * (1 - sk);                 /* some ao chegar na borda */
+      ctx.lineWidth = 2 + forca * 5;
+      ctx.strokeStyle = 'rgba(' + nuc + ',' + (.55 * forca).toFixed(3) + ')';
+      ctx.beginPath(); ctx.arc(ox, oy, raioS, 0, TAU); ctx.stroke();
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(' + alta + ',' + (.3 * forca).toFixed(3) + ')';
+      ctx.beginPath(); ctx.arc(ox, oy, raioS * .86, 0, TAU); ctx.stroke();
+      halo(ox, oy, raioS * .5, nuc, .22 * forca);
     }
 
     /* ---- 3. reator do hero ---- */
@@ -263,23 +330,23 @@
 
       /* esfera: aro de luz e globo em arame — sem corpo opaco */
       ctx.lineWidth = 1;
-      ctx.strokeStyle = 'rgba(' + cy + ',' + (.34 * lum).toFixed(3) + ')';
+      ctx.strokeStyle = 'rgba(' + cy + ',' + a1(.34 * lum).toFixed(3) + ')';
       ctx.beginPath(); ctx.arc(cx, cyy, R * .46 * resp, 0, TAU); ctx.stroke();
-      ctx.strokeStyle = 'rgba(' + cy + ',' + (.1 * lum).toFixed(3) + ')';
+      ctx.strokeStyle = 'rgba(' + cy + ',' + a1(.1 * lum).toFixed(3) + ')';
       for (var m = 1; m <= 3; m++) {
         var rr = R * .46 * resp * (m / 4);
         ctx.beginPath(); ctx.ellipse(cx, cyy, R * .46 * resp, rr, 0, 0, TAU); ctx.stroke();
       }
 
       /* anel equatorial */
-      ctx.strokeStyle = 'rgba(' + alta + ',' + (.3 * lum).toFixed(3) + ')';
+      ctx.strokeStyle = 'rgba(' + alta + ',' + a1(.3 * lum).toFixed(3) + ')';
       ctx.beginPath(); ctx.ellipse(cx, cyy, R * .74, R * .2, Math.sin(giro * .3) * .12, 0, TAU); ctx.stroke();
 
       /* órbitas com nós — a oclusão vem do alfa: nó atrás fica mais fraco */
       var nNos = Math.max(4, Math.round(9 * orc));
       for (var o = 0; o < 3; o++) {
         var incl = .4 + o * .55, rx = R * (.62 + o * .13), ry = rx * (.3 + o * .12);
-        ctx.strokeStyle = 'rgba(' + cy + ',' + (.09 * lum).toFixed(3) + ')';
+        ctx.strokeStyle = 'rgba(' + cy + ',' + a1(.09 * lum).toFixed(3) + ')';
         ctx.beginPath(); ctx.ellipse(cx, cyy, rx, ry, incl, 0, TAU); ctx.stroke();
         for (var n = 0; n < nNos; n++) {
           var ang = (n / nNos) * TAU + giro * (o % 2 ? -1 : 1) * (1 + o * .2);
@@ -287,15 +354,40 @@
           var nx = cx + ex * Math.cos(incl) - ey * Math.sin(incl);
           var ny = cyy + ex * Math.sin(incl) + ey * Math.cos(incl);
           var frente = Math.sin(ang) > 0 ? 1 : .3;
-          ctx.fillStyle = 'rgba(' + alta + ',' + (.8 * frente * lum).toFixed(3) + ')';
+          ctx.fillStyle = 'rgba(' + alta + ',' + a1(.8 * frente * lum).toFixed(3) + ')';
           ctx.beginPath(); ctx.arc(nx, ny, 1.5 * frente + 1, 0, TAU); ctx.fill();
         }
       }
 
+      /* ---- OVERDRIVE: só no Singular ----
+         Serpentinas de plasma saltam do núcleo e voltam. É o reator "abrindo" —
+         a diferença entre um estado de cor e um evento que se assiste. */
+      if (sing > .05) {
+        var nSerp = Math.max(3, Math.round(7 * orc));
+        for (var sp = 0; sp < nSerp; sp++) {
+          var fase = S.t * .02 + sp * (TAU / nSerp);
+          var alcS = R * (.5 + (Math.sin(fase * .7) * .5 + .5) * 1.1) * sing;
+          var ang2 = fase * .35 + sp * (TAU / nSerp);
+          var ex2 = cx + Math.cos(ang2) * alcS, ey2 = cyy + Math.sin(ang2) * alcS * .55;
+          ctx.strokeStyle = 'rgba(' + nuc + ',' + a1(.3 * sing * lum).toFixed(3) + ')';
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.moveTo(cx, cyy);
+          ctx.quadraticCurveTo(cx + Math.cos(ang2 + .5) * alcS * .6,
+                               cyy + Math.sin(ang2 + .5) * alcS * .3, ex2, ey2);
+          ctx.stroke();
+          halo(ex2, ey2, 12 + sing * 10, nuc, .35 * sing);
+        }
+        /* aro de contenção: o reator ganha uma casca visível no auge */
+        ctx.strokeStyle = 'rgba(' + alta + ',' + a1(.35 * sing * lum).toFixed(3) + ')';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(cx, cyy, R * (.95 + Math.sin(S.t * .04) * .03), 0, TAU); ctx.stroke();
+      }
+
       /* núcleo de plasma */
-      halo(cx, cyy, R * .2 * (1 + pulso), nuc, (.3 + pulso * .4 + S.singular * .4) * lum);
-      ctx.fillStyle = 'rgba(' + nuc + ',' + Math.min(1, .85 * lum).toFixed(3) + ')';
-      ctx.beginPath(); ctx.arc(cx, cyy, R * .05 * resp, 0, TAU); ctx.fill();
+      halo(cx, cyy, R * .2 * (1 + pulso + sing), nuc, (.3 + pulso * .4 + sing * .6) * lum);
+      ctx.fillStyle = 'rgba(' + nuc + ',' + a1(.85 * lum).toFixed(3) + ')';
+      ctx.beginPath(); ctx.arc(cx, cyy, R * (.05 + sing * .03) * resp, 0, TAU); ctx.fill();
     }
 
     /* ---- 3b. cards: aura ambiente + brilho por proximidade ----
@@ -337,13 +429,13 @@
       }
       var resp2 = 1 + Math.sin(S.t * .03) * .05 + pulso * .12;
       halo(hx, hy, hr * 1.5, cy, (.08 + e * .06 + pulso * .16) * lum);
-      ctx.strokeStyle = 'rgba(' + cy + ',' + (.4 * lum).toFixed(3) + ')';
+      ctx.strokeStyle = 'rgba(' + cy + ',' + a1(.4 * lum).toFixed(3) + ')';
       ctx.lineWidth = 1;
       ctx.beginPath(); ctx.arc(hx, hy, hr * .6 * resp2, 0, TAU); ctx.stroke();
-      ctx.strokeStyle = 'rgba(' + alta + ',' + (.28 * lum).toFixed(3) + ')';
+      ctx.strokeStyle = 'rgba(' + alta + ',' + a1(.28 * lum).toFixed(3) + ')';
       ctx.beginPath(); ctx.ellipse(hx, hy, hr * .9, hr * .26, S.t * .01, 0, TAU); ctx.stroke();
       halo(hx, hy, hr * .3 * (1 + pulso), nuc, (.4 + pulso * .4 + S.singular * .4) * lum);
-      ctx.fillStyle = 'rgba(' + nuc + ',' + Math.min(1, .8 * lum).toFixed(3) + ')';
+      ctx.fillStyle = 'rgba(' + nuc + ',' + a1(.8 * lum).toFixed(3) + ')';
       ctx.beginPath(); ctx.arc(hx, hy, hr * .09 * resp2, 0, TAU); ctx.fill();
     }
 
@@ -360,7 +452,18 @@
     if (orc > .55 && titulos.length) {
       var frente = Math.max(0, Math.min(1, S.pulseFront));
       var temFrente = pulso > .02;
-      var ganho = .55 + e * .45 + S.singular * .5;
+      var ganho = .55 + e * .45 + sing * .5;
+      /* a onda de choque ACENDE AS LETRAS que atravessa: a ignição não é um
+         efeito de fundo, ela passa POR DENTRO do texto. É a costura entre o
+         Singular e a tipografia viva — e o momento que faz o site parecer vivo
+         de verdade. */
+      var temOnda = S.shock >= 0;
+      var ondaR = 0, ondaX = 0, ondaY = 0;
+      if (temOnda) {
+        ondaX = reator ? reator.x : W * .5;
+        ondaY = reator ? reator.y : H * .35;
+        ondaR = S.shock * Math.sqrt(W * W + H * H) * .78;
+      }
       for (var k = 0; k < titulos.length; k++) {
         var tt = titulos[k];
         if (!tt.cs || !tt.cs.length) continue;
@@ -390,8 +493,20 @@
             if (fd < .17) { var fh = 1 - fd / .17; en += fh * fh * pulso * 1.15; }
           }
 
+          /* onda de choque: acende o glifo quando o anel passa por ele */
+          if (temOnda) {
+            var odx = gx - ondaX, ody = gy - ondaY;
+            var dOnda = Math.abs(Math.sqrt(odx * odx + ody * ody) - ondaR);
+            if (dOnda < 170) { var oh = 1 - dOnda / 170; en += oh * oh * 2.6; }
+          }
+
           en *= ganho;
           if (en < .05) continue;                        /* apagado: não custa nada */
+          /* TETO: sem ele a ignição levava en a ~4 e o raio do halo a 2,6× a
+             altura da letra — dezenas de halos gigantes ao mesmo tempo,
+             estourando o visual e o orçamento. Limitado, o pico continua
+             dramático e o custo continua previsível. */
+          if (en > 1.5) en = 1.5;
           var raio = ch.h * (.62 + en * .5);
           halo(gx, gy, raio, en > .55 ? nuc : alta, Math.min(.5, en * .42));
         }
