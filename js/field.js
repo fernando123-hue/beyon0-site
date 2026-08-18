@@ -145,6 +145,18 @@
     ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
   }
 
+  /* polígono regular fechado no ctx (sem alocar array por frame): serve o
+     núcleo do reator, onde hexágonos e triângulos contra-rotativos dão a cara
+     de mecanismo. Só monta o path; quem chama decide stroke/fill. */
+  function poligono(cx, cy, rad, rot, lados) {
+    ctx.beginPath();
+    for (var i = 0; i <= lados; i++) {
+      var a = rot + i / lados * TAU;
+      var x = cx + Math.cos(a) * rad, y = cy + Math.sin(a) * rad;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+  }
+
   /* proximidade do cursor a um ponto: 1 encostado, 0 além do raio. Usada pelos
      elos do AI Core (o do card sob o cursor acende). Sem ponteiro, é sempre 0. */
   function prox(S, x, y, R) {
@@ -244,74 +256,117 @@
       halo(ox, oy, raioS * .5, nuc, .22 * forca);
     }
 
-    /* ---- 3. reator do hero ---- */
+    /* ---- 3. AI CORE — o reator do hero ----
+       Reconstruído para parecer ENGENHARIA DE PRECISÃO: um bezel graduado, uma
+       grade concêntrica de blueprint, raios estruturais, um giroscópio de três
+       anéis inclinados girando em ritmos diferentes com nós em divisões
+       regulares, e um núcleo poligonal (hexágonos contra-rotativos). A sensação
+       de "complexo e bem estruturado" vem da ORDEM — tudo em divisões exatas —
+       não do acúmulo. Desenhado de fora para dentro. */
     if (reator && reator.y > -reator.r && reator.y < H + reator.r) {
       var R = reator.r, cx = reator.x, cyy = reator.y;
-      var resp = 1 + Math.sin(S.t * .022) * .02 + pulso * .05;
-      var giro = S.t * .0045 * (1 + e);
+      var resp = 1 + Math.sin(S.t * .022) * .015 + pulso * .04;   /* respiro sutil */
+      var giro = S.t * .0045 * (1 + e * .6);
+      var det = .5 + orc * .5;                                     /* detalhe cede sob carga */
 
-      halo(cx, cyy, R * .95, cy, (.05 + e * .05 + pulso * .12) * lum);
+      halo(cx, cyy, R * .9, cy, (.05 + e * .05 + pulso * .12) * lum);
 
-      /* esfera: aro de luz e globo em arame — sem corpo opaco */
+      /* --- BEZEL GRADUADO: dois trilhos e 60 marcas (longas a cada 5), como o
+         anel de um instrumento. É a assinatura do "bem estruturado". --- */
       ctx.lineWidth = 1;
-      ctx.strokeStyle = 'rgba(' + cy + ',' + a1(.34 * lum).toFixed(3) + ')';
-      ctx.beginPath(); ctx.arc(cx, cyy, R * .46 * resp, 0, TAU); ctx.stroke();
-      ctx.strokeStyle = 'rgba(' + cy + ',' + a1(.1 * lum).toFixed(3) + ')';
-      for (var m = 1; m <= 3; m++) {
-        var rr = R * .46 * resp * (m / 4);
-        ctx.beginPath(); ctx.ellipse(cx, cyy, R * .46 * resp, rr, 0, 0, TAU); ctx.stroke();
+      ctx.strokeStyle = 'rgba(' + cy + ',' + a1(.30 * lum).toFixed(3) + ')';
+      ctx.beginPath(); ctx.arc(cx, cyy, R * .90, 0, TAU); ctx.stroke();
+      ctx.strokeStyle = 'rgba(' + cy + ',' + a1(.18 * lum).toFixed(3) + ')';
+      ctx.beginPath(); ctx.arc(cx, cyy, R * .82, 0, TAU); ctx.stroke();
+      var NT = Math.round(60 * det), gBez = S.t * .0011;
+      for (var it = 0; it < NT; it++) {
+        var at = gBez + it / NT * TAU, ca = Math.cos(at), sa = Math.sin(at);
+        var longo = (it % 5) === 0;
+        var r0 = R * .82, r1 = R * (longo ? .90 : .865);
+        ctx.strokeStyle = 'rgba(' + (longo ? alta : cy) + ',' + a1((longo ? .5 : .2) * lum).toFixed(3) + ')';
+        ctx.lineWidth = longo ? 1.4 : 1;
+        ctx.beginPath();
+        ctx.moveTo(cx + ca * r0, cyy + sa * r0);
+        ctx.lineTo(cx + ca * r1, cyy + sa * r1);
+        ctx.stroke();
       }
 
-      /* anel equatorial */
-      ctx.strokeStyle = 'rgba(' + alta + ',' + a1(.3 * lum).toFixed(3) + ')';
-      ctx.beginPath(); ctx.ellipse(cx, cyy, R * .74, R * .2, Math.sin(giro * .3) * .12, 0, TAU); ctx.stroke();
-
-      /* órbitas com nós — a oclusão vem do alfa: nó atrás fica mais fraco */
-      var nNos = Math.max(4, Math.round(9 * orc));
-      for (var o = 0; o < 3; o++) {
-        var incl = .4 + o * .55, rx = R * (.62 + o * .13), ry = rx * (.3 + o * .12);
-        ctx.strokeStyle = 'rgba(' + cy + ',' + a1(.09 * lum).toFixed(3) + ')';
-        ctx.beginPath(); ctx.ellipse(cx, cyy, rx, ry, incl, 0, TAU); ctx.stroke();
-        for (var n = 0; n < nNos; n++) {
-          var ang = (n / nNos) * TAU + giro * (o % 2 ? -1 : 1) * (1 + o * .2);
-          var ex = Math.cos(ang) * rx, ey = Math.sin(ang) * ry;
-          var nx = cx + ex * Math.cos(incl) - ey * Math.sin(incl);
-          var ny = cyy + ex * Math.sin(incl) + ey * Math.cos(incl);
-          var frente = Math.sin(ang) > 0 ? 1 : .3;
-          ctx.fillStyle = 'rgba(' + alta + ',' + a1(.8 * frente * lum).toFixed(3) + ')';
-          ctx.beginPath(); ctx.arc(nx, ny, 1.5 * frente + 1, 0, TAU); ctx.fill();
-        }
+      /* --- GRADE CONCÊNTRICA: profundidade de blueprint --- */
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(' + cy + ',' + a1(.08 * lum).toFixed(3) + ')';
+      var gr = [.30, .50, .68];
+      for (var ig = 0; ig < gr.length; ig++) {
+        ctx.beginPath(); ctx.arc(cx, cyy, R * gr[ig] * resp, 0, TAU); ctx.stroke();
       }
 
-      /* ---- OVERDRIVE: só no Singular ----
-         Serpentinas de plasma saltam do núcleo e voltam. É o reator "abrindo" —
-         a diferença entre um estado de cor e um evento que se assiste. */
-      if (sing > .05) {
-        var nSerp = Math.max(3, Math.round(7 * orc));
-        for (var sp = 0; sp < nSerp; sp++) {
-          var fase = S.t * .02 + sp * (TAU / nSerp);
-          var alcS = R * (.5 + (Math.sin(fase * .7) * .5 + .5) * 1.1) * sing;
-          var ang2 = fase * .35 + sp * (TAU / nSerp);
-          var ex2 = cx + Math.cos(ang2) * alcS, ey2 = cyy + Math.sin(ang2) * alcS * .55;
-          ctx.strokeStyle = 'rgba(' + nuc + ',' + a1(.3 * sing * lum).toFixed(3) + ')';
-          ctx.lineWidth = 1.2;
-          ctx.beginPath();
-          ctx.moveTo(cx, cyy);
-          ctx.quadraticCurveTo(cx + Math.cos(ang2 + .5) * alcS * .6,
-                               cyy + Math.sin(ang2 + .5) * alcS * .3, ex2, ey2);
-          ctx.stroke();
-          halo(ex2, ey2, 12 + sing * 10, nuc, .35 * sing);
-        }
-        /* aro de contenção: o reator ganha uma casca visível no auge */
-        ctx.strokeStyle = 'rgba(' + alta + ',' + a1(.35 * sing * lum).toFixed(3) + ')';
+      /* --- RAIOS ESTRUTURAIS: uma roda de 12 raios girando devagar --- */
+      var NS = Math.max(6, Math.round(12 * det)), gSp = giro * .5;
+      ctx.strokeStyle = 'rgba(' + cy + ',' + a1(.10 * lum).toFixed(3) + ')';
+      for (var is = 0; is < NS; is++) {
+        var asp = gSp + is / NS * TAU, cas = Math.cos(asp), sas = Math.sin(asp);
+        ctx.beginPath();
+        ctx.moveTo(cx + cas * R * .30 * resp, cyy + sas * R * .30 * resp);
+        ctx.lineTo(cx + cas * R * .68 * resp, cyy + sas * R * .68 * resp);
+        ctx.stroke();
+      }
+
+      /* --- GIROSCÓPIO: três anéis inclinados, ritmos e sentidos diferentes,
+         nós em divisões regulares. A oclusão (frente/trás) vem do alfa. --- */
+      var aneis = [
+        { rx: .82, ry: .30, incl:  .35, sp:  giro,       nn: 12 },
+        { rx: .70, ry: .52, incl: 1.15, sp: -giro * 1.3, nn: 10 },
+        { rx: .56, ry: .56, incl:  .00, sp:  giro * .8,  nn:  8 }
+      ];
+      for (var o = 0; o < aneis.length; o++) {
+        var A = aneis[o], erx = R * A.rx * resp, ery = R * A.ry * resp;
+        var ci = Math.cos(A.incl), si = Math.sin(A.incl);
         ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.arc(cx, cyy, R * (.95 + Math.sin(S.t * .04) * .03), 0, TAU); ctx.stroke();
+        ctx.strokeStyle = 'rgba(' + cy + ',' + a1(.16 * lum).toFixed(3) + ')';
+        ctx.beginPath(); ctx.ellipse(cx, cyy, erx, ery, A.incl, 0, TAU); ctx.stroke();
+        var nn = Math.max(4, Math.round(A.nn * det));
+        for (var n = 0; n < nn; n++) {
+          var ang = A.sp + n / nn * TAU;
+          var ex = Math.cos(ang) * erx, ey = Math.sin(ang) * ery;
+          var nx = cx + ex * ci - ey * si;
+          var ny = cyy + ex * si + ey * ci;
+          var frente = Math.sin(ang) > 0 ? 1 : .32;      /* nó atrás mais fraco */
+          ctx.fillStyle = 'rgba(' + alta + ',' + a1(.85 * frente * lum).toFixed(3) + ')';
+          ctx.beginPath(); ctx.arc(nx, ny, 1.3 * frente + .9, 0, TAU); ctx.fill();
+        }
       }
 
-      /* núcleo de plasma */
-      halo(cx, cyy, R * .2 * (1 + pulso + sing), nuc, (.3 + pulso * .4 + sing * .6) * lum);
-      ctx.fillStyle = 'rgba(' + nuc + ',' + a1(.85 * lum).toFixed(3) + ')';
-      ctx.beginPath(); ctx.arc(cx, cyy, R * (.05 + sing * .03) * resp, 0, TAU); ctx.fill();
+      /* --- OVERDRIVE (só no Singular): descarga radial ESTRUTURADA ---
+         12 feixes em ângulos regulares pulsando para fora + a casca de
+         contenção. Ordenado, não caótico — combina com a nova arquitetura. */
+      if (sing > .05) {
+        var NB = 12, gb = S.t * .008;
+        ctx.lineWidth = 1.4;
+        for (var ib = 0; ib < NB; ib++) {
+          var ab = gb + ib / NB * TAU, cab = Math.cos(ab), sab = Math.sin(ab);
+          var beam = Math.sin(S.t * .05 + ib * .9) * .5 + .5;
+          var r1b = R * (.9 + beam * .55) * sing;
+          ctx.strokeStyle = 'rgba(' + nuc + ',' + a1(.32 * sing * beam * lum).toFixed(3) + ')';
+          ctx.beginPath();
+          ctx.moveTo(cx + cab * R * .68, cyy + sab * R * .68);
+          ctx.lineTo(cx + cab * r1b, cyy + sab * r1b);
+          ctx.stroke();
+        }
+        ctx.strokeStyle = 'rgba(' + alta + ',' + a1(.4 * sing * lum).toFixed(3) + ')';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(cx, cyy, R * (.98 + Math.sin(S.t * .05) * .02), 0, TAU); ctx.stroke();
+      }
+
+      /* --- NÚCLEO POLIGONAL: hexágono + triângulo contra-rotativos + plasma --- */
+      poligono(cx, cyy, R * .20 * resp, S.t * .006, 6);
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(' + alta + ',' + a1(.4 * lum).toFixed(3) + ')';
+      ctx.stroke();
+      poligono(cx, cyy, R * .13 * resp, -S.t * .009, 3);
+      ctx.strokeStyle = 'rgba(' + nuc + ',' + a1(.3 * lum).toFixed(3) + ')';
+      ctx.stroke();
+      halo(cx, cyy, R * .18 * (1 + pulso + sing), nuc, (.3 + pulso * .4 + sing * .6) * lum);
+      ctx.fillStyle = 'rgba(' + nuc + ',' + a1(.9 * lum).toFixed(3) + ')';
+      ctx.beginPath(); ctx.arc(cx, cyy, R * (.045 + sing * .03) * resp, 0, TAU); ctx.fill();
     }
 
     /* ---- 3c. mini AI Core: o nó dos serviços, ligado a cada card ----
