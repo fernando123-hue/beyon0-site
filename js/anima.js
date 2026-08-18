@@ -42,7 +42,22 @@
     try {
       var sp = new window.SplitText(el, { type: 'words,chars', charsClass: 'char', wordsClass: 'palavra-viva' });
       for (var i = 0; i < sp.chars.length; i++) sp.chars[i].style.setProperty('--i', i);
-      el.classList.add('viva');
+      el.classList.add('split');                 /* permanente: estrutura + cor */
+
+      /* a onda (`.viva`) só liga quando o título está na viewport — fora dela,
+         nem animação nem camada de composição. É o que segura o custo no mobile. */
+      if (window.ScrollTrigger) {
+        window.ScrollTrigger.create({
+          trigger: el, start: 'top bottom', end: 'bottom top',
+          onToggle: function (self) { el.classList.toggle('viva', self.isActive); }
+        });
+        /* estado inicial: onToggle só dispara na MUDANÇA, então se já está na
+           tela (o hero), liga agora. */
+        var r = el.getBoundingClientRect();
+        if (r.top < window.innerHeight && r.bottom > 0) el.classList.add('viva');
+      } else {
+        el.classList.add('viva');                /* sem ScrollTrigger: sempre viva */
+      }
     } catch (e) { el._viva = false; }
   }
 

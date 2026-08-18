@@ -148,30 +148,37 @@ em, .aurora { font-style: normal; font-weight: 500; letter-spacing: .012em; colo
 }
 
 /* ---------- CARACTERE VIVO — cada letra ressoa ----------
-   O GSAP (js/anima.js) quebra os títulos em .char (SplitText); aqui cada letra
-   faz uma onda suave de translateY/scale, DEFASADA pelo índice (--i): a
-   ressonância percorre as letras, e uma "conversa" com a vizinha. O ORGANISMO
-   modula — no Pulso a onda acelera, no Singular mais ainda — então as letras
-   ressoam com a ambientação do site. Só transform: é compositor, não recálculo
-   de estilo (não é a var-CSS-por-frame que travou a versão antiga). Fora da
-   tela o browser nem pinta, então o custo escala com o que está VISÍVEL. */
-.viva { background: none; -webkit-text-fill-color: currentColor; }  /* tira a aurora do título: por char, ela quebraria */
-.viva em { background: none; color: var(--glow); -webkit-text-fill-color: var(--glow); }
-.viva .char {
+   O GSAP (js/anima.js) quebra os títulos em .char (SplitText); cada letra faz
+   uma onda suave de translateY/scale, DEFASADA pelo índice (--i): a ressonância
+   percorre as letras, conversando com a vizinha. O ORGANISMO modula — no Pulso
+   a onda acelera, no Singular mais ainda — então as letras ressoam com a
+   ambientação. Só transform: é compositor, não recálculo de estilo.
+
+   DUAS classes de propósito:
+   · `.split` (PERMANENTE) — estrutura e cor. Fica sempre, então o texto nunca
+     volta a ficar transparente (a aurora deixa o em `text-fill: transparent`;
+     por char isso daria LETRA INVISÍVEL — guardado em três níveis).
+   · `.viva` (LIGADA/DESLIGADA pela viewport, via ScrollTrigger) — a animação. Só
+     o título VISÍVEL anima: fora da tela não há animação nem camada de
+     composição. É o que segura o custo no mobile. */
+.split { background: none; -webkit-text-fill-color: currentColor; }
+.split em { background: none; color: var(--glow); -webkit-text-fill-color: var(--glow); }
+.split .char {
   display: inline-block;
   -webkit-text-fill-color: currentColor;   /* NUNCA transparente — evita letra invisível */
+}
+.split.viva .char {
   animation: ressoar 3s ease-in-out infinite;
   animation-delay: calc(var(--i, 0) * -.05s);
-  /* SEM will-change: uma camada por letra estouraria a memória no mobile. O
-     transform compõe mesmo assim. */
+  /* SEM will-change: uma camada por letra estouraria a memória no mobile. */
 }
 @keyframes ressoar {
   0%, 100% { transform: translateY(0) scale(1); }
   50%      { transform: translateY(-.05em) scale(1.015); }
 }
-.is-pulse .viva .char    { animation-duration: 1.5s; }   /* a onda acelera no Pulso */
-.is-singular .viva .char { animation-duration: 1.1s; }   /* e mais no Singular */
-@media (prefers-reduced-motion: reduce) { .viva .char { animation: none; transform: none; } }
+.is-pulse .split.viva .char    { animation-duration: 1.5s; }   /* a onda acelera no Pulso */
+.is-singular .split.viva .char { animation-duration: 1.1s; }   /* e mais no Singular */
+@media (prefers-reduced-motion: reduce) { .split.viva .char { animation: none; transform: none; } }
 
 .kicker {
   font-family: var(--mono);
