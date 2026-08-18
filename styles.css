@@ -345,40 +345,66 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
     inset 0 0 0 1px rgb(var(--glow-rgb) / .62),
     inset 0 1px 0 0 rgb(var(--hi-rgb) / .28);
 }
-/* a borda de energia: um nó de luz que dá a volta na borda do card. Um
-   conic-gradient mascarado só na moldura de 1px, com o ângulo animado por
-   @property --nrg. É PAINT de um anel fino localizado — não o recálculo de
-   estilo que matou a versão antiga (aquele vinha de --shine-a/b lidas por
-   conic-gradients em todo card + 205 spans). Pausa fora da viewport (.is-idle,
-   IO em js/dom.js) e em reduced-motion.
+/* ---- a BORDA DE AURORA ----
+   Moldura espessa (2,5px) com DUAS camadas de conic-gradient percorrendo a
+   rampa inteira (ciano → mid → hi → core), contra-rotativas e somando luz
+   (screen): o batimento entre as duas velocidades faz as faixas fluírem como
+   aurora, sem sair da identidade. Cada camada é mascarada só na moldura —
+   continua sendo PAINT de um anel fino, não o recálculo de 126 regras que
+   matou a versão antiga. Pausa fora da viewport (.is-idle) e em reduced-motion.
 
-   O FALLBACK `var(--nrg, 0deg)` não é enfeite: sem @property (navegador
-   antigo) a variável não existe, e um var() sem fallback invalida a
-   declaração inteira — o anel sumiria por completo em vez de degradar. Com
-   ele, quem não tem @property vê uma moldura de luz PARADA. */
-@property --nrg { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
-.card::before {
+   `--near` (proximidade, js/dom.js) engrossa a presença; o hover/foco é o pico.
+   O FALLBACK `var(--nrg, 0deg)` é obrigatório: sem @property, um var() sem
+   fallback invalida a declaração e a borda sumiria — com ele, fica parada. */
+@property --nrg  { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+@property --nrg2 { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+
+.card::before, .card::after {
   content: ""; position: absolute; inset: 0; border-radius: inherit;
-  padding: 1px; pointer-events: none;
-  /* a borda de energia também sobe com a proximidade: em repouso é discreta,
-     acende conforme o cursor chega. */
-  opacity: calc(.5 + var(--near) * .5); transition: opacity 200ms linear;
-  background: conic-gradient(from var(--nrg, 0deg),
-    transparent 0deg 40deg,
-    rgb(var(--glow-rgb) / .5) 66deg,
-    rgb(var(--hi-rgb) / .95) 82deg,          /* o nó: satura ao quase-branco da rampa */
-    rgb(var(--glow-rgb) / .5) 98deg,
-    transparent 128deg 360deg);
+  padding: 2.5px; pointer-events: none;
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
           mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
           mask-composite: exclude;
-  animation: nrg-run 5.5s linear infinite;
+  transition: opacity 220ms linear;
 }
-.card:hover::before, .card:focus-visible::before { opacity: 1; animation-duration: 2.6s; }
-.card.is-idle::before { animation-play-state: paused; }   /* fora da viewport: não pinta */
-@keyframes nrg-run { to { --nrg: 360deg; } }
-@media (prefers-reduced-motion: reduce) { .card::before { animation: none; } }
+/* camada 1: a corrente principal, sentido horário */
+.card::before {
+  opacity: calc(.55 + var(--near) * .45);
+  background: conic-gradient(from var(--nrg, 0deg),
+    rgb(var(--glow-rgb) / 0)    0deg,
+    rgb(var(--glow-rgb) / .5)   48deg,
+    rgb(var(--hi-rgb)   / .85) 104deg,
+    rgb(var(--core-rgb) / .75) 156deg,
+    rgb(var(--hi-rgb)   / .6)  206deg,
+    rgb(var(--glow-rgb) / .45) 286deg,
+    rgb(var(--glow-rgb) / 0)   360deg);
+  animation: nrg-run 6.5s linear infinite;
+}
+/* camada 2: a contra-corrente, sentido anti-horário e mais lenta — o
+   descompasso é o que faz a aurora "respirar" em vez de só girar. Soma luz. */
+.card::after {
+  opacity: calc(.45 + var(--near) * .4);
+  mix-blend-mode: screen;
+  background: conic-gradient(from var(--nrg2, 0deg),
+    rgb(var(--hi-rgb)   / 0)    0deg,
+    rgb(var(--mid-rgb)  / .55)  64deg,
+    rgb(var(--glow-rgb) / .6)  132deg,
+    rgb(var(--hi-rgb)   / .8)  198deg,
+    rgb(var(--core-rgb) / .5)  252deg,
+    rgb(var(--hi-rgb)   / 0)   330deg);
+  animation: nrg-run2 9.5s linear infinite;
+}
+.card:hover::before, .card:focus-visible::before,
+.card:focus-within::before { opacity: 1; animation-duration: 3.4s; }
+.card:hover::after, .card:focus-visible::after,
+.card:focus-within::after { opacity: .9; animation-duration: 5s; }
+.card.is-idle::before, .card.is-idle::after { animation-play-state: paused; }
+@keyframes nrg-run  { to { --nrg:  360deg; } }
+@keyframes nrg-run2 { to { --nrg2: -360deg; } }
+@media (prefers-reduced-motion: reduce) {
+  .card::before, .card::after { animation: none; }
+}
 .card h3 { margin-bottom: .55rem; }
 .card p { color: rgb(var(--hi-rgb) / .78); font-size: .95rem; }
 
@@ -583,7 +609,9 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
    sobre este retângulo em js/field.js — morria a um terço da seção. */
 .bus {
   max-width: none;
-  margin-top: 2.6rem; text-align: center;
+  /* respiro grande: é aqui que o mini AI Core flutua, entre os cards e o
+     rótulo. Sem esta folga o nó cola na base do grid (bug apontado pelo dono). */
+  margin-top: clamp(4rem, 8vw, 6.5rem); text-align: center;
   font-family: var(--mono); font-size: .64rem;
   letter-spacing: .4em; text-transform: uppercase;
   color: rgb(var(--hi-rgb) / .53);
@@ -637,27 +665,43 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
     linear-gradient(0deg, rgb(var(--deep-rgb) / .55), rgb(var(--deep-rgb) / .25));
   box-shadow: inset 0 0 0 1px rgb(var(--glow-rgb) / .16);
 }
-/* o painel do pedido é o momento da conversão: recebe a MESMA borda de energia
-   dos cards, um pouco mais lenta (é uma peça grande — depressa viraria
-   agitação). Herda o keyframe, o @property e a pausa fora da viewport. */
-.cta::before {
+/* o painel do pedido é o momento da conversão: recebe a MESMA borda de aurora
+   dos cards, mais lenta (é uma peça grande — depressa viraria agitação). */
+.cta::before, .cta::after {
   content: ""; position: absolute; inset: 0; border-radius: inherit;
-  padding: 1px; pointer-events: none; opacity: .75;
-  background: conic-gradient(from var(--nrg, 0deg),
-    transparent 0deg 44deg,
-    rgb(var(--glow-rgb) / .5) 70deg,
-    rgb(var(--hi-rgb) / .95) 86deg,
-    rgb(var(--glow-rgb) / .5) 102deg,
-    transparent 132deg 360deg);
+  padding: 2.5px; pointer-events: none;
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
           mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
           mask-composite: exclude;
-  animation: nrg-run 7.5s linear infinite;
 }
-.cta.is-idle::before { animation-play-state: paused; }
-.is-singular .cta::before { animation-duration: 2.4s; opacity: 1; }
-@media (prefers-reduced-motion: reduce) { .cta::before { animation: none; } }
+.cta::before {
+  opacity: .8;
+  background: conic-gradient(from var(--nrg, 0deg),
+    rgb(var(--glow-rgb) / 0)    0deg,
+    rgb(var(--glow-rgb) / .5)   48deg,
+    rgb(var(--hi-rgb)   / .85) 104deg,
+    rgb(var(--core-rgb) / .75) 156deg,
+    rgb(var(--hi-rgb)   / .6)  206deg,
+    rgb(var(--glow-rgb) / .45) 286deg,
+    rgb(var(--glow-rgb) / 0)   360deg);
+  animation: nrg-run 9s linear infinite;
+}
+.cta::after {
+  opacity: .6; mix-blend-mode: screen;
+  background: conic-gradient(from var(--nrg2, 0deg),
+    rgb(var(--hi-rgb)   / 0)    0deg,
+    rgb(var(--mid-rgb)  / .55)  64deg,
+    rgb(var(--glow-rgb) / .6)  132deg,
+    rgb(var(--hi-rgb)   / .8)  198deg,
+    rgb(var(--core-rgb) / .5)  252deg,
+    rgb(var(--hi-rgb)   / 0)   330deg);
+  animation: nrg-run2 13s linear infinite;
+}
+.cta.is-idle::before, .cta.is-idle::after { animation-play-state: paused; }
+.is-singular .cta::before { animation-duration: 3.4s; opacity: 1; }
+.is-singular .cta::after { animation-duration: 5s; opacity: .85; }
+@media (prefers-reduced-motion: reduce) { .cta::before, .cta::after { animation: none; } }
 .cta h2 { margin-bottom: 1rem; }
 .cta > p { margin: 0 auto 2rem; color: var(--hi); }
 /* .53 é o mínimo que dá 5:1 sobre o preto — margem sobre os 4,5 do WCAG AA,
@@ -819,7 +863,8 @@ h1, h2 { transition: color 900ms var(--ease), text-shadow 900ms var(--ease); }
 }
 /* a borda de energia dos cards acelera e vira ouro no Singular. Sem glow
    externo — a assinatura é a BORDA, não uma mancha de luz em volta do card. */
-.is-singular .card::before { animation-duration: 1.9s; opacity: 1; }
+.is-singular .card::before { animation-duration: 2.6s; opacity: 1; }
+.is-singular .card::after { animation-duration: 4s; opacity: .9; }
 .is-singular .card {
   box-shadow:
     inset 0 0 0 1px rgb(var(--gold-rgb) / .38),

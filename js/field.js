@@ -102,17 +102,20 @@
       }
     }
 
-    /* centros dos cards de serviço: destino dos elos do mini AI Core */
+    /* BORDA DE BAIXO de cada card de serviço: é onde o elo se conecta. Ligar no
+       CENTRO fazia o elo mergulhar por dentro do card (parecia bug); na borda,
+       ele encaixa como um cabo. */
     servNos.length = 0;
     for (var sv = 0; sv < elServ.length; sv++) {
       var rv = elServ[sv].getBoundingClientRect();
       if (rv.bottom < -80 || rv.top > H + 80 || !rv.width) continue;
-      servNos.push({ cx: rv.left + rv.width / 2, cy: rv.top + rv.height / 2 });
+      servNos.push({ cx: rv.left + rv.width / 2, cy: rv.bottom });
     }
 
-    /* o núcleo flutua logo acima do rótulo "Conectado ao AI Core": o texto
-       aponta para ele, os elos sobem dele até os cards. */
-    nucleo = barramento ? { x: barramento.x + barramento.w / 2, y: barramento.y - 42, r: 30 } : null;
+    /* o núcleo flutua na folga entre o grid e o rótulo (o .bus ganhou um
+       margin-top grande no CSS pra isto). Fica logo acima do rótulo — bem
+       ABAIXO da base dos cards, então não cola mais neles. */
+    nucleo = barramento ? { x: barramento.x + barramento.w / 2, y: barramento.y - 24, r: 22 } : null;
 
     sujo = false;
   }
@@ -320,13 +323,24 @@
       for (var L = 0; L < servNos.length; L++) {          /* elos primeiro, atrás do núcleo */
         var sn = servNos[L];
         var pl = prox(S, sn.cx, sn.cy, 300);
-        var aL = .05 + e * .05 + pl * .5 + pulso * .3;
-        ctx.strokeStyle = 'rgba(' + cy + ',' + Math.min(.6, aL).toFixed(3) + ')';
+        var aL = .06 + e * .05 + pl * .55 + pulso * .3;
+        ctx.strokeStyle = 'rgba(' + cy + ',' + a1(Math.min(.6, aL)).toFixed(3) + ')';
         ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(sn.cx, sn.cy); ctx.stroke();
+        /* curva com controle em (sn.cx, hy): sai do núcleo na horizontal e
+           ENCAIXA vertical na base do card — cabo plugado, não linha cruzando. */
+        ctx.beginPath();
+        ctx.moveTo(hx, hy);
+        ctx.quadraticCurveTo(sn.cx, hy, sn.cx, sn.cy);
+        ctx.stroke();
+        /* a porta: onde o cabo encaixa no card. Acende com a proximidade. */
+        ctx.fillStyle = 'rgba(' + alta + ',' + a1(.3 + pl * .5).toFixed(3) + ')';
+        ctx.beginPath(); ctx.arc(sn.cx, sn.cy, 1.6 + pl * 1.4, 0, TAU); ctx.fill();
         if (pulso > .02) {
-          var f = Math.max(0, Math.min(1, S.pulseFront));
-          halo(hx + (sn.cx - hx) * f, hy + (sn.cy - hy) * f, 10, nuc, .5 * pulso);
+          var f = Math.max(0, Math.min(1, S.pulseFront)), mt = 1 - f;
+          /* posição na PRÓPRIA curva (Bézier quadrática), não na reta */
+          var bx = mt * mt * hx + (2 * mt * f + f * f) * sn.cx;
+          var by = (mt * mt + 2 * mt * f) * hy + f * f * sn.cy;
+          halo(bx, by, 10, nuc, .5 * pulso);
         }
       }
       var resp2 = 1 + Math.sin(S.t * .03) * .05 + pulso * .12;
