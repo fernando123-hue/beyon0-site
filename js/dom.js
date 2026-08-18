@@ -87,7 +87,7 @@
         ents[b].target.classList.toggle('is-idle', !ents[b].isIntersecting);
       }
     }, { rootMargin: '140px 0px 140px 0px' });
-    var cardsBorda = document.querySelectorAll('.card');
+    var cardsBorda = document.querySelectorAll('.card, .cta');
     for (var cb = 0; cb < cardsBorda.length; cb++) ioBorda.observe(cardsBorda[cb]);
   }
 

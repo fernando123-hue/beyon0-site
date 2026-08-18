@@ -344,14 +344,18 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
    @property --nrg. É PAINT de um anel fino localizado — não o recálculo de
    estilo que matou a versão antiga (aquele vinha de --shine-a/b lidas por
    conic-gradients em todo card + 205 spans). Pausa fora da viewport (.is-idle,
-   IO em js/dom.js) e em reduced-motion. Sem @property, o anel fica estático —
-   degrada para uma moldura de luz parada, não some. */
+   IO em js/dom.js) e em reduced-motion.
+
+   O FALLBACK `var(--nrg, 0deg)` não é enfeite: sem @property (navegador
+   antigo) a variável não existe, e um var() sem fallback invalida a
+   declaração inteira — o anel sumiria por completo em vez de degradar. Com
+   ele, quem não tem @property vê uma moldura de luz PARADA. */
 @property --nrg { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
 .card::before {
   content: ""; position: absolute; inset: 0; border-radius: inherit;
   padding: 1px; pointer-events: none;
   opacity: .6; transition: opacity var(--t) var(--ease);
-  background: conic-gradient(from var(--nrg),
+  background: conic-gradient(from var(--nrg, 0deg),
     transparent 0deg 40deg,
     rgb(var(--glow-rgb) / .5) 66deg,
     rgb(var(--hi-rgb) / .95) 82deg,          /* o nó: satura ao quase-branco da rampa */
@@ -613,6 +617,7 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
 /* ---------- CTA ---------- */
 .section--cta { padding-bottom: clamp(80px, 12vw, 150px); }
 .cta {
+  position: relative;
   text-align: center; padding: clamp(2.6rem, 6vw, 4.4rem) var(--pad);
   border-radius: var(--r);
   background:
@@ -620,6 +625,27 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
     linear-gradient(0deg, rgb(var(--deep-rgb) / .55), rgb(var(--deep-rgb) / .25));
   box-shadow: inset 0 0 0 1px rgb(var(--glow-rgb) / .16);
 }
+/* o painel do pedido é o momento da conversão: recebe a MESMA borda de energia
+   dos cards, um pouco mais lenta (é uma peça grande — depressa viraria
+   agitação). Herda o keyframe, o @property e a pausa fora da viewport. */
+.cta::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  padding: 1px; pointer-events: none; opacity: .75;
+  background: conic-gradient(from var(--nrg, 0deg),
+    transparent 0deg 44deg,
+    rgb(var(--glow-rgb) / .5) 70deg,
+    rgb(var(--hi-rgb) / .95) 86deg,
+    rgb(var(--glow-rgb) / .5) 102deg,
+    transparent 132deg 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask-composite: exclude;
+  animation: nrg-run 7.5s linear infinite;
+}
+.cta.is-idle::before { animation-play-state: paused; }
+.is-singular .cta::before { animation-duration: 2.4s; opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .cta::before { animation: none; } }
 .cta h2 { margin-bottom: 1rem; }
 .cta > p { margin: 0 auto 2rem; color: var(--hi); }
 /* .53 é o mínimo que dá 5:1 sobre o preto — margem sobre os 4,5 do WCAG AA,
