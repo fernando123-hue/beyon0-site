@@ -192,7 +192,7 @@
         <h2 class="glow" id="dores-titulo">Por que sua empresa precisa<br />de um site profissional?</h2>
       </div>
       <div class="grid grid--3">
-        <article class="card reveal">
+        <article class="card card--dor reveal">
           <div class="card__icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
               <path d="M2 12s3.5-6.5 10-6.5c1.6 0 3 .38 4.3 1M22 12s-3.5 6.5-10 6.5c-1.6 0-3-.38-4.3-1"/>
@@ -202,7 +202,7 @@
           <h3>Invisibilidade digital</h3>
           <p>Sem presença online sólida, seu cliente encontra o concorrente primeiro. Quem não aparece no Google não existe para quem procura.</p>
         </article>
-        <article class="card reveal">
+        <article class="card card--dor reveal">
           <div class="card__icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>
@@ -211,7 +211,7 @@
           <h3>Performance lenta</h3>
           <p>Sites que demoram mais de 3 segundos perdem metade dos visitantes. Velocidade é receita — e o Google também pensa assim.</p>
         </article>
-        <article class="card reveal">
+        <article class="card card--dor reveal">
           <div class="card__icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
               <path d="M4 19V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v13"/><path d="M4 19h16"/><path d="M8 9h8M8 13h5"/>
@@ -321,15 +321,28 @@
         <p class="kicker">// faq</p>
         <h2 class="glow" id="faq-titulo">O que você deve estar se perguntando.</h2>
       </div>
-      <div class="grid grid--2">
-        <div class="card reveal"><h3>Quanto custa?</h3>
-          <p>Depende do tamanho do projeto. O orçamento é fechado antes de começar — sem surpresa no fim.</p></div>
-        <div class="card reveal"><h3>Demora quanto?</h3>
-          <p>Prazo combinado na primeira conversa. Você acompanha o andamento, sem sumiço.</p></div>
-        <div class="card reveal"><h3>Vou ficar dependente de você?</h3>
-          <p>Não. O site é seu, os acessos são seus, e te ensino a mudar o básico sozinho.</p></div>
-        <div class="card reveal"><h3>Funciona bem no celular?</h3>
-          <p>É feito primeiro para o celular — é lá que seu cliente está. Este site aqui é a prova.</p></div>
+      <!-- Accordion nativo (details/summary): teclado e leitor de tela de graça,
+           e uma cara própria em vez de mais quatro cards iguais. O texto tem que
+           bater PALAVRA POR PALAVRA com o FAQPage JSON-LD no <head> — se editar
+           um, edite o outro. `name="faq"` torna exclusivo: abrir um fecha os
+           demais (navegadores antigos ignoram e só deixam abrir vários). -->
+      <div class="faq-list reveal">
+        <details class="qa" name="faq">
+          <summary><span class="qa__q">Quanto custa?</span><span class="qa__mark" aria-hidden="true"></span></summary>
+          <div class="qa__a"><p>Depende do tamanho do projeto. O orçamento é fechado antes de começar — sem surpresa no fim.</p></div>
+        </details>
+        <details class="qa" name="faq">
+          <summary><span class="qa__q">Demora quanto?</span><span class="qa__mark" aria-hidden="true"></span></summary>
+          <div class="qa__a"><p>Prazo combinado na primeira conversa. Você acompanha o andamento, sem sumiço.</p></div>
+        </details>
+        <details class="qa" name="faq">
+          <summary><span class="qa__q">Vou ficar dependente de você?</span><span class="qa__mark" aria-hidden="true"></span></summary>
+          <div class="qa__a"><p>Não. O site é seu, os acessos são seus, e te ensino a mudar o básico sozinho.</p></div>
+        </details>
+        <details class="qa" name="faq">
+          <summary><span class="qa__q">Funciona bem no celular?</span><span class="qa__mark" aria-hidden="true"></span></summary>
+          <div class="qa__a"><p>É feito primeiro para o celular — é lá que seu cliente está. Este site aqui é a prova.</p></div>
+        </details>
       </div>
     </section>
 
@@ -345,10 +358,10 @@
 
   <footer class="footer">
     <div class="footer__grid">
-      <div>
+      <div class="footer__brand">
         <a href="#hero" aria-label="beyon.0 — voltar ao topo"><span class="wordmark wordmark--lg">beyon<b>.0</b></span></a>
         <p>Websites de alta conversão para<br />empresas que buscam liderança digital.</p>
-        <p class="footer__copy">© <span id="year">2026</span> beyon.0. Todos os direitos reservados.</p>
+        <a class="btn btn--sm btn--primary footer__cta" data-wa href="#" target="_blank" rel="noopener noreferrer">Vamos conversar <span aria-hidden="true">→</span></a>
       </div>
       <nav class="footer__links" aria-label="Links do rodapé">
         <p class="footer__links-title">Links</p>
@@ -357,6 +370,10 @@
         <a href="#projetos">Projetos</a>
         <a href="#faq">FAQ</a>
       </nav>
+    </div>
+    <div class="footer__base">
+      <p class="footer__copy">© <span id="year">2026</span> beyon.0. Todos os direitos reservados.</p>
+      <p class="footer__sig" aria-hidden="true">// interfaces de elite · sistema em operação</p>
     </div>
   </footer>
 
