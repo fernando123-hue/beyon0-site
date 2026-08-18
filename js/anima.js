@@ -53,6 +53,10 @@
       var emsDepois = el.querySelectorAll('em');  /* desfaz o split DENTRO do em */
       for (var d = 0; d < emsDepois.length && d < emsOrig.length; d++) {
         emsDepois[d].textContent = emsOrig[d];
+        /* o SplitText deixa inline-block no em (pra conter as words); se ficar,
+           o em não quebra de linha e "interfaces de elite" estoura no celular.
+           Volta ao inline padrão — o em é só texto aurora agora. */
+        emsDepois[d].style.cssText = '';
       }
 
       /* a onda (`.viva`) só liga quando o título está na viewport — fora dela,
@@ -96,7 +100,10 @@
       var split = new window.SplitText(titulo, { type: 'lines', mask: 'lines' });
       tl.from(split.lines, {
         yPercent: 115, duration: 1.5, stagger: .2, ease: 'power3.out',
-        onComplete: function () { split.revert(); }   /* devolve o em/aurora intacto */
+        onComplete: function () {
+          split.revert();       /* devolve o DOM original */
+          vivaChars(titulo);    /* e já liga a ressonância — logo após a entrada */
+        }
       }, '-=.35');
     } else if (titulo) {
       tl.from(titulo, { autoAlpha: 0, y: 26, duration: 1.3 }, '-=.35');
@@ -105,10 +112,6 @@
     if (sub) tl.from(sub, { autoAlpha: 0, y: 18, duration: 1 }, '-=.8');
     if (acoes) tl.from(acoes.children, { autoAlpha: 0, y: 16, stagger: .14, duration: .9 }, '-=.6');
     if (hint) tl.from(hint, { autoAlpha: 0, duration: .9 }, '-=.3');
-
-    /* só DEPOIS da entrada por linhas (que já reverteu o split): agora quebra o
-       título em caracteres e liga a ressonância permanente. */
-    tl.call(function () { vivaChars(titulo); });
   }
 
   /* dispara quando o conteúdo entra — depois da intro em vídeo (evento 'booted').
