@@ -1,6 +1,6 @@
 # beyon.0 — transferência de contexto
 
-**Última atualização:** 2026-08-17 · **Branch ativa:** `rebuild` · **HEAD:** `85ae398`
+**Última atualização:** 2026-08-17 · **Branch ativa:** `rebuild` · **HEAD:** `81a787a`
 
 Leia este arquivo primeiro. Depois `docs/auditoria-performance.md` — ele contém
 as medições que justificam toda a arquitetura atual e evita repetir erros caros.
@@ -32,7 +32,7 @@ e aprovou ("está tudo ficando muito bom").
 |---|---|---|
 | `origin/main` (**no ar**) | `72f0126` | **A reconstrução, publicada.** É o que o mundo vê hoje. |
 | `main` (local) | `72f0126` | Igual a `origin/main` (fast-forward, sem commits soltos). |
-| **`rebuild`** (atual) | `85ae398` | Onde o trabalho continua. **1 commit à frente do que está no ar** (a linha do tempo do processo, `85ae398`, ainda não publicada). |
+| **`rebuild`** (atual) | `81a787a` | Onde o trabalho continua. **6 commits à frente do ar** (linha do tempo + transferência de contexto + a passada de design 2026-08-17b: ritmo, atmosfera no canvas, HUD). Nada disso publicado. |
 | `feat/ai-core-3d` | `df0458f` | 13 commits: Three.js + reator 3D, 66 testes passando. **Pausado**, não descartado. |
 
 **Fluxo de publicação** (confirmado nesta sessão): `git checkout main && git
@@ -114,10 +114,10 @@ Sem vidro/plástico — "material tecnológico". Sem holofote seguindo o cursor.
 ## 6. Arquitetura atual (branch `rebuild`)
 
 ```
-index.html      394 linhas   markup semântico, UM canvas (#fx), overlay #intro
-styles.css      780 linhas   identidade estática, zero var por frame, entrada 2 níveis
+index.html      ~410 linhas  markup semântico, UM canvas (#fx), overlay #intro, FAQ accordion
+styles.css      ~870 linhas  identidade estática, zero var por frame, entrada 2 níveis, HUD
 js/core.js      178 linhas   estado, loop único, orçamento, profilador
-js/field.js     268 linhas   o canvas: campo + reator + tipografia + aura + barramento
+js/field.js     ~360 linhas  o canvas: campo + reator + CARDS(proximidade) + AI Core + tipografia viva + aura + barramento
 js/dom.js       285 linhas   reveal sutil, nav+menu mobile, seção-atual, eventos, medidor, CTAs
 js/intro.js      99 linhas   overlay de vídeo no boot — evento-só, sem rAF
 js/entrada.js    80 linhas   a LINHA (nível 1) — checagem única no boot, sem rAF loop
@@ -400,21 +400,63 @@ Primeiro item do design entregue (`85ae398`, **ainda não publicado**):
   quebra a identidade. Só a ideia da linha do tempo (neutra de paleta) foi
   aproveitada. **A fonte de verdade de design é ESTE HANDOFF, não aquele doc.**
 
-### PONTO EXATO ONDE PAROU (leia isto)
-Acabei a linha do tempo do processo e ofereci ao dono os próximos candidatos
-visuais, em ordem de impacto. Ele pediu esta transferência de contexto antes
-de escolher. **Nenhum foi começado.** A fila proposta:
-1. **Ritmo entre seções** — todas têm padding vertical idêntico; nada varia de
-   densidade ao longo da página. É o que mais muda a percepção de página
-   inteira. (era minha recomendação de próximo passo)
-2. **FAQ** — quatro caixas iguais às dos outros blocos, sem identidade própria.
-3. **Rodapé** — funcional, mas é o ponto mais sem tratamento da página.
-4. **Seção "dores"** — os três ícones SVG são os únicos do site; ou viram
-   sistema, ou destoam.
+### Passada de design 2026-08-17b — atmosfera + HUD (autonomia total)
+O dono deu **autonomia total** ("execute, reveja, conserte, reveja de novo até
+impecável, site inteiro"), pediu de volta a atmosfera antiga e liberou "fugir
+um pouco" da identidade sem torná-la irreconhecível. Toda a fila de design da
+sessão anterior foi FECHADA + os pedidos explícitos entregues. 5 commits
+(`5a7f81f`..`81a787a`), nenhum publicado:
 
-Depois de TODO o design vem o **copy** (ordem do dono). Guia de copy que já
-está no projeto e vale seguir: sentence case, zero invenção de dado (não
-inventar "48h", "+200 clientes" etc.), voz direta que o site já usa.
+1. **Ritmo entre seções** (`5a7f81f`) — `.section` tinha padding idêntico.
+   Agora escala de 3 tokens (`--sp-tight/--sp/--sp-loose`) + override por #id:
+   dores cola no hero (tenso), serviços/projetos ganham fôlego, faq comprime,
+   CTA respira. Costura: apertado·FÔLEGO·médio·FÔLEGO·apertado·FÔLEGO.
+2. **Atmosfera de volta, TODA no canvas** (`4bd8bbd`, `81a787a`) — o pedido
+   central do dono, feito pela via correta (contínuo=canvas, nunca var CSS por
+   frame; foi um efeito assim que causou os 76ms):
+   - **Cards por proximidade**: `field.js` mede os rects dos `.card` em
+     scroll/resize (culling por visibilidade) e desenha aura + aro de luz que
+     ACENDE conforme o cursor chega (`prox()` calcula distância no canvas).
+     Sem holofote global — cada card responde por conta (a identidade veta
+     holofote seguindo cursor; proximidade por card é outra coisa e foi pedida).
+     No toque fica só a ambiente. Borda nítida do clique = `:hover` (CSS).
+   - **Mini AI Core**: o barramento "Conectado ao AI Core" ganhou o núcleo de
+     fato, flutuando acima do rótulo, com **elos até cada card de serviço**. O
+     elo do card sob o cursor acende; no Pulso a frente sobe pelos elos.
+   - **Tipografia viva**: títulos `.glow` com realce contínuo baixo (nunca
+     "mortos") + frente do Pulso por cima.
+3. **Linguagem HUD no site inteiro** (`4a07156`):
+   - Cards ganham **colchetes de canto** (fracos em repouso, acendem no
+     hover/foco) — marca de instrumento técnico.
+   - **Seção dores**: os 3 ícones viram sistema (badge de canto cortado, igual
+     nos três, `.card--dor`).
+   - **FAQ**: saiu o 4º grid de cards; entrou **accordion nativo**
+     (`details/summary`, `name="faq"` exclusivo, marcador +/− que vira −). Texto
+     intacto — segue batendo com o FAQPage JSON-LD. Teclado/leitor nativos.
+   - **Rodapé**: fio de luz no topo, CTA de WhatsApp (era beco sem saída), barra
+     de base com copyright + assinatura de sistema.
+
+**Invariante preservada**: nenhum `B.add` novo — `?perf` segue
+`["campo","eventos","medidor"]`. Toda a atmosfera nova roda dentro do `campo`.
+
+**NÃO verificado ao vivo (importante)**: o servidor do agente ficou
+inalcançável de novo (isolado em 127.0.0.1) e `file://` cai em snapshot sem a
+folha externa — logo **nem `__frame` nem feel foram medidos nesta sessão**.
+Verificado: `node --check` nos 3 JS, balanço de chaves do CSS, estrutura do
+HTML novo pelo snapshot (4 `.qa`, rodapé, dores), match do FAQ JSON, e revisão
+de lógica linha a linha. Perf garantida por CONSTRUÇÃO (halos ~1ms/64, culling,
+gated por orçamento). **O feel, o timing e o custo real de frame precisam do
+navegador do dono com `?perf` + `__frame()`** — mesma ressalva das seções 7/8.
+
+Pontos de maior incerteza visual (candidatos a ajuste fino, se o dono quiser):
+o desenho do mini AI Core e seus elos; os colchetes nos cards de projeto/serviço
+(podem ficar cheios); a intensidade da tipografia viva (`viva` em `field.js`).
+Tudo é número num lugar só, fácil de calibrar.
+
+Depois de TODO o design vem o **copy** (ordem explícita do dono, ainda de pé:
+"design agora, copy depois"). NÃO foi tocado nesta sessão. Guia: sentence case,
+zero invenção de dado (não inventar "48h", "+200 clientes"), voz direta que o
+site já usa.
 
 ### Regra de trabalho que o dono valoriza (provada nesta sessão)
 **Medir, não deduzir.** Todo efeito novo foi medido com `window.__frame(n)`
@@ -425,11 +467,16 @@ separado, com a mensagem explicando o PORQUÊ. O dono valoriza bug apontado
 sem ser perguntado e decisão de não-fazer justificada (tilt, holofote).
 
 ### Ainda pendente
-1. **Publicar a linha do tempo** (`rebuild` está 1 commit à frente do ar).
-   Fazer junto com o próximo lote de design, não a cada commit.
-2. Comprimir `assets/intro.mp4` (4,2 MB) e decidir o vídeo oficial — placeholder.
-3. Destino de `feat/ai-core-3d` (reator 3D, 66 testes) — decisão do dono.
-4. Analytics: o site é "orientado a conversão" e não mede conversão nenhuma.
+1. **Publicar todo o lote** (`rebuild` está **6 commits à frente do ar**: linha
+   do tempo + contexto + a passada de atmosfera/HUD). Fazer em bloco, quando o
+   dono pedir e depois de ele conferir o feel. **Não pushar sem pedir.**
+2. **Design conferido pelo olho do dono**: nada da passada 2026-08-17b foi visto
+   animando. Rodar `?perf` no PC e celular, olhar cards/AI Core/tipografia, e
+   `copy(JSON.stringify(__frame(600),null,1))` para o custo real de frame.
+3. **Copy** — a próxima fase pela ordem do dono. Ainda não começou.
+4. Comprimir `assets/intro.mp4` (4,2 MB) e decidir o vídeo oficial — placeholder.
+5. Destino de `feat/ai-core-3d` (reator 3D, 66 testes) — decisão do dono.
+6. Analytics: o site é "orientado a conversão" e não mede conversão nenhuma.
    Levantei como a maior lacuna; o dono ainda não decidiu. Se entrar, entra a
    questão de consentimento/LGPD (hoje não rastreia nada).
 
