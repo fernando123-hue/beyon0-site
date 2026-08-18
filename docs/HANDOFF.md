@@ -543,10 +543,52 @@ das fases, e revisão linha a linha. **O medidor de fps do dono é o juiz** — 
 maior risco a vigiar é o `backdrop-filter` no desktop (primeiro a cortar se
 travar; depois a borda de energia).
 
+### Passada de OTIMIZAÇÃO + preparo pro futuro (2026-08-18, `80d1dc7`)
+Pente fino de perf, por medição do custo. **Nenhum comportamento mudou — só o
+custo.** Invariantes intactas (3 subsistemas, zero estilo por frame no loop).
+
+- **DPR capado (`js/core.js`, `TETO_DPR`)** — a causa provável do 30fps no
+  celular do dono: o canvas é tela cheia e o fill-rate cresce com DPR². Celular
+  reporta DPR 2.5-3.5; agora o teto é 2 no desktop (ponteiro fino), 1,5 no
+  mobile, 1,25 no fraco. ~40% menos fill no celular; como a cena é brilho suave
+  (não texto), 1,5 é indistinguível. **Se ainda travar no mobile, o próximo
+  lever é PAUSAR a animação da borda de aurora no celular** (o conic `@property`
+  repinta por frame; hoje só a camada base roda no mobile, `::after` e o pulso
+  já são `@media (pointer: fine)`).
+- **Proximidade sem thrash (`js/dom.js`)** — `varrer()` lia `getBoundingClientRect`
+  de todos os cards por frame de movimento (layout síncrono após escrever
+  `--near`). Agora os centros ficam em cache em coordenadas de DOCUMENTO e o
+  frame só subtrai o scroll: zero leitura de layout por frame. Recalcula em
+  resize/load/entrada-pronta.
+- **Arrays do reator izados (`js/field.js`, `GRADE`/`ANEIS`)** — eram recriados
+  por frame; viraram const de módulo.
+- **`.grid--2` removido** — morto desde o FAQ virar accordion.
+
+### GUIA DE EXTENSÃO — como somar coisas sem quebrar a arquitetura
+Pensado para as próximas implementações. As regras da seção 4 continuam valendo.
+- **Nova seção**: `<section class="section" id="x" aria-labelledby="x-t">` com
+  `.section__head.reveal` + `<h2 class="glow">`. Ganha ritmo automático; se pedir
+  densidade própria, add override por `#id` no bloco "ritmo entre seções". Add o
+  link na nav e no rodapé.
+- **Novo card**: qualquer `.card` já herda vidro, borda de aurora, proximidade
+  (`--near`) e o pico no hover/foco — nada a fazer. Ícone estilo dores? use
+  `.card--dor`. Serviço com elo ao AI Core? use `.card--service` (o `field.js`
+  mede `.card--service` e liga os elos).
+- **Novo efeito contínuo**: desenhe no canvas (`js/field.js`, dentro do `tick`),
+  NUNCA em CSS por frame. Gate por `orc` (orçamento) e culle por visibilidade.
+  Se for um sistema à parte com estado próprio, registre com `B.add(nome, fn)` —
+  mas saiba que isso quebra a invariante dos "3 subsistemas"; documente o porquê.
+- **Cor que reage ao Singular**: use `cor(BASE, warmth, whiteHot)` no canvas, ou
+  no CSS leia os tokens (`--glow/--hi/--core/--mid`) — o `.is-singular` já
+  remapeia a rampa inteira para ouro+branco. Nunca hardcode ciano/teal (vira
+  verde no dourado — ver `1ad7907`).
+- **Novo evento do organismo**: escreva NÚMEROS em `S` (add o campo em
+  `core.js`) e troque UMA classe no `<body>`; o canvas lê `S`, o CSS acompanha a
+  classe. Modelo: Pulso e Singular em `js/dom.js`.
+
 ### Ainda pendente
-1. **Publicar todo o lote** (`rebuild` está **6 commits à frente do ar**: linha
-   do tempo + contexto + a passada de atmosfera/HUD). Fazer em bloco, quando o
-   dono pedir e depois de ele conferir o feel. **Não pushar sem pedir.**
+1. **Publicar todo o lote** (`rebuild` está à frente do ar). Fazer em bloco,
+   quando o dono pedir e depois de ele conferir o feel. **Não pushar sem pedir.**
 2. **Design conferido pelo olho do dono**: nada da passada 2026-08-17b foi visto
    animando. Rodar `?perf` no PC e celular, olhar cards/AI Core/tipografia, e
    `copy(JSON.stringify(__frame(600),null,1))` para o custo real de frame.
