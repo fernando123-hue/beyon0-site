@@ -117,10 +117,24 @@ h3 { font-size: 1.06rem; font-weight: 600; letter-spacing: -.01em; }
 
 p { max-width: 62ch; }
 
-em {
-  font-style: normal;
-  color: var(--glow);
-  /* o brilho por trás das palavras-chave é desenhado no canvas; aqui só a cor */
+/* AURORA TEXT — a palavra importante como luz viva.
+   Inspirado na ideia de "aurora text", mas feito do zero para a nossa rampa: o
+   preenchimento da letra é um gradiente que FLUI (glow → hi → core → hi → glow,
+   sem o teal para nunca flertar com verde). O `em` já é o marcador de palavra
+   importante espalhado pelo site, então a aurora se distribui sozinha. No
+   Singular os tokens viram ouro/branco → a aurora acompanha, sem verde.
+   Fallback sólido para quem não tem background-clip: text. */
+em, .aurora { font-style: normal; color: var(--glow); }
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  em, .aurora {
+    background-image: linear-gradient(100deg,
+      var(--glow), var(--hi) 28%, var(--core) 50%, var(--hi) 72%, var(--glow));
+    background-size: 220% auto;
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent; color: transparent;
+    animation: aurora-flow 9s linear infinite;
+  }
+  @keyframes aurora-flow { to { background-position: 220% center; } }
 }
 
 .kicker {
@@ -643,7 +657,13 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
 }
 .mock__label { display: flex; flex-direction: column; gap: .1rem; }
 .mock__label span { color: var(--core); font-weight: 600; font-size: .92rem; }
-.mock__label em { font-family: var(--mono); font-size: .68rem; letter-spacing: .1em; color: rgb(var(--hi-rgb) / .5); }
+/* estes em são descritores secundários, não palavras-chave: fora da aurora
+   (background/fill resetados) e sem animação — texto mono dim, como antes. */
+.mock__label em {
+  font-family: var(--mono); font-size: .68rem; letter-spacing: .1em;
+  background: none; -webkit-text-fill-color: currentColor;
+  color: rgb(var(--hi-rgb) / .5); animation: none;
+}
 
 /* ---------- barramento ---------- */
 /* max-width: none anula o `p { max-width: 62ch }` global. Sem isto o
@@ -871,6 +891,40 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
   transition: opacity var(--t-slow) var(--ease), transform var(--t-slow) var(--ease);
 }
 .reveal.is-in { opacity: 1; transform: none; }
+
+/* ---------- GLITCH — personalidade, minimalista ----------
+   Aberração cromática curta (ciano/branco, dentro da rampa) com um tremor de
+   1-2px. Presente em vários pontos, mas sempre BREVE: nunca vira ruído.
+   - kicker: glitcha UMA vez ao revelar (distribui o efeito por toda seção).
+   - wordmark: um flicker raro em repouso + no hover.
+   - links da nav: um flicker no hover.
+   Compositor-friendly (transform + text-shadow). Off em reduced-motion. */
+@keyframes glitch {
+  0%, 100% { transform: translateX(0); text-shadow: none; }
+  20% { transform: translateX(-1.5px); text-shadow: 1.5px 0 rgb(var(--glow-rgb) / .7), -1.5px 0 rgb(var(--core-rgb) / .5); }
+  40% { transform: translateX(1.5px);  text-shadow: -1.5px 0 rgb(var(--glow-rgb) / .7), 1.5px 0 rgb(var(--hi-rgb) / .5); }
+  60% { transform: translateX(-1px); text-shadow: 1px 0 rgb(var(--glow-rgb) / .6); }
+  80% { transform: translateX(1px);  text-shadow: -1px 0 rgb(var(--hi-rgb) / .6); }
+}
+/* mesma assinatura, mas quase todo o tempo em repouso: um flicker curto e raro */
+@keyframes glitch-raro {
+  0%, 92%, 100% { transform: translateX(0); text-shadow: none; }
+  93% { transform: translateX(-1.5px); text-shadow: 1.5px 0 rgb(var(--glow-rgb) / .7), -1.5px 0 rgb(var(--hi-rgb) / .5); }
+  95% { transform: translateX(1.5px);  text-shadow: -1.5px 0 rgb(var(--glow-rgb) / .7); }
+  97% { transform: translateX(-1px); text-shadow: 1px 0 rgb(var(--hi-rgb) / .6); }
+}
+/* o kicker se monta com um glitch ao entrar (scroll normal e F5-no-meio) */
+.section__head.is-in .kicker,
+.revelando .section__head .kicker { animation: glitch .5s linear 1; }
+/* a marca pisca de leve, sozinha e no hover; mais rápida durante o Pulso */
+.wordmark { animation: glitch-raro 9s linear infinite; }
+.footer .wordmark { animation-delay: -4.5s; }   /* dessincroniza da marca da nav */
+.is-pulse .wordmark { animation-duration: 3.4s; }
+.nav__logo:hover .wordmark,
+.footer a:hover .wordmark { animation: glitch .32s linear 1; }
+.nav__links a:not(.btn):hover { animation: glitch .32s linear 1; }
+/* reduced-motion: o bloco global (`*{animation-duration:.001ms !important}`)
+   já neutraliza glitch e aurora — não precisa repetir aqui. */
 
 /* ---------- estados do organismo (discretos, por classe no body) ----------
    O Pulso e o Estado Singular acontecem no canvas. Aqui o DOM só acompanha com
