@@ -1,6 +1,6 @@
 # beyon.0 — transferência de contexto
 
-**Última atualização:** 2026-08-17 · **Branch ativa:** `rebuild` · **HEAD:** `0d74b89`
+**Última atualização:** 2026-08-17 · **Branch ativa:** `rebuild` · **HEAD:** `85ae398`
 
 Leia este arquivo primeiro. Depois `docs/auditoria-performance.md` — ele contém
 as medições que justificam toda a arquitetura atual e evita repetir erros caros.
@@ -23,15 +23,28 @@ Landing page one-page para captar clientes que querem site.
 
 ## 2. Estado das branches — LEIA ANTES DE MEXER
 
+**MUDANÇA IMPORTANTE (2026-08-17): a reconstrução foi PUBLICADA.** Em
+`72f0126`, `rebuild` virou fast-forward de `main` e foi pushado. O site no ar
+agora É a reconstrução — não a versão travada antiga. O dono viu pelo celular
+e aprovou ("está tudo ficando muito bom").
+
 | Branch | HEAD | O que é |
 |---|---|---|
-| `origin/main` (**no ar**) | `0d1ea34` | Site publicado. **Não tem nada das sessões recentes.** Roda a 20–30fps. |
-| `main` (local) | `716bf35` | 9 commits **não pushados**: tipografia viva, GSAP, specs do 3D, 3 rodadas de otimização. Roda a 8–10fps. **Caminho abandonado.** |
+| `origin/main` (**no ar**) | `72f0126` | **A reconstrução, publicada.** É o que o mundo vê hoje. |
+| `main` (local) | `72f0126` | Igual a `origin/main` (fast-forward, sem commits soltos). |
+| **`rebuild`** (atual) | `85ae398` | Onde o trabalho continua. **1 commit à frente do que está no ar** (a linha do tempo do processo, `85ae398`, ainda não publicada). |
 | `feat/ai-core-3d` | `df0458f` | 13 commits: Three.js + reator 3D, 66 testes passando. **Pausado**, não descartado. |
-| **`rebuild`** (atual) | `0d74b89` | **A reconstrução + intro em vídeo + entrada em 2 níveis (linha única no load + fade sutil no scroll). É onde o trabalho continua.** |
 
-O dono pediu a reconstrução do zero depois que a otimização incremental falhou.
-Nada foi deletado: `main` e `feat/ai-core-3d` seguem intactas como referência.
+**Fluxo de publicação** (confirmado nesta sessão): `git checkout main && git
+merge rebuild --ff-only && git push origin main` — depois voltar pra
+`rebuild`. É fast-forward limpo porque `rebuild` tem `main` como ancestral.
+Push na `main` = deploy automático na Vercel (~1-2 min). **Não pushar sem o
+dono pedir.**
+
+Histórico: o dono pediu a reconstrução do zero depois que a otimização
+incremental falhou (seção 3). `feat/ai-core-3d` segue intacta como referência.
+As branches `main`/`rebuild` antigas (`716bf35`, `0d1ea34`) já eram — foram
+ultrapassadas pela publicação.
 
 ---
 
@@ -101,19 +114,24 @@ Sem vidro/plástico — "material tecnológico". Sem holofote seguindo o cursor.
 ## 6. Arquitetura atual (branch `rebuild`)
 
 ```
-index.html      372 linhas   markup semântico, UM canvas (#fx), overlay #intro
-styles.css      654 linhas   identidade estática, zero var por frame, entrada 2 níveis
+index.html      394 linhas   markup semântico, UM canvas (#fx), overlay #intro
+styles.css      780 linhas   identidade estática, zero var por frame, entrada 2 níveis
 js/core.js      178 linhas   estado, loop único, orçamento, profilador
-js/field.js     261 linhas   o canvas: campo + reator + tipografia + aura + barramento
-js/dom.js       218 linhas   reveal sutil (nível 2), nav, eventos, medidor, CTAs
+js/field.js     268 linhas   o canvas: campo + reator + tipografia + aura + barramento
+js/dom.js       285 linhas   reveal sutil, nav+menu mobile, seção-atual, eventos, medidor, CTAs
 js/intro.js      99 linhas   overlay de vídeo no boot — evento-só, sem rAF
 js/entrada.js    80 linhas   a LINHA (nível 1) — checagem única no boot, sem rAF loop
 ```
 
-Total **~1.860 linhas**, contra 5.783 antes. Não há mais `main.js` nem
+Total **~2.080 linhas**, contra 5.783 antes. Não há mais `main.js` nem
 `vendor/` (GSAP): eram 305 KB de código morto, sem nenhuma referência no
 `index.html`, que ainda assim subiam no deploy. **O projeto não tem
 dependência de runtime nenhuma.**
+
+Os três subsistemas registrados no loop único (`?perf` confirma:
+`["campo","eventos","medidor"]`) são a lista COMPLETA do que roda por frame.
+Se aparecer um quarto, alguém quebrou a arquitetura — `js/entrada.js`,
+menu mobile, seção-atual e reveals são todos evento-só, fora do rAF.
 
 ### Custo de frame medido (sessão de 2026-08-17)
 `window.__frame(n)` (só com `?perf`) roda N frames na mão e devolve ms/frame:
@@ -361,17 +379,59 @@ logo após trocar a classe devolve o valor ANTIGO se houver `transition` nela
 aconteceu três vezes seguidas (cor do link ativo, `max-height` do menu,
 altura do painel).
 
-### Próximos passos naturais
-1. Dono roda e dá o veredito visual. O que **nunca foi visto por ninguém**:
-   (a) a aura das palavras-chave e a luz do barramento durante o Pulso;
-   (b) as três molduras de conceito lidas como imagem; (c) o menu do celular
-   abrindo; (d) o medidor flutuando — ele nunca flutuou de verdade até agora.
-2. Comprimir `assets/intro.mp4` (4,2 MB) e decidir o vídeo oficial — o atual
-   é placeholder.
-3. Decidir o destino de `feat/ai-core-3d` (o reator 3D em Three.js, 66 testes
-   passando) — a reconstrução mudou a fundação, então aquela branch precisará de
-   adaptação se for retomada.
-4. Quando aprovado: merge `rebuild` → `main` e push (que publica).
+### Publicação + linha do tempo do processo (fim de 2026-08-17)
+O dono viu a reconstrução no celular e **aprovou**. A reconstrução foi
+publicada (`72f0126`, seção 2). Em seguida ele pediu para **continuar o
+design agora, e deixar o copy para depois** — ordem explícita: primeiro
+termina todo o visual do site, depois mexe no texto.
+
+Primeiro item do design entregue (`85ae398`, **ainda não publicado**):
+- **Processo virou linha do tempo.** Eram três `.card` idênticos lado a lado,
+  sem nada ligando — podiam ser lidos em qualquer ordem. Agora é uma sequência
+  com trilho + um nó por passo (horizontal no desktop, vertical no celular).
+  Trilho e nós são pseudo-elementos, zero DOM extra, nada por frame. Bug pego
+  na verificação por geometria: o trilho quebrava nos dois vãos da grade;
+  corrigido estendendo cada trecho meio-vão para os lados. Conferido contínuo
+  e ancorado nos nós, desktop e mobile.
+- **`docs/design-direction.md` marcado como HISTÓRICO — NÃO IMPLEMENTAR.** É do
+  primeiro commit (2026-07-30) e descreve uma direção ABANDONADA: paleta
+  esverdeada (H≈160°), corpo CLARO, fonte Outfit, arco escuro→claro→escuro. O
+  site real é ciano, 100% dark (seção 5, sagrada). Implementar a partir dele
+  quebra a identidade. Só a ideia da linha do tempo (neutra de paleta) foi
+  aproveitada. **A fonte de verdade de design é ESTE HANDOFF, não aquele doc.**
+
+### PONTO EXATO ONDE PAROU (leia isto)
+Acabei a linha do tempo do processo e ofereci ao dono os próximos candidatos
+visuais, em ordem de impacto. Ele pediu esta transferência de contexto antes
+de escolher. **Nenhum foi começado.** A fila proposta:
+1. **Ritmo entre seções** — todas têm padding vertical idêntico; nada varia de
+   densidade ao longo da página. É o que mais muda a percepção de página
+   inteira. (era minha recomendação de próximo passo)
+2. **FAQ** — quatro caixas iguais às dos outros blocos, sem identidade própria.
+3. **Rodapé** — funcional, mas é o ponto mais sem tratamento da página.
+4. **Seção "dores"** — os três ícones SVG são os únicos do site; ou viram
+   sistema, ou destoam.
+
+Depois de TODO o design vem o **copy** (ordem do dono). Guia de copy que já
+está no projeto e vale seguir: sentence case, zero invenção de dado (não
+inventar "48h", "+200 clientes" etc.), voz direta que o site já usa.
+
+### Regra de trabalho que o dono valoriza (provada nesta sessão)
+**Medir, não deduzir.** Todo efeito novo foi medido com `window.__frame(n)`
+(só com `?perf`) antes de aceitar. Bugs foram achados por geometria calculada
+(colisão de 13px no SaaS, trilho cortado na linha do tempo) que o olho nem
+pegaria. Toda mudança foi verificada ao vivo no browser e commitada em
+separado, com a mensagem explicando o PORQUÊ. O dono valoriza bug apontado
+sem ser perguntado e decisão de não-fazer justificada (tilt, holofote).
+
+### Ainda pendente
+1. **Publicar a linha do tempo** (`rebuild` está 1 commit à frente do ar).
+   Fazer junto com o próximo lote de design, não a cada commit.
+2. Comprimir `assets/intro.mp4` (4,2 MB) e decidir o vídeo oficial — placeholder.
+3. Destino de `feat/ai-core-3d` (reator 3D, 66 testes) — decisão do dono.
+4. Analytics: o site é "orientado a conversão" e não mede conversão nenhuma.
+   Levantei como a maior lacuna; o dono ainda não decidiu. Se entrar, entra a
+   questão de consentimento/LGPD (hoje não rastreia nada).
 
 ---
 
