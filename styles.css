@@ -334,10 +334,11 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
 }
 .card:hover {
   transform: translateY(-2px);
+  /* sem glow externo: a resposta ao hover é a elevação + a borda mais viva, não
+     uma mancha de luz em volta (o dono cortou as luzes redondas). */
   box-shadow:
-    inset 0 0 0 1px rgb(var(--glow-rgb) / .3),
-    inset 0 1px 0 0 rgb(var(--hi-rgb) / .12),
-    0 0 34px rgb(var(--glow-rgb) / .07);
+    inset 0 0 0 1px rgb(var(--glow-rgb) / .34),
+    inset 0 1px 0 0 rgb(var(--hi-rgb) / .12);
 }
 /* a borda de energia: um nó de luz que dá a volta na borda do card. Um
    conic-gradient mascarado só na moldura de 1px, com o ângulo animado por
@@ -779,7 +780,7 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
    elementos. Nada de reescrever tokens que 126 regras leem. */
 body { transition: none; }
 
-.is-pulse .card { box-shadow: inset 0 0 0 1px rgb(var(--glow-rgb) / .26), 0 0 30px rgb(var(--glow-rgb) / .05); }
+.is-pulse .card { box-shadow: inset 0 0 0 1px rgb(var(--glow-rgb) / .3); }   /* borda mais viva no Pulso, sem glow externo */
 .is-pulse .kicker, .is-pulse .bus b { color: var(--hi); }
 .card, .kicker, .bus b { transition: box-shadow var(--t) var(--ease), color var(--t) var(--ease); }
 
@@ -797,23 +798,21 @@ body { transition: none; }
 .is-singular em, .is-singular .kicker, .is-singular .step__n,
 .is-singular .wordmark b, .is-singular .bus b { transition: color 900ms var(--ease); }
 
-/* os títulos ficam BRANCOS incandescentes com halo dourado — é a assinatura
-   do estado: branco no corpo da letra, ouro no ar em volta. */
+/* no Singular os títulos ficam BRANCOS. Uma incandescência CURTA e nítida na
+   letra (borda quente de metal em brasa), não o halo difuso de 90px que o dono
+   rejeitou — aquele lia como luz redonda mal feita. Evento raro, some sozinho. */
 h1, h2 { transition: color 900ms var(--ease), text-shadow 900ms var(--ease); }
 .is-singular h1, .is-singular h2 {
   color: #fff;
-  text-shadow:
-    0 0 18px rgb(var(--gold-rgb) / .55),
-    0 0 46px rgb(var(--gold-rgb) / .3),
-    0 0 90px rgb(var(--gold-rgb) / .16);
+  text-shadow: 0 0 5px rgb(255 255 255 / .45), 0 0 11px rgb(var(--gold-rgb) / .38);
 }
-/* a borda de energia dos cards acelera e vira ouro-branco no Singular */
+/* a borda de energia dos cards acelera e vira ouro no Singular. Sem glow
+   externo — a assinatura é a BORDA, não uma mancha de luz em volta do card. */
 .is-singular .card::before { animation-duration: 1.9s; opacity: 1; }
 .is-singular .card {
   box-shadow:
-    inset 0 0 0 1px rgb(var(--gold-rgb) / .34),
-    inset 0 1px 0 0 rgb(255 255 255 / .14),
-    0 0 46px rgb(var(--gold-rgb) / .09);
+    inset 0 0 0 1px rgb(var(--gold-rgb) / .38),
+    inset 0 1px 0 0 rgb(255 255 255 / .14);
 }
 
 /* IGNIÇÃO: o estouro branco. Um overlay de tela cheia que nasce forte e some
