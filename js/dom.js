@@ -252,13 +252,21 @@
         var r = (u - .13) / .63;
         S.singular = 1;
         S.warmth = Math.min(1, .35 + r * 1.6);        /* fecha no dourado cedo */
-        /* o branco não some: fica como núcleo, respirando devagar */
-        S.whiteHot = .3 + Math.sin(r * 9) * .1;
+        /* o branco DECAI do auge, não cai de uma vez: sem isto ele saltava de
+           1,0 para 0,3 entre dois frames e a cena inteira "pipocava" do branco
+           para o ouro — a medição por simulação pegou o salto. Aqui ele desce
+           do estouro até o núcleo em ~11% do evento e só então começa a
+           respirar. O respiro entra na mesma proporção em que o decaimento
+           sai, então a soma nunca dá um degrau. */
+        var decai = Math.max(0, 1 - r / .18);
+        S.whiteHot = .3 + .7 * decai + Math.sin(r * 9) * .1 * (1 - decai);
         S.shock = -1;
         if (ignitindo) { ignitindo = false; document.body.classList.remove('is-igniting'); }
       } else {                                        /* RESFRIAMENTO */
         var f = Math.max(0, (1 - u) / .24);
-        S.singular = f; S.warmth = f; S.whiteHot = f * .3; S.shock = -1;
+        /* .34 é o valor EXATO em que o reinado termina (.3 + sen(9)·.1): com
+           .3 aqui, o branco dava um degrau de 4% ao entrar no resfriamento. */
+        S.singular = f; S.warmth = f; S.whiteHot = f * .34; S.shock = -1;
       }
       return;
     }
