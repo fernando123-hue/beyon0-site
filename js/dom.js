@@ -281,7 +281,13 @@
     if (!iniciou) {
       iniciou = s.now;
       agendarPulso(s.now);
-      proxSing = s.now + 45000 + Math.random() * 40000;
+      /* O PRIMEIRO Singular vem cedo, de propósito. Ele é o argumento de venda
+         mais forte do site — quem vê quer uma página que faça aquilo. Antes o
+         primeiro caía entre 45s e 85s, e a sessão típica numa landing page é
+         mais curta que isso: a maioria dos visitantes ia embora sem ver o
+         espetáculo. Agora ele acontece por volta dos 22-30s (já rolando, com o
+         conteúdo entendido), e os seguintes voltam a ser raros. */
+      proxSing = s.now + 22000 + Math.random() * 8000;
     }
     drivePulso(s.now, s.dt);
     driveSingular(s.now);

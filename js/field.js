@@ -190,7 +190,16 @@
     sujo = false;
   }
   window.addEventListener('scroll', function () { sujo = true; }, { passive: true });
-  B.on('resize', function () { dimensionar(); medirGlifos(); });
+  /* medirGlifos custa ~300 leituras de Range — barato uma vez, caro em rajada.
+     O resize dispara dezenas de vezes ao arrastar a janela, então ele espera a
+     mão parar. Enquanto isso as caixas antigas seguem em uso: ficam um pouco
+     fora do lugar por um instante, o que é invisível perto de travar o arrasto. */
+  var tGlifos = 0;
+  B.on('resize', function () {
+    dimensionar();
+    clearTimeout(tGlifos);
+    tGlifos = setTimeout(medirGlifos, 180);
+  });
   /* as caixas dos glifos dependem da fonte REAL: medidas antes de a Sora chegar,
      ficam todas no lugar errado (a fallback tem outra métrica). */
   if (document.fonts && document.fonts.ready) {
@@ -469,13 +478,29 @@
         if (!tt.cs || !tt.cs.length) continue;
         /* culling: título fora da tela não acende glifo nenhum */
         if (tt.y > H + 40 || tt.y + tt.h < -40) continue;
+        /* VIDA AMBIENTE: um realce lento atravessando o título — UM gradiente,
+           não um halo por letra. Antes isto era energia somada por glifo, e o
+           resultado era ~40 halos por frame só de respiro (≈0,6ms constantes,
+           6× o custo total do site em repouso). Como onda por título, custa
+           uma fração disso e a frase continua viva. */
+        var viva = .06 + e * .1;
+        var vp = Math.sin(S.t * .012 + tt.x * .004) * .5 + .5;
+        var gv = ctx.createLinearGradient(tt.x, 0, tt.x + tt.w, 0);
+        gv.addColorStop(Math.max(0, vp - .3), 'rgba(' + cy + ',0)');
+        gv.addColorStop(vp, 'rgba(' + alta + ',' + a1(.17 * viva).toFixed(3) + ')');
+        gv.addColorStop(Math.min(1, vp + .3), 'rgba(' + cy + ',0)');
+        ctx.fillStyle = gv;
+        ctx.fillRect(tt.x, tt.y, tt.w, tt.h);
+
         var cs = tt.cs;
         for (var g = 0; g < cs.length; g++) {
           var ch = cs[g];
           var gx = tt.x + ch.cx, gy = tt.y + ch.cy;
 
-          /* respiro: baixo, defasado por glifo — vida, não animação */
-          var en = (Math.sin(S.t * .019 + ch.j * 6.28) * .5 + .5) * .1;
+          /* energia POR GLIFO: começa em ZERO. Em repouso, com o cursor longe
+             e sem evento, nenhum glifo passa do limiar e o laço não desenha
+             nada — o custo é o de antes de o efeito existir. */
+          var en = 0;
 
           /* percepção: o campo do cursor decai com a distância ao glifo */
           if (S.pointerOn) {
@@ -500,8 +525,10 @@
             if (dOnda < 170) { var oh = 1 - dOnda / 170; en += oh * oh * 2.6; }
           }
 
-          en *= ganho;
-          if (en < .05) continue;                        /* apagado: não custa nada */
+          if (en < .04) continue;                        /* apagado: não custa nada */
+          /* o respiro MODULA a luz que já existe (não a cria): cada glifo pulsa
+             na sua própria fase, então a linha nunca lê como um bloco só. */
+          en *= ganho * (.85 + (Math.sin(S.t * .019 + ch.j * 6.28) * .5 + .5) * .3);
           /* TETO: sem ele a ignição levava en a ~4 e o raio do halo a 2,6× a
              altura da letra — dezenas de halos gigantes ao mesmo tempo,
              estourando o visual e o orçamento. Limitado, o pico continua
