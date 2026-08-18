@@ -1,6 +1,10 @@
 # beyon.0 — transferência de contexto
 
-**Última atualização:** 2026-08-18 · **Branch ativa:** `rebuild` · **HEAD:** publicado
+**Última atualização:** 2026-08-18 (fim) · **Branch ativa:** `rebuild` · **HEAD:** `9383f6d` (PUBLICADO)
+
+> **Se você é a próxima sessão, comece pela seção 11 (ESTADO ATUAL CONSOLIDADO)**
+> — ela resume tudo. As seções datadas acima dela são o histórico de como
+> chegamos aqui; leia-as se precisar do porquê de uma decisão.
 
 Leia este arquivo primeiro. Depois `docs/auditoria-performance.md` — ele contém
 as medições que justificam toda a arquitetura atual e evita repetir erros caros.
@@ -30,10 +34,15 @@ e aprovou ("está tudo ficando muito bom").
 
 | Branch | HEAD | O que é |
 |---|---|---|
-| `origin/main` (**no ar**) | `72f0126` | **A reconstrução, publicada.** É o que o mundo vê hoje. |
-| `main` (local) | `72f0126` | Igual a `origin/main` (fast-forward, sem commits soltos). |
-| **`rebuild`** (atual) | `81a787a` | Onde o trabalho continua. **6 commits à frente do ar** (linha do tempo + transferência de contexto + a passada de design 2026-08-17b: ritmo, atmosfera no canvas, HUD). Nada disso publicado. |
+| `origin/main` (**no ar**) | `9383f6d` | **Tudo publicado e alinhado com `rebuild`.** É o que o mundo vê. |
+| `main` (local) | `9383f6d` | Igual a `origin/main`. |
+| **`rebuild`** (atual) | `9383f6d` | Onde o trabalho continua. **0 à frente do ar** — tudo foi publicado. |
 | `feat/ai-core-3d` | `df0458f` | 13 commits: Three.js + reator 3D, 66 testes passando. **Pausado**, não descartado. |
+
+**Fluxo desta fase (muitos ciclos):** o dono pede um efeito → implemento na
+`rebuild`, commito em separado com o PORQUÊ → ele diz "publica" → faço o
+fast-forward + push → ele testa no celular e dá o próximo pedido. **Publica só
+quando ele pede** (mas nesta fase ele pede a cada passo, pra ver no aparelho).
 
 **Fluxo de publicação** (confirmado nesta sessão): `git checkout main && git
 merge rebuild --ff-only && git push origin main` — depois voltar pra
@@ -631,3 +640,154 @@ Pensado para as próximas implementações. As regras da seção 4 continuam val
   `Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>`.
 - **Não pushar sem pedido** — push é deploy.
 - Antes de otimizar: **medir**. Esta sessão provou o custo de não fazer isso.
+
+---
+
+## 11. ESTADO ATUAL CONSOLIDADO (2026-08-18, fim) — LEIA PRIMEIRO
+
+Tudo publicado (`9383f6d`). Site rico em efeitos, **tudo ecoando num único
+ecossistema**, dentro da rampa ciano, sem travar (segundo o dono, testando no
+celular a cada passo). As seções 1–10 são o histórico; esta consolida o hoje.
+
+### 11.1 Arquivos
+```
+index.html      419 linhas   markup; carrega vendor/gsap + os js/ (defer, nesta ordem)
+styles.css     1209 linhas   identidade + TODOS os efeitos CSS (bordas, aurora, glitch, caractere vivo, Singular)
+js/core.js      185 linhas   estado (S), loop único (rAF), orçamento, profilador, TETO_DPR
+js/field.js     443 linhas   o canvas: partículas, brumas, reator (engenharia de precisão), mini AI Core, Singular (aurora/onda/overdrive)
+js/dom.js       411 linhas   reveals(cede ao GSAP), nav/menu, seção-atual, Pulso, Singular(4 fases), medidor, proximidade dos cards
+js/intro.js      99 linhas   overlay de vídeo no boot — evento-só
+js/entrada.js    80 linhas   a LINHA (nível 1) — evento único no boot
+js/anima.js     197 linhas   CAMADA GSAP: entrada do hero, reveals de scroll, parallax, caractere vivo
+vendor/gsap/                 gsap.min.js + ScrollTrigger.min.js + SplitText.min.js (hospedado local pela CSP)
+```
+
+### 11.2 GSAP — re-adicionado com disciplina (2026-08-18)
+GSAP foi a dependência que a reconstrução **removeu** quando o site travava. O
+dono pediu de volta ("animações impressionantes"). Re-adicionado assim:
+- **Hospedado local** (`vendor/gsap`) porque a CSP é `script-src 'self'` — CDN é
+  bloqueado. SplitText é grátis desde o GSAP 3.13; vendorada a 3.15.
+- **É GSAP puro. NÃO há anime.js** (o arquivo `js/anima.js` é "animação" em
+  português, não a lib). Confirmado — zero referência a anime.js.
+- `js/anima.js` é **ADITIVO e OPCIONAL**: se o GSAP não carregar, ele sai sem
+  tocar em nada e o site funciona igual (hero nasce visível; `dom.js` volta a
+  ser dono dos reveals via `gsapReveal`). reduced-motion: não anima.
+- **Só transform/opacity** (compositor) — nunca layout, nunca var-CSS-por-frame.
+  O gargalo antigo era o COMO (var lida por 126 regras + 205 spans), não o GSAP.
+- GSAP tem ticker próprio (2º rAF). Aceito: só trabalha com tween ativo, custo
+  ocioso ínfimo. `lagSmoothing(0)`.
+- **Segurança dos reveals**: `dom.js` cede quando `gsap+ScrollTrigger` presentes
+  (`gsapReveal`); `anima.js` revela via `ScrollTrigger.batch` em 'entrada-pronta',
+  com fallback no 'booted' (+4,5s), try/catch, e reveal imediato de quem já está
+  no/acima do viewport (F5-no-meio). **Conteúdo NUNCA fica invisível** — vários
+  guardas.
+
+### 11.3 O ECOSSISTEMA — o que ecoa, e como (a alma do site)
+O "organismo" é o estado `S` (core.js), dirigido por eventos discretos em
+dom.js. Dois eventos raros varrem o site:
+- **PULSO** (a cada 9–20s, 2,6s): uma onda. `S.pulse`/`S.pulseFront`. DOM ganha
+  `.is-pulse`.
+- **SINGULAR** (a cada ~70–130s, 18s, 1º aos 22–30s): o espetáculo em 4 fases
+  (carga→ignição→reinado→resfriamento). BRANCO+DOURADO. `S.singular/warmth/
+  whiteHot/shock`. DOM ganha `.is-singular` (+`.is-igniting` no estouro).
+
+**Regra que dá unidade: todo efeito CONTÍNUO ecoa esses dois eventos.** Mapa:
+| Efeito | onde | ecoa Pulso | ecoa Singular |
+|---|---|---|---|
+| reator, partículas, mini AI Core, brumas | canvas | ✓ (S.pulse) | ✓ (S.warmth→ouro) |
+| aurora curtains, onda de choque, overdrive | canvas | — | ✓ (só existem no Singular) |
+| **borda de energia** (cards + CTA) | CSS conic `@property` | ✓ acelera | ✓ acelera + ouro |
+| **aurora text** (palavras `em`) | CSS bg-clip | ✓ acelera | ✓ acelera + ouro |
+| **caractere vivo** (títulos) | CSS `ressoar` | ✓ acelera | ✓ acelera |
+| **glitch** da wordmark | CSS | ✓ mais rápido | — |
+| tokens de cor (rampa inteira) | CSS `.is-singular` | — | ✓ vira ouro+branco |
+
+Num Pulso, o site inteiro acelera/aviva junto; num Singular, tudo vira
+branco+ouro. **Sempre a mesma rampa ciano.** Se você adicionar um efeito novo
+contínuo e ele NÃO reagir a `.is-pulse`/`.is-singular`, ele quebra o ecossistema
+— conecte-o.
+
+### 11.4 Inventário de efeitos (todos entregues, todos publicados)
+- **Vidro + borda de aurora nos cards** (`b9b0463`, `3cd7ba7`): `backdrop-filter`
+  (só desktop; mobile cai pra fundo opaco), + borda de 2,5px com DUAS correntes
+  de conic contra-rotativas (aurora) + um pulso de energia (desktop). Exceção de
+  identidade "sem vidro", revogada pelo dono para os cards (seção 5).
+- **Proximidade dos cards** (`4dbf345`): a ESTRUTURA do card reage ao cursor (`--near`
+  em js/dom.js, escrito só nos cards perto, só no pointermove/rAF — cache de
+  centros em coords de documento, sem thrash). Nada de luz em volta (o dono
+  vetou halos redondos).
+- **Reator do hero = engenharia de precisão** (`5e20c1e`): bezel graduado (60
+  marcas), grade concêntrica, raios, giroscópio de 3 anéis, núcleo poligonal.
+- **Mini AI Core** (serviços): nó na folga acima do rótulo "Conectado ao AI
+  Core", elos que ENCAIXAM na borda de baixo dos cards de serviço (curva Bézier).
+- **Sem verde no Singular** (`1ad7907`): `.is-singular` remapeia a RAMPA INTEIRA
+  (`--hi/--core/--mid/--deep`) pra ouro/branco; mock frames deixaram de ter teal
+  hardcoded. Regra: **nunca hardcode ciano/teal** (vira verde no dourado).
+- **Aurora text** (`073eba9`, `77abe19`): palavra `em` com preenchimento de
+  gradiente fluindo (glow→hi→core, sem teal). Duas camadas (glint + aurora rica),
+  `@supports` com fallback sólido. Distribuída pelos `em` (hero, serviços, CTA).
+- **Glitch** (`77abe19`): aberração cromática ciano/branco + fatias `clip-path`.
+  Kicker glitcha ao revelar; wordmark pisca (mais no Pulso) + hover; nav no hover.
+- **Contraste/espaço** (`53a7537`): gap e padding dos cards maiores, cards mais
+  opacos (destacam do preto), `em` com peso 500.
+- **GSAP entrada do hero** (`51cb415`): título sobe por LINHAS atrás de máscara
+  (SplitText), cascata até os botões.
+- **Reveals de scroll** (`e4d44f4`): `ScrollTrigger.batch` sobe cada `.reveal` ao
+  entrar; parallax sutil do reator.
+- **CARACTERE VIVO** (`f8e29d3`, `32b4f65`, `37178f6`): cada letra dos títulos é
+  um `.char` (SplitText) que faz uma onda `ressoar` defasada pelo índice `--i` —
+  a ressonância percorre as letras e ecoa o organismo. **Duas classes**: `.split`
+  (permanente: cor/estrutura, guarda anti-letra-invisível) e `.viva`
+  (ligada/desligada pela viewport via ScrollTrigger — só o título VISÍVEL anima,
+  segura o custo). O `em` NÃO é char-split: `vivaChars` restaura seu texto plano
+  (e limpa o inline-block do SplitText, senão estoura no mobile) → a **aurora
+  convive com a ressonância** na mesma palavra.
+
+### 11.5 Perf — o pente fino (`80d1dc7`) e o que vigiar
+- **TETO_DPR** (core.js): canvas em tela cheia, custo ∝ DPR². Teto: desktop 2,
+  mobile 1,5, fraco 1,25. Corta ~40% do fill no celular. Foi o que resolveu o
+  30fps que o dono viu.
+- **Proximidade sem thrash**: centros em cache (coords de documento), zero
+  `getBoundingClientRect` por frame de movimento.
+- **Ainda a vigiar no mobile** (o dono é o juiz do fps): a soma de tudo animando
+  num Pulso; as bordas conic; o caractere vivo. **Se travar, a ordem de alívio
+  é:** (1) `backdrop-filter` do desktop, (2) a 2ª camada da borda (`::after`),
+  (3) gatear a onda do caractere vivo só pra `@media (pointer: fine)`.
+- **Instrumentação viva**: `?perf` liga `window.__perf()` e `window.__frame(n)`.
+  O agente NÃO renderiza CSS nem compõe frames — validação aqui é `node --check`,
+  balanço de chaves, simulação numérica e leitura. **O olho e o medidor do dono
+  são o juiz final.**
+
+### 11.6 O que PRESERVAR (não quebrar)
+1. **As 5 leis (seção 4)**, com as exceções conscientes já registradas (vidro nos
+   cards; GSAP como camada aditiva compositor-only; animações CSS contínuas
+   localizadas — bordas/aurora/glitch/caractere — que são PAINT, não recálculo).
+2. **Loop único** no canvas (`B.add`): 3 subsistemas (`campo`,`eventos`,`medidor`).
+   O GSAP tem ticker próprio à parte — ok, mas nada de escrever estilo por frame.
+3. **Rampa ciano sagrada**; nunca hardcode ciano/teal (vira verde no Singular).
+4. **Todo efeito contínuo novo ECOA o organismo** (`.is-pulse`/`.is-singular`).
+5. **Degradação**: tudo funciona sem GSAP e em reduced-motion. Conteúdo nunca
+   fica invisível.
+6. **Publicar em fast-forward, só quando o dono pede.**
+
+### 11.7 PONTO EXATO ONDE PAROU
+Acabei de publicar `9383f6d` (revisão: `em` não estoura no mobile + ressonância
+do hero mais cedo) e o dono pediu ESTA transferência de contexto. **Nenhum
+pedido novo pendente.** O ciclo atual é: o dono pede um efeito/refino → implemento
+→ publico → ele testa no celular → próximo. Ele valoriza muito o processo
+"executar → analisar → aprimorar → analisar" e pede revisões profundas de
+coerência ("tudo ecoa entre si?").
+
+Provável próximo: mais refino visual dos efeitos, ou — quando ele decidir —
+começar o **COPY** (a fase que ficou pra depois de todo o design; ordem antiga
+do dono, ainda de pé; guia: sentence case, zero invenção de dado, voz direta).
+
+### 11.8 Pendências (as de sempre + novas)
+1. **Copy** — a fase pós-design. Não começou.
+2. `assets/intro.mp4` (4,2 MB) — comprimir + escolher o vídeo oficial (placeholder).
+   `ffmpeg` NÃO está instalado no ambiente do agente.
+3. `feat/ai-core-3d` (reator 3D, 66 testes) — decisão do dono.
+4. Analytics/conversão — o site é "orientado a conversão" e não mede nada. LGPD
+   entra se for adiante.
+5. Histórico do git com ~50 MB de assets mortos (`Logo.gif`, `introdução.mp4`) —
+   só `git filter-repo` limpa, destrutivo.
