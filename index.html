@@ -402,10 +402,18 @@
     </svg>
   </a>
 
+  <!-- GSAP hospedado local (a CSP `script-src 'self'` bloqueia CDN). defer
+       preserva a ordem: GSAP carrega antes de js/anima.js. Se algum destes
+       falhar, anima.js sai sem tocar em nada e o site funciona igual. -->
+  <script src="vendor/gsap/gsap.min.js" defer></script>
+  <script src="vendor/gsap/ScrollTrigger.min.js" defer></script>
+  <script src="vendor/gsap/SplitText.min.js" defer></script>
+
   <script src="js/core.js" defer></script>
   <script src="js/field.js" defer></script>
   <script src="js/dom.js" defer></script>
   <script src="js/intro.js" defer></script>
   <script src="js/entrada.js" defer></script>
+  <script src="js/anima.js" defer></script>
 </body>
 </html>
