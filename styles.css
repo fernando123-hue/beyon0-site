@@ -904,6 +904,9 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
   transition: opacity var(--t-slow) var(--ease), transform var(--t-slow) var(--ease);
 }
 .reveal.is-in { opacity: 1; transform: none; }
+/* quando o GSAP assume os reveals (js/anima.js), ele controla opacity/transform
+   por inline style — a transição do CSS aqui só brigaria com o tween. */
+.has-gsap .reveal { transition: none; }
 
 /* ---------- GLITCH — personalidade, agora bem visível ----------
    Fatias horizontais deslocadas (clip-path) + aberração cromática forte

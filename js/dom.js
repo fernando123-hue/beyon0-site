@@ -60,8 +60,16 @@
   var reveladoLigado = false;
   function ligarUmaVez() { if (reveladoLigado) return; reveladoLigado = true; ligarReveals(); }
 
+  /* quando o GSAP+ScrollTrigger estão presentes (e sem reduced-motion), quem
+     revela é js/anima.js, com cascata e easing melhores. dom.js CEDE — não arma
+     o IO, senão os dois competiriam pelo mesmo `.reveal`. Se o GSAP não vier, ou
+     em reduced-motion, dom.js continua sendo o dono (fallback garantido). */
+  var gsapReveal = !!(window.gsap && window.ScrollTrigger) && !B.reduced;
+
   if (B.reduced) {
     ligarUmaVez();                       /* sem linha, sem espera: revela tudo */
+  } else if (gsapReveal) {
+    /* o anima.js cuida (via 'entrada-pronta'); dom.js não faz nada aqui */
   } else {
     B.on('entrada-pronta', ligarUmaVez);
     /* rede de segurança: se js/entrada.js sumir/falhar e nunca emitir
