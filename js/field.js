@@ -37,6 +37,7 @@
   var ps = [], nAlvo = 0;
   var reator = null, titulos = [], palavras = [], barramento = null;
   var cards = [], servNos = [], nucleo = null;
+  var glifos = [];            /* caixas dos caracteres, relativas ao título */
   var sujo = true;
 
   /* o DOM é estático: buscar os mesmos elementos a cada scroll é trabalho
@@ -75,6 +76,51 @@
     }
   }
 
+  /* ---- TIPOGRAFIA VIVA: a caixa de cada caractere, medida SEM tocar o DOM ----
+     A versão antiga quebrava cada título em <span> por letra — 205 deles, 68%
+     dos 76ms de recálculo de estilo. A alma do efeito (energia POR GLIFO:
+     campo ao redor do cursor, frente varrendo letra a letra) não precisava dos
+     spans: um Range sobre o nó de texto devolve a caixa de qualquer caractere.
+     Sem elemento novo, sem estilo para recalcular.
+
+     Roda só quando o LAYOUT muda (boot, fontes prontas, resize) — não em
+     scroll. As caixas ficam relativas ao título, então rolar não invalida nada.
+
+     Palavra por palavra também importa: guardo `pal` (0=inicial de palavra) para
+     a luz nunca cortar uma palavra ao meio quando a frente passa. */
+  function medirGlifos() {
+    glifos.length = 0;
+    for (var i = 0; i < elGlow.length; i++) {
+      var el = elGlow[i], base = el.getBoundingClientRect(), lista = [];
+      var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
+      var no, rng = document.createRange();
+      while ((no = walker.nextNode())) {
+        var txt = no.nodeValue;
+        for (var c = 0; c < txt.length; c++) {
+          var ch = txt.charAt(c);
+          if (ch === ' ' || ch === '\n' || ch === '\t') continue;   /* espaço não acende */
+          rng.setStart(no, c); rng.setEnd(no, c + 1);
+          var rc = rng.getBoundingClientRect();
+          if (!rc.width || !rc.height) continue;
+          lista.push({
+            dx: rc.left - base.left, dy: rc.top - base.top,
+            w: rc.width, h: rc.height,
+            cx: rc.left - base.left + rc.width / 2,
+            cy: rc.top - base.top + rc.height / 2
+          });
+        }
+      }
+      /* posição de cada glifo na frase (0..1): a base de toda a física por
+         caractere — a frente varre por ESTA ordem, não pela geometria. */
+      for (var k = 0; k < lista.length; k++) {
+        lista[k].cp = lista.length > 1 ? k / (lista.length - 1) : 0;
+        lista[k].j = (k * 2654435761 % 1000) / 1000;   /* fase própria, determinística */
+      }
+      glifos.push(lista);
+    }
+    sujo = true;
+  }
+
   /* medir DOM: só em scroll/resize. Nunca por frame. */
   function medir() {
     if (elReator) {
@@ -85,7 +131,10 @@
     for (var i = 0; i < elGlow.length; i++) {
       var r = elGlow[i].getBoundingClientRect();
       if (r.bottom < -120 || r.top > H + 120) continue;   /* fora de cena: nem entra na lista */
-      titulos.push({ x: r.left, y: r.top, w: r.width, h: r.height });
+      /* os caracteres vêm do cache e são RELATIVOS ao título: aqui só se soma a
+         posição atual. Assim rolar a página custa 1 retângulo por título, não um
+         por glifo. */
+      titulos.push({ x: r.left, y: r.top, w: r.width, h: r.height, cs: glifos[i] || null });
     }
 
     /* palavras-chave dos serviços: a aura por trás delas é desenhada aqui, não
@@ -133,11 +182,17 @@
     sujo = false;
   }
   window.addEventListener('scroll', function () { sujo = true; }, { passive: true });
-  B.on('resize', function () { dimensionar(); sujo = true; });
+  B.on('resize', function () { dimensionar(); medirGlifos(); });
+  /* as caixas dos glifos dependem da fonte REAL: medidas antes de a Sora chegar,
+     ficam todas no lugar errado (a fallback tem outra métrica). */
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(medirGlifos).catch(function () {});
+  }
   /* .reveal nasce com translateY(18px), e getBoundingClientRect devolve a caixa
      JÁ transformada — os retângulos medidos antes da revelação ficam 18px fora
-     do lugar. Ao fim da entrada, remede uma vez. */
-  B.on('entrada-pronta', function () { sujo = true; });
+     do lugar. Ao fim da entrada, remede uma vez (medirGlifos também marca sujo,
+     então os títulos e os glifos voltam juntos ao lugar certo). */
+  B.on('entrada-pronta', medirGlifos);
 
   /* halo: um gradiente por chamada é barato (~1ms para 64 halos, medido) e é
      mais rápido que um sprite escalado — a tentativa com sprite foi 1,4x pior
@@ -292,35 +347,53 @@
       ctx.beginPath(); ctx.arc(hx, hy, hr * .09 * resp2, 0, TAU); ctx.fill();
     }
 
-    /* ---- 4. tipografia viva ----
-       O efeito que antes custava 76ms com 205 spans, agora desenhado: um realce
-       que percorre o título. Duas camadas — VIDA contínua (baixa, sempre, para a
-       tipografia nunca parecer morta) e a FRENTE do Pulso por cima quando há
-       evento. Um gradiente por título visível; sob orçamento apertado, some. */
-    var acende = pulso * .9 + S.singular * .5 + (e - .3) * .2;
-    var viva = .05 + e * .08;
-    if (orc > .5 && titulos.length) {
+    /* ---- 4. TIPOGRAFIA VIVA — energia por CARACTERE ----
+       A alma do efeito antigo, sem o custo dele. Cada glifo tem energia própria,
+       vinda de três fontes que se somam:
+         · RESPIRO   — onda lenta com fase própria; a frase nunca parece morta
+         · PERCEPÇÃO — campo ao redor do cursor: a luz nasce no glifo mais
+                       próximo e decai para os vizinhos (sem hover, sem holofote)
+         · FRENTE    — o Pulso varre letra a letra, na ORDEM DA FRASE (cp), não
+                       na horizontal: em título de duas linhas a luz desce certo
+       Só glifo ACESO custa alguma coisa: o laço testa e pula. Em repouso, com o
+       cursor longe, são zero halos — o mesmo custo de antes de existir. */
+    if (orc > .55 && titulos.length) {
+      var frente = Math.max(0, Math.min(1, S.pulseFront));
+      var temFrente = pulso > .02;
+      var ganho = .55 + e * .45 + S.singular * .5;
       for (var k = 0; k < titulos.length; k++) {
         var tt = titulos[k];
-        /* vida: um realce suave desliza devagar, com fase própria por título */
-        var vp = Math.sin(S.t * .012 + tt.x * .004) * .5 + .5;
-        var gv = ctx.createLinearGradient(tt.x, 0, tt.x + tt.w, 0);
-        gv.addColorStop(Math.max(0, vp - .3), 'rgba(' + cy + ',0)');
-        gv.addColorStop(vp, 'rgba(' + alta + ',' + (.16 * viva).toFixed(3) + ')');
-        gv.addColorStop(Math.min(1, vp + .3), 'rgba(' + cy + ',0)');
-        ctx.fillStyle = gv;
-        ctx.fillRect(tt.x, tt.y, tt.w, tt.h);
-        /* frente do Pulso: mais forte, atravessa conforme S.pulseFront avança */
-        if (acende > .02) {
-          var fx = tt.x + tt.w * S.pulseFront;
-          var pos = Math.max(0, Math.min(1, S.pulseFront));
-          var g2 = ctx.createLinearGradient(tt.x, 0, tt.x + tt.w, 0);
-          g2.addColorStop(Math.max(0, pos - .22), 'rgba(' + cy + ',0)');
-          g2.addColorStop(pos, 'rgba(' + alta + ',' + (.2 * acende).toFixed(3) + ')');
-          g2.addColorStop(Math.min(1, pos + .22), 'rgba(' + cy + ',0)');
-          ctx.fillStyle = g2;
-          ctx.fillRect(tt.x, tt.y, tt.w, tt.h);
-          halo(fx, tt.y + tt.h / 2, tt.h * .9, alta, .12 * acende);
+        if (!tt.cs || !tt.cs.length) continue;
+        /* culling: título fora da tela não acende glifo nenhum */
+        if (tt.y > H + 40 || tt.y + tt.h < -40) continue;
+        var cs = tt.cs;
+        for (var g = 0; g < cs.length; g++) {
+          var ch = cs[g];
+          var gx = tt.x + ch.cx, gy = tt.y + ch.cy;
+
+          /* respiro: baixo, defasado por glifo — vida, não animação */
+          var en = (Math.sin(S.t * .019 + ch.j * 6.28) * .5 + .5) * .1;
+
+          /* percepção: o campo do cursor decai com a distância ao glifo */
+          if (S.pointerOn) {
+            var ddx = S.px - gx, ddy = S.py - gy;
+            var d2g = ddx * ddx + ddy * ddy;
+            if (d2g < 28900) {                          /* raio 170px */
+              var nd = 1 - Math.sqrt(d2g) / 170;
+              en += nd * nd * .95;
+            }
+          }
+
+          /* frente: distância na ORDEM DA FRASE até a onda do Pulso */
+          if (temFrente) {
+            var fd = Math.abs(ch.cp - frente);
+            if (fd < .17) { var fh = 1 - fd / .17; en += fh * fh * pulso * 1.15; }
+          }
+
+          en *= ganho;
+          if (en < .05) continue;                        /* apagado: não custa nada */
+          var raio = ch.h * (.62 + en * .5);
+          halo(gx, gy, raio, en > .55 ? nuc : alta, Math.min(.5, en * .42));
         }
       }
     }
@@ -360,5 +433,6 @@
   }
 
   dimensionar();
+  medirGlifos();                 /* com a fonte de fallback; refaz-se em fonts.ready */
   B.add('campo', tick);
 })();
