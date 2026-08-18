@@ -40,9 +40,20 @@
     if (!el || el._viva || !window.SplitText) return;
     el._viva = true;
     try {
+      /* o texto de cada em é guardado ANTES do split: depois o restauramos como
+         texto plano, para a AURORA voltar contínua na palavra-chave (char-split
+         quebraria o gradiente). Os chars ao redor ressoam; o em flui. */
+      var emsOrig = [], emsAntes = el.querySelectorAll('em');
+      for (var e = 0; e < emsAntes.length; e++) emsOrig.push(emsAntes[e].textContent);
+
       var sp = new window.SplitText(el, { type: 'words,chars', charsClass: 'char', wordsClass: 'palavra-viva' });
       for (var i = 0; i < sp.chars.length; i++) sp.chars[i].style.setProperty('--i', i);
       el.classList.add('split');                 /* permanente: estrutura + cor */
+
+      var emsDepois = el.querySelectorAll('em');  /* desfaz o split DENTRO do em */
+      for (var d = 0; d < emsDepois.length && d < emsOrig.length; d++) {
+        emsDepois[d].textContent = emsOrig[d];
+      }
 
       /* a onda (`.viva`) só liga quando o título está na viewport — fora dela,
          nem animação nem camada de composição. É o que segura o custo no mobile. */

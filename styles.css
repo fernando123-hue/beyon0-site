@@ -145,6 +145,10 @@ em, .aurora { font-style: normal; font-weight: 500; letter-spacing: .012em; colo
   }
   /* glint corre para a esquerda, aurora para a direita — o cruzamento é o brilho */
   @keyframes aurora-flow { to { background-position: -220% 0, 320% 0; } }
+  /* ECOSSISTEMA: a aurora ECOA com o organismo — flui mais rápido no Pulso, e
+     ainda mais no Singular. É o site inteiro respondendo ao mesmo evento. */
+  .is-pulse em, .is-pulse .aurora { animation-duration: 3.6s; }
+  .is-singular em, .is-singular .aurora { animation-duration: 3s; }
 }
 
 /* ---------- CARACTERE VIVO — cada letra ressoa ----------
@@ -161,8 +165,10 @@ em, .aurora { font-style: normal; font-weight: 500; letter-spacing: .012em; colo
    · `.viva` (LIGADA/DESLIGADA pela viewport, via ScrollTrigger) — a animação. Só
      o título VISÍVEL anima: fora da tela não há animação nem camada de
      composição. É o que segura o custo no mobile. */
-.split { background: none; -webkit-text-fill-color: currentColor; }
-.split em { background: none; color: var(--glow); -webkit-text-fill-color: var(--glow); }
+/* o `em` NÃO é char-split (js/anima.js restaura o texto plano após o split):
+   assim a AURORA continua contínua e fluindo na palavra-chave, cercada pelos
+   chars que ressoam. Aurora + ressonância convivem. Só os .char (o resto do
+   título) recebem o guarda anti-transparente e a onda. */
 .split .char {
   display: inline-block;
   -webkit-text-fill-color: currentColor;   /* NUNCA transparente — evita letra invisível */
@@ -983,6 +989,11 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
 body { transition: none; }
 
 .is-pulse .card { box-shadow: inset 0 0 0 1px rgb(var(--glow-rgb) / .3); }   /* borda mais viva no Pulso, sem glow externo */
+/* ECOSSISTEMA: a borda de energia dos cards e do CTA ACELERA no Pulso (já
+   acelerava no Singular). Uma só onda: no Pulso, reator, bordas, aurora e
+   caracteres correm juntos. */
+.is-pulse .card::before, .is-pulse .cta::before { animation-duration: 3.2s; }
+.is-pulse .card::after, .is-pulse .cta::after { animation-duration: 5s; }
 .is-pulse .kicker, .is-pulse .bus b { color: var(--hi); }
 .card, .kicker, .bus b { transition: box-shadow var(--t) var(--ease), color var(--t) var(--ease); }
 
