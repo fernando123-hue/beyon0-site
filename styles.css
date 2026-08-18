@@ -35,6 +35,14 @@
   --pad: clamp(20px, 5vw, 48px);
   --gap: clamp(16px, 2.4vw, 26px);
 
+  /* escala de ritmo vertical: as seções NÃO têm o mesmo respiro. A densidade
+     muda por papel narrativo (ver overrides por #id), pra a página ter forma
+     ao rolar em vez de virar seis lajes iguais. Estático — avaliado uma vez,
+     nada por frame. */
+  --sp-tight: clamp(48px, 7vw, 80px);
+  --sp:       clamp(72px, 11vw, 132px);
+  --sp-loose: clamp(104px, 15vw, 176px);
+
   --r: 4px;
   --nav-h: 80px;          /* altura medida da nav fixa (78,6px) + folga de arredondamento */
   --t-fast: 180ms;
@@ -137,9 +145,20 @@ em {
 .section {
   max-width: var(--maxw);
   margin: 0 auto;
-  padding: clamp(72px, 11vw, 132px) var(--pad);
+  /* cada lado lê seu próprio token; o padrão é --sp. Os overrides por #id
+     abaixo mudam só um lado quando o ritmo pede. */
+  padding: var(--sp-top, var(--sp)) var(--pad) var(--sp-bottom, var(--sp));
 }
 .section__head { margin-bottom: clamp(32px, 5vw, 56px); }
+
+/* ---- ritmo entre seções ----
+   A costura ao rolar fica: apertado · FÔLEGO · médio · FÔLEGO · apertado · FÔLEGO.
+   O gap entre duas seções é (baixo da de cima + topo da de baixo). */
+#dores    { --sp-top: var(--sp-tight); }                       /* cola no hero: o problema vem logo, tenso */
+#servicos { --sp-top: var(--sp-loose); }                       /* respiro antes da oferta */
+#projetos { --sp-top: var(--sp-loose); }                       /* a prova visual respira */
+#faq      { --sp-top: var(--sp-tight); --sp-bottom: var(--sp-tight); }  /* encerramento funcional, comprimido */
+#contato  { --sp-top: var(--sp-loose); }                       /* fôlego final antes do pedido */
 
 /* a nav é fixa: sem isto toda âncora joga o kicker e o título PARA BAIXO dela,
    e como o scroll é suave a página ainda desliza até a posição errada. O alvo
