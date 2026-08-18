@@ -358,6 +358,7 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
    fallback invalida a declaração e a borda sumiria — com ele, fica parada. */
 @property --nrg  { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
 @property --nrg2 { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+@property --nrg3 { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
 
 .card::before, .card::after {
   content: ""; position: absolute; inset: 0; border-radius: inherit;
@@ -368,45 +369,88 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
           mask-composite: exclude;
   transition: opacity 220ms linear;
 }
-/* camada 1: a corrente principal, sentido horário */
+/* AURORA base — presente em todo aparelho (inclusive celular, onde é a ÚNICA
+   camada, pra segurar os fps). Rica em paradas: a cor percorre a rampa inteira
+   (glow → mid → hi → core → hi → glow → mid) enquanto o ângulo gira. */
 .card::before {
   opacity: calc(.55 + var(--near) * .45);
   background: conic-gradient(from var(--nrg, 0deg),
     rgb(var(--glow-rgb) / 0)    0deg,
-    rgb(var(--glow-rgb) / .5)   48deg,
-    rgb(var(--hi-rgb)   / .85) 104deg,
-    rgb(var(--core-rgb) / .75) 156deg,
-    rgb(var(--hi-rgb)   / .6)  206deg,
-    rgb(var(--glow-rgb) / .45) 286deg,
+    rgb(var(--glow-rgb) / .5)   36deg,
+    rgb(var(--mid-rgb)  / .55)  72deg,
+    rgb(var(--hi-rgb)   / .85) 116deg,
+    rgb(var(--core-rgb) / .78) 158deg,
+    rgb(var(--hi-rgb)   / .7)  200deg,
+    rgb(var(--glow-rgb) / .55) 250deg,
+    rgb(var(--mid-rgb)  / .5)  300deg,
     rgb(var(--glow-rgb) / 0)   360deg);
   animation: nrg-run 6.5s linear infinite;
 }
-/* camada 2: a contra-corrente, sentido anti-horário e mais lenta — o
-   descompasso é o que faz a aurora "respirar" em vez de só girar. Soma luz. */
-.card::after {
-  opacity: calc(.45 + var(--near) * .4);
-  mix-blend-mode: screen;
-  background: conic-gradient(from var(--nrg2, 0deg),
-    rgb(var(--hi-rgb)   / 0)    0deg,
-    rgb(var(--mid-rgb)  / .55)  64deg,
-    rgb(var(--glow-rgb) / .6)  132deg,
-    rgb(var(--hi-rgb)   / .8)  198deg,
-    rgb(var(--core-rgb) / .5)  252deg,
-    rgb(var(--hi-rgb)   / 0)   330deg);
-  animation: nrg-run2 9.5s linear infinite;
+.card::after { display: none; }   /* base sem 2a camada: celular fica leve */
+
+/* DESKTOP (ponteiro fino): o espetáculo completo. Some no celular, onde o
+   medidor já marcava 30fps — lá a aurora base sozinha basta.
+   ::before ganha um PULSO DE ENERGIA (dois nós brancos estreitos que zunem
+   rápido pela borda, sobre a aurora) — é o "fluxo de energia" pedido.
+   ::after entra como contra-corrente (screen), dando o batimento de aurora. */
+@media (pointer: fine) {
+  .card::before {
+    background:
+      conic-gradient(from var(--nrg3, 0deg),
+        rgb(var(--hi-rgb)   / 0)    0deg 82deg,
+        rgb(var(--hi-rgb)   / .5)  88deg,
+        rgb(var(--core-rgb) / .98) 92deg,
+        rgb(var(--hi-rgb)   / .5)  96deg,
+        rgb(var(--hi-rgb)   / 0)  102deg 262deg,
+        rgb(var(--hi-rgb)   / .4) 268deg,
+        rgb(var(--core-rgb) / .72) 272deg,
+        rgb(var(--hi-rgb)   / .4) 276deg,
+        rgb(var(--hi-rgb)   / 0)  282deg 360deg),
+      conic-gradient(from var(--nrg, 0deg),
+        rgb(var(--glow-rgb) / 0)    0deg,
+        rgb(var(--glow-rgb) / .5)   36deg,
+        rgb(var(--mid-rgb)  / .55)  72deg,
+        rgb(var(--hi-rgb)   / .85) 116deg,
+        rgb(var(--core-rgb) / .78) 158deg,
+        rgb(var(--hi-rgb)   / .7)  200deg,
+        rgb(var(--glow-rgb) / .55) 250deg,
+        rgb(var(--mid-rgb)  / .5)  300deg,
+        rgb(var(--glow-rgb) / 0)   360deg);
+    animation: nrg-run3 3.4s linear infinite, nrg-run 6.5s linear infinite;
+  }
+  .card::after {
+    display: block;
+    opacity: calc(.45 + var(--near) * .4);
+    mix-blend-mode: screen;
+    background: conic-gradient(from var(--nrg2, 0deg),
+      rgb(var(--hi-rgb)   / 0)    0deg,
+      rgb(var(--mid-rgb)  / .55)  64deg,
+      rgb(var(--glow-rgb) / .6)  132deg,
+      rgb(var(--hi-rgb)   / .8)  198deg,
+      rgb(var(--core-rgb) / .5)  252deg,
+      rgb(var(--hi-rgb)   / 0)   330deg);
+    animation: nrg-run2 9.5s linear infinite;
+  }
 }
 .card:hover::before, .card:focus-visible::before,
-.card:focus-within::before { opacity: 1; animation-duration: 3.4s; }
+.card:focus-within::before { opacity: 1; animation-duration: 2s, 3.4s; }
 .card:hover::after, .card:focus-visible::after,
 .card:focus-within::after { opacity: .9; animation-duration: 5s; }
 .card.is-idle::before, .card.is-idle::after { animation-play-state: paused; }
 @keyframes nrg-run  { to { --nrg:  360deg; } }
 @keyframes nrg-run2 { to { --nrg2: -360deg; } }
+@keyframes nrg-run3 { to { --nrg3: 360deg; } }
 @media (prefers-reduced-motion: reduce) {
   .card::before, .card::after { animation: none; }
 }
-.card h3 { margin-bottom: .55rem; }
-.card p { color: rgb(var(--hi-rgb) / .78); font-size: .95rem; }
+.card h3 { margin-bottom: .55rem; transition: color 200ms linear; }
+.card p { color: rgb(var(--hi-rgb) / .78); font-size: .95rem; transition: color 200ms linear; }
+/* com o cursor sobre o card, TUDO acende: além da borda/fundo/ícone (que sobem
+   pela proximidade), o próprio texto ganha brilho — h3 ao branco, corpo ao
+   claro cheio, acento ao núcleo. */
+.card:hover h3, .card:focus-within h3 { color: var(--core); }
+.card:hover p, .card:focus-within p { color: rgb(var(--hi-rgb)); }
+.card:hover em, .card:focus-within em { color: var(--core); }
 
 .card__icon {
   width: 44px; height: 44px; margin-bottom: 1rem;
@@ -548,7 +592,7 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
     linear-gradient(rgb(var(--glow-rgb) / .5), rgb(var(--glow-rgb) / .5)),      /* botão */
     radial-gradient(circle, rgb(var(--glow-rgb) / .3), transparent 70%),        /* foco de luz */
     linear-gradient(140deg, rgb(var(--glow-rgb) / .16), transparent 60%),
-    linear-gradient(0deg, #04161a, #061f24);
+    linear-gradient(0deg, rgb(var(--deep-rgb) / .95), rgb(var(--deep-rgb) / .62));
   /* posição em % resolve como (moldura - camada) * pct, então camadas de
      larguras DIFERENTES no mesmo pct caem em x diferentes — a coluna
      editorial saía escalonada, e o erro crescia junto com a moldura.
@@ -570,7 +614,7 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
     linear-gradient(rgb(var(--gold-rgb) / .2),  rgb(var(--gold-rgb) / .2)),             /* foto 2 */
     linear-gradient(rgb(var(--gold-rgb) / .26), rgb(var(--gold-rgb) / .26)),            /* foto 3 */
     linear-gradient(140deg, rgb(var(--gold-rgb) / .14), transparent 60%),
-    linear-gradient(0deg, #04161a, #061f24);
+    linear-gradient(0deg, rgb(var(--deep-rgb) / .95), rgb(var(--deep-rgb) / .62));
   background-size:
     12% 3.5%, 44% 8%,  28% 3%,  26% 26%, 26% 26%, 26% 26%, 100% 100%, 100% 100%;
   background-position:
@@ -589,7 +633,7 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
     linear-gradient(rgb(var(--glow-rgb) / .2), rgb(var(--glow-rgb) / .2)),      /* módulo ativo */
     linear-gradient(rgb(var(--core-rgb) / .12), rgb(var(--core-rgb) / .12)),    /* módulo */
     linear-gradient(140deg, rgb(var(--core-rgb) / .12), transparent 60%),
-    linear-gradient(0deg, #04161a, #061f24);
+    linear-gradient(0deg, rgb(var(--deep-rgb) / .95), rgb(var(--deep-rgb) / .62));
   /* as posições em X do conteúdo começam depois da coluna lateral: em
      porcentagem o offset é (moldura - camada) * pct, então uma camada larga
      precisa de pct alto para não invadir a coluna nem colidir com a vizinha. */
@@ -844,7 +888,18 @@ body { transition: none; }
    overdrive). Aqui o DOM só ACOMPANHA, e só nos pontos onde a cor é
    assinatura: uma classe entra, o CSS resolve a transição. Nenhuma variável
    muda por frame — a troca acontece 1 vez a cada ~2 minutos. */
-.is-singular { --glow: var(--gold); --glow-rgb: var(--gold-rgb); }
+/* A RAMPA INTEIRA vira ouro+branco. Sem isto, tudo que não é o --glow (as
+   bordas de aurora, os acentos, o texto claro) seguia lendo --hi/--core/--mid,
+   que são CIANO/TEAL — e sobravam detalhes VERDES no estado dourado. O dono
+   quer só ouro e branco, zero verde. Remapeando os tokens, cada regra que já
+   existe passa a pintar em ouro/branco sem uma linha a mais. */
+.is-singular {
+  --glow: var(--gold);   --glow-rgb: var(--gold-rgb);
+  --hi:  #ffe6b0;        --hi-rgb:  255 230 176;   /* ciano claro → ouro claro */
+  --core: #ffffff;       --core-rgb: 255 255 255;  /* tira o leve tint ciano do core */
+  --mid-rgb: 176 130 54;                            /* teal → ouro escuro */
+  --deep-rgb: 34 24 8;                              /* base do card: teal escuro → marrom quente */
+}
 .is-singular em,
 .is-singular .kicker,
 .is-singular .step__n,
