@@ -103,7 +103,12 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <!-- Sora 400 SAIU: nenhuma regra da folha pede esse peso. Ele só era baixado
+       porque `em` declarava 500 (peso que nunca esteve na lista) e o navegador
+       caía no 400 — a ênfase virou 600, que é carregado, e o arquivo do 400
+       deixou de ser baixado por toda visita. Os pesos usados são exatamente
+       estes quatro: Sora 300/600 e JetBrains Mono 400/500. -->
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
   <link rel="stylesheet" href="styles.css" />
 
@@ -169,7 +174,7 @@
         <span class="hero__status-txt" aria-hidden="true">Sistema online · beyon.0</span>
       </p>
 
-      <h1 class="hero__title glow" id="hero-titulo">
+      <h1 class="hero__title" id="hero-titulo">
         Transformamos ideias<br />em <em>interfaces de elite</em>.
       </h1>
       <p class="hero__sub">
@@ -189,7 +194,7 @@
     <section class="section" id="dores" aria-labelledby="dores-titulo">
       <div class="section__head reveal">
         <p class="kicker">// o problema</p>
-        <h2 class="glow" id="dores-titulo">Por que sua empresa precisa<br />de um site profissional?</h2>
+        <h2 id="dores-titulo">Por que sua empresa precisa<br />de um site profissional?</h2>
       </div>
       <div class="grid grid--3">
         <article class="card card--dor reveal">
@@ -226,7 +231,7 @@
     <section class="section" id="servicos" aria-labelledby="servicos-titulo">
       <div class="section__head reveal">
         <p class="kicker">// o que fazemos</p>
-        <h2 class="glow" id="servicos-titulo">Soluções sob medida<br />para cada modelo de negócio.</h2>
+        <h2 id="servicos-titulo">Soluções sob medida<br />para cada modelo de negócio.</h2>
       </div>
       <!-- Cada serviço é um link, não um cartão morto: quem se reconhece em
            "Restaurantes" age ali, no momento do reconhecimento, em vez de rolar
@@ -270,7 +275,7 @@
     <section class="section" id="processo" aria-labelledby="processo-titulo">
       <div class="section__head reveal">
         <p class="kicker">// processo</p>
-        <h2 class="glow" id="processo-titulo">Três passos.<br />Zero dor de cabeça.</h2>
+        <h2 id="processo-titulo">Três passos.<br />Zero dor de cabeça.</h2>
       </div>
       <!-- Linha do tempo, não três caixas soltas: um processo tem ordem, e a
            forma precisa dizer isso antes do texto. O trilho e os nós são
@@ -297,7 +302,7 @@
     <section class="section" id="projetos" aria-labelledby="projetos-titulo">
       <div class="section__head reveal">
         <p class="kicker">// projetos</p>
-        <h2 class="glow" id="projetos-titulo">Cada negócio pede uma cara.</h2>
+        <h2 id="projetos-titulo">Cada negócio pede uma cara.</h2>
         <p class="lead">Conceitos autorais. Seu projeto nasce do zero, com a sua identidade.</p>
       </div>
       <div class="grid grid--3">
@@ -319,7 +324,7 @@
     <section class="section" id="faq" aria-labelledby="faq-titulo">
       <div class="section__head reveal">
         <p class="kicker">// faq</p>
-        <h2 class="glow" id="faq-titulo">O que você deve estar se perguntando.</h2>
+        <h2 id="faq-titulo">O que você deve estar se perguntando.</h2>
       </div>
       <!-- Accordion nativo (details/summary): teclado e leitor de tela de graça,
            e uma cara própria em vez de mais quatro cards iguais. O texto tem que
@@ -348,7 +353,7 @@
 
     <section class="section section--cta" id="contato" aria-labelledby="contato-titulo">
       <div class="cta reveal">
-        <h2 class="glow" id="contato-titulo">Pronto para elevar <em>seu negócio</em>?</h2>
+        <h2 id="contato-titulo">Pronto para elevar <em>seu negócio</em>?</h2>
         <p>Não deixe sua marca invisível. Vamos construir o ativo digital mais importante da sua empresa.</p>
         <a class="btn btn--primary btn--lg" data-wa href="#" target="_blank" rel="noopener">Solicitar orçamento</a>
         <p class="fine">Resposta humana, sem robô. Orçamento sem compromisso.</p>

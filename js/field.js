@@ -60,7 +60,7 @@
   var W = 0, H = 0, dpr = 1;
   var ps = [], nAlvo = 0;
   var reator = null, barramento = null;
-  var servNos = [], nucleo = null;
+  var servNos = [], nucleo = null, nucAlpha = 0;
   var sujo = true;
 
   /* o DOM é estático: buscar os mesmos elementos a cada scroll é trabalho
@@ -377,7 +377,14 @@
        O barramento já dizia "Conectado ao AI Core" em texto; agora o núcleo
        existe e os elos vão até os cards. Interativo: o elo do card sob o cursor
        acende. Durante o Pulso, a frente sobe pelos elos até os cards. */
-    if (nucleo && orc > .55 && nucleo.y > -80 && nucleo.y < H + 80) {
+    /* alvo por orçamento, mas a transição é LERP (nunca um corte seco): perto
+       do limiar o orçamento oscila frame a frame, e um `if (orc > .55)` puro
+       fazia o núcleo aparecer/sumir a cada oscilação — lia como bug. Suavizado,
+       a variação de orçamento vira uma respiração, não um pisca-pisca. */
+    nucAlpha += ((orc > .5 ? 1 : 0) - nucAlpha) * .05;
+    if (nucleo && nucAlpha > .01 && nucleo.y > -80 && nucleo.y < H + 80) {
+      ctx.save();
+      ctx.globalAlpha = nucAlpha;
       var hx = nucleo.x, hy = nucleo.y, hr = nucleo.r;
       for (var L = 0; L < servNos.length; L++) {          /* elos primeiro, atrás do núcleo */
         var sn = servNos[L];
@@ -412,6 +419,7 @@
       halo(hx, hy, hr * .3 * (1 + pulso), nuc, (.4 + pulso * .4 + S.singular * .4) * lum);
       ctx.fillStyle = 'rgba(' + nuc + ',' + a1(.8 * lum).toFixed(3) + ')';
       ctx.beginPath(); ctx.arc(hx, hy, hr * .09 * resp2, 0, TAU); ctx.fill();
+      ctx.restore();
     }
 
     /* NOTA: aqui viviam a "tipografia viva" (halos por glifo) e a "aura nas

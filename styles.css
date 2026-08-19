@@ -49,6 +49,68 @@
   --t: 420ms;
   --t-slow: 800ms;
   --ease: cubic-bezier(.16, 1, .3, 1);
+
+  /* ---- SUPERFÍCIE DOS PAINÉIS — um lugar só, lido por .card, .qa e .cta ----
+     O corpo do card era `deep` a .26–.5 sobre PRETO, o que resolve em
+     rgb(3,20,22): indistinguível do fundo. O painel não existia — só a borda de
+     aurora trabalhava, e o conjunto lia "sem sal".
+
+     Agora a superfície tem VALOR e DIREÇÃO DE LUZ: clara em cima (a luz do site
+     vem de cima, do reator), caindo para a sombra embaixo. Sobre #000 não existe
+     sombra externa possível — o relevo vem do valor da superfície, da aresta
+     especular no topo e da borda, nunca de um glow em volta (vetado, e sobre
+     preto só sujaria a borda).
+
+     Sem `--near` aqui de propósito: só o .card tem proximidade, e um var()
+     indefinido invalidaria a declaração inteira em .qa/.cta. */
+
+  /* a transição INTERATIVA do card, num token só — porque ela precisa ser
+     repetida em três regras (ver a seção de reveals) para não ser engolida.
+     `translate` e não `transform`: são properties independentes, então o elevar
+     do hover convive com o `transform` que o reveal (GSAP ou CSS) escreve, sem
+     as duas disputarem o mesmo valor. */
+  --t-card: box-shadow 200ms linear, background 200ms linear, translate var(--t) var(--ease);
+
+  --painel: linear-gradient(180deg,
+    rgb(var(--mid-rgb)  / .30) 0,
+    rgb(var(--deep-rgb) / .78) 42%,
+    rgb(var(--deep-rgb) / .40) 100%);
+
+  /* ---- as bordas de aurora, num lugar só ----
+     Cada uma destas conics estava escrita DUAS vezes (a rampa em .card::before
+     e de novo como 2a camada no @media pointer:fine; a contracorrente igual em
+     .card::after e .cta::after) — e as cópias já tinham começado a divergir.
+     O `var(--nrg…)` resolve no ELEMENTO QUE USA, que é onde a animação escreve
+     o ângulo, então nada muda de comportamento. O fallback `0deg` segue
+     obrigatório: sem @property, var() sem fallback invalida a declaração e a
+     borda sumiria. */
+  --aurora-rampa: conic-gradient(from var(--nrg, 0deg),
+    rgb(var(--glow-rgb) / 0)    0deg,
+    rgb(var(--glow-rgb) / .5)   36deg,
+    rgb(var(--mid-rgb)  / .55)  72deg,
+    rgb(var(--hi-rgb)   / .85) 116deg,
+    rgb(var(--core-rgb) / .78) 158deg,
+    rgb(var(--hi-rgb)   / .7)  200deg,
+    rgb(var(--glow-rgb) / .55) 250deg,
+    rgb(var(--mid-rgb)  / .5)  300deg,
+    rgb(var(--glow-rgb) / 0)   360deg);
+  --aurora-contra: conic-gradient(from var(--nrg2, 0deg),
+    rgb(var(--hi-rgb)   / 0)    0deg,
+    rgb(var(--mid-rgb)  / .55)  64deg,
+    rgb(var(--glow-rgb) / .6)  132deg,
+    rgb(var(--hi-rgb)   / .8)  198deg,
+    rgb(var(--core-rgb) / .5)  252deg,
+    rgb(var(--hi-rgb)   / 0)   330deg);
+  --aurora-nos: conic-gradient(from var(--nrg3, 0deg),
+    rgb(var(--hi-rgb)   / 0)    0deg 82deg,
+    rgb(var(--hi-rgb)   / .5)  88deg,
+    rgb(var(--core-rgb) / .98) 92deg,
+    rgb(var(--hi-rgb)   / .5)  96deg,
+    rgb(var(--hi-rgb)   / 0)  102deg 262deg,
+    rgb(var(--hi-rgb)   / .4) 268deg,
+    rgb(var(--core-rgb) / .72) 272deg,
+    rgb(var(--hi-rgb)   / .4) 276deg,
+    rgb(var(--hi-rgb)   / 0)  282deg 360deg);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -124,7 +186,12 @@ p { max-width: 62ch; }
    importante espalhado pelo site, então a aurora se distribui sozinha. No
    Singular os tokens viram ouro/branco → a aurora acompanha, sem verde.
    Fallback sólido para quem não tem background-clip: text. */
-em, .aurora { font-style: normal; font-weight: 500; letter-spacing: .012em; color: var(--glow); }
+/* 600, não 500: a folha pedia Sora 500, que NÃO está entre os pesos carregados
+   (300;600) — o navegador caía no 400 e a ênfase nunca acontecia de fato. Em
+   600 a palavra-chave ganha o peso que já era a intenção, o contraste com o
+   corpo (300) fica editorial, e a AURORA melhora de verdade: letra fina quase
+   não tem área de pixel para um gradiente fluir dentro. */
+em, .aurora { font-style: normal; font-weight: 600; letter-spacing: .012em; color: var(--glow); }
 @supports ((-webkit-background-clip: text) or (background-clip: text)) {
   em, .aurora {
     /* DUAS camadas clipadas no texto, contra-movendo:
@@ -387,28 +454,41 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
   position: relative;
   padding: clamp(1.75rem, 2.8vw, 2.35rem);   /* mais respiro interno: a palavra tem seu espaço */
   border-radius: var(--r);
-  /* vidro: fundo translúcido para o blur aparecer. Mais opaco que antes para o
-     card se DESTACAR do preto (contraste de painel) — no mobile, sem blur, é o
-     que dá borda visual ao card. A camada de topo (o ciano) ACENDE com a
-     proximidade, sem mancha em volta. */
+  /* TRÊS camadas, e cada uma tem um trabalho. Junto com a borda, é isto que faz
+     o card virar um PAINÉL e não um retângulo preto com uma borda animada:
+       1. a aresta especular no topo — a face virada para a fonte de luz;
+       2. o acento ciano no canto, que ACENDE com a proximidade do cursor;
+       3. o corpo (--painel), claro em cima e caindo para a sombra embaixo. */
   background:
-    linear-gradient(158deg, rgb(var(--glow-rgb) / calc(.08 + var(--near) * .12)), transparent 52%),
-    linear-gradient(0deg, rgb(var(--deep-rgb) / .5), rgb(var(--deep-rgb) / .26));
+    linear-gradient(180deg, rgb(var(--hi-rgb) / calc(.06 + var(--near, 0) * .06)), transparent 34%),
+    linear-gradient(158deg, rgb(var(--glow-rgb) / calc(.10 + var(--near, 0) * .16)), transparent 54%),
+    var(--painel);
+  /* a borda em repouso era .12 — uma hairline que sobre o painel novo
+     simplesmente não existia. Em .30 ela é uma aresta de instrumento, legível
+     de longe, e ainda sobra curso até o pico do hover (.72). A aresta de topo
+     passou de `hi` a `core`: branco puro lê como metal usinado, ciano claro
+     lia como mais um brilho. */
   box-shadow:
-    inset 0 0 0 1px rgb(var(--glow-rgb) / calc(.12 + var(--near) * .5)),
-    inset 0 1px 0 0 rgb(var(--hi-rgb) / calc(.1 + var(--near) * .16));
-  backdrop-filter: blur(11px) saturate(calc(1.15 + var(--near) * .35));
-  -webkit-backdrop-filter: blur(11px) saturate(calc(1.15 + var(--near) * .35));
-  transition: box-shadow 200ms linear, background 200ms linear, transform var(--t) var(--ease);
+    inset 0 0 0 1px rgb(var(--glow-rgb) / calc(.30 + var(--near, 0) * .34)),
+    inset 0 1px 0 0 rgb(var(--core-rgb) / calc(.18 + var(--near, 0) * .14));
+  backdrop-filter: blur(11px) saturate(calc(1.15 + var(--near, 0) * .35));
+  -webkit-backdrop-filter: blur(11px) saturate(calc(1.15 + var(--near, 0) * .35));
+  transition: var(--t-card);
 }
-/* SELECIONADO (hover/foco): o pico. Sobrepõe a proximidade — a borda vai ao
-   máximo e o card se eleva. Property cheia, não via --near (o inline do JS
-   venceria a folha), então isto ganha mesmo com o cursor parado sobre ele. */
+/* SELECIONADO (hover/foco): o pico. Property cheia, não via --near (o inline do
+   JS venceria a folha), então isto ganha mesmo com o cursor parado sobre ele —
+   e, importante, vale também para o FOCO DE TECLADO, onde não há proximidade
+   nenhuma para acender o painel. Por isso o `background` entra aqui também:
+   antes só a borda subia no foco e o painel ficava no valor de repouso. */
 .card:hover, .card:focus-visible, .card:focus-within {
-  transform: translateY(-2px);
+  translate: 0 -3px;                     /* property independente: não colide com o transform do reveal */
+  background:
+    linear-gradient(180deg, rgb(var(--hi-rgb) / .12), transparent 34%),
+    linear-gradient(158deg, rgb(var(--glow-rgb) / .26), transparent 54%),
+    var(--painel);
   box-shadow:
-    inset 0 0 0 1px rgb(var(--glow-rgb) / .62),
-    inset 0 1px 0 0 rgb(var(--hi-rgb) / .28);
+    inset 0 0 0 1px rgb(var(--glow-rgb) / .72),
+    inset 0 1px 0 0 rgb(var(--core-rgb) / .40);
 }
 /* ---- a BORDA DE AURORA ----
    Moldura espessa (2,5px) com DUAS camadas de conic-gradient percorrendo a
@@ -438,17 +518,8 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
    camada, pra segurar os fps). Rica em paradas: a cor percorre a rampa inteira
    (glow → mid → hi → core → hi → glow → mid) enquanto o ângulo gira. */
 .card::before {
-  opacity: calc(.55 + var(--near) * .45);
-  background: conic-gradient(from var(--nrg, 0deg),
-    rgb(var(--glow-rgb) / 0)    0deg,
-    rgb(var(--glow-rgb) / .5)   36deg,
-    rgb(var(--mid-rgb)  / .55)  72deg,
-    rgb(var(--hi-rgb)   / .85) 116deg,
-    rgb(var(--core-rgb) / .78) 158deg,
-    rgb(var(--hi-rgb)   / .7)  200deg,
-    rgb(var(--glow-rgb) / .55) 250deg,
-    rgb(var(--mid-rgb)  / .5)  300deg,
-    rgb(var(--glow-rgb) / 0)   360deg);
+  opacity: calc(.55 + var(--near, 0) * .45);
+  background: var(--aurora-rampa);
   animation: nrg-run 6.5s linear infinite;
 }
 .card::after { display: none; }   /* base sem 2a camada: celular fica leve */
@@ -460,40 +531,14 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
    ::after entra como contra-corrente (screen), dando o batimento de aurora. */
 @media (pointer: fine) {
   .card::before {
-    background:
-      conic-gradient(from var(--nrg3, 0deg),
-        rgb(var(--hi-rgb)   / 0)    0deg 82deg,
-        rgb(var(--hi-rgb)   / .5)  88deg,
-        rgb(var(--core-rgb) / .98) 92deg,
-        rgb(var(--hi-rgb)   / .5)  96deg,
-        rgb(var(--hi-rgb)   / 0)  102deg 262deg,
-        rgb(var(--hi-rgb)   / .4) 268deg,
-        rgb(var(--core-rgb) / .72) 272deg,
-        rgb(var(--hi-rgb)   / .4) 276deg,
-        rgb(var(--hi-rgb)   / 0)  282deg 360deg),
-      conic-gradient(from var(--nrg, 0deg),
-        rgb(var(--glow-rgb) / 0)    0deg,
-        rgb(var(--glow-rgb) / .5)   36deg,
-        rgb(var(--mid-rgb)  / .55)  72deg,
-        rgb(var(--hi-rgb)   / .85) 116deg,
-        rgb(var(--core-rgb) / .78) 158deg,
-        rgb(var(--hi-rgb)   / .7)  200deg,
-        rgb(var(--glow-rgb) / .55) 250deg,
-        rgb(var(--mid-rgb)  / .5)  300deg,
-        rgb(var(--glow-rgb) / 0)   360deg);
+    background: var(--aurora-nos), var(--aurora-rampa);
     animation: nrg-run3 3.4s linear infinite, nrg-run 6.5s linear infinite;
   }
   .card::after {
     display: block;
-    opacity: calc(.45 + var(--near) * .4);
+    opacity: calc(.45 + var(--near, 0) * .4);
     mix-blend-mode: screen;
-    background: conic-gradient(from var(--nrg2, 0deg),
-      rgb(var(--hi-rgb)   / 0)    0deg,
-      rgb(var(--mid-rgb)  / .55)  64deg,
-      rgb(var(--glow-rgb) / .6)  132deg,
-      rgb(var(--hi-rgb)   / .8)  198deg,
-      rgb(var(--core-rgb) / .5)  252deg,
-      rgb(var(--hi-rgb)   / 0)   330deg);
+    background: var(--aurora-contra);
     animation: nrg-run2 9.5s linear infinite;
   }
 }
@@ -523,8 +568,8 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
   border-radius: var(--r);
   color: var(--glow);
   /* o ícone é a cor mais forte do card de dor: acende com a proximidade */
-  background: rgb(var(--glow-rgb) / calc(.07 + var(--near) * .16));
-  box-shadow: inset 0 0 0 1px rgb(var(--glow-rgb) / calc(.16 + var(--near) * .4));
+  background: rgb(var(--glow-rgb) / calc(.07 + var(--near, 0) * .16));
+  box-shadow: inset 0 0 0 1px rgb(var(--glow-rgb) / calc(.16 + var(--near, 0) * .4));
   transition: background 200ms linear, box-shadow 200ms linear;
 }
 /* seção dores: os 3 ícones eram os únicos do site e destoavam. Viram um
@@ -533,8 +578,8 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
 .card--dor .card__icon {
   border-radius: 0;
   clip-path: polygon(0 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%);
-  background: rgb(var(--glow-rgb) / calc(.06 + var(--near) * .12));
-  box-shadow: inset 0 0 0 1px rgb(var(--glow-rgb) / calc(.24 + var(--near) * .3));
+  background: rgb(var(--glow-rgb) / calc(.06 + var(--near, 0) * .12));
+  box-shadow: inset 0 0 0 1px rgb(var(--glow-rgb) / calc(.24 + var(--near, 0) * .3));
   transition: background 200ms linear, box-shadow 200ms linear;
 }
 .card--dor:hover .card__icon, .card--dor:focus-within .card__icon {
@@ -555,7 +600,7 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
   display: inline-flex; align-items: center; gap: .4rem;
   font-family: var(--mono); font-size: .68rem;
   letter-spacing: .12em; text-transform: uppercase;
-  color: var(--glow); opacity: calc(.62 + var(--near) * .34);   /* acende ao aproximar */
+  color: var(--glow); opacity: calc(.62 + var(--near, 0) * .34);   /* acende ao aproximar */
   transition: opacity 200ms linear;
 }
 .card__cta span {
@@ -567,7 +612,7 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
 /* a régua sob o título também sobe com a proximidade */
 .rule {
   display: block; height: 1px; margin: .85rem 0 .9rem;
-  background: linear-gradient(90deg, rgb(var(--glow-rgb) / calc(.45 + var(--near) * .45)), transparent);
+  background: linear-gradient(90deg, rgb(var(--glow-rgb) / calc(.45 + var(--near, 0) * .45)), transparent);
   transition: background 200ms linear;
 }
 
@@ -713,6 +758,7 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
    (background/fill resetados) e sem animação — texto mono dim, como antes. */
 .mock__label em {
   font-family: var(--mono); font-size: .68rem; letter-spacing: .1em;
+  font-weight: 400;                        /* não herda o 600 da ênfase: aqui é rótulo dim */
   background: none; -webkit-text-fill-color: currentColor;
   color: rgb(var(--hi-rgb) / .5); animation: none;
 }
@@ -737,13 +783,22 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
    Uma coluna estreita e centrada, +/− que vira −, em vez de mais um grid de
    cards. Cara própria para a seção, e a resposta some até ser pedida. */
 .faq-list { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: .7rem; }
+/* MESMA superfície dos cards (--painel), com a borda mais discreta: o FAQ é
+   peça funcional, não vitrine — tem que ler como do mesmo sistema sem competir
+   com os serviços. A hierarquia fica na borda (.20 aqui, .30 no card). */
 .qa {
   border-radius: var(--r);
-  background: linear-gradient(0deg, rgb(var(--deep-rgb) / .42), rgb(var(--deep-rgb) / .16));
-  box-shadow: inset 0 0 0 1px rgb(var(--glow-rgb) / .12);
+  background: var(--painel);
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--glow-rgb) / .20),
+    inset 0 1px 0 0 rgb(var(--core-rgb) / .10);
   transition: box-shadow var(--t) var(--ease);
 }
-.qa[open] { box-shadow: inset 0 0 0 1px rgb(var(--glow-rgb) / .28); }
+.qa[open] {
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--glow-rgb) / .38),
+    inset 0 1px 0 0 rgb(var(--core-rgb) / .16);
+}
 .qa summary {
   list-style: none; cursor: pointer;
   display: flex; align-items: center; justify-content: space-between; gap: 1rem;
@@ -771,14 +826,18 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
 
 /* ---------- CTA ---------- */
 .section--cta { padding-bottom: clamp(80px, 12vw, 150px); }
+/* o painel do pedido é o momento de maior peso da página: mesma superfície dos
+   cards, com a borda mais forte que o FAQ e o foco de luz vindo do topo. */
 .cta {
   position: relative;
   text-align: center; padding: clamp(2.6rem, 6vw, 4.4rem) var(--pad);
   border-radius: var(--r);
   background:
-    radial-gradient(120% 100% at 50% 0%, rgb(var(--glow-rgb) / .09), transparent 62%),
-    linear-gradient(0deg, rgb(var(--deep-rgb) / .55), rgb(var(--deep-rgb) / .25));
-  box-shadow: inset 0 0 0 1px rgb(var(--glow-rgb) / .16);
+    radial-gradient(120% 100% at 50% 0%, rgb(var(--glow-rgb) / .12), transparent 62%),
+    var(--painel);
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--glow-rgb) / .26),
+    inset 0 1px 0 0 rgb(var(--core-rgb) / .14);
 }
 /* o painel do pedido é o momento da conversão: recebe a MESMA borda de aurora
    dos cards, mais lenta (é uma peça grande — depressa viraria agitação). */
@@ -804,13 +863,7 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
 }
 .cta::after {
   opacity: .6; mix-blend-mode: screen;
-  background: conic-gradient(from var(--nrg2, 0deg),
-    rgb(var(--hi-rgb)   / 0)    0deg,
-    rgb(var(--mid-rgb)  / .55)  64deg,
-    rgb(var(--glow-rgb) / .6)  132deg,
-    rgb(var(--hi-rgb)   / .8)  198deg,
-    rgb(var(--core-rgb) / .5)  252deg,
-    rgb(var(--hi-rgb)   / 0)   330deg);
+  background: var(--aurora-contra);
   animation: nrg-run2 13s linear infinite;
 }
 .cta.is-idle::before, .cta.is-idle::after { animation-play-state: paused; }
@@ -845,7 +898,11 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
   display: flex; flex-wrap: wrap; gap: 2.4rem; justify-content: space-between;
 }
 .footer__brand { max-width: 30rem; }
-.footer p { font-size: .9rem; color: rgb(var(--hi-rgb) / .6); margin-top: .9rem; }
+/* ESCOPADO no brand de propósito. Como `.footer p` isto acertava TODOS os
+   parágrafos do rodapé (copyright, assinatura, título dos links) e forçava
+   cinco `!important` mais abaixo só para desfazer o estrago. O alvo real
+   sempre foi a linha de posicionamento da marca. */
+.footer__brand p { font-size: .9rem; color: rgb(var(--hi-rgb) / .6); margin-top: .9rem; }
 .footer__cta { margin-top: 1.4rem; gap: .45rem; }
 .footer__cta span { display: inline-block; transition: transform var(--t-fast) var(--ease); }
 .footer__cta:hover span { transform: translateX(3px); }
@@ -856,16 +913,15 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
   display: flex; flex-wrap: wrap; gap: .6rem 1.5rem;
   justify-content: space-between; align-items: center;
 }
-.footer__base p { margin: 0 !important; }
-.footer__copy { font-size: .76rem !important; color: rgb(var(--hi-rgb) / .53) !important; }
+.footer__copy { font-size: .76rem; color: rgb(var(--hi-rgb) / .53); }
 .footer__sig {
-  font-family: var(--mono); font-size: .66rem !important; letter-spacing: .16em;
-  text-transform: uppercase; color: rgb(var(--hi-rgb) / .42) !important;
+  font-family: var(--mono); font-size: .66rem; letter-spacing: .16em;
+  text-transform: uppercase; color: rgb(var(--hi-rgb) / .42);
 }
 .footer__links { display: flex; flex-direction: column; }
 .footer__links-title {
   font-family: var(--mono); font-size: .66rem; letter-spacing: .2em;
-  text-transform: uppercase; color: rgb(var(--hi-rgb) / .4); margin: 0 0 .3rem !important;
+  text-transform: uppercase; color: rgb(var(--hi-rgb) / .4); margin: 0 0 .3rem;
 }
 /* o alvo de toque vem do padding, não de `gap`: com gap o dedo que erra por
    pouco não acerta nada. Antes eram 24px de altura com 8px de intervalo —
@@ -947,6 +1003,25 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
    por inline style — a transição do CSS aqui só brigaria com o tween. */
 .has-gsap .reveal { transition: none; }
 
+/* ---- e aqui o card recupera a transição que estas duas regras engoliam ----
+   BUG QUE ISTO CORRIGE: `transition` é UMA property. Todo card é também um
+   `.reveal`, e tanto `.reveal` (que declara opacity/transform) quanto
+   `.has-gsap .reveal` (que declara `none`) vencem `.card` — a primeira por vir
+   depois no arquivo com a mesma especificidade, a segunda por ter mais. O
+   resultado medido no navegador era `transition: none` no card: a proximidade
+   do cursor pulava de valor em valor sem interpolar e o hover não elevava nada.
+   Metade da sensação de "sem sal" era isso — o efeito existia e não corria.
+
+   As três regras abaixo são explícitas de propósito, e a ordem importa: a
+   `(0,2,0)` tem que vir DEPOIS de `.has-gsap .reveal` para ganhar o desempate,
+   e a `(0,3,0)` ganha das duas. `--t-card` evita repetir a lista. */
+.card.reveal {
+  transition: var(--t-card),
+              opacity var(--t-slow) var(--ease),
+              transform var(--t-slow) var(--ease);
+}
+.has-gsap .card.reveal { transition: var(--t-card); }   /* GSAP dirige opacity/transform: fora da lista */
+
 /* ---------- GLITCH — personalidade, agora bem visível ----------
    Fatias horizontais deslocadas (clip-path) + aberração cromática forte
    (ciano/branco, dentro da rampa) + tremor de 2-3px. Cada valor se SEGURA e
@@ -986,16 +1061,32 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
    O Pulso e o Estado Singular acontecem no canvas. Aqui o DOM só acompanha com
    uma transição que o CSS resolve sozinho — poucas propriedades, poucos
    elementos. Nada de reescrever tokens que 126 regras leem. */
-body { transition: none; }
-
-.is-pulse .card { box-shadow: inset 0 0 0 1px rgb(var(--glow-rgb) / .3); }   /* borda mais viva no Pulso, sem glow externo */
+/* `:not(:hover):not(:focus-within)` NÃO é enfeite — é correção de bug.
+   `.is-pulse .card` e `.card:hover` têm a MESMA especificidade (0,2,0), e as
+   regras de estado vivem depois no arquivo: durante um Pulso (e durante o
+   Singular) a borda de estado ganhava por ordem e o hover simplesmente não
+   acontecia. Excluindo o card selecionado, o estado pinta o resto e o pico do
+   hover volta a valer sempre. */
+.is-pulse .card:not(:hover):not(:focus-within) {
+  box-shadow:                                   /* borda mais viva no Pulso, sem glow externo */
+    inset 0 0 0 1px rgb(var(--glow-rgb) / .46),
+    inset 0 1px 0 0 rgb(var(--core-rgb) / .24);
+}
 /* ECOSSISTEMA: a borda de energia dos cards e do CTA ACELERA no Pulso (já
    acelerava no Singular). Uma só onda: no Pulso, reator, bordas, aurora e
    caracteres correm juntos. */
 .is-pulse .card::before, .is-pulse .cta::before { animation-duration: 3.2s; }
 .is-pulse .card::after, .is-pulse .cta::after { animation-duration: 5s; }
 .is-pulse .kicker, .is-pulse .bus b { color: var(--hi); }
-.card, .kicker, .bus b { transition: box-shadow var(--t) var(--ease), color var(--t) var(--ease); }
+/* `.card` SAIU desta lista — estava causando um bug silencioso. `transition` é
+   uma property só: esta regra (mesma especificidade que `.card`, mas depois no
+   arquivo) SUBSTITUÍA a transição declarada no .card, e com ela iam embora o
+   `background` e o `transform`. Resultado: o elevar do hover saltava sem
+   transição nenhuma, o painel trocava de valor a seco, e a proximidade do
+   cursor arrastava 420ms atrás do mouse em vez dos 200ms projetados — parte da
+   sensação de "meio bugado". O .card cuida da própria transição na regra base;
+   aqui ficam só quem precisa de transição de COR. */
+.kicker, .bus b { transition: color var(--t) var(--ease); }
 
 /* ---------- ESTADO SINGULAR: branco + dourado ----------
    O espetáculo acontece no canvas (aurora, onda de choque, reator em
@@ -1034,34 +1125,16 @@ h1, h2 { transition: color 900ms var(--ease), text-shadow 900ms var(--ease); }
    externo — a assinatura é a BORDA, não uma mancha de luz em volta do card. */
 .is-singular .card::before { animation-duration: 2.6s; opacity: 1; }
 .is-singular .card::after { animation-duration: 4s; opacity: .9; }
-.is-singular .card {
+.is-singular .card:not(:hover):not(:focus-within) {
   box-shadow:
-    inset 0 0 0 1px rgb(var(--gold-rgb) / .38),
-    inset 0 1px 0 0 rgb(255 255 255 / .14);
+    inset 0 0 0 1px rgb(var(--gold-rgb) / .55),
+    inset 0 1px 0 0 rgb(255 255 255 / .22);
 }
 
-/* IGNIÇÃO: o estouro branco. Um overlay de tela cheia que nasce forte e some
-   em menos de um segundo — o pico do evento. Pseudo-elemento no <body>, então
-   não é filho de <body> e passa longe da armadilha de especificidade. */
-body::after {
-  content: ""; position: fixed; inset: 0; z-index: 60;
-  pointer-events: none; opacity: 0;
-  background:
-    radial-gradient(60% 50% at 50% 38%, rgb(255 255 255 / .85), transparent 70%),
-    linear-gradient(0deg, rgb(var(--gold-rgb) / .1), rgb(255 255 255 / .18));
-}
-/* Um único estouro a cada ~2 minutos, subindo em ~200ms: fica longe do
-   critério de fotossensibilidade da WCAG 2.3.1 (que trata de 3+ flashes por
-   segundo), e quem pede movimento reduzido não vê nenhum. */
-.is-igniting::after { animation: sing-flash 1s var(--ease) both; }
-@keyframes sing-flash {
-  0%   { opacity: 0; }
-  20%  { opacity: .82; }        /* o estouro */
-  100% { opacity: 0; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .is-igniting::after { animation: none; }   /* nada de flash para quem pediu calma */
-}
+/* IGNIÇÃO: o dono pediu para tirar o estouro branco (body::after com
+   sing-flash) que marcava a entrada no Singular — lia como flash, não como
+   luz. `.is-igniting` segue sendo alternada pelo JS (dom.js), mas sem regra
+   de CSS associada não produz nenhum efeito visual. */
 
 /* ---------- responsivo ---------- */
 @media (max-width: 620px) {
@@ -1069,12 +1142,20 @@ body::after {
   .footer__grid { flex-direction: column; gap: 1.8rem; }
   /* celular: sem backdrop-filter. É o aparelho onde reborrar o fundo por frame
      mais dói e onde o medidor de fps some — o vidro cede lugar a um fundo opaco
-     legível. A borda de energia (barata) fica. */
+     legível. A borda de energia (barata) fica.
+
+     Só o TOKEN é redefinido: a regra base do .card já lê var(--painel), então o
+     painel do celular entra sozinho, sem repetir a pilha de camadas (era assim
+     antes, e as duas cópias já tinham divergido — a do celular tinha perdido a
+     aresta especular). Sem blur o painel precisa de mais corpo para ler como
+     superfície, e aqui não existe `--near` (não há cursor): os valores de
+     repouso têm que se sustentar sozinhos. */
   .card {
+    --painel: linear-gradient(180deg,
+      rgb(var(--mid-rgb)  / .34) 0,
+      rgb(var(--deep-rgb) / .88) 42%,
+      rgb(var(--deep-rgb) / .50) 100%);
     backdrop-filter: none; -webkit-backdrop-filter: none;
-    background:
-      linear-gradient(158deg, rgb(var(--glow-rgb) / .06), transparent 46%),
-      linear-gradient(0deg, rgb(var(--deep-rgb) / .55), rgb(var(--deep-rgb) / .3));
   }
 }
 
@@ -1194,11 +1275,21 @@ body::after {
   to   { opacity: 1; transform: none; }
 }
 
-.booted .hero__status  { animation: boot-rise .6s var(--ease) .5s both; }
-.booted .hero__title   { animation: boot-rise .7s var(--ease) .65s both; }
-.booted .hero__sub     { animation: boot-rise .7s var(--ease) .95s both; }
-.booted .hero__actions { animation: boot-rise .7s var(--ease) 1.12s both; }
-.booted .scroll-hint   { animation: boot-rise-x .8s var(--ease) 1.5s both; }
+/* ESTA CASCATA É O FALLBACK — só vale quando o GSAP não está dirigindo.
+   Bug que isto corrige: uma @keyframes com `fill: both` vence estilo inline no
+   cascade (animação tem prioridade acima de author-normal), e o fill forwards
+   PERSISTE. Então estas cinco regras pinavam opacity/transform para sempre e
+   engoliam por completo a entrada do js/anima.js em status, subtítulo, ações e
+   dica de scroll — o GSAP tweenava, e nada aparecia na tela. A entrada "mais
+   lenta e suave" que o dono pediu estava escrita e nunca rodava.
+   (O título escapava por acidente: lá o GSAP anima as LINHAS geradas pelo
+   SplitText, que são filhas e não recebem esta animação.)
+   `has-gsap` entra no <html> no topo do anima.js, antes de qualquer tween. */
+html:not(.has-gsap) .booted .hero__status  { animation: boot-rise .6s var(--ease) .5s both; }
+html:not(.has-gsap) .booted .hero__title   { animation: boot-rise .7s var(--ease) .65s both; }
+html:not(.has-gsap) .booted .hero__sub     { animation: boot-rise .7s var(--ease) .95s both; }
+html:not(.has-gsap) .booted .hero__actions { animation: boot-rise .7s var(--ease) 1.12s both; }
+html:not(.has-gsap) .booted .scroll-hint   { animation: boot-rise-x .8s var(--ease) 1.5s both; }
 @keyframes boot-rise {
   from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: none; }

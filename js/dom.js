@@ -111,6 +111,11 @@
        · o recálculo atinge o card e seus filhos — não o :root lido por 126
          regras. São 1-3 cards por movimento, não 205 spans.
      Só com ponteiro fino: no toque não há cursor a seguir. */
+  /* preenchido pelo bloco de proximidade abaixo quando há ponteiro fino; fica
+     visível aqui em cima porque o ÚNICO listener de scroll do arquivo (mais
+     abaixo) precisa chamá-lo. No toque continua nulo e o listener nem tenta. */
+  var pedirNear = null;
+
   if (B.fine) {
     var cardsNear = document.querySelectorAll('.card');
     /* CENTROS EM CACHE, em coordenadas de DOCUMENTO. Antes, varrer() lia
@@ -148,10 +153,10 @@
       }
     };
     var pedir = function () { if (!agendado) { agendado = true; requestAnimationFrame(varrer); } };
+    pedirNear = pedir;                    /* o listener único de scroll chama por aqui */
     medirCentros();
     window.addEventListener('pointermove', function (e) { mx = e.clientX; my = e.clientY; pedir(); }, { passive: true });
     window.addEventListener('pointerleave', function () { mx = -9999; my = -9999; pedir(); }, { passive: true });
-    window.addEventListener('scroll', pedir, { passive: true });   /* cards passam sob o cursor parado */
     /* os centros só mudam quando o LAYOUT muda: recalcula aí, nunca por frame. */
     window.addEventListener('resize', medirCentros, { passive: true });
     window.addEventListener('load', medirCentros, { passive: true });
@@ -188,21 +193,29 @@
     });
   }
 
-  /* ---------- nav: uma classe, no cruzamento do limiar ---------- */
-  var nav = document.getElementById('nav');
+  /* ---------- o ÚNICO listener de scroll do arquivo ----------
+     Eram dois (a nav e a proximidade dos cards), cada um com o seu handler. Um
+     caminho só: nada aqui mede layout, então a ordem não importa e o custo é o
+     de uma comparação. `navEl` é reaproveitado — antes este bloco fazia um
+     segundo getElementById('nav') e usava o resultado SEM guarda de nulo, então
+     um HTML sem #nav lançava a cada scroll (e derrubava com ele o resto do
+     arquivo). */
   var presa = false;
   window.addEventListener('scroll', function () {
-    var quer = window.scrollY > 40;
-    if (quer !== presa) { presa = quer; nav.classList.toggle('is-stuck', quer); }
+    if (navEl) {
+      var quer = window.scrollY > 40;
+      if (quer !== presa) { presa = quer; navEl.classList.toggle('is-stuck', quer); }
+    }
+    if (pedirNear) pedirNear();          /* cards passam sob o cursor parado */
   }, { passive: true });
 
   /* ---------- onde estou: a seção atual acende na nav ----------
      Num site de página única a pessoa perde a referência de lugar. O
      IntersectionObserver só dispara ao cruzar o limiar — nada por frame. A
      faixa de leitura é o terço superior da tela, logo abaixo da nav. */
-  if ('IntersectionObserver' in window) {
+  if (navEl && 'IntersectionObserver' in window) {
     var doNav = {};
-    var ancoras = nav.querySelectorAll('.nav__links a[href^="#"]');
+    var ancoras = navEl.querySelectorAll('.nav__links a[href^="#"]');
     for (var a = 0; a < ancoras.length; a++) {
       var alvo = ancoras[a].getAttribute('href').slice(1);
       if (alvo) doNav[alvo] = ancoras[a];
@@ -300,7 +313,10 @@
      `whiteHot` (mistura de branco) e `shock` (0..1 da onda; -1 desligada).
      Quem desenha é o canvas. */
   var singAte = 0, proxSing = 0, SDUR = 18000;
-  var ignitindo = false;
+  /* NÃO existe mais uma classe `is-igniting`: o dono removeu o estouro branco
+     que ela acendia (lia como flash, não como luz), e sem regra de CSS do outro
+     lado ela era escrita e apagada por ninguém. As fases seguem intactas — quem
+     desenha a ignição é o canvas, por S.whiteHot e S.shock. */
   function driveSingular(now) {
     if (now < singAte) {
       var u = 1 - (singAte - now) / SDUR;
@@ -314,7 +330,6 @@
         S.whiteHot = 1;                               /* branco no auge */
         S.warmth = g * .35;
         S.shock = g;                                  /* a onda atravessa a tela */
-        if (!ignitindo) { ignitindo = true; document.body.classList.add('is-igniting'); }
       } else if (u < .76) {                           /* REINADO */
         var r = (u - .13) / .63;
         S.singular = 1;
@@ -328,7 +343,6 @@
         var decai = Math.max(0, 1 - r / .18);
         S.whiteHot = .3 + .7 * decai + Math.sin(r * 9) * .1 * (1 - decai);
         S.shock = -1;
-        if (ignitindo) { ignitindo = false; document.body.classList.remove('is-igniting'); }
       } else {                                        /* RESFRIAMENTO */
         var f = Math.max(0, (1 - u) / .24);
         /* .34 é o valor EXATO em que o reinado termina (.3 + sen(9)·.1): com
@@ -339,8 +353,7 @@
     }
     if (S.singular !== 0) {
       S.singular = 0; S.warmth = 0; S.whiteHot = 0; S.shock = -1;
-      ignitindo = false;
-      document.body.classList.remove('is-singular', 'is-igniting');
+      document.body.classList.remove('is-singular');
       anunciar('Sistema online · beyon.0');
       proxSing = now + 70000 + Math.random() * 60000;
     }

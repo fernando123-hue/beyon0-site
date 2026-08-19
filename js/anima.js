@@ -29,6 +29,18 @@
      que atropela quadros depois de uma aba em segundo plano. */
   gsap.ticker.lagSmoothing(0);
 
+  /* ASSUMIR O CONTROLE, AGORA — antes de qualquer tween.
+     Esta classe é o contrato com a folha de estilo: "o GSAP está dirigindo,
+     desliga as animações CSS equivalentes". Ela precisa entrar AQUI e não mais
+     tarde, porque a cascata de entrada do hero (.booted .hero__*) é uma
+     @keyframes com fill:both — e animação vence estilo inline no cascade, de
+     forma permanente. Enquanto ela valia, a entrada do hero escrita abaixo
+     tweenava para um elemento cujo opacity/transform o CSS mantinha pinado:
+     status, subtítulo, ações e dica de scroll simplesmente não animavam.
+     Só chega nesta linha quem passou pelas guardas acima (GSAP presente e sem
+     reduced-motion), então o fallback CSS continua intacto para todo o resto. */
+  document.documentElement.classList.add('has-gsap');
+
   var feito = false;
 
   /* ---------- CARACTERE VIVO ----------
@@ -90,28 +102,44 @@
     var sub = document.querySelector('.hero__sub');
     var acoes = document.querySelector('.hero__actions');
     var hint = document.querySelector('.scroll-hint');
+    var pecas = [status, titulo, sub, acoes, hint];
 
-    /* mais lento e suave (pedido do dono): durações maiores, easing gentil */
-    var tl = gsap.timeline({ defaults: { ease: 'power2.out' } });
+    /* REDE DE SEGURANÇA (a mesma que scrollReveals já tinha, e que aqui
+       faltava). Agora que `has-gsap` desliga a cascata CSS do hero, o GSAP é o
+       ÚNICO caminho de entrada — e um `from` com autoAlpha põe o elemento em
+       opacity 0 no mesmo tick. Se qualquer linha daqui lançar no meio, a peça
+       já zerada ficaria invisível para sempre, na primeira tela do site. No
+       catch tudo volta a aparecer: o site perde a entrada, nunca o conteúdo. */
+    try {
+      /* mais lento e suave (pedido do dono): durações maiores, easing gentil */
+      var tl = gsap.timeline({ defaults: { ease: 'power2.out' } });
 
-    if (status) tl.from(status, { autoAlpha: 0, y: 14, duration: .9 });
+      if (status) tl.from(status, { autoAlpha: 0, y: 14, duration: .9 });
 
-    if (window.SplitText && titulo) {
-      var split = new window.SplitText(titulo, { type: 'lines', mask: 'lines' });
-      tl.from(split.lines, {
-        yPercent: 115, duration: 1.5, stagger: .2, ease: 'power3.out',
-        onComplete: function () {
-          split.revert();       /* devolve o DOM original */
-          vivaChars(titulo);    /* e já liga a ressonância — logo após a entrada */
-        }
-      }, '-=.35');
-    } else if (titulo) {
-      tl.from(titulo, { autoAlpha: 0, y: 26, duration: 1.3 }, '-=.35');
+      if (window.SplitText && titulo) {
+        var split = new window.SplitText(titulo, { type: 'lines', mask: 'lines' });
+        tl.from(split.lines, {
+          yPercent: 115, duration: 1.5, stagger: .2, ease: 'power3.out',
+          onComplete: function () {
+            split.revert();       /* devolve o DOM original */
+            vivaChars(titulo);    /* e já liga a ressonância — logo após a entrada */
+          }
+        }, '-=.35');
+      } else if (titulo) {
+        tl.from(titulo, { autoAlpha: 0, y: 26, duration: 1.3 }, '-=.35');
+      }
+
+      if (sub) tl.from(sub, { autoAlpha: 0, y: 18, duration: 1 }, '-=.8');
+      if (acoes) tl.from(acoes.children, { autoAlpha: 0, y: 16, stagger: .14, duration: .9 }, '-=.6');
+      if (hint) tl.from(hint, { autoAlpha: 0, duration: .9 }, '-=.3');
+    } catch (e) {
+      for (var p = 0; p < pecas.length; p++) {
+        if (!pecas[p]) continue;
+        gsap.set(pecas[p], { clearProps: 'all' });
+        if (pecas[p].children.length) gsap.set(pecas[p].children, { clearProps: 'all' });
+      }
+      document.documentElement.classList.remove('has-gsap');   /* devolve a cascata ao CSS */
     }
-
-    if (sub) tl.from(sub, { autoAlpha: 0, y: 18, duration: 1 }, '-=.8');
-    if (acoes) tl.from(acoes.children, { autoAlpha: 0, y: 16, stagger: .14, duration: .9 }, '-=.6');
-    if (hint) tl.from(hint, { autoAlpha: 0, duration: .9 }, '-=.3');
   }
 
   /* dispara quando o conteúdo entra — depois da intro em vídeo (evento 'booted').
@@ -135,7 +163,6 @@
       return !el.closest('.revelando');
     });
     if (!alvos.length) return;
-    document.documentElement.classList.add('has-gsap');   /* desliga a transição CSS do reveal */
     try {
       gsap.set(alvos, { opacity: 0, y: 28 });
       if (ST && ST.batch) {
