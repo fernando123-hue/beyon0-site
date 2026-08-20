@@ -1,15 +1,19 @@
-# beyon.0 — transferência de contexto
+# Beyon Zero — transferência de contexto
 
-**Última atualização:** 2026-08-20 · **Branch ativa:** `rebuild` · **HEAD anterior a este commit:** `acaf5f0` (NÃO PUBLICADO)
+**Última atualização:** 2026-08-20 · **Branch ativa:** `rebuild` · **HEAD anterior a este commit:** `18abfc7` (NÃO PUBLICADO)
 
 > **Se você é a próxima sessão, comece pela seção 12 (ESTADO ATUAL), depois leia
-> 12.9 — é a mais recente e resume tudo.** A seção 11 é o estado consolidado de
+> 12.10 — é a mais recente e resume tudo.** A seção 11 é o estado consolidado de
 > uma sessão anterior e segue válida no que não foi substituído. As seções
 > datadas acima delas são o histórico de como chegamos aqui; leia-as se
 > precisar do porquê de uma decisão.
 >
-> **ATENÇÃO: são ~17 commits prontos e NÃO PUBLICADOS** (partindo de
-> `origin/main`). Ver 12.1 e 12.9 — publicar ou não é a próxima decisão do dono.
+> **ATENÇÃO: são ~18 commits prontos e NÃO PUBLICADOS** (partindo de
+> `origin/main`). Ver 12.1 e 12.10 — publicar ou não é a próxima decisão do dono.
+>
+> **O nome certo da empresa é Beyon Zero, não beyon.0** — corrigido no código
+> em 12.10. Se você é uma sessão nova e ainda pensa "beyon.0", pare e leia
+> 12.10 antes de escrever qualquer copy nova.
 
 Leia este arquivo primeiro. Depois `docs/auditoria-performance.md` — ele contém
 as medições que justificam toda a arquitetura atual e evita repetir erros caros.
@@ -1187,3 +1191,58 @@ está no celular, só vai ver depois de publicado.
 **Ainda não publicado.** `rebuild` está ~17 commits à frente de `origin/main`
 neste ponto. Fluxo de publicação continua o mesmo do §2: fast-forward,
 `git push origin rebuild:main`, só quando o dono pedir.
+
+---
+
+## 12.10 — Correção de nome: a empresa se chama Beyon Zero, não beyon.0
+
+O dono, numa sessão à parte (playbook comercial do vendedor), disse: **"a
+empresa se chama Beyon Zero, considere isso"** — marcado como muito
+importante. Corrigido em todo o site, não só no playbook, porque "volte a
+focar no site" + "analise tudo que você fez" foi pedido explícito depois.
+
+**24 ocorrências corrigidas** em `index.html`, `js/dom.js`, `styles.css`:
+título, meta OG/Twitter, `name` do JSON-LD `ProfessionalService`, wordmark
+(nav + rodapé, `beyon<b>.0</b>` → `Beyon <b>Zero</b>`), status do hero (2
+lugares no HTML + 3 no `dom.js`, que precisam bater IDÊNTICOS — são o texto
+de repouso do glitch morph), mensagem padrão do WhatsApp, copyright do
+rodapé. Também os títulos de `docs/HANDOFF.md` e `docs/design-tokens.md`
+("fonte da verdade").
+
+**O que NÃO mudou, de propósito:**
+- **O domínio** (`beyon0-site.vercel.app`) — em toda URL absoluta (canonical,
+  og:url, og:image, twitter:image, JSON-LD `url`/`image`). Trocar domínio é
+  decisão de infraestrutura separada (DNS, redirecionamento, Vercel), não
+  uma correção de texto. Não presumi que o dono queria isso também.
+- **Um trecho histórico** em `docs/design-tokens.md` (~linha 156, análise do
+  briefing original de logo, 2026-07-23) — é registro do que foi medido
+  NAQUELE momento; reescrever história para "consertar" o nome falsearia o
+  registro. Só os títulos (identidade atual) foram corrigidos.
+- **A grade CSS do wordmark** — sem largura fixa em `.nav__logo`/`.wordmark`,
+  confirmado por leitura; "Beyon Zero" (10 caracteres) cabe sem risco de
+  estouro onde "beyon.0" (7) cabia.
+
+**Verificado:** os dois JSON-LD parseiam e a `FAQPage` continua batendo
+palavra por palavra com a seção visível (5 pares — o rename não tocou
+nenhum texto de FAQ). Zero tag desbalanceada. `js/dom.js` e `js/field.js`
+passam `node --check`. Busca ampla por `beyon\.0` no repo inteiro (HTML/JS/
+CSS) retorna zero fora de `vendor/gsap` (biblioteca de terceiros, não é
+nosso texto).
+
+**Passada de revisão geral** (pedido do dono: "analise tudo que você fez, e
+aprimore") além do nome: reli a copy AI-first inteira e o CSS à procura de
+resíduo da copy antiga ("landing page", "e-commerce", "interfaces de elite")
+— achei uma única ocorrência de "landing page", em comentário técnico do
+`dom.js` sobre timing do Singular, usando o termo no sentido genérico de
+formato de página (não como oferta de serviço) — não é resíduo, é descrição
+precisa, mantido. Conferi as 6 âncoras internas (`#hero` a `#faq`) — todas
+resolvem. Considerei adicionar ao FAQ a objeção "isso é coisa de empresa
+grande?" (aparece no playbook do vendedor e lá faz sentido — abordagem de
+rua a negócio pequeno) mas decidi não adicionar aqui: quem chega ao SITE
+already passou por um funil diferente do de abordagem fria, e enfiar uma
+pergunta especulativa sem sinal real de que é dúvida comum do visitante
+seria inventar problema pra copy resolver — contra a própria regra do
+documento mestre (§63, não inventar).
+
+Nada mais mudou nesta passada — o resto da copy, paleta e estrutura seguem
+exatamente como as sessões anteriores deixaram (seções 12.1–12.9).

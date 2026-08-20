@@ -1,4 +1,4 @@
-# beyon.0 — Design Tokens (fonte da verdade)
+# Beyon Zero — Design Tokens (fonte da verdade)
 
 > **REV 4 (2026-08-20, decisão do dono): o contraponto deixa de ser um segundo
 > matiz saturado e vira metal frio.**

@@ -21,8 +21,8 @@
   var FONE = '5521977167944';
   function linkWA(assunto) {
     var txt = assunto
-      ? 'Oi! Vim pelo site da beyon.0 e quero falar sobre ' + assunto + '.'
-      : 'Oi! Vim pelo site da beyon.0 e quero entender onde a IA pode ajudar no meu negócio.';
+      ? 'Oi! Vim pelo site da Beyon Zero e quero falar sobre ' + assunto + '.'
+      : 'Oi! Vim pelo site da Beyon Zero e quero entender onde a IA pode ajudar no meu negócio.';
     return 'https://wa.me/' + FONE + '?text=' + encodeURIComponent(txt);
   }
   var links = document.querySelectorAll('[data-wa]');
@@ -261,7 +261,7 @@
   }
 
   var stEl = document.querySelector('.hero__status-txt');
-  var stDe = 'Sistema online · beyon.0', stPara = stDe, stP = 1, stMostrado = stDe;
+  var stDe = 'Sistema online · Beyon Zero', stPara = stDe, stP = 1, stMostrado = stDe;
   function anunciar(txt) {
     if (txt === stPara) return;
     stDe = stMostrado; stPara = txt; stP = 0;
@@ -291,7 +291,7 @@
     if (S.pulse !== 0) {
       S.pulse = 0; S.pulseFront = 0;
       document.body.classList.remove('is-pulse');
-      anunciar('Sistema online · beyon.0');
+      anunciar('Sistema online · Beyon Zero');
       agendarPulso(now);
     }
     if (proxPulso && now > proxPulso && !S.singular) {
@@ -355,7 +355,7 @@
     if (S.singular !== 0) {
       S.singular = 0; S.warmth = 0; S.whiteHot = 0; S.shock = -1;
       document.body.classList.remove('is-singular');
-      anunciar('Sistema online · beyon.0');
+      anunciar('Sistema online · Beyon Zero');
       proxSing = now + 70000 + Math.random() * 60000;
     }
     if (proxSing && now > proxSing && !S.pulse) {
