@@ -255,7 +255,7 @@
       /* a bruma é a camada mais profunda e difusa da cena — é o lugar natural do
          contraponto: tinge o fundo sem competir com nada que precise ser lido. */
       halo(W * .5 + Math.cos(t * .21) * W * .2, H * .38 + Math.sin(t * .17) * H * .15,
-           Math.min(W, H) * .5, vio, .022 * lum);
+           Math.min(W, H) * .5, vio, .016 * lum);
     }
 
     /* ---- 2b. AURORA DO SINGULAR ----
