@@ -27,6 +27,21 @@
 
   var TAU = Math.PI * 2;
   var CIANO = '0,245,255', ALTA = '159,248,255', NUCLEO = '242,254,255', OURO = '255,201,107';
+  /* O CONTRAPONTO da rampa, em dois estados. O ciano é a âncora e não muda; o
+     violeta é a segunda cor, e é ele que tira a cena do monocromático.
+
+     Por que ele precisa de um alvo quente PRÓPRIO: se misturasse para OURO como
+     todo o resto, em warmth=1 (o reinado do Singular) ele viraria exatamente
+     255,201,107 — o MESMO ouro de todas as outras cores. O contraponto
+     desapareceria justo no auge do evento, e o estado quente voltaria a ser
+     mono-ouro, que é o problema que esta paleta existe para resolver. Com BRASA
+     ele fecha em 255,107,44 e continua sendo uma segunda cor.
+     (No meio da transição, w=.6, a diferença é de saturação: 203,157,166 malva
+     empoeirado pelo caminho do ouro contra 203,101,128 coral pelo da brasa.)
+
+     Estes valores NÃO existem como token de CSS — a cor do canvas nunca passa
+     pela folha de estilo. Este é o único lugar onde eles vivem. */
+  var VIOLETA = '124,92,255', BRASA = '255,107,44';
 
   /* geometria estática do reator, IZADA para fora do loop: recriar estes arrays
      a cada frame era lixo para o GC à toa. spMul multiplica `giro` no frame. */
@@ -52,8 +67,11 @@
            Math.round(+a[1] + (+b[1] - +a[1]) * w) + ',' +
            Math.round(+a[2] + (+b[2] - +a[2]) * w);
   }
-  function cor(base, w, hot) {
-    var c = mistura(base, OURO, w || 0);
+  /* `alvo` é o destino QUENTE da mistura, e é opcional: sem ele cai em OURO,
+     então todas as chamadas de três argumentos que já existiam seguem idênticas.
+     Só o violeta passa um alvo próprio (BRASA) — ver §2/§3 do tick. */
+  function cor(base, w, hot, alvo) {
+    var c = mistura(base, alvo || OURO, w || 0);
     return hot ? mistura(c, BRANCO, hot) : c;
   }
 
