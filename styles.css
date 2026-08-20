@@ -1106,8 +1106,13 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
   --glow: var(--gold);   --glow-rgb: var(--gold-rgb);
   --hi:  #ffe6b0;        --hi-rgb:  255 230 176;   /* ciano claro → ouro claro */
   --core: #ffffff;       --core-rgb: 255 255 255;  /* tira o leve tint ciano do core */
-  --mid-rgb: 176 130 54;                            /* teal → ouro escuro */
-  --deep-rgb: 34 24 8;                              /* base do card: teal escuro → marrom quente */
+  /* O quente era mono-ouro: marrom #221808 → ouro → branco, ~20° de variação.
+     Agora ele ESPELHA a estrutura do frio — sombra, âncora, luz, contraponto.
+     Brasa 4° na sombra e terracota 19° no meio; o ouro segue sendo a âncora,
+     intocado. Varredura ~20° → 37°, com faixa de leveza de 5% a 100%.
+     "Zero verde" continua garantido: não sobra nenhum token teal aqui. */
+  --mid-rgb: 138 58 22;                             /* teal → terracota */
+  --deep-rgb: 42 14 12;                             /* base do card: teal escuro → brasa */
 }
 .is-singular em,
 .is-singular .kicker,
