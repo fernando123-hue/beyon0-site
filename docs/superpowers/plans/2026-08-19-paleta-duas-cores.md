@@ -574,10 +574,16 @@ armadilha):
 - [ ] **Step 5: Verificar sintaxe e que a colisão de nome sumiu**
 
 ```bash
-cd "C:/Vault - Fernando/Beyon 0" && node --check js/field.js && echo "sintaxe ok" && echo "--- ocorrencias de 'var gb' (deve sobrar 1, a do overdrive) ---" && grep -c 'var gb' js/field.js && echo "--- usos de vio ---" && grep -n '\bvio\b' js/field.js
+cd "C:/Vault - Fernando/Beyon 0" && node --check js/field.js && echo "sintaxe ok" && echo "--- ocorrencias de gb (deve sobrar so o overdrive) ---" && grep -n '\bgb\b' js/field.js && echo "--- gBaixo (a aurora renomeada) ---" && grep -c '\bgBaixo\b' js/field.js && echo "--- usos de vio ---" && grep -n '\bvio\b' js/field.js
 ```
 
-Esperado: `sintaxe ok`, `var gb` aparece **1** vez, e `vio` aparece na declaração + 3 usos (partícula, bruma, aurora).
+Esperado: `sintaxe ok`; `gb` aparecendo **só** nas duas linhas do overdrive (a declaração
+`var NB = 12, gb = S.t * .008;` e o uso em `var ab = gb + …`); `gBaixo` **4** vezes; e `vio`
+na declaração + 4 usos (partícula, bruma, e os dois `addColorStop` da aurora).
+
+**Não use `grep -c 'var gb'` aqui.** O `gb` do overdrive é declarado numa lista de vírgulas
+(`var NB = 12, gb = …`), então o literal `var gb` não casa com ele — o check daria 0 e pareceria
+falha quando está tudo certo. Casar a palavra (`\bgb\b`) é o que funciona.
 
 - [ ] **Step 6: ANALISAR (processo do dono)**
 
