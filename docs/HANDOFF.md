@@ -1,14 +1,15 @@
 # beyon.0 — transferência de contexto
 
-**Última atualização:** 2026-08-20 · **Branch ativa:** `rebuild` · **HEAD:** `7fa082c` (NÃO PUBLICADO)
+**Última atualização:** 2026-08-20 · **Branch ativa:** `rebuild` · **HEAD anterior a este commit:** `acaf5f0` (NÃO PUBLICADO)
 
-> **Se você é a próxima sessão, comece pela seção 12 (ESTADO ATUAL) — é a mais
-> recente e resume tudo.** A seção 11 é o estado consolidado da sessão anterior e
-> segue válida no que não foi substituído. As seções datadas acima delas são o
-> histórico de como chegamos aqui; leia-as se precisar do porquê de uma decisão.
+> **Se você é a próxima sessão, comece pela seção 12 (ESTADO ATUAL), depois leia
+> 12.9 — é a mais recente e resume tudo.** A seção 11 é o estado consolidado de
+> uma sessão anterior e segue válida no que não foi substituído. As seções
+> datadas acima delas são o histórico de como chegamos aqui; leia-as se
+> precisar do porquê de uma decisão.
 >
-> **ATENÇÃO: há 11 commits prontos e NÃO PUBLICADOS.** Ver 12.1 — publicar ou não
-> é a próxima decisão do dono.
+> **ATENÇÃO: são ~17 commits prontos e NÃO PUBLICADOS** (partindo de
+> `origin/main`). Ver 12.1 e 12.9 — publicar ou não é a próxima decisão do dono.
 
 Leia este arquivo primeiro. Depois `docs/auditoria-performance.md` — ele contém
 as medições que justificam toda a arquitetura atual e evita repetir erros caros.
@@ -129,14 +130,28 @@ arquivo do 400 deixou de ser baixado. **Se alguém precisar de Sora 400 ou 500,
 tem que adicionar ao `<link>` do Google Fonts** — não presumir que está lá.
 
 **EXCEÇÃO do dono (2026-08-19): "matiz único" foi revogado.** A rampa passa a ter
-uma âncora (ciano `#00F5FF`, intocada) mais um contraponto (violeta `#7C5CFF` no
-repouso, brasa `#FF6B2C` no Singular). O motivo: com 4° de variação de matiz a
-identidade lia monocromática. Varredura agora 70° no frio (34° só na folha de
-CSS; os 70° só existem contando o violeta, que vive em `js/field.js` e não é
-token de CSS), 37° no quente.
+uma âncora (ciano `#00F5FF`, intocada) mais um contraponto. O motivo: com 4° de
+variação de matiz a identidade lia monocromática.
 O **"zero verde" do Singular continua valendo** e agora é verificado por script.
-Violeta/brasa vivem em `js/field.js`, não como token de CSS.
 Spec: `docs/superpowers/specs/2026-08-19-paleta-duas-cores-design.md`.
+
+**EXCEÇÃO do dono (2026-08-20): o contraponto trocou de violeta para prata fria
+— SUBSTITUI o parágrafo acima sobre o contraponto.** Motivo do dono: "acabou
+ficando meio enjoativo, vamos redirecionar esse sentimento para algo tech, que
+impressionem quem olhar". Diagnóstico: ciano+violeta é o par de dois néons
+saturados que quase todo produto de IA usa hoje — era essa competição que lia
+como enjoo, não a saturação em si. Escolhido entre 3 direções (dono pediu por
+`AskUserQuestion`): **prata/branco frio no repouso** (`rgb(108,122,142)`, só em
+`js/field.js`, nunca token de CSS) — desaturação, não um segundo matiz. **Ouro
+continua sendo o contraponto do Singular**, sem mudança — o dono gostou
+explicitamente dessa parte e pediu para preservar. A prata perdeu o alvo quente
+próprio que o violeta tinha (era `BRASA #FF6B2C`, removida do código): agora
+funde para ouro igual a tudo mais, porque o ouro é a assinatura única do
+Singular, não dividida com uma segunda cor. Varredura de matiz não se aplica
+mais do mesmo jeito — a prata é dessaturada de propósito, não um matiz a X° do
+ciano. Detalhe completo, incluindo o porquê da luminância escolhida (120 contra
+os 111 do violeta que ela substitui) e o que só o olho do dono fecha:
+`docs/design-tokens.md` REV 4.
 
 **EXCEÇÃO do dono (2026-08-18): "sem vidro" foi revogado para os cards.** Ele
 pediu de volta o efeito antigo — glass (`backdrop-filter`) + borda de energia
@@ -392,6 +407,14 @@ dono respondeu: **por ora, estúdio anônimo**. Então nada de nome, foto ou
 assinatura pessoal. A confiança tem que vir de outras fontes — o processo em
 3 passos, o orçamento fechado antes de começar, o FAQ que responde as
 objeções, e o próprio site como demonstração. Não reabrir sem ele pedir.
+
+**Reconfirmado em 2026-08-20, com condição explícita**: perguntei de novo
+depois do reposicionamento para IA (ticket sobe de R$3-10K para os R$50-80K+
+da seção 38 do documento mestre, e ticket alto normalmente pede confiança em
+alguém). Resposta: **"Vamos manter em anônimo por enquanto, até a equipe
+estiver completa."** Isso muda a natureza da decisão — não é mais "escolha de
+posicionamento", é "estado transitório até um marco de negócio" (equipe
+completa). Reabrir quando ele avisar que a equipe fechou, não antes.
 
 ### Refinamento de experiência (mesma data)
 - **Âncoras**: não existia `scroll-margin-top`. A nav é fixa (78,6px medidos),
@@ -1089,3 +1112,78 @@ Nada disso é verificável neste ambiente, porque a aba não compõe frames:
    se for adiante.
 6. Histórico do git com ~50 MB de assets mortos (`Logo.gif`, `introdução.mp4`) — já
    gitignorados e fora do deploy; só `git filter-repo` limpa o histórico, e é destrutivo.
+
+---
+
+## 12.9 — Sessão de 2026-08-20b: reposicionamento de copy + contraponto vira prata
+
+Continuação da sessão que fechou em 12.6-12.8. Modelo trocou de Opus para Sonnet 5
+no meio (o dono trocou via `/model`); nada no processo mudou por causa disso.
+
+### O que aconteceu, em ordem
+
+1. **O dono trouxe um documento mestre de 76 seções** ("BEYON.0 — AI-FIRST")
+   redefinindo a empresa como AI-first: IA é o núcleo, não uma feature. Pediu
+   para reformular TODA a copy do site com base nele.
+2. **Copy inteira reescrita** (`0bdbaf1`) — ver pendência 2 acima para o resumo;
+   a mudança de posicionamento completa está no corpo daquele commit.
+3. **Voz unificada em primeira pessoa** (`acaf5f0`) — a copy nova tinha rachadura
+   de plural/singular (hero prometia "nós", o resto entregava "eu"); o dono pediu
+   "unifica tudo em eu" depois de eu apontar o risco. `Achamos` virou `Encontro`
+   (não `Acho`, que em PT também significa "suponho" — enfraqueceria a promessa).
+4. **Duas perguntas resolvidas**: estúdio anônimo reconfirmado com condição nova
+   (ver seção 8 acima, "Reconfirmado em 2026-08-20"). Sites-como-1-card-entre-6
+   ficou **sem resposta** — não é bloqueio, é decisão que segue aberta.
+5. **Paleta REV 4 — contraponto de violeta para prata fria.** O dono, no celular,
+   sem conseguir ver nada renderizado: "acabou ficando meio enjoativo, vamos
+   redirecionar esse sentimento para algo tech, que impressionem quem olhar."
+   Ofereci 3 direções por `AskUserQuestion` (âmbar/ouro promovido a contraponto
+   de repouso · ciano puro sem contraponto · ciano + prata/branco frio) porque é
+   decisão de gosto, sem loop de verificação visual possível, e a paleta é
+   "SAGRADA" — errar custa um ciclo inteiro de publicar-e-esperar ele checar no
+   celular. **Escolheu prata/branco frio**, e junto: "a ideia do âmbar/ouro me
+   cativou, ela pode ser usada para complementar o estado Singular" — ou seja,
+   manter o ouro exatamente como já estava (raro, só no Singular), não expandir.
+   Implementado (`js/field.js`): `VIOLETA` (`124,92,255`) → `PRATA`
+   (`108,122,142`); `BRASA` removida (a prata não tem mais alvo quente próprio —
+   funde para ouro como tudo mais); `cor()` perdeu o 4º parâmetro `alvo`, hoje
+   morto. Renomeado `vio`→`pr` nas ~12 chamadas. Luminância da prata escolhida
+   por cálculo (BT.709), não por olho — 120 contra os 111 do violeta que ela
+   substitui — de propósito: preserva o peso visual de cada alfa já calibrado no
+   arquivo (bruma, halo, elo, núcleo) e a auditoria de contraste da REV 3, em vez
+   de recalibrar dezenas de números às cegas. Detalhe completo:
+   `docs/design-tokens.md` REV 4.
+
+### O que só o olho do dono fecha (novo, além do que já estava em 12.7)
+
+Nada disto foi verificável neste ambiente — a aba não compõe frames, e o dono
+está no celular, só vai ver depois de publicado.
+
+1. **A prata lê como "metal frio" ou como "cinza morto"?** É a pergunta central
+   da REV 4. O risco maior está no elo card→núcleo AI Core: antes ia de ciano
+   vivo a violeta vivo (duas cores acesas); agora vai de ciano vivo a prata
+   discreta (uma acesa, uma discreta) — pode ler como o núcleo "apagando" em vez
+   de "resfriando". Se ficar fraco, subir a LUMINÂNCIA da prata em
+   `js/field.js:56`, não a saturação (o ponto é ficar frio, não virar um
+   terceiro néon).
+2. **Itens 1, 2, 4, 5, 6 de 12.7 continuam abertos** — nunca foram resolvidos, e
+   a troca de contraponto não muda a pergunta sobre o núcleo do hero, a bruma
+   (`.016` já aplicado, `6c1117f`), o elo, ou o Singular. O item 3 de 12.7 (bruma
+   violeta) está tecnicamente resolvido por tabela — não há mais violeta.
+3. **A copy nova bate com o visual?** Ninguém comparou os dois lado a lado ainda
+   fora deste ambiente — nem eu (não vi nada renderizar), nem o dono (só copy,
+   ele leu; só paleta, ele não viu).
+
+### Pendências que MUDARAM de estado
+
+- ~~Sites-como-1-card-entre-6~~ e ~~estúdio anônimo agora que o ticket subiu~~:
+  a segunda foi respondida (ver seção 8). A primeira **segue sem resposta**.
+- Contraponto violeta: RESOLVIDO — virou prata. Não reabrir sem novo pedido.
+- Tudo mais de 12.8 (intro.mp4, ai-core-3d, analytics, histórico do git)
+  **inalterado, ainda pendente**.
+
+### Publicar
+
+**Ainda não publicado.** `rebuild` está ~17 commits à frente de `origin/main`
+neste ponto. Fluxo de publicação continua o mesmo do §2: fast-forward,
+`git push origin rebuild:main`, só quando o dono pedir.

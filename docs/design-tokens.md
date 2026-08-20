@@ -1,5 +1,51 @@
 # beyon.0 — Design Tokens (fonte da verdade)
 
+> **REV 4 (2026-08-20, decisão do dono): o contraponto deixa de ser um segundo
+> matiz saturado e vira metal frio.**
+>
+> Diagnóstico do dono: "acabou ficando meio enjoativo" — o par ciano+violeta é o
+> clichê visual de praticamente todo produto de IA de 2024-2026 (dois néons
+> saturados competindo), e era essa competição que lia como enjoo, não a
+> saturação em si. Pedido: redirecionar para "algo tech, que impressione".
+>
+> Repouso: contraponto passa de **violeta `#7C5CFF`** para **prata fria
+> `#6C7A8E` / `rgb(108,122,142)`** — não é mais um segundo matiz saturado, é
+> desaturação: cinza-azulado frio, "metal" contra o "néon" do ciano. Só existe
+> em JS (`js/field.js`), como antes — nunca foi token de CSS. Ciano/`--glow`
+> segue intocado como âncora.
+>
+> Singular: a prata **perdeu o alvo quente próprio** que o violeta tinha
+> (`BRASA #FF6B2C`). Antes, o violeta precisava de um alvo dedicado para não
+> convergir para o MESMO ouro de todo o resto em warmth=1 — senão o
+> contraponto desaparecia no auge do evento. Agora o inverso é o efeito
+> desejado: a prata funde para **ouro** igual a tudo mais, porque o dono quer
+> o dourado como a assinatura única do Singular, sem uma segunda cor disputando
+> aquele momento. Narrativa: estrutura fria virando luz quente, não duas
+> frias virando dois tons quentes em paralelo. `BRASA` foi removida do código
+> (nada mais a referencia).
+>
+> Luminância perceptual (BT.709) da prata mantida próxima da do violeta — 120
+> contra 111 — de propósito: todo alfa do arquivo (bruma, halo, elo, núcleo)
+> foi calibrado para aquele peso visual, incluindo a auditoria de contraste da
+> REV 3. Trocar só o matiz, preservando o peso, herda aquela auditoria em vez
+> de exigir recalibrar dezenas de números às cegas — este ambiente não compõe
+> frames, então nada visual foi verificado, só a aritmética.
+>
+> **Prata nunca carrega texto** — mesma regra do violeta que substitui (nada no
+> canvas desenha texto; confirmado por grep, zero `fillText`/`strokeText` no
+> arquivo). O contraste AA auditado na REV 3 (painel, `hi` quente, ouro) não
+> muda: nenhum daqueles valores dependia do violeta.
+>
+> **Pendente do olho do dono** (nada disto é verificável neste ambiente): a
+> prata lê como "metal frio" ou como "cinza morto"? O elo card→núcleo (que
+> antes ia de ciano vivo a violeta vivo) agora vai de ciano vivo a prata
+> discreta — pode ler como o núcleo "apagando" em vez de "resfriando". Se
+> ficar fraco demais, subir a luminância da prata (não a saturação — o ponto é
+> ficar frio, não virar um terceiro néon).
+>
+> Spec desta revisão: nenhuma nova — decisão curta, registrada aqui e no
+> HANDOFF §12.9.
+
 > **REV 3 (2026-08-19, decisão do dono): a rampa deixa de ser de matiz único.**
 > O diagnóstico foi que a rampa tinha 4° de variação de matiz — era isso que
 > lia monocromático, não falta de saturação. Agora ela tem uma ÂNCORA e um

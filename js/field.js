@@ -27,21 +27,33 @@
 
   var TAU = Math.PI * 2;
   var CIANO = '0,245,255', ALTA = '159,248,255', NUCLEO = '242,254,255', OURO = '255,201,107';
-  /* O CONTRAPONTO da rampa, em dois estados. O ciano é a âncora e não muda; o
-     violeta é a segunda cor, e é ele que tira a cena do monocromático.
+  /* O CONTRAPONTO da rampa. O ciano é a âncora e não muda; a prata é a segunda
+     cor, e é ela que tira a cena do monocromático — mas por DESSATURAÇÃO, não
+     por um segundo matiz saturado. Ciano é o néon vivo (a interface); prata é
+     o metal frio ao redor dele (a inteligência). É a leitura oposta do violeta
+     que ela substitui: aquele era uma segunda cor SATURADA competindo com o
+     ciano — a combinação neon-duplo é o clichê visual de praticamente todo
+     produto de IA de 2024-2026, e era esse par competindo que lia como
+     enjoativo, não a saturação em si.
 
-     Por que ele precisa de um alvo quente PRÓPRIO: se misturasse para OURO como
-     todo o resto, em warmth=1 (o reinado do Singular) ele viraria exatamente
-     255,201,107 — o MESMO ouro de todas as outras cores. O contraponto
-     desapareceria justo no auge do evento, e o estado quente voltaria a ser
-     mono-ouro, que é o problema que esta paleta existe para resolver. Com BRASA
-     ele fecha em 255,107,44 e continua sendo uma segunda cor.
-     (No meio da transição, w=.6, a diferença é de saturação: 203,157,166 malva
-     empoeirado pelo caminho do ouro contra 203,101,128 coral pelo da brasa.)
+     SEM alvo quente próprio, de propósito (o violeta tinha um — BRASA — só
+     para não convergir para o MESMO ouro de todo o resto em warmth=1). Aqui o
+     oposto é o efeito desejado: a prata fria devia se render ao ouro no
+     Reinado, porque o ouro já É a assinatura do Singular que o dono quer
+     reforçar, não dividir com uma segunda cor concorrente naquele momento.
+     Estrutura fria virando luz quente — não duas cores frias virando dois
+     tons quentes em paralelo.
 
-     Estes valores NÃO existem como token de CSS — a cor do canvas nunca passa
-     pela folha de estilo. Este é o único lugar onde eles vivem. */
-  var VIOLETA = '124,92,255', BRASA = '255,107,44';
+     Luminância (perceptual, BT.709) mantida próxima do violeta que ela
+     substitui — 120 contra 111 — de propósito: todo alfa do arquivo abaixo
+     (bruma, halo, elo, núcleo) foi calibrado para aquele peso visual,
+     incluindo a auditoria de contraste da revisão anterior. Trocar só o
+     matiz, preservando o peso, evita ter que recalibrar dezenas de números
+     às cegas neste ambiente (a aba não compõe frames — ver HANDOFF §12.5).
+
+     Este valor NÃO existe como token de CSS — a cor do canvas nunca passa
+     pela folha de estilo. Este é o único lugar onde ele vive. */
+  var PRATA = '108,122,142';
 
   /* geometria estática do reator, IZADA para fora do loop: recriar estes arrays
      a cada frame era lixo para o GC à toa. spMul multiplica `giro` no frame. */
@@ -67,11 +79,10 @@
            Math.round(+a[1] + (+b[1] - +a[1]) * w) + ',' +
            Math.round(+a[2] + (+b[2] - +a[2]) * w);
   }
-  /* `alvo` é o destino QUENTE da mistura, e é opcional: sem ele cai em OURO,
-     então todas as chamadas de três argumentos que já existiam seguem idênticas.
-     Só o violeta passa um alvo próprio (BRASA) — ver §2/§3 do tick. */
-  function cor(base, w, hot, alvo) {
-    var c = mistura(base, alvo || OURO, w || 0);
+  /* toda cor do arquivo funde para o MESMO alvo quente (OURO): é isso que faz
+     o Reinado do Singular ler como um evento único e não uma disputa de tons. */
+  function cor(base, w, hot) {
+    var c = mistura(base, OURO, w || 0);
     return hot ? mistura(c, BRANCO, hot) : c;
   }
 
@@ -203,10 +214,12 @@
        um ganho de branco maior — é isso que faz a ignição parecer um estouro e
        não uma troca de paleta. */
     var cy = cor(CIANO, w, hot * .55), alta = cor(ALTA, w, hot * .8), nuc = cor(NUCLEO, w, hot);
-    /* o contraponto, resolvido UMA vez por frame como os outros. Alvo quente
-       próprio: no Singular ele vira brasa, não ouro. Ganho de branco igual ao
-       do ciano (.55) — ele é uma cor de base, não a fonte de luz. */
-    var vio = cor(VIOLETA, w, hot * .55, BRASA);
+    /* o contraponto, resolvido UMA vez por frame como os outros. Sem alvo
+       próprio: no Singular funde para ouro igual a tudo mais — a prata é
+       estrutura fria, e estrutura fria vira luz quente no Reinado. Ganho de
+       branco igual ao do ciano (.55) — ele é uma cor de base, não a fonte
+       de luz. */
+    var pr = cor(PRATA, w, hot * .55);
     var e = S.energy, pulso = S.pulse, orc = S.budget;
     var sing = S.singular;
     var lum = .55 + e * .45 + pulso * .5 + sing * .6 + hot * .5;
@@ -236,13 +249,13 @@
 
       var br = (.18 + p.f * .3) * lum;
       /* DUAS FAIXAS. `p.f` é a fase própria da partícula (.3 a 1.0) e já decide
-         o brilho; agora decide também a cor. As fracas são violeta, as fortes
+         o brilho; agora decide também a cor. As fracas são prata, as fortes
          ciano — então o campo tem profundidade cromática em vez de ser uma só
          cor em brilhos diferentes. O corte é o MESMO .55 que o núcleo branco do
          Singular já usava logo abaixo: nenhum dado novo por partícula. */
-      ctx.fillStyle = 'rgba(' + (p.f > .55 ? cy : vio) + ',' + a1(br).toFixed(3) + ')';
+      ctx.fillStyle = 'rgba(' + (p.f > .55 ? cy : pr) + ',' + a1(br).toFixed(3) + ')';
       ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (1 + sing * .5), 0, TAU); ctx.fill();
-      /* núcleo branco nas maiores durante o Singular: a poeira vira brasa */
+      /* núcleo branco nas maiores durante o Singular: a poeira vira ouro */
       if (sing > .3 && p.f > .55) {
         ctx.fillStyle = 'rgba(' + nuc + ',' + (.5 * sing).toFixed(3) + ')';
         ctx.beginPath(); ctx.arc(p.x, p.y, p.r * .45, 0, TAU); ctx.fill();
@@ -255,7 +268,7 @@
       /* a bruma é a camada mais profunda e difusa da cena — é o lugar natural do
          contraponto: tinge o fundo sem competir com nada que precise ser lido. */
       halo(W * .5 + Math.cos(t * .21) * W * .2, H * .38 + Math.sin(t * .17) * H * .15,
-           Math.min(W, H) * .5, vio, .016 * lum);
+           Math.min(W, H) * .5, pr, .016 * lum);
     }
 
     /* ---- 2b. AURORA DO SINGULAR ----
@@ -269,8 +282,8 @@
       ga.addColorStop(1, 'rgba(' + alta + ',0)');
       ctx.fillStyle = ga; ctx.fillRect(0, 0, W, H * .55);
       var gBaixo = ctx.createLinearGradient(0, H, 0, H * .45);
-      gBaixo.addColorStop(0, 'rgba(' + vio + ',' + (.12 * au).toFixed(3) + ')');
-      gBaixo.addColorStop(1, 'rgba(' + vio + ',0)');
+      gBaixo.addColorStop(0, 'rgba(' + pr + ',' + (.12 * au).toFixed(3) + ')');
+      gBaixo.addColorStop(1, 'rgba(' + pr + ',0)');
       ctx.fillStyle = gBaixo; ctx.fillRect(0, H * .45, W, H * .55);
     }
 
@@ -390,19 +403,20 @@
       }
 
       /* --- NÚCLEO POLIGONAL: hexágono + triângulo contra-rotativos + plasma ---
-         AQUI mora a leitura semântica da paleta: o núcleo queima VIOLETA e a
+         AQUI mora a leitura semântica da paleta: o núcleo queima PRATA e a
          estrutura em volta (bezel, grade, raios, giroscópio) fica CIANO. A
-         inteligência é a segunda cor; a interface é a âncora. O ponto central
-         segue BRANCO — é a fonte de luz, e fonte de luz satura ao branco. Por
-         isso o hero continua lendo ciano de longe: só o miolo é violeta. */
+         inteligência é metal frio; a interface é o néon vivo da âncora. O ponto
+         central segue BRANCO — é a fonte de luz, e fonte de luz satura ao
+         branco. Por isso o hero continua lendo ciano de longe: só o miolo é
+         prata. */
       poligono(cx, cyy, R * .20 * resp, S.t * .006, 6);
       ctx.lineWidth = 1;
-      ctx.strokeStyle = 'rgba(' + vio + ',' + a1(.55 * lum).toFixed(3) + ')';
+      ctx.strokeStyle = 'rgba(' + pr + ',' + a1(.55 * lum).toFixed(3) + ')';
       ctx.stroke();
       poligono(cx, cyy, R * .13 * resp, -S.t * .009, 3);
-      ctx.strokeStyle = 'rgba(' + vio + ',' + a1(.42 * lum).toFixed(3) + ')';
+      ctx.strokeStyle = 'rgba(' + pr + ',' + a1(.42 * lum).toFixed(3) + ')';
       ctx.stroke();
-      halo(cx, cyy, R * .18 * (1 + pulso + sing), vio, (.34 + pulso * .4 + sing * .6) * lum);
+      halo(cx, cyy, R * .18 * (1 + pulso + sing), pr, (.34 + pulso * .4 + sing * .6) * lum);
       ctx.fillStyle = 'rgba(' + nuc + ',' + a1(.9 * lum).toFixed(3) + ')';
       ctx.beginPath(); ctx.arc(cx, cyy, R * (.045 + sing * .03) * resp, 0, TAU); ctx.fill();
     }
@@ -426,12 +440,12 @@
         var aL = .06 + e * .05 + pl * .55 + pulso * .3;
         var aLim = a1(Math.min(.6, aL));
         /* O ELO CONTA A HISTÓRIA DA PALETA: sai do card em CIANO (é interface) e
-           acende para VIOLETA ao chegar no nó (é AI Core). Um gradiente linear
+           esfria para PRATA ao chegar no nó (é AI Core). Um gradiente linear
            do card até o nó — não é um traço de cor única, é a transição entre as
            duas cores da rampa acontecendo no lugar onde ela significa algo. */
         var gElo = ctx.createLinearGradient(sn.cx, sn.cy, hx, hy);
         gElo.addColorStop(0, 'rgba(' + cy + ',' + aLim.toFixed(3) + ')');
-        gElo.addColorStop(1, 'rgba(' + vio + ',' + aLim.toFixed(3) + ')');
+        gElo.addColorStop(1, 'rgba(' + pr + ',' + aLim.toFixed(3) + ')');
         ctx.strokeStyle = gElo;
         ctx.lineWidth = 1;
         /* curva com controle em (sn.cx, hy): sai do núcleo na horizontal e
@@ -452,14 +466,14 @@
         }
       }
       var resp2 = 1 + Math.sin(S.t * .03) * .05 + pulso * .12;
-      /* o mini AI Core repete a lógica do reator: o NÓ é violeta (é AI Core),
+      /* o mini AI Core repete a lógica do reator: o NÓ é prata (é AI Core),
          o ponto central é branco (é luz). Os elos chegando são ciano — a
          transição acontece no Step 3. */
-      halo(hx, hy, hr * 1.5, vio, (.10 + e * .06 + pulso * .16) * lum);
-      ctx.strokeStyle = 'rgba(' + vio + ',' + a1(.5 * lum).toFixed(3) + ')';
+      halo(hx, hy, hr * 1.5, pr, (.10 + e * .06 + pulso * .16) * lum);
+      ctx.strokeStyle = 'rgba(' + pr + ',' + a1(.5 * lum).toFixed(3) + ')';
       ctx.lineWidth = 1;
       ctx.beginPath(); ctx.arc(hx, hy, hr * .6 * resp2, 0, TAU); ctx.stroke();
-      ctx.strokeStyle = 'rgba(' + vio + ',' + a1(.34 * lum).toFixed(3) + ')';
+      ctx.strokeStyle = 'rgba(' + pr + ',' + a1(.34 * lum).toFixed(3) + ')';
       ctx.beginPath(); ctx.ellipse(hx, hy, hr * .9, hr * .26, S.t * .01, 0, TAU); ctx.stroke();
       halo(hx, hy, hr * .3 * (1 + pulso), nuc, (.4 + pulso * .4 + S.singular * .4) * lum);
       ctx.fillStyle = 'rgba(' + nuc + ',' + a1(.8 * lum).toFixed(3) + ')';
