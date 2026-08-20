@@ -1066,8 +1066,17 @@ Nada disso é verificável neste ambiente, porque a aba não compõe frames:
 ### 12.8 Pendências
 
 1. **Publicar os 11 commits** (ver 12.1) — decisão dele.
-2. **Copy** — a fase pós-design, nunca começou. Ordem antiga dele, ainda de pé. Guia:
-   sentence case, zero invenção de dado, voz direta.
+2. ~~**Copy** — a fase pós-design, nunca começou.~~ **FEITA em 2026-08-20** (`0bdbaf1`),
+   e é uma MUDANÇA DE POSICIONAMENTO, não um passe de texto. O dono entregou um
+   documento mestre de 76 seções ("BEYON.0 — AI-FIRST") definindo a empresa como
+   **AI-first**, e a copy antiga vendia websites — contradição direta (§21 "A Beyon
+   não faz sites", §59 "a palavra mais importante é INTELLIGENCE"). Reescrito: head,
+   metadados, os dois JSON-LD, as 7 seções, rodapé, medidor e a mensagem de WhatsApp
+   em `js/dom.js`. Estrutura, ids, classes e paleta intactos; zero CSS tocado.
+   **Ainda não revisada pelo olho do dono.** Decisões que ele pode querer reverter
+   estão no corpo do commit — em especial: sites viraram 1 card entre 6 em vez de
+   6 de 6, e o CTA saiu de "Solicitar orçamento" para "Agendar diagnóstico".
+   Guia que continua valendo: sentence case, **zero invenção de dado** (§63), voz direta.
 3. **`assets/intro.mp4` (4,4 MB)** é o peso dominante do site — 43 vezes todo o resto
    (o código todo dá 103 KB gzip, dentro do orçamento). Duas saídas, as duas decisão
    dele: **re-encodar** (receita em `assets/README.txt`; `ffmpeg` **não** está instalado
