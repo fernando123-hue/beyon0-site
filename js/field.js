@@ -203,6 +203,10 @@
        um ganho de branco maior — é isso que faz a ignição parecer um estouro e
        não uma troca de paleta. */
     var cy = cor(CIANO, w, hot * .55), alta = cor(ALTA, w, hot * .8), nuc = cor(NUCLEO, w, hot);
+    /* o contraponto, resolvido UMA vez por frame como os outros. Alvo quente
+       próprio: no Singular ele vira brasa, não ouro. Ganho de branco igual ao
+       do ciano (.55) — ele é uma cor de base, não a fonte de luz. */
+    var vio = cor(VIOLETA, w, hot * .55, BRASA);
     var e = S.energy, pulso = S.pulse, orc = S.budget;
     var sing = S.singular;
     var lum = .55 + e * .45 + pulso * .5 + sing * .6 + hot * .5;
@@ -231,7 +235,12 @@
       p.vx *= .995; p.vy *= .995;
 
       var br = (.18 + p.f * .3) * lum;
-      ctx.fillStyle = 'rgba(' + cy + ',' + a1(br).toFixed(3) + ')';
+      /* DUAS FAIXAS. `p.f` é a fase própria da partícula (.3 a 1.0) e já decide
+         o brilho; agora decide também a cor. As fracas são violeta, as fortes
+         ciano — então o campo tem profundidade cromática em vez de ser uma só
+         cor em brilhos diferentes. O corte é o MESMO .55 que o núcleo branco do
+         Singular já usava logo abaixo: nenhum dado novo por partícula. */
+      ctx.fillStyle = 'rgba(' + (p.f > .55 ? cy : vio) + ',' + a1(br).toFixed(3) + ')';
       ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (1 + sing * .5), 0, TAU); ctx.fill();
       /* núcleo branco nas maiores durante o Singular: a poeira vira brasa */
       if (sing > .3 && p.f > .55) {
@@ -243,8 +252,10 @@
     /* ---- 2. brumas: só quando há folga de orçamento ---- */
     if (orc > .8) {
       var t = S.t * .001;
+      /* a bruma é a camada mais profunda e difusa da cena — é o lugar natural do
+         contraponto: tinge o fundo sem competir com nada que precise ser lido. */
       halo(W * .5 + Math.cos(t * .21) * W * .2, H * .38 + Math.sin(t * .17) * H * .15,
-           Math.min(W, H) * .5, cy, .022 * lum);
+           Math.min(W, H) * .5, vio, .022 * lum);
     }
 
     /* ---- 2b. AURORA DO SINGULAR ----
@@ -257,10 +268,10 @@
       ga.addColorStop(0, 'rgba(' + alta + ',' + (.14 * au).toFixed(3) + ')');
       ga.addColorStop(1, 'rgba(' + alta + ',0)');
       ctx.fillStyle = ga; ctx.fillRect(0, 0, W, H * .55);
-      var gb = ctx.createLinearGradient(0, H, 0, H * .45);
-      gb.addColorStop(0, 'rgba(' + cy + ',' + (.12 * au).toFixed(3) + ')');
-      gb.addColorStop(1, 'rgba(' + cy + ',0)');
-      ctx.fillStyle = gb; ctx.fillRect(0, H * .45, W, H * .55);
+      var gBaixo = ctx.createLinearGradient(0, H, 0, H * .45);
+      gBaixo.addColorStop(0, 'rgba(' + vio + ',' + (.12 * au).toFixed(3) + ')');
+      gBaixo.addColorStop(1, 'rgba(' + vio + ',0)');
+      ctx.fillStyle = gBaixo; ctx.fillRect(0, H * .45, W, H * .55);
     }
 
     /* ---- 2c. ONDA DE CHOQUE ----
