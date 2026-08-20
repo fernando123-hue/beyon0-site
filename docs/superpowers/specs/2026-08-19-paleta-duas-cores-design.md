@@ -60,6 +60,14 @@ Varredura: **4° → 70°**.
 `--glow`, `--hi` e `--core` são intocados de propósito. O ciano `#00F5FF` é a
 marca; quem muda é a base sob ele.
 
+**Onde cada um destes vive de verdade.** As linhas `--void`, `--deep`, `--mid`,
+`--glow`, `--hi` e `--core` são tokens de CSS em `:root` (hex **e** par `-rgb`,
+os dois precisam mudar juntos). `--alt` **não é token de CSS** — o violeta só é
+consumido pelo canvas, e a lei do projeto é que a cor do canvas nunca passa pela
+folha de estilo. Ele vive como constante em `js/field.js`. A tabela acima é a
+paleta, não a lista de variáveis CSS; declarar `--alt` no `:root` criaria uma
+variável sem consumidor. Mesma coisa para a brasa no estado quente.
+
 ### 3.2 Singular (quente)
 
 Mesma estrutura, espelhada: sombra → âncora → luz, mais um contraponto.
@@ -132,9 +140,18 @@ function cor(base, w, hot) {
 }
 ```
 
-Todo mundo mistura para o mesmo `OURO`. Violeta misturando para ouro passaria
-por **marrom sujo** no meio da transição. O violeta precisa do próprio alvo
-quente.
+Todo mundo mistura para o mesmo `OURO`. Isso não serve para o violeta, e o
+motivo é mais grave do que "fica feio no meio da transição": em `warmth = 1` — o
+reinado do Singular, o auge do evento — o violeta viraria exatamente
+`255,201,107`, **o mesmo ouro de todas as outras cores**. O contraponto
+desapareceria justo no momento de maior impacto, e o estado quente voltaria a
+ser mono-ouro, que é precisamente o problema que esta paleta existe para
+resolver.
+
+Com `BRASA` como alvo ele fecha em `255,107,44` e continua sendo uma segunda cor.
+No meio do caminho (`w = .6`) a diferença é de saturação: `203,157,166` (malva
+empoeirado) pelo caminho do ouro contra `203,101,128` (coral quente) pelo da
+brasa.
 
 Mudança mínima — o alvo vira parâmetro opcional, e todos os pontos de chamada
 existentes continuam válidos sem tocar em nada:
