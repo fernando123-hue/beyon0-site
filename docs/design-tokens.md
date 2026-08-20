@@ -1,5 +1,27 @@
 # beyon.0 — Design Tokens (fonte da verdade)
 
+> **REV 3 (2026-08-19, decisão do dono): a rampa deixa de ser de matiz único.**
+> O diagnóstico foi que a rampa tinha 4° de variação de matiz — era isso que
+> lia monocromático, não falta de saturação. Agora ela tem uma ÂNCORA e um
+> CONTRAPONTO.
+>
+> Repouso: `--void #000000 · --deep #0B1E3A (216°) · --mid #0F5E78 (195°) ·`
+> `--glow #00F5FF (182°, âncora, INTOCADA) · --hi #9FF8FF · --core #F2FEFF`
+> Contraponto: **violeta `#7C5CFF` (252°)**. Varredura 4° → 70° (paleta
+> completa, incluindo o violeta 252° que só existe em JS; **só em CSS** a
+> rampa vai de 216° a 182°, 34° — os dois números são certos, em escopos
+> diferentes).
+>
+> Singular: `deep #2A0E0C (4°) · mid #8A3A16 (19°) · glow #FFC96B (38°, âncora)`
+> `· hi #FFE6B0 · core #FFFFFF`. Contraponto: **brasa `#FF6B2C` (18°)** — é
+> nela que o violeta se transforma. Varredura ~20° → 37°.
+>
+> **Violeta e brasa NÃO são tokens de CSS.** A cor do canvas nunca passa pela
+> folha de estilo; eles vivem como constantes em `js/field.js`.
+> **Violeta nunca carrega texto** (4.17 sobre o painel = AA só em texto grande).
+> `--mid` segue reprovando para texto (2.89) e segue proibido.
+> Spec: `docs/superpowers/specs/2026-08-19-paleta-duas-cores-design.md`.
+
 > **REV 2 (2026-07-23, decisão do dono):** rampa migrou do matiz medido H≈160°
 > para **ciano elétrico** ancorado em `#00F5FF`. Nova rampa:
 > `--void #000000 · --deep #06272B · --mid #0F6A73 · --glow #00F5FF · --hi #9FF8FF · --core #F2FEFF`

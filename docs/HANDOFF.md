@@ -107,16 +107,24 @@ Saíram da medição, não de preferência. Violá-las traz o problema de volta.
 
 ## 5. Identidade visual — SAGRADA
 
-Rampa ciano, matiz único. Nenhum hex fora dela em repouso.
+Rampa ciano, âncora + contraponto (ver EXCEÇÃO abaixo). Nenhum hex fora dela em repouso.
 
 ```
---void #000000 · --deep #06272B · --mid #0F6A73
+--void #000000 · --deep #0B1E3A · --mid #0F5E78
 --glow #00F5FF · --hi #9FF8FF · --core #F2FEFF
 --gold #FFC96B (raríssimo, só no Singular) · --led #E61A1A (só no medidor)
 ```
 
 Fontes: **Sora** (300/400/600) + **JetBrains Mono**. Site 100% dark.
 Sem holofote seguindo o cursor.
+
+**EXCEÇÃO do dono (2026-08-19): "matiz único" foi revogado.** A rampa passa a ter
+uma âncora (ciano `#00F5FF`, intocada) mais um contraponto (violeta `#7C5CFF` no
+repouso, brasa `#FF6B2C` no Singular). O motivo: com 4° de variação de matiz a
+identidade lia monocromática. Varredura agora 70° no frio, 37° no quente.
+O **"zero verde" do Singular continua valendo** e agora é verificado por script.
+Violeta/brasa vivem em `js/field.js`, não como token de CSS.
+Spec: `docs/superpowers/specs/2026-08-19-paleta-duas-cores-design.md`.
 
 **EXCEÇÃO do dono (2026-08-18): "sem vidro" foi revogado para os cards.** Ele
 pediu de volta o efeito antigo — glass (`backdrop-filter`) + borda de energia
