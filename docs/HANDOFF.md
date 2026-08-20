@@ -1,10 +1,14 @@
 # beyon.0 — transferência de contexto
 
-**Última atualização:** 2026-08-18 (fim) · **Branch ativa:** `rebuild` · **HEAD:** `9383f6d` (PUBLICADO)
+**Última atualização:** 2026-08-20 · **Branch ativa:** `rebuild` · **HEAD:** `7fa082c` (NÃO PUBLICADO)
 
-> **Se você é a próxima sessão, comece pela seção 11 (ESTADO ATUAL CONSOLIDADO)**
-> — ela resume tudo. As seções datadas acima dela são o histórico de como
-> chegamos aqui; leia-as se precisar do porquê de uma decisão.
+> **Se você é a próxima sessão, comece pela seção 12 (ESTADO ATUAL) — é a mais
+> recente e resume tudo.** A seção 11 é o estado consolidado da sessão anterior e
+> segue válida no que não foi substituído. As seções datadas acima delas são o
+> histórico de como chegamos aqui; leia-as se precisar do porquê de uma decisão.
+>
+> **ATENÇÃO: há 11 commits prontos e NÃO PUBLICADOS.** Ver 12.1 — publicar ou não
+> é a próxima decisão do dono.
 
 Leia este arquivo primeiro. Depois `docs/auditoria-performance.md` — ele contém
 as medições que justificam toda a arquitetura atual e evita repetir erros caros.
@@ -115,8 +119,14 @@ Rampa ciano, âncora + contraponto (ver EXCEÇÃO abaixo). Nenhum hex fora dela 
 --gold #FFC96B (raríssimo, só no Singular) · --led #E61A1A (só no medidor)
 ```
 
-Fontes: **Sora** (300/400/600) + **JetBrains Mono**. Site 100% dark.
+Fontes: **Sora** (300/600) + **JetBrains Mono** (400/500). Site 100% dark.
 Sem holofote seguindo o cursor.
+
+O Sora **400 saiu** em `01c990d`: nenhuma regra pedia esse peso. Ele só era
+baixado porque `em` declarava 500 — peso que nunca esteve na lista — e o
+navegador caía no 400, então a ênfase nunca acontecia de fato. `em` virou 600 e o
+arquivo do 400 deixou de ser baixado. **Se alguém precisar de Sora 400 ou 500,
+tem que adicionar ao `<link>` do Google Fonts** — não presumir que está lá.
 
 **EXCEÇÃO do dono (2026-08-19): "matiz único" foi revogado.** A rampa passa a ter
 uma âncora (ciano `#00F5FF`, intocada) mais um contraponto (violeta `#7C5CFF` no
@@ -653,11 +663,18 @@ Pensado para as próximas implementações. As regras da seção 4 continuam val
 
 ---
 
-## 11. ESTADO ATUAL CONSOLIDADO (2026-08-18, fim) — LEIA PRIMEIRO
+## 11. Estado consolidado de 2026-08-18 (SUPERADO EM PARTE — ver seção 12)
 
-Tudo publicado (`9383f6d`). Site rico em efeitos, **tudo ecoando num único
-ecossistema**, dentro da rampa ciano, sem travar (segundo o dono, testando no
-celular a cada passo). As seções 1–10 são o histórico; esta consolida o hoje.
+> **Esta seção não é mais o estado atual.** Ela era o consolidado do fim de
+> 2026-08-18 e continua válida em tudo que a seção 12 não substituiu — em
+> particular o ecossistema (11.3), o inventário de efeitos (11.4) e o que
+> preservar (11.6). O que ela diz de **publicação e paleta está desatualizado**:
+> a rampa deixou de ser de matiz único (12.3) e há commits não publicados (12.1).
+
+Na data desta seção estava tudo publicado (`9383f6d`). Site rico em efeitos,
+**tudo ecoando num único ecossistema**, dentro da rampa ciano, sem travar
+(segundo o dono, testando no celular a cada passo). As seções 1–10 são o
+histórico; esta consolidava o hoje daquela data.
 
 ### 11.1 Arquivos
 ```
@@ -801,3 +818,265 @@ do dono, ainda de pé; guia: sentence case, zero invenção de dado, voz direta)
    entra se for adiante.
 5. Histórico do git com ~50 MB de assets mortos (`Logo.gif`, `introdução.mp4`) —
    só `git filter-repo` limpa, destrutivo.
+
+---
+
+## 12. ESTADO ATUAL (2026-08-20) — LEIA PRIMEIRO
+
+Duas sessões cobertas aqui: a de **contraste dos cards + pente fino** (publicada) e
+a da **paleta de duas cores** (pronta, **não publicada**).
+
+### 12.1 SITUAÇÃO DE PUBLICAÇÃO — a primeira coisa a resolver
+
+| ref | commit | estado |
+|---|---|---|
+| `origin/main` | `01c990d` | no ar na Vercel |
+| `origin/rebuild` | `01c990d` | igual |
+| `rebuild` (local) | `7fa082c` | **11 commits à frente, prontos, revisados, não publicados** |
+| `main` (local) | `9383f6d` | ref local desatualizado — irrelevante, o deploy sai do remoto |
+
+Publicar é `git push origin rebuild:main` (fast-forward). **O dono não pediu ainda** —
+a última publicação foi `01c990d`, e ele autorizou explicitamente. A regra dele é:
+publicar só quando pedir.
+
+### 12.2 Sessão A — contraste dos cards + pente fino (`01c990d`, PUBLICADO)
+
+O dono disse que os cards estavam "sem sal". O diagnóstico foi mensurável, não
+subjetivo: o corpo do card era `deep` a .26–.5 sobre **preto**, o que resolve em
+`rgb(3,20,22)` — indistinguível do fundo. O painel não existia; só a borda de aurora
+trabalhava.
+
+O que entrou:
+
+- **Superfície real** com direção de luz (clara em cima, caindo para a sombra),
+  aresta especular branca no topo, borda em .30 (era .12). Contraste vs `#000` no
+  topo: 1.05–1.20 para 1.44–1.86; borda vs painel 1.30 para 2.32; aresta 1.28 para
+  2.50. Sobre `#000` não existe sombra externa possível — o relevo vem do valor da
+  superfície, nunca de glow em volta (vetado pelo dono).
+- **`--painel` como token único**, lido por `.card`, `.qa` e `.cta`. Hierarquia na
+  borda: .20 (FAQ) / .26 (CTA) / .30 (card).
+- **As três conics de aurora viraram token** (`--aurora-rampa`, `--aurora-contra`,
+  `--aurora-nos`). Cada uma estava escrita duas vezes e as cópias já divergiam — a do
+  celular tinha perdido a aresta especular.
+
+**Quatro bugs silenciosos corrigidos nesta sessão — não reintroduzir:**
+
+1. **`transition` do card era `none` no navegador.** `.reveal` e `.has-gsap .reveal`
+   também declaram `transition` e venciam `.card` (a primeira por ordem, a segunda por
+   especificidade), levando embora `background` e `transform`. A proximidade do cursor
+   pulava sem interpolar e o hover não elevava nada. Corrigido com o token `--t-card`
+   mais as regras `.card.reveal` e `.has-gsap .card.reveal` — **a ordem dessas regras
+   no arquivo importa** (a de 2 classes tem que vir depois de `.has-gsap .reveal`). O
+   elevar do hover passou a usar `translate`, property independente, para não disputar
+   valor com o `transform` do reveal.
+2. **A cascata CSS de entrada do hero engolia a do GSAP.** Keyframes com `fill: both`
+   vence estilo inline no cascade, e o fill forwards persiste: status, subtítulo, ações
+   e dica de scroll **nunca animavam**. A entrada "mais lenta e suave" que o dono pediu
+   estava escrita e não rodava. `has-gsap` agora entra no elemento raiz no topo do
+   `anima.js`, antes de qualquer tween, e o CSS virou fallback explícito
+   (`html:not(.has-gsap) .booted .hero__*`).
+3. **`.is-pulse .card` e `.is-singular .card` sobrepunham o hover** — mesma
+   especificidade e vinham depois no arquivo. Resolvido com
+   `:not(:hover):not(:focus-within)`.
+4. **`em` pedia Sora 500, peso que não é carregado** — o navegador caía no 400 e a
+   ênfase nunca acontecia. Virou 600 (melhora também a aurora: letra fina quase não tem
+   área para um gradiente fluir dentro) e o arquivo do Sora 400 saiu do carregamento.
+
+Limpeza: classe `.glow` removida do HTML (7 usos, zero regras em CSS/JS);
+`.is-igniting` e `ignitindo` removidos do `dom.js`; 5 `!important` do rodapé eliminados
+escopando `.footer p` para `.footer__brand p`, com render idêntico; dois listeners de
+scroll viraram um; `getElementById('nav')` duplicado com deref sem guarda; rede de
+segurança no `heroEntra` (agora que o GSAP é o único caminho de entrada, um throw
+deixaria a primeira tela invisível).
+
+Também nesta sessão, a pedido do dono: o mini AI Core pipocava (o gate `orc > .55` era
+corte seco, e o orçamento oscila perto do limiar) — trocado por LERP em `nucAlpha`. E o
+**flash branco da ignição do Singular foi removido** (era `body::after` com o keyframe
+`sing-flash`); a classe `.is-igniting` deixou de existir.
+
+### 12.3 Sessão B — paleta de duas cores (11 commits, NÃO PUBLICADA)
+
+Pedido: "melhorar a paleta, sem fugir da identidade, para não ficar tudo muito
+monocromático. Também considere isso no estado dourado."
+
+**Diagnóstico:** a rampa não era pouco saturada — era **um matiz só**. Tudo entre 182°
+e 186°, o que dá **4,1°** de variação. O que faltava era **viagem de matiz**: sombra e
+luz serem cores diferentes, não a mesma cor em brilhos diferentes.
+
+**Decisão do dono (perguntada e respondida):** direção "B + elementos de B+" — viagem
+de matiz na rampa, mais um contraponto vivendo na atmosfera do canvas E com papel
+semântico. Sobre o reator, ele escolheu explicitamente **núcleo violeta, estrutura
+ciano**: o hero continua lendo ciano de longe, e de perto tem duas cores conversando
+dentro da mesma peça. A leitura é "a inteligência é a segunda cor, a interface é a
+âncora".
+
+**A rampa agora:**
+
+| | repouso (frio) | Singular (quente) |
+|---|---|---|
+| sombra | `--deep #0B1E3A` 216° | `42 14 12` (#2A0E0C) 4° |
+| meio | `--mid #0F5E78` 195° | `138 58 22` (#8A3A16) 19° |
+| **âncora** | `--glow #00F5FF` 182° **intocada** | `--gold #FFC96B` 38° **intocada** |
+| luz | `--hi #9FF8FF` e `--core #F2FEFF` | `#FFE6B0` e `#FFFFFF` |
+| **contraponto** | violeta `#7C5CFF` 252° | brasa `#FF6B2C` 18° |
+
+**Varreduras autoritativas** (recalculadas dos hex reais — usar estas, não estimar):
+
+| rampa | varredura |
+|---|---|
+| frio antigo | 4,1° |
+| frio novo, só CSS | 33,4° |
+| frio novo, paleta completa (com o violeta do JS) | 69,4° |
+| quente antigo | **4,1°** |
+| quente novo | 37,0° |
+
+O quente antigo tinha **exatamente o mesmo problema** que o frio — os dois eram um
+matiz só, com a luminância variando. (O spec afirmava "~20°" para o quente antigo; era
+estimativa, nunca cálculo. Corrigido, com nota no spec, porque as mensagens de commit
+das Tasks 2 e 6 já carregam o número errado e não podem ser reescritas.)
+
+**Assimetria assumida:** o quente fica com 37° contra 70° do frio. É deliberado — fogo
+é fenômeno de matiz estreito, e a riqueza vem da leveza e da saturação. Brasa e ouro
+estão só 20° de matiz um do outro, mas têm 1.87 de contraste e 12 pontos de leveza
+entre si: o olho lê laranja e ouro como cores distintas. Rosa `#FF5C7A` foi considerado
+(49° do ouro, espelho estrutural mais puro) e **descartado** — briga com a identidade
+de "ouro derretido", e a brasa é fisicamente correta para um núcleo em combustão. A
+brasa foi escolha explícita do dono.
+
+**REGRAS NOVAS que precisam ser preservadas:**
+
+- **Violeta e brasa NÃO são tokens de CSS.** A cor do canvas nunca passa pela folha de
+  estilo — lei antiga do projeto. Elas vivem **só** como constante em `js/field.js`.
+  Declarar `--alt` no `:root` cria variável sem consumidor.
+- **Violeta nunca carrega texto.** Dá 4,83 sobre `#000` mas **4,17 sobre o painel**,
+  que passa AA só em texto grande. Ele é atmosfera, geometria e acento grande.
+- **`--mid` segue proibido para texto** (2,89). Lei antiga, continua valendo.
+- **Hex e par `-rgb` mudam sempre juntos.**
+- **`cor()` tem 4 parâmetros:** `cor(base, w, hot, alvo)`, com `alvo` opcional caindo
+  em `OURO`. O violeta é o único que passa alvo próprio (`BRASA`). O motivo é grave: em
+  `warmth = 1` (o auge do Singular) o violeta misturado para `OURO` viraria exatamente
+  `255,201,107` — **o mesmo ouro de todas as outras cores**. O contraponto
+  desapareceria no pico do evento e o quente voltaria a ser mono-ouro.
+
+**Onde o violeta vive** (12 linhas em `js/field.js`, todas verificadas): atmosfera —
+resolução por frame (l.209), partículas de faixa fraca (l.243, ternário `p.f > .55`, o
+**mesmo** corte que o núcleo branco do Singular já usava, para não criar dado novo por
+partícula), bruma (l.258), cortina de baixo da aurora (l.272-273); AI Core — núcleo
+poligonal do reator (l.400, 403, 405), gradiente do elo (l.434), nó do mini core
+(l.458, 459, 462).
+
+**Fica CIANO, e isto é a restrição central:** bezel, grade concêntrica, raios,
+giroscópio e overdrive (linhas 312–391) têm **0** usos de `vio`. O ponto central de
+ambos os núcleos segue `nuc` (branco) — fonte de luz satura ao branco. As portas nos
+cards e o barramento também intactos.
+
+**Os elos contam a história da paleta:** saem **ciano** no card e acendem para
+**violeta** no nó, via `createLinearGradient(sn.cx, sn.cy, hx, hy)`. A transição entre
+as duas cores acontece exatamente onde ela significa algo.
+
+**Perf:** `__frame(300)` deu 0,128–0,214 ms (o teto de preocupação era 2). O gradiente
+por elo não é categoria nova de custo — `halo()` já cria um radial por chamada. Medido
+com a aba oculta, então a rasterização real do traço com gradiente não foi capturada;
+risco baixo (lineWidth 1, 6 traços curtos), mas só o `?perf` na máquina do dono fecha.
+
+### 12.4 Processo — como esta sessão trabalhou (o dono valoriza isso)
+
+O processo dele, que ele mesmo confirmou: **executar, analisar, aprimorar, analisar**,
+com revisão de coerência no fim ("tudo ecoa entre si?").
+
+A paleta foi feita com o ciclo completo: **brainstorming, spec, plano, execução por
+subagente**. Vale repetir para trabalho grande:
+
+- `docs/superpowers/specs/2026-08-19-paleta-duas-cores-design.md` — o desenho aprovado
+- `docs/superpowers/plans/2026-08-19-paleta-duas-cores.md` — 6 tarefas, cada uma um
+  commit próprio, nenhuma mudando comportamento
+- `.superpowers/sdd/progress.md` — o ledger, com o que cada tarefa entregou, os achados
+  de cada revisão, e o veredicto final
+
+**Subagentes só com pedido explícito do dono.** Ele autorizou escolhendo "1" quando
+ofereci as duas formas de execução. Não presumir.
+
+**Duas perguntas que ele respondeu e que valem como decisão permanente:** a direção da
+paleta (B + elementos de B+) e o tratamento do reator (núcleo violeta, estrutura
+ciano). Ele também pegou, por conta própria, que eu tinha silenciosamente trocado a cor
+`#FF6B2C` que ele havia gostado — ele **lê os detalhes**. Se você trocar uma decisão
+dele, avise.
+
+### 12.5 Armadilhas DESTE ambiente (custaram tempo, anote)
+
+- **`npx http-server` não sobe** no sandbox. Servidor node puro na porta 8899 funciona.
+  O script fica no scratchpad como `srv.js` e está transcrito no plano, na seção
+  "Servidor local para verificar no navegador".
+- **`navigate` direto para localhost é negado.** `preview_start` com
+  `url: http://127.0.0.1:8899/index.html` funciona.
+- **A aba do agente não compõe frames.** `document.hidden` é `true`,
+  `requestAnimationFrame` não roda, **screenshot é impossível**, animações CSS ficam
+  congeladas em `currentTime: 0`. Consequência prática: valor computado de **custom
+  property atualiza**, mas **`box-shadow` e `translate` NÃO** atualizam em resposta a
+  pseudo-classe ou classe. Portanto: verificar tokens por `getPropertyValue`, e estados
+  (hover, Pulso, Singular) por **inspeção de CSSOM**. Não concluir "quebrou" a partir de
+  opacidade 0 durante a entrada — force `getAnimations().forEach(a=>a.finish())` e
+  `gsap.globalTimeline.progress(1)` antes de medir estado final.
+- **`window.__frame(n)`** roda os subsistemas na mão, fora do rAF — funciona mesmo com
+  a aba oculta. É a única medição de perf disponível aqui.
+- **Git no Windows normaliza CRLF** e pode mostrar um arquivo como modificado
+  transitoriamente. Dois subagentes reportaram `js/field.js` sujo; a árvore estava
+  limpa. Verificar antes de acreditar.
+- **`python` não existe** no PATH (só o alias da Microsoft Store). Usar `node -e`.
+- **Escrever check de verificação sem rodar contra o arquivo real dá errado.** Dois
+  defeitos de plano nesta sessão, os dois do mesmo tipo: `grep -c 'var gb'` não casava
+  porque a variável está em lista de vírgulas (`var NB = 12, gb = ...`), e o `sed` com
+  `/NUCLEO POLIGONAL/` não casava porque o arquivo tem `NÚCLEO` **com acento** (o range
+  vazava até o fim do arquivo e o check dava 5 em vez de 0, parecendo violação com tudo
+  correto). Rodar o comando antes de escrevê-lo no plano.
+
+### 12.6 PONTO EXATO ONDE PAROU
+
+A paleta está **completa, revisada tarefa por tarefa, e com a revisão final de branch
+inteiro feita**. Veredicto: **pronto para publicar, zero Critical, zero Important.**
+
+A revisão final foi feita **inline pelo controlador**, não por subagente: o subagente
+foi cortado pelo limite de sessão com 14 tool calls e nenhuma conclusão. Os 6 pontos de
+atenção foram verificados por cálculo direto e estão registrados no ledger
+(`.superpowers/sdd/progress.md`, seção final). O que ela achou de novo, e que nenhuma
+revisão por tarefa tinha visto: **contraste no estado quente** — calculado nos três
+pontos do painel, tudo passa AA (branco 17,8 a 20,0; `hi` quente cheio 14,6 a 16,4;
+`hi` a .74 8,4 a 9,0; ouro 11,7 a 13,1).
+
+**A próxima ação é do dono: publicar ou não.** Nada de código está pendente.
+
+### 12.7 O que só o olho do dono fecha
+
+Nada disso é verificável neste ambiente, porque a aba não compõe frames:
+
+1. **O hero ainda lê ciano de longe?** Era a condição da escolha dele. Se o núcleo
+   violeta dominar, baixar as alfas em `js/field.js:400,403,405`.
+2. **O núcleo violeta conversa com a estrutura ciano ou briga?** São 70° de distância.
+   Se brigar, o meio-termo é puxar o violeta para ~235° (mais azul, menos roxo).
+3. **A bruma virou 100% violeta** e é a camada mais visível no celular. Implementador e
+   revisor da Task 4 concordaram que há risco de a cena puxar demais para o violeta.
+   **Ajuste pronto, não aplicado de propósito:** alfa `.022` para `.016` em
+   `js/field.js:258`. É decisão de gosto dele.
+4. **O elo lê como transição ou como duas linhas coladas?** Se ficou abrupto, mover o
+   stop (ciano em 0, ciano em .45, violeta em 1) para o violeta só aparecer perto do nó.
+5. **O Singular ficou rico ou sujo?**
+6. **`?perf` com `__frame()` na máquina dele** — confirmar o custo de frame com a aba em
+   primeiro plano, compondo de verdade.
+
+### 12.8 Pendências
+
+1. **Publicar os 11 commits** (ver 12.1) — decisão dele.
+2. **Copy** — a fase pós-design, nunca começou. Ordem antiga dele, ainda de pé. Guia:
+   sentence case, zero invenção de dado, voz direta.
+3. **`assets/intro.mp4` (4,4 MB)** é o peso dominante do site — 43 vezes todo o resto
+   (o código todo dá 103 KB gzip, dentro do orçamento). Duas saídas, as duas decisão
+   dele: **re-encodar** (receita em `assets/README.txt`; `ffmpeg` **não** está instalado
+   neste ambiente) ou **intro só na primeira visita** via `sessionStorage`, que corta
+   4,4 MB de todo retorno. Não fiz porque o `styles.css` documenta "Toda visita" como
+   escolha deliberada — é chamada de branding, não defeito.
+4. `feat/ai-core-3d` (reator 3D, 66 testes, `df0458f`) — decisão dele. O ledger antigo
+   está arquivado em `.superpowers/sdd/progress-ai-core-3d-arquivo.md`.
+5. Analytics e conversão — o site é "orientado a conversão" e não mede nada. LGPD entra
+   se for adiante.
+6. Histórico do git com ~50 MB de assets mortos (`Logo.gif`, `introdução.mp4`) — já
+   gitignorados e fora do deploy; só `git filter-repo` limpa o histórico, e é destrutivo.
