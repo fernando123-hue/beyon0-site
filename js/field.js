@@ -389,15 +389,20 @@
         ctx.beginPath(); ctx.arc(cx, cyy, R * (.98 + Math.sin(S.t * .05) * .02), 0, TAU); ctx.stroke();
       }
 
-      /* --- NÚCLEO POLIGONAL: hexágono + triângulo contra-rotativos + plasma --- */
+      /* --- NÚCLEO POLIGONAL: hexágono + triângulo contra-rotativos + plasma ---
+         AQUI mora a leitura semântica da paleta: o núcleo queima VIOLETA e a
+         estrutura em volta (bezel, grade, raios, giroscópio) fica CIANO. A
+         inteligência é a segunda cor; a interface é a âncora. O ponto central
+         segue BRANCO — é a fonte de luz, e fonte de luz satura ao branco. Por
+         isso o hero continua lendo ciano de longe: só o miolo é violeta. */
       poligono(cx, cyy, R * .20 * resp, S.t * .006, 6);
       ctx.lineWidth = 1;
-      ctx.strokeStyle = 'rgba(' + alta + ',' + a1(.4 * lum).toFixed(3) + ')';
+      ctx.strokeStyle = 'rgba(' + vio + ',' + a1(.55 * lum).toFixed(3) + ')';
       ctx.stroke();
       poligono(cx, cyy, R * .13 * resp, -S.t * .009, 3);
-      ctx.strokeStyle = 'rgba(' + nuc + ',' + a1(.3 * lum).toFixed(3) + ')';
+      ctx.strokeStyle = 'rgba(' + vio + ',' + a1(.42 * lum).toFixed(3) + ')';
       ctx.stroke();
-      halo(cx, cyy, R * .18 * (1 + pulso + sing), nuc, (.3 + pulso * .4 + sing * .6) * lum);
+      halo(cx, cyy, R * .18 * (1 + pulso + sing), vio, (.34 + pulso * .4 + sing * .6) * lum);
       ctx.fillStyle = 'rgba(' + nuc + ',' + a1(.9 * lum).toFixed(3) + ')';
       ctx.beginPath(); ctx.arc(cx, cyy, R * (.045 + sing * .03) * resp, 0, TAU); ctx.fill();
     }
@@ -419,7 +424,15 @@
         var sn = servNos[L];
         var pl = prox(S, sn.cx, sn.cy, 300);
         var aL = .06 + e * .05 + pl * .55 + pulso * .3;
-        ctx.strokeStyle = 'rgba(' + cy + ',' + a1(Math.min(.6, aL)).toFixed(3) + ')';
+        var aLim = a1(Math.min(.6, aL));
+        /* O ELO CONTA A HISTÓRIA DA PALETA: sai do card em CIANO (é interface) e
+           acende para VIOLETA ao chegar no nó (é AI Core). Um gradiente linear
+           do card até o nó — não é um traço de cor única, é a transição entre as
+           duas cores da rampa acontecendo no lugar onde ela significa algo. */
+        var gElo = ctx.createLinearGradient(sn.cx, sn.cy, hx, hy);
+        gElo.addColorStop(0, 'rgba(' + cy + ',' + aLim.toFixed(3) + ')');
+        gElo.addColorStop(1, 'rgba(' + vio + ',' + aLim.toFixed(3) + ')');
+        ctx.strokeStyle = gElo;
         ctx.lineWidth = 1;
         /* curva com controle em (sn.cx, hy): sai do núcleo na horizontal e
            ENCAIXA vertical na base do card — cabo plugado, não linha cruzando. */
@@ -439,11 +452,14 @@
         }
       }
       var resp2 = 1 + Math.sin(S.t * .03) * .05 + pulso * .12;
-      halo(hx, hy, hr * 1.5, cy, (.08 + e * .06 + pulso * .16) * lum);
-      ctx.strokeStyle = 'rgba(' + cy + ',' + a1(.4 * lum).toFixed(3) + ')';
+      /* o mini AI Core repete a lógica do reator: o NÓ é violeta (é AI Core),
+         o ponto central é branco (é luz). Os elos chegando são ciano — a
+         transição acontece no Step 3. */
+      halo(hx, hy, hr * 1.5, vio, (.10 + e * .06 + pulso * .16) * lum);
+      ctx.strokeStyle = 'rgba(' + vio + ',' + a1(.5 * lum).toFixed(3) + ')';
       ctx.lineWidth = 1;
       ctx.beginPath(); ctx.arc(hx, hy, hr * .6 * resp2, 0, TAU); ctx.stroke();
-      ctx.strokeStyle = 'rgba(' + alta + ',' + a1(.28 * lum).toFixed(3) + ')';
+      ctx.strokeStyle = 'rgba(' + vio + ',' + a1(.34 * lum).toFixed(3) + ')';
       ctx.beginPath(); ctx.ellipse(hx, hy, hr * .9, hr * .26, S.t * .01, 0, TAU); ctx.stroke();
       halo(hx, hy, hr * .3 * (1 + pulso), nuc, (.4 + pulso * .4 + S.singular * .4) * lum);
       ctx.fillStyle = 'rgba(' + nuc + ',' + a1(.8 * lum).toFixed(3) + ')';
