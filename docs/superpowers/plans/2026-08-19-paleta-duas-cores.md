@@ -747,11 +747,30 @@ Trocar por:
 
 - [ ] **Step 4: Verificar sintaxe e que a estrutura do reator NÃO virou violeta**
 
+Este é o check crítico da tarefa: prova que a estrutura do reator continua ciano.
+
 ```bash
-cd "C:/Vault - Fernando/Beyon 0" && node --check js/field.js && echo "sintaxe ok" && echo "" && echo "--- a estrutura do reator tem que continuar ciano/alta ---" && sed -n '/BEZEL GRADUADO/,/NUCLEO POLIGONAL/p' js/field.js | grep -c "'rgba(' + vio" && echo "(esperado 0 acima: bezel, grade, raios e giroscopio NAO usam vio)" && echo "" && echo "--- usos de vio no arquivo ---" && grep -c '\bvio\b' js/field.js
+cd "C:/Vault - Fernando/Beyon 0" && node --check js/field.js && echo "sintaxe ok" && node -e '
+const L=require("fs").readFileSync("js/field.js","utf8").split(/\r?\n/);
+const idx=t=>L.findIndex(l=>l.includes(t));
+const bezel=idx("BEZEL GRADUADO"), nucleo=idx("POLIGONAL");
+const estrutura=L.slice(bezel,nucleo);
+const usos=estrutura.map((l,i)=>({n:bezel+i+1,l:l.trim()})).filter(x=>/\bvio\b/.test(x.l));
+console.log("estrutura do reator: linhas "+(bezel+1)+" a "+nucleo);
+console.log("usos de vio na estrutura: "+usos.length+"  "+(usos.length===0?"CORRETO":"VIOLACAO"));
+usos.forEach(u=>console.log("   l."+u.n+": "+u.l));
+console.log("linhas com vio no arquivo: "+L.filter(l=>/\bvio\b/.test(l)).length);
+process.exit(usos.length===0?0:1);'
 ```
 
-Esperado: `sintaxe ok`, contagem **0** no bloco da estrutura, e `vio` aparecendo ~11 vezes no total (1 declaração + 3 da atmosfera + 4 do núcleo + 3 do mini core).
+Esperado: `sintaxe ok`, `usos de vio na estrutura: 0  CORRETO`, e 12 linhas com `vio` no
+arquivo (1 declaração + 4 da atmosfera + 3 do núcleo + 1 do gradiente do elo + 3 do nó do mini
+core). Exit 0.
+
+**Não use `sed -n '/BEZEL GRADUADO/,/NUCLEO POLIGONAL/p'` aqui.** O cabeçalho no arquivo é
+`NÚCLEO POLIGONAL` **com acento**, e em Git Bash o padrão sem acento não casa: o range do `sed`
+vaza até o fim do arquivo e o check retorna 5 em vez de 0 — parece violação com tudo correto.
+Casar por `POLIGONAL` (sem a palavra acentuada) em node resolve.
 
 - [ ] **Step 5: Medir o custo de frame**
 
