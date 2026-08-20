@@ -121,7 +121,9 @@ Sem holofote seguindo o cursor.
 **EXCEÇÃO do dono (2026-08-19): "matiz único" foi revogado.** A rampa passa a ter
 uma âncora (ciano `#00F5FF`, intocada) mais um contraponto (violeta `#7C5CFF` no
 repouso, brasa `#FF6B2C` no Singular). O motivo: com 4° de variação de matiz a
-identidade lia monocromática. Varredura agora 70° no frio, 37° no quente.
+identidade lia monocromática. Varredura agora 70° no frio (34° só na folha de
+CSS; os 70° só existem contando o violeta, que vive em `js/field.js` e não é
+token de CSS), 37° no quente.
 O **"zero verde" do Singular continua valendo** e agora é verificado por script.
 Violeta/brasa vivem em `js/field.js`, não como token de CSS.
 Spec: `docs/superpowers/specs/2026-08-19-paleta-duas-cores-design.md`.

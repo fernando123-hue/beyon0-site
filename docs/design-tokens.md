@@ -14,7 +14,8 @@
 >
 > Singular: `deep #2A0E0C (4°) · mid #8A3A16 (19°) · glow #FFC96B (38°, âncora)`
 > `· hi #FFE6B0 · core #FFFFFF`. Contraponto: **brasa `#FF6B2C` (18°)** — é
-> nela que o violeta se transforma. Varredura ~20° → 37°.
+> nela que o violeta se transforma. Varredura 4,1° → 37° — o quente antigo tinha
+> exatamente o mesmo problema que o frio antigo (4,1° nos dois), não um número diferente.
 >
 > **Violeta e brasa NÃO são tokens de CSS.** A cor do canvas nunca passa pela
 > folha de estilo; eles vivem como constantes em `js/field.js`.
@@ -39,7 +40,14 @@
 
 ## 1. Rampa canônica de cor (H≈160°)
 
-Matiz único em toda a identidade. Saturação **cresce quando a luz cai** (física de bloom:
+> **Superado pela REV 3** (topo deste arquivo): a rampa deixou de ser de matiz único —
+> ganhou um contraponto (violeta no repouso, brasa no Singular). A frase "matiz único em
+> toda a identidade" abaixo é a regra original da Rev 1; não vale mais como está escrita.
+> O resto desta seção (derivação de saturação/luminância, proibição de `lighten()`/`darken()`
+> genéricos) segue valendo — só o "matiz único" foi revogado.
+
+Matiz único em toda a identidade *(Rev 1 — revogado pela REV 3, ver topo do arquivo)*.
+Saturação **cresce quando a luz cai** (física de bloom:
 o núcleo dessatura para branco). Nunca clarear cor adicionando branco — subir a rampa.
 
 | Token | Hex | S (medida) | Papel |
@@ -60,7 +68,9 @@ o núcleo dessatura para branco). Nunca clarear cor adicionando branco — subir
 - Linhas/bordas: `rgba(--glow)` (ativa) ou `rgba(--hi, ~0.07)` (passiva).
 - Glow/sombra luminosa: `rgba(--glow, 0.3–0.4)`, raio ≥ 30px.
 - Texto sobre acento claro (`--glow`/`--hi` como fundo): `--void`.
-- Proibido: `lighten()`/`darken()` genéricos, mistura com branco, matiz fora de H≈160°.
+- Proibido: `lighten()`/`darken()` genéricos, mistura com branco, matiz fora de H≈160°
+  *(regra da Rev 1, sobre a base de matiz único; superada pela REV 3 — o contraponto
+  violeta/brasa é deliberadamente um matiz muito diferente do resto da rampa)*.
 
 ### Fora da rampa — status
 - `#E61A1A` (ponto vermelho 4×4px sob o logo na referência): **PENDENTE confirmação do dono**

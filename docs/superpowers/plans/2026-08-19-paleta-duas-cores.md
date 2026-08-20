@@ -261,10 +261,11 @@ Em `styles.css`, o bloco `.is-singular` está assim:
 Trocar as duas últimas linhas por:
 
 ```css
-  /* O quente era mono-ouro: marrom #221808 → ouro → branco, ~20° de variação.
+  /* O quente era mono-ouro: marrom #221808 → ouro → branco, 4,1° de variação
+     (recalculado — o mesmo problema monocromático do frio antigo, mesmo número).
      Agora ele ESPELHA a estrutura do frio — sombra, âncora, luz, contraponto.
      Brasa 4° na sombra e terracota 19° no meio; o ouro segue sendo a âncora,
-     intocado. Varredura ~20° → 37°, com faixa de leveza de 5% a 100%.
+     intocado. Varredura 4,1° → 37°, com faixa de leveza de 5% a 100%.
      "Zero verde" continua garantido: não sobra nenhum token teal aqui. */
   --mid-rgb: 138 58 22;                             /* teal → terracota */
   --deep-rgb: 42 14 12;                             /* base do card: teal escuro → brasa */
@@ -332,6 +333,13 @@ da rampa quente cai na faixa fria.
 
 Spec: docs/superpowers/specs/2026-08-19-paleta-duas-cores-design.md"
 ```
+
+> **Correção (revisão da Task 6):** a mensagem de commit acima, reproduzida verbatim porque
+> já está no histórico do git (commit `0fa45f9`) e não pode ser reescrita, cita "~20 graus"
+> para a varredura do quente antigo. O valor real, recalculado dos hex originais
+> (`#221808` → `#B08236` → `#FFC96B` → `#FFE6B0`), é **4,1°** — idêntico ao do frio antigo,
+> não um número diferente. `docs/design-tokens.md` e o spec são a fonte da verdade para o
+> número; esta página mantém o texto original do commit por fidelidade histórica.
 
 ---
 
@@ -870,7 +878,8 @@ Adicionar no topo do arquivo, acima do bloco "REV 2", um bloco novo:
 >
 > Singular: `deep #2A0E0C (4°) · mid #8A3A16 (19°) · glow #FFC96B (38°, âncora)`
 > `· hi #FFE6B0 · core #FFFFFF`. Contraponto: **brasa `#FF6B2C` (18°)** — é
-> nela que o violeta se transforma. Varredura ~20° → 37°.
+> nela que o violeta se transforma. Varredura 4,1° → 37° — o quente antigo tinha
+> exatamente o mesmo problema que o frio antigo (4,1° nos dois), não um número diferente.
 >
 > **Violeta e brasa NÃO são tokens de CSS.** A cor do canvas nunca passa pela
 > folha de estilo; eles vivem como constantes em `js/field.js`.
@@ -878,6 +887,10 @@ Adicionar no topo do arquivo, acima do bloco "REV 2", um bloco novo:
 > `--mid` segue reprovando para texto (2.89) e segue proibido.
 > Spec: `docs/superpowers/specs/2026-08-19-paleta-duas-cores-design.md`.
 ```
+
+> Nota (revisão da Task 6): o template acima, escrito antes do recálculo, dizia "~20°".
+> O valor executado em `docs/design-tokens.md` já foi corrigido para 4,1° — ver aquele
+> arquivo, que é a fonte da verdade.
 
 - [ ] **Step 4: Atualizar `docs/HANDOFF.md` §5**
 

@@ -6,6 +6,11 @@ identidade visual (…) para não ficar tudo muito monocromático. Também consi
 isso no estado dourado."
 **Status:** aprovado pelo dono (direção e desenho). Pendente: plano de implementação.
 
+> **Correção (revisão da Task 6):** versões anteriores deste spec, e as mensagens de
+> commit das Tasks 2 e 6, citam ~20° para a varredura do quente antigo. O valor real é
+> 4,1°, idêntico ao do frio antigo. As mensagens de commit já estão no histórico e não
+> podem ser reescritas; este documento é a fonte da verdade.
+
 ---
 
 ## 1. O diagnóstico
@@ -24,8 +29,9 @@ Varredura total: **4°**. É por isso que lê monocromático. O que falta não �
 saturação nem uma cor de acento solta — é **viagem de matiz**: sombra e luz
 serem cores diferentes, não a mesma cor em brilhos diferentes.
 
-O estado Singular tem o mesmo problema em quente: marrom `#221808` → ouro
-`#FFC96B` → branco, cerca de 20° de variação.
+O estado Singular tem exatamente o mesmo problema, em quente: marrom `#221808`
+→ ouro `#FFC96B` → branco, **4°** de variação — o mesmo número do frio, não por
+coincidência: os dois eram, literalmente, um matiz só com a luminância variando.
 
 ## 2. A decisão
 
@@ -81,7 +87,7 @@ Mesma estrutura, espelhada: sombra → âncora → luz, mais um contraponto.
 | `--core` | `#FFFFFF` | — | núcleo branco |
 | `--alt` | `#FF6B2C` | 18° | **contraponto brasa** — é nisto que o violeta se transforma |
 
-Varredura: **~20° → 37°**, com faixa de leveza de 5% a 100%.
+Varredura: **4° → 37°**, com faixa de leveza de 5% a 100%.
 
 **Assimetria assumida.** O estado quente fica com 37° de varredura contra 70° do
 frio. Isso é deliberado: fogo é um fenômeno de matiz estreito, e a riqueza vem
