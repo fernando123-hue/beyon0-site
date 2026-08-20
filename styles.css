@@ -13,8 +13,12 @@
 :root {
   /* rampa sagrada — matiz único, imutável em repouso */
   --void: #000000;
-  --deep: #06272B;
-  --mid:  #0F6A73;
+  /* índigo, 216° — a sombra deixou de ser "o ciano escuro" e passou a ser uma
+     COR diferente da luz. É daí que vem a profundidade: no painel do card, a
+     base (216°) e o topo (195°) são matizes distintos, não o mesmo tom em dois
+     brilhos. Varredura da rampa: 4° → 70°. */
+  --deep: #0B1E3A;
+  --mid:  #0F5E78;
   --glow: #00F5FF;
   --hi:   #9FF8FF;
   --core: #F2FEFF;
@@ -24,8 +28,8 @@
   --glow-rgb: 0 245 255;
   --hi-rgb:   159 248 255;
   --core-rgb: 242 254 255;
-  --deep-rgb: 6 39 43;
-  --mid-rgb:  15 106 115;
+  --deep-rgb: 11 30 58;
+  --mid-rgb:  15 94 120;
   --gold-rgb: 255 201 107;
 
   --sans: 'Sora', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
