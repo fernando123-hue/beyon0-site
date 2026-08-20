@@ -66,8 +66,8 @@
       for (var d = 0; d < emsDepois.length && d < emsOrig.length; d++) {
         emsDepois[d].textContent = emsOrig[d];
         /* o SplitText deixa inline-block no em (pra conter as words); se ficar,
-           o em não quebra de linha e "interfaces de elite" estoura no celular.
-           Volta ao inline padrão — o em é só texto aurora agora. */
+           o em não quebra de linha e um em longo ("parte do sistema") estoura
+           no celular. Volta ao inline padrão — o em é só texto aurora agora. */
         emsDepois[d].style.cssText = '';
       }
 

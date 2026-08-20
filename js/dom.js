@@ -15,13 +15,14 @@
 
   /* ---------- WhatsApp: o número vive num lugar só ----------
      O valor de data-wa vira o assunto da mensagem, então a conversa já chega
-     qualificada ("quero um site para meu restaurante" em vez de "quero um
-     site"). Sem valor, cai na mensagem genérica. */
+     qualificada ("quero recuperar oportunidades perdidas com IA" em vez de
+     "quero IA"). Sem valor, cai na mensagem genérica — que pergunta pelo
+     PROBLEMA, não pela tecnologia. */
   var FONE = '5521977167944';
   function linkWA(assunto) {
     var txt = assunto
-      ? 'Oi! Vim pelo site da beyon.0 e quero um orçamento para ' + assunto + '.'
-      : 'Oi! Vim pelo site da beyon.0 e quero um orçamento pro meu site.';
+      ? 'Oi! Vim pelo site da beyon.0 e quero falar sobre ' + assunto + '.'
+      : 'Oi! Vim pelo site da beyon.0 e quero entender onde a IA pode ajudar no meu negócio.';
     return 'https://wa.me/' + FONE + '?text=' + encodeURIComponent(txt);
   }
   var links = document.querySelectorAll('[data-wa]');
