@@ -163,6 +163,18 @@
       return !el.closest('.revelando');
     });
     if (!alvos.length) return;
+    /* `is-in` é o CONTRATO DE REVELAÇÃO do site, e vale nos dois caminhos.
+       dom.js já o escreve quando ele é o dono dos reveals (sem GSAP ou em
+       reduced-motion); aqui o GSAP dirige opacity/transform por conta própria,
+       mas a classe precisa entrar do mesmo jeito porque o CSS pendura nela os
+       efeitos de ENTRADA que não são opacity/transform — a régua do kicker que
+       se desenha, o sublinhado de medição da palavra em destaque. Sem isto
+       esses efeitos só apareceriam no caminho de fallback, que é justamente o
+       que quase ninguém vê. Marcar é idempotente e não compete com o tween. */
+    var marcar = function (els) {
+      var lista = els.length !== undefined ? els : [els];
+      for (var m = 0; m < lista.length; m++) lista[m].classList.add('is-in');
+    };
     try {
       gsap.set(alvos, { opacity: 0, y: 28 });
       if (ST && ST.batch) {
@@ -170,6 +182,7 @@
           start: 'top 88%',
           once: true,
           onEnter: function (els) {
+            marcar(els);
             gsap.to(els, { opacity: 1, y: 0, duration: 1.2, stagger: .14, ease: 'power2.out', overwrite: true });
           }
         });
@@ -180,14 +193,20 @@
         var vh = window.innerHeight;
         alvos.forEach(function (el) {
           if (el.getBoundingClientRect().top < vh * 0.9) {
+            marcar(el);
             gsap.to(el, { opacity: 1, y: 0, duration: .8, ease: 'power2.out', overwrite: true });
           }
         });
       } else {
+        marcar(alvos);
         gsap.to(alvos, { opacity: 1, y: 0, duration: 1 });   /* sem batch: revela suave */
       }
     } catch (e) {
-      gsap.set(alvos, { opacity: 1, y: 0 });                  /* falhou: conteúdo NUNCA fica oculto */
+      /* falhou: conteúdo NUNCA fica oculto — e `is-in` entra junto, senão os
+         efeitos de entrada ficariam presos no estado inicial (régua de largura
+         zero, sublinhado recortado) num caminho que já é o de emergência. */
+      marcar(alvos);
+      gsap.set(alvos, { opacity: 1, y: 0 });
     }
 
     /* CARACTERE VIVO nos títulos das seções e do CTA (o do hero é ligado na

@@ -118,7 +118,12 @@
   var pedirNear = null;
 
   if (B.fine) {
-    var cardsNear = document.querySelectorAll('.card');
+    /* `.app` entra junto: a camada de instrumentação acende a fronteira de cada
+       célula de malha conforme o cursor chega, e as aplicações são uma malha
+       igual à das capacidades. Sem isto o seletor `.apps > .app::after` leria
+       `--near: 0` para sempre e aquela metade da regra seria letra morta.
+       São 3 elementos a mais num total de 9 — o custo do laço não muda. */
+    var cardsNear = document.querySelectorAll('.card, .app');
     /* CENTROS EM CACHE, em coordenadas de DOCUMENTO. Antes, varrer() lia
        getBoundingClientRect de todos os cards a CADA frame de movimento — e logo
        depois de escrever --near, forçando layout síncrono (read-after-write). O

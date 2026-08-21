@@ -378,26 +378,23 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 2rem); }
   padding: .95rem 1.5rem;
   border: 1px solid var(--stroke);
   color: var(--t1);
-  background: transparent;
+  /* background-COLOR, nunca o shorthand: a camada de instrumentação lá embaixo
+     põe o preenchimento do hover em `background-image`, e um `background:` aqui
+     (ou no :hover) zeraria essa imagem junto — o nível do botão simplesmente
+     não apareceria. Vale para todas as variantes abaixo. */
+  background-color: transparent;
   cursor: pointer;
-  transition: background var(--t-fast) var(--ease),
-              border-color var(--t-fast) var(--ease),
-              color var(--t-fast) var(--ease);
 }
-.btn:hover { border-color: var(--t3); background: var(--s1); }
+.btn:hover { border-color: var(--t3); }
 
 .btn--primary {
-  background: var(--ac);
+  background-color: var(--ac);
   border-color: var(--ac);
   color: #04141A;   /* texto escuro sobre a cor de ação: contraste real, não
                        ciano sobre ciano. Fixo de propósito — no Singular o
                        fundo vira âmbar e este tom continua legível sobre os
                        dois. */
-  transition: background var(--t-sing) var(--ease-mid),
-              border-color var(--t-sing) var(--ease-mid),
-              opacity var(--t-fast) var(--ease);
 }
-.btn--primary:hover { opacity: .86; }
 
 /* o fantasma é mais quieto que o secundário, mas continua sendo um CONTROLE:
    a borda fica em --stroke (3,4:1) e a diferença de peso vem da cor do texto,
@@ -945,8 +942,266 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 2rem); }
 }
 .reveal.is-in { opacity: 1; transform: none; }
 /* quando o GSAP assume, ele dirige opacity/transform: a transição do CSS sai
-   da frente para as duas não disputarem o mesmo valor. */
+   da frente para as duas não disputarem o mesmo valor. `is-in` continua sendo
+   escrita nos dois caminhos (ver js/anima.js) porque é dela que pendem os
+   efeitos de entrada da camada de INSTRUMENTAÇÃO abaixo. */
 .has-gsap .reveal { transition: none; }
+
+/* ==========================================================================
+   INSTRUMENTAÇÃO — a camada de efeitos
+   ==========================================================================
+   O site não ganha vida brilhando. Ele ganha vida SE COMPORTANDO COMO
+   INSTRUMENTO, e um instrumento faz quatro coisas — que são os quatro únicos
+   verbos permitidos aqui:
+
+     REGISTRAR   marcas que localizam e enquadram (marcas de canto, ticks)
+     MEDIR       algo que se estende, marca um valor, mede uma extensão
+     VARRER      uma linha que percorre, indicando leitura em curso
+     ENERGIZAR   a estrutura acendendo ao longo da PRÓPRIA geometria
+
+   O que está PROIBIDO nesta camada, por ser da linguagem anterior: glow,
+   halo, blur, gradiente decorativo, sombra projetada, bounce, escala de
+   elemento inteiro, e qualquer coisa que se mova sem ter sido provocada.
+   Nada aqui anima sozinho em repouso: todo efeito é resposta a uma AÇÃO
+   (entrar na tela, aproximar o cursor, apontar, abrir).
+
+   CUSTO: tudo abaixo anima `opacity`, `transform` ou `clip-path` — as três
+   properties que o compositor resolve sem recalcular estilo. As exceções
+   (border-color, background-size) estão em elementos únicos e só sob hover.
+   A lei do arquivo continua valendo: nenhuma variável muda por frame.
+   ========================================================================== */
+
+/* ---- ENERGIZAR: a malha viva --------------------------------------------
+   A malha é a assinatura estrutural do site, e estava morta. Agora cada
+   célula acende a PRÓPRIA fronteira conforme o cursor se aproxima — a grade
+   deixa de ser um desenho e vira um campo que responde a presença.
+   `inset: -1px` põe a borda exatamente em cima da fresta de 1px do grid, então
+   quem acende é a linha que já existe, não um contorno novo por cima dela.
+   Lê `--near`, que js/dom.js já escreve (rAF, quantizado, só nos cards
+   próximos e só quando muda) — nenhuma infraestrutura nova por frame. */
+.mesh > .card::after,
+.apps > .app::after {
+  content: "";
+  position: absolute; inset: -1px;
+  pointer-events: none;
+  /* a cor é FIXA e quem varia é a opacidade, não o contrário. Medido: dirigir
+     `border-color` por --near custa 4,62ms na varredura completa dos 9
+     elementos (com layout síncrono forçado, o pior caso possível) contra
+     4,30ms por `opacity` — trocar a cor obriga a repintar a borda, trocar a
+     opacidade o compositor resolve. 7% de graça, e a leitura fica mais certa:
+     a borda existe o tempo todo, o que muda é a PRESENÇA dela. */
+  border: 1px solid var(--ac);
+  opacity: calc(var(--near, 0) * .5);
+  transition: opacity var(--t) var(--ease);
+}
+
+/* ---- REGISTRAR: marcas de canto ------------------------------------------
+   Ao apontar, quatro cantos em L se fecham sobre a célula — enquadramento de
+   visor, não borda. É a diferença entre "esta caixa acendeu" e "o instrumento
+   mirou aqui". Oito camadas de gradiente num pseudo só: paint estático, e o
+   que anima é opacity + um scale de 4% que lê como encaixe. */
+.card, .app, .diag__row { position: relative; }
+.card::before, .app::before {
+  --marca: 10px;
+  content: "";
+  position: absolute; inset: 12px;
+  pointer-events: none;
+  opacity: 0;
+  transform: scale(.96);
+  transition: opacity var(--t) var(--ease), transform var(--t) var(--ease);
+  background-repeat: no-repeat;
+  background-image:
+    linear-gradient(var(--ac), var(--ac)), linear-gradient(var(--ac), var(--ac)),
+    linear-gradient(var(--ac), var(--ac)), linear-gradient(var(--ac), var(--ac)),
+    linear-gradient(var(--ac), var(--ac)), linear-gradient(var(--ac), var(--ac)),
+    linear-gradient(var(--ac), var(--ac)), linear-gradient(var(--ac), var(--ac));
+  background-size:
+    var(--marca) 1px, 1px var(--marca),
+    var(--marca) 1px, 1px var(--marca),
+    var(--marca) 1px, 1px var(--marca),
+    var(--marca) 1px, 1px var(--marca);
+  background-position:
+    left top, left top,
+    right top, right top,
+    left bottom, left bottom,
+    right bottom, right bottom;
+}
+.card:hover::before, .card:focus-visible::before, .card:focus-within::before,
+.app:hover::before {
+  opacity: .9;
+  transform: scale(1);
+}
+
+/* ---- MEDIR: o tick do índice ---------------------------------------------
+   O número do card ganha um traço que se estende até ele, como a agulha
+   apontando a marca na escala. Cresce da direita para a esquerda: chega NO
+   número, não sai dele. */
+.card__tag { position: relative; }
+.card__tag::before {
+  content: "";
+  position: absolute; left: -15px; top: 50%;
+  width: 11px; height: 1px;
+  background: var(--ac);
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform var(--t) var(--ease);
+}
+.card:hover .card__tag::before,
+.card:focus-within .card__tag::before { transform: scaleX(1); }
+
+/* ---- MEDIR: a régua do laudo ---------------------------------------------
+   Ao apontar uma linha de diagnóstico, uma régua com pontas marcadas percorre
+   a largura inteira sobre a divisória. É a medida da linha sendo tomada.
+   `clip-path` em vez de `scaleX` de propósito: escalar deformaria as pontas
+   de 1px em nada; recortar mantém a régua com a espessura certa o tempo todo. */
+.diag__row::after {
+  content: "";
+  position: absolute; left: 0; right: 0; bottom: -3px;
+  height: 5px;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  background-image:
+    linear-gradient(var(--ac), var(--ac)),
+    linear-gradient(var(--ac), var(--ac)),
+    linear-gradient(var(--ac), var(--ac));
+  background-size: 100% 1px, 1px 5px, 1px 5px;
+  background-position: 0 2px, 0 0, 100% 0;
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path var(--t-slow) var(--ease);
+}
+.diag__row:hover::after { clip-path: inset(0 0 0 0); }
+
+/* ---- MEDIR: os paquímetros da palavra ------------------------------------
+   A palavra que carrega o título é MEDIDA: dois traços verticais fecham sobre
+   ela quando o título entra, como as garras de um paquímetro assentando na
+   peça. É a única coisa no site que mede uma PALAVRA, e por isso lê como
+   "este é o termo em questão" em vez de decoração. Só nos títulos — no corpo
+   do texto seria ruído.
+
+   POR QUE NÃO UM SUBLINHADO: foi a primeira tentativa e ela tem um bug de
+   verdade. Com `line-height: 1.08` num título de 48px, sobram ~3px entre o pé
+   dos descendentes de uma linha e o topo da seguinte. Uma régua embaixo da
+   palavra ou cruzava os descendentes ("parada humana", "tecnologia") ou
+   invadia a linha de baixo — e num título de duas ou três linhas, que é o
+   caso de quase todos aqui, isso acontece sempre. Medir na HORIZONTAL resolve:
+   sobra espaço lateral (a palavra vive no meio de uma frase, cercada de
+   espaços) e nenhum descendente é atravessado.
+
+   Os traços entram DESLIZANDO PARA DENTRO — é o gesto de fechar sobre a
+   medida. Só opacity e transform. */
+/* `:not(:empty)` NÃO é zelo preventivo: o SplitText do hero roda em
+   `mask: 'lines'`, que duplica o conteúdo dentro de um invólucro de máscara e
+   deixa um `<em>` VAZIO no h1 (verificado: o título tem dois, um sem texto).
+   Sem o guarda, esse em de largura zero desenharia os dois paquímetros
+   empilhados no mesmo ponto — dois traços soltos no meio da frase. */
+h1 em:not(:empty), h2 em:not(:empty) { position: relative; }
+h1 em:not(:empty)::before, h2 em:not(:empty)::before,
+h1 em:not(:empty)::after,  h2 em:not(:empty)::after {
+  content: "";
+  position: absolute;
+  top: .06em; bottom: .2em;
+  width: 1px;
+  background: var(--ac);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .8s var(--ease) .3s, transform .8s var(--ease) .3s;
+}
+h1 em:not(:empty)::before, h2 em:not(:empty)::before { left: -.24em;  transform: translateX(5px); }
+h1 em:not(:empty)::after,  h2 em:not(:empty)::after  { right: -.24em; transform: translateX(-5px); }
+
+.booted .hero__title em:not(:empty)::before, .booted .hero__title em:not(:empty)::after,
+.section__head.is-in em:not(:empty)::before, .section__head.is-in em:not(:empty)::after,
+.cta.is-in em:not(:empty)::before, .cta.is-in em:not(:empty)::after {
+  opacity: .85;
+  transform: none;
+}
+
+/* ---- MEDIR: a régua do kicker se desenha ---------------------------------
+   A régua que já fechava o kicker agora ENTRA: cresce da esquerda quando a
+   seção é revelada. Mesmo gesto do sublinhado da palavra, uma hierarquia
+   acima — é a seção se apresentando antes da frase. */
+.kicker::after {
+  transform-origin: left;
+  transition: transform 1s var(--ease) .1s;
+}
+.reveal:not(.is-in) .kicker::after { transform: scaleX(0); }
+
+/* ---- VARRER: o preenchimento do botão ------------------------------------
+   O botão não acende: ele ENCHE, da esquerda para a direita, como um nível
+   subindo. `background-size` não é property de compositor, mas aqui são dois
+   elementos por tela e só sob o cursor — o custo é irrelevante e a alternativa
+   (um pseudo com scaleX atrás do texto) exigiria embrulhar o rótulo de todo
+   botão num span só para resolver o empilhamento. */
+.btn {
+  background-image: linear-gradient(var(--s2), var(--s2));
+  background-repeat: no-repeat;
+  background-size: 0% 100%;
+  transition: background-size var(--t) var(--ease),
+              border-color var(--t-fast) var(--ease),
+              color var(--t-fast) var(--ease);
+}
+.btn:hover { background-size: 100% 100%; }
+/* o primário já é preenchido com a cor de ação: nele o nível é um clareado,
+   não outra cor — trocar o fundo apagaria a única superfície quente da página. */
+.btn--primary {
+  background-image: linear-gradient(rgb(255 255 255 / .18), rgb(255 255 255 / .18));
+  transition: background-size var(--t) var(--ease),
+              background-color var(--t-sing) var(--ease-mid),
+              border-color var(--t-sing) var(--ease-mid);
+}
+.btn--primary:hover { opacity: 1; background-size: 100% 100%; }
+
+/* ---- ENERGIZAR: a corrente do fluxo --------------------------------------
+   Os três marcos de uma aplicação são uma SEQUÊNCIA temporal, e agora ela
+   acontece: ao apontar, os nós acendem em ordem, com o fio ligando um ao
+   outro. O atraso escalonado é o efeito inteiro — é ele que transforma três
+   pontos numa passagem de estado. */
+.app__flow li::before,
+.app__flow li:not(:last-child)::after,
+.app__flow li { transition: background var(--t) var(--ease), color var(--t) var(--ease); }
+.app:hover .app__flow li::before { background: var(--ac); }
+.app:hover .app__flow li:not(:last-child)::after { background: rgb(var(--ac-rgb) / .5); }
+.app:hover .app__flow li { color: var(--t2); }
+.app:hover .app__flow li:last-child { color: var(--t1); }
+.app__flow li:nth-child(1)::before, .app__flow li:nth-child(1)::after { transition-delay: 0ms; }
+.app__flow li:nth-child(2)::before, .app__flow li:nth-child(2)::after { transition-delay: 100ms; }
+.app__flow li:nth-child(3)::before, .app__flow li:nth-child(3)::after { transition-delay: 200ms; }
+
+/* ---- REGISTRAR: a pergunta aberta ----------------------------------------
+   Ao abrir uma pergunta, uma marca de registro se fixa na margem esquerda da
+   resposta: o lugar onde o instrumento parou. */
+.qa { position: relative; }
+.qa::before {
+  content: "";
+  position: absolute; left: -14px; top: 0;
+  width: 1px; height: 100%;
+  background: var(--ac);
+  transform: scaleY(0);
+  transform-origin: top;
+  transition: transform var(--t) var(--ease);
+}
+.qa[open]::before { transform: scaleY(1); }
+@media (max-width: 900px) { .qa::before { left: -8px; } }
+
+/* ---- VARRER: o passo ativo do método -------------------------------------
+   Ao apontar um passo, o trilho até o próximo nó se acende no sentido da
+   leitura: a sequência mostra para onde vai. */
+.step::before { transform-origin: left; transition: background var(--t) var(--ease); }
+.step:hover::before { background: rgb(var(--ac-rgb) / .55); }
+.step::after { transition: box-shadow var(--t) var(--ease); }
+.step:hover::after { box-shadow: inset 0 0 0 3.5px var(--ac); }
+
+/* ---- reduced-motion ------------------------------------------------------
+   O bloco global de acessibilidade já zera durações. O que importa aqui é que
+   nenhum efeito ESCONDA conteúdo quando a animação não roda: as réguas e o
+   sublinhado nascem recortados, então precisam nascer inteiros neste modo. */
+@media (prefers-reduced-motion: reduce) {
+  .diag__row::after { clip-path: inset(0 0 0 0); }
+  .reveal:not(.is-in) .kicker::after { transform: scaleX(1); }
+  .card::before, .app::before { transform: none; }
+  h1 em:not(:empty)::before, h2 em:not(:empty)::before,
+  h1 em:not(:empty)::after, h2 em:not(:empty)::after { opacity: .85; transform: none; }
+}
 
 /* ==========================================================================
    ESTADOS DO ORGANISMO
