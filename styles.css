@@ -64,7 +64,13 @@
   --ac:      #4FD8F0;
   --ac-rgb:  79 216 240;
 
-  /* estado quente (o Singular troca só ISTO — a estrutura fica onde está) */
+  /* Estado quente do Singular. ATENÇÃO: estes dois NÃO são lidos por nenhuma
+     regra — mudar aqui não muda o site. Os mesmos valores estão escritos como
+     LITERAIS na regra `.is-singular`, lá embaixo, porque `--ac` é
+     um @property registrado e este projeto já perdeu uma sessão inteira com
+     custom property que referencia outra custom property (commit a60e414).
+     Ficam aqui como declaração da paleta, ao lado da cor fria que eles
+     substituem — mas quem edita precisa editar NOS DOIS LUGARES. */
   --warm:     #F0B44F;
   --warm-rgb: 240 180 79;
 
@@ -205,6 +211,23 @@ h3 {
 }
 
 p { max-width: 64ch; }
+
+/* ---- as quebras manuais dos títulos são de DESKTOP ----
+   Os `<br>` do markup existem para controlar onde cada título vira — no
+   desktop eles são desenho. No estreito viram defeito: medido, em 375px o
+   segmento "O que a inteligência artificial" estoura a coluna em 94px e
+   "Onde o seu negócio perde" em 36px. O segmento quebra de novo, e um título
+   que devia ter duas linhas sai com três e uma órfã pendurada.
+
+   Some com a quebra abaixo de 620px e deixa o `text-wrap: balance` (já
+   declarado acima) resolver: ele distribui as linhas sozinho e nunca deixa
+   órfã. Vale a pena ser um pouco conservador no ponto de virada — o limite
+   real hoje é ~475px, mas ele depende do TEXTO, e o texto muda. Preso a um
+   breakpoint que já existe no arquivo, isto continua certo na próxima vez que
+   alguém reescrever um título. */
+@media (max-width: 620px) {
+  h1 br, h2 br { display: none; }
+}
 
 /* ---- ÊNFASE ----
    Antes cada `em` do site era um gradiente animado de 2 camadas clipado no

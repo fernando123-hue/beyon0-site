@@ -43,50 +43,24 @@
 
   var feito = false;
 
-  /* ---------- CARACTERE VIVO ----------
-     Quebra um título em .char (com índice --i) e liga a ressonância do CSS.
-     Split por words,chars: 'words' impede a letra de quebrar no meio da palavra
-     ao mudar de linha. Não reverte — a vida é permanente. Falhar aqui não
-     quebra nada: o título fica normal. */
-  function vivaChars(el) {
-    if (!el || el._viva || !window.SplitText) return;
-    el._viva = true;
-    try {
-      /* o texto de cada em é guardado ANTES do split: depois o restauramos como
-         texto plano, para a AURORA voltar contínua na palavra-chave (char-split
-         quebraria o gradiente). Os chars ao redor ressoam; o em flui. */
-      var emsOrig = [], emsAntes = el.querySelectorAll('em');
-      for (var e = 0; e < emsAntes.length; e++) emsOrig.push(emsAntes[e].textContent);
+  /* NOTA: aqui vivia `vivaChars()`, o "caractere vivo" — cada título era
+     quebrado em `.char` por SplitText e cada letra oscilava para sempre
+     (`@keyframes ressoar`, 3s, infinite).
 
-      var sp = new window.SplitText(el, { type: 'words,chars', charsClass: 'char', wordsClass: 'palavra-viva' });
-      for (var i = 0; i < sp.chars.length; i++) sp.chars[i].style.setProperty('--i', i);
-      el.classList.add('split');                 /* permanente: estrutura + cor */
+     Ele saiu com a reformulação visual, e por duas razões independentes:
 
-      var emsDepois = el.querySelectorAll('em');  /* desfaz o split DENTRO do em */
-      for (var d = 0; d < emsDepois.length && d < emsOrig.length; d++) {
-        emsDepois[d].textContent = emsOrig[d];
-        /* o SplitText deixa inline-block no em (pra conter as words); se ficar,
-           o em não quebra de linha e um em longo ("parte do sistema") estoura
-           no celular. Volta ao inline padrão — o em é só texto aurora agora. */
-        emsDepois[d].style.cssText = '';
-      }
+     1. DIREÇÃO. A regra da camada de instrumentação é que nada anima sozinho em
+        repouso — todo movimento é RESPOSTA a uma ação. Letra que oscila sem
+        ninguém pedir é o oposto disso, e era o tipo de movimento constante que
+        a nova direção recusa por escrito.
+     2. DESPERDÍCIO MEDIDO. A folha de estilo perdeu as regras `.char`/`.viva`
+        na reescrita, mas esta função continuou rodando: media 220 `.char` mais
+        40 `.palavra-viva` — 260 nós, quase METADE dos 542 elementos da página —
+        e ~6 ScrollTriggers, tudo para efeito visual NENHUM. Trabalho puro.
 
-      /* a onda (`.viva`) só liga quando o título está na viewport — fora dela,
-         nem animação nem camada de composição. É o que segura o custo no mobile. */
-      if (window.ScrollTrigger) {
-        window.ScrollTrigger.create({
-          trigger: el, start: 'top bottom', end: 'bottom top',
-          onToggle: function (self) { el.classList.toggle('viva', self.isActive); }
-        });
-        /* estado inicial: onToggle só dispara na MUDANÇA, então se já está na
-           tela (o hero), liga agora. */
-        var r = el.getBoundingClientRect();
-        if (r.top < window.innerHeight && r.bottom > 0) el.classList.add('viva');
-      } else {
-        el.classList.add('viva');                /* sem ScrollTrigger: sempre viva */
-      }
-    } catch (e) { el._viva = false; }
-  }
+     O SplitText continua carregado e usado logo abaixo, na entrada do hero
+     (`type: 'lines', mask: 'lines'`), que é um evento de ENTRADA e não
+     movimento perpétuo — esse fica. */
 
   /* ---------- ENTRADA DO HERO: a primeira impressão ----------
      O título sobe por LINHAS atrás de uma máscara (SplitText mask), depois vêm
@@ -120,10 +94,12 @@
         var split = new window.SplitText(titulo, { type: 'lines', mask: 'lines' });
         tl.from(split.lines, {
           yPercent: 115, duration: 1.5, stagger: .2, ease: 'power3.out',
-          onComplete: function () {
-            split.revert();       /* devolve o DOM original */
-            vivaChars(titulo);    /* e já liga a ressonância — logo após a entrada */
-          }
+          /* `revert()` devolve o DOM original assim que a entrada termina, e é
+             ele que faz a divisão em linhas ser um EVENTO em vez de um estado.
+             Enquanto o tween roda, o invólucro de máscara mantém um `<em>`
+             duplicado e vazio no título — daí o `:not(:empty)` nas regras dos
+             paquímetros, que existem justamente nessa janela. */
+          onComplete: function () { split.revert(); }
         }, '-=.35');
       } else if (titulo) {
         tl.from(titulo, { autoAlpha: 0, y: 26, duration: 1.3 }, '-=.35');
@@ -208,11 +184,6 @@
       marcar(alvos);
       gsap.set(alvos, { opacity: 1, y: 0 });
     }
-
-    /* CARACTERE VIVO nos títulos das seções e do CTA (o do hero é ligado na
-       entrada). Split é permanente; o custo só existe com o título visível. */
-    var titulos = document.querySelectorAll('.section h2, .cta h2');
-    for (var t = 0; t < titulos.length; t++) vivaChars(titulos[t]);
 
     /* PARALLAX DO REATOR: o núcleo do hero deriva devagar ao rolar (o canvas o
        segue, pois field.js remede o retângulo no scroll). Profundidade sutil. */
