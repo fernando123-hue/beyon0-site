@@ -1,15 +1,17 @@
 # Beyon Zero — transferência de contexto
 
-**Última atualização:** 2026-08-20 · **Branch ativa:** `rebuild` · **HEAD anterior a este commit:** `18abfc7` (NÃO PUBLICADO)
+**Última atualização:** 2026-08-20 · **Branch ativa:** `rebuild` · **HEAD anterior a este commit:** `19ea74e` (PUBLICADO — é o que está no ar)
 
 > **Se você é a próxima sessão, comece pela seção 12 (ESTADO ATUAL), depois leia
-> 12.10 — é a mais recente e resume tudo.** A seção 11 é o estado consolidado de
+> 12.11 — é a mais recente e resume tudo.** A seção 11 é o estado consolidado de
 > uma sessão anterior e segue válida no que não foi substituído. As seções
 > datadas acima delas são o histórico de como chegamos aqui; leia-as se
 > precisar do porquê de uma decisão.
 >
-> **ATENÇÃO: são ~18 commits prontos e NÃO PUBLICADOS** (partindo de
-> `origin/main`). Ver 12.1 e 12.10 — publicar ou não é a próxima decisão do dono.
+> **`19ea74e` foi publicado nesta sessão** (o dono pediu "publique o site").
+> O commit desta seção 12.11 (correção da borda do Singular + cards) vem
+> DEPOIS dele e **ainda não foi publicado** — 1 commit à frente de
+> `origin/main` neste ponto. Publicar é a próxima decisão do dono.
 >
 > **O nome certo da empresa é Beyon Zero, não beyon.0** — corrigido no código
 > em 12.10. Se você é uma sessão nova e ainda pensa "beyon.0", pare e leia
@@ -1246,3 +1248,90 @@ documento mestre (§63, não inventar).
 
 Nada mais mudou nesta passada — o resto da copy, paleta e estrutura seguem
 exatamente como as sessões anteriores deixaram (seções 12.1–12.9).
+
+---
+
+## 12.11 — Bug real na borda do Singular + cards reformulados
+
+O dono publicou, olhou no celular e mandou print: no Estado Singular, o
+painel do card vira marrom/dourado certinho, mas a **borda de aurora
+continua ciano**. Pediu correção da borda (mais espessa, mais energia) e
+reformulação dos cards ("parecem genéricos... liberdade criativa... TUDO").
+
+### O bug — causa raiz, não falta de regra
+
+`--aurora-rampa`/`--aurora-contra`/`--aurora-nos` (`styles.css`) são custom
+properties que **referenciam outras** custom properties (`--glow-rgb` etc.)
+dentro da própria definição, e só existiam declaradas no `:root`. O
+mecanismo do CSS: uma `var()` dentro de uma custom property resolve **no
+elemento onde ELA PRÓPRIA é declarada** — não onde é consumida depois. Como
+`--aurora-rampa` só existia no `:root`, o gradiente que ela guarda já
+nasceu resolvido em ciano; herdar a variável herda o resultado pronto, não
+a fórmula. Redeclarar `--glow-rgb` em `.is-singular` (o que já acontecia)
+não alcançava um cálculo que já tinha sido feito lá em cima.
+
+Prova por comparação: `--painel` (o fundo do card) usa `--mid-rgb`/
+`--deep-rgb` **direto** na declaração de `.card` — sem indireção — e por
+isso vira marrom certinho. `.mock__frame` também usa `--glow-rgb` direto e
+tem um comentário confirmando que funciona por causa disso. Só as três
+variáveis de aurora, por serem indiretas, ficavam presas.
+
+**Correção**: redeclarar as três rampas dentro do bloco `.is-singular`
+(mesma fórmula, resolvendo agora com os tokens dourados já trocados no
+mesmo bloco). É duplicação de propósito — documentada com um comentário
+grande para NINGUÉM "limpar" achando redundante e reintroduzir o bug. Como
+`.cta::after` usa o mesmo `--aurora-contra`, o CTA final ganhou a correção
+de graça.
+
+### Borda — mais espessa, mais presente
+
+- `padding` da moldura (`.card::before/::after` e `.cta::before/::after`):
+  `2.5px` → `3.5px`. Pedido explícito do dono ("se necessário, mais
+  espessas").
+- Opacidade de repouso subiu: `.card::before` de `.55` para `.72` (piso), o
+  `::after` do desktop de `.45` para `.6` — a borda lê como ligada olhando
+  de longe, não só no hover.
+- As paradas de cor das três rampas ficaram mais saturadas (ex.: `.5` →
+  `.68` no pico do ciano) — mais presença sem trocar a paleta.
+
+### Cards — a "etiqueta de instrumento" (`.card__tag`)
+
+Diagnóstico do "genérico": o site inteiro já se apresenta como painel
+medido (medidor de FPS, kickers `// NN`, linha do tempo numerada) e o card
+era a única peça que não falava essa língua — texto solto num retângulo.
+
+Não mexi na geometria do card nem no sistema de máscara da borda (frágil,
+sem forma de verificar visualmente neste ambiente — risco alto pra ganho
+incerto). Em vez disso, um número pequeno, mono, no canto superior direito
+de cada um dos 12 cards (3 dores + 6 capacidades + 3 aplicações),
+reaproveitando a MESMA gramática tipográfica dos kickers — sem `//` de
+propósito, porque isso já marca cabeçalho de seção; aqui é só o índice, cru,
+como etiqueta de peça numerada. Acende com a proximidade do cursor (mesma
+variável `--near` que já acende o resto do card) e vira dourado sozinho no
+Singular, porque usa `var(--glow-rgb)` direto — o mesmo padrão que funciona,
+não o que tinha o bug.
+
+Um ajuste de colisão: só `.card--service h3` nasce na mesma faixa vertical
+da etiqueta (nos outros dois tipos, ícone ou moldura empurram o título pra
+baixo primeiro) — ganhou `padding-right: 1.8rem` pra "Sistemas &
+interfaces" (o título mais longo) nunca correr por baixo do número.
+
+**Verificado**: chaves do CSS balanceadas (299/299); 12 cards, 12
+etiquetas, sequência correta por seção (01–03, 01–06, 01–03); zero tag HTML
+desbalanceada; as duas cópias da rampa de aurora (`:root` e `.is-singular`)
+continuam estruturalmente idênticas depois do ajuste de saturação
+(conferido por diff). **Não verificado**: nada visual — mesma limitação de
+sempre, a aba deste ambiente não compõe frames. A ideia da causa raiz foi
+confirmada por raciocínio sobre a especificação de custom properties do
+CSS, não por captura de tela.
+
+### O que fica pro olho do dono
+
+1. A borda ficou "mais espessa" o suficiente, ou ainda pede mais? `3.5px`
+   foi o valor escolhido; se pedir mais, é só o `padding` de
+   `.card::before, .card::after` (e o par em `.cta`).
+2. O número no canto lê como "instrumento" ou como ruído? É a aposta
+   central desta passada.
+3. A borda do Singular virou dourada de verdade agora? Essa parte eu tenho
+   confiança alta (é matemática de cascade, não gosto), mas o "fica bonito"
+   só o dono julga.

@@ -90,20 +90,20 @@
      borda sumiria. */
   --aurora-rampa: conic-gradient(from var(--nrg, 0deg),
     rgb(var(--glow-rgb) / 0)    0deg,
-    rgb(var(--glow-rgb) / .5)   36deg,
-    rgb(var(--mid-rgb)  / .55)  72deg,
-    rgb(var(--hi-rgb)   / .85) 116deg,
-    rgb(var(--core-rgb) / .78) 158deg,
-    rgb(var(--hi-rgb)   / .7)  200deg,
-    rgb(var(--glow-rgb) / .55) 250deg,
-    rgb(var(--mid-rgb)  / .5)  300deg,
+    rgb(var(--glow-rgb) / .68)  36deg,
+    rgb(var(--mid-rgb)  / .7)   72deg,
+    rgb(var(--hi-rgb)   / .92) 116deg,
+    rgb(var(--core-rgb) / .85) 158deg,
+    rgb(var(--hi-rgb)   / .8)  200deg,
+    rgb(var(--glow-rgb) / .7)  250deg,
+    rgb(var(--mid-rgb)  / .65) 300deg,
     rgb(var(--glow-rgb) / 0)   360deg);
   --aurora-contra: conic-gradient(from var(--nrg2, 0deg),
     rgb(var(--hi-rgb)   / 0)    0deg,
-    rgb(var(--mid-rgb)  / .55)  64deg,
-    rgb(var(--glow-rgb) / .6)  132deg,
-    rgb(var(--hi-rgb)   / .8)  198deg,
-    rgb(var(--core-rgb) / .5)  252deg,
+    rgb(var(--mid-rgb)  / .68)  64deg,
+    rgb(var(--glow-rgb) / .74) 132deg,
+    rgb(var(--hi-rgb)   / .88) 198deg,
+    rgb(var(--core-rgb) / .62) 252deg,
     rgb(var(--hi-rgb)   / 0)   330deg);
   --aurora-nos: conic-gradient(from var(--nrg3, 0deg),
     rgb(var(--hi-rgb)   / 0)    0deg 82deg,
@@ -511,7 +511,7 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
 
 .card::before, .card::after {
   content: ""; position: absolute; inset: 0; border-radius: inherit;
-  padding: 2.5px; pointer-events: none;
+  padding: 3.5px; pointer-events: none;   /* 2,5 → 3,5: pedido do dono, mais presença de instrumento */
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
           mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
@@ -520,9 +520,11 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
 }
 /* AURORA base — presente em todo aparelho (inclusive celular, onde é a ÚNICA
    camada, pra segurar os fps). Rica em paradas: a cor percorre a rampa inteira
-   (glow → mid → hi → core → hi → glow → mid) enquanto o ângulo gira. */
+   (glow → mid → hi → core → hi → glow → mid) enquanto o ângulo gira.
+   Piso de repouso subiu de .55 para .72: a borda precisa ler como energia
+   ligada olhando de longe, sem precisar de hover pra provar que existe. */
 .card::before {
-  opacity: calc(.55 + var(--near, 0) * .45);
+  opacity: calc(.72 + var(--near, 0) * .28);
   background: var(--aurora-rampa);
   animation: nrg-run 6.5s linear infinite;
 }
@@ -540,7 +542,7 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
   }
   .card::after {
     display: block;
-    opacity: calc(.45 + var(--near, 0) * .4);
+    opacity: calc(.6 + var(--near, 0) * .35);
     mix-blend-mode: screen;
     background: var(--aurora-contra);
     animation: nrg-run2 9.5s linear infinite;
@@ -594,6 +596,10 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
 .card--service h3 {
   font-family: var(--mono); font-weight: 400; font-size: .82rem;
   letter-spacing: .13em; text-transform: uppercase; color: var(--core);
+  /* só este título nasce na MESMA faixa vertical do .card__tag (nos outros
+     cards, ícone ou moldura empurram o título pra baixo primeiro) — reserva
+     de espaço pra "Sistemas & interfaces" nunca correr sob a etiqueta. */
+  padding-right: 1.8rem;
 }
 /* o cartão de serviço é um link: precisa parecer clicável sem virar botão.
    A seta é a única afordância, e só ela se move — transform/opacity, o
@@ -613,6 +619,22 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
 }
 .card--service:hover .card__cta, .card--service:focus-within .card__cta { opacity: 1; }
 .card--service:hover .card__cta span { transform: translateX(3px); }
+/* ---- etiqueta de instrumento ----
+   O card genérico é um retângulo com texto dentro. Este número não é
+   decoração: é a mesma leitura do medidor de FPS e do "// NN" dos kickers —
+   o site inteiro já se apresenta como painel medido, e o card ficava de fora
+   dessa linguagem. Não usa "//" (isso já marca cabeçalho de SEÇÃO); aqui é
+   só o índice, cru, como etiqueta de peça numerada numa prateleira técnica. */
+.card__tag {
+  position: absolute; top: clamp(1.1rem, 2vw, 1.5rem); right: clamp(1.2rem, 2.2vw, 1.6rem);
+  font-family: var(--mono); font-size: .72rem; letter-spacing: .1em;
+  font-variant-numeric: tabular-nums;
+  color: rgb(var(--glow-rgb) / calc(.4 + var(--near, 0) * .5));
+  pointer-events: none;
+  transition: color 200ms linear;
+}
+.card:hover .card__tag, .card:focus-within .card__tag { color: rgb(var(--glow-rgb) / .95); }
+
 /* a régua sob o título também sobe com a proximidade */
 .rule {
   display: block; height: 1px; margin: .85rem 0 .9rem;
@@ -847,7 +869,7 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
    dos cards, mais lenta (é uma peça grande — depressa viraria agitação). */
 .cta::before, .cta::after {
   content: ""; position: absolute; inset: 0; border-radius: inherit;
-  padding: 2.5px; pointer-events: none;
+  padding: 3.5px; pointer-events: none;   /* mesma espessura dos cards — é a mesma borda, mesma regra */
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
           mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
@@ -1113,6 +1135,48 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1.75rem); }
      "Zero verde" continua garantido: não sobra nenhum token teal aqui. */
   --mid-rgb: 138 58 22;                             /* teal → terracota */
   --deep-rgb: 42 14 12;                             /* base do card: teal escuro → brasa */
+
+  /* BUG DE VERDADE, não só falta de regra: --aurora-rampa/contra/nos são
+     custom properties que REFERENCIAM OUTRAS custom properties (--glow-rgb
+     etc). Uma var() dentro de uma custom property resolve no elemento ONDE
+     ELA PRÓPRIA é declarada — e elas só existem no :root, onde --glow-rgb
+     ainda é ciano. Herdar --aurora-rampa não herda "a fórmula", herda o
+     GRADIENTE JÁ RESOLVIDO em ciano; redeclarar --glow-rgb aqui embaixo não
+     alcança um valor que já foi calculado lá em cima. É por isto que
+     --painel (usa --mid-rgb/--deep-rgb DIRETO, sem indireção) vira marrom
+     certinho, e a borda de aurora (indireta) fica presa no ciano. A única
+     correção é redeclarar as três rampas AQUI, no mesmo bloco que já troca
+     --glow-rgb/--hi-rgb/--core-rgb/--mid-rgb — agora a substituição acontece
+     neste elemento, com os valores dourados já no lugar. Sim, é a mesma
+     fórmula do :root copiada: é o preço de nested var(), não descuido — não
+     "limpar a duplicação" achando que é redundante. */
+  --aurora-rampa: conic-gradient(from var(--nrg, 0deg),
+    rgb(var(--glow-rgb) / 0)    0deg,
+    rgb(var(--glow-rgb) / .68)  36deg,
+    rgb(var(--mid-rgb)  / .7)   72deg,
+    rgb(var(--hi-rgb)   / .92) 116deg,
+    rgb(var(--core-rgb) / .85) 158deg,
+    rgb(var(--hi-rgb)   / .8)  200deg,
+    rgb(var(--glow-rgb) / .7)  250deg,
+    rgb(var(--mid-rgb)  / .65) 300deg,
+    rgb(var(--glow-rgb) / 0)   360deg);
+  --aurora-contra: conic-gradient(from var(--nrg2, 0deg),
+    rgb(var(--hi-rgb)   / 0)    0deg,
+    rgb(var(--mid-rgb)  / .68)  64deg,
+    rgb(var(--glow-rgb) / .74) 132deg,
+    rgb(var(--hi-rgb)   / .88) 198deg,
+    rgb(var(--core-rgb) / .62) 252deg,
+    rgb(var(--hi-rgb)   / 0)   330deg);
+  --aurora-nos: conic-gradient(from var(--nrg3, 0deg),
+    rgb(var(--hi-rgb)   / 0)    0deg 82deg,
+    rgb(var(--hi-rgb)   / .5)  88deg,
+    rgb(var(--core-rgb) / .98) 92deg,
+    rgb(var(--hi-rgb)   / .5)  96deg,
+    rgb(var(--hi-rgb)   / 0)  102deg 262deg,
+    rgb(var(--hi-rgb)   / .4) 268deg,
+    rgb(var(--core-rgb) / .72) 272deg,
+    rgb(var(--hi-rgb)   / .4) 276deg,
+    rgb(var(--hi-rgb)   / 0)  282deg 360deg);
 }
 .is-singular em,
 .is-singular .kicker,
