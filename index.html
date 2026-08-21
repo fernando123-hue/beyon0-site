@@ -171,30 +171,50 @@
   </header>
 
   <main>
+    <!-- HERO — composição assimétrica: a frase ocupa a coluna larga, o núcleo
+         vive na estreita, e a trilha de dados fecha a primeira tela como o
+         rodapé de um painel. A caixa do reator é só reserva de espaço: quem
+         desenha é o canvas, que lê esta geometria em js/field.js. -->
     <section class="hero" id="hero" aria-labelledby="hero-titulo">
-      <div class="hero__reactor" aria-hidden="true"></div>
+      <div class="hero__main">
+        <p class="hero__status">
+          <span class="dot" aria-hidden="true"></span>
+          <span class="sr-only">Sistema online · Beyon Zero</span>
+          <span class="hero__status-txt" aria-hidden="true">Sistema online · Beyon Zero</span>
+        </p>
 
-      <p class="hero__status">
-        <span class="dot" aria-hidden="true"></span>
-        <span class="sr-only">Sistema online · Beyon Zero</span>
-        <span class="hero__status-txt" aria-hidden="true">Sistema online · Beyon Zero</span>
-      </p>
-
-      <h1 class="hero__title" id="hero-titulo">
-        Inteligência artificial <em>aplicada</em><br />ao que o seu negócio perde hoje.
-      </h1>
-      <p class="hero__sub">
-        Encontro onde a IA gera receita, corta custo ou devolve capacidade — e construo o sistema que faz isso acontecer.
-      </p>
-      <div class="hero__actions">
-        <a class="btn btn--primary" data-wa href="#" target="_blank" rel="noopener">Agendar diagnóstico</a>
-        <a class="btn btn--ghost" href="#projetos">Ver aplicações <span aria-hidden="true">→</span></a>
+        <h1 class="hero__title" id="hero-titulo">
+          Inteligência artificial <em>aplicada</em> ao que o seu negócio perde hoje.
+        </h1>
+        <p class="hero__sub">
+          Encontro onde a IA gera receita, corta custo ou devolve capacidade — e construo o sistema que faz isso acontecer.
+        </p>
+        <div class="hero__actions">
+          <a class="btn btn--primary" data-wa href="#" target="_blank" rel="noopener">Agendar diagnóstico</a>
+          <a class="btn btn--ghost" href="#projetos">Ver aplicações <span aria-hidden="true">→</span></a>
+        </div>
       </div>
 
-      <a href="#dores" class="scroll-hint" aria-label="Rolar para baixo">
-        <span>scroll</span>
-        <span class="scroll-hint__bar" aria-hidden="true"></span>
-      </a>
+      <div class="hero__reactor" aria-hidden="true"></div>
+
+      <dl class="hero__rail">
+        <div>
+          <dt>Entrada</dt>
+          <dd>Diagnóstico da operação</dd>
+        </div>
+        <div>
+          <dt>Construção</dt>
+          <dd>Agentes, automação e sistemas</dd>
+        </div>
+        <div>
+          <dt>Critério</dt>
+          <dd>Só o que paga por si</dd>
+        </div>
+        <a href="#dores" class="scroll-hint" aria-label="Rolar para o conteúdo">
+          <span>rolar</span>
+          <span class="scroll-hint__bar" aria-hidden="true"></span>
+        </a>
+      </dl>
     </section>
 
     <section class="section" id="dores" aria-labelledby="dores-titulo">
@@ -202,37 +222,23 @@
         <p class="kicker">// o problema</p>
         <h2 id="dores-titulo">Onde o seu negócio perde<br />dinheiro sem perceber.</h2>
       </div>
-      <div class="grid grid--3">
-        <article class="card card--dor reveal">
-          <span class="card__tag" aria-hidden="true">01</span>
-          <div class="card__icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M20 11a8 8 0 0 0-13.7-5.7L4 7.5"/><path d="M4 4v3.5h3.5"/>
-              <path d="M4 13a8 8 0 0 0 13.7 5.7L20 16.5"/><path d="M20 20v-3.5h-3.5"/>
-            </svg>
-          </div>
+      <!-- LAUDO — três linhas, não três caixas. Uma dor de operação é item de
+           diagnóstico, não produto em vitrine: o índice mono à esquerda e a
+           régua embaixo dão a estrutura que a caixa dava, sem entrar na frente
+           da leitura. -->
+      <div class="diag">
+        <article class="diag__row reveal">
+          <span class="diag__n" aria-hidden="true">01</span>
           <h3>Trabalho que não exige gente</h3>
           <p>Horas de gente cara em tarefa repetitiva. Vira folha de pagamento sem virar resultado — e ocupa justamente quem deveria estar decidindo.</p>
         </article>
-        <article class="card card--dor reveal">
-          <span class="card__tag" aria-hidden="true">02</span>
-          <div class="card__icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>
-            </svg>
-          </div>
+        <article class="diag__row reveal">
+          <span class="diag__n" aria-hidden="true">02</span>
           <h3>Oportunidade que esfria</h3>
           <p>O lead sem resposta a tempo, o orçamento que ninguém retomou, o cliente que perguntou e desistiu. Esse dinheiro já tinha batido na porta.</p>
         </article>
-        <article class="card card--dor reveal">
-          <span class="card__tag" aria-hidden="true">03</span>
-          <div class="card__icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <ellipse cx="12" cy="6" rx="7.5" ry="3"/>
-              <path d="M4.5 6v6c0 1.66 3.36 3 7.5 3s7.5-1.34 7.5-3V6"/>
-              <path d="M4.5 12v6c0 1.66 3.36 3 7.5 3s7.5-1.34 7.5-3v-6"/>
-            </svg>
-          </div>
+        <article class="diag__row reveal">
+          <span class="diag__n" aria-hidden="true">03</span>
           <h3>Conhecimento parado</h3>
           <p>Anos de histórico, documentos e conversas dentro da empresa que ninguém consegue consultar na hora exata em que precisa decidir.</p>
         </article>
@@ -248,42 +254,48 @@
            "Oportunidade parada" age ali, no momento do reconhecimento, em vez de
            rolar atrás de um CTA. O valor de data-wa vai na mensagem do WhatsApp,
            então a conversa já começa qualificada (js/dom.js monta o texto). -->
-      <div class="grid grid--3">
-        <a class="card card--service reveal" data-wa="um agente de IA que executa tarefas no meu negócio">
+      <!-- A MALHA — grid com gap de 1px sobre fundo cor de linha: as frestas
+           entre as células desenham uma grade contínua, e as seis capacidades
+           leem como UMA estrutura em vez de seis caixas.
+           O `.reveal` fica no CONTÊINER, não nas células: se cada uma entrasse
+           por conta própria com translateY, as frestas se abririam durante a
+           animação e a malha se desmontaria no ar. -->
+      <div class="mesh reveal">
+        <a class="card card--service" data-wa="um agente de IA que executa tarefas no meu negócio">
           <span class="card__tag" aria-hidden="true">01</span>
-          <h3>Agentes que executam</h3><span class="rule" aria-hidden="true"></span>
+          <h3>Agentes que executam</h3>
           <p>Não é chatbot. É um sistema com objetivo, ferramentas e limite, que faz o <em>trabalho</em> e sabe quando chamar um humano.</p>
-          <span class="card__cta" aria-hidden="true">Falar sobre isso <span>→</span></span>
+          <span class="card__cta" aria-hidden="true">Conversar <span>→</span></span>
         </a>
-        <a class="card card--service reveal" data-wa="escalar meu atendimento com IA">
+        <a class="card card--service" data-wa="escalar meu atendimento com IA">
           <span class="card__tag" aria-hidden="true">02</span>
-          <h3>Atendimento que escala</h3><span class="rule" aria-hidden="true"></span>
+          <h3>Atendimento que escala</h3>
           <p>Absorve o volume repetitivo, classifica o que chega e passa para uma pessoa só o que <em>precisa</em> de uma.</p>
-          <span class="card__cta" aria-hidden="true">Falar sobre isso <span>→</span></span>
+          <span class="card__cta" aria-hidden="true">Conversar <span>→</span></span>
         </a>
-        <a class="card card--service reveal" data-wa="recuperar oportunidades perdidas com IA">
+        <a class="card card--service" data-wa="recuperar oportunidades perdidas com IA">
           <span class="card__tag" aria-hidden="true">03</span>
-          <h3>Receita recuperada</h3><span class="rule" aria-hidden="true"></span>
+          <h3>Receita recuperada</h3>
           <p>Lead esquecido, orçamento sem resposta, cliente que sumiu. O sistema encontra, prioriza e <em>reabre</em> a conversa.</p>
-          <span class="card__cta" aria-hidden="true">Falar sobre isso <span>→</span></span>
+          <span class="card__cta" aria-hidden="true">Conversar <span>→</span></span>
         </a>
-        <a class="card card--service reveal" data-wa="automatizar um processo da minha operação">
+        <a class="card card--service" data-wa="automatizar um processo da minha operação">
           <span class="card__tag" aria-hidden="true">04</span>
-          <h3>Processos automatizados</h3><span class="rule" aria-hidden="true"></span>
+          <h3>Processos automatizados</h3>
           <p>O gargalo que trava a operação vira fluxo que roda sozinho — com registro, validação e <em>parada humana</em> onde importa.</p>
-          <span class="card__cta" aria-hidden="true">Falar sobre isso <span>→</span></span>
+          <span class="card__cta" aria-hidden="true">Conversar <span>→</span></span>
         </a>
-        <a class="card card--service reveal" data-wa="usar os dados da minha empresa com IA">
+        <a class="card card--service" data-wa="usar os dados da minha empresa com IA">
           <span class="card__tag" aria-hidden="true">05</span>
-          <h3>Dados que respondem</h3><span class="rule" aria-hidden="true"></span>
+          <h3>Dados que respondem</h3>
           <p>Documentos, histórico e conhecimento interno viram resposta consultável e apoio para <em>decidir</em>.</p>
-          <span class="card__cta" aria-hidden="true">Falar sobre isso <span>→</span></span>
+          <span class="card__cta" aria-hidden="true">Conversar <span>→</span></span>
         </a>
-        <a class="card card--service reveal" data-wa="um sistema ou site potencializado por IA">
+        <a class="card card--service" data-wa="um sistema ou site potencializado por IA">
           <span class="card__tag" aria-hidden="true">06</span>
-          <h3>Sistemas &amp; interfaces</h3><span class="rule" aria-hidden="true"></span>
+          <h3>Sistemas &amp; interfaces</h3>
           <p>O software que torna tudo isso utilizável: integração, painel e o site que já nasce como <em>parte do sistema</em>.</p>
-          <span class="card__cta" aria-hidden="true">Falar sobre isso <span>→</span></span>
+          <span class="card__cta" aria-hidden="true">Conversar <span>→</span></span>
         </a>
       </div>
       <p class="bus" aria-hidden="true"><span class="bus__txt">Tudo orbita o <b>AI Core</b></span></p>
@@ -322,21 +334,38 @@
         <h2 id="projetos-titulo">O mesmo núcleo,<br />operações diferentes.</h2>
         <p class="lead">Cenários de aplicação — não vitrine de clientes. Toda operação trava num lugar diferente, e é o diagnóstico que diz qual é o seu.</p>
       </div>
-      <div class="grid grid--3">
-        <article class="card mock reveal">
-          <span class="card__tag" aria-hidden="true">01</span>
-          <div class="mock__frame" aria-hidden="true"></div>
-          <div class="mock__label"><span>Comercial / vendas</span><em>esquecido · achado · reaberto</em></div>
+      <!-- LEITURAS DE ESTADO — o que esta seção quer dizer é que uma operação
+           ENTRA num estado e SAI em outro. Então a transição é o desenho: três
+           marcos ligados por um fio, e só o último (o resultado) recebe cor.
+           Substitui as antigas molduras de mock, que eram oito camadas de
+           gradiente simulando "uma interface" sem comunicar nada. -->
+      <div class="apps reveal">
+        <article class="app">
+          <p class="app__label">01 · Comercial / vendas</p>
+          <h3 class="app__title">A oportunidade que já tinha batido na porta</h3>
+          <ol class="app__flow">
+            <li>Esquecido</li>
+            <li>Achado</li>
+            <li>Reaberto</li>
+          </ol>
         </article>
-        <article class="card mock reveal">
-          <span class="card__tag" aria-hidden="true">02</span>
-          <div class="mock__frame mock__frame--warm" aria-hidden="true"></div>
-          <div class="mock__label"><span>Atendimento / operação</span><em>volume · triagem · exceção</em></div>
+        <article class="app">
+          <p class="app__label">02 · Atendimento / operação</p>
+          <h3 class="app__title">O volume que consome o time inteiro</h3>
+          <ol class="app__flow">
+            <li>Volume</li>
+            <li>Triagem</li>
+            <li>Exceção para humano</li>
+          </ol>
         </article>
-        <article class="card mock reveal">
-          <span class="card__tag" aria-hidden="true">03</span>
-          <div class="mock__frame mock__frame--clean" aria-hidden="true"></div>
-          <div class="mock__label"><span>Dados / decisão</span><em>disperso · indexado · útil</em></div>
+        <article class="app">
+          <p class="app__label">03 · Dados / decisão</p>
+          <h3 class="app__title">O que a empresa já sabe e não consegue consultar</h3>
+          <ol class="app__flow">
+            <li>Disperso</li>
+            <li>Indexado</li>
+            <li>Útil na hora de decidir</li>
+          </ol>
         </article>
       </div>
     </section>

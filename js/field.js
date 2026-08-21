@@ -26,7 +26,22 @@
   if (!ctx) return;
 
   var TAU = Math.PI * 2;
-  var CIANO = '0,245,255', ALTA = '159,248,255', NUCLEO = '242,254,255', OURO = '255,201,107';
+  /* A PALETA DO CANVAS — realinhada à reformulação de 2026-08-20.
+     O canvas nunca lê a folha de estilo (ver comentário de `mistura`), então
+     estes números são a única cópia da paleta deste lado. Eles espelham os
+     tokens do CSS: CIANO = --ac (#4FD8F0), OURO = --warm (#F0B44F),
+     NUCLEO = --t1 (#EDEDF1).
+
+     O ciano saiu de 0,245,255 (saturação máxima) para 79,216,240. O anterior
+     era neon puro: sobre preto ele vibrava, sujava a borda dos brilhos e
+     empurrava a cena inteira para o clichê "AI startup". A LUMINÂNCIA foi
+     preservada de propósito (BT.709: 194 → 189), porque todos os alfas deste
+     arquivo — bruma, halo, elo, núcleo — foram calibrados para aquele peso
+     visual. Trocar o matiz mantendo o peso evita recalibrar dezenas de números
+     às cegas neste ambiente (a aba não compõe frames — HANDOFF §12.5).
+     Mesma regra nos outros três: NUCLEO perdeu o tint ciano e virou o branco
+     neutro do texto; OURO acompanhou o --warm novo. */
+  var CIANO = '79,216,240', ALTA = '165,235,246', NUCLEO = '240,242,246', OURO = '240,180,79';
   /* O CONTRAPONTO da rampa. O ciano é a âncora e não muda; a prata é a segunda
      cor, e é ela que tira a cena do monocromático — mas por DESSATURAÇÃO, não
      por um segundo matiz saturado. Ciano é o néon vivo (a interface); prata é
@@ -53,7 +68,11 @@
 
      Este valor NÃO existe como token de CSS — a cor do canvas nunca passa
      pela folha de estilo. Este é o único lugar onde ele vive. */
-  var PRATA = '108,122,142';
+  /* dessaturada mais um passo na reformulação (era 108,122,142): com o ciano
+     novo já menos neon, a prata precisava recuar junto para continuar lendo
+     como METAL FRIO e não como uma segunda cor. Luminância praticamente
+     intacta (121 → 110), pelo mesmo motivo de calibragem acima. */
+  var PRATA = '104,110,124';
 
   /* geometria estática do reator, IZADA para fora do loop: recriar estes arrays
      a cada frame era lixo para o GC à toa. spMul multiplica `giro` no frame. */

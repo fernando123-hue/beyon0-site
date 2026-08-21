@@ -395,7 +395,11 @@
          sujava o elemento à toa. */
       var txt = Math.round(s.fps) + ' fps · ' + Math.round(s.budget * 100) + '%';
       if (txt !== ultTxt) { ultTxt = txt; med.textContent = txt; }
-      var cor = s.fps > 50 ? 'var(--glow)' : (s.fps > 35 ? 'var(--gold)' : 'var(--led)');
+      /* `--ac`/`--warm`, não os antigos `--glow`/`--gold`: a reformulação de
+         2026-08-20 renomeou os tokens da paleta, e uma var() inexistente aqui
+         resolveria para valor inválido — o LED ficaria preso na última cor
+         válida em vez de reportar o estado medido. */
+      var cor = s.fps > 50 ? 'var(--ac)' : (s.fps > 35 ? 'var(--warm)' : 'var(--led)');
       if (cor !== ultCor) { ultCor = cor; led.style.background = cor; }
     });
   }
