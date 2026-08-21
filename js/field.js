@@ -74,14 +74,19 @@
      intacta (121 → 110), pelo mesmo motivo de calibragem acima. */
   var PRATA = '104,110,124';
 
-  /* geometria estática do reator, IZADA para fora do loop: recriar estes arrays
-     a cada frame era lixo para o GC à toa. spMul multiplica `giro` no frame. */
-  var GRADE = [.30, .50, .68];
-  var ANEIS = [
-    { rx: .82, ry: .30, incl:  .35, spMul:  1.0, nn: 12 },
-    { rx: .70, ry: .52, incl: 1.15, spMul: -1.3, nn: 10 },
-    { rx: .56, ry: .56, incl:  .00, spMul:  0.8, nn:  8 }
-  ];
+  /* geometria estática do núcleo, IZADA para fora do loop: recriar estes
+     valores a cada frame era lixo para o GC à toa.
+
+     LAMINAS não cede sob orçamento de propósito: são seis segmentos de reta, o
+     custo é irrisório, e mudar a contagem mudaria a FORMA do mecanismo a cada
+     oscilação de carga — o núcleo pareceria trocar de peça sozinho. O que cede
+     é a densidade da malha (GRADE_PASSOS), que é textura e não estrutura. */
+  var LAMINAS = 6;                 /* lâminas da abertura — hexagonal, mecânica */
+  /* inradio → circunradio do polígono de LAMINAS lados. É o que mantém a sobra
+     da lâmina proporcional em qualquer abertura (ver o bloco da ABERTURA). */
+  var K_HEX = 1 / Math.cos(Math.PI / LAMINAS);
+  var GRADE_PASSOS = 5;            /* linhas da malha por quadrante */
+  var MARCAS = [0, .25, .5, .75];  /* marcas de registro, em voltas */
 
   /* mistura ciano→dourado→BRANCO conforme o Estado Singular. Uma função só, sem
      token de CSS envolvido: a cor do canvas nunca passa pela folha de estilo.
@@ -202,17 +207,11 @@
     ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
   }
 
-  /* polígono regular fechado no ctx (sem alocar array por frame): serve o
-     núcleo do reator, onde hexágonos e triângulos contra-rotativos dão a cara
-     de mecanismo. Só monta o path; quem chama decide stroke/fill. */
-  function poligono(cx, cy, rad, rot, lados) {
-    ctx.beginPath();
-    for (var i = 0; i <= lados; i++) {
-      var a = rot + i / lados * TAU;
-      var x = cx + Math.cos(a) * rad, y = cy + Math.sin(a) * rad;
-      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-    }
-  }
+  /* NOTA: aqui vivia `poligono()`, que desenhava o hexágono e o triângulo
+     contra-rotativos do miolo do reator antigo. A abertura de lâminas retas que
+     os substituiu monta o próprio path com duas chamadas de moveTo/lineTo por
+     lâmina, então a função ficou sem nenhum chamador e saiu na varredura de
+     código morto da reformulação do núcleo. */
 
   /* proximidade do cursor a um ponto: 1 encostado, 0 além do raio. Usada pelos
      elos do AI Core (o do card sob o cursor acende). Sem ponteiro, é sempre 0. */
@@ -326,118 +325,146 @@
       halo(ox, oy, raioS * .5, nuc, .22 * forca);
     }
 
-    /* ---- 3. AI CORE — o reator do hero ----
-       Reconstruído para parecer ENGENHARIA DE PRECISÃO: um bezel graduado, uma
-       grade concêntrica de blueprint, raios estruturais, um giroscópio de três
-       anéis inclinados girando em ritmos diferentes com nós em divisões
-       regulares, e um núcleo poligonal (hexágonos contra-rotativos). A sensação
-       de "complexo e bem estruturado" vem da ORDEM — tudo em divisões exatas —
-       não do acúmulo. Desenhado de fora para dentro. */
+    /* ---- 3. AI CORE — a ABERTURA ----
+       RECONSTRUÍDO na reformulação de 2026-08-21 para falar a MESMA língua do
+       site. A versão anterior era um orbe: bezel de 60 marcas, grade
+       concêntrica, doze raios, giroscópio de três elipses inclinadas e núcleo
+       poligonal — NOVE elementos redondos, SETE rotações simultâneas e DOIS
+       halos, um deles do tamanho do núcleo inteiro. Lia como "esfera neon de
+       produto de IA", o clichê que a direção recusa explicitamente, e falava um
+       dialeto que não existe em nenhum outro lugar da página: o site é
+       ortogonal (malha, régua, alinhamento, ângulo reto) e o núcleo era todo
+       curvo. Objeto colado por cima, não peça integrada à arquitetura.
+
+       Agora é uma ABERTURA — um diafragma de precisão, construído com o
+       vocabulário do próprio site: malha, linha reta, marca de registro,
+       ponto. UMA rotação (a abertura) e UMA luz (o centro). A leitura passa a
+       ser "inteligência centralizada dentro de um instrumento" em vez de "bola
+       de energia". Desenhado de fora para dentro.
+
+       Custo: ~8 chamadas de desenho contra ~90 da versão anterior, onde só o
+       bezel fazia 60 ctx.stroke() individuais com troca de strokeStyle a cada
+       marca. */
     if (reator && reator.y > -reator.r && reator.y < H + reator.r) {
       var R = reator.r, cx = reator.x, cyy = reator.y;
-      var resp = 1 + Math.sin(S.t * .022) * .015 + pulso * .04;   /* respiro sutil */
-      var giro = S.t * .0045 * (1 + e * .6);
+      var resp = 1 + Math.sin(S.t * .018) * .012 + pulso * .03;   /* respiro sutil */
       var det = .5 + orc * .5;                                     /* detalhe cede sob carga */
 
-      halo(cx, cyy, R * .9, cy, (.05 + e * .05 + pulso * .12) * lum);
-
-      /* --- BEZEL GRADUADO: dois trilhos e 60 marcas (longas a cada 5), como o
-         anel de um instrumento. É a assinatura do "bem estruturado". --- */
+      /* --- 1. A MALHA ---
+         A mesma grade da seção de capacidades, em forma de campo: linhas
+         ortogonais dentro do círculo do núcleo. É ISTO que integra o AI Core à
+         arquitetura da página em vez de deixá-lo como um objeto por cima.
+         Estática de propósito — malha que gira deixa de ser referência e vira
+         decoração. O comprimento de cada linha é a CORDA do círculo naquele
+         deslocamento (2·√(R²−d²)), calculada direto: sai exata e evita um
+         ctx.clip por frame. Uma única path para as ~20 linhas. */
+      var passos = Math.max(2, Math.round(GRADE_PASSOS * det));
+      var passo = R / (passos + 1);
       ctx.lineWidth = 1;
-      ctx.strokeStyle = 'rgba(' + cy + ',' + a1(.30 * lum).toFixed(3) + ')';
-      ctx.beginPath(); ctx.arc(cx, cyy, R * .90, 0, TAU); ctx.stroke();
-      ctx.strokeStyle = 'rgba(' + cy + ',' + a1(.18 * lum).toFixed(3) + ')';
-      ctx.beginPath(); ctx.arc(cx, cyy, R * .82, 0, TAU); ctx.stroke();
-      var NT = Math.round(60 * det), gBez = S.t * .0011;
-      for (var it = 0; it < NT; it++) {
-        var at = gBez + it / NT * TAU, ca = Math.cos(at), sa = Math.sin(at);
-        var longo = (it % 5) === 0;
-        var r0 = R * .82, r1 = R * (longo ? .90 : .865);
-        ctx.strokeStyle = 'rgba(' + (longo ? alta : cy) + ',' + a1((longo ? .5 : .2) * lum).toFixed(3) + ')';
-        ctx.lineWidth = longo ? 1.4 : 1;
-        ctx.beginPath();
-        ctx.moveTo(cx + ca * r0, cyy + sa * r0);
-        ctx.lineTo(cx + ca * r1, cyy + sa * r1);
-        ctx.stroke();
+      /* .12, não .07: no primeiro corte a malha era invisível na prática — e ela
+         é justamente o elemento que amarra o núcleo à arquitetura da página.
+         Verificado no rasterizador, comparando as duas lado a lado. */
+      ctx.strokeStyle = 'rgba(' + pr + ',' + a1(.12 * lum).toFixed(3) + ')';
+      ctx.beginPath();
+      for (var ig = -passos; ig <= passos; ig++) {
+        if (!ig) continue;              /* o eixo central vem depois, mais forte */
+        var dg = ig * passo, meia = Math.sqrt(Math.max(0, R * R - dg * dg));
+        ctx.moveTo(cx + dg, cyy - meia); ctx.lineTo(cx + dg, cyy + meia);
+        ctx.moveTo(cx - meia, cyy + dg); ctx.lineTo(cx + meia, cyy + dg);
       }
-
-      /* --- GRADE CONCÊNTRICA: profundidade de blueprint --- */
-      ctx.lineWidth = 1;
-      ctx.strokeStyle = 'rgba(' + cy + ',' + a1(.08 * lum).toFixed(3) + ')';
-      for (var ig = 0; ig < GRADE.length; ig++) {
-        ctx.beginPath(); ctx.arc(cx, cyy, R * GRADE[ig] * resp, 0, TAU); ctx.stroke();
-      }
-
-      /* --- RAIOS ESTRUTURAIS: uma roda de 12 raios girando devagar --- */
-      var NS = Math.max(6, Math.round(12 * det)), gSp = giro * .5;
-      ctx.strokeStyle = 'rgba(' + cy + ',' + a1(.10 * lum).toFixed(3) + ')';
-      for (var is = 0; is < NS; is++) {
-        var asp = gSp + is / NS * TAU, cas = Math.cos(asp), sas = Math.sin(asp);
-        ctx.beginPath();
-        ctx.moveTo(cx + cas * R * .30 * resp, cyy + sas * R * .30 * resp);
-        ctx.lineTo(cx + cas * R * .68 * resp, cyy + sas * R * .68 * resp);
-        ctx.stroke();
-      }
-
-      /* --- GIROSCÓPIO: três anéis inclinados, ritmos e sentidos diferentes,
-         nós em divisões regulares. A oclusão (frente/trás) vem do alfa. --- */
-      for (var o = 0; o < ANEIS.length; o++) {
-        var A = ANEIS[o], erx = R * A.rx * resp, ery = R * A.ry * resp;
-        var Asp = giro * A.spMul;
-        var ci = Math.cos(A.incl), si = Math.sin(A.incl);
-        ctx.lineWidth = 1;
-        ctx.strokeStyle = 'rgba(' + cy + ',' + a1(.16 * lum).toFixed(3) + ')';
-        ctx.beginPath(); ctx.ellipse(cx, cyy, erx, ery, A.incl, 0, TAU); ctx.stroke();
-        var nn = Math.max(4, Math.round(A.nn * det));
-        for (var n = 0; n < nn; n++) {
-          var ang = Asp + n / nn * TAU;
-          var ex = Math.cos(ang) * erx, ey = Math.sin(ang) * ery;
-          var nx = cx + ex * ci - ey * si;
-          var ny = cyy + ex * si + ey * ci;
-          var frente = Math.sin(ang) > 0 ? 1 : .32;      /* nó atrás mais fraco */
-          ctx.fillStyle = 'rgba(' + alta + ',' + a1(.85 * frente * lum).toFixed(3) + ')';
-          ctx.beginPath(); ctx.arc(nx, ny, 1.3 * frente + .9, 0, TAU); ctx.fill();
-        }
-      }
-
-      /* --- OVERDRIVE (só no Singular): descarga radial ESTRUTURADA ---
-         12 feixes em ângulos regulares pulsando para fora + a casca de
-         contenção. Ordenado, não caótico — combina com a nova arquitetura. */
-      if (sing > .05) {
-        var NB = 12, gb = S.t * .008;
-        ctx.lineWidth = 1.4;
-        for (var ib = 0; ib < NB; ib++) {
-          var ab = gb + ib / NB * TAU, cab = Math.cos(ab), sab = Math.sin(ab);
-          var beam = Math.sin(S.t * .05 + ib * .9) * .5 + .5;
-          var r1b = R * (.9 + beam * .55) * sing;
-          ctx.strokeStyle = 'rgba(' + nuc + ',' + a1(.32 * sing * beam * lum).toFixed(3) + ')';
-          ctx.beginPath();
-          ctx.moveTo(cx + cab * R * .68, cyy + sab * R * .68);
-          ctx.lineTo(cx + cab * r1b, cyy + sab * r1b);
-          ctx.stroke();
-        }
-        ctx.strokeStyle = 'rgba(' + alta + ',' + a1(.4 * sing * lum).toFixed(3) + ')';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.arc(cx, cyy, R * (.98 + Math.sin(S.t * .05) * .02), 0, TAU); ctx.stroke();
-      }
-
-      /* --- NÚCLEO POLIGONAL: hexágono + triângulo contra-rotativos + plasma ---
-         AQUI mora a leitura semântica da paleta: o núcleo queima PRATA e a
-         estrutura em volta (bezel, grade, raios, giroscópio) fica CIANO. A
-         inteligência é metal frio; a interface é o néon vivo da âncora. O ponto
-         central segue BRANCO — é a fonte de luz, e fonte de luz satura ao
-         branco. Por isso o hero continua lendo ciano de longe: só o miolo é
-         prata. */
-      poligono(cx, cyy, R * .20 * resp, S.t * .006, 6);
-      ctx.lineWidth = 1;
-      ctx.strokeStyle = 'rgba(' + pr + ',' + a1(.55 * lum).toFixed(3) + ')';
       ctx.stroke();
-      poligono(cx, cyy, R * .13 * resp, -S.t * .009, 3);
-      ctx.strokeStyle = 'rgba(' + pr + ',' + a1(.42 * lum).toFixed(3) + ')';
+
+      /* --- 2. ANEL DE REGISTRO ---
+         Um círculo fino e quatro marcas cardeais. As marcas NÃO giram: marca de
+         registro que gira não referencia mais nada. Mesma lógica do índice mono
+         nos cards — instrumento se lê parado. */
+      ctx.strokeStyle = 'rgba(' + cy + ',' + a1(.22 * lum).toFixed(3) + ')';
+      ctx.beginPath(); ctx.arc(cx, cyy, R * .88, 0, TAU); ctx.stroke();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = 'rgba(' + cy + ',' + a1(.5 * lum).toFixed(3) + ')';
+      ctx.beginPath();
+      for (var im = 0; im < MARCAS.length; im++) {
+        var am = MARCAS[im] * TAU, cam = Math.cos(am), sam = Math.sin(am);
+        ctx.moveTo(cx + cam * R * .82, cyy + sam * R * .82);
+        ctx.lineTo(cx + cam * R * .96, cyy + sam * R * .96);
+      }
       ctx.stroke();
-      halo(cx, cyy, R * .18 * (1 + pulso + sing), pr, (.34 + pulso * .4 + sing * .6) * lum);
-      ctx.fillStyle = 'rgba(' + nuc + ',' + a1(.9 * lum).toFixed(3) + ')';
-      ctx.beginPath(); ctx.arc(cx, cyy, R * (.045 + sing * .03) * resp, 0, TAU); ctx.fill();
+
+      /* --- 3. VARREDURA ---
+         O único movimento CONTÍNUO do núcleo: um arco curto percorrendo o anel.
+         É o sinal de "está operando", e um sinal basta — a versão anterior
+         tinha sete rotações competindo entre si, o que lia como agitação, não
+         como precisão. Acelera com a energia da jornada e com o Pulso. */
+      var av = S.t * .006 * (1 + e * .5 + pulso);
+      ctx.strokeStyle = 'rgba(' + alta + ',' + a1(.55 * lum).toFixed(3) + ')';
+      ctx.beginPath(); ctx.arc(cx, cyy, R * .88, av, av + .38); ctx.stroke();
+
+      /* --- 4. A ABERTURA ---
+         Um diafragma de LÂMINAS RETAS: cada lâmina é a corda tangente ao
+         círculo interno, com as pontas na borda externa (meia-corda =
+         √(rOut²−rIn²)). Seis cordas tangentes a um mesmo círculo formam um
+         hexágono cujo incírculo é rIn — a geometria de um diafragma real, e
+         nenhuma curva envolvida: é a língua ortogonal do resto do site.
+
+         No Singular ela ABRE (o raio interno cresce): uma resposta MECÂNICA e
+         legível — o sistema se escancara. Antes o Singular disparava doze
+         feixes radiais para fora, bonito na primeira vez e ruído nas outras,
+         sem significar coisa nenhuma. */
+      /* rOut é DERIVADO de rIn, nunca fixo. Com um rOut fixo (a primeira versão
+         usava R*.74) a lâmina ultrapassava o canto do hexágono em 80px contra
+         uma aresta de 55 — sobra maior que o trecho útil, o que desenha uma
+         roseta de retas cruzadas em vez de um diafragma. Derivando rOut do
+         raio interno pelo circunraio do hexágono (K = 1/cos(π/n)) mais uma
+         folga pequena, a sobra fica proporcional em QUALQUER abertura: o
+         mecanismo escala sem mudar de caráter ao abrir.
+
+         Os três números abaixo foram escolhidos OLHANDO o desenho, não no
+         escuro: o núcleo foi rasterizado fora do navegador (mesma geometria,
+         mesmos alfas, blending aditivo) e as variantes comparadas lado a lado.
+         · folga 1.10 — em 1.22 a lâmina passava 80px do canto contra 55px de
+           aresta e o conjunto lia como gravetos cruzados; em 1.04 fechava num
+           hexágono liso e perdia o caráter de lâmina. 1.10 dá a sobreposição
+           de diafragma de verdade.
+         · abertura +.10 no Singular — em +.20 o mecanismo se desmontava no ar.
+         · teto em `lum` — sem ele o Singular levava o alfa a 1 e a sobra das
+           lâminas, que é discreta em repouso, virava a coisa mais gritante da
+           tela justamente no momento de maior brilho. */
+      var abre = .34 + sing * .10 + pulso * .04;
+      var rIn = R * abre * resp;
+      var rOut = rIn * K_HEX * 1.10;
+      var meiaCorda = Math.sqrt(Math.max(0, rOut * rOut - rIn * rIn));
+      var rotA = S.t * .0016;
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(' + cy + ',' + a1(.36 * Math.min(lum, 1.15)).toFixed(3) + ')';
+      ctx.beginPath();
+      for (var il = 0; il < LAMINAS; il++) {
+        var al = rotA + il / LAMINAS * TAU;
+        var lx = cx + Math.cos(al) * rIn, ly = cyy + Math.sin(al) * rIn;
+        var ldx = -Math.sin(al) * meiaCorda, ldy = Math.cos(al) * meiaCorda;
+        ctx.moveTo(lx - ldx, ly - ldy); ctx.lineTo(lx + ldx, ly + ldy);
+      }
+      ctx.stroke();
+
+      /* --- 5. EIXOS ---
+         A cruz de referência: completa a malha (que pula o centro) e atravessa
+         um pouco além do anel, como marca de registro de desenho técnico. É a
+         régua do site aplicada ao núcleo. */
+      ctx.strokeStyle = 'rgba(' + pr + ',' + a1(.20 * lum).toFixed(3) + ')';
+      ctx.beginPath();
+      ctx.moveTo(cx - R * .96, cyy); ctx.lineTo(cx + R * .96, cyy);
+      ctx.moveTo(cx, cyy - R * .96); ctx.lineTo(cx, cyy + R * .96);
+      ctx.stroke();
+
+      /* --- 6. O PONTO ---
+         Inteligencia centralizada: um ponto pequeno e exato, com o minimo de
+         luz em volta para ler como FONTE e nao como furo. E a unica mancha de
+         luz que sobrou no nucleo — a versao anterior tinha duas, e a de fora
+         cobria o nucleo inteiro (R*.9), que e justamente o "glow porque fica
+         bonito" que a direcao nova veta. Aqui o relevo vem do peso das linhas
+         e do contraste, nao da mancha. */
+      halo(cx, cyy, R * (.10 + pulso * .06 + sing * .10), nuc, (.22 + pulso * .3 + sing * .35) * lum);
+      ctx.fillStyle = 'rgba(' + nuc + ',' + a1(.95 * lum).toFixed(3) + ')';
+      ctx.beginPath(); ctx.arc(cx, cyy, R * (.028 + sing * .016) * resp, 0, TAU); ctx.fill();
     }
 
     /* ---- 3c. mini AI Core: o nó dos serviços, ligado a cada card ----
@@ -484,17 +511,32 @@
           halo(bx, by, 10, nuc, .5 * pulso);
         }
       }
-      var resp2 = 1 + Math.sin(S.t * .03) * .05 + pulso * .12;
-      /* o mini AI Core repete a lógica do reator: o NÓ é prata (é AI Core),
-         o ponto central é branco (é luz). Os elos chegando são ciano — a
-         transição acontece no Step 3. */
-      halo(hx, hy, hr * 1.5, pr, (.10 + e * .06 + pulso * .16) * lum);
-      ctx.strokeStyle = 'rgba(' + pr + ',' + a1(.5 * lum).toFixed(3) + ')';
+      var resp2 = 1 + Math.sin(S.t * .03) * .04 + pulso * .1;
+      /* O NÓ é a ABERTURA em miniatura — mesma gramática do núcleo do hero, em
+         escala menor: anel de registro, quatro marcas cardeais paradas, e o
+         ponto de luz no centro. Aqui existia uma elipse girando (`ctx.ellipse`
+         com rotação por frame), que era o resto da linguagem de ORBE da versão
+         antiga: um anel inclinado girando lê como planeta, não como
+         instrumento. Sem lâminas nesta escala — a hr é ~22px e seis cordas
+         viram um borrão; o que sobrevive ao tamanho é o anel com as marcas. */
+      halo(hx, hy, hr * 1.2, pr, (.07 + e * .04 + pulso * .09) * Math.min(lum, 1.2));
       ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(' + pr + ',' + a1(.5 * lum).toFixed(3) + ')';
       ctx.beginPath(); ctx.arc(hx, hy, hr * .6 * resp2, 0, TAU); ctx.stroke();
       ctx.strokeStyle = 'rgba(' + pr + ',' + a1(.34 * lum).toFixed(3) + ')';
-      ctx.beginPath(); ctx.ellipse(hx, hy, hr * .9, hr * .26, S.t * .01, 0, TAU); ctx.stroke();
-      halo(hx, hy, hr * .3 * (1 + pulso), nuc, (.4 + pulso * .4 + S.singular * .4) * lum);
+      ctx.beginPath();
+      for (var imn = 0; imn < MARCAS.length; imn++) {
+        var amn = MARCAS[imn] * TAU, camn = Math.cos(amn), samn = Math.sin(amn);
+        ctx.moveTo(hx + camn * hr * .5, hy + samn * hr * .5);
+        ctx.lineTo(hx + camn * hr * .82, hy + samn * hr * .82);
+      }
+      ctx.stroke();
+      /* o halo do nó tinha raio hr*.3*(1+pulso) e alfa até 1: no Pulso ele
+         crescia EXATAMENTE até o anel (hr*.6) e o engolia — o nó virava uma
+         bola branca, a mancha de luz redonda que esta direção veta. Visto no
+         rasterizador. Agora o raio cresce pouco e o alfa tem teto: o que
+         acende no Pulso é o ponto, não uma bolha por cima da estrutura. */
+      halo(hx, hy, hr * .3 * (1 + pulso * .35), nuc, (.24 + pulso * .2 + S.singular * .22) * Math.min(lum, 1.2));
       ctx.fillStyle = 'rgba(' + nuc + ',' + a1(.8 * lum).toFixed(3) + ')';
       ctx.beginPath(); ctx.arc(hx, hy, hr * .09 * resp2, 0, TAU); ctx.fill();
       ctx.restore();
