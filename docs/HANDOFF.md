@@ -1,21 +1,23 @@
 # Beyon Zero — transferência de contexto
 
-**Última atualização:** 2026-08-20 · **Branch ativa:** `rebuild` · **HEAD anterior a este commit:** `19ea74e` (PUBLICADO — é o que está no ar)
+**Última atualização:** 2026-08-20 · **Branch ativa:** `rebuild` · **HEAD:** `a60e414` (PUBLICADO — é o que está no ar, `main = rebuild = origin/main`)
 
-> **Se você é a próxima sessão, comece pela seção 12 (ESTADO ATUAL), depois leia
-> 12.11 — é a mais recente e resume tudo.** A seção 11 é o estado consolidado de
-> uma sessão anterior e segue válida no que não foi substituído. As seções
-> datadas acima delas são o histórico de como chegamos aqui; leia-as se
-> precisar do porquê de uma decisão.
+> **Se você é a próxima sessão, comece pela SEÇÃO 13 (ENTRADA PARA A PRÓXIMA
+> SESSÃO) — é o ponto de entrada rápido, escrito pra isso.** As seções 12.1–
+> 12.11 são o histórico detalhado de como se chegou aqui; leia-as só se
+> precisar do porquê de uma decisão específica. As seções datadas antes da
+> 11 são histórico mais antigo ainda.
 >
-> **`19ea74e` foi publicado nesta sessão** (o dono pediu "publique o site").
-> O commit desta seção 12.11 (correção da borda do Singular + cards) vem
-> DEPOIS dele e **ainda não foi publicado** — 1 commit à frente de
-> `origin/main` neste ponto. Publicar é a próxima decisão do dono.
+> **Tudo publicado, árvore limpa, zero commit pendente** neste ponto —
+> primeira vez nesta sequência de sessões que o fechamento é limpo assim.
 >
 > **O nome certo da empresa é Beyon Zero, não beyon.0** — corrigido no código
 > em 12.10. Se você é uma sessão nova e ainda pensa "beyon.0", pare e leia
 > 12.10 antes de escrever qualquer copy nova.
+>
+> **Há uma peça separada, fora deste repositório**: um playbook comercial
+> pro vendedor do dono, em `C:\Vault - Fernando\Beyon 0 - Playbook Comercial\`.
+> Ver seção 13.3 antes de presumir que só existe o site.
 
 Leia este arquivo primeiro. Depois `docs/auditoria-performance.md` — ele contém
 as medições que justificam toda a arquitetura atual e evita repetir erros caros.
@@ -1335,3 +1337,120 @@ CSS, não por captura de tela.
 3. A borda do Singular virou dourada de verdade agora? Essa parte eu tenho
    confiança alta (é matemática de cascade, não gosto), mas o "fica bonito"
    só o dono julga.
+
+---
+
+## 13. ENTRADA PARA A PRÓXIMA SESSÃO — leia isto primeiro
+
+Fechamento limpo, de propósito: tudo publicado, árvore limpa, nada
+pendente de decisão técnica. As seções 12.1–12.11 são o histórico
+detalhado de COMO se chegou aqui (leia se precisar do porquê de uma
+decisão específica); esta seção é o ponto de entrada rápido.
+
+### 13.1 Estado agora
+
+```
+main = rebuild = origin/main = a60e414
+```
+
+Árvore limpa, zero commit pendente, zero divergência. `git status` deve dar
+"nothing to commit, working tree clean" — se não der, algo mudou desde que
+isto foi escrito; leia `git log` antes de confiar neste resumo.
+
+Fluxo de publicação (testado e confirmado várias vezes nesta sessão):
+```
+git checkout main && git merge rebuild --ff-only && git push origin main && git checkout rebuild
+```
+O dono pede publicação de forma direta ("publica isso", "publique o
+site") — não é preciso perguntar de novo se o pedido já veio assim.
+
+### 13.2 O que esta sessão fez, em ordem
+
+1. Ajuste fino de bruma (alfa `.022`→`.016`) — pendência antiga da sessão
+   anterior, aplicada no início desta.
+2. **Reposicionamento total da copy**: de "estúdio de sites" para "IA
+   aplicada", a partir de um documento mestre de 76 seções que o dono
+   trouxe. Ver 12.2 pro detalhe — foi troca de negócio, não de tom.
+3. **Unificação de voz**: a copy nova tinha plural/singular misturado
+   ("achamos" vs "eu digo"); virou tudo primeira pessoa do singular.
+4. **Paleta REV 4**: contraponto trocou de violeta pra prata fria
+   (`js/field.js`), por pedido direto do dono ("ficou enjoativo"). Ouro
+   continua raro, só no Singular — isso não mudou.
+5. **Correção de nome em todo o código**: a empresa se chama **Beyon
+   Zero**, não "beyon.0". 24 ocorrências corrigidas — título, meta tags,
+   JSON-LD, wordmark, status do hero, WhatsApp, copyright. O domínio
+   (`beyon0-site.vercel.app`) foi DELIBERADAMENTE mantido — trocar domínio
+   é decisão de infraestrutura separada, ninguém pediu isso ainda.
+6. **Bug real corrigido**: a borda de energia dos cards não virava dourada
+   no Singular. Causa: `--aurora-rampa` e afins são custom properties que
+   referenciam OUTRAS custom properties, e só existiam no `:root` — uma
+   `var()` aninhada resolve no elemento onde é DECLARADA, não onde é
+   consumida. Ver 12.11 pro raciocínio completo; é conhecimento que vale
+   pra qualquer token novo que algum dia precise reagir ao Estado Singular.
+7. **Cards ganharam etiqueta de instrumento** (`.card__tag`): número mono
+   no canto, mesma gramática dos kickers `//`. Não mexi na geometria do
+   card nem no sistema de máscara da borda — decisão deliberada de reduzir
+   risco num ambiente sem verificação visual.
+8. **Playbook comercial do vendedor** — peça SEPARADA, fora deste repo.
+   Ver 13.3.
+
+### 13.3 O Playbook Comercial — não está neste repositório
+
+O dono contratou o primeiro vendedor e pediu um guia de vendas mobile.
+Isso é **deliberadamente separado do site**:
+
+- **Arquivo fonte**: `C:\Vault - Fernando\Beyon 0 - Playbook Comercial\playbook.html`
+  — pasta irmã desta (`Beyon 0`), fora do git deste projeto, fora do
+  deploy da Vercel. Zero risco de vazar junto com um push do site.
+- **Publicado como Artifact** (privado, específico pra essa conversa) —
+  16 telas, scroll-snap vertical, identidade herdada do site (mesmos
+  tokens de cor, mesmas fontes), reescrito do zero pra vender IA aplicada
+  em vez de site institucional (o playbook original, v1, vendia
+  "presença digital" — ficou desalinhado assim que o site virou AI-first).
+- Conteúdo: prospecção, diagnóstico (reaproveita os 3 pilares do próprio
+  site — trabalho repetitivo / oportunidade parada / conhecimento
+  disperso — e o método Mapa·Prioridade·Construção), objeções, fechamento,
+  funil. Guia interno de preço (R$10-80mil) explicitamente marcado como
+  "nunca diga antes de mostrar o problema".
+- Se o dono pedir mais mudanças nele numa sessão futura, **é um arquivo
+  diferente, num diretório diferente** — não confundir com o site.
+
+### 13.4 Decisões em aberto (nenhuma bloqueia nada, todas esperam o dono)
+
+| Decisão | Estado | Onde foi discutido |
+|---|---|---|
+| Site como 1 card entre 6, ou volta a ser central? | Sem resposta, segue aberta | 12.9 |
+| Estúdio anônimo | Mantido, condicional a "equipe completa" | 8, 12.9 |
+| Domínio `beyon0-site.vercel.app` vs nome real | Não mudou, decisão separada | 12.10 |
+| Borda `3.5px` é espessa o bastante? | Aplicado, aguarda veredito visual | 12.11 |
+| Etiqueta de instrumento nos cards: lê bem ou é ruído? | Aplicado, aguarda veredito visual | 12.11 |
+| `intro.mp4` 4,4 MB (reencodar ou só 1ª visita) | Nunca resolvida | 12.8 |
+| `feat/ai-core-3d` (reator 3D, 66 testes) | Pausada, intocada | 2, 12.8 |
+| Analytics/conversão | Site não mede nada ainda | 12.8 |
+| Histórico do git (~50 MB de assets mortos) | Só `git filter-repo` resolve, destrutivo | 12.8 |
+
+### 13.5 Armadilhas deste ambiente (sempre valem, repetido porque custam tempo)
+
+- **A aba deste agente NÃO compõe frames.** Nenhuma sessão consegue ver
+  animação, cor renderizada, ou espaçamento de verdade. Todo julgamento
+  visual é do dono, sempre. Verificação aqui é estrutural (sintaxe, tags
+  balanceadas, contraste calculado) — nunca "eu vi que ficou bom".
+- Arquivo `file://` fora da pasta do projeto abre como **snapshot
+  estático** — sem JS, sem interação. Só serve pra olhar HTML/CSS crus.
+- `getComputedStyle` logo após trocar classe pode devolver o valor
+  ANTIGO se houver `transition` — zerar a transição antes de ler, ou
+  inspecionar o CSSOM.
+- Custom property que referencia outra custom property (`--a: var(--b)`)
+  resolve no elemento onde é DECLARADA — não onde é usada depois. Achou
+  esse bug uma vez (12.11), pode aparecer de novo em token novo.
+
+### 13.6 Como o dono trabalha (confirmado, não mudou)
+
+Português direto. Pede publicação com uma frase curta ("publica isso") —
+não precisa confirmar de novo. Manda print do celular quando algo não
+bate com o esperado, espera que a causa seja investigada de verdade (não
+só reaplicado um valor diferente no escuro). Corrige com "considere
+isso" quando um fato mudou (ex.: nome da empresa) e espera que a correção
+se espalhe por tudo que for relevante, não só o que foi perguntado.
+Aprova subagente só quando pede explicitamente — regra do sistema, não do
+dono, mas vale registrar que nunca foi preciso usar um nesta sessão.
