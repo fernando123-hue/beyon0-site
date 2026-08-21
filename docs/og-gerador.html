@@ -30,9 +30,18 @@
   o site carrega.
 </p>
 <p>
-  Existe porque o ambiente onde a reformulação foi feita não tem ponte do
-  navegador para o disco: dá para <em>desenhar</em> a imagem, mas não para
-  gravá-la. Aqui você grava em um clique.
+  <strong>Já resolvido nesta sessão:</strong> <code>assets/og-cover.jpg</code>
+  foi trocado — Chrome instalado no sistema rodou em modo headless
+  (<code>--screenshot</code>) apontando para <code>docs/og-render.html</code>
+  — a mesma composição, sem a interface desta página em volta — e o PNG
+  resultante virou JPEG via <code>System.Drawing</code> do PowerShell. Sem
+  precisar de nenhuma ponte navegador→disco: o processo inteiro rodou fora do
+  navegador interativo. O <code>og:image:alt</code> também já foi atualizado.
+</p>
+<p>
+  Esta página continua aqui como via manual — se a composição mudar nesta
+  página, rode o mesmo desenho em <code>docs/og-render.html</code> (o alvo do
+  headless) para manter as duas iguais, ou baixe por aqui e substitua à mão.
 </p>
 
 <canvas id="c" width="1200" height="630"></canvas>
@@ -42,7 +51,7 @@
   <li>Clique em baixar e salve o arquivo como <code>og-cover.jpg</code>.</li>
   <li>Substitua <code>assets/og-cover.jpg</code> por ele.</li>
   <li>
-    Atualize o <code>og:image:alt</code> no <code>index.html</code> — hoje ele diz
+    Confira o <code>og:image:alt</code> no <code>index.html</code> — hoje ele diz
     <em>"vórtice de energia ciano sobre fundo preto"</em>, que descreve a imagem
     antiga. Algo como
     <code>"Beyon Zero — o núcleo de precisão sobre malha técnica"</code>.

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>og-render</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* NADA além do canvas: esta página existe só para ser fotografada por
+     Chrome headless (--window-size=1200,630 --screenshot). Qualquer margem,
+     padding ou segundo elemento vaza para dentro do PNG capturado. Ver
+     docs/og-gerador.html para a versão com interface, usada manualmente. */
+  html, body { margin: 0; padding: 0; background: #050507; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1200" height="630"></canvas>
+<script>
+(function () {
+  var W = 1200, H = 630;
+  var BG = '#050507', LINE = '#1C1C22', AC = '#4FD8F0', T1 = '#EDEDF1', T3 = '#7E7E8A';
+  var TAU = Math.PI * 2, LAMINAS = 6, K_HEX = 1 / Math.cos(Math.PI / LAMINAS);
+
+  function desenhar(x) {
+    x.fillStyle = BG; x.fillRect(0, 0, W, H);
+
+    x.strokeStyle = LINE; x.lineWidth = 1; x.beginPath();
+    for (var gx = 0; gx <= W; gx += 60) { x.moveTo(gx + .5, 0); x.lineTo(gx + .5, H); }
+    for (var gy = 0; gy <= H; gy += 60) { x.moveTo(0, gy + .5); x.lineTo(W, gy + .5); }
+    x.stroke();
+
+    var cx = 935, cy = 315, R = 185;
+    x.save(); x.globalCompositeOperation = 'lighter';
+
+    x.strokeStyle = 'rgba(104,110,124,.20)'; x.lineWidth = 1; x.beginPath();
+    var passo = R / 6;
+    for (var i = -5; i <= 5; i++) {
+      if (!i) continue;
+      var d = i * passo, meia = Math.sqrt(Math.max(0, R * R - d * d));
+      x.moveTo(cx + d, cy - meia); x.lineTo(cx + d, cy + meia);
+      x.moveTo(cx - meia, cy + d); x.lineTo(cx + meia, cy + d);
+    }
+    x.stroke();
+
+    x.strokeStyle = 'rgba(79,216,240,.34)';
+    x.beginPath(); x.arc(cx, cy, R * .88, 0, TAU); x.stroke();
+    x.strokeStyle = 'rgba(79,216,240,.75)'; x.lineWidth = 2; x.beginPath();
+    [0, .25, .5, .75].forEach(function (f) {
+      var a = f * TAU, ca = Math.cos(a), sa = Math.sin(a);
+      x.moveTo(cx + ca * R * .82, cy + sa * R * .82);
+      x.lineTo(cx + ca * R * .96, cy + sa * R * .96);
+    });
+    x.stroke();
+
+    x.strokeStyle = 'rgba(165,235,246,.8)'; x.lineWidth = 2;
+    x.beginPath(); x.arc(cx, cy, R * .88, -0.9, -0.52); x.stroke();
+
+    var rIn = R * .34, rOut = rIn * K_HEX * 1.10;
+    var meiaCorda = Math.sqrt(rOut * rOut - rIn * rIn);
+    x.strokeStyle = 'rgba(79,216,240,.62)'; x.lineWidth = 1.5; x.beginPath();
+    for (var l = 0; l < LAMINAS; l++) {
+      var al = 0.35 + l / LAMINAS * TAU;
+      var lx = cx + Math.cos(al) * rIn, ly = cy + Math.sin(al) * rIn;
+      var ldx = -Math.sin(al) * meiaCorda, ldy = Math.cos(al) * meiaCorda;
+      x.moveTo(lx - ldx, ly - ldy); x.lineTo(lx + ldx, ly + ldy);
+    }
+    x.stroke();
+
+    x.strokeStyle = 'rgba(104,110,124,.35)'; x.lineWidth = 1; x.beginPath();
+    x.moveTo(cx - R * .96, cy); x.lineTo(cx + R * .96, cy);
+    x.moveTo(cx, cy - R * .96); x.lineTo(cx, cy + R * .96);
+    x.stroke();
+
+    var g = x.createRadialGradient(cx, cy, 0, cx, cy, R * .13);
+    g.addColorStop(0, 'rgba(240,242,246,.55)');
+    g.addColorStop(1, 'rgba(240,242,246,0)');
+    x.fillStyle = g; x.beginPath(); x.arc(cx, cy, R * .13, 0, TAU); x.fill();
+    x.fillStyle = '#F4F5F8'; x.beginPath(); x.arc(cx, cy, 6, 0, TAU); x.fill();
+    x.restore();
+
+    var P = 76;
+    x.textBaseline = 'alphabetic';
+    x.font = '500 21px "JetBrains Mono", monospace';
+    x.fillStyle = T1; x.fillText('Beyon ', P, 96);
+    x.fillStyle = AC; x.fillText('Zero', P + x.measureText('Beyon ').width, 96);
+
+    x.font = '300 60px Sora, sans-serif'; x.fillStyle = T1;
+    ['Inteligência artificial', 'aplicada ao que o seu', 'negócio perde hoje.']
+      .forEach(function (linha, n) { x.fillText(linha, P, 250 + n * 70); });
+
+    x.strokeStyle = LINE; x.lineWidth = 1;
+    x.beginPath(); x.moveTo(P, 505.5); x.lineTo(P + 560, 505.5); x.stroke();
+    x.font = '400 17px "JetBrains Mono", monospace'; x.fillStyle = T3;
+    x.fillText('DIAGNÓSTICO  ·  AGENTES  ·  AUTOMAÇÃO  ·  SISTEMAS', P, 545);
+
+    document.title = 'pronto';   /* sinal pro --virtual-time-budget/polling */
+  }
+
+  var c = document.getElementById('c');
+  var ctx = c.getContext('2d');
+  (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve())
+    .then(function () { desenhar(ctx); });
+})();
+</script>
+</body>
+</html>
