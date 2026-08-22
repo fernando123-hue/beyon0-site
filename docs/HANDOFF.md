@@ -1,6 +1,6 @@
 # Beyon Zero — transferência de contexto
 
-**Última atualização:** 2026-08-21c · **Branch ativa:** `rebuild` · **HEAD:** `a5989bf` (PUBLICADO — `main = rebuild = origin/main`)
+**Última atualização:** 2026-08-22 · **Branch ativa:** `rebuild` · **HEAD:** `a7b48ac` — **NÃO PUBLICADO.** No ar está `a5989bf`. 1 commit à frente (`a7b48ac`: conserto da palavra viva + estática sem bug + linha do método animada com aura nos nós — ver seção 19).
 
 > **A SEÇÃO 16 (CAMADA DE ATMOSFERA) é a mais nova, agora publicada.**
 > Ela acrescenta uma camada por cima da 14 (que continua inteiramente válida) e
@@ -1990,6 +1990,55 @@ vídeo (site aparece direto, sem tela preta) precisa do olho do dono.
 - `assets/introdução.mp4` órfão no disco — decisão do dono, ver acima.
 - Nada mais depende do vídeo removido; a arquitetura de boot está mais simples
   do que antes (um listener a menos, uma responsabilidade a menos).
+
+---
+
+## 19. CONSERTOS + FLUXO/AURA NA LINHA DO MÉTODO (2026-08-22) — `a7b48ac`
+
+Quatro pedidos do dono numa sessão. Detalhe completo no corpo do commit
+`a7b48ac`; o essencial:
+
+**1. A palavra do hero não mudava — bug real, dois motivos combinados.**
+- `querySelector('.hero__title em')` pegava o `<em>` VAZIO que o SplitText
+  `mask:'lines'` deixa ao lado do `<em>aplicada</em>`. A troca escrevia num
+  elemento de largura zero. **Agora captura o em NÃO-VAZIO** (filtra vazios).
+- O gatilho era `setTimeout(booted+5200)` (palpite). **Agora anima.js emite
+  `'hero-pronto'` após o revert do SplitText** e a palavra viva espera esse
+  sinal; fallback em `booted+5s` pro caminho sem GSAP.
+- Verificado carregando o `js/dom.js` REAL num harness Node (DOM/eventos
+  falsos, loop avançado à mão) — **este é o jeito de testar lógica de loop
+  neste ambiente**: o rAF morre em ~800ms no Chrome headless (`document.hidden`
+  vira true), então screenshot não valida nada que dependa do loop rodar.
+
+**2. "Contorno branco bugado" ao descer = a estática.** `inset:-6px` desenhava
+o ruído 6px ALÉM do kicker (retângulo solto), e `steps(1,end)` sobre keyframes
+0/50/100 travava em vez de piscar. Agora: `inset:0` + `width:12ch` (contido
+sobre o rótulo, longe da régua flex) + keyframe de opacidades EXPLÍCITO (dois
+pulsos, pico .4, sem `steps()`). Ruído só no kicker e no wordmark — no hero e
+no CTA o `morph()` já É a estática (a palavra vira glifos de sinal).
+
+**3. Palavra viva também no CTA** ("não pela _tecnologia_" →
+ferramenta/moda/tendência; Singular: pressa/promessa). Um ciclador
+reutilizável por elemento, estado isolado por closure.
+
+**4. A linha do método:**
+- **Fluxo de energia** na linha (CSS): pulso de luz correndo no sentido da
+  leitura (`background-position` animado, 1px). A cadeia `:has()` agora sobe a
+  INTENSIDADE via `opacity` (trocar `background` apagaria o fluxo).
+- **Aura nos nós, não glow redondo** (canvas, `field.js` mede `.steps .step`):
+  8 raios emanando com comprimento oscilando FORA DE FASE (as pontas nunca
+  fecham um círculo — leem como faíscas, não anel) + arco de varredura girando,
+  no vocabulário do AI Core. Viva em repouso, mais forte com o cursor perto.
+
+Custo: repouso 298→361 chamadas (a aura dos 3 nós), 0,157ms/frame (~1% do
+orçamento), culled fora da seção método. reduced-motion: fluxo para, aura some
+com o canvas.
+
+**Nota de método pra próxima sessão**: o Chrome do SISTEMA headless roda o site
+de verdade (a aba do agente não). Truque pra manter o loop rAF vivo no
+headless: injetar `Object.defineProperty(document,'hidden',{get:()=>false})` +
+`setInterval(()=>BEYON.iniciar(), 50)`. E a CSP `script-src 'self'` bloqueia
+`file://` — copiar o HTML removendo a meta CSP pra testar local.
 
 ---
 
