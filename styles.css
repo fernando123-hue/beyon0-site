@@ -1296,9 +1296,20 @@ body::after {
   pointer-events: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23g)' opacity='.6'/%3E%3C/svg%3E");
   background-size: 200px 200px;
-  /* .035 é o teto útil: acima disso o texto de corpo (--t2, 7,3:1) começa a
-     perder nitidez nas hastes finas do Sora 300. Abaixo de .02 o grão some no
-     celular. */
+  /* .035 NÃO é gosto — é um teto medido. A película clareia o fundo e o texto
+     juntos, mas o fundo proporcionalmente mais, então ela COME contraste. A
+     conta foi feita para todos os pares da paleta, no pior caso (alfa cheio do
+     ruído, cobertura efetiva 2,1%):
+
+       --t1 no fundo      17,44 → 16,83:1
+       --t2 no fundo       7,32 →  7,16:1
+       --t3 em --s2        4,73 →  4,65:1   ← o par mais apertado do site
+       --stroke (controle) 3,39 →  3,37:1
+
+     O piso de AA para texto normal é 4,5:1, e `--t3` sobre `--s2` chega a
+     4,65 — sobram 3% de margem. Subir a opacidade daqui reprova esse par, e
+     ele carrega texto pequeno de verdade (rótulos e índices sobre superfície
+     elevada). QUEM MEXER NESTE NÚMERO refaz a conta antes. */
   opacity: .035;
   transition: opacity var(--t-slow) var(--ease-mid);
 }

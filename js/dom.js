@@ -35,6 +35,10 @@
   var ano = document.getElementById('year');
   if (ano) ano.textContent = new Date().getFullYear();
 
+  /* painéis que fecham com Escape. Cada bloco registra o seu; o listener único
+     que percorre esta lista está no fim do arquivo. */
+  var aoEscapar = [];
+
   /* ---------- reveals — nível 2: o fade sutil da navegação ----------
      Uma transição, disparada uma vez ao entrar na viewport. Só LIGA depois
      de 'entrada-pronta' (js/entrada.js): assim não revela nada por baixo do
@@ -262,9 +266,7 @@
     navLista.addEventListener('click', function (e) {
       if (e.target.closest('a')) fecharMenu(false);
     });
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') fecharMenu(true);
-    });
+    aoEscapar.push(function () { fecharMenu(true); });
   }
 
   /* ---------- o ÚNICO listener de scroll do arquivo ----------
@@ -529,13 +531,26 @@
       medBtn.setAttribute('aria-expanded', abrindo ? 'true' : 'false');
     });
     /* Esc fecha, como qualquer painel sobreposto */
-    document.addEventListener('keydown', function (e) {
-      if (e.key !== 'Escape' || medNota.hidden) return;
+    aoEscapar.push(function () {
+      if (medNota.hidden) return;
       medNota.hidden = true;
       medBtn.setAttribute('aria-expanded', 'false');
       medBtn.focus();
     });
   }
+
+  /* ---------- ESCAPE: um caminho só ----------
+     Havia DOIS `document.addEventListener('keydown')` neste arquivo, cada um
+     testando a mesma tecla para fechar o seu próprio painel — o menu do celular
+     e a nota do medidor. Dois handlers no documento para uma tecla é o mesmo
+     problema que o arquivo já tinha resolvido com o scroll (havia dois, viraram
+     um): cada painel novo somaria mais um, e a ORDEM entre eles passa a
+     importar sem que nada no código diga qual é. Aqui a lista é explícita e a
+     ordem é a de declaração. */
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    for (var i = 0; i < aoEscapar.length; i++) aoEscapar[i]();
+  });
 
   /* ---------- REGIME → uma classe no <body> ----------
      O núcleo resolve QUAL é o estado (js/core.js); aqui ele vira uma classe,
