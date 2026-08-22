@@ -1,7 +1,13 @@
 # Beyon Zero — transferência de contexto
 
-**Última atualização:** 2026-08-21 · **Branch ativa:** `rebuild` · **HEAD:** `80ca91d` (PUBLICADO — é o que está no ar, `main = rebuild = origin/main`)
+**Última atualização:** 2026-08-21b · **Branch ativa:** `rebuild` · **HEAD:** `63d793c` — **NÃO PUBLICADO.** No ar está `80ca91d`. `rebuild` tem 2 commits à frente de `origin/main`, esperando o dono pedir.
 
+> **A SEÇÃO 16 (CAMADA DE ATMOSFERA) é a mais nova e a única não publicada.**
+> Ela acrescenta uma camada por cima da 14 (que continua inteiramente válida) e
+> traz a única mudança de REGRA desta sequência: a lei "nada anima sozinho em
+> repouso" da 14.4 passou a ter uma fronteira explícita — atmosfera respira,
+> conteúdo não. Ler a 14.4 sem a 16.1 dá uma regra que o código já não segue.
+>
 > **Se você é a próxima sessão, comece pela SEÇÃO 15 (ENTRADA PARA A
 > PRÓXIMA SESSÃO) — é o atalho, escrito pra isso.** Ela aponta pra seção 14
 > (RECONSTRUÇÃO VISUAL TOTAL, 2026-08-21), que substitui as seções 5 e 6 por
@@ -1698,6 +1704,165 @@ qualquer necessidade futura de gerar imagem/PDF a partir de HTML.
 
 ---
 
+## 16. CAMADA DE ATMOSFERA (2026-08-21b) — LEIA JUNTO COM A 14
+
+A seção 14 continua valendo por inteiro: a identidade visual, a paleta, o AI
+Core e a camada de instrumentação não mudaram. Esta seção **acrescenta** uma
+segunda camada por cima, pedida pelo dono num briefing de 27 itens ("adicionar
+atmosfera, movimento, profundidade e magia, sem perder seriedade — e NÃO refaça
+o design"). Dois commits: `7070470` (a camada) e `63d793c` (a revisão).
+
+### 16.1 A tensão que precisou ser resolvida ANTES de escrever código
+
+A regra vigente (14.4) diz **"nada anima sozinho em repouso — todo efeito é
+resposta a uma ação"**. O pedido novo diz **"evite fundos completamente
+estáticos"**. Não é contradição se a fronteira for a certa, e a fronteira
+adotada é esta:
+
+> **A ATMOSFERA respira. O CONTEÚDO não.**
+> Campo, brumas, núcleo, profundidade e luz ambiente têm vida contínua no
+> canvas. Texto, cards, réguas, paquímetros e estrutura continuam parados até
+> serem provocados.
+
+Isso preserva 14.4 onde ela importa (legibilidade e seriedade) e atende o
+pedido onde ele importa (o fundo deixou de ser vazio). **Se uma sessão futura
+for adicionar movimento, é desta linha que se decide de que lado a coisa
+cai** — e a resposta padrão para qualquer coisa que envolva texto é "não".
+
+### 16.2 A ESPINHA — arquitetura de estados (`js/core.js`)
+
+O dono pediu explicitamente uma arquitetura de estados, não efeitos isolados.
+Ela é **derivada**, não uma máquina paralela — nenhum temporizador novo,
+nenhum subsistema novo (`?perf` segue em `["campo","eventos","medidor"]`):
+
+```
+S.wake    0..1   presença — cai sozinha após 32s de silêncio, volta em 60ms
+S.focus   0..1   o cursor sobre algo que responde (js/dom.js publica)
+S.sv      0..1   velocidade de rolagem, suavizada
+S.sdy     px     rolagem do frame COM SINAL — é o que dá a paralaxe do campo
+S.regime  dormant · active · focused · resonance · singularity
+```
+
+Prevalência: `singularity > resonance > dormant > focused > active`. **Dormant
+vem ANTES de focused de propósito** — ver o bug 3 em 16.5.
+
+`S.wake` multiplica a luminância da cena inteira num lugar só (`js/field.js`,
+a linha do `lum`). É isso que faz DORMANT não ser um efeito à parte: é o mesmo
+sistema operando 38% mais baixo. **Se você quiser que algo novo obedeça ao
+regime, multiplique por `lum` — não escreva uma regra própria.**
+
+Só `dormant` vira classe no `<body>` (`.is-dormant`). `focused` é usado, mas
+dentro do canvas: quando o cursor pousa em algo, as brumas RECUAM até 40% para
+o elemento apontado ganhar a atenção. No CSS ele não teria nada honesto a
+mudar, e inventar regra só para "usar o estado" é como uma camada de efeitos
+vira enfeite.
+
+### 16.3 O que foi adicionado, e onde
+
+| Efeito | Onde | O quê |
+|---|---|---|
+| Profundidade do campo | `field.js` | cada partícula tem `z`: tamanho, brilho, velocidade e resposta à rolagem |
+| Gravidade do AI Core | `field.js` | tangencial 3× a radial — a poeira ORBITA, não cai |
+| A COLUNA | `field.js` | a escala do documento na margem esquerda, com marca por seção |
+| Leitura do cursor | `field.js` | duas marcas nas bordas dando a coordenada |
+| Luz ambiente no cursor | `field.js` | quem acende é a poeira, não um foco |
+| 2ª bruma | `field.js` | períodos incomensuráveis — movimento sem ritmo reconhecível |
+| Grão | `styles.css` | `body::after`, estático, **custo zero por frame** |
+| Ímã nos controles | `dom.js` | 4px em `translate` |
+| Títulos por linha | `anima.js` | máscara SplitText nos `h2` de seção |
+| Paralaxe cinemática | `anima.js` | 3 profundidades, `gsap.matchMedia`, off abaixo de 821px |
+| RECONHECIMENTO | `dom.js` | passar por todas as 6 capacidades → o núcleo responde |
+
+**Duas decisões que parecem omissões e não são:**
+- **Não há holofote nem luz seguindo o cursor.** O dono já rejeitou luz redonda
+  atrás de conteúdo uma vez (`fcb7d15`). A resposta do sistema à presença é a
+  poeira ganhando densidade, não uma mancha. Não reintroduzir.
+- **O ímã vai em `translate`, nunca em `transform`.** O GSAP dirige `transform`
+  na entrada do hero; são canais separados que o navegador compõe. Trocar por
+  `transform` faz os dois disputarem valor e a entrada do hero ganha.
+
+### 16.4 O bug de acumulação — vale como padrão a procurar
+
+A varredura do núcleo era `S.t * .006 * (1 + e*.5 + pulso)`: **velocidade
+multiplicando tempo ACUMULADO**. Derivando, a taxa real é
+`k·(1+p) + t·k·dp/dt` — o segundo termo cresce com o tempo de página. Medido
+por simulação: o arco saltava até **1,086 radiano entre dois frames** quando o
+Pulso subia aos poucos minutos de visita, e girava descontrolado. Acumular o
+ângulo (`varr += velocidade · dt`) resolve na origem; o salto caiu para 0,018.
+
+**Procure esse padrão em qualquer lugar.** `S.t * k * (fator variável)` está
+errado sempre que o fator puder mudar. `rotA` tinha o mesmo problema latente e
+foi convertido junto (`aber`).
+
+### 16.5 Três bugs achados na revisão, não na escrita
+
+1. **Ímã morto após rolar.** `getBoundingClientRect` de elemento `position:
+   fixed` já vem em viewport, e o cache somava o scroll — o alvo virava um
+   ponto de documento que andava com a página. O CTA da nav e o botão do
+   medidor ficavam com o alvo centenas de px acima da tela. Agora controle
+   fixo guarda viewport, o resto guarda documento.
+2. **`.btn--primary` sem inércia.** Ele redeclara `transition` por inteiro e o
+   valor mais específico SUBSTITUI a lista do `.btn` — **não há herança de
+   itens entre transições**. Sem repetir `translate` ali, os três CTAs
+   principais saltariam. Vale para qualquer property nova adicionada ao `.btn`.
+3. **Regime incoerente.** `focused` era testado antes de `wake`: um cursor
+   esquecido sobre um card mantinha o estado em "atenção" para sempre enquanto
+   o canvas escurecia. Sem presença não há atenção.
+
+### 16.6 O grão tem um teto MEDIDO — não mexa sem refazer a conta
+
+A película clareia fundo e texto juntos, mas o fundo proporcionalmente mais:
+ela come contraste. Pior caso (alfa cheio do ruído, cobertura efetiva 2,1%):
+
+| par | antes | com grão |
+|---|---|---|
+| `--t1` no fundo | 17,44:1 | 16,83:1 |
+| `--t2` no fundo | 7,32:1 | 7,16:1 |
+| **`--t3` em `--s2`** | 4,73:1 | **4,65:1** |
+| `--stroke` (controle) | 3,39:1 | 3,37:1 |
+
+Todos passam AA, mas o par mais apertado tem **3% de margem** sobre o piso de
+4,5:1. `opacity: .035` deixou de ser gosto e virou restrição.
+
+### 16.7 Custo medido, e o que continua imensurável aqui
+
+Censo de chamadas de desenho + tempo de JS, com o `field.js` real rodando
+contra um contexto 2D falso em Node.js (o servidor local segue bloqueado no
+sandbox e a aba do agente não compõe frames — 14.5 continua valendo):
+
+| estado | chamadas | ms de JS/frame |
+|---|---|---|
+| repouso (antes) | 294 | 0,108 |
+| **repouso (agora)** | **298** | **0,118** |
+| Singular reinado (antes) | 439 | 0,158 |
+| **Singular reinado (agora)** | **392** | **0,175** |
+
++9% em repouso, e o Singular ficou com **47 chamadas a menos** (o núcleo branco
+por partícula passou a usar `z`, uniforme, em vez de `f`, enviesado). 0,12ms
+contra um orçamento de 16,7ms.
+
+**Rasterização de GPU continua imensurável aqui.** O medidor do dono é o juiz.
+
+### 16.8 O que ficou pro olho do dono (nada disto foi visto rodando)
+
+Em ordem de risco — o primeiro é o mais ousado e o primeiro a cortar:
+
+1. **A COLUNA.** É o elemento novo mais visível e permanente. Deveria ler como
+   a espinha de um desenho técnico; se ler como barra de rolagem enfeitada ou
+   como sujeira na margem, corta (é um bloco só, `field.js`, seção 2a).
+2. **O grão.** Se o medidor acusar queda no celular, é o segundo a cortar — é
+   a única camada composta em tela cheia que entrou.
+3. **O ímã.** 4px pode ser pouco (invisível) ou demais (botão solto).
+4. **A leitura do cursor.** Risco oposto: sutil demais para alguém notar.
+5. **DORMANT.** Só aparece depois de ~40s parado; testar deixando a página
+   aberta sem tocar, e conferir se voltar a mexer devolve a vida na hora.
+6. **O RECONHECIMENTO.** Passar o cursor pelas 6 capacidades e ver se o núcleo
+   responde de forma perceptível.
+7. **Os títulos por linha.** Seis seções com o mesmo gesto: confirmar se lê
+   como sistema ou se cansa na terceira.
+
+---
+
 ## 15. ENTRADA PARA A PRÓXIMA SESSÃO — leia isto primeiro
 
 Fechamento limpo: tudo publicado, árvore limpa, nada pendente de decisão
@@ -1707,12 +1872,14 @@ precisar do porquê de uma decisão específica); esta seção é o atalho.
 ### 15.1 Estado agora
 
 ```
-main = rebuild = origin/main = 80ca91d
+origin/main = main = 80ca91d      (o que está NO AR)
+rebuild     = 63d793c            (2 commits à frente — NÃO publicado)
 ```
 
-Árvore limpa, zero commit pendente, zero divergência. `git status` deve dar
-"nothing to commit, working tree clean" — se não der, algo mudou desde que
-isto foi escrito; leia `git log` antes de confiar neste resumo.
+**Mudou em 2026-08-21b:** a árvore não está mais igual ao ar. Os dois commits
+da camada de atmosfera (seção 16) estão na `rebuild` esperando o dono ver e
+pedir a publicação. Árvore de trabalho limpa; nada pendente de decisão técnica,
+só de veredito visual.
 
 Fluxo de publicação (usado 3 vezes nesta sessão, sempre igual):
 ```
@@ -1768,7 +1935,8 @@ reusar qualquer valor.
 
 | Decisão | Estado |
 |---|---|
-| Tudo em 14.6 — malha, paquímetros, núcleo, transição do Singular, capa nova | Aplicado, aguarda veredito visual do dono |
+| **Tudo em 16.8 — coluna, grão, ímã, leitura do cursor, dormência, reconhecimento** | **Aplicado e commitado, NÃO publicado. Aguarda o olho do dono.** |
+| Tudo em 14.6 — malha, paquímetros, núcleo, transição do Singular, capa nova | Publicado, ainda sem veredito visual do dono |
 | Site como 1 card entre 6, ou volta a ser central? | Ainda sem resposta (13.4, nunca resolvida) |
 | Domínio `beyon0-site.vercel.app` vs nome real | Não mudou, decisão separada |
 | `intro.mp4` 4,4 MB (reencodar ou só 1ª visita) | Nunca resolvida |
