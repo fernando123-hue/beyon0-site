@@ -39,6 +39,24 @@
      que percorre esta lista está no fim do arquivo. */
   var aoEscapar = [];
 
+  /* ---------- ESTÁTICA — a marca de transição, reutilizável ----------
+     Um flash de ruído sobre um elemento: "o sinal está sendo reescrito aqui".
+     A palavra do hero usa a PRÓPRIA variação do efeito (embaralhamento de
+     caracteres — ver `morph`, abaixo) porque ali o TEXTO muda de verdade; aqui
+     o elemento não muda de conteúdo, só pisca — a leitura de um instrumento
+     registrando um evento, não de um texto sendo reescrito.
+
+     Exposta em `B.estatica` porque js/anima.js (carregado depois deste
+     arquivo, mas executando no mesmo documento) dispara em cima do PRÓPRIO
+     caminho de revelação — sem isto o kicker só piscaria no caminho de
+     fallback sem GSAP, que é justamente o que quase ninguém usa. */
+  B.estatica = function (el) {
+    if (!el || B.reduced) return;
+    el.classList.remove('is-registrando');
+    void el.offsetWidth;                  /* reinicia se já estava piscando */
+    el.classList.add('is-registrando');
+  };
+
   /* ---------- reveals — nível 2: o fade sutil da navegação ----------
      Uma transição, disparada uma vez ao entrar na viewport. Só LIGA depois
      de 'entrada-pronta' (js/entrada.js): assim não revela nada por baixo do
@@ -54,6 +72,7 @@
           io.unobserve(alvo);                        /* cumpriu o papel, sai da lista */
           if (alvo.closest('.revelando')) continue;  /* a linha cuida desses */
           alvo.classList.add('is-in');
+          if (alvo.classList.contains('section__head')) B.estatica(alvo.querySelector('.kicker'));
         }
       }, { rootMargin: '0px 0px -8% 0px' });
       for (var r = 0; r < reveals.length; r++) io.observe(reveals[r]);
@@ -239,6 +258,7 @@
     window.addEventListener('resize', medirTudo, { passive: true });
     window.addEventListener('load', medirTudo, { passive: true });
     B.on('entrada-pronta', medirTudo);
+    B.on('remedir', medirTudo);           /* a palavra viva pode reflowar o hero */
   }
 
   /* ---------- menu do celular: uma classe, por clique ----------
@@ -335,6 +355,7 @@
     return out;
   }
 
+  var navWordmark = document.querySelector('.nav__logo .wordmark');
   var stEl = document.querySelector('.hero__status-txt');
   var stDe = 'Sistema online · Beyon Zero', stPara = stDe, stP = 1, stMostrado = stDe;
   function anunciar(txt) {
@@ -347,6 +368,68 @@
     var s = stP >= 1 ? stPara : morph(stDe, stPara, stP);
     if (s !== stMostrado) { stMostrado = s; stEl.textContent = s; }
   }
+
+  /* ---------- A PALAVRA VIVA — o núcleo do hero muda de leitura ----------
+     "aplicada" não é a única leitura da frase. O sistema cicla por um
+     vocabulário pequeno do MESMO campo semântico — particípios que fecham com
+     "ao que" sem forçar a gramática — e no Estado Singular troca para um
+     vocabulário mais assertivo: o momento em que o site já está fazendo o
+     espetáculo é o momento certo pra copy mais confiante. Nenhuma das palavras
+     do Singular evoca medo, ameaça ou dano — são palavras de PRECISÃO e
+     DECISÃO, não de pressão. O pedido era agressivo sem gerar atrito, e a
+     linha entre os dois é exatamente essa.
+
+     A TRANSIÇÃO reaproveita `morph()` (acima): o mesmo embaralhamento por
+     glifos de sinal — binário, hex, símbolo — que já troca o status do hero.
+     Não é um efeito novo, é o mesmo mecanismo testado, só mais visível porque
+     o alvo agora é a palavra que carrega a frase inteira. */
+  var PALAVRAS = ['aplicada', 'calibrada', 'direcionada', 'ajustada', 'voltada'];
+  var PALAVRAS_SINGULAR = ['implacável', 'decisiva', 'inevitável', 'imparável'];
+  var pwDe = '', pwPara = '', pwP = 1, pwMostrado = '', pwIdx = 0;
+  var emHero = null;
+  var drivePalavra = function () {};        /* no-op até o hero assentar (ver iniciarPalavra) */
+  var trocarPalavra = function () {};
+  var reiniciarCicloPalavra = function () {};
+
+  function iniciarPalavra() {
+    /* buscado só AGORA, depois do hero assentado — não no load do script — de
+       propósito: o SplitText do título (js/anima.js, `mask:'lines'`) manipula
+       e depois RESTAURA o DOM do h1 durante a entrada, e capturar a referência
+       cedo demais apostaria em como exatamente essa restauração se comporta.
+       Buscar depois que tudo já assentou remove a aposta por completo. */
+    emHero = document.querySelector('.hero__title em');
+    if (!emHero) return;
+    pwDe = pwPara = pwMostrado = emHero.textContent;
+
+    trocarPalavra = function () {
+      var lista = document.body.classList.contains('is-singular') ? PALAVRAS_SINGULAR : PALAVRAS;
+      pwIdx = (pwIdx + 1) % lista.length;
+      var alvo = lista[pwIdx];
+      if (alvo === pwMostrado) { pwIdx = (pwIdx + 1) % lista.length; alvo = lista[pwIdx]; }
+      pwDe = pwMostrado; pwPara = alvo; pwP = 0;
+    };
+    drivePalavra = function (dt) {
+      if (pwP >= 1) return;
+      pwP = Math.min(1, pwP + dt / 620);
+      var s = pwP >= 1 ? pwPara : morph(pwDe, pwPara, pwP);
+      if (s !== pwMostrado) { pwMostrado = s; emHero.textContent = s; }
+      /* a palavra assentou: o comprimento pode ter mudado a quebra do título,
+         que empurra tudo abaixo do hero — remede o que está em cache, sem
+         resemear o campo (ver `remedir` em field.js e dom.js). */
+      if (pwP >= 1) B.emit('remedir');
+    };
+    var ciclo = null;
+    reiniciarCicloPalavra = function () {
+      if (ciclo) clearInterval(ciclo);
+      ciclo = setInterval(trocarPalavra, 5200 + Math.random() * 2600);
+    };
+    reiniciarCicloPalavra();
+  }
+  /* mesmo atraso de segurança que a entrada do hero já usa em outros lugares
+     deste arquivo (booted+4000/4500): tempo de sobra para a timeline do GSAP
+     (status, título em linhas, subtítulo, ações) terminar de vez. */
+  if (document.body.classList.contains('booted')) setTimeout(iniciarPalavra, 5200);
+  else B.on('booted', function () { setTimeout(iniciarPalavra, 5200); });
 
   /* ---------- PULSO ----------
      Uma onda que atravessa a cadeia. O canvas lê S.pulse e S.pulseFront; o DOM
@@ -471,11 +554,21 @@
       document.body.classList.remove('is-singular');
       anunciar('Sistema online · Beyon Zero');
       proxSing = now + 70000 + Math.random() * 60000;
+      /* o regime volta ao ciano: a palavra volta ao vocabulário normal na
+         hora, não espera o próximo ciclo. `B.estatica` no wordmark marca a
+         própria identidade registrando a volta ao regime — mesmo gesto do
+         início, ver abaixo. */
+      trocarPalavra(); reiniciarCicloPalavra();
+      B.estatica(navWordmark);
     }
     if (proxSing && now > proxSing && !S.pulse) {
       singAte = now + SDUR;
       document.body.classList.add('is-singular');
       anunciar('AI Core no comando');
+      /* o Singular começa: a palavra pula direto pro vocabulário assertivo —
+         é o momento de maior confiança do site, não faz sentido esperar. */
+      trocarPalavra(); reiniciarCicloPalavra();
+      B.estatica(navWordmark);
     }
   }
 
@@ -495,6 +588,7 @@
     drivePulso(s.now, s.dt);
     driveSingular(s.now);
     driveStatus(s.dt);
+    drivePalavra(s.dt);
   });
 
   /* ---------- medidor: números reais, atualizado 2x por segundo ---------- */

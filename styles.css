@@ -252,6 +252,7 @@ em {
    O kicker de seção: metadado + régua. A régua é a assinatura estrutural do
    site — ela reaparece em cada nível de composição. */
 .kicker {
+  position: relative;
   font-family: var(--mono);
   font-size: .66rem;
   font-weight: 500;
@@ -1139,6 +1140,44 @@ h1 em:not(:empty)::after,  h2 em:not(:empty)::after  { right: -.24em; transform:
   transform: none;
 }
 
+/* ---- ESTÁTICA: a marca de transição ---------------------------------------
+   Um flash breve de ruído sobre um elemento — a leitura de "o sinal está
+   sendo reescrito aqui". Reaplicada em pontos ESPARSOS já ligados a eventos
+   que o site já tinha (o kicker ao revelar a seção, o wordmark ao trocar de
+   regime): nenhuma interação nova, uma resposta a mais nos MESMOS instantes.
+
+   `steps()` no timing, não uma curva suave: pisca, não esmaece — é assim que
+   sinal digital rompendo se comporta. O ruído é `feTurbulence` passado por
+   `feColorMatrix` para branco puro com alfa variável (não a mistura colorida
+   que `feTurbulence` produz sozinho): sobre a paleta do site, ruído colorido
+   leria como um matiz novo entrando; branco variando de alfa lê como
+   interferência, que é a linguagem certa.
+
+   Ativado por classe (`B.estatica`, js/dom.js) — sem ela o pseudo-elemento
+   existe mas nunca pinta (opacity 0 em repouso, custo zero). */
+/* só a marca da NAV recebe o gancho de posicionamento — a do rodapé
+   (`.wordmark--lg`) não participa da troca de regime, não precisa dele. */
+.nav__logo .wordmark { position: relative; }
+.kicker::before, .nav__logo .wordmark::before {
+  content: "";
+  position: absolute; inset: -6px;
+  pointer-events: none;
+  z-index: 2;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='70' height='70'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch' result='t'/%3E%3CfeColorMatrix in='t' type='matrix' values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .9 0'/%3E%3C/filter%3E%3Crect width='70' height='70' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 60px 60px;
+  opacity: 0;
+}
+/* DUAS piscadas, não três: WCAG 2.3.1 marca "mais de três flashes por
+   segundo" como risco de convulsão fotossensível, e reduced-motion não cobre
+   esse risco especificamente (é uma preferência de MOVIMENTO, não de FLASH) —
+   então o limite vale independente da preferência do visitante. Duas em .5s
+   fica bem abaixo do limiar e ainda lê como "piscou duas vezes", que é o
+   efeito inteiro. */
+.kicker.is-registrando::before, .nav__logo .wordmark.is-registrando::before {
+  animation: estatica-pisca .25s steps(1, end) 2;
+}
+@keyframes estatica-pisca { 0%, 100% { opacity: 0; } 50% { opacity: .55; } }
+
 /* ---- MEDIR: a régua do kicker se desenha ---------------------------------
    A régua que já fechava o kicker agora ENTRA: cresce da esquerda quando a
    seção é revelada. Mesmo gesto do sublinhado da palavra, uma hierarquia
@@ -1220,13 +1259,43 @@ h1 em:not(:empty)::after,  h2 em:not(:empty)::after  { right: -.24em; transform:
 .qa[open]::before { transform: scaleY(1); }
 @media (max-width: 900px) { .qa::before { left: -8px; } }
 
-/* ---- VARRER: o passo ativo do método -------------------------------------
-   Ao apontar um passo, o trilho até o próximo nó se acende no sentido da
-   leitura: a sequência mostra para onde vai. */
+/* ---- VARRER: o fluxo até o passo apontado --------------------------------
+   Apontar um passo não acende só ele — acende a CADEIA até ali, porque um
+   passo 3 só significa algo depois do 1 e do 2. `:has()` olha à frente no
+   documento ("existe um passo depois de mim em :hover?") e cada nó/trilho
+   anterior responde: é o mesmo trilho e o mesmo nó que o passo já tinha,
+   recebendo o MESMO peso visual que o primeiro passo usa em repouso (a régua
+   de "isto já foi") — nenhum vocabulário novo, só estendido para trás.
+
+   O nó SOB o cursor é diferente dos que ele atravessou: preenchido, não só
+   com o anel — é a diferença entre "o caminho até aqui" e "é aqui que estou".
+   Hardcoded para 3 passos de propósito: é a contagem real da seção, e a
+   regra genérica exigiria seletor `:has()` recursivo que nenhum navegador
+   resolve mais rápido que listar os pares. */
 .step::before { transform-origin: left; transition: background var(--t) var(--ease); }
+.step::after { transition: box-shadow var(--t) var(--ease), transform var(--t) var(--ease), background var(--t) var(--ease); }
+
 .step:hover::before { background: rgb(var(--ac-rgb) / .55); }
-.step::after { transition: box-shadow var(--t) var(--ease); }
-.step:hover::after { box-shadow: inset 0 0 0 3.5px var(--ac); }
+
+/* o passo apontado: preenchido + um anel solto por fora (0 de blur — é uma
+   marca de mira, não um halo; a identidade veta halo, não anel nítido). */
+.step:hover::after {
+  background: var(--ac);
+  box-shadow: inset 0 0 0 3.5px var(--ac), 0 0 0 3px rgb(var(--ac-rgb) / .22);
+  transform: scale(1.15);
+}
+
+/* a cadeia atravessada: mesmo anel que o passo ativo já usa em repouso */
+.steps:has(.step:nth-child(2):hover) .step:nth-child(1)::before,
+.steps:has(.step:nth-child(3):hover) .step:nth-child(1)::before,
+.steps:has(.step:nth-child(3):hover) .step:nth-child(2)::before {
+  background: rgb(var(--ac-rgb) / .55);
+}
+.steps:has(.step:nth-child(2):hover) .step:nth-child(1)::after,
+.steps:has(.step:nth-child(3):hover) .step:nth-child(1)::after,
+.steps:has(.step:nth-child(3):hover) .step:nth-child(2)::after {
+  box-shadow: inset 0 0 0 3.5px var(--ac);
+}
 
 /* ---- reduced-motion ------------------------------------------------------
    O bloco global de acessibilidade já zera durações. O que importa aqui é que

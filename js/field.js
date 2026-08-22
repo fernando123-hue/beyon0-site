@@ -224,6 +224,11 @@
      JÁ transformada — os retângulos medidos antes da revelação ficam fora do
      lugar. Ao fim da entrada, remede uma vez. */
   B.on('entrada-pronta', function () { sujo = true; medirSecoes(); });
+  /* a palavra viva do hero (js/dom.js) pode mudar o comprimento do título e
+     empurrar tudo abaixo — o mesmo remédio do resize, sem resemear o campo:
+     `dimensionar()` reseeda as partículas, e reseedar a cada troca de palavra
+     trocaria a poeira de lugar a cada 5-7s à toa. */
+  B.on('remedir', function () { sujo = true; medirSecoes(); });
   window.addEventListener('load', medirSecoes, { passive: true });
 
   /* halo: um gradiente por chamada é barato (~1ms para 64 halos, medido) e é
