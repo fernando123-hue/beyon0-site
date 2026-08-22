@@ -1,6 +1,15 @@
 # Beyon Zero — transferência de contexto
 
-**Última atualização:** 2026-08-20 · **Branch ativa:** `rebuild` · **HEAD:** `a60e414` (PUBLICADO — é o que está no ar, `main = rebuild = origin/main`)
+**Última atualização:** 2026-08-21 · **Branch ativa:** `rebuild` · **HEAD:** `80ca91d` (PUBLICADO — é o que está no ar, `main = rebuild = origin/main`)
+
+> **Se você é a próxima sessão, comece pela SEÇÃO 15 (ENTRADA PARA A
+> PRÓXIMA SESSÃO) — é o atalho, escrito pra isso.** Ela aponta pra seção 14
+> (RECONSTRUÇÃO VISUAL TOTAL, 2026-08-21), que substitui as seções 5 e 6 por
+> inteiro: a identidade visual mudou de paleta, o AI Core foi redesenhado do
+> zero, e uma camada de efeitos nova entrou. Ler as seções 5/6 sem saber
+> disso vai te dar uma imagem ERRADA do estado atual — elas descrevem o
+> ciano neon (`#00F5FF`) e o reator-orbe antigos, que não existem mais no
+> código. A seção 13 é a entrada da sessão anterior, mantida como histórico.
 
 > **Se você é a próxima sessão, comece pela SEÇÃO 13 (ENTRADA PARA A PRÓXIMA
 > SESSÃO) — é o ponto de entrada rápido, escrito pra isso.** As seções 12.1–
@@ -118,7 +127,14 @@ Saíram da medição, não de preferência. Violá-las traz o problema de volta.
 
 ---
 
-## 5. Identidade visual — SAGRADA
+## 5. Identidade visual — SAGRADA (SUPERADA — ver seção 14)
+
+> **Esta seção descreve a paleta ANTES da reconstrução de 2026-08-21.** O
+> ciano `#00F5FF` saturado, as superfícies tingidas (`--deep`/`--mid`), a
+> "borda de aurora" e o vidro (`backdrop-filter`) nos cards foram TODOS
+> substituídos. Fica aqui como registro histórico de como a identidade
+> evoluiu — ver seção 14.1 pra paleta e regras atuais. Não implemente nada
+> a partir do que está abaixo sem conferir a seção 14 primeiro.
 
 Rampa ciano, âncora + contraponto (ver EXCEÇÃO abaixo). Nenhum hex fora dela em repouso.
 
@@ -172,7 +188,18 @@ primeiro a cortar é o `backdrop-filter` do desktop, depois a borda.
 
 ---
 
-## 6. Arquitetura atual (branch `rebuild`)
+## 6. Arquitetura atual (branch `rebuild`) (SUPERADA — ver seção 14)
+
+> **Contagem de linhas, nomes de efeito ("TIPOGRAFIA POR GLIFO", "borda de
+> aurora") e a descrição do AI Core abaixo são de ANTES da reconstrução de
+> 2026-08-21.** A tipografia-por-glifo (cada letra oscilando pra sempre) foi
+> REMOVIDA — rodava sem produzir efeito visual nenhum depois que a folha de
+> estilo foi reescrita (achado da sessão de lapidação, ver 14.4). O AI Core
+> não é mais um reator com bezel/grade/giroscópio — é uma abertura de
+> lâminas. A seção 14.2 tem a contagem de linhas e o mapa de arquivos atuais.
+> O resto desta seção (o rAF único, `js/core.js`, a entrada em dois níveis,
+> a armadilha do `:not(#fx)`) continua **verdadeiro** — a arquitetura de
+> performance não mudou, só o que é desenhado dentro dela.
 
 ```
 index.html      411 linhas   markup semântico, UM canvas (#fx), overlay #intro, FAQ accordion
@@ -1340,7 +1367,13 @@ CSS, não por captura de tela.
 
 ---
 
-## 13. ENTRADA PARA A PRÓXIMA SESSÃO — leia isto primeiro
+## 13. Entrada da sessão de 2026-08-20 (HISTÓRICO — ver seção 15 pra entrada atual)
+
+> Esta seção foi o ponto de entrada rápido até a reconstrução de 2026-08-21.
+> 13.1/13.2/13.4 estão desatualizadas (branch, lista de mudanças, decisões
+> em aberto — tudo isso a seção 15 substitui). **13.3 (Playbook Comercial)
+> e 13.6 (como o dono trabalha) continuam válidas, sem mudança.** 13.5
+> (armadilhas do ambiente) continua válida E ganhou itens novos — ver 14.5.
 
 Fechamento limpo, de propósito: tudo publicado, árvore limpa, nada
 pendente de decisão técnica. As seções 12.1–12.11 são o histórico
@@ -1454,3 +1487,304 @@ isso" quando um fato mudou (ex.: nome da empresa) e espera que a correção
 se espalhe por tudo que for relevante, não só o que foi perguntado.
 Aprova subagente só quando pede explicitamente — regra do sistema, não do
 dono, mas vale registrar que nunca foi preciso usar um nesta sessão.
+
+---
+
+## 14. RECONSTRUÇÃO VISUAL TOTAL (2026-08-21) — LEIA ANTES DE 5 E 6
+
+O dono pediu uma reformulação completa do site — não restyling, reconstrução:
+"não tenha apego ao código atual", "se alguma estrutura estiver prejudicando
+o resultado, substitua". Cinco commits, nesta ordem: reformulação visual →
+AI Core → camada de efeitos → varredura de lapidação → capa social. Esta
+seção é a referência atual; **substitui as seções 5 e 6 por inteiro**.
+
+### 14.1 A nova identidade — "INSTRUMENTO DE PRECISÃO"
+
+Diagnóstico do porquê o site anterior (ciano neon + borda de aurora em 13
+elementos + vidro) lia como "tem algo faltando", apesar de tecnicamente
+correto: a cor não significava nada (o mesmo ciano saturado em ~20
+componentes diferentes, incluindo as SUPERFÍCIES — nem o "cinza" era
+neutro), ~25 elementos com `inset 0 0 0 1px` (tudo virava caixa flutuante),
+e o hero era o template genérico que `design-quality.md` proíbe
+explicitamente (centralizado, reator atrás do texto, pill de status).
+
+Nova paleta — **5 neutros frios + 1 cor de ação + 1 estado quente**, e nada
+mais:
+
+```
+--bg #050507 · --s1 #0A0A0D · --s2 #101015 · --line #1C1C22 · --line-hi #2C2C36
+--t1 #EDEDF1 (17,4:1) · --t2 #9A9AA6 (7,3:1) · --t3 #7E7E8A (5,1:1) · --stroke #62626F (3,4:1, contorno de CONTROLE — WCAG 1.4.11)
+--ac #4FD8F0 (a ÚNICA cor de ação) · --warm #F0B44F (o Singular troca só isto)
+```
+
+Todos os pares texto/fundo passam AA (conferido por script, não no olho — ver
+14.5). `--ac` e `--ac-rgb` são **`@property` tipados** (`syntax: '<color>'` /
+`'<number>+'`), com a transição declarada UMA vez em `body`: é isso que faz o
+Singular trocar de ciano pra âmbar suavemente em vez de saltar — ver 14.5
+pro porquê de precisar disso (não é o mesmo bug de `var()` aninhado da
+12.11, é outro: gradiente/box-shadow não interpola cor via transição comum,
+precisa do valor tipado).
+
+**Regra de estrutura**: malha (grid com gap de 1px sobre `--line`) e régua,
+não caixa. `.mesh` (capacidades) e `.apps` (aplicações) são os dois lugares
+que usam isso — as frestas de 1px viram a grade, zero borda declarada por
+célula. `.diag` (a seção "o problema") é três LINHAS com índice mono e
+régua embaixo, não mais três cards.
+
+**O que morreu, e por quê**: borda de aurora animada (13 elementos,
+conic-gradient, o efeito mais caro e mais repetido do site antigo);
+`em`/aurora-text (gradiente clipado no texto, 2 camadas animadas); todo
+`backdrop-filter`/glassmorphism; `.mock__frame` (8 camadas de gradiente por
+card simulando "uma interface", em `#projetos` — virou `.apps`, uma leitura
+de estado: três marcos ligados por fio, só o último recebe cor); `--gold`
+como paleta paralela do Singular (virou `--warm`, e a troca é só de temperatura
+da MESMA luz — antes o Singular remapeava fundo+borda+texto+painel e o site
+virava "outro site" por 18s).
+
+### 14.2 Arquitetura atual — contagem real
+
+```
+index.html      486 linhas
+styles.css     1353 linhas
+js/core.js      185 linhas   INTOCADO — loop, orçamento, profilador, tudo igual
+js/field.js     571 linhas   canvas: paleta realinhada + AI Core reconstruído (14.3)
+js/dom.js       434 linhas   +3: `--near` passou a escrever em `.app` também, não só `.card`
+js/anima.js     214 linhas   -75: `vivaChars()` (tipografia-por-glifo) removida por inteiro
+js/entrada.js    80 linhas   intocado
+js/intro.js      99 linhas   intocado
+```
+
+`js/anima.js` não existia como arquivo citado nas seções antigas com esse
+peso — GSAP + ScrollTrigger + SplitText continuam sendo a única dependência
+de runtime (vendored em `vendor/gsap/`, ~124KB bruto). O que mudou é que ele
+ficou mais magro: a função que quebrava cada título em `.char` e fazia cada
+letra oscilar pra sempre (`@keyframes ressoar`, 3s infinite) rodava **mesmo
+depois** de `styles.css` perder as regras `.char`/`.viva`/`.split` na
+reescrita — 220 `.char` + 40 `.palavra-viva`, ~260 nós de DOM, quase metade
+dos elementos da página inteira, produzindo efeito visual **zero**. Achado e
+removido na varredura de lapidação (commit `1ff4ec9`). A página caiu de 542
+para 282 elementos. SplitText continua em uso na entrada do hero
+(`type:'lines', mask:'lines'`) — isso é evento de entrada, não foi tocado.
+
+### 14.3 O AI Core — de orbe a abertura
+
+O reator do hero (e o "mini AI Core" no barramento das capacidades) era um
+**orbe**: bezel de 60 marcas, grade concêntrica de 3 círculos, 12 raios,
+giroscópio de 3 elipses inclinadas girando em ritmos diferentes, núcleo
+poligonal, 2 halos (um do tamanho do núcleo inteiro). 9 elementos redondos,
+7 rotações simultâneas — a "esfera neon genérica de produto de IA" que o
+dono pediu explicitamente pra evitar, e que não tinha relação com o resto
+da página, agora toda ortogonal (malha, régua, ângulo reto).
+
+Virou uma **abertura de precisão** (diafragma de 6 lâminas retas), com o
+MESMO vocabulário do site — malha, régua, marca de registro:
+
+1. **Malha** — a mesma grade de `.mesh`, em círculo, estática.
+2. **Anel de registro** — círculo fino + 4 marcas cardeais que NÃO giram.
+3. **Varredura** — um arco curto percorrendo o anel. Único movimento
+   contínuo (era 7 rotações; virou 1).
+4. **Abertura** — 6 lâminas retas (corda tangente a um círculo interno,
+   pontas na borda externa). No Singular ela ABRE (raio interno cresce) —
+   resposta mecânica legível, no lugar dos 12 feixes radiais antigos.
+5. **Eixos** — cruz de referência, completando a malha.
+6. **Ponto** — uma luz central pequena. Era 2 halos; virou 1.
+
+**Como a geometria foi validada sem conseguir ver o navegador renderizar**:
+escrito um rasterizador PNG em Node.js puro (Float64Array + `zlib.deflateSync`,
+sem `canvas`/`sharp`/dependência nenhuma — script descartável, não ficou no
+repo) que reproduz a MESMA matemática do `field.js` e desenha os três
+estados (repouso/pulso/Singular) lado a lado. Isso pegou um bug real antes
+de publicar: com `rOut` fixo (`R*.74`), a lâmina passava **80px** do canto
+do hexágono contra uma aresta de 55px — sobra maior que o trecho útil,
+lendo como gravetos cruzados, não diafragma. Corrigido derivando `rOut` de
+`rIn` pelo circunraio do hexágono (`K_HEX = 1/cos(π/n)`) com folga de 1.10 —
+testado 1.04/1.10/1.16/1.22 no rasterizador antes de escolher. Custo: caiu
+de 0,393ms/frame pra 0,241ms (repouso) — o bezel antigo sozinho fazia 60
+`ctx.stroke()` individuais.
+
+**Se a próxima sessão precisar validar geometria de canvas de novo**: este é
+o caminho. Escrever um rasterizador Node.js standalone é mais rápido e mais
+confiável do que tentar forçar screenshot no navegador do agente (ver 14.5).
+
+### 14.4 Camada de instrumentação — os efeitos novos
+
+Princípio: **um instrumento não brilha — ele REGISTRA, MEDE, VARRE e
+ENERGIZA.** Só esses 4 verbos. Proibido: glow, halo, blur, gradiente
+decorativo, sombra, bounce, qualquer coisa que se mova sozinha em repouso —
+todo efeito é resposta a uma AÇÃO.
+
+| Efeito | Onde | O quê |
+|---|---|---|
+| Malha viva | `.mesh`/`.apps` | célula acende a PRÓPRIA fresta com `--near` |
+| Marcas de canto | `.card`/`.app` | 4 cantos em L fecham no hover — visor, não borda |
+| Tick do índice | `.card__tag` | traço se estende até o número |
+| Régua do laudo | `.diag__row` | régua com pontas percorre a divisória |
+| Paquímetros | `h1 em`/`h2 em` | 2 traços verticais fecham sobre a palavra em destaque |
+| Régua do kicker | `.kicker::after` | cresce da esquerda ao revelar a seção |
+| Nível do botão | `.btn` | enche da esquerda, não acende |
+| Corrente do fluxo | `.app__flow` | nós acendem em ordem, atraso escalonado |
+
+**Bug real, achado só ao renderizar de propósito**: a primeira versão dos
+paquímetros era um SUBLINHADO sob a palavra. Com `line-height: 1.08` num
+título de 48px sobram ~3px até a linha seguinte — a régua cruzava
+descendentes ("parada hu**m**ana") ou invadia a linha de baixo, e como
+quase todo título aqui tem 2-3 linhas, isso acontecia sempre. Medir na
+HORIZONTAL (2 traços verticais, não 1 linha embaixo) resolve — sobra espaço
+lateral, nenhum descendente é atravessado. Achado com o MESMO truque do
+rasterizador (14.3), estendido pra desenhar a camada de efeitos também.
+
+**Outros 3 bugs achados só ao verificar, não ao escrever**: (1) `.btn:hover`
+usava o shorthand `background:` — isso zerava o `background-image` do
+preenchimento, então o nível do botão nunca apareceria; virou
+`background-color` em toda variante de botão. (2) O SplitText do hero
+(`mask:'lines'`) deixa um `<em>` VAZIO no `h1` durante a animação — sem
+guarda, os paquímetros desenhariam dobrados, soltos, num ponto de largura
+zero; toda regra de paquímetro tem `:not(:empty)`. (3) `--near` só era
+escrito em `.card`, e `.apps > .app` não é `.card` — metade da regra da
+malha viva era letra morta; `js/dom.js` passou a escrever em `.card, .app`.
+
+### 14.5 Descoberta de ambiente — o rAF desta aba fica CONGELADO
+
+**Isto é novo em relação à seção 13.5 e é importante**: além de a aba não
+compor frames (já sabido), esta sessão provou que **`requestAnimationFrame`
+para de disparar** quando a aba não está em foco/visível — medido com um
+contador simples: 1 callback em 2 segundos de espera. Consequência prática:
+`ScrollTrigger.update()`/`.refresh()` nunca avança sozinho aqui, e QUALQUER
+`transition` CSS fica parada no valor inicial — testado até com uma
+transição trivial (`opacity 400ms linear`) que também não avançou.
+
+**Como isto invalida um jeito óbvio de testar**: ler `getComputedStyle` logo
+depois de trocar uma classe vai devolver o valor DE PARTIDA de uma
+transição, não o valor-alvo, e vai PARECER um bug que não é um. O caminho
+que funciona: `element.style.transition = 'none'` antes de trocar o estado,
+ler o valor (que agora resolve instantaneamente), depois desfazer. Ou,
+melhor ainda pra geometria de canvas: nem tentar renderizar aqui — usar o
+rasterizador Node.js standalone (14.3).
+
+**Achado que também importa**: Chrome instalado no SISTEMA (fora do
+navegador interativo do agente) roda em modo headless por linha de comando e
+ESCREVE arquivo no disco via `--screenshot`:
+```
+chrome.exe --headless=new --window-size=1200,630 --screenshot=SAIDA.png
+           --user-data-dir=<perfil temporário isolado> ALVO.html
+```
+Foi assim que a capa social (`assets/og-cover.jpg`) foi gerada e gravada
+sem precisar de nenhuma ponte navegador→disco. **Cuidado real**: rodar
+`chrome.exe` SEM `--user-data-dir` reaproveita a sessão do Chrome REAL do
+dono, se ele tiver uma aberta — a primeira tentativa desta sessão fez
+exatamente isso ("Abrindo em uma sessão de navegador existente"). Sempre
+usar um `--user-data-dir` temporário isolado, e apagá-lo depois. Isto é
+capacidade nova que a seção 13.5 não sabia que existia — pode valer pra
+qualquer necessidade futura de gerar imagem/PDF a partir de HTML.
+
+### 14.6 O que ficou pro olho do dono (nada disto foi visto renderizado)
+
+- A malha acendendo ao aproximar o cursor das capacidades — é a aposta
+  central da camada de efeitos.
+- Os paquímetros fechando sobre a palavra em destaque quando o título entra.
+- O núcleo — se a abertura hexagonal lê como mecanismo ou ainda como enfeite.
+- O Singular — se a transição ciano→âmbar está de fato suave agora (era o
+  pedido explícito que motivou os tokens `@property`).
+- A capa social nova (`assets/og-cover.jpg`), ao compartilhar o link.
+
+### 14.7 Ferramentas que ficaram no repo
+
+- `docs/og-render.html` — alvo LIMPO (só o canvas 1200×630) pro Chrome
+  headless fotografar. Se a composição da capa mudar, editar aqui e
+  rodar o comando de 14.5 de novo.
+- `docs/og-gerador.html` — mesma composição, com interface, pra gerar e
+  baixar manualmente pelo navegador de verdade, sem linha de comando.
+- Os dois ficam fora do deploy (`docs/` está no `.vercelignore`).
+
+---
+
+## 15. ENTRADA PARA A PRÓXIMA SESSÃO — leia isto primeiro
+
+Fechamento limpo: tudo publicado, árvore limpa, nada pendente de decisão
+técnica. A seção 14 é o histórico detalhado de COMO se chegou aqui (leia se
+precisar do porquê de uma decisão específica); esta seção é o atalho.
+
+### 15.1 Estado agora
+
+```
+main = rebuild = origin/main = 80ca91d
+```
+
+Árvore limpa, zero commit pendente, zero divergência. `git status` deve dar
+"nothing to commit, working tree clean" — se não der, algo mudou desde que
+isto foi escrito; leia `git log` antes de confiar neste resumo.
+
+Fluxo de publicação (usado 3 vezes nesta sessão, sempre igual):
+```
+git checkout main && git merge rebuild --ff-only && git push origin main && git checkout rebuild && git push origin rebuild
+```
+O dono pede publicação de forma direta ("publica", "sim") — não precisa
+confirmar de novo se o pedido já veio assim. Antes de publicar: registrar o
+commit que está no ar (`git log --oneline origin/main -1`) como alvo de
+rollback, e confirmar fast-forward limpo (`git log --oneline rebuild..origin/main`
+tem que vir vazio) antes do merge.
+
+### 15.2 O que esta sessão fez, em ordem
+
+Pedido do dono, verbatim: reformular o site inteiro — "não tenha apego ao
+código atual", depois "adicione efeitos, mas considere os antigos como
+contra-exemplo", depois "analise tudo de novo e lapide — design, copy,
+otimização". Cinco commits:
+
+1. `88017ec` **Reformulação visual completa.** Nova direção ("instrumento de
+   precisão"), nova paleta (5 neutros + 1 cor de ação), hero reconstruído
+   assimétrico, `.diag`/`.mesh` substituindo os cards antigos. Ver 14.1.
+2. `dd7699e` **AI Core reconstruído.** De orbe (9 elementos redondos, 7
+   rotações) pra abertura de lâminas (6 elementos, 1 rotação). Validado com
+   rasterizador Node.js standalone, não no navegador. Ver 14.3.
+3. `e5859e6` **Camada de instrumentação.** 8 efeitos novos, 4 verbos só
+   (registrar/medir/varrer/energizar). Ver 14.4.
+4. `1ff4ec9` **Varredura de lapidação.** Achado grande: `vivaChars()`
+   (tipografia-por-glifo) rodava produzindo ~260 nós de DOM mortos — a folha
+   de estilo tinha perdido as regras dela na reescrita e ninguém tinha
+   notado. Página caiu de 542 pra 282 elementos. Mais: `<br>` de título
+   quebrando errado no celular, copy ("orbita" não fazia mais sentido sem o
+   orbe), favicon com a marca antiga ("beyon.0") na paleta antiga. Ver 14.2/14.4.
+5. `80ca91d` **Capa social atualizada.** `og-cover.jpg` era do PRIMEIRO
+   commit do projeto (vórtice ciano antigo). Resolvido com Chrome do sistema
+   em modo headless — ver 14.5 pro comando exato e o cuidado com
+   `--user-data-dir`.
+
+Verificação em TODAS as etapas foi estrutural (medição, script, rasterizador
+Node.js) — nunca visual direta. Ver 14.6 pra lista do que só o olho do dono
+fecha.
+
+### 15.3 O Playbook Comercial — continua fora deste repositório
+
+Sem mudança desde a seção 13.3: `C:\Vault - Fernando\Beyon 0 - Playbook Comercial\`,
+pasta irmã, fora do git e do deploy. Se o dono pedir mudança nele, é arquivo
+diferente — não confundir com o site. **Atenção**: o playbook herda a
+identidade visual do site (mesmos tokens de cor, mesmas fontes) — se ele for
+tocado numa sessão futura, os tokens antigos (`--glow`/`--gold` etc.) que ele
+copiou não existem mais neste projeto. Conferir contra a seção 14.1 antes de
+reusar qualquer valor.
+
+### 15.4 Decisões em aberto
+
+| Decisão | Estado |
+|---|---|
+| Tudo em 14.6 — malha, paquímetros, núcleo, transição do Singular, capa nova | Aplicado, aguarda veredito visual do dono |
+| Site como 1 card entre 6, ou volta a ser central? | Ainda sem resposta (13.4, nunca resolvida) |
+| Domínio `beyon0-site.vercel.app` vs nome real | Não mudou, decisão separada |
+| `intro.mp4` 4,4 MB (reencodar ou só 1ª visita) | Nunca resolvida |
+| `feat/ai-core-3d` (reator 3D, Three.js, 66 testes) | Pausada, intocada — e agora desalinhada da identidade nova, se for retomada precisa revisão visual primeiro |
+| Analytics/conversão | Site não mede nada ainda |
+
+### 15.5 Armadilhas — ver 13.5 + 14.5 juntas
+
+13.5 continua valendo por inteiro (aba não compõe frames, `file://` fora da
+pasta abre estático, custom property aninhada resolve na declaração). 14.5
+adiciona o achado desta sessão: **o rAF desta aba fica congelado** (para de
+disparar sem foco), então nenhuma `transition`/`animation` avança sozinha
+aqui — zerar a transição antes de ler valor, ou usar o rasterizador Node.js
+standalone pra qualquer coisa visual que precise de confiança alta. E:
+Chrome do SISTEMA em modo headless escreve arquivo no disco direto, sem
+ponte nenhuma — útil pra qualquer geração de imagem/PDF futura, com o
+cuidado de sempre isolar `--user-data-dir`.
+
+### 15.6 Como o dono trabalha — sem mudança, ver 13.6
