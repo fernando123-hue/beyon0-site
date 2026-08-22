@@ -121,6 +121,7 @@
   var ps = [], nAlvo = 0;
   var reator = null, barramento = null;
   var servNos = [], nucleo = null, nucAlpha = 0;
+  var stepNos = [];                    /* nós da linha do tempo — a aura de energia */
   var sujo = true;
 
   /* o DOM é estático: buscar os mesmos elementos a cada scroll é trabalho
@@ -129,6 +130,7 @@
   var elBus = document.querySelector('.bus');
   var elServ = document.querySelectorAll('.card--service');  /* elos do mini AI Core */
   var elSecoes = document.querySelectorAll('main > section[id]');
+  var elSteps = document.querySelectorAll('.steps .step');    /* nós do método */
 
   /* A COLUNA — as fronteiras de seção, como fração da jornada de rolagem.
      Medidas em coordenadas de DOCUMENTO (offsetTop), então não mudam com o
@@ -215,6 +217,19 @@
        margin-top grande no CSS pra isto). Fica logo acima do rótulo — bem
        ABAIXO da base dos cards, então não cola mais neles. */
     nucleo = barramento ? { x: barramento.x + barramento.w / 2, y: barramento.y - 24, r: 22 } : null;
+
+    /* NÓS DA LINHA DO TEMPO — a aura de energia é desenhada em volta deles.
+       O nó (`.step::after`) mora no canto superior-esquerdo do `.step`: ~4px
+       para dentro nos dois eixos, tanto no desktop quanto no mobile (a única
+       diferença é o `left` de 3px do trilho vertical, absorvido nos 4px). Medir
+       o `.step` e deslocar é mais barato e estável do que tentar ler o pseudo,
+       que `getBoundingClientRect` nem enxerga. */
+    stepNos.length = 0;
+    for (var sp = 0; sp < elSteps.length; sp++) {
+      var rs = elSteps[sp].getBoundingClientRect();
+      if (rs.bottom < -60 || rs.top > H + 60 || !rs.width) continue;
+      stepNos.push({ x: rs.left + 4, y: rs.top + 4 });
+    }
 
     sujo = false;
   }
@@ -735,6 +750,64 @@
       ctx.fillStyle = bg;
       ctx.fillRect(barramento.x, barramento.y - 1, barramento.w, 2);
       halo(bx, barramento.y, 26, alta, .3 * pulso);
+    }
+
+    /* ---- AURA DOS NÓS DA LINHA DO TEMPO ----
+       Pedido do dono: os nós do método com "uma espécie de aura, não uma luz
+       genérica redonda em volta". Um `box-shadow` borrado seria exatamente essa
+       luz redonda vetada — então a aura é FEITA DE ESTRUTURA, no vocabulário do
+       site (o mesmo do AI Core: anel de registro + marcas radiais), e o que a
+       faz ler como AURA em vez de enfeite é o MOVIMENTO: os raios respiram para
+       fora em fase própria e o anel pulsa, como um campo de energia emanando do
+       ponto. Nada de disco de blur.
+
+       Intensidade: uma base viva discreta (a linha está sempre "energizada",
+       casando com o fluxo que corre o trilho) mais um ganho forte de
+       proximidade do cursor — aproximar acende a aura do nó, como tudo mais no
+       site responde à presença. O nó sob o cursor (o `:hover` do CSS) já fica
+       preenchido; a aura é a camada de energia por trás disso. */
+    if (stepNos.length) {
+      for (var sa = 0; sa < stepNos.length; sa++) {
+        var nd = stepNos[sa];
+        if (nd.y < -40 || nd.y > H + 40) continue;
+        var pn = prox(S, nd.x, nd.y, 200);
+        /* base VIVA já em repouso (o dono quer que os nós TENHAM aura, não só no
+           hover) + ganho de proximidade + Pulso. Sem o `e` sumindo a base. */
+        var intens = (.34 + pulso * .3 + pn * .6) * Math.min(lum, 1.35);
+        if (intens < .03) continue;
+        /* respiro próprio por nó (fase = índice): os três nunca pulsam juntos —
+           campo vivo, não piscar sincronizado. */
+        var faseN = S.t * .05 + sa * 2.1;
+        var resN = .7 + (Math.sin(faseN) * .5 + .5) * .8;   /* 0.7 .. 1.5 */
+
+        /* OS RAIOS — a aura é ENERGIA DIRECIONADA, não um disco de blur (o que o
+           dono vetou). Oito traços emanando, cada um com o PRÓPRIO comprimento
+           oscilando fora de fase, então as pontas nunca formam um círculo — leem
+           como faíscas de um campo, não como um anel. Giram devagar. */
+        ctx.lineWidth = 1.1;
+        ctx.strokeStyle = 'rgba(' + cy + ',' + a1(intens * .85).toFixed(3) + ')';
+        ctx.beginPath();
+        for (var ra = 0; ra < 8; ra++) {
+          var ang = ra / 8 * TAU + faseN * .12;
+          /* comprimento por raio: cada um respira na sua fase (o `ra*.9`) — é o
+             que quebra o círculo e faz ler como aura irregular. */
+          var comp = (7 + pn * 10) * (.55 + (Math.sin(faseN * 1.3 + ra * .9) * .5 + .5) * .9);
+          var r0 = 5.5;
+          ctx.moveTo(nd.x + Math.cos(ang) * r0, nd.y + Math.sin(ang) * r0);
+          ctx.lineTo(nd.x + Math.cos(ang) * (r0 + comp), nd.y + Math.sin(ang) * (r0 + comp));
+        }
+        ctx.stroke();
+
+        /* A VARREDURA — um arco curto girando, o mesmo sinal de "operando" do AI
+           Core. É o que amarra a aura ao vocabulário do site (o núcleo tem a
+           mesma varredura) em vez de virar um efeito à parte. */
+        var av = faseN * .6;
+        ctx.lineWidth = 1.4;
+        ctx.strokeStyle = 'rgba(' + alta + ',' + a1(intens * .7).toFixed(3) + ')';
+        ctx.beginPath();
+        ctx.arc(nd.x, nd.y, 6.5 + pn * 2.5, av, av + .9);
+        ctx.stroke();
+      }
     }
 
     /* ---- 5. A LEITURA DO CURSOR ----

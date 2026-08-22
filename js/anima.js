@@ -67,6 +67,17 @@
      status, subtítulo, botões e a dica de scroll, em cascata. Split por linha
      (não por caractere) preserva a palavra-aurora; e revert() no fim devolve o
      DOM original, então o gradiente da aurora volta perfeito. */
+  /* emitido UMA vez, quando o hero terminou de assentar e o DOM do título já
+     voltou ao original (SplitText revertido). A palavra viva (js/dom.js) espera
+     este sinal para capturar o `<em>` certo — antes dele o título ainda tem o
+     `<em>` vazio que o `mask:'lines'` deixa. Idempotente por `heroProntoEmitido`. */
+  var heroProntoEmitido = false;
+  function emitirHeroPronto() {
+    if (heroProntoEmitido) return;
+    heroProntoEmitido = true;
+    B.emit('hero-pronto');
+  }
+
   function heroEntra() {
     if (feito) return;
     feito = true;
@@ -98,11 +109,18 @@
              ele que faz a divisão em linhas ser um EVENTO em vez de um estado.
              Enquanto o tween roda, o invólucro de máscara mantém um `<em>`
              duplicado e vazio no título — daí o `:not(:empty)` nas regras dos
-             paquímetros, que existem justamente nessa janela. */
-          onComplete: function () { split.revert(); }
+             paquímetros, que existem justamente nessa janela. SÓ DEPOIS do
+             revert o título tem um único `<em>`, e é aí que a palavra viva
+             pode capturá-lo — por isso o sinal sai daqui, não antes. */
+          onComplete: function () { split.revert(); emitirHeroPronto(); }
         }, '-=.35');
       } else if (titulo) {
-        tl.from(titulo, { autoAlpha: 0, y: 26, duration: 1.3 }, '-=.35');
+        /* sem SplitText o título nunca ganha o `<em>` vazio: o em já está limpo
+           desde o começo, então o sinal pode sair ao fim desta entrada simples. */
+        tl.from(titulo, { autoAlpha: 0, y: 26, duration: 1.3,
+          onComplete: emitirHeroPronto }, '-=.35');
+      } else {
+        emitirHeroPronto();                 /* sem título: nada a esperar */
       }
 
       if (sub) tl.from(sub, { autoAlpha: 0, y: 18, duration: 1 }, '-=.8');
@@ -115,6 +133,7 @@
         if (pecas[p].children.length) gsap.set(pecas[p].children, { clearProps: 'all' });
       }
       document.documentElement.classList.remove('has-gsap');   /* devolve a cascata ao CSS */
+      emitirHeroPronto();                   /* a entrada falhou, mas o em está intacto */
     }
   }
 

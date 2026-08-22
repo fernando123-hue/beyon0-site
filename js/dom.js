@@ -367,67 +367,87 @@
     if (s !== stMostrado) { stMostrado = s; stEl.textContent = s; }
   }
 
-  /* ---------- A PALAVRA VIVA — o núcleo do hero muda de leitura ----------
-     "aplicada" não é a única leitura da frase. O sistema cicla por um
-     vocabulário pequeno do MESMO campo semântico — particípios que fecham com
-     "ao que" sem forçar a gramática — e no Estado Singular troca para um
-     vocabulário mais assertivo: o momento em que o site já está fazendo o
-     espetáculo é o momento certo pra copy mais confiante. Nenhuma das palavras
-     do Singular evoca medo, ameaça ou dano — são palavras de PRECISÃO e
-     DECISÃO, não de pressão. O pedido era agressivo sem gerar atrito, e a
-     linha entre os dois é exatamente essa.
+  /* ---------- A PALAVRA VIVA — a palavra que carrega a frase muda de leitura ---
+     Dois lugares ciclam por um vocabulário do MESMO campo semântico, e no
+     Estado Singular trocam para um vocabulário mais assertivo — o momento em
+     que o site já está fazendo o espetáculo é o momento certo pra copy mais
+     confiante. Nenhuma palavra do Singular evoca medo, ameaça ou dano: são de
+     PRECISÃO e DECISÃO, não de pressão. Agressivo sem gerar atrito.
 
-     A TRANSIÇÃO reaproveita `morph()` (acima): o mesmo embaralhamento por
-     glifos de sinal — binário, hex, símbolo — que já troca o status do hero.
-     Não é um efeito novo, é o mesmo mecanismo testado, só mais visível porque
-     o alvo agora é a palavra que carrega a frase inteira. */
-  var PALAVRAS = ['aplicada', 'calibrada', 'direcionada', 'ajustada', 'voltada'];
-  var PALAVRAS_SINGULAR = ['implacável', 'decisiva', 'inevitável', 'imparável'];
-  var pwDe = '', pwPara = '', pwP = 1, pwMostrado = '', pwIdx = 0;
-  var emHero = null;
-  var drivePalavra = function () {};        /* no-op até o hero assentar (ver iniciarPalavra) */
-  var trocarPalavra = function () {};
-  var reiniciarCicloPalavra = function () {};
+     A transição reaproveita `morph()` (acima): o mesmo embaralhamento por
+     glifos de sinal que já troca o status do hero — não é um efeito novo.
 
-  function iniciarPalavra() {
-    /* buscado só AGORA, depois do hero assentado — não no load do script — de
-       propósito: o SplitText do título (js/anima.js, `mask:'lines'`) manipula
-       e depois RESTAURA o DOM do h1 durante a entrada, e capturar a referência
-       cedo demais apostaria em como exatamente essa restauração se comporta.
-       Buscar depois que tudo já assentou remove a aposta por completo. */
-    emHero = document.querySelector('.hero__title em');
-    if (!emHero) return;
-    pwDe = pwPara = pwMostrado = emHero.textContent;
+     DOIS BUGS REAIS que a primeira versão tinha, corrigidos aqui:
+       1. `querySelector('.hero__title em')` pegava o `<em>` ERRADO. O SplitText
+          do hero roda com `mask:'lines'`, que deixa um `<em>` VAZIO no título
+          além do `<em>aplicada</em>` — e `querySelector` retorna o PRIMEIRO,
+          o vazio. A troca escrevia num elemento invisível de largura zero e a
+          palavra visível nunca mudava. Agora capturamos o em NÃO-VAZIO.
+       2. O gatilho era `setTimeout(booted + 5200)` — um palpite de quando a
+          timeline do hero teria terminado. Se o palpite errasse (rede lenta,
+          GSAP demorando), capturava o em no meio do revert. Agora esperamos o
+          sinal explícito `'hero-pronto'` que anima.js emite APÓS o revert. */
+  var PALAVRAS_HERO      = ['aplicada', 'calibrada', 'direcionada', 'ajustada', 'voltada'];
+  var PALAVRAS_HERO_SING = ['implacável', 'decisiva', 'inevitável', 'imparável'];
+  /* o CTA fecha "Comece pelo problema, não pela ___" — as alternativas são a
+     coisa ERRADA de começar (a ferramenta antes do problema). No Singular fica
+     mais direto, mas continua sem ofender: nomeia o erro, não o cliente. */
+  var PALAVRAS_CTA       = ['tecnologia', 'ferramenta', 'moda', 'tendência'];
+  var PALAVRAS_CTA_SING  = ['pressa', 'promessa', 'ferramenta da vez'];
 
-    trocarPalavra = function () {
-      var lista = document.body.classList.contains('is-singular') ? PALAVRAS_SINGULAR : PALAVRAS;
-      pwIdx = (pwIdx + 1) % lista.length;
-      var alvo = lista[pwIdx];
-      if (alvo === pwMostrado) { pwIdx = (pwIdx + 1) % lista.length; alvo = lista[pwIdx]; }
-      pwDe = pwMostrado; pwPara = alvo; pwP = 0;
-    };
-    drivePalavra = function (dt) {
-      if (pwP >= 1) return;
-      pwP = Math.min(1, pwP + dt / 620);
-      var s = pwP >= 1 ? pwPara : morph(pwDe, pwPara, pwP);
-      if (s !== pwMostrado) { pwMostrado = s; emHero.textContent = s; }
-      /* a palavra assentou: o comprimento pode ter mudado a quebra do título,
-         que empurra tudo abaixo do hero — remede o que está em cache, sem
-         resemear o campo (ver `remedir` em field.js e dom.js). */
-      if (pwP >= 1) B.emit('remedir');
-    };
-    var ciclo = null;
-    reiniciarCicloPalavra = function () {
+  var cicladores = [];      /* cada um dirige um <em>; o loop de eventos os avança */
+
+  /* cria um ciclador de palavra para UM elemento. Isolado por closure: cada
+     alvo tem o próprio estado (índice, progresso, intervalo), então o hero e o
+     CTA nunca compartilham palavra nem timing. */
+  function criarCiclador(el, listaNormal, listaSing) {
+    var de = el.textContent, para = de, p = 1, mostrado = de, idx = 0, ciclo = null;
+
+    function trocar() {
+      var lista = document.body.classList.contains('is-singular') ? listaSing : listaNormal;
+      idx = (idx + 1) % lista.length;
+      var alvo = lista[idx];
+      if (alvo === mostrado) { idx = (idx + 1) % lista.length; alvo = lista[idx]; }
+      de = mostrado; para = alvo; p = 0;
+    }
+    function drive(dt) {
+      if (p >= 1) return;
+      p = Math.min(1, p + dt / 620);
+      var s = p >= 1 ? para : morph(de, para, p);
+      if (s !== mostrado) { mostrado = s; el.textContent = s; }
+      /* a palavra assentou: o comprimento pode ter mudado a quebra do título e
+         empurrado o que está abaixo — remede os retângulos em cache SEM
+         resemear o campo (ver 'remedir' em field.js/dom.js). */
+      if (p >= 1) B.emit('remedir');
+    }
+    function reiniciar() {
       if (ciclo) clearInterval(ciclo);
-      ciclo = setInterval(trocarPalavra, 5200 + Math.random() * 2600);
-    };
-    reiniciarCicloPalavra();
+      ciclo = setInterval(trocar, 5200 + Math.random() * 2600);
+    }
+    reiniciar();
+    return { drive: drive, trocar: trocar, reiniciar: reiniciar };
   }
-  /* mesmo atraso de segurança que a entrada do hero já usa em outros lugares
-     deste arquivo (booted+4000/4500): tempo de sobra para a timeline do GSAP
-     (status, título em linhas, subtítulo, ações) terminar de vez. */
-  if (document.body.classList.contains('booted')) setTimeout(iniciarPalavra, 5200);
-  else B.on('booted', function () { setTimeout(iniciarPalavra, 5200); });
+
+  function iniciarPalavras() {
+    if (cicladores.length) return;            /* idempotente: só arma uma vez */
+    /* o em NÃO-VAZIO do hero — ver bug 1. `.find` ignora o resíduo do mask. */
+    var emHero = [].slice.call(document.querySelectorAll('.hero__title em'))
+      .filter(function (e) { return e.textContent.trim(); })[0];
+    var emCta = document.querySelector('.cta em');    /* o CTA não passa por SplitText: em limpo */
+    if (emHero) cicladores.push(criarCiclador(emHero, PALAVRAS_HERO, PALAVRAS_HERO_SING));
+    if (emCta)  cicladores.push(criarCiclador(emCta, PALAVRAS_CTA, PALAVRAS_CTA_SING));
+  }
+
+  function drivePalavras(dt) { for (var i = 0; i < cicladores.length; i++) cicladores[i].drive(dt); }
+  function trocarPalavras()  { for (var i = 0; i < cicladores.length; i++) { cicladores[i].trocar(); cicladores[i].reiniciar(); } }
+
+  /* gatilho: 'hero-pronto' (anima.js, após o revert do SplitText). Fallback em
+     'booted' + folga, caso o GSAP não carregue e o sinal nunca venha — aí o
+     hero nasce visível sem SplitText e o em já está limpo desde o começo. */
+  B.on('hero-pronto', iniciarPalavras);
+  var armarFallback = function () { setTimeout(iniciarPalavras, 5000); };
+  if (document.body.classList.contains('booted')) armarFallback();
+  else B.on('booted', armarFallback);
 
   /* ---------- PULSO ----------
      Uma onda que atravessa a cadeia. O canvas lê S.pulse e S.pulseFront; o DOM
@@ -552,20 +572,19 @@
       document.body.classList.remove('is-singular');
       anunciar('Sistema online · Beyon Zero');
       proxSing = now + 70000 + Math.random() * 60000;
-      /* o regime volta ao ciano: a palavra volta ao vocabulário normal na
-         hora, não espera o próximo ciclo. `B.estatica` no wordmark marca a
-         própria identidade registrando a volta ao regime — mesmo gesto do
-         início, ver abaixo. */
-      trocarPalavra(); reiniciarCicloPalavra();
+      /* o regime volta ao ciano: as palavras voltam ao vocabulário normal na
+         hora, não esperam o próximo ciclo. `B.estatica` no wordmark marca a
+         própria identidade registrando a volta ao regime. */
+      trocarPalavras();
       B.estatica(navWordmark);
     }
     if (proxSing && now > proxSing && !S.pulse) {
       singAte = now + SDUR;
       document.body.classList.add('is-singular');
       anunciar('AI Core no comando');
-      /* o Singular começa: a palavra pula direto pro vocabulário assertivo —
+      /* o Singular começa: as palavras pulam direto pro vocabulário assertivo —
          é o momento de maior confiança do site, não faz sentido esperar. */
-      trocarPalavra(); reiniciarCicloPalavra();
+      trocarPalavras();
       B.estatica(navWordmark);
     }
   }
@@ -586,7 +605,7 @@
     drivePulso(s.now, s.dt);
     driveSingular(s.now);
     driveStatus(s.dt);
-    drivePalavra(s.dt);
+    drivePalavras(s.dt);
   });
 
   /* ---------- medidor: números reais, atualizado 2x por segundo ---------- */

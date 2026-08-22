@@ -689,15 +689,34 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 2rem); }
   gap: clamp(24px, 4vw, 56px);
 }
 .step { position: relative; padding-top: 2rem; }
-/* o trilho: cada passo puxa a linha do SEU nó até o nó do próximo */
+/* o trilho: cada passo puxa a linha do SEU nó até o nó do próximo.
+   FLUXO DE ENERGIA (pedido do dono): sobre a linha base (var(--line)) corre um
+   pulso de luz da esquerda para a direita, no sentido da leitura da sequência —
+   a energia atravessa o método, do Mapa à Construção. Dois backgrounds: o pulso
+   (gradiente estreito) por cima, a linha por baixo. Só `background-position`
+   anima; é 1px de altura em 2 elementos, o repaint é irrelevante.
+
+   `opacity` no trilho é o canal da INTENSIDADE (ver a cadeia de hover, adiante):
+   em repouso o fluxo é discreto; apontar um passo acende a cadeia até ele. */
 .step::before {
   content: "";
   position: absolute; top: 3px; left: 0;
   width: calc(100% + clamp(24px, 4vw, 56px));
   height: 1px;
-  background: var(--line);
+  background:
+    linear-gradient(90deg, transparent, rgb(var(--ac-rgb) / .9), transparent) no-repeat,
+    var(--line);
+  background-size: 42% 100%, 100% 100%;
+  background-position: -60% 0, 0 0;
+  opacity: .5;
+  transition: opacity var(--t) var(--ease);
+  animation: fluxo-h 3.4s linear infinite;
 }
 .step:last-child::before { display: none; }
+@keyframes fluxo-h {
+  from { background-position: -60% 0, 0 0; }
+  to   { background-position: 160% 0, 0 0; }
+}
 /* o nó — o primeiro é o passo ativo e é o único que recebe cor */
 .step::after {
   content: "";
@@ -728,9 +747,20 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 2rem); }
   .step::before {
     top: 4px; bottom: 0; left: 3px;
     width: 1px; height: auto;
+    /* vertical: o fluxo corre de cima para baixo, na direção da leitura mobile */
+    background:
+      linear-gradient(180deg, transparent, rgb(var(--ac-rgb) / .9), transparent) no-repeat,
+      var(--line);
+    background-size: 100% 42%, 100% 100%;
+    background-position: 0 -60%, 0 0;
+    animation: fluxo-v 3.4s linear infinite;
   }
   .step:last-child::before { display: block; height: 0; }
   .step::after { top: 0; left: 0; }
+}
+@keyframes fluxo-v {
+  from { background-position: 0 -60%, 0 0; }
+  to   { background-position: 0 160%, 0 0; }
 }
 
 /* ==========================================================================
@@ -1146,12 +1176,26 @@ h1 em:not(:empty)::after,  h2 em:not(:empty)::after  { right: -.24em; transform:
    que o site já tinha (o kicker ao revelar a seção, o wordmark ao trocar de
    regime): nenhuma interação nova, uma resposta a mais nos MESMOS instantes.
 
-   `steps()` no timing, não uma curva suave: pisca, não esmaece — é assim que
-   sinal digital rompendo se comporta. O ruído é `feTurbulence` passado por
-   `feColorMatrix` para branco puro com alfa variável (não a mistura colorida
-   que `feTurbulence` produz sozinho): sobre a paleta do site, ruído colorido
-   leria como um matiz novo entrando; branco variando de alfa lê como
-   interferência, que é a linguagem certa.
+   REESCRITA — a primeira versão lia como bug, por dois motivos concretos:
+     1. `inset: -6px` estendia o ruído SEIS pixels ALÉM do elemento, desenhando
+        um retângulo de estática MAIOR que o kicker — um "contorno branco em
+        volta" solto do conteúdo. Agora o ruído é CONTIDO (`inset: 0`): a caixa
+        da estática é a caixa do elemento, sem margem fantasma.
+     2. `steps(1, end)` sobre keyframes 0/50/100 tem resposta indefinida — o
+        motor amostra um único ponto por segmento e o resultado "trava" em vez
+        de piscar. Trocado por uma sequência EXPLÍCITA de opacidades: os saltos
+        são os degraus, sem depender de `steps()` para gerá-los.
+
+   NOTA: a estática de RUÍDO fica só no kicker e no wordmark. No hero e no CTA a
+   transição da palavra já É a estática — o `morph()` (js/dom.js) embaralha o
+   texto em glifos de sinal (binário, hex, símbolo) no instante da troca, que é
+   a mesma leitura de "sinal sendo reescrito" na própria palavra. Sobrepor
+   ruído por cima seria efeito em cima de efeito.
+
+   O ruído é `feTurbulence` passado por `feColorMatrix` para branco puro com
+   alfa variável (não a mistura colorida que `feTurbulence` produz sozinho):
+   sobre a paleta do site, ruído colorido leria como um matiz novo entrando;
+   branco variando de alfa lê como interferência.
 
    Ativado por classe (`B.estatica`, js/dom.js) — sem ela o pseudo-elemento
    existe mas nunca pinta (opacity 0 em repouso, custo zero). */
@@ -1160,23 +1204,34 @@ h1 em:not(:empty)::after,  h2 em:not(:empty)::after  { right: -.24em; transform:
 .nav__logo .wordmark { position: relative; }
 .kicker::before, .nav__logo .wordmark::before {
   content: "";
-  position: absolute; inset: -6px;
+  position: absolute; inset: 0;
   pointer-events: none;
   z-index: 2;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='70' height='70'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch' result='t'/%3E%3CfeColorMatrix in='t' type='matrix' values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .9 0'/%3E%3C/filter%3E%3Crect width='70' height='70' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-size: 60px 60px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch' result='t'/%3E%3CfeColorMatrix in='t' type='matrix' values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .8 0'/%3E%3C/filter%3E%3Crect width='60' height='60' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 50px 50px;
   opacity: 0;
 }
-/* DUAS piscadas, não três: WCAG 2.3.1 marca "mais de três flashes por
-   segundo" como risco de convulsão fotossensível, e reduced-motion não cobre
-   esse risco especificamente (é uma preferência de MOVIMENTO, não de FLASH) —
-   então o limite vale independente da preferência do visitante. Duas em .5s
-   fica bem abaixo do limiar e ainda lê como "piscou duas vezes", que é o
-   efeito inteiro. */
+/* a régua do kicker (`::after`, flex:1) faz a caixa do kicker ser LARGA — o
+   ruído com inset:0 cobriria a régua toda. Contém o pseudo à altura do texto e
+   a uma faixa curta à esquerda, onde o metadado vive: a estática fica sobre o
+   RÓTULO, não sobre a régua. */
+.kicker::before { right: auto; width: 12ch; }
+
+/* DUAS piscadas explícitas — sem `steps()`. WCAG 2.3.1 marca mais de três
+   flashes por segundo como risco de convulsão fotossensível (e reduced-motion
+   não cobre FLASH, só MOVIMENTO), então dois em .45s fica bem abaixo do
+   limiar. Pico em .4 de opacidade: presente, nunca gritante. */
 .kicker.is-registrando::before, .nav__logo .wordmark.is-registrando::before {
-  animation: estatica-pisca .25s steps(1, end) 2;
+  animation: estatica-pisca .45s linear 1;
 }
-@keyframes estatica-pisca { 0%, 100% { opacity: 0; } 50% { opacity: .55; } }
+@keyframes estatica-pisca {
+  0%   { opacity: 0; }
+  12%  { opacity: .4; }
+  26%  { opacity: 0; }
+  50%  { opacity: .34; }
+  64%  { opacity: 0; }
+  100% { opacity: 0; }
+}
 
 /* ---- MEDIR: a régua do kicker se desenha ---------------------------------
    A régua que já fechava o kicker agora ENTRA: cresce da esquerda quando a
@@ -1262,34 +1317,34 @@ h1 em:not(:empty)::after,  h2 em:not(:empty)::after  { right: -.24em; transform:
 /* ---- VARRER: o fluxo até o passo apontado --------------------------------
    Apontar um passo não acende só ele — acende a CADEIA até ali, porque um
    passo 3 só significa algo depois do 1 e do 2. `:has()` olha à frente no
-   documento ("existe um passo depois de mim em :hover?") e cada nó/trilho
-   anterior responde: é o mesmo trilho e o mesmo nó que o passo já tinha,
-   recebendo o MESMO peso visual que o primeiro passo usa em repouso (a régua
-   de "isto já foi") — nenhum vocabulário novo, só estendido para trás.
+   documento ("existe um passo depois de mim em :hover?") e cada trilho
+   anterior responde SUBINDO A INTENSIDADE do fluxo (opacity), não trocando cor:
+   o pulso de energia que já corre a linha fica mais forte na cadeia até o
+   passo apontado. É por isso que o trilho usa `opacity` como canal — trocar
+   `background` no hover apagaria o próprio fluxo que acabou de ser desenhado.
 
    O nó SOB o cursor é diferente dos que ele atravessou: preenchido, não só
    com o anel — é a diferença entre "o caminho até aqui" e "é aqui que estou".
-   Hardcoded para 3 passos de propósito: é a contagem real da seção, e a
-   regra genérica exigiria seletor `:has()` recursivo que nenhum navegador
-   resolve mais rápido que listar os pares. */
-.step::before { transform-origin: left; transition: background var(--t) var(--ease); }
+   Hardcoded para 3 passos: é a contagem real da seção. */
 .step::after { transition: box-shadow var(--t) var(--ease), transform var(--t) var(--ease), background var(--t) var(--ease); }
 
-.step:hover::before { background: rgb(var(--ac-rgb) / .55); }
+.step:hover::before { opacity: 1; }
 
 /* o passo apontado: preenchido + um anel solto por fora (0 de blur — é uma
-   marca de mira, não um halo; a identidade veta halo, não anel nítido). */
+   marca de mira, não um halo; a identidade veta halo, não anel nítido). A AURA
+   de energia em volta do nó é desenhada no canvas (js/field.js), não aqui —
+   ver o pedido do dono por "aura, não luz redonda genérica". */
 .step:hover::after {
   background: var(--ac);
   box-shadow: inset 0 0 0 3.5px var(--ac), 0 0 0 3px rgb(var(--ac-rgb) / .22);
   transform: scale(1.15);
 }
 
-/* a cadeia atravessada: mesmo anel que o passo ativo já usa em repouso */
+/* a cadeia atravessada: o fluxo sobe de intensidade nos trilhos anteriores */
 .steps:has(.step:nth-child(2):hover) .step:nth-child(1)::before,
 .steps:has(.step:nth-child(3):hover) .step:nth-child(1)::before,
 .steps:has(.step:nth-child(3):hover) .step:nth-child(2)::before {
-  background: rgb(var(--ac-rgb) / .55);
+  opacity: 1;
 }
 .steps:has(.step:nth-child(2):hover) .step:nth-child(1)::after,
 .steps:has(.step:nth-child(3):hover) .step:nth-child(1)::after,
