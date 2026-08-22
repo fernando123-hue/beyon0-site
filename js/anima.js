@@ -174,14 +174,7 @@
         /* o cabeçalho de seção ganha o tratamento de título (linhas por trás de
            máscara) além do fade comum. Marcar e tratar no mesmo lugar garante
            que os dois caminhos — batch e revelação imediata — passem por aqui. */
-        if (lista[m].classList.contains('section__head')) {
-          linhasDoTitulo(lista[m]);
-          /* a marca de estática: o kicker "regista" a seção nova entrando —
-             mesma leitura da régua que já desenha ao lado dele, um instante a
-             mais. B.estatica é definida em js/dom.js (carregado antes) e já
-             guarda a checagem de reduced-motion. */
-          if (B && B.estatica) B.estatica(lista[m].querySelector('.kicker'));
-        }
+        if (lista[m].classList.contains('section__head')) linhasDoTitulo(lista[m]);
       }
     };
     try {

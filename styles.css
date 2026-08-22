@@ -1125,113 +1125,20 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 2rem); }
 }
 .diag__row:hover::after { clip-path: inset(0 0 0 0); }
 
-/* ---- MEDIR: os paquímetros da palavra ------------------------------------
-   A palavra que carrega o título é MEDIDA: dois traços verticais fecham sobre
-   ela quando o título entra, como as garras de um paquímetro assentando na
-   peça. É a única coisa no site que mede uma PALAVRA, e por isso lê como
-   "este é o termo em questão" em vez de decoração. Só nos títulos — no corpo
-   do texto seria ruído.
+/* NOTA: aqui viviam os "paquímetros" — dois traços verticais que fechavam
+   sobre a palavra em destaque quando o título entrava. O dono pediu a remoção
+   ("tire essa linha do lado das palavras, de todas"): a barra vertical ao lado
+   da palavra viva competia com a própria palavra e lia como sobra de layout.
+   A ênfase da palavra agora vem só da COR (o `em` em `--ac`) e da troca viva
+   (o morph), sem nenhuma marca ao lado. */
 
-   POR QUE NÃO UM SUBLINHADO: foi a primeira tentativa e ela tem um bug de
-   verdade. Com `line-height: 1.08` num título de 48px, sobram ~3px entre o pé
-   dos descendentes de uma linha e o topo da seguinte. Uma régua embaixo da
-   palavra ou cruzava os descendentes ("parada humana", "tecnologia") ou
-   invadia a linha de baixo — e num título de duas ou três linhas, que é o
-   caso de quase todos aqui, isso acontece sempre. Medir na HORIZONTAL resolve:
-   sobra espaço lateral (a palavra vive no meio de uma frase, cercada de
-   espaços) e nenhum descendente é atravessado.
-
-   Os traços entram DESLIZANDO PARA DENTRO — é o gesto de fechar sobre a
-   medida. Só opacity e transform. */
-/* `:not(:empty)` NÃO é zelo preventivo: o SplitText do hero roda em
-   `mask: 'lines'`, que duplica o conteúdo dentro de um invólucro de máscara e
-   deixa um `<em>` VAZIO no h1 (verificado: o título tem dois, um sem texto).
-   Sem o guarda, esse em de largura zero desenharia os dois paquímetros
-   empilhados no mesmo ponto — dois traços soltos no meio da frase. */
-h1 em:not(:empty), h2 em:not(:empty) { position: relative; }
-h1 em:not(:empty)::before, h2 em:not(:empty)::before,
-h1 em:not(:empty)::after,  h2 em:not(:empty)::after {
-  content: "";
-  position: absolute;
-  top: .06em; bottom: .2em;
-  width: 1px;
-  background: var(--ac);
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity .8s var(--ease) .3s, transform .8s var(--ease) .3s;
-}
-h1 em:not(:empty)::before, h2 em:not(:empty)::before { left: -.24em;  transform: translateX(5px); }
-h1 em:not(:empty)::after,  h2 em:not(:empty)::after  { right: -.24em; transform: translateX(-5px); }
-
-.booted .hero__title em:not(:empty)::before, .booted .hero__title em:not(:empty)::after,
-.section__head.is-in em:not(:empty)::before, .section__head.is-in em:not(:empty)::after,
-.cta.is-in em:not(:empty)::before, .cta.is-in em:not(:empty)::after {
-  opacity: .85;
-  transform: none;
-}
-
-/* ---- ESTÁTICA: a marca de transição ---------------------------------------
-   Um flash breve de ruído sobre um elemento — a leitura de "o sinal está
-   sendo reescrito aqui". Reaplicada em pontos ESPARSOS já ligados a eventos
-   que o site já tinha (o kicker ao revelar a seção, o wordmark ao trocar de
-   regime): nenhuma interação nova, uma resposta a mais nos MESMOS instantes.
-
-   REESCRITA — a primeira versão lia como bug, por dois motivos concretos:
-     1. `inset: -6px` estendia o ruído SEIS pixels ALÉM do elemento, desenhando
-        um retângulo de estática MAIOR que o kicker — um "contorno branco em
-        volta" solto do conteúdo. Agora o ruído é CONTIDO (`inset: 0`): a caixa
-        da estática é a caixa do elemento, sem margem fantasma.
-     2. `steps(1, end)` sobre keyframes 0/50/100 tem resposta indefinida — o
-        motor amostra um único ponto por segmento e o resultado "trava" em vez
-        de piscar. Trocado por uma sequência EXPLÍCITA de opacidades: os saltos
-        são os degraus, sem depender de `steps()` para gerá-los.
-
-   NOTA: a estática de RUÍDO fica só no kicker e no wordmark. No hero e no CTA a
-   transição da palavra já É a estática — o `morph()` (js/dom.js) embaralha o
-   texto em glifos de sinal (binário, hex, símbolo) no instante da troca, que é
-   a mesma leitura de "sinal sendo reescrito" na própria palavra. Sobrepor
-   ruído por cima seria efeito em cima de efeito.
-
-   O ruído é `feTurbulence` passado por `feColorMatrix` para branco puro com
-   alfa variável (não a mistura colorida que `feTurbulence` produz sozinho):
-   sobre a paleta do site, ruído colorido leria como um matiz novo entrando;
-   branco variando de alfa lê como interferência.
-
-   Ativado por classe (`B.estatica`, js/dom.js) — sem ela o pseudo-elemento
-   existe mas nunca pinta (opacity 0 em repouso, custo zero). */
-/* só a marca da NAV recebe o gancho de posicionamento — a do rodapé
-   (`.wordmark--lg`) não participa da troca de regime, não precisa dele. */
-.nav__logo .wordmark { position: relative; }
-.kicker::before, .nav__logo .wordmark::before {
-  content: "";
-  position: absolute; inset: 0;
-  pointer-events: none;
-  z-index: 2;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch' result='t'/%3E%3CfeColorMatrix in='t' type='matrix' values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .8 0'/%3E%3C/filter%3E%3Crect width='60' height='60' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-size: 50px 50px;
-  opacity: 0;
-}
-/* a régua do kicker (`::after`, flex:1) faz a caixa do kicker ser LARGA — o
-   ruído com inset:0 cobriria a régua toda. Contém o pseudo à altura do texto e
-   a uma faixa curta à esquerda, onde o metadado vive: a estática fica sobre o
-   RÓTULO, não sobre a régua. */
-.kicker::before { right: auto; width: 12ch; }
-
-/* DUAS piscadas explícitas — sem `steps()`. WCAG 2.3.1 marca mais de três
-   flashes por segundo como risco de convulsão fotossensível (e reduced-motion
-   não cobre FLASH, só MOVIMENTO), então dois em .45s fica bem abaixo do
-   limiar. Pico em .4 de opacidade: presente, nunca gritante. */
-.kicker.is-registrando::before, .nav__logo .wordmark.is-registrando::before {
-  animation: estatica-pisca .45s linear 1;
-}
-@keyframes estatica-pisca {
-  0%   { opacity: 0; }
-  12%  { opacity: .4; }
-  26%  { opacity: 0; }
-  50%  { opacity: .34; }
-  64%  { opacity: 0; }
-  100% { opacity: 0; }
-}
+/* NOTA: aqui vivia a ESTÁTICA — um flash de ruído branco (`feTurbulence`) que
+   piscava no kicker ao revelar cada seção e no wordmark ao trocar de regime.
+   O dono pediu a remoção duas vezes ("aparece um contorno branco ao descer, não
+   quero que isso aconteça"): a piscada branca sobre o metadado lia como bug de
+   renderização, não como transição de sinal. A "estática" que sobrevive é a que
+   já vive na própria palavra viva — o `morph()` (js/dom.js) embaralha o texto
+   em glifos de sinal na troca. Nada branco pisca sobre a estrutura. */
 
 /* ---- MEDIR: a régua do kicker se desenha ---------------------------------
    A régua que já fechava o kicker agora ENTRA: cresce da esquerda quando a
@@ -1360,8 +1267,6 @@ h1 em:not(:empty)::after,  h2 em:not(:empty)::after  { right: -.24em; transform:
   .diag__row::after { clip-path: inset(0 0 0 0); }
   .reveal:not(.is-in) .kicker::after { transform: scaleX(1); }
   .card::before, .app::before { transform: none; }
-  h1 em:not(:empty)::before, h2 em:not(:empty)::before,
-  h1 em:not(:empty)::after, h2 em:not(:empty)::after { opacity: .85; transform: none; }
 }
 
 /* ==========================================================================

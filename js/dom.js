@@ -39,23 +39,10 @@
      que percorre esta lista está no fim do arquivo. */
   var aoEscapar = [];
 
-  /* ---------- ESTÁTICA — a marca de transição, reutilizável ----------
-     Um flash de ruído sobre um elemento: "o sinal está sendo reescrito aqui".
-     A palavra do hero usa a PRÓPRIA variação do efeito (embaralhamento de
-     caracteres — ver `morph`, abaixo) porque ali o TEXTO muda de verdade; aqui
-     o elemento não muda de conteúdo, só pisca — a leitura de um instrumento
-     registrando um evento, não de um texto sendo reescrito.
-
-     Exposta em `B.estatica` porque js/anima.js (carregado depois deste
-     arquivo, mas executando no mesmo documento) dispara em cima do PRÓPRIO
-     caminho de revelação — sem isto o kicker só piscaria no caminho de
-     fallback sem GSAP, que é justamente o que quase ninguém usa. */
-  B.estatica = function (el) {
-    if (!el || B.reduced) return;
-    el.classList.remove('is-registrando');
-    void el.offsetWidth;                  /* reinicia se já estava piscando */
-    el.classList.add('is-registrando');
-  };
+  /* NOTA: aqui vivia `B.estatica`, o disparo do flash de ruído branco no kicker
+     e no wordmark. Removido a pedido do dono (o branco piscando ao rolar lia
+     como bug). A transição de sinal que sobrou é a da palavra viva — o
+     `morph()` embaralha o texto na troca, sem nada branco por cima. */
 
   /* ---------- reveals — nível 2: o fade sutil da navegação ----------
      Uma transição, disparada uma vez ao entrar na viewport. Só LIGA depois
@@ -72,7 +59,6 @@
           io.unobserve(alvo);                        /* cumpriu o papel, sai da lista */
           if (alvo.closest('.revelando')) continue;  /* a linha cuida desses */
           alvo.classList.add('is-in');
-          if (alvo.classList.contains('section__head')) B.estatica(alvo.querySelector('.kicker'));
         }
       }, { rootMargin: '0px 0px -8% 0px' });
       for (var r = 0; r < reveals.length; r++) io.observe(reveals[r]);
@@ -398,16 +384,39 @@
   var cicladores = [];      /* cada um dirige um <em>; o loop de eventos os avança */
 
   /* cria um ciclador de palavra para UM elemento. Isolado por closure: cada
-     alvo tem o próprio estado (índice, progresso, intervalo), então o hero e o
-     CTA nunca compartilham palavra nem timing. */
-  function criarCiclador(el, listaNormal, listaSing) {
-    var de = el.textContent, para = de, p = 1, mostrado = de, idx = 0, ciclo = null;
+     alvo tem o próprio estado, então o hero e o CTA nunca compartilham palavra
+     nem timing.
 
+     ORDEM ALEATÓRIA SEM REPETIÇÃO (pedido do dono): a próxima palavra é sorteada,
+     e uma palavra só volta a aparecer depois que TODAS já apareceram. É um
+     "saco embaralhado" (shuffle bag): embaralha a lista inteira, tira uma por
+     vez até esvaziar, então re-embaralha. Na virada do saco, garante que a
+     primeira do novo saco não seja a última mostrada — senão a mesma palavra
+     apareceria duas vezes seguidas na emenda entre um ciclo e o outro. */
+  function criarCiclador(el, listaNormal, listaSing) {
+    var de = el.textContent, para = de, p = 1, mostrado = de, ciclo = null;
+    var saco = [], sacoLista = null;
+
+    function embaralhar(lista) {
+      saco = lista.slice();
+      for (var i = saco.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var t = saco[i]; saco[i] = saco[j]; saco[j] = t;
+      }
+      /* o próximo a sair é `pop()` (o fim do array): se for igual ao mostrado,
+         troca com a posição 0 para não repetir na emenda. */
+      if (saco.length > 1 && saco[saco.length - 1] === mostrado) {
+        var f = saco[saco.length - 1]; saco[saco.length - 1] = saco[0]; saco[0] = f;
+      }
+      sacoLista = lista;
+    }
     function trocar() {
       var lista = document.body.classList.contains('is-singular') ? listaSing : listaNormal;
-      idx = (idx + 1) % lista.length;
-      var alvo = lista[idx];
-      if (alvo === mostrado) { idx = (idx + 1) % lista.length; alvo = lista[idx]; }
+      /* saco vazio, OU o regime trocou a lista sob os pés: re-embaralha a lista
+         certa. Sem o teste de lista, o Singular herdaria palavras do saco frio. */
+      if (!saco.length || sacoLista !== lista) embaralhar(lista);
+      var alvo = saco.pop();
+      if (alvo === mostrado) { if (!saco.length) embaralhar(lista); alvo = saco.pop() || alvo; }
       de = mostrado; para = alvo; p = 0;
     }
     function drive(dt) {
@@ -422,7 +431,13 @@
     }
     function reiniciar() {
       if (ciclo) clearInterval(ciclo);
-      ciclo = setInterval(trocar, 5200 + Math.random() * 2600);
+      /* PRIMEIRA troca cedo (~2,6s), depois a cada ~3-4,8s (o dono pediu mais
+         frequência). Antes o primeiro intervalo caía por volta dos 10-12s no
+         CTA (que vive no fim da página) e quem rolava até lá concluía "não
+         muda"; começar cedo e ciclar mais rápido resolve. */
+      var primeiro = ciclo === null;
+      ciclo = setInterval(trocar, 3000 + Math.random() * 1800);
+      if (primeiro) setTimeout(trocar, 2600);
     }
     reiniciar();
     return { drive: drive, trocar: trocar, reiniciar: reiniciar };
@@ -441,11 +456,17 @@
   function drivePalavras(dt) { for (var i = 0; i < cicladores.length; i++) cicladores[i].drive(dt); }
   function trocarPalavras()  { for (var i = 0; i < cicladores.length; i++) { cicladores[i].trocar(); cicladores[i].reiniciar(); } }
 
-  /* gatilho: 'hero-pronto' (anima.js, após o revert do SplitText). Fallback em
-     'booted' + folga, caso o GSAP não carregue e o sinal nunca venha — aí o
-     hero nasce visível sem SplitText e o em já está limpo desde o começo. */
+  /* GATILHOS MÚLTIPLOS, idempotentes (o guard `cicladores.length` faz o segundo
+     virar no-op). Cada um cobre um cenário em que os outros podem falhar:
+       · 'hero-pronto'    — anima.js, após o revert do SplitText (caminho normal).
+       · 'entrada-pronta' — SEMPRE emitido por entrada.js (medido), mesmo sem
+                            GSAP. É a rede que garante que as palavras arrancam
+                            quando 'hero-pronto' não vem (GSAP não carregou, ou
+                            a timeline não completou por algum motivo).
+       · booted + 3s      — último fallback, se nenhum evento vier. */
   B.on('hero-pronto', iniciarPalavras);
-  var armarFallback = function () { setTimeout(iniciarPalavras, 5000); };
+  B.on('entrada-pronta', iniciarPalavras);
+  var armarFallback = function () { setTimeout(iniciarPalavras, 3000); };
   if (document.body.classList.contains('booted')) armarFallback();
   else B.on('booted', armarFallback);
 
@@ -573,10 +594,8 @@
       anunciar('Sistema online · Beyon Zero');
       proxSing = now + 70000 + Math.random() * 60000;
       /* o regime volta ao ciano: as palavras voltam ao vocabulário normal na
-         hora, não esperam o próximo ciclo. `B.estatica` no wordmark marca a
-         própria identidade registrando a volta ao regime. */
+         hora, não esperam o próximo ciclo. */
       trocarPalavras();
-      B.estatica(navWordmark);
     }
     if (proxSing && now > proxSing && !S.pulse) {
       singAte = now + SDUR;
@@ -585,7 +604,6 @@
       /* o Singular começa: as palavras pulam direto pro vocabulário assertivo —
          é o momento de maior confiança do site, não faz sentido esperar. */
       trocarPalavras();
-      B.estatica(navWordmark);
     }
   }
 
