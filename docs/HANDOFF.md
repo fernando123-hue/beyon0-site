@@ -1,8 +1,8 @@
 # Beyon Zero — transferência de contexto
 
-**Última atualização:** 2026-08-21b · **Branch ativa:** `rebuild` · **HEAD:** `63d793c` — **NÃO PUBLICADO.** No ar está `80ca91d`. `rebuild` tem 2 commits à frente de `origin/main`, esperando o dono pedir.
+**Última atualização:** 2026-08-21b · **Branch ativa:** `rebuild` · **HEAD:** `1f9e93c` (PUBLICADO — `main = rebuild = origin/main`)
 
-> **A SEÇÃO 16 (CAMADA DE ATMOSFERA) é a mais nova e a única não publicada.**
+> **A SEÇÃO 16 (CAMADA DE ATMOSFERA) é a mais nova, agora publicada.**
 > Ela acrescenta uma camada por cima da 14 (que continua inteiramente válida) e
 > traz a única mudança de REGRA desta sequência: a lei "nada anima sozinho em
 > repouso" da 14.4 passou a ter uma fronteira explícita — atmosfera respira,
@@ -1872,14 +1872,11 @@ precisar do porquê de uma decisão específica); esta seção é o atalho.
 ### 15.1 Estado agora
 
 ```
-origin/main = main = 80ca91d      (o que está NO AR)
-rebuild     = 63d793c            (2 commits à frente — NÃO publicado)
+main = rebuild = origin/main = 1f9e93c
 ```
 
-**Mudou em 2026-08-21b:** a árvore não está mais igual ao ar. Os dois commits
-da camada de atmosfera (seção 16) estão na `rebuild` esperando o dono ver e
-pedir a publicação. Árvore de trabalho limpa; nada pendente de decisão técnica,
-só de veredito visual.
+Publicado (o dono pediu). A camada de atmosfera (seção 16) está no ar; falta
+só o veredito visual dele — ver 16.8 pra ordem de risco.
 
 Fluxo de publicação (usado 3 vezes nesta sessão, sempre igual):
 ```
@@ -1935,7 +1932,7 @@ reusar qualquer valor.
 
 | Decisão | Estado |
 |---|---|
-| **Tudo em 16.8 — coluna, grão, ímã, leitura do cursor, dormência, reconhecimento** | **Aplicado e commitado, NÃO publicado. Aguarda o olho do dono.** |
+| Tudo em 16.8 — coluna, grão, ímã, leitura do cursor, dormência, reconhecimento | Publicado, aguarda o olho do dono |
 | Tudo em 14.6 — malha, paquímetros, núcleo, transição do Singular, capa nova | Publicado, ainda sem veredito visual do dono |
 | Site como 1 card entre 6, ou volta a ser central? | Ainda sem resposta (13.4, nunca resolvida) |
 | Domínio `beyon0-site.vercel.app` vs nome real | Não mudou, decisão separada |
