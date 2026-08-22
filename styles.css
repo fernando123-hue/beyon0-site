@@ -780,8 +780,8 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 2rem); }
 }
 .app {
   background: var(--bg);
-  padding: clamp(1.7rem, 2.5vw, 2.3rem);
-  display: flex; flex-direction: column; gap: 1.4rem;
+  padding: clamp(2rem, 3vw, 2.8rem);
+  display: flex; flex-direction: column; gap: 1.9rem;
   transition: background var(--t) var(--ease-mid);
 }
 .app:hover { background: var(--s1); }
@@ -790,33 +790,49 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 2rem); }
   letter-spacing: .18em; text-transform: uppercase;
   color: var(--t3);
 }
-.app__title { font-size: 1.12rem; font-weight: 300; letter-spacing: -.022em; color: var(--t1); }
+.app__title {
+  font-size: 1.2rem; font-weight: 300; letter-spacing: -.022em; color: var(--t1);
+  line-height: 1.3;
+}
 /* a transição de estado: três marcos ligados por um fio. O último é o
-   resultado e é o único que recebe cor — mesmo princípio do resto do site. */
+   resultado e é o único que recebe cor — mesmo princípio do resto do site.
+   Mais respiro entre os marcos (o dono achou "muito junto"): a progressão de
+   estado precisa de ar para ler como uma passagem, não como uma lista. */
 .app__flow { list-style: none; margin-top: auto; }
 .app__flow li {
   position: relative;
-  display: flex; align-items: center; gap: .75rem;
-  padding: .5rem 0;
-  font-family: var(--mono); font-size: .68rem;
+  display: flex; align-items: center; gap: .95rem;
+  padding: .72rem 0;
+  font-family: var(--mono); font-size: .72rem;
   letter-spacing: .05em;
   color: var(--t3);
 }
 .app__flow li::before {
   content: "";
-  width: 5px; height: 5px; flex: none;
+  width: 6px; height: 6px; flex: none;
   border-radius: 50%;
   background: var(--line-hi);
+  /* a bolinha nasce sobre o fundo, com um anel fino que a assenta na estrutura */
+  box-shadow: 0 0 0 3px var(--bg);
 }
-/* o fio que liga um marco ao próximo */
+/* o fio que liga um marco ao próximo. Ganhou um SEGUNDO plano: a linha base
+   (line-hi) e, por cima, um preenchimento de energia que desce no hover
+   (`scaleY` de 0 a 1, de cima para baixo) — a energia percorrendo a passagem
+   de estado. É `transform`, roda no compositor. */
 .app__flow li:not(:last-child)::after {
   content: "";
-  position: absolute; left: 2px; top: calc(50% + 5px);
-  width: 1px; height: calc(100% - 10px);
+  position: absolute; left: 2.5px; top: calc(50% + 6px);
+  width: 1px; height: calc(100% - 12px);
   background: var(--line-hi);
 }
-.app__flow li:last-child { color: var(--t1); }
-.app__flow li:last-child::before { background: var(--ac); }
+.app__flow li:last-child { color: var(--t1); font-size: .78rem; }
+/* o marco final — o resultado — ganha destaque real: bolinha maior, na cor de
+   ação, com um anel de registro em volta. É o ponto de chegada da transição. */
+.app__flow li:last-child::before {
+  background: var(--ac);
+  width: 8px; height: 8px;
+  box-shadow: 0 0 0 3px var(--bg), 0 0 0 4px rgb(var(--ac-rgb) / .3);
+}
 
 @media (max-width: 900px) { .apps { grid-template-columns: 1fr; } }
 
@@ -1190,20 +1206,27 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 2rem); }
 .btn--primary:hover { opacity: 1; background-size: 100% 100%; }
 
 /* ---- ENERGIZAR: a corrente do fluxo --------------------------------------
-   Os três marcos de uma aplicação são uma SEQUÊNCIA temporal, e agora ela
-   acontece: ao apontar, os nós acendem em ordem, com o fio ligando um ao
-   outro. O atraso escalonado é o efeito inteiro — é ele que transforma três
-   pontos numa passagem de estado. */
+   Os três marcos de uma aplicação são uma SEQUÊNCIA temporal, e ao apontar ela
+   ACONTECE: a energia percorre os marcos em ordem, de cima para baixo, como a
+   operação passando de um estado ao próximo.
+
+   TIMING (o dono pediu "mais devagar e suave"): a transição de cor das bolinhas
+   subiu de 340ms para 720ms e os atrasos entre elas de 0/100/200ms para
+   0/320/640ms. A cascata agora leva ~1,4s do primeiro marco ao resultado — é a
+   diferença entre "piscar os três juntos" e "ver a passagem acontecendo". */
 .app__flow li::before,
 .app__flow li:not(:last-child)::after,
-.app__flow li { transition: background var(--t) var(--ease), color var(--t) var(--ease); }
+.app__flow li { transition: background var(--t-slow) var(--ease), color var(--t-slow) var(--ease); }
 .app:hover .app__flow li::before { background: var(--ac); }
 .app:hover .app__flow li:not(:last-child)::after { background: rgb(var(--ac-rgb) / .5); }
 .app:hover .app__flow li { color: var(--t2); }
 .app:hover .app__flow li:last-child { color: var(--t1); }
 .app__flow li:nth-child(1)::before, .app__flow li:nth-child(1)::after { transition-delay: 0ms; }
-.app__flow li:nth-child(2)::before, .app__flow li:nth-child(2)::after { transition-delay: 100ms; }
-.app__flow li:nth-child(3)::before, .app__flow li:nth-child(3)::after { transition-delay: 200ms; }
+.app__flow li:nth-child(2)::before, .app__flow li:nth-child(2)::after { transition-delay: 320ms; }
+.app__flow li:nth-child(3)::before, .app__flow li:nth-child(3)::after { transition-delay: 640ms; }
+/* o marco final mantém o anel de registro na cor de ação mesmo aceso (o
+   background já é --ac); no hover ele ganha um pouco mais de presença no anel. */
+.app:hover .app__flow li:last-child::before { box-shadow: 0 0 0 3px var(--s1), 0 0 0 4px rgb(var(--ac-rgb) / .5); }
 
 /* ---- REGISTRAR: a pergunta aberta ----------------------------------------
    Ao abrir uma pergunta, uma marca de registro se fixa na margem esquerda da
