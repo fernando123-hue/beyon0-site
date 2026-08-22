@@ -149,7 +149,13 @@
        que quase ninguém vê. Marcar é idempotente e não compete com o tween. */
     var marcar = function (els) {
       var lista = els.length !== undefined ? els : [els];
-      for (var m = 0; m < lista.length; m++) lista[m].classList.add('is-in');
+      for (var m = 0; m < lista.length; m++) {
+        lista[m].classList.add('is-in');
+        /* o cabeçalho de seção ganha o tratamento de título (linhas por trás de
+           máscara) além do fade comum. Marcar e tratar no mesmo lugar garante
+           que os dois caminhos — batch e revelação imediata — passem por aqui. */
+        if (lista[m].classList.contains('section__head')) linhasDoTitulo(lista[m]);
+      }
     };
     try {
       gsap.set(alvos, { opacity: 0, y: 28 });
@@ -185,16 +191,73 @@
       gsap.set(alvos, { opacity: 1, y: 0 });
     }
 
-    /* PARALLAX DO REATOR: o núcleo do hero deriva devagar ao rolar (o canvas o
-       segue, pois field.js remede o retângulo no scroll). Profundidade sutil. */
-    var reator = document.querySelector('.hero__reactor'), hero = document.querySelector('.hero');
-    if (ST && reator && hero) {
+    /* ---- PARALAXE CINEMÁTICA — três profundidades, um movimento ----
+       Profundidade só existe se o MESMO movimento produzir medidas diferentes.
+       O campo de partículas já faz isso dentro do canvas (js/field.js, `p.z`);
+       aqui a mesma lei é aplicada aos elementos, e a escala vem da distância
+       narrativa de cada um:
+
+         reator      22%  o objeto mais "à frente" da composição do hero
+         trilha      9%   a faixa de metadados, um plano atrás
+         barramento  13%  o rótulo do AI Core, que flutua sobre a malha
+
+       REGRA QUE MANTÉM ISTO SÓBRIO: nada que se LEIA como texto corrido entra
+       na lista. Deslocar parágrafo ou título enquanto a pessoa lê é o erro que
+       transforma paralaxe em enjoo — e o site tem um argumento de seriedade a
+       proteger. Só peças estruturais e metadados derivam.
+
+       `gsap.matchMedia` desliga tudo abaixo de 820px: no celular a rolagem já
+       é o movimento principal e o percurso vertical é curto demais para a
+       deriva ler como profundidade — leria como tremor. */
+    var hero = document.querySelector('.hero');
+    if (ST && gsap.matchMedia) {
       try {
-        gsap.to(reator, {
-          yPercent: 22, ease: 'none',
-          scrollTrigger: { trigger: hero, start: 'top top', end: 'bottom top', scrub: true }
+        gsap.matchMedia().add('(min-width: 821px)', function () {
+          var camadas = [
+            { sel: '.hero__reactor', y: 22, trg: hero },
+            { sel: '.hero__rail',    y: 9,  trg: hero },
+            { sel: '.bus',           y: 13, trg: '#servicos' }
+          ];
+          for (var c = 0; c < camadas.length; c++) {
+            var el = document.querySelector(camadas[c].sel);
+            if (!el || !camadas[c].trg) continue;
+            gsap.to(el, {
+              yPercent: camadas[c].y, ease: 'none',
+              scrollTrigger: { trigger: camadas[c].trg, start: 'top top', end: 'bottom top', scrub: true }
+            });
+          }
         });
-      } catch (e) { /* parallax é enfeite: falhar aqui não quebra nada */ }
+      } catch (e) { /* paralaxe é profundidade, não conteúdo: falhar não quebra nada */ }
+    }
+  }
+
+  /* ---------- O TÍTULO DE SEÇÃO ENTRA POR LINHAS ----------
+     Mesmo gesto do hero, uma hierarquia abaixo: as linhas do título sobem por
+     trás de uma máscara em vez de simplesmente aparecerem. É o que faz cada
+     seção COMEÇAR em vez de só estar ali — e é a única coisa que este site faz
+     com texto em movimento, de propósito: acontece UMA vez, na entrada, e nunca
+     mais. Texto que se mexe enquanto está sendo lido é hostil.
+
+     Compõe com o fade do contêiner que o batch já dispara (opacity no pai,
+     transform nos filhos: canais diferentes, sem disputa). Se o SplitText não
+     estiver presente, não faz nada — o fade sozinho já revela o título. */
+  function linhasDoTitulo(cabeca) {
+    if (!window.SplitText) return;
+    var h = cabeca.querySelector('h2');
+    if (!h || h._partido) return;
+    h._partido = true;
+    try {
+      var sp = new window.SplitText(h, { type: 'lines', mask: 'lines' });
+      gsap.from(sp.lines, {
+        yPercent: 108, duration: 1.1, stagger: .12, ease: 'power3.out',
+        /* revert devolve o DOM original — sem isto o `<em>` duplicado e VAZIO
+           que a máscara cria ficaria no título para sempre, e os paquímetros
+           (que existem em `h2 em:not(:empty)`) passariam a medir uma palavra
+           que não está mais lá. */
+        onComplete: function () { sp.revert(); }
+      });
+    } catch (e) {
+      /* o título já está visível pelo fade do contêiner: nada a desfazer */
     }
   }
 

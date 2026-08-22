@@ -111,6 +111,13 @@
   }
 
   var W = 0, H = 0, dpr = 1;
+  /* ângulos ACUMULADOS — nunca derivados de S.t multiplicado por uma velocidade
+     variável (ver a nota da VARREDURA). Acumular é o que permite mudar a
+     velocidade sem teleportar a posição. */
+  var varr = 0, aber = 0;
+  /* presença do cursor: sobe rápido ao mover, cai devagar ao parar. Vive aqui
+     porque é estado de DESENHO (quanto mostrar), não estado do organismo. */
+  var pxAnt = 0, pyAnt = 0, presenca = 0, temAnt = false;
   var ps = [], nAlvo = 0;
   var reator = null, barramento = null;
   var servNos = [], nucleo = null, nucAlpha = 0;
@@ -121,6 +128,22 @@
   var elReator = document.querySelector('.hero__reactor');
   var elBus = document.querySelector('.bus');
   var elServ = document.querySelectorAll('.card--service');  /* elos do mini AI Core */
+  var elSecoes = document.querySelectorAll('main > section[id]');
+
+  /* A COLUNA — as fronteiras de seção, como fração da jornada de rolagem.
+     Medidas em coordenadas de DOCUMENTO (offsetTop), então não mudam com o
+     scroll: calculadas em resize/entrada e nunca por frame. A mesma fração que
+     `S.scroll` usa, de propósito — é isso que faz o marcador da coluna encostar
+     na marca exata no instante em que a seção começa. */
+  var marcasSec = [];
+  function medirSecoes() {
+    marcasSec.length = 0;
+    var alc = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+    for (var i = 0; i < elSecoes.length; i++) {
+      var topo = elSecoes[i].offsetTop - 72;              /* menos a nav fixa */
+      marcasSec.push(Math.max(0, Math.min(1, topo / alc)));
+    }
+  }
 
   function dimensionar() {
     var S = B.S;
@@ -137,13 +160,27 @@
     sujo = true;
   }
 
+  /* PROFUNDIDADE — o campo deixou de ser um plano.
+     Cada partícula ganha um `z` (0 = fundo, 1 = frente) e ele decide QUATRO
+     coisas de uma vez: tamanho, brilho, velocidade própria e — a que importa —
+     o quanto ela responde à rolagem da página. Um plano só, por mais bem feito,
+     lê como papel de parede; três medidas de resposta ao MESMO movimento leem
+     como espaço. É a paralaxe custando um multiplicador por partícula, em vez
+     de camadas de DOM.
+
+     `z` também assumiu a divisão de cor que era do `f`: perto é ciano (a
+     interface, viva) e fundo é prata (a estrutura fria). Antes a divisão era
+     por brilho aleatório, o que não significava nada. `f` continua existindo,
+     mas só como FASE — é o que garante que nada respire em sincronia. */
   function semear() {
     ps.length = 0;
     for (var i = 0; i < nAlvo; i++) {
+      var z = Math.random();
       ps.push({
         x: Math.random() * W, y: Math.random() * H,
-        vx: (Math.random() - .5) * .22, vy: (Math.random() - .5) * .22,
-        r: .7 + Math.random() * 1.5,
+        vx: (Math.random() - .5) * .22 * (.4 + z), vy: (Math.random() - .5) * .22 * (.4 + z),
+        r: .5 + z * 1.6,
+        z: z,
         f: .3 + Math.random() * .7          /* fase própria: nada pisca junto */
       });
     }
@@ -182,11 +219,12 @@
     sujo = false;
   }
   window.addEventListener('scroll', function () { sujo = true; }, { passive: true });
-  B.on('resize', function () { dimensionar(); });
+  B.on('resize', function () { dimensionar(); medirSecoes(); });
   /* .reveal nasce com translateY(18px), e getBoundingClientRect devolve a caixa
      JÁ transformada — os retângulos medidos antes da revelação ficam fora do
      lugar. Ao fim da entrada, remede uma vez. */
-  B.on('entrada-pronta', function () { sujo = true; });
+  B.on('entrada-pronta', function () { sujo = true; medirSecoes(); });
+  window.addEventListener('load', medirSecoes, { passive: true });
 
   /* halo: um gradiente por chamada é barato (~1ms para 64 halos, medido) e é
      mais rápido que um sprite escalado — a tentativa com sprite foi 1,4x pior
@@ -240,21 +278,72 @@
     var pr = cor(PRATA, w, hot * .55);
     var e = S.energy, pulso = S.pulse, orc = S.budget;
     var sing = S.singular;
-    var lum = .55 + e * .45 + pulso * .5 + sing * .6 + hot * .5;
+    /* O REGIME ENTRA AQUI, e num lugar só. `wake` multiplica a luminância da
+       cena inteira, então DORMANT não é um efeito à parte: é o mesmo sistema
+       operando mais baixo. Recolhe para 62% e volta — a pessoa que estava lendo
+       parada percebe o ambiente respondendo quando ela volta a se mexer, sem
+       nunca ter visto nada "desligar". Um número, o site inteiro obedece. */
+    var lum = (.55 + e * .45 + pulso * .5 + sing * .6 + hot * .5) * (.62 + S.wake * .38);
 
     /* ---- 1. campo de partículas ---- */
     var quantas = Math.round(ps.length * orc);
     var atrai = S.pointerOn ? 1 : 0;
+    /* deslocamento de rolagem deste frame, limitado. O limite existe porque um
+       salto de âncora (`scroll-behavior: smooth` chega a centenas de px por
+       frame) arremessaria o campo inteiro para fora da tela de uma vez — o
+       wrap devolveria as partículas em posições novas e a cena "trocaria de
+       poeira" a cada clique de navegação. Com o teto, um salto grande lê como
+       um empurrão forte, que é o que ele é. */
+    var sdy = Math.max(-26, Math.min(26, S.sdy || 0));
+    /* GRAVIDADE DO NÚCLEO — permanente, não só no Singular.
+       O pedido é que o sistema pareça responder à existência de um centro. Uma
+       atração radial pura só sugaria a poeira para dentro e esvaziaria a tela em
+       um minuto; o que faz ler como CAMPO é a componente TANGENCIAL — a
+       partícula não cai no núcleo, ela curva ao redor dele. Radial fraca +
+       tangencial dominante = deriva orbital que nunca colapsa e nunca escapa.
+       Só existe onde o núcleo existe, e o alcance é o dobro do raio dele. */
+    var temG = !!reator && reator.y > -reator.r * 3 && reator.y < H + reator.r * 3;
+    var gx = temG ? reator.x : 0, gy = temG ? reator.y : 0;
+    var gR = temG ? reator.r * 2.6 : 0, gR2 = gR * gR;
+    var gK = .00055 * (.35 + S.wake * .65);
     for (var i = 0; i < quantas; i++) {
       var p = ps[i];
       p.x += p.vx * (1 + pulso * 2); p.y += p.vy * (1 + pulso * 2);
+      /* PARALAXE: o mesmo movimento de página, três medidas de resposta. O
+         plano de trás quase não anda (.02), o da frente acompanha (.16). */
+      p.y -= sdy * (.02 + p.z * .14);
       if (p.x < -20) p.x = W + 20; else if (p.x > W + 20) p.x = -20;
       if (p.y < -20) p.y = H + 20; else if (p.y > H + 20) p.y = -20;
 
-      /* o cursor atrai de leve — sem holofote, sem bola de luz */
+      /* o cursor atrai de leve — sem holofote, sem bola de luz. A frente
+         responde mais que o fundo: é a mesma leitura de profundidade. */
+      var luzCursor = 0;
       if (atrai) {
         var dx = S.px - p.x, dy = S.py - p.y, d2 = dx * dx + dy * dy;
-        if (d2 < 52900) { var k = .00018 * (1 - d2 / 52900); p.vx += dx * k; p.vy += dy * k; }
+        if (d2 < 52900) {
+          var caiu = 1 - d2 / 52900;
+          var k = .00018 * caiu * (.4 + p.z);
+          p.vx += dx * k; p.vy += dy * k;
+          /* A LUZ AMBIENTE QUE SEGUE O CURSOR — e ela é a poeira, não um foco.
+             Um holofote redondo atrás do conteúdo já foi tentado neste site e
+             REJEITADO pelo dono (lia como amador), e a direção atual proíbe
+             mancha de luz. A resposta certa é a mesma do resto do campo: quem
+             acende é a matéria que está lá. A pessoa vê o espaço em volta do
+             cursor ganhar densidade sem conseguir apontar uma fonte — que é
+             exatamente o pedido. Custo zero: `caiu` já estava calculado para a
+             atração, e o quadrado concentra o efeito no miolo do raio em vez de
+             espalhá-lo num círculo óbvio de 230px. */
+          luzCursor = caiu * caiu * .5;
+        }
+      }
+      if (temG) {
+        var ox = gx - p.x, oy = gy - p.y, o2 = ox * ox + oy * oy;
+        if (o2 < gR2 && o2 > 400) {
+          var od = Math.sqrt(o2), qd = (1 - od / gR) * gK / od;
+          /* radial fraca, tangencial três vezes maior: órbita, não queda */
+          p.vx += ox * qd + -oy * qd * 3;
+          p.vy += oy * qd + ox * qd * 3;
+        }
       }
       /* no Singular o campo inteiro é puxado para o reator: a poeira vira
          corrente, e dá para VER de onde a energia está vindo. */
@@ -265,28 +354,90 @@
       }
       p.vx *= .995; p.vy *= .995;
 
-      var br = (.18 + p.f * .3) * lum;
-      /* DUAS FAIXAS. `p.f` é a fase própria da partícula (.3 a 1.0) e já decide
-         o brilho; agora decide também a cor. As fracas são prata, as fortes
-         ciano — então o campo tem profundidade cromática em vez de ser uma só
-         cor em brilhos diferentes. O corte é o MESMO .55 que o núcleo branco do
-         Singular já usava logo abaixo: nenhum dado novo por partícula. */
-      ctx.fillStyle = 'rgba(' + (p.f > .55 ? cy : pr) + ',' + a1(br).toFixed(3) + ')';
+      /* o brilho é da PROFUNDIDADE (o fundo é mais fraco), a oscilação é da
+         fase — as duas coisas separadas, uma decisão cada. */
+      var br = (.10 + p.z * .34 + luzCursor) * lum;
+      /* DUAS FAIXAS, por profundidade: a frente é ciano (a interface viva), o
+         fundo é prata (a estrutura fria). O corte é o MESMO .55 que o núcleo
+         branco do Singular usa logo abaixo — nenhum dado novo por partícula. */
+      ctx.fillStyle = 'rgba(' + (p.z > .55 ? cy : pr) + ',' + a1(br).toFixed(3) + ')';
       ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (1 + sing * .5), 0, TAU); ctx.fill();
       /* núcleo branco nas maiores durante o Singular: a poeira vira ouro */
-      if (sing > .3 && p.f > .55) {
+      if (sing > .3 && p.z > .55) {
         ctx.fillStyle = 'rgba(' + nuc + ',' + (.5 * sing).toFixed(3) + ')';
         ctx.beginPath(); ctx.arc(p.x, p.y, p.r * .45, 0, TAU); ctx.fill();
       }
     }
 
-    /* ---- 2. brumas: só quando há folga de orçamento ---- */
+    /* ---- 2. brumas: só quando há folga de orçamento ----
+       DUAS derivas agora, com períodos incomensuráveis (.21 e .13 contra .17 e
+       .09): o padrão nunca se repete de forma reconhecível, então o fundo tem
+       movimento sem ter ritmo — que é a diferença entre atmosfera e animação.
+       A segunda é ciano, menor e mais baixa na tela, dando uma direção de luz.
+
+       O REGIME FOCUSED age aqui: quando o cursor pousa sobre algo que responde,
+       o ambiente RECUA (até -40%) para que o elemento apontado fique com a
+       atenção. É a leitura correta de "um elemento ganha destaque" — o resto
+       cede espaço, em vez de o destaque gritar mais alto. */
     if (orc > .8) {
-      var t = S.t * .001;
+      var t = S.t * .001, ceder = 1 - S.focus * .4;
       /* a bruma é a camada mais profunda e difusa da cena — é o lugar natural do
          contraponto: tinge o fundo sem competir com nada que precise ser lido. */
       halo(W * .5 + Math.cos(t * .21) * W * .2, H * .38 + Math.sin(t * .17) * H * .15,
-           Math.min(W, H) * .5, pr, .016 * lum);
+           Math.min(W, H) * .5, pr, .016 * lum * ceder);
+      halo(W * .34 + Math.sin(t * .13) * W * .17, H * .72 + Math.cos(t * .09) * H * .12,
+           Math.min(W, H) * .36, cy, .010 * lum * ceder);
+    }
+
+    /* ---- 2a. A COLUNA — a continuidade entre as seções ----
+       O pedido era que as seções não parecessem páginas empilhadas. Elas não
+       são: são trechos de UM percurso, e a coluna é esse percurso desenhado
+       por inteiro na lateral — a escala completa do documento, sempre visível,
+       com uma marca por seção e o cursor de posição correndo por ela.
+
+       É a leitura de INSTRUMENTO da continuidade, não uma barra de rolagem
+       enfeitada: fica na margem esquerda (onde vive a espinha de um desenho
+       técnico), não na direita (onde uma barra de rolagem seria a cópia da do
+       navegador). E as marcas usam a MESMA fração que `S.scroll`, então o
+       marcador encosta na marca no instante exato em que a seção começa — quem
+       percebe isso ganha um mapa do site que sempre esteve ali.
+
+       Custo: duas paths e um retângulo.
+
+       O CORTE EM 1000px é geometria, não gosto. A coluna ocupa de x=19 a x=27
+       (o traço em 22 mais as marcas). O texto começa em `--pad`, que é
+       `clamp(20px, 5vw, 56px)` a partir da borda da seção — e enquanto a
+       viewport for menor que os 1200px de `--maxw`, a seção encosta nas bordas
+       e essa distância É o padding. Aos 1000px isso dá 50px, e sobram 23px de
+       respiro entre a coluna e a primeira letra; aos 760px sobrariam 11px e a
+       coluna leria como um traço colado no texto. Abaixo do corte não existe
+       margem para uma marca de margem ocupar. */
+    if (W > 1000 && marcasSec.length) {
+      var colX = 22, colTopo = 90, colBase = H - 104;
+      var colH = colBase - colTopo;
+      if (colH > 120) {
+        var vivo = .5 + S.wake * .5;
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(' + pr + ',' + a1(.13 * vivo).toFixed(3) + ')';
+        ctx.beginPath();
+        ctx.moveTo(colX + .5, colTopo); ctx.lineTo(colX + .5, colBase);
+        ctx.stroke();
+
+        /* as marcas de seção: traço curto atravessando, como escala graduada */
+        ctx.strokeStyle = 'rgba(' + pr + ',' + a1(.3 * vivo).toFixed(3) + ')';
+        ctx.beginPath();
+        for (var ims = 0; ims < marcasSec.length; ims++) {
+          var ym = Math.round(colTopo + marcasSec[ims] * colH) + .5;
+          ctx.moveTo(colX - 3, ym); ctx.lineTo(colX + 5, ym);
+        }
+        ctx.stroke();
+
+        /* o cursor de posição: um trecho curto e CHEIO na cor de ação. É o
+           único ponto da coluna que recebe cor — o resto é escala. */
+        var yPos = colTopo + Math.max(0, Math.min(1, S.scroll)) * colH;
+        ctx.fillStyle = 'rgba(' + cy + ',' + a1((.45 + S.sv * .4) * lum).toFixed(3) + ')';
+        ctx.fillRect(colX, yPos - 11, 1.6, 22);
+      }
     }
 
     /* ---- 2b. AURORA DO SINGULAR ----
@@ -394,8 +545,18 @@
          O único movimento CONTÍNUO do núcleo: um arco curto percorrendo o anel.
          É o sinal de "está operando", e um sinal basta — a versão anterior
          tinha sete rotações competindo entre si, o que lia como agitação, não
-         como precisão. Acelera com a energia da jornada e com o Pulso. */
-      var av = S.t * .006 * (1 + e * .5 + pulso);
+         como precisão. Acelera com a energia da jornada, com o Pulso e com a
+         presença (dormente ele quase para).
+
+         BUG CORRIGIDO AQUI: o ângulo era `S.t * .006 * (1 + e*.5 + pulso)` —
+         a VELOCIDADE multiplicando o tempo ACUMULADO. Derivando, a taxa real
+         era `k·(1+p) + t·k·dp/dt`: o segundo termo cresce com o tempo de
+         página, então quando o Pulso subia aos cinco minutos de visita o arco
+         saltava dezenas de radianos entre dois frames e girava descontrolado.
+         Acumular o ângulo resolve na origem: a velocidade passa a ser a
+         velocidade, e mudá-la nunca teleporta a posição. */
+      varr += .006 * (1 + e * .5 + pulso * 1.6) * (.25 + S.wake * .75) * (S.dt / 16.7);
+      var av = varr;
       ctx.strokeStyle = 'rgba(' + alta + ',' + a1(.55 * lum).toFixed(3) + ')';
       ctx.beginPath(); ctx.arc(cx, cyy, R * .88, av, av + .38); ctx.stroke();
 
@@ -429,11 +590,19 @@
          · teto em `lum` — sem ele o Singular levava o alfa a 1 e a sobra das
            lâminas, que é discreta em repouso, virava a coisa mais gritante da
            tela justamente no momento de maior brilho. */
-      var abre = .34 + sing * .10 + pulso * .04;
+      /* A ABERTURA RESPONDE À PESSOA. O cursor chegando perto do núcleo abre o
+         diafragma um pouco — o mesmo gesto mecânico do Singular, numa fração da
+         amplitude. É a resposta mais importante do site inteiro: quem se
+         aproxima descobre que o núcleo estava prestando atenção. Amplitude
+         deliberadamente pequena (+.05 contra os +.10 do Singular): tem que ser
+         percebido como resposta, nunca como o mecanismo abrindo por conta. */
+      var perto = prox(S, cx, cyy, R * 3.4);
+      var abre = .34 + sing * .10 + pulso * .04 + perto * .05;
       var rIn = R * abre * resp;
       var rOut = rIn * K_HEX * 1.10;
       var meiaCorda = Math.sqrt(Math.max(0, rOut * rOut - rIn * rIn));
-      var rotA = S.t * .0016;
+      aber += .0016 * (.3 + S.wake * .7) * (S.dt / 16.7);
+      var rotA = aber;
       ctx.lineWidth = 1;
       ctx.strokeStyle = 'rgba(' + cy + ',' + a1(.36 * Math.min(lum, 1.15)).toFixed(3) + ')';
       ctx.beginPath();
@@ -561,6 +730,48 @@
       ctx.fillStyle = bg;
       ctx.fillRect(barramento.x, barramento.y - 1, barramento.w, 2);
       halo(bx, barramento.y, 26, alta, .3 * pulso);
+    }
+
+    /* ---- 5. A LEITURA DO CURSOR ----
+       O cursor não ganha um enfeite preso a ele — isso seria o rastro genérico
+       que a direção recusa. Ele ganha uma CONSEQUÊNCIA: nas bordas da tela, dois
+       traços marcam a coordenada onde ele está, como as guias de um paquímetro
+       digital lendo a peça. O objeto apontado é a página; quem lê é o
+       instrumento; o cursor é só onde a leitura está sendo tomada.
+
+       Aparece ao MOVER e some parado (em ~1s): a leitura existe enquanto se
+       está medindo. Fora isso não há nada a mostrar, e uma marca permanente
+       viraria decoração. */
+    if (S.pointerOn) {
+      var vpx = S.px - pxAnt, vpy = S.py - pyAnt;
+      /* NOTA: o desenho fica FORA deste bloco de propósito — ver abaixo. */
+      /* PRIMEIRO FRAME COM PONTEIRO: `S.px` nasce em 0 e persegue o cursor por
+         interpolação, então a "velocidade" do primeiro quadro é a tela inteira.
+         Sem esta guarda, a leitura acendia no máximo e as duas marcas
+         atravessavam a borda vindas do canto até alcançarem o cursor — um
+         risco deslizando na tela a cada vez que o mouse entra na página.
+         Adotar a posição sem medir nada resolve na origem. */
+      if (!temAnt) { temAnt = true; vpx = 0; vpy = 0; }
+      pxAnt = S.px; pyAnt = S.py;
+      var vel = Math.min(1, Math.sqrt(vpx * vpx + vpy * vpy) / 9);
+      presenca += (vel - presenca) * (vel > presenca ? .35 : .045);
+    } else if (presenca > .002) {
+      presenca *= .9;
+    } else {
+      presenca = 0;
+    }
+    /* o DESENHO vive fora do `if (pointerOn)`: quando o cursor sai da janela, a
+       leitura tem que APAGAR no lugar onde parou, não sumir num corte. `S.px`
+       fica congelado na última posição, que é exatamente o que uma última
+       leitura deve mostrar. */
+    if (presenca > .02) {
+      var ap = a1(presenca * .5 * Math.min(lum, 1.3));
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(' + cy + ',' + ap.toFixed(3) + ')';
+      ctx.beginPath();
+      ctx.moveTo(S.px, 0); ctx.lineTo(S.px, 11);          /* coordenada X, no topo */
+      ctx.moveTo(W - 11, S.py); ctx.lineTo(W, S.py);      /* coordenada Y, à direita */
+      ctx.stroke();
     }
 
     ctx.globalCompositeOperation = 'source-over';

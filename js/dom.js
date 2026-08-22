@@ -139,17 +139,53 @@
                        dcy: r.top + sy + r.height / 2, h: r.height });
       }
     };
+    /* OS CONTROLES têm o próprio cache, com o mesmo princípio: centro em
+       coordenadas de documento, medido só quando o layout muda. Eles não
+       acendem — eles são ATRAÍDOS (ver o bloco do ímã dentro de varrer). */
+    /* em movimento reduzido a lista fica VAZIA e o laço do ímã não roda —
+       deslocar um controle sob o cursor é exatamente o tipo de movimento não
+       solicitado que essa preferência pede para não existir. */
+    var botoes = B.reduced ? [] : document.querySelectorAll('.btn');
+    var centrosBtn = [];
+    var medirBotoes = function () {
+      centrosBtn.length = 0;
+      var sx = window.pageXOffset, sy = window.pageYOffset;
+      for (var i = 0; i < botoes.length; i++) {
+        var r = botoes[i].getBoundingClientRect();
+        if (!r.width) continue;
+        /* CONTROLE FIXO guarda coordenada de VIEWPORT; o resto guarda coordenada
+           de DOCUMENTO. Sem esta distinção o cache mentia: `getBoundingClientRect`
+           de um elemento fixo já vem em viewport, e somar o scroll a ele produz
+           um ponto de documento que anda junto com a página. O CTA da nav e o
+           botão do medidor (ambos dentro de contêineres `position: fixed`) eram
+           medidos uma vez no topo e depois ficavam com o alvo do ímã centenas de
+           pixels acima da tela — na prática o ímã morria assim que a pessoa
+           rolava, exatamente nos dois controles que existem em todas as telas. */
+        var fixo = !!botoes[i].closest('.nav, .medidor');
+        centrosBtn.push({ el: botoes[i], fixo: fixo,
+                          dcx: r.left + (fixo ? 0 : sx) + r.width / 2,
+                          dcy: r.top + (fixo ? 0 : sy) + r.height / 2, h: r.height });
+      }
+    };
+
     var mx = -9999, my = -9999, agendado = false;
     var RAIO = 340;
+    /* ÍMÃ: alcance curto e deslocamento minúsculo, de propósito. A 110px o
+       controle só reage quando a intenção de clicar já existe, e 4px é o
+       limite em que o olho percebe "ele veio até mim" sem o botão parecer
+       solto da página. Passar disso vira brinquedo. */
+    var RAIO_IMA = 110, PUXA = 4;
     var varrer = function () {
       agendado = false;
       var sx = window.pageXOffset, sy = window.pageYOffset, vh = window.innerHeight;
+      var maiorPerto = 0;
       for (var i = 0; i < centros.length; i++) {
         var c = centros[i], vy = c.dcy - sy, n = 0;   /* centro no viewport */
         if (vy > -c.h && vy < vh + c.h) {
           var dx = mx - (c.dcx - sx), dy = my - vy, d = Math.sqrt(dx * dx + dy * dy);
           if (d < RAIO) { n = 1 - d / RAIO; n = n * n; }
         }
+        if (n > maiorPerto) maiorPerto = n;
         var q = Math.round(n * 20) / 20;               /* passos de .05: menos escritas */
         if (q !== c.el._near) {
           c.el._near = q;
@@ -157,16 +193,48 @@
           else c.el.style.removeProperty('--near');
         }
       }
+      /* alimenta o REGIME: "focused" é o cursor pousado sobre algo que
+         responde. Quem define o estado é o núcleo (js/core.js); aqui só se
+         publica a medida, que já estava sendo calculada de qualquer forma. */
+      S.focus = maiorPerto;
+
+      /* ---- O ÍMÃ ----
+         O controle se desloca na direção do cursor quando ele chega perto. Vai
+         em `translate` e NÃO em `transform` de propósito: o GSAP dirige
+         `transform` na entrada do hero, e as duas propriedades são canais
+         separados que o navegador compõe — assim o ímã nunca disputa valor com
+         a animação de entrada nem é zerado por ela. Quantizado em passos de 1px:
+         o estilo só é reescrito quando o valor de fato muda. */
+      for (var b = 0; b < centrosBtn.length; b++) {
+        var cb = centrosBtn[b];
+        var bx = cb.fixo ? cb.dcx : cb.dcx - sx;
+        var by = cb.fixo ? cb.dcy : cb.dcy - sy;
+        var ux = 0, uy = 0;
+        if (by > -cb.h && by < vh + cb.h) {
+          var ex = mx - bx, ey = my - by;
+          var ed = Math.sqrt(ex * ex + ey * ey);
+          if (ed < RAIO_IMA && ed > .5) {
+            var forca = (1 - ed / RAIO_IMA) * PUXA;
+            ux = Math.round(ex / ed * forca); uy = Math.round(ey / ed * forca);
+          }
+        }
+        if (ux !== cb.el._ix || uy !== cb.el._iy) {
+          cb.el._ix = ux; cb.el._iy = uy;
+          if (ux || uy) cb.el.style.translate = ux + 'px ' + uy + 'px';
+          else cb.el.style.translate = '';
+        }
+      }
     };
     var pedir = function () { if (!agendado) { agendado = true; requestAnimationFrame(varrer); } };
     pedirNear = pedir;                    /* o listener único de scroll chama por aqui */
-    medirCentros();
+    var medirTudo = function () { medirCentros(); medirBotoes(); };
+    medirTudo();
     window.addEventListener('pointermove', function (e) { mx = e.clientX; my = e.clientY; pedir(); }, { passive: true });
     window.addEventListener('pointerleave', function () { mx = -9999; my = -9999; pedir(); }, { passive: true });
     /* os centros só mudam quando o LAYOUT muda: recalcula aí, nunca por frame. */
-    window.addEventListener('resize', medirCentros, { passive: true });
-    window.addEventListener('load', medirCentros, { passive: true });
-    B.on('entrada-pronta', medirCentros);
+    window.addEventListener('resize', medirTudo, { passive: true });
+    window.addEventListener('load', medirTudo, { passive: true });
+    B.on('entrada-pronta', medirTudo);
   }
 
   /* ---------- menu do celular: uma classe, por clique ----------
@@ -285,6 +353,17 @@
   function agendarPulso(now) {
     proxPulso = now + 9000 + Math.random() * 11000;
   }
+  /* um caminho só para começar um Pulso, porque agora existem DOIS motivos
+     para ele acontecer: o relógio interno e o reconhecimento das capacidades
+     (ver RECONHECIMENTO). Duplicar o corpo aqui era como as duas versões
+     saíam de sincronia. */
+  function dispararPulso(now, anuncio) {
+    if (pulsoAte > now || S.singular) return false;
+    pulsoAte = now + DUR;
+    document.body.classList.add('is-pulse');
+    anunciar(anuncio || 'Ressonância em curso');
+    return true;
+  }
 
   function drivePulso(now, dt) {
     if (now < pulsoAte) {
@@ -299,10 +378,38 @@
       anunciar('Sistema online · Beyon Zero');
       agendarPulso(now);
     }
-    if (proxPulso && now > proxPulso && !S.singular) {
-      pulsoAte = now + DUR;
-      document.body.classList.add('is-pulse');
-      anunciar('Ressonância em curso');
+    if (proxPulso && now > proxPulso && !S.singular) dispararPulso(now);
+  }
+
+  /* ---------- RECONHECIMENTO — a descoberta para quem presta atenção --------
+     Quem passa o cursor por todas as seis capacidades recebe uma resposta: o
+     AI Core reconhece, e a ressonância atravessa o site inteiro. É a única
+     recompensa escondida da página, e ela existe porque o argumento central da
+     seção é "seis capacidades, um núcleo" — a pessoa que percorre as seis está
+     literalmente completando essa frase com o cursor.
+
+     Acontece UMA vez por visita. Repetir tiraria o caráter de descoberta e
+     viraria um Pulso barato a cada passada de mouse. Custo: um listener `once`
+     por card, que se remove sozinho ao disparar. */
+  var reconhecidas = 0, jaReconheceu = false;
+  var cardsServ = document.querySelectorAll('.card--service');
+  if (B.fine && cardsServ.length) {
+    var marcarServico = function () {
+      if (jaReconheceu) return;
+      reconhecidas++;
+      if (reconhecidas < cardsServ.length) return;
+      jaReconheceu = true;
+      /* `S.now` é o relógio do loop (o mesmo `performance.now` do rAF), então
+         o disparo entra na mesma linha do tempo do agendamento automático. */
+      dispararPulso(S.now, 'Seis capacidades reconhecidas');
+      /* e o sistema se abre para quem demonstrou interesse: o próximo Singular
+         é antecipado para daqui a ~12s. Nunca ADIA — se o relógio já ia
+         disparar antes disso, o agendamento dele continua valendo. */
+      var cedo = S.now + 12000;
+      if (proxSing > cedo) proxSing = cedo;
+    };
+    for (var cs = 0; cs < cardsServ.length; cs++) {
+      cardsServ[cs].addEventListener('pointerenter', marcarServico, { once: true, passive: true });
     }
   }
 
@@ -429,6 +536,25 @@
       medBtn.focus();
     });
   }
+
+  /* ---------- REGIME → uma classe no <body> ----------
+     O núcleo resolve QUAL é o estado (js/core.js); aqui ele vira uma classe,
+     e só quando muda — um punhado de vezes por visita. `is-pulse` e
+     `is-singular` continuam sendo escritas pelas próprias máquinas acima,
+     porque são eventos com começo e fim próprios.
+
+     Só DORMANT vira classe. `focused` existe e é usado — mas dentro do canvas,
+     onde a resposta certa é o ambiente se aquietar para o elemento apontado
+     ganhar a atenção; no CSS ele não teria nada honesto para mudar, e inventar
+     uma regra só para "usar o estado" é como uma camada de efeitos vira
+     enfeite. `active` é o repouso do site: a ausência das outras classes. */
+  var dormindo = false;
+  B.on('regime', function (r) {
+    var d = r === 'dormant';
+    if (d === dormindo) return;
+    dormindo = d;
+    document.body.classList.toggle('is-dormant', d);
+  });
 
   B.iniciar();
 })();

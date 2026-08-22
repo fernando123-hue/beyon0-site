@@ -39,7 +39,14 @@
     whiteHot: 0,     /* 0..1 — branco incandescente (auge na ignição do Singular) */
     shock: -1,       /* 0..1 — a onda de choque atravessando a tela; -1 = desligada */
     budget: 1,       /* 0..1 — quanto trabalho cabe neste frame */
-    fps: 60
+    fps: 60,
+
+    /* ---- REGIME: o sistema de estados (ver bloco REGIME abaixo) ---- */
+    wake: 1,         /* 0..1 — presença: cai sozinho no ócio, volta na interação */
+    focus: 0,        /* 0..1 — o cursor está sobre algo interativo (js/dom.js escreve) */
+    sv: 0,           /* 0..1 — velocidade de scroll, suavizada */
+    sdy: 0,          /* px rolados neste frame, COM SINAL — a paralaxe do campo */
+    regime: 'active' /* dormant · active · focused · resonance · singularity */
   };
 
   /* ---- ORÇAMENTO ----
@@ -67,8 +74,63 @@
   if (fine) {
     window.addEventListener('pointermove', function (e) {
       tx = e.clientX; ty = e.clientY; S.pointerOn = true;
+      tocou();
     }, { passive: true });
     window.addEventListener('pointerleave', function () { S.pointerOn = false; }, { passive: true });
+  }
+
+  /* ==========================================================================
+     REGIME — a arquitetura de estados
+
+     O site não tem "efeitos ligados"; ele tem ESTADOS, e cada efeito lê o
+     estado. Isso é o que impede a camada de atmosfera de virar uma coleção de
+     animações independentes: quando o regime muda, tudo muda junto, porque
+     todos leem o mesmo número.
+
+       DORMANT      ninguém interage há um tempo — o sistema recolhe
+       ACTIVE       há presença: cursor, scroll, teclado
+       FOCUSED      o cursor está sobre algo que responde
+       RESONANCE    o Pulso está atravessando
+       SINGULARITY  o Estado Singular
+
+     Ele é DERIVADO, não uma máquina paralela: `wake` vem do tempo desde a
+     última interação, `focus` vem da proximidade que js/dom.js já calcula,
+     e resonance/singularity são o Pulso e o Singular que já existiam. Nenhum
+     temporizador novo, nenhum listener por frame — só um `Date`-livre
+     `S.now` que o loop já tem.
+
+     A ordem de prevalência é a de INTENSIDADE: o espetáculo ganha do foco,
+     o foco ganha da presença. É o mesmo princípio da hierarquia visual do
+     site aplicado ao tempo. */
+  var OCIO = 32000;        /* ms de silêncio até começar a recolher */
+  var ADORMECER = 9000;    /* ms de descida — lenta, para não ler como corte */
+  var ultimoToque = 0, houveToque = true;
+  function tocou() { houveToque = true; }
+  if (!fine) window.addEventListener('touchstart', tocou, { passive: true });
+  window.addEventListener('keydown', tocou, { passive: true });
+  window.addEventListener('pointerdown', tocou, { passive: true });
+
+  var regimeAtual = 'active';
+  function regime(now) {
+    if (houveToque) { houveToque = false; ultimoToque = now; }
+    var parado = now - ultimoToque;
+    /* alvo binário, chegada suave: o despertar é quase imediato (o site tem que
+       responder à pessoa), o recolhimento é lento. Assimetria de propósito. */
+    var alvoWake = parado < OCIO ? 1 : Math.max(0, 1 - (parado - OCIO) / ADORMECER);
+    S.wake += (alvoWake - S.wake) * (alvoWake > S.wake ? .2 : .01);
+
+    /* DORMANT é o CHÃO, não um degrau ao lado de `focused`. A primeira versão
+       testava foco antes de presença, e um cursor esquecido em cima de um card
+       mantinha o regime em `focused` para sempre: o canvas escurecia (porque
+       `wake` cai de qualquer forma) enquanto o estado dizia "atenção". Sem
+       presença não há atenção — testar `wake` primeiro é o que mantém os dois
+       lados da arquitetura contando a mesma história. */
+    var r = S.singular > .04 ? 'singularity'
+          : S.pulse > .04 ? 'resonance'
+          : S.wake <= .5 ? 'dormant'
+          : S.focus > .55 ? 'focused'
+          : 'active';
+    if (r !== regimeAtual) { regimeAtual = r; S.regime = r; emit('regime', r); }
   }
 
   /* ---- medidas: só em scroll/resize, nunca por frame ---- */
@@ -86,8 +148,17 @@
   }
   medir();
   window.addEventListener('resize', function () { medir(); emit('resize'); }, { passive: true });
+  /* velocidade de scroll: o delta bruto é guardado no evento e CONSUMIDO no
+     frame. Guardar aqui e normalizar lá evita depender da taxa de disparo do
+     scroll (que varia muito entre aparelhos) e mantém o listener em duas
+     atribuições. Serve à profundidade: o campo distante reage ao movimento da
+     página, e é isso que dá a leitura de paralaxe sem mover nenhum elemento. */
+  var scrollAntes = 0, deltaScroll = 0;
   window.addEventListener('scroll', function () {
-    S.scroll = Math.min(1, window.scrollY / alcance);
+    var y = window.scrollY;
+    S.scroll = Math.min(1, y / alcance);
+    deltaScroll += y - scrollAntes; scrollAntes = y;
+    tocou();
   }, { passive: true });
 
   /* ---- eventos internos: o organismo avisa, ninguém consulta ---- */
@@ -113,6 +184,18 @@
     /* energia: sobe com a jornada e com a presença, respira devagar */
     var alvo = S.scroll * 0.62 + (S.pointerOn ? 0.1 : 0) + 0.08;
     S.energy += (Math.min(1, alvo) - S.energy) * 0.03;
+
+    /* scroll consumido uma vez por frame (ver o listener). `sdy` é o
+       deslocamento COM SINAL do frame — é ele que dá paralaxe de verdade ao
+       campo, porque a profundidade só lê como profundidade se cada plano
+       responder ao mesmo movimento em medidas diferentes. `sv` é o módulo
+       normalizado: 900px de percurso satura em 1, e o decaimento devolve o
+       campo ao repouso em ~0,5s. */
+    S.sdy = deltaScroll;
+    S.sv += (Math.min(1, Math.abs(deltaScroll) / 900) - S.sv) * .3;
+    deltaScroll = 0;
+
+    regime(S.now);
 
     if (PERF) {
       for (var i = 0; i < subs.length; i++) {

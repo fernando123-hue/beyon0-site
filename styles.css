@@ -1161,16 +1161,30 @@ h1 em:not(:empty)::after,  h2 em:not(:empty)::after  { right: -.24em; transform:
   background-size: 0% 100%;
   transition: background-size var(--t) var(--ease),
               border-color var(--t-fast) var(--ease),
-              color var(--t-fast) var(--ease);
+              color var(--t-fast) var(--ease),
+              /* o ÍMÃ (js/dom.js escreve `translate` em px). A transição existe
+                 para dar INÉRCIA: o valor chega quantizado em passos de 1px, e
+                 sem ela o controle andaria aos saltos e voltaria ao lugar num
+                 corte seco quando o cursor saísse. 220ms é o atraso em que o
+                 movimento lê como massa — o botão parece pesar alguma coisa —
+                 sem virar borracha. */
+              translate 220ms var(--ease);
 }
 .btn:hover { background-size: 100% 100%; }
 /* o primário já é preenchido com a cor de ação: nele o nível é um clareado,
    não outra cor — trocar o fundo apagaria a única superfície quente da página. */
 .btn--primary {
   background-image: linear-gradient(rgb(255 255 255 / .18), rgb(255 255 255 / .18));
+  /* `translate` PRECISA ser repetido aqui. Esta regra redeclara `transition`
+     por inteiro e o valor mais específico substitui a lista do `.btn` — sem
+     esta linha o ímã ficaria sem inércia justamente nos botões primários, que
+     são os três CTAs principais da página: o do hero, o do painel de contato e
+     o do rodapé. Cada `transition` redeclarada tem que recarregar a lista
+     inteira; não há herança de itens entre elas. */
   transition: background-size var(--t) var(--ease),
               background-color var(--t-sing) var(--ease-mid),
-              border-color var(--t-sing) var(--ease-mid);
+              border-color var(--t-sing) var(--ease-mid),
+              translate 220ms var(--ease);
 }
 .btn--primary:hover { opacity: 1; background-size: 100% 100%; }
 
@@ -1255,6 +1269,57 @@ h1 em:not(:empty)::after,  h2 em:not(:empty)::after  { right: -.24em; transform:
    como calor, não o halo redondo que o dono já rejeitou uma vez. */
 h1, h2 { transition: text-shadow var(--t-sing) var(--ease-mid); }
 .is-singular h1, .is-singular h2 { text-shadow: 0 0 28px rgb(var(--ac-rgb) / .15); }
+
+/* ---- ATMOSFERA: o grão -----------------------------------------------------
+   A única camada de textura do site, e ela existe por um motivo mensurável:
+   sobre preto quase absoluto, uma superfície perfeitamente lisa não tem ESCALA
+   — o olho não tem nada com que julgar profundidade, e o fundo lê como
+   ausência em vez de espaço. Uma película de ruído dá matéria ao vazio, do
+   mesmo jeito que o grão dá corpo a uma fotografia escura.
+
+   POR QUE ESTÁTICO, e não desenhado por frame: um grão que se move é a coisa
+   mais cara que se pode pedir a uma tela (repinta a área inteira, todo frame) e
+   a menos necessária — o movimento da atmosfera já vem do campo, das brumas e
+   da paralaxe, que estão no canvas onde o custo é de ~1ms. Aqui o custo é ZERO
+   por frame: é uma camada composta, pintada uma vez.
+
+   O ruído é gerado por `feTurbulence` num data URI (a CSP permite `data:` em
+   img-src) — nenhum arquivo baixado, nenhuma requisição. `background-size`
+   fixa o ladrilho em 200px para o navegador rasterizar uma vez e repetir.
+
+   z-index 3: acima do conteúdo (que está em 1), abaixo da linha de entrada (4)
+   e de todo o cromo de interface (nav 50, medidor/WhatsApp 40). Película sobre
+   a página, nunca sobre os controles. */
+body::after {
+  content: "";
+  position: fixed; inset: 0; z-index: 3;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23g)' opacity='.6'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
+  /* .035 é o teto útil: acima disso o texto de corpo (--t2, 7,3:1) começa a
+     perder nitidez nas hastes finas do Sora 300. Abaixo de .02 o grão some no
+     celular. */
+  opacity: .035;
+  transition: opacity var(--t-slow) var(--ease-mid);
+}
+
+/* ---- REGIME DORMENTE ----
+   Depois de ~32s sem cursor, sem scroll e sem teclado, o sistema recolhe. O
+   grosso disso acontece no canvas (`S.wake` multiplica a luminância da cena
+   inteira — js/field.js); no CSS a regra é única e severa: **nada de texto
+   muda**. Diminuir contraste de leitura para "criar atmosfera" quebraria a
+   conformidade AA que este projeto mediu por script, e puniria justamente quem
+   ficou parado porque estava LENDO.
+   Então o que cede aqui é só o que não é conteúdo: a película.
+
+   UMA REGRA SÓ, e isso é uma decisão. Aqui existiu também um
+   `.is-dormant .dot { animation-duration: 5.5s }` para desacelerar o LED de
+   status — saiu por dois motivos: trocar `animation-duration` com a animação
+   em curso reinicia o ciclo em vários navegadores (o ponto DARIA UM PULO ao
+   adormecer, que é o oposto do efeito), e o recolhimento já está dito pelo
+   canvas inteiro cedendo 38% de luminância. Efeito que repete o que outro já
+   diz, com risco próprio, não fica. */
+.is-dormant::after { opacity: .022; }
 
 /* ==========================================================================
    INTRO — overlay de vídeo no boot
