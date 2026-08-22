@@ -672,8 +672,10 @@
       for (var L = 0; L < servNos.length; L++) {          /* elos primeiro, atrás do núcleo */
         var sn = servNos[L];
         var pl = prox(S, sn.cx, sn.cy, 300);
-        var aL = .06 + e * .05 + pl * .55 + pulso * .3;
-        var aLim = a1(Math.min(.6, aL));
+        /* elo mais presente em repouso (o dono achou a conexão "sem vida"): a
+           linha existe de verdade agora, e acende forte quando o card é o alvo. */
+        var aL = .12 + e * .06 + pl * .6 + pulso * .3;
+        var aLim = a1(Math.min(.72, aL));
         /* O ELO CONTA A HISTÓRIA DA PALETA: sai do card em CIANO (é interface) e
            esfria para PRATA ao chegar no nó (é AI Core). Um gradiente linear
            do card até o nó — não é um traço de cor única, é a transição entre as
@@ -692,6 +694,28 @@
         /* a porta: onde o cabo encaixa no card. Acende com a proximidade. */
         ctx.fillStyle = 'rgba(' + alta + ',' + a1(.3 + pl * .5).toFixed(3) + ')';
         ctx.beginPath(); ctx.arc(sn.cx, sn.cy, 1.6 + pl * 1.4, 0, TAU); ctx.fill();
+
+        /* FLUXO DE ENERGIA SEM FIM pelo elo (pedido do dono: a conexão estava
+           "sem vida"). Partículas correm do núcleo até o card ao longo da
+           curva, sempre — é isso que dá VIDA contínua à ligação, em vez de uma
+           linha parada. Quando o card é SELECIONADO (pl alto), o fluxo ganha
+           mais partículas e mais brilho: o card puxa energia do Core. Cada elo
+           tem uma defasagem própria (`L`), então os seis nunca pulsam juntos. */
+        var nPart = 3 + Math.round(e * .8 + pl * 4 + pulso * 2);
+        var fvel = .0065 * (1 + pl * 1.8 + pulso);
+        for (var fp = 0; fp < nPart; fp++) {
+          var t = (S.t * fvel + fp / nPart + L * .13) % 1;
+          var mt2 = 1 - t;
+          /* posição na Bézier quadrática P0=núcleo, C=(sn.cx,hy), P1=card */
+          var fx = mt2 * mt2 * hx + (2 * mt2 * t + t * t) * sn.cx;
+          var fy = mt2 * mt2 * hy + 2 * mt2 * t * hy + t * t * sn.cy;
+          /* brilho some nas duas pontas (sin) — a partícula "nasce" e "chega"
+             sem corte seco. Base viva já sem cursor, forte quando selecionado. */
+          var brF = Math.sin(t * Math.PI) * (.42 + pl * .58 + pulso * .35);
+          if (brF < .02) continue;
+          ctx.fillStyle = 'rgba(' + alta + ',' + a1(brF).toFixed(3) + ')';
+          ctx.beginPath(); ctx.arc(fx, fy, 1 + pl * 1.4 + pulso * .6, 0, TAU); ctx.fill();
+        }
         if (pulso > .02) {
           var f = Math.max(0, Math.min(1, S.pulseFront)), mt = 1 - f;
           /* posição na PRÓPRIA curva (Bézier quadrática), não na reta */
@@ -752,61 +776,69 @@
       halo(bx, barramento.y, 26, alta, .3 * pulso);
     }
 
-    /* ---- AURA DOS NÓS DA LINHA DO TEMPO ----
-       Pedido do dono: os nós do método com "uma espécie de aura, não uma luz
-       genérica redonda em volta". Um `box-shadow` borrado seria exatamente essa
-       luz redonda vetada — então a aura é FEITA DE ESTRUTURA, no vocabulário do
-       site (o mesmo do AI Core: anel de registro + marcas radiais), e o que a
-       faz ler como AURA em vez de enfeite é o MOVIMENTO: os raios respiram para
-       fora em fase própria e o anel pulsa, como um campo de energia emanando do
-       ponto. Nada de disco de blur.
+    /* ---- ENERGIA ORBITAL DOS NÓS DA LINHA DO TEMPO ----
+       O dono rejeitou a versão anterior (raios + glow) como "luz redonda
+       genérica". Trocada por um SISTEMA ORBITAL: cada nó vira um núcleo com
+       partículas de energia girando em volta, em órbitas de raio, velocidade e
+       inclinação diferentes. O que mata a leitura de "glow" é que a aura é
+       MATÉRIA EM MOVIMENTO, não um brilho estático — pontos que circulam sem
+       fim (o "fluxo de energia sem fim" que o dono pediu), com as elipses
+       inclinadas se cruzando para ler como um pequeno sistema 3D, não um disco.
 
-       Intensidade: uma base viva discreta (a linha está sempre "energizada",
-       casando com o fluxo que corre o trilho) mais um ganho forte de
-       proximidade do cursor — aproximar acende a aura do nó, como tudo mais no
-       site responde à presença. O nó sob o cursor (o `:hover` do CSS) já fica
-       preenchido; a aura é a camada de energia por trás disso. */
+       Base viva já em repouso (o dono quer que os nós TENHAM vida, não só no
+       hover) + ganho de proximidade do cursor + Pulso. */
     if (stepNos.length) {
       for (var sa = 0; sa < stepNos.length; sa++) {
         var nd = stepNos[sa];
         if (nd.y < -40 || nd.y > H + 40) continue;
-        var pn = prox(S, nd.x, nd.y, 200);
-        /* base VIVA já em repouso (o dono quer que os nós TENHAM aura, não só no
-           hover) + ganho de proximidade + Pulso. Sem o `e` sumindo a base. */
-        var intens = (.34 + pulso * .3 + pn * .6) * Math.min(lum, 1.35);
-        if (intens < .03) continue;
-        /* respiro próprio por nó (fase = índice): os três nunca pulsam juntos —
-           campo vivo, não piscar sincronizado. */
-        var faseN = S.t * .05 + sa * 2.1;
-        var resN = .7 + (Math.sin(faseN) * .5 + .5) * .8;   /* 0.7 .. 1.5 */
+        var pn = prox(S, nd.x, nd.y, 220);
+        var intens = (.42 + pulso * .3 + pn * .55) * Math.min(lum, 1.35);
+        if (intens < .04) continue;
+        /* fase própria por nó: os três nunca giram em sincronia. */
+        var faseN = S.t * .04 + sa * 2.1;
 
-        /* OS RAIOS — a aura é ENERGIA DIRECIONADA, não um disco de blur (o que o
-           dono vetou). Oito traços emanando, cada um com o PRÓPRIO comprimento
-           oscilando fora de fase, então as pontas nunca formam um círculo — leem
-           como faíscas de um campo, não como um anel. Giram devagar. */
-        ctx.lineWidth = 1.1;
-        ctx.strokeStyle = 'rgba(' + cy + ',' + a1(intens * .85).toFixed(3) + ')';
-        ctx.beginPath();
-        for (var ra = 0; ra < 8; ra++) {
-          var ang = ra / 8 * TAU + faseN * .12;
-          /* comprimento por raio: cada um respira na sua fase (o `ra*.9`) — é o
-             que quebra o círculo e faz ler como aura irregular. */
-          var comp = (7 + pn * 10) * (.55 + (Math.sin(faseN * 1.3 + ra * .9) * .5 + .5) * .9);
-          var r0 = 5.5;
-          ctx.moveTo(nd.x + Math.cos(ang) * r0, nd.y + Math.sin(ang) * r0);
-          ctx.lineTo(nd.x + Math.cos(ang) * (r0 + comp), nd.y + Math.sin(ang) * (r0 + comp));
+        /* AS ÓRBITAS — cinco partículas, cada uma num anel próprio. A elipse é
+           achatada e girada por `incl` (a inclinação da órbita), então de frente
+           elas leem como caminhos 3D cruzando o nó. A velocidade cresce com o
+           raio invertido (as de dentro correm mais), como num campo real. */
+        var NORB = 5;
+        for (var o = 0; o < NORB; o++) {
+          var raio = 6 + o * 2.4 + pn * 5;
+          var vel = (1.15 - o * .13);                 /* interna mais rápida */
+          var ang = faseN * vel + o * 1.7;
+          var incl = o * 0.8 + faseN * .04;           /* a órbita inteira precessa devagar */
+          /* ponto na elipse achatada (fator .42), depois rotacionado por incl */
+          var ex = Math.cos(ang) * raio;
+          var ey = Math.sin(ang) * raio * .42;
+          var ci = Math.cos(incl), si = Math.sin(incl);
+          var rx = ex * ci - ey * si, ry = ex * si + ey * ci;
+          /* a partícula brilha mais na FRENTE da órbita (sin(ang)>0) — dá a
+             sensação de profundidade, de estar passando por trás e pela frente. */
+          var frente = .45 + .55 * (Math.sin(ang) * .5 + .5);
+          var br = frente * intens;
+          ctx.fillStyle = 'rgba(' + (o % 2 ? cy : alta) + ',' + a1(br).toFixed(3) + ')';
+          ctx.beginPath();
+          ctx.arc(nd.x + rx, nd.y + ry, .9 + frente * 1.1, 0, TAU);
+          ctx.fill();
+          /* um rastro curtíssimo atrás da partícula rápida de dentro, só quando
+             perto: reforça a leitura de MOVIMENTO (energia correndo). */
+          if (o === 0 && (pn > .1 || pulso > .1)) {
+            var ang2 = ang - .22;
+            var ex2 = Math.cos(ang2) * raio, ey2 = Math.sin(ang2) * raio * .42;
+            ctx.strokeStyle = 'rgba(' + cy + ',' + a1(br * .5).toFixed(3) + ')';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(nd.x + rx, nd.y + ry);
+            ctx.lineTo(nd.x + (ex2 * ci - ey2 * si), nd.y + (ex2 * si + ey2 * ci));
+            ctx.stroke();
+          }
         }
-        ctx.stroke();
-
-        /* A VARREDURA — um arco curto girando, o mesmo sinal de "operando" do AI
-           Core. É o que amarra a aura ao vocabulário do site (o núcleo tem a
-           mesma varredura) em vez de virar um efeito à parte. */
-        var av = faseN * .6;
-        ctx.lineWidth = 1.4;
-        ctx.strokeStyle = 'rgba(' + alta + ',' + a1(intens * .7).toFixed(3) + ')';
+        /* o núcleo — um ponto que respira, o centro de onde a energia parece
+           vir. Pequeno de propósito: o protagonismo é das órbitas. */
+        ctx.fillStyle = 'rgba(' + nuc + ',' + a1(intens * .55).toFixed(3) + ')';
         ctx.beginPath();
-        ctx.arc(nd.x, nd.y, 6.5 + pn * 2.5, av, av + .9);
-        ctx.stroke();
+        ctx.arc(nd.x, nd.y, 1.3 + (Math.sin(faseN * 2) * .5 + .5) * .8, 0, TAU);
+        ctx.fill();
       }
     }
 

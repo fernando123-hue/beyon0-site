@@ -1237,13 +1237,13 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 2rem); }
 
 .step:hover::before { opacity: 1; }
 
-/* o passo apontado: preenchido + um anel solto por fora (0 de blur — é uma
-   marca de mira, não um halo; a identidade veta halo, não anel nítido). A AURA
-   de energia em volta do nó é desenhada no canvas (js/field.js), não aqui —
-   ver o pedido do dono por "aura, não luz redonda genérica". */
+/* o passo apontado: preenchido e um pouco maior. O anel difuso por fora
+   (`0 0 0 3px .22`) SAIU — era justamente a "luz redonda genérica" que o dono
+   apontou. A energia em volta do nó agora é o sistema orbital do canvas
+   (js/field.js: partículas girando), não um glow de box-shadow. */
 .step:hover::after {
   background: var(--ac);
-  box-shadow: inset 0 0 0 3.5px var(--ac), 0 0 0 3px rgb(var(--ac-rgb) / .22);
+  box-shadow: inset 0 0 0 3.5px var(--ac);
   transform: scale(1.15);
 }
 
