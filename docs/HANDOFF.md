@@ -1,6 +1,6 @@
 # Beyon Zero — transferência de contexto
 
-**Última atualização:** 2026-08-21c · **Branch ativa:** `rebuild` · **HEAD:** `4627c65` — **NÃO PUBLICADO.** No ar está `1f9e93c`. 2 commits à frente (`d4a6469`: fluxo na linha do tempo + palavra viva do hero + marca de estática · `4627c65`: remoção da intro em vídeo — ver seção 18), esperando o dono pedir.
+**Última atualização:** 2026-08-21c · **Branch ativa:** `rebuild` · **HEAD:** `a5989bf` (PUBLICADO — `main = rebuild = origin/main`)
 
 > **A SEÇÃO 16 (CAMADA DE ATMOSFERA) é a mais nova, agora publicada.**
 > Ela acrescenta uma camada por cima da 14 (que continua inteiramente válida) e
@@ -1909,8 +1909,7 @@ trocas alternando normal/Singular) — zero string vazia, zero falha em
 terminar na palavra-alvo, zero repetição da palavra anterior. Custo do canvas
 sem mudança (0,12ms/frame — os eventos novos não rodam por frame).
 
-**Não publicado ainda quando este trecho foi escrito** — ver header do
-arquivo pro estado real.
+Publicado em `a5989bf`, junto com a seção 18.
 
 ---
 
