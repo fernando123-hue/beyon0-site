@@ -98,11 +98,9 @@
     B.on('entrada-pronta', ligarUmaVez);
     /* rede de segurança: se js/entrada.js sumir/falhar e nunca emitir
        'entrada-pronta', não deixa os reveals presos escondidos. Presa ao
-       'booted' (não ao 'load'): 'booted' só dispara DEPOIS da intro, então
-       o fallback nunca ganha a corrida do caminho normal — entrada.js emite
-       'entrada-pronta' em booted+2rAF, bem antes destes 4s. Assim o IO nunca
-       arma antes de `.revelando`, e a garantia de não-flicker não depende do
-       overlay opaco. `reveladoLigado` faz o perdedor virar no-op. */
+       'booted' (não ao 'load'): entrada.js emite 'entrada-pronta' em
+       booted+2rAF, bem antes destes 4s — o fallback nunca ganha a corrida do
+       caminho normal. `reveladoLigado` faz o perdedor virar no-op. */
     var comBooted = function () { setTimeout(ligarUmaVez, 4000); };
     if (document.body.classList.contains('booted')) comBooted();
     else B.on('booted', comBooted);

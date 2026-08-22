@@ -9,9 +9,9 @@
    só as OUTRAS `.section`: se o usuário deu F5 no meio/fim, a seção visível
    recebe `.revelando` (a linha) e um stagger `--rd` nos filhos `.reveal`.
 
-   TIMING CRÍTICO: a checagem espera dois sinais — (1) `.booted` (a intro
-   saiu; senão a linha rodaria atrás do overlay de vídeo) e (2) o scroll
-   já restaurado pelo navegador. No F5 no meio da página o navegador
+   TIMING CRÍTICO: a checagem espera dois sinais — (1) `.booted` (js/core.js
+   sinaliza o documento pronto) e (2) o scroll já restaurado pelo navegador.
+   No F5 no meio da página o navegador
    restaura a posição DEPOIS do parse; ler `getBoundingClientRect` cedo
    demais veria tudo no topo e concluiria "estou no hero" por engano. Por
    isso espera `load` + dois requestAnimationFrame, quando a restauração

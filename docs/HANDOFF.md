@@ -696,22 +696,20 @@ Pensado para as próximas implementações. As regras da seção 4 continuam val
 
 ## 9. Pendências antigas ainda abertas
 
-- `assets/intro.mp4` (4,2 MB) segue sendo o objeto mais pesado do site.
-  Além das guardas de rede declarada, ganhou em `16c5800` uma **trava de
-  playback**: se em 3s a imagem não andou, entra direto no site em vez de
-  segurar o visitante atrás de uma tela preta (um 4G congestionado passava
-  pelas guardas antigas e podia dar ~14s de preto). Ainda assim: **comprimir
-  vale**, e o vídeo oficial nem foi escolhido — o atual é placeholder.
+- ~~`assets/intro.mp4` segue sendo o objeto mais pesado do site~~ **RESOLVIDO
+  em 2026-08-21c: a intro em vídeo foi removida por inteiro.** Ver seção 18.
 - O medidor de fps aparece para todo visitante. Continua sendo uma escolha do
   dono; agora pelo menos se explica sozinho ao ser clicado, em vez de mostrar
   um número que só faz sentido para quem é técnico.
-- Histórico do git carrega ~50 MB de assets mortos (`Logo.gif` 20 MB,
-  `introdução.mp4` 30 MB — nome antigo, não confundir com `intro.mp4` atual).
-  Só `git filter-repo` limpa, e é destrutivo.
+- Histórico do git carrega ~54 MB de assets mortos (`Logo.gif` 20 MB,
+  `introdução.mp4` 30 MB — tracked no commit inicial `d1814ff`, destrancado
+  do git em `adc4a3d` mas continua nos commits antigos — e agora `intro.mp4`
+  4,2 MB, removido em 2026-08-21c mas ainda vivo nos commits anteriores). Só
+  `git filter-repo` limpa, e é destrutivo.
 - O logo em vídeo (antigo, removido a pedido do dono) continua fora; a marca
-  segue sendo o wordmark em texto. A intro em vídeo atual é conceito
-  diferente (overlay de boot, não o logo). Não confundir os dois ao decidir
-  o que recolocar.
+  segue sendo o wordmark em texto. **Agora os DOIS vídeos que o site já teve
+  estão fora** (o logo, e a intro de boot — seção 18): a Beyon Zero não usa
+  vídeo em lugar nenhum do site hoje.
 
 ---
 
@@ -1559,6 +1557,8 @@ js/anima.js     214 linhas   -75: `vivaChars()` (tipografia-por-glifo) removida 
 js/entrada.js    80 linhas   intocado
 js/intro.js      99 linhas   intocado
 ```
+> `js/intro.js` **saiu do projeto em 2026-08-21c** (seção 18) — a tabela acima
+> é o retrato desta sessão especificamente, não o estado atual do arquivo.
 
 `js/anima.js` não existia como arquivo citado nas seções antigas com esse
 peso — GSAP + ScrollTrigger + SplitText continuam sendo a única dependência
@@ -1863,6 +1863,137 @@ Em ordem de risco — o primeiro é o mais ousado e o primeiro a cortar:
 
 ---
 
+## 17. FLUXO NA LINHA DO TEMPO + PALAVRA VIVA DO HERO + ESTÁTICA (`d4a6469`)
+
+Dois pedidos do dono, feitos por cima da camada de atmosfera (seção 16).
+
+**Linha do tempo (`#processo`)**: antes, apontar o passo 03 acendia só ele —
+01 e 02 ficavam inertes. Agora `:has()` olha à frente no documento ("existe um
+passo depois de mim em `:hover`?") e cada nó/trilho ANTERIOR responde com o
+MESMO peso que o passo 1 já usa em repouso. O passo efetivamente apontado
+ganha tratamento mais forte que os que só foram atravessados: preenchido +
+anel solto (0 de blur — é mira, não halo). Hardcoded pros 3 passos reais da
+seção.
+
+**A palavra viva do hero**: "aplicada" cicla por `calibrada, direcionada,
+ajustada, voltada` — participios que fecham a frase ("Inteligência artificial
+___ ao que o seu negócio perde hoje") sem forçar gramática. No Estado Singular
+troca pra `implacável, decisiva, inevitável, imparável` — vocabulário mais
+assertivo, pedido explícito do dono, **sem nenhuma palavra que evoque medo ou
+ameaça** ("sem assustar ou ofender"). A TRANSIÇÃO reaproveita `morph()`, já
+usada no status do hero: embaralha por glifos de sinal (binário/hex/símbolo)
+até resolver na palavra nova — zero mecanismo novo.
+
+Só começa a ciclar **5,2s depois de `'booted'`** (tempo de sobra pro SplitText
+do título terminar/reverter), e busca o `<em>` só NESSE momento — não no load
+do script — pra não apostar em como o revert do SplitText trata o nó original.
+Cada troca emite `'remedir'` (novo evento): o comprimento da palavra pode
+mudar a quebra do título e empurrar tudo abaixo do hero. `field.js` e `dom.js`
+escutam e remedem os retângulos em cache **sem** resemear o campo de
+partículas — resemear a cada 5-7s trocaria a poeira de lugar à toa.
+
+**A marca de estática**: um flash de ruído branco (`feTurbulence` +
+`feColorMatrix` pra alfa puro — não a mistura colorida que turbulence sozinho
+produz) sobre um elemento, SEM mudar o conteúdo dele. Exposta em `B.estatica`
+(definida em `js/dom.js`, usada também por `js/anima.js`). Aplicada em dois
+pontos esparsos, ambos já ligados a eventos que o site já tinha: o kicker de
+cada seção ao revelar (5×/visita, espalhado no scroll) e o wordmark da nav ao
+trocar de regime (Singular liga/desliga). **Reduzida pra DUAS piscadas, não
+três** — WCAG 2.3.1 marca mais de 3 flashes/segundo como risco de convulsão
+fotossensível, e isso não é coberto por `reduced-motion` (que é preferência de
+MOVIMENTO, não de FLASH); o limite vale independente da preferência do
+visitante.
+
+Verificado fora do navegador: máquina de estados da palavra simulada (200
+trocas alternando normal/Singular) — zero string vazia, zero falha em
+terminar na palavra-alvo, zero repetição da palavra anterior. Custo do canvas
+sem mudança (0,12ms/frame — os eventos novos não rodam por frame).
+
+**Não publicado ainda quando este trecho foi escrito** — ver header do
+arquivo pro estado real.
+
+---
+
+## 18. REMOÇÃO DA INTRO EM VÍDEO (2026-08-21c)
+
+Pedido direto do dono: **"exclua o vídeo. Ele não se enquadra mais para
+nossa identidade visual."** A intro de boot (`assets/intro.mp4`, o overlay
+"sistema iniciando" que tocava antes do conteúdo aparecer) foi removida por
+inteiro — não reencodada, não trocada por outra: **o site não usa vídeo em
+lugar nenhum agora** (o logo em vídeo já tinha saído antes, seção 9).
+
+### O que saiu
+- `js/intro.js` (99 linhas) — deletado. Era o único dono de toda a lógica de
+  overlay: reproduzir, checar rede fraca/`saveData`/`reduced-motion`, trava de
+  playback aos 3s, skip, fallback de metadata.
+- `assets/intro.mp4` (4,2 MB) — `git rm`, sai do deploy e do repositório daqui
+  pra frente (continua nos commits antigos — ver a nota de histórico do git,
+  seção 9).
+- `index.html`: o `<div class="intro" id="intro">` com o `<video>` e o botão
+  de skip; a regra `.intro { display:none }` do `<noscript>` (não fazia mais
+  sentido sem o elemento); o `<script src="js/intro.js">`.
+- `styles.css`: o bloco inteiro `.intro`/`.intro--done`/`.intro__video`/
+  `.intro__skip`/`body.intro-active` (~28 linhas).
+
+### O PROBLEMA REAL que isso cria, e como foi resolvido
+`js/intro.js` não era só o vídeo — era quem **emitia o sinal `'booted'`** que
+literalmente TUDO no site espera: a entrada do hero (`js/anima.js`), a linha
+de entrada em seção (`js/entrada.js`), o fallback de reveals (`js/dom.js`), e
+agora também a palavra viva do hero (seção 17). Remover o arquivo sem
+substituir essa responsabilidade quebraria o boot do site inteiro — nada
+apareceria, silenciosamente, porque `'booted'` nunca sairia.
+
+**A substituição foi pra `js/core.js`**, que agora escuta `'DOMContentLoaded'`
+e só então adiciona `.booted` + `emit('booted')`.
+
+**Um bug real foi pego e corrigido ANTES de publicar** — vale registrar
+porque é o tipo de erro fácil de repetir: a primeira versão testava
+`if (document.readyState === 'loading') espera DOMContentLoaded; else boot()
+na hora`. Parecia defensivo. Na prática, **scripts com `defer` só executam
+DEPOIS que o parse termina** — `readyState` nesse ponto já é `'interactive'`,
+NUNCA `'loading'` — então o `else boot()` disparava IMEDIATAMENTE, dentro da
+própria execução de `core.js`, antes de `field.js`/`dom.js`/`entrada.js`/
+`anima.js` sequer carregarem e registrarem `B.on('booted', …)`. Como o
+barramento de eventos deste projeto (`emit`/`on`, também em `core.js`) não
+guarda histórico — só alcança quem já está ouvindo no instante da chamada —
+isso faria TODO listener de `'booted'` carregado depois perder o evento **pra
+sempre**: hero nunca entraria, linha de entrada nunca dispararia. Achado
+simulando a ordem real de carregamento em Node.js (fora do navegador, mesmo
+método da seção 14.3) antes de escrever qualquer coisa no disco. Corrigido
+removendo o atalho: `core.js` agora SEMPRE espera `'DOMContentLoaded'`, sem
+condicional — que é o único ponto em que o navegador garante que todo script
+`defer` já rodou.
+
+### Assets
+`assets/README.txt` atualizado: a entrada de `intro.mp4` saiu, e a de
+`og-cover.jpg` foi CORRIGIDA — ela já não vinha mais de frame de vídeo desde
+a sessão anterior (14.5/14.7, capa gerada por `docs/og-render.html` + Chrome
+headless), mas o README ainda descrevia o método antigo (`ffmpeg` a partir de
+`introdução.mp4`). Achado ao editar o arquivo por outro motivo — corrigido
+junto.
+
+`assets/introdução.mp4` (o master de 30 MB, gitignorado, nunca serviu o
+visitante) **não foi apagado do disco**: é arquivo local, fora do
+repositório, e apagar mais do que o pedido explícito não é decisão do agente.
+Perdeu todo downstream (nem `intro.mp4` nem `og-cover.jpg` vêm mais dele) —
+está documentado como órfão no README; apagar manualmente é seguro se o dono
+quiser.
+
+### Verificado
+`node --check` nos 5 arquivos JS restantes (intro.js saiu da lista), balanço
+de chaves do CSS, varredura de classes órfãs (zero novas), e a simulação da
+ordem de boot em Node.js confirmando os 4 listeners de `'booted'` (dom.js×2,
+entrada.js, anima.js) disparando corretamente. **Não visto rodando no
+navegador** — mesma ressalva de sempre (13.5/14.5): o feel da entrada sem
+vídeo (site aparece direto, sem tela preta) precisa do olho do dono.
+
+### Ainda pendente desta remoção
+- `assets/introdução.mp4` órfão no disco — decisão do dono, ver acima.
+- Nada mais depende do vídeo removido; a arquitetura de boot está mais simples
+  do que antes (um listener a menos, uma responsabilidade a menos).
+
+---
+
 ## 15. ENTRADA PARA A PRÓXIMA SESSÃO — leia isto primeiro
 
 Fechamento limpo: tudo publicado, árvore limpa, nada pendente de decisão
@@ -1936,7 +2067,7 @@ reusar qualquer valor.
 | Tudo em 14.6 — malha, paquímetros, núcleo, transição do Singular, capa nova | Publicado, ainda sem veredito visual do dono |
 | Site como 1 card entre 6, ou volta a ser central? | Ainda sem resposta (13.4, nunca resolvida) |
 | Domínio `beyon0-site.vercel.app` vs nome real | Não mudou, decisão separada |
-| `intro.mp4` 4,4 MB (reencodar ou só 1ª visita) | Nunca resolvida |
+| ~~`intro.mp4` 4,4 MB (reencodar ou só 1ª visita)~~ | **RESOLVIDA em 2026-08-21c — removida por inteiro, não reencodada.** Ver seção 18 |
 | `feat/ai-core-3d` (reator 3D, Three.js, 66 testes) | Pausada, intocada — e agora desalinhada da identidade nova, se for retomada precisa revisão visual primeiro |
 | Analytics/conversão | Site não mede nada ainda |
 

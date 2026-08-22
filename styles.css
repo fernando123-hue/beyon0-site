@@ -1402,37 +1402,6 @@ body::after {
 .is-dormant::after { opacity: .022; }
 
 /* ==========================================================================
-   INTRO — overlay de vídeo no boot
-   Ciclo de vida em js/intro.js; aqui só a aparência das classes que ele troca.
-   ========================================================================== */
-.intro {
-  position: fixed; inset: 0; z-index: 1000;
-  background: var(--bg);
-  display: grid; place-items: center;
-  opacity: 1;
-  transition: opacity .9s var(--ease);
-}
-.intro--done { opacity: 0; pointer-events: none; }
-.intro__video { width: 100%; height: 100%; object-fit: cover; }
-.intro__skip {
-  position: absolute;
-  right: clamp(1rem, 3vw, 2rem); bottom: clamp(1rem, 3vw, 2rem);
-  font-family: var(--mono); font-size: .66rem;
-  letter-spacing: .12em; text-transform: uppercase;
-  color: var(--t2);
-  background: rgb(5 5 7 / .5);
-  border: 1px solid var(--stroke);   /* é botão: contorno de controle, não régua */
-  padding: .6rem 1.1rem;
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity .5s ease, color var(--t-fast) var(--ease);
-}
-.intro__skip.show { opacity: 1; }
-.intro__skip:hover { color: var(--t1); }
-/* enquanto a intro cobre a tela, o corpo não rola */
-body.intro-active { overflow: hidden; }
-
-/* ==========================================================================
    ENTRADA — a varredura de seção
    Evento único por carregamento, só na seção visível no load (o hero via
    `.booted`, ou uma seção qualquer via `.revelando`, escrita uma vez por

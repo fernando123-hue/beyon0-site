@@ -118,9 +118,10 @@
     }
   }
 
-  /* dispara quando o conteúdo entra — depois da intro em vídeo (evento 'booted').
-     Se já bootou (sem intro), roda agora. immediateRender do gsap.from põe o
-     estado inicial no mesmo tick, então não há flash de conteúdo visível. */
+  /* dispara quando o documento sinaliza pronto (evento 'booted', js/core.js —
+     não há mais overlay de vídeo segurando isso). Se já bootou, roda agora.
+     immediateRender do gsap.from põe o estado inicial no mesmo tick, então não
+     há flash de conteúdo visível. */
   if (document.body.classList.contains('booted')) heroEntra();
   else B.on('booted', heroEntra);
 

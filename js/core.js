@@ -253,6 +253,29 @@
     S: S, add: add, on: on, emit: emit, iniciar: iniciar,
     reduced: reduced, fine: fine, saveData: saveData, weak: weak, PERF: PERF
   };
+
+  /* ---- BOOT ----
+     Sinaliza `.booted` + emite 'booted' assim que o documento está pronto.
+     Substitui o overlay de vídeo removido (`js/intro.js`, saiu — não cabia
+     mais na identidade visual): antes o vídeo era quem controlava ESTE
+     instante, agora não há nada a esperar, então o site entra direto.
+
+     `js/entrada.js`, `js/dom.js` e `js/anima.js` registram `B.on('booted', …)`
+     no PRÓPRIO carregamento — e é POR ISSO que este sinal espera
+     'DOMContentLoaded' em vez de disparar aqui mesmo. Scripts com `defer`
+     executam em ordem, de forma síncrona, mas ANTES de 'DOMContentLoaded':
+     `document.readyState` neste ponto do arquivo já é 'interactive', nunca
+     'loading' — um guard `if (readyState === 'loading') … else boot()`
+     pareceria defensivo e na prática disparava `boot()` NA HORA, antes de
+     dom.js/entrada.js/anima.js sequer carregarem. Como `emit` não guarda
+     histórico (só alcança quem já registrou `B.on` no momento da chamada),
+     isso faria eles perderem o evento PARA SEMPRE — hero nunca entra, linha
+     de entrada nunca dispara. `DOMContentLoaded` só acontece depois que TODO
+     script `defer` já rodou, então é o único ponto em que emitir é seguro. */
+  document.addEventListener('DOMContentLoaded', function () {
+    document.body.classList.add('booted');
+    emit('booted');
+  });
   /* só com ?perf: roda um frame na mão, fora do rAF. Serve para medir o custo
      de um estado específico (Pulso, Singular, orçamento baixo) sem esperar ele
      acontecer — e para verificar o desenho em ambiente que não compõe frames.
