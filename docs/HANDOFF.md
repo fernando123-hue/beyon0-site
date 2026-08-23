@@ -1,6 +1,6 @@
 # Beyon Zero — transferência de contexto
 
-**Última atualização:** 2026-08-22 · **Branch ativa:** `rebuild` · **HEAD:** `a7b48ac` — **NÃO PUBLICADO.** No ar está `a5989bf`. 1 commit à frente (`a7b48ac`: conserto da palavra viva + estática sem bug + linha do método animada com aura nos nós — ver seção 19).
+**Última atualização:** 2026-08-22b · **Branch ativa:** `rebuild` · **HEAD:** `aae82df` (PUBLICADO — `main = rebuild = origin/main`). Ver seção 19 (linha do método) e 20 (rodada de ajustes: palavra aleatória, estática/paquímetros removidos, energia orbital, mini AI Core, aplicações).
 
 > **A SEÇÃO 16 (CAMADA DE ATMOSFERA) é a mais nova, agora publicada.**
 > Ela acrescenta uma camada por cima da 14 (que continua inteiramente válida) e
@@ -2039,6 +2039,57 @@ de verdade (a aba do agente não). Truque pra manter o loop rAF vivo no
 headless: injetar `Object.defineProperty(document,'hidden',{get:()=>false})` +
 `setInterval(()=>BEYON.iniciar(), 50)`. E a CSP `script-src 'self'` bloqueia
 `file://` — copiar o HTML removendo a meta CSP pra testar local.
+
+---
+
+## 20. RODADA DE AJUSTES (2026-08-22b) — palavra, auras, AI Core, aplicações
+
+Sequência de pedidos do dono, todos publicados em `62981be`, `3c95d69`,
+`aae82df`.
+
+**Palavra viva (dois bugs + novo comportamento).**
+- "Não muda": a primeira troca caía ~10-12s após o load — quem rolava até o CTA
+  (fim da página) olhava, não via troca e concluía que não mudava. E a captura
+  pegava o `<em>` VAZIO do SplitText mask. Corrigido: captura o em não-vazio,
+  primeira troca ~2,6s, ciclo ~3-4,8s, e gatilhos MÚLTIPLOS idempotentes
+  (`hero-pronto` + `entrada-pronta` + booted+3s — `entrada-pronta` SEMPRE emite).
+- Comportamento pedido: ordem ALEATÓRIA sem repetição (saco embaralhado /
+  shuffle bag) — uma palavra só volta depois que todas apareceram, e nunca
+  repete na emenda entre um ciclo e o outro. Vale pro hero e pro CTA.
+- CTA cicla também agora (tecnologia/ferramenta/moda/tendência; Singular:
+  pressa/promessa/ferramenta da vez).
+
+**Paquímetros REMOVIDOS** (as duas barras verticais ao lado da palavra em
+destaque, em todos os títulos). A ênfase vem só da cor do `em` e do morph.
+
+**Estática REMOVIDA por inteiro** (CSS, keyframe, `B.estatica`, todas as
+chamadas). O flash de ruído branco no kicker ao revelar lia como "contorno
+branco bugado ao descer" — reclamado duas vezes. A transição de sinal que
+sobra é o morph da própria palavra.
+
+**Aura dos nós do método → SISTEMA ORBITAL.** A versão de raios ainda lia como
+"luz redonda genérica". Trocada por partículas de energia girando em volta de
+cada nó (matéria em movimento, órbitas inclinadas cruzando, internas mais
+rápidas com rastro). Saiu também o `box-shadow: 0 0 0 3px` do hover (era o glow
+apontado). `field.js`, mede `.steps .step`.
+
+**Mini AI Core — fluxo de energia sem fim.** Os elos (núcleo→cards) eram curvas
+que só acendiam com proximidade ("sem vida"). Agora partículas correm pela
+curva Bézier SEMPRE (vida contínua) e intensificam quando o card é o alvo do
+cursor. Elo base subiu de alpha .06 → .12.
+
+**Seção Aplicações — respiro + passagem suave.** Mais padding/gap/título,
+marco final destacado (bolinha maior + anel de registro nítido). A cascata do
+fluxo ficou LENTA: 720ms por marco, atrasos 0/320/640ms (era 340ms + 0/100/200)
+— ~1,4s pra ler a passagem de estado, "devagar e suave" como pedido.
+
+**Nota de teste** (repete 19, importante): o loop rAF morre em ~800ms no Chrome
+headless (`document.hidden`), então screenshot NÃO valida nada que dependa do
+loop rodar (palavra, órbitas, fluxo). Truque pra manter vivo: injetar
+`Object.defineProperty(document,'hidden',{get:()=>false})` +
+`setInterval(()=>BEYON.iniciar(),50)`. Para lógica pura (a palavra), o caminho
+confiável é carregar o `dom.js` real num harness Node com DOM/eventos falsos e
+avançar o loop à mão (está em scratchpad `pw_harness.js` na sessão).
 
 ---
 
