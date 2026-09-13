@@ -1,6 +1,6 @@
 # Beyon Zero — transferência de contexto
 
-**Última atualização:** 2026-09-13d · **Branch ativa:** `rebuild` · **HEAD:** `d68cc8d` — **PUBLICADO** (`git push origin main` a pedido do dono, `origin/main` = `d68cc8d`, fast-forward de `b9b731e`). Inclui as seções 22 e 23. Nada da seção 23 foi visto rodando ao vivo pelo agente nesta sessão (ver seção 23) — conferir no navegador de verdade.
+**Última atualização:** 2026-09-13e · **Branch ativa:** `rebuild` · **HEAD:** `bd12905` — **NÃO PUBLICADO**. `origin/main` está em `d68cc8d` (1 commit atrás: fix de copy + vão do rodapé, ver seção 24). Inclui as seções 22, 23 e 24. Nada visto rodando ao vivo pelo agente nesta sessão — conferir no navegador de verdade antes de publicar.
 
 > **SEÇÃO 23 (COPY ALINHADA AO NICHO + FEE-ONLY NO CTA FINAL, 2026-09-13d)
 > é a mais nova.** Trocou a headline genérica do CTA final ("não pela
@@ -2303,3 +2303,71 @@ Windows deste agente, não do projeto) e `file://` é bloqueado pelas
 próprias tools do navegador do agente aqui. Layout/CSS não foram vistos
 rodando; só lidos e raciocinados. **Pedir pro dono conferir no
 navegador antes de publicar** — mesmo protocolo de sempre desta sessão.
+
+---
+
+## 24. Vão do rodapé fechado + reescrita anti-"cara de IA" (2026-09-13e, commit `bd12905`, NÃO PUBLICADO)
+
+Dois pedidos do dono depois de ver a seção 23 publicada: (A) vão grande
+sobrando no final da página, (B) a copy "tem cara de IA" — travessão
+demais, frases genéricas — reescrever cada palavra pensando em
+conversão, com base em psicologia/CRO comprovada.
+
+### A. O vão
+Causa raiz: `#contato` (a seção do CTA final) não tinha `--sp-bottom`
+próprio, então herdava `--sp` (clamp 80–144px, o mesmo respiro dos
+topos de seção) — e a sessão anterior tinha aumentado o padding
+*interno* do painel `.cta` por cima disso (clamp 3.5–6.5rem). As duas
+coisas somadas: até ~250px de vazio dentro/depois do painel, antes
+ainda do padding do próprio `<footer>`. Corrigido em duas pontas:
+`#contato { --sp-bottom: var(--sp-tight) }` (mesmo padrão que `#faq`,
+o vizinho de cima, já usava) e o padding do `.cta` voltou pra perto do
+valor original (`clamp(3rem, 6vw, 4.5rem)`).
+
+### B. A copy
+Framework usado: `marketing-skills:copywriting` + `marketing-skills:
+cro` + `marketing-skills:marketing-psychology` (Cialdini, loss aversion/
+prospect theory, processing fluency, curiosity gap). Base factual:
+o mesmo `briefing-estrategico-validado.md` de sempre — nenhum dado novo
+inventado.
+
+- **Travessão (—) de pausa dramática**: caiu de 14 pra 0 ocorrências em
+  texto visível do usuário (sobrou só em `<title>` como separador de
+  marca — convenção padrão de SEO — e em comentário de dev/label de
+  acessibilidade, que ninguém lê como prosa).
+- **Padrão "Não é X. É um sistema com Y e Z"** (negação-contraste,
+  tique clássico de texto gerado por IA): saiu do card "Agentes que
+  executam" — virou frase concreta com analogia ("mais funcionário do
+  que chatbot").
+- **Vocabulário genérico de SaaS** ("negócio", "empresa", "lead",
+  "cliente") trocado por **o vocabulário real de quem dirige
+  associação/sindicato/federação/cooperativa** ("entidade", "associado",
+  "contato") — message match mais forte com quem a Beyon Zero
+  realmente busca (o nicho do briefing, seção 6).
+- **Headline do hero reaberta do zero**: em vez de abrir anunciando IA
+  ("Inteligência artificial aplicada..." — exatamente a abertura que
+  todo concorrente do setor usa, briefing seção 3.1), abre pela perda
+  ("Toda entidade perde dinheiro num ponto que ninguém está
+  auditando") — loss aversion + curiosity gap (a resposta de ONDE só
+  vem no subtítulo). Isso não é só estética: é a mesma tese de
+  "problema antes de tecnologia" da seção 22/23, agora demonstrada na
+  estrutura da frase em vez de só declarada nela.
+- **H2 da seção `#dores` reescrito** pra não repetir a mesma ideia do
+  H1 do hero (ambos diziam "perde dinheiro sem perceber/organização")
+  — agora fecha o loop de curiosidade aberto pelo hero ("Três lugares
+  onde o dinheiro costuma vazar"), efeito Zeigarnik: abre no hero,
+  fecha na seção seguinte.
+- **`resumo.html` espelhado** com o mesmo vocabulário e a mesma lógica
+  ponto a ponto — é a peça de maior risco (vai pra diretoria inteira),
+  então recebeu o mesmo cuidado.
+
+**Verificação de integridade**: FAQPage JSON-LD e o accordion visível
+continuam **idênticos palavra por palavra** depois de todas as edições
+— conferido programaticamente (`node -e` parseando o JSON-LD do
+`<head>` e comparando string contra o texto de cada `.qa__a`), não só
+por leitura visual.
+
+**Não verificado ao vivo** — mesma ressalva das seções 7 e 23: agente
+não alcança servidor próprio neste Windows (Node em `C:\Program
+Files\nodejs`) e `file://` é bloqueado pelas tools de navegador aqui.
+Pedir pro dono conferir no navegador antes de publicar.
