@@ -1,6 +1,16 @@
 # Beyon Zero — transferência de contexto
 
-**Última atualização:** 2026-08-22b · **Branch ativa:** `rebuild` · **HEAD:** `aae82df` (PUBLICADO — `main = rebuild = origin/main`). Ver seção 19 (linha do método) e 20 (rodada de ajustes: palavra aleatória, estática/paquímetros removidos, energia orbital, mini AI Core, aplicações).
+**Última atualização:** 2026-09-13 · **Branch ativa:** `rebuild` · **HEAD:** `385bdf3` (PUBLICADO — `main = rebuild = origin/main`). Ver seção 21.
+
+> **SEÇÃO 21 (MODAL DE QUALIFICAÇÃO, 2026-09-13) é a mais nova, publicada.**
+> Hero e CTA final ("Agendar diagnóstico") agora abrem um modal curto
+> (nome + tipo de organização) antes do WhatsApp — a mensagem chega
+> qualificada. Os outros 9 CTAs continuam sem fricção, sem mudança. Novo
+> arquivo `js/lead-form.js` (evento-só, sem rAF), `dom.js` ganhou uma linha
+> (`B.linkWA` exposto pra reaproveitar o número/telefone sem duplicar). Sem
+> dependência nova, CSP intacta. Feito junto com um campo "origem" no CRM
+> do app interno (`beyon-0-app`) — prepara terreno pro dia que o form gravar
+> direto num backend (Supabase, quando entrar dinheiro real pra justificar).
 
 > **A SEÇÃO 16 (CAMADA DE ATMOSFERA) é a mais nova, agora publicada.**
 > Ela acrescenta uma camada por cima da 14 (que continua inteiramente válida) e
