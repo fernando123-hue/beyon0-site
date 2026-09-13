@@ -31,6 +31,10 @@
     links[i].rel = 'noopener noreferrer';
     links[i].target = '_blank';
   }
+  /* exposto pro js/lead-form.js montar a mensagem qualificada com nome +
+     tipo de organização sem duplicar o número/telefone aqui de novo — "o
+     número vive num lugar só" continua valendo com um consumidor a mais. */
+  B.linkWA = linkWA;
 
   var ano = document.getElementById('year');
   if (ano) ano.textContent = new Date().getFullYear();
