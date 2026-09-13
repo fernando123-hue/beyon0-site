@@ -1,6 +1,6 @@
 # Beyon Zero — transferência de contexto
 
-**Última atualização:** 2026-09-13c · **Branch ativa:** `rebuild` · **HEAD:** pendente do merge desta rodada (ver seção 22). `b9b731e` é o último publicado ANTES desta rodada — inclui a seção 21 (modal) e um bugfix de `[hidden]` vs `display` que esta atualização deixou de registrar na hora (corrigido agora, retroativo).
+**Última atualização:** 2026-09-13c · **Branch ativa:** `rebuild` · **HEAD:** `f96a1f6` — **NÃO PUBLICADO**. `origin/main` ainda está em `b9b731e` (3 commits atrás: spec + feat CRO/SEO/resumo + merge). Tudo testado local (ver seção 22), só falta o dono confirmar publicar — **não fazer `git push origin main` sem ele pedir**.
 
 > **SEÇÃO 22 (CRO + SEO DO NICHO + RESUMO PRA DIRETORIA, 2026-09-13c) é a
 > mais nova.** 3 pilares: (A) CRO aditivo na página atual — reassurance no
