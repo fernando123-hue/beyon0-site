@@ -1,6 +1,6 @@
 # Beyon Zero — transferência de contexto
 
-**Última atualização:** 2026-09-13e · **Branch ativa:** `rebuild` · **HEAD:** `bd12905` — **NÃO PUBLICADO**. `origin/main` está em `d68cc8d` (1 commit atrás: fix de copy + vão do rodapé, ver seção 24). Inclui as seções 22, 23 e 24. Nada visto rodando ao vivo pelo agente nesta sessão — conferir no navegador de verdade antes de publicar.
+**Última atualização:** 2026-09-13f · **Branch ativa:** `rebuild` · **HEAD:** `9719639` — **PUBLICADO E VERIFICADO AO VIVO** (`origin/main` = `9719639`). Pela primeira vez nesta sequência de sessões, o agente abriu a URL publicada de verdade (`https://beyon0-site.vercel.app/`, não `file://`) e navegou a página inteira — ver seção 25. Achou e corrigiu 2 bugs reais que só existiam em produção (JS quebrando copy nova). Depois do fix, tudo conferido ao vivo: desktop, mobile 375px, accordion FAQ, menu mobile, modal de lead. Zero erro de console.
 
 > **SEÇÃO 23 (COPY ALINHADA AO NICHO + FEE-ONLY NO CTA FINAL, 2026-09-13d)
 > é a mais nova.** Trocou a headline genérica do CTA final ("não pela
@@ -2371,3 +2371,74 @@ por leitura visual.
 não alcança servidor próprio neste Windows (Node em `C:\Program
 Files\nodejs`) e `file://` é bloqueado pelas tools de navegador aqui.
 Pedir pro dono conferir no navegador antes de publicar.
+
+---
+
+## 25. Primeira verificação ao vivo de verdade — 2 bugs reais achados e corrigidos (2026-09-13f, commit `9719639`, PUBLICADO)
+
+**Isto muda o protocolo de verificação desta sessão.** Até aqui, "não
+verificado ao vivo" significava literalmente nunca ter visto o site
+rodando com JS ativo — só `file://` (CSP bloqueia script) ou leitura de
+código. O dono pediu pra publicar E acessar a página publicada de
+verdade (`https://beyon0-site.vercel.app/`, navegador do agente, sem
+servidor local — contorna o problema do Node em `C:\Program
+Files\nodejs` porque não precisa de servidor nenhum, é a URL pública).
+**Isso funciona e deveria ser o padrão de verificação daqui pra
+frente**, não só uma exceção desta sessão.
+
+Rodando com JS ativo pela primeira vez, dois bugs reais apareceram —
+nenhum visível por leitura de código sozinha:
+
+### Bug 1 — `<br>` escondido vira palavra colada
+`styles.css:239` (`h1 br, h2 br { display: none }` abaixo de 620px,
+técnica deliberada da seção anterior do arquivo pra texto reflow sem
+órfã) esconde o `<br>` mas o HTML não tinha espaço nenhum ao redor dele
+— resultado, abaixo de 620px, `<br>` some e as duas palavras colam:
+"dinheirocostuma", "tirarda", "primeiro.Construção",
+"núcleo,operações". Afetava **5 títulos**, 3 deles de sessões
+anteriores a esta (não é bug só da copy nova). Fix: um espaço de
+verdade antes de cada `<br />` — o navegador colapsa esse espaço
+quando o `<br>` está visível (sem duplicar), e preserva como separador
+de palavra quando ele some.
+
+### Bug 2 — ciclador de palavras (`js/dom.js`) escrevendo por cima da copy nova
+Achado mais sério: `js/dom.js` tem `PALAVRAS_HERO`/`PALAVRAS_CTA`, um
+"ciclador" que pega o `<em>` do hero e do CTA final e troca o texto
+dele sozinho a cada poucos segundos (efeito de identidade do site,
+pré-existente, não documentado antes nas seções que reescreveram essa
+copy). Ele foi desenhado pra ciclar sinônimos de UM adjetivo/substantivo
+fixo (`aplicada/calibrada/...`, `tecnologia/ferramenta/...`). A seção
+24 trocou o que tinha dentro do `<em>` sem saber que esse JS existia —
+o ciclador continuou vivo e começou a escrever palavras da lista
+ANTIGA por cima da frase NOVA, produzindo lixo tipo "Comece pelo
+problema,não pelo que ferramenta." direto na tela do visitante (visto
+ao vivo via `get_page_text`, texto real capturado, não suposição).
+Fix: escolhida uma palavra por frase que aceita sinônimo de verdade e
+as listas foram reescritas pra combinar —
+- hero: `"...que ninguém está `<em>auditando</em>`"` — lista
+  `auditando/monitorando/fiscalizando/acompanhando` (Singular:
+  `sangrando/vazando/evaporando`).
+- CTA: `"não pelo `<em>discurso</em>` de venda"` — lista
+  `discurso/argumento/papo/script` (Singular: `desespero/blefe/script
+  pronto`).
+
+**Lição pro futuro**: sempre que um `<em>` for editado dentro de
+`.hero__title` ou `.cta`, checar `js/dom.js` (`PALAVRAS_HERO`/
+`PALAVRAS_CTA` e a função `criarCiclador`) antes de publicar — esses
+dois elementos têm JS dono do conteúdo deles, não são texto estático.
+
+### Verificação completa feita ao vivo depois do fix
+Desktop (viewport da pane, ~583–598px) e mobile emulado (375×812,
+largura citada na própria seção 6 do HANDOFF como referência
+histórica): hero, as 3 dores, as 6 capacidades, método, as 3
+aplicações, accordion do FAQ (clicado, abre/fecha, texto renderiza
+igual ao lido), CTA final, rodapé — tudo lido via `get_page_text` +
+screenshot, nenhuma palavra colada, nenhum texto de ciclador
+divergente da copy fonte. Menu mobile (hambúrguer) abre/fecha. Modal
+de lead abre pelo CTA do menu mobile, autofoco no campo nome funciona,
+os 4 campos renderizam certo. Console sem nenhum erro
+(`read_console_messages`, `onlyErrors`). **Não testado**: envio de
+verdade do formulário pro WhatsApp (evitado de propósito — dispararia
+mensagem real) e o efeito visual do canvas/reator em si (perf,
+`?perf`, `__frame()` — isso continua exigindo o medidor do dono, é
+sobre fluidez de animação, não sobre conteúdo/copy).
