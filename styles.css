@@ -1447,6 +1447,17 @@ body.is-lead-open { overflow: hidden; }
   display: flex; align-items: center; justify-content: center;
   padding: var(--pad);
 }
+/* BUG CRÍTICO CORRIGIDO (2026-09-13): `[hidden]` do HTML e `.lead-modal`
+   aqui em cima são ORIGEM/especificidade EMPATADAS (ambas 0,0,1,0) — mas
+   `[hidden]` vem da folha do NAVEGADOR e `.lead-modal` vem da folha do
+   AUTOR, e origem-autor sempre vence origem-UA, não importa a ordem no
+   arquivo. Resultado: `display: flex` ficava ligado o tempo inteiro,
+   `hidden` no HTML não tinha efeito NENHUM — o modal cobria a tela
+   inteira, sempre, capturando clique de TUDO por baixo (nav, cards, FAQ,
+   menu mobile, WhatsApp flutuante — o site inteiro parou de responder a
+   clique desde a publicação). Precisa de especificidade MAIOR pra vencer:
+   classe + atributo (0,0,2,0) resolve. */
+.lead-modal[hidden] { display: none; }
 .lead-modal__backdrop {
   position: absolute; inset: 0;
   background: rgb(5 5 7 / .72);
