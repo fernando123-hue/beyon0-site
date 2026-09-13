@@ -379,13 +379,16 @@
           timeline do hero teria terminado. Se o palpite errasse (rede lenta,
           GSAP demorando), capturava o em no meio do revert. Agora esperamos o
           sinal explícito `'hero-pronto'` que anima.js emite APÓS o revert. */
-  var PALAVRAS_HERO      = ['aplicada', 'calibrada', 'direcionada', 'ajustada', 'voltada'];
-  var PALAVRAS_HERO_SING = ['implacável', 'decisiva', 'inevitável', 'imparável'];
-  /* o CTA fecha "Comece pelo problema, não pela ___" — as alternativas são a
-     coisa ERRADA de começar (a ferramenta antes do problema). No Singular fica
-     mais direto, mas continua sem ofender: nomeia o erro, não o cliente. */
-  var PALAVRAS_CTA       = ['tecnologia', 'ferramenta', 'moda', 'tendência'];
-  var PALAVRAS_CTA_SING  = ['pressa', 'promessa', 'ferramenta da vez'];
+  /* o hero fecha "...num ponto que ninguém está ___" — gerúndio, concorda com
+     "auditando". No Singular o verbo fica mais dramático (dinheiro que já
+     está indo embora, não só sem auditoria). */
+  var PALAVRAS_HERO      = ['auditando', 'monitorando', 'fiscalizando', 'acompanhando'];
+  var PALAVRAS_HERO_SING = ['sangrando', 'vazando', 'evaporando'];
+  /* o CTA fecha "Comece pelo problema, não pelo ___ de venda" — as alternativas
+     são a coisa ERRADA de começar (o discurso antes do problema). No Singular
+     fica mais direto, mas continua sem ofender: nomeia o erro, não o cliente. */
+  var PALAVRAS_CTA       = ['discurso', 'argumento', 'papo', 'script'];
+  var PALAVRAS_CTA_SING  = ['desespero', 'blefe', 'script pronto'];
 
   var cicladores = [];      /* cada um dirige um <em>; o loop de eventos os avança */
 
