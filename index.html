@@ -150,7 +150,7 @@
       <a href="#processo">Método</a>
       <a href="#projetos">Aplicações</a>
       <a href="#faq">FAQ</a>
-      <a class="btn btn--sm" data-wa href="#" target="_blank" rel="noopener noreferrer">Agendar diagnóstico</a>
+      <a class="btn btn--sm" data-wa data-lead-gate href="#" target="_blank" rel="noopener noreferrer">Agendar diagnóstico</a>
     </nav>
     <!-- No celular os links viravam `display:none` e não sobrava navegação
          nenhuma — num site que promete ser "feito primeiro para o celular".
@@ -469,6 +469,10 @@
           <input type="text" name="nome" autocomplete="name" required maxlength="60" />
         </label>
         <label class="lead-modal__field">
+          <span>Nome da organização</span>
+          <input type="text" name="organizacao" autocomplete="organization" required maxlength="80" />
+        </label>
+        <label class="lead-modal__field">
           <span>Tipo de organização</span>
           <select name="tipo" required>
             <option value="" disabled selected>Selecione</option>
@@ -478,6 +482,14 @@
             <option value="cooperativa" data-artigo="uma">Cooperativa</option>
             <option value="outro" data-artigo="um">Outro</option>
           </select>
+        </label>
+        <label class="lead-modal__field" id="leadTipoOutroWrap" hidden>
+          <span>Qual?</span>
+          <input type="text" name="tipoOutro" maxlength="40" placeholder="Ex: conselho profissional" />
+        </label>
+        <label class="lead-modal__field">
+          <span>Qual desafio você quer resolver com IA? <span class="lead-modal__opt">(opcional)</span></span>
+          <textarea name="desafio" maxlength="300" rows="3" placeholder="Ex: perdemos tempo triando e-mail manualmente"></textarea>
         </label>
         <button type="submit" class="btn btn--primary lead-modal__submit">
           Continuar no WhatsApp <span aria-hidden="true">→</span>
