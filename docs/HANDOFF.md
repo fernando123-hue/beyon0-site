@@ -1,9 +1,21 @@
 # Beyon Zero — transferência de contexto
 
-**Última atualização:** 2026-09-13c · **Branch ativa:** `rebuild` · **HEAD:** `f96a1f6` — **NÃO PUBLICADO**. `origin/main` ainda está em `b9b731e` (3 commits atrás: spec + feat CRO/SEO/resumo + merge). Tudo testado local (ver seção 22), só falta o dono confirmar publicar — **não fazer `git push origin main` sem ele pedir**.
+**Última atualização:** 2026-09-13d · **Branch ativa:** `rebuild` · **HEAD:** `e2d9836` — **NÃO PUBLICADO**. `origin/main` ainda está em `b9b731e` (4 commits atrás: spec + feat CRO/SEO/resumo + merge + copy/fee-only). Nada visto rodando ao vivo nesta sessão (ver seção 23), só falta o dono confirmar publicar — **não fazer `git push origin main` sem ele pedir**.
 
-> **SEÇÃO 22 (CRO + SEO DO NICHO + RESUMO PRA DIRETORIA, 2026-09-13c) é a
-> mais nova.** 3 pilares: (A) CRO aditivo na página atual — reassurance no
+> **SEÇÃO 23 (COPY ALINHADA AO NICHO + FEE-ONLY NO CTA FINAL, 2026-09-13d)
+> é a mais nova.** Trocou a headline genérica do CTA final ("não pela
+> tecnologia", que o próprio briefing já tinha marcado como discurso
+> padrão do setor) por algo que ataca a objeção real de compra do nicho
+> (desconfiança de ROI/comissão escondida), declarou o modelo fee-only
+> que já era decisão de negócio mas nunca tinha ido pro site, alinhou
+> "negócio/empresa/cliente" pra "organização/associado" no hero e nas
+> dores, e aumentou o espaçamento do painel de CTA final. Nada inventado
+> — nenhum número/case novo. Não visto rodando (agente não alcança
+> servidor próprio neste Windows por causa do espaço em `C:\Program
+> Files\nodejs`, e `file://` é bloqueado pelas tools de navegador aqui).
+
+> **SEÇÃO 22 (CRO + SEO DO NICHO + RESUMO PRA DIRETORIA, 2026-09-13c)**
+> — ainda não publicada, ver seção 23 pro que veio depois dela. 3 pilares: (A) CRO aditivo na página atual — reassurance no
 > form, escassez honesta sem número inventado; (B) SEO técnico pro nicho —
 > `<title>`/description/JSON-LD agora citam associações/sindicatos/
 > federações, `robots.txt`+`sitemap.xml` novos (não existiam); (C)
@@ -2249,3 +2261,45 @@ Copiei os valores de cor/fonte do `:root` de `styles.css` pra dentro de
 `resumo.css` em vez de carregar o `styles.css` inteiro (~1500 linhas de
 efeito/animação que essa página não usa). Se a paleta mudar no site
 principal, revisar os dois arquivos.
+
+---
+
+## 23. Copy alinhada ao nicho + fee-only declarado no CTA final (2026-09-13d, commit `e2d9836`, NÃO PUBLICADO)
+
+Pedido do dono: melhorar espaçamento do painel de CTA final e aplicar
+copy com base científica de conversão. Base usada: o próprio
+`briefing-estrategico-validado.md` (raiz do projeto `beyon 0`, pasta
+irmã) — não pesquisa nova, o documento já tinha o achado certo parado
+sem uso no site.
+
+- **"Diagnóstico antes de tecnologia" não diferencia mais** (seção 3.1
+  do briefing: 10+ concorrentes já dizem a mesma frase). O H2 do CTA
+  final trocou de "não pela tecnologia" pra "não pelo que alguém quer
+  vender" — ataca a objeção de verdade.
+- **Objeção nº1 de compra do nicho é ROI incerto/desconfiança de número
+  inflado por quem vende a própria ferramenta** (34%, seção 2.3). O
+  parágrafo do CTA final agora declara o modelo **fee-only** (preço
+  fixo, sem comissão de fornecedor — decisão de negócio já tomada na
+  seção 16 do briefing, nunca antes publicada no site). Novo item de
+  FAQ (`index.html`, accordion + JSON-LD, texto idêntico nos dois)
+  confirma o mesmo ponto por outra via. **Nenhum número/case
+  inventado** — só o que já é decisão real do negócio.
+- **"negócio"/"empresa"/"cliente" → "organização"/"associado"** no hero
+  e na seção `#dores`: o `<title>`, a meta description, o JSON-LD e o
+  `resumo.html` já falam a língua do nicho (associação/sindicato/
+  federação); hero e dores ainda falavam genérico. Mensagem consistente
+  = reconhecimento mais rápido de "isso é pra mim" (voice-of-customer).
+- **Espaçamento do `.cta`**: padding vertical do painel subiu (`clamp(3rem,7vw,5.5rem)`
+  → `clamp(3.5rem,8vw,6.5rem)`), e a separação entre o reforço de
+  confiança ("Quem responde é humano") e o link secundário pro resumo
+  aumentou (`1.4rem`→`1.6rem` e `2.2rem`→`2.8rem`) — hierarquia mais
+  clara entre CTA primário e caminho alternativo.
+
+**Não verificado ao vivo** — mesma limitação de sempre (seção 7): o
+agente não alcança servidor próprio neste ambiente (`npx`/`npm` falham
+na spawn porque o Node está instalado em `C:\Program Files\nodejs`,
+caminho com espaço — erro `'C:\Program' não é reconhecido`, ambiente
+Windows deste agente, não do projeto) e `file://` é bloqueado pelas
+próprias tools do navegador do agente aqui. Layout/CSS não foram vistos
+rodando; só lidos e raciocinados. **Pedir pro dono conferir no
+navegador antes de publicar** — mesmo protocolo de sempre desta sessão.
