@@ -1,6 +1,8 @@
 /* ==========================================================================
-   LEAD-FORM — modal curto antes do WhatsApp nos 2 CTAs de maior intenção
-   (hero + CTA final, marcados com [data-lead-gate]).
+   LEAD-FORM — modal antes do WhatsApp nos 3 CTAs literalmente rotulados
+   "Agendar diagnóstico" (nav, hero, CTA final — marcados com
+   [data-lead-gate]). Os outros CTAs com rótulo diferente (cards de
+   serviço, footer, medidor, bolha do WhatsApp) continuam sem fricção.
 
    Regra: nunca trava o visitante. Se B.linkWA não existir (dom.js falhou
    ou carregou fora de ordem), o script sai sem gatear nada — os links
@@ -23,8 +25,24 @@
   if (!gated.length) return;
 
   var campoNome = form.querySelector('input[name="nome"]');
+  var campoOrganizacao = form.querySelector('input[name="organizacao"]');
   var campoTipo = form.querySelector('select[name="tipo"]');
+  var campoTipoOutroWrap = document.getElementById('leadTipoOutroWrap');
+  var campoTipoOutro = form.querySelector('input[name="tipoOutro"]');
+  var campoDesafio = form.querySelector('textarea[name="desafio"]');
   var lastFocus = null;
+
+  /* "Outro" no tipo revela um campo de texto pra especificar — só fica
+     obrigatório quando essa opção está selecionada, senão o formulário
+     recusaria envio por um campo escondido que ninguém vê. */
+  if (campoTipo && campoTipoOutroWrap && campoTipoOutro) {
+    campoTipo.addEventListener('change', function () {
+      var ehOutro = campoTipo.value === 'outro';
+      campoTipoOutroWrap.hidden = !ehOutro;
+      campoTipoOutro.required = ehOutro;
+      if (ehOutro) campoTipoOutro.focus();
+    });
+  }
   /* trava o resto da página fora do modal (teclado E leitor de tela) —
      sem isto, Tab escapava do modal pro conteúdo atrás dele. */
   var restoPagina = document.querySelectorAll('body > header, body > main, body > footer, .wa, .medidor');
@@ -56,6 +74,9 @@
     travarResto(false);
     setTimeout(function () {
       modal.hidden = true;
+      form.reset();
+      if (campoTipoOutroWrap) campoTipoOutroWrap.hidden = true;
+      if (campoTipoOutro) campoTipoOutro.required = false;
       if (lastFocus) lastFocus.focus();
     }, 220); // var(--t)
   }
@@ -79,19 +100,30 @@
   form.addEventListener('submit', function (e) {
     e.preventDefault();
     var nome = (campoNome && campoNome.value || '').trim();
+    var organizacao = (campoOrganizacao && campoOrganizacao.value || '').trim();
     var opcaoTipo = campoTipo && campoTipo.value ? campoTipo.selectedOptions[0] : null;
-    var tipoTxt = opcaoTipo ? opcaoTipo.textContent.toLowerCase() : '';
     var artigo = opcaoTipo ? (opcaoTipo.getAttribute('data-artigo') || 'um') : '';
+    var tipoTxt = opcaoTipo && opcaoTipo.value === 'outro'
+      ? (campoTipoOutro && campoTipoOutro.value || '').trim().toLowerCase()
+      : (opcaoTipo ? opcaoTipo.textContent.toLowerCase() : '');
+    var desafio = (campoDesafio && campoDesafio.value || '').trim();
 
     var assunto = 'agendar um diagnóstico';
-    if (nome && tipoTxt) {
+    if (nome && organizacao && tipoTxt) {
+      assunto = 'agendar um diagnóstico — sou ' + nome + ', de ' + artigo + ' ' + tipoTxt + ' (' + organizacao + ')';
+    } else if (nome && tipoTxt) {
       assunto = 'agendar um diagnóstico — sou ' + nome + ', de ' + artigo + ' ' + tipoTxt;
     } else if (nome) {
       assunto = 'agendar um diagnóstico — sou ' + nome;
     }
+    if (desafio) {
+      assunto += '. O desafio que eu quero resolver: ' + desafio;
+    }
 
     window.open(B.linkWA(assunto), '_blank', 'noopener,noreferrer');
     form.reset();
+    if (campoTipoOutroWrap) campoTipoOutroWrap.hidden = true;
+    if (campoTipoOutro) campoTipoOutro.required = false;
     fechar();
   });
 })();

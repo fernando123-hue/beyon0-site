@@ -115,6 +115,16 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* GUARDA GLOBAL: `[hidden]` do HTML tem que vencer QUALQUER `display`
+   declarado por uma classe — mesmo tendo a mesma especificidade
+   (0,0,1,0), origem-autor sempre vence origem-UA, não importa qual regra
+   está por último no arquivo. Sem isto, todo elemento que leva `hidden`
+   E também uma classe com `display:` próprio (`.lead-modal`,
+   `.lead-modal__field` etc.) fica sempre visível, pontos-cego que já
+   mordeu duas vezes nesta sessão. `!important` aqui é o próprio
+   propósito do atributo `hidden` — não decoração, é a garantia. */
+[hidden] { display: none !important; }
+
 html {
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
@@ -1447,17 +1457,9 @@ body.is-lead-open { overflow: hidden; }
   display: flex; align-items: center; justify-content: center;
   padding: var(--pad);
 }
-/* BUG CRÍTICO CORRIGIDO (2026-09-13): `[hidden]` do HTML e `.lead-modal`
-   aqui em cima são ORIGEM/especificidade EMPATADAS (ambas 0,0,1,0) — mas
-   `[hidden]` vem da folha do NAVEGADOR e `.lead-modal` vem da folha do
-   AUTOR, e origem-autor sempre vence origem-UA, não importa a ordem no
-   arquivo. Resultado: `display: flex` ficava ligado o tempo inteiro,
-   `hidden` no HTML não tinha efeito NENHUM — o modal cobria a tela
-   inteira, sempre, capturando clique de TUDO por baixo (nav, cards, FAQ,
-   menu mobile, WhatsApp flutuante — o site inteiro parou de responder a
-   clique desde a publicação). Precisa de especificidade MAIOR pra vencer:
-   classe + atributo (0,0,2,0) resolve. */
-.lead-modal[hidden] { display: none; }
+/* o fix pontual daqui virou a guarda global `[hidden]{display:none!important}`
+   lá em cima (linha ~117) — cobre este elemento e qualquer outro que
+   precise de `hidden` junto de uma classe com `display:` próprio. */
 .lead-modal__backdrop {
   position: absolute; inset: 0;
   background: rgb(5 5 7 / .72);
@@ -1469,8 +1471,10 @@ body.is-lead-open { overflow: hidden; }
 .lead-modal__panel {
   position: relative;
   z-index: 1;
-  width: min(360px, 100%);
+  width: min(400px, 100%);
   min-height: 0;
+  max-height: calc(100svh - 2 * var(--pad));
+  overflow-y: auto;
   background: var(--s1);
   border: 1px solid var(--line-hi);
   padding: clamp(1.6rem, 4vw, 2.1rem);
@@ -1508,8 +1512,10 @@ body.is-lead-open { overflow: hidden; }
   font-family: var(--mono); font-size: .64rem; letter-spacing: .1em;
   text-transform: uppercase; color: var(--t3);
 }
+.lead-modal__opt { opacity: .6; letter-spacing: 0; }
 .lead-modal__field input,
-.lead-modal__field select {
+.lead-modal__field select,
+.lead-modal__field textarea {
   background: var(--bg);
   border: 1px solid var(--stroke);
   color: var(--t1);
@@ -1519,10 +1525,12 @@ body.is-lead-open { overflow: hidden; }
   transition: border-color var(--t-fast) var(--ease);
 }
 .lead-modal__field input:focus-visible,
-.lead-modal__field select:focus-visible {
+.lead-modal__field select:focus-visible,
+.lead-modal__field textarea:focus-visible {
   outline: none; border-color: var(--ac);
 }
 .lead-modal__field select { cursor: pointer; }
+.lead-modal__field textarea { resize: vertical; min-height: 4.5rem; line-height: 1.5; }
 
 .lead-modal__submit { width: 100%; justify-content: center; margin-top: .2rem; }
 
