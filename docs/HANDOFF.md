@@ -1,6 +1,6 @@
 # Beyon Zero — transferência de contexto
 
-**Última atualização:** 2026-09-13d · **Branch ativa:** `rebuild` · **HEAD:** `e2d9836` — **NÃO PUBLICADO**. `origin/main` ainda está em `b9b731e` (4 commits atrás: spec + feat CRO/SEO/resumo + merge + copy/fee-only). Nada visto rodando ao vivo nesta sessão (ver seção 23), só falta o dono confirmar publicar — **não fazer `git push origin main` sem ele pedir**.
+**Última atualização:** 2026-09-13d · **Branch ativa:** `rebuild` · **HEAD:** `d68cc8d` — **PUBLICADO** (`git push origin main` a pedido do dono, `origin/main` = `d68cc8d`, fast-forward de `b9b731e`). Inclui as seções 22 e 23. Nada da seção 23 foi visto rodando ao vivo pelo agente nesta sessão (ver seção 23) — conferir no navegador de verdade.
 
 > **SEÇÃO 23 (COPY ALINHADA AO NICHO + FEE-ONLY NO CTA FINAL, 2026-09-13d)
 > é a mais nova.** Trocou a headline genérica do CTA final ("não pela
