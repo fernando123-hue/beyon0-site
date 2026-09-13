@@ -886,7 +886,7 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 2rem); }
    ========================================================================== */
 .cta {
   position: relative;
-  padding: clamp(3rem, 7vw, 5.5rem) clamp(1.5rem, 5vw, 4rem);
+  padding: clamp(3.5rem, 8vw, 6.5rem) clamp(1.5rem, 5vw, 4rem);
   background: var(--s1);
   border: 1px solid var(--line);
   text-align: center;
@@ -908,8 +908,8 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 2rem); }
   font-family: var(--mono); font-size: .64rem;
   letter-spacing: .1em; color: var(--t3);
 }
-.cta .fine { margin: 1.4rem auto 0; }
-.cta__resumo { margin-top: 2.2rem; font-size: .84rem; }
+.cta .fine { margin: 1.6rem auto 0; }
+.cta__resumo { margin-top: 2.8rem; font-size: .84rem; }
 .cta__resumo a {
   color: var(--t3);
   text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--stroke);
