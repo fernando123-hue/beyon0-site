@@ -904,11 +904,19 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 2rem); }
 }
 .cta h2 { margin-bottom: 1.2rem; }
 .cta > p { margin: 0 auto 2.4rem; color: var(--t2); max-width: 52ch; }
-.cta .fine {
-  margin: 1.4rem auto 0;
+.fine {
   font-family: var(--mono); font-size: .64rem;
   letter-spacing: .1em; color: var(--t3);
 }
+.cta .fine { margin: 1.4rem auto 0; }
+.cta__resumo { margin-top: 2.2rem; font-size: .84rem; }
+.cta__resumo a {
+  color: var(--t3);
+  text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--stroke);
+  transition: color var(--t-fast) var(--ease);
+}
+.cta__resumo a:hover { color: var(--t1); }
+.hero__main .fine { margin-top: 1rem; }
 
 /* ==========================================================================
    RODAPÉ
@@ -1533,6 +1541,7 @@ body.is-lead-open { overflow: hidden; }
 .lead-modal__field textarea { resize: vertical; min-height: 4.5rem; line-height: 1.5; }
 
 .lead-modal__submit { width: 100%; justify-content: center; margin-top: .2rem; }
+.lead-modal__fine { text-align: center; margin-top: .8rem; }
 
 @media (max-width: 480px) {
   .lead-modal__panel { width: 100%; }
