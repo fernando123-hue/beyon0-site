@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Beyon Zero — resumo pra levar pra diretoria</title>
+  <meta name="description" content="Resumo de uma página: o problema que a IA resolve, como o diagnóstico funciona e o que muda na sua associação, sindicato, federação ou cooperativa." />
+  <link rel="canonical" href="https://beyon0-site.vercel.app/resumo.html" />
+
+  <meta name="theme-color" content="#050507" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+
+  <!-- Página isolada de propósito: sem o canvas/animação do site principal
+       (js/core.js, js/field.js, js/dom.js, GSAP). É pra ser lida rápido por
+       alguém que não viu o site — ou impressa/salva como PDF pela diretoria.
+       Ver docs/superpowers/specs/2026-09-13-cro-seo-resumo-design.md. -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self';
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+    font-src 'self' https://fonts.gstatic.com;
+    img-src 'self' data:;
+    connect-src 'self';
+    object-src 'none';
+    base-uri 'self';
+    form-action 'none'" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="resumo.css" />
+</head>
+<body>
+  <header class="r-nav">
+    <a href="index.html" class="r-nav__logo">Beyon <b>Zero</b></a>
+    <a href="index.html" class="r-nav__voltar">← voltar pro site</a>
+  </header>
+
+  <main class="r-main">
+    <section class="r-hero">
+      <p class="r-kicker">Resumo pra levar pra diretoria</p>
+      <h1>Onde a IA paga por si na sua organização.</h1>
+      <p class="r-lead">Diagnóstico primeiro, construção depois. Este resumo existe pra você mostrar pro resto da diretoria antes de decidir — sem precisar reexplicar do zero.</p>
+    </section>
+
+    <section class="r-section">
+      <h2>O problema</h2>
+      <ul class="r-list">
+        <li><strong>Trabalho que não exige gente.</strong> Horas de gente cara em tarefa repetitiva. Vira folha de pagamento sem virar resultado.</li>
+        <li><strong>Oportunidade que esfria.</strong> O lead sem resposta a tempo, o orçamento que ninguém retomou, o associado que perguntou e desistiu.</li>
+        <li><strong>Conhecimento parado.</strong> Anos de histórico, documentos e conversas dentro da organização que ninguém consegue consultar na hora exata em que precisa decidir.</li>
+      </ul>
+    </section>
+
+    <section class="r-section">
+      <h2>O que a Beyon Zero faz</h2>
+      <ul class="r-list r-list--grid">
+        <li><strong>Agentes que executam.</strong> Não é chatbot — é um sistema com objetivo, ferramentas e limite, que faz o trabalho e sabe quando chamar um humano.</li>
+        <li><strong>Atendimento que escala.</strong> Absorve o volume repetitivo, classifica o que chega e passa pra uma pessoa só o que precisa de uma.</li>
+        <li><strong>Receita recuperada.</strong> Lead esquecido, orçamento sem resposta. O sistema encontra, prioriza e reabre a conversa.</li>
+        <li><strong>Processos automatizados.</strong> O gargalo que trava a operação vira fluxo que roda sozinho, com registro e parada humana onde importa.</li>
+        <li><strong>Dados que respondem.</strong> Documentos, histórico e conhecimento interno viram resposta consultável.</li>
+        <li><strong>Sistemas &amp; interfaces.</strong> O software que torna tudo isso utilizável — integração, painel e site como parte do sistema.</li>
+      </ul>
+    </section>
+
+    <section class="r-section">
+      <h2>Como funciona</h2>
+      <ol class="r-steps">
+        <li><strong>01 · Mapa.</strong> Olho a operação de ponta a ponta: onde o dinheiro entra, onde sai, e onde ele para no caminho.</li>
+        <li><strong>02 · Prioridade.</strong> Listo onde a IA cabe, estimo o impacto de cada uma e escolhemos juntos a que paga mais rápido.</li>
+        <li><strong>03 · Construção.</strong> Construo, integro ao que vocês já usam e meço o resultado. O que funciona, escala.</li>
+      </ol>
+    </section>
+
+    <section class="r-section">
+      <h2>Perguntas frequentes</h2>
+      <dl class="r-faq">
+        <dt>IA serve pra minha organização?</dt>
+        <dd>Só olhando pra saber. O diagnóstico existe pra isso — e se não houver um ganho claro, eu digo que não vale.</dd>
+        <dt>Isso é um chatbot?</dt>
+        <dd>Nem sempre. Chatbot é uma forma entre várias, e muita coisa se resolve com automação sem conversa nenhuma. A forma vem depois do problema.</dd>
+        <dt>Quanto custa?</dt>
+        <dd>Depende do que o diagnóstico encontrar. Escopo e preço são fechados antes de construir qualquer coisa, e o critério é o valor que a solução destrava.</dd>
+        <dt>A organização fica presa a você ou a uma empresa de IA?</dt>
+        <dd>Não. O sistema é de vocês, os acessos são de vocês, e a arquitetura não depende de um único fornecedor de modelo.</dd>
+        <dt>E os dados?</dt>
+        <dd>O sistema acessa só o que precisa pra funcionar, com permissão, registro do que fez e limite de autonomia definido antes de ligar.</dd>
+      </dl>
+    </section>
+
+    <section class="r-cta">
+      <h2>Próximo passo</h2>
+      <p>Uma conversa pra entender a operação e achar onde a IA paga por si. Se não houver esse lugar, eu digo.</p>
+      <a class="r-btn" id="resumoWa" href="#" target="_blank" rel="noopener">Agendar diagnóstico <span aria-hidden="true">→</span></a>
+      <p class="r-fine">Quem responde é humano. Sem compromisso.</p>
+    </section>
+  </main>
+
+  <script src="js/tel.js" defer></script>
+  <script src="js/resumo.js" defer></script>
+</body>
+</html>

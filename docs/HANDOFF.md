@@ -1,16 +1,35 @@
 # Beyon Zero — transferência de contexto
 
-**Última atualização:** 2026-09-13 · **Branch ativa:** `rebuild` · **HEAD:** `385bdf3` (PUBLICADO — `main = rebuild = origin/main`). Ver seção 21.
+**Última atualização:** 2026-09-13c · **Branch ativa:** `rebuild` · **HEAD:** pendente do merge desta rodada (ver seção 22). `b9b731e` é o último publicado ANTES desta rodada — inclui a seção 21 (modal) e um bugfix de `[hidden]` vs `display` que esta atualização deixou de registrar na hora (corrigido agora, retroativo).
 
-> **SEÇÃO 21 (MODAL DE QUALIFICAÇÃO, 2026-09-13) é a mais nova, publicada.**
-> Hero e CTA final ("Agendar diagnóstico") agora abrem um modal curto
-> (nome + tipo de organização) antes do WhatsApp — a mensagem chega
-> qualificada. Os outros 9 CTAs continuam sem fricção, sem mudança. Novo
-> arquivo `js/lead-form.js` (evento-só, sem rAF), `dom.js` ganhou uma linha
-> (`B.linkWA` exposto pra reaproveitar o número/telefone sem duplicar). Sem
-> dependência nova, CSP intacta. Feito junto com um campo "origem" no CRM
-> do app interno (`beyon-0-app`) — prepara terreno pro dia que o form gravar
-> direto num backend (Supabase, quando entrar dinheiro real pra justificar).
+> **SEÇÃO 22 (CRO + SEO DO NICHO + RESUMO PRA DIRETORIA, 2026-09-13c) é a
+> mais nova.** 3 pilares: (A) CRO aditivo na página atual — reassurance no
+> form, escassez honesta sem número inventado; (B) SEO técnico pro nicho —
+> `<title>`/description/JSON-LD agora citam associações/sindicatos/
+> federações, `robots.txt`+`sitemap.xml` novos (não existiam); (C)
+> `resumo.html` novo — página isolada (sem canvas/animação) pensada pra ser
+> encaminhada dentro da diretoria de quem decide em grupo. Novo
+> `js/tel.js` centraliza o telefone (antes só vivia dentro de `dom.js`).
+> **Achado durante a pesquisa**: o site não tinha nenhum case/número de
+> prova publicado — o que existia era plano interno (Canvas do app), não
+> copy validada. Nada disso entrou no site; ver a spec pra detalhe.
+> Spec: `docs/superpowers/specs/2026-09-13-cro-seo-resumo-design.md`.
+
+> **SEÇÃO 21 (MODAL DE QUALIFICAÇÃO, 2026-09-13b) — publicada, com um
+> bugfix retroativo.** Hero, CTA final e (desde a correção) o CTA do nav
+> ("Agendar diagnóstico") abrem um modal antes do WhatsApp — hoje 4 campos
+> (nome, organização, tipo com "Outro" livre, desafio opcional). Os outros
+> 8 CTAs continuam sem fricção. **Bug crítico achado DUAS vezes na mesma
+> sessão**: `[hidden]` do HTML e uma classe com `display:` próprio têm a
+> MESMA especificidade, mas origem-autor sempre vence origem-UA — então
+> `hidden` não tinha efeito nenhum, o elemento ficava sempre visível
+> (a 1ª vez isso deixou o site INTEIRO sem responder a clique, coberto por
+> um modal "invisível" fixed/inset:0/z-index:80). Resolvido na raiz com
+> uma guarda global em `styles.css` (topo do arquivo, logo após o reset):
+> `[hidden] { display: none !important; }` — cobre qualquer elemento
+> futuro que precise de `hidden` junto de uma classe com display próprio.
+> **Se você for a próxima sessão e for usar `hidden` em algo novo, essa
+> guarda já cobre — não precisa de fix pontual de novo.**
 
 > **A SEÇÃO 16 (CAMADA DE ATMOSFERA) é a mais nova, agora publicada.**
 > Ela acrescenta uma camada por cima da 14 (que continua inteiramente válida) e
@@ -2193,3 +2212,40 @@ ponte nenhuma — útil pra qualquer geração de imagem/PDF futura, com o
 cuidado de sempre isolar `--user-data-dir`.
 
 ### 15.6 Como o dono trabalha — sem mudança, ver 13.6
+
+---
+
+## 22. CRO + SEO do nicho + resumo pra diretoria (2026-09-13c)
+
+Ver o resumo no topo do arquivo. Detalhe técnico que fica só aqui:
+
+### Domínio-pronto — os 10 lugares onde `beyon0-site.vercel.app` aparece
+Sem build/templating (projeto não tem), então trocar de domínio é
+find-and-replace manual. Lista completa pra quando o domínio for
+registrado:
+
+```
+index.html:12   <link rel="canonical">
+index.html:13   og:url
+index.html:19   og:image
+index.html:27   twitter:image
+index.html:53   JSON-LD ProfessionalService "url"
+index.html:54   JSON-LD ProfessionalService "image"
+resumo.html:8   <link rel="canonical">
+sitemap.xml:4   <loc> da home
+sitemap.xml:9   <loc> do /resumo.html
+robots.txt:4    linha "Sitemap:"
+```
+
+### `js/tel.js` — novo, carregado antes de `js/core.js`
+`window.BEYON_TEL = '5521977167944'`. `js/dom.js` lê de lá (com fallback
+pro valor literal se por algum motivo não carregar — nunca trava).
+`resumo.html` carrega só `js/tel.js` + `js/resumo.js` (não o `core.js`/
+`field.js`/`dom.js` inteiros, que esperam o canvas `#fx` e o DOM do site
+completo). Trocar o número: só em `js/tel.js`.
+
+### `resumo.css` — tokens duplicados de propósito, não importados
+Copiei os valores de cor/fonte do `:root` de `styles.css` pra dentro de
+`resumo.css` em vez de carregar o `styles.css` inteiro (~1500 linhas de
+efeito/animação que essa página não usa). Se a paleta mudar no site
+principal, revisar os dois arquivos.

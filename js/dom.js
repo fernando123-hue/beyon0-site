@@ -17,8 +17,10 @@
      O valor de data-wa vira o assunto da mensagem, então a conversa já chega
      qualificada ("quero recuperar oportunidades perdidas com IA" em vez de
      "quero IA"). Sem valor, cai na mensagem genérica — que pergunta pelo
-     PROBLEMA, não pela tecnologia. */
-  var FONE = '5521977167944';
+     PROBLEMA, não pela tecnologia. O número em si mora em js/tel.js, que
+     este arquivo carrega antes (resumo.html usa o mesmo tel.js sem puxar
+     todo o resto — ver o comentário lá). */
+  var FONE = window.BEYON_TEL || '5521977167944';
   function linkWA(assunto) {
     var txt = assunto
       ? 'Oi! Vim pelo site da Beyon Zero e quero falar sobre ' + assunto + '.'
