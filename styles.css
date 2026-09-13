@@ -304,7 +304,7 @@ em {
 #processo { --sp-top: var(--sp); }
 #projetos { --sp-top: var(--sp-loose); }
 #faq      { --sp-top: var(--sp-tight); --sp-bottom: var(--sp-tight); }
-#contato  { --sp-top: var(--sp-loose); }
+#contato  { --sp-top: var(--sp-loose); --sp-bottom: var(--sp-tight); }
 
 /* a nav é fixa: sem isto toda âncora joga o título para baixo dela */
 section[id] { scroll-margin-top: calc(var(--nav-h) + 2rem); }
@@ -886,7 +886,7 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 2rem); }
    ========================================================================== */
 .cta {
   position: relative;
-  padding: clamp(3.5rem, 8vw, 6.5rem) clamp(1.5rem, 5vw, 4rem);
+  padding: clamp(3rem, 6vw, 4.5rem) clamp(1.5rem, 5vw, 4rem);
   background: var(--s1);
   border: 1px solid var(--line);
   text-align: center;
