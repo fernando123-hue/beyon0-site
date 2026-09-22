@@ -1,7 +1,10 @@
 # Reestruturação Beyon Zero — Hub + páginas por serviço
 
 **Aberto em:** 2026-09-22 · **Branch:** `claude/site-restructure-planning-1cd10h`
-**Status:** planejamento em andamento — nenhuma página nova construída ainda.
+**Status:** **Hub e página de Sites CONSTRUÍDOS e verificados ao vivo no
+navegador** (2026-09-22, segunda rodada). Ver a seção 9 — ela é a mais nova e
+descreve o que existe no código agora. As seções 1 a 8 são o planejamento que
+levou até aqui e continuam válidas no que a 9 não substituiu.
 
 Este documento é a fonte de verdade desta fase, no mesmo espírito do
 `docs/HANDOFF.md` (que segue sendo a fonte de verdade do site publicado como
@@ -197,3 +200,110 @@ como histórico de como a identidade evoluiu, mas deixa de ser a última
 palavra: este documento é a camada mais nova sobre paleta/composição, sem
 substituir as leis de performance (§3–4) nem o comportamento do AI
 Core/Pulso (§6/§11.3), que continuam valendo.
+
+
+## 9. O QUE FOI CONSTRUÍDO (2026-09-22, segunda rodada)
+
+O dono pediu para começar a construir, com **foco total na parte de Sites** e
+um pedaço do Hub, e refinou a decisão de identidade: **manter a essência do AI
+Core e dos Pulsos**, mudar e acrescentar todo o resto em busca de uma
+experiência visual premium.
+
+### 9.1 Arquivos: o que virou o quê
+
+| Arquivo | Estado |
+|---|---|
+| `automacao.html` | **É o antigo `index.html`**, movido com `git mv` (histórico preservado). Conteúdo intacto; mudaram só o `canonical`/`og:url`, o logo e o rodapé (que agora apontam para o Hub) e a nav (ganhou link para Sites). |
+| `index.html` | **Novo — o Hub.** Hero com o AI Core sozinho, índice dos 3 serviços, bloco de Experiências Digitais com o portal, 3 princípios, CTA. |
+| `sites.html` | **Novo — a página de Sites, completa.** Hero com palco, 3 formatos, padrão de entrega, prova medida, método em 4 passos, FAQ, CTA. |
+| `css/premium.css` | **Nova camada visual**, carregada depois de `styles.css` só nas páginas novas. |
+| `js/pagina.js` | **Novo controlador** das páginas novas (substitui `js/dom.js` nelas). |
+| `sitemap.xml` | Passou a listar as 4 páginas. |
+| `resumo.html` | Só o "voltar pro site", que agora volta para `automacao.html` (de onde o leitor veio), não para o Hub. |
+
+### 9.2 O que foi REAPROVEITADO sem tocar
+`styles.css` (tokens, nav, botões, cartões, malha, linha do tempo, FAQ,
+rodapé), `js/core.js` (estado + loop único + orçamento), `js/field.js` (o
+canvas inteiro: campo de partículas, **AI Core**, coluna, mini AI Core dos
+cartões, aurora e onda do Singular) e `js/entrada.js` (a LINHA de entrada).
+
+Isso é o que cumpre a decisão do dono ao pé da letra: o AI Core das páginas
+novas **é** o AI Core do site, o mesmo código, não uma reimplementação
+parecida. `js/field.js` já degradava bem quando um elemento não existe, então
+bastou as páginas novas oferecerem os mesmos ganchos (`.hero__reactor`,
+`.card--service`, `.bus`, `.steps .step`).
+
+O Pulso e o Estado Singular foram levados para `js/pagina.js` com as mesmas
+constantes e as mesmas quatro fases — inclusive os dois ajustes que só uma
+simulação numérica tinha pego. **Verificado ao vivo: o Pulso disparou aos 11s.**
+
+### 9.3 A pele nova (`css/premium.css`)
+Material de vidro em camadas, palco com pedestal, folhas flutuantes, janela de
+navegador feita de HTML, índice do Hub, folha de specs, painel de prova e o
+portal de pedra. Tudo escrito sobre os tokens existentes — por isso **o Singular
+ainda vira tudo de ouro de graça**, sem uma linha de JS a mais.
+
+**A janela do hero não é imagem.** Os mockups do moodboard têm texto ilegível,
+marca errada e números inventados; construída em HTML/CSS ela sai nítida em
+qualquer tela, pesa zero KB e, num site que vende sites, é a demonstração.
+
+### 9.4 Zero invenção de dado — o que entrou no lugar das estatísticas
+Os mockups de referência trazem "+300 projetos", "98% de satisfação", "127
+clientes ativos", "+340% de tráfego". **Nada disso foi publicado** — o projeto
+não tem como provar, e a regra de zero invenção proíbe. No lugar entrou a
+seção **Prova**: tempo de carga, peso baixado e fps, medidos pelo navegador de
+quem está lendo, agora. A nota da própria seção declara que o peso conta só o
+que sai deste domínio, porque fontes externas não reportam tamanho.
+
+### 9.5 Verificação ao vivo (primeira vez na história do projeto)
+O ambiente desta sessão tem Chromium + Playwright, então **o agente viu as
+páginas rodando** — o que nenhuma sessão anterior conseguiu (ver HANDOFF §7).
+Resultado final, nas 5 combinações de página × viewport (1440×900 e 390×844):
+
+- **60 fps** em todas, zero erro de console, zero rolagem horizontal;
+- custo do canvas: **0,054 ms/frame** na página de Sites — 1/300 do orçamento;
+- reveals 14/14 disparando, FAQ abrindo, menu do celular abrindo e fechando no
+  Esc, navegação Hub → Sites → Automação → Hub inteira funcionando;
+- links de WhatsApp qualificados por cartão.
+
+**Seis bugs foram achados olhando o render e corrigidos** — todos invisíveis à
+leitura do código: o pedestal atravessando a janela; a janela de vidro por cima
+do texto no celular (dois `grid-row: 2` na mesma célula, porque `styles.css`
+inverte a ordem do hero abaixo de 860px); 12px de rolagem horizontal em 390px;
+a grade de specs desenhando um retângulo cinza na célula que sobrava; o painel
+de prova amontoado em metade da largura; e o portal montado como três
+retângulos soltos.
+
+### 9.6 A decisão medida: `backdrop-filter`
+A primeira versão punha desfoque em todo `.vidro` e a página de Sites caiu para
+**45 fps** contra 60 das outras. O A/B na mesma sessão mostrou que a culpa era
+inteira da janela — que **não ganhava nada** com o desfoque, porque o conteúdo
+dela tem fundo próprio opaco:
+
+| configuração | fps |
+|---|---|
+| janela + satélite com desfoque | 45,4 |
+| só o satélite com desfoque | 60,5 |
+| nenhum desfoque | 60,4 |
+
+O desfoque ficou só no satélite (pequeno, translúcido de verdade, custo zero na
+medição). É a regra do projeto aplicada: **medir, não deduzir**.
+
+### 9.7 O que continua em aberto
+1. A triagem de imagens da seção 4 segue esperando revisão do dono. **Nenhuma
+   imagem do moodboard virou asset do site** — a pele nova foi construída a
+   partir da LINGUAGEM delas (vidro, pedestal, portal, painéis em
+   profundidade), não dos arquivos.
+2. Os vídeos de transição (imagens 01–04 e 07) não foram produzidos.
+3. A página de **Experiências Digitais** não existe: no Hub ela é um bloco com
+   o portal e um link para a conversa, e o rótulo "sob demanda" diz isso. Não
+   há link quebrado prometendo uma página que não existe.
+4. Confirmar se há um 4º serviço.
+5. A nav de `automacao.html` ainda tem a cara antiga (é `styles.css` puro). Não
+   é erro — é a página que já estava aprovada e publicada. Unificar a nav das
+   três é trabalho de uma próxima rodada.
+6. URLs terminam em `.html`. Dá para virar `/sites` e `/automacao` com
+   `cleanUrls` num `vercel.json`, mas isso mexe na configuração de deploy e não
+   foi feito sem o dono pedir.
+
+---

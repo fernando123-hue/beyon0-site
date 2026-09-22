@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Beyon Zero — IA aplicada para associações, sindicatos e federações</title>
+  <meta name="description" content="Diagnóstico pago primeiro, sem comissão de ferramenta. Descubro onde a IA paga por si na sua associação, sindicato, federação ou cooperativa, e construo só isso." />
+
+  <!-- URLs absolutas de propósito: crawlers de rede social não resolvem
+       caminho relativo. Se o domínio mudar, trocar og:image, twitter:image e
+       canonical juntos (ver assets/README.txt). -->
+  <link rel="canonical" href="https://beyon0-site.vercel.app/automacao.html" />
+  <meta property="og:url" content="https://beyon0-site.vercel.app/automacao.html" />
+  <meta property="og:site_name" content="Beyon Zero" />
+  <meta property="og:locale" content="pt_BR" />
+  <meta property="og:title" content="Beyon Zero — IA aplicada para associações, sindicatos e federações" />
+  <meta property="og:description" content="Diagnóstico pago primeiro, sem comissão de ferramenta. Descubro onde a IA paga por si na sua entidade, e construo só isso." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="https://beyon0-site.vercel.app/assets/og-cover.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Beyon Zero — a abertura do AI Core sobre uma malha técnica" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Beyon Zero — IA aplicada para associações, sindicatos e federações" />
+  <meta name="twitter:description" content="Diagnóstico pago primeiro, sem comissão de ferramenta. Descubro onde a IA paga por si na sua entidade, e construo só isso." />
+  <meta name="twitter:image" content="https://beyon0-site.vercel.app/assets/og-cover.jpg" />
+
+  <!-- bate com --bg do styles.css. Estava #000000, de quando o fundo era preto
+       absoluto; a reformulação subiu para #050507 e a barra do navegador no
+       celular ficava um degrau mais escura que a página. -->
+  <meta name="theme-color" content="#050507" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self';
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+    font-src 'self' https://fonts.gstatic.com;
+    img-src 'self' data:;
+    media-src 'self';
+    connect-src 'self';
+    object-src 'none';
+    base-uri 'self';
+    form-action 'none'" />
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "ProfessionalService",
+    "name": "Beyon Zero",
+    "url": "https://beyon0-site.vercel.app/automacao.html",
+    "image": "https://beyon0-site.vercel.app/assets/og-cover.jpg",
+    "description": "Inteligência artificial aplicada: agentes, automação e sistemas que resolvem problemas reais de operação e geram valor econômico, com foco em associações, sindicatos, federações e cooperativas.",
+    "telephone": "+55-21-97716-7944",
+    "priceRange": "$$$",
+    "areaServed": { "@type": "Country", "name": "Brasil" },
+    "knowsAbout": ["Inteligência artificial aplicada", "Automação de processos", "Associações de classe", "Sindicatos", "Federações", "Cooperativas"],
+    "address": { "@type": "PostalAddress", "addressRegion": "RJ", "addressCountry": "BR" },
+    "knowsLanguage": "pt-BR",
+    "hasOfferCatalog": {
+      "@type": "OfferCatalog",
+      "name": "Capacidades",
+      "itemListElement": [
+        { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Diagnóstico de IA" } },
+        { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Agentes de IA" } },
+        { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Atendimento escalado com IA" } },
+        { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Recuperação de receita com IA" } },
+        { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Automação inteligente de processos" } },
+        { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Inteligência sobre dados da empresa" } },
+        { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Sistemas e interfaces potencializados por IA" } }
+      ]
+    }
+  }
+  </script>
+
+  <!-- FAQPage: o texto aqui é idêntico ao da seção #faq visível na página.
+       O Google exige que bata palavra por palavra; se editar um, edite o outro. -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "IA serve para o meu negócio?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Só olhando pra saber. O diagnóstico existe pra isso, e se não houver ganho claro, eu digo que não vale." }
+      },
+      {
+        "@type": "Question",
+        "name": "Isso é um chatbot?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Nem sempre. Chatbot é uma forma entre várias, e muita coisa se resolve com automação sem conversa nenhuma. A forma vem depois do problema." }
+      },
+      {
+        "@type": "Question",
+        "name": "Quanto custa?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Depende do que o diagnóstico encontrar. Escopo e preço são fechados antes de construir qualquer coisa, e o critério é o valor que a solução destrava." }
+      },
+      {
+        "@type": "Question",
+        "name": "Vou ficar preso a você ou a uma empresa de IA?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Não. O sistema é seu, os acessos são seus, e a arquitetura não depende de um único fornecedor de modelo." }
+      },
+      {
+        "@type": "Question",
+        "name": "E os meus dados?",
+        "acceptedAnswer": { "@type": "Answer", "text": "O sistema acessa só o que precisa para funcionar, com permissão, registro do que fez e limite de autonomia definido antes de ligar." }
+      },
+      {
+        "@type": "Question",
+        "name": "Você ganha comissão de alguma ferramenta de IA?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Não. O preço é fixo. Não muda conforme a ferramenta ou fornecedor de IA usado na solução, inclusive quando a resposta certa é não usar IA nenhuma." }
+      }
+    ]
+  }
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <!-- Sora 400 SAIU: nenhuma regra da folha pede esse peso. Ele só era baixado
+       porque `em` declarava 500 (peso que nunca esteve na lista) e o navegador
+       caía no 400 — a ênfase virou 600, que é carregado, e o arquivo do 400
+       deixou de ser baixado por toda visita. Os pesos usados são exatamente
+       estes quatro: Sora 300/600 e JetBrains Mono 400/500. -->
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="styles.css" />
+
+  <noscript>
+    <style>
+      .reveal { opacity: 1 !important; transform: none !important; }
+      .medidor { display: none !important; }
+      /* os links de WhatsApp são montados pelo JS: sem ele, a seta prometeria
+         uma ação que não acontece. Some a afordância, fica o conteúdo. */
+      .card__cta { display: none !important; }
+    </style>
+  </noscript>
+</head>
+<body>
+  <a href="#hero" class="skip-link">Pular para o conteúdo</a>
+
+  <!-- CAMADA DE ENERGIA — um canvas só, em tela cheia, atrás de tudo.
+       Todo movimento contínuo do site vive aqui: campo de partículas, reator do
+       hero e o brilho da tipografia. Desenhar a cena inteira custa ~1ms; fazer
+       o mesmo efeito com elementos DOM reagindo por frame custava 76ms de
+       recálculo de estilo. Ver docs/auditoria-performance.md. -->
+  <canvas id="fx" aria-hidden="true"></canvas>
+
+  <header class="nav" id="nav">
+    <a href="index.html" class="nav__logo" aria-label="Beyon Zero — início">
+      <span class="wordmark">Beyon <b>Zero</b></span>
+    </a>
+    <nav class="nav__links" id="nav-links" aria-label="Navegação principal">
+      <a href="#servicos">Capacidades</a>
+      <a href="#processo">Método</a>
+      <a href="#faq">FAQ</a>
+      <a href="sites.html">Sites</a>
+      <a class="btn btn--sm" data-wa data-lead-gate href="#" target="_blank" rel="noopener noreferrer">Agendar diagnóstico</a>
+    </nav>
+    <!-- No celular os links viravam `display:none` e não sobrava navegação
+         nenhuma — num site que promete ser "feito primeiro para o celular".
+         Este botão só existe abaixo de 780px; js/dom.js o revela. -->
+    <button class="nav__toggle" type="button" hidden
+            aria-expanded="false" aria-controls="nav-links" aria-label="Abrir menu">
+      <span class="nav__toggle-bar" aria-hidden="true"></span>
+      <span class="nav__toggle-bar" aria-hidden="true"></span>
+    </button>
+  </header>
+
+  <main>
+    <!-- HERO — composição assimétrica: a frase ocupa a coluna larga, o núcleo
+         vive na estreita, e a trilha de dados fecha a primeira tela como o
+         rodapé de um painel. A caixa do reator é só reserva de espaço: quem
+         desenha é o canvas, que lê esta geometria em js/field.js. -->
+    <section class="hero" id="hero" aria-labelledby="hero-titulo">
+      <div class="hero__main">
+        <p class="hero__status">
+          <span class="dot" aria-hidden="true"></span>
+          <span class="sr-only">Sistema online · Beyon Zero</span>
+          <span class="hero__status-txt" aria-hidden="true">Sistema online · Beyon Zero</span>
+        </p>
+
+        <h1 class="hero__title" id="hero-titulo">
+          Toda entidade perde dinheiro num ponto que ninguém está <em>auditando</em>.
+        </h1>
+        <p class="hero__sub">
+          Eu encontro esse ponto. Se a IA gerar receita, cortar custo ou devolver capacidade ali, eu construo o sistema. Se não gerar, eu digo.
+        </p>
+        <div class="hero__actions">
+          <a class="btn btn--primary" data-wa data-lead-gate href="#" target="_blank" rel="noopener">Agendar diagnóstico</a>
+          <a class="btn btn--ghost" href="#projetos">Ver aplicações <span aria-hidden="true">→</span></a>
+        </div>
+        <p class="fine">Atendo poucos diagnósticos por vez. Sem equipe no meio do caminho.</p>
+      </div>
+
+      <div class="hero__reactor" aria-hidden="true"></div>
+
+      <dl class="hero__rail">
+        <div>
+          <dt>Entrada</dt>
+          <dd>Diagnóstico da operação</dd>
+        </div>
+        <div>
+          <dt>Construção</dt>
+          <dd>Agentes, automação e sistemas</dd>
+        </div>
+        <div>
+          <dt>Critério</dt>
+          <dd>Só o que paga por si</dd>
+        </div>
+        <a href="#dores" class="scroll-hint" aria-label="Rolar para o conteúdo">
+          <span>rolar</span>
+          <span class="scroll-hint__bar" aria-hidden="true"></span>
+        </a>
+      </dl>
+    </section>
+
+    <section class="section" id="dores" aria-labelledby="dores-titulo">
+      <div class="section__head reveal">
+        <p class="kicker">// o problema</p>
+        <h2 id="dores-titulo">Três lugares onde o dinheiro <br />costuma vazar.</h2>
+      </div>
+      <!-- LAUDO — três linhas, não três caixas. Uma dor de operação é item de
+           diagnóstico, não produto em vitrine: o índice mono à esquerda e a
+           régua embaixo dão a estrutura que a caixa dava, sem entrar na frente
+           da leitura. -->
+      <div class="diag">
+        <article class="diag__row reveal">
+          <span class="diag__n" aria-hidden="true">01</span>
+          <h3>Trabalho que não exige gente</h3>
+          <p>Horas de gente cara em tarefa repetitiva. Vira folha de pagamento sem virar resultado, e ocupa justamente quem deveria estar decidindo.</p>
+        </article>
+        <article class="diag__row reveal">
+          <span class="diag__n" aria-hidden="true">02</span>
+          <h3>Oportunidade que esfria</h3>
+          <p>O contato sem resposta a tempo, o orçamento que ninguém retomou, o associado que perguntou e desistiu. Esse dinheiro já tinha batido na porta.</p>
+        </article>
+        <article class="diag__row reveal">
+          <span class="diag__n" aria-hidden="true">03</span>
+          <h3>Conhecimento parado</h3>
+          <p>Anos de histórico, documentos e conversas que ninguém acha na hora exata de decidir.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" id="servicos" aria-labelledby="servicos-titulo">
+      <div class="section__head reveal">
+        <p class="kicker">// capacidades</p>
+        <h2 id="servicos-titulo">O que dá pra tirar <br />da sua mesa.</h2>
+      </div>
+      <!-- Cada capacidade é um link, não um cartão morto: quem se reconhece em
+           "Oportunidade parada" age ali, no momento do reconhecimento, em vez de
+           rolar atrás de um CTA. O valor de data-wa vai na mensagem do WhatsApp,
+           então a conversa já começa qualificada (js/dom.js monta o texto). -->
+      <!-- A MALHA — grid com gap de 1px sobre fundo cor de linha: as frestas
+           entre as células desenham uma grade contínua, e as seis capacidades
+           leem como UMA estrutura em vez de seis caixas.
+           O `.reveal` fica no CONTÊINER, não nas células: se cada uma entrasse
+           por conta própria com translateY, as frestas se abririam durante a
+           animação e a malha se desmontaria no ar. -->
+      <div class="mesh reveal">
+        <a class="card card--service" data-wa="um agente de IA que executa tarefas na minha entidade">
+          <span class="card__tag" aria-hidden="true">01</span>
+          <h3>Agentes que executam</h3>
+          <p>Recebe uma tarefa, cumpre com as ferramentas certas e chama você só quando precisa de uma decisão. Mais <em>funcionário</em> do que chatbot.</p>
+          <span class="card__cta" aria-hidden="true">Conversar <span>→</span></span>
+        </a>
+        <a class="card card--service" data-wa="escalar meu atendimento com IA">
+          <span class="card__tag" aria-hidden="true">02</span>
+          <h3>Atendimento que escala</h3>
+          <p>Absorve o volume repetitivo, classifica o que chega e passa pra uma pessoa só o que <em>precisa</em> de uma.</p>
+          <span class="card__cta" aria-hidden="true">Conversar <span>→</span></span>
+        </a>
+        <a class="card card--service" data-wa="recuperar contatos e oportunidades perdidas com IA">
+          <span class="card__tag" aria-hidden="true">03</span>
+          <h3>Receita recuperada</h3>
+          <p>Contato esquecido, orçamento sem resposta, associado que sumiu: o sistema encontra, prioriza e <em>reabre</em> a conversa.</p>
+          <span class="card__cta" aria-hidden="true">Conversar <span>→</span></span>
+        </a>
+        <a class="card card--service" data-wa="automatizar um processo da minha entidade">
+          <span class="card__tag" aria-hidden="true">04</span>
+          <h3>Processos automatizados</h3>
+          <p>O gargalo que trava a operação vira fluxo automático, com registro, validação e <em>parada humana</em> onde importa.</p>
+          <span class="card__cta" aria-hidden="true">Conversar <span>→</span></span>
+        </a>
+        <a class="card card--service" data-wa="usar os dados da minha entidade com IA">
+          <span class="card__tag" aria-hidden="true">05</span>
+          <h3>Dados que respondem</h3>
+          <p>Documentos, histórico e conhecimento interno viram resposta pronta na hora exata em que alguém precisa <em>decidir</em>.</p>
+          <span class="card__cta" aria-hidden="true">Conversar <span>→</span></span>
+        </a>
+        <a class="card card--service" data-wa="um sistema ou site potencializado por IA">
+          <span class="card__tag" aria-hidden="true">06</span>
+          <h3>Sistemas &amp; interfaces</h3>
+          <p>O software que junta tudo isso: integração, painel de gestão e o site que já nasce como <em>parte do sistema</em>.</p>
+          <span class="card__cta" aria-hidden="true">Conversar <span>→</span></span>
+        </a>
+      </div>
+      <!-- "orbita" morreu junto com o orbe: o AI Core deixou de ser uma esfera
+           com coisas girando em volta e virou uma abertura de precisão, e o
+           canvas desenha LIGAÇÕES saindo de cada capacidade até o nó — não
+           órbitas. A frase agora descreve o que o desenho realmente mostra, e
+           faz a afirmação que importa: não são seis produtos soltos. -->
+      <p class="bus" aria-hidden="true"><span class="bus__txt">Seis capacidades · um <b>AI Core</b></span></p>
+    </section>
+
+    <section class="section" id="processo" aria-labelledby="processo-titulo">
+      <div class="section__head reveal">
+        <p class="kicker">// método</p>
+        <h2 id="processo-titulo">Diagnóstico primeiro. <br />Construção depois.</h2>
+      </div>
+      <!-- Linha do tempo, não três caixas soltas: um processo tem ordem, e a
+           forma precisa dizer isso antes do texto. O trilho e os nós são
+           pseudo-elementos — nenhum elemento a mais no DOM. -->
+      <ol class="steps">
+        <li class="step reveal">
+          <span class="step__n" aria-hidden="true">01</span>
+          <h3>Mapa</h3>
+          <p>Olho a operação de ponta a ponta: onde o dinheiro entra, onde sai, e onde ele para no caminho.</p>
+        </li>
+        <li class="step reveal">
+          <span class="step__n" aria-hidden="true">02</span>
+          <h3>Prioridade</h3>
+          <p>Listo onde a IA cabe, estimo o impacto de cada ponto e escolhemos juntos o que se paga mais rápido.</p>
+        </li>
+        <li class="step reveal">
+          <span class="step__n" aria-hidden="true">03</span>
+          <h3>Construção</h3>
+          <p>Construo, integro ao que você já usa e meço o resultado. O que funciona, escala.</p>
+        </li>
+      </ol>
+    </section>
+
+    <section class="section" id="projetos" aria-labelledby="projetos-titulo">
+      <div class="section__head reveal">
+        <p class="kicker">// aplicações</p>
+        <h2 id="projetos-titulo">O mesmo núcleo, <br />operações diferentes.</h2>
+        <p class="lead">Cenários de aplicação, não vitrine de clientes. Toda operação trava num lugar diferente, e é o diagnóstico que diz qual é o seu.</p>
+      </div>
+      <!-- LEITURAS DE ESTADO — o que esta seção quer dizer é que uma operação
+           ENTRA num estado e SAI em outro. Então a transição é o desenho: três
+           marcos ligados por um fio, e só o último (o resultado) recebe cor.
+           Substitui as antigas molduras de mock, que eram oito camadas de
+           gradiente simulando "uma interface" sem comunicar nada. -->
+      <div class="apps reveal">
+        <article class="app">
+          <p class="app__label">01 · Comercial / vendas</p>
+          <h3 class="app__title">A oportunidade que já tinha batido na porta</h3>
+          <ol class="app__flow">
+            <li>Esquecido</li>
+            <li>Achado</li>
+            <li>Reaberto</li>
+          </ol>
+        </article>
+        <article class="app">
+          <p class="app__label">02 · Atendimento / operação</p>
+          <h3 class="app__title">O volume que consome o time inteiro</h3>
+          <ol class="app__flow">
+            <li>Volume</li>
+            <li>Triagem</li>
+            <li>Exceção</li>
+          </ol>
+        </article>
+        <article class="app">
+          <p class="app__label">03 · Dados / decisão</p>
+          <h3 class="app__title">O que a entidade já sabe e não consegue achar</h3>
+          <ol class="app__flow">
+            <li>Disperso</li>
+            <li>Indexado</li>
+            <li>Consultável</li>
+          </ol>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" id="faq" aria-labelledby="faq-titulo">
+      <div class="section__head reveal">
+        <p class="kicker">// faq</p>
+        <h2 id="faq-titulo">O que você deve estar se perguntando.</h2>
+      </div>
+      <!-- Accordion nativo (details/summary): teclado e leitor de tela de graça,
+           e uma cara própria em vez de mais quatro cards iguais. O texto tem que
+           bater PALAVRA POR PALAVRA com o FAQPage JSON-LD no <head> — se editar
+           um, edite o outro. `name="faq"` torna exclusivo: abrir um fecha os
+           demais (navegadores antigos ignoram e só deixam abrir vários). -->
+      <div class="faq-list reveal">
+        <details class="qa" name="faq">
+          <summary><span class="qa__q">IA serve para o meu negócio?</span><span class="qa__mark" aria-hidden="true"></span></summary>
+          <div class="qa__a"><p>Só olhando pra saber. O diagnóstico existe pra isso, e se não houver ganho claro, eu digo que não vale.</p></div>
+        </details>
+        <details class="qa" name="faq">
+          <summary><span class="qa__q">Isso é um chatbot?</span><span class="qa__mark" aria-hidden="true"></span></summary>
+          <div class="qa__a"><p>Nem sempre. Chatbot é uma forma entre várias, e muita coisa se resolve com automação sem conversa nenhuma. A forma vem depois do problema.</p></div>
+        </details>
+        <details class="qa" name="faq">
+          <summary><span class="qa__q">Quanto custa?</span><span class="qa__mark" aria-hidden="true"></span></summary>
+          <div class="qa__a"><p>Depende do que o diagnóstico encontrar. Escopo e preço são fechados antes de construir qualquer coisa, e o critério é o valor que a solução destrava.</p></div>
+        </details>
+        <details class="qa" name="faq">
+          <summary><span class="qa__q">Vou ficar preso a você ou a uma empresa de IA?</span><span class="qa__mark" aria-hidden="true"></span></summary>
+          <div class="qa__a"><p>Não. O sistema é seu, os acessos são seus, e a arquitetura não depende de um único fornecedor de modelo.</p></div>
+        </details>
+        <details class="qa" name="faq">
+          <summary><span class="qa__q">E os meus dados?</span><span class="qa__mark" aria-hidden="true"></span></summary>
+          <div class="qa__a"><p>O sistema acessa só o que precisa para funcionar, com permissão, registro do que fez e limite de autonomia definido antes de ligar.</p></div>
+        </details>
+        <details class="qa" name="faq">
+          <summary><span class="qa__q">Você ganha comissão de alguma ferramenta de IA?</span><span class="qa__mark" aria-hidden="true"></span></summary>
+          <div class="qa__a"><p>Não. O preço é fixo. Não muda conforme a ferramenta ou fornecedor de IA usado na solução, inclusive quando a resposta certa é não usar IA nenhuma.</p></div>
+        </details>
+      </div>
+    </section>
+
+    <section class="section section--cta" id="contato" aria-labelledby="contato-titulo">
+      <div class="cta reveal">
+        <h2 id="contato-titulo">Comece pelo problema, <br />não pelo <em>discurso</em> de venda.</h2>
+        <p>Uma conversa direta sobre a sua entidade. O preço é fixo e não muda com a ferramenta escolhida, porque não recebo comissão de nenhum fornecedor. Se não houver onde a IA pague por si, eu digo.</p>
+        <a class="btn btn--primary btn--lg" data-wa data-lead-gate href="#" target="_blank" rel="noopener">Agendar diagnóstico</a>
+        <p class="fine">Quem responde é humano. Sem compromisso.</p>
+        <p class="cta__resumo"><a href="resumo.html">Prefere levar pra sua diretoria antes de decidir? Veja o resumo <span aria-hidden="true">→</span></a></p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer__grid">
+      <div class="footer__brand">
+        <a href="index.html" aria-label="Beyon Zero — início"><span class="wordmark wordmark--lg">Beyon <b>Zero</b></span></a>
+        <p>Menos ferramenta empurrada,<br />mais problema resolvido.</p>
+        <a class="btn btn--sm btn--primary footer__cta" data-wa href="#" target="_blank" rel="noopener noreferrer">Vamos conversar <span aria-hidden="true">→</span></a>
+      </div>
+      <nav class="footer__links" aria-label="Links do rodapé">
+        <p class="footer__links-title">Nesta página</p>
+        <a href="#servicos">Capacidades</a>
+        <a href="#processo">Método</a>
+        <a href="#projetos">Aplicações</a>
+        <a href="#faq">FAQ</a>
+      </nav>
+      <nav class="footer__links" aria-label="Outros serviços">
+        <p class="footer__links-title">Beyon Zero</p>
+        <a href="index.html">Início</a>
+        <a href="sites.html">Sites</a>
+        <a href="resumo.html">Resumo pra diretoria</a>
+      </nav>
+    </div>
+    <div class="footer__base">
+      <p class="footer__copy">© <span id="year">2026</span> Beyon Zero. Todos os direitos reservados.</p>
+      <p class="footer__sig" aria-hidden="true">// applied intelligence · sistema em operação</p>
+    </div>
+  </footer>
+
+  <!-- MEDIDOR — o número é medido de verdade, no aparelho de quem visita.
+       Sozinho ele não diz nada para um dono de negócio, então o botão abre
+       a leitura em português: o argumento de venda é a própria medição. -->
+  <!-- nasce oculto: js/dom.js revela ao ligar o clique. Se o JS falhar (não
+       só se estiver desligado), ninguém vê um controle inerte. -->
+  <div class="medidor" hidden>
+    <button class="medidor__btn" type="button" aria-expanded="false" aria-controls="medidor-nota"
+            aria-label="Performance medida ao vivo — o que este número significa">
+      <span class="medidor__led" aria-hidden="true"></span>
+      <span class="medidor__txt" aria-hidden="true">—</span>
+    </button>
+    <div class="medidor__nota" id="medidor-nota" hidden>
+      <p>Quadros por segundo, medidos <b>agora</b>, no seu aparelho.</p>
+      <p>Este site é a demonstração: nada aqui é enfeite que trava, e tudo que
+        se move é medido. É o mesmo critério de engenharia que vai para o
+        sistema que eu construo para você.</p>
+      <a class="btn btn--sm btn--primary" data-wa href="#" target="_blank" rel="noopener noreferrer">Quero esse padrão</a>
+    </div>
+  </div>
+
+  <!-- Modal curto antes do WhatsApp nos 2 CTAs de maior intenção (hero +
+       CTA final). Só 2 campos — nome vira parte da mensagem, tipo de
+       organização qualifica sem parecer formulário de cadastro. Fechar
+       (X, Esc, clique fora) sempre cai no link genérico: nunca trava o
+       visitante que só quer ir direto pro WhatsApp. -->
+  <div class="lead-modal" id="leadModal" hidden>
+    <div class="lead-modal__backdrop" data-lead-close></div>
+    <div class="lead-modal__panel card" role="dialog" aria-modal="true" aria-labelledby="lead-modal-titulo">
+      <button type="button" class="lead-modal__close" data-lead-close aria-label="Fechar">✕</button>
+      <p class="lead-modal__kicker">Antes de conversar</p>
+      <h2 id="lead-modal-titulo">Pra chegar já falando a sua língua</h2>
+      <form id="leadForm" novalidate>
+        <label class="lead-modal__field">
+          <span>Seu nome</span>
+          <input type="text" name="nome" autocomplete="name" required maxlength="60" />
+        </label>
+        <label class="lead-modal__field">
+          <span>Nome da organização</span>
+          <input type="text" name="organizacao" autocomplete="organization" required maxlength="80" />
+        </label>
+        <label class="lead-modal__field">
+          <span>Tipo de organização</span>
+          <select name="tipo" required>
+            <option value="" disabled selected>Selecione</option>
+            <option value="associação" data-artigo="uma">Associação</option>
+            <option value="sindicato" data-artigo="um">Sindicato</option>
+            <option value="federação" data-artigo="uma">Federação</option>
+            <option value="cooperativa" data-artigo="uma">Cooperativa</option>
+            <option value="outro" data-artigo="um">Outro</option>
+          </select>
+        </label>
+        <label class="lead-modal__field" id="leadTipoOutroWrap" hidden>
+          <span>Qual?</span>
+          <input type="text" name="tipoOutro" maxlength="40" placeholder="Ex: conselho profissional" />
+        </label>
+        <label class="lead-modal__field">
+          <span>Qual desafio você quer resolver com IA? <span class="lead-modal__opt">(opcional)</span></span>
+          <textarea name="desafio" maxlength="300" rows="3" placeholder="Ex: perdemos tempo triando e-mail manualmente"></textarea>
+        </label>
+        <button type="submit" class="btn btn--primary lead-modal__submit">
+          Continuar no WhatsApp <span aria-hidden="true">→</span>
+        </button>
+        <p class="fine lead-modal__fine">Quem responde é humano. Sem compromisso.</p>
+      </form>
+    </div>
+  </div>
+
+  <a data-wa class="wa" href="#" target="_blank" rel="noopener noreferrer" aria-label="Falar no WhatsApp">
+    <svg viewBox="0 0 32 32" width="24" height="24" aria-hidden="true">
+      <path fill="currentColor" d="M16.04 3.2c-7.1 0-12.86 5.76-12.86 12.86 0 2.27.6 4.48 1.73 6.43L3.2 28.8l6.5-1.7a12.8 12.8 0 0 0 6.33 1.66h.01c7.1 0 12.86-5.76 12.86-12.86S23.14 3.2 16.04 3.2zm0 23.3h-.01a10.7 10.7 0 0 1-5.44-1.49l-.39-.23-3.86 1.01 1.03-3.76-.25-.4a10.66 10.66 0 0 1-1.63-5.68c0-5.9 4.8-10.7 10.7-10.7 2.86 0 5.54 1.11 7.56 3.13a10.62 10.62 0 0 1 3.13 7.57c0 5.9-4.8 10.7-10.7 10.7zm5.87-8.01c-.32-.16-1.9-.94-2.2-1.05-.3-.11-.51-.16-.72.16-.21.32-.83 1.05-1.02 1.26-.19.21-.37.24-.69.08-.32-.16-1.36-.5-2.59-1.6-.96-.85-1.6-1.91-1.79-2.23-.19-.32-.02-.5.14-.66.14-.14.32-.37.48-.56.16-.19.21-.32.32-.53.11-.21.05-.4-.03-.56-.08-.16-.72-1.74-.99-2.38-.26-.62-.52-.54-.72-.55l-.61-.01c-.21 0-.56.08-.85.4-.29.32-1.11 1.09-1.11 2.66 0 1.57 1.14 3.08 1.3 3.29.16.21 2.24 3.42 5.43 4.8.76.33 1.35.52 1.81.67.76.24 1.45.21 2 .13.61-.09 1.9-.78 2.17-1.53.27-.75.27-1.39.19-1.53-.08-.14-.29-.21-.61-.37z"/>
+    </svg>
+  </a>
+
+  <!-- GSAP hospedado local (a CSP `script-src 'self'` bloqueia CDN). defer
+       preserva a ordem: GSAP carrega antes de js/anima.js. Se algum destes
+       falhar, anima.js sai sem tocar em nada e o site funciona igual. -->
+  <script src="vendor/gsap/gsap.min.js" defer></script>
+  <script src="vendor/gsap/ScrollTrigger.min.js" defer></script>
+  <script src="vendor/gsap/SplitText.min.js" defer></script>
+
+  <script src="js/tel.js" defer></script>
+  <script src="js/core.js" defer></script>
+  <script src="js/field.js" defer></script>
+  <script src="js/dom.js" defer></script>
+  <script src="js/lead-form.js" defer></script>
+  <script src="js/entrada.js" defer></script>
+  <script src="js/anima.js" defer></script>
+</body>
+</html>
