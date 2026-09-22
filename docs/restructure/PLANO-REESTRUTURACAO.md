@@ -307,3 +307,68 @@ medição). É a regra do projeto aplicada: **medir, não deduzir**.
    foi feito sem o dono pedir.
 
 ---
+
+---
+
+## 10. CAMADA 3D E SUGESTÕES DE IMAGEM (2026-09-22, terceira rodada)
+
+Triagem da seção 4 **aprovada pelo dono sem alterações**. Nav das três páginas
+unificada. E o 3D entrou, com a condição que ele deu: pontos estratégicos,
+sempre suave.
+
+### 10.1 Onde o 3D entrou, e por quê ali
+
+| Ponto | Cena | De onde veio |
+|---|---|---|
+| Hero do Hub | Cubo de vidro envolvendo o AI Core | imagem 03 |
+| Hero de Sites | Painéis orbitando a janela | imagens 01/02/04 |
+| Experiências Digitais (Hub) | Portal de pedra com o vão aceso | imagem 07 |
+
+O 3D é **acréscimo, nunca substituição**: o palco, o portal e o AI Core
+continuam existindo em CSS e em canvas 2D. Se a camada não carregar, ninguém
+percebe falta.
+
+### 10.2 As regras que garantem a fluidez
+Um contexto WebGL só (scissor por cena) dentro do rAF único; cena fora da tela
+não custa nada; o three só baixa quando uma cena se aproxima; sem luz, sombra,
+pós-processamento ou MSAA; buffer a 62% da tela; degradação em dois estágios
+medida em fps real; e **fora do toque por inteiro** — a paralaxe de cursor é o
+que o 3D acrescenta, e sem cursor ela não existe, então o celular não baixa um
+byte a mais.
+
+**A/B na mesma sessão: 59,7 fps com a camada contra 60,4 sem ela.**
+
+### 10.3 Sugestões de imagens para gerar
+
+O dono perguntou o que gerar caso as 15 não bastem. As que existem cobrem bem
+o serviço de **Sites** e a atmosfera. O que falta:
+
+**Prioridade alta — o que hoje não tem imagem nenhuma**
+1. **Automação & IA, cena-assinatura.** É a única frente sem imagem própria: o
+   Hub a apresenta só com texto. Pedir algo na mesma língua das outras — vidro
+   escuro, teal, profundidade — mostrando *fluxo* em vez de tela: nós ligados,
+   uma linha de decisão, um caminho que se resolve sozinho. Nunca um robô, nunca
+   um cérebro brilhando: os dois clichês que a direção do projeto já recusou.
+2. **Experiências digitais, além do portal.** A 07 é excelente mas é uma só. Duas
+   ou três variações do mesmo arco (ângulos diferentes, o vão com conteúdo
+   diferente) dariam material para a página própria quando ela existir.
+3. **Capa OG por página.** Hoje as três dividem a mesma `assets/og-cover.jpg`.
+   Uma por página melhora o link compartilhado no WhatsApp, que é o canal de
+   venda do negócio.
+
+**Prioridade média**
+4. **O cubo se montando, em sequência.** A 03 é o melhor quadro do conjunto. Uma
+   sequência de 5 a 8 quadros da mesma montagem viraria o vídeo de transição sem
+   precisar animar nada à mão.
+5. **Textura de pedra em teal escuro**, para o portal em 3D trocar o gradiente
+   por material de verdade. Um arquivo pequeno, 512px, sem costura.
+
+**O que NÃO vale gerar mais**
+Mockups de site com texto dentro. As imagens 05, 06, 08, 09 e os boards 10-12
+provaram o limite: o texto sai ilegível e os números saem inventados. A janela
+do hero é construída em HTML justamente por isso — e fica nítida em qualquer
+tela, de graça.
+
+**Regra para qualquer imagem nova:** a marca é **Beyon Zero**. Nada de
+`Beyond`, `beyon.0` ou `MYKER`. E nenhum número dentro da imagem, porque
+número em imagem não passa pela regra de zero invenção.
