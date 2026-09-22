@@ -84,9 +84,15 @@ for (const [rota, nome, viewport] of ALVOS) {
 
   const fps = await medirFps(page);
 
-  /* ruído do ambiente, não do site: a CSP do proxy bloqueia o Google Fonts e
-     o driver de software avisa sobre ReadPixels. Nenhum dos dois é bug nosso. */
-  const reais = erros.filter(e => !/ERR_CERT|fonts\.googleapis|GPU stall|Failed to load resource/.test(e));
+  /* Ruído do ambiente, não do site: a CSP do proxy bloqueia o Google Fonts
+     (ERR_CERT) e o driver de software avisa sobre ReadPixels.
+
+     `Failed to load resource` NÃO entra nesta lista. Ele é o prefixo genérico
+     de toda falha de rede do Chromium — filtrá-lo fazia um 404 numa folha de
+     estilo, num script ou no módulo do three passar como OK e sair com código
+     0. Um verificador que esconde 404 é pior que não ter verificador. A linha
+     do Google Fonts já é pega pelo ERR_CERT que vem junto dela. */
+  const reais = erros.filter(e => !/ERR_CERT|fonts\.googleapis|GPU stall/.test(e));
 
   const ok = d.boot && d.overflowX === 0 && d.waProntos === d.waTotal && reais.length === 0 && fps > 45;
   if (!ok) falhou = true;

@@ -88,8 +88,13 @@
   /* ---------- as cores vêm do CSS, uma vez por evento ----------
      Ler getComputedStyle por frame seria exatamente o pecado que custou 76ms
      a este projeto. Lê no boot e relê quando o organismo troca de regime. */
+  /* LÊ DO <body>, NÃO DO <html>. O Estado Singular remapeia `--ac` na regra
+     `.is-singular`, que vive no <body>; lendo do documentElement a variável
+     nunca mudava e o 3D ficava ciano enquanto o site inteiro virava ouro.
+     A promessa de que "o Singular leva o 3D junto" estava escrita no commit e
+     não acontecia. Achado na revisão. */
   function lerCor(nome, padrao) {
-    var v = getComputedStyle(document.documentElement).getPropertyValue(nome).trim();
+    var v = getComputedStyle(document.body).getPropertyValue(nome).trim();
     return v || padrao;
   }
   var COR = { ac: '#4FD8F0', t1: '#EDEDF1' };
@@ -254,6 +259,8 @@
 
   /* ========================================================================== */
   var THREE = null, renderer = null, cenas = [], pronto = false;
+  var PALETA = { frio: null, frioClaro: null, quente: null };
+  var quenteAplicado = -1;
   var visiveis = 0;
 
   function montar(lib) {
@@ -326,7 +333,8 @@
         m.rotation.set(pc.rot[0], pc.rot[1], pc.rot[2]);
         m.scale.set(pc.tam[0], pc.tam[1], 1);
         m.renderOrder = -Math.round(pc.pos[2] * 10);
-        m.userData = { base: pc.pos[1], deriva: pc.deriva || 0, fase: pc.fase || 0, alfa: pc.alfa };
+        m.userData = { base: pc.pos[1], deriva: pc.deriva || 0, fase: pc.fase || 0, alfa: pc.alfa,
+                       tinge: !ehPedra, vao: !!pc.vao };
         grupo.add(m);
         malhas.push(m);
       }
@@ -356,7 +364,18 @@
     medirCaixas();
     window.addEventListener('scroll', function () { sujo = true; }, { passive: true });
     B.on('resize', function () { sujo = true; });
-    B.on('regime', function () { relerCores(); });
+    /* NÃO há repintura por evento de regime aqui, de propósito: `--ac` é um
+       @property e a virada para o ouro INTERPOLA ao longo de ~1,1s. Reler o
+       valor no instante da troca pegaria ele ainda ciano. Quem leva o 3D ao
+       ouro é `S.warmth`, no laço — o mesmo número que leva o canvas 2D, então
+       os dois viram na mesma curva. */
+
+    /* as três cores de referência, criadas UMA vez. `--warm` é token estático
+       (o ouro do Singular); `--ac` é a cor fria de repouso. A mistura entre
+       elas acontece no laço, por S.warmth. */
+    PALETA.frio = new THREE.Color(COR.ac);
+    PALETA.frioClaro = new THREE.Color(COR.ac).lerp(new THREE.Color('#ffffff'), 0.62);
+    PALETA.quente = new THREE.Color(lerCor('--warm', '#F0B44F'));
 
     pronto = true;
     document.body.classList.add('tem-3d');
@@ -416,7 +435,10 @@
   function julgar(S) {
     if (aquecendo > 0) { aquecendo--; return; }
     if (S.fps < LENTO) lentos++;
-    else if (S.fps > BOM && lentos) lentos -= 2;
+    /* trava no zero: sem ela um contador ímpar passava direto pelo `> 0` e
+       descia para sempre (-1, -3, -5…), e a degradação nunca mais disparava
+       porque `lentos < 200` virava eternamente verdadeiro. Achado na revisão. */
+    else if (S.fps > BOM && lentos > 0) lentos = Math.max(0, lentos - 2);
     if (lentos < 200) return;              /* ~3,5s de lentidão sustentada */
     lentos = 0;
     if (estagio === 0) { estagio = 1; aquecendo = AQUECE; }   /* tenta meio passo */
@@ -448,8 +470,13 @@
        some no material. É a mesma lógica do teto de DPR que js/core.js já
        aplica ao canvas 2D, com a régua mais apertada porque 3D custa mais. */
     var dprCena = Math.min(S.dpr, B.fine ? 1.5 : 1.25) * 0.62;
-    if (renderer.domElement.width !== Math.round(w * dprCena) ||
-        renderer.domElement.height !== Math.round(h * dprCena)) {
+    /* `Math.floor`, não `Math.round` — e isto não é preciosismo: o `setSize` do
+       three calcula `canvas.width = Math.floor(width * pixelRatio)`. Com
+       arredondamento aqui a guarda comparava 893 contra os 892 que o three
+       escreve (1440 × 0,62 = 892,8) e NUNCA batia: o buffer de desenho era
+       realocado sessenta vezes por segundo, para nada. Achado na revisão. */
+    if (renderer.domElement.width !== Math.floor(w * dprCena) ||
+        renderer.domElement.height !== Math.floor(h * dprCena)) {
       renderer.setPixelRatio(dprCena);
       renderer.setSize(w, h, false);
     }
@@ -459,6 +486,24 @@
        e aquece a cor junto com o resto do site. */
     var abre = 1 + S.pulse * 0.06 + S.singular * 0.12;
     var brilho = 1 + S.pulse * 0.5 + S.singular * 0.9;
+
+    /* O SINGULAR LEVA O 3D JUNTO. Só mexe nos materiais quando o valor andou
+       o bastante para aparecer: em repouso `S.warmth` é 0 e este bloco não
+       roda nenhuma vez. Durante o Singular são umas dezenas de misturas de cor
+       ao longo de 18 segundos — nada perto de um `getComputedStyle`. */
+    if (Math.abs(S.warmth - quenteAplicado) > 0.02) {
+      quenteAplicado = S.warmth;
+      for (var ci = 0; ci < cenas.length; ci++) {
+        var mm = cenas[ci].malhas;
+        for (var mj = 0; mj < mm.length; mj++) {
+          var uu = mm[mj].userData;
+          if (!uu.tinge) continue;
+          mm[mj].material.color
+            .copy(uu.vao ? PALETA.frio : PALETA.frioClaro)
+            .lerp(PALETA.quente, S.warmth);
+        }
+      }
+    }
 
     for (var i = 0; i < cenas.length; i++) {
       var c = cenas[i];
@@ -494,6 +539,28 @@
       renderer.render(c.cena, c.cam);
     }
   });
+
+  /* ---------- instrumentação (só com ?perf) ----------
+     Lei 4 do projeto: a instrumentação fica no código, não em edição
+     temporária. `__cena()` devolve o estado de cada cena e a cor atual de um
+     material tingido — é como se verifica, de fora, que o Singular está mesmo
+     levando o 3D ao ouro. Foi a falta disto que deixou esse bug passar. */
+  if (B.PERF) {
+    window.__cena = function () {
+      return cenas.map(function (c) {
+        var tingida = null;
+        for (var i = 0; i < c.malhas.length; i++) {
+          if (c.malhas[i].userData.tinge) { tingida = c.malhas[i]; break; }
+        }
+        return {
+          nome: c.el.getAttribute('data-cena'),
+          visivel: c.visivel,
+          estagio: estagio,
+          cor: tingida ? '#' + tingida.material.color.getHexString() : null
+        };
+      });
+    };
+  }
 
   /* ---------- CARREGAMENTO TARDIO ----------
      O three só desce quando uma cena chega perto da viewport. Numa visita que
