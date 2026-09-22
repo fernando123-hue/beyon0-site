@@ -2,6 +2,21 @@
 
 **Última atualização:** 2026-09-13f · **Branch ativa:** `rebuild` · **HEAD:** `9719639` — **PUBLICADO E VERIFICADO AO VIVO** (`origin/main` = `9719639`). Pela primeira vez nesta sequência de sessões, o agente abriu a URL publicada de verdade (`https://beyon0-site.vercel.app/`, não `file://`) e navegou a página inteira — ver seção 25. Achou e corrigiu 2 bugs reais que só existiam em produção (JS quebrando copy nova). Depois do fix, tudo conferido ao vivo: desktop, mobile 375px, accordion FAQ, menu mobile, modal de lead. Zero erro de console.
 
+> **REESTRUTURAÇÃO EM PLANEJAMENTO (2026-09-22, branch
+> `claude/site-restructure-planning-1cd10h`) — leia
+> `docs/restructure/PLANO-REESTRUTURACAO.md` antes de assumir que o site
+> continua sendo uma one-page de um serviço só.** O dono decidiu expandir de
+> "landing única de IA/automação" para **Hub + página própria por serviço**
+> (Sites, Automação/IA, Experiências Digitais, possivelmente mais). Isso
+> muda em parte a **seção 5 (identidade SAGRADA)**: o dono decidiu manter a
+> essência do **AI Core e do Pulso** como assinatura comportamental, mas
+> abrir tudo o mais (paleta, vidro, motivos visuais) para uma pele nova e
+> premium — ver o documento de reestruturação para o porquê e o catálogo de
+> referências visuais. **Nenhuma página nova foi construída ainda** nesta
+> rodada — é só planejamento e catalogação, para não perder o que já foi
+> decidido com o dono. As leis de performance (seções 3–4) e a arquitetura
+> de canvas único (seção 6) continuam valendo sem mudança.
+
 > **SEÇÃO 23 (COPY ALINHADA AO NICHO + FEE-ONLY NO CTA FINAL, 2026-09-13d)
 > é a mais nova.** Trocou a headline genérica do CTA final ("não pela
 > tecnologia", que o próprio briefing já tinha marcado como discurso
