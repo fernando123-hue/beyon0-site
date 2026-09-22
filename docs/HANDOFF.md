@@ -26,11 +26,24 @@
 > do dono: a essência do **AI Core e do Pulso** fica; a pele visual em volta
 > (vidro, pedestal, portal, profundidade em camadas) é nova. As leis de
 > performance (seções 3–4) e o canvas único (seção 6) continuam valendo sem
-> mudança nenhuma — e pela primeira vez nesta sequência de sessões **o agente
-> conseguiu ver as páginas rodando de verdade** (Chromium + Playwright neste
-> ambiente): 60fps nas três páginas, 0,054ms/frame de canvas, seis bugs de
-> render achados e corrigidos, e o `backdrop-filter` cortado da janela por
-> medição (custava 15fps sem aparecer). Detalhe na seção 9 do documento.
+> mudança nenhuma.
+>
+> **Há uma camada 3D agora** (`js/cena.js` + `vendor/three/`, three.js r160 como
+> módulo ESM, sem bundler). Ela é **acréscimo, nunca substituição**: tudo que
+> enfeita existe em CSS por baixo, ela não entra no toque nem em
+> `prefers-reduced-motion`, e se desliga sozinha se o fps não sustentar. A/B na
+> mesma sessão: 59,7 fps com a camada contra 60,4 sem. O projeto deixou de ter
+> "zero dependência de runtime" — foi decisão do dono, e o peso só desce em
+> desktop e só quando uma cena se aproxima da viewport.
+>
+> **E o agente passou a conseguir VER o site rodando.** A seção 7 deste arquivo
+> diz que isso é impossível; num ambiente com Chromium + Playwright deixou de
+> ser. Há um verificador pronto em `docs/verificar.mjs` (não vai para o deploy,
+> `docs/` está no .vercelignore) — ele abre as páginas de verdade e reporta fps,
+> rolagem lateral, links montados e erros de console. **Use antes de dizer que
+> algo está pronto:** nove bugs de render saíram dele nesta sequência, nenhum
+> visível na leitura do código. Detalhe nas seções 9, 10 e 11 do documento de
+> reestruturação.
 
 > **SEÇÃO 23 (COPY ALINHADA AO NICHO + FEE-ONLY NO CTA FINAL, 2026-09-13d)
 > é a mais nova.** Trocou a headline genérica do CTA final ("não pela

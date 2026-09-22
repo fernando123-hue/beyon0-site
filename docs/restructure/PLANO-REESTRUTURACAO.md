@@ -1,10 +1,13 @@
 # Reestruturação Beyon Zero — Hub + páginas por serviço
 
 **Aberto em:** 2026-09-22 · **Branch:** `claude/site-restructure-planning-1cd10h`
-**Status:** **Hub e página de Sites CONSTRUÍDOS e verificados ao vivo no
-navegador** (2026-09-22, segunda rodada). Ver a seção 9 — ela é a mais nova e
-descreve o que existe no código agora. As seções 1 a 8 são o planejamento que
-levou até aqui e continuam válidas no que a 9 não substituiu.
+**Status:** Hub, página de Sites e camada 3D **construídos e verificados ao
+vivo no navegador**, em três rodadas no dia 2026-09-22. **Nada publicado.**
+
+> **SE VOCÊ É UMA SESSÃO NOVA, COMECE PELA SEÇÃO 11.** Ela é o atalho, escrita
+> exatamente para isso. A 9 detalha o que foi construído e a 10 a camada 3D e
+> as imagens que faltam; as seções 1 a 8 são o planejamento que levou até aqui
+> e continuam válidas no que as posteriores não substituíram.
 
 Este documento é a fonte de verdade desta fase, no mesmo espírito do
 `docs/HANDOFF.md` (que segue sendo a fonte de verdade do site publicado como
@@ -372,3 +375,98 @@ tela, de graça.
 **Regra para qualquer imagem nova:** a marca é **Beyon Zero**. Nada de
 `Beyond`, `beyon.0` ou `MYKER`. E nenhum número dentro da imagem, porque
 número em imagem não passa pela regra de zero invenção.
+
+---
+
+## 11. PONTO DE PARTIDA DA PRÓXIMA SESSÃO — leia esta seção primeiro
+
+Escrito em 2026-09-22 para o contexto do chat ser descartado sem perda. Se você
+é uma sessão nova: **esta seção é o atalho.** As de 1 a 10 são o histórico de
+como se chegou aqui; leia só a que explicar a decisão que você precisa entender.
+
+### 11.1 Onde as coisas estão
+
+| | |
+|---|---|
+| Branch | `claude/site-restructure-planning-1cd10h` |
+| Publicado? | **NÃO.** A `main` continua com o site antigo. Nada disto está no ar. |
+| Árvore | limpa, tudo pushado |
+
+**O site deixou de ser uma one-page.** Se você abrir `index.html` esperando a
+landing de IA, vai achar outra página:
+
+```
+index.html        Hub — apresenta as três frentes e liga tudo
+sites.html        serviço de Sites — a página mais completa
+automacao.html    serviço de Automação & IA — é o index.html ANTIGO, movido
+                  com git mv, conteúdo intacto
+resumo.html       resumo pra diretoria (da página de automação)
+
+styles.css        o sistema: tokens, nav, botões, cartões, rodapé — as 3 usam
+css/premium.css   a pele nova: vidro, palco, pedestal, portal, índice, 3D
+                  (só Hub e Sites carregam)
+
+js/core.js        estado + loop único + orçamento      (intocado)
+js/field.js       canvas 2D: campo, AI Core, Singular  (intocado)
+js/entrada.js     a LINHA de entrada                   (intocado)
+js/dom.js         controlador da página de automação   (intocado)
+js/pagina.js      controlador do Hub e de Sites — substitui o dom.js nelas
+js/cena.js        camada 3D (WebGL)
+vendor/three/     three.js r160 como módulo ESM, sem bundler
+```
+
+### 11.2 As regras que continuam valendo
+
+1. **As leis de performance do HANDOFF (seções 3 e 4) não mudaram.** Nenhuma
+   variável de CSS muda por frame; movimento contínuo vive em canvas; um rAF só.
+2. **Zero invenção de dado.** Nada de "+300 projetos" ou "98% de satisfação" —
+   os mockups do moodboard trazem esses números e eles foram recusados. O que a
+   página de Sites mostra é medição ao vivo do próprio navegador.
+3. **A marca é Beyon Zero.** Não `beyon.0`, não `Beyond`, não `MYKER`.
+4. **O 3D é acréscimo, nunca substituição.** Tudo que ele enfeita existe em CSS
+   por baixo. Ele não entra no toque, não entra em `prefers-reduced-motion`,
+   não entra em conexão econômica, e se desliga sozinho se o fps não sustentar.
+5. **Medir, não deduzir.** Duas decisões desta reestruturação (cortar o
+   `backdrop-filter` da janela, e o porteiro do 3D) foram tomadas por A/B na
+   mesma sessão, não por intuição. O projeto já perdeu sessões inteiras
+   otimizando por palpite.
+
+### 11.3 Como VER o site rodando — isto é novo
+
+O HANDOFF diz, em várias seções, que o agente nunca consegue ver nada animar.
+**Isso deixou de ser verdade** em ambiente com Chromium + Playwright:
+
+```bash
+npx --yes http-server -p 8080 -c-1 -a 127.0.0.1 &
+npm install playwright
+CHROMIUM=/opt/pw-browsers/chromium node docs/verificar.mjs
+```
+
+Sai uma linha por página com fps, rolagem lateral, links de WhatsApp montados e
+erros de console. **Rode isto antes de dizer que algo está pronto.** Seis bugs
+de render foram achados assim, nenhum deles visível na leitura do código — entre
+eles `inset: 0` não esticar um `<canvas>` e o `import()` de script clássico
+resolver contra a URL do script.
+
+### 11.4 O que está aberto
+
+1. **Publicar.** Nada foi ao ar. É decisão do dono, e o fluxo é o do HANDOFF
+   seção 2 (merge na `main` = deploy na Vercel).
+2. **Imagens novas.** Os prompts estão prontos em `PROMPTS-IMAGENS.md`. A
+   lacuna mais séria é **Automação & IA**: é a única frente sem imagem nenhuma.
+3. **Página de Experiências Digitais.** Não existe. No Hub ela é o portal e um
+   convite à conversa, com rótulo "sob demanda" — sem link quebrado.
+4. **Vídeos de transição.** Não foram produzidos.
+5. **Existe um 4º serviço?** O dono deixou em aberto.
+6. **URLs com `.html`.** Dá para virar `/sites` e `/automacao` com `cleanUrls`
+   num `vercel.json`; mexe na configuração de deploy e não foi feito sem pedir.
+7. **A nav de `automacao.html`** está unificada em estrutura, mas a página ainda
+   não carrega o `premium.css` — ela é a versão aprovada e publicada, e não foi
+   redesenhada de propósito.
+
+### 11.5 Links
+
+- Triagem das 15 imagens, aprovada pelo dono:
+  https://claude.ai/artifact/AEWbLkjaN8Jac8G9s2cCB3
+- Imagens do moodboard: `docs/restructure/moodboard/`
+- Prompts para gerar as que faltam: `docs/restructure/PROMPTS-IMAGENS.md`
