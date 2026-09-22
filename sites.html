@@ -201,6 +201,11 @@
              abertura centrada nele. Aqui ele fica ATRÁS do vidro. -->
         <div class="hero__reactor" aria-hidden="true"></div>
 
+        <!-- profundidade de verdade atrás da janela: os painéis de vidro
+             das imagens 01/02/04, em WebGL. A janela na frente continua
+             sendo HTML, nítida em qualquer tela. -->
+        <span class="cena" data-cena="paineis"></span>
+
         <span class="palco__folha palco__folha--a" aria-hidden="true"></span>
         <span class="palco__folha palco__folha--b" aria-hidden="true"></span>
 
@@ -324,7 +329,7 @@
         </div>
         <div class="prova__item">
           <span class="prova__val" data-metrica="peso">—</span>
-          <span class="prova__rot">baixados deste domínio para montar tudo o que você vê</span>
+          <span class="prova__rot">baixados deste domínio até agora, contando o que carregou depois</span>
         </div>
         <div class="prova__item">
           <span class="prova__val" data-metrica="fps">—</span>
@@ -332,8 +337,10 @@
         </div>
         <p class="prova__nota">
           Medido pelo próprio navegador, sem estimativa e sem média de outros
-          visitantes. O peso conta só o que sai deste domínio: fontes externas
-          não reportam tamanho, e chamar isso de total seria mentira.
+          visitantes. O peso conta só o que sai deste domínio e continua
+          contando enquanto você rola — a cena em 3D do topo, por exemplo, só
+          desce se o seu aparelho aguentar. Fontes externas não reportam
+          tamanho, então chamar isso de total seria mentira.
         </p>
       </div>
     </section>
@@ -445,5 +452,6 @@
   <script src="js/field.js" defer></script>
   <script src="js/entrada.js" defer></script>
   <script src="js/pagina.js" defer></script>
+  <script src="js/cena.js" defer></script>
 </body>
 </html>

@@ -781,3 +781,94 @@
   .janela { transform: none; }
   .palco:hover .janela { transform: none; }
 }
+
+/* ==========================================================================
+   13. A CAMADA 3D
+
+   O canvas WebGL é UM só, em tela cheia, atrás de tudo — irmão do #fx (o
+   canvas 2D onde vive o AI Core). Os elementos `.cena` NÃO desenham nada:
+   são retângulos de MEDIDA. O motor (js/cena.js) lê a caixa de cada um e
+   desenha aquela cena exatamente naquele recorte do canvas compartilhado
+   (scissor + viewport). É por isso que três cenas custam um contexto só.
+
+   Como o elemento é invisível, ele não precisa disputar z-index com nada.
+   ========================================================================== */
+/* ARMADILHA PEGA NA VERIFICAÇÃO — leia antes de mexer aqui.
+   `inset: 0` NÃO estica um <canvas>. Canvas é elemento SUBSTITUÍDO: com
+   width/height automáticos ele assume o tamanho intrínseco do próprio buffer,
+   e as quatro âncoras do `inset` ficam sobre-restringidas e são ignoradas.
+   Como o motor desenha o buffer a 62% da tela (ver js/cena.js), o canvas era
+   exibido a 72% do tamanho, ancorado no canto — e cada cena aparecia deslocada
+   para cima e para a esquerda do elemento que ela deveria ocupar. No hero do
+   Hub isso jogou o cubo por cima do título.
+   O `#fx` (canvas 2D) não sofre disso porque js/field.js escreve
+   `style.width/height` na mão a cada redimensionamento. Aqui a largura e a
+   altura explícitas resolvem — e são elas que fazem o buffer menor ser
+   esticado até a tela, que é justamente o efeito pretendido. */
+#fx3 {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+  display: block;
+}
+
+.cena {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* o cubo do Hub divide a célula com o AI Core e sangra para fora dela: o
+   núcleo fica nítido no centro, o volume de vidro gira por trás e por fora. */
+.cena--hero {
+  position: relative;
+  grid-column: 2; grid-row: 1;
+  align-self: center;
+  width: 138%;
+  margin-left: -19%;
+  aspect-ratio: 1;
+  inset: auto;
+}
+
+/* No palco e no portal a cena sangra um pouco para além da peça, senão a
+   profundidade termina numa borda reta e denuncia o recorte.
+
+   REGRESSÃO PEGA NA VERIFICAÇÃO: o `.cena` do portal sangrava 22% para cada
+   lado de uma peça de 320px e chegava a 460px numa tela de 390 — 35px de
+   rolagem horizontal numa página que não deve rolar de lado. O elemento é
+   invisível, mas o navegador conta a caixa dele na área rolável do mesmo
+   jeito. Abaixo de 980px o sangramento lateral sai inteiro; em tela larga ele
+   fica, mas modesto, e o `overflow-x: clip` no body é a rede por baixo. */
+.palco .cena { inset: -12% -6%; }
+.portal .cena { inset: -22% -8%; }
+
+/* A REDE. `clip` e não `hidden` de propósito: `hidden` cria um contêiner de
+   rolagem e quebraria `position: sticky` e a âncora de rolagem do navegador;
+   `clip` só corta o que passa, sem criar contexto de rolagem. */
+body { overflow-x: clip; }
+
+/* QUANDO O 3D CHEGA, O CSS CEDE — mas só então.
+   O portal em CSS é a versão que todo mundo vê; a de WebGL é melhor e só
+   existe em aparelho que a aguenta. `tem-3d` é escrita por js/cena.js depois
+   que o renderer subiu de verdade, então quem não tem 3D nunca vê um buraco
+   no lugar do portal. */
+.tem-3d .portal__pilar,
+.tem-3d .portal__verga,
+.tem-3d .portal__vao,
+.tem-3d .portal__chao { opacity: 0; }
+.portal__pilar, .portal__verga, .portal__vao, .portal__chao {
+  transition: opacity var(--t-slow) var(--ease);
+}
+
+/* as folhas de vidro em CSS do palco recuam quando há profundidade real
+   atrás — duas camadas contando a mesma coisa viram sujeira. */
+.tem-3d .palco__folha { opacity: .35; }
+
+@media (max-width: 980px) {
+  .cena--hero { grid-column: 1; grid-row: 1; width: 100%; margin-left: 0; }
+  /* nada de sangramento lateral onde não há folga para ele */
+  .palco .cena, .portal .cena { inset: -10% 0; }
+}

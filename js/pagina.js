@@ -311,6 +311,20 @@
   if (elCarga || elPeso) {
     if (document.readyState === 'complete') medidasDeCarga();
     else window.addEventListener('load', function () { setTimeout(medidasDeCarga, 0); }, { once: true });
+
+    /* O PESO TEM QUE CONTINUAR VERDADEIRO DEPOIS DO LOAD.
+       A camada 3D (js/cena.js) baixa o three.js só quando uma cena se aproxima
+       da viewport — ou seja, DEPOIS desta medição. Um número medido no load e
+       nunca mais tocado viraria mentira no instante em que o 3D descesse, e
+       este painel existe justamente para ser o número honesto da página.
+       O observador reconta a cada recurso novo; a contagem é barata e acontece
+       algumas vezes por visita, nunca por frame. */
+    if (window.PerformanceObserver) {
+      try {
+        new PerformanceObserver(function () { medidasDeCarga(); })
+          .observe({ type: 'resource', buffered: false });
+      } catch (e) { /* navegador sem suporte: fica a medição do load */ }
+    }
   }
 
   if (elFps) {

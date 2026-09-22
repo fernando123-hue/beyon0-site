@@ -128,6 +128,10 @@
         </div>
       </div>
 
+      <!-- o cubo de vidro da imagem 03 do moodboard, em WebGL. Divide a
+           célula com o AI Core: o núcleo nítido na frente, o volume girando
+           por trás. Só existe em aparelho que aguenta — ver js/cena.js. -->
+      <div class="cena cena--hero" data-cena="cubo" aria-hidden="true"></div>
       <div class="hero__reactor" aria-hidden="true"></div>
 
       <dl class="hero__rail">
@@ -212,6 +216,7 @@
           <a class="btn btn--ghost" data-wa="quero falar sobre uma experiência digital sob medida" href="#">Conversar sobre uma ideia <span aria-hidden="true">→</span></a>
         </div>
         <div class="portal" aria-hidden="true">
+          <span class="cena" data-cena="portal"></span>
           <span class="portal__pilar portal__pilar--e"></span>
           <span class="portal__pilar portal__pilar--d"></span>
           <span class="portal__verga"></span>
@@ -283,5 +288,6 @@
   <script src="js/field.js" defer></script>
   <script src="js/entrada.js" defer></script>
   <script src="js/pagina.js" defer></script>
+  <script src="js/cena.js" defer></script>
 </body>
 </html>
