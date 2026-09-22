@@ -14,8 +14,13 @@
 
    COMO RODAR
      npx --yes http-server -p 8080 -c-1 -a 127.0.0.1 &
-     npm install playwright        # só a lib; o navegador já existe no ambiente
-     node docs/verificar.mjs
+     npm install                   # só a lib; o navegador já existe no ambiente
+     npm run verificar
+
+   O Playwright está declarado como devDependency, nunca como dependency: o
+   site publicado continua sem passo de instalação e sem dependência de
+   runtime. O three.js também não vem do npm — está vendorado em
+   vendor/three/ e é carregado direto pelo navegador.
 
    Se o Playwright reclamar que falta navegador, aponte o que já está instalado:
      CHROMIUM=/opt/pw-browsers/chromium node docs/verificar.mjs

@@ -438,8 +438,8 @@ O HANDOFF diz, em várias seções, que o agente nunca consegue ver nada animar.
 
 ```bash
 npx --yes http-server -p 8080 -c-1 -a 127.0.0.1 &
-npm install playwright
-CHROMIUM=/opt/pw-browsers/chromium node docs/verificar.mjs
+npm install                                        # playwright é devDependency
+CHROMIUM=/opt/pw-browsers/chromium npm run verificar
 ```
 
 Sai uma linha por página com fps, rolagem lateral, links de WhatsApp montados e

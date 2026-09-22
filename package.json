@@ -2,5 +2,11 @@
   "name": "beyon0-site",
   "version": "1.0.0",
   "private": true,
-  "description": "Landing page beyon.0 — HTML/CSS/JS puro, sem build, sem dependência de runtime."
+  "description": "Site Beyon Zero — HTML/CSS/JS puro, sem build. O three.js é vendorado em vendor/three (módulo ESM carregado pelo navegador), NÃO instalado por aqui: o site publicado continua sem passo de instalação.",
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  },
+  "scripts": {
+    "verificar": "node docs/verificar.mjs"
+  }
 }
