@@ -367,6 +367,18 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 2rem); }
 }
 
 /* ---- menu do celular ---- */
+/* SEPARADOR DA NAV — a fronteira entre "esta página" e "o resto da casa".
+   Depois que o site virou Hub + uma página por serviço, a nav passou a
+   misturar duas coisas de naturezas diferentes: âncoras, que ROLAM dentro da
+   página, e links, que TROCAM de página. Sem fronteira elas leem como uma
+   lista só, e a pessoa não sabe qual clique a tira do lugar onde está.
+   No celular o painel já separa cada item com borda própria — aqui ele sai. */
+.nav__sep {
+  width: 1px; height: 16px;
+  background: var(--line-hi);
+  flex: none;
+}
+
 .nav__toggle {
   display: none;
   width: 44px; height: 44px;   /* alvo de toque cheio */
@@ -397,6 +409,7 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 2rem); }
   }
   .nav__links a.is-current::before { left: -10px; top: 50%; margin-top: -1.5px; }
   .nav__links a.btn { justify-content: center; margin: 1rem 0; }
+  .nav__sep { display: none; }
 }
 
 /* ==========================================================================
