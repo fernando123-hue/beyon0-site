@@ -219,10 +219,11 @@
       x.strokeStyle = 'rgba(255,255,255,.07)'; x.lineWidth = 2;
       x.strokeRect(1, 1, 126, 126);
     } else if (tipo === 'vao') {
+      /* BRANCO, não ciano — ver a nota sobre textura neutra logo abaixo. */
       var v = x.createLinearGradient(0, 0, 0, 128);
-      v.addColorStop(0, COR.ac); v.addColorStop(0.55, 'rgba(0,0,0,0)'); v.addColorStop(1, COR.ac);
+      v.addColorStop(0, '#fff'); v.addColorStop(0.55, 'rgba(0,0,0,0)'); v.addColorStop(1, '#fff');
       x.fillStyle = v; x.fillRect(0, 0, 128, 128);
-      x.globalAlpha = 0.5; x.fillStyle = COR.ac;
+      x.globalAlpha = 0.5; x.fillStyle = '#fff';
       x.fillRect(0, 0, 3, 128); x.fillRect(125, 0, 3, 128);
     } else {
       /* VIDRO, PARA MISTURA ADITIVA.
@@ -248,8 +249,19 @@
       x.fillStyle = d; x.fillRect(0, 0, 128, 128);
       x.strokeStyle = 'rgba(255,255,255,.62)'; x.lineWidth = 2.5;
       x.strokeRect(1.25, 1.25, 125.5, 125.5);
+      /* TEXTURA NEUTRA — a regra que a primeira correção de cor quebrou.
+         No three a cor final é textura × material.color. Com a aresta (e o vão
+         inteiro) assados em CIANO na textura, levar o material ao OURO no
+         Singular multiplicava ciano por ouro — (79,216,240)×(240,180,79) — e o
+         resultado era VERDE: o portal acendia verde enquanto o site inteiro
+         virava dourado. A correção da rodada anterior (tingir o material por
+         S.warmth) só tornou o verde visível. Achado na segunda revisão.
+         Agora a textura carrega só LUMINÂNCIA (branco em alfas diferentes) e
+         todo o matiz mora no material. Ciano × branco = ciano; ouro × branco =
+         ouro. A aresta de baixo continua sendo a parte mais acesa do painel,
+         porque é a de alfa mais alto. */
       var b = x.createLinearGradient(0, 108, 0, 128);
-      b.addColorStop(0, 'rgba(0,0,0,0)'); b.addColorStop(1, COR.ac);
+      b.addColorStop(0, 'rgba(0,0,0,0)'); b.addColorStop(1, '#fff');
       x.fillStyle = b; x.fillRect(0, 108, 128, 20);
     }
     var t = new THREE.CanvasTexture(c);
@@ -325,7 +337,7 @@
         if (!ehPedra) {
           mat.color = pc.vao
             ? new THREE.Color(COR.ac)
-            : new THREE.Color(COR.ac).lerp(new THREE.Color('#ffffff'), 0.62);
+            : new THREE.Color(COR.ac).lerp(new THREE.Color('#ffffff'), 0.3);
         }
 
         var m = new THREE.Mesh(plano, mat);
@@ -340,7 +352,8 @@
       }
 
       cenas.push({ el: el, cena: cena, cam: cam, grupo: grupo, malhas: malhas,
-                   spec: spec, visivel: false, r: null });
+                   spec: spec, visivel: false, r: null,
+                   reveal: el.closest('.reveal'), entrada: 0 });
     }
 
     /* SÓ O QUE ESTÁ NA TELA CUSTA. Sem isto o site pagaria pelas três cenas o
@@ -362,8 +375,15 @@
     }
 
     medirCaixas();
-    window.addEventListener('scroll', function () { sujo = true; }, { passive: true });
-    B.on('resize', function () { sujo = true; });
+    var marcar = function () { sujo = true; };
+    window.addEventListener('scroll', marcar, { passive: true });
+    document.addEventListener('transitionend', marcar, { passive: true });
+    document.addEventListener('animationend', marcar, { passive: true });
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(marcar);
+    B.on('resize', marcar);
+
+    /* a referência de fluidez: o que a página sustentava ANTES do 3D existir */
+    REF = Math.max(24, Math.min(60, pico || 60));
     /* NÃO há repintura por evento de regime aqui, de propósito: `--ac` é um
        @property e a virada para o ouro INTERPOLA ao longo de ~1,1s. Reler o
        valor no instante da troca pegaria ele ainda ciano. Quem leva o 3D ao
@@ -374,21 +394,45 @@
        (o ouro do Singular); `--ac` é a cor fria de repouso. A mistura entre
        elas acontece no laço, por S.warmth. */
     PALETA.frio = new THREE.Color(COR.ac);
-    PALETA.frioClaro = new THREE.Color(COR.ac).lerp(new THREE.Color('#ffffff'), 0.62);
+    PALETA.frioClaro = new THREE.Color(COR.ac).lerp(new THREE.Color('#ffffff'), 0.3);
     PALETA.quente = new THREE.Color(lerCor('--warm', '#F0B44F'));
 
     pronto = true;
     document.body.classList.add('tem-3d');
   }
 
-  /* retângulos lidos só em scroll/resize — nunca por frame. Mesma disciplina
-     de js/field.js, pelo mesmo motivo. */
+  /* retângulos lidos em scroll/resize/fim de transição — nunca por frame em
+     repouso. Mesma disciplina de js/field.js, pelo mesmo motivo. */
   var sujo = true;
+  /* LARGURA DO CANVAS, NÃO DA JANELA.
+     O buffer era dimensionado por `S.w` (window.innerWidth), que INCLUI a
+     barra de rolagem; mas o #fx3 é exibido com `width: 100%` da viewport,
+     que a EXCLUI. No Windows, com barra clássica de 17px, o buffer de 1440
+     era espremido em 1423 e toda cena saía ~17px à esquerda da própria peça.
+     O dono trabalha no Windows — é exatamente onde ele veria. Mede-se o
+     tamanho de exibição do próprio canvas. Achado na segunda revisão. */
+  var vw = 0, vh = 0;
   function medirCaixas() {
+    if (renderer) { vw = renderer.domElement.clientWidth; vh = renderer.domElement.clientHeight; }
     for (var i = 0; i < cenas.length; i++) {
       cenas[i].r = cenas[i].el.getBoundingClientRect();
     }
     sujo = false;
+  }
+  /* SINCRONIA COM O REVEAL.
+     O portal mora dentro de um `.reveal`, que entra com opacidade 0 e 16px
+     abaixo do lugar e anima até o lugar em ~720ms, sem evento de rolagem
+     nenhum. A cena medida no começo ficava 16px deslocada até a próxima
+     rolagem — e aparecia com opacidade cheia enquanto o texto ao lado ainda
+     estava invisível, porque o portal em CSS já tinha cedido a vez. Duas
+     correções: a cena só aparece quando o `.reveal` que a contém foi
+     revelado, e entra com a mesma rampa; e enquanto ela está entrando, as
+     caixas são remedidas a cada frame (3 retângulos, ~0,01ms — só durante a
+     entrada, nunca em repouso). O fim de qualquer transição ou animação e o
+     carregamento das fontes também marcam as caixas para remedir. */
+  function revelado(c) {
+    if (!c.reveal) return true;
+    return c.reveal.classList.contains('is-in') || !!c.reveal.closest('.revelando');
   }
 
   /* ---------- FLUIDEZ MEDIDA, EM DOIS ESTÁGIOS ----------
@@ -413,7 +457,18 @@
      aquecimento antes de julgar — os primeiros quadros incluem compilação de
      shader e envio de textura, que ninguém deveria pagar duas vezes. */
   var AQUECE = 150;       /* quadros ignorados antes de qualquer julgamento */
-  var LENTO = 46, BOM = 52;
+  /* LIMIAR RELATIVO, não absoluto.
+     Os limites eram fixos em 46/52 fps — o que presume uma tela de 60Hz. Num
+     navegador limitado a 30fps (Economia de energia do Chrome, notebook na
+     bateria) a página fica perfeitamente lisa DENTRO desse teto, e mesmo
+     assim o 3D era julgado lento e desligado em ~10s. Numa tela de 50Hz o
+     contador nunca descia. Achado na segunda revisão.
+     Agora a régua é o que a própria página sustentava ANTES do 3D montar
+     (`pico`, medido enquanto o three ainda baixa), com teto em 60: lento é
+     cair abaixo de 77% disso, bom é voltar acima de 87%. A 60Hz os números
+     são os mesmos de antes (46/52); a 30Hz viram 23/26; em 120Hz a régua
+     continua 60, porque 60 quadros já é fluido. */
+  var REF = 60, pico = 0;
   var estagio = 0, lentos = 0, aquecendo = AQUECE, desligado = false;
 
   function desligar() {
@@ -434,11 +489,11 @@
 
   function julgar(S) {
     if (aquecendo > 0) { aquecendo--; return; }
-    if (S.fps < LENTO) lentos++;
+    if (S.fps < REF * 0.77) lentos++;
     /* trava no zero: sem ela um contador ímpar passava direto pelo `> 0` e
        descia para sempre (-1, -3, -5…), e a degradação nunca mais disparava
        porque `lentos < 200` virava eternamente verdadeiro. Achado na revisão. */
-    else if (S.fps > BOM && lentos > 0) lentos = Math.max(0, lentos - 2);
+    else if (S.fps > REF * 0.87 && lentos > 0) lentos = Math.max(0, lentos - 2);
     if (lentos < 200) return;              /* ~3,5s de lentidão sustentada */
     lentos = 0;
     if (estagio === 0) { estagio = 1; aquecendo = AQUECE; }   /* tenta meio passo */
@@ -447,8 +502,26 @@
 
   /* ---------- o frame ---------- */
   var alt = 0;
+  /* NENHUMA IMAGEM CONGELADA.
+     O canvas é fixo e em tela cheia, e o three só limpa o recorte de cada cena
+     quando desenha nela. Num frame em que nenhuma cena desenha — a última saiu
+     da tela, ou todas ficaram fora da viewport — ninguém limpava nada, e o
+     último quadro ficava parado na tela por trás do conteúdo: rolando o Hub
+     para baixo, uma faixa do cubo ficava grudada no topo. Achado na segunda
+     revisão. Um clear da tela inteira, uma vez, na transição de "desenhou"
+     para "não desenhou". */
+  var desenhouAntes = false;
+  function limparTudo() {
+    renderer.setScissorTest(false);
+    renderer.clear();
+    renderer.setScissorTest(true);
+    desenhouAntes = false;
+  }
+
   B.add('cena3d', function (S) {
-    if (!pronto || !visiveis) return;
+    /* antes de montar, só observa: é daqui que sai a régua de fluidez */
+    if (!pronto) { if (!desligado && S.fps > pico) pico = S.fps; return; }
+    if (!visiveis) { if (desenhouAntes) limparTudo(); return; }
     julgar(S);
     if (desligado) return;
 
@@ -456,9 +529,16 @@
        orçamento do frame já está apertado, ela desenha em quadros alternados
        antes de qualquer coisa do site piscar. */
     if ((estagio === 1 || S.budget < 0.7) && (alt = 1 - alt)) return;
-    if (sujo) medirCaixas();
 
-    var h = S.h, w = S.w;
+    /* durante a entrada de alguma cena as caixas são remedidas a cada frame —
+       o `.reveal` ainda está se movendo sem gerar evento de rolagem */
+    var entrando = false;
+    for (var ei = 0; ei < cenas.length; ei++) {
+      if (cenas[ei].visivel && cenas[ei].entrada < 0.999 && revelado(cenas[ei])) { entrando = true; break; }
+    }
+    if (sujo || entrando || !vw) medirCaixas();
+
+    var h = vh || S.h, w = vw || S.w;
     /* RESOLUÇÃO INTERNA MENOR QUE A TELA — a alavanca que mais rende aqui.
        Esta cena é limitada por PREENCHIMENTO: uma dúzia de quadriláteros
        grandes, translúcidos e sobrepostos, e cada pixel é escrito várias
@@ -505,9 +585,13 @@
       }
     }
 
+    var desenhou = false;
     for (var i = 0; i < cenas.length; i++) {
       var c = cenas[i];
       if (!c.visivel || !c.r) continue;
+      /* a cena acompanha o reveal que a contém: entra junto, na mesma rampa */
+      c.entrada += ((revelado(c) ? 1 : 0) - c.entrada) * 0.07;
+      if (c.entrada < 0.01) continue;
       var r = c.r;
       if (r.bottom < 0 || r.top > h) continue;
 
@@ -532,12 +616,16 @@
       for (var j = 0; j < c.malhas.length; j++) {
         var m = c.malhas[j], u = m.userData;
         if (u.deriva) m.position.y = u.base + Math.sin(t * 0.5 + u.fase) * u.deriva * 0.32;
-        m.material.opacity = Math.min(1, u.alfa * brilho);
+        m.material.opacity = Math.min(1, u.alfa * brilho) * c.entrada;
       }
       c.grupo.scale.setScalar(abre);
 
       renderer.render(c.cena, c.cam);
+      desenhou = true;
     }
+
+    if (desenhou) desenhouAntes = true;
+    else if (desenhouAntes) limparTudo();
   });
 
   /* ---------- instrumentação (só com ?perf) ----------

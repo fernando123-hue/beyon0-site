@@ -167,10 +167,20 @@
      automação — é o mesmo organismo, não uma imitação. */
   var REPOUSO = document.body.getAttribute('data-status') || 'Sistema online · Beyon Zero';
   var pulsoAte = 0, proxPulso = 0, DUR = 2600;
+  /* BANDEIRA EXPLÍCITA, não inferência por `S.pulse !== 0`.
+     O fim do Pulso era detectado olhando se `S.pulse` tinha valor. Mas quem
+     dá valor a ele é o frame SEGUINTE ao disparo — e se a pessoa troca de aba
+     nesse intervalo, o loop para (document.hidden) e só volta depois do fim
+     do Pulso. Aí `S.pulse` nunca saiu do zero, a limpeza nunca rodava, e a
+     página ficava presa em `is-pulse` com o status dizendo "Ressonância em
+     curso" até um Pulso futuro que também nunca era agendado. Achado na
+     segunda revisão. js/dom.js tem o mesmo padrão — ver a tarefa aberta. */
+  var pulsoAtivo = false;
   function agendarPulso(now) { proxPulso = now + 9000 + Math.random() * 11000; }
   function dispararPulso(now, anuncio) {
-    if (pulsoAte > now || S.singular) return false;
+    if (pulsoAtivo || singAtivo) return false;
     pulsoAte = now + DUR;
+    pulsoAtivo = true;
     document.body.classList.add('is-pulse');
     anunciar(anuncio || 'Ressonância em curso');
     return true;
@@ -182,13 +192,14 @@
       S.pulse = Math.sin(u * Math.PI) * .9;
       return;
     }
-    if (S.pulse !== 0) {
+    if (pulsoAtivo) {
+      pulsoAtivo = false;
       S.pulse = 0; S.pulseFront = 0;
       document.body.classList.remove('is-pulse');
       anunciar(REPOUSO);
       agendarPulso(now);
     }
-    if (proxPulso && now > proxPulso && !S.singular) dispararPulso(now);
+    if (proxPulso && now > proxPulso && !singAtivo) dispararPulso(now);
   }
 
   /* ---------- ESTADO SINGULAR — o espetáculo ----------
@@ -199,6 +210,10 @@
      reinado e o .34 na virada do resfriamento). Mexer aqui reabre degraus
      que já custaram uma sessão para achar. */
   var singAte = 0, proxSing = 0, SDUR = 18000;
+  /* mesma bandeira, mesmo motivo do Pulso — e aqui a janela é maior: no
+     primeiro frame da CARGA `S.singular` vale ~0, então bastava o loop parar
+     uma vez no começo do evento para a classe ficar presa. */
+  var singAtivo = false;
   function driveSingular(now) {
     if (now < singAte) {
       var u = 1 - (singAte - now) / SDUR;
@@ -224,14 +239,16 @@
       }
       return;
     }
-    if (S.singular !== 0) {
+    if (singAtivo) {
+      singAtivo = false;
       S.singular = 0; S.warmth = 0; S.whiteHot = 0; S.shock = -1;
       document.body.classList.remove('is-singular');
       anunciar(REPOUSO);
       proxSing = now + 70000 + Math.random() * 60000;
     }
-    if (proxSing && now > proxSing && !S.pulse) {
+    if (proxSing && now > proxSing && !pulsoAtivo) {
       singAte = now + SDUR;
+      singAtivo = true;
       document.body.classList.add('is-singular');
       anunciar('AI Core no comando');
     }
@@ -243,19 +260,30 @@
      atravessa a página. Uma vez por visita — repetir viraria um Pulso barato
      a cada passada de mouse. Custo: um listener `once` por cartão. */
   var grupo = document.querySelector('[data-reconhecer]');
+  var reconhecimento = 0;       /* 0 = ainda não · 1 = pendente · 2 = entregue */
+  function entregarReconhecimento(now) {
+    if (reconhecimento !== 1) return;
+    if (!dispararPulso(now, grupo.getAttribute('data-reconhecer'))) return;
+    reconhecimento = 2;
+    /* e o sistema se abre para quem demonstrou interesse: antecipa o
+       próximo Singular. Nunca ADIA — se já ia disparar antes, fica. */
+    var cedo = now + 12000;
+    if (proxSing > cedo) proxSing = cedo;
+  }
   if (B.fine && grupo) {
     var alvos = grupo.querySelectorAll('.card');
-    var vistos = 0, jaReconheceu = false;
+    var vistos = 0;
+    /* A recompensa fica PENDENTE até conseguir disparar. Antes ela era dada
+       como entregue antes de saber se o Pulso tinha saído: se a pessoa
+       completava os três cartões durante um Pulso ou um Singular, o disparo
+       recusava, os listeners `once` já tinham sido removidos, e a descoberta
+       sumia em silêncio para aquela visita. Agora o laço de eventos tenta de
+       novo assim que o organismo fica livre. Achado na segunda revisão. */
     var marcar = function () {
-      if (jaReconheceu) return;
+      if (reconhecimento !== 0) return;
       vistos++;
       if (vistos < alvos.length) return;
-      jaReconheceu = true;
-      dispararPulso(S.now, grupo.getAttribute('data-reconhecer'));
-      /* e o sistema se abre para quem demonstrou interesse: antecipa o
-         próximo Singular. Nunca ADIA — se já ia disparar antes, fica. */
-      var cedo = S.now + 12000;
-      if (proxSing > cedo) proxSing = cedo;
+      reconhecimento = 1;                      /* pendente */
     };
     for (var ca = 0; ca < alvos.length; ca++) {
       alvos[ca].addEventListener('pointerenter', marcar, { once: true, passive: true });
@@ -272,6 +300,7 @@
          normal. Os seguintes voltam a ser raros. */
       proxSing = s.now + 22000 + Math.random() * 8000;
     }
+    entregarReconhecimento(s.now);
     drivePulso(s.now);
     driveSingular(s.now);
   });
@@ -298,13 +327,21 @@
       if (ms > 0) elCarga.textContent = (ms / 1000).toFixed(2) + 's';
     }
     if (elPeso) {
-      /* soma o documento e todos os recursos que o navegador reporta. Origem
-         cruzada (as fontes do Google) devolve 0 sem Timing-Allow-Origin, então
-         o número é declarado como "deste domínio" na própria página — dizer
-         "peso total" com um número que exclui terceiros seria mentir. */
+      /* SÓ O QUE SAI DESTE DOMÍNIO — filtrado de verdade, pela origem.
+         A versão anterior somava todo recurso e CONFIAVA que os de terceiros
+         viriam com tamanho zero. Não vêm: o Google Fonts manda
+         `Timing-Allow-Origin: *`, então o tamanho das fontes entrava na soma
+         enquanto o texto da página dizia "só o que sai deste domínio". Uma
+         afirmação falsa justamente no painel que existe para ser o número
+         honesto — contra a regra 2 do CLAUDE.md. Achado na segunda revisão. */
       var total = nav.transferSize || 0;
       var recursos = performance.getEntriesByType('resource');
-      for (var p = 0; p < recursos.length; p++) total += recursos[p].transferSize || 0;
+      for (var p = 0; p < recursos.length; p++) {
+        var origem;
+        try { origem = new URL(recursos[p].name, location.href).origin; } catch (e) { continue; }
+        if (origem !== location.origin) continue;
+        total += recursos[p].transferSize || 0;
+      }
       if (total > 0) elPeso.textContent = Math.round(total / 1024) + ' KB';
     }
   }

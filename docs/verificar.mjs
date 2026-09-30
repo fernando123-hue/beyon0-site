@@ -76,9 +76,11 @@ for (const [rota, nome, viewport] of ALVOS) {
       waProntos: wa.filter(a => (a.getAttribute('href') || '').startsWith('https://wa.me/')).length,
       waTotal: wa.length,
       tem3d: document.body.classList.contains('tem-3d'),
-      /* o AI Core precisa de caixa: sem ela js/field.js não desenha nada */
-      reator: !!document.querySelector('.hero__reactor'),
-      titulo: document.title
+      /* o AI Core precisa de caixa: sem ela js/field.js não desenha nada.
+         Este campo ERA coletado e nunca conferido — o verificador dizia OK
+         para uma página sem AI Core, exatamente a classe de bug que ele
+         existe para pegar. Achado na segunda revisão. */
+      reator: !!document.querySelector('.hero__reactor')
     };
   });
 
@@ -94,7 +96,7 @@ for (const [rota, nome, viewport] of ALVOS) {
      do Google Fonts já é pega pelo ERR_CERT que vem junto dela. */
   const reais = erros.filter(e => !/ERR_CERT|fonts\.googleapis|GPU stall/.test(e));
 
-  const ok = d.boot && d.overflowX === 0 && d.waProntos === d.waTotal && reais.length === 0 && fps > 45;
+  const ok = d.boot && d.reator && d.overflowX === 0 && d.waProntos === d.waTotal && reais.length === 0 && fps > 45;
   if (!ok) falhou = true;
 
   console.log(
@@ -102,6 +104,7 @@ for (const [rota, nome, viewport] of ALVOS) {
     'fps=' + String(fps).padStart(5),
     'rolagemX=' + d.overflowX,
     'wa=' + d.waProntos + '/' + d.waTotal,
+    'nucleo=' + d.reator,
     '3d=' + d.tem3d,
     reais.length ? '\n     erros: ' + reais.join('\n     ') : ''
   );
