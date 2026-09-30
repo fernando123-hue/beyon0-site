@@ -85,10 +85,12 @@
     if (!(teste.getContext('webgl2') || teste.getContext('webgl'))) return;
   } catch (e) { return; }
 
-  /* ---------- as cores vêm do CSS, uma vez por evento ----------
+  /* ---------- a cor vem do CSS, lida UMA vez no boot ----------
      Ler getComputedStyle por frame seria exatamente o pecado que custou 76ms
-     a este projeto. Lê no boot e relê quando o organismo troca de regime. */
-  /* LÊ DO <body>, NÃO DO <html>. O Estado Singular remapeia `--ac` na regra
+     a este projeto. Depois do boot, quem muda a cor da cena é `S.warmth`, no
+     laço (ver "O SINGULAR LEVA O 3D JUNTO").
+
+     LÊ DO <body>, NÃO DO <html>. O Estado Singular remapeia `--ac` na regra
      `.is-singular`, que vive no <body>; lendo do documentElement a variável
      nunca mudava e o 3D ficava ciano enquanto o site inteiro virava ouro.
      A promessa de que "o Singular leva o 3D junto" estava escrita no commit e
@@ -97,12 +99,7 @@
     var v = getComputedStyle(document.body).getPropertyValue(nome).trim();
     return v || padrao;
   }
-  var COR = { ac: '#4FD8F0', t1: '#EDEDF1' };
-  function relerCores() {
-    COR.ac = lerCor('--ac', '#4FD8F0');
-    COR.t1 = lerCor('--t1', '#EDEDF1');
-  }
-  relerCores();
+  var COR = { ac: lerCor('--ac', '#4FD8F0') };
 
   /* ==========================================================================
      OS SPECS — o que cada cena é, em dados.
@@ -271,6 +268,8 @@
 
   /* ========================================================================== */
   var THREE = null, renderer = null, cenas = [], pronto = false;
+  /* tudo que desligar() precisa devolver — ver lá */
+  var recursos = { texturas: null, plano: null, io: null, marcar: null };
   var PALETA = { frio: null, frioClaro: null, quente: null };
   var quenteAplicado = -1;
   var visiveis = 0;
@@ -297,7 +296,16 @@
     renderer.setClearColor(0x000000, 0);
     renderer.setScissorTest(true);
 
-    var texturas = {
+    /* PERDA DE CONTEXTO = DESLIGAR. GPU reiniciada, driver atualizado, abas
+       demais no notebook: o navegador pode tomar o contexto WebGL a qualquer
+       momento. Sem este ouvinte a cena parava de desenhar mas `tem-3d`
+       continuava no <body> — e o portal em CSS, que cede a vez quando há 3D,
+       ficava invisível: um buraco no Hub onde o portal deveria estar. É a
+       regra 4 do CLAUDE.md (o 3D é acréscimo, nunca substituição) quebrada
+       por um evento externo. Achado na terceira revisão. */
+    cv.addEventListener('webglcontextlost', function (e) { e.preventDefault(); desligar(); }, false);
+
+    var texturas = recursos.texturas = {
       vidro: fazerTextura(THREE, 'vidro'),
       pedra: fazerTextura(THREE, 'pedra'),
       vao:   fazerTextura(THREE, 'vao')
@@ -305,7 +313,7 @@
     /* uma geometria para todos: o tamanho vem da escala de cada peça. Um
        PlaneGeometry compartilhado em vez de N geometrias é o tipo de economia
        que não aparece no olho e aparece na memória. */
-    var plano = new THREE.PlaneGeometry(1, 1);
+    var plano = recursos.plano = new THREE.PlaneGeometry(1, 1);
 
     for (var i = 0; i < alvos.length; i++) {
       var el = alvos[i];
@@ -359,7 +367,7 @@
     /* SÓ O QUE ESTÁ NA TELA CUSTA. Sem isto o site pagaria pelas três cenas o
        tempo todo, inclusive com o leitor a duas telas de distância. */
     if ('IntersectionObserver' in window) {
-      var io = new IntersectionObserver(function (ents) {
+      var io = recursos.io = new IntersectionObserver(function (ents) {
         for (var k = 0; k < ents.length; k++) {
           for (var c = 0; c < cenas.length; c++) {
             if (cenas[c].el !== ents[k].target) continue;
@@ -375,15 +383,14 @@
     }
 
     medirCaixas();
-    var marcar = function () { sujo = true; };
+    var marcar = recursos.marcar = function () { sujo = true; };
     window.addEventListener('scroll', marcar, { passive: true });
     document.addEventListener('transitionend', marcar, { passive: true });
     document.addEventListener('animationend', marcar, { passive: true });
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(marcar);
     B.on('resize', marcar);
 
-    /* a referência de fluidez: o que a página sustentava ANTES do 3D existir */
-    REF = Math.max(24, Math.min(60, pico || 60));
+    /* a régua é fixada no laço, ao completar as amostras — ver REF */
     /* NÃO há repintura por evento de regime aqui, de propósito: `--ac` é um
        @property e a virada para o ouro INTERPOLA ao longo de ~1,1s. Reler o
        valor no instante da troca pegaria ele ainda ciano. Quem leva o 3D ao
@@ -463,14 +470,41 @@
      bateria) a página fica perfeitamente lisa DENTRO desse teto, e mesmo
      assim o 3D era julgado lento e desligado em ~10s. Numa tela de 50Hz o
      contador nunca descia. Achado na segunda revisão.
-     Agora a régua é o que a própria página sustentava ANTES do 3D montar
-     (`pico`, medido enquanto o three ainda baixa), com teto em 60: lento é
-     cair abaixo de 77% disso, bom é voltar acima de 87%. A 60Hz os números
-     são os mesmos de antes (46/52); a 30Hz viram 23/26; em 120Hz a régua
-     continua 60, porque 60 quadros já é fluido. */
-  var REF = 60, pico = 0;
+     Agora a régua é o TETO da tela/navegador, medido antes do 3D montar,
+     com teto em 60: lento é cair abaixo de 77% disso, bom é voltar acima de
+     87%. A 60Hz os números são os de antes (46/52); a 30Hz viram 23/26; em
+     120Hz a régua continua 60, porque 60 quadros já é fluido.
+
+     COMO O TETO É MEDIDO — e por que a primeira tentativa não funcionava.
+     Ela usava o pico de `S.fps`, a média móvel do js/core.js. Só que essa
+     média NASCE em 60 e o primeiro quadro tem dt sintético de 16ms: o pico
+     já começava em 60,25 em qualquer aparelho, e a régua nunca saía de 60 —
+     o caso de 30Hz que o parágrafo acima diz resolver continuava quebrado.
+     Achado na terceira revisão.
+     Agora a medida é o MENOR intervalo real entre quadros (`S.dt`), a partir
+     do terceiro quadro. Engasgo de carregamento só AUMENTA intervalo, nunca
+     diminui — então o mínimo é exatamente o ritmo que a tela consegue
+     entregar, e poucos quadros bastam para achá-lo.
+
+     E A CENA ESPERA A RÉGUA. A segunda versão só amostrava ENQUANTO o three
+     baixava — e com o arquivo em cache (ou num servidor local) ele monta antes
+     do terceiro quadro, sem amostra nenhuma, e a régua caía no padrão de 60.
+     O teste com a tela limitada a 30Hz pegou: régua 60, cena rebaixada. Agora
+     nada é desenhado até existirem 20 intervalos medidos SEM o 3D. O custo é
+     a cena aparecer uma fração de segundo depois — ninguém nota; julgar a tela
+     errada, todo mundo nota. */
+  var REF = 60, menorDt = Infinity, amostras = 0, reguaPronta = false;
+  var AMOSTRAS = 20;      /* ~0,3s a 60Hz, ~0,7s a 30Hz */
   var estagio = 0, lentos = 0, aquecendo = AQUECE, desligado = false;
 
+  /* DESLIGAR DE VERDADE.
+     A primeira versão prometia "devolver a memória de GPU" e não devolvia:
+     `renderer.dispose()` não solta o contexto WebGL, e as referências do
+     módulo (renderer, cenas) mantinham canvas, malhas e texturas vivos até o
+     fim da visita — enquanto os ouvintes de rolagem e transição continuavam
+     disparando. Achado na terceira revisão. Agora cada recurso é devolvido:
+     materiais, texturas, a geometria compartilhada, o observador, os
+     ouvintes, e o contexto em si (`forceContextLoss`). */
   function desligar() {
     if (desligado) return;
     desligado = true; pronto = false; estagio = 2;
@@ -479,12 +513,24 @@
       for (var i = 0; i < cenas.length; i++) {
         for (var j = 0; j < cenas[i].malhas.length; j++) cenas[i].malhas[j].material.dispose();
       }
-      renderer.dispose();
-      if (renderer.domElement && renderer.domElement.parentNode) {
-        renderer.domElement.parentNode.removeChild(renderer.domElement);
+      if (recursos.texturas) {
+        for (var k in recursos.texturas) recursos.texturas[k].dispose();
       }
-      if (B.PERF && window.console) console.info('[cena] 3D desligado por fps baixo');
+      if (recursos.plano) recursos.plano.dispose();
+      if (recursos.io) recursos.io.disconnect();
+      if (recursos.marcar) {
+        window.removeEventListener('scroll', recursos.marcar);
+        document.removeEventListener('transitionend', recursos.marcar);
+        document.removeEventListener('animationend', recursos.marcar);
+      }
+      var cv = renderer.domElement;
+      renderer.dispose();
+      renderer.forceContextLoss();
+      if (cv && cv.parentNode) cv.parentNode.removeChild(cv);
+      if (B.PERF && window.console) console.info('[cena] 3D desligado');
     } catch (e) { /* já foi */ }
+    renderer = null; cenas = []; visiveis = 0;
+    recursos = { texturas: null, plano: null, io: null, marcar: null };
   }
 
   function julgar(S) {
@@ -520,7 +566,17 @@
 
   B.add('cena3d', function (S) {
     /* antes de montar, só observa: é daqui que sai a régua de fluidez */
-    if (!pronto) { if (!desligado && S.fps > pico) pico = S.fps; return; }
+    if (desligado) return;
+    if (!reguaPronta) {
+      if (S.t > 2 && S.dt >= 4) {
+        amostras++;
+        if (S.dt < menorDt) menorDt = S.dt;
+      }
+      if (amostras < AMOSTRAS) return;          /* nada desenha antes da régua */
+      REF = Math.max(24, Math.min(60, 1000 / menorDt));
+      reguaPronta = true;
+    }
+    if (!pronto) return;
     if (!visiveis) { if (desenhouAntes) limparTudo(); return; }
     julgar(S);
     if (desligado) return;
@@ -549,7 +605,7 @@
        produto. Aqui o conteúdo é luz difusa e aresta suave: o reescalonamento
        some no material. É a mesma lógica do teto de DPR que js/core.js já
        aplica ao canvas 2D, com a régua mais apertada porque 3D custa mais. */
-    var dprCena = Math.min(S.dpr, B.fine ? 1.5 : 1.25) * 0.62;
+    var dprCena = Math.min(S.dpr, 1.5) * 0.62;   /* só chega aqui com ponteiro fino */
     /* `Math.floor`, não `Math.round` — e isto não é preciosismo: o `setSize` do
        three calcula `canvas.width = Math.floor(width * pixelRatio)`. Com
        arredondamento aqui a guarda comparava 893 contra os 892 que o three
@@ -644,6 +700,7 @@
           nome: c.el.getAttribute('data-cena'),
           visivel: c.visivel,
           estagio: estagio,
+          ref: Math.round(REF),
           cor: tingida ? '#' + tingida.material.color.getHexString() : null
         };
       });

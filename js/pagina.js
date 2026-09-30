@@ -18,6 +18,30 @@
 (function () {
   'use strict';
 
+  /* ---------- ENDEREÇOS ANTIGOS ----------
+     Até a reestruturação, a landing de IA morava em `/`. Links que já estão
+     por aí — no WhatsApp, numa proposta, num QR code — apontam para
+     `/#faq`, `/#processo`, `/#projetos`. Agora `/` é o Hub, que não tem essas
+     seções: o link abriria o Hub no topo, sem a resposta que a pessoa foi
+     buscar. Achado na terceira revisão.
+     O <body> declara quais âncoras são de outra página e para onde elas
+     foram; se o endereço chegou com uma delas, a página se corrige antes de
+     qualquer coisa. `replace`, não `assign`: o endereço velho não fica no
+     histórico para o botão de voltar cair de novo nele. Roda antes da
+     checagem do BEYON de propósito — o redirecionamento não depende do
+     organismo. */
+  var legado = document.body.getAttribute('data-ancoras-legadas');
+  if (legado && location.hash) {
+    var partes = legado.split('>');
+    var ids = (partes[0] || '').trim().split(/\s+/);
+    var destino = (partes[1] || '').trim();
+    var pedido = location.hash.slice(1);
+    if (destino && ids.indexOf(pedido) >= 0 && !document.getElementById(pedido)) {
+      location.replace(destino + location.hash);
+      return;
+    }
+  }
+
   var B = window.BEYON;
   if (!B) return;
   var S = B.S;
@@ -26,6 +50,13 @@
      `data-wa` vira o assunto, então a conversa chega qualificada. A mensagem
      padrão muda por página: quem chega pela página de Sites não está pedindo
      diagnóstico de IA. `data-wa-padrao` no <body> define esse texto. */
+  /* O número de reserva abaixo é uma DUPLICATA consciente de js/tel.js (a
+     revisão apontou, e com razão, que isso fere "o número vive num lugar
+     só"). Ficou porque a alternativa é pior: se tel.js falhar, sem reserva
+     todos os botões de contato da página viram links mortos. Um número que
+     talvez esteja velho ainda leva a conversa ao dono; um link morto perde o
+     lead calado. Se o número mudar: `grep -rn 5521977167944` acha as três
+     cópias (tel.js, dom.js e esta). */
   var FONE = window.BEYON_TEL || '5521977167944';
   var PADRAO = document.body.getAttribute('data-wa-padrao') ||
                'quero entender como a Beyon Zero pode ajudar meu negócio';
@@ -105,12 +136,17 @@
         if (!navEl.classList.contains('is-open')) return;
         navEl.classList.remove('is-open');
         toggle.setAttribute('aria-expanded', 'false');
+        toggle.setAttribute('aria-label', 'Abrir menu');
         if (devolverFoco) toggle.focus();
       };
       toggle.addEventListener('click', function () {
         var abrindo = !navEl.classList.contains('is-open');
         navEl.classList.toggle('is-open', abrindo);
         toggle.setAttribute('aria-expanded', abrindo ? 'true' : 'false');
+        /* o leitor de tela anuncia o que o botão FAZ agora — com o menu aberto
+           ele fecha. O rótulo ficava "Abrir menu" o tempo todo; js/dom.js
+           sempre trocou. Achado na terceira revisão. */
+        toggle.setAttribute('aria-label', abrindo ? 'Fechar menu' : 'Abrir menu');
       });
       /* escolher um destino fecha o menu — senão o painel cobre a seção
          para onde a pessoa acabou de pedir para ir. */
@@ -132,20 +168,35 @@
       mapa.push(ancoras[a]); secoes.push(sec);
     }
     if (secoes.length && 'IntersectionObserver' in window) {
-      var atual = -1;
-      var ioNav = new IntersectionObserver(function (ents) {
-        for (var n = 0; n < ents.length; n++) {
-          if (!ents[n].isIntersecting) continue;
-          var idx = secoes.indexOf(ents[n].target);
-          if (idx < 0 || idx === atual) continue;
-          if (atual >= 0) {
-            mapa[atual].classList.remove('is-current');
-            mapa[atual].removeAttribute('aria-current');
-          }
-          atual = idx;
+      /* O DESTAQUE TAMBÉM APAGA.
+         A versão anterior só acendia: ao voltar ao hero, ou ao passar por uma
+         seção que não está na nav (Prova, Contato, Experiências), o último
+         item continuava aceso com `aria-current` — e o leitor de tela
+         anunciava um lugar onde a pessoa não estava. Achado na terceira
+         revisão. Agora o conjunto das seções que estão na faixa é mantido, e
+         quando ele fica vazio, nada fica aceso. */
+      var atual = -1, naFaixa = [];
+      var marcarAtual = function (idx) {
+        if (idx === atual) return;
+        if (atual >= 0) {
+          mapa[atual].classList.remove('is-current');
+          mapa[atual].removeAttribute('aria-current');
+        }
+        atual = idx;
+        if (atual >= 0) {
           mapa[atual].classList.add('is-current');
           mapa[atual].setAttribute('aria-current', 'true');
         }
+      };
+      var ioNav = new IntersectionObserver(function (ents) {
+        for (var n = 0; n < ents.length; n++) {
+          var idx = secoes.indexOf(ents[n].target);
+          if (idx < 0) continue;
+          var pos = naFaixa.indexOf(idx);
+          if (ents[n].isIntersecting && pos < 0) naFaixa.push(idx);
+          else if (!ents[n].isIntersecting && pos >= 0) naFaixa.splice(pos, 1);
+        }
+        marcarAtual(naFaixa.length ? naFaixa[naFaixa.length - 1] : -1);
       }, { rootMargin: '-45% 0px -50% 0px' });
       for (var s2 = 0; s2 < secoes.length; s2++) ioNav.observe(secoes[s2]);
     }
