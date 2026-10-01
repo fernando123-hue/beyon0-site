@@ -89,7 +89,7 @@
         if (visivel) lastFocus.focus();
         else { var tg = document.querySelector('.nav__toggle'); if (tg) tg.focus(); }
       }
-    }, 220); // var(--t)
+    }, 360); // var(--t) = 340ms: o painel some depois de a transição terminar
   }
 
   function aoEscapar(e) {

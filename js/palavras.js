@@ -22,15 +22,18 @@
      dele, para a folga ficar no fim da linha, onde não existe. */
   function reservarLargura(el, listas, sufixo) {
     var cs = getComputedStyle(el);
+    /* um span por palavra, anexados de uma vez: UMA leitura de layout */
     var prova = document.createElement('span');
     prova.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap;left:-9999px;top:0';
     prova.style.font = cs.font; prova.style.letterSpacing = cs.letterSpacing;
+    var filhos = [];
+    for (var l = 0; l < listas.length; l++) for (var i = 0; i < listas[l].length; i++) {
+      var f = document.createElement('span'); f.style.display = 'block'; f.textContent = listas[l][i] + sufixo;
+      prova.appendChild(f); filhos.push(f);
+    }
     document.body.appendChild(prova);
     var max = 0;
-    for (var l = 0; l < listas.length; l++) for (var i = 0; i < listas[l].length; i++) {
-      prova.textContent = listas[l][i] + sufixo;
-      max = Math.max(max, prova.getBoundingClientRect().width);
-    }
+    for (var m = 0; m < filhos.length; m++) max = Math.max(max, filhos[m].getBoundingClientRect().width);
     document.body.removeChild(prova);
     el.style.display = 'inline-block';
     el.style.minWidth = Math.ceil(max) + 'px';

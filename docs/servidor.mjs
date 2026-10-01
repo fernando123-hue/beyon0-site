@@ -5,6 +5,18 @@ import { join, extname, resolve, relative, isAbsolute } from 'node:path';
 
 const RAIZ = resolve(process.argv[2] || process.cwd());
 const PORTA = +(process.argv[3] || 8899);
+/* paridade com o deploy: os headers do vercel.json (CSP como header, nosniff,
+   frame-ancestors…) valem também aqui, para o verificador medir o mesmo site */
+let HEADERS = [];
+try { HEADERS = JSON.parse(await readFile(join(RAIZ, 'vercel.json'), 'utf8')).headers || []; } catch { /* sem vercel.json */ }
+const cabecalhos = caminho => {
+  const h = {};
+  for (const regra of HEADERS) {
+    const re = new RegExp('^' + regra.source.replace(/\(\.\*\)/g, '(.*)') + '$');
+    if (re.test(caminho)) for (const { key, value } of regra.headers) h[key.toLowerCase()] = value;
+  }
+  return h;
+};
 const TIPOS = {
   '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
@@ -23,7 +35,7 @@ http.createServer(async (req, res) => {
     let alvo = arquivo;
     try { await stat(alvo); } catch { alvo = arquivo + '.html'; }
     const dados = await readFile(alvo);
-    res.writeHead(200, { 'content-type': TIPOS[extname(alvo)] || 'application/octet-stream', 'cache-control': 'no-store' });
+    res.writeHead(200, Object.assign(cabecalhos(caminho), { 'content-type': TIPOS[extname(alvo)] || 'application/octet-stream', 'cache-control': 'no-store' }));
     res.end(dados);
   } catch (e) {
     res.writeHead(404); res.end('404');

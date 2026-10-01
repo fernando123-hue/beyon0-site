@@ -144,8 +144,14 @@
     S.alvo = { x: r.left, y: r.top, w: r.width, h: r.height };
   }
   if (B.fine) {
-    B.on('remedir', medirAlvo);
-    document.addEventListener('transitionend', function (e) { if (alvoEl && alvoEl.contains(e.target)) medirAlvo(); }, { passive: true });
+    var alvoPendente = false;
+    var remedirAlvo = function () {
+      if (!alvoEl || alvoPendente) return;
+      alvoPendente = true;
+      requestAnimationFrame(function () { alvoPendente = false; medirAlvo(); });
+    };
+    B.on('remedir', remedirAlvo);
+    document.addEventListener('transitionend', function (e) { if (alvoEl && alvoEl.contains(e.target)) remedirAlvo(); }, { passive: true });
     document.addEventListener('pointerover', function (e) {
       var el = e.target.closest(SEL);
       if (!el || el === alvoEl) return;
@@ -194,7 +200,12 @@
     if (document.readyState === 'complete') medidasDeCarga();
     else window.addEventListener('load', function () { setTimeout(medidasDeCarga, 0); }, { once: true });
     if (window.PerformanceObserver) {
-      try { new PerformanceObserver(function () { medidasDeCarga(); }).observe({ type: 'resource', buffered: false }); } catch (e) { /* sem suporte */ }
+      try {
+        var po = new PerformanceObserver(function () { medidasDeCarga(); });
+        po.observe({ type: 'resource', buffered: false });
+        /* nada carrega tarde neste site: depois de 6s do load, o observador sai */
+        window.addEventListener('load', function () { setTimeout(function () { po.disconnect(); medidasDeCarga(); }, 6000); }, { once: true });
+      } catch (e) { /* sem suporte */ }
     }
   }
   var med = document.querySelector('.medidor__txt'), led = document.querySelector('.medidor__led');
@@ -235,6 +246,9 @@
 
   /* ---------- interruptor "menos movimento" (rodapé) ---------- */
   var btnMov = document.querySelector('.footer__motion');
+  /* com prefers-reduced-motion ligado no sistema, o interruptor não tem o que
+     fazer: o sistema manda, e um botão que não ativa nada mentiria */
+  if (btnMov && B.sistemaReduz) { btnMov.hidden = true; btnMov = null; }
   if (btnMov) {
     /* rótulo FIXO; só o estado muda (botão alternável) */
     var rotular = function () {

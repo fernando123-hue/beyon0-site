@@ -24,7 +24,7 @@ BASE=http://127.0.0.1:8899 CHROMIUM="$LOCALAPPDATA/ms-playwright/chromium_headle
 
 | Script | O que faz |
 |---|---|
-| `npm run verificar` | 7 alvos (3 páginas × desktop/celular + resumo): boot, conteúdo preso invisível, rolagem lateral, links de WhatsApp, erros de console, fps |
+| `npm run verificar` | 10 alvos (3 páginas × desktop/celular/320px + resumo + interruptor de movimento no boot): boot, conteúdo preso invisível, rolagem lateral, links de WhatsApp, erros de console, fps, LCP |
 | `npm run acessibilidade` | sem JS, movimento reduzido, teclado (foco visível, menu do celular) |
 | `npm run olhar -- <pasta>` | screenshots em 5 pontos de rolagem, desktop e celular — abra os PNG e OLHE |
 | `npm run medir -- <rótulo>` | bytes, nós, LCP, CLS, fps parado/rolando, ms de script/estilo/layout por 6s |

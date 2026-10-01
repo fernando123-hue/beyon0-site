@@ -56,7 +56,8 @@
   for (var i = 0; i < alvos.length; i++) {
     var spec = SPECS[alvos[i].getAttribute('data-cena')];
     if (!spec) continue;
-    cenas.push({ el: alvos[i], spec: spec, r: null, visivel: false, reveal: alvos[i].closest('.reveal'), entrada: 0, rotX: 0, posX: 0 });
+    cenas.push({ el: alvos[i], spec: spec, r: null, doc: null, noReator: !!alvos[i].closest('.hero__reactor, .palco'), visivel: false, reveal: alvos[i].closest('.reveal'), entrada: 0, rotX: 0, posX: 0,
+                 pts: new Float64Array(spec.pecas.length * 8), prof: new Float64Array(spec.pecas.length), ordem: spec.pecas.map(function (_, j) { return j; }) });
   }
   if (!cenas.length) return;
   /* o CSS cede ao canvas só quando ele de fato desenha (css/componentes.css) */
@@ -75,11 +76,23 @@
     for (var v = 0; v < cenas.length; v++) io.observe(cenas[v].el);
   } else for (var w = 0; w < cenas.length; w++) cenas[w].visivel = true;
   function marcar() { sujo = true; }
-  window.addEventListener('scroll', marcar, { passive: true });
-  document.addEventListener('transitionend', marcar, { passive: true });
   B.on('resize', marcar); B.on('remedir', marcar); B.on('entrada-pronta', marcar);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(marcar);
-  function medir() { for (var i = 0; i < cenas.length; i++) cenas[i].r = cenas[i].el.getBoundingClientRect(); sujo = false; }
+  /* mede em coordenadas de DOCUMENTO (descontando o scrub do reator) e
+     converte por frame: nenhuma leitura de layout na rolagem */
+  function medir() {
+    var sy = window.pageYOffset, sx = window.pageXOffset, yp = B.S.reatorYP / 100;
+    for (var i = 0; i < cenas.length; i++) {
+      var c = cenas[i], r = c.el.getBoundingClientRect();
+      c.doc = { x: r.left + sx, y: r.top + sy - (c.noReator ? yp * r.height : 0), w: r.width, h: r.height };
+    }
+    sujo = false;
+  }
+  function converter(c, S) {
+    if (!c.doc) return;
+    var top = c.doc.y + (c.noReator ? (S.reatorYP / 100) * c.doc.h : 0) - S.scrollY;
+    c.r = { left: c.doc.x, top: top, width: c.doc.w, height: c.doc.h, bottom: top + c.doc.h };
+  }
 
   function revelado(c) {
     if (c.jaRevelado || !c.reveal) return true;
@@ -120,7 +133,6 @@
   }
 
   var pts = new Float64Array(8);
-  var ordem = [];
   var cedeu = false;
   B.camada('profundidade', function (ctx, S, paleta) {
     /* aparelho fraco ou orçamento no chão: o canvas cede e o CSS volta a ser
@@ -140,7 +152,8 @@
     var brilho = (1 + S.pulse * .5 + S.singular * .9) * paleta.boot;
     var anyEntrando = false;
     for (var e = 0; e < cenas.length; e++) if (cenas[e].visivel && cenas[e].entrada < .999 && revelado(cenas[e])) { anyEntrando = true; break; }
-    if (sujo || anyEntrando) medir();
+    if (sujo || anyEntrando) medir();   /* entrando: o .reveal ainda sobe 28px sem evento */
+    for (var ci = 0; ci < cenas.length; ci++) converter(cenas[ci], S);
 
     for (var i = 0; i < cenas.length; i++) {
       var c = cenas[i];
@@ -154,16 +167,15 @@
         c.rotX += ((-ny * .16) - c.rotX) * .05;
         c.posX += ((nx * .5) - c.posX) * .05;
       }
-      /* ordena as peças por profundidade (pedra oclui; vidro é aditivo) */
-      ordem.length = 0;
-      for (var j = 0; j < c.spec.pecas.length; j++) ordem.push(j);
-      var profs = [];
-      for (var q = 0; q < c.spec.pecas.length; q++) profs.push(projetar(c, c.spec.pecas[q], t, pts));
-      ordem.sort(function (a, b) { return profs[a] - profs[b]; });
+      /* projeta cada peça UMA vez no buffer da cena e ordena por profundidade
+         (pedra oclui; vidro é aditivo) — sem alocação por frame */
+      var n = c.spec.pecas.length, cp = c.pts, prof = c.prof, ordem = c.ordem;
+      for (var q = 0; q < n; q++) { prof[q] = projetar(c, c.spec.pecas[q], t, pts); cp.set(pts, q * 8); }
+      ordem.sort(function (a, b) { return prof[a] - prof[b]; });
 
-      for (var o = 0; o < ordem.length; o++) {
+      for (var o = 0; o < n; o++) {
         var pc = c.spec.pecas[ordem[o]];
-        projetar(c, pc, t, pts);
+        for (var k8 = 0; k8 < 8; k8++) pts[k8] = cp[ordem[o] * 8 + k8];
         /* escala do grupo (Pulso/Singular abrem a cena) em torno do centro */
         if (abre !== 1) {
           var ccx = c.r.left + c.r.width / 2, ccy = c.r.top + c.r.height / 2;

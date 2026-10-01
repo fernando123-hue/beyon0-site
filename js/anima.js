@@ -85,15 +85,18 @@
         var sp = partir(titulo, tipo);
         if (sp) {
           var pecas = tipo === 'words' ? sp.words : sp.lines;
-          gsap.set(pecas, { yPercent: 112 });
+          /* O TÍTULO É O LCP. Começa a 58% (já pinta parte do texto no primeiro
+             quadro: o LCP fica junto do FCP, medido 1,7s → ~0,4s) e sem atraso;
+             a máscara faz o resto da subida. */
+          gsap.set(pecas, { yPercent: 58 });
           gsap.set(titulo, { visibility: 'visible' });
           tl.to(pecas, {
-            yPercent: 0, duration: tipo === 'words' ? 1.1 : .95,
-            stagger: tipo === 'words' ? .07 : .09,
+            yPercent: 0, duration: tipo === 'words' ? .95 : .85,
+            stagger: tipo === 'words' ? .06 : .08,
             onComplete: function () { sp.revert(); pronto(); B.emit('remedir'); }
-          }, .25);
+          }, .05);
         } else {
-          tl.fromTo(titulo, { visibility: 'visible', opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 1, onComplete: pronto }, .25);
+          tl.fromTo(titulo, { visibility: 'visible', opacity: .35, y: 16 }, { opacity: 1, y: 0, duration: .8, onComplete: pronto }, .05);
         }
       } else pronto();
 
@@ -184,11 +187,19 @@
             var main = hero.querySelector('.hero__main');
             /* só deslocamento: texto que ainda está na tela não some enquanto é lido */
             if (main) gsap.to(main, { y: -40, ease: 'none', scrollTrigger: { trigger: hero, start: 'top top', end: 'bottom 30%', scrub: .6 } });
+            /* o scrub publica o yPercent em B.S: o canvas converte o cache de
+               documento sem ler layout, e acompanha a inércia do scrub depois
+               que a rolagem para (antes ficava ~0,5s defasado) */
             var reator = hero.querySelector('.hero__reactor, .palco');
-            if (reator) gsap.to(reator, { yPercent: 14, ease: 'none', scrollTrigger: { trigger: hero, start: 'top top', end: 'bottom top', scrub: .6 } });
+            if (reator) gsap.to(reator, {
+              yPercent: 14, ease: 'none',
+              onUpdate: function () { B.S.reatorYP = +gsap.getProperty(reator, 'yPercent'); },
+              scrollTrigger: { trigger: hero, start: 'top top', end: 'bottom top', scrub: .6 }
+            });
             var rail = hero.querySelector('.hero__rail');
             if (rail) gsap.to(rail, { yPercent: 10, ease: 'none', scrollTrigger: { trigger: hero, start: 'top top', end: 'bottom top', scrub: .6 } });
           }
+          return function () { B.S.reatorYP = 0; };   /* abaixo de 821px o tween é revertido */
         });
       } catch (e) { /* paralaxe é profundidade, não conteúdo */ }
     }
@@ -209,6 +220,7 @@
     if (!sim) return;
     reduzido = true;
     try { if (ST) ST.getAll().forEach(function (t) { t.kill(); }); gsap.globalTimeline.clear(); } catch (e) { /* já foi */ }
+    B.S.reatorYP = 0;
     mostrarTudo();
   });
 })();

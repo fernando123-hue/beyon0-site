@@ -36,6 +36,7 @@ const ALVOS = [
   ['/sites.html',     'sites-cel', CELULAR],
   ['/automacao.html', 'autom-cel', CELULAR],
   /* URLs limpas (cleanUrls na Vercel; o servidor local resolve .html) e 320px */
+  ['/',               'hub-320',   ESTREITO],
   ['/sites',          'sites-320', ESTREITO],
   ['/automacao',      'autom-320', ESTREITO, { reduzirNoBoot: true }]
 ];
@@ -49,7 +50,7 @@ const medirFps = (page, seg = 3) => page.evaluate(s => new Promise(ok => {
 }), seg);
 
 const navegador = await chromium.launch({ executablePath: EXEC, args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
-let falhou = false;
+let falhou = false, primeiro = true;
 
 for (const [rota, nome, opcoes, { semCanvas = false, reduzirNoBoot = false } = {}] of ALVOS) {
   const ctx = await navegador.newContext(opcoes);
@@ -58,6 +59,7 @@ for (const [rota, nome, opcoes, { semCanvas = false, reduzirNoBoot = false } = {
   page.on('pageerror', e => erros.push('pageerror: ' + e.message));
   page.on('console', m => { if (m.type() === 'error') erros.push('console: ' + m.text()); });
 
+  await page.addInitScript(() => { window.__lcp = 0; try { new PerformanceObserver(l => { for (const e of l.getEntries()) window.__lcp = e.startTime; }).observe({ type: 'largest-contentful-paint', buffered: true }); } catch {} });
   await page.goto(BASE + rota, { waitUntil: 'load', timeout: 90000 });
   /* o interruptor "Reduzir movimento" acionado no MEIO do boot: nada pode
      ficar preso (SplitText no meio do caminho, opacidade zerada) */
@@ -85,15 +87,20 @@ for (const [rota, nome, opcoes, { semCanvas = false, reduzirNoBoot = false } = {
   await page.evaluate(() => scrollTo(0, 0));
   await page.waitForTimeout(400);
   const fps = await medirFps(page);
+  const lcp = Math.round(await page.evaluate(() => window.__lcp));
 
   const reais = erros.filter(e => !/ERR_CERT|GPU stall|swiftshader/i.test(e));
   const ok = (semCanvas || (d.boot && d.reator)) && d.cenaForaDoFluxo && d.overflowX === 0 &&
-    d.waProntos === d.waTotal && reais.length === 0 && d.presos === 0 && d.presosNoFim === 0 && fps > 45;
+    d.waProntos === d.waTotal && reais.length === 0 && d.presos === 0 && d.presosNoFim === 0 && fps > 45 &&
+    /* LCP com orçamento (2,5s é o "bom" do Core Web Vitals); o primeiro alvo da rodada é artefato do headless */
+    (primeiro || lcp < 2500);
+  primeiro = false;
   if (!ok) falhou = true;
 
   console.log(
     (ok ? 'OK  ' : 'FALHA ') + nome.padEnd(10),
     'fps=' + String(fps).padStart(5),
+    'lcp=' + String(lcp).padStart(5) + 'ms',
     'rolagemX=' + d.overflowX,
     'wa=' + d.waProntos + '/' + d.waTotal,
     'nucleo=' + d.reator,

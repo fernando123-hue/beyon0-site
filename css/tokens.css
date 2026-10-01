@@ -41,6 +41,16 @@
   descent-override: 24%;
   line-gap-override: 0%;
 }
+/* Android/Linux: local() só casa o nome real da fonte — sem estas, a reserva
+   ajustada não existia lá e o CLS medido no Windows não representava celular */
+@font-face {
+  font-family: 'Sora Reserva';
+  src: local('Roboto'), local('Noto Sans');
+  size-adjust: 104%;
+  ascent-override: 96%;
+  descent-override: 24%;
+  line-gap-override: 0%;
+}
 
 :root {
   /* ---- SUPERFÍCIES — neutros frios, sem tinta ---- */

@@ -30,7 +30,7 @@
     energy: 0,
     pulse: 0, pulseFront: 0,
     singular: 0, warmth: 0, whiteHot: 0, shock: -1,
-    budget: 1, fps: 60,
+    budget: 1, fps: 60, ref: 60,
     wake: 1, focus: 0, focoAlvo: 0, sv: 0, sdy: 0,
     regime: 'active',
     /* ---- V2 ----
@@ -40,7 +40,11 @@
        null — o retículo do cursor o enquadra. Escrito por js/pagina.js em
        pointerover/out, nunca por frame. */
     boot: 0,
-    alvo: null
+    alvo: null,
+    /* yPercent que o scrub do GSAP aplica à caixa do reator (js/anima.js
+       escreve; js/campo.js e js/profundidade.js convertem o cache de
+       documento sem ler layout) */
+    reatorYP: 0
   };
 
   /* ---- ORÇAMENTO: cai rápido ao estourar, sobe devagar ----
@@ -51,12 +55,28 @@
      derruba o orçamento. */
   var ALVO = 7;
   var fpsEMA = 60, custoEMA = 2;
+  /* A RÉGUA DA TELA. O custo de JS não vê o custo de PINTURA (canvas grande
+     numa GPU fraca ou por software): a página pode estar a 38fps com 0,6ms
+     de script. Então a taxa real também manda — comparada ao TETO que esta
+     tela entrega, medido nos primeiros quadros (quartil inferior dos
+     intervalos), e não a um 60 presumido: uma tela de 30Hz não é lenta. */
+  var REF = 60, amostras = [], reguaPronta = false;
+  function regua(dt) {
+    if (S.t < 4 || dt < 4) return;
+    amostras.push(dt);
+    if (amostras.length < 40) return;
+    amostras.sort(function (a, b) { return a - b; });
+    REF = Math.max(24, Math.min(120, 1000 / amostras[Math.floor(amostras.length / 4)]));
+    S.ref = REF; reguaPronta = true; amostras = null;
+  }
   function orcamento(dt, custo) {
     custoEMA += (custo - custoEMA) * 0.1;
     fpsEMA += (1000 / Math.max(1, dt) - fpsEMA) * 0.1;
     S.fps = fpsEMA;
-    if (custoEMA > ALVO || dt > 34) S.budget = Math.max(0.25, S.budget - 0.02);
-    else if (custoEMA < ALVO * 0.6) S.budget = Math.min(1, S.budget + 0.004);
+    if (!reguaPronta) regua(dt);
+    var lento = reguaPronta && fpsEMA < REF * 0.8;
+    if (custoEMA > ALVO || dt > 34 || lento) S.budget = Math.max(0.25, S.budget - 0.02);
+    else if (custoEMA < ALVO * 0.6 && (!reguaPronta || fpsEMA > REF * 0.9)) S.budget = Math.min(1, S.budget + 0.004);
   }
 
   /* ---- subsistemas ---- */
@@ -111,6 +131,19 @@
   }
   medir();
   window.addEventListener('resize', function () { medir(); emit('resize'); }, { passive: true });
+  /* a altura do documento muda sem resize (FAQ abrindo, fonte chegando,
+     palavra trocando): um observador só, e todo cache de retângulo remede.
+     Coalescido num rAF: várias mutações no mesmo quadro viram um 'remedir'. */
+  if ('ResizeObserver' in window) {
+    var remedirPendente = false;
+    try {
+      new ResizeObserver(function () {
+        if (remedirPendente) return;
+        remedirPendente = true;
+        requestAnimationFrame(function () { remedirPendente = false; medir(); emit('remedir'); });
+      }).observe(document.body);
+    } catch (e) { /* sem observador: os eventos de load/fonts continuam valendo */ }
+  }
   var scrollAntes = 0, deltaScroll = 0;
   window.addEventListener('scroll', function () {
     var y = window.scrollY;
@@ -133,11 +166,17 @@
   }
 
   /* ---- o loop ---- */
-  var antes = 0, rodando = false;
+  var antes = 0, rodando = false, dtAcumulado = 0;
   function frame(now) {
     if (document.hidden) { rodando = false; return; }
-    S.dt = antes ? Math.min(50, now - antes) : 16;
-    antes = now; S.now = now; S.t++;
+    var dtBruto = antes ? Math.min(50, now - antes) : 16;
+    antes = now;
+    /* DORMENTE: ninguém interage há ~40s — o canvas desenha a 15fps. O dt
+       acumulado mantém velocidades e ângulos certos (tudo escala por S.dt). */
+    dtAcumulado += dtBruto;
+    if (S.regime === 'dormant' && (S.t & 3) !== 0 && dtAcumulado < 60) { S.t++; requestAnimationFrame(frame); return; }
+    S.dt = Math.min(80, dtAcumulado); dtAcumulado = 0;
+    S.now = now; S.t++;
     if (S.pointerOn) { S.px += (tx - S.px) * 0.16; S.py += (ty - S.py) * 0.16; }
     S.focus += (S.focoAlvo - S.focus) * 0.12;
     var alvo = S.scroll * 0.62 + (S.pointerOn ? 0.1 : 0) + 0.08;
@@ -210,22 +249,22 @@
 
   /* ---- "menos movimento" em tempo de execução (interruptor do rodapé) ----
      Vira `reduced` para os subsistemas e avisa quem precisa desmontar. */
+  var mqReduce = window.matchMedia('(prefers-reduced-motion: reduce)');
   function reduzir(sim) {
-    reduced = window.BEYON.reduced = sim || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    /* o sistema manda: com prefers-reduced-motion ligado, "ativar" não ativa */
+    reduced = window.BEYON.reduced = !!sim || mqReduce.matches;
     html.classList.toggle('menos-movimento', !!sim);
     try { localStorage.setItem('bz-menos-movimento', sim ? '1' : '0'); } catch (e) { /* sem armazenamento */ }
     emit('reduzir', reduced);
   }
 
   try {
-    window.matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', function (e) {
-      if (e.matches) reduzir(true);
-    });
+    mqReduce.addEventListener('change', function (e) { if (e.matches) reduzir(true); });
   } catch (e) { /* navegador antigo */ }
 
   window.BEYON = {
     S: S, add: add, remove: remove, on: on, off: off, emit: emit, iniciar: iniciar, reduzir: reduzir,
-    reduced: reduced, fine: fine, saveData: saveData, weak: weak, PERF: PERF
+    reduced: reduced, sistemaReduz: mqReduce.matches, fine: fine, saveData: saveData, weak: weak, PERF: PERF
   };
 
   /* BOOT: 'booted' só depois que TODO script `defer` rodou (DOMContentLoaded),

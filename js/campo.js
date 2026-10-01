@@ -49,7 +49,6 @@
   var varr = 0, aber = 0;
   var pxAnt = 0, pyAnt = 0, presenca = 0, temAnt = false;
   var ps = [], nAlvo = 0;
-  var sujo = true;
 
   /* ---- camadas de fundo de outros módulos (profundidade) ---- */
   var camadas = [];
@@ -72,10 +71,15 @@
      abaixo e o fim de cada entrada emite 'remedir' (js/anima.js), então o
      cache acompanha. Só o reator continua medido por frame de rolagem: o
      scrub do GSAP o transforma durante o scroll do hero. */
-  var busDoc = null, servDoc = [], stepDoc = [];
+  var busDoc = null, servDoc = [], stepDoc = [], reatorDoc = null, sujoDoc = true;
   function medirDocumento() {
     /* coordenadas de documento: só mudam em resize/reflow */
     var sy = window.pageYOffset, sx = window.pageXOffset;
+    if (elReator) {
+      var rr = elReator.getBoundingClientRect();
+      /* descontando o transform do scrub (S.reatorYP): a base é yPercent = 0 */
+      reatorDoc = rr.width ? { x: rr.left + sx + rr.width / 2, y: rr.top + sy + rr.height / 2 - (B.S.reatorYP / 100) * rr.height, r: Math.min(rr.width, rr.height) / 2, h: rr.height } : null;
+    }
     var alc = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
     secTops.length = 0; marcasSec.length = 0; kickers.length = 0;
     busDoc = null;
@@ -106,13 +110,10 @@
   }
 
   function medir() {
-    /* retângulos de VIEWPORT dos que entram em cena agora */
-    if (elReator) {
-      var rr2 = elReator.getBoundingClientRect();
-      reator = rr2.width ? { x: rr2.left + rr2.width / 2, y: rr2.top + rr2.height / 2, r: Math.min(rr2.width, rr2.height) / 2 } : null;
-    }
-    /* o resto vem do cache de documento, convertido pela rolagem: zero leitura de layout */
+    /* tudo vem do cache de documento, convertido pela rolagem e pelo scrub:
+       ZERO leitura de layout por frame */
     var sy = B.S.scrollY;
+    reator = reatorDoc ? { x: reatorDoc.x, y: reatorDoc.y + (B.S.reatorYP / 100) * reatorDoc.h - sy, r: reatorDoc.r } : null;
     barramento = null;
     if (busDoc) {
       var by = busDoc.y - sy;
@@ -131,7 +132,6 @@
       if (yy < -60 || yy > H + 60) continue;
       stepNos.push({ x: stepDoc[sp].x, y: yy });
     }
-    sujo = false;
   }
 
   function dimensionar() {
@@ -148,8 +148,7 @@
       nAlvo = B.weak || B.saveData ? 34 : (B.fine ? Math.min(110, Math.round(W * H / 19000)) : 48);
       semear();
     }
-    medirDocumento();
-    sujo = true;
+    sujoDoc = true;
   }
   function semear() {
     ps.length = 0;
@@ -161,12 +160,13 @@
     }
   }
 
-  window.addEventListener('scroll', function () { sujo = true; }, { passive: true });
+  /* todo pedido de remedição só marca; o tick mede UMA vez por quadro */
+  function marcar() { sujoDoc = true; }
   B.on('resize', dimensionar);
-  B.on('remedir', function () { medirDocumento(); sujo = true; });
-  B.on('entrada-pronta', function () { medirDocumento(); sujo = true; });
-  window.addEventListener('load', function () { medirDocumento(); sujo = true; }, { passive: true });
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { medirDocumento(); sujo = true; });
+  B.on('remedir', marcar);
+  B.on('entrada-pronta', marcar);
+  window.addEventListener('load', marcar, { passive: true });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(marcar);
 
   function halo(x, y, r, rgb, a) {
     a = a1(a);
@@ -296,7 +296,8 @@
 
   function tick(S) {
     if (B.reduced) return;
-    if (sujo) medir();
+    if (sujoDoc) { medirDocumento(); sujoDoc = false; }
+    medir();
 
     ctx.clearRect(0, 0, W, H);
     ctx.globalCompositeOperation = 'lighter';

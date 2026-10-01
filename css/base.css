@@ -208,7 +208,7 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 2rem); }
 }
 .hero__status .dot {
   width: 5px; height: 5px; border-radius: 50%; background: var(--ac); flex: none;
-  animation: pulse-dot 2.8s ease-in-out infinite;
+  animation: pulse-dot 2.8s ease-in-out 8;   /* ~22s e para: status, não loop (WCAG 2.2.2; medido: o loop mantinha ~60 recálculos/s) */
 }
 @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
 .hero__eyebrow {

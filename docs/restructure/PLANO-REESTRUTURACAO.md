@@ -837,3 +837,21 @@ por camada em rasterização por software (`docs/fps.mjs`).
 Limite conhecido do ambiente de medição: SwiftShader (CPU) paga caro por
 `backdrop-filter` (satélite do palco, ~3fps) e pela perspectiva 3D da janela
 (~5fps) na página de Sites; numa GPU real esses custos são do compositor.
+
+**Rodada de performance (mesma sessão).** O LCP era a própria coreografia: o
+h1 mascarado só pintava depois de 1,2–1,4s. Agora as palavras nascem a 58%
+(o texto já pinta no primeiro quadro) sem atraso. O scrub do reator publica
+`S.reatorYP` e o canvas converte o cache de documento sem ler layout
+(zero `getBoundingClientRect` por frame de rolagem; antes ~700 em 5s);
+`remedir` é coalescido num quadro; um `ResizeObserver` no body remede
+quando a altura do documento muda (FAQ abrindo, fonte chegando); dormente
+desenha a 15fps; o orçamento também responde à taxa real contra o teto
+medido da tela; "Ativar movimento" obedece ao sistema; `pulse-dot` finito;
+reservas de fonte para Android/Linux; `docs/servidor.mjs` aplica os headers
+do `vercel.json` (paridade com o deploy); verificador com 10 alvos e
+orçamento de LCP.
+
+Não feito, anotado: fundir o rAF do núcleo ao `gsap.ticker` (ordem entre
+os dois laços; ganho não medido); hash nos nomes de CSS/JS com cache
+imutável (exigiria passo de pré-deploy; hoje é ETag/revalidação); DPR 2 e
+CPU throttling no `medir.mjs`.
