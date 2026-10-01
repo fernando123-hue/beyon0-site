@@ -56,6 +56,9 @@
 
   /* ---- o DOM é estático: elementos buscados uma vez, retângulos remedidos ---- */
   var elReator = document.querySelector('.hero__reactor');
+  /* a leitura em volta do núcleo só no hero aberto: no palco de Sites o
+     núcleo fica ATRÁS da janela e os números caíam sobre os botões */
+  var temLeitura = !!(elReator && !elReator.closest('.palco'));
   var elBus = document.querySelector('.bus');
   var elServ = document.querySelectorAll('.card--service');
   var elSecoes = document.querySelectorAll('main > section[id]');
@@ -260,7 +263,7 @@
     /* 7. A LEITURA — o instrumento mostra o que mede. Três valores em mono
        nas marcas cardeais: quadros por segundo, tempo até pronta, bytes deste
        domínio. É a prova prometida pelo título, no objeto que a produz. */
-    if (grande && R > 90 && boot > .85 && S.leitura) {   /* no celular o núcleo é pequeno demais para texto ao redor */
+    if (grande && temLeitura && R > 90 && boot > .85 && S.leitura) {   /* no celular o núcleo é pequeno demais para texto ao redor */
       var aT = a1((boot - .85) / .15 * .75 * Math.min(lum, 1.2));
       ctx.font = '500 10px "JetBrains Mono", ui-monospace, monospace';
       ctx.textBaseline = 'middle';
@@ -348,9 +351,10 @@
     var sdy = Math.max(-26, Math.min(26, S.sdy || 0));
     var temG = temNucleo && viaja < .9 && ny > -nr * 3 && ny < H + nr * 3;
     var gR = temG ? nr * 2.6 : 0, gR2 = gR * gR, gK = .00055 * (.35 + S.wake * .65);
+    var kdt = S.dt / 16.7;   /* tudo escala por S.dt (dormente anda a 15fps com dt acumulado) */
     for (var i = 0; i < quantas; i++) {
       var p = ps[i];
-      p.x += p.vx * (1 + pulso * 2); p.y += p.vy * (1 + pulso * 2);
+      p.x += p.vx * (1 + pulso * 2) * kdt; p.y += p.vy * (1 + pulso * 2) * kdt;
       p.y -= sdy * (.02 + p.z * .14);
       if (p.x < -20) p.x = W + 20; else if (p.x > W + 20) p.x = -20;
       if (p.y < -20) p.y = H + 20; else if (p.y > H + 20) p.y = -20;
@@ -476,7 +480,9 @@
         ctx.strokeStyle = gB; ctx.lineWidth = 1;
         ctx.beginPath(); ctx.moveTo(colX + .5, hy + .5); ctx.lineTo(hx - hr * .9, hy + .5); ctx.stroke();
       }
-      for (var L = 0; L < servNos.length; L++) {
+      /* elos até os cartões só com os cartões lado a lado: numa coluna só
+         (celular) a curva degenera numa reta que atravessa o texto */
+      for (var L = 0; L < (largo ? servNos.length : 0); L++) {
         var sn = servNos[L];
         var pl = prox(S, sn.cx, sn.cy, 300);
         var aL = a1(Math.min(.72, .12 + e * .06 + pl * .6 + pulso * .3));

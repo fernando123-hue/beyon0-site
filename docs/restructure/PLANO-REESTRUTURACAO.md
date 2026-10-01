@@ -857,3 +857,34 @@ imutável (exigiria passo de pré-deploy; hoje é ETag/revalidação); DPR 2 e
 CPU throttling no `medir.mjs`.
 
 DPR medido (desktop 1440×900 a 2x, software): teto do canvas em 2 → 40fps, 1,5 → 44, 1,25 → 45. O preenchimento do canvas não é o custo dominante a 2x (é a composição da página inteira); o teto fica em 2 para as linhas de 1px continuarem nítidas. `docs/medir.mjs` ganhou alvos `hub-2x` e `sites-2x`.
+
+### 13.8 Revisão final de regressão (fim da oitava sessão)
+
+Um agente rodou verificador, acessibilidade e screenshots e leu o diff
+inteiro da segunda rodada. Achou e foi corrigido: leitura "fps / s / KB" do
+núcleo caindo sobre os botões no hero de Sites (agora só no hero aberto);
+link "Prefiro ir direto" duplicado e sem fechar o modal; corrida ao reabrir
+o modal durante o fade (página ficava inerte); elos do barramento
+atravessando o texto dos cartões no celular (só com cartões lado a lado);
+orçamento derrubado em telas de 120Hz (piso absoluto de 50fps no "lento") e
+de 30Hz (quadro perdido relativo ao teto); Pulso disparando ao reativar o
+movimento; leitura de fps mentindo no dormente; partículas sem escalar por
+dt; `backdrop-filter` da nav (A/B rolando: 40fps com, 60 sem).
+
+Estado final: verificador 10/10 (hub 60,6 · sites 57 · automação 60,4;
+celular e 320px a 60), acessibilidade 23/23, zero rolagem lateral de 320 a
+1920, zero erro de console. Commits `52280b5`..HEAD na branch `rebuild-v2`.
+
+**Limitações que ficam (dependem de aparelho real ou de decisão):**
+- Tela de 120Hz: o piso de 50fps é cálculo, não medição. Conferir num
+  celular/iPad 120Hz que o cubo não some (`document.body.classList
+  .contains('tem-profundidade')` e `BEYON.S.budget`).
+- 1920×1200 e DPR 2 em rasterização por software caem a 33–45fps; numa GPU
+  real o canvas 2D é acelerado. Medir na máquina do dono com `?perf`.
+- Sites desktop fica em 47–57fps no headless (perspectiva 3D da janela e
+  satélite com desfoque); igualmente custo de compositor, não de JS.
+- "Ativar movimento" devolve canvas, brumas e profundidade; os
+  ScrollTriggers e a entrada do hero não se rearmam (o interruptor "só
+  desce" para o GSAP). Aceito e documentado.
+- Hash nos nomes de CSS/JS + cache imutável exigiria passo de pré-deploy;
+  hoje é revalidação por ETag.

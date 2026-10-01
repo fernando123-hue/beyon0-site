@@ -32,7 +32,7 @@
   var campoTipoOutroWrap = document.getElementById('leadTipoOutroWrap');
   var campoTipoOutro = form.querySelector('input[name="tipoOutro"]');
   var campoDesafio = form.querySelector('textarea[name="desafio"]');
-  var lastFocus = null;
+  var lastFocus = null, fechando = 0;
 
   /* "Outro" no tipo revela um campo de texto pra especificar — só fica
      obrigatório quando essa opção está selecionada, senão o formulário
@@ -59,6 +59,7 @@
   }
 
   function abrir(gatilho) {
+    clearTimeout(fechando);   /* reabrir durante o fade de saída não pode esconder o modal aberto */
     lastFocus = gatilho;
     modal.hidden = false;
     requestAnimationFrame(function () {
@@ -77,7 +78,7 @@
     document.body.classList.remove('is-lead-open');
     document.removeEventListener('keydown', aoEscapar);
     travarResto(false);
-    setTimeout(function () {
+    fechando = setTimeout(function () {
       modal.hidden = true;
       form.reset();
       if (campoTipoOutroWrap) campoTipoOutroWrap.hidden = true;

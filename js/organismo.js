@@ -160,6 +160,8 @@
   B.on('reduzir', function (sim) {
     if (!sim) return;
     pulsoAtivo = singAtivo = false; pulsoAte = singAte = 0;
+    /* e nada dispara no quadro seguinte se o movimento voltar: reagenda do zero */
+    proxPulso = 0; proxSing = 0; iniciouEm = 0;
     S.pulse = S.pulseFront = S.singular = S.warmth = S.whiteHot = 0; S.shock = -1;
     document.body.classList.remove('is-pulse', 'is-singular');
     stP = 1; stMostrado = stPara = REPOUSO;

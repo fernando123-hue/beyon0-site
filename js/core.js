@@ -69,14 +69,22 @@
     REF = Math.max(24, Math.min(120, 1000 / amostras[Math.floor(amostras.length / 4)]));
     S.ref = REF; reguaPronta = true; amostras = null;
   }
-  function orcamento(dt, custo) {
+  function orcamento(dt, custo, dormente) {
     custoEMA += (custo - custoEMA) * 0.1;
-    fpsEMA += (1000 / Math.max(1, dt) - fpsEMA) * 0.1;
+    /* dormente desenha a 15fps por escolha: o orçamento vê o dt nominal, mas
+       S.fps mostra o que de fato acontece (a leitura não pode mentir) */
+    var fpsAgora = 1000 / Math.max(1, dt);
+    fpsEMA += (fpsAgora - fpsEMA) * 0.1;
     S.fps = fpsEMA;
+    if (dormente) dt = 16;
     if (!reguaPronta) regua(dt);
-    var lento = reguaPronta && fpsEMA < REF * 0.8;
-    if (custoEMA > ALVO || dt > 34 || lento) S.budget = Math.max(0.25, S.budget - 0.02);
-    else if (custoEMA < ALVO * 0.6 && (!reguaPronta || fpsEMA > REF * 0.9)) S.budget = Math.min(1, S.budget + 0.004);
+    /* "lento" tem piso absoluto: numa tela de 120Hz, 60–78fps sustentados são
+       fluidos e não podem derrubar o orçamento (a régua mede 120). O quadro
+       perdido também é relativo ao teto: a 30Hz o nominal já é 33ms. */
+    var lento = reguaPronta && fpsEMA < Math.min(REF * 0.8, 50);
+    var perdido = dt > Math.max(34, (1000 / REF) * 1.6);
+    if (custoEMA > ALVO || perdido || lento) S.budget = Math.max(0.25, S.budget - 0.02);
+    else if (custoEMA < ALVO * 0.6 && (!reguaPronta || fpsEMA > Math.min(REF * 0.9, 56))) S.budget = Math.min(1, S.budget + 0.004);
   }
 
   /* ---- subsistemas ---- */
@@ -202,7 +210,7 @@
       }
     }
     /* dormente a 15fps: o dt longo é escolha, não lentidão — não derruba o orçamento */
-    orcamento(S.regime === 'dormant' ? 16 : S.dt, performance.now() - inicio);
+    orcamento(S.dt, performance.now() - inicio, S.regime === 'dormant');
     requestAnimationFrame(frame);
   }
   /* três falhas seguidas e o subsistema sai do laço — o resto do site segue */

@@ -86,10 +86,11 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 2rem); }
   transition: background-color var(--t) var(--ease-mid), border-color var(--t) var(--ease-mid);
 }
 .nav.is-stuck {
-  background-color: rgb(5 5 7 / .92);
+  /* sem backdrop-filter: a faixa inteira seria reborrada a cada quadro sobre
+     um canvas que muda sempre (A/B medido rolando: 40fps com, 60 sem). A
+     opacidade de .94 já separa a nav do conteúdo. */
+  background-color: rgb(5 5 7 / .94);
   border-bottom-color: var(--line);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
 }
 
 .wordmark { font-weight: 600; font-size: 1rem; letter-spacing: -.015em; color: var(--t1); }
