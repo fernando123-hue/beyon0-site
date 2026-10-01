@@ -201,7 +201,8 @@
         try { subs[j].f(S); } catch (e) { falhou(subs[j], e); }
       }
     }
-    orcamento(S.dt, performance.now() - inicio);
+    /* dormente a 15fps: o dt longo é escolha, não lentidão — não derruba o orçamento */
+    orcamento(S.regime === 'dormant' ? 16 : S.dt, performance.now() - inicio);
     requestAnimationFrame(frame);
   }
   /* três falhas seguidas e o subsistema sai do laço — o resto do site segue */
