@@ -30,29 +30,39 @@
 
 :root {
   /* ---- SUPERFÍCIES — neutros frios com um fio de azul ---- */
-  --bg:      #06080B;
-  --s1:      #0B0E13;
-  --s2:      #11151C;
-  --line:    rgb(255 255 255 / .08);
-  --line-2:  rgb(255 255 255 / .14);
-  --line-hi: rgb(79 216 240 / .35);
-  --vidro:   rgb(255 255 255 / .03);
-  --vidro-2: rgb(255 255 255 / .05);
+  --bg:      #06090E;
+  --s1:      #0B1016;
+  --s2:      #111823;
+  --s3:      #16202D;   /* elevado: hover, aberto */
+  --line:    rgb(170 195 230 / .10);
+  --line-2:  rgb(170 195 230 / .18);
+  --line-hi: rgb(79 216 240 / .4);
+  --vidro:   rgb(140 170 220 / .04);
+  --vidro-2: rgb(140 170 220 / .07);
 
   /* ---- TEXTO — três níveis ---- */
-  --t1: #EEF1F5;   /* 18:1 */
-  --t2: #A3ABB8;   /* 8,5:1 */
-  --t3: #7C8594;   /* 5,3:1 no fundo · 4,9:1 no painel */
-  --stroke: #5C6675;   /* contorno de CONTROLE: 3,4:1 (WCAG 1.4.11) */
+  --t1: #F2F5F9;   /* 18:1 */
+  --t2: #AEB7C4;   /* 9,3:1 */
+  --t3: #7F8A9A;   /* 5,5:1 no fundo · 5,0:1 no painel */
+  --stroke: #5F6B7C;   /* contorno de CONTROLE: 3,5:1 (WCAG 1.4.11) */
 
   /* ---- A COR DE AÇÃO: ciano de instrumento ---- */
   --ac:       #4FD8F0;
   --ac-rgb:   79 216 240;
+  --ac-2:     #8FE8F7;   /* o ciano mais claro: hover, gradiente do botão */
   --ac-tinta: #04171C;   /* texto sobre o ciano */
 
-  /* ---- A LUZ: só na atmosfera, nunca em texto ---- */
+  /* ---- O CONTRAPONTO QUENTE: âmbar de instrumento ----
+     Índice de seção, LED, o estado final de um fluxo, o dado que importa.
+     Aparece pouco: é o que o faz significar. 10,7:1 como texto no fundo. */
+  --ambar:     #F0B44F;
+  --ambar-rgb: 240 180 79;
+  --ambar-tinta: #1C1204;
+
+  /* ---- A LUZ: atmosfera e tintas dos painéis, nunca em texto ---- */
   --luz:      #2A6BFF;
   --luz-rgb:  42 107 255;
+  --verde-rgb: 74 222 160;   /* só como tinta do painel 02 e do estado "ok" */
 
   /* ---- TIPOGRAFIA ---- */
   --sans: 'Sora', 'Sora Reserva', ui-sans-serif, system-ui, sans-serif;
@@ -105,6 +115,7 @@ a { color: inherit; text-decoration: none; }
 button { font: inherit; color: inherit; }
 ::selection { background: rgb(var(--ac-rgb) / .3); color: var(--t1); }
 :focus-visible { outline: 2px solid var(--ac); outline-offset: 3px; }
+.btn--primary:focus-visible { outline-color: var(--ambar); }
 
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .skip-link {
@@ -124,14 +135,15 @@ button { font: inherit; color: inherit; }
 .atmosfera::before {
   content: ""; position: absolute; inset: 0;
   background:
-    radial-gradient(60vmax 60vmax at 100% -10%, rgb(var(--ac-rgb) / .16), rgb(var(--ac-rgb) / 0) 60%),
-    radial-gradient(70vmax 60vmax at -10% 110%, rgb(var(--luz-rgb) / .14), rgb(var(--luz-rgb) / 0) 60%);
+    radial-gradient(60vmax 60vmax at 100% -10%, rgb(var(--ac-rgb) / .18), rgb(var(--ac-rgb) / 0) 60%),
+    radial-gradient(70vmax 60vmax at -10% 110%, rgb(var(--luz-rgb) / .16), rgb(var(--luz-rgb) / 0) 60%),
+    radial-gradient(50vmax 40vmax at 50% 55%, rgb(var(--ambar-rgb) / .05), rgb(var(--ambar-rgb) / 0) 70%);
 }
 .atmosfera::after {
   content: ""; position: absolute; inset: 0;
   background-image:
-    linear-gradient(rgb(255 255 255 / .035) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(255 255 255 / .035) 1px, transparent 1px);
+    linear-gradient(rgb(170 195 230 / .045) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(170 195 230 / .045) 1px, transparent 1px);
   background-size: 72px 72px;
   mask-image: radial-gradient(90vmax 70vmax at 60% 0%, #000 0%, transparent 70%);
   -webkit-mask-image: radial-gradient(90vmax 70vmax at 60% 0%, #000 0%, transparent 70%);
