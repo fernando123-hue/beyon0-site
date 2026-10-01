@@ -1,297 +1,205 @@
 /* ==========================================================================
-   ANIMA — camada GSAP (entrada cinematográfica + gatilhos de scroll).
+   ANIMA — a coreografia (GSAP + ScrollTrigger + SplitText), em todas as páginas.
 
-   Regras que este arquivo respeita, para NÃO repetir o gargalo que motivou a
-   reconstrução (docs/auditoria-performance.md §3):
-   1. Só anima transform/opacity — nunca propriedades de layout, nunca variável
-      de CSS lida por muitas regras. É compositor, não recálculo de estilo.
-   2. É ADITIVO e OPCIONAL: se o GSAP não carregar (CSP, rede), este arquivo sai
-      sem tocar em nada — o site já funciona sem ele (o hero nasce visível, os
-      reveals têm IntersectionObserver próprio em js/dom.js).
-   3. reduced-motion: não anima. O conteúdo aparece direto.
+   Vocabulário fechado (DIRECAO-V2 §3): expo.out nas entradas (0,9–1,1s),
+   expo.inOut nas coberturas, scrub 0.6 no scroll. Só transform/opacity/
+   visibility no DOM. Quando o canvas precisa acompanhar, o GSAP tweena um
+   NÚMERO em B.S (`boot`) — nunca uma variável de CSS.
 
-   GSAP é hospedado local (vendor/gsap) porque a CSP é `script-src 'self'`.
+   É aditivo e opcional: sem GSAP, o arquivo sai, js/pagina.js retira
+   `html.js` e o site aparece inteiro. Em movimento reduzido: só opacidade,
+   curta.
    ========================================================================== */
 (function () {
   'use strict';
+  var B = window.BEYON, gsap = window.gsap, html = document.documentElement;
+  if (!gsap || !B) { html.classList.remove('js'); return; }
 
-  var B = window.BEYON;
-  var gsap = window.gsap;
-  /* degradação limpa: sem GSAP, sem núcleo, ou movimento reduzido → não faz
-     nada. O site inteiro continua de pé; só não ganha o brilho extra. */
-  if (!gsap || !B || B.reduced) return;
-
-  if (window.ScrollTrigger) gsap.registerPlugin(window.ScrollTrigger);
-  if (window.SplitText) gsap.registerPlugin(window.SplitText);
-  /* o GSAP tem o próprio ticker (rAF). Ele só trabalha quando há tween ativo —
-     as entradas são curtas e o ScrollTrigger é dirigido pelo scroll — então não
-     é um "2º loop" gastando por frame em repouso. lagSmoothing(0): sem catch-up
-     que atropela quadros depois de uma aba em segundo plano. */
+  var ST = window.ScrollTrigger, Split = window.SplitText;
+  if (ST) gsap.registerPlugin(ST);
+  if (Split) gsap.registerPlugin(Split);
   gsap.ticker.lagSmoothing(0);
+  html.classList.add('has-gsap');
 
-  /* ASSUMIR O CONTROLE, AGORA — antes de qualquer tween.
-     Esta classe é o contrato com a folha de estilo: "o GSAP está dirigindo,
-     desliga as animações CSS equivalentes". Ela precisa entrar AQUI e não mais
-     tarde, porque a cascata de entrada do hero (.booted .hero__*) é uma
-     @keyframes com fill:both — e animação vence estilo inline no cascade, de
-     forma permanente. Enquanto ela valia, a entrada do hero escrita abaixo
-     tweenava para um elemento cujo opacity/transform o CSS mantinha pinado:
-     status, subtítulo, ações e dica de scroll simplesmente não animavam.
-     Só chega nesta linha quem passou pelas guardas acima (GSAP presente e sem
-     reduced-motion), então o fallback CSS continua intacto para todo o resto. */
-  document.documentElement.classList.add('has-gsap');
+  var EXPO = 'expo.out';
+  var reduzido = B.reduced;
 
-  var feito = false;
-
-  /* NOTA: aqui vivia `vivaChars()`, o "caractere vivo" — cada título era
-     quebrado em `.char` por SplitText e cada letra oscilava para sempre
-     (`@keyframes ressoar`, 3s, infinite).
-
-     Ele saiu com a reformulação visual, e por duas razões independentes:
-
-     1. DIREÇÃO. A regra da camada de instrumentação é que nada anima sozinho em
-        repouso — todo movimento é RESPOSTA a uma ação. Letra que oscila sem
-        ninguém pedir é o oposto disso, e era o tipo de movimento constante que
-        a nova direção recusa por escrito.
-     2. DESPERDÍCIO MEDIDO. A folha de estilo perdeu as regras `.char`/`.viva`
-        na reescrita, mas esta função continuou rodando: media 220 `.char` mais
-        40 `.palavra-viva` — 260 nós, quase METADE dos 542 elementos da página —
-        e ~6 ScrollTriggers, tudo para efeito visual NENHUM. Trabalho puro.
-
-     O SplitText continua carregado e usado logo abaixo, na entrada do hero
-     (`type: 'lines', mask: 'lines'`), que é um evento de ENTRADA e não
-     movimento perpétuo — esse fica. */
-
-  /* ---------- ENTRADA DO HERO: a primeira impressão ----------
-     O título sobe por LINHAS atrás de uma máscara (SplitText mask), depois vêm
-     status, subtítulo, botões e a dica de scroll, em cascata. Split por linha
-     (não por caractere) preserva a palavra-aurora; e revert() no fim devolve o
-     DOM original, então o gradiente da aurora volta perfeito. */
-  /* emitido UMA vez, quando o hero terminou de assentar e o DOM do título já
-     voltou ao original (SplitText revertido). A palavra viva (js/dom.js) espera
-     este sinal para capturar o `<em>` certo — antes dele o título ainda tem o
-     `<em>` vazio que o `mask:'lines'` deixa. Idempotente por `heroProntoEmitido`. */
-  var heroProntoEmitido = false;
-  function emitirHeroPronto() {
-    if (heroProntoEmitido) return;
-    heroProntoEmitido = true;
-    B.emit('hero-pronto');
+  /* ---------- tudo visível, agora (rede de segurança e reduced-motion) ---------- */
+  function mostrarTudo() {
+    gsap.set('.reveal, .hero__status, .hero__eyebrow, .hero__sub, .hero__actions, .hero__rail, .hero__main .fine, .linhas, .nav', { clearProps: 'all' });
+    gsap.set('.hero__title, .display', { clearProps: 'all' });
+    html.classList.remove('js');
+    var todos = document.querySelectorAll('.reveal');
+    for (var i = 0; i < todos.length; i++) todos[i].classList.add('is-in');
+    B.S.boot = 1;
+    B.emit('hero-pronto'); B.emit('entrada-pronta');
   }
 
+  /* ---------- SPLIT com máscara (linhas ou palavras) ----------
+     Devolve as peças a animar; `revert` no fim devolve o DOM original (é o
+     que mantém a divisão um EVENTO, não um estado). */
+  function partir(el, tipo) {
+    if (!Split) return null;
+    try {
+      return new Split(el, { type: tipo, mask: tipo, linesClass: 'split-line', wordsClass: 'split-word' });
+    } catch (e) { return null; }
+  }
+
+  /* ---------- BOOT DO HERO: a primeira impressão ----------
+     Ordem: a nav desce; o status acende; o display sobe por PALAVRAS atrás da
+     máscara enquanto o núcleo (canvas) se traça e abre; subtítulo, ações e
+     trilha em cascata, com sobreposição — o olho nunca pega um quadro morto. */
+  var feito = false;
   function heroEntra() {
     if (feito) return;
     feito = true;
+    if (reduzido) { mostrarTudo(); return; }
 
-    var titulo = document.querySelector('.hero__title');
+    var titulo = document.querySelector('.hero__title, .display');
     var status = document.querySelector('.hero__status');
+    var eyebrow = document.querySelector('.hero__eyebrow');
     var sub = document.querySelector('.hero__sub');
+    var linhas = document.querySelector('.linhas');
     var acoes = document.querySelector('.hero__actions');
-    var hint = document.querySelector('.scroll-hint');
-    var pecas = [status, titulo, sub, acoes, hint];
+    var fine = document.querySelector('.hero__main .fine');
+    var rail = document.querySelector('.hero__rail');
+    var nav = document.querySelector('.nav');
+    var heroPronto = false;
+    var pronto = function () { if (heroPronto) return; heroPronto = true; B.emit('hero-pronto'); };
 
-    /* REDE DE SEGURANÇA (a mesma que scrollReveals já tinha, e que aqui
-       faltava). Agora que `has-gsap` desliga a cascata CSS do hero, o GSAP é o
-       ÚNICO caminho de entrada — e um `from` com autoAlpha põe o elemento em
-       opacity 0 no mesmo tick. Se qualquer linha daqui lançar no meio, a peça
-       já zerada ficaria invisível para sempre, na primeira tela do site. No
-       catch tudo volta a aparecer: o site perde a entrada, nunca o conteúdo. */
     try {
-      /* mais lento e suave (pedido do dono): durações maiores, easing gentil */
-      var tl = gsap.timeline({ defaults: { ease: 'power2.out' } });
+      var tl = gsap.timeline({ defaults: { ease: EXPO } });
+      /* o instrumento acorda: o canvas lê S.boot */
+      tl.to(B.S, { boot: 1, duration: 1.6, ease: 'expo.inOut' }, 0);
+      if (nav) tl.to(nav, { opacity: 1, duration: .9 }, 0);
+      if (status) tl.fromTo(status, { y: 10 }, { opacity: 1, y: 0, duration: .8 }, .15);
+      if (eyebrow) tl.fromTo(eyebrow, { y: 10 }, { opacity: 1, y: 0, duration: .8 }, .15);
 
-      if (status) tl.from(status, { autoAlpha: 0, y: 14, duration: .9 });
+      if (titulo) {
+        var tipo = titulo.classList.contains('display') ? 'words' : 'lines';
+        var sp = partir(titulo, tipo);
+        if (sp) {
+          var pecas = tipo === 'words' ? sp.words : sp.lines;
+          gsap.set(pecas, { yPercent: 112 });
+          gsap.set(titulo, { visibility: 'visible' });
+          tl.to(pecas, {
+            yPercent: 0, duration: tipo === 'words' ? 1.1 : .95,
+            stagger: tipo === 'words' ? .07 : .09,
+            onComplete: function () { sp.revert(); pronto(); B.emit('remedir'); }
+          }, .25);
+        } else {
+          tl.fromTo(titulo, { visibility: 'visible', opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 1, onComplete: pronto }, .25);
+        }
+      } else pronto();
 
-      if (window.SplitText && titulo) {
-        var split = new window.SplitText(titulo, { type: 'lines', mask: 'lines' });
-        tl.from(split.lines, {
-          yPercent: 115, duration: 1.5, stagger: .2, ease: 'power3.out',
-          /* `revert()` devolve o DOM original assim que a entrada termina, e é
-             ele que faz a divisão em linhas ser um EVENTO em vez de um estado.
-             Enquanto o tween roda, o invólucro de máscara mantém um `<em>`
-             duplicado e vazio no título — daí o `:not(:empty)` nas regras dos
-             paquímetros, que existem justamente nessa janela. SÓ DEPOIS do
-             revert o título tem um único `<em>`, e é aí que a palavra viva
-             pode capturá-lo — por isso o sinal sai daqui, não antes. */
-          onComplete: function () { split.revert(); emitirHeroPronto(); }
-        }, '-=.35');
-      } else if (titulo) {
-        /* sem SplitText o título nunca ganha o `<em>` vazio: o em já está limpo
-           desde o começo, então o sinal pode sair ao fim desta entrada simples. */
-        tl.from(titulo, { autoAlpha: 0, y: 26, duration: 1.3,
-          onComplete: emitirHeroPronto }, '-=.35');
-      } else {
-        emitirHeroPronto();                 /* sem título: nada a esperar */
+      if (sub) tl.fromTo(sub, { y: 18 }, { opacity: 1, y: 0, duration: .9 }, '-=.75');
+      if (linhas) tl.fromTo(linhas, { y: 14 }, { opacity: 1, y: 0, duration: .9 }, '-=.7');
+      if (acoes) tl.fromTo(acoes, { y: 14 }, { opacity: 1, y: 0, duration: .9 }, '-=.7');
+      if (fine) tl.to(fine, { opacity: 1, duration: .7 }, '-=.6');
+      if (rail) {
+        tl.to(rail, { opacity: 1, duration: .01 }, '-=.5');
+        tl.from(rail.children, { opacity: 0, y: 10, duration: .8, stagger: .07, clearProps: 'opacity,transform' }, '<');
       }
-
-      if (sub) tl.from(sub, { autoAlpha: 0, y: 18, duration: 1 }, '-=.8');
-      if (acoes) tl.from(acoes.children, { autoAlpha: 0, y: 16, stagger: .14, duration: .9 }, '-=.6');
-      if (hint) tl.from(hint, { autoAlpha: 0, duration: .9 }, '-=.3');
     } catch (e) {
-      for (var p = 0; p < pecas.length; p++) {
-        if (!pecas[p]) continue;
-        gsap.set(pecas[p], { clearProps: 'all' });
-        if (pecas[p].children.length) gsap.set(pecas[p].children, { clearProps: 'all' });
-      }
-      document.documentElement.classList.remove('has-gsap');   /* devolve a cascata ao CSS */
-      emitirHeroPronto();                   /* a entrada falhou, mas o em está intacto */
+      mostrarTudo();
     }
   }
-
-  /* dispara quando o documento sinaliza pronto (evento 'booted', js/core.js —
-     não há mais overlay de vídeo segurando isso). Se já bootou, roda agora.
-     immediateRender do gsap.from põe o estado inicial no mesmo tick, então não
-     há flash de conteúdo visível. */
   if (document.body.classList.contains('booted')) heroEntra();
   else B.on('booted', heroEntra);
 
-  /* ---------- REVEALS DE SCROLL (incremento 2) ----------
-     O GSAP assume os reveals do site (js/dom.js cede quando o GSAP está
-     presente — ver a checagem `gsapReveal` lá). Cada `.reveal` sobe e aparece,
-     em cascata quando o grupo entra na viewport. Só transform/opacity.
-     Segurança: se qualquer coisa falhar aqui, revela tudo na hora (nunca deixa
-     conteúdo preso invisível). Pula o que a LINHA (`.revelando`) já cuida. */
+  /* ---------- ENTRADAS POR SEÇÃO ----------
+     Cada `.reveal` sobe e aparece quando entra (uma vez). Dentro de cada um,
+     os filhos de malha/índice/lista entram em cascata. O título de seção sobe
+     por linhas atrás de máscara: a seção COMEÇA em vez de só estar ali. */
   var jaRevelou = false;
-  function scrollReveals() {
-    if (jaRevelou) return;
-    jaRevelou = true;
-    var ST = window.ScrollTrigger;
-    var alvos = [].slice.call(document.querySelectorAll('.reveal')).filter(function (el) {
-      return !el.closest('.revelando');
-    });
-    if (!alvos.length) return;
-    /* `is-in` é o CONTRATO DE REVELAÇÃO do site, e vale nos dois caminhos.
-       dom.js já o escreve quando ele é o dono dos reveals (sem GSAP ou em
-       reduced-motion); aqui o GSAP dirige opacity/transform por conta própria,
-       mas a classe precisa entrar do mesmo jeito porque o CSS pendura nela os
-       efeitos de ENTRADA que não são opacity/transform — a régua do kicker que
-       se desenha, o sublinhado de medição da palavra em destaque. Sem isto
-       esses efeitos só apareceriam no caminho de fallback, que é justamente o
-       que quase ninguém vê. Marcar é idempotente e não compete com o tween. */
-    var marcar = function (els) {
-      var lista = els.length !== undefined ? els : [els];
-      for (var m = 0; m < lista.length; m++) {
-        lista[m].classList.add('is-in');
-        /* o cabeçalho de seção ganha o tratamento de título (linhas por trás de
-           máscara) além do fade comum. Marcar e tratar no mesmo lugar garante
-           que os dois caminhos — batch e revelação imediata — passem por aqui. */
-        if (lista[m].classList.contains('section__head')) linhasDoTitulo(lista[m]);
-      }
-    };
-    try {
-      gsap.set(alvos, { opacity: 0, y: 28 });
-      if (ST && ST.batch) {
-        ST.batch(alvos, {
-          start: 'top 88%',
-          once: true,
-          onEnter: function (els) {
-            marcar(els);
-            gsap.to(els, { opacity: 1, y: 0, duration: 1.2, stagger: .14, ease: 'power2.out', overwrite: true });
-          }
-        });
-        ST.refresh();
-        /* elementos JÁ no/acima do viewport (ex.: F5 no meio da página): o
-           onEnter só dispara ao entrar de baixo, então quem já ficou acima seria
-           preso invisível ao rolar PARA CIMA. Revela esses na hora. */
-        var vh = window.innerHeight;
-        alvos.forEach(function (el) {
-          if (el.getBoundingClientRect().top < vh * 0.9) {
-            marcar(el);
-            gsap.to(el, { opacity: 1, y: 0, duration: .8, ease: 'power2.out', overwrite: true });
-          }
-        });
-      } else {
-        marcar(alvos);
-        gsap.to(alvos, { opacity: 1, y: 0, duration: 1 });   /* sem batch: revela suave */
-      }
-    } catch (e) {
-      /* falhou: conteúdo NUNCA fica oculto — e `is-in` entra junto, senão os
-         efeitos de entrada ficariam presos no estado inicial (régua de largura
-         zero, sublinhado recortado) num caminho que já é o de emergência. */
-      marcar(alvos);
-      gsap.set(alvos, { opacity: 1, y: 0 });
-    }
-
-    /* ---- PARALAXE CINEMÁTICA — três profundidades, um movimento ----
-       Profundidade só existe se o MESMO movimento produzir medidas diferentes.
-       O campo de partículas já faz isso dentro do canvas (js/field.js, `p.z`);
-       aqui a mesma lei é aplicada aos elementos, e a escala vem da distância
-       narrativa de cada um:
-
-         reator      22%  o objeto mais "à frente" da composição do hero
-         trilha      9%   a faixa de metadados, um plano atrás
-         barramento  13%  o rótulo do AI Core, que flutua sobre a malha
-
-       REGRA QUE MANTÉM ISTO SÓBRIO: nada que se LEIA como texto corrido entra
-       na lista. Deslocar parágrafo ou título enquanto a pessoa lê é o erro que
-       transforma paralaxe em enjoo — e o site tem um argumento de seriedade a
-       proteger. Só peças estruturais e metadados derivam.
-
-       `gsap.matchMedia` desliga tudo abaixo de 820px: no celular a rolagem já
-       é o movimento principal e o percurso vertical é curto demais para a
-       deriva ler como profundidade — leria como tremor. */
-    var hero = document.querySelector('.hero');
-    if (ST && gsap.matchMedia) {
-      try {
-        gsap.matchMedia().add('(min-width: 821px)', function () {
-          var camadas = [
-            { sel: '.hero__reactor', y: 22, trg: hero },
-            { sel: '.hero__rail',    y: 9,  trg: hero },
-            { sel: '.bus',           y: 13, trg: '#servicos' }
-          ];
-          for (var c = 0; c < camadas.length; c++) {
-            var el = document.querySelector(camadas[c].sel);
-            if (!el || !camadas[c].trg) continue;
-            gsap.to(el, {
-              yPercent: camadas[c].y, ease: 'none',
-              scrollTrigger: { trigger: camadas[c].trg, start: 'top top', end: 'bottom top', scrub: true }
-            });
-          }
-        });
-      } catch (e) { /* paralaxe é profundidade, não conteúdo: falhar não quebra nada */ }
-    }
+  function marcar(el) {
+    el.classList.add('is-in');
+    if (el.classList.contains('section__head')) linhasDoTitulo(el);
   }
-
-  /* ---------- O TÍTULO DE SEÇÃO ENTRA POR LINHAS ----------
-     Mesmo gesto do hero, uma hierarquia abaixo: as linhas do título sobem por
-     trás de uma máscara em vez de simplesmente aparecerem. É o que faz cada
-     seção COMEÇAR em vez de só estar ali — e é a única coisa que este site faz
-     com texto em movimento, de propósito: acontece UMA vez, na entrada, e nunca
-     mais. Texto que se mexe enquanto está sendo lido é hostil.
-
-     Compõe com o fade do contêiner que o batch já dispara (opacity no pai,
-     transform nos filhos: canais diferentes, sem disputa). Se o SplitText não
-     estiver presente, não faz nada — o fade sozinho já revela o título. */
   function linhasDoTitulo(cabeca) {
-    if (!window.SplitText) return;
     var h = cabeca.querySelector('h2');
     if (!h || h._partido) return;
     h._partido = true;
-    try {
-      var sp = new window.SplitText(h, { type: 'lines', mask: 'lines' });
-      gsap.from(sp.lines, {
-        yPercent: 108, duration: 1.1, stagger: .12, ease: 'power3.out',
-        /* revert devolve o DOM original — sem isto o `<em>` duplicado e VAZIO
-           que a máscara cria ficaria no título para sempre, e os paquímetros
-           (que existem em `h2 em:not(:empty)`) passariam a medir uma palavra
-           que não está mais lá. */
-        onComplete: function () { sp.revert(); }
-      });
-    } catch (e) {
-      /* o título já está visível pelo fade do contêiner: nada a desfazer */
+    var sp = partir(h, 'lines');
+    if (!sp) return;
+    gsap.from(sp.lines, { yPercent: 108, duration: .95, stagger: .09, ease: EXPO, onComplete: function () { sp.revert(); } });
+  }
+  function filhos(el) {
+    var sel = el.matches('.mesh, .spec, .apps, .indice, .faq-list, .steps, .diag') ? ':scope > *' : null;
+    return sel ? el.querySelectorAll(sel) : null;
+  }
+  function revelar(el, imediato) {
+    marcar(el);
+    var kids = filhos(el);
+    gsap.to(el, { opacity: 1, y: 0, duration: imediato ? .6 : .9, ease: EXPO, overwrite: true });
+    if (kids && kids.length) {
+      gsap.fromTo(kids, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: .9, ease: EXPO, stagger: { each: .08, grid: 'auto', from: 'start' }, clearProps: 'opacity,transform' });
     }
   }
+  function scrollReveals() {
+    if (jaRevelou) return;
+    jaRevelou = true;
+    if (reduzido) return;
+    var alvos = [].slice.call(document.querySelectorAll('.reveal'));
+    if (!alvos.length) return;
+    try {
+      gsap.set(alvos, { y: 28 });
+      if (ST && ST.batch) {
+        ST.batch(alvos, {
+          start: 'clamp(top 86%)', once: true,
+          onEnter: function (els) { for (var i = 0; i < els.length; i++) revelar(els[i], false); }
+        });
+        ST.refresh();
+        var vh = window.innerHeight;
+        alvos.forEach(function (el) {
+          if (el.getBoundingClientRect().top < vh * .86 && !el.classList.contains('is-in')) revelar(el, true);
+        });
+      } else {
+        for (var i = 0; i < alvos.length; i++) revelar(alvos[i], true);
+      }
+    } catch (e) {
+      for (var j = 0; j < alvos.length; j++) { marcar(alvos[j]); gsap.set(alvos[j], { opacity: 1, y: 0 }); }
+    }
 
-  /* só depois da entrada (a LINHA/overlay já resolveram): não revela nada cedo
-     demais nem compete com a cascata do hero. */
-  if (window.ScrollTrigger) {
-    B.on('entrada-pronta', scrollReveals);
-    /* REDE DE SEGURANÇA: dom.js cedeu os reveals ao GSAP, então se
-       'entrada-pronta' nunca vier (entrada.js falhar/sumir), o conteúdo ficaria
-       preso invisível. Preso ao 'booted' (+4,5s) — bem depois do caminho normal
-       (entrada-pronta vem em booted+2rAF), o `jaRevelou` faz o perdedor virar
-       no-op. Espelha a garantia que o dom.js tinha. */
-    var guardaBoot = function () { setTimeout(scrollReveals, 4500); };
-    if (document.body.classList.contains('booted')) guardaBoot();
-    else B.on('booted', guardaBoot);
+    /* ---- SCROLL-DRIVEN: o hero cede, as peças estruturais derivam ----
+       Só peças que NÃO são texto corrido: o reator (o canvas acompanha a
+       caixa), a trilha, o rótulo do barramento. Texto que se move enquanto é
+       lido é hostil. Desligado abaixo de 821px (percurso curto demais). */
+    if (ST && gsap.matchMedia) {
+      try {
+        var mm = gsap.matchMedia();
+        mm.add('(min-width: 821px)', function () {
+          var hero = document.querySelector('.hero');
+          if (hero) {
+            var main = hero.querySelector('.hero__main');
+            if (main) gsap.to(main, { y: -40, opacity: .25, ease: 'none', scrollTrigger: { trigger: hero, start: 'top top', end: 'bottom 30%', scrub: .6 } });
+            var reator = hero.querySelector('.hero__reactor, .palco');
+            if (reator) gsap.to(reator, { yPercent: 14, ease: 'none', scrollTrigger: { trigger: hero, start: 'top top', end: 'bottom top', scrub: .6 } });
+            var rail = hero.querySelector('.hero__rail');
+            if (rail) gsap.to(rail, { yPercent: 10, ease: 'none', scrollTrigger: { trigger: hero, start: 'top top', end: 'bottom top', scrub: .6 } });
+          }
+          var bus = document.querySelector('.bus');
+          if (bus && bus.closest('section')) gsap.to(bus, { yPercent: 14, ease: 'none', scrollTrigger: { trigger: bus.closest('section'), start: 'top bottom', end: 'bottom top', scrub: .6 } });
+        });
+      } catch (e) { /* paralaxe é profundidade, não conteúdo */ }
+    }
   }
+  /* liga depois do boot: não revela cedo demais nem compete com o hero */
+  var ligar = function () { setTimeout(scrollReveals, 120); };
+  if (document.body.classList.contains('booted')) ligar();
+  else B.on('booted', ligar);
+  /* rede: nunca deixa conteúdo preso invisível */
+  setTimeout(function () { if (!jaRevelou) scrollReveals(); }, 4000);
+
+  /* a entrada terminou de ser armada: quem mede caixas remede (o `.reveal`
+     nasceu deslocado 28px) */
+  B.on('hero-pronto', function () { setTimeout(function () { B.emit('entrada-pronta'); }, 50); });
+
+  /* ---------- "menos movimento" em tempo de execução ---------- */
+  B.on('reduzir', function (sim) {
+    if (!sim) return;
+    reduzido = true;
+    try { if (ST) ST.getAll().forEach(function (t) { t.kill(); }); gsap.globalTimeline.clear(); } catch (e) { /* já foi */ }
+    mostrarTudo();
+  });
 })();

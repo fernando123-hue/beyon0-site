@@ -1,5 +1,4 @@
-# deps — o projeto NÃO tem dependência de runtime. O vendor/ com GSAP e o
-# main.js da versão pré-reconstrução foram removidos: eram código morto.
+# deps — o site não tem dependência de runtime instalada; o GSAP é vendorado em vendor/gsap.
 node_modules/
 
 # local / máquina

@@ -1,0 +1,364 @@
+/* ==========================================================================
+   BEYON ZERO — BASE: tipografia, layout, nav, botões, rodapé, régua lateral
+   ========================================================================== */
+
+/* ---- TIPOGRAFIA ----
+   Hierarquia por SALTO DE ESCALA: display fino (300) e enorme contra metadado
+   mono minúsculo. Mono só onde há DADO (índice, medida, coordenada). Copy e
+   controles são Sora. */
+h1, h2, h3 { color: var(--t1); font-weight: 300; text-wrap: balance; }
+
+/* o display: a maior coisa da tela, em peso 300. `.display--frase` é para
+   frases (Hub, automação); `.display` solto é para UMA palavra (Sites). */
+.display {
+  font-size: clamp(3.4rem, 12vw, 8.6rem);
+  line-height: .92;
+  letter-spacing: -.045em;
+}
+.display--frase {
+  font-size: clamp(2.7rem, 7.4vw, 6.2rem);
+  line-height: .98;
+  letter-spacing: -.04em;
+  max-width: 11ch;
+}
+.hero__title {
+  font-size: clamp(2.3rem, 4.6vw, 3.8rem);
+  line-height: 1.05;
+  letter-spacing: -.034em;
+}
+h2 {
+  font-size: clamp(2rem, 4.4vw, 3.4rem);
+  line-height: 1.04;
+  letter-spacing: -.034em;
+}
+h3 { font-size: 1rem; font-weight: 600; line-height: 1.35; letter-spacing: -.008em; }
+p { max-width: 64ch; }
+
+/* as quebras manuais dos títulos são de desktop: no estreito o balance resolve */
+@media (max-width: 620px) { h1 br, h2 br { display: none; } }
+
+/* ênfase: COR sólida, peso igual (mudar peso no hover/ênfase desloca layout) */
+em { font-style: normal; font-weight: 600; color: var(--ac); letter-spacing: -.01em; }
+
+/* o kicker: índice de seção (dado → mono) + régua. A régua é a assinatura
+   estrutural do site; ela se desenha ao revelar (motion.css). */
+.kicker {
+  position: relative;
+  display: flex; align-items: center; gap: .85rem;
+  font-size: .74rem; font-weight: 600;
+  letter-spacing: .12em; text-transform: uppercase;
+  color: var(--t3);
+  margin-bottom: 1.6rem;
+}
+.kicker::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.kicker b { color: var(--ac); font-weight: 500; }
+
+.lead { margin-top: 1.4rem; max-width: 54ch; color: var(--t2); font-size: 1.08rem; }
+
+/* ---- LAYOUT ---- */
+.section {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: var(--sp-top, var(--sp)) var(--pad) var(--sp-bottom, var(--sp));
+}
+.section__head { margin-bottom: clamp(48px, 6vw, 88px); }
+section[id] { scroll-margin-top: calc(var(--nav-h) + 2rem); }
+#hero { scroll-margin-top: 0; }
+
+@media (max-width: 620px) { :root { --sp-tight: 44px; --sp: 60px; --sp-loose: 76px; } .section__head { margin-bottom: 36px; } }
+/* ritmo: apertado · fôlego · médio · fôlego · apertado */
+#dores, #faq           { --sp-top: var(--sp-tight); }
+#faq                   { --sp-bottom: var(--sp-tight); }
+#servicos, #projetos,
+#frentes, #formatos    { --sp-top: var(--sp-loose); }
+#contato, #conversa    { --sp-top: var(--sp-loose); --sp-bottom: var(--sp-tight); }
+
+/* ---- NAV — a borda superior do instrumento, não um objeto flutuando ---- */
+.nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: space-between; gap: 1.5rem;
+  height: var(--nav-h);
+  padding: 0 var(--pad);
+  border-bottom: 1px solid transparent;
+  transition: background-color var(--t) var(--ease-mid), border-color var(--t) var(--ease-mid);
+}
+.nav.is-stuck {
+  background-color: rgb(5 5 7 / .84);
+  border-bottom-color: var(--line);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.wordmark { font-weight: 600; font-size: 1rem; letter-spacing: -.015em; color: var(--t1); }
+.wordmark b { color: var(--ac); font-weight: 600; }
+.wordmark--lg { font-size: 1.25rem; }
+.nav__logo { display: inline-flex; align-items: center; min-height: 44px; }
+
+.nav__links { display: flex; align-items: center; gap: 1.9rem; }
+.nav__links a:not(.btn) {
+  position: relative;
+  font-size: .84rem; font-weight: 500;
+  color: var(--t3);
+  padding: .4rem 0;
+  transition: color var(--t-micro) var(--ease-micro);
+}
+.nav__links a:not(.btn):hover, .nav__links a.is-current { color: var(--t1); }
+/* o marcador da seção atual: um ponto de registro, não um sublinhado */
+.nav__links a.is-current::before {
+  content: ""; position: absolute; left: 50%; top: -6px;
+  width: 3px; height: 3px; margin-left: -1.5px; border-radius: 50%;
+  background: var(--ac);
+}
+.nav__sep { width: 1px; height: 16px; background: var(--line-hi); flex: none; }
+
+.nav__toggle {
+  display: none; width: 44px; height: 44px; flex: none;
+  background: none; border: 0; cursor: pointer;
+  flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+}
+.nav__toggle-bar {
+  width: 18px; height: 1px; background: var(--t2);
+  transition: transform var(--t-micro) var(--ease-micro);
+}
+.nav.is-open .nav__toggle-bar:first-child { transform: translateY(3px) rotate(45deg); }
+.nav.is-open .nav__toggle-bar:last-child  { transform: translateY(-3px) rotate(-45deg); }
+
+@media (max-width: 820px) {
+  .nav { flex-wrap: wrap; height: auto; padding: .8rem var(--pad); }
+  .nav__toggle { display: flex; }
+  .nav__links {
+    flex-direction: column; align-items: stretch; gap: 0;
+    width: 100%; order: 3;
+    max-height: 0; overflow: hidden;
+    transition: max-height var(--t) var(--ease);
+  }
+  .nav.is-open .nav__links { max-height: 26rem; }
+  .nav__links a:not(.btn) { display: flex; align-items: center; min-height: 50px; border-top: 1px solid var(--line); }
+  .nav__links a.is-current::before { left: -10px; top: 50%; margin-top: -1.5px; }
+  .nav__links a.btn { justify-content: center; margin: 1rem 0; }
+  .nav__sep { display: none; }
+}
+
+/* ---- BOTÕES — dois pesos. O primário é a única superfície preenchida com a
+   cor de ação na página inteira: o olho vai nele sem glow. ---- */
+.btn {
+  position: relative;
+  display: inline-flex; align-items: center; gap: .6rem;
+  font-size: .86rem; font-weight: 600; letter-spacing: .005em;
+  padding: .9rem 1.45rem;
+  border: 1px solid var(--stroke);
+  color: var(--t1);
+  background-color: transparent;
+  background-image: linear-gradient(var(--s2), var(--s2));
+  background-repeat: no-repeat;
+  background-size: 0% 100%;
+  cursor: pointer;
+  transition: background-size var(--t) var(--ease),
+              border-color var(--t-micro) var(--ease-micro),
+              color var(--t-micro) var(--ease-micro),
+              translate 220ms var(--ease);
+}
+.btn:hover { border-color: var(--t3); background-size: 100% 100%; }
+.btn:active { transform: scale(.97); }
+.btn--primary {
+  background-color: var(--ac);
+  border-color: var(--ac);
+  color: var(--ac-ink);
+  background-image: linear-gradient(rgb(255 255 255 / .18), rgb(255 255 255 / .18));
+  transition: background-size var(--t) var(--ease),
+              background-color var(--t-sing) var(--ease-mid),
+              border-color var(--t-sing) var(--ease-mid),
+              translate 220ms var(--ease);
+}
+.btn--ghost { color: var(--t2); }
+.btn--ghost:hover { color: var(--t1); }
+.btn--sm { padding: .6rem 1rem; font-size: .8rem; }
+.btn--lg { padding: 1.1rem 2rem; font-size: .92rem; }
+.btn span { display: inline-block; transition: transform var(--t-micro) var(--ease-micro); }
+.btn:hover span { transform: translateX(3px); }
+
+.fine { font-size: .78rem; color: var(--t3); }
+
+/* ---- HERO — composição assimétrica: a frase na coluna larga, o núcleo na
+   estreita, e a trilha de dados fechando a primeira tela como um painel. ---- */
+.hero {
+  position: relative;
+  max-width: var(--maxw);
+  margin: 0 auto;
+  min-height: 100svh;
+  padding: calc(var(--nav-h) + clamp(32px, 6vh, 72px)) var(--pad) clamp(32px, 5vh, 56px);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(220px, 28vw, 360px);
+  grid-template-rows: 1fr auto;
+  align-items: center;
+  column-gap: clamp(28px, 5vw, 72px);
+}
+.hero__main { grid-column: 1; grid-row: 1; }
+.hero__status {
+  display: inline-flex; align-items: center; gap: .6rem;
+  font-size: .78rem; font-weight: 500; letter-spacing: .03em;
+  color: var(--t3);
+  margin-bottom: 1.6rem;
+}
+.hero__status .dot {
+  width: 5px; height: 5px; border-radius: 50%; background: var(--ac); flex: none;
+  animation: pulse-dot 2.8s ease-in-out infinite;
+}
+@keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+.hero__eyebrow {
+  display: flex; align-items: center; gap: .6rem;
+  font-size: .74rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--t3); margin-bottom: 1.1rem;
+}
+.hero__eyebrow::before { content: ''; width: 26px; height: 1px; background: var(--ac); flex: none; }
+.hero__title, .display { margin-bottom: 1.4rem; }
+.hero__sub { color: var(--t2); max-width: 46ch; font-size: 1.08rem; margin-bottom: 2.2rem; }
+.hero__actions { display: flex; flex-wrap: wrap; gap: .8rem; }
+.hero__main .fine { margin-top: 1rem; }
+
+/* a caixa do núcleo: quem desenha é o canvas (js/campo.js lê a geometria) */
+.hero__reactor { position: relative; grid-column: 2; grid-row: 1; width: 100%; aspect-ratio: 1; align-self: center; }
+
+/* a trilha de dados do rodapé do hero */
+.hero__rail {
+  grid-column: 1 / -1; grid-row: 2;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--line);
+  border-block: 1px solid var(--line);
+  margin-top: clamp(36px, 6vh, 64px);
+}
+.hero__rail > * {
+  background: var(--bg);
+  padding: 1.1rem 1.3rem;
+  display: flex; flex-direction: column; gap: .25rem;
+  transition: background-color var(--t) var(--ease-mid);
+}
+.hero__rail a:hover { background: var(--s1); }
+.hero__rail-k {
+  font-size: .68rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--t3);
+}
+.hero__rail-k b { font-family: var(--mono); font-weight: 500; color: var(--ac); margin-right: .3rem; }
+.hero__rail-v { color: var(--t1); font-size: .9rem; line-height: 1.4; }
+.hero__rail-v b { font-family: var(--mono); font-weight: 500; color: var(--ac); font-variant-numeric: tabular-nums; }
+.scroll-hint {
+  display: flex; align-items: center; gap: .7rem;
+  font-family: var(--mono); font-size: .58rem; letter-spacing: .24em; text-transform: uppercase;
+  color: var(--t3);
+  padding: 1.1rem 1.3rem; background: var(--bg);
+  transition: color var(--t-micro) var(--ease-micro);
+}
+.scroll-hint:hover { color: var(--t2); }
+.scroll-hint__bar { width: 26px; height: 1px; background: linear-gradient(90deg, var(--t3), transparent); }
+
+@media (max-width: 860px) {
+  .hero { grid-template-columns: 1fr; grid-template-rows: auto auto auto; align-items: start; }
+  /* no celular o núcleo apresenta primeiro, menor; a frase ganha a largura toda */
+  .hero__reactor { grid-column: 1; grid-row: 1; width: clamp(150px, 44vw, 230px); margin-bottom: 1.4rem; }
+  .hero__main { grid-column: 1; grid-row: 2; }
+  .hero__rail { grid-row: 3; grid-template-columns: 1fr 1fr; }
+  .hero__title { max-width: 18ch; }
+}
+@media (max-width: 520px) {
+  .hero__rail { grid-template-columns: 1fr; }
+  .hero__rail .scroll-hint { display: none; }
+  .display--frase { max-width: 100%; }
+}
+
+/* ---- RÉGUA LATERAL — o índice persistente ----
+   A coluna é desenhada no canvas (js/campo.js); aqui vive o contador de
+   seção, que muda por evento (IntersectionObserver), nunca por frame. */
+.regua {
+  position: fixed; left: 14px; bottom: 28px; z-index: 40;
+  display: none;
+  flex-direction: column; gap: .25rem;
+  font-family: var(--mono); font-size: .58rem; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--t3);
+  pointer-events: none;
+}
+.regua__n { color: var(--t1); font-variant-numeric: tabular-nums; }
+.regua__n b { color: var(--ac); font-weight: 500; }
+.regua__nome { color: var(--t3); }
+@media (min-width: 1001px) { .regua { display: flex; } }
+@media (max-width: 1000px) {
+  .regua { display: flex; flex-direction: row; align-items: center; gap: .6rem; left: auto; right: 48px; bottom: auto; top: calc(var(--nav-h) + 10px); }
+  .regua__nome { display: none; }
+}
+@media (max-width: 820px) { .regua { top: 66px; } }
+
+/* ---- RODAPÉ ---- */
+.footer {
+  position: relative;
+  border-top: 1px solid var(--line);
+  padding: clamp(48px, 7vw, 88px) var(--pad) clamp(32px, 4vw, 48px);
+}
+.footer__grid {
+  max-width: var(--maxw); margin: 0 auto;
+  display: flex; flex-wrap: wrap; gap: 3rem; justify-content: space-between;
+}
+.footer__brand { max-width: 26rem; }
+.footer__brand > a { display: inline-flex; align-items: center; min-height: 28px; }
+.footer__brand p { font-size: .95rem; color: var(--t2); margin-top: 1.1rem; }
+.footer__cta { margin-top: 1.8rem; }
+.footer__links { display: flex; flex-direction: column; }
+.footer__links-title {
+  font-family: var(--mono); font-size: .6rem; letter-spacing: .2em; text-transform: uppercase;
+  color: var(--t3); margin-bottom: .6rem;
+}
+.footer__links a {
+  font-size: .92rem; color: var(--t2);
+  display: flex; align-items: center; min-height: 44px;
+  transition: color var(--t-micro) var(--ease-micro);
+}
+.footer__links a:hover { color: var(--t1); }
+.footer__base {
+  max-width: var(--maxw); margin: clamp(40px, 5vw, 64px) auto 0;
+  padding-top: 1.6rem; border-top: 1px solid var(--line);
+  display: flex; flex-wrap: wrap; gap: .6rem 1.5rem; justify-content: space-between; align-items: center;
+}
+.footer__copy { font-size: .76rem; color: var(--t3); }
+.footer__sig { font-family: var(--mono); font-size: .6rem; letter-spacing: .16em; text-transform: uppercase; color: var(--t3); }
+.footer__motion {
+  background: none; border: 0; padding: 0;
+  font-family: var(--mono); font-size: .6rem; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--t3); cursor: pointer; min-height: 24px;
+  text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--stroke);
+}
+.footer__motion:hover { color: var(--t1); }
+
+/* ---- WHATSAPP + MEDIDOR (canto inferior direito) ---- */
+.wa {
+  position: fixed; right: 18px; bottom: 18px; z-index: 40;
+  width: 50px; height: 50px; border-radius: 6px;
+  display: grid; place-items: center;
+  color: var(--t1); background: var(--s2); border: 1px solid var(--stroke);
+  transition: transform var(--t-micro) var(--ease-micro), background-color var(--t-micro) var(--ease-micro),
+              border-color var(--t-micro) var(--ease-micro), color var(--t-micro) var(--ease-micro);
+}
+.wa:hover { transform: scale(1.05); background: var(--ac); border-color: var(--ac); color: var(--ac-ink); }
+
+.medidor {
+  position: fixed; right: 84px; bottom: 22px; z-index: 40;
+  display: flex; flex-direction: column; align-items: flex-end; gap: .5rem;
+  max-width: min(20rem, calc(100vw - 110px));
+}
+.medidor__btn {
+  display: inline-flex; align-items: center; gap: .5rem;
+  padding: .55rem .75rem;
+  background: rgb(5 5 7 / .78);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--stroke);
+  font-family: var(--mono); font-size: .6rem; letter-spacing: .1em;
+  color: var(--t3); cursor: pointer;
+  transition: border-color var(--t-micro) var(--ease-micro), color var(--t-micro) var(--ease-micro);
+}
+.medidor__btn:hover { border-color: var(--t3); color: var(--t2); }
+.medidor__led { width: 5px; height: 5px; border-radius: 50%; background: var(--led); flex: none; }
+.medidor__nota { order: -1; padding: 1rem 1.1rem; background: var(--s1); border: 1px solid var(--line); text-align: left; }
+.medidor__nota p { font-size: .8rem; line-height: 1.55; color: var(--t2); }
+.medidor__nota p + p { margin-top: .6rem; }
+.medidor__nota b { color: var(--ac); font-weight: 400; }
+.medidor__nota .btn { margin-top: .9rem; }
+@media (max-width: 620px) { .medidor { display: none; } }

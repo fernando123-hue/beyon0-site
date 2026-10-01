@@ -2,11 +2,14 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "beyon0-static",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": ["--yes", "http-server", "-c-1"],
-      "autoPort": true,
-      "port": 8777
+      "name": "beyon-zero-site",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "docs/servidor.mjs",
+        ".",
+        "8899"
+      ],
+      "port": 8899
     }
   ]
 }

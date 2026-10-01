@@ -693,3 +693,83 @@ quando houver renome, sem data). Registro completo em
 
 **Próxima sessão:** não é no site. É `04 Comercial` do segundo cérebro — ver
 o bloco ESTADO no topo de `Beyon Zero\LEIA-ME.md`.
+
+## 13. V2 — RECONSTRUÇÃO COMPLETA (2026-10-01) — LEIA ANTES DA 12
+
+Pedido do dono (texto integral no chat da oitava sessão): recriar a
+experiência inteira — design, copy, motion, interação, arquitetura,
+performance e segurança — tratando o código como matéria-prima, com
+pesquisa de referências premiadas, agentes em paralelo, modo autônomo e
+entrega só ao fim. A direção está em `DIRECAO-V2.md` (mesma pasta).
+
+### 13.1 Estado
+
+| | |
+|---|---|
+| Branch | `rebuild-v2` (a partir de `claude/site-restructure-planning-1cd10h` = `main`) |
+| Publicado? | **NÃO.** Push na `main` é deploy e só o dono pede. |
+| Verificador | `npm run verificar` 7/7 OK · `npm run acessibilidade` 23/23 OK |
+| Revisões | pesquisa de referências, auditoria de segurança, revisão crítica visual e revisão de código por agentes — achados aplicados |
+
+### 13.2 O que foi transformado
+
+- **Identidade.** "O instrumento acorda": o AI Core (abertura hexagonal)
+  nasce no hero, mostra a própria medição (fps, tempo até pronta, KB deste
+  domínio) em volta do anel, e ao rolar VIAJA pela régua lateral; de lá, um
+  elo liga cada seção quando ela é a ativa. No celular ele ancora no canto
+  superior direito e liga o kicker pela direita. Cursor do sistema mantido;
+  o retículo (quatro marcas de canto, canvas) enquadra o elemento apontado.
+- **Hero do Hub.** "Menos promessa. Mais prova." em palavras mascaradas,
+  cubo de vidro projetado em canvas 2D, trilha com as três frentes e a
+  medição ao vivo.
+- **Motion.** GSAP em todas as páginas com vocabulário fechado (expo.out
+  0,9–1,1s nas entradas, scrub 0,6 no scroll, micro 180ms). O GSAP tweena
+  `B.S.boot` para o canvas abrir o diafragma junto com o título. Títulos de
+  seção sobem por linhas mascaradas; malhas e índices entram em cascata.
+- **Profundidade sem three.js.** `js/profundidade.js` projeta os planos
+  (cubo, painéis, portal) no canvas que já existe: mesmo visual dos planos
+  sem luz, 0 KB a mais, roda no toque. three.js (670 KB) removido.
+- **Copy.** Mono só onde há dado; "casa"/"frentes" trocados por "mesma
+  pessoa, mesmo padrão"; repetições cortadas (uma vez por página); CTA com
+  um rótulo por página; mockup de Sites com exemplo neutro.
+- **Mobile como composição própria.** Núcleo compacto ancorado, régua no
+  topo, cartões viram linhas abaixo de 560px, ritmo mais apertado.
+- **Arquitetura.** 4 folhas de CSS por papel, 10 módulos de JS por
+  responsabilidade; Pulso/Singular num módulo só (`organismo.js`) — fecha o
+  item 6 da 12.3. Contrato `html.js`/`has-gsap` com rede de segurança.
+- **Performance.** Fontes locais (65 KB; o Google Fonts travou a primeira
+  pintura em 25s numa medição). Recálculo de estilo em 6s: Hub 53→30ms,
+  Sites 141→65ms, Automação 332→63ms. 60fps parado e rolando em todas.
+  CLS 0 no Hub e em Sites; palavra viva com largura reservada (era 0,18
+  no celular).
+- **Segurança.** `vercel.json` com CSP (sem `unsafe-inline`), nosniff,
+  frame-ancestors/X-Frame-Options, Referrer-Policy, Permissions-Policy, COOP,
+  CORP; `cleanUrls`; nenhum terceiro em runtime.
+- **Ferramentas.** `docs/servidor.mjs`, `verificar.mjs` (7 alvos),
+  `acessibilidade.mjs` (sem JS, reduced-motion, teclado), `olhar.mjs`
+  (screenshots), `medir.mjs` (métricas). Scripts no `package.json`.
+
+### 13.3 Números (headless, SwiftShader, 6s por página; ignorar o primeiro carregamento)
+
+| Página | Recálculo de estilo antes → depois | fps | Bytes deste domínio |
+|---|---|---|---|
+| Hub | 53 → 30 ms | 60 | 259 → 341 KB (GSAP + fontes agora locais; antes 670 KB de three só em desktop) |
+| Sites | 141 → 65 ms | 60 | 267 → 348 KB |
+| Automação | 332 → 63 ms | 60 | 358 → 368 KB |
+
+Na Vercel os JS vão comprimidos (GSAP ≈ 45 KB gz).
+
+### 13.4 O que só o olho do dono fecha
+
+- A frase do hero do Hub ("Menos promessa. Mais prova.") e o novo sub.
+- A palavra viva do hero de automação ficou, mais lenta (6–8s); no CTA
+  saiu. Se preferir o ritmo antigo: `js/palavras.js`, função `reiniciar`.
+- O cubo de vidro como peça do Hub (a revisão crítica o chamou de "enfeite";
+  a leitura ao vivo em volta do núcleo foi a resposta).
+- Publicar: `git checkout main && git merge --ff-only rebuild-v2 && git push`.
+
+### 13.5 O que NÃO entrou (decisões de não-fazer)
+
+Remotion, Lenis, preloader, `cursor: none`, three.js — motivos em
+`DIRECAO-V2.md` §6. Página própria de Experiências Digitais: continua
+pendente (o índice do Hub diz "sem página própria, de propósito").

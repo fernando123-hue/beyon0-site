@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Beyon Zero — sites, automação e inteligência artificial aplicada</title>
-  <meta name="description" content="Uma casa, três frentes: sites que sustentam a marca, automação e IA que devolvem capacidade para a operação, e experiências digitais sob medida." />
+  <meta name="description" content="Menos promessa, mais prova. Sites, automação e IA aplicada construídos por uma casa só: começa pelo problema, fecha com preço, e o que é seu continua seu." />
 
   <link rel="canonical" href="https://beyon0-site.vercel.app/" />
   <meta property="og:url" content="https://beyon0-site.vercel.app/" />
@@ -17,7 +17,6 @@
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="Beyon Zero — a abertura do AI Core sobre uma malha técnica" />
-
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Beyon Zero — ideias ganham forma" />
   <meta name="twitter:description" content="Sites, automação e inteligência artificial aplicada." />
@@ -27,17 +26,8 @@
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
 
-  <meta http-equiv="Content-Security-Policy" content="
-    default-src 'self';
-    script-src 'self';
-    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-    font-src 'self' https://fonts.gstatic.com;
-    img-src 'self' data:;
-    media-src 'self';
-    connect-src 'self';
-    object-src 'none';
-    base-uri 'self';
-    form-action 'none'" />
+  <!-- espelho da política servida em vercel.json (defesa em profundidade) -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'" />
 
   <script type="application/ld+json">
   {
@@ -56,36 +46,24 @@
       "@type": "OfferCatalog",
       "name": "Serviços",
       "itemListElement": [
-        { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Criação de sites", "url": "https://beyon0-site.vercel.app/sites.html" } },
-        { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Automação e inteligência artificial", "url": "https://beyon0-site.vercel.app/automacao.html" } },
+        { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Criação de sites", "url": "https://beyon0-site.vercel.app/sites" } },
+        { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Automação e inteligência artificial", "url": "https://beyon0-site.vercel.app/automacao" } },
         { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Experiências digitais" } }
       ]
     }
   }
   </script>
 
-  <!-- links antigos da landing de IA (/#faq, /#servicos…) seguem para onde a
-       seção mora agora. No <head>, sem defer e ANTES das fontes do Google: um script bloqueante
-       espera as folhas de estilo acima dele, e esperar um terceiro para
-       redirecionar era atraso à toa (achado na sexta revisão).
-       Por isso o Hub usa ids próprios (#frentes, #conversa) — os antigos são
-       todos da página de automação. Ver js/ancoras.js. -->
-  <script src="js/ancoras.js" data-ancoras="servicos contato dores processo projetos faq" data-destino="automacao.html"></script>
+  <!-- no <head>, antes de qualquer pintura: marca html.js e redireciona as
+       âncoras antigas da landing de IA (/#faq, /#servicos…). Ver js/ancoras.js. -->
+  <script src="js/ancoras.js" data-ancoras="servicos contato dores processo projetos faq" data-destino="automacao"></script>
 
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-
-
-  <link rel="stylesheet" href="styles.css" />
-  <link rel="stylesheet" href="css/premium.css" />
-
-  <noscript>
-    <style>
-      .reveal { opacity: 1 !important; transform: none !important; }
-      .card__cta { display: none !important; }
-    </style>
-  </noscript>
+  <link rel="preload" href="assets/fonts/sora-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="assets/fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="css/tokens.css" />
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/componentes.css" />
+  <link rel="stylesheet" href="css/motion.css" />
 </head>
 <body data-wa-padrao="quero entender qual serviço da Beyon Zero faz sentido pro meu negócio" data-status="Sistema online · Beyon Zero">
   <a href="#hero" class="skip-link">Pular para o conteúdo</a>
@@ -93,29 +71,28 @@
   <canvas id="fx" aria-hidden="true"></canvas>
 
   <header class="nav" id="nav">
-    <a href="index.html" class="nav__logo" aria-label="Beyon Zero — início">
+    <a href="/" class="nav__logo" aria-label="Beyon Zero — início">
       <span class="wordmark">Beyon <b>Zero</b></span>
     </a>
     <nav class="nav__links" id="nav-links" aria-label="Navegação principal">
       <a href="#frentes">Serviços</a>
       <a href="#principios">Como trabalho</a>
       <span class="nav__sep" aria-hidden="true"></span>
-      <a href="sites.html">Sites</a>
-      <a href="automacao.html">Automação &amp; IA</a>
+      <a href="/sites">Sites</a>
+      <a href="/automacao">Automação &amp; IA</a>
       <a class="btn btn--sm" data-wa href="#">Falar comigo</a>
     </nav>
-    <button class="nav__toggle" type="button" hidden
-            aria-expanded="false" aria-controls="nav-links" aria-label="Abrir menu">
+    <button class="nav__toggle" type="button" hidden aria-expanded="false" aria-controls="nav-links" aria-label="Abrir menu">
       <span class="nav__toggle-bar" aria-hidden="true"></span>
       <span class="nav__toggle-bar" aria-hidden="true"></span>
     </button>
   </header>
 
   <main>
-    <!-- HERO DO HUB — de propósito, sem o palco de vidro da página de Sites.
-         Aqui a peça é o AI Core sozinho: o Hub apresenta a CASA, e o núcleo é
-         o que as três frentes têm em comum. As páginas de serviço é que
-         mostram o núcleo por trás do trabalho. -->
+    <!-- HERO — a frase na coluna larga, o AI Core na estreita. O núcleo nasce
+         aqui e, ao rolar, viaja pela régua lateral e alimenta cada seção
+         (js/campo.js). A caixa do cubo de vidro mora DENTRO da caixa do
+         núcleo: concêntrica em qualquer largura, sem ocupar espaço. -->
     <section class="hero" id="hero" aria-labelledby="hero-titulo">
       <div class="hero__main">
         <p class="hero__status">
@@ -123,106 +100,83 @@
           <span class="sr-only">Sistema online · Beyon Zero</span>
           <span class="hero__status-txt" aria-hidden="true">Sistema online · Beyon Zero</span>
         </p>
-
-        <h1 class="display display--frase" id="hero-titulo">Ideias ganham forma<span class="display__cursor" aria-hidden="true"></span></h1>
+        <h1 class="display display--frase" id="hero-titulo">Menos promessa. Mais prova.</h1>
         <p class="hero__sub">
-          Sites, automação e inteligência artificial aplicada. Três frentes
-          diferentes, o mesmo padrão de construção — e sempre começando pelo
-          problema, nunca pela ferramenta.
+          Sites, automação e inteligência artificial, feitos pela mesma pessoa,
+          com o mesmo padrão. Começa pelo problema, nunca pela ferramenta.
         </p>
         <div class="hero__actions">
-          <a class="btn btn--primary" href="#frentes">Ver os serviços <span aria-hidden="true">→</span></a>
+          <a class="btn btn--primary" href="#frentes">Ver as três frentes <span aria-hidden="true">→</span></a>
           <a class="btn btn--ghost" data-wa href="#">Falar comigo</a>
         </div>
       </div>
 
-      <!-- o AI Core (desenhado por js/field.js a partir desta caixa) e, DENTRO
-           dela, a caixa do cubo de vidro da imagem 03 do moodboard, em WebGL:
-           o núcleo nítido na frente, o volume girando por trás. Aninhada, ela
-           é concêntrica ao núcleo em qualquer largura e não ocupa espaço no
-           layout. Só existe em aparelho que aguenta — ver js/cena.js. -->
       <div class="hero__reactor" aria-hidden="true">
         <div class="cena cena--hero" data-cena="cubo"></div>
       </div>
 
-      <dl class="hero__rail">
+      <!-- a trilha: as três portas da casa e a prova rodando agora -->
+      <div class="hero__rail">
+        <a href="/sites"><span class="hero__rail-k"><b>01</b> Sites</span><span class="hero__rail-v">Institucionais, landing pages, sob medida</span></a>
+        <a href="/automacao"><span class="hero__rail-k"><b>02</b> Automação &amp; IA</span><span class="hero__rail-v">Diagnóstico grátis, construção depois</span></a>
+        <a href="#experiencias"><span class="hero__rail-k"><b>03</b> Experiências digitais</span><span class="hero__rail-v">Quando o site comum não dá conta</span></a>
         <div>
-          <dt>Frente 01</dt>
-          <dd>Sites e landing pages</dd>
+          <span class="hero__rail-k">Medido agora, neste aparelho</span>
+          <span class="hero__rail-v"><b data-metrica="fps">— fps</b> · pronta em <b data-metrica="carga">—</b></span>
         </div>
-        <div>
-          <dt>Frente 02</dt>
-          <dd>Automação e IA aplicada</dd>
-        </div>
-        <div>
-          <dt>Frente 03</dt>
-          <dd>Experiências digitais</dd>
-        </div>
-        <a href="#frentes" class="scroll-hint" aria-label="Rolar para os serviços">
-          <span>rolar</span>
-          <span class="scroll-hint__bar" aria-hidden="true"></span>
-        </a>
-      </dl>
+      </div>
     </section>
 
-    <!-- ÍNDICE — o Hub não é uma vitrine de três cartões, é o SUMÁRIO da casa.
-         Cada serviço é uma linha grande que acende inteira, e leva para a sua
-         própria página. O terceiro ainda não tem página e não finge ter: o
-         rótulo diz que a conversa é a porta, e o link vai para o WhatsApp. -->
-    <section class="section" id="frentes" aria-labelledby="frentes-titulo">
+    <!-- ÍNDICE — o Hub é o sumário da casa: cada frente é uma linha grande,
+         numerada, que leva à própria página. A terceira não finge ter página:
+         a porta é a conversa. -->
+    <section class="section" id="frentes" data-regua="serviços" aria-labelledby="frentes-titulo">
       <div class="section__head reveal">
-        <p class="kicker">// serviços</p>
-        <h2 id="frentes-titulo">Três frentes, <br />uma casa só.</h2>
-        <p class="lead">Cada uma resolve um problema diferente. Se você não souber qual é o seu, a primeira conversa serve exatamente para isso.</p>
+        <p class="kicker">Serviços</p>
+        <h2 id="frentes-titulo">Três frentes. <br />Um padrão.</h2>
+        <p class="lead">Não sabe qual é a sua? A primeira conversa resolve isso. É grátis.</p>
       </div>
 
       <div class="indice reveal">
-        <a class="indice__item" href="sites.html">
+        <a class="indice__item" href="/sites">
           <span class="indice__n" aria-hidden="true">01</span>
           <span class="indice__txt">
             <h3>Sites</h3>
-            <p>Sites institucionais, landing pages e sites sob medida. Uma presença digital à altura do seu negócio, com performance e acessibilidade como requisito — não como ajuste do fim.</p>
+            <p>Institucionais, landing pages e sob medida. Performance e acessibilidade entram como requisito de projeto, não como ajuste do fim. A prova roda na sua frente enquanto você lê.</p>
           </span>
           <span class="indice__seta" aria-hidden="true">→</span>
         </a>
-
-        <a class="indice__item" href="automacao.html">
+        <a class="indice__item" href="/automacao">
           <span class="indice__n" aria-hidden="true">02</span>
           <span class="indice__txt">
             <h3>Automação &amp; IA</h3>
-            <p>Diagnóstico primeiro, construção depois. Agentes, automação de processos e sistemas que devolvem capacidade para a operação — e só onde a conta fecha.</p>
+            <p>Diagnóstico grátis primeiro, construção depois. Agentes, automação de processos e sistemas que devolvem capacidade para a operação. Só onde a conta fecha.</p>
           </span>
           <span class="indice__seta" aria-hidden="true">→</span>
         </a>
-
         <a class="indice__item" data-wa="quero falar sobre uma experiência digital sob medida" href="#">
           <span class="indice__n" aria-hidden="true">03</span>
           <span class="indice__txt">
             <h3>Experiências digitais<span class="indice__tag">sob demanda</span></h3>
-            <p>Quando o objetivo não cabe num site comum: apresentações interativas, peças de campanha e interfaces que precisam ser lembradas depois de fechadas.</p>
+            <p>Apresentações, lançamentos e interfaces que não cabem num site comum. Sem página própria, de propósito: cada projeto começa de um lugar diferente, e a porta é a conversa.</p>
           </span>
           <span class="indice__seta" aria-hidden="true">→</span>
         </a>
       </div>
     </section>
 
-    <!-- EXPERIÊNCIAS DIGITAIS — a frente sem página própria ganha presença
-         visual aqui, com o motivo do portal (imagem 07 do moodboard),
-         construído em CSS em vez de fotografado. -->
-    <section class="section" id="experiencias" aria-labelledby="experiencias-titulo">
+    <!-- EXPERIÊNCIAS DIGITAIS — a frente sem página própria ganha presença: o
+         portal, construído em CSS e aprofundado no canvas. -->
+    <section class="section" id="experiencias" data-regua="experiências" aria-labelledby="experiencias-titulo">
       <div class="par reveal">
         <div class="par__txt">
-          <p class="kicker">// experiências digitais</p>
+          <p class="kicker">Experiências digitais</p>
           <h2 id="experiencias-titulo">Quando o site comum <br />não dá conta.</h2>
           <p>
-            Tem projeto que não precisa de mais uma página bem feita: precisa de
-            uma peça que prenda quem abriu. Uma apresentação que responde ao
-            gesto, um lançamento que se comporta como produto, uma interface que
-            a pessoa lembra depois de fechar a aba.
-          </p>
-          <p>
-            Esta frente ainda não tem página própria porque cada projeto começa
-            de um lugar diferente. A porta é a conversa.
+            Tem projeto que não precisa de mais uma página bem feita: precisa
+            de uma peça que prenda quem abriu. Uma apresentação que responde ao
+            gesto, um lançamento que se comporta como produto, uma interface
+            que a pessoa lembra depois de fechar a aba.
           </p>
           <a class="btn btn--ghost" data-wa="quero falar sobre uma experiência digital sob medida" href="#">Conversar sobre uma ideia <span aria-hidden="true">→</span></a>
         </div>
@@ -237,19 +191,19 @@
       </div>
     </section>
 
-    <section class="section" id="principios" aria-labelledby="principios-titulo">
+    <section class="section" id="principios" data-regua="como trabalho" aria-labelledby="principios-titulo">
       <div class="section__head reveal">
-        <p class="kicker">// como trabalho</p>
+        <p class="kicker">Como trabalho</p>
         <h2 id="principios-titulo">Três regras que valem <br />nas três frentes.</h2>
       </div>
       <div class="spec reveal">
         <article class="spec__item">
           <h3>Começa pelo problema</h3>
-          <p>Antes de falar de site, de agente ou de ferramenta, eu quero saber o que está travando. Solução escolhida antes do diagnóstico é chute com fatura.</p>
+          <p>Antes de falar de site, de agente ou de ferramenta, quero saber o que está travando. Solução escolhida antes do diagnóstico é chute com fatura.</p>
         </article>
         <article class="spec__item">
           <h3>Preço fechado antes</h3>
-          <p>Escopo e valor combinados antes de a construção começar, e sem comissão de fornecedor no meio — inclusive quando a resposta certa é não construir nada.</p>
+          <p>Escopo e valor combinados antes de a construção começar, sem comissão de fornecedor no meio. Inclusive quando a resposta certa é não construir nada.</p>
         </article>
         <article class="spec__item">
           <h3>O que é seu continua seu</h3>
@@ -258,10 +212,10 @@
       </div>
     </section>
 
-    <section class="section section--cta" id="conversa" aria-labelledby="conversa-titulo">
+    <section class="section section--cta" id="conversa" data-regua="conversa" aria-labelledby="conversa-titulo">
       <div class="cta reveal">
         <h2 id="conversa-titulo">Me diga o que precisa <br />acontecer. Eu digo <em>como</em>.</h2>
-        <p>Uma conversa curta resolve a primeira pergunta: se o seu caso é site, automação, as duas coisas ou nenhuma delas. Não custa nada e não compromete você com nada.</p>
+        <p>Uma conversa curta resolve a primeira pergunta: se o seu caso é site, automação, as duas coisas ou nenhuma delas.</p>
         <a class="btn btn--primary btn--lg" data-wa href="#">Falar comigo</a>
         <p class="fine">Quem responde é humano.</p>
       </div>
@@ -271,14 +225,14 @@
   <footer class="footer">
     <div class="footer__grid">
       <div class="footer__brand">
-        <a href="index.html" aria-label="Beyon Zero — início"><span class="wordmark wordmark--lg">Beyon <b>Zero</b></span></a>
+        <a href="/" aria-label="Beyon Zero — início"><span class="wordmark wordmark--lg">Beyon <b>Zero</b></span></a>
         <p>Ideias ganham forma.<br />E o resultado se mede.</p>
-        <a class="btn btn--sm btn--primary footer__cta" data-wa href="#">Vamos conversar <span aria-hidden="true">→</span></a>
+        <a class="btn btn--sm btn--primary footer__cta" data-wa href="#">Falar comigo <span aria-hidden="true">→</span></a>
       </div>
       <nav class="footer__links" aria-label="Serviços">
         <p class="footer__links-title">Serviços</p>
-        <a href="sites.html">Sites</a>
-        <a href="automacao.html">Automação &amp; IA</a>
+        <a href="/sites">Sites</a>
+        <a href="/automacao">Automação &amp; IA</a>
         <a data-wa="quero falar sobre uma experiência digital sob medida" href="#">Experiências digitais</a>
       </nav>
       <nav class="footer__links" aria-label="Links do rodapé">
@@ -289,15 +243,30 @@
     </div>
     <div class="footer__base">
       <p class="footer__copy">© <span id="year">2026</span> Beyon Zero. Todos os direitos reservados.</p>
-      <p class="footer__sig" aria-hidden="true">// applied intelligence · sistema em operação</p>
+      <button class="footer__motion" type="button" aria-pressed="false">Reduzir movimento</button>
     </div>
   </footer>
 
+  <!-- a régua lateral: a coluna é desenhada no canvas; aqui só o contador -->
+  <div class="regua" aria-hidden="true">
+    <span class="regua__n"><b>00</b> / 04</span>
+    <span class="regua__nome">início</span>
+  </div>
+
+  <a data-wa class="wa" href="#" aria-label="Falar no WhatsApp">
+    <svg viewBox="0 0 32 32" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M16.04 3.2c-7.1 0-12.86 5.76-12.86 12.86 0 2.27.6 4.48 1.73 6.43L3.2 28.8l6.5-1.7a12.8 12.8 0 0 0 6.33 1.66h.01c7.1 0 12.86-5.76 12.86-12.86S23.14 3.2 16.04 3.2zm0 23.3h-.01a10.7 10.7 0 0 1-5.44-1.49l-.39-.23-3.86 1.01 1.03-3.76-.25-.4a10.66 10.66 0 0 1-1.63-5.68c0-5.9 4.8-10.7 10.7-10.7 2.86 0 5.54 1.11 7.56 3.13a10.62 10.62 0 0 1 3.13 7.57c0 5.9-4.8 10.7-10.7 10.7zm5.87-8.01c-.32-.16-1.9-.94-2.2-1.05-.3-.11-.51-.16-.72.16-.21.32-.83 1.05-1.02 1.26-.19.21-.37.24-.69.08-.32-.16-1.36-.5-2.59-1.6-.96-.85-1.6-1.91-1.79-2.23-.19-.32-.02-.5.14-.66.14-.14.32-.37.48-.56.16-.19.21-.32.32-.53.11-.21.05-.4-.03-.56-.08-.16-.72-1.74-.99-2.38-.26-.62-.52-.54-.72-.55l-.61-.01c-.21 0-.56.08-.85.4-.29.32-1.11 1.09-1.11 2.66 0 1.57 1.14 3.08 1.3 3.29.16.21 2.24 3.42 5.43 4.8.76.33 1.35.52 1.81.67.76.24 1.45.21 2 .13.61-.09 1.9-.78 2.17-1.53.27-.75.27-1.39.19-1.53-.08-.14-.29-.21-.61-.37z"/></svg>
+  </a>
+
+  <!-- GSAP local (a CSP é script-src 'self'). Sem ele, o site aparece inteiro. -->
+  <script src="vendor/gsap/gsap.min.js" defer></script>
+  <script src="vendor/gsap/ScrollTrigger.min.js" defer></script>
+  <script src="vendor/gsap/SplitText.min.js" defer></script>
   <script src="js/tel.js" defer></script>
   <script src="js/core.js" defer></script>
-  <script src="js/field.js" defer></script>
-  <script src="js/entrada.js" defer></script>
+  <script src="js/organismo.js" defer></script>
+  <script src="js/campo.js" defer></script>
+  <script src="js/profundidade.js" defer></script>
   <script src="js/pagina.js" defer></script>
-  <script src="js/cena.js" defer></script>
+  <script src="js/anima.js" defer></script>
 </body>
 </html>

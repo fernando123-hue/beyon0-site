@@ -1,27 +1,28 @@
 /* ==========================================================================
-   ÂNCORAS ANTIGAS — roda no <head>, antes de qualquer coisa ser pintada.
+   CABEÇA — roda no <head>, antes de qualquer coisa ser pintada. Duas tarefas:
 
-   Até a reestruturação, a landing de IA morava em `/`. Links que já estão por
-   aí — no WhatsApp, numa proposta, num QR code — apontam para `/#faq`,
-   `/#servicos`, `/#contato`… Agora `/` é o Hub. Sem isto, o link abriria o Hub
-   sem a seção que a pessoa foi buscar (ou, pior, com OUTRA seção de mesmo
-   nome).
+   1. `html.js`: o contrato de revelação (css/motion.css). Só com esta classe
+      o conteúdo nasce escondido para o GSAP revelar. Sem JS, tudo é visível
+      desde o HTML — e js/pagina.js retira a classe se o GSAP não vier.
+      Também restaura o interruptor "menos movimento" do rodapé antes do
+      primeiro quadro, para não piscar.
 
-   Por que um arquivo só para isto, e no <head>:
-   · a primeira versão vivia em js/pagina.js — um script `defer` no fim do
-     body. O Hub era baixado, montado e às vezes pintado antes do salto: um
-     clarão da página errada. Aqui ele roda antes do corpo existir;
-   · a CSP é `script-src 'self'`, então não pode ser script inline;
-   · a lista de âncoras vem do próprio <script>, em `data-ancoras`, porque o
-     <body> ainda não existe neste ponto.
+   2. Âncoras antigas: a landing de IA morava em `/`. Links já distribuídos
+      (`/#faq`, `/#servicos`…) seguem para a página de automação, com a query
+      de campanha preservada e `replace` (sem sujar o histórico). A lista de
+      âncoras vem de `data-ancoras` no próprio <script>; o destino, de
+      `data-destino` — nunca da URL (sem open redirect).
 
-   `location.search` vai junto: um link de campanha (`?utm_source=…#faq`)
-   perdia a atribuição no salto. `replace`, não `assign`: o endereço velho não
-   fica no histórico para o botão de voltar cair nele de novo.
-   Achados na terceira e na quinta revisão.
+   A CSP é `script-src 'self'`: por isso é um arquivo, não um script inline.
    ========================================================================== */
 (function () {
   'use strict';
+  var html = document.documentElement;
+  html.classList.add('js');
+  try {
+    if (localStorage.getItem('bz-menos-movimento') === '1') html.classList.add('menos-movimento');
+  } catch (e) { /* armazenamento bloqueado: segue o padrão do sistema */ }
+
   var eu = document.currentScript;
   if (!eu || !location.hash) return;
   var ids = (eu.getAttribute('data-ancoras') || '').split(/\s+/);

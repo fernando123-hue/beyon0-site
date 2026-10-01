@@ -1,0 +1,73 @@
+/* ==========================================================================
+   BEYON ZERO — MOTION: estados de revelação, regimes do organismo, reduced-motion
+
+   Quem dirige as entradas é o GSAP (js/anima.js). O CSS só define os estados
+   iniciais e as transições por EVENTO (classe). Nenhuma variável muda por frame.
+
+   CONTRATO DE REVELAÇÃO
+   · `html.js` entra no <head> (js/ancoras.js) antes de qualquer pintura:
+     só então o conteúdo nasce escondido. Sem JS, tudo é visível desde o HTML.
+   · `html.has-gsap` entra no topo de js/anima.js. Se o GSAP não vier,
+     js/pagina.js retira `js` do <html> e o conteúdo aparece inteiro.
+   · `.is-in` é escrito pelo GSAP ao revelar: é dela que pendem os efeitos de
+     entrada que não são transform/opacity (a régua do kicker).
+   ========================================================================== */
+
+/* estados iniciais, SÓ com JS presente */
+html.js .reveal { opacity: 0; }
+html.js .hero__title, html.js .display { visibility: hidden; }
+html.js .hero__status, html.js .hero__eyebrow, html.js .hero__sub, html.js .hero__actions,
+html.js .hero__rail, html.js .hero__main .fine, html.js .linhas, html.js .nav { opacity: 0; }
+html.js:not(.has-gsap) .reveal, html.js:not(.has-gsap) .hero__title, html.js:not(.has-gsap) .display { transition: opacity var(--t-slow) var(--ease); }
+
+/* a régua do kicker se desenha quando a seção é revelada */
+.kicker::after { transform-origin: left; transition: transform 1s var(--ease) .1s; }
+html.js .reveal:not(.is-in) .kicker::after { transform: scaleX(0); }
+
+/* o SplitText embrulha linhas/palavras numa máscara: nada vaza dela */
+.split-mask { overflow: hidden; }
+
+/* ---- REGIMES DO ORGANISMO ----
+   O canvas faz o espetáculo. O DOM só acompanha, e só onde a cor é assinatura. */
+.is-pulse { --ac: #7FE9FF; --ac-rgb: 127 233 255; }
+/* Singular: só a LUZ muda de temperatura — a mesma sala com outra lâmpada.
+   LITERAL, não var(--warm): --ac é @property registrado (ver tokens.css). */
+.is-singular { --ac: #F0B44F; --ac-rgb: 240 180 79; }
+h1, h2 { transition: text-shadow var(--t-sing) var(--ease-mid); }
+.is-singular h1, .is-singular h2 { text-shadow: 0 0 28px rgb(var(--ac-rgb) / .15); }
+.is-singular .vidro { box-shadow: inset 0 1px 0 rgb(255 255 255 / .12), 0 30px 110px -36px rgb(var(--ac-rgb) / .5), 0 2px 30px -12px rgb(0 0 0 / .8); }
+/* dormente: a película recolhe; nenhum texto muda de contraste */
+.is-dormant::after { opacity: .022; }
+
+/* ---- MOVIMENTO REDUZIDO ----
+   Quem pede menos movimento recebe a página inteira, parada, e nada escondido.
+   Vale para a preferência do sistema E para o interruptor do rodapé
+   (`html.menos-movimento`, js/pagina.js). */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+  }
+  html.js .reveal, html.js .hero__status, html.js .hero__eyebrow, html.js .hero__sub, html.js .hero__actions,
+  html.js .hero__rail, html.js .hero__main .fine, html.js .linhas, html.js .nav { opacity: 1; }
+  html.js .hero__title, html.js .display { visibility: visible; }
+  html.js .reveal:not(.is-in) .kicker::after { transform: none; }
+  .diag__row::after { clip-path: inset(0 0 0 0); }
+  .janela, .palco:hover .janela { transform: none; }
+  #fx { display: none; }
+}
+html.menos-movimento { scroll-behavior: auto; }
+html.menos-movimento *, html.menos-movimento *::before, html.menos-movimento *::after {
+  animation-duration: .001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: .001ms !important;
+}
+html.menos-movimento .reveal, html.menos-movimento .hero__status, html.menos-movimento .hero__eyebrow,
+html.menos-movimento .hero__sub, html.menos-movimento .hero__actions, html.menos-movimento .hero__rail,
+html.menos-movimento .hero__main .fine, html.menos-movimento .linhas, html.menos-movimento .nav { opacity: 1; }
+html.menos-movimento .hero__title, html.menos-movimento .display { visibility: visible; }
+html.menos-movimento .reveal:not(.is-in) .kicker::after { transform: none; }
+html.menos-movimento .diag__row::after { clip-path: inset(0 0 0 0); }
+html.menos-movimento #fx { display: none; }

@@ -1,5 +1,14 @@
 # Beyon Zero — transferência de contexto
 
+> **V2 — RECONSTRUÇÃO COMPLETA (2026-10-01, branch `rebuild-v2`, NÃO PUBLICADA).**
+> Design, copy, motion, arquitetura, performance e segurança foram refeitos.
+> Leia `docs/restructure/DIRECAO-V2.md` e a seção 13 de
+> `docs/restructure/PLANO-REESTRUTURACAO.md` ANTES deste arquivo. Aqui
+> continuam valendo só a história e as leis de performance (seções 3–4); a
+> identidade (5, 14), a arquitetura (6, 16) e os arquivos citados abaixo
+> (`styles.css`, `css/premium.css`, `js/field.js`, `js/dom.js`, `js/cena.js`,
+> `js/entrada.js`, `vendor/three`) **não existem mais**.
+
 **Última atualização:** 2026-09-13f · **Branch ativa:** `rebuild` · **HEAD:** `9719639` — **PUBLICADO E VERIFICADO AO VIVO** (`origin/main` = `9719639`). Pela primeira vez nesta sequência de sessões, o agente abriu a URL publicada de verdade (`https://beyon0-site.vercel.app/`, não `file://`) e navegou a página inteira — ver seção 25. Achou e corrigiu 2 bugs reais que só existiam em produção (JS quebrando copy nova). Depois do fix, tudo conferido ao vivo: desktop, mobile 375px, accordion FAQ, menu mobile, modal de lead. Zero erro de console.
 
 > **O SITE DEIXOU DE SER UMA ONE-PAGE (2026-09-22, branch

@@ -9,8 +9,8 @@
   <!-- URLs absolutas de propósito: crawlers de rede social não resolvem
        caminho relativo. Se o domínio mudar, trocar og:image, twitter:image e
        canonical juntos (ver assets/README.txt). -->
-  <link rel="canonical" href="https://beyon0-site.vercel.app/automacao.html" />
-  <meta property="og:url" content="https://beyon0-site.vercel.app/automacao.html" />
+  <link rel="canonical" href="https://beyon0-site.vercel.app/automacao" />
+  <meta property="og:url" content="https://beyon0-site.vercel.app/automacao" />
   <meta property="og:site_name" content="Beyon Zero" />
   <meta property="og:locale" content="pt_BR" />
   <meta property="og:title" content="Beyon Zero — IA aplicada para associações, sindicatos e federações" />
@@ -26,31 +26,21 @@
   <meta name="twitter:description" content="Diagnóstico grátis, sem comissão de ferramenta. Descubro onde a IA paga por si na sua entidade, e construo só isso." />
   <meta name="twitter:image" content="https://beyon0-site.vercel.app/assets/og-cover.jpg" />
 
-  <!-- bate com --bg do styles.css. Estava #000000, de quando o fundo era preto
+  <!-- bate com --bg de css/tokens.css. Estava #000000, de quando o fundo era preto
        absoluto; a reformulação subiu para #050507 e a barra do navegador no
        celular ficava um degrau mais escura que a página. -->
   <meta name="theme-color" content="#050507" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
 
-  <meta http-equiv="Content-Security-Policy" content="
-    default-src 'self';
-    script-src 'self';
-    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-    font-src 'self' https://fonts.gstatic.com;
-    img-src 'self' data:;
-    media-src 'self';
-    connect-src 'self';
-    object-src 'none';
-    base-uri 'self';
-    form-action 'none'" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'" />
 
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "ProfessionalService",
     "name": "Beyon Zero",
-    "url": "https://beyon0-site.vercel.app/automacao.html",
+    "url": "https://beyon0-site.vercel.app/automacao",
     "image": "https://beyon0-site.vercel.app/assets/og-cover.jpg",
     "description": "Inteligência artificial aplicada: agentes, automação e sistemas que resolvem problemas reais de operação e geram valor econômico, com foco em associações, sindicatos, federações e cooperativas.",
     "telephone": "+55-21-97716-7944",
@@ -115,28 +105,15 @@
   }
   </script>
 
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <!-- Sora 400 SAIU: nenhuma regra da folha pede esse peso. Ele só era baixado
-       porque `em` declarava 500 (peso que nunca esteve na lista) e o navegador
-       caía no 400 — a ênfase virou 600, que é carregado, e o arquivo do 400
-       deixou de ser baixado por toda visita. Os pesos usados são exatamente
-       estes quatro: Sora 300/600 e JetBrains Mono 400/500. -->
-  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-
-  <link rel="stylesheet" href="styles.css" />
-
-  <noscript>
-    <style>
-      .reveal { opacity: 1 !important; transform: none !important; }
-      .medidor { display: none !important; }
-      /* os links de WhatsApp são montados pelo JS: sem ele, a seta prometeria
-         uma ação que não acontece. Some a afordância, fica o conteúdo. */
-      .card__cta { display: none !important; }
-    </style>
-  </noscript>
+  <script src="js/ancoras.js"></script>
+  <link rel="preload" href="assets/fonts/sora-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="assets/fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="css/tokens.css" />
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/componentes.css" />
+  <link rel="stylesheet" href="css/motion.css" />
 </head>
-<body>
+<body data-wa-padrao="quero entender onde a IA pode ajudar no meu negócio" data-status="Sistema online · Beyon Zero">
   <a href="#hero" class="skip-link">Pular para o conteúdo</a>
 
   <!-- CAMADA DE ENERGIA — um canvas só, em tela cheia, atrás de tudo.
@@ -147,7 +124,7 @@
   <canvas id="fx" aria-hidden="true"></canvas>
 
   <header class="nav" id="nav">
-    <a href="index.html" class="nav__logo" aria-label="Beyon Zero — início">
+    <a href="/" class="nav__logo" aria-label="Beyon Zero — início">
       <span class="wordmark">Beyon <b>Zero</b></span>
     </a>
     <nav class="nav__links" id="nav-links" aria-label="Navegação principal">
@@ -155,7 +132,7 @@
       <a href="#processo">Método</a>
       <a href="#faq">FAQ</a>
       <span class="nav__sep" aria-hidden="true"></span>
-      <a href="sites.html">Sites</a>
+      <a href="/sites">Sites</a>
       <a class="btn btn--sm" data-wa data-lead-gate href="#" target="_blank" rel="noopener noreferrer">Agendar diagnóstico</a>
     </nav>
     <!-- No celular os links viravam `display:none` e não sobrava navegação
@@ -181,8 +158,9 @@
           <span class="hero__status-txt" aria-hidden="true">Sistema online · Beyon Zero</span>
         </p>
 
+        <p class="hero__eyebrow">Automação e inteligência artificial aplicada</p>
         <h1 class="hero__title" id="hero-titulo">
-          Toda entidade perde dinheiro num ponto que ninguém está <em>auditando</em>.
+          Toda entidade perde dinheiro num ponto que ninguém está <em>auditando.</em>
         </h1>
         <p class="hero__sub">
           Eu encontro esse ponto. Se a IA gerar receita, cortar custo ou devolver capacidade ali, eu construo o sistema. Se não gerar, eu digo.
@@ -191,62 +169,52 @@
           <a class="btn btn--primary" data-wa data-lead-gate href="#" target="_blank" rel="noopener">Agendar diagnóstico</a>
           <a class="btn btn--ghost" href="#projetos">Ver aplicações <span aria-hidden="true">→</span></a>
         </div>
-        <p class="fine">Atendo poucos diagnósticos por vez. Sem equipe no meio do caminho.</p>
+        <p class="fine">Quem faz o diagnóstico é quem constrói. Sem equipe no meio do caminho.</p>
       </div>
 
-      <div class="hero__reactor" aria-hidden="true"></div>
+      <div class="hero__reactor" aria-hidden="true">
+        <div class="cena cena--hero" data-cena="paineis"></div>
+      </div>
 
-      <dl class="hero__rail">
-        <div>
-          <dt>Entrada</dt>
-          <dd>Diagnóstico da operação</dd>
-        </div>
-        <div>
-          <dt>Construção</dt>
-          <dd>Agentes, automação e sistemas</dd>
-        </div>
-        <div>
-          <dt>Critério</dt>
-          <dd>Só o que paga por si</dd>
-        </div>
-        <a href="#dores" class="scroll-hint" aria-label="Rolar para o conteúdo">
-          <span>rolar</span>
-          <span class="scroll-hint__bar" aria-hidden="true"></span>
-        </a>
-      </dl>
+      <div class="hero__rail">
+        <div><span class="hero__rail-k">Entrada</span><span class="hero__rail-v">Diagnóstico grátis da operação</span></div>
+        <div><span class="hero__rail-k">Construção</span><span class="hero__rail-v">Agentes, automação e sistemas</span></div>
+        <div><span class="hero__rail-k">Critério</span><span class="hero__rail-v">Só o que paga por si</span></div>
+        <div><span class="hero__rail-k">Medido agora, neste aparelho</span><span class="hero__rail-v"><b data-metrica="fps">— fps</b> · pronta em <b data-metrica="carga">—</b></span></div>
+      </div>
     </section>
 
-    <section class="section" id="dores" aria-labelledby="dores-titulo">
+    <section class="section" id="dores" data-regua="o problema" aria-labelledby="dores-titulo">
       <div class="section__head reveal">
-        <p class="kicker">// o problema</p>
+        <p class="kicker">O problema</p>
         <h2 id="dores-titulo">Três lugares onde o dinheiro <br />costuma vazar.</h2>
       </div>
       <!-- LAUDO — três linhas, não três caixas. Uma dor de operação é item de
            diagnóstico, não produto em vitrine: o índice mono à esquerda e a
            régua embaixo dão a estrutura que a caixa dava, sem entrar na frente
            da leitura. -->
-      <div class="diag">
-        <article class="diag__row reveal">
+      <div class="diag reveal">
+        <article class="diag__row">
           <span class="diag__n" aria-hidden="true">01</span>
           <h3>Trabalho que não exige gente</h3>
           <p>Horas de gente cara em tarefa repetitiva. Vira folha de pagamento sem virar resultado, e ocupa justamente quem deveria estar decidindo.</p>
         </article>
-        <article class="diag__row reveal">
+        <article class="diag__row">
           <span class="diag__n" aria-hidden="true">02</span>
           <h3>Oportunidade que esfria</h3>
           <p>O contato sem resposta a tempo, o orçamento que ninguém retomou, o associado que perguntou e desistiu. Esse dinheiro já tinha batido na porta.</p>
         </article>
-        <article class="diag__row reveal">
+        <article class="diag__row">
           <span class="diag__n" aria-hidden="true">03</span>
           <h3>Conhecimento parado</h3>
-          <p>Anos de histórico, documentos e conversas que ninguém acha na hora exata de decidir.</p>
+          <p>Anos de histórico, documentos e conversas que ninguém acha na hora exata de decidir. O conhecimento existe; o acesso a ele, não.</p>
         </article>
       </div>
     </section>
 
-    <section class="section" id="servicos" aria-labelledby="servicos-titulo">
+    <section class="section" id="servicos" data-regua="capacidades" aria-labelledby="servicos-titulo">
       <div class="section__head reveal">
-        <p class="kicker">// capacidades</p>
+        <p class="kicker">Capacidades</p>
         <h2 id="servicos-titulo">O que dá pra tirar <br />da sua mesa.</h2>
       </div>
       <!-- Cada capacidade é um link, não um cartão morto: quem se reconhece em
@@ -259,7 +227,7 @@
            O `.reveal` fica no CONTÊINER, não nas células: se cada uma entrasse
            por conta própria com translateY, as frestas se abririam durante a
            animação e a malha se desmontaria no ar. -->
-      <div class="mesh reveal">
+      <div class="mesh reveal" data-reconhecer="Seis capacidades reconhecidas">
         <a class="card card--service" data-wa="um agente de IA que executa tarefas na minha entidade">
           <span class="card__tag" aria-hidden="true">01</span>
           <h3>Agentes que executam</h3>
@@ -305,26 +273,26 @@
       <p class="bus" aria-hidden="true"><span class="bus__txt">Seis capacidades · um <b>AI Core</b></span></p>
     </section>
 
-    <section class="section" id="processo" aria-labelledby="processo-titulo">
+    <section class="section" id="processo" data-regua="método" aria-labelledby="processo-titulo">
       <div class="section__head reveal">
-        <p class="kicker">// método</p>
+        <p class="kicker">Método</p>
         <h2 id="processo-titulo">Diagnóstico primeiro. <br />Construção depois.</h2>
       </div>
       <!-- Linha do tempo, não três caixas soltas: um processo tem ordem, e a
            forma precisa dizer isso antes do texto. O trilho e os nós são
            pseudo-elementos — nenhum elemento a mais no DOM. -->
-      <ol class="steps">
-        <li class="step reveal">
+      <ol class="steps reveal">
+        <li class="step">
           <span class="step__n" aria-hidden="true">01</span>
           <h3>Mapa</h3>
           <p>Olho a operação de ponta a ponta: onde o dinheiro entra, onde sai, e onde ele para no caminho.</p>
         </li>
-        <li class="step reveal">
+        <li class="step">
           <span class="step__n" aria-hidden="true">02</span>
           <h3>Prioridade</h3>
           <p>Listo onde a IA cabe, estimo o impacto de cada ponto e escolhemos juntos o que se paga mais rápido.</p>
         </li>
-        <li class="step reveal">
+        <li class="step">
           <span class="step__n" aria-hidden="true">03</span>
           <h3>Construção</h3>
           <p>Construo, integro ao que você já usa e meço o resultado. O que funciona, escala.</p>
@@ -332,9 +300,9 @@
       </ol>
     </section>
 
-    <section class="section" id="projetos" aria-labelledby="projetos-titulo">
+    <section class="section" id="projetos" data-regua="aplicações" aria-labelledby="projetos-titulo">
       <div class="section__head reveal">
-        <p class="kicker">// aplicações</p>
+        <p class="kicker">Aplicações</p>
         <h2 id="projetos-titulo">O mesmo núcleo, <br />operações diferentes.</h2>
         <p class="lead">Cenários de aplicação, não vitrine de clientes. Toda operação trava num lugar diferente, e é o diagnóstico que diz qual é o seu.</p>
       </div>
@@ -374,9 +342,9 @@
       </div>
     </section>
 
-    <section class="section" id="faq" aria-labelledby="faq-titulo">
+    <section class="section" id="faq" data-regua="perguntas" aria-labelledby="faq-titulo">
       <div class="section__head reveal">
-        <p class="kicker">// faq</p>
+        <p class="kicker">Perguntas</p>
         <h2 id="faq-titulo">O que você deve estar se perguntando.</h2>
       </div>
       <!-- Accordion nativo (details/summary): teclado e leitor de tela de graça,
@@ -412,13 +380,13 @@
       </div>
     </section>
 
-    <section class="section section--cta" id="contato" aria-labelledby="contato-titulo">
+    <section class="section section--cta" id="contato" data-regua="conversa" aria-labelledby="contato-titulo">
       <div class="cta reveal">
         <h2 id="contato-titulo">Comece pelo problema, <br />não pelo <em>discurso</em> de venda.</h2>
         <p>Uma conversa direta sobre a sua entidade. O preço da construção é fixo e não muda com a ferramenta escolhida, porque não recebo comissão de nenhum fornecedor. Se não houver onde a IA pague por si, eu digo.</p>
         <a class="btn btn--primary btn--lg" data-wa data-lead-gate href="#" target="_blank" rel="noopener">Agendar diagnóstico</a>
         <p class="fine">Quem responde é humano. O diagnóstico é grátis e sem compromisso.</p>
-        <p class="cta__resumo"><a href="resumo.html">Prefere levar pra sua diretoria antes de decidir? Veja o resumo <span aria-hidden="true">→</span></a></p>
+        <p class="cta__resumo"><a href="/resumo">Prefere levar pra sua diretoria antes de decidir? Veja o resumo <span aria-hidden="true">→</span></a></p>
       </div>
     </section>
   </main>
@@ -426,9 +394,9 @@
   <footer class="footer">
     <div class="footer__grid">
       <div class="footer__brand">
-        <a href="index.html" aria-label="Beyon Zero — início"><span class="wordmark wordmark--lg">Beyon <b>Zero</b></span></a>
-        <p>Menos ferramenta empurrada,<br />mais problema resolvido.</p>
-        <a class="btn btn--sm btn--primary footer__cta" data-wa href="#" target="_blank" rel="noopener noreferrer">Vamos conversar <span aria-hidden="true">→</span></a>
+        <a href="/" aria-label="Beyon Zero — início"><span class="wordmark wordmark--lg">Beyon <b>Zero</b></span></a>
+        <p>Ideias ganham forma.<br />E o resultado se mede.</p>
+        <a class="btn btn--sm btn--primary footer__cta" data-wa href="#" target="_blank" rel="noopener noreferrer">Agendar diagnóstico <span aria-hidden="true">→</span></a>
       </div>
       <nav class="footer__links" aria-label="Links do rodapé">
         <p class="footer__links-title">Nesta página</p>
@@ -439,16 +407,21 @@
       </nav>
       <nav class="footer__links" aria-label="Outros serviços">
         <p class="footer__links-title">Beyon Zero</p>
-        <a href="index.html">Início</a>
-        <a href="sites.html">Sites</a>
-        <a href="resumo.html">Resumo pra diretoria</a>
+        <a href="/">Início</a>
+        <a href="/sites">Sites</a>
+        <a href="/resumo">Resumo pra diretoria</a>
       </nav>
     </div>
     <div class="footer__base">
       <p class="footer__copy">© <span id="year">2026</span> Beyon Zero. Todos os direitos reservados.</p>
-      <p class="footer__sig" aria-hidden="true">// applied intelligence · sistema em operação</p>
+      <button class="footer__motion" type="button" aria-pressed="false">Reduzir movimento</button>
     </div>
   </footer>
+
+  <div class="regua" aria-hidden="true">
+    <span class="regua__n"><b>00</b> / 06</span>
+    <span class="regua__nome">início</span>
+  </div>
 
   <!-- MEDIDOR — o número é medido de verdade, no aparelho de quem visita.
        Sozinho ele não diz nada para um dono de negócio, então o botão abre
@@ -524,19 +497,17 @@
     </svg>
   </a>
 
-  <!-- GSAP hospedado local (a CSP `script-src 'self'` bloqueia CDN). defer
-       preserva a ordem: GSAP carrega antes de js/anima.js. Se algum destes
-       falhar, anima.js sai sem tocar em nada e o site funciona igual. -->
   <script src="vendor/gsap/gsap.min.js" defer></script>
   <script src="vendor/gsap/ScrollTrigger.min.js" defer></script>
   <script src="vendor/gsap/SplitText.min.js" defer></script>
-
   <script src="js/tel.js" defer></script>
   <script src="js/core.js" defer></script>
-  <script src="js/field.js" defer></script>
-  <script src="js/dom.js" defer></script>
+  <script src="js/organismo.js" defer></script>
+  <script src="js/campo.js" defer></script>
+  <script src="js/profundidade.js" defer></script>
+  <script src="js/pagina.js" defer></script>
+  <script src="js/palavras.js" defer></script>
   <script src="js/lead-form.js" defer></script>
-  <script src="js/entrada.js" defer></script>
   <script src="js/anima.js" defer></script>
 </body>
 </html>

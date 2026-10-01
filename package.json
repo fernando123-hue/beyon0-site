@@ -2,11 +2,15 @@
   "name": "beyon0-site",
   "version": "1.0.0",
   "private": true,
-  "description": "Site Beyon Zero — HTML/CSS/JS puro, sem build. O three.js é vendorado em vendor/three (módulo ESM carregado pelo navegador), NÃO instalado por aqui: o site publicado continua sem passo de instalação.",
+  "description": "Site Beyon Zero — HTML/CSS/JS puro, sem build. GSAP vendorado em vendor/gsap; sem dependência de runtime instalada por aqui.",
   "devDependencies": {
     "playwright": "^1.63.0"
   },
   "scripts": {
-    "verificar": "node docs/verificar.mjs"
+    "servir": "node docs/servidor.mjs . 8899",
+    "verificar": "node docs/verificar.mjs",
+    "acessibilidade": "node docs/acessibilidade.mjs",
+    "olhar": "node docs/olhar.mjs",
+    "medir": "node docs/medir.mjs"
   }
 }

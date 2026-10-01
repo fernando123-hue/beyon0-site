@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Beyon Zero — resumo pra levar pra diretoria</title>
   <meta name="description" content="Resumo de uma página pra levar pra diretoria: onde a IA paga por si na sua associação, sindicato, federação ou cooperativa, sem comissão de ferramenta envolvida." />
-  <link rel="canonical" href="https://beyon0-site.vercel.app/resumo.html" />
+  <link rel="canonical" href="https://beyon0-site.vercel.app/resumo" />
 
   <meta name="theme-color" content="#050507" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
@@ -15,26 +15,15 @@
        (js/core.js, js/field.js, js/dom.js, GSAP). É pra ser lida rápido por
        alguém que não viu o site — ou impressa/salva como PDF pela diretoria.
        Ver docs/superpowers/specs/2026-09-13-cro-seo-resumo-design.md. -->
-  <meta http-equiv="Content-Security-Policy" content="
-    default-src 'self';
-    script-src 'self';
-    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-    font-src 'self' https://fonts.gstatic.com;
-    img-src 'self' data:;
-    connect-src 'self';
-    object-src 'none';
-    base-uri 'self';
-    form-action 'none'" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'" />
 
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/tokens.css" />
   <link rel="stylesheet" href="resumo.css" />
 </head>
 <body>
   <header class="r-nav">
-    <a href="index.html" class="r-nav__logo">Beyon <b>Zero</b></a>
-    <a href="automacao.html" class="r-nav__voltar">← voltar pro site</a>
+    <a href="/" class="r-nav__logo">Beyon <b>Zero</b></a>
+    <a href="/automacao" class="r-nav__voltar">← voltar pro site</a>
   </header>
 
   <main class="r-main">
