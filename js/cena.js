@@ -80,12 +80,29 @@
      constante, na conexão mais provável de ser medida e na bateria mais
      provável de acabar, em troca de nada que já não esteja lá. Fica de fora. */
   if (!B.fine) return;
-  /* O teste cria um contexto de verdade — e o navegador tem um teto baixo de
+  /* WEBGL POR SOFTWARE NÃO ENTRA. `failIfMajorPerformanceCaveat` é o jeito
+     padrão do navegador dizer "este WebGL existe, mas seria desenhado pela
+     CPU": o contexto volta null e a camada não monta.
+
+     Medido na sétima sessão, na página de Sites: com o three montado e AINDA
+     SEM DESENHAR, só a composição do canvas em tela cheia por SwiftShader
+     derrubava a página de ~53 para ~38fps. E o porteiro por fps (lá embaixo)
+     não pegava, porque a régua dele é tirada com esse canvas já montado e
+     absorve o custo. Conferido nos dois lados: SwiftShader → null; GPU de
+     verdade (GTX 1050 Ti, D3D11) → contexto normal.
+
+     `?3d=forcar` pula só esta checagem. Existe para o verificador
+     (docs/verificar.mjs), que roda justamente em SwiftShader, continuar
+     testando que o 3D monta e desenha sem erro.
+
+     O teste cria um contexto de verdade — e o navegador tem um teto baixo de
      contextos WebGL vivos (16 no Chrome). Solta este assim que responde, em
      vez de esperar o coletor de lixo. Achado na sexta revisão. */
+  var forcar3d = /[?&]3d=forcar\b/.test(location.search);
+  var atributos = { failIfMajorPerformanceCaveat: !forcar3d };
   try {
     var teste = document.createElement('canvas');
-    var gl = teste.getContext('webgl2') || teste.getContext('webgl');
+    var gl = teste.getContext('webgl2', atributos) || teste.getContext('webgl', atributos);
     if (!gl) return;
     var perder = gl.getExtension('WEBGL_lose_context');
     if (perder) perder.loseContext();
@@ -297,7 +314,11 @@
        mundo sente é a troca certa. */
     renderer = new THREE.WebGLRenderer({
       canvas: cv, alpha: true, antialias: false,
-      powerPreference: 'high-performance'
+      powerPreference: 'high-performance',
+      /* a mesma decisão do porteiro, agora no contexto REAL: o teste do boot
+         roda noutro canvas e noutro momento. Se este falhar, o three lança,
+         `montar` cai no catch e `desligar()` limpa. */
+      failIfMajorPerformanceCaveat: !forcar3d
     });
     renderer.setClearColor(0x000000, 0);
     renderer.setScissorTest(true);
@@ -495,7 +516,8 @@
      bateria) a página fica perfeitamente lisa DENTRO desse teto, e mesmo
      assim o 3D era julgado lento e desligado em ~10s. Numa tela de 50Hz o
      contador nunca descia. Achado na segunda revisão.
-     Agora a régua é o TETO da tela/navegador, medido antes do 3D montar,
+     Agora a régua é o TETO da tela/navegador, medido antes de qualquer cena
+     DESENHAR (o three já pode estar montado — ver o porteiro de software),
      com teto em 60: lento é cair abaixo de 77% disso, bom é voltar acima de
      87%. A 60Hz os números são os de antes (46/52); a 30Hz viram 23/26; em
      120Hz a régua continua 60, porque 60 quadros já é fluido.

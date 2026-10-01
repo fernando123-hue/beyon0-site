@@ -627,11 +627,23 @@ montagem + 30 quadros. Corrigiu nada mensurável (Hub já dava 60; Sites seguiu
 30 pela composição) — revertido pela regra 5. Chrome/Edge atuais não caem mais
 sozinhos em SwiftShader: sem GPU, o WebGL não sobe e o porteiro já desliga o 3D.
 
-**Pendência registrada:** detectar renderizador por software
-(`WEBGL_debug_renderer_info` com `SwiftShader`, `llvmpipe`, `Basic Render`) e
-não montar o 3D nele. Não foi feito agora porque tira a cobertura de 3D do
-verificador (que roda justamente em SwiftShader) — precisa de um `?3d=forcar`
-junto, e isso é mudança de porteiro, não de véspera de deploy.
+**Pendência resolvida em 2026-10-01** (na branch; publicar é decisão do dono):
+- O porteiro de js/cena.js usa `failIfMajorPerformanceCaveat` no teste de
+  WebGL E no renderer: WebGL desenhado pela CPU não monta o 3D. Em vez de
+  procurar nome de driver em texto, é o próprio navegador quem diz. Conferido
+  nos dois lados: SwiftShader devolve null; a GTX 1050 Ti do dono (D3D11)
+  devolve contexto normal.
+- `?3d=forcar` pula só essa checagem (documentado no HANDOFF, ao lado do
+  `?perf`).
+- O verificador ganhou `hub-3d` e `sites-3d` (forçam o 3D e exigem que ele
+  continue montado durante a medição; fps só informativo). Os alvos normais
+  agora EXIGEM 3D desligado. Teste de mutação: com o porteiro quebrado de
+  propósito, o verificador falhou.
+- Resultado: 8 de 8 OK. A página de Sites no desktop foi de ~38 para ~55-60fps
+  no verificador.
+- Revisão por agente: aprovada, sem achado alto. Um achado foi descartado
+  por estar errado: dizia que o three r160 só usa WebGL2, mas o arquivo
+  vendorado tenta webgl2, webgl e experimental-webgl, nessa ordem.
 
 **Ambiente Windows do dono — armadilhas novas:**
 - O Chromium 1228 do Playwright está corrompido ("configuração lado a lado").

@@ -35,13 +35,27 @@ const EXEC = process.env.CHROMIUM || undefined;
    caminho que nenhum celular percorre — foi assim que 163px de vão no hero do
    Hub, em todo celular, passaram como OK. Achado na quarta revisão. */
 const CELULAR = { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 };
+const DESKTOP = { viewport: { width: 1440, height: 900 } };
+/* OS ALVOS -3d FORÇAM A CAMADA 3D (`?3d=forcar`).
+   Desde a sétima sessão, js/cena.js não monta o 3D quando o WebGL seria
+   desenhado pela CPU (failIfMajorPerformanceCaveat) — e este verificador roda
+   justamente em SwiftShader. Sem estes alvos, o 3D sairia da cobertura em
+   silêncio. Neles a exigência é o 3D MONTAR e CONTINUAR montado durante a
+   medição, sem erro de console; o fps é só informativo, porque mede WebGL
+   por software, não o que um visitante com placa de vídeo vê (sétima sessão:
+   ~38fps aqui, contra 60 na GPU).
+   E O CONTRÁRIO TAMBÉM É EXIGIDO: nos alvos normais o 3D NÃO pode montar —
+   é o contrato "software e toque ficam sem 3D". Se o porteiro regredir, o
+   alvo falha dizendo isso, em vez de cair num fps baixo sem explicação. */
 const ALVOS = [
-  ['/index.html',     'hub',        { viewport: { width: 1440, height: 900 } }],
-  ['/sites.html',     'sites',      { viewport: { width: 1440, height: 900 } }],
-  ['/automacao.html', 'automacao',  { viewport: { width: 1440, height: 900 } }],
-  ['/index.html',     'hub-cel',    CELULAR],
-  ['/sites.html',     'sites-cel',  CELULAR],
-  ['/automacao.html', 'autom-cel',  CELULAR]
+  ['/index.html',            'hub',        DESKTOP],
+  ['/sites.html',            'sites',      DESKTOP],
+  ['/automacao.html',        'automacao',  DESKTOP],
+  ['/index.html',            'hub-cel',    CELULAR],
+  ['/sites.html',            'sites-cel',  CELULAR],
+  ['/automacao.html',        'autom-cel',  CELULAR],
+  ['/index.html?3d=forcar',  'hub-3d',     DESKTOP, { exige3d: true }],
+  ['/sites.html?3d=forcar',  'sites-3d',   DESKTOP, { exige3d: true }]
 ];
 
 /* fps por contagem de rAF — o número que importa, medido como o olho mede */
@@ -61,7 +75,7 @@ const navegador = await chromium.launch({
 
 let falhou = false;
 
-for (const [rota, nome, opcoes] of ALVOS) {
+for (const [rota, nome, opcoes, { exige3d = false } = {}] of ALVOS) {
   const ctx = await navegador.newContext(opcoes);
   const page = await ctx.newPage();
   const erros = [];
@@ -96,6 +110,9 @@ for (const [rota, nome, opcoes] of ALVOS) {
   });
 
   const fps = await medirFps(page);
+  /* relido DEPOIS da medição: se o 3D montar e se desligar sozinho durante
+     ela (`desligar()` tira a classe), a leitura de antes não veria. */
+  d.tem3d = await page.evaluate(() => document.body.classList.contains('tem-3d'));
 
   /* Ruído do ambiente, não do site: a CSP do proxy bloqueia o Google Fonts
      (ERR_CERT) e o driver de software avisa sobre ReadPixels.
@@ -107,12 +124,13 @@ for (const [rota, nome, opcoes] of ALVOS) {
      do Google Fonts já é pega pelo ERR_CERT que vem junto dela. */
   const reais = erros.filter(e => !/ERR_CERT|fonts\.googleapis|GPU stall/.test(e));
 
-  const ok = d.boot && d.reator && d.cenaForaDoFluxo && d.overflowX === 0 && d.waProntos === d.waTotal && reais.length === 0 && fps > 45;
+  const ok = d.boot && d.reator && d.cenaForaDoFluxo && d.overflowX === 0 && d.waProntos === d.waTotal && reais.length === 0 &&
+    (exige3d ? d.tem3d : (!d.tem3d && fps > 45));
   if (!ok) falhou = true;
 
   console.log(
     (ok ? 'OK  ' : 'FALHA ') + nome.padEnd(11),
-    'fps=' + String(fps).padStart(5),
+    'fps=' + String(fps).padStart(5) + (exige3d ? '(info)' : ''),
     'rolagemX=' + d.overflowX,
     'wa=' + d.waProntos + '/' + d.waTotal,
     'nucleo=' + d.reator,

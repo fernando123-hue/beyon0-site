@@ -204,7 +204,10 @@ Saíram da medição, não de preferência. Violá-las traz o problema de volta.
    `:root` quando muitos elementos a leem.
 3. **Efeito contínuo que precisa de centenas de unidades é desenhado, não
    estilizado.**
-4. **Instrumentação sempre presente** (`?perf`).
+4. **Instrumentação sempre presente** (`?perf`). Desde a sétima sessão da
+   reestruturação há também `?3d=forcar`: monta a camada 3D mesmo quando o
+   WebGL seria por software (o porteiro de js/cena.js a barra nesse caso).
+   Existe para o verificador; não use para medir fluidez.
 5. **Degradação preventiva**: checa orçamento antes de gastar; sobe de novo
    quando há folga.
 
