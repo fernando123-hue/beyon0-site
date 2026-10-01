@@ -29,7 +29,7 @@ render saíram dele — nenhum visível na leitura do código.
 
 | Arquivo | O que é |
 |---|---|
-| `docs/restructure/PLANO-REESTRUTURACAO.md` | **Comece pela seção 11.** Estado atual, mapa de arquivos, o que está aberto. |
+| `docs/restructure/PLANO-REESTRUTURACAO.md` | **Comece pela seção 12** (estado mais recente, pendências, deploy, organização das pastas). A 11 tem o mapa de arquivos. |
 | `docs/HANDOFF.md` | História longa do projeto e as leis de performance (seções 3 e 4). |
 | `docs/auditoria-performance.md` | As medições que justificam a arquitetura. |
 | `docs/restructure/PROMPTS-IMAGENS.md` | Prompts para gerar as imagens que faltam. |

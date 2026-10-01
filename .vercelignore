@@ -3,6 +3,9 @@ node_modules/
 .superpowers/
 docs/
 
+# instruções internas do agente — não são página do site
+CLAUDE.md
+
 # ferramentas de desenvolvimento (o verificador com Playwright). Sem estes dois
 # arquivos no envio a Vercel trata o site como estático puro e não roda
 # `npm install` a cada deploy — que agora baixaria o Playwright para nada.

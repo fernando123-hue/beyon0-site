@@ -65,15 +65,18 @@
   }
   </script>
 
+  <!-- links antigos da landing de IA (/#faq, /#servicos…) seguem para onde a
+       seção mora agora. No <head>, sem defer e ANTES das fontes do Google: um script bloqueante
+       espera as folhas de estilo acima dele, e esperar um terceiro para
+       redirecionar era atraso à toa (achado na sexta revisão).
+       Por isso o Hub usa ids próprios (#frentes, #conversa) — os antigos são
+       todos da página de automação. Ver js/ancoras.js. -->
+  <script src="js/ancoras.js" data-ancoras="servicos contato dores processo projetos faq" data-destino="automacao.html"></script>
+
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
-  <!-- links antigos da landing de IA (/#faq, /#servicos…) seguem para onde a
-       seção mora agora. No <head> e sem defer: roda antes de o Hub pintar.
-       Por isso o Hub usa ids próprios (#frentes, #conversa) — os antigos são
-       todos da página de automação. Ver js/ancoras.js. -->
-  <script src="js/ancoras.js" data-ancoras="servicos contato dores processo projetos faq" data-destino="automacao.html"></script>
 
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="css/premium.css" />

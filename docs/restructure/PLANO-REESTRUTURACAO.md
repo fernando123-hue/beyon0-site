@@ -4,7 +4,7 @@
 **Status:** Hub, página de Sites e camada 3D **construídos e verificados ao
 vivo no navegador**, em três rodadas no dia 2026-09-22. **Nada publicado.**
 
-> **SE VOCÊ É UMA SESSÃO NOVA, COMECE PELA SEÇÃO 11.** Ela é o atalho, escrita
+> **SE VOCÊ É UMA SESSÃO NOVA, COMECE PELA SEÇÃO 12** (a mais recente; a 11 tem o mapa de arquivos). Ela é o atalho, escrita
 > exatamente para isso. A 9 detalha o que foi construído e a 10 a camada 3D e
 > as imagens que faltam; as seções 1 a 8 são o planejamento que levou até aqui
 > e continuam válidas no que as posteriores não substituíram.
@@ -470,3 +470,136 @@ resolver contra a URL do script.
   https://claude.ai/artifact/AEWbLkjaN8Jac8G9s2cCB3
 - Imagens do moodboard: `docs/restructure/moodboard/`
 - Prompts para gerar as que faltam: `docs/restructure/PROMPTS-IMAGENS.md`
+
+---
+
+## 12. PONTO DE PARTIDA — 2026-10-01 (substitui a seção 11 onde as duas divergirem)
+
+**Se você é uma sessão nova, comece aqui.** A seção 11 continua valendo para
+o mapa de arquivos e as regras; esta registra o que mudou depois dela e o que
+o dono pediu e ficou pendente.
+
+### 12.1 Estado
+
+| | |
+|---|---|
+| Branch | `claude/site-restructure-planning-1cd10h`, tudo pushado |
+| Publicado? | **NÃO.** A `main` ainda é o site antigo. |
+| Revisões de código | **seis rodadas** (`/code-review`, nível high) |
+| Verificador | `npm run verificar` — 6 alvos, todos OK, 60fps |
+
+O dono pediu **deploy "após tudo pronto"** e depois pediu para continuar em
+outro chat. O deploy NÃO foi feito: a sexta revisão ainda deixou itens
+pequenos abertos (12.3), e um deles — o `CLAUDE.md` indo para o ar — foi
+corrigido só agora.
+
+### 12.2 O que as seis revisões mudaram (resumo; detalhe nos commits)
+
+Os achados graves, todos corrigidos e testados com teste próprio:
+- o Singular deixava o 3D **verde** (textura ciano × material ouro) → texturas
+  neutras; medido nos pixels: dourado
+- a última imagem do 3D ficava **congelada** na tela ao rolar → clear único
+- em todo **celular**, a caixa invisível do cubo empurrava o título do Hub
+  **163px** para baixo → a caixa do cubo mora dentro da do AI Core
+- o 3D rodava **sempre a meia taxa** (o orçamento do core.js vive no piso a
+  60Hz) → só o julgamento por fps rebaixa a cena
+- a régua de fluidez presumia 60Hz e nunca funcionou → quartil inferior dos
+  intervalos reais, com 20 amostras antes de desenhar; testado a 30Hz
+- Pulso/Singular **presos** ao trocar de aba → bandeiras explícitas, nas DUAS
+  cópias (pagina.js e dom.js)
+- links antigos `/#faq`, `/#servicos`… caíam no Hub → `js/ancoras.js` no
+  `<head>` redireciona para `automacao.html`, preservando `?utm=`. O Hub
+  trocou para ids próprios: `#frentes`, `#conversa`
+- painel de Prova com **afirmações falsas** (regra 2) → filtro por origem e
+  nota reescrita
+- `.vercelignore` agora exclui `package.json`, `package-lock.json` e
+  `CLAUDE.md` (o deploy segue sem `npm install` e sem publicar instruções)
+
+### 12.3 O que falta ANTES do deploy (achados menores da 6ª revisão)
+
+Nenhum quebra o site. Corrija, rode `/code-review` mais uma vez e o verificador:
+
+1. `js/cena.js` — a cor só é reaplicada se `S.warmth` andou > 0,02: o último
+   passo de volta a 0 depois do Singular pode não rodar, e o vidro fica com
+   um leve tom dourado até o próximo. Forçar a aplicação quando warmth = 0.
+2. `js/pagina.js` — o PerformanceObserver pode rodar antes do fim do
+   DOMContentLoaded e escrever um tempo de carga falso (só `responseEnd`).
+   Deixar o observador atualizar só o peso, ou pular enquanto
+   `domContentLoadedEventEnd` for 0.
+3. `js/cena.js` — o teste de WebGL do porteiro cria um contexto e não o
+   solta. `getExtension('WEBGL_lose_context').loseContext()` depois do teste.
+4. `js/cena.js` — `updateProjectionMatrix()` por cena por quadro; só quando a
+   proporção mudar.
+5. `js/dom.js` — dois booleanos para o estado do reconhecimento; usar o
+   tri-estado (0/1/2) igual ao pagina.js.
+6. Duplicação pagina.js ↔ dom.js — **tarefa separada já aberta** ("Extrair o
+   organismo para um módulo compartilhado"). Não fazer junto do deploy: mexe
+   no núcleo da página de automação, que é a publicada.
+
+### 12.4 Como fazer o deploy (só com o dono pedindo — ele já pediu)
+
+Fluxo do HANDOFF, seção 2: push na `main` = deploy automático na Vercel.
+
+```bash
+git fetch origin main
+git checkout main && git merge --ff-only claude/site-restructure-planning-1cd10h
+git push origin main
+```
+
+Depois: abrir https://beyon0-site.vercel.app/ de verdade (não localhost) e
+conferir Hub, `/sites.html`, `/automacao.html`, um link antigo (`/#faq` deve
+ir para `/automacao.html#faq`) e o celular. **Mande ao dono os links das três
+páginas** — ele quer ver como ficou.
+
+### 12.5 PEDIDO NOVO DO DONO — organizar as pastas e começar o "segundo cérebro"
+
+Pedido, nas palavras dele: há pastas no computador dele chamadas
+**`beyon 0`**, **`Beyon 0 - site`** e **`beyon-0-app`**. O nome da empresa
+agora é **Beyon Zero**. Ele quer tudo organizado numa pasta só, com
+subpastas se necessário, para **começar a construir o segundo cérebro — o
+cérebro da empresa**. "De forma bem minuciosa, com bastante cuidado."
+
+**Isto não pode ser feito numa sessão na nuvem** — ela só enxerga este
+repositório. Precisa de uma sessão do Claude Code **na máquina do dono**
+(Windows; o HANDOFF cita `C:\Vault - Fernando\Beyon 0` e
+`C:\Vault - Fernando\Beyon 0 - Playbook Comercial\`).
+
+Como fazer, com cuidado proporcional ao que está em jogo (é o acervo inteiro
+da empresa):
+1. **Inventário primeiro, nada movido.** Listar as três pastas (e a do
+   Playbook Comercial, se existir): árvore, tamanhos, tipos, duplicatas
+   prováveis, repositórios git (pastas com `.git`), arquivos `.env` ou com
+   credenciais.
+2. **Propor a estrutura e esperar o OK do dono** antes de tocar em qualquer
+   coisa. Ponto de partida (para discutir, não impor):
+   ```
+   Beyon Zero/
+     00 Entrada/          o que chega e ainda não foi classificado
+     01 Empresa/          identidade, marca (Beyon Zero), decisões, posicionamento
+     02 Serviços/         Sites · Automação & IA · Experiências Digitais
+     03 Projetos/         site/ (este repo) · app/ (beyon-0-app)
+     04 Comercial/        playbook, propostas, clientes
+     05 Conhecimento/     estudos, referências, moodboards, prompts
+     06 Operação/         processos, ferramentas, acessos (sem senhas em texto)
+     99 Arquivo/          o que é histórico e não se apaga
+   ```
+3. **Copiar, não mover.** Conferir a cópia (contagem de arquivos e tamanho, ou
+   hash) e só então perguntar ao dono se pode apagar os originais.
+4. **Repositórios git vão inteiros**, com `.git`, sem reescrever histórico. O
+   site publica pela Vercel via GitHub, então mudar a pasta local não afeta o
+   deploy — mas uma pasta `.vercel/` local liga a pasta ao projeto; levar junto.
+5. Credenciais encontradas: **não copiar para notas**, apontar onde estão.
+6. Registrar tudo num `LEIA-ME.md` na raiz da pasta nova: o que veio de onde,
+   o que mudou de nome, e a convenção de pastas — é o primeiro neurônio do
+   segundo cérebro.
+
+### 12.6 Prompt pronto para abrir o próximo chat
+
+> Continue o trabalho do site da Beyon Zero. Leia `CLAUDE.md` e a seção 12 de
+> `docs/restructure/PLANO-REESTRUTURACAO.md`. Feche os itens da 12.3, rode
+> `/code-review` e o verificador, e então faça o deploy conforme a 12.4 e me
+> mande os links. Depois, siga a 12.5 para organizar as minhas pastas e
+> começar o segundo cérebro da Beyon Zero.
+
+Para a parte das pastas, o chat precisa ser aberto **no Claude Code do
+computador do dono**, não na nuvem.

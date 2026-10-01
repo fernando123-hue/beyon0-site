@@ -48,7 +48,15 @@
   }
 
   var B = window.BEYON;
-  if (!B) return;
+  if (!B) {
+    /* sem o núcleo não há reveal animado — então revela tudo de uma vez.
+       Sem isto, uma falha de js/core.js deixava todo `.reveal` em opacidade 0:
+       os links de WhatsApp funcionavam (acima), mas ninguém os via. Achado na
+       sexta revisão. */
+    var todos = document.querySelectorAll('.reveal');
+    for (var rv = 0; rv < todos.length; rv++) todos[rv].classList.add('is-in');
+    return;
+  }
   var S = B.S;
   B.linkWA = linkWA;
 
@@ -209,7 +217,8 @@
      do Pulso. Aí `S.pulse` nunca saiu do zero, a limpeza nunca rodava, e a
      página ficava presa em `is-pulse` com o status dizendo "Ressonância em
      curso" até um Pulso futuro que também nunca era agendado. Achado na
-     segunda revisão. js/dom.js tem o mesmo padrão — ver a tarefa aberta. */
+     segunda revisão. js/dom.js recebeu a mesma correção; o que segue aberto é
+     só juntar as duas cópias num módulo (ver a tarefa de extração). */
   var pulsoAtivo = false;
   function agendarPulso(now) { proxPulso = now + 9000 + Math.random() * 11000; }
   function dispararPulso(now, anuncio) {
