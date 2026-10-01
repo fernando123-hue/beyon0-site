@@ -88,6 +88,11 @@
       if (primeiro) setTimeout(trocar, 4200);
     }
     reiniciar();
+    B.on('reduzir', function (sim) {
+      if (!sim) return;
+      if (ciclo) { clearInterval(ciclo); ciclo = 0; }
+      p = 1; mostrado = original; el.textContent = original;
+    });
     return { drive: drive, trocar: trocar, reiniciar: reiniciar };
   }
 

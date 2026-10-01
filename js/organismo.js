@@ -155,6 +155,17 @@
     driveStatus(s.dt);
   });
 
+  /* "menos movimento" no meio de um evento: nada fica preso (texto
+     embaralhado, classe colada, números do canvas) */
+  B.on('reduzir', function (sim) {
+    if (!sim) return;
+    pulsoAtivo = singAtivo = false; pulsoAte = singAte = 0;
+    S.pulse = S.pulseFront = S.singular = S.warmth = S.whiteHot = 0; S.shock = -1;
+    document.body.classList.remove('is-pulse', 'is-singular');
+    stP = 1; stMostrado = stPara = REPOUSO;
+    if (stEl) stEl.textContent = REPOUSO;
+  });
+
   /* regime → uma classe no <body>, só quando muda */
   var dormindo = false;
   B.on('regime', function (r) {

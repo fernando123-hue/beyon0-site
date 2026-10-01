@@ -1,8 +1,9 @@
 /* ==========================================================================
    LEAD-FORM — modal antes do WhatsApp nos 3 CTAs literalmente rotulados
    "Agendar diagnóstico" (nav, hero, CTA final — marcados com
-   [data-lead-gate]). Os outros CTAs com rótulo diferente (cards de
-   serviço, footer, medidor, bolha do WhatsApp) continuam sem fricção.
+   [data-lead-gate]). Só o TIPO de organização é obrigatório; nome e desafio
+   são opcionais, e o modal tem saída direta para o WhatsApp. Os outros CTAs
+   (cards, footer, medidor, bolha) continuam sem fricção.
 
    Regra: nunca trava o visitante. Se B.linkWA não existir (dom.js falhou
    ou carregou fora de ordem), o script sai sem gatear nada — os links
@@ -25,7 +26,8 @@
   if (!gated.length) return;
 
   var campoNome = form.querySelector('input[name="nome"]');
-  var campoOrganizacao = form.querySelector('input[name="organizacao"]');
+  var erroTipo = document.getElementById('leadTipoErro');
+  var avisoTipo = document.getElementById('leadTipoAviso');
   var campoTipo = form.querySelector('select[name="tipo"]');
   var campoTipoOutroWrap = document.getElementById('leadTipoOutroWrap');
   var campoTipoOutro = form.querySelector('input[name="tipoOutro"]');
@@ -40,7 +42,10 @@
       var ehOutro = campoTipo.value === 'outro';
       campoTipoOutroWrap.hidden = !ehOutro;
       campoTipoOutro.required = ehOutro;
-      if (ehOutro) campoTipoOutro.focus();
+      /* sem .focus(): quem navega o select com as setas seria arrancado dele.
+         O campo novo é o próximo no Tab; o leitor de tela é avisado. */
+      if (avisoTipo) avisoTipo.textContent = ehOutro ? 'Campo adicional: qual o tipo?' : '';
+      if (campoTipo.value && erroTipo) { erroTipo.hidden = true; campoTipo.removeAttribute('aria-invalid'); }
     });
   }
   /* trava o resto da página fora do modal (teclado E leitor de tela) —
@@ -63,7 +68,7 @@
     });
     document.body.classList.add('is-lead-open');
     travarResto(true);
-    if (campoNome) campoNome.focus();
+    if (campoTipo) campoTipo.focus();
     document.addEventListener('keydown', aoEscapar);
   }
 
@@ -77,7 +82,13 @@
       form.reset();
       if (campoTipoOutroWrap) campoTipoOutroWrap.hidden = true;
       if (campoTipoOutro) campoTipoOutro.required = false;
-      if (lastFocus) lastFocus.focus();
+      /* o gatilho pode ter sido o link do menu do celular, que já fechou
+         (visibility: hidden): o foco volta ao botão do menu */
+      if (lastFocus) {
+        var visivel = lastFocus.offsetParent !== null && getComputedStyle(lastFocus).visibility !== 'hidden';
+        if (visivel) lastFocus.focus();
+        else { var tg = document.querySelector('.nav__toggle'); if (tg) tg.focus(); }
+      }
     }, 220); // var(--t)
   }
 
@@ -99,8 +110,14 @@
 
   form.addEventListener('submit', function (e) {
     e.preventDefault();
+    /* o único campo obrigatório é o tipo: validado aqui (o form tem novalidate) */
+    if (campoTipo && !campoTipo.value) {
+      if (erroTipo) erroTipo.hidden = false;
+      campoTipo.setAttribute('aria-invalid', 'true');
+      campoTipo.focus();
+      return;
+    }
     var nome = (campoNome && campoNome.value || '').trim();
-    var organizacao = (campoOrganizacao && campoOrganizacao.value || '').trim();
     var opcaoTipo = campoTipo && campoTipo.value ? campoTipo.selectedOptions[0] : null;
     var artigo = opcaoTipo ? (opcaoTipo.getAttribute('data-artigo') || 'um') : '';
     var tipoTxt = opcaoTipo && opcaoTipo.value === 'outro'
@@ -108,14 +125,11 @@
       : (opcaoTipo ? opcaoTipo.textContent.toLowerCase() : '');
     var desafio = (campoDesafio && campoDesafio.value || '').trim();
 
-    var assunto = 'agendar um diagnóstico';
-    if (nome && organizacao && tipoTxt) {
-      assunto = 'agendar um diagnóstico — sou ' + nome + ', de ' + artigo + ' ' + tipoTxt + ' (' + organizacao + ')';
-    } else if (nome && tipoTxt) {
-      assunto = 'agendar um diagnóstico — sou ' + nome + ', de ' + artigo + ' ' + tipoTxt;
-    } else if (nome) {
-      assunto = 'agendar um diagnóstico — sou ' + nome;
-    }
+    /* js/pagina.js monta "Oi! Vim pelo site da Beyon Zero e " + assunto:
+       o assunto SEMPRE começa com verbo. */
+    var assunto = 'quero agendar um diagnóstico';
+    if (tipoTxt) assunto += ' para ' + artigo + ' ' + tipoTxt;
+    if (nome) assunto += '. Sou ' + nome;
     if (desafio) {
       assunto += '. O desafio que eu quero resolver: ' + desafio;
     }

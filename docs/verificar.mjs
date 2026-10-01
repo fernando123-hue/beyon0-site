@@ -25,6 +25,7 @@ const BASE = process.env.BASE || 'http://127.0.0.1:8080';
 const EXEC = process.env.CHROMIUM || undefined;
 
 const CELULAR = { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 };
+const ESTREITO = { viewport: { width: 320, height: 640 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 };
 const DESKTOP = { viewport: { width: 1440, height: 900 } };
 const ALVOS = [
   ['/index.html',     'hub',       DESKTOP],
@@ -33,7 +34,10 @@ const ALVOS = [
   ['/resumo.html',    'resumo',    DESKTOP, { semCanvas: true }],
   ['/index.html',     'hub-cel',   CELULAR],
   ['/sites.html',     'sites-cel', CELULAR],
-  ['/automacao.html', 'autom-cel', CELULAR]
+  ['/automacao.html', 'autom-cel', CELULAR],
+  /* URLs limpas (cleanUrls na Vercel; o servidor local resolve .html) e 320px */
+  ['/sites',          'sites-320', ESTREITO],
+  ['/automacao',      'autom-320', ESTREITO, { reduzirNoBoot: true }]
 ];
 
 const medirFps = (page, seg = 3) => page.evaluate(s => new Promise(ok => {
@@ -47,7 +51,7 @@ const medirFps = (page, seg = 3) => page.evaluate(s => new Promise(ok => {
 const navegador = await chromium.launch({ executablePath: EXEC, args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
 let falhou = false;
 
-for (const [rota, nome, opcoes, { semCanvas = false } = {}] of ALVOS) {
+for (const [rota, nome, opcoes, { semCanvas = false, reduzirNoBoot = false } = {}] of ALVOS) {
   const ctx = await navegador.newContext(opcoes);
   const page = await ctx.newPage();
   const erros = [];
@@ -55,6 +59,9 @@ for (const [rota, nome, opcoes, { semCanvas = false } = {}] of ALVOS) {
   page.on('console', m => { if (m.type() === 'error') erros.push('console: ' + m.text()); });
 
   await page.goto(BASE + rota, { waitUntil: 'load', timeout: 90000 });
+  /* o interruptor "Reduzir movimento" acionado no MEIO do boot: nada pode
+     ficar preso (SplitText no meio do caminho, opacidade zerada) */
+  if (reduzirNoBoot) { await page.waitForTimeout(500); await page.evaluate(() => window.BEYON && window.BEYON.reduzir(true)); }
   await page.waitForTimeout(3500);
 
   const d = await page.evaluate(() => {

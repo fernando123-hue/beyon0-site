@@ -237,7 +237,7 @@
     /* 7. A LEITURA — o instrumento mostra o que mede. Três valores em mono
        nas marcas cardeais: quadros por segundo, tempo até pronta, bytes deste
        domínio. É a prova prometida pelo título, no objeto que a produz. */
-    if (grande && boot > .85 && S.leitura) {
+    if (grande && R > 90 && boot > .85 && S.leitura) {   /* no celular o núcleo é pequeno demais para texto ao redor */
       var aT = a1((boot - .85) / .15 * .75 * Math.min(lum, 1.2));
       ctx.font = '500 10px "JetBrains Mono", ui-monospace, monospace';
       ctx.textBaseline = 'middle';
@@ -254,6 +254,21 @@
 
   /* ---- o retículo do cursor: estado suavizado ---- */
   var ret = { x: 0, y: 0, w: 0, h: 0, a: 0, on: false };
+
+  /* ---- BRUMAS em baixa resolução ----
+     Dois halos do tamanho da tela, redesenhados por frame, eram o maior
+     custo de PINTURA do canvas (não de JS). Um gradiente radial é borrado por
+     natureza: desenhado num canvas auxiliar a 1/8 da escala e ampliado, o
+     resultado é indistinguível e o preenchimento custa 1/64. */
+  var brumaCv = document.createElement('canvas'), brumaCtx = brumaCv.getContext('2d'), BRUMA_ESC = 8;
+  function halo2(c, x, y, r, rgb, a) {
+    a = a1(a);
+    if (a < .004 || r <= 0) return;
+    var g = c.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, 'rgba(' + rgb + ',' + a.toFixed(3) + ')');
+    g.addColorStop(1, 'rgba(' + rgb + ',0)');
+    c.fillStyle = g; c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill();
+  }
 
   function tick(S) {
     if (B.reduced) return;
@@ -346,9 +361,14 @@
 
     /* ---- 2. brumas (só com folga) — o regime FOCUSED recua o ambiente ---- */
     if (orc > .8) {
-      var t = S.t * .001, ceder = 1 - S.focus * .4;
-      halo(W * .5 + Math.cos(t * .21) * W * .2, H * .38 + Math.sin(t * .17) * H * .15, Math.min(W, H) * .5, pr, .016 * lum * ceder);
-      halo(W * .34 + Math.sin(t * .13) * W * .17, H * .72 + Math.cos(t * .09) * H * .12, Math.min(W, H) * .36, cy, .010 * lum * ceder);
+      var t = S.t * .001, ceder = 1 - S.focus * .4, bw = Math.ceil(W / BRUMA_ESC), bh = Math.ceil(H / BRUMA_ESC);
+      if (brumaCv.width !== bw || brumaCv.height !== bh) { brumaCv.width = bw; brumaCv.height = bh; }
+      brumaCtx.clearRect(0, 0, bw, bh);
+      brumaCtx.globalCompositeOperation = 'lighter';
+      var k = 1 / BRUMA_ESC;
+      halo2(brumaCtx, (W * .5 + Math.cos(t * .21) * W * .2) * k, (H * .38 + Math.sin(t * .17) * H * .15) * k, Math.min(W, H) * .5 * k, pr, .016 * lum * ceder);
+      halo2(brumaCtx, (W * .34 + Math.sin(t * .13) * W * .17) * k, (H * .72 + Math.cos(t * .09) * H * .12) * k, Math.min(W, H) * .36 * k, cy, .010 * lum * ceder);
+      ctx.drawImage(brumaCv, 0, 0, bw, bh, 0, 0, W, H);
     }
 
     /* ---- 3. camadas de fundo (profundidade) ---- */
@@ -478,7 +498,7 @@
       var nd = stepNos[so];
       if (nd.y < -40 || nd.y > H + 40) continue;
       var pn = prox(S, nd.x, nd.y, 220);
-      var intens = (.42 + pulso * .3 + pn * .55) * Math.min(lum, 1.35);
+      var intens = (.16 + pulso * .3 + pn * .6) * Math.min(lum, 1.35);   /* repouso quieto; acende ao apontar */
       if (intens < .04) continue;
       var faseN = S.t * .04 + so * 2.1;
       for (var o = 0; o < 5; o++) {
@@ -537,7 +557,7 @@
       if (!ret.on) { ret.x = tx; ret.y = ty; ret.w = tw; ret.h = th; ret.on = true; }
       ret.x += (tx - ret.x) * k; ret.y += (ty - ret.y) * k;
       ret.w += (tw - ret.w) * k; ret.h += (th - ret.h) * k;
-      var alvoA = alvo ? 1 : Math.max(.35, presenca);
+      var alvoA = alvo ? 1 : presenca;   /* a mira só existe em movimento ou sobre um alvo */
       ret.a += ((S.pointerOn ? alvoA : 0) - ret.a) * .12;
       if (ret.a > .02) {
         var m = Math.min(10, ret.w * .3, ret.h * .3);

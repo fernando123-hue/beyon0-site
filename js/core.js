@@ -217,6 +217,12 @@
     emit('reduzir', reduced);
   }
 
+  try {
+    window.matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', function (e) {
+      if (e.matches) reduzir(true);
+    });
+  } catch (e) { /* navegador antigo */ }
+
   window.BEYON = {
     S: S, add: add, remove: remove, on: on, off: off, emit: emit, iniciar: iniciar, reduzir: reduzir,
     reduced: reduced, fine: fine, saveData: saveData, weak: weak, PERF: PERF

@@ -32,7 +32,6 @@ html.js .reveal:not(.is-in) .kicker::after { transform: scaleX(0); }
 .is-singular { --ac: #F0B44F; --ac-rgb: 240 180 79; }
 h1, h2 { transition: text-shadow var(--t-sing) var(--ease-mid); }
 .is-singular h1, .is-singular h2 { text-shadow: 0 0 28px rgb(var(--ac-rgb) / .15); }
-.is-singular .vidro { box-shadow: inset 0 1px 0 rgb(255 255 255 / .12), 0 30px 110px -36px rgb(var(--ac-rgb) / .5), 0 2px 30px -12px rgb(0 0 0 / .8); }
 /* dormente: a película recolhe; nenhum texto muda de contraste */
 .is-dormant::after { opacity: .022; }
 

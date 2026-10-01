@@ -69,6 +69,7 @@
     var painel = document.getElementById('nav-links');
     if (toggle && painel) {
       toggle.hidden = false;
+      html.classList.add('tem-menu');   /* só com JS os links se recolhem (css/base.css) */
       var fechar = function (devolverFoco) {
         if (!navEl.classList.contains('is-open')) return;
         navEl.classList.remove('is-open');
@@ -105,7 +106,7 @@
       if (id !== atualNav) {
         if (atualNav && mapaNav[atualNav]) { mapaNav[atualNav].classList.remove('is-current'); mapaNav[atualNav].removeAttribute('aria-current'); }
         atualNav = id;
-        if (atualNav && mapaNav[atualNav]) { mapaNav[atualNav].classList.add('is-current'); mapaNav[atualNav].setAttribute('aria-current', 'true'); }
+        if (atualNav && mapaNav[atualNav]) { mapaNav[atualNav].classList.add('is-current'); mapaNav[atualNav].setAttribute('aria-current', 'location'); }
       }
       if (regN) {
         var idx = sec ? comRegua.indexOf(sec) : -1;
@@ -143,6 +144,8 @@
     S.alvo = { x: r.left, y: r.top, w: r.width, h: r.height };
   }
   if (B.fine) {
+    B.on('remedir', medirAlvo);
+    document.addEventListener('transitionend', function (e) { if (alvoEl && alvoEl.contains(e.target)) medirAlvo(); }, { passive: true });
     document.addEventListener('pointerover', function (e) {
       var el = e.target.closest(SEL);
       if (!el || el === alvoEl) return;
@@ -233,10 +236,9 @@
   /* ---------- interruptor "menos movimento" (rodapé) ---------- */
   var btnMov = document.querySelector('.footer__motion');
   if (btnMov) {
+    /* rótulo FIXO; só o estado muda (botão alternável) */
     var rotular = function () {
-      var ligado = html.classList.contains('menos-movimento');
-      btnMov.textContent = ligado ? 'Ativar movimento' : 'Reduzir movimento';
-      btnMov.setAttribute('aria-pressed', ligado ? 'true' : 'false');
+      btnMov.setAttribute('aria-pressed', html.classList.contains('menos-movimento') ? 'true' : 'false');
     };
     rotular();
     btnMov.addEventListener('click', function () {

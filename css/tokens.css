@@ -105,6 +105,9 @@
 
 html {
   scroll-behavior: smooth;
+  /* foco por teclado nunca fica embaixo da nav fixa nem dos controles do rodapé */
+  scroll-padding-top: calc(var(--nav-h) + 16px);
+  scroll-padding-bottom: 88px;
   -webkit-text-size-adjust: 100%;
   color-scheme: dark;
 }
@@ -115,7 +118,7 @@ body {
   color: var(--t2);
   font-family: var(--sans);
   font-weight: 300;
-  font-size: clamp(15px, 1vw, 16.5px);
+  font-size: clamp(.94rem, 1vw, 1.03rem);   /* em rem: respeita a preferência de fonte do navegador */
   line-height: 1.65;
   overflow-x: clip;
   -webkit-font-smoothing: antialiased;
@@ -136,7 +139,7 @@ img, svg, canvas { display: block; max-width: 100%; }
 a { color: inherit; text-decoration: none; }
 button { font: inherit; color: inherit; }
 
-:focus-visible { outline: 2px solid var(--ac); outline-offset: 3px; border-radius: 2px; }
+:focus-visible { outline: 2px solid var(--ac); outline-offset: 3px; }
 
 .sr-only {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;

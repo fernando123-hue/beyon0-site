@@ -175,11 +175,12 @@
         if (pc.tipo === 'pedra') {
           ctx.globalCompositeOperation = 'source-over';
           var gp = ctx.createLinearGradient(pts[0], pts[1], pts[4], pts[5]);
-          gp.addColorStop(0, 'rgba(34,34,42,' + al.toFixed(3) + ')');
-          gp.addColorStop(.55, 'rgba(16,16,22,' + al.toFixed(3) + ')');
-          gp.addColorStop(1, 'rgba(23,23,30,' + al.toFixed(3) + ')');
+          /* pedra como o resto do sistema: traço + preenchimento leve, não bloco opaco */
+          gp.addColorStop(0, 'rgba(34,34,42,' + (.55 * al).toFixed(3) + ')');
+          gp.addColorStop(.55, 'rgba(16,16,22,' + (.45 * al).toFixed(3) + ')');
+          gp.addColorStop(1, 'rgba(23,23,30,' + (.55 * al).toFixed(3) + ')');
           ctx.fillStyle = gp; ctx.fill();
-          ctx.strokeStyle = 'rgba(255,255,255,' + (.07 * al).toFixed(3) + ')'; ctx.lineWidth = 1; ctx.stroke();
+          ctx.strokeStyle = 'rgba(255,255,255,' + (.16 * al).toFixed(3) + ')'; ctx.lineWidth = 1; ctx.stroke();
           ctx.globalCompositeOperation = 'lighter';
         } else if (pc.tipo === 'vao') {
           /* a soleira: a luz do vão assenta no chão como uma linha acesa */

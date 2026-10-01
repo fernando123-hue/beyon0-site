@@ -152,6 +152,8 @@
     if (!alvos.length) return;
     try {
       gsap.set(alvos, { y: 28 });
+      /* o cabeçalho de seção já entra pelas linhas do título: sem deslocamento duplo */
+      gsap.set('.section__head.reveal', { y: 0 });
       if (ST && ST.batch) {
         ST.batch(alvos, {
           start: 'clamp(top 86%)', once: true,
@@ -180,14 +182,13 @@
           var hero = document.querySelector('.hero');
           if (hero) {
             var main = hero.querySelector('.hero__main');
-            if (main) gsap.to(main, { y: -40, opacity: .25, ease: 'none', scrollTrigger: { trigger: hero, start: 'top top', end: 'bottom 30%', scrub: .6 } });
+            /* só deslocamento: texto que ainda está na tela não some enquanto é lido */
+            if (main) gsap.to(main, { y: -40, ease: 'none', scrollTrigger: { trigger: hero, start: 'top top', end: 'bottom 30%', scrub: .6 } });
             var reator = hero.querySelector('.hero__reactor, .palco');
             if (reator) gsap.to(reator, { yPercent: 14, ease: 'none', scrollTrigger: { trigger: hero, start: 'top top', end: 'bottom top', scrub: .6 } });
             var rail = hero.querySelector('.hero__rail');
             if (rail) gsap.to(rail, { yPercent: 10, ease: 'none', scrollTrigger: { trigger: hero, start: 'top top', end: 'bottom top', scrub: .6 } });
           }
-          var bus = document.querySelector('.bus');
-          if (bus && bus.closest('section')) gsap.to(bus, { yPercent: 14, ease: 'none', scrollTrigger: { trigger: bus.closest('section'), start: 'top bottom', end: 'bottom top', scrub: .6 } });
         });
       } catch (e) { /* paralaxe é profundidade, não conteúdo */ }
     }
