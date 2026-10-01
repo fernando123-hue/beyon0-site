@@ -899,7 +899,7 @@ o mobile, é aonde a maioria das pessoas irão acessar". Direção completa em
 | | |
 |---|---|
 | Branch | `rebuild-v2` (continua o mesmo nome; a `main` ainda é a V2 publicada) |
-| Publicado? | **NÃO.** O dono precisa ver a V3 antes. Push na `main` é deploy e só o dono pede. |
+| Publicado? | **SIM, 2026-10-01**, a pedido do dono ("Dê deploy para eu poder ver"): `main` = `731cd98`, no ar em https://beyon0-site.vercel.app. Conferido ao vivo: headers de segurança, `/sites.html` → 308 `/sites`, fontes novas servidas, módulos do canvas em 404 (removidos de propósito). |
 | Verificador | 10/10 (fps 60, LCP 1,1–1,7s no headless, zero rolagem lateral, zero preso, zero erro) |
 | Acessibilidade | 23/23 (sem JS, movimento reduzido sem loop de CSS, teclado, menu do celular) |
 | Screenshots | `docs/olhar-v3/` (desktop, 390px e 320px) |
