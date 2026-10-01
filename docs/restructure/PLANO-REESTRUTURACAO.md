@@ -665,3 +665,31 @@ sozinhos em SwiftShader: sem GPU, o WebGL não sobe e o porteiro já desliga o 3
 - Backup no GitHub: `feat/ai-core-3d`, `rebuild` e o stash (como
   `backup/stash-wip-antes-da-reformulacao`).
 - As pastas antigas continuam no lugar até o dono confirmar que podem sair.
+
+### 12.8 Fechamento da sétima sessão (2026-10-01) — estado para a próxima
+
+| | |
+|---|---|
+| `main` | `58900ff`, publicado, verificador 8/8 OK contra o site no ar |
+| Branch de trabalho | `claude/site-restructure-planning-1cd10h`, igual à `main` |
+| Pasta local | `C:\Vault - Fernando\Beyon Zero\03 Projetos\site` (não a antiga) |
+
+**Publicado nesta sessão, depois da 12.7:** `558c208` (3D não monta em WebGL
+por software; verificador com alvos `-3d`), `1e7133f` (legenda da miniatura;
+comentário do formulário), `c484d0e` (primeira conversa grátis; sem
+`priceRange`), `58900ff` (diagnóstico grátis em automação e resumo).
+
+**Decisões do dono que já estão no site:** primeira conversa grátis;
+diagnóstico grátis (sem contrapartida, sem limite de simultâneos, cobrança só
+quando houver renome, sem data). Registro completo em
+`Beyon Zero\01 Empresa\Decisões.md`.
+
+**Aberto no site, esperando o dono:**
+- "O sistema é seu" (automacao.html, resumo.html, index.html, sites.html) ×
+  propriedade em dois níveis do briefing. Nada a mudar até ele decidir.
+- Item 6 da 12.3 (extrair o organismo para módulo compartilhado) continua
+  tarefa separada.
+- Página de Experiências Digitais, imagens novas e `cleanUrls`: como na 11.4.
+
+**Próxima sessão:** não é no site. É `04 Comercial` do segundo cérebro — ver
+o bloco ESTADO no topo de `Beyon Zero\LEIA-ME.md`.
