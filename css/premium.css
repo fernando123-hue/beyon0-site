@@ -821,17 +821,18 @@
   pointer-events: none;
 }
 
-/* o cubo do Hub divide a célula com o AI Core e sangra para fora dela: o
-   núcleo fica nítido no centro, o volume de vidro gira por trás e por fora. */
-.cena--hero {
-  position: relative;
-  grid-column: 2; grid-row: 1;
-  align-self: center;
-  width: 138%;
-  margin-left: -19%;
-  aspect-ratio: 1;
-  inset: auto;
-}
+/* O CUBO DO HUB MORA DENTRO DA CAIXA DO AI CORE.
+   Duas tentativas anteriores, dois bugs, a mesma raiz: a caixa do cubo era
+   irmã do núcleo na grade do hero e tentava se alinhar a ele por conta.
+   · Em fluxo (`position: relative`), abaixo de 860px ela virava um quadrado
+     de 350px e — como celular nunca carrega o 3D — ficava vazia empurrando o
+     título 163px para baixo em todo celular. Achado na quarta revisão.
+   · Absoluta na grade, a célula de referência se estende até a borda do
+     padding do hero, e o centro do cubo saía 28 a 309px do centro do núcleo.
+   Aninhada no `.hero__reactor`, ela é concêntrica por construção em qualquer
+   largura, e sangra 19% para cada lado (138% do núcleo) sem ocupar espaço. */
+.hero > .hero__reactor { position: relative; }
+.cena--hero { inset: -19%; }
 
 /* No palco e no portal a cena sangra um pouco para além da peça, senão a
    profundidade termina numa borda reta e denuncia o recorte.
@@ -872,14 +873,3 @@ body { overflow-x: clip; }
   .palco .cena, .portal .cena { inset: -10% 0; }
 }
 
-/* 860px, NÃO 980px — e a diferença importa.
-   `.hero--palco` (Sites) colapsa para uma coluna a 980px, mas o `.hero` puro
-   (Hub), que é quem hospeda o cubo, só colapsa a 860px, em styles.css. Movendo
-   o cubo para a célula 1/1 já aos 980px, ele caía em cima do `.hero__main`
-   entre 861 e 980 e desenhava por cima do título — a MESMA colisão de célula
-   que já tinha acontecido com o palco e que o comentário lá em cima diz ter
-   sido corrigida. Corrigida uma vez, repetida noutro lugar: achado na revisão.
-   Aqui o ponto de quebra passa a ser o do `.hero` que o cubo realmente usa. */
-@media (max-width: 860px) {
-  .cena--hero { grid-column: 1; grid-row: 1; width: 100%; margin-left: 0; }
-}

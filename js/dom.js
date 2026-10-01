@@ -490,8 +490,16 @@
      para ele acontecer: o relógio interno e o reconhecimento das capacidades
      (ver RECONHECIMENTO). Duplicar o corpo aqui era como as duas versões
      saíam de sincronia. */
+  /* BANDEIRAS EXPLÍCITAS para o fim do Pulso e do Singular — a mesma correção
+     que js/pagina.js recebeu. Inferir o fim por `S.pulse !== 0` falha se o
+     loop parar (troca de aba) no frame seguinte ao disparo: o valor nunca sai
+     do zero, a limpeza nunca roda e a página fica presa em "Ressonância em
+     curso". Achado na revisão; a extração das duas cópias para um módulo só
+     ficou como tarefa separada. */
+  var pulsoAtivo = false, singAtivo = false;
   function dispararPulso(now, anuncio) {
-    if (pulsoAte > now || S.singular) return false;
+    if (pulsoAtivo || singAtivo) return false;
+    pulsoAtivo = true;
     pulsoAte = now + DUR;
     document.body.classList.add('is-pulse');
     anunciar(anuncio || 'Ressonância em curso');
@@ -505,13 +513,14 @@
       S.pulse = Math.sin(u * Math.PI) * .9;              /* sobe e volta */
       return;
     }
-    if (S.pulse !== 0) {
+    if (pulsoAtivo) {
+      pulsoAtivo = false;
       S.pulse = 0; S.pulseFront = 0;
       document.body.classList.remove('is-pulse');
       anunciar('Sistema online · Beyon Zero');
       agendarPulso(now);
     }
-    if (proxPulso && now > proxPulso && !S.singular) dispararPulso(now);
+    if (proxPulso && now > proxPulso && !singAtivo) dispararPulso(now);
   }
 
   /* ---------- RECONHECIMENTO — a descoberta para quem presta atenção --------
@@ -597,7 +606,8 @@
       }
       return;
     }
-    if (S.singular !== 0) {
+    if (singAtivo) {
+      singAtivo = false;
       S.singular = 0; S.warmth = 0; S.whiteHot = 0; S.shock = -1;
       document.body.classList.remove('is-singular');
       anunciar('Sistema online · Beyon Zero');
@@ -606,7 +616,8 @@
          hora, não esperam o próximo ciclo. */
       trocarPalavras();
     }
-    if (proxSing && now > proxSing && !S.pulse) {
+    if (proxSing && now > proxSing && !pulsoAtivo) {
+      singAtivo = true;
       singAte = now + SDUR;
       document.body.classList.add('is-singular');
       anunciar('AI Core no comando');

@@ -332,9 +332,14 @@
         var pc = spec.pecas[j];
         var tex = pc.pedra ? texturas.pedra : (pc.vao ? texturas.vao : texturas.vidro);
         var ehPedra = !!pc.pedra;
+        /* `transparent: true` também na PEDRA. Com ela opaca, o three força o
+           alfa em 1 e ignora `opacity` — os pilares e a verga surgiam de uma
+           vez, cheios, enquanto o texto da seção ainda estava entrando, e a
+           rampa de entrada não valia para eles. Achado na quarta revisão. A
+           pedra continua escrevendo profundidade, então ainda oclui o vão. */
         var mat = new THREE.MeshBasicMaterial({
           map: tex,
-          transparent: !ehPedra,
+          transparent: true,
           opacity: pc.alfa,
           /* a pedra escreve profundidade e OCLUI — é ela que dá volume ao
              portal. O vidro nunca escreve: some na ordenação e é aditivo. */
@@ -383,7 +388,7 @@
     }
 
     medirCaixas();
-    var marcar = recursos.marcar = function () { sujo = true; };
+    var marcar = recursos.marcar = function () { if (!desligado) sujo = true; };
     window.addEventListener('scroll', marcar, { passive: true });
     document.addEventListener('transitionend', marcar, { passive: true });
     document.addEventListener('animationend', marcar, { passive: true });
@@ -494,6 +499,12 @@
      a cena aparecer uma fração de segundo depois — ninguém nota; julgar a tela
      errada, todo mundo nota. */
   var REF = 60, menorDt = Infinity, amostras = 0, reguaPronta = false;
+  /* ao voltar de uma aba escondida, js/core.js reinicia o relógio e o primeiro
+     quadro chega com dt sintético de 16ms — que a régua tomaria como "esta
+     tela faz 60". Os dois quadros seguintes a uma volta não contam. Achado na
+     quarta revisão. */
+  var pular = 0;
+  document.addEventListener('visibilitychange', function () { pular = 2; });
   var AMOSTRAS = 20;      /* ~0,3s a 60Hz, ~0,7s a 30Hz */
   var estagio = 0, lentos = 0, aquecendo = AQUECE, desligado = false;
 
@@ -502,9 +513,13 @@
      `renderer.dispose()` não solta o contexto WebGL, e as referências do
      módulo (renderer, cenas) mantinham canvas, malhas e texturas vivos até o
      fim da visita — enquanto os ouvintes de rolagem e transição continuavam
-     disparando. Achado na terceira revisão. Agora cada recurso é devolvido:
-     materiais, texturas, a geometria compartilhada, o observador, os
-     ouvintes, e o contexto em si (`forceContextLoss`). */
+     disparando. Achado na terceira revisão. Agora são devolvidos: materiais,
+     texturas, a geometria compartilhada, o observador, os ouvintes de
+     rolagem e transição, e o contexto em si (`forceContextLoss`).
+     O que NÃO dá para devolver: a inscrição no laço (`B.add`) e o ouvinte de
+     `resize` (`B.on`) — o js/core.js não tem como cancelar inscrição. Os dois
+     viram retorno imediato: o laço sai na primeira linha e `marcar` não faz
+     nada depois do desligamento. Custo de um desvio por quadro. */
   function desligar() {
     if (desligado) return;
     desligado = true; pronto = false; estagio = 2;
@@ -568,7 +583,8 @@
     /* antes de montar, só observa: é daqui que sai a régua de fluidez */
     if (desligado) return;
     if (!reguaPronta) {
-      if (S.t > 2 && S.dt >= 4) {
+      if (pular > 0) pular--;
+      else if (S.t > 2 && S.dt >= 4) {
         amostras++;
         if (S.dt < menorDt) menorDt = S.dt;
       }

@@ -42,11 +42,11 @@
     }
   }
 
-  var B = window.BEYON;
-  if (!B) return;
-  var S = B.S;
-
   /* ---------- WhatsApp: o número vive num lugar só (js/tel.js) ----------
+     ANTES da checagem do BEYON, de propósito. Montar os links não depende do
+     organismo — e se js/core.js falhasse, todos os botões de contato da página
+     ficavam em `href="#"`: a página inteira sem caminho para o dono. Achado na
+     quarta revisão.
      `data-wa` vira o assunto, então a conversa chega qualificada. A mensagem
      padrão muda por página: quem chega pela página de Sites não está pedindo
      diagnóstico de IA. `data-wa-padrao` no <body> define esse texto. */
@@ -70,6 +70,10 @@
     links[i].rel = 'noopener noreferrer';
     links[i].target = '_blank';
   }
+
+  var B = window.BEYON;
+  if (!B) return;
+  var S = B.S;
   B.linkWA = linkWA;
 
   var ano = document.getElementById('year');
@@ -205,11 +209,15 @@
   /* ---------- o status do hero ----------
      Uma linha que anuncia o estado do organismo. Escrita por EVENTO (começo e
      fim de Pulso/Singular), nunca por frame. */
+  /* Só o texto VISÍVEL muda. A cópia para leitor de tela (`.sr-only`) era
+     reescrita a cada evento, mas não é região `aria-live` — ninguém ouvia a
+     mudança, era escrita para o vazio. E torná-la `aria-live` seria pior:
+     anunciar "Ressonância em curso" a cada 9–20 segundos a quem navega por
+     voz é ruído, não informação. O leitor lê o estado de repouso, que é o
+     único que diz algo sobre a empresa. Achado na quarta revisão. */
   var statusTxt = document.querySelector('.hero__status-txt');
-  var statusSr = document.querySelector('.hero__status .sr-only');
   function anunciar(txt) {
     if (statusTxt) statusTxt.textContent = txt;
-    if (statusSr) statusSr.textContent = txt;
   }
 
   /* ---------- PULSO ----------

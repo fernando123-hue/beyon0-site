@@ -129,11 +129,14 @@
         </div>
       </div>
 
-      <!-- o cubo de vidro da imagem 03 do moodboard, em WebGL. Divide a
-           célula com o AI Core: o núcleo nítido na frente, o volume girando
-           por trás. Só existe em aparelho que aguenta — ver js/cena.js. -->
-      <div class="cena cena--hero" data-cena="cubo" aria-hidden="true"></div>
-      <div class="hero__reactor" aria-hidden="true"></div>
+      <!-- o AI Core (desenhado por js/field.js a partir desta caixa) e, DENTRO
+           dela, a caixa do cubo de vidro da imagem 03 do moodboard, em WebGL:
+           o núcleo nítido na frente, o volume girando por trás. Aninhada, ela
+           é concêntrica ao núcleo em qualquer largura e não ocupa espaço no
+           layout. Só existe em aparelho que aguenta — ver js/cena.js. -->
+      <div class="hero__reactor" aria-hidden="true">
+        <div class="cena cena--hero" data-cena="cubo"></div>
+      </div>
 
       <dl class="hero__rail">
         <div>

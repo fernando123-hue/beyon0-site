@@ -30,12 +30,18 @@ import { chromium } from 'playwright';
 const BASE = process.env.BASE || 'http://127.0.0.1:8080';
 const EXEC = process.env.CHROMIUM || undefined;
 
+/* Os alvos de celular simulam TOQUE, não só a largura. Só estreitar a janela
+   deixa `(pointer: fine)` verdadeiro, o 3D carrega, e o verificador mede um
+   caminho que nenhum celular percorre — foi assim que 163px de vão no hero do
+   Hub, em todo celular, passaram como OK. Achado na quarta revisão. */
+const CELULAR = { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 };
 const ALVOS = [
-  ['/index.html',     'hub',       { width: 1440, height: 900 }],
-  ['/sites.html',     'sites',     { width: 1440, height: 900 }],
-  ['/automacao.html', 'automacao', { width: 1440, height: 900 }],
-  ['/index.html',     'hub-390',   { width: 390,  height: 844 }],
-  ['/sites.html',     'sites-390', { width: 390,  height: 844 }]
+  ['/index.html',     'hub',        { viewport: { width: 1440, height: 900 } }],
+  ['/sites.html',     'sites',      { viewport: { width: 1440, height: 900 } }],
+  ['/automacao.html', 'automacao',  { viewport: { width: 1440, height: 900 } }],
+  ['/index.html',     'hub-cel',    CELULAR],
+  ['/sites.html',     'sites-cel',  CELULAR],
+  ['/automacao.html', 'autom-cel',  CELULAR]
 ];
 
 /* fps por contagem de rAF — o número que importa, medido como o olho mede */
@@ -55,8 +61,8 @@ const navegador = await chromium.launch({
 
 let falhou = false;
 
-for (const [rota, nome, viewport] of ALVOS) {
-  const ctx = await navegador.newContext({ viewport });
+for (const [rota, nome, opcoes] of ALVOS) {
+  const ctx = await navegador.newContext(opcoes);
   const page = await ctx.newPage();
   const erros = [];
   page.on('pageerror', e => erros.push('pageerror: ' + e.message));
@@ -80,7 +86,12 @@ for (const [rota, nome, viewport] of ALVOS) {
          Este campo ERA coletado e nunca conferido — o verificador dizia OK
          para uma página sem AI Core, exatamente a classe de bug que ele
          existe para pegar. Achado na segunda revisão. */
-      reator: !!document.querySelector('.hero__reactor')
+      reator: !!document.querySelector('.hero__reactor'),
+      /* as caixas `.cena` são só MEDIDA: nenhuma pode ocupar espaço no
+         layout. Uma delas em fluxo empurrou o título do Hub 163px para baixo
+         em todo celular. */
+      cenaForaDoFluxo: [...document.querySelectorAll('.cena')]
+        .every(e => getComputedStyle(e).position === 'absolute')
     };
   });
 
@@ -96,7 +107,7 @@ for (const [rota, nome, viewport] of ALVOS) {
      do Google Fonts já é pega pelo ERR_CERT que vem junto dela. */
   const reais = erros.filter(e => !/ERR_CERT|fonts\.googleapis|GPU stall/.test(e));
 
-  const ok = d.boot && d.reator && d.overflowX === 0 && d.waProntos === d.waTotal && reais.length === 0 && fps > 45;
+  const ok = d.boot && d.reator && d.cenaForaDoFluxo && d.overflowX === 0 && d.waProntos === d.waTotal && reais.length === 0 && fps > 45;
   if (!ok) falhou = true;
 
   console.log(
@@ -105,6 +116,7 @@ for (const [rota, nome, viewport] of ALVOS) {
     'rolagemX=' + d.overflowX,
     'wa=' + d.waProntos + '/' + d.waTotal,
     'nucleo=' + d.reator,
+    'cenaFora=' + d.cenaForaDoFluxo,
     '3d=' + d.tem3d,
     reais.length ? '\n     erros: ' + reais.join('\n     ') : ''
   );
