@@ -855,3 +855,5 @@ Não feito, anotado: fundir o rAF do núcleo ao `gsap.ticker` (ordem entre
 os dois laços; ganho não medido); hash nos nomes de CSS/JS com cache
 imutável (exigiria passo de pré-deploy; hoje é ETag/revalidação); DPR 2 e
 CPU throttling no `medir.mjs`.
+
+DPR medido (desktop 1440×900 a 2x, software): teto do canvas em 2 → 40fps, 1,5 → 44, 1,25 → 45. O preenchimento do canvas não é o custo dominante a 2x (é a composição da página inteira); o teto fica em 2 para as linhas de 1px continuarem nítidas.  ganhou alvos  e .

@@ -9,8 +9,10 @@ const EXEC = process.env.CHROMIUM;
 const ROTULO = process.argv[2] || 'medida';
 const CELULAR = { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 };
 const DESKTOP = { viewport: { width: 1440, height: 900 } };
+const DESKTOP2X = { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 };   /* o canvas custa DPR²: cegueira apontada na auditoria */
 const ALVOS = [
   ['/index.html', 'hub', DESKTOP], ['/sites.html', 'sites', DESKTOP], ['/automacao.html', 'automacao', DESKTOP],
+  ['/index.html', 'hub-2x', DESKTOP2X], ['/sites.html', 'sites-2x', DESKTOP2X],
   ['/index.html', 'hub-cel', CELULAR], ['/sites.html', 'sites-cel', CELULAR], ['/automacao.html', 'autom-cel', CELULAR]
 ];
 
