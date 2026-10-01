@@ -641,3 +641,15 @@ junto, e isso é mudança de porteiro, não de véspera de deploy.
   verificador precisa rodar fora dele. Servidor local: node puro na 8899
   (`BASE=http://127.0.0.1:8899`).
 - Não há Python instalado.
+
+**12.5 executada (passos 1 a 6), com OK do dono para a estrutura:**
+- Pasta nova: `C:\Vault - Fernando\Beyon Zero\`. Este repo está em
+  `03 Projetos\site\` e o app em `03 Projetos\app\`. **Abra as próximas
+  sessões lá, não em `Beyon 0 - site`.**
+- O que veio de onde, a conferência por SHA256 e as pendências estão no
+  `LEIA-ME.md` da raiz da pasta nova.
+- `Logo.gif` e `introdução.mp4` foram para a Lixeira do Windows, a pedido do
+  dono, e não vieram para a pasta nova.
+- Backup no GitHub: `feat/ai-core-3d`, `rebuild` e o stash (como
+  `backup/stash-wip-antes-da-reformulacao`).
+- As pastas antigas continuam no lugar até o dono confirmar que podem sair.
