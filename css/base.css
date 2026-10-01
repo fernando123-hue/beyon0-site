@@ -290,10 +290,10 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 2rem); }
 .regua__nome { color: var(--t3); }
 @media (min-width: 1001px) { .regua { display: flex; } }
 @media (max-width: 1000px) {
-  .regua { display: flex; flex-direction: row; align-items: center; gap: .6rem; left: auto; right: 48px; bottom: auto; top: calc(var(--nav-h) + 10px); }
+  /* o contador mora NA barra da nav, ao lado do menu: nunca fica em cima do conteúdo que rola */
+  .regua { display: flex; flex-direction: row; align-items: center; gap: .6rem; left: auto; right: 76px; bottom: auto; top: 26px; z-index: 51; }
   .regua__nome { display: none; }
 }
-@media (max-width: 980px) { .regua { top: 78px; } }
 
 /* ---- RODAPÉ ---- */
 .footer {
