@@ -26,7 +26,7 @@
   <meta name="twitter:description" content="Diagnóstico grátis, sem comissão de ferramenta. Descubro onde a IA paga por si na sua entidade, e construo só isso." />
   <meta name="twitter:image" content="https://beyon0-site.vercel.app/assets/og-cover.jpg" />
 
-  <meta name="theme-color" content="#FBF7F0" />
+  <meta name="theme-color" content="#06080B" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
 
@@ -123,9 +123,8 @@
   </script>
 
   <script src="js/ancoras.js"></script>
-  <link rel="preload" href="assets/fonts/instrument-serif-latin.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="preload" href="assets/fonts/instrument-serif-italic-latin.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="assets/fonts/sora-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="assets/fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="css/tokens.css" />
   <link rel="stylesheet" href="css/base.css" />
   <link rel="stylesheet" href="css/componentes.css" />
@@ -133,9 +132,7 @@
 </head>
 <body data-wa-padrao="quero entender onde a IA pode ajudar na minha entidade">
   <a href="#hero" class="skip-link">Pular para o conteúdo</a>
-  <div class="aura aura--1" aria-hidden="true"></div>
-  <div class="aura aura--2" aria-hidden="true"></div>
-  <div class="aura aura--3" aria-hidden="true"></div>
+  <div class="atmosfera" aria-hidden="true"></div>
 
   <header class="nav" id="nav">
     <a href="/" class="nav__logo" aria-label="Beyon Zero — início">
@@ -146,7 +143,7 @@
       <span class="nav__toggle-bar" aria-hidden="true"></span>
     </button>
     <nav class="nav__links" id="nav-links" aria-label="Navegação principal">
-      <a href="#servicos">O que faço</a>
+      <a href="#servicos">Capacidades</a>
       <a href="#processo">Método</a>
       <a href="#faq">Perguntas</a>
       <span class="nav__sep" aria-hidden="true"></span>
@@ -156,28 +153,39 @@
   </header>
 
   <main>
-    <!-- HERO — a melhor frase do site fica. No celular: eyebrow, frase, o que
-         é, CTA, tudo na primeira tela. -->
+    <!-- HERO — a frase da V1 fica. A arte é o laudo em três leituras de
+         instrumento (lugar reservado ao AI Core futuro). -->
     <section class="hero" id="hero" aria-labelledby="hero-titulo">
+      <div class="feixe" aria-hidden="true"></div>
       <div class="hero__main">
-        <p class="hero__eyebrow"><span class="dot" aria-hidden="true"></span> <span>Para associações, sindicatos, federações e cooperativas</span></p>
+        <p class="hero__status"><span class="dot" aria-hidden="true"></span><span>Para associações, sindicatos, federações e cooperativas</span></p>
         <h1 class="hero__title" id="hero-titulo">Toda entidade perde dinheiro num ponto que ninguém está <em>auditando</em>.</h1>
         <p class="hero__sub">Eu encontro esse ponto. Se a IA gerar receita, cortar custo ou devolver capacidade ali, eu construo o sistema. Se não gerar, eu digo.</p>
         <div class="hero__actions">
           <a class="btn btn--primary" data-wa data-lead-gate href="https://wa.me/5521977167944" target="_blank" rel="noopener">Agendar diagnóstico</a>
           <a class="btn btn--ghost" href="#projetos">Ver onde isso se aplica <span aria-hidden="true">↓</span></a>
         </div>
-        <p class="hero__prova">
-          <span class="dot" aria-hidden="true"></span>
-          <span>Quem faz o diagnóstico é quem constrói. Sem equipe no meio do caminho.</span>
-        </p>
+        <p class="hero__fine">Quem faz o diagnóstico é quem constrói. Sem equipe no meio do caminho.</p>
       </div>
 
-      <!-- a arte: o laudo em três etiquetas, o método em miniatura -->
-      <div class="hero__arte leque" aria-hidden="true">
-        <div class="carta carta--mel"><span class="carta__n">entrada</span><span class="carta__t">Diagnóstico grátis</span></div>
-        <div class="carta carta--salvia"><span class="carta__n">construção</span><span class="carta__t">Agentes, automação, sistemas</span></div>
-        <div class="carta carta--ceu"><span class="carta__n">critério</span><span class="carta__t">Só o que paga por si</span></div>
+      <div class="hero__arte" aria-hidden="true">
+        <div class="instrumento painel">
+          <div class="instrumento__topo"><span class="instrumento__k">Diagnóstico · leitura</span><span class="instrumento__led"></span></div>
+          <div class="instrumento__linha"><span class="instrumento__rot">Trabalho repetitivo</span><span class="instrumento__val">custo</span><span class="instrumento__barra"><i class="instrumento__nivel instrumento__nivel--1"></i></span></div>
+          <div class="instrumento__linha"><span class="instrumento__rot">Oportunidade sem resposta</span><span class="instrumento__val">receita</span><span class="instrumento__barra"><i class="instrumento__nivel instrumento__nivel--2"></i></span></div>
+          <div class="instrumento__linha"><span class="instrumento__rot">Conhecimento parado</span><span class="instrumento__val">decisão</span><span class="instrumento__barra"><i class="instrumento__nivel instrumento__nivel--3"></i></span></div>
+          <div class="instrumento__base"><span>entrada → diagnóstico grátis</span><span>critério → só o que paga por si</span></div>
+        </div>
+      </div>
+
+      <div class="hero__rail">
+        <div><span class="hero__rail-k"><b>01</b> Entrada</span><span class="hero__rail-v">Diagnóstico grátis da operação</span></div>
+        <div><span class="hero__rail-k"><b>02</b> Construção</span><span class="hero__rail-v">Agentes, automação e sistemas</span></div>
+        <div><span class="hero__rail-k"><b>03</b> Critério</span><span class="hero__rail-v">Só o que paga por si</span></div>
+        <div class="hero__rail--medida" data-metrica-caixa>
+          <span class="hero__rail-k">Medido agora, neste aparelho</span>
+          <span class="hero__rail-v"><b data-metrica="fps">— fps</b> · pronta em <b data-metrica="carga">—</b></span>
+        </div>
       </div>
     </section>
 
@@ -207,51 +215,52 @@
       </div>
     </section>
 
-    <div class="faixa faixa--papel-2">
+    <div class="faixa">
       <section class="section" id="servicos" aria-labelledby="servicos-titulo">
         <div class="section__head reveal">
-          <p class="kicker"><b>02</b> O que faço</p>
+          <p class="kicker"><b>02</b> Capacidades</p>
           <h2 id="servicos-titulo">O que dá pra tirar <br />da sua <em>mesa</em>.</h2>
           <p class="lead">Seis caminhos, um sistema só. Quem se reconhece num deles já começa a conversa pelo ponto certo.</p>
         </div>
-        <!-- Cada capacidade é um link: o valor de data-wa vai na mensagem do
-             WhatsApp, então a conversa já começa qualificada (js/pagina.js). -->
-        <div class="bento reveal">
-          <a class="celula celula--salvia" data-wa="quero um agente de IA que execute tarefas na minha entidade" href="https://wa.me/5521977167944">
+        <!-- A MALHA — grid com fresta de 1px: as seis capacidades leem como
+             UMA estrutura. Cada célula é um link: o valor de data-wa vai na
+             mensagem do WhatsApp (js/pagina.js). -->
+        <div class="malha reveal">
+          <a class="celula" data-wa="quero um agente de IA que execute tarefas na minha entidade" href="https://wa.me/5521977167944">
             <span class="celula__n" aria-hidden="true">01</span>
             <h3>Agentes que executam</h3>
             <p>Recebe uma tarefa, cumpre com as ferramentas certas e chama você só quando precisa de uma decisão. Mais <em>funcionário</em> do que chatbot.</p>
-            <span class="celula__link">Conversar sobre isso <span aria-hidden="true">→</span></span>
+            <span class="celula__link">Conversar <span aria-hidden="true">→</span></span>
           </a>
           <a class="celula" data-wa="quero escalar meu atendimento com IA" href="https://wa.me/5521977167944">
             <span class="celula__n" aria-hidden="true">02</span>
             <h3>Atendimento que escala</h3>
             <p>Absorve o volume repetitivo, classifica o que chega e passa pra uma pessoa só o que <em>precisa</em> de uma.</p>
-            <span class="celula__link">Conversar sobre isso <span aria-hidden="true">→</span></span>
+            <span class="celula__link">Conversar <span aria-hidden="true">→</span></span>
           </a>
           <a class="celula" data-wa="quero recuperar contatos e oportunidades perdidas com IA" href="https://wa.me/5521977167944">
             <span class="celula__n" aria-hidden="true">03</span>
             <h3>Receita recuperada</h3>
             <p>Contato esquecido, orçamento sem resposta, associado que sumiu: o sistema encontra, prioriza e <em>reabre</em> a conversa.</p>
-            <span class="celula__link">Conversar sobre isso <span aria-hidden="true">→</span></span>
+            <span class="celula__link">Conversar <span aria-hidden="true">→</span></span>
           </a>
           <a class="celula" data-wa="quero automatizar um processo da minha entidade" href="https://wa.me/5521977167944">
             <span class="celula__n" aria-hidden="true">04</span>
             <h3>Processos automatizados</h3>
             <p>O gargalo que trava a operação vira fluxo automático, com registro, validação e <em>parada humana</em> onde importa.</p>
-            <span class="celula__link">Conversar sobre isso <span aria-hidden="true">→</span></span>
+            <span class="celula__link">Conversar <span aria-hidden="true">→</span></span>
           </a>
           <a class="celula" data-wa="quero usar os dados da minha entidade com IA" href="https://wa.me/5521977167944">
             <span class="celula__n" aria-hidden="true">05</span>
             <h3>Dados que respondem</h3>
             <p>Documentos, histórico e conhecimento interno viram resposta pronta na hora exata em que alguém precisa <em>decidir</em>.</p>
-            <span class="celula__link">Conversar sobre isso <span aria-hidden="true">→</span></span>
+            <span class="celula__link">Conversar <span aria-hidden="true">→</span></span>
           </a>
           <a class="celula" data-wa="quero um sistema ou site potencializado por IA" href="https://wa.me/5521977167944">
             <span class="celula__n" aria-hidden="true">06</span>
             <h3>Sistemas &amp; interfaces</h3>
             <p>O software que junta tudo isso: integração, painel de gestão e o site que já nasce como <em>parte do sistema</em>.</p>
-            <span class="celula__link">Conversar sobre isso <span aria-hidden="true">→</span></span>
+            <span class="celula__link">Conversar <span aria-hidden="true">→</span></span>
           </a>
         </div>
       </section>
@@ -289,7 +298,7 @@
       </div>
       <!-- uma operação ENTRA num estado e SAI em outro: só o último recebe cor -->
       <div class="cenarios reveal">
-        <article class="cenario">
+        <article class="painel cenario">
           <p class="cenario__label"><b>01</b> · Comercial / vendas</p>
           <h3 class="cenario__title">A oportunidade que já tinha batido na porta</h3>
           <ol role="list" class="fluxo">
@@ -298,7 +307,7 @@
             <li>Reaberto</li>
           </ol>
         </article>
-        <article class="cenario">
+        <article class="painel cenario">
           <p class="cenario__label"><b>02</b> · Atendimento / operação</p>
           <h3 class="cenario__title">O volume que consome o time inteiro</h3>
           <ol role="list" class="fluxo">
@@ -307,7 +316,7 @@
             <li>Exceção</li>
           </ol>
         </article>
-        <article class="cenario">
+        <article class="painel cenario">
           <p class="cenario__label"><b>03</b> · Dados / decisão</p>
           <h3 class="cenario__title">O que a entidade já sabe e não consegue achar</h3>
           <ol role="list" class="fluxo">
@@ -371,7 +380,7 @@
       </div>
     </section>
 
-    <section class="noite" id="contato" aria-labelledby="contato-titulo">
+    <section class="conversa" id="contato" aria-labelledby="contato-titulo">
       <div class="section reveal">
         <p class="kicker"><b>06</b> Conversa</p>
         <h2 id="contato-titulo">Comece pelo problema, não pelo <em>discurso</em> de venda.</h2>
@@ -393,7 +402,7 @@
       </div>
       <nav class="footer__links" aria-label="Links do rodapé">
         <p class="footer__links-title">Nesta página</p>
-        <a href="#servicos">O que faço</a>
+        <a href="#servicos">Capacidades</a>
         <a href="#processo">Método</a>
         <a href="#projetos">Cenários</a>
         <a href="#faq">Perguntas</a>
@@ -460,7 +469,7 @@
   </div>
 
   <a data-wa class="wa" href="https://wa.me/5521977167944" target="_blank" rel="noopener noreferrer" aria-label="Falar no WhatsApp (abre em nova aba)">
-    <svg viewBox="0 0 32 32" width="24" height="24" aria-hidden="true">
+    <svg viewBox="0 0 32 32" width="22" height="22" aria-hidden="true">
       <path fill="currentColor" d="M16.04 3.2c-7.1 0-12.86 5.76-12.86 12.86 0 2.27.6 4.48 1.73 6.43L3.2 28.8l6.5-1.7a12.8 12.8 0 0 0 6.33 1.66h.01c7.1 0 12.86-5.76 12.86-12.86S23.14 3.2 16.04 3.2zm0 23.3h-.01a10.7 10.7 0 0 1-5.44-1.49l-.39-.23-3.86 1.01 1.03-3.76-.25-.4a10.66 10.66 0 0 1-1.63-5.68c0-5.9 4.8-10.7 10.7-10.7 2.86 0 5.54 1.11 7.56 3.13a10.62 10.62 0 0 1 3.13 7.57c0 5.9-4.8 10.7-10.7 10.7zm5.87-8.01c-.32-.16-1.9-.94-2.2-1.05-.3-.11-.51-.16-.72.16-.21.32-.83 1.05-1.02 1.26-.19.21-.37.24-.69.08-.32-.16-1.36-.5-2.59-1.6-.96-.85-1.6-1.91-1.79-2.23-.19-.32-.02-.5.14-.66.14-.14.32-.37.48-.56.16-.19.21-.32.32-.53.11-.21.05-.4-.03-.56-.08-.16-.72-1.74-.99-2.38-.26-.62-.52-.54-.72-.55l-.61-.01c-.21 0-.56.08-.85.4-.29.32-1.11 1.09-1.11 2.66 0 1.57 1.14 3.08 1.3 3.29.16.21 2.24 3.42 5.43 4.8.76.33 1.35.52 1.81.67.76.24 1.45.21 2 .13.61-.09 1.9-.78 2.17-1.53.27-.75.27-1.39.19-1.53-.08-.14-.29-.21-.61-.37z"/>
     </svg>
   </a>
