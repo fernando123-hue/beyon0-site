@@ -174,12 +174,8 @@
         ctx.moveTo(pts[0], pts[1]); ctx.lineTo(pts[2], pts[3]); ctx.lineTo(pts[4], pts[5]); ctx.lineTo(pts[6], pts[7]); ctx.closePath();
         if (pc.tipo === 'pedra') {
           ctx.globalCompositeOperation = 'source-over';
-          var gp = ctx.createLinearGradient(pts[0], pts[1], pts[4], pts[5]);
           /* pedra como o resto do sistema: traço + preenchimento leve, não bloco opaco */
-          gp.addColorStop(0, 'rgba(34,34,42,' + (.55 * al).toFixed(3) + ')');
-          gp.addColorStop(.55, 'rgba(16,16,22,' + (.45 * al).toFixed(3) + ')');
-          gp.addColorStop(1, 'rgba(23,23,30,' + (.55 * al).toFixed(3) + ')');
-          ctx.fillStyle = gp; ctx.fill();
+          ctx.fillStyle = 'rgba(24,24,32,' + (.5 * al).toFixed(3) + ')'; ctx.fill();
           ctx.strokeStyle = 'rgba(255,255,255,' + (.16 * al).toFixed(3) + ')'; ctx.lineWidth = 1; ctx.stroke();
           ctx.globalCompositeOperation = 'lighter';
         } else if (pc.tipo === 'vao') {
@@ -206,11 +202,10 @@
           ctx.strokeStyle = 'rgba(' + paleta.alta + ',' + (.5 * al * brilho).toFixed(3) + ')'; ctx.lineWidth = 1; ctx.stroke();
         } else {
           /* vidro aditivo: miolo quase escuro, moldura acesa, aresta de baixo mais forte */
-          var gg = ctx.createLinearGradient(pts[0], pts[1], pts[4], pts[5]);
-          gg.addColorStop(0, 'rgba(' + paleta.alta + ',' + (.06 * al * brilho).toFixed(3) + ')');
-          gg.addColorStop(.5, 'rgba(' + paleta.cy + ',' + (.012 * al * brilho).toFixed(3) + ')');
-          gg.addColorStop(1, 'rgba(' + paleta.alta + ',' + (.045 * al * brilho).toFixed(3) + ')');
-          ctx.fillStyle = gg; ctx.fill();
+          /* preenchimento sólido: gradiente por face custava ~14fps em
+             rasterização por software e não se via (alfas de 1–6%) */
+          ctx.fillStyle = 'rgba(' + paleta.alta + ',' + (.03 * al * brilho).toFixed(3) + ')';
+          ctx.fill();
           ctx.lineWidth = 1;
           ctx.strokeStyle = 'rgba(' + paleta.alta + ',' + (.2 * al * brilho).toFixed(3) + ')'; ctx.stroke();
           ctx.lineWidth = 1.5;

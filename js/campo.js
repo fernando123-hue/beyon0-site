@@ -255,20 +255,21 @@
   /* ---- o retículo do cursor: estado suavizado ---- */
   var ret = { x: 0, y: 0, w: 0, h: 0, a: 0, on: false };
 
-  /* ---- BRUMAS em baixa resolução ----
-     Dois halos do tamanho da tela, redesenhados por frame, eram o maior
-     custo de PINTURA do canvas (não de JS). Um gradiente radial é borrado por
-     natureza: desenhado num canvas auxiliar a 1/8 da escala e ampliado, o
-     resultado é indistinguível e o preenchimento custa 1/64. */
-  var brumaCv = document.createElement('canvas'), brumaCtx = brumaCv.getContext('2d'), BRUMA_ESC = 8;
-  function halo2(c, x, y, r, rgb, a) {
-    a = a1(a);
-    if (a < .004 || r <= 0) return;
-    var g = c.createRadialGradient(x, y, 0, x, y, r);
-    g.addColorStop(0, 'rgba(' + rgb + ',' + a.toFixed(3) + ')');
-    g.addColorStop(1, 'rgba(' + rgb + ',0)');
-    c.fillStyle = g; c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill();
-  }
+  /* ---- BRUMAS no compositor ----
+     Dois halos do tamanho da tela compostos por frame eram o maior custo de
+     PINTURA (medido: ~11fps em rasterização por software). Viram duas camadas
+     CSS (css/motion.css) animadas só por transform — o compositor resolve
+     sem repintar. Criadas aqui porque são decoração do canvas, não conteúdo. */
+  (function brumas() {
+    if (document.querySelector('.bruma')) return;
+    var frag = document.createDocumentFragment();
+    for (var i = 1; i <= 2; i++) {
+      var d = document.createElement('div');
+      d.className = 'bruma bruma--' + i; d.setAttribute('aria-hidden', 'true');
+      frag.appendChild(d);
+    }
+    cv.parentNode.insertBefore(frag, cv.nextSibling);
+  })();
 
   function tick(S) {
     if (B.reduced) return;
@@ -359,17 +360,6 @@
       }
     }
 
-    /* ---- 2. brumas (só com folga) — o regime FOCUSED recua o ambiente ---- */
-    if (orc > .8) {
-      var t = S.t * .001, ceder = 1 - S.focus * .4, bw = Math.ceil(W / BRUMA_ESC), bh = Math.ceil(H / BRUMA_ESC);
-      if (brumaCv.width !== bw || brumaCv.height !== bh) { brumaCv.width = bw; brumaCv.height = bh; }
-      brumaCtx.clearRect(0, 0, bw, bh);
-      brumaCtx.globalCompositeOperation = 'lighter';
-      var k = 1 / BRUMA_ESC;
-      halo2(brumaCtx, (W * .5 + Math.cos(t * .21) * W * .2) * k, (H * .38 + Math.sin(t * .17) * H * .15) * k, Math.min(W, H) * .5 * k, pr, .016 * lum * ceder);
-      halo2(brumaCtx, (W * .34 + Math.sin(t * .13) * W * .17) * k, (H * .72 + Math.cos(t * .09) * H * .12) * k, Math.min(W, H) * .36 * k, cy, .010 * lum * ceder);
-      ctx.drawImage(brumaCv, 0, 0, bw, bh, 0, 0, W, H);
-    }
 
     /* ---- 3. camadas de fundo (profundidade) ---- */
     for (var ic = 0; ic < camadas.length; ic++) camadas[ic].f(ctx, S, { lum: lum, cy: cy, alta: alta, nuc: nuc, pr: pr, boot: boot });

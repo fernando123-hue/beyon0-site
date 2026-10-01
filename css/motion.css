@@ -24,6 +24,32 @@ html.js:not(.has-gsap) .reveal, html.js:not(.has-gsap) .hero__title, html.js:not
 .kicker::after { transform-origin: left; transition: transform 1s var(--ease) .1s; }
 html.js .reveal:not(.is-in) .kicker::after { transform: scaleX(0); }
 
+/* ---- BRUMAS — a atmosfera no compositor ----
+   Duas manchas de luz muito abertas derivando em períodos incomensuráveis
+   (nunca repetem de forma reconhecível). Só transform anima; o canvas não
+   paga por elas. Criadas por js/campo.js, atrás do conteúdo. */
+.bruma {
+  position: fixed; z-index: 0; pointer-events: none;
+  border-radius: 50%; will-change: transform;
+}
+.bruma--1 {
+  width: 70vmax; height: 70vmax; left: 15vw; top: -10vh;
+  background: radial-gradient(circle, rgb(104 110 124 / .07), transparent 68%);
+  animation: bruma-1 47s ease-in-out infinite alternate;
+}
+.bruma--2 {
+  width: 52vmax; height: 52vmax; left: 6vw; top: 40vh;
+  background: radial-gradient(circle, rgb(79 216 240 / .05), transparent 68%);
+  animation: bruma-2 61s ease-in-out infinite alternate;
+}
+@keyframes bruma-1 { from { transform: translate3d(-12vw, -6vh, 0); } to { transform: translate3d(14vw, 10vh, 0); } }
+@keyframes bruma-2 { from { transform: translate3d(10vw, 8vh, 0); } to { transform: translate3d(-10vw, -10vh, 0); } }
+.bruma { transition: opacity var(--t-sing) var(--ease-mid); }
+.is-dormant .bruma { animation-play-state: paused; opacity: .6; }
+.is-singular .bruma--2 { background: radial-gradient(circle, rgb(240 180 79 / .07), transparent 68%); }
+@media (prefers-reduced-motion: reduce) { .bruma { display: none; } }
+html.menos-movimento .bruma { display: none; }
+
 /* ---- REGIMES DO ORGANISMO ----
    O canvas faz o espetáculo. O DOM só acompanha, e só onde a cor é assinatura. */
 .is-pulse { --ac: #7FE9FF; --ac-rgb: 127 233 255; }

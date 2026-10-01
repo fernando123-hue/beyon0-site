@@ -188,6 +188,7 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 2rem); }
    estreita, e a trilha de dados fechando a primeira tela como um painel. ---- */
 .hero {
   position: relative;
+  overflow-x: clip;   /* a caixa de medida do cubo sangra 19%: não vira rolagem lateral */
   max-width: var(--maxw);
   margin: 0 auto;
   min-height: 100svh;
