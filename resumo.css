@@ -1,64 +1,65 @@
 /* ==========================================================================
    RESUMO.CSS — página isolada, sem o movimento do site principal. Usa os
-   tokens de css/tokens.css (a mesma pele clara da V3); só o que é próprio
+   tokens de css/tokens.css (a mesma pele escura da V4); só o que é próprio
    desta página mora aqui. Pensada para ser lida rápido e impressa/salva
-   como PDF pela diretoria.
+   como PDF pela diretoria (no papel, vira preto sobre branco).
    ========================================================================== */
 :root { --r-maxw: 720px; }
 
 body { font-size: 1rem; line-height: 1.65; }
-.aura { display: none; }
+.atmosfera { display: none; }
 
-h1, h2 { font-family: var(--serifa); font-weight: 400; color: var(--tinta); line-height: 1.05; letter-spacing: -.01em; }
-h1 { font-size: clamp(2.3rem, 8.5vw, 3.2rem); margin-bottom: 1rem; }
-h1 em { font-style: italic; color: var(--coral-texto); }
-h2 { font-size: clamp(1.7rem, 5.5vw, 2.1rem); margin-bottom: 1rem; }
-strong { color: var(--tinta); font-weight: 600; }
+h1, h2 { font-weight: 300; color: var(--t1); line-height: 1.1; letter-spacing: -.025em; }
+h1 { font-size: clamp(2.1rem, 8vw, 2.9rem); margin-bottom: 1rem; }
+h1 em { font-style: normal; font-weight: 500; color: var(--ac); }
+h2 { font-size: clamp(1.5rem, 5vw, 1.8rem); margin-bottom: 1rem; }
+strong { color: var(--t1); font-weight: 600; }
 
 .r-nav {
   display: flex; align-items: center; justify-content: space-between;
   max-width: var(--r-maxw); margin: 0 auto; padding: 1.2rem var(--pad);
 }
-.r-nav__logo { font-weight: 700; letter-spacing: -.02em; color: var(--tinta); display: inline-flex; align-items: center; gap: .3em; min-height: 44px; }
-.r-nav__logo b { color: var(--coral-texto); }
-.r-nav__voltar { font-size: .9rem; font-weight: 500; color: var(--tinta-3); display: inline-flex; align-items: center; min-height: 44px; }
-.r-nav__voltar:hover { color: var(--tinta); }
+.r-nav__logo { font-family: var(--mono); font-weight: 600; color: var(--t1); display: inline-flex; align-items: center; gap: .3em; min-height: 44px; }
+.r-nav__logo b { color: var(--ac); }
+.r-nav__voltar { font-family: var(--mono); font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: var(--t3); display: inline-flex; align-items: center; min-height: 44px; }
+.r-nav__voltar:hover { color: var(--t1); }
 
 .r-main { max-width: var(--r-maxw); margin: 0 auto; padding: 0 var(--pad) 5rem; }
 
-.r-hero { padding: 1rem 0 2.4rem; border-bottom: 1px solid var(--linha-2); }
+.r-hero { padding: 1rem 0 2.4rem; border-bottom: 1px solid var(--line-2); }
 .r-kicker {
-  font-size: .7rem; font-weight: 600; letter-spacing: .12em;
-  text-transform: uppercase; color: var(--coral-texto); margin-bottom: .9rem;
+  font-family: var(--mono); font-size: .66rem; font-weight: 500; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--ac); margin-bottom: .9rem;
 }
-.r-lead { max-width: 56ch; margin-top: .8rem; color: var(--tinta-2); }
+.r-lead { max-width: 56ch; margin-top: .8rem; color: var(--t2); }
 
-.r-section { padding: 2.4rem 0; border-bottom: 1px solid var(--linha-2); }
+.r-section { padding: 2.4rem 0; border-bottom: 1px solid var(--line-2); }
 
 .r-list { list-style: none; display: flex; flex-direction: column; gap: 1rem; }
-.r-list li { padding-left: 1.1rem; border-left: 3px solid var(--mel); }
+.r-list li { padding-left: 1.1rem; border-left: 1px solid var(--stroke); }
 .r-list--grid { display: grid; grid-template-columns: 1fr; gap: 1.1rem 1.6rem; }
 @media (min-width: 621px) { .r-list--grid { grid-template-columns: 1fr 1fr; } }
 
 .r-steps { list-style: none; display: flex; flex-direction: column; gap: 1.1rem; }
-.r-steps li { padding-left: 1.1rem; border-left: 3px solid var(--coral); }
+.r-steps li { padding-left: 1.1rem; border-left: 1px solid var(--ac); }
 
-.r-faq dt { color: var(--tinta); font-weight: 600; margin-top: 1.2rem; }
+.r-faq dt { color: var(--t1); font-weight: 600; margin-top: 1.2rem; }
 .r-faq dt:first-child { margin-top: 0; }
-.r-faq dd { margin-top: .3rem; color: var(--tinta-2); }
+.r-faq dd { margin-top: .3rem; color: var(--t2); }
 
 .r-cta { padding: 2.6rem 0 1rem; }
 .r-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: .6rem;
   width: 100%; min-height: 56px; margin-top: 1.4rem;
-  font-weight: 600; font-size: 1.05rem; padding: .9rem 1.6rem; border-radius: 12px;
-  background: var(--coral); color: var(--coral-tinta);
-  box-shadow: 0 10px 24px -12px rgb(var(--coral-rgb) / .7);
+  font-family: var(--mono); font-size: .8rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
+  padding: .9rem 1.6rem; border-radius: var(--raio-s);
+  background: var(--ac); color: var(--ac-tinta);
 }
 @media (min-width: 621px) { .r-btn { width: auto; } }
-.r-fine { margin-top: 1rem; font-size: .88rem; color: var(--tinta-3); }
+.r-fine { margin-top: 1rem; font-size: .88rem; color: var(--t3); }
 
 @media print {
+  :root { --bg: #fff; --t1: #111; --t2: #333; --t3: #555; --ac: #0A6E82; --line-2: #d8d8d8; --stroke: #999; }
   body { background: #fff; }
   .r-nav__voltar, .r-btn, .r-fine { display: none; }
   a { text-decoration: none; }
