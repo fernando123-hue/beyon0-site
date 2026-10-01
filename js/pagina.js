@@ -137,7 +137,7 @@
       }
       fimDaPagina = fimVisivel.length > 0; mostrarBarra();
     }, { rootMargin: '0px 0px -40% 0px' });
-    var fins = document.querySelectorAll('.noite, body > footer');
+    var fins = document.querySelectorAll('.conversa, body > footer');
     for (var f = 0; f < fins.length; f++) ioBarra.observe(fins[f]);
   }
 

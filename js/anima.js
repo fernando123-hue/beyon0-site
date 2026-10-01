@@ -24,7 +24,7 @@
   var EXPO = 'expo.out';
   var reduzido = B.reduced;
   var splits = [];   /* todo SplitText vivo, para reverter se o movimento for reduzido no meio */
-  var HERO_PECAS = '.hero__eyebrow, .hero__sub, .hero__actions, .hero__prova, .hero__arte, .nav';
+  var HERO_PECAS = '.hero__status, .hero__sub, .hero__actions, .hero__fine, .hero__arte, .hero__rail, .nav';
 
   /* ---------- tudo visível, agora (rede de segurança e reduced-motion) ---------- */
   function mostrarTudo() {
@@ -57,11 +57,12 @@
     if (reduzido) { mostrarTudo(); return; }
 
     var titulo = document.querySelector('.hero__title');
-    var eyebrow = document.querySelector('.hero__eyebrow');
+    var eyebrow = document.querySelector('.hero__status');
     var sub = document.querySelector('.hero__sub');
     var linhas = document.querySelector('.hero .linhas');
     var acoes = document.querySelector('.hero__actions');
-    var prova = document.querySelector('.hero__prova');
+    var prova = document.querySelector('.hero__fine');
+    var rail = document.querySelector('.hero__rail');
     var arte = document.querySelector('.hero__arte');
     var nav = document.querySelector('.nav');
 
@@ -88,6 +89,10 @@
       if (acoes) tl.fromTo(acoes, { y: 14 }, { opacity: 1, y: 0, duration: .9 }, '-=.7');
       if (prova) tl.to(prova, { opacity: 1, duration: .7 }, '-=.6');
       if (arte) tl.fromTo(arte, { y: 24, scale: .96 }, { opacity: 1, y: 0, scale: 1, duration: 1.1, clearProps: 'transform' }, .35);
+      if (rail) {
+        tl.to(rail, { opacity: 1, duration: .01 }, '-=.5');
+        tl.from(rail.children, { opacity: 0, y: 10, duration: .8, stagger: .07, clearProps: 'opacity,transform' }, '<');
+      }
     } catch (e) {
       mostrarTudo();
     }
@@ -100,10 +105,10 @@
      os filhos de lista/grade entram em cascata curta. O título de seção sobe
      por linhas atrás de máscara. A classe `is-in` acende as marcas-texto. */
   var jaRevelou = false;
-  var COM_FILHOS = '.capitulos, .regras, .prova, .passos, .laudo, .bento, .cenarios, .faq-list, .spec';
+  var COM_FILHOS = '.servicos, .prova, .passos, .laudo, .malha, .cenarios, .faq-list, .spec, .formatos';
   function marcar(el) {
     el.classList.add('is-in');
-    if (el.classList.contains('section__head') || el.parentNode.classList.contains('noite')) linhasDoTitulo(el);
+    if (el.classList.contains('section__head') || el.parentNode.classList.contains('conversa')) linhasDoTitulo(el);
   }
   function linhasDoTitulo(cabeca) {
     var h = cabeca.querySelector('h2');
