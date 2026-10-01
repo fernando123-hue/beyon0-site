@@ -168,11 +168,23 @@
   var elFps = document.querySelectorAll('[data-metrica="fps"]');
   var elCarga = document.querySelectorAll('[data-metrica="carga"]');
   var elPeso = document.querySelectorAll('[data-metrica="peso"]');
-  function escrever(lista, txt) {
+  /* valor e unidade separados: na prova a unidade fica subordinada (<small>);
+     nos demais alvos vira texto. Dois createElement: nada de innerHTML. */
+  function escrever(lista, valor, unidade) {
+    var txt = unidade ? valor + ' ' + unidade : String(valor);
     for (var k = 0; k < lista.length; k++) {
-      if (lista[k].hasAttribute('data-contando') || lista[k].textContent === txt) continue;
-      lista[k].textContent = txt;
-      carimbar(lista[k]);
+      var el = lista[k];
+      if (el.hasAttribute('data-contando') || el.getAttribute('data-txt') === txt) continue;
+      el.setAttribute('data-txt', txt);
+      if (el.classList.contains('prova__val') && unidade) {
+        el.textContent = '';
+        var b = document.createElement('b'); b.textContent = String(valor);
+        var sm = document.createElement('small'); sm.textContent = unidade;
+        el.appendChild(b); el.appendChild(sm);
+      } else {
+        el.textContent = txt;
+      }
+      carimbar(el);
     }
   }
   /* o console do hero: cada linha recebe o instante (s desde o início) em que o valor chegou */
@@ -208,12 +220,12 @@
     var nav = performance.getEntriesByType('navigation')[0];
     if (!nav) return;
     if (elCarga.length && nav.domContentLoadedEventEnd > 0) {
-      escrever(elCarga, (nav.domContentLoadedEventEnd / 1000).toFixed(2) + ' s');
+      escrever(elCarga, (nav.domContentLoadedEventEnd / 1000).toFixed(2), 's');
       var st = document.querySelector('.hero__status');
       if (st) st.classList.add('is-online');
     }
     var total = bytesDaOrigem(nav);
-    if (total > 0 && elPeso.length) escrever(elPeso, Math.round(total / 1024) + ' KB');
+    if (total > 0 && elPeso.length) escrever(elPeso, Math.round(total / 1024), 'KB');
   }
   if (elCarga.length || elPeso.length) {
     if (document.readyState === 'complete') medidasDeCarga();
@@ -232,7 +244,7 @@
     B.add('medidor', function (s) {
       if (s.now - ultFps < 500) return;
       ultFps = s.now;
-      escrever(elFps, Math.round(s.fps) + ' fps');
+      escrever(elFps, Math.round(s.fps), 'fps');
     });
     /* em movimento reduzido não há o que medir: o item de fps da prova some
        (css/motion.css) e a trilha diz o porquê em vez de um traço */

@@ -106,9 +106,9 @@
     <aside class="hud" aria-hidden="true"><span class="hud__trilho"></span><span class="hud__marca"></span><span class="hud__k" data-hud-k></span></aside>
     <!-- HERO — a peça é um site de verdade em miniatura, feito de HTML, numa
          janela de vidro. Num site que vende sites, o mockup É a demonstração. -->
-    <section class="hero" id="hero" aria-labelledby="hero-titulo">
+    <section class="hero hero--longo" id="hero" aria-labelledby="hero-titulo">
       <div class="feixe" aria-hidden="true"><span class="feixe__linha"></span></div>
-      <p class="hero__status"><span class="dot" aria-hidden="true"></span><span>Sites · institucional, landing, sob medida</span></p>
+      <p class="hero__status"><span class="dot" aria-hidden="true"></span><span>Sites · três formatos</span></p>
         <h1 class="hero__title" id="hero-titulo">Sites que carregam rápido e <em>convencem</em>.</h1>
         <div class="hero__main">
         <p class="hero__sub">Feitos primeiro para o celular, com o seu negócio explicado sem rodeio e a prova de velocidade rodando nesta página, agora.</p>
@@ -135,12 +135,13 @@
             <span class="mini__btn" aria-hidden="true">Começar</span>
             <div class="mini__linha" aria-hidden="true"><span class="mini__bloco"></span><span class="mini__bloco"></span><span class="mini__bloco"></span></div>
           </div>
+          <p class="adesivo" aria-hidden="true" data-metrica-caixa data-metrica-fps><span class="adesivo__k">Nesta página, agora</span><b data-metrica="fps">— fps</b></p>
           <figcaption class="sr-only">Miniatura ilustrativa de um site, exibida numa janela de navegador.</figcaption>
         </figure>
-        <p class="adesivo" aria-hidden="true"><span class="adesivo__k">Nesta página</span><b data-metrica="fps">— fps</b></p>
       </div>
 
       <div class="hero__rail">
+        <span class="hero__rail-aresta" aria-hidden="true"></span>
         <a href="#formatos"><span class="hero__rail-k"><b>01</b> Institucional</span><span class="hero__rail-v">Quem você é, sem deixar dúvida</span></a>
         <a href="#formatos"><span class="hero__rail-k"><b>02</b> Landing page</span><span class="hero__rail-v">Uma página, uma decisão</span></a>
         <a href="#formatos"><span class="hero__rail-k"><b>03</b> Sob medida</span><span class="hero__rail-v">Quando o pronto não serve</span></a>
@@ -154,7 +155,7 @@
     <section class="section" id="formatos" aria-labelledby="formatos-titulo">
       <div class="section__head reveal">
         <p class="kicker"><b>01</b> Formatos</p>
-        <h2 id="formatos-titulo">Três formatos, um padrão de <strong>acabamento</strong>.</h2>
+        <h2 id="formatos-titulo">Três formatos, um padrão de <em>acabamento</em>.</h2>
         <p class="lead">O que muda de um para o outro é o tamanho do problema, nunca o cuidado com o resultado.</p>
       </div>
       <div class="servicos reveal">
@@ -186,7 +187,7 @@
       <section class="section" id="incluso" aria-labelledby="incluso-titulo">
         <div class="section__head reveal">
           <p class="kicker"><b>02</b> Padrão de entrega</p>
-          <h2 id="incluso-titulo">O que vem em todo site, <strong>sem negociar</strong>.</h2>
+          <h2 id="incluso-titulo">O que vem em todo site, <em>sem negociar</em>.</h2>
           <p class="lead">Isso não é extra. É o mínimo, e não se negocia.</p>
         </div>
         <div class="spec reveal">
@@ -221,7 +222,7 @@
     <section class="section" id="metodo" aria-labelledby="metodo-titulo">
       <div class="section__head reveal">
         <p class="kicker"><b>04</b> Método</p>
-        <h2 id="metodo-titulo">Quatro passos, nenhuma <strong>surpresa</strong>.</h2>
+        <h2 id="metodo-titulo">Quatro passos, nenhuma <em>surpresa</em>.</h2>
       </div>
       <ol role="list" class="passos passos--4 reveal">
         <li class="passo"><span class="passo__n" aria-hidden="true">01</span><h3>Conversa</h3><p>O que o site precisa resolver, para quem, e o que conta como sucesso. Sem isso, o resto é decoração cara.</p></li>
@@ -234,7 +235,7 @@
     <section class="section" id="faq" aria-labelledby="faq-titulo">
       <div class="section__head reveal">
         <p class="kicker"><b>05</b> Perguntas</p>
-        <h2 id="faq-titulo">O que você deve estar se <strong>perguntando</strong>.</h2>
+        <h2 id="faq-titulo">O que você deve estar<br class="br-l" /> se <em>perguntando</em>.</h2>
       </div>
       <!-- texto idêntico ao FAQPage do <head> -->
       <div class="faq-list reveal">
@@ -251,6 +252,7 @@
     </section>
 
     <section class="conversa" id="contato" aria-labelledby="contato-titulo">
+      <span class="conversa__regua" aria-hidden="true"></span>
       <div class="section reveal">
         <p class="kicker"><b>06</b> Conversa</p>
         <h2 id="contato-titulo">Me conte o que seu site precisa <em>resolver</em>.</h2>

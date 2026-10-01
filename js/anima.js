@@ -1,12 +1,15 @@
 /* ==========================================================================
    ANIMA — a coreografia (GSAP + ScrollTrigger + SplitText), em todas as páginas.
 
-   Vocabulário fechado (DIRECAO-V4 §1): o boot do hero é a assinatura — o
-   feixe atravessa a tela enquanto o título é impresso atrás da máscara, a
-   marca e a ênfase acendem quando a luz passa, o console/instrumento pousa
-   linha a linha e a trilha se desenha. Depois, cada bloco entra uma vez ao
-   rolar (classe `is-in`, css/motion.css decide a forma de cada componente)
-   com cascata curta nos filhos. Só transform/opacity/visibility no DOM.
+   A assinatura (DIRECAO-V4 §1): "a luz passa e imprime". No boot, uma faixa
+   de luz atravessa o hero da esquerda para a direita em tempo LINEAR, e cada
+   peça acende no instante em que a faixa cruza a posição dela na tela
+   (tFeixe): as palavras do título sobem atrás da máscara coluna a coluna, o
+   LED pousa, a marca acende, o console imprime, a aresta da trilha se
+   desenha debaixo da luz. Depois a faixa segue em loop, em fase com a
+   aresta. Ao rolar, cada bloco entra uma vez (classe `is-in`;
+   css/motion.css desenha a entrada própria de cada componente) e só o
+   conteúdo se move, nunca o contêiner. Só transform/opacity/visibility.
 
    É aditivo e opcional: sem GSAP, o arquivo sai, js/pagina.js retira
    `html.js` e o site aparece inteiro. Em movimento reduzido: tudo visível.
@@ -26,7 +29,7 @@
   var reduzido = B.reduced;
   var splits = [];   /* todo SplitText vivo, para reverter se o movimento for reduzido no meio */
   var HERO_PECAS = '.hero__status, .hero__sub, .hero__actions, .hero__fine, .hero__arte, .hero__rail, .nav';
-  var LIT = '.hero__title em, .wordmark b, .hero__rail';
+  var LIMPAR = '.reveal, .reveal > *, .section__head > *, .hero__rail > *, .hero__rail-aresta, .conversa__regua, .console__linha > *, .console__medida, .nav__links > *, .feixe__linha, .hero__title, .split-word, ' + HERO_PECAS;
 
   function acender(sel) { var els = document.querySelectorAll(sel); for (var i = 0; i < els.length; i++) els[i].classList.add('is-lit'); }
 
@@ -36,21 +39,23 @@
     splits.length = 0;
     /* os filhos em cascata também: um reduzir() no meio da cascata deixava
        .qa/.celula com opacity parcial ou zero para sempre (achado da revisão) */
-    gsap.set('.reveal, .reveal > *, .hero__rail > *, .console__linha > *, .nav__links > *, .feixe__linha, .hero__title, ' + HERO_PECAS, { clearProps: 'all' });
+    gsap.set(LIMPAR, { clearProps: 'all' });
     html.classList.remove('js');
-    acender(LIT);
+    acender('.hero__title, h2, .wordmark b');
     var todos = document.querySelectorAll('.reveal, .console');
     for (var j = 0; j < todos.length; j++) todos[j].classList.add('is-in');
     var feixe = document.querySelector('.feixe');
     if (feixe) feixe.classList.add('is-loop');
   }
 
-  /* ---------- SPLIT por linhas com máscara ----------
+  /* ---------- SPLIT com máscara ----------
      `revert` no fim devolve o DOM original (a divisão é um EVENTO, não um estado). */
-  function partir(el) {
+  function partir(el, tipo) {
     if (!Split) return null;
     try {
-      var sp = new Split(el, { type: 'lines', mask: 'lines', linesClass: 'split-line' });
+      var sp = tipo === 'words'
+        ? new Split(el, { type: 'lines,words', mask: 'words', linesClass: 'split-line', wordsClass: 'split-word' })
+        : new Split(el, { type: 'lines', mask: 'lines', linesClass: 'split-line' });
       splits.push(sp);
       return sp;
     } catch (e) { return null; }
@@ -58,9 +63,11 @@
 
   /* ---------- CONTAGEM até o valor medido (nunca além dele) ----------
      Lê o texto final já escrito por js/pagina.js ("0.52 s", "282 KB") e sobe
-     de zero até ele. `data-contando` avisa o medidor para não sobrescrever. */
+     de zero até ele. Na prova o número vive num <b> e a unidade num <small>:
+     a contagem escreve só no <b>. `data-contando` avisa o medidor. */
   function contar(el, duracao, atraso) {
-    var m = /^([\d.,]+)(.*)$/.exec(el.textContent.trim());
+    var alvo = el.querySelector('b') || el;
+    var m = /^([\d.,]+)(.*)$/.exec(alvo.textContent.trim());
     if (!m || el.hasAttribute('data-contando')) return;
     var fim = parseFloat(m[1].replace(',', '.')), sufixo = m[2];
     if (!isFinite(fim) || fim <= 0) return;
@@ -69,89 +76,127 @@
     el.setAttribute('data-contando', '');
     gsap.fromTo(obj, { v: 0 }, {
       v: fim, duration: duracao || 1.1, delay: atraso || 0, ease: 'power3.out',
-      onUpdate: function () { el.textContent = obj.v.toFixed(casas) + sufixo; },
-      onComplete: function () { el.textContent = m[0]; el.removeAttribute('data-contando'); }
+      onUpdate: function () { alvo.textContent = obj.v.toFixed(casas) + sufixo; },
+      onComplete: function () { alvo.textContent = m[0]; el.removeAttribute('data-contando'); }
     });
   }
 
-  /* ---------- BOOT DO HERO: a assinatura ----------
-     0,00 o feixe parte da esquerda; a nav desce; 0,05 o título sobe por linhas
-     atrás da máscara; 0,35 o LED pousa; 0,6 a marca acende; 1,0 a ênfase
-     acende (a luz passou por ela); 1,05 a arte pousa linha a linha; 1,5 a
-     trilha se desenha; 1,7 o feixe entra em loop. */
+  /* ---------- A ARTE (console / janela / instrumento) imprime ----------
+     No desktop faz parte do boot (no instante do feixe); no celular entra
+     quando aparece na tela, com gatilho próprio. */
+  function imprimirArte(arte, tl, t0) {
+    var consoleEl = arte.querySelector('.console');
+    var alvoTl = tl || gsap.timeline();
+    if (consoleEl) {
+      var pecas = consoleEl.querySelectorAll('.console__medida, .console__topo, .console__linha > *');
+      alvoTl.to(arte, { opacity: 1, duration: .01 }, t0);
+      alvoTl.fromTo(pecas, { yPercent: 100, opacity: 0 }, { yPercent: 0, opacity: 1, duration: .5, ease: EXPO, stagger: .07, clearProps: 'transform,opacity' }, t0);
+      alvoTl.add(function () { consoleEl.classList.add('is-in'); }, t0 + .05);
+    } else {
+      alvoTl.fromTo(arte, { y: 24 }, { opacity: 1, y: 0, duration: 1, ease: EXPO, clearProps: 'transform' }, t0);
+    }
+    alvoTl.add(function () {
+      var els = arte.querySelectorAll('[data-metrica="carga"], [data-metrica="peso"]');
+      for (var i = 0; i < els.length; i++) contar(els[i], 1.1, 0);
+    }, t0 + .3);
+  }
+
+  /* ---------- BOOT DO HERO: a luz passa e imprime ---------- */
   var feito = false;
   function heroEntra() {
     if (feito) return;
     feito = true;
     if (reduzido) { mostrarTudo(); return; }
 
+    var hero = document.querySelector('.hero');
     var titulo = document.querySelector('.hero__title');
     var status = document.querySelector('.hero__status');
     var dot = status && status.querySelector('.dot');
+    var marca = document.querySelector('.wordmark b');
     var sub = document.querySelector('.hero__sub');
     var acoes = document.querySelector('.hero__actions');
     var fine = document.querySelector('.hero__fine');
     var arte = document.querySelector('.hero__arte');
     var rail = document.querySelector('.hero__rail');
+    var aresta = rail && rail.querySelector('.hero__rail-aresta');
     var nav = document.querySelector('.nav');
     var feixe = document.querySelector('.feixe');
     var linha = feixe && feixe.querySelector('.feixe__linha');
-    var consoleEl = arte && arte.querySelector('.console');
+    var largo = window.innerWidth >= 861;
 
     try {
+      var T = 1.8;
+      var vw = window.innerWidth;
+      var fx = feixe ? feixe.getBoundingClientRect().left : 0;
+      /* o instante em que o centro da faixa cruza um x da tela */
+      var tFeixe = function (px) { return Math.max(0, Math.min(T, T * ((px - fx) / vw + .20) / 1.30)); };
+      var esq = function (el) { return el.getBoundingClientRect().left; };
+
       var tl = gsap.timeline({ defaults: { ease: EXPO } });
-      if (linha) tl.fromTo(linha, { x: '-6vw' }, { x: '106vw', duration: 1.6, ease: 'power2.inOut' }, 0);
+      if (linha) tl.fromTo(linha, { x: '-20vw' }, { x: '110vw', duration: T, ease: 'none' }, 0);
       if (nav) {
         tl.to(nav, { opacity: 1, duration: .5 }, 0);
         tl.from(nav.querySelectorAll('.nav__links > *'), { y: -8, opacity: 0, duration: .8, stagger: .05, clearProps: 'all' }, .15);
       }
-      if (status) tl.fromTo(status, { y: 10 }, { opacity: 1, y: 0, duration: .8 }, .1);
-      if (dot) tl.from(dot, { scale: 0, duration: .4, ease: 'back.out(2)', clearProps: 'transform' }, .35);
+      if (status) tl.fromTo(status, { y: 10 }, { opacity: 1, y: 0, duration: .8 }, .05);
+      if (dot) tl.from(dot, { scale: 0, duration: .4, ease: 'back.out(2)', clearProps: 'transform' }, tFeixe(esq(dot)));
+      if (marca) tl.add(function () { marca.classList.add('is-lit'); }, tFeixe(esq(marca)));
 
       if (titulo) {
-        var sp = partir(titulo);
-        if (sp && sp.lines.length) {
-          /* O TÍTULO É O LCP. Já pinta parte do texto no primeiro quadro; a
-             máscara faz o resto da subida enquanto a luz passa. */
-          gsap.set(sp.lines, { yPercent: 60 });
+        var sp = partir(titulo, 'words');
+        if (sp && sp.words && sp.words.length) {
+          /* O TÍTULO É O LCP: 45% já pintado no primeiro quadro. Cada palavra
+             sobe quando a luz chega nela; palavras na mesma coluna sobem
+             juntas, em qualquer largura: a luz imprime colunas. */
+          gsap.set(sp.words, { yPercent: 55 });
           gsap.set(titulo, { visibility: 'visible' });
-          /* a ênfase acende DEPOIS do revert: o SplitText devolve o <em> original */
-          tl.to(sp.lines, { yPercent: 0, duration: 1.05, stagger: .09, onComplete: function () { sp.revert(); acender('.hero__title em'); } }, .05);
+          var ultimo = 0;
+          for (var w = 0; w < sp.words.length; w++) {
+            var r = sp.words[w].getBoundingClientRect();
+            var tw = tFeixe(r.left + r.width * .25);
+            if (tw > ultimo) ultimo = tw;
+            tl.to(sp.words[w], { yPercent: 0, duration: .7 }, tw);
+          }
+          /* SEM revert aqui: devolver os nós de texto ao h1 faz o Chrome re-registrar
+             o título inteiro como LCP no fim da animação (medido: 0,9s → 2,5s no
+             celular). As palavras ficam divididas; mostrarTudo() reverte se preciso. */
+          tl.add(function () { titulo.classList.add('is-lit'); }, ultimo + .35);
         } else {
-          tl.fromTo(titulo, { visibility: 'visible', opacity: .35, y: 16 }, { opacity: 1, y: 0, duration: .8 }, .05);
+          tl.fromTo(titulo, { visibility: 'visible', opacity: .35, y: 16 }, { opacity: 1, y: 0, duration: .8, onComplete: function () { titulo.classList.add('is-lit'); } }, .05);
         }
       }
-      tl.add(function () { acender('.wordmark b'); }, .6);
-      tl.add(function () { if (!sp || !sp.lines.length) acender('.hero__title em'); }, 1.0);
 
-      if (sub) tl.fromTo(sub, { y: 18 }, { opacity: 1, y: 0, duration: .9 }, .55);
-      if (acoes) tl.fromTo(acoes, { y: 14 }, { opacity: 1, y: 0, duration: .9 }, .7);
-      if (fine) tl.to(fine, { opacity: 1, duration: .7 }, .85);
+      var tCol = sub ? tFeixe(esq(sub)) : .5;
+      if (sub) tl.fromTo(sub, { y: 18 }, { opacity: 1, y: 0, duration: .9 }, tCol + .05);
+      if (acoes) tl.fromTo(acoes, { y: 14 }, { opacity: 1, y: 0, duration: .9 }, tCol + .15);
+      if (fine) tl.to(fine, { opacity: 1, duration: .7 }, tCol + .25);
 
-      if (arte) {
-        if (consoleEl) {
-          /* o console pousa linha a linha (clip pelo overflow hidden da linha) */
-          tl.to(arte, { opacity: 1, duration: .01 }, 1.05);
-          tl.from(consoleEl.querySelectorAll('.console__linha > *'), { yPercent: 100, duration: .6, stagger: .09, clearProps: 'transform' }, 1.05);
-          tl.add(function () { consoleEl.classList.add('is-in'); }, 1.1);
-        } else {
-          tl.fromTo(arte, { y: 24, scale: .96 }, { opacity: 1, y: 0, scale: 1, duration: 1.1, clearProps: 'transform' }, 1.05);
-        }
-      }
-      /* as medidas do hero contam até o valor medido */
-      tl.add(function () {
-        var els = document.querySelectorAll('.hero [data-metrica="carga"], .hero [data-metrica="peso"]');
-        for (var i = 0; i < els.length; i++) contar(els[i], 1.1, 0);
-      }, 1.4);
+      if (arte && largo) imprimirArte(arte, tl, tFeixe(esq(arte)));
       if (rail) {
-        tl.to(rail, { opacity: 1, duration: .01 }, 1.5);
-        tl.from(rail.children, { opacity: 0, y: 10, duration: .8, stagger: .07, clearProps: 'opacity,transform' }, '<');
-        tl.add(function () { rail.classList.add('is-lit'); }, 1.5);
+        var rr = rail.getBoundingClientRect();
+        var tR0 = tFeixe(rr.left), tR1 = tFeixe(rr.right);
+        if (largo) tl.to(rail, { opacity: 1, duration: .01 }, Math.max(0, tR0 - .05));
+        if (aresta) tl.to(aresta, { scaleX: 1, duration: Math.max(.3, tR1 - tR0), ease: 'none' }, tR0);
+        var filhos = rail.querySelectorAll(':scope > :not(.hero__rail-aresta)');
+        for (var f = 0; f < filhos.length; f++) {
+          tl.fromTo(filhos[f], { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: .6, clearProps: 'opacity,transform' }, tFeixe(esq(filhos[f])));
+        }
+        /* a medida da trilha conta até o valor medido */
+        tl.add(function () {
+          var els = rail.querySelectorAll('[data-metrica="carga"], [data-metrica="peso"]');
+          for (var i = 0; i < els.length; i++) contar(els[i], 1.1, 0);
+        }, tR0 + .3);
       }
       tl.add(function () {
         if (linha) gsap.set(linha, { clearProps: 'transform' });
         if (feixe) feixe.classList.add('is-loop');
-      }, 1.7);
+      }, T + .1);
+
+      /* celular: a arte imprime quando aparece, não antes */
+      if (arte && !largo) {
+        if (ST) ST.create({ trigger: arte, start: 'top 82%', once: true, onEnter: function () { imprimirArte(arte, null, 0); } });
+        else imprimirArte(arte, null, 0);
+      }
     } catch (e) {
       mostrarTudo();
     }
@@ -160,40 +205,44 @@
   else B.on('booted', heroEntra);
 
   /* ---------- ENTRADAS POR SEÇÃO ----------
-     Cada `.reveal` sobe e aparece quando entra (uma vez). Dentro de cada um,
-     os filhos entram em cascata; a cascata é mais lenta onde o CSS desenha
-     algo antes do texto (trilho dos passos, régua do laudo). O título de
-     seção sobe por linhas atrás de máscara. A classe `is-in` aciona a
-     régua, a varredura e as entradas por componente (css/motion.css). */
+     O contêiner só esmaece; quem se move é o conteúdo. Laudo, passos, prova
+     e spec não recebem tween nos filhos: a classe `is-in` basta, o CSS
+     desenha régua, trilho, barra e marca (css/motion.css). O cabeçalho entra
+     em três tempos (kicker, linhas do h2, lead) e a ênfase do h2 acende. */
   var jaRevelou = false;
-  var COM_FILHOS = '.servicos, .prova, .passos, .laudo, .malha, .cenarios, .faq-list, .spec';
-  var CASCATA = { '.passos': .3, '.laudo': .1 };
+  var COM_FILHOS = '.servicos, .malha, .cenarios, .faq-list';
+  var SEM_TWEEN = '.laudo, .passos, .prova, .spec';
+  var CASCATA = { '.passos': .55 };
+  var ATRASO = { '.passos': .15 };
   function marcar(el) {
     el.classList.add('is-in');
-    if (el.classList.contains('section__head') || el.parentNode.classList.contains('conversa')) linhasDoTitulo(el);
+    if (el.classList.contains('section__head') || el.parentNode.classList.contains('conversa')) cabecalho(el);
     if (el.classList.contains('prova')) {
       var vals = el.querySelectorAll('[data-metrica="carga"], [data-metrica="peso"]');
       for (var i = 0; i < vals.length; i++) contar(vals[i], 1.1, .15 * i);
     }
   }
-  function linhasDoTitulo(cabeca) {
-    var h = cabeca.querySelector('h2');
-    if (!h || h._partido) return;
-    h._partido = true;
-    var sp = partir(h);
-    if (!sp || !sp.lines.length) return;
-    gsap.from(sp.lines, { yPercent: 108, duration: .95, stagger: .09, ease: EXPO, onComplete: function () { sp.revert(); } });
+  function cabecalho(cabeca) {
+    var kick = cabeca.querySelector('.kicker'), lead = cabeca.querySelector('.lead'), h = cabeca.querySelector('h2');
+    if (kick) gsap.fromTo(kick, { opacity: 0, x: -8 }, { opacity: 1, x: 0, duration: .6, ease: EXPO, clearProps: 'all' });
+    if (lead) gsap.fromTo(lead, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: .8, delay: .35, ease: EXPO, clearProps: 'all' });
+    if (h && !h._partido) {
+      h._partido = true;
+      var sp = partir(h, 'lines');
+      if (sp && sp.lines.length) gsap.from(sp.lines, { yPercent: 108, duration: .95, delay: .1, stagger: .09, ease: EXPO, onComplete: function () { sp.revert(); h.classList.add('is-lit'); } });
+      else h.classList.add('is-lit');
+    }
+    var regua = cabeca.parentNode.querySelector('.conversa__regua');
+    if (regua) gsap.fromTo(regua, { scaleX: 0 }, { scaleX: 1, duration: 1.2, ease: 'power4.inOut' });
   }
-  function cadaDe(el) {
-    for (var k in CASCATA) if (el.matches(k)) return CASCATA[k];
-    return .07;
-  }
+  function de(tabela, el, padrao) { for (var k in tabela) if (el.matches(k)) return tabela[k]; return padrao; }
   function revelar(el, imediato) {
     marcar(el);
+    if (el.matches(SEM_TWEEN)) return;
     var kids = el.matches(COM_FILHOS) ? el.children : null;
-    gsap.to(el, { opacity: 1, y: 0, duration: imediato ? .6 : .9, ease: EXPO, overwrite: true });
+    gsap.to(el, { opacity: 1, y: 0, duration: imediato ? .35 : .45, ease: EXPO, overwrite: true });
     if (kids && kids.length) {
-      gsap.fromTo(kids, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: .9, ease: EXPO, stagger: { each: cadaDe(el), grid: 'auto', from: 'start' }, clearProps: 'opacity,transform' });
+      gsap.fromTo(kids, { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 1, delay: de(ATRASO, el, 0), ease: EXPO, stagger: { each: de(CASCATA, el, .07) }, clearProps: 'opacity,transform' });
     }
   }
   function scrollReveals() {
@@ -203,9 +252,9 @@
     var alvos = [].slice.call(document.querySelectorAll('.reveal'));
     if (!alvos.length) return;
     try {
-      gsap.set(alvos, { y: 24 });
-      /* o cabeçalho de seção já entra pelas linhas do título: sem deslocamento duplo */
-      gsap.set('.section__head.reveal', { y: 0 });
+      /* só o que não tem entrada própria desloca (ex.: o bloco da conversa) */
+      var soltos = alvos.filter(function (el) { return !el.matches(COM_FILHOS + ', ' + SEM_TWEEN + ', .section__head'); });
+      if (soltos.length) gsap.set(soltos, { y: 24 });
       if (ST && ST.batch) {
         ST.batch(alvos, {
           start: 'clamp(top 88%)', once: true,

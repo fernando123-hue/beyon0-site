@@ -16,16 +16,20 @@ html.menos-movimento [data-metrica-fps] { display: none; }
 @media (prefers-reduced-motion: reduce) { [data-metrica-fps] { display: none; } }
 
 /* ---- estados iniciais (o GSAP revela) ---- */
-html.js .reveal { opacity: 0; }
+/* laudo, passos, prova e spec nascem visíveis: o CSS abaixo desenha a entrada deles */
+html.js .reveal:not(.laudo):not(.passos):not(.prova):not(.spec) { opacity: 0; }
 html.js .hero__title { visibility: hidden; }
-html.js .hero__status, html.js .hero__sub, html.js .hero__actions, html.js .hero__fine, html.js .hero__arte, html.js .hero__rail, html.js .nav { opacity: 0; }
+html.js .hero__status, html.js .hero__sub, html.js .hero__actions, html.js .hero__fine, html.js .nav { opacity: 0; }
+/* a arte e a trilha só nascem escondidas no desktop; no celular entram ao rolar (anima.js) */
+@media (min-width: 861px) { html.js .hero__arte, html.js .hero__rail { opacity: 0; } }
+html.js .conversa__regua { transform: scaleX(0); }
 
 /* ---- a assinatura: o feixe passa e imprime; a marca e a ênfase ACENDEM ----
    Sem GSAP (ou com movimento reduzido) já nascem cianas: nada escondido. */
-html.has-gsap:not(.menos-movimento) .hero__title em:not(.is-lit),
+html.has-gsap:not(.menos-movimento) .hero__title:not(.is-lit) em,
+html.has-gsap:not(.menos-movimento) h2:not(.is-lit) em,
 html.has-gsap:not(.menos-movimento) .wordmark b:not(.is-lit) { color: var(--t1); }
-html.js .hero__rail::before { transform: scaleX(0); transform-origin: left; transition: transform 1.1s var(--ease-io); }
-html.js .hero__rail.is-lit::before { transform: scaleX(1); }
+html.js .hero__rail-aresta { transform: scaleX(0); }
 /* a varredura de leitura do console, uma vez, na entrada */
 html.js .console.is-in::after { animation: ler 1.6s var(--ease-io) .2s both; }
 @keyframes ler { from { transform: translateY(-100%); } to { transform: translateY(400%); } }
@@ -50,16 +54,16 @@ html.js .prova.is-in .prova__item:nth-child(1)::before { transition-delay: .05s;
 html.js .prova.is-in .prova__item:nth-child(2)::before { transition-delay: .15s; }
 html.js .prova.is-in .prova__item:nth-child(3)::before { transition-delay: .25s; }
 /* passos: o trilho se desenha e cada nó pousa antes do texto */
-html.js .passo::before { transform: scaleY(0); transform-origin: top; transition: transform 1.1s var(--ease-io); }
+html.js .passo::before { transform: scaleY(0); transform-origin: top; transition: transform .5s var(--ease-io); }
 html.js .passo::after { transform: scale(0); transition: transform .5s var(--ease-pop); }
 html.js .passos.is-in .passo::before, html.js .passos.is-in .passo::after { transform: none; }
 html.js .passos.is-in .passo:nth-child(1)::after { transition-delay: .1s; }
-html.js .passos.is-in .passo:nth-child(1)::before { transition-delay: .25s; }
-html.js .passos.is-in .passo:nth-child(2)::after { transition-delay: .55s; }
-html.js .passos.is-in .passo:nth-child(2)::before { transition-delay: .7s; }
-html.js .passos.is-in .passo:nth-child(3)::after { transition-delay: 1s; }
-html.js .passos.is-in .passo:nth-child(3)::before { transition-delay: 1.15s; }
-html.js .passos.is-in .passo:nth-child(4)::after { transition-delay: 1.45s; }
+html.js .passos.is-in .passo:nth-child(1)::before { transition-delay: .2s; }
+html.js .passos.is-in .passo:nth-child(2)::after { transition-delay: .65s; }
+html.js .passos.is-in .passo:nth-child(2)::before { transition-delay: .75s; }
+html.js .passos.is-in .passo:nth-child(3)::after { transition-delay: 1.2s; }
+html.js .passos.is-in .passo:nth-child(3)::before { transition-delay: 1.3s; }
+html.js .passos.is-in .passo:nth-child(4)::after { transition-delay: 1.75s; }
 @media (min-width: 821px) { html.js .passo::before { transform: scaleX(0); transform-origin: left; } }
 /* laudo: a régua de cada linha se desenha; o índice chega da esquerda */
 html.js .laudo__row::after { transform: scaleX(0); transform-origin: left; transition: transform 1s var(--ease-io); }
@@ -100,10 +104,11 @@ html.js .spec.is-in .spec__item:nth-child(6) h3::before { transition-delay: .3s;
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; transition-delay: 0s !important; }
   html.js .reveal, html.js .hero__status, html.js .hero__sub, html.js .hero__actions, html.js .hero__fine, html.js .hero__arte, html.js .hero__rail, html.js .nav { opacity: 1; }
   html.js .hero__title { visibility: visible; }
-  html.js .kicker::after, html.js .hero__rail::before, html.js .prova__item::before, html.js .passo::before, html.js .passo::after, html.js .laudo__row::after, html.js .spec__item h3::before { transform: none; }
+  html.js .kicker::after, html.js .hero__rail-aresta, html.js .conversa__regua, html.js .prova__item::before, html.js .passo::before, html.js .passo::after, html.js .laudo__row::after, html.js .spec__item h3::before { transform: none; }
   html.js .spec__item h3::before { transform: rotate(45deg); }
   html.js .laudo__n, html.js .fluxo li { transform: none; opacity: 1; }
-  html.has-gsap .hero__title em, html.has-gsap .wordmark b { color: var(--ac); }
+  html.has-gsap .hero__title em, html.has-gsap h2 em, html.has-gsap .wordmark b { color: var(--ac); }
+  .hero__rail-aresta { animation: none; }
   .feixe__linha, .hero__status .dot, .painel::after, .celula::before, .console::after, .console__led { animation: none; }
   .feixe { display: none; }
   .btn::after { display: none; }
@@ -112,10 +117,11 @@ html.menos-movimento { scroll-behavior: auto; }
 html.menos-movimento *, html.menos-movimento *::before, html.menos-movimento *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; transition-delay: 0s !important; }
 html.menos-movimento .reveal, html.menos-movimento .hero__status, html.menos-movimento .hero__sub, html.menos-movimento .hero__actions, html.menos-movimento .hero__fine, html.menos-movimento .hero__arte, html.menos-movimento .hero__rail, html.menos-movimento .nav { opacity: 1; }
 html.menos-movimento .hero__title { visibility: visible; }
-html.menos-movimento .kicker::after, html.menos-movimento .hero__rail::before, html.menos-movimento .prova__item::before, html.menos-movimento .passo::before, html.menos-movimento .passo::after, html.menos-movimento .laudo__row::after { transform: none; }
+html.menos-movimento .kicker::after, html.menos-movimento .hero__rail-aresta, html.menos-movimento .conversa__regua, html.menos-movimento .prova__item::before, html.menos-movimento .passo::before, html.menos-movimento .passo::after, html.menos-movimento .laudo__row::after { transform: none; }
 html.menos-movimento .spec__item h3::before { transform: rotate(45deg); }
 html.menos-movimento .laudo__n, html.menos-movimento .fluxo li { transform: none; opacity: 1; }
-html.menos-movimento .hero__title em, html.menos-movimento .wordmark b { color: var(--ac); }
+html.menos-movimento .hero__title em, html.menos-movimento h2 em, html.menos-movimento .wordmark b { color: var(--ac); }
+html.menos-movimento .hero__rail-aresta { animation: none; }
 html.menos-movimento .feixe__linha, html.menos-movimento .hero__status .dot, html.menos-movimento .painel::after, html.menos-movimento .celula::before, html.menos-movimento .console::after, html.menos-movimento .console__led { animation: none; }
 html.menos-movimento .feixe { display: none; }
 html.menos-movimento .btn::after { display: none; }
