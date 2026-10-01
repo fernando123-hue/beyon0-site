@@ -153,17 +153,18 @@
   </header>
 
   <main>
+    <aside class="hud" aria-hidden="true"><span class="hud__trilho"></span><span class="hud__marca"></span><span class="hud__k" data-hud-k></span></aside>
     <!-- HERO — a frase da V1 fica. A arte é o laudo em três leituras de
          instrumento (lugar reservado ao AI Core futuro). -->
-    <section class="hero" id="hero" aria-labelledby="hero-titulo">
-      <div class="feixe" aria-hidden="true"></div>
-      <div class="hero__main">
-        <p class="hero__status"><span class="dot" aria-hidden="true"></span><span>Para associações, sindicatos, federações e cooperativas</span></p>
+    <section class="hero hero--longo" id="hero" aria-labelledby="hero-titulo">
+      <div class="feixe" aria-hidden="true"><span class="feixe__linha"></span></div>
+      <p class="hero__status"><span class="dot" aria-hidden="true"></span><span>Para associações, sindicatos e cooperativas</span></p>
         <h1 class="hero__title" id="hero-titulo">Toda entidade perde dinheiro num ponto que ninguém está <em>auditando</em>.</h1>
+        <div class="hero__main">
         <p class="hero__sub">Eu encontro esse ponto. Se a IA gerar receita, cortar custo ou devolver capacidade ali, eu construo o sistema. Se não gerar, eu digo.</p>
         <div class="hero__actions">
           <a class="btn btn--primary" data-wa data-lead-gate href="https://wa.me/5521977167944" target="_blank" rel="noopener">Agendar diagnóstico</a>
-          <a class="btn btn--ghost" href="#projetos">Ver onde isso se aplica <span aria-hidden="true">↓</span></a>
+          <a class="btn btn--ghost" href="#projetos">Ver onde isso se aplica <span aria-hidden="true" data-seta="baixo">↓</span></a>
         </div>
         <p class="hero__fine">Quem faz o diagnóstico é quem constrói. Sem equipe no meio do caminho.</p>
       </div>
@@ -192,7 +193,7 @@
     <section class="section" id="dores" aria-labelledby="dores-titulo">
       <div class="section__head reveal">
         <p class="kicker"><b>01</b> O problema</p>
-        <h2 id="dores-titulo">Três lugares onde o dinheiro costuma <em>vazar</em>.</h2>
+        <h2 id="dores-titulo">Três lugares onde o dinheiro costuma <strong>vazar</strong>.</h2>
       </div>
       <!-- LAUDO — três linhas, não três caixas: uma dor de operação é item de
            diagnóstico, não produto em vitrine. -->
@@ -219,7 +220,7 @@
       <section class="section" id="servicos" aria-labelledby="servicos-titulo">
         <div class="section__head reveal">
           <p class="kicker"><b>02</b> Capacidades</p>
-          <h2 id="servicos-titulo">O que dá pra tirar <br />da sua <em>mesa</em>.</h2>
+          <h2 id="servicos-titulo">O que dá pra tirar da sua <strong>mesa</strong>.</h2>
           <p class="lead">Seis caminhos, um sistema só. Quem se reconhece num deles já começa a conversa pelo ponto certo.</p>
         </div>
         <!-- A MALHA — grid com fresta de 1px: as seis capacidades leem como
@@ -230,37 +231,37 @@
             <span class="celula__n" aria-hidden="true">01</span>
             <h3>Agentes que executam</h3>
             <p>Recebe uma tarefa, cumpre com as ferramentas certas e chama você só quando precisa de uma decisão. Mais <em>funcionário</em> do que chatbot.</p>
-            <span class="celula__link">Conversar <span aria-hidden="true">→</span></span>
+            <span class="celula__link">Conversar <span aria-hidden="true" data-seta="direita">→</span></span>
           </a>
           <a class="celula" data-wa="quero escalar meu atendimento com IA" href="https://wa.me/5521977167944">
             <span class="celula__n" aria-hidden="true">02</span>
             <h3>Atendimento que escala</h3>
             <p>Absorve o volume repetitivo, classifica o que chega e passa pra uma pessoa só o que <em>precisa</em> de uma.</p>
-            <span class="celula__link">Conversar <span aria-hidden="true">→</span></span>
+            <span class="celula__link">Conversar <span aria-hidden="true" data-seta="direita">→</span></span>
           </a>
           <a class="celula" data-wa="quero recuperar contatos e oportunidades perdidas com IA" href="https://wa.me/5521977167944">
             <span class="celula__n" aria-hidden="true">03</span>
             <h3>Receita recuperada</h3>
             <p>Contato esquecido, orçamento sem resposta, associado que sumiu: o sistema encontra, prioriza e <em>reabre</em> a conversa.</p>
-            <span class="celula__link">Conversar <span aria-hidden="true">→</span></span>
+            <span class="celula__link">Conversar <span aria-hidden="true" data-seta="direita">→</span></span>
           </a>
           <a class="celula" data-wa="quero automatizar um processo da minha entidade" href="https://wa.me/5521977167944">
             <span class="celula__n" aria-hidden="true">04</span>
             <h3>Processos automatizados</h3>
             <p>O gargalo que trava a operação vira fluxo automático, com registro, validação e <em>parada humana</em> onde importa.</p>
-            <span class="celula__link">Conversar <span aria-hidden="true">→</span></span>
+            <span class="celula__link">Conversar <span aria-hidden="true" data-seta="direita">→</span></span>
           </a>
           <a class="celula" data-wa="quero usar os dados da minha entidade com IA" href="https://wa.me/5521977167944">
             <span class="celula__n" aria-hidden="true">05</span>
             <h3>Dados que respondem</h3>
             <p>Documentos, histórico e conhecimento interno viram resposta pronta na hora exata em que alguém precisa <em>decidir</em>.</p>
-            <span class="celula__link">Conversar <span aria-hidden="true">→</span></span>
+            <span class="celula__link">Conversar <span aria-hidden="true" data-seta="direita">→</span></span>
           </a>
           <a class="celula" data-wa="quero um sistema ou site potencializado por IA" href="https://wa.me/5521977167944">
             <span class="celula__n" aria-hidden="true">06</span>
             <h3>Sistemas &amp; interfaces</h3>
             <p>O software que junta tudo isso: integração, painel de gestão e o site que já nasce como <em>parte do sistema</em>.</p>
-            <span class="celula__link">Conversar <span aria-hidden="true">→</span></span>
+            <span class="celula__link">Conversar <span aria-hidden="true" data-seta="direita">→</span></span>
           </a>
         </div>
       </section>
@@ -269,7 +270,7 @@
     <section class="section" id="processo" aria-labelledby="processo-titulo">
       <div class="section__head reveal">
         <p class="kicker"><b>03</b> Método</p>
-        <h2 id="processo-titulo">Diagnóstico primeiro. <br />Construção <em>depois</em>.</h2>
+        <h2 id="processo-titulo">Mapa, prioridade, <strong>construção</strong>.</h2>
       </div>
       <ol role="list" class="passos reveal">
         <li class="passo">
@@ -293,7 +294,7 @@
     <section class="section" id="projetos" aria-labelledby="projetos-titulo">
       <div class="section__head reveal">
         <p class="kicker"><b>04</b> Cenários</p>
-        <h2 id="projetos-titulo">O mesmo método, <br />operações <em>diferentes</em>.</h2>
+        <h2 id="projetos-titulo">O mesmo método, operações <strong>diferentes</strong>.</h2>
         <p class="lead">Cenários de aplicação, não vitrine de clientes. Toda operação trava num lugar diferente, e é o diagnóstico que diz qual é o seu.</p>
       </div>
       <!-- uma operação ENTRA num estado e SAI em outro: só o último recebe cor -->
@@ -331,7 +332,7 @@
     <section class="section" id="faq" aria-labelledby="faq-titulo">
       <div class="section__head reveal">
         <p class="kicker"><b>05</b> Perguntas</p>
-        <h2 id="faq-titulo">O que você deve estar se <em>perguntando</em>.</h2>
+        <h2 id="faq-titulo">Antes de agendar, o que costumam <strong>perguntar</strong>.</h2>
       </div>
       <!-- Accordion nativo (details/summary). O texto tem que bater PALAVRA POR
            PALAVRA com o FAQPage JSON-LD no <head>. `name="faq"` torna
@@ -389,7 +390,7 @@
           <a class="btn btn--primary btn--lg" data-wa data-lead-gate href="https://wa.me/5521977167944" target="_blank" rel="noopener">Agendar diagnóstico</a>
         </div>
         <p class="fine">Quem responde é humano. O diagnóstico é grátis e sem compromisso.</p>
-        <p class="cta__resumo"><a href="/resumo">Prefere levar pra sua diretoria antes de decidir? Veja o resumo <span aria-hidden="true">→</span></a></p>
+        <p class="cta__resumo"><a href="/resumo">Prefere levar pra sua diretoria antes de decidir? Veja o resumo <span aria-hidden="true" data-seta="direita">→</span></a></p>
       </div>
     </section>
   </main>
@@ -420,7 +421,7 @@
     </div>
   </footer>
 
-  <div class="barra" id="barra">
+  <div class="barra is-oculta" id="barra">
     <a class="btn btn--primary" data-wa data-lead-gate href="https://wa.me/5521977167944" target="_blank" rel="noopener">Agendar diagnóstico</a>
   </div>
 
@@ -460,10 +461,10 @@
           <input type="text" name="nome" autocomplete="name" maxlength="80" placeholder="Ex: Maria, da Associação Comercial" />
         </label>
         <button type="submit" class="btn btn--primary lead-modal__submit">
-          Continuar no WhatsApp <span aria-hidden="true">→</span>
+          Continuar no WhatsApp <span aria-hidden="true" data-seta="direita">→</span>
         </button>
         <p class="fine lead-modal__fine">Quem responde é humano. O diagnóstico é grátis e sem compromisso.</p>
-        <p class="lead-modal__direto"><a data-wa="quero agendar um diagnóstico" data-lead-close href="https://wa.me/5521977167944">Prefiro ir direto pro WhatsApp <span aria-hidden="true">→</span></a></p>
+        <p class="lead-modal__direto"><a data-wa="quero agendar um diagnóstico" data-lead-close href="https://wa.me/5521977167944">Prefiro ir direto pro WhatsApp <span aria-hidden="true" data-seta="direita">→</span></a></p>
       </form>
     </div>
   </div>

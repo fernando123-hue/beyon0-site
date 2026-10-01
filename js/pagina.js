@@ -30,8 +30,11 @@
 
   var aoEscapar = [];
   /* a barra do celular: some com o menu aberto ou com o fim da página na tela */
-  var barra = document.getElementById('barra'), menuAberto = false, fimDaPagina = false;
-  function mostrarBarra() { if (barra) barra.classList.toggle('is-oculta', menuAberto || fimDaPagina); }
+  var barra = document.getElementById('barra'), wa = document.querySelector('.wa'), menuAberto = false, fimDaPagina = false, heroCtaVisivel = true;
+  function mostrarBarra() {
+    if (barra) barra.classList.toggle('is-oculta', menuAberto || fimDaPagina || heroCtaVisivel);
+    if (wa) wa.classList.toggle('is-oculta', heroCtaVisivel);
+  }
 
   /* ---------- nav ---------- */
   var navEl = document.getElementById('nav');
@@ -96,6 +99,7 @@
 
   /* ---------- a seção atual acende na nav (IntersectionObserver, nada por frame) ---------- */
   var secoes = [].slice.call(document.querySelectorAll('main section[id]'));
+  var hud = document.querySelector('.hud'), hudK = hud && hud.querySelector('[data-hud-k]');
   var mapaNav = {};
   if (navEl) {
     var ancoras = navEl.querySelectorAll('.nav__links a[href^="#"]');
@@ -110,6 +114,15 @@
       if (atualNav && mapaNav[atualNav]) { mapaNav[atualNav].classList.remove('is-current'); mapaNav[atualNav].removeAttribute('aria-current'); }
       atualNav = id;
       if (atualNav && mapaNav[atualNav]) { mapaNav[atualNav].classList.add('is-current'); mapaNav[atualNav].setAttribute('aria-current', 'location'); }
+      if (hud) {
+        hud.className = 'hud';
+        var kick = sec && sec.querySelector('.kicker');
+        if (kick && hudK) {
+          var idx = kick.querySelector('b');
+          hud.classList.add('hud--' + (idx ? idx.textContent.trim() : '01'));
+          hudK.textContent = kick.textContent.replace(/\s+/g, ' ').trim().replace(/^(\d+)\s*/, '$1 — ');
+        }
+      }
     };
     var ioSec = new IntersectionObserver(function (ents) {
       for (var n = 0; n < ents.length; n++) {
@@ -140,12 +153,43 @@
     var fins = document.querySelectorAll('.conversa, body > footer');
     for (var f = 0; f < fins.length; f++) ioBarra.observe(fins[f]);
   }
+  /* enquanto o CTA do hero está na tela, a barra e o WhatsApp flutuante esperam */
+  var heroCta = document.querySelector('.hero__actions');
+  if (heroCta && 'IntersectionObserver' in window) {
+    new IntersectionObserver(function (ents) { heroCtaVisivel = ents[0].isIntersecting; mostrarBarra(); }, { rootMargin: '-64px 0px 0px 0px', threshold: 0 }).observe(heroCta);
+  } else { heroCtaVisivel = false; mostrarBarra(); }
+  /* o feixe em loop pausa quando o hero sai da tela (bateria) */
+  var heroEl = document.querySelector('.hero');
+  if (heroEl && 'IntersectionObserver' in window) {
+    new IntersectionObserver(function (ents) { heroEl.classList.toggle('is-fora', !ents[0].isIntersecting); }).observe(heroEl);
+  }
 
   /* ---------- PROVA MEDIDA ([data-metrica]) ---------- */
   var elFps = document.querySelectorAll('[data-metrica="fps"]');
   var elCarga = document.querySelectorAll('[data-metrica="carga"]');
   var elPeso = document.querySelectorAll('[data-metrica="peso"]');
-  function escrever(lista, txt) { for (var k = 0; k < lista.length; k++) if (lista[k].textContent !== txt) lista[k].textContent = txt; }
+  function escrever(lista, txt) {
+    for (var k = 0; k < lista.length; k++) {
+      if (lista[k].hasAttribute('data-contando') || lista[k].textContent === txt) continue;
+      lista[k].textContent = txt;
+      carimbar(lista[k]);
+    }
+  }
+  /* o console do hero: cada linha recebe o instante (s desde o início) em que o valor chegou */
+  function carimbar(el) {
+    var linha = el.closest && el.closest('.console__linha');
+    var t = linha && linha.querySelector('[data-console-t]');
+    if (t && t.textContent === '—') t.textContent = (performance.now() / 1000).toFixed(3);
+  }
+  var consoleVp = document.querySelectorAll('[data-console-vp]');
+  function viewport() { for (var v = 0; v < consoleVp.length; v++) { consoleVp[v].textContent = window.innerWidth + '×' + window.innerHeight; carimbar(consoleVp[v]); } }
+  if (consoleVp.length) {
+    viewport();
+    var vpTimer = 0;
+    window.addEventListener('resize', function () { clearTimeout(vpTimer); vpTimer = setTimeout(viewport, 150); }, { passive: true });
+    var online = document.querySelectorAll('.console__linha--on [data-console-t]');
+    for (var o = 0; o < online.length; o++) online[o].textContent = (performance.now() / 1000).toFixed(3);
+  }
   /* bytes deste domínio nesta visita. `encodedBodySize` em vez de
      `transferSize`: o segundo zera em revisita (cache), e o número passaria a
      depender do cache em vez do site. */
@@ -163,7 +207,11 @@
     if (!window.performance || !performance.getEntriesByType) return;
     var nav = performance.getEntriesByType('navigation')[0];
     if (!nav) return;
-    if (elCarga.length && nav.domContentLoadedEventEnd > 0) escrever(elCarga, (nav.domContentLoadedEventEnd / 1000).toFixed(2) + ' s');
+    if (elCarga.length && nav.domContentLoadedEventEnd > 0) {
+      escrever(elCarga, (nav.domContentLoadedEventEnd / 1000).toFixed(2) + ' s');
+      var st = document.querySelector('.hero__status');
+      if (st) st.classList.add('is-online');
+    }
     var total = bytesDaOrigem(nav);
     if (total > 0 && elPeso.length) escrever(elPeso, Math.round(total / 1024) + ' KB');
   }

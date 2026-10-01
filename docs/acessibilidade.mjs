@@ -13,7 +13,7 @@ const EXEC = process.env.CHROMIUM || undefined;
 const nav = await chromium.launch({ executablePath: EXEC, args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
 let falhou = false;
 const ok = (cond, msg) => { console.log((cond ? 'OK   ' : 'FALHA') + ' ' + msg); if (!cond) falhou = true; };
-const escondidos = page => page.evaluate(() => [...document.querySelectorAll('h1, h2, h3, p, .reveal, .btn')].filter(e => { const cs = getComputedStyle(e); return cs.opacity === '0' || cs.visibility === 'hidden'; }).length);
+const escondidos = page => page.evaluate(() => [...document.querySelectorAll('h1, h2, h3, p, .reveal, .btn')].filter(e => !e.closest('.barra')).filter(e => { const cs = getComputedStyle(e); return cs.opacity === '0' || cs.visibility === 'hidden'; }).length);
 
 for (const rota of ['/index.html', '/sites.html', '/automacao.html']) {
   /* 1. sem JS */

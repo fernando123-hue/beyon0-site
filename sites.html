@@ -103,17 +103,18 @@
   </header>
 
   <main>
+    <aside class="hud" aria-hidden="true"><span class="hud__trilho"></span><span class="hud__marca"></span><span class="hud__k" data-hud-k></span></aside>
     <!-- HERO — a peça é um site de verdade em miniatura, feito de HTML, numa
          janela de vidro. Num site que vende sites, o mockup É a demonstração. -->
     <section class="hero" id="hero" aria-labelledby="hero-titulo">
-      <div class="feixe" aria-hidden="true"></div>
-      <div class="hero__main">
-        <p class="hero__status"><span class="dot" aria-hidden="true"></span><span>Sites · institucionais, landing pages, sob medida</span></p>
+      <div class="feixe" aria-hidden="true"><span class="feixe__linha"></span></div>
+      <p class="hero__status"><span class="dot" aria-hidden="true"></span><span>Sites · institucional, landing, sob medida</span></p>
         <h1 class="hero__title" id="hero-titulo">Sites que carregam rápido e <em>convencem</em>.</h1>
+        <div class="hero__main">
         <p class="hero__sub">Feitos primeiro para o celular, com o seu negócio explicado sem rodeio e a prova de velocidade rodando nesta página, agora.</p>
         <div class="hero__actions">
           <a class="btn btn--primary" data-wa href="https://wa.me/5521977167944">Quero um site</a>
-          <a class="btn btn--ghost" href="#prova">Ver a prova <span aria-hidden="true">↓</span></a>
+          <a class="btn btn--ghost" href="#prova">Ver a prova <span aria-hidden="true" data-seta="baixo">↓</span></a>
         </div>
         <p class="hero__fine">Primeira conversa grátis. Escopo e preço fechados antes de começar.</p>
       </div>
@@ -153,7 +154,7 @@
     <section class="section" id="formatos" aria-labelledby="formatos-titulo">
       <div class="section__head reveal">
         <p class="kicker"><b>01</b> Formatos</p>
-        <h2 id="formatos-titulo">Três formatos, <br />um padrão de <em>acabamento</em>.</h2>
+        <h2 id="formatos-titulo">Três formatos, um padrão de <strong>acabamento</strong>.</h2>
         <p class="lead">O que muda de um para o outro é o tamanho do problema, nunca o cuidado com o resultado.</p>
       </div>
       <div class="servicos reveal">
@@ -162,21 +163,21 @@
           <span class="servico__n" aria-hidden="true">01</span>
           <h3>Site institucional</h3>
           <p>A casa da marca. Quem você é, o que faz, para quem, e por que confiar, organizado para quem chegou sem te conhecer <em>decidir</em> te procurar.</p>
-          <span class="servico__link">Conversar sobre este formato <span aria-hidden="true">→</span></span>
+          <span class="servico__link">Conversar sobre este formato <span aria-hidden="true" data-seta="direita">→</span></span>
         </a>
         <a class="painel painel--tinta servico" data-wa="quero uma landing page" href="https://wa.me/5521977167944">
           <span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span>
           <span class="servico__n" aria-hidden="true">02</span>
           <h3>Landing page</h3>
           <p>Uma página, um objetivo, nenhuma saída lateral. Feita para campanha, lançamento ou anúncio, onde cada bloco leva a <em>uma</em> ação.</p>
-          <span class="servico__link">Conversar sobre este formato <span aria-hidden="true">→</span></span>
+          <span class="servico__link">Conversar sobre este formato <span aria-hidden="true" data-seta="direita">→</span></span>
         </a>
         <a class="painel painel--tinta servico" data-wa="quero um site sob medida" href="https://wa.me/5521977167944">
           <span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span>
           <span class="servico__n" aria-hidden="true">03</span>
           <h3>Site sob medida</h3>
           <p>Quando o formato pronto não dá conta: catálogo, área de associado, integração com o que você já usa, ou uma experiência que precisa ser <em>sua</em>.</p>
-          <span class="servico__link">Conversar sobre este formato <span aria-hidden="true">→</span></span>
+          <span class="servico__link">Conversar sobre este formato <span aria-hidden="true" data-seta="direita">→</span></span>
         </a>
       </div>
     </section>
@@ -185,7 +186,7 @@
       <section class="section" id="incluso" aria-labelledby="incluso-titulo">
         <div class="section__head reveal">
           <p class="kicker"><b>02</b> Padrão de entrega</p>
-          <h2 id="incluso-titulo">O que vem em todo site, <br />sem precisar <em>pedir</em>.</h2>
+          <h2 id="incluso-titulo">O que vem em todo site, <strong>sem negociar</strong>.</h2>
           <p class="lead">Isso não é extra. É o mínimo, e não se negocia.</p>
         </div>
         <div class="spec reveal">
@@ -201,10 +202,11 @@
 
     <!-- PROVA — em vez de "+300 projetos", a medição acontecendo no aparelho de
          quem está lendo. Os valores vêm de js/pagina.js. -->
+    <div class="faixa faixa--prova">
     <section class="section" id="prova" aria-labelledby="prova-titulo">
       <div class="section__head reveal">
         <p class="kicker"><b>03</b> Prova</p>
-        <h2 id="prova-titulo">A prova está rodando <br />na sua <em>frente</em>.</h2>
+        <h2 id="prova-titulo">A prova está rodando na sua <em>frente</em>.</h2>
         <p class="lead">Em vez de dizer que faço sites rápidos, deixo a página se medir sozinha enquanto você lê. Os números abaixo são desta visita, neste aparelho.</p>
       </div>
       <div class="prova reveal" data-metrica-caixa>
@@ -214,11 +216,12 @@
       </div>
       <p class="prova__nota">Medido pelo seu navegador, nesta visita. Nada aqui vem de terceiros: fontes e movimento saem deste domínio.</p>
     </section>
+    </div>
 
     <section class="section" id="metodo" aria-labelledby="metodo-titulo">
       <div class="section__head reveal">
         <p class="kicker"><b>04</b> Método</p>
-        <h2 id="metodo-titulo">Quatro passos, <br />nenhuma <em>surpresa</em>.</h2>
+        <h2 id="metodo-titulo">Quatro passos, nenhuma <strong>surpresa</strong>.</h2>
       </div>
       <ol role="list" class="passos passos--4 reveal">
         <li class="passo"><span class="passo__n" aria-hidden="true">01</span><h3>Conversa</h3><p>O que o site precisa resolver, para quem, e o que conta como sucesso. Sem isso, o resto é decoração cara.</p></li>
@@ -231,7 +234,7 @@
     <section class="section" id="faq" aria-labelledby="faq-titulo">
       <div class="section__head reveal">
         <p class="kicker"><b>05</b> Perguntas</p>
-        <h2 id="faq-titulo">O que você deve estar se <em>perguntando</em>.</h2>
+        <h2 id="faq-titulo">O que você deve estar se <strong>perguntando</strong>.</h2>
       </div>
       <!-- texto idêntico ao FAQPage do <head> -->
       <div class="faq-list reveal">
@@ -285,7 +288,7 @@
     </div>
   </footer>
 
-  <div class="barra" id="barra">
+  <div class="barra is-oculta" id="barra">
     <a class="btn btn--primary" data-wa href="https://wa.me/5521977167944">Quero um site</a>
   </div>
 

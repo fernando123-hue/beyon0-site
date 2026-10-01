@@ -91,31 +91,37 @@
   </header>
 
   <main>
+    <aside class="hud" aria-hidden="true"><span class="hud__trilho"></span><span class="hud__marca"></span><span class="hud__k" data-hud-k></span></aside>
     <!-- HERO — no celular: status, frase, o que é e CTA na primeira tela; a
          arte (painéis de vidro, lugar reservado ao AI Core futuro) vem
          depois; a trilha fecha. No desktop: frase larga, arte estreita,
          trilha fechando a primeira tela. -->
     <section class="hero" id="hero" aria-labelledby="hero-titulo">
-      <div class="feixe" aria-hidden="true"></div>
-      <div class="hero__main">
-        <p class="hero__status">
+      <div class="feixe" aria-hidden="true"><span class="feixe__linha"></span></div>
+      <p class="hero__status">
           <span class="dot" aria-hidden="true"></span>
           <span>Sistema online · Beyon Zero</span>
         </p>
         <h1 class="hero__title" id="hero-titulo">Do problema ao sistema <em>no ar</em>.</h1>
+        <div class="hero__main">
         <p class="hero__sub">Sites, automação e inteligência artificial para negócios e entidades. Uma pessoa constrói do primeiro rascunho à publicação: diagnóstico primeiro, preço fechado antes, e tudo fica no seu nome.</p>
         <div class="hero__actions">
           <a class="btn btn--primary" data-wa href="https://wa.me/5521977167944">Falar comigo</a>
-          <a class="btn btn--ghost" href="#frentes">Ver os serviços <span aria-hidden="true">↓</span></a>
+          <a class="btn btn--ghost" href="#frentes">Ver os serviços <span aria-hidden="true" data-seta="baixo">↓</span></a>
         </div>
         <p class="hero__fine">Quem conversa é quem constrói. Sem equipe no meio do caminho.</p>
       </div>
 
       <div class="hero__arte" aria-hidden="true">
-        <div class="planos">
-          <div class="plano plano--1"><div class="plano__topo"><span class="plano__pt"></span><span class="plano__pt"></span><span class="plano__pt"></span></div><span class="plano__linha plano__linha--t"></span><span class="plano__linha"></span><div class="plano__grade"><span class="plano__bloco"></span><span class="plano__bloco"></span><span class="plano__bloco"></span></div></div>
-          <div class="plano plano--2"><div class="plano__topo"><span class="plano__pt"></span><span class="plano__pt"></span><span class="plano__pt"></span><span class="plano__url">seunegocio.com.br</span></div><span class="plano__linha plano__linha--t"></span><span class="plano__linha"></span><span class="plano__linha plano__linha--ac"></span><div class="plano__grade"><span class="plano__bloco"></span><span class="plano__bloco"></span><span class="plano__bloco"></span></div></div>
-          <div class="plano plano--3"><div class="plano__topo"><span class="plano__pt"></span><span class="plano__pt"></span><span class="plano__pt"></span></div><span class="plano__linha plano__linha--t"></span><span class="plano__linha plano__linha--ac"></span><div class="plano__grade"><span class="plano__bloco"></span><span class="plano__bloco"></span><span class="plano__bloco"></span></div></div>
+        <!-- lugar reservado ao AI Core futuro. Hoje: o console de boot deste site, com dados REAIS desta visita -->
+        <div class="console painel" data-console>
+          <div class="console__topo"><span>Beyon Zero · boot</span><span class="console__led"></span></div>
+          <div class="console__linha"><span class="console__t">00.000</span><span class="console__v">fontes · Sora + JetBrains Mono · locais</span></div>
+          <div class="console__linha" data-metrica-caixa><span class="console__t" data-console-t>—</span><span class="console__v">DOM pronto · <b data-metrica="carga">—</b></span></div>
+          <div class="console__linha" data-metrica-caixa><span class="console__t" data-console-t>—</span><span class="console__v">transferido · <b data-metrica="peso">—</b></span></div>
+          <div class="console__linha" data-metrica-caixa><span class="console__t" data-console-t>—</span><span class="console__v">viewport · <b data-console-vp>—</b></span></div>
+          <div class="console__linha" data-metrica-caixa data-metrica-fps><span class="console__t" data-console-t>—</span><span class="console__v">movimento · gsap local · <b data-metrica="fps">—</b></span></div>
+          <div class="console__linha console__linha--on" data-metrica-caixa><span class="console__t" data-console-t>—</span><span class="console__v">sistema online</span></div>
         </div>
       </div>
 
@@ -135,7 +141,7 @@
     <section class="section" id="frentes" aria-labelledby="frentes-titulo">
       <div class="section__head reveal">
         <p class="kicker"><b>01</b> Serviços</p>
-        <h2 id="frentes-titulo">Três serviços, <br />um padrão de <em>construção</em>.</h2>
+        <h2 id="frentes-titulo">Três serviços, um padrão de <strong>construção</strong>.</h2>
         <p class="lead">Não sabe qual é o seu caso? A primeira conversa resolve isso, e é grátis.</p>
       </div>
       <div class="servicos reveal">
@@ -145,7 +151,7 @@
           <h3>Sites</h3>
           <p>Institucionais, landing pages e sob medida. Rápidos, feitos primeiro para o celular, com a prova de velocidade rodando na sua frente.</p>
           <span class="servico__para">Para negócios que precisam ser encontrados e entendidos.</span>
-          <span class="servico__link">Ver sites <span aria-hidden="true">→</span></span>
+          <span class="servico__link">Ver sites <span aria-hidden="true" data-seta="direita">→</span></span>
         </a>
         <a class="painel painel--tinta servico" href="/automacao">
           <span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span>
@@ -153,7 +159,7 @@
           <h3>Automação &amp; IA</h3>
           <p>Agentes, automação de processos e sistemas que devolvem capacidade para a operação. Diagnóstico grátis primeiro; construção só onde a conta fecha.</p>
           <span class="servico__para">Para associações, sindicatos, federações e cooperativas.</span>
-          <span class="servico__link">Ver automação <span aria-hidden="true">→</span></span>
+          <span class="servico__link">Ver automação <span aria-hidden="true" data-seta="direita">→</span></span>
         </a>
         <a class="painel painel--tinta servico" data-wa="quero falar sobre uma experiência digital sob medida" href="https://wa.me/5521977167944">
           <span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span>
@@ -161,7 +167,7 @@
           <h3>Experiências digitais</h3>
           <p>Apresentações, lançamentos e interfaces que não cabem num site comum. Sem página própria, de propósito: cada projeto começa de um lugar diferente.</p>
           <span class="servico__para">Para quando o objetivo é ser lembrado.</span>
-          <span class="servico__link">Conversar sobre uma ideia <span aria-hidden="true">→</span></span>
+          <span class="servico__link">Conversar sobre uma ideia <span aria-hidden="true" data-seta="direita">→</span></span>
         </a>
       </div>
     </section>
@@ -171,7 +177,7 @@
       <section class="section" id="metodo" aria-labelledby="metodo-titulo">
         <div class="section__head reveal">
           <p class="kicker"><b>02</b> Como funciona</p>
-          <h2 id="metodo-titulo">Diagnóstico primeiro. <br />Construção <em>depois</em>.</h2>
+          <h2 id="metodo-titulo">Diagnóstico primeiro. Construção <strong>depois</strong>.</h2>
         </div>
         <ol role="list" class="passos reveal">
           <li class="passo"><span class="passo__n" aria-hidden="true">01</span><h3>Conversa</h3><p>O que está travando, para quem, e o que conta como resultado. Sem isso, qualquer ferramenta é chute com fatura.</p></li>
@@ -185,7 +191,7 @@
     <section class="section" id="garantias" aria-labelledby="garantias-titulo">
       <div class="section__head reveal">
         <p class="kicker"><b>03</b> Garantias</p>
-        <h2 id="garantias-titulo">O que vale nos três serviços, <br />sem precisar <em>pedir</em>.</h2>
+        <h2 id="garantias-titulo">O que vale nos três serviços, sem precisar <strong>pedir</strong>.</h2>
       </div>
       <div class="laudo reveal">
         <article class="laudo__row"><span class="laudo__n" aria-hidden="true">01</span><h3>Começa pelo problema</h3><p>Antes de falar de site, de agente ou de ferramenta, quero saber o que está travando. Solução escolhida antes do diagnóstico é chute com fatura.</p></article>
@@ -195,11 +201,12 @@
       </div>
     </section>
 
-    <!-- PROVA — os números medidos nesta visita -->
+    <!-- PROVA — o momento de escala: os números medidos nesta visita -->
+    <div class="faixa faixa--prova">
     <section class="section" id="prova" aria-labelledby="prova-titulo">
       <div class="section__head reveal">
         <p class="kicker"><b>04</b> Prova</p>
-        <h2 id="prova-titulo">Esta página se mede <br />enquanto você <em>lê</em>.</h2>
+        <h2 id="prova-titulo">Esta página se mede enquanto você <em>lê</em>.</h2>
         <p class="lead">Em vez de prometer velocidade, deixo o seu navegador medir. Os números abaixo são desta visita, neste aparelho.</p>
       </div>
       <div class="prova reveal" data-metrica-caixa>
@@ -209,6 +216,7 @@
       </div>
       <p class="prova__nota">Medido pelo seu navegador, nesta visita. Nada aqui vem de terceiros: fontes e movimento saem deste domínio.</p>
     </section>
+    </div>
 
     <!-- CONVERSA -->
     <section class="conversa" id="conversa" aria-labelledby="conversa-titulo">
@@ -249,7 +257,7 @@
     </div>
   </footer>
 
-  <div class="barra" id="barra">
+  <div class="barra is-oculta" id="barra">
     <a class="btn btn--primary" data-wa href="https://wa.me/5521977167944">Falar comigo</a>
   </div>
 
