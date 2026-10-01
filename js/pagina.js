@@ -179,13 +179,18 @@
       } catch (e) { /* sem suporte */ }
     }
   }
-  if (elFps.length) {
+  if (elFps.length && !B.reduced) {
     var ultFps = 0;
     B.add('medidor', function (s) {
       if (s.now - ultFps < 500) return;
       ultFps = s.now;
       escrever(elFps, Math.round(s.fps) + ' fps');
     });
+    /* em movimento reduzido não há o que medir: o item de fps da prova some
+       (css/motion.css) e a trilha diz o porquê em vez de um traço */
+    B.on('reduzir', function (sim) { if (sim) { B.remove('medidor'); escrever(elFps, 'movimento reduzido'); } });
+  } else if (elFps.length) {
+    escrever(elFps, 'movimento reduzido');
   }
 
   /* ---------- interruptor "menos movimento" (rodapé) ---------- */

@@ -1,11 +1,11 @@
 /* ==========================================================================
    ANIMA — a coreografia (GSAP + ScrollTrigger + SplitText), em todas as páginas.
 
-   Vocabulário fechado (DIRECAO-V3 §2): expo.out nas entradas (0,9–1,1s), por
-   linha mascarada; cascata curta nos filhos de lista/grade; a marca-texto se
-   acende por classe (`is-in`, css/motion.css). Só transform/opacity/visibility
-   no DOM. Sem scrub nesta fase: no celular o percurso é curto e texto que se
-   move enquanto é lido é hostil.
+   Vocabulário fechado (DIRECAO-V4 §1): expo.out nas entradas (0,9–1,1s), por
+   linha mascarada; cascata curta nos filhos de lista/grade; a classe `is-in`
+   aciona a régua do kicker e a varredura do painel (css/motion.css). Só
+   transform/opacity/visibility no DOM. Sem scrub: no celular o percurso é
+   curto e texto que se move enquanto é lido é hostil.
 
    É aditivo e opcional: sem GSAP, o arquivo sai, js/pagina.js retira
    `html.js` e o site aparece inteiro. Em movimento reduzido: tudo visível.
@@ -30,7 +30,9 @@
   function mostrarTudo() {
     for (var i = 0; i < splits.length; i++) { try { splits[i].revert(); } catch (e) { /* já revertido */ } }
     splits.length = 0;
-    gsap.set('.reveal, .hero__title, ' + HERO_PECAS, { clearProps: 'all' });
+    /* os filhos em cascata também: um reduzir() no meio da cascata deixava
+       .qa/.celula com opacity parcial ou zero para sempre (achado da revisão) */
+    gsap.set('.reveal, .reveal > *, .hero__rail > *, .hero__title, ' + HERO_PECAS, { clearProps: 'all' });
     html.classList.remove('js');
     var todos = document.querySelectorAll('.reveal');
     for (var j = 0; j < todos.length; j++) todos[j].classList.add('is-in');
@@ -59,7 +61,6 @@
     var titulo = document.querySelector('.hero__title');
     var eyebrow = document.querySelector('.hero__status');
     var sub = document.querySelector('.hero__sub');
-    var linhas = document.querySelector('.hero .linhas');
     var acoes = document.querySelector('.hero__actions');
     var prova = document.querySelector('.hero__fine');
     var rail = document.querySelector('.hero__rail');
@@ -85,7 +86,6 @@
       }
 
       if (sub) tl.fromTo(sub, { y: 18 }, { opacity: 1, y: 0, duration: .9 }, '-=.75');
-      if (linhas) tl.from(linhas.children, { opacity: 0, y: 10, duration: .7, stagger: .06, clearProps: 'opacity,transform' }, '-=.7');
       if (acoes) tl.fromTo(acoes, { y: 14 }, { opacity: 1, y: 0, duration: .9 }, '-=.7');
       if (prova) tl.to(prova, { opacity: 1, duration: .7 }, '-=.6');
       if (arte) tl.fromTo(arte, { y: 24, scale: .96 }, { opacity: 1, y: 0, scale: 1, duration: 1.1, clearProps: 'transform' }, .35);
@@ -103,9 +103,9 @@
   /* ---------- ENTRADAS POR SEÇÃO ----------
      Cada `.reveal` sobe e aparece quando entra (uma vez). Dentro de cada um,
      os filhos de lista/grade entram em cascata curta. O título de seção sobe
-     por linhas atrás de máscara. A classe `is-in` acende as marcas-texto. */
+     por linhas atrás de máscara. A classe `is-in` aciona a régua e a varredura. */
   var jaRevelou = false;
-  var COM_FILHOS = '.servicos, .prova, .passos, .laudo, .malha, .cenarios, .faq-list, .spec, .formatos';
+  var COM_FILHOS = '.servicos, .prova, .passos, .laudo, .malha, .cenarios, .faq-list, .spec';
   function marcar(el) {
     el.classList.add('is-in');
     if (el.classList.contains('section__head') || el.parentNode.classList.contains('conversa')) linhasDoTitulo(el);

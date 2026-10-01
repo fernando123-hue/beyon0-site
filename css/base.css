@@ -44,6 +44,7 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 12px); }
   transition: background-color var(--t) var(--ease-io), box-shadow var(--t) var(--ease-io);
 }
 .nav.is-stuck { background-color: rgb(6 8 11 / .86); box-shadow: 0 1px 0 var(--line); }
+.nav.is-open { background-color: var(--bg); }
 @supports (backdrop-filter: blur(1px)) { .nav.is-stuck { backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); } }
 .wordmark { font-family: var(--mono); font-weight: 600; font-size: 1rem; letter-spacing: -.01em; color: var(--t1); }
 .wordmark b { color: var(--ac); font-weight: 600; }
@@ -62,7 +63,7 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 12px); }
   position: absolute; left: 0; right: 0; top: var(--nav-h);
   display: flex; flex-direction: column;
   padding: .4rem var(--pad) 1.2rem;
-  background: rgb(6 8 11 / .96);
+  background: var(--bg);   /* opaco: o hero não pode aparecer atrás dos links */
   box-shadow: 0 1px 0 var(--line), 0 24px 40px -24px rgb(0 0 0 / .8);
 }
 html.tem-menu .nav__links { max-height: 0; overflow: hidden; padding-top: 0; padding-bottom: 0; visibility: hidden; transition: max-height var(--t) var(--ease), visibility 0s linear var(--t), padding var(--t) var(--ease); }
@@ -73,24 +74,24 @@ html.tem-menu .nav.is-open .nav__links { max-height: calc(100dvh - var(--nav-h))
   border-top: 1px solid var(--line);
 }
 .nav__links a.is-current { color: var(--ac); }
-.nav__links a:focus-visible { outline-offset: -3px; }
+.nav__links a:not(.btn):focus-visible { outline-offset: -3px; }
 .nav__links .btn { margin-top: .8rem; justify-content: center; }
 .nav__sep { display: none; }
 /* SEM JS (sem html.tem-menu) no celular: a barra cresce e os links ficam
    em linha, embaixo da marca */
-@media (max-width: 820px) {
+@media (max-width: 980px) {
   html:not(.tem-menu) .nav { position: relative; height: auto; flex-wrap: wrap; padding-top: .4rem; padding-bottom: .6rem; background: var(--bg); }
   html:not(.tem-menu) .nav__links { position: static; flex-direction: row; flex-wrap: wrap; gap: 0 1.1rem; width: 100%; padding: 0; background: none; box-shadow: none; }
   html:not(.tem-menu) .nav__links a:not(.btn) { min-height: 44px; border: 0; }
   html:not(.tem-menu) .nav__links .btn { margin: .2rem 0 0; width: 100%; }
   html:not(.tem-menu) .hero { padding-top: clamp(16px, 4vh, 40px); }
 }
-@media (min-width: 821px) {
+@media (min-width: 981px) {
   :root { --nav-h: 72px; }
   .nav__toggle { display: none; }
   .nav__links { position: static; flex-direction: row; align-items: center; gap: 1.5rem; padding: 0; background: none; box-shadow: none; }
   html.tem-menu .nav__links { max-height: none; overflow: visible; visibility: visible; padding: 0; }
-  .nav__links a:not(.btn) { min-height: 0; border: 0; font-size: .7rem; letter-spacing: .14em; color: var(--t3); padding: .4rem 0; position: relative; transition: color var(--t-micro) var(--ease-micro); }
+  .nav__links a:not(.btn) { min-height: 0; border: 0; font-size: .7rem; letter-spacing: .14em; white-space: nowrap; color: var(--t3); padding: .4rem 0; position: relative; transition: color var(--t-micro) var(--ease-micro); }
   .nav__links a:not(.btn):hover { color: var(--t1); }
   .nav__links a.is-current { color: var(--t1); }
   .nav__links a.is-current::after { content: ""; position: absolute; left: 0; right: 0; bottom: -2px; height: 1px; background: var(--ac); }
@@ -126,13 +127,13 @@ html.tem-menu .nav.is-open .nav__links { max-height: calc(100dvh - var(--nav-h))
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 45;
   padding: .6rem var(--pad) max(.6rem, env(safe-area-inset-bottom));
   background: rgb(6 8 11 / .9); box-shadow: 0 -1px 0 var(--line);
-  transition: transform var(--t) var(--ease), opacity var(--t) var(--ease);
+  transition: transform var(--t) var(--ease), opacity var(--t) var(--ease), visibility 0s linear 0s;
 }
 @supports (backdrop-filter: blur(1px)) { .barra { backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); } }
 .barra .btn { width: 100%; }
-.barra.is-oculta { transform: translateY(110%); opacity: 0; pointer-events: none; }
-@media (min-width: 821px) { .barra { display: none; } }
-@media (max-width: 820px) { body { padding-bottom: 84px; } }
+.barra.is-oculta { transform: translateY(110%); opacity: 0; pointer-events: none; visibility: hidden; transition-delay: 0s, 0s, var(--t); }
+@media (min-width: 981px) { .barra { display: none; } }
+@media (max-width: 980px) { body { padding-bottom: 84px; } }
 
 /* ---- HERO ----
    Celular: coluna única, a frase primeiro, o CTA na primeira tela, a arte
@@ -156,7 +157,7 @@ html.tem-menu .nav.is-open .nav__links { max-height: calc(100dvh - var(--nav-h))
 .hero__sub { color: var(--t2); max-width: 46ch; font-size: 1.05rem; line-height: 1.6; margin-bottom: 1.6rem; }
 .hero__actions { display: flex; flex-direction: column; gap: .7rem; }
 .hero__actions .btn { width: 100%; }
-.hero__fine { margin-top: 1.2rem; font-family: var(--mono); font-size: .72rem; line-height: 1.6; color: var(--t3); }
+.hero__fine { margin-top: 1.2rem; font-size: .84rem; line-height: 1.6; color: var(--t3); }
 /* a arte: lugar reservado ao AI Core futuro; hoje, painéis de vidro */
 .hero__arte { position: relative; }
 
@@ -237,4 +238,4 @@ html.tem-menu .nav.is-open .nav__links { max-height: calc(100dvh - var(--nav-h))
   transition: border-color var(--t-micro) var(--ease-micro), color var(--t-micro) var(--ease-micro);
 }
 .wa:hover { border-color: var(--ac); color: var(--ac); }
-@media (min-width: 821px) { .wa { display: grid; } }
+@media (min-width: 981px) { .wa { display: grid; } }

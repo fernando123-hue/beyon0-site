@@ -6,8 +6,11 @@
    por EVENTO. Se o GSAP não vier, js/pagina.js retira `js` e tudo aparece.
    ========================================================================== */
 
-/* sem o núcleo não há medida: os rótulos de fps/carga não aparecem */
-html:not(.tem-medida) [data-metrica-caixa], html:not(.tem-medida) .adesivo { display: none; }
+/* sem o núcleo não há medida: a prova inteira e os rótulos de fps/carga não aparecem */
+html:not(.tem-medida) [data-metrica-caixa], html:not(.tem-medida) .adesivo, html:not(.tem-medida) #prova { display: none; }
+/* em movimento reduzido o medidor para: o item de fps sai, o resto da prova fica */
+html.menos-movimento [data-metrica-fps] { display: none; }
+@media (prefers-reduced-motion: reduce) { [data-metrica-fps] { display: none; } }
 
 html.js .reveal { opacity: 0; }
 html.js .hero__title { visibility: hidden; }
@@ -23,7 +26,7 @@ html.js .is-in .painel::after, html.js .painel.is-in::after { animation: varrer 
 @keyframes varrer { 0% { transform: scaleX(0); opacity: 1; } 70% { transform: scaleX(1); opacity: 1; } 100% { transform: scaleX(1); opacity: 0; } }
 /* a régua do kicker cresce ao revelar */
 html.js .kicker::after { transform: scaleX(0); transform-origin: left; transition: transform 1s var(--ease) .2s; }
-html.js .is-in .kicker::after, html.js .hero .kicker::after { transform: scaleX(1); }
+html.js .is-in .kicker::after { transform: scaleX(1); }
 
 /* ---- MOVIMENTO REDUZIDO: nada escondido, nada em loop ---- */
 @media (prefers-reduced-motion: reduce) {

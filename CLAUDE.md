@@ -37,18 +37,19 @@ subindo); ignore a primeira medição de DCL/LCP.
 
 | Arquivo | O que é |
 |---|---|
-| `docs/restructure/DIRECAO-V3.md` | **Comece aqui.** A direção da V3 "Luz e vida" (2026-10-01): papel quente, serifa, coral como única cor de ação, celular primeiro, sem canvas nesta fase. |
-| `docs/restructure/DIRECAO-V2.md` | A V2 escura ("o instrumento acorda"), superada pela V3. Vale pelo diagnóstico medido e pelo vocabulário de movimento. |
-| `docs/restructure/PLANO-REESTRUTURACAO.md` | Seção 14 = estado da V3 e pendências. Seção 13 = V2. Seções 11–12 = história da reestruturação anterior. |
+| `docs/restructure/DIRECAO-V4.md` | **Comece aqui.** A direção da V4 "Tech refinado" (2026-10-01): a identidade da V1 (escuro, ciano, Sora + Mono, régua de 1px) com luz; celular primeiro; AI Core reservado para uma fase futura. |
+| `docs/restructure/DIRECAO-V3.md` | A V3 clara ("Luz e vida"), rejeitada pelo dono no mesmo dia. Vale pela regra de celular primeiro. |
+| `docs/restructure/DIRECAO-V2.md` | A V2 escura ("o instrumento acorda"), chamada de "mórbida" pelo dono. Vale pelo diagnóstico medido e pelo vocabulário de movimento. |
+| `docs/restructure/PLANO-REESTRUTURACAO.md` | Seção 15 = estado da V4 e pendências. Seção 14 = V3. Seção 13 = V2. Seções 11–12 = história anterior. |
 | `docs/HANDOFF.md` | História longa do projeto e as leis de performance (seções 3 e 4). Identidade/arquitetura das seções 5–6 e 14–16 estão SUPERADAS pela V2. |
 | `docs/auditoria-performance.md` | As medições que justificam a arquitetura. |
 
-## Arquitetura (V3)
+## Arquitetura (V4)
 
 ```
-css/tokens.css (paleta, fontes, auras) · base.css (tipo, nav, botões, hero, barra do celular, rodapé)
-css/componentes.css (capítulos, regras, prova, passos, laudo, bento, cenários, FAQ, noite, janela, órbita, modal)
-css/motion.css (estados iniciais html.js, marca-texto, reduced-motion)
+css/tokens.css (paleta, fontes, atmosfera) · base.css (tipo, nav, botões, hero, trilha, feixe, barra do celular, rodapé)
+css/componentes.css (painel, serviços, passos, laudo, prova, malha, cenários, FAQ, conversa, spec, planos, janela, instrumento, modal)
+css/motion.css (estados iniciais html.js, varredura do painel, régua do kicker, reduced-motion)
 js/ancoras.js (head: html.js + âncoras antigas) · tel.js · core.js (loop, estado S, fps, reduzir)
 js/pagina.js (nav, WA, seção atual, barra do celular, prova, interruptor)
 js/anima.js (GSAP: boot do hero por linhas, entradas por seção) · lead-form.js (só automação)
@@ -57,12 +58,12 @@ js/anima.js (GSAP: boot do hero por linhas, entradas por seção) · lead-form.j
 Sem canvas nesta fase: o AI Core e os pulsos voltam numa fase seguinte,
 repensados para fundo claro (quando o dono pedir). Os módulos antigos
 (`campo.js`, `profundidade.js`, `organismo.js`, `palavras.js`) estão no
-histórico, commit `051b2a8`.
+histórico, commit `051b2a8`; o AI Core original (orbe) em `abd83fe` (V1).
 
 ## Regras que não se negociam
 
-1. **Nenhuma variável de CSS muda por frame.** Movimento contínuo (auras,
-   cartas, órbita) é `@keyframes` só de transform/opacity, no compositor. Um
+1. **Nenhuma variável de CSS muda por frame.** Movimento contínuo (feixe,
+   planos, LED) é `@keyframes` só de transform/opacity, no compositor. Um
    rAF só, via `B.add` (hoje só o medidor de fps).
 2. **Zero invenção de dado.** Nada de "+300 projetos" ou "98% de satisfação".
    Se o número não foi medido ou confirmado pelo dono, ele não existe.
@@ -75,9 +76,12 @@ histórico, commit `051b2a8`.
 6. **Não publicar sem o dono pedir.** Push na `main` é deploy.
 7. **CSP sem inline.** `style-src 'self'`: nenhum `style=""` no HTML, nenhum
    `<style>`; só classes. `el.style.x` via JS continua permitido.
-8. **Mono só onde há dado** (índice, medida, coordenada). Copy e controles em Sora; títulos em Instrument Serif, itálico = ênfase.
+8. **Mono só onde há rótulo, índice, dado ou controle.** Copy em Sora; títulos em Sora 300; ênfase em ciano 500.
 9. **Celular primeiro.** Cada página nasce em 390px e cresce. Conferir os
    screenshots `*-cel` e `*-320` ANTES do desktop; regressão no celular bloqueia.
+10. **Nenhuma caixa mais larga que a viewport no celular.** O Chrome alarga a
+   viewport inteira (medido: 390 → 469px) e a barra fixa some. Nada de
+   `left/right` negativos ou `vw` > 100 em caixas em fluxo.
 
 ## Como o dono trabalha
 

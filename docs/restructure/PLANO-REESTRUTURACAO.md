@@ -941,3 +941,66 @@ em tinta, não em luz; os pulsos como ondas de coral muito abertas. A base
 - Mesmas da 13.8: 120Hz não medido nesta máquina; "Ativar movimento" não rearma
   o GSAP (só desce).
 - O mockup de Sites e o leque são HTML/CSS: sem profundidade de canvas nesta fase.
+
+## 15. V4 — "TECH REFINADO" (2026-10-01, nona sessão, segunda metade) — LEIA ANTES DA 14
+
+O dono viu a V3 clara no ar e pediu: "vamos voltar para a identidade visual
+antiga, aquele padrão tech, refinado e profissional. Monte por partes e
+revise." Por pergunta, escolheu: referência = **V1** (o site original);
+**nada da V3 fica** além dos fatos; **AI Core só no futuro**, remodelado por
+completo. Direção em `DIRECAO-V4.md`.
+
+### 15.1 Estado
+
+| | |
+|---|---|
+| Branch | `rebuild-v2` (continua o mesmo nome); commits `5db6c05` (parte 1), `05adcbe` (2), `d2bd489` (3), `f9804ce` (4) + o commit da revisão |
+| Publicado? | **NÃO.** A `main` e o site no ar continuam na V3 clara (`e3272c7`). O dono precisa ver a V4 antes. |
+| Verificador | 10/10 (60 fps, LCP 0,4–1,8 s no headless, zero rolagem lateral, zero preso, zero erro) |
+| Acessibilidade | 23/23 (sem JS, movimento reduzido sem loop, teclado, menu do celular) |
+| Medidas (headless, 6 s) | 281–299 KB do domínio por página; CLS 0; 60 fps parado e rolando; script 32–37 ms/6s; estilo 49–60 ms/6s (a V3 ia a 141 no hub) |
+| Screenshots | `docs/olhar-v4/` (390, 320, 1440, sem JS, movimento reduzido, menu, modal) |
+
+### 15.2 O que é a V4
+
+- **Identidade da V1 com luz:** fundo `#06080B` (preto com um fio de azul),
+  ciano `#4FD8F0` como única cor de ação, Sora 300 nos displays, Mono em
+  rótulo/índice/dado/botão, régua de 1px, malha com fresta. A luz que a V2
+  não tinha: atmosfera de luz ciano/azul fixa atrás do conteúdo, painéis de
+  vidro com aresta iluminada e marcas de canto no hover, um feixe que varre
+  o hero (só transform), varredura na aresta ao revelar, dados vivos.
+- **Montado por partes, cada uma olhada no celular primeiro e commitada:**
+  1 = tokens/base/componentes/motion/Hub; 2 = Sites (janela-mockup em vidro
+  com adesivo de fps); 3 = Automação (instrumento de leitura no hero, malha
+  de capacidades, cenários, modal); 4 = Resumo na mesma pele.
+- **Estrutura e copy novos:** Hub = hero "Do problema ao sistema *no ar*."
+  + trilha; Serviços (3 painéis); Como funciona (3 passos); Garantias (4
+  linhas); Prova; Conversa. Sites = "Sites que carregam rápido e
+  *convencem*." + formatos, padrão, prova, método (4), FAQ (9), conversa.
+  Automação = frase da V1 + laudo, capacidades (6), método (3), cenários
+  (3), FAQ (10), conversa + modal.
+- **Lugar do AI Core:** `.hero__arte` em cada hero (planos de vidro no Hub,
+  janela em Sites, instrumento em Automação). Quando o dono pedir o Core
+  novo, ele entra ali.
+
+### 15.3 Achados ao medir (e corrigidos)
+
+- O feixe com `left/right: -20%` fazia o Chrome do celular alargar a
+  viewport de 390 para 469 px: a barra de ação sumia da tela. Regra nova no
+  CLAUDE.md (10).
+- O feixe, por ser o primeiro filho da grade do hero, ocupava uma célula e
+  invertia as colunas no desktop (`.hero > *` sobrescrevia o `absolute`).
+- O painel do menu do celular era translúcido e deixava o hero aparecer
+  atrás dos links: ficou opaco.
+- Revisão de código por agente (1 alta, 5 médias, 6 baixas), tudo corrigido:
+  anel de foco do CTA da nav sumia dentro do botão ciano; `reduzir()` no meio
+  da cascata deixava filhos com opacidade parcial; rótulos da nav quebravam
+  entre 821 e 900 px (menu inline só a partir de 981 px); foco cortado nas
+  células da malha; barra oculta ainda focável; prova descrevendo números que
+  não existiam sem JS e em movimento reduzido; copy em mono; seletores e
+  comentários órfãos.
+
+### 15.4 Próximo passo
+
+O dono olha a V4 (servidor local ou publicar, só se pedir). Depois: o AI
+Core novo, para o lugar reservado nos heros, com a base `core.js`/`B.add`.
