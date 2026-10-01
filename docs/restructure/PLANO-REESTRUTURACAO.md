@@ -768,6 +768,26 @@ Na Vercel os JS vão comprimidos (GSAP ≈ 45 KB gz).
   a leitura ao vivo em volta do núcleo foi a resposta).
 - Publicar: `git checkout main && git merge --ff-only rebuild-v2 && git push`.
 
+### 13.4b Perguntas que a auditoria de copy deixou para o dono (segunda rodada)
+
+Objeções reais de quem contrata e que o site não responde porque dependem de
+FATO que só o dono tem. Nada disso foi inventado; cada uma vira uma pergunta
+de FAQ (visível + JSON-LD) quando ele responder:
+1. Automação: tem mensalidade de ferramenta/modelo/hospedagem? Quem contrata e paga?
+2. Automação: e depois de pronto, quem cuida? Há manutenção combinada?
+3. Automação: quanto tempo e quem da entidade participa do diagnóstico?
+4. Automação: dados de filiados e LGPD — onde os dados ficam?
+5. Sites: domínio e hospedagem, quanto por mês e quem paga?
+6. Sites: o cliente consegue trocar um texto sozinho depois (painel)?
+7. Atende fora do Rio, online?
+8. O nome do dono aparece no site? Hoje não há nome próprio em lugar nenhum.
+
+Terminologia adotada (aplicada): "serviço" (nunca "frente" visível); Hub e
+Sites falam em "conversa", Automação em "diagnóstico"; um rótulo de CTA por
+página (Falar comigo · Quero um site · Agendar diagnóstico); Automação e
+resumo dizem "entidade", Hub e Sites "negócio"; "para" em títulos e corpo,
+"pra" só em FAQ e WhatsApp.
+
 ### 13.5 O que NÃO entrou (decisões de não-fazer)
 
 Remotion, Lenis, preloader, `cursor: none`, three.js — motivos em
@@ -802,3 +822,18 @@ pendente (o índice do Hub diz "sem página própria, de propósito").
   no `campo.js` (hoje ~6 `getBoundingClientRect` por frame DE ROLAGEM,
   ~0,1ms, igual à V1); pausa da animação do trilho do método fora da tela;
   teste a 320px e do interruptor no boot no verificador.
+
+### 13.7 Segunda auditoria (mesma sessão, 4 agentes em paralelo)
+
+Copy/conversão, UX/direção de arte, arquitetura/performance e acessibilidade
+auditaram em paralelo; os achados concretos foram aplicados (commits
+`52280b5`, `4f474dc` e seguintes). Destaques: mensagens de WhatsApp que
+chegavam sem verbo (bug real, 7 CTAs); modal com um campo obrigatório e
+saída direta; ordem do foco no menu do celular; "Reduzir movimento"
+restaurando o estado no meio de um evento; costura entre seções; hero não
+some ao rolar; brumas no compositor (CSS) e planos sem gradiente — medido
+por camada em rasterização por software (`docs/fps.mjs`).
+
+Limite conhecido do ambiente de medição: SwiftShader (CPU) paga caro por
+`backdrop-filter` (satélite do palco, ~3fps) e pela perspectiva 3D da janela
+(~5fps) na página de Sites; numa GPU real esses custos são do compositor.

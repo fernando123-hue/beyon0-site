@@ -28,6 +28,7 @@ BASE=http://127.0.0.1:8899 CHROMIUM="$LOCALAPPDATA/ms-playwright/chromium_headle
 | `npm run acessibilidade` | sem JS, movimento reduzido, teclado (foco visível, menu do celular) |
 | `npm run olhar -- <pasta>` | screenshots em 5 pontos de rolagem, desktop e celular — abra os PNG e OLHE |
 | `npm run medir -- <rótulo>` | bytes, nós, LCP, CLS, fps parado/rolando, ms de script/estilo/layout por 6s |
+| `node docs/fps.mjs 1440,900,390` | fps e rolagem lateral por largura, rápido; para A/B por camada |
 
 O primeiro carregamento de cada execução no headless é lento (processo de GPU
 subindo); ignore a primeira medição de DCL/LCP.
