@@ -1,95 +1,37 @@
 /* ==========================================================================
-   BEYON ZERO — MOTION: estados de revelação, regimes do organismo, reduced-motion
+   BEYON ZERO — MOTION (V3): estados de revelação e movimento reduzido.
 
-   Quem dirige as entradas é o GSAP (js/anima.js). O CSS só define os estados
-   iniciais e as transições por EVENTO (classe). Nenhuma variável muda por frame.
-
-   CONTRATO DE REVELAÇÃO
-   · `html.js` entra no <head> (js/ancoras.js) antes de qualquer pintura:
-     só então o conteúdo nasce escondido. Sem JS, tudo é visível desde o HTML.
-   · `html.has-gsap` entra no topo de js/anima.js. Se o GSAP não vier,
-     js/pagina.js retira `js` do <html> e o conteúdo aparece inteiro.
-   · `.is-in` é escrito pelo GSAP ao revelar: é dela que pendem os efeitos de
-     entrada que não são transform/opacity (a régua do kicker).
+   O GSAP (js/anima.js) dirige as entradas. O CSS define os estados iniciais
+   (só com `html.js`, escrito no <head> por js/ancoras.js antes de qualquer
+   pintura) e as transições por EVENTO. Se o GSAP não vier, js/pagina.js
+   retira `js` do <html> e tudo aparece.
    ========================================================================== */
 
-/* estados iniciais, SÓ com JS presente */
+/* sem o núcleo não há medida: o rótulo "— fps" não aparece (js/pagina.js marca
+   html.tem-medida quando começa a medir; a prova de Sites explica o traço) */
+html:not(.tem-medida) .hero__prova:has(b[data-metrica]), html:not(.tem-medida) .adesivo { display: none; }
+
 html.js .reveal { opacity: 0; }
-html.js .hero__title, html.js .display { visibility: hidden; }
-html.js .hero__status, html.js .hero__eyebrow, html.js .hero__sub, html.js .hero__actions,
-html.js .hero__rail, html.js .hero__main .fine, html.js .linhas, html.js .nav { opacity: 0; }
-html.js:not(.has-gsap) .reveal, html.js:not(.has-gsap) .hero__title, html.js:not(.has-gsap) .display { transition: opacity var(--t-slow) var(--ease); }
+html.js .hero__title { visibility: hidden; }
+html.js .hero__eyebrow, html.js .hero__sub, html.js .hero__actions, html.js .hero__prova, html.js .hero__arte, html.js .nav { opacity: 0; }
 
-/* a régua do kicker se desenha quando a seção é revelada */
-.kicker::after { transform-origin: left; transition: transform 1s var(--ease) .1s; }
-html.js .reveal:not(.is-in) .kicker::after { transform: scaleX(0); }
+/* a marca-texto se preenche quando o bloco entra (uma vez, por classe) */
+html.js mark { background-size: 0% 42%; transition: background-size 1s var(--ease) .25s; }
+html.js .is-in mark, html.js .hero mark { background-size: 100% 42%; }
+html.js .hero mark { transition-delay: 1.1s; }
 
-/* ---- BRUMAS — a atmosfera no compositor ----
-   Duas manchas de luz muito abertas derivando em períodos incomensuráveis
-   (nunca repetem de forma reconhecível). Só transform anima; o canvas não
-   paga por elas. Criadas por js/campo.js, atrás do conteúdo. */
-.bruma {
-  position: fixed; z-index: 0; pointer-events: none;
-  border-radius: 50%; will-change: transform;
-}
-.bruma--1 {
-  width: 70vmax; height: 70vmax; left: 15vw; top: -10vh;
-  background: radial-gradient(circle, rgb(104 110 124 / .07), transparent 68%);
-  animation: bruma-1 47s ease-in-out infinite alternate;
-}
-.bruma--2 {
-  width: 52vmax; height: 52vmax; left: 6vw; top: 40vh;
-  background: radial-gradient(circle, rgb(79 216 240 / .05), transparent 68%);
-  animation: bruma-2 61s ease-in-out infinite alternate;
-}
-@keyframes bruma-1 { from { transform: translate3d(-12vw, -6vh, 0); } to { transform: translate3d(14vw, 10vh, 0); } }
-@keyframes bruma-2 { from { transform: translate3d(10vw, 8vh, 0); } to { transform: translate3d(-10vw, -10vh, 0); } }
-.bruma { transition: opacity var(--t-sing) var(--ease-mid); }
-.is-dormant .bruma { animation-play-state: paused; opacity: .6; }
-.is-singular .bruma--2 { background: radial-gradient(circle, rgb(240 180 79 / .07), transparent 68%); }
-@media (prefers-reduced-motion: reduce) { .bruma { display: none; } }
-html.menos-movimento .bruma { display: none; }
-
-/* ---- REGIMES DO ORGANISMO ----
-   O canvas faz o espetáculo. O DOM só acompanha, e só onde a cor é assinatura. */
-.is-pulse { --ac: #7FE9FF; --ac-rgb: 127 233 255; }
-/* Singular: só a LUZ muda de temperatura — a mesma sala com outra lâmpada.
-   LITERAL, não var(--warm): --ac é @property registrado (ver tokens.css). */
-.is-singular { --ac: #F0B44F; --ac-rgb: 240 180 79; }
-h1, h2 { transition: text-shadow var(--t-sing) var(--ease-mid); }
-.is-singular h1, .is-singular h2 { text-shadow: 0 0 28px rgb(var(--ac-rgb) / .15); }
-/* dormente: a película recolhe; nenhum texto muda de contraste */
-.is-dormant::after { opacity: .022; }
-
-/* ---- MOVIMENTO REDUZIDO ----
-   Quem pede menos movimento recebe a página inteira, parada, e nada escondido.
-   Vale para a preferência do sistema E para o interruptor do rodapé
-   (`html.menos-movimento`, js/pagina.js). */
+/* ---- MOVIMENTO REDUZIDO: nada escondido, nada em loop ---- */
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  *, *::before, *::after {
-    animation-duration: .001ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: .001ms !important;
-  }
-  html.js .reveal, html.js .hero__status, html.js .hero__eyebrow, html.js .hero__sub, html.js .hero__actions,
-  html.js .hero__rail, html.js .hero__main .fine, html.js .linhas, html.js .nav { opacity: 1; }
-  html.js .hero__title, html.js .display { visibility: visible; }
-  html.js .reveal:not(.is-in) .kicker::after { transform: none; }
-  .diag__row::after { clip-path: inset(0 0 0 0); }
-  .janela, .palco:hover .janela { transform: none; }
-  #fx { display: none; }
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+  html.js .reveal, html.js .hero__eyebrow, html.js .hero__sub, html.js .hero__actions, html.js .hero__prova, html.js .hero__arte, html.js .nav { opacity: 1; }
+  html.js .hero__title { visibility: visible; }
+  html.js mark { background-size: 100% 42%; }
+  .carta, .orbita__anel--2, .orbita__ponto, .hero__eyebrow .dot { animation: none; }
 }
 html.menos-movimento { scroll-behavior: auto; }
-html.menos-movimento *, html.menos-movimento *::before, html.menos-movimento *::after {
-  animation-duration: .001ms !important;
-  animation-iteration-count: 1 !important;
-  transition-duration: .001ms !important;
-}
-html.menos-movimento .reveal, html.menos-movimento .hero__status, html.menos-movimento .hero__eyebrow,
-html.menos-movimento .hero__sub, html.menos-movimento .hero__actions, html.menos-movimento .hero__rail,
-html.menos-movimento .hero__main .fine, html.menos-movimento .linhas, html.menos-movimento .nav { opacity: 1; }
-html.menos-movimento .hero__title, html.menos-movimento .display { visibility: visible; }
-html.menos-movimento .reveal:not(.is-in) .kicker::after { transform: none; }
-html.menos-movimento .diag__row::after { clip-path: inset(0 0 0 0); }
-html.menos-movimento #fx { display: none; }
+html.menos-movimento *, html.menos-movimento *::before, html.menos-movimento *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+html.menos-movimento .reveal, html.menos-movimento .hero__eyebrow, html.menos-movimento .hero__sub, html.menos-movimento .hero__actions, html.menos-movimento .hero__prova, html.menos-movimento .hero__arte, html.menos-movimento .nav { opacity: 1; }
+html.menos-movimento .hero__title { visibility: visible; }
+html.menos-movimento mark { background-size: 100% 42%; }
+html.menos-movimento .carta, html.menos-movimento .orbita__anel--2, html.menos-movimento .orbita__ponto, html.menos-movimento .hero__eyebrow .dot { animation: none; }

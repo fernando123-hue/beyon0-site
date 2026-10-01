@@ -886,3 +886,58 @@ celular e 320px a 60), acessibilidade 23/23, zero rolagem lateral de 320 a
   desce" para o GSAP). Aceito e documentado.
 - Hash nos nomes de CSS/JS + cache imutável exigiria passo de pré-deploy;
   hoje é revalidação por ETag.
+
+## 14. V3 — "LUZ E VIDA" (2026-10-01, nona sessão) — LEIA ANTES DA 13
+
+Pedido do dono depois de ver a V2 no ar: "ainda está passando uma sensação
+mórbida" (fundo preto, sem luz, frio) e "se preocupe em modelar o site para
+o mobile, é aonde a maioria das pessoas irão acessar". Direção completa em
+`DIRECAO-V3.md`.
+
+### 14.1 Estado
+
+| | |
+|---|---|
+| Branch | `rebuild-v2` (continua o mesmo nome; a `main` ainda é a V2 publicada) |
+| Publicado? | **NÃO.** O dono precisa ver a V3 antes. Push na `main` é deploy e só o dono pede. |
+| Verificador | 10/10 (fps 60, LCP 1,1–1,7s no headless, zero rolagem lateral, zero preso, zero erro) |
+| Acessibilidade | 23/23 (sem JS, movimento reduzido sem loop de CSS, teclado, menu do celular) |
+| Screenshots | `docs/olhar-v3/` (desktop, 390px e 320px) |
+| Medidas (headless, SwiftShader, 6s) | 327–349 KB do domínio por página (GSAP ~100 KB + 4 fontes); CLS 0; 60 fps parado e rolando; script 38–58 ms/6s; estilo 43–141 ms/6s (hub é o maior: leque + órbita em @keyframes; `will-change` não mudou nada no headless, ficou pelo compositor real); LCP 1,5–2,0 s no headless (artefato de GPU por software; na V2 publicada o mesmo headless dava 1,6 s e o site real ~0,4 s) |
+
+### 14.2 O que mudou
+
+- **Pele:** papel quente (`#FBF7F0`), tinta marrom-escura, coral `#FF4D1C` como
+  única cor de ação (texto `#C8370C`, 4,8:1), azul só em dado medido, três
+  tintas de bloco (mel, sálvia, céu), uma única seção escura (a conversa) com
+  preto quente. Instrument Serif nos títulos (itálico = ênfase), Sora no corpo,
+  Mono só em dado. Três auras de luz por transform atrás de tudo.
+- **Estrutura e copy:** Hub = hero ("Sites, automação e IA que *funcionam* de
+  verdade.") com leque de três cartas, Serviços como três capítulos com tinta
+  própria, Como trabalho como lista com marca-texto, Experiências com órbita em
+  CSS, Conversa escura. Sites = hero com janela-mockup clara e adesivo de fps,
+  formatos, padrão (faixa papel-2), prova medida, método em 4 passos, FAQ (9,
+  idêntica ao JSON-LD), conversa. Automação = hero mantido, laudo, bento
+  sálvia, método, cenários, FAQ (10), conversa + modal. Resumo na mesma pele.
+- **Celular primeiro:** CSS base é o de 390px e só cresce. Primeira tela com
+  marca, frase, o que é e CTA; barra fixa "Falar comigo"/"Quero um site"/
+  "Agendar diagnóstico" no pé da tela (some sobre a seção escura); alvos ≥ 48px;
+  WhatsApp flutuante só no desktop.
+- **Saiu:** canvas e todos os seus módulos (`campo.js`, `profundidade.js`,
+  `organismo.js`, `palavras.js`), régua lateral, retículo, cubo, portal, grão.
+  `core.js` ficou (loop, fps, interruptor) para a fase do AI Core.
+- **Ferramentas:** `verificar.mjs` sem exigência de núcleo (confere a barra do
+  celular), `acessibilidade.mjs` confere que nenhum loop de CSS roda em
+  movimento reduzido, `olhar.mjs` ganhou alvos de 320px.
+
+### 14.3 Próxima fase (só com pedido do dono)
+
+AI Core e pulsos repensados para fundo claro: um canvas leve atrás do hero,
+em tinta, não em luz; os pulsos como ondas de coral muito abertas. A base
+(`core.js`, `B.add`, `B.S`) continua pronta para isso.
+
+### 14.4 Limitações conhecidas
+
+- Mesmas da 13.8: 120Hz não medido nesta máquina; "Ativar movimento" não rearma
+  o GSAP (só desce).
+- O mockup de Sites e o leque são HTML/CSS: sem profundidade de canvas nesta fase.

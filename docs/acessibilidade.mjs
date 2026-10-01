@@ -30,8 +30,8 @@ for (const rota of ['/index.html', '/sites.html', '/automacao.html']) {
   await page.goto(BASE + rota, { waitUntil: 'load', timeout: 90000 });
   await page.waitForTimeout(800);
   ok((await escondidos(page)) === 0, rota + ' reduzido: nenhum conteúdo escondido');
-  ok(await page.evaluate(() => getComputedStyle(document.getElementById('fx')).display === 'none'), rota + ' reduzido: canvas desligado');
-  ok(await page.evaluate(() => window.BEYON && window.BEYON.reduced === true), rota + ' reduzido: organismo em modo reduzido');
+  ok(await page.evaluate(() => [...document.querySelectorAll('.aura, .carta, .orbita__ponto, .orbita__anel--2')].every(e => getComputedStyle(e).animationName === 'none')), rota + ' reduzido: nenhum loop de CSS rodando');
+  ok(await page.evaluate(() => window.BEYON && window.BEYON.reduced === true), rota + ' reduzido: núcleo em modo reduzido');
   await ctx.close();
 
   /* 3. teclado */

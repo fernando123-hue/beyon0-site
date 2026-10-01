@@ -4,25 +4,25 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Beyon Zero — Sites: institucionais, landing pages e sob medida</title>
-  <meta name="description" content="Sites institucionais, landing pages e sites sob medida. Performance como requisito, não como ajuste final. A prova roda na sua frente enquanto você lê." />
+  <meta name="description" content="Sites institucionais, landing pages e sites sob medida. Rápidos, feitos primeiro para o celular, e a prova roda na sua frente enquanto você lê." />
 
   <link rel="canonical" href="https://beyon0-site.vercel.app/sites" />
   <meta property="og:url" content="https://beyon0-site.vercel.app/sites" />
   <meta property="og:site_name" content="Beyon Zero" />
   <meta property="og:locale" content="pt_BR" />
   <meta property="og:title" content="Sites — Beyon Zero" />
-  <meta property="og:description" content="Uma presença digital à altura do seu negócio. Sites institucionais, landing pages e sites sob medida." />
+  <meta property="og:description" content="Um site que o seu cliente entende em cinco segundos. Institucionais, landing pages e sob medida." />
   <meta property="og:type" content="website" />
   <meta property="og:image" content="https://beyon0-site.vercel.app/assets/og-cover.jpg" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
-  <meta property="og:image:alt" content="Beyon Zero — a abertura do AI Core sobre uma malha técnica" />
+  <meta property="og:image:alt" content="Beyon Zero — sites, automação e inteligência artificial" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Sites — Beyon Zero" />
-  <meta name="twitter:description" content="Uma presença digital à altura do seu negócio." />
+  <meta name="twitter:description" content="Um site que o seu cliente entende em cinco segundos." />
   <meta name="twitter:image" content="https://beyon0-site.vercel.app/assets/og-cover.jpg" />
 
-  <meta name="theme-color" content="#050507" />
+  <meta name="theme-color" content="#FBF7F0" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'" />
@@ -74,16 +74,19 @@
   </script>
 
   <script src="js/ancoras.js"></script>
+  <link rel="preload" href="assets/fonts/instrument-serif-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="assets/fonts/instrument-serif-italic-latin.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="assets/fonts/sora-latin.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="preload" href="assets/fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="css/tokens.css" />
   <link rel="stylesheet" href="css/base.css" />
   <link rel="stylesheet" href="css/componentes.css" />
   <link rel="stylesheet" href="css/motion.css" />
 </head>
-<body data-wa-padrao="quero um site para o meu negócio" data-status="Sistema online · Beyon Zero">
+<body data-wa-padrao="quero um site para o meu negócio">
   <a href="#hero" class="skip-link">Pular para o conteúdo</a>
-  <canvas id="fx" aria-hidden="true"></canvas>
+  <div class="aura aura--1" aria-hidden="true"></div>
+  <div class="aura aura--2" aria-hidden="true"></div>
+  <div class="aura aura--3" aria-hidden="true"></div>
 
   <header class="nav" id="nav">
     <a href="/" class="nav__logo" aria-label="Beyon Zero — início"><span class="wordmark">Beyon <b>Zero</b></span></a>
@@ -98,40 +101,31 @@
       <a href="#faq">Perguntas</a>
       <span class="nav__sep" aria-hidden="true"></span>
       <a href="/automacao">Automação &amp; IA</a>
-      <a class="btn btn--sm" data-wa="quero um site para o meu negócio" href="https://wa.me/5521977167944">Quero um site</a>
+      <a class="btn btn--sm btn--primary" data-wa href="https://wa.me/5521977167944">Quero um site</a>
     </nav>
   </header>
 
   <main>
-    <!-- HERO — o palco: a peça é um site de verdade em miniatura, feito de
-         HTML. Num site que vende sites, o mockup É a demonstração. Atrás dele,
-         painéis de vidro em profundidade (canvas) e o AI Core escapando pelas
-         bordas. -->
-    <section class="hero hero--palco" id="hero" aria-labelledby="hero-titulo">
+    <!-- HERO — a peça é um site de verdade em miniatura, feito de HTML. Num
+         site que vende sites, o mockup É a demonstração. -->
+    <section class="hero" id="hero" aria-labelledby="hero-titulo">
       <div class="hero__main">
-        <p class="hero__status">
-          <span class="dot" aria-hidden="true"></span>
-          <span class="sr-only">Sistema online · Beyon Zero</span>
-          <span class="hero__status-txt" aria-hidden="true">Sistema online · Beyon Zero</span>
-        </p>
-        <p class="hero__eyebrow">Sites, landing pages e sob medida</p>
-        <h1 class="display" id="hero-titulo">Sites</h1>
-        <p class="hero__sub">Para o seu negócio ser encontrado, entendido e procurado. E rápido de verdade: a prova roda nesta página, agora.</p>
+        <p class="hero__eyebrow"><span class="dot" aria-hidden="true"></span> <span>Sites · institucionais, landing pages, sob medida</span></p>
+        <h1 class="hero__title" id="hero-titulo">Um site que o seu cliente entende em <em>cinco segundos</em>.</h1>
+        <p class="hero__sub">Rápido de verdade, feito primeiro para o celular, e com o seu negócio explicado sem rodeio. A prova roda nesta página, agora.</p>
         <ul role="list" class="linhas">
           <li><span class="linhas__n" aria-hidden="true">01</span><span class="linhas__t">Sites institucionais</span><span class="linhas__d">quem você é, sem deixar dúvida</span></li>
           <li><span class="linhas__n" aria-hidden="true">02</span><span class="linhas__t">Landing pages</span><span class="linhas__d">uma página, uma decisão</span></li>
           <li><span class="linhas__n" aria-hidden="true">03</span><span class="linhas__t">Sites sob medida</span><span class="linhas__d">quando o pronto não serve</span></li>
         </ul>
         <div class="hero__actions">
-          <a class="btn btn--primary" data-wa="quero um site para o meu negócio" href="https://wa.me/5521977167944">Quero um site</a>
-          <a class="btn btn--ghost" href="#prova">Ver a prova <span aria-hidden="true">→</span></a>
+          <a class="btn btn--primary" data-wa href="https://wa.me/5521977167944">Quero um site</a>
+          <a class="btn btn--ghost" href="#prova">Ver a prova <span aria-hidden="true">↓</span></a>
         </div>
       </div>
 
-      <div class="palco">
-        <div class="hero__reactor" aria-hidden="true"></div>
-        <span class="cena" data-cena="paineis"></span>
-        <figure class="janela vidro">
+      <div class="hero__arte">
+        <figure class="janela">
           <div class="janela__barra" aria-hidden="true">
             <span class="janela__pt"></span><span class="janela__pt"></span><span class="janela__pt"></span>
             <span class="janela__url">seunegocio.com.br</span>
@@ -148,92 +142,89 @@
           </div>
           <figcaption class="sr-only">Miniatura ilustrativa de um site, exibida numa janela de navegador.</figcaption>
         </figure>
-        <div class="palco__satelite vidro" aria-hidden="true">
-          <span class="sat__rot">Nesta página</span>
-          <span class="sat__val"><b data-metrica="fps">— fps</b> agora, com tudo rodando</span>
-        </div>
-        <span class="palco__base" aria-hidden="true"></span>
+        <p class="adesivo" aria-hidden="true">Nesta página: <b data-metrica="fps">— fps</b></p>
       </div>
     </section>
 
-    <section class="section" id="formatos" data-regua="formatos" aria-labelledby="formatos-titulo">
+    <section class="section" id="formatos" aria-labelledby="formatos-titulo">
       <div class="section__head reveal">
-        <p class="kicker">Formatos</p>
-        <h2 id="formatos-titulo">Três formatos, <br />um padrão de acabamento.</h2>
+        <p class="kicker"><b>01</b> Formatos</p>
+        <h2 id="formatos-titulo">Três formatos, <br />um padrão de <em>acabamento</em>.</h2>
         <p class="lead">O que muda de um para o outro é o tamanho do problema, nunca o cuidado com o resultado.</p>
       </div>
-      <div class="mesh reveal" data-reconhecer="Três formatos reconhecidos">
-        <a class="card card--service" href="#contato" data-wa="quero um site institucional">
-          <span class="card__tag" aria-hidden="true">01</span>
+      <div class="capitulos reveal">
+        <a class="capitulo capitulo--mel" data-wa="quero um site institucional" href="https://wa.me/5521977167944">
+          <span class="capitulo__n" aria-hidden="true">01</span>
           <h3>Site institucional</h3>
           <p>A casa da marca. Quem você é, o que faz, para quem, e por que confiar, organizado para quem chegou sem te conhecer <em>decidir</em> te procurar.</p>
-          <span class="card__cta" aria-hidden="true">Conversar no WhatsApp <span>→</span></span>
+          <span class="capitulo__link">Conversar sobre este formato <span aria-hidden="true">→</span></span>
         </a>
-        <a class="card card--service" href="#contato" data-wa="quero uma landing page">
-          <span class="card__tag" aria-hidden="true">02</span>
+        <a class="capitulo capitulo--papel" data-wa="quero uma landing page" href="https://wa.me/5521977167944">
+          <span class="capitulo__n" aria-hidden="true">02</span>
           <h3>Landing page</h3>
-          <p>Uma página, um objetivo, nenhuma saída lateral. Feita para campanha, lançamento ou anúncio, onde cada bloco existe para levar a <em>uma</em> ação.</p>
-          <span class="card__cta" aria-hidden="true">Conversar no WhatsApp <span>→</span></span>
+          <p>Uma página, um objetivo, nenhuma saída lateral. Feita para campanha, lançamento ou anúncio, onde cada bloco leva a <em>uma</em> ação.</p>
+          <span class="capitulo__link">Conversar sobre este formato <span aria-hidden="true">→</span></span>
         </a>
-        <a class="card card--service" href="#contato" data-wa="quero um site sob medida">
-          <span class="card__tag" aria-hidden="true">03</span>
+        <a class="capitulo capitulo--papel" data-wa="quero um site sob medida" href="https://wa.me/5521977167944">
+          <span class="capitulo__n" aria-hidden="true">03</span>
           <h3>Site sob medida</h3>
           <p>Quando o formato pronto não dá conta: catálogo, área de associado, integração com o que você já usa, ou uma experiência que precisa ser <em>sua</em>.</p>
-          <span class="card__cta" aria-hidden="true">Conversar no WhatsApp <span>→</span></span>
+          <span class="capitulo__link">Conversar sobre este formato <span aria-hidden="true">→</span></span>
         </a>
       </div>
-      <p class="bus" aria-hidden="true"><span class="bus__txt">Três formatos · um <b>padrão</b></span></p>
     </section>
 
-    <section class="section" id="incluso" data-regua="padrão de entrega" aria-labelledby="incluso-titulo">
-      <div class="section__head reveal">
-        <p class="kicker">Padrão de entrega</p>
-        <h2 id="incluso-titulo">O que vem em todo site, <br />sem precisar pedir.</h2>
-        <p class="lead">Isso não é extra. É o mínimo, e não se negocia.</p>
-      </div>
-      <div class="spec reveal">
-        <article class="spec__item"><h3>Performance é requisito</h3><p>Velocidade é decisão de arquitetura do começo, não ajuste do fim. Um site lento perde a visita antes de ela virar leitura.</p></article>
-        <article class="spec__item"><h3>Feito primeiro para o celular</h3><p>É de onde vem a maior parte das visitas. O desenho nasce ali e cresce para a tela grande, não o contrário.</p></article>
-        <article class="spec__item"><h3>Base técnica de SEO</h3><p>Estrutura semântica, títulos e descrições, dados estruturados, sitemap e endereços limpos. A base não garante primeiro lugar; a falta dela garante o contrário.</p></article>
-        <article class="spec__item"><h3>Acessível de verdade</h3><p>Contraste conferido, navegação por teclado inteira, leitor de tela entendendo o que existe na página. Quem não consegue usar também não compra.</p></article>
-        <article class="spec__item"><h3>Sem prender você</h3><p>O código é seu, o domínio é seu, os acessos são seus. Nenhuma peça depende de uma plataforma que só eu opero.</p></article>
-        <article class="spec__item"><h3>No ar, não no meu computador</h3><p>Publicação, domínio apontado e certificado ativo fazem parte da entrega. O projeto termina com o site funcionando no endereço certo.</p></article>
-      </div>
-    </section>
+    <div class="faixa faixa--papel-2">
+      <section class="section" id="incluso" aria-labelledby="incluso-titulo">
+        <div class="section__head reveal">
+          <p class="kicker"><b>02</b> Padrão de entrega</p>
+          <h2 id="incluso-titulo">O que vem em todo site, <br />sem precisar <em>pedir</em>.</h2>
+          <p class="lead">Isso não é extra. É o mínimo, e não se negocia.</p>
+        </div>
+        <div class="spec reveal">
+          <article class="spec__item"><h3>Performance é requisito</h3><p>Velocidade é decisão de arquitetura do começo, não ajuste do fim. Um site lento perde a visita antes de ela virar leitura.</p></article>
+          <article class="spec__item"><h3>Feito primeiro para o celular</h3><p>É de onde vem a maior parte das visitas. O desenho nasce ali e cresce para a tela grande, não o contrário.</p></article>
+          <article class="spec__item"><h3>Base técnica de SEO</h3><p>Estrutura semântica, títulos e descrições, dados estruturados, sitemap e endereços limpos. A base não garante primeiro lugar; a falta dela garante o contrário.</p></article>
+          <article class="spec__item"><h3>Acessível de verdade</h3><p>Contraste conferido, navegação por teclado inteira, leitor de tela entendendo o que existe na página. Quem não consegue usar também não compra.</p></article>
+          <article class="spec__item"><h3>Sem prender você</h3><p>O código é seu, o domínio é seu, os acessos são seus. Nenhuma peça depende de uma plataforma que só eu opero.</p></article>
+          <article class="spec__item"><h3>No ar, não no meu computador</h3><p>Publicação, domínio apontado e certificado ativo fazem parte da entrega. O projeto termina com o site funcionando no endereço certo.</p></article>
+        </div>
+      </section>
+    </div>
 
     <!-- PROVA — em vez de "+300 projetos", a medição acontecendo no aparelho de
          quem está lendo. Os valores vêm de js/pagina.js. -->
-    <section class="section" id="prova" data-regua="prova" aria-labelledby="prova-titulo">
+    <section class="section" id="prova" aria-labelledby="prova-titulo">
       <div class="section__head reveal">
-        <p class="kicker">Prova</p>
-        <h2 id="prova-titulo">A prova está rodando <br />na sua frente.</h2>
+        <p class="kicker"><b>03</b> Prova</p>
+        <h2 id="prova-titulo">A prova está rodando <br />na sua <em>frente</em>.</h2>
         <p class="lead">Em vez de dizer que faço sites rápidos, deixo a página se medir sozinha enquanto você lê. Os três números abaixo são desta visita, neste aparelho.</p>
       </div>
-      <div class="prova vidro reveal">
+      <div class="prova reveal">
         <div class="prova__item"><span class="prova__val" data-metrica="carga">—</span><span class="prova__rot">até a página estar pronta para uso</span></div>
         <div class="prova__item"><span class="prova__val" data-metrica="peso">—</span><span class="prova__rot">baixados deste domínio até agora, fontes incluídas</span></div>
-        <div class="prova__item"><span class="prova__val" data-metrica="fps">—</span><span class="prova__rot">quadros por segundo sustentados agora, com a animação rodando</span></div>
-        <p class="prova__nota">Medido pelo seu navegador, nesta visita. Nada aqui vem de terceiros: fontes, movimento e profundidade saem deste domínio.</p>
+        <div class="prova__item"><span class="prova__val" data-metrica="fps">—</span><span class="prova__rot">quadros por segundo sustentados agora, com o movimento rodando</span></div>
       </div>
+      <p class="prova__nota">Medido pelo seu navegador, nesta visita. Nada aqui vem de terceiros: fontes e movimento saem deste domínio.</p>
     </section>
 
-    <section class="section" id="metodo" data-regua="método" aria-labelledby="metodo-titulo">
+    <section class="section" id="metodo" aria-labelledby="metodo-titulo">
       <div class="section__head reveal">
-        <p class="kicker">Método</p>
-        <h2 id="metodo-titulo">Quatro passos, <br />nenhuma surpresa.</h2>
+        <p class="kicker"><b>04</b> Método</p>
+        <h2 id="metodo-titulo">Quatro passos, <br />nenhuma <em>surpresa</em>.</h2>
       </div>
-      <ol role="list" class="steps steps--4 reveal">
-        <li class="step"><span class="step__n" aria-hidden="true">01</span><h3>Conversa</h3><p>O que o site precisa resolver, para quem, e o que conta como sucesso. Sem isso, o resto é decoração cara.</p></li>
-        <li class="step"><span class="step__n" aria-hidden="true">02</span><h3>Arquitetura</h3><p>Quais páginas existem, o que cada uma diz e em que ordem. É aqui que se decide o caminho de quem chega, antes de qualquer pixel.</p></li>
-        <li class="step"><span class="step__n" aria-hidden="true">03</span><h3>Construção</h3><p>Desenho e código juntos, com você acompanhando de perto. Ajuste durante a obra é barato; depois de pronta, não.</p></li>
-        <li class="step"><span class="step__n" aria-hidden="true">04</span><h3>No ar</h3><p>Publicação, domínio, certificado e uma volta final conferindo tudo no celular e no computador. Você recebe os acessos.</p></li>
+      <ol role="list" class="passos passos--4 reveal">
+        <li class="passo"><span class="passo__n" aria-hidden="true">01</span><h3>Conversa</h3><p>O que o site precisa resolver, para quem, e o que conta como sucesso. Sem isso, o resto é decoração cara.</p></li>
+        <li class="passo"><span class="passo__n" aria-hidden="true">02</span><h3>Arquitetura</h3><p>Quais páginas existem, o que cada uma diz e em que ordem. É aqui que se decide o caminho de quem chega, antes de qualquer pixel.</p></li>
+        <li class="passo"><span class="passo__n" aria-hidden="true">03</span><h3>Construção</h3><p>Desenho e código juntos, com você acompanhando de perto. Ajuste durante a obra é barato; depois de pronta, não.</p></li>
+        <li class="passo"><span class="passo__n" aria-hidden="true">04</span><h3>No ar</h3><p>Publicação, domínio, certificado e uma volta final conferindo tudo no celular e no computador. Você recebe os acessos.</p></li>
       </ol>
     </section>
 
-    <section class="section" id="faq" data-regua="perguntas" aria-labelledby="faq-titulo">
+    <section class="section" id="faq" aria-labelledby="faq-titulo">
       <div class="section__head reveal">
-        <p class="kicker">Perguntas</p>
-        <h2 id="faq-titulo">O que você deve estar se perguntando.</h2>
+        <p class="kicker"><b>05</b> Perguntas</p>
+        <h2 id="faq-titulo">O que você deve estar se <em>perguntando</em>.</h2>
       </div>
       <!-- texto idêntico ao FAQPage do <head> -->
       <div class="faq-list reveal">
@@ -249,11 +240,14 @@
       </div>
     </section>
 
-    <section class="section section--cta" id="contato" data-regua="conversa" aria-labelledby="contato-titulo">
-      <div class="cta reveal">
-        <h2 id="contato-titulo">Me conte o que seu site <br />precisa <em>resolver</em>.</h2>
-        <p>Não precisa chegar com o projeto pronto na cabeça. Uma conversa curta sobre o negócio já diz qual dos três formatos faz sentido.</p>
-        <a class="btn btn--primary btn--lg" data-wa="quero um site para o meu negócio" href="https://wa.me/5521977167944">Quero um site</a>
+    <section class="noite" id="contato" aria-labelledby="contato-titulo">
+      <div class="section reveal">
+        <p class="kicker"><b>06</b> Conversa</p>
+        <h2 id="contato-titulo">Me conte o que seu site precisa <em>resolver</em>.</h2>
+        <p class="lead">Não precisa chegar com o projeto pronto na cabeça. Uma conversa curta sobre o negócio já diz qual dos três formatos faz sentido.</p>
+        <div class="cta__acoes">
+          <a class="btn btn--primary btn--lg" data-wa href="https://wa.me/5521977167944">Quero um site</a>
+        </div>
         <p class="fine">Quem responde é humano. A primeira conversa é grátis e sem compromisso.</p>
       </div>
     </section>
@@ -263,8 +257,7 @@
     <div class="footer__grid">
       <div class="footer__brand">
         <a href="/" aria-label="Beyon Zero — início"><span class="wordmark wordmark--lg">Beyon <b>Zero</b></span></a>
-        <p>Ideias ganham forma.<br />E o resultado se mede.</p>
-        <a class="btn btn--sm btn--primary footer__cta" data-wa="quero um site para o meu negócio" href="https://wa.me/5521977167944">Quero um site <span aria-hidden="true">→</span></a>
+        <p>Ideias ganham forma. E o resultado se mede.</p>
       </div>
       <nav class="footer__links" aria-label="Links desta página">
         <p class="footer__links-title">Nesta página</p>
@@ -285,12 +278,11 @@
     </div>
   </footer>
 
-  <div class="regua" aria-hidden="true">
-    <span class="regua__n"><b>00</b> / 06</span>
-    <span class="regua__nome">início</span>
+  <div class="barra" id="barra">
+    <a class="btn btn--primary" data-wa href="https://wa.me/5521977167944">Quero um site</a>
   </div>
 
-  <a data-wa="quero um site para o meu negócio" class="wa" href="https://wa.me/5521977167944" aria-label="Falar no WhatsApp (abre em nova aba)">
+  <a data-wa class="wa" href="https://wa.me/5521977167944" aria-label="Falar no WhatsApp (abre em nova aba)">
     <svg viewBox="0 0 32 32" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M16.04 3.2c-7.1 0-12.86 5.76-12.86 12.86 0 2.27.6 4.48 1.73 6.43L3.2 28.8l6.5-1.7a12.8 12.8 0 0 0 6.33 1.66h.01c7.1 0 12.86-5.76 12.86-12.86S23.14 3.2 16.04 3.2zm0 23.3h-.01a10.7 10.7 0 0 1-5.44-1.49l-.39-.23-3.86 1.01 1.03-3.76-.25-.4a10.66 10.66 0 0 1-1.63-5.68c0-5.9 4.8-10.7 10.7-10.7 2.86 0 5.54 1.11 7.56 3.13a10.62 10.62 0 0 1 3.13 7.57c0 5.9-4.8 10.7-10.7 10.7zm5.87-8.01c-.32-.16-1.9-.94-2.2-1.05-.3-.11-.51-.16-.72.16-.21.32-.83 1.05-1.02 1.26-.19.21-.37.24-.69.08-.32-.16-1.36-.5-2.59-1.6-.96-.85-1.6-1.91-1.79-2.23-.19-.32-.02-.5.14-.66.14-.14.32-.37.48-.56.16-.19.21-.32.32-.53.11-.21.05-.4-.03-.56-.08-.16-.72-1.74-.99-2.38-.26-.62-.52-.54-.72-.55l-.61-.01c-.21 0-.56.08-.85.4-.29.32-1.11 1.09-1.11 2.66 0 1.57 1.14 3.08 1.3 3.29.16.21 2.24 3.42 5.43 4.8.76.33 1.35.52 1.81.67.76.24 1.45.21 2 .13.61-.09 1.9-.78 2.17-1.53.27-.75.27-1.39.19-1.53-.08-.14-.29-.21-.61-.37z"/></svg>
   </a>
 
@@ -299,9 +291,6 @@
   <script src="vendor/gsap/SplitText.min.js" defer></script>
   <script src="js/tel.js" defer></script>
   <script src="js/core.js" defer></script>
-  <script src="js/organismo.js" defer></script>
-  <script src="js/campo.js" defer></script>
-  <script src="js/profundidade.js" defer></script>
   <script src="js/pagina.js" defer></script>
   <script src="js/anima.js" defer></script>
 </body>

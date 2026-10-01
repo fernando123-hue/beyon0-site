@@ -16,7 +16,8 @@ const CELULAR = { viewport: { width: 390, height: 844 }, hasTouch: true, isMobil
 const DESKTOP = { viewport: { width: 1440, height: 900 } };
 const ALVOS = [
   ['/index.html', 'hub', DESKTOP], ['/sites.html', 'sites', DESKTOP], ['/automacao.html', 'automacao', DESKTOP],
-  ['/index.html', 'hub-cel', CELULAR], ['/sites.html', 'sites-cel', CELULAR], ['/automacao.html', 'autom-cel', CELULAR]
+  ['/index.html', 'hub-cel', CELULAR], ['/sites.html', 'sites-cel', CELULAR], ['/automacao.html', 'autom-cel', CELULAR],
+  ['/index.html', 'hub-320', { viewport: { width: 320, height: 640 }, hasTouch: true, isMobile: true }], ['/sites.html', 'sites-320', { viewport: { width: 320, height: 640 }, hasTouch: true, isMobile: true }]
 ];
 const nav = await chromium.launch({ executablePath: EXEC, args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
 for (const [rota, nome, opts] of ALVOS) {

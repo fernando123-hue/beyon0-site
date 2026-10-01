@@ -1,6 +1,5 @@
-/* Script mínimo do resumo.html — só monta o link de WhatsApp. Não puxa
-   core.js/field.js/dom.js (esperam o canvas #fx e o DOM do site
-   inteiro, que não existem aqui). O número vem de js/tel.js. */
+/* Script mínimo do resumo.html: só monta o link de WhatsApp. Não puxa o
+   núcleo nem o GSAP (a página não tem movimento). O número vem de js/tel.js. */
 (function () {
   'use strict';
   var tel = window.BEYON_TEL;

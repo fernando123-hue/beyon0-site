@@ -5,12 +5,12 @@
    são opcionais, e o modal tem saída direta para o WhatsApp. Os outros CTAs
    (cards, footer, medidor, bolha) continuam sem fricção.
 
-   Regra: nunca trava o visitante. Se B.linkWA não existir (dom.js falhou
+   Regra: nunca trava o visitante. Se B.linkWA não existir (pagina.js falhou
    ou carregou fora de ordem), o script sai sem gatear nada — os links
    `[data-wa]` continuam funcionando normal, sem o modal.
 
    Evento-só, sem rAF em loop (um par só, pra deixar o hidden→visible
-   pintar antes da transição de opacidade — mesmo truque de entrada.js).
+   pintar antes da transição de opacidade).
    ========================================================================== */
 (function () {
   'use strict';
@@ -50,7 +50,7 @@
   }
   /* trava o resto da página fora do modal (teclado E leitor de tela) —
      sem isto, Tab escapava do modal pro conteúdo atrás dele. */
-  var restoPagina = document.querySelectorAll('body > header, body > main, body > footer, .wa, .medidor, .skip-link, .regua');
+  var restoPagina = document.querySelectorAll('body > header, body > main, body > footer, .wa, .barra, .skip-link');
 
   function travarResto(travar) {
     for (var k = 0; k < restoPagina.length; k++) {

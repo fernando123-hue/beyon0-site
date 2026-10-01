@@ -13,7 +13,7 @@
      BASE=http://127.0.0.1:8899 CHROMIUM=%LOCALAPPDATA%\ms-playwright\chromium_headless_shell-1228\chrome-headless-shell-win64\chrome-headless-shell.exe node docs/verificar.mjs
 
    O QUE CONFERE, por página (desktop e celular com toque):
-   · boot do organismo e caixa do AI Core (sem ela o canvas não desenha);
+   · boot do núcleo (window.BEYON) e barra do celular fixa;
    · nenhum conteúdo preso invisível pelo contrato html.js (opacity 0 ou
      visibility hidden depois de 3,5s — o GSAP tem que ter revelado);
    · rolagem lateral zero; caixas `.cena` fora do fluxo;
@@ -31,7 +31,7 @@ const ALVOS = [
   ['/index.html',     'hub',       DESKTOP],
   ['/sites.html',     'sites',     DESKTOP],
   ['/automacao.html', 'automacao', DESKTOP],
-  ['/resumo.html',    'resumo',    DESKTOP, { semCanvas: true }],
+  ['/resumo.html',    'resumo',    DESKTOP, { semNucleo: true }],
   ['/index.html',     'hub-cel',   CELULAR],
   ['/sites.html',     'sites-cel', CELULAR],
   ['/automacao.html', 'autom-cel', CELULAR],
@@ -52,7 +52,7 @@ const medirFps = (page, seg = 3) => page.evaluate(s => new Promise(ok => {
 const navegador = await chromium.launch({ executablePath: EXEC, args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
 let falhou = false, primeiro = true;
 
-for (const [rota, nome, opcoes, { semCanvas = false, reduzirNoBoot = false } = {}] of ALVOS) {
+for (const [rota, nome, opcoes, { semNucleo = false, reduzirNoBoot = false } = {}] of ALVOS) {
   const ctx = await navegador.newContext(opcoes);
   const page = await ctx.newPage();
   const erros = [];
@@ -75,9 +75,8 @@ for (const [rota, nome, opcoes, { semCanvas = false, reduzirNoBoot = false } = {
       overflowX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
       waProntos: wa.filter(a => (a.getAttribute('href') || '').startsWith('https://wa.me/')).length,
       waTotal: wa.length,
-      reator: !!document.querySelector('.hero__reactor'),
       presos: [...document.querySelectorAll('.hero__title, .display, .hero__sub, .hero__actions')].filter(escondido).length,
-      cenaForaDoFluxo: [...document.querySelectorAll('.cena')].every(e => getComputedStyle(e).position === 'absolute')
+      barraOk: !document.getElementById('barra') || innerWidth > 820 || getComputedStyle(document.getElementById('barra')).position === 'fixed'
     };
   });
   /* rola até o fim e volta: nada pode ficar preso invisível no caminho */
@@ -90,7 +89,7 @@ for (const [rota, nome, opcoes, { semCanvas = false, reduzirNoBoot = false } = {
   const lcp = Math.round(await page.evaluate(() => window.__lcp));
 
   const reais = erros.filter(e => !/ERR_CERT|GPU stall|swiftshader/i.test(e));
-  const ok = (semCanvas || (d.boot && d.reator)) && d.cenaForaDoFluxo && d.overflowX === 0 &&
+  const ok = (semNucleo || d.boot) && d.barraOk && d.overflowX === 0 &&
     d.waProntos === d.waTotal && reais.length === 0 && d.presos === 0 && d.presosNoFim === 0 && fps > 45 &&
     /* LCP com orçamento (2,5s é o "bom" do Core Web Vitals); o primeiro alvo da rodada é artefato do headless */
     (primeiro || lcp < 2500);
@@ -103,7 +102,6 @@ for (const [rota, nome, opcoes, { semCanvas = false, reduzirNoBoot = false } = {
     'lcp=' + String(lcp).padStart(5) + 'ms',
     'rolagemX=' + d.overflowX,
     'wa=' + d.waProntos + '/' + d.waTotal,
-    'nucleo=' + d.reator,
     'presos=' + d.presos + '/' + d.presosNoFim,
     reais.length ? '\n     erros: ' + reais.join('\n     ') : ''
   );

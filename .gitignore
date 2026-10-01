@@ -18,3 +18,7 @@ Thumbs.db
 # assets grandes NÃO referenciados (0 refs) — ficam no disco, fora do repo/deploy
 assets/Logo.gif
 assets/introdução.mp4
+
+# capturas e medidas de verificação (geradas; não entram no deploy)
+docs/olhar*/
+docs/medida-*.json
