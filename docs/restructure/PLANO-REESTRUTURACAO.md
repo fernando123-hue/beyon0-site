@@ -709,7 +709,7 @@ entrega só ao fim. A direção está em `DIRECAO-V2.md` (mesma pasta).
 | Branch | `rebuild-v2` (a partir de `claude/site-restructure-planning-1cd10h` = `main`) |
 | Publicado? | **NÃO.** Push na `main` é deploy e só o dono pede. |
 | Verificador | `npm run verificar` 7/7 OK · `npm run acessibilidade` 23/23 OK |
-| Revisões | pesquisa de referências, auditoria de segurança, revisão crítica visual e revisão de código por agentes — achados aplicados |
+| Revisões | pesquisa de referências, auditoria de segurança, revisão crítica visual e revisão de código por agentes — achados aplicados (ver 13.6) |
 
 ### 13.2 O que foi transformado
 
@@ -773,3 +773,32 @@ Na Vercel os JS vão comprimidos (GSAP ≈ 45 KB gz).
 Remotion, Lenis, preloader, `cursor: none`, three.js — motivos em
 `DIRECAO-V2.md` §6. Página própria de Experiências Digitais: continua
 pendente (o índice do Hub diz "sem página própria, de propósito").
+
+### 13.6 O que a revisão de código pegou (e foi corrigido)
+
+- **Orçamento de frame preso no piso em 60Hz** (herdado da V1): `core.js`
+  comparava o INTERVALO entre frames (16,7ms) com um alvo de 15ms, então
+  `S.budget` vivia em 0,25 e todo efeito condicionado a ele (nó do
+  barramento, elos, brumas, 75% das partículas) nunca aparecia. Agora o
+  orçamento mede o CUSTO dos subsistemas no frame (alvo 7ms; campo custa
+  ~0,5ms) e um frame perdido de verdade (dt > 34ms) também derruba.
+- **Transição de `--ac` no `<body>`** recalculava o estilo da árvore
+  inteira por 1,1s a cada Pulso/Singular (477ms medidos contra 43ms sem).
+  Removida; o gradual vive no canvas.
+- **Núcleo nascia 14% viajado** em 1440×900 (limiar absoluto): agora a
+  viagem é ancorada na rolagem; em repouso é concêntrico ao cubo.
+- Elo da coluna 28px abaixo do kicker (cache medido antes do reveal) →
+  `remedir` ao fim de cada entrada. Interruptor de movimento no meio do
+  boot deixava o SplitText preso → splits revertidos. `--near` não era
+  escrito por ninguém (CTA dos cartões a 2,2:1) → regras por hover.
+  Peso em `encodedBodySize` (independe do cache). Modal sem `.card`.
+  Nav fechada com `visibility: hidden`. Palavra viva: `aria-hidden` no
+  `<em>`, `aria-label` fixo no h1, ciclo finito (6 trocas), teto de
+  largura a 320px. Resize no celular não resemeia as partículas. Loop
+  isola falha por subsistema. Régua mantém a última seção nos vãos.
+  Profundidade cede por orçamento medido (não por ficha técnica: `B.weak`
+  marcava 4 núcleos, que é a máquina do dono).
+- Ficou anotado, não feito: cachear retângulos em coordenadas de documento
+  no `campo.js` (hoje ~6 `getBoundingClientRect` por frame DE ROLAGEM,
+  ~0,1ms, igual à V1); pausa da animação do trilho do método fora da tela;
+  teste a 320px e do interruptor no boot no verificador.

@@ -31,7 +31,7 @@
     pulse: 0, pulseFront: 0,
     singular: 0, warmth: 0, whiteHot: 0, shock: -1,
     budget: 1, fps: 60,
-    wake: 1, focus: 0, sv: 0, sdy: 0,
+    wake: 1, focus: 0, focoAlvo: 0, sv: 0, sdy: 0,
     regime: 'active',
     /* ---- V2 ----
        boot: 0..1 — o instrumento acordando (o GSAP tweena este número no
@@ -43,15 +43,20 @@
     alvo: null
   };
 
-  /* ---- ORÇAMENTO: cai rápido ao estourar, sobe devagar ---- */
-  var ALVO = 15;
-  var fpsEMA = 60, frameEMA = 16;
-  function orcamento(dt) {
-    frameEMA += (dt - frameEMA) * 0.1;
+  /* ---- ORÇAMENTO: cai rápido ao estourar, sobe devagar ----
+     Mede o CUSTO do nosso trabalho no frame (ms gastos nos subsistemas), não
+     o intervalo entre frames. A versão anterior comparava o intervalo (16,7ms
+     a 60Hz) com um alvo de 15ms e vivia no piso em qualquer tela de 60Hz —
+     achado na revisão da V2. Um frame perdido de verdade (dt > 34ms) também
+     derruba o orçamento. */
+  var ALVO = 7;
+  var fpsEMA = 60, custoEMA = 2;
+  function orcamento(dt, custo) {
+    custoEMA += (custo - custoEMA) * 0.1;
     fpsEMA += (1000 / Math.max(1, dt) - fpsEMA) * 0.1;
     S.fps = fpsEMA;
-    if (frameEMA > ALVO) S.budget = Math.max(0.25, S.budget - 0.02);
-    else if (frameEMA < ALVO * 0.72) S.budget = Math.min(1, S.budget + 0.004);
+    if (custoEMA > ALVO || dt > 34) S.budget = Math.max(0.25, S.budget - 0.02);
+    else if (custoEMA < ALVO * 0.6) S.budget = Math.min(1, S.budget + 0.004);
   }
 
   /* ---- subsistemas ---- */
@@ -133,8 +138,8 @@
     if (document.hidden) { rodando = false; return; }
     S.dt = antes ? Math.min(50, now - antes) : 16;
     antes = now; S.now = now; S.t++;
-    orcamento(S.dt);
     if (S.pointerOn) { S.px += (tx - S.px) * 0.16; S.py += (ty - S.py) * 0.16; }
+    S.focus += (S.focoAlvo - S.focus) * 0.12;
     var alvo = S.scroll * 0.62 + (S.pointerOn ? 0.1 : 0) + 0.08;
     S.energy += (Math.min(1, alvo) - S.energy) * 0.03;
     S.sdy = deltaScroll;
@@ -142,18 +147,29 @@
     deltaScroll = 0;
     regime(S.now);
 
+    /* um subsistema que lança não derruba os outros nem o laço */
+    var inicio = performance.now();
     if (PERF) {
       for (var i = 0; i < subs.length; i++) {
         var s = subs[i], t0 = performance.now();
-        s.f(S);
+        try { s.f(S); } catch (e) { falhou(s, e); }
         var ms = performance.now() - t0;
         s.ms += ms; s.cnt++; if (ms > s.pior) s.pior = ms;
       }
       registrarFrame(S.dt);
     } else {
-      for (var j = 0; j < subs.length; j++) subs[j].f(S);
+      for (var j = 0; j < subs.length; j++) {
+        try { subs[j].f(S); } catch (e) { falhou(subs[j], e); }
+      }
     }
+    orcamento(S.dt, performance.now() - inicio);
     requestAnimationFrame(frame);
+  }
+  /* três falhas seguidas e o subsistema sai do laço — o resto do site segue */
+  function falhou(sub, e) {
+    sub.erros = (sub.erros || 0) + 1;
+    if (sub.erros >= 3) remove(sub.n);
+    if (PERF && window.console) console.warn('[core] ' + sub.n + ' falhou:', e && e.message);
   }
   function iniciar() {
     if (rodando) return;

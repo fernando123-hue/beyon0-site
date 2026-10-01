@@ -23,9 +23,12 @@
 
   var EXPO = 'expo.out';
   var reduzido = B.reduced;
+  var splits = [];   /* todo SplitText vivo, para reverter se o movimento for reduzido no meio */
 
   /* ---------- tudo visível, agora (rede de segurança e reduced-motion) ---------- */
   function mostrarTudo() {
+    for (var i = 0; i < splits.length; i++) { try { splits[i].revert(); } catch (e) { /* já revertido */ } }
+    splits.length = 0;
     gsap.set('.reveal, .hero__status, .hero__eyebrow, .hero__sub, .hero__actions, .hero__rail, .hero__main .fine, .linhas, .nav', { clearProps: 'all' });
     gsap.set('.hero__title, .display', { clearProps: 'all' });
     html.classList.remove('js');
@@ -41,7 +44,9 @@
   function partir(el, tipo) {
     if (!Split) return null;
     try {
-      return new Split(el, { type: tipo, mask: tipo, linesClass: 'split-line', wordsClass: 'split-word' });
+      var sp = new Split(el, { type: tipo, mask: tipo, linesClass: 'split-line', wordsClass: 'split-word' });
+      splits.push(sp);
+      return sp;
     } catch (e) { return null; }
   }
 
@@ -131,7 +136,10 @@
   function revelar(el, imediato) {
     marcar(el);
     var kids = filhos(el);
-    gsap.to(el, { opacity: 1, y: 0, duration: imediato ? .6 : .9, ease: EXPO, overwrite: true });
+    /* ao assentar, quem mede caixas remede: o .reveal nasceu 28px abaixo e
+       o cache do kicker (elo da coluna) ficaria deslocado — por evento, uma
+       vez por seção */
+    gsap.to(el, { opacity: 1, y: 0, duration: imediato ? .6 : .9, ease: EXPO, overwrite: true, onComplete: function () { B.emit('remedir'); } });
     if (kids && kids.length) {
       gsap.fromTo(kids, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: .9, ease: EXPO, stagger: { each: .08, grid: 'auto', from: 'start' }, clearProps: 'opacity,transform' });
     }

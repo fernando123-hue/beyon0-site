@@ -60,7 +60,7 @@
   }
   if (!cenas.length) return;
   /* o CSS cede ao canvas só quando ele de fato desenha (css/componentes.css) */
-  function ligarClasse() { document.body.classList.toggle('tem-profundidade', !B.reduced); }
+  function ligarClasse() { document.body.classList.toggle('tem-profundidade', !B.reduced && !cedeu && !B.saveData); }
   ligarClasse();
   B.on('reduzir', ligarClasse);
 
@@ -91,7 +91,7 @@
      Rotação do grupo (Y pelo tempo, X pelo ponteiro), depois de cada peça;
      perspectiva: x' = cx + x·f/(camZ − z). */
   var corner = [[-.5, -.5], [.5, -.5], [.5, .5], [-.5, .5]];
-  function projetar(c, pc, t, w, h, out) {
+  function projetar(c, pc, t, out) {
     var r = c.r, cx = r.left + r.width / 2, cy = r.top + r.height / 2;
     var f = (r.height / 2) / Math.tan(c.spec.fov * Math.PI / 360);
     var gy = t * c.spec.giro, gx = c.rotX;
@@ -121,7 +121,20 @@
 
   var pts = new Float64Array(8);
   var ordem = [];
+  var cedeu = false;
   B.camada('profundidade', function (ctx, S, paleta) {
+    /* aparelho fraco ou orçamento no chão: o canvas cede e o CSS volta a ser
+       o portal (regra 4 do CLAUDE.md). Só desce, nunca volta — alternar
+       chamaria mais atenção que qualquer das duas pontas. */
+    if (cedeu) return;
+    /* sem B.weak aqui: 4 núcleos é metade dos celulares e qualquer notebook de
+       entrada (inclusive a máquina do dono) — barrar por ficha técnica é
+       palpite; o orçamento MEDIDO é quem decide (regra 5) */
+    if (B.saveData || (S.t > 300 && S.budget < .35)) {
+      cedeu = true;
+      document.body.classList.remove('tem-profundidade');
+      return;
+    }
     var t = S.now * .001;
     var abre = 1 + S.pulse * .06 + S.singular * .12;
     var brilho = (1 + S.pulse * .5 + S.singular * .9) * paleta.boot;
@@ -145,12 +158,12 @@
       ordem.length = 0;
       for (var j = 0; j < c.spec.pecas.length; j++) ordem.push(j);
       var profs = [];
-      for (var q = 0; q < c.spec.pecas.length; q++) profs.push(projetar(c, c.spec.pecas[q], t, S.w, S.h, pts));
+      for (var q = 0; q < c.spec.pecas.length; q++) profs.push(projetar(c, c.spec.pecas[q], t, pts));
       ordem.sort(function (a, b) { return profs[a] - profs[b]; });
 
       for (var o = 0; o < ordem.length; o++) {
         var pc = c.spec.pecas[ordem[o]];
-        projetar(c, pc, t, S.w, S.h, pts);
+        projetar(c, pc, t, pts);
         /* escala do grupo (Pulso/Singular abrem a cena) em torno do centro */
         if (abre !== 1) {
           var ccx = c.r.left + c.r.width / 2, ccy = c.r.top + c.r.height / 2;

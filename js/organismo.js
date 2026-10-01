@@ -35,7 +35,7 @@
   }
   function driveStatus(dt) {
     if (!stEl || stP >= 1) return;
-    stP = Math.min(1, stP + dt / (B.reduced ? 1 : 700));
+    stP = Math.min(1, stP + dt / 700);
     var s = stP >= 1 ? stPara : morph(stDe, stPara, stP);
     if (s !== stMostrado) { stMostrado = s; stEl.textContent = s; }
   }

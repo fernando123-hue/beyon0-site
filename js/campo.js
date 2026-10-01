@@ -113,12 +113,18 @@
 
   function dimensionar() {
     var S = B.S;
+    /* no celular a barra de endereço recolhendo dispara resize a cada
+       rolagem: só reinicia o bitmap se a largura mudou ou a altura mudou
+       de verdade, e só resemeia as partículas aí — senão a poeira "pulava" */
+    var mudouW = S.w !== W || S.dpr !== dpr, mudouH = Math.abs(S.h - H) > 120;
     dpr = S.dpr; W = S.w; H = S.h;
-    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
-    cv.style.width = W + 'px'; cv.style.height = H + 'px';
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    nAlvo = B.weak || B.saveData ? 34 : (B.fine ? Math.min(110, Math.round(W * H / 19000)) : 48);
-    semear();
+    if (mudouW || mudouH || !cv.width) {
+      cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+      cv.style.width = W + 'px'; cv.style.height = H + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      nAlvo = B.weak || B.saveData ? 34 : (B.fine ? Math.min(110, Math.round(W * H / 19000)) : 48);
+      semear();
+    }
     medirDocumento();
     sujo = true;
   }
@@ -282,8 +288,11 @@
          é a borda de cima — viaja quando a caixa encosta na nav, ancora quando
          ela sai da tela. */
       var navH = W > 820 ? 72 : 66;
+      /* ancorado à ROLAGEM, não à posição absoluta da caixa: em repouso o
+         núcleo é concêntrico ao cubo em qualquer tela (a versão anterior já
+         nascia 14% viajado em 1440×900 — achado na revisão) */
       viaja = largo
-        ? suave((H * .55 - reator.y) / (H * .38))
+        ? suave((S.scrollY - H * .08) / (H * .45))
         : suave(((navH + 24) - (reator.y - reator.r)) / (reator.r * 1.4 + navH));
       nx = lerp(reator.x, dockX, viaja);
       ny = lerp(reator.y, dockY, viaja);
@@ -402,7 +411,7 @@
       for (var km = 0; km < kickers.length; km++) {
         var kk2 = kickers[km];
         if (ativaM < 0 || kk2.sec !== elSecoes[ativaM]) continue;
-        var ky2 = kk2.y - syM, kx2 = kk2.x2 - window.pageXOffset + 10;
+        var ky2 = kk2.y - syM, kx2 = kk2.x2 + 10;
         if (ky2 < dockY + 10 || ky2 > H) continue;
         var aM = a1((.22 + pulso * .4) * boot * (1 - Math.abs(ky2 - ny) / (H * .95)));
         ctx.lineWidth = 1;

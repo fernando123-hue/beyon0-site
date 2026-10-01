@@ -120,8 +120,12 @@ body {
   overflow-x: clip;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  transition: --ac var(--t-sing) var(--ease-mid),
-              --ac-rgb var(--t-sing) var(--ease-mid);
+  /* SEM transição de --ac aqui. Medido na revisão da V2: interpolar uma
+     propriedade registrada e herdada no <body> recalcula o estilo da árvore
+     inteira a cada frame por 1,1s (477ms de recálculo contra 43ms com a
+     troca seca). A gradação de verdade vive no canvas (S.warmth); no DOM a
+     cor de ação troca de uma vez e cada consumidor que precisa de suavidade
+     (botão primário, título) declara a própria transição. */
 }
 
 /* o canvas: um só, atrás de tudo */

@@ -1,9 +1,9 @@
 // Servidor estático mínimo (node puro) para o verificador e as medições.
 import http from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
-import { join, extname, normalize } from 'node:path';
+import { join, extname, resolve, relative, isAbsolute } from 'node:path';
 
-const RAIZ = process.argv[2] || process.cwd();
+const RAIZ = resolve(process.argv[2] || process.cwd());
 const PORTA = +(process.argv[3] || 8899);
 const TIPOS = {
   '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8',
@@ -17,8 +17,9 @@ http.createServer(async (req, res) => {
   try {
     let caminho = decodeURIComponent(new URL(req.url, 'http://x').pathname);
     if (caminho.endsWith('/')) caminho += 'index.html';
-    const arquivo = normalize(join(RAIZ, caminho));
-    if (!arquivo.startsWith(normalize(RAIZ))) { res.writeHead(403); return res.end(); }
+    const arquivo = resolve(join(RAIZ, caminho));
+    const rel = relative(RAIZ, arquivo);
+    if (rel.startsWith('..') || isAbsolute(rel)) { res.writeHead(403); return res.end(); }
     let alvo = arquivo;
     try { await stat(alvo); } catch { alvo = arquivo + '.html'; }
     const dados = await readFile(alvo);

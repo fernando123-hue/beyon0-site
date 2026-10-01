@@ -78,7 +78,6 @@
   gap: 1px; background: var(--line); border: 1px solid var(--line);
 }
 .card {
-  --near: 0;
   position: relative;
   display: flex; flex-direction: column;
   padding: clamp(1.7rem, 2.5vw, 2.3rem);
@@ -87,14 +86,15 @@
   transition: background-color var(--t) var(--ease-mid);
 }
 .card:hover, .card:focus-visible, .card:focus-within { background: var(--s1); }
-/* a célula acende a PRÓPRIA fresta conforme o cursor chega (--near, escrito por
-   evento, quantizado). A cor é fixa; o que varia é a presença. */
+/* a célula apontada acende a PRÓPRIA fresta (o retículo do canvas já
+   enquadra o alvo; aqui é só a linha que já existe ganhando presença) */
 .mesh > .card::after, .apps > .app::after {
   content: ""; position: absolute; inset: -1px; pointer-events: none;
   border: 1px solid var(--ac);
-  opacity: calc(var(--near, 0) * .5);
+  opacity: 0;
   transition: opacity var(--t) var(--ease);
 }
+.mesh > .card:hover::after, .mesh > .card:focus-within::after, .apps > .app:hover::after { opacity: .5; }
 .card__tag {
   position: relative;
   font-family: var(--mono); font-size: .64rem; letter-spacing: .18em;
@@ -116,11 +116,10 @@
   margin-top: auto; padding-top: 1.4rem;
   display: inline-flex; align-items: center; gap: .5rem;
   font-size: .8rem; font-weight: 600; color: var(--t3);
-  opacity: calc(.55 + var(--near, 0) * .45);
-  transition: opacity var(--t) var(--ease), color var(--t) var(--ease);
+  transition: color var(--t) var(--ease);
 }
 .card__cta span { display: inline-block; transition: transform var(--t-micro) var(--ease-micro); }
-.card--service:hover .card__cta, .card--service:focus-within .card__cta { opacity: 1; color: var(--ac); }
+.card--service:hover .card__cta, .card--service:focus-within .card__cta { color: var(--ac); }
 .card--service:hover .card__cta span { transform: translateX(3px); }
 @media (max-width: 900px) { .mesh { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 560px) {
@@ -237,7 +236,6 @@
    ========================================================================== */
 .apps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); }
 .app {
-  --near: 0;
   position: relative; background: var(--bg);
   padding: clamp(2rem, 3vw, 2.8rem);
   display: flex; flex-direction: column; gap: 1.9rem;

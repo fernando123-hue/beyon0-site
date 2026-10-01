@@ -34,13 +34,23 @@
     document.body.removeChild(prova);
     el.style.display = 'inline-block';
     el.style.minWidth = Math.ceil(max) + 'px';
+    el.style.maxWidth = '100%';   /* a 320px a palavra mais larga estourava a coluna em 1px */
   }
 
   function criarCiclador(el, listaNormal, listaSing) {
     var de = el.textContent, para = de, p = 1, mostrado = de, ciclo = null;
     var sufixo = /[.!?]$/.test(de) ? de.slice(-1) : '';
     reservarLargura(el, [listaNormal, listaSing], sufixo);
-    B.on('resize', function () { reservarLargura(el, [listaNormal, listaSing], sufixo); });
+    var remedida = 0;
+    B.on('resize', function () { clearTimeout(remedida); remedida = setTimeout(function () { reservarLargura(el, [listaNormal, listaSing], sufixo); }, 180); });
+    /* leitor de tela recebe a frase fixa (o morph escreve glifos de sinal no
+       meio da troca); e a auto-atualização é FINITA: depois de alguns ciclos
+       a palavra para na original — WCAG 2.2.2 sem depender do interruptor
+       do rodapé */
+    var original = de, trocas = 0, MAX_TROCAS = 6;
+    var h = el.closest('h1, h2');
+    if (h && !h.getAttribute('aria-label')) h.setAttribute('aria-label', h.textContent.replace(/\s+/g, ' ').trim());
+    el.setAttribute('aria-hidden', 'true');
     var saco = [], sacoLista = null;
     function embaralhar(lista) {
       saco = lista.slice();
@@ -49,6 +59,12 @@
       sacoLista = lista;
     }
     function trocar() {
+      if (trocas >= MAX_TROCAS) {
+        if (mostrado !== original) { de = mostrado; para = original; p = 0; }
+        if (ciclo) { clearInterval(ciclo); ciclo = 0; }
+        return;
+      }
+      trocas++;
       var lista = document.body.classList.contains('is-singular') ? listaSing : listaNormal;
       if (!saco.length || sacoLista !== lista) embaralhar(lista);
       var alvo = saco.pop() + sufixo;
@@ -62,6 +78,7 @@
       if (s !== mostrado) { mostrado = s; el.textContent = s; }
     }
     function reiniciar() {
+      if (trocas >= MAX_TROCAS) return;
       if (ciclo) clearInterval(ciclo);
       var primeiro = ciclo === null;
       /* cadência lenta: a frase é lida antes de mudar (pedido anterior do

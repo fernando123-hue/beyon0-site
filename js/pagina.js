@@ -73,14 +73,12 @@
         if (!navEl.classList.contains('is-open')) return;
         navEl.classList.remove('is-open');
         toggle.setAttribute('aria-expanded', 'false');
-        toggle.setAttribute('aria-label', 'Abrir menu');
         if (devolverFoco) toggle.focus();
       };
       toggle.addEventListener('click', function () {
         var abrindo = !navEl.classList.contains('is-open');
         navEl.classList.toggle('is-open', abrindo);
         toggle.setAttribute('aria-expanded', abrindo ? 'true' : 'false');
-        toggle.setAttribute('aria-label', abrindo ? 'Fechar menu' : 'Abrir menu');
       });
       painel.addEventListener('click', function (e) { if (e.target.closest('a')) fechar(false); });
       aoEscapar.push(function () { fechar(true); });
@@ -99,9 +97,10 @@
   }
   var comRegua = secoes.filter(function (s) { return s.hasAttribute('data-regua'); });
   if (secoes.length && 'IntersectionObserver' in window) {
-    var naFaixa = [], atualNav = null;
+    var naFaixa = [], atualNav = null, ultimaSec = null;
     var marcar = function () {
-      var sec = naFaixa.length ? naFaixa[naFaixa.length - 1] : null;
+      var sec = naFaixa.length ? naFaixa[naFaixa.length - 1] : (window.scrollY > 200 ? ultimaSec : null);
+      if (sec) ultimaSec = sec;
       var id = sec ? sec.id : null;
       if (id !== atualNav) {
         if (atualNav && mapaNav[atualNav]) { mapaNav[atualNav].classList.remove('is-current'); mapaNav[atualNav].removeAttribute('aria-current'); }
@@ -148,13 +147,13 @@
       var el = e.target.closest(SEL);
       if (!el || el === alvoEl) return;
       alvoEl = el; medirAlvo();
-      S.focus = Math.max(S.focus, .7);
+      S.focoAlvo = .7;
     }, { passive: true });
     document.addEventListener('pointerout', function (e) {
       var el = e.target.closest(SEL);
       if (!el || el !== alvoEl) return;
       if (e.relatedTarget && el.contains(e.relatedTarget)) return;
-      alvoEl = null; S.alvo = null; S.focus = 0;
+      alvoEl = null; S.alvo = null; S.focoAlvo = 0;
     }, { passive: true });
   }
 
@@ -164,31 +163,31 @@
   var elCarga = document.querySelectorAll('[data-metrica="carga"]');
   var elPeso = document.querySelectorAll('[data-metrica="peso"]');
   function escrever(lista, txt) { for (var i = 0; i < lista.length; i++) if (lista[i].textContent !== txt) lista[i].textContent = txt; }
+  /* bytes deste domínio nesta visita. `encodedBodySize` em vez de
+     `transferSize`: o segundo zera em revisita (cache), e o número que o
+     núcleo mostra passaria a depender do cache em vez do site. */
+  function bytesDaOrigem(nav) {
+    var total = nav.encodedBodySize || nav.transferSize || 0;
+    var recursos = performance.getEntriesByType('resource');
+    for (var p = 0; p < recursos.length; p++) {
+      var origem;
+      try { origem = new URL(recursos[p].name, location.href).origin; } catch (e) { continue; }
+      if (origem === location.origin) total += recursos[p].encodedBodySize || recursos[p].transferSize || 0;
+    }
+    return total;
+  }
   function medidasDeCarga() {
     if (!window.performance || !performance.getEntriesByType) return;
     var nav = performance.getEntriesByType('navigation')[0];
     if (!nav) return;
     if (elCarga.length && nav.domContentLoadedEventEnd > 0) escrever(elCarga, (nav.domContentLoadedEventEnd / 1000).toFixed(2) + 's');
-    if (elPeso.length) {
-      var total = nav.transferSize || 0;
-      var recursos = performance.getEntriesByType('resource');
-      for (var p = 0; p < recursos.length; p++) {
-        var origem;
-        try { origem = new URL(recursos[p].name, location.href).origin; } catch (e) { continue; }
-        if (origem === location.origin) total += recursos[p].transferSize || 0;
-      }
-      if (total > 0) escrever(elPeso, Math.round(total / 1024) + ' KB');
-    }
-    if (S.leitura) {
-      var soma = nav.transferSize || 0, lista = performance.getEntriesByType('resource');
-      for (var q = 0; q < lista.length; q++) {
-        var og; try { og = new URL(lista[q].name, location.href).origin; } catch (e) { continue; }
-        if (og === location.origin) soma += lista[q].transferSize || 0;
-      }
-      if (soma > 0) S.leitura.peso = Math.round(soma / 1024) + ' KB';
+    var total = bytesDaOrigem(nav);
+    if (total > 0) {
+      if (elPeso.length) escrever(elPeso, Math.round(total / 1024) + ' KB');
+      S.leitura.peso = Math.round(total / 1024) + ' KB';
     }
   }
-  if (true) {
+  {
     if (document.readyState === 'complete') medidasDeCarga();
     else window.addEventListener('load', function () { setTimeout(medidasDeCarga, 0); }, { once: true });
     if (window.PerformanceObserver) {

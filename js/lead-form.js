@@ -45,7 +45,7 @@
   }
   /* trava o resto da página fora do modal (teclado E leitor de tela) —
      sem isto, Tab escapava do modal pro conteúdo atrás dele. */
-  var restoPagina = document.querySelectorAll('body > header, body > main, body > footer, .wa, .medidor');
+  var restoPagina = document.querySelectorAll('body > header, body > main, body > footer, .wa, .medidor, .skip-link, .regua');
 
   function travarResto(travar) {
     for (var k = 0; k < restoPagina.length; k++) {

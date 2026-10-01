@@ -137,7 +137,7 @@
     </nav>
     <!-- No celular os links viravam `display:none` e não sobrava navegação
          nenhuma — num site que promete ser "feito primeiro para o celular".
-         Este botão só existe abaixo de 780px; js/dom.js o revela. -->
+         Este botão só existe abaixo de 780px; js/pagina.js o revela. -->
     <button class="nav__toggle" type="button" hidden
             aria-expanded="false" aria-controls="nav-links" aria-label="Abrir menu">
       <span class="nav__toggle-bar" aria-hidden="true"></span>
@@ -149,7 +149,7 @@
     <!-- HERO — composição assimétrica: a frase ocupa a coluna larga, o núcleo
          vive na estreita, e a trilha de dados fecha a primeira tela como o
          rodapé de um painel. A caixa do reator é só reserva de espaço: quem
-         desenha é o canvas, que lê esta geometria em js/field.js. -->
+         desenha é o canvas, que lê esta geometria em js/campo.js. -->
     <section class="hero" id="hero" aria-labelledby="hero-titulo">
       <div class="hero__main">
         <p class="hero__status">
@@ -220,7 +220,7 @@
       <!-- Cada capacidade é um link, não um cartão morto: quem se reconhece em
            "Oportunidade parada" age ali, no momento do reconhecimento, em vez de
            rolar atrás de um CTA. O valor de data-wa vai na mensagem do WhatsApp,
-           então a conversa já começa qualificada (js/dom.js monta o texto). -->
+           então a conversa já começa qualificada (js/pagina.js monta o texto). -->
       <!-- A MALHA — grid com gap de 1px sobre fundo cor de linha: as frestas
            entre as células desenham uma grade contínua, e as seis capacidades
            leem como UMA estrutura em vez de seis caixas.
@@ -228,37 +228,37 @@
            por conta própria com translateY, as frestas se abririam durante a
            animação e a malha se desmontaria no ar. -->
       <div class="mesh reveal" data-reconhecer="Seis capacidades reconhecidas">
-        <a class="card card--service" data-wa="um agente de IA que executa tarefas na minha entidade">
+        <a class="card card--service" href="#contato" data-wa="um agente de IA que executa tarefas na minha entidade">
           <span class="card__tag" aria-hidden="true">01</span>
           <h3>Agentes que executam</h3>
           <p>Recebe uma tarefa, cumpre com as ferramentas certas e chama você só quando precisa de uma decisão. Mais <em>funcionário</em> do que chatbot.</p>
           <span class="card__cta" aria-hidden="true">Conversar <span>→</span></span>
         </a>
-        <a class="card card--service" data-wa="escalar meu atendimento com IA">
+        <a class="card card--service" href="#contato" data-wa="escalar meu atendimento com IA">
           <span class="card__tag" aria-hidden="true">02</span>
           <h3>Atendimento que escala</h3>
           <p>Absorve o volume repetitivo, classifica o que chega e passa pra uma pessoa só o que <em>precisa</em> de uma.</p>
           <span class="card__cta" aria-hidden="true">Conversar <span>→</span></span>
         </a>
-        <a class="card card--service" data-wa="recuperar contatos e oportunidades perdidas com IA">
+        <a class="card card--service" href="#contato" data-wa="recuperar contatos e oportunidades perdidas com IA">
           <span class="card__tag" aria-hidden="true">03</span>
           <h3>Receita recuperada</h3>
           <p>Contato esquecido, orçamento sem resposta, associado que sumiu: o sistema encontra, prioriza e <em>reabre</em> a conversa.</p>
           <span class="card__cta" aria-hidden="true">Conversar <span>→</span></span>
         </a>
-        <a class="card card--service" data-wa="automatizar um processo da minha entidade">
+        <a class="card card--service" href="#contato" data-wa="automatizar um processo da minha entidade">
           <span class="card__tag" aria-hidden="true">04</span>
           <h3>Processos automatizados</h3>
           <p>O gargalo que trava a operação vira fluxo automático, com registro, validação e <em>parada humana</em> onde importa.</p>
           <span class="card__cta" aria-hidden="true">Conversar <span>→</span></span>
         </a>
-        <a class="card card--service" data-wa="usar os dados da minha entidade com IA">
+        <a class="card card--service" href="#contato" data-wa="usar os dados da minha entidade com IA">
           <span class="card__tag" aria-hidden="true">05</span>
           <h3>Dados que respondem</h3>
           <p>Documentos, histórico e conhecimento interno viram resposta pronta na hora exata em que alguém precisa <em>decidir</em>.</p>
           <span class="card__cta" aria-hidden="true">Conversar <span>→</span></span>
         </a>
-        <a class="card card--service" data-wa="um sistema ou site potencializado por IA">
+        <a class="card card--service" href="#contato" data-wa="um sistema ou site potencializado por IA">
           <span class="card__tag" aria-hidden="true">06</span>
           <h3>Sistemas &amp; interfaces</h3>
           <p>O software que junta tudo isso: integração, painel de gestão e o site que já nasce como <em>parte do sistema</em>.</p>
@@ -426,7 +426,7 @@
   <!-- MEDIDOR — o número é medido de verdade, no aparelho de quem visita.
        Sozinho ele não diz nada para um dono de negócio, então o botão abre
        a leitura em português: o argumento de venda é a própria medição. -->
-  <!-- nasce oculto: js/dom.js revela ao ligar o clique. Se o JS falhar (não
+  <!-- nasce oculto: js/pagina.js revela ao ligar o clique. Se o JS falhar (não
        só se estiver desligado), ninguém vê um controle inerte. -->
   <div class="medidor" hidden>
     <button class="medidor__btn" type="button" aria-expanded="false" aria-controls="medidor-nota"
@@ -451,7 +451,7 @@
        visitante que só quer ir direto pro WhatsApp. -->
   <div class="lead-modal" id="leadModal" hidden>
     <div class="lead-modal__backdrop" data-lead-close></div>
-    <div class="lead-modal__panel card" role="dialog" aria-modal="true" aria-labelledby="lead-modal-titulo">
+    <div class="lead-modal__panel" role="dialog" aria-modal="true" aria-labelledby="lead-modal-titulo">
       <button type="button" class="lead-modal__close" data-lead-close aria-label="Fechar">✕</button>
       <p class="lead-modal__kicker">Antes de conversar</p>
       <h2 id="lead-modal-titulo">Pra chegar já falando a sua língua</h2>
