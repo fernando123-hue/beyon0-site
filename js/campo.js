@@ -67,11 +67,32 @@
   var servNos = [], stepNos = [];
   var secTops = [], marcasSec = [], kickers = [];
 
+  /* caches em coordenadas de DOCUMENTO (barramento, cartões, passos): medidos
+     só em resize/remedir, nunca por frame de rolagem. O `.reveal` nasce 28px
+     abaixo e o fim de cada entrada emite 'remedir' (js/anima.js), então o
+     cache acompanha. Só o reator continua medido por frame de rolagem: o
+     scrub do GSAP o transforma durante o scroll do hero. */
+  var busDoc = null, servDoc = [], stepDoc = [];
   function medirDocumento() {
     /* coordenadas de documento: só mudam em resize/reflow */
     var sy = window.pageYOffset, sx = window.pageXOffset;
     var alc = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
     secTops.length = 0; marcasSec.length = 0; kickers.length = 0;
+    busDoc = null;
+    if (elBus) {
+      var rb = elBus.getBoundingClientRect();
+      if (rb.width) busDoc = { x: rb.left + sx, y: rb.top + sy + rb.height / 2, w: rb.width };
+    }
+    servDoc.length = 0;
+    for (var sv = 0; sv < elServ.length; sv++) {
+      var rv = elServ[sv].getBoundingClientRect();
+      if (rv.width) servDoc.push({ cx: rv.left + sx + rv.width / 2, cy: rv.bottom + sy });
+    }
+    stepDoc.length = 0;
+    for (var sp = 0; sp < elSteps.length; sp++) {
+      var rs = elSteps[sp].getBoundingClientRect();
+      if (rs.width) stepDoc.push({ x: rs.left + sx + 4, y: rs.top + sy + 4 });
+    }
     for (var i = 0; i < elSecoes.length; i++) {
       var r = elSecoes[i].getBoundingClientRect();
       secTops.push(r.top + sy);
@@ -90,23 +111,25 @@
       var rr2 = elReator.getBoundingClientRect();
       reator = rr2.width ? { x: rr2.left + rr2.width / 2, y: rr2.top + rr2.height / 2, r: Math.min(rr2.width, rr2.height) / 2 } : null;
     }
+    /* o resto vem do cache de documento, convertido pela rolagem: zero leitura de layout */
+    var sy = B.S.scrollY;
     barramento = null;
-    if (elBus) {
-      var rb = elBus.getBoundingClientRect();
-      if (rb.bottom > -40 && rb.top < H + 40 && rb.width) barramento = { x: rb.left, y: rb.top + rb.height / 2, w: rb.width };
+    if (busDoc) {
+      var by = busDoc.y - sy;
+      if (by > -40 && by < H + 40) barramento = { x: busDoc.x, y: by, w: busDoc.w };
     }
     servNos.length = 0;
-    for (var sv = 0; sv < elServ.length; sv++) {
-      var rv = elServ[sv].getBoundingClientRect();
-      if (rv.bottom < -80 || rv.top > H + 80 || !rv.width) continue;
-      servNos.push({ cx: rv.left + rv.width / 2, cy: rv.bottom });
+    for (var sv = 0; sv < servDoc.length; sv++) {
+      var cy2 = servDoc[sv].cy - sy;
+      if (cy2 < -80 || cy2 > H + 380) continue;
+      servNos.push({ cx: servDoc[sv].cx, cy: cy2 });
     }
     nucleo = barramento ? { x: barramento.x + barramento.w / 2, y: barramento.y - 24, r: 22 } : null;
     stepNos.length = 0;
-    for (var sp = 0; sp < elSteps.length; sp++) {
-      var rs = elSteps[sp].getBoundingClientRect();
-      if (rs.bottom < -60 || rs.top > H + 60 || !rs.width) continue;
-      stepNos.push({ x: rs.left + 4, y: rs.top + 4 });
+    for (var sp = 0; sp < stepDoc.length; sp++) {
+      var yy = stepDoc[sp].y - sy;
+      if (yy < -60 || yy > H + 60) continue;
+      stepNos.push({ x: stepDoc[sp].x, y: yy });
     }
     sujo = false;
   }
