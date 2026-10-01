@@ -18,30 +18,6 @@
 (function () {
   'use strict';
 
-  /* ---------- ENDEREÇOS ANTIGOS ----------
-     Até a reestruturação, a landing de IA morava em `/`. Links que já estão
-     por aí — no WhatsApp, numa proposta, num QR code — apontam para
-     `/#faq`, `/#processo`, `/#projetos`. Agora `/` é o Hub, que não tem essas
-     seções: o link abriria o Hub no topo, sem a resposta que a pessoa foi
-     buscar. Achado na terceira revisão.
-     O <body> declara quais âncoras são de outra página e para onde elas
-     foram; se o endereço chegou com uma delas, a página se corrige antes de
-     qualquer coisa. `replace`, não `assign`: o endereço velho não fica no
-     histórico para o botão de voltar cair de novo nele. Roda antes da
-     checagem do BEYON de propósito — o redirecionamento não depende do
-     organismo. */
-  var legado = document.body.getAttribute('data-ancoras-legadas');
-  if (legado && location.hash) {
-    var partes = legado.split('>');
-    var ids = (partes[0] || '').trim().split(/\s+/);
-    var destino = (partes[1] || '').trim();
-    var pedido = location.hash.slice(1);
-    if (destino && ids.indexOf(pedido) >= 0 && !document.getElementById(pedido)) {
-      location.replace(destino + location.hash);
-      return;
-    }
-  }
-
   /* ---------- WhatsApp: o número vive num lugar só (js/tel.js) ----------
      ANTES da checagem do BEYON, de propósito. Montar os links não depende do
      organismo — e se js/core.js falhasse, todos os botões de contato da página

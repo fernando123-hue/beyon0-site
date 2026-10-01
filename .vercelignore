@@ -2,6 +2,12 @@ node_modules/
 .claude/
 .superpowers/
 docs/
+
+# ferramentas de desenvolvimento (o verificador com Playwright). Sem estes dois
+# arquivos no envio a Vercel trata o site como estático puro e não roda
+# `npm install` a cada deploy — que agora baixaria o Playwright para nada.
+package.json
+package-lock.json
 *.log
 .vercel/
 

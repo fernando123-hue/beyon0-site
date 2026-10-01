@@ -69,6 +69,12 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
+  <!-- links antigos da landing de IA (/#faq, /#servicos…) seguem para onde a
+       seção mora agora. No <head> e sem defer: roda antes de o Hub pintar.
+       Por isso o Hub usa ids próprios (#frentes, #conversa) — os antigos são
+       todos da página de automação. Ver js/ancoras.js. -->
+  <script src="js/ancoras.js" data-ancoras="servicos contato dores processo projetos faq" data-destino="automacao.html"></script>
+
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="css/premium.css" />
 
@@ -79,8 +85,7 @@
     </style>
   </noscript>
 </head>
-<body data-wa-padrao="quero entender qual serviço da Beyon Zero faz sentido pro meu negócio" data-status="Sistema online · Beyon Zero"
-      data-ancoras-legadas="dores processo projetos faq > automacao.html">
+<body data-wa-padrao="quero entender qual serviço da Beyon Zero faz sentido pro meu negócio" data-status="Sistema online · Beyon Zero">
   <a href="#hero" class="skip-link">Pular para o conteúdo</a>
 
   <canvas id="fx" aria-hidden="true"></canvas>
@@ -90,7 +95,7 @@
       <span class="wordmark">Beyon <b>Zero</b></span>
     </a>
     <nav class="nav__links" id="nav-links" aria-label="Navegação principal">
-      <a href="#servicos">Serviços</a>
+      <a href="#frentes">Serviços</a>
       <a href="#principios">Como trabalho</a>
       <span class="nav__sep" aria-hidden="true"></span>
       <a href="sites.html">Sites</a>
@@ -124,7 +129,7 @@
           problema, nunca pela ferramenta.
         </p>
         <div class="hero__actions">
-          <a class="btn btn--primary" href="#servicos">Ver os serviços <span aria-hidden="true">→</span></a>
+          <a class="btn btn--primary" href="#frentes">Ver os serviços <span aria-hidden="true">→</span></a>
           <a class="btn btn--ghost" data-wa href="#">Falar comigo</a>
         </div>
       </div>
@@ -151,7 +156,7 @@
           <dt>Frente 03</dt>
           <dd>Experiências digitais</dd>
         </div>
-        <a href="#servicos" class="scroll-hint" aria-label="Rolar para os serviços">
+        <a href="#frentes" class="scroll-hint" aria-label="Rolar para os serviços">
           <span>rolar</span>
           <span class="scroll-hint__bar" aria-hidden="true"></span>
         </a>
@@ -162,10 +167,10 @@
          Cada serviço é uma linha grande que acende inteira, e leva para a sua
          própria página. O terceiro ainda não tem página e não finge ter: o
          rótulo diz que a conversa é a porta, e o link vai para o WhatsApp. -->
-    <section class="section" id="servicos" aria-labelledby="servicos-titulo">
+    <section class="section" id="frentes" aria-labelledby="frentes-titulo">
       <div class="section__head reveal">
         <p class="kicker">// serviços</p>
-        <h2 id="servicos-titulo">Três frentes, <br />uma casa só.</h2>
+        <h2 id="frentes-titulo">Três frentes, <br />uma casa só.</h2>
         <p class="lead">Cada uma resolve um problema diferente. Se você não souber qual é o seu, a primeira conversa serve exatamente para isso.</p>
       </div>
 
@@ -251,9 +256,9 @@
       </div>
     </section>
 
-    <section class="section section--cta" id="contato" aria-labelledby="contato-titulo">
+    <section class="section section--cta" id="conversa" aria-labelledby="conversa-titulo">
       <div class="cta reveal">
-        <h2 id="contato-titulo">Me diga o que precisa <br />acontecer. Eu digo <em>como</em>.</h2>
+        <h2 id="conversa-titulo">Me diga o que precisa <br />acontecer. Eu digo <em>como</em>.</h2>
         <p>Uma conversa curta resolve a primeira pergunta: se o seu caso é site, automação, as duas coisas ou nenhuma delas. Não custa nada e não compromete você com nada.</p>
         <a class="btn btn--primary btn--lg" data-wa href="#">Falar comigo</a>
         <p class="fine">Quem responde é humano. Sem compromisso.</p>
@@ -277,7 +282,7 @@
       <nav class="footer__links" aria-label="Links do rodapé">
         <p class="footer__links-title">Nesta página</p>
         <a href="#principios">Como trabalho</a>
-        <a href="#contato">Contato</a>
+        <a href="#conversa">Contato</a>
       </nav>
     </div>
     <div class="footer__base">

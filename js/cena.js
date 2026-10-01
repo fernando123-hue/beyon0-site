@@ -345,6 +345,13 @@
              portal. O vidro nunca escreve: some na ordenação e é aditivo. */
           depthWrite: ehPedra,
           side: THREE.DoubleSide,
+          /* UMA passada, não duas. Para material transparente de dupla face o
+             three desenha a face de trás e depois a da frente, para ordenar a
+             transparência — duas chamadas por peça. Com mistura aditiva a
+             ordem não muda o resultado, e a pedra é praticamente opaca: a
+             segunda passada era trabalho jogado fora. Medido: ~113 chamadas
+             por segundo para um cubo a 60 quadros, metade disso agora. */
+          forceSinglePass: true,
           blending: ehPedra ? THREE.NormalBlending : THREE.AdditiveBlending
         });
         if (!ehPedra) {
@@ -442,9 +449,16 @@
      caixas são remedidas a cada frame (3 retângulos, ~0,01ms — só durante a
      entrada, nunca em repouso). O fim de qualquer transição ou animação e o
      carregamento das fontes também marcam as caixas para remedir. */
+  /* revelar só anda num sentido, então o "sim" fica guardado na cena e o DOM
+     deixa de ser consultado — antes eram duas consultas por cena por quadro,
+     uma delas subindo a árvore. Achado na quinta revisão. */
   function revelado(c) {
-    if (!c.reveal) return true;
-    return c.reveal.classList.contains('is-in') || !!c.reveal.closest('.revelando');
+    if (c.jaRevelado || !c.reveal) return true;
+    if (c.reveal.classList.contains('is-in') || c.reveal.closest('.revelando')) {
+      c.jaRevelado = true;
+      return true;
+    }
+    return false;
   }
 
   /* ---------- FLUIDEZ MEDIDA, EM DOIS ESTÁGIOS ----------
@@ -498,7 +512,7 @@
      nada é desenhado até existirem 20 intervalos medidos SEM o 3D. O custo é
      a cena aparecer uma fração de segundo depois — ninguém nota; julgar a tela
      errada, todo mundo nota. */
-  var REF = 60, menorDt = Infinity, amostras = 0, reguaPronta = false;
+  var REF = 60, intervalos = [], reguaPronta = false;
   /* ao voltar de uma aba escondida, js/core.js reinicia o relógio e o primeiro
      quadro chega com dt sintético de 16ms — que a régua tomaria como "esta
      tela faz 60". Os dois quadros seguintes a uma volta não contam. Achado na
@@ -538,12 +552,16 @@
         document.removeEventListener('transitionend', recursos.marcar);
         document.removeEventListener('animationend', recursos.marcar);
       }
-      var cv = renderer.domElement;
-      renderer.dispose();
-      renderer.forceContextLoss();
-      if (cv && cv.parentNode) cv.parentNode.removeChild(cv);
+      if (renderer) {
+        renderer.dispose();
+        renderer.forceContextLoss();
+      }
       if (B.PERF && window.console) console.info('[cena] 3D desligado');
     } catch (e) { /* já foi */ }
+    /* o canvas sai pelo id, não pela referência do renderer: se a montagem
+       quebrou antes de o renderer existir, ele já estava no <body> */
+    var cv = document.getElementById('fx3');
+    if (cv && cv.parentNode) cv.parentNode.removeChild(cv);
     renderer = null; cenas = []; visiveis = 0;
     recursos = { texturas: null, plano: null, io: null, marcar: null };
   }
@@ -584,12 +602,17 @@
     if (desligado) return;
     if (!reguaPronta) {
       if (pular > 0) pular--;
-      else if (S.t > 2 && S.dt >= 4) {
-        amostras++;
-        if (S.dt < menorDt) menorDt = S.dt;
-      }
-      if (amostras < AMOSTRAS) return;          /* nada desenha antes da régua */
-      REF = Math.max(24, Math.min(60, 1000 / menorDt));
+      else if (S.t > 2 && S.dt >= 4) intervalos.push(S.dt);
+      if (intervalos.length < AMOSTRAS) return;  /* nada desenha antes da régua */
+      /* QUARTIL INFERIOR, não o mínimo. Um único intervalo curto fora da
+         curva (o rAF recuperando depois de um quadro longo) bastava para o
+         mínimo dizer "esta tela faz 60" numa tela de 30 — e a cena era
+         rebaixada à toa. Achado na quinta revisão. O quartil inferior
+         continua imune a engasgo (que só alonga intervalos) e ignora um ou
+         dois curtos isolados. */
+      intervalos.sort(function (a, b) { return a - b; });
+      REF = Math.max(24, Math.min(60, 1000 / intervalos[Math.floor(intervalos.length / 4)]));
+      intervalos = null;
       reguaPronta = true;
     }
     if (!pronto) return;
@@ -597,10 +620,16 @@
     julgar(S);
     if (desligado) return;
 
-    /* esta camada é a PRIMEIRA a ceder, sempre: em estágio METADE, ou quando o
-       orçamento do frame já está apertado, ela desenha em quadros alternados
-       antes de qualquer coisa do site piscar. */
-    if ((estagio === 1 || S.budget < 0.7) && (alt = 1 - alt)) return;
+    /* Em estágio METADE a cena desenha em quadros alternados.
+       NÃO há mais o atalho "se `S.budget` estiver baixo, pula um quadro". O
+       js/core.js mira 15ms por quadro, e a 60Hz um quadro leva 16,7ms: o
+       orçamento vive no piso (0,25) numa página perfeitamente lisa, então o
+       atalho ficava SEMPRE ligado e o cubo rodava a 30fps numa página a 60,
+       atrasado um quadro na rolagem. Medido: fps 60, budget 0,25, estágio
+       "cheio" — e mesmo assim meia taxa. Achado na quinta revisão. Quem
+       rebaixa a cena agora é só o julgamento por fps (`julgar`), que mede a
+       coisa certa. */
+    if (estagio === 1 && (alt = 1 - alt)) return;
 
     /* durante a entrada de alguma cena as caixas são remedidas a cada frame —
        o `.reveal` ainda está se movendo sem gerar evento de rolagem */
@@ -741,8 +770,15 @@
     var url = new URL('vendor/three/three.module.min.js', document.baseURI).href;
     import(url)
       .then(function (lib) {
+        /* se a montagem quebrar no meio (driver incomum, textura que não
+           sobe), o que já subiu — canvas, contexto, ouvintes — é desmontado.
+           Antes ficava um contexto de GPU vivo e um canvas em tela cheia sem
+           desenhar nada pelo resto da visita. Achado na quinta revisão. */
         try { montar(lib); }
-        catch (e) { if (B.PERF && window.console) console.warn('[cena] montagem falhou:', e && e.message); }
+        catch (e) {
+          desligar();
+          if (B.PERF && window.console) console.warn('[cena] montagem falhou:', e && e.message);
+        }
       })
       .catch(function (e) {
         /* sem 3D; o site continua inteiro. Com ?perf a falha aparece, senão

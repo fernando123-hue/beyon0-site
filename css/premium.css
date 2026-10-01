@@ -873,3 +873,12 @@ body { overflow-x: clip; }
   .palco .cena, .portal .cena { inset: -10% 0; }
 }
 
+/* ==========================================================================
+   14. RITMO DO HUB
+   As seções do Hub trocaram de id (#servicos → #frentes, #contato →
+   #conversa) para não colidir com as âncoras antigas da página de automação,
+   que agora são redirecionadas (js/ancoras.js). O respiro que styles.css dava
+   a esses ids passa para os novos — o desenho não muda.
+   ========================================================================== */
+#frentes  { --sp-top: var(--sp-loose); }
+#conversa { --sp-top: var(--sp-loose); --sp-bottom: var(--sp-tight); }
