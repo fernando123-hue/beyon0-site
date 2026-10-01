@@ -533,11 +533,14 @@
      Acontece UMA vez por visita. Repetir tiraria o caráter de descoberta e
      viraria um Pulso barato a cada passada de mouse. Custo: um listener `once`
      por card, que se remove sozinho ao disparar. */
-  var reconhecidas = 0, jaReconheceu = false, reconhecimentoPendente = false;
+  /* Um estado só, igual a js/pagina.js. Dois booleanos admitiam combinações
+     que não existem (pendente sem ter reconhecido). */
+  var reconhecidas = 0;
+  var reconhecimento = 0;       /* 0 = ainda não · 1 = pendente · 2 = entregue */
   function entregarReconhecimento(now) {
-    if (!reconhecimentoPendente) return;
+    if (reconhecimento !== 1) return;
     if (!dispararPulso(now, 'Seis capacidades reconhecidas')) return;
-    reconhecimentoPendente = false;
+    reconhecimento = 2;
     /* e o sistema se abre para quem demonstrou interesse: o próximo Singular
        é antecipado para daqui a ~12s. Nunca ADIA — se o relógio já ia
        disparar antes disso, o agendamento dele continua valendo. */
@@ -547,15 +550,14 @@
   var cardsServ = document.querySelectorAll('.card--service');
   if (B.fine && cardsServ.length) {
     var marcarServico = function () {
-      if (jaReconheceu) return;
+      if (reconhecimento !== 0) return;
       reconhecidas++;
       if (reconhecidas < cardsServ.length) return;
-      jaReconheceu = true;
       /* fica PENDENTE até conseguir disparar — o laço de eventos tenta de novo
          (ver `entregarReconhecimento`). Antes, completar as seis durante um
          Pulso ou um Singular perdia a recompensa em silêncio, com os ouvintes
          `once` já removidos. Mesma correção de js/pagina.js. */
-      reconhecimentoPendente = true;
+      reconhecimento = 1;                      /* pendente */
     };
     for (var cs = 0; cs < cardsServ.length; cs++) {
       cardsServ[cs].addEventListener('pointerenter', marcarServico, { once: true, passive: true });

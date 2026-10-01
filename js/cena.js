@@ -80,9 +80,15 @@
      constante, na conexão mais provável de ser medida e na bateria mais
      provável de acabar, em troca de nada que já não esteja lá. Fica de fora. */
   if (!B.fine) return;
+  /* O teste cria um contexto de verdade — e o navegador tem um teto baixo de
+     contextos WebGL vivos (16 no Chrome). Solta este assim que responde, em
+     vez de esperar o coletor de lixo. Achado na sexta revisão. */
   try {
     var teste = document.createElement('canvas');
-    if (!(teste.getContext('webgl2') || teste.getContext('webgl'))) return;
+    var gl = teste.getContext('webgl2') || teste.getContext('webgl');
+    if (!gl) return;
+    var perder = gl.getExtension('WEBGL_lose_context');
+    if (perder) perder.loseContext();
   } catch (e) { return; }
 
   /* ---------- a cor vem do CSS, lida UMA vez no boot ----------
@@ -671,8 +677,14 @@
     /* O SINGULAR LEVA O 3D JUNTO. Só mexe nos materiais quando o valor andou
        o bastante para aparecer: em repouso `S.warmth` é 0 e este bloco não
        roda nenhuma vez. Durante o Singular são umas dezenas de misturas de cor
-       ao longo de 18 segundos — nada perto de um `getComputedStyle`. */
-    if (Math.abs(S.warmth - quenteAplicado) > 0.02) {
+       ao longo de 18 segundos — nada perto de um `getComputedStyle`.
+
+       A VOLTA A ZERO PASSA SEMPRE. Só com o limiar de 0,02, o último degrau
+       do Singular (de 0,015 para 0, por exemplo) não andava o bastante e o
+       vidro ficava levemente dourado até o próximo Singular. Achado na sexta
+       revisão. */
+    var chegouAoRepouso = S.warmth === 0 && quenteAplicado !== 0;
+    if (chegouAoRepouso || Math.abs(S.warmth - quenteAplicado) > 0.02) {
       quenteAplicado = S.warmth;
       for (var ci = 0; ci < cenas.length; ci++) {
         var mm = cenas[ci].malhas;
@@ -702,8 +714,13 @@
 
       renderer.setViewport(x, y, lw, lh);
       renderer.setScissor(x, y, lw, lh);
-      c.cam.aspect = lw / lh;
-      c.cam.updateProjectionMatrix();
+      /* a matriz de projeção só é refeita quando a proporção muda (resize),
+         não a cada quadro de cada cena. */
+      var proporcao = lw / lh;
+      if (c.cam.aspect !== proporcao) {
+        c.cam.aspect = proporcao;
+        c.cam.updateProjectionMatrix();
+      }
 
       if (c.spec.giro) c.grupo.rotation.y = t * c.spec.giro;
       /* paralaxe de ponteiro: a cena inteira inclina de leve em direção ao

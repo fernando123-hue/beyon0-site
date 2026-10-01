@@ -603,3 +603,41 @@ da empresa):
 
 Para a parte das pastas, o chat precisa ser aberto **no Claude Code do
 computador do dono**, não na nuvem.
+
+### 12.7 Sétima sessão (2026-09-30, na máquina do dono) — 12.3 fechada e deploy
+
+**Itens 1 a 5 da 12.3 corrigidos** (o 6 continua tarefa separada, de propósito):
+warmth volta a zero sempre, tempo de carga só depois do DOMContentLoaded,
+contexto do teste de WebGL solto na hora, matriz de projeção só no resize,
+tri-estado do reconhecimento no dom.js. `/code-review` sem achado alto.
+
+**Verificador nesta máquina: 5 de 6 OK.** `sites` sai com ~38fps (limite 45).
+Não é regressão: medido A/B, dá o mesmo SEM as mudanças. A causa foi medida:
+- o verificador roda WebGL por CPU (`--use-gl=swiftshader`); a nuvem passava
+  a 60 com o mesmo SwiftShader porque tinha CPU mais forte;
+- com o three montado e AINDA SEM DESENHAR, a página de Sites já cai de ~78%
+  para ~45% de quadros no ritmo: é a composição do canvas WebGL em tela cheia
+  por software. Sem o three (requisição bloqueada) a página faz ~53fps;
+- a régua do porteiro (`REF`, em js/cena.js) é medida com esse canvas já
+  montado, absorve o custo e sai 30 — então o porteiro só chamaria de lento
+  o que caísse abaixo de 23fps, e a cena nunca desliga nesse ambiente.
+
+**Decisão de não-fazer, justificada:** testei amostrar a régua só depois da
+montagem + 30 quadros. Corrigiu nada mensurável (Hub já dava 60; Sites seguiu
+30 pela composição) — revertido pela regra 5. Chrome/Edge atuais não caem mais
+sozinhos em SwiftShader: sem GPU, o WebGL não sobe e o porteiro já desliga o 3D.
+
+**Pendência registrada:** detectar renderizador por software
+(`WEBGL_debug_renderer_info` com `SwiftShader`, `llvmpipe`, `Basic Render`) e
+não montar o 3D nele. Não foi feito agora porque tira a cobertura de 3D do
+verificador (que roda justamente em SwiftShader) — precisa de um `?3d=forcar`
+junto, e isso é mudança de porteiro, não de véspera de deploy.
+
+**Ambiente Windows do dono — armadilhas novas:**
+- O Chromium 1228 do Playwright está corrompido ("configuração lado a lado").
+  Funciona o headless shell:
+  `CHROMIUM=%LOCALAPPDATA%\ms-playwright\chromium_headless_shell-1228\chrome-headless-shell-win64\chrome-headless-shell.exe`
+- O sandbox do Claude Code impede o Playwright de abrir o navegador; o
+  verificador precisa rodar fora dele. Servidor local: node puro na 8899
+  (`BASE=http://127.0.0.1:8899`).
+- Não há Python instalado.

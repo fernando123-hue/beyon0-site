@@ -366,9 +366,13 @@
     if (!window.performance || !performance.getEntriesByType) return;
     var nav = performance.getEntriesByType('navigation')[0];
     if (!nav) return;
-    if (elCarga) {
-      var ms = nav.domContentLoadedEventEnd || nav.responseEnd;
-      if (ms > 0) elCarga.textContent = (ms / 1000).toFixed(2) + 's';
+    /* Sem recuo para `responseEnd`: o observador de recursos (abaixo) pode
+       chamar isto antes do fim do DOMContentLoaded, e aí o recuo escrevia só o
+       tempo de rede como se fosse a carga da página. Enquanto o evento não
+       terminou, o tempo de carga espera; o peso segue sendo atualizado.
+       Achado na sexta revisão. */
+    if (elCarga && nav.domContentLoadedEventEnd > 0) {
+      elCarga.textContent = (nav.domContentLoadedEventEnd / 1000).toFixed(2) + 's';
     }
     if (elPeso) {
       /* SÓ O QUE SAI DESTE DOMÍNIO — filtrado de verdade, pela origem.
