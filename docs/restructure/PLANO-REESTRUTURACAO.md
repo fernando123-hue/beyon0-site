@@ -707,7 +707,7 @@ entrega só ao fim. A direção está em `DIRECAO-V2.md` (mesma pasta).
 | | |
 |---|---|
 | Branch | `rebuild-v2` (a partir de `claude/site-restructure-planning-1cd10h` = `main`) |
-| Publicado? | **NÃO.** Push na `main` é deploy e só o dono pede. |
+| Publicado? | **SIM, 2026-10-01.** `main` = `d347c66`, a pedido do dono, depois da revisão final. Conferido ao vivo: verificador 10/10 e acessibilidade 23/23 contra https://beyon0-site.vercel.app, headers de segurança servidos, `/sites.html` → 308 `/sites`, `/#faq` → `/automacao#faq`, fontes locais carregadas, zero erro de console. |
 | Verificador | `npm run verificar` 7/7 OK · `npm run acessibilidade` 23/23 OK |
 | Revisões | pesquisa de referências, auditoria de segurança, revisão crítica visual e revisão de código por agentes — achados aplicados (ver 13.6) |
 
@@ -766,7 +766,6 @@ Na Vercel os JS vão comprimidos (GSAP ≈ 45 KB gz).
   saiu. Se preferir o ritmo antigo: `js/palavras.js`, função `reiniciar`.
 - O cubo de vidro como peça do Hub (a revisão crítica o chamou de "enfeite";
   a leitura ao vivo em volta do núcleo foi a resposta).
-- Publicar: `git checkout main && git merge --ff-only rebuild-v2 && git push`.
 
 ### 13.4b Perguntas que a auditoria de copy deixou para o dono (segunda rodada)
 
