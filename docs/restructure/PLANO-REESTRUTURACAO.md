@@ -770,9 +770,8 @@ Na Vercel os JS vão comprimidos (GSAP ≈ 45 KB gz).
 
 ### 13.4b Perguntas que a auditoria de copy deixou para o dono (segunda rodada)
 
-Objeções reais de quem contrata e que o site não responde porque dependem de
-FATO que só o dono tem. Nada disso foi inventado; cada uma vira uma pergunta
-de FAQ (visível + JSON-LD) quando ele responder:
+**RESPONDIDAS pelo dono em 2026-10-01** (registro em `01 Empresa\Decisões.md`) e
+aplicadas na FAQ de Sites e de Automação (visível + JSON-LD) e no resumo:
 1. Automação: tem mensalidade de ferramenta/modelo/hospedagem? Quem contrata e paga?
 2. Automação: e depois de pronto, quem cuida? Há manutenção combinada?
 3. Automação: quanto tempo e quem da entidade participa do diagnóstico?
