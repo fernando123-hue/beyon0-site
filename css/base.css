@@ -1,6 +1,6 @@
 /* ==========================================================================
    BEYON ZERO — BASE (V4.2): tipografia, layout, nav, botões, hero, trilha,
-   feixe, HUD, barra do celular, rodapé. Celular primeiro: o padrão é 390px.
+   feixe, barra do celular, rodapé. Celular primeiro: o padrão é 390px.
    ========================================================================== */
 
 /* ---- TIPOGRAFIA ----
@@ -164,7 +164,8 @@ html.tem-menu .nav.is-open .nav__links { max-height: calc(100dvh - var(--nav-h))
   background: linear-gradient(90deg, rgb(var(--ac-rgb) / 0) 0%, rgb(var(--ac-rgb) / .14) 92%, var(--ac) 99%, rgb(var(--ac-rgb) / 0) 100%);
   transform: translateX(-100%); opacity: 0; pointer-events: none;
 }
-.btn--primary::after { background: linear-gradient(90deg, rgb(var(--ac-tinta-rgb) / 0) 0%, rgb(var(--ac-tinta-rgb) / .08) 92%, rgb(var(--ac-tinta-rgb) / .35) 99%, rgb(var(--ac-tinta-rgb) / 0) 100%); }
+/* no primário o brilho é luz clara sobre o ciano, não sombra escura */
+.btn--primary::after { background: linear-gradient(90deg, rgb(255 255 255 / 0) 0%, rgb(255 255 255 / .18) 90%, rgb(255 255 255 / .55) 99%, rgb(255 255 255 / 0) 100%); }
 @media (hover: hover) {
   .btn:hover::after { opacity: 1; transform: translateX(100%); transition: transform .55s var(--ease-io), opacity .1s linear; }
 }
@@ -192,12 +193,8 @@ html.tem-menu .nav.is-open .nav__links { max-height: calc(100dvh - var(--nav-h))
   transition: transform var(--t) var(--ease), opacity var(--t) var(--ease), visibility 0s linear 0s;
 }
 @supports (backdrop-filter: blur(1px)) { .barra { backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); } }
-/* a barra é uma linha de assinatura, não um bloco: frase curta + botão do tamanho do texto */
-.barra__k { max-width: 18ch; text-wrap: balance; font-family: var(--mono); font-size: var(--fs-rotulo); line-height: 1.35; letter-spacing: var(--tr-ctrl); text-transform: uppercase; color: var(--t3); }
-.barra .btn { width: auto; flex: none; min-height: 44px; padding: .65rem 1.1rem; }
-/* CTA longo (Automação): em tela estreita a frase sai e o botão ocupa a linha, com a seta à direita (como o CTA do hero) */
-@media (max-width: 420px) { .barra.barra--longa .barra__k { display: none; } .barra.barra--longa .btn { width: 100%; flex: 1 1 auto; justify-content: space-between; padding-inline: 1.25rem 1.1rem; } }
-@media (max-width: 359px) { .barra__k { display: none; } .barra .btn { width: 100%; } }
+/* uma gramática só nas 3 páginas: botão inteiro, rótulo à esquerda, seta à direita (rodada 6) */
+.barra .btn { width: 100%; flex: 1 1 auto; justify-content: space-between; padding-inline: 1.25rem 1.1rem; min-height: 48px; }
 .barra.is-oculta { transform: translateY(110%); opacity: 0; pointer-events: none; visibility: hidden; transition-delay: 0s, 0s, var(--t); }
 /* sem JS ninguém a mostra: nasce visível */
 html:not(.js) .barra.is-oculta { transform: none; opacity: 1; pointer-events: auto; visibility: visible; }
@@ -234,6 +231,8 @@ html:not(.js) .barra.is-oculta { transform: none; opacity: 1; pointer-events: au
 .hero__actions .btn { width: 100%; }
 /* no celular o segundo CTA vira link de texto: um botão só na primeira tela */
 @media (max-width: 620px) {
+  /* o h2 do celular um degrau abaixo do H1 longo (razão ~1,3×) */
+  h2 { line-height: 1.06; letter-spacing: -.028em; }
   .hero__title { margin-bottom: 1.4rem; }
   .hero__fine { margin-top: 1.1rem; padding-top: .9rem; border-top: 1px solid var(--line); }
   .hero__sub { font-size: 1rem; line-height: 1.5; max-width: 34ch; margin-bottom: 1.2rem; }
@@ -274,7 +273,7 @@ html:not(.js) .barra.is-oculta { transform: none; opacity: 1; pointer-events: au
 .hero__rail a:hover .hero__rail-v { color: var(--ac); }
 .hero__rail-k { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; line-height: 1.4; color: var(--t3); }
 .hero__rail-k b { color: var(--ambar); font-weight: 500; }
-.hero__rail-v { color: var(--t1); font-size: var(--fs-m); font-weight: 500; line-height: 1.4; transition: color var(--t-micro) var(--ease-micro); }
+.hero__rail-v { color: var(--t1); font-size: var(--fs-m); font-weight: 400; letter-spacing: -.012em; line-height: 1.35; text-wrap: balance; transition: color var(--t-micro) var(--ease-micro); }
 .hero__rail-v b { font-family: var(--mono); font-weight: 500; font-size: .92em; color: var(--ac); font-variant-numeric: tabular-nums; }
 
 /* uma medida só por tela: no Hub o console já mostra a carga; a pílula da
@@ -314,7 +313,9 @@ html:not(.js) .barra.is-oculta { transform: none; opacity: 1; pointer-events: au
   h1 { font-size: var(--fs-d1); line-height: .9; letter-spacing: -.045em; }
   .hero__title { margin-left: -.055em; }
   .hero__status { margin-left: calc(-1 * (6px + .6rem)); }   /* o ponto pendura na margem */
-  .hero--longo h1 { font-size: var(--fs-d3); line-height: 1; }
+  .hero--longo h1 { font-size: var(--fs-d3); line-height: .95; letter-spacing: -.042em; }
+  /* a base da arte na linha da base dos botões */
+  .hero--longo .hero__arte > .janela, .hero--longo .hero__arte > .instrumento { align-self: end; }
   .hero__sub { max-width: 50ch; font-size: clamp(1.0625rem, .95rem + .45vw, 1.25rem); margin-bottom: 1.6rem; }
 }
 
@@ -393,24 +394,6 @@ html.has-gsap .feixe.is-loop ~ .hero__arte .instrumento__led { animation: led-pa
   .feixe__tag { display: none; }
   html:not(.has-gsap) .feixe__linha { animation-name: feixe-y; }
   html.has-gsap .feixe.is-loop .feixe__linha { animation-name: feixe-y; }
-}
-
-/* ---- HUD lateral: a seção atual, só em tela larga ---- */
-.hud { display: none; }
-@media (min-width: 1100px) {
-  .hud { display: block; position: fixed; left: calc(var(--pad) - 40px); top: 50%; transform: translateY(-50%); height: 240px; z-index: 2; pointer-events: none; }
-  .hud__trilho { position: absolute; left: 0; top: 0; bottom: 0; width: 1px; background: var(--line-2); }
-  .hud__marca { position: absolute; left: 0; top: 0; width: 1px; height: 24px; background: var(--ambar); transition: transform .6s var(--ease-io); }
-  .hud { transition: opacity var(--t) var(--ease); }
-  .hud:not([class*="hud--"]) { opacity: 0; }
-  .hud__k { display: none; }
-  .hud--01 .hud__marca { transform: translateY(0); }
-  .hud--02 .hud__marca { transform: translateY(54px); }
-  .hud--03 .hud__marca { transform: translateY(108px); }
-  .hud--04 .hud__marca { transform: translateY(162px); }
-  .hud--05 .hud__marca { transform: translateY(216px); }
-  .hud--06 .hud__marca { transform: translateY(216px); }
-  .hud:not([class*="hud--"]) .hud__k { opacity: 0; }
 }
 
 /* ---- RODAPÉ ---- */

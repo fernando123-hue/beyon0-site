@@ -57,14 +57,14 @@
   .servico { min-height: 0; gap: 1rem; }
   .servico__link { margin-top: 0; padding-top: .2rem; }
   /* o cartão grande: índice no alto, o texto assenta embaixo (sem vão no meio) */
-  .servicos > :first-child .servico__link { margin-top: auto; }   /* o texto segue os formatos; o link assenta no pé */
-  .servicos > :first-child h3 { margin-top: clamp(40px, 5vw, 72px); font-size: clamp(2rem, 1.4rem + 1.6vw, 2.75rem); }
+  .servicos > :first-child .servico__link { margin-top: 1.25rem; }
+  .servicos > :first-child h3 { margin-top: auto;   /* o bloco de texto assenta junto no pé; o vazio fica entre a ficha e o título */ font-size: clamp(2rem, 1.4rem + 1.6vw, 2.75rem); }
   .servicos > :first-child p { max-width: 44ch; }
   /* os formatos reais que a página Sites oferece, no lugar do vão */
   .servico__formatos { display: block; list-style: none; margin: 0; padding: 0; max-width: none; font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-ctrl); text-transform: uppercase; color: var(--t2); }
-  .servico__formatos li { border-top: 1px solid var(--line); padding: .7rem 0; }
-  .servico__formatos li:last-child { border-bottom: 1px solid var(--line); }
-  .servico__formatos b { color: var(--ambar); font-weight: 500; margin-right: .6rem; }
+  .servico__formatos li { display: inline; }
+  .servico__formatos li + li::before { content: " / "; color: var(--t3); }
+  .servico__formatos b { display: none; }   /* os formatos viram uma linha de ficha, sem mais um índice */
 }
 /* celular: os serviços viram linhas de laudo, não cartões de 340px empilhados */
 @media (max-width: 620px) {
@@ -155,8 +155,8 @@ html:not(.has-gsap) .varredura, html.menos-movimento .varredura { display: none;
 @media (prefers-reduced-motion: reduce) { .varredura { display: none; } }
 /* o palco (desktop, com movimento): a prova fica fixa na tela e os três
    números ocupam o mesmo lugar, um de cada vez, em escala de capítulo */
-.prova--palco { grid-template-columns: 1fr; grid-template-areas: "p"; min-height: clamp(240px, 24vw, 340px); align-items: center; }
-.prova--palco .prova__item { grid-area: p; display: grid; grid-template-columns: auto minmax(0, 20ch); justify-content: start; column-gap: clamp(24px, 3vw, 48px); align-items: end; border: 0; padding: clamp(1.2rem, 2vw, 2rem) 0 clamp(1.2rem, 2vw, 2rem) clamp(1.6rem, 2.4vw, 2.6rem); }
+.prova--palco { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "p passo"; column-gap: clamp(24px, 3vw, 48px); min-height: clamp(240px, 24vw, 340px); align-items: center; }
+.prova--palco .prova__item { grid-area: p; display: grid; grid-template-columns: max-content minmax(18ch, 22ch); justify-content: start; column-gap: clamp(24px, 3vw, 48px); align-items: end; border: 0; padding: clamp(1.2rem, 2vw, 2rem) 0 clamp(1.2rem, 2vw, 2rem) clamp(1.6rem, 2.4vw, 2.6rem); }
 .prova--palco .prova__item + .prova__item { border-left: 0; }
 /* no palco a luz IMPRIME: cada número é revelado por uma máscara cuja borda
    anda no centro da luz (anima.js, palco); a barra lateral sai, quem dá a
@@ -169,10 +169,12 @@ html:not(.has-gsap) .varredura, html.menos-movimento .varredura { display: none;
 .prova--palco .prova__mascara { font-size: clamp(160px, 17vw, 264px); padding: .1em 0 .18em; margin: -.1em 0 -.18em; }
 .prova--palco .prova__val { font-size: 1em; letter-spacing: -.06em; line-height: .78; margin-bottom: 0; }
 .prova--palco .prova__val small { font-size: .14em; }
-.prova--palco .prova__rot { font-size: var(--fs-l); line-height: 1.45; max-width: 20ch; padding-bottom: 0; }
+.prova--palco .prova__rot { font-size: var(--fs-l); line-height: 1.45; max-width: 22ch; min-width: 18ch; align-self: end; padding-bottom: 0; }
+.prova--palco .prova__val small { display: inline-block; }
 .prova--palco .varredura { opacity: 1; }
 /* o índice das três leituras, à direita: a atual em --t1 com traço âmbar */
-.prova--palco .prova__passo { display: flex; flex-direction: column; align-items: flex-start; position: absolute; top: clamp(1rem, 2vw, 1.6rem); right: 0; gap: .8rem; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); color: var(--t3); z-index: 1; }
+/* o índice tem coluna própria: nunca fica por baixo da legenda */
+.prova--palco .prova__passo { display: flex; flex-direction: column; align-items: flex-start; position: static; grid-area: passo; align-self: start; padding-top: clamp(1rem, 2vw, 1.6rem); gap: .8rem; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); color: var(--t3); z-index: 1; }
 .prova__barra { display: block; width: 120px; height: 1px; background: var(--ac); transform-origin: left; }
 .prova__indice { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
 .prova__indice li { position: relative; padding-left: 32px; color: var(--t3); transition: color .3s var(--ease); }
@@ -286,14 +288,14 @@ html.menos-movimento .qa::details-content { transition: none; }
   /* seções de título fixo: o título fica parado à esquerda enquanto as linhas correm (FAQ, Garantias, o problema da Automação) */
   .section--faq, .secao--fixa { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); column-gap: clamp(32px, 6vw, 80px); align-items: start; }
   .section--faq .section__head, .secao--fixa .section__head { display: block; position: sticky; top: calc(var(--nav-h) + 48px); margin-bottom: 0; }
-  .section--faq .section__head h2, .secao--fixa .section__head h2 { font-size: var(--fs-h2-lateral); line-height: 1.06; max-width: 12ch; text-wrap: balance; }
+  .section--faq .section__head h2, .secao--fixa .section__head h2 { font-size: var(--fs-h2-lateral); line-height: 1.04; max-width: 13ch; text-wrap: balance; }
   .section--faq .faq-list { max-width: none; }
   .section--faq .qa summary { font-size: 1.1875rem; }
   .secao--fixa .section__head .lead { max-width: 30ch; margin-top: 1.25rem; }
   /* o laudo ao lado do título: índice em Sora 200 grande, título e texto empilhados */
-  .secao--fixa .laudo__row { grid-template-columns: clamp(3.5rem, 5vw, 5rem) minmax(0, 1fr); column-gap: clamp(16px, 2vw, 28px); row-gap: .4rem; align-items: start; }
+  .secao--fixa .laudo__row { grid-template-columns: clamp(3rem, 4vw, 4rem) minmax(0, 1fr); column-gap: clamp(16px, 2vw, 28px); row-gap: .4rem; align-items: baseline; }
   .secao--fixa .laudo__row p { grid-column: 2; grid-row: auto; padding-left: 0; }
-  .secao--fixa .laudo__n { grid-row: 1 / 3; font-family: var(--sans); font-weight: 200; font-size: clamp(2.5rem, 3vw, 3.5rem); line-height: .9; letter-spacing: -.04em; color: var(--t3); }
+  .secao--fixa .laudo__n { grid-row: 1; align-self: baseline; font-family: var(--sans); font-weight: 200; font-size: clamp(1.75rem, 1rem + 1.2vw, 2.25rem); line-height: 1; letter-spacing: -.03em; color: var(--t3); }
   .secao--fixa .laudo__row::before { left: -14px; }
 }
 
@@ -317,7 +319,7 @@ html.menos-movimento .qa::details-content { transition: none; }
 .conversa .lead { margin-top: clamp(1.5rem, 1rem + 1.6vw, 2.75rem); max-width: 44ch; }
 .conversa .cta__acoes { margin-top: clamp(1.8rem, 1.2rem + 1.6vw, 2.75rem); }
 .conversa .section { padding-bottom: var(--sp-3); }
-@media (min-width: 861px) { .conversa h2 { line-height: .92; } .conversa .btn--primary { min-height: 64px; padding-inline: 2.4rem; } }
+@media (min-width: 861px) { .conversa h2 { line-height: 1; letter-spacing: -.045em; max-width: 13ch; } .conversa .btn--primary { min-height: 64px; padding-inline: 2.4rem; } }
 .cta__acoes { display: flex; flex-direction: column; gap: .7rem; margin-top: 1.8rem; }
 .cta__acoes .btn { width: 100%; }
 .cta__acoes + .fine { margin-top: 1rem; }
@@ -353,13 +355,13 @@ html.menos-movimento .qa::details-content { transition: none; }
    cada um na hora e na duração reais (js/pagina.js). Preenche o console com
    dado novo em vez de vazio. Barra posicionada uma vez; a entrada é classe. */
 .cascata { display: grid; gap: .45rem; padding: .2rem 0 1rem; }
-.cascata__linha { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) auto; gap: .6rem; align-items: center; font-family: var(--mono); font-size: var(--fs-rotulo); line-height: 1.2; letter-spacing: var(--tr-dado); color: var(--t3); }
+.cascata__linha { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) 7ch; gap: .6rem; align-items: center; font-family: var(--mono); font-size: var(--fs-rotulo); line-height: 1.2; letter-spacing: var(--tr-dado); color: var(--t3); }
 .cascata__nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cascata__trilho { position: relative; height: 2px; background: var(--line); overflow: hidden; }
 .cascata__barra { position: absolute; top: 0; bottom: 0; left: 0; width: 100%; background: var(--ac); transform-origin: left; }
 .cascata__linha--ultimo .cascata__barra { background: var(--ambar); }
 .cascata__ms { font-variant-numeric: tabular-nums; color: var(--t2); text-align: right; }
-@media (max-width: 620px) { .cascata__linha { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) auto; } }
+@media (max-width: 620px) { .cascata__linha { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) 7ch; } }
 html.js .cascata__barra { transform: scaleX(0); transition: transform .6s var(--ease-io); }
 html.js .console.is-in .cascata.is-pronta .cascata__barra { transform: none; }
 html.js .console.is-in .cascata.is-pronta .cascata__linha:nth-child(2) .cascata__barra { transition-delay: .05s; }
@@ -508,12 +510,13 @@ body.is-lead-open { overflow: hidden; }
   .laudo .laudo__row, .servicos--pilha > .servico {
     position: sticky; top: calc(var(--nav-h) + 12px);
     padding: 1.2rem 1.1rem 1.4rem; border: 1px solid var(--line-2); border-radius: var(--raio);
-    background: linear-gradient(180deg, var(--s2), var(--s1));
+    background: linear-gradient(180deg, var(--s2), var(--s1)) var(--s1);   /* opaco: nada de baixo atravessa */
     box-shadow: inset 0 1px 0 rgb(255 255 255 / .06), 0 -20px 40px -24px rgb(0 0 0 / .9);
   }
-  .laudo .laudo__row:nth-child(2), .servicos--pilha > .servico:nth-child(2) { top: calc(var(--nav-h) + 22px); }
-  .laudo .laudo__row:nth-child(3), .servicos--pilha > .servico:nth-child(3) { top: calc(var(--nav-h) + 32px); }
-  .laudo .laudo__row:nth-child(4) { top: calc(var(--nav-h) + 42px); }
+  /* degrau de fichário: 14px de cada cartão coberto fica à mostra */
+  .laudo .laudo__row:nth-child(2), .servicos--pilha > .servico:nth-child(2) { top: calc(var(--nav-h) + 26px); }
+  .laudo .laudo__row:nth-child(3), .servicos--pilha > .servico:nth-child(3) { top: calc(var(--nav-h) + 40px); }
+  .laudo .laudo__row:nth-child(4) { top: calc(var(--nav-h) + 54px); }
   .laudo .laudo__row::after { display: none; }
   .servicos--pilha > :last-child { border-bottom: 1px solid var(--line-2); }
   /* o cartão com foco de teclado sobe na pilha: o foco nunca fica escondido */
@@ -523,3 +526,16 @@ body.is-lead-open { overflow: hidden; }
 
 /* as três artes do hero no mesmo plano (rodada 5) */
 .console, .instrumento { box-shadow: var(--sombra-arte); }
+
+/* a 2ª frase do fecho começa em linha própria (no celular "Eu" ficava pendurado) */
+.conversa h2 .h2-frase { display: block; }
+
+/* celular: a luz desce pela medida no instante em que ela acende (anima.js, luzMede) */
+.prova__item::after { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; background: linear-gradient(180deg, rgb(var(--ac-rgb) / 0) 0, rgb(var(--ac-rgb) / .10) 46%, rgb(var(--ac-rgb) / .7) 50%, rgb(var(--ac-rgb) / 0) 50.4%); transform: translateY(-50%); }
+@media (max-width: 820px) {
+  html.js .prova__item.is-lit::after { animation: varre-y 1s cubic-bezier(.87, 0, .13, 1) both; }
+  html.js .prova__item::before { transform-origin: top; transition-duration: 1s; }
+}
+@keyframes varre-y { 0% { transform: translateY(-50%); opacity: 1; } 85% { opacity: 1; } 100% { transform: translateY(50%); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .prova__item::after { animation: none !important; opacity: 0; } }
+html.menos-movimento .prova__item::after { animation: none !important; opacity: 0; }

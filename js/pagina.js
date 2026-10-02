@@ -102,7 +102,6 @@
 
   /* ---------- a seção atual acende na nav (IntersectionObserver, nada por frame) ---------- */
   var secoes = [].slice.call(document.querySelectorAll('main section[id]'));
-  var hud = document.querySelector('.hud'), hudK = hud && hud.querySelector('[data-hud-k]');
   var mapaNav = {};
   if (navEl) {
     var ancoras = navEl.querySelectorAll('.nav__links a[href^="#"]');
@@ -117,15 +116,6 @@
       if (atualNav && mapaNav[atualNav]) { mapaNav[atualNav].classList.remove('is-current'); mapaNav[atualNav].removeAttribute('aria-current'); }
       atualNav = id;
       if (atualNav && mapaNav[atualNav]) { mapaNav[atualNav].classList.add('is-current'); mapaNav[atualNav].setAttribute('aria-current', 'location'); }
-      if (hud) {
-        hud.className = 'hud';
-        var kick = sec && sec.querySelector('.kicker');
-        if (kick && hudK) {
-          var idx = kick.querySelector('b');
-          hud.classList.add('hud--' + (idx ? idx.textContent.trim() : '01'));
-          hudK.textContent = kick.textContent.replace(/\s+/g, ' ').trim().replace(/^(\d+)\s*/, '$1 — ');
-        }
-      }
     };
     var ioSec = new IntersectionObserver(function (ents) {
       for (var n = 0; n < ents.length; n++) {

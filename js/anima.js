@@ -137,6 +137,14 @@
     }, fim);
   }
 
+  /* "tinta molhada": a palavra fica ciano no instante em que a luz passa por
+     ela e seca para o branco; a ênfase (em) fica ciano. Classe por palavra,
+     nada por quadro; o ciano em texto continua só no H1 e na Conversa. */
+  function tinta(tl, palavra, t) {
+    tl.add(function () { palavra.classList.add('is-tinta'); }, t);
+    if (!palavra.closest('em')) tl.add(function () { palavra.classList.remove('is-tinta'); }, t + .18);
+  }
+
   /* ---------- BOOT DO HERO: a luz passa e imprime ---------- */
   var feito = false;
   function heroEntra() {
@@ -204,6 +212,7 @@
             var tw = tEm(sp.words[w], .25);
             if (tw > ultimo) ultimo = tw;
             tl.to(sp.words[w], { yPercent: 0, duration: .7 }, tw);
+            tinta(tl, sp.words[w], tw);
           }
           /* SEM revert aqui: devolver os nós de texto ao h1 faz o Chrome re-registrar
              o título inteiro como LCP no fim da animação (medido: 0,9s → 2,5s no
@@ -310,6 +319,14 @@
     var luz = prova.querySelector('.varredura');
     var itens = visiveis(prova.querySelectorAll('.prova__item'));
     if (!luz || !itens.length) { itens.forEach(function (it) { it.classList.add('is-lit'); contarItem(it); }); return; }
+    /* empilhada (celular): cada medida acende e conta quando ELA aparece, com
+       uma luz descendo por ela; antes o 2º e o 3º contavam abaixo da dobra */
+    if (window.innerWidth < 821 && ST) {
+      itens.forEach(function (it) {
+        ST.create({ trigger: it, start: 'top 78%', once: true, onEnter: function () { it.classList.add('is-lit'); contarItem(it, .15); } });
+      });
+      return;
+    }
     var T = 1.2, cx = prova.getBoundingClientRect(), w = luz.offsetWidth;
     var tl = gsap.timeline();
     tl.fromTo(luz, { x: -w, opacity: 1 }, { x: cx.width, duration: T, ease: 'none' }, 0).set(luz, { opacity: 0 });
@@ -351,14 +368,20 @@
     var sp = partir(h, 'words');
     if (sp && sp.words && sp.words.length) {
       gsap.set(sp.words, { yPercent: 130 });
-      sp.words.forEach(function (wd) { tl.to(wd, { yPercent: 0, duration: .7, ease: EXPO }, quando(wd)); });
+      sp.words.forEach(function (wd) { tl.to(wd, { yPercent: 0, duration: .7, ease: EXPO }, quando(wd)); tinta(tl, wd, quando(wd)); });
       var em = h.querySelector('em');
       tl.add(function () { h.classList.add('is-lit'); }, em ? quando(em) + .1 : T);
       /* não é o LCP: o h2 volta ao DOM original no fim */
       tl.add(function () { try { sp.revert(); } catch (e) { /* já revertido */ } }, T + .8);
     } else h.classList.add('is-lit');
     if (lead) tl.fromTo(lead, { opacity: 0 }, { opacity: 1, duration: .5, ease: 'power2.out', clearProps: 'all' }, .45);
-    if (btn) tl.add(function () { btn.classList.add('is-passou'); }, quando(btn));
+    if (btn) {
+      /* a luz pousa no botão: um fio âmbar se desenha na borda e o brilho passa */
+      var fio = document.createElement('i'); fio.className = 'btn__fio'; fio.setAttribute('aria-hidden', 'true');
+      btn.appendChild(fio);
+      tl.fromTo(fio, { scaleY: 0 }, { scaleY: 1, duration: .6, ease: EXPO }, Math.max(quando(btn), T - .2));
+      tl.add(function () { btn.classList.add('is-passou'); }, quando(btn));
+    }
   }
   function de(tabela, el, padrao) { for (var k in tabela) if (el.matches(k)) return tabela[k]; return padrao; }
   function revelar(el, imediato) {
@@ -415,6 +438,9 @@
         mm.add('(max-width: 620px) and (prefers-reduced-motion: no-preference)', function () {
           if (!ST || html.classList.contains('menos-movimento')) return;
           var navH = document.querySelector('.nav') ? document.querySelector('.nav').offsetHeight : 64;
+          /* esmaece o MIOLO, nunca o cartão: com o cartão translúcido o texto de
+             baixo vazava pelo da frente (rodada 6). O cartão só recua. */
+          var miolos = [];
           ['.laudo', '.servicos--pilha'].forEach(function (sel) {
             var pilha = document.querySelector(sel);
             if (!pilha) return;
@@ -422,10 +448,14 @@
             cards.forEach(function (card, i) {
               var prox = cards[i + 1];
               if (!prox) return;
-              gsap.to(card, { scale: .94, opacity: .55, transformOrigin: '50% 0', ease: 'none',
-                scrollTrigger: { trigger: prox, start: 'top bottom', end: 'top ' + (navH + 12 + 10 * (i + 1)) + 'px', scrub: true } });
+              var miolo = [].slice.call(card.children).filter(function (c) { return !c.classList.contains('painel__canto'); });
+              miolos = miolos.concat(miolo);
+              gsap.timeline({ scrollTrigger: { trigger: prox, start: 'top 75%', end: 'top ' + (navH + 12 + 14 * (i + 1)) + 'px', scrub: true } })
+                .to(card, { scale: .95, transformOrigin: '50% 0', ease: 'none' }, 0)
+                .to(miolo, { opacity: 0, ease: 'power2.in' }, 0);
             });
           });
+          return function () { gsap.set(miolos, { clearProps: 'opacity' }); };
         });
         mm.add('(max-width: 860px) and (prefers-reduced-motion: no-preference)', function () {
           if (!ST || html.classList.contains('menos-movimento')) return;
@@ -486,6 +516,7 @@
     svg.appendChild(base); svg.appendChild(cometa);
     var fim = document.createElement('span'); fim.className = 'rota__fim'; fim.setAttribute('aria-hidden', 'true'); fim.textContent = 'no ar';
     passos.appendChild(svg); passos.appendChild(fim);
+    if (/no ar/i.test(nos[nos.length - 1].textContent)) fim.classList.add('rota__fim--mudo');
     passos.classList.add('passos--rota');
     var L = 1, fr = [];
     function medir() {
@@ -530,7 +561,7 @@
         cometa.style.strokeDashoffset = 48 - prog.p * L;
         marcar(prog.p);
       },
-      scrollTrigger: { trigger: passos, start: 'top 72%', end: 'bottom 58%', scrub: .6 } });
+      scrollTrigger: { trigger: passos, start: 'top 82%', end: 'bottom 62%', scrub: .6 } });
     base.style.strokeDashoffset = L; cometa.style.strokeDashoffset = 48;
     return function () {
       ST.removeEventListener('refreshInit', medir);
@@ -571,9 +602,12 @@
     var setLuz = gsap.quickSetter(luz, 'x', 'px');
     var mostrar = function (p, k) { p.sm(k - p.wm); p.st(p.wm - k); };   /* k px impressos a partir da esquerda */
     var apagar = function (p, k) { p.sm(k); p.st(-k); };                 /* k px apagados a partir da esquerda */
+    /* medir pela largura de LAYOUT do número (offsetWidth ignora transform).
+       O scrollWidth da máscara somava o deslocamento da tinta e crescia a cada
+       refresh: legenda espremida e dois números sobrepostos (rodada 6). */
     function medir() {
-      partes.forEach(function (p) { p.m.style.width = ''; });
-      var L = Math.max.apply(null, partes.map(function (p) { return p.m.scrollWidth; }));
+      partes.forEach(function (p) { p.m.style.width = ''; p.sm(0); p.st(0); });
+      var L = Math.ceil(Math.max.apply(null, partes.map(function (p) { return p.t.querySelector('.prova__val').offsetWidth; }))) + 8;
       var base = prova.getBoundingClientRect().left;
       partes.forEach(function (p) { p.m.style.width = L + 'px'; p.wm = L; p.left = p.m.getBoundingClientRect().left - base - (gsap.getProperty(p.m, 'x') || 0); });
       W = prova.clientWidth; w = luz.offsetWidth;
@@ -613,8 +647,18 @@
       tl.addLabel('n' + i, s + 1.05);
     });
     if (barra) tl.fromTo(barra, { scaleX: 0 }, { scaleX: 1, ease: 'none', duration: tl.duration() }, 0);
+    /* depois de cada refresh (larguras novas) a timeline é repintada do zero
+       até onde estava: os x antigos nunca convivem com a largura nova */
+    function repintar() {
+      var pr = tl.progress();
+      partes.forEach(function (p) { mostrar(p, 0); });
+      setLuz(-w);
+      tl.progress(0, true).progress(pr);
+    }
+    ST.addEventListener('refresh', repintar);
     return function () {
       ST.removeEventListener('refreshInit', medir);
+      ST.removeEventListener('refresh', repintar);
       prova.classList.remove('prova--palco');
       partes.forEach(function (p) { p.m.style.width = ''; });
       var limpar = [luz, barra].concat(partes.map(function (p) { return p.m; }), partes.map(function (p) { return p.t; }), partes.map(function (p) { return p.rot; })).filter(Boolean);
