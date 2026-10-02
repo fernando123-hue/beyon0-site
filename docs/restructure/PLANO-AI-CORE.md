@@ -365,3 +365,30 @@ congelar campo/onda), corrigido.
 **Falta:** o dono sentir no celular de verdade (a "sensação" da
 respiração e da mola não se julga por quadro parado) e a crítica de
 motion por agentes, se ele quiser ajuste fino.
+
+## 15. A energia no fôlego e o olhar (2026-10-02, depois do deploy)
+
+Dois pedidos do dono, olhando o site no ar:
+
+- **"Esses pequenos feixes parecem avulsos, não seguem um sentido
+  lógico."** Eram os pulsos dos 12 raios: dois por raio, a cada 1,6 s,
+  fora do ritmo da respiração, num canal quase apagado (base 0,11). Viraram
+  **um ciclo preso ao fôlego**: no começo da inspiração a energia entra pelo
+  portal (o lampejo), é puxada pelos raios acelerando (caminho `x^1,6`) e
+  chega no instante do fôlego cheio, e o núcleo bate. Ao expirar, os jatos
+  soltam a energia para fora. O canal ficou aceso (base 0,2): a frente corre
+  num trilho. No shader, `uFrente`/`uDir`/`uPulso` no lugar do relógio.
+- **"Mantenha apenas o núcleo seguindo [o cursor] e deixe mais aparente;
+  arrume outra maneira de alcançar a imersão."** O corpo não inclina mais
+  (fica só o balanço próprio, lento). O núcleo **olha** para o cursor em
+  qualquer ponto do hero (`spec.olhar.alcance` 0,075, o dobro do de antes;
+  a lente vai 45% do caminho, o que dá profundidade). No lugar da
+  inclinação, o **bisel do portal vira para o cursor**: o anel reflete a
+  sua luz. Somado ao campo que acende as lâminas e à onda do toque.
+
+Revisão de código: misturar ÂNGULOS do bisel saltava ~50° a cada volta
+própria (a cada 14 s); passou a misturar direções (vetores). O gesto
+projetava o ponteiro duas vezes por quadro; agora uma. Medido: 60 fps no
+celular com CPU 4× mais lenta, tocando; verificador 12/12 (uma rodada com
+a CPU em 97% por explorer.exe/papel de parede deu falso negativo na 1ª
+carga); acessibilidade 23/23.

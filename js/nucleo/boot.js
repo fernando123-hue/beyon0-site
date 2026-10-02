@@ -8,9 +8,9 @@
      o desenho estático em CSS (.nucleo__poster) no mesmo lugar e tamanho;
      nada no layout muda (sem CLS) e ninguém percebe falta;
    - movimento reduzido: a esfera monta e desenha UM quadro, parada, acesa;
-   - o resto: nasce em pedaços, se monta, acende e respira sem parar;
-     inclina ao ponteiro (desktop); o ponteiro ou o dedo vira um campo que
-     afasta as lâminas, um toque solta uma onda, a rolagem empurra a roda
+   - o resto: nasce em pedaços, se monta, acende e respira sem parar; o
+     núcleo olha para o cursor (o corpo não segue); o ponteiro ou o dedo vira
+     um campo que afasta as lâminas, um toque solta uma onda, a rolagem empurra a roda
      (js/nucleo/gesto.js); e se abre quando sai pela borda de cima.
 
    Plano, medidas e orçamento: docs/restructure/PLANO-AI-CORE.md.
@@ -85,8 +85,7 @@
   var JANELA = 90;         /* quadros por medição de fps */
 
   var cena = null, gesto = null;
-  var estado = { t: 0, montagem: 0, abertura: 0, ignicao: 0, desdeIgnicao: -1, px: 0, py: 0 };
-  var alvo = { px: 0, py: 0 };
+  var estado = { t: 0, montagem: 0, abertura: 0, ignicao: 0, desdeIgnicao: -1 };
   var relogio = -1;        /* s desde que a esfera apareceu na tela; -1 = ainda não */
   var visivel = false, liberado = false, parado = false, sujo = true, remedir = true, aceso = false, registrado = false;
   var rolagem = window.scrollY, caixaTopo = 0, caixaAltura = 1;
@@ -144,10 +143,11 @@
   function pararMontado() {
     parado = true;
     estado.montagem = 1; estado.ignicao = 1; estado.abertura = 0;
-    estado.desdeIgnicao = 99; estado.px = estado.py = 0; estado.t = 12;
-    /* sem campo nem onda: o gesto para de rodar com a esfera fora da tela e
-       o quadro parado congelaria lâminas acesas ou uma onda pela metade */
-    estado.campo = null; estado.toque = null;
+    estado.desdeIgnicao = 99; estado.t = 12;
+    /* sem campo, onda nem olhar: o gesto para de rodar com a esfera fora da
+       tela e o quadro parado congelaria lâminas acesas, uma onda pela metade
+       ou o núcleo fora do centro */
+    estado.campo = null; estado.toque = null; estado.olhar = null;
     relogio = MONTA + ASSENTA + 1;
     acender();
     if (cena) { cena.medir(); cena.desenhar(estado); }
@@ -251,8 +251,6 @@
        justo quando estava no meio da tela, com os arcos sobre o texto */
     var alvoAbertura = limitar((rolagem - caixaTopo) / caixaAltura);
     estado.abertura += (alvoAbertura - estado.abertura) * Math.min(1, dt * 4);
-    estado.px += (alvo.px - estado.px) * Math.min(1, dt * 2.5);
-    estado.py += (alvo.py - estado.py) * Math.min(1, dt * 2.5);
     gesto.passo(dt, estado);
 
     cena.desenhar(estado);
@@ -322,13 +320,6 @@
     /* o three reconstrói o contexto perdido (iPhone ao voltar de outro app);
        no modo parado ninguém redesenharia sem este aviso */
     ouvir(canvas, 'webglcontextrestored', function () { sujo = true; }, false);
-    if (ponteiroFino) {
-      ouvir(hero, 'pointermove', function (e) {
-        alvo.px = (e.clientX / window.innerWidth - 0.5) * 2;
-        alvo.py = (e.clientY / window.innerHeight - 0.5) * 2;
-      }, { passive: true });
-      ouvir(hero, 'pointerleave', function () { alvo.px = 0; alvo.py = 0; }, { passive: true });
-    }
     /* o interruptor de movimento do rodapé (ou o sistema) manda */
     var aoReduzir = function (sim) { if (sim) pararMontado(); else parado = false; };
     B.on('reduzir', aoReduzir);

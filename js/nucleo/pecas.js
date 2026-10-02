@@ -222,8 +222,10 @@ const FLUXO_FS = /* glsl */`
   }
 `;
 
-/* os raios de energia: faixas do portal ao núcleo; aU 0 (fora) → 1 (dentro),
-   aV −1…1 através. Os pulsos correm para dentro, todos em fase */
+/* os raios e os jatos: faixas com aU 0…1 ao longo e aV −1…1 através. UMA
+   frente de energia por fôlego (uFrente, em aU), com rastro atrás dela;
+   uDir +1 corre para aU maior (raios: para dentro), −1 para menor (jatos:
+   para fora). uPulso: a força da frente; uBase: o canal aceso */
 const RAIO_VS = /* glsl */`
   attribute float aU;
   attribute float aV;
@@ -236,9 +238,9 @@ const RAIO_VS = /* glsl */`
 `;
 const RAIO_FS = /* glsl */`
   uniform vec3 uCor;
-  uniform float uTempo;
-  uniform float uN;
-  uniform float uVel;
+  uniform float uFrente;
+  uniform float uDir;
+  uniform float uPulso;
   uniform float uAlfa;
   uniform float uBase;
   uniform float uCauda;
@@ -246,10 +248,11 @@ const RAIO_FS = /* glsl */`
   varying float vU;
   varying float vV;
   void main() {
-    float f = fract(vU * uN - uTempo * uVel);
+    float d = (vU - uFrente) * uDir;   /* > 0: à frente da cabeça; < 0: o rastro */
+    float pulso = d > 0.0 ? exp(-d * d * 800.0) : exp(d / uCauda);
     float atravessa = 1.0 - vV * vV;
     float pontas = smoothstep(0.0, 0.12, vU) * (1.0 - smoothstep(0.82, 1.0, vU));
-    float b = (pow(f, uCauda) + uBase) * atravessa * atravessa * pontas;
+    float b = (pulso * uPulso + uBase) * atravessa * atravessa * pontas;
     gl_FragColor = vec4(uCor, b * uAlfa * uForca);
     #include <colorspace_fragment>
   }
@@ -529,6 +532,7 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
   raiz.add(fio);
 
   const R = SPEC.raios;
+  let fluxoRaios, fluxoJatos;   /* os uniforms da frente de energia (atualizar) */
   {
     const n = R.n, pos = [], u = [], v = [], idx = [];
     for (let i = 0; i < n; i++) {
@@ -548,15 +552,16 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
     geo.setAttribute('aV', new THREE.BufferAttribute(new Float32Array(v), 1));
     geo.setIndex(idx);
     const raios = new THREE.Mesh(geo, shader(RAIO_VS, RAIO_FS, {
-      uCor: { value: cor(R.cor) }, uTempo: { value: 0 }, uN: { value: R.pulsos }, uVel: { value: R.vel },
+      uCor: { value: cor(R.cor) }, uFrente: { value: 0 }, uDir: { value: 1 }, uPulso: { value: 0 },
       uAlfa: { value: R.alfa }, uBase: { value: R.base }, uCauda: { value: R.cauda }, uForca: { value: 0 }
     }, A.raios, true));
     roda.add(raios);
+    fluxoRaios = raios.material.uniforms;
   }
 
-  /* os jatos: duas faixas no eixo vertical, mesmo shader dos raios com os
-     pulsos correndo para fora (velocidade negativa). aU 0 na ponta, 1 no
-     núcleo: as pontas esmaecem nos dois lados */
+  /* os jatos: duas faixas no eixo vertical, mesmo shader dos raios com a
+     frente correndo para fora (uDir −1). aU 0 na ponta, 1 no núcleo: as
+     pontas esmaecem nos dois lados */
   const J = SPEC.jatos;
   {
     const pos = [], u = [], v = [], idx = [];
@@ -574,10 +579,11 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
     geo.setAttribute('aV', new THREE.BufferAttribute(new Float32Array(v), 1));
     geo.setIndex(idx);
     const jatos = new THREE.Mesh(geo, shader(RAIO_VS, RAIO_FS, {
-      uCor: { value: cor(J.cor) }, uTempo: { value: 0 }, uN: { value: J.pulsos }, uVel: { value: -J.vel },
+      uCor: { value: cor(J.cor) }, uFrente: { value: 0 }, uDir: { value: -1 }, uPulso: { value: 0 },
       uAlfa: { value: J.alfa }, uBase: { value: J.base }, uCauda: { value: J.cauda }, uForca: { value: 0 }
     }, A.jatos, true));
     raiz.add(jatos);
+    fluxoJatos = jatos.material.uniforms;
   }
 
   /* os lampejos de injeção: 12 pontos onde os raios tocam o portal, um
@@ -624,7 +630,8 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
   paineis[1].respira = RS.petalas;
   /* quanto a camada [atraso, amp] cresceu no instante t */
   const respira = (t, c) => folego(t - c[0], RS.periodo, RS.inspira) * c[1];
-  const SEM_CAMPO = { x: 0, y: 0, f: 0 }, SEM_TOQUE = { x: 0, y: 0, t: -1 };
+  const SEM_CAMPO = { x: 0, y: 0, f: 0 }, SEM_TOQUE = { x: 0, y: 0, t: -1 }, SEM_OLHAR = { x: 0, y: 0, f: 0 };
+  const OL = SPEC.olhar;
   const centro = new THREE.Vector3();
 
   const TR = SPEC.tracejado;
@@ -763,13 +770,14 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
 
   /* ---------- por quadro ---------- */
   /* estado: { t (s), montagem 0–1, abertura 0–1, ignicao 0–1+, desdeIgnicao
-     (s, −1 antes), px, py (−1–1), giroExtra (rad, o impulso da rolagem),
-     campo { x, y, f } (o ponteiro no plano do reator, força 0–1), toque
-     { x, y, t } (onde e há quantos s; t < 0: nenhum) }. Os três últimos são
-     opcionais (o laboratório e o vídeo podem não ter) */
+     (s, −1 antes), giroExtra (rad, o impulso da rolagem), campo { x, y, f }
+     (o ponteiro no plano do reator, força 0–1), toque { x, y, t } (onde e
+     há quantos s; t < 0: nenhum), olhar { x, y, f } (a direção do cursor,
+     comprimento ≤ 1) }. Os quatro últimos são opcionais (o laboratório e o
+     vídeo podem não ter) */
   function atualizar(e) {
     const t = e.t, m = e.montagem, ab = e.abertura;
-    const c = e.campo || SEM_CAMPO, tq = e.toque || SEM_TOQUE;
+    const c = e.campo || SEM_CAMPO, tq = e.toque || SEM_TOQUE, o = e.olhar || SEM_OLHAR;
     /* o núcleo clareia ao inspirar (±luz/2 em volta do repouso) */
     const ig = e.ignicao * (1 + RS.luz * (folego(t - RS.nucleo[0], RS.periodo, RS.inspira) - 0.5));
     const forca = ig * (1 - ab * 0.6);
@@ -781,10 +789,10 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
     const frente = tocando ? TQ.vel * tq.t : 0;
     const forcaOnda = tocando ? (1 - tq.t / TQ.dura) ** 2 : 0;
 
-    /* inclina ao ponteiro e balança devagar: mostra a profundidade sem
-       perder a simetria de frente */
-    raiz.rotation.x = SPEC.inclina + e.py * 0.2 + Math.sin(t * 0.09) * 0.05;
-    raiz.rotation.y = e.px * 0.28 + Math.sin(t * 0.12) * 0.14;
+    /* balança devagar, sozinho: mostra a profundidade sem perder a simetria
+       de frente. NÃO segue o cursor (pedido do dono: só o núcleo segue) */
+    raiz.rotation.x = SPEC.inclina + Math.sin(t * 0.09) * 0.05;
+    raiz.rotation.y = Math.sin(t * 0.12) * 0.14;
 
     roda.rotation.z = giro;
     const foraPortal = P.raio * respira(t, RS.portal);
@@ -825,26 +833,38 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
     matRegua.opacity = G.alfa * aparece;
     matReguaLonga.opacity = G.alfaLonga * aparece;
     matFio.opacity = P.fio.alfa * aparece;
-    /* o bisel corre uma volta a cada `volta` s, ao contrário do tracejado */
-    const aB = (t / P.bisel.volta) * TAU;
-    vidro.uniforms.uBisel.value.set(Math.cos(aB), Math.sin(aB), P.bisel.alfa);
+    /* o bisel corre uma volta a cada `volta` s; com o cursor no hero ele
+       vira para o lado do cursor (o anel reflete a sua luz), pelo caminho
+       mais curto. No mundo o plano do reator está inclinado: o y encolhe */
+    /* A mistura é de DIREÇÕES (vetores), não de ângulos: misturar ângulos
+       saltava ~50° toda vez que a volta própria passava pelo lado oposto ao
+       cursor (revisão de código) */
+    const aB = (t / P.bisel.volta) * TAU, w = o.f * OL.bisel;
+    let bx = Math.cos(aB), by = Math.sin(aB);
+    if (w > 0.001) {
+      const cx = o.x, cy = o.y * Math.cos(SPEC.inclina), r = Math.hypot(cx, cy);
+      if (r > 1e-3) { bx = mistura(bx, cx / r, w); by = mistura(by, cy / r, w); }
+      const rb = Math.hypot(bx, by) || 1;
+      bx /= rb; by /= rb;
+    }
+    vidro.uniforms.uBisel.value.set(bx, by, P.bisel.alfa);
     for (let i = 0; i < matTrilhos.length; i++) matTrilhos[i].mat.opacity = matTrilhos[i].alfa * aparece;
-    /* o núcleo segue o ponteiro com atraso (quem amacia é o boot), só um
-       pouco; a lente vai a meio caminho, o resto fica: lê como profundidade */
-    nucleo.position.set(c.x * CA.nucleo * c.f, c.y * CA.nucleo * c.f, 0);
+    /* o olhar: o núcleo vai na direção do cursor (quem amacia é o gesto); a
+       lente vai parte do caminho e o resto fica: lê como profundidade */
+    nucleo.position.set(o.x * OL.alcance * o.f, o.y * OL.alcance * o.f, 0);
     const escLente = 1 + respira(t, RS.lente);
     for (let i = 0; i < lente.length; i++) {
       const l = lente[i];
       l.anel.rotation.z = t * l.d.vel;
-      l.anel.position.set(nucleo.position.x * 0.5, nucleo.position.y * 0.5, 0);
+      l.anel.position.set(nucleo.position.x * OL.lente, nucleo.position.y * OL.lente, 0);
       l.anel.scale.setScalar(escLente);
       l.mat.opacity = l.d.alfa * aparece * (0.3 + 0.7 * ig);
     }
 
     /* o relógio dos shaders dá a volta a cada VOLTA s: o uniform é float32 e
        depois de horas o passo dele passaria de um quadro (a energia
-       gaguejaria). Em 400 s todo t·vel dos pulsos fecha inteiro (0,22, 0,14,
-       0,3 e 0,625 × 400), então a volta não aparece; no disco ela troca as
+       gaguejaria). Em 400 s todo t·vel dos pulsos dos anéis fecha inteiro
+       (0,22, 0,14 e 0,3 × 400), então a volta não aparece; no disco ela troca as
        partículas de lugar num quadro, com a mesma distribuição. Material
        apagado nem é desenhado (a montagem é a fase mais cara). */
     const desde = e.desdeIgnicao;
@@ -857,15 +877,22 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
       mat.visible = f > 0.002;
     }
 
-    /* a batida: o núcleo cresce um pouco a cada chegada dos pulsos dos raios
-       (a cabeça chega à ponta de dentro quando t·vel passa por 0,7 mod 1) */
-    const fase = (((t * R.vel - 0.7) % 1) + 1) % 1;
-    const batida = (1 + R.batida * Math.exp(-fase * 9) * ig) * (1 + (tocando ? TQ.batida * Math.exp(-tq.t * 6) : 0));
+    /* o ciclo da energia, preso ao fôlego do núcleo (x: 0 → 1 por fôlego).
+       Inspira: a frente entra pelo portal (o lampejo) e é puxada pelos raios,
+       acelerando, até o núcleo, onde chega no fôlego cheio (x = inspira) e
+       ele bate. Expira: os jatos soltam a energia para fora. */
+    const x = ((((t - RS.nucleo[0]) / RS.periodo) % 1) + 1) % 1;
+    const insp = RS.inspira;
+    fluxoRaios.uFrente.value = (x / insp) ** R.puxa;   /* passa de 1 depois da chegada: o rastro entra no núcleo e some */
+    fluxoRaios.uPulso.value = suave(x / 0.05);
+    const xs = (x - insp) / (1 - insp);                 /* 0 → 1 no expirar */
+    fluxoJatos.uFrente.value = xs < 0 ? 2 : 1 - xs * J.solta;
+    fluxoJatos.uPulso.value = xs < 0 ? 0 : suave(xs / 0.04) * (1 - xs);
+    const chegou = xs < 0 ? 99 : xs * (1 - insp) * RS.periodo;   /* s desde a chegada */
+    const batida = (1 + R.batida * Math.exp(-chegou * 5) * ig) * (1 + (tocando ? TQ.batida * Math.exp(-tq.t * 6) : 0));
     const inspira = 1 + respira(t, RS.nucleo);
-    /* o lampejo: a cabeça do pulso parte da borda (u = 0) quando t·vel passa
-       por um inteiro; pisca e some em `dura` s */
-    const partiu = ((((t * R.vel) % 1) + 1) % 1) / R.vel;
-    const lampejo = desde < A.raios ? 0 : LP.alfa * Math.max(0, 1 - partiu / LP.dura) * forca;
+    /* o lampejo: a energia entra pelo portal no começo do fôlego */
+    const lampejo = desde < A.raios ? 0 : LP.alfa * Math.max(0, 1 - (x * RS.periodo) / LP.dura) * forca;
     matLampejo.opacity = lampejo;
     matLampejo.visible = lampejo > 0.002;
 

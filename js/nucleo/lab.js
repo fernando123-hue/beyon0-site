@@ -15,7 +15,7 @@ const cena = gl && criarCena(canvas, gl, { celular: q.has('celular') });
 if (!cena) {
   info.textContent = 'sem WebGL';
 } else {
-  const estado = { t: n('t', 12), montagem: n('m', 1), abertura: n('a', 0), ignicao: n('ig', 1), desdeIgnicao: n('d', 99), px: n('px', 0), py: n('py', 0),
+  const estado = { t: n('t', 12), montagem: n('m', 1), abertura: n('a', 0), ignicao: n('ig', 1), desdeIgnicao: n('d', 99), olhar: { x: n('ox', 0), y: n('oy', 0), f: n('of', 0) },
     campo: { x: n('cx', 0), y: n('cy', 0), f: n('cf', 0) }, toque: { x: n('tx', 0), y: n('ty', 0), t: n('tt', -1) }, giroExtra: n('g', 0) };
   if (q.has('anim')) {
     const t0 = performance.now();

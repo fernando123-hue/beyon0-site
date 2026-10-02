@@ -54,19 +54,25 @@ export const SPEC = {
     { raio: 0.28, tubo: 0.004, cor: 'ac', alfa: 0.5, vel: 0.12 }
   ],
 
-  /* os raios de energia: a energia dominante. 12 feixes do portal ao núcleo,
-     pulsos correndo PARA DENTRO, em fase, chegando a cada 1/vel s (1,6 s); o
-     núcleo bate a cada chegada. `largura` fora, `ponta` dentro (piso de 1 px);
-     `cauda`: expoente do pulso (3,4 ≈ 18% do raio) */
-  raios: { n: 12, de: 0.9, ate: 0.16, largura: 0.012, ponta: 0.006, pulsos: 2, vel: 0.625, cauda: 3.4, cor: 'ac', alfa: 0.95, base: 0.11, batida: 0.08,
+  /* os raios de energia: 12 canais do portal ao núcleo. A energia corre
+     neles UMA vez por fôlego (pedido do dono: os pulsos de 1,6 s "pareciam
+     avulsos, sem sentido lógico"): entra pelo portal no começo da
+     inspiração (o lampejo), é puxada para o centro acelerando (`puxa`:
+     expoente do caminho) e chega no instante em que o núcleo está cheio,
+     que então bate (`batida`). O canal fica aceso (`base`): o pulso corre
+     num trilho, não flutua. `largura` fora, `ponta` dentro (piso de 1 px);
+     `cauda`: o rastro, em fração do comprimento */
+  raios: { n: 12, de: 0.9, ate: 0.16, largura: 0.012, ponta: 0.006, puxa: 1.6, cauda: 0.24, cor: 'ac', alfa: 0.95, base: 0.2, batida: 0.12,
     /* a injeção: onde cada raio toca o portal, um lampejo discreto na partida
        de cada pulso (forte, lia como rebites — rodada 6) */
     lampejo: { alfa: 0.3, dura: 0.4, escala: 0.055 } },
 
   /* os jatos: o eixo vertical (no lugar do anel vertical, que com o disco
      formava o símbolo do átomo). Terminam logo depois do portal (mais longos,
-     com o traço, formavam uma mira — rodada 6), pulsos PARA FORA */
-  jatos: { comp: 0.9, de: 0.09, largura: [0.006, 0.02], pulsos: 2, vel: 0.625, cauda: 7, cor: 'ac', alfa: 0.55, base: 0.22 },
+     com o traço, formavam uma mira — rodada 6). A outra metade do fôlego:
+     ao expirar, o núcleo solta a energia que os raios trouxeram, PARA FORA,
+     pelos jatos (`solta`: quantos comprimentos a frente anda no expirar) */
+  jatos: { comp: 0.9, de: 0.09, largura: [0.006, 0.02], solta: 1.5, cauda: 0.3, cor: 'ac', alfa: 0.55, base: 0.22 },
 
   /* o disco: matéria em órbita só DENTRO da lente, no plano do equador
      (π/2: horizontal; com a inclinação vira uma elipse fina). As de dentro
@@ -133,11 +139,18 @@ export const SPEC = {
 
   /* o campo: o ponteiro (ou o dedo) como uma força no plano do reator. As
      lâminas perto dele se afastam (`empurra`) e se erguem para a câmera
-     (`ergue`), caindo em `raio`; o núcleo segue com atraso, só um pouco
-     (`nucleo`, a lente vai a meio caminho) e clareia quando o ponteiro chega
+     (`ergue`), caindo em `raio`; o núcleo clareia quando o ponteiro chega
      perto dele (`perto`, `brilho`). `acende`: quanto o cristal tocado
      ganha de luz (×(1 + acende) no centro do campo e na frente da onda) */
-  campo: { raio: 0.32, empurra: 0.075, ergue: 0.14, nucleo: 0.035, perto: 0.4, brilho: 0.22, acende: 2.2 },
+  campo: { raio: 0.32, empurra: 0.075, ergue: 0.14, perto: 0.4, brilho: 0.22, acende: 2.2 },
+
+  /* o olhar: o corpo do reator NÃO segue o cursor (pedido do dono); só o
+     núcleo, como um olho, em qualquer ponto do hero. `alcance`: o quanto
+     ele se desloca na direção do cursor (unidades do spec; o portal é ~1);
+     a lente vai `lente` do caminho (profundidade). E o bisel do portal
+     vira para o cursor: o anel reflete a sua luz (`bisel`: quanto do
+     caminho até o ângulo do cursor ele faz) */
+  olhar: { alcance: 0.075, lente: 0.45, bisel: 1 },
 
   /* o toque: um clique ou toque no reator solta uma onda que sai do ponto
      tocado e atravessa as lâminas (`vel` unidades/s, `largura` da frente),

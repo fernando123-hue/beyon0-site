@@ -18,6 +18,9 @@
    mole, o campo parecia atrasado demais em relação à mão */
 const MOLA = 60;
 const AMORTECE = 2 * Math.sqrt(MOLA);
+/* o olhar do núcleo: mais mole que o campo (um olho acompanha com atraso) */
+const MOLA_OLHAR = 22;
+const AMORTECE_OLHAR = 2 * Math.sqrt(MOLA_OLHAR);
 const FORCA_SOBE = 4;      /* /s: o campo aparece... */
 const FORCA_DESCE = 1.6;   /* ...e se desfaz mais devagar, como água assentando */
 const ALCANCE = 1.35;      /* raio do reator (spec) onde o ponteiro ainda age */
@@ -37,6 +40,7 @@ export function criarGesto(cena, canvas, alvoEventos, { fino = false, ouvir } = 
   const ret = { x: 0, y: 0, w: 1, h: 1 };   /* o canvas, em coordenadas da PÁGINA */
   const ponto = { x: 0, y: 0 };
   const vel = { x: 0, y: 0 };
+  const velOlhar = { x: 0, y: 0 };
   let rolagem = window.scrollY, rolagemAntes = rolagem, impulso = 0;
 
   function medir() {
@@ -47,12 +51,15 @@ export function criarGesto(cena, canvas, alvoEventos, { fino = false, ouvir } = 
     ret.h = Math.max(1, r.height);
   }
 
-  /* coordenadas da janela → plano do reator; false se fora do alcance */
-  function noReator(cx, cy, saida) {
+  /* coordenadas da janela → plano do reator (false se o raio não cruza) */
+  function noPlano(cx, cy, saida) {
     const x = ((cx + window.scrollX - ret.x) / ret.w) * 2 - 1;
     const y = 1 - ((cy + rolagem - ret.y) / ret.h) * 2;
-    return cena.projetar(x, y, saida) && Math.hypot(saida.x, saida.y) < ALCANCE;
+    return cena.projetar(x, y, saida);
   }
+  /* ...e só se cair no reator (onde o campo e o toque agem) */
+  const dentroDoReator = (p) => Math.hypot(p.x, p.y) < ALCANCE;
+  const noReator = (cx, cy, saida) => noPlano(cx, cy, saida) && dentroDoReator(saida);
 
   const anotar = (e) => { ponteiro.cx = e.clientX; ponteiro.cy = e.clientY; ponteiro.ativo = true; };
   if (fino) {
@@ -75,12 +82,28 @@ export function criarGesto(cena, canvas, alvoEventos, { fino = false, ouvir } = 
   liga(alvoEventos, 'pointercancel', (e) => { inicio.id = -1; if (e.pointerType === 'touch') ponteiro.ativo = false; }, { passive: true });
   liga(window, 'scroll', () => { rolagem = window.scrollY; }, { passive: true });
 
-  /* um quadro: dt em s; escreve campo, toque e giroExtra em `e` */
+  /* um quadro: dt em s; escreve olhar, campo, toque e giroExtra em `e` */
   function passo(dt, e) {
     const c = e.campo || (e.campo = { x: 0, y: 0, f: 0 });
     const tq = e.toque || (e.toque = { x: 0, y: 0, t: -1 });
+    const o = e.olhar || (e.olhar = { x: 0, y: 0, f: 0 });
 
-    const dentro = ponteiro.ativo && noReator(ponteiro.cx, ponteiro.cy, ponto);
+    /* o olhar: em qualquer ponto do hero o núcleo vai na direção do cursor
+       (ou do dedo); dentro do reator até onde ele está, fora só a direção
+       (comprimento 1). Sem cursor, volta ao centro */
+    let ox = 0, oy = 0;
+    const visto = ponteiro.ativo && noPlano(ponteiro.cx, ponteiro.cy, ponto);
+    if (visto) {
+      const r = Math.hypot(ponto.x, ponto.y), k = r > 1 ? 1 / r : 1;
+      ox = ponto.x * k; oy = ponto.y * k;
+    }
+    velOlhar.x += (MOLA_OLHAR * (ox - o.x) - AMORTECE_OLHAR * velOlhar.x) * dt;
+    velOlhar.y += (MOLA_OLHAR * (oy - o.y) - AMORTECE_OLHAR * velOlhar.y) * dt;
+    o.x += velOlhar.x * dt;
+    o.y += velOlhar.y * dt;
+    o.f += ((visto ? 1 : 0) - o.f) * Math.min(1, dt * 2);
+
+    const dentro = visto && dentroDoReator(ponto);   /* a mesma projeção do olhar */
     if (dentro) {
       /* campo apagado: nasce onde está a mão (sem varrer o reator vindo do
          último lugar onde esteve) */
