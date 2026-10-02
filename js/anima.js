@@ -12,7 +12,7 @@
    conteúdo se move, nunca o contêiner. Só transform/opacity/visibility.
 
    Três pesos de entrada (rodada 4), e só estes:
-   - pesado: linhas de h1/h2 sobem atrás da máscara (yPercent 108, .95s, stagger .09);
+   - pesado: linhas de h1/h2 sobem atrás da máscara (yPercent 135, .95s, stagger .09);
    - médio: cartões e linhas (y 14, .8s, stagger .12; na malha, onda diagonal);
    - leve: kicker, lead e nota, só opacidade (.5s, power2.out).
 
@@ -177,6 +177,11 @@
       };
 
       var tl = gsap.timeline({ defaults: { ease: EXPO } });
+      var tag = linha && linha.querySelector('.feixe__tag');
+      if (tag && largo) {
+        tl.fromTo(tag, { opacity: 0 }, { opacity: 1, duration: .2, ease: 'none' }, tFeixe(220));
+        tl.to(tag, { opacity: 0, duration: .3, ease: 'none' }, tFeixe(vw * .8));
+      }
       if (linha) tl.fromTo(linha, largo ? { x: '-20vw' } : { y: '-15vh' }, largo ? { x: '110vw', duration: T, ease: 'none' } : { y: '110vh', duration: T, ease: 'none' }, 0);
       if (nav) {
         tl.to(nav, { opacity: 1, duration: .5 }, 0);
@@ -209,8 +214,8 @@
         }
       }
 
-      /* o parágrafo é o LCP no celular: entra cedo (no máx. 0,3s), junto da última linha do título; esperar a luz descer até ele custava 0,3s de LCP (medido) */
-      var tCol = sub ? (largo ? tEm(sub) : Math.min(tEm(sub), .3)) : .5;
+      /* o parágrafo é o LCP: entra cedo (no máx. 0,3s); esperar a luz chegar até ele custava 0,3s de LCP (medido no celular na rodada 3 e no desktop na 5, com o hero em largura total) */
+      var tCol = sub ? Math.min(tEm(sub), .3) : .5;
       if (sub) tl.fromTo(sub, { y: 18 }, { opacity: 1, y: 0, duration: .9 }, tCol + .05);
       if (acoes) tl.fromTo(acoes, { y: 14 }, { opacity: 1, y: 0, duration: .9 }, tCol + .15);
       if (fine) tl.to(fine, { opacity: 1, duration: .7 }, tCol + .25);
@@ -321,7 +326,7 @@
     if (h && !h._partido) {
       h._partido = true;
       var sp = partir(h, 'lines');
-      if (sp && sp.lines.length) gsap.from(sp.lines, { yPercent: 108, duration: .95, delay: .25, stagger: .09, ease: EXPO, onComplete: function () { sp.revert(); h.classList.add('is-lit'); } });
+      if (sp && sp.lines.length) gsap.from(sp.lines, { yPercent: 135, duration: .95, delay: .25, stagger: .09, ease: EXPO, onComplete: function () { sp.revert(); h.classList.add('is-lit'); } });
       else h.classList.add('is-lit');
     }
     var regua = cabeca.parentNode.querySelector('.conversa__regua');
@@ -345,7 +350,7 @@
     if (kick) tl.fromTo(kick, { opacity: 0 }, { opacity: 1, duration: .5, ease: 'power2.out', clearProps: 'all' }, 0);
     var sp = partir(h, 'words');
     if (sp && sp.words && sp.words.length) {
-      gsap.set(sp.words, { yPercent: 100 });
+      gsap.set(sp.words, { yPercent: 130 });
       sp.words.forEach(function (wd) { tl.to(wd, { yPercent: 0, duration: .7, ease: EXPO }, quando(wd)); });
       var em = h.querySelector('em');
       tl.add(function () { h.classList.add('is-lit'); }, em ? quando(em) + .1 : T);
@@ -398,8 +403,30 @@
       try {
         mm = gsap.matchMedia();
         mm.add('(min-width: 981px) and (prefers-reduced-motion: no-preference)', function () { return palco(); });
+        mm.add('(prefers-reduced-motion: no-preference)', function () {
+          var desfazer = [].map.call(document.querySelectorAll('.passos'), rota).filter(Boolean);
+          return function () { desfazer.forEach(function (f) { f(); }); };
+        });
         /* celular: sem hover, o item no meio da tela é o "em foco" (índice âmbar,
            régua acesa). Classe por evento de rolagem, nada por quadro. */
+        /* celular: a pilha tem profundidade. Quando o próximo cartão chega, o de
+           baixo recua (scale .94 e esmaece um pouco), conduzido pela rolagem.
+           Só transform/opacity; sem JS a pilha sticky de CSS continua igual. */
+        mm.add('(max-width: 620px) and (prefers-reduced-motion: no-preference)', function () {
+          if (!ST || html.classList.contains('menos-movimento')) return;
+          var navH = document.querySelector('.nav') ? document.querySelector('.nav').offsetHeight : 64;
+          ['.laudo', '.servicos--pilha'].forEach(function (sel) {
+            var pilha = document.querySelector(sel);
+            if (!pilha) return;
+            var cards = [].slice.call(pilha.children);
+            cards.forEach(function (card, i) {
+              var prox = cards[i + 1];
+              if (!prox) return;
+              gsap.to(card, { scale: .94, opacity: .55, transformOrigin: '50% 0', ease: 'none',
+                scrollTrigger: { trigger: prox, start: 'top bottom', end: 'top ' + (navH + 12 + 10 * (i + 1)) + 'px', scrub: true } });
+            });
+          });
+        });
         mm.add('(max-width: 860px) and (prefers-reduced-motion: no-preference)', function () {
           if (!ST || html.classList.contains('menos-movimento')) return;
           gsap.utils.toArray('.servico, .laudo__row, .celula, .passo').forEach(function (el) {
@@ -439,14 +466,92 @@
     }
   }
 
+  /* ---------- A ROTA: do problema ao sistema no ar (os passos) ----------
+     O H1 vira caminho. Um traço nasce embaraçado (o problema), se desenha
+     pelos nós do método conforme a rolagem (scrub) e termina num LED com
+     "no ar". Um cometa de 48px corre na ponta. Cada etapa acende quando o
+     traço chega nela (classe por evento). O SVG é criado aqui e medido no
+     refresh; sem GSAP, com movimento reduzido ou no interruptor, nada disso
+     existe e fica o trilho de CSS de sempre. Repinta só a caixa do SVG e só
+     enquanto se rola (medido em fps.mjs). */
+  var SVG = 'http://www.w3.org/2000/svg';
+  function rota(passos) {
+    if (!ST || html.classList.contains('menos-movimento')) return null;
+    var nos = [].slice.call(passos.querySelectorAll('.passo'));
+    if (nos.length < 2) return null;
+    var svg = document.createElementNS(SVG, 'svg');
+    svg.setAttribute('class', 'rota'); svg.setAttribute('aria-hidden', 'true'); svg.setAttribute('focusable', 'false');
+    var base = document.createElementNS(SVG, 'path'); base.setAttribute('class', 'rota__base');
+    var cometa = document.createElementNS(SVG, 'path'); cometa.setAttribute('class', 'rota__luz');
+    svg.appendChild(base); svg.appendChild(cometa);
+    var fim = document.createElement('span'); fim.className = 'rota__fim'; fim.setAttribute('aria-hidden', 'true'); fim.textContent = 'no ar';
+    passos.appendChild(svg); passos.appendChild(fim);
+    passos.classList.add('passos--rota');
+    var L = 1, fr = [];
+    function medir() {
+      var box = passos.getBoundingClientRect();
+      var horizontal = window.innerWidth >= 821;
+      var pts = nos.map(function (no) { var r = no.getBoundingClientRect(); return horizontal ? { x: r.left - box.left + 5.5, y: r.top - box.top + 5.5 } : { x: r.left - box.left + 5.5, y: r.top - box.top + 10.5 }; });
+      /* o caminho é montado nó a nó; guardar o trecho que termina em cada nó dá
+         a fração exata em que ele é alcançado com uma medida por nó (a
+         amostragem com getPointAtLength custava ~400 ms de tarefa longa e
+         atrasava o LCP — medido na rodada 5) */
+      var p0 = pts[0], d, ate = [];
+      if (horizontal) {
+        d = 'M' + (p0.x - 72) + ' ' + p0.y + ' q8 -12 16 0 t16 0 t16 0 L' + p0.x + ' ' + p0.y;
+        ate.push(d);
+        for (var i = 1; i < pts.length; i++) { d += ' H' + (pts[i].x - 24) + ' l8 -8 h8 l8 8'; ate.push(d); }
+        d += ' h40';
+      } else {
+        d = 'M' + p0.x + ' ' + (p0.y - 72) + ' q12 8 0 16 t0 16 t0 16 L' + p0.x + ' ' + p0.y;
+        ate.push(d);
+        for (var j = 1; j < pts.length; j++) { d += ' V' + (pts[j].y - 24) + ' l8 8 v8 l-8 8'; ate.push(d); }
+        d += ' v40';
+      }
+      var parciais = ate.map(function (trecho) { base.setAttribute('d', trecho); return base.getTotalLength(); });
+      base.setAttribute('d', d); cometa.setAttribute('d', d);
+      L = base.getTotalLength();
+      base.style.strokeDasharray = L + ' ' + L;
+      cometa.style.strokeDasharray = '48 ' + L;
+      fr = parciais.map(function (l) { return l / L; });
+      var ponta = base.getPointAtLength(L);
+      fim.style.left = ponta.x + 'px'; fim.style.top = ponta.y + 'px';
+    }
+    medir();
+    ST.addEventListener('refreshInit', medir);
+    var marcar = function (p) {
+      for (var i = 0; i < nos.length; i++) nos[i].classList.toggle('is-alcancado', p >= fr[i] - .005);
+      fim.classList.toggle('is-no-ar', p >= .985);
+    };
+    var prog = { p: 0 };
+    var tw = gsap.fromTo(prog, { p: 0 }, { p: 1, ease: 'none', immediateRender: true,
+      onUpdate: function () {
+        base.style.strokeDashoffset = L - prog.p * L;
+        cometa.style.strokeDashoffset = 48 - prog.p * L;
+        marcar(prog.p);
+      },
+      scrollTrigger: { trigger: passos, start: 'top 72%', end: 'bottom 58%', scrub: .6 } });
+    base.style.strokeDashoffset = L; cometa.style.strokeDashoffset = 48;
+    return function () {
+      ST.removeEventListener('refreshInit', medir);
+      if (tw.scrollTrigger) tw.scrollTrigger.kill();
+      tw.kill();
+      passos.classList.remove('passos--rota');
+      nos.forEach(function (no) { no.classList.remove('is-alcancado'); });
+      if (svg.parentNode) svg.parentNode.removeChild(svg);
+      if (fim.parentNode) fim.parentNode.removeChild(fim);
+    };
+  }
+
   /* ---------- O PALCO DA PROVA (desktop, com movimento) ----------
      O momento de assinatura: a prova fica fixa na tela e a luz atravessa
-     três vezes. Em cada passagem ela IMPRIME um número: uma máscara cuja
-     borda anda no centro da luz revela a leitura nova à esquerda e apaga a
-     anterior à direita. A rolagem conduz (scrub) e assenta em cada leitura
-     (snap). O passo "01 / 03" e a barra dizem onde se está. Só transform e
-     opacity; larguras como função (invalidateOnRefresh): redimensionar
-     recalcula. Os números já estão escritos: nada conta aqui. */
+     três vezes. Em cada passagem UMA borda conduz tudo: o centro da luz.
+     À esquerda dela a leitura nova já está impressa, à direita a anterior
+     ainda está; as duas máscaras são sempre complementares, para frente e
+     para trás (rodada 5: duas larguras e duas durações deixavam dois números
+     sobrepostos quando a rolagem parava no meio). As três máscaras têm a
+     mesma largura, medida no refresh (el.style uma vez, nunca por quadro).
+     Só transform/opacity; quickSetter na borda. Nada conta aqui. */
   function palco() {
     var prova = document.querySelector('.prova');
     var luz = prova && prova.querySelector('.varredura');
@@ -456,56 +561,65 @@
     var itens = visiveis(prova.querySelectorAll('.prova__item'));
     if (!itens.length) { prova.classList.remove('prova--palco'); return; }
     itens.forEach(function (it) { it.classList.add('is-lit'); });
-    var idx = prova.querySelector('.prova__idx'), barra = prova.querySelector('.prova__barra');
-    var W = function () { return prova.clientWidth; }, w = function () { return luz.offsetWidth; };
+    var indice = [].slice.call(prova.querySelectorAll('.prova__indice li'));
+    var barra = prova.querySelector('.prova__barra');
+    var W = 0, w = 0;
     var partes = itens.map(function (it) {
-      var m = it.querySelector('.prova__mascara');
-      return { m: m, t: it.querySelector('.prova__tinta'), rot: it.querySelector('.prova__rot'),
-        px: function () { return m.getBoundingClientRect().left - prova.getBoundingClientRect().left; },
-        wm: function () { return m.offsetWidth; } };
+      var m = it.querySelector('.prova__mascara'), t = it.querySelector('.prova__tinta');
+      return { m: m, t: t, rot: it.querySelector('.prova__rot'), sm: gsap.quickSetter(m, 'x', 'px'), st: gsap.quickSetter(t, 'x', 'px'), left: 0, wm: 0 };
     });
-    var total = itens.length, atual = 0;
-    var tl = gsap.timeline({ scrollTrigger: {
-      trigger: sec, start: 'center center', end: '+=150%', pin: true, scrub: .5, refreshPriority: 1, invalidateOnRefresh: true,
-      snap: { snapTo: 'labelsDirectional', duration: { min: .2, max: .5 }, ease: 'power2.inOut', delay: .1 },
+    var setLuz = gsap.quickSetter(luz, 'x', 'px');
+    var mostrar = function (p, k) { p.sm(k - p.wm); p.st(p.wm - k); };   /* k px impressos a partir da esquerda */
+    var apagar = function (p, k) { p.sm(k); p.st(-k); };                 /* k px apagados a partir da esquerda */
+    function medir() {
+      partes.forEach(function (p) { p.m.style.width = ''; });
+      var L = Math.max.apply(null, partes.map(function (p) { return p.m.scrollWidth; }));
+      var base = prova.getBoundingClientRect().left;
+      partes.forEach(function (p) { p.m.style.width = L + 'px'; p.wm = L; p.left = p.m.getBoundingClientRect().left - base - (gsap.getProperty(p.m, 'x') || 0); });
+      W = prova.clientWidth; w = luz.offsetWidth;
+    }
+    medir();
+    partes.forEach(function (p) { mostrar(p, 0); });
+    setLuz(-w);
+    ST.addEventListener('refreshInit', medir);
+    var total = partes.length, atual = 0;
+    var tl = gsap.timeline({
+      /* o índice segue a timeline (já com o atraso do scrub), não a rolagem */
       onUpdate: function () {
-        /* o número atual muda quando a impressão do seguinte passa da metade */
         var n = 1;
         for (var k = 1; k < total; k++) if (tl.time() >= k * 1.4 + .5) n = k + 1;
-        if (n !== atual && idx) { atual = n; idx.textContent = (n < 10 ? '0' : '') + n + ' / ' + (total < 10 ? '0' : '') + total; }
+        if (n === atual) return;
+        atual = n;
+        indice.forEach(function (li, j) { li.classList.toggle('is-atual', j === n - 1); });
+      },
+      scrollTrigger: {
+        trigger: sec, start: 'center center', end: '+=150%', pin: true, scrub: .5, refreshPriority: 1,
+        snap: { snapTo: 'labelsDirectional', duration: { min: .2, max: .5 }, ease: 'power2.inOut', delay: .1, inertia: false }
       }
-    } });
-    /* tudo em fromTo com partida explícita: um `to` relia a partida depois do
-       refresh (invalidateOnRefresh) e a máscara e a tinta se desencontravam.
-       As revelações nascem aplicadas (immediateRender): os três números
-       começam escondidos e o primeiro é impresso na 1ª passagem. */
-    var esc = function (p) { return function () { return -p.wm(); }; };
-    var dir = function (p) { return function () { return p.wm(); }; };
+    });
+    /* um rótulo no começo: rolar para cima a partir da 1ª leitura sai do palco, não volta a ela */
+    tl.addLabel('inicio', 0);
     partes.forEach(function (p, i) {
-      var s = i * 1.4;
-      /* a borda da máscara segue o centro da luz: começa quando o centro chega à
-         borda esquerda do número e dura o tempo de atravessá-lo */
-      var px = p.m.getBoundingClientRect().left - prova.getBoundingClientRect().left;
-      var ini = s + (px + w() / 2) / (W() + w()), dur = p.wm() / (W() + w());
-      tl.fromTo(luz, { x: function () { return -w(); }, opacity: 1 }, { x: W, duration: 1, ease: 'none', immediateRender: false }, s);
-      tl.fromTo(p.m, { x: esc(p) }, { x: 0, duration: dur, ease: 'none', immediateRender: true }, ini);
-      tl.fromTo(p.t, { x: dir(p) }, { x: 0, duration: dur, ease: 'none', immediateRender: true }, ini);
-      if (p.rot) tl.fromTo(p.rot, { opacity: 0 }, { opacity: 1, duration: .3, ease: 'power2.out', immediateRender: true }, ini + dur * .5);
-      var ant = partes[i - 1];
-      if (ant) {
-        tl.fromTo(ant.m, { x: 0 }, { x: dir(ant), duration: dur, ease: 'none', immediateRender: false }, ini);
-        tl.fromTo(ant.t, { x: 0 }, { x: esc(ant), duration: dur, ease: 'none', immediateRender: false }, ini);
-        if (ant.rot) tl.fromTo(ant.rot, { opacity: 1 }, { opacity: 0, duration: .2, ease: 'power2.in', immediateRender: false }, ini);
-      }
+      var s = i * 1.4, ant = partes[i - 1], b = { e: 0 };
+      tl.fromTo(b, { e: 0 }, { e: 1, duration: 1, ease: 'none', immediateRender: false, onUpdate: function () {
+        var cx = b.e * (W + w) - w / 2;
+        setLuz(cx - w / 2);
+        mostrar(p, gsap.utils.clamp(0, p.wm, cx - p.left));
+        if (ant) apagar(ant, gsap.utils.clamp(0, ant.wm, cx - ant.left));
+      } }, s);
+      var meio = s + (p.left + p.wm / 2 + w / 2) / (W + w);
+      if (p.rot) tl.fromTo(p.rot, { opacity: 0 }, { opacity: 1, duration: .3, ease: 'power2.out', immediateRender: true }, meio);
+      if (ant && ant.rot) tl.fromTo(ant.rot, { opacity: 1 }, { opacity: 0, duration: .2, ease: 'power2.in', immediateRender: false }, s + (ant.left + w / 2) / (W + w));
       tl.addLabel('n' + i, s + 1.05);
     });
-    tl.set(luz, { opacity: 0 }, (total - 1) * 1.4 + 1.05);
     if (barra) tl.fromTo(barra, { scaleX: 0 }, { scaleX: 1, ease: 'none', duration: tl.duration() }, 0);
     return function () {
+      ST.removeEventListener('refreshInit', medir);
       prova.classList.remove('prova--palco');
+      partes.forEach(function (p) { p.m.style.width = ''; });
       var limpar = [luz, barra].concat(partes.map(function (p) { return p.m; }), partes.map(function (p) { return p.t; }), partes.map(function (p) { return p.rot; })).filter(Boolean);
       gsap.set(limpar, { clearProps: 'opacity,transform' });
-      if (idx) idx.textContent = '01 / ' + (total < 10 ? '0' : '') + total;
+      indice.forEach(function (li) { li.classList.remove('is-atual'); });
     };
   }
   /* liga depois do boot: não revela cedo demais nem compete com o hero */

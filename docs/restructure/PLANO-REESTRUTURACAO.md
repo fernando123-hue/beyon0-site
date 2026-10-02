@@ -1072,6 +1072,42 @@ atrasava o parágrafo do hero (o LCP) em ~0,3s. Ele entra no máximo em
 Estado medido no fim da rodada 3: verificador 10/10, acessibilidade 23/23,
 60 fps em 1440/900/390. Capturas novas em `docs/olhar-v44/`.
 
+| Rodada | Notas (júri · tipo · motion · celular) | Commit | O que entrou |
+|---|---|---|---|
+| 4 (sobre V4.4) | 5,8 · 6,5 · 6,3 · 6,2 (média 6,2) | `9d69d65` (V4.5) | a luz IMPRIME a prova (máscara cuja borda segue o centro da luz, `palco()` com fromTo de partida explícita, snap por leitura, passo "01 / 03"); feixe vira fio de 1px com halo .07 e etiqueta do boot real; H1 até 6,75rem; `B.num` (pt-BR) em `core.js`; cascata por papel; pilha sticky no celular; FAQ em duas colunas; Conversa como clímax; View Transitions só em CSS; revelações em três pesos; hover de visor |
+
+Descartado na rodada 4 (síntese do painel): console sobreposto ao H1
+(invade o AI Core), glifos SVG por serviço, rótulo que rola nos botões,
+ponto final do H1 como LED (mexe no LCP), somar os ms da cascata (dado
+falso). Não aplicado por decisão minha: a máscara no celular (o `contar` já
+dá o gesto; esconder antes do gatilho arriscava conteúdo preso).
+
+Achados de implementação: `tl.to` dentro de timeline com
+`invalidateOnRefresh` relia a partida no refresh e desencontrava máscara e
+tinta (corrigido com fromTo); a máscara com line-height .78 cortava topo e
+vírgula (folga com padding + margem negativa); a leitura "movimento
+reduzido" estourava 320px com `nowrap` (liberada a quebra). Recarregar no
+meio do palco assenta na leitura mais próxima (snap): comportamento pedido.
+
+| Rodada | Notas (júri · tipo · motion · celular) | Commit | O que entrou |
+|---|---|---|---|
+| 5 (sobre V4.5) | 6 · 6,5 · 6,2 · 6,3 (média 6,25) | V4.6 | máscaras do SplitText com folga (nenhuma descendente cortada); palco com UMA borda conduzindo luz, número que entra e número que sai (sempre complementares; largura comum medida no refresh; índice "01 carga / 02 peso / 03 movimento"); hero em largura total (o feixe vai de ponta a ponta), etiqueta só no boot; grade de 12 colunas no desktop; seção de título fixo em Garantias e no problema da Automação; console enxuto; janela do Sites sem rascunho de blocos; escala de display em 5 tokens; **a rota dos passos** (do problema embaraçado ao LED "no ar", conduzida pela rolagem); menu do celular em tela cheia; pilha com profundidade; espaçamento de letras em 3 tokens; corpo único de 16px |
+
+Achados da rodada 5 (medidos): (1) o ScrollTrigger religa
+`scroll-behavior: smooth` inline a cada refresh se o detectou ao nascer, e
+com rolagem suave o snap rastejava sem assentar: a página nasce sem
+rolagem suave no desktop com movimento (CSS em `tokens.css`); (2) o snap
+com inércia pulava da 1ª direto para a 3ª leitura: `inertia: false`;
+(3) a rota amostrando `getPointAtLength` gerava uma tarefa longa de ~400 ms
+que atrasava o LCP: fração exata medindo o trecho até cada nó; (4) com o
+hero em largura total a luz chega ~0,1 s mais tarde ao parágrafo (o LCP):
+ele entra no máximo em 0,3 s também no desktop; (5) o lead maior da
+Conversa virava LCP quando a página rola por script: voltou ao tamanho de
+lead. Não aplicado: imprimir o H1 por opacidade (o portão de LCP pedia
+A/B e o ganho visual era pequeno); formatos do cartão como links (o cartão
+já é um link; link dentro de link é inválido). Revisão de código da V4.5:
+1 alto, 3 médios, 3 baixos, todos corrigidos.
+
 ### 16.3 O que falta (próximo passo exato)
 
 1. **Rodada 4** do painel sobre `docs/olhar-v44/` (já capturada; se sumiu,

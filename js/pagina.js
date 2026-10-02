@@ -56,6 +56,7 @@
       var fechar = function (devolverFoco) {
         if (!navEl.classList.contains('is-open')) return;
         navEl.classList.remove('is-open');
+        document.body.classList.remove('is-menu');
         toggle.setAttribute('aria-expanded', 'false');
         menuAberto = false; mostrarBarra();
         if (devolverFoco) toggle.focus();
@@ -63,6 +64,7 @@
       toggle.addEventListener('click', function () {
         var abrindo = !navEl.classList.contains('is-open');
         navEl.classList.toggle('is-open', abrindo);
+        document.body.classList.toggle('is-menu', abrindo);   /* menu em tela cheia: a página por trás não rola */
         toggle.setAttribute('aria-expanded', abrindo ? 'true' : 'false');
         menuAberto = abrindo; mostrarBarra();
       });
@@ -219,15 +221,9 @@
       t.textContent = fmt(ultimo);
     }
   }
-  var consoleVp = document.querySelectorAll('[data-console-vp]');
-  function viewport() { for (var v = 0; v < consoleVp.length; v++) { consoleVp[v].textContent = window.innerWidth + '×' + window.innerHeight; carimbar(consoleVp[v]); } }
-  if (consoleVp.length) {
-    viewport();
-    var vpTimer = 0;
-    window.addEventListener('resize', function () { clearTimeout(vpTimer); vpTimer = setTimeout(viewport, 150); }, { passive: true });
-    /* rede: se alguma medida não vier, o console fecha mesmo assim, 3s depois do load */
-    window.addEventListener('load', function () { setTimeout(function () { imprimirLog(document.querySelector('[data-console]'), true); }, 3000); }, { once: true });
-  }
+  /* rede: se alguma medida não vier, o console fecha mesmo assim, 3s depois do load */
+  var consoleEl = document.querySelector('[data-console]');
+  if (consoleEl) window.addEventListener('load', function () { setTimeout(function () { imprimirLog(consoleEl, true); }, 3000); }, { once: true });
   /* bytes deste domínio nesta visita. `encodedBodySize` em vez de
      `transferSize`: o segundo zera em revisita (cache), e o número passaria a
      depender do cache em vez do site. */
@@ -274,13 +270,14 @@
     var ultimo = lista.reduce(function (m, x) { return x.fim > m.fim ? x : m; }, lista[0]);
     for (var k = 0; k < lista.length; k++) {
       var e = lista[k];
-      var linha = document.createElement('div'); linha.className = 'cascata__linha' + (e === ultimo ? ' cascata__linha--maior' : '');
+      var linha = document.createElement('div'); linha.className = 'cascata__linha' + (e === ultimo ? ' cascata__linha--ultimo' : '');
       var nome = document.createElement('span'); nome.className = 'cascata__nome'; nome.textContent = e.nome;
       var trilho = document.createElement('span'); trilho.className = 'cascata__trilho';
       var barra = document.createElement('i'); barra.className = 'cascata__barra';
       barra.style.left = (e.ini / total * 100).toFixed(2) + '%';
       barra.style.width = Math.max(2, (e.fim - e.ini) / total * 100).toFixed(2) + '%';
-      var ms = document.createElement('span'); ms.className = 'cascata__ms'; ms.textContent = B.num(Math.round(e.fim)) + ' ms';
+      var ms = document.createElement('span'); ms.className = 'cascata__ms'; /* o tempo só na linha do grupo que terminou por último: grupos paralelos empatam e o número repetido parecia cópia */
+      ms.textContent = e === ultimo ? B.num(Math.round(e.fim)) + ' ms' : '';
       trilho.appendChild(barra); linha.appendChild(nome); linha.appendChild(trilho); linha.appendChild(ms);
       cascata.appendChild(linha);
     }
@@ -295,7 +292,7 @@
     if (elCarga.length && nav.domContentLoadedEventEnd > 0) escrever(elCarga, B.num(nav.domContentLoadedEventEnd / 1000, 2), 's');
     /* a etiqueta do feixe: o tempo real deste boot, escrito uma vez */
     var tag = document.querySelector('[data-feixe-tag]');
-    if (tag && !tag.textContent && nav.domContentLoadedEventEnd > 0) tag.textContent = 'varredura · ' + B.num(nav.domContentLoadedEventEnd / 1000, 2) + ' s';
+    if (tag && !tag.textContent && nav.domContentLoadedEventEnd > 0) tag.textContent = 'pronta em ' + B.num(nav.domContentLoadedEventEnd / 1000, 2) + ' s';
     var total = bytesDaOrigem(nav);
     if (total > 0 && elPeso.length) escrever(elPeso, B.num(Math.round(total / 1024)), 'KB');
   }

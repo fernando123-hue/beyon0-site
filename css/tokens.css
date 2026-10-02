@@ -71,24 +71,34 @@
   --fs-rotulo: .6875rem;   /* 11px: mono em caixa alta (índice, rótulo) */
   --fs-ctrl:   .75rem;     /* 12px: kicker, status, botão, nav, chip */
   --fs-s:      .875rem;    /* 14px: nota, fine, legenda */
-  --fs-m:      .9375rem;   /* 15px: corpo de cartão e lista */
+  --fs-m:      var(--fs-b);   /* um corpo só: 16px também em cartão e lista (rodada 5) */
   --fs-b:      1rem;       /* 16px: corpo */
   --fs-l:      clamp(1.0625rem, 1rem + .2vw, 1.1875rem);   /* lead: 17 → 19px */
+  /* a escala de display: nenhum título fora destes cinco */
+  --fs-d1: clamp(3.6rem, 1rem + 5.6vw, 6.75rem);         /* H1 do hub (desktop) */
+  --fs-d2: clamp(2.75rem, 1rem + 5vw, 6rem);             /* Conversa: o fecho, um degrau abaixo do H1 */
+  --fs-d3: clamp(2.9rem, 1.2rem + 3.6vw, 4.4rem);        /* H1 longo (desktop) */
+  --fs-h2: clamp(2rem, 1.3rem + 2.4vw, 3.5rem);          /* h2 de seção */
+  --fs-h2-lateral: clamp(2.25rem, 1rem + 2vw, 2.75rem);  /* cabeça de seção fixa e do FAQ */
   --h3-cartao: clamp(1.4rem, 1.2rem + 1.2vw, 1.9rem);
   --h3-linha:  clamp(1.1875rem, 1.05rem + .6vw, 1.5rem);   /* 19 → 24px */
   /* o espaçamento do mono em caixa alta: dois valores, não sete */
   --tr-rotulo: .14em;   /* 11px: índice, rótulo, HUD */
   --tr-ctrl:   .08em;   /* 12-13px: kicker, nav, botão, link */
+  --tr-dado:   .02em;   /* mono minúsculo: console, cascata, fluxo, etiqueta */
 
   /* ---- MÉTRICA (celular primeiro) ---- */
   --maxw: 1200px;
   --pad:  clamp(20px, 5vw, 64px);
+  --gut:  clamp(24px, 2.5vw, 36px);   /* o vão da grade de 12 colunas (desktop) */
   --nav-h: 64px;
   /* três respiros, não um só */
   --sp-1: clamp(32px, 4vw, 48px);
   --sp-2: clamp(56px, 7vw, 96px);
   --sp-3: clamp(72px, 9vw, 144px);
   --raio:   6px;
+  /* as três artes do hero (console, janela, instrumento) no mesmo plano */
+  --sombra-arte: inset 0 1px 0 rgb(255 255 255 / .1), 0 40px 80px -40px rgb(0 0 0 / .95);
   --raio-s: 4px;
 
   /* ---- MOVIMENTO — vocabulário fechado ---- */
@@ -110,6 +120,12 @@ html {
   -webkit-text-size-adjust: 100%;
   color-scheme: dark;
 }
+/* desktop com movimento: rolagem direta. O snap do palco da prova escreve
+   scrollTo a cada quadro e, com rolagem suave, o navegador reiniciava a
+   animação em cada escrita: a página rastejava sem assentar (revisão da
+   rodada 4). Tem de ser CSS desde o início: o ScrollTrigger detecta a
+   rolagem suave ao nascer e a religa inline a cada refresh. */
+@media (min-width: 981px) and (prefers-reduced-motion: no-preference) { html.has-gsap { scroll-behavior: auto; } }
 body {
   position: relative;
   background: var(--bg);
