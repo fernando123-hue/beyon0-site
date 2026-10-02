@@ -201,7 +201,21 @@ html.tem-menu .nav.is-open .nav__links { max-height: calc(100dvh - var(--nav-h))
 /* sem JS ninguém a mostra: nasce visível */
 html:not(.js) .barra.is-oculta { transform: none; opacity: 1; pointer-events: auto; visibility: visible; }
 @media (min-width: 981px) { .barra { display: none; } }
-@media (max-width: 980px) { body { padding-bottom: 68px; } }
+@media (max-width: 980px) {
+  body { padding-bottom: 76px; }
+  /* a barra é uma DOCA escura flutuante; o botão é contornado, não uma placa
+     ciano sólida em toda tela (o ciano cheio fica no hero e na Conversa) */
+  .barra { left: 12px; right: 12px; bottom: max(12px, env(safe-area-inset-bottom)); padding: 6px; border: 1px solid var(--line-2); border-radius: var(--raio); background: rgb(11 16 22 / .84); box-shadow: inset 0 1px 0 rgb(255 255 255 / .06), 0 18px 40px -14px rgb(0 0 0 / .95); }
+  .barra .btn--primary { background-color: rgb(var(--ac-rgb) / .1); color: var(--ac); border-color: rgb(var(--ac-rgb) / .42); }
+  .barra .btn--primary:hover { background-color: rgb(var(--ac-rgb) / .16); }
+  .barra .btn--primary::after { background: linear-gradient(90deg, rgb(var(--ac-rgb) / 0) 0%, rgb(var(--ac-rgb) / .14) 92%, var(--ac) 99%, rgb(var(--ac-rgb) / 0) 100%); }
+}
+@media (max-width: 620px) {
+  /* a seta do CTA vira célula de ação */
+  .btn--primary [data-seta="direita"] { display: grid; place-items: center; width: 32px; height: 32px; margin-right: -.45rem; border-left: 1px solid rgb(var(--ac-rgb) / .25); transition: transform 90ms var(--ease); }
+  .hero__actions .btn--primary [data-seta="direita"], .cta__acoes .btn--primary [data-seta="direita"] { border-left-color: rgb(var(--ac-tinta-rgb) / .25); }
+  .btn--primary:active [data-seta="direita"] { transform: translateX(4px); }
+}
 
 /* ---- HERO ----
    Celular: status, título, texto+CTA, arte, trilha (uma coluna). Desktop:
@@ -234,7 +248,7 @@ html:not(.js) .barra.is-oculta { transform: none; opacity: 1; pointer-events: au
 /* no celular o segundo CTA vira link de texto: um botão só na primeira tela */
 @media (max-width: 620px) {
   /* o h2 do celular um degrau abaixo do H1 longo (razão ~1,3×) */
-  h2 { line-height: 1.06; letter-spacing: -.028em; }
+  h2 { line-height: 1.05; letter-spacing: -.032em; }
   .hero__title { margin-bottom: 1.4rem; }
   .hero__fine { margin-top: 1.1rem; padding-top: .9rem; border-top: 1px solid var(--line); }
   .hero__sub { font-size: 1rem; line-height: 1.5; max-width: 34ch; margin-bottom: 1.2rem; }
@@ -249,6 +263,14 @@ html:not(.js) .barra.is-oculta { transform: none; opacity: 1; pointer-events: au
   .hero__actions .btn--ghost:hover { color: var(--ac); }
   .hero__actions .btn--ghost::after { display: none; }
 }
+/* a COTA do H1 (rodada 7): linha de cota que a luz desenha sob o título,
+   com a 1ª pintura real desta visita. Largura = a linha mais larga do h1
+   (anima.js mede uma vez). Estática e visível sem JS e em movimento reduzido. */
+.hero__cota { position: relative; display: grid; grid-template-columns: 1px 1fr 1px; align-items: center; height: 12px; max-width: 100%; margin: 0 0 30px; }
+.hero__cota-linha { height: 1px; background: var(--line-hi); transform-origin: left; }
+.hero__cota-tick { height: 9px; background: var(--t3); }
+.hero__cota-rot { position: absolute; right: 0; top: calc(100% + 6px); font-family: var(--mono); font-size: var(--fs-rotulo); font-weight: 500; line-height: 1; letter-spacing: var(--tr-dado); color: var(--t3); white-space: nowrap; }
+.hero__cota-rot b { color: var(--ac); font-weight: 500; font-variant-numeric: tabular-nums; }
 .hero__fine { margin-top: .8rem; max-width: 46ch; font-size: var(--fs-s); line-height: 1.55; color: var(--t3); }
 /* a arte: lugar reservado ao AI Core futuro (hoje: console, janela, instrumento) */
 .hero__arte { position: relative; margin-top: clamp(28px, 6vw, 48px); perspective: 1200px; }
@@ -281,7 +303,8 @@ html:not(.js) .barra.is-oculta { transform: none; opacity: 1; pointer-events: au
 /* uma medida só por tela: no Hub o console já mostra a carga; a pílula da
    trilha sai (e no celular, onde a trilha é só a pílula, a trilha inteira) */
 .hero:has(.console) .hero__rail--medida { display: none; }
-@media (max-width: 620px) { .hero:has(.console) .hero__rail { display: none; } }
+/* no celular a trilha é só a medida; sem medida (Hub, Sites) ela sai */
+@media (max-width: 620px) { .hero:has(.console) .hero__rail, .hero__rail:not(:has(.hero__rail--medida)) { display: none; } }
 @media (max-width: 860px) { .janela .adesivo { display: none; } }
 @media (min-width: 621px) {
   .hero__actions { flex-direction: row; flex-wrap: wrap; }
@@ -309,15 +332,15 @@ html:not(.js) .barra.is-oculta { transform: none; opacity: 1; pointer-events: au
   .hero__arte > .console { flex: 1; min-height: 0; }
   .hero__arte > .janela, .hero__arte > .instrumento { flex: 0 0 auto; width: 100%; align-self: center; }
   .hero__rail { grid-area: rail; grid-template-columns: repeat(4, 1fr); margin-top: clamp(32px, 5vh, 56px); }
-  .hero:has(.console) .hero__rail { grid-template-columns: repeat(3, 1fr); }
+  .hero:has(.console) .hero__rail, .hero__rail:not(:has(.hero__rail--medida)) { grid-template-columns: repeat(3, 1fr); }
   .hero__rail .hero__rail--medida { display: flex; flex-direction: column; justify-content: flex-start; align-items: stretch; gap: .3rem; }
   /* o H1 domina a primeira tela; o console é instrumento de apoio */
   h1 { font-size: var(--fs-d1); line-height: .9; letter-spacing: -.045em; }
   .hero__title { margin-left: -.055em; }
   .hero__status { margin-left: calc(-1 * (6px + .6rem)); }   /* o ponto pendura na margem */
   .hero--longo h1 { font-size: var(--fs-d3); line-height: .95; letter-spacing: -.042em; }
-  /* a base da arte na linha da base dos botões */
-  .hero--longo .hero__arte > .janela, .hero--longo .hero__arte > .instrumento { align-self: end; }
+  /* o topo da arte na linha das maiúsculas do H1, como o console do hub */
+  .hero--longo .hero__arte > .janela, .hero--longo .hero__arte > .instrumento { align-self: start; margin-top: calc(var(--fs-d3) * .14); }
   .hero__sub { max-width: 50ch; font-size: clamp(1.0625rem, .95rem + .45vw, 1.25rem); margin-bottom: 1.6rem; }
 }
 
@@ -367,18 +390,19 @@ html:not(.js) .barra.is-oculta { transform: none; opacity: 1; pointer-events: au
 /* no boot o halo é mais forte (a luz se lê como causa); no loop, discreto. Troca por classe, uma vez */
 .feixe:not(.is-loop) .feixe__linha::before { background: linear-gradient(90deg, rgb(var(--ac-rgb) / 0), rgb(var(--ac-rgb) / .12) 50%, rgb(var(--ac-rgb) / 0)); }
 html:not(.has-gsap) .feixe__linha { animation: feixe 26s linear infinite; }
-html.has-gsap .feixe.is-loop .feixe__linha { animation: feixe 18s linear infinite; }
+/* duas passagens e para: depois disso nada se move sozinho no hero (rodada 7) */
+html.has-gsap .feixe.is-loop .feixe__linha { animation: feixe 18s linear 2 both; }
 .hero.is-fora .feixe__linha, .hero.is-fora .feixe ~ * .console__led, .hero.is-fora .feixe ~ * .instrumento__led { animation-play-state: paused; }
 /* a luz é um EVENTO, não um brilho parado: cruza em ~6,8s e some por ~11s */
 @keyframes feixe { 0% { transform: translateX(-20vw); opacity: 0; } 3% { opacity: 1; } 30% { opacity: 1; } 33%, 100% { transform: translateX(110vw); opacity: 0; } }
 /* o loop tem consequência: a aresta da trilha acende enquanto a luz passa */
 @keyframes trilha-glint { 0%, 5% { opacity: .55; } 8%, 30% { opacity: 1; } 33%, 100% { opacity: .55; } }
-html.has-gsap .feixe.is-loop ~ .hero__rail .hero__rail-aresta { animation: trilha-glint 18s linear infinite; }
+html.has-gsap .feixe.is-loop ~ .hero__rail .hero__rail-aresta { animation: trilha-glint 18s linear 2 both; }
 /* e os LEDs piscam uma vez por passagem, no mesmo relógio de 18s */
 @keyframes led-passa { 0%, 100% { opacity: 1; } 2% { opacity: .25; } 5% { opacity: 1; } }
 html.has-gsap .feixe.is-loop ~ .hero__status .dot,
 html.has-gsap .feixe.is-loop ~ .hero__arte .console__led,
-html.has-gsap .feixe.is-loop ~ .hero__arte .instrumento__led { animation: led-passa 18s linear infinite; }
+html.has-gsap .feixe.is-loop ~ .hero__arte .instrumento__led { animation: led-passa 18s linear 2 both; }
 /* celular: a luz varre de cima para baixo, numa faixa horizontal, em vez de
    uma coluna parada atrás do título */
 @keyframes feixe-y { 0% { transform: translateY(-15vh); opacity: 0; } 3% { opacity: 1; } 30% { opacity: 1; } 33%, 100% { transform: translateY(110vh); opacity: 0; } }
@@ -428,3 +452,12 @@ html.has-gsap .feixe.is-loop ~ .hero__arte .instrumento__led { animation: led-pa
 .wa:hover { border-color: var(--ac); color: var(--ac); box-shadow: 0 0 24px -6px rgb(var(--ac-rgb) / .5); }
 .wa.is-oculta { opacity: 0; transform: translateY(8px); pointer-events: none; }
 @media (min-width: 981px) { .wa { display: grid; } }
+
+/* a nav no eixo da coluna de conteúdo (logo em 184, CTA termina em 1256 a
+   1440) e com dois papéis: âncoras desta página em mono; outras páginas em
+   Sora, depois de um vão (rodada 7) */
+.nav { padding-inline: max(var(--pad), calc((100% - var(--maxw)) / 2 + var(--pad))); }
+@media (min-width: 981px) {
+  .nav__links a[href^="/"]:not(.btn) { font-family: var(--sans); font-weight: 400; text-transform: none; letter-spacing: 0; font-size: var(--fs-s); color: var(--t1); }
+  .nav__sep { width: 0; margin-left: 4px; background: none; }
+}

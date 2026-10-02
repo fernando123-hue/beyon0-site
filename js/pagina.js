@@ -174,6 +174,23 @@
   var elFps = document.querySelectorAll('[data-metrica="fps"]');
   var elCarga = document.querySelectorAll('[data-metrica="carga"]');
   var elPeso = document.querySelectorAll('[data-metrica="peso"]');
+  /* a cota do H1: a 1ª pintura desta visita (FCP), medida pelo navegador.
+     O Element Timing não serve: depois do SplitText o texto do h1 vive em
+     filhos e a entrada não vem. Sem FCP, a cota some (data-metrica-caixa). */
+  var elFcp = document.querySelectorAll('[data-metrica="fcp"]');
+  function escreverFcp(ms) {
+    for (var q = 0; q < elFcp.length; q++) if (elFcp[q].textContent === '—') elFcp[q].textContent = B.num(ms / 1000, 2);
+  }
+  if (elFcp.length && window.performance && performance.getEntriesByName) {
+    var fcp = performance.getEntriesByName('first-contentful-paint')[0];
+    if (fcp) escreverFcp(fcp.startTime);
+    else if (window.PerformanceObserver) {
+      try { new PerformanceObserver(function (l, obs) { var e = l.getEntriesByName('first-contentful-paint')[0]; if (e) { escreverFcp(e.startTime); obs.disconnect(); } }).observe({ type: 'paint', buffered: true }); } catch (e) { /* sem suporte */ }
+    }
+    window.addEventListener('load', function () { setTimeout(function () {
+      for (var q = 0; q < elFcp.length; q++) if (elFcp[q].textContent === '—') { var cx = elFcp[q].closest('.hero__cota'); if (cx) cx.hidden = true; }
+    }, 3000); }, { once: true });
+  }
   /* valor e unidade separados: na prova a unidade fica subordinada (<small>);
      nos demais alvos vira texto. Dois createElement: nada de innerHTML. */
   /* `data-so-numero`: a unidade é um nó fixo no HTML ao lado (console) */

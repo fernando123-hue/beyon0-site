@@ -1108,6 +1108,17 @@ A/B e o ganho visual era pequeno); formatos do cartão como links (o cartão
 já é um link; link dentro de link é inválido). Revisão de código da V4.5:
 1 alto, 3 médios, 3 baixos, todos corrigidos.
 
+| Rodada | Notas (júri · tipo · motion · celular) | Commit | O que entrou |
+|---|---|---|---|
+| 6 (sobre V4.6) | 6 · 6,3 · 6 · 5,5 (média 5,95, **primeira queda**) | `504432c` + `dcb8561` (V4.7) | acabamento das peças novas, que apareceram quebradas nas capturas: palco medido pela largura de layout e pintado por UMA função a partir do tempo da timeline; rota com "ainda não" em cor AA; pilha esmaecendo o miolo (o texto de baixo vazava); fecho sem colisão e com a 2ª frase em linha própria; **tinta molhada** (a palavra fica ciano quando a luz passa e seca) e a luz pousando no CTA com um fio âmbar; prova do celular acendendo item a item; cartão grande com texto no pé; hierarquia nas seções de título fixo; sai o HUD e a frase da barra (uma gramática só); menu inerte por trás e fechando ao alargar; âncora direta refeita depois do refresh |
+
+Achado da rodada 6 (medido): o `scrollWidth` da máscara somava o
+deslocamento por transform da tinta, e a largura crescia ~377px a cada
+refresh do ScrollTrigger (até 2168px depois de alguns redimensionamentos).
+Regra: medir sempre largura de LAYOUT (`offsetWidth`) de quem é movido por
+transform. Critério de parada: a rodada 6 caiu; se a 7 não subir, o loop
+para (duas rodadas seguidas sem subir).
+
 ### 16.3 O que falta (próximo passo exato)
 
 1. **Rodada 4** do painel sobre `docs/olhar-v44/` (já capturada; se sumiu,

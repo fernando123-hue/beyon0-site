@@ -34,7 +34,7 @@
   var reduzido = B.reduced;
   var splits = [];   /* todo SplitText vivo, para reverter se o movimento for reduzido no meio */
   var HERO_PECAS = '.hero__status, .hero__sub, .hero__actions, .hero__fine, .hero__arte, .hero__rail, .nav';
-  var LIMPAR = '.reveal, .reveal > *, .section__head > *, .hero__rail > *, .hero__rail-aresta, .conversa__regua, .console__linha > *, .console__medida, .nav__links > *, .feixe__linha, .hero__title, .split-word, .instrumento__nivel, .instrumento__val, .prova__item, .prova__mascara, .prova__tinta, .prova__rot, .prova__barra, .varredura, ' + HERO_PECAS;
+  var LIMPAR = '.reveal, .reveal > *, .section__head > *, .hero__rail > *, .hero__rail-aresta, .conversa__regua, .console__linha > *, .console__medida, .nav__links > *, .feixe__linha, .hero__title, .split-word, .instrumento__nivel, .instrumento__val, .hero__cota-linha, .hero__cota-tick, .hero__cota-rot, .btn__canto, .prova__item, .prova__mascara, .prova__tinta, .prova__rot, .prova__barra, .varredura, ' + HERO_PECAS;
 
   function acender(sel) { var els = document.querySelectorAll(sel); for (var i = 0; i < els.length; i++) els[i].classList.add('is-lit'); }
 
@@ -137,12 +137,28 @@
     }, fim);
   }
 
+  /* a cota mede a linha mais LARGA do h1 (Range sobre o texto já dividido),
+     uma vez no boot e de novo a cada refresh; el.style uma vez, nunca por quadro */
+  function medirCota(cota, titulo) {
+    try {
+      var rg = document.createRange(); rg.selectNodeContents(titulo);
+      var rs = rg.getClientRects(), esq = titulo.getBoundingClientRect().left, dir = esq;
+      for (var i = 0; i < rs.length; i++) dir = Math.max(dir, rs[i].right);
+      var max = cota.parentNode.getBoundingClientRect().width;
+      cota.style.width = Math.min(max, Math.max(48, dir - esq)) + 'px';
+    } catch (e) { /* sem Range: a cota fica na largura do bloco */ }
+  }
+  if (ST) ST.addEventListener('refreshInit', function () {
+    var c = document.querySelector('.hero__cota'), t = document.querySelector('.hero__title');
+    if (c && t) medirCota(c, t);
+  });
+
   /* "tinta molhada": a palavra fica ciano no instante em que a luz passa por
      ela e seca para o branco; a ênfase (em) fica ciano. Classe por palavra,
      nada por quadro; o ciano em texto continua só no H1 e na Conversa. */
   function tinta(tl, palavra, t) {
     tl.add(function () { palavra.classList.add('is-tinta'); }, t);
-    if (!palavra.closest('em')) tl.add(function () { palavra.classList.remove('is-tinta'); }, t + .18);
+    if (!palavra.closest('em')) tl.add(function () { palavra.classList.remove('is-tinta'); }, t + .32);
   }
 
   /* ---------- BOOT DO HERO: a luz passa e imprime ---------- */
@@ -169,10 +185,15 @@
     var largo = window.innerWidth >= 861;
 
     try {
-      var T = largo ? 1.8 : 1.2;
       var vw = window.innerWidth, vh = window.innerHeight;
       var fx = feixe ? feixe.getBoundingClientRect().left : 0;
       var topo = hero ? hero.getBoundingClientRect().top : 0;
+      /* celular: a luz LÊ o título. Desce rápido até o topo do H1 (.22s),
+         atravessa o H1 devagar (.85s) e sai (.4s). Antes cruzava o título em
+         ~0,2s e não se lia como causa (rodada 7). h0/h1 relativos ao hero. */
+      var tr = titulo ? titulo.getBoundingClientRect() : null;
+      var h0 = tr ? tr.top - topo - 24 : 0, h1 = tr ? tr.bottom - topo + 24 : vh * .5;
+      var T = largo ? 1.8 : 1.47;
       /* desktop: o instante em que o centro da faixa cruza um x da tela */
       var tFeixe = function (px) { return Math.max(0, Math.min(T, T * ((px - fx) / vw + .20) / 1.30)); };
       /* o instante de uma peça: no desktop a luz corre da esquerda para a
@@ -181,7 +202,9 @@
       var tEm = function (el, frac) {
         var r = el.getBoundingClientRect();
         if (largo) return tFeixe(r.left + r.width * (frac || 0));
-        return Math.max(0, .1 + Math.min(1.1, (r.top - topo) / vh * 1.4) + (r.left / vw) * .2);
+        var meio = r.top + r.height * .5 - topo;
+        if (meio > h1) return Math.min(1.2, 1.07 + (meio - h1) / vh * .6);   /* abaixo do título: logo depois que a luz sai dele */
+        return Math.max(0, Math.min(1.07, .22 + (meio - h0) / Math.max(1, h1 - h0) * .85 + (r.left / vw) * .12));
       };
 
       var tl = gsap.timeline({ defaults: { ease: EXPO } });
@@ -190,7 +213,13 @@
         tl.fromTo(tag, { opacity: 0 }, { opacity: 1, duration: .2, ease: 'none' }, tFeixe(220));
         tl.to(tag, { opacity: 0, duration: .3, ease: 'none' }, tFeixe(vw * .8));
       }
-      if (linha) tl.fromTo(linha, largo ? { x: '-20vw' } : { y: '-15vh' }, largo ? { x: '110vw', duration: T, ease: 'none' } : { y: '110vh', duration: T, ease: 'none' }, 0);
+      if (linha && largo) tl.fromTo(linha, { x: '-20vw' }, { x: '110vw', duration: T, ease: 'none' }, 0);
+      if (linha && !largo) {
+        tl.fromTo(linha, { y: '-15vh' }, { y: h0, duration: .22, ease: 'power2.in' }, 0);
+        tl.to(linha, { y: h1, duration: .85, ease: 'none' }, .22);
+        tl.to(linha, { y: vh * 1.1, duration: .4, ease: 'power2.in' }, 1.07);
+        tl.to(linha, { opacity: 0, duration: .15, ease: 'none' }, 1.32);
+      }
       if (nav) {
         tl.to(nav, { opacity: 1, duration: .5 }, 0);
         tl.from(nav.querySelectorAll('.nav__links > *'), { y: -8, opacity: 0, duration: .8, stagger: .05, clearProps: 'all' }, .15);
@@ -205,13 +234,13 @@
           /* O TÍTULO É O LCP: 45% já pintado no primeiro quadro. Cada palavra
              sobe quando a luz chega nela; palavras na mesma coluna sobem
              juntas, em qualquer largura: a luz imprime colunas. */
-          gsap.set(sp.words, { yPercent: 55 });
+          gsap.set(sp.words, { yPercent: 22 });   /* 78% já pintado no 1º quadro: a palavra ASSENTA, não sobe de baixo */
           gsap.set(titulo, { visibility: 'visible' });
           var ultimo = 0;
           for (var w = 0; w < sp.words.length; w++) {
             var tw = tEm(sp.words[w], .25);
             if (tw > ultimo) ultimo = tw;
-            tl.to(sp.words[w], { yPercent: 0, duration: .7 }, tw);
+            tl.to(sp.words[w], { yPercent: 0, duration: .9, ease: EXPO }, Math.max(0, tw - .04));
             tinta(tl, sp.words[w], tw);
           }
           /* SEM revert aqui: devolver os nós de texto ao h1 faz o Chrome re-registrar
@@ -228,6 +257,23 @@
       if (sub) tl.fromTo(sub, { y: 18 }, { opacity: 1, y: 0, duration: .9 }, tCol + .05);
       if (acoes) tl.fromTo(acoes, { y: 14 }, { opacity: 1, y: 0, duration: .9 }, tCol + .15);
       if (fine) tl.to(fine, { opacity: 1, duration: .7 }, tCol + .25);
+
+      /* a COTA do H1: a luz desenha a linha de cota sob o título, de ponta a
+         ponta da linha mais larga, e o rótulo conta até a 1ª pintura medida */
+      var cota = document.querySelector('.hero__cota');
+      if (cota && titulo && !cota.hidden) {
+        medirCota(cota, titulo);
+        var ticks = cota.querySelectorAll('.hero__cota-tick'), traco = cota.querySelector('.hero__cota-linha'), rotulo = cota.querySelector('.hero__cota-rot');
+        var cr = cota.getBoundingClientRect();
+        var tA = largo ? tFeixe(cr.left) : tEm(cota), tB = largo ? Math.max(tA + .3, tFeixe(cr.right)) : tA + .55;
+        if (ticks[0]) tl.fromTo(ticks[0], { scaleY: 0 }, { scaleY: 1, duration: .3, ease: EXPO }, tA);
+        if (traco) tl.fromTo(traco, { scaleX: 0 }, { scaleX: 1, duration: tB - tA, ease: largo ? 'none' : 'power3.inOut' }, tA);
+        if (ticks[1]) tl.fromTo(ticks[1], { scaleY: 0 }, { scaleY: 1, duration: .3, ease: EXPO }, tB);
+        if (rotulo) {
+          tl.fromTo(rotulo, { opacity: 0 }, { opacity: 1, duration: .4, ease: 'power2.out' }, tB + .05);
+          tl.add(function () { var b = rotulo.querySelector('b'); if (b) contar(b, .6, 0); }, tB + .05);
+        }
+      }
 
       if (arte && largo) imprimirArte(arte, tl, tEm(arte));
       if (rail) {
@@ -246,7 +292,7 @@
         }, tR0 + .3);
       }
       tl.add(function () {
-        if (linha) gsap.set(linha, { clearProps: 'transform' });
+        if (linha) gsap.set(linha, { clearProps: 'transform,opacity' });
         if (feixe) feixe.classList.add('is-loop');
       }, T + .1);
 
@@ -391,11 +437,19 @@
     } else h.classList.add('is-lit');
     if (lead) tl.fromTo(lead, { opacity: 0 }, { opacity: 1, duration: .5, ease: 'power2.out', clearProps: 'all' }, .45);
     if (btn) {
-      /* a luz pousa no botão: um fio âmbar se desenha na borda e o brilho passa */
-      var fio = document.createElement('i'); fio.className = 'btn__fio'; fio.setAttribute('aria-hidden', 'true');
-      btn.appendChild(fio);
-      tl.fromTo(fio, { scaleY: 0 }, { scaleY: 1, duration: .6, ease: EXPO }, Math.max(quando(btn), T - .2));
-      tl.add(function () { btn.classList.add('is-passou'); }, quando(btn));
+      /* a luz pousa no botão como mira que TRAVA: quatro cantos se fecham em
+         volta dele (a mesma língua dos cantos dos painéis) e o brilho passa.
+         O fio âmbar da rodada 6 parecia borda quebrada. Cantos criados uma vez. */
+      var alvo = btn.parentNode.classList.contains('cta__alvo') ? btn.parentNode : null;
+      if (!alvo) {
+        alvo = document.createElement('span'); alvo.className = 'cta__alvo';
+        btn.parentNode.insertBefore(alvo, btn); alvo.appendChild(btn);
+        for (var c = 0; c < 4; c++) { var i = document.createElement('i'); i.className = 'btn__canto'; i.setAttribute('aria-hidden', 'true'); alvo.appendChild(i); }
+      }
+      var cantos = alvo.querySelectorAll('.btn__canto'), tBtn = quando(btn);
+      tl.fromTo(cantos, { opacity: 0, x: function (k) { return k % 2 ? 6 : -6; }, y: function (k) { return k < 2 ? -6 : 6; }, scale: .6 },
+        { opacity: 1, x: 0, y: 0, scale: 1, duration: .38, ease: EXPO, stagger: .04 }, tBtn);
+      tl.add(function () { btn.classList.add('is-passou'); }, tBtn + .18);
     }
   }
   function de(tabela, el, padrao) { for (var k in tabela) if (el.matches(k)) return tabela[k]; return padrao; }
@@ -544,15 +598,18 @@
          atrasava o LCP — medido na rodada 5) */
       var p0 = pts[0], d, ate = [];
       if (horizontal) {
-        d = 'M' + (p0.x - 72) + ' ' + p0.y + ' q8 -12 16 0 t16 0 t16 0 L' + p0.x + ' ' + p0.y;
-        ate.push(d);
+        /* o embaraço nasce NO 1º nó (antes saía da coluna, à esquerda dela) */
+        ate.push('M' + p0.x + ' ' + p0.y);
+        d = 'M' + p0.x + ' ' + p0.y + ' q8 -12 16 0 t16 0 t16 0';
         for (var i = 1; i < pts.length; i++) { d += ' H' + (pts[i].x - 24) + ' l8 -8 h8 l8 8'; ate.push(d); }
         d += ' h40';
       } else {
         d = 'M' + p0.x + ' ' + (p0.y - 72) + ' q12 8 0 16 t0 16 t0 16 L' + p0.x + ' ' + p0.y;
         ate.push(d);
         for (var j = 1; j < pts.length; j++) { d += ' V' + (pts[j].y - 24) + ' l8 8 v8 l-8 8'; ate.push(d); }
-        d += ' v40';
+        /* termina abaixo do ÚLTIMO PASSO, numa faixa reservada: o "no ar" não cai em cima do texto */
+        var ultP = nos[nos.length - 1].getBoundingClientRect();
+        d += ' V' + Math.round(ultP.bottom - box.top + 20);
       }
       var parciais = ate.map(function (trecho) { base.setAttribute('d', trecho); return base.getTotalLength(); });
       base.setAttribute('d', d); cometa.setAttribute('d', d);

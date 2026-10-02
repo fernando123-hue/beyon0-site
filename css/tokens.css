@@ -78,8 +78,8 @@
   --fs-d1: clamp(3.6rem, 1rem + 5.6vw, 6.75rem);         /* H1 do hub (desktop) */
   --fs-d2: clamp(2.75rem, 1rem + 5vw, 6rem);             /* Conversa: o fecho, um degrau abaixo do H1 */
   --fs-d3: clamp(2.9rem, 1.2rem + 3.6vw, 4.4rem);        /* H1 longo (desktop) */
-  --fs-h2: clamp(1.75rem, 1rem + 3.2vw, 3.5rem);          /* h2 de seção */
-  --fs-h2-lateral: clamp(2.25rem, 1.2rem + 2.1vw, 3rem);  /* cabeça de seção fixa e do FAQ: um degrau abaixo do h2 */
+  --fs-h2: clamp(2rem, 1.1rem + 3.6vw, 3.5rem);          /* h2 de seção */
+  --fs-h2-lateral: clamp(2rem, 1.3rem + 1.4vw, 2.625rem);  /* cabeça de seção fixa e do FAQ: um degrau abaixo do h2 */
   --h3-cartao: clamp(1.4rem, 1.2rem + 1.2vw, 1.9rem);
   --h3-linha:  clamp(1.1875rem, 1.05rem + .6vw, 1.5rem);   /* 19 → 24px */
   /* o espaçamento do mono em caixa alta: dois valores, não sete */
