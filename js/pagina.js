@@ -33,7 +33,8 @@
   var barra = document.getElementById('barra'), wa = document.querySelector('.wa'), menuAberto = false, fimDaPagina = false, heroCtaVisivel = true;
   function mostrarBarra() {
     if (barra) barra.classList.toggle('is-oculta', menuAberto || fimDaPagina || heroCtaVisivel);
-    if (wa) wa.classList.toggle('is-oculta', heroCtaVisivel);
+    /* na Conversa o CTA grande já está na tela: o flutuante sai, como a barra */
+    if (wa) wa.classList.toggle('is-oculta', heroCtaVisivel || fimDaPagina);
   }
 
   /* ---------- nav ---------- */
@@ -187,11 +188,34 @@
       carimbar(el);
     }
   }
-  /* o console do hero: cada linha recebe o instante (s desde o início) em que o valor chegou */
+  /* o console do hero: cada linha recebe o instante (s desde o início) em que
+     o valor chegou, sempre no mesmo formato (00.442). "sistema online" é
+     carimbada por último, quando todas as outras visíveis já têm hora: o log
+     nunca volta no tempo (achado da rodada 3). */
+  function fmt(ms) { var s = (ms / 1000).toFixed(3); return s.length < 6 ? '0' + s : s; }
   function carimbar(el) {
     var linha = el.closest && el.closest('.console__linha');
     var t = linha && linha.querySelector('[data-console-t]');
-    if (t && t.textContent === '—') t.textContent = (performance.now() / 1000).toFixed(3);
+    if (!t || t.textContent !== '—') return;
+    var agora = performance.now();
+    t.textContent = fmt(agora);
+    /* chegou depois de o log fechar (a rede de 3s): "online" segue sendo a última */
+    var on = linha.parentNode.querySelector('.console__linha--on [data-console-t]');
+    if (on && on.textContent !== '—' && parseFloat(on.textContent) * 1000 < agora) on.textContent = fmt(agora + 1);
+    fecharLog(linha.parentNode);
+  }
+  function fecharLog(cx, mesmoAssim) {
+    var on = cx && cx.querySelector('.console__linha--on [data-console-t]');
+    if (!on || on.textContent !== '—') return;
+    var ts = cx.querySelectorAll('.console__linha:not(.console__linha--on) [data-console-t]'), maior = 0;
+    for (var i = 0; i < ts.length; i++) {
+      if (ts[i].offsetParent === null || ts[i].textContent === '—') {
+        if (ts[i].offsetParent === null || mesmoAssim) continue;   /* a linha de fps some em movimento reduzido */
+        return;
+      }
+      maior = Math.max(maior, parseFloat(ts[i].textContent) * 1000);
+    }
+    on.textContent = fmt(Math.max(performance.now(), maior + 1));
   }
   var consoleVp = document.querySelectorAll('[data-console-vp]');
   function viewport() { for (var v = 0; v < consoleVp.length; v++) { consoleVp[v].textContent = window.innerWidth + '×' + window.innerHeight; carimbar(consoleVp[v]); } }
@@ -199,8 +223,8 @@
     viewport();
     var vpTimer = 0;
     window.addEventListener('resize', function () { clearTimeout(vpTimer); vpTimer = setTimeout(viewport, 150); }, { passive: true });
-    var online = document.querySelectorAll('.console__linha--on [data-console-t]');
-    for (var o = 0; o < online.length; o++) online[o].textContent = (performance.now() / 1000).toFixed(3);
+    /* rede: se alguma medida não vier, o console fecha mesmo assim, 3s depois do load */
+    window.addEventListener('load', function () { setTimeout(function () { var cx = document.querySelector('[data-console]'); fecharLog(cx, true); }, 3000); }, { once: true });
   }
   /* bytes deste domínio nesta visita. `encodedBodySize` em vez de
      `transferSize`: o segundo zera em revisita (cache), e o número passaria a
@@ -215,15 +239,45 @@
     }
     return total;
   }
+  /* a cascata do console: os arquivos mais demorados deste domínio nesta
+     visita, com início e duração reais. Montada uma vez, com createElement.
+     Sem entradas, a caixa fica escondida: nenhum número inventado. */
+  var cascata = document.querySelector('[data-cascata]');
+  function montarCascata() {
+    if (!cascata || cascata.childNodes.length) return;
+    var lista = [], recursos = performance.getEntriesByType('resource'), total = 0;
+    for (var i = 0; i < recursos.length; i++) {
+      var r = recursos[i], u;
+      try { u = new URL(r.name, location.href); } catch (e) { continue; }
+      if (u.origin !== location.origin || !(r.duration > 0)) continue;
+      lista.push(r);
+      total = Math.max(total, r.responseEnd);
+    }
+    if (!lista.length || !(total > 0)) { cascata.hidden = true; return; }
+    lista.sort(function (a, b) { return b.duration - a.duration; });
+    lista = lista.slice(0, window.innerWidth >= 861 ? 6 : 4).sort(function (a, b) { return a.startTime - b.startTime; });
+    var maior = lista.reduce(function (m, r) { return r.duration > m.duration ? r : m; }, lista[0]);
+    for (var k = 0; k < lista.length; k++) {
+      var e = lista[k];
+      var linha = document.createElement('div'); linha.className = 'cascata__linha' + (e === maior ? ' cascata__linha--maior' : '');
+      var nome = document.createElement('span'); nome.className = 'cascata__nome'; nome.textContent = new URL(e.name, location.href).pathname.split('/').pop() || '/';
+      var trilho = document.createElement('span'); trilho.className = 'cascata__trilho';
+      var barra = document.createElement('i'); barra.className = 'cascata__barra';
+      barra.style.left = (e.startTime / total * 100).toFixed(2) + '%';
+      barra.style.width = Math.max(2, e.duration / total * 100).toFixed(2) + '%';
+      var ms = document.createElement('span'); ms.className = 'cascata__ms'; ms.textContent = Math.round(e.duration) + ' ms';
+      trilho.appendChild(barra); linha.appendChild(nome); linha.appendChild(trilho); linha.appendChild(ms);
+      cascata.appendChild(linha);
+    }
+    /* um quadro depois de existir: a entrada é transição, não salto */
+    requestAnimationFrame(function () { requestAnimationFrame(function () { cascata.classList.add('is-pronta'); }); });
+  }
   function medidasDeCarga() {
     if (!window.performance || !performance.getEntriesByType) return;
+    montarCascata();
     var nav = performance.getEntriesByType('navigation')[0];
     if (!nav) return;
-    if (elCarga.length && nav.domContentLoadedEventEnd > 0) {
-      escrever(elCarga, (nav.domContentLoadedEventEnd / 1000).toFixed(2), 's');
-      var st = document.querySelector('.hero__status');
-      if (st) st.classList.add('is-online');
-    }
+    if (elCarga.length && nav.domContentLoadedEventEnd > 0) escrever(elCarga, (nav.domContentLoadedEventEnd / 1000).toFixed(2), 's');
     var total = bytesDaOrigem(nav);
     if (total > 0 && elPeso.length) escrever(elPeso, Math.round(total / 1024), 'KB');
   }

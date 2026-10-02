@@ -77,7 +77,9 @@ histórico, commit `051b2a8`; o AI Core original (orbe) em `abd83fe` (V1).
 6. **Não publicar sem o dono pedir.** Push na `main` é deploy.
 7. **CSP sem inline.** `style-src 'self'`: nenhum `style=""` no HTML, nenhum
    `<style>`; só classes. `el.style.x` via JS continua permitido.
-8. **Mono só onde há rótulo, índice, dado ou controle.** Copy em Sora; títulos em Sora 300; ênfase em ciano 500.
+8. **Mono só onde há rótulo, índice, dado ou controle.** Copy em Sora; títulos em Sora 300.
+   **Ciano em texto só no H1, no h2 da Conversa e em dado** (rodada 3: a
+   ênfase em todo h2 tinha virado tique). Os outros h2 são Sora 300 inteiros.
 9. **Celular primeiro.** Cada página nasce em 390px e cresce. Conferir os
    screenshots `*-cel` e `*-320` ANTES do desktop; regressão no celular bloqueia.
 10. **Nenhuma caixa mais larga que a viewport no celular.** O Chrome alarga a

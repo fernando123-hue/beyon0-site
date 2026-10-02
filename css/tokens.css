@@ -74,9 +74,12 @@
   --fs-s:      .875rem;    /* 14px: nota, fine, legenda */
   --fs-m:      .9375rem;   /* 15px: corpo de cartão e lista */
   --fs-b:      1rem;       /* 16px: corpo */
-  --fs-l:      clamp(1.0625rem, 1rem + .45vw, 1.3125rem);   /* lead: 17 → 21px */
+  --fs-l:      clamp(1.0625rem, 1rem + .2vw, 1.1875rem);   /* lead: 17 → 19px */
   --h3-cartao: clamp(1.4rem, 1.2rem + 1.2vw, 1.9rem);
   --h3-linha:  clamp(1.1875rem, 1.05rem + .6vw, 1.5rem);   /* 19 → 24px */
+  /* o espaçamento do mono em caixa alta: dois valores, não sete */
+  --tr-rotulo: .14em;   /* 11px: índice, rótulo, HUD */
+  --tr-ctrl:   .08em;   /* 12-13px: kicker, nav, botão, link */
 
   /* ---- MÉTRICA (celular primeiro) ---- */
   --maxw: 1200px;
@@ -85,7 +88,7 @@
   /* três respiros, não um só */
   --sp-1: clamp(32px, 4vw, 48px);
   --sp-2: clamp(56px, 7vw, 96px);
-  --sp-3: clamp(72px, 14vw, 224px);
+  --sp-3: clamp(72px, 9vw, 144px);
   --raio:   6px;
   --raio-s: 4px;
 
@@ -145,6 +148,9 @@ button { font: inherit; color: inherit; }
    esquerda, um fio de âmbar no centro) e uma malha fina. Tudo estático:
    pintado uma vez, custo zero por frame. O movimento vem do feixe. */
 .atmosfera { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+/* a luz fica parada. A rodada 3 testou subi-la com a rolagem (camada de
+   duas telas em scrub): medido, 60 → 42 fps logo após rolar no desktop (54
+   com will-change). Saiu. */
 .atmosfera::before {
   content: ""; position: absolute; inset: 0;
   background:
