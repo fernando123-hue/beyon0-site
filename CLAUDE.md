@@ -40,7 +40,8 @@ subindo); ignore a primeira medição de DCL/LCP.
 | `docs/restructure/DIRECAO-V4.md` | **Comece aqui.** A direção da V4 "Tech refinado" (2026-10-01): a identidade da V1 (escuro, ciano, Sora + Mono, régua de 1px) com luz; celular primeiro; AI Core reservado para uma fase futura. |
 | `docs/restructure/DIRECAO-V3.md` | A V3 clara ("Luz e vida"), rejeitada pelo dono no mesmo dia. Vale pela regra de celular primeiro. |
 | `docs/restructure/DIRECAO-V2.md` | A V2 escura ("o instrumento acorda"), chamada de "mórbida" pelo dono. Vale pelo diagnóstico medido e pelo vocabulário de movimento. |
-| `docs/restructure/PLANO-REESTRUTURACAO.md` | Seção 15 = estado da V4 e pendências. Seção 14 = V3. Seção 13 = V2. Seções 11–12 = história anterior. |
+| `docs/restructure/PLANO-REESTRUTURACAO.md` | **Seção 16 = o loop de auto-aprimoramento com painel de agentes (rodadas feitas, próximo passo).** Seção 15 = V4. Seção 14 = V3. Seção 13 = V2. Seções 11–12 = história anterior. |
+| `docs/workflows/critica-premio.js` | O painel de críticos (júri, tipografia, motion, celular + síntese). Roda pela ferramenta Workflow com `args: { rodada, pasta }`. |
 | `docs/HANDOFF.md` | História longa do projeto e as leis de performance (seções 3 e 4). Identidade/arquitetura das seções 5–6 e 14–16 estão SUPERADAS pela V2. |
 | `docs/auditoria-performance.md` | As medições que justificam a arquitetura. |
 

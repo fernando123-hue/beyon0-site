@@ -1004,3 +1004,66 @@ completo. Direção em `DIRECAO-V4.md`.
 
 O dono olha a V4 (servidor local ou publicar, só se pedir). Depois: o AI
 Core novo, para o lugar reservado nos heros, com a base `core.js`/`B.add`.
+
+## 16. LOOP DE AUTO-APRIMORAMENTO — "nível de site premiado" (2026-10-01, fim da nona sessão) — LEIA ANTES DA 15
+
+Pedido do dono, depois da V4: "aprimore as cores e todos os elementos,
+adicione mais cores se necessário, mantendo o tom sério" e, logo depois,
+"se auto aprimore quantas vezes forem necessárias, só pare quando alcançar
+o resultado que irá realmente impressionar qualquer um que veja, nos padrões
+dos sites que ganham prêmios reais, trabalhe em workflow com agentes."
+
+### 16.1 Como o loop funciona
+
+1. Capturas em `docs/olhar-vNN/` (`npm run olhar -- docs/olhar-vNN`).
+2. Workflow `docs/workflows/critica-premio.js` (cópia do script usado; roda
+   pela ferramenta Workflow com `args: { rodada: N, pasta: 'docs/olhar-vNN' }`):
+   quatro críticos em paralelo (júri de prêmio, tipografia, motion, celular)
+   leem as capturas e o código e dão nota 0–10 + achados; um sintetizador
+   deduplica, descarta o que viola as restrições e devolve um plano de até
+   12 mudanças com valores concretos. O resultado completo fica no
+   `journal.jsonl` do workflow (o output da tarefa trunca).
+3. Aplicar o plano (celular primeiro), `npm run verificar`,
+   `npm run acessibilidade`, `node docs/fps.mjs 1440,900,390`, commit.
+4. Repetir até as notas pararem de subir.
+
+### 16.2 Rodadas feitas
+
+| Rodada | Notas (júri · tipo · motion · celular) | Commit | O que entrou |
+|---|---|---|---|
+| V4.1 (sem painel) | — | `392f6ce` | âmbar como contraponto do ciano; superfícies com um fio de azul e um nível a mais; painéis com tinta própria; botão com gradiente |
+| 1 | 6 · 5,5 · 5,5 · 5,5 (média 5,6) | `1c4cd63` | assinatura do feixe no boot; hero em largura total (H1 92px); console de boot com dados reais no lugar dos planos vazios; prova full-bleed com contagem até o valor medido; um CTA só na primeira tela do celular; escala tipográfica fechada (8 tokens); h2 sem `<br>`; três respiros; ciano + âmbar sem verde; cada componente entra como o que é; micro-interações; HUD lateral |
+| 2 | 4,5 · 6,5 · 6,5 · 6 (média 5,9) | `3dbc777` | "a luz passa e imprime": faixa de luz visível e cada peça do hero acende no instante em que a luz cruza a posição dela (`tFeixe` em `js/anima.js`); hero desktop com a arte em coluna de vidro ao lado do título e a medida principal no topo do console; atmosfera que se vê; contêiner só esmaece, conteúdo se move; passos em cadeia; réguas na grade; h3 com degrau; número da prova com unidade em `<small>`; celular: medida na dobra, h1 longo em 4 linhas, console imprime ao aparecer, serviços/capacidades em linhas, toque com resposta; botão sem brilho de 2012; cantos que travam como mira; janela reta com barra de status; instrumento sem percentual inventado |
+
+Achado da rodada 2 (medido): devolver os nós de texto ao h1 depois do
+SplitText (`revert`) fazia o Chrome re-registrar o título inteiro como LCP
+no fim da animação: 0,9s → 2,5s no celular. O título do hero fica dividido
+em palavras (SplitText cuida da acessibilidade); `mostrarTudo()` reverte em
+movimento reduzido. LCP de volta a 0,7–0,8s no celular.
+
+Estado medido no fim: verificador 10/10, acessibilidade 23/23, 60 fps em
+1440/900/390, LCP celular 0,7–1,0s (headless).
+
+### 16.3 O que falta (próximo passo exato)
+
+1. **Rodada 3** do painel sobre `docs/olhar-v43/` (já capturada). Rodar o
+   workflow com `{ rodada: 3, pasta: 'docs/olhar-v43' }`, aplicar o plano,
+   medir, commitar. Repetir enquanto a média subir. Critério de parada: duas
+   rodadas seguidas sem mudança de nota, ou júri ≥ 8.
+2. **Revisão de código por agente** (`code-reviewer`) sobre `1c4cd63..HEAD`:
+   contrato CSS/JS/HTML, reduced-motion sem nada escondido, contraste da
+   paleta com âmbar (`--ambar #F0B44F` sobre `--bg`/`--s1`/`--s2` e
+   `--ambar-tinta` sobre `--ambar`), caixas mais largas que a viewport no
+   celular, código morto. Corrigir o que apontar.
+3. Documentar no `CLAUDE.md` a assinatura (`tFeixe`, `is-lit`, sem `revert`
+   no hero) como regra, se sobreviver à rodada 3.
+4. Publicar só quando o dono pedir: a `main` continua na V3 clara (`e3272c7`).
+
+### 16.4 Limitações conhecidas
+
+- As notas são de agentes, não de júri humano: servem para ordenar o
+  trabalho, não como medida absoluta.
+- O AI Core continua reservado (`.hero__arte`): console, janela e
+  instrumento são os ocupantes provisórios.
+- Capturas e medidas (`docs/olhar-*`, `docs/medida-*.json`) ficam fora do
+  repositório (`.gitignore`): regenerar com `npm run olhar`.
