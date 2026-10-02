@@ -43,7 +43,7 @@
   var LUZ = celular ? 200 : 300;             /* px: a luz que ele leva consigo (a névoa do canto agora anda com ele) */
   var PULSO = celular ? 7 : 10;              /* px que o anel do pulso abre (no celular não é cortado na borda) */
   var HOVER_FEIXE = 2;                       /* s: no máximo um feixe por cartão sob o cursor neste intervalo */
-  var BORDA_CEL = 16;                        /* celular: o centro a 16 px da borda (12 deixava os arcos a 2 px dela) */
+  var BORDA_CEL = window.innerWidth < 360 ? 12 : 14;   /* celular: no eixo do trilho (js/rede.js), fora da coluna de texto */
   var ALCANCE_FEIXE = 320;                   /* px: mais longe que isso o feixe atravessaria a tela */
   var TOPO = celular ? 92 : 112, PE = 112;   /* PE: acima da barra fixa do celular */
   var FEIXE = { desenha: 0.35, segura: 1.05, apaga: 0.6 };   /* s */
@@ -66,6 +66,7 @@
   var mini = { x: 0, y: 0, vx: 0, vy: 0, tipo: 5, k: 1, ativo: false, forca: 1, vis: 0, ix: 0 };
   var olhar = { x: 0, y: 0 }, ponteiro = { x: 0, y: 0, ativo: false };
   var atencao = 0, pulso = 0, faseAntes = 0, rolagem = window.scrollY, rolagemAntes = rolagem, velRol = 0;
+  var despedido = false, perto = 0, esperou = 0, reatorVisto = false;   /* perto: o texto encostando, suavizado em ~0,4 s */
   var feixe = null, primeiro = true, ativoAntes = false, chegando = false, desdeChegada = 0, ultimoHover = -9;
 
   function limitar(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
@@ -95,7 +96,10 @@
     /* o trilho termina no começo do rodapé: ele não desce sobre os links */
     var rod = B.rede.rodapeNaTela();
     if (rod < H) y = Math.min(y, rod - 36);
-    return { x: x, y: y, fim: rod < H * 0.62 };
+    /* a despedida com histerese: some abaixo de 62% e só volta acima de 70%
+       (parar a rolagem perto do limiar fazia ele piscar) */
+    if (rod < H * 0.62) despedido = true; else if (rod > H * 0.7) despedido = false;
+    return { x: x, y: y, fim: despedido };
   }
 
   function passo(dt, W, H) {
@@ -108,9 +112,17 @@
       alvoY = nu.cy + (d.y - nu.cy) * solto;
     }
     /* com o menu do celular aberto ele sai de cena; sobre texto, esmaece */
-    var alvoVis = document.body.classList.contains('is-menu') || d.fim ? 0 : suave(solto * 1.4);   /* com o rodapé dominando a tela, ele se despede */
+    var alvoVis = document.body.classList.contains('is-menu') || d.fim ? 0 : suave(solto * 1.4);
+    /* ainda sem medida da página, ou no Hub esperando o reator montar: não
+       aparece na lateral para depois sumir e nascer dele (rede de 6 s) */
+    if (nu && nu.visivel) reatorVisto = true;
+    var aguardaReator = (B.nucleoEstado === 'esperando' || B.nucleoEstado === 'pronto') && !reatorVisto && esperou < 6;
+    if (B.rede.alturaDoc() <= 1 || aguardaReator) alvoVis = 0;
+    esperou += dt;   /* com o rodapé dominando a tela, ele se despede */
     /* uma LINHA de texto a menos de 12 px do anel (e na mesma altura, ±10 px): esmaece */
-    if (B.rede.sobreTexto(mini.x, mini.y, 9 * ESCALA + 12, 9 * ESCALA + 10)) alvoVis *= 0.5;   /* só quando uma LINHA de texto chega nele */
+    /* suavizado: linhas longas e curtas se alternam ao rolar e ele piscava linha a linha */
+    perto += ((B.rede.sobreTexto(mini.x, mini.y, 9 * ESCALA + 12, 9 * ESCALA + 10) ? 1 : 0) - perto) * Math.min(1, dt / 0.4);
+    alvoVis *= 1 - 0.5 * perto;   /* só quando uma LINHA de texto chega nele */
     if (primeiro || B.reduced) {
       mini.x = alvoX; mini.y = alvoY; mini.vx = mini.vy = 0; primeiro = false;
       mini.vis = alvoVis; mini.ativo = mini.vis > 0.05; ativoAntes = mini.ativo;
@@ -241,7 +253,7 @@
     ctx.lineWidth = 1;
     ctx.strokeStyle = 'rgba(' + AC2 + ',' + (0.7 * v).toFixed(3) + ')';
     ctx.beginPath(); ctx.arc(x, y, 7.5 * s, 0, TAU); ctx.stroke();
-    var rot = t * 0.35;
+    var rot = B.reduced ? 0 : t * 0.35;   /* reduzido: os arcos param (regra 4) */
     ctx.strokeStyle = 'rgba(' + AC + ',' + (0.5 * v).toFixed(3) + ')';
     ctx.beginPath(); ctx.arc(x, y, 11.5 * s, rot, rot + 0.7); ctx.stroke();
     ctx.beginPath(); ctx.arc(x, y, 11.5 * s, rot + Math.PI, rot + Math.PI + 0.7); ctx.stroke();

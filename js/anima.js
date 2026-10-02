@@ -785,6 +785,11 @@
         }, duration: { min: .2, max: .5 }, ease: 'power2.inOut', delay: .1, inertia: false }
       }
     });
+    /* o intervalo do pin, para a rede (js/rede.js): enquanto o palco está
+       preso, o texto dele fica parado na tela e a zona protegida também */
+    var publicarPino = function () { var st = tl.scrollTrigger; if (st) B.pino = { el: sec, inicio: st.start, fim: st.end }; };
+    publicarPino();
+    ST.addEventListener('refresh', publicarPino);
     /* um rótulo no começo: rolar para cima a partir da 1ª leitura sai do palco, não volta a ela */
     tl.addLabel('inicio', 0);
     /* UMA função pinta as três máscaras e a luz a partir do tempo da timeline

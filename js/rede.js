@@ -12,11 +12,9 @@
      ponteiro sobre um elemento, ou o elemento chegando ao centro da tela no
      celular, acende os cantos e dispara sinais pela rede;
    - o PONTEIRO (desktop);
-   - no Hub, a CONSTELAÇÃO do reator: duas órbitas de 12 nós alinhadas aos
-     12 raios (a geometria do reator continuando para fora), presas aos 12
-     pontos de entrada do portal. A cada fôlego uma onda de sinais vai da
-     órbita de fora até o portal e chega com o lampejo: a rede é a fonte da
-     energia que o reator puxa (o fundo do hero agrega ao AI Core);
+   - no Hub, a CONSTELAÇÃO do reator (módulo js/rede-reator.js, só no Hub):
+     duas órbitas de 12 nós alinhadas aos raios, presas aos 12 pontos de
+     entrada do portal; a cada fôlego a onda corre até o portal;
    - o MINI AI CORE (js/mini.js), por B.rede.extra.
 
    A LEITURA manda: a rede é apagada atrás de todo bloco de texto (caixa +
@@ -46,7 +44,7 @@
   var AC = rgb('--ac-rgb', '73 229 221'), AC2 = rgb('--ac-2-rgb', '166 244 239'), AC3 = rgb('--ac-3-rgb', '28 181 185'), PRATA = rgb('--prata-rgb', '183 191 192');
 
   /* ---------- números ---------- */
-  var DENSIDADE = celular ? 12000 : 10500;   /* px² por nó livre (celular: o meio-termo das rodadas 1 e 2) */
+  var DENSIDADE = celular ? (window.innerWidth < 360 ? 16000 : 12000) : 10500;   /* px² por nó livre (abaixo de 360 px, menos: a tela é estreita) */
   var ALCANCE = celular ? 120 : 165;          /* px: até onde dois nós se ligam */
   var FAIXAS = 8, ALFA_MIN = 0.045, ALFA_MAX = 0.36;   /* a força do feixe em 8 faixas (um traço por faixa) */
   var PARALAXE = [0.12, 0.3, 0.5];            /* o quanto cada profundidade anda com a rolagem */
@@ -58,30 +56,32 @@
   var RASTRO = 0.45;                          /* s que um trecho da conversa fica aceso depois que o sinal passa */
   var SELETOR = '.painel, .btn, .console, .janela, .instrumento, .passo, .prova__item, .qa, .spec__item, .cenario, .celula, .hero__rail, .footer';
   var ATIVOS = '.painel, .btn, .passo, .prova__item, .qa, .spec__item, .cenario, .celula';
-  /* botões, rótulos e a faixa de números do hero: apaga só o MIOLO (3 px
-     para dentro); a borda continua viva, porque é onde a rede se encaixa */
-  var MIOLO = '.kicker, .btn, .hero__rail, .painel, .cenario, .celula, .qa, .spec__item, .janela, .instrumento';
-  var FOLGA = celular ? 16 : 10;             /* px de rede apagada em volta do texto */
-  var FOLGA_HERO = celular ? 16 : 10;        /* no hero (24 no celular comia toda a rede da 1ª tela, rodada 6) */
-  /* zona proibida inteira (a cota é assinatura e dado medido; os números da prova também) */
-  var DADO = '.hero__cota, .prova__val, .passos, .console__led, .instrumento__led';
+  /* as zonas sem rede (texto, miolo de cartões, dados, halos): js/rede-texto.js */
   var BORDA = 12;                            /* px: a rede some nas bordas da tela (não vira poeira) */
-  /* a constelação: raios das duas órbitas (em raios de entrada do reator) */
-  var ORBITA = [1.4, 1.82];
   /* ligações por nó livre: as MAX_GRAU mais próximas (a escolha pela ordem da
      grade trocava ligações de uma vez; a última entra suave pela folga até a
      seguinte). Mais que isso a rede fecha em teia nos cantos vazios */
   var MAX_GRAU = 4, FOLGA_GRAU = 24;
   var MAX_MINI = celular ? 1 : 2;             /* ligações no mini: mais que isso ele parecia "plugado" */
+  /* o TRILHO (celular): uma linha tracejada de nós na margem direita, em
+     coordenadas da página, por onde as conversas também correm. Em telas de
+     texto denso a proteção do texto ocupava a margem inteira e a rede morria
+     (crítica, rodada 7); o trilho mora fora da coluna. Só à direita: à
+     esquerda os pontos leriam como marcadores de lista */
+  var TRILHO = celular, trilho = [];
+  /* o eixo do trilho é o do mini (ele é a conta que corre no fio, crítica
+     rodada 8); cada nó desvia ±3 px (fixo por semente) para não ler como a
+     barra de rolagem do celular */
+  var TRILHO_BORDA = window.innerWidth < 360 ? 12 : 14, TRILHO_ZIGUE = 3, TRILHO_VAO = 24;
+  var ligT = [];   /* 1: ligação do trilho (desenhada depois da borracha, porque mora na margem) */
 
   var dpr = 1, W = 0, H = 0, docH = 1, navH = 0, rodapeY = 1e9;
   var nos = [], ancoras = [], elementos = [], textos = [];
-  var orb1 = [], orb2 = [], portal = [];
   var sinais = [], rastros = [];
   var ponteiro = { x: -1e4, y: -1e4, ativo: false, a: 0, tipo: 4, k: 1 };
   var rolagem = window.scrollY, rolagemAntes = rolagem;
   var sujo = true, parado = !!B.reduced, desenhouParado = false;
-  var pontos = [], ligA = [], ligB = [], ligF = [], nLig = 0;
+  var pontos = [], ligA = [], ligB = [], ligF = [], nLig = 0, assinatura = '';
   var proxSinal = 0, faseAntes = 0, folego = 0, faseConversa = 0;
 
   function limitar(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
@@ -121,18 +121,28 @@
 
   /* ---------- o documento: elementos e textos em posições de LAYOUT ---------- */
   function posicaoDoc(el) {
-    var x = 0, y = 0;
-    for (var e = el; e; e = e.offsetParent) { x += e.offsetLeft; y += e.offsetTop; }
+    var x = 0, y = 0, ultimo = el;
+    for (var e = el; e; e = e.offsetParent) { x += e.offsetLeft; y += e.offsetTop; ultimo = e; }
+    /* a cadeia terminou num elemento FIXO (o palco pinado pelo GSAP): a conta
+       deu posição na tela; a natural na página é a da tela mais o começo do pin */
+    if (ultimo !== document.body && getComputedStyle(ultimo).position === 'fixed') y += B.pino && B.pino.el.contains(ultimo) ? B.pino.inicio : window.scrollY;
     return { x: x, y: y };
   }
+  /* quem fica parado na tela enquanto a página rola: os títulos fixos
+     (sticky) e o palco pinado. d = o deslocamento deste quadro */
+  var grudes = [];   /* medidos por js/rede-texto.js (B.redeTexto.grudes) */
+  function refDe(el) { for (var i = 0; i < grudes.length; i++) if (grudes[i].el.contains(el)) return grudes[i]; return null; }
+  function telaY(r) { return r.y - rolagem + (r.ref ? r.ref.d : 0); }
   function medirDocumento() {
+    var prender = B.redeTexto ? B.redeTexto.soltar() : function () {};
+    grudes = B.redeTexto ? B.redeTexto.grudes(posicaoDoc) : [];
     var lista = document.querySelectorAll(SELETOR), i;
     elementos.length = 0; ancoras.length = 0; textos.length = 0;
     for (i = 0; i < lista.length; i++) {
       var el = lista[i];
       if (!el.offsetWidth || el.closest('[aria-hidden="true"]:not(.hero__arte)') || el.closest('.nav, .barra')) continue;
       var p = posicaoDoc(el), w = el.offsetWidth, h = el.offsetHeight;
-      var item = { el: el, ativo: 0, ancoras: [], secao: el.closest('section') };
+      var item = { el: el, ativo: 0, ancoras: [], secao: el.closest('section'), ref: refDe(el) };
       var cantos = [[0, 0], [1, 0], [0, 1], [1, 1]];
       for (var c = 0; c < cantos.length; c++) {
         var a = { dx: p.x + w * cantos[c][0], dy: p.y + h * cantos[c][1], x: 0, y: 0, tipo: 1, k: 1, item: item, cx: cantos[c][0], cy: cantos[c][1], ligado: 0 };
@@ -145,59 +155,25 @@
     navH = nav ? nav.offsetHeight : 0;
     var rod = document.querySelector('.footer');
     rodapeY = rod ? posicaoDoc(rod).y : 1e9;
-    /* o texto: as LINHAS de verdade (a caixa do bloco ocupa a coluna inteira e
-       apagava rede onde não havia letra). Cada linha é guardada relativa ao
-       bloco e somada à posição de LAYOUT dele: a entrada por transform não
-       desloca a medida */
-    /* TODO nó de texto visível da página (uma lista de seletores deixava de
-       fora rótulos em span/div: pontos caíam em cima deles como acentos).
-       Só os nós de TEXTO: o getClientRects de um bloco traz também a caixa
-       dos filhos de bloco, da largura da coluna (crítica, rodada 4) */
-    var faixa = document.createRange(), andar = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT), no, pai = null, q = null, caixa = null, folga = FOLGA;
-    while ((no = andar.nextNode())) {
-      if (!no.nodeValue.trim()) continue;
-      var el0 = no.parentElement;
-      if (!el0) continue;
-      if (el0 !== pai) {
-        pai = el0;
-        q = null;
-        /* aria-hidden NÃO tira da lista: as palavras do H1 (SplitText) e a seta
-           dos links são texto na tela (pulá-las deixava pontos dentro do título) */
-        if (!el0.offsetParent || el0.closest('.nav, .barra, .hero__arte, script, style, noscript')) continue;
-        q = posicaoDoc(el0); caixa = el0.getBoundingClientRect(); folga = el0.closest('.hero') ? FOLGA_HERO : FOLGA;
-      }
-      if (!q) continue;
-      faixa.selectNodeContents(no);
-      var linhas = faixa.getClientRects();
-      for (var li = 0; li < linhas.length; li++) {
-        var lr = linhas[li];
-        if (lr.width < 2 || lr.height < 2) continue;
-        textos.push({ x: q.x + lr.left - caixa.left, y: q.y + lr.top - caixa.top, w: lr.width, h: lr.height, folga: folga });
-      }
-    }
-    var grupos = [[MIOLO, -3], [DADO, 16]];
-    for (var g = 0; g < grupos.length; g++) {
-      var bl = document.querySelectorAll(grupos[g][0]);
-      for (i = 0; i < bl.length; i++) {
-        var b = bl[i];
-        if (!b.offsetWidth || b.closest('.nav, .barra')) continue;
-        var pb = posicaoDoc(b);
-        textos.push({ x: pb.x, y: pb.y, w: b.offsetWidth, h: b.offsetHeight, folga: grupos[g][1], inteiro: g === 1 });
-      }
-    }
-    /* o botão principal: um halo de 16 px sem rede (os cantos continuam) */
-    var prim = document.querySelectorAll('.btn--primary, .hero .btn');
-    for (i = 0; i < prim.length; i++) {
-      if (!prim[i].offsetWidth || prim[i].closest('.nav, .barra')) continue;
-      var pp = posicaoDoc(prim[i]);
-      textos.push({ x: pp.x, y: pp.y, w: prim[i].offsetWidth, h: prim[i].offsetHeight, folga: 16, halo: true });
-    }
+    textos = B.redeTexto ? B.redeTexto(posicaoDoc, celular, refDe) : [];
+    prender();
+    /* sem rodapé (página futura), o fim da página faz o papel dele */
+    if (rodapeY > 1e8) rodapeY = document.documentElement.scrollHeight;
     docH = document.documentElement.scrollHeight;
+    var bf = document.querySelector('.conversa .btn--primary');
+    fecho = bf ? itemDe(bf) : null;
+    trilho.length = 0;
+    if (TRILHO) {
+      var semente = 7, prox = function () { semente = (semente * 16807) % 2147483647; return semente / 2147483647; };
+      for (var ty = navH + 90; ty < rodapeY - 70; ty += 70 + prox() * 90) trilho.push({ dy: ty, dx: (prox() * 2 - 1) * TRILHO_ZIGUE, x: 0, y: 0, tipo: 6, k: 1 });
+    }
   }
+  var fecho = null;   /* o botão da Conversa (o convite final), achado na medida */
   function itemDe(el) { for (var i = 0; i < elementos.length; i++) if (elementos[i].el === el) return elementos[i]; return null; }
 
   /* um elemento acende: os cantos brilham e soltam sinais pela rede */
   function acender(el, sinaisPorCanto, semMini) {
+    if (parado) return;   /* reduzido: o desenho parado não apagaria os cantos nem andaria os sinais */
     var it = itemDe(el);
     if (!it || it.ativo > 0.5) return;   /* já aceso: não dispara de novo */
     if (celular) for (var o = 0; o < elementos.length; o++) if (elementos[o] !== it && elementos[o].ativo > 0) elementos[o].rapido = true;
@@ -216,27 +192,8 @@
     if (alvo) acender(alvo, 2);
   }
 
-  /* ---------- a constelação do reator (Hub) ---------- */
-  var luzRaio = [], luzTrelica = [];   /* s de luz restantes em cada trecho (a onda acende ao passar) */
-  for (var o = 0; o < 12; o++) {
-    luzRaio.push(0); luzTrelica.push(0);
-    orb1.push({ i: o, x: 0, y: 0, tipo: 2, k: 1 });
-    orb2.push({ i: o, x: 0, y: 0, tipo: 2, k: 1 });
-    portal.push({ i: o, x: 0, y: 0, tipo: 3, k: 1 });
-  }
-  function posicionarConstelacao(nu, t) {
-    var encolhe = 1 - 0.06 * folego;   /* na inspiração a constelação é puxada para dentro */
-    for (var i = 0; i < 12; i++) {
-      var a = nu.giro + i * (TAU / 12), b = a + TAU / 24, onda = Math.sin(t * 0.5 + i * 1.7) * 0.03;
-      portal[i].x = nu.cx + Math.cos(a) * nu.r * nu.sx;
-      portal[i].y = nu.cy - Math.sin(a) * nu.r * nu.sy;
-      var r1 = ORBITA[0] * nu.r * encolhe * (1 + onda), r2 = ORBITA[1] * nu.r * encolhe * (1 - onda);
-      orb1[i].x = nu.cx + Math.cos(a) * r1 * nu.sx;
-      orb1[i].y = nu.cy - Math.sin(a) * r1 * nu.sy;
-      orb2[i].x = nu.cx + Math.cos(b) * r2 * nu.sx;
-      orb2[i].y = nu.cy - Math.sin(b) * r2 * nu.sy;
-    }
-  }
+  /* ---------- a constelação do reator (Hub): o módulo js/rede-reator.js ---------- */
+  var reator = B.redeReator ? B.redeReator({ ctx: ctx, cores: { AC: AC, AC2: AC2, AC3: AC3 }, lancar: lancar }) : null;
 
   /* ---------- sinais ---------- */
   /* `forcado`: as ondas do reator passam do limite (a batida não pode se perder) */
@@ -255,8 +212,9 @@
     for (var tenta = 0; tenta < 24; tenta++) {
       var l = (Math.random() * nLig) | 0;
       var a = ligA[l], b = ligB[l];
-      if (!a || a.tipo !== 0 || b.tipo > 1 || a.apaga < 0.6) continue;
+      if (!a || a.tipo !== 0 || (b.tipo > 1 && b.tipo !== 6) || a.apaga < 0.6) continue;
       if (a.y < navH + 20 || a.y > H - 20 || a.x < BORDA || a.x > W - BORDA) continue;
+      if (naZona((a.x + b.x) / 2, (a.y + b.y) / 2)) continue;   /* uma conversa que cruza texto aparece pela metade */
       var d = Math.hypot(b.x - a.x, b.y - a.y) || 1;
       sinais.push({ de: a, para: b, t: 0, dura: Math.max(0.3, d / 200), saltos: 0, forte: true, conversa: 3 + ((Math.random() * 3) | 0) });
       return;
@@ -268,11 +226,12 @@
       if (ligA[i] === p) { lancar(p, ligB[i]); n++; } else if (ligB[i] === p) { lancar(p, ligA[i]); n++; }
     }
   }
-  function vizinhoDe(p, exceto) {
+  function vizinhoDe(p, exceto, limpo) {
     var opcoes = 0, escolhido = null;
     for (var i = 0; i < nLig; i++) {
       var o = ligA[i] === p ? ligB[i] : ligB[i] === p ? ligA[i] : null;
-      if (!o || o === exceto || o.tipo >= 2 || (o.tipo === 1 && naZona(o.x, o.y))) continue;
+      if (!o || o === exceto || (o.tipo >= 2 && o.tipo !== 6) || (o.tipo === 1 && naZona(o.x, o.y))) continue;
+      if (limpo && ligT[i] !== 1 && naZona((p.x + o.x) / 2, (p.y + o.y) / 2)) continue;
       opcoes++;
       if (Math.random() * opcoes < 1) escolhido = o;   /* amostragem uniforme sem lista */
     }
@@ -281,18 +240,31 @@
 
   /* ---------- medida ---------- */
   function medir() {
-    W = window.innerWidth; H = window.innerHeight;
-    dpr = Math.min(window.devicePixelRatio || 1, celular ? 1.25 : 1.5);
-    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    var w = window.innerWidth, h = window.innerHeight, d = Math.min(window.devicePixelRatio || 1, celular ? 1.25 : 1.5);
+    if (w !== W || h !== H || d !== dpr) {
+      W = w; H = h; dpr = d;
+      cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
     if (!nos.length || Math.abs(nos.length - quantosNos()) > 8) semear();
     medirDocumento();
     sujo = false;
   }
+  /* o FAQ abrindo muda a altura a cada quadro por 0,4 s, e a barra do
+     celular dispara resize na rolagem: mede quando PARAR (120 ms) */
+  var pedidoEm = 0;
+  function pedirMedida() { pedidoEm = performance.now(); desenhouParado = false; }
 
   /* ---------- por quadro ---------- */
   function quadro(S) {
+    if (pedidoEm && S.now - pedidoEm > 120) { pedidoEm = 0; sujo = true; }
     if (sujo) medir();
+    if (parado) {
+      /* reduzido: redesenha quando o reator ou o mini mudam (salto por âncora, menu) */
+      var nu0 = B.nucleo, m0 = B.rede.extra;
+      var ass = (nu0 && nu0.visivel ? Math.round(nu0.py) : -1) + ':' + (m0 ? Math.round(m0.x) + ',' + Math.round(m0.y) + ',' + m0.vis.toFixed(2) : '');
+      if (ass !== assinatura) { assinatura = ass; desenhouParado = false; }
+    }
     if (parado) { if (!desenhouParado) { passo(0, B.relogio()); desenhar(B.relogio()); desenhouParado = true; } return; }
     var dt = Math.min(0.05, S.dt / 1000), t = B.relogio();
     passo(dt, t);
@@ -305,8 +277,10 @@
     /* parado (movimento reduzido): sem paralaxe, que é justamente o gatilho vestibular */
     var dy = parado ? 0 : rolagem - rolagemAntes;
     rolagemAntes = rolagem;
-    var nu = B.nucleo, comReator = !!(nu && nu.visivel);
-    if (comReator) posicionarConstelacao(nu, t);
+    var nu = B.nucleo, comReator = !!(nu && nu.visivel && reator);
+    if (nu && nu.py !== undefined) { nu.cx = nu.px - window.scrollX; nu.cy = nu.py - rolagem; }   /* sem um quadro de atraso */
+    if (comReator) reator.posicionar(nu, t, folego);
+    var mx = B.rede.extra, estreita = W < 360, miniAtivo = !!(mx && mx.ativo), miniX = mx ? mx.x : 0, miniY = mx ? mx.y : 0;
     for (var i = 0; i < nos.length; i++) {
       var n = nos[i];
       var ang = Math.sin(n.x * 0.0042 + t * 0.07 + n.fase) + Math.cos(n.y * 0.0051 - t * 0.05);
@@ -317,14 +291,16 @@
       if (n.y < -30) n.y += H + 60; else if (n.y > H + 30) n.y -= H + 60;
       /* perto do reator a rede comum se apaga: ali só a constelação fala */
       n.apaga = comReator ? suave((Math.hypot((n.x - nu.cx) / nu.sx, (n.y - nu.cy) / nu.sy) / nu.r - 2.3) / 1.2) : 1;
+      if (estreita && miniAtivo) n.apaga *= suave((Math.hypot(n.x - miniX, n.y - miniY) - 28) / 12);   /* 320 px: a rede não se amontoa no mini */
     }
-    for (var a = 0; a < ancoras.length; a++) { ancoras[a].x = ancoras[a].dx; ancoras[a].y = ancoras[a].dy - rolagem; ancoras[a].ligado = 0; }
+    for (var gd = 0; gd < grudes.length; gd++) { var g0 = grudes[gd]; g0.d = Math.max(0, Math.min(g0.fim - g0.inicio, rolagem - g0.inicio)); }
+    for (var a = 0; a < ancoras.length; a++) { var an0 = ancoras[a]; an0.x = an0.dx; an0.y = an0.dy - rolagem + (an0.item.ref ? an0.item.ref.d : 0); an0.ligado = 0; }
+    for (var tr = 0; tr < trilho.length; tr++) { trilho[tr].x = W - TRILHO_BORDA + trilho[tr].dx; trilho[tr].y = trilho[tr].dy - rolagem; }
     for (var e = 0; e < elementos.length; e++) if (elementos[e].ativo > 0) elementos[e].ativo = Math.max(0, elementos[e].ativo - dt * (elementos[e].rapido ? 5 : 0.9));
     ponteiro.a += ((ponteiro.ativo ? 1 : 0) - ponteiro.a) * Math.min(1, dt * 4);
 
-    for (var w = 0; w < 12; w++) { luzRaio[w] = Math.max(0, luzRaio[w] - dt); luzTrelica[w] = Math.max(0, luzTrelica[w] - dt); }
+    if (reator) reator.passo(dt);
     faseAgora = x;
-    for (var fk = 0; fk < 12; fk++) faiscas[fk] = Math.max(0, faiscas[fk] - dt);
     /* sem o reator na tela, os sinais dele saem (ficavam congelados no lugar) */
     if (!comReator) for (var sr = sinais.length - 1; sr >= 0; sr--) if (sinais[sr].de.tipo >= 2 && sinais[sr].de.tipo <= 3 || sinais[sr].para.tipo === 3) sinais.splice(sr, 1);
     textosNaTela();
@@ -355,10 +331,12 @@
     var i;
     for (i = 0; i < nos.length; i++) pontos.push(nos[i]);
     for (i = 0; i < ancoras.length; i++) { var an = ancoras[i]; if (an.y > -ALCANCE && an.y < H + ALCANCE) pontos.push(an); }
-    if (comReator) for (i = 0; i < 12; i++) pontos.push(orb2[i]);   /* a órbita de fora conversa com a rede; a de dentro só com o reator */
+    if (comReator) for (i = 0; i < 12; i++) pontos.push(reator.pontosDaRede[i]);   /* a órbita de fora conversa com a rede */
     if (ponteiro.a > 0.02) pontos.push(ponteiro);
     var extra = B.rede.extra;
     if (extra && extra.ativo) pontos.push(extra);
+    var t0 = -1;
+    for (i = 0; i < trilho.length; i++) { var tn = trilho[i]; if (tn.y > -ALCANCE && tn.y < H + ALCANCE) { pontos.push(tn); if (t0 < 0) t0 = i; } }
 
     grade.forEach(function (l) { l.length = 0; });
     for (i = 0; i < pontos.length; i++) {
@@ -369,6 +347,26 @@
       cel0.push(pt);
     }
     nLig = 0; nCand = 0;
+    /* o trilho: cada nó com o seguinte, se o vão for de até 170 px */
+    for (i = Math.max(0, t0 - 1); t0 >= 0 && i < trilho.length - 1; i++) {
+      var ta = trilho[i], tb = trilho[i + 1];
+      if (ta.y > H + ALCANCE) break;
+      if (tb.y - ta.y > 170) continue;
+      ligA[nLig] = ta; ligB[nLig] = tb; ligF[nLig] = 0.5; ligT[nLig] = 1; nLig++;
+    }
+    /* o fecho: os dois cantos direitos do botão final ligados ao nó do
+       trilho mais perto de cada um (a rede termina no convite) */
+    if (TRILHO && fecho) for (i = 0; i < fecho.ancoras.length; i++) {
+      var ca = fecho.ancoras[i];
+      if (!ca.cx || ca.y < 0 || ca.y > H) continue;
+      var melhor = null, dmin = 9e9;
+      for (var tk = 0; tk < trilho.length; tk++) {
+        var tn2 = trilho[tk];
+        if (tn2.y < navH || tn2.y > Math.min(H, rodapeY - rolagem - 60)) continue;   /* só nós desenhados */
+        var dk = Math.abs(tn2.y - ca.y); if (dk < dmin) { dmin = dk; melhor = tn2; }
+      }
+      if (melhor && dmin < 120) { ligA[nLig] = melhor; ligB[nLig] = ca; ligF[nLig] = 0.6; ligT[nLig] = 1; nLig++; }
+    }
     for (i = 0; i < pontos.length; i++) { pontos[i].grau = 0; pontos[i].cands = pontos[i].cands || []; pontos[i].cands.length = 0; }
     var L2 = ALCANCE * ALCANCE;
     for (i = 0; i < pontos.length; i++) {
@@ -399,7 +397,7 @@
           }
           if (a.tipo === 1 && f > a.ligado) a.ligado = f;   /* a força do feixe mais forte que chega no canto */
           if (b.tipo === 1 && f > b.ligado) b.ligado = f;
-          ligA[nLig] = a; ligB[nLig] = b; ligF[nLig] = f; nLig++;
+          ligA[nLig] = a; ligB[nLig] = b; ligF[nLig] = f; ligT[nLig] = 0; nLig++;
         }
       }
     }
@@ -413,12 +411,13 @@
       var k = a.tipo === 5 || b.tipo === 5 ? fatorGrau(a.tipo === 5 ? a : b, i, MAX_MINI) : Math.min(fatorGrau(a, i), fatorGrau(b, i));
       if (k <= 0.01) continue;
       var f = candF[i] * k;
-      f *= 1.12;   /* a rede comum um pouco mais presente (o texto já é protegido pela borracha) */
-      ligA[nLig] = a; ligB[nLig] = b; ligF[nLig] = f; nLig++;
+      if (a.tipo === 5 || b.tipo === 5) f = Math.max(f, 0.75 * k);   /* o mini sempre segura um feixe visível (0,35 caía numa faixa de ~0,13 de alfa) */
+      else f *= 1.12;   /* a rede comum um pouco mais presente (o texto já é protegido pela borracha) */
+      ligA[nLig] = a; ligB[nLig] = b; ligF[nLig] = f; ligT[nLig] = 0; nLig++;
     }
   }
 
-  /* a regra de cada par (tipo: 0 nó, 1 canto, 2 órbita, 4 ponteiro, 5 mini) */
+  /* a regra de cada par (tipo: 0 nó, 1 canto, 2 órbita, 4 ponteiro, 5 mini, 6 trilho) */
   function forca(a, b, L2) {
     var dx = a.x - b.x, dy = a.y - b.y, d2 = dx * dx + dy * dy;
     var ta = a.tipo, tb = b.tipo;
@@ -430,8 +429,10 @@
       return 0.6 + 0.4 * Math.max(a.item.ativo, b.item.ativo);
     }
     if (ta === 2 && tb === 2) return 0;   /* a órbita tem as ligações dela (desenhar) */
+    if (tb === 6 && (ta === 6 || ta === 2 || ta === 4)) return 0;   /* o trilho: entre si já ligado; não com órbita nem cursor */
     var alcance = L2;
-    if (ta === 4 || tb === 4 || ta === 5 || tb === 5) alcance = L2 * 1.3;
+    if (ta === 4 || tb === 4) alcance = L2 * 1.3;
+    if (ta === 5 || tb === 5) alcance = L2 * 2.2;   /* o mini procura mais longe: sempre acha um nó */
     if (d2 > alcance) return 0;
     var f = 1 - Math.sqrt(d2 / alcance);
     f *= f;
@@ -440,16 +441,14 @@
     if (ta === 1 || tb === 1) f *= 0.75 + (ta === 1 ? a : b).item.ativo * 2.2;
     if (ta === 4 || tb === 4) f *= ponteiro.a * 0.9;
     if (ta === 5 || tb === 5) f *= 1.3 * (B.rede.extra ? B.rede.extra.forca : 1);
+    if (tb === 6 && ta === 1) f *= 1.3;   /* as pontas das réguas se prendem ao trilho */
     return f;
   }
 
   /* a onda do fôlego na constelação: da órbita de fora para a de dentro e
      dela para o portal, chegando com o lampejo (começo do fôlego) */
   function ondas(x, comReator) {
-    if (comReator && !parado) {
-      if (faseAntes < 0.78 && x >= 0.78) for (var i = 0; i < 12; i++) lancar(orb2[i], orb1[i], 0.75, true, luzTrelica, i, 0.78);
-      if (faseAntes < 0.9 && x >= 0.9) for (var j = 0; j < 12; j++) lancar(orb1[j], portal[j], 0.7, true, luzRaio, j, 0.9);
-    }
+    if (comReator && !parado) reator.ondas(x, faseAntes);
     faseAntes = x;
   }
   /* sinais soltos pela rede: mais no expirar (a rede solta o que o núcleo soltou) */
@@ -468,8 +467,6 @@
   }
 
   var faseAgora = 0;
-  var FAISCA = 0.25, faiscas = [];   /* s: a passagem do bastão no portal (a onda entrega a energia aos raios) */
-  for (var fi = 0; fi < 12; fi++) faiscas.push(0);
   function andarSinais(dt) {
     for (var r = rastros.length - 1; r >= 0; r--) { rastros[r].t -= dt; if (rastros[r].t <= 0) rastros.splice(r, 1); }
     for (var i = sinais.length - 1; i >= 0; i--) {
@@ -478,10 +475,10 @@
       else s.t += dt / s.dura;
       if (s.t < 1) continue;
       if (s.luz) s.luz[s.idx] = 0.3;
-      if (s.para.tipo === 3) faiscas[s.para.i] = FAISCA;
+      if (reator && s.x0 >= 0) reator.chegou(s);   /* a passagem do bastão no portal */
       if (s.conversa) {
         rastros.push({ de: s.de, para: s.para, t: RASTRO });
-        var seguinte = s.saltos < s.conversa ? vizinhoDe(s.para, s.de) : null;
+        var seguinte = s.saltos < s.conversa ? vizinhoDe(s.para, s.de, true) : null;
         if (seguinte) { s.de = s.para; s.para = seguinte; s.t = 0; s.saltos++; s.dura = Math.max(0.3, Math.hypot(seguinte.x - s.de.x, seguinte.y - s.de.y) / 200); }
         else sinais.splice(i, 1);
         continue;
@@ -499,7 +496,7 @@
   function textosNaTela() {
     naTela.length = 0;
     for (var i = 0; i < textos.length; i++) {
-      var r = textos[i], y = r.y - rolagem;
+      var r = textos[i], y = telaY(r);
       if (y - 30 > H || y + r.h + 30 < 0) continue;
       naTela.push(r);
     }
@@ -509,19 +506,19 @@
     for (var i = 0; i < naTela.length; i++) {
       var r = naTela[i];
       if ((r.halo && !comHalo) || r.folga < 0) continue;
-      var ry = r.y - rolagem, f = r.folga;
+      var ry = telaY(r), f = r.folga;
       if (x > r.x - f && x < r.x + r.w + f && y > ry - f && y < ry + r.h + f) return true;
     }
     return false;
   }
   function desenhar(t) {
     ctx.clearRect(0, 0, W, H);
-    var nu = B.nucleo, comReator = !!(nu && nu.visivel);
+    var nu = B.nucleo, comReator = !!(nu && nu.visivel && reator);
     var i, k;
     /* os feixes por faixa de força (a força não oscila: a respiração entra
        por globalAlpha e as linhas não trocam de faixa a cada fôlego) */
     for (k = 0; k < FAIXAS; k++) faixas[k].length = 0;
-    for (i = 0; i < nLig; i++) faixas[Math.min(FAIXAS - 1, (ligF[i] * FAIXAS) | 0)].push(i);
+    for (i = 0; i < nLig; i++) if (ligT[i] !== 1) faixas[Math.min(FAIXAS - 1, (ligF[i] * FAIXAS) | 0)].push(i);
     ctx.globalAlpha = 0.74 + 0.26 * folego;   /* nunca acima de 1: o canvas ignoraria e a respiração achataria */
     ctx.lineWidth = 0.75;
     for (k = 0; k < FAIXAS; k++) {
@@ -543,13 +540,13 @@
       ctx.moveTo(n.x + r, n.y); ctx.arc(n.x, n.y, r, 0, TAU);
     }
     ctx.fill();
-    /* o encaixe nos elementos: um quadradinho onde um feixe chega */
     var extra = B.rede.extra;
-    if (comReator) desenharConstelacao();
-    desenharSinais();
+    if (comReator) reator.desenhar(folego);
+    desenharSinais(false);
     if (extra && extra.desenharFundo) extra.desenharFundo(ctx, t, folego);   /* o feixe do mini: também some atrás do texto */
     apagarTextos();
-    if (comReator) { apagarFaceDoReator(nu); desenharFaiscas(); }
+    if (comReator) reator.depoisDaBorracha(nu);
+    if (TRILHO) desenharTrilho();
     for (i = 0; i < ancoras.length; i++) {
       var an = ancoras[i];
       if (an.ligado < 0.08 || an.y < navH || an.y > rodapeY - rolagem - 40 || naZona(an.x, an.y, true)) continue;
@@ -560,44 +557,78 @@
     if (extra && extra.desenhar) extra.desenhar(ctx, t, folego);
   }
 
-  /* a constelação: os raios do reator continuando para fora (portal → órbita
-     de dentro) e a treliça entre as órbitas, em ciano profundo */
-  function desenharConstelacao() {
-    ctx.lineWidth = 0.8;
-    /* parada, calma (abaixo do teto da rede); a luz ANDA nela: cada trecho
-       acende quando a onda passa e apaga em 0,3 s */
-    var base = 0.18 * (1 + 0.3 * folego);
-    ctx.strokeStyle = 'rgba(' + AC3 + ',' + base.toFixed(3) + ')';
-    ctx.beginPath();
-    for (var i = 0; i < 12; i++) {
-      var p = portal[i], a = orb1[i], b = orb2[i], c = orb2[(i + 11) % 12];
-      ctx.moveTo(p.x, p.y); ctx.lineTo(a.x, a.y);
-      ctx.moveTo(b.x, b.y); ctx.lineTo(a.x, a.y); ctx.lineTo(c.x, c.y);
+  /* o trilho: tracejado de nós na margem direita (só celular), por cima da
+     borracha das bordas; os pontos somem dentro do halo dos botões */
+  function naHalo(x, y) {
+    for (var i = 0; i < naTela.length; i++) {
+      var r = naTela[i];
+      if (!r.halo) continue;
+      var ry = telaY(r), f = r.folga;
+      if (x > r.x - f && x < r.x + r.w + f && y > ry - f && y < ry + r.h + f) return true;
     }
-    ctx.stroke();
-    for (var w = 0; w < 12; w++) {
-      var lr = luzRaio[w] / 0.3, lt = luzTrelica[w] / 0.3;
-      if (lr > 0.01) { ctx.strokeStyle = 'rgba(' + AC + ',' + (0.4 * lr).toFixed(3) + ')'; ctx.beginPath(); ctx.moveTo(portal[w].x, portal[w].y); ctx.lineTo(orb1[w].x, orb1[w].y); ctx.stroke(); }
-      if (lt > 0.01) { ctx.strokeStyle = 'rgba(' + AC + ',' + (0.4 * lt).toFixed(3) + ')'; ctx.beginPath(); ctx.moveTo(orb2[w].x, orb2[w].y); ctx.lineTo(orb1[w].x, orb1[w].y); ctx.stroke(); }
+    return false;
+  }
+  /* a luz do trilho pela distância ao mini: 0,20 junto dele, 0,07 a 300 px
+     (a parte acesa anda com ele; o resto é sugestão) */
+  function luzTrilho(y) {
+    var m = B.rede.extra, v = m ? m.vis : 0, luz = 0.07 + 0.13 * v * (1 - suave(Math.abs(y - (m ? m.y : 0)) / 300));
+    /* o fecho: com o mini já despedido, a luz se centra no botão final (a
+       energia termina no convite, crítica rodada 9) */
+    var yf = yFecho();
+    if (yf !== null) luz = Math.max(luz, 0.07 + 0.13 * (1 - v) * (1 - suave(Math.abs(y - yf) / 300)));
+    return luz;
+  }
+  function yFecho() {
+    if (!fecho || !fecho.ancoras.length) return null;
+    var y = (fecho.ancoras[0].y + fecho.ancoras[fecho.ancoras.length - 1].y) / 2;
+    return y > 0 && y < H ? y : null;
+  }
+  function desenharTrilho() {
+    var fimY = rodapeY - rolagem - 60, i, m = B.rede.extra, my = m && m.ativo ? m.y : -1e4;
+    var resp = 0.85 + 0.3 * folego;
+    ctx.lineWidth = 0.75;
+    for (i = 0; i < nLig; i++) {
+      if (ligT[i] !== 1) continue;
+      var a = ligA[i], b = ligB[i];
+      /* a ligação ao botão final atravessa o halo dele de propósito: é o fecho */
+      if (a.y > fimY || (b.tipo !== 1 && naHalo(a.x, (a.y + b.y) / 2))) continue;
+      var y0 = a.y, y1 = Math.min(b.y, fimY);
+      /* a ligação ao botão final: no mínimo 0,25, e acende com a mira */
+      var luzLig = b.tipo === 1 ? Math.max(0.25, 0.25 + 0.3 * b.item.ativo) : luzTrilho((y0 + y1) / 2) * resp;
+      ctx.strokeStyle = 'rgba(' + AC + ',' + luzLig.toFixed(3) + ')';
+      ctx.beginPath();
+      /* o vão em volta do mini: o fio se abre e ele corre por ele */
+      if (b.tipo === 6 && my > y0 - TRILHO_VAO && my < y1 + TRILHO_VAO) {
+        var cima = my - TRILHO_VAO, baixo = my + TRILHO_VAO, k0 = (cima - y0) / (y1 - y0 || 1), k1 = (baixo - y0) / (y1 - y0 || 1);
+        if (k0 > 0) { ctx.moveTo(a.x, y0); ctx.lineTo(a.x + (b.x - a.x) * k0, cima); }
+        if (k1 < 1) { ctx.moveTo(a.x + (b.x - a.x) * k1, baixo); ctx.lineTo(b.x, y1); }
+      } else { ctx.moveTo(a.x, y0); ctx.lineTo(b.x, y1); }
+      ctx.stroke();
     }
-    ctx.fillStyle = 'rgba(' + AC2 + ',0.75)';
+    ctx.fillStyle = 'rgba(' + AC2 + ',0.45)';
     ctx.beginPath();
-    for (var j = 0; j < 12; j++) {
-      ctx.moveTo(orb1[j].x + 1.5, orb1[j].y); ctx.arc(orb1[j].x, orb1[j].y, 1.5, 0, TAU);
-      ctx.moveTo(orb2[j].x + 1.2, orb2[j].y); ctx.arc(orb2[j].x, orb2[j].y, 1.2, 0, TAU);
+    for (i = 0; i < trilho.length; i++) {
+      var p = trilho[i];
+      if (p.y < navH || p.y > Math.min(H, fimY) || naHalo(p.x, p.y) || Math.abs(p.y - my) < TRILHO_VAO) continue;
+      ctx.moveTo(p.x + 0.9, p.y); ctx.arc(p.x, p.y, 0.9, 0, TAU);
     }
     ctx.fill();
+    desenharSinais(true);
   }
 
-  function desenharSinais() {
+  /* `noTrilho`: só os sinais entre nós do trilho (desenhados depois da
+     borracha); sem ele, todos os outros */
+  function desenharSinais(noTrilho) {
     /* o caminho da conversa: cada trecho fica aceso e apaga depois que o sinal passa */
     ctx.lineWidth = 0.9;
     for (var r = 0; r < rastros.length; r++) {
       var ra = rastros[r];
+      if ((ra.de.tipo === 6 && ra.para.tipo === 6) !== !!noTrilho) continue;
       ctx.strokeStyle = 'rgba(' + AC + ',' + (0.34 * ra.t / RASTRO).toFixed(3) + ')';
       ctx.beginPath(); ctx.moveTo(ra.de.x, ra.de.y); ctx.lineTo(ra.para.x, ra.para.y); ctx.stroke();
     }
     for (var i = 0; i < sinais.length; i++) {
+      if ((sinais[i].de.tipo === 6 && sinais[i].para.tipo === 6) !== !!noTrilho) continue;
       var s = sinais[i], u = s.t, hx = s.de.x + (s.para.x - s.de.x) * u, hy = s.de.y + (s.para.y - s.de.y) * u;
       /* o da onda: o caminho percorrido fica aceso atrás dele (a energia corre) */
       if (s.luz || s.conversa) { ctx.strokeStyle = 'rgba(' + AC + ',0.32)'; ctx.lineWidth = 0.9; ctx.beginPath(); ctx.moveTo(s.de.x, s.de.y); ctx.lineTo(hx, hy); ctx.stroke(); }
@@ -606,11 +637,13 @@
       g.addColorStop(0, 'rgba(' + AC + ',0)');
       /* branco só nas ondas do reator; a conversa tem cabeça ciano clara */
       var branca = s.forte && !s.conversa;
+      ctx.globalAlpha = naZona(hx, hy) ? 0.7 : 1;
       g.addColorStop(1, branca ? 'rgba(242,244,244,0.95)' : 'rgba(' + AC2 + ',0.9)');
       ctx.strokeStyle = g; ctx.lineWidth = s.forte ? 1.4 : 1.2;
       ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(hx, hy); ctx.stroke();
       ctx.fillStyle = branca ? 'rgba(242,244,244,0.95)' : 'rgba(' + AC2 + ',0.9)';
       ctx.beginPath(); ctx.arc(hx, hy, branca ? 2 : s.forte ? 1.6 : 1.4, 0, TAU); ctx.fill();
+      ctx.globalAlpha = 1;
     }
   }
 
@@ -636,44 +669,16 @@
       ctx.fillStyle = gr; ctx.fillRect(0, ry - 80, W, 80);
       ctx.fillStyle = '#000'; ctx.fillRect(0, ry, W, H);
     }
-    for (var i = 0; i < textos.length; i++) {
-      var r = textos[i], y = r.y - rolagem;
-      if (y - 30 > H || y + r.h + 30 < 0) continue;
+    for (var i = 0; i < naTela.length; i++) {
+      var r = naTela[i], y = telaY(r);
       if (r.halo) { ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(r.x - r.folga, y - r.folga, r.w + 2 * r.folga, r.h + 2 * r.folga); continue; }
       if (r.inteiro) { ctx.fillStyle = '#000'; ctx.fillRect(r.x - r.folga, y - r.folga, r.w + 2 * r.folga, r.h + 2 * r.folga); continue; }
-      if (r.folga > 0) { ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(r.x - r.folga, y - r.folga, r.w + 2 * r.folga, r.h + 2 * r.folga); }
+      if (r.folga > 0) { ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.fillRect(r.x - r.folga, y - r.folga, r.w + 2 * r.folga, r.h + 2 * r.folga); }
       var m = r.folga > 0 ? 4 : r.folga;
       ctx.fillStyle = 'rgba(0,0,0,0.94)'; ctx.fillRect(r.x - m, y - m, r.w + 2 * m, r.h + 2 * m);
     }
     ctx.globalCompositeOperation = 'source-over';
   }
-  /* nada cruza a face do reator: a energia só entra pelos 12 pontos */
-  function apagarFaceDoReator(nu) {
-    ctx.globalCompositeOperation = 'destination-out';
-    ctx.beginPath();
-    ctx.ellipse(nu.cx, nu.cy, nu.r * 0.97 * nu.sx, nu.r * 0.97 * nu.sy, 0, 0, TAU);
-    ctx.fillStyle = '#000'; ctx.fill();
-    ctx.globalCompositeOperation = 'source-over';
-  }
-
-  /* a faísca: um anel que abre de 3 a 10 px e some, desacelerando, em cada
-     ponto de entrada (por fora do recorte da face do reator) */
-  function desenharFaiscas() {
-    var nu = B.nucleo;
-    ctx.lineWidth = 2; ctx.lineCap = 'round';
-    for (var i = 0; i < 12; i++) {
-      if (faiscas[i] <= 0) continue;
-      var k = 1 - faiscas[i] / FAISCA, e = 1 - (1 - k) * (1 - k), p = portal[i];
-      var dx = p.x - nu.cx, dy = p.y - nu.cy, d = Math.hypot(dx, dy) || 1, ux = dx / d, uy = dy / d, l = 3 + 7 * e;
-      /* o traço: alinhado ao raio, nascendo no ponto de entrada e crescendo para fora */
-      ctx.strokeStyle = 'rgba(' + AC2 + ',' + (0.6 * (1 - k)).toFixed(3) + ')';
-      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + ux * l, p.y + uy * l); ctx.stroke();
-      /* o ponto branco, mais breve (150 ms) */
-      if (k < 0.6) { ctx.fillStyle = 'rgba(242,244,244,' + (0.9 * (1 - k / 0.6)).toFixed(3) + ')'; ctx.beginPath(); ctx.arc(p.x, p.y, 1, 0, TAU); ctx.fill(); }
-    }
-    ctx.lineCap = 'butt';
-  }
-
   function desenharCantos() {
     ctx.lineWidth = 1;
     for (var e = 0; e < elementos.length; e++) {
@@ -697,8 +702,6 @@
     lancar: lancar,
     dispararDe: dispararDe,
     alturaDoc: function () { return docH; },
-    /* a ponta da régua do kicker (o mini manda o feixe para ela) */
-    ancoraDe: function (el) { var it = itemDe(el); return it ? it.ancoras[it.ancoras.length - 1] : null; },
     /* o canto, dentre os da seção, mais perto de (x, y) e na tela; null se passar de `max` px */
     cantoPerto: function (secao, x, y, max) {
       var melhor = null, dm = max * max;
@@ -716,20 +719,21 @@
     sobreTexto: function (x, y, rx, ry) {
       if (ry === undefined) ry = rx;
       for (var i = 0; i < naTela.length; i++) {
-        var q = naTela[i], ty = q.y - rolagem;
+        var q = naTela[i], ty = telaY(q);
         if (q.halo || q.folga < 0 || q.inteiro) continue;
         if (x + rx > q.x && x - rx < q.x + q.w && y + ry > ty && y - ry < ty + q.h) return true;
       }
       return false;
     },
-    rodapeNaTela: function () { return rodapeY - rolagem; },
-    acender: function (el) { acender(el, 1); }
+    rodapeNaTela: function () { return rodapeY - rolagem; }
   };
 
   /* ---------- eventos (só anotam) ---------- */
-  window.addEventListener('resize', function () { sujo = true; desenhouParado = false; }, { passive: true });
+  window.addEventListener('resize', pedirMedida, { passive: true });
   window.addEventListener('scroll', function () { rolagem = window.scrollY; if (parado) desenhouParado = false; }, { passive: true });
-  if ('ResizeObserver' in window) new ResizeObserver(function () { sujo = true; desenhouParado = false; }).observe(document.body);
+  if ('ResizeObserver' in window) new ResizeObserver(pedirMedida).observe(document.body);
+  /* as fontes mudam a largura das linhas: mede de novo quando chegam */
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(pedirMedida);
   if (ponteiroFino) {
     document.addEventListener('pointermove', function (e) { if (e.pointerType === 'mouse') { ponteiro.x = e.clientX; ponteiro.y = e.clientY; ponteiro.ativo = true; } }, { passive: true });
     document.documentElement.addEventListener('pointerleave', function () { ponteiro.ativo = false; }, { passive: true });

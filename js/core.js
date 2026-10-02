@@ -50,7 +50,7 @@
     S.fps += (1000 / Math.max(1, dt) - S.fps) * 0.1;
     /* um subsistema que lança não derruba os outros nem o laço */
     for (var i = 0; i < subs.length; i++) {
-      try { subs[i].f(S); } catch (e) { falhou(subs[i]); }
+      try { subs[i].f(S); subs[i].erros = 0; } catch (e) { falhou(subs[i]); }
     }
     requestAnimationFrame(frame);
   }

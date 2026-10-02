@@ -392,3 +392,62 @@ projetava o ponteiro duas vezes por quadro; agora uma. Medido: 60 fps no
 celular com CPU 4× mais lenta, tocando; verificador 12/12 (uma rodada com
 a CPU em 97% por explorer.exe/papel de parede deu falso negativo na 1ª
 carga); acessibilidade 23/23.
+
+## 16. A rede, o mini AI Core e o novo fundo do hero (2026-10-02)
+
+Três pedidos do dono, num sistema só:
+
+1. "Conforme vamos passando e mudando de páginas, o AI Core vá seguindo a
+   gente e interagindo também; não ele todo, algo pequeno e minimalista."
+2. "O fundo [do hero] não está no mesmo nível do AI Core: tire os anéis,
+   modifique o fundo do hero completamente para agregar ainda mais valor."
+3. "Um fundo animado, com feixes que se conectam, interagem entre si e com
+   todos os elementos do site, bem parecido com o antigo porém melhor."
+
+**Arquitetura.**
+- `js/rede.js`: canvas 2D fixo atrás do conteúdo. Nós em 3 profundidades
+  (paralaxe), as 4 ligações mais próximas por nó (a 4ª suave), sinais e
+  "conversas" (cadeias de 3–5 saltos) presas ao fôlego, cantos dos elementos
+  como nós (encaixes), a pilha de cartões vira corrente, o ponteiro é nó, e
+  no celular um TRILHO tracejado na margem direita (o fio por onde o mini
+  corre). Respira com o reator.
+- `js/rede-texto.js`: as zonas onde a rede não entra (todo texto visível
+  linha a linha, miolo de cartões e botões, cota/números/rota/LEDs inteiros,
+  halo dos botões), medidas por evento em posição de layout.
+- `js/rede-reator.js` (só no Hub): a constelação do reator — duas órbitas
+  de 12 nós alinhadas aos raios, presas aos 12 pontos de entrada; a cada
+  fôlego a onda corre até o portal guiada pela FASE e passa o bastão
+  (faíscas). O reator não tem mais paralaxe (posição calculada, sem ler
+  layout por quadro); `boot.js` publica `B.nucleo` (centro, raio de
+  entrada, giro, achatamento).
+- `js/mini.js`: o mini AI Core. Corpo num canvas de 96 px acima das seções
+  (as de fundo grafite o apagavam); a luz que ele leva, o rastro e o feixe
+  no canvas de trás. Nasce do reator do Hub, desce junto da coluna (desktop)
+  ou no trilho (celular) com mola, olha o cursor, solta sinais no expirar,
+  manda feixe ao canto da seção ou do cartão aceso, continua de onde estava
+  ao trocar de página (rede e mini herdados, sem fusão na View Transition)
+  e se despede no rodapé.
+- `core.js`: `B.relogio()` (relógio da visita, igual entre páginas) e
+  `B.FOLEGO`: reator, rede e mini respiram juntos.
+- O fundo do hero perdeu anéis, coluna, névoa e fragmentos (estão no commit
+  8103c99); ficou a luz do núcleo e o escuro das bordas, e a constelação.
+
+**O processo.** Nove rodadas com três críticos (direção de arte, motion,
+celular/legibilidade), notas de 6/6,5/6 para 9,3/9,5/9,5. Achados que
+valem lembrar: pontos perto de letras leem como acentos (protegido todo
+texto, linha a linha, inclusive aria-hidden do SplitText); `getClientRects`
+de um bloco traz a caixa dos filhos de bloco (medir só nós de texto); o
+canvas atrás de seções semitransparentes apaga o que está nele (corpo do
+mini num canvas à frente); `globalAlpha` acima de 1 é ignorado (a
+respiração achatava); onda por soma de dt atrasa com engasgos (guiar pela
+fase); bug antigo do palco da prova revelado pela rede: a máscara era medida
+antes do número real chegar (passando de 999 KB sobrava um "2 KB").
+
+**Medido.** A/B com GPU real e CPU 4× no celular: 60/60 fps nas três
+páginas, LCP sem piora (mediana). Verificador 12/12, acessibilidade 23/23.
+A medida de texto custa 1,2 ms por evento.
+
+**Pendente do dono.** Ver no celular dele (fluidez, aquecimento, borda
+curva da tela). E uma decisão: a cota "1ª pintura em X s" mostra o número
+real; num aparelho fraco pode mostrar 10 s numa página que vende
+velocidade (o verificador viu 10,5 s na 1ª carga do navegador de teste).

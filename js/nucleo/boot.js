@@ -69,6 +69,9 @@
   var conexao = navigator.connection;
   if (conexao && conexao.saveData) return;
   if ((navigator.deviceMemory || 8) < 4) return;
+  /* daqui em diante o reator vai TENTAR montar: o mini espera por ele para
+     nascer de dentro dele ('sem' se desistir) */
+  B.nucleoEstado = 'esperando';
 
   var celular = window.matchMedia('(max-width: 860px), (pointer: coarse)').matches;
   var ponteiroFino = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
@@ -111,10 +114,11 @@
        contexto que o navegador recusaria (ele escreve erro no console). */
     var gl;
     try { gl = canvas.getContext('webgl2', ATRIBUTOS) || canvas.getContext('webgl', ATRIBUTOS); } catch (e) { gl = null; }
-    if (!gl) return;                          /* fica o desenho em CSS */
+    if (!gl) { B.nucleoEstado = 'sem'; return; }   /* fica o desenho em CSS */
     Promise.all([import('/js/nucleo/cena.js'), import('/js/nucleo/gesto.js')]).then(function (mods) {
       cena = mods[0].criarCena(canvas, gl, { celular: celular });
-      if (!cena) return;
+      if (!cena) { B.nucleoEstado = 'sem'; return; }
+      B.nucleoEstado = 'pronto';
       gesto = mods[1].criarGesto(cena, canvas, hero, { fino: ponteiroFino, ouvir: ouvir });
       /* o primeiro quadro desenha ANTES de o desenho em CSS sair: se algo
          falhar aqui, o CSS continua lá */
@@ -233,7 +237,12 @@
       publicar();   /* a rede parada também prende a constelação ao portal */
       return;
     }
-    if (!visivel || !liberado) return;
+    if (!visivel || !liberado) {
+      /* fora da tela: a rede e o mini precisam saber (sem isto a constelação
+         ficava congelada no meio da página depois de um salto por âncora) */
+      if (nucleo.visivel) nucleo.visivel = false;
+      return;
+    }
     var dt = S.dt / 1000;                     /* o core.js já limita a 50 ms */
     if (relogio < 0) relogio = 0;
     relogio += dt;
@@ -274,6 +283,10 @@
   function publicar() {
     var p = cena.pose();
     var pxPorUnidade = (centro.w * 1.44) / p.altura;   /* o canvas tem 144% da caixa (css/componentes.css) */
+    /* px/py: o centro na PÁGINA; a rede refaz cx/cy com a rolagem do quadro
+       dela (o laço roda a rede antes do reator: com cy pronto ela andava um
+       quadro atrás) */
+    nucleo.px = centro.x; nucleo.py = centro.y;
     nucleo.cx = centro.x - window.scrollX;
     nucleo.cy = centro.y - rolagem;
     nucleo.r = p.entrada * pxPorUnidade;
@@ -308,6 +321,7 @@
   function desistir() {
     B.remove('nucleo');
     B.nucleo = null;
+    B.nucleoEstado = 'sem';
     for (var i = 0; i < desfazer.length; i++) desfazer[i]();
     desfazer = [];
     html.classList.remove('tem-nucleo');
