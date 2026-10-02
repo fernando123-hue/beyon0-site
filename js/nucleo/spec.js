@@ -120,6 +120,30 @@ export const SPEC = {
      cada `periodo` s; nunca uma mancha */
   onda: { periodo: 8, dura: 1.4, raio: [0.4, 1.6], alfa: 0.35, cor: 'ac' },
 
+  /* a respiração (pedido do dono: "sempre em movimento, praticamente
+     respirando; leve, suave, quase hipnotizante"). Um fôlego a cada
+     `periodo` s (≈ 8,5 por minuto, o ritmo de quem está calmo): inspira em
+     `inspira` do ciclo, solta no resto. Nasce no núcleo e corre para fora:
+     cada camada respira [atraso s depois, crescendo amp da escala]. Com o
+     atraso a respiração vira uma onda lenta que atravessa o reator, nunca o
+     reator inteiro pulsando junto (isso leria como zoom) */
+  respira: { periodo: 7, inspira: 0.42, luz: 0.14,
+    nucleo: [0, 0.1], lente: [0.35, 0.035], petalas: [0.75, 0.028], camaras: [1.1, 0.02],
+    tracejado: [1.35, 0.012], portal: [1.6, 0.01], fundo: [0.25, 0.35] },
+
+  /* o campo: o ponteiro (ou o dedo) como uma força no plano do reator. As
+     lâminas perto dele se afastam (`empurra`) e se erguem para a câmera
+     (`ergue`), caindo em `raio`; o núcleo segue com atraso, só um pouco
+     (`nucleo`, a lente vai a meio caminho) e clareia quando o ponteiro chega
+     perto dele (`perto`, `brilho`). `acende`: quanto o cristal tocado
+     ganha de luz (×(1 + acende) no centro do campo e na frente da onda) */
+  campo: { raio: 0.32, empurra: 0.075, ergue: 0.14, nucleo: 0.035, perto: 0.4, brilho: 0.22, acende: 2.2 },
+
+  /* o toque: um clique ou toque no reator solta uma onda que sai do ponto
+     tocado e atravessa as lâminas (`vel` unidades/s, `largura` da frente),
+     e o núcleo bate mais forte (`batida`) */
+  toque: { vel: 1.5, largura: 0.11, dura: 1.5, batida: 0.22 },
+
   /* o acendimento corre de dentro para fora: o atraso (s) de cada camada
      depois da ignição */
   acende: { disco: 0, equador: 0.08, raios: 0.16, jatos: 0.16, trilhos: 0.24 },

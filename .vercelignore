@@ -20,7 +20,7 @@ package-lock.json
 assets/README.txt
 
 # AI Core: o laboratório (docs/lab-nucleo.html) e a receita do three
-# reduzido são ferramenta; o site só carrega boot/cena/pecas/spec e o .min.js
+# reduzido são ferramenta; o site só carrega boot/cena/gesto/pecas/spec e o .min.js
 js/nucleo/lab.js
 vendor/three/entrada.js
 vendor/three/README.md

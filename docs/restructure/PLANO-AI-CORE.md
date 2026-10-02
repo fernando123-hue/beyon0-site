@@ -319,10 +319,49 @@ limpa) e **congelar**. Revisão de código: aprovada; pisos de espessura
 (nada abaixo de ~1 px no celular), código morto removido (achatar,
 vidro radial, Extrude/Shape do bundle: 129 → 121 KB).
 
-**Próximo, pedido do dono (ainda NÃO feito):** "quero que ele esteja sempre
-em movimento, praticamente 'respirando', algo leve, suave, quase
-hipnotizante; e bastante interativo". Ideias a avaliar no laboratório antes
-de codar: respiração lenta em várias escalas (núcleo, lâminas, régua) em
-fases defasadas; ponteiro e toque como campo de força (as lâminas se
-inclinam/afastam perto do dedo/cursor, o núcleo segue com atraso); toque/
-clique dispara uma onda; rolagem continua abrindo. Medir fps no celular.
+**Próximo, pedido do dono:** "quero que ele esteja sempre em movimento,
+praticamente 'respirando', algo leve, suave, quase hipnotizante; e
+bastante interativo". Feito na seção 14.
+
+## 14. Respiração e gesto (2026-10-02, décima segunda sessão)
+
+A forma da v3 continua congelada; só o movimento mudou. Números em
+`spec.js` (`respira`, `campo`, `toque`).
+
+- **Respiração:** um fôlego a cada 7 s (inspira em 42% do ciclo e solta
+  mais devagar, sem tranco nas viradas). Nasce no núcleo (escala +10% e
+  luz ±7%) e corre para fora com atraso por camada: lente 0,35 s,
+  pétalas 0,75 s, câmaras 1,1 s, tracejado 1,35 s, portal 1,6 s. Com o
+  atraso, vira uma onda lenta que atravessa o reator, em vez de um zoom do
+  conjunto. Substitui o seno de 5% que existia antes.
+- **Campo (ponteiro ou dedo):** a posição na tela é projetada no plano do
+  reator (`cena.projetar`). As lâminas perto dela se afastam, se erguem
+  para a câmera e **acendem**. Num traço de 1 px o deslocamento sozinho não
+  se lia; a primeira versão, com 10 px, ficou invisível nos quadros. O
+  núcleo segue com atraso, por uma mola criticamente amortecida (~0,6 s),
+  e clareia quando o ponteiro chega perto dele. No celular, o dedo vale
+  enquanto está na tela; quando a rolagem assume, o `pointercancel` desfaz
+  o campo.
+- **Toque ou clique curto no reator:** sai uma onda do ponto tocado, um
+  anel de lâminas acesas que atravessa o reator em 1,5 s, e o núcleo bate
+  mais forte.
+- **Rolagem:** dá um impulso de giro à roda (o tracejado gira ao
+  contrário, como engrenagem); o impulso perde força aos poucos.
+- Arquitetura: `js/nucleo/gesto.js` (eventos → estado; usado pelo site e
+  pelo laboratório). O campo e a onda são calculados no vertex shader das
+  lâminas (trecho `DESLOCA`), sem custo de JS por lâmina. `Matrix4` e
+  `Vector4` ficaram fora do three reduzido; o código usa `worldToLocal` e
+  objetos `{x,y,z,w}`, sem regerar o bundle.
+- Laboratório: `?cx=&cy=&cf=` (campo) e `?tx=&ty=&tt=` (onda) congelam um
+  quadro; `?anim=1` tem o gesto ao vivo no canvas.
+
+**Medido** (GPU real, CPU da máquina em 100% por outro processo): celular
+390 px com CPU 4× mais lenta, 60 fps parado e 60 tocando seguidamente;
+desktop 60/60 com o mouse girando sobre o reator; nenhuma degradação.
+Verificador 12/12 e acessibilidade ok (movimento reduzido: um quadro
+parado e limpo). Revisão de código: um achado (o quadro reduzido podia
+congelar campo/onda), corrigido.
+
+**Falta:** o dono sentir no celular de verdade (a "sensação" da
+respiração e da mola não se julga por quadro parado) e a crítica de
+motion por agentes, se ele quiser ajuste fino.

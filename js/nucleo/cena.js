@@ -2,7 +2,7 @@
    AI CORE — a cena: renderer, câmera, cores e o ciclo de vida.
 
    Não sabe de hero, de rolagem nem de boot do site: recebe um canvas e o
-   contexto WebGL já testado e devolve `desenhar(estado)`, `medir()`,
+   contexto WebGL já testado e devolve `desenhar(estado)`, `projetar()`, `medir()`,
    `baixarResolucao()` e `desmontar()`. Quem decide quando desenhar é
    boot.js (site) ou lab.js (laboratório).
    ========================================================================== */
@@ -79,6 +79,7 @@ export function criarCena(canvas, gl, { celular = false } = {}) {
     cena = new THREE.Scene();
     camera = new THREE.PerspectiveCamera(SPEC.camera.fov, 1, 0.1, 50);
     camera.position.set(0, 0, SPEC.camera.z);
+    camera.updateMatrixWorld();
     esfera = montar(THREE, SPEC, lerCores(canvas), { celular });
     cena.add(esfera.raiz);
     medir();
@@ -92,6 +93,25 @@ export function criarCena(canvas, gl, { celular = false } = {}) {
   function desenhar(estado) {
     esfera.atualizar(estado);
     renderer.render(cena, camera);
+  }
+
+  /* o ponteiro no plano do reator: (x, y) em coordenadas do canvas (−1–1,
+     y para cima) viram o ponto onde o raio da câmera cruza o plano z = 0 do
+     reator, em coordenadas dele (as do spec). Escreve em `saida` e devolve
+     false se o raio não cruza (reator de lado). Sem alocar: roda por quadro. (Matrix4 e Vector4 ficaram fora do three
+     reduzido; o worldToLocal faz a inversão por dentro) */
+  const origem = new THREE.Vector3(), alvo = new THREE.Vector3();
+  function projetar(x, y, saida) {
+    const raiz = esfera.raiz;
+    raiz.updateMatrixWorld();
+    raiz.worldToLocal(origem.copy(camera.position));
+    raiz.worldToLocal(alvo.set(x, y, 0.5).unproject(camera)).sub(origem);
+    if (Math.abs(alvo.z) < 1e-6) return false;
+    const k = -origem.z / alvo.z;
+    if (k <= 0) return false;
+    saida.x = origem.x + alvo.x * k;
+    saida.y = origem.y + alvo.y * k;
+    return true;
   }
 
   /* primeiro degrau da degradação: pixel ratio 1. Devolve false se já era
@@ -122,5 +142,5 @@ export function criarCena(canvas, gl, { celular = false } = {}) {
     return { chamadas: r.calls, triangulos: r.triangles };
   }
 
-  return { medir, desenhar, baixarResolucao, ajustarDpr, desmontar, info };
+  return { medir, desenhar, projetar, baixarResolucao, ajustarDpr, desmontar, info };
 }

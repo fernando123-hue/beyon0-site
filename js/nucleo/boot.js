@@ -8,8 +8,10 @@
      o desenho estático em CSS (.nucleo__poster) no mesmo lugar e tamanho;
      nada no layout muda (sem CLS) e ninguém percebe falta;
    - movimento reduzido: a esfera monta e desenha UM quadro, parada, acesa;
-   - o resto: nasce em pedaços, se monta, acende, respira, inclina ao
-     ponteiro (desktop) e se abre quando sai pela borda de cima ao rolar.
+   - o resto: nasce em pedaços, se monta, acende e respira sem parar;
+     inclina ao ponteiro (desktop); o ponteiro ou o dedo vira um campo que
+     afasta as lâminas, um toque solta uma onda, a rolagem empurra a roda
+     (js/nucleo/gesto.js); e se abre quando sai pela borda de cima.
 
    Plano, medidas e orçamento: docs/restructure/PLANO-AI-CORE.md.
    ========================================================================== */
@@ -52,7 +54,7 @@
   var ASSENTA = 0.9;       /* ...e assenta neste tempo */
   var JANELA = 90;         /* quadros por medição de fps */
 
-  var cena = null;
+  var cena = null, gesto = null;
   var estado = { t: 0, montagem: 0, abertura: 0, ignicao: 0, desdeIgnicao: -1, px: 0, py: 0 };
   var alvo = { px: 0, py: 0 };
   var relogio = -1;        /* s desde que a esfera apareceu na tela; -1 = ainda não */
@@ -76,9 +78,10 @@
     var gl;
     try { gl = canvas.getContext('webgl2', ATRIBUTOS) || canvas.getContext('webgl', ATRIBUTOS); } catch (e) { gl = null; }
     if (!gl) return;                          /* fica o desenho em CSS */
-    import('/js/nucleo/cena.js').then(function (mod) {
-      cena = mod.criarCena(canvas, gl, { celular: celular });
+    Promise.all([import('/js/nucleo/cena.js'), import('/js/nucleo/gesto.js')]).then(function (mods) {
+      cena = mods[0].criarCena(canvas, gl, { celular: celular });
       if (!cena) return;
+      gesto = mods[1].criarGesto(cena, canvas, hero, { fino: ponteiroFino, ouvir: ouvir });
       /* o primeiro quadro desenha ANTES de o desenho em CSS sair: se algo
          falhar aqui, o CSS continua lá */
       if (B.reduced) pararMontado(); else cena.desenhar(estado);
@@ -112,6 +115,9 @@
     parado = true;
     estado.montagem = 1; estado.ignicao = 1; estado.abertura = 0;
     estado.desdeIgnicao = 99; estado.px = estado.py = 0; estado.t = 12;
+    /* sem campo nem onda: o gesto para de rodar com a esfera fora da tela e
+       o quadro parado congelaria lâminas acesas ou uma onda pela metade */
+    estado.campo = null; estado.toque = null;
     relogio = MONTA + ASSENTA + 1;
     acender();
     if (cena) { cena.medir(); cena.desenhar(estado); }
@@ -183,6 +189,7 @@
       if (degrau === 0) cena.ajustarDpr();
       cena.medir();
       medirCaixa();
+      gesto.medir();
       remedir = false;
       sujo = true;
     }
@@ -216,6 +223,7 @@
     estado.abertura += (alvoAbertura - estado.abertura) * Math.min(1, dt * 4);
     estado.px += (alvo.px - estado.px) * Math.min(1, dt * 2.5);
     estado.py += (alvo.py - estado.py) * Math.min(1, dt * 2.5);
+    gesto.passo(dt, estado);
 
     cena.desenhar(estado);
     if (!forcar) vigiar(S.dt);

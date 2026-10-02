@@ -30,6 +30,19 @@ function sorteio(semente) {
 const suave = (x) => { const c = Math.min(1, Math.max(0, x)); return c * c * (3 - 2 * c); };
 const mistura = (a, b, t) => a + (b - a) * t;
 
+/* um vec4 de uniform sem THREE.Vector4 (fora do three reduzido): o setter do
+   three lê x, y, z, w de qualquer objeto */
+const vec4 = (x = 0, y = 0, z = 0, w = 0) => ({ x, y, z, w });
+const por4 = (v, x, y, z, w) => { v.x = x; v.y = y; v.z = z; v.w = w; };
+
+/* o fôlego: 0 (vazio) → 1 (cheio) → 0 em `periodo` s; inspira em `insp` do
+   ciclo e solta no resto, mais devagar. Derivada zero nas duas viradas: o
+   reator nunca dá tranco ao mudar de direção */
+function folego(t, periodo, insp) {
+  const x = (((t / periodo) % 1) + 1) % 1;
+  return x < insp ? suave(x / insp) : 1 - suave((x - insp) / (1 - insp));
+}
+
 /* ---------- texturas geradas (uma vez, em canvas 2D) ---------- */
 
 function tela(w, h) {
@@ -285,15 +298,43 @@ const DISCO_FS = /* glsl */`
   }
 `;
 
+/* o campo e a onda do toque, nas lâminas (preenchimento e contorno usam o
+   MESMO trecho: as duas partes de uma lâmina andam juntas). Coordenadas no
+   plano da própria camada (atualizar já desfaz o giro e a escala).
+   uCampo: xy ponto, z força, w raio. uOnda: xy origem, z raio da frente, w
+   força. uDesloca: x empurra, y ergue, z largura da frente da onda.
+   vToque: quanto do campo e da onda chegou a este vértice; o fragmento
+   acende o cristal com ele (num traço de 1 px, o deslocamento sozinho quase
+   não se lê; a luz se lê) */
+const DESLOCA = /* glsl */`
+  uniform vec4 uCampo;
+  uniform vec4 uOnda;
+  uniform vec3 uDesloca;
+  varying float vToque;
+  vec3 deslocar(vec3 p) {
+    vec2 d = p.xy - uCampo.xy;
+    float k = exp(-dot(d, d) / (uCampo.w * uCampo.w)) * uCampo.z;
+    vec2 o = p.xy - uOnda.xy;
+    float r = length(o);
+    float e = (r - uOnda.z) / uDesloca.z;
+    float w = exp(-e * e) * uOnda.w;
+    p.xy += d / (length(d) + 1e-4) * k * uDesloca.x + o / (r + 1e-4) * w * uDesloca.x;
+    p.z += (k + w) * uDesloca.y;
+    vToque = k + w;
+    return p;
+  }
+`;
+
 /* o painel de vidro delicado: preenchimento aditivo que recebe a luz do
    núcleo. aR 0 na borda de dentro → 1 na de fora; a luz cai a zero em uCai */
 const PAINEL_VS = /* glsl */`
   attribute float aR;
   varying float vR;
   varying float vProf;
+  ${DESLOCA}
   void main() {
     vR = aR;
-    vec4 w = modelMatrix * vec4(position, 1.0);
+    vec4 w = modelMatrix * vec4(deslocar(position), 1.0);
     vProf = w.z;
     gl_Position = projectionMatrix * viewMatrix * w;
   }
@@ -304,12 +345,14 @@ const PAINEL_FS = /* glsl */`
   uniform float uCai;
   uniform float uForca;
   uniform vec3 uNevoa;
+  uniform float uAcende;
   varying float vR;
   varying float vProf;
+  varying float vToque;
   void main() {
-    float b = 1.0 - smoothstep(0.0, uCai, vR);
+    float b = (1.0 - smoothstep(0.0, uCai, vR)) + vToque * 0.5;
     b *= mix(uNevoa.z, 1.0, smoothstep(uNevoa.y, uNevoa.x, vProf));
-    gl_FragColor = vec4(uCor, b * b * uAlfa * uForca);
+    gl_FragColor = vec4(uCor, b * b * uAlfa * uForca * (1.0 + vToque * uAcende));
     #include <colorspace_fragment>
   }
 `;
@@ -323,9 +366,10 @@ const LINHA_VS = /* glsl */`
   varying float vR;
   varying float vFace;
   varying float vProf;
+  ${DESLOCA}
   void main() {
     vR = aR; vFace = aFace;
-    vec4 w = modelMatrix * vec4(position, 1.0);
+    vec4 w = modelMatrix * vec4(deslocar(position), 1.0);
     vProf = w.z;
     gl_Position = projectionMatrix * viewMatrix * w;
   }
@@ -334,11 +378,14 @@ const LINHA_FS = /* glsl */`
   uniform vec3 uCor;
   uniform float uAlfa;
   uniform vec3 uNevoa;
+  uniform float uAcende;
   varying float vR;
   varying float vFace;
   varying float vProf;
+  varying float vToque;
   void main() {
     float b = (1.0 - 0.78 * smoothstep(0.0, 1.0, vR)) * mix(0.4, 1.0, vFace);
+    b *= 1.0 + vToque * uAcende;
     b *= mix(uNevoa.z, 1.0, smoothstep(uNevoa.y, uNevoa.x, vProf));
     gl_FragColor = vec4(uCor, b * uAlfa);
     #include <colorspace_fragment>
@@ -386,6 +433,9 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
     }
   }));
   const nevoa = vidro.uniforms.uNevoa;   /* o MESMO objeto nos cristais: uma névoa só */
+  const CA = SPEC.campo, TQ = SPEC.toque;
+  const desloca = { value: new THREE.Vector3(CA.empurra, CA.ergue, TQ.largura) };
+  const acende = { value: CA.acende };
 
   /* uma camada de painéis (câmaras ou pétalas): os n setores numa geometria
      só (preenchimento) e o contorno de 1 px de todos numa LineSegments só.
@@ -415,6 +465,8 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
         traco(ponto(d.raio[1], a, zT), 1, ponto(d.raio[1], a, zF), 1, 0, 1);
       }
     }
+    /* o preenchimento e o contorno leem os MESMOS objetos: andam juntos */
+    const campo = { uCampo: { value: vec4(0, 0, 0, CA.raio) }, uOnda: { value: vec4() }, uDesloca: desloca, uAcende: acende };
     const geoP = guarda(new THREE.BufferGeometry());
     geoP.setAttribute('position', new THREE.BufferAttribute(new Float32Array(tri), 3));
     geoP.setAttribute('aR', new THREE.BufferAttribute(new Float32Array(aR), 1));
@@ -424,15 +476,15 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
     geoL.setAttribute('aFace', new THREE.BufferAttribute(new Float32Array(linF), 1));
     const grupo = new THREE.Group();
     grupo.add(new THREE.Mesh(geoP, shader(PAINEL_VS, PAINEL_FS, {
-      uCor: { value: cor('ac') }, uAlfa: { value: d.luz }, uCai: { value: d.cai }, uForca: { value: 0 }, uNevoa: nevoa
+      uCor: { value: cor('ac') }, uAlfa: { value: d.luz }, uCai: { value: d.cai }, uForca: { value: 0 }, uNevoa: nevoa, ...campo
     }, A.raios, true)));
     const matL = guarda(new THREE.ShaderMaterial({
       vertexShader: LINHA_VS, fragmentShader: LINHA_FS, ...ADITIVO,
-      uniforms: { uCor: { value: cor('ac2') }, uAlfa: { value: d.contorno }, uNevoa: nevoa }
+      uniforms: { uCor: { value: cor('ac2') }, uAlfa: { value: d.contorno }, uNevoa: nevoa, ...campo }
     }));
     grupo.add(new THREE.LineSegments(geoL, matL));
     roda.add(grupo);
-    return { grupo, matL, d };
+    return { grupo, matL, d, campo };
   }
 
   function fluxo(raio, tubo, d, atraso) {
@@ -566,7 +618,14 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
   }
 
   /* --- as câmaras (entre os raios) e as pétalas (sobre os raios) --- */
+  const RS = SPEC.respira;
   const paineis = [camadaDePaineis(SPEC.camaras, 0.5), camadaDePaineis(SPEC.petalas, 0)];
+  paineis[0].respira = RS.camaras;
+  paineis[1].respira = RS.petalas;
+  /* quanto a camada [atraso, amp] cresceu no instante t */
+  const respira = (t, c) => folego(t - c[0], RS.periodo, RS.inspira) * c[1];
+  const SEM_CAMPO = { x: 0, y: 0, f: 0 }, SEM_TOQUE = { x: 0, y: 0, t: -1 };
+  const centro = new THREE.Vector3();
 
   const TR = SPEC.tracejado;
   const matTracejado = aditivo(TR.cor, TR.alfa);
@@ -704,36 +763,58 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
 
   /* ---------- por quadro ---------- */
   /* estado: { t (s), montagem 0–1, abertura 0–1, ignicao 0–1+, desdeIgnicao
-     (s, −1 antes), px, py (−1–1) } */
+     (s, −1 antes), px, py (−1–1), giroExtra (rad, o impulso da rolagem),
+     campo { x, y, f } (o ponteiro no plano do reator, força 0–1), toque
+     { x, y, t } (onde e há quantos s; t < 0: nenhum) }. Os três últimos são
+     opcionais (o laboratório e o vídeo podem não ter) */
   function atualizar(e) {
     const t = e.t, m = e.montagem, ab = e.abertura;
-    const ig = e.ignicao * (0.95 + 0.05 * Math.sin(t * 1.25));   /* respira */
+    const c = e.campo || SEM_CAMPO, tq = e.toque || SEM_TOQUE;
+    /* o núcleo clareia ao inspirar (±luz/2 em volta do repouso) */
+    const ig = e.ignicao * (1 + RS.luz * (folego(t - RS.nucleo[0], RS.periodo, RS.inspira) - 0.5));
     const forca = ig * (1 - ab * 0.6);
+    const giro = t * P.vel + (e.giroExtra || 0);
+    /* o ponteiro perto do núcleo: ele "percebe" e clareia */
+    const perto = c.f * CA.brilho * suave(1 - Math.hypot(c.x, c.y) / CA.perto);
+    /* a onda do toque: a frente sai do ponto tocado e perde força */
+    const tocando = tq.t >= 0 && tq.t < TQ.dura;
+    const frente = tocando ? TQ.vel * tq.t : 0;
+    const forcaOnda = tocando ? (1 - tq.t / TQ.dura) ** 2 : 0;
 
     /* inclina ao ponteiro e balança devagar: mostra a profundidade sem
        perder a simetria de frente */
     raiz.rotation.x = SPEC.inclina + e.py * 0.2 + Math.sin(t * 0.09) * 0.05;
     raiz.rotation.y = e.px * 0.28 + Math.sin(t * 0.12) * 0.14;
 
-    roda.rotation.z = t * P.vel;
+    roda.rotation.z = giro;
+    const foraPortal = P.raio * respira(t, RS.portal);
     for (let i = 0; i < segmentos.length; i++) {
       const s = segmentos[i];
       const k = suave((m - s.atraso) / (1 - s.atraso));
-      const fora = (1 - k) * 0.9 + ab * 0.22;
+      const fora = (1 - k) * 0.9 + ab * 0.22 + foraPortal;
       s.pivo.position.set(s.dir.x * fora, s.dir.y * fora, (1 - k) * 1.4);
       s.pivo.rotation.z = (1 - k) * 0.35;
     }
 
+    /* o campo e a onda vão para o plano de cada camada: desfaz o giro da
+       roda e a escala da camada (o shader compara com a posição local) */
+    const cg = Math.cos(-giro), sg = Math.sin(-giro);
     for (let i = 0; i < paineis.length; i++) {
       const pa = paineis[i], M = pa.d.montagem;
       const k = suave((m - M.atraso) / (1 - M.atraso));
-      pa.grupo.scale.setScalar(mistura(M.escala, 1, k) * (1 + ab * 0.1));
+      const esc = mistura(M.escala, 1, k) * (1 + ab * 0.1) * (1 + respira(t, pa.respira));
+      pa.grupo.scale.setScalar(esc);
       pa.matL.uniforms.uAlfa.value = pa.d.contorno * k * (1 - ab * 0.6);
       pa.matL.visible = k > 0.002;
+      por4(pa.campo.uCampo.value, (c.x * cg - c.y * sg) / esc, (c.x * sg + c.y * cg) / esc, c.f * k, CA.raio / esc);
+      por4(pa.campo.uOnda.value, (tq.x * cg - tq.y * sg) / esc, (tq.x * sg + tq.y * cg) / esc, frente / esc, forcaOnda * k);
     }
-    tracejado.rotation.z = t * TR.vel;
+    /* o tracejado gira ao contrário da roda, também no impulso da rolagem
+       (engrenagens) */
+    tracejado.rotation.z = t * TR.vel - (e.giroExtra || 0) * 0.5;
+    tracejado.scale.setScalar(1 + respira(t, RS.tracejado));
     matTracejado.opacity = TR.alfa * suave(m);
-    fundo.material.opacity = FU.alfa * ig * (1 - ab * 0.5);
+    fundo.material.opacity = FU.alfa * ig * (1 - ab * 0.5) * (1 + RS.fundo[1] * (folego(t - RS.fundo[0], RS.periodo, RS.inspira) - 0.5));
     fundo.material.visible = ig > 0.002;
 
     const kEq = suave((m - 0.3) / 0.7);
@@ -748,9 +829,15 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
     const aB = (t / P.bisel.volta) * TAU;
     vidro.uniforms.uBisel.value.set(Math.cos(aB), Math.sin(aB), P.bisel.alfa);
     for (let i = 0; i < matTrilhos.length; i++) matTrilhos[i].mat.opacity = matTrilhos[i].alfa * aparece;
+    /* o núcleo segue o ponteiro com atraso (quem amacia é o boot), só um
+       pouco; a lente vai a meio caminho, o resto fica: lê como profundidade */
+    nucleo.position.set(c.x * CA.nucleo * c.f, c.y * CA.nucleo * c.f, 0);
+    const escLente = 1 + respira(t, RS.lente);
     for (let i = 0; i < lente.length; i++) {
       const l = lente[i];
       l.anel.rotation.z = t * l.d.vel;
+      l.anel.position.set(nucleo.position.x * 0.5, nucleo.position.y * 0.5, 0);
+      l.anel.scale.setScalar(escLente);
       l.mat.opacity = l.d.alfa * aparece * (0.3 + 0.7 * ig);
     }
 
@@ -773,7 +860,8 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
     /* a batida: o núcleo cresce um pouco a cada chegada dos pulsos dos raios
        (a cabeça chega à ponta de dentro quando t·vel passa por 0,7 mod 1) */
     const fase = (((t * R.vel - 0.7) % 1) + 1) % 1;
-    const batida = 1 + R.batida * Math.exp(-fase * 9) * ig;
+    const batida = (1 + R.batida * Math.exp(-fase * 9) * ig) * (1 + (tocando ? TQ.batida * Math.exp(-tq.t * 6) : 0));
+    const inspira = 1 + respira(t, RS.nucleo);
     /* o lampejo: a cabeça do pulso parte da borda (u = 0) quando t·vel passa
        por um inteiro; pisca e some em `dura` s */
     const partiu = ((((t * R.vel) % 1) + 1) % 1) / R.vel;
@@ -781,19 +869,20 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
     matLampejo.opacity = lampejo;
     matLampejo.visible = lampejo > 0.002;
 
-    /* uCentro fica na origem: na v2 o núcleo não se move */
-    vidro.uniforms.uIgnicao.value = ig;
+    /* a luz do vidro vem de onde o núcleo está (no mundo: o reator só gira) */
+    vidro.uniforms.uCentro.value.copy(centro.copy(nucleo.position).applyEuler(raiz.rotation));
+    vidro.uniforms.uIgnicao.value = ig * (1 + perto * 0.5);
 
     for (let i = 0; i < halos.length; i++) {
       const { s, h } = halos[i];
-      s.material.opacity = h.alfa * (i === 0 ? 0.12 + 0.88 * ig : ig);
-      s.scale.setScalar(h.escala * (0.55 + 0.45 * ig) * batida);
+      s.material.opacity = h.alfa * (i === 0 ? 0.12 + 0.88 * ig : ig) * (1 + perto);
+      s.scale.setScalar(h.escala * (0.55 + 0.45 * ig) * batida * inspira * (1 + perto * 0.5));
     }
     estrela.material.opacity = RA.alfa * ig;
     estrela.material.visible = ig > 0.002;
     for (let i = 1; i < halos.length; i++) halos[i].s.material.visible = ig > 0.002;
     estrela.material.rotation = t * 0.02;
-    ponto.scale.setScalar((0.45 + 0.55 * ig) * batida);
+    ponto.scale.setScalar((0.45 + 0.55 * ig) * batida * inspira);
 
     /* o traço é um evento: nasce do núcleo na ignição e assenta */
     const nasceu = desde < 0 ? 0 : 1 - (1 - Math.min(1, desde / SPEC.nucleo.nasce)) ** 3;
