@@ -16,6 +16,13 @@ export const SPEC = {
   camera: { fov: 30, z: 5.6 },
   semente: 20261002,
 
+  /* profundidade (pedido do dono: "ainda parece muito plano"). O reator
+     inteiro fica inclinado (olhamos um pouco de cima: o disco vira elipse,
+     o portal ganha espessura visível) e as peças vivem em camadas de z
+     diferentes; o vidro escurece com a distância, como névoa. */
+  inclina: -0.42,   /* ≈ 24°: o portal fica visivelmente elíptico (0,91) parado (−0,3 quase não aparecia — crítica rodada 5) */
+  nevoa: { perto: 0.4, longe: -0.8, minimo: 0.42 },
+
   /* o núcleo: a fonte. Só ele é branco; o "no ar." do H1 continua sendo o
      ciano mais forte da tela */
   nucleo: {
@@ -62,11 +69,14 @@ export const SPEC = {
      acreção (as de dentro giram ~2,5× mais rápido que as de fora: `kepler`
      é o expoente). `inclina`: quanto o plano deita (0 = de frente,
      π/2 = de perfil; 1,36 ≈ 12° do horizonte) */
-  disco: { n: 900, nCelular: 420, raio: [0.2, 0.86], inclina: 1.36, giro: 0.35, kepler: 0.63, tam: 0.032, cor: 'ac2', alfa: 0.65,
+  /* só DENTRO da lente (r 0,2–0,3): de perfil e espalhado até o portal ele
+     virava um chuvisco com cara de glitch (crítica rodada 5); fora da lente
+     quem carrega a energia são os raios */
+  disco: { n: 500, nCelular: 260, raio: [0.2, 0.3], inclina: 1.5708, giro: 0.35, kepler: 0.63, tam: 0.03, cor: 'ac2', alfa: 0.4,
     /* matéria correndo, não anel de Saturno: `denso` das partículas ficam na
        fração `miolo` de dentro, e cada uma é um risco ao longo da órbita
        (`rastro`: comprimento/largura) */
-    denso: 0.6, miolo: 0.35, rastro: 3 },
+    denso: 0.6, miolo: 0.35, rastro: 4 },
 
   /* o equador: só um fio de pulsos fracos no plano do disco (o anel sólido
      de vidro lia como Saturno — crítica rodada 4) */
@@ -85,6 +95,30 @@ export const SPEC = {
     { raio: 0.85, tubo: 0.005, pulsos: 3, vel: 0.22, cor: 'ac', alfa: 0.4 },
     { raio: 1.07, tubo: 0.0035, pulsos: 2, vel: -0.14, cor: 'ac2', alfa: 0.32 }
   ],
+
+  /* as câmaras: 12 placas grossas de vidro (extrudadas, com chanfro) ENTRE
+     os raios, um pouco atrás, iluminadas por dentro pelo núcleo. Preenchem
+     as cunhas escuras entre a lente e o portal (pedido do dono) */
+  camaras: { n: 12, raio: [0.43, 0.66], vao: 0.3, espessura: 0.08, chanfro: 0.012, z: -0.15,
+    /* a luz do núcleo na face: forte na borda de dentro, a zero em 40% do
+       comprimento, o terço de fora quase preto (tira o "ladrilho") */
+    luz: { alfa: 0.45, cai: 0.4 },
+    /* de onde chegam na montagem: `longe` do lugar e `frente` em z, com
+       atraso por par de opostas */
+    montagem: { atraso: 0.2, passo: 0.03, longe: 0.55, frente: 0.9 } },
+
+  /* as pétalas: um anel interno de 12 placas finas centradas NOS raios, à
+     frente (os raios passam por trás delas: camadas que se sobrepõem) */
+  petalas: { n: 12, raio: [0.31, 0.385], vao: 0.42, espessura: 0.03, chanfro: 0.006, z: 0.2,
+    montagem: { atraso: 0.38, passo: 0.02, longe: 0.3, frente: 0.6 } },
+
+  /* o tracejado: um anel de 60 traços entre as câmaras e o trilho, girando
+     devagar no sentido contrário da roda */
+  tracejado: { raio: 0.755, n: 60, z: 0.05, vel: -0.04, alfa: 0.35, cor: 'ac' },
+
+  /* a luz de fundo: um disco de luz bem atrás do portal; com a inclinação e
+     o ponteiro, ele se desloca diferente das peças da frente (paralaxe) */
+  fundo: { escala: 2.1, alfa: 0.16, z: -0.6, cor: 'ac' },
 
   /* a régua: 72 marcas em volta de tudo, uma longa a cada `longa` (8 longas) */
   regua: { raio: 1.13, n: 72, longa: 9, cor: 'ac', alfa: 0.3 },

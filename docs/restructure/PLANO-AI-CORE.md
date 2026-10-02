@@ -285,3 +285,20 @@ remover um script por vez não muda o padrão, e o mesmo cenário alterna
 entre sim e não — aponta para timing do headless, não isolado. Quando o
 navegador pula, a navegação é a de sempre (nenhum risco funcional).
 **A confirmar num celular real** (Chrome Android 126+, Safari iOS 18.2+).
+
+### 11.2 Profundidade e os vazios (pedido do dono, depois da prévia)
+
+O dono mandou o recorte do centro: "adicione mais elementos nesses espaços
+em branco" e "ainda parece muito plano". Feito: o reator inteiro inclinado
+(−0,42 rad, portal elíptico mesmo parado); 12 câmaras de vidro extrudado com
+chanfro entre os raios (z −0,15), com a luz do núcleo caindo da borda de
+dentro para fora; 12 pétalas sobre os raios, à frente (z +0,2); anel
+tracejado girando ao contrário; luz de fundo atrás do portal (paralaxe);
+névoa no vidro (o que está longe escurece); luz-chave fixa nos chanfros;
+disco só dentro da lente (fora dela virava chuvisco). Crítica rodada 5:
+8,3 com esses ajustes e **congelar o reator**. Revisão de código: aprovada;
+geometria compartilhada por camada (2 em vez de 24 extrusões). Ficam para
+quando uma medida pedir: instanciar segmentos e placas (82 → ~30 chamadas)
+e `FrontSide` nas placas fechadas. three reduzido: 129 KB (ganhou a
+extrusão). fps no celular com CPU 4×: 60/59 (uma leitura isolada de 48 logo
+depois do verificador não se repetiu em duas medidas).

@@ -133,6 +133,8 @@ const VIDRO_FS = /* glsl */`
   uniform vec3 uAmbiente;
   uniform vec3 uCentro;
   uniform float uIgnicao;
+  uniform vec3 uNevoa;
+  uniform vec3 uRadial;
   varying vec3 vN;
   varying vec3 vP;
   void main() {
@@ -151,14 +153,28 @@ const VIDRO_FS = /* glsl */`
     float faixa = exp(-R.y * R.y * 140.0);
     float faixa2 = exp(-(R.y - 0.38) * (R.y - 0.38) * 260.0);
     float topo = smoothstep(0.82, 1.0, R.y);
-    float atraves = pow(max(dot(-V, L), 0.0), 10.0);
+    /* estreito (40): com o reator inclinado, as câmaras de baixo ficam quase
+       na linha do núcleo e acendiam inteiras, chapadas */
+    float atraves = pow(max(dot(-V, L), 0.0), 40.0);
     vec3 c = uBase * 0.45;
     c += uInterno * difusa * difusa * queda * (0.05 + 0.95 * ig);
     c += uInterno * atraves * 0.32 * ig;
     c += uAresta * fres * (0.03 + 0.12 * ig);
     c += uBrilho * espec * queda * 3.2 * ig;
-    c += (mix(uInterno, uBrilho, 0.45) * faixa * 0.2 + uBrilho * faixa2 * 0.12 + uBrilho * topo * 0.1) * (0.25 + 0.75 * fres);
+    c += (mix(uInterno, uBrilho, 0.45) * faixa * 0.2 + uBrilho * faixa2 * 0.12 + uBrilho * topo * 0.1) * (0.06 + 0.94 * fres);   /* reflexo só de raspão: face de frente fica escura (lia como azulejo cinza) */
     c += uAmbiente * fres * 0.05;
+    /* a luz do núcleo na face (só onde uRadial.z > 0: as câmaras): forte na
+       borda de dentro, a zero em uRadial.y de comprimento. A queda do centro
+       para fora é o que mostra o volume parado (crítica rodada 5) */
+    c += uInterno * uRadial.z * ig * (1.0 - smoothstep(uRadial.x, uRadial.x + uRadial.y, length(vP - uCentro)));
+    /* uma luz-chave fixa de cima à esquerda: só os chanfros voltados para lá
+       pegam o reflexo, e as 12 placas deixam de ser idênticas */
+    vec3 K = normalize(vec3(-0.5, 0.7, 0.55));
+    c += uBrilho * pow(max(dot(N, normalize(K + V)), 0.0), 70.0) * 0.18;
+    /* névoa: quanto mais longe da câmera, mais escuro. A câmera está no eixo
+       z e o núcleo na origem, então a profundidade é só o z */
+    float prof = vP.z - uCentro.z;
+    c *= mix(uNevoa.z, 1.0, smoothstep(uNevoa.y, uNevoa.x, prof));
     gl_FragColor = vec4(c, 1.0);
     #include <colorspace_fragment>
   }
@@ -301,9 +317,35 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
       uBrilho: { value: cor(SPEC.vidro.brilho) },
       uAmbiente: { value: cor(SPEC.vidro.ambiente) },
       uCentro: { value: new THREE.Vector3() },
-      uIgnicao: { value: 0 }
+      uIgnicao: { value: 0 },
+      uNevoa: { value: new THREE.Vector3(SPEC.nevoa.perto, SPEC.nevoa.longe, SPEC.nevoa.minimo) },
+      uRadial: { value: new THREE.Vector3(0, 1, 0) }
     }
   }));
+  /* o vidro das câmaras: o mesmo programa e os MESMOS objetos de uniform
+     (ignição, centro, névoa são atualizados juntos), só a luz radial ligada */
+  const CA = SPEC.camaras, PE = SPEC.petalas;
+  const vidroCamara = guarda(new THREE.ShaderMaterial({
+    vertexShader: VIDRO_VS, fragmentShader: VIDRO_FS, side: THREE.DoubleSide,
+    uniforms: { ...vidro.uniforms, uRadial: { value: new THREE.Vector3(CA.raio[0], (CA.raio[1] - CA.raio[0]) * CA.luz.cai, CA.luz.alfa) } }
+  }));
+
+  /* uma placa de vidro com volume: setor de anel extrudado, com chanfro,
+     centrado no ângulo 0 e na profundidade z. UMA geometria por camada; cada
+     placa é a mesma malha girada (eram 24 construções iguais — revisão) */
+  function placa(d, largura) {
+    const forma = new THREE.Shape();
+    const a0 = -largura / 2, a1 = largura / 2;
+    forma.absarc(0, 0, d.raio[1], a0, a1, false);
+    forma.absarc(0, 0, d.raio[0], a1, a0, true);
+    forma.closePath();
+    const geo = new THREE.ExtrudeGeometry(forma, {
+      depth: d.espessura, bevelEnabled: true, bevelThickness: d.chanfro, bevelSize: d.chanfro,
+      bevelSegments: 2, curveSegments: 6
+    });
+    geo.translate(0, 0, d.z - d.espessura / 2);
+    return guarda(geo);
+  }
 
   /* fita: a seção do toro comprimida no eixo normal ao plano dele; a normal
      da elipse é a radial com o z dividido por `achata` (sem escala não
@@ -437,6 +479,40 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
     descartar.push(marcas);
   }
 
+  /* --- as câmaras (entre os raios) e as pétalas (sobre os raios) --- */
+  const placas = [];
+  function camada(d, material, defasagem) {
+    const geo = placa(d, (TAU / d.n) * (1 - d.vao));
+    for (let i = 0; i < d.n; i++) {
+      const meio = (i + defasagem) * (TAU / d.n);
+      const malha = new THREE.Mesh(geo, material);
+      malha.rotation.z = meio;
+      const pivo = new THREE.Group();
+      pivo.add(malha);
+      roda.add(pivo);
+      const M = d.montagem;
+      placas.push({ pivo, dir: new THREE.Vector3(Math.cos(meio), Math.sin(meio), 0), atraso: M.atraso + (i % (d.n / 2)) * M.passo, longe: M.longe, frente: M.frente });
+    }
+  }
+  camada(CA, vidroCamara, 0.5);   /* entre os raios */
+  camada(PE, vidro, 0);           /* sobre os raios */
+
+  const TR = SPEC.tracejado;
+  const matTracejado = aditivo(TR.cor, TR.alfa);
+  const tracejado = new THREE.InstancedMesh(guarda(new THREE.BoxGeometry(0.022, 0.004, 0.004)), matTracejado, TR.n);
+  {
+    const m = new THREE.Object3D();
+    for (let i = 0; i < TR.n; i++) {
+      const a = (i / TR.n) * TAU;
+      m.position.set(Math.cos(a) * TR.raio, Math.sin(a) * TR.raio, TR.z);
+      m.rotation.set(0, 0, a + Math.PI / 2);
+      m.updateMatrix();
+      tracejado.setMatrixAt(i, m.matrix);
+    }
+  }
+  descartar.push(tracejado);
+  raiz.add(tracejado);
+
   /* --- trilhos: anéis contínuos com pulsos correndo --- */
   const matTrilhos = [];
   for (const d of SPEC.trilhos) {
@@ -525,8 +601,10 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
       map: tex, color: cor(nomeCor), opacity: alfa, depthTest: false, ...ADITIVO
     })));
   }
+  const texHalo = {};
+  const halo = (miolo) => texHalo[miolo] || (texHalo[miolo] = guarda(texturaHalo(THREE, miolo)));
   const halos = SPEC.nucleo.halos.map((h) => {
-    const s = sprite(guarda(texturaHalo(THREE, h.miolo)), h.cor, h.alfa);
+    const s = sprite(halo(h.miolo), h.cor, h.alfa);
     s.scale.setScalar(h.escala);
     nucleo.add(s);
     return { s, h };
@@ -542,6 +620,13 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
     nucleo.add(s);
     return { s, d };
   });
+  const FU = SPEC.fundo;
+  const fundo = sprite(halo(0), FU.cor, 0);
+  fundo.scale.setScalar(FU.escala);
+  fundo.position.z = FU.z;
+  fundo.material.depthTest = true;   /* fica ATRÁS das peças (as outras luzes lavam tudo; esta não) */
+  raiz.add(fundo);
+
   const O = SPEC.onda;
   const onda = sprite(guarda(texturaOnda(THREE)), O.cor, 0);
   nucleo.add(onda);
@@ -556,7 +641,7 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
 
     /* inclina ao ponteiro e balança devagar: mostra a profundidade sem
        perder a simetria de frente */
-    raiz.rotation.x = e.py * 0.2 + Math.sin(t * 0.09) * 0.05;
+    raiz.rotation.x = SPEC.inclina + e.py * 0.2 + Math.sin(t * 0.09) * 0.05;
     raiz.rotation.y = e.px * 0.28 + Math.sin(t * 0.12) * 0.14;
 
     roda.rotation.z = t * P.vel;
@@ -567,6 +652,17 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
       s.pivo.position.set(s.dir.x * fora, s.dir.y * fora, (1 - k) * 1.4);
       s.pivo.rotation.z = (1 - k) * 0.35;
     }
+
+    for (let i = 0; i < placas.length; i++) {
+      const pl = placas[i];
+      const k = suave((m - pl.atraso) / (1 - pl.atraso));
+      const fora = (1 - k) * pl.longe + ab * 0.12;
+      pl.pivo.position.set(pl.dir.x * fora, pl.dir.y * fora, (1 - k) * pl.frente);
+    }
+    tracejado.rotation.z = t * TR.vel;
+    matTracejado.opacity = TR.alfa * suave(m);
+    fundo.material.opacity = FU.alfa * ig * (1 - ab * 0.5);
+    fundo.material.visible = ig > 0.002;
 
     const kEq = suave((m - 0.3) / 0.7);
     anelEquador.scale.setScalar((0.55 + 0.45 * kEq) * (1 + ab * 0.14));
