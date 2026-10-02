@@ -34,7 +34,7 @@
   var reduzido = B.reduced;
   var splits = [];   /* todo SplitText vivo, para reverter se o movimento for reduzido no meio */
   var HERO_PECAS = '.hero__status, .hero__sub, .hero__actions, .hero__fine, .hero__arte, .hero__rail, .nav';
-  var LIMPAR = '.reveal, .reveal > *, .section__head > *, .hero__rail > *, .hero__rail-aresta, .conversa__regua, .console__linha > *, .console__medida, .nav__links > *, .feixe__linha, .hero__title, .split-word, .instrumento__nivel, .instrumento__val, .hero__cota-linha, .hero__cota-tick, .hero__cota-rot, .btn__canto, .prova__item, .prova__mascara, .prova__tinta, .prova__rot, .prova__barra, .varredura, ' + HERO_PECAS;
+  var LIMPAR = '.reveal, .reveal > *, .section__head > *, .hero__rail > *, .hero__rail-aresta, .conversa__regua, .console__linha > *, .console__medida, .nav__links > *, .feixe__linha, .hero__title, .split-word, .instrumento__nivel, .instrumento__val, .hero__cota-linha, .hero__cota-tick, .hero__cota-rot, .btn__canto, .console__topo, .prova__item, .prova__mascara, .prova__tinta, .prova__rot, .prova__barra, .varredura, ' + HERO_PECAS;
 
   function acender(sel) { var els = document.querySelectorAll(sel); for (var i = 0; i < els.length; i++) els[i].classList.add('is-lit'); }
 
@@ -314,6 +314,7 @@
      desenha régua, trilho, barra e marca (css/motion.css). O cabeçalho entra
      em três tempos (kicker, linhas do h2, lead) e a ênfase do h2 acende. */
   var jaRevelou = false;
+  var pousoAte = 0;   /* até quando o snap do palco espera (link direto com âncora) */
 
   /* ---------- POSIÇÃO DE ROLAGEM ----------
      O palco da prova estica a página (pin) só depois do boot: a restauração
@@ -340,11 +341,28 @@
       var alvo = null;
       try { alvo = document.getElementById(decodeURIComponent(location.hash.slice(1))); } catch (e) { /* hash inválido */ }
       if (alvo) {
-        var folga = parseFloat(getComputedStyle(html).scrollPaddingTop) || 0;
-        var y = alvo.getBoundingClientRect().top + window.scrollY - folga;
-        var pin = ST && ST.getAll().filter(function (t) { return t.pin && t.pin.contains(alvo); })[0];
-        if (pin) y = pin.start;
-        window.scrollTo({ top: Math.max(0, y), behavior: 'instant' });
+        var ir = function () {
+          var folga = parseFloat(getComputedStyle(html).scrollPaddingTop) || 0;
+          var y = alvo.getBoundingClientRect().top + window.scrollY - folga;
+          /* alvo dentro do palco: pousa na 1ª leitura, não no palco vazio */
+          var pin = ST && ST.getAll().filter(function (t) { return t.pin && t.pin.contains(alvo); })[0];
+          if (pin) {
+            var an = pin.animation, n0 = an && an.labels && an.labels.n0;
+            y = pin.start + (n0 && an.duration() ? (pin.end - pin.start) * n0 / an.duration() : 0);
+          }
+          y = Math.max(0, Math.round(y));
+          window.scrollTo({ top: y, behavior: 'instant' });
+          return y;
+        };
+        pousoAte = Date.now() + 2500;
+        var pousou = ir();
+        /* as revelações de cima mexem na altura da página: confere de novo
+           quando assentarem, se a pessoa não tiver rolado nesse meio tempo */
+        setTimeout(function () {
+          if (Math.abs(window.scrollY - pousou) > 2) return;
+          if (ST) ST.refresh();
+          ir();
+        }, 900);
       }
       return;
     }
@@ -701,7 +719,14 @@
       },
       scrollTrigger: {
         trigger: sec, start: 'center center', end: '+=150%', pin: true, scrub: .5, refreshPriority: 1,
-        snap: { snapTo: 'labelsDirectional', duration: { min: .2, max: .5 }, ease: 'power2.inOut', delay: .1, inertia: false }
+        /* snap direcional pelos rótulos, exceto logo depois de um link direto
+           (pousoAte): o refresh da reconferência disparava o snap e puxava a
+           página de volta para o palco vazio */
+        snap: { snapTo: function (v, self) {
+          if (Date.now() < pousoAte || !tl.duration()) return v;
+          var marcas = Object.keys(tl.labels).map(function (k) { return tl.labels[k] / tl.duration(); });
+          return ST.snapDirectional(marcas)(v, self.direction);
+        }, duration: { min: .2, max: .5 }, ease: 'power2.inOut', delay: .1, inertia: false }
       }
     });
     /* um rótulo no começo: rolar para cima a partir da 1ª leitura sai do palco, não volta a ela */
@@ -734,7 +759,9 @@
     if (barra) tl.fromTo(barra, { scaleX: 0 }, { scaleX: 1, ease: 'none', duration: tl.duration() }, 0);
     /* depois de cada refresh (larguras novas) a timeline é repintada do zero
        até onde estava: os x antigos nunca convivem com a largura nova */
-    function repintar() { pintar(tl.time()); }
+    /* no refresh o pin já foi reaplicado: mede de novo (W velho deixava a luz
+       parada no meio depois de redimensionar) e pinta o estado atual */
+    function repintar() { medir(); pintar(tl.time()); }
     pintar(0);
     ST.addEventListener('refresh', repintar);
     return function () {

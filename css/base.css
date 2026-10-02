@@ -41,8 +41,8 @@ p em, li em { font-style: normal; font-weight: 500; color: var(--t1); }
 /* ---- LAYOUT — três respiros ---- */
 .section { max-width: var(--maxw); margin: 0 auto; padding: var(--sp-2) var(--pad) clamp(24px, 5vw, 48px); }
 .section__head { margin-bottom: clamp(24px, 4vw, 48px); }
-section[id] { scroll-margin-top: calc(var(--nav-h) + 12px); }
-#hero { scroll-margin-top: 0; }
+/* o deslocamento das âncoras vem só do scroll-padding-top do html (o
+   scroll-margin das seções somava e o clique caía 80px mais baixo) */
 #frentes.section { padding-top: var(--sp-1); }       /* puxa a rolagem depois do hero */
 #prova.section, .conversa .section { padding-top: var(--sp-3); }   /* abrem capítulo */
 /* um véu translúcido, sem régua própria: a malha continua por trás e o
@@ -109,7 +109,7 @@ html.tem-menu .nav.is-open .nav__links { max-height: calc(100dvh - var(--nav-h))
   body.is-menu { overflow: hidden; }
   html.tem-menu .nav.is-open .nav__links { height: calc(100dvh - var(--nav-h)); max-height: calc(100dvh - var(--nav-h)); padding: 1.6rem var(--pad) max(1.5rem, env(safe-area-inset-bottom)); counter-reset: item; }
   html.tem-menu .nav__links a:not(.btn) { counter-increment: item; font-family: var(--sans); font-weight: 300; font-size: 2rem; line-height: 1.1; letter-spacing: -.02em; text-transform: none; min-height: 64px; }
-  html.tem-menu .nav__links a:not(.btn)::before { content: "0" counter(item) / ""; font-family: var(--mono); font-weight: 500; font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); color: var(--ambar); margin-right: 1rem; align-self: center; }
+  html.tem-menu .nav__links a:not(.btn)::before { content: "0" counter(item); content: "0" counter(item) / ""; font-family: var(--mono); font-weight: 500; font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); color: var(--ambar); margin-right: 1rem; align-self: center; }
   /* o lugar atual em branco e os outros em --t2: o ciano em texto fica no H1, na Conversa e em dado (regra 8) */
   html.tem-menu .nav__links a:not(.btn) { color: var(--t2); }
   html.tem-menu .nav__links a.is-current { color: var(--t1); }

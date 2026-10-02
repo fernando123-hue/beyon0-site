@@ -534,7 +534,7 @@ body.is-lead-open { overflow: hidden; }
 .prova__item::after { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; background: linear-gradient(180deg, rgb(var(--ac-rgb) / 0) 0, rgb(var(--ac-rgb) / .10) 46%, rgb(var(--ac-rgb) / .7) 50%, rgb(var(--ac-rgb) / 0) 50.4%); transform: translateY(-50%); }
 @media (max-width: 820px) {
   html.js .prova__item.is-lit::after { animation: varre-y 1s cubic-bezier(.87, 0, .13, 1) both; }
-  html.js .prova__item::before { transform-origin: top; transition-duration: 1s; }
+  html.js .prova .prova__item::before { transform-origin: top; transition-duration: 1s; }   /* a barra desce com a luz */
 }
 @keyframes varre-y { 0% { transform: translateY(-50%); opacity: 1; } 85% { opacity: 1; } 100% { transform: translateY(50%); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .prova__item::after { animation: none !important; opacity: 0; } }
@@ -604,3 +604,7 @@ html.menos-movimento .prova__item::after { animation: none !important; opacity: 
   .servico__link { letter-spacing: var(--tr-dado); white-space: nowrap; }
   .instrumento__k { letter-spacing: var(--tr-dado); }
 }
+
+/* na pilha do celular o índice do laudo esmaece junto com o miolo: a
+   transição de opacidade do CSS brigava com o scrub e o "01" ficava sozinho */
+@media (max-width: 620px) { html.js .laudo .laudo__n { transition: color var(--t-micro) var(--ease-micro); } }
