@@ -285,9 +285,24 @@
     } catch (e) { /* navegador sem suporte: fica a restauração nativa */ }
   }
   function restaurarRolagem() {
-    if (!rolagemPropria) return;
     var navEntry = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
     var tipo = navEntry ? navEntry.type : '';
+    /* link direto com âncora (/#conversa): a rolagem nativa acontece antes de
+       os gatilhos existirem e cai no lugar errado (o pin estica a página
+       depois). Refeita aqui, depois do refresh. */
+    if (tipo === 'navigate' && location.hash.length > 1) {
+      var alvo = null;
+      try { alvo = document.getElementById(decodeURIComponent(location.hash.slice(1))); } catch (e) { /* hash inválido */ }
+      if (alvo) {
+        var folga = parseFloat(getComputedStyle(html).scrollPaddingTop) || 0;
+        var y = alvo.getBoundingClientRect().top + window.scrollY - folga;
+        var pin = ST && ST.getAll().filter(function (t) { return t.pin && t.pin.contains(alvo); })[0];
+        if (pin) y = pin.start;
+        window.scrollTo({ top: Math.max(0, y), behavior: 'instant' });
+      }
+      return;
+    }
+    if (!rolagemPropria) return;
     if (tipo !== 'reload' && tipo !== 'back_forward') return;
     var y = null;
     try { y = sessionStorage.getItem(CHAVE_ROLAGEM); } catch (e) { return; }
@@ -620,6 +635,7 @@
     var tl = gsap.timeline({
       /* o índice segue a timeline (já com o atraso do scrub), não a rolagem */
       onUpdate: function () {
+        pintar(tl.time());
         var n = 1;
         for (var k = 1; k < total; k++) if (tl.time() >= k * 1.4 + .5) n = k + 1;
         if (n === atual) return;
@@ -633,28 +649,36 @@
     });
     /* um rótulo no começo: rolar para cima a partir da 1ª leitura sai do palco, não volta a ela */
     tl.addLabel('inicio', 0);
+    /* UMA função pinta as três máscaras e a luz a partir do tempo da timeline
+       (revisão da V4.6: com um onUpdate por passagem, rebobinar deixava o
+       número anterior inteiro e dois apareciam juntos na primeira chegada).
+       Na passagem i a borda é o centro da luz: à esquerda o número i
+       impresso, à direita o i-1 ainda inteiro; o resto escondido. */
+    var FIM = (total - 1) * 1.4 + 1;
+    function pintar(t) {
+      var i = gsap.utils.clamp(0, total - 1, Math.floor(t / 1.4));
+      var e = gsap.utils.clamp(0, 1, t - i * 1.4);
+      var cx = e * (W + w) - w / 2;
+      setLuz(cx - w / 2);
+      partes.forEach(function (p, j) {
+        if (j === i) mostrar(p, gsap.utils.clamp(0, p.wm, cx - p.left));
+        else if (j === i - 1) apagar(p, gsap.utils.clamp(0, p.wm, cx - p.left));
+        else mostrar(p, 0);
+      });
+    }
+    tl.to({}, { duration: FIM, ease: 'none' }, 0);   /* dá à timeline a duração das três passagens */
     partes.forEach(function (p, i) {
-      var s = i * 1.4, ant = partes[i - 1], b = { e: 0 };
-      tl.fromTo(b, { e: 0 }, { e: 1, duration: 1, ease: 'none', immediateRender: false, onUpdate: function () {
-        var cx = b.e * (W + w) - w / 2;
-        setLuz(cx - w / 2);
-        mostrar(p, gsap.utils.clamp(0, p.wm, cx - p.left));
-        if (ant) apagar(ant, gsap.utils.clamp(0, ant.wm, cx - ant.left));
-      } }, s);
+      var s = i * 1.4, ant = partes[i - 1];
       var meio = s + (p.left + p.wm / 2 + w / 2) / (W + w);
       if (p.rot) tl.fromTo(p.rot, { opacity: 0 }, { opacity: 1, duration: .3, ease: 'power2.out', immediateRender: true }, meio);
       if (ant && ant.rot) tl.fromTo(ant.rot, { opacity: 1 }, { opacity: 0, duration: .2, ease: 'power2.in', immediateRender: false }, s + (ant.left + w / 2) / (W + w));
-      tl.addLabel('n' + i, s + 1.05);
+      tl.addLabel('n' + i, Math.min(s + 1.05, FIM));   /* o último rótulo dentro da timeline (antes o snap passava 18px do pin) */
     });
     if (barra) tl.fromTo(barra, { scaleX: 0 }, { scaleX: 1, ease: 'none', duration: tl.duration() }, 0);
     /* depois de cada refresh (larguras novas) a timeline é repintada do zero
        até onde estava: os x antigos nunca convivem com a largura nova */
-    function repintar() {
-      var pr = tl.progress();
-      partes.forEach(function (p) { mostrar(p, 0); });
-      setLuz(-w);
-      tl.progress(0, true).progress(pr);
-    }
+    function repintar() { pintar(tl.time()); }
+    pintar(0);
     ST.addEventListener('refresh', repintar);
     return function () {
       ST.removeEventListener('refreshInit', medir);

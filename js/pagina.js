@@ -47,6 +47,12 @@
     else if (preso && y < 8) { preso = false; navEl.classList.remove('is-stuck'); }
   }, { passive: true });
 
+  /* com o menu em tela cheia aberto, o resto da página fica inerte: o Tab
+     não sai do menu para links invisíveis por trás (revisão da V4.6) */
+  function fundoInerte(sim) {
+    var fundo = document.querySelectorAll('main, footer, .barra, .wa, .skip-link');
+    for (var f = 0; f < fundo.length; f++) { if (sim) fundo[f].setAttribute('inert', ''); else fundo[f].removeAttribute('inert'); }
+  }
   if (navEl) {
     var toggle = navEl.querySelector('.nav__toggle');
     var painel = document.getElementById('nav-links');
@@ -57,6 +63,7 @@
         if (!navEl.classList.contains('is-open')) return;
         navEl.classList.remove('is-open');
         document.body.classList.remove('is-menu');
+        fundoInerte(false);
         toggle.setAttribute('aria-expanded', 'false');
         menuAberto = false; mostrarBarra();
         if (devolverFoco) toggle.focus();
@@ -65,11 +72,17 @@
         var abrindo = !navEl.classList.contains('is-open');
         navEl.classList.toggle('is-open', abrindo);
         document.body.classList.toggle('is-menu', abrindo);   /* menu em tela cheia: a página por trás não rola */
+        fundoInerte(abrindo);
         toggle.setAttribute('aria-expanded', abrindo ? 'true' : 'false');
         menuAberto = abrindo; mostrarBarra();
       });
       painel.addEventListener('click', function (e) { if (e.target.closest('a')) fechar(false); });
       aoEscapar.push(function () { fechar(true); });
+      /* a janela cresceu para o desktop com o menu aberto: fecha (senão a barra
+         seguia oculta e o menu reaparecia aberto ao voltar ao celular) */
+      var mqLarga = window.matchMedia('(min-width: 981px)');
+      var aoAlargar = function (e) { if (e.matches) fechar(false); };
+      if (mqLarga.addEventListener) mqLarga.addEventListener('change', aoAlargar); else if (mqLarga.addListener) mqLarga.addListener(aoAlargar);
     }
   }
 
