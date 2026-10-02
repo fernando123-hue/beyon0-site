@@ -48,7 +48,7 @@
   var MONTA = 1.3;         /* os pedaços convergem, de fora para dentro */
   var ACENDE_EM = 0.85;    /* o núcleo acende enquanto a gaiola trava */
   var ACENDE_DUR = 0.35;
-  var CLARAO = 0.12;       /* o pico passa 12% do repouso... */
+  var CLARAO = 0.08;       /* o pico passa 8% do repouso (o clarão de 12% passava do ponto) */
   var ASSENTA = 0.9;       /* ...e assenta neste tempo */
   var JANELA = 90;         /* quadros por medição de fps */
 

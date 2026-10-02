@@ -203,3 +203,67 @@ testado antes de baixar o three); `stencil: false`,
   log encostado, o peso do núcleo separado do peso do site, e a abertura na
   rolagem pela posição da esfera (abria no meio da tela, sobre o texto).
 - Em aberto: o console sem JS mostra uma linha só (já era assim na V4.9).
+
+## 11. Versão 2: o reator (2026-10-02, pedido do dono depois de ver no celular)
+
+O dono viu a prévia: "parece um emaranhado de fios e cabos; quero sensação
+de grandeza, equilíbrio, alta simetria e grande energia passando por ele".
+O problema é de conceito, não de ajuste: arcos soltos em ângulos variados
+sempre leem como fios. A v2 troca a ideia.
+
+**Conceito: um reator visto de frente.** Simetria radial (12 tempos), peças
+inteiras e usinadas (nada ondulado nem partido), camadas em profundidade, e a
+energia como protagonista:
+
+| Peça | O que é | Papel |
+|---|---|---|
+| Núcleo | o mesmo ponto branco com halo | a fonte |
+| Lente | anéis finos de frente + régua âmbar | o instrumento |
+| Raios de energia | 12 feixes do anel externo ao núcleo, com pulsos correndo PARA DENTRO | a energia sendo puxada (o "grande energia passando") |
+| Disco | partículas em órbita no plano do equador, espiralando para o núcleo | profundidade e movimento contínuo |
+| Giroscópio | 2 anéis inteiros de vidro, um vertical e um equatorial, girando devagar | o volume 3D, em equilíbrio |
+| Portal | anel externo grande em 12 segmentos de vidro com vãos alinhados aos raios | a grandeza e a simetria |
+| Trilhos | anéis contínuos com pulsos de luz correndo em volta | a energia circulando |
+| Régua | 72 marcas finas em volta de tudo | escala de instrumento (a linguagem de 1px do site) |
+| Onda | um anel de luz que sai do núcleo a cada ~5 s e se desfaz | o pulso do sistema |
+
+A montagem continua contando o H1: os 12 segmentos chegam ao portal em
+pares simétricos, os anéis travam, o núcleo acende e a energia começa a
+correr. Sem cacos (eram o caos que o dono não quer). Mesmo orçamento (fps,
+LCP, bytes) e o mesmo processo: laboratório → crítica → código → medida.
+
+### 11.1 Rodadas da v2
+
+- **Crítica, rodada 3 — ajustar (7,0).** Simetria e equilíbrio certos;
+  faltavam grandeza e energia. Achados: anel vertical + elipse do equador +
+  núcleo liam como **símbolo de átomo / logo do React** (clichê); o console
+  cortava o círculo (simetria cortada = desequilíbrio); tudo brilhava igual
+  (lia como mostrador, não potência); a onda virava mancha redonda. Feito: sai
+  o anel vertical (o eixo vertical são os jatos finos); os 12 raios viram a
+  energia dominante (pulso em fase a cada 1,6 s, o núcleo bate a cada
+  chegada) e o resto escurece; disco em órbita kepleriana a 12° do
+  horizonte; onda de 1 px a cada 8 s; acendimento de dentro para fora;
+  círculo nunca cortado (celular: console depois dele; desktop: o console sai
+  do hero e a medida volta à trilha). Não feito: jatos de 2,2× o raio (no
+  celular cruzariam o texto).
+- **Código, revisão da v2 — aprovada com ressalvas.** Corrigido: smoothstep
+  com bordas invertidas (indefinido em GPU móvel); a costura do `atan` nos
+  anéis (um tracinho fixo às 9 h quebraria a simetria: agora `uv.x`); o
+  relógio dos shaders dá a volta a cada 400 s (float32 depois de horas);
+  energia de dois lados só nas faixas (nos tubos somava 2×); material apagado
+  não é desenhado; `getWorldPosition` inútil; o three reduzido perdeu as
+  classes que a v2 não usa (124 → 121 KB).
+- **Salto de layout de 0,253 no celular (vinha da V4.9).** Achado ao medir:
+  o menu do celular nascia no fluxo (sem a classe `tem-menu`, ligada só pelo
+  `pagina.js` com `defer`) e o hero subia 213 px depois da 1ª pintura. Agora
+  `tem-menu` liga no `<head>` (js/ancoras.js), com rede: sem o menu montado
+  até o load, a classe sai. CLS do Hub no celular: 0,253 → 0,014.
+- **Crítica, rodada 4 — manter (8,0)** (V4.9 6,0; v1 7,5; v52 7,0). Os três
+  últimos ajustes, feitos: o disco virou matéria (sem o anel sólido, que lia
+  como Saturno; riscos ao longo da órbita, 60% no miolo); os raios ficam
+  legíveis parados (guia contínua, cauda de 18%, lampejo na borda do portal
+  a cada injeção); respiro de 40 px entre o anel e o texto no desktop. O
+  crítico recomenda congelar o reator e seguir para o resto da página.
+- Medido no fim (GPU real): fps igual com e sem reator (60/60 desktop; 60/59
+  celular com CPU 4×), ~2 ms de script por quadro no celular com CPU 4×, CLS
+  0–0,014, three reduzido 121 KB comprimido.

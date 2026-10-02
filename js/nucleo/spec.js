@@ -1,82 +1,103 @@
 /* ==========================================================================
-   AI CORE — o spec. O que a esfera É, em dados; nada aqui sabe de three.js.
+   AI CORE — o spec. O que o reator É, em dados; nada aqui sabe de three.js.
 
-   Saiu da leitura da imagem de referência (docs/restructure/moodboard/
-   ai-core-referencia.png), no método do img2threejs: o spec é a verdade, o
-   código que monta as peças (pecas.js) é derivado dele. Mudar a esfera é
-   mudar estes números, não o emissor.
+   Versão 2 (docs/restructure/PLANO-AI-CORE.md, seção 11). A v1 (arcos de
+   vidro partidos em ângulos variados, lida da imagem do dono) foi vista pelo
+   dono como "um emaranhado de fios e cabos". Ele pediu grandeza, equilíbrio,
+   alta simetria e grande energia passando. A v2 é um reator visto de frente:
+   simetria radial de 12 tempos, peças inteiras e usinadas, energia correndo
+   dos anéis para o núcleo.
 
-   Unidades: raio da gaiola = 1. Cores: nomes de token (lidos do CSS no boot),
-   nunca hexadecimal solto, para a esfera nunca sair da paleta do site.
-   Peças repetidas (arcos, cacos, poeira) são DESCRITAS por faixa e
-   contagem; o emissor sorteia com semente fixa, então a esfera é a mesma em
-   toda visita.
+   Unidades: raio do portal ≈ 1. Cores: nomes de token (lidos do CSS no
+   boot), nunca hexadecimal solto. O emissor é pecas.js.
    ========================================================================== */
 
 export const SPEC = {
-  /* z: a esfera (raio ~1) ocupa a caixa do hero; o canvas é 1,44× a caixa
-     (sangra para os cacos e o traço), então a meia-altura visível é ~1,5 */
   camera: { fov: 30, z: 5.6 },
   semente: 20261002,
 
-  /* o ponto que acende. A referência estoura branco no centro com halo
-     ciano e uma bruma larga; aqui o estouro é menor que lá (a V4 proíbe
-     neon): o "no ar." do H1 continua sendo o ciano mais forte da tela, e só
-     o núcleo pode ser branco. Rodada 1 da crítica: a estrela de raios, o
-     traço fixo e a aresta acesa em tudo somados beiravam o neon. */
+  /* o núcleo: a fonte. Só ele é branco; o "no ar." do H1 continua sendo o
+     ciano mais forte da tela */
   nucleo: {
-    raio: 0.06,
+    raio: 0.065,
     halos: [
-      { cor: 't1', escala: 0.48, alfa: 1.0, miolo: 0.12 },   /* o estouro branco */
-      { cor: 'ac', escala: 1.45, alfa: 0.55, miolo: 0.04 },  /* o halo ciano */
-      { cor: 'ac', escala: 3.0, alfa: 0.14, miolo: 0.0 }     /* a bruma, larga e fraca */
+      { cor: 't1', escala: 0.5, alfa: 1.0, miolo: 0.12 },    /* o estouro branco */
+      { cor: 'ac', escala: 1.5, alfa: 0.55, miolo: 0.04 },   /* o halo ciano */
+      { cor: 'ac', escala: 3.2, alfa: 0.14, miolo: 0.0 }     /* a bruma */
     ],
-    raios: { cor: 'ac2', escala: 1.0, alfa: 0.2, n: 6 },   /* poucos raios, quase nada */
-    /* o traço horizontal é um EVENTO: nasce do núcleo para fora na ignição
-       (a luz passa e imprime) e assenta fraco e mais curto */
+    raios: { cor: 'ac2', escala: 1.0, alfa: 0.22, n: 12 },   /* 12, como tudo */
+    /* o traço horizontal: nasce do núcleo na ignição e assenta */
     tracos: [
-      { cor: 'ac2', largura: 5.6, altura: 0.035, alfa: 0.8, assenta: { largura: 3.2, alfa: 0.25 } },  /* o fio */
-      { cor: 'ac', largura: 1.9, altura: 0.16, alfa: 0.3, assenta: { largura: 1.2, alfa: 0.12 } }     /* o clarão */
+      { cor: 'ac2', largura: 5.6, altura: 0.035, alfa: 0.8, assenta: { largura: 3.2, alfa: 0.22 } },
+      { cor: 'ac', largura: 1.9, altura: 0.16, alfa: 0.3, assenta: { largura: 1.2, alfa: 0.1 } }
     ],
-    nasce: 0.35,     /* s: o traço cresce do centro até a largura toda */
-    assenta: 1.2     /* s: depois volta ao repouso */
+    nasce: 0.35,
+    assenta: 1.2
   },
 
-  /* a lente: anéis finos, concêntricos, em volta do núcleo. O anel com
-     marcas de régua é âmbar: amarra a esfera à marca (ciano + âmbar) e a
-     tira do "orbe ciano de IA" */
+  /* a lente: anéis finos DE FRENTE em volta do núcleo; a régua âmbar amarra
+     o reator à marca (ciano + âmbar) */
   lente: [
-    { raio: 0.17, tubo: 0.004, cor: 'ac2', alfa: 0.8, eixo: [0.15, 0.2, 1], vel: 0.35 },
-    { raio: 0.24, tubo: 0.008, cor: 'ambar', alfa: 0.35, eixo: [0.1, -0.1, 1], vel: -0.22, marcas: 64 },
-    { raio: 0.31, tubo: 0.003, cor: 'ac2', alfa: 0.5, eixo: [1, 0.3, 0.2], vel: 0.18 },
-    { raio: 0.36, tubo: 0.003, cor: 'ac', alfa: 0.4, eixo: [0.3, 1, 0.4], vel: -0.14 }
+    { raio: 0.15, tubo: 0.004, cor: 'ac2', alfa: 0.85, vel: 0.3 },
+    { raio: 0.21, tubo: 0.005, cor: 'ambar', alfa: 0.45, vel: -0.18, marcas: 48 },
+    { raio: 0.28, tubo: 0.003, cor: 'ac', alfa: 0.5, vel: 0.12 }
   ],
 
-  /* a gaiola: POUCAS faixas grossas de vidro escuro, partidas, que formam
-     uma esfera com volume (com 26 tubos finos lia como novelo no celular).
-     Camadas de fora para dentro; `arco` em voltas (1 = círculo inteiro);
-     `achata` < 1 vira fita em vez de tubo. As direções são distribuídas
-     por igual (espiral áurea), não sorteadas, para cobrir a bola toda. */
-  gaiola: [
-    { n: 5, raio: [0.90, 1.02], tubo: [0.035, 0.08], arco: [0.45, 0.85], achata: [0.45, 0.9], onda: 0.025, vel: [0.03, 0.07], inclinacao: 1.45 },
-    { n: 4, raio: [0.70, 0.86], tubo: [0.025, 0.055], arco: [0.45, 0.85], achata: [0.5, 1], onda: 0.02, vel: [0.05, 0.10], inclinacao: 1.15 },
-    { n: 2, raio: [0.54, 0.62], tubo: [0.016, 0.030], arco: [0.50, 0.85], achata: [0.5, 1], onda: 0.015, vel: [0.07, 0.13], inclinacao: 0.7 },
-    /* a abertura: fitas largas DE FRENTE em volta da lente, como o diafragma
-       que a referência tem logo atrás do núcleo */
-    { n: 2, raio: [0.40, 0.46], tubo: [0.032, 0.042], arco: [0.72, 0.92], achata: [0.3, 0.4], onda: 0.006, vel: [0.04, 0.07], inclinacao: 0.22 }
+  /* os raios de energia: A energia dominante (crítica rodada 3: com tudo
+     brilhando igual lia como mostrador, não como potência). 12 feixes do
+     portal ao núcleo, pulsos correndo PARA DENTRO, todos em fase, chegando a
+     cada 1/vel s (1,6 s); o núcleo bate a cada chegada. `cauda`: expoente
+     do pulso (7 ≈ 10% do raio de comprimento) */
+  raios: { n: 12, de: 0.9, ate: 0.16, largura: 0.024, pulsos: 2, vel: 0.625, cauda: 3.4, cor: 'ac', alfa: 0.95, base: 0.11, batida: 0.08,
+    /* a injeção: onde cada raio toca o portal, um lampejo na partida de cada
+       pulso (12 em fase): o anel inteiro injeta energia no centro */
+    lampejo: { alfa: 0.6, dura: 0.4, escala: 0.16 } },
+
+  /* os jatos: o eixo vertical do reator (no lugar do anel vertical, que com
+     o disco formava o símbolo do átomo). Finos, saindo pelos polos até
+     passar da régua, com pulsos PARA FORA no mesmo compasso dos raios */
+  jatos: { comp: 1.2, de: 0.09, largura: [0.006, 0.02], pulsos: 2, vel: 0.625, cauda: 7, cor: 'ac', alfa: 0.55, base: 0.22 },
+
+  /* o disco: partículas em órbita no plano do equador, como um disco de
+     acreção (as de dentro giram ~2,5× mais rápido que as de fora: `kepler`
+     é o expoente). `inclina`: quanto o plano deita (0 = de frente,
+     π/2 = de perfil; 1,36 ≈ 12° do horizonte) */
+  disco: { n: 900, nCelular: 420, raio: [0.2, 0.86], inclina: 1.36, giro: 0.35, kepler: 0.63, tam: 0.032, cor: 'ac2', alfa: 0.65,
+    /* matéria correndo, não anel de Saturno: `denso` das partículas ficam na
+       fração `miolo` de dentro, e cada uma é um risco ao longo da órbita
+       (`rastro`: comprimento/largura) */
+    denso: 0.6, miolo: 0.35, rastro: 3 },
+
+  /* o equador: só um fio de pulsos fracos no plano do disco (o anel sólido
+     de vidro lia como Saturno — crítica rodada 4) */
+  equador: { raio: 0.62, tubo: 0.004, vel: -0.1, fluxo: { cor: 'ac2', pulsos: 2, vel: -0.3, alfa: 0.15 } },
+
+  /* o portal: o anel grande em 12 segmentos de vidro, com vãos alinhados aos
+     raios de energia. `vao` = fração de cada segmento que fica vazia;
+     `achata` < 1 = fita larga de frente, não tubo */
+  portal: { raio: 0.97, n: 12, vao: 0.07, tubo: 0.06, achata: 0.42, vel: 0.025,
+    /* a segunda camada, atrás e defasada meio passo: dá corpo e profundidade
+       (uma camada só lia como mostrador plano) */
+    fundo: { raio: 0.9, z: -0.16, tubo: 0.045, achata: 0.5 } },
+
+  /* trilhos: anéis contínuos com pulsos de luz correndo em volta */
+  trilhos: [
+    { raio: 0.85, tubo: 0.005, pulsos: 3, vel: 0.22, cor: 'ac', alfa: 0.4 },
+    { raio: 1.07, tubo: 0.0035, pulsos: 2, vel: -0.14, cor: 'ac2', alfa: 0.32 }
   ],
 
-  /* fios: arcos finos e claros entre os grossos */
-  fios: { n: 2, raio: [0.6, 1.05], tubo: [0.0035, 0.005], arco: [0.3, 0.55], onda: 0.01, vel: [0.03, 0.07], alfa: 0.35, inclinacao: 1.2 },
+  /* a régua: 72 marcas em volta de tudo, uma longa a cada `longa` (8 longas) */
+  regua: { raio: 1.13, n: 72, longa: 9, cor: 'ac', alfa: 0.3 },
 
-  /* cacos de vidro soltos: menos e maiores, para se lerem como vidro */
-  cacos: { n: 70, nCelular: 40, raio: [0.95, 1.5], tam: [0.02, 0.09] },
+  /* a onda: um anel de 1 px que sai do núcleo (raio de/ate) em `dura` s, a
+     cada `periodo` s; nunca uma mancha (crítica rodada 3) */
+  onda: { periodo: 8, dura: 1.4, raio: [0.4, 1.6], alfa: 0.35, cor: 'ac' },
 
-  /* poeira fina */
-  poeira: { n: 520, nCelular: 220, raio: [0.25, 2.0], tam: 0.014 },
+  /* o acendimento corre de dentro para fora: o atraso (s) de cada camada
+     depois da ignição */
+  acende: { disco: 0, equador: 0.08, raios: 0.16, jatos: 0.16, trilhos: 0.24 },
 
-  /* o vidro escuro: albedo quase preto, a luz que vem DE DENTRO (o núcleo é
-     a única fonte), um reflexo de ambiente falso (a faixa clara que dá o
-     brilho de vidro polido) e aresta de fresnel. Sem luz de cena, sem sombra. */
+  /* o vidro escuro: a única luz é o núcleo (de dentro), fios de reflexo duros,
+     aresta de fresnel. Sem luz de cena, sem sombra. */
   vidro: { base: 'bg', interno: 'ac', aresta: 'ac2', brilho: 't1', ambiente: 'luz' }
 };

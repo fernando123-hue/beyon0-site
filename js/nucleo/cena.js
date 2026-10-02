@@ -62,6 +62,13 @@ export function criarCena(canvas, gl, { celular = false } = {}) {
     /* o canvas é sempre quadrado (144% de uma caixa aspect-ratio 1) */
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
+    escalaParticulas();
+  }
+
+  /* as partículas do disco têm tamanho em pixels: dependem da altura do
+     buffer (tamanho em CSS × pixel ratio) */
+  function escalaParticulas() {
+    if (esfera && altura) esfera.tamanhoTela(altura * renderer.getPixelRatio(), SPEC.camera.fov);
   }
 
   /* se a montagem falhar DEPOIS de o renderer existir, solta o contexto
@@ -93,6 +100,7 @@ export function criarCena(canvas, gl, { celular = false } = {}) {
   function baixarResolucao() {
     if (renderer.getPixelRatio() <= 1) return false;
     renderer.setPixelRatio(1);
+    escalaParticulas();
     return true;
   }
 
@@ -100,7 +108,7 @@ export function criarCena(canvas, gl, { celular = false } = {}) {
      Quem chama não chama depois de ter baixado a resolução. */
   function ajustarDpr() {
     const alvo = Math.min(window.devicePixelRatio || 1, teto);
-    if (Math.abs(renderer.getPixelRatio() - alvo) > 0.01) renderer.setPixelRatio(alvo);
+    if (Math.abs(renderer.getPixelRatio() - alvo) > 0.01) { renderer.setPixelRatio(alvo); escalaParticulas(); }
   }
 
   function desmontar() {

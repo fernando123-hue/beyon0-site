@@ -38,7 +38,7 @@ subindo); ignore a primeira medição de DCL/LCP.
 | Arquivo | O que é |
 |---|---|
 | `docs/restructure/DIRECAO-V4.md` | **Comece aqui.** A direção da V4 "Tech refinado" (2026-10-01): a identidade da V1 (escuro, ciano, Sora + Mono, régua de 1px) com luz; celular primeiro. |
-| `docs/restructure/PLANO-AI-CORE.md` | **O AI Core** (2026-10-02): a esfera de vidro em three.js no hero do Hub, feita a partir da imagem do dono (`moodboard/ai-core-referencia.png`); medidas, rodadas da crítica e a proposta de motion (Remotion). |
+| `docs/restructure/PLANO-AI-CORE.md` | **O AI Core** (2026-10-02): o reator em three.js no hero do Hub (v2, seção 11: simetria de 12 tempos, energia correndo para o núcleo; a v1, esfera de vidro da imagem do dono, foi vista como "emaranhado de fios"); medidas, rodadas da crítica e a proposta de motion. |
 | `docs/restructure/DIRECAO-V3.md` | A V3 clara ("Luz e vida"), rejeitada pelo dono no mesmo dia. Vale pela regra de celular primeiro. |
 | `docs/restructure/DIRECAO-V2.md` | A V2 escura ("o instrumento acorda"), chamada de "mórbida" pelo dono. Vale pelo diagnóstico medido e pelo vocabulário de movimento. |
 | `docs/restructure/PLANO-REESTRUTURACAO.md` | **Seção 16 = o loop de auto-aprimoramento com painel de agentes (rodadas feitas, próximo passo).** Seção 15 = V4. Seção 14 = V3. Seção 13 = V2. Seções 11–12 = história anterior. |

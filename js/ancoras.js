@@ -19,6 +19,16 @@
   'use strict';
   var html = document.documentElement;
   html.classList.add('js');
+  /* `tem-menu` também ANTES de pintar: sem ela o menu do celular nasce no
+     fluxo (links em linha, ~213 px) e, quando o js/pagina.js (defer) a
+     ligava, o hero subia — salto de layout de 0,253 em toda carga no
+     celular (medido; já existia na V4.9). Rede: se o pagina.js não montar o
+     menu até o load, a classe sai e os links voltam a aparecer em linha. */
+  html.classList.add('tem-menu');
+  window.addEventListener('load', function () {
+    var botao = document.querySelector('.nav__toggle');
+    if (!botao || botao.hidden) html.classList.remove('tem-menu');
+  });
   try {
     if (localStorage.getItem('bz-menos-movimento') === '1') html.classList.add('menos-movimento');
   } catch (e) { /* armazenamento bloqueado: segue o padrão do sistema */ }

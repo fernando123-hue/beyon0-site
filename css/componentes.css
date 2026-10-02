@@ -408,13 +408,13 @@ html.menos-movimento .cascata__barra { transform: none; }
 .hero__arte--nucleo .console__topo { margin-top: 0; }
 /* celular: respiro nas laterais (de borda a borda os arcos eram cortados) e
    o log com três linhas que não quebram (a 320px "Sora + / Mono" quebrava) */
-.nucleo { position: relative; width: min(86%, 340px); aspect-ratio: 1; pointer-events: none; }
-/* celular: o núcleo aceso aparece INTEIRO no fim da 1ª tela (isca para
-   rolar) e o log encosta no pé da esfera: o conjunto fica ~60px mais curto
-   (crítica rodada 2) */
+.nucleo { position: relative; width: min(96%, 370px); aspect-ratio: 1; pointer-events: none; }
+/* celular: o núcleo aceso aparece no fim da 1ª tela (isca para rolar) e o
+   círculo nunca é cortado: o log vem DEPOIS dele, sem sobrepor (simetria
+   cortada vira desequilíbrio — crítica rodada 3) */
 @media (max-width: 860px) {
-  .hero__arte--nucleo { margin-top: 4px; }
-  .hero__arte--nucleo .console { margin-top: -16%; }
+  .hero__arte--nucleo { margin-top: 20px; }
+  .hero__arte--nucleo .console { margin-top: 16px; }
 }
 @media (max-width: 420px) {
   .hero__arte--nucleo .console__linha--extra { display: none; }
@@ -428,39 +428,55 @@ html.menos-movimento .cascata__barra { transform: none; }
 /* antes de a esfera montar (e depois de uma desistência) o canvas não aparece */
 html:not(.tem-nucleo) .nucleo__tela { visibility: hidden; }
 
-/* o desenho em CSS: a mesma esfera, parada e simplificada (núcleo, lente e
-   cinco arcos partidos de vidro escuro com a aresta acesa por dentro) */
+/* o desenho em CSS: o mesmo reator, parado e simplificado. As medidas são
+   as do spec (js/nucleo/spec.js) em % do raio da caixa (raio ≈ 1,04 da
+   cena): núcleo e lente; o portal em 12 segmentos (máscara cônica); os 12
+   raios de energia; o trilho; o anel vertical e o do equador do giroscópio */
 .nucleo__poster {
-  position: absolute; inset: 6%; border-radius: 50%;
+  position: absolute; inset: 0; border-radius: 50%;
   background:
-    radial-gradient(circle, rgb(238 241 245 / .95) 0 1.4%, rgb(var(--ac-rgb) / .5) 3.2%, rgb(var(--ac-rgb) / .1) 11%, transparent 26%),
-    radial-gradient(circle, transparent 0 17.6%, rgb(var(--ac-rgb) / .5) 17.8% 18.2%, transparent 18.5% 25.2%, rgb(var(--ac-rgb) / .22) 25.4% 26.6%, transparent 26.9%);
+    radial-gradient(circle closest-side, rgb(238 241 245 / .95) 0 5%, rgb(var(--ac-rgb) / .5) 9%, rgb(var(--ac-rgb) / .1) 22%, transparent 40%),
+    radial-gradient(circle closest-side, transparent 0 14%, rgb(var(--ac-rgb) / .5) 14.3% 14.9%, transparent 15.3% 19.8%, rgb(var(--ambar-rgb) / .4) 20% 20.6%, transparent 21% 26.6%, rgb(var(--ac-rgb) / .3) 26.8% 27.2%, transparent 27.6%);
   transition: opacity .7s ease;
 }
-.nucleo__poster i {
-  position: absolute; border-radius: 50%;
-  border: 3px solid rgb(13 22 30 / .95); border-top-color: rgb(var(--ac-rgb) / .38); border-left-color: transparent;
+.nucleo__poster i { position: absolute; border-radius: 50%; }
+/* o portal: fita de vidro escuro com a aresta de dentro acesa, em 12 tempos */
+.nucleo__poster i:nth-child(1) {
+  inset: 4%; border: 5px solid rgb(16 28 38 / .95); box-shadow: inset 0 0 0 1px rgb(var(--ac-rgb) / .45);
+  -webkit-mask-image: repeating-conic-gradient(from 1deg, #000 0 28deg, transparent 28deg 30deg);
+  mask-image: repeating-conic-gradient(from 1deg, #000 0 28deg, transparent 28deg 30deg);
 }
-.nucleo__poster i:nth-child(1) { inset: 0; transform: rotate(18deg) scaleY(.92); border-width: 4px; }
-.nucleo__poster i:nth-child(2) { inset: 7%; transform: rotate(-64deg) scaleX(.78); }
-.nucleo__poster i:nth-child(3) { inset: 13%; transform: rotate(132deg) scaleY(.7); border-width: 5px; }
-.nucleo__poster i:nth-child(4) { inset: 22%; transform: rotate(-150deg) scaleX(.86); border-width: 2px; }
-.nucleo__poster i:nth-child(5) { inset: 31%; transform: rotate(80deg); border-width: 6px; border-color: rgb(13 22 30 / .95); border-bottom-color: rgb(var(--ac-rgb) / .3); }
+/* os raios de energia: 12 linhas finas do portal ao núcleo */
+.nucleo__poster i:nth-child(2) {
+  inset: 9%;
+  background: repeating-conic-gradient(from -.4deg, rgb(var(--ac-rgb) / .32) 0 .8deg, transparent .8deg 30deg);
+  -webkit-mask-image: radial-gradient(circle closest-side, transparent 18%, #000 32%, #000 88%, transparent 98%);
+  mask-image: radial-gradient(circle closest-side, transparent 18%, #000 32%, #000 88%, transparent 98%);
+}
+/* o trilho */
+.nucleo__poster i:nth-child(3) { inset: 9.5%; border: 1px solid rgb(var(--ac-rgb) / .35); }
+/* o anel vertical do giroscópio (quase de perfil) */
+.nucleo__poster i:nth-child(4) { inset: 16.5% 36.5%; border: 2px solid rgb(var(--ac-rgb) / .3); }
+/* o anel do equador, deitado */
+.nucleo__poster i:nth-child(5) { inset: 39.8% 20%; border: 2px solid rgb(var(--ac-rgb) / .38); }
 /* a esfera de verdade montou: o desenho sai enquanto os pedaços chegam */
 html.tem-nucleo .nucleo__poster { opacity: 0; }
 /* a linha que o núcleo acrescenta ao log quando acende (instante real) */
 .console__linha--nucleo { animation: nucleo-linha .5s ease-out both; }
 .console__linha--nucleo .console__v { color: var(--ac); }
 @keyframes nucleo-linha { from { opacity: 0; transform: translateY(6px); } }
-/* desktop: a esfera maior que a coluna (o hero corta na horizontal) e o
-   console menor, encostado à direita, só sobre a zona em que a máscara já
-   esmaece: os arcos de baixo continuam visíveis à esquerda dele */
+/* desktop: o reator inteiro e grande, maior que a coluna (o hero corta na
+   horizontal), sem nada por cima. O console sai do hero: a medida desta
+   visita volta para a trilha ("Medido agora, neste aparelho"), e a 1ª
+   pintura continua na cota do H1 */
 @media (min-width: 861px) {
-  /* o núcleo desce para a altura entre "ao sistema" e "no ar." (o topo da
-     esfera encostava no menu); translate não mexe no layout */
-  .nucleo { width: min(100%, 430px); transform: translateY(36px); }
-  .hero__arte--nucleo .console { max-width: 320px; align-self: flex-end; margin-top: -6%; font-size: .75rem; }
-  .hero__arte--nucleo .console__v { white-space: nowrap; }
+  /* 480px, deslocado para a direita (sangra além da coluna; a máscara
+     esmaece) e um pouco abaixo: respiro de 40px entre o anel e o texto, e o
+     núcleo entre o "no ar." e a cota (crítica rodada 4) */
+  .nucleo { width: min(114%, 480px); transform: translate(32px, 20px); }
+  .hero:has(.hero__arte--nucleo) .hero__arte .console { display: none; }
+  .hero:has(.hero__arte--nucleo) .hero__rail { grid-template-columns: repeat(4, 1fr); }
+  .hero:has(.hero__arte--nucleo) .hero__rail .hero__rail--medida { display: flex; }
 }
 
 /* ==========================================================================

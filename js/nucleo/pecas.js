@@ -1,21 +1,21 @@
 /* ==========================================================================
-   AI CORE — o emissor. Lê o SPEC e monta as peças em three.js.
+   AI CORE — o emissor. Lê o SPEC (o reator, v2) e monta as peças em three.js.
 
-   Nada aqui decide QUANDO a esfera se mexe: `atualizar(estado)` recebe o
+   Nada aqui decide QUANDO o reator se mexe: `atualizar(estado)` recebe o
    estado pronto (montagem, abertura, ignição, ponteiro) de quem manda no
-   tempo (boot.js no site, lab.js no laboratório). Assim o mesmo emissor
-   serve ao site, ao laboratório e, um dia, a uma renderização de vídeo.
+   tempo (boot.js no site, lab.js no laboratório). O mesmo emissor serve ao
+   site, ao laboratório e a uma renderização de vídeo.
 
-   Custo medido em mente (regras do threejs-perf e da história do projeto):
-   sem luz de cena, sem sombra, sem pós-processamento. O brilho vem de
-   sprites aditivos com textura gerada UMA vez; o vidro, de um shader curto
-   em que a única fonte de luz é o próprio núcleo.
+   Custo (regras do threejs-perf e da história do projeto): sem luz de cena,
+   sem sombra, sem pós-processamento. O brilho é aditivo; a energia corre em
+   shaders curtos (pulsos por ângulo nos anéis, por comprimento nos raios, e
+   o disco de partículas inteiro calculado na GPU: zero JS por partícula).
    ========================================================================== */
 
 const TAU = Math.PI * 2;
+const VOLTA = 400;   /* s: período do relógio dos shaders (ver atualizar) */
 
-/* gerador pseudoaleatório com semente: a esfera é a mesma em toda visita
-   (e no laboratório e num vídeo), não uma nova a cada carga */
+/* gerador com semente: o reator é o mesmo em toda visita */
 function sorteio(semente) {
   let s = semente >>> 0;
   return () => {
@@ -50,17 +50,18 @@ function texturaHalo(THREE, miolo) {
   return new THREE.CanvasTexture(c);
 }
 
-function texturaRaios(THREE, nRaios, sorte) {
+/* raios curtos, igualmente espaçados: a estrela também é simétrica */
+function texturaRaios(THREE, nRaios) {
   const n = 256, c = tela(n, n), g = c.getContext('2d');
   g.translate(n / 2, n / 2);
   for (let i = 0; i < nRaios; i++) {
-    const a = (i / nRaios) * TAU + sorte() * 0.3;
-    const comp = n * (0.2 + sorte() * 0.28);
+    const a = (i / nRaios) * TAU;
+    const comp = n * (i % 2 ? 0.26 : 0.4);
     const grad = g.createLinearGradient(0, 0, Math.cos(a) * comp, Math.sin(a) * comp);
     grad.addColorStop(0, 'rgba(255,255,255,.9)');
     grad.addColorStop(1, 'rgba(255,255,255,0)');
     g.strokeStyle = grad;
-    g.lineWidth = 1 + sorte() * 1.5;
+    g.lineWidth = i % 2 ? 1 : 1.6;
     g.beginPath();
     g.moveTo(0, 0);
     g.lineTo(Math.cos(a) * comp, Math.sin(a) * comp);
@@ -79,7 +80,6 @@ function texturaTraco(THREE) {
   gx.addColorStop(1, 'rgba(255,255,255,0)');
   g.fillStyle = gx;
   g.fillRect(0, 0, w, h);
-  /* afina em cima e embaixo: um fio, não uma faixa */
   g.globalCompositeOperation = 'destination-in';
   const gy = g.createLinearGradient(0, 0, 0, h);
   gy.addColorStop(0, 'rgba(0,0,0,0)');
@@ -90,12 +90,24 @@ function texturaTraco(THREE) {
   return new THREE.CanvasTexture(c);
 }
 
-/* ---------- o vidro escuro ----------
-   A única luz é o núcleo, no centro do mundo: a face de dentro dos arcos de
-   trás acende em ciano, a face de fora dos arcos da frente fica escura com
-   aresta de fresnel e um reflexo de ambiente falso (uma faixa clara no
-   horizonte do vetor refletido) que dá o brilho de vidro polido da
-   referência. */
+/* um anel de 1 px: a onda de choque (o anel fica a 97% do raio da textura) */
+function texturaOnda(THREE) {
+  const n = 256, c = tela(n, n), g = c.getContext('2d');
+  const r = g.createRadialGradient(n / 2, n / 2, 0, n / 2, n / 2, n / 2);
+  r.addColorStop(0, 'rgba(255,255,255,0)');
+  r.addColorStop(0.955, 'rgba(255,255,255,0)');
+  r.addColorStop(0.97, 'rgba(255,255,255,1)');
+  r.addColorStop(0.985, 'rgba(255,255,255,0)');
+  r.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = r;
+  g.fillRect(0, 0, n, n);
+  return new THREE.CanvasTexture(c);
+}
+
+/* ---------- shaders ---------- */
+
+/* o vidro escuro: a única luz é o núcleo, no centro do mundo; fios de
+   reflexo duros, o núcleo visto através, aresta de fresnel */
 const VIDRO_VS = /* glsl */`
   varying vec3 vN;
   varying vec3 vP;
@@ -131,32 +143,126 @@ const VIDRO_FS = /* glsl */`
     float d = length(Lv);
     vec3 L = Lv / d;
     float ig = uIgnicao;
-    float queda = 1.0 / (1.0 + d * d * 3.6);
+    float queda = 1.0 / (1.0 + d * d * 3.2);
     float difusa = max(dot(N, L), 0.0);
     float fres = pow(1.0 - max(dot(N, V), 0.0), 3.0);
     float espec = pow(max(dot(N, normalize(L + V)), 0.0), 90.0);
     vec3 R = reflect(-V, N);
-    float faixa = exp(-R.y * R.y * 140.0);             /* o horizonte refletido: um fio */
-    float topo = smoothstep(0.82, 1.0, R.y);           /* o céu refletido */
-    /* a metade de trás recua: a aresta e os reflexos dela apagam, para não
-       competirem com os arcos da frente (lia como novelo — crítica rodada 1) */
-    float frente = mix(0.25, 1.0, smoothstep(-0.6, 0.6, vP.z - uCentro.z));
-    /* vidro, não borracha (crítica rodada 2): corpo quase preto, a difusa
-       mais contida, dois fios de reflexo duros em vez de um brilho largo, e
-       o núcleo visto ATRAVÉS do arco quando ele passa na frente da luz */
-    float atraves = pow(max(dot(-V, L), 0.0), 10.0);
+    float faixa = exp(-R.y * R.y * 140.0);
     float faixa2 = exp(-(R.y - 0.38) * (R.y - 0.38) * 260.0);
+    float topo = smoothstep(0.82, 1.0, R.y);
+    float atraves = pow(max(dot(-V, L), 0.0), 10.0);
     vec3 c = uBase * 0.45;
-    c += uInterno * difusa * difusa * queda * (0.04 + 0.85 * ig) * mix(0.55, 1.0, frente);
+    c += uInterno * difusa * difusa * queda * (0.05 + 0.95 * ig);
     c += uInterno * atraves * 0.32 * ig;
-    c += uBrilho * faixa2 * 0.22 * (0.3 + 0.7 * fres) * frente;
-    /* aresta com teto de ~60% da primeira versão: só o núcleo é branco e o
-       "no ar." do H1 continua o ciano mais forte da tela */
-    c += uAresta * fres * (0.03 + 0.16 * ig) * frente;
+    c += uAresta * fres * (0.03 + 0.12 * ig);
     c += uBrilho * espec * queda * 3.2 * ig;
-    c += (mix(uInterno, uBrilho, 0.45) * faixa * 0.32 + uBrilho * topo * 0.14) * (0.25 + 0.75 * fres) * frente;
+    c += (mix(uInterno, uBrilho, 0.45) * faixa * 0.2 + uBrilho * faixa2 * 0.12 + uBrilho * topo * 0.1) * (0.25 + 0.75 * fres);
     c += uAmbiente * fres * 0.05;
     gl_FragColor = vec4(c, 1.0);
+    #include <colorspace_fragment>
+  }
+`;
+
+/* a energia nos anéis: pulsos (cabeça forte, cauda curta) correndo em volta.
+   A volta vem do uv.x do toro (0–1, com vértices duplicados na costura), não
+   de atan: o atan salta de +π a −π às 9 horas e espremia os pulsos num
+   tracinho fixo ali (revisão de código; quebraria a simetria) */
+const FLUXO_VS = /* glsl */`
+  varying float vVolta;
+  void main() {
+    vVolta = uv.x;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+const FLUXO_FS = /* glsl */`
+  uniform vec3 uCor;
+  uniform float uTempo;
+  uniform float uN;
+  uniform float uVel;
+  uniform float uAlfa;
+  uniform float uForca;
+  varying float vVolta;
+  void main() {
+    float f = fract(vVolta * uN + uTempo * uVel);
+    float b = pow(f, 18.0) + 0.05;
+    gl_FragColor = vec4(uCor, b * uAlfa * uForca);
+    #include <colorspace_fragment>
+  }
+`;
+
+/* os raios de energia: faixas do portal ao núcleo; aU 0 (fora) → 1 (dentro),
+   aV −1…1 através. Os pulsos correm para dentro, todos em fase */
+const RAIO_VS = /* glsl */`
+  attribute float aU;
+  attribute float aV;
+  varying float vU;
+  varying float vV;
+  void main() {
+    vU = aU; vV = aV;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+const RAIO_FS = /* glsl */`
+  uniform vec3 uCor;
+  uniform float uTempo;
+  uniform float uN;
+  uniform float uVel;
+  uniform float uAlfa;
+  uniform float uBase;
+  uniform float uCauda;
+  uniform float uForca;
+  varying float vU;
+  varying float vV;
+  void main() {
+    float f = fract(vU * uN - uTempo * uVel);
+    float atravessa = 1.0 - vV * vV;
+    float pontas = smoothstep(0.0, 0.12, vU) * (1.0 - smoothstep(0.82, 1.0, vU));
+    float b = (pow(f, uCauda) + uBase) * atravessa * atravessa * pontas;
+    gl_FragColor = vec4(uCor, b * uAlfa * uForca);
+    #include <colorspace_fragment>
+  }
+`;
+
+/* o disco: cada partícula é calculada aqui. Órbita fixa (aRaio), rotação
+   diferencial como num disco de acreção: as de dentro giram mais rápido
+   (expoente uKepler). Mais claras perto do núcleo. */
+const DISCO_VS = /* glsl */`
+  uniform float uTempo;
+  uniform float uRmin;
+  uniform float uRmax;
+  uniform float uGiro;
+  uniform float uKepler;
+  uniform float uEscala;
+  uniform float uForca;
+  attribute float aAng;
+  attribute float aRaio;
+  attribute float aTam;
+  varying float vB;
+  varying vec2 vTan;
+  void main() {
+    float ang = aAng + uTempo * uGiro * pow(uRmax / aRaio, uKepler);
+    vec4 mv = modelViewMatrix * vec4(cos(ang) * aRaio, sin(ang) * aRaio, 0.0, 1.0);
+    gl_Position = projectionMatrix * mv;
+    /* a direção da órbita na tela (y para baixo, como gl_PointCoord) */
+    vec3 t = mat3(modelViewMatrix) * vec3(-sin(ang), cos(ang), 0.0);
+    vTan = normalize(vec2(t.x, -t.y) + 1e-5);
+    gl_PointSize = aTam * uEscala / -mv.z;
+    float dentro = 1.0 - (aRaio - uRmin) / (uRmax - uRmin);
+    vB = (0.3 + 0.7 * dentro) * uForca;
+  }
+`;
+const DISCO_FS = /* glsl */`
+  uniform vec3 uCor;
+  uniform float uAlfa;
+  uniform float uRastro;
+  varying float vB;
+  varying vec2 vTan;
+  void main() {
+    vec2 q = gl_PointCoord - 0.5;
+    /* um risco ao longo da órbita: elipse com o eixo maior na tangente */
+    float d = length(vec2(dot(q, vTan), dot(q, vec2(-vTan.y, vTan.x)) * uRastro));
+    gl_FragColor = vec4(uCor, (1.0 - smoothstep(0.0, 0.5, d)) * vB * uAlfa);
     #include <colorspace_fragment>
   }
 `;
@@ -165,17 +271,25 @@ const VIDRO_FS = /* glsl */`
 
 export function montar(THREE, SPEC, cores, { celular = false } = {}) {
   const sorte = sorteio(SPEC.semente);
-  const entre = ([a, b]) => mistura(a, b, sorte());
   const raiz = new THREE.Group();
   const descartar = [];   /* tudo que tem GPU por trás, para o dispose */
-  const guarda = (x) => { descartar.push(x); return x; };
+  const guarda = (x) => { if (x) descartar.push(x); return x; };
   const cor = (nome) => cores[nome] || new THREE.Color(1, 1, 1);
-  const aditivo = (nomeCor, alfa) => guarda(new THREE.MeshBasicMaterial({
-    color: cor(nomeCor), transparent: true, opacity: alfa,
-    blending: THREE.AdditiveBlending, depthWrite: false
-  }));
+  const ADITIVO = { transparent: true, blending: THREE.AdditiveBlending, depthWrite: false };
+  const aditivo = (nomeCor, alfa) => guarda(new THREE.MeshBasicMaterial({ color: cor(nomeCor), opacity: alfa, ...ADITIVO }));
 
-  /* --- o vidro (um material só, compartilhado: um programa, uma troca) --- */
+  /* quem tem uniform de tempo/força (atualizados juntos por quadro), com o
+     atraso de acendimento da camada: acende de dentro para fora */
+  const energia = [];
+  function shader(vs, fs, uniforms, atraso = 0, dupla = false) {
+    /* `dupla`: as faixas de raios e jatos são montadas à mão e metade ficava
+       de costas para a câmera (descartada). Nos tubos fechados não: os dois
+       lados somariam a energia duas vezes no mesmo pixel */
+    const m = guarda(new THREE.ShaderMaterial({ vertexShader: vs, fragmentShader: fs, uniforms, ...(dupla ? { side: THREE.DoubleSide } : {}), ...ADITIVO }));
+    energia.push({ m, atraso });
+    return m;
+  }
+
   const vidro = guarda(new THREE.ShaderMaterial({
     vertexShader: VIDRO_VS,
     fragmentShader: VIDRO_FS,
@@ -191,135 +305,209 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
     }
   }));
 
-  /* --- um arco: círculo levemente ondulado, pontas afinando --- */
-  class Anel extends THREE.Curve {
-    constructor(raio, arco, onda, f1, f2) {
-      super();
-      Object.assign(this, { raio, arco, onda, f1, f2 });
-    }
-    getPoint(u, alvo = new THREE.Vector3()) {
-      const a = u * this.arco * TAU;
-      const r = this.raio * (1 + this.onda * Math.sin(a * 3 + this.f1));
-      return alvo.set(Math.cos(a) * r, Math.sin(a) * r, this.raio * this.onda * Math.sin(a * 2 + this.f2));
-    }
-  }
-
-  function geometriaArco(raio, tubo, arco, onda, achata) {
-    const curva = new Anel(raio, arco, onda, sorte() * TAU, sorte() * TAU);
-    const segs = Math.max(24, Math.ceil(150 * arco));
-    const radiais = 8;
-    const geo = new THREE.TubeGeometry(curva, segs, tubo, radiais, false);
-    /* pontas de vidro partido: a seção estreita perto das duas pontas (curta
-       e só até 40%: afinar até a ponta lia como garra); e a fita (achata < 1)
-       comprime a seção no eixo normal ao plano do anel. A normal da elipse é
-       a radial ORIGINAL com o z dividido por `achata` — sem o fator da ponta
-       (multiplicá-lo tombava a normal para z justo nas pontas; revisão). */
-    /* e as duas pontas levam um CORTE OBLÍQUO (~40°): o anel da ponta é
-       empurrado ao longo da tangente proporcionalmente ao lado da seção, como
-       vidro partido num golpe. A ponta arredondada lia como mangueira
-       (crítica rodada 2). */
+  /* fita: a seção do toro comprimida no eixo normal ao plano dele; a normal
+     da elipse é a radial com o z dividido por `achata` (sem escala não
+     uniforme na malha, que o shader não corrigiria) */
+  function achatar(geo, achata) {
     const pos = geo.attributes.position, nor = geo.attributes.normal;
-    const centro = new THREE.Vector3(), o = new THREE.Vector3(), n = new THREE.Vector3(), tg = new THREE.Vector3();
-    const corte = Math.tan(0.7) * tubo;
-    const f1Corte = sorte() * TAU;   /* a direção do golpe, uma por arco */
-    for (let i = 0; i <= segs; i++) {
-      const u = i / segs;
-      curva.getPointAt(u, centro);
-      const ponta = i === 0 ? 1 : i === segs ? -1 : 0;
-      if (ponta) curva.getTangentAt(u, tg);
-      const f = 0.7 + 0.3 * suave(u / 0.05) * suave((1 - u) / 0.05);
-      for (let j = 0; j <= radiais; j++) {
-        const k = i * (radiais + 1) + j;
-        o.fromBufferAttribute(pos, k).sub(centro);
-        n.set(o.x, o.y, o.z / achata).normalize();
-        const lado = o.length() ? (o.x * Math.cos(f1Corte) + o.y * Math.sin(f1Corte)) / tubo : 0;
-        o.multiplyScalar(f);
-        o.z *= achata;
-        if (ponta) o.addScaledVector(tg, ponta * lado * corte);
-        pos.setXYZ(k, centro.x + o.x, centro.y + o.y, centro.z + o.z);
-        nor.setXYZ(k, n.x, n.y, n.z);
-      }
+    for (let i = 0; i < pos.count; i++) {
+      pos.setZ(i, pos.getZ(i) * achata);
+      const nx = nor.getX(i), ny = nor.getY(i), nz = nor.getZ(i) / achata;
+      const l = Math.hypot(nx, ny, nz) || 1;
+      nor.setXYZ(i, nx / l, ny / l, nz / l);
     }
-    return guarda(geo);
+    return geo;
   }
 
-  const arcos = [];
-  const Z = new THREE.Vector3(0, 0, 1);
-  const AUREO = Math.PI * (3 - Math.sqrt(5));
-  /* `fracao` (0–1) e `camada` posicionam o arco: as direções seguem uma
-     espiral áurea dentro do cone de `inclinacao`, cobrindo a esfera por
-     igual (sorteadas, embolavam de um lado e deixavam buracos) */
-  function fazerArco(geo, material, vel, inclinacao, fracao, camada) {
-    const malha = new THREE.Mesh(geo, material);
-    /* pivô externo = inclinação fixa; malha interna = giro em torno do
-       próprio eixo. Dois níveis para o estado mexer num sem desmontar o
-       outro. A normal do anel fica a no máximo `inclinacao` do eixo da
-       câmera: o anel aparece como elipse EM VOLTA do núcleo. De perfil
-       (normal a 90°) ele vira um risco atravessando o centro e esconde o
-       núcleo — foi o que a segunda passada mostrou. */
-    const pivo = new THREE.Group();
-    const ang = Math.acos(mistura(Math.cos(inclinacao), 1, fracao));
-    const az = (fracao * 7 + camada) * AUREO * 2.3 + sorte() * 0.3;
-    pivo.quaternion.setFromUnitVectors(Z, new THREE.Vector3(Math.sin(ang) * Math.cos(az), Math.sin(ang) * Math.sin(az), Math.cos(ang)));
-    malha.rotation.z = sorte() * TAU;
-    pivo.add(malha);
-    raiz.add(pivo);
-    /* de onde o arco vem na montagem: perto (0,9 do raio) e destorcendo
-       40°. Vindo de 2,4 os arcos cruzavam o quadro como macarrão voando
-       (crítica rodada 1). De fora para dentro: cada camada começa um
-       pouco depois da de fora. */
-    const de = new THREE.Vector3(sorte() - 0.5, sorte() - 0.5, sorte() * 0.4).normalize();
-    arcos.push({
-      pivo, malha, de,
-      vel: vel * (sorte() < 0.5 ? -1 : 1),
-      giro0: malha.rotation.z,
-      atraso: camada * 0.06 + sorte() * 0.05,
-      torce: -0.7
+  function fluxo(raio, tubo, d, atraso) {
+    return new THREE.Mesh(
+      guarda(new THREE.TorusGeometry(raio, tubo, 6, 220)),
+      shader(FLUXO_VS, FLUXO_FS, {
+        uCor: { value: cor(d.cor) }, uTempo: { value: 0 }, uN: { value: d.pulsos },
+        uVel: { value: d.vel }, uAlfa: { value: d.alfa }, uForca: { value: 0 }
+      }, atraso)
+    );
+  }
+  const A = SPEC.acende;
+
+  /* --- a roda: portal, raios e régua giram juntos (os vãos do portal ficam
+     sempre alinhados aos raios) --- */
+  const roda = new THREE.Group();
+  raiz.add(roda);
+  const P = SPEC.portal;
+  const passo = TAU / P.n;
+  const segmentos = [];
+  function anelDeSegmentos(raio, tubo, achata, z, defasagem, atraso0) {
+    const geo = guarda(achatar(new THREE.TorusGeometry(raio, tubo, 10, 40, passo * (1 - P.vao)), achata));
+    for (let i = 0; i < P.n; i++) {
+      const pivo = new THREE.Group();
+      const malha = new THREE.Mesh(geo, vidro);
+      const a0 = (i + defasagem) * passo + passo * P.vao * 0.5;
+      malha.rotation.z = a0;
+      malha.position.z = z;
+      pivo.add(malha);
+      roda.add(pivo);
+      const meio = a0 + passo * (1 - P.vao) * 0.5;
+      /* pares opostos chegam juntos: a montagem também é simétrica */
+      segmentos.push({ pivo, dir: new THREE.Vector3(Math.cos(meio), Math.sin(meio), 0), atraso: atraso0 + (i % (P.n / 2)) * 0.05 });
+    }
+  }
+  anelDeSegmentos(P.fundo.raio, P.fundo.tubo, P.fundo.achata, P.fundo.z, 0.5, 0);
+  anelDeSegmentos(P.raio, P.tubo, P.achata, 0, 0, 0.08);
+
+  const R = SPEC.raios;
+  {
+    const n = R.n, pos = [], u = [], v = [], idx = [];
+    for (let i = 0; i < n; i++) {
+      const a = i * (TAU / n);
+      const dx = Math.cos(a), dy = Math.sin(a), px = -dy, py = dx;
+      const w0 = R.largura / 2, w1 = R.largura * 0.2;
+      const b = i * 4;
+      pos.push(dx * R.de + px * w0, dy * R.de + py * w0, 0, dx * R.de - px * w0, dy * R.de - py * w0, 0,
+        dx * R.ate + px * w1, dy * R.ate + py * w1, 0, dx * R.ate - px * w1, dy * R.ate - py * w1, 0);
+      u.push(0, 0, 1, 1);
+      v.push(-1, 1, -1, 1);
+      idx.push(b, b + 1, b + 2, b + 1, b + 3, b + 2);
+    }
+    const geo = guarda(new THREE.BufferGeometry());
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
+    geo.setAttribute('aU', new THREE.BufferAttribute(new Float32Array(u), 1));
+    geo.setAttribute('aV', new THREE.BufferAttribute(new Float32Array(v), 1));
+    geo.setIndex(idx);
+    const raios = new THREE.Mesh(geo, shader(RAIO_VS, RAIO_FS, {
+      uCor: { value: cor(R.cor) }, uTempo: { value: 0 }, uN: { value: R.pulsos }, uVel: { value: R.vel },
+      uAlfa: { value: R.alfa }, uBase: { value: R.base }, uCauda: { value: R.cauda }, uForca: { value: 0 }
+    }, A.raios, true));
+    roda.add(raios);
+  }
+
+  /* os jatos: duas faixas no eixo vertical, mesmo shader dos raios com os
+     pulsos correndo para fora (velocidade negativa). aU 0 na ponta, 1 no
+     núcleo: as pontas esmaecem nos dois lados */
+  const J = SPEC.jatos;
+  {
+    const pos = [], u = [], v = [], idx = [];
+    [1, -1].forEach((lado, i) => {
+      const y0 = lado * (J.de + J.comp), y1 = lado * J.de, w0 = J.largura[1] / 2, w1 = J.largura[0] / 2;
+      const b = i * 4;
+      pos.push(-w0, y0, 0, w0, y0, 0, -w1, y1, 0, w1, y1, 0);
+      u.push(0, 0, 1, 1);
+      v.push(-1, 1, -1, 1);
+      idx.push(b, b + 1, b + 2, b + 1, b + 3, b + 2);
     });
+    const geo = guarda(new THREE.BufferGeometry());
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
+    geo.setAttribute('aU', new THREE.BufferAttribute(new Float32Array(u), 1));
+    geo.setAttribute('aV', new THREE.BufferAttribute(new Float32Array(v), 1));
+    geo.setIndex(idx);
+    const jatos = new THREE.Mesh(geo, shader(RAIO_VS, RAIO_FS, {
+      uCor: { value: cor(J.cor) }, uTempo: { value: 0 }, uN: { value: J.pulsos }, uVel: { value: -J.vel },
+      uAlfa: { value: J.alfa }, uBase: { value: J.base }, uCauda: { value: J.cauda }, uForca: { value: 0 }
+    }, A.jatos, true));
+    raiz.add(jatos);
   }
 
-  SPEC.gaiola.forEach((camada, c) => {
-    for (let i = 0; i < camada.n; i++) {
-      const geo = geometriaArco(entre(camada.raio), entre(camada.tubo), entre(camada.arco), camada.onda, entre(camada.achata));
-      fazerArco(geo, vidro, entre(camada.vel), camada.inclinacao, (i + 0.5) / camada.n, c);
+  /* os lampejos de injeção: 12 pontos onde os raios tocam o portal, um
+     material só (piscam juntos) */
+  const LP = R.lampejo;
+  const matLampejo = guarda(new THREE.SpriteMaterial({ map: guarda(texturaHalo(THREE, 0.05)), color: cor(R.cor), opacity: 0, depthTest: false, ...ADITIVO }));
+  for (let i = 0; i < R.n; i++) {
+    const a = i * (TAU / R.n);
+    const sp = new THREE.Sprite(matLampejo);
+    sp.position.set(Math.cos(a) * R.de, Math.sin(a) * R.de, 0);
+    sp.scale.setScalar(LP.escala);
+    roda.add(sp);
+  }
+
+  const G = SPEC.regua;
+  const matRegua = aditivo(G.cor, G.alfa);
+  {
+    const marcas = new THREE.InstancedMesh(guarda(new THREE.BoxGeometry(0.0035, 0.026, 0.0035)), matRegua, G.n);
+    const m = new THREE.Object3D();
+    for (let i = 0; i < G.n; i++) {
+      const a = (i / G.n) * TAU, longa = i % G.longa === 0;
+      const r = G.raio + (longa ? 0.012 : 0);
+      m.position.set(Math.cos(a) * r, Math.sin(a) * r, 0);
+      m.rotation.set(0, 0, a - Math.PI / 2);
+      m.scale.set(1, longa ? 2 : 1, 1);
+      m.updateMatrix();
+      marcas.setMatrixAt(i, m.matrix);
     }
-  });
-
-  const F = SPEC.fios;
-  const matFio = aditivo('ac2', F.alfa);
-  for (let i = 0; i < F.n; i++) {
-    fazerArco(geometriaArco(entre(F.raio), entre(F.tubo), entre(F.arco), F.onda, 1), matFio, entre(F.vel), F.inclinacao, (i + 0.5) / F.n, 1);
+    roda.add(marcas);
+    descartar.push(marcas);
   }
 
-  /* --- a lente: anéis finos em volta do núcleo --- */
-  const lente = [];
-  for (const d of SPEC.lente) {
+  /* --- trilhos: anéis contínuos com pulsos correndo --- */
+  const matTrilhos = [];
+  for (const d of SPEC.trilhos) {
+    const base = aditivo(d.cor, d.alfa * 0.25);
+    raiz.add(new THREE.Mesh(guarda(new THREE.TorusGeometry(d.raio, d.tubo, 6, 220)), base));
+    matTrilhos.push({ mat: base, alfa: d.alfa * 0.25 });
+    raiz.add(fluxo(d.raio, d.tubo * 1.6, d, A.trilhos));
+  }
+
+  /* --- o anel do equador: vidro inteiro no plano do disco + pulsos fracos.
+     Era um giroscópio de dois anéis; o vertical com o disco formava o
+     símbolo do átomo (crítica rodada 3) e saiu: o eixo vertical são os
+     jatos --- */
+  const D = SPEC.disco;
+  const E = SPEC.equador;
+  const equador = new THREE.Group();
+  equador.rotation.x = D.inclina;
+  const anelEquador = new THREE.Group();
+  anelEquador.add(fluxo(E.raio, E.tubo, E.fluxo, A.equador));
+  equador.add(anelEquador);
+  raiz.add(equador);
+
+  /* --- o disco de partículas --- */
+  const nDisco = celular ? D.nCelular : D.n;
+  const geoD = guarda(new THREE.BufferGeometry());
+  {
+    const ang = new Float32Array(nDisco), raio = new Float32Array(nDisco), tam = new Float32Array(nDisco);
+    for (let i = 0; i < nDisco; i++) {
+      ang[i] = sorte() * TAU;
+      /* `denso` das partículas no miolo (a matéria se acumula perto do núcleo) */
+      const dentro = sorte() < D.denso;
+      raio[i] = dentro ? mistura(D.raio[0], mistura(D.raio[0], D.raio[1], D.miolo), sorte())
+        : mistura(mistura(D.raio[0], D.raio[1], D.miolo), D.raio[1], Math.sqrt(sorte()));
+      tam[i] = D.tam * (0.5 + sorte() * sorte() * 1.6);
+    }
+    geoD.setAttribute('position', new THREE.BufferAttribute(new Float32Array(nDisco * 3), 3));
+    geoD.setAttribute('aAng', new THREE.BufferAttribute(ang, 1));
+    geoD.setAttribute('aRaio', new THREE.BufferAttribute(raio, 1));
+    geoD.setAttribute('aTam', new THREE.BufferAttribute(tam, 1));
+  }
+  const matDisco = shader(DISCO_VS, DISCO_FS, {
+    uCor: { value: cor(D.cor) }, uTempo: { value: 0 }, uRmin: { value: D.raio[0] }, uRmax: { value: D.raio[1] },
+    uGiro: { value: D.giro }, uKepler: { value: D.kepler }, uEscala: { value: 500 }, uAlfa: { value: D.alfa }, uRastro: { value: D.rastro }, uForca: { value: 0 }
+  }, A.disco);
+  const disco = new THREE.Points(geoD, matDisco);
+  disco.frustumCulled = false;   /* as posições nascem no shader; a caixa da geometria é zero */
+  disco.rotation.x = D.inclina;
+  raiz.add(disco);
+
+  /* --- a lente --- */
+  const lente = SPEC.lente.map((d) => {
     const mat = aditivo(d.cor, d.alfa);
     const anel = new THREE.Mesh(guarda(new THREE.TorusGeometry(d.raio, d.tubo, 6, 160)), mat);
-    const pivo = new THREE.Group();
-    pivo.quaternion.setFromUnitVectors(Z, new THREE.Vector3().fromArray(d.eixo).normalize());
-    pivo.add(anel);
     if (d.marcas) {
-      /* marcas de régua: o vocabulário de instrumento do site (régua de
-         1px, índice) dentro da esfera */
-      const marcas = new THREE.InstancedMesh(guarda(new THREE.BoxGeometry(0.003, 0.02, 0.003)), mat, d.marcas);
+      const marcas = new THREE.InstancedMesh(guarda(new THREE.BoxGeometry(0.003, 0.018, 0.003)), mat, d.marcas);
       const m = new THREE.Object3D();
       for (let i = 0; i < d.marcas; i++) {
-        const a = (i / d.marcas) * TAU;
-        const longa = i % 8 === 0;
-        const r = d.raio + (longa ? 0.03 : 0.022);
+        const a = (i / d.marcas) * TAU, longa = i % 4 === 0;
+        const r = d.raio + (longa ? 0.026 : 0.02);
         m.position.set(Math.cos(a) * r, Math.sin(a) * r, 0);
         m.rotation.set(0, 0, a - Math.PI / 2);
-        m.scale.set(1, longa ? 1.8 : 1, 1);
+        m.scale.set(1, longa ? 1.7 : 1, 1);
         m.updateMatrix();
         marcas.setMatrixAt(i, m.matrix);
       }
       anel.add(marcas);
       descartar.push(marcas);
     }
-    raiz.add(pivo);
-    lente.push({ anel, mat, alfa: d.alfa, vel: d.vel });
-  }
+    raiz.add(anel);
+    return { anel, mat, d };
+  });
 
   /* --- o núcleo --- */
   const nucleo = new THREE.Group();
@@ -330,169 +518,140 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
   );
   nucleo.add(ponto);
 
-  /* a luz do núcleo não é ocultada pelos arcos da frente (depthTest
-     desligado): na referência o clarão lava tudo o que passa na frente dele.
-     Com teste de profundidade, um arco cruzando o centro apagava o núcleo
-     (visto no hero do desktop). */
+  /* a luz do núcleo não é ocultada pelo que passa na frente (depthTest
+     desligado): o clarão lava tudo, como na referência */
   function sprite(tex, nomeCor, alfa) {
     return new THREE.Sprite(guarda(new THREE.SpriteMaterial({
-      map: guarda(tex), color: cor(nomeCor), transparent: true, opacity: alfa,
-      blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false
+      map: tex, color: cor(nomeCor), opacity: alfa, depthTest: false, ...ADITIVO
     })));
   }
   const halos = SPEC.nucleo.halos.map((h) => {
-    const s = sprite(texturaHalo(THREE, h.miolo), h.cor, h.alfa);
+    const s = sprite(guarda(texturaHalo(THREE, h.miolo)), h.cor, h.alfa);
     s.scale.setScalar(h.escala);
     nucleo.add(s);
-    return { s, escala: h.escala, alfa: h.alfa };
+    return { s, h };
   });
   const RA = SPEC.nucleo.raios;
-  const raios = sprite(texturaRaios(THREE, RA.n, sorte), RA.cor, RA.alfa);
-  raios.scale.setScalar(RA.escala);
-  nucleo.add(raios);
-  /* os dois traços dividem a mesma textura (a guarda do primeiro basta) */
-  const texTraco = texturaTraco(THREE);
-  const tracos = SPEC.nucleo.tracos.map((d, i) => {
-    const s = sprite(i === 0 ? texTraco : null, d.cor, d.alfa);
-    if (i > 0) s.material.map = texTraco;
+  const estrela = sprite(guarda(texturaRaios(THREE, RA.n)), RA.cor, RA.alfa);
+  estrela.scale.setScalar(RA.escala);
+  nucleo.add(estrela);
+  const texTraco = guarda(texturaTraco(THREE));
+  const tracos = SPEC.nucleo.tracos.map((d) => {
+    const s = sprite(texTraco, d.cor, d.alfa);
     s.scale.set(d.largura, d.altura, 1);
-    s.renderOrder = 2;
     nucleo.add(s);
     return { s, d };
   });
-  const NASCE = SPEC.nucleo.nasce, ASSENTA_TRACO = SPEC.nucleo.assenta;
-
-  /* --- cacos: um InstancedMesh só --- */
-  const C = SPEC.cacos;
-  const nCacos = celular ? C.nCelular : C.n;
-  const geoCaco = guarda(new THREE.IcosahedronGeometry(1, 0));
-  {
-    /* um poliedro torto (vértices deslocados) em vez de uma pedra perfeita:
-       caco de vidro, não bolinha. Deslocar POR POSIÇÃO mantém fechadas as
-       faces que dividem o vértice. */
-    const pos = geoCaco.attributes.position;
-    const mapa = new Map();
-    for (let i = 0; i < pos.count; i++) {
-      const k = pos.getX(i).toFixed(3) + ',' + pos.getY(i).toFixed(3) + ',' + pos.getZ(i).toFixed(3);
-      if (!mapa.has(k)) mapa.set(k, 0.5 + sorte() * 1.0);
-      const f = mapa.get(k);
-      pos.setXYZ(i, pos.getX(i) * f, pos.getY(i) * f * 0.45, pos.getZ(i) * f);
-    }
-    geoCaco.computeVertexNormals();
-  }
-  const cacos = new THREE.InstancedMesh(geoCaco, vidro, nCacos);
-  cacos.frustumCulled = false;
-  descartar.push(cacos);
-  const dadosCacos = [];
-  for (let i = 0; i < nCacos; i++) {
-    /* mais densos na faixa do equador (onde a referência tem mais estilhaço) */
-    const y = (sorte() * 2 - 1) * (sorte() < 0.6 ? 0.4 : 1);
-    const a = sorte() * TAU;
-    const rr = Math.sqrt(1 - y * y);
-    dadosCacos.push({
-      dir: new THREE.Vector3(Math.cos(a) * rr, y, Math.sin(a) * rr),
-      raio: mistura(C.raio[0], C.raio[1], sorte() ** 1.6),
-      tam: mistura(C.tam[0], C.tam[1], sorte() ** 2.2),
-      orbita: (0.02 + sorte() * 0.06) * (sorte() < 0.5 ? -1 : 1),
-      eixo: new THREE.Vector3(sorte() - 0.5, sorte() - 0.5, sorte() - 0.5).normalize(),
-      giro: 0.15 + sorte() * 0.6,
-      fase: sorte() * TAU,
-      atraso: sorte() * 0.5
-    });
-  }
-  raiz.add(cacos);
-
-  /* --- poeira --- */
-  const P = SPEC.poeira;
-  const nPoeira = celular ? P.nCelular : P.n;
-  const posP = new Float32Array(nPoeira * 3);
-  const v = new THREE.Vector3();
-  for (let i = 0; i < nPoeira; i++) {
-    v.set(sorte() * 2 - 1, (sorte() * 2 - 1) * 0.7, sorte() * 2 - 1).normalize();
-    v.multiplyScalar(mistura(P.raio[0], P.raio[1], Math.sqrt(sorte())));
-    v.toArray(posP, i * 3);
-  }
-  const geoP = guarda(new THREE.BufferGeometry());
-  geoP.setAttribute('position', new THREE.BufferAttribute(posP, 3));
-  const matP = guarda(new THREE.PointsMaterial({
-    color: cor('ac2'), size: P.tam, map: guarda(texturaHalo(THREE, 0.05)),
-    transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false
-  }));
-  const poeira = new THREE.Points(geoP, matP);
-  raiz.add(poeira);
+  const O = SPEC.onda;
+  const onda = sprite(guarda(texturaOnda(THREE)), O.cor, 0);
+  nucleo.add(onda);
 
   /* ---------- por quadro ---------- */
-  const tmp = new THREE.Object3D();
-  const q = new THREE.Quaternion();
-  const EIXO_Y = new THREE.Vector3(0, 1, 0);
-
-  /* estado: { t (s), montagem 0–1, abertura 0–1, ignicao 0–1, px, py (−1–1) } */
+  /* estado: { t (s), montagem 0–1, abertura 0–1, ignicao 0–1+, desdeIgnicao
+     (s, −1 antes), px, py (−1–1) } */
   function atualizar(e) {
     const t = e.t, m = e.montagem, ab = e.abertura;
-    const ig = e.ignicao * (0.94 + 0.06 * Math.sin(t * 1.25));   /* respira */
+    const ig = e.ignicao * (0.95 + 0.05 * Math.sin(t * 1.25));   /* respira */
+    const forca = ig * (1 - ab * 0.6);
 
-    /* um balanço lento de guinada mostra que a esfera tem fundo (girar
-       360° deixaria os anéis de perfil e cruzaria o núcleo); o ponteiro
-       inclina por cima disso */
-    raiz.rotation.x = e.py * 0.22 + Math.sin(t * 0.09) * 0.08;
-    raiz.rotation.y = e.px * 0.32 + Math.sin(t * 0.12) * 0.3;
-    nucleo.position.set(e.px * 0.03, -e.py * 0.03, 0);
+    /* inclina ao ponteiro e balança devagar: mostra a profundidade sem
+       perder a simetria de frente */
+    raiz.rotation.x = e.py * 0.2 + Math.sin(t * 0.09) * 0.05;
+    raiz.rotation.y = e.px * 0.28 + Math.sin(t * 0.12) * 0.14;
 
-    for (const a of arcos) {
-      const k = suave((m - a.atraso) / (1 - a.atraso));
-      a.pivo.position.copy(a.de).multiplyScalar((1 - k) * 0.9 + ab * 0.3);
-      a.malha.rotation.z = a.giro0 + t * a.vel + (1 - k) * a.torce;
-      a.pivo.scale.setScalar(1 + ab * 0.12);
+    roda.rotation.z = t * P.vel;
+    for (let i = 0; i < segmentos.length; i++) {
+      const s = segmentos[i];
+      const k = suave((m - s.atraso) / (1 - s.atraso));
+      const fora = (1 - k) * 0.9 + ab * 0.22;
+      s.pivo.position.set(s.dir.x * fora, s.dir.y * fora, (1 - k) * 1.4);
+      s.pivo.rotation.z = (1 - k) * 0.35;
     }
 
-    for (const l of lente) {
-      l.anel.rotation.z = t * l.vel;
-      l.mat.opacity = l.alfa * (0.2 + 0.8 * ig);
+    const kEq = suave((m - 0.3) / 0.7);
+    anelEquador.scale.setScalar((0.55 + 0.45 * kEq) * (1 + ab * 0.14));
+    anelEquador.rotation.z = t * E.vel;
+
+    const aparece = suave(m);
+    matRegua.opacity = G.alfa * aparece;
+    for (let i = 0; i < matTrilhos.length; i++) matTrilhos[i].mat.opacity = matTrilhos[i].alfa * aparece;
+    for (let i = 0; i < lente.length; i++) {
+      const l = lente[i];
+      l.anel.rotation.z = t * l.d.vel;
+      l.mat.opacity = l.d.alfa * aparece * (0.3 + 0.7 * ig);
     }
 
+    /* o relógio dos shaders dá a volta a cada VOLTA s: o uniform é float32 e
+       depois de horas o passo dele passaria de um quadro (a energia
+       gaguejaria). Em 400 s todo t·vel dos pulsos fecha inteiro (0,22, 0,14,
+       0,3 e 0,625 × 400), então a volta não aparece; no disco ela troca as
+       partículas de lugar num quadro, com a mesma distribuição. Material
+       apagado nem é desenhado (a montagem é a fase mais cara). */
+    const desde = e.desdeIgnicao;
+    const tShader = t % VOLTA;
+    for (let i = 0; i < energia.length; i++) {
+      const { m: mat, atraso } = energia[i];
+      const f = desde < 0 ? 0 : forca * suave((desde - atraso) / 0.3);
+      mat.uniforms.uTempo.value = tShader;
+      mat.uniforms.uForca.value = f;
+      mat.visible = f > 0.002;
+    }
+
+    /* a batida: o núcleo cresce um pouco a cada chegada dos pulsos dos raios
+       (a cabeça chega à ponta de dentro quando t·vel passa por 0,7 mod 1) */
+    const fase = (((t * R.vel - 0.7) % 1) + 1) % 1;
+    const batida = 1 + R.batida * Math.exp(-fase * 9) * ig;
+    /* o lampejo: a cabeça do pulso parte da borda (u = 0) quando t·vel passa
+       por um inteiro; pisca e some em `dura` s */
+    const partiu = ((((t * R.vel) % 1) + 1) % 1) / R.vel;
+    const lampejo = desde < A.raios ? 0 : LP.alfa * Math.max(0, 1 - partiu / LP.dura) * forca;
+    matLampejo.opacity = lampejo;
+    matLampejo.visible = lampejo > 0.002;
+
+    /* uCentro fica na origem: na v2 o núcleo não se move */
     vidro.uniforms.uIgnicao.value = ig;
-    nucleo.getWorldPosition(vidro.uniforms.uCentro.value);
 
     for (let i = 0; i < halos.length; i++) {
-      const h = halos[i];
-      h.s.material.opacity = h.alfa * (i === 0 ? 0.12 + 0.88 * ig : ig);
-      h.s.scale.setScalar(h.escala * (0.55 + 0.45 * ig));
+      const { s, h } = halos[i];
+      s.material.opacity = h.alfa * (i === 0 ? 0.12 + 0.88 * ig : ig);
+      s.scale.setScalar(h.escala * (0.55 + 0.45 * ig) * batida);
     }
-    raios.material.opacity = RA.alfa * ig;
-    raios.material.rotation = t * 0.03;
+    estrela.material.opacity = RA.alfa * ig;
+    estrela.material.visible = ig > 0.002;
+    for (let i = 1; i < halos.length; i++) halos[i].s.material.visible = ig > 0.002;
+    estrela.material.rotation = t * 0.02;
+    ponto.scale.setScalar((0.45 + 0.55 * ig) * batida);
 
-    /* o traço é um evento: nasce do núcleo para fora na ignição (a luz passa
-       e imprime) e assenta fraco e mais curto. Antes da ignição, nada. */
-    const desde = e.desdeIgnicao;
-    const nasceu = desde < 0 ? 0 : 1 - (1 - Math.min(1, desde / NASCE)) ** 3;
-    const assentou = desde < NASCE ? 0 : suave((desde - NASCE) / ASSENTA_TRACO);
+    /* o traço é um evento: nasce do núcleo na ignição e assenta */
+    const nasceu = desde < 0 ? 0 : 1 - (1 - Math.min(1, desde / SPEC.nucleo.nasce)) ** 3;
+    const assentou = desde < SPEC.nucleo.nasce ? 0 : suave((desde - SPEC.nucleo.nasce) / SPEC.nucleo.assenta);
     for (let i = 0; i < tracos.length; i++) {
       const { s, d } = tracos[i];
       s.scale.x = Math.max(0.001, nasceu * mistura(d.largura, d.assenta.largura, assentou));
       s.material.opacity = (desde < 0 ? 0 : mistura(d.alfa, d.assenta.alfa, assentou)) * (1 - ab * 0.5);
+      s.material.visible = desde >= 0;
     }
-    ponto.scale.setScalar(0.45 + 0.55 * ig);
 
-    for (let i = 0; i < nCacos; i++) {
-      const d = dadosCacos[i];
-      const k = suave((m - d.atraso) / (1 - d.atraso));
-      const r = d.raio * (1 + (1 - k) * 1.8 + ab * 0.55);
-      q.setFromAxisAngle(EIXO_Y, t * d.orbita);
-      tmp.position.copy(d.dir).applyQuaternion(q).multiplyScalar(r);
-      tmp.quaternion.setFromAxisAngle(d.eixo, d.fase + t * d.giro);
-      tmp.scale.setScalar(d.tam);
-      tmp.updateMatrix();
-      cacos.setMatrixAt(i, tmp.matrix);
+    /* a onda: um anel de 1 px que sai do núcleo e se desfaz; a primeira na
+       própria ignição, depois a cada `periodo` s. O sprite de escala 1 tem
+       o anel a 0,97 da metade: escala = 2·raio/0,97 */
+    const p = desde < 0 ? 1 : (desde % O.periodo) / O.dura;
+    onda.material.visible = p < 1;
+    if (p < 1) {
+      const k = 1 - (1 - p) ** 3;
+      onda.scale.setScalar((2 * mistura(O.raio[0], O.raio[1], k)) / 0.97);
+      onda.material.opacity = O.alfa * (1 - p) * forca;
     }
-    cacos.instanceMatrix.needsUpdate = true;
+  }
 
-    poeira.rotation.y = t * 0.015;
-    matP.opacity = 0.2 + 0.45 * ig;
+  /* o tamanho das partículas em pixels depende da altura do canvas */
+  function tamanhoTela(alturaPx, fov) {
+    matDisco.uniforms.uEscala.value = alturaPx / (2 * Math.tan((fov * Math.PI) / 360));
   }
 
   function dispose() {
-    for (const x of descartar) if (x && x.dispose) x.dispose();
+    for (const x of descartar) if (x.dispose) x.dispose();
   }
 
-  return { raiz, atualizar, dispose };
+  return { raiz, atualizar, tamanhoTela, dispose };
 }

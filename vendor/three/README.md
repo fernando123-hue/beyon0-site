@@ -7,7 +7,7 @@ gerado uma vez, fora do repositório, e vendorado como o GSAP.
 | | comprimido (gzip -9) |
 |---|---|
 | three.module.min.js inteiro (r160) | 166 KB |
-| three-nucleo.min.js (só o que a esfera usa) | 124 KB |
+| three-nucleo.min.js (só o que o reator usa) | 121 KB |
 
 ## Como regerar
 
@@ -20,6 +20,6 @@ npm i three@0.160.0 esbuild@0.24.0
 npx esbuild entrada.js --bundle --format=esm --minify --legal-comments=eof --outfile=three-nucleo.min.js
 ```
 
-Se a esfera passar a usar outra classe do three, acrescente em `entrada.js` e
+Se o reator passar a usar outra classe do three, acrescente em `entrada.js` e
 regere. SHA-256 desta versão:
-`c6caca8d285622cdf4470173cb35edbc498eb7313cf0374727bd92bf00c984d9`.
+`488973168da2ae6b3e706209ddab9f1978a75e11977edab0ced33c157635f1a9`.
