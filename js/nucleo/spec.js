@@ -32,15 +32,13 @@ export const SPEC = {
     raio: 0.065,
     halos: [
       { cor: 't1', escala: 0.5, alfa: 1.0, miolo: 0.12 },    /* o estouro branco */
-      { cor: 'ac', escala: 1.5, alfa: 0.55, miolo: 0.04 },   /* o halo */
-      { cor: 'ac', escala: 3.2, alfa: 0.14, miolo: 0.0 }     /* a bruma */
+      { cor: 'ac', escala: 0.9, alfa: 0.45, miolo: 0.04 }    /* o halo, curto: a bruma larga saiu com os desfoques (2026-10-02) */
     ],
     raios: { cor: 'ac2', escala: 1.0, alfa: 0.22, n: 12 },   /* 12, como tudo */
     /* o traço horizontal: nasce do núcleo na ignição e assenta QUASE apagado
        (assentado forte, com os jatos, formava uma mira de luneta — rodada 6) */
     tracos: [
-      { cor: 'ac2', largura: 5.6, altura: 0.035, alfa: 0.8, assenta: { largura: 2.0, alfa: 0.1 } },
-      { cor: 'ac', largura: 1.9, altura: 0.16, alfa: 0.3, assenta: { largura: 1.2, alfa: 0.05 } }
+      { cor: 'ac2', largura: 5.6, altura: 0.035, alfa: 0.8, assenta: { largura: 2.0, alfa: 0.1 } }
     ],
     nasce: 0.35,
     assenta: 1.2
@@ -115,9 +113,6 @@ export const SPEC = {
      contrário da roda */
   tracejado: { raio: 0.755, n: 60, z: 0.05, vel: -0.04, alfa: 0.28, cor: 'ac' },
 
-  /* a luz de fundo: um disco de luz bem atrás do portal (paralaxe) */
-  fundo: { escala: 2.1, alfa: 0.16, z: -0.6, cor: 'ac' },
-
   /* a régua: 120 marcas como mostrador de relógio; uma longa a cada `longa`
      (8 longas, mais fortes), as curtas discretas. `marca`: largura (piso) */
   regua: { raio: 1.13, n: 120, longa: 15, cor: 'ac', alfa: 0.2, alfaLonga: 0.45, marca: 0.004 },
@@ -135,7 +130,7 @@ export const SPEC = {
      reator inteiro pulsando junto (isso leria como zoom) */
   respira: { periodo: 7, inspira: 0.42, luz: 0.14,
     nucleo: [0, 0.1], lente: [0.35, 0.035], petalas: [0.75, 0.028], camaras: [1.1, 0.02],
-    tracejado: [1.35, 0.012], portal: [1.6, 0.01], fundo: [0.25, 0.35] },
+    tracejado: [1.35, 0.012], portal: [1.6, 0.01] },
 
   /* o campo: o ponteiro (ou o dedo) como uma força no plano do reator. As
      lâminas perto dele se afastam (`empurra`) e se erguem para a câmera

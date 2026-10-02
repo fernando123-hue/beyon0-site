@@ -12,8 +12,9 @@
   box-shadow: inset 0 1px 0 rgb(255 255 255 / .07);
   transition: border-color var(--t) var(--ease), background-color var(--t) var(--ease), box-shadow var(--t) var(--ease), transform var(--t) var(--ease);
 }
-/* a tinta do painel: uma luz no canto, na cor dele (--tinta-rgb por painel) */
-.painel--tinta { --tinta-rgb: var(--ac-rgb); background-image: radial-gradient(60% 50% at 0% 0%, rgb(var(--tinta-rgb) / .14), transparent 70%), linear-gradient(180deg, var(--vidro-2), var(--vidro) 40%); }
+/* a tinta do painel: a aresta de cima acesa na cor dele (--tinta-rgb por
+   painel). A mancha de luz desfocada do canto saiu (2026-10-02) */
+.painel--tinta { --tinta-rgb: var(--ac-rgb); }
 .painel--tinta::before { content: ""; position: absolute; left: 0; right: 0; top: -1px; height: 1px; border-radius: var(--raio) var(--raio) 0 0; background: linear-gradient(90deg, rgb(var(--tinta-rgb) / .8), rgb(var(--tinta-rgb) / 0) 70%); pointer-events: none; }
 @media (hover: hover) {
   /* hover de visor: o cartão não levanta; acende a borda e os cantos travam */
@@ -89,7 +90,7 @@
 .passo:last-child::before { display: none; }
 .passo:last-child { padding-bottom: 0; }
 .passo::after { content: ""; position: absolute; left: 0; top: 5px; width: 11px; height: 11px; border-radius: 50%; background: var(--bg); border: 1px solid var(--ac); }
-.passo:first-child::after { background: var(--ac-3); border-color: var(--ac-3); box-shadow: 0 0 12px rgb(var(--ac-3-rgb) / .7); }
+.passo:first-child::after { background: var(--ac-3); border-color: var(--ac-3); }
 .passo:last-child::after { border-color: var(--ac); background: rgb(var(--ac-rgb) / .25); }
 .passo__n { display: block; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); line-height: 1.4; color: var(--t3); margin-bottom: .4rem; }
 .passo h3 { font-size: var(--h3-linha); margin-bottom: .6rem; line-height: 1.15; }
@@ -188,7 +189,8 @@ html:not(.has-gsap) .varredura, html.menos-movimento .varredura { display: none;
    ========================================================================== */
 .malha { display: grid; grid-template-columns: 1fr; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--raio); overflow: hidden; }
 .celula { position: relative; display: flex; flex-direction: column; gap: .6rem; padding: clamp(20px, 5vw, 28px); background: var(--bg); color: var(--t1); transition: background-color var(--t) var(--ease); }
-.celula::before { content: ""; position: absolute; inset: 0; background: radial-gradient(70% 60% at 0% 0%, rgb(var(--ac-rgb) / .1), transparent 70%); opacity: 0; transition: opacity var(--t) var(--ease); pointer-events: none; }
+/* hover: a aresta de cima acende (era uma mancha de luz desfocada no canto) */
+.celula::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 1px; background: linear-gradient(90deg, rgb(var(--ac-rgb) / .8), rgb(var(--ac-rgb) / 0) 70%); opacity: 0; transition: opacity var(--t) var(--ease); pointer-events: none; }
 .celula:hover, .celula:focus-visible { background: var(--s2); }
 .celula:hover::before { opacity: 1; }
 .celula:focus-visible { outline-offset: -3px; }   /* a malha tem overflow hidden: o anel vai para dentro */
@@ -221,11 +223,6 @@ html:not(.has-gsap) .varredura, html.menos-movimento .varredura { display: none;
 .cenarios { display: grid; grid-template-columns: 1fr; gap: 12px; }
 .cenarios > :nth-child(1) { --tinta-rgb: var(--ac-rgb); }
 .cenarios > :nth-child(2) { --tinta-rgb: var(--ac-rgb); }
-/* o metal é só atmosfera: no painel do meio ele fica no brilho do canto;
-   linha e texto seguem no ciano */
-@media (min-width: 621px) {
-  .servicos > .painel--tinta:nth-child(2), .cenarios > .painel--tinta:nth-child(2) { background-image: radial-gradient(60% 50% at 0% 0%, rgb(var(--metal-rgb) / .14), transparent 70%), linear-gradient(180deg, var(--vidro-2), var(--vidro) 40%); }
-}
 .cenarios > :nth-child(3) { --tinta-rgb: var(--prata-rgb); }
 .cenario { padding: clamp(20px, 5vw, 28px); display: flex; flex-direction: column; gap: 1.1rem; }
 .cenario__label { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; line-height: 1.4; color: var(--t3); }
@@ -300,18 +297,13 @@ html.menos-movimento .qa::details-content { transition: none; }
 }
 
 /* ==========================================================================
-   9. CONVERSA — o CTA final, sob luz dupla
+   9. CONVERSA — o CTA final, sob a régua acesa
    ========================================================================== */
 .conversa { position: relative; overflow: hidden; }
 .conversa__regua {
   position: absolute; top: 0; height: 1px; left: max(var(--pad), calc(50% - var(--maxw) / 2 + var(--pad))); right: max(var(--pad), calc(50% - var(--maxw) / 2 + var(--pad)));
   background: linear-gradient(90deg, rgb(var(--ac-rgb) / 0), rgb(var(--ac-rgb) / .8) 40%, rgb(var(--prata-rgb) / .6) 60%, rgb(var(--prata-rgb) / 0));
   transform-origin: 50%;
-}
-.conversa::after {
-  content: ""; position: absolute; left: 50%; top: 0; width: 80vmax; height: 50vmax; transform: translateX(-50%);
-  background: radial-gradient(40% 55% at 42% 0%, rgb(var(--ac-rgb) / .16), rgb(var(--ac-rgb) / 0) 70%), radial-gradient(35% 50% at 62% 0%, rgb(var(--metal-rgb) / .14), rgb(var(--metal-rgb) / 0) 70%);
-  pointer-events: none;
 }
 .conversa .section { position: relative; z-index: 1; }
 /* o clímax da página: o maior título depois do H1 */
@@ -435,7 +427,7 @@ html:not(.tem-nucleo) .nucleo__tela { visibility: hidden; }
 .nucleo__poster {
   position: absolute; inset: 0; border-radius: 50%;
   background:
-    radial-gradient(circle closest-side, rgb(238 241 245 / .95) 0 5%, rgb(var(--ac-rgb) / .5) 9%, rgb(var(--ac-rgb) / .1) 22%, transparent 40%),
+    radial-gradient(circle closest-side, rgb(238 241 245 / .95) 0 5%, rgb(var(--ac-rgb) / .6) 5.6% 6.4%, transparent 7%),
     radial-gradient(circle closest-side, transparent 0 14%, rgb(var(--ac-rgb) / .5) 14.3% 14.9%, transparent 15.3% 19.8%, rgb(var(--prata-rgb) / .4) 20% 20.6%, transparent 21% 26.6%, rgb(var(--ac-rgb) / .3) 26.8% 27.2%, transparent 27.6%);
   transition: opacity .7s ease;
 }
@@ -505,14 +497,6 @@ html.tem-nucleo .nucleo__poster { opacity: 0; }
   background: radial-gradient(70% 75% at var(--cx) var(--cy), transparent 35%, rgb(0 0 0 / .7) 100%);
   mask-image: linear-gradient(180deg, #000 68%, transparent);
   -webkit-mask-image: linear-gradient(180deg, #000 68%, transparent);
-}
-/* a luz que nasce do núcleo e o plano do disco aceso ao longe (uma elipse
-   larga e baixa: luz de horizonte, nunca uma linha) */
-.cosmos__luz {
-  position: absolute; inset: 0;
-  background:
-    radial-gradient(calc(var(--nw) * 1.1) calc(var(--nw) * 1.1) at var(--cx) var(--cy), rgb(var(--ac-3-rgb) / .16), rgb(var(--metal-rgb) / .12) 45%, transparent 75%),
-    radial-gradient(calc(var(--nw) * 3.2) calc(var(--nw) * .42) at var(--cx) var(--cy), rgb(var(--ac-rgb) / .07), transparent 70%);
 }
 
 /* ==========================================================================

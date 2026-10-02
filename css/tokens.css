@@ -171,21 +171,12 @@ button { font: inherit; color: inherit; }
 }
 .skip-link:focus { top: 16px; }
 
-/* ---- A ATMOSFERA — a luz que a V2 não tinha ----
-   Duas manchas de luz fixas (ciano no alto à direita, metal embaixo à
-   esquerda). A estrutura do fundo é a rede (abaixo). Tudo estático:
-   pintado uma vez, custo zero por frame. O movimento vem do feixe. */
+/* ---- A ATMOSFERA ----
+   Era duas manchas de luz desfocadas (ciano e metal). O dono, 2026-10-02:
+   os brilhos desfocados "poluem e deixam genérico". Saíram todos; a luz do
+   site agora só existe onde algo emite (a rede, o mini, o AI Core). A caixa
+   fica como camada de fundo fixa e vazia. */
 .atmosfera { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
-/* a luz fica parada. A rodada 3 testou subi-la com a rolagem (camada de
-   duas telas em scrub): medido, 60 → 42 fps logo após rolar no desktop (54
-   com will-change). Saiu. */
-.atmosfera::before {
-  content: ""; position: absolute; inset: 0;
-  background:
-    /* o ciano do canto ficou mais baixo: a luz forte agora anda com o mini AI Core (js/mini.js) */
-    radial-gradient(70vmax 60vmax at 100% -10%, rgb(var(--ac-rgb) / .16), transparent 60%),
-    radial-gradient(70vmax 60vmax at -10% 110%, rgb(var(--metal-rgb) / .34), transparent 60%);
-}
 /* a malha fina que morava aqui saiu: a rede (js/rede.js) é a estrutura do
    fundo agora; as duas juntas viravam ruído */
 /* A REDE: o canvas do fundo vivo (js/rede.js + js/mini.js), atrás do

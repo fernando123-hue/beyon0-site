@@ -760,12 +760,6 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
     nucleo.add(s);
     return { s, d };
   });
-  const FU = SPEC.fundo;
-  const fundo = sprite(halo(0), FU.cor, 0);
-  fundo.scale.setScalar(FU.escala);
-  fundo.position.z = FU.z;
-  fundo.material.depthTest = true;   /* fica ATRÁS das peças (as outras luzes lavam tudo; esta não) */
-  raiz.add(fundo);
 
   const O = SPEC.onda;
   const onda = sprite(guarda(texturaOnda(THREE)), O.cor, 0);
@@ -826,8 +820,6 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
     tracejado.rotation.z = t * TR.vel - (e.giroExtra || 0) * 0.5;
     tracejado.scale.setScalar(1 + respira(t, RS.tracejado));
     matTracejado.opacity = TR.alfa * suave(m);
-    fundo.material.opacity = FU.alfa * ig * (1 - ab * 0.5) * (1 + RS.fundo[1] * (folego(t - RS.fundo[0], RS.periodo, RS.inspira) - 0.5));
-    fundo.material.visible = ig > 0.002;
 
     const kEq = suave((m - 0.3) / 0.7);
     anelEquador.scale.setScalar((0.55 + 0.45 * kEq) * (1 + ab * 0.14));

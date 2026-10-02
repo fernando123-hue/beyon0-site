@@ -3,11 +3,12 @@
    "conforme vamos passando e mudando de páginas, o AI Core vá seguindo a
    gente e interagindo também; não ele todo, algo pequeno e minimalista").
 
-   O CORPO (ponto, anel, dois arcos, brilho) num canvas pequeno só dele, acima
+   O CORPO (ponto, anel, dois arcos) num canvas pequeno só dele, acima
    das seções e abaixo do menu, que anda por transform: no canvas da rede,
    atrás do conteúdo, as seções de fundo grafite o apagavam (crítica, rodada
-   5). A LUZ que ele leva, o rastro e o feixe ficam no canvas da rede
-   (js/rede.js, por B.rede.extra), atrás do conteúdo.
+   5). O rastro e o feixe ficam no canvas da rede (js/rede.js, por
+   B.rede.extra), atrás do conteúdo. Sem brilho nem luz desfocada em volta
+   (o dono tirou todo desfoque do site, 2026-10-02): ele é só traço nítido.
    - No Hub ele NASCE do reator grande: enquanto o reator está na tela ele
      está dentro dele; quando o reator sai, ele se solta e vai para a
      lateral. Nas outras páginas já começa na lateral.
@@ -39,8 +40,6 @@
      grudava na rolagem e o "seguir" não se sentia) */
   var MOLA = 40, AMORTECE = 2 * Math.sqrt(MOLA);
   var ESCALA = celular ? 0.8 : 1;
-  var HALO = celular ? 12 : 22;              /* px: o brilho (no celular cabe na margem de 20 px) */
-  var LUZ = celular ? 200 : 300;             /* px: a luz que ele leva consigo (a névoa do canto agora anda com ele) */
   var PULSO = celular ? 7 : 10;              /* px que o anel do pulso abre (no celular não é cortado na borda) */
   var HOVER_FEIXE = 2;                       /* s: no máximo um feixe por cartão sob o cursor neste intervalo */
   var BORDA_CEL = window.innerWidth < 360 ? 12 : 14;   /* celular: no eixo do trilho (js/rede.js), fora da coluna de texto */
@@ -221,16 +220,6 @@
     }
   }
 
-  /* a luz que ele leva (canvas da rede, depois da borracha do texto) */
-  function desenhar(ctx, t, folego) {
-    if (!mini.ativo) return;
-    var v = mini.vis, x = mini.x, y = mini.y;
-    var lz = ctx.createRadialGradient(x, y, 0, x, y, LUZ);
-    lz.addColorStop(0, 'rgba(' + AC + ',' + (0.1 * v * (0.85 + 0.15 * folego)).toFixed(3) + ')');
-    lz.addColorStop(1, 'rgba(' + AC + ',0)');
-    ctx.fillStyle = lz; ctx.fillRect(x - LUZ, y - LUZ, 2 * LUZ, 2 * LUZ);
-  }
-
   /* o corpo, no canvas dele (acima das seções) */
   function pintarCorpo() {
     var ativo = mini.ativo;
@@ -244,11 +233,6 @@
     ctx.clearRect(0, 0, CORPO, CORPO);
     var v = mini.vis, s = ESCALA * (1 + 0.14 * folego) * (1 + atencao * 0.35);
     var x = CORPO / 2, y = CORPO / 2;
-    /* o brilho */
-    var g = ctx.createRadialGradient(x, y, 0, x, y, HALO * s);
-    g.addColorStop(0, 'rgba(' + AC + ',' + (0.45 * v * (0.7 + 0.3 * folego)).toFixed(3) + ')');
-    g.addColorStop(1, 'rgba(' + AC + ',0)');
-    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, HALO * s, 0, TAU); ctx.fill();
     /* o anel e os dois arcos que giram (a roda do reator, em miniatura) */
     ctx.lineWidth = 1;
     ctx.strokeStyle = 'rgba(' + AC2 + ',' + (0.7 * v).toFixed(3) + ')';
@@ -285,7 +269,6 @@
     document.documentElement.addEventListener('pointerleave', function () { ponteiro.ativo = false; }, { passive: true });
   }
 
-  mini.desenhar = desenhar;
   mini.desenharFundo = desenharFundo;
   B.rede.extra = mini;
   B.add('mini', function (S) { passo(Math.min(0.05, S.dt / 1000), tela.W, tela.H); pintarCorpo(); });
