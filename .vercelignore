@@ -18,3 +18,9 @@ package-lock.json
 # (a arte-mestre Logo.gif e introdução.mp4 não aparece aqui porque o
 #  .gitignore já a mantém fora do repo, e o deploy vem do git.)
 assets/README.txt
+
+# AI Core: o laboratório (docs/lab-nucleo.html) e a receita do three
+# reduzido são ferramenta; o site só carrega boot/cena/pecas/spec e o .min.js
+js/nucleo/lab.js
+vendor/three/entrada.js
+vendor/three/README.md

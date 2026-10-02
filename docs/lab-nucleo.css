@@ -1,0 +1,5 @@
+body { margin: 0; background: var(--bg); color: var(--t3); font: 12px/1.4 monospace; }
+.lab { display: flex; flex-wrap: wrap; gap: 16px; padding: 16px; }
+.lab figure { margin: 0; }
+.lab img, .lab__canvas { display: block; width: 495px; height: 325px; background: var(--bg); }
+.lab figcaption { padding-top: 6px; }

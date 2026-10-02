@@ -114,6 +114,10 @@
       var instr = arte.querySelector('.instrumento');
       if (instr) lerInstrumento(instr, alvoTl, t0);
     }
+    /* o AI Core (js/nucleo/boot.js) só começa a se montar quando a arte
+       aparece: antes disso ela está invisível e a montagem passaria sem
+       ninguém ver (visto quadro a quadro) */
+    alvoTl.add(function () { B.emit('arte-impressa'); }, t0);
     alvoTl.add(function () {
       var els = arte.querySelectorAll('[data-metrica="carga"], [data-metrica="peso"]');
       for (var i = 0; i < els.length; i++) contar(els[i], 1.1, 0);

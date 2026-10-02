@@ -229,6 +229,9 @@ html:not(.js) .barra.is-oculta { transform: none; opacity: 1; pointer-events: au
   position: relative; max-width: none; margin: 0;
   padding: calc(var(--nav-h) + 16px) max(var(--pad), calc((100% - var(--maxw)) / 2 + var(--pad))) clamp(32px, 5vh, 56px);
   display: grid; grid-template-columns: 1fr; gap: 0;
+  /* o canvas do AI Core sangra além da caixa: corta na horizontal (clip não
+     cria rolagem) para nada alargar a viewport do celular (regra 10) */
+  overflow-x: clip;
 }
 .hero > * { position: relative; z-index: 1; }
 .hero__status {

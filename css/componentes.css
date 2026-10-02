@@ -391,6 +391,79 @@ html.menos-movimento .cascata__barra { transform: none; }
 }
 
 /* ==========================================================================
+   11b. AI CORE — a esfera do hero do Hub (docs/restructure/PLANO-AI-CORE.md).
+   A caixa tem tamanho fixo desde a 1ª pintura (aspect-ratio): o three monta
+   por cima do desenho em CSS sem mexer no layout. O canvas sangra além da
+   caixa (os cacos e o traço de luz passam da esfera) e esmaece nas bordas
+   por máscara; o hero corta na horizontal, então nada alarga a viewport.
+   O console vira a leitura do núcleo: só o log, sobreposto ao pé da esfera
+   (a medida grande e a cascata já estão na trilha e na cota).
+   ========================================================================== */
+.hero__arte--nucleo { display: flex; flex-direction: column; align-items: center; }
+/* o console é vidro: translúcido para os arcos de baixo aparecerem por trás.
+   Sem backdrop-filter de propósito: um blur sobre um canvas que muda a cada
+   quadro seria refeito a cada quadro. */
+.hero__arte--nucleo .console { width: 100%; min-height: 0; margin-top: -10%; z-index: 1; background: linear-gradient(170deg, rgb(17 24 35 / .78), rgb(11 16 22 / .82)); }
+.hero__arte--nucleo .console__medida, .hero__arte--nucleo .cascata { display: none; }
+.hero__arte--nucleo .console__topo { margin-top: 0; }
+/* celular: respiro nas laterais (de borda a borda os arcos eram cortados) e
+   o log com três linhas que não quebram (a 320px "Sora + / Mono" quebrava) */
+.nucleo { position: relative; width: min(86%, 340px); aspect-ratio: 1; pointer-events: none; }
+/* celular: o núcleo aceso aparece INTEIRO no fim da 1ª tela (isca para
+   rolar) e o log encosta no pé da esfera: o conjunto fica ~60px mais curto
+   (crítica rodada 2) */
+@media (max-width: 860px) {
+  .hero__arte--nucleo { margin-top: 4px; }
+  .hero__arte--nucleo .console { margin-top: -16%; }
+}
+@media (max-width: 420px) {
+  .hero__arte--nucleo .console__linha--extra { display: none; }
+  .hero__arte--nucleo .console__v { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+}
+.nucleo__tela {
+  position: absolute; inset: -22%; width: 144%; height: 144%; display: block;
+  -webkit-mask-image: radial-gradient(closest-side, #000 70%, transparent);
+  mask-image: radial-gradient(closest-side, #000 70%, transparent);
+}
+/* antes de a esfera montar (e depois de uma desistência) o canvas não aparece */
+html:not(.tem-nucleo) .nucleo__tela { visibility: hidden; }
+
+/* o desenho em CSS: a mesma esfera, parada e simplificada (núcleo, lente e
+   cinco arcos partidos de vidro escuro com a aresta acesa por dentro) */
+.nucleo__poster {
+  position: absolute; inset: 6%; border-radius: 50%;
+  background:
+    radial-gradient(circle, rgb(238 241 245 / .95) 0 1.4%, rgb(var(--ac-rgb) / .5) 3.2%, rgb(var(--ac-rgb) / .1) 11%, transparent 26%),
+    radial-gradient(circle, transparent 0 17.6%, rgb(var(--ac-rgb) / .5) 17.8% 18.2%, transparent 18.5% 25.2%, rgb(var(--ac-rgb) / .22) 25.4% 26.6%, transparent 26.9%);
+  transition: opacity .7s ease;
+}
+.nucleo__poster i {
+  position: absolute; border-radius: 50%;
+  border: 3px solid rgb(13 22 30 / .95); border-top-color: rgb(var(--ac-rgb) / .38); border-left-color: transparent;
+}
+.nucleo__poster i:nth-child(1) { inset: 0; transform: rotate(18deg) scaleY(.92); border-width: 4px; }
+.nucleo__poster i:nth-child(2) { inset: 7%; transform: rotate(-64deg) scaleX(.78); }
+.nucleo__poster i:nth-child(3) { inset: 13%; transform: rotate(132deg) scaleY(.7); border-width: 5px; }
+.nucleo__poster i:nth-child(4) { inset: 22%; transform: rotate(-150deg) scaleX(.86); border-width: 2px; }
+.nucleo__poster i:nth-child(5) { inset: 31%; transform: rotate(80deg); border-width: 6px; border-color: rgb(13 22 30 / .95); border-bottom-color: rgb(var(--ac-rgb) / .3); }
+/* a esfera de verdade montou: o desenho sai enquanto os pedaços chegam */
+html.tem-nucleo .nucleo__poster { opacity: 0; }
+/* a linha que o núcleo acrescenta ao log quando acende (instante real) */
+.console__linha--nucleo { animation: nucleo-linha .5s ease-out both; }
+.console__linha--nucleo .console__v { color: var(--ac); }
+@keyframes nucleo-linha { from { opacity: 0; transform: translateY(6px); } }
+/* desktop: a esfera maior que a coluna (o hero corta na horizontal) e o
+   console menor, encostado à direita, só sobre a zona em que a máscara já
+   esmaece: os arcos de baixo continuam visíveis à esquerda dele */
+@media (min-width: 861px) {
+  /* o núcleo desce para a altura entre "ao sistema" e "no ar." (o topo da
+     esfera encostava no menu); translate não mexe no layout */
+  .nucleo { width: min(100%, 430px); transform: translateY(36px); }
+  .hero__arte--nucleo .console { max-width: 320px; align-self: flex-end; margin-top: -6%; font-size: .75rem; }
+  .hero__arte--nucleo .console__v { white-space: nowrap; }
+}
+
+/* ==========================================================================
    12. JANELA — o mockup de site em vidro (página de Sites), feito de HTML
    ========================================================================== */
 .janela {

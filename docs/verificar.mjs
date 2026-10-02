@@ -38,7 +38,16 @@ const ALVOS = [
   /* URLs limpas (cleanUrls na Vercel; o servidor local resolve .html) e 320px */
   ['/',               'hub-320',   ESTREITO],
   ['/sites',          'sites-320', ESTREITO],
-  ['/automacao',      'autom-320', ESTREITO, { reduzirNoBoot: true }]
+  ['/automacao',      'autom-320', ESTREITO, { reduzirNoBoot: true }],
+  /* O AI CORE (docs/restructure/PLANO-AI-CORE.md). Este verificador roda em
+     SwiftShader, e WebGL desenhado pela CPU NÃO monta a esfera
+     (failIfMajorPerformanceCaveat): nos alvos do Hub acima a exigência é
+     ela NÃO montar (o desenho em CSS fica). Estes dois forçam
+     (`?3d=forcar`) e exigem que ela monte, acenda e continue montada; o fps
+     aqui é só informativo (WebGL por software não é o que um visitante com
+     GPU vê). */
+  ['/index.html?3d=forcar', 'hub-3d',     DESKTOP, { exige3d: true }],
+  ['/index.html?3d=forcar', 'hub-3d-cel', CELULAR, { exige3d: true }]
 ];
 
 const medirFps = (page, seg = 3) => page.evaluate(s => new Promise(ok => {
@@ -52,7 +61,7 @@ const medirFps = (page, seg = 3) => page.evaluate(s => new Promise(ok => {
 const navegador = await chromium.launch({ executablePath: EXEC, args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
 let falhou = false, primeiro = true;
 
-for (const [rota, nome, opcoes, { semNucleo = false, reduzirNoBoot = false } = {}] of ALVOS) {
+for (const [rota, nome, opcoes, { semNucleo = false, reduzirNoBoot = false, exige3d = false } = {}] of ALVOS) {
   const ctx = await navegador.newContext(opcoes);
   const page = await ctx.newPage();
   const erros = [];
@@ -64,7 +73,7 @@ for (const [rota, nome, opcoes, { semNucleo = false, reduzirNoBoot = false } = {
   /* o interruptor "Reduzir movimento" acionado no MEIO do boot: nada pode
      ficar preso (SplitText no meio do caminho, opacidade zerada) */
   if (reduzirNoBoot) { await page.waitForTimeout(500); await page.evaluate(() => window.BEYON && window.BEYON.reduzir(true)); }
-  await page.waitForTimeout(3500);
+  await page.waitForTimeout(exige3d ? 9000 : 3500);
 
   const d = await page.evaluate(() => {
     const B = window.BEYON;
@@ -87,18 +96,22 @@ for (const [rota, nome, opcoes, { semNucleo = false, reduzirNoBoot = false } = {
   await page.waitForTimeout(400);
   const fps = await medirFps(page);
   const lcp = Math.round(await page.evaluate(() => window.__lcp));
+  /* lido DEPOIS da medição: se a esfera desistir sozinha no meio, aparece */
+  const nucleo = await page.evaluate(() => document.documentElement.classList.contains('tem-nucleo') && !!document.querySelector('.nucleo.is-aceso'));
 
   const reais = erros.filter(e => !/ERR_CERT|GPU stall|swiftshader/i.test(e));
   const ok = (semNucleo || d.boot) && d.barraOk && d.overflowX === 0 &&
-    d.waProntos === d.waTotal && reais.length === 0 && d.presos === 0 && d.presosNoFim === 0 && fps > 45 &&
+    d.waProntos === d.waTotal && reais.length === 0 && d.presos === 0 && d.presosNoFim === 0 &&
+    (exige3d ? nucleo : (!nucleo && fps > 45)) &&
     /* LCP com orçamento (2,5s é o "bom" do Core Web Vitals); o primeiro alvo da rodada é artefato do headless */
     (primeiro || lcp < 2500);
   primeiro = false;
   if (!ok) falhou = true;
 
   console.log(
-    (ok ? 'OK  ' : 'FALHA ') + nome.padEnd(10),
-    'fps=' + String(fps).padStart(5),
+    (ok ? 'OK  ' : 'FALHA ') + nome.padEnd(11),
+    'fps=' + String(fps).padStart(5) + (exige3d ? '(info)' : ''),
+    'núcleo=' + (nucleo ? 'sim' : 'não'),
     'lcp=' + String(lcp).padStart(5) + 'ms',
     'rolagemX=' + d.overflowX,
     'wa=' + d.waProntos + '/' + d.waTotal,

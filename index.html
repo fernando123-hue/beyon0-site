@@ -112,15 +112,22 @@
         <p class="hero__fine">Uma pessoa constrói do primeiro rascunho à publicação. Quem conversa é quem constrói.</p>
       </div>
 
-      <div class="hero__arte" aria-hidden="true">
-        <!-- lugar reservado ao AI Core futuro. Hoje: o console de boot deste site, com dados REAIS desta visita -->
+      <div class="hero__arte hero__arte--nucleo" aria-hidden="true">
+        <!-- o AI Core (docs/restructure/PLANO-AI-CORE.md): a esfera em three.js
+             monta por cima do desenho em CSS, que reserva o lugar (sem salto de
+             layout) e fica sozinho sem JS, sem WebGL ou com WebGL por CPU -->
+        <div class="nucleo" data-nucleo>
+          <div class="nucleo__poster"><i></i><i></i><i></i><i></i><i></i></div>
+          <canvas class="nucleo__tela"></canvas>
+        </div>
+        <!-- o console de boot deste site, com dados REAIS desta visita: a leitura do núcleo -->
         <div class="console painel" data-console>
           <p class="console__medida" data-metrica-caixa><b data-metrica="carga" data-so-numero>—</b><small class="console__unid">s</small><span>pronta para usar, neste aparelho</span></p>
           <div class="cascata" data-cascata data-metrica-caixa></div>
           <div class="console__topo"><span>Beyon Zero · boot</span><span class="console__led"></span></div>
-          <div class="console__linha"><span class="console__t">00,000</span><span class="console__v">fontes locais · Sora + Mono</span></div>
+          <div class="console__linha console__linha--extra"><span class="console__t">00,000</span><span class="console__v">fontes locais · Sora + Mono</span></div>
           <div class="console__linha" data-metrica-caixa><span class="console__t" data-console-t>—</span><span class="console__v">transferido · <b data-metrica="peso">—</b></span></div>
-          <div class="console__linha" data-metrica-caixa data-metrica-fps><span class="console__t" data-console-t>—</span><span class="console__v">movimento · gsap local · <b data-metrica="fps">—</b></span></div>
+          <div class="console__linha console__linha--extra" data-metrica-caixa data-metrica-fps><span class="console__t" data-console-t>—</span><span class="console__v">movimento · gsap local · <b data-metrica="fps">—</b></span></div>
           <div class="console__linha console__linha--on" data-metrica-caixa><span class="console__t" data-console-t>—</span><span class="console__v">sistema online</span></div>
         </div>
       </div>
@@ -279,5 +286,6 @@
   <script src="js/core.js" defer></script>
   <script src="js/pagina.js" defer></script>
   <script src="js/anima.js" defer></script>
+  <script src="js/nucleo/boot.js" defer></script>
 </body>
 </html>

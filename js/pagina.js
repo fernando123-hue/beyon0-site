@@ -314,7 +314,16 @@
     var tag = document.querySelector('[data-feixe-tag]');
     if (tag && !tag.textContent && nav.domContentLoadedEventEnd > 0) tag.textContent = 'pronta em ' + B.num(nav.domContentLoadedEventEnd / 1000, 2) + ' s';
     var total = bytesDaOrigem(nav);
-    if (total > 0 && elPeso.length) escrever(elPeso, B.num(Math.round(total / 1024)), 'KB');
+    /* a linha "transferido" do console é um REGISTRO: depois de carimbada,
+       congela no valor daquele instante (o peso do site). O que chega depois
+       (o AI Core) entra na linha dele, com o próprio peso (js/nucleo/boot.js);
+       a Prova ("até agora") continua somando tudo. Antes o console mudava de
+       410 para 918 KB conforme o instante da leitura (crítica, rodada 2). */
+    var pesoVivo = [].filter.call(elPeso, function (el) {
+      var linha = el.closest('.console__linha'), t = linha && linha.querySelector('[data-console-t]');
+      return !t || t.textContent === '—';
+    });
+    if (total > 0 && pesoVivo.length) escrever(pesoVivo, B.num(Math.round(total / 1024)), 'KB');
   }
   if (elCarga.length || elPeso.length) {
     if (document.readyState === 'complete') medidasDeCarga();
@@ -323,7 +332,9 @@
       try {
         var po = new PerformanceObserver(function () { medidasDeCarga(); });
         po.observe({ type: 'resource', buffered: false });
-        /* nada carrega tarde neste site: depois de 6s do load, o observador sai */
+        /* o que carrega tarde é o AI Core (three, logo depois do load) e o
+           número o inclui: é o que a visita transferiu de fato. Depois de 6s
+           do load, o observador sai */
         window.addEventListener('load', function () { setTimeout(function () { po.disconnect(); medidasDeCarga(); }, 6000); }, { once: true });
       } catch (e) { /* sem suporte */ }
     }

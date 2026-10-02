@@ -37,7 +37,8 @@ subindo); ignore a primeira medição de DCL/LCP.
 
 | Arquivo | O que é |
 |---|---|
-| `docs/restructure/DIRECAO-V4.md` | **Comece aqui.** A direção da V4 "Tech refinado" (2026-10-01): a identidade da V1 (escuro, ciano, Sora + Mono, régua de 1px) com luz; celular primeiro; AI Core reservado para uma fase futura. |
+| `docs/restructure/DIRECAO-V4.md` | **Comece aqui.** A direção da V4 "Tech refinado" (2026-10-01): a identidade da V1 (escuro, ciano, Sora + Mono, régua de 1px) com luz; celular primeiro. |
+| `docs/restructure/PLANO-AI-CORE.md` | **O AI Core** (2026-10-02): a esfera de vidro em three.js no hero do Hub, feita a partir da imagem do dono (`moodboard/ai-core-referencia.png`); medidas, rodadas da crítica e a proposta de motion (Remotion). |
 | `docs/restructure/DIRECAO-V3.md` | A V3 clara ("Luz e vida"), rejeitada pelo dono no mesmo dia. Vale pela regra de celular primeiro. |
 | `docs/restructure/DIRECAO-V2.md` | A V2 escura ("o instrumento acorda"), chamada de "mórbida" pelo dono. Vale pelo diagnóstico medido e pelo vocabulário de movimento. |
 | `docs/restructure/PLANO-REESTRUTURACAO.md` | **Seção 16 = o loop de auto-aprimoramento com painel de agentes (rodadas feitas, próximo passo).** Seção 15 = V4. Seção 14 = V3. Seção 13 = V2. Seções 11–12 = história anterior. |
@@ -54,10 +55,19 @@ css/motion.css (estados iniciais html.js, varredura do painel, régua do kicker,
 js/ancoras.js (head: html.js + âncoras antigas) · tel.js · core.js (loop, estado S, fps, reduzir, B.num pt-BR)
 js/pagina.js (nav, menu, WA, seção atual, barra do celular, medidas: carga, peso, fps, FCP, cascata, log do console, interruptor)
 js/anima.js (GSAP: boot do hero, cota, rota, palco da prova, fecho, entradas por seção, pilha do celular, pouso em âncora) · lead-form.js (só automação)
+js/nucleo/ (AI Core, só no Hub): boot.js (clássico: porteiro, import() depois do load, laço via B.add) · cena.js · pecas.js (emissor + shader do vidro) · spec.js (a esfera em dados) · lab.js (laboratório, fora do deploy)
+vendor/three/three-nucleo.min.js (three r160 reduzido às classes da esfera; receita em vendor/three/README.md)
 ```
 
-Sem canvas nesta fase: o AI Core e os pulsos voltam numa fase seguinte,
-repensados para fundo claro (quando o dono pedir). Os módulos antigos
+**O AI Core** (PLANO-AI-CORE.md) é o único canvas do site: monta por cima
+de um desenho em CSS que reserva o lugar (sem CLS) e fica sozinho sem JS,
+sem GPU (o WebGL é testado ANTES de baixar o three) ou com economia de
+dados. Movimento reduzido: um quadro, parado e aceso. Degrada medindo
+(pixel ratio 1, depois sai) pela cadência do próprio aparelho. Para VER a
+esfera nos screenshots: `GPU=1 npm run olhar` (sem GPU o headless é
+SwiftShader e o porteiro barra). O verificador tem `hub-3d`/`hub-3d-cel`
+(`?3d=forcar`); `?3d=nao` desliga para A/B. Laboratório lado a lado com a
+referência: `docs/lab-nucleo.html`. Os módulos de canvas antigos
 (`campo.js`, `profundidade.js`, `organismo.js`, `palavras.js`) estão no
 histórico, commit `051b2a8`; o AI Core original (orbe) em `abd83fe` (V1).
 

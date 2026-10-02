@@ -19,7 +19,11 @@ const ALVOS = [
   ['/index.html', 'hub-cel', CELULAR], ['/sites.html', 'sites-cel', CELULAR], ['/automacao.html', 'autom-cel', CELULAR],
   ['/index.html', 'hub-320', { viewport: { width: 320, height: 640 }, hasTouch: true, isMobile: true }], ['/sites.html', 'sites-320', { viewport: { width: 320, height: 640 }, hasTouch: true, isMobile: true }]
 ];
-const nav = await chromium.launch({ executablePath: EXEC, args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
+/* GPU=1: usa a placa de vídeo de verdade (D3D11 no Windows do dono). Sem
+   isso o WebGL é SwiftShader e o AI Core não monta (o porteiro barra WebGL
+   por CPU): para VER a esfera nos screenshots, rode com GPU=1. */
+const GPU = !!process.env.GPU;
+const nav = await chromium.launch({ executablePath: EXEC, args: GPU ? ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'] : ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
 for (const [rota, nome, opts] of ALVOS) {
   if (SO.length && !SO.includes(nome)) continue;
   const ctx = await nav.newContext(opts);
@@ -29,7 +33,7 @@ for (const [rota, nome, opts] of ALVOS) {
   page.on('console', m => { if (m.type() === 'error' || m.type() === 'warning') erros.push(m.type() + ': ' + m.text()); });
   await page.goto(BASE + rota, { waitUntil: 'load', timeout: 90000 });
   await page.mouse.move(700, 400);
-  await page.waitForTimeout(2600);
+  await page.waitForTimeout(GPU ? 4200 : 2600);   /* com GPU, espera a esfera montar e acender */
   await page.screenshot({ path: `${OUT}/${nome}-0.png` });
   const alt = await page.evaluate(() => document.documentElement.scrollHeight - innerHeight);
   const passos = [0.22, 0.45, 0.68, 0.9];
