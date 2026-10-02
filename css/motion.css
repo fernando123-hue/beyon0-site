@@ -108,11 +108,11 @@ html.js .spec.is-in .spec__item:nth-child(6) h3::before { transition-delay: .3s;
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; transition-delay: 0s !important; }
-  html.js .reveal, html.js .hero__status, html.js .hero__sub, html.js .hero__actions, html.js .hero__fine, html.js .hero__arte, html.js .hero__rail, html.js .nav { opacity: 1; }
+  html.js .reveal:not(.laudo):not(.passos):not(.prova):not(.spec), html.js .hero__status, html.js .hero__sub, html.js .hero__actions, html.js .hero__fine, html.js .hero__arte, html.js .hero__rail, html.js .nav { opacity: 1; }
   html.js .hero__title { visibility: visible; }
   html.js .kicker::after, html.js .hero__rail-aresta, html.js .conversa__regua, html.js .prova__item::before, html.js .passo::before, html.js .passo::after, html.js .laudo__row::after, html.js .spec__item h3::before { transform: none; }
   html.js .spec__item h3::before { transform: rotate(45deg); }
-  html.js .laudo__n, html.js .fluxo li { transform: none; opacity: 1; }
+  html.js .laudo__n, html.js .fluxo li, html.js .fluxo li:last-child { transform: none; opacity: 1; }
   html.has-gsap .hero__title em, html.has-gsap h2 em, html.has-gsap .wordmark b { color: var(--ac); }
   .hero__rail-aresta { animation: none; }
   .feixe__linha, .hero__status .dot, .painel::after, .celula::before, .console::after, .console__led { animation: none; }
@@ -121,11 +121,11 @@ html.js .spec.is-in .spec__item:nth-child(6) h3::before { transition-delay: .3s;
 }
 html.menos-movimento { scroll-behavior: auto; }
 html.menos-movimento *, html.menos-movimento *::before, html.menos-movimento *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; transition-delay: 0s !important; }
-html.menos-movimento .reveal, html.menos-movimento .hero__status, html.menos-movimento .hero__sub, html.menos-movimento .hero__actions, html.menos-movimento .hero__fine, html.menos-movimento .hero__arte, html.menos-movimento .hero__rail, html.menos-movimento .nav { opacity: 1; }
+html.js.menos-movimento .reveal:not(.laudo):not(.passos):not(.prova):not(.spec), html.menos-movimento .hero__status, html.menos-movimento .hero__sub, html.menos-movimento .hero__actions, html.menos-movimento .hero__fine, html.menos-movimento .hero__arte, html.menos-movimento .hero__rail, html.menos-movimento .nav { opacity: 1; }
 html.menos-movimento .hero__title { visibility: visible; }
 html.menos-movimento .kicker::after, html.menos-movimento .hero__rail-aresta, html.menos-movimento .conversa__regua, html.menos-movimento .prova__item::before, html.menos-movimento .passo::before, html.menos-movimento .passo::after, html.menos-movimento .laudo__row::after { transform: none; }
 html.menos-movimento .spec__item h3::before { transform: rotate(45deg); }
-html.menos-movimento .laudo__n, html.menos-movimento .fluxo li { transform: none; opacity: 1; }
+html.menos-movimento .laudo__n, html.menos-movimento .fluxo li, html.js.menos-movimento .fluxo li:last-child { transform: none; opacity: 1; }
 html.menos-movimento .hero__title em, html.menos-movimento h2 em, html.menos-movimento .wordmark b { color: var(--ac); }
 html.menos-movimento .hero__rail-aresta { animation: none; }
 html.menos-movimento .feixe__linha, html.menos-movimento .hero__status .dot, html.menos-movimento .painel::after, html.menos-movimento .celula::before, html.menos-movimento .console::after, html.menos-movimento .console__led { animation: none; }

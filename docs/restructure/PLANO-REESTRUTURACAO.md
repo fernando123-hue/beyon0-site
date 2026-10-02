@@ -1044,20 +1044,45 @@ movimento reduzido. LCP de volta a 0,7–0,8s no celular.
 Estado medido no fim: verificador 10/10, acessibilidade 23/23, 60 fps em
 1440/900/390, LCP celular 0,7–1,0s (headless).
 
+| Rodada | Notas (júri · tipo · motion · celular) | Commit | O que entrou |
+|---|---|---|---|
+| 3 (sobre V4.3) | 5,5 · 6 · 6,5 · 6 (média 6,0) | `d70735a` (V4.4) | console: log sempre em ordem (`carimbar`/`fecharLog` em `js/pagina.js`), cascata real dos arquivos desta visita no lugar do vão, medida uma vez só por tela; instrumento da Automação lê no relógio do boot, em ordem (`lerInstrumento`); **momento de assinatura**: no desktop a Prova fica fixa (pin, scrub) e a luz atravessa três vezes trocando o número (`palco()`), no celular passa uma vez e acende/conta (`luzMede`); a Conversa fecha com o mesmo gesto (`fechamento`); feixe como evento (cruza e some), vertical no celular, boot do celular por altura (`tEm`), LEDs no mesmo relógio de 18s; celular: h1 13vw, barra fixa leve, item em foco ao rolar (`is-foco`), uma gramática de lista, mockup legível, WhatsApp sai na Conversa; tipografia: `text-wrap: pretty`, alinhamento óptico, `--tr-rotulo`/`--tr-ctrl`, ciano em texto só no H1/Conversa/dado, `--sp-3` menor, cartões 7fr/5fr, réguas em dois pesos, faixa sem fio duplo; CTA da nav discreto até o hero sair |
+
+Achado da rodada 3 (medido): subir a atmosfera com a rolagem (camada de
+duas telas em scrub) derrubava o desktop de 60 para 42 fps logo depois de
+rolar (54 com `will-change`). Saiu; a luz de fundo continua parada.
+
+Revisão de código por agente (`1c4cd63..d70735a`), feita e corrigida no
+commit seguinte: estreitar a janela de ≥981 para ≤860 prendia 2 números
+da prova em opacity 0 (o palco agora esconde por classe, não por `set`);
+CTA da nav ficava fantasma com movimento reduzido (agora `.nav--espera`
+só no contexto com movimento); religar o movimento recarrega a página; o
+log ainda voltava no tempo em rede lenta (agora imprime em ordem de DOM,
+`imprimirLog`); recarregar/voltar no meio do palco perdia a posição
+(restauração própria via `ST.clearScrollMemory('manual')` + sessionStorage);
+contagem interrompida deixava "0.00 s" e `data-contando` preso; overrides
+de movimento reduzido com especificidade menor; `.servico__n` em `--t2`
+(4,4:1 → AA); `--s3` e `--t-slow` sem uso. Fica: a luz do palco usa a
+largura medida na criação (cosmético, escondido pelo `overflow`).
+
+Achado medido depois da revisão: o boot de cima para baixo no celular
+atrasava o parágrafo do hero (o LCP) em ~0,3s. Ele entra no máximo em
+0,3s; mediana de LCP no celular de volta à V4.3 (~0,85s, 5 cargas A/B).
+
+Estado medido no fim da rodada 3: verificador 10/10, acessibilidade 23/23,
+60 fps em 1440/900/390. Capturas novas em `docs/olhar-v44/`.
+
 ### 16.3 O que falta (próximo passo exato)
 
-1. **Rodada 3** do painel sobre `docs/olhar-v43/` (já capturada). Rodar o
-   workflow com `{ rodada: 3, pasta: 'docs/olhar-v43' }`, aplicar o plano,
-   medir, commitar. Repetir enquanto a média subir. Critério de parada: duas
-   rodadas seguidas sem mudança de nota, ou júri ≥ 8.
-2. **Revisão de código por agente** (`code-reviewer`) sobre `1c4cd63..HEAD`:
-   contrato CSS/JS/HTML, reduced-motion sem nada escondido, contraste da
-   paleta com âmbar (`--ambar #F0B44F` sobre `--bg`/`--s1`/`--s2` e
-   `--ambar-tinta` sobre `--ambar`), caixas mais largas que a viewport no
-   celular, código morto. Corrigir o que apontar.
-3. Documentar no `CLAUDE.md` a assinatura (`tFeixe`, `is-lit`, sem `revert`
-   no hero) como regra, se sobreviver à rodada 3.
-4. Publicar só quando o dono pedir: a `main` continua na V3 clara (`e3272c7`).
+1. **Rodada 4** do painel sobre `docs/olhar-v44/` (já capturada; se sumiu,
+   `npm run olhar -- docs/olhar-v44`). Workflow com
+   `{ rodada: 4, pasta: 'docs/olhar-v44', versao: 'V4.4' }`. A rodada 3 subiu
+   só 0,1 (5,9 → 6,0), mas julgou a V4.3: a V4.4 ainda não foi julgada.
+   Critério de parada: duas rodadas seguidas sem subir a média, ou júri ≥ 8.
+2. Documentar no `CLAUDE.md` a assinatura (`tFeixe`/`tEm`, `is-lit`, sem
+   `revert` no h1 do hero, a luz que mede na prova e fecha na conversa) como
+   regra, se sobreviver à rodada 4.
+3. Publicar só quando o dono pedir: a `main` continua na V3 clara (`e3272c7`).
 
 ### 16.4 Limitações conhecidas
 

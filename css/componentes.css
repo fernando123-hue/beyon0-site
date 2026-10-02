@@ -35,7 +35,7 @@
 .servicos > :nth-child(2) { --tinta-rgb: var(--luz-rgb); }
 .servicos > :nth-child(3) { --tinta-rgb: var(--ambar-rgb); }
 .servico { display: flex; flex-direction: column; gap: .8rem; padding: clamp(22px, 5vw, 32px); min-height: 220px; color: var(--t1); }
-.servico__n { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); line-height: 1.4; color: var(--t3); display: flex; align-items: center; gap: .6rem; }
+.servico__n { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); line-height: 1.4; color: var(--t2); display: flex; align-items: center; gap: .6rem; }
 .servico__n::after { content: ""; width: 48px; height: 1px; background: var(--line-2); transform: scaleX(.5); transform-origin: left; transition: transform var(--t) var(--ease), background-color var(--t) var(--ease); }
 .servico:hover .servico__n::after { transform: scaleX(1); background-color: var(--ambar); }
 .servico:hover .servico__n { color: var(--ambar); }
@@ -143,6 +143,7 @@ html:not(.has-gsap) .varredura, html.menos-movimento .varredura { display: none;
 .prova--palco { grid-template-columns: 1fr; grid-template-areas: "p"; min-height: clamp(240px, 24vw, 340px); align-items: center; }
 .prova--palco .prova__item { grid-area: p; display: grid; grid-template-columns: auto minmax(0, 24ch); justify-content: start; column-gap: clamp(24px, 3vw, 48px); align-items: end; border: 0; padding: clamp(1.2rem, 2vw, 2rem) 0 clamp(1.2rem, 2vw, 2rem) clamp(1.6rem, 2.4vw, 2.6rem); }
 .prova--palco .prova__item + .prova__item { border-left: 0; }
+.prova--palco .prova__item:not(:first-child) { opacity: 0; }
 .prova--palco .prova__val { font-size: clamp(140px, 17vw, 280px); letter-spacing: -.06em; line-height: .82; margin-bottom: 0; }
 .prova--palco .prova__rot { font-size: var(--fs-b); padding-bottom: .6em; }
 

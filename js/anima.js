@@ -37,6 +37,12 @@
   function mostrarTudo() {
     for (var i = 0; i < splits.length; i++) { try { splits[i].revert(); } catch (e) { /* já revertido */ } }
     splits.length = 0;
+    /* contagem interrompida (reduzir no meio): o valor medido volta, e escrever() volta a atualizar */
+    var contando = document.querySelectorAll('[data-contando]');
+    for (var c = 0; c < contando.length; c++) {
+      if (contando[c]._final) contando[c]._final.alvo.textContent = contando[c]._final.txt;
+      contando[c].removeAttribute('data-contando');
+    }
     /* os filhos em cascata também: um reduzir() no meio da cascata deixava
        .qa/.celula com opacity parcial ou zero para sempre (achado da revisão) */
     gsap.set(LIMPAR, { clearProps: 'all' });
@@ -79,6 +85,7 @@
     var casas = (m[1].split(/[.,]/)[1] || '').length;
     var obj = { v: 0 };
     el.setAttribute('data-contando', '');
+    el._final = { alvo: alvo, txt: m[0] };   /* mostrarTudo devolve se a contagem morrer no meio */
     gsap.fromTo(obj, { v: 0 }, {
       v: fim, duration: duracao || 1.1, delay: atraso || 0, ease: 'power3.out',
       onUpdate: function () { alvo.textContent = obj.v.toFixed(casas) + sufixo; },
@@ -197,7 +204,8 @@
         }
       }
 
-      var tCol = sub ? tEm(sub) : .5;
+      /* o parágrafo é o LCP no celular: entra cedo (no máx. 0,3s), junto da última linha do título; esperar a luz descer até ele custava 0,3s de LCP (medido) */
+      var tCol = sub ? (largo ? tEm(sub) : Math.min(tEm(sub), .3)) : .5;
       if (sub) tl.fromTo(sub, { y: 18 }, { opacity: 1, y: 0, duration: .9 }, tCol + .05);
       if (acoes) tl.fromTo(acoes, { y: 14 }, { opacity: 1, y: 0, duration: .9 }, tCol + .15);
       if (fine) tl.to(fine, { opacity: 1, duration: .7 }, tCol + .25);
@@ -241,6 +249,31 @@
      desenha régua, trilho, barra e marca (css/motion.css). O cabeçalho entra
      em três tempos (kicker, linhas do h2, lead) e a ênfase do h2 acende. */
   var jaRevelou = false;
+
+  /* ---------- POSIÇÃO DE ROLAGEM ----------
+     O palco da prova estica a página (pin) só depois do boot: a restauração
+     nativa do navegador (recarregar, voltar) acontece antes e cai no lugar
+     errado. Com movimento, a página guarda o scrollY ao sair e o devolve
+     depois do refresh dos gatilhos. Em movimento reduzido nada disso liga. */
+  var CHAVE_ROLAGEM = 'beyon:rolagem:' + location.pathname;
+  var rolagemPropria = false;
+  if (!reduzido && ST && 'scrollRestoration' in history) {
+    try {
+      /* pelo próprio ScrollTrigger: ele mexe em scrollRestoration no refresh */
+      ST.clearScrollMemory('manual');
+      window.addEventListener('pagehide', function () { try { sessionStorage.setItem(CHAVE_ROLAGEM, String(Math.round(window.scrollY))); } catch (e) { /* sem armazenamento */ } });
+      rolagemPropria = true;
+    } catch (e) { /* navegador sem suporte: fica a restauração nativa */ }
+  }
+  function restaurarRolagem() {
+    if (!rolagemPropria) return;
+    var navEntry = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
+    var tipo = navEntry ? navEntry.type : '';
+    if (tipo !== 'reload' && tipo !== 'back_forward') return;
+    var y = null;
+    try { y = sessionStorage.getItem(CHAVE_ROLAGEM); } catch (e) { return; }
+    if (y !== null && +y > 0) window.scrollTo({ top: +y, behavior: 'instant' });
+  }
   var mm = null;   /* o gsap.matchMedia: reverter tudo (pin incluído) ao reduzir o movimento */
   var COM_FILHOS = '.servicos, .malha, .cenarios, .faq-list';
   var SEM_TWEEN = '.laudo, .passos, .prova, .spec';
@@ -376,7 +409,12 @@
           if (feixe) gsap.to(feixe, { opacity: 0, ease: 'none', scrollTrigger: { trigger: hero, start: '40% top', end: 'bottom top', scrub: true } });
           /* o CTA da nav é discreto enquanto o do hero está na tela; preenche quando ele sai */
           var acoes = hero.querySelector('.hero__actions'), navEl = document.querySelector('.nav');
-          if (acoes && navEl) ST.create({ trigger: acoes, start: 'bottom top', end: 'max', toggleClass: { targets: navEl, className: 'is-cta' } });
+          if (acoes && navEl) {
+            navEl.classList.add('nav--espera');
+            ST.create({ trigger: acoes, start: 'bottom top', end: 'max', toggleClass: { targets: navEl, className: 'is-cta' } });
+          }
+          /* ao sair do contexto (reduzir, janela estreita) o CTA volta a ser sólido */
+          return function () { if (navEl) navEl.classList.remove('nav--espera', 'is-cta'); };
         });
         mm.add('(min-width: 861px) and (hover: hover) and (prefers-reduced-motion: no-preference)', function () {
           var hero = document.querySelector('.hero'), consoleEl = document.querySelector('.console');
@@ -392,6 +430,7 @@
         });
       } catch (e) { /* profundidade é acréscimo, não conteúdo */ }
       if (ST) ST.refresh();
+      restaurarRolagem();
     }
   }
 
@@ -419,7 +458,9 @@
       if (i < itens.length - 1) tl.to(it, { opacity: 0, yPercent: -30, duration: .3, ease: 'power2.in' }, s + 1.15);
     });
     tl.set(luz, { opacity: 0 });
-    gsap.set(itens.slice(1), { opacity: 0 });
+    /* quem esconde os números 2 e 3 antes da luz é a classe .prova--palco (CSS),
+       não um set do GSAP: ao reverter o contexto (ex.: janela de 1440 para 860)
+       o set voltava como opacity:0 inline e prendia os números (revisão) */
     return function () {
       prova.classList.remove('prova--palco');
       gsap.set(itens.concat([luz]), { clearProps: 'opacity,transform' });

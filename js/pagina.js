@@ -188,34 +188,33 @@
       carimbar(el);
     }
   }
-  /* o console do hero: cada linha recebe o instante (s desde o início) em que
-     o valor chegou, sempre no mesmo formato (00.442). "sistema online" é
-     carimbada por último, quando todas as outras visíveis já têm hora: o log
-     nunca volta no tempo (achado da rodada 3). */
+  /* o console do hero é um log: cada linha recebe a hora (s desde o início,
+     formato 00.442) em que foi IMPRESSA, e imprime em ordem. Um valor que
+     chega antes do da linha de cima espera por ela; "sistema online" (sem
+     valor próprio) fecha o log. Assim a coluna nunca volta no tempo, em
+     qualquer rede (achado da revisão da rodada 3). */
   function fmt(ms) { var s = (ms / 1000).toFixed(3); return s.length < 6 ? '0' + s : s; }
   function carimbar(el) {
     var linha = el.closest && el.closest('.console__linha');
-    var t = linha && linha.querySelector('[data-console-t]');
-    if (!t || t.textContent !== '—') return;
-    var agora = performance.now();
-    t.textContent = fmt(agora);
-    /* chegou depois de o log fechar (a rede de 3s): "online" segue sendo a última */
-    var on = linha.parentNode.querySelector('.console__linha--on [data-console-t]');
-    if (on && on.textContent !== '—' && parseFloat(on.textContent) * 1000 < agora) on.textContent = fmt(agora + 1);
-    fecharLog(linha.parentNode);
+    if (!linha || linha.hasAttribute('data-pronta')) return;
+    linha.setAttribute('data-pronta', '');
+    imprimirLog(linha.parentNode, false);
   }
-  function fecharLog(cx, mesmoAssim) {
-    var on = cx && cx.querySelector('.console__linha--on [data-console-t]');
-    if (!on || on.textContent !== '—') return;
-    var ts = cx.querySelectorAll('.console__linha:not(.console__linha--on) [data-console-t]'), maior = 0;
+  /* percorre as linhas em ordem e carimba enquanto houver linha pronta; a
+     linha de fps some em movimento reduzido (offsetParent nulo) e não conta.
+     `mesmoAssim`: a rede de 3s depois do load, para uma medida que não veio. */
+  function imprimirLog(cx, mesmoAssim) {
+    var ts = cx ? cx.querySelectorAll('[data-console-t]') : [];
+    var ultimo = 0;
     for (var i = 0; i < ts.length; i++) {
-      if (ts[i].offsetParent === null || ts[i].textContent === '—') {
-        if (ts[i].offsetParent === null || mesmoAssim) continue;   /* a linha de fps some em movimento reduzido */
-        return;
-      }
-      maior = Math.max(maior, parseFloat(ts[i].textContent) * 1000);
+      var t = ts[i], linha = t.closest('.console__linha');
+      if (t.textContent !== '—') { ultimo = parseFloat(t.textContent) * 1000; continue; }
+      if (t.offsetParent === null) continue;
+      var pronta = linha.hasAttribute('data-pronta') || linha.classList.contains('console__linha--on') || mesmoAssim;
+      if (!pronta) return;
+      ultimo = Math.max(performance.now(), ultimo + 1);
+      t.textContent = fmt(ultimo);
     }
-    on.textContent = fmt(Math.max(performance.now(), maior + 1));
   }
   var consoleVp = document.querySelectorAll('[data-console-vp]');
   function viewport() { for (var v = 0; v < consoleVp.length; v++) { consoleVp[v].textContent = window.innerWidth + '×' + window.innerHeight; carimbar(consoleVp[v]); } }
@@ -224,7 +223,7 @@
     var vpTimer = 0;
     window.addEventListener('resize', function () { clearTimeout(vpTimer); vpTimer = setTimeout(viewport, 150); }, { passive: true });
     /* rede: se alguma medida não vier, o console fecha mesmo assim, 3s depois do load */
-    window.addEventListener('load', function () { setTimeout(function () { var cx = document.querySelector('[data-console]'); fecharLog(cx, true); }, 3000); }, { once: true });
+    window.addEventListener('load', function () { setTimeout(function () { imprimirLog(document.querySelector('[data-console]'), true); }, 3000); }, { once: true });
   }
   /* bytes deste domínio nesta visita. `encodedBodySize` em vez de
      `transferSize`: o segundo zera em revisita (cache), e o número passaria a
@@ -318,7 +317,11 @@
     };
     rotular();
     btnMov.addEventListener('click', function () {
-      B.reduzir(!html.classList.contains('menos-movimento'), true);
+      var ligar = !html.classList.contains('menos-movimento');
+      B.reduzir(ligar, true);
+      /* reduzir desmonta a coreografia (splits, gatilhos, medidor) de vez;
+         religar o movimento é recarregar, com a preferência já gravada */
+      if (!ligar) { location.reload(); return; }
       rotular();
     });
   }

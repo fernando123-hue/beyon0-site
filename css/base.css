@@ -123,10 +123,10 @@ html.tem-menu .nav.is-open .nav__links { max-height: calc(100dvh - var(--nav-h))
   .nav__links a:not(.btn):hover::after, .nav__links a.is-current::after { transform: scaleX(1); transform-origin: left; }
   .nav__sep { display: block; width: 1px; height: 16px; background: var(--line-2); }
   .nav__links .btn { margin: 0; }
-  /* com movimento no desktop, o CTA da nav espera o do hero sair (anima.js: .is-cta) */
-  html.has-gsap:not(.menos-movimento) .nav:not(.is-cta) .nav__links .btn--primary { background-color: transparent; border-color: var(--line-hi); color: var(--ac); }
+  /* com movimento no desktop, o CTA da nav espera o do hero sair (anima.js liga
+     .nav--espera só no contexto com movimento e marca .is-cta) */
+  .nav--espera:not(.is-cta) .nav__links .btn--primary { background-color: transparent; border-color: var(--line-hi); color: var(--ac); }
 }
-@media (min-width: 981px) and (prefers-reduced-motion: reduce) { html.has-gsap .nav .nav__links .btn--primary { background-color: var(--ac); border-color: var(--ac); color: var(--ac-tinta); } }
 
 /* ---- BOTÕES — mono, retangular, dois pesos, brilho que passa ---- */
 .btn {
