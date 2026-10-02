@@ -267,3 +267,21 @@ LCP, bytes) e o mesmo processo: laboratório → crítica → código → medida
 - Medido no fim (GPU real): fps igual com e sem reator (60/60 desktop; 60/59
   celular com CPU 4×), ~2 ms de script por quadro no celular com CPU 4×, CLS
   0–0,014, three reduzido 121 KB comprimido.
+
+## 12. Transição entre páginas (View Transitions) — 2026-10-02
+
+Feita em CSS puro no fim de `css/motion.css` (0 KB): a luz passa e imprime
+a página nova (`clip-path` da esquerda para a direita no desktop, de cima
+para baixo no celular, 520 ms, `--ease-io`), a velha recua para 35%; menu e
+barra fixa com nome próprio ficam parados; movimento reduzido (sistema ou
+interruptor) desliga. Só dispara em clique real (o navegador ignora
+navegação disparada por script — conferido).
+
+**Estado da verificação (honesto):** com duas páginas mínimas a transição
+dispara em 100% das cargas no headless; entre as páginas do site, só em
+parte delas. A página velha sempre inicia (`pageswap` com transição) e a
+nova às vezes chega sem ela (`pagereveal` nulo), sem aviso no console;
+remover um script por vez não muda o padrão, e o mesmo cenário alterna
+entre sim e não — aponta para timing do headless, não isolado. Quando o
+navegador pula, a navegação é a de sempre (nenhum risco funcional).
+**A confirmar num celular real** (Chrome Android 126+, Safari iOS 18.2+).

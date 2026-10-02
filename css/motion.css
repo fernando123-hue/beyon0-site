@@ -206,3 +206,27 @@ html.has-gsap:not(.menos-movimento) .split-word.is-tinta { color: var(--ac); tra
   .cta__alvo:hover .btn__canto:nth-of-type(4) { transform: translate(-3px, -3px); }
 }
 @media (max-width: 620px) { .cta__alvo { display: block; } }
+
+/* ==========================================================================
+   TRANSIÇÃO ENTRE PÁGINAS (View Transitions entre documentos, CSS puro, 0 KB)
+   O gesto da assinatura: a luz passa e IMPRIME a página nova — no desktop da
+   esquerda para a direita, no celular de cima para baixo (como o fio do
+   hero). A página velha recua um pouco enquanto a nova é impressa por cima.
+   O menu e a barra fixa do celular ficam parados (têm nome próprio).
+   Navegador sem suporte navega como sempre. Movimento reduzido (do sistema
+   ou do interruptor do rodapé, que o js/ancoras.js liga antes de pintar):
+   sem transição. Plano: docs/restructure/PLANO-AI-CORE.md, seção 9.
+   ========================================================================== */
+@view-transition { navigation: auto; }
+@media (prefers-reduced-motion: reduce) { @view-transition { navigation: none; } }
+.nav { view-transition-name: nav; }
+.barra { view-transition-name: barra; }
+::view-transition-old(root) { animation: vt-recua 520ms var(--ease-io) both; }
+::view-transition-new(root) { animation: vt-imprime 520ms var(--ease-io) both; }
+@keyframes vt-recua { to { opacity: .35; } }
+@keyframes vt-imprime { from { clip-path: inset(0 0 100% 0); } to { clip-path: inset(0); } }
+@media (min-width: 861px) {
+  @keyframes vt-imprime { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0); } }
+}
+html.menos-movimento::view-transition-old(root),
+html.menos-movimento::view-transition-new(root) { animation: none; }
