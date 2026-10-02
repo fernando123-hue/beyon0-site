@@ -171,13 +171,16 @@
   var elPeso = document.querySelectorAll('[data-metrica="peso"]');
   /* valor e unidade separados: na prova a unidade fica subordinada (<small>);
      nos demais alvos vira texto. Dois createElement: nada de innerHTML. */
+  /* `data-so-numero`: a unidade é um nó fixo no HTML ao lado (console) */
   function escrever(lista, valor, unidade) {
-    var txt = unidade ? valor + ' ' + unidade : String(valor);
+    var txt = unidade ? valor + ' ' + unidade : String(valor);
     for (var k = 0; k < lista.length; k++) {
       var el = lista[k];
       if (el.hasAttribute('data-contando') || el.getAttribute('data-txt') === txt) continue;
       el.setAttribute('data-txt', txt);
-      if (el.classList.contains('prova__val') && unidade) {
+      if (el.hasAttribute('data-so-numero')) {
+        el.textContent = String(valor);
+      } else if (el.classList.contains('prova__val') && unidade) {
         el.textContent = '';
         var b = document.createElement('b'); b.textContent = String(valor);
         var sm = document.createElement('small'); sm.textContent = unidade;
@@ -193,7 +196,7 @@
      chega antes do da linha de cima espera por ela; "sistema online" (sem
      valor próprio) fecha o log. Assim a coluna nunca volta no tempo, em
      qualquer rede (achado da revisão da rodada 3). */
-  function fmt(ms) { var s = (ms / 1000).toFixed(3); return s.length < 6 ? '0' + s : s; }
+  function fmt(ms) { var s = B.num(ms / 1000, 3); return s.length < 6 ? '0' + s : s; }
   function carimbar(el) {
     var linha = el.closest && el.closest('.console__linha');
     if (!linha || linha.hasAttribute('data-pronta')) return;
@@ -208,7 +211,7 @@
     var ultimo = 0;
     for (var i = 0; i < ts.length; i++) {
       var t = ts[i], linha = t.closest('.console__linha');
-      if (t.textContent !== '—') { ultimo = parseFloat(t.textContent) * 1000; continue; }
+      if (t.textContent !== '—') { ultimo = parseFloat(t.textContent.replace(',', '.')) * 1000; continue; }
       if (t.offsetParent === null) continue;
       var pronta = linha.hasAttribute('data-pronta') || linha.classList.contains('console__linha--on') || mesmoAssim;
       if (!pronta) return;
@@ -242,29 +245,42 @@
      visita, com início e duração reais. Montada uma vez, com createElement.
      Sem entradas, a caixa fica escondida: nenhum número inventado. */
   var cascata = document.querySelector('[data-cascata]');
+  function papelDe(caminho) {
+    if (/\.css$/.test(caminho)) return 'aparência';
+    if (/\.woff2$/.test(caminho)) return 'tipografia';
+    if (/(gsap|SplitText|ScrollTrigger|anima)[^/]*\.js$/.test(caminho)) return 'movimento';
+    if (/\.js$/.test(caminho)) return 'interação';
+    return null;
+  }
   function montarCascata() {
     if (!cascata || cascata.childNodes.length) return;
-    var lista = [], recursos = performance.getEntriesByType('resource'), total = 0;
+    /* por PAPEL, não por arquivo: o cliente lê "aparência terminou em 412 ms".
+       Cada grupo mostra o instante em que terminou (maior responseEnd). Não
+       soma durações: as requisições correm em paralelo e a soma seria falsa. */
+    var grupos = {}, recursos = performance.getEntriesByType('resource'), total = 0;
     for (var i = 0; i < recursos.length; i++) {
       var r = recursos[i], u;
       try { u = new URL(r.name, location.href); } catch (e) { continue; }
-      if (u.origin !== location.origin || !(r.duration > 0)) continue;
-      lista.push(r);
+      if (u.origin !== location.origin || !(r.responseEnd > 0)) continue;
+      var papel = papelDe(u.pathname);
+      if (!papel) continue;
+      var g = grupos[papel] || (grupos[papel] = { nome: papel, ini: r.startTime, fim: r.responseEnd });
+      g.ini = Math.min(g.ini, r.startTime); g.fim = Math.max(g.fim, r.responseEnd);
       total = Math.max(total, r.responseEnd);
     }
+    var lista = Object.keys(grupos).map(function (k) { return grupos[k]; });
     if (!lista.length || !(total > 0)) { cascata.hidden = true; return; }
-    lista.sort(function (a, b) { return b.duration - a.duration; });
-    lista = lista.slice(0, window.innerWidth >= 861 ? 6 : 4).sort(function (a, b) { return a.startTime - b.startTime; });
-    var maior = lista.reduce(function (m, r) { return r.duration > m.duration ? r : m; }, lista[0]);
+    lista.sort(function (a, b) { return a.ini - b.ini; });
+    var ultimo = lista.reduce(function (m, x) { return x.fim > m.fim ? x : m; }, lista[0]);
     for (var k = 0; k < lista.length; k++) {
       var e = lista[k];
-      var linha = document.createElement('div'); linha.className = 'cascata__linha' + (e === maior ? ' cascata__linha--maior' : '');
-      var nome = document.createElement('span'); nome.className = 'cascata__nome'; nome.textContent = new URL(e.name, location.href).pathname.split('/').pop() || '/';
+      var linha = document.createElement('div'); linha.className = 'cascata__linha' + (e === ultimo ? ' cascata__linha--maior' : '');
+      var nome = document.createElement('span'); nome.className = 'cascata__nome'; nome.textContent = e.nome;
       var trilho = document.createElement('span'); trilho.className = 'cascata__trilho';
       var barra = document.createElement('i'); barra.className = 'cascata__barra';
-      barra.style.left = (e.startTime / total * 100).toFixed(2) + '%';
-      barra.style.width = Math.max(2, e.duration / total * 100).toFixed(2) + '%';
-      var ms = document.createElement('span'); ms.className = 'cascata__ms'; ms.textContent = Math.round(e.duration) + ' ms';
+      barra.style.left = (e.ini / total * 100).toFixed(2) + '%';
+      barra.style.width = Math.max(2, (e.fim - e.ini) / total * 100).toFixed(2) + '%';
+      var ms = document.createElement('span'); ms.className = 'cascata__ms'; ms.textContent = B.num(Math.round(e.fim)) + ' ms';
       trilho.appendChild(barra); linha.appendChild(nome); linha.appendChild(trilho); linha.appendChild(ms);
       cascata.appendChild(linha);
     }
@@ -276,9 +292,12 @@
     montarCascata();
     var nav = performance.getEntriesByType('navigation')[0];
     if (!nav) return;
-    if (elCarga.length && nav.domContentLoadedEventEnd > 0) escrever(elCarga, (nav.domContentLoadedEventEnd / 1000).toFixed(2), 's');
+    if (elCarga.length && nav.domContentLoadedEventEnd > 0) escrever(elCarga, B.num(nav.domContentLoadedEventEnd / 1000, 2), 's');
+    /* a etiqueta do feixe: o tempo real deste boot, escrito uma vez */
+    var tag = document.querySelector('[data-feixe-tag]');
+    if (tag && !tag.textContent && nav.domContentLoadedEventEnd > 0) tag.textContent = 'varredura · ' + B.num(nav.domContentLoadedEventEnd / 1000, 2) + ' s';
     var total = bytesDaOrigem(nav);
-    if (total > 0 && elPeso.length) escrever(elPeso, Math.round(total / 1024), 'KB');
+    if (total > 0 && elPeso.length) escrever(elPeso, B.num(Math.round(total / 1024)), 'KB');
   }
   if (elCarga.length || elPeso.length) {
     if (document.readyState === 'complete') medidasDeCarga();
@@ -297,7 +316,7 @@
     B.add('medidor', function (s) {
       if (s.now - ultFps < 500) return;
       ultFps = s.now;
-      escrever(elFps, Math.round(s.fps), 'fps');
+      escrever(elFps, B.num(Math.round(s.fps)), 'fps');
     });
     /* em movimento reduzido não há o que medir: o item de fps da prova some
        (css/motion.css) e a trilha diz o porquê em vez de um traço */
@@ -305,6 +324,11 @@
   } else if (elFps.length) {
     escrever(elFps, 'movimento reduzido');
   }
+
+  /* a transição entre páginas (css/motion.css) respeita o interruptor */
+  window.addEventListener('pageswap', function (e) {
+    if (html.classList.contains('menos-movimento') && e.viewTransition) e.viewTransition.skipTransition();
+  });
 
   /* ---------- interruptor "menos movimento" (rodapé) ---------- */
   var btnMov = document.querySelector('.footer__motion');

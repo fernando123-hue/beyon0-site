@@ -157,13 +157,13 @@
     <!-- HERO — a frase da V1 fica. A arte é o laudo em três leituras de
          instrumento (lugar reservado ao AI Core futuro). -->
     <section class="hero hero--longo" id="hero" aria-labelledby="hero-titulo">
-      <div class="feixe" aria-hidden="true"><span class="feixe__linha"></span></div>
+      <div class="feixe" aria-hidden="true"><span class="feixe__linha"><span class="feixe__tag" data-feixe-tag></span></span></div>
       <p class="hero__status"><span class="dot" aria-hidden="true"></span><span>Para entidades e associações</span></p>
         <h1 class="hero__title" id="hero-titulo">Toda entidade perde dinheiro num ponto que ninguém está <em>auditando</em>.</h1>
         <div class="hero__main">
         <p class="hero__sub">Eu encontro esse ponto. Se a IA gerar receita, cortar custo ou devolver capacidade ali, eu construo o sistema. Se não gerar, eu digo.</p>
         <div class="hero__actions">
-          <a class="btn btn--primary" data-wa data-lead-gate href="https://wa.me/5521977167944" target="_blank" rel="noopener">Agendar diagnóstico</a>
+          <a class="btn btn--primary" data-wa data-lead-gate href="https://wa.me/5521977167944" target="_blank" rel="noopener">Agendar diagnóstico <span aria-hidden="true" data-seta="direita">→</span></a>
           <a class="btn btn--ghost" href="#projetos">Ver onde isso se aplica <span aria-hidden="true" data-seta="baixo">↓</span></a>
         </div>
         <p class="hero__fine">Quem faz o diagnóstico é quem constrói. Sem equipe no meio do caminho.</p>
@@ -231,37 +231,37 @@
           <a class="celula" data-wa="quero um agente de IA que execute tarefas na minha entidade" href="https://wa.me/5521977167944">
             <span class="celula__n" aria-hidden="true">01</span>
             <h3>Agentes que executam</h3>
-            <p>Recebe uma tarefa, cumpre com as ferramentas certas e chama você só quando precisa de uma decisão. Mais <em>funcionário</em> do que chatbot.</p>
+            <p>Recebe uma tarefa, cumpre com as ferramentas certas e chama você só quando precisa de uma decisão. Mais funcionário do que chatbot.</p>
             <span class="celula__link">Conversar <span aria-hidden="true" data-seta="direita">→</span></span>
           </a>
           <a class="celula" data-wa="quero escalar meu atendimento com IA" href="https://wa.me/5521977167944">
             <span class="celula__n" aria-hidden="true">02</span>
             <h3>Atendimento que escala</h3>
-            <p>Absorve o volume repetitivo, classifica o que chega e passa pra uma pessoa só o que <em>precisa</em> de uma.</p>
+            <p>Absorve o volume repetitivo, classifica o que chega e passa pra uma pessoa só o que precisa de uma.</p>
             <span class="celula__link">Conversar <span aria-hidden="true" data-seta="direita">→</span></span>
           </a>
           <a class="celula" data-wa="quero recuperar contatos e oportunidades perdidas com IA" href="https://wa.me/5521977167944">
             <span class="celula__n" aria-hidden="true">03</span>
             <h3>Receita recuperada</h3>
-            <p>Contato esquecido, orçamento sem resposta, associado que sumiu: o sistema encontra, prioriza e <em>reabre</em> a conversa.</p>
+            <p>Contato esquecido, orçamento sem resposta, associado que sumiu: o sistema encontra, prioriza e reabre a conversa.</p>
             <span class="celula__link">Conversar <span aria-hidden="true" data-seta="direita">→</span></span>
           </a>
           <a class="celula" data-wa="quero automatizar um processo da minha entidade" href="https://wa.me/5521977167944">
             <span class="celula__n" aria-hidden="true">04</span>
             <h3>Processos automatizados</h3>
-            <p>O gargalo que trava a operação vira fluxo automático, com registro, validação e <em>parada humana</em> onde importa.</p>
+            <p>O gargalo que trava a operação vira fluxo automático, com registro, validação e parada humana onde importa.</p>
             <span class="celula__link">Conversar <span aria-hidden="true" data-seta="direita">→</span></span>
           </a>
           <a class="celula" data-wa="quero usar os dados da minha entidade com IA" href="https://wa.me/5521977167944">
             <span class="celula__n" aria-hidden="true">05</span>
             <h3>Dados que respondem</h3>
-            <p>Documentos, histórico e conhecimento interno viram resposta pronta na hora exata em que alguém precisa <em>decidir</em>.</p>
+            <p>Documentos, histórico e conhecimento interno viram resposta pronta na hora exata em que alguém precisa decidir.</p>
             <span class="celula__link">Conversar <span aria-hidden="true" data-seta="direita">→</span></span>
           </a>
           <a class="celula" data-wa="quero um sistema ou site potencializado por IA" href="https://wa.me/5521977167944">
             <span class="celula__n" aria-hidden="true">06</span>
             <h3>Sistemas &amp; interfaces</h3>
-            <p>O software que junta tudo isso: integração, painel de gestão e o site que já nasce como <em>parte do sistema</em>.</p>
+            <p>O software que junta tudo isso: integração, painel de gestão e o site que já nasce como parte do sistema.</p>
             <span class="celula__link">Conversar <span aria-hidden="true" data-seta="direita">→</span></span>
           </a>
         </div>
@@ -330,7 +330,7 @@
       </div>
     </section>
 
-    <section class="section" id="faq" aria-labelledby="faq-titulo">
+    <section class="section section--faq" id="faq" aria-labelledby="faq-titulo">
       <div class="section__head reveal">
         <p class="kicker"><b>05</b> Perguntas</p>
         <h2 id="faq-titulo">Antes de agendar, o que costumam perguntar.</h2>
@@ -389,7 +389,7 @@
         <h2 id="contato-titulo">Comece pelo problema, não pelo <em>discurso</em> de venda.</h2>
         <p class="lead">O diagnóstico começa com uma conversa direta sobre a sua entidade. Escopo e preço fechados antes de construir, e se não houver onde a IA pague por si, eu digo.</p>
         <div class="cta__acoes">
-          <a class="btn btn--primary btn--lg" data-wa data-lead-gate href="https://wa.me/5521977167944" target="_blank" rel="noopener">Agendar diagnóstico</a>
+          <a class="btn btn--primary btn--lg" data-wa data-lead-gate href="https://wa.me/5521977167944" target="_blank" rel="noopener">Agendar diagnóstico <span aria-hidden="true" data-seta="direita">→</span></a>
         </div>
         <p class="fine">Quem responde é humano. O diagnóstico é grátis e sem compromisso.</p>
         <p class="cta__resumo"><a href="/resumo">Prefere levar pra sua diretoria antes de decidir? Veja o resumo <span aria-hidden="true" data-seta="direita">→</span></a></p>
@@ -423,7 +423,7 @@
     </div>
   </footer>
 
-  <div class="barra is-oculta" id="barra">
+  <div class="barra barra--longa is-oculta" id="barra">
     <span class="barra__k">Quem responde é quem constrói</span>
     <a class="btn btn--primary" data-wa data-lead-gate href="https://wa.me/5521977167944" target="_blank" rel="noopener">Agendar diagnóstico <span aria-hidden="true" data-seta="direita">→</span></a>
   </div>

@@ -107,13 +107,13 @@
     <!-- HERO — a peça é um site de verdade em miniatura, feito de HTML, numa
          janela de vidro. Num site que vende sites, o mockup É a demonstração. -->
     <section class="hero hero--longo" id="hero" aria-labelledby="hero-titulo">
-      <div class="feixe" aria-hidden="true"><span class="feixe__linha"></span></div>
+      <div class="feixe" aria-hidden="true"><span class="feixe__linha"><span class="feixe__tag" data-feixe-tag></span></span></div>
       <p class="hero__status"><span class="dot" aria-hidden="true"></span><span>Sites · três formatos</span></p>
         <h1 class="hero__title" id="hero-titulo">Sites que carregam rápido e <em>convencem</em>.</h1>
         <div class="hero__main">
         <p class="hero__sub">Feitos primeiro para o celular, com o seu negócio explicado sem rodeio e a prova de velocidade rodando nesta página, agora.</p>
         <div class="hero__actions">
-          <a class="btn btn--primary" data-wa href="https://wa.me/5521977167944">Quero um site</a>
+          <a class="btn btn--primary" data-wa href="https://wa.me/5521977167944">Quero um site <span aria-hidden="true" data-seta="direita">→</span></a>
           <a class="btn btn--ghost" href="#prova">Ver a prova <span aria-hidden="true" data-seta="baixo">↓</span></a>
         </div>
         <p class="hero__fine">Primeira conversa grátis. Escopo e preço fechados antes de começar.</p>
@@ -158,27 +158,27 @@
         <h2 id="formatos-titulo">Três formatos, um padrão de acabamento.</h2>
         <p class="lead">O que muda de um para o outro é o tamanho do problema, nunca o cuidado com o resultado.</p>
       </div>
-      <div class="servicos reveal">
+      <div class="servicos servicos--pilha reveal">
         <a class="painel painel--tinta servico" data-wa="quero um site institucional" href="https://wa.me/5521977167944">
           <span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span>
           <span class="servico__fundo" aria-hidden="true">01</span>
           <span class="servico__n" aria-hidden="true">01</span>
           <h3>Site institucional</h3>
-          <p>A casa da marca. Quem você é, o que faz, para quem, e por que confiar, organizado para quem chegou sem te conhecer <em>decidir</em> te procurar.</p>
+          <p>A casa da marca. Quem você é, o que faz, para quem, e por que confiar, organizado para quem chegou sem te conhecer decidir te procurar.</p>
           <span class="servico__link">Conversar sobre este formato <span aria-hidden="true" data-seta="direita">→</span></span>
         </a>
         <a class="painel painel--tinta servico" data-wa="quero uma landing page" href="https://wa.me/5521977167944">
           <span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span>
           <span class="servico__n" aria-hidden="true">02</span>
           <h3>Landing page</h3>
-          <p>Uma página, um objetivo, nenhuma saída lateral. Feita para campanha, lançamento ou anúncio, onde cada bloco leva a <em>uma</em> ação.</p>
+          <p>Uma página, um objetivo, nenhuma saída lateral. Feita para campanha, lançamento ou anúncio, onde cada bloco leva a uma ação.</p>
           <span class="servico__link">Conversar sobre este formato <span aria-hidden="true" data-seta="direita">→</span></span>
         </a>
         <a class="painel painel--tinta servico" data-wa="quero um site sob medida" href="https://wa.me/5521977167944">
           <span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span>
           <span class="servico__n" aria-hidden="true">03</span>
           <h3>Site sob medida</h3>
-          <p>Quando o formato pronto não dá conta: catálogo, área de associado, integração com o que você já usa, ou uma experiência que precisa ser <em>sua</em>.</p>
+          <p>Quando o formato pronto não dá conta: catálogo, área de associado, integração com o que você já usa, ou uma experiência que precisa ser sua.</p>
           <span class="servico__link">Conversar sobre este formato <span aria-hidden="true" data-seta="direita">→</span></span>
         </a>
       </div>
@@ -212,10 +212,11 @@
         <p class="lead">Em vez de dizer que faço sites rápidos, deixo a página se medir sozinha enquanto você lê. Os números abaixo são desta visita, neste aparelho.</p>
       </div>
       <div class="prova reveal" data-metrica-caixa>
-        <div class="prova__item"><span class="prova__val" data-metrica="carga">—</span><span class="prova__rot">até a página estar pronta para uso</span></div>
-        <div class="prova__item"><span class="prova__val" data-metrica="peso">—</span><span class="prova__rot">baixados deste domínio até agora, fontes incluídas</span></div>
-        <div class="prova__item" data-metrica-fps><span class="prova__val" data-metrica="fps">—</span><span class="prova__rot">quadros por segundo sustentados agora, com o movimento rodando</span></div>
+        <div class="prova__item"><span class="prova__mascara"><span class="prova__tinta"><span class="prova__val" data-metrica="carga">—</span></span></span><span class="prova__rot">até a página estar pronta para uso</span></div>
+        <div class="prova__item"><span class="prova__mascara"><span class="prova__tinta"><span class="prova__val" data-metrica="peso">—</span></span></span><span class="prova__rot">baixados deste domínio até agora, fontes incluídas</span></div>
+        <div class="prova__item" data-metrica-fps><span class="prova__mascara"><span class="prova__tinta"><span class="prova__val" data-metrica="fps">—</span></span></span><span class="prova__rot">quadros por segundo sustentados agora, com o movimento rodando</span></div>
         <span class="varredura" aria-hidden="true"></span>
+        <div class="prova__passo" aria-hidden="true"><span class="prova__idx">01 / 03</span><i class="prova__barra"></i></div>
       </div>
       <p class="prova__nota">Medido pelo seu navegador, nesta visita. Nada aqui vem de terceiros: fontes e movimento saem deste domínio.</p>
     </section>
@@ -234,10 +235,10 @@
       </ol>
     </section>
 
-    <section class="section" id="faq" aria-labelledby="faq-titulo">
+    <section class="section section--faq" id="faq" aria-labelledby="faq-titulo">
       <div class="section__head reveal">
         <p class="kicker"><b>05</b> Perguntas</p>
-        <h2 id="faq-titulo">O que você deve estar<br class="br-l" /> se perguntando.</h2>
+        <h2 id="faq-titulo">O que você deve estar se perguntando.</h2>
       </div>
       <!-- texto idêntico ao FAQPage do <head> -->
       <div class="faq-list reveal">
@@ -260,7 +261,7 @@
         <h2 id="contato-titulo">Me conte o que seu site precisa <em>resolver</em>.</h2>
         <p class="lead">Não precisa chegar com o projeto pronto na cabeça. Uma conversa curta sobre o negócio já diz qual dos três formatos faz sentido.</p>
         <div class="cta__acoes">
-          <a class="btn btn--primary btn--lg" data-wa href="https://wa.me/5521977167944">Quero um site</a>
+          <a class="btn btn--primary btn--lg" data-wa href="https://wa.me/5521977167944">Quero um site <span aria-hidden="true" data-seta="direita">→</span></a>
         </div>
         <p class="fine">Quem responde é humano. A primeira conversa é grátis e sem compromisso.</p>
       </div>

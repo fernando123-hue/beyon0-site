@@ -11,6 +11,11 @@
    css/motion.css desenha a entrada própria de cada componente) e só o
    conteúdo se move, nunca o contêiner. Só transform/opacity/visibility.
 
+   Três pesos de entrada (rodada 4), e só estes:
+   - pesado: linhas de h1/h2 sobem atrás da máscara (yPercent 108, .95s, stagger .09);
+   - médio: cartões e linhas (y 14, .8s, stagger .12; na malha, onda diagonal);
+   - leve: kicker, lead e nota, só opacidade (.5s, power2.out).
+
    É aditivo e opcional: sem GSAP, o arquivo sai, js/pagina.js retira
    `html.js` e o site aparece inteiro. Em movimento reduzido: tudo visível.
    ========================================================================== */
@@ -29,7 +34,7 @@
   var reduzido = B.reduced;
   var splits = [];   /* todo SplitText vivo, para reverter se o movimento for reduzido no meio */
   var HERO_PECAS = '.hero__status, .hero__sub, .hero__actions, .hero__fine, .hero__arte, .hero__rail, .nav';
-  var LIMPAR = '.reveal, .reveal > *, .section__head > *, .hero__rail > *, .hero__rail-aresta, .conversa__regua, .console__linha > *, .console__medida, .nav__links > *, .feixe__linha, .hero__title, .split-word, .instrumento__nivel, .instrumento__val, .prova__item, .varredura, ' + HERO_PECAS;
+  var LIMPAR = '.reveal, .reveal > *, .section__head > *, .hero__rail > *, .hero__rail-aresta, .conversa__regua, .console__linha > *, .console__medida, .nav__links > *, .feixe__linha, .hero__title, .split-word, .instrumento__nivel, .instrumento__val, .prova__item, .prova__mascara, .prova__tinta, .prova__rot, .prova__barra, .varredura, ' + HERO_PECAS;
 
   function acender(sel) { var els = document.querySelectorAll(sel); for (var i = 0; i < els.length; i++) els[i].classList.add('is-lit'); }
 
@@ -88,7 +93,7 @@
     el._final = { alvo: alvo, txt: m[0] };   /* mostrarTudo devolve se a contagem morrer no meio */
     gsap.fromTo(obj, { v: 0 }, {
       v: fim, duration: duracao || 1.1, delay: atraso || 0, ease: 'power3.out',
-      onUpdate: function () { alvo.textContent = obj.v.toFixed(casas) + sufixo; },
+      onUpdate: function () { alvo.textContent = B.num(obj.v, casas) + sufixo; },
       onComplete: function () { alvo.textContent = m[0]; el.removeAttribute('data-contando'); }
     });
   }
@@ -311,12 +316,12 @@
   }
   function cabecalho(cabeca) {
     var kick = cabeca.querySelector('.kicker'), lead = cabeca.querySelector('.lead'), h = cabeca.querySelector('h2');
-    if (kick) gsap.fromTo(kick, { opacity: 0, x: -8 }, { opacity: 1, x: 0, duration: .6, ease: EXPO, clearProps: 'all' });
-    if (lead) gsap.fromTo(lead, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: .8, delay: .35, ease: EXPO, clearProps: 'all' });
+    if (kick) gsap.fromTo(kick, { opacity: 0 }, { opacity: 1, duration: .5, ease: 'power2.out', clearProps: 'all' });
+    if (lead) gsap.fromTo(lead, { opacity: 0 }, { opacity: 1, duration: .5, delay: .45, ease: 'power2.out', clearProps: 'all' });
     if (h && !h._partido) {
       h._partido = true;
       var sp = partir(h, 'lines');
-      if (sp && sp.lines.length) gsap.from(sp.lines, { yPercent: 108, duration: .95, delay: .1, stagger: .09, ease: EXPO, onComplete: function () { sp.revert(); h.classList.add('is-lit'); } });
+      if (sp && sp.lines.length) gsap.from(sp.lines, { yPercent: 108, duration: .95, delay: .25, stagger: .09, ease: EXPO, onComplete: function () { sp.revert(); h.classList.add('is-lit'); } });
       else h.classList.add('is-lit');
     }
     var regua = cabeca.parentNode.querySelector('.conversa__regua');
@@ -337,7 +342,7 @@
     var tl = gsap.timeline();
     tl.fromTo(luz, { x: -w, opacity: 1 }, { x: cx.width, duration: T, ease: 'none' }, 0).set(luz, { opacity: 0 });
     if (regua) tl.fromTo(regua, { scaleX: 0, transformOrigin: 'left center' }, { scaleX: 1, duration: T, ease: 'none' }, 0);
-    if (kick) tl.fromTo(kick, { opacity: 0, x: -8 }, { opacity: 1, x: 0, duration: .6, ease: EXPO, clearProps: 'all' }, 0);
+    if (kick) tl.fromTo(kick, { opacity: 0 }, { opacity: 1, duration: .5, ease: 'power2.out', clearProps: 'all' }, 0);
     var sp = partir(h, 'words');
     if (sp && sp.words && sp.words.length) {
       gsap.set(sp.words, { yPercent: 100 });
@@ -347,7 +352,7 @@
       /* não é o LCP: o h2 volta ao DOM original no fim */
       tl.add(function () { try { sp.revert(); } catch (e) { /* já revertido */ } }, T + .8);
     } else h.classList.add('is-lit');
-    if (lead) tl.fromTo(lead, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: .8, ease: EXPO, clearProps: 'all' }, .35);
+    if (lead) tl.fromTo(lead, { opacity: 0 }, { opacity: 1, duration: .5, ease: 'power2.out', clearProps: 'all' }, .45);
     if (btn) tl.add(function () { btn.classList.add('is-passou'); }, quando(btn));
   }
   function de(tabela, el, padrao) { for (var k in tabela) if (el.matches(k)) return tabela[k]; return padrao; }
@@ -357,7 +362,7 @@
     var kids = el.matches(COM_FILHOS) ? el.children : null;
     gsap.to(el, { opacity: 1, y: 0, duration: imediato ? .35 : .45, ease: EXPO, overwrite: true });
     if (kids && kids.length) {
-      gsap.fromTo(kids, { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 1, delay: de(ATRASO, el, 0), ease: EXPO, stagger: { each: de(CASCATA, el, .07) }, clearProps: 'opacity,transform' });
+      gsap.fromTo(kids, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: .8, delay: de(ATRASO, el, 0), ease: EXPO, stagger: { each: de(CASCATA, el, .12), grid: 'auto', from: 'start' }, clearProps: 'opacity,transform' });
     }
   }
   function scrollReveals() {
@@ -435,10 +440,13 @@
   }
 
   /* ---------- O PALCO DA PROVA (desktop, com movimento) ----------
-     O momento de assinatura: a prova fica fixa na tela por duas alturas de
-     rolagem e a luz atravessa três vezes; em cada passagem um número entra
-     no instante em que ela cruza a borda dele, e o anterior sai. A rolagem
-     conduz (scrub). Os números já estão escritos: nada conta aqui. */
+     O momento de assinatura: a prova fica fixa na tela e a luz atravessa
+     três vezes. Em cada passagem ela IMPRIME um número: uma máscara cuja
+     borda anda no centro da luz revela a leitura nova à esquerda e apaga a
+     anterior à direita. A rolagem conduz (scrub) e assenta em cada leitura
+     (snap). O passo "01 / 03" e a barra dizem onde se está. Só transform e
+     opacity; larguras como função (invalidateOnRefresh): redimensionar
+     recalcula. Os números já estão escritos: nada conta aqui. */
   function palco() {
     var prova = document.querySelector('.prova');
     var luz = prova && prova.querySelector('.varredura');
@@ -448,22 +456,56 @@
     var itens = visiveis(prova.querySelectorAll('.prova__item'));
     if (!itens.length) { prova.classList.remove('prova--palco'); return; }
     itens.forEach(function (it) { it.classList.add('is-lit'); });
-    var cx = prova.getBoundingClientRect(), W = cx.width, w = luz.offsetWidth;
-    var tl = gsap.timeline({ scrollTrigger: { trigger: sec, start: 'center center', end: '+=200%', pin: true, scrub: .6, refreshPriority: 1 } });
-    itens.forEach(function (it, i) {
-      var s = i * 1.4;
-      var px = it.querySelector('.prova__val').getBoundingClientRect().left - cx.left;
-      tl.fromTo(luz, { x: -w, opacity: 1 }, { x: W, duration: 1, ease: 'none', immediateRender: false }, s);
-      if (i > 0) tl.fromTo(it, { opacity: 0, yPercent: 30 }, { opacity: 1, yPercent: 0, duration: .35, ease: 'power2.out', immediateRender: false }, s + tPassagem(px, W, w, 1));
-      if (i < itens.length - 1) tl.to(it, { opacity: 0, yPercent: -30, duration: .3, ease: 'power2.in' }, s + 1.15);
+    var idx = prova.querySelector('.prova__idx'), barra = prova.querySelector('.prova__barra');
+    var W = function () { return prova.clientWidth; }, w = function () { return luz.offsetWidth; };
+    var partes = itens.map(function (it) {
+      var m = it.querySelector('.prova__mascara');
+      return { m: m, t: it.querySelector('.prova__tinta'), rot: it.querySelector('.prova__rot'),
+        px: function () { return m.getBoundingClientRect().left - prova.getBoundingClientRect().left; },
+        wm: function () { return m.offsetWidth; } };
     });
-    tl.set(luz, { opacity: 0 });
-    /* quem esconde os números 2 e 3 antes da luz é a classe .prova--palco (CSS),
-       não um set do GSAP: ao reverter o contexto (ex.: janela de 1440 para 860)
-       o set voltava como opacity:0 inline e prendia os números (revisão) */
+    var total = itens.length, atual = 0;
+    var tl = gsap.timeline({ scrollTrigger: {
+      trigger: sec, start: 'center center', end: '+=150%', pin: true, scrub: .5, refreshPriority: 1, invalidateOnRefresh: true,
+      snap: { snapTo: 'labelsDirectional', duration: { min: .2, max: .5 }, ease: 'power2.inOut', delay: .1 },
+      onUpdate: function () {
+        /* o número atual muda quando a impressão do seguinte passa da metade */
+        var n = 1;
+        for (var k = 1; k < total; k++) if (tl.time() >= k * 1.4 + .5) n = k + 1;
+        if (n !== atual && idx) { atual = n; idx.textContent = (n < 10 ? '0' : '') + n + ' / ' + (total < 10 ? '0' : '') + total; }
+      }
+    } });
+    /* tudo em fromTo com partida explícita: um `to` relia a partida depois do
+       refresh (invalidateOnRefresh) e a máscara e a tinta se desencontravam.
+       As revelações nascem aplicadas (immediateRender): os três números
+       começam escondidos e o primeiro é impresso na 1ª passagem. */
+    var esc = function (p) { return function () { return -p.wm(); }; };
+    var dir = function (p) { return function () { return p.wm(); }; };
+    partes.forEach(function (p, i) {
+      var s = i * 1.4;
+      /* a borda da máscara segue o centro da luz: começa quando o centro chega à
+         borda esquerda do número e dura o tempo de atravessá-lo */
+      var px = p.m.getBoundingClientRect().left - prova.getBoundingClientRect().left;
+      var ini = s + (px + w() / 2) / (W() + w()), dur = p.wm() / (W() + w());
+      tl.fromTo(luz, { x: function () { return -w(); }, opacity: 1 }, { x: W, duration: 1, ease: 'none', immediateRender: false }, s);
+      tl.fromTo(p.m, { x: esc(p) }, { x: 0, duration: dur, ease: 'none', immediateRender: true }, ini);
+      tl.fromTo(p.t, { x: dir(p) }, { x: 0, duration: dur, ease: 'none', immediateRender: true }, ini);
+      if (p.rot) tl.fromTo(p.rot, { opacity: 0 }, { opacity: 1, duration: .3, ease: 'power2.out', immediateRender: true }, ini + dur * .5);
+      var ant = partes[i - 1];
+      if (ant) {
+        tl.fromTo(ant.m, { x: 0 }, { x: dir(ant), duration: dur, ease: 'none', immediateRender: false }, ini);
+        tl.fromTo(ant.t, { x: 0 }, { x: esc(ant), duration: dur, ease: 'none', immediateRender: false }, ini);
+        if (ant.rot) tl.fromTo(ant.rot, { opacity: 1 }, { opacity: 0, duration: .2, ease: 'power2.in', immediateRender: false }, ini);
+      }
+      tl.addLabel('n' + i, s + 1.05);
+    });
+    tl.set(luz, { opacity: 0 }, (total - 1) * 1.4 + 1.05);
+    if (barra) tl.fromTo(barra, { scaleX: 0 }, { scaleX: 1, ease: 'none', duration: tl.duration() }, 0);
     return function () {
       prova.classList.remove('prova--palco');
-      gsap.set(itens.concat([luz]), { clearProps: 'opacity,transform' });
+      var limpar = [luz, barra].concat(partes.map(function (p) { return p.m; }), partes.map(function (p) { return p.t; }), partes.map(function (p) { return p.rot; })).filter(Boolean);
+      gsap.set(limpar, { clearProps: 'opacity,transform' });
+      if (idx) idx.textContent = '01 / ' + (total < 10 ? '0' : '') + total;
     };
   }
   /* liga depois do boot: não revela cedo demais nem compete com o hero */

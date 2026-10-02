@@ -97,7 +97,7 @@
          depois; a trilha fecha. No desktop: frase larga, arte estreita,
          trilha fechando a primeira tela. -->
     <section class="hero" id="hero" aria-labelledby="hero-titulo">
-      <div class="feixe" aria-hidden="true"><span class="feixe__linha"></span></div>
+      <div class="feixe" aria-hidden="true"><span class="feixe__linha"><span class="feixe__tag" data-feixe-tag></span></span></div>
       <p class="hero__status">
           <span class="dot" aria-hidden="true"></span>
           <span>Sistema online · Beyon Zero</span>
@@ -106,7 +106,7 @@
         <div class="hero__main">
         <p class="hero__sub">Sites, automação e IA para negócios e entidades. Diagnóstico primeiro, preço fechado antes, e tudo fica no seu nome.</p>
         <div class="hero__actions">
-          <a class="btn btn--primary" data-wa href="https://wa.me/5521977167944">Falar comigo</a>
+          <a class="btn btn--primary" data-wa href="https://wa.me/5521977167944">Falar comigo <span aria-hidden="true" data-seta="direita">→</span></a>
           <a class="btn btn--ghost" href="#frentes">Ver os serviços <span aria-hidden="true" data-seta="baixo">↓</span></a>
         </div>
         <p class="hero__fine">Uma pessoa constrói do primeiro rascunho à publicação. Quem conversa é quem constrói.</p>
@@ -115,10 +115,10 @@
       <div class="hero__arte" aria-hidden="true">
         <!-- lugar reservado ao AI Core futuro. Hoje: o console de boot deste site, com dados REAIS desta visita -->
         <div class="console painel" data-console>
-          <p class="console__medida" data-metrica-caixa><b data-metrica="carga">—</b><span>pronta em</span></p>
+          <p class="console__medida" data-metrica-caixa><b data-metrica="carga" data-so-numero>—</b><small class="console__unid">s</small><span>pronta em</span></p>
           <div class="cascata" data-cascata data-metrica-caixa></div>
           <div class="console__topo"><span>Beyon Zero · boot</span><span class="console__led"></span></div>
-          <div class="console__linha"><span class="console__t">00.000</span><span class="console__v">fontes locais · Sora + Mono</span></div>
+          <div class="console__linha"><span class="console__t">00,000</span><span class="console__v">fontes locais · Sora + Mono</span></div>
           <div class="console__linha" data-metrica-caixa><span class="console__t" data-console-t>—</span><span class="console__v">viewport · <b data-console-vp>—</b></span></div>
           <div class="console__linha" data-metrica-caixa><span class="console__t" data-console-t>—</span><span class="console__v">DOM pronto · <b data-metrica="carga">—</b></span></div>
           <div class="console__linha" data-metrica-caixa><span class="console__t" data-console-t>—</span><span class="console__v">transferido · <b data-metrica="peso">—</b></span></div>
@@ -152,6 +152,7 @@
           <span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span>
           <span class="servico__fundo" aria-hidden="true">01</span>
           <span class="servico__n" aria-hidden="true">01</span>
+          <ul class="servico__formatos" role="list"><li><b>01</b> Institucional</li><li><b>02</b> Landing page</li><li><b>03</b> Sob medida</li></ul>
           <h3>Sites</h3>
           <p>Institucionais, landing pages e sob medida. Rápidos, feitos primeiro para o celular, com a prova de velocidade rodando na sua frente.</p>
           <span class="servico__para">Para negócios que precisam ser encontrados e entendidos.</span>
@@ -214,10 +215,11 @@
         <p class="lead">Em vez de prometer velocidade, deixo o seu navegador medir. Os números abaixo são desta visita, neste aparelho.</p>
       </div>
       <div class="prova reveal" data-metrica-caixa>
-        <div class="prova__item"><span class="prova__val" data-metrica="carga">—</span><span class="prova__rot">até a página estar pronta para uso</span></div>
-        <div class="prova__item"><span class="prova__val" data-metrica="peso">—</span><span class="prova__rot">baixados deste domínio até agora, fontes incluídas</span></div>
-        <div class="prova__item" data-metrica-fps><span class="prova__val" data-metrica="fps">—</span><span class="prova__rot">quadros por segundo sustentados agora, com o movimento rodando</span></div>
+        <div class="prova__item"><span class="prova__mascara"><span class="prova__tinta"><span class="prova__val" data-metrica="carga">—</span></span></span><span class="prova__rot">até a página estar pronta para uso</span></div>
+        <div class="prova__item"><span class="prova__mascara"><span class="prova__tinta"><span class="prova__val" data-metrica="peso">—</span></span></span><span class="prova__rot">baixados deste domínio até agora, fontes incluídas</span></div>
+        <div class="prova__item" data-metrica-fps><span class="prova__mascara"><span class="prova__tinta"><span class="prova__val" data-metrica="fps">—</span></span></span><span class="prova__rot">quadros por segundo sustentados agora, com o movimento rodando</span></div>
         <span class="varredura" aria-hidden="true"></span>
+        <div class="prova__passo" aria-hidden="true"><span class="prova__idx">01 / 03</span><i class="prova__barra"></i></div>
       </div>
       <p class="prova__nota">Medido pelo seu navegador, nesta visita. Nada aqui vem de terceiros: fontes e movimento saem deste domínio.</p>
     </section>
@@ -231,7 +233,7 @@
         <h2 id="conversa-titulo">Me diga o que precisa acontecer. Eu digo <em>como</em>.</h2>
         <p class="lead">Uma conversa curta resolve a primeira pergunta: se o seu caso é site, automação, as duas coisas ou nenhuma delas.</p>
         <div class="cta__acoes">
-          <a class="btn btn--primary btn--lg" data-wa href="https://wa.me/5521977167944">Falar comigo</a>
+          <a class="btn btn--primary btn--lg" data-wa href="https://wa.me/5521977167944">Falar comigo <span aria-hidden="true" data-seta="direita">→</span></a>
         </div>
         <p class="fine">Quem responde é humano. A primeira conversa é grátis e sem compromisso.</p>
       </div>

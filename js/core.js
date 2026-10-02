@@ -82,9 +82,17 @@
     mqReduce.addEventListener('change', function (e) { if (e.matches) reduzir(true, false); });
   } catch (e) { /* navegador antigo */ }
 
+  /* todo número que o site mostra sai daqui: pt-BR ("0,56"), sem separador
+     de milhar (a contagem relê o texto e um "1.024" viraria 1,024) */
+  function num(v, casas) {
+    casas = casas || 0;
+    try { return v.toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas, useGrouping: false }); }
+    catch (e) { return v.toFixed(casas).replace('.', ','); }
+  }
+
   window.BEYON = {
     S: S, add: add, remove: remove, on: on, off: off, emit: emit, iniciar: iniciar, reduzir: reduzir,
-    reduced: reduced, sistemaReduz: mqReduce.matches
+    reduced: reduced, sistemaReduz: mqReduce.matches, num: num
   };
 
   /* BOOT: 'booted' só depois que TODO script `defer` rodou (DOMContentLoaded),

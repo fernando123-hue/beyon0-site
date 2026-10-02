@@ -41,6 +41,12 @@ html.js .console.is-in::after { animation: ler 1.6s var(--ease-io) .2s both; }
   transform: scaleX(0); transform-origin: left; opacity: 0; pointer-events: none;
 }
 html.js .is-in .painel::after, html.js .painel.is-in::after { animation: varrer 1.1s var(--ease) .15s both; }
+/* a aresta acende com o cartão (stagger .12 do anima.js) */
+html.js .is-in > .painel:nth-child(2)::after { animation-delay: .27s; }
+html.js .is-in > .painel:nth-child(3)::after { animation-delay: .39s; }
+html.js .is-in > .painel:nth-child(4)::after { animation-delay: .51s; }
+html.js .is-in > .painel:nth-child(5)::after { animation-delay: .63s; }
+html.js .is-in > .painel:nth-child(6)::after { animation-delay: .75s; }
 @keyframes varrer { 0% { transform: scaleX(0); opacity: 1; } 70% { transform: scaleX(1); opacity: 1; } 100% { transform: scaleX(1); opacity: 0; } }
 /* a régua do kicker cresce ao revelar */
 html.js .kicker::after { transform: scaleX(0); transform-origin: left; transition: transform 1s var(--ease) .2s; }
@@ -97,7 +103,7 @@ html.js .spec.is-in .spec__item:nth-child(6) h3::before { transition-delay: .3s;
 
 /* ---- celular: o item no meio da tela está em foco (anima.js: .is-foco) ---- */
 .is-foco .servico__n, .is-foco .laudo__n, .is-foco .celula__n, .is-foco .passo__n { color: var(--ambar); }
-.laudo__row.is-foco h3 { transform: translateX(4px); transition: transform .4s var(--ease); }
+.laudo__row.is-foco::before { transform: none; }
 .laudo__row.is-foco::after { background: linear-gradient(90deg, var(--ac), var(--line-2) 55%); }
 @media (max-width: 620px) {
   .servico.painel--tinta::before { display: block; transform: scaleX(0); transform-origin: left; transition: transform .6s var(--ease); }
@@ -131,3 +137,16 @@ html.menos-movimento .hero__rail-aresta { animation: none; }
 html.menos-movimento .feixe__linha, html.menos-movimento .hero__status .dot, html.menos-movimento .painel::after, html.menos-movimento .celula::before, html.menos-movimento .console::after, html.menos-movimento .console__led { animation: none; }
 html.menos-movimento .feixe { display: none; }
 html.menos-movimento .btn::after { display: none; }
+
+/* ---- TRANSIÇÃO ENTRE PÁGINAS (rodada 4): só CSS, View Transitions de
+   navegação. A nav fica parada; o conteúdo sai para a esquerda e o novo
+   entra pela direita. Navegador sem suporte ignora; movimento reduzido não
+   liga (e o interruptor pula a transição em js/pagina.js). ---- */
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition { navigation: auto; }
+  .nav { view-transition-name: nav; }
+  ::view-transition-old(root) { animation: vt-sai .3s cubic-bezier(.7, 0, .84, 0) both; }
+  ::view-transition-new(root) { animation: vt-entra .45s cubic-bezier(.16, 1, .3, 1) .08s both; }
+}
+@keyframes vt-sai { to { opacity: 0; transform: translateX(-2vw); } }
+@keyframes vt-entra { from { opacity: 0; transform: translateX(2vw); } }

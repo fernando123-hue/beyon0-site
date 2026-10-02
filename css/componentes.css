@@ -16,23 +16,23 @@
 .painel--tinta { --tinta-rgb: var(--ac-rgb); background-image: radial-gradient(60% 50% at 0% 0%, rgb(var(--tinta-rgb) / .14), transparent 70%), linear-gradient(180deg, var(--vidro-2), var(--vidro) 40%); }
 .painel--tinta::before { content: ""; position: absolute; left: 0; right: 0; top: -1px; height: 1px; border-radius: var(--raio) var(--raio) 0 0; background: linear-gradient(90deg, rgb(var(--tinta-rgb) / .8), rgb(var(--tinta-rgb) / 0) 70%); pointer-events: none; }
 @media (hover: hover) {
-  .painel:hover { border-color: var(--line-2); background-color: var(--vidro-2); transform: translateY(-3px); box-shadow: inset 0 1px 0 rgb(255 255 255 / .1), 0 28px 56px -32px rgb(0 0 0 / .95), 0 0 0 1px rgb(var(--ac-rgb) / .08); }
+  /* hover de visor: o cartão não levanta; acende a borda e os cantos travam */
+  .painel:hover { border-color: var(--line-2); background-color: var(--vidro-2); box-shadow: inset 0 1px 0 rgb(255 255 255 / .1), 0 0 0 1px rgb(var(--ac-rgb) / .08); }
 }
 /* marcas de canto em L: visor, não borda */
-.painel__canto { position: absolute; width: 8px; height: 8px; border: 1px solid rgb(var(--ac-rgb) / .85); opacity: 0; transform: scale(0); transition: transform .32s var(--ease), opacity .12s linear; pointer-events: none; z-index: 1; }
-.painel__canto:nth-child(1) { left: 7px; top: 7px; border-right: 0; border-bottom: 0; transform-origin: top left; }
-.painel__canto:nth-child(2) { right: 7px; top: 7px; border-left: 0; border-bottom: 0; transform-origin: top right; transition-delay: .04s; }
-.painel__canto:nth-child(3) { left: 7px; bottom: 7px; border-right: 0; border-top: 0; transform-origin: bottom left; transition-delay: .08s; }
-.painel__canto:nth-child(4) { right: 7px; bottom: 7px; border-left: 0; border-top: 0; transform-origin: bottom right; transition-delay: .12s; }
+.painel__canto { position: absolute; width: 8px; height: 8px; border: 1px solid rgb(var(--ac-rgb) / .85); opacity: 0; transform: scale(.6); transition: transform .38s var(--ease), opacity .12s linear; pointer-events: none; z-index: 1; }
+.painel__canto:nth-child(1) { left: 7px; top: 7px; border-right: 0; border-bottom: 0; transform-origin: top left; transform: translate(-4px, -4px) scale(.6); }
+.painel__canto:nth-child(2) { right: 7px; top: 7px; border-left: 0; border-bottom: 0; transform-origin: top right; transform: translate(4px, -4px) scale(.6); transition-delay: .04s; }
+.painel__canto:nth-child(3) { left: 7px; bottom: 7px; border-right: 0; border-top: 0; transform-origin: bottom left; transform: translate(-4px, 4px) scale(.6); transition-delay: .08s; }
+.painel__canto:nth-child(4) { right: 7px; bottom: 7px; border-left: 0; border-top: 0; transform-origin: bottom right; transform: translate(4px, 4px) scale(.6); transition-delay: .12s; }
 .painel:hover .painel__canto, .painel:focus-within .painel__canto { opacity: 1; transform: none; }
-@media (hover: hover) { .painel:focus-within { transform: translateY(-3px); } }
 
 /* ==========================================================================
    2. SERVIÇOS — três painéis numerados, cada um com a própria tinta
    ========================================================================== */
 .servicos { display: grid; grid-template-columns: 1fr; gap: 12px; }
 .servicos > :nth-child(1) { --tinta-rgb: var(--ac-rgb); }
-.servicos > :nth-child(2) { --tinta-rgb: var(--luz-rgb); }
+.servicos > :nth-child(2) { --tinta-rgb: var(--ac-rgb); }
 .servicos > :nth-child(3) { --tinta-rgb: var(--ambar-rgb); }
 .servico { display: flex; flex-direction: column; gap: .8rem; padding: clamp(22px, 5vw, 32px); min-height: 220px; color: var(--t1); }
 .servico__n { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); line-height: 1.4; color: var(--t2); display: flex; align-items: center; gap: .6rem; }
@@ -49,7 +49,7 @@
 /* desktop: assimetria em vez de três cartões iguais. O primeiro ocupa a
    coluna larga nas duas linhas e carrega o índice grande ao fundo; o link
    segue o texto em vez de ser empurrado para o pé do cartão. */
-.servico__fundo { display: none; }
+.servico__fundo, .servico__formatos { display: none; }
 @media (min-width: 981px) {
   .servicos { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); grid-template-rows: auto auto; }
   .servicos > :first-child { grid-row: 1 / 3; }
@@ -58,7 +58,14 @@
   /* o cartão grande: índice no alto, o texto assenta embaixo (sem vão no meio) */
   .servicos > :first-child h3 { margin-top: auto; font-size: clamp(2rem, 1.4rem + 1.6vw, 2.75rem); }
   .servicos > :first-child p { max-width: 44ch; }
-  .servico__fundo { display: block; position: absolute; right: clamp(20px, 2.4vw, 36px); top: clamp(16px, 2vw, 28px); font-family: var(--mono); font-weight: 200; font-size: clamp(120px, 11vw, 200px); line-height: .8; letter-spacing: -.06em; color: rgb(255 255 255 / .05); pointer-events: none; }
+  /* o numeral em contorno, Sora 200: presença sem peso; acende no hover (por evento) */
+  .servico__fundo { display: block; position: absolute; right: clamp(16px, 2vw, 28px); top: clamp(8px, 1vw, 16px); font-family: var(--sans); font-weight: 200; font-size: clamp(180px, 16vw, 260px); line-height: .78; letter-spacing: -.07em; color: transparent; -webkit-text-stroke: 1px rgb(var(--ac-rgb) / .22); pointer-events: none; transition: -webkit-text-stroke-color var(--t) var(--ease); }
+  .servico:hover .servico__fundo { -webkit-text-stroke-color: rgb(var(--ac-rgb) / .5); }
+  /* os formatos reais que a página Sites oferece, no lugar do vão */
+  .servico__formatos { display: block; list-style: none; margin: 0; padding: 0; max-width: 55%; font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-ctrl); text-transform: uppercase; color: var(--t2); }
+  .servico__formatos li { border-top: 1px solid var(--line); padding: .7rem 0; }
+  .servico__formatos li:last-child { border-bottom: 1px solid var(--line); }
+  .servico__formatos b { color: var(--ambar); font-weight: 500; margin-right: .6rem; }
 }
 /* celular: os serviços viram linhas de laudo, não cartões de 340px empilhados */
 @media (max-width: 620px) {
@@ -106,7 +113,10 @@
 .laudo__n { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); line-height: 1.4; color: var(--t3); padding-top: 0; transition: color var(--t-micro) var(--ease-micro); }
 .laudo__row h3 { font-size: var(--h3-linha); transition: transform var(--t-micro) var(--ease-micro); }
 .laudo__row p { color: var(--t2); font-size: var(--fs-m); max-width: 46ch; }
-@media (hover: hover) { .laudo__row:hover .laudo__n { color: var(--ambar); } .laudo__row:hover h3 { transform: translateX(4px); } }
+/* o foco da linha é um traço que se desenha, não o h3 andando 4px sozinho */
+.laudo__row::before { content: ""; position: absolute; left: 0; top: 1.3rem; width: 2px; height: 1.2em; background: var(--ac); transform: scaleY(0); transform-origin: top; transition: transform .4s var(--ease); }
+@media (hover: hover) { .laudo__row:hover .laudo__n { color: var(--ambar); } .laudo__row:hover::before { transform: none; } }
+@media (min-width: 821px) { .laudo__row::before { left: -14px; top: clamp(1.5rem, 2.5vw, 2.2rem); } }
 @media (min-width: 821px) {
   /* o índice pendura na linha de base do título */
   .laudo__row { grid-template-columns: 2.75rem minmax(0, 5fr) minmax(0, 7fr); column-gap: 0; padding: clamp(1.5rem, 2.5vw, 2.2rem) 0; align-items: first baseline; }
@@ -121,8 +131,10 @@
 .prova__item { position: relative; padding: clamp(1.6rem, 3vw, 2.5rem) clamp(1rem, 2vw, 2rem) clamp(1.6rem, 3vw, 2.5rem) clamp(1.2rem, 2vw, 2rem); border-bottom: 1px solid var(--line); }
 .prova__item::before { content: ""; position: absolute; left: 0; top: 0; width: 3px; height: 100%; background: var(--ac); opacity: .9; }
 .prova__item:nth-child(2)::before { background: var(--ambar); }
-.prova__val { display: block; font-family: var(--mono); font-weight: 300; font-size: clamp(2.75rem, 1rem + 4.2vw, 5rem); letter-spacing: -.05em; line-height: .95; color: var(--ac); margin-bottom: .6rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.prova__val small { font-size: .38em; font-weight: 400; letter-spacing: .02em; color: var(--t2); margin-left: .14em; }
+/* o número em Sora 200 (o zero pontilhado do mono pesava na escala grande); a unidade é ficha técnica em mono */
+.prova__mascara, .prova__tinta { display: block; }
+.prova__val { display: block; font-family: var(--sans); font-weight: 200; font-size: clamp(2.75rem, 1rem + 4.2vw, 5rem); letter-spacing: -.045em; line-height: .95; color: var(--ac); margin-bottom: .6rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.prova__val small { font-family: var(--mono); font-size: .2em; font-weight: 400; letter-spacing: .08em; text-transform: uppercase; color: var(--t3); margin-left: .35em; }
 .prova__item:nth-child(2) .prova__val { color: var(--ambar); }
 .prova__rot { display: block; font-size: var(--fs-s); max-width: 24ch; color: var(--t2); line-height: 1.45; }
 .prova__nota { margin-top: 1.25rem; font-size: var(--fs-s); line-height: 1.55; color: var(--t3); max-width: 58ch; }
@@ -135,7 +147,10 @@
 /* a luz que mede: atravessa a prova e acende cada número no instante em que
    passa por ele (js/anima.js). Só transform/opacity. */
 .prova { position: relative; overflow: hidden; }
-.varredura { position: absolute; top: 0; bottom: 0; left: 0; width: clamp(64px, 10vw, 140px); background: linear-gradient(90deg, rgb(var(--ac-rgb) / 0), rgb(var(--ac-rgb) / .28) 50%, rgb(var(--ac-rgb) / 0)); pointer-events: none; opacity: 0; z-index: 1; }
+/* a luz passa ATRÁS dos números (o âmbar não fica marrom debaixo dela) */
+.varredura { position: absolute; top: 0; bottom: 0; left: 0; width: clamp(64px, 10vw, 140px); background: linear-gradient(90deg, rgb(var(--ac-rgb) / 0), rgb(var(--ac-rgb) / .28) 50%, rgb(var(--ac-rgb) / 0)); pointer-events: none; opacity: 0; z-index: 0; mask-image: linear-gradient(180deg, transparent, #000 22%, #000 78%, transparent); -webkit-mask-image: linear-gradient(180deg, transparent, #000 22%, #000 78%, transparent); }
+.prova__item { z-index: 1; }
+.prova__passo { display: none; }
 html:not(.has-gsap) .varredura, html.menos-movimento .varredura { display: none; }
 @media (prefers-reduced-motion: reduce) { .varredura { display: none; } }
 /* o palco (desktop, com movimento): a prova fica fixa na tela e os três
@@ -143,9 +158,20 @@ html:not(.has-gsap) .varredura, html.menos-movimento .varredura { display: none;
 .prova--palco { grid-template-columns: 1fr; grid-template-areas: "p"; min-height: clamp(240px, 24vw, 340px); align-items: center; }
 .prova--palco .prova__item { grid-area: p; display: grid; grid-template-columns: auto minmax(0, 24ch); justify-content: start; column-gap: clamp(24px, 3vw, 48px); align-items: end; border: 0; padding: clamp(1.2rem, 2vw, 2rem) 0 clamp(1.2rem, 2vw, 2rem) clamp(1.6rem, 2.4vw, 2.6rem); }
 .prova--palco .prova__item + .prova__item { border-left: 0; }
-.prova--palco .prova__item:not(:first-child) { opacity: 0; }
-.prova--palco .prova__val { font-size: clamp(140px, 17vw, 280px); letter-spacing: -.06em; line-height: .82; margin-bottom: 0; }
-.prova--palco .prova__rot { font-size: var(--fs-b); padding-bottom: .6em; }
+/* no palco a luz IMPRIME: cada número é revelado por uma máscara cuja borda
+   anda no centro da luz (anima.js, palco); a barra lateral sai, quem dá a
+   posição é o passo "01 / 03" com a barra de progresso */
+.prova--palco .prova__item { align-items: last baseline; }
+.prova--palco .prova__item::before { display: none; }
+.prova--palco .prova__mascara, .prova--palco .prova__tinta { overflow: hidden; will-change: transform; }
+.prova--palco .prova__tinta { overflow: visible; }
+/* a máscara tem folga em cima e embaixo (padding que a margem negativa devolve): o recorte é só lateral, nunca corta topo de algarismo nem vírgula */
+.prova--palco .prova__mascara { font-size: clamp(160px, 17vw, 264px); padding: .1em 0 .18em; margin: -.1em 0 -.18em; }
+.prova--palco .prova__val { font-size: 1em; letter-spacing: -.06em; line-height: .78; margin-bottom: 0; }
+.prova--palco .prova__val small { font-size: .14em; }
+.prova--palco .prova__rot { font-size: var(--fs-l); line-height: 1.45; max-width: 22ch; padding-bottom: 0; }
+.prova--palco .prova__passo { display: flex; position: absolute; top: clamp(1rem, 2vw, 1.6rem); right: 0; gap: .8rem; align-items: center; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); color: var(--t3); z-index: 1; }
+.prova__barra { display: block; width: 120px; height: 1px; background: var(--ac); transform-origin: left; }
 
 /* ==========================================================================
    6. MALHA — capacidades: grid com fresta de 1px, zero borda por célula
@@ -184,7 +210,12 @@ html:not(.has-gsap) .varredura, html.menos-movimento .varredura { display: none;
    ========================================================================== */
 .cenarios { display: grid; grid-template-columns: 1fr; gap: 12px; }
 .cenarios > :nth-child(1) { --tinta-rgb: var(--ac-rgb); }
-.cenarios > :nth-child(2) { --tinta-rgb: var(--luz-rgb); }
+.cenarios > :nth-child(2) { --tinta-rgb: var(--ac-rgb); }
+/* o azul (--luz) é só atmosfera: no painel do meio ele fica no brilho do
+   canto; linha e texto seguem em ciano ou âmbar */
+@media (min-width: 621px) {
+  .servicos > .painel--tinta:nth-child(2), .cenarios > .painel--tinta:nth-child(2) { background-image: radial-gradient(60% 50% at 0% 0%, rgb(var(--luz-rgb) / .14), transparent 70%), linear-gradient(180deg, var(--vidro-2), var(--vidro) 40%); }
+}
 .cenarios > :nth-child(3) { --tinta-rgb: var(--ambar-rgb); }
 .cenario { padding: clamp(20px, 5vw, 28px); display: flex; flex-direction: column; gap: 1.1rem; }
 .cenario__label { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; line-height: 1.4; color: var(--t3); }
@@ -197,6 +228,14 @@ html:not(.has-gsap) .varredura, html.menos-movimento .varredura { display: none;
 .fluxo li + li::before { content: "→" / ""; position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: .45rem; color: var(--t3); }
 .fluxo li:last-child { background: var(--ambar); border-color: var(--ambar); color: var(--ambar-tinta); font-weight: 600; }
 @media (min-width: 1100px) { .cenarios { grid-template-columns: repeat(3, 1fr); gap: 14px; } }
+/* grades de 3 colunas alinhadas: título de uma linha reserva a segunda; o fluxo assenta na base */
+@media (min-width: 981px) { .celula h3, .cenario__title { min-height: calc(2 * 1.2em); } }
+@media (min-width: 1100px) {
+  .cenario { display: grid; grid-template-rows: auto auto 1fr; }
+  .cenario .fluxo { align-self: end; flex-wrap: nowrap; gap: .5rem .85rem; }
+  .cenario .fluxo li { white-space: nowrap; font-size: var(--fs-rotulo); padding: .28rem .42rem; letter-spacing: .02em; }
+  .cenario .fluxo li + li::before { margin-right: .3rem; }
+}
 
 /* ==========================================================================
    8. PERGUNTAS — accordion nativo
@@ -219,12 +258,29 @@ html:not(.has-gsap) .varredura, html.menos-movimento .varredura { display: none;
 .qa__mark { position: relative; width: 26px; height: 26px; flex: none; border: 1px solid var(--line-2); border-radius: var(--raio-s); transition: border-color var(--t) var(--ease), background-color var(--t) var(--ease); }
 .qa__mark::before, .qa__mark::after { content: ""; position: absolute; background: var(--t1); transition: transform .32s var(--ease), background-color var(--t) var(--ease); }
 .qa__mark::before { left: 7px; top: 12px; width: 10px; height: 1px; }
-.qa__mark::after { left: 12px; top: 7px; width: 1px; height: 10px; }
-.qa[open] .qa__mark::after { transform: scaleY(0); }
+.qa__mark::after { left: 12px; top: 7px; width: 1px; height: 10px; transition: transform .35s var(--ease-pop), background-color var(--t) var(--ease); }
+/* o + vira −: o traço vertical gira para a horizontal e some sob o outro */
+.qa[open] .qa__mark::after { transform: rotate(90deg) scaleY(0); }
 .qa[open] .qa__mark::before { transform: scaleX(1.25); background: var(--ambar); }
 .qa[open] .qa__mark { border-color: var(--ambar); background: rgb(var(--ambar-rgb) / .12); }
 .qa__a { padding: 0 0 1.3rem; }
 .qa__a p { color: var(--t2); font-size: var(--fs-m); max-width: 56ch; }
+/* abrir sem salto, onde o navegador anima altura até auto */
+@supports (interpolate-size: allow-keywords) {
+  .qa { interpolate-size: allow-keywords; }
+  .qa::details-content { height: 0; overflow: clip; transition: height .4s var(--ease), content-visibility .4s allow-discrete; }
+  .qa[open]::details-content { height: auto; }
+}
+@media (prefers-reduced-motion: reduce) { .qa::details-content { transition: none; } }
+html.menos-movimento .qa::details-content { transition: none; }
+/* desktop: o FAQ ocupa a largura em duas colunas; o título fica parado à esquerda */
+@media (min-width: 981px) {
+  .section--faq { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); column-gap: clamp(32px, 6vw, 80px); align-items: start; }
+  .section--faq .section__head { display: block; position: sticky; top: calc(var(--nav-h) + 48px); margin-bottom: 0; }
+  .section--faq .section__head h2 { font-size: clamp(2.25rem, 1rem + 2vw, 2.75rem); line-height: 1.06; max-width: 12ch; text-wrap: balance; }
+  .section--faq .faq-list { max-width: none; }
+  .section--faq .qa summary { font-size: 1.125rem; }
+}
 
 /* ==========================================================================
    9. CONVERSA — o CTA final, sob luz dupla
@@ -241,7 +297,10 @@ html:not(.has-gsap) .varredura, html.menos-movimento .varredura { display: none;
   pointer-events: none;
 }
 .conversa .section { position: relative; z-index: 1; }
-.conversa h2 { font-size: clamp(2.4rem, 1.5rem + 2.6vw, 4rem); line-height: 1; letter-spacing: -.035em; max-width: 14ch; }
+/* o clímax da página: o maior título depois do H1 */
+.conversa h2 { font-size: clamp(2.75rem, 1rem + 6.4vw, 7.5rem); line-height: .92; letter-spacing: -.045em; max-width: 13ch; }
+.conversa .section { padding-bottom: var(--sp-3); }
+@media (min-width: 861px) { .conversa .btn--primary { min-height: 64px; padding-inline: 2.4rem; } }
 .cta__acoes { display: flex; flex-direction: column; gap: .7rem; margin-top: 1.8rem; }
 .cta__acoes .btn { width: 100%; }
 .cta__acoes + .fine { margin-top: 1rem; }
@@ -283,6 +342,7 @@ html:not(.has-gsap) .varredura, html.menos-movimento .varredura { display: none;
 .cascata__barra { position: absolute; top: 0; bottom: 0; left: 0; width: 100%; background: var(--ac); transform-origin: left; }
 .cascata__linha--maior .cascata__barra { background: var(--ambar); }
 .cascata__ms { font-variant-numeric: tabular-nums; color: var(--t2); text-align: right; }
+@media (max-width: 620px) { .cascata__linha { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) auto; } }
 html.js .cascata__barra { transform: scaleX(0); transition: transform .6s var(--ease-io); }
 html.js .console.is-in .cascata.is-pronta .cascata__barra { transform: none; }
 html.js .console.is-in .cascata.is-pronta .cascata__linha:nth-child(2) .cascata__barra { transition-delay: .05s; }
@@ -292,9 +352,11 @@ html.js .console.is-in .cascata.is-pronta .cascata__linha:nth-child(5) .cascata_
 html.js .console.is-in .cascata.is-pronta .cascata__linha:nth-child(6) .cascata__barra { transition-delay: .25s; }
 @media (prefers-reduced-motion: reduce) { html.js .cascata__barra { transform: none; } }
 html.menos-movimento .cascata__barra { transform: none; }
+/* a unidade é nó fixo (a medida escreve só o número): mesma regra da prova */
+.console__unid { font-size: .38em; font-weight: 400; letter-spacing: .02em; color: var(--t2); margin-left: .14em; }
 .console__medida span { display: block; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: .10em; text-transform: uppercase; color: var(--t3); margin-top: .5rem; }
-.console__topo { display: flex; align-items: center; justify-content: space-between; padding-bottom: .7rem; margin-bottom: .4rem; border-bottom: 1px solid var(--line); font-size: var(--fs-rotulo); letter-spacing: .14em; text-transform: uppercase; color: var(--t3); }
-.console__led { width: 7px; height: 7px; border-radius: 50%; background: var(--ambar); box-shadow: 0 0 0 3px rgb(var(--ambar-rgb) / .18); }
+.console__topo { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-bottom: .7rem; margin-bottom: .4rem; border-bottom: 1px solid var(--line); font-size: var(--fs-rotulo); letter-spacing: .14em; text-transform: uppercase; color: var(--t3); }
+.console__led { width: 7px; height: 7px; border-radius: 50%; background: var(--ambar); box-shadow: 0 0 0 3px rgb(var(--ambar-rgb) / .18); flex: none; }
 .console__linha { overflow: hidden; display: flex; gap: 1rem; }
 .console__t { color: var(--t3); min-width: 6ch; font-variant-numeric: tabular-nums; }
 .console__v { color: var(--t1); }
@@ -305,7 +367,7 @@ html.menos-movimento .cascata__barra { transform: none; }
 @media (min-width: 861px) {
   .console { padding: 22px 26px; font-size: .8125rem; }
   /* a medida é o numeral do hero: rima com o h1 */
-  .console__medida { font-size: clamp(3.5rem, 1.5rem + 3.6vw, 5.5rem); font-weight: 200; letter-spacing: -.05em; line-height: .9; }
+  .console__medida { font-size: clamp(2.5rem, 1rem + 2.2vw, 3.5rem); font-weight: 200; letter-spacing: -.05em; line-height: .9; }
   .console__medida span { margin-top: .9rem; letter-spacing: .14em; }
 }
 
@@ -354,9 +416,9 @@ html.menos-movimento .cascata__barra { transform: none; }
    leitura. Níveis que se preenchem na entrada (transform, uma vez).
    ========================================================================== */
 .instrumento { padding: clamp(18px, 4.5vw, 28px); display: flex; flex-direction: column; gap: .9rem; background: linear-gradient(170deg, rgb(17 24 35 / .95), rgb(11 16 22 / .95)); }
-.instrumento__topo { display: flex; align-items: center; justify-content: space-between; padding-bottom: .8rem; border-bottom: 1px solid var(--line); }
-.instrumento__k { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); }
-.instrumento__led { width: 7px; height: 7px; border-radius: 50%; background: var(--ambar); box-shadow: 0 0 0 3px rgb(var(--ambar-rgb) / .18); }
+.instrumento__topo { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-bottom: .8rem; border-bottom: 1px solid var(--line); }
+.instrumento__k { min-width: 0; text-wrap: balance; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); }
+.instrumento__led { width: 7px; height: 7px; border-radius: 50%; background: var(--ambar); box-shadow: 0 0 0 3px rgb(var(--ambar-rgb) / .18); flex: none; }
 .instrumento__linha { display: grid; grid-template-columns: 1fr auto; gap: .35rem .8rem; align-items: center; }
 .instrumento__rot { font-size: var(--fs-b); color: var(--t1); }
 .instrumento__val { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: .11em; text-transform: uppercase; color: var(--ambar); text-align: right; }
@@ -412,4 +474,26 @@ body.is-lead-open { overflow: hidden; }
 @media (min-width: 621px) {
   .lead-modal { align-items: center; padding: var(--pad); }
   .lead-modal__panel { width: min(440px, 100%); border-radius: var(--raio); padding: 2rem; max-height: calc(100dvh - 2 * var(--pad)); transform: translateY(12px) scale(.98); }
+}
+
+/* ==========================================================================
+   15. PILHA (celular)
+   ========================================================================== */
+/* celular: um momento de profundidade por página. As garantias (Hub e
+   Automação) e os formatos (Sites) viram cartões que se empilham ao rolar:
+   sticky com topo fixo por posição, CSS puro, nada se move sozinho. */
+@media (max-width: 620px) {
+  .laudo, .servicos--pilha { border-top: 0; display: grid; gap: 12px; padding-bottom: 8px; }
+  .laudo .laudo__row, .servicos--pilha > .servico {
+    position: sticky; top: calc(var(--nav-h) + 12px);
+    padding: 1.2rem 1.1rem 1.4rem; border: 1px solid var(--line-2); border-radius: var(--raio);
+    background: linear-gradient(180deg, var(--s2), var(--s1));
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / .06), 0 -20px 40px -24px rgb(0 0 0 / .9);
+  }
+  .laudo .laudo__row:nth-child(2), .servicos--pilha > .servico:nth-child(2) { top: calc(var(--nav-h) + 20px); }
+  .laudo .laudo__row:nth-child(3), .servicos--pilha > .servico:nth-child(3) { top: calc(var(--nav-h) + 28px); }
+  .laudo .laudo__row:nth-child(4) { top: calc(var(--nav-h) + 36px); }
+  .laudo .laudo__row::after { display: none; }
+  .servicos--pilha > :last-child { border-bottom: 1px solid var(--line-2); }
+  .laudo .laudo__row::before { left: -1px; top: 1.2rem; }
 }
