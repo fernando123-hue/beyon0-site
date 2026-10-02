@@ -12,6 +12,6 @@
        aceso. -->
   <rect width="64" height="64" rx="14" fill="#050507"/>
   <polygon points="46.7,40.5 32,49 17.3,40.5 17.3,23.5 32,15 46.7,23.5"
-           fill="none" stroke="#4FD8F0" stroke-width="3.5" stroke-linejoin="round"/>
+           fill="none" stroke="#49E5DD" stroke-width="3.5" stroke-linejoin="round"/>
   <circle cx="32" cy="32" r="4" fill="#EDEDF1"/>
 </svg>

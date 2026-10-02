@@ -49,13 +49,14 @@ subindo); ignore a primeira medição de DCL/LCP.
 ## Arquitetura (V4)
 
 ```
-css/tokens.css (paleta, fontes, atmosfera) · base.css (tipo, nav, botões, hero, trilha, feixe, barra do celular, rodapé)
+css/tokens.css (paleta 2026-10-02: preto, grafite, metal #565656 + prata, ciano-esverdeado #49E5DD / #1CB5B9; sem âmbar e sem azul; fontes, atmosfera) · base.css (tipo, nav, botões, hero, trilha, feixe, barra do celular, rodapé)
 css/componentes.css (painel, serviços, passos, laudo, prova, malha, cenários, FAQ, conversa, spec, planos, janela, instrumento, modal)
 css/motion.css (estados iniciais html.js, varredura do painel, régua do kicker, reduced-motion)
 js/ancoras.js (head: html.js + âncoras antigas) · tel.js · core.js (loop, estado S, fps, reduzir, B.num pt-BR)
 js/pagina.js (nav, menu, WA, seção atual, barra do celular, medidas: carga, peso, fps, FCP, cascata, log do console, interruptor)
 js/anima.js (GSAP: boot do hero, cota, rota, palco da prova, fecho, entradas por seção, pilha do celular, pouso em âncora) · lead-form.js (só automação)
-js/nucleo/ (AI Core, só no Hub): boot.js (clássico: porteiro, import() depois do load, laço via B.add) · cena.js · pecas.js (emissor + shader do vidro) · spec.js (a esfera em dados) · lab.js (laboratório, fora do deploy)
+js/nucleo/ (AI Core, só no Hub): boot.js (clássico: centra o cosmos, porteiro, import() depois do load, laço via B.add) · cena.js · gesto.js (ponteiro/dedo/toque/rolagem → estado) · pecas.js (emissor + shaders) · spec.js (o reator em dados, respiração e campo) · lab.js (laboratório, fora do deploy)
+O cosmos (fundo do hero do Hub, .cosmos em index.html + css/componentes.css): anéis colossais no plano do disco do reator, coluna de luz, névoa, fragmentos; estático, centrado no reator por --cx/--cy/--nw
 vendor/three/three-nucleo.min.js (three r160 reduzido às classes da esfera; receita em vendor/three/README.md)
 ```
 

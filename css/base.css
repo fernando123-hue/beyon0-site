@@ -29,10 +29,10 @@ p em, li em { font-style: normal; font-weight: 500; color: var(--t1); }
   color: var(--t3);
   margin-bottom: clamp(1rem, 2vw, 1.4rem);
 }
-.kicker b { color: var(--ambar); font-weight: 500; }
+.kicker b { color: var(--ac-3); font-weight: 500; }
 #prova .kicker::after, .conversa .kicker::after { flex: 1; }
 /* a régua do kicker: curta nas seções comuns (assinatura), longa só onde um capítulo abre */
-.kicker::after { content: ""; flex: 0 0 clamp(40px, 5vw, 72px); height: 1px; background: linear-gradient(90deg, rgb(var(--ambar-rgb) / .6), var(--line-2) 30%, var(--line) 85%, transparent); }
+.kicker::after { content: ""; flex: 0 0 clamp(40px, 5vw, 72px); height: 1px; background: linear-gradient(90deg, rgb(var(--prata-rgb) / .6), var(--line-2) 30%, var(--line) 85%, transparent); }
 .lead, .hero__sub { letter-spacing: -.011em; }
 .lead { margin-top: 1.25rem; max-width: 48ch; color: var(--t2); font-size: var(--fs-l); line-height: 1.55; }
 .fine { font-size: var(--fs-s); line-height: 1.55; color: var(--t3); }
@@ -47,7 +47,7 @@ p em, li em { font-style: normal; font-weight: 500; color: var(--t1); }
 /* um véu translúcido, sem régua própria: a malha continua por trás e o
    fechamento da lista anterior é o único divisor (sem fio duplo). As pontas
    esvaem em 120px fixos: sem borda dura e sem vão. */
-.faixa { position: relative; background: linear-gradient(180deg, rgb(13 20 32 / 0), rgb(13 20 32 / .6) 120px, rgb(13 20 32 / .6) calc(100% - 120px), rgb(13 20 32 / 0)); }
+.faixa { position: relative; background: linear-gradient(180deg, rgb(16 18 19 / 0), rgb(16 18 19 / .6) 120px, rgb(16 18 19 / .6) calc(100% - 120px), rgb(16 18 19 / 0)); }
 .faixa > .section { padding-top: var(--sp-2); padding-bottom: var(--sp-1); }
 @media (min-width: 981px) {
   /* o cabeçalho em duas colunas: o lead senta na base do h2, à direita */
@@ -108,7 +108,7 @@ html.tem-menu .nav.is-open .nav__links { max-height: calc(100dvh - var(--nav-h))
   body.is-menu { overflow: hidden; }
   html.tem-menu .nav.is-open .nav__links { height: calc(100dvh - var(--nav-h)); max-height: calc(100dvh - var(--nav-h)); padding: 1.6rem var(--pad) max(1.5rem, env(safe-area-inset-bottom)); counter-reset: item; }
   html.tem-menu .nav__links a:not(.btn) { counter-increment: item; font-family: var(--sans); font-weight: 300; font-size: 2rem; line-height: 1.1; letter-spacing: -.02em; text-transform: none; min-height: 64px; }
-  html.tem-menu .nav__links a:not(.btn)::before { content: "0" counter(item); content: "0" counter(item) / ""; font-family: var(--mono); font-weight: 500; font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); color: var(--ambar); margin-right: 1rem; align-self: center; }
+  html.tem-menu .nav__links a:not(.btn)::before { content: "0" counter(item); content: "0" counter(item) / ""; font-family: var(--mono); font-weight: 500; font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); color: var(--ac-3); margin-right: 1rem; align-self: center; }
   /* o lugar atual em branco e os outros em --t2: o ciano em texto fica no H1, na Conversa e em dado (regra 8) */
   html.tem-menu .nav__links a:not(.btn) { color: var(--t2); }
   html.tem-menu .nav__links a.is-current { color: var(--t1); }
@@ -204,7 +204,7 @@ html:not(.js) .barra.is-oculta { transform: none; opacity: 1; pointer-events: au
   body { padding-bottom: 76px; }
   /* a barra é uma DOCA escura flutuante; o botão é contornado, não uma placa
      ciano sólida em toda tela (o ciano cheio fica no hero e na Conversa) */
-  .barra { left: 12px; right: 12px; bottom: max(12px, env(safe-area-inset-bottom)); padding: 6px; border: 1px solid var(--line-2); border-radius: var(--raio); background: rgb(11 16 22 / .84); box-shadow: inset 0 1px 0 rgb(255 255 255 / .06), 0 18px 40px -14px rgb(0 0 0 / .95); }
+  .barra { left: 12px; right: 12px; bottom: max(12px, env(safe-area-inset-bottom)); padding: 6px; border: 1px solid var(--line-2); border-radius: var(--raio); background: rgb(12 13 14 / .84); box-shadow: inset 0 1px 0 rgb(255 255 255 / .06), 0 18px 40px -14px rgb(0 0 0 / .95); }
   /* uma moldura só: a doca é a borda, o botão ocupa a doca */
   .barra { padding: 0; border-color: rgb(var(--ac-rgb) / .38); overflow: hidden; }
   .barra .btn--primary { background-color: rgb(var(--ac-rgb) / .07); color: var(--ac); border: 0; min-height: 56px; }
@@ -241,7 +241,7 @@ html:not(.js) .barra.is-oculta { transform: none; opacity: 1; pointer-events: au
 }
 @media (max-width: 620px) { .hero__status { font-size: var(--fs-rotulo); } }
 .hero__status > span:last-child { flex: 1 1 auto; min-width: 0; text-wrap: balance; }
-.hero__status .dot { width: 6px; height: 6px; margin-top: .45em; border-radius: 50%; background: var(--ambar); box-shadow: 0 0 0 3px rgb(var(--ambar-rgb) / .18); flex: none; }
+.hero__status .dot { width: 6px; height: 6px; margin-top: .45em; border-radius: 50%; background: var(--ac-3); box-shadow: 0 0 0 3px rgb(var(--ac-3-rgb) / .18); flex: none; }
 .hero__title { margin-bottom: 1.2rem; margin-left: -.04em; }
 .hero__title em { transition: color .6s var(--ease); }
 .hero__sub { color: var(--t2); max-width: 38ch; font-size: clamp(1rem, .9rem + .5vw, 1.3125rem); line-height: 1.5; margin-bottom: 1.4rem; }
@@ -288,8 +288,8 @@ html:not(.js) .barra.is-oculta { transform: none; opacity: 1; pointer-events: au
   box-shadow: inset 0 1px 0 rgb(255 255 255 / .06);
   margin-top: clamp(24px, 5vw, 40px);
 }
-/* a aresta superior acesa, do ciano ao âmbar — se desenha DEBAIXO do feixe */
-.hero__rail-aresta { position: absolute; left: 8%; right: 8%; top: -1px; height: 1px; background: linear-gradient(90deg, transparent, rgb(var(--ac-rgb) / .7) 30%, rgb(var(--ambar-rgb) / .6) 70%, transparent); transform-origin: left; pointer-events: none; }
+/* a aresta superior acesa, do ciano à prata — se desenha DEBAIXO do feixe */
+.hero__rail-aresta { position: absolute; left: 8%; right: 8%; top: -1px; height: 1px; background: linear-gradient(90deg, transparent, rgb(var(--ac-rgb) / .7) 30%, rgb(var(--prata-rgb) / .6) 70%, transparent); transform-origin: left; pointer-events: none; }
 .hero__rail > .hero__rail-aresta { display: block; padding: 0; min-height: 0; border: 0; }
 @media (max-width: 860px) { .hero__rail { order: 1; margin-top: 16px; } .hero__arte { order: 2; } }
 .hero__rail > * { display: flex; flex-direction: column; gap: .3rem; padding: 1rem 1.2rem; min-height: 56px; border-top: 1px solid var(--line); }
@@ -300,7 +300,7 @@ html:not(.js) .barra.is-oculta { transform: none; opacity: 1; pointer-events: au
 .hero__rail a:hover { background-color: rgb(var(--ac-rgb) / .06); }
 .hero__rail a:hover .hero__rail-v { color: var(--ac); }
 .hero__rail-k { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; line-height: 1.4; color: var(--t3); }
-.hero__rail-k b { color: var(--ambar); font-weight: 500; }
+.hero__rail-k b { color: var(--ac-3); font-weight: 500; }
 .hero__rail-v { color: var(--t1); font-size: var(--fs-m); font-weight: 400; letter-spacing: -.012em; line-height: 1.35; text-wrap: balance; transition: color var(--t-micro) var(--ease-micro); }
 .hero__rail-v b { font-family: var(--mono); font-weight: 500; font-size: .92em; color: var(--ac); font-variant-numeric: tabular-nums; }
 
@@ -335,7 +335,7 @@ html:not(.js) .barra.is-oculta { transform: none; opacity: 1; pointer-events: au
   .hero__arte { grid-area: arte; align-self: center; display: flex; align-items: stretch; margin-top: 0; }
   .hero__arte > .console { flex: 0 0 auto; width: 100%; }
   /* a luz presa ao objeto, embaixo dele (estática): não é mancha redonda atrás de texto */
-  .hero__arte > .console, .hero__arte > .janela, .hero__arte > .instrumento { box-shadow: var(--sombra-arte), 0 48px 96px -56px rgb(var(--luz-rgb) / .32); }
+  .hero__arte > .console, .hero__arte > .janela, .hero__arte > .instrumento { box-shadow: var(--sombra-arte), 0 48px 96px -56px rgb(var(--ac-3-rgb) / .22); }
   .hero__arte > .janela, .hero__arte > .instrumento { flex: 0 0 auto; width: 100%; align-self: center; }
   .hero__rail { grid-area: rail; grid-template-columns: repeat(4, 1fr); margin-top: clamp(32px, 5vh, 56px); }
   .hero:has(.console) .hero__rail, .hero__rail:not(:has(.hero__rail--medida)) { grid-template-columns: repeat(3, 1fr); }
@@ -429,7 +429,7 @@ html.has-gsap .feixe.is-loop ~ .hero__arte .instrumento__led { animation: led-pa
 
 /* ---- RODAPÉ ---- */
 .footer { position: relative; border-top: 1px solid var(--line); background: linear-gradient(180deg, var(--s1), var(--bg)); color: var(--t3); padding: clamp(40px, 7vw, 72px) var(--pad) clamp(24px, 4vw, 40px); }
-.footer::before { content: ""; position: absolute; left: 0; right: 0; top: -1px; height: 1px; background: linear-gradient(90deg, transparent, rgb(var(--ac-rgb) / .5), rgb(var(--ambar-rgb) / .4), transparent); }
+.footer::before { content: ""; position: absolute; left: 0; right: 0; top: -1px; height: 1px; background: linear-gradient(90deg, transparent, rgb(var(--ac-rgb) / .5), rgb(var(--prata-rgb) / .4), transparent); }
 .footer__grid { max-width: var(--maxw); margin: 0 auto; display: grid; grid-template-columns: 1fr; gap: 2rem; }
 .footer__brand > a { display: inline-flex; align-items: center; min-height: 28px; }
 .footer__brand p { font-weight: 300; font-size: 1.3rem; line-height: 1.25; letter-spacing: -.02em; color: var(--t1); margin-top: .9rem; max-width: 20ch; }
@@ -465,5 +465,5 @@ html.has-gsap .feixe.is-loop ~ .hero__arte .instrumento__led { animation: led-pa
 @media (min-width: 981px) {
   /* uma voz só na nav: as outras páginas também em mono caixa-alta, marcadas por "/" âmbar */
   .nav__links a[href^="/"]:not(.btn) { color: var(--t1); }
-  .nav__links a[href^="/"]:not(.btn)::before { content: "/"; content: "/" / ""; color: var(--ambar); margin-right: .15em; }
+  .nav__links a[href^="/"]:not(.btn)::before { content: "/"; content: "/" / ""; color: var(--ac-3); margin-right: .15em; }
 }

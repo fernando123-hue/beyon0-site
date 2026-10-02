@@ -12,8 +12,8 @@ import { montar } from './pecas.js';
 
 /* tokens do CSS que a esfera usa, lidos UMA vez (ler getComputedStyle por
    quadro foi o pecado que custou 76 ms por quadro a este projeto) */
-const TOKENS = { bg: '--bg', t1: '--t1', ac: '--ac', ac2: '--ac-2', luz: '--luz', ambar: '--ambar' };
-const PADRAO = { bg: '#06090E', t1: '#EEF1F5', ac: '#4FD8F0', ac2: '#8FE8F7', luz: '#2A6BFF', ambar: '#F0B44F' };
+const TOKENS = { bg: '--bg', t1: '--t1', ac: '--ac', ac2: '--ac-2', metal: '--metal', prata: '--prata' };
+const PADRAO = { bg: '#000000', t1: '#F2F4F4', ac: '#49E5DD', ac2: '#A6F4EF', metal: '#565656', prata: '#B7BFC0' };
 
 /* atributos do contexto. O teste de GPU e o renderer usam UM contexto só:
    quem testa (boot.js, que repete estes valores porque roda antes de baixar

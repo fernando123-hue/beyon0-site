@@ -106,7 +106,7 @@ html.js .spec.is-in .spec__item:nth-child(5) h3::before { transition-delay: .24s
 html.js .spec.is-in .spec__item:nth-child(6) h3::before { transition-delay: .3s; }
 
 /* ---- celular: o item no meio da tela está em foco (anima.js: .is-foco) ---- */
-.is-foco .servico__n, .is-foco .laudo__n, .is-foco .celula__n, .is-foco .passo__n { color: var(--ambar); }
+.is-foco .servico__n, .is-foco .laudo__n, .is-foco .celula__n, .is-foco .passo__n { color: var(--ac-3); }
 .laudo__row.is-foco::before { transform: none; }
 .laudo__row.is-foco::after { background: linear-gradient(90deg, var(--ac), var(--line-2) 55%); }
 @media (max-width: 620px) {
@@ -185,7 +185,7 @@ html.js .passos--rota .passo.is-alcancado::after { transform: none; }
 .passos--rota .passo h3, .passos--rota .passo p { color: var(--t3); transition: color .45s var(--ease); }
 .passos--rota .passo.is-alcancado h3 { color: var(--t1); }
 .passos--rota .passo.is-alcancado p { color: var(--t2); }
-.passos--rota .passo.is-alcancado .passo__n { color: var(--ambar); }
+.passos--rota .passo.is-alcancado .passo__n { color: var(--ac-3); }
 
 /* ---- "tinta molhada" (rodada 6): a palavra acende ciano quando a luz passa e
    seca para o branco em .9s; só com GSAP e com movimento ---- */

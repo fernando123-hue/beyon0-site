@@ -33,12 +33,12 @@
 .servicos { display: grid; grid-template-columns: 1fr; gap: 12px; }
 .servicos > :nth-child(1) { --tinta-rgb: var(--ac-rgb); }
 .servicos > :nth-child(2) { --tinta-rgb: var(--ac-rgb); }
-.servicos > :nth-child(3) { --tinta-rgb: var(--ambar-rgb); }
+.servicos > :nth-child(3) { --tinta-rgb: var(--prata-rgb); }
 .servico { display: flex; flex-direction: column; gap: .8rem; padding: clamp(22px, 5vw, 32px); min-height: 220px; color: var(--t1); }
 .servico__n { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); line-height: 1.4; color: var(--t2); display: flex; align-items: center; gap: .6rem; }
 .servico__n::after { content: ""; width: 48px; height: 1px; background: var(--line-2); transform: scaleX(.5); transform-origin: left; transition: transform var(--t) var(--ease), background-color var(--t) var(--ease); }
-.servico:hover .servico__n::after { transform: scaleX(1); background-color: var(--ambar); }
-.servico:hover .servico__n { color: var(--ambar); }
+.servico:hover .servico__n::after { transform: scaleX(1); background-color: var(--ac-3); }
+.servico:hover .servico__n { color: var(--ac-3); }
 .servico h3 { font-size: var(--h3-cartao); font-weight: 400; letter-spacing: -.025em; line-height: 1.1; }
 .servico p { color: var(--t2); font-size: var(--fs-m); line-height: 1.6; }
 .servico__para { font-size: var(--fs-s); line-height: 1.5; color: var(--t3); }
@@ -89,7 +89,7 @@
 .passo:last-child::before { display: none; }
 .passo:last-child { padding-bottom: 0; }
 .passo::after { content: ""; position: absolute; left: 0; top: 5px; width: 11px; height: 11px; border-radius: 50%; background: var(--bg); border: 1px solid var(--ac); }
-.passo:first-child::after { background: var(--ambar); border-color: var(--ambar); box-shadow: 0 0 12px rgb(var(--ambar-rgb) / .7); }
+.passo:first-child::after { background: var(--ac-3); border-color: var(--ac-3); box-shadow: 0 0 12px rgb(var(--ac-3-rgb) / .7); }
 .passo:last-child::after { border-color: var(--ac); background: rgb(var(--ac-rgb) / .25); }
 .passo__n { display: block; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); line-height: 1.4; color: var(--t3); margin-bottom: .4rem; }
 .passo h3 { font-size: var(--h3-linha); margin-bottom: .6rem; line-height: 1.15; }
@@ -115,7 +115,7 @@
 .laudo__row p { color: var(--t2); font-size: var(--fs-m); max-width: 46ch; }
 /* o foco da linha é um traço que se desenha, não o h3 andando 4px sozinho */
 .laudo__row::before { content: ""; position: absolute; left: 0; top: 1.3rem; width: 2px; height: 1.2em; background: var(--ac); transform: scaleY(0); transform-origin: top; transition: transform .4s var(--ease); }
-@media (hover: hover) { .laudo__row:hover .laudo__n { color: var(--ambar); } .laudo__row:hover::before { transform: none; } }
+@media (hover: hover) { .laudo__row:hover .laudo__n { color: var(--ac-3); } .laudo__row:hover::before { transform: none; } }
 @media (min-width: 821px) { .laudo__row::before { left: -14px; top: clamp(1.5rem, 2.5vw, 2.2rem); } }
 @media (min-width: 821px) {
   /* o índice pendura na linha de base do título */
@@ -130,12 +130,12 @@
 .prova { display: grid; grid-template-columns: 1fr; border-top: 1px solid var(--line-2); }
 .prova__item { position: relative; padding: clamp(1.6rem, 3vw, 2.5rem) clamp(1rem, 2vw, 2rem) clamp(1.6rem, 3vw, 2.5rem) clamp(1.2rem, 2vw, 2rem); border-bottom: 1px solid var(--line); }
 .prova__item::before { content: ""; position: absolute; left: 0; top: 0; width: 3px; height: 100%; background: var(--ac); opacity: .9; }
-.prova__item:nth-child(2)::before { background: var(--ambar); }
+.prova__item:nth-child(2)::before { background: var(--ac-3); }
 /* o número em Sora 200 (o zero pontilhado do mono pesava na escala grande); a unidade é ficha técnica em mono */
 .prova__mascara, .prova__tinta { display: block; }
 .prova__val { display: block; font-family: var(--sans); font-weight: 200; font-size: clamp(2.75rem, 1rem + 4.2vw, 5rem); letter-spacing: -.045em; line-height: .95; color: var(--ac); margin-bottom: .6rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .prova__val small { font-family: var(--mono); font-size: .2em; font-weight: 400; letter-spacing: var(--tr-dado); color: var(--t3); margin-left: .35em; }
-.prova__item:nth-child(2) .prova__val { color: var(--ambar); }
+.prova__item:nth-child(2) .prova__val { color: var(--ac-3); }
 .prova__rot { display: block; font-size: var(--fs-s); max-width: 20ch; text-wrap: balance; color: var(--t2); line-height: 1.45; }
 .prova__nota { margin-top: 1.25rem; font-size: var(--fs-s); line-height: 1.55; color: var(--t3); max-width: 58ch; }
 @media (max-width: 820px) { .prova__val { font-size: clamp(3.5rem, 19vw, 5rem); } }
@@ -179,7 +179,7 @@ html:not(.has-gsap) .varredura, html.menos-movimento .varredura { display: none;
 .prova__indice { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
 .prova__indice li { position: relative; padding-left: 32px; color: var(--t3); transition: color .3s var(--ease); }
 .prova__indice b { font-weight: 500; margin-right: .5rem; }
-.prova__indice li::before { content: ""; position: absolute; left: 0; top: 50%; width: 24px; height: 1px; background: var(--ambar); transform: scaleX(0); transform-origin: left; transition: transform .3s var(--ease); }
+.prova__indice li::before { content: ""; position: absolute; left: 0; top: 50%; width: 24px; height: 1px; background: var(--ac-3); transform: scaleX(0); transform-origin: left; transition: transform .3s var(--ease); }
 .prova__indice li.is-atual { color: var(--t1); }
 .prova__indice li.is-atual::before { transform: scaleX(1); }
 
@@ -193,7 +193,7 @@ html:not(.has-gsap) .varredura, html.menos-movimento .varredura { display: none;
 .celula:hover::before { opacity: 1; }
 .celula:focus-visible { outline-offset: -3px; }   /* a malha tem overflow hidden: o anel vai para dentro */
 .celula__n { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); line-height: 1.4; color: var(--t3); transition: color var(--t-micro) var(--ease-micro); }
-.celula:hover .celula__n { color: var(--ambar); }
+.celula:hover .celula__n { color: var(--ac-3); }
 .celula h3 { font-size: var(--h3-linha); }
 .celula p { color: var(--t2); font-size: var(--fs-m); line-height: 1.6; }
 .celula__link { margin-top: auto; padding-top: .6rem; display: inline-flex; align-items: center; gap: .4rem; font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-ctrl); text-transform: uppercase; color: var(--t3); min-height: 44px; transition: color var(--t-micro) var(--ease-micro); }
@@ -209,7 +209,7 @@ html:not(.has-gsap) .varredura, html.menos-movimento .varredura { display: none;
 @media (hover: none) {
   .celula__link { color: var(--ac); }
   .painel:active { background-color: var(--vidro-2); border-color: var(--line-hi); transition-duration: var(--t-micro); }
-  .painel:active .servico__n, .celula:active .celula__n { color: var(--ambar); }
+  .painel:active .servico__n, .celula:active .celula__n { color: var(--ac-3); }
   .celula:active { background: var(--s2); }
   .qa summary:active { color: var(--ac); }
 }
@@ -221,22 +221,22 @@ html:not(.has-gsap) .varredura, html.menos-movimento .varredura { display: none;
 .cenarios { display: grid; grid-template-columns: 1fr; gap: 12px; }
 .cenarios > :nth-child(1) { --tinta-rgb: var(--ac-rgb); }
 .cenarios > :nth-child(2) { --tinta-rgb: var(--ac-rgb); }
-/* o azul (--luz) é só atmosfera: no painel do meio ele fica no brilho do
-   canto; linha e texto seguem em ciano ou âmbar */
+/* o metal é só atmosfera: no painel do meio ele fica no brilho do canto;
+   linha e texto seguem no ciano */
 @media (min-width: 621px) {
-  .servicos > .painel--tinta:nth-child(2), .cenarios > .painel--tinta:nth-child(2) { background-image: radial-gradient(60% 50% at 0% 0%, rgb(var(--luz-rgb) / .14), transparent 70%), linear-gradient(180deg, var(--vidro-2), var(--vidro) 40%); }
+  .servicos > .painel--tinta:nth-child(2), .cenarios > .painel--tinta:nth-child(2) { background-image: radial-gradient(60% 50% at 0% 0%, rgb(var(--metal-rgb) / .14), transparent 70%), linear-gradient(180deg, var(--vidro-2), var(--vidro) 40%); }
 }
-.cenarios > :nth-child(3) { --tinta-rgb: var(--ambar-rgb); }
+.cenarios > :nth-child(3) { --tinta-rgb: var(--prata-rgb); }
 .cenario { padding: clamp(20px, 5vw, 28px); display: flex; flex-direction: column; gap: 1.1rem; }
 .cenario__label { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; line-height: 1.4; color: var(--t3); }
-.cenario__label b { color: var(--ambar); font-weight: 500; }
+.cenario__label b { color: var(--ac-3); font-weight: 500; }
 .cenario__title { font-size: var(--h3-linha); color: var(--t1); }
 .fluxo { list-style: none; display: flex; align-items: center; gap: .5rem 1.25rem; flex-wrap: wrap; margin-top: auto; }
 .fluxo li { position: relative; font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-dado); line-height: 1.4; color: var(--t2); padding: .3rem .5rem; border: 1px solid var(--line-2); border-radius: var(--raio-s); }
 .fluxo li:first-child { border-color: rgb(var(--ac-rgb) / .35); color: var(--t1); }
 /* a seta pertence ao chip seguinte: a quebra de linha a leva junto */
 .fluxo li + li::before { content: "→" / ""; position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: .45rem; color: var(--t3); }
-.fluxo li:last-child { background: var(--ambar); border-color: var(--ambar); color: var(--ambar-tinta); font-weight: 600; }
+.fluxo li:last-child { background: var(--ac-3); border-color: var(--ac-3); color: var(--ac-3-tinta); font-weight: 600; }
 @media (min-width: 1100px) { .cenarios { grid-template-columns: repeat(3, 1fr); gap: 14px; } }
 /* grades de 3 colunas alinhadas: título de uma linha reserva a segunda; o fluxo assenta na base */
 @media (min-width: 981px) { .celula h3, .cenario__title { min-height: calc(2 * 1.2em); } }
@@ -253,7 +253,7 @@ html:not(.has-gsap) .varredura, html.menos-movimento .varredura { display: none;
 .faq-list { border-top: 1px solid var(--line-2); max-width: 680px; }
 .qa:last-child { border-bottom-color: var(--line-2); }
 .qa { border-bottom: 1px solid var(--line); transition: background-color var(--t) var(--ease); }
-.qa[open] { background: linear-gradient(90deg, rgb(var(--ambar-rgb) / .04), transparent 40%); }
+.qa[open] { background: linear-gradient(90deg, rgb(var(--ac-3-rgb) / .04), transparent 40%); }
 .qa summary {
   list-style: none; cursor: pointer;
   display: flex; align-items: center; justify-content: space-between; gap: 1.5rem;
@@ -271,8 +271,8 @@ html:not(.has-gsap) .varredura, html.menos-movimento .varredura { display: none;
 .qa__mark::after { left: 12px; top: 7px; width: 1px; height: 10px; transition: transform .35s var(--ease-pop), background-color var(--t) var(--ease); }
 /* o + vira −: o traço vertical gira para a horizontal e some sob o outro */
 .qa[open] .qa__mark::after { transform: rotate(90deg) scaleY(0); }
-.qa[open] .qa__mark::before { transform: scaleX(1.25); background: var(--ambar); }
-.qa[open] .qa__mark { border-color: var(--ambar); background: rgb(var(--ambar-rgb) / .12); }
+.qa[open] .qa__mark::before { transform: scaleX(1.25); background: var(--ac-3); }
+.qa[open] .qa__mark { border-color: var(--ac-3); background: rgb(var(--ac-3-rgb) / .12); }
 .qa__a { padding: 0 0 1.3rem; }
 .qa__a p { color: var(--t2); font-size: var(--fs-m); max-width: 56ch; }
 /* abrir sem salto, onde o navegador anima altura até auto */
@@ -305,12 +305,12 @@ html.menos-movimento .qa::details-content { transition: none; }
 .conversa { position: relative; overflow: hidden; }
 .conversa__regua {
   position: absolute; top: 0; height: 1px; left: max(var(--pad), calc(50% - var(--maxw) / 2 + var(--pad))); right: max(var(--pad), calc(50% - var(--maxw) / 2 + var(--pad)));
-  background: linear-gradient(90deg, rgb(var(--ac-rgb) / 0), rgb(var(--ac-rgb) / .8) 40%, rgb(var(--ambar-rgb) / .6) 60%, rgb(var(--ambar-rgb) / 0));
+  background: linear-gradient(90deg, rgb(var(--ac-rgb) / 0), rgb(var(--ac-rgb) / .8) 40%, rgb(var(--prata-rgb) / .6) 60%, rgb(var(--prata-rgb) / 0));
   transform-origin: 50%;
 }
 .conversa::after {
   content: ""; position: absolute; left: 50%; top: 0; width: 80vmax; height: 50vmax; transform: translateX(-50%);
-  background: radial-gradient(40% 55% at 42% 0%, rgb(var(--ac-rgb) / .16), rgb(var(--ac-rgb) / 0) 70%), radial-gradient(35% 50% at 62% 0%, rgb(var(--luz-rgb) / .14), rgb(var(--luz-rgb) / 0) 70%);
+  background: radial-gradient(40% 55% at 42% 0%, rgb(var(--ac-rgb) / .16), rgb(var(--ac-rgb) / 0) 70%), radial-gradient(35% 50% at 62% 0%, rgb(var(--metal-rgb) / .14), rgb(var(--metal-rgb) / 0) 70%);
   pointer-events: none;
 }
 .conversa .section { position: relative; z-index: 1; }
@@ -335,7 +335,7 @@ html.menos-movimento .qa::details-content { transition: none; }
 .spec__item { padding: 1.2rem 0; border-bottom: 1px solid var(--line); }
 .spec__item:last-child { border-bottom: 0; }
 .spec__item h3 { display: flex; align-items: center; gap: .7rem; font-size: var(--h3-linha); margin-bottom: .6rem; line-height: 1.15; }
-.spec__item h3::before { content: ""; width: 8px; height: 8px; border: 1px solid var(--ambar); background: rgb(var(--ambar-rgb) / .25); flex: none; transform: rotate(45deg); }
+.spec__item h3::before { content: ""; width: 8px; height: 8px; border: 1px solid var(--ac-3); background: rgb(var(--ac-3-rgb) / .25); flex: none; transform: rotate(45deg); }
 .spec__item p { color: var(--t2); font-size: var(--fs-m); }
 @media (min-width: 721px) { .spec { grid-template-columns: 1fr 1fr; column-gap: 3rem; } .spec__item:nth-last-child(2):nth-child(odd) { border-bottom: 0; } }
 
@@ -347,7 +347,7 @@ html.menos-movimento .qa::details-content { transition: none; }
   position: relative; padding: 18px 20px; min-height: clamp(200px, 52vw, 300px);
   display: flex; flex-direction: column; justify-content: space-between; gap: .35rem;
   font-family: var(--mono); font-size: var(--fs-ctrl); line-height: 1.5; letter-spacing: var(--tr-dado);
-  background: linear-gradient(170deg, rgb(17 24 35 / .95), rgb(11 16 22 / .95));
+  background: linear-gradient(170deg, rgb(var(--grafite-rgb) / .95), rgb(12 13 14 / .95));
   transform-style: preserve-3d; will-change: transform;
 }
 .console__medida { font-family: var(--mono); font-weight: 300; font-size: clamp(2.5rem, 3vw, 3.5rem); letter-spacing: -.04em; line-height: 1; color: var(--ac); padding-bottom: 1rem; }
@@ -359,7 +359,7 @@ html.menos-movimento .qa::details-content { transition: none; }
 .cascata__nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cascata__trilho { position: relative; height: 2px; background: var(--line); overflow: hidden; }
 .cascata__barra { position: absolute; top: 0; bottom: 0; left: 0; width: 100%; background: var(--ac); transform-origin: left; }
-.cascata__linha--ultimo .cascata__barra { background: var(--ambar); }
+.cascata__linha--ultimo .cascata__barra { background: var(--ac-3); }
 .cascata__ms { font-variant-numeric: tabular-nums; color: var(--t2); text-align: right; }
 @media (max-width: 620px) { .cascata__linha { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) 7ch; } }
 html.js .cascata__barra { transform: scaleX(0); transition: transform .6s var(--ease-io); }
@@ -373,15 +373,15 @@ html.menos-movimento .cascata__barra { transform: none; }
 .console__unid { font-family: var(--mono); font-size: var(--fs-rotulo); font-weight: 400; letter-spacing: var(--tr-dado); color: var(--t3); margin-left: .3em; }
 .console__medida span { display: block; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); margin-top: .5rem; }
 .console__topo { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-bottom: .7rem; margin-bottom: .4rem; border-bottom: 1px solid var(--line); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); }
-.console__led { width: 7px; height: 7px; border-radius: 50%; background: var(--ambar); box-shadow: 0 0 0 3px rgb(var(--ambar-rgb) / .18); flex: none; }
+.console__led { width: 7px; height: 7px; border-radius: 50%; background: var(--ac-3); box-shadow: 0 0 0 3px rgb(var(--ac-3-rgb) / .18); flex: none; }
 .console__linha { overflow: hidden; display: flex; gap: 1rem; }
 .console__t { color: var(--t3); min-width: 6ch; font-variant-numeric: tabular-nums; }
 .console__v { color: var(--t1); }
 .console__v b { color: var(--ac); font-weight: 400; font-size: .96em; font-variant-numeric: tabular-nums; }
-.console__linha--on .console__v { color: var(--ambar); letter-spacing: var(--tr-rotulo); text-transform: uppercase; }
+.console__linha--on .console__v { color: var(--ac-3); letter-spacing: var(--tr-rotulo); text-transform: uppercase; }
 /* a varredura de leitura: uma faixa clara passa sobre o console uma vez, na entrada */
 /* a aresta do console: a mesma da trilha (ciano ao âmbar), um instrumento só */
-.console::before { content: ""; position: absolute; left: 8%; right: 8%; top: -1px; height: 1px; background: linear-gradient(90deg, transparent, rgb(var(--ac-rgb) / .7) 30%, rgb(var(--ambar-rgb) / .6) 70%, transparent); pointer-events: none; }
+.console::before { content: ""; position: absolute; left: 8%; right: 8%; top: -1px; height: 1px; background: linear-gradient(90deg, transparent, rgb(var(--ac-rgb) / .7) 30%, rgb(var(--prata-rgb) / .6) 70%, transparent); pointer-events: none; }
 .console::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 28%; background: linear-gradient(180deg, rgb(var(--ac-rgb) / 0), rgb(var(--ac-rgb) / .08), rgb(var(--ac-rgb) / 0)); transform: translateY(-100%); pointer-events: none; }
 @media (min-width: 861px) {
   .console { padding: 22px 26px; font-size: .8125rem; }
@@ -403,7 +403,7 @@ html.menos-movimento .cascata__barra { transform: none; }
 /* o console é vidro: translúcido para os arcos de baixo aparecerem por trás.
    Sem backdrop-filter de propósito: um blur sobre um canvas que muda a cada
    quadro seria refeito a cada quadro. */
-.hero__arte--nucleo .console { width: 100%; min-height: 0; margin-top: -10%; z-index: 1; background: linear-gradient(170deg, rgb(17 24 35 / .78), rgb(11 16 22 / .82)); }
+.hero__arte--nucleo .console { width: 100%; min-height: 0; margin-top: -10%; z-index: 1; background: linear-gradient(170deg, rgb(var(--grafite-rgb) / .78), rgb(12 13 14 / .82)); }
 .hero__arte--nucleo .console__medida, .hero__arte--nucleo .cascata { display: none; }
 .hero__arte--nucleo .console__topo { margin-top: 0; }
 /* celular: respiro nas laterais (de borda a borda os arcos eram cortados) e
@@ -436,7 +436,7 @@ html:not(.tem-nucleo) .nucleo__tela { visibility: hidden; }
   position: absolute; inset: 0; border-radius: 50%;
   background:
     radial-gradient(circle closest-side, rgb(238 241 245 / .95) 0 5%, rgb(var(--ac-rgb) / .5) 9%, rgb(var(--ac-rgb) / .1) 22%, transparent 40%),
-    radial-gradient(circle closest-side, transparent 0 14%, rgb(var(--ac-rgb) / .5) 14.3% 14.9%, transparent 15.3% 19.8%, rgb(var(--ambar-rgb) / .4) 20% 20.6%, transparent 21% 26.6%, rgb(var(--ac-rgb) / .3) 26.8% 27.2%, transparent 27.6%);
+    radial-gradient(circle closest-side, transparent 0 14%, rgb(var(--ac-rgb) / .5) 14.3% 14.9%, transparent 15.3% 19.8%, rgb(var(--prata-rgb) / .4) 20% 20.6%, transparent 21% 26.6%, rgb(var(--ac-rgb) / .3) 26.8% 27.2%, transparent 27.6%);
   transition: opacity .7s ease;
 }
 .nucleo__poster i { position: absolute; border-radius: 50%; }
@@ -480,11 +480,148 @@ html.tem-nucleo .nucleo__poster { opacity: 0; }
 }
 
 /* ==========================================================================
+   O COSMOS — o fundo do hero do Hub (pedido do dono, 2026-10-02: "algo
+   grandioso, misterioso", em harmonia com o AI Core). A imagem de referência
+   dele foi traduzida, não copiada: o vazio escuro, a luz que nasce do
+   núcleo, anéis colossais no MESMO plano do disco do reator (o reator em
+   escala de arquitetura), dois arcos de parede que emolduram, a coluna de
+   luz vertical (os jatos do reator continuando), névoa embaixo e
+   fragmentos em volta. Sem linha horizontal atravessando o núcleo: com a
+   coluna, formaria a "mira" que a crítica tirou do reator (rodada 6).
+
+   Centro: --cx/--cy (o centro do reator dentro do hero) e --nw (a largura
+   da caixa do reator). boot.js mede e ajusta por EVENTO (carga, resize);
+   sem JS valem os padrões abaixo, perto o bastante.
+   Custo: tudo estático, pintado uma vez. Só a coluna (opacidade, no ritmo
+   da respiração do reator: 7 s) e os fragmentos (transform) se mexem, no
+   compositor.
+   ========================================================================== */
+.cosmos {
+  --cx: 50%; --cy: 82%; --nw: 370px;
+  position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none;
+}
+.hero > .cosmos { position: absolute; z-index: 0; }
+@media (min-width: 861px) { .cosmos { --cx: 76%; --cy: 50%; --nw: 480px; } }
+/* a poeira: duas tramas de pontos finos, bem fracas (estrelas ao longe) */
+.cosmos::before {
+  content: ""; position: absolute; inset: 0;
+  background-image:
+    radial-gradient(1px 1px at 23px 41px, rgb(var(--prata-rgb) / .5), transparent 100%),
+    radial-gradient(1px 1px at 131px 97px, rgb(var(--ac-2-rgb) / .35), transparent 100%),
+    radial-gradient(1.5px 1.5px at 77px 163px, rgb(var(--prata-rgb) / .3), transparent 100%);
+  background-size: 180px 190px, 230px 210px, 260px 240px;
+  mask-image: radial-gradient(80% 70% at var(--cx) var(--cy), #000, transparent 85%);
+  -webkit-mask-image: radial-gradient(80% 70% at var(--cx) var(--cy), #000, transparent 85%);
+  opacity: .7;
+}
+/* o vazio: as bordas caem no escuro. No pé do hero o escuro se desfaz (em
+   vez de pintar preto): a atmosfera da página continua sem emenda */
+.cosmos::after {
+  content: ""; position: absolute; inset: 0;
+  background: radial-gradient(75% 70% at var(--cx) var(--cy), transparent 40%, rgb(0 0 0 / .65) 100%);
+  mask-image: linear-gradient(180deg, #000 68%, transparent);
+  -webkit-mask-image: linear-gradient(180deg, #000 68%, transparent);
+}
+/* a luz que nasce do núcleo, e o plano do disco aceso ao longe (uma
+   elipse larga e baixa: luz de horizonte, nunca uma linha) */
+.cosmos__luz {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(calc(var(--nw) * 1.1) calc(var(--nw) * 1.1) at var(--cx) var(--cy), rgb(var(--ac-3-rgb) / .16), rgb(var(--metal-rgb) / .12) 45%, transparent 75%),
+    radial-gradient(calc(var(--nw) * 3.2) calc(var(--nw) * .42) at var(--cx) var(--cy), rgb(var(--ac-rgb) / .07), transparent 70%);
+}
+/* os anéis: SVG de 6 reatores de largura, centrado no núcleo. O miolo é
+   vazado: as linhas não cruzam o reator (ele já tem os anéis dele). A prata
+   pega a luz do lado de fora do texto (o gradiente do SVG corre da direita
+   para a esquerda) */
+.cosmos__aneis {
+  position: absolute; left: var(--cx); top: var(--cy);
+  width: calc(var(--nw) * 6); height: calc(var(--nw) * 3.5); max-width: none;
+  transform: translate(-50%, -50%);
+  mask-image: radial-gradient(calc(var(--nw) * .58) calc(var(--nw) * .5) at 50% 50%, transparent 70%, #000 100%);
+  -webkit-mask-image: radial-gradient(calc(var(--nw) * .58) calc(var(--nw) * .5) at 50% 50%, transparent 70%, #000 100%);
+  opacity: .85;
+}
+/* a coluna: os jatos do reator continuando até o alto e o pé do hero. Um fio
+   claro de 1 px e o halo em volta, mais fortes perto do núcleo */
+.cosmos__coluna {
+  position: absolute; top: 0; bottom: 0; left: var(--cx); width: 140px; margin-left: -70px;
+  background: radial-gradient(50% 60% at 50% var(--cy), rgb(var(--ac-rgb) / .12), transparent 80%);
+  mask-image: radial-gradient(calc(var(--nw) * .5) calc(var(--nw) * .5) at 50% var(--cy), transparent 80%, #000 100%);
+  -webkit-mask-image: radial-gradient(calc(var(--nw) * .5) calc(var(--nw) * .5) at 50% var(--cy), transparent 80%, #000 100%);
+  animation: cosmos-coluna 7s cubic-bezier(.37, 0, .63, 1) infinite alternate;
+}
+/* celular: o reator fica embaixo do texto; a coluna nasce perto dele e não
+   risca o título nem o botão (as duas máscaras se cruzam: o vão do reator
+   E o começo acima dele) */
+@media (max-width: 860px) {
+  .cosmos__coluna {
+    mask-image: radial-gradient(calc(var(--nw) * .5) calc(var(--nw) * .5) at 50% var(--cy), transparent 80%, #000 100%), linear-gradient(180deg, transparent calc(var(--cy) - var(--nw) * .6), #000 calc(var(--cy) - var(--nw) * .42));
+    -webkit-mask-image: radial-gradient(calc(var(--nw) * .5) calc(var(--nw) * .5) at 50% var(--cy), transparent 80%, #000 100%), linear-gradient(180deg, transparent calc(var(--cy) - var(--nw) * .6), #000 calc(var(--cy) - var(--nw) * .42));
+    mask-composite: intersect; -webkit-mask-composite: source-in;
+  }
+}
+.cosmos__coluna::before {
+  content: ""; position: absolute; top: 0; bottom: 0; left: 50%; width: 1px;
+  background: linear-gradient(180deg, transparent, rgb(var(--ac-2-rgb) / .55) var(--cy), transparent);
+}
+/* desktop: o texto fica no lado calmo. Os anéis chegam a 25% da força
+   sobre a coluna do título (o SVG começa 3 reatores à esquerda do centro)
+   e inteiros do lado do reator */
+@media (min-width: 861px) {
+  .cosmos__aneis {
+    mask-image: radial-gradient(calc(var(--nw) * .58) calc(var(--nw) * .5) at 50% 50%, transparent 70%, #000 100%), linear-gradient(90deg, rgb(0 0 0 / .25) 22%, #000 42%);
+    -webkit-mask-image: radial-gradient(calc(var(--nw) * .58) calc(var(--nw) * .5) at 50% 50%, transparent 70%, #000 100%), linear-gradient(90deg, rgb(0 0 0 / .25) 22%, #000 42%);
+    mask-composite: intersect; -webkit-mask-composite: source-in;
+  }
+}
+@keyframes cosmos-coluna { from { opacity: .55; } to { opacity: 1; } }
+/* a névoa: bancos de nuvem metálica embaixo, parados. A deriva lenta
+   (±4% em 46 s) quase não se via e custava 3 fps no compositor por CPU
+   (A/B: 57,6 → 60,7 sem ela) */
+.cosmos__nevoa {
+  position: absolute; left: -12%; width: 124%; bottom: 0; height: 46%;
+  background:
+    radial-gradient(28% 40% at 18% 78%, rgb(130 138 138 / .16), transparent 70%),
+    radial-gradient(34% 46% at 46% 92%, rgb(110 118 118 / .14), transparent 70%),
+    radial-gradient(26% 36% at 74% 82%, rgb(140 148 148 / .13), transparent 70%),
+    radial-gradient(40% 30% at 92% 100%, rgb(var(--metal-rgb) / .22), transparent 70%),
+    radial-gradient(60% 40% at 50% 70%, rgb(var(--ac-3-rgb) / .05), transparent 70%);
+  mask-image: linear-gradient(180deg, transparent, #000 45%);
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 45%);
+}
+/* os fragmentos: pedaços escuros com a aresta de cima acesa, em volta do
+   reator (posição em larguras do reator, a partir do centro) */
+.cosmos__fragmentos i {
+  --x: 0; --y: 0; --s: 6px;
+  position: absolute; left: calc(var(--cx) + var(--x) * var(--nw)); top: calc(var(--cy) + var(--y) * var(--nw));
+  width: var(--s); height: calc(var(--s) * .8);
+  background: linear-gradient(170deg, rgb(var(--prata-rgb) / .55), rgb(20 22 23 / .9) 35%);
+  border-radius: 1px 3px 1px 2px; transform: rotate(18deg);
+  animation: cosmos-flutua 11s ease-in-out infinite alternate;
+}
+.cosmos__fragmentos i:nth-child(1) { --x: -.92; --y: -.38; --s: 9px; animation-duration: 13s; }
+.cosmos__fragmentos i:nth-child(2) { --x: -.74; --y: .24; --s: 5px; animation-delay: -4s; }
+.cosmos__fragmentos i:nth-child(3) { --x: -1.25; --y: .06; --s: 4px; animation-duration: 15s; }
+.cosmos__fragmentos i:nth-child(4) { --x: .82; --y: -.46; --s: 7px; animation-delay: -7s; }
+.cosmos__fragmentos i:nth-child(5) { --x: .98; --y: .3; --s: 11px; animation-duration: 14s; animation-delay: -2s; }
+.cosmos__fragmentos i:nth-child(6) { --x: .66; --y: .55; --s: 4px; animation-delay: -9s; }
+.cosmos__fragmentos i:nth-child(7) { --x: -.4; --y: -.72; --s: 5px; animation-duration: 12s; }
+.cosmos__fragmentos i:nth-child(8) { --x: .3; --y: .78; --s: 6px; animation-delay: -5s; }
+.cosmos__fragmentos i:nth-child(9) { --x: 1.42; --y: -.12; --s: 5px; animation-duration: 16s; animation-delay: -11s; }
+@keyframes cosmos-flutua { from { transform: translateY(-5px) rotate(18deg); } to { transform: translateY(6px) rotate(26deg); } }
+/* fora da tela não gasta; menos movimento: tudo parado (o reduzido do
+   sistema já zera as animações em motion.css) */
+.hero.is-fora .cosmos * { animation-play-state: paused; }
+html.menos-movimento .cosmos * { animation: none; }
+
+
+/* ==========================================================================
    12. JANELA — o mockup de site em vidro (página de Sites), feito de HTML
    ========================================================================== */
 .janela {
   position: relative; border-radius: var(--raio); overflow: hidden;
-  background: linear-gradient(170deg, rgb(17 24 35 / .95), rgb(11 16 22 / .95)); border: 1px solid var(--line-2);
+  background: linear-gradient(170deg, rgb(var(--grafite-rgb) / .95), rgb(12 13 14 / .95)); border: 1px solid var(--line-2);
   box-shadow: var(--sombra-arte);
   display: flex; flex-direction: column;
 }
@@ -527,17 +664,17 @@ html.tem-nucleo .nucleo__poster { opacity: 0; }
    13. INSTRUMENTO — a arte do hero de Automação: o laudo como painel de
    leitura. Níveis que se preenchem na entrada (transform, uma vez).
    ========================================================================== */
-.instrumento { padding: clamp(18px, 4.5vw, 28px); display: flex; flex-direction: column; gap: .9rem; background: linear-gradient(170deg, rgb(17 24 35 / .95), rgb(11 16 22 / .95)); }
+.instrumento { padding: clamp(18px, 4.5vw, 28px); display: flex; flex-direction: column; gap: .9rem; background: linear-gradient(170deg, rgb(var(--grafite-rgb) / .95), rgb(12 13 14 / .95)); }
 .instrumento__topo { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-bottom: .8rem; border-bottom: 1px solid var(--line); }
 .instrumento__k { min-width: 0; text-wrap: balance; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); }
-.instrumento__led { width: 7px; height: 7px; border-radius: 50%; background: var(--ambar); box-shadow: 0 0 0 3px rgb(var(--ambar-rgb) / .18); flex: none; }
+.instrumento__led { width: 7px; height: 7px; border-radius: 50%; background: var(--ac-3); box-shadow: 0 0 0 3px rgb(var(--ac-3-rgb) / .18); flex: none; }
 .instrumento__linha { display: grid; grid-template-columns: 1fr auto; gap: .35rem .8rem; align-items: center; }
 .instrumento__rot { font-size: var(--fs-b); color: var(--t1); }
-.instrumento__val { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--ambar); text-align: right; }
+.instrumento__val { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--ac-3); text-align: right; }
 .instrumento__barra { grid-column: 1 / -1; height: 4px; border-radius: 2px; background: rgb(255 255 255 / .06); overflow: hidden; }
 .instrumento__nivel { display: block; width: 100%; height: 100%; border-radius: 2px; background: linear-gradient(90deg, rgb(var(--ac-rgb) / .35), var(--ac)); transform-origin: left; }
 /* as barras preenchem por inteiro: são "pontos lidos", não percentuais (zero dado inventado) */
-.instrumento__nivel--2 { background: linear-gradient(90deg, rgb(var(--ambar-rgb) / .35), var(--ambar)); }
+.instrumento__nivel--2 { background: linear-gradient(90deg, rgb(var(--ac-3-rgb) / .35), var(--ac-3)); }
 .instrumento__base { display: flex; flex-direction: column; gap: .3rem; padding-top: .8rem; border-top: 1px solid var(--line); font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-dado); line-height: 1.5; color: var(--t3); }
 /* a leitura acontece no relógio do boot (js/anima.js, imprimirArte): cada
    barra enche e só então o "lido" cai. Sem GSAP ou em movimento reduzido,
@@ -562,7 +699,7 @@ body.is-lead-open { overflow: hidden; }
 }
 .lead-modal.is-open .lead-modal__panel { opacity: 1; transform: none; }
 .lead-modal__close { position: absolute; top: .9rem; right: .9rem; width: 44px; height: 44px; border-radius: var(--raio-s); display: grid; place-items: center; background: var(--s2); border: 1px solid var(--line-2); color: var(--t1); font-size: .9rem; cursor: pointer; }
-.lead-modal__kicker { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--ambar); margin-bottom: .5rem; }
+.lead-modal__kicker { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--ac-3); margin-bottom: .5rem; }
 .lead-modal__panel h2 { font-size: clamp(1.5rem, 6vw, 1.9rem); font-weight: 400; margin-bottom: .4rem; padding-right: 3rem; max-width: none; }
 #leadForm { display: flex; flex-direction: column; gap: 1rem; margin-top: 1.2rem; }
 .lead-modal__field { display: flex; flex-direction: column; gap: .4rem; }
@@ -671,7 +808,7 @@ html.menos-movimento .prova__item::after { animation: none !important; opacity: 
    O problema (Automação) e os FAQ seguem com título fixo, agora na grade. */
 @media (min-width: 981px) {
   .secao--manifesto .laudo__row { grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gut); align-items: first baseline; padding: clamp(1.6rem, 2.4vw, 2.4rem) 0; }
-  .secao--manifesto .laudo__n { grid-column: 1 / 3; color: var(--ambar); }
+  .secao--manifesto .laudo__n { grid-column: 1 / 3; color: var(--ac-3); }
   .secao--manifesto .laudo__row h3 { grid-column: 3 / 8; font-size: var(--fs-h2-lateral); font-weight: 300; letter-spacing: -.03em; line-height: 1.08; }
   .secao--manifesto .laudo__row p { grid-column: 8 / -1; grid-row: 1; padding-left: 0; }
   .secao--manifesto .laudo__row::before { left: -14px; }
@@ -726,6 +863,6 @@ html.menos-movimento .prova__item::after { animation: none !important; opacity: 
   .hero__arte .janela { pointer-events: none; }
 }
 /* cenários: o estado final em âmbar contornado; o sólido só no foco/hover */
-.fluxo li:last-child { background: rgb(var(--ambar-rgb) / .1); border-color: rgb(var(--ambar-rgb) / .55); color: var(--ambar); }
-@media (hover: hover) { .cenario:hover .fluxo li:last-child { background: var(--ambar); color: var(--ambar-tinta); } }
-.cenario.is-foco .fluxo li:last-child { background: var(--ambar); color: var(--ambar-tinta); }
+.fluxo li:last-child { background: rgb(var(--ac-3-rgb) / .1); border-color: rgb(var(--ac-3-rgb) / .55); color: var(--ac-3); }
+@media (hover: hover) { .cenario:hover .fluxo li:last-child { background: var(--ac-3); color: var(--ac-3-tinta); } }
+.cenario.is-foco .fluxo li:last-child { background: var(--ac-3); color: var(--ac-3-tinta); }

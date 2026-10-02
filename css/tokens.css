@@ -3,7 +3,13 @@
 
    A identidade da V1 (escuro, ciano, Sora + Mono, régua de 1px) com LUZ:
    atmosfera de luz atrás do conteúdo, vidro com aresta iluminada, um feixe
-   que varre e imprime o hero. Nenhum #000: o preto tem um fio de azul.
+   que varre e imprime o hero.
+
+   PALETA (2026-10-02, decisão do dono em 01 Empresa/Decisões.md: "as cores
+   não estão em tanta harmonia"): uma família só. Preto puro, grafite
+   neutro e metal (#565656), e o ciano-esverdeado em dois tons (#49E5DD,
+   #1CB5B9). Saíram o âmbar e o azul: eram três temperaturas brigando. O
+   dourado volta só no estado "singularity", depois.
 
    CELULAR PRIMEIRO: o CSS base é o de 390px; as media queries só CRESCEM.
 
@@ -29,39 +35,47 @@
 @font-face { font-family: 'Sora Reserva'; src: local('Roboto'), local('Noto Sans'); size-adjust: 104%; ascent-override: 96%; descent-override: 24%; line-gap-override: 0%; }
 
 :root {
-  /* ---- SUPERFÍCIES — neutros frios com um fio de azul ---- */
-  --bg:      #06090E;
-  --s1:      #0B1016;
-  --s2:      #111823;
-  --line:    rgb(170 195 230 / .10);
-  --line-2:  rgb(170 195 230 / .18);
-  --line-hi: rgb(79 216 240 / .4);
-  --vidro:   rgb(140 170 220 / .04);
-  --vidro-2: rgb(140 170 220 / .07);
+  /* ---- SUPERFÍCIES — preto puro e grafite neutro (sem o fio de azul) ---- */
+  --bg:      #000000;
+  --s1:      #0B0C0D;
+  --s2:      #141617;
+  --grafite-rgb: 20 22 23;   /* o fundo dos painéis de vidro (console, janela, instrumento, barra) */
+  --line:    rgb(205 212 212 / .10);
+  --line-2:  rgb(205 212 212 / .18);
+  --line-hi: rgb(73 229 221 / .4);
+  --vidro:   rgb(190 200 200 / .04);
+  --vidro-2: rgb(190 200 200 / .07);
 
-  /* ---- TEXTO — três níveis ---- */
-  --t1: #F2F5F9;   /* 18:1 */
-  --t2: #AEB7C4;   /* 9,3:1 */
-  --t3: #7F8A9A;   /* 5,5:1 no fundo · 5,0:1 no painel */
-  --stroke: #5F6B7C;   /* contorno de CONTROLE: 3,5:1 (WCAG 1.4.11) */
+  /* ---- TEXTO — três níveis, cinza neutro (contraste no #000 · no painel s2) ---- */
+  --t1: #F2F4F4;   /* 19:1 */
+  --t2: #B2B8B8;   /* 10,4:1 · 9,0:1 */
+  --t3: #858C8C;   /* 6,1:1 · 5,3:1 */
+  --stroke: #656C6C;   /* contorno de CONTROLE: 3,9:1 · 3,4:1 (WCAG 1.4.11) */
 
-  /* ---- A COR DE AÇÃO: ciano de instrumento ---- */
-  --ac:       #4FD8F0;
-  --ac-rgb:   79 216 240;
-  --ac-2:     #8FE8F7;   /* o ciano mais claro: hover, gradiente do botão */
-  --ac-tinta: #04171C;   /* texto sobre o ciano */
-  --ac-tinta-rgb: 4 23 28;
+  /* ---- A COR DE AÇÃO: ciano-esverdeado ---- */
+  --ac:       #49E5DD;   /* 13,5:1 */
+  --ac-rgb:   73 229 221;
+  --ac-2:     #A6F4EF;
+  --ac-2-rgb: 166 244 239;
+  /* --ac-2: o mais claro: hover, gradiente do botão, os fios de luz do reator */
+  --ac-tinta: #03201E;   /* texto sobre o ciano: 11:1 */
+  --ac-tinta-rgb: 3 32 30;
 
-  /* ---- O CONTRAPONTO QUENTE: âmbar de instrumento ----
+  /* ---- O CIANO PROFUNDO: o contraponto (era o âmbar) ----
      Índice de seção, LED, o estado final de um fluxo, o dado que importa.
-     Aparece pouco: é o que o faz significar. 10,7:1 como texto no fundo. */
-  --ambar:     #F0B44F;
-  --ambar-rgb: 240 180 79;
-  --ambar-tinta: #1C1204;
+     Mesma família da ação, um degrau mais fundo: marca sem brigar.
+     8,4:1 como texto no fundo. */
+  --ac-3:       #1CB5B9;
+  --ac-3-rgb:   28 181 185;
+  --ac-3-tinta: #021B1C;   /* texto sobre o ciano profundo: 7,1:1 */
 
-  /* ---- A LUZ: atmosfera e tinta de painel, nunca em texto ---- */
-  --luz:      #2A6BFF;
-  --luz-rgb:  42 107 255;
+  /* ---- O METAL: o brilho frio das arestas (prata) e a atmosfera (#565656).
+     A prata é o reflexo numa aresta, no anel da lente do reator, num painel
+     tingido; o metal é a luz difusa do fundo. Metal nunca em texto (2,9:1). */
+  --prata:     #B7BFC0;
+  --prata-rgb: 183 191 192;
+  --metal:     #565656;
+  --metal-rgb: 86 86 86;
 
   /* ---- TIPOGRAFIA ---- */
   --sans: 'Sora', 'Sora Reserva', ui-sans-serif, system-ui, sans-serif;
@@ -145,7 +159,7 @@ a { color: inherit; text-decoration: none; }
 button { font: inherit; color: inherit; }
 ::selection { background: rgb(var(--ac-rgb) / .3); color: var(--t1); }
 :focus-visible { outline: 2px solid var(--ac); outline-offset: 3px; }
-.btn--primary:focus-visible { outline-color: var(--ambar); }
+.btn--primary:focus-visible { outline-color: var(--prata); }
 
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .skip-link {
@@ -158,8 +172,8 @@ button { font: inherit; color: inherit; }
 .skip-link:focus { top: 16px; }
 
 /* ---- A ATMOSFERA — a luz que a V2 não tinha ----
-   Três manchas de luz fixas (ciano no alto à direita, azul embaixo à
-   esquerda, um fio de âmbar no centro) e uma malha fina. Tudo estático:
+   Duas manchas de luz fixas (ciano no alto à direita, metal embaixo à
+   esquerda) e uma malha fina. Tudo estático:
    pintado uma vez, custo zero por frame. O movimento vem do feixe. */
 .atmosfera { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
 /* a luz fica parada. A rodada 3 testou subi-la com a rolagem (camada de
@@ -169,13 +183,13 @@ button { font: inherit; color: inherit; }
   content: ""; position: absolute; inset: 0;
   background:
     radial-gradient(70vmax 60vmax at 100% -10%, rgb(var(--ac-rgb) / .30), transparent 60%),
-    radial-gradient(70vmax 60vmax at -10% 110%, rgb(var(--luz-rgb) / .26), transparent 60%);
+    radial-gradient(70vmax 60vmax at -10% 110%, rgb(var(--metal-rgb) / .34), transparent 60%);
 }
 .atmosfera::after {
   content: ""; position: absolute; inset: 0;
   background-image:
-    linear-gradient(rgb(170 195 230 / .07) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(170 195 230 / .07) 1px, transparent 1px);
+    linear-gradient(rgb(205 212 212 / .07) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(205 212 212 / .07) 1px, transparent 1px);
   background-size: 72px 72px;
   mask-image: radial-gradient(100vmax 80vmax at 65% 0%, #000, transparent 72%);
   -webkit-mask-image: radial-gradient(100vmax 80vmax at 65% 0%, #000, transparent 72%);

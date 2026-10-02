@@ -24,6 +24,36 @@
   if (!canvas) return;
   var html = document.documentElement;
 
+  /* ---------- o cosmos (o fundo do hero) centrado no reator ----------
+     Vale com ou sem WebGL (o desenho em CSS ocupa o mesmo lugar), por isso
+     roda antes do porteiro. Mede por EVENTO (carga, mudança de tamanho do
+     hero), nunca por quadro, e escreve três variáveis no próprio .cosmos.
+     Posição de LAYOUT (offset), não a da tela: a entrada do hero e o
+     paralaxe da rolagem movem a arte por transform e não podem arrastar o
+     centro; o translate fixo da caixa (desktop) entra à parte. */
+  (function centrarCosmos() {
+    var cosmos = document.querySelector('.cosmos');
+    var heroEl = caixa.closest('.hero');
+    if (!cosmos || !heroEl) return;
+    var pedido = 0;
+    function medir() {
+      pedido = 0;
+      var x = caixa.offsetWidth / 2, y = caixa.offsetHeight / 2;
+      if (!x) return;
+      for (var el = caixa; el && el !== heroEl; el = el.offsetParent) { x += el.offsetLeft; y += el.offsetTop; }
+      if (!el) return;                        /* o hero não é ancestral posicionado: fica o padrão do CSS */
+      var t = getComputedStyle(caixa).transform;
+      if (t && t !== 'none' && window.DOMMatrixReadOnly) { var m = new DOMMatrixReadOnly(t); x += m.e; y += m.f; }
+      cosmos.style.setProperty('--cx', Math.round(x) + 'px');
+      cosmos.style.setProperty('--cy', Math.round(y) + 'px');
+      cosmos.style.setProperty('--nw', caixa.offsetWidth + 'px');
+    }
+    function pedir() { if (!pedido) pedido = requestAnimationFrame(medir); }
+    if ('ResizeObserver' in window) new ResizeObserver(pedir).observe(heroEl);
+    else window.addEventListener('resize', pedir, { passive: true });
+    pedir();
+  })();
+
   /* ---------- porteiro (o que dá para saber sem criar contexto) ----------
      `?3d=forcar` aceita WebGL desenhado pela CPU (o verificador roda em
      SwiftShader) e não degrada por fps; `?3d=nao` desliga a esfera para

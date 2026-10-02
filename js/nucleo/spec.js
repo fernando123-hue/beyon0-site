@@ -50,7 +50,7 @@ export const SPEC = {
      o reator à marca */
   lente: [
     { raio: 0.15, tubo: 0.004, cor: 'ac2', alfa: 0.85, vel: 0.3 },
-    { raio: 0.21, tubo: 0.005, cor: 'ambar', alfa: 0.45, vel: -0.18, marcas: 48, marca: 0.004 },
+    { raio: 0.21, tubo: 0.005, cor: 'prata', alfa: 0.45, vel: -0.18, marcas: 48, marca: 0.004 },
     { raio: 0.28, tubo: 0.004, cor: 'ac', alfa: 0.5, vel: 0.12 }
   ],
 
@@ -150,5 +150,5 @@ export const SPEC = {
 
   /* o vidro escuro do portal: a única luz é o núcleo, fios de reflexo duros,
      aresta de fresnel, a luz-chave e o bisel. Sem luz de cena, sem sombra. */
-  vidro: { base: 'bg', interno: 'ac', aresta: 'ac2', brilho: 't1', ambiente: 'luz' }
+  vidro: { base: 'bg', interno: 'ac', aresta: 'ac2', brilho: 't1', ambiente: 'metal' }
 };
