@@ -632,6 +632,9 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
   const respira = (t, c) => folego(t - c[0], RS.periodo, RS.inspira) * c[1];
   const SEM_CAMPO = { x: 0, y: 0, f: 0 }, SEM_TOQUE = { x: 0, y: 0, t: -1 }, SEM_OLHAR = { x: 0, y: 0, f: 0 };
   const OL = SPEC.olhar;
+  /* a pose do último quadro: a rede (js/rede.js) prende a constelação do hero
+     aos 12 pontos de entrada dos raios, que giram com a roda */
+  const pose = { giro: 0, rx: 0, ry: 0, entrada: SPEC.raios.de };
   const centro = new THREE.Vector3();
 
   const TR = SPEC.tracejado;
@@ -793,6 +796,7 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
        de frente. NÃO segue o cursor (pedido do dono: só o núcleo segue) */
     raiz.rotation.x = SPEC.inclina + Math.sin(t * 0.09) * 0.05;
     raiz.rotation.y = Math.sin(t * 0.12) * 0.14;
+    pose.giro = giro; pose.rx = raiz.rotation.x; pose.ry = raiz.rotation.y;
 
     roda.rotation.z = giro;
     const foraPortal = P.raio * respira(t, RS.portal);
@@ -883,12 +887,21 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
        ele bate. Expira: os jatos soltam a energia para fora. */
     const x = ((((t - RS.nucleo[0]) / RS.periodo) % 1) + 1) % 1;
     const insp = RS.inspira;
-    fluxoRaios.uFrente.value = (x / insp) ** R.puxa;   /* passa de 1 depois da chegada: o rastro entra no núcleo e some */
+    /* sai do portal já no começo (linear) e é puxada acelerando depois (x^puxa);
+       passa de 1 depois da chegada: o rastro entra no núcleo e some */
+    const u = x / insp;
+    fluxoRaios.uFrente.value = mistura(u, u ** R.puxa, suave(u / 0.25));
     fluxoRaios.uPulso.value = suave(x / 0.05);
     const xs = (x - insp) / (1 - insp);                 /* 0 → 1 no expirar */
     fluxoJatos.uFrente.value = xs < 0 ? 2 : 1 - xs * J.solta;
     fluxoJatos.uPulso.value = xs < 0 ? 0 : suave(xs / 0.04) * (1 - xs);
     const chegou = xs < 0 ? 99 : xs * (1 - insp) * RS.periodo;   /* s desde a chegada */
+    /* a CHEGADA da rede (a onda do fundo do hero chega ao portal no começo do
+       fôlego): os 12 canais acendem juntos (a faísca nos pontos de entrada é
+       desenhada pela rede, js/rede.js; o flash no núcleo estava no lugar
+       errado: nesse instante a energia está na borda) */
+    const chegada = Math.exp(-(x * RS.periodo) / 0.12);
+    fluxoRaios.uBase.value = R.base * (1 + 1.8 * chegada);
     const batida = (1 + R.batida * Math.exp(-chegou * 5) * ig) * (1 + (tocando ? TQ.batida * Math.exp(-tq.t * 6) : 0));
     const inspira = 1 + respira(t, RS.nucleo);
     /* o lampejo: a energia entra pelo portal no começo do fôlego */
@@ -942,5 +955,5 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
     for (const x of descartar) if (x.dispose) x.dispose();
   }
 
-  return { raiz, atualizar, tamanhoTela, dispose };
+  return { raiz, atualizar, tamanhoTela, dispose, pose: () => pose };
 }

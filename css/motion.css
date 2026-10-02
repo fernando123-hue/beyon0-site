@@ -221,6 +221,13 @@ html.has-gsap:not(.menos-movimento) .split-word.is-tinta { color: var(--ac); tra
 @media (prefers-reduced-motion: reduce) { @view-transition { navigation: none; } }
 .nav { view-transition-name: nav; }
 .barra { view-transition-name: barra; }
+/* a rede (js/rede.js) e o mini (js/mini.js) atravessam a troca sem fusão: a
+   constelação é herdada e já vem desenhada; fundir as duas capturas apagava
+   a rede no meio da troca (crítica, rodada 5) */
+.rede { view-transition-name: rede; }
+.mini-palco { view-transition-name: mini; }
+::view-transition-old(rede), ::view-transition-old(mini) { animation: none; opacity: 0; }
+::view-transition-new(rede), ::view-transition-new(mini) { animation: none; }
 ::view-transition-old(root) { animation: vt-recua 520ms var(--ease-io) both; }
 ::view-transition-new(root) { animation: vt-imprime 520ms var(--ease-io) both; }
 @keyframes vt-recua { to { opacity: .35; } }

@@ -173,7 +173,7 @@ button { font: inherit; color: inherit; }
 
 /* ---- A ATMOSFERA — a luz que a V2 não tinha ----
    Duas manchas de luz fixas (ciano no alto à direita, metal embaixo à
-   esquerda) e uma malha fina. Tudo estático:
+   esquerda). A estrutura do fundo é a rede (abaixo). Tudo estático:
    pintado uma vez, custo zero por frame. O movimento vem do feixe. */
 .atmosfera { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
 /* a luz fica parada. A rodada 3 testou subi-la com a rolagem (camada de
@@ -182,15 +182,23 @@ button { font: inherit; color: inherit; }
 .atmosfera::before {
   content: ""; position: absolute; inset: 0;
   background:
-    radial-gradient(70vmax 60vmax at 100% -10%, rgb(var(--ac-rgb) / .30), transparent 60%),
+    /* o ciano do canto ficou mais baixo: a luz forte agora anda com o mini AI Core (js/mini.js) */
+    radial-gradient(70vmax 60vmax at 100% -10%, rgb(var(--ac-rgb) / .16), transparent 60%),
     radial-gradient(70vmax 60vmax at -10% 110%, rgb(var(--metal-rgb) / .34), transparent 60%);
 }
-.atmosfera::after {
-  content: ""; position: absolute; inset: 0;
-  background-image:
-    linear-gradient(rgb(205 212 212 / .07) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(205 212 212 / .07) 1px, transparent 1px);
-  background-size: 72px 72px;
-  mask-image: radial-gradient(100vmax 80vmax at 65% 0%, #000, transparent 72%);
-  -webkit-mask-image: radial-gradient(100vmax 80vmax at 65% 0%, #000, transparent 72%);
+/* a malha fina que morava aqui saiu: a rede (js/rede.js) é a estrutura do
+   fundo agora; as duas juntas viravam ruído */
+/* A REDE: o canvas do fundo vivo (js/rede.js + js/mini.js), atrás do
+   conteúdo. Nasce apagado e acende quando a rede começa (depois do load) */
+.rede {
+  position: fixed; inset: 0; z-index: 0; width: 100%; height: 100%;
+  pointer-events: none; opacity: 0; transition: opacity 1.2s var(--ease);
 }
+.rede.is-viva { opacity: 1; }
+/* o corpo do mini AI Core (js/mini.js): acima das seções (as de fundo grafite
+   apagavam o mini no canvas de trás), abaixo da barra e do menu; anda por
+   transform */
+.mini-palco { position: fixed; inset: 0; z-index: 44; overflow: hidden; pointer-events: none; }
+.mini { position: absolute; left: 0; top: 0; width: 96px; height: 96px; pointer-events: none; opacity: 0; will-change: transform; }
+/* vindo de outra página do site: acesa desde o primeiro quadro (a mesma rede continua) */
+.rede.is-herdada { transition: none; }

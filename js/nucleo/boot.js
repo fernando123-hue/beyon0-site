@@ -31,6 +31,7 @@
      Posição de LAYOUT (offset), não a da tela: a entrada do hero e o
      paralaxe da rolagem movem a arte por transform e não podem arrastar o
      centro; o translate fixo da caixa (desktop) entra à parte. */
+  var centro = { x: 0, y: 0, w: 0 };   /* o centro do reator na página (medido por evento) */
   (function centrarCosmos() {
     var cosmos = document.querySelector('.cosmos');
     var heroEl = caixa.closest('.hero');
@@ -47,6 +48,10 @@
       cosmos.style.setProperty('--cx', Math.round(x) + 'px');
       cosmos.style.setProperty('--cy', Math.round(y) + 'px');
       cosmos.style.setProperty('--nw', caixa.offsetWidth + 'px');
+      /* o mesmo centro na PÁGINA, para a rede (B.nucleo) */
+      var hx = 0, hy = 0;
+      for (var h = heroEl; h; h = h.offsetParent) { hx += h.offsetLeft; hy += h.offsetTop; }
+      centro.x = hx + x; centro.y = hy + y; centro.w = caixa.offsetWidth;
     }
     function pedir() { if (!pedido) pedido = requestAnimationFrame(medir); }
     if ('ResizeObserver' in window) new ResizeObserver(pedir).observe(heroEl);
@@ -225,13 +230,16 @@
     }
     if (parado) {
       if (sujo) { cena.desenhar(estado); sujo = false; }
+      publicar();   /* a rede parada também prende a constelação ao portal */
       return;
     }
     if (!visivel || !liberado) return;
     var dt = S.dt / 1000;                     /* o core.js já limita a 50 ms */
     if (relogio < 0) relogio = 0;
     relogio += dt;
-    estado.t += dt;
+    /* o tempo do reator é o relógio da VISITA (core.js): ele, o mini AI Core
+       e a rede respiram juntos, e o fôlego continua de uma página para outra */
+    estado.t = B.relogio();
 
     /* puxados para dentro: rápido no começo, assentando no fim (com a
        curva em S o primeiro segundo parecia travado, visto quadro a quadro) */
@@ -254,7 +262,26 @@
     gesto.passo(dt, estado);
 
     cena.desenhar(estado);
+    publicar();
     if (!forcar) vigiar(S.dt);
+  }
+
+  /* o que a rede (js/rede.js) precisa saber do reator, em px da janela: o
+     centro, o raio onde os raios começam (a entrada da energia), o giro da
+     roda e o achatamento da inclinação. Sem leitura de layout: o centro foi
+     medido por evento, a rolagem vem do evento de scroll */
+  var nucleo = { cx: 0, cy: 0, r: 0, sx: 1, sy: 1, giro: 0, visivel: false };
+  function publicar() {
+    var p = cena.pose();
+    var pxPorUnidade = (centro.w * 1.44) / p.altura;   /* o canvas tem 144% da caixa (css/componentes.css) */
+    nucleo.cx = centro.x - window.scrollX;
+    nucleo.cy = centro.y - rolagem;
+    nucleo.r = p.entrada * pxPorUnidade;
+    nucleo.sx = Math.cos(p.ry);
+    nucleo.sy = Math.cos(p.rx);
+    nucleo.giro = p.giro;
+    nucleo.visivel = visivel && aceso && centro.w > 0;
+    B.nucleo = nucleo;
   }
 
   /* degrada MEDINDO, depois de montada (a montagem é a parte mais cara;
@@ -280,6 +307,7 @@
   /* a esfera sai e o desenho em CSS volta; nada fica ligado nem mentindo */
   function desistir() {
     B.remove('nucleo');
+    B.nucleo = null;
     for (var i = 0; i < desfazer.length; i++) desfazer[i]();
     desfazer = [];
     html.classList.remove('tem-nucleo');

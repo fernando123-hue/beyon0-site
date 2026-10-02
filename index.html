@@ -70,6 +70,8 @@
 
   <!-- a luz: duas manchas e a malha, estáticas (css/tokens.css) -->
   <div class="atmosfera" aria-hidden="true"></div>
+  <!-- a rede: o fundo vivo (js/rede.js) e o mini AI Core que segue a visita (js/mini.js) -->
+  <canvas class="rede" data-rede aria-hidden="true"></canvas>
 
   <header class="nav" id="nav">
     <a href="/" class="nav__logo" aria-label="Beyon Zero — início">
@@ -96,45 +98,13 @@
          depois; a trilha fecha. No desktop: frase larga, arte estreita,
          trilha fechando a primeira tela. -->
     <section class="hero" id="hero" aria-labelledby="hero-titulo">
-      <!-- o cosmos: o fundo do hero (pedido do dono: "grandioso, misterioso",
-           em harmonia com o AI Core). Centrado no reator (boot.js mede e
-           ajusta --cx/--cy/--nw; sem JS vale o padrão do CSS). Os anéis
-           gigantes estão no MESMO plano do disco do reator: é o reator em
-           escala de arquitetura. Estático; só a coluna e os
-           fragmentos se mexem, por transform/opacity (css/componentes.css) -->
+      <!-- o fundo do hero (pedido do dono, 2026-10-02): a luz que nasce do
+           núcleo e, por cima dela, a REDE (js/rede.js) adensando em volta do
+           reator e presa aos 12 pontos de entrada dos raios: o fundo é a fonte
+           da energia que o AI Core puxa. Centrado no reator (boot.js mede
+           --cx/--cy/--nw; sem JS vale o padrão do CSS) -->
       <div class="cosmos" aria-hidden="true">
         <i class="cosmos__luz"></i>
-        <svg class="cosmos__aneis" viewBox="-1200 -700 2400 1400" preserveAspectRatio="xMidYMid meet" focusable="false">
-          <defs>
-            <linearGradient id="cosmos-g1" x1="1" y1="0" x2="0" y2="0">
-              <stop offset="0" stop-color="#B7BFC0" stop-opacity="0" />
-              <stop offset=".22" stop-color="#B7BFC0" stop-opacity=".55" />
-              <stop offset=".5" stop-color="#49E5DD" stop-opacity=".18" />
-              <stop offset=".8" stop-color="#1CB5B9" stop-opacity=".32" />
-              <stop offset="1" stop-color="#1CB5B9" stop-opacity="0" />
-            </linearGradient>
-            <linearGradient id="cosmos-g2" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stop-color="#B7BFC0" stop-opacity="0" />
-              <stop offset=".35" stop-color="#B7BFC0" stop-opacity=".4" />
-              <stop offset=".7" stop-color="#565656" stop-opacity=".3" />
-              <stop offset="1" stop-color="#565656" stop-opacity="0" />
-            </linearGradient>
-          </defs>
-          <g fill="none" stroke="url(#cosmos-g1)">
-            <ellipse rx="330" ry="62" stroke-width="1.4" />
-            <ellipse rx="520" ry="98" stroke-width="1" />
-            <ellipse rx="760" ry="146" stroke-width="1.6" stroke-dasharray="260 34 90 60 400 30" />
-            <ellipse rx="780" ry="152" stroke-width=".7" />
-            <ellipse rx="1080" ry="210" stroke-width=".8" stroke-dasharray="520 80" />
-          </g>
-          <g fill="none" stroke="url(#cosmos-g2)">
-            <ellipse cx="420" rx="1180" ry="1240" stroke-width="1.2" />
-            <ellipse cx="420" rx="1215" ry="1275" stroke-width=".6" />
-          </g>
-        </svg>
-        <i class="cosmos__coluna"></i>
-        <span class="cosmos__fragmentos"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
-        <i class="cosmos__nevoa"></i>
       </div>
       <div class="feixe" aria-hidden="true"><span class="feixe__linha"><span class="feixe__tag" data-feixe-tag></span></span></div>
       <p class="hero__status">
@@ -326,6 +296,8 @@
   <script src="js/core.js" defer></script>
   <script src="js/pagina.js" defer></script>
   <script src="js/anima.js" defer></script>
+  <script src="js/rede.js" defer></script>
+  <script src="js/mini.js" defer></script>
   <script src="js/nucleo/boot.js" defer></script>
 </body>
 </html>

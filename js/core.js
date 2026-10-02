@@ -90,9 +90,24 @@
     catch (e) { return v.toFixed(casas).replace('.', ','); }
   }
 
+  /* o RELÓGIO da respiração: segundos desde o começo da VISITA (guardado na
+     sessão), igual em todas as páginas. O reator do hero, o mini AI Core e a
+     rede leem daqui: respiram juntos e, ao trocar de página, continuam no
+     mesmo ponto do fôlego. timeOrigin + now é monotônico dentro da página e
+     comparável entre páginas */
+  var agora = function () { return (performance.timeOrigin || Date.now() - performance.now()) + performance.now(); };
+  var EPOCA = agora();
+  try {
+    var guardada = +sessionStorage.getItem('bz-epoca');
+    if (guardada > 0 && guardada <= EPOCA) EPOCA = guardada; else sessionStorage.setItem('bz-epoca', String(EPOCA));
+  } catch (e) { /* sem armazenamento: o relógio começa nesta página */ }
+  function relogio() { return (agora() - EPOCA) / 1000; }
+
   window.BEYON = {
     S: S, add: add, remove: remove, on: on, off: off, emit: emit, iniciar: iniciar, reduzir: reduzir,
-    reduced: reduced, sistemaReduz: mqReduce.matches, num: num
+    reduced: reduced, sistemaReduz: mqReduce.matches, num: num, relogio: relogio,
+    /* o fôlego: os mesmos números de SPEC.respira do reator (7 s, inspira em 42%) */
+    FOLEGO: { periodo: 7, inspira: 0.42 }
   };
 
   /* BOOT: 'booted' só depois que TODO script `defer` rodou (DOMContentLoaded),

@@ -142,5 +142,10 @@ export function criarCena(canvas, gl, { celular = false } = {}) {
     return { chamadas: r.calls, triangulos: r.triangles };
   }
 
-  return { medir, desenhar, projetar, baixarResolucao, ajustarDpr, desmontar, info };
+  /* a pose do reator e quantas unidades do spec cabem na altura do canvas
+     (no plano z = 0, onde estão os raios): a rede converte para px */
+  const UNIDADES_NA_ALTURA = 2 * Math.tan((SPEC.camera.fov * Math.PI) / 360) * SPEC.camera.z;
+  function pose() { const p = esfera.pose(); p.altura = UNIDADES_NA_ALTURA; p.camera = SPEC.camera.z; return p; }
+
+  return { medir, desenhar, projetar, pose, baixarResolucao, ajustarDpr, desmontar, info };
 }

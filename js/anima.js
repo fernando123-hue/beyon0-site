@@ -592,7 +592,9 @@
           var hero = document.querySelector('.hero');
           if (!hero || !ST) return;
           var arte = hero.querySelector('.hero__arte'), feixe = hero.querySelector('.feixe');
-          if (arte) gsap.to(arte, { yPercent: -12, ease: 'none', scrollTrigger: { trigger: hero, start: 'top top', end: 'bottom top', scrub: .8 } });
+          /* o AI Core não tem paralaxe: a rede (js/rede.js) prende a constelação
+             ao portal dele por posição calculada, sem ler layout por quadro */
+          if (arte && !arte.classList.contains('hero__arte--nucleo')) gsap.to(arte, { yPercent: -12, ease: 'none', scrollTrigger: { trigger: hero, start: 'top top', end: 'bottom top', scrub: .8 } });
           if (feixe) gsap.to(feixe, { opacity: 0, ease: 'none', scrollTrigger: { trigger: hero, start: '40% top', end: 'bottom top', scrub: true } });
           /* o CTA da nav é discreto enquanto o do hero está na tela; preenche quando ele sai */
           var acoes = hero.querySelector('.hero__actions'), navEl = document.querySelector('.nav');
@@ -744,6 +746,22 @@
     partes.forEach(function (p) { mostrar(p, 0); });
     setLuz(-w);
     ST.addEventListener('refreshInit', medir);
+    /* o número real chega DEPOIS da medida (o peso desta visita, por exemplo):
+       passando de 999 KB ele ganha um dígito, fica mais largo que a máscara e
+       a sobra do número anterior aparecia ("2 KB" fantasma, crítica da rede,
+       rodada 4). Mudou o texto, mede e repinta (um quadro, coalescido) */
+    if ('MutationObserver' in window) {
+      var remedirPalco = 0, tamanhos = '';
+      var tamanhoAgora = function () { return partes.map(function (p) { var v = p.t.querySelector('.prova__val'); return v ? v.textContent.length : 0; }).join(','); };
+      tamanhos = tamanhoAgora();
+      var mo = new MutationObserver(function () {
+        var novo = tamanhoAgora(), mudou = novo !== tamanhos;
+        tamanhos = novo;   /* gravado antes: com o rAF pendente, a próxima mutação não remede de novo */
+        if (remedirPalco || !mudou) return;
+        remedirPalco = requestAnimationFrame(function () { remedirPalco = 0; medir(); pintar(tl.time()); });
+      });
+      partes.forEach(function (p) { var v = p.t.querySelector('.prova__val'); if (v) mo.observe(v, { childList: true, subtree: true, characterData: true }); });
+    }
     var total = partes.length, atual = 0;
     var tl = gsap.timeline({
       /* o índice segue a timeline (já com o atraso do scrub), não a rolagem */
