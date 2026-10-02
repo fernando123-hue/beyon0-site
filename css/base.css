@@ -10,7 +10,7 @@ h1, h2, h3 { color: var(--t1); text-wrap: balance; }
 h1, h2 { font-weight: 300; }
 h1 { font-size: clamp(2.6rem, 13vw, 4rem); line-height: .96; letter-spacing: -.04em; }
 h2 { font-size: var(--fs-h2); line-height: 1.04; letter-spacing: -.03em; max-width: 22ch; }
-h3 { font-size: var(--h3-linha); font-weight: 500; line-height: 1.2; letter-spacing: -.02em; }
+h3 { font-size: var(--h3-linha); font-weight: 400; line-height: 1.2; letter-spacing: -.015em; }   /* um peso só em todas as larguras (rodada 8) */
 .br-l { display: none; }
 a, button, summary { -webkit-tap-highlight-color: transparent; }
 p { max-width: 62ch; }
@@ -20,7 +20,6 @@ p, .lead, .fine, .hero__sub, .hero__fine, .prova__nota, .servico__para { text-wr
 h1 em, h2 em { font-style: normal; font-weight: 400; color: var(--ac); }
 h2 em { transition: color .6s var(--ease) .1s; }
 p em, li em { font-style: normal; font-weight: 500; color: var(--t1); }
-@media (min-width: 821px) { h3 { font-weight: 400; letter-spacing: -.018em; } }
 
 /* o kicker: índice mono âmbar + rótulo + régua esvaída */
 .kicker {
@@ -206,7 +205,9 @@ html:not(.js) .barra.is-oculta { transform: none; opacity: 1; pointer-events: au
   /* a barra é uma DOCA escura flutuante; o botão é contornado, não uma placa
      ciano sólida em toda tela (o ciano cheio fica no hero e na Conversa) */
   .barra { left: 12px; right: 12px; bottom: max(12px, env(safe-area-inset-bottom)); padding: 6px; border: 1px solid var(--line-2); border-radius: var(--raio); background: rgb(11 16 22 / .84); box-shadow: inset 0 1px 0 rgb(255 255 255 / .06), 0 18px 40px -14px rgb(0 0 0 / .95); }
-  .barra .btn--primary { background-color: rgb(var(--ac-rgb) / .1); color: var(--ac); border-color: rgb(var(--ac-rgb) / .42); }
+  /* uma moldura só: a doca é a borda, o botão ocupa a doca */
+  .barra { padding: 0; border-color: rgb(var(--ac-rgb) / .38); overflow: hidden; }
+  .barra .btn--primary { background-color: rgb(var(--ac-rgb) / .07); color: var(--ac); border: 0; min-height: 56px; }
   .barra .btn--primary:hover { background-color: rgb(var(--ac-rgb) / .16); }
   .barra .btn--primary::after { background: linear-gradient(90deg, rgb(var(--ac-rgb) / 0) 0%, rgb(var(--ac-rgb) / .14) 92%, var(--ac) 99%, rgb(var(--ac-rgb) / 0) 100%); }
 }
@@ -323,13 +324,15 @@ html:not(.js) .barra.is-oculta { transform: none; opacity: 1; pointer-events: au
     min-height: 100svh; align-content: center; align-items: start;
     padding-top: calc(var(--nav-h) + clamp(24px, 5vh, 56px));
   }
-  .hero::before { content: ""; position: absolute; right: max(0px, calc((100% - var(--maxw)) / 2)); top: 8%; width: 46%; height: 84%; background: radial-gradient(50% 50% at 60% 50%, rgb(var(--luz-rgb) / .24), transparent 70%); z-index: 0; pointer-events: none; }
   .hero__status { grid-area: status; }
   .hero__title { grid-area: title; max-width: none; margin-bottom: clamp(24px, 2.6vw, 40px); }
   .hero--longo .hero__title { max-width: 18ch; }
   .hero__main { grid-area: main; align-self: start; }
-  .hero__arte { grid-area: arte; align-self: stretch; display: flex; align-items: stretch; margin-top: 0; }
-  .hero__arte > .console { flex: 1; min-height: 0; }
+  /* a arte tem a altura do conteúdo e fica centrada na coluna (antes esticava e sobravam vãos) */
+  .hero__arte { grid-area: arte; align-self: center; display: flex; align-items: stretch; margin-top: 0; }
+  .hero__arte > .console { flex: 0 0 auto; width: 100%; }
+  /* a luz presa ao objeto, embaixo dele (estática): não é mancha redonda atrás de texto */
+  .hero__arte > .console, .hero__arte > .janela, .hero__arte > .instrumento { box-shadow: var(--sombra-arte), 0 48px 96px -56px rgb(var(--luz-rgb) / .32); }
   .hero__arte > .janela, .hero__arte > .instrumento { flex: 0 0 auto; width: 100%; align-self: center; }
   .hero__rail { grid-area: rail; grid-template-columns: repeat(4, 1fr); margin-top: clamp(32px, 5vh, 56px); }
   .hero:has(.console) .hero__rail, .hero__rail:not(:has(.hero__rail--medida)) { grid-template-columns: repeat(3, 1fr); }
@@ -339,8 +342,7 @@ html:not(.js) .barra.is-oculta { transform: none; opacity: 1; pointer-events: au
   .hero__title { margin-left: -.055em; }
   .hero__status { margin-left: calc(-1 * (6px + .6rem)); }   /* o ponto pendura na margem */
   .hero--longo h1 { font-size: var(--fs-d3); line-height: .95; letter-spacing: -.042em; }
-  /* o topo da arte na linha das maiúsculas do H1, como o console do hub */
-  .hero--longo .hero__arte > .janela, .hero--longo .hero__arte > .instrumento { align-self: start; margin-top: calc(var(--fs-d3) * .14); }
+  .hero--longo .hero__arte > .janela, .hero--longo .hero__arte > .instrumento { align-self: center; margin-top: 0; }
   .hero__sub { max-width: 50ch; font-size: clamp(1.0625rem, .95rem + .45vw, 1.25rem); margin-bottom: 1.6rem; }
 }
 
@@ -458,6 +460,7 @@ html.has-gsap .feixe.is-loop ~ .hero__arte .instrumento__led { animation: led-pa
    Sora, depois de um vão (rodada 7) */
 .nav { padding-inline: max(var(--pad), calc((100% - var(--maxw)) / 2 + var(--pad))); }
 @media (min-width: 981px) {
-  .nav__links a[href^="/"]:not(.btn) { font-family: var(--sans); font-weight: 400; text-transform: none; letter-spacing: 0; font-size: var(--fs-s); color: var(--t1); }
-  .nav__sep { width: 0; margin-left: 4px; background: none; }
+  /* uma voz só na nav: as outras páginas também em mono caixa-alta, marcadas por "/" âmbar */
+  .nav__links a[href^="/"]:not(.btn) { color: var(--t1); }
+  .nav__links a[href^="/"]:not(.btn)::before { content: "/"; content: "/" / ""; color: var(--ambar); margin-right: .15em; }
 }

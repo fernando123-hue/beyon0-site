@@ -51,15 +51,45 @@ subindo); ignore a primeira medição de DCL/LCP.
 css/tokens.css (paleta, fontes, atmosfera) · base.css (tipo, nav, botões, hero, trilha, feixe, barra do celular, rodapé)
 css/componentes.css (painel, serviços, passos, laudo, prova, malha, cenários, FAQ, conversa, spec, planos, janela, instrumento, modal)
 css/motion.css (estados iniciais html.js, varredura do painel, régua do kicker, reduced-motion)
-js/ancoras.js (head: html.js + âncoras antigas) · tel.js · core.js (loop, estado S, fps, reduzir)
-js/pagina.js (nav, WA, seção atual, barra do celular, prova, interruptor)
-js/anima.js (GSAP: boot do hero por linhas, entradas por seção) · lead-form.js (só automação)
+js/ancoras.js (head: html.js + âncoras antigas) · tel.js · core.js (loop, estado S, fps, reduzir, B.num pt-BR)
+js/pagina.js (nav, menu, WA, seção atual, barra do celular, medidas: carga, peso, fps, FCP, cascata, log do console, interruptor)
+js/anima.js (GSAP: boot do hero, cota, rota, palco da prova, fecho, entradas por seção, pilha do celular, pouso em âncora) · lead-form.js (só automação)
 ```
 
 Sem canvas nesta fase: o AI Core e os pulsos voltam numa fase seguinte,
 repensados para fundo claro (quando o dono pedir). Os módulos antigos
 (`campo.js`, `profundidade.js`, `organismo.js`, `palavras.js`) estão no
 histórico, commit `051b2a8`; o AI Core original (orbe) em `abd83fe` (V1).
+
+## A assinatura (o que sobreviveu a 8 rodadas do painel)
+
+Um gesto só, "a luz passa e imprime", em quatro atos. Mexer neles exige
+reler `docs/restructure/PLANO-REESTRUTURACAO.md` §16 (os achados medidos).
+
+1. **Boot do hero** (`heroEntra` em `js/anima.js`): o fio de 1px atravessa
+   e cada peça acende no instante em que a luz passa por ela (`tFeixe` no
+   desktop, `tEm` no celular, onde a luz desce e LÊ o título em três
+   trechos). Palavras do H1 com "tinta molhada" (ciano por um instante,
+   secam para o branco). A **cota** do H1 é desenhada pela luz com a 1ª
+   pintura real (FCP). O h1 fica dividido em palavras: **nunca `revert`
+   no h1** (o Chrome re-registra o LCP: 0,9 → 2,5 s). O parágrafo do hero é
+   o LCP: entra no máximo em 0,3 s.
+2. **A rota** dos passos (`rota()`): traço que nasce embaraçado e se
+   desenha pela rolagem até um LED "no ar". Frações por trecho, nunca
+   amostrando `getPointAtLength` (tarefa longa de 400 ms).
+3. **O palco da prova** (`palco()`, desktop): pin + scrub + snap; UMA
+   função (`pintar(t)`) pinta as três máscaras a partir do tempo da
+   timeline; largura medida por `offsetWidth` (o `scrollWidth` soma o
+   deslocamento por transform e crescia a cada refresh); no refresh mede
+   de novo e repinta. No celular cada medida acende e conta ao aparecer.
+4. **O fecho** (`fechamento()`): a luz atravessa a Conversa, a palavra
+   enfatizada fica ciano e a luz pousa no botão como mira (quatro cantos).
+
+Regras que vieram daí: medir largura de LAYOUT de quem se move por
+transform; nada de `to` com partida implícita em timeline com
+`invalidateOnRefresh`; o desktop com movimento nasce sem `scroll-behavior:
+smooth` (o snap rastejava; o ScrollTrigger religa o smooth inline a cada
+refresh); âncoras usam só `scroll-padding-top`.
 
 ## Regras que não se negociam
 

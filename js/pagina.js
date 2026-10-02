@@ -188,7 +188,7 @@
       try { new PerformanceObserver(function (l, obs) { var e = l.getEntriesByName('first-contentful-paint')[0]; if (e) { escreverFcp(e.startTime); obs.disconnect(); } }).observe({ type: 'paint', buffered: true }); } catch (e) { /* sem suporte */ }
     }
     window.addEventListener('load', function () { setTimeout(function () {
-      for (var q = 0; q < elFcp.length; q++) if (elFcp[q].textContent === '—') { var cx = elFcp[q].closest('.hero__cota'); if (cx) cx.hidden = true; }
+      for (var q = 0; q < elFcp.length; q++) if (elFcp[q].textContent === '—') { var cx = elFcp[q].closest('.hero__cota'); if (cx) cx.style.visibility = 'hidden';   /* some sem tirar do layout: nada pula sob o CTA */ }
     }, 3000); }, { once: true });
   }
   /* valor e unidade separados: na prova a unidade fica subordinada (<small>);

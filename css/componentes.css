@@ -370,7 +370,7 @@ html.js .console.is-in .cascata.is-pronta .cascata__linha:nth-child(4) .cascata_
 @media (prefers-reduced-motion: reduce) { html.js .cascata__barra { transform: none; } }
 html.menos-movimento .cascata__barra { transform: none; }
 /* a unidade é nó fixo (a medida escreve só o número): mesma regra da prova */
-.console__unid { font-size: .38em; font-weight: 400; letter-spacing: var(--tr-dado); color: var(--t2); margin-left: .14em; }
+.console__unid { font-family: var(--mono); font-size: var(--fs-rotulo); font-weight: 400; letter-spacing: var(--tr-dado); color: var(--t3); margin-left: .3em; }
 .console__medida span { display: block; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); margin-top: .5rem; }
 .console__topo { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-bottom: .7rem; margin-bottom: .4rem; border-bottom: 1px solid var(--line); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); }
 .console__led { width: 7px; height: 7px; border-radius: 50%; background: var(--ambar); box-shadow: 0 0 0 3px rgb(var(--ambar-rgb) / .18); flex: none; }
@@ -572,7 +572,7 @@ html.menos-movimento .prova__item::after { animation: none !important; opacity: 
   .hero__arte > .console { justify-content: flex-start; gap: 0; }
   .console__medida { padding-bottom: 24px; }
   .cascata { padding: 0 0 12px; gap: 8px; }
-  .console__topo { margin-top: auto; margin-bottom: 8px; padding-bottom: 8px; }
+  .console__topo { margin-top: 28px; margin-bottom: 8px; padding-bottom: 8px; }
   .console__linha { line-height: 2; }
 }
 .cascata__nome { color: var(--t2); }
@@ -608,3 +608,35 @@ html.menos-movimento .prova__item::after { animation: none !important; opacity: 
 /* na pilha do celular o índice do laudo esmaece junto com o miolo: a
    transição de opacidade do CSS brigava com o scrub e o "01" ficava sozinho */
 @media (max-width: 620px) { html.js .laudo .laudo__n { transition: color var(--t-micro) var(--ease-micro); } }
+
+/* o número de display do console fala a língua da Prova: display ≥2rem em
+   Sora 200; mono só para dado em linha (rodada 8) */
+.console__medida > b { font-family: var(--sans); font-weight: 200; letter-spacing: -.05em; font-variant-numeric: tabular-nums; }
+/* Automação: a medida desta visita vira a linha de status do instrumento */
+.instrumento__status { margin: 0; padding-top: .8rem; border-top: 1px solid var(--line); font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-dado); color: var(--t3); }
+.instrumento__status b { color: var(--ac); font-weight: 500; font-variant-numeric: tabular-nums; }
+
+/* rodada 8 ------------------------------------------------------------- */
+/* celular: a prova é um painel de instrumentos numa tela (antes ~250px por
+   medida, as três somavam mais de duas telas) */
+@media (max-width: 620px) {
+  .prova__item { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 16px; align-items: end; padding: 1.1rem 0 1.1rem 1rem; }
+  .prova__val { font-size: clamp(3rem, 15vw, 4rem); margin-bottom: 0; }
+  .prova__rot { max-width: none; font-size: var(--fs-s); padding-bottom: .4em; text-wrap: balance; }
+}
+/* palco (desktop) numa linha de base: índice e legenda assentam na base do
+   numeral; a unidade é de mostrador (na altura das maiúsculas, em --t2) */
+.prova--palco .prova__passo { align-self: end; padding-top: 0; padding-bottom: clamp(1.2rem, 2vw, 2rem); }
+.prova--palco .prova__val small { font-size: .16em; color: var(--t2); vertical-align: top; margin-top: .9em; }
+/* celular: um botão real por tela; o do mockup é contornado e a barra de
+   endereço volta ao topo (identifica a janela) */
+@media (max-width: 620px) {
+  .janela__barra { order: 0; border-top: 0; border-bottom: 1px solid var(--line); }
+  .janela__pt { display: block; width: 6px; height: 6px; }
+  .mini__btn { background: none; border: 1px solid rgb(var(--ac-rgb) / .45); color: var(--ac); }
+  .hero__arte .janela { pointer-events: none; }
+}
+/* cenários: o estado final em âmbar contornado; o sólido só no foco/hover */
+.fluxo li:last-child { background: rgb(var(--ambar-rgb) / .1); border-color: rgb(var(--ambar-rgb) / .55); color: var(--ambar); }
+@media (hover: hover) { .cenario:hover .fluxo li:last-child { background: var(--ambar); color: var(--ambar-tinta); } }
+.cenario.is-foco .fluxo li:last-child { background: var(--ambar); color: var(--ambar-tinta); }

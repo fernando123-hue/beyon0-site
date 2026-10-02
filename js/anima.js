@@ -141,9 +141,17 @@
      uma vez no boot e de novo a cada refresh; el.style uma vez, nunca por quadro */
   function medirCota(cota, titulo) {
     try {
-      var rg = document.createRange(); rg.selectNodeContents(titulo);
-      var rs = rg.getClientRects(), esq = titulo.getBoundingClientRect().left, dir = esq;
-      for (var i = 0; i < rs.length; i++) dir = Math.max(dir, rs[i].right);
+      /* pelas PALAVRAS: o Range sobre o h1 dividido trazia as caixas das linhas
+         (100% da largura) e a cota sempre ocupava a coluna inteira (revisão V4.8) */
+      var esq = cota.getBoundingClientRect().left, dir = esq;   /* origem na cota: o h1 tem margem óptica negativa */
+      var palavras = titulo.querySelectorAll('.split-word');
+      if (palavras.length) {
+        for (var p = 0; p < palavras.length; p++) dir = Math.max(dir, palavras[p].getBoundingClientRect().right);
+      } else {
+        var rg = document.createRange(); rg.selectNodeContents(titulo);
+        var rs = rg.getClientRects();
+        for (var i = 0; i < rs.length; i++) dir = Math.max(dir, rs[i].right);
+      }
       var max = cota.parentNode.getBoundingClientRect().width;
       cota.style.width = Math.min(max, Math.max(48, dir - esq)) + 'px';
     } catch (e) { /* sem Range: a cota fica na largura do bloco */ }
@@ -231,7 +239,7 @@
       if (titulo) {
         var sp = partir(titulo, 'words');
         if (sp && sp.words && sp.words.length) {
-          /* O TÍTULO É O LCP: 45% já pintado no primeiro quadro. Cada palavra
+          /* O TÍTULO É O LCP: 78% já pintado no primeiro quadro. Cada palavra
              sobe quando a luz chega nela; palavras na mesma coluna sobem
              juntas, em qualquer largura: a luz imprime colunas. */
           gsap.set(sp.words, { yPercent: 22 });   /* 78% já pintado no 1º quadro: a palavra ASSENTA, não sobe de baixo */
@@ -331,6 +339,48 @@
       rolagemPropria = true;
     } catch (e) { /* navegador sem suporte: fica a restauração nativa */ }
   }
+  /* pousar numa âncora depois que os gatilhos existem: o pin estica a página
+     depois da rolagem nativa. Alvo dentro do palco pousa na 1ª leitura (não
+     no palco vazio). As revelações de cima mexem na altura: confere de novo
+     enquanto a página assenta, se a pessoa não tiver rolado (revisões V4.7 e V4.8). */
+  function yDe(alvo) {
+    var folga = parseFloat(getComputedStyle(html).scrollPaddingTop) || 0;
+    var y = alvo.getBoundingClientRect().top + window.scrollY - folga;
+    var pin = ST && ST.getAll().filter(function (t) { return t.pin && t.pin.contains(alvo); })[0];
+    if (pin) {
+      var an = pin.animation, n0 = an && an.labels && an.labels.n0;
+      y = pin.start + (n0 && an.duration() ? (pin.end - pin.start) * n0 / an.duration() : 0);
+    }
+    return Math.max(0, Math.round(y));
+  }
+  function dentroDePin(alvo) { return !!(ST && ST.getAll().filter(function (t) { return t.pin && t.pin.contains(alvo); })[0]); }
+  function pousar(alvo, conferir) {
+    pousoAte = Date.now() + 2500;
+    var y = yDe(alvo);
+    window.scrollTo({ top: y, behavior: 'instant' });
+    if (!conferir) return;
+    [900, 1800].forEach(function (ms) {
+      setTimeout(function () {
+        if (Math.abs(window.scrollY - y) > 2) return;
+        if (ST) ST.refresh();
+        y = yDe(alvo);
+        pousoAte = Date.now() + 1500;
+        window.scrollTo({ top: y, behavior: 'instant' });
+      }, ms);
+    });
+  }
+  /* clique interno numa âncora que cai dentro do palco (ex.: "Ver a prova"):
+     a rolagem nativa parava no início do pin, com o palco vazio */
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('a[href^="#"]');
+    if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return;
+    var alvo = null;
+    try { alvo = document.getElementById(decodeURIComponent(a.getAttribute('href').slice(1))); } catch (er) { return; }
+    if (!alvo || !dentroDePin(alvo)) return;
+    e.preventDefault();
+    if (history.pushState) history.pushState(null, '', '#' + alvo.id);
+    pousar(alvo, false);
+  });
   function restaurarRolagem() {
     var navEntry = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
     var tipo = navEntry ? navEntry.type : '';
@@ -340,30 +390,7 @@
     if (tipo === 'navigate' && location.hash.length > 1) {
       var alvo = null;
       try { alvo = document.getElementById(decodeURIComponent(location.hash.slice(1))); } catch (e) { /* hash inválido */ }
-      if (alvo) {
-        var ir = function () {
-          var folga = parseFloat(getComputedStyle(html).scrollPaddingTop) || 0;
-          var y = alvo.getBoundingClientRect().top + window.scrollY - folga;
-          /* alvo dentro do palco: pousa na 1ª leitura, não no palco vazio */
-          var pin = ST && ST.getAll().filter(function (t) { return t.pin && t.pin.contains(alvo); })[0];
-          if (pin) {
-            var an = pin.animation, n0 = an && an.labels && an.labels.n0;
-            y = pin.start + (n0 && an.duration() ? (pin.end - pin.start) * n0 / an.duration() : 0);
-          }
-          y = Math.max(0, Math.round(y));
-          window.scrollTo({ top: y, behavior: 'instant' });
-          return y;
-        };
-        pousoAte = Date.now() + 2500;
-        var pousou = ir();
-        /* as revelações de cima mexem na altura da página: confere de novo
-           quando assentarem, se a pessoa não tiver rolado nesse meio tempo */
-        setTimeout(function () {
-          if (Math.abs(window.scrollY - pousou) > 2) return;
-          if (ST) ST.refresh();
-          ir();
-        }, 900);
-      }
+      if (alvo) pousar(alvo, true);
       return;
     }
     if (!rolagemPropria) return;
@@ -439,6 +466,7 @@
     var regua = sec.querySelector('.conversa__regua'), btn = bloco.querySelector('.btn--primary');
     var kick = bloco.querySelector('.kicker'), lead = bloco.querySelector('.lead');
     var T = 1.4, cx = sec.getBoundingClientRect(), w = luz.offsetWidth;
+    var celular = window.matchMedia('(max-width: 620px)').matches;
     var quando = function (el) { return tPassagem(el.getBoundingClientRect().left - cx.left, cx.width, w, T); };
     var tl = gsap.timeline();
     tl.fromTo(luz, { x: -w, opacity: 1 }, { x: cx.width, duration: T, ease: 'none' }, 0).set(luz, { opacity: 0 });
@@ -447,7 +475,13 @@
     var sp = partir(h, 'words');
     if (sp && sp.words && sp.words.length) {
       gsap.set(sp.words, { yPercent: 130 });
-      sp.words.forEach(function (wd) { tl.to(wd, { yPercent: 0, duration: .7, ease: EXPO }, quando(wd)); tinta(tl, wd, quando(wd)); });
+      /* a tinta só na ênfase: palavras ciano soltas pareciam destaque errado (rodada 8);
+         no celular a frase se escreve na ordem de leitura, não pelo x da luz */
+      sp.words.forEach(function (wd, i) {
+        var t = celular ? .1 + i * Math.min(.07, (T * .8) / sp.words.length) : quando(wd);
+        tl.to(wd, { yPercent: 0, duration: .7, ease: EXPO }, t);
+        if (wd.closest('em')) tinta(tl, wd, t);
+      });
       var em = h.querySelector('em');
       tl.add(function () { h.classList.add('is-lit'); }, em ? quando(em) + .1 : T);
       /* não é o LCP: o h2 volta ao DOM original no fim */
@@ -466,7 +500,7 @@
       }
       var cantos = alvo.querySelectorAll('.btn__canto'), tBtn = quando(btn);
       tl.fromTo(cantos, { opacity: 0, x: function (k) { return k % 2 ? 6 : -6; }, y: function (k) { return k < 2 ? -6 : 6; }, scale: .6 },
-        { opacity: 1, x: 0, y: 0, scale: 1, duration: .38, ease: EXPO, stagger: .04 }, tBtn);
+        { opacity: 1, x: 0, y: 0, scale: 1, duration: .38, ease: EXPO, stagger: .04, clearProps: 'transform,translate,rotate,scale' }, tBtn);
       tl.add(function () { btn.classList.add('is-passou'); }, tBtn + .18);
     }
   }
@@ -546,7 +580,7 @@
         });
         mm.add('(max-width: 860px) and (prefers-reduced-motion: no-preference)', function () {
           if (!ST || html.classList.contains('menos-movimento')) return;
-          gsap.utils.toArray('.servico, .laudo__row, .celula, .passo').forEach(function (el) {
+          gsap.utils.toArray('.servico, .laudo__row, .celula, .passo, .cenario').forEach(function (el) {
             ST.create({ trigger: el, start: 'top 62%', end: 'bottom 38%', toggleClass: { targets: el, className: 'is-foco' } });
           });
         });

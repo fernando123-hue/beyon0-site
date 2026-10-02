@@ -1119,17 +1119,51 @@ Regra: medir sempre largura de LAYOUT (`offsetWidth`) de quem é movido por
 transform. Critério de parada: a rodada 6 caiu; se a 7 não subir, o loop
 para (duas rodadas seguidas sem subir).
 
-### 16.3 O que falta (próximo passo exato)
+| Rodada | Notas (júri · tipo · motion · celular) | Commit | O que entrou |
+|---|---|---|---|
+| 7 (sobre V4.7) | 6 · 6,1 · 6,3 · 6,3 (média 6,18, voltou a subir) | `202e42d` + `d90a6a8` (V4.8) | **a cota do H1** (linha de cota que a luz desenha sob o título, com a 1ª pintura real, FCP); no celular a luz lê o título em três trechos e o feixe para depois de duas passagens; doca escura no lugar da placa ciano da barra; palco na grade de 12; vitrine no cartão do hub; nav no eixo; console com um vão; Garantias como manifesto; cantos de mira no CTA do fecho; rota terminando abaixo do último passo |
 
-1. **Rodada 4** do painel sobre `docs/olhar-v44/` (já capturada; se sumiu,
-   `npm run olhar -- docs/olhar-v44`). Workflow com
-   `{ rodada: 4, pasta: 'docs/olhar-v44', versao: 'V4.4' }`. A rodada 3 subiu
-   só 0,1 (5,9 → 6,0), mas julgou a V4.3: a V4.4 ainda não foi julgada.
-   Critério de parada: duas rodadas seguidas sem subir a média, ou júri ≥ 8.
-2. Documentar no `CLAUDE.md` a assinatura (`tFeixe`/`tEm`, `is-lit`, sem
-   `revert` no h1 do hero, a luz que mede na prova e fecha na conversa) como
-   regra, se sobreviver à rodada 4.
-3. Publicar só quando o dono pedir: a `main` continua na V3 clara (`e3272c7`).
+Achados da rodada 7 (medidos): o Element Timing não vê o H1 depois do
+SplitText (o texto vai para os filhos), por isso a cota usa o FCP; o
+ScrollTrigger dispara o snap no refresh e puxava um link direto `#prova`
+de volta ao palco vazio, então o snap é uma função que espera 2,5 s depois
+de um pouso; `scroll-padding-top` e `scroll-margin-top` somavam (âncora
+80px abaixo). Revisão da V4.7: 1 alto (já resolvido), 2 médios, 5 baixos,
+corrigidos.
+
+| Rodada | Notas (júri · tipo · motion · celular) | Commit | O que entrou |
+|---|---|---|---|
+| 8 (sobre V4.8) | 6 · 6,3 · 6,2 · 6,3 (média 6,2) | V4.9 | só acabamento (o loop entrou em platô): tinta só no "como" do fecho; artes do hero com a altura do conteúdo e sem a mancha redonda solta (`.hero::before`, que batia na regra do glow); número do console em Sora 200; medida da Automação como linha de status do instrumento; prova do celular numa tela; palco numa linha de base; mockup do Sites com botão contornado; doca com uma moldura só; nav com uma voz (mono, "/" âmbar nas outras páginas); h3 com um peso só; chip âmbar sólido só no foco |
+
+**O LOOP PAROU NA RODADA 8 (platô).** Médias: 5,6 · 5,9 · 6,0 · 6,2 ·
+**6,25** · 5,95 · 6,18 · 6,2. Há três rodadas nenhuma passa a melhor
+(6,25, rodada 5) e as variações estão dentro do ruído do painel (±0,2). O
+critério escrito ("duas rodadas seguidas sem subir") foi lido contra a
+melhor nota, não contra a anterior: subir 0,02 depois de cair 0,3 não é
+melhora. Os quatro críticos da rodada 8 apontam como lacuna maior coisas
+que não são acabamento e dependem do dono: conteúdo humano (quem constrói,
+foto, trabalho real com números do cliente) e uma imagem dominante (o AI
+Core reservado em `.hero__arte`). Mais rodadas de acabamento trocariam um
+defeito por outro.
+
+Revisões de código por agente a cada rodada (V4.4 a V4.8): 0 crítico em
+todas; os altos e médios foram corrigidos e testados no headless (scripts
+de reprodução no scratchpad da sessão, não versionados).
+
+### 16.3 O que falta (decisões do dono)
+
+1. **Publicar a V4.9**: a `main` e o site no ar continuam na V3 clara
+   (`e3272c7`). Publicar = merge de `rebuild-v2` na `main` + push (deploy).
+2. **Conteúdo humano** para a próxima subida de nível: quem constrói (nome,
+   foto, trajetória curta), um ou dois trabalhos reais com resultado
+   autorizado pelo cliente. Sem isso nada entra (regra 2: zero dado inventado).
+3. **O AI Core** (a imagem dominante do hero, lugar reservado).
+4. Confirmar três escolhas de direção feitas no loop: ciano em texto só no
+   H1, na Conversa e em dado; a cota com a 1ª pintura; a barra do celular
+   como doca escura com botão contornado.
+5. Se quiser mais rodadas do painel: `docs/workflows/critica-premio.js` com
+   `{ rodada: 9, pasta: 'docs/olhar-v49', versao: 'V4.9' }`; vale depois de
+   2 ou 3, quando houver material novo para julgar.
 
 ### 16.4 Limitações conhecidas
 
