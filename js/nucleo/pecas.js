@@ -134,7 +134,8 @@ const VIDRO_FS = /* glsl */`
   uniform vec3 uCentro;
   uniform float uIgnicao;
   uniform vec3 uNevoa;
-  uniform vec3 uRadial;
+  uniform vec3 uBisel;
+  uniform float uBiselCos;
   varying vec3 vN;
   varying vec3 vP;
   void main() {
@@ -153,8 +154,8 @@ const VIDRO_FS = /* glsl */`
     float faixa = exp(-R.y * R.y * 140.0);
     float faixa2 = exp(-(R.y - 0.38) * (R.y - 0.38) * 260.0);
     float topo = smoothstep(0.82, 1.0, R.y);
-    /* estreito (40): com o reator inclinado, as câmaras de baixo ficam quase
-       na linha do núcleo e acendiam inteiras, chapadas */
+    /* estreito (40): só o que está mesmo na frente do núcleo, na linha de
+       visão, deixa a luz passar */
     float atraves = pow(max(dot(-V, L), 0.0), 40.0);
     vec3 c = uBase * 0.45;
     c += uInterno * difusa * difusa * queda * (0.05 + 0.95 * ig);
@@ -163,14 +164,15 @@ const VIDRO_FS = /* glsl */`
     c += uBrilho * espec * queda * 3.2 * ig;
     c += (mix(uInterno, uBrilho, 0.45) * faixa * 0.2 + uBrilho * faixa2 * 0.12 + uBrilho * topo * 0.1) * (0.06 + 0.94 * fres);   /* reflexo só de raspão: face de frente fica escura (lia como azulejo cinza) */
     c += uAmbiente * fres * 0.05;
-    /* a luz do núcleo na face (só onde uRadial.z > 0: as câmaras): forte na
-       borda de dentro, a zero em uRadial.y de comprimento. A queda do centro
-       para fora é o que mostra o volume parado (crítica rodada 5) */
-    c += uInterno * uRadial.z * ig * (1.0 - smoothstep(uRadial.x, uRadial.x + uRadial.y, length(vP - uCentro)));
-    /* uma luz-chave fixa de cima à esquerda: só os chanfros voltados para lá
-       pegam o reflexo, e as 12 placas deixam de ser idênticas */
+    /* uma luz-chave fixa de cima à esquerda: o anel não brilha igual em toda
+       a volta */
     vec3 K = normalize(vec3(-0.5, 0.7, 0.55));
     c += uBrilho * pow(max(dot(N, normalize(K + V)), 0.0), 70.0) * 0.18;
+    /* o bisel: um único reflexo que corre no anel (uBisel.xy = direção,
+       uBisel.z = pico); branco no meio, ciano nas pontas */
+    float cosD = dot(normalize(vP.xy + 1e-5), uBisel.xy);
+    float bisel = smoothstep(uBiselCos, 1.0, cosD);   /* uBiselCos = cos(meia-largura do arco) */
+    c += mix(uInterno, uBrilho, bisel) * bisel * bisel * uBisel.z * ig;
     /* névoa: quanto mais longe da câmera, mais escuro. A câmera está no eixo
        z e o núcleo na origem, então a profundidade é só o z */
     float prof = vP.z - uCentro.z;
@@ -283,6 +285,66 @@ const DISCO_FS = /* glsl */`
   }
 `;
 
+/* o painel de vidro delicado: preenchimento aditivo que recebe a luz do
+   núcleo. aR 0 na borda de dentro → 1 na de fora; a luz cai a zero em uCai */
+const PAINEL_VS = /* glsl */`
+  attribute float aR;
+  varying float vR;
+  varying float vProf;
+  void main() {
+    vR = aR;
+    vec4 w = modelMatrix * vec4(position, 1.0);
+    vProf = w.z;
+    gl_Position = projectionMatrix * viewMatrix * w;
+  }
+`;
+const PAINEL_FS = /* glsl */`
+  uniform vec3 uCor;
+  uniform float uAlfa;
+  uniform float uCai;
+  uniform float uForca;
+  uniform vec3 uNevoa;
+  varying float vR;
+  varying float vProf;
+  void main() {
+    float b = 1.0 - smoothstep(0.0, uCai, vR);
+    b *= mix(uNevoa.z, 1.0, smoothstep(uNevoa.y, uNevoa.x, vProf));
+    gl_FragColor = vec4(uCor, b * b * uAlfa * uForca);
+    #include <colorspace_fragment>
+  }
+`;
+
+/* o contorno de cristal: a aresta recebe a luz do núcleo (forte na borda de
+   dentro, aR 0, apagando para fora) e a face de trás (aFace 0) fica mais
+   fraca que a da frente — é o que dá volume a um traço de 1 px */
+const LINHA_VS = /* glsl */`
+  attribute float aR;
+  attribute float aFace;
+  varying float vR;
+  varying float vFace;
+  varying float vProf;
+  void main() {
+    vR = aR; vFace = aFace;
+    vec4 w = modelMatrix * vec4(position, 1.0);
+    vProf = w.z;
+    gl_Position = projectionMatrix * viewMatrix * w;
+  }
+`;
+const LINHA_FS = /* glsl */`
+  uniform vec3 uCor;
+  uniform float uAlfa;
+  uniform vec3 uNevoa;
+  varying float vR;
+  varying float vFace;
+  varying float vProf;
+  void main() {
+    float b = (1.0 - 0.78 * smoothstep(0.0, 1.0, vR)) * mix(0.4, 1.0, vFace);
+    b *= mix(uNevoa.z, 1.0, smoothstep(uNevoa.y, uNevoa.x, vProf));
+    gl_FragColor = vec4(uCor, b * uAlfa);
+    #include <colorspace_fragment>
+  }
+`;
+
 /* ---------- montagem ---------- */
 
 export function montar(THREE, SPEC, cores, { celular = false } = {}) {
@@ -319,46 +381,58 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
       uCentro: { value: new THREE.Vector3() },
       uIgnicao: { value: 0 },
       uNevoa: { value: new THREE.Vector3(SPEC.nevoa.perto, SPEC.nevoa.longe, SPEC.nevoa.minimo) },
-      uRadial: { value: new THREE.Vector3(0, 1, 0) }
+      uBisel: { value: new THREE.Vector3(1, 0, 0) },
+      uBiselCos: { value: Math.cos(SPEC.portal.bisel.meia) }
     }
   }));
-  /* o vidro das câmaras: o mesmo programa e os MESMOS objetos de uniform
-     (ignição, centro, névoa são atualizados juntos), só a luz radial ligada */
-  const CA = SPEC.camaras, PE = SPEC.petalas;
-  const vidroCamara = guarda(new THREE.ShaderMaterial({
-    vertexShader: VIDRO_VS, fragmentShader: VIDRO_FS, side: THREE.DoubleSide,
-    uniforms: { ...vidro.uniforms, uRadial: { value: new THREE.Vector3(CA.raio[0], (CA.raio[1] - CA.raio[0]) * CA.luz.cai, CA.luz.alfa) } }
-  }));
+  const nevoa = vidro.uniforms.uNevoa;   /* o MESMO objeto nos cristais: uma névoa só */
 
-  /* uma placa de vidro com volume: setor de anel extrudado, com chanfro,
-     centrado no ângulo 0 e na profundidade z. UMA geometria por camada; cada
-     placa é a mesma malha girada (eram 24 construções iguais — revisão) */
-  function placa(d, largura) {
-    const forma = new THREE.Shape();
-    const a0 = -largura / 2, a1 = largura / 2;
-    forma.absarc(0, 0, d.raio[1], a0, a1, false);
-    forma.absarc(0, 0, d.raio[0], a1, a0, true);
-    forma.closePath();
-    const geo = new THREE.ExtrudeGeometry(forma, {
-      depth: d.espessura, bevelEnabled: true, bevelThickness: d.chanfro, bevelSize: d.chanfro,
-      bevelSegments: 2, curveSegments: 6
-    });
-    geo.translate(0, 0, d.z - d.espessura / 2);
-    return guarda(geo);
-  }
-
-  /* fita: a seção do toro comprimida no eixo normal ao plano dele; a normal
-     da elipse é a radial com o z dividido por `achata` (sem escala não
-     uniforme na malha, que o shader não corrigiria) */
-  function achatar(geo, achata) {
-    const pos = geo.attributes.position, nor = geo.attributes.normal;
-    for (let i = 0; i < pos.count; i++) {
-      pos.setZ(i, pos.getZ(i) * achata);
-      const nx = nor.getX(i), ny = nor.getY(i), nz = nor.getZ(i) / achata;
-      const l = Math.hypot(nx, ny, nz) || 1;
-      nor.setXYZ(i, nx / l, ny / l, nz / l);
+  /* uma camada de painéis (câmaras ou pétalas): os n setores numa geometria
+     só (preenchimento) e o contorno de 1 px de todos numa LineSegments só.
+     Duas chamadas por camada, em vez das 12 placas extrudadas da v2 */
+  function camadaDePaineis(d, defasagem) {
+    const passoD = TAU / d.n, larg = passoD * (1 - d.vao), seg = 14;
+    const tri = [], aR = [], lin = [], linR = [], linF = [];
+    const ponto = (r, a, z = d.z) => [Math.cos(a) * r, Math.sin(a) * r, z];
+    const zT = d.z - d.espessura / 2, zF = d.z + d.espessura / 2;
+    /* um traço do contorno: dois pontos, com o raio relativo e a face */
+    const traco = (pa, ra, pb, rb, fa, fb) => { lin.push(...pa, ...pb); linR.push(ra, rb); linF.push(fa, fb); };
+    for (let i = 0; i < d.n; i++) {
+      const meio = (i + defasagem) * passoD, a0 = meio - larg / 2, a1 = a0 + larg;
+      for (let k = 0; k < seg; k++) {
+        const aa = a0 + (larg * k) / seg, ab = a0 + (larg * (k + 1)) / seg;
+        const i0 = ponto(d.raio[0], aa), o0 = ponto(d.raio[1], aa), i1 = ponto(d.raio[0], ab), o1 = ponto(d.raio[1], ab);
+        tri.push(...i0, ...o0, ...i1, ...i1, ...o0, ...o1);
+        aR.push(0, 1, 0, 0, 1, 1);
+        for (const [z, f] of [[zT, 0], [zF, 1]]) {           /* arcos de dentro e de fora, nas duas faces */
+          traco(ponto(d.raio[0], aa, z), 0, ponto(d.raio[0], ab, z), 0, f, f);
+          traco(ponto(d.raio[1], aa, z), 1, ponto(d.raio[1], ab, z), 1, f, f);
+        }
+      }
+      for (const a of [a0, a1]) {
+        for (const [z, f] of [[zT, 0], [zF, 1]]) traco(ponto(d.raio[0], a, z), 0, ponto(d.raio[1], a, z), 1, f, f);   /* arestas radiais */
+        traco(ponto(d.raio[0], a, zT), 0, ponto(d.raio[0], a, zF), 0, 0, 1);    /* as arestas de espessura (quinas) */
+        traco(ponto(d.raio[1], a, zT), 1, ponto(d.raio[1], a, zF), 1, 0, 1);
+      }
     }
-    return geo;
+    const geoP = guarda(new THREE.BufferGeometry());
+    geoP.setAttribute('position', new THREE.BufferAttribute(new Float32Array(tri), 3));
+    geoP.setAttribute('aR', new THREE.BufferAttribute(new Float32Array(aR), 1));
+    const geoL = guarda(new THREE.BufferGeometry());
+    geoL.setAttribute('position', new THREE.BufferAttribute(new Float32Array(lin), 3));
+    geoL.setAttribute('aR', new THREE.BufferAttribute(new Float32Array(linR), 1));
+    geoL.setAttribute('aFace', new THREE.BufferAttribute(new Float32Array(linF), 1));
+    const grupo = new THREE.Group();
+    grupo.add(new THREE.Mesh(geoP, shader(PAINEL_VS, PAINEL_FS, {
+      uCor: { value: cor('ac') }, uAlfa: { value: d.luz }, uCai: { value: d.cai }, uForca: { value: 0 }, uNevoa: nevoa
+    }, A.raios, true)));
+    const matL = guarda(new THREE.ShaderMaterial({
+      vertexShader: LINHA_VS, fragmentShader: LINHA_FS, ...ADITIVO,
+      uniforms: { uCor: { value: cor('ac2') }, uAlfa: { value: d.contorno }, uNevoa: nevoa }
+    }));
+    grupo.add(new THREE.LineSegments(geoL, matL));
+    roda.add(grupo);
+    return { grupo, matL, d };
   }
 
   function fluxo(raio, tubo, d, atraso) {
@@ -379,8 +453,8 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
   const P = SPEC.portal;
   const passo = TAU / P.n;
   const segmentos = [];
-  function anelDeSegmentos(raio, tubo, achata, z, defasagem, atraso0) {
-    const geo = guarda(achatar(new THREE.TorusGeometry(raio, tubo, 10, 40, passo * (1 - P.vao)), achata));
+  function anelDeSegmentos(raio, tubo, z, defasagem, atraso0) {
+    const geo = guarda(new THREE.TorusGeometry(raio, tubo, 10, 40, passo * (1 - P.vao)));
     for (let i = 0; i < P.n; i++) {
       const pivo = new THREE.Group();
       const malha = new THREE.Mesh(geo, vidro);
@@ -394,8 +468,13 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
       segmentos.push({ pivo, dir: new THREE.Vector3(Math.cos(meio), Math.sin(meio), 0), atraso: atraso0 + (i % (P.n / 2)) * 0.05 });
     }
   }
-  anelDeSegmentos(P.fundo.raio, P.fundo.tubo, P.fundo.achata, P.fundo.z, 0.5, 0);
-  anelDeSegmentos(P.raio, P.tubo, P.achata, 0, 0, 0.08);
+  anelDeSegmentos(P.raio, P.tubo, 0, 0, 0.08);
+  /* o fio de trás: uma linha contínua e fraca (com segmentos de vidro lia
+     como imagem duplicada do portal — rodada 6) */
+  const matFio = aditivo(P.fio.cor, P.fio.alfa);
+  const fio = new THREE.Mesh(guarda(new THREE.TorusGeometry(P.fio.raio, P.fio.tubo, 4, 220)), matFio);
+  fio.position.z = P.fio.z;
+  raiz.add(fio);
 
   const R = SPEC.raios;
   {
@@ -403,7 +482,7 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
     for (let i = 0; i < n; i++) {
       const a = i * (TAU / n);
       const dx = Math.cos(a), dy = Math.sin(a), px = -dy, py = dx;
-      const w0 = R.largura / 2, w1 = R.largura * 0.2;
+      const w0 = R.largura / 2, w1 = R.ponta / 2;
       const b = i * 4;
       pos.push(dx * R.de + px * w0, dy * R.de + py * w0, 0, dx * R.de - px * w0, dy * R.de - py * w0, 0,
         dx * R.ate + px * w1, dy * R.ate + py * w1, 0, dx * R.ate - px * w1, dy * R.ate - py * w1, 0);
@@ -462,10 +541,17 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
   }
 
   const G = SPEC.regua;
+  /* duas forças: as curtas discretas e uma longa a cada `longa` mais forte
+     (um material só para tudo deixava a régua inteira com o mesmo peso) */
   const matRegua = aditivo(G.cor, G.alfa);
+  const matReguaLonga = aditivo(G.cor, G.alfaLonga);
   {
-    const marcas = new THREE.InstancedMesh(guarda(new THREE.BoxGeometry(0.0035, 0.026, 0.0035)), matRegua, G.n);
+    const geoMarca = guarda(new THREE.BoxGeometry(G.marca, 0.02, G.marca));
+    const nLongas = Math.ceil(G.n / G.longa);
+    const curtas = new THREE.InstancedMesh(geoMarca, matRegua, G.n - nLongas);
+    const longas = new THREE.InstancedMesh(geoMarca, matReguaLonga, nLongas);
     const m = new THREE.Object3D();
+    let ic = 0, il = 0;
     for (let i = 0; i < G.n; i++) {
       const a = (i / G.n) * TAU, longa = i % G.longa === 0;
       const r = G.raio + (longa ? 0.012 : 0);
@@ -473,29 +559,14 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
       m.rotation.set(0, 0, a - Math.PI / 2);
       m.scale.set(1, longa ? 2 : 1, 1);
       m.updateMatrix();
-      marcas.setMatrixAt(i, m.matrix);
+      if (longa) longas.setMatrixAt(il++, m.matrix); else curtas.setMatrixAt(ic++, m.matrix);
     }
-    roda.add(marcas);
-    descartar.push(marcas);
+    roda.add(curtas, longas);
+    descartar.push(curtas, longas);
   }
 
   /* --- as câmaras (entre os raios) e as pétalas (sobre os raios) --- */
-  const placas = [];
-  function camada(d, material, defasagem) {
-    const geo = placa(d, (TAU / d.n) * (1 - d.vao));
-    for (let i = 0; i < d.n; i++) {
-      const meio = (i + defasagem) * (TAU / d.n);
-      const malha = new THREE.Mesh(geo, material);
-      malha.rotation.z = meio;
-      const pivo = new THREE.Group();
-      pivo.add(malha);
-      roda.add(pivo);
-      const M = d.montagem;
-      placas.push({ pivo, dir: new THREE.Vector3(Math.cos(meio), Math.sin(meio), 0), atraso: M.atraso + (i % (d.n / 2)) * M.passo, longe: M.longe, frente: M.frente });
-    }
-  }
-  camada(CA, vidroCamara, 0.5);   /* entre os raios */
-  camada(PE, vidro, 0);           /* sobre os raios */
+  const paineis = [camadaDePaineis(SPEC.camaras, 0.5), camadaDePaineis(SPEC.petalas, 0)];
 
   const TR = SPEC.tracejado;
   const matTracejado = aditivo(TR.cor, TR.alfa);
@@ -567,7 +638,7 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
     const mat = aditivo(d.cor, d.alfa);
     const anel = new THREE.Mesh(guarda(new THREE.TorusGeometry(d.raio, d.tubo, 6, 160)), mat);
     if (d.marcas) {
-      const marcas = new THREE.InstancedMesh(guarda(new THREE.BoxGeometry(0.003, 0.018, 0.003)), mat, d.marcas);
+      const marcas = new THREE.InstancedMesh(guarda(new THREE.BoxGeometry(d.marca, 0.018, d.marca)), mat, d.marcas);
       const m = new THREE.Object3D();
       for (let i = 0; i < d.marcas; i++) {
         const a = (i / d.marcas) * TAU, longa = i % 4 === 0;
@@ -653,11 +724,12 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
       s.pivo.rotation.z = (1 - k) * 0.35;
     }
 
-    for (let i = 0; i < placas.length; i++) {
-      const pl = placas[i];
-      const k = suave((m - pl.atraso) / (1 - pl.atraso));
-      const fora = (1 - k) * pl.longe + ab * 0.12;
-      pl.pivo.position.set(pl.dir.x * fora, pl.dir.y * fora, (1 - k) * pl.frente);
+    for (let i = 0; i < paineis.length; i++) {
+      const pa = paineis[i], M = pa.d.montagem;
+      const k = suave((m - M.atraso) / (1 - M.atraso));
+      pa.grupo.scale.setScalar(mistura(M.escala, 1, k) * (1 + ab * 0.1));
+      pa.matL.uniforms.uAlfa.value = pa.d.contorno * k * (1 - ab * 0.6);
+      pa.matL.visible = k > 0.002;
     }
     tracejado.rotation.z = t * TR.vel;
     matTracejado.opacity = TR.alfa * suave(m);
@@ -670,6 +742,11 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
 
     const aparece = suave(m);
     matRegua.opacity = G.alfa * aparece;
+    matReguaLonga.opacity = G.alfaLonga * aparece;
+    matFio.opacity = P.fio.alfa * aparece;
+    /* o bisel corre uma volta a cada `volta` s, ao contrário do tracejado */
+    const aB = (t / P.bisel.volta) * TAU;
+    vidro.uniforms.uBisel.value.set(Math.cos(aB), Math.sin(aB), P.bisel.alfa);
     for (let i = 0; i < matTrilhos.length; i++) matTrilhos[i].mat.opacity = matTrilhos[i].alfa * aparece;
     for (let i = 0; i < lente.length; i++) {
       const l = lente[i];
@@ -688,7 +765,7 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
     for (let i = 0; i < energia.length; i++) {
       const { m: mat, atraso } = energia[i];
       const f = desde < 0 ? 0 : forca * suave((desde - atraso) / 0.3);
-      mat.uniforms.uTempo.value = tShader;
+      if (mat.uniforms.uTempo) mat.uniforms.uTempo.value = tShader;   /* o painel não usa tempo */
       mat.uniforms.uForca.value = f;
       mat.visible = f > 0.002;
     }

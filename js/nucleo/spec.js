@@ -1,26 +1,29 @@
 /* ==========================================================================
    AI CORE — o spec. O que o reator É, em dados; nada aqui sabe de three.js.
 
-   Versão 2 (docs/restructure/PLANO-AI-CORE.md, seção 11). A v1 (arcos de
-   vidro partidos em ângulos variados, lida da imagem do dono) foi vista pelo
-   dono como "um emaranhado de fios e cabos". Ele pediu grandeza, equilíbrio,
-   alta simetria e grande energia passando. A v2 é um reator visto de frente:
-   simetria radial de 12 tempos, peças inteiras e usinadas, energia correndo
-   dos anéis para o núcleo.
+   História (docs/restructure/PLANO-AI-CORE.md): a v1 (esfera de vidro lida
+   da imagem do dono) foi vista como "emaranhado de fios"; a v2 virou um
+   reator simétrico de frente (grandeza, equilíbrio, energia); a v3 (pedido
+   do dono: "as bordas espessas dão um ar pesado, rústico; quero algo
+   elegante, de outro patamar") troca massa por precisão: anéis finos,
+   lâminas de cristal de 1 px iluminadas por dentro, régua de relógio.
 
    Unidades: raio do portal ≈ 1. Cores: nomes de token (lidos do CSS no
    boot), nunca hexadecimal solto. O emissor é pecas.js.
+
+   PISO DE ESPESSURA: no celular (canvas ~500 px CSS, pixel ratio 1,5) uma
+   unidade vale ~250 px; nada fino fica abaixo de 0,004 (≈ 1 px), senão some
+   ou tremeluz justamente onde a maioria acessa (revisão de código, v3).
    ========================================================================== */
 
 export const SPEC = {
   camera: { fov: 30, z: 5.6 },
   semente: 20261002,
 
-  /* profundidade (pedido do dono: "ainda parece muito plano"). O reator
-     inteiro fica inclinado (olhamos um pouco de cima: o disco vira elipse,
-     o portal ganha espessura visível) e as peças vivem em camadas de z
-     diferentes; o vidro escurece com a distância, como névoa. */
-  inclina: -0.42,   /* ≈ 24°: o portal fica visivelmente elíptico (0,91) parado (−0,3 quase não aparecia — crítica rodada 5) */
+  /* profundidade: o reator inteiro inclinado (≈ 24°, olhamos de cima: o
+     portal fica elíptico parado) e névoa — o que está mais longe da câmera
+     escurece (vidro do portal, lâminas e contornos) */
+  inclina: -0.42,
   nevoa: { perto: 0.4, longe: -0.8, minimo: 0.42 },
 
   /* o núcleo: a fonte. Só ele é branco; o "no ar." do H1 continua sendo o
@@ -29,109 +32,99 @@ export const SPEC = {
     raio: 0.065,
     halos: [
       { cor: 't1', escala: 0.5, alfa: 1.0, miolo: 0.12 },    /* o estouro branco */
-      { cor: 'ac', escala: 1.5, alfa: 0.55, miolo: 0.04 },   /* o halo ciano */
+      { cor: 'ac', escala: 1.5, alfa: 0.55, miolo: 0.04 },   /* o halo */
       { cor: 'ac', escala: 3.2, alfa: 0.14, miolo: 0.0 }     /* a bruma */
     ],
     raios: { cor: 'ac2', escala: 1.0, alfa: 0.22, n: 12 },   /* 12, como tudo */
-    /* o traço horizontal: nasce do núcleo na ignição e assenta */
+    /* o traço horizontal: nasce do núcleo na ignição e assenta QUASE apagado
+       (assentado forte, com os jatos, formava uma mira de luneta — rodada 6) */
     tracos: [
-      { cor: 'ac2', largura: 5.6, altura: 0.035, alfa: 0.8, assenta: { largura: 3.2, alfa: 0.22 } },
-      { cor: 'ac', largura: 1.9, altura: 0.16, alfa: 0.3, assenta: { largura: 1.2, alfa: 0.1 } }
+      { cor: 'ac2', largura: 5.6, altura: 0.035, alfa: 0.8, assenta: { largura: 2.0, alfa: 0.1 } },
+      { cor: 'ac', largura: 1.9, altura: 0.16, alfa: 0.3, assenta: { largura: 1.2, alfa: 0.05 } }
     ],
     nasce: 0.35,
     assenta: 1.2
   },
 
-  /* a lente: anéis finos DE FRENTE em volta do núcleo; a régua âmbar amarra
-     o reator à marca (ciano + âmbar) */
+  /* a lente: anéis finos de frente em volta do núcleo; a régua de marcas amarra
+     o reator à marca */
   lente: [
     { raio: 0.15, tubo: 0.004, cor: 'ac2', alfa: 0.85, vel: 0.3 },
-    { raio: 0.21, tubo: 0.005, cor: 'ambar', alfa: 0.45, vel: -0.18, marcas: 48 },
-    { raio: 0.28, tubo: 0.003, cor: 'ac', alfa: 0.5, vel: 0.12 }
+    { raio: 0.21, tubo: 0.005, cor: 'ambar', alfa: 0.45, vel: -0.18, marcas: 48, marca: 0.004 },
+    { raio: 0.28, tubo: 0.004, cor: 'ac', alfa: 0.5, vel: 0.12 }
   ],
 
-  /* os raios de energia: A energia dominante (crítica rodada 3: com tudo
-     brilhando igual lia como mostrador, não como potência). 12 feixes do
-     portal ao núcleo, pulsos correndo PARA DENTRO, todos em fase, chegando a
-     cada 1/vel s (1,6 s); o núcleo bate a cada chegada. `cauda`: expoente
-     do pulso (7 ≈ 10% do raio de comprimento) */
-  raios: { n: 12, de: 0.9, ate: 0.16, largura: 0.024, pulsos: 2, vel: 0.625, cauda: 3.4, cor: 'ac', alfa: 0.95, base: 0.11, batida: 0.08,
-    /* a injeção: onde cada raio toca o portal, um lampejo na partida de cada
-       pulso (12 em fase): o anel inteiro injeta energia no centro */
-    lampejo: { alfa: 0.6, dura: 0.4, escala: 0.16 } },
+  /* os raios de energia: a energia dominante. 12 feixes do portal ao núcleo,
+     pulsos correndo PARA DENTRO, em fase, chegando a cada 1/vel s (1,6 s); o
+     núcleo bate a cada chegada. `largura` fora, `ponta` dentro (piso de 1 px);
+     `cauda`: expoente do pulso (3,4 ≈ 18% do raio) */
+  raios: { n: 12, de: 0.9, ate: 0.16, largura: 0.012, ponta: 0.006, pulsos: 2, vel: 0.625, cauda: 3.4, cor: 'ac', alfa: 0.95, base: 0.11, batida: 0.08,
+    /* a injeção: onde cada raio toca o portal, um lampejo discreto na partida
+       de cada pulso (forte, lia como rebites — rodada 6) */
+    lampejo: { alfa: 0.3, dura: 0.4, escala: 0.055 } },
 
-  /* os jatos: o eixo vertical do reator (no lugar do anel vertical, que com
-     o disco formava o símbolo do átomo). Finos, saindo pelos polos até
-     passar da régua, com pulsos PARA FORA no mesmo compasso dos raios */
-  jatos: { comp: 1.2, de: 0.09, largura: [0.006, 0.02], pulsos: 2, vel: 0.625, cauda: 7, cor: 'ac', alfa: 0.55, base: 0.22 },
+  /* os jatos: o eixo vertical (no lugar do anel vertical, que com o disco
+     formava o símbolo do átomo). Terminam logo depois do portal (mais longos,
+     com o traço, formavam uma mira — rodada 6), pulsos PARA FORA */
+  jatos: { comp: 0.9, de: 0.09, largura: [0.006, 0.02], pulsos: 2, vel: 0.625, cauda: 7, cor: 'ac', alfa: 0.55, base: 0.22 },
 
-  /* o disco: partículas em órbita no plano do equador, como um disco de
-     acreção (as de dentro giram ~2,5× mais rápido que as de fora: `kepler`
-     é o expoente). `inclina`: quanto o plano deita (0 = de frente,
-     π/2 = de perfil; 1,36 ≈ 12° do horizonte) */
-  /* só DENTRO da lente (r 0,2–0,3): de perfil e espalhado até o portal ele
-     virava um chuvisco com cara de glitch (crítica rodada 5); fora da lente
-     quem carrega a energia são os raios */
+  /* o disco: matéria em órbita só DENTRO da lente, no plano do equador
+     (π/2: horizontal; com a inclinação vira uma elipse fina). As de dentro
+     giram mais rápido (`kepler`); `denso` delas no `miolo`; cada uma é um
+     risco ao longo da órbita (`rastro`). Espalhado até o portal virava
+     chuvisco (rodada 5) */
   disco: { n: 500, nCelular: 260, raio: [0.2, 0.3], inclina: 1.5708, giro: 0.35, kepler: 0.63, tam: 0.03, cor: 'ac2', alfa: 0.4,
-    /* matéria correndo, não anel de Saturno: `denso` das partículas ficam na
-       fração `miolo` de dentro, e cada uma é um risco ao longo da órbita
-       (`rastro`: comprimento/largura) */
     denso: 0.6, miolo: 0.35, rastro: 4 },
 
-  /* o equador: só um fio de pulsos fracos no plano do disco (o anel sólido
-     de vidro lia como Saturno — crítica rodada 4) */
+  /* o equador: um fio de pulsos fracos no plano do disco */
   equador: { raio: 0.62, tubo: 0.004, vel: -0.1, fluxo: { cor: 'ac2', pulsos: 2, vel: -0.3, alfa: 0.15 } },
 
-  /* o portal: o anel grande em 12 segmentos de vidro, com vãos alinhados aos
-     raios de energia. `vao` = fração de cada segmento que fica vazia;
-     `achata` < 1 = fita larga de frente, não tubo */
-  portal: { raio: 0.97, n: 12, vao: 0.07, tubo: 0.06, achata: 0.42, vel: 0.025,
-    /* a segunda camada, atrás e defasada meio passo: dá corpo e profundidade
-       (uma camada só lia como mostrador plano) */
-    fundo: { raio: 0.9, z: -0.16, tubo: 0.045, achata: 0.5 } },
+  /* o portal: um anel FINO de vidro em 12 segmentos com micro-vãos alinhados
+     aos raios (`vao` = fração vazia). `bisel`: um único reflexo que corre no
+     anel, como o bisel de um relógio fino (rodada 6): meia-largura em rad
+     (0,26 ≈ arco de 30°), pico e segundos por volta. `fio`: a linha de trás,
+     fraca, para o deslocamento ler como profundidade e não como imagem
+     duplicada */
+  portal: { raio: 0.97, n: 12, vao: 0.022, tubo: 0.011, vel: 0.025,
+    bisel: { meia: 0.26, alfa: 0.7, volta: 14 },
+    fio: { raio: 0.905, z: -0.22, tubo: 0.004, cor: 'ac2', alfa: 0.15 } },
 
   /* trilhos: anéis contínuos com pulsos de luz correndo em volta */
   trilhos: [
     { raio: 0.85, tubo: 0.005, pulsos: 3, vel: 0.22, cor: 'ac', alfa: 0.4 },
-    { raio: 1.07, tubo: 0.0035, pulsos: 2, vel: -0.14, cor: 'ac2', alfa: 0.32 }
+    { raio: 1.07, tubo: 0.004, pulsos: 2, vel: -0.14, cor: 'ac2', alfa: 0.32 }
   ],
 
-  /* as câmaras: 12 placas grossas de vidro (extrudadas, com chanfro) ENTRE
-     os raios, um pouco atrás, iluminadas por dentro pelo núcleo. Preenchem
-     as cunhas escuras entre a lente e o portal (pedido do dono) */
-  camaras: { n: 12, raio: [0.43, 0.66], vao: 0.3, espessura: 0.08, chanfro: 0.012, z: -0.15,
-    /* a luz do núcleo na face: forte na borda de dentro, a zero em 40% do
-       comprimento, o terço de fora quase preto (tira o "ladrilho") */
-    luz: { alfa: 0.45, cai: 0.4 },
-    /* de onde chegam na montagem: `longe` do lugar e `frente` em z, com
-       atraso por par de opostas */
-    montagem: { atraso: 0.2, passo: 0.03, longe: 0.55, frente: 0.9 } },
+  /* as câmaras e as pétalas: lâminas de cristal. Contorno de 1 px nas duas
+     faces com as arestas de espessura (volume sem peso), a aresta de dentro
+     acesa pelo núcleo e apagando para fora; preenchimento quase transparente
+     (`luz`, caindo a zero em `cai` do comprimento). Câmaras ENTRE os raios,
+     atrás; pétalas SOBRE os raios, à frente */
+  camaras: { n: 12, raio: [0.43, 0.66], vao: 0.3, z: -0.14, espessura: 0.045, contorno: 0.75, luz: 0.22, cai: 0.6,
+    montagem: { atraso: 0.2, escala: 1.25 } },
+  petalas: { n: 12, raio: [0.31, 0.385], vao: 0.42, z: 0.18, espessura: 0.025, contorno: 0.55, luz: 0.3, cai: 0.9,
+    montagem: { atraso: 0.38, escala: 1.4 } },
 
-  /* as pétalas: um anel interno de 12 placas finas centradas NOS raios, à
-     frente (os raios passam por trás delas: camadas que se sobrepõem) */
-  petalas: { n: 12, raio: [0.31, 0.385], vao: 0.42, espessura: 0.03, chanfro: 0.006, z: 0.2,
-    montagem: { atraso: 0.38, passo: 0.02, longe: 0.3, frente: 0.6 } },
+  /* o tracejado: 60 traços entre as câmaras e o trilho, girando devagar ao
+     contrário da roda */
+  tracejado: { raio: 0.755, n: 60, z: 0.05, vel: -0.04, alfa: 0.28, cor: 'ac' },
 
-  /* o tracejado: um anel de 60 traços entre as câmaras e o trilho, girando
-     devagar no sentido contrário da roda */
-  tracejado: { raio: 0.755, n: 60, z: 0.05, vel: -0.04, alfa: 0.35, cor: 'ac' },
-
-  /* a luz de fundo: um disco de luz bem atrás do portal; com a inclinação e
-     o ponteiro, ele se desloca diferente das peças da frente (paralaxe) */
+  /* a luz de fundo: um disco de luz bem atrás do portal (paralaxe) */
   fundo: { escala: 2.1, alfa: 0.16, z: -0.6, cor: 'ac' },
 
-  /* a régua: 72 marcas em volta de tudo, uma longa a cada `longa` (8 longas) */
-  regua: { raio: 1.13, n: 72, longa: 9, cor: 'ac', alfa: 0.3 },
+  /* a régua: 120 marcas como mostrador de relógio; uma longa a cada `longa`
+     (8 longas, mais fortes), as curtas discretas. `marca`: largura (piso) */
+  regua: { raio: 1.13, n: 120, longa: 15, cor: 'ac', alfa: 0.2, alfaLonga: 0.45, marca: 0.004 },
 
   /* a onda: um anel de 1 px que sai do núcleo (raio de/ate) em `dura` s, a
-     cada `periodo` s; nunca uma mancha (crítica rodada 3) */
+     cada `periodo` s; nunca uma mancha */
   onda: { periodo: 8, dura: 1.4, raio: [0.4, 1.6], alfa: 0.35, cor: 'ac' },
 
   /* o acendimento corre de dentro para fora: o atraso (s) de cada camada
      depois da ignição */
   acende: { disco: 0, equador: 0.08, raios: 0.16, jatos: 0.16, trilhos: 0.24 },
 
-  /* o vidro escuro: a única luz é o núcleo (de dentro), fios de reflexo duros,
-     aresta de fresnel. Sem luz de cena, sem sombra. */
+  /* o vidro escuro do portal: a única luz é o núcleo, fios de reflexo duros,
+     aresta de fresnel, a luz-chave e o bisel. Sem luz de cena, sem sombra. */
   vidro: { base: 'bg', interno: 'ac', aresta: 'ac2', brilho: 't1', ambiente: 'luz' }
 };

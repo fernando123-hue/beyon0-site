@@ -302,3 +302,27 @@ quando uma medida pedir: instanciar segmentos e placas (82 → ~30 chamadas)
 e `FrontSide` nas placas fechadas. three reduzido: 129 KB (ganhou a
 extrusão). fps no celular com CPU 4×: 60/59 (uma leitura isolada de 48 logo
 depois do verificador não se repetiu em duas medidas).
+
+## 13. v3 "refinado" (2026-10-02) — CONGELADO
+
+Pedido do dono sobre a v54: "as bordas espessas dão um ar mais pesado, mais
+rústico; quero algo elegante, de outro patamar". Precisão em vez de massa:
+portal FINO (tubo 0,011, micro-vãos) com um **bisel** (um reflexo que corre
+no anel, uma volta a cada 14 s); fio de trás aditivo fraco; câmaras e
+pétalas viraram **lâminas de cristal**: contorno de 1 px nas duas faces com
+as arestas de espessura, a aresta de dentro acesa pelo núcleo e apagando para
+fora, preenchimento quase transparente, névoa pela profundidade; raios mais
+finos; régua de 120 marcas (8 longas fortes, curtas discretas). Crítica
+rodada 6: **manter, 8,5** (celular e desktop); ajustes finais feitos (sem a
+"mira": jatos até 0,9 e traço assentado a .10; lampejos discretos; periferia
+limpa) e **congelar**. Revisão de código: aprovada; pisos de espessura
+(nada abaixo de ~1 px no celular), código morto removido (achatar,
+vidro radial, Extrude/Shape do bundle: 129 → 121 KB).
+
+**Próximo, pedido do dono (ainda NÃO feito):** "quero que ele esteja sempre
+em movimento, praticamente 'respirando', algo leve, suave, quase
+hipnotizante; e bastante interativo". Ideias a avaliar no laboratório antes
+de codar: respiração lenta em várias escalas (núcleo, lâminas, régua) em
+fases defasadas; ponteiro e toque como campo de força (as lâminas se
+inclinam/afastam perto do dedo/cursor, o núcleo segue com atraso); toque/
+clique dispara uma onda; rolagem continua abrindo. Medir fps no celular.
