@@ -23,7 +23,7 @@
 .passo p { color: var(--t2); font-size: var(--fs-m); }
 .passos--4 { --passos: 4; }
 /* celular: a rota nasce embaraçada ~65 px acima do 1º passo; sem este respiro ela cruzava o título */
-@media (max-width: 820px) { .passos { padding-top: 40px; } }   /* padding: a margem colapsava com a do título */
+@media (max-width: 820px) { .passos { padding-top: 56px; } }   /* padding: a margem colapsava com a do título */
 @media (min-width: 821px) {
   .passos { grid-template-columns: repeat(var(--passos, 3), 1fr); gap: clamp(20px, 3vw, 40px); }
   .passo { padding: 2rem 0 0 0; }
