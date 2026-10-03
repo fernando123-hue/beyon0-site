@@ -902,7 +902,7 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
     const chegada = Math.exp(-(x * RS.periodo) / 0.12);
     /* + a energia que o CAMPO entrega (js/rede.js → boot.js): o ciclo fecha no reator */
     fluxoRaios.uBase.value = R.base * (1 + 1.8 * chegada) + 0.08 * (e.entrega || 0);
-    const batida = (1 + R.batida * Math.exp(-chegou * 5) * ig) * (1 + TQ.batida * envBatida);
+    const batida = (1 + R.batida * Math.exp(-chegou * 5) * ig) * (1 + (TQ.batida + (tq.amp || 0)) * envBatida);
     const inspira = 1 + respira(t, RS.nucleo);
     /* o lampejo: a energia entra pelo portal no começo do fôlego */
     const lampejo = desde < A.raios ? 0 : LP.alfa * Math.max(0, 1 - (x * RS.periodo) / LP.dura) * forca;

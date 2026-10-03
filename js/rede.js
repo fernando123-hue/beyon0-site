@@ -133,6 +133,7 @@
     }
     medirDocumento();
     sujo = false;
+    desenhouParado = false;   /* mudar cv.width limpa o canvas: o quadro parado precisa ser refeito */
   }
   var pedidoEm = 0;
   function pedirMedida() { pedidoEm = performance.now(); desenhouParado = false; }
@@ -162,7 +163,7 @@
     if (parado) {
       var m0 = B.rede.extra, ass = Math.round(rolagem) * 7 + (m0 ? Math.round(m0.x) * 13 + Math.round(m0.y) * 17 + Math.round(m0.vis * 20) : 0);
       if (ass !== assinatura) { assinatura = ass; desenhouParado = false; }
-      if (!desenhouParado) { posicionar(); desenhar(); desenhouParado = true; }
+      if (!desenhouParado) { posicionar(); campo.enquadrar(W, H, navH); desenhar(); desenhouParado = true; }
       return;
     }
     passo(Math.min(0.05, S.dt / 1000), B.relogio());
@@ -276,14 +277,13 @@
       var c = caminho(A, B);
       if (c.length < 4) continue;
       var k = Math.max(A.onda, B.onda, A.ativo, B.ativo);
-      /* um corredor limpo de 14 px em volta do barramento: um raio do campo
-         correndo junto lia como uma segunda ligação (crítica rodada 2) */
+      /* o VÃO entre os dois fica limpo do campo: um raio atravessando o mesmo
+         vão lia como uma segunda ligação, sem nó (crítica rodada 3) */
       ctx.globalCompositeOperation = 'destination-out';
-      ctx.lineWidth = 14; ctx.strokeStyle = 'rgba(0,0,0,0.8)';
-      ctx.beginPath(); ctx.moveTo(c[0], c[1]);
-      for (var p0 = 2; p0 < c.length; p0 += 2) ctx.lineTo(c[p0], c[p0 + 1]);
-      ctx.stroke();
-      ctx.globalCompositeOperation = 'source-over'; ctx.lineWidth = 1;
+      ctx.fillStyle = 'rgba(0,0,0,0.85)';
+      if (B.x >= A.x + A.w - 1) ctx.fillRect(A.x + A.w, Math.max(A.y, B.y), B.x - A.x - A.w, Math.min(A.y + A.h, B.y + B.h) - Math.max(A.y, B.y));
+      else { var gx0 = Math.min(A.x, B.x), gx1 = Math.max(A.x + A.w, B.x + B.w); ctx.fillRect(gx0, A.y + A.h, gx1 - gx0, B.y - A.y - A.h); }
+      ctx.globalCompositeOperation = 'source-over';
       ctx.strokeStyle = 'rgba(' + AC3 + ',' + (BUS.alfa + BUS.aceso * k).toFixed(3) + ')';
       ctx.beginPath(); ctx.moveTo(c[0], c[1]);
       for (var p = 2; p < c.length; p += 2) ctx.lineTo(c[p], c[p + 1]);
@@ -327,7 +327,7 @@
       var it = elementos[e];
       if (it.onda < 0.02 || it.y > H + 20 || it.y + it.h < -20) continue;
       /* dentro do canto arredondado (o traço reto escapava dele, crítica rodada 2) */
-      var x0 = it.x + 6, y0 = it.y, x1 = it.x + it.w - 6;
+      var x0 = it.x + 6, y0 = it.y + 0.5, x1 = it.x + it.w - 6;
       var andou = 1 - it.onda, xa = x0 + (x1 - x0) * Math.min(1, andou * 2.2);
       ctx.strokeStyle = 'rgba(' + AC + ',' + (0.55 * it.onda).toFixed(3) + ')';
       ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(xa, y0); ctx.stroke();
@@ -408,12 +408,13 @@
       if (ry === undefined) ry = rx;
       for (var i = 0; i < naTela.length; i++) {
         var q = naTela[i], ty = telaY(q);
-        if (q.halo || q.folga < 0 || q.inteiro) continue;
+        if (q.halo || q.folga < 0) continue;   /* as zonas inteiras (passos, cota) contam: o mini encostava nos passos */
         if (x + rx > q.x && x - rx < q.x + q.w && y + ry > ty && y - ry < ty + q.h) return true;
       }
       return false;
     },
     rodapeNaTela: function () { return rodapeY - rolagem; },
+    topo: function () { return navH; },
     /* (x, y) a menos de `r` px da borda de um módulo, na altura dele? */
     sobreModulo: function (x, y, r) {
       for (var i = 0; i < elementos.length; i++) {
@@ -432,8 +433,21 @@
   if ('ResizeObserver' in window) new ResizeObserver(pedirMedida).observe(document.body);
   /* um cartão ou uma opção que entre na página depois (conteúdo novo, script)
      é medido na próxima parada: entra no campo, no barramento e na onda */
+  var ioCentro = null;   /* (celular) o observador do centro da tela; os cartões novos entram nele também */
   if ('MutationObserver' in window) new MutationObserver(function (ms) {
-    for (var i = 0; i < ms.length; i++) if (ms[i].addedNodes.length || ms[i].removedNodes.length) { pedirMedida(); return; }
+    var mudou = false;
+    for (var i = 0; i < ms.length; i++) {
+      if (!ms[i].addedNodes.length && !ms[i].removedNodes.length) continue;
+      mudou = true;
+      if (!ioCentro) continue;
+      for (var k = 0; k < ms[i].addedNodes.length; k++) {
+        var no = ms[i].addedNodes[k];
+        if (no.nodeType !== 1) continue;
+        if (no.matches(CARTOES)) ioCentro.observe(no);
+        no.querySelectorAll(CARTOES).forEach(function (el) { ioCentro.observe(el); });
+      }
+    }
+    if (mudou) pedirMedida();
   }).observe(document.querySelector('main') || document.body, { childList: true, subtree: true });
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(pedirMedida);
   /* o clique (ou o toque: o click só vem de toque, nunca de rolagem) manda um sinal ao núcleo */
@@ -459,17 +473,17 @@
       var el = fila; fila = null;
       if (!parado && iniciada) {
         centroAgora = el; entrar(el, false);
-        clearTimeout(vez.solta); vez.solta = setTimeout(function () { campo.apontar(null); B.emit('opcao', { el: el, entrou: false }); }, 2200);
+        clearTimeout(vez.solta); vez.solta = setTimeout(function () { if (centroAgora === el) centroAgora = null; campo.apontar(null); B.emit('opcao', { el: el, entrou: false }); }, 2200);
       }
     };
-    var io = new IntersectionObserver(function (es) {
+    ioCentro = new IntersectionObserver(function (es) {
       for (var i = 0; i < es.length; i++) {
         if (!es[i].isIntersecting || parado) continue;
         fila = es[i].target;
         vez();
       }
     }, { rootMargin: '-45% 0px -45% 0px' });
-    document.querySelectorAll(CARTOES).forEach(function (el) { if (!el.closest('.nav, .barra')) io.observe(el); });
+    document.querySelectorAll(CARTOES).forEach(function (el) { if (!el.closest('.nav, .barra')) ioCentro.observe(el); });
   }
   /* o núcleo agitado (cliques seguidos nele): o campo responde com ondas */
   /* uma onda só quando a agitação cruza um degrau (0,25 / 0,5 / 0,75 / 1) e
@@ -490,6 +504,7 @@
   });
 
   function comecar() {
+    faseAntes = faseDoFolego(B.relogio());
     rolagem = window.scrollY;
     iniciada = true;
     medir();

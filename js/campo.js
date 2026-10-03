@@ -125,7 +125,7 @@
     /* um pacote no raio de ângulo `a`, a partir do raio `r`, correndo para o núcleo */
     function pacote(r, a, forte) {
       if (pacotes.length > 40 || r <= G.Q) return null;
-      var p = { r: r, a: a, v: cel ? 160 : 220, forte: !!forte };
+      var p = { r: r, a: a, v: cel ? 160 : 220, forte: !!forte, rotor: r < G.Q * 2 };
       pacotes.push(p);
       return p;
     }
@@ -166,21 +166,27 @@
         var p = pacotes[i];
         if (p.engate) {
           p.engate.t += dt;
-          var ke = Math.min(1, p.engate.t / 0.08);
-          p.a = p.engate.de + difAng(p.engate.para, p.engate.de) * ke;
+          var ke = Math.min(1, p.engate.t / p.engate.dura), ks = ke * ke * (3 - 2 * ke);
+          p.a = p.engate.de + difAng(p.engate.para, p.engate.de) * ks;
           if (ke >= 1) p.engate = null;
           continue;
         }
         p.v += PACOTE.acel * dt;
         var antes = p.r;
         p.r -= p.v * dt;
-        if (antes >= G.Q * 2 && p.r < G.Q * 2 && !p.rotor) { p.r = G.Q * 2; p.rotor = true; p.engate = { de: p.a, para: raioPerto(G.Q * 2 - 1, p.a), t: 0 }; continue; }
+        if (antes >= G.Q * 2 && p.r < G.Q * 2 && !p.rotor) {
+          var para = raioPerto(G.Q * 2 - 1, p.a), arcoPx = Math.abs(difAng(para, p.a)) * G.Q * 2;
+          p.r = G.Q * 2; p.rotor = true;
+          p.engate = { de: p.a, para: para, t: 0, dura: Math.max(0.08, Math.min(0.22, arcoPx / 700)) };
+          continue;
+        }
         if (p.rotor) p.a = raioPerto(Math.min(p.r, G.Q * 2 - 1), p.a);
         if (p.r <= G.Q) { marcas.push({ r: G.Q, a: p.a, t: 0, dura: 0.6 }); pacotes.splice(i, 1); saidaQuadro.chegadas++; }
       }
       for (i = rotas.length - 1; i >= 0; i--) {
         var ro = rotas[i];
         ro.t += dt;
+        if (ro.r < G.Q * 2) ro.ar = raioPerto(ro.r, ro.a);
         if (ro.t >= ROTA.anda) {
           ro.prox -= dt;
           if (ro.prox <= 0 && (ro.fica || ro.t < ROTA.anda + 0.05)) { pacote(ro.r, ro.ar, ro.forte); ro.prox = ro.cada; }
@@ -237,6 +243,7 @@
         /* nasce suave na borda do vão: os 2 primeiros anéis em degraus */
         for (var j = 0; j < lista.length; j++) {
           var r = lista[j];
+          desenhados++;
           ctx.strokeStyle = cor(C.AC, alfas[cl] * nasce(r) * resp * MAIS);
           ctx.beginPath(); arco(r, f[0], f[1]); ctx.stroke();
         }
@@ -324,7 +331,12 @@
             if (livre(px(r + 6, a), py(r + 6, a))) { ctx.fillRect(px(r + 6, a) - 0.5, py(r + 6, a) - 0.5, 1, 1); }
             continue;
           }
+          /* perto da leitura do rumo (25°), o rótulo do aro sai enquanto ela entra */
+          var perto = Math.abs(difAng(a, rumo.a)) < 0.436 ? 1 - rumo.f : 1;
+          if (perto < 0.02) continue;
+          ctx.globalAlpha = perto;
           ctx.fillText(RUMOS[i], x, y);
+          ctx.globalAlpha = 1;
         }
       }
     }
@@ -449,7 +461,9 @@
       ctx.fillText(txt, tx, ty);
     }
     /* `resp`: a respiração (0,8–1). `vivo`: falso no movimento reduzido (só a estrutura) */
+    var desenhados = 0;
     function desenhar(resp, vivo) {
+      desenhados = 0;
       desenharAneis(resp);
       desenharRaios(resp);
       desenharNos(resp);
@@ -472,11 +486,12 @@
     }
 
     /* ---------- de fora ---------- */
+    function limparEnergia() { ondas.length = 0; pacotes.length = 0; marcas.length = 0; rotas.length = 0; }
     /* a origem: centro (tela), raio visível do reator R0 (px), giro (rad) */
     function origem(ox, oy, R0, giro, rotor) {
       var mudouEscala = Math.abs(R0 - G.R0) > 0.5;
       G.ox = ox; G.oy = oy; G.giro = giro || 0; G.rotor = rotor === undefined ? G.giro : rotor;
-      if (mudouEscala || !aneis.length) { G.R0 = R0; G.Q = R0 * 1.45; gerarAneis(); }
+      if (mudouEscala || !aneis.length) { G.R0 = R0; G.Q = R0 * 1.45; gerarAneis(); limparEnergia(); }
     }
     return {
       origem: origem, passo: passo, desenhar: desenhar, soltarOnda: soltarOnda, pacote: pacote,
@@ -485,7 +500,11 @@
       dentroDoVao: function (x, y) { return polar(x, y).r < G.Q; },
       raio: function (x, y) { var dx = x - G.ox, dy = (y - G.oy) / SY; return Math.sqrt(dx * dx + dy * dy); },
       nOndas: function () { return ondas.length; },
-      geo: G, ondas: ondas, limparEnergia: function () { ondas.length = 0; pacotes.length = 0; marcas.length = 0; rotas.length = 0; }
+      /* o enquadramento sem passo (movimento reduzido: o quadro parado precisa saber o que está na tela) */
+      enquadrar: function (W, H, topo) { visivel(W, H, topo); },
+      /* quantos anéis o último desenho traçou (o verificador: o campo nunca pode sumir em silêncio) */
+      desenhados: function () { return desenhados; },
+      geo: G, ondas: ondas, limparEnergia: limparEnergia
     };
   };
 })();

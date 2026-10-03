@@ -44,9 +44,9 @@
 
   /* a mola da posição: criticamente amortecida, assenta em ~0,65 s */
   var MOLA = 40, AMORTECE = 2 * Math.sqrt(MOLA);
-  var ESCALA = celular ? 0.8 : 1;
+  var ESCALA = celular ? 0.7 : 1;   /* no celular cabe entre a borda dos módulos (20 px) e a da tela */
   var PULSO = celular ? 7 : 10;              /* px que o anel do pulso abre */
-  var BORDA_CEL = 11;                        /* celular: no eixo do trilho, entre a borda dos módulos e a da tela */
+  var BORDA_CEL = 10;                        /* celular: no eixo do trilho, entre a borda dos módulos e a da tela */
   /* abaixo de 360 px a margem não comporta o anel: ele não aparece (crítica, rodada 1) */
   var ESTREITO = window.innerWidth < 360;
   var ALCANCE_FEIXE = 320;                   /* px: mais longe que isso a ligação atravessaria a tela */
@@ -77,7 +77,7 @@
   var mini = { x: 0, y: 0, vx: 0, vy: 0, ativo: false, forca: 1, vis: 0, carga: 0 };
   var olhar = { x: 0, y: 0 }, ponteiro = { x: 0, y: 0, ativo: false }, foco = null;
   var atencao = 0, pulso = 0, faseAntes = 0, rolagem = window.scrollY, rolagemAntes = rolagem, velRol = 0, paradoHa = 0;
-  var despedido = false, perto = 0, esperou = 0, reatorVisto = false;
+  var despedido = false, perto = 0, esperou = 0, reatorVisto = false, oculto = false, encostaHa = 0, livreHa = 0;
   var feixe = null, primeiro = true, ativoAntes = false, chegando = false, desdeChegada = 0;
   var passeio = { estado: 'doca', espera: acaso(5, 9), pos: null, dest: null, fica: 0 };
   var quer = { alvo: null, f: 0, a: 0, prox: 0, n: 0 };   /* a opção sob o cursor */
@@ -97,8 +97,8 @@
   /* de onde ele vem: a página anterior deixou onde ele estava (fração da tela) */
   try {
     var veio = JSON.parse(sessionStorage.getItem('bz-mini') || 'null');
-    if (veio && Date.now() - veio.quando < VEIO_MS && isFinite(veio.x) && isFinite(veio.y)) {
-      mini.x = veio.x * tela.W; mini.y = veio.y * tela.H; mini.vis = isFinite(veio.vis) ? veio.vis : 1; primeiro = false; chegando = true;
+    if (veio && Date.now() - veio.quando < VEIO_MS && Number.isFinite(veio.x) && Number.isFinite(veio.y)) {
+      mini.x = limitar(veio.x) * tela.W; mini.y = limitar(veio.y) * tela.H; mini.vis = Number.isFinite(veio.vis) ? limitar(veio.vis) : 1; primeiro = false; chegando = true;
     }
   } catch (e) { /* sem armazenamento: começa na lateral */ }
   window.addEventListener('pagehide', function () {
@@ -125,7 +125,7 @@
     if (relogioMini - sugestao.ultima > SUGESTAO.cada && paradoHa > SUGESTAO.parado && Math.random() < SUGESTAO.chance) {
       var op = B.rede.elementoAoAcaso(mini.x, mini.y, SUGESTAO.longe[0], SUGESTAO.longe[1], function (it) {
         /* o topo dele visível e longe da barra (a mira não pode sair cortada sob o menu) */
-        return it.el.matches(SUGERIVEIS) && (celular || it.w < W * 0.8) && it.y > TOPO - 40 && it.y < H - 160;
+        return it.el.matches(SUGERIVEIS) && (celular || it.w < W * 0.8) && it.y - 14 > B.rede.topo() + 8 && it.y < H - 160;
       });
       if (op) {
         sugestao.ultima = relogioMini;
@@ -180,6 +180,7 @@
     return Math.abs(alvo.x - pos.x) < 1 && Math.abs(alvo.y - pos.y) < 1;
   }
   function chegou(dest) {
+    soltarSugestao();
     if (dest.sugere) {
       /* a sugestão: UM anel, a mira trava, um fio até a opção, o link dela
          acende (classe) e ela se liga ao núcleo. Nada mais (crítica, rodada 1:
@@ -208,7 +209,7 @@
       if (!ps.dest) return null;
       ps.estado = 'indo'; ps.pos = { x: mini.x, y: mini.y };
     }
-    if (ps.estado !== 'voltando' && chamado) ps.estado = 'voltando';
+    if (ps.estado !== 'voltando' && chamado) { ps.estado = 'voltando'; soltarSugestao(); }
     if (ps.estado === 'indo') {
       var alvo = destinoXY(ps.dest);
       if (alvo.y < TOPO - 20 || alvo.y > H - 40) { ps.estado = 'voltando'; return ps.pos; }
@@ -262,13 +263,20 @@
     esperou += dt;
     /* texto ou a borda de um módulo encostando no anel: esmaece (no celular
        o trilho fica a 9 px da borda dos módulos; parado ao lado deles, recua) */
-    var encosta = B.rede.sobreTexto(mini.x, mini.y, 9 * ESCALA + 12, 9 * ESCALA + 10) || (celular && B.rede.sobreModulo && B.rede.sobreModulo(mini.x, mini.y, 12 * ESCALA));
-    perto += ((encosta ? 1 : 0) - perto) * Math.min(1, dt / 0.4);
-    /* no celular, ele só aparece nos vãos (sobre texto, módulo ou botão, some) */
-    alvoVis *= 1 - (celular ? 1 : 0.5) * perto;
+    var encosta = B.rede.sobreTexto(mini.x, mini.y, 9 * ESCALA + 12, 9 * ESCALA + 10) || (celular && B.rede.sobreModulo && B.rede.sobreModulo(mini.x, mini.y, 2));
+    if (celular) {
+      /* histerese: some depois de 0,3 s encostado e volta depois de 0,5 s
+         livre (sem piscar a cada borda de módulo ao rolar, crítica rodada 3) */
+      if (encosta) { livreHa = 0; encostaHa += dt; if (encostaHa > 0.3) oculto = true; }
+      else { encostaHa = 0; livreHa += dt; if (livreHa > 0.5) oculto = false; }
+      alvoVis *= oculto ? 0 : 1;
+    } else {
+      perto += ((encosta ? 1 : 0) - perto) * Math.min(1, dt / 0.4);
+      alvoVis *= 1 - 0.5 * perto;
+    }
     if (ESTREITO) alvoVis = 0;
     if (primeiro || B.reduced) {
-      if (B.reduced) { feixe = null; pulso = 0; mini.carga = 0; foco = null; soltarSugestao(); quer.f = 0; passeio.estado = 'doca'; }
+      if (B.reduced) { feixe = null; pulso = 0; mini.carga = 0; foco = null; soltarSugestao(); quer.f = 0; passeio.estado = 'doca'; espera = -1; atencao = 0; olhar.x = olhar.y = 0; chegando = false; }
       mini.x = alvoX; mini.y = alvoY; mini.vx = mini.vy = 0; primeiro = false;
       mini.vis = alvoVis; mini.ativo = mini.vis > 0.05; ativoAntes = mini.ativo;
       return;

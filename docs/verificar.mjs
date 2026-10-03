@@ -100,11 +100,9 @@ for (const [rota, nome, opcoes, { semNucleo = false, reduzirNoBoot = false, exig
   const lcp = Math.round(await page.evaluate(() => window.__lcp));
   /* o CAMPO desenha (o fundo nunca pode virar tela preta em silêncio) */
   const campo = await page.evaluate(() => {
-    const cv = document.querySelector('[data-rede]');
-    if (!cv || !cv.width || !document.documentElement.classList.contains('js')) return -1;
-    const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
-    let n = 0; for (let i = 3; i < d.length; i += 16) if (d[i] > 0) n++;
-    return n;
+    const B = window.BEYON;
+    if (!document.querySelector('[data-rede]') || !document.documentElement.classList.contains('js')) return -1;
+    return B && B.rede && B.rede.campo && B.rede.campo.desenhados ? B.rede.campo.desenhados() : 0;
   });
   /* lido DEPOIS da medição: se a esfera desistir sozinha no meio, aparece */
   const nucleo = await page.evaluate(() => document.documentElement.classList.contains('tem-nucleo') && !!document.querySelector('.nucleo.is-aceso'));

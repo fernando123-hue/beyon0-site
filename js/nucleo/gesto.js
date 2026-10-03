@@ -139,7 +139,7 @@ export function criarGesto(cena, canvas, alvoEventos, { fino = false, ouvir } = 
       pendente.novo = false;
       if (noReator(pendente.cx, pendente.cy, ponto)) {
         /* com a onda ainda nascendo, o toque novo só bate de novo (não arranca a frente de volta ao centro) */
-        if (tq.t >= 0 && tq.t < TQ_RELIGA) tq.b = religar(tq.b);
+        if (tq.t >= 0 && tq.t < TQ_RELIGA) { tq.b = religar(tq.b); tq.amp = Math.min(0.08, (tq.amp || 0) + 0.04); }
         else { tq.x = ponto.x; tq.y = ponto.y; tq.t = 0; tq.b = 0; }
         toques.push(relogio);
         while (toques.length && relogio - toques[0] > AGITA.janela) toques.shift();
@@ -152,6 +152,7 @@ export function criarGesto(cena, canvas, alvoEventos, { fino = false, ouvir } = 
       tq.t += dt;
     }
     if (tq.b !== undefined && tq.b >= 0) tq.b += dt;
+    if (tq.amp) { tq.amp *= Math.exp(-dt / 0.3); if (tq.amp < 0.002) tq.amp = 0; }
     agitacao *= Math.exp(-dt * AGITA.acalma);
     if (agitacao < 0.002) agitacao = 0;
     e.agitacao = agitacao;
