@@ -326,6 +326,8 @@
       var gira = (Math.random() * 8) | 0;
       for (var i = 0; i < n; i++) feixes.criar(p.x, p.y, (gira + Math.round(i * 8 / n)) % 8, { forcar: true, carga: 0.6, vida: 3 + Math.random() * 3 });
     },
+    /* acende um elemento (o mini pousando num cartão); sem a ligação do mini de volta */
+    acender: function (el) { acender(el, true); },
     alturaDoc: function () { return docH; },
     naZona: function (x, y) { return naZona(x, y); },
     /* o canto, dentre os da seção, mais perto de (x, y) e na tela; null se passar de `max` px */
