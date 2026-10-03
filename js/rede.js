@@ -1,46 +1,35 @@
 /* ==========================================================================
-   A REDE — o fundo vivo do site inteiro. Segunda forma (pedido do dono,
-   2026-10-02): "ao invés de formas paradas que se conectam de vez em quando,
-   feixes de energia andando frequentemente e gerando interação quando se
-   esbarram, e claro eles vão interagir com o usuário também".
+   A REDE — a ponte entre o CAMPO DO REATOR (js/campo.js) e a página.
+   Terceira forma (pedido do dono, 2026-10-03: o fundo de feixes soltos lia
+   como desordem; "quero algo grandioso, que ressoe com o AI Core e interaja
+   com o usuário e com todos os elementos que existem e que irão existir").
 
    Um canvas 2D fixo atrás do conteúdo (o AI Core continua sendo o único
-   WebGL). O motor dos feixes mora em js/feixes.js; aqui fica a página:
-   - a LEITURA manda: todo texto é apagado da rede (js/rede-texto.js mede as
-     zonas) e os feixes contornam os blocos em vez de atravessá-los;
-   - os CARTÕES e botões: o cursor sobre um deles (ou ele chegando ao centro
-     da tela, no celular) acende os cantos e solta dois feixes que percorrem
-     as bordas dele;
-   - o CURSOR atrai os feixes que passam perto e os carrega ao tocá-los; o
-     CLIQUE (ou o toque, no celular) solta um pulso com quatro feixes;
-   - a ROLAGEM: os feixes andam com a página devagar (paralaxe) e aceleram
-     enquanto ela rola;
-   - no celular, o TRILHO: a margem direita (fora da coluna de texto) é uma
-     faixa onde feixes sobem e descem, desenhados por cima da borracha;
-   - o AI CORE (só no Hub) é soberano: o cenário se molda a ele (pedido do
-     dono, 2026-10-02). Ele é um CAMPO: feixe nenhum cruza a face dele, eles
-     contornam; na inspiração o reator puxa os feixes de perto e os que tocam
-     a borda do campo entregam a energia (um losango marca); no começo da
-     expiração ele solta feixes carregados para o site. O reator não muda nada
-     por causa da rede;
-   - o MINI AI CORE (js/mini.js), por B.rede.extra;
-   - a malha antiga (nós parados e ligações) e a constelação presa ao reator
-     estão no histórico (commit ec08dac).
+   WebGL). Aqui fica o que é da página:
+   - a ORIGEM do campo: no Hub, o centro do reator (medido na caixa dele, por
+     evento); nas outras páginas, um reator "acima" da página, no centro;
+   - o FÔLEGO (B.relogio/B.FOLEGO, o mesmo do reator): ao expirar, a onda;
+     ao inspirar, pacotes saem dos elementos na tela e correm para o núcleo;
+   - os ELEMENTOS: qualquer opção ou cartão (inclusive os que vierem: links,
+     botões, [data-campo]) é acendido quando a onda o cruza; sob o cursor
+     (ou no centro da tela, no celular), a ROTA dele até o núcleo acende e
+     pacotes descem por ela. Avisa B.emit('opcao', …) para o reator e o mini;
+   - o CLIQUE (ou toque) manda um sinal pelo campo até o núcleo; quando ele
+     chega, B.emit('campo:chegou');
+   - a LEITURA manda: todo texto é apagado do campo (js/rede-texto.js).
 
    Leis (docs/HANDOFF.md §4): nada contínuo passa pelo CSS; layout lido só
-   em evento (carga, resize, mudança de tamanho do documento), em posições
-   de LAYOUT (offset, imunes às entradas por transform); um rAF só (B.add).
+   em evento, em posições de LAYOUT; um rAF só (B.add). Nada de desfoque.
    ========================================================================== */
 (function () {
   'use strict';
   var B = window.BEYON;
   var cv = document.querySelector('[data-rede]');
-  if (!B || !B.feixes || !cv || !cv.getContext) return;
+  if (!B || !B.campo || !cv || !cv.getContext) return;
   var ctx = cv.getContext('2d');
   if (!ctx) return;
   if (window.navigator.connection && navigator.connection.saveData) return;
 
-  var TAU = Math.PI * 2;
   var celular = window.matchMedia('(max-width: 860px), (pointer: coarse)').matches;
   var ponteiroFino = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 
@@ -50,48 +39,32 @@
   var AC = rgb('--ac-rgb', '73 229 221'), AC2 = rgb('--ac-2-rgb', '166 244 239'), PRATA = rgb('--prata-rgb', '183 191 192'), T1 = '242,244,244';
 
   /* ---------- números ---------- */
-  var PARALAXE = 0.35;                        /* o quanto os feixes andam com a rolagem */
-  var VENTO_MAX = 1.2, VENTO_VEL = 1400;      /* rolando a VENTO_VEL px/s os feixes andam (1 + VENTO_MAX)× */
-  var CURSOR = { r: 240, s: 4 };              /* o cursor puxa a direção dos feixes até r px */
-  var TOQUE = 14;                             /* px: o feixe que passa tão perto do cursor se carrega */
-  var SELETOR = '.painel, .btn, .console, .janela, .instrumento, .passo, .prova__item, .qa, .spec__item, .cenario, .celula, .hero__rail, .footer';
-  var ATIVOS = '.painel, .btn, .passo, .prova__item, .qa, .spec__item, .cenario, .celula';
-  var TRILHO_BORDA = window.innerWidth < 360 ? 12 : 14;   /* celular: o eixo do trilho (o mesmo do mini) */
-  /* o campo do reator, em raios de entrada da energia (B.nucleo.r): a régua
-     de fora está a 1,26; o campo passa um pouco dela */
-  var CAMPO = 1.36, PUXA = { r: 3.4, s: 2.5 }, SOLTA = 3;
-  var POSTER_CAMPO = 0.52;                    /* sem WebGL: o desenho em CSS, em larguras da caixa */
+  /* o que conta como elemento do site: as opções e os cartões de hoje e os
+     que vierem (qualquer link, botão ou [data-campo]) */
+  var OPCOES = 'a[href], button, [role="button"], .painel, .celula, .cenario, .qa, .spec__item, .prova__item, .passo, [data-campo]';
+  /* os MÓDULOS que se ligam aos irmãos pelo barramento (css/cartoes.css):
+     cada grupo é o conjunto de módulos com o mesmo pai, na ordem do documento */
+  var LIGAVEIS = '.hero__rail > a, .hero__rail > div:not(.hero__rail-aresta), .servico, .laudo__row, .celula, .cenario, .qa, .spec__item, [data-campo]';
+  var CARTOES = '.painel, .btn, .console, .janela, .instrumento, .passo, .prova__item, .qa, .spec__item, .cenario, .celula, ' + LIGAVEIS;
+  var BUS = { recuo: 24, cabeca: 28, chanfro: 6, no: 2.5 };   /* px: x do barramento vertical, y do horizontal, chanfro, meio lado do nó */
+  var R0_SEM_REATOR = celular ? 150 : 230;   /* px: a escala do campo nas páginas sem o reator */
+  var ACIMA = 0.5;                           /* nas páginas sem o reator, a origem fica esta fração da tela acima do topo */
+  var COLETA = { elementos: 5, soltos: 6 };  /* pacotes por inspiração */
+  var PULSO_CLIQUE = 350;                    /* ms entre sinais de clique */
 
   var dpr = 1, W = 0, H = 0, docH = 1, navH = 0, rodapeY = 1e9;
-  var ancoras = [], elementos = [], textos = [], naTela = [], campos = [], caixaNucleo = null;
-  var ponteiro = { x: -1e4, y: -1e4, ativo: false, a: 0 };
-  var rolagem = window.scrollY, rolagemAntes = rolagem, velRol = 0;
+  var elementos = [], textos = [], naTela = [], caixaNucleo = null, ligacoes = [];
+  var ponteiro = { x: -1e4, y: -1e4, ativo: false };
+  var rolagem = window.scrollY;
   var sujo = true, parado = !!B.reduced, desenhouParado = false, assinatura = -1, iniciada = false;
+  var faseAntes = 0, folego = 0;
 
   function limitar(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
   function suave(x) { x = limitar(x); return x * x * (3 - 2 * x); }
   function faseDoFolego(t) { var F = B.FOLEGO; return ((t / F.periodo) % 1 + 1) % 1; }
 
-  /* ---------- os feixes ---------- */
-  var telaAgora = { W: 0, H: 0, topo: 0 };
-  var feixes = B.feixes({
-    ctx: ctx, cores: { AC: AC, AC2: AC2, T1: T1 }, celular: celular,
-    naZona: function (x, y) { return naZona(x, y); },
-    tela: function () { telaAgora.W = W; telaAgora.H = H; telaAgora.topo = navH; return telaAgora; },
-    campos: function () { return campos; },
-    trilhoX: function () { return celular ? W - TRILHO_BORDA : null; },
-    aoEvento: function (tipo, x, y) { var m = B.rede.extra; if (m && m.aoEsbarrao) m.aoEsbarrao(tipo, x, y); }
-  });
-
-  /* a página anterior deixou os feixes dela: continuam daqui */
-  var herdada = null;
-  try {
-    var guardada = JSON.parse(sessionStorage.getItem('bz-feixes') || 'null');
-    if (guardada && Date.now() - guardada.quando < 4000 && guardada.feixes && guardada.feixes.length) herdada = guardada.feixes;
-  } catch (e) { /* sem armazenamento: semeia do zero */ }
-  window.addEventListener('pagehide', function () {
-    try { sessionStorage.setItem('bz-feixes', JSON.stringify({ quando: Date.now(), feixes: feixes.guardar(W, H) })); } catch (e) { /* idem */ }
-  });
+  var campo = B.campo({ ctx: ctx, cores: { AC: AC, AC2: AC2, T1: T1, PRATA: PRATA }, celular: celular,
+    livre: function (x, y) { return y > navH + 8 && x > 8 && x < W - 8 && !naZona(x, y); } });
 
   /* ---------- o documento: elementos e textos em posições de LAYOUT ---------- */
   function posicaoDoc(el) {
@@ -102,28 +75,32 @@
     if (ultimo !== document.body && getComputedStyle(ultimo).position === 'fixed') y += B.pino && B.pino.el.contains(ultimo) ? B.pino.inicio : window.scrollY;
     return { x: x, y: y };
   }
-  /* quem fica parado na tela enquanto a página rola: os títulos fixos
-     (sticky) e o palco pinado. d = o deslocamento deste quadro */
-  var grudes = [];   /* medidos por js/rede-texto.js (B.redeTexto.grudes) */
+  var grudes = [];   /* títulos fixos e palco pinado (js/rede-texto.js) */
   function refDe(el) { for (var i = 0; i < grudes.length; i++) if (grudes[i].el.contains(el)) return grudes[i]; return null; }
   function telaY(r) { return r.y - rolagem + (r.ref ? r.ref.d : 0); }
   function medirDocumento() {
     var prender = B.redeTexto ? B.redeTexto.soltar() : function () {};
     grudes = B.redeTexto ? B.redeTexto.grudes(posicaoDoc) : [];
-    var lista = document.querySelectorAll(SELETOR), i, antes = elementos.slice();
-    elementos.length = 0; ancoras.length = 0; textos.length = 0;
+    var lista = document.querySelectorAll(CARTOES), i, antes = elementos.slice();
+    elementos.length = 0;
     for (i = 0; i < lista.length; i++) {
       var el = lista[i];
       if (!el.offsetWidth || el.closest('[aria-hidden="true"]:not(.hero__arte)') || el.closest('.nav, .barra')) continue;
-      var p = posicaoDoc(el), w = el.offsetWidth, h = el.offsetHeight, item = null;
-      for (var k = 0; k < antes.length && !item; k++) if (antes[k].el === el) item = antes[k];
-      if (!item) {
-        item = { el: el, ativo: 0, ancoras: [], secao: el.closest('section') };
-        for (var c = 0; c < 4; c++) item.ancoras.push({ dx: 0, dy: 0, x: 0, y: 0, item: item, cx: c & 1, cy: c >> 1 });
+      var p = posicaoDoc(el), it = null;
+      for (var k = 0; k < antes.length && !it; k++) if (antes[k].el === el) it = antes[k];
+      if (!it) it = { el: el, ativo: 0, onda: 0, secao: el.closest('section'), liga: el.matches(LIGAVEIS) };
+      it.dx = p.x; it.dy = p.y; it.w = el.offsetWidth; it.h = el.offsetHeight; it.ref = refDe(el);
+      elementos.push(it);
+    }
+    /* o barramento: cada módulo com o próximo irmão módulo */
+    ligacoes.length = 0;
+    for (i = 0; i < elementos.length; i++) {
+      var a = elementos[i];
+      if (!a.liga) continue;
+      for (var j = i + 1; j < elementos.length; j++) {
+        var b = elementos[j];
+        if (b.liga && b.el.parentNode === a.el.parentNode) { ligacoes.push([a, b]); break; }
       }
-      item.ref = refDe(el); item.w = w; item.h = h;
-      for (var c2 = 0; c2 < 4; c2++) { var a = item.ancoras[c2]; a.dx = p.x + w * a.cx; a.dy = p.y + h * a.cy; ancoras.push(a); }
-      elementos.push(item);
     }
     var nav = document.querySelector('.nav');
     navH = nav ? nav.offsetHeight : 0;
@@ -131,53 +108,23 @@
     rodapeY = rod ? posicaoDoc(rod).y : 1e9;
     textos = B.redeTexto ? B.redeTexto(posicaoDoc, celular, refDe) : [];
     prender();
-    /* sem rodapé (página futura), o fim da página faz o papel dele */
     if (rodapeY > 1e8) rodapeY = document.documentElement.scrollHeight;
     docH = document.documentElement.scrollHeight;
-    /* a caixa do reator (o desenho em CSS vale quando o WebGL não monta) */
+    /* a caixa do reator (Hub): a origem do campo, medida aqui e não por
+       quadro; inclui o translate fixo dela no desktop */
     var cn = document.querySelector('[data-nucleo]');
     caixaNucleo = null;
     if (cn && cn.offsetWidth) {
       var pn = posicaoDoc(cn), tf = getComputedStyle(cn).transform, mx = 0, my = 0;
       if (tf && tf !== 'none' && window.DOMMatrixReadOnly) { var mt = new DOMMatrixReadOnly(tf); mx = mt.e; my = mt.f; }
-      caixaNucleo = { x: pn.x + mx + cn.offsetWidth / 2, y: pn.y + my + cn.offsetHeight / 2, r: cn.offsetWidth * POSTER_CAMPO };
+      caixaNucleo = { x: pn.x + mx + cn.offsetWidth / 2, y: pn.y + my + cn.offsetHeight / 2, R0: cn.offsetWidth * 0.5 };
     }
   }
   function itemDe(el) { for (var i = 0; i < elementos.length; i++) if (elementos[i].el === el) return elementos[i]; return null; }
 
-  /* um elemento acende: os cantos travam e dois feixes percorrem as bordas
-     dele (desktop: a de cima e a de baixo; celular: as laterais) e seguem */
-  function acender(el, semMini) {
-    if (parado) return;   /* reduzido: o desenho parado não apagaria os cantos */
-    var it = itemDe(el);
-    if (!it || it.ativo > 0.5) return;   /* já aceso: não dispara de novo */
-    if (celular) for (var o = 0; o < elementos.length; o++) if (elementos[o] !== it && elementos[o].ativo > 0) elementos[o].rapido = true;
-    it.ativo = 1; it.rapido = false;
-    var a0 = it.ancoras[0], a3 = it.ancoras[3];
-    if (a0.y > navH && a0.y < H) {
-      if (celular) feixes.criar(a0.x, a0.y, 2, { carga: 0.6, reto: it.h, forcar: true, vida: 3 + Math.random() * 2 });
-      else feixes.criar(a0.x, a0.y, 0, { carga: 0.6, reto: it.w, forcar: true, vida: 3 + Math.random() * 2 });
-    }
-    if (a3.y > navH && a3.y < H) {
-      if (celular) feixes.criar(a3.x, a3.y, 6, { carga: 0.6, reto: it.h, forcar: true, vida: 3 + Math.random() * 2 });
-      else feixes.criar(a3.x, a3.y, 4, { carga: 0.6, reto: it.w, forcar: true, vida: 3 + Math.random() * 2 });
-    }
-    var extra = B.rede.extra;
-    if (!semMini && extra && extra.aoAcender) extra.aoAcender(it);
-  }
-  /* o ponteiro: só quando ENTRA num elemento novo (pointerover dispara a cada filho) */
-  var sobAntes = null;
-  function aoEntrar(e) {
-    var alvo = e.target.closest ? e.target.closest(ATIVOS) : null;
-    if (alvo === sobAntes) return;
-    sobAntes = alvo;
-    if (alvo) acender(alvo);
-  }
-
   /* ---------- medida ---------- */
   function medir() {
-    var w = window.innerWidth, h = window.innerHeight, d = Math.min(window.devicePixelRatio || 1, celular ? 1.25 : 1.5);
-    if (w !== W && W) for (var t = feixes.lista.length - 1; t >= 0; t--) if (feixes.lista[t].trilho) feixes.lista.splice(t, 1);
+    var w = window.innerWidth, h = window.innerHeight, d = Math.min(window.devicePixelRatio || 1, celular ? 1.5 : 1.5);
     if (w !== W || h !== H || d !== dpr) {
       W = w; H = h; dpr = d;
       cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
@@ -186,18 +133,25 @@
     medirDocumento();
     sujo = false;
   }
-  /* o FAQ abrindo muda a altura a cada quadro por 0,4 s, e a barra do
-     celular dispara resize na rolagem: mede quando PARAR (120 ms) */
   var pedidoEm = 0;
   function pedirMedida() { pedidoEm = performance.now(); desenhouParado = false; }
 
   /* ---------- por quadro ---------- */
-  var folego = 0;
+  function posicionar() {
+    var nu = B.nucleo;
+    if (nu && nu.py !== undefined) { nu.cx = nu.px - window.scrollX; nu.cy = nu.py - rolagem; }   /* o mini lê o reator daqui */
+    for (var g = 0; g < grudes.length; g++) { var g0 = grudes[g]; g0.d = Math.max(0, Math.min(g0.fim - g0.inicio, rolagem - g0.inicio)); }
+    for (var e = 0; e < elementos.length; e++) { var it = elementos[e]; it.x = it.dx; it.y = it.dy - rolagem + (it.ref ? it.ref.d : 0); }
+    textosNaTela();
+    /* a origem do campo, em coordenadas da tela */
+    var giro = (B.campoGiro || 0);
+    if (caixaNucleo) campo.origem(caixaNucleo.x - window.scrollX, caixaNucleo.y - rolagem, caixaNucleo.R0, giro);
+    else campo.origem(W / 2, -H * ACIMA - rolagem, R0_SEM_REATOR, giro);
+  }
   function quadro(S) {
     if (pedidoEm && S.now - pedidoEm > 120) { pedidoEm = 0; sujo = true; }
     if (sujo) medir();
     if (parado) {
-      /* reduzido: redesenha quando a página rola ou o mini muda (salto por âncora, menu) */
       var m0 = B.rede.extra, ass = Math.round(rolagem) * 7 + (m0 ? Math.round(m0.x) * 13 + Math.round(m0.y) * 17 + Math.round(m0.vis * 20) : 0);
       if (ass !== assinatura) { assinatura = ass; desenhouParado = false; }
       if (!desenhouParado) { posicionar(); desenhar(); desenhouParado = true; }
@@ -207,76 +161,46 @@
     desenhar();
   }
 
-  /* as âncoras e os textos na tela, neste quadro */
-  function posicionar() {
-    var nu = B.nucleo;
-    if (nu && nu.py !== undefined) { nu.cx = nu.px - window.scrollX; nu.cy = nu.py - rolagem; }   /* o mini lê o reator daqui, sem um quadro de atraso */
-    for (var g = 0; g < grudes.length; g++) { var g0 = grudes[g]; g0.d = Math.max(0, Math.min(g0.fim - g0.inicio, rolagem - g0.inicio)); }
-    for (var a = 0; a < ancoras.length; a++) { var an = ancoras[a]; an.x = an.dx; an.y = an.dy - rolagem + (an.item.ref ? an.item.ref.d : 0); }
-    textosNaTela();
-    /* o campo do reator: o WebGL aceso publica a forma dele; antes disso (ou
-       sem WebGL) vale a caixa do desenho em CSS */
-    campos.length = 0;
-    if (nu && nu.visivel && nu.r) {
-      var R = nu.r * CAMPO;
-      campos.push({ x: nu.cx, y: nu.cy, rx: R * nu.sx, ry: R * nu.sy, R: R });
-    } else if (caixaNucleo) {
-      var cy = caixaNucleo.y - rolagem, cr = caixaNucleo.r;
-      if (cy + cr > 0 && cy - cr < H) campos.push({ x: caixaNucleo.x - window.scrollX, y: cy, rx: cr, ry: cr, R: cr });
-    }
-  }
-
-  var atratores = [], faseAntes = 0;
+  var estado = { W: 0, H: 0, topo: 0, cursor: ponteiro, reduzido: false, rLimite: 24000 };
   function passo(dt, t) {
     var F = B.FOLEGO, x = faseDoFolego(t);
     folego = x < F.inspira ? suave(x / F.inspira) : 1 - suave((x - F.inspira) / (1 - F.inspira));
-    var dy = rolagem - rolagemAntes;
-    rolagemAntes = rolagem;
-    velRol += (dy / Math.max(dt, 0.001) - velRol) * Math.min(1, dt * 6);
     posicionar();
-    if (Math.abs(dy) < H * 0.5) feixes.deslocar(dy * PARALAXE);   /* salto (âncora, rolagem restaurada): ficam onde estão */
-    for (var e = 0; e < elementos.length; e++) if (elementos[e].ativo > 0) elementos[e].ativo = Math.max(0, elementos[e].ativo - dt * (elementos[e].rapido ? 5 : 0.9));
-    ponteiro.a += ((ponteiro.ativo ? 1 : 0) - ponteiro.a) * Math.min(1, dt * 4);
-
-    atratores.length = 0;
-    if (ponteiro.a > 0.5) atratores.push({ x: ponteiro.x, y: ponteiro.y, r: CURSOR.r, s: CURSOR.s });
-    var m = B.rede.extra;
-    if (m && m.atrator && m.ativo) atratores.push(m.atrator());
-    /* no expirar a rede solta mais energia (respira com o reator) */
-    var expira = x > F.inspira;
-    var c = campos[0];
-    if (c) {
-      /* inspirando, o reator puxa os feixes de perto */
-      if (!expira) atratores.push({ x: c.x, y: c.y, r: c.R / CAMPO * PUXA.r, s: PUXA.s });
-      /* começou a expirar: ele solta feixes carregados para o site */
-      if (faseAntes < F.inspira && x >= F.inspira) soltarDoReator(c);
-    }
+    /* o fôlego do reator move o campo: expirar solta a onda; inspirar recolhe */
+    if (faseAntes < F.inspira && x >= F.inspira) campo.soltarOnda();
+    if (x < faseAntes) coletar();
     faseAntes = x;
-    feixes.passo(dt, { atratores: atratores, vento: 1 + VENTO_MAX * limitar(Math.abs(velRol) / VENTO_VEL), semear: true, intervalo: expira ? 0.22 + Math.random() * 0.25 : 0.45 + Math.random() * 0.4 });
-    tocar(t);
-  }
-  /* SOLTA feixes saindo da borda do campo, em direções sorteadas entre as 8 */
-  function soltarDoReator(c) {
-    var d0 = (Math.random() * 8) | 0;
-    for (var i = 0; i < SOLTA; i++) {
-      var d = (d0 + i * 3) % 8, ang = d * Math.PI / 4, k = 1.04;
-      var x = c.x + Math.cos(ang) * c.rx * k, y = c.y + Math.sin(ang) * c.ry * k;
-      if (y < navH || y > H) continue;
-      feixes.criar(x, y, d, { forcar: true, carga: 0.9, vida: 4 + Math.random() * 3 });
+    estado.W = W; estado.H = H; estado.topo = navH;
+    estado.rLimite = Math.max(campo.polar(0, docH - rolagem).r, campo.polar(W, docH - rolagem).r);
+    var s = campo.passo(dt, estado);
+    if (s.chegadas) B.emit('campo:chegou', s.chegadas);
+    /* a onda cruza os elementos: eles acendem */
+    var ondas = campo.ondas;
+    for (var e = 0; e < elementos.length; e++) {
+      var it = elementos[e];
+      if (it.onda > 0) it.onda = Math.max(0, it.onda - dt * 0.9);
+      if (it.ativo > 0 && it.el !== sobAntes && it.el !== centroAgora) it.ativo = Math.max(0, it.ativo - dt * 2.5);
+      if (it.y + it.h < navH || it.y > H) continue;
+      var r = campo.polar(it.x + it.w / 2, it.y + it.h / 2).r;
+      for (var o = 0; o < ondas.length; o++) if (ondas[o].rAntes < r && ondas[o].r >= r) it.onda = 1;
     }
   }
-  /* o feixe que passa no cursor se carrega (um anel marca o toque) */
-  function tocar(t) {
-    if (ponteiro.a < 0.5) return;
-    var f = feixes.perto(ponteiro.x, ponteiro.y, TOQUE);
-    if (!f || t - (f.tocadoEm || -9) < 1.5) return;
-    f.tocadoEm = t;
-    f.carga = 1;
-    feixes.evento('toque', f.x, f.y);
+  /* inspirar: alguns elementos na tela e alguns pontos soltos mandam energia ao núcleo */
+  function coletar() {
+    var vistos = [], i;
+    for (i = 0; i < elementos.length; i++) { var it = elementos[i]; if (it.y > navH && it.y + it.h < H) vistos.push(it); }
+    for (i = 0; i < COLETA.elementos && vistos.length; i++) {
+      var k = (Math.random() * vistos.length) | 0, v = vistos.splice(k, 1)[0];
+      var cx = v.x + v.w / 2, cy = v.y + v.h / 2;
+      if (!campo.dentroDoVao(cx, cy)) campo.rota(cx, cy, { vida: 1.1 });
+    }
+    for (i = 0; i < COLETA.soltos; i++) {
+      var px = Math.random() * W, py = navH + Math.random() * (H - navH), p = campo.polar(px, py);
+      campo.pacote(p.r, campo.raioPerto(p.r, p.a));
+    }
   }
 
   /* ---------- desenho ---------- */
-  /* os textos deste quadro (a borracha, os feixes e o mini consultam esta lista) */
   function textosNaTela() {
     naTela.length = 0;
     for (var i = 0; i < textos.length; i++) {
@@ -285,11 +209,10 @@
       naTela.push(r);
     }
   }
-  /* (x, y) cai dentro da zona protegida de algum texto (com a folga)? */
-  function naZona(x, y, comHalo) {
+  function naZona(x, y) {
     for (var i = 0; i < naTela.length; i++) {
       var r = naTela[i];
-      if ((r.halo && !comHalo) || r.folga < 0) continue;
+      if (r.halo || r.folga < 0) continue;
       var ry = telaY(r), f = r.folga;
       if (x > r.x - f && x < r.x + r.w + f && y > ry - f && y < ry + r.h + f) return true;
     }
@@ -297,37 +220,64 @@
   }
   function desenhar() {
     ctx.clearRect(0, 0, W, H);
-    var resp = parado ? 1 : 0.8 + 0.2 * folego;   /* nunca acima de 1 */
-    feixes.desenhar(false, resp);
-    feixes.desenharEventos();
+    var resp = parado ? 1 : 0.8 + 0.2 * folego;
+    campo.desenhar(resp, !parado);
     var extra = B.rede.extra;
     if (extra && extra.desenharFundo) extra.desenharFundo(ctx);   /* o que o mini traça: também some atrás do texto */
     apagarTextos();
-    if (celular) desenharTrilho(resp);
-    apagarCampo();   /* depois do trilho: no celular o reator ocupa a largura toda e o trilho passa por ele */
-    desenharCantos();
+    desenharBarramento();
+    desenharElementos();
   }
-  /* o trilho do celular: os feixes da margem direita, por cima da borracha
-     (moram fora da coluna de texto), entre a nav e o começo do rodapé */
-  function desenharTrilho(resp) {
-    var fim = Math.min(H, rodapeY - rolagem - 60);
-    if (fim <= navH) return;
-    ctx.save();
-    ctx.beginPath(); ctx.rect(W - 2 * TRILHO_BORDA, navH, 2 * TRILHO_BORDA, fim - navH); ctx.clip();
-    feixes.desenhar(true, resp);
-    ctx.restore();
+  /* o caminho de A até B pelo vão (coordenadas da tela): lado a lado, um
+     abaixo do outro, ou a fileira que quebra (chanfro de 45°, como trilha de
+     placa). Devolve [x0, y0, x1, y1, ...] num vetor reaproveitado */
+  var cam = [];
+  function caminho(A, B) {
+    cam.length = 0;
+    var ax1 = A.x + A.w, ay1 = A.y + A.h, bx1 = B.x + B.w;
+    if (B.x >= ax1 - 1) {
+      /* à direita: na altura da "cabeça" do mais baixo dos dois, dentro dos dois */
+      var y = Math.max(A.y, B.y) + Math.min(BUS.cabeca, B.h / 2);
+      if (y > ay1 - 8) y = A.y + Math.min(BUS.cabeca, A.h / 2);
+      cam.push(ax1, y, B.x, y);
+    } else if (B.y >= ay1 - 1) {
+      var ox = Math.max(A.x, B.x) + BUS.recuo;
+      if (ox < Math.min(ax1, bx1) - 4) cam.push(ox, ay1, ox, B.y);
+      else {
+        var xa = A.x + BUS.recuo, xb = B.x + BUS.recuo, ym = (ay1 + B.y) / 2, s = xb > xa ? 1 : -1;
+        var c = Math.min(BUS.chanfro, (B.y - ay1) / 2, Math.abs(xb - xa) / 2);
+        cam.push(xa, ay1, xa, ym - c, xa + s * c, ym, xb - s * c, ym, xb, ym + c, xb, B.y);
+      }
+    }
+    return cam;
   }
-
-  /* a leitura manda: atrás de texto a rede some */
+  function desenharBarramento() {
+    ctx.lineWidth = 1;
+    for (var i = 0; i < ligacoes.length; i++) {
+      var A = ligacoes[i][0], B = ligacoes[i][1];
+      if (Math.max(A.y + A.h, B.y + B.h) < navH || Math.min(A.y, B.y) > H) continue;
+      var c = caminho(A, B);
+      if (c.length < 4) continue;
+      var k = Math.max(A.onda, B.onda, A.ativo, B.ativo);
+      ctx.strokeStyle = 'rgba(' + AC + ',' + (0.22 + 0.45 * k).toFixed(3) + ')';
+      ctx.beginPath(); ctx.moveTo(c[0], c[1]);
+      for (var p = 2; p < c.length; p += 2) ctx.lineTo(c[p], c[p + 1]);
+      ctx.stroke();
+      /* o nó: no meio do trecho do meio (no caminho com chanfro, o horizontal) */
+      var m = c.length > 4 ? 4 : 0, nx = (c[m] + c[m + 2]) / 2, ny = (c[m + 1] + c[m + 3]) / 2, s = BUS.no;
+      ctx.fillStyle = 'rgba(0,0,0,0.9)'; ctx.fillRect(nx - s, ny - s, 2 * s, 2 * s);
+      ctx.strokeStyle = 'rgba(' + AC2 + ',' + (0.5 + 0.45 * k).toFixed(3) + ')';
+      ctx.strokeRect(nx - s + 0.5, ny - s + 0.5, 2 * s - 1, 2 * s - 1);
+    }
+  }
+  /* a leitura manda: atrás de texto o campo some */
   function apagarTextos() {
     ctx.globalCompositeOperation = 'destination-out';
     if (navH) { ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, navH + 4); }
-    /* o rodapé: a rede se desfaz nos 80 px antes dele (era cortada seco) */
+    /* o rodapé: o campo termina nele (degraus nítidos, sem degradê) */
     var ry = rodapeY - rolagem;
     if (ry < H + 80 && ry > -400) {
-      var gr = ctx.createLinearGradient(0, ry - 80, 0, ry);
-      gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, '#000');
-      ctx.fillStyle = gr; ctx.fillRect(0, ry - 80, W, 80);
+      for (var d = 0; d < 4; d++) { ctx.fillStyle = 'rgba(0,0,0,' + (0.25 * (d + 1)).toFixed(2) + ')'; ctx.fillRect(0, ry - 80 + d * 20, W, 20); }
       ctx.fillStyle = '#000'; ctx.fillRect(0, ry, W, H);
     }
     for (var i = 0; i < naTela.length; i++) {
@@ -340,73 +290,100 @@
     }
     ctx.globalCompositeOperation = 'source-over';
   }
-  /* nada da rede sobre a face do AI Core (borda nítida, sem degradê) */
-  function apagarCampo() {
-    var c = campos[0];
-    if (!c) return;
-    ctx.globalCompositeOperation = 'destination-out';
-    ctx.fillStyle = '#000';
-    ctx.beginPath(); ctx.ellipse(c.x, c.y, c.rx, c.ry, 0, 0, TAU); ctx.fill();
-    ctx.globalCompositeOperation = 'source-over';
-  }
-  /* os cantos em L do elemento aceso (visor, não borda) */
-  function desenharCantos() {
+  /* os elementos acesos: os cantos em L travam (a onda passou ou o cursor
+     está nele) e, com a onda, a aresta de cima acende e apaga */
+  function desenharElementos() {
     ctx.lineWidth = 1;
     for (var e = 0; e < elementos.length; e++) {
-      var it = elementos[e];
-      if (it.ativo < 0.02 || it.ancoras.length < 4) continue;
-      ctx.strokeStyle = 'rgba(' + PRATA + ',' + (0.55 * it.ativo).toFixed(3) + ')';
+      var it = elementos[e], k = Math.max(it.onda * 0.8, it.ativo);
+      if (k < 0.02 || it.y > H + 20 || it.y + it.h < -20) continue;
+      var m = 9, x0 = it.x, y0 = it.y, x1 = it.x + it.w, y1 = it.y + it.h;
+      ctx.strokeStyle = 'rgba(' + PRATA + ',' + (0.6 * k).toFixed(3) + ')';
       ctx.beginPath();
-      for (var c = 0; c < it.ancoras.length; c++) {
-        var a = it.ancoras[c];
-        if (a.y < -20 || a.y > H + 20) continue;
-        var sx = a.cx ? -1 : 1, sy = a.cy ? -1 : 1, m = 9;
-        ctx.moveTo(a.x + sx * m, a.y); ctx.lineTo(a.x, a.y); ctx.lineTo(a.x, a.y + sy * m);
-      }
+      ctx.moveTo(x0, y0 + m); ctx.lineTo(x0, y0); ctx.lineTo(x0 + m, y0);
+      ctx.moveTo(x1 - m, y0); ctx.lineTo(x1, y0); ctx.lineTo(x1, y0 + m);
+      ctx.moveTo(x0, y1 - m); ctx.lineTo(x0, y1); ctx.lineTo(x0 + m, y1);
+      ctx.moveTo(x1 - m, y1); ctx.lineTo(x1, y1); ctx.lineTo(x1, y1 - m);
       ctx.stroke();
+      if (it.onda > 0.02) {
+        /* a aresta de cima: a luz da onda atravessa o elemento da esquerda para a direita */
+        var andou = 1 - it.onda, xa = x0 + (x1 - x0) * Math.min(1, andou * 2.2);
+        ctx.strokeStyle = 'rgba(' + AC + ',' + (0.55 * it.onda).toFixed(3) + ')';
+        ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(xa, y0); ctx.stroke();
+      }
     }
   }
 
-  /* ---------- API para os vizinhos (o mini AI Core) ---------- */
+  /* ---------- as opções: sob o cursor (ou no centro da tela, no celular) ---------- */
+  var sobAntes = null, rotaSob = null, centroAgora = null;
+  function opcaoDe(alvo) {
+    var el = alvo && alvo.closest ? alvo.closest(OPCOES) : null;
+    if (!el || el.closest('[aria-hidden="true"]:not(.hero__arte)')) return null;
+    return el;
+  }
+  function entrar(el, fica) {
+    var r = el.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    var it = itemDe(el);
+    if (it) it.ativo = 1;
+    var ro = parado || campo.dentroDoVao(cx, cy) ? null : campo.rota(cx, cy, { fica: fica, vida: 1.4 });
+    if (!parado) campo.apontar(cx, cy, rotuloDe(el));
+    B.emit('opcao', { el: el, x: cx, y: cy, w: r.width, h: r.height, entrou: true });
+    return ro;
+  }
+  /* o nome curto da opção para a leitura do rumo */
+  function rotuloDe(el) {
+    var t = (el.getAttribute('aria-label') || el.getAttribute('data-rotulo') || '').trim();
+    if (!t) { var h = el.querySelector('h3, .hero__rail-k, summary'); t = (h ? h.textContent : el.textContent) || ''; }
+    t = t.replace(/[→↓↗\s]+/g, ' ').replace(/^\s*\d+\s+/, '').trim().toUpperCase();
+    return t.length > 22 ? t.slice(0, 21).trim() + '…' : t;
+  }
+  function aoEntrar(e) {
+    var el = opcaoDe(e.target);
+    if (el === sobAntes) return;
+    if (sobAntes) { if (rotaSob) campo.soltarRota(rotaSob); campo.apontar(null); B.emit('opcao', { el: sobAntes, entrou: false }); }
+    sobAntes = el; rotaSob = null;
+    if (el) rotaSob = entrar(el, true);
+  }
+
+  /* ---------- API para os vizinhos (o mini AI Core, o reator) ---------- */
   B.rede = {
     extra: null,
-    feixes: feixes,
-    /* `n` feixes saindo de p em direções espalhadas */
-    dispararDe: function (p, n) {
-      if (parado) return;
-      var gira = (Math.random() * 8) | 0;
-      for (var i = 0; i < n; i++) feixes.criar(p.x, p.y, (gira + Math.round(i * 8 / n)) % 8, { forcar: true, carga: 0.6, vida: 3 + Math.random() * 3 });
-    },
-    /* acende um elemento (o mini pousando num cartão); sem a ligação do mini de volta */
-    acender: function (el) { acender(el, true); },
+    campo: campo,
+    /* um sinal do ponto p até o núcleo (o mini usa) */
+    dispararDe: function (p) { if (!parado && !campo.dentroDoVao(p.x, p.y)) campo.rota(p.x, p.y, { vida: 1 }); },
+    acender: function (el) { var it = itemDe(el); if (it && !parado) it.onda = 1; },
     alturaDoc: function () { return docH; },
     naZona: function (x, y) { return naZona(x, y); },
-    /* o canto, dentre os da seção, mais perto de (x, y) e na tela; null se passar de `max` px */
-    cantoPerto: function (secao, x, y, max) {
-      var melhor = null, dm = max * max;
-      for (var i = 0; i < ancoras.length; i++) {
-        var a = ancoras[i];
-        if (secao && a.item.secao !== secao) continue;
-        if (a.y < navH || a.y > H) continue;
-        var d = (a.x - x) * (a.x - x) + (a.y - y) * (a.y - y);
-        if (d < dm) { dm = d; melhor = a; }
-      }
-      return melhor;
-    },
-    /* um canto na tela, sorteado entre os que estão de `min` a `max` px de (x, y) e passam no `filtro` */
-    cantoAoAcaso: function (x, y, min, max, filtro) {
+    /* um elemento na tela, sorteado entre os que estão de `min` a `max` px de (x, y) e passam no `filtro` */
+    elementoAoAcaso: function (x, y, min, max, filtro) {
       var escolhido = null, n = 0;
-      for (var i = 0; i < ancoras.length; i++) {
-        var a = ancoras[i];
-        if (a.y < navH + 40 || a.y > H - 40 || (filtro && !filtro(a))) continue;
-        var d = Math.hypot(a.x - x, a.y - y);
+      for (var i = 0; i < elementos.length; i++) {
+        var it = elementos[i];
+        /* o centro dele na tela, longe das bordas (cartões altos raramente cabem inteiros) */
+        var cy = it.y + Math.min(it.h / 2, 60);
+        if (cy < navH + 60 || cy > H - 120 || (filtro && !filtro(it))) continue;
+        var d = Math.hypot(it.x + it.w / 2 - x, cy - y);
         if (d < min || d > max) continue;
         n++;
-        if (Math.random() * n < 1) escolhido = a;   /* amostragem uniforme sem lista */
+        if (Math.random() * n < 1) escolhido = it;
       }
       return escolhido;
     },
-    /* um texto chega a menos de `rx` px na horizontal e `ry` px na vertical? */
+    /* o canto, dentre os elementos da seção, mais perto de (x, y) e na tela; null se passar de `max` px */
+    cantoPerto: function (secao, x, y, max) {
+      var melhor = null, dm = max * max;
+      for (var i = 0; i < elementos.length; i++) {
+        var it = elementos[i];
+        if (secao && it.secao !== secao) continue;
+        for (var c = 0; c < 4; c++) {
+          var ax = it.x + (c & 1) * it.w, ay = it.y + (c >> 1) * it.h;
+          if (ay < navH || ay > H) continue;
+          var d = (ax - x) * (ax - x) + (ay - y) * (ay - y);
+          if (d < dm) { dm = d; melhor = { x: ax, y: ay, item: it, cx: c & 1, cy: c >> 1 }; }
+        }
+      }
+      return melhor;
+    },
     sobreTexto: function (x, y, rx, ry) {
       if (ry === undefined) ry = rx;
       for (var i = 0; i < naTela.length; i++) {
@@ -423,23 +400,21 @@
   window.addEventListener('resize', pedirMedida, { passive: true });
   window.addEventListener('scroll', function () { rolagem = window.scrollY; }, { passive: true });
   if ('ResizeObserver' in window) new ResizeObserver(pedirMedida).observe(document.body);
-  /* as fontes mudam a largura das linhas: mede de novo quando chegam */
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(pedirMedida);
-  /* o clique (ou o toque, no celular: o click só vem de toque, nunca de
-     rolagem) solta um pulso de energia no ponto */
-  var ultimoPulso = 0;
+  /* o clique (ou o toque: o click só vem de toque, nunca de rolagem) manda um sinal ao núcleo */
+  var ultimoSinal = 0;
   document.addEventListener('click', function (e) {
-    if (parado || !iniciada || !e.isTrusted || e.clientY < navH || e.timeStamp - ultimoPulso < 350) return;
-    ultimoPulso = e.timeStamp;
-    feixes.pulso(e.clientX, e.clientY, 4);
+    if (parado || !iniciada || !e.isTrusted || e.clientY < navH || e.timeStamp - ultimoSinal < PULSO_CLIQUE) return;
+    if (campo.dentroDoVao(e.clientX, e.clientY)) return;   /* no reator, quem responde é ele */
+    ultimoSinal = e.timeStamp;
+    campo.rota(e.clientX, e.clientY, { vida: 1, forte: true });
   }, { passive: true });
   if (ponteiroFino) {
     document.addEventListener('pointermove', function (e) { if (e.pointerType === 'mouse') { ponteiro.x = e.clientX; ponteiro.y = e.clientY; ponteiro.ativo = true; } }, { passive: true });
-    document.documentElement.addEventListener('pointerleave', function () { ponteiro.ativo = false; }, { passive: true });
+    document.documentElement.addEventListener('pointerleave', function () { ponteiro.ativo = false; aoEntrar({ target: null }); }, { passive: true });
     document.addEventListener('pointerover', aoEntrar, { passive: true });
   } else if ('IntersectionObserver' in window) {
-    /* celular, sem cursor: o cartão acende quando chega ao centro da tela
-       (no máximo um a cada 600 ms) */
+    /* celular, sem cursor: a opção acende quando chega ao centro da tela (no máximo uma a cada 600 ms) */
     var ultimo = 0, fila = null;
     var vez = function () {
       if (!fila) return;
@@ -447,51 +422,52 @@
       if (agora - ultimo < 600) { setTimeout(vez, 600 - (agora - ultimo)); return; }
       ultimo = agora;
       var el = fila; fila = null;
-      acender(el);
+      if (!parado && iniciada) {
+        centroAgora = el; entrar(el, false);
+        clearTimeout(vez.solta); vez.solta = setTimeout(function () { campo.apontar(null); B.emit('opcao', { el: el, entrou: false }); }, 2200);
+      }
     };
     var io = new IntersectionObserver(function (es) {
       for (var i = 0; i < es.length; i++) {
         if (!es[i].isIntersecting || parado) continue;
-        fila = es[i].target;   /* fila de um: o mais recente vence */
+        fila = es[i].target;
         vez();
       }
     }, { rootMargin: '-45% 0px -45% 0px' });
-    document.querySelectorAll(ATIVOS).forEach(function (el) { io.observe(el); });
+    document.querySelectorAll(CARTOES).forEach(function (el) { if (!el.closest('.nav, .barra')) io.observe(el); });
   }
+  /* o núcleo agitado (cliques seguidos nele): o campo responde com ondas */
+  var ultimaOndaAgitada = 0;
+  B.on('nucleo:agitado', function () {
+    var agora = performance.now();
+    if (parado || !iniciada || agora - ultimaOndaAgitada < 450) return;
+    ultimaOndaAgitada = agora;
+    campo.soltarOnda();
+  });
   B.on('reduzir', function (sim) {
     parado = !!sim; desenhouParado = false;
     if (!parado || !iniciada) return;
-    for (var e = 0; e < elementos.length; e++) elementos[e].ativo = 0;
-    congelar();
+    for (var e = 0; e < elementos.length; e++) { elementos[e].ativo = 0; elementos[e].onda = 0; }
+    campo.limparEnergia();
   });
 
-  /* movimento reduzido: um quadro só, com os feixes já andados (nada se move
-     depois). Com as zonas e o campo já postos: eles contornam o texto e o reator */
-  function congelar() {
-    posicionar();
-    if (!feixes.lista.length) for (var i = 0; i < feixes.alvo(); i++) feixes.semear();
-    for (var k = 0; k < 45; k++) feixes.passo(1 / 30, { atratores: [], semear: false });
-    feixes.limparEventos();
-  }
-
-  /* quando começa. Vindo de outra página do site, JÁ: os feixes herdados
-     aparecem no primeiro quadro, sem o vão de fundo vazio na troca. Na
-     primeira visita, depois do load (nada no caminho da 1ª pintura) e
-     acendendo devagar */
   function comecar() {
-    rolagem = rolagemAntes = window.scrollY;
+    rolagem = window.scrollY;
     iniciada = true;
     medir();
-    if (herdada) { feixes.herdar(herdada, W, H); herdada = null; }
-    if (parado) congelar();
     cv.classList.add('is-viva');
     B.add('rede', quadro);
     B.iniciar();
   }
-  if (herdada) {
+  /* vindo de outra página do site, JÁ (o campo é o mesmo: sem vão na troca);
+     na primeira visita, depois do load */
+  var veioDoSite = false;
+  try { veioDoSite = Date.now() - (+sessionStorage.getItem('bz-campo') || 0) < 4000; } catch (e) { /* sem armazenamento */ }
+  window.addEventListener('pagehide', function () { try { sessionStorage.setItem('bz-campo', String(Date.now())); } catch (e) { /* idem */ } });
+  if (veioDoSite) {
     cv.classList.add('is-herdada');
     comecar();
-    quadro({ dt: 16, now: performance.now() });   /* já desenhada quando a View Transition capturar a página nova */
+    quadro({ dt: 16, now: performance.now() });
   } else {
     var ocioso = window.requestIdleCallback || function (f) { return setTimeout(f, 1); };
     if (document.readyState === 'complete') ocioso(comecar, { timeout: 900 });

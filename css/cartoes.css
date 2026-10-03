@@ -1,0 +1,226 @@
+/* ==========================================================================
+   CARTÕES E OPÇÕES — refeitos do zero (pedido do dono, 2026-10-03: "sem
+   opções coladas umas às outras; sempre um bom espaçamento e boa conexão
+   entre eles"). Celular primeiro.
+
+   Cada cartão é um MÓDULO separado: borda fina, grafite quase opaco (o
+   campo do reator passa por trás e não atravessa o texto), aresta de cima
+   que acende no foco. O vão entre módulos é generoso e o mesmo na casa
+   inteira (--vao; listas curtas, --vao-lista). A CONEXÃO é desenhada pelo
+   campo (js/rede.js): um barramento de 1 px atravessa cada vão com um nó no
+   meio, de PCB (reto ou com chanfro de 45°), e acende com a onda do reator
+   e com o cursor. Sem JS ficam os módulos e os vãos.
+
+   Substitui os blocos antigos de painel, serviços, laudo, malha, cenários,
+   perguntas, padrão de entrega, a faixa do hero e a pilha do celular (que
+   sobrepunha cartões de propósito). Histórico: commit 48d7c0b.
+   ========================================================================== */
+:root {
+  --vao: clamp(18px, 2.4vw, 32px);
+  --vao-lista: clamp(10px, 1.1vw, 14px);
+  --mod-pad: clamp(20px, 4.4vw, 32px);
+  --mod-pad-s: clamp(16px, 3.6vw, 22px);
+  --mod-fundo: rgb(11 12 13 / .9);
+}
+
+/* ---------- o módulo ---------- */
+.painel, .celula, .laudo__row, .qa, .spec__item,
+.hero__rail > a, .hero__rail > div:not(.hero__rail-aresta) {
+  position: relative;
+  border: 1px solid var(--line); border-radius: var(--raio);
+  background: var(--mod-fundo);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .05);
+  color: var(--t1);
+  transition: border-color var(--t) var(--ease), background-color var(--t) var(--ease);
+}
+/* a aresta de cima: acesa na tinta do módulo (os de tinta sempre; os outros no foco) */
+.painel::before, .celula::before, .laudo__row::before, .qa::before, .spec__item::before,
+.hero__rail > a::before, .hero__rail > div:not(.hero__rail-aresta)::before {
+  content: ""; position: absolute; left: -1px; right: -1px; top: -1px; height: 1px;
+  border-radius: var(--raio) var(--raio) 0 0;
+  background: linear-gradient(90deg, rgb(var(--tinta-rgb, var(--ac-rgb)) / .85), rgb(var(--tinta-rgb, var(--ac-rgb)) / 0) 72%);
+  opacity: 0; transition: opacity var(--t) var(--ease); pointer-events: none;
+}
+.painel--tinta::before { opacity: 1; }
+@media (hover: hover) {
+  .painel:hover, .celula:hover, .laudo__row:hover, .qa:hover, .spec__item:hover, .hero__rail > a:hover { border-color: var(--line-2); background-color: rgb(16 18 19 / .94); }
+  .painel:hover::before, .celula:hover::before, .laudo__row:hover::before, .qa:hover::before, .spec__item:hover::before, .hero__rail > a:hover::before { opacity: 1; }
+}
+.painel:focus-within::before, .celula:focus-visible::before, .qa[open]::before, .is-foco::before { opacity: 1; }
+.painel:focus-within, .celula:focus-visible, .is-foco { border-color: var(--line-2); }
+@media (hover: none) {
+  .painel:active, .celula:active, .qa summary:active { border-color: var(--line-hi); transition-duration: var(--t-micro); }
+}
+/* marcas de canto em L: visor, não borda */
+.painel__canto { position: absolute; width: 8px; height: 8px; border: 1px solid rgb(var(--ac-rgb) / .85); opacity: 0; transform: scale(.6); transition: transform .38s var(--ease), opacity .12s linear; pointer-events: none; z-index: 1; }
+.painel__canto:nth-child(1) { left: 7px; top: 7px; border-right: 0; border-bottom: 0; transform-origin: top left; transform: translate(-4px, -4px) scale(.6); }
+.painel__canto:nth-child(2) { right: 7px; top: 7px; border-left: 0; border-bottom: 0; transform-origin: top right; transform: translate(4px, -4px) scale(.6); transition-delay: .04s; }
+.painel__canto:nth-child(3) { left: 7px; bottom: 7px; border-right: 0; border-top: 0; transform-origin: bottom left; transform: translate(-4px, 4px) scale(.6); transition-delay: .08s; }
+.painel__canto:nth-child(4) { right: 7px; bottom: 7px; border-left: 0; border-top: 0; transform-origin: bottom right; transform: translate(4px, 4px) scale(.6); transition-delay: .12s; }
+.painel:hover .painel__canto, .painel:focus-within .painel__canto, .painel.is-foco .painel__canto { opacity: 1; transform: none; }
+
+/* rótulos de índice: uma gramática só (mono, caixa alta, --t3; âmbar no foco) */
+.servico__n, .celula__n, .laudo__n, .cenario__label {
+  font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase;
+  line-height: 1.4; color: var(--t3); transition: color var(--t-micro) var(--ease-micro);
+}
+.painel:hover .servico__n, .celula:hover .celula__n, .laudo__row:hover .laudo__n,
+.is-foco .servico__n, .is-foco .celula__n, .is-foco .laudo__n { color: var(--ac-3); }
+.cenario__label b { color: var(--ac-3); font-weight: 500; }
+/* o link no pé do módulo */
+.servico__link, .celula__link {
+  display: inline-flex; align-items: center; gap: .5rem; min-height: 44px; margin-top: auto; padding-top: .6rem;
+  font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-ctrl); text-transform: uppercase; color: var(--ac);
+  transition: color var(--t-micro) var(--ease-micro);
+}
+.servico__link span, .celula__link span { display: inline-block; transition: transform var(--t-micro) var(--ease-micro); }
+.painel:hover .servico__link span, .celula:hover .celula__link span { transform: translateX(4px); }
+
+/* ---------- 1. A FAIXA DO HERO: portas da casa em módulos ---------- */
+.hero__rail { display: grid; grid-template-columns: 1fr; gap: var(--vao-lista); border: 0; border-radius: 0; background: none; box-shadow: none; }
+.hero__rail-aresta { display: none; }
+.hero__rail > a, .hero__rail > div:not(.hero__rail-aresta) { display: flex; flex-direction: column; gap: .35rem; padding: 1rem 1.2rem; min-height: 56px; }
+.hero__rail > a:hover .hero__rail-v { color: var(--ac); }
+@media (min-width: 861px) { .hero__rail { gap: clamp(14px, 1.4vw, 20px); } }
+
+/* ---------- 2. SERVIÇOS ---------- */
+.servicos { display: grid; grid-template-columns: 1fr; gap: var(--vao); }
+.servicos > :nth-child(1), .servicos > :nth-child(2) { --tinta-rgb: var(--ac-rgb); }
+.servicos > :nth-child(3) { --tinta-rgb: var(--prata-rgb); }
+.servico { display: flex; flex-direction: column; gap: .6rem; padding: var(--mod-pad); }
+.servico__n { display: flex; align-items: center; gap: .6rem; margin-bottom: .3rem; }
+.servico__n::after { content: ""; width: 40px; height: 1px; background: var(--line-2); transform: scaleX(.5); transform-origin: left; transition: transform var(--t) var(--ease), background-color var(--t) var(--ease); }
+.servico:hover .servico__n::after, .servico.is-foco .servico__n::after { transform: scaleX(1); background-color: var(--ac-3); }
+.servico h3 { font-size: clamp(1.375rem, 1.1rem + 1vw, var(--h3-cartao)); font-weight: 400; letter-spacing: -.025em; line-height: 1.1; }
+.servico p { color: var(--t2); font-size: var(--fs-m); line-height: 1.6; }
+.servico__para { font-size: var(--fs-s); line-height: 1.5; color: var(--t3); }
+.servico__formatos { display: none; }
+@media (min-width: 721px) { .servicos { grid-template-columns: repeat(3, minmax(0, 1fr)); } .servico { min-height: 300px; } }
+/* Hub, desktop: assimetria. O primeiro ocupa a coluna larga nas duas linhas */
+@media (min-width: 981px) {
+  .servicos { grid-template-columns: repeat(12, minmax(0, 1fr)); grid-template-rows: auto auto; column-gap: var(--vao); row-gap: var(--vao); }
+  .servicos > * { grid-column: 8 / -1; }
+  .servicos > :first-child { grid-column: 1 / 8; grid-row: 1 / 3; }
+  .servico { min-height: 0; gap: .9rem; }
+  .servico__link { margin-top: 0; padding-top: .2rem; }
+  .servicos > :first-child .servico__link { margin-top: 1.25rem; }
+  .servicos > :first-child h3 { margin-top: auto; font-size: clamp(2rem, 1.4rem + 1.6vw, 2.75rem); }
+  .servicos > :first-child p { max-width: 44ch; }
+  .servico__formatos { display: block; list-style: none; margin: 0; padding: 0; font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-ctrl); text-transform: uppercase; color: var(--t2); }
+  .servico__formatos li { display: inline; }
+  .servico__formatos li + li::before { content: " / "; color: var(--t3); }
+  .servico__formatos b { display: none; }
+  /* Sites: os três formatos são iguais (sem cartão gigante) */
+  .servicos--pilha > *, .servicos--pilha > :first-child { grid-column: span 4; grid-row: auto; }
+  .servicos--pilha > :first-child h3 { margin-top: 0; font-size: var(--h3-cartao); }
+  .servicos--pilha > :first-child .servico__link, .servicos--pilha .servico__link { margin-top: auto; }
+}
+
+/* ---------- 3. LAUDO (garantias, dores): um módulo por linha ---------- */
+.laudo { display: grid; grid-template-columns: 1fr; gap: var(--vao-lista); border: 0; }
+.laudo__row { display: grid; grid-template-columns: 1fr; gap: .4rem; padding: var(--mod-pad); }
+.laudo__row h3 { font-size: var(--h3-linha); line-height: 1.15; }
+.laudo__row p { color: var(--t2); font-size: var(--fs-m); max-width: 52ch; }
+@media (min-width: 821px) {
+  .laudo { gap: clamp(12px, 1.2vw, 16px); }
+  .laudo__row { grid-template-columns: 3.5rem minmax(0, 5fr) minmax(0, 7fr); column-gap: clamp(16px, 2.4vw, 36px); align-items: first baseline; padding: clamp(1.4rem, 2.2vw, 2rem) var(--mod-pad); }
+  .laudo__row p { grid-column: 3; grid-row: 1; }
+}
+/* Hub: o MANIFESTO (título grande, texto no eixo dos leads) */
+@media (min-width: 981px) {
+  .secao--manifesto .laudo__row { grid-template-columns: 4rem minmax(0, 5fr) minmax(0, 6fr); padding: clamp(1.6rem, 2.4vw, 2.4rem) clamp(24px, 2.6vw, 40px); }
+  .secao--manifesto .laudo__n { color: var(--ac-3); }
+  .secao--manifesto .laudo__row h3 { font-size: var(--fs-h2-lateral); font-weight: 300; letter-spacing: -.03em; line-height: 1.08; }
+}
+
+/* ---------- 4. MALHA (capacidades): seis módulos ---------- */
+.malha { display: grid; grid-template-columns: 1fr; gap: var(--vao); border: 0; background: none; border-radius: 0; overflow: visible; }
+.celula { display: flex; flex-direction: column; gap: .55rem; padding: var(--mod-pad); }
+.celula h3 { font-size: var(--h3-linha); }
+.celula p { color: var(--t2); font-size: var(--fs-m); line-height: 1.6; }
+.celula__link { color: var(--t3); }
+.celula:hover .celula__link, .celula.is-foco .celula__link { color: var(--ac); }
+@media (hover: none) { .celula__link { color: var(--ac); } }
+@media (min-width: 621px) { .malha { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 981px) { .malha { grid-template-columns: repeat(3, minmax(0, 1fr)); } .celula h3, .cenario__title { min-height: calc(2 * 1.2em); } }
+
+/* ---------- 5. CENÁRIOS ---------- */
+.cenarios { display: grid; grid-template-columns: 1fr; gap: var(--vao); }
+.cenarios > :nth-child(1), .cenarios > :nth-child(2) { --tinta-rgb: var(--ac-rgb); }
+.cenarios > :nth-child(3) { --tinta-rgb: var(--prata-rgb); }
+.cenario { display: flex; flex-direction: column; gap: 1.1rem; padding: var(--mod-pad); }
+.cenario__title { font-size: var(--h3-linha); color: var(--t1); }
+.fluxo { list-style: none; display: flex; align-items: center; gap: .5rem 1.25rem; flex-wrap: wrap; margin-top: auto; }
+.fluxo li { position: relative; font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-dado); line-height: 1.4; color: var(--t2); padding: .3rem .5rem; border: 1px solid var(--line-2); border-radius: var(--raio-s); }
+.fluxo li:first-child { border-color: rgb(var(--ac-rgb) / .35); color: var(--t1); }
+/* a seta pertence ao chip seguinte: a quebra de linha a leva junto */
+.fluxo li + li::before { content: "→" / ""; position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: .45rem; color: var(--t3); }
+/* o estado final contornado; o sólido só no foco */
+.fluxo li:last-child { background: rgb(var(--ac-3-rgb) / .1); border-color: rgb(var(--ac-3-rgb) / .55); color: var(--ac-3); font-weight: 600; }
+@media (hover: hover) { .cenario:hover .fluxo li:last-child { background: var(--ac-3); color: var(--ac-3-tinta); } }
+.cenario.is-foco .fluxo li:last-child { background: var(--ac-3); color: var(--ac-3-tinta); }
+@media (min-width: 1100px) {
+  .cenarios { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .cenario { display: grid; grid-template-rows: auto auto 1fr; }
+  .cenario .fluxo { align-self: end; flex-wrap: nowrap; gap: .5rem .85rem; }
+  .cenario .fluxo li { white-space: nowrap; font-size: var(--fs-rotulo); padding: .28rem .42rem; }
+  .cenario .fluxo li + li::before { margin-right: .3rem; }
+}
+
+/* ---------- 6. PERGUNTAS: cada pergunta é um módulo ---------- */
+.faq-list { display: grid; grid-template-columns: 1fr; gap: var(--vao-lista); max-width: 720px; border: 0; }
+.qa { overflow: hidden; }
+.qa summary {
+  list-style: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between; gap: 1.25rem;
+  padding: 1rem var(--mod-pad-s); min-height: 56px;
+  font-weight: 400; font-size: 1.0625rem; letter-spacing: -.01em; line-height: 1.35; color: var(--t1);
+  transition: color var(--t-micro) var(--ease-micro);
+}
+.qa summary::-webkit-details-marker { display: none; }
+.qa summary:hover, .qa summary:focus-visible { color: var(--ac); }
+.qa summary:focus-visible { outline-offset: -3px; }
+.qa summary:hover .qa__mark { border-color: var(--ac); }
+.qa[open] { border-color: rgb(var(--ac-3-rgb) / .35); }
+.qa[open] summary { color: var(--t1); }
+.qa__mark { position: relative; width: 26px; height: 26px; flex: none; border: 1px solid var(--line-2); border-radius: var(--raio-s); transition: border-color var(--t) var(--ease), background-color var(--t) var(--ease); }
+.qa__mark::before, .qa__mark::after { content: ""; position: absolute; background: var(--t1); transition: transform .32s var(--ease), background-color var(--t) var(--ease); }
+.qa__mark::before { left: 7px; top: 12px; width: 10px; height: 1px; }
+.qa__mark::after { left: 12px; top: 7px; width: 1px; height: 10px; transition: transform .35s var(--ease-pop), background-color var(--t) var(--ease); }
+/* o + vira −: o traço vertical gira para a horizontal e some sob o outro */
+.qa[open] .qa__mark::after { transform: rotate(90deg) scaleY(0); }
+.qa[open] .qa__mark::before { transform: scaleX(1.25); background: var(--ac-3); }
+.qa[open] .qa__mark { border-color: var(--ac-3); background: rgb(var(--ac-3-rgb) / .12); }
+.qa__a { padding: 0 var(--mod-pad-s) 1.2rem; }
+.qa__a p { color: var(--t2); font-size: var(--fs-m); max-width: 56ch; }
+/* abrir sem salto, onde o navegador anima altura até auto */
+@supports (interpolate-size: allow-keywords) {
+  .qa { interpolate-size: allow-keywords; }
+  .qa::details-content { height: 0; overflow: clip; transition: height .4s var(--ease), content-visibility .4s allow-discrete; }
+  .qa[open]::details-content { height: auto; }
+}
+@media (prefers-reduced-motion: reduce) { .qa::details-content { transition: none; } }
+html.menos-movimento .qa::details-content { transition: none; }
+
+/* ---------- 7. PADRÃO DE ENTREGA (Sites) ---------- */
+.spec { display: grid; grid-template-columns: 1fr; gap: var(--vao); border: 0; }
+.spec__item { padding: var(--mod-pad); }
+.spec__item h3 { display: flex; align-items: center; gap: .7rem; font-size: var(--h3-linha); margin-bottom: .6rem; line-height: 1.15; }
+.spec__item h3::before { content: ""; width: 8px; height: 8px; border: 1px solid var(--ac-3); background: rgb(var(--ac-3-rgb) / .25); flex: none; transform: rotate(45deg); }
+.spec__item p { color: var(--t2); font-size: var(--fs-m); }
+@media (min-width: 721px) { .spec { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ---------- seções com título fixo ao lado (FAQ, dores) ---------- */
+@media (min-width: 981px) {
+  .section--faq, .secao--fixa { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gut); align-items: start; }
+  .section--faq > .section__head, .secao--fixa > .section__head { grid-column: 1 / 6; display: block; position: sticky; top: calc(var(--nav-h) + 48px); margin-bottom: 0; }
+  .section--faq > .faq-list, .secao--fixa > .laudo { grid-column: 7 / -1; }
+  .section--faq .section__head h2, .secao--fixa .section__head h2 { font-size: var(--fs-h2-lateral); line-height: 1.08; max-width: 14ch; text-wrap: balance; }
+  .section--faq .faq-list { max-width: none; }
+  .section--faq .qa summary { font-size: 1.1875rem; }
+  .secao--fixa .section__head .lead { max-width: 30ch; margin-top: 1.25rem; }
+  /* as dores ao lado do título: índice em Sora 200 grande, título e texto empilhados */
+  .secao--fixa .laudo__row { grid-template-columns: clamp(3rem, 4vw, 4rem) minmax(0, 1fr); column-gap: clamp(16px, 2vw, 28px); row-gap: .4rem; align-items: baseline; }
+  .secao--fixa .laudo__row p { grid-column: 2; grid-row: auto; }
+  .secao--fixa .laudo__n { grid-row: 1; align-self: baseline; font-family: var(--sans); font-weight: 200; font-size: clamp(1.75rem, 1rem + 1.2vw, 2.25rem); line-height: 1; letter-spacing: -.03em; text-transform: none; }
+}

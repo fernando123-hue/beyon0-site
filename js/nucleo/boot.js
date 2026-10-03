@@ -87,7 +87,9 @@
   var JANELA = 90;         /* quadros por medição de fps */
 
   var cena = null, gesto = null;
-  var estado = { t: 0, montagem: 0, abertura: 0, ignicao: 0, desdeIgnicao: -1 };
+  var estado = { t: 0, montagem: 0, abertura: 0, ignicao: 0, desdeIgnicao: -1, atento: 0 };
+  var opcaoSob = false;
+  B.on('opcao', function (d) { opcaoSob = !!(d && d.entrou); });
   var relogio = -1;        /* s desde que a esfera apareceu na tela; -1 = ainda não */
   var visivel = false, liberado = false, parado = false, sujo = true, remedir = true, aceso = false, registrado = false;
   var rolagem = window.scrollY, caixaTopo = 0, caixaAltura = 1;
@@ -262,6 +264,9 @@
        justo quando estava no meio da tela, com os arcos sobre o texto */
     var alvoAbertura = limitar((rolagem - caixaTopo) / caixaAltura);
     estado.abertura += (alvoAbertura - estado.abertura) * Math.min(1, dt * 4);
+    /* atento: o cursor está numa opção do site (js/rede.js avisa); o núcleo
+       clareia de leve, sobe em ~0,25 s e solta em ~0,6 s */
+    estado.atento = (estado.atento || 0) + ((opcaoSob ? 1 : 0) - (estado.atento || 0)) * Math.min(1, dt * (opcaoSob ? 4 : 1.7));
     gesto.passo(dt, estado);
 
     cena.desenhar(estado);

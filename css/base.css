@@ -281,23 +281,11 @@ html:not(.js) .barra.is-oculta { transform: none; opacity: 1; pointer-events: au
 
 /* a trilha: no celular é a linha-instrumento (só a medida); no desktop as
    portas da casa e a medida fechando a primeira tela */
-.hero__rail {
-  position: relative;
-  display: grid; grid-template-columns: 1fr;
-  border: 1px solid var(--line); border-radius: var(--raio); background: linear-gradient(180deg, var(--vidro-2), var(--vidro));
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / .06);
-  margin-top: clamp(24px, 5vw, 40px);
-}
-/* a aresta superior acesa, do ciano à prata — se desenha DEBAIXO do feixe */
-.hero__rail-aresta { position: absolute; left: 8%; right: 8%; top: -1px; height: 1px; background: linear-gradient(90deg, transparent, rgb(var(--ac-rgb) / .7) 30%, rgb(var(--prata-rgb) / .6) 70%, transparent); transform-origin: left; pointer-events: none; }
-.hero__rail > .hero__rail-aresta { display: block; padding: 0; min-height: 0; border: 0; }
+/* os módulos da faixa (vão, borda, fundo) estão em css/cartoes.css */
+.hero__rail { position: relative; margin-top: clamp(24px, 5vw, 40px); }
 @media (max-width: 860px) { .hero__rail { order: 1; margin-top: 16px; } .hero__arte { order: 2; } }
-.hero__rail > * { display: flex; flex-direction: column; gap: .3rem; padding: 1rem 1.2rem; min-height: 56px; border-top: 1px solid var(--line); }
-.hero__rail > *:first-child, .hero__rail > .hero__rail-aresta + * { border-top: 0; }
 .hero__rail > :not(.hero__rail--medida):not(.hero__rail-aresta) { display: none; }
 .hero__rail .hero__rail--medida { flex-direction: row; justify-content: space-between; align-items: center; gap: 1rem; }
-.hero__rail a { transition: background-color var(--t-micro) var(--ease-micro); }
-.hero__rail a:hover { background-color: rgb(var(--ac-rgb) / .06); }
 .hero__rail a:hover .hero__rail-v { color: var(--ac); }
 .hero__rail-k { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; line-height: 1.4; color: var(--t3); }
 .hero__rail-k b { color: var(--ac-3); font-weight: 500; }
@@ -314,8 +302,6 @@ html:not(.js) .barra.is-oculta { transform: none; opacity: 1; pointer-events: au
   .hero__actions { flex-direction: row; flex-wrap: wrap; }
   .hero__actions .btn { width: auto; }
   .hero__rail { grid-template-columns: repeat(3, 1fr); }
-  .hero__rail > * { border-top: 0; border-left: 1px solid var(--line); }
-  .hero__rail > *:first-child, .hero__rail > .hero__rail-aresta + * { border-left: 0; }
   .hero__rail > :not(.hero__rail--medida):not(.hero__rail-aresta) { display: flex; }
   .hero__rail .hero__rail--medida { display: none; }
 }

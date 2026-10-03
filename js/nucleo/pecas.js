@@ -51,15 +51,17 @@ function tela(w, h) {
   return c;
 }
 
+/* a luz do núcleo, NÍTIDA (o dono proíbe desfoque em qualquer coisa,
+   2026-10-03): um disco de borda definida e dois anéis finos, no lugar do
+   degradê radial que lia como brilho borrado. `miolo` dá o tamanho do disco */
 function texturaHalo(THREE, miolo) {
-  const n = 128, c = tela(n, n), g = c.getContext('2d');
-  const r = g.createRadialGradient(n / 2, n / 2, 0, n / 2, n / 2, n / 2);
-  r.addColorStop(0, 'rgba(255,255,255,1)');
-  r.addColorStop(Math.max(0.001, miolo), 'rgba(255,255,255,.85)');
-  r.addColorStop(Math.min(0.999, miolo + 0.2), 'rgba(255,255,255,.2)');
-  r.addColorStop(1, 'rgba(255,255,255,0)');
-  g.fillStyle = r;
-  g.fillRect(0, 0, n, n);
+  const n = 256, c = tela(n, n), g = c.getContext('2d'), m = n / 2;
+  g.fillStyle = 'rgba(255,255,255,1)';
+  g.beginPath(); g.arc(m, m, m * Math.max(0.07, miolo * 1.5), 0, TAU); g.fill();
+  g.strokeStyle = 'rgba(255,255,255,.75)'; g.lineWidth = 2;
+  g.beginPath(); g.arc(m, m, m * 0.52, 0, TAU); g.stroke();
+  g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 1.2;
+  g.beginPath(); g.arc(m, m, m * 0.86, 0, TAU); g.stroke();
   return new THREE.CanvasTexture(c);
 }
 
@@ -83,6 +85,8 @@ function texturaRaios(THREE, nRaios) {
   return new THREE.CanvasTexture(c);
 }
 
+/* o traço horizontal: um fio de 2 px que se afina para as pontas (sem a
+   faixa vertical borrada de reflexo de lente) */
 function texturaTraco(THREE) {
   const w = 512, h = 32, c = tela(w, h), g = c.getContext('2d');
   const gx = g.createLinearGradient(0, 0, w, 0);
@@ -92,14 +96,7 @@ function texturaTraco(THREE) {
   gx.addColorStop(0.6, 'rgba(255,255,255,.45)');
   gx.addColorStop(1, 'rgba(255,255,255,0)');
   g.fillStyle = gx;
-  g.fillRect(0, 0, w, h);
-  g.globalCompositeOperation = 'destination-in';
-  const gy = g.createLinearGradient(0, 0, 0, h);
-  gy.addColorStop(0, 'rgba(0,0,0,0)');
-  gy.addColorStop(0.5, 'rgba(0,0,0,1)');
-  gy.addColorStop(1, 'rgba(0,0,0,0)');
-  g.fillStyle = gy;
-  g.fillRect(0, 0, w, h);
+  g.fillRect(0, h / 2 - 1, w, 2);
   return new THREE.CanvasTexture(c);
 }
 
@@ -108,9 +105,9 @@ function texturaOnda(THREE) {
   const n = 256, c = tela(n, n), g = c.getContext('2d');
   const r = g.createRadialGradient(n / 2, n / 2, 0, n / 2, n / 2, n / 2);
   r.addColorStop(0, 'rgba(255,255,255,0)');
-  r.addColorStop(0.955, 'rgba(255,255,255,0)');
+  r.addColorStop(0.962, 'rgba(255,255,255,0)');
   r.addColorStop(0.97, 'rgba(255,255,255,1)');
-  r.addColorStop(0.985, 'rgba(255,255,255,0)');
+  r.addColorStop(0.978, 'rgba(255,255,255,0)');
   r.addColorStop(1, 'rgba(255,255,255,0)');
   g.fillStyle = r;
   g.fillRect(0, 0, n, n);
@@ -780,11 +777,13 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
     const forca = ig * (1 - ab * 0.6);
     const giro = t * P.vel + (e.giroExtra || 0);
     /* o ponteiro perto do núcleo: ele "percebe" e clareia */
-    const perto = c.f * CA.brilho * suave(1 - Math.hypot(c.x, c.y) / CA.perto);
+    /* ...ou o cursor está numa opção do site (o reator "quer" o clique: clareia de leve) */
+    const perto = c.f * CA.brilho * suave(1 - Math.hypot(c.x, c.y) / CA.perto) + (e.atento || 0) * CA.atento;
     /* a onda do toque: a frente sai do ponto tocado e perde força */
     const tocando = tq.t >= 0 && tq.t < TQ.dura;
-    const frente = tocando ? TQ.vel * tq.t : 0;
-    const forcaOnda = tocando ? (1 - tq.t / TQ.dura) ** 2 : 0;
+    /* a frente arranca devagar (no centro a onda era rápida demais) e a força sobe em vez de nascer cheia */
+    const frente = tocando ? TQ.vel * (tq.t - TQ.arranque * (1 - Math.exp(-tq.t / TQ.arranque))) : 0;
+    const forcaOnda = tocando ? (1 - Math.exp(-tq.t / TQ.ataque)) * (1 - tq.t / TQ.dura) ** 2 : 0;
 
     /* balança devagar, sozinho: mostra a profundidade sem perder a simetria
        de frente. NÃO segue o cursor (pedido do dono: só o núcleo segue) */
@@ -894,7 +893,7 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
        errado: nesse instante a energia está na borda) */
     const chegada = Math.exp(-(x * RS.periodo) / 0.12);
     fluxoRaios.uBase.value = R.base * (1 + 1.8 * chegada);
-    const batida = (1 + R.batida * Math.exp(-chegou * 5) * ig) * (1 + (tocando ? TQ.batida * Math.exp(-tq.t * 6) : 0));
+    const batida = (1 + R.batida * Math.exp(-chegou * 5) * ig) * (1 + (tocando ? TQ.batida * (1 - Math.exp(-tq.t / TQ.sobe)) * Math.exp(-tq.t * TQ.solta) : 0));
     const inspira = 1 + respira(t, RS.nucleo);
     /* o lampejo: a energia entra pelo portal no começo do fôlego */
     const lampejo = desde < A.raios ? 0 : LP.alfa * Math.max(0, 1 - (x * RS.periodo) / LP.dura) * forca;

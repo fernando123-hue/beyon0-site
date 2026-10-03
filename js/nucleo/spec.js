@@ -137,7 +137,7 @@ export const SPEC = {
      (`ergue`), caindo em `raio`; o núcleo clareia quando o ponteiro chega
      perto dele (`perto`, `brilho`). `acende`: quanto o cristal tocado
      ganha de luz (×(1 + acende) no centro do campo e na frente da onda) */
-  campo: { raio: 0.32, empurra: 0.075, ergue: 0.14, perto: 0.4, brilho: 0.22, acende: 2.2 },
+  campo: { raio: 0.32, empurra: 0.075, ergue: 0.14, perto: 0.4, brilho: 0.22, acende: 2.2, atento: 0.16 },
 
   /* o olhar: o corpo do reator NÃO segue o cursor (pedido do dono); só o
      núcleo, como um olho, em qualquer ponto do hero. `alcance`: o quanto
@@ -149,8 +149,15 @@ export const SPEC = {
 
   /* o toque: um clique ou toque no reator solta uma onda que sai do ponto
      tocado e atravessa as lâminas (`vel` unidades/s, `largura` da frente),
-     e o núcleo bate mais forte (`batida`) */
-  toque: { vel: 1.5, largura: 0.11, dura: 1.5, batida: 0.22 },
+     e o núcleo bate mais forte (`batida`).
+     Pedido do dono (2026-10-03): no centro o efeito era rápido demais (a
+     batida sumia em 0,17 s e a onda nascia na velocidade máxima, cruzando a
+     lente em 0,1 s). Agora a frente ARRANCA (`arranque`: a constante de
+     tempo até a velocidade plena; a lente é cruzada em ~0,35 s), a força
+     da onda sobe em `ataque` s em vez de nascer cheia, e a batida sobe em
+     `sobe` s e solta em ~0,45 s (`solta`: taxa). O começo continua
+     imediato: a resposta ao clique não atrasa. */
+  toque: { vel: 1.5, largura: 0.14, dura: 1.8, batida: 0.3, arranque: 0.28, ataque: 0.12, sobe: 0.1, solta: 2.2 },
 
   /* o acendimento corre de dentro para fora: o atraso (s) de cada camada
      depois da ignição */

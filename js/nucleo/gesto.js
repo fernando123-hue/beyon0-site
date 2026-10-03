@@ -29,6 +29,12 @@ const TOQUE_MS = 450;
 const GIRO_PX = 0.0012;    /* rad/s de giro a mais por px rolado num quadro */
 const GIRO_TETO = 0.9;     /* rad/s: rolagem forte não vira hélice */
 const GIRO_SOLTA = 1.3;    /* /s: o impulso morre aos poucos (inércia) */
+/* a AGITAÇÃO (pedido do dono, 2026-10-03: "quando clicássemos demais no
+   núcleo, a rotação geral dele começasse a acelerar"): a partir do 3º toque
+   em JANELA s, cada toque soma `passo` à agitação (0–1); ela gira a roda a
+   mais até `giro` rad/s e se acalma devagar (`acalma`/s). B.agitacao leva
+   o valor ao mini e ao campo */
+const AGITA = { janela: 2.4, desde: 3, passo: 0.22, giro: 2.2, acalma: 0.32 };
 
 const suave = (x) => { const c = Math.min(1, Math.max(0, x)); return c * c * (3 - 2 * c); };
 
@@ -41,7 +47,8 @@ export function criarGesto(cena, canvas, alvoEventos, { fino = false, ouvir } = 
   const ponto = { x: 0, y: 0 };
   const vel = { x: 0, y: 0 };
   const velOlhar = { x: 0, y: 0 };
-  let rolagem = window.scrollY, rolagemAntes = rolagem, impulso = 0;
+  let rolagem = window.scrollY, rolagemAntes = rolagem, impulso = 0, relogio = 0, agitacao = 0;
+  const toques = [];
 
   function medir() {
     const r = canvas.getBoundingClientRect();
@@ -117,18 +124,32 @@ export function criarGesto(cena, canvas, alvoEventos, { fino = false, ouvir } = 
     const alvoF = dentro ? suave((ALCANCE - Math.hypot(ponto.x, ponto.y)) / 0.25) : 0;
     c.f += (alvoF - c.f) * Math.min(1, dt * (alvoF > c.f ? FORCA_SOBE : FORCA_DESCE));
 
+    relogio += dt;
     if (pendente.novo) {
       pendente.novo = false;
-      if (noReator(pendente.cx, pendente.cy, ponto)) { tq.x = ponto.x; tq.y = ponto.y; tq.t = 0; }
+      if (noReator(pendente.cx, pendente.cy, ponto)) {
+        tq.x = ponto.x; tq.y = ponto.y; tq.t = 0;
+        toques.push(relogio);
+        while (toques.length && relogio - toques[0] > AGITA.janela) toques.shift();
+        if (toques.length >= AGITA.desde) {
+          agitacao = Math.min(1, agitacao + AGITA.passo);
+          if (window.BEYON) window.BEYON.emit('nucleo:agitado', agitacao);
+        }
+      }
     } else if (tq.t >= 0) {
       tq.t += dt;
     }
+    agitacao *= Math.exp(-dt * AGITA.acalma);
+    if (agitacao < 0.002) agitacao = 0;
+    e.agitacao = agitacao;
+    if (window.BEYON) window.BEYON.agitacao = agitacao;
 
     /* a rolagem empurra a roda; o impulso morre aos poucos */
     const rolou = Math.abs(rolagem - rolagemAntes);
     rolagemAntes = rolagem;
     impulso = Math.min(GIRO_TETO, impulso + rolou * GIRO_PX) * Math.exp(-dt * GIRO_SOLTA);
-    e.giroExtra = (e.giroExtra || 0) + impulso * dt;
+    /* a agitação acelera a roda (com a curva suave: começa de leve) */
+    e.giroExtra = (e.giroExtra || 0) + (impulso + AGITA.giro * agitacao * agitacao) * dt;
   }
 
   medir();

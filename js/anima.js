@@ -557,31 +557,8 @@
         });
         /* celular: sem hover, o item no meio da tela é o "em foco" (índice âmbar,
            régua acesa). Classe por evento de rolagem, nada por quadro. */
-        /* celular: a pilha tem profundidade. Quando o próximo cartão chega, o de
-           baixo recua (scale .94 e esmaece um pouco), conduzido pela rolagem.
-           Só transform/opacity; sem JS a pilha sticky de CSS continua igual. */
-        mm.add('(max-width: 620px) and (prefers-reduced-motion: no-preference)', function () {
-          if (!ST || html.classList.contains('menos-movimento')) return;
-          var navH = document.querySelector('.nav') ? document.querySelector('.nav').offsetHeight : 64;
-          /* esmaece o MIOLO, nunca o cartão: com o cartão translúcido o texto de
-             baixo vazava pelo da frente (rodada 6). O cartão só recua. */
-          var miolos = [];
-          ['.laudo', '.servicos--pilha'].forEach(function (sel) {
-            var pilha = document.querySelector(sel);
-            if (!pilha) return;
-            var cards = [].slice.call(pilha.children);
-            cards.forEach(function (card, i) {
-              var prox = cards[i + 1];
-              if (!prox) return;
-              var miolo = [].slice.call(card.children).filter(function (c) { return !c.classList.contains('painel__canto'); });
-              miolos = miolos.concat(miolo);
-              gsap.timeline({ scrollTrigger: { trigger: prox, start: 'top 75%', end: 'top ' + (navH + 12 + 14 * (i + 1)) + 'px', scrub: true } })
-                .to(card, { scale: .95, transformOrigin: '50% 0', ease: 'none' }, 0)
-                .to(miolo, { opacity: 0, ease: 'power2.in' }, 0);
-            });
-          });
-          return function () { gsap.set(miolos, { clearProps: 'opacity' }); };
-        });
+        /* (a pilha do celular, cartões sobrepostos ao rolar, saiu em 2026-10-03:
+           o dono pediu módulos separados com vão; css/cartoes.css) */
         mm.add('(max-width: 860px) and (prefers-reduced-motion: no-preference)', function () {
           if (!ST || html.classList.contains('menos-movimento')) return;
           gsap.utils.toArray('.servico, .laudo__row, .celula, .passo, .cenario').forEach(function (el) {
