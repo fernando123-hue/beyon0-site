@@ -556,3 +556,22 @@ Descartado: grades com brilho que segue o mouse, manchas, partículas,
 
 **Processo.** Rodadas com 3 críticos (arte, movimento, celular) retomados
 a cada rodada; resultados e notas no fim desta seção.
+
+**Resultado das rodadas.** Rodada 1: arte 6,5 / movimento 6,5 / celular
+6,5. Rodada 2: 7 / 7,5 / 7 (achado: a rede inteira caía do laço no
+celular por colisão de nome, sem nenhum erro visível — corrigido e o
+verificador agora pega). Rodada 3: 8 / 8,5 / 8. Rodada 4 (confirmação):
+8,5 / 9 / 8,5, "pronto para o dono" nos três. Revisão de código: 4 altas
+e 7 médias corrigidas (o campo não desenhava no movimento reduzido; a
+sugestão podia ficar presa; o módulo atropelava o console e o
+instrumento), conferidas; 0 de segurança. Medido: verificador 12/12 com
+`campo=ok`, acessibilidade ok, 60 fps; LCP em A/B com 48d7c0b igual ou
+melhor (mediana de 5); mini no celular visível ~80% do tempo rolando.
+
+**Ficou para depois (baixo risco, anotado).** Alocações pequenas por
+quadro (`polar`, `doca`), constantes de orientação lidas uma vez
+(`celular`, `ESTREITO`), a leitura do rumo "presa ao aro" (sugestão de
+arte), o "dente" no ponto do engate rotor/estator (sugestão de movimento),
+utilitários duplicados entre rede.js e mini.js.
+
+**Pendente do dono.** Ver no celular dele e dizer como prosseguir.

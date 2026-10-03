@@ -325,7 +325,8 @@
     ctx.lineWidth = 1;
     for (var e = 0; e < elementos.length; e++) {
       var it = elementos[e];
-      if (it.onda < 0.02 || it.y > H + 20 || it.y + it.h < -20) continue;
+      /* só módulos com borda: nos passos e no texto solto a aresta virava um traço flutuando sobre o rótulo */
+      if (!it.liga || it.onda < 0.02 || it.y > H + 20 || it.y + it.h < -20) continue;
       /* dentro do canto arredondado (o traço reto escapava dele, crítica rodada 2) */
       var x0 = it.x + 6, y0 = it.y + 0.5, x1 = it.x + it.w - 6;
       var andou = 1 - it.onda, xa = x0 + (x1 - x0) * Math.min(1, andou * 2.2);

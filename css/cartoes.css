@@ -25,7 +25,7 @@
 @media (max-width: 359px) { :root { --vao: 20px; } }
 
 /* ---------- o módulo ---------- */
-.painel:not(.console):not(.instrumento), .celula, .laudo__row, .qa, .spec__item,
+.painel:not(:where(.console, .instrumento)), .celula, .laudo__row, .qa, .spec__item,
 .hero__rail > a, .hero__rail > div:not(.hero__rail-aresta) {
   position: relative;
   border: 1px solid var(--line); border-radius: var(--raio);
@@ -35,7 +35,7 @@
   transition: border-color var(--t) var(--ease), background-color var(--t) var(--ease);
 }
 /* a aresta de cima: acesa na tinta do módulo (os de tinta sempre; os outros no foco) */
-.painel:not(.console):not(.instrumento)::before, .celula::before, .laudo__row::before, .qa::before, .spec__item::before,
+.painel:not(:where(.console, .instrumento))::before, .celula::before, .laudo__row::before, .qa::before, .spec__item::before,
 .hero__rail > a::before, .hero__rail > div:not(.hero__rail-aresta)::before {
   /* começa e termina depois da curva do canto (um traço de 1 px não segue o arredondado) */
   content: ""; position: absolute; left: calc(var(--raio) - 1px); right: calc(var(--raio) - 1px); top: -1px; height: 1px;
@@ -44,13 +44,13 @@
 }
 .painel--tinta::before { opacity: 1; }
 @media (hover: hover) {
-  .painel:not(.console):not(.instrumento):hover, .celula:hover, .laudo__row:hover, .qa:hover, .spec__item:hover, .hero__rail > a:hover { border-color: var(--line-2); background-color: rgb(16 18 19 / .94); }
-  .painel:not(.console):not(.instrumento):hover::before, .celula:hover::before, .laudo__row:hover::before, .qa:hover::before, .spec__item:hover::before, .hero__rail > a:hover::before { opacity: 1; }
+  .painel:not(:where(.console, .instrumento)):hover, .celula:hover, .laudo__row:hover, .qa:hover, .spec__item:hover, .hero__rail > a:hover { border-color: var(--line-2); background-color: rgb(16 18 19 / .94); }
+  .painel:not(:where(.console, .instrumento)):hover::before, .celula:hover::before, .laudo__row:hover::before, .qa:hover::before, .spec__item:hover::before, .hero__rail > a:hover::before { opacity: 1; }
 }
-.painel:not(.console):not(.instrumento):focus-within::before, .celula:focus-visible::before, .qa[open]::before, .is-foco::before { opacity: 1; }
-.painel:not(.console):not(.instrumento):focus-within, .celula:focus-visible, .is-foco { border-color: var(--line-2); }
+.painel:not(:where(.console, .instrumento)):focus-within::before, .celula:focus-visible::before, .qa[open]::before, .is-foco::before { opacity: 1; }
+.painel:not(:where(.console, .instrumento)):focus-within, .celula:focus-visible, .is-foco { border-color: var(--line-2); }
 @media (hover: none) {
-  .painel:not(.console):not(.instrumento):active, .celula:active, .qa summary:active { border-color: var(--line-hi); transition-duration: var(--t-micro); }
+  .painel:not(:where(.console, .instrumento)):active, .celula:active, .qa summary:active { border-color: var(--line-hi); transition-duration: var(--t-micro); }
 }
 /* marcas de canto em L: visor, não borda */
 .painel__canto { position: absolute; width: 8px; height: 8px; border: 1px solid rgb(var(--ac-rgb) / .85); opacity: 0; transform: scale(.6); transition: transform .38s var(--ease), opacity .12s linear; pointer-events: none; z-index: 1; }
@@ -80,11 +80,18 @@
 /* o mini AI Core sugere esta opção (js/mini.js): a borda e o link acendem enquanto ele aponta */
 .is-sugerido { border-color: var(--line-hi); }
 .is-sugerido::before { opacity: 1; }
-.is-sugerido .servico__link, .is-sugerido .celula__link, a.is-sugerido:not(.btn) { color: var(--ac); text-decoration: underline 1px; text-underline-offset: 5px; }
+/* o sublinhado só no link do pé (o cartão-âncora inteiro ficava sublinhado) */
+.is-sugerido .servico__link, .is-sugerido .celula__link { color: var(--ac); }
+.is-sugerido .servico__link::after, .is-sugerido .celula__link::after { transform: none; }
+.hero__rail > a.is-sugerido .hero__rail-v { color: var(--ac); }
 .btn.is-sugerido { outline: 1px solid var(--line-hi); outline-offset: 4px; }
 .is-sugerido .servico__link span, .is-sugerido .celula__link span { transform: translateX(4px); }
+/* o traço da sugestão: 1 px sob o RÓTULO (não sob a seta), riscado da esquerda para a direita */
+/* o link tem a largura do próprio texto (no celular esticava até a largura do cartão) */
+.servico__link, .celula__link { position: relative; align-self: flex-start; }
+.servico__link::after, .celula__link::after { content: ""; position: absolute; left: 0; right: calc(.5rem + .72em); top: calc(50% + .85em); height: 1px; background: currentColor; transform: scaleX(0); transform-origin: left; transition: transform var(--t) var(--ease); pointer-events: none; }
 /* os vizinhos recuam enquanto ele aponta: dá para ver QUAL ele sugere */
-:has(> .is-sugerido) > :not(.is-sugerido) .servico__link, :has(> .is-sugerido) > :not(.is-sugerido) .celula__link { opacity: .6; transition: opacity var(--t) var(--ease); }
+.servicos:has(> .is-sugerido) > :not(.is-sugerido) .servico__link, .malha:has(> .is-sugerido) > :not(.is-sugerido) .celula__link { opacity: .6; transition: opacity var(--t) var(--ease); }
 
 /* ---------- 1. A FAIXA DO HERO: portas da casa em módulos ---------- */
 .hero__rail { display: grid; grid-template-columns: 1fr; gap: var(--vao-lista); border: 0; border-radius: 0; background: none; box-shadow: none; }
