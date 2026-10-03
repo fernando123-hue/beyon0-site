@@ -82,10 +82,12 @@
   /* de onde ele vem: a página anterior deixou onde ele estava (fração da tela) */
   try {
     var veio = JSON.parse(sessionStorage.getItem('bz-mini') || 'null');
-    if (veio && Date.now() - veio.quando < VEIO_MS) { mini.x = veio.x * tela.W; mini.y = veio.y * tela.H; mini.vis = 1; primeiro = false; chegando = true; }
+    if (veio && Date.now() - veio.quando < VEIO_MS && isFinite(veio.x) && isFinite(veio.y)) {
+      mini.x = veio.x * tela.W; mini.y = veio.y * tela.H; mini.vis = isFinite(veio.vis) ? veio.vis : 1; primeiro = false; chegando = true;
+    }
   } catch (e) { /* sem armazenamento: começa na lateral */ }
   window.addEventListener('pagehide', function () {
-    try { sessionStorage.setItem('bz-mini', JSON.stringify({ x: mini.x / tela.W, y: mini.y / tela.H, quando: Date.now() })); } catch (e) { /* idem */ }
+    try { sessionStorage.setItem('bz-mini', JSON.stringify({ x: mini.x / tela.W, y: mini.y / tela.H, vis: +mini.vis.toFixed(2), quando: Date.now() })); } catch (e) { /* idem */ }
   });
 
   /* as bordas da coluna de conteúdo (o --pad e a largura máxima do CSS) */
@@ -114,8 +116,9 @@
     if (celular) return destinoCelular(W, H);
     var sorte = Math.random();
     if (sorte < 0.35) {
-      var a = B.rede.cantoPerto(null, mini.x, mini.y, 520);
-      if (a && a.item.el.matches('.painel, .cenario, .celula, .qa, .spec__item, .prova__item')) {
+      /* um canto sorteado longe o bastante para ser um passeio (o mais perto era o cartão ao lado da doca) */
+      var a = B.rede.cantoAoAcaso(mini.x, mini.y, 150, 600, function (c) { return c.item.el.matches('.painel, .cenario, .celula, .qa, .spec__item, .prova__item'); });
+      if (a) {
         /* pousa logo fora do canto, na diagonal */
         return { ancora: a, ox: (a.cx ? 1 : -1) * 14, oy: (a.cy ? 1 : -1) * 14, item: a.item };
       }
@@ -261,6 +264,7 @@
     perto += ((B.rede.sobreTexto(mini.x, mini.y, 9 * ESCALA + 12, 9 * ESCALA + 10) ? 1 : 0) - perto) * Math.min(1, dt / 0.4);
     alvoVis *= 1 - 0.5 * perto;
     if (primeiro || B.reduced) {
+      if (B.reduced) { feixe = null; pulso = 0; mini.carga = 0; bote = null; foco = null; reemitir = null; passeio.estado = 'doca'; }
       mini.x = alvoX; mini.y = alvoY; mini.vx = mini.vy = 0; primeiro = false;
       mini.vis = alvoVis; mini.ativo = mini.vis > 0.05; ativoAntes = mini.ativo;
       return;
@@ -368,10 +372,17 @@
   }
 
   /* o corpo, no canvas dele (acima das seções) */
+  var pintadoParado = -1;
   function pintarCorpo() {
     var ativo = mini.ativo;
     if (ativo !== corpoVisivel) { corpo.style.opacity = ativo ? '1' : '0'; corpoVisivel = ativo; }
     if (!ativo) return;
+    /* reduzido: um quadro parado; só repinta quando ele muda de lugar ou de visibilidade */
+    if (B.reduced) {
+      var sinal = Math.round(mini.x) * 13 + Math.round(mini.y) * 17 + Math.round(mini.vis * 20);
+      if (sinal === pintadoParado) return;
+      pintadoParado = sinal;
+    } else pintadoParado = -1;
     corpo.style.transform = 'translate3d(' + (mini.x - CORPO / 2).toFixed(1) + 'px,' + (mini.y - CORPO / 2).toFixed(1) + 'px,0)';
     var t = B.relogio(), F = B.FOLEGO, fx = ((t / F.periodo) % 1 + 1) % 1;
     var folego = B.reduced ? 1 : fx < F.inspira ? suave(fx / F.inspira) : 1 - suave((fx - F.inspira) / (1 - F.inspira));

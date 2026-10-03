@@ -66,17 +66,18 @@
   var ancoras = [], elementos = [], textos = [], naTela = [], campos = [], caixaNucleo = null;
   var ponteiro = { x: -1e4, y: -1e4, ativo: false, a: 0 };
   var rolagem = window.scrollY, rolagemAntes = rolagem, velRol = 0;
-  var sujo = true, parado = !!B.reduced, desenhouParado = false, assinatura = '';
+  var sujo = true, parado = !!B.reduced, desenhouParado = false, assinatura = -1, iniciada = false;
 
   function limitar(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
   function suave(x) { x = limitar(x); return x * x * (3 - 2 * x); }
   function faseDoFolego(t) { var F = B.FOLEGO; return ((t / F.periodo) % 1 + 1) % 1; }
 
   /* ---------- os feixes ---------- */
+  var telaAgora = { W: 0, H: 0, topo: 0 };
   var feixes = B.feixes({
     ctx: ctx, cores: { AC: AC, AC2: AC2, T1: T1 }, celular: celular,
     naZona: function (x, y) { return naZona(x, y); },
-    tela: function () { return { W: W, H: H, topo: navH }; },
+    tela: function () { telaAgora.W = W; telaAgora.H = H; telaAgora.topo = navH; return telaAgora; },
     campos: function () { return campos; },
     trilhoX: function () { return celular ? W - TRILHO_BORDA : null; },
     aoEvento: function (tipo, x, y) { var m = B.rede.extra; if (m && m.aoEsbarrao) m.aoEsbarrao(tipo, x, y); }
@@ -109,20 +110,19 @@
   function medirDocumento() {
     var prender = B.redeTexto ? B.redeTexto.soltar() : function () {};
     grudes = B.redeTexto ? B.redeTexto.grudes(posicaoDoc) : [];
-    var lista = document.querySelectorAll(SELETOR), i;
+    var lista = document.querySelectorAll(SELETOR), i, antes = elementos.slice();
     elementos.length = 0; ancoras.length = 0; textos.length = 0;
     for (i = 0; i < lista.length; i++) {
       var el = lista[i];
       if (!el.offsetWidth || el.closest('[aria-hidden="true"]:not(.hero__arte)') || el.closest('.nav, .barra')) continue;
-      var p = posicaoDoc(el), w = el.offsetWidth, h = el.offsetHeight;
-      var item = { el: el, ativo: 0, ancoras: [], secao: el.closest('section'), ref: refDe(el) };
-      var cantos = [[0, 0], [1, 0], [0, 1], [1, 1]];
-      for (var c = 0; c < cantos.length; c++) {
-        var a = { dx: p.x + w * cantos[c][0], dy: p.y + h * cantos[c][1], x: 0, y: 0, item: item, cx: cantos[c][0], cy: cantos[c][1] };
-        item.ancoras.push(a);
-        ancoras.push(a);
+      var p = posicaoDoc(el), w = el.offsetWidth, h = el.offsetHeight, item = null;
+      for (var k = 0; k < antes.length && !item; k++) if (antes[k].el === el) item = antes[k];
+      if (!item) {
+        item = { el: el, ativo: 0, ancoras: [], secao: el.closest('section') };
+        for (var c = 0; c < 4; c++) item.ancoras.push({ dx: 0, dy: 0, x: 0, y: 0, item: item, cx: c & 1, cy: c >> 1 });
       }
-      item.w = w; item.h = h;
+      item.ref = refDe(el); item.w = w; item.h = h;
+      for (var c2 = 0; c2 < 4; c2++) { var a = item.ancoras[c2]; a.dx = p.x + w * a.cx; a.dy = p.y + h * a.cy; ancoras.push(a); }
       elementos.push(item);
     }
     var nav = document.querySelector('.nav');
@@ -155,12 +155,12 @@
     it.ativo = 1; it.rapido = false;
     var a0 = it.ancoras[0], a3 = it.ancoras[3];
     if (a0.y > navH && a0.y < H) {
-      if (celular) feixes.criar(a0.x, a0.y, 2, { carga: 0.6, reto: it.h, forcar: true });
-      else feixes.criar(a0.x, a0.y, 0, { carga: 0.6, reto: it.w, forcar: true });
+      if (celular) feixes.criar(a0.x, a0.y, 2, { carga: 0.6, reto: it.h, forcar: true, vida: 3 + Math.random() * 2 });
+      else feixes.criar(a0.x, a0.y, 0, { carga: 0.6, reto: it.w, forcar: true, vida: 3 + Math.random() * 2 });
     }
     if (a3.y > navH && a3.y < H) {
-      if (celular) feixes.criar(a3.x, a3.y, 6, { carga: 0.6, reto: it.h, forcar: true });
-      else feixes.criar(a3.x, a3.y, 4, { carga: 0.6, reto: it.w, forcar: true });
+      if (celular) feixes.criar(a3.x, a3.y, 6, { carga: 0.6, reto: it.h, forcar: true, vida: 3 + Math.random() * 2 });
+      else feixes.criar(a3.x, a3.y, 4, { carga: 0.6, reto: it.w, forcar: true, vida: 3 + Math.random() * 2 });
     }
     var extra = B.rede.extra;
     if (!semMini && extra && extra.aoAcender) extra.aoAcender(it);
@@ -177,6 +177,7 @@
   /* ---------- medida ---------- */
   function medir() {
     var w = window.innerWidth, h = window.innerHeight, d = Math.min(window.devicePixelRatio || 1, celular ? 1.25 : 1.5);
+    if (w !== W && W) for (var t = feixes.lista.length - 1; t >= 0; t--) if (feixes.lista[t].trilho) feixes.lista.splice(t, 1);
     if (w !== W || h !== H || d !== dpr) {
       W = w; H = h; dpr = d;
       cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
@@ -197,8 +198,7 @@
     if (sujo) medir();
     if (parado) {
       /* reduzido: redesenha quando a página rola ou o mini muda (salto por âncora, menu) */
-      var m0 = B.rede.extra;
-      var ass = Math.round(rolagem) + ':' + (m0 ? Math.round(m0.x) + ',' + Math.round(m0.y) + ',' + m0.vis.toFixed(2) : '');
+      var m0 = B.rede.extra, ass = Math.round(rolagem) * 7 + (m0 ? Math.round(m0.x) * 13 + Math.round(m0.y) * 17 + Math.round(m0.vis * 20) : 0);
       if (ass !== assinatura) { assinatura = ass; desenhouParado = false; }
       if (!desenhouParado) { posicionar(); desenhar(); desenhouParado = true; }
       return;
@@ -226,7 +226,7 @@
     }
   }
 
-  var atratores = [], ultimoToque = {}, faseAntes = 0;
+  var atratores = [], faseAntes = 0;
   function passo(dt, t) {
     var F = B.FOLEGO, x = faseDoFolego(t);
     folego = x < F.inspira ? suave(x / F.inspira) : 1 - suave((x - F.inspira) / (1 - F.inspira));
@@ -234,7 +234,7 @@
     rolagemAntes = rolagem;
     velRol += (dy / Math.max(dt, 0.001) - velRol) * Math.min(1, dt * 6);
     posicionar();
-    feixes.deslocar(dy * PARALAXE);
+    if (Math.abs(dy) < H * 0.5) feixes.deslocar(dy * PARALAXE);   /* salto (âncora, rolagem restaurada): ficam onde estão */
     for (var e = 0; e < elementos.length; e++) if (elementos[e].ativo > 0) elementos[e].ativo = Math.max(0, elementos[e].ativo - dt * (elementos[e].rapido ? 5 : 0.9));
     ponteiro.a += ((ponteiro.ativo ? 1 : 0) - ponteiro.a) * Math.min(1, dt * 4);
 
@@ -269,8 +269,8 @@
   function tocar(t) {
     if (ponteiro.a < 0.5) return;
     var f = feixes.perto(ponteiro.x, ponteiro.y, TOQUE);
-    if (!f || t - (ultimoToque[f.id] || -9) < 1.5) return;
-    ultimoToque[f.id] = t;
+    if (!f || t - (f.tocadoEm || -9) < 1.5) return;
+    f.tocadoEm = t;
     f.carga = 1;
     feixes.evento('toque', f.x, f.y);
   }
@@ -371,12 +371,6 @@
   B.rede = {
     extra: null,
     feixes: feixes,
-    /* um feixe de `de` na direção de `para` (forte: passa do limite) */
-    lancar: function (de, para, opcoes) {
-      if (parado) return null;
-      var o = opcoes || {};
-      return feixes.criar(de.x, de.y, feixes.dirDe(para.x - de.x, para.y - de.y), { forcar: true, carga: o.carga || 0.8, cauda: o.cauda, vida: o.vida, reto: o.reto });
-    },
     /* `n` feixes saindo de p em direções espalhadas */
     dispararDe: function (p, n) {
       if (parado) return;
@@ -399,6 +393,19 @@
       }
       return melhor;
     },
+    /* um canto na tela, sorteado entre os que estão de `min` a `max` px de (x, y) e passam no `filtro` */
+    cantoAoAcaso: function (x, y, min, max, filtro) {
+      var escolhido = null, n = 0;
+      for (var i = 0; i < ancoras.length; i++) {
+        var a = ancoras[i];
+        if (a.y < navH + 40 || a.y > H - 40 || (filtro && !filtro(a))) continue;
+        var d = Math.hypot(a.x - x, a.y - y);
+        if (d < min || d > max) continue;
+        n++;
+        if (Math.random() * n < 1) escolhido = a;   /* amostragem uniforme sem lista */
+      }
+      return escolhido;
+    },
     /* um texto chega a menos de `rx` px na horizontal e `ry` px na vertical? */
     sobreTexto: function (x, y, rx, ry) {
       if (ry === undefined) ry = rx;
@@ -409,8 +416,7 @@
       }
       return false;
     },
-    rodapeNaTela: function () { return rodapeY - rolagem; },
-    tela: function () { return { W: W, H: H, topo: navH }; }
+    rodapeNaTela: function () { return rodapeY - rolagem; }
   };
 
   /* ---------- eventos (só anotam) ---------- */
@@ -421,8 +427,10 @@
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(pedirMedida);
   /* o clique (ou o toque, no celular: o click só vem de toque, nunca de
      rolagem) solta um pulso de energia no ponto */
+  var ultimoPulso = 0;
   document.addEventListener('click', function (e) {
-    if (parado || !e.isTrusted || e.clientY < navH) return;
+    if (parado || !iniciada || !e.isTrusted || e.clientY < navH || e.timeStamp - ultimoPulso < 350) return;
+    ultimoPulso = e.timeStamp;
     feixes.pulso(e.clientX, e.clientY, 4);
   }, { passive: true });
   if (ponteiroFino) {
@@ -452,11 +460,15 @@
   }
   B.on('reduzir', function (sim) {
     parado = !!sim; desenhouParado = false;
-    if (parado) congelar();
+    if (!parado || !iniciada) return;
+    for (var e = 0; e < elementos.length; e++) elementos[e].ativo = 0;
+    congelar();
   });
 
-  /* movimento reduzido: um quadro só, com os feixes já andados (nada se move depois) */
+  /* movimento reduzido: um quadro só, com os feixes já andados (nada se move
+     depois). Com as zonas e o campo já postos: eles contornam o texto e o reator */
   function congelar() {
+    posicionar();
     if (!feixes.lista.length) for (var i = 0; i < feixes.alvo(); i++) feixes.semear();
     for (var k = 0; k < 45; k++) feixes.passo(1 / 30, { atratores: [], semear: false });
     feixes.limparEventos();
@@ -467,6 +479,8 @@
      primeira visita, depois do load (nada no caminho da 1ª pintura) e
      acendendo devagar */
   function comecar() {
+    rolagem = rolagemAntes = window.scrollY;
+    iniciada = true;
     medir();
     if (herdada) { feixes.herdar(herdada, W, H); herdada = null; }
     if (parado) congelar();

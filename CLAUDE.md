@@ -55,12 +55,12 @@ css/motion.css (estados iniciais html.js, varredura do painel, régua do kicker,
 js/ancoras.js (head: html.js + âncoras antigas) · tel.js · core.js (loop, estado S, fps, reduzir, B.num pt-BR)
 js/pagina.js (nav, menu, WA, seção atual, barra do celular, medidas: carga, peso, fps, FCP, cascata, log do console, interruptor)
 js/anima.js (GSAP: boot do hero, cota, rota, palco da prova, fecho, entradas por seção, pilha do celular, pouso em âncora) · lead-form.js (só automação)
-js/nucleo/ (AI Core, só no Hub): boot.js (clássico: centra a luz do hero, publica B.nucleo, porteiro, import() depois do load, laço via B.add) · cena.js · gesto.js (ponteiro/dedo/toque/rolagem → estado) · pecas.js (emissor + shaders) · spec.js (o reator em dados, respiração e campo) · lab.js (laboratório, fora do deploy)
-js/rede.js (canvas 2D de fundo em todas as páginas: nós, conversas, cantos dos elementos, trilho no celular) · rede-texto.js (zonas sem rede: todo texto, miolo de cartões, dados) · rede-reator.js (só Hub: a constelação de 12 tempos presa ao reator) · mini.js (o mini AI Core que segue a visita; corpo num canvas próprio acima das seções). Relógio comum: B.relogio/B.FOLEGO em core.js. Histórico e decisões: PLANO-AI-CORE.md §16
+js/nucleo/ (AI Core, só no Hub): boot.js (clássico: mede o centro do reator, publica B.nucleo, porteiro, import() depois do load, laço via B.add) · cena.js · gesto.js (ponteiro/dedo/toque/rolagem → estado) · pecas.js (emissor + shaders) · spec.js (o reator em dados, respiração e campo) · lab.js (laboratório, fora do deploy)
+js/feixes.js (o motor dos feixes de energia: 8 direções, junção, choque, campos) · rede.js (canvas 2D de fundo em todas as páginas: a ponte dos feixes com a página — texto, cartões, cursor, clique/toque, rolagem, trilho no celular, o CAMPO do AI Core e o fôlego dele) · rede-texto.js (zonas sem rede: todo texto, miolo de cartões, dados) · mini.js (o mini AI Core: doca, passeio, absorve e reemite feixes; corpo num canvas próprio acima das seções). Relógio comum: B.relogio/B.FOLEGO em core.js. Histórico e decisões: PLANO-AI-CORE.md §16 e §17. Sem desfoque em lugar nenhum (pedido do dono): só traço nítido
 vendor/three/three-nucleo.min.js (three r160 reduzido às classes da esfera; receita em vendor/three/README.md)
 ```
 
-**O AI Core** (PLANO-AI-CORE.md) é o único WebGL do site (a rede de fundo e o mini AI Core são canvas 2D, §16): monta por cima
+**O AI Core** (PLANO-AI-CORE.md) é o único WebGL do site (a rede de fundo e o mini AI Core são canvas 2D, §16–17) e é soberano: nada do fundo fica grudado nele, o cenário se molda a ele (§17). Monta por cima
 de um desenho em CSS que reserva o lugar (sem CLS) e fica sozinho sem JS,
 sem GPU (o WebGL é testado ANTES de baixar o three) ou com economia de
 dados. Movimento reduzido: um quadro, parado e aceso. Degrada medindo

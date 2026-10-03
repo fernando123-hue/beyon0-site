@@ -451,3 +451,55 @@ A medida de texto custa 1,2 ms por evento.
 curva da tela). E uma decisão: a cota "1ª pintura em X s" mostra o número
 real; num aparelho fraco pode mostrar 10 s numa página que vende
 velocidade (o verificador viu 10,5 s na 1ª carga do navegador de teste).
+
+## 17. Sem desfoque, os feixes, o mini com vontade própria e o reator soberano (2026-10-02, 13ª sessão)
+
+Quatro pedidos do dono, feitos em quatro partes (um commit cada):
+
+1. **"Tire todos os blur, esses brilhos meio desfocados: só poluem e deixam
+   genérico"** (`ec08dac`). Saíram as manchas da atmosfera, da Conversa, do
+   canto dos painéis e das células, a luz do núcleo no hero, o halo do fio
+   de varredura, os brilhos de hover, o vidro fosco da nav e da barra, o
+   brilho e a luz do mini, e no AI Core a bruma larga, o traço largo e o
+   disco de luz atrás do portal. O núcleo mantém o ponto quente (curto). A
+   nav e a barra ficaram opacas (`e1b4b77`): translúcidas sem desfoque, o
+   texto passava por baixo como fantasma.
+2. **"Ao invés de formas paradas que se conectam de vez em quando, feixes
+   de energia andando frequentemente e gerando interação quando se
+   esbarram; e eles interagem com o usuário"** (`e1b4b77`). `js/feixes.js`
+   é o motor (cabeça + cauda nítida de 1 px, 8 direções em passos de 45°,
+   decisão a cada 28 px; contorna texto e cartões). Junção (cruzar a cauda
+   de outro): losango, carga, às vezes um ramo. Choque (cabeça com cabeça):
+   anel e faíscas, os dois se recolhem no ponto e sai um feixe na soma das
+   direções. `js/rede.js` virou a ponte com a página: o cursor atrai e
+   carrega; clique/toque solta um pulso de 4; rolar acelera; cartão aceso
+   solta 2 feixes que percorrem as bordas; no celular o trilho da margem
+   direita tem feixes que sobem e descem; os feixes continuam entre páginas.
+   A folga do texto no celular caiu de 16 para 8 px (era para os pontos da
+   malha; com 16 a margem sumia). A malha antiga e `rede-reator.js` estão
+   em `ec08dac`.
+3. **"O mini deve se movimentar de vez em quando para outros lados em vez
+   de ficar apenas descendo em linha reta, e interagir junto com o fundo"**
+   (`ed49f6d`). Passeio (doca → indo → parado → voltando) a cada 8–14 s
+   parado: margem do outro lado, vão livre ou canto de um cartão (que
+   acende); em trechos de 45°; rolar rápido o chama de volta. No celular só
+   sai por uma faixa sem texto (na margem esquerda de 20 px ele cobria o
+   começo das linhas). Com o fundo: atrai feixes, absorve o que chega nele
+   e reemite carregado (pausa de 1,6 s: com 0,8 virava aspirador, 13 em
+   30 s), bote curto, olha para choques perto.
+4. **"Tire as partes do fundo grudadas no AI Core: degradam a imagem
+   soberana; o cenário deve se moldar e interagir com ele, não o
+   contrário"** (`d103c1c`). Saiu o `.cosmos` (escuro radial centrado
+   nele). O reator é um CAMPO para a rede (elipse a 1,36 do raio de
+   entrada; a régua de fora está a 1,26): nenhum feixe cruza a face,
+   contornam; nada é desenhado sobre ele. Inspirando, ele puxa os feixes de
+   perto e os que tocam a borda entregam a energia; no começo do expirar
+   solta 3 feixes carregados. Sem WebGL o campo vem da caixa do desenho em
+   CSS. O reator em si não mudou.
+
+**Medido.** A/B com `ec08dac` na mesma sessão: 60 fps nos dois, script por
+6 s igual ou menor, 13 KB a menos. Mini em 30 s parado: 2 passeios por
+aparelho. Reator em 21 s: 7 entregas, 9 feixes soltos, 0 cabeças dentro do
+campo no desktop. Verificador 12/12, acessibilidade ok.
+
+**Pendente do dono.** Ver tudo no celular dele e dizer como prosseguir.

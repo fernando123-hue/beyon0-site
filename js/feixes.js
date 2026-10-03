@@ -82,10 +82,13 @@
     /* ---------- nascer ---------- */
     function criar(x, y, d, o) {
       o = o || {};
-      if (!o.forcar && vivos() >= alvo() + EXTRA) return null;
+      var n = vivos();
+      /* forçado passa do limite comum, nunca do teto: hover em fileira de cartões e toques seguidos saturavam o fundo */
+      if (n >= alvo() + EXTRA * (o.forcar ? 2 : 1)) return null;
+      if (!(d >= 0 && d < 8) || !isFinite(x) || !isFinite(y)) return null;
       var f = {
         id: proxId++, x: x, y: y, d: d, vx: DIRS[d][0], vy: DIRS[d][1],
-        vel: o.vel || acaso(VEL[0], VEL[1]), cauda: o.cauda || acaso(CAUDA[0], CAUDA[1]),
+        vel: Math.min(VEL[1] * 1.3, o.vel || acaso(VEL[0], VEL[1])),   /* teto: absorvido e reemitido várias vezes, acelerava sem fim */ cauda: o.cauda || acaso(CAUDA[0], CAUDA[1]),
         pts: [{ x: x, y: y }], anda: 0, idade: 0, vida: o.vida || acaso(VIDA[0], VIDA[1]),
         carga: o.carga || 0, morre: false, trilho: !!o.trilho, base: acaso(0.5, 0.7), px: x, py: y, ini: null,
         reto: o.reto || 0   /* px que ele anda reto antes de decidir (o feixe que percorre a borda de um cartão) */
@@ -150,19 +153,20 @@
         var p = f.pts[i], seg = Math.hypot(ax - p.x, ay - p.y);
         if (seg >= resta) {
           var k = seg ? resta / seg : 0;
-          f.ini = { i: i, x: ax + (p.x - ax) * k, y: ay + (p.y - ay) * k };
+          if (!f.ini) f.ini = { x: 0, y: 0 };
+          f.ini.x = ax + (p.x - ax) * k; f.ini.y = ay + (p.y - ay) * k;
           if (i > 0) f.pts.splice(0, i);
-          f.ini.i = 0;
           return;
         }
         resta -= seg; ax = p.x; ay = p.y;
       }
-      f.ini = { i: 0, x: f.pts[0].x, y: f.pts[0].y };
+      if (!f.ini) f.ini = { x: 0, y: 0 };
+      f.ini.x = f.pts[0].x; f.ini.y = f.pts[0].y;
     }
 
     /* ---------- esbarrões ---------- */
-    function evento(tipo, x, y, extra) {
-      eventos.push({ tipo: tipo, x: x, y: y, t: 0, dura: EVENTO_DURA[tipo], d: extra || 0 });
+    function evento(tipo, x, y) {
+      eventos.push({ tipo: tipo, x: x, y: y, t: 0, dura: EVENTO_DURA[tipo] });
     }
     function parLivre(a, b) {
       var k = a.id < b.id ? a.id + ':' + b.id : b.id + ':' + a.id;
@@ -191,9 +195,10 @@
         if (a.morre || a.idade < IMUNE || (a.px === a.x && a.py === a.y)) continue;
         for (var j = 0; j < lista.length; j++) {
           var o = lista[j];
-          if (o === a || !o.ini || o.idade < IMUNE) continue;
-          if (!o.morre && j > i && Math.hypot(a.x - o.x, a.y - o.y) < CHOQUE_DIST) {
-            if (parLivre(a, o)) choque(a, o, (a.x + o.x) / 2, (a.y + o.y) / 2);
+          if (o === a || !o.ini || o.idade < IMUNE || o.morre) continue;
+          if (j > i && Math.hypot(a.x - o.x, a.y - o.y) < CHOQUE_DIST) {
+            if (!parLivre(a, o)) continue;
+            choque(a, o, (a.x + o.x) / 2, (a.y + o.y) / 2);
             break;
           }
           /* a cabeça de a, neste quadro, cruzou a cauda visível de o? */
@@ -204,7 +209,7 @@
             qx = rx; qy = ry;
           }
           if (!p || !parLivre(a, o)) continue;
-          if (!o.morre && Math.hypot(o.x - p.x, o.y - p.y) < CHOQUE_NA_CAUDA) choque(a, o, p.x, p.y);
+          if (Math.hypot(o.x - p.x, o.y - p.y) < CHOQUE_NA_CAUDA) choque(a, o, p.x, p.y);
           else juncao(a, o, p.x, p.y);
           if (a.morre) break;
         }
@@ -213,13 +218,19 @@
 
     /* ---------- por quadro ---------- */
     /* amb: { atratores: [{ x, y, r, s }], vento (multiplicador da velocidade), semear (bool) } */
-    var proxSemente = 0;
+    var proxSemente = 0, atr = [], vizinhos = [];
     function passo(dt, amb) {
       relogio += dt;
       var T = op.tela(), i, f;
       /* os vizinhos se procuram: cada cabeça viva puxa as outras de leve */
-      var atr = amb.atratores.slice();
-      for (i = 0; i < lista.length; i++) if (!lista[i].morre && !lista[i].trilho) atr.push({ x: lista[i].x, y: lista[i].y, r: 280, s: 1.2, dono: lista[i] });
+      atr.length = 0;
+      for (i = 0; i < amb.atratores.length; i++) atr.push(amb.atratores[i]);
+      for (i = 0; i < lista.length; i++) {
+        if (lista[i].morre || lista[i].trilho) continue;
+        var vz = vizinhos[i] || (vizinhos[i] = { x: 0, y: 0, r: 280, s: 1.2 });
+        vz.x = lista[i].x; vz.y = lista[i].y;
+        atr.push(vz);
+      }
       for (i = lista.length - 1; i >= 0; i--) {
         f = lista[i];
         f.px = f.x; f.py = f.y;
@@ -253,7 +264,8 @@
       if (relogio % 5 < dt) for (var k in pares) if (relogio - pares[k] > COOLDOWN_PAR) delete pares[k];
       if (amb.semear) {
         proxSemente -= dt;
-        if (proxSemente <= 0 && vivos() < alvo()) { semear(); proxSemente = amb.intervalo || acaso(0.25, 0.6); }
+        var v = vivos(), a0 = alvo();
+        if (proxSemente <= 0 && v < a0) { semear(); proxSemente = v < a0 / 2 ? 0.08 : amb.intervalo || acaso(0.25, 0.6); }
       }
     }
 
@@ -354,8 +366,10 @@
     }
     function herdar(dados, W, H) {
       for (var i = 0; i < dados.length; i++) {
-        var v = dados[i], d = v[2] | 0, x = v[0] * W, y = v[1] * H, atras = Math.min(v[3], 60);
-        var f = criar(x, y, d, { forcar: true, cauda: v[3] });
+        var v = dados[i];
+        if (!v || !isFinite(v[0]) || !isFinite(v[1]) || !isFinite(v[3])) continue;
+        var d = v[2] | 0, x = v[0] * W, y = v[1] * H, atras = Math.min(v[3], 60);
+        var f = criar(x, y, d, { forcar: true, cauda: Math.max(40, Math.min(280, v[3])) });
         if (f) { f.pts[0] = { x: x - DIRS[d][0] * atras, y: y - DIRS[d][1] * atras }; f.idade = 1; aparar(f); }
       }
     }
