@@ -34,7 +34,8 @@ const GIRO_SOLTA = 1.3;    /* /s: o impulso morre aos poucos (inércia) */
    em JANELA s, cada toque soma `passo` à agitação (0–1); ela gira a roda a
    mais até `giro` rad/s e se acalma devagar (`acalma`/s). B.agitacao leva
    o valor ao mini e ao campo */
-const AGITA = { janela: 2.4, desde: 3, passo: 0.22, giro: 2.2, acalma: 0.32 };
+const AGITA = { janela: 2.4, desde: 3, passo: 0.22, giro: 1.1, acalma: 0.32 };   /* giro: o teto, perto do da rolagem ("não vira hélice") */
+const TQ_RELIGA = 0.35;    /* s: spec.toque.religa (o gesto não importa o spec) */
 
 const suave = (x) => { const c = Math.min(1, Math.max(0, x)); return c * c * (3 - 2 * c); };
 
@@ -128,7 +129,9 @@ export function criarGesto(cena, canvas, alvoEventos, { fino = false, ouvir } = 
     if (pendente.novo) {
       pendente.novo = false;
       if (noReator(pendente.cx, pendente.cy, ponto)) {
-        tq.x = ponto.x; tq.y = ponto.y; tq.t = 0;
+        /* com a onda ainda nascendo, o toque novo só bate de novo (não arranca a frente de volta ao centro) */
+        if (tq.t >= 0 && tq.t < TQ_RELIGA) tq.b = 0;
+        else { tq.x = ponto.x; tq.y = ponto.y; tq.t = 0; tq.b = 0; }
         toques.push(relogio);
         while (toques.length && relogio - toques[0] > AGITA.janela) toques.shift();
         if (toques.length >= AGITA.desde) {
@@ -139,6 +142,7 @@ export function criarGesto(cena, canvas, alvoEventos, { fino = false, ouvir } = 
     } else if (tq.t >= 0) {
       tq.t += dt;
     }
+    if (tq.b !== undefined && tq.b >= 0) tq.b += dt;
     agitacao *= Math.exp(-dt * AGITA.acalma);
     if (agitacao < 0.002) agitacao = 0;
     e.agitacao = agitacao;

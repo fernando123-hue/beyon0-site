@@ -16,12 +16,13 @@
    sobrepunha cartões de propósito). Histórico: commit 48d7c0b.
    ========================================================================== */
 :root {
-  --vao: clamp(18px, 2.4vw, 32px);
-  --vao-lista: clamp(10px, 1.1vw, 14px);
+  --vao: clamp(24px, 2.6vw, 36px);
+  --vao-lista: clamp(12px, 1.1vw, 14px);
   --mod-pad: clamp(20px, 4.4vw, 32px);
   --mod-pad-s: clamp(16px, 3.6vw, 22px);
   --mod-fundo: rgb(11 12 13 / .9);
 }
+@media (max-width: 359px) { :root { --vao: 20px; } }
 
 /* ---------- o módulo ---------- */
 .painel, .celula, .laudo__row, .qa, .spec__item,
@@ -75,6 +76,11 @@
 }
 .servico__link span, .celula__link span { display: inline-block; transition: transform var(--t-micro) var(--ease-micro); }
 .painel:hover .servico__link span, .celula:hover .celula__link span { transform: translateX(4px); }
+@media (max-width: 380px) { .servico__link, .celula__link { white-space: nowrap; letter-spacing: .04em; } }
+/* o mini AI Core sugere esta opção (js/mini.js): a borda e o link acendem enquanto ele aponta */
+.is-sugerido { border-color: var(--line-hi); }
+.is-sugerido::before { opacity: 1; }
+.is-sugerido .servico__link, .is-sugerido .celula__link, a.is-sugerido { color: var(--ac); }
 
 /* ---------- 1. A FAIXA DO HERO: portas da casa em módulos ---------- */
 .hero__rail { display: grid; grid-template-columns: 1fr; gap: var(--vao-lista); border: 0; border-radius: 0; background: none; box-shadow: none; }
@@ -117,12 +123,11 @@
 }
 
 /* ---------- 3. LAUDO (garantias, dores): um módulo por linha ---------- */
-.laudo { display: grid; grid-template-columns: 1fr; gap: var(--vao-lista); border: 0; }
+.laudo { display: grid; grid-template-columns: 1fr; gap: var(--vao); border: 0; }
 .laudo__row { display: grid; grid-template-columns: 1fr; gap: .4rem; padding: var(--mod-pad); }
 .laudo__row h3 { font-size: var(--h3-linha); line-height: 1.15; }
 .laudo__row p { color: var(--t2); font-size: var(--fs-m); max-width: 52ch; }
 @media (min-width: 821px) {
-  .laudo { gap: clamp(12px, 1.2vw, 16px); }
   .laudo__row { grid-template-columns: 3.5rem minmax(0, 5fr) minmax(0, 7fr); column-gap: clamp(16px, 2.4vw, 36px); align-items: first baseline; padding: clamp(1.4rem, 2.2vw, 2rem) var(--mod-pad); }
   .laudo__row p { grid-column: 3; grid-row: 1; }
 }

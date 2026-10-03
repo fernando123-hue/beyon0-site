@@ -45,9 +45,10 @@ p em, li em { font-style: normal; font-weight: 500; color: var(--t1); }
 #frentes.section { padding-top: var(--sp-1); }       /* puxa a rolagem depois do hero */
 #prova.section, .conversa .section { padding-top: var(--sp-3); }   /* abrem capítulo */
 /* um véu translúcido, sem régua própria: a malha continua por trás e o
-   fechamento da lista anterior é o único divisor (sem fio duplo). As pontas
-   esvaem em 120px fixos: sem borda dura e sem vão. */
-.faixa { position: relative; background: linear-gradient(180deg, rgb(16 18 19 / 0), rgb(16 18 19 / .6) 120px, rgb(16 18 19 / .6) calc(100% - 120px), rgb(16 18 19 / 0)); }
+   fechamento da lista anterior é o único divisor (sem fio duplo). Corte
+   seco com fio de 1 px nas pontas (2026-10-03: as pontas esvaídas em 120 px
+   liam como luz borrada, e o dono proíbe desfoque) */
+.faixa { position: relative; background: rgb(16 18 19 / .6); box-shadow: inset 0 1px 0 var(--line), inset 0 -1px 0 var(--line); }
 .faixa > .section { padding-top: var(--sp-2); padding-bottom: var(--sp-1); }
 @media (min-width: 981px) {
   /* o cabeçalho em duas colunas: o lead senta na base do h2, à direita */
@@ -370,9 +371,10 @@ html:not(.js) .barra.is-oculta { transform: none; opacity: 1; pointer-events: au
 .feixe__tag:empty { display: none; }
 /* a etiqueta só existe na passagem do boot; no loop o fio passa sem legenda */
 .feixe.is-loop .feixe__tag { display: none; }
-html:not(.has-gsap) .feixe__linha { animation: feixe 26s linear infinite; }
-/* duas passagens e para: depois disso nada se move sozinho no hero (rodada 7) */
-html.has-gsap .feixe.is-loop .feixe__linha { animation: feixe 18s linear 2 both; }
+/* só a passagem do boot (2026-10-03): as voltas de 18 s cruzavam o título
+   como um fio parado no meio da tela e liam como defeito; sem GSAP não há
+   fio. O hero continua vivo pelo campo do reator */
+html:not(.has-gsap) .feixe__linha, html.has-gsap .feixe.is-loop .feixe__linha { animation: none; opacity: 0; }
 .hero.is-fora .feixe__linha, .hero.is-fora .feixe ~ * .console__led, .hero.is-fora .feixe ~ * .instrumento__led { animation-play-state: paused; }
 /* a luz é um EVENTO, não um brilho parado: cruza em ~6,8s e some por ~11s */
 @keyframes feixe { 0% { transform: translateX(-20vw); opacity: 0; } 3% { opacity: 1; } 30% { opacity: 1; } 33%, 100% { transform: translateX(110vw); opacity: 0; } }
@@ -392,19 +394,11 @@ html.has-gsap .feixe.is-loop ~ .hero__arte .instrumento__led { animation: led-pa
     right: 0; bottom: auto; width: auto; height: 1px;
     background: linear-gradient(90deg, rgb(var(--ac-rgb) / 0), rgb(var(--ac-rgb) / .7) 12%, rgb(var(--ac-rgb) / .7) 88%, rgb(var(--ac-rgb) / 0));
   }
-  .feixe__linha::before {
-    top: -28px; bottom: auto; left: 0; right: 0; width: auto; height: 57px;
-    background: linear-gradient(180deg, rgb(var(--ac-rgb) / 0), rgb(var(--ac-rgb) / .06) 50%, rgb(var(--ac-rgb) / 0));
-    mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
-    -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
-  }
   .feixe__tag { display: none; }
-  html:not(.has-gsap) .feixe__linha { animation-name: feixe-y; }
-  html.has-gsap .feixe.is-loop .feixe__linha { animation-name: feixe-y; }
 }
 
 /* ---- RODAPÉ ---- */
-.footer { position: relative; border-top: 1px solid var(--line); background: linear-gradient(180deg, var(--s1), var(--bg)); color: var(--t3); padding: clamp(40px, 7vw, 72px) var(--pad) clamp(24px, 4vw, 40px); }
+.footer { position: relative; border-top: 1px solid var(--line); background: var(--s1); color: var(--t3); padding: clamp(40px, 7vw, 72px) var(--pad) clamp(24px, 4vw, 40px); }
 .footer::before { content: ""; position: absolute; left: 0; right: 0; top: -1px; height: 1px; background: linear-gradient(90deg, transparent, rgb(var(--ac-rgb) / .5), rgb(var(--prata-rgb) / .4), transparent); }
 .footer__grid { max-width: var(--maxw); margin: 0 auto; display: grid; grid-template-columns: 1fr; gap: 2rem; }
 .footer__brand > a { display: inline-flex; align-items: center; min-height: 28px; }

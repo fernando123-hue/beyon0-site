@@ -22,6 +22,8 @@
 .passo h3 { font-size: var(--h3-linha); margin-bottom: .6rem; line-height: 1.15; }
 .passo p { color: var(--t2); font-size: var(--fs-m); }
 .passos--4 { --passos: 4; }
+/* celular: a rota nasce embaraçada ~65 px acima do 1º passo; sem este respiro ela cruzava o título */
+@media (max-width: 820px) { .passos { padding-top: 40px; } }   /* padding: a margem colapsava com a do título */
 @media (min-width: 821px) {
   .passos { grid-template-columns: repeat(var(--passos, 3), 1fr); gap: clamp(20px, 3vw, 40px); }
   .passo { padding: 2rem 0 0 0; }
@@ -54,7 +56,8 @@
    passa por ele (js/anima.js). Só transform/opacity. */
 .prova { position: relative; overflow: hidden; }
 /* a luz passa ATRÁS dos números (o âmbar não fica marrom debaixo dela) */
-.varredura { position: absolute; top: 0; bottom: 0; left: 0; width: clamp(64px, 10vw, 140px); background: linear-gradient(90deg, rgb(var(--ac-rgb) / 0), rgb(var(--ac-rgb) / .28) 50%, rgb(var(--ac-rgb) / 0)); pointer-events: none; opacity: 0; z-index: 0; mask-image: linear-gradient(180deg, transparent, #000 22%, #000 78%, transparent); -webkit-mask-image: linear-gradient(180deg, transparent, #000 22%, #000 78%, transparent); }
+/* um FIO de 1 px no centro da caixa (era uma faixa de 140 px com degradê: luz borrada, proibida) */
+.varredura { position: absolute; top: 0; bottom: 0; left: 0; width: clamp(64px, 10vw, 140px); background: linear-gradient(90deg, transparent calc(50% - .5px), rgb(var(--ac-rgb) / .85) calc(50% - .5px), rgb(var(--ac-rgb) / .85) calc(50% + .5px), transparent calc(50% + .5px)); pointer-events: none; opacity: 0; z-index: 0; mask-image: linear-gradient(180deg, transparent, #000 22%, #000 78%, transparent); -webkit-mask-image: linear-gradient(180deg, transparent, #000 22%, #000 78%, transparent); }
 .prova__item { z-index: 1; }
 .prova__passo { display: none; }
 html:not(.has-gsap) .varredura, html.menos-movimento .varredura { display: none; }
@@ -160,7 +163,7 @@ html.menos-movimento .cascata__barra { transform: none; }
 /* a varredura de leitura: uma faixa clara passa sobre o console uma vez, na entrada */
 /* a aresta do console: a mesma da trilha (ciano ao âmbar), um instrumento só */
 .console::before { content: ""; position: absolute; left: 8%; right: 8%; top: -1px; height: 1px; background: linear-gradient(90deg, transparent, rgb(var(--ac-rgb) / .7) 30%, rgb(var(--prata-rgb) / .6) 70%, transparent); pointer-events: none; }
-.console::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 28%; background: linear-gradient(180deg, rgb(var(--ac-rgb) / 0), rgb(var(--ac-rgb) / .08), rgb(var(--ac-rgb) / 0)); transform: translateY(-100%); pointer-events: none; }
+.console::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 28%; background: linear-gradient(180deg, transparent calc(100% - 1px), rgb(var(--ac-rgb) / .5) calc(100% - 1px)); transform: translateY(-100%); pointer-events: none; }
 @media (min-width: 861px) {
   .console { padding: 22px 26px; font-size: .8125rem; }
   /* a medida é o numeral do hero: rima com o h1 */
@@ -383,7 +386,7 @@ body.is-lead-open { overflow: hidden; }
 .conversa h2 .h2-frase { display: block; }
 
 /* celular: a luz desce pela medida no instante em que ela acende (anima.js, luzMede) */
-.prova__item::after { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; background: linear-gradient(180deg, rgb(var(--ac-rgb) / 0) 0, rgb(var(--ac-rgb) / .10) 46%, rgb(var(--ac-rgb) / .7) 50%, rgb(var(--ac-rgb) / 0) 50.4%); transform: translateY(-50%); }
+.prova__item::after { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; background: linear-gradient(180deg, transparent 49.6%, rgb(var(--ac-rgb) / .7) 49.6%, rgb(var(--ac-rgb) / .7) 50.4%, transparent 50.4%); transform: translateY(-50%); }
 @media (max-width: 820px) {
   html.js .prova__item.is-lit::after { animation: varre-y 1s cubic-bezier(.87, 0, .13, 1) both; }
   html.js .prova .prova__item::before { transform-origin: top; transition-duration: 1s; }   /* a barra desce com a luz */

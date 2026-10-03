@@ -783,7 +783,10 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
     const tocando = tq.t >= 0 && tq.t < TQ.dura;
     /* a frente arranca devagar (no centro a onda era rápida demais) e a força sobe em vez de nascer cheia */
     const frente = tocando ? TQ.vel * (tq.t - TQ.arranque * (1 - Math.exp(-tq.t / TQ.arranque))) : 0;
-    const forcaOnda = tocando ? (1 - Math.exp(-tq.t / TQ.ataque)) * (1 - tq.t / TQ.dura) ** 2 : 0;
+    const forcaOnda = tocando ? (1 - Math.exp(-tq.t / TQ.ataque)) * (1 - tq.t / TQ.dura) ** TQ.queda : 0;
+    /* a batida do toque: sobe em `sobe` (saída cúbica) e solta em `solta` (suave); relógio próprio (tq.b) */
+    const tb = tq.b === undefined ? tq.t : tq.b;
+    const envBatida = tb < 0 ? 0 : tb < TQ.sobe ? 1 - (1 - tb / TQ.sobe) ** 3 : 1 - suave((tb - TQ.sobe) / TQ.solta);
 
     /* balança devagar, sozinho: mostra a profundidade sem perder a simetria
        de frente. NÃO segue o cursor (pedido do dono: só o núcleo segue) */
@@ -892,8 +895,9 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
        desenhada pela rede, js/rede.js; o flash no núcleo estava no lugar
        errado: nesse instante a energia está na borda) */
     const chegada = Math.exp(-(x * RS.periodo) / 0.12);
-    fluxoRaios.uBase.value = R.base * (1 + 1.8 * chegada);
-    const batida = (1 + R.batida * Math.exp(-chegou * 5) * ig) * (1 + (tocando ? TQ.batida * (1 - Math.exp(-tq.t / TQ.sobe)) * Math.exp(-tq.t * TQ.solta) : 0));
+    /* + a energia que o CAMPO entrega (js/rede.js → boot.js): o ciclo fecha no reator */
+    fluxoRaios.uBase.value = R.base * (1 + 1.8 * chegada) + 0.15 * (e.entrega || 0);
+    const batida = (1 + R.batida * Math.exp(-chegou * 5) * ig) * (1 + TQ.batida * envBatida);
     const inspira = 1 + respira(t, RS.nucleo);
     /* o lampejo: a energia entra pelo portal no começo do fôlego */
     const lampejo = desde < A.raios ? 0 : LP.alfa * Math.max(0, 1 - (x * RS.periodo) / LP.dura) * forca;

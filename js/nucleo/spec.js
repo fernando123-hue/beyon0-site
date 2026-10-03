@@ -153,11 +153,15 @@ export const SPEC = {
      Pedido do dono (2026-10-03): no centro o efeito era rápido demais (a
      batida sumia em 0,17 s e a onda nascia na velocidade máxima, cruzando a
      lente em 0,1 s). Agora a frente ARRANCA (`arranque`: a constante de
-     tempo até a velocidade plena; a lente é cruzada em ~0,35 s), a força
-     da onda sobe em `ataque` s em vez de nascer cheia, e a batida sobe em
-     `sobe` s e solta em ~0,45 s (`solta`: taxa). O começo continua
-     imediato: a resposta ao clique não atrasa. */
-  toque: { vel: 1.5, largura: 0.14, dura: 1.8, batida: 0.3, arranque: 0.28, ataque: 0.12, sobe: 0.1, solta: 2.2 },
+     tempo até a velocidade plena; a lente é cruzada em ~0,37 s) e chega ao
+     portal ainda forte (queda `(1 − t/dura)^queda`); a batida é um
+     ENVELOPE FINITO: sobe em `sobe` s (saída cúbica) até +`batida` e
+     solta em `solta` s (suave), acabando em 0,6 s. Certeira: começa no
+     quadro do clique e tem fim. (A 1ª versão, com cauda exponencial, ficou
+     mole: +17% e 1,3 s para sumir.) */
+  toque: { vel: 1.1, largura: 0.14, dura: 1.9, queda: 1.2, batida: 0.28, arranque: 0.12, ataque: 0.05, sobe: 0.1, solta: 0.5,
+    /* um novo toque com a onda ainda nascendo (< `religa` s) só bate de novo: não mata a frente em voo */
+    religa: 0.35 },
 
   /* o acendimento corre de dentro para fora: o atraso (s) de cada camada
      depois da ignição */

@@ -34,11 +34,19 @@
 
   var TAU = Math.PI * 2;
   var SY = 0.92;                 /* o achatamento dos anéis: a inclinação do reator */
+  /* a ramificação para aqui (crítica, rodada 1: longe do reator as bandas
+     de 96+ raios quase paralelos liam como grade torta). Depois do teto os
+     raios se espaçam com a distância e os anéis viram a estrutura */
+  var BANDA_MAX = { desk: 2, cel: 1 };
   var ONDA = { borda: [8, 20], alfa: [0.5, 0.22, 0.1], rastro: 170 };   /* px atrás da frente; alfas da frente e dos ecos */
   var PACOTE = { cabeca: 14, cauda: 46, acel: 900 };   /* px, px, px/s² */
   var MIRA = { arco: 90, raio: 80, segue: 12 };        /* px de cada lado; 1/s */
   var ROTA = { anda: 0.28 };                           /* s para o traço da rota chegar ao raio */
   var RUMO = { arco: 0.12, seta: 7, segue: 9, fonte: '500 10px "JetBrains Mono", ui-monospace, monospace' };
+  /* a régua escrita (referência: a rosa dos instrumentos de aviação): o rumo
+     de cada raio fundamental nos anéis de ramificação ("030"…"360") e a cota
+     do anel na margem ("R·0480"). Só no desktop e só onde não há texto */
+  var ESCRITA = { fonte: '400 9px "JetBrains Mono", ui-monospace, monospace', alfa: 0.42, margem: 22 };
 
   function limitar(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
   function saida(k) { k = limitar(k); return 1 - (1 - k) * (1 - k) * (1 - k); }
@@ -46,10 +54,17 @@
 
   /* op: { ctx, cores: { AC, AC2, T1, PRATA }, celular } */
   B.campo = function (op) {
-    var ctx = op.ctx, C = op.cores, cel = op.celular;
+    var ctx = op.ctx, C = op.cores, cel = op.celular, BMAX = cel ? BANDA_MAX.cel : BANDA_MAX.desk;
+    var MAIS = cel ? 1.5 : 1;   /* no celular os módulos cobrem quase a tela: o campo mais presente onde aparece */
     /* a origem (o centro do reator) em coordenadas da TELA neste quadro,
        R0: o raio visível do reator; Q: onde o campo começa (o vão) */
-    var G = { ox: 0, oy: 0, R0: 200, Q: 290, giro: 0 };
+    var G = { ox: 0, oy: 0, R0: 200, Q: 290, giro: 0, rotor: 0 };
+    /* o ROTOR: o trecho dos 12 raios entre o vão e a 1ª ramificação gira com a
+       roda do reator (crítica, rodada 1: o campo ficava parado com o reator
+       girando); da 1ª ramificação para fora é o ESTATOR, fixo */
+    var classes = [[], [], []], faixa = [0, TAU];
+    var RUMOS = [];
+    for (var ri = 0; ri < 12; ri++) RUMOS.push(('00' + (((ri * 30 + 90) % 360) || 360)).slice(-3));
     var aneis = [], vis = { rMin: 0, rMax: 0, a0: 0, a1: TAU, cheio: true };
     var ondas = [], pacotes = [], marcas = [], rotas = [];
     var mira = { ativa: false, a: 0, r: 0, f: 0, alvoA: 0, alvoR: 0 };
@@ -70,7 +85,7 @@
         r = prox; k++;
       }
     }
-    function banda(r) { return Math.max(0, Math.floor(Math.log(r / G.Q) / Math.LN2)); }
+    function banda(r) { return Math.max(0, Math.min(BMAX, Math.floor(Math.log(r / G.Q) / Math.LN2))); }
     function nRaios(r) { return 12 * Math.pow(2, banda(r)); }
 
     /* tela → campo: { r, a } (a: o ângulo paramétrico da elipse) */
@@ -191,11 +206,12 @@
       ctx.moveTo(px(r, a0), py(r, a0));
       ctx.ellipse(G.ox, G.oy, r, r * SY, 0, a0, a1);
     }
-    function faixaAng() { return vis.cheio ? [0, TAU] : [vis.a0, vis.a1]; }
+    function faixaAng() { faixa[0] = vis.cheio ? 0 : vis.a0; faixa[1] = vis.cheio ? TAU : vis.a1; return faixa; }
     function cor(c, a) { return 'rgba(' + c + ',' + limitar(a).toFixed(3) + ')'; }
 
     function desenharAneis(resp) {
-      var f = faixaAng(), i, an, classes = [[], [], []];
+      var f = faixaAng(), i, an;
+      classes[0].length = classes[1].length = classes[2].length = 0;
       for (i = 0; i < aneis.length; i++) {
         an = aneis[i];
         if (an.r < vis.rMin - 2) continue;
@@ -210,41 +226,50 @@
         /* nasce suave na borda do vão: os 2 primeiros anéis em degraus */
         for (var j = 0; j < lista.length; j++) {
           var r = lista[j];
-          ctx.strokeStyle = cor(cl === 2 ? C.AC : C.AC, alfas[cl] * nasce(r) * resp);
+          ctx.strokeStyle = cor(C.AC, alfas[cl] * nasce(r) * resp * MAIS);
           ctx.beginPath(); arco(r, f[0], f[1]); ctx.stroke();
         }
       }
     }
     function desenharRaios(resp) {
       ctx.lineWidth = 1;
-      for (var b = 0; G.Q * Math.pow(2, b) < vis.rMax; b++) {
-        var ini = G.Q * Math.pow(2, b), N = 12 * Math.pow(2, b), alfa = b === 0 ? 0.2 : b === 1 ? 0.13 : 0.09;
-        var r0 = Math.max(ini, vis.rMin), r1 = vis.rMax;
+      /* cada banda desenha todos os seus raios do anel dela até o seguinte (a
+         última, até o fim da tela); os fundamentais seguem em toda banda com o
+         alfa deles, os novos com o da banda */
+      for (var b = 0; b <= BMAX && G.Q * Math.pow(2, b) < vis.rMax; b++) {
+        var ini = G.Q * Math.pow(2, b), N = 12 * Math.pow(2, b);
+        var r0 = Math.max(ini, vis.rMin), r1 = b === BMAX ? vis.rMax : Math.min(vis.rMax, ini * 2);
         if (r0 >= r1) continue;
+        for (var pas = 0; pas < 2; pas++) {
+        var alfa = (pas === 0 ? 0.2 : b === 1 ? 0.13 : 0.09) * MAIS;
+        if (pas === 1 && b === 0) continue;
         ctx.strokeStyle = cor(C.AC, alfa * resp);
         ctx.beginPath();
         for (var i = 0; i < N; i++) {
-          if (b > 0 && i % 2 === 0) continue;   /* os pares já nasceram na banda de dentro */
-          var a = G.giro + i * TAU / N;
+          var fund = i % Math.pow(2, b) === 0;
+          if (fund !== (pas === 0)) continue;
+          var a = (b === 0 ? G.rotor : G.giro) + i * TAU / N;
           if (!angVisivel(a)) continue;
           ctx.moveTo(px(r0, a), py(r0, a)); ctx.lineTo(px(r1, a), py(r1, a));
         }
         ctx.stroke();
+        }
       }
     }
     /* os nós das ramificações (losangos) e as marcas nos anéis fortes */
     function desenharNos(resp) {
       ctx.lineWidth = 1;
-      var b, i, a, x, y;
+      var b, i, a, x, y, livre = op.livre;
       ctx.strokeStyle = cor(C.AC2, 0.6 * resp);
       ctx.beginPath();
-      for (b = 0; G.Q * Math.pow(2, b) < vis.rMax; b++) {
+      for (b = 0; b <= BMAX && G.Q * Math.pow(2, b) < vis.rMax; b++) {
         var r = G.Q * Math.pow(2, b), N = 12 * Math.pow(2, b), s = b === 0 ? 3 : 2.5;
         if (r < vis.rMin - 4) continue;
         for (i = 0; i < N; i++) {
-          a = G.giro + i * TAU / N;
+          a = (b === 0 ? G.rotor : G.giro) + i * TAU / N;
           if (!angVisivel(a)) continue;
           x = px(r, a); y = py(r, a);
+          if (livre && !livre(x, y)) continue;   /* nó nenhum dentro do texto (lia como acento) */
           ctx.moveTo(x, y - s); ctx.lineTo(x + s, y); ctx.lineTo(x, y + s); ctx.lineTo(x - s, y); ctx.closePath();
         }
       }
@@ -262,10 +287,42 @@
           a = G.giro + i * TAU / n;
           if (!angVisivel(a)) continue;
           var l = i % 2 ? 3 : 5;
+          if (livre && !livre(px(an.r, a), py(an.r, a))) continue;
           ctx.moveTo(px(an.r - l, a), py(an.r - l, a)); ctx.lineTo(px(an.r + l, a), py(an.r + l, a));
         }
       }
       ctx.stroke();
+    }
+    function desenharEscrita(resp, livre) {
+      if (cel) return;
+      ctx.font = ESCRITA.fonte; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+      ctx.fillStyle = cor(C.PRATA, ESCRITA.alfa * resp);
+      for (var b = 0; b <= BMAX && G.Q * Math.pow(2, b) < vis.rMax; b++) {
+        var r = G.Q * Math.pow(2, b);
+        if (r < vis.rMin - 10) continue;
+        /* o rumo de cada um dos 12 raios fundamentais, logo fora do anel. No
+           anel do vão os rótulos giram com o rotor, como o cartão de uma
+           bússola (o valor de cada raio é dele); no estator ficam */
+        for (var i = 0; i < 12; i++) {
+          var a = (b === 0 ? G.rotor : G.giro) + i * TAU / 12;
+          if (!angVisivel(a)) continue;
+          var x = px(r + 14, a), y = py(r + 14, a);
+          if (livre && !livre(x, y)) continue;
+          ctx.fillText(RUMOS[i], x, y);
+        }
+        /* a cota: onde o anel cruza a margem esquerda */
+        var cx = ESCRITA.margem - G.ox;
+        if (Math.abs(cx) < r) {
+          var ac = Math.acos(cx / r), lados = [ac, -ac];
+          for (var l = 0; l < 2; l++) {
+            var xc = px(r, lados[l]), yc = py(r, lados[l]) - 9;
+            if (livre && !livre(xc + 20, yc)) continue;
+            ctx.textAlign = 'left';
+            ctx.fillText('R·' + ('000' + Math.round(r)).slice(-4), xc + 4, yc);
+            ctx.textAlign = 'center';
+          }
+        }
+      }
     }
     function desenharOndas() {
       var f = faixaAng();
@@ -367,11 +424,14 @@
       ctx.closePath(); ctx.fill();
       if (!rumo.rotulo) return;
       var tx = x + ux * 22, ty = y + uy * 22;
-      if (livre && !livre(tx, ty)) return;
       var graus = Math.round(((a * 180 / Math.PI + 90) % 360 + 360) % 360);
       var txt = '→ ' + rumo.rotulo + ' · ' + ('00' + graus).slice(-3) + '°';
       ctx.font = RUMO.fonte; ctx.textBaseline = 'middle';
       ctx.textAlign = ux < -0.2 ? 'right' : ux > 0.2 ? 'left' : 'center';
+      if (livre) {
+        var lw = ctx.measureText(txt).width, x0 = ctx.textAlign === 'right' ? tx - lw : ctx.textAlign === 'center' ? tx - lw / 2 : tx, f2 = 48;
+        if (!livre(x0 - f2, ty) || !livre(x0 + lw + f2, ty) || !livre(x0 + lw / 2, ty - f2 / 2) || !livre(x0 + lw / 2, ty + f2 / 2)) return;
+      }
       ctx.fillStyle = cor(C.AC2, 0.9 * f);
       ctx.fillText(txt, tx, ty);
     }
@@ -380,6 +440,7 @@
       desenharAneis(resp);
       desenharRaios(resp);
       desenharNos(resp);
+      desenharEscrita(resp, op.livre);
       if (!vivo) return;
       desenharOndas();
       desenharRotas();
@@ -399,9 +460,9 @@
 
     /* ---------- de fora ---------- */
     /* a origem: centro (tela), raio visível do reator R0 (px), giro (rad) */
-    function origem(ox, oy, R0, giro) {
+    function origem(ox, oy, R0, giro, rotor) {
       var mudouEscala = Math.abs(R0 - G.R0) > 0.5;
-      G.ox = ox; G.oy = oy; G.giro = giro || 0;
+      G.ox = ox; G.oy = oy; G.giro = giro || 0; G.rotor = rotor === undefined ? G.giro : rotor;
       if (mudouEscala || !aneis.length) { G.R0 = R0; G.Q = R0 * 1.45; gerarAneis(); }
     }
     return {
@@ -409,6 +470,8 @@
       rota: rota, soltarRota: soltarRota, apontar: apontar, polar: polar, raioPerto: raioPerto,
       ponto: function (r, a) { return { x: px(r, a), y: py(r, a) }; },
       dentroDoVao: function (x, y) { return polar(x, y).r < G.Q; },
+      raio: function (x, y) { var dx = x - G.ox, dy = (y - G.oy) / SY; return Math.sqrt(dx * dx + dy * dy); },
+      nOndas: function () { return ondas.length; },
       geo: G, ondas: ondas, limparEnergia: function () { ondas.length = 0; pacotes.length = 0; marcas.length = 0; rotas.length = 0; }
     };
   };

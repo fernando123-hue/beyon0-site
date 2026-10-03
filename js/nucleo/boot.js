@@ -88,8 +88,10 @@
 
   var cena = null, gesto = null;
   var estado = { t: 0, montagem: 0, abertura: 0, ignicao: 0, desdeIgnicao: -1, atento: 0 };
-  var opcaoSob = false;
+  var opcaoSob = false, entregaCampo = 0;
   B.on('opcao', function (d) { opcaoSob = !!(d && d.entrou); });
+  /* pacotes do campo chegando ao vão do reator (js/rede.js): os raios dele acendem um pouco */
+  B.on('campo:chegou', function (n) { entregaCampo = Math.min(1, entregaCampo + 0.35 * (n || 1)); });
   var relogio = -1;        /* s desde que a esfera apareceu na tela; -1 = ainda não */
   var visivel = false, liberado = false, parado = false, sujo = true, remedir = true, aceso = false, registrado = false;
   var rolagem = window.scrollY, caixaTopo = 0, caixaAltura = 1;
@@ -266,6 +268,8 @@
     estado.abertura += (alvoAbertura - estado.abertura) * Math.min(1, dt * 4);
     /* atento: o cursor está numa opção do site (js/rede.js avisa); o núcleo
        clareia de leve, sobe em ~0,25 s e solta em ~0,6 s */
+    entregaCampo *= Math.exp(-dt / 0.25);
+    estado.entrega = entregaCampo;
     estado.atento = (estado.atento || 0) + ((opcaoSob ? 1 : 0) - (estado.atento || 0)) * Math.min(1, dt * (opcaoSob ? 4 : 1.7));
     gesto.passo(dt, estado);
 

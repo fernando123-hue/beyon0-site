@@ -36,7 +36,7 @@
   /* ---------- a paleta (os tokens, lidos uma vez) ---------- */
   var est = getComputedStyle(document.documentElement);
   var rgb = function (nome, padrao) { return (est.getPropertyValue(nome).trim() || padrao).replace(/\s+/g, ','); };
-  var AC = rgb('--ac-rgb', '73 229 221'), AC2 = rgb('--ac-2-rgb', '166 244 239'), PRATA = rgb('--prata-rgb', '183 191 192'), T1 = '242,244,244';
+  var AC = rgb('--ac-rgb', '73 229 221'), AC2 = rgb('--ac-2-rgb', '166 244 239'), AC3 = rgb('--ac-3-rgb', '28 181 185'), PRATA = rgb('--prata-rgb', '183 191 192'), T1 = '242,244,244';
 
   /* ---------- números ---------- */
   /* o que conta como elemento do site: as opções e os cartões de hoje e os
@@ -46,10 +46,11 @@
      cada grupo é o conjunto de módulos com o mesmo pai, na ordem do documento */
   var LIGAVEIS = '.hero__rail > a, .hero__rail > div:not(.hero__rail-aresta), .servico, .laudo__row, .celula, .cenario, .qa, .spec__item, [data-campo]';
   var CARTOES = '.painel, .btn, .console, .janela, .instrumento, .passo, .prova__item, .qa, .spec__item, .cenario, .celula, ' + LIGAVEIS;
-  var BUS = { recuo: 24, cabeca: 28, chanfro: 6, no: 2.5 };   /* px: x do barramento vertical, y do horizontal, chanfro, meio lado do nó */
+  var BUS = { recuo: 24, cabeca: 28, chanfro: 6, no: 3.5, alfa: 0.4, aceso: 0.45 };   /* px: x do barramento vertical, y do horizontal, chanfro, meio lado do nó */
   var R0_SEM_REATOR = celular ? 150 : 230;   /* px: a escala do campo nas páginas sem o reator */
   var ACIMA = 0.5;                           /* nas páginas sem o reator, a origem fica esta fração da tela acima do topo */
-  var COLETA = { elementos: 5, soltos: 6 };  /* pacotes por inspiração */
+  var COLETA = { elementos: 5, soltos: 6, fase: 0.86, passo: 0.12 };   /* pacotes por fôlego, a fase em que partem, s entre um e outro */
+  var fila = [];                             /* a coleta escalonada */
   var PULSO_CLIQUE = 350;                    /* ms entre sinais de clique */
 
   var dpr = 1, W = 0, H = 0, docH = 1, navH = 0, rodapeY = 1e9;
@@ -144,9 +145,10 @@
     for (var e = 0; e < elementos.length; e++) { var it = elementos[e]; it.x = it.dx; it.y = it.dy - rolagem + (it.ref ? it.ref.d : 0); }
     textosNaTela();
     /* a origem do campo, em coordenadas da tela */
-    var giro = (B.campoGiro || 0);
-    if (caixaNucleo) campo.origem(caixaNucleo.x - window.scrollX, caixaNucleo.y - rolagem, caixaNucleo.R0, giro);
-    else campo.origem(W / 2, -H * ACIMA - rolagem, R0_SEM_REATOR, giro);
+    /* o rotor do campo acompanha a roda do reator (no plano da tela o ângulo cresce no sentido horário) */
+    var rotor = nu && nu.giro !== undefined ? -nu.giro : 0;
+    if (caixaNucleo) campo.origem(caixaNucleo.x - window.scrollX, caixaNucleo.y - rolagem, caixaNucleo.R0, 0, rotor);
+    else campo.origem(W / 2, -H * ACIMA - rolagem, R0_SEM_REATOR, 0, 0);
   }
   function quadro(S) {
     if (pedidoEm && S.now - pedidoEm > 120) { pedidoEm = 0; sujo = true; }
@@ -168,8 +170,11 @@
     posicionar();
     /* o fôlego do reator move o campo: expirar solta a onda; inspirar recolhe */
     if (faseAntes < F.inspira && x >= F.inspira) campo.soltarOnda();
-    if (x < faseAntes) coletar();
+    /* a coleta parte ANTES do lampejo do reator (x = 0), escalonada: a
+       mediana dos pacotes chega junto com ele (causa antes do efeito) */
+    if (faseAntes < COLETA.fase && x >= COLETA.fase) coletar();
     faseAntes = x;
+    for (var q = fila.length - 1; q >= 0; q--) { fila[q].t -= dt; if (fila[q].t <= 0) { fila[q].f(); fila.splice(q, 1); } }
     estado.W = W; estado.H = H; estado.topo = navH;
     estado.rLimite = Math.max(campo.polar(0, docH - rolagem).r, campo.polar(W, docH - rolagem).r);
     var s = campo.passo(dt, estado);
@@ -181,7 +186,7 @@
       if (it.onda > 0) it.onda = Math.max(0, it.onda - dt * 0.9);
       if (it.ativo > 0 && it.el !== sobAntes && it.el !== centroAgora) it.ativo = Math.max(0, it.ativo - dt * 2.5);
       if (it.y + it.h < navH || it.y > H) continue;
-      var r = campo.polar(it.x + it.w / 2, it.y + it.h / 2).r;
+      var r = campo.raio(it.x + it.w / 2, it.y + it.h / 2);
       for (var o = 0; o < ondas.length; o++) if (ondas[o].rAntes < r && ondas[o].r >= r) it.onda = 1;
     }
   }
@@ -189,15 +194,19 @@
   function coletar() {
     var vistos = [], i;
     for (i = 0; i < elementos.length; i++) { var it = elementos[i]; if (it.y > navH && it.y + it.h < H) vistos.push(it); }
+    var n = 0;
     for (i = 0; i < COLETA.elementos && vistos.length; i++) {
       var k = (Math.random() * vistos.length) | 0, v = vistos.splice(k, 1)[0];
-      var cx = v.x + v.w / 2, cy = v.y + v.h / 2;
-      if (!campo.dentroDoVao(cx, cy)) campo.rota(cx, cy, { vida: 1.1 });
+      fila.push({ t: COLETA.passo * n++, f: rotaDoElemento(v) });
     }
-    for (i = 0; i < COLETA.soltos; i++) {
-      var px = Math.random() * W, py = navH + Math.random() * (H - navH), p = campo.polar(px, py);
-      campo.pacote(p.r, campo.raioPerto(p.r, p.a));
-    }
+    for (i = 0; i < COLETA.soltos; i++) fila.push({ t: COLETA.passo * n++, f: pacoteSolto });
+  }
+  function rotaDoElemento(v) {
+    return function () { var cx = v.x + v.w / 2, cy = v.y + v.h / 2; if (cy > navH && cy < H && !campo.dentroDoVao(cx, cy)) campo.rota(cx, cy, { vida: 1.1 }); };
+  }
+  function pacoteSolto() {
+    var px = Math.random() * W, py = navH + Math.random() * (H - navH), p = campo.polar(px, py);
+    campo.pacote(p.r, campo.raioPerto(p.r, p.a));
   }
 
   /* ---------- desenho ---------- */
@@ -239,10 +248,10 @@
       /* à direita: na altura da "cabeça" do mais baixo dos dois, dentro dos dois */
       var y = Math.max(A.y, B.y) + Math.min(BUS.cabeca, B.h / 2);
       if (y > ay1 - 8) y = A.y + Math.min(BUS.cabeca, A.h / 2);
-      cam.push(ax1, y, B.x, y);
+      cam.push(ax1 - 1, y, B.x + 1, y);
     } else if (B.y >= ay1 - 1) {
       var ox = Math.max(A.x, B.x) + BUS.recuo;
-      if (ox < Math.min(ax1, bx1) - 4) cam.push(ox, ay1, ox, B.y);
+      if (ox < Math.min(ax1, bx1) - 4) cam.push(ox, ay1 - 1, ox, B.y + 1);
       else {
         var xa = A.x + BUS.recuo, xb = B.x + BUS.recuo, ym = (ay1 + B.y) / 2, s = xb > xa ? 1 : -1;
         var c = Math.min(BUS.chanfro, (B.y - ay1) / 2, Math.abs(xb - xa) / 2);
@@ -259,7 +268,7 @@
       var c = caminho(A, B);
       if (c.length < 4) continue;
       var k = Math.max(A.onda, B.onda, A.ativo, B.ativo);
-      ctx.strokeStyle = 'rgba(' + AC + ',' + (0.22 + 0.45 * k).toFixed(3) + ')';
+      ctx.strokeStyle = 'rgba(' + AC3 + ',' + (BUS.alfa + BUS.aceso * k).toFixed(3) + ')';
       ctx.beginPath(); ctx.moveTo(c[0], c[1]);
       for (var p = 2; p < c.length; p += 2) ctx.lineTo(c[p], c[p + 1]);
       ctx.stroke();
@@ -284,33 +293,27 @@
       var r = naTela[i], y = telaY(r);
       if (r.halo) { ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(r.x - r.folga, y - r.folga, r.w + 2 * r.folga, r.h + 2 * r.folga); continue; }
       if (r.inteiro) { ctx.fillStyle = '#000'; ctx.fillRect(r.x - r.folga, y - r.folga, r.w + 2 * r.folga, r.h + 2 * r.folga); continue; }
-      if (r.folga > 0) { ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.fillRect(r.x - r.folga, y - r.folga, r.w + 2 * r.folga, r.h + 2 * r.folga); }
+      /* a linha do campo passa FRACA atrás do texto em vez de cortada (crítica,
+         rodada 1: cortada a seco, longe do reator, o campo lia picotado); nós
+         e rótulos nunca entram ali (js/campo.js consulta `livre`) */
+      if (r.folga > 0) { ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(r.x - r.folga, y - r.folga, r.w + 2 * r.folga, r.h + 2 * r.folga); }
       var m = r.folga > 0 ? 4 : r.folga;
-      ctx.fillStyle = 'rgba(0,0,0,0.94)'; ctx.fillRect(r.x - m, y - m, r.w + 2 * m, r.h + 2 * m);
+      ctx.fillStyle = 'rgba(0,0,0,0.85)'; ctx.fillRect(r.x - m, y - m, r.w + 2 * m, r.h + 2 * m);
     }
     ctx.globalCompositeOperation = 'source-over';
   }
-  /* os elementos acesos: os cantos em L travam (a onda passou ou o cursor
-     está nele) e, com a onda, a aresta de cima acende e apaga */
+  /* a onda passando pelo elemento: a aresta de cima acende da esquerda para
+     a direita e apaga (um sinal só; os cantos em L ficaram com o CSS, no
+     foco: três sinais de canto liam como seleção deslocada, rodada 1) */
   function desenharElementos() {
     ctx.lineWidth = 1;
     for (var e = 0; e < elementos.length; e++) {
-      var it = elementos[e], k = Math.max(it.onda * 0.8, it.ativo);
-      if (k < 0.02 || it.y > H + 20 || it.y + it.h < -20) continue;
-      var m = 9, x0 = it.x, y0 = it.y, x1 = it.x + it.w, y1 = it.y + it.h;
-      ctx.strokeStyle = 'rgba(' + PRATA + ',' + (0.6 * k).toFixed(3) + ')';
-      ctx.beginPath();
-      ctx.moveTo(x0, y0 + m); ctx.lineTo(x0, y0); ctx.lineTo(x0 + m, y0);
-      ctx.moveTo(x1 - m, y0); ctx.lineTo(x1, y0); ctx.lineTo(x1, y0 + m);
-      ctx.moveTo(x0, y1 - m); ctx.lineTo(x0, y1); ctx.lineTo(x0 + m, y1);
-      ctx.moveTo(x1 - m, y1); ctx.lineTo(x1, y1); ctx.lineTo(x1, y1 - m);
-      ctx.stroke();
-      if (it.onda > 0.02) {
-        /* a aresta de cima: a luz da onda atravessa o elemento da esquerda para a direita */
-        var andou = 1 - it.onda, xa = x0 + (x1 - x0) * Math.min(1, andou * 2.2);
-        ctx.strokeStyle = 'rgba(' + AC + ',' + (0.55 * it.onda).toFixed(3) + ')';
-        ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(xa, y0); ctx.stroke();
-      }
+      var it = elementos[e];
+      if (it.onda < 0.02 || it.y > H + 20 || it.y + it.h < -20) continue;
+      var x0 = it.x, y0 = it.y, x1 = it.x + it.w;
+      var andou = 1 - it.onda, xa = x0 + (x1 - x0) * Math.min(1, andou * 2.2);
+      ctx.strokeStyle = 'rgba(' + AC + ',' + (0.55 * it.onda).toFixed(3) + ')';
+      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(xa, y0); ctx.stroke();
     }
   }
 
@@ -324,8 +327,8 @@
   function entrar(el, fica) {
     var r = el.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
     var it = itemDe(el);
-    if (it) it.ativo = 1;
-    var ro = parado || campo.dentroDoVao(cx, cy) ? null : campo.rota(cx, cy, { fica: fica, vida: 1.4 });
+    if (it && !parado) it.ativo = 1;   /* reduzido: nada aceso que não apagaria */
+    var ro = parado || campo.dentroDoVao(cx, cy) ? null : campo.rota(cx, cy, { fica: fica, vida: 1.4, cada: 0.875 });
     if (!parado) campo.apontar(cx, cy, rotuloDe(el));
     B.emit('opcao', { el: el, x: cx, y: cy, w: r.width, h: r.height, entrou: true });
     return ro;
@@ -393,13 +396,27 @@
       }
       return false;
     },
-    rodapeNaTela: function () { return rodapeY - rolagem; }
+    rodapeNaTela: function () { return rodapeY - rolagem; },
+    /* (x, y) a menos de `r` px da borda de um módulo, na altura dele? */
+    sobreModulo: function (x, y, r) {
+      for (var i = 0; i < elementos.length; i++) {
+        var it = elementos[i];
+        if (!it.liga || y < it.y || y > it.y + it.h) continue;
+        if (x > it.x - r && x < it.x + it.w + r) return true;
+      }
+      return false;
+    }
   };
 
   /* ---------- eventos (só anotam) ---------- */
   window.addEventListener('resize', pedirMedida, { passive: true });
   window.addEventListener('scroll', function () { rolagem = window.scrollY; }, { passive: true });
   if ('ResizeObserver' in window) new ResizeObserver(pedirMedida).observe(document.body);
+  /* um cartão ou uma opção que entre na página depois (conteúdo novo, script)
+     é medido na próxima parada: entra no campo, no barramento e na onda */
+  if ('MutationObserver' in window) new MutationObserver(function (ms) {
+    for (var i = 0; i < ms.length; i++) if (ms[i].addedNodes.length || ms[i].removedNodes.length) { pedirMedida(); return; }
+  }).observe(document.querySelector('main') || document.body, { childList: true, subtree: true });
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(pedirMedida);
   /* o clique (ou o toque: o click só vem de toque, nunca de rolagem) manda um sinal ao núcleo */
   var ultimoSinal = 0;
@@ -437,13 +454,16 @@
     document.querySelectorAll(CARTOES).forEach(function (el) { if (!el.closest('.nav, .barra')) io.observe(el); });
   }
   /* o núcleo agitado (cliques seguidos nele): o campo responde com ondas */
-  var ultimaOndaAgitada = 0;
-  B.on('nucleo:agitado', function () {
-    var agora = performance.now();
-    if (parado || !iniciada || agora - ultimaOndaAgitada < 450) return;
-    ultimaOndaAgitada = agora;
-    campo.soltarOnda();
+  /* uma onda só quando a agitação cruza um degrau (0,25 / 0,5 / 0,75 / 1) e
+     nunca mais de 3 vivas: clicar sem parar não enche a página de ondas */
+  var degrauAgitado = 0;
+  B.on('nucleo:agitado', function (ag) {
+    var d = Math.floor((ag || 0) * 4 + 1e-6);
+    if (d <= degrauAgitado) return;
+    degrauAgitado = d;
+    if (!parado && iniciada && campo.nOndas() < 3) campo.soltarOnda();
   });
+  B.add('agitacao-degrau', function () { if ((B.agitacao || 0) < 0.2) degrauAgitado = 0; });
   B.on('reduzir', function (sim) {
     parado = !!sim; desenhouParado = false;
     if (!parado || !iniciada) return;
