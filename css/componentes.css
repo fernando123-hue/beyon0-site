@@ -472,32 +472,13 @@ html.tem-nucleo .nucleo__poster { opacity: 0; }
 }
 
 /* ==========================================================================
-   O FUNDO DO HERO DO HUB (pedido do dono, 2026-10-02, segunda versão: "tire
-   os anéis, modifique o fundo do hero completamente para agregar ainda mais
-   valor ao AI Core"). Fica só a luz que nasce do núcleo e o escuro das
-   bordas; o resto é a REDE (js/rede.js), que adensa em volta do reator
-   numa constelação presa aos 12 pontos de entrada dos raios e manda energia
-   para dentro do portal a cada fôlego. A primeira versão (anéis colossais,
-   coluna, névoa, fragmentos) está no commit 8103c99.
-
-   Centro: --cx/--cy (o centro do reator dentro do hero) e --nw (a largura
-   da caixa do reator), medidos por boot.js por EVENTO; sem JS valem os
-   padrões abaixo.
+   O FUNDO DO HERO DO HUB: não há. O dono (2026-10-02): as partes do fundo
+   grudadas no AI Core "degradam a imagem soberana que ele deve ter"; o
+   cenário se molda a ele, não o contrário. Saíram os anéis (commit 8103c99),
+   a luz do núcleo, a constelação e o escuro radial das bordas (ec08dac e
+   e1b4b77). Quem se molda é a rede: os feixes contornam o reator e trocam
+   energia com o fôlego dele (js/rede.js, o campo do reator).
    ========================================================================== */
-.cosmos {
-  --cx: 50%; --cy: 82%; --nw: 370px;
-  position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none;
-}
-.hero > .cosmos { position: absolute; z-index: 0; }
-@media (min-width: 861px) { .cosmos { --cx: 76%; --cy: 50%; --nw: 480px; } }
-/* o escuro das bordas: a rede some nos cantos do hero e o reator domina. No
-   pé do hero o escuro se desfaz (a rede continua sem emenda) */
-.cosmos::after {
-  content: ""; position: absolute; inset: 0;
-  background: radial-gradient(70% 75% at var(--cx) var(--cy), transparent 35%, rgb(0 0 0 / .7) 100%);
-  mask-image: linear-gradient(180deg, #000 68%, transparent);
-  -webkit-mask-image: linear-gradient(180deg, #000 68%, transparent);
-}
 
 /* ==========================================================================
    12. JANELA — o mockup de site em vidro (página de Sites), feito de HTML

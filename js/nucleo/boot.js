@@ -24,31 +24,25 @@
   if (!canvas) return;
   var html = document.documentElement;
 
-  /* ---------- o cosmos (o fundo do hero) centrado no reator ----------
-     Vale com ou sem WebGL (o desenho em CSS ocupa o mesmo lugar), por isso
-     roda antes do porteiro. Mede por EVENTO (carga, mudança de tamanho do
-     hero), nunca por quadro, e escreve três variáveis no próprio .cosmos.
+  /* ---------- o centro do reator na página (para a rede, B.nucleo) ----------
+     Roda antes do porteiro. Mede por EVENTO (carga, mudança de tamanho do
+     hero), nunca por quadro.
      Posição de LAYOUT (offset), não a da tela: a entrada do hero e o
      paralaxe da rolagem movem a arte por transform e não podem arrastar o
      centro; o translate fixo da caixa (desktop) entra à parte. */
   var centro = { x: 0, y: 0, w: 0 };   /* o centro do reator na página (medido por evento) */
-  (function centrarCosmos() {
-    var cosmos = document.querySelector('.cosmos');
+  (function centrar() {
     var heroEl = caixa.closest('.hero');
-    if (!cosmos || !heroEl) return;
+    if (!heroEl) return;
     var pedido = 0;
     function medir() {
       pedido = 0;
       var x = caixa.offsetWidth / 2, y = caixa.offsetHeight / 2;
       if (!x) return;
       for (var el = caixa; el && el !== heroEl; el = el.offsetParent) { x += el.offsetLeft; y += el.offsetTop; }
-      if (!el) return;                        /* o hero não é ancestral posicionado: fica o padrão do CSS */
+      if (!el) return;                        /* o hero não é ancestral posicionado: sem centro (a rede usa a caixa) */
       var t = getComputedStyle(caixa).transform;
       if (t && t !== 'none' && window.DOMMatrixReadOnly) { var m = new DOMMatrixReadOnly(t); x += m.e; y += m.f; }
-      cosmos.style.setProperty('--cx', Math.round(x) + 'px');
-      cosmos.style.setProperty('--cy', Math.round(y) + 'px');
-      cosmos.style.setProperty('--nw', caixa.offsetWidth + 'px');
-      /* o mesmo centro na PÁGINA, para a rede (B.nucleo) */
       var hx = 0, hy = 0;
       for (var h = heroEl; h; h = h.offsetParent) { hx += h.offsetLeft; hy += h.offsetTop; }
       centro.x = hx + x; centro.y = hy + y; centro.w = caixa.offsetWidth;

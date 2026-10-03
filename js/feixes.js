@@ -55,7 +55,8 @@
   }
 
   /* op: { ctx, cores: { AC, AC2, T1 }, celular, naZona(x, y), tela() → { W, H, topo },
-           trilhoX() → x do trilho do celular ou null, aoEvento(tipo, x, y, feixe) } */
+           trilhoX() → x do trilho do celular ou null, aoEvento(tipo, x, y, feixe),
+           campos() → [{ x, y, rx, ry }]: elipses onde feixe não entra (o AI Core) } */
   B.feixes = function (op) {
     var ctx = op.ctx, C = op.cores, cel = op.celular;
     var PASSO = cel ? 22 : 28;
@@ -68,6 +69,13 @@
     function alvo() {
       var T = op.tela();
       return Math.max(cel ? 7 : 8, Math.min(cel ? 11 : 16, Math.round((T.W * T.H) / (cel ? 38000 : 85000))));
+    }
+    /* (x, y) dentro de algum campo? */
+    function noCampo(x, y) {
+      var cs = op.campos ? op.campos() : null;
+      if (!cs) return false;
+      for (var i = 0; i < cs.length; i++) { var c = cs[i], u = (x - c.x) / c.rx, v = (y - c.y) / c.ry; if (u * u + v * v < 1) return true; }
+      return false;
     }
     function vivos() { var n = 0; for (var i = 0; i < lista.length; i++) if (!lista[i].morre) n++; return n; }
 
@@ -104,7 +112,7 @@
       }
       for (var k = 0; k < 8; k++) {
         var px = acaso(40, T.W - 40), py = acaso(T.topo + 30, T.H - 40);
-        if (!op.naZona(px, py)) return criar(px, py, (Math.random() * 8) | 0);
+        if (!op.naZona(px, py) && !noCampo(px, py)) return criar(px, py, (Math.random() * 8) | 0);
       }
       return null;
     }
@@ -113,12 +121,13 @@
     var pesos = [0, 0, 0, 0, 0];
     function decidir(f, atratores, T) {
       if (f.reto > 0) { f.reto -= PASSO; return; }
-      var dentro = op.naZona(f.x, f.y), soma = 0, i;
+      var dentro = op.naZona(f.x, f.y), noC = noCampo(f.x, f.y), soma = 0, i;
       for (i = 0; i < VIRADAS.length; i++) {
         var nd = (f.d + VIRADAS[i][0] + 8) % 8, v = DIRS[nd], w = f.trilho ? (i === 0 ? 1 : 0) : VIRADAS[i][1];
         if (w === 0) { pesos[i] = 0; continue; }
         var nx = f.x + v[0] * PASSO, ny = f.y + v[1] * PASSO;
         if (!dentro && op.naZona(nx, ny)) w *= 0.06;   /* a leitura manda: contorna o bloco */
+        if (!noC && noCampo(nx, ny)) w *= 0.02;        /* o AI Core: o feixe contorna, nunca cruza a face dele */
         if (f.idade < f.vida * 0.8 && (nx < 30 || nx > T.W - 30 || ny < T.topo + 10 || ny > T.H - 20)) w *= 0.3;
         for (var a = 0; a < atratores.length; a++) {
           var at = atratores[a], dx = at.x - f.x, dy = at.y - f.y, dd = Math.hypot(dx, dy);
@@ -229,6 +238,13 @@
           if (f.anda >= PASSO - 1e-6) { f.anda = 0; decidir(f, atr, T); }
         }
         aparar(f);
+        /* entrou no campo (puxado pelo fôlego do reator): a energia é entregue na borda */
+        if (!noCampo(f.px, f.py) && noCampo(f.x, f.y)) {
+          f.morre = true;
+          evento('juncao', f.x, f.y);
+          if (op.aoEvento) op.aoEvento('entrega', f.x, f.y);
+          continue;
+        }
         if (f.idade > f.vida) f.morre = true;
         if (f.x < -80 || f.x > T.W + 80 || f.y < T.topo - 120 || f.y > T.H + 80) f.morre = true;
       }
@@ -346,7 +362,7 @@
 
     return {
       lista: lista, criar: criar, semear: semear, passo: passo, desenhar: desenhar, desenharEventos: desenharEventos,
-      deslocar: deslocar, pulso: pulso, perto: perto, evento: evento, guardar: guardar, herdar: herdar,
+      deslocar: deslocar, pulso: pulso, noCampo: noCampo, perto: perto, evento: evento, guardar: guardar, herdar: herdar,
       dirDe: dirDe, alvo: alvo, limparEventos: function () { eventos.length = 0; }
     };
   };

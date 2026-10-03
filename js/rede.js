@@ -17,6 +17,12 @@
      enquanto ela rola;
    - no celular, o TRILHO: a margem direita (fora da coluna de texto) é uma
      faixa onde feixes sobem e descem, desenhados por cima da borracha;
+   - o AI CORE (só no Hub) é soberano: o cenário se molda a ele (pedido do
+     dono, 2026-10-02). Ele é um CAMPO: feixe nenhum cruza a face dele, eles
+     contornam; na inspiração o reator puxa os feixes de perto e os que tocam
+     a borda do campo entregam a energia (um losango marca); no começo da
+     expiração ele solta feixes carregados para o site. O reator não muda nada
+     por causa da rede;
    - o MINI AI CORE (js/mini.js), por B.rede.extra;
    - a malha antiga (nós parados e ligações) e a constelação presa ao reator
      estão no histórico (commit ec08dac).
@@ -51,9 +57,13 @@
   var SELETOR = '.painel, .btn, .console, .janela, .instrumento, .passo, .prova__item, .qa, .spec__item, .cenario, .celula, .hero__rail, .footer';
   var ATIVOS = '.painel, .btn, .passo, .prova__item, .qa, .spec__item, .cenario, .celula';
   var TRILHO_BORDA = window.innerWidth < 360 ? 12 : 14;   /* celular: o eixo do trilho (o mesmo do mini) */
+  /* o campo do reator, em raios de entrada da energia (B.nucleo.r): a régua
+     de fora está a 1,26; o campo passa um pouco dela */
+  var CAMPO = 1.36, PUXA = { r: 3.4, s: 2.5 }, SOLTA = 3;
+  var POSTER_CAMPO = 0.52;                    /* sem WebGL: o desenho em CSS, em larguras da caixa */
 
   var dpr = 1, W = 0, H = 0, docH = 1, navH = 0, rodapeY = 1e9;
-  var ancoras = [], elementos = [], textos = [], naTela = [];
+  var ancoras = [], elementos = [], textos = [], naTela = [], campos = [], caixaNucleo = null;
   var ponteiro = { x: -1e4, y: -1e4, ativo: false, a: 0 };
   var rolagem = window.scrollY, rolagemAntes = rolagem, velRol = 0;
   var sujo = true, parado = !!B.reduced, desenhouParado = false, assinatura = '';
@@ -67,6 +77,7 @@
     ctx: ctx, cores: { AC: AC, AC2: AC2, T1: T1 }, celular: celular,
     naZona: function (x, y) { return naZona(x, y); },
     tela: function () { return { W: W, H: H, topo: navH }; },
+    campos: function () { return campos; },
     trilhoX: function () { return celular ? W - TRILHO_BORDA : null; },
     aoEvento: function (tipo, x, y) { var m = B.rede.extra; if (m && m.aoEsbarrao) m.aoEsbarrao(tipo, x, y); }
   });
@@ -123,6 +134,14 @@
     /* sem rodapé (página futura), o fim da página faz o papel dele */
     if (rodapeY > 1e8) rodapeY = document.documentElement.scrollHeight;
     docH = document.documentElement.scrollHeight;
+    /* a caixa do reator (o desenho em CSS vale quando o WebGL não monta) */
+    var cn = document.querySelector('[data-nucleo]');
+    caixaNucleo = null;
+    if (cn && cn.offsetWidth) {
+      var pn = posicaoDoc(cn), tf = getComputedStyle(cn).transform, mx = 0, my = 0;
+      if (tf && tf !== 'none' && window.DOMMatrixReadOnly) { var mt = new DOMMatrixReadOnly(tf); mx = mt.e; my = mt.f; }
+      caixaNucleo = { x: pn.x + mx + cn.offsetWidth / 2, y: pn.y + my + cn.offsetHeight / 2, r: cn.offsetWidth * POSTER_CAMPO };
+    }
   }
   function itemDe(el) { for (var i = 0; i < elementos.length; i++) if (elementos[i].el === el) return elementos[i]; return null; }
 
@@ -195,9 +214,19 @@
     for (var g = 0; g < grudes.length; g++) { var g0 = grudes[g]; g0.d = Math.max(0, Math.min(g0.fim - g0.inicio, rolagem - g0.inicio)); }
     for (var a = 0; a < ancoras.length; a++) { var an = ancoras[a]; an.x = an.dx; an.y = an.dy - rolagem + (an.item.ref ? an.item.ref.d : 0); }
     textosNaTela();
+    /* o campo do reator: o WebGL aceso publica a forma dele; antes disso (ou
+       sem WebGL) vale a caixa do desenho em CSS */
+    campos.length = 0;
+    if (nu && nu.visivel && nu.r) {
+      var R = nu.r * CAMPO;
+      campos.push({ x: nu.cx, y: nu.cy, rx: R * nu.sx, ry: R * nu.sy, R: R });
+    } else if (caixaNucleo) {
+      var cy = caixaNucleo.y - rolagem, cr = caixaNucleo.r;
+      if (cy + cr > 0 && cy - cr < H) campos.push({ x: caixaNucleo.x - window.scrollX, y: cy, rx: cr, ry: cr, R: cr });
+    }
   }
 
-  var atratores = [], ultimoToque = {};
+  var atratores = [], ultimoToque = {}, faseAntes = 0;
   function passo(dt, t) {
     var F = B.FOLEGO, x = faseDoFolego(t);
     folego = x < F.inspira ? suave(x / F.inspira) : 1 - suave((x - F.inspira) / (1 - F.inspira));
@@ -215,8 +244,26 @@
     if (m && m.atrator && m.ativo) atratores.push(m.atrator());
     /* no expirar a rede solta mais energia (respira com o reator) */
     var expira = x > F.inspira;
+    var c = campos[0];
+    if (c) {
+      /* inspirando, o reator puxa os feixes de perto */
+      if (!expira) atratores.push({ x: c.x, y: c.y, r: c.R / CAMPO * PUXA.r, s: PUXA.s });
+      /* começou a expirar: ele solta feixes carregados para o site */
+      if (faseAntes < F.inspira && x >= F.inspira) soltarDoReator(c);
+    }
+    faseAntes = x;
     feixes.passo(dt, { atratores: atratores, vento: 1 + VENTO_MAX * limitar(Math.abs(velRol) / VENTO_VEL), semear: true, intervalo: expira ? 0.22 + Math.random() * 0.25 : 0.45 + Math.random() * 0.4 });
     tocar(t);
+  }
+  /* SOLTA feixes saindo da borda do campo, em direções sorteadas entre as 8 */
+  function soltarDoReator(c) {
+    var d0 = (Math.random() * 8) | 0;
+    for (var i = 0; i < SOLTA; i++) {
+      var d = (d0 + i * 3) % 8, ang = d * Math.PI / 4, k = 1.04;
+      var x = c.x + Math.cos(ang) * c.rx * k, y = c.y + Math.sin(ang) * c.ry * k;
+      if (y < navH || y > H) continue;
+      feixes.criar(x, y, d, { forcar: true, carga: 0.9, vida: 4 + Math.random() * 3 });
+    }
   }
   /* o feixe que passa no cursor se carrega (um anel marca o toque) */
   function tocar(t) {
@@ -257,6 +304,7 @@
     if (extra && extra.desenharFundo) extra.desenharFundo(ctx);   /* o que o mini traça: também some atrás do texto */
     apagarTextos();
     if (celular) desenharTrilho(resp);
+    apagarCampo();   /* depois do trilho: no celular o reator ocupa a largura toda e o trilho passa por ele */
     desenharCantos();
   }
   /* o trilho do celular: os feixes da margem direita, por cima da borracha
@@ -290,6 +338,15 @@
       var m = r.folga > 0 ? 4 : r.folga;
       ctx.fillStyle = 'rgba(0,0,0,0.94)'; ctx.fillRect(r.x - m, y - m, r.w + 2 * m, r.h + 2 * m);
     }
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  /* nada da rede sobre a face do AI Core (borda nítida, sem degradê) */
+  function apagarCampo() {
+    var c = campos[0];
+    if (!c) return;
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.ellipse(c.x, c.y, c.rx, c.ry, 0, 0, TAU); ctx.fill();
     ctx.globalCompositeOperation = 'source-over';
   }
   /* os cantos em L do elemento aceso (visor, não borda) */
