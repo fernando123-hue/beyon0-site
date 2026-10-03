@@ -9,7 +9,9 @@
      lista: as palavras do H1 (SplitText) e a seta dos links são texto na
      tela. Cada linha é guardada relativa ao bloco e somada à posição de
      LAYOUT dele: a entrada por transform não desloca a medida. Folga: 32 px
-     no título principal, 16 no celular, 10 no desktop.
+     no título principal, 8 no celular, 10 no desktop (16 no celular era para
+     os pontos da malha antiga, que liam como acentos; os feixes são traço, e
+     com 16 a margem inteira sumia).
    - O MIOLO de botões e cartões (3 px para dentro): a borda continua viva,
      é onde a rede se encaixa; cartões translúcidos também bloqueiam.
    - Zona INTEIRA: a cota e os números da prova (assinatura e dado medido),
@@ -33,7 +35,7 @@
   /* `posicaoDoc(el)`: a posição de layout do elemento na página (de rede.js);
      `refDe(el)`: o título fixo ou palco pinado em que ele mora, ou null */
   B.redeTexto = function (posicaoDoc, celular, refDe) {
-    var FOLGA = celular ? 16 : 10, FOLGA_TITULO = 32;
+    var FOLGA = celular ? 8 : 10, FOLGA_TITULO = 32;
     var zonas = [], i;
     var faixa = document.createRange(), andar = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     var no, pai = null, q = null, caixa = null, folga = FOLGA, ref = null;
