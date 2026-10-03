@@ -50,14 +50,18 @@
     S.fps += (1000 / Math.max(1, dt) - S.fps) * 0.1;
     /* um subsistema que lança não derruba os outros nem o laço */
     for (var i = 0; i < subs.length; i++) {
-      try { subs[i].f(S); subs[i].erros = 0; } catch (e) { falhou(subs[i]); }
+      try { subs[i].f(S); subs[i].erros = 0; } catch (e) { falhou(subs[i], e); }
     }
     requestAnimationFrame(frame);
   }
-  /* três falhas seguidas e o subsistema sai do laço — o resto do site segue */
-  function falhou(sub) {
+  /* três falhas seguidas e o subsistema sai do laço — o resto do site segue.
+     Nunca em silêncio: o console diz quem caiu e por quê */
+  function falhou(sub, e) {
     sub.erros++;
-    if (sub.erros >= 3) remove(sub.n);
+    if (sub.erros >= 3) {
+      remove(sub.n);
+      if (window.console && console.warn) console.warn('[beyon] "' + sub.n + '" saiu do laço:', e);
+    }
   }
   function iniciar() {
     if (rodando) return;

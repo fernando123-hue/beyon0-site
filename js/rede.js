@@ -50,7 +50,7 @@
   var R0_SEM_REATOR = celular ? 150 : 230;   /* px: a escala do campo nas páginas sem o reator */
   var ACIMA = 0.5;                           /* nas páginas sem o reator, a origem fica esta fração da tela acima do topo */
   var COLETA = { elementos: 5, soltos: 6, fase: 0.86, passo: 0.12 };   /* pacotes por fôlego, a fase em que partem, s entre um e outro */
-  var fila = [];                             /* a coleta escalonada */
+  var filaColeta = [];                             /* a coleta escalonada */
   var PULSO_CLIQUE = 350;                    /* ms entre sinais de clique */
 
   var dpr = 1, W = 0, H = 0, docH = 1, navH = 0, rodapeY = 1e9;
@@ -58,7 +58,7 @@
   var ponteiro = { x: -1e4, y: -1e4, ativo: false };
   var rolagem = window.scrollY;
   var sujo = true, parado = !!B.reduced, desenhouParado = false, assinatura = -1, iniciada = false;
-  var faseAntes = 0, folego = 0;
+  var faseAntes = 0, folego = 0, rotorAng = 0, giroAntes = null, dtQuadro = 0.016;
 
   function limitar(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
   function suave(x) { x = limitar(x); return x * x * (3 - 2 * x); }
@@ -146,7 +146,13 @@
     textosNaTela();
     /* a origem do campo, em coordenadas da tela */
     /* o rotor do campo acompanha a roda do reator (no plano da tela o ângulo cresce no sentido horário) */
-    var rotor = nu && nu.giro !== undefined ? -nu.giro : 0;
+    /* o rotor segue a roda, mas com teto de 0,15 rad/s: o impulso da rolagem
+       e da agitação no raio de 700 px virava hélice (crítica rodada 2) */
+    if (nu && nu.giro !== undefined) {
+      if (giroAntes !== null) { var dg = nu.giro - giroAntes, teto = 0.15 * Math.max(dtQuadro, 0.001); rotorAng -= Math.max(-teto, Math.min(teto, dg)); }
+      giroAntes = nu.giro;
+    }
+    var rotor = rotorAng;
     if (caixaNucleo) campo.origem(caixaNucleo.x - window.scrollX, caixaNucleo.y - rolagem, caixaNucleo.R0, 0, rotor);
     else campo.origem(W / 2, -H * ACIMA - rolagem, R0_SEM_REATOR, 0, 0);
   }
@@ -167,6 +173,8 @@
   function passo(dt, t) {
     var F = B.FOLEGO, x = faseDoFolego(t);
     folego = x < F.inspira ? suave(x / F.inspira) : 1 - suave((x - F.inspira) / (1 - F.inspira));
+    dtQuadro = dt;
+    if ((B.agitacao || 0) < 0.2) degrauAgitado = 0;
     posicionar();
     /* o fôlego do reator move o campo: expirar solta a onda; inspirar recolhe */
     if (faseAntes < F.inspira && x >= F.inspira) campo.soltarOnda();
@@ -174,7 +182,7 @@
        mediana dos pacotes chega junto com ele (causa antes do efeito) */
     if (faseAntes < COLETA.fase && x >= COLETA.fase) coletar();
     faseAntes = x;
-    for (var q = fila.length - 1; q >= 0; q--) { fila[q].t -= dt; if (fila[q].t <= 0) { fila[q].f(); fila.splice(q, 1); } }
+    for (var q = filaColeta.length - 1; q >= 0; q--) { filaColeta[q].t -= dt; if (filaColeta[q].t <= 0) { filaColeta[q].f(); filaColeta.splice(q, 1); } }
     estado.W = W; estado.H = H; estado.topo = navH;
     estado.rLimite = Math.max(campo.polar(0, docH - rolagem).r, campo.polar(W, docH - rolagem).r);
     var s = campo.passo(dt, estado);
@@ -197,9 +205,9 @@
     var n = 0;
     for (i = 0; i < COLETA.elementos && vistos.length; i++) {
       var k = (Math.random() * vistos.length) | 0, v = vistos.splice(k, 1)[0];
-      fila.push({ t: COLETA.passo * n++, f: rotaDoElemento(v) });
+      filaColeta.push({ t: COLETA.passo * n++, f: rotaDoElemento(v) });
     }
-    for (i = 0; i < COLETA.soltos; i++) fila.push({ t: COLETA.passo * n++, f: pacoteSolto });
+    for (i = 0; i < COLETA.soltos; i++) filaColeta.push({ t: COLETA.passo * n++, f: pacoteSolto });
   }
   function rotaDoElemento(v) {
     return function () { var cx = v.x + v.w / 2, cy = v.y + v.h / 2; if (cy > navH && cy < H && !campo.dentroDoVao(cx, cy)) campo.rota(cx, cy, { vida: 1.1 }); };
@@ -268,6 +276,14 @@
       var c = caminho(A, B);
       if (c.length < 4) continue;
       var k = Math.max(A.onda, B.onda, A.ativo, B.ativo);
+      /* um corredor limpo de 14 px em volta do barramento: um raio do campo
+         correndo junto lia como uma segunda ligação (crítica rodada 2) */
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.lineWidth = 14; ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+      ctx.beginPath(); ctx.moveTo(c[0], c[1]);
+      for (var p0 = 2; p0 < c.length; p0 += 2) ctx.lineTo(c[p0], c[p0 + 1]);
+      ctx.stroke();
+      ctx.globalCompositeOperation = 'source-over'; ctx.lineWidth = 1;
       ctx.strokeStyle = 'rgba(' + AC3 + ',' + (BUS.alfa + BUS.aceso * k).toFixed(3) + ')';
       ctx.beginPath(); ctx.moveTo(c[0], c[1]);
       for (var p = 2; p < c.length; p += 2) ctx.lineTo(c[p], c[p + 1]);
@@ -310,7 +326,8 @@
     for (var e = 0; e < elementos.length; e++) {
       var it = elementos[e];
       if (it.onda < 0.02 || it.y > H + 20 || it.y + it.h < -20) continue;
-      var x0 = it.x, y0 = it.y, x1 = it.x + it.w;
+      /* dentro do canto arredondado (o traço reto escapava dele, crítica rodada 2) */
+      var x0 = it.x + 6, y0 = it.y, x1 = it.x + it.w - 6;
       var andou = 1 - it.onda, xa = x0 + (x1 - x0) * Math.min(1, andou * 2.2);
       ctx.strokeStyle = 'rgba(' + AC + ',' + (0.55 * it.onda).toFixed(3) + ')';
       ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(xa, y0); ctx.stroke();
@@ -401,8 +418,9 @@
     sobreModulo: function (x, y, r) {
       for (var i = 0; i < elementos.length; i++) {
         var it = elementos[i];
-        if (!it.liga || y < it.y || y > it.y + it.h) continue;
-        if (x > it.x - r && x < it.x + it.w + r) return true;
+        var btn = !it.liga && it.el.classList.contains('btn'), m = btn ? 24 : 0;
+        if ((!it.liga && !btn) || y < it.y - m || y > it.y + it.h + m) continue;
+        if (x > it.x - r - m && x < it.x + it.w + r + m) return true;
       }
       return false;
     }
@@ -463,7 +481,7 @@
     degrauAgitado = d;
     if (!parado && iniciada && campo.nOndas() < 3) campo.soltarOnda();
   });
-  B.add('agitacao-degrau', function () { if ((B.agitacao || 0) < 0.2) degrauAgitado = 0; });
+
   B.on('reduzir', function (sim) {
     parado = !!sim; desenhouParado = false;
     if (!parado || !iniciada) return;

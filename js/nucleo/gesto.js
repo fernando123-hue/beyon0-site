@@ -12,6 +12,7 @@
    assume a rolagem chega `pointercancel` e o campo se desfaz sozinho. Um
    toque curto, sem arrastar, no reator, solta a onda.
    ========================================================================== */
+import { SPEC } from './spec.js';
 
 /* a mola do campo: criticamente amortecida (chega sem passar do ponto), ω
    ≈ 7,7/s, assenta em ~0,6 s. Mais dura, o núcleo grudava no cursor; mais
@@ -35,7 +36,15 @@ const GIRO_SOLTA = 1.3;    /* /s: o impulso morre aos poucos (inércia) */
    mais até `giro` rad/s e se acalma devagar (`acalma`/s). B.agitacao leva
    o valor ao mini e ao campo */
 const AGITA = { janela: 2.4, desde: 3, passo: 0.22, giro: 1.1, acalma: 0.32 };   /* giro: o teto, perto do da rolagem ("não vira hélice") */
-const TQ_RELIGA = 0.35;    /* s: spec.toque.religa (o gesto não importa o spec) */
+const TQ_RELIGA = SPEC.toque.religa;
+/* religar a batida SEM degrau: volta à subida no ponto que dá o mesmo
+   envelope de agora (o mesmo de pecas.js: sobe cúbica, solta suave) */
+function religar(tb) {
+  const T = SPEC.toque;
+  if (tb === undefined || tb < 0) return 0;
+  const env = tb < T.sobe ? 1 - (1 - tb / T.sobe) ** 3 : 1 - suave((tb - T.sobe) / T.solta);
+  return T.sobe * (1 - Math.cbrt(Math.max(0, 1 - env)));
+}
 
 const suave = (x) => { const c = Math.min(1, Math.max(0, x)); return c * c * (3 - 2 * c); };
 
@@ -130,7 +139,7 @@ export function criarGesto(cena, canvas, alvoEventos, { fino = false, ouvir } = 
       pendente.novo = false;
       if (noReator(pendente.cx, pendente.cy, ponto)) {
         /* com a onda ainda nascendo, o toque novo só bate de novo (não arranca a frente de volta ao centro) */
-        if (tq.t >= 0 && tq.t < TQ_RELIGA) tq.b = 0;
+        if (tq.t >= 0 && tq.t < TQ_RELIGA) tq.b = religar(tq.b);
         else { tq.x = ponto.x; tq.y = ponto.y; tq.t = 0; tq.b = 0; }
         toques.push(relogio);
         while (toques.length && relogio - toques[0] > AGITA.janela) toques.shift();

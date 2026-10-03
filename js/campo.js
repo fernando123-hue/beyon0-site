@@ -46,7 +46,7 @@
   /* a régua escrita (referência: a rosa dos instrumentos de aviação): o rumo
      de cada raio fundamental nos anéis de ramificação ("030"…"360") e a cota
      do anel na margem ("R·0480"). Só no desktop e só onde não há texto */
-  var ESCRITA = { fonte: '400 9px "JetBrains Mono", ui-monospace, monospace', alfa: 0.42, margem: 22 };
+  var ESCRITA = { fonte: '400 10px "JetBrains Mono", ui-monospace, monospace', alfa: 0.55 };
 
   function limitar(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
   function saida(k) { k = limitar(k); return 1 - (1 - k) * (1 - k) * (1 - k); }
@@ -129,10 +129,11 @@
       pacotes.push(p);
       return p;
     }
-    /* o raio mais perto de (r, a): o ângulo dele */
+    /* o raio mais perto de (r, a): o ângulo dele (no rotor, do vão à 1ª
+       ramificação, os raios giram com o reator) */
     function raioPerto(r, a) {
-      var n = nRaios(r), passo = TAU / n;
-      return G.giro + Math.round((a - G.giro) / passo) * passo;
+      var n = nRaios(r), passo = TAU / n, base = r < G.Q * 2 ? G.rotor : G.giro;
+      return base + Math.round((a - base) / passo) * passo;
     }
     /* a ROTA de um ponto da tela até o núcleo: pelo anel até o raio mais
        perto, e o pacote desce por ele. `fica`: segura acesa (hover) */
@@ -163,8 +164,18 @@
       }
       for (i = pacotes.length - 1; i >= 0; i--) {
         var p = pacotes[i];
+        if (p.engate) {
+          p.engate.t += dt;
+          var ke = Math.min(1, p.engate.t / 0.08);
+          p.a = p.engate.de + difAng(p.engate.para, p.engate.de) * ke;
+          if (ke >= 1) p.engate = null;
+          continue;
+        }
         p.v += PACOTE.acel * dt;
+        var antes = p.r;
         p.r -= p.v * dt;
+        if (antes >= G.Q * 2 && p.r < G.Q * 2 && !p.rotor) { p.r = G.Q * 2; p.rotor = true; p.engate = { de: p.a, para: raioPerto(G.Q * 2 - 1, p.a), t: 0 }; continue; }
+        if (p.rotor) p.a = raioPerto(Math.min(p.r, G.Q * 2 - 1), p.a);
         if (p.r <= G.Q) { marcas.push({ r: G.Q, a: p.a, t: 0, dura: 0.6 }); pacotes.splice(i, 1); saidaQuadro.chegadas++; }
       }
       for (i = rotas.length - 1; i >= 0; i--) {
@@ -300,27 +311,20 @@
       for (var b = 0; b <= BMAX && G.Q * Math.pow(2, b) < vis.rMax; b++) {
         var r = G.Q * Math.pow(2, b);
         if (r < vis.rMin - 10) continue;
-        /* o rumo de cada um dos 12 raios fundamentais, logo fora do anel. No
-           anel do vão os rótulos giram com o rotor, como o cartão de uma
-           bússola (o valor de cada raio é dele); no estator ficam */
+        /* o rumo de cada um dos 12 raios fundamentais, logo fora do anel, FIXO
+           (o aro de um instrumento: o rotor gira por baixo e a leitura do
+           rumo bate com ele, crítica rodada 2). Onde há texto, um tique no
+           lugar do número: o aro fica inteiro */
+        if (b > 0) continue;   /* um aro só, o do vão */
         for (var i = 0; i < 12; i++) {
-          var a = (b === 0 ? G.rotor : G.giro) + i * TAU / 12;
+          var a = G.giro + i * TAU / 12;
           if (!angVisivel(a)) continue;
-          var x = px(r + 14, a), y = py(r + 14, a);
-          if (livre && !livre(x, y)) continue;
-          ctx.fillText(RUMOS[i], x, y);
-        }
-        /* a cota: onde o anel cruza a margem esquerda */
-        var cx = ESCRITA.margem - G.ox;
-        if (Math.abs(cx) < r) {
-          var ac = Math.acos(cx / r), lados = [ac, -ac];
-          for (var l = 0; l < 2; l++) {
-            var xc = px(r, lados[l]), yc = py(r, lados[l]) - 9;
-            if (livre && !livre(xc + 20, yc)) continue;
-            ctx.textAlign = 'left';
-            ctx.fillText('R·' + ('000' + Math.round(r)).slice(-4), xc + 4, yc);
-            ctx.textAlign = 'center';
+          var x = px(r + 15, a), y = py(r + 15, a);
+          if (livre && !livre(x, y)) {
+            if (livre(px(r + 6, a), py(r + 6, a))) { ctx.fillRect(px(r + 6, a) - 0.5, py(r + 6, a) - 0.5, 1, 1); }
+            continue;
           }
+          ctx.fillText(RUMOS[i], x, y);
         }
       }
     }
@@ -338,7 +342,7 @@
           ctx.strokeStyle = cor(C.AC, 0.2 * (1 - atras / ONDA.rastro));
           ctx.beginPath(); arco(an.r, f[0], f[1]); ctx.stroke();
         }
-        ctx.strokeStyle = cor(C.AC2, ONDA.alfa[0]);
+        ctx.strokeStyle = cor(C.AC2, cel ? 0.7 : ONDA.alfa[0]);
         ctx.beginPath(); arco(rf, f[0], f[1]); ctx.stroke();
         ctx.strokeStyle = cor(C.AC, ONDA.alfa[1]);
         ctx.beginPath(); arco(rf - ONDA.borda[0], f[0], f[1]); ctx.stroke();
@@ -359,8 +363,17 @@
         ctx.stroke();
         /* o raio, do anel até o vão, aceso de leve enquanto a rota vive */
         if (k >= 1) {
+          /* pelo estator até a 1ª ramificação, um trecho no anel dela e pelo raio do rotor até o vão */
+          var r2 = G.Q * 2, ar2 = raioPerto(r2 - 1, ro.ar);
           ctx.strokeStyle = cor(C.AC, 0.26 * apaga);
-          ctx.beginPath(); ctx.moveTo(px(ro.r, ro.ar), py(ro.r, ro.ar)); ctx.lineTo(px(G.Q, ro.ar), py(G.Q, ro.ar)); ctx.stroke();
+          ctx.beginPath();
+          if (ro.r > r2) {
+            ctx.moveTo(px(ro.r, ro.ar), py(ro.r, ro.ar)); ctx.lineTo(px(r2, ro.ar), py(r2, ro.ar));
+            var b0 = Math.min(ro.ar, ar2), b1 = Math.max(ro.ar, ar2);
+            if (b1 - b0 > 0.0005) arco(r2, b0, b1);
+            ctx.moveTo(px(r2, ar2), py(r2, ar2)); ctx.lineTo(px(G.Q, ar2), py(G.Q, ar2));
+          } else { ctx.moveTo(px(ro.r, ro.ar), py(ro.r, ro.ar)); ctx.lineTo(px(G.Q, ro.ar), py(G.Q, ro.ar)); }
+          ctx.stroke();
         }
       }
     }

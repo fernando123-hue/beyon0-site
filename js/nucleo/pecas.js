@@ -350,7 +350,11 @@ const PAINEL_FS = /* glsl */`
   varying float vProf;
   varying float vToque;
   void main() {
-    float b = (1.0 - smoothstep(0.0, uCai, vR)) + vToque * 0.5;
+    /* dois DEGRAUS duros (faixa de dentro acesa, a de fora fraca, depois
+       nada), com antisserrilhado de 1 px; a rampa contínua de antes lia como
+       brilho borrado (o dono proíbe desfoque) */
+    float aa = fwidth(vR);
+    float b = 0.55 * (1.0 - smoothstep(uCai * 0.32 - aa, uCai * 0.32 + aa, vR)) + 0.45 * (1.0 - smoothstep(uCai - aa, uCai + aa, vR)) + vToque * 0.5;
     b *= mix(uNevoa.z, 1.0, smoothstep(uNevoa.y, uNevoa.x, vProf));
     gl_FragColor = vec4(uCor, b * b * uAlfa * uForca * (1.0 + vToque * uAcende));
     #include <colorspace_fragment>
@@ -410,7 +414,8 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
     /* `dupla`: as faixas de raios e jatos são montadas à mão e metade ficava
        de costas para a câmera (descartada). Nos tubos fechados não: os dois
        lados somariam a energia duas vezes no mesmo pixel */
-    const m = guarda(new THREE.ShaderMaterial({ vertexShader: vs, fragmentShader: fs, uniforms, ...(dupla ? { side: THREE.DoubleSide } : {}), ...ADITIVO }));
+    /* derivatives: o fwidth das aletas em degraus no WebGL1 (no WebGL2 já existe) */
+    const m = guarda(new THREE.ShaderMaterial({ vertexShader: vs, fragmentShader: fs, uniforms, extensions: { derivatives: true }, ...(dupla ? { side: THREE.DoubleSide } : {}), ...ADITIVO }));
     energia.push({ m, atraso });
     return m;
   }
@@ -896,7 +901,7 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
        errado: nesse instante a energia está na borda) */
     const chegada = Math.exp(-(x * RS.periodo) / 0.12);
     /* + a energia que o CAMPO entrega (js/rede.js → boot.js): o ciclo fecha no reator */
-    fluxoRaios.uBase.value = R.base * (1 + 1.8 * chegada) + 0.15 * (e.entrega || 0);
+    fluxoRaios.uBase.value = R.base * (1 + 1.8 * chegada) + 0.08 * (e.entrega || 0);
     const batida = (1 + R.batida * Math.exp(-chegou * 5) * ig) * (1 + TQ.batida * envBatida);
     const inspira = 1 + respira(t, RS.nucleo);
     /* o lampejo: a energia entra pelo portal no começo do fôlego */

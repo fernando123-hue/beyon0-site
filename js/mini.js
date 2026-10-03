@@ -82,7 +82,8 @@
   var passeio = { estado: 'doca', espera: acaso(5, 9), pos: null, dest: null, fica: 0 };
   var quer = { alvo: null, f: 0, a: 0, prox: 0, n: 0 };   /* a opção sob o cursor */
   var sugestao = { ultima: -99, alvo: null, t: -1 };
-  var relogioMini = 0;
+  var relogioMini = 0, espera = -1;   /* espera: s desde o último pulso de espera (−1: nenhum) */
+  var ESPERA = { dura: 0.55, abre: 5, alfa: 0.3 };   /* o anel de espera: legível, curto (crítica rodada 2) */
 
   function limitar(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
   function suave(x) { x = limitar(x); return x * x * (3 - 2 * x); }
@@ -122,7 +123,10 @@
   function escolherDestino(W, H, d) {
     /* a sugestão: uma opção, com a rolagem parada e longe da última */
     if (relogioMini - sugestao.ultima > SUGESTAO.cada && paradoHa > SUGESTAO.parado && Math.random() < SUGESTAO.chance) {
-      var op = B.rede.elementoAoAcaso(mini.x, mini.y, SUGESTAO.longe[0], SUGESTAO.longe[1], function (it) { return it.el.matches(SUGERIVEIS) && (celular || it.w < W * 0.8); });
+      var op = B.rede.elementoAoAcaso(mini.x, mini.y, SUGESTAO.longe[0], SUGESTAO.longe[1], function (it) {
+        /* o topo dele visível e longe da barra (a mira não pode sair cortada sob o menu) */
+        return it.el.matches(SUGERIVEIS) && (celular || it.w < W * 0.8) && it.y > TOPO - 40 && it.y < H - 160;
+      });
       if (op) {
         sugestao.ultima = relogioMini;
         /* ao lado dela, fora do texto: à direita se couber, senão à esquerda; no celular, no trilho */
@@ -160,7 +164,7 @@
       var it = dest.item;
       if (dest.fixX !== null && dest.fixX !== undefined) return { x: dest.fixX, y: it.y + it.h / 2 };
       if (dest.canto) return { x: dest.ox < 0 ? it.x - 14 : it.x + it.w + 14, y: it.y - 14 };
-      return { x: dest.ox > 0 ? it.x + it.w + 24 : it.x - 24, y: it.y + Math.min(it.h / 2, 36) };
+      return { x: dest.ox > 0 ? it.x + it.w + 44 : it.x - 44, y: it.y + Math.min(it.h / 2, 36) };
     }
     return { x: dest.x, y: dest.py - rolagem };
   }
@@ -260,7 +264,8 @@
        o trilho fica a 9 px da borda dos módulos; parado ao lado deles, recua) */
     var encosta = B.rede.sobreTexto(mini.x, mini.y, 9 * ESCALA + 12, 9 * ESCALA + 10) || (celular && B.rede.sobreModulo && B.rede.sobreModulo(mini.x, mini.y, 12 * ESCALA));
     perto += ((encosta ? 1 : 0) - perto) * Math.min(1, dt / 0.4);
-    alvoVis *= 1 - (celular ? 0.65 : 0.5) * perto;
+    /* no celular, ele só aparece nos vãos (sobre texto, módulo ou botão, some) */
+    alvoVis *= 1 - (celular ? 1 : 0.5) * perto;
     if (ESTREITO) alvoVis = 0;
     if (primeiro || B.reduced) {
       if (B.reduced) { feixe = null; pulso = 0; mini.carga = 0; foco = null; soltarSugestao(); quer.f = 0; passeio.estado = 'doca'; }
@@ -281,7 +286,7 @@
       var qx = quer.alvo.x - mini.x, qy = quer.alvo.y - mini.y, qa = Math.atan2(qy, qx);
       quer.a += difAng(qa, quer.a) * Math.min(1, dt * QUER.segue);
       quer.prox -= dt;
-      if (quer.prox <= 0 && quer.n < QUER.max) { pulsar(QUER.forca); quer.prox = QUER.cada; quer.n++; }
+      if (quer.prox <= 0 && quer.n < QUER.max) { espera = 0; quer.prox = QUER.cada; quer.n++; }
     }
     alvoX += Math.cos(quer.a) * QUER.inclina * quer.f;
     alvoY += Math.sin(quer.a) * QUER.inclina * quer.f;
@@ -324,6 +329,7 @@
     if (mini.ativo && faseAntes < F.inspira && x >= F.inspira) momento(0.8);
     faseAntes = x;
     if (sugestao.alvo) sugestao.t += dt;
+    if (espera >= 0) { espera += dt; if (espera > ESPERA.dura) espera = -1; }
     pulso = Math.max(0, pulso - dt * 0.9);
     if (feixe) { feixe.t += dt; if (feixe.t > FEIXE.desenha + FEIXE.segura + FEIXE.apaga) feixe = null; }
   }
@@ -365,7 +371,7 @@
     }
     /* a mira da sugestão: os quatro cantos da opção chegam de fora e travam */
     if (sugestao.alvo) {
-      var it = sugestao.alvo, kk = saida(sugestao.t / SUGESTAO.trava), afasta = (1 - kk) * 14, m = 10;
+      var it = sugestao.alvo, kk = saida(sugestao.t / SUGESTAO.trava), afasta = (1 - kk) * 8, m = 10;
       var apaga = passeio.estado === 'parado' ? 1 : 0;
       /* o fio do mini até a opção, nos primeiros 1,2 s: dá para ler QUAL ele indica */
       if (apaga && sugestao.t < 1.2) {
@@ -376,7 +382,7 @@
       if (apaga) {
         ctx.lineWidth = 1;
         ctx.strokeStyle = 'rgba(' + AC2 + ',' + (0.9 * kk * v).toFixed(3) + ')';
-        var x0 = it.x - 6 - afasta, y0 = it.y - 6 - afasta, x1 = it.x + it.w + 6 + afasta, y1 = it.y + it.h + 6 + afasta;
+        var x0 = it.x + 10 - afasta, y0 = it.y + 10 - afasta, x1 = it.x + it.w - 10 + afasta, y1 = it.y + it.h - 10 + afasta;
         ctx.beginPath();
         ctx.moveTo(x0, y0 + m); ctx.lineTo(x0, y0); ctx.lineTo(x0 + m, y0);
         ctx.moveTo(x1 - m, y0); ctx.lineTo(x1, y0); ctx.lineTo(x1, y0 + m);
@@ -434,6 +440,12 @@
       var fase = 1 - pulso / Math.max(pulsoIni, 0.01);
       ctx.strokeStyle = 'rgba(' + AC2 + ',' + (0.5 * pulso * v).toFixed(3) + ')';
       ctx.beginPath(); ctx.arc(x, y, (7.5 + PULSO * pulsoIni * fase) * s, 0, TAU); ctx.stroke();
+    }
+    /* a espera (opção sob o cursor): um anel fino que abre 5 px em 0,55 s */
+    if (espera >= 0) {
+      var ke = espera / ESPERA.dura;
+      ctx.strokeStyle = 'rgba(' + AC2 + ',' + (ESPERA.alfa * (1 - ke) * v).toFixed(3) + ')';
+      ctx.beginPath(); ctx.arc(x, y, (7.5 + ESPERA.abre * saida(ke)) * s, 0, TAU); ctx.stroke();
     }
     /* a sugestão: UM anel que abre de 0 a 24 px e some (só uma vez) */
     if (sugestao.alvo && sugestao.t < SUGESTAO.abre) {

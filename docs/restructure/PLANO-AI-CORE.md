@@ -503,3 +503,56 @@ aparelho. Reator em 21 s: 7 entregas, 9 feixes soltos, 0 cabeças dentro do
 campo no desktop. Verificador 12/12, acessibilidade ok.
 
 **Pendente do dono.** Ver tudo no celular dele e dizer como prosseguir.
+
+## 18. O Campo do Reator, módulos ligados e o reator/mini que pedem o clique (2026-10-03, 14ª sessão)
+
+Pedido do dono (resumo): o fundo de feixes "dá impressão de desordem";
+quero algo grandioso, que combine com o tema, ressoe com o AI Core e
+interaja com o usuário e com todos os elementos (os de hoje e os que
+vierem); "proíbo blur em qualquer coisa"; pulso do clique no centro mais
+suave e certeiro; AI Core e mini reagem à opção sob o cursor ("como se
+quisesse que o usuário clique lá"); o mini sugere cliques; clicar demais no
+núcleo acelera a rotação e agita o mini; cartões e opções refeitos do zero,
+sem nada colado, com bom espaçamento e conexão.
+
+**Referências** (pesquisa 2025–2026, premiados e marcas reconhecidas; o
+que ficou): a rosa dos instrumentos de aviação (régua 5°/10°, rótulo a cada
+30°, a marca de rumo "bug"), o mostrador Waypoint do relógio (lugares na
+direção real), cruzes de registro, rótulos mono de instrumento; o
+"novelo" do NASA Eyes como lição negativa (uma rota acesa por vez).
+Descartado: grades com brilho que segue o mouse, manchas, partículas,
+"aurora", fundos 3D pesados; shader de tela cheia (seria um 2º WebGL).
+
+**O que é.**
+- `js/campo.js`: a geometria polar do reator estendida pela página — 12
+  raios que se ramificam ×2 a cada dobra (teto: 48 no desktop, 24 no
+  celular), anéis com hierarquia de régua, nós; ROTOR (do vão à 1ª
+  ramificação) que gira com a roda do reator, ESTATOR fixo; rótulos de rumo
+  ("030"…"360") e cotas ("R·0480") só no desktop e fora do texto; a ONDA
+  nítida a cada expiração; PACOTES que voltam ao núcleo (partem em x=0,86 do
+  fôlego, escalonados, para chegar no lampejo); a MIRA polar do cursor; a
+  ROTA de uma opção até o núcleo; a MARCA DE RUMO com leitura ("→ SITES ·
+  244°") na borda do campo, só com 48 px livres de texto.
+- `js/rede.js`: a ponte com a página (origem no reator ou acima da página,
+  fôlego, elementos acesos pela onda, opções sob o cursor, clique, entrega
+  ao reator por `campo:chegou`, barramento dos módulos, registro automático
+  por MutationObserver).
+- `css/cartoes.css`: os cartões refeitos como MÓDULOS separados (vão 24 px
+  celular / até 36 desktop), um sinal de canto só, o barramento de 1 px com
+  nó desenhado pelo campo entre módulos irmãos (reto ou com chanfro de 45°).
+  A pilha sobreposta do celular saiu.
+- AI Core: pulso do toque com envelope finito (+18% a 30 ms, +28% a 0,1 s,
+  fim a 0,6 s; a frente arranca e cruza a lente em ~0,37 s); toque novo não
+  mata a onda em voo; agitação (3º toque em 2,4 s: até +1,1 rad/s, acalma a
+  0,32/s); atento às opções (clareia); luz do núcleo nítida (disco de borda
+  dura e anéis); recebe a energia do campo.
+- Mini: reação à opção sob o cursor (marca de rumo no aro, inclinação de 6
+  px, até 3 pulsos de espera no ritmo da rota), sugestão (vai até uma opção,
+  fio de 1 px, mira nos cantos, um anel, link aceso; no máx. 1 a cada 12 s,
+  só com a rolagem parada), agitação (brilha, 3º arco, órbita curta).
+- Sem desfoque em lugar nenhum: saíram também as faixas de seção com
+  degradê, a luz da prova e do console (viraram fio de 1 px) e as voltas do
+  fio de varredura do hero.
+
+**Processo.** Rodadas com 3 críticos (arte, movimento, celular) retomados
+a cada rodada; resultados e notas no fim desta seção.
