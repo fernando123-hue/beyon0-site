@@ -43,6 +43,16 @@
      estiver no botão (no máximo DOCA.ficaMax s). No máximo um encaixe a
      cada DOCA.cada s, e o mesmo botão só depois de DOCA.porCta s.
    - Rolando rápido ele vai um pouco À FRENTE, na direção da rolagem.
+   - A CRIANÇA INSISTENTE (dono, 2026-10-04: "ainda está limitado; deixe-o
+     mais ativo, como uma criança muito insistente"): sai da doca muito mais
+     vezes, sugere e encaixa nos botões mais cedo; a INSISTÊNCIA (0–1) cresce
+     enquanto ninguém dá atenção a ele (tentativas cada vez mais seguidas,
+     pulinhos mais altos, pulso mais rápido) e zera quando a pessoa clica
+     ou chega perto dele; parado ele QUICA no lugar; às vezes vai ATRÁS do
+     cursor de pertinho (no celular, corre até onde o dedo tocou); encaixado
+     num botão sem clique, PUXA A MANGA (treme pedindo); com o cursor chegando
+     perto, dá um pulo de festa. Rolar rápido continua chamando ele de volta,
+     ele não cobre o texto e some no rodapé.
    - Respira junto com o reator (B.relogio): no começo do expirar manda um
      sinal pelo campo até o núcleo. Seção chegando: liga-se ao canto mais
      perto. Ao trocar de página continua de onde estava.
@@ -69,18 +79,22 @@
   var TOPO = celular ? 92 : 112, PE = 112;   /* PE: acima da barra fixa do celular */
   var FEIXE = { desenha: 0.35, segura: 1.05, apaga: 0.6 };   /* s */
   var VEIO_MS = 4000;                        /* a herança da página anterior vale por este tempo */
-  var PASSEIO = { cada: [8, 14], fica: [2.5, 4], vel: celular ? 170 : 240, rolagemVolta: 700, arranque: 3 };   /* arranque: × a velocidade até uma estação */
+  var PASSEIO = { cada: [2.5, 5], fica: [1.5, 3], vel: celular ? 190 : 270, rolagemVolta: 700, arranque: 3 };   /* arranque: × a velocidade até uma estação */
   /* a opção sob o cursor: inclinação (px), pulsos de espera (s entre eles), quanto a marca demora a travar */
-  var QUER = { inclina: 6, cada: 0.875, primeiro: 0.25, max: 3, forca: 0.32, segue: 8 };
+  var QUER = { inclina: 8, cada: 0.55, primeiro: 0.2, max: 6, forca: 0.32, segue: 10 };
   /* a sugestão: no máximo uma a cada `cada` s, com a rolagem parada há `parado` s;
      a mira trava em `trava` s; o anel abre de 0 a `anel` px em `abre` s */
-  var SUGESTAO = { cada: 12, parado: 1.5, chance: 0.6, fica: 2.8, trava: 0.4, anel: 24, abre: 0.6, longe: [120, 900] };
+  var SUGESTAO = { cada: 4.5, parado: 0.5, chance: 0.85, fica: 2.2, trava: 0.4, anel: 24, abre: 0.6, longe: [120, 900] };
   var SUGERIVEIS = 'a[href].btn, .servico, .celula, .cenario, .hero__rail > a, .servico__link, .celula__link, [data-campo]';
   var AGITA = { orbita: 10, giro: 1.6 };     /* px e rad/s a mais no máximo da agitação */
   /* as docas dos CTAs: s entre encaixes, s até o mesmo botão de novo, s de hesitação, s parado lendo,
      s acoplado (mínimo e teto com o cursor no botão), s entre pulsos, px do cursor ao botão que contam como "perto" */
-  var DOCA = { cada: 16, porCta: 30, hesita: 0.9, parado: 2.2, fica: 3.5, ficaMax: 8, pulsa: 0.9, perto: 48 };
-  var FRENTE = { k: 0.07, max: 56 };         /* rolando: px à frente por px/s, com teto */
+  var DOCA = { cada: 6, porCta: 12, hesita: 0.45, parado: 1.1, fica: 3.5, ficaMax: 8, pulsa: 0.6, perto: 64 };
+  var FRENTE = { k: 0.1, max: 84 };
+  /* a criança: quanto a insistência sobe por s ignorado; pulinho (Hz e px, calmo e no máximo da insistência);
+     puxão na manga (Hz, px); o pulo de festa (px); seguir o cursor (px de folga, s, chance); correr ao toque (s) */
+  var CRIANCA = { sobe: 1 / 14, pula: [2.2, 4.2], altura: [2, 9], puxa: 26, puxao: 2.4, festa: 12,
+    segue: { dx: 34, dy: 30, fica: [3, 5], chance: 0.4 }, toque: 1.6 };         /* rolando: px à frente por px/s, com teto */
 
   var tela = { W: document.documentElement.clientWidth || window.innerWidth, H: window.innerHeight };
   var CORPO = 96, corpo = document.createElement('canvas'), cctx = corpo.getContext('2d');
@@ -102,6 +116,7 @@
   var passeio = { estado: 'doca', espera: acaso(5, 9), pos: null, dest: null, fica: 0 };
   var quer = { alvo: null, f: 0, a: 0, prox: 0, n: 0 };   /* a opção sob o cursor */
   var sugestao = { ultima: -99, alvo: null, t: -1 };
+  var insiste = 0, festa = 0, atencaoAntes = 0, toque = null;
   var relogioMini = 0, espera = -1;   /* espera: s desde o último pulso de espera (−1: nenhum) */
   var ESPERA = { dura: 0.55, abre: 5, alfa: 0.3 };   /* o anel de espera: legível, curto (crítica rodada 2) */
 
@@ -143,6 +158,8 @@
 
   /* ---------- o passeio e a sugestão ---------- */
   function escolherDestino(W, H, d) {
+    /* corre até onde o dedo tocou (antes de tudo: é a pessoa chamando) */
+    if (toque && relogioMini - toque.t < 1.2) { var tq = toque; toque = null; return { x: tq.x, py: rolagem + tq.y, toque: true }; }
     /* a sugestão: uma opção, com a rolagem parada e longe da última */
     if (relogioMini - sugestao.ultima > SUGESTAO.cada && paradoHa > SUGESTAO.parado && Math.random() < SUGESTAO.chance) {
       var op = B.rede.elementoAoAcaso(mini.x, mini.y, SUGESTAO.longe[0], SUGESTAO.longe[1], function (it) {
@@ -157,6 +174,8 @@
       }
     }
     if (celular) return destinoCelular(W, H);
+    /* vai atrás do cursor de pertinho, se ele estiver se mexendo */
+    if (ponteiro.ativo && relogioMini - (ponteiro.mexeu || -99) < 1.5 && Math.random() < CRIANCA.segue.chance + 0.3 * insiste) return { cursor: true };
     /* uma estação na tela, descansada: ele vai turbinar */
     var es = B.estacoes && B.estacoes.naTela(mini.x, mini.y);
     if (es && B.estacoes.podeTurbinar(es) && Math.random() < 0.35) return paraEstacao(es);
@@ -187,6 +206,7 @@
   function destinoXY(dest) {
     if (dest.estacao) return B.estacoes.doca(dest.estacao);
     if (dest.cta) return { x: dest.cta.sx, y: dest.cta.sy };
+    if (dest.cursor) return { x: Math.max(20, Math.min(tela.W - 20, ponteiro.x + CRIANCA.segue.dx)), y: Math.max(TOPO, Math.min(tela.H - PE, ponteiro.y + CRIANCA.segue.dy)) };
     if (dest.item) {
       var it = dest.item;
       if (dest.fixX !== null && dest.fixX !== undefined) return { x: dest.fixX, y: it.y + it.h / 2 };
@@ -253,7 +273,7 @@
     var chamado = Math.abs(velRol) > PASSEIO.rolagemVolta || !livre;
     if (ps.estado === 'doca') {
       if (!livre || Math.abs(velRol) > 200) return null;
-      ps.espera -= dt * (1 + 2 * (B.agitacao || 0));   /* agitado, ele sai mais cedo */
+      ps.espera -= dt * (1 + 2 * (B.agitacao || 0) + 2.5 * insiste);   /* agitado ou insistente, ele sai mais cedo */
       if (ps.espera > 0) return null;
       ps.espera = acaso(PASSEIO.cada[0], PASSEIO.cada[1]);
       ps.dest = escolherDestino(W, H, d);
@@ -266,7 +286,7 @@
       var alvo = destinoXY(ps.dest);
       if (alvo.y < TOPO - 20 || alvo.y > H - 40) { ps.estado = 'voltando'; soltarSugestao(); soltarEstacao(ps); return ps.pos; }
       if (andarPara(ps.pos, alvo, dt * (ps.dest.estacao || ps.dest.cta ? PASSEIO.arranque : 1), ps.dest.vh ? 'vh' : null)) {
-        ps.estado = 'parado'; ps.fica = ps.dest.estacao ? 99 : ps.dest.cta ? DOCA.fica : ps.dest.sugere ? SUGESTAO.fica : acaso(PASSEIO.fica[0], PASSEIO.fica[1]);
+        ps.estado = 'parado'; ps.fica = ps.dest.estacao ? 99 : ps.dest.cta ? DOCA.fica : ps.dest.sugere ? SUGESTAO.fica : ps.dest.cursor ? acaso(CRIANCA.segue.fica[0], CRIANCA.segue.fica[1]) : ps.dest.toque ? CRIANCA.toque : acaso(PASSEIO.fica[0], PASSEIO.fica[1]);
         chegou(ps.dest);
       }
       return ps.pos;
@@ -306,6 +326,7 @@
     if (!mini.ativo || B.reduced || !e.isTrusted) return;
     var el = e.target && e.target.closest ? e.target.closest('a[href], button, [role="button"], summary') : null;
     if (!el) return;
+    insiste = 0;   /* deram atenção: ele se acalma */
     /* clicou: satisfação (e, se era a opção que ele sugeria, mais ainda) */
     var sugerida = sugestao.alvo && sugestao.alvo.el.contains(el);
     pulso = 1; mini.carga = Math.max(mini.carga, sugerida ? 1 : 0.6);
@@ -365,6 +386,25 @@
       quer.a += difAng(qa, quer.a) * Math.min(1, dt * QUER.segue);
       quer.prox -= dt;
       if (quer.prox <= 0 && quer.n < QUER.max) { espera = 0; quer.prox = QUER.cada; quer.n++; }
+    }
+    /* a INSISTÊNCIA: sobe enquanto ele está ativo e ninguém liga; chegar perto dele acalma */
+    if (mini.ativo) insiste = Math.min(1, insiste + dt * CRIANCA.sobe * (atencao > 0.5 ? -6 : 1));
+    if (insiste < 0) insiste = 0;
+    /* o cursor chegou perto: pulo de festa */
+    if (atencao > 0.5 && atencaoAntes <= 0.5) { festa = 1; pulsar(1); }
+    atencaoAntes = atencao;
+    festa = Math.max(0, festa - dt * 2.4);
+    /* parado (na doca ou num destino que não é a estação): quica no lugar, mais alto quanto mais insiste */
+    var paradoAgora = passeio.estado === 'doca' || (passeio.estado === 'parado' && !(passeio.dest && passeio.dest.estacao));
+    if (paradoAgora && !B.reduced) {
+      var hz = CRIANCA.pula[0] + (CRIANCA.pula[1] - CRIANCA.pula[0]) * insiste;
+      var alto = CRIANCA.altura[0] + (CRIANCA.altura[1] - CRIANCA.altura[0]) * insiste;
+      alvoY -= Math.abs(Math.sin(relogioMini * Math.PI * hz)) * alto * (passeio.estado === 'doca' ? 0.6 : 1);
+    }
+    alvoY -= Math.sin(festa * Math.PI) * CRIANCA.festa;
+    /* encaixado num botão sem clique: puxa a manga */
+    if (passeio.estado === 'parado' && passeio.dest && passeio.dest.cta && passeio.dest.cta.acopladaHa > 1.2 && !passeio.dest.cta.sob) {
+      alvoX += Math.sin(relogioMini * CRIANCA.puxa) * CRIANCA.puxao * (0.5 + insiste);
     }
     var naEstacao = passeio.dest && (passeio.dest.estacao || (passeio.dest.cta && passeio.estado === 'parado'));   /* na estação (ou encaixado no CTA), exatamente no lugar */
     if (!naEstacao) {
@@ -506,7 +546,7 @@
     ctx.lineWidth = 1;
     ctx.strokeStyle = 'rgba(' + mistura(c) + ',' + Math.min(1, (0.7 + 0.3 * c) * v).toFixed(3) + ')';
     ctx.beginPath(); ctx.arc(x, y, 7.5 * s, 0, TAU); ctx.stroke();
-    var vrot = (passeio.estado === 'doca' ? 0.35 : 0.85) + AGITA.giro * ag + 0.4 * quer.f;
+    var vrot = (passeio.estado === 'doca' ? 0.35 : 0.85) + AGITA.giro * ag + 0.4 * quer.f + 1.2 * insiste;
     var rot = B.reduced ? 0 : (relogioMini * vrot) % TAU;
     ctx.strokeStyle = 'rgba(' + AC + ',' + Math.min(1, (0.5 + 0.4 * c) * v).toFixed(3) + ')';
     ctx.beginPath(); ctx.arc(x, y, 11.5 * s, rot, rot + 0.7); ctx.stroke();
@@ -658,14 +698,22 @@
   window.addEventListener('scroll', function () { rolagem = window.scrollY; }, { passive: true });
   window.addEventListener('resize', function () { tela.W = document.documentElement.clientWidth || window.innerWidth; tela.H = window.innerHeight; }, { passive: true });
   if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
-    document.addEventListener('pointermove', function (e) { if (e.pointerType === 'mouse') { ponteiro.x = e.clientX; ponteiro.y = e.clientY; ponteiro.ativo = true; } }, { passive: true });
+    document.addEventListener('pointermove', function (e) { if (e.pointerType === 'mouse') { ponteiro.x = e.clientX; ponteiro.y = e.clientY; ponteiro.ativo = true; ponteiro.mexeu = relogioMini; } }, { passive: true });
     document.documentElement.addEventListener('pointerleave', function () { ponteiro.ativo = false; }, { passive: true });
   }
+
+  /* (celular) um toque fora de link: ele corre até lá (como criança atrás de você) */
+  document.addEventListener('pointerup', function (e) {
+    if (e.pointerType !== 'touch' || !mini.ativo || B.reduced || !e.isTrusted || paradoHa < 0.3) return;
+    if (e.target && e.target.closest && e.target.closest('a[href], button, input, textarea, select, summary, label')) return;
+    toque = { x: Math.max(30, Math.min(tela.W - 30, e.clientX)), y: Math.max(TOPO, Math.min(tela.H - PE, e.clientY - 40)), t: relogioMini };
+    if (passeio.estado === 'doca') passeio.espera = 0;
+  }, { passive: true });
 
   mini.desenharFundo = desenharFundo;
   mini.irPara = irPara;
   /* só leitura, para os testes (docs/verificar e afins): o que ele está fazendo */
-  mini.estado = function () { return { passeio: passeio.estado, sugerindo: !!sugestao.alvo, querendo: quer.f > 0.5, agitacao: B.agitacao || 0 }; };
+  mini.estado = function () { return { passeio: passeio.estado, destino: passeio.dest ? Object.keys(passeio.dest).filter(function (k) { return passeio.dest[k] && k !== 'via' && k !== 'volta'; }).join('+') : '', sugerindo: !!sugestao.alvo, querendo: quer.f > 0.5, agitacao: B.agitacao || 0, insiste: +insiste.toFixed(2) }; };
   B.rede.extra = mini;
   B.add('mini', function (S) { passo(Math.min(0.05, S.dt / 1000), tela.W, tela.H); pintarCorpo(); });
 })();

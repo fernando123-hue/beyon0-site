@@ -32,7 +32,11 @@
   /* ---------- a peça ---------- */
   function montar(card, op) {
     var c = card._carga;
-    if (c) return c;
+    if (c) {
+      /* já montada (pelo desktop, numa janela que encolheu): o fio da pilha, se pedido agora */
+      if (op && op.fio && !c.fio) { c.fio = document.createElement('i'); c.fio.className = 'carga-fio'; c.fio.setAttribute('aria-hidden', 'true'); card.appendChild(c.fio); }
+      return c;
+    }
     var raiz = document.createElement('i'); raiz.className = 'carga'; raiz.setAttribute('aria-hidden', 'true');
     var trilho = document.createElement('i'); trilho.className = 'carga__trilho';
     var tubo = document.createElement('i'); tubo.className = 'carga__tubo';
@@ -42,7 +46,8 @@
     tubo.appendChild(brilho); tubo.appendChild(ponta); trilho.appendChild(tubo);
     raiz.appendChild(trilho); raiz.appendChild(pct);
     card.appendChild(raiz);
-    if (op && op.fio) { var fio = document.createElement('i'); fio.className = 'carga-fio'; fio.setAttribute('aria-hidden', 'true'); card.appendChild(fio); }
+    var fio = null;
+    if (op && op.fio) { fio = document.createElement('i'); fio.className = 'carga-fio'; fio.setAttribute('aria-hidden', 'true'); card.appendChild(fio); }
     var varre = document.createElement('i'); varre.className = 'carga-varre'; varre.setAttribute('aria-hidden', 'true'); card.appendChild(varre);
     var aro = null;
     if (op && op.aro) { aro = document.createElement('i'); aro.className = 'carga-aro'; aro.setAttribute('aria-hidden', 'true'); card.appendChild(aro); }
@@ -54,7 +59,7 @@
     /* os oito braços dos cantos, a borda neon e os pontos que correm */
     var bracos = camada('carga-cantos', 8), halo = camada('carga-halo', 0);
     camada('carga-nos', 4);
-    c = card._carga = { card: card, tubo: tubo, pct: pct, aro: aro, p: -1, num: 0, cheio: false, aroA: -1, bracos: bracos.children, halo: halo };
+    c = card._carga = { card: card, tubo: tubo, pct: pct, txt: pct.firstChild, fio: fio, aro: aro, p: -1, num: 0, cheio: false, aroA: -1, bracos: bracos.children, halo: halo };
     card.classList.add('tem-carga');
     return c;
   }
@@ -64,7 +69,8 @@
     p = p < 0 ? 0 : p > 1 ? 1 : p;
     if (Math.abs(p - c.p) > 0.002) { c.tubo.style.transform = 'translate3d(' + ((p - 1) * 100).toFixed(2) + '%,0,0)'; c.p = p; variar(c, p); }
     var n = Math.round(p * 100);
-    if (n !== c.num) { c.pct.textContent = n + '%'; c.num = n; }
+    /* nodeValue, não textContent: trocar o nó acionava o MutationObserver da rede (js/rede.js), que remedia a página inteira a cada número (revisão) */
+    if (n !== c.num) { c.txt.nodeValue = n + '%'; c.num = n; }
     var carregando = p > 0.004 && p < 0.995;
     if (carregando !== card.classList.contains('is-carregando')) card.classList.toggle('is-carregando', carregando);
     var cheio = p >= 0.995;
@@ -95,10 +101,14 @@
 
   /* ---------- desktop: o cursor ---------- */
   var desktop = window.matchMedia('(min-width: 721px) and (hover: hover) and (pointer: fine)');
-  if (!desktop.matches || B.reduced) return;
-  var lista = [], ponteiro = { x: -1e4, y: -1e4, ativo: false };
+  /* aparelho sem mouse nunca usa o cursor; com mouse, a LARGURA decide a cada quadro (até 720 px quem
+     comanda é a rolagem da pilha, js/anima.js: os dois nunca disputam o mesmo card) */
+  if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches || B.reduced) return;
+  var lista = [], ponteiro = { x: -1e4, y: -1e4, ativo: false }, H = window.innerHeight, largo = desktop.matches;
+  window.addEventListener('resize', function () { H = window.innerHeight; }, { passive: true });
   function posDoc(el) { var x = 0, y = 0; for (var e = el; e; e = e.offsetParent) { x += e.offsetLeft; y += e.offsetTop; } return { x: x, y: y }; }
   function medir() {
+    if (!desktop.matches) { lista = []; return; }
     var els = document.querySelectorAll(CARDS), novos = [];
     for (var i = 0; i < els.length; i++) {
       var el = els[i];
@@ -115,11 +125,13 @@
   document.addEventListener('pointermove', function (e) { if (e.pointerType === 'mouse') { ponteiro.x = e.clientX; ponteiro.y = e.clientY; ponteiro.ativo = true; } }, { passive: true });
   document.documentElement.addEventListener('pointerleave', function () { ponteiro.ativo = false; }, { passive: true });
   B.on('rede:medida', medir);
-  B.on('reduzir', function (sim) { if (!sim) return; B.remove('carga'); for (var i = 0; i < lista.length; i++) { definir(lista[i].el, 0); aro(lista[i].el, 0); } });
+  B.on('reduzir', function (sim) { if (!sim) return; B.remove('carga'); B.off('rede:medida', medir); for (var i = 0; i < lista.length; i++) { definir(lista[i].el, 0); aro(lista[i].el, 0); } lista = []; });
 
   B.add('carga', function (S) {
-    if (!lista.length) return;
-    var dt = Math.min(0.05, S.dt / 1000), sx = B.S.sx, sy = B.S.sy, H = window.innerHeight;
+    /* a janela ficou estreita: devolve os cards (descarregados) para a pilha */
+    if (largo !== desktop.matches) { largo = desktop.matches; if (!largo) { for (var j = 0; j < lista.length; j++) { definir(lista[j].el, 0); aro(lista[j].el, 0); } lista = []; } }
+    if (!largo || !lista.length) return;
+    var dt = Math.min(0.05, S.dt / 1000), sx = B.S.sx, sy = B.S.sy;
     for (var i = 0; i < lista.length; i++) {
       var it = lista[i], x0 = it.x - sx, y0 = it.y - sy;
       if (y0 > H + PERTO || y0 + it.h < -PERTO) { if (it.carga > 0) { it.carga = 0; definir(it.el, 0); aro(it.el, 0); } continue; }

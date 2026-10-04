@@ -393,7 +393,8 @@ html.menos-movimento .estacao-cruza { display: none !important; }
   .is-carregado .carga__pct { color: var(--t1); }
   .is-carregado .carga__ponta { opacity: 0; }
   .tem-carga.is-carregado::before { opacity: 1; }
-  .tem-carga.is-carregado { border-color: var(--line-2); }
+  /* (não vence os destaques ciano da estação, do turbo e da sugestão: revisão) */
+  .tem-carga.is-carregado:not(.is-alimentado):not(.is-energia):not(.is-sugerido) { border-color: var(--line-2); }
   .tem-carga.is-carregado .laudo__n, .tem-carga.is-carregado .servico__n, .tem-carga.is-carregado .celula__n { color: var(--ac-3); }
   /* cheio: uma linha de luz atravessa o card uma vez */
   html.js:not(.menos-movimento) .tem-carga > .carga-varre { display: block; position: absolute; inset: 0; overflow: hidden; pointer-events: none; border-radius: inherit; }
