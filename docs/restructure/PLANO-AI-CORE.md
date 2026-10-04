@@ -863,3 +863,15 @@ grudado e desencaixavam depois de um refresh no meio da pilha — agora medem a
 pilha com a posição natural somada (conferido: starts iguais antes e depois
 do refresh); o `is-foco` de posição não age nos cards da pilha. Verificador
 12/12, acessibilidade ok.
+
+**Correção do sentido (mesmo dia):** o dono viu e disse que era "ao
+contrário". Agora o grupo CHEGA EMPILHADO (um monte: o 1º card na frente, os
+outros atrás com as bordas de baixo em degraus de 10 px, encolhidos 3,5% por
+nível) e, descendo, a rolagem DISTRIBUI os cards: cada um sai do monte e
+desce até o seu lugar enquanto o lugar dele sobe de 100% a 74% da tela; ao
+encaixar, a aresta acende; subindo, voltam ao monte. Miolo apagado (12%) no
+monte e na viagem, nítido ao encaixar; card no monte sem toque. Sem sticky:
+sem JS, sem GSAP e em movimento reduzido fica a lista comum (resolve a dúvida
+sobre quem pede menos movimento). A revelação de entrada não mexe nos cards
+da pilha (o clearProps apagaria a posição do monte). Verificador 12/12,
+acessibilidade ok.

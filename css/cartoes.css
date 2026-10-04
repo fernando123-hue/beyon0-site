@@ -329,25 +329,12 @@ html.menos-movimento .qa::details-content { transition: none; }
 html.menos-movimento .estacao-cruza { display: none !important; }
 
 
-/* ---- A PILHA (celular, até 720 px; de volta em 2026-10-04 a pedido do dono,
-   com upgrade). Garantias (Hub), o problema (Automação) e os formatos
-   (Sites): ao descer, cada card gruda no topo num DEGRAU de fichário e o
-   próximo o cobre; ao subir eles se separam de novo. CSS puro (sticky):
-   sem JS e em movimento reduzido a pilha continua, parada. O upgrade: o
-   degrau mostra o NÚMERO do card coberto (a aba do fichário); com movimento,
-   js/anima.js faz o de baixo recuar e o miolo dele esmaecer (o número fica)
-   e acende a aresta de cima quando um card encaixa. Fundo opaco: nada do de
-   baixo atravessa. O fundo vivo (js/rede-texto.js) conhece os cards grudados. ---- */
+/* ---- A PILHA (celular, até 720 px; pedido do dono, 2026-10-04): o grupo
+   chega como um MONTE e a rolagem distribui os cards até os seus lugares
+   (js/anima.js; subindo, voltam ao monte). Aqui só o fundo opaco: no monte
+   os de trás aparecem pelas bordas e nada do de baixo atravessa. Sem JS e em
+   movimento reduzido, a lista comum. ---- */
 @media (max-width: 720px) {
-  /* o degrau mostra o número da aba inteiro: acompanha o padding do módulo */
-  .pilha { --pilha-topo: calc(var(--nav-h) + 12px); --pilha-degrau: calc(var(--mod-pad) + 20px); padding-bottom: 8px; }
-  .pilha > :not(.estacao-vao) { position: sticky; top: var(--pilha-topo); background-color: var(--mod-fundo-opaco); }
-  .pilha > :nth-child(2) { top: calc(var(--pilha-topo) + var(--pilha-degrau)); }
-  .pilha > :nth-child(3) { top: calc(var(--pilha-topo) + 2 * var(--pilha-degrau)); }
-  .pilha > :nth-child(4) { top: calc(var(--pilha-topo) + 3 * var(--pilha-degrau)); }
-  /* (o foco de teclado num card coberto rola a página até ele: js/anima.js) */
-  /* a aba: o número do card coberto acende (classe por evento, js/anima.js);
-     tocar nela não abre o card de baixo */
-  .pilha > .is-coberto .laudo__n, .pilha > .is-coberto .servico__n { color: var(--ac-3); }
-  .pilha > .is-coberto { pointer-events: none; }
+  .pilha > :not(.estacao-vao) { background-color: var(--mod-fundo-opaco); }
+  .pilha > .is-monte { pointer-events: none; }
 }
