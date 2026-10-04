@@ -920,3 +920,33 @@ e número acendem, uma linha de luz atravessa o card. Subindo, descarrega.
 Intervalos pela posição natural + a linha do sticky, medidos na pilha só no
 refresh; por quadro só o scaleX da barra. Conferido com toque real nos dois
 sentidos; verificador 12/12; acessibilidade ok.
+
+## 23. A carga dos cards (cursor no desktop, rolagem no celular) e o mini como criança insistente (2026-10-04)
+
+**Carga (`js/carga.js`, `css/cartoes.css` "A CARGA" e "O VISUAL DA CARGA").**
+Uma peça só: no celular a rolagem da pilha comanda (`anima.js` chama
+`B.carga.definir`); no desktop com mouse o CURSOR comanda — volta a função da
+V1 (`js/field.js`, 81a787a): o card carrega conforme o cursor se aproxima
+(300 px, quadrático, até 85%; em cima, 100%) e descarrega ao afastar. Visual
+escolhido pelo dono entre quatro opções testadas na prévia (?carga=a|b|c|d,
+já removidas): "B + D" — cantos de mira em neon que crescem e fecham a
+moldura, borda neon que acende no último terço, pontos de luz correndo nos
+quatro lados, barra neon com ponta e porcentagem. O brilho difuso aqui é
+EXCEÇÃO pedida pelo dono (imagem de referência); no resto do site continua
+proibido. Revisão: a porcentagem por `nodeValue` (com `textContent` o
+MutationObserver da rede remedia a página inteira a cada número); a borda do
+carregado não vence os destaques da estação; altura em cache; desktop e
+pilha nunca disputam o card ao mudar a largura.
+
+**Mini (`js/mini.js`), "como uma criança muito insistente".** Sai da doca a
+cada 2,5–5 s (antes 8–14), sugere a cada ~4,5 s (antes 12), encaixa nos
+botões com 0,45 s de hesitação ou 1,1 s de leitura parada; INSISTÊNCIA 0–1
+sobe ~1/14 por s ignorado (sai mais cedo, pula mais alto, gira mais rápido) e
+zera com clique ou o cursor perto; quica parado; segue o cursor de pertinho
+(34/30 px, 3–5 s); no celular corre até o toque (fora de links); encaixado
+sem clique, puxa a manga; pulo de festa quando o cursor chega. Conferido
+quadro a quadro no Chrome real (desktop e toque).
+
+**Medido.** Verificador 12/12; acessibilidade ok; LCP A/B (mediana de 5)
+contra 2a10f4d sem diferença fora do ruído (desktop 944/1180/1588 contra
+1016/1228/1520 ms; celular 1372/1356 contra 1612/1356 ms).
