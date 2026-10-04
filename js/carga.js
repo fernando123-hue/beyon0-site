@@ -80,7 +80,8 @@
     var c = card._carga || montar(card);
     if (c.sobre) p = 1;   /* em sobrecarga fica em 100%, quem comanda é a estação */
     p = p < 0 ? 0 : p > 1 ? 1 : p;
-    if (Math.abs(p - c.p) > 0.002) { c.tubo.style.transform = 'translate3d(' + ((p - 1) * 100).toFixed(2) + '%,0,0)'; c.p = p; variar(c, p); }
+    /* só redesenha quando a carga muda ao menos 1% (a 0,2%, cada pixel de rolagem reescrevia o tubo e os 8 cantos) */
+    if (Math.abs(p - c.p) >= 0.01 || (p >= 1 && c.p < 1) || (p <= 0 && c.p > 0)) { c.tubo.style.transform = 'translate3d(' + ((p - 1) * 100).toFixed(2) + '%,0,0)'; c.p = p; variar(c, p); }
     var n = Math.round(p * 100);
     /* nodeValue, não textContent: trocar o nó acionava o MutationObserver da rede (js/rede.js), que remedia a página inteira a cada número (revisão) */
     if (n !== c.num && !c.sobre) { c.txt.nodeValue = n + '%'; c.num = n; }

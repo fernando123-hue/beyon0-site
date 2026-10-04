@@ -114,8 +114,21 @@
   } catch (e) { /* sem armazenamento: o relógio começa nesta página */ }
   function relogio() { return (agora() - EPOCA) / 1000; }
 
+  /* a fonte do canvas só é trocada quando muda: trocar ctx.font obriga o navegador a resolver o estilo da
+     página se algo mudou no quadro (medido no celular rolando: ~225 ms de layout forçado numa rolagem curta).
+     Depois de ctx.restore() a fonte volta à de antes: quem restaura zera a memória (ctx.__fonte = null) */
+  function fonte(ctx, f) { if (ctx.__fonte !== f) { ctx.font = f; ctx.__fonte = f; } }
+  /* a largura de um texto no canvas, medida uma vez por fonte e texto (os rótulos se repetem quadro após
+     quadro: medir a cada quadro custava ~250 ms numa rolagem curta no celular). Use depois de B.fonte */
+  var larguras = new Map();
+  function largura(ctx, txt) {
+    var k = (ctx.__fonte || ctx.font) + '|' + txt, w = larguras.get(k);
+    if (w === undefined) { if (larguras.size > 600) larguras.clear(); w = ctx.measureText(txt).width; larguras.set(k, w); }
+    return w;
+  }
+
   window.BEYON = {
-    S: S, add: add, remove: remove, on: on, off: off, emit: emit, iniciar: iniciar, reduzir: reduzir,
+    S: S, fonte: fonte, largura: largura, add: add, remove: remove, on: on, off: off, emit: emit, iniciar: iniciar, reduzir: reduzir,
     reduced: reduced, sistemaReduz: mqReduce.matches, num: num, relogio: relogio,
     /* o fôlego: os mesmos números de SPEC.respira do reator (7 s, inspira em 42%) */
     FOLEGO: { periodo: 7, inspira: 0.42 }

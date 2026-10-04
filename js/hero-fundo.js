@@ -98,7 +98,7 @@
       var y0 = Math.ceil((topo + rol) / GRADE.regua) * GRADE.regua;
       for (y = y0; y - rol < fim; y += GRADE.regua) { var ly = y % 100 === 0 ? 9 : y % 50 === 0 ? 6 : 3; ctx.moveTo(rx, y - rol + 0.5); ctx.lineTo(rx + ly, y - rol + 0.5); }
       ctx.stroke();
-      ctx.font = FONTE_P; ctx.fillStyle = cor(AC2, 0.42); ctx.textBaseline = 'top'; ctx.textAlign = 'left';
+      B.fonte(ctx, FONTE_P); ctx.fillStyle = cor(AC2, 0.42); ctx.textBaseline = 'top'; ctx.textAlign = 'left';
       for (x = 100; x < W - 30; x += 100) ctx.fillText(String(x), x + 3, ry + 4);
       ctx.textBaseline = 'middle';
       for (y = Math.ceil((topo + rol + 20) / 100) * 100; y - rol < fim - 8; y += 100) ctx.fillText(String(y), rx + 12, y - rol);
@@ -111,7 +111,7 @@
         ctx.moveTo(a.x, cy); ctx.lineTo(a.x + a.w, cy); ctx.moveTo(a.x + 0.5, cy - 4); ctx.lineTo(a.x + 0.5, cy + 4); ctx.moveTo(a.x + a.w - 0.5, cy - 4); ctx.lineTo(a.x + a.w - 0.5, cy + 4);
         if (cx < W - 40) { ctx.moveTo(cx, a.y); ctx.lineTo(cx, a.y + a.h); ctx.moveTo(cx - 4, a.y + 0.5); ctx.lineTo(cx + 4, a.y + 0.5); ctx.moveTo(cx - 4, a.y + a.h - 0.5); ctx.lineTo(cx + 4, a.y + a.h - 0.5); }
         ctx.stroke();
-        ctx.font = FONTE; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        B.fonte(ctx, FONTE); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         var rotW = m.rotW, tw = rotW.length * 6 + 12;   /* mono de 10 px: ~6 px por caractere */
         ctx.fillStyle = '#000';
         ctx.globalCompositeOperation = 'destination-out'; ctx.fillRect(a.x + a.w / 2 - tw / 2, cy - 6, tw, 12); ctx.globalCompositeOperation = 'source-over';
@@ -121,7 +121,7 @@
           var rotH = m.rotH, th = rotH.length * 6 + 12;
           ctx.fillStyle = '#000';
           ctx.globalCompositeOperation = 'destination-out'; ctx.fillRect(-th / 2, -6, th, 12); ctx.globalCompositeOperation = 'source-over';
-          ctx.fillStyle = cor(AC2, 0.8); ctx.fillText(rotH, 0, 0); ctx.restore();
+          ctx.fillStyle = cor(AC2, 0.8); ctx.fillText(rotH, 0, 0); ctx.restore(); ctx.__fonte = null;
         }
         desenharCascata(ctx, g, a);
       }
@@ -136,7 +136,7 @@
         ctx.beginPath(); ctx.moveTo(c.x, ry); ctx.lineTo(c.x, ry + 12); ctx.moveTo(rx, c.y); ctx.lineTo(rx + 12, c.y); ctx.stroke();
         ctx.lineWidth = 1;
         if (g.livre(c.x + 70, c.y + 18)) {
-          ctx.font = FONTE; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillStyle = cor(AC2, 0.75);
+          B.fonte(ctx, FONTE); ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillStyle = cor(AC2, 0.75);
           ctx.fillText('x ' + ('000' + Math.round(c.x)).slice(-4) + '  y ' + ('000' + Math.round(c.y + rol)).slice(-4), c.x + 12, c.y + 18);
         }
       }
@@ -163,7 +163,7 @@
       ctx.strokeStyle = cor(AC, 0.7);
       ctx.beginPath(); ctx.moveTo(Math.round(xm) - 0.5, alto - 4); ctx.lineTo(Math.round(xm) - 0.5, base + 4); ctx.stroke();
       if (p >= 1) {
-        ctx.font = FONTE; ctx.textAlign = 'right'; ctx.textBaseline = 'bottom'; ctx.fillStyle = cor(AC2, 0.8);
+        B.fonte(ctx, FONTE); ctx.textAlign = 'right'; ctx.textBaseline = 'bottom'; ctx.fillStyle = cor(AC2, 0.8);
         ctx.fillText('esta página · carga ' + num(cascata.total / 1000, 2) + ' s', a.x + a.w, alto - 6);
       }
     }

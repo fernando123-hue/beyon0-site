@@ -203,7 +203,7 @@
     var w = document.documentElement.clientWidth || window.innerWidth, h = window.innerHeight, d = Math.min(window.devicePixelRatio || 1, celular ? 1.5 : 1.5);
     if (w !== W || h !== H || d !== dpr) {
       W = w; H = h; dpr = d;
-      cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+      cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); ctx.__fonte = null;   /* redimensionar zera o estado do canvas, fonte inclusive */
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
     medirDocumento();
@@ -338,7 +338,7 @@
       else if (heroProprioCel) {
         ctx.save(); ctx.beginPath(); ctx.rect(0, hfTela - 60, W, H); ctx.clip();
         campo.desenhar(resp, !parado);
-        ctx.restore();
+        ctx.restore(); ctx.__fonte = null;
         ctx.globalCompositeOperation = 'destination-out';
         for (var dc = 0; dc < 3; dc++) { ctx.fillStyle = 'rgba(0,0,0,' + (0.75 - 0.25 * dc).toFixed(2) + ')'; ctx.fillRect(0, hfTela - 60 + dc * 20, W, 20); }
         ctx.globalCompositeOperation = 'source-over';
@@ -371,7 +371,7 @@
     ctx.save();
     ctx.beginPath(); ctx.rect(0, navH, W, Math.max(0, g.fim - navH)); ctx.clip();
     hf.desenhar(ctx, g);
-    ctx.restore();
+    ctx.restore(); ctx.__fonte = null;
   }
   /* o caminho de A até B pelo vão (coordenadas da tela): lado a lado, um
      abaixo do outro, ou a fileira que quebra (chanfro de 45°, como trilha de

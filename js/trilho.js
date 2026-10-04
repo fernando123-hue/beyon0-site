@@ -226,7 +226,7 @@
         }
         desenhados++;
         if (G.rotulos && secoes[i].rot && (!livre || livre(G.xE - 30, y - 12))) {
-          ctx.font = FONTE; ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'right';
+          B.fonte(ctx, FONTE); ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'right';
           ctx.fillStyle = cor(C.AC2, 0.6 * resp);
           ctx.fillText(secoes[i].rot, G.xE - 12, y - 7);
         }
@@ -268,15 +268,15 @@
       /* o nome: perto do começo da seção, mas sempre dentro da tela e do trecho */
       var y1 = Math.min(G.H, telaY(fim));
       var txt = (sc.rot ? sc.rot + '/' + ('0' + secoes.length).slice(-2) + ' · ' : '') + sc.nome;
-      ctx.font = FONTE;
-      var lw = ctx.measureText(txt).width, yc = Math.min(y1 - 16 - lw / 2, Math.max(y0 + 40 + lw / 2, G.topo + 24 + lw / 2));
+      B.fonte(ctx, FONTE);
+      var lw = B.largura(ctx, txt), yc = Math.min(y1 - 16 - lw / 2, Math.max(y0 + 40 + lw / 2, G.topo + 24 + lw / 2));
       if (yc - lw / 2 < y0 + 20 || (op.livre && !op.livre(G.xD + 24, yc))) return;
       ctx.save();
       ctx.translate(G.xD + 24, yc); ctx.rotate(Math.PI / 2);
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillStyle = cor(C.AC2, ATUAL.rotulo * resp);
       ctx.fillText(txt, 0, 0);
-      ctx.restore();
+      ctx.restore(); ctx.__fonte = null;
     }
     /* o fluxo: traços curtos correndo nas réguas, para baixo na esquerda e para cima na direita */
     function desenharFluxo() {
@@ -435,9 +435,9 @@
       ctx.closePath(); ctx.fill();
       if (!G.rotulos || !rumo.rotulo) return;
       var txt = rumo.lado < 0 ? rumo.rotulo + ' →' : '← ' + rumo.rotulo;
-      ctx.font = FONTE_RUMO; ctx.textBaseline = 'middle';
+      B.fonte(ctx, FONTE_RUMO); ctx.textBaseline = 'middle';
       ctx.textAlign = rumo.lado < 0 ? 'right' : 'left';
-      var tx = x - dir * 12, lw = ctx.measureText(txt).width;
+      var tx = x - dir * 12, lw = B.largura(ctx, txt);
       if ((rumo.lado < 0 ? tx - lw : G.W - tx - lw) < 8) return;   /* não cabe na margem */
       ctx.fillStyle = cor(C.AC2, 0.9 * f);
       ctx.fillText(txt, tx, y);

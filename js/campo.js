@@ -328,7 +328,7 @@
     }
     function desenharEscrita(resp, livre) {
       if (cel) return;
-      ctx.font = ESCRITA.fonte; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+      B.fonte(ctx, ESCRITA.fonte); ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
       ctx.fillStyle = cor(C.PRATA, ESCRITA.alfa * resp);
       for (var b = 0; b <= BMAX && G.Q * Math.pow(2, b) < vis.rMax; b++) {
         var r = G.Q * Math.pow(2, b);
@@ -505,10 +505,10 @@
       var tx = x + ux * 22, ty = y + uy * 22;
       var graus = Math.round(((a * 180 / Math.PI + 90) % 360 + 360) % 360);
       var txt = '→ ' + rumo.rotulo + ' · ' + ('00' + graus).slice(-3) + '°';
-      ctx.font = RUMO.fonte; ctx.textBaseline = 'middle';
+      B.fonte(ctx, RUMO.fonte); ctx.textBaseline = 'middle';
       ctx.textAlign = ux < -0.2 ? 'right' : ux > 0.2 ? 'left' : 'center';
       if (livre) {
-        var lw = ctx.measureText(txt).width, x0 = ctx.textAlign === 'right' ? tx - lw : ctx.textAlign === 'center' ? tx - lw / 2 : tx, f2 = 48;
+        var lw = B.largura(ctx, txt), x0 = ctx.textAlign === 'right' ? tx - lw : ctx.textAlign === 'center' ? tx - lw / 2 : tx, f2 = 48;
         if (!livre(x0 - f2, ty) || !livre(x0 + lw + f2, ty) || !livre(x0 + lw / 2, ty - f2 / 2) || !livre(x0 + lw / 2, ty + f2 / 2)) return;
       }
       ctx.fillStyle = cor(C.AC2, 0.9 * f);

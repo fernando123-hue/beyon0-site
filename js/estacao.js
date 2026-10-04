@@ -353,7 +353,7 @@
         var ry = topoS + 24;
         if (ry > g.topo + 10 && ry < a1 - 10 && (!livre || livre(st.x + 60, ry))) {
           simbolo(ctx, st.x + 16, ry);
-          ctx.font = ROTULO.fonte; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+          B.fonte(ctx, ROTULO.fonte); ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
           ctx.fillStyle = cor(AC2, ROTULO.alfa);
           ctx.fillText(ROTULO.texto, st.x + 28, ry);
         }
