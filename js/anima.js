@@ -570,19 +570,23 @@
         });
         /* celular: sem hover, o item no meio da tela é o "em foco" (índice âmbar,
            régua acesa). Classe por evento de rolagem, nada por quadro. */
-        /* A PILHA do celular (css/cartoes.css; pedido do dono, 2026-10-04):
-           o grupo chega EMPILHADO (um monte: o 1º card por cima, os outros
-           atrás, com as bordas de baixo aparecendo em degraus) e, descendo, a
-           rolagem DISTRIBUI os cards: cada um sai do monte e desce até o seu
-           lugar quando o lugar dele entra na tela; subindo, eles voltam ao
-           monte. Ao encaixar no lugar, a aresta de cima acende. Só transform,
-           conduzido pela rolagem (scrub). O lugar natural de cada card é a
-           soma das alturas e do vão (lida só no refresh). Sem JS, sem GSAP e
-           em movimento reduzido: a lista comum, sem monte. */
+        /* A PILHA do celular (css/cartoes.css; pedido do dono, 2026-10-04): o
+           grupo chega EMPILHADO (um monte: o 1º card na frente, os outros
+           atrás com as bordas de baixo em degraus) e, quando o monte chega ao
+           alto da tela, ele PARA ali (pin) por um trecho de rolagem: a cada
+           trecho um card sai do monte e desce até o seu lugar, à vista; ao
+           encaixar, a aresta acende. Depois a página segue; subindo, os cards
+           voltam ao monte. (A 1ª versão sem parada distribuía cada card quando
+           o lugar dele entrava pela borda de baixo: acontecia fora da vista e
+           o dono viu como "não funcionou".) Só transform, pela rolagem. O pin
+           é publicado como B.pino (o do palco da prova é só do desktop): o
+           fundo vivo sabe onde os cards estão. Sem JS, sem GSAP e em movimento
+           reduzido: a lista comum. */
         mm.add('(max-width: 720px) and (prefers-reduced-motion: no-preference)', function () {
           if (!ST || html.classList.contains('menos-movimento')) return;
-          var PILHA = { degrau: 10, encolhe: 0.035 };
-          var cartas = [], medidores = [], miolos = [];
+          var PILHA = { degrau: 10, encolhe: 0.035, trecho: 260 };   /* px; fração por nível; px de rolagem por card */
+          var cartas = [], medidores = [], miolos = [], pinos = [];
+          var navEl = document.querySelector('.nav');
           pilhaViva = true;
           [].forEach.call(document.querySelectorAll('.pilha'), function (pilha) {
             var cards = [].filter.call(pilha.children, function (c) { return !c.classList.contains('estacao-vao'); });
@@ -597,7 +601,11 @@
             medidores.push(medirPilha);
             /* no monte: a base do card k fica k degraus abaixo da base do 1º */
             var noMonte = function (k) { return function () { return m.nat[0] + m.alt[0] + k * PILHA.degrau - m.alt[k] - m.nat[k]; }; };
-            var quando = function (k, onde) { return function () { return 'top+=' + Math.round(m.nat[k]) + ' ' + onde; }; };
+            var tl = gsap.timeline({ defaults: { ease: 'none' }, scrollTrigger: {
+              trigger: pilha, pin: true, anticipatePin: 1, invalidateOnRefresh: true, scrub: true,
+              start: function () { return 'top ' + ((navEl ? navEl.offsetHeight : 64) + 16) + 'px'; },
+              end: function () { return '+=' + PILHA.trecho * (cards.length - 1); }
+            } });
             cards.forEach(function (card, i) {
               cartas.push(card);
               gsap.set(card, { zIndex: cards.length - i, position: 'relative' });
@@ -605,19 +613,28 @@
               /* no monte e viajando, o miolo fica apagado (o texto não vaza nos vãos); nítido ao encaixar */
               var miolo = [].filter.call(card.children, function (c) { return !c.matches('.painel__canto, .laudo__n, .servico__n'); });
               miolos = miolos.concat(miolo);
-              gsap.timeline({ scrollTrigger: { trigger: pilha, start: quando(i, '100%'), end: quando(i, '74%'), scrub: true, invalidateOnRefresh: true } })
-                .fromTo(card, { y: noMonte(i), scale: 1 - PILHA.encolhe * i, transformOrigin: '50% 100%' }, { y: 0, scale: 1, ease: 'none', immediateRender: true }, 0)
-                .fromTo(miolo, { opacity: 0.12 }, { opacity: 1, ease: 'power2.in', immediateRender: true }, 0);
-              /* no monte o card não recebe toque (a borda dele abriria o card errado); ao encaixar, recebe e acende */
+              /* no monte o card não recebe toque (a borda dele abriria o card errado) */
               card.classList.add('is-monte');
-              ST.create({ trigger: pilha, start: quando(i, '74%'), invalidateOnRefresh: true,
-                onEnter: function () { card.classList.remove('is-monte'); encaixe(card); },
-                onLeaveBack: function () { card.classList.add('is-monte'); } });
+              var t0 = i - 1;
+              tl.fromTo(card, { y: noMonte(i), scale: 1 - PILHA.encolhe * i, transformOrigin: '50% 100%' }, { y: 0, scale: 1, duration: 1, immediateRender: true }, t0)
+                .fromTo(miolo, { opacity: 0.12 }, { opacity: 1, duration: 1, ease: 'power2.in', immediateRender: true }, t0)
+                .add(function () {
+                  var desce = !tl.scrollTrigger || tl.scrollTrigger.direction > 0;
+                  card.classList.toggle('is-monte', !desce);
+                  if (desce) encaixe(card);
+                }, t0 + 0.98);   /* antes do fim exato: no fim da timeline, voltando, o aviso não dispara */
             });
+            /* o fundo vivo (js/rede.js) mede os cards pela posição natural + o deslocamento do pin */
+            var publicar = function () { var st = tl.scrollTrigger; if (st) B.pino = { el: pilha, inicio: st.start, fim: st.end }; };
+            publicar();
+            ST.addEventListener('refresh', publicar);
+            pinos.push(publicar);
           });
           return function () {
             pilhaViva = false;
             for (var k = 0; k < medidores.length; k++) ST.removeEventListener('refreshInit', medidores[k]);
+            for (k = 0; k < pinos.length; k++) ST.removeEventListener('refresh', pinos[k]);
+            if (pinos.length) B.pino = null;
             gsap.set(cartas, { clearProps: 'transform,zIndex,position' });
             gsap.set(miolos, { clearProps: 'opacity' });
             cartas.forEach(function (c) { c.classList.remove('is-monte'); });

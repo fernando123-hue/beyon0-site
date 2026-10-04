@@ -875,3 +875,14 @@ sem JS, sem GSAP e em movimento reduzido fica a lista comum (resolve a dúvida
 sobre quem pede menos movimento). A revelação de entrada não mexe nos cards
 da pilha (o clearProps apagaria a posição do monte). Verificador 12/12,
 acessibilidade ok.
+
+**"Não funcionou, acho que bugou" (mesmo dia).** Reproduzido com toque de
+verdade (CDP `dispatchTouchEvent`; o `synthesizeScrollGesture` não rola nem
+página em branco nesta máquina): a lógica funcionava, mas cada card só saía
+do monte quando o lugar dele entrava pela borda de baixo — a distribuição
+acontecia fora da vista e num piscar. Agora o monte PARA no alto da tela
+(pin do ScrollTrigger, 260 px de rolagem por card) e os cards saem um a um à
+vista; depois a página segue; subindo, voltam ao monte (conferido nos dois
+sentidos no Hub, Sites e Automação). O pin é publicado como `B.pino` (o do
+palco da prova é só do desktop), para o fundo vivo. Verificador: 11/12 com o
+alvo que falha trocando a cada rodada (LCP, CPU 74–100%); acessibilidade ok.
