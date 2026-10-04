@@ -27,18 +27,35 @@ export const SPEC = {
   nevoa: { perto: 0.4, longe: -0.8, minimo: 0.42 },
 
   /* o núcleo: a fonte. Só ele é branco; o "no ar." do H1 continua sendo o
-     ciano mais forte da tela */
+     ciano mais forte da tela.
+     2026-10-03 (dono: "virou só uma bola branca; quero efeitos nela, como
+     antes, porém melhor"): o brilho de antes era desfoque, que o dono
+     proíbe. Agora a luz é DESENHADA, toda em traço nítido, num shader de
+     frente para a câmera (a COROA). Rodada da crítica de arte: o centro é
+     um miolo branco pequeno e ANÉIS concêntricos em degraus (branco → ciano)
+     no lugar do disco chapado; um aro em 3 partes (gira ao contrário do anel
+     da lente); 36 filamentos de comprimento FIXO (12 longos), ciano, como um
+     mostrador (brancos só na chegada da energia); a ÓRBITA de antes (a
+     elipse horizontal do disco de partículas, a assinatura de que o dono
+     gostava) refeita em dois anéis TRACEJADOS de 1 px, em sentidos opostos,
+     com a metade de trás mais fraca; e na chegada uma onda de 1 px que corre
+     do núcleo até as câmaras em ~0,45 s. Nada de degradê.
+     `raio`: o miolo (unidades do spec); `fios`: [início, comprimento curto,
+     longo] em múltiplos do raio; `aro`: [raio, partes, fração cheia, rad/s,
+     alfa]; `orbitas`: [raio, achatamento, traços, rad/s, alfa];
+     `ondas`: s entre as duas, s de vida, raio final; `meia`: a meia-largura do
+     quadrado (cobre a onda até o raio final, senão ela sai cortada) */
   nucleo: {
-    raio: 0.065,
-    halos: [
-      { cor: 't1', escala: 0.5, alfa: 1.0, miolo: 0.12 },    /* o estouro branco */
-      { cor: 'ac', escala: 0.9, alfa: 0.45, miolo: 0.04 }    /* o halo, curto: a bruma larga saiu com os desfoques (2026-10-02) */
-    ],
-    raios: { cor: 'ac2', escala: 1.0, alfa: 0.22, n: 12 },   /* 12, como tudo */
-    /* o traço horizontal: nasce do núcleo na ignição e assenta QUASE apagado
-       (assentado forte, com os jatos, formava uma mira de luneta — rodada 6) */
+    raio: 0.055,
+    coroa: { meia: 0.47, n: 36, longo: 3, fios: [1.9, 0.45, 0.75], giro: 0.04, treme: 0.06, estica: 0.45,
+      orbitas: [[0.205, 0.3, 64, 0.32, 0.6], [0.26, 0.3, 90, -0.2, 0.42]],
+      aro: [0.088, 3, 0.6, 0.5, 0.8],
+      ondas: { intervalo: 0.2, vida: 0.45, ate: 0.44, alfa: 0.7 } },
+    /* o traço horizontal: nasce do núcleo na ignição e assenta curto (~3× a
+       órbita), o reflexo achatado de antes sem desfoque. (Assentado longo e
+       forte, com os jatos, formava uma mira de luneta — rodada 6) */
     tracos: [
-      { cor: 'ac2', largura: 5.6, altura: 0.035, alfa: 0.8, assenta: { largura: 2.0, alfa: 0.1 } }
+      { cor: 'ac2', largura: 5.6, altura: 0.035, alfa: 0.8, assenta: { largura: 0.9, alfa: 0.38 } }
     ],
     nasce: 0.35,
     assenta: 1.2
@@ -46,10 +63,10 @@ export const SPEC = {
 
   /* a lente: anéis finos de frente em volta do núcleo; a régua de marcas amarra
      o reator à marca */
+  /* 2026-10-03: ficou um anel só (os de 0,15 e 0,28 somavam traço em volta
+     do núcleo: "poluído", disse o dono); os aros de perto agora são da coroa */
   lente: [
-    { raio: 0.15, tubo: 0.004, cor: 'ac2', alfa: 0.85, vel: 0.3 },
-    { raio: 0.21, tubo: 0.005, cor: 'prata', alfa: 0.45, vel: -0.18, marcas: 48, marca: 0.004 },
-    { raio: 0.28, tubo: 0.004, cor: 'ac', alfa: 0.5, vel: 0.12 }
+    { raio: 0.21, tubo: 0.005, cor: 'prata', alfa: 0.26, vel: -0.12, marcas: 48, marca: 0.004 }   /* mais fraco (crítica rodada 2: o miolo lia como alvo) */
   ],
 
   /* os raios de energia: 12 canais do portal ao núcleo. A energia corre
@@ -72,48 +89,52 @@ export const SPEC = {
      pelos jatos (`solta`: quantos comprimentos a frente anda no expirar) */
   jatos: { comp: 0.9, de: 0.09, largura: [0.006, 0.02], solta: 1.5, cauda: 0.3, cor: 'ac', alfa: 0.55, base: 0.22 },
 
-  /* o disco: matéria em órbita só DENTRO da lente, no plano do equador
-     (π/2: horizontal; com a inclinação vira uma elipse fina). As de dentro
-     giram mais rápido (`kepler`); `denso` delas no `miolo`; cada uma é um
-     risco ao longo da órbita (`rastro`). Espalhado até o portal virava
-     chuvisco (rodada 5) */
-  disco: { n: 500, nCelular: 260, raio: [0.2, 0.3], inclina: 1.5708, giro: 0.35, kepler: 0.63, tam: 0.03, cor: 'ac2', alfa: 0.4,
-    denso: 0.6, miolo: 0.35, rastro: 4 },
-
-  /* o equador: um fio de pulsos fracos no plano do disco */
-  equador: { raio: 0.62, tubo: 0.004, vel: -0.1, fluxo: { cor: 'ac2', pulsos: 2, vel: -0.3, alfa: 0.15 } },
+  /* o disco de partículas e o anel do equador saíram em 2026-10-03: a
+     elipse deles em volta do núcleo lia como um olho rabiscado e era o
+     maior foco de poluição que o dono apontou (história: commit 4f9d1a3) */
 
   /* o portal: um anel FINO de vidro em 12 segmentos com micro-vãos alinhados
      aos raios (`vao` = fração vazia). `bisel`: um único reflexo que corre no
      anel, como o bisel de um relógio fino (rodada 6): meia-largura em rad
-     (0,26 ≈ arco de 30°), pico e segundos por volta. `fio`: a linha de trás,
-     fraca, para o deslocamento ler como profundidade e não como imagem
-     duplicada */
+     (0,26 ≈ arco de 30°), pico e segundos por volta. (O fio fraco de trás
+     saiu em 2026-10-03: lia como o portal desenhado duas vezes) */
   portal: { raio: 0.97, n: 12, vao: 0.022, tubo: 0.011, vel: 0.025,
-    bisel: { meia: 0.26, alfa: 0.7, volta: 14 },
-    fio: { raio: 0.905, z: -0.22, tubo: 0.004, cor: 'ac2', alfa: 0.15 } },
+    bisel: { meia: 0.26, alfa: 0.7, volta: 14 } },
 
   /* trilhos: anéis contínuos com pulsos de luz correndo em volta */
+  /* (o de 1,07, entre o portal e a régua, saiu com o fio de trás: anéis
+     demais lado a lado) */
   trilhos: [
-    { raio: 0.85, tubo: 0.005, pulsos: 3, vel: 0.22, cor: 'ac', alfa: 0.4 },
-    { raio: 1.07, tubo: 0.004, pulsos: 2, vel: -0.14, cor: 'ac2', alfa: 0.32 }
+    { raio: 0.85, tubo: 0.005, pulsos: 3, vel: -0.22, cor: 'ac', alfa: 0.4 }
   ],
 
-  /* as câmaras e as pétalas: lâminas de cristal. Contorno de 1 px nas duas
-     faces com as arestas de espessura (volume sem peso), a aresta de dentro
-     acesa pelo núcleo e apagando para fora; preenchimento quase transparente
+  /* as câmaras e as pétalas: lâminas de cristal. Contorno de 1 px da face da
+     frente (as duas faces e as quinas liam como um fantasma de cada lâmina,
+     2026-10-03), a aresta de dentro acesa pelo núcleo e apagando para fora; preenchimento quase transparente
      (`luz`, caindo a zero em `cai` do comprimento). Câmaras ENTRE os raios,
      atrás; pétalas SOBRE os raios, à frente */
-  camaras: { n: 12, raio: [0.43, 0.66], vao: 0.3, z: -0.14, espessura: 0.045, contorno: 0.75, luz: 0.22, cai: 0.6,
+  camaras: { n: 12, raio: [0.43, 0.66], vao: 0.3, z: -0.14, contorno: 0.95, luz: 0.22, cai: 0.6, trava: -1,
     montagem: { atraso: 0.2, escala: 1.25 } },
-  petalas: { n: 12, raio: [0.31, 0.385], vao: 0.42, z: 0.18, espessura: 0.025, contorno: 0.55, luz: 0.3, cai: 0.9,
+  petalas: { n: 12, raio: [0.31, 0.385], vao: 0.42, z: 0.18, contorno: 0.72, luz: 0.3, cai: 0.9, trava: 1,
     montagem: { atraso: 0.38, escala: 1.4 } },
 
-  /* o tracejado: 60 traços entre as câmaras e o trilho, girando devagar ao
-     contrário da roda */
-  tracejado: { raio: 0.755, n: 60, z: 0.05, vel: -0.04, alfa: 0.28, cor: 'ac' },
+  /* a TRAVA (2026-10-03, dono: "a maioria gira para o mesmo lado; quero
+     uma rotação mais criativa"). Câmaras e pétalas giram em sentidos
+     opostos em relação ao portal (`trava` = sentido, em casas de 30° por
+     fôlego) e voltam a se alinhar no instante em que a energia chega ao
+     núcleo. Crítica de arte: o encaixe precisa ser um EVENTO. Depois do
+     encaixe elas ficam travadas (`fica`, fração do fôlego), soltam
+     acelerando e chegam com velocidade; no encaixe passam `passa` da casa
+     (~2°) e voltam em `volta` do fôlego (~0,3 s), como um clique; os raios
+     piscam juntos no mesmo instante. */
+  trava: { fica: 0.3, passa: 0.06, volta: 0.045, pisca: 0.6 },
 
-  /* a régua: 120 marcas como mostrador de relógio; uma longa a cada `longa`
+  /* o tracejado: 60 traços entre as câmaras e o trilho, PARADO (crítica de arte: no máximo 3 velocidades e duas referências
+     fixas, a régua e ele; senão o conjunto lia como máquina de lavar) */
+  tracejado: { raio: 0.755, n: 60, z: 0.05, alfa: 0.28, cor: 'ac' },
+
+  /* a régua: 120 marcas como mostrador de relógio, PARADA (o estator: a
+     referência fixa contra a qual os sentidos opostos se leem); uma longa a cada `longa`
      (8 longas, mais fortes), as curtas discretas. `marca`: largura (piso) */
   regua: { raio: 1.13, n: 120, longa: 15, cor: 'ac', alfa: 0.2, alfaLonga: 0.45, marca: 0.004 },
 
@@ -129,7 +150,7 @@ export const SPEC = {
      atraso a respiração vira uma onda lenta que atravessa o reator, nunca o
      reator inteiro pulsando junto (isso leria como zoom) */
   respira: { periodo: 7, inspira: 0.42, luz: 0.14,
-    nucleo: [0, 0.1], lente: [0.35, 0.035], petalas: [0.75, 0.028], camaras: [1.1, 0.02],
+    nucleo: [0, 0.08], lente: [0.35, 0.035], petalas: [0.75, 0.028], camaras: [1.1, 0.02],
     tracejado: [1.35, 0.012], portal: [1.6, 0.01] },
 
   /* o campo: o ponteiro (ou o dedo) como uma força no plano do reator. As
@@ -165,7 +186,7 @@ export const SPEC = {
 
   /* o acendimento corre de dentro para fora: o atraso (s) de cada camada
      depois da ignição */
-  acende: { disco: 0, equador: 0.08, raios: 0.16, jatos: 0.16, trilhos: 0.24 },
+  acende: { coroa: 0, raios: 0.16, jatos: 0.16, trilhos: 0.24 },
 
   /* o vidro escuro do portal: a única luz é o núcleo, fios de reflexo duros,
      aresta de fresnel, a luz-chave e o bisel. Sem luz de cena, sem sombra. */

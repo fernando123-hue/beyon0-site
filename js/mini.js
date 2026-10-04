@@ -27,6 +27,10 @@
      sugerem sem virar pop-up).
    - A AGITAÇÃO (cliques seguidos no núcleo grande, B.agitacao): ele brilha
      mais, os arcos giram mais rápido e ele treme numa órbita curta.
+   - As ESTAÇÕES (desktop, js/estacao.js; pedido do dono, 2026-10-03): ele
+     vai até uma estação, se acopla ao lado dela e transfere energia até ela
+     encher e TURBINAR os módulos. Vai sozinho de vez em quando (no máximo
+     uma vez a cada 20 s por estação) ou quando você clica nela.
    - Respira junto com o reator (B.relogio): no começo do expirar manda um
      sinal pelo campo até o núcleo. Seção chegando: liga-se ao canto mais
      perto. Ao trocar de página continua de onde estava.
@@ -53,7 +57,7 @@
   var TOPO = celular ? 92 : 112, PE = 112;   /* PE: acima da barra fixa do celular */
   var FEIXE = { desenha: 0.35, segura: 1.05, apaga: 0.6 };   /* s */
   var VEIO_MS = 4000;                        /* a herança da página anterior vale por este tempo */
-  var PASSEIO = { cada: [8, 14], fica: [2.5, 4], vel: celular ? 170 : 240, rolagemVolta: 700 };
+  var PASSEIO = { cada: [8, 14], fica: [2.5, 4], vel: celular ? 170 : 240, rolagemVolta: 700, arranque: 3 };   /* arranque: × a velocidade até uma estação */
   /* a opção sob o cursor: inclinação (px), pulsos de espera (s entre eles), quanto a marca demora a travar */
   var QUER = { inclina: 6, cada: 0.875, primeiro: 0.25, max: 3, forca: 0.32, segue: 8 };
   /* a sugestão: no máximo uma a cada `cada` s, com a rolagem parada há `parado` s;
@@ -110,7 +114,9 @@
     return W > 1200 + 2 * pad ? { esq: (W - 1200) / 2 + pad, dir: (W + 1200) / 2 - pad } : { esq: pad, dir: W - pad };
   }
   function doca(W, H) {
-    var x = celular ? W - BORDA_CEL : Math.min(W - 26, coluna(W).dir + 40);
+    /* desktop com o instrumento: sobre a régua da direita (o cursor do instrumento; acende as cruzes ao passar) */
+    var g = !celular && B.rede.trilho ? B.rede.trilho.geo() : null;
+    var x = celular ? W - BORDA_CEL : g && g.xD > g.colD ? g.xD : Math.min(W - 26, coluna(W).dir + 40);
     var prog = limitar(rolagem / Math.max(1, B.rede.alturaDoc() - H));
     var y = TOPO + prog * (H - TOPO - PE);
     var rod = B.rede.rodapeNaTela();
@@ -135,6 +141,9 @@
       }
     }
     if (celular) return destinoCelular(W, H);
+    /* uma estação na tela, descansada: ele vai turbinar */
+    var es = B.estacoes && B.estacoes.naTela(mini.x, mini.y);
+    if (es && B.estacoes.podeTurbinar(es) && Math.random() < 0.35) return paraEstacao(es);
     var sorte = Math.random();
     if (sorte < 0.35) {
       var a = B.rede.elementoAoAcaso(mini.x, mini.y, 150, 600, function (it) { return it.el.matches('.painel, .cenario, .celula, .qa, .spec__item, .prova__item'); });
@@ -160,6 +169,7 @@
   }
   /* onde fica o destino agora (os elementos andam com a página) */
   function destinoXY(dest) {
+    if (dest.estacao) return B.estacoes.doca(dest.estacao);
     if (dest.item) {
       var it = dest.item;
       if (dest.fixX !== null && dest.fixX !== undefined) return { x: dest.fixX, y: it.y + it.h / 2 };
@@ -181,13 +191,14 @@
   }
   function chegou(dest) {
     soltarSugestao();
+    if (dest.estacao) { B.estacoes.acoplar(dest.estacao); pulsar(1); return; }
     if (dest.sugere) {
       /* a sugestão: UM anel, a mira trava, um fio até a opção, o link dela
          acende (classe) e ela se liga ao núcleo. Nada mais (crítica, rodada 1:
          pulso + anel + cantos duplos liam como ruído) */
       sugestao.alvo = dest.item; sugestao.t = 0;
       dest.item.el.classList.add('is-sugerido');
-      if (B.rede.campo) B.rede.campo.rota(dest.item.x + dest.item.w / 2, dest.item.y + dest.item.h / 2, { vida: 1.6 });
+      B.rede.rota(dest.item.x + dest.item.w / 2, dest.item.y + dest.item.h / 2, { vida: 1.6 });
       return;
     }
     momento(0.8);
@@ -196,6 +207,28 @@
   function soltarSugestao() {
     if (sugestao.alvo) sugestao.alvo.el.classList.remove('is-sugerido');
     sugestao.alvo = null;
+  }
+  /* o destino estação, com o caminho pelo corredor (ida) e o inverso (volta) */
+  function paraEstacao(st) {
+    var via = B.estacoes.via(st, mini.x);
+    return { estacao: st, via: via.slice(), volta: via.slice().reverse() };
+  }
+  /* o próximo ponto do caminho (lista em coordenadas do documento), ou null */
+  function proximoDoCaminho(lista, pos, dt) {
+    while (lista && lista.length) {
+      var p = { x: lista[0].x, y: lista[0].py - rolagem };
+      if (!andarPara(pos, p, dt * PASSEIO.arranque, null)) return true;
+      lista.shift();
+    }
+    return false;
+  }
+  function soltarEstacao(ps) { if (ps.dest && ps.dest.estacao) B.estacoes.soltar(ps.dest.estacao); }
+  /* chamado por uma estação (o clique nela): vai agora, de onde estiver */
+  function irPara(st) {
+    if (!mini.ativo || B.reduced || celular) return;
+    soltarSugestao(); soltarEstacao(passeio);
+    passeio.dest = paraEstacao(st); passeio.estado = 'indo'; passeio.pos = { x: mini.x, y: mini.y };
+    pulsar(0.8);
   }
   function passear(dt, W, H, d, livre) {
     var ps = passeio;
@@ -209,12 +242,13 @@
       if (!ps.dest) return null;
       ps.estado = 'indo'; ps.pos = { x: mini.x, y: mini.y };
     }
-    if (ps.estado !== 'voltando' && chamado) { ps.estado = 'voltando'; soltarSugestao(); }
+    if (ps.estado !== 'voltando' && chamado) { ps.estado = 'voltando'; soltarSugestao(); soltarEstacao(ps); }
     if (ps.estado === 'indo') {
+      if (ps.dest.via && proximoDoCaminho(ps.dest.via, ps.pos, dt)) return ps.pos;
       var alvo = destinoXY(ps.dest);
       if (alvo.y < TOPO - 20 || alvo.y > H - 40) { ps.estado = 'voltando'; return ps.pos; }
-      if (andarPara(ps.pos, alvo, dt, ps.dest.vh ? 'vh' : null)) {
-        ps.estado = 'parado'; ps.fica = ps.dest.sugere ? SUGESTAO.fica : acaso(PASSEIO.fica[0], PASSEIO.fica[1]);
+      if (andarPara(ps.pos, alvo, dt * (ps.dest.estacao ? PASSEIO.arranque : 1), ps.dest.vh ? 'vh' : null)) {
+        ps.estado = 'parado'; ps.fica = ps.dest.estacao ? 99 : ps.dest.sugere ? SUGESTAO.fica : acaso(PASSEIO.fica[0], PASSEIO.fica[1]);
         chegou(ps.dest);
       }
       return ps.pos;
@@ -223,10 +257,15 @@
       var aqui = destinoXY(ps.dest);
       ps.pos.x = aqui.x; ps.pos.y = aqui.y;
       ps.fica -= dt;
-      if (ps.fica <= 0 || aqui.y < TOPO - 20 || aqui.y > H - 40) { ps.estado = 'voltando'; soltarSugestao(); }
+      /* acoplado: fica até a estação encher (ela turbina e o solta) */
+      if (ps.dest.estacao && !B.estacoes.turbinando(ps.dest.estacao)) ps.fica = Math.min(ps.fica, 0.5);
+      if (ps.dest.estacao) ps.fica = Math.min(ps.fica, 6);   /* nunca fica preso a uma estação */
+      if (ps.fica <= 0 || aqui.y < TOPO - 20 || aqui.y > H - 40) { ps.estado = 'voltando'; soltarSugestao(); soltarEstacao(ps); }
       return ps.pos;
     }
-    if (andarPara(ps.pos, d, dt * (chamado ? 2 : 1), ps.dest && ps.dest.vh ? 'hv' : null)) { ps.estado = 'doca'; ps.dest = null; return null; }
+    /* da estação, volta pelo corredor (sem cortar os módulos) */
+    if (ps.dest && ps.dest.volta && !chamado && proximoDoCaminho(ps.dest.volta, ps.pos, dt)) return ps.pos;
+    if (andarPara(ps.pos, d, dt * (chamado ? 2 : ps.dest && ps.dest.estacao ? PASSEIO.arranque : 1), ps.dest && ps.dest.vh ? 'hv' : null)) { ps.estado = 'doca'; ps.dest = null; return null; }
     return ps.pos;
   }
 
@@ -483,6 +522,7 @@
   }
 
   mini.desenharFundo = desenharFundo;
+  mini.irPara = irPara;
   /* só leitura, para os testes (docs/verificar e afins): o que ele está fazendo */
   mini.estado = function () { return { passeio: passeio.estado, sugerindo: !!sugestao.alvo, querendo: quer.f > 0.5, agitacao: B.agitacao || 0 }; };
   B.rede.extra = mini;

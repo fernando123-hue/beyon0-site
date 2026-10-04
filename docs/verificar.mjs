@@ -102,7 +102,7 @@ for (const [rota, nome, opcoes, { semNucleo = false, reduzirNoBoot = false, exig
   const campo = await page.evaluate(() => {
     const B = window.BEYON;
     if (!document.querySelector('[data-rede]') || !document.documentElement.classList.contains('js')) return -1;
-    return B && B.rede && B.rede.campo && B.rede.campo.desenhados ? B.rede.campo.desenhados() : 0;
+    return B && B.rede && B.rede.desenhados ? B.rede.desenhados() : 0;
   });
   /* lido DEPOIS da medição: se a esfera desistir sozinha no meio, aparece */
   const nucleo = await page.evaluate(() => document.documentElement.classList.contains('tem-nucleo') && !!document.querySelector('.nucleo.is-aceso'));

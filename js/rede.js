@@ -17,6 +17,12 @@
    - o CLIQUE (ou toque) manda um sinal pelo campo até o núcleo; quando ele
      chega, B.emit('campo:chegou');
    - a LEITURA manda: todo texto é apagado do campo (js/rede-texto.js).
+   - no DESKTOP (2026-10-03, pedido do dono: o campo polar "não cai bem pro
+     site todo"; o celular fica como está) o campo vale só no hero do Hub,
+     com a varredura; o resto da página é o
+     INSTRUMENTO DESENROLADO (js/trilho.js). Nas outras páginas também: o
+     campo (com a origem acima da página) no hero, o trilho dali para baixo. fundoEm(x, y) escolhe quem
+     responde por cada ponto da tela.
 
    Leis (docs/HANDOFF.md §4): nada contínuo passa pelo CSS; layout lido só
    em evento, em posições de LAYOUT; um rAF só (B.add). Nada de desfoque.
@@ -54,7 +60,7 @@
   var PULSO_CLIQUE = 350;                    /* ms entre sinais de clique */
 
   var dpr = 1, W = 0, H = 0, docH = 1, navH = 0, rodapeY = 1e9;
-  var elementos = [], textos = [], naTela = [], caixaNucleo = null, ligacoes = [];
+  var elementos = [], textos = [], naTela = [], caixaNucleo = null, caixaArte = null, ligacoes = [];
   var ponteiro = { x: -1e4, y: -1e4, ativo: false };
   var rolagem = window.scrollY;
   var sujo = true, parado = !!B.reduced, desenhouParado = false, assinatura = -1, iniciada = false;
@@ -64,8 +70,16 @@
   function suave(x) { x = limitar(x); return x * x * (3 - 2 * x); }
   function faseDoFolego(t) { var F = B.FOLEGO; return ((t / F.periodo) % 1 + 1) % 1; }
 
-  var campo = B.campo({ ctx: ctx, cores: { AC: AC, AC2: AC2, T1: T1, PRATA: PRATA }, celular: celular,
-    livre: function (x, y) { return y > navH + 8 && x > 8 && x < W - 8 && !naZona(x, y); } });
+  var cores = { AC: AC, AC2: AC2, T1: T1, PRATA: PRATA };
+  var livre = function (x, y) { return y > navH + 8 && x > 8 && x < W - 8 && !naZona(x, y); };
+  var trilho = !celular && B.trilho ? B.trilho({ ctx: ctx, cores: cores, livre: livre }) : null;
+  var campo = B.campo({ ctx: ctx, cores: cores, celular: celular, livre: livre, varre: !!trilho });
+  var heroFim = 0;   /* (desktop) o fim do hero no documento: ali o campo dá lugar ao trilho */
+  /* o campo anda? No celular na página toda; no desktop nas páginas com hero (e só desenha enquanto ele está na tela) */
+  function usaCampo() { return !trilho || heroFim > 0; }
+  function heroFimTela() { return heroFim - rolagem; }
+  function fundoEm(x, y) { return !trilho || y < heroFimTela() ? campo : trilho; }
+  function topoTrilho() { return Math.max(navH, heroFimTela()); }
 
   /* ---------- o documento: elementos e textos em posições de LAYOUT ---------- */
   function posicaoDoc(el) {
@@ -111,15 +125,61 @@
     prender();
     if (rodapeY > 1e8) rodapeY = document.documentElement.scrollHeight;
     docH = document.documentElement.scrollHeight;
+    if (trilho) medirTrilho();
     /* a caixa do reator (Hub): a origem do campo, medida aqui e não por
        quadro; inclui o translate fixo dela no desktop */
     var cn = document.querySelector('[data-nucleo]');
-    caixaNucleo = null;
+    caixaNucleo = null; caixaArte = null;
+    /* (desktop, sem reator) o campo do hero nasce atrás da arte dele (o
+       mockup, o console): ela vira o objeto medido, e as linhas saem dela em
+       vez de descer do alto sobre o título (crítica de arte) */
+    var arte = trilho && !cn ? document.querySelector('.hero__arte') : null;
+    if (arte && arte.offsetWidth) {
+      /* o vão do campo (1,45 × R0) passa da borda mais longe da arte com folga: os rumos não ficam atrás dela */
+      var pa = posicaoDoc(arte), maior = Math.max(arte.offsetWidth, arte.offsetHeight);
+      caixaArte = { x: pa.x + arte.offsetWidth / 2, y: pa.y + arte.offsetHeight / 2, R0: (maior / 2 + 30) / 1.45 };
+    }
     if (cn && cn.offsetWidth) {
       var pn = posicaoDoc(cn), tf = getComputedStyle(cn).transform, mx = 0, my = 0;
       if (tf && tf !== 'none' && window.DOMMatrixReadOnly) { var mt = new DOMMatrixReadOnly(tf); mx = mt.e; my = mt.f; }
       caixaNucleo = { x: pn.x + mx + cn.offsetWidth / 2, y: pn.y + my + cn.offsetHeight / 2, R0: cn.offsetWidth * 0.5 };
     }
+  }
+  /* o trilho: a coluna de conteúdo, os começos de seção (com o índice do
+     kicker) e os módulos que encostam na coluna */
+  function medirTrilho() {
+    var sec = document.querySelector('main .section'), hero = document.querySelector('.hero');
+    heroFim = hero ? posicaoDoc(hero).y + hero.offsetHeight : 0;
+    if (!sec) return;
+    var cs = getComputedStyle(sec), x0 = posicaoDoc(sec).x + parseFloat(cs.paddingLeft);
+    var g = { fim: rodapeY, colE: x0, colD: x0 + sec.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight), secoes: [], modulos: [] };
+    var ss = document.querySelectorAll('main section[id]:not(.hero)');
+    for (var i = 0; i < ss.length; i++) {
+      if (!ss[i].offsetHeight) continue;
+      var k = ss[i].querySelector('.kicker'), kb = k && k.querySelector('b');
+      var nome = k ? k.textContent.replace(kb ? kb.textContent : '', '').trim().toUpperCase() : '';
+      g.secoes.push({ y: posicaoDoc(ss[i]).y, rot: kb ? kb.textContent.trim() : '', nome: nome });
+    }
+    for (var j = 0; j < elementos.length; j++) {
+      var it = elementos[j];
+      if (it.ref || !(it.liga || it.el.matches('.painel'))) continue;
+      g.modulos.push({ x: it.dx, y: it.dy, w: it.w, h: it.h });
+    }
+    trilho.configurar(g, W || window.innerWidth);
+  }
+  /* os GRUPOS de módulos (3+ irmãos com o mesmo pai, fora do hero e de
+     palco pinado): onde as estações (js/estacao.js) se ligam */
+  function gruposDeModulos() {
+    var porPai = [], i, j;
+    for (i = 0; i < elementos.length; i++) {
+      var it = elementos[i];
+      if (!it.liga || it.ref || it.dy < heroFim) continue;
+      var g = null;
+      for (j = 0; j < porPai.length && !g; j++) if (porPai[j].pai === it.el.parentNode) g = porPai[j];
+      if (!g) { g = { pai: it.el.parentNode, itens: [] }; porPai.push(g); }
+      g.itens.push(it);
+    }
+    return porPai.filter(function (g) { return g.itens.length >= 3; });
   }
   function itemDe(el) { for (var i = 0; i < elementos.length; i++) if (elementos[i].el === el) return elementos[i]; return null; }
 
@@ -133,6 +193,7 @@
     }
     medirDocumento();
     sujo = false;
+    B.emit('rede:medida');
     desenhouParado = false;   /* mudar cv.width limpa o canvas: o quadro parado precisa ser refeito */
   }
   var pedidoEm = 0;
@@ -155,7 +216,9 @@
     }
     var rotor = rotorAng;
     if (caixaNucleo) campo.origem(caixaNucleo.x - window.scrollX, caixaNucleo.y - rolagem, caixaNucleo.R0, 0, rotor);
+    else if (caixaArte) campo.origem(caixaArte.x - window.scrollX, caixaArte.y - rolagem, caixaArte.R0, 0, 0);
     else campo.origem(W / 2, -H * ACIMA - rolagem, R0_SEM_REATOR, 0, 0);
+    if (trilho) trilho.origem(rolagem, topoTrilho(), W, H);
   }
   function quadro(S) {
     if (pedidoEm && S.now - pedidoEm > 120) { pedidoEm = 0; sujo = true; }
@@ -178,24 +241,28 @@
     if ((B.agitacao || 0) < 0.2) degrauAgitado = 0;
     posicionar();
     /* o fôlego do reator move o campo: expirar solta a onda; inspirar recolhe */
-    if (faseAntes < F.inspira && x >= F.inspira) campo.soltarOnda();
+    if (faseAntes < F.inspira && x >= F.inspira) { if (usaCampo()) campo.soltarOnda(); if (trilho) trilho.soltarOnda(); }
     /* a coleta parte ANTES do lampejo do reator (x = 0), escalonada: a
        mediana dos pacotes chega junto com ele (causa antes do efeito) */
     if (faseAntes < COLETA.fase && x >= COLETA.fase) coletar();
     faseAntes = x;
     for (var q = filaColeta.length - 1; q >= 0; q--) { filaColeta[q].t -= dt; if (filaColeta[q].t <= 0) { filaColeta[q].f(); filaColeta.splice(q, 1); } }
     estado.W = W; estado.H = H; estado.topo = navH;
-    estado.rLimite = Math.max(campo.polar(0, docH - rolagem).r, campo.polar(W, docH - rolagem).r);
-    var s = campo.passo(dt, estado);
-    if (s.chegadas) B.emit('campo:chegou', s.chegadas);
-    /* a onda cruza os elementos: eles acendem */
-    var ondas = campo.ondas;
+    /* com o trilho, a onda do campo morre no fim do hero */
+    var yFim = trilho ? heroFimTela() : docH - rolagem;
+    estado.rLimite = Math.max(campo.polar(0, yFim).r, campo.polar(W, yFim).r);
+    var chegadas = 0;
+    if (usaCampo()) chegadas += campo.passo(dt, estado).chegadas;
+    if (trilho) chegadas += trilho.passo(dt, estado).chegadas;
+    if (chegadas) B.emit('campo:chegou', chegadas);
+    /* a onda cruza os elementos: eles acendem (a onda de quem responde por eles) */
     for (var e = 0; e < elementos.length; e++) {
       var it = elementos[e];
       if (it.onda > 0) it.onda = Math.max(0, it.onda - dt * 0.9);
       if (it.ativo > 0 && it.el !== sobAntes && it.el !== centroAgora) it.ativo = Math.max(0, it.ativo - dt * 2.5);
       if (it.y + it.h < navH || it.y > H) continue;
-      var r = campo.raio(it.x + it.w / 2, it.y + it.h / 2);
+      var cx = it.x + it.w / 2, cy = it.y + it.h / 2, fu = fundoEm(cx, cy), ondas = fu.ondas;
+      var r = fu.raio(cx, cy);
       for (var o = 0; o < ondas.length; o++) if (ondas[o].rAntes < r && ondas[o].r >= r) it.onda = 1;
     }
   }
@@ -211,12 +278,16 @@
     for (i = 0; i < COLETA.soltos; i++) filaColeta.push({ t: COLETA.passo * n++, f: pacoteSolto });
   }
   function rotaDoElemento(v) {
-    return function () { var cx = v.x + v.w / 2, cy = v.y + v.h / 2; if (cy > navH && cy < H && !campo.dentroDoVao(cx, cy)) campo.rota(cx, cy, { vida: 1.1 }); };
+    return function () { var cx = v.x + v.w / 2, cy = v.y + v.h / 2; if (cy > navH && cy < H) rotaDe(cx, cy, { vida: 1.1 }); };
   }
   function pacoteSolto() {
-    var px = Math.random() * W, py = navH + Math.random() * (H - navH), p = campo.polar(px, py);
+    var px = Math.random() * W, py = navH + Math.random() * (H - navH);
+    if (fundoEm(px, py) === trilho) { trilho.pacote(py, trilho.ladoDe(px)); return; }
+    var p = campo.polar(px, py);
     campo.pacote(p.r, campo.raioPerto(p.r, p.a));
   }
+  /* a rota de um ponto da tela até o núcleo, por quem responde por ele */
+  function rotaDe(x, y, o) { var fu = fundoEm(x, y); return fu.dentroDoVao(x, y) ? null : fu.rota(x, y, o); }
 
   /* ---------- desenho ---------- */
   function textosNaTela() {
@@ -239,9 +310,22 @@
   function desenhar() {
     ctx.clearRect(0, 0, W, H);
     var resp = parado ? 1 : 0.8 + 0.2 * folego;
-    campo.desenhar(resp, !parado);
+    /* (desktop) com o hero fora da tela o campo não desenha (o passo continua: as ondas não congelam) */
+    if (usaCampo() && (!trilho || heroFimTela() > navH)) {
+      campo.desenhar(resp, !parado);
+      /* (desktop) o campo termina no fim do hero, em degraus nítidos como no rodapé */
+      if (trilho) {
+        var hf = heroFimTela();
+        ctx.globalCompositeOperation = 'destination-out';
+        for (var d = 0; d < 4; d++) { ctx.fillStyle = 'rgba(0,0,0,' + (0.25 * (d + 1)).toFixed(2) + ')'; ctx.fillRect(0, hf - 80 + d * 20, W, 20); }
+        ctx.fillStyle = '#000'; ctx.fillRect(0, hf, W, Math.max(0, H - hf));
+        ctx.globalCompositeOperation = 'source-over';
+      }
+    }
+    if (trilho) trilho.desenhar(resp, !parado);
     var extra = B.rede.extra;
     if (extra && extra.desenharFundo) extra.desenharFundo(ctx);   /* o que o mini traça: também some atrás do texto */
+    for (var fz = 0; fz < B.rede.fundos.length; fz++) B.rede.fundos[fz].desenharFundo(ctx);   /* as estações */
     apagarTextos();
     desenharBarramento();
     desenharElementos();
@@ -336,7 +420,8 @@
   }
 
   /* ---------- as opções: sob o cursor (ou no centro da tela, no celular) ---------- */
-  var sobAntes = null, rotaSob = null, centroAgora = null;
+  var sobAntes = null, rotaSob = null, centroAgora = null, rotaDona = null;
+  function apontarNada() { campo.apontar(null); if (trilho) trilho.apontar(null); }
   function opcaoDe(alvo) {
     var el = alvo && alvo.closest ? alvo.closest(OPCOES) : null;
     if (!el || el.closest('[aria-hidden="true"]:not(.hero__arte)')) return null;
@@ -346,8 +431,10 @@
     var r = el.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
     var it = itemDe(el);
     if (it && !parado) it.ativo = 1;   /* reduzido: nada aceso que não apagaria */
-    var ro = parado || campo.dentroDoVao(cx, cy) ? null : campo.rota(cx, cy, { fica: fica, vida: 1.4, cada: 0.875 });
-    if (!parado) campo.apontar(cx, cy, rotuloDe(el));
+    var fu = fundoEm(cx, cy);
+    var ro = parado || fu.dentroDoVao(cx, cy) ? null : fu.rota(cx, cy, { fica: fica, vida: 1.4, cada: 0.875 });
+    if (!parado) { apontarNada(); fu.apontar(cx, cy, rotuloDe(el)); }
+    rotaDona = fu;
     B.emit('opcao', { el: el, x: cx, y: cy, w: r.width, h: r.height, entrou: true });
     return ro;
   }
@@ -361,7 +448,7 @@
   function aoEntrar(e) {
     var el = opcaoDe(e.target);
     if (el === sobAntes) return;
-    if (sobAntes) { if (rotaSob) campo.soltarRota(rotaSob); campo.apontar(null); B.emit('opcao', { el: sobAntes, entrou: false }); }
+    if (sobAntes) { if (rotaSob && rotaDona) rotaDona.soltarRota(rotaSob); apontarNada(); B.emit('opcao', { el: sobAntes, entrou: false }); }
     sobAntes = el; rotaSob = null;
     if (el) rotaSob = entrar(el, true);
   }
@@ -369,10 +456,19 @@
   /* ---------- API para os vizinhos (o mini AI Core, o reator) ---------- */
   B.rede = {
     extra: null,
-    campo: campo,
     /* um sinal do ponto p até o núcleo (o mini usa) */
-    dispararDe: function (p) { if (!parado && !campo.dentroDoVao(p.x, p.y)) campo.rota(p.x, p.y, { vida: 1 }); },
-    acender: function (el) { var it = itemDe(el); if (it && !parado) it.onda = 1; },
+    dispararDe: function (p) { if (!parado) rotaDe(p.x, p.y, { vida: 1 }); },
+    /* uma rota até o núcleo a partir de (x, y) da tela (o mini, na sugestão) */
+    rota: function (x, y, o) { return parado ? null : rotaDe(x, y, o); },
+    /* quanto o fundo desenhou no último quadro (o verificador: nunca pode sumir em silêncio) */
+    desenhados: function () { return (usaCampo() ? campo.desenhados() : 0) + (trilho ? trilho.desenhados() : 0); },
+    /* `forte`: fica aceso como sob o cursor por um instante (o turbo das estações) */
+    acender: function (el, forte) { var it = itemDe(el); if (it && !parado) { it.onda = 1; if (forte) it.ativo = 1; } },
+    /* quem mais desenha no canvas do fundo (as estações): { desenharFundo(ctx) } */
+    fundos: [],
+    /* (desktop) o instrumento e os grupos de módulos, para as estações */
+    trilho: trilho,
+    grupos: function () { return trilho ? gruposDeModulos() : []; },
     alturaDoc: function () { return docH; },
     naZona: function (x, y) { return naZona(x, y); },
     /* um elemento na tela, sorteado entre os que estão de `min` a `max` px de (x, y) e passam no `filtro` */
@@ -455,9 +551,9 @@
   var ultimoSinal = 0;
   document.addEventListener('click', function (e) {
     if (parado || !iniciada || !e.isTrusted || e.clientY < navH || e.timeStamp - ultimoSinal < PULSO_CLIQUE) return;
-    if (campo.dentroDoVao(e.clientX, e.clientY)) return;   /* no reator, quem responde é ele */
+    if (fundoEm(e.clientX, e.clientY).dentroDoVao(e.clientX, e.clientY)) return;   /* no reator, quem responde é ele */
     ultimoSinal = e.timeStamp;
-    campo.rota(e.clientX, e.clientY, { vida: 1, forte: true });
+    rotaDe(e.clientX, e.clientY, { vida: 1, forte: true });
   }, { passive: true });
   if (ponteiroFino) {
     document.addEventListener('pointermove', function (e) { if (e.pointerType === 'mouse') { ponteiro.x = e.clientX; ponteiro.y = e.clientY; ponteiro.ativo = true; } }, { passive: true });
@@ -474,7 +570,7 @@
       var el = fila; fila = null;
       if (!parado && iniciada) {
         centroAgora = el; entrar(el, false);
-        clearTimeout(vez.solta); vez.solta = setTimeout(function () { if (centroAgora === el) centroAgora = null; campo.apontar(null); B.emit('opcao', { el: el, entrou: false }); }, 2200);
+        clearTimeout(vez.solta); vez.solta = setTimeout(function () { if (centroAgora === el) centroAgora = null; apontarNada(); B.emit('opcao', { el: el, entrou: false }); }, 2200);
       }
     };
     ioCentro = new IntersectionObserver(function (es) {
@@ -494,7 +590,8 @@
     var d = Math.floor((ag || 0) * 4 + 1e-6);
     if (d <= degrauAgitado) return;
     degrauAgitado = d;
-    if (!parado && iniciada && campo.nOndas() < 3) campo.soltarOnda();
+    if (!parado && iniciada && usaCampo() && campo.nOndas() < 3) campo.soltarOnda();
+    if (!parado && iniciada && trilho && trilho.nOndas() < 3) trilho.soltarOnda();
   });
 
   B.on('reduzir', function (sim) {
@@ -502,6 +599,7 @@
     if (!parado || !iniciada) return;
     for (var e = 0; e < elementos.length; e++) { elementos[e].ativo = 0; elementos[e].onda = 0; }
     campo.limparEnergia();
+    if (trilho) trilho.limparEnergia();
   });
 
   function comecar() {

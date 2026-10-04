@@ -575,3 +575,89 @@ arte), o "dente" no ponto do engate rotor/estator (sugestão de movimento),
 utilitários duplicados entre rede.js e mini.js.
 
 **Pendente do dono.** Ver no celular dele e dizer como prosseguir.
+
+## 19. Reator limpo, núcleo nítido, trava em sentidos opostos, fundo do desktop e as estações (2026-10-03, 15ª sessão)
+
+Pedidos do dono, vendo a prévia: (1) "o AI Core regrediu, está muito
+poluído; o núcleo virou só uma bola branca, quero efeitos nele como antes,
+porém melhor"; (2) "quase tudo gira para o mesmo lado: faça girarem para
+lados diferentes, mais criativo"; (3) "o fundo funcionaria pro hero com algo
+a mais, mas pro site todo não cai bem" + "no celular ficou muito bom: remodele
+só no desktop"; (4) "onde há muitos cards, um AI Core médio ligado a eles,
+transmitindo energia, que o mini possa turbinar; mais interações; analise se
+o que entrar no celular estraga o que já foi feito".
+
+**Reator (`spec.js`, `pecas.js`).** Saíram o disco de partículas, o anel do
+equador, o fio de trás, o trilho de 1,07, dois anéis da lente e as faces de
+trás/quinas das lâminas (o "fantasma"): 37 → 27 chamadas, 34 mil → 20 mil
+triângulos. O núcleo é um shader (a COROA, num quadrado de frente para a
+câmera, `premultipliedAlpha`): miolo branco pequeno e anéis em degraus, 36
+filamentos de comprimento fixo (12 longos) que ficam brancos e esticam na
+chegada da energia, um aro em 3 partes, a ÓRBITA de antes (a elipse do disco,
+assinatura de que o dono gostava) em duas elipses tracejadas de 1 px em
+sentidos opostos, e uma onda de 1 px que corre do núcleo às câmaras em
+0,45 s na chegada. Tudo com antisserrilhado de 1 px por `fwidth`; nenhum
+degradê.
+
+**A trava (`spec.trava`, `travar()`).** Câmaras e pétalas giram em sentidos
+opostos em relação ao portal, uma casa de 30° por fôlego: travadas ~2 s
+depois do encaixe, soltam acelerando, chegam com velocidade e "clicam" (passam
+~2° e voltam em 0,3 s) no instante em que a energia chega ao núcleo; os 12
+raios piscam juntos ali. Régua e tracejado parados (duas referências fixas,
+crítica: com tudo girando lia como máquina de lavar). Aro do núcleo, órbitas,
+anel da lente e trilho alternam sentidos.
+
+**Fundo do desktop.** `js/campo.js` ganhou a VARREDURA (só desktop): um raio
+de 1 px que dá a volta em 14 s ao contrário do rotor e deixa acesos, em
+degraus, os anéis, nós e rumos que cruzou. No desktop o campo vale só no
+hero (no Hub nasce do reator; em Sites/Automação, atrás da arte do hero, que
+vira o objeto medido) e termina em degraus no fim dele; fora da tela, anda mas
+não desenha. Do hero para baixo, `js/trilho.js`, o INSTRUMENTO DESENROLADO:
+réguas verticais nas margens presas ao documento, horizonte com cruz em cada
+seção (acende quando o mini passa), a seção atual com barra de progresso,
+cantoneiras e o nome vertical ("03/05 · GARANTIAS"), fluxo de traços (desce
+na esquerda, sobe na direita), pulso por expiração que desce, atravessa os
+horizontes e corre pelas ligações até os módulos, pacotes que sobem na
+inspiração, rota e marca de rumo da opção sob o cursor. No desktop o mini
+corre sobre a régua da direita. `js/rede.js` escolhe quem responde por cada
+ponto (`fundoEm`). **Celular: nada muda** (trilho, varredura e estações não
+existem lá; a folga extra dos nós é só desktop).
+
+**As estações (`js/estacao.js`, só desktop).** Um AI Core médio (80 px) na
+régua da esquerda, no CORREDOR entre fileiras mais perto do meio de cada grupo
+de 3+ módulos encostado na coluna: miolo com anel e 12 filamentos que olha
+para o cursor, aros de 3 e 6 partes em sentidos opostos, a órbita tracejada
+achatada (a marca do núcleo do reator), estator parado e a CARGA em 12
+segmentos. A cada inspiração manda um surto pela régua e pelo barramento: a
+aresta de cima de cada módulo acende em sequência (`.is-onda`); o pulso do
+instrumento a carrega um pouco. Clique nela (ou sozinho, no máx. 1 vez a cada
+20 s por estação): o mini desce pela régua da direita, cruza pelo corredor
+(sem passar por cima dos módulos), acopla SOBRE a régua, acima dela, e
+transfere energia (o trecho da régua aceso + pacotes) até encher; ela TURBINA:
+surto duplo e rápido, os módulos acendem a borda inteira (`.is-energia`), as
+cantoneiras da seção piscam; o mini volta pelo mesmo corredor. Sob o cursor
+ela acelera. Achado no teste: ao remedir a página a estação era recriada e o
+mini ficava preso à cópia velha; agora o objeto é o mesmo (e há teto de 3 s
+no acoplamento e 6 s parado). `B.estacoes.estado()` (só leitura) para testes.
+
+**Análise do celular (pedido do dono).** Não entrou nada novo: no celular os
+módulos ocupam a largura (margem de 20 px) e o mini já só aparece nos vãos;
+uma estação de 80 px cobriria texto ou exigiria mudar o layout aprovado; o
+instrumento de réguas nas margens não tem margem onde morar. O que mudou no
+celular é só o reator (mais limpo, núcleo novo, trava), que é o mesmo nos
+dois.
+
+**Processo.** Crítica de arte em 2 rodadas (rodada 1: reator 7, núcleo 5,5,
+rotação 7, hero do Hub 8, fundo do desktop 6; ajustes feitos) e revisão de
+código (1 alta: a coroa escrevia alfa 1 no quadrado inteiro, um quadrado
+preto opaco só visível com GPU; médias: campo desenhando fora do hero, onda
+cortada pelo quadrado, tracejado deslizando ao rolar, `innerHeight` por
+quadro — todas corrigidas). Crítica de arte rodada 2: núcleo 7, rotação 7,5, hero de Sites 7,5, fundo do
+desktop 7, celular 9 (concorda em não mexer); o turbo (4) foi refeito depois
+dela (cards respondendo por classe, corredor, carga em segmentos) e conferido
+quadro a quadro. Verificador: 11/12 nas três últimas rodadas, cada vez um alvo
+diferente acima do orçamento de LCP por pouco (2,2–2,7 s), com a CPU da
+máquina em 100%; acessibilidade ok. Medido: A/B intercalado com 4f9d1a3 (GPU real):
+desktop 60/60 fps, celular com CPU 4× ~49/49 (CPU da máquina em 100%), script
+por quadro igual. LCP oscilou nos dois lados (a CPU em 100%; o código novo
+começa depois do `load`).

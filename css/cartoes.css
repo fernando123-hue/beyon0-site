@@ -78,6 +78,9 @@
 .painel:hover .servico__link span, .celula:hover .celula__link span { transform: translateX(4px); }
 @media (max-width: 380px) { .servico__link, .celula__link { white-space: nowrap; letter-spacing: .04em; } }
 /* o mini AI Core sugere esta opção (js/mini.js): a borda e o link acendem enquanto ele aponta */
+/* a energia de uma estação chegando (js/estacao.js): no surto a aresta de cima (.is-onda); no turbo a borda também (.is-energia), por um instante (o canvas do fundo fica atrás do módulo opaco: quem mostra a chegada é o próprio módulo) */
+.is-energia { border-color: var(--line-hi); }
+.is-energia::before, .is-onda::before { opacity: 1; }
 .is-sugerido { border-color: var(--line-hi); }
 .is-sugerido::before { opacity: 1; }
 /* o sublinhado só no link do pé (o cartão-âncora inteiro ficava sublinhado) */

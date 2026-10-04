@@ -22,6 +22,11 @@
    - a MARCA DE RUMO (o "bug" dos instrumentos de aviação; o mostrador
      Waypoint do relógio): com o cursor numa opção, uma seta trava na borda
      do campo do reator apontando para ela, com a leitura "→ NOME · 340°".
+   - a VARREDURA (só no desktop, onde o campo fica só no hero do Hub; pedido
+     do dono, 2026-10-03: "funcionaria pro hero, com algo a mais"): um raio
+     de 1 px dá a volta em 14 s, no sentido oposto ao do rotor, e o que ele
+     acabou de cruzar (trechos dos anéis fortes, nós, rumos) fica aceso em
+     três degraus que apagam. Nada de leque preenchido: só o traço.
 
    Só traço nítido de 1 px: nada de desfoque, brilho ou degradê radial (o
    dono proíbe). Este arquivo só sabe de geometria e desenho, em
@@ -47,9 +52,14 @@
      de cada raio fundamental nos anéis de ramificação ("030"…"360") e a cota
      do anel na margem ("R·0480"). Só no desktop e só onde não há texto */
   var ESCRITA = { fonte: '400 10px "JetBrains Mono", ui-monospace, monospace', alfa: 0.55 };
+  /* s por volta; degraus de [até quantos rad atrás, alfa] (nítidos, sem degradê) */
+  var VARRE = { volta: 14, degraus: [[0.1, 0.32], [0.26, 0.16], [0.5, 0.07]] };
 
   function limitar(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
   function saida(k) { k = limitar(k); return 1 - (1 - k) * (1 - k) * (1 - k); }
+  /* livre num raio de 14 px (crítica de arte: um nó colado no fim de uma palavra lia como pontuação) */
+  /* (só no desktop: no celular o texto cobre quase tudo e o campo ficaria sem nós; lá ele já está aprovado) */
+  function livreLargo(livre, x, y, cel) { return livre(x, y) && (cel || (livre(x - 14, y) && livre(x + 14, y) && livre(x, y - 14) && livre(x, y + 14))); }
   function difAng(a, b) { var d = (a - b) % TAU; if (d > Math.PI) d -= TAU; else if (d < -Math.PI) d += TAU; return d; }
 
   /* op: { ctx, cores: { AC, AC2, T1, PRATA }, celular } */
@@ -69,6 +79,10 @@
     var ondas = [], pacotes = [], marcas = [], rotas = [];
     var mira = { ativa: false, a: 0, r: 0, f: 0, alvoA: 0, alvoR: 0 };
     var rumo = { a: 0, alvo: 0, f: 0, ligado: false, rotulo: '' };
+    var varA = -Math.PI / 2;   /* o ângulo da varredura (op.varre) */
+    /* quanto atrás da varredura está o ângulo a (0 = sob ela; 99 = fora do rastro) */
+    function atras(a) { var d = difAng(varA, a); return d >= 0 && d <= VARRE.degraus[2][0] ? d : 99; }
+    function degrau(d) { for (var j = 0; j < 3; j++) if (d <= VARRE.degraus[j][0]) return VARRE.degraus[j][1]; return 0; }
 
     /* ---------- geometria ---------- */
     /* os anéis: o espaçamento cresce devagar com a distância (na raiz) */
@@ -157,6 +171,7 @@
       visivel(e.W, e.H, e.topo);
       saidaQuadro.chegadas = 0;
       var i;
+      if (op.varre && !e.reduzido) varA = (varA + dt * TAU / VARRE.volta) % TAU;
       for (i = ondas.length - 1; i >= 0; i--) {
         ondas[i].rAntes = ondas[i].r;
         ondas[i].r += ondas[i].v * dt;
@@ -287,7 +302,7 @@
           a = (b === 0 ? G.rotor : G.giro) + i * TAU / N;
           if (!angVisivel(a)) continue;
           x = px(r, a); y = py(r, a);
-          if (livre && !livre(x, y)) continue;   /* nó nenhum dentro do texto (lia como acento) */
+          if (livre && !livreLargo(livre, x, y, cel)) continue;   /* nó nenhum dentro nem colado no texto (lia como acento) */
           ctx.moveTo(x, y - s); ctx.lineTo(x + s, y); ctx.lineTo(x, y + s); ctx.lineTo(x - s, y); ctx.closePath();
         }
       }
@@ -305,7 +320,7 @@
           a = G.giro + i * TAU / n;
           if (!angVisivel(a)) continue;
           var l = i % 2 ? 3 : 5;
-          if (livre && !livre(px(an.r, a), py(an.r, a))) continue;
+          if (livre && !livreLargo(livre, px(an.r, a), py(an.r, a), cel)) continue;
           ctx.moveTo(px(an.r - l, a), py(an.r - l, a)); ctx.lineTo(px(an.r + l, a), py(an.r + l, a));
         }
       }
@@ -327,16 +342,55 @@
           var a = G.giro + i * TAU / 12;
           if (!angVisivel(a)) continue;
           var x = px(r + 15, a), y = py(r + 15, a);
-          if (livre && !livre(x, y)) {
+          if (livre && !livreLargo(livre, x, y, cel)) {
             if (livre(px(r + 6, a), py(r + 6, a))) { ctx.fillRect(px(r + 6, a) - 0.5, py(r + 6, a) - 0.5, 1, 1); }
             continue;
           }
           /* perto da leitura do rumo (25°), o rótulo do aro sai enquanto ela entra */
           var perto = Math.abs(difAng(a, rumo.a)) < 0.436 ? 1 - rumo.f : 1;
           if (perto < 0.02) continue;
+          /* o rumo que a varredura acabou de cruzar acende (ciano) */
+          var dv = op.varre ? atras(a) : 99;
+          if (dv < 50) ctx.fillStyle = cor(C.AC2, Math.min(1, ESCRITA.alfa + degrau(dv) * 1.6) * resp);
           ctx.globalAlpha = perto;
           ctx.fillText(RUMOS[i], x, y);
           ctx.globalAlpha = 1;
+          if (dv < 50) ctx.fillStyle = cor(C.PRATA, ESCRITA.alfa * resp);
+        }
+      }
+    }
+    /* a varredura: o raio, os trechos de anel atrás dele em degraus, e os nós
+       e marcas que ele acabou de cruzar */
+    function desenharVarredura(resp) {
+      if (!angVisivel(varA)) return;
+      var i, j, a0 = Math.max(G.Q, vis.rMin), livre = op.livre;
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = cor(C.AC2, 0.42 * resp);
+      ctx.beginPath(); ctx.moveTo(px(a0, varA), py(a0, varA)); ctx.lineTo(px(vis.rMax, varA), py(vis.rMax, varA)); ctx.stroke();
+      var de = 0;
+      for (j = 0; j < 3; j++) {
+        var ate = VARRE.degraus[j][0];
+        ctx.strokeStyle = cor(C.AC, VARRE.degraus[j][1] * resp);
+        ctx.beginPath();
+        for (i = 0; i < aneis.length; i++) {
+          var an = aneis[i];
+          if (an.r < vis.rMin - 2) continue;
+          if (an.r > vis.rMax + 2) break;
+          if (an.ramo || an.maior) arco(an.r, varA - ate, varA - de);
+        }
+        ctx.stroke();
+        de = ate;
+      }
+      /* os nós das ramificações cruzados: o losango aceso */
+      for (var b = 0; b <= BMAX && G.Q * Math.pow(2, b) < vis.rMax; b++) {
+        var r = G.Q * Math.pow(2, b), N = 12 * Math.pow(2, b), s = b === 0 ? 3 : 2.5;
+        for (i = 0; i < N; i++) {
+          var a = (b === 0 ? G.rotor : G.giro) + i * TAU / N, d = atras(a);
+          if (d > 50) continue;
+          var x = px(r, a), y = py(r, a);
+          if (livre && !livreLargo(livre, x, y, cel)) continue;
+          ctx.strokeStyle = cor(C.AC2, degrau(d) * 2.6 * resp);
+          ctx.beginPath(); ctx.moveTo(x, y - s - 1); ctx.lineTo(x + s + 1, y); ctx.lineTo(x, y + s + 1); ctx.lineTo(x - s - 1, y); ctx.closePath(); ctx.stroke();
         }
       }
     }
@@ -469,6 +523,7 @@
       desenharNos(resp);
       desenharEscrita(resp, op.livre);
       if (!vivo) return;
+      if (op.varre) desenharVarredura(resp);
       desenharOndas();
       desenharRotas();
       desenharPacotes();
