@@ -886,3 +886,13 @@ vista; depois a página segue; subindo, voltam ao monte (conferido nos dois
 sentidos no Hub, Sites e Automação). O pin é publicado como `B.pino` (o do
 palco da prova é só do desktop), para o fundo vivo. Verificador: 11/12 com o
 alvo que falha trocando a cada rodada (LCP, CPU 74–100%); acessibilidade ok.
+
+**Volta à primeira versão (mesmo dia).** Com a parada na tela o dono achou
+que "parece travado" e pediu a primeira versão de hoje ("tava perfeitamente
+imersivo"), com melhorias. Restaurado o estado de 0508a12 (anima.js,
+cartoes.css, rede-texto.js): sticky em degraus com a aba numerada, o recuo e
+o esmaecer do coberto, o encaixe que acende, a aba sem toque, o foco que rola
+até o card, gatilhos pela posição natural. As variantes "monte que se
+distribui" (ce68979) e "monte que para na tela" (b1c2fff) ficam no histórico.
+Lição: o dono descreve pelo que sente; na dúvida entre direções, mostrar
+antes de trocar o que ele já aprovou.

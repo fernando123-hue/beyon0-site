@@ -518,15 +518,12 @@
     card._encaixe = setTimeout(function () { card.classList.remove('is-onda'); }, 700);
   }
   function de(tabela, el, padrao) { for (var k in tabela) if (el.matches(k)) return tabela[k]; return padrao; }
-  var pilhaViva = false;   /* a pilha do celular está ligada (ver o mm de 720 px) */
   function revelar(el, imediato) {
     marcar(el);
     if (el.matches(SEM_TWEEN)) return;
     /* (o espaço da estação, js/estacao.js, não entra na cascata dos cards) */
     var kids = el.matches(COM_FILHOS) ? [].filter.call(el.children, function (c) { return !c.classList.contains('estacao-vao'); }) : null;
     gsap.to(el, { opacity: 1, y: 0, duration: imediato ? .35 : .45, ease: EXPO, overwrite: true });
-    /* (na pilha do celular quem move os cards é o monte: o fromTo com clearProps apagaria a posição dele) */
-    if (kids && kids.length && pilhaViva && el.classList.contains('pilha')) kids = null;
     if (kids && kids.length) {
       gsap.fromTo(kids, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: .8, delay: de(ATRASO, el, 0), ease: EXPO, stagger: { each: de(CASCATA, el, .12), grid: 'auto', from: 'start' }, clearProps: 'opacity,transform' });
     }
@@ -570,74 +567,62 @@
         });
         /* celular: sem hover, o item no meio da tela é o "em foco" (índice âmbar,
            régua acesa). Classe por evento de rolagem, nada por quadro. */
-        /* A PILHA do celular (css/cartoes.css; pedido do dono, 2026-10-04): o
-           grupo chega EMPILHADO (um monte: o 1º card na frente, os outros
-           atrás com as bordas de baixo em degraus) e, quando o monte chega ao
-           alto da tela, ele PARA ali (pin) por um trecho de rolagem: a cada
-           trecho um card sai do monte e desce até o seu lugar, à vista; ao
-           encaixar, a aresta acende. Depois a página segue; subindo, os cards
-           voltam ao monte. (A 1ª versão sem parada distribuía cada card quando
-           o lugar dele entrava pela borda de baixo: acontecia fora da vista e
-           o dono viu como "não funcionou".) Só transform, pela rolagem. O pin
-           é publicado como B.pino (o do palco da prova é só do desktop): o
-           fundo vivo sabe onde os cards estão. Sem JS, sem GSAP e em movimento
-           reduzido: a lista comum. */
+        /* A PILHA do celular (css/cartoes.css), de volta com upgrade: quando o
+           próximo card chega, o de baixo recua (scale) e o miolo dele esmaece,
+           conduzidos pela rolagem; o NÚMERO dele fica, na aba do degrau. Ao
+           encaixar no seu degrau a aresta de cima do card acende. Só
+           transform/opacity; sem JS a pilha sticky continua igual. */
+        /* Os gatilhos NÃO medem o card (grudado, ele mede a posição grudada e,
+           depois de um refresh no meio da pilha, tudo desencaixava — revisão):
+           medem a PILHA, com a posição natural de cada card somada (alturas e
+           vão, que o sticky não muda); o topo e o degrau vêm do CSS. Tudo lido
+           só no refresh (invalidateOnRefresh). */
         mm.add('(max-width: 720px) and (prefers-reduced-motion: no-preference)', function () {
           if (!ST || html.classList.contains('menos-movimento')) return;
-          var PILHA = { degrau: 10, encolhe: 0.035, trecho: 260 };   /* px; fração por nível; px de rolagem por card */
-          var cartas = [], medidores = [], miolos = [], pinos = [];
-          var navEl = document.querySelector('.nav');
-          pilhaViva = true;
+          var miolos = [], cartas = [], ouvintes = [], medidores = [];
           [].forEach.call(document.querySelectorAll('.pilha'), function (pilha) {
             var cards = [].filter.call(pilha.children, function (c) { return !c.classList.contains('estacao-vao'); });
             if (cards.length < 2) return;
-            var m = { nat: [], alt: [] };
+            var m = { nat: [], topo: [], degrau: 0 };
             var medirPilha = function () {
               var vao = parseFloat(getComputedStyle(pilha).rowGap) || 0, soma = 0;
-              for (var k = 0; k < cards.length; k++) { m.nat[k] = soma; m.alt[k] = cards[k].offsetHeight; soma += m.alt[k] + vao; }
+              for (var k = 0; k < cards.length; k++) { m.nat[k] = soma; soma += cards[k].offsetHeight + vao; m.topo[k] = parseFloat(getComputedStyle(cards[k]).top) || 0; }
+              m.degrau = m.topo[1] - m.topo[0];
             };
             medirPilha();
             ST.addEventListener('refreshInit', medirPilha);
             medidores.push(medirPilha);
-            /* no monte: a base do card k fica k degraus abaixo da base do 1º */
-            var noMonte = function (k) { return function () { return m.nat[0] + m.alt[0] + k * PILHA.degrau - m.alt[k] - m.nat[k]; }; };
-            var tl = gsap.timeline({ defaults: { ease: 'none' }, scrollTrigger: {
-              trigger: pilha, pin: true, anticipatePin: 1, invalidateOnRefresh: true, scrub: true,
-              start: function () { return 'top ' + ((navEl ? navEl.offsetHeight : 64) + 16) + 'px'; },
-              end: function () { return '+=' + PILHA.trecho * (cards.length - 1); }
-            } });
+            /* "o ponto k da pilha (posição natural do card k + extra) chega a y px da tela" */
+            var quando = function (k, y) { return function () { return 'top+=' + Math.round(m.nat[k]) + ' ' + Math.round(typeof y === 'function' ? y() : y) + 'px'; }; };
+            var encaixes = [];
             cards.forEach(function (card, i) {
               cartas.push(card);
-              gsap.set(card, { zIndex: cards.length - i, position: 'relative' });
-              if (i === 0) return;
-              /* no monte e viajando, o miolo fica apagado (o texto não vaza nos vãos); nítido ao encaixar */
+              encaixes[i] = ST.create({ trigger: pilha, start: quando(i, function () { return m.topo[i] + 2; }), invalidateOnRefresh: true, onEnter: function () { encaixe(card); } });
+              if (i === cards.length - 1) return;
               var miolo = [].filter.call(card.children, function (c) { return !c.matches('.painel__canto, .laudo__n, .servico__n'); });
               miolos = miolos.concat(miolo);
-              /* no monte o card não recebe toque (a borda dele abriria o card errado) */
-              card.classList.add('is-monte');
-              var t0 = i - 1;
-              tl.fromTo(card, { y: noMonte(i), scale: 1 - PILHA.encolhe * i, transformOrigin: '50% 100%' }, { y: 0, scale: 1, duration: 1, immediateRender: true }, t0)
-                .fromTo(miolo, { opacity: 0.12 }, { opacity: 1, duration: 1, ease: 'power2.in', immediateRender: true }, t0)
-                .add(function () {
-                  var desce = !tl.scrollTrigger || tl.scrollTrigger.direction > 0;
-                  card.classList.toggle('is-monte', !desce);
-                  if (desce) encaixe(card);
-                }, t0 + 0.98);   /* antes do fim exato: no fim da timeline, voltando, o aviso não dispara */
+              /* coberto: o número acende (a aba do fichário) e a aba não recebe toque (abriria o card de baixo) */
+              ST.create({ trigger: pilha, start: quando(i + 1, function () { return m.topo[i] + m.degrau + 24; }), end: 'max', invalidateOnRefresh: true, toggleClass: { targets: card, className: 'is-coberto' } });
+              gsap.timeline({ scrollTrigger: { trigger: pilha, start: quando(i + 1, function () { return window.innerHeight * 0.75; }), end: quando(i + 1, function () { return m.topo[i] + m.degrau; }), scrub: true, invalidateOnRefresh: true } })
+                .to(card, { scale: .95, transformOrigin: '50% 0', ease: 'none' }, 0)
+                .to(miolo, { opacity: 0, ease: 'power2.in' }, 0);
             });
-            /* o fundo vivo (js/rede.js) mede os cards pela posição natural + o deslocamento do pin */
-            var publicar = function () { var st = tl.scrollTrigger; if (st) B.pino = { el: pilha, inicio: st.start, fim: st.end }; };
-            publicar();
-            ST.addEventListener('refresh', publicar);
-            pinos.push(publicar);
+            /* o foco de teclado num card coberto: a página rola até o encaixe dele
+               (no degrau, ainda descoberto), em vez de mostrar um card vazio */
+            var aoFocar = function (e) {
+              for (var k = 0; k < cards.length; k++) {
+                if (!cards[k].contains(e.target) || !cards[k].classList.contains('is-coberto')) continue;
+                window.scrollTo({ top: Math.max(0, encaixes[k].start - 2), behavior: 'instant' });
+              }
+            };
+            pilha.addEventListener('focusin', aoFocar);
+            ouvintes.push(function () { pilha.removeEventListener('focusin', aoFocar); });
           });
           return function () {
-            pilhaViva = false;
             for (var k = 0; k < medidores.length; k++) ST.removeEventListener('refreshInit', medidores[k]);
-            for (k = 0; k < pinos.length; k++) ST.removeEventListener('refresh', pinos[k]);
-            if (pinos.length) B.pino = null;
-            gsap.set(cartas, { clearProps: 'transform,zIndex,position' });
-            gsap.set(miolos, { clearProps: 'opacity' });
-            cartas.forEach(function (c) { c.classList.remove('is-monte'); });
+            for (k = 0; k < ouvintes.length; k++) ouvintes[k]();
+            gsap.set(miolos, { clearProps: 'opacity' }); gsap.set(cartas, { clearProps: 'transform' });
+            cartas.forEach(function (c) { c.classList.remove('is-coberto'); });
           };
         });
         mm.add('(max-width: 860px) and (prefers-reduced-motion: no-preference)', function () {

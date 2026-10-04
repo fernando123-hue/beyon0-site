@@ -87,8 +87,8 @@
   /* quem fica parado na tela enquanto a página rola: os títulos fixos
      (sticky) e o palco pinado (B.pino, de js/anima.js). A rede desloca as
      zonas e os cantos deles por `d` a cada quadro */
-  /* o que pode grudar: os títulos fixos */
-  var GRUDAM = '.section__head';
+  /* o que pode grudar: os títulos fixos e os cards da pilha do celular (css/cartoes.css) */
+  var GRUDAM = '.section__head, .pilha > :not(.estacao-vao)';
   B.redeTexto.grudes = function (posicaoDoc) {
     var lista = [], cand = document.querySelectorAll(GRUDAM);
     for (var i = 0; i < cand.length; i++) {
