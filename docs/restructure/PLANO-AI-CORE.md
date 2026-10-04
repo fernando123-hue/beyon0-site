@@ -950,3 +950,38 @@ quadro a quadro no Chrome real (desktop e toque).
 **Medido.** Verificador 12/12; acessibilidade ok; LCP A/B (mediana de 5)
 contra 2a10f4d sem diferença fora do ruído (desktop 944/1180/1588 contra
 1016/1228/1520 ms; celular 1372/1356 contra 1612/1356 ms).
+
+## 24. Letras, sobrecarga, tomadas discretas e o mini com vida (2026-10-04)
+
+**Letras em 100% (`js/carga.js`).** No 1º cheio o texto do card vira letras
+(SplitText 3.15, aria automático: o leitor lê a frase inteira) e uma onda de
+luz o atravessa letra por letra (15 ms por letra, teto 1,5 s; no máximo uma
+onda a cada 3,5 s por card).
+
+**Sobrecarga (`js/estacao.js` + `js/carga.js`).** O mini acoplado ao AI Core
+médio fica CONECTADO até novo clique no núcleo dele ou rolagem de 90 px (antes
+soltava sozinho); enquanto conectado, os cards da estação ficam em sobrecarga
+(moldura neon cheia piscando, cantos brancos, pontos rápidos, barra "MAX"
+crepitando, onda de letras a cada 2,4 s) e a estação em turbo contínuo.
+Conferido: conecta, segue conectado após 13 s, 2º clique solta, rolagem solta.
+
+**Tomadas (`js/mini-docas.js`, separado do mini.js).** Dono: "mais
+minimalista e discreto, e não em cards". Anel fino apagado com um ponto; as 3
+travas só aparecem no encaixe; só botões principais e secundários.
+
+**Encaixe animado (`js/mini.js`).** Dono: "estável, parado, não tremendo; uma
+animação dele se acoplando, não algo rápido e sem vida". Chega freando
+(proporcional à distância), alinha 22 px acima girando devagar (0,45 s),
+desce devagar (0,7 s), trava (as travas fecham, 0,3 s) e assenta imóvel (sem
+pulinho, puxão ou órbita); ao sair, sobe até o alinhamento (0,45 s) e vai.
+Vale para botões e estações.
+
+**Vida (`js/mini-vida.js`).** Repertório consultado antes do passeio comum,
+cada um com pausa própria: contornar o card sob o cursor parado; brincar em
+volta do cursor parado perto dele; sentar no fim de um texto selecionado
+(interrompe o que não é encaixe); guiar até a próxima seção; ler junto ao
+lado do título; espiar meio escondido na borda; dormir após ~22 s sem gestos
+(esmaece, quase para, arcos de sono; acorda com festa). Também: mergulha no
+centro na passagem entre páginas e comemora ao abrir uma pergunta do FAQ.
+Conferido no Chrome real: todos observados num mesmo passeio de teste.
+Verificador 12/12; acessibilidade ok.
