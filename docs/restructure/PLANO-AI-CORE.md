@@ -844,3 +844,22 @@ Baixas: leituras e escritas separadas nas docas, rótulos das cotas guardados,
 circuito não recomeça a cada remedida, sem pré-carga com economia de dados,
 o boot do hero espera o painel da passagem abrir, o shader do núcleo pula
 halo/emissão fora do vidro. Depois: verificador 12/12, acessibilidade ok.
+
+## 22. A pilha do celular de volta, com upgrade (2026-10-04, 16ª sessão, 2ª parte)
+
+Pedido do dono: "no mobile, conforme íamos descendo, alguns cards ficavam
+sobrepostos; ao descer apareciam e ao subir voltavam a se sobrepor. Volte com
+isso e, se der, faça um upgrade. Só no mobile." Saiu em 9af2c2d (módulos com
+vão). Volta em `.pilha` (Garantias do Hub, o problema da Automação, Formatos
+de Sites), até 720 px: `position: sticky` em degraus de fichário (CSS puro;
+sem JS e em movimento reduzido continua, parada). Upgrade: o degrau mostra o
+NÚMERO do card coberto (a aba; `calc(--mod-pad + 20px)`, cabe de 320 a
+720 px) e ele acende em ciano quando coberto; o de baixo recua (scale .95) e
+o miolo esmaece pela rolagem; o encaixe acende a aresta de cima; a aba não
+recebe toque (abria o WhatsApp do card de baixo); foco de teclado num card
+coberto rola até ele. O fundo vivo conhece os cards grudados
+(`rede-texto.js`, GRUDAM). Revisão de código: os gatilhos mediam o card
+grudado e desencaixavam depois de um refresh no meio da pilha — agora medem a
+pilha com a posição natural somada (conferido: starts iguais antes e depois
+do refresh); o `is-foco` de posição não age nos cards da pilha. Verificador
+12/12, acessibilidade ok.

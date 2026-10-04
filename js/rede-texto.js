@@ -87,13 +87,16 @@
   /* quem fica parado na tela enquanto a página rola: os títulos fixos
      (sticky) e o palco pinado (B.pino, de js/anima.js). A rede desloca as
      zonas e os cantos deles por `d` a cada quadro */
+  /* o que pode grudar: os títulos fixos e os cards da pilha do celular (css/cartoes.css) */
+  var GRUDAM = '.section__head, .pilha > :not(.estacao-vao)';
   B.redeTexto.grudes = function (posicaoDoc) {
-    var lista = [], cand = document.querySelectorAll('.section__head');
+    var lista = [], cand = document.querySelectorAll(GRUDAM);
     for (var i = 0; i < cand.length; i++) {
       var el = cand[i], cs = getComputedStyle(el);
       if (cs.position !== 'sticky' || !el.offsetWidth) continue;
       var topo = parseFloat(cs.top) || 0, pai = el.parentElement;
-      var nat = posicaoDoc(el).y, fimPai = posicaoDoc(pai).y + pai.offsetHeight - el.offsetHeight;
+      var csp = getComputedStyle(pai);
+      var nat = posicaoDoc(el).y, fimPai = posicaoDoc(pai).y + pai.offsetHeight - (parseFloat(csp.paddingBottom) || 0) - (parseFloat(csp.borderBottomWidth) || 0) - el.offsetHeight;
       lista.push({ el: el, inicio: nat - topo, fim: fimPai - topo, d: 0 });
     }
     if (B.pino) lista.push({ el: B.pino.el, inicio: B.pino.inicio, fim: B.pino.fim, d: 0, pino: true });
@@ -103,7 +106,7 @@
      durante a leitura, na mesma tarefa, sem pintura no meio; devolve quem
      os prende de novo */
   B.redeTexto.soltar = function () {
-    var soltos = [], cand = document.querySelectorAll('.section__head');
+    var soltos = [], cand = document.querySelectorAll(GRUDAM);
     for (var i = 0; i < cand.length; i++) if (getComputedStyle(cand[i]).position === 'sticky') { cand[i].style.position = 'static'; soltos.push(cand[i]); }
     return function () { for (var j = 0; j < soltos.length; j++) soltos[j].style.position = ''; };
   };

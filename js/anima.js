@@ -511,6 +511,12 @@
       tl.add(function () { btn.classList.add('is-passou'); }, tBtn + .18);
     }
   }
+  /* o encaixe de um card da pilha do celular: a aresta de cima acende por um instante */
+  function encaixe(card) {
+    card.classList.add('is-onda');
+    clearTimeout(card._encaixe);
+    card._encaixe = setTimeout(function () { card.classList.remove('is-onda'); }, 700);
+  }
   function de(tabela, el, padrao) { for (var k in tabela) if (el.matches(k)) return tabela[k]; return padrao; }
   function revelar(el, imediato) {
     marcar(el);
@@ -561,11 +567,70 @@
         });
         /* celular: sem hover, o item no meio da tela é o "em foco" (índice âmbar,
            régua acesa). Classe por evento de rolagem, nada por quadro. */
-        /* (a pilha do celular, cartões sobrepostos ao rolar, saiu em 2026-10-03:
-           o dono pediu módulos separados com vão; css/cartoes.css) */
+        /* A PILHA do celular (css/cartoes.css), de volta com upgrade: quando o
+           próximo card chega, o de baixo recua (scale) e o miolo dele esmaece,
+           conduzidos pela rolagem; o NÚMERO dele fica, na aba do degrau. Ao
+           encaixar no seu degrau a aresta de cima do card acende. Só
+           transform/opacity; sem JS a pilha sticky continua igual. */
+        /* Os gatilhos NÃO medem o card (grudado, ele mede a posição grudada e,
+           depois de um refresh no meio da pilha, tudo desencaixava — revisão):
+           medem a PILHA, com a posição natural de cada card somada (alturas e
+           vão, que o sticky não muda); o topo e o degrau vêm do CSS. Tudo lido
+           só no refresh (invalidateOnRefresh). */
+        mm.add('(max-width: 720px) and (prefers-reduced-motion: no-preference)', function () {
+          if (!ST || html.classList.contains('menos-movimento')) return;
+          var miolos = [], cartas = [], ouvintes = [], medidores = [];
+          [].forEach.call(document.querySelectorAll('.pilha'), function (pilha) {
+            var cards = [].filter.call(pilha.children, function (c) { return !c.classList.contains('estacao-vao'); });
+            if (cards.length < 2) return;
+            var m = { nat: [], topo: [], degrau: 0 };
+            var medirPilha = function () {
+              var vao = parseFloat(getComputedStyle(pilha).rowGap) || 0, soma = 0;
+              for (var k = 0; k < cards.length; k++) { m.nat[k] = soma; soma += cards[k].offsetHeight + vao; m.topo[k] = parseFloat(getComputedStyle(cards[k]).top) || 0; }
+              m.degrau = m.topo[1] - m.topo[0];
+            };
+            medirPilha();
+            ST.addEventListener('refreshInit', medirPilha);
+            medidores.push(medirPilha);
+            /* "o ponto k da pilha (posição natural do card k + extra) chega a y px da tela" */
+            var quando = function (k, y) { return function () { return 'top+=' + Math.round(m.nat[k]) + ' ' + Math.round(typeof y === 'function' ? y() : y) + 'px'; }; };
+            var encaixes = [];
+            cards.forEach(function (card, i) {
+              cartas.push(card);
+              encaixes[i] = ST.create({ trigger: pilha, start: quando(i, function () { return m.topo[i] + 2; }), invalidateOnRefresh: true, onEnter: function () { encaixe(card); } });
+              if (i === cards.length - 1) return;
+              var miolo = [].filter.call(card.children, function (c) { return !c.matches('.painel__canto, .laudo__n, .servico__n'); });
+              miolos = miolos.concat(miolo);
+              /* coberto: o número acende (a aba do fichário) e a aba não recebe toque (abriria o card de baixo) */
+              ST.create({ trigger: pilha, start: quando(i + 1, function () { return m.topo[i] + m.degrau + 24; }), end: 'max', invalidateOnRefresh: true, toggleClass: { targets: card, className: 'is-coberto' } });
+              gsap.timeline({ scrollTrigger: { trigger: pilha, start: quando(i + 1, function () { return window.innerHeight * 0.75; }), end: quando(i + 1, function () { return m.topo[i] + m.degrau; }), scrub: true, invalidateOnRefresh: true } })
+                .to(card, { scale: .95, transformOrigin: '50% 0', ease: 'none' }, 0)
+                .to(miolo, { opacity: 0, ease: 'power2.in' }, 0);
+            });
+            /* o foco de teclado num card coberto: a página rola até o encaixe dele
+               (no degrau, ainda descoberto), em vez de mostrar um card vazio */
+            var aoFocar = function (e) {
+              for (var k = 0; k < cards.length; k++) {
+                if (!cards[k].contains(e.target) || !cards[k].classList.contains('is-coberto')) continue;
+                window.scrollTo({ top: Math.max(0, encaixes[k].start - 2), behavior: 'instant' });
+              }
+            };
+            pilha.addEventListener('focusin', aoFocar);
+            ouvintes.push(function () { pilha.removeEventListener('focusin', aoFocar); });
+          });
+          return function () {
+            for (var k = 0; k < medidores.length; k++) ST.removeEventListener('refreshInit', medidores[k]);
+            for (k = 0; k < ouvintes.length; k++) ouvintes[k]();
+            gsap.set(miolos, { clearProps: 'opacity' }); gsap.set(cartas, { clearProps: 'transform' });
+            cartas.forEach(function (c) { c.classList.remove('is-coberto'); });
+          };
+        });
         mm.add('(max-width: 860px) and (prefers-reduced-motion: no-preference)', function () {
           if (!ST || html.classList.contains('menos-movimento')) return;
+          /* (os cards da pilha, até 720 px, têm a aba própria: o foco por posição cintilava o número) */
+          var naPilha = window.matchMedia('(max-width: 720px)').matches;
           gsap.utils.toArray('.servico, .laudo__row, .celula, .passo, .cenario').forEach(function (el) {
+            if (naPilha && el.parentElement && el.parentElement.classList.contains('pilha')) return;
             ST.create({ trigger: el, start: 'top 62%', end: 'bottom 38%', toggleClass: { targets: el, className: 'is-foco' } });
           });
         });
