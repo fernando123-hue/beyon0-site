@@ -413,3 +413,71 @@ html.menos-movimento .estacao-cruza { display: none !important; }
   .is-doando > .carga-fio::before { opacity: 1; animation: carga-desce .4s linear infinite; }
   @keyframes carga-desce { from { transform: translateY(0); } to { transform: translateY(15px); } }
 }
+
+/* ---- AS VARIAÇÕES DA CARGA em teste (js/carga.js; ?carga=a|b|c|d). As
+   camadas por baixo do texto (C e o brilho de D) usam z-index −1 dentro do
+   card isolado. A, B e C são traço nítido; D é a referência do dono, com
+   brilho difuso por pedido explícito dele (exceção à regra do site). ---- */
+.carga-contorno, .carga-nos, .carga-cantos, .carga-linhas, .carga-halo { display: none; }
+@media (prefers-reduced-motion: no-preference) {
+  html.js:not(.menos-movimento) .tem-carga { isolation: isolate; }
+  /* nas variações a carga está no contorno: a barra de baixo fica mais discreta (só na A, B e C o aro some) */
+  html[data-carga="a"] .tem-carga > .carga-aro, html[data-carga="b"] .tem-carga > .carga-aro, html[data-carga="c"] .tem-carga > .carga-aro, html[data-carga="d"] .tem-carga > .carga-aro { display: none !important; }
+
+  /* A — o contorno é a barra: topo (→), direita (↓), base (←), esquerda (↑) */
+  html.js:not(.menos-movimento) .tem-carga > .carga-contorno { display: block; position: absolute; inset: -1px; pointer-events: none; }
+  .carga-contorno > b { position: absolute; background: var(--ac-2); }
+  .carga-contorno > b:nth-child(1) { left: var(--raio); right: var(--raio); top: 0; height: 1.5px; transform-origin: left; transform: scaleX(0); }
+  .carga-contorno > b:nth-child(2) { top: var(--raio); bottom: var(--raio); right: 0; width: 1.5px; transform-origin: top; transform: scaleY(0); }
+  .carga-contorno > b:nth-child(3) { left: var(--raio); right: var(--raio); bottom: 0; height: 1.5px; transform-origin: right; transform: scaleX(0); }
+  .carga-contorno > b:nth-child(4) { top: var(--raio); bottom: var(--raio); left: 0; width: 1.5px; transform-origin: bottom; transform: scaleY(0); }
+  .is-carregado > .carga-contorno > b { background: var(--t1); transition: background .6s var(--ease); }
+  /* os pontos que correm nos quatro lados (A cheio; D sempre que carrega) */
+  html.js:not(.menos-movimento) .tem-carga > .carga-nos { display: block; position: absolute; inset: -1px; pointer-events: none; opacity: 0; transition: opacity .4s var(--ease); }
+  html[data-carga="a"] .is-carregado > .carga-nos, html[data-carga="d"] .is-carregando > .carga-nos, html[data-carga="d"] .is-carregado > .carga-nos { opacity: 1; }
+  .carga-nos > b { position: absolute; }
+  .carga-nos > b::before { content: ""; position: absolute; background: var(--t1); }
+  .carga-nos > b:nth-child(1), .carga-nos > b:nth-child(3) { left: var(--raio); right: var(--raio); height: 1.5px; }
+  .carga-nos > b:nth-child(1) { top: 0; } .carga-nos > b:nth-child(3) { bottom: 0; }
+  .carga-nos > b:nth-child(2), .carga-nos > b:nth-child(4) { top: var(--raio); bottom: var(--raio); width: 1.5px; }
+  .carga-nos > b:nth-child(2) { right: 0; } .carga-nos > b:nth-child(4) { left: 0; }
+  .carga-nos > b:nth-child(odd)::before { top: 0; left: 0; width: 18px; height: 100%; }
+  .carga-nos > b:nth-child(even)::before { left: 0; top: 0; height: 18px; width: 100%; }
+  .carga-nos > b { overflow: hidden; }
+  .carga-nos > b:nth-child(1)::before { animation: no-x 2.4s linear infinite; }
+  .carga-nos > b:nth-child(3)::before { animation: no-x-volta 2.4s linear infinite; }
+  .carga-nos > b:nth-child(2)::before { animation: no-y 1.9s linear .3s infinite; }
+  .carga-nos > b:nth-child(4)::before { animation: no-y-volta 1.9s linear .9s infinite; }
+  @keyframes no-x { from { transform: translateX(-18px); } to { transform: translateX(calc(100cqw)); } }
+  .carga-nos > b { container-type: size; }
+  @keyframes no-x-volta { from { transform: translateX(100cqw); } to { transform: translateX(-18px); } }
+  @keyframes no-y { from { transform: translateY(-18px); } to { transform: translateY(100cqh); } }
+  @keyframes no-y-volta { from { transform: translateY(100cqh); } to { transform: translateY(-18px); } }
+
+  /* B — os cantos de mira crescem pelas bordas e fecham em 100% */
+  html.js:not(.menos-movimento) .tem-carga > .carga-cantos { display: block; position: absolute; inset: -1px; pointer-events: none; }
+  .carga-cantos > b { position: absolute; background: var(--ac-2); }
+  .carga-cantos > b:nth-child(odd) { height: 1.5px; width: 50%; transform: scaleX(0); }
+  .carga-cantos > b:nth-child(even) { width: 1.5px; height: 50%; transform: scaleY(0); }
+  .carga-cantos > b:nth-child(1) { top: 0; left: 0; transform-origin: left; } .carga-cantos > b:nth-child(2) { top: 0; left: 0; transform-origin: top; }
+  .carga-cantos > b:nth-child(3) { top: 0; right: 0; transform-origin: right; } .carga-cantos > b:nth-child(4) { top: 0; right: 0; transform-origin: top; }
+  .carga-cantos > b:nth-child(5) { bottom: 0; right: 0; transform-origin: right; } .carga-cantos > b:nth-child(6) { bottom: 0; right: 0; transform-origin: bottom; }
+  .carga-cantos > b:nth-child(7) { bottom: 0; left: 0; transform-origin: left; } .carga-cantos > b:nth-child(8) { bottom: 0; left: 0; transform-origin: bottom; }
+  .is-carregado > .carga-cantos > b { background: var(--t1); transition: background .6s var(--ease); }
+
+  /* C — o fundo enche de baixo para cima com linhas finas (por baixo do texto) */
+  html.js:not(.menos-movimento) .tem-carga > .carga-linhas { display: block; position: absolute; inset: 1px; overflow: hidden; border-radius: inherit; z-index: -1; pointer-events: none; }
+  .carga-linhas > b { position: absolute; inset: 0; transform: translate3d(0, 100%, 0);
+    background: repeating-linear-gradient(0deg, rgb(var(--ac-rgb) / .16) 0 1px, transparent 1px 7px);
+    border-top: 1.5px solid var(--ac-2); }
+  .is-carregado > .carga-linhas > b { border-top-color: transparent; background: repeating-linear-gradient(0deg, rgb(var(--ac-rgb) / .1) 0 1px, transparent 1px 7px); transition: border-color .5s var(--ease); }
+
+  /* D — a referência do dono: borda e barra neon com brilho difuso */
+  html.js:not(.menos-movimento) .tem-carga > .carga-halo { display: block; position: absolute; inset: -1px; border: 1px solid var(--ac-2); border-radius: inherit; pointer-events: none; opacity: 0;
+    box-shadow: 0 0 22px 2px rgb(var(--ac-rgb) / .28), inset 0 0 26px rgb(var(--ac-rgb) / .07); }
+  html[data-carga="d"] .carga-nos > b::before { box-shadow: 0 0 8px 1px rgb(var(--ac-rgb) / .9); background: var(--ac-2); }
+  html[data-carga="d"] .carga-nos > b { overflow: visible; }
+  html[data-carga="d"] .carga__tubo { background: var(--ac); box-shadow: 0 0 8px 1px rgb(var(--ac-rgb) / .75); top: 5px; height: 2px; }
+  html[data-carga="d"] .carga__tubo::before, html[data-carga="d"] .carga__tubo::after, html[data-carga="d"] .carga__ponta { display: none; }
+  html[data-carga="d"] .carga__trilho { overflow: visible; clip-path: inset(-10px 0 -10px 0); }
+}
