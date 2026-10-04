@@ -53,6 +53,17 @@
      num botão sem clique, PUXA A MANGA (treme pedindo); com o cursor chegando
      perto, dá um pulo de festa. Rolar rápido continua chamando ele de volta,
      ele não cobre o texto e some no rodapé.
+   - As TOMADAS (dono, 2026-10-04: "os campos para ele se conectar nas
+     opções mais apropriados, feitos sob medida para ele"): o soquete tem o
+     desenho dele — anel do tamanho dele, anel interno onde o núcleo assenta,
+     3 travas nas posições das 3 que ele fecha ao encaixar — e um CABO até a
+     opção. Tipos: botão principal (cta) e secundário (botao): mira e luz que
+     atravessa; LINK de card: ele CARREGA o card inteiro (js/carga.js,
+     B.carga.impulso); PERGUNTA do FAQ: a pergunta acende e o "+" chama.
+     A leitura parada só leva aos botões principais; a hesitação, a qualquer
+     tomada.
+   - Na PASSAGEM entre páginas ele mergulha no centro com o painel (e
+     reaparece de lá na página nova); ao abrir uma pergunta, comemora.
    - Respira junto com o reator (B.relogio): no começo do expirar manda um
      sinal pelo campo até o núcleo. Seção chegando: liga-se ao canto mais
      perto. Ao trocar de página continua de onde estava.
@@ -89,7 +100,7 @@
   var AGITA = { orbita: 10, giro: 1.6 };     /* px e rad/s a mais no máximo da agitação */
   /* as docas dos CTAs: s entre encaixes, s até o mesmo botão de novo, s de hesitação, s parado lendo,
      s acoplado (mínimo e teto com o cursor no botão), s entre pulsos, px do cursor ao botão que contam como "perto" */
-  var DOCA = { cada: 6, porCta: 12, hesita: 0.45, parado: 1.1, fica: 3.5, ficaMax: 8, pulsa: 0.6, perto: 64 };
+  var DOCA = { cada: 6, porCta: 12, hesita: 0.45, parado: 1.1, fica: 3.5, ficaMax: 8, pulsa: 0.6, perto: 64, vizinha: 220 };
   var FRENTE = { k: 0.1, max: 84 };
   /* a criança: quanto a insistência sobe por s ignorado; pulinho (Hz e px, calmo e no máximo da insistência);
      puxão na manga (Hz, px); o pulo de festa (px); seguir o cursor (px de folga, s, chance); correr ao toque (s) */
@@ -410,6 +421,8 @@
     if (passeio.estado === 'parado' && passeio.dest && passeio.dest.cta && passeio.dest.cta.acopladaHa > 1.2 && !passeio.dest.cta.sob) {
       alvoX += Math.sin(relogioMini * CRIANCA.puxa) * CRIANCA.puxao * (0.5 + insiste);
     }
+    /* mergulhando na passagem: direto para o centro da tela */
+    if (mergulho) { alvoX = W / 2; alvoY = H / 2; }
     var naEstacao = passeio.dest && (passeio.dest.estacao || (passeio.dest.cta && passeio.estado === 'parado'));   /* na estação (ou encaixado no CTA), exatamente no lugar */
     if (!naEstacao) {
       alvoX += Math.cos(quer.a) * QUER.inclina * quer.f;
@@ -571,13 +584,13 @@
       ctx.lineTo(x + ux * rr + uy * 3, y + uy * rr - ux * 3);
       ctx.closePath(); ctx.fill();
     }
-    /* encaixado num CTA: quatro travas fecham sobre o anel */
+    /* encaixado numa tomada: três travas fecham sobre o anel, nas posições das três da tomada (−90°, 30°, 150°) */
     if (passeio.estado === 'parado' && passeio.dest && passeio.dest.cta) {
       var kt = saida(passeio.dest.cta.acopladaHa / 0.25), rt = (15 + 5 * (1 - kt)) * s;
       ctx.strokeStyle = 'rgba(' + T1 + ',' + (0.9 * kt * v).toFixed(3) + ')';
       ctx.lineWidth = 1.5;
       ctx.beginPath();
-      for (var q = 0; q < 4; q++) { var aq = Math.PI / 4 + q * Math.PI / 2; ctx.moveTo(x + Math.cos(aq) * rt, y + Math.sin(aq) * rt); ctx.lineTo(x + Math.cos(aq) * (rt - 4 * s), y + Math.sin(aq) * (rt - 4 * s)); }
+      for (var q = 0; q < 3; q++) { var aq = -Math.PI / 2 + q * TAU / 3; ctx.moveTo(x + Math.cos(aq) * rt, y + Math.sin(aq) * rt); ctx.lineTo(x + Math.cos(aq) * (rt - 4 * s), y + Math.sin(aq) * (rt - 4 * s)); }
       ctx.stroke();
       ctx.lineWidth = 1;
     }
@@ -615,18 +628,31 @@
   /* ---------- as DOCAS dos CTAs ---------- */
   var docas = [], ultimaDoca = -99, jaRolou = false;
   function posDoc(el) { var x = 0, y = 0; for (var e = el; e; e = e.offsetParent) { x += e.offsetLeft; y += e.offsetTop; } return { x: x, y: y }; }
+  /* os tipos de tomada: onde fica o soquete (lado), quem recebe o efeito (fx) e se tem mira */
+  var TOMADAS = [
+    { sel: 'main .btn--primary', tipo: 'cta', mira: true },
+    { sel: 'main .btn--ghost', tipo: 'botao', mira: true },
+    { sel: 'main .servico__link, main .celula__link', tipo: 'link', mira: false },
+    { sel: 'main .qa > summary', tipo: 'faq', mira: true }
+  ];
   function montarDocas() {
-    var els = document.querySelectorAll('main .btn--primary');
-    for (var i = 0; i < els.length; i++) {
-      var el = els[i];
-      if (el.closest('.barra, .nav, .lead-modal, [aria-hidden="true"]')) continue;
-      var so = document.createElement('i'); so.className = 'doca';
-      var mira = document.createElement('i'); mira.className = 'doca-mira';
-      for (var k = 0; k < 4; k++) mira.appendChild(document.createElement('b'));
-      palcoMini.appendChild(so); palcoMini.appendChild(mira);
-      var dc = { el: el, so: so, mira: mira, x: 0, y: 0, w: 0, h: 0, ok: false, sx: -1e4, sy: -1e4, naTela: false, sob: false, hesita: 0, visto: 0, ultima: -99, acopladaHa: 0, pulsoHa: 0, chega: 0, tf: '' };
-      ligarDoca(dc);
-      docas.push(dc);
+    for (var t = 0; t < TOMADAS.length; t++) {
+      var T = TOMADAS[t], els = document.querySelectorAll(T.sel);
+      for (var i = 0; i < els.length; i++) {
+        var el = els[i];
+        if (el.closest('.barra, .nav, .lead-modal, [aria-hidden="true"]')) continue;
+        var so = document.createElement('i'); so.className = 'doca doca--' + T.tipo + (celular ? ' doca--cel' : '');
+        for (var k = 0; k < 3; k++) so.appendChild(document.createElement('b'));
+        var cabo = document.createElement('s'); cabo.className = 'doca__cabo'; so.appendChild(cabo);
+        var mira = null;
+        if (T.mira) { mira = document.createElement('i'); mira.className = 'doca-mira'; for (k = 0; k < 4; k++) mira.appendChild(document.createElement('b')); palcoMini.appendChild(mira); }
+        palcoMini.appendChild(so);
+        /* quem acende: o card do link, a pergunta inteira, ou o próprio botão */
+        var fx = T.tipo === 'link' ? el.closest('.painel, .celula') || el : T.tipo === 'faq' ? el.parentNode : el;
+        var dc = { el: el, tipo: T.tipo, fx: fx, so: so, cabo: cabo, mira: mira, x: 0, y: 0, w: 0, h: 0, ok: false, sx: -1e4, sy: -1e4, naTela: false, sob: false, hesita: 0, visto: 0, ultima: -99, acopladaHa: 0, pulsoHa: 0, chega: 0, tf: '' };
+        ligarDoca(dc);
+        docas.push(dc);
+      }
     }
     /* a medida vem com a da rede (rede:medida), depois do load: medir aqui forçava layout antes da 1ª pintura */
   }
@@ -643,15 +669,28 @@
       dc.x = p.x; dc.y = p.y; dc.w = dc.el.offsetWidth; dc.h = dc.el.offsetHeight;
     }
     /* as escritas depois de todas as leituras (intercaladas, cada botão forçava um layout) */
-    for (i = 0; i < docas.length; i++) if (docas[i].ok) { docas[i].mira.style.width = (docas[i].w + 28) + 'px'; docas[i].mira.style.height = (docas[i].h + 28) + 'px'; }
+    for (i = 0; i < docas.length; i++) {
+      var d = docas[i];
+      if (!d.ok) continue;
+      if (d.mira) { d.mira.style.width = (d.w + 28) + 'px'; d.mira.style.height = (d.h + 28) + 'px'; }
+      /* o cabo sai do soquete até a opção: na diagonal até o canto do botão, na horizontal até o fim do link/pergunta */
+      var lateral = d.tipo === 'link' || d.tipo === 'faq';
+      d.cabo.style.transform = lateral ? 'rotate(180deg)' : 'rotate(135deg)';
+      d.cabo.style.width = (lateral ? 10 : 14) + 'px';
+    }
   }
   function acoplarCta(dc) {
     dc.acopladaHa = 0; dc.pulsoHa = 0; dc.ultima = relogioMini; ultimaDoca = relogioMini;
-    dc.so.classList.add('is-acoplada'); dc.mira.classList.add('is-viva'); dc.el.classList.add('is-turbinado');
-    B.rede.acender(dc.el, true);
+    dc.so.classList.add('is-acoplada'); if (dc.mira) dc.mira.classList.add('is-viva');
+    dc.el.classList.add('is-turbinado'); if (dc.fx !== dc.el) dc.fx.classList.add('is-turbinado');
+    /* no link de um card, ele carrega o card inteiro */
+    if (dc.tipo === 'link' && B.carga && B.carga.impulso) B.carga.impulso(dc.fx, true);
+    B.rede.acender(dc.fx, true);
   }
   function soltarCta(dc) {
-    dc.so.classList.remove('is-acoplada', 'is-chamando'); dc.mira.classList.remove('is-viva'); dc.el.classList.remove('is-turbinado');
+    dc.so.classList.remove('is-acoplada', 'is-chamando'); if (dc.mira) dc.mira.classList.remove('is-viva');
+    dc.el.classList.remove('is-turbinado'); dc.fx.classList.remove('is-turbinado');
+    if (dc.tipo === 'link' && B.carga && B.carga.impulso) B.carga.impulso(dc.fx, false);
   }
   /* por quadro: onde cada soquete está, o que a pessoa está fazendo perto
      dele e, se for a hora, o encaixe */
@@ -662,22 +701,30 @@
       var dc = docas[i];
       if (!dc.ok) continue;
       var bx = dc.x - B.S.sx, by = dc.y - rolagem;
-      dc.sx = Math.min(W - 12, bx + dc.w + 2); dc.sy = by - 2;
+      /* botões: no canto de cima à direita, por fora; link e pergunta: logo depois do fim, na altura do meio */
+      var lateral = dc.tipo === 'link' || dc.tipo === 'faq';
+      dc.sx = Math.min(W - 14, bx + dc.w + (lateral ? 26 : 12)); dc.sy = lateral ? by + dc.h / 2 : by - 12;
       dc.naTela = by > TOPO && by + dc.h < H - PE && mini.vis > 0.05;
-      dc.so.classList.toggle('is-visivel', dc.naTela && !B.reduced);
+      /* a tomada só aparece quando faz sentido: a do botão principal sempre (com o mini por perto da tela);
+         as outras com o cursor ou o mini a menos de PERTO px (uma coluna de tomadas poluía o FAQ e os cards) */
+      var cx0 = bx + dc.w / 2, cy0 = by + dc.h / 2;
+      var vizinha = dc.tipo === 'cta' || (ponteiro.ativo && Math.abs(ponteiro.x - cx0) < dc.w / 2 + DOCA.vizinha && Math.abs(ponteiro.y - cy0) < dc.h / 2 + DOCA.vizinha) || Math.hypot(mini.x - dc.sx, mini.y - dc.sy) < DOCA.vizinha * 1.4 || dc.so.classList.contains('is-acoplada') || dc.so.classList.contains('is-chamando');
+      dc.so.classList.toggle('is-visivel', dc.naTela && vizinha && !B.reduced);
       if (!dc.naTela) { dc.hesita = 0; dc.visto = 0; continue; }
-      var tf = 'translate3d(' + dc.sx.toFixed(1) + 'px,' + dc.sy.toFixed(1) + 'px,0)';
-      if (tf !== dc.tf) { dc.so.style.transform = tf; dc.mira.style.transform = "translate3d(" + (bx - 14).toFixed(1) + "px," + (by - 14).toFixed(1) + "px,0)"; dc.tf = tf; }
+      var tf = 'translate3d(' + dc.sx.toFixed(1) + 'px,' + dc.sy.toFixed(1) + 'px,0)' + (celular ? ' scale(.72)' : '');
+      if (tf !== dc.tf) { dc.so.style.transform = tf; if (dc.mira) dc.mira.style.transform = 'translate3d(' + (bx - 14).toFixed(1) + 'px,' + (by - 14).toFixed(1) + 'px,0)'; dc.tf = tf; }
       /* a hesitação: o cursor em cima ou perto do botão, sem clicar */
       var px = ponteiro.x, py = ponteiro.y;
       var pertoDele = ponteiro.ativo && px > bx - DOCA.perto && px < bx + dc.w + DOCA.perto && py > by - DOCA.perto && py < by + dc.h + DOCA.perto;
       dc.hesita = pertoDele || dc.sob ? dc.hesita + dt : 0;
+      /* a distância do cursor à opção: entre duas que ele está rondando, vence a mais perto */
+      dc.dist = pertoDele || dc.sob ? Math.hypot(Math.max(bx - px, 0, px - (bx + dc.w)), Math.max(by - py, 0, py - (by + dc.h))) : 1e9;
       /* a leitura: o botão no meio da tela, com a rolagem parada */
       /* (só depois de a pessoa rolar: ao abrir a página ele não vai direto ao botão) */
       var meio = by > H * 0.22 && by + dc.h < H * 0.8;
-      dc.visto = meio && jaRolou && paradoHa > 0.4 ? dc.visto + dt : 0;
+      dc.visto = dc.tipo === 'cta' && meio && jaRolou && paradoHa > 0.4 ? dc.visto + dt : 0;
       if (relogioMini - dc.ultima < DOCA.porCta) continue;
-      if (dc.hesita > DOCA.hesita || dc.visto > DOCA.parado) melhor = dc;
+      if ((dc.hesita > DOCA.hesita || dc.visto > DOCA.parado) && (!melhor || dc.dist < melhor.dist)) melhor = dc;
     }
     if (!melhor || !livre || B.reduced || passeio.estado !== 'doca' || relogioMini - ultimaDoca < DOCA.cada) return;
     soltarSugestao();
@@ -713,6 +760,22 @@
     toque = { x: Math.max(30, Math.min(tela.W - 30, e.clientX)), y: Math.max(TOPO, Math.min(tela.H - PE, e.clientY - 40)), t: relogioMini };
     if (passeio.estado === 'doca') passeio.espera = 0;
   }, { passive: true });
+
+  /* a PASSAGEM entre páginas (js/passagem.js): ele mergulha no centro com o painel
+     (a posição guardada ao sair é o centro: na página nova ele reaparece de lá) */
+  var mergulho = false;
+  B.on('passagem', function () {
+    if (!mini.ativo || B.reduced) return;
+    mergulho = true; soltarSugestao(); soltarEstacao(passeio); passeio.estado = "doca"; passeio.dest = null; pulsar(1);
+    setTimeout(function () { mergulho = false; }, 4500);   /* a navegação não aconteceu: ele volta ao normal */
+  });
+  /* uma pergunta do FAQ aberta: ele comemora e olha para ela */
+  document.addEventListener('toggle', function (e) {
+    var qa = e.target;
+    if (!mini.ativo || B.reduced || !qa.open || !qa.classList || !qa.classList.contains('qa')) return;
+    var r = qa.getBoundingClientRect();
+    foco = { x: r.left + 40, y: r.top + 24, t: 1.6 }; festa = 1; pulsar(1); insiste = Math.max(0, insiste - 0.4);
+  }, true);
 
   /* o clique no núcleo da estação conectada: ele se solta e volta */
   mini.liberar = function (st) {

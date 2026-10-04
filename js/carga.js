@@ -143,7 +143,9 @@
       definir(card, c.p);
     }
   }
-  B.carga = { montar: montar, definir: definir, sobrecarga: sobrecarga };
+  /* o mini encaixado no link do card: o desktop carrega o card até 100% enquanto ele está lá */
+  function impulso(card, sim) { var c = card._carga || montar(card); c.impulso = !!sim; }
+  B.carga = { montar: montar, definir: definir, sobrecarga: sobrecarga, impulso: impulso };
 
   /* ---------- desktop: o cursor ---------- */
   var desktop = window.matchMedia('(min-width: 721px) and (hover: hover) and (pointer: fine)');
@@ -188,7 +190,7 @@
         prox = d <= 0 ? 1 : Math.max(0, 1 - d / PERTO);
       }
       /* em cima: 100%; perto: até 85%, quadrático (suave longe, forte perto, como na V1) */
-      var alvo = prox >= 1 ? 1 : prox * prox * 0.85;
+      var alvo = prox >= 1 || (it.el._carga && it.el._carga.impulso) ? 1 : prox * prox * 0.85;
       var k = alvo > it.carga ? ENCHE : ESVAZIA;
       it.carga += (alvo - it.carga) * Math.min(1, dt * k);
       if (alvo === 1 && it.carga > 0.985) it.carga = 1;

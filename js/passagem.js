@@ -59,6 +59,7 @@
     el.classList.remove('is-cobre');
     void el.offsetWidth;   /* reinicia a animação se a classe acabou de sair */
     el.classList.add('is-cobre');
+    if (B.emit) B.emit('passagem', d);   /* o mini mergulha junto (js/mini.js) */
     setTimeout(function () { location.href = d.href; }, COBRE_MS);
     setTimeout(function () { saindo = false; el.classList.remove('is-cobre'); }, COBRE_MS + DESISTE_MS);
   }
