@@ -443,10 +443,11 @@ html.menos-movimento .estacao-cruza { display: none !important; }
   html.js:not(.menos-movimento) .tem-carga > .carga-nos { display: block; position: absolute; inset: -1px; pointer-events: none; opacity: 0; transition: opacity .4s var(--ease); }
   .is-carregando > .carga-nos, .is-carregado > .carga-nos { opacity: 1; }
   /* cada lado é uma TRILHA do tamanho dele que anda de ponta a ponta (transform em % do próprio tamanho: o
-     compositor resolve, sem o processador); o ponto é o ::before na ponta dela. Só anima visível: carregando,
-     cheio (três voltas e para) e em sobrecarga (sem parar). Antes animava sempre, até invisível, e em
+     compositor resolve, sem o processador); o ponto é o ::before na ponta dela, e só aparece animando
+     (opacidade na própria animação: parado não fica "toco" para fora do canto). Só anima visível: carregando,
+     cheio e em sobrecarga. Antes animava sempre, até invisível, e em
      unidades de contêiner (cqw), que não vão para o compositor: ~12 mil recálculos de estilo numa rolagem. */
-  .carga-nos > b { position: absolute; }
+  .carga-nos > b { position: absolute; opacity: 0; }
   .carga-nos > b::before { content: ""; position: absolute; background: var(--ac-2); box-shadow: 0 0 8px 1px rgb(var(--ac-rgb) / .9); }
   .carga-nos > b:nth-child(1), .carga-nos > b:nth-child(3) { left: var(--raio); right: var(--raio); height: 1.5px; transform: translateX(-100%); }
   .carga-nos > b:nth-child(1) { top: 0; } .carga-nos > b:nth-child(3) { bottom: 0; }
@@ -455,15 +456,15 @@ html.menos-movimento .estacao-cruza { display: none !important; }
   .carga-nos > b:nth-child(odd)::before { top: 0; right: 0; width: 18px; height: 100%; }
   .carga-nos > b:nth-child(even)::before { left: 0; bottom: 0; height: 18px; width: 100%; }
   .is-carregando > .carga-nos > b, .is-carregado > .carga-nos > b { animation-timing-function: linear; animation-iteration-count: infinite; }
-  .is-carregado:not(.is-sobrecarga) > .carga-nos > b { animation-iteration-count: 3; }
   .is-carregando > .carga-nos > b:nth-child(1), .is-carregado > .carga-nos > b:nth-child(1) { animation-name: no-x; animation-duration: 2.4s; }
   .is-carregando > .carga-nos > b:nth-child(3), .is-carregado > .carga-nos > b:nth-child(3) { animation-name: no-x-volta; animation-duration: 2.4s; }
   .is-carregando > .carga-nos > b:nth-child(2), .is-carregado > .carga-nos > b:nth-child(2) { animation-name: no-y; animation-duration: 1.9s; animation-delay: .3s; }
   .is-carregando > .carga-nos > b:nth-child(4), .is-carregado > .carga-nos > b:nth-child(4) { animation-name: no-y-volta; animation-duration: 1.9s; animation-delay: .9s; }
-  @keyframes no-x { from { transform: translateX(-100%); } to { transform: none; } }
-  @keyframes no-x-volta { from { transform: none; } to { transform: translateX(-100%); } }
-  @keyframes no-y { from { transform: translateY(-100%); } to { transform: none; } }
-  @keyframes no-y-volta { from { transform: none; } to { transform: translateY(-100%); } }
+  /* de fora a fora: o ponto (18 px) nasce antes da ponta e sai inteiro depois da outra, como antes */
+  @keyframes no-x { from { transform: translateX(-100%); opacity: 1; } to { transform: translateX(18px); opacity: 1; } }
+  @keyframes no-x-volta { from { transform: translateX(18px); opacity: 1; } to { transform: translateX(-100%); opacity: 1; } }
+  @keyframes no-y { from { transform: translateY(-100%); opacity: 1; } to { transform: translateY(18px); opacity: 1; } }
+  @keyframes no-y-volta { from { transform: translateY(18px); opacity: 1; } to { transform: translateY(-100%); opacity: 1; } }
   /* a barra de baixo em neon */
   .carga__tubo { background: var(--ac); box-shadow: 0 0 8px 1px rgb(var(--ac-rgb) / .75); top: 5px; height: 2px; }
   .carga__tubo::before, .carga__tubo::after { display: none; }

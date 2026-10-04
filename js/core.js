@@ -121,6 +121,8 @@
   /* a largura de um texto no canvas, medida uma vez por fonte e texto (os rótulos se repetem quadro após
      quadro: medir a cada quadro custava ~250 ms numa rolagem curta no celular). Use depois de B.fonte */
   var larguras = new Map();
+  /* medidas feitas com a fonte reserva (antes da JetBrains Mono chegar) não ficam guardadas */
+  if (document.fonts) { document.fonts.ready.then(function () { larguras.clear(); }); document.fonts.addEventListener('loadingdone', function () { larguras.clear(); }); }
   function largura(ctx, txt) {
     var k = (ctx.__fonte || ctx.font) + '|' + txt, w = larguras.get(k);
     if (w === undefined) { if (larguras.size > 600) larguras.clear(); w = ctx.measureText(txt).width; larguras.set(k, w); }

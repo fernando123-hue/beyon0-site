@@ -1005,3 +1005,29 @@ encaixe em etapas, carga ~1 s) e ele fica imóvel; letras 143 sem rótulo
 extra. Verificador: falhas de LCP só no desktop de Sites/Automação com a CPU
 a 100%; o elemento do LCP é o título/parágrafo do hero (1–2,6 s), sem
 relação com este lote. Acessibilidade ok.
+
+## 25. Revisão de leveza (2026-10-04)
+
+Pedido do dono: "revisão e otimização, deixe mais leve, sem estragar os pontos
+fortes". Medido antes de mexer (Chrome real, mesmo roteiro: parado, rolando,
+mouse; desktop e celular; nós, heap, tarefas longas) e rastreado com
+invalidações de estilo e pilhas de layout forçado. Achados e correções:
+- Os PONTOS da carga animavam sempre, até invisíveis, em unidades de
+  contêiner (cqw), fora do compositor: ~12,7 mil recálculos de estilo numa
+  rolagem. Agora a trilha de cada lado anda em % do próprio tamanho (o
+  compositor resolve), o ponto só aparece animando (opacidade na animação) e
+  só anima no card carregando/cheio/em sobrecarga.
+- `ctx.font` a cada quadro forçava o estilo da página (~225 ms numa rolagem
+  no celular): `B.fonte` troca só quando muda (zerado após `restore` e ao
+  redimensionar). `measureText` a cada quadro (~250 ms): `B.largura` mede
+  cada rótulo uma vez por fonte (a memória é limpa quando a fonte carrega).
+- A carga só redesenha tubo e cantos quando muda 1% (era 0,2%).
+- A luz de cada letra dura 0,38 s (era 0,62): menos letras animando ao mesmo
+  tempo (a cor não vai para o compositor) — a forma da onda é a mesma.
+Resultado (antes → depois): estilo parado 0,3–0,8 → 0,05–0,13 ms/quadro;
+quadros lentos rolando Automação desktop 55 → 27, Hub desktop 34 → 25, Hub
+celular 53 → 41; fundo no celular rolando 1,7 → 0,5–0,7 ms/quadro.
+Revisão de código: o ponto ficava parado como "toco" fora do canto (corrigido
+com a opacidade na animação), a trilha 18 px mais curta (restaurada), a
+largura medida com a fonte reserva (limpa no carregamento da fonte), a barra
+presa em 99% (corrigido). Verificador 12/12; acessibilidade ok.
