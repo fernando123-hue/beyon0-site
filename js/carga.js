@@ -11,14 +11,12 @@
    branco com bordas ciano, a PONTA acesa na frente, um reflexo que corre por
    dentro enquanto carrega, a porcentagem ao lado; cheia, um clarão e uma
    linha de luz atravessa o card (css/cartoes.css, "A CARGA").
-   VARIAÇÕES em teste (o dono escolhe; ?carga=a|b|c|d no endereço, guardado
-   na sessão; sem escolha vale a A). A: o CONTORNO do card é a barra (uma linha
-   percorre a borda no sentido horário; cheio, pontos de energia correm nos
-   quatro lados). B: quatro CANTOS de mira crescem pelas bordas e fecham em
-   100%. C: o fundo do card ENCHE de baixo para cima com linhas finas. D: a
-   imagem de referência do dono (borda e barra neon com brilho difuso — o
-   único lugar do site com desfoque, por pedido explícito dele). Todas usam a
-   mesma carga; css/cartoes.css desenha cada uma.
+   O VISUAL (escolha do dono entre quatro opções, 2026-10-04: "uma junção
+   da B e da D"): quatro CANTOS de mira em neon crescem pelas bordas com a
+   carga e fecham a moldura em 100%; conforme ela fecha, a BORDA inteira
+   acende em neon; carregando e cheio, PONTOS de luz correm nos quatro lados;
+   a barra de baixo é neon. O brilho difuso aqui é exceção pedida pelo dono
+   (a referência que ele mandou); no resto do site segue proibido.
    Leis do projeto: posições lidas só em evento (rede:medida); por quadro só
    transform/opacity e o texto da porcentagem quando o número muda.
    ========================================================================== */
@@ -30,15 +28,6 @@
   var PERTO = 300;                       /* px do cursor à borda do card em que ele começa a carregar */
   var ENCHE = 3.2, ESVAZIA = 1.6;        /* /s: a carga segue o alvo (enche mais rápido do que esvazia) */
   var CARDS = '.painel:not(:where(.console, .instrumento)), .celula, .laudo__row, .spec__item, .cenario';
-  /* a variação em teste */
-  var VARIANTES = { a: 1, b: 1, c: 1, d: 1 }, variante = 'a';
-  try {
-    var pedida = (new URLSearchParams(location.search).get('carga') || '').toLowerCase();
-    if (VARIANTES[pedida]) sessionStorage.setItem('bz-carga', pedida);
-    var guardada = sessionStorage.getItem('bz-carga');
-    if (VARIANTES[guardada]) variante = guardada;
-  } catch (e) { /* sem armazenamento: a padrão */ }
-  document.documentElement.setAttribute('data-carga', variante);
 
   /* ---------- a peça ---------- */
   function montar(card, op) {
@@ -62,14 +51,10 @@
       for (var k = 0; k < n; k++) el.appendChild(document.createElement(tag || 'b'));
       card.appendChild(el); return el;
     };
-    /* A: os quatro lados do contorno e os pontos que correm; B: os oito braços dos cantos; C: as linhas; D: o brilho */
-    var lados = variante === 'a' ? camada('carga-contorno', 4) : null;
-    var nos = variante === 'a' || variante === 'd' ? camada('carga-nos', 4) : null;
-    var bracos = variante === 'b' ? camada('carga-cantos', 8) : null;
-    var linhas = variante === 'c' ? camada('carga-linhas', 1) : null;
-    var halo = variante === 'd' ? camada('carga-halo', 0) : null;
-    c = card._carga = { card: card, tubo: tubo, pct: pct, aro: aro, p: -1, num: 0, cheio: false, aroA: -1,
-      lados: lados && lados.children, bracos: bracos && bracos.children, linhas: linhas && linhas.firstChild, halo: halo };
+    /* os oito braços dos cantos, a borda neon e os pontos que correm */
+    var bracos = camada('carga-cantos', 8), halo = camada('carga-halo', 0);
+    camada('carga-nos', 4);
+    c = card._carga = { card: card, tubo: tubo, pct: pct, aro: aro, p: -1, num: 0, cheio: false, aroA: -1, bracos: bracos.children, halo: halo };
     card.classList.add('tem-carga');
     return c;
   }
@@ -89,13 +74,11 @@
       if (cheio) varrer(card);
     }
   }
-  /* as camadas da variação em teste (só transform/opacity) */
+  /* os cantos crescem com a carga; a borda neon acende no último terço (quando a moldura fecha) */
   function variar(c, p) {
-    var k;
-    if (c.lados) for (k = 0; k < 4; k++) { var s = Math.max(0, Math.min(1, p * 4 - k)); c.lados[k].style.transform = (k % 2 ? 'scaleY(' : 'scaleX(') + s.toFixed(3) + ')'; }
-    if (c.bracos) for (k = 0; k < 8; k++) c.bracos[k].style.transform = (k % 2 ? 'scaleY(' : 'scaleX(') + p.toFixed(3) + ')';
-    if (c.linhas) c.linhas.style.transform = 'translate3d(0,' + ((1 - p) * 100).toFixed(2) + '%,0)';
-    if (c.halo) c.halo.style.opacity = p.toFixed(3);
+    for (var k = 0; k < 8; k++) c.bracos[k].style.transform = (k % 2 ? 'scaleY(' : 'scaleX(') + p.toFixed(3) + ')';
+    var b = Math.max(0, (p - 0.62) / 0.38);
+    c.halo.style.opacity = (b * b).toFixed(3);
   }
   /* cheio: a linha de luz atravessa o card uma vez (alterna -a/-b: reinicia sem ler layout) */
   function varrer(card) {
