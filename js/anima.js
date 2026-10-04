@@ -511,13 +511,6 @@
       tl.add(function () { btn.classList.add('is-passou'); }, tBtn + .18);
     }
   }
-  /* o card da pilha carregou: a linha de luz o atravessa uma vez (alterna
-     -a/-b para reiniciar a animação sem ler layout) */
-  function carregou(card) {
-    var a = card.classList.contains('is-varre-a');
-    card.classList.remove(a ? 'is-varre-a' : 'is-varre-b');
-    card.classList.add(a ? 'is-varre-b' : 'is-varre-a');
-  }
   function de(tabela, el, padrao) { for (var k in tabela) if (el.matches(k)) return tabela[k]; return padrao; }
   function revelar(el, imediato) {
     marcar(el);
@@ -603,26 +596,20 @@
             var termina = function (k) { return function () { var y = k === 0 ? m.parado[1] : m.parado[k] - m.nat[k]; return 'top ' + Math.round(y) + 'px'; }; };
             cards.forEach(function (card, k) {
               cartas.push(card);
-              var barra = card.querySelector(':scope > .carga');
-              if (!barra) {
-                barra = document.createElement('i'); barra.className = 'carga'; barra.setAttribute('aria-hidden', 'true');
-                barra.appendChild(document.createElement('b'));
-                var fio = document.createElement('i'); fio.className = 'carga-fio'; fio.setAttribute('aria-hidden', 'true');
-                var varre = document.createElement('i'); varre.className = 'carga-varre'; varre.setAttribute('aria-hidden', 'true');
-                card.appendChild(barra); card.appendChild(fio); card.appendChild(varre);
-              }
-              gsap.fromTo(barra.firstChild, { scaleX: 0 }, { scaleX: 1, ease: 'none', immediateRender: true,
-                scrollTrigger: { trigger: pilha, start: comeca(k), end: termina(k), scrub: true, invalidateOnRefresh: true,
-                  toggleClass: { targets: card, className: 'is-carregando' },
-                  /* o card da frente DOA: a energia desce da base dele para o que está aparecendo */
-                  onToggle: function (st) { if (k > 0) cards[k - 1].classList.toggle('is-doando', st.isActive); },
-                  onLeave: function () { card.classList.add('is-carregado'); carregou(card); },
-                  onEnterBack: function () { card.classList.remove('is-carregado'); } } });
+              /* a peça da carga (js/carga.js): o tubo neon, a porcentagem, as classes */
+              if (!B.carga) return;
+              B.carga.montar(card, { fio: true });
+              ST.create({ trigger: pilha, start: comeca(k), end: termina(k), invalidateOnRefresh: true,
+                onUpdate: function (st) { B.carga.definir(card, st.progress); },
+                onLeave: function () { B.carga.definir(card, 1); },
+                onLeaveBack: function () { B.carga.definir(card, 0); },
+                /* o card da frente DOA: a energia desce da base dele para o que está aparecendo */
+                onToggle: function (st) { if (k > 0) cards[k - 1].classList.toggle('is-doando', st.isActive); } });
             });
           });
           return function () {
             for (var k = 0; k < medidores.length; k++) ST.removeEventListener('refreshInit', medidores[k]);
-            cartas.forEach(function (c) { c.classList.remove('is-carregando', 'is-carregado', 'is-doando', 'is-varre-a', 'is-varre-b'); });
+            cartas.forEach(function (c) { c.classList.remove('is-doando'); if (B.carga && c._carga) B.carga.definir(c, 0); });
           };
         });
         mm.add('(max-width: 860px) and (prefers-reduced-motion: no-preference)', function () {

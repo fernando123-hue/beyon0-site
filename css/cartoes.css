@@ -353,35 +353,63 @@ html.menos-movimento .estacao-cruza { display: none !important; }
   .pilha > :focus-within { z-index: 20; }
 }
 
-/* ---- A CARGA da pilha do celular (js/anima.js): a barra de 12 segmentos na
-   BASE do card (a parte revelada primeiro; no topo ela enchia escondida)
-   enche enquanto ele é revelado; a energia desce da base do card da frente
-   para dentro dele enquanto carrega; carregado, a barra pisca e fica ciano, a
-   aresta e o número acendem e uma linha de luz o atravessa. Traço nítido,
-   segmentos de borda dura (nada desfocado); só transform/opacity se movem. ---- */
-.carga, .carga-fio, .carga-varre { display: none; }
-@media (max-width: 720px) and (prefers-reduced-motion: no-preference) {
-  html.js:not(.menos-movimento) .pilha .carga { display: block; position: absolute; left: var(--mod-pad); right: var(--mod-pad); bottom: 9px; height: 2px; overflow: hidden; background: rgb(var(--ac-rgb) / .14); pointer-events: none; }
-  .carga > b { position: absolute; inset: 0; background: var(--ac); transform: scaleX(0); transform-origin: left; }
-  /* os 12 segmentos: vãos de 3 px na cor do card, por cima da barra */
-  .carga::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0 calc(100% / 12 - 3px), var(--mod-fundo-opaco) calc(100% / 12 - 3px) calc(100% / 12)); }
-  .is-carregado > .carga > b { animation: carga-cheia .6s ease-out both; }
-  @keyframes carga-cheia { 0% { background: var(--t1); } 100% { background: var(--ac-2); } }
-  .pilha > .is-carregado::before { opacity: 1; }
-  .pilha > .is-carregado { border-color: var(--line-2); }
-  .pilha > .is-carregado .laudo__n, .pilha > .is-carregado .servico__n { color: var(--ac-3); }
-  /* a energia descendo da base do card da frente para o que aparece embaixo
-     dele (na margem, fora do texto; o último não tem para quem doar) */
-  html.js:not(.menos-movimento) .pilha .carga-fio { display: block; position: absolute; left: 9px; top: calc(100% + 3px); width: 2px; height: 34px; overflow: hidden; pointer-events: none; }
-  .pilha > :last-child > .carga-fio { display: none; }
-  .carga-fio::before { content: ""; position: absolute; left: 0; top: -15px; width: 2px; height: calc(100% + 30px); background: repeating-linear-gradient(180deg, var(--ac-2) 0 6px, transparent 6px 15px); opacity: 0; transition: opacity .2s linear; }
-  .is-doando > .carga-fio::before { opacity: 1; animation: carga-desce .4s linear infinite; }
-  @keyframes carga-desce { from { transform: translateY(0); } to { transform: translateY(15px); } }
-  /* carregado: uma linha de luz atravessa o card uma vez */
-  html.js:not(.menos-movimento) .pilha .carga-varre { display: block; position: absolute; inset: 0; overflow: hidden; pointer-events: none; border-radius: inherit; }
+/* ---- A CARGA (js/carga.js): no celular a pilha carrega com a rolagem; no
+   desktop com mouse o card carrega conforme o cursor se aproxima (e um ARO
+   nítido aparece). A barra é um TUBO NEON em traço nítido — nada desfocado
+   (o dono proíbe): núcleo branco com bordas ciano em degraus duros, duas
+   linhas finas de cada lado, a PONTA acesa na frente, um REFLEXO que corre
+   por dentro enquanto carrega e a porcentagem ao lado. Cheio: um clarão no
+   tubo, aresta e número acendem e uma linha de luz atravessa o card.
+   Só transform/opacity se movem por quadro. ---- */
+.carga, .carga-fio, .carga-varre, .carga-aro { display: none; }
+@media (prefers-reduced-motion: no-preference) {
+  html.js:not(.menos-movimento) .tem-carga > .carga { display: block; position: absolute; left: var(--mod-pad); right: var(--mod-pad); bottom: 6px; height: 13px; pointer-events: none; transition: opacity .35s var(--ease); }
+  /* em repouso a barra não aparece (zero por toda a página poluía): surge quando começa a carregar */
+  .tem-carga:not(.is-carregando):not(.is-carregado) > .carga { opacity: 0; }
+  /* o trilho: a linha apagada por onde a carga corre (deixa espaço para a porcentagem) */
+  .carga__trilho { position: absolute; left: 0; right: 46px; top: 0; height: 13px; overflow: hidden; }
+  .carga__trilho::before { content: ""; position: absolute; left: 0; right: 0; top: 6px; height: 1px; background: rgb(var(--ac-rgb) / .2); }
+  /* o tubo: 3 px — ciano, branco, ciano — e uma linha fina de cada lado, a 2 px */
+  .carga__tubo { position: absolute; left: 0; right: 0; top: 5px; height: 3px; transform: translate3d(-100%, 0, 0);
+    background: linear-gradient(180deg, var(--ac) 0 1px, var(--t1) 1px 2px, var(--ac) 2px 3px); }
+  .carga__tubo::before, .carga__tubo::after { content: ""; position: absolute; left: 0; right: 0; height: 1px; background: rgb(var(--ac-rgb) / .38); }
+  .carga__tubo::before { top: -3px; }
+  .carga__tubo::after { bottom: -3px; }
+  /* a ponta: a frente acesa da carga */
+  .carga__ponta { position: absolute; right: -1px; top: -5px; width: 2px; height: 13px; background: var(--t1); }
+  .carga__ponta::before { content: ""; position: absolute; right: 3px; top: 3px; width: 1px; height: 7px; background: var(--ac-2); }
+  /* o reflexo: um traço claro que corre por dentro do que já carregou */
+  .carga__brilho { position: absolute; inset: 0; overflow: hidden; }
+  .carga__brilho::before { content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 18%; background: linear-gradient(90deg, transparent 0 40%, var(--t1) 40% 70%, transparent 70%); transform: translate3d(-100%, 0, 0); opacity: 0; }
+  .is-carregando .carga__brilho::before { opacity: .9; animation: carga-reflexo 1.1s linear infinite; }
+  @keyframes carga-reflexo { from { transform: translate3d(-100%, 0, 0); } to { transform: translate3d(560%, 0, 0); } }
+  /* a porcentagem */
+  .carga__pct { position: absolute; right: 0; top: 0; width: 42px; text-align: right; font-family: var(--mono); font-size: 10px; line-height: 13px; letter-spacing: .04em; font-variant-numeric: tabular-nums; color: rgb(var(--ac-2-rgb) / .55); transition: color .3s var(--ease); }
+  .is-carregando .carga__pct { color: var(--ac-2); }
+  /* cheio: um clarão no tubo e o resto do card acende */
+  .carga__trilho::after { content: ""; position: absolute; left: 0; right: 0; top: 2px; height: 9px; border-top: 1px solid var(--t1); border-bottom: 1px solid var(--t1); opacity: 0; }
+  .is-carregado .carga__trilho::after { animation: carga-clarao .7s ease-out both; }
+  @keyframes carga-clarao { 0% { opacity: 1; } 100% { opacity: 0; } }
+  .is-carregado .carga__pct { color: var(--t1); }
+  .is-carregado .carga__ponta { opacity: 0; }
+  .tem-carga.is-carregado::before { opacity: 1; }
+  .tem-carga.is-carregado { border-color: var(--line-2); }
+  .tem-carga.is-carregado .laudo__n, .tem-carga.is-carregado .servico__n, .tem-carga.is-carregado .celula__n { color: var(--ac-3); }
+  /* cheio: uma linha de luz atravessa o card uma vez */
+  html.js:not(.menos-movimento) .tem-carga > .carga-varre { display: block; position: absolute; inset: 0; overflow: hidden; pointer-events: none; border-radius: inherit; }
   .carga-varre::before { content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 100%; border-left: 1px solid var(--ac-2); opacity: 0; }
   .is-varre-a > .carga-varre::before { animation: carga-varre-a .7s cubic-bezier(.3, 0, .2, 1) both; }
   .is-varre-b > .carga-varre::before { animation: carga-varre-b .7s cubic-bezier(.3, 0, .2, 1) both; }
   @keyframes carga-varre-a { 0% { opacity: .9; transform: translateX(0); } 85% { opacity: .5; } 100% { opacity: 0; transform: translateX(100%); } }
   @keyframes carga-varre-b { 0% { opacity: .9; transform: translateX(0); } 85% { opacity: .5; } 100% { opacity: 0; transform: translateX(100%); } }
+  /* (desktop) o aro: um contorno nítido 5 px fora do card, aceso pela proximidade do cursor (opacidade por quadro) */
+  html.js:not(.menos-movimento) .tem-carga > .carga-aro { display: block; position: absolute; inset: -6px; border: 1px solid var(--ac-2); border-radius: calc(var(--raio) + 5px); opacity: 0; pointer-events: none; }
+}
+/* (celular, pilha) a energia descendo da base do card da frente para o que aparece embaixo dele */
+@media (max-width: 720px) and (prefers-reduced-motion: no-preference) {
+  html.js:not(.menos-movimento) .pilha .carga-fio { display: block; position: absolute; left: 9px; top: calc(100% + 3px); width: 2px; height: 34px; overflow: hidden; pointer-events: none; }
+  .pilha > :last-child > .carga-fio { display: none; }
+  .carga-fio::before { content: ""; position: absolute; left: 0; top: -15px; width: 2px; height: calc(100% + 30px); background: repeating-linear-gradient(180deg, var(--ac-2) 0 6px, transparent 6px 15px); opacity: 0; transition: opacity .2s linear; }
+  .is-doando > .carga-fio::before { opacity: 1; animation: carga-desce .4s linear infinite; }
+  @keyframes carga-desce { from { transform: translateY(0); } to { transform: translateY(15px); } }
 }
