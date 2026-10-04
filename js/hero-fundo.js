@@ -47,7 +47,7 @@
   /* ======================= SITES: a grade ======================= */
   var GRADE = { colunas: 12, calha: 24, linha: 120, regua: 10, cascata: { linhas: 7, passo: 9, cresce: 0.9 } };
   function criarGrade() {
-    var m = { colE: 0, colD: 0, arte: null, heroY: 0 }, cascata = null, tCascata = -99;
+    var m = { colE: 0, colD: 0, arte: null, heroY: 0, rotW: '', rotH: '' }, cascata = null, tCascata = -99, tentouCarga = false;
     /* os arquivos reais desta carga: os primeiros a começar, com início e fim */
     function lerCarga() {
       try {
@@ -64,9 +64,11 @@
       var t = hero.querySelector('.hero__title'), a = hero.querySelector('.hero__arte > *') || hero.querySelector('.hero__arte');
       var pt = t ? px(t) : { x: 0, y: 0 };
       m.colE = pt.x;
-      if (a && a.offsetWidth) { var pa = px(a); m.arte = { x: pa.x, y: pa.y, w: a.offsetWidth, h: a.offsetHeight }; m.colD = pa.x + a.offsetWidth; }
+      if (a && a.offsetWidth) { var pa = px(a); m.arte = { x: pa.x, y: pa.y, w: a.offsetWidth, h: a.offsetHeight }; m.colD = pa.x + a.offsetWidth; m.rotW = Math.round(a.offsetWidth) + ' px'; m.rotH = Math.round(a.offsetHeight) + ' px'; }
       else { m.arte = null; m.colD = pt.x + (t ? t.offsetWidth : 0); }
+      /* a carga só existe depois do load: lida aqui (evento), e de novo uma vez quando o load chegar */
       if (!cascata) cascata = lerCarga();
+      if (!cascata && !tentouCarga) { tentouCarga = true; if (document.readyState !== 'complete') window.addEventListener('load', function () { setTimeout(function () { cascata = lerCarga(); }, 0); }, { once: true }); }
     }
     function desenhar(ctx, g) {
       var rol = g.rolagem, topo = g.topo, fim = g.fim, W = g.W, k, x, y, a;
@@ -110,14 +112,16 @@
         if (cx < W - 40) { ctx.moveTo(cx, a.y); ctx.lineTo(cx, a.y + a.h); ctx.moveTo(cx - 4, a.y + 0.5); ctx.lineTo(cx + 4, a.y + 0.5); ctx.moveTo(cx - 4, a.y + a.h - 0.5); ctx.lineTo(cx + 4, a.y + a.h - 0.5); }
         ctx.stroke();
         ctx.font = FONTE; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        var rotW = Math.round(a.w) + ' px', tw = ctx.measureText(rotW).width + 12;
+        var rotW = m.rotW, tw = rotW.length * 6 + 12;   /* mono de 10 px: ~6 px por caractere */
+        ctx.fillStyle = '#000';
         ctx.globalCompositeOperation = 'destination-out'; ctx.fillRect(a.x + a.w / 2 - tw / 2, cy - 6, tw, 12); ctx.globalCompositeOperation = 'source-over';
         ctx.fillStyle = cor(AC2, 0.8); ctx.fillText(rotW, a.x + a.w / 2, cy);
         if (cx < W - 40) {
           ctx.save(); ctx.translate(cx, a.y + a.h / 2); ctx.rotate(-Math.PI / 2);
-          var rotH = Math.round(a.h) + ' px', th = ctx.measureText(rotH).width + 12;
+          var rotH = m.rotH, th = rotH.length * 6 + 12;
+          ctx.fillStyle = '#000';
           ctx.globalCompositeOperation = 'destination-out'; ctx.fillRect(-th / 2, -6, th, 12); ctx.globalCompositeOperation = 'source-over';
-          ctx.fillText(rotH, 0, 0); ctx.restore();
+          ctx.fillStyle = cor(AC2, 0.8); ctx.fillText(rotH, 0, 0); ctx.restore();
         }
         desenharCascata(ctx, g, a);
       }
@@ -139,8 +143,7 @@
     }
     /* a cascata da carga, acima da janela: cada arquivo, do início ao fim reais */
     function desenharCascata(ctx, g, a) {
-      if (g.cel) return;   /* no celular a cascata ficava espremida contra o texto */
-      if (!cascata) { cascata = lerCarga(); if (!cascata) return; }
+      if (g.cel || !cascata) return;   /* no celular a cascata ficava espremida contra o texto */
       var C = GRADE.cascata, n = cascata.linhas.length, base = a.y - 34, alto = base - n * C.passo;
       if (alto < g.topo + 16) return;
       if (g.expirou) tCascata = g.t;
@@ -180,10 +183,11 @@
     }
     function medir(px, geo) {
       var a = hero.querySelector('.hero__arte > *') || hero.querySelector('.hero__arte');
-      trilhas = []; chip = null; semente = 7;
-      if (!a || !a.offsetWidth) return;
+      if (!a || !a.offsetWidth) { trilhas = []; chip = null; return; }
       var pa = px(a), hp = px(hero);
+      if (chip && chip.x === pa.x && chip.y === pa.y && chip.w === a.offsetWidth && chip.h === a.offsetHeight && trilhas.length) return;
       chip = { x: pa.x, y: pa.y, w: a.offsetWidth, h: a.offsetHeight };
+      trilhas = []; semente = 7;
       var topo = Math.max(hp.y + 12, geo.topoDoc), fimY = hp.y + hero.offsetHeight - 12, W = geo.W;
       var cx0 = chip.x, cx1 = chip.x + chip.w, cy0 = chip.y, cy1 = chip.y + chip.h, S = CIRC.sai, C = CIRC.chanfro, i, n, pts, x, y, d;
       /* topo: sobe, chanfra para o lado, sobe até a sua faixa e corre até a margem */

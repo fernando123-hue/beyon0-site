@@ -317,8 +317,11 @@
       mostrarTudo();
     }
   }
-  if (document.body.classList.contains('booted')) heroEntra();
-  else B.on('booted', heroEntra);
+  /* chegando pela passagem (js/passagem.js), o boot espera o painel começar a
+     abrir: o fio atravessando o hero não passa escondido por baixo dele */
+  var heroQuando = function () { if (html.classList.contains('passagem-chega')) setTimeout(heroEntra, 380); else heroEntra(); };
+  if (document.body.classList.contains('booted')) heroQuando();
+  else B.on('booted', heroQuando);
 
   /* ---------- ENTRADAS POR SEÇÃO ----------
      O contêiner só esmaece; quem se move é o conteúdo. Laudo, passos, prova

@@ -264,7 +264,7 @@
     if (ps.estado === 'indo') {
       if (ps.dest.via && proximoDoCaminho(ps.dest.via, ps.pos, dt)) return ps.pos;
       var alvo = destinoXY(ps.dest);
-      if (alvo.y < TOPO - 20 || alvo.y > H - 40) { ps.estado = 'voltando'; return ps.pos; }
+      if (alvo.y < TOPO - 20 || alvo.y > H - 40) { ps.estado = 'voltando'; soltarSugestao(); soltarEstacao(ps); return ps.pos; }
       if (andarPara(ps.pos, alvo, dt * (ps.dest.estacao || ps.dest.cta ? PASSEIO.arranque : 1), ps.dest.vh ? 'vh' : null)) {
         ps.estado = 'parado'; ps.fica = ps.dest.estacao ? 99 : ps.dest.cta ? DOCA.fica : ps.dest.sugere ? SUGESTAO.fica : acaso(PASSEIO.fica[0], PASSEIO.fica[1]);
         chegou(ps.dest);
@@ -597,8 +597,9 @@
       if (!dc.ok) continue;
       var p = posDoc(dc.el);
       dc.x = p.x; dc.y = p.y; dc.w = dc.el.offsetWidth; dc.h = dc.el.offsetHeight;
-      dc.mira.style.width = (dc.w + 28) + "px"; dc.mira.style.height = (dc.h + 28) + "px";
     }
+    /* as escritas depois de todas as leituras (intercaladas, cada botão forçava um layout) */
+    for (i = 0; i < docas.length; i++) if (docas[i].ok) { docas[i].mira.style.width = (docas[i].w + 28) + 'px'; docas[i].mira.style.height = (docas[i].h + 28) + 'px'; }
   }
   function acoplarCta(dc) {
     dc.acopladaHa = 0; dc.pulsoHa = 0; dc.ultima = relogioMini; ultimaDoca = relogioMini;

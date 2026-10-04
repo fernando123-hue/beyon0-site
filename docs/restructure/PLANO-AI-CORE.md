@@ -753,3 +753,94 @@ Rodada 3 da crítica: **9/10, "chegou ao pedido do dono; pode fechar"**
 8, duas colunas 9, celular 8,5). Ajuste final opcional: espaços que não
 quebram em "não no meu" (o título quebra "No ar, / não no meu computador",
 sem mudar a redação).
+
+## 21. Núcleo redondo que brilha, fluxo das estações, mini que encaixa nos CTAs, heros próprios e a passagem (2026-10-04, 16ª sessão)
+
+Pedidos do dono (ver o print do CTA "Agendar diagnóstico" com os cantos):
+(1) núcleo sem "deformações", redondinho e certinho como antes, sem os raios,
+mas que BRILHE; (2) AI Core médio conectado aos cards, com a energia fluindo
+até eles e efeitos nos cards; (3) mini com um ESPAÇO para acoplar e turbinar,
+também em opções como o CTA; um agente ativo para a imersão no site inteiro;
+(4) acelerando, a rotação ia toda para o mesmo lado; (5) heros de Sites e
+Automação únicos; a transição entre páginas tinha sumido e o site parecia
+travar: otimizar e trazer a transição de volta, melhor.
+
+**Transição (`js/passagem.js`, `css/motion.css`).** Medido no Chrome real
+(Playwright com `C:/Program Files/Google/Chrome`, janela visível): a View
+Transition entre documentos falhava em 14 de 14 trocas (a página velha
+iniciava, a nova chegava com `pagereveal` nulo); a bisseção mostrou que GSAP,
+CSS e até páginas mínimas oscilavam — não confiável. Agora a transição é do
+site: no clique, o painel opaco cobre (0,42 s) com o fio de luz na frente, a
+marca do AI Core e o nome do destino; navega; a página nova nasce coberta
+(`passagem-chega`, posta no head por `ancoras.js`) e o painel segue a
+varredura (0,62 s). Só transform (compositor). Pré-carga na intenção
+(cursor, dedo, foco). Desktop da esquerda para a direita; celular de cima
+para baixo. Voltar/avançar (bfcache) sem painel preso — conferido.
+
+**Travamento.** Perfil no Chrome real rolando /automacao: ~40% do quadro do
+laço era layout forçado — ler `window.scrollX` dentro do quadro depois do
+GSAP escrever estilo. A rolagem fica em cache em `core.js` (`B.S.sx/sy`); a
+rede só remede a página com a rolagem parada (teto 1,2 s); o começo da rede
+herdada saiu de antes do 1º quadro. Medido: script do laço 1123 → 474 ms e
+layout forçado 474 → 67 ms no mesmo roteiro; A/B com 627242d rolando as três
+páginas: quadros > 25 ms 27 → 13, script por quadro ~1,2 → ~0,9 ms. Achado
+de passagem: o canvas do fundo era desenhado com `innerWidth` (com a barra de
+rolagem) num elemento sem ela — tudo ~1% comprimido; agora `clientWidth`.
+
+**Núcleo (`js/nucleo/coroa.js`).** Círculos perfeitos: miolo branco que
+esquenta com a pressão e o fôlego, faixa ciano claro, ciano forte, vão de
+1 px e aro; o REFLEXO (arco branco que corre e vira para o cursor); o HALO
+em curvas de 1 px (as de dentro inteiras, as de fora em arcos que giram em
+sentidos alternados); a CARGA do fôlego atravessa o halo; CINTILAÇÕES curtas;
+EMISSÃO de anéis até o vidro; as marcas do vidro acendem do lado do cursor.
+Fios, bordas que ferviam, raios e faíscas saíram (estão em 627242d). Mini e
+estações na mesma linguagem (`js/plasma.js`).
+
+**Rotação.** O impulso (rolagem, cliques) entrava na roda inteira e cada
+camada somava por cima: tudo ia para o mesmo lado. Agora cada camada tem o
+seu `arrasto` relativo à roda: câmaras −1,2×, pétalas +1,5×, vidro do núcleo
+−1,3× (spec.trava).
+
+**Estações (`js/estacao.js`, `css/cartoes.css`).** Ramos mais visíveis; uma
+PORTA em cada card (conector na borda que dá para a estação); pacotes (rastro
+ciano, cabeça branca) correm sem parar até ela; cada chegada pisca o pino; o
+card sob o cursor é o FOCO (ramo branco, fluxo dobrado, a energia ATRAVESSA o
+card numa linha de 1 px); o surto da expiração atravessa todos. Soquete do
+mini no alimentador, acima dela.
+
+**Mini (`js/mini.js`, `css/base.css`).** Soquete no canto de cada CTA
+principal (aparece com o mini por perto). Lê o comportamento: cursor
+hesitando perto/sobre o botão (~0,9 s) ou o botão no meio da tela com a
+leitura parada (~2,2 s, depois de a pessoa ter rolado; vale no celular).
+Encaixado: quatro travas fecham sobre ele, mira de quatro cantos, traço na
+borda, a luz atravessa o botão em ritmo, a seta chama; pulsa junto; fica
+enquanto o cursor estiver no botão (teto 8 s). Um encaixe a cada 16 s, o
+mesmo botão a cada 30 s. Rolando rápido ele vai um pouco à frente.
+
+**Heros (`js/hero-fundo.js`).** Sites, "a grade de construção": 12 colunas,
+linhas de base, réguas em px presas à página, mira com coordenadas, cotas
+REAIS da janela e a cascata da carga com os arquivos e tempos REAIS desta
+página (Resource Timing), refeita a cada expiração (no celular só réguas,
+colunas e cotas). Automação, "o circuito": o painel vira chip com pinos,
+trilhas de placa até as margens, pacotes entrando, a via perto do cursor
+acende e dispara. No desktop substituem o campo no hero; no celular o campo
+segue abaixo do hero (o fundo aprovado do celular continua igual no resto).
+
+**Verificação.** Verificador 11/12 (LCP de Sites 2524 ms contra 2500, com a
+CPU da máquina a 100%; A/B de LCP com mediana de 5 contra 627242d: as
+medianas ficaram um pouco acima nas três páginas mas com faixas totalmente
+sobrepostas — a mesma página variou de 0,9 a 2,7 s); acessibilidade ok;
+voltar/avançar ok.
+
+**Revisão de código (agente independente) e correções.** Alta: a porta e a
+travessia dos cards nunca animavam (a classe saía sem o prefixo `is-`) —
+corrigido e conferido (`porta-a` rodando). Médias corrigidas: o soquete do
+CTA ficava girando se o mini desistia no voo; a passagem agora se desfaz
+sozinha se a navegação não acontecer (4 s) e não quebra sem rótulo; o teto da
+remedida conta do primeiro pedido; as faixas do núcleo não se cruzam no
+estouro (anel de cor errada); a carga da cascata é lida em evento (não por
+quadro); no celular o campo é recortado em vez de desenhado e apagado.
+Baixas: leituras e escritas separadas nas docas, rótulos das cotas guardados,
+circuito não recomeça a cada remedida, sem pré-carga com economia de dados,
+o boot do hero espera o painel da passagem abrir, o shader do núcleo pula
+halo/emissão fora do vidro. Depois: verificador 12/12, acessibilidade ok.

@@ -30,8 +30,9 @@
     var C = op.cores, r = op.r;
     ctx.fillStyle = rgba(C.AC2, 0.6 * v); circulo(ctx, x, y, r); ctx.fill();
     ctx.fillStyle = rgba(C.AC, 0.95 * v); circulo(ctx, x, y, r * 0.84); ctx.fill();
-    ctx.fillStyle = rgba(C.AC2, v); circulo(ctx, x, y, r * (0.64 + 0.06 * pz + 0.2 * es)); ctx.fill();
-    ctx.fillStyle = rgba(C.T1, v); circulo(ctx, x, y, r * (0.4 + 0.14 * pz + 0.3 * es)); ctx.fill();
+    var rMeio = Math.min(0.8, 0.64 + 0.06 * pz + 0.2 * es);
+    ctx.fillStyle = rgba(C.AC2, v); circulo(ctx, x, y, r * rMeio); ctx.fill();
+    ctx.fillStyle = rgba(C.T1, v); circulo(ctx, x, y, r * Math.min(rMeio - 0.06, 0.4 + 0.14 * pz + 0.3 * es)); ctx.fill();
     /* a borda branca e o reflexo (um arco grosso por dentro, um fino por fora) */
     var ar = op.t * 0.42 + (op.semente || 0);
     ctx.lineWidth = 1;

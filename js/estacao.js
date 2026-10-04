@@ -163,9 +163,9 @@
   }
   /* reinicia uma animação de CSS sem ler layout: alterna entre duas classes iguais */
   function bater(el, base) {
-    var a = el.classList.contains(base + '-a');
-    el.classList.remove(base + (a ? '-a' : '-b'));
-    el.classList.add(base + (a ? '-b' : '-a'));
+    var a = el.classList.contains('is-' + base + '-a');
+    el.classList.remove('is-' + base + (a ? '-a' : '-b'));
+    el.classList.add('is-' + base + (a ? '-b' : '-a'));
   }
   function ligarCanvas(st) {
     if (st.cv.dataset.ligado) return;

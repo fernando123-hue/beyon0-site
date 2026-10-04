@@ -22,6 +22,7 @@
   if (!el) return;
   var rotulo = el.querySelector('.passagem__rotulo');
   var COBRE_MS = 420;          /* = a animação pass-entra-* do CSS */
+  var DESISTE_MS = 4000;       /* a navegação não aconteceu (Parar, Esc, o navegador cancelou): o painel sai */
   var CHEGADA_MS = 900;        /* atraso + duração da abertura, com folga */
   var NOMES = { '/': 'Beyon Zero', '/sites': 'Sites', '/automacao': 'Automação & IA' };
   var saindo = false;
@@ -52,14 +53,14 @@
 
   function sair(d) {
     saindo = true;
-    rotulo.textContent = d.nome;
+    if (rotulo) rotulo.textContent = d.nome;
     try { sessionStorage.setItem('bz-passagem', String(Date.now())); } catch (err) { /* sem armazenamento: chega sem cobertura */ }
     html.classList.remove('passagem-chega');
     el.classList.remove('is-cobre');
     void el.offsetWidth;   /* reinicia a animação se a classe acabou de sair */
     el.classList.add('is-cobre');
-    if (B.emit) B.emit('passagem', d);
     setTimeout(function () { location.href = d.href; }, COBRE_MS);
+    setTimeout(function () { saindo = false; el.classList.remove('is-cobre'); }, COBRE_MS + DESISTE_MS);
   }
 
   document.addEventListener('click', function (e) {
@@ -79,9 +80,10 @@
 
   /* pré-carga na intenção: o HTML do destino chega enquanto o painel fecha */
   var pedidos = {};
+  var economia = !!(navigator.connection && navigator.connection.saveData);
   function precarregar(e) {
     var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
-    if (!a) return;
+    if (!a || economia) return;
     var u;
     try { u = new URL(a.href, location.href); } catch (err) { return; }
     var p = caminho(u);

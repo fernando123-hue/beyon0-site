@@ -209,8 +209,8 @@
     B.emit('rede:medida');
     desenhouParado = false;   /* mudar cv.width limpa o canvas: o quadro parado precisa ser refeito */
   }
-  var pedidoEm = 0;
-  function pedirMedida() { pedidoEm = performance.now(); desenhouParado = false; }
+  var pedidoEm = 0, primeiroPedido = 0;
+  function pedirMedida() { pedidoEm = performance.now(); if (!primeiroPedido) primeiroPedido = pedidoEm; desenhouParado = false; }
 
   /* ---------- por quadro ---------- */
   function posicionar() {
@@ -236,7 +236,7 @@
   function quadro(S) {
     /* remedir percorre a página inteira (layout forçado): espera a rolagem
        parar, com teto de 1,2 s para não ficar velho numa rolagem longa */
-    if (pedidoEm && S.now - pedidoEm > 120 && (S.now - B.S.rolouEm > 180 || S.now - pedidoEm > 1200)) { pedidoEm = 0; sujo = true; }
+    if (pedidoEm && S.now - pedidoEm > 120 && (S.now - B.S.rolouEm > 180 || S.now - primeiroPedido > 1200)) { pedidoEm = 0; primeiroPedido = 0; sujo = true; }
     if (sujo) medir();
     if (parado) {
       var m0 = B.rede.extra, ass = Math.round(rolagem) * 7 + (m0 ? Math.round(m0.x) * 13 + Math.round(m0.y) * 17 + Math.round(m0.vis * 20) : 0);
@@ -327,28 +327,30 @@
     var resp = parado ? 1 : 0.8 + 0.2 * folego;
     /* (desktop) com o hero fora da tela o campo não desenha (o passo continua: as ondas não congelam) */
     var hf = B.heroFundo, hfTela = heroBase - rolagem;
+    /* (celular, Sites e Automação) o hero é do fundo próprio: o campo só é
+       desenhado do fim do hero para baixo, começando em degraus nítidos */
+    var heroProprioCel = hf && !trilho && hfTela > navH;
     if (usaCampo() && (!trilho || heroFimTela() > navH)) {
       /* (Sites e Automação) no desktop o hero tem o fundo próprio no lugar do campo */
       if (hf && trilho) desenharHeroFundo(hf, hfTela);
-      else campo.desenhar(resp, !parado);
+      else if (heroProprioCel) {
+        ctx.save(); ctx.beginPath(); ctx.rect(0, hfTela - 60, W, H); ctx.clip();
+        campo.desenhar(resp, !parado);
+        ctx.restore();
+        ctx.globalCompositeOperation = 'destination-out';
+        for (var dc = 0; dc < 3; dc++) { ctx.fillStyle = 'rgba(0,0,0,' + (0.75 - 0.25 * dc).toFixed(2) + ')'; ctx.fillRect(0, hfTela - 60 + dc * 20, W, 20); }
+        ctx.globalCompositeOperation = 'source-over';
+      } else campo.desenhar(resp, !parado);
       /* (desktop) o campo termina no fim do hero, em degraus nítidos como no rodapé */
       if (trilho) {
-        var hf = heroFimTela();
+        var heroFimY = heroFimTela();
         ctx.globalCompositeOperation = 'destination-out';
-        for (var d = 0; d < 4; d++) { ctx.fillStyle = 'rgba(0,0,0,' + (0.25 * (d + 1)).toFixed(2) + ')'; ctx.fillRect(0, hf - 80 + d * 20, W, 20); }
-        ctx.fillStyle = '#000'; ctx.fillRect(0, hf, W, Math.max(0, H - hf));
+        for (var d = 0; d < 4; d++) { ctx.fillStyle = 'rgba(0,0,0,' + (0.25 * (d + 1)).toFixed(2) + ')'; ctx.fillRect(0, heroFimY - 80 + d * 20, W, 20); }
+        ctx.fillStyle = '#000'; ctx.fillRect(0, heroFimY, W, Math.max(0, H - heroFimY));
         ctx.globalCompositeOperation = 'source-over';
       }
     }
-    /* (celular) o campo segue abaixo do hero; o hero é do fundo próprio, com o
-       campo terminando em degraus nítidos na borda dele */
-    if (hf && !trilho && hfTela > navH) {
-      ctx.globalCompositeOperation = 'destination-out';
-      ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, Math.max(0, hfTela - 60));
-      for (var dc = 0; dc < 3; dc++) { ctx.fillStyle = 'rgba(0,0,0,' + (0.75 - 0.25 * dc).toFixed(2) + ')'; ctx.fillRect(0, hfTela - 60 + dc * 20, W, 20); }
-      ctx.globalCompositeOperation = 'source-over';
-      desenharHeroFundo(hf, hfTela);
-    }
+    if (heroProprioCel) desenharHeroFundo(hf, hfTela);
     expirouQuadro = false;
     if (trilho) trilho.desenhar(resp, !parado);
     var extra = B.rede.extra;

@@ -79,6 +79,7 @@ function fonte(CO) {
     float rBranco = R * (0.4 + 0.12 * pz + 0.14 * uCarga + 0.3 * uEstouro);
     float rMeio = R * (0.64 + 0.06 * pz + 0.08 * uCarga + 0.2 * uEstouro);
     float rForte = R * 0.86;
+    rMeio = min(rMeio, rForte - pw); rBranco = min(rBranco, rMeio - pw);
     float cheio = disco(r, R, pw), branco = disco(r, rBranco, pw), meio = disco(r, rMeio, pw), forte = disco(r, rForte, pw);
     float vao = traco(r - rForte - pw * 1.5, 1.0, pw);
     vec3 corMeio = mix(mix(uBranco, uCor2, 0.5), uBranco, reflexo * 0.85);
@@ -90,7 +91,10 @@ function fonte(CO) {
     c += uBranco * traco(r - R * 1.075, 1.0, pw) * reflexo * 0.7 * uDisco;
 
     /* --- o halo em curvas de luz: juntos perto do núcleo, mais fracos para fora --- */
+    float VIDRO = ${V.raio.toFixed(3)};
+    bool perto = r < VIDRO + 0.03;   /* fora do vidro só sobra a onda: o resto é pulado (custo por pixel) */
     for (int k = 1; k <= ${H.n}; k++) {
+      if (!perto) break;
       float fk = float(k);
       float rk = R * (1.0 + ${H.passo.toFixed(3)} * pow(fk, 1.25) * (1.0 + 0.3 * pz) + 0.07 * fk * uEstouro);
       /* a carga do fôlego atravessa as curvas de dentro para fora (a luz passa) */
@@ -117,6 +121,7 @@ function fonte(CO) {
     }
     /* as cintilações: arcos curtos que acendem e somem nas duas curvas de dentro */
     for (int j = 0; j < ${CO.cintila.n}; j++) {
+      if (!perto) break;
       float fj = float(j);
       float tj = uTempo * ${CO.cintila.ritmo.toFixed(2)} + hash(fj + 5.0);
       float slot = floor(tj), vida = fract(tj);
@@ -128,9 +133,9 @@ function fonte(CO) {
     }
 
     /* --- a emissão: anéis que nascem no halo e saem até o vidro --- */
-    float VIDRO = ${V.raio.toFixed(3)};
     float de = R * ${E.de.toFixed(2)};
     for (int k = 0; k < ${E.n}; k++) {
+      if (!perto) break;
       float f = fract(uFluxo + float(k) / ${E.n.toFixed(1)});
       float re = mix(de, VIDRO - 0.01, f);
       float alfa = (1.0 - f) * (1.0 - f) * smoothstep(0.0, 0.12, f) * ${E.alfa.toFixed(2)} * (0.45 + 0.55 * pz);
