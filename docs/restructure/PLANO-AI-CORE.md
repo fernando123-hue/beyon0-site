@@ -896,3 +896,15 @@ até o card, gatilhos pela posição natural. As variantes "monte que se
 distribui" (ce68979) e "monte que para na tela" (b1c2fff) ficam no histórico.
 Lição: o dono descreve pelo que sente; na dúvida entre direções, mostrar
 antes de trocar o que ele já aprovou.
+
+**A versão escolhida pelo dono: "o monte que se abre" (mesmo dia).** Depois de
+três tentativas por interpretação, perguntei com o passo a passo de duas
+opções; ele escolheu: chega-se a um monte; descendo, a página NÃO para, o
+card da frente sobe com ela e o de trás fica parado sendo revelado; subindo,
+cada um volta a se esconder até virar monte. Feito em CSS puro:
+`position: sticky` pelo BAIXO (linha 96 px acima do fundo da tela, acima da
+barra fixa; degraus de 8 px; z-index decrescente; fundo opaco). O navegador
+move tudo no compositor, junto com o dedo — a versão com JS e parada parecia
+"travada". Saiu a coreografia de JS da pilha; o fundo vivo não desenha
+barramento entre os cards da pilha no celular. Conferido com toque real nos
+dois sentidos; verificador 12/12; acessibilidade ok.

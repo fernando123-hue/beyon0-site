@@ -117,6 +117,8 @@
       /* (desktop) num grupo com estação no centro, quem liga os módulos é ela (js/estacao.js): o barramento entre irmãos atravessaria o corredor */
       var vaoPai = a.el.parentNode.querySelector && a.el.parentNode.querySelector(':scope > .estacao-vao');
       if (!celular && vaoPai && vaoPai.offsetWidth) continue;   /* (o espaço some em janela estreita: lá o barramento volta) */
+      /* (celular) na pilha os cards se escondem uns atrás dos outros: sem barramento entre eles */
+      if (celular && a.el.parentNode.classList && a.el.parentNode.classList.contains('pilha')) continue;
       for (var j = i + 1; j < elementos.length; j++) {
         var b = elementos[j];
         if (b.liga && b.el.parentNode === a.el.parentNode) { ligacoes.push([a, b]); break; }

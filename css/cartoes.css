@@ -329,25 +329,26 @@ html.menos-movimento .qa::details-content { transition: none; }
 html.menos-movimento .estacao-cruza { display: none !important; }
 
 
-/* ---- A PILHA (celular, até 720 px; de volta em 2026-10-04 a pedido do dono,
-   com upgrade). Garantias (Hub), o problema (Automação) e os formatos
-   (Sites): ao descer, cada card gruda no topo num DEGRAU de fichário e o
-   próximo o cobre; ao subir eles se separam de novo. CSS puro (sticky):
-   sem JS e em movimento reduzido a pilha continua, parada. O upgrade: o
-   degrau mostra o NÚMERO do card coberto (a aba do fichário); com movimento,
-   js/anima.js faz o de baixo recuar e o miolo dele esmaecer (o número fica)
-   e acende a aresta de cima quando um card encaixa. Fundo opaco: nada do de
-   baixo atravessa. O fundo vivo (js/rede-texto.js) conhece os cards grudados. ---- */
+/* ---- A PILHA (celular, até 720 px; pedido do dono, 2026-10-04, escolhido
+   entre duas opções: "o monte que se abre"). Você chega a um MONTE (o 1º
+   card na frente, os outros atrás, com as bordas de baixo em degraus de
+   8 px); descendo, a página NÃO para: o card da frente sobe com ela e o de
+   trás fica parado, sendo revelado, até chegar ao lugar dele e seguir; aí o
+   próximo é revelado, e assim por diante. Subindo, cada card volta a se
+   esconder atrás do anterior até virar monte de novo.
+   É CSS puro: `position: sticky` pelo BAIXO. Enquanto o lugar natural de um
+   card está abaixo da linha (acima da barra fixa do celular), ele fica
+   segurado nela; o contêiner não o deixa subir além do topo do grupo, então
+   antes da hora ele fica atrás do 1º (o monte). O navegador move tudo junto
+   com a rolagem, no compositor: nada atrasa em relação ao dedo (a versão
+   com JS e a página parada parecia "travada", disse o dono). Os da frente
+   ficam por cima (z-index decrescente); fundo opaco. ---- */
 @media (max-width: 720px) {
-  /* o degrau mostra o número da aba inteiro: acompanha o padding do módulo */
-  .pilha { --pilha-topo: calc(var(--nav-h) + 12px); --pilha-degrau: calc(var(--mod-pad) + 20px); padding-bottom: 8px; }
-  .pilha > :not(.estacao-vao) { position: sticky; top: var(--pilha-topo); background-color: var(--mod-fundo-opaco); }
-  .pilha > :nth-child(2) { top: calc(var(--pilha-topo) + var(--pilha-degrau)); }
-  .pilha > :nth-child(3) { top: calc(var(--pilha-topo) + 2 * var(--pilha-degrau)); }
-  .pilha > :nth-child(4) { top: calc(var(--pilha-topo) + 3 * var(--pilha-degrau)); }
-  /* (o foco de teclado num card coberto rola a página até ele: js/anima.js) */
-  /* a aba: o número do card coberto acende (classe por evento, js/anima.js);
-     tocar nela não abre o card de baixo */
-  .pilha > .is-coberto .laudo__n, .pilha > .is-coberto .servico__n { color: var(--ac-3); }
-  .pilha > .is-coberto { pointer-events: none; }
+  .pilha { --pilha-linha: calc(96px + env(safe-area-inset-bottom, 0px)); }
+  .pilha > :not(.estacao-vao) { --k: 0; position: sticky; bottom: calc(var(--pilha-linha) - var(--k) * 8px); z-index: calc(10 - var(--k)); background-color: var(--mod-fundo-opaco); }
+  .pilha > :nth-child(2) { --k: 1; }
+  .pilha > :nth-child(3) { --k: 2; }
+  .pilha > :nth-child(4) { --k: 3; }
+  /* o card com foco de teclado vem para a frente: o foco nunca fica escondido */
+  .pilha > :focus-within { z-index: 20; }
 }
