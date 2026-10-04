@@ -1,30 +1,35 @@
 /* ==========================================================================
-   AS ESTAÇÕES — um AI Core de tamanho médio ao lado de cada grupo de
-   módulos (pedido do dono, 2026-10-03: "num local com muitos cards, um AI
-   Core médio conectado a eles, transmitindo energia, e o mini podendo
-   turbinar essa energia"). Só no DESKTOP: no celular os módulos ocupam a
-   largura e não há margem livre sem cobrir texto (análise no PLANO §19).
+   AS ESTAÇÕES — um AI Core de tamanho médio NO CENTRO de um grupo de
+   módulos, ligado a todos eles e ao reator principal (pedidos do dono,
+   2026-10-03: "num local com muitos cards, um AI Core médio conectado a
+   eles, transmitindo energia, que o mini possa turbinar" e "eles devem
+   estar no centro dos cards, conectados a todos, com alguma menção de que
+   estão conectados ao principal também"). Só no DESKTOP: no celular o
+   grupo segue empilhado (o celular já está aprovado; análise no PLANO §20).
 
-   - ONDE: pousada na régua da esquerda do instrumento (js/trilho.js), na
-     altura do meio de um grupo de 3+ módulos irmãos encostado na coluna da
-     esquerda; só se couber na margem.
-   - O CORPO (canvas próprio, acima das seções, como o do mini): miolo com
-     anel e 12 filamentos, um aro de 3 partes e outro de 6 girando em
-     sentidos opostos, a ÓRBITA tracejada achatada (a marca do núcleo do
-     reator), o estator com 12 marcas (parado) e a CARGA em 12 segmentos.
-   - A ENERGIA: no começo de cada inspiração (quando o pulso do instrumento
-     não está correndo) ela manda um SURTO pela régua e pelo barramento de
-     cada fileira; a aresta de cima de cada módulo acende quando a frente
-     passa por ele (classe .is-onda). O pulso
-     do instrumento que passa por ela a carrega um pouco.
-   - O TURBO: carga cheia = surto rápido, duplo; os módulos acendem inteiros
-     (.is-energia) e as cantoneiras da seção piscam. Quem enche: o MINI, que
-     vem até ela, se acopla SOBRE a régua, acima dela, e transfere energia (sozinho de vez em
-     quando, ou quando você clica na estação). Sob o cursor ela acelera e o
-     núcleo olha para você.
+   - ONDE: no espaço do meio do grupo (.estacao-vao, css/cartoes.css: o
+     grupo vira duas colunas com um corredor; o espaço é do HTML/CSS, então
+     nada salta quando o JS chega).
+   - A REDE DELA: uma espinha no corredor e um ramo até a borda de cada
+     módulo, com nó; e o ALIMENTADOR, que sobe do topo dela até o horizonte
+     da seção, com o rótulo "↑ AI CORE".
+   - A CADEIA DA ENERGIA: a cada expiração do reator o pulso desce pelas
+     réguas do instrumento (js/trilho.js), atravessa o horizonte da seção até
+     o meio e DESCE PELO ALIMENTADOR até a estação; ela carrega e distribui um
+     SURTO pelos ramos: a aresta de cima de cada módulo acende quando ele
+     chega (.is-onda). Se o horizonte já passou do topo da tela, o pulso
+     entra pelo alimentador do alto da tela.
+   - O TURBO: carga cheia = surto rápido e duplo; os módulos acendem
+     inteiros (.is-energia) e as cantoneiras da seção piscam. Quem enche: o
+     MINI, que vem pelo corredor entre as fileiras, acopla acima dela e
+     transfere energia (sozinho de vez em quando, ou quando você clica nela).
+   - O CORPO (canvas próprio, acima das seções, como o do mini): o núcleo em
+     PLASMA (js/plasma.js, a linguagem do reator), o aro de 6 partes, a
+     ÓRBITA tracejada, o estator parado e a CARGA em 12 segmentos. Sob o
+     cursor ela acelera e o núcleo olha para você.
    Só traço nítido de 1 px (o dono proíbe desfoque). Movimento reduzido: um
-   quadro parado, sem surto. Leis do projeto: um rAF (B.add), layout só em
-   evento (a geometria vem da rede, em posições de LAYOUT).
+   quadro parado, sem surto. Leis do projeto: um rAF (B.add), layout lido só
+   em evento, em posições de LAYOUT (offsetTop, que ignora transform).
    ========================================================================== */
 (function () {
   'use strict';
@@ -32,27 +37,36 @@
   if (!B || !B.rede || !B.rede.trilho) return;
 
   var TAU = Math.PI * 2;
-  var CORPO = 112, R = { nucleo: 3, anel: 5.5, fios: [7.5, 12], aroA: 16, aroB: 24, orbita: [27, 8], estator: 31, carga: 39 };
-  var CABE = { margem: 44, coluna: 46 };                       /* px livres pedidos à esquerda e até a coluna */
-  var SURTO = { v: 900, vTurbo: 1600, cabeca: 14, degraus: [[40, 0.5], [120, 0.2]], escalona: 0.12 };
-  var CARGA = { base: 0.42, folego: 0.1, pulso: 0.12, cai: 0.09, enche: 2, teto: 3 };   /* /s; s para encher no acoplamento; s no máximo acoplada */
+  var CORPO = 152, R = { nucleo: 9, vidro: 24, fora: 44, aroB: 34, orbita: [39, 11], estator: 45, carga: 55 };
+  var SURTO = { v: 800, vTurbo: 1500, cabeca: 14, degraus: [[40, 0.5], [110, 0.2]], escalona: 0.07 };
+  var ALIMENTA = { v: 900, carga: 0.22, cabeca: 24, rastro: 80 };   /* px/s; quanto carrega; px */
+  var CARGA = { base: 0.35, folego: 0.1, cai: 0.09, enche: 2, teto: 3 };   /* /s; s para encher acoplada; s no máximo acoplada */
   var GIRO = { a: -0.9, b: 0.5, turbo: 4, sob: 1.8 };          /* rad/s */
-  var MINI = { acima: 62 };                                     /* px: o mini acopla SOBRE a régua, acima da estação (cabe em qualquer margem) */
-  var ORBITA = [3, 3], SEM_TRACO = [];                                          /* o tracejado da órbita (sem alocar por quadro) */
-  var ONDA_MS = 600;                                            /* o surto comum: a aresta de cima do módulo acesa */
+  var MINI = { acima: 86 };                                     /* px: o mini acopla no corredor, acima dela */
+  var ORBITA = [3, 3], SEM_TRACO = [];                          /* (sem alocar por quadro) */
+  var ONDA_MS = 600, TURBO_MS = 1300;                           /* quanto o módulo fica aceso */
+  /* a menção ao principal: legível parada (crítica: com 9 px cinza quase não se lia) */
+  var ROTULO = { texto: '↑ AI CORE', fonte: '500 11px "JetBrains Mono", ui-monospace, monospace', alfa: 0.92 };
 
   var est = getComputedStyle(document.documentElement);
   var rgb = function (nome, padrao) { return (est.getPropertyValue(nome).trim() || padrao).replace(/\s+/g, ','); };
   var AC = rgb('--ac-rgb', '73 229 221'), AC2 = rgb('--ac-2-rgb', '166 244 239'), T1 = '242,244,244';
+  /* o núcleo em plasma, reaproveitado por quadro: DEPOIS das cores (antes delas saíam vazias e o núcleo, preto) */
+  var PLASMA = { r: 0, vidro: 0, fora: 0, n: 7, ecos: 2, largura: 1.5, pressao: 0, estouro: 0, t: 0, alfa: 1, cores: { AC: AC, AC2: AC2, T1: T1 }, semente: 0 };
   var palco = document.querySelector('.mini-palco');
   var dpr = Math.min(window.devicePixelRatio || 1, 2);
-  var estacoes = [], rolagem = window.scrollY, altura = window.innerHeight, faseAntes = 0, ponteiro = { x: -1e4, y: -1e4 };
+  var estacoes = [], rolagem = window.scrollY, altura = window.innerHeight, ponteiro = { x: -1e4, y: -1e4 };
 
   function limitar(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
   function suave(x) { x = limitar(x); return x * x * (3 - 2 * x); }
   function cor(c, a) { return 'rgba(' + c + ',' + limitar(a).toFixed(3) + ')'; }
+  /* entre o ciano e o branco (a rede acendendo no turbo) */
+  var CA = AC.split(',').map(Number), CB = T1.split(',').map(Number);
+  function misturaCor(k) { return Math.round(CA[0] + (CB[0] - CA[0]) * k) + ',' + Math.round(CA[1] + (CB[1] - CA[1]) * k) + ',' + Math.round(CA[2] + (CB[2] - CA[2]) * k); }
+  /* posição de LAYOUT no documento (ignora o transform das entradas) */
+  function posDoc(el) { var x = 0, y = 0; for (var e = el; e; e = e.offsetParent) { x += e.offsetLeft; y += e.offsetTop; } return { x: x, y: y }; }
 
-  /* ---------- montagem: uma estação por grupo que cabe ---------- */
+  /* ---------- montagem: uma estação por grupo com o espaço do meio ---------- */
   function criarCanvas() {
     var cv = document.createElement('canvas');
     cv.className = 'estacao';
@@ -62,52 +76,53 @@
     return cv;
   }
   function remontar() {
-    var g = B.rede.trilho.geo(), grupos = B.rede.grupos(), i;
-    var cabe = g.xE - CABE.margem >= 2 && g.colE - g.xE >= CABE.coluna;
-    var antes = estacoes;
+    var grupos = B.rede.grupos(), antes = estacoes, i, k;
     estacoes = [];
-    for (i = 0; cabe && i < grupos.length; i++) {
-      var gr = grupos[i];
-      /* só grupo encostado na coluna da esquerda: o surto sai da régua direto para o 1º módulo de cada fileira */
-      var encosta = true;
-      /* fileiras: os módulos na mesma altura (o barramento as liga da esquerda para a direita) */
-      var filas = [];
-      for (var k = 0; k < gr.itens.length; k++) {
-        var it = gr.itens[k], f = null;
-        for (var q = 0; q < filas.length && !f; q++) if (Math.abs(filas[q].y0 - it.dy) < 6) f = filas[q];
-        if (!f) { f = { y0: it.dy, itens: [] }; filas.push(f); }
-        f.itens.push(it);
+    for (i = 0; i < grupos.length; i++) {
+      var vao = grupos[i].pai.querySelector(':scope > .estacao-vao');
+      if (!vao || !vao.offsetWidth) continue;
+      var pv = posDoc(vao), cx = pv.x + vao.offsetWidth / 2, cy = pv.y + vao.offsetHeight / 2;
+      var secao = grupos[i].pai.closest('section');
+      /* os ramos: um por módulo, do corredor até a borda que dá para ele, na altura do meio dele */
+      var raios = [], linhas = [];
+      for (k = 0; k < grupos[i].itens.length; k++) {
+        var it = grupos[i].itens[k], esq = it.dx + it.w / 2 < cx;
+        var yb = it.dy + it.h / 2;
+        raios.push({ el: it.el, xb: esq ? it.dx + it.w : it.dx, yb: yb, comp: Math.abs(yb - cy) + Math.abs((esq ? it.dx + it.w : it.dx) - cx) });
+        if (linhas.indexOf(it.dy) < 0) linhas.push(it.dy);
       }
-      for (var p = 0; p < filas.length; p++) {
-        var fl = filas[p];
-        fl.itens.sort(function (a, b) { return a.dx - b.dx; });
-        fl.y = fl.y0 + Math.min(28, fl.itens[0].h / 2);
-        if (fl.itens[0].dx - g.colE > 40) encosta = false;
+      raios.sort(function (a, b) { return a.comp - b.comp; });
+      /* os corredores entre fileiras (o caminho do mini até ela) */
+      linhas.sort(function (a, b) { return a - b; });
+      var corredores = [];
+      for (k = 1; k < linhas.length; k++) {
+        var fim = 0;
+        for (var q = 0; q < grupos[i].itens.length; q++) { var iq = grupos[i].itens[q]; if (iq.dy === linhas[k - 1]) fim = Math.max(fim, iq.dy + iq.h); }
+        if (linhas[k] - fim > 12) corredores.push((fim + linhas[k]) / 2);
       }
-      if (!encosta) continue;
-      var y0 = gr.itens[0].dy, y1 = 0;
-      for (k = 0; k < gr.itens.length; k++) { y0 = Math.min(y0, gr.itens[k].dy); y1 = Math.max(y1, gr.itens[k].dy + gr.itens[k].h); }
-      /* a altura: o CORREDOR entre fileiras mais perto do meio do grupo (por ele o
-         mini atravessa a página sem passar por cima dos módulos); sem corredor, o meio */
-      var meio = (y0 + y1) / 2, yd = meio, corredor = null;
-      filas.sort(function (a, b) { return a.y0 - b.y0; });
-      for (var c = 1; c < filas.length; c++) {
-        var fimAntes = 0;
-        for (var q2 = 0; q2 < filas[c - 1].itens.length; q2++) fimAntes = Math.max(fimAntes, filas[c - 1].itens[q2].dy + filas[c - 1].itens[q2].h);
-        var cy = (fimAntes + filas[c].y0) / 2;
-        if (filas[c].y0 - fimAntes > 12 && (corredor === null || Math.abs(cy - meio) < Math.abs(corredor - meio))) corredor = cy;
+      /* a mesma estação continua o MESMO objeto ao remedir (o mini guarda a referência dela) */
+      var st = antes[estacoes.length] || { cv: criarCanvas(), carga: CARGA.base, giroA: 0, giroB: 0, sob: 0, surtos: [], turboHa: 99, acopla: null, alim: null, pulso: 0, olhar: { x: 0, y: 0 } };
+      /* a altura: com as linhas na altura natural, o meio do corredor não cai num ramo;
+         ela vai para o ramo da linha do meio (número ímpar de linhas) ou para o vão
+         entre as duas do meio (par) — onde os ramos ficam simétricos */
+      var faixas = [];
+      for (k = 0; k < linhas.length; k++) {
+        var topo = linhas[k], base = 0;
+        for (var q3 = 0; q3 < grupos[i].itens.length; q3++) { var i3 = grupos[i].itens[q3]; if (i3.dy === topo) base = Math.max(base, i3.dy + i3.h); }
+        faixas.push([topo, base]);
       }
-      if (corredor !== null) yd = corredor;
-      /* a mesma estação continua o MESMO objeto ao remedir (o mini guarda a referência
-         dela no acoplamento: um objeto novo deixava o mini preso à cópia velha) */
-      var velha = antes[estacoes.length];
-      var st = velha || { cv: criarCanvas(), carga: CARGA.base, giroA: 0, giroB: 0, sob: 0, surtos: [], turboHa: 99, acopla: null, olhar: { x: 0, y: 0 } };
-      st.n = estacoes.length + 1; st.yd = Math.round(yd); st.corredor = corredor !== null; st.filas = filas; st.surtos.length = 0;
+      var nl = faixas.length;
+      if (nl % 2) cy = (faixas[(nl - 1) / 2][0] + faixas[(nl - 1) / 2][1]) / 2;
+      else if (nl) cy = (faixas[nl / 2 - 1][1] + faixas[nl / 2][0]) / 2;
+      for (k = 0; k < raios.length; k++) raios[k].comp = Math.abs(raios[k].yb - cy) + Math.abs(raios[k].xb - cx);
+      raios.sort(function (a, b) { return a.comp - b.comp; });
+      st.n = estacoes.length + 1; st.x = cx; st.yd = cy; st.vao = vao; st.raios = raios; st.corredores = corredores;
+      st.secaoY = secao ? posDoc(secao).y : cy - 400; st.surtos.length = 0;
+      vao.classList.add('is-viva');
       estacoes.push(st);
     }
-    for (i = estacoes.length; i < antes.length; i++) antes[i].cv.remove();
+    for (i = estacoes.length; i < antes.length; i++) { antes[i].cv.remove(); if (antes[i].vao) antes[i].vao.classList.remove('is-viva'); }
     for (i = 0; i < estacoes.length; i++) ligarCanvas(estacoes[i]);
-    B.rede.trilho.reservar(estacoes.map(function (s) { return [s.yd - R.carga - 12, s.yd + R.carga + 12]; }));
   }
   function ligarCanvas(st) {
     if (st.cv.dataset.ligado) return;
@@ -118,25 +133,34 @@
   }
 
   /* ---------- a energia ---------- */
-  /* um surto a partir da estação: uma frente por fileira, escalonadas */
+  /* um surto pelos ramos: uma frente por módulo, dos mais perto aos mais longe */
   function surto(st, turbo) {
-    for (var i = 0; i < st.filas.length; i++) {
-      st.surtos.push({ fila: st.filas[i], s: -i * SURTO.escalona * (turbo ? SURTO.vTurbo : SURTO.v), turbo: !!turbo, acesos: 0 });
-      if (turbo) st.surtos.push({ fila: st.filas[i], s: -(i * SURTO.escalona + 0.18) * SURTO.vTurbo, turbo: true, acesos: 0 });
+    var v = turbo ? SURTO.vTurbo : SURTO.v;
+    for (var i = 0; i < st.raios.length; i++) {
+      st.surtos.push({ raio: st.raios[i], s: -i * SURTO.escalona * v, turbo: !!turbo, aceso: false });
+      if (turbo) st.surtos.push({ raio: st.raios[i], s: -(i * SURTO.escalona + 0.18) * v, turbo: true, aceso: true });
     }
   }
-  /* o comprimento do caminho até cada módulo da fileira: pela régua até a altura dela, e pelo barramento */
-  function caminhoAte(st, fila, g, alvoX) { return Math.abs(fila.y - st.yd) + Math.max(0, alvoX - g.xE); }
   /* o módulo responde (classe por evento; nada de CSS mudando por quadro): o canvas do
      fundo fica atrás do módulo opaco, então quem mostra a chegada é o próprio módulo */
-  var ENERGIA_MS = { turbo: 1300 };
   function energizar(el, turbo) {
     var classe = turbo ? 'is-energia' : 'is-onda';
     el.classList.add(classe);
     clearTimeout(el['_' + classe]);
-    el['_' + classe] = setTimeout(function () { el.classList.remove(classe); }, turbo ? ENERGIA_MS.turbo : ONDA_MS);
+    el['_' + classe] = setTimeout(function () { el.classList.remove(classe); }, turbo ? TURBO_MS : ONDA_MS);
+    /* no turbo, o traço que percorre a borda uma vez (css/cartoes.css: quatro lados) */
+    if (turbo && !el.querySelector(':scope > .energia-volta')) {
+      var volta = document.createElement('i');
+      volta.className = 'energia-volta';
+      volta.setAttribute('aria-hidden', 'true');
+      for (var lado = 0; lado < 4; lado++) volta.appendChild(document.createElement('b'));
+      el.appendChild(volta);
+      setTimeout(function () { volta.remove(); }, TURBO_MS);
+    }
   }
-  function turbinar(st) { st.carga = 1; st.turboHa = 0; surto(st, true); B.rede.trilho.piscar(); }
+  function turbinar(st) { st.carga = 1; st.turboHa = 0; st.pulso = 1; surto(st, true); B.rede.trilho.piscar(); }
+  /* o pulso do reator entra pelo alimentador (de `de`, y do documento, até a estação) */
+  function alimentar(st, de) { if (!B.reduced && !st.alim) st.alim = { s: 0, de: Math.max(st.secaoY, de || st.secaoY) }; }
   /* o mini vem (se estiver ativo); sem ele, ela turbina sozinha */
   function chamar(st) {
     var mini = B.rede.extra;
@@ -145,60 +169,103 @@
   }
 
   /* ---------- por quadro ---------- */
-  function tela(st) { var g = B.rede.trilho.geo(); return { x: g.xE, y: st.yd - rolagem }; }
   function passo(dt) {
     if (!estacoes.length) return;
-    var g = B.rede.trilho.geo(), H = altura, t = B.relogio(), F = B.FOLEGO;
-    var x = ((t / F.periodo) % 1 + 1) % 1, inspirou = faseAntes > 0.9 && x < 0.1, expirou = faseAntes < F.inspira && x >= F.inspira;
+    var t = B.relogio(), F = B.FOLEGO;
+    var x = ((t / F.periodo) % 1 + 1) % 1;
     var folego = x < F.inspira ? suave(x / F.inspira) : 1 - suave((x - F.inspira) / (1 - F.inspira));
-    faseAntes = x;
     for (var i = 0; i < estacoes.length; i++) {
-      var st = estacoes[i], y = st.yd - rolagem, naTela = y > g.topo - CORPO && y < H + CORPO;
+      var st = estacoes[i], sy = st.yd - rolagem;
       st.turboHa += dt;
-      if (B.reduced) { st.surtos.length = 0; st.acopla = null; continue; }
-      /* a carga: respira em volta da base; o pulso do instrumento a sobe; o turbo a enche e ela volta devagar */
-      var base = CARGA.base + CARGA.folego * folego;
-      if (expirou && naTela) st.carga = Math.min(0.97, st.carga + CARGA.pulso);
-      st.carga += (base - st.carga) * Math.min(1, dt * CARGA.cai);
+      if (B.reduced) { st.surtos.length = 0; st.acopla = null; st.alim = null; continue; }
+      /* a carga respira em volta da base; o alimentador e o mini a sobem */
+      st.carga += (CARGA.base + CARGA.folego * folego - st.carga) * Math.min(1, dt * CARGA.cai);
       if (st.acopla) {
         st.acopla.t += dt;
-        if (st.acopla.t > CARGA.teto) st.carga = 1;   /* rede de segurança: o acoplamento nunca passa do teto */
         st.carga = Math.min(1, st.carga + dt / CARGA.enche);
+        if (st.acopla.t > CARGA.teto) st.carga = 1;   /* rede de segurança: nunca passa do teto */
         if (st.carga >= 1) { st.acopla = null; turbinar(st); }
       }
-      if (inspirou && naTela) surto(st, false);
+      if (st.alim) {
+        st.alim.s += dt * ALIMENTA.v;
+        if (st.alim.de + st.alim.s >= st.yd - R.carga) {
+          st.alim = null; st.carga = Math.min(0.97, st.carga + ALIMENTA.carga); st.pulso = Math.max(st.pulso, 0.6); surto(st, false);
+        }
+      }
+      st.pulso = Math.max(0, st.pulso - dt * 1.6);
       st.sob += ((st.sobAlvo ? 1 : 0) - st.sob) * Math.min(1, dt * 6);
       var turbo = Math.max(0, 1 - st.turboHa / 2.5);
       st.giroA += dt * GIRO.a * (1 + GIRO.turbo * turbo + GIRO.sob * st.sob);
       st.giroB += dt * GIRO.b * (1 + GIRO.turbo * turbo + GIRO.sob * st.sob);
       /* o núcleo olha para o cursor quando ele está perto */
-      var dx = ponteiro.x - g.xE, dy = ponteiro.y - y, d = Math.hypot(dx, dy) || 1, perto = d < 260 ? 1 : 0;
+      var dx = ponteiro.x - st.x, dy = ponteiro.y - sy, d = Math.hypot(dx, dy) || 1, perto = d < 260 ? 1 : 0;
       st.olhar.x += ((perto ? dx / d : 0) - st.olhar.x) * Math.min(1, dt * 5);
       st.olhar.y += ((perto ? dy / d : 0) - st.olhar.y) * Math.min(1, dt * 5);
       for (var k = st.surtos.length - 1; k >= 0; k--) {
-        var su = st.surtos[k], fl = su.fila, fim = caminhoAte(st, fl, g, fl.itens[fl.itens.length - 1].dx + 4);
+        var su = st.surtos[k];
         su.s += dt * (su.turbo ? SURTO.vTurbo : SURTO.v);
-        /* a frente passou pela borda esquerda de um módulo: ele acende */
-        while (su.acesos < fl.itens.length && su.s >= caminhoAte(st, fl, g, fl.itens[su.acesos].dx)) { B.rede.acender(fl.itens[su.acesos].el, su.turbo); energizar(fl.itens[su.acesos].el, su.turbo); su.acesos++; }   /* o surto comum acende a aresta de cima; o turbo, o módulo inteiro */
-        if (su.s - SURTO.degraus[1][0] > fim) st.surtos.splice(k, 1);
+        if (!su.aceso && su.s >= su.raio.comp) { su.aceso = true; B.rede.acender(su.raio.el, su.turbo); energizar(su.raio.el, su.turbo); }
+        if (su.s - SURTO.degraus[1][0] > su.raio.comp) st.surtos.splice(k, 1);
       }
     }
   }
 
-  /* o surto e o acoplamento, no canvas do fundo (atrás do texto) */
+  /* ---------- desenho no canvas do fundo (atrás do texto) ---------- */
+  function caminho(ctx, st, ra, sy, s0, s1) {
+    /* o caminho do ramo: do centro pela espinha até a altura do módulo, e pela horizontal até a borda (sem alocar) */
+    var yb = ra.yb - rolagem, h = Math.abs(yb - sy), sg = yb > sy ? 1 : -1, sx = ra.xb > st.x ? 1 : -1;
+    if (s0 <= h) ctx.moveTo(st.x, sy + sg * s0); else ctx.moveTo(st.x + sx * (s0 - h), yb);
+    if (s0 < h && s1 > h) ctx.lineTo(st.x, yb);
+    if (s1 <= h) ctx.lineTo(st.x, sy + sg * s1); else ctx.lineTo(st.x + sx * (s1 - h), yb);
+  }
   function desenharFundo(ctx) {
-    if (!estacoes.length || B.reduced) return;
-    var g = B.rede.trilho.geo();
+    if (!estacoes.length) return;
+    var g = B.rede.trilho.geo(), livre = B.rede.naZona ? function (x, y) { return !B.rede.naZona(x, y); } : null;
     for (var i = 0; i < estacoes.length; i++) {
-      var st = estacoes[i], sy = st.yd - rolagem;
-      for (var k = 0; k < st.surtos.length; k++) desenharSurto(ctx, st, st.surtos[k], g, sy);
+      var st = estacoes[i], sy = st.yd - rolagem, j, ra;
+      var topoS = st.secaoY - rolagem;
+      if (sy < -400 || sy > altura + 400) continue;
+      /* a rede dela: a espinha, os ramos e o nó na borda de cada módulo (acende inteira no turbo) */
+      var tb = B.reduced ? 0 : Math.max(0, 1 - st.turboHa / 2.5);
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = tb > 0.01 ? 'rgba(' + misturaCor(suave((tb - 0.3) / 0.4)) + ',' + limitar(0.32 + 0.5 * tb).toFixed(3) + ')' : cor(AC, 0.32);
+      ctx.beginPath();
+      for (j = 0; j < st.raios.length; j++) { ra = st.raios[j]; caminho(ctx, st, ra, sy, R.carga + 2, ra.comp); }
+      ctx.stroke();
+      ctx.fillStyle = cor(AC2, 0.6);
+      for (j = 0; j < st.raios.length; j++) { ra = st.raios[j]; ctx.fillRect(ra.xb - 1.5, ra.yb - rolagem - 1.5, 3, 3); }
+      /* o alimentador: do horizonte da seção até ela, CONTÍNUO, com o rótulo e um
+         mini-símbolo do reator (anel, 12 marcas, núcleo): a ligação ao principal parada */
+      var a0 = Math.max(topoS, g.topo), a1 = sy - R.carga - 4;
+      if (a1 > a0) {
+        ctx.strokeStyle = cor(AC2, 0.42);
+        ctx.beginPath(); ctx.moveTo(st.x, a0); ctx.lineTo(st.x, a1); ctx.stroke();
+        var ry = topoS + 24;
+        if (ry > g.topo + 10 && ry < a1 - 10 && (!livre || livre(st.x + 60, ry))) {
+          simbolo(ctx, st.x + 16, ry);
+          ctx.font = ROTULO.fonte; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+          ctx.fillStyle = cor(AC2, ROTULO.alfa);
+          ctx.fillText(ROTULO.texto, st.x + 28, ry);
+        }
+      }
+      if (B.reduced) continue;
+      /* o pulso descendo pelo alimentador */
+      if (st.alim) {
+        var yh = st.alim.de + st.alim.s - rolagem;
+        ctx.strokeStyle = cor(T1, 0.95); ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(st.x, Math.max(g.topo, yh - ALIMENTA.cabeca)); ctx.lineTo(st.x, yh); ctx.stroke();
+        ctx.strokeStyle = cor(AC2, 0.4); ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(st.x, Math.max(g.topo, yh - ALIMENTA.rastro)); ctx.lineTo(st.x, Math.max(g.topo, yh - ALIMENTA.cabeca)); ctx.stroke();
+      }
+      /* os surtos pelos ramos */
+      for (j = 0; j < st.surtos.length; j++) desenharSurto(ctx, st, st.surtos[j], sy);
+      /* a transferência do mini acoplado: o trecho até ela aceso e pacotes descendo */
       var mini = B.rede.extra;
       if (st.acopla && mini) {
-        /* a transferência: o fio do mini até a estação e pacotes correndo para ela */
         ctx.lineWidth = 1;
-        ctx.strokeStyle = cor(AC2, 0.55);
-        ctx.beginPath(); ctx.moveTo(mini.x, mini.y); ctx.lineTo(g.xE, sy); ctx.stroke();
-        var L = Math.hypot(g.xE - mini.x, sy - mini.y) || 1, ux = (g.xE - mini.x) / L, uy = (sy - mini.y) / L;
+        ctx.strokeStyle = cor(AC2, 0.6);
+        ctx.beginPath(); ctx.moveTo(mini.x, mini.y); ctx.lineTo(st.x, sy - R.carga); ctx.stroke();
+        var L = Math.hypot(st.x - mini.x, sy - R.carga - mini.y) || 1, ux = (st.x - mini.x) / L, uy = (sy - R.carga - mini.y) / L;
         ctx.strokeStyle = cor(T1, 0.95); ctx.lineWidth = 1.6;
         for (var p = 0; p < 3; p++) {
           var at = ((st.acopla.t * 2.2 + p / 3) % 1) * L;
@@ -208,45 +275,43 @@
       }
     }
   }
-  /* o caminho da frente: da estação pela régua até a fileira e dali pelo barramento */
-  function pontoNoCaminho(st, fila, g, sy, s) {
-    var vy = fila.y - rolagem, h = Math.abs(vy - sy);
-    if (s <= h) return { x: g.xE, y: sy + Math.sign(vy - sy) * s };
-    return { x: g.xE + (s - h), y: vy };
+  /* o mini-símbolo do reator ao lado do rótulo: anel de 5 px, 12 marcas e o núcleo */
+  function simbolo(ctx, x, y) {
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = cor(AC2, 0.75);
+    ctx.beginPath(); ctx.arc(x, y, 5, 0, TAU);
+    for (var k = 0; k < 12; k++) { var a = k * TAU / 12; ctx.moveTo(x + Math.cos(a) * 6.5, y + Math.sin(a) * 6.5); ctx.lineTo(x + Math.cos(a) * 8, y + Math.sin(a) * 8); }
+    ctx.stroke();
+    ctx.fillStyle = cor(T1, 0.95);
+    ctx.beginPath(); ctx.arc(x, y, 1.8, 0, TAU); ctx.fill();
   }
-  function desenharSurto(ctx, st, su, g, sy) {
+  function desenharSurto(ctx, st, su, sy) {
     if (su.s <= 0) return;
-    var fl = su.fila, fim = caminhoAte(st, fl, g, fl.itens[fl.itens.length - 1].dx + 4), forca = su.turbo ? 1 : 0.7;
-    var de = Math.min(su.s, fim);
+    var fim = su.raio.comp, forca = su.turbo ? 1 : 0.75, de = Math.min(su.s, fim);
     for (var d = -1; d < SURTO.degraus.length; d++) {
       var ate = d < 0 ? SURTO.cabeca : SURTO.degraus[d][0], a = (d < 0 ? 0.95 : SURTO.degraus[d][1]) * forca;
-      var s0 = Math.max(0, su.s - ate), s1 = de;
+      var s0 = Math.max(R.carga + 2, su.s - ate), s1 = de;
       de = Math.min(de, s0);
       if (s1 <= s0) continue;
       ctx.lineWidth = d < 0 ? (su.turbo ? 1.8 : 1.4) : 1;
       ctx.strokeStyle = cor(d < 0 ? (su.turbo ? T1 : AC2) : AC, a);
-      ctx.beginPath();
-      /* em até 3 pontos (pode virar a esquina da régua para o barramento) */
-      var p0 = pontoNoCaminho(st, fl, g, sy, s0), p1 = pontoNoCaminho(st, fl, g, sy, s1), h = Math.abs(fl.y - rolagem - sy);
-      ctx.moveTo(p0.x, p0.y);
-      if (s0 < h && s1 > h) ctx.lineTo(g.xE, fl.y - rolagem);
-      ctx.lineTo(p1.x, p1.y);
-      ctx.stroke();
+      ctx.beginPath(); caminho(ctx, st, su.raio, sy, s0, s1); ctx.stroke();
     }
     ctx.lineWidth = 1;
   }
 
-  /* o corpo, no canvas dele */
+  /* ---------- o corpo, no canvas dele ---------- */
   function pintar() {
     if (!estacoes.length) return;
-    var g = B.rede.trilho.geo(), H = altura, t = B.relogio(), F = B.FOLEGO;
+    var g = B.rede.trilho.geo(), t = B.relogio(), F = B.FOLEGO;
     var x = ((t / F.periodo) % 1 + 1) % 1, folego = B.reduced ? 1 : x < F.inspira ? suave(x / F.inspira) : 1 - suave((x - F.inspira) / (1 - F.inspira));
+    var menu = document.body.classList.contains('is-menu');
     for (var i = 0; i < estacoes.length; i++) {
       var st = estacoes[i], sy = st.yd - rolagem, cv = st.cv;
-      var naTela = sy > g.topo + R.carga && sy < H - 40 && document.body.classList.contains('is-menu') === false;
+      var naTela = !menu && sy > g.topo + R.carga && sy < altura - R.carga;
       if (naTela !== st.visivel) { cv.style.opacity = naTela ? '1' : '0'; cv.style.pointerEvents = naTela ? 'auto' : 'none'; st.visivel = naTela; }
       if (!naTela) continue;
-      cv.style.transform = 'translate3d(' + (g.xE - CORPO / 2).toFixed(1) + 'px,' + (sy - CORPO / 2).toFixed(1) + 'px,0)';
+      cv.style.transform = 'translate3d(' + (st.x - window.scrollX - CORPO / 2).toFixed(1) + 'px,' + (sy - CORPO / 2).toFixed(1) + 'px,0)';
       desenharCorpo(cv.getContext('2d'), st, folego);
     }
   }
@@ -277,38 +342,32 @@
       c.stroke();
     }
     c.lineWidth = 1;
-    /* a órbita tracejada, achatada como a do núcleo do reator (a marca da família); a metade de cima, a de trás, mais fraca */
+    /* a órbita tracejada, achatada (a marca da família); a metade de cima, a de trás, mais fraca */
     c.setLineDash(ORBITA);
     c.lineDashOffset = -st.giroA * 6;
     c.strokeStyle = cor(AC2, 0.3);
-    c.beginPath(); c.ellipse(m, m, R.orbita[0], R.orbita[1], 0, Math.PI, TAU); c.stroke();
+    var inclina = -0.45 + 0.12 * Math.sin(st.giroB * 0.4);   /* ~25° e balançando: deitada lia como olho */
+    c.beginPath(); c.ellipse(m, m, R.orbita[0], R.orbita[1], inclina, Math.PI, TAU); c.stroke();
     c.strokeStyle = cor(AC2, 0.7);
-    c.beginPath(); c.ellipse(m, m, R.orbita[0], R.orbita[1], 0, 0, Math.PI); c.stroke();
+    c.beginPath(); c.ellipse(m, m, R.orbita[0], R.orbita[1], inclina, 0, Math.PI); c.stroke();
     c.setLineDash(SEM_TRACO);
     c.lineDashOffset = 0;
-    /* os dois aros em sentidos opostos */
-    c.strokeStyle = cor(AC2, 0.7);
-    c.beginPath();
-    for (j = 0; j < 3; j++) { var a0 = st.giroA + j * TAU / 3; c.moveTo(m + Math.cos(a0) * R.aroA, m + Math.sin(a0) * R.aroA); c.arc(m, m, R.aroA, a0, a0 + 1.1); }
-    c.stroke();
+    /* o vidro: o anel onde os fios do plasma batem */
+    c.strokeStyle = cor(AC2, 0.45);
+    c.beginPath(); c.arc(m, m, R.vidro, 0, TAU); c.stroke();
+    /* o aro de 6 partes, girando */
     c.strokeStyle = cor(AC, 0.55);
     c.beginPath();
     for (j = 0; j < 6; j++) { var b0 = st.giroB + j * TAU / 6; c.moveTo(m + Math.cos(b0) * R.aroB, m + Math.sin(b0) * R.aroB); c.arc(m, m, R.aroB, b0, b0 + 0.5); }
     c.stroke();
-    /* o núcleo e os filamentos (esticam no turbo e ao inspirar), olhando para o cursor */
-    var ox = st.olhar.x * 2, oy = st.olhar.y * 2, cx = m + ox, cy = m + oy;
-    var fim = R.fios[1] + 3 * folego + 7 * turbo;
-    c.strokeStyle = cor(AC2, 0.8);
-    c.beginPath();
-    for (j = 0; j < 12; j++) {
-      var af = j * TAU / 12 + st.giroB * 0.3, lf = j % 3 ? fim - 2 : fim;
-      c.moveTo(cx + Math.cos(af) * R.fios[0], cy + Math.sin(af) * R.fios[0]); c.lineTo(cx + Math.cos(af) * lf, cy + Math.sin(af) * lf);
+    /* o núcleo em plasma, olhando para o cursor; rompe o vidro no turbo, quando o alimentador chega e acoplada */
+    if (B.plasma) {
+      PLASMA.r = R.nucleo * (1 + 0.12 * folego + 0.25 * turbo); PLASMA.vidro = R.vidro; PLASMA.fora = R.fora;
+      PLASMA.pressao = 0.3 + 0.4 * folego + 0.7 * st.sob + 0.4 * st.carga;
+      PLASMA.estouro = B.reduced ? 0 : Math.max(turbo, st.pulso, st.acopla ? 0.4 : 0);
+      PLASMA.t = B.reduced ? 0 : st.giroA * -1.1; PLASMA.alfa = 1; PLASMA.semente = st.n * 5;
+      B.plasma.desenhar(c, m + st.olhar.x * 2, m + st.olhar.y * 2, PLASMA);
     }
-    c.stroke();
-    c.fillStyle = cor(T1, 1);
-    c.beginPath(); c.arc(cx, cy, R.nucleo * (1 + 0.15 * folego + 0.3 * turbo), 0, TAU); c.fill();
-    c.strokeStyle = cor(AC2, 0.85);
-    c.beginPath(); c.arc(cx, cy, R.anel, 0, TAU); c.stroke();
     /* o turbo: um anel que abre para fora do estator e some */
     if (turbo > 0.01) {
       var k = 1 - turbo;
@@ -321,35 +380,45 @@
   B.estacoes = {
     /* a estação na tela mais perto de (x, y), ou null */
     naTela: function (x, y) {
-      var g = B.rede.trilho.geo(), H = altura, melhor = null, dm = 1e9;
+      var g = B.rede.trilho.geo(), melhor = null, dm = 1e9;
       for (var i = 0; i < estacoes.length; i++) {
         var sy = estacoes[i].yd - rolagem;
-        if (sy < g.topo + 80 || sy > H - 120) continue;
+        if (sy < g.topo + 80 || sy > altura - 120) continue;
         var d = Math.abs(sy - y);
         if (d < dm) { dm = d; melhor = estacoes[i]; }
       }
       return melhor;
     },
-    /* o caminho do mini até ela (documento): pela régua da direita até o corredor,
-       pelo corredor até perto dela; [] sem corredor (vai direto) */
+    /* o caminho do mini até ela (documento): pela régua até o corredor mais perto, pelo
+       corredor até o eixo dela; [] sem corredor */
     via: function (st, xDe) {
-      if (!st.corredor) return [];
-      var g = B.rede.trilho.geo();
-      return [{ x: xDe, py: st.yd }, { x: g.colE - 12, py: st.yd }];
+      if (!st.corredores.length) return [];
+      var c = st.corredores[0];
+      for (var i = 1; i < st.corredores.length; i++) if (Math.abs(st.corredores[i] - st.yd) < Math.abs(c - st.yd)) c = st.corredores[i];
+      return [{ x: xDe, py: c }, { x: st.x - window.scrollX, py: c }];
     },
-    /* onde o mini fica acoplado (tela) */
-    doca: function (st) { var p = tela(st); return { x: p.x, y: p.y - MINI.acima }; },
-    /* o mini chegou: começa a transferência */
+    /* onde o mini fica acoplado (tela): no corredor, acima dela */
+    doca: function (st) { return { x: st.x - window.scrollX, y: st.yd - rolagem - MINI.acima }; },
     acoplar: function (st) { if (!B.reduced && !st.acopla) st.acopla = { t: 0 }; },
     soltar: function (st) { st.acopla = null; },
     podeTurbinar: function (st) { return st.turboHa > 20 && !st.acopla; },
     turbinando: function (st) { return !!st.acopla; },
     /* só leitura, para os testes: o que cada estação está fazendo */
-    estado: function () { return estacoes.map(function (st) { return { carga: +st.carga.toFixed(2), acoplada: !!st.acopla, turboHa: +st.turboHa.toFixed(1), surtos: st.surtos.length, visivel: !!st.visivel }; }); }
+    estado: function () { return estacoes.map(function (st) { return { carga: +st.carga.toFixed(2), acoplada: !!st.acopla, alimentando: !!st.alim, turboHa: +st.turboHa.toFixed(1), surtos: st.surtos.length, visivel: !!st.visivel }; }); }
   };
 
   B.rede.fundos.push({ desenharFundo: desenharFundo });
   B.on('rede:medida', remontar);
+  /* a cadeia: o pulso do reator atravessou o horizonte desta seção até o meio */
+  B.on('trilho:meio', function (yd) { for (var i = 0; i < estacoes.length; i++) if (Math.abs(estacoes[i].secaoY - yd) < 4) alimentar(estacoes[i]); });
+  /* ...ou o horizonte já passou do topo da tela: o pulso entra pelo alimentador do alto */
+  B.on('trilho:onda', function () {
+    var g = B.rede.trilho.geo();
+    for (var i = 0; i < estacoes.length; i++) {
+      var st = estacoes[i], sy = st.yd - rolagem;
+      if (st.secaoY - rolagem < g.topo && sy > g.topo && sy < altura) alimentar(st, g.topo + rolagem);
+    }
+  });
   window.addEventListener('scroll', function () { rolagem = window.scrollY; }, { passive: true });
   window.addEventListener('resize', function () { altura = window.innerHeight; }, { passive: true });
   if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) {

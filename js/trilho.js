@@ -66,12 +66,6 @@
 
     function cor(c, a) { return 'rgba(' + c + ',' + limitar(a).toFixed(3) + ')'; }
     function telaY(yd) { return yd - G.rolagem; }
-    /* um rótulo da margem esquerda a menos de 26 px de um horizonte bateria no índice da seção */
-    var reservas = [];   /* faixas do documento ocupadas por uma estação: sem rótulo na margem esquerda */
-    function reservado(y) {
-      for (var k = 0; k < reservas.length; k++) if (y > telaY(reservas[k][0]) && y < telaY(reservas[k][1])) return true;
-      return false;
-    }
     function trilhoX(lado) { return lado < 0 ? G.xE : G.xD; }
     function ladoDe(x) { return x < (G.colE + G.colD) / 2 ? -1 : 1; }
     function losango(x, y, s) { ctx.moveTo(x, y - s); ctx.lineTo(x + s, y); ctx.lineTo(x, y + s); ctx.lineTo(x - s, y); ctx.closePath(); }
@@ -97,7 +91,7 @@
     function origem(rolagem, topo, W, H) { G.rolagem = rolagem; G.topo = topo; G.W = W; G.H = H; }
 
     /* ---------- energia ---------- */
-    function soltarOnda() { ondas.push({ r: 0, rAntes: 0 }); }
+    function soltarOnda() { ondas.push({ r: 0, rAntes: 0 }); B.emit('trilho:onda'); }
     /* um pacote que sobe pela régua `lado` a partir da altura y (tela) */
     function pacote(y, lado) {
       if (pacotes.length > 30 || y <= G.topo) return null;
@@ -144,7 +138,13 @@
         }
         if (o.r > fim) ondas.splice(i, 1);
       }
-      for (i = travessias.length - 1; i >= 0; i--) { travessias[i].t += dt; if (travessias[i].t > TRAVESSIA.dura + 0.7) travessias.splice(i, 1); }
+      for (i = travessias.length - 1; i >= 0; i--) {
+        var tv = travessias[i], antes = tv.t;
+        tv.t += dt;
+        /* a luz chegou ao meio do horizonte: a estação da seção (js/estacao.js) recebe pelo alimentador */
+        if (antes < TRAVESSIA.dura && tv.t >= TRAVESSIA.dura) B.emit('trilho:meio', tv.yd);
+        if (tv.t > TRAVESSIA.dura + 0.7) travessias.splice(i, 1);
+      }
       for (i = faiscas.length - 1; i >= 0; i--) { faiscas[i].t += dt; if (faiscas[i].t > LIGA.dura + 0.5) faiscas.splice(i, 1); }
       for (i = pacotes.length - 1; i >= 0; i--) {
         var p = pacotes[i];
@@ -225,7 +225,7 @@
           ctx.stroke();
         }
         desenhados++;
-        if (G.rotulos && secoes[i].rot && !reservado(y - 12) && (!livre || livre(G.xE - 30, y - 12))) {
+        if (G.rotulos && secoes[i].rot && (!livre || livre(G.xE - 30, y - 12))) {
           ctx.font = FONTE; ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'right';
           ctx.fillStyle = cor(C.AC2, 0.6 * resp);
           ctx.fillText(secoes[i].rot, G.xE - 12, y - 7);
@@ -438,7 +438,7 @@
       ctx.font = FONTE_RUMO; ctx.textBaseline = 'middle';
       ctx.textAlign = rumo.lado < 0 ? 'right' : 'left';
       var tx = x - dir * 12, lw = ctx.measureText(txt).width;
-      if ((rumo.lado < 0 ? tx - lw : G.W - tx - lw) < 8 || (rumo.lado < 0 && reservado(y))) return;   /* não cabe na margem, ou há uma estação ali */
+      if ((rumo.lado < 0 ? tx - lw : G.W - tx - lw) < 8) return;   /* não cabe na margem */
       ctx.fillStyle = cor(C.AC2, 0.9 * f);
       ctx.fillText(txt, tx, y);
     }
@@ -467,7 +467,6 @@
       configurar: configurar, origem: origem,
       /* a geometria em tela (as estações pousam na régua da esquerda) */
       geo: function () { return G; },
-      reservar: function (lista) { reservas = lista || []; },
       piscar: function () { pisca = 1; }, passo: passo, desenhar: desenhar,
       soltarOnda: soltarOnda, pacote: pacote, rota: rota, soltarRota: soltarRota, apontar: apontar,
       /* a "distância" de um ponto para as ondas: a altura abaixo do topo da zona */

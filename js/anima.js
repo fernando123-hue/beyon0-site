@@ -512,7 +512,8 @@
   function revelar(el, imediato) {
     marcar(el);
     if (el.matches(SEM_TWEEN)) return;
-    var kids = el.matches(COM_FILHOS) ? el.children : null;
+    /* (o espaço da estação, js/estacao.js, não entra na cascata dos cards) */
+    var kids = el.matches(COM_FILHOS) ? [].filter.call(el.children, function (c) { return !c.classList.contains('estacao-vao'); }) : null;
     gsap.to(el, { opacity: 1, y: 0, duration: imediato ? .35 : .45, ease: EXPO, overwrite: true });
     if (kids && kids.length) {
       gsap.fromTo(kids, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: .8, delay: de(ATRASO, el, 0), ease: EXPO, stagger: { each: de(CASCATA, el, .12), grid: 'auto', from: 'start' }, clearProps: 'opacity,transform' });

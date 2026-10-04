@@ -191,7 +191,7 @@ button { font: inherit; color: inherit; }
    transform */
 .mini-palco { position: fixed; inset: 0; z-index: 44; overflow: hidden; pointer-events: none; }
 /* as estações (js/estacao.js): no palco do mini, acima das seções; só o corpo recebe o clique */
-.estacao { position: absolute; left: 0; top: 0; width: 112px; height: 112px; opacity: 0; pointer-events: none; cursor: pointer; will-change: transform; }
+.estacao { position: absolute; left: 0; top: 0; width: 152px; height: 152px; opacity: 0; pointer-events: none; cursor: pointer; will-change: transform; }
 .mini { position: absolute; left: 0; top: 0; width: 96px; height: 96px; pointer-events: none; opacity: 0; will-change: transform; }
 /* vindo de outra página do site: acesa desde o primeiro quadro (a mesma rede continua) */
 .rede.is-herdada { transition: none; }

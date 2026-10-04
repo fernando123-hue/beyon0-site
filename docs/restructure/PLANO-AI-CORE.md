@@ -661,3 +661,95 @@ máquina em 100%; acessibilidade ok. Medido: A/B intercalado com 4f9d1a3 (GPU re
 desktop 60/60 fps, celular com CPU 4× ~49/49 (CPU da máquina em 100%), script
 por quadro igual. LCP oscilou nos dois lados (a CPU em 100%; o código novo
 começa depois do `load`).
+
+## 20. Núcleos que transbordam e as estações no centro dos cards (2026-10-03, 15ª sessão, 2ª parte)
+
+Pedido do dono: "revisão geral. Os núcleos dos AI Cores devem ser bem
+bolados, transmitir a sensação de que estão transbordando de energia — vale
+para todos, especialmente o principal; se possível, remodele do zero. Os AI
+Core médios devem estar no centro dos cards, conectados a todos, com alguma
+menção de que estão conectados ao principal. Separe em partes e só termine
+no resultado perfeito."
+
+**Parte 1 — inventário.** Grupos que comportam uma estação no centro
+(desktop): Hub › Garantias (4 → 2×2), Sites › Padrão de entrega (6, já em 2
+colunas), Automação › Capacidades (6, de 3×2 para 2×3). Viável sem salto de
+layout: o espaço é do HTML/CSS.
+
+**Parte 2 — o núcleo do reator, do zero (`js/nucleo/coroa.js`).** Três
+tentativas: (1) línguas em lobos polares — liam como flor/órbita de átomo
+(descartada); (2) GLOBO DE PLASMA — fios ondulados do núcleo até o vidro,
+com arco aceso no contato, rompendo o vidro em raio no estouro (aprovado
+como conceito, mas pequeno e calmo demais no tamanho real); (3) a versão
+final: zona do núcleo ~50% maior (vidro 0,28, núcleo 0,09); o vidro é da
+coroa (de frente para a câmera, 48 marcas girando e arcos correndo nele; o
+anel inclinado da lente não batia com os contatos e saiu); TRANSBORDA em
+repouso (de tempos em tempos um fio fura o vidro sozinho); o CURSOR atrai
+os fios (o mais próximo engrossa e rompe o vidro na direção dele, como o
+dedo num globo de plasma); borda que ferve em 5 frequências; 3 ECOS em
+curvas de nível (o "brilho" em traço); raios com tronco afinando e galho;
+faíscas por fora; a onda da chegada. Tudo com antisserrilhado de 1 px; o
+alfa é o maior canal com `premultipliedAlpha`. No celular, menos fios,
+faíscas e ecos (`coroa.celular`). Achado de passagem: a correção do
+"quadrado preto" do commit anterior tinha ido para o shader do VIDRO (que
+ficou translúcido) e não para o núcleo — corrigido. Os shaders das peças
+foram para `js/nucleo/shaders.js` (pecas.js 966 → 606 linhas).
+
+**Parte 3 — o mesmo núcleo nos pequenos (`js/plasma.js`).** Estação: fios
+desiguais que batem num vidro, dois ecos, rompe o vidro no turbo e quando o
+alimentador chega. Mini: no tamanho dele fio fino some (lia como alvo) e
+três pontas girando liam como hélice; ficaram PONTAS grossas que nascem em
+ângulos sorteados e furam o anel como faíscas. Achado: na estação o objeto
+do plasma era criado antes das cores (o núcleo saía preto).
+
+**Parte 4 — estações no centro.** `.tem-estacao` (≥981 px e só com mouse:
+num tablet com toque o JS não monta a estação) vira 2 colunas com um
+corredor de 120 px; o `.estacao-vao` é o último filho (as entradas contam
+os cards pela ordem) e o grid o põe na coluna do meio; linhas da MESMA
+altura, então a estação cai exatamente no ramo do meio (3 linhas) ou no vão
+(2 linhas); sem JS, um anel parado. A estação (~110 px de carga) tem uma
+espinha no corredor e um ramo até a borda de cada card; o barramento entre
+irmãos é pulado nesses grupos. A ligação ao principal: o ALIMENTADOR sobe
+do topo dela até o horizonte da seção com um mini-símbolo do reator e "↑ AI
+CORE"; a CADEIA da energia é real: o pulso do reator (a cada expiração)
+desce pelas réguas, atravessa o horizonte até o meio (`trilho:meio`), desce
+pelo alimentador, carrega a estação e ela manda um surto a cada card (a
+aresta de cima acende). Se o horizonte já passou do topo, o pulso entra pelo
+alto da tela (`trilho:onda`). TURBO (clique, ou o mini sozinho): o mini vem
+pelo corredor entre as fileiras, acopla acima dela no eixo, enche a carga e
+ela turbina: a rede dela acende em branco, os cards acendem a borda e um
+traço percorre a borda de cada um uma vez (`.energia-volta`, máscara cônica
+com `@property`); o mini volta pelo mesmo corredor.
+
+**Celular.** O layout dos cards não mudou (o espaço da estação some; o
+barramento volta). Mudaram só o núcleo do reator (maior, mais leve no
+celular) e o do mini.
+
+**Parte 5 — rodadas.** Crítica de arte com olhar novo: rodada 1 **6,5**
+(núcleo pequeno e calmo, cursor sem efeito, mini como "alvo", estação como
+"cata-vento", estação fora do ramo, ligação ao principal ilegível, turbo
+sem recompensa) → rodada 2 **8** (núcleo 8, estouro 9, cursor 8,5, estação
+no centro 8,5) → ajustes finais: mini com 5 pontas curtas irregulares
+piscando alternadas (4 iguais liam como mira; uma longa, como ponteiro);
+o mini segue o caminho exato até a estação (com a mola cortava o canto dos
+cards) e não dispara sinal ao trilho de lá (sobrava uma linha atravessando
+um card); traço do turbo em 4 lados só com transform (a 1ª versão animava
+uma variável de CSS, contra a regra 1); órbita da estação inclinada (deitada
+lia como olho); linhas dos grupos na altura natural e a estação posta pelo
+JS no ramo do meio (3 linhas) ou no vão (2 linhas). Revisão de código em 2
+voltas (alta: `pow` de base negativa e `atan(0,0)` no shader, risco de NaN
+em GPU de celular; médias: o layout de 2 colunas valia para tablet com
+toque, custo por pixel, relógio de 400 s, alocações — tudo corrigido).
+
+**Medido.** 1ª pintura em A/B (mediana de 5, GPU real): desktop 864 ms contra
+1104 ms do commit anterior; celular 800 contra 1340 (não piorou; a CPU da
+máquina em 100% faz o número oscilar). fps com GPU real: desktop 60/60;
+celular com CPU 4× ~49/49. Verificador 12/12; acessibilidade ok. No modo de
+teste sem GPU (SwiftShader, só informativo) o reator caiu de ~17 para ~10
+fps: a coroa custa mais por pixel; no celular ela usa menos fios, faíscas e
+ecos, e o porteiro já barra WebGL por CPU.
+Rodada 3 da crítica: **9/10, "chegou ao pedido do dono; pode fechar"**
+(núcleo 8,5, mini 8, estação 8,5, estação como central 9, turbo 9, ligação
+8, duas colunas 9, celular 8,5). Ajuste final opcional: espaços que não
+quebram em "não no meu" (o título quebra "No ar, / não no meu computador",
+sem mudar a redação).

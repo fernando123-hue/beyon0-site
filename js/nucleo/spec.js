@@ -28,29 +28,30 @@ export const SPEC = {
 
   /* o núcleo: a fonte. Só ele é branco; o "no ar." do H1 continua sendo o
      ciano mais forte da tela.
-     2026-10-03 (dono: "virou só uma bola branca; quero efeitos nela, como
-     antes, porém melhor"): o brilho de antes era desfoque, que o dono
-     proíbe. Agora a luz é DESENHADA, toda em traço nítido, num shader de
-     frente para a câmera (a COROA). Rodada da crítica de arte: o centro é
-     um miolo branco pequeno e ANÉIS concêntricos em degraus (branco → ciano)
-     no lugar do disco chapado; um aro em 3 partes (gira ao contrário do anel
-     da lente); 36 filamentos de comprimento FIXO (12 longos), ciano, como um
-     mostrador (brancos só na chegada da energia); a ÓRBITA de antes (a
-     elipse horizontal do disco de partículas, a assinatura de que o dono
-     gostava) refeita em dois anéis TRACEJADOS de 1 px, em sentidos opostos,
-     com a metade de trás mais fraca; e na chegada uma onda de 1 px que corre
-     do núcleo até as câmaras em ~0,45 s. Nada de degradê.
-     `raio`: o miolo (unidades do spec); `fios`: [início, comprimento curto,
-     longo] em múltiplos do raio; `aro`: [raio, partes, fração cheia, rad/s,
-     alfa]; `orbitas`: [raio, achatamento, traços, rad/s, alfa];
-     `ondas`: s entre as duas, s de vida, raio final; `meia`: a meia-largura do
-     quadrado (cobre a onda até o raio final, senão ela sai cortada) */
+     2026-10-03, refeito do zero (dono: "os núcleos devem transmitir a
+     sensação de que estão TRANSBORDANDO de energia"): a COROA (coroa.js) —
+     núcleo de bordas que fervem, FILAMENTOS de plasma que batem no vidro da
+     lente (e o rompem no estouro da chegada), ecos em curva de nível e faíscas,
+     tudo em traço nítido. (A 1ª tentativa, línguas em lobos, lia como flor
+     ou órbita de átomo.)
+     `raio`: o núcleo (unidades do spec). `filamentos`: quantos, até onde
+     vão (o raio do vidro da lente), até onde vazam no estouro, ondulação
+     [larga, fina] (unidades). `faiscas`: quantas, quanto andam fora do vidro.
+     `ecos`: quantos, passo (× raio), alfa do 1º. `vidro`: marcas, rad/s, arcos
+     que correm nele. `pressao`: base e quanto o
+     fôlego soma. `ondas`: a da chegada (s entre as duas, vida, raio final).
+     `meia`: a meia-largura do quadrado (cobre a onda) */
   nucleo: {
-    raio: 0.055,
-    coroa: { meia: 0.47, n: 36, longo: 3, fios: [1.9, 0.45, 0.75], giro: 0.04, treme: 0.06, estica: 0.45,
-      orbitas: [[0.205, 0.3, 64, 0.32, 0.6], [0.26, 0.3, 90, -0.2, 0.42]],
-      aro: [0.088, 3, 0.6, 0.5, 0.8],
-      ondas: { intervalo: 0.2, vida: 0.45, ate: 0.44, alfa: 0.7 } },
+    raio: 0.09,
+    coroa: { meia: 0.55,
+      filamentos: { n: 14, ate: 0.275, vaza: 0.52, ondula: [0.016, 0.005] },
+      ecos: { n: 3, passo: 0.2, alfa: 0.55 },
+      vidro: { marcas: 48, giro: -0.12, arcos: 3 },
+      faiscas: { n: 14, alcance: 0.15 },
+      pressao: { base: 0.25, folego: 0.55 },
+      ondas: { intervalo: 0.2, vida: 0.5, ate: 0.52, alfa: 0.7 },
+      /* o que muda no celular (custo por pixel) */
+      celular: { filamentos: { n: 10, ate: 0.275, vaza: 0.52, ondula: [0.016, 0.005] }, faiscas: { n: 8, alcance: 0.15 }, ecos: { n: 2, passo: 0.2, alfa: 0.55 } } },
     /* o traço horizontal: nasce do núcleo na ignição e assenta curto (~3× a
        órbita), o reflexo achatado de antes sem desfoque. (Assentado longo e
        forte, com os jatos, formava uma mira de luneta — rodada 6) */
@@ -61,13 +62,10 @@ export const SPEC = {
     assenta: 1.2
   },
 
-  /* a lente: anéis finos de frente em volta do núcleo; a régua de marcas amarra
-     o reator à marca */
-  /* 2026-10-03: ficou um anel só (os de 0,15 e 0,28 somavam traço em volta
-     do núcleo: "poluído", disse o dono); os aros de perto agora são da coroa */
-  lente: [
-    { raio: 0.21, tubo: 0.005, cor: 'prata', alfa: 0.26, vel: -0.12, marcas: 48, marca: 0.004 }   /* mais fraco (crítica rodada 2: o miolo lia como alvo) */
-  ],
+  /* a lente: vazia desde 2026-10-03. Os anéis em volta do núcleo poluíam e o
+     último (o vidro, com 48 marcas) passou para a coroa, de frente para a
+     câmera (coroa.js): inclinado, ele não batia com os contatos dos fios */
+  lente: [],
 
   /* os raios de energia: 12 canais do portal ao núcleo. A energia corre
      neles UMA vez por fôlego (pedido do dono: os pulsos de 1,6 s "pareciam

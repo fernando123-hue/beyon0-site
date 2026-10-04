@@ -112,6 +112,9 @@
     for (i = 0; i < elementos.length; i++) {
       var a = elementos[i];
       if (!a.liga) continue;
+      /* (desktop) num grupo com estação no centro, quem liga os módulos é ela (js/estacao.js): o barramento entre irmãos atravessaria o corredor */
+      var vaoPai = a.el.parentNode.querySelector && a.el.parentNode.querySelector(':scope > .estacao-vao');
+      if (!celular && vaoPai && vaoPai.offsetWidth) continue;   /* (o espaço some em janela estreita: lá o barramento volta) */
       for (var j = i + 1; j < elementos.length; j++) {
         var b = elementos[j];
         if (b.liga && b.el.parentNode === a.el.parentNode) { ligacoes.push([a, b]); break; }
@@ -531,10 +534,17 @@
   /* um cartão ou uma opção que entre na página depois (conteúdo novo, script)
      é medido na próxima parada: entra no campo, no barramento e na onda */
   var ioCentro = null;   /* (celular) o observador do centro da tela; os cartões novos entram nele também */
+  /* só o traço do turbo (js/estacao.js) entrou ou saiu: não é conteúdo novo */
+  function soEnfeite(m) {
+    var nos = [].concat([].slice.call(m.addedNodes), [].slice.call(m.removedNodes));
+    for (var k = 0; k < nos.length; k++) if (!(nos[k].nodeType === 1 && nos[k].classList.contains('energia-volta'))) return false;
+    return true;
+  }
   if ('MutationObserver' in window) new MutationObserver(function (ms) {
     var mudou = false;
     for (var i = 0; i < ms.length; i++) {
       if (!ms[i].addedNodes.length && !ms[i].removedNodes.length) continue;
+      if (soEnfeite(ms[i])) continue;   /* o traço do turbo (js/estacao.js) entra e sai: não é conteúdo novo */
       mudou = true;
       if (!ioCentro) continue;
       for (var k = 0; k < ms[i].addedNodes.length; k++) {

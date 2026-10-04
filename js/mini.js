@@ -335,16 +335,26 @@
       quer.prox -= dt;
       if (quer.prox <= 0 && quer.n < QUER.max) { espera = 0; quer.prox = QUER.cada; quer.n++; }
     }
-    alvoX += Math.cos(quer.a) * QUER.inclina * quer.f;
-    alvoY += Math.sin(quer.a) * QUER.inclina * quer.f;
+    var naEstacao = passeio.dest && passeio.dest.estacao;   /* na estação, exatamente no eixo dela */
+    if (!naEstacao) {
+      alvoX += Math.cos(quer.a) * QUER.inclina * quer.f;
+      alvoY += Math.sin(quer.a) * QUER.inclina * quer.f;
+    }
     /* a agitação: uma órbita curta e rápida */
     var ag = B.agitacao || 0;
     if (ag > 0.01) { alvoX += Math.cos(t * 9.3) * AGITA.orbita * ag; alvoY += Math.sin(t * 7.1) * AGITA.orbita * ag; }
 
-    mini.vx += (MOLA * (alvoX - mini.x) - AMORTECE * mini.vx) * dt;
-    mini.vy += (MOLA * (alvoY - mini.y) - AMORTECE * mini.vy) * dt;
-    mini.x += mini.vx * dt;
-    mini.y += mini.vy * dt;
+    if (naEstacao && passeio.estado !== 'doca') {
+      /* indo, acoplado ou voltando de uma estação: segue o caminho exato (com a mola
+         ele cortava o canto dos cards no corredor) */
+      mini.vx = (alvoX - mini.x) / Math.max(dt, 0.001); mini.vy = (alvoY - mini.y) / Math.max(dt, 0.001);
+      mini.x = alvoX; mini.y = alvoY;
+    } else {
+      mini.vx += (MOLA * (alvoX - mini.x) - AMORTECE * mini.vx) * dt;
+      mini.vy += (MOLA * (alvoY - mini.y) - AMORTECE * mini.vy) * dt;
+      mini.x += mini.vx * dt;
+      mini.y += mini.vy * dt;
+    }
     mini.vis += (alvoVis - mini.vis) * Math.min(1, dt * (alvoVis < mini.vis ? 6 : 3));
     mini.ativo = mini.vis > 0.05;
     if (mini.ativo && !ativoAntes && !chegando && nu && nu.visivel) momento(1);
@@ -383,7 +393,8 @@
 
   function momento(forca) {
     pulsar(forca);
-    B.rede.dispararDe(mini);
+    /* no corredor de uma estação, o sinal até a régua atravessaria os cards: só o pulso */
+    if (!(passeio.dest && passeio.dest.estacao)) B.rede.dispararDe(mini);
   }
   /* um pulso: `pulso` é a força que resta; `pulsoIni` a de partida (o raio anda pela fase) */
   var pulsoIni = 1;
@@ -440,6 +451,8 @@
     }
   }
 
+  /* o núcleo em plasma (reaproveitado por quadro) */
+  var PLASMA = { r: 0, vidro: 0, fora: 0, n: 5, pontas: true, pressao: 0, estouro: 0, t: 0, alfa: 1, cores: { AC: AC, AC2: AC2, T1: T1 }, semente: 3 };
   /* o corpo, no canvas dele (acima das seções) */
   var pintadoParado = -1;
   function pintarCorpo() {
@@ -500,8 +513,18 @@
       ctx.strokeStyle = 'rgba(' + AC2 + ',' + (0.8 * (1 - ka) * v).toFixed(3) + ')';
       ctx.beginPath(); ctx.arc(x, y, Math.max(1, SUGESTAO.anel * ka), 0, TAU); ctx.stroke();
     }
-    ctx.fillStyle = 'rgba(' + T1 + ',' + v.toFixed(3) + ')';
-    ctx.beginPath(); ctx.arc(x + olhar.x * 2.6 * s, y + olhar.y * 2.6 * s, (2.6 + 0.9 * c) * s, 0, TAU); ctx.fill();
+    /* o núcleo: plasma (js/plasma.js) no modo PONTAS (no tamanho dele fio fino
+       some): três pontas grossas que furam o anel, maiores no pulso */
+    if (B.plasma) {
+      PLASMA.r = (3.2 + 0.9 * c) * s; PLASMA.vidro = 7.5 * s; PLASMA.fora = 15 * s;
+      PLASMA.pressao = 0.3 + 0.35 * folego + atencao * 0.6 + c * 0.6 + quer.f * 0.3 + ag;
+      PLASMA.estouro = B.reduced ? 0 : Math.max(pulso * 0.9, ag * 0.6);
+      PLASMA.t = B.reduced ? 0 : relogioMini; PLASMA.alfa = v;
+      B.plasma.desenhar(ctx, x + olhar.x * 2.2 * s, y + olhar.y * 2.2 * s, PLASMA);
+    } else {
+      ctx.fillStyle = 'rgba(' + T1 + ',' + v.toFixed(3) + ')';
+      ctx.beginPath(); ctx.arc(x + olhar.x * 2.6 * s, y + olhar.y * 2.6 * s, (2.6 + 0.9 * c) * s, 0, TAU); ctx.fill();
+    }
   }
 
   if ('IntersectionObserver' in window) {

@@ -80,6 +80,20 @@
 /* o mini AI Core sugere esta opção (js/mini.js): a borda e o link acendem enquanto ele aponta */
 /* a energia de uma estação chegando (js/estacao.js): no surto a aresta de cima (.is-onda); no turbo a borda também (.is-energia), por um instante (o canvas do fundo fica atrás do módulo opaco: quem mostra a chegada é o próprio módulo) */
 .is-energia { border-color: var(--line-hi); }
+/* o turbo de uma estação: um traço de 1,5 px percorre a borda do módulo uma vez,
+   em sentido horário — quatro lados (.energia-volta > b, inseridos por
+   js/estacao.js só durante o turbo) que crescem um depois do outro por
+   scale. Só transform e opacity (regra 1: nenhuma variável de CSS por quadro) */
+.energia-volta { position: absolute; inset: -1px; pointer-events: none; animation: apaga .45s linear .75s both; }
+.energia-volta > b { position: absolute; background: var(--ac-2); animation: .18s cubic-bezier(.45, 0, .55, 1) both; }
+.energia-volta > b:nth-child(1) { left: var(--raio); right: var(--raio); top: 0; height: 1.5px; transform-origin: left; animation-name: lado-x; }
+.energia-volta > b:nth-child(2) { top: var(--raio); bottom: var(--raio); right: 0; width: 1.5px; transform-origin: top; animation-name: lado-y; animation-delay: .17s; }
+.energia-volta > b:nth-child(3) { left: var(--raio); right: var(--raio); bottom: 0; height: 1.5px; transform-origin: right; animation-name: lado-x; animation-delay: .34s; }
+.energia-volta > b:nth-child(4) { top: var(--raio); bottom: var(--raio); left: 0; width: 1.5px; transform-origin: bottom; animation-name: lado-y; animation-delay: .51s; }
+@keyframes lado-x { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes lado-y { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes apaga { to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .energia-volta { display: none; } }
 .is-energia::before, .is-onda::before { opacity: 1; }
 .is-sugerido { border-color: var(--line-hi); }
 .is-sugerido::before { opacity: 1; }
@@ -242,4 +256,37 @@ html.menos-movimento .qa::details-content { transition: none; }
   .secao--fixa .laudo__row { grid-template-columns: clamp(3rem, 4vw, 4rem) minmax(0, 1fr); column-gap: clamp(16px, 2vw, 28px); row-gap: .4rem; align-items: baseline; }
   .secao--fixa .laudo__row p { grid-column: 2; grid-row: auto; }
   .secao--fixa .laudo__n { grid-row: 1; align-self: baseline; font-family: var(--sans); font-weight: 200; font-size: clamp(1.75rem, 1rem + 1.2vw, 2.25rem); line-height: 1; letter-spacing: -.03em; text-transform: none; }
+}
+
+/* ---------- a ESTAÇÃO no centro do grupo (desktop; js/estacao.js) ----------
+   Pedido do dono (2026-10-03): "os AI Core médios no centro dos cards,
+   conectados a todos eles". O grupo vira duas colunas com um corredor no
+   meio (o espaço é do HTML/CSS: nada salta quando o JS chega). O espaço é o
+   ÚLTIMO filho (os atrasos de entrada contam os cards pela ordem) e o grid o
+   põe na coluna do meio, da primeira à última linha. Sem JS fica um anel
+   parado no lugar; com JS a estação viva o cobre (.is-viva). No celular nada
+   muda: o espaço some e o grupo segue empilhado. */
+.estacao-vao { display: none; }
+/* só com mouse: num tablet com toque o JS trata como celular (sem estação) e o
+   corredor ficaria vazio (revisão de código) */
+@media (min-width: 981px) and (hover: hover) and (pointer: fine) {
+  .tem-estacao { --estacao-vao: 120px; grid-template-columns: minmax(0, 1fr) var(--estacao-vao) minmax(0, 1fr); }
+  /* as linhas na altura natural (iguais sobrava vão no pé dos cards curtos); a
+     estação viva vai para o ramo da linha do meio (3 linhas) ou para o vão
+     entre as duas (2 linhas), medidos pelo JS; sem JS o anel fica no meio */
+  .tem-estacao--2 { grid-template-rows: repeat(2, auto); }
+  .tem-estacao--3 { grid-template-rows: repeat(3, auto); }
+  .tem-estacao > .estacao-vao { display: grid; place-items: center; grid-column: 2; grid-row: 1 / -1; pointer-events: none; }
+  .estacao-vao__nucleo { width: 110px; height: 110px; border: 1px solid rgb(var(--ac-rgb) / .3); border-radius: 50%; display: grid; place-items: center; transition: opacity var(--t) var(--ease); }
+  .estacao-vao__nucleo::after { content: ""; width: 12px; height: 12px; border-radius: 50%; background: var(--t1); box-shadow: 0 0 0 4px rgb(var(--ac-2-rgb) / .55); }
+  .estacao-vao.is-viva .estacao-vao__nucleo { opacity: 0; }
+  /* as linhas do laudo de Garantias empilham (número, título, texto) na coluna mais estreita */
+  .tem-estacao > .laudo__row, .secao--manifesto .tem-estacao > .laudo__row { grid-template-columns: 1fr; row-gap: .6rem; }
+  .tem-estacao > .laudo__row p { grid-column: auto; grid-row: auto; }
+  .secao--manifesto .tem-estacao > .laudo__row h3 { font-size: clamp(1.7rem, 2.3vw, 2.2rem); }
+  /* a mesma regra em todos os grupos: título no topo, logo seguido do texto */
+  .tem-estacao > .laudo__row { align-content: start; align-items: start; }
+  .tem-estacao .celula h3 { min-height: 0; }
+  .tem-estacao .spec__item h3 { align-items: flex-start; }
+  .tem-estacao .spec__item h3::before { margin-top: .42em; }
 }

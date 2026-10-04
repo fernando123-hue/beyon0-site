@@ -12,6 +12,9 @@
    a coroa do núcleo inteira desenhada num quadrado: zero JS por traço).
    ========================================================================== */
 
+import { criarCoroa } from './coroa.js';
+import { VIDRO_VS, VIDRO_FS, FLUXO_VS, FLUXO_FS, RAIO_VS, RAIO_FS, DESLOCA, PAINEL_VS, PAINEL_FS, LINHA_VS, LINHA_FS } from './shaders.js';
+
 const TAU = Math.PI * 2;
 const VOLTA = 400;   /* s: período do relógio dos shaders (ver atualizar) */
 
@@ -94,359 +97,11 @@ function texturaOnda(THREE) {
   return new THREE.CanvasTexture(c);
 }
 
-/* ---------- shaders ---------- */
-
-/* o vidro escuro: a única luz é o núcleo, no centro do mundo; fios de
-   reflexo duros, o núcleo visto através, aresta de fresnel */
-const VIDRO_VS = /* glsl */`
-  varying vec3 vN;
-  varying vec3 vP;
-  void main() {
-    vec4 p = vec4(position, 1.0);
-    vec3 n = normal;
-    #ifdef USE_INSTANCING
-      p = instanceMatrix * p;
-      n = mat3(instanceMatrix) * n;
-    #endif
-    vec4 w = modelMatrix * p;
-    vP = w.xyz;
-    vN = normalize(mat3(modelMatrix) * n);
-    gl_Position = projectionMatrix * viewMatrix * w;
-  }
-`;
-
-const VIDRO_FS = /* glsl */`
-  uniform vec3 uBase;
-  uniform vec3 uInterno;
-  uniform vec3 uAresta;
-  uniform vec3 uBrilho;
-  uniform vec3 uAmbiente;
-  uniform vec3 uCentro;
-  uniform float uIgnicao;
-  uniform vec3 uNevoa;
-  uniform vec3 uBisel;
-  uniform float uBiselCos;
-  varying vec3 vN;
-  varying vec3 vP;
-  void main() {
-    vec3 N = normalize(vN);
-    if (!gl_FrontFacing) N = -N;
-    vec3 V = normalize(cameraPosition - vP);
-    vec3 Lv = uCentro - vP;
-    float d = length(Lv);
-    vec3 L = Lv / d;
-    float ig = uIgnicao;
-    float queda = 1.0 / (1.0 + d * d * 3.2);
-    float difusa = max(dot(N, L), 0.0);
-    float fres = pow(1.0 - max(dot(N, V), 0.0), 3.0);
-    float espec = pow(max(dot(N, normalize(L + V)), 0.0), 90.0);
-    vec3 R = reflect(-V, N);
-    float faixa = exp(-R.y * R.y * 140.0);
-    float faixa2 = exp(-(R.y - 0.38) * (R.y - 0.38) * 260.0);
-    float topo = smoothstep(0.82, 1.0, R.y);
-    /* estreito (40): só o que está mesmo na frente do núcleo, na linha de
-       visão, deixa a luz passar */
-    float atraves = pow(max(dot(-V, L), 0.0), 40.0);
-    vec3 c = uBase * 0.45;
-    c += uInterno * difusa * difusa * queda * (0.05 + 0.95 * ig);
-    c += uInterno * atraves * 0.32 * ig;
-    c += uAresta * fres * (0.03 + 0.12 * ig);
-    c += uBrilho * espec * queda * 3.2 * ig;
-    c += (mix(uInterno, uBrilho, 0.45) * faixa * 0.2 + uBrilho * faixa2 * 0.12 + uBrilho * topo * 0.1) * (0.06 + 0.94 * fres);   /* reflexo só de raspão: face de frente fica escura (lia como azulejo cinza) */
-    c += uAmbiente * fres * 0.05;
-    /* uma luz-chave fixa de cima à esquerda: o anel não brilha igual em toda
-       a volta */
-    vec3 K = normalize(vec3(-0.5, 0.7, 0.55));
-    c += uBrilho * pow(max(dot(N, normalize(K + V)), 0.0), 70.0) * 0.18;
-    /* o bisel: um único reflexo que corre no anel (uBisel.xy = direção,
-       uBisel.z = pico); branco no meio, ciano nas pontas */
-    float cosD = dot(normalize(vP.xy + 1e-5), uBisel.xy);
-    float bisel = smoothstep(uBiselCos, 1.0, cosD);   /* uBiselCos = cos(meia-largura do arco) */
-    c += mix(uInterno, uBrilho, bisel) * bisel * bisel * uBisel.z * ig;
-    /* névoa: quanto mais longe da câmera, mais escuro. A câmera está no eixo
-       z e o núcleo na origem, então a profundidade é só o z */
-    float prof = vP.z - uCentro.z;
-    c *= mix(uNevoa.z, 1.0, smoothstep(uNevoa.y, uNevoa.x, prof));
-    /* com premultipliedAlpha (blend ONE, ONE): onde não há traço, nada é escrito
-       (com alfa 1 o quadrado inteiro virava preto opaco no canvas — revisão de código) */
-    gl_FragColor = vec4(c, max(c.r, max(c.g, c.b)));
-    #include <colorspace_fragment>
-  }
-`;
-
-/* a energia nos anéis: pulsos (cabeça forte, cauda curta) correndo em volta.
-   A volta vem do uv.x do toro (0–1, com vértices duplicados na costura), não
-   de atan: o atan salta de +π a −π às 9 horas e espremia os pulsos num
-   tracinho fixo ali (revisão de código; quebraria a simetria) */
-const FLUXO_VS = /* glsl */`
-  varying float vVolta;
-  void main() {
-    vVolta = uv.x;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-  }
-`;
-const FLUXO_FS = /* glsl */`
-  uniform vec3 uCor;
-  uniform float uTempo;
-  uniform float uN;
-  uniform float uVel;
-  uniform float uAlfa;
-  uniform float uForca;
-  varying float vVolta;
-  void main() {
-    float f = fract(vVolta * uN + uTempo * uVel);
-    float b = pow(f, 18.0) + 0.05;
-    gl_FragColor = vec4(uCor, b * uAlfa * uForca);
-    #include <colorspace_fragment>
-  }
-`;
-
-/* os raios e os jatos: faixas com aU 0…1 ao longo e aV −1…1 através. UMA
-   frente de energia por fôlego (uFrente, em aU), com rastro atrás dela;
-   uDir +1 corre para aU maior (raios: para dentro), −1 para menor (jatos:
-   para fora). uPulso: a força da frente; uBase: o canal aceso */
-const RAIO_VS = /* glsl */`
-  attribute float aU;
-  attribute float aV;
-  varying float vU;
-  varying float vV;
-  void main() {
-    vU = aU; vV = aV;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-  }
-`;
-const RAIO_FS = /* glsl */`
-  uniform vec3 uCor;
-  uniform float uFrente;
-  uniform float uDir;
-  uniform float uPulso;
-  uniform float uAlfa;
-  uniform float uBase;
-  uniform float uCauda;
-  uniform float uForca;
-  varying float vU;
-  varying float vV;
-  void main() {
-    float d = (vU - uFrente) * uDir;   /* > 0: à frente da cabeça; < 0: o rastro */
-    float pulso = d > 0.0 ? exp(-d * d * 800.0) : exp(d / uCauda);
-    float atravessa = 1.0 - vV * vV;
-    float pontas = smoothstep(0.0, 0.12, vU) * (1.0 - smoothstep(0.82, 1.0, vU));
-    float b = (pulso * uPulso + uBase) * atravessa * atravessa * pontas;
-    gl_FragColor = vec4(uCor, b * uAlfa * uForca);
-    #include <colorspace_fragment>
-  }
-`;
-
-/* a COROA do núcleo (2026-10-03): toda a luz dele, desenhada em traço
-   nítido num quadrado de frente para a câmera, com antisserrilhado de 1 px
-   pelo fwidth (nenhum degradê em volta: o dono proíbe desfoque).
-   - o miolo branco pequeno e ANÉIS concêntricos em degraus (branco → ciano):
-     volume sem degradê;
-   - as ÓRBITAS: duas elipses tracejadas de 1 px (a assinatura do disco de
-     partículas de antes), em sentidos opostos, a metade de trás mais fraca
-     (uOrbA/uOrbB: raio, achatamento, traços, ângulo; uOrbAlfa);
-   - os filamentos: uN fios radiais de 1 px (um longo a cada uLongo), cada um
-     de comprimento fixo (um tremor mínimo pelo hash do índice), ciano;
-     esticam e ficam brancos com uEstica (a energia chegando);
-   - um aro em partes (uAro: raio, partes, fração cheia, ângulo), por dentro
-     dos filamentos, girando ao contrário do anel da lente;
-   - as ondas da chegada: anéis de 1 px que correm do núcleo até as câmaras
-     (uOnda: s desde a chegada, intervalo, vida, raio final).
-   A costura do atan (±π) não aparece: uN e as partes são inteiros. */
-const COROA_VS = /* glsl */`
-  varying vec2 vP;
-  void main() {
-    vP = position.xy;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-  }
-`;
-const COROA_FS = /* glsl */`
-  uniform vec3 uBranco;
-  uniform vec3 uCor;
-  uniform vec3 uCor2;
-  uniform float uR;
-  uniform float uForca;
-  uniform float uDisco;
-  uniform float uTempo;
-  uniform float uGiro;
-  uniform float uEstica;
-  uniform vec3 uFios;
-  uniform vec3 uFeixe;
-  uniform vec4 uAro;
-  uniform float uAlfaAro;
-  uniform vec4 uOrbA;
-  uniform vec4 uOrbB;
-  uniform vec2 uOrbAlfa;
-  uniform vec4 uOnda;
-  uniform float uOndaAlfa;
-  varying vec2 vP;
-  const float TAU = 6.2831853;
-  float hash(float n) { return fract(sin(n * 12.9898 + 4.1) * 43758.5453); }
-  /* um traço de w px centrado em d (unidades); pw = 1 px em unidades */
-  float traco(float d, float w, float pw) { return 1.0 - smoothstep(w * 0.5 - 0.5, w * 0.5 + 0.5, abs(d) / pw); }
-  float aro(vec4 A, float alfa, float r, float a, float pw) {
-    float g = fract((a - A.w) / TAU * A.y);
-    float passo = TAU / A.y * r / pw;   /* 1 casa do aro em px */
-    float dentro = clamp(g * passo + 0.5, 0.0, 1.0) * clamp((A.z - g) * passo + 0.5, 0.0, 1.0);
-    return traco(r - A.x, 1.3, pw) * dentro * mix(0.4, 1.0, g / A.z) * alfa;
-  }
-  /* uma órbita: elipse (raio O.x, achatamento O.y) tracejada em O.z traços,
-     correndo pelo ângulo O.w; a distância à elipse vem do gradiente (1 px nítido).
-     Depois de traco(): usa ela */
-  float orbita(vec4 O, float alfa, vec2 p, float pw) {
-    vec2 ab = vec2(O.x, O.x * O.y);
-    vec2 q = p / ab;
-    float lq = max(length(q), 1e-4);
-    vec2 g = p / (ab * ab) / lq;
-    float d = (lq - 1.0) / max(length(g), 1e-4);
-    float th = atan(q.y, q.x);
-    float parte = step(fract(th / TAU * O.z - O.w / TAU * O.z), 0.42);
-    /* a metade de cima é a de trás (o reator inclinado para a câmera): mais fraca, com a virada em 1 px nas pontas */
-    float tras = mix(1.0, 0.4, smoothstep(-pw, pw, p.y));
-    return traco(d, 1.0, pw) * parte * tras * alfa;
-  }
-  void main() {
-    float r = length(vP);
-    float pw = max(fwidth(r), 1e-5);
-    float a = atan(vP.y, vP.x);
-    vec3 c = vec3(0.0);
-    /* o miolo branco e os anéis em degraus: branco, branco, ciano-claro, ciano */
-    float miolo = 1.0 - smoothstep(uR * 0.45 - pw * 0.5, uR * 0.45 + pw * 0.5, r);
-    c += uBranco * miolo * uDisco;
-    c += uBranco * traco(r - uR * 0.72, 1.6, pw) * 0.95 * uDisco;
-    c += uCor2 * traco(r - uR, 1.2, pw) * 0.85 * uDisco;
-    c += uCor * traco(r - uR * 1.3, 1.0, pw) * 0.6 * uForca;
-    c += uCor2 * orbita(uOrbA, uOrbAlfa.x, vP, pw) * uForca;
-    c += uCor * orbita(uOrbB, uOrbAlfa.y, vP, pw) * uForca;
-    /* os filamentos */
-    float N = uFeixe.x;
-    float f = a / TAU * N - uGiro / TAU * N;
-    float i = floor(f + 0.5);
-    float idx = mod(i, N);
-    float longo = 1.0 - step(0.5, mod(idx, uFeixe.y));
-    float h = hash(idx), h2 = hash(idx + 17.0);
-    /* frequências inteiras na volta do relógio (VOLTA = 400 s): o tremor não salta quando ele dá a volta */
-    float treme = 1.0 - uFeixe.z + uFeixe.z * (0.5 + 0.5 * sin(uTempo * TAU * floor(38.0 + 57.0 * h) / 400.0 + h2 * TAU));
-    float ini = uR * (uFios.x + (1.0 - longo) * 0.3);
-    float comp = uR * mix(uFios.y, uFios.z, longo) * treme * (1.0 + uEstica * (0.6 + 0.4 * h2));
-    float ao = (r - ini) / comp;
-    float corpo = clamp((r - ini) / pw + 0.5, 0.0, 1.0) * clamp((ini + comp - r) / pw + 0.5, 0.0, 1.0);
-    float fio = traco((f - i) * TAU / N * r, mix(1.0, 1.5, longo), pw) * corpo;
-    vec3 corFio = mix(mix(uCor, uCor2, longo), uBranco, clamp(uEstica, 0.0, 1.0));
-    c += corFio * fio * (1.0 - 0.55 * clamp(ao, 0.0, 1.0)) * mix(0.45, 0.85, longo) * (1.0 + 0.5 * uEstica) * uForca;
-    c += uCor2 * aro(uAro, uAlfaAro, r, a, pw) * uForca;
-    /* as ondas do expirar */
-    for (int k = 0; k < 2; k++) {
-      float tk = uOnda.x - float(k) * uOnda.y;
-      if (tk > 0.0 && tk < uOnda.z) {
-        float p = tk / uOnda.z;
-        float rk = mix(uR * 1.3, uOnda.w, 1.0 - (1.0 - p) * (1.0 - p));
-        c += uCor2 * traco(r - rk, 1.0, pw) * pow(1.0 - p, 1.5) * uOndaAlfa * uForca;
-      }
-    }
-    gl_FragColor = vec4(c, 1.0);
-    #include <colorspace_fragment>
-  }
-`;
-
-/* o campo e a onda do toque, nas lâminas (preenchimento e contorno usam o
-   MESMO trecho: as duas partes de uma lâmina andam juntas). Coordenadas no
-   plano da própria camada (atualizar já desfaz o giro e a escala).
-   uCampo: xy ponto, z força, w raio. uOnda: xy origem, z raio da frente, w
-   força. uDesloca: x empurra, y ergue, z largura da frente da onda.
-   vToque: quanto do campo e da onda chegou a este vértice; o fragmento
-   acende o cristal com ele (num traço de 1 px, o deslocamento sozinho quase
-   não se lê; a luz se lê) */
-const DESLOCA = /* glsl */`
-  uniform vec4 uCampo;
-  uniform vec4 uOnda;
-  uniform vec3 uDesloca;
-  varying float vToque;
-  vec3 deslocar(vec3 p) {
-    vec2 d = p.xy - uCampo.xy;
-    float k = exp(-dot(d, d) / (uCampo.w * uCampo.w)) * uCampo.z;
-    vec2 o = p.xy - uOnda.xy;
-    float r = length(o);
-    float e = (r - uOnda.z) / uDesloca.z;
-    float w = exp(-e * e) * uOnda.w;
-    p.xy += d / (length(d) + 1e-4) * k * uDesloca.x + o / (r + 1e-4) * w * uDesloca.x;
-    p.z += (k + w) * uDesloca.y;
-    vToque = k + w;
-    return p;
-  }
-`;
-
-/* o painel de vidro delicado: preenchimento aditivo que recebe a luz do
-   núcleo. aR 0 na borda de dentro → 1 na de fora; a luz cai a zero em uCai */
-const PAINEL_VS = /* glsl */`
-  attribute float aR;
-  varying float vR;
-  varying float vProf;
-  ${DESLOCA}
-  void main() {
-    vR = aR;
-    vec4 w = modelMatrix * vec4(deslocar(position), 1.0);
-    vProf = w.z;
-    gl_Position = projectionMatrix * viewMatrix * w;
-  }
-`;
-const PAINEL_FS = /* glsl */`
-  uniform vec3 uCor;
-  uniform float uAlfa;
-  uniform float uCai;
-  uniform float uForca;
-  uniform vec3 uNevoa;
-  uniform float uAcende;
-  varying float vR;
-  varying float vProf;
-  varying float vToque;
-  void main() {
-    /* dois DEGRAUS duros (faixa de dentro acesa, a de fora fraca, depois
-       nada), com antisserrilhado de 1 px; a rampa contínua de antes lia como
-       brilho borrado (o dono proíbe desfoque) */
-    float aa = fwidth(vR);
-    float b = 0.55 * (1.0 - smoothstep(uCai * 0.32 - aa, uCai * 0.32 + aa, vR)) + 0.45 * (1.0 - smoothstep(uCai - aa, uCai + aa, vR)) + vToque * 0.5;
-    b *= mix(uNevoa.z, 1.0, smoothstep(uNevoa.y, uNevoa.x, vProf));
-    gl_FragColor = vec4(uCor, b * b * uAlfa * uForca * (1.0 + vToque * uAcende));
-    #include <colorspace_fragment>
-  }
-`;
-
-/* o contorno de cristal: a aresta recebe a luz do núcleo (forte na borda de
-   dentro, aR 0, apagando para fora). Só a face da frente (2026-10-03: as
-   duas faces e as quinas liam como um fantasma de cada lâmina — poluição) */
-const LINHA_VS = /* glsl */`
-  attribute float aR;
-  varying float vR;
-  varying float vProf;
-  ${DESLOCA}
-  void main() {
-    vR = aR;
-    vec4 w = modelMatrix * vec4(deslocar(position), 1.0);
-    vProf = w.z;
-    gl_Position = projectionMatrix * viewMatrix * w;
-  }
-`;
-const LINHA_FS = /* glsl */`
-  uniform vec3 uCor;
-  uniform float uAlfa;
-  uniform vec3 uNevoa;
-  uniform float uAcende;
-  varying float vR;
-  varying float vProf;
-  varying float vToque;
-  void main() {
-    float b = 1.0 - 0.78 * smoothstep(0.0, 1.0, vR);
-    b *= 1.0 + vToque * uAcende;
-    b *= mix(uNevoa.z, 1.0, smoothstep(uNevoa.y, uNevoa.x, vProf));
-    gl_FragColor = vec4(uCor, b * uAlfa);
-    #include <colorspace_fragment>
-  }
-`;
+/* os shaders das peças moram em shaders.js; a coroa (o núcleo), em coroa.js */
 
 /* ---------- montagem ---------- */
 
-export function montar(THREE, SPEC, cores) {
+export function montar(THREE, SPEC, cores, { celular = false } = {}) {
   const sorte = sorteio(SPEC.semente);
   const raiz = new THREE.Group();
   const descartar = [];   /* tudo que tem GPU por trás, para o dispose */
@@ -728,29 +383,17 @@ export function montar(THREE, SPEC, cores) {
     return { anel, mat, d };
   });
 
-  /* --- o núcleo: a coroa (um quadrado de frente para a câmera, ver
-     COROA_FS) e o traço da ignição --- */
+  /* --- o núcleo: a coroa (coroa.js, um quadrado de frente para a câmera)
+     e o traço da ignição --- */
   const NU = SPEC.nucleo, CO = NU.coroa;
   const nucleo = new THREE.Group();
   raiz.add(nucleo);
-  const geoCoroa = guarda(new THREE.BufferGeometry());
-  geoCoroa.setAttribute('position', new THREE.BufferAttribute(new Float32Array([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0].map((v) => v * CO.meia)), 3));
-  geoCoroa.setIndex([0, 1, 2, 0, 2, 3]);
-  const matCoroa = shader(COROA_VS, COROA_FS, {
-    uBranco: { value: cor('t1') }, uCor: { value: cor('ac') }, uCor2: { value: cor('ac2') },
-    uR: { value: NU.raio }, uForca: { value: 0 }, uDisco: { value: 0 }, uTempo: { value: 0 }, uGiro: { value: 0 }, uEstica: { value: 0 },
-    uFios: { value: new THREE.Vector3(...CO.fios) }, uFeixe: { value: new THREE.Vector3(CO.n, CO.longo, CO.treme) },
-    uAro: { value: vec4(CO.aro[0], CO.aro[1], CO.aro[2], 0) }, uAlfaAro: { value: CO.aro[4] },
-    uOrbA: { value: vec4(CO.orbitas[0][0], CO.orbitas[0][1], CO.orbitas[0][2], 0) }, uOrbB: { value: vec4(CO.orbitas[1][0], CO.orbitas[1][1], CO.orbitas[1][2], 0) },
-    uOrbAlfa: { value: { x: CO.orbitas[0][4], y: CO.orbitas[1][4] } },
-    uOnda: { value: vec4(99, CO.ondas.intervalo, CO.ondas.vida, CO.ondas.ate) }, uOndaAlfa: { value: CO.ondas.alfa }
-  }, A.coroa);
-  matCoroa.depthTest = false;   /* a luz do núcleo não é ocultada pelo que passa na frente */
-  matCoroa.premultipliedAlpha = true;   /* ver o fim do COROA_FS */
-  const coroa = new THREE.Mesh(geoCoroa, matCoroa);
-  coroa.renderOrder = 2;
+  /* no celular a coroa custa menos por pixel (menos fios, faíscas e ecos): GPU de celular fraco paga por pixel */
+  const coroaN = criarCoroa(THREE, celular ? { ...CO, ...CO.celular } : CO, NU, cor, shader, A.coroa);
+  guarda(coroaN.geo);
+  const coroa = coroaN.malha;
+  const PARAM_COROA = { raio: 0, disco: 0, folego: 0, perto: 0, toque: 0, agitacao: 0, chegou: 99, t: 0, alvo: { x: 0, y: 0, f: 0 } };   /* reaproveitado por quadro */
   nucleo.add(coroa);
-  const uCoroa = matCoroa.uniforms;
 
   /* o traço e a onda grande: sprites (sempre de frente para a câmera) */
   function sprite(tex, nomeCor, alfa) {
@@ -922,18 +565,16 @@ export function montar(THREE, SPEC, cores) {
     vidro.uniforms.uCentro.value.copy(centro.copy(nucleo.position).applyEuler(raiz.rotation));
     vidro.uniforms.uIgnicao.value = ig * (1 + perto * 0.5);
 
-    /* a coroa: o disco bate e respira; os filamentos se esticam com a
-       chegada da energia (e com o cursor perto ou o toque) e as ondas saem
-       no expirar; o aro gira ao contrário da lente, mais rápido na agitação */
-    uCoroa.uR.value = NU.raio * (0.55 + 0.45 * ig) * batida * inspira * (1 + perto * 0.3);
-    uCoroa.uDisco.value = (0.12 + 0.88 * ig) * (1 + perto);
-    uCoroa.uEstica.value = CO.estica * (Math.exp(-chegou * 1.6) + perto * 1.5 + envBatida * 0.6);
-    uCoroa.uGiro.value = t * CO.giro + extra * 0.3;
-    uCoroa.uAro.value.w = t * CO.aro[3] + extra * 1.2;
-    uCoroa.uOrbA.value.w = t * CO.orbitas[0][3] + extra * 0.8;
-    uCoroa.uOrbB.value.w = t * CO.orbitas[1][3] - extra * 0.8;
-    uCoroa.uOnda.value.x = chegou;
-    matCoroa.visible = true;   /* o disco aparece (fraco) já antes da ignição */
+    /* a coroa: bate e respira; a pressão sobe ao inspirar, com o cursor perto,
+       no toque e na agitação; na chegada da energia, o estouro (coroa.js) */
+    const pc = PARAM_COROA;
+    pc.raio = NU.raio * (0.55 + 0.45 * ig) * batida * inspira * (1 + perto * 0.3);
+    pc.disco = (0.12 + 0.88 * ig) * (1 + perto);
+    pc.folego = folego(t - RS.nucleo[0], RS.periodo, RS.inspira);
+    pc.perto = perto; pc.toque = envBatida; pc.agitacao = e.agitacao || 0; pc.chegou = chegou; pc.t = t;
+    /* o cursor puxa os fios: forte perto do núcleo, de leve em qualquer ponto do hero */
+    pc.alvo.x = o.x; pc.alvo.y = o.y; pc.alvo.f = Math.min(1, o.f * 0.5 + perto * 2.5);
+    coroaN.atualizar(pc);
     coroa.quaternion.copy(raiz.quaternion).invert();   /* de frente para a câmera */
 
     /* o traço é um evento: nasce do núcleo na ignição e assenta */

@@ -68,7 +68,11 @@
         var b = bl[i];
         if (!b.offsetWidth || b.closest(FORA)) continue;
         var pb = posicaoDoc(b);
-        zonas.push({ x: pb.x, y: pb.y, w: b.offsetWidth, h: b.offsetHeight, folga: grupos[g][1], inteiro: grupos[g][2], ref: refDe(b) });
+        var largura = b.offsetWidth;
+        /* (desktop) o kicker ocupa a linha inteira, mas o texto e a régua dele só o começo: a zona
+           inteira cortava o alimentador da estação no meio (js/estacao.js). No celular fica como está */
+        if (!celular && g === 2) { var rg = document.createRange(); rg.selectNodeContents(b); largura = Math.min(largura, rg.getBoundingClientRect().width + 80); }
+        zonas.push({ x: pb.x, y: pb.y, w: largura, h: b.offsetHeight, folga: grupos[g][1], inteiro: grupos[g][2], ref: refDe(b) });
       }
     }
     var prim = document.querySelectorAll('.btn--primary, .hero .btn');

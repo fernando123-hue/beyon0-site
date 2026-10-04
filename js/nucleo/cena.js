@@ -73,7 +73,7 @@ export function criarCena(canvas, gl, { celular = false } = {}) {
     camera = new THREE.PerspectiveCamera(SPEC.camera.fov, 1, 0.1, 50);
     camera.position.set(0, 0, SPEC.camera.z);
     camera.updateMatrixWorld();
-    esfera = montar(THREE, SPEC, lerCores(canvas));
+    esfera = montar(THREE, SPEC, lerCores(canvas), { celular });
     cena.add(esfera.raiz);
     medir();
   } catch (e) {
