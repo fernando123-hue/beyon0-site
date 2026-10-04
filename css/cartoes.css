@@ -290,3 +290,39 @@ html.menos-movimento .qa::details-content { transition: none; }
   .tem-estacao .spec__item h3 { align-items: flex-start; }
   .tem-estacao .spec__item h3::before { margin-top: .42em; }
 }
+
+/* ---- O FLUXO da estação até o card (js/estacao.js, 2026-10-04): a PORTA
+   é o conector na borda que dá para a estação (data-porta: d = direita),
+   onde o ramo dela encaixa; cada pacote que chega pisca o pino; o card
+   sob o cursor é o foco (.is-alimentado: porta e borda acesas) e a energia
+   o ATRAVESSA (.estacao-cruza, uma linha de 1 px da porta à borda oposta,
+   só transform). As animações reiniciam alternando -a/-b (sem ler layout).
+   Só desktop com mouse e com a estação viva (.is-ligada). ---- */
+.estacao-porta, .estacao-cruza { display: none; }
+@media (min-width: 981px) and (hover: hover) and (pointer: fine) {
+  .tem-estacao.is-ligada > [data-porta] { position: relative; }
+  .tem-estacao.is-ligada .estacao-porta { display: block; position: absolute; top: 50%; width: 6px; height: 20px; margin-top: -10px; pointer-events: none; border: 1px solid rgb(var(--ac-rgb) / .5); transition: border-color var(--t-micro) var(--ease-micro); }
+  [data-porta="d"] > .estacao-porta { right: -1px; border-right: 0; }
+  [data-porta="e"] > .estacao-porta { left: -1px; border-left: 0; }
+  .estacao-porta > b { position: absolute; top: 4px; bottom: 4px; width: 1px; background: var(--ac); }
+  [data-porta="d"] > .estacao-porta > b { right: 0; }
+  [data-porta="e"] > .estacao-porta > b { left: 0; }
+  .is-porta-a > .estacao-porta > b { animation: porta-a .5s cubic-bezier(.2, .7, .3, 1) both; }
+  .is-porta-b > .estacao-porta > b { animation: porta-b .5s cubic-bezier(.2, .7, .3, 1) both; }
+  @keyframes porta-a { from { background: var(--t1); transform: scaleY(1.9); } to { transform: none; } }
+  @keyframes porta-b { from { background: var(--t1); transform: scaleY(1.9); } to { transform: none; } }
+  .is-alimentado { border-color: var(--line-hi); }
+  .is-alimentado > .estacao-porta { border-color: var(--ac-2); }
+  .tem-estacao.is-ligada .estacao-cruza { display: block; position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+  .estacao-cruza::before { content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 100%; border-left: 1px solid var(--ac-2); opacity: 0; }
+  [data-porta="d"].is-cruza-a > .estacao-cruza::before { animation: cruza-d-a .8s cubic-bezier(.3, 0, .2, 1) both; }
+  [data-porta="d"].is-cruza-b > .estacao-cruza::before { animation: cruza-d-b .8s cubic-bezier(.3, 0, .2, 1) both; }
+  [data-porta="e"].is-cruza-a > .estacao-cruza::before { animation: cruza-e-a .8s cubic-bezier(.3, 0, .2, 1) both; }
+  [data-porta="e"].is-cruza-b > .estacao-cruza::before { animation: cruza-e-b .8s cubic-bezier(.3, 0, .2, 1) both; }
+  @keyframes cruza-d-a { 0% { opacity: .9; transform: translateX(100%); } 85% { opacity: .5; } 100% { opacity: 0; transform: translateX(0); } }
+  @keyframes cruza-d-b { 0% { opacity: .9; transform: translateX(100%); } 85% { opacity: .5; } 100% { opacity: 0; transform: translateX(0); } }
+  @keyframes cruza-e-a { 0% { opacity: .9; transform: translateX(0); } 85% { opacity: .5; } 100% { opacity: 0; transform: translateX(100%); } }
+  @keyframes cruza-e-b { 0% { opacity: .9; transform: translateX(0); } 85% { opacity: .5; } 100% { opacity: 0; transform: translateX(100%); } }
+}
+@media (prefers-reduced-motion: reduce) { .estacao-cruza { display: none !important; } }
+html.menos-movimento .estacao-cruza { display: none !important; }

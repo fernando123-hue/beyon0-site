@@ -31,6 +31,18 @@
      vai até uma estação, se acopla ao lado dela e transfere energia até ela
      encher e TURBINAR os módulos. Vai sozinho de vez em quando (no máximo
      uma vez a cada 20 s por estação) ou quando você clica nela.
+   - As DOCAS dos CTAs (pedido do dono, 2026-10-04: "um espaço para ele se
+     acoplar, turbinando; que se acople nesse tipo de opção, gerando efeitos
+     para instigar o clique; um agente ativo para deixar o site mais
+     imersivo"): cada botão principal tem um SOQUETE no canto de cima à
+     direita. Ele lê o comportamento: o cursor HESITANDO perto ou em cima do
+     botão (~1 s), ou o botão parado no meio da tela enquanto a pessoa lê
+     (~2 s, também no celular); então vem, encaixa e TURBINA o botão (a mira
+     de quatro cantos, um traço que percorre a borda, a luz que atravessa o
+     botão em ritmo, a seta que chama) e pulsa junto. Fica enquanto o cursor
+     estiver no botão (no máximo DOCA.ficaMax s). No máximo um encaixe a
+     cada DOCA.cada s, e o mesmo botão só depois de DOCA.porCta s.
+   - Rolando rápido ele vai um pouco À FRENTE, na direção da rolagem.
    - Respira junto com o reator (B.relogio): no começo do expirar manda um
      sinal pelo campo até o núcleo. Seção chegando: liga-se ao canto mais
      perto. Ao trocar de página continua de onde estava.
@@ -65,8 +77,12 @@
   var SUGESTAO = { cada: 12, parado: 1.5, chance: 0.6, fica: 2.8, trava: 0.4, anel: 24, abre: 0.6, longe: [120, 900] };
   var SUGERIVEIS = 'a[href].btn, .servico, .celula, .cenario, .hero__rail > a, .servico__link, .celula__link, [data-campo]';
   var AGITA = { orbita: 10, giro: 1.6 };     /* px e rad/s a mais no máximo da agitação */
+  /* as docas dos CTAs: s entre encaixes, s até o mesmo botão de novo, s de hesitação, s parado lendo,
+     s acoplado (mínimo e teto com o cursor no botão), s entre pulsos, px do cursor ao botão que contam como "perto" */
+  var DOCA = { cada: 16, porCta: 30, hesita: 0.9, parado: 2.2, fica: 3.5, ficaMax: 8, pulsa: 0.9, perto: 48 };
+  var FRENTE = { k: 0.07, max: 56 };         /* rolando: px à frente por px/s, com teto */
 
-  var tela = { W: window.innerWidth, H: window.innerHeight };
+  var tela = { W: document.documentElement.clientWidth || window.innerWidth, H: window.innerHeight };
   var CORPO = 96, corpo = document.createElement('canvas'), cctx = corpo.getContext('2d');
   var cdpr = Math.min(window.devicePixelRatio || 1, 2);
   corpo.className = 'mini';
@@ -118,7 +134,7 @@
     var g = !celular && B.rede.trilho ? B.rede.trilho.geo() : null;
     var x = celular ? W - BORDA_CEL : g && g.xD > g.colD ? g.xD : Math.min(W - 26, coluna(W).dir + 40);
     var prog = limitar(rolagem / Math.max(1, B.rede.alturaDoc() - H));
-    var y = TOPO + prog * (H - TOPO - PE);
+    var y = TOPO + prog * (H - TOPO - PE) + Math.max(-FRENTE.max, Math.min(FRENTE.max, velRol * FRENTE.k));
     var rod = B.rede.rodapeNaTela();
     if (rod < H) y = Math.min(y, rod - 36);
     if (rod < H * 0.62) despedido = true; else if (rod > H * 0.7) despedido = false;
@@ -170,6 +186,7 @@
   /* onde fica o destino agora (os elementos andam com a página) */
   function destinoXY(dest) {
     if (dest.estacao) return B.estacoes.doca(dest.estacao);
+    if (dest.cta) return { x: dest.cta.sx, y: dest.cta.sy };
     if (dest.item) {
       var it = dest.item;
       if (dest.fixX !== null && dest.fixX !== undefined) return { x: dest.fixX, y: it.y + it.h / 2 };
@@ -192,6 +209,7 @@
   function chegou(dest) {
     soltarSugestao();
     if (dest.estacao) { B.estacoes.acoplar(dest.estacao); pulsar(1); return; }
+    if (dest.cta) { acoplarCta(dest.cta); pulsar(1); return; }
     if (dest.sugere) {
       /* a sugestão: UM anel, a mira trava, um fio até a opção, o link dela
          acende (classe) e ela se liga ao núcleo. Nada mais (crítica, rodada 1:
@@ -222,7 +240,7 @@
     }
     return false;
   }
-  function soltarEstacao(ps) { if (ps.dest && ps.dest.estacao) B.estacoes.soltar(ps.dest.estacao); }
+  function soltarEstacao(ps) { if (ps.dest && ps.dest.estacao) B.estacoes.soltar(ps.dest.estacao); if (ps.dest && ps.dest.cta) soltarCta(ps.dest.cta); }
   /* chamado por uma estação (o clique nela): vai agora, de onde estiver */
   function irPara(st) {
     if (!mini.ativo || B.reduced || celular) return;
@@ -247,8 +265,8 @@
       if (ps.dest.via && proximoDoCaminho(ps.dest.via, ps.pos, dt)) return ps.pos;
       var alvo = destinoXY(ps.dest);
       if (alvo.y < TOPO - 20 || alvo.y > H - 40) { ps.estado = 'voltando'; return ps.pos; }
-      if (andarPara(ps.pos, alvo, dt * (ps.dest.estacao ? PASSEIO.arranque : 1), ps.dest.vh ? 'vh' : null)) {
-        ps.estado = 'parado'; ps.fica = ps.dest.estacao ? 99 : ps.dest.sugere ? SUGESTAO.fica : acaso(PASSEIO.fica[0], PASSEIO.fica[1]);
+      if (andarPara(ps.pos, alvo, dt * (ps.dest.estacao || ps.dest.cta ? PASSEIO.arranque : 1), ps.dest.vh ? 'vh' : null)) {
+        ps.estado = 'parado'; ps.fica = ps.dest.estacao ? 99 : ps.dest.cta ? DOCA.fica : ps.dest.sugere ? SUGESTAO.fica : acaso(PASSEIO.fica[0], PASSEIO.fica[1]);
         chegou(ps.dest);
       }
       return ps.pos;
@@ -260,6 +278,15 @@
       /* acoplado: fica até a estação encher (ela turbina e o solta) */
       if (ps.dest.estacao && !B.estacoes.turbinando(ps.dest.estacao)) ps.fica = Math.min(ps.fica, 0.5);
       if (ps.dest.estacao) ps.fica = Math.min(ps.fica, 6);   /* nunca fica preso a uma estação */
+      /* no CTA: fica enquanto o cursor estiver no botão (com teto) e pulsa junto */
+      if (ps.dest.cta) {
+        var dc = ps.dest.cta;
+        dc.acopladaHa += dt;
+        if (dc.sob && dc.acopladaHa < DOCA.ficaMax) ps.fica = Math.max(ps.fica, 0.6);
+        dc.pulsoHa += dt;
+        if (dc.pulsoHa > DOCA.pulsa) { dc.pulsoHa = 0; pulsar(0.7); }
+        if (!dc.naTela) ps.fica = 0;
+      }
       if (ps.fica <= 0 || aqui.y < TOPO - 20 || aqui.y > H - 40) { ps.estado = 'voltando'; soltarSugestao(); soltarEstacao(ps); }
       return ps.pos;
     }
@@ -302,7 +329,9 @@
     esperou += dt;
     /* texto ou a borda de um módulo encostando no anel: esmaece (no celular
        o trilho fica a 9 px da borda dos módulos; parado ao lado deles, recua) */
-    var encosta = B.rede.sobreTexto(mini.x, mini.y, 9 * ESCALA + 12, 9 * ESCALA + 10) || (celular && B.rede.sobreModulo && B.rede.sobreModulo(mini.x, mini.y, 2));
+    /* (indo ao CTA ou encaixado nele, o botão é o lugar dele: não esmaece) */
+    var vaiAoCta = passeio.dest && passeio.dest.cta && passeio.estado !== 'voltando';
+    var encosta = !vaiAoCta && (B.rede.sobreTexto(mini.x, mini.y, 9 * ESCALA + 12, 9 * ESCALA + 10) || (celular && B.rede.sobreModulo && B.rede.sobreModulo(mini.x, mini.y, 2)));
     if (celular) {
       /* histerese: some depois de 0,3 s encostado e volta depois de 0,5 s
          livre (sem piscar a cada borda de módulo ao rolar, crítica rodada 3) */
@@ -315,7 +344,7 @@
     }
     if (ESTREITO) alvoVis = 0;
     if (primeiro || B.reduced) {
-      if (B.reduced) { feixe = null; pulso = 0; mini.carga = 0; foco = null; soltarSugestao(); quer.f = 0; passeio.estado = 'doca'; espera = -1; atencao = 0; olhar.x = olhar.y = 0; chegando = false; }
+      if (B.reduced) { feixe = null; pulso = 0; mini.carga = 0; foco = null; soltarSugestao(); soltarEstacao(passeio); quer.f = 0; passeio.estado = 'doca'; espera = -1; atencao = 0; olhar.x = olhar.y = 0; chegando = false; }
       mini.x = alvoX; mini.y = alvoY; mini.vx = mini.vy = 0; primeiro = false;
       mini.vis = alvoVis; mini.ativo = mini.vis > 0.05; ativoAntes = mini.ativo;
       return;
@@ -325,7 +354,9 @@
     rolagemAntes = rolagem;
     paradoHa = Math.abs(velRol) < 30 ? paradoHa + dt : 0;
 
-    var fora = passear(dt, W, H, d, mini.ativo && solto > 0.98 && !menu && !d.fim && !chegando);
+    var livreAgora = mini.ativo && solto > 0.98 && !menu && !d.fim && !chegando;
+    docasPasso(dt, W, H, livreAgora);
+    var fora = passear(dt, W, H, d, livreAgora);
     if (fora) { alvoX = fora.x; alvoY = fora.y; }
     /* a opção sob o cursor: ele se inclina para ela (pouco, mas se sente) */
     quer.f += ((quer.alvo ? 1 : 0) - quer.f) * Math.min(1, dt * (quer.alvo ? 5 : 3));
@@ -335,7 +366,7 @@
       quer.prox -= dt;
       if (quer.prox <= 0 && quer.n < QUER.max) { espera = 0; quer.prox = QUER.cada; quer.n++; }
     }
-    var naEstacao = passeio.dest && passeio.dest.estacao;   /* na estação, exatamente no eixo dela */
+    var naEstacao = passeio.dest && (passeio.dest.estacao || (passeio.dest.cta && passeio.estado === 'parado'));   /* na estação (ou encaixado no CTA), exatamente no lugar */
     if (!naEstacao) {
       alvoX += Math.cos(quer.a) * QUER.inclina * quer.f;
       alvoY += Math.sin(quer.a) * QUER.inclina * quer.f;
@@ -496,6 +527,16 @@
       ctx.lineTo(x + ux * rr + uy * 3, y + uy * rr - ux * 3);
       ctx.closePath(); ctx.fill();
     }
+    /* encaixado num CTA: quatro travas fecham sobre o anel */
+    if (passeio.estado === 'parado' && passeio.dest && passeio.dest.cta) {
+      var kt = saida(passeio.dest.cta.acopladaHa / 0.25), rt = (15 + 5 * (1 - kt)) * s;
+      ctx.strokeStyle = 'rgba(' + T1 + ',' + (0.9 * kt * v).toFixed(3) + ')';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      for (var q = 0; q < 4; q++) { var aq = Math.PI / 4 + q * Math.PI / 2; ctx.moveTo(x + Math.cos(aq) * rt, y + Math.sin(aq) * rt); ctx.lineTo(x + Math.cos(aq) * (rt - 4 * s), y + Math.sin(aq) * (rt - 4 * s)); }
+      ctx.stroke();
+      ctx.lineWidth = 1;
+    }
     if (pulso > 0.01) {
       var fase = 1 - pulso / Math.max(pulsoIni, 0.01);
       ctx.strokeStyle = 'rgba(' + AC2 + ',' + (0.5 * pulso * v).toFixed(3) + ')';
@@ -527,6 +568,80 @@
     }
   }
 
+  /* ---------- as DOCAS dos CTAs ---------- */
+  var docas = [], ultimaDoca = -99;
+  function posDoc(el) { var x = 0, y = 0; for (var e = el; e; e = e.offsetParent) { x += e.offsetLeft; y += e.offsetTop; } return { x: x, y: y }; }
+  function montarDocas() {
+    var els = document.querySelectorAll('main .btn--primary');
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i];
+      if (el.closest('.barra, .nav, .lead-modal, [aria-hidden="true"]')) continue;
+      var so = document.createElement('i'); so.className = 'doca';
+      var mira = document.createElement('i'); mira.className = 'doca-mira';
+      for (var k = 0; k < 4; k++) mira.appendChild(document.createElement('b'));
+      palcoMini.appendChild(so); palcoMini.appendChild(mira);
+      var dc = { el: el, so: so, mira: mira, x: 0, y: 0, w: 0, h: 0, ok: false, sx: -1e4, sy: -1e4, naTela: false, sob: false, hesita: 0, visto: 0, ultima: -99, acopladaHa: 0, pulsoHa: 0, chega: 0, tf: '' };
+      ligarDoca(dc);
+      docas.push(dc);
+    }
+    medirDocas();
+  }
+  function ligarDoca(dc) {
+    dc.el.addEventListener('pointerenter', function (e) { if (e.pointerType === 'mouse') dc.sob = true; });
+    dc.el.addEventListener('pointerleave', function () { dc.sob = false; });
+  }
+  function medirDocas() {
+    for (var i = 0; i < docas.length; i++) {
+      var dc = docas[i];
+      dc.ok = !!dc.el.offsetWidth;
+      if (!dc.ok) continue;
+      var p = posDoc(dc.el);
+      dc.x = p.x; dc.y = p.y; dc.w = dc.el.offsetWidth; dc.h = dc.el.offsetHeight;
+      dc.mira.style.width = (dc.w + 28) + "px"; dc.mira.style.height = (dc.h + 28) + "px";
+    }
+  }
+  function acoplarCta(dc) {
+    dc.acopladaHa = 0; dc.pulsoHa = 0; dc.ultima = relogioMini; ultimaDoca = relogioMini;
+    dc.so.classList.add('is-acoplada'); dc.mira.classList.add('is-viva'); dc.el.classList.add('is-turbinado');
+    B.rede.acender(dc.el, true);
+  }
+  function soltarCta(dc) {
+    dc.so.classList.remove('is-acoplada', 'is-chamando'); dc.mira.classList.remove('is-viva'); dc.el.classList.remove('is-turbinado');
+  }
+  /* por quadro: onde cada soquete está, o que a pessoa está fazendo perto
+     dele e, se for a hora, o encaixe */
+  function docasPasso(dt, W, H, livre) {
+    var melhor = null;
+    for (var i = 0; i < docas.length; i++) {
+      var dc = docas[i];
+      if (!dc.ok) continue;
+      var bx = dc.x - B.S.sx, by = dc.y - rolagem;
+      dc.sx = Math.min(W - 12, bx + dc.w + 2); dc.sy = by - 2;
+      dc.naTela = by > TOPO && by + dc.h < H - PE && mini.vis > 0.05;
+      dc.so.classList.toggle('is-visivel', dc.naTela && !B.reduced);
+      if (!dc.naTela) { dc.hesita = 0; dc.visto = 0; continue; }
+      var tf = 'translate3d(' + dc.sx.toFixed(1) + 'px,' + dc.sy.toFixed(1) + 'px,0)';
+      if (tf !== dc.tf) { dc.so.style.transform = tf; dc.mira.style.transform = "translate3d(" + (bx - 14).toFixed(1) + "px," + (by - 14).toFixed(1) + "px,0)"; dc.tf = tf; }
+      /* a hesitação: o cursor em cima ou perto do botão, sem clicar */
+      var px = ponteiro.x, py = ponteiro.y;
+      var pertoDele = ponteiro.ativo && px > bx - DOCA.perto && px < bx + dc.w + DOCA.perto && py > by - DOCA.perto && py < by + dc.h + DOCA.perto;
+      dc.hesita = pertoDele || dc.sob ? dc.hesita + dt : 0;
+      /* a leitura: o botão no meio da tela, com a rolagem parada */
+      var meio = by > H * 0.22 && by + dc.h < H * 0.8;
+      dc.visto = meio && paradoHa > 0.4 ? dc.visto + dt : 0;
+      if (relogioMini - dc.ultima < DOCA.porCta) continue;
+      if (dc.hesita > DOCA.hesita || dc.visto > DOCA.parado) melhor = dc;
+    }
+    if (!melhor || !livre || B.reduced || passeio.estado !== 'doca' || relogioMini - ultimaDoca < DOCA.cada) return;
+    soltarSugestao();
+    melhor.so.classList.add('is-chamando');
+    passeio.dest = { cta: melhor }; passeio.estado = 'indo'; passeio.pos = { x: mini.x, y: mini.y };
+    ultimaDoca = relogioMini; melhor.ultima = relogioMini;
+    pulsar(0.8);
+  }
+  montarDocas();
+  B.on('rede:medida', medirDocas);
+
   if ('IntersectionObserver' in window) {
     var io = new IntersectionObserver(function (es) {
       for (var i = 0; i < es.length; i++) {
@@ -538,7 +653,7 @@
   }
 
   window.addEventListener('scroll', function () { rolagem = window.scrollY; }, { passive: true });
-  window.addEventListener('resize', function () { tela.W = window.innerWidth; tela.H = window.innerHeight; }, { passive: true });
+  window.addEventListener('resize', function () { tela.W = document.documentElement.clientWidth || window.innerWidth; tela.H = window.innerHeight; }, { passive: true });
   if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
     document.addEventListener('pointermove', function (e) { if (e.pointerType === 'mouse') { ponteiro.x = e.clientX; ponteiro.y = e.clientY; ponteiro.ativo = true; } }, { passive: true });
     document.documentElement.addEventListener('pointerleave', function () { ponteiro.ativo = false; }, { passive: true });

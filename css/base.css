@@ -437,3 +437,39 @@ html.has-gsap .feixe.is-loop ~ .hero__arte .instrumento__led { animation: led-pa
   .nav__links a[href^="/"]:not(.btn) { color: var(--t1); }
   .nav__links a[href^="/"]:not(.btn)::before { content: "/"; content: "/" / ""; color: var(--ac-3); margin-right: .15em; }
 }
+
+/* ---- AS DOCAS do mini AI Core nos CTAs (js/mini.js, 2026-10-04) ----
+   O SOQUETE: um anel tracejado no canto de cima à direita do botão, onde o
+   mini encaixa (aparece com o mini por perto); chamando: gira; encaixado:
+   fecha em anel cheio. A MIRA: quatro cantos que chegam ao botão e um traço
+   que percorre a borda; o BOTÃO turbinado: a luz o atravessa em ritmo e a
+   seta chama. Tudo no palco do mini (acima das seções), só transform e
+   opacity; nada desfocado. Movimento reduzido: nada disso. */
+.doca, .doca-mira { position: absolute; left: 0; top: 0; pointer-events: none; opacity: 0; transition: opacity .3s var(--ease); }
+.doca { width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%; border: 1px dashed rgb(var(--ac-rgb) / .55); }
+.doca::after { content: ""; position: absolute; inset: 8px; border-radius: 50%; border: 1px solid rgb(var(--ac-rgb) / .4); }
+.doca.is-visivel { opacity: .8; }
+.doca.is-chamando { opacity: 1; border-color: var(--ac); animation: doca-gira 1.4s linear infinite; }
+.doca.is-acoplada { opacity: 1; border-style: solid; border-color: var(--ac-2); animation: doca-trava .35s cubic-bezier(.2, .7, .3, 1) both; }
+@keyframes doca-gira { to { rotate: 1turn; } }
+@keyframes doca-trava { from { scale: 1.5; } to { scale: 1; } }
+.doca-mira.is-viva { opacity: 1; }
+.doca-mira > b { position: absolute; width: 10px; height: 10px; border: 1px solid var(--ac-2); transition: translate .4s cubic-bezier(.2, .7, .3, 1); }
+.doca-mira > b:nth-child(1) { left: 0; top: 0; border-right: 0; border-bottom: 0; translate: -10px -10px; }
+.doca-mira > b:nth-child(2) { right: 0; top: 0; border-left: 0; border-bottom: 0; translate: 10px -10px; }
+.doca-mira > b:nth-child(3) { left: 0; bottom: 0; border-right: 0; border-top: 0; translate: -10px 10px; }
+.doca-mira > b:nth-child(4) { right: 0; bottom: 0; border-left: 0; border-top: 0; translate: 10px 10px; }
+.doca-mira.is-viva > b { translate: 0 0; animation: mira-respira 1.8s ease-in-out .4s infinite; }
+@keyframes mira-respira { 50% { opacity: .45; } }
+/* o traço da borda: uma volta, desenhado pelo contorno da mira (só scale) */
+.doca-mira::before, .doca-mira::after { content: ""; position: absolute; left: 14px; right: 14px; height: 1.5px; background: var(--ac-2); transform: scaleX(0); }
+.doca-mira::before { top: 14px; transform-origin: left; }
+.doca-mira::after { bottom: 14px; transform-origin: right; }
+.doca-mira.is-viva::before { animation: mira-traco .5s cubic-bezier(.45, 0, .55, 1) .15s both; }
+.doca-mira.is-viva::after { animation: mira-traco .5s cubic-bezier(.45, 0, .55, 1) .4s both; }
+@keyframes mira-traco { 0% { transform: scaleX(0); opacity: 1; } 70% { transform: scaleX(1); opacity: 1; } 100% { transform: scaleX(1); opacity: .25; } }
+.btn.is-turbinado::after { animation: btn-feixe 1.1s var(--ease-io) .2s infinite; }
+.btn.is-turbinado [data-seta] { display: inline-block; animation: seta-chama .9s ease-in-out infinite; }
+@keyframes seta-chama { 50% { transform: translateX(4px); } }
+@media (prefers-reduced-motion: reduce) { .doca, .doca-mira { display: none; } .btn.is-turbinado::after, .btn.is-turbinado [data-seta] { animation: none; } }
+html.menos-movimento .doca, html.menos-movimento .doca-mira { display: none; }

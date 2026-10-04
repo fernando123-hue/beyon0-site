@@ -19,6 +19,15 @@
      SURTO pelos ramos: a aresta de cima de cada módulo acende quando ele
      chega (.is-onda). Se o horizonte já passou do topo da tela, o pulso
      entra pelo alimentador do alto da tela.
+   - O FLUXO (2026-10-04, dono: "quero que ele tenha conexão com os cards e
+     mostre a energia fluindo dele para os cards, fazendo os cards terem
+     efeitos a mais"): pacotes correm SEM PARAR pelos ramos até a PORTA de
+     cada card (um conector na borda que dá para ela, .estacao-porta);
+     cada chegada pisca a porta; a velocidade sobe com a carga, no turbo e
+     no card sob o cursor, que vira o FOCO: o ramo dele fica branco, os
+     pacotes dobram e a energia ATRAVESSA o card (.estacao-cruza, uma linha
+     de luz da porta até a borda oposta). No surto da expiração todos os
+     cards são atravessados.
    - O TURBO: carga cheia = surto rápido e duplo; os módulos acendem
      inteiros (.is-energia) e as cantoneiras da seção piscam. Quem enche: o
      MINI, que vem pelo corredor entre as fileiras, acopla acima dela e
@@ -44,6 +53,9 @@
   var GIRO = { a: -0.9, b: 0.5, turbo: 4, sob: 1.8 };          /* rad/s */
   var MINI = { acima: 86 };                                     /* px: o mini acopla no corredor, acima dela */
   var ORBITA = [3, 3], SEM_TRACO = [];                          /* (sem alocar por quadro) */
+  /* o fluxo: px/s base, + por carga, + no foco, + no turbo; distância entre pacotes; comprimento do pacote;
+     intervalo mínimo entre piscadas da porta e entre travessias (s) */
+  var FLUXO = { v: 70, carga: 90, foco: 260, turbo: 420, espaco: 64, rastro: 16, cabeca: 4, porta: 0.5, cruza: 1.1 };
   var ONDA_MS = 600, TURBO_MS = 1300;                           /* quanto o módulo fica aceso */
   /* a menção ao principal: legível parada (crítica: com 9 px cinza quase não se lia) */
   var ROTULO = { texto: '↑ AI CORE', fonte: '500 11px "JetBrains Mono", ui-monospace, monospace', alfa: 0.92 };
@@ -56,6 +68,7 @@
   var palco = document.querySelector('.mini-palco');
   var dpr = Math.min(window.devicePixelRatio || 1, 2);
   var estacoes = [], rolagem = window.scrollY, altura = window.innerHeight, ponteiro = { x: -1e4, y: -1e4 };
+  var ponteiroFino = window.matchMedia('(hover: hover) and (pointer: fine)').matches, focado = null;
 
   function limitar(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
   function suave(x) { x = limitar(x); return x * x * (3 - 2 * x); }
@@ -88,7 +101,8 @@
       for (k = 0; k < grupos[i].itens.length; k++) {
         var it = grupos[i].itens[k], esq = it.dx + it.w / 2 < cx;
         var yb = it.dy + it.h / 2;
-        raios.push({ el: it.el, xb: esq ? it.dx + it.w : it.dx, yb: yb, comp: Math.abs(yb - cy) + Math.abs((esq ? it.dx + it.w : it.dx) - cx) });
+        raios.push({ el: it.el, xb: esq ? it.dx + it.w : it.dx, yb: yb, comp: Math.abs(yb - cy) + Math.abs((esq ? it.dx + it.w : it.dx) - cx), fase: 0, foco: 0, chegadas: 0, portaHa: 9, cruzaHa: 9 });
+        prepararCard(it.el, esq ? 'd' : 'e');
         if (linhas.indexOf(it.dy) < 0) linhas.push(it.dy);
       }
       raios.sort(function (a, b) { return a.comp - b.comp; });
@@ -119,10 +133,39 @@
       st.n = estacoes.length + 1; st.x = cx; st.yd = cy; st.vao = vao; st.raios = raios; st.corredores = corredores;
       st.secaoY = secao ? posDoc(secao).y : cy - 400; st.surtos.length = 0;
       vao.classList.add('is-viva');
+      grupos[i].pai.classList.add('is-ligada');
       estacoes.push(st);
     }
-    for (i = estacoes.length; i < antes.length; i++) { antes[i].cv.remove(); if (antes[i].vao) antes[i].vao.classList.remove('is-viva'); }
+    for (i = estacoes.length; i < antes.length; i++) {
+      antes[i].cv.remove();
+      if (antes[i].vao) { antes[i].vao.classList.remove('is-viva'); antes[i].vao.parentNode.classList.remove('is-ligada'); }
+    }
     for (i = 0; i < estacoes.length; i++) ligarCanvas(estacoes[i]);
+  }
+  /* o card ganha a PORTA (o conector na borda que dá para a estação: d = direita)
+     e a TRAVESSIA (a linha de luz que cruza o card); uma vez só; o cursor nele
+     vira o foco da estação */
+  function prepararCard(el, lado) {
+    el.setAttribute('data-porta', lado);
+    if (el.querySelector(':scope > .estacao-porta')) return;
+    var porta = document.createElement('i');
+    porta.className = 'estacao-porta';
+    porta.setAttribute('aria-hidden', 'true');
+    porta.appendChild(document.createElement('b'));
+    var cruza = document.createElement('i');
+    cruza.className = 'estacao-cruza';
+    cruza.setAttribute('aria-hidden', 'true');
+    el.appendChild(porta); el.appendChild(cruza);
+    if (ponteiroFino) {
+      el.addEventListener('pointerenter', function () { focado = el; el.classList.add('is-alimentado'); });
+      el.addEventListener('pointerleave', function () { if (focado === el) focado = null; el.classList.remove('is-alimentado'); });
+    }
+  }
+  /* reinicia uma animação de CSS sem ler layout: alterna entre duas classes iguais */
+  function bater(el, base) {
+    var a = el.classList.contains(base + '-a');
+    el.classList.remove(base + (a ? '-a' : '-b'));
+    el.classList.add(base + (a ? '-b' : '-a'));
   }
   function ligarCanvas(st) {
     if (st.cv.dataset.ligado) return;
@@ -145,6 +188,7 @@
      fundo fica atrás do módulo opaco, então quem mostra a chegada é o próprio módulo */
   function energizar(el, turbo) {
     var classe = turbo ? 'is-energia' : 'is-onda';
+    bater(el, 'cruza');
     el.classList.add(classe);
     clearTimeout(el['_' + classe]);
     el['_' + classe] = setTimeout(function () { el.classList.remove(classe); }, turbo ? TURBO_MS : ONDA_MS);
@@ -201,6 +245,21 @@
       var dx = ponteiro.x - st.x, dy = ponteiro.y - sy, d = Math.hypot(dx, dy) || 1, perto = d < 260 ? 1 : 0;
       st.olhar.x += ((perto ? dx / d : 0) - st.olhar.x) * Math.min(1, dt * 5);
       st.olhar.y += ((perto ? dy / d : 0) - st.olhar.y) * Math.min(1, dt * 5);
+      /* o fluxo: cada ramo anda na sua velocidade; um pacote chega à porta a cada `espaco` px */
+      for (var r = 0; r < st.raios.length; r++) {
+        var ra = st.raios[r];
+        ra.foco += ((ra.el === focado ? 1 : 0) - ra.foco) * Math.min(1, dt * 5);
+        ra.fase += dt * (FLUXO.v + FLUXO.carga * st.carga + FLUXO.foco * ra.foco + FLUXO.turbo * turbo);
+        ra.portaHa += dt; ra.cruzaHa += dt;
+        var chegadas = Math.floor(ra.fase / (ra.foco > 0.5 ? FLUXO.espaco / 2 : FLUXO.espaco));
+        if (chegadas !== ra.chegadas) {
+          ra.chegadas = chegadas;
+          if (sy > -200 && sy < altura + 200) {
+            if (ra.portaHa > FLUXO.porta * (1 - 0.6 * ra.foco)) { ra.portaHa = 0; bater(ra.el, 'porta'); }
+            if (ra.foco > 0.5 && ra.cruzaHa > FLUXO.cruza) { ra.cruzaHa = 0; bater(ra.el, 'cruza'); }
+          }
+        }
+      }
       for (var k = st.surtos.length - 1; k >= 0; k--) {
         var su = st.surtos[k];
         su.s += dt * (su.turbo ? SURTO.vTurbo : SURTO.v);
@@ -228,12 +287,43 @@
       /* a rede dela: a espinha, os ramos e o nó na borda de cada módulo (acende inteira no turbo) */
       var tb = B.reduced ? 0 : Math.max(0, 1 - st.turboHa / 2.5);
       ctx.lineWidth = 1;
-      ctx.strokeStyle = tb > 0.01 ? 'rgba(' + misturaCor(suave((tb - 0.3) / 0.4)) + ',' + limitar(0.32 + 0.5 * tb).toFixed(3) + ')' : cor(AC, 0.32);
+      ctx.strokeStyle = tb > 0.01 ? 'rgba(' + misturaCor(suave((tb - 0.3) / 0.4)) + ',' + limitar(0.45 + 0.45 * tb).toFixed(3) + ')' : cor(AC, 0.45);
       ctx.beginPath();
       for (j = 0; j < st.raios.length; j++) { ra = st.raios[j]; caminho(ctx, st, ra, sy, R.carga + 2, ra.comp); }
       ctx.stroke();
-      ctx.fillStyle = cor(AC2, 0.6);
-      for (j = 0; j < st.raios.length; j++) { ra = st.raios[j]; ctx.fillRect(ra.xb - 1.5, ra.yb - rolagem - 1.5, 3, 3); }
+      /* o ramo do card sob o cursor: branco por cima */
+      for (j = 0; j < st.raios.length; j++) {
+        ra = st.raios[j];
+        if (ra.foco < 0.02) continue;
+        ctx.strokeStyle = cor(T1, 0.7 * ra.foco);
+        ctx.beginPath(); caminho(ctx, st, ra, sy, R.carga + 2, ra.comp); ctx.stroke();
+      }
+      /* o encaixe na borda do card: um colchete aberto para o ramo */
+      ctx.strokeStyle = cor(AC2, 0.8);
+      ctx.beginPath();
+      for (j = 0; j < st.raios.length; j++) {
+        ra = st.raios[j];
+        var yb = ra.yb - rolagem, sx = ra.xb > st.x ? 1 : -1;
+        ctx.moveTo(ra.xb - sx * 7, yb - 6); ctx.lineTo(ra.xb - sx * 3, yb - 6); ctx.lineTo(ra.xb - sx * 3, yb + 6); ctx.lineTo(ra.xb - sx * 7, yb + 6);
+      }
+      ctx.stroke();
+      /* os pacotes: correm da estação até a porta, sem parar; cada um é um rastro
+         ciano com a cabeça branca (no foco o fluxo dobra: um a cada meio espaço) */
+      if (!B.reduced) {
+        for (var pas = 0; pas < 2; pas++) {
+          ctx.lineWidth = pas ? 2 : 1.5;
+          for (j = 0; j < st.raios.length; j++) {
+            ra = st.raios[j];
+            var fim = ra.comp - 4, ini = R.carga + 2, entre = ra.foco > 0.5 ? FLUXO.espaco / 2 : FLUXO.espaco, off = ra.fase % entre;
+            var tam = pas ? FLUXO.cabeca : FLUXO.rastro;
+            ctx.strokeStyle = pas ? cor(T1, 0.95) : cor(AC2, 0.5 + 0.3 * ra.foco);
+            ctx.beginPath();
+            for (var sp = ini + off; sp < fim; sp += entre) caminho(ctx, st, ra, sy, Math.max(ini, sp - tam), sp);
+            ctx.stroke();
+          }
+        }
+        ctx.lineWidth = 1;
+      }
       /* o alimentador: do horizonte da seção até ela, CONTÍNUO, com o rótulo e um
          mini-símbolo do reator (anel, 12 marcas, núcleo): a ligação ao principal parada */
       var a0 = Math.max(topoS, g.topo), a1 = sy - R.carga - 4;
@@ -247,6 +337,18 @@
           ctx.fillStyle = cor(AC2, ROTULO.alfa);
           ctx.fillText(ROTULO.texto, st.x + 28, ry);
         }
+      }
+      /* o SOQUETE do mini, no alimentador acima dela (onde ele encaixa para
+         turbinar): tracejado vazio; cheio e branco com ele acoplado */
+      var ys = sy - MINI.acima, acop = !!st.acopla && !B.reduced;
+      if (ys > g.topo + 18) {
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = cor(acop ? T1 : AC, acop ? 0.9 : 0.55);
+        if (!acop) ctx.setLineDash(ORBITA);
+        ctx.beginPath(); ctx.arc(st.x, ys, 15, 0, TAU); ctx.stroke();
+        ctx.setLineDash(SEM_TRACO);
+        ctx.strokeStyle = cor(AC, acop ? 0.8 : 0.4);
+        ctx.beginPath(); ctx.arc(st.x, ys, 7, 0, TAU); ctx.stroke();
       }
       if (B.reduced) continue;
       /* o pulso descendo pelo alimentador */

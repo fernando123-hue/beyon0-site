@@ -188,7 +188,9 @@
 
   /* ---------- medida ---------- */
   function medir() {
-    var w = window.innerWidth, h = window.innerHeight, d = Math.min(window.devicePixelRatio || 1, celular ? 1.5 : 1.5);
+    /* a largura do canvas é a da página SEM a barra de rolagem (inset: 0): com
+       innerWidth o desenho saía ~1% comprimido (o ramo errava o card em 8 px) */
+    var w = document.documentElement.clientWidth || window.innerWidth, h = window.innerHeight, d = Math.min(window.devicePixelRatio || 1, celular ? 1.5 : 1.5);
     if (w !== W || h !== H || d !== dpr) {
       W = w; H = h; dpr = d;
       cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
