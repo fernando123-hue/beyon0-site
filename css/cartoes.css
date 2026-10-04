@@ -394,7 +394,7 @@ html.menos-movimento .estacao-cruza { display: none !important; }
   .is-carregado .carga__ponta { opacity: 0; }
   .tem-carga.is-carregado::before { opacity: 1; }
   /* (não vence os destaques ciano da estação, do turbo e da sugestão: revisão) */
-  .tem-carga.is-carregado:not(.is-alimentado):not(.is-energia):not(.is-sugerido) { border-color: var(--line-2); }
+  .tem-carga.is-carregado:not(.is-alimentado):not(.is-energia):not(.is-sugerido):not(.is-sobrecarga) { border-color: var(--line-2); }
   .tem-carga.is-carregado .laudo__n, .tem-carga.is-carregado .servico__n, .tem-carga.is-carregado .celula__n { color: var(--ac-3); }
   /* cheio: uma linha de luz atravessa o card uma vez */
   html.js:not(.menos-movimento) .tem-carga > .carga-varre { display: block; position: absolute; inset: 0; overflow: hidden; pointer-events: none; border-radius: inherit; }
@@ -463,4 +463,29 @@ html.menos-movimento .estacao-cruza { display: none !important; }
   .carga__tubo::before, .carga__tubo::after { display: none; }
   .carga__trilho { overflow: visible; clip-path: inset(-10px 0 -10px 0); }
   .carga__ponta { box-shadow: 0 0 6px 1px rgb(var(--ac-rgb) / .9); }
+}
+
+/* ---- AS LETRAS e a SOBRECARGA (js/carga.js, js/estacao.js) ----
+   Em 100% uma onda de luz atravessa o texto do card letra por letra (cada
+   uma acende e dá um pulinho; o atraso de cada letra é fixado uma vez, por
+   JS). Em sobrecarga (o mini conectado ao AI Core médio): moldura neon cheia
+   e piscando, cantos brancos, pontos mais rápidos, barra crepitando em MAX.
+   Só transform/opacity/cor em rajadas curtas; nada disso em movimento reduzido. ---- */
+.carga-palavra, .carga-letra { display: inline-block; }
+@media (prefers-reduced-motion: no-preference) {
+  html.js:not(.menos-movimento) .is-letras-a .carga-letra { animation: letra-luz-a .62s cubic-bezier(.2, .7, .3, 1) backwards; }
+  html.js:not(.menos-movimento) .is-letras-b .carga-letra { animation: letra-luz-b .62s cubic-bezier(.2, .7, .3, 1) backwards; }
+  @keyframes letra-luz-a { 28% { color: var(--t1); transform: translateY(-3px); } 55% { color: var(--ac-2); } 100% { transform: none; } }
+  @keyframes letra-luz-b { 28% { color: var(--t1); transform: translateY(-3px); } 55% { color: var(--ac-2); } 100% { transform: none; } }
+  /* sobrecarga */
+  html.js:not(.menos-movimento) .is-sobrecarga > .carga-halo { opacity: 1 !important; animation: sobre-pisca 1.3s steps(1, end) infinite; }
+  @keyframes sobre-pisca { 0% { opacity: 1; } 12% { opacity: .55; } 16% { opacity: 1; } 47% { opacity: .8; } 50% { opacity: 1; } 71% { opacity: .5; } 73% { opacity: 1; } }
+  html.js:not(.menos-movimento) .is-sobrecarga > .carga-cantos > b { transform: none !important; background: var(--t1); }
+  .is-sobrecarga > .carga-nos > b:nth-child(odd)::before { animation-duration: .9s; }
+  .is-sobrecarga > .carga-nos > b:nth-child(even)::before { animation-duration: .75s; }
+  .is-sobrecarga .carga__tubo { background: var(--t1); animation: sobre-crepita .45s steps(2, end) infinite; }
+  @keyframes sobre-crepita { 50% { opacity: .65; } }
+  .is-sobrecarga .carga__pct { color: var(--t1); letter-spacing: .12em; }
+  .is-sobrecarga .carga__ponta { opacity: 0; }
+  .tem-carga.is-sobrecarga { border-color: var(--ac-2); }
 }

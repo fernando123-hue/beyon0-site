@@ -17,6 +17,14 @@
    acende em neon; carregando e cheio, PONTOS de luz correm nos quatro lados;
    a barra de baixo é neon. O brilho difuso aqui é exceção pedida pelo dono
    (a referência que ele mandou); no resto do site segue proibido.
+   LETRAS (dono, 2026-10-04: "cada caractere com efeito quando os cards
+   chegarem em 100%"): no 1º cheio o texto do card é partido em letras
+   (SplitText, só então: nada pesa na carga da página; o leitor de tela lê a
+   frase inteira) e uma ONDA de luz o atravessa, letra por letra — cada uma
+   acende e dá um pulinho (no máximo uma onda a cada LETRAS.cada s).
+   SOBRECARGA (js/estacao.js, com o mini conectado ao AI Core médio): o card
+   fica preso em 100% com a moldura neon cheia e piscando, os pontos mais
+   rápidos, a barra em "MAX" e uma onda de letras a cada LETRAS.sobre s.
    Leis do projeto: posições lidas só em evento (rede:medida); por quadro só
    transform/opacity e o texto da porcentagem quando o número muda.
    ========================================================================== */
@@ -28,6 +36,10 @@
   var PERTO = 300;                       /* px do cursor à borda do card em que ele começa a carregar */
   var ENCHE = 3.2, ESVAZIA = 1.6;        /* /s: a carga segue o alvo (enche mais rápido do que esvazia) */
   var CARDS = '.painel:not(:where(.console, .instrumento)), .celula, .laudo__row, .spec__item, .cenario';
+  /* o texto que vira letras; s entre ondas (normal e em sobrecarga); ms de atraso por letra e teto */
+  var TEXTOS = 'h3, p, .servico__link, .celula__link, .laudo__n, .servico__n, .celula__n';
+  var LETRAS = { cada: 3.5, sobre: 2.4, passo: 15, teto: 1500 };
+  var reduz = window.matchMedia('(prefers-reduced-motion: reduce)');
 
   /* ---------- a peça ---------- */
   function montar(card, op) {
@@ -66,18 +78,19 @@
   /* a carga (0–1): o tubo, a porcentagem e as classes, só quando mudam */
   function definir(card, p) {
     var c = card._carga || montar(card);
+    if (c.sobre) p = 1;   /* em sobrecarga fica em 100%, quem comanda é a estação */
     p = p < 0 ? 0 : p > 1 ? 1 : p;
     if (Math.abs(p - c.p) > 0.002) { c.tubo.style.transform = 'translate3d(' + ((p - 1) * 100).toFixed(2) + '%,0,0)'; c.p = p; variar(c, p); }
     var n = Math.round(p * 100);
     /* nodeValue, não textContent: trocar o nó acionava o MutationObserver da rede (js/rede.js), que remedia a página inteira a cada número (revisão) */
-    if (n !== c.num) { c.txt.nodeValue = n + '%'; c.num = n; }
+    if (n !== c.num && !c.sobre) { c.txt.nodeValue = n + '%'; c.num = n; }
     var carregando = p > 0.004 && p < 0.995;
     if (carregando !== card.classList.contains('is-carregando')) card.classList.toggle('is-carregando', carregando);
     var cheio = p >= 0.995;
     if (cheio !== c.cheio) {
       c.cheio = cheio;
       card.classList.toggle('is-carregado', cheio);
-      if (cheio) varrer(card);
+      if (cheio) { varrer(card); letras(card); }
     }
   }
   /* os cantos crescem com a carga; a borda neon acende no último terço (quando a moldura fecha) */
@@ -97,7 +110,40 @@
     if (!c || !c.aro || Math.abs(a - c.aroA) < 0.01) return;
     c.aro.style.opacity = a.toFixed(2); c.aroA = a;
   }
-  B.carga = { montar: montar, definir: definir };
+  /* a onda de luz pelas letras do card (partido na 1ª vez; reinicia alternando -a/-b, sem ler layout) */
+  function letras(card, forcar) {
+    if (B.reduced || reduz.matches || !window.SplitText) return;
+    var c = card._carga, agora = performance.now();
+    if (!c || (!forcar && agora - (c.letrasEm || -1e9) < LETRAS.cada * 1000)) return;
+    c.letrasEm = agora;
+    if (!c.split) {
+      var alvos = [].filter.call(card.querySelectorAll(TEXTOS), function (el) { return !el.closest('.carga') && el.textContent.trim(); });
+      if (!alvos.length) return;
+      try { c.split = new window.SplitText(alvos, { type: 'words,chars', charsClass: 'carga-letra', wordsClass: 'carga-palavra' }); } catch (e) { c.split = { chars: [] }; }
+      for (var i = 0; i < c.split.chars.length; i++) c.split.chars[i].style.animationDelay = Math.min(LETRAS.teto, i * LETRAS.passo) + 'ms';
+    }
+    var a = card.classList.contains('is-letras-a');
+    card.classList.remove(a ? 'is-letras-a' : 'is-letras-b');
+    card.classList.add(a ? 'is-letras-b' : 'is-letras-a');
+  }
+  /* a SOBRECARGA (js/estacao.js): presa em 100%, a barra em MAX, ondas de letras seguidas */
+  function sobrecarga(card, sim) {
+    var c = card._carga || montar(card);
+    if (!!c.sobre === !!sim) return;
+    c.sobre = !!sim;
+    card.classList.toggle('is-sobrecarga', c.sobre);
+    clearInterval(c.relogio);
+    if (c.sobre) {
+      definir(card, 1);
+      c.txt.nodeValue = 'MAX';
+      letras(card, true);
+      c.relogio = setInterval(function () { letras(card, true); }, LETRAS.sobre * 1000);
+    } else {
+      c.num = -1;   /* a porcentagem volta no próximo definir */
+      definir(card, c.p);
+    }
+  }
+  B.carga = { montar: montar, definir: definir, sobrecarga: sobrecarga };
 
   /* ---------- desktop: o cursor ---------- */
   var desktop = window.matchMedia('(min-width: 721px) and (hover: hover) and (pointer: fine)');

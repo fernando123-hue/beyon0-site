@@ -28,6 +28,10 @@
      pacotes dobram e a energia ATRAVESSA o card (.estacao-cruza, uma linha
      de luz da porta até a borda oposta). No surto da expiração todos os
      cards são atravessados.
+   - CONECTADA (dono, 2026-10-04): quando o mini acopla e enche a carga, ele
+     FICA conectado — só solta se a pessoa clicar de novo no núcleo da
+     estação ou rolar a página — e os cards dela entram em SOBRECARGA
+     (B.carga.sobrecarga, js/carga.js) com a estação em turbo contínuo.
    - O TURBO: carga cheia = surto rápido e duplo; os módulos acendem
      inteiros (.is-energia) e as cantoneiras da seção piscam. Quem enche: o
      MINI, que vem pelo corredor entre as fileiras, acopla acima dela e
@@ -202,12 +206,22 @@
       setTimeout(function () { volta.remove(); }, TURBO_MS);
     }
   }
+  function sobrecarregar(st, sim) {
+    if (!B.carga) return;
+    for (var i = 0; i < st.raios.length; i++) B.carga.sobrecarga(st.raios[i].el, sim);
+  }
   function turbinar(st) { st.carga = 1; st.turboHa = 0; st.pulso = 1; surto(st, true); B.rede.trilho.piscar(); }
   /* o pulso do reator entra pelo alimentador (de `de`, y do documento, até a estação) */
   function alimentar(st, de) { if (!B.reduced && !st.alim) st.alim = { s: 0, de: Math.max(st.secaoY, de || st.secaoY) }; }
+  function soltarEstacao(st) {
+    st.acopla = null;
+    if (st.conectada) { st.conectada = false; sobrecarregar(st, false); }
+  }
   /* o mini vem (se estiver ativo); sem ele, ela turbina sozinha */
   function chamar(st) {
     var mini = B.rede.extra;
+    /* conectada (ou carregando): o clique no núcleo desconecta o mini */
+    if (st.acopla) { if (mini && mini.liberar) mini.liberar(st); else soltarEstacao(st); return; }
     if (mini && mini.ativo && mini.irPara) mini.irPara(st);
     else turbinar(st);
   }
@@ -226,9 +240,14 @@
       st.carga += (CARGA.base + CARGA.folego * folego - st.carga) * Math.min(1, dt * CARGA.cai);
       if (st.acopla) {
         st.acopla.t += dt;
-        st.carga = Math.min(1, st.carga + dt / CARGA.enche);
-        if (st.acopla.t > CARGA.teto) st.carga = 1;   /* rede de segurança: nunca passa do teto */
-        if (st.carga >= 1) { st.acopla = null; turbinar(st); }
+        if (!st.conectada) {
+          st.carga = Math.min(1, st.carga + dt / CARGA.enche);
+          if (st.acopla.t > CARGA.teto) st.carga = 1;   /* rede de segurança: nunca passa do teto */
+          if (st.carga >= 1) { st.conectada = true; turbinar(st); sobrecarregar(st, true); }
+        } else {
+          /* conectada: carga cheia e turbo contínuo (a rede branca, os pacotes rápidos) */
+          st.carga = 1; st.turboHa = Math.min(st.turboHa, 0.4);
+        }
       }
       if (st.alim) {
         st.alim.s += dt * ALIMENTA.v;
@@ -502,11 +521,11 @@
     /* onde o mini fica acoplado (tela): no corredor, acima dela */
     doca: function (st) { return { x: st.x - B.S.sx, y: st.yd - rolagem - MINI.acima }; },
     acoplar: function (st) { if (!B.reduced && !st.acopla) st.acopla = { t: 0 }; },
-    soltar: function (st) { st.acopla = null; },
+    soltar: function (st) { soltarEstacao(st); },
     podeTurbinar: function (st) { return st.turboHa > 20 && !st.acopla; },
     turbinando: function (st) { return !!st.acopla; },
     /* só leitura, para os testes: o que cada estação está fazendo */
-    estado: function () { return estacoes.map(function (st) { return { carga: +st.carga.toFixed(2), acoplada: !!st.acopla, alimentando: !!st.alim, turboHa: +st.turboHa.toFixed(1), surtos: st.surtos.length, visivel: !!st.visivel }; }); }
+    estado: function () { return estacoes.map(function (st) { return { carga: +st.carga.toFixed(2), acoplada: !!st.acopla, conectada: !!st.conectada, alimentando: !!st.alim, turboHa: +st.turboHa.toFixed(1), surtos: st.surtos.length, visivel: !!st.visivel }; }); }
   };
 
   B.rede.fundos.push({ desenharFundo: desenharFundo });

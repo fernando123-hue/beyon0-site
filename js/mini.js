@@ -228,7 +228,7 @@
   }
   function chegou(dest) {
     soltarSugestao();
-    if (dest.estacao) { B.estacoes.acoplar(dest.estacao); pulsar(1); return; }
+    if (dest.estacao) { B.estacoes.acoplar(dest.estacao); passeio.rolagemAcople = rolagem; pulsar(1); return; }
     if (dest.cta) { acoplarCta(dest.cta); pulsar(1); return; }
     if (dest.sugere) {
       /* a sugestão: UM anel, a mira trava, um fio até a opção, o link dela
@@ -296,8 +296,12 @@
       ps.pos.x = aqui.x; ps.pos.y = aqui.y;
       ps.fica -= dt;
       /* acoplado: fica até a estação encher (ela turbina e o solta) */
-      if (ps.dest.estacao && !B.estacoes.turbinando(ps.dest.estacao)) ps.fica = Math.min(ps.fica, 0.5);
-      if (ps.dest.estacao) ps.fica = Math.min(ps.fica, 6);   /* nunca fica preso a uma estação */
+      /* na estação: enquanto carrega ou CONECTADO ele fica — só sai com um novo clique no
+         núcleo dela (mini.liberar) ou quando a pessoa rola a página (dono, 2026-10-04) */
+      if (ps.dest.estacao) {
+        if (!B.estacoes.turbinando(ps.dest.estacao)) ps.fica = Math.min(ps.fica, 0.5);
+        else ps.fica = Math.abs(rolagem - (ps.rolagemAcople || rolagem)) > 90 ? 0 : 99;
+      }
       /* no CTA: fica enquanto o cursor estiver no botão (com teto) e pulsa junto */
       if (ps.dest.cta) {
         var dc = ps.dest.cta;
@@ -710,6 +714,11 @@
     if (passeio.estado === 'doca') passeio.espera = 0;
   }, { passive: true });
 
+  /* o clique no núcleo da estação conectada: ele se solta e volta */
+  mini.liberar = function (st) {
+    if (passeio.dest && passeio.dest.estacao === st && passeio.estado !== 'voltando') { passeio.estado = 'voltando'; soltarEstacao(passeio); pulsar(0.6); }
+    else B.estacoes.soltar(st);
+  };
   mini.desenharFundo = desenharFundo;
   mini.irPara = irPara;
   /* só leitura, para os testes (docs/verificar e afins): o que ele está fazendo */
