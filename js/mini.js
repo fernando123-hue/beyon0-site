@@ -102,6 +102,8 @@
      s acoplado (mínimo e teto com o cursor no botão), s entre pulsos, px do cursor ao botão que contam como "perto" */
   var DOCA = { cada: 6, porCta: 12, hesita: 0.45, parado: 1.1, fica: 3.5, ficaMax: 8, pulsa: 0.6, perto: 64, vizinha: 220 };
   var FRENTE = { k: 0.1, max: 84 };
+  /* o encaixe: px acima onde ele se alinha; s parado alinhando, descendo, travando, subindo ao sair; px em que começa a frear */
+  var ENCAIXE = { acima: 22, alinha: 0.45, desce: 0.7, trava: 0.3, sobe: 0.45, freia: 120 };
   /* a criança: quanto a insistência sobe por s ignorado; pulinho (Hz e px, calmo e no máximo da insistência);
      puxão na manga (Hz, px); o pulo de festa (px); seguir o cursor (px de folga, s, chance); correr ao toque (s) */
   var CRIANCA = { sobe: 1 / 14, pula: [2.2, 4.2], altura: [2, 9], puxa: 26, puxao: 2.4, festa: 12,
@@ -171,6 +173,9 @@
   function escolherDestino(W, H, d) {
     /* corre até onde o dedo tocou (antes de tudo: é a pessoa chamando) */
     if (toque && relogioMini - toque.t < 1.2) { var tq = toque; toque = null; return { x: tq.x, py: rolagem + tq.y, toque: true }; }
+    /* o repertório (js/mini-vida.js): contornar, brincar, espiar, guiar, ler junto... */
+    var vida = B.miniVida && B.miniVida.escolher(W, H);
+    if (vida) { vida.t0 = relogioMini; return vida; }
     /* a sugestão: uma opção, com a rolagem parada e longe da última */
     if (relogioMini - sugestao.ultima > SUGESTAO.cada && paradoHa > SUGESTAO.parado && Math.random() < SUGESTAO.chance) {
       var op = B.rede.elementoAoAcaso(mini.x, mini.y, SUGESTAO.longe[0], SUGESTAO.longe[1], function (it) {
@@ -217,6 +222,7 @@
   function destinoXY(dest) {
     if (dest.estacao) return B.estacoes.doca(dest.estacao);
     if (dest.cta) return { x: dest.cta.sx, y: dest.cta.sy };
+    if (dest.xy) return dest.xy();
     if (dest.cursor) return { x: Math.max(20, Math.min(tela.W - 20, ponteiro.x + CRIANCA.segue.dx)), y: Math.max(TOPO, Math.min(tela.H - PE, ponteiro.y + CRIANCA.segue.dy)) };
     if (dest.item) {
       var it = dest.item;
@@ -240,7 +246,8 @@
   function chegou(dest) {
     soltarSugestao();
     if (dest.estacao) { B.estacoes.acoplar(dest.estacao); passeio.rolagemAcople = rolagem; pulsar(1); return; }
-    if (dest.cta) { acoplarCta(dest.cta); pulsar(1); return; }
+    if (dest.cta) { if (docas) docas.acoplar(dest.cta); pulsar(1); return; }
+    if (dest.aoChegar) dest.aoChegar();
     if (dest.sugere) {
       /* a sugestão: UM anel, a mira trava, um fio até a opção, o link dela
          acende (classe) e ela se liga ao núcleo. Nada mais (crítica, rodada 1:
@@ -260,7 +267,7 @@
   /* o destino estação, com o caminho pelo corredor (ida) e o inverso (volta) */
   function paraEstacao(st) {
     var via = B.estacoes.via(st, mini.x);
-    return { estacao: st, via: via.slice(), volta: via.slice().reverse() };
+    return { estacao: st, via: via.slice(), volta: via.slice().reverse(), encaixa: true };
   }
   /* o próximo ponto do caminho (lista em coordenadas do documento), ou null */
   function proximoDoCaminho(lista, pos, dt) {
@@ -271,7 +278,14 @@
     }
     return false;
   }
-  function soltarEstacao(ps) { if (ps.dest && ps.dest.estacao) B.estacoes.soltar(ps.dest.estacao); if (ps.dest && ps.dest.cta) soltarCta(ps.dest.cta); }
+  function soltarEstacao(ps) {
+    if (!ps.dest) return;
+    if (ps.dest.estacao) B.estacoes.soltar(ps.dest.estacao);
+    if (ps.dest.cta && docas) docas.soltar(ps.dest.cta);
+    if (ps.dest.aoSair) { var f = ps.dest.aoSair; ps.dest.aoSair = null; f(); }   /* o comportamento (js/mini-vida.js) terminou */
+  }
+  /* ir agora a um destino (a tomada, um comportamento): de onde estiver */
+  function ir(dest) { passeio.dest = dest; passeio.estado = 'indo'; passeio.pos = { x: mini.x, y: mini.y }; dest.t0 = relogioMini; }
   /* chamado por uma estação (o clique nela): vai agora, de onde estiver */
   function irPara(st) {
     if (!mini.ativo || B.reduced || celular) return;
@@ -284,6 +298,7 @@
     var chamado = Math.abs(velRol) > PASSEIO.rolagemVolta || !livre;
     if (ps.estado === 'doca') {
       if (!livre || Math.abs(velRol) > 200) return null;
+      if (B.miniVida && B.miniVida.sonolento()) return null;   /* ninguém mexe há tempo: fica e adormece (js/mini-vida.js) */
       ps.espera -= dt * (1 + 2 * (B.agitacao || 0) + 2.5 * insiste);   /* agitado ou insistente, ele sai mais cedo */
       if (ps.espera > 0) return null;
       ps.espera = acaso(PASSEIO.cada[0], PASSEIO.cada[1]);
@@ -291,14 +306,39 @@
       if (!ps.dest) return null;
       ps.estado = 'indo'; ps.pos = { x: mini.x, y: mini.y };
     }
-    if (ps.estado !== 'voltando' && chamado) { ps.estado = 'voltando'; soltarSugestao(); soltarEstacao(ps); }
+    if (ps.estado !== 'voltando' && ps.estado !== 'desencaixando' && chamado) { ps.estado = 'voltando'; soltarSugestao(); soltarEstacao(ps); }
     if (ps.estado === 'indo') {
       if (ps.dest.via && proximoDoCaminho(ps.dest.via, ps.pos, dt)) return ps.pos;
       var alvo = destinoXY(ps.dest);
       if (alvo.y < TOPO - 20 || alvo.y > H - 40) { ps.estado = 'voltando'; soltarSugestao(); soltarEstacao(ps); return ps.pos; }
-      if (andarPara(ps.pos, alvo, dt * (ps.dest.estacao || ps.dest.cta ? PASSEIO.arranque : 1), ps.dest.vh ? 'vh' : null)) {
-        ps.estado = 'parado'; ps.fica = ps.dest.estacao ? 99 : ps.dest.cta ? DOCA.fica : ps.dest.sugere ? SUGESTAO.fica : ps.dest.cursor ? acaso(CRIANCA.segue.fica[0], CRIANCA.segue.fica[1]) : ps.dest.toque ? CRIANCA.toque : acaso(PASSEIO.fica[0], PASSEIO.fica[1]);
+      var veloc = ps.dest.estacao || ps.dest.cta ? PASSEIO.arranque : ps.dest.veloc || 1;
+      if (ps.dest.encaixa) {
+        alvo = { x: alvo.x, y: alvo.y - ENCAIXE.acima };
+        veloc *= Math.max(0.22, Math.min(1, Math.hypot(alvo.x - ps.pos.x, alvo.y - ps.pos.y) / ENCAIXE.freia));   /* desacelera chegando */
+      }
+      if (andarPara(ps.pos, alvo, dt * veloc, ps.dest.vh ? 'vh' : null)) {
+        ps.fica = ps.dest.fica !== undefined ? ps.dest.fica : ps.dest.estacao ? 99 : ps.dest.cta ? DOCA.fica : ps.dest.sugere ? SUGESTAO.fica : ps.dest.cursor ? acaso(CRIANCA.segue.fica[0], CRIANCA.segue.fica[1]) : ps.dest.toque ? CRIANCA.toque : acaso(PASSEIO.fica[0], PASSEIO.fica[1]);
+        /* tomada e estação: não chega direto — ENCAIXA (alinha acima, desce devagar, trava) */
+        if (ps.dest.encaixa) { ps.estado = 'encaixando'; ps.fase = 0; return ps.pos; }
+        ps.estado = 'parado';
         chegou(ps.dest);
+      }
+      return ps.pos;
+    }
+    if (ps.estado === 'encaixando' || ps.estado === 'desencaixando') {
+      var ponto = destinoXY(ps.dest), E = ENCAIXE;
+      ps.fase += dt;
+      if (ps.estado === 'encaixando') {
+        /* alinha acima (parado, girando mais devagar), desce devagar (entra e sai suave), trava, assenta */
+        var k = suave((ps.fase - E.alinha) / E.desce);
+        ps.pos.x = ponto.x; ps.pos.y = ponto.y - E.acima * (1 - k);
+        if (ps.fase >= E.alinha + E.desce && !ps.travou) { ps.travou = true; chegou(ps.dest); }
+        if (ps.fase >= E.alinha + E.desce + E.trava) { ps.estado = 'parado'; ps.travou = false; }
+      } else {
+        /* as travas abrem, ele sobe até o alinhamento e então vai embora */
+        var ks = suave(ps.fase / E.sobe);
+        ps.pos.x = ponto.x; ps.pos.y = ponto.y - E.acima * ks;
+        if (ps.fase >= E.sobe) ps.estado = 'voltando';
       }
       return ps.pos;
     }
@@ -322,7 +362,11 @@
         if (dc.pulsoHa > DOCA.pulsa) { dc.pulsoHa = 0; pulsar(0.7); }
         if (!dc.naTela) ps.fica = 0;
       }
-      if (ps.fica <= 0 || aqui.y < TOPO - 20 || aqui.y > H - 40) { ps.estado = 'voltando'; soltarSugestao(); soltarEstacao(ps); }
+      if (ps.fica <= 0 || aqui.y < TOPO - 20 || aqui.y > H - 40) {
+        soltarSugestao(); soltarEstacao(ps);
+        /* encaixado: sai devagar (desencaixa) se ainda dá; fora da tela, vai direto */
+        ps.estado = ps.dest.encaixa && ps.fica <= 0 && aqui.y > TOPO && aqui.y < H - 40 ? 'desencaixando' : 'voltando'; ps.fase = 0;
+      }
       return ps.pos;
     }
     /* da estação, volta pelo corredor (sem cortar os módulos) */
@@ -391,8 +435,9 @@
     paradoHa = Math.abs(velRol) < 30 ? paradoHa + dt : 0;
 
     var livreAgora = mini.ativo && solto > 0.98 && !menu && !d.fim && !chegando;
-    docasPasso(dt, W, H, livreAgora);
-    var fora = passear(dt, W, H, d, livreAgora);
+    if (docas && !mini.dormindo) docas.passo(dt, W, H, livreAgora);
+    var fora = mini.dormindo ? null : passear(dt, W, H, d, livreAgora);
+    if (mini.dormindo) alvoVis *= 1 - 0.45 * mini.dormindo;
     if (fora) { alvoX = fora.x; alvoY = fora.y; }
     /* a opção sob o cursor: ele se inclina para ela (pouco, mas se sente) */
     quer.f += ((quer.alvo ? 1 : 0) - quer.f) * Math.min(1, dt * (quer.alvo ? 5 : 3));
@@ -410,27 +455,22 @@
     atencaoAntes = atencao;
     festa = Math.max(0, festa - dt * 2.4);
     /* parado (na doca ou num destino que não é a estação): quica no lugar, mais alto quanto mais insiste */
-    var paradoAgora = passeio.estado === 'doca' || (passeio.estado === 'parado' && !(passeio.dest && passeio.dest.estacao));
+    var encaixado = passeio.dest && passeio.dest.encaixa && (passeio.estado === 'parado' || passeio.estado === 'encaixando' || passeio.estado === 'desencaixando');
+    var paradoAgora = !mini.dormindo && (passeio.estado === 'doca' || (passeio.estado === 'parado' && !encaixado && !(passeio.dest && passeio.dest.quieto)));
     if (paradoAgora && !B.reduced) {
       var hz = CRIANCA.pula[0] + (CRIANCA.pula[1] - CRIANCA.pula[0]) * insiste;
       var alto = CRIANCA.altura[0] + (CRIANCA.altura[1] - CRIANCA.altura[0]) * insiste;
       alvoY -= Math.abs(Math.sin(relogioMini * Math.PI * hz)) * alto * (passeio.estado === 'doca' ? 0.6 : 1);
     }
     alvoY -= Math.sin(festa * Math.PI) * CRIANCA.festa;
-    /* encaixado num botão sem clique: puxa a manga */
-    if (passeio.estado === 'parado' && passeio.dest && passeio.dest.cta && passeio.dest.cta.acopladaHa > 1.2 && !passeio.dest.cta.sob) {
-      alvoX += Math.sin(relogioMini * CRIANCA.puxa) * CRIANCA.puxao * (0.5 + insiste);
-    }
-    /* mergulhando na passagem: direto para o centro da tela */
-    if (mergulho) { alvoX = W / 2; alvoY = H / 2; }
-    var naEstacao = passeio.dest && (passeio.dest.estacao || (passeio.dest.cta && passeio.estado === 'parado'));   /* na estação (ou encaixado no CTA), exatamente no lugar */
+    var naEstacao = passeio.dest && (passeio.dest.estacao || encaixado);   /* na estação ou encaixado: exatamente no lugar, imóvel */
     if (!naEstacao) {
       alvoX += Math.cos(quer.a) * QUER.inclina * quer.f;
       alvoY += Math.sin(quer.a) * QUER.inclina * quer.f;
     }
     /* a agitação: uma órbita curta e rápida */
     var ag = B.agitacao || 0;
-    if (ag > 0.01) { alvoX += Math.cos(t * 9.3) * AGITA.orbita * ag; alvoY += Math.sin(t * 7.1) * AGITA.orbita * ag; }
+    if (ag > 0.01 && !naEstacao) { alvoX += Math.cos(t * 9.3) * AGITA.orbita * ag; alvoY += Math.sin(t * 7.1) * AGITA.orbita * ag; }
 
     if (naEstacao && passeio.estado !== 'doca') {
       /* indo, acoplado ou voltando de uma estação: segue o caminho exato (com a mola
@@ -563,7 +603,8 @@
     ctx.lineWidth = 1;
     ctx.strokeStyle = 'rgba(' + mistura(c) + ',' + Math.min(1, (0.7 + 0.3 * c) * v).toFixed(3) + ')';
     ctx.beginPath(); ctx.arc(x, y, 7.5 * s, 0, TAU); ctx.stroke();
-    var vrot = (passeio.estado === 'doca' ? 0.35 : 0.85) + AGITA.giro * ag + 0.4 * quer.f + 1.2 * insiste;
+    var vrot = passeio.estado === 'encaixando' || passeio.estado === 'desencaixando' ? 0.12 : (passeio.estado === 'doca' ? 0.35 : 0.85) + AGITA.giro * ag + 0.4 * quer.f + 1.2 * insiste;
+    if (mini.dormindo) vrot *= 0.15;
     var rot = B.reduced ? 0 : (relogioMini * vrot) % TAU;
     ctx.strokeStyle = 'rgba(' + AC + ',' + Math.min(1, (0.5 + 0.4 * c) * v).toFixed(3) + ')';
     ctx.beginPath(); ctx.arc(x, y, 11.5 * s, rot, rot + 0.7); ctx.stroke();
@@ -593,6 +634,15 @@
       for (var q = 0; q < 3; q++) { var aq = -Math.PI / 2 + q * TAU / 3; ctx.moveTo(x + Math.cos(aq) * rt, y + Math.sin(aq) * rt); ctx.lineTo(x + Math.cos(aq) * (rt - 4 * s), y + Math.sin(aq) * (rt - 4 * s)); }
       ctx.stroke();
       ctx.lineWidth = 1;
+    }
+    if (mini.dormindo > 0.05) {
+      ctx.strokeStyle = 'rgba(' + AC2 + ',' + (0.6 * mini.dormindo * v).toFixed(3) + ')';
+      for (var z = 0; z < 3; z++) {
+        var fz = ((relogioMini * 0.35 + z / 3) % 1), zx = x + 9 * s + fz * 8 * s, zy = y - 9 * s - fz * 16 * s, zr = (1.5 + fz * 2.2) * s;
+        ctx.globalAlpha = 1 - fz;
+        ctx.beginPath(); ctx.arc(zx, zy, zr, Math.PI * 0.15, Math.PI * 0.85); ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
     }
     if (pulso > 0.01) {
       var fase = 1 - pulso / Math.max(pulsoIni, 0.01);
@@ -625,116 +675,10 @@
     }
   }
 
-  /* ---------- as DOCAS dos CTAs ---------- */
-  var docas = [], ultimaDoca = -99, jaRolou = false;
-  function posDoc(el) { var x = 0, y = 0; for (var e = el; e; e = e.offsetParent) { x += e.offsetLeft; y += e.offsetTop; } return { x: x, y: y }; }
-  /* os tipos de tomada: onde fica o soquete (lado), quem recebe o efeito (fx) e se tem mira */
-  var TOMADAS = [
-    { sel: 'main .btn--primary', tipo: 'cta', mira: true },
-    { sel: 'main .btn--ghost', tipo: 'botao', mira: true },
-    { sel: 'main .servico__link, main .celula__link', tipo: 'link', mira: false },
-    { sel: 'main .qa > summary', tipo: 'faq', mira: true }
-  ];
-  function montarDocas() {
-    for (var t = 0; t < TOMADAS.length; t++) {
-      var T = TOMADAS[t], els = document.querySelectorAll(T.sel);
-      for (var i = 0; i < els.length; i++) {
-        var el = els[i];
-        if (el.closest('.barra, .nav, .lead-modal, [aria-hidden="true"]')) continue;
-        var so = document.createElement('i'); so.className = 'doca doca--' + T.tipo + (celular ? ' doca--cel' : '');
-        for (var k = 0; k < 3; k++) so.appendChild(document.createElement('b'));
-        var cabo = document.createElement('s'); cabo.className = 'doca__cabo'; so.appendChild(cabo);
-        var mira = null;
-        if (T.mira) { mira = document.createElement('i'); mira.className = 'doca-mira'; for (k = 0; k < 4; k++) mira.appendChild(document.createElement('b')); palcoMini.appendChild(mira); }
-        palcoMini.appendChild(so);
-        /* quem acende: o card do link, a pergunta inteira, ou o próprio botão */
-        var fx = T.tipo === 'link' ? el.closest('.painel, .celula') || el : T.tipo === 'faq' ? el.parentNode : el;
-        var dc = { el: el, tipo: T.tipo, fx: fx, so: so, cabo: cabo, mira: mira, x: 0, y: 0, w: 0, h: 0, ok: false, sx: -1e4, sy: -1e4, naTela: false, sob: false, hesita: 0, visto: 0, ultima: -99, acopladaHa: 0, pulsoHa: 0, chega: 0, tf: '' };
-        ligarDoca(dc);
-        docas.push(dc);
-      }
-    }
-    /* a medida vem com a da rede (rede:medida), depois do load: medir aqui forçava layout antes da 1ª pintura */
-  }
-  function ligarDoca(dc) {
-    dc.el.addEventListener('pointerenter', function (e) { if (e.pointerType === 'mouse') dc.sob = true; });
-    dc.el.addEventListener('pointerleave', function () { dc.sob = false; });
-  }
-  function medirDocas() {
-    for (var i = 0; i < docas.length; i++) {
-      var dc = docas[i];
-      dc.ok = !!dc.el.offsetWidth;
-      if (!dc.ok) continue;
-      var p = posDoc(dc.el);
-      dc.x = p.x; dc.y = p.y; dc.w = dc.el.offsetWidth; dc.h = dc.el.offsetHeight;
-    }
-    /* as escritas depois de todas as leituras (intercaladas, cada botão forçava um layout) */
-    for (i = 0; i < docas.length; i++) {
-      var d = docas[i];
-      if (!d.ok) continue;
-      if (d.mira) { d.mira.style.width = (d.w + 28) + 'px'; d.mira.style.height = (d.h + 28) + 'px'; }
-      /* o cabo sai do soquete até a opção: na diagonal até o canto do botão, na horizontal até o fim do link/pergunta */
-      var lateral = d.tipo === 'link' || d.tipo === 'faq';
-      d.cabo.style.transform = lateral ? 'rotate(180deg)' : 'rotate(135deg)';
-      d.cabo.style.width = (lateral ? 10 : 14) + 'px';
-    }
-  }
-  function acoplarCta(dc) {
-    dc.acopladaHa = 0; dc.pulsoHa = 0; dc.ultima = relogioMini; ultimaDoca = relogioMini;
-    dc.so.classList.add('is-acoplada'); if (dc.mira) dc.mira.classList.add('is-viva');
-    dc.el.classList.add('is-turbinado'); if (dc.fx !== dc.el) dc.fx.classList.add('is-turbinado');
-    /* no link de um card, ele carrega o card inteiro */
-    if (dc.tipo === 'link' && B.carga && B.carga.impulso) B.carga.impulso(dc.fx, true);
-    B.rede.acender(dc.fx, true);
-  }
-  function soltarCta(dc) {
-    dc.so.classList.remove('is-acoplada', 'is-chamando'); if (dc.mira) dc.mira.classList.remove('is-viva');
-    dc.el.classList.remove('is-turbinado'); dc.fx.classList.remove('is-turbinado');
-    if (dc.tipo === 'link' && B.carga && B.carga.impulso) B.carga.impulso(dc.fx, false);
-  }
-  /* por quadro: onde cada soquete está, o que a pessoa está fazendo perto
-     dele e, se for a hora, o encaixe */
-  function docasPasso(dt, W, H, livre) {
-    var melhor = null;
-    if (rolagem > 160) jaRolou = true;
-    for (var i = 0; i < docas.length; i++) {
-      var dc = docas[i];
-      if (!dc.ok) continue;
-      var bx = dc.x - B.S.sx, by = dc.y - rolagem;
-      /* botões: no canto de cima à direita, por fora; link e pergunta: logo depois do fim, na altura do meio */
-      var lateral = dc.tipo === 'link' || dc.tipo === 'faq';
-      dc.sx = Math.min(W - 14, bx + dc.w + (lateral ? 26 : 12)); dc.sy = lateral ? by + dc.h / 2 : by - 12;
-      dc.naTela = by > TOPO && by + dc.h < H - PE && mini.vis > 0.05;
-      /* a tomada só aparece quando faz sentido: a do botão principal sempre (com o mini por perto da tela);
-         as outras com o cursor ou o mini a menos de PERTO px (uma coluna de tomadas poluía o FAQ e os cards) */
-      var cx0 = bx + dc.w / 2, cy0 = by + dc.h / 2;
-      var vizinha = dc.tipo === 'cta' || (ponteiro.ativo && Math.abs(ponteiro.x - cx0) < dc.w / 2 + DOCA.vizinha && Math.abs(ponteiro.y - cy0) < dc.h / 2 + DOCA.vizinha) || Math.hypot(mini.x - dc.sx, mini.y - dc.sy) < DOCA.vizinha * 1.4 || dc.so.classList.contains('is-acoplada') || dc.so.classList.contains('is-chamando');
-      dc.so.classList.toggle('is-visivel', dc.naTela && vizinha && !B.reduced);
-      if (!dc.naTela) { dc.hesita = 0; dc.visto = 0; continue; }
-      var tf = 'translate3d(' + dc.sx.toFixed(1) + 'px,' + dc.sy.toFixed(1) + 'px,0)' + (celular ? ' scale(.72)' : '');
-      if (tf !== dc.tf) { dc.so.style.transform = tf; if (dc.mira) dc.mira.style.transform = 'translate3d(' + (bx - 14).toFixed(1) + 'px,' + (by - 14).toFixed(1) + 'px,0)'; dc.tf = tf; }
-      /* a hesitação: o cursor em cima ou perto do botão, sem clicar */
-      var px = ponteiro.x, py = ponteiro.y;
-      var pertoDele = ponteiro.ativo && px > bx - DOCA.perto && px < bx + dc.w + DOCA.perto && py > by - DOCA.perto && py < by + dc.h + DOCA.perto;
-      dc.hesita = pertoDele || dc.sob ? dc.hesita + dt : 0;
-      /* a distância do cursor à opção: entre duas que ele está rondando, vence a mais perto */
-      dc.dist = pertoDele || dc.sob ? Math.hypot(Math.max(bx - px, 0, px - (bx + dc.w)), Math.max(by - py, 0, py - (by + dc.h))) : 1e9;
-      /* a leitura: o botão no meio da tela, com a rolagem parada */
-      /* (só depois de a pessoa rolar: ao abrir a página ele não vai direto ao botão) */
-      var meio = by > H * 0.22 && by + dc.h < H * 0.8;
-      dc.visto = dc.tipo === 'cta' && meio && jaRolou && paradoHa > 0.4 ? dc.visto + dt : 0;
-      if (relogioMini - dc.ultima < DOCA.porCta) continue;
-      if ((dc.hesita > DOCA.hesita || dc.visto > DOCA.parado) && (!melhor || dc.dist < melhor.dist)) melhor = dc;
-    }
-    if (!melhor || !livre || B.reduced || passeio.estado !== 'doca' || relogioMini - ultimaDoca < DOCA.cada) return;
-    soltarSugestao();
-    melhor.so.classList.add('is-chamando');
-    passeio.dest = { cta: melhor }; passeio.estado = 'indo'; passeio.pos = { x: mini.x, y: mini.y };
-    ultimaDoca = relogioMini; melhor.ultima = relogioMini;
-    pulsar(0.8);
-  }
-  montarDocas();
-  B.on('rede:medida', medirDocas);
+  /* ---------- as TOMADAS dos botões (js/mini-docas.js) ---------- */
+  var docas = B.miniDocas ? B.miniDocas({ mini: mini, palco: palcoMini, celular: celular, DOCA: DOCA, TOPO: TOPO, PE: PE, ponteiro: ponteiro,
+    rolagem: function () { return rolagem; }, paradoHa: function () { return paradoHa; }, relogio: function () { return relogioMini; },
+    emDoca: function () { return passeio.estado === 'doca'; }, ir: ir, pulsar: pulsar, soltarSugestao: soltarSugestao }) : null;
 
   if ('IntersectionObserver' in window) {
     var io = new IntersectionObserver(function (es) {
@@ -782,10 +726,19 @@
     if (passeio.dest && passeio.dest.estacao === st && passeio.estado !== 'voltando') { passeio.estado = 'voltando'; soltarEstacao(passeio); pulsar(0.6); }
     else B.estacoes.soltar(st);
   };
+  /* a api do repertório (js/mini-vida.js) */
+  mini.api = { ponteiro: ponteiro, tela: tela, celular: celular, TOPO: TOPO, PE: PE,
+    relogio: function () { return relogioMini; }, rolagem: function () { return rolagem; }, paradoHa: function () { return paradoHa; },
+    emDoca: function () { return passeio.estado === 'doca'; }, ir: ir, pulsar: pulsar,
+    festejar: function () { festa = 1; pulsar(1); },
+    /* um gesto da pessoa pode interromper o passeio ou outro comportamento, nunca um encaixe nem a estação */
+    podeInterromper: function () { var d = passeio.dest; return passeio.estado === 'doca' || passeio.estado === 'voltando' || !!(d && d.nome); }, olharPara: function (x, y, t) { foco = { x: x, y: y, t: t || 1.5 }; },
+    acalmar: function (q) { insiste = Math.max(0, insiste - q); } };
+  mini.dormindo = 0;
   mini.desenharFundo = desenharFundo;
   mini.irPara = irPara;
   /* só leitura, para os testes (docs/verificar e afins): o que ele está fazendo */
-  mini.estado = function () { return { passeio: passeio.estado, destino: passeio.dest ? Object.keys(passeio.dest).filter(function (k) { return passeio.dest[k] && k !== 'via' && k !== 'volta'; }).join('+') : '', sugerindo: !!sugestao.alvo, querendo: quer.f > 0.5, agitacao: B.agitacao || 0, insiste: +insiste.toFixed(2) }; };
+  mini.estado = function () { return { passeio: passeio.estado, destino: passeio.dest && passeio.dest.nome ? passeio.dest.nome : passeio.dest ? Object.keys(passeio.dest).filter(function (k) { return passeio.dest[k] && k !== 'via' && k !== 'volta'; }).join('+') : '', sugerindo: !!sugestao.alvo, querendo: quer.f > 0.5, agitacao: B.agitacao || 0, insiste: +insiste.toFixed(2) }; };
   B.rede.extra = mini;
   B.add('mini', function (S) { passo(Math.min(0.05, S.dt / 1000), tela.W, tela.H); pintarCorpo(); });
 })();

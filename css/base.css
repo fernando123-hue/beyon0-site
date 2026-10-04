@@ -446,33 +446,22 @@ html.has-gsap .feixe.is-loop ~ .hero__arte .instrumento__led { animation: led-pa
    seta chama. Tudo no palco do mini (acima das seções), só transform e
    opacity; nada desfocado. Movimento reduzido: nada disso. */
 .doca, .doca-mira { position: absolute; left: 0; top: 0; pointer-events: none; opacity: 0; transition: opacity .3s var(--ease); }
-.doca.is-chamando::before { border-style: dashed; animation: doca-gira 1.1s linear infinite; }
-@keyframes doca-gira { to { rotate: 1turn; } }
-/* a TOMADA, com o desenho do mini (dono: "sob medida para ele"): anel do
-   tamanho dele, anel interno onde o núcleo assenta, 3 travas nas posições
-   das 3 que ele fecha (−90°, 30°, 150°) e o CABO até a opção. Chamando, gira;
-   encaixada, as travas fecham, o anel fica branco e a energia corre no cabo.
-   (O JS põe a posição por transform; no celular, escala .72 como o mini.) */
-.doca { width: 30px; height: 30px; margin: -15px 0 0 -15px; border-radius: 50%; border: 1px solid rgb(var(--ac-rgb) / .38); }
-.doca::before { content: ""; position: absolute; inset: 6px; border-radius: 50%; border: 1px solid rgb(var(--ac-rgb) / .6); }
-.doca::after { content: ""; position: absolute; left: 50%; top: 50%; width: 2px; height: 2px; margin: -1px 0 0 -1px; background: var(--ac-2); }
-.doca > b { position: absolute; left: 50%; top: 50%; width: 1.5px; height: 6px; margin: -3px 0 0 -.75px; background: var(--ac-2); transition: transform .35s cubic-bezier(.2, .7, .3, 1), background-color .35s var(--ease); }
-.doca > b:nth-of-type(1) { transform: rotate(0deg) translateY(-17px); }
-.doca > b:nth-of-type(2) { transform: rotate(120deg) translateY(-17px); }
-.doca > b:nth-of-type(3) { transform: rotate(240deg) translateY(-17px); }
-.doca.is-acoplada > b:nth-of-type(1) { transform: rotate(0deg) translateY(-12px); background: var(--t1); }
-.doca.is-acoplada > b:nth-of-type(2) { transform: rotate(120deg) translateY(-12px); background: var(--t1); }
-.doca.is-acoplada > b:nth-of-type(3) { transform: rotate(240deg) translateY(-12px); background: var(--t1); }
-/* o cabo: sai do anel até a opção (ângulo e comprimento postos pelo JS na medida) */
-.doca__cabo { position: absolute; left: 50%; top: 50%; height: 1px; margin-top: -.5px; transform-origin: left center; overflow: hidden; text-decoration: none; }
-.doca__cabo::before { content: ""; position: absolute; left: 15px; top: 0; width: 60px; height: 1px; background: rgb(var(--ac-rgb) / .5); }
-.doca.is-acoplada .doca__cabo::before { background: repeating-linear-gradient(90deg, var(--t1) 0 4px, transparent 4px 7px); animation: cabo-corre .35s linear infinite; }
-@keyframes cabo-corre { from { transform: translateX(7px); } to { transform: translateX(0); } }
-.doca.is-visivel { opacity: .85; }
-.doca.is-chamando { opacity: 1; border-color: var(--ac); }
-.doca.is-chamando > b { background: var(--t1); }
-.doca.is-acoplada { opacity: 1; border-color: var(--t1); animation: doca-trava .35s cubic-bezier(.2, .7, .3, 1) both; }
-@keyframes doca-trava { from { scale: 1.35; } to { scale: 1; } }
+/* a TOMADA (js/mini-docas.js), minimalista e discreta (dono): um anel fino
+   e apagado com um ponto no centro. As 3 travas (nas posições das 3 que o
+   mini fecha) só aparecem quando ele encaixa. Chamando, o anel acende. */
+.doca { width: 24px; height: 24px; margin: -12px 0 0 -12px; border-radius: 50%; border: 1px solid rgb(var(--ac-rgb) / .3); }
+.doca::after { content: ""; position: absolute; left: 50%; top: 50%; width: 2px; height: 2px; margin: -1px 0 0 -1px; background: rgb(var(--ac-2-rgb) / .7); }
+.doca > b { position: absolute; left: 50%; top: 50%; width: 1.5px; height: 4px; margin: -2px 0 0 -.75px; background: var(--t1); opacity: 0; transition: opacity .25s var(--ease), transform .3s cubic-bezier(.2, .7, .3, 1); }
+.doca > b:nth-of-type(1) { transform: rotate(0deg) translateY(-16px); }
+.doca > b:nth-of-type(2) { transform: rotate(120deg) translateY(-16px); }
+.doca > b:nth-of-type(3) { transform: rotate(240deg) translateY(-16px); }
+.doca.is-acoplada > b { opacity: .9; }
+.doca.is-acoplada > b:nth-of-type(1) { transform: rotate(0deg) translateY(-12px); }
+.doca.is-acoplada > b:nth-of-type(2) { transform: rotate(120deg) translateY(-12px); }
+.doca.is-acoplada > b:nth-of-type(3) { transform: rotate(240deg) translateY(-12px); }
+.doca.is-visivel { opacity: .6; }
+.doca.is-chamando { opacity: 1; border-color: rgb(var(--ac-rgb) / .7); }
+.doca.is-acoplada { opacity: 1; border-color: rgb(var(--ac-2-rgb) / .8); }
 .doca-mira.is-viva { opacity: 1; }
 .doca-mira > b { position: absolute; width: 10px; height: 10px; border: 1px solid var(--ac-2); transition: translate .4s cubic-bezier(.2, .7, .3, 1); }
 .doca-mira > b:nth-child(1) { left: 0; top: 0; border-right: 0; border-bottom: 0; translate: -10px -10px; }
@@ -494,12 +483,3 @@ html.has-gsap .feixe.is-loop ~ .hero__arte .instrumento__led { animation: led-pa
 @media (prefers-reduced-motion: reduce) { .doca, .doca-mira { display: none; } .btn.is-turbinado::after, .btn.is-turbinado [data-seta] { animation: none; } }
 html.menos-movimento .doca, html.menos-movimento .doca-mira { display: none; }
 
-/* encaixe no LINK de um card: a seta chama; na PERGUNTA do FAQ: ela acende e o "+" pulsa */
-.servico__link.is-turbinado, .celula__link.is-turbinado { color: var(--t1); }
-.servico__link.is-turbinado span, .celula__link.is-turbinado span { animation: seta-chama .9s ease-in-out infinite; }
-.qa.is-turbinado { border-color: var(--ac-2); }
-.qa.is-turbinado::before { opacity: 1; }
-.qa > summary.is-turbinado { color: var(--ac); }
-.qa > summary.is-turbinado .qa__mark { border-color: var(--ac); animation: qa-chama 1s ease-in-out infinite; }
-@keyframes qa-chama { 50% { scale: 1.18; } }
-@media (prefers-reduced-motion: reduce) { .servico__link.is-turbinado span, .celula__link.is-turbinado span, .qa > summary.is-turbinado .qa__mark, .doca.is-chamando::before, .doca.is-acoplada .doca__cabo::before { animation: none; } }
