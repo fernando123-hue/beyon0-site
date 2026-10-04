@@ -37,6 +37,8 @@
   function pode(nome) { return A.relogio() - (ultimo[nome] === undefined ? -1e9 : ultimo[nome]) > PAUSA[nome]; }
   function marcar(nome) { ultimo[nome] = A.relogio(); }
   function limitar(v, a, b) { return v < a ? a : v > b ? b : v; }
+  /* no celular ele não cruza o texto: fica no trilho da margem (só desce ou sobe até a altura) */
+  function xTrilho(x) { return A.celular ? A.tela.W - 10 : x; }
   function decorrido(dest) { return A.relogio() - (dest.t0 || 0); }
 
   /* ---------- CONTORNAR: a volta na borda de um card, por fora ---------- */
@@ -56,7 +58,7 @@
         if ((s -= h) < w) return { x: x0 + w - s, y: y0 + h };
         return { x: x0, y: y0 + h - (s - w) };
       },
-      fica: 2 * (it.w + it.h + 4 * M) / vel, quieto: true, veloc: 1.6,
+      fica: 2 * (it.w + it.h + 4 * M) / vel, quieto: true, exato: true, veloc: 1.6,
       aoChegar: function () { dest.t0 = A.relogio(); A.pulsar(0.6); }
     };
     marcar('contornar');
@@ -70,7 +72,7 @@
     var cx = p.x, cy = p.y, R = 40, voltas = 1.5, dur = 2.2;
     var dest = {
       xy: function () { var a = -Math.PI / 2 + (decorrido(dest) / dur) * voltas * TAU; return { x: cx + Math.cos(a) * R, y: cy + Math.sin(a) * R }; },
-      fica: dur, quieto: true, veloc: 1.8,
+      fica: dur, quieto: true, exato: true, veloc: 1.8,
       aoChegar: function () { dest.t0 = A.relogio(); },
       aoSair: function () { A.festejar(); }
     };
@@ -84,7 +86,12 @@
     clearTimeout(esperaSel);
     esperaSel = setTimeout(function () {
       var sel = window.getSelection && window.getSelection();
-      if (!sel || sel.isCollapsed || sel.toString().trim().length < 4 || !sel.rangeCount) { selecao = null; return; }
+      if (!sel || sel.isCollapsed || !sel.rangeCount) { selecao = null; return; }
+      /* (dentro de formulário, ou um trecho enorme como Ctrl+A: não) */
+      var no = sel.anchorNode && (sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement);
+      if (no && no.closest && no.closest('input, textarea, form, [contenteditable]')) { selecao = null; return; }
+      var txt = sel.toString().trim();
+      if (txt.length < 4 || txt.length > 400) { selecao = null; return; }
       var rs = sel.getRangeAt(0).getClientRects(), r = rs[rs.length - 1];
       if (!r) return;
       selecao = { x: r.right + 14, yd: r.top + r.height / 2 + A.rolagem(), t: A.relogio() };
@@ -96,7 +103,7 @@
     var s = selecao;
     selecao = null;
     marcar('selecao');
-    return { xy: function () { return { x: limitar(s.x, 20, A.tela.W - 20), y: s.yd - A.rolagem() }; }, fica: 2.6, quieto: true, veloc: 1.5, aoChegar: function () { A.pulsar(1); } };
+    return { xy: function () { return { x: xTrilho(limitar(s.x, 20, A.tela.W - 20)), y: s.yd - A.rolagem() }; }, fica: 2.6, quieto: true, vh: A.celular, veloc: 1.5, aoChegar: function () { A.pulsar(1); } };
   }
 
   /* ---------- GUIAR e LER JUNTO: os títulos, por IntersectionObserver ---------- */
@@ -108,7 +115,10 @@
     }, { rootMargin: '-78% 0px -4% 0px' });
     /* um título no alto da tela: o que a pessoa está lendo */
     var ioL = new IntersectionObserver(function (es) {
-      for (var i = 0; i < es.length; i++) if (es[i].isIntersecting) { var r = es[i].boundingClientRect; lendo = { x: r.left, y2: r.right, yd: r.top + r.height / 2 + A.rolagem(), t: A.relogio() }; }
+      for (var i = 0; i < es.length; i++) {
+        if (es[i].isIntersecting) { var r = es[i].boundingClientRect; lendo = { el: es[i].target, x: r.left, y2: r.right, yd: r.top + r.height / 2 + A.rolagem(), t: A.relogio() }; }
+        else if (lendo && lendo.el === es[i].target) lendo = null;   /* saiu da faixa: não vai a um título que já foi */
+      }
     }, { rootMargin: '-12% 0px -62% 0px' });
     [].forEach.call(document.querySelectorAll('main .kicker'), function (k) { ioP.observe(k); });
     [].forEach.call(document.querySelectorAll('main h2'), function (h) { ioL.observe(h); });
@@ -118,14 +128,14 @@
     var g = proxima;
     proxima = null;
     marcar('guiar');
-    return { xy: function () { return { x: limitar(g.x - 26, 18, A.tela.W - 20), y: g.yd - A.rolagem() + 8 }; }, fica: 1.8, quieto: true, veloc: 2.2,
+    return { xy: function () { return { x: xTrilho(limitar(g.x - 26, 18, A.tela.W - 20)), y: g.yd - A.rolagem() + 8 }; }, fica: 1.8, quieto: true, vh: A.celular, veloc: 2.2,
       aoChegar: function () { A.pulsar(1); A.festejar(); } };
   }
   function lerJunto() {
     if (!lendo || A.paradoHa() < 1.6 || A.relogio() - lendo.t > 30) return null;
     var l = lendo, ladoX = l.x > 60 ? l.x - 30 : Math.min(A.tela.W - 20, l.y2 + 24);
     marcar('lerJunto');
-    return { xy: function () { return { x: ladoX, y: l.yd - A.rolagem() }; }, fica: 3.2, quieto: true,
+    return { xy: function () { return { x: xTrilho(ladoX), y: l.yd - A.rolagem() }; }, fica: 3.2, quieto: true, vh: A.celular,
       aoChegar: function () { A.olharPara((l.x + l.y2) / 2, l.yd - A.rolagem(), 3); A.acalmar(0.3); } };
   }
 

@@ -141,6 +141,7 @@
       estacoes.push(st);
     }
     for (i = estacoes.length; i < antes.length; i++) {
+      if (antes[i].acopla || antes[i].conectada) soltarEstacao(antes[i]);   /* (janela estreitou com ela conectada) */
       antes[i].cv.remove();
       if (antes[i].vao) { antes[i].vao.classList.remove('is-viva'); antes[i].vao.parentNode.classList.remove('is-ligada'); }
     }

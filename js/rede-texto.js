@@ -46,6 +46,9 @@
       if (el !== pai) {
         pai = el;
         q = null;
+        /* texto partido em letras (js/carga.js): a zona é o elemento inteiro, logo abaixo (letra a letra, um card
+           virava ~250 zonas: custo por quadro e o apagado engrossava) */
+        if (el.closest('[data-carga-split]')) continue;
         if (!el.offsetParent || el.closest(FORA + ', .hero__arte, script, style, noscript')) continue;
         /* o 1º fragmento (num inline que quebra de linha, o offsetLeft é dele;
            a caixa inteira começaria mais à esquerda) */
@@ -60,6 +63,14 @@
         if (r.width < 2 || r.height < 2) continue;
         zonas.push({ x: q.x + r.left - caixa.left, y: q.y + r.top - caixa.top, w: r.width, h: r.height, folga: folga, ref: ref });
       }
+    }
+    var partidos = document.querySelectorAll('[data-carga-split]');
+    for (i = 0; i < partidos.length; i++) {
+      var pt = partidos[i];
+      if (!pt.offsetParent) continue;
+      var qp = posicaoDoc(pt), cx = pt.getClientRects(), c0 = cx[0];
+      if (!c0) continue;
+      for (var lp = 0; lp < cx.length; lp++) zonas.push({ x: qp.x + cx[lp].left - c0.left, y: qp.y + cx[lp].top - c0.top, w: cx[lp].width, h: cx[lp].height, folga: FOLGA, ref: refDe(pt) });
     }
     var grupos = [[MIOLO, -3, false], [DADO, 16, true], ['.kicker', 8, true]];
     for (var g = 0; g < grupos.length; g++) {

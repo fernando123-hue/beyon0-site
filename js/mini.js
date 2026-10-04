@@ -53,15 +53,9 @@
      num botão sem clique, PUXA A MANGA (treme pedindo); com o cursor chegando
      perto, dá um pulo de festa. Rolar rápido continua chamando ele de volta,
      ele não cobre o texto e some no rodapé.
-   - As TOMADAS (dono, 2026-10-04: "os campos para ele se conectar nas
-     opções mais apropriados, feitos sob medida para ele"): o soquete tem o
-     desenho dele — anel do tamanho dele, anel interno onde o núcleo assenta,
-     3 travas nas posições das 3 que ele fecha ao encaixar — e um CABO até a
-     opção. Tipos: botão principal (cta) e secundário (botao): mira e luz que
-     atravessa; LINK de card: ele CARREGA o card inteiro (js/carga.js,
-     B.carga.impulso); PERGUNTA do FAQ: a pergunta acende e o "+" chama.
-     A leitura parada só leva aos botões principais; a hesitação, a qualquer
-     tomada.
+   - As TOMADAS dos botões (js/mini-docas.js): discretas, só em botões; o
+     ENCAIXE é animado (alinha acima, desce devagar, trava) e ele fica imóvel.
+   - A VIDA (js/mini-vida.js): o repertório de comportamentos.
    - Na PASSAGEM entre páginas ele mergulha no centro com o painel (e
      reaparece de lá na página nova); ao abrir uma pergunta, comemora.
    - Respira junto com o reator (B.relogio): no começo do expirar manda um
@@ -129,7 +123,7 @@
   var passeio = { estado: 'doca', espera: acaso(5, 9), pos: null, dest: null, fica: 0 };
   var quer = { alvo: null, f: 0, a: 0, prox: 0, n: 0 };   /* a opção sob o cursor */
   var sugestao = { ultima: -99, alvo: null, t: -1 };
-  var insiste = 0, festa = 0, atencaoAntes = 0, toque = null;
+  var insiste = 0, festa = 0, atencaoAntes = 0, toque = null, mergulho = false;
   var relogioMini = 0, espera = -1;   /* espera: s desde o último pulso de espera (−1: nenhum) */
   var ESPERA = { dura: 0.55, abre: 5, alfa: 0.3 };   /* o anel de espera: legível, curto (crítica rodada 2) */
 
@@ -150,6 +144,8 @@
     }
   } catch (e) { /* sem armazenamento: começa na lateral */ }
   window.addEventListener('pagehide', function () {
+    /* mergulhou na passagem: a página nova o recebe do centro */
+    if (mergulho) { mini.x = tela.W / 2; mini.y = tela.H / 2; }
     try { sessionStorage.setItem('bz-mini', JSON.stringify({ x: mini.x / tela.W, y: mini.y / tela.H, vis: +mini.vis.toFixed(2), quando: Date.now() })); } catch (e) { /* idem */ }
   });
 
@@ -285,10 +281,15 @@
     if (ps.dest.aoSair) { var f = ps.dest.aoSair; ps.dest.aoSair = null; f(); }   /* o comportamento (js/mini-vida.js) terminou */
   }
   /* ir agora a um destino (a tomada, um comportamento): de onde estiver */
-  function ir(dest) { passeio.dest = dest; passeio.estado = 'indo'; passeio.pos = { x: mini.x, y: mini.y }; dest.t0 = relogioMini; }
+  function ir(dest) {
+    if (passeio.dest && passeio.dest !== dest) soltarEstacao(passeio);   /* o anterior termina direito (aoSair) */
+    passeio.dest = dest; passeio.estado = 'indo'; passeio.travou = false; passeio.pos = { x: mini.x, y: mini.y }; dest.t0 = relogioMini;
+  }
   /* chamado por uma estação (o clique nela): vai agora, de onde estiver */
   function irPara(st) {
     if (!mini.ativo || B.reduced || celular) return;
+    /* já indo (ou encaixando) nesta estação: um novo clique não reinicia o caminho */
+    if (passeio.dest && passeio.dest.estacao === st && (passeio.estado === 'indo' || passeio.estado === 'encaixando')) return;
     soltarSugestao(); soltarEstacao(passeio);
     passeio.dest = paraEstacao(st); passeio.estado = 'indo'; passeio.pos = { x: mini.x, y: mini.y };
     pulsar(0.8);
@@ -319,7 +320,7 @@
       if (andarPara(ps.pos, alvo, dt * veloc, ps.dest.vh ? 'vh' : null)) {
         ps.fica = ps.dest.fica !== undefined ? ps.dest.fica : ps.dest.estacao ? 99 : ps.dest.cta ? DOCA.fica : ps.dest.sugere ? SUGESTAO.fica : ps.dest.cursor ? acaso(CRIANCA.segue.fica[0], CRIANCA.segue.fica[1]) : ps.dest.toque ? CRIANCA.toque : acaso(PASSEIO.fica[0], PASSEIO.fica[1]);
         /* tomada e estação: não chega direto — ENCAIXA (alinha acima, desce devagar, trava) */
-        if (ps.dest.encaixa) { ps.estado = 'encaixando'; ps.fase = 0; return ps.pos; }
+        if (ps.dest.encaixa) { ps.estado = 'encaixando'; ps.fase = 0; ps.travou = false; return ps.pos; }
         ps.estado = 'parado';
         chegou(ps.dest);
       }
@@ -435,8 +436,8 @@
     paradoHa = Math.abs(velRol) < 30 ? paradoHa + dt : 0;
 
     var livreAgora = mini.ativo && solto > 0.98 && !menu && !d.fim && !chegando;
-    if (docas && !mini.dormindo) docas.passo(dt, W, H, livreAgora);
-    var fora = mini.dormindo ? null : passear(dt, W, H, d, livreAgora);
+    if (docas && !mini.dormindo && !mergulho) docas.passo(dt, W, H, livreAgora);
+    var fora = mini.dormindo || mergulho ? null : passear(dt, W, H, d, livreAgora);
     if (mini.dormindo) alvoVis *= 1 - 0.45 * mini.dormindo;
     if (fora) { alvoX = fora.x; alvoY = fora.y; }
     /* a opção sob o cursor: ele se inclina para ela (pouco, mas se sente) */
@@ -463,7 +464,9 @@
       alvoY -= Math.abs(Math.sin(relogioMini * Math.PI * hz)) * alto * (passeio.estado === 'doca' ? 0.6 : 1);
     }
     alvoY -= Math.sin(festa * Math.PI) * CRIANCA.festa;
-    var naEstacao = passeio.dest && (passeio.dest.estacao || encaixado);   /* na estação ou encaixado: exatamente no lugar, imóvel */
+    /* mergulhando na passagem: direto para o centro da tela (o painel o cobre) */
+    if (mergulho) { alvoX = W / 2; alvoY = H / 2; }
+    var naEstacao = passeio.dest && (passeio.dest.estacao || encaixado || (passeio.dest.exato && passeio.estado === 'parado'));   /* na estação ou encaixado: exatamente no lugar, imóvel */
     if (!naEstacao) {
       alvoX += Math.cos(quer.a) * QUER.inclina * quer.f;
       alvoY += Math.sin(quer.a) * QUER.inclina * quer.f;
@@ -707,7 +710,6 @@
 
   /* a PASSAGEM entre páginas (js/passagem.js): ele mergulha no centro com o painel
      (a posição guardada ao sair é o centro: na página nova ele reaparece de lá) */
-  var mergulho = false;
   B.on('passagem', function () {
     if (!mini.ativo || B.reduced) return;
     mergulho = true; soltarSugestao(); soltarEstacao(passeio); passeio.estado = "doca"; passeio.dest = null; pulsar(1);

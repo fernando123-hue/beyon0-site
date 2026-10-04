@@ -110,18 +110,46 @@
     if (!c || !c.aro || Math.abs(a - c.aroA) < 0.01) return;
     c.aro.style.opacity = a.toFixed(2); c.aroA = a;
   }
-  /* a onda de luz pelas letras do card (partido na 1ª vez; reinicia alternando -a/-b, sem ler layout) */
+  /* parte o texto do card em letras, uma vez: spans sem rótulo extra (o texto segue no lugar para o leitor de
+     tela; aria-label em parágrafo é proibido pela ARIA), a seta (aria-hidden) fica de fora; o atraso de cada
+     letra é distribuído pelo card inteiro (com teto, as últimas piscavam juntas) */
+  function partir(card) {
+    var c = card._carga;
+    if (!c || !window.SplitText) return false;
+    if (c.split) return true;
+    var alvos = [].filter.call(card.querySelectorAll(TEXTOS), function (el) { return !el.closest('.carga') && el.textContent.trim(); });
+    if (!alvos.length) return false;
+    try {
+      c.split = new window.SplitText(alvos, { type: 'words,chars', tag: 'span', aria: 'none', ignore: '[aria-hidden="true"]', charsClass: 'carga-letra', wordsClass: 'carga-palavra' });
+    } catch (e) { c.split = { chars: [] }; return false; }
+    for (var k = 0; k < alvos.length; k++) alvos[k].setAttribute('data-carga-split', '');
+    var n = c.split.chars.length, passo = n ? Math.min(LETRAS.passo, LETRAS.teto / n) : 0;
+    for (var i = 0; i < n; i++) c.split.chars[i].style.animationDelay = Math.round(i * passo) + 'ms';
+    return true;
+  }
+  /* partir ANTES, com o navegador ocioso, só os cards fora da tela: o pulo de layout (kerning entre caixas) não
+     é visto e não acontece na hora do efeito (cortava o turbo da estação na 1ª conexão) */
+  var adiantou = false;
+  function adiantar() {
+    if (adiantou || B.reduced || reduz.matches || !window.SplitText) return;
+    adiantou = true;
+    var ocioso = window.requestIdleCallback || function (f) { return setTimeout(f, 200); };
+    ocioso(function () {
+      var cards = document.querySelectorAll('.tem-carga'), H = window.innerHeight;
+      for (var i = 0; i < cards.length; i++) {
+        var r = cards[i].getBoundingClientRect();
+        if (r.bottom < -40 || r.top > H + 40) partir(cards[i]);
+      }
+    }, { timeout: 2500 });
+  }
+  B.on('rede:medida', function () { setTimeout(adiantar, 600); });
+  /* a onda de luz pelas letras do card (reinicia alternando -a/-b, sem ler layout) */
   function letras(card, forcar) {
     if (B.reduced || reduz.matches || !window.SplitText) return;
     var c = card._carga, agora = performance.now();
     if (!c || (!forcar && agora - (c.letrasEm || -1e9) < LETRAS.cada * 1000)) return;
     c.letrasEm = agora;
-    if (!c.split) {
-      var alvos = [].filter.call(card.querySelectorAll(TEXTOS), function (el) { return !el.closest('.carga') && el.textContent.trim(); });
-      if (!alvos.length) return;
-      try { c.split = new window.SplitText(alvos, { type: 'words,chars', charsClass: 'carga-letra', wordsClass: 'carga-palavra' }); } catch (e) { c.split = { chars: [] }; }
-      for (var i = 0; i < c.split.chars.length; i++) c.split.chars[i].style.animationDelay = Math.min(LETRAS.teto, i * LETRAS.passo) + 'ms';
-    }
+    if (!partir(card)) return;
     var a = card.classList.contains('is-letras-a');
     card.classList.remove(a ? 'is-letras-a' : 'is-letras-b');
     card.classList.add(a ? 'is-letras-b' : 'is-letras-a');

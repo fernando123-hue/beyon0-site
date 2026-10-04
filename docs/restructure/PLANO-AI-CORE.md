@@ -985,3 +985,23 @@ lado do título; espiar meio escondido na borda; dormir após ~22 s sem gestos
 centro na passagem entre páginas e comemora ao abrir uma pergunta do FAQ.
 Conferido no Chrome real: todos observados num mesmo passeio de teste.
 Verificador 12/12; acessibilidade ok.
+
+**Revisão deste lote (agente independente) e correções.** Alta: com as letras
+partidas, o fundo (rede-texto.js) criava uma zona por letra (~250 por card):
+custo por quadro e apagado engrossado — agora cada texto partido
+(`[data-carga-split]`) vale como uma zona. Médias: o texto é partido ANTES,
+com o navegador ocioso e só nos cards fora da tela (evita o pulo de layout na
+hora do efeito e o turbo da estação cortado na 1ª conexão); SplitText em
+`span` com `aria: 'none'` e a seta (aria-hidden) fora; `ps.travou` zerado ao
+entrar no encaixe e em `ir()`; contornar e brincar seguem o caminho exato
+(com a mola cortavam o card); no celular guiar/ler junto/seleção ficam no
+trilho; o MERGULHO na passagem foi implementado de fato (alvo no centro,
+passeio e tomadas parados, posição salva no centro). Baixas: título que saiu
+da faixa é esquecido; `ir()` encerra o comportamento anterior; seleção em
+formulário ou maior que 400 caracteres ignorada; estação que some do mapa
+conectada solta a sobrecarga; novo clique numa estação para a qual ele já
+vai não reinicia o caminho. Conferido: estação conecta (~1 s de viagem,
+encaixe em etapas, carga ~1 s) e ele fica imóvel; letras 143 sem rótulo
+extra. Verificador: falhas de LCP só no desktop de Sites/Automação com a CPU
+a 100%; o elemento do LCP é o título/parágrafo do hero (1–2,6 s), sem
+relação com este lote. Acessibilidade ok.
