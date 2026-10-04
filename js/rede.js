@@ -75,6 +75,8 @@
   var trilho = !celular && B.trilho ? B.trilho({ ctx: ctx, cores: cores, livre: livre }) : null;
   var campo = B.campo({ ctx: ctx, cores: cores, celular: celular, livre: livre, varre: !!trilho });
   var heroFim = 0;   /* (desktop) o fim do hero no documento: ali o campo dá lugar ao trilho */
+  var heroBase = 0, expirouQuadro = false;   /* o fim do hero (desktop e celular), para o fundo próprio de Sites/Automação (js/hero-fundo.js) */
+  var GEO_HF = { W: 0, H: 0, topo: 0, fim: 0, rolagem: 0, sx: 0, cursor: null, t: 0, dt: 0, folego: 0, expirou: false, parado: false, livre: null, cel: false, cursorNovo: false };
   /* o campo anda? No celular na página toda; no desktop nas páginas com hero (e só desenha enquanto ele está na tela) */
   function usaCampo() { return !trilho || heroFim > 0; }
   function heroFimTela() { return heroFim - rolagem; }
@@ -129,6 +131,12 @@
     if (rodapeY > 1e8) rodapeY = document.documentElement.scrollHeight;
     docH = document.documentElement.scrollHeight;
     if (trilho) medirTrilho();
+    var heroEl = document.querySelector('.hero');
+    heroBase = heroEl ? posicaoDoc(heroEl).y + heroEl.offsetHeight : 0;
+    if (B.heroFundo) {
+      var tit = document.querySelector('.hero__title');
+      B.heroFundo.medir(posicaoDoc, { topoDoc: navH, W: W, colE: tit ? posicaoDoc(tit).x : 24 });
+    }
     /* a caixa do reator (Hub): a origem do campo, medida aqui e não por
        quadro; inclui o translate fixo dela no desktop */
     var cn = document.querySelector('[data-nucleo]');
@@ -248,7 +256,7 @@
     if ((B.agitacao || 0) < 0.2) degrauAgitado = 0;
     posicionar();
     /* o fôlego do reator move o campo: expirar solta a onda; inspirar recolhe */
-    if (faseAntes < F.inspira && x >= F.inspira) { if (usaCampo()) campo.soltarOnda(); if (trilho) trilho.soltarOnda(); }
+    if (faseAntes < F.inspira && x >= F.inspira) { if (usaCampo()) campo.soltarOnda(); if (trilho) trilho.soltarOnda(); expirouQuadro = true; }
     /* a coleta parte ANTES do lampejo do reator (x = 0), escalonada: a
        mediana dos pacotes chega junto com ele (causa antes do efeito) */
     if (faseAntes < COLETA.fase && x >= COLETA.fase) coletar();
@@ -318,8 +326,11 @@
     ctx.clearRect(0, 0, W, H);
     var resp = parado ? 1 : 0.8 + 0.2 * folego;
     /* (desktop) com o hero fora da tela o campo não desenha (o passo continua: as ondas não congelam) */
+    var hf = B.heroFundo, hfTela = heroBase - rolagem;
     if (usaCampo() && (!trilho || heroFimTela() > navH)) {
-      campo.desenhar(resp, !parado);
+      /* (Sites e Automação) no desktop o hero tem o fundo próprio no lugar do campo */
+      if (hf && trilho) desenharHeroFundo(hf, hfTela);
+      else campo.desenhar(resp, !parado);
       /* (desktop) o campo termina no fim do hero, em degraus nítidos como no rodapé */
       if (trilho) {
         var hf = heroFimTela();
@@ -329,6 +340,16 @@
         ctx.globalCompositeOperation = 'source-over';
       }
     }
+    /* (celular) o campo segue abaixo do hero; o hero é do fundo próprio, com o
+       campo terminando em degraus nítidos na borda dele */
+    if (hf && !trilho && hfTela > navH) {
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, Math.max(0, hfTela - 60));
+      for (var dc = 0; dc < 3; dc++) { ctx.fillStyle = 'rgba(0,0,0,' + (0.75 - 0.25 * dc).toFixed(2) + ')'; ctx.fillRect(0, hfTela - 60 + dc * 20, W, 20); }
+      ctx.globalCompositeOperation = 'source-over';
+      desenharHeroFundo(hf, hfTela);
+    }
+    expirouQuadro = false;
     if (trilho) trilho.desenhar(resp, !parado);
     var extra = B.rede.extra;
     if (extra && extra.desenharFundo) extra.desenharFundo(ctx);   /* o que o mini traça: também some atrás do texto */
@@ -336,6 +357,17 @@
     apagarTextos();
     desenharBarramento();
     desenharElementos();
+  }
+  /* o fundo próprio do hero (js/hero-fundo.js), recortado ao hero */
+  function livreDoTexto(x, y) { return !naZona(x, y); }
+  function desenharHeroFundo(hf, fim) {
+    var g = GEO_HF;
+    g.W = W; g.H = H; g.topo = navH; g.fim = Math.min(H, fim); g.rolagem = rolagem; g.sx = B.S.sx; g.cursor = ponteiro;
+    g.t = B.relogio(); g.dt = dtQuadro; g.folego = parado ? 1 : folego; g.expirou = expirouQuadro; g.parado = parado; g.livre = livreDoTexto; g.cel = celular;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(0, navH, W, Math.max(0, g.fim - navH)); ctx.clip();
+    hf.desenhar(ctx, g);
+    ctx.restore();
   }
   /* o caminho de A até B pelo vão (coordenadas da tela): lado a lado, um
      abaixo do outro, ou a fileira que quebra (chanfro de 45°, como trilha de

@@ -569,7 +569,7 @@
   }
 
   /* ---------- as DOCAS dos CTAs ---------- */
-  var docas = [], ultimaDoca = -99;
+  var docas = [], ultimaDoca = -99, jaRolou = false;
   function posDoc(el) { var x = 0, y = 0; for (var e = el; e; e = e.offsetParent) { x += e.offsetLeft; y += e.offsetTop; } return { x: x, y: y }; }
   function montarDocas() {
     var els = document.querySelectorAll('main .btn--primary');
@@ -584,7 +584,7 @@
       ligarDoca(dc);
       docas.push(dc);
     }
-    medirDocas();
+    /* a medida vem com a da rede (rede:medida), depois do load: medir aqui forçava layout antes da 1ª pintura */
   }
   function ligarDoca(dc) {
     dc.el.addEventListener('pointerenter', function (e) { if (e.pointerType === 'mouse') dc.sob = true; });
@@ -612,6 +612,7 @@
      dele e, se for a hora, o encaixe */
   function docasPasso(dt, W, H, livre) {
     var melhor = null;
+    if (rolagem > 160) jaRolou = true;
     for (var i = 0; i < docas.length; i++) {
       var dc = docas[i];
       if (!dc.ok) continue;
@@ -627,8 +628,9 @@
       var pertoDele = ponteiro.ativo && px > bx - DOCA.perto && px < bx + dc.w + DOCA.perto && py > by - DOCA.perto && py < by + dc.h + DOCA.perto;
       dc.hesita = pertoDele || dc.sob ? dc.hesita + dt : 0;
       /* a leitura: o botão no meio da tela, com a rolagem parada */
+      /* (só depois de a pessoa rolar: ao abrir a página ele não vai direto ao botão) */
       var meio = by > H * 0.22 && by + dc.h < H * 0.8;
-      dc.visto = meio && paradoHa > 0.4 ? dc.visto + dt : 0;
+      dc.visto = meio && jaRolou && paradoHa > 0.4 ? dc.visto + dt : 0;
       if (relogioMini - dc.ultima < DOCA.porCta) continue;
       if (dc.hesita > DOCA.hesita || dc.visto > DOCA.parado) melhor = dc;
     }
