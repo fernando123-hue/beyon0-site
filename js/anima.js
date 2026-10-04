@@ -511,6 +511,13 @@
       tl.add(function () { btn.classList.add('is-passou'); }, tBtn + .18);
     }
   }
+  /* o card da pilha carregou: a linha de luz o atravessa uma vez (alterna
+     -a/-b para reiniciar a animação sem ler layout) */
+  function carregou(card) {
+    var a = card.classList.contains('is-varre-a');
+    card.classList.remove(a ? 'is-varre-a' : 'is-varre-b');
+    card.classList.add(a ? 'is-varre-b' : 'is-varre-a');
+  }
   function de(tabela, el, padrao) { for (var k in tabela) if (el.matches(k)) return tabela[k]; return padrao; }
   function revelar(el, imediato) {
     marcar(el);
@@ -561,6 +568,63 @@
         });
         /* celular: sem hover, o item no meio da tela é o "em foco" (índice âmbar,
            régua acesa). Classe por evento de rolagem, nada por quadro. */
+        /* A CARGA da pilha do celular (pedido do dono, 2026-10-04: "efeitos de
+           energia conforme for descendo, como se os cards estivessem
+           carregando"). O movimento do monte é CSS (sticky pelo baixo, ver
+           css/cartoes.css); aqui só a energia: cada card tem uma BARRA de 12
+           segmentos na BASE (a parte que aparece primeiro) que enche enquanto ele é revelado (o 1º, enquanto
+           o grupo sobe até o monte assentar); enquanto carrega, a energia DESCE
+           da base do card da frente para dentro dele; cheia, ele fica
+           CARREGADO (a barra pisca branca e fica ciano, a aresta e o número
+           acendem, uma linha de luz o atravessa uma vez). Subindo, descarrega.
+           Os intervalos vêm da posição natural de cada card e da linha do
+           sticky (lidas só no refresh); os gatilhos medem a PILHA (o card
+           segurado mediria errado). Só a barra anda por quadro (scaleX). */
+        mm.add('(max-width: 720px) and (prefers-reduced-motion: no-preference)', function () {
+          if (!ST || html.classList.contains('menos-movimento')) return;
+          var cartas = [], medidores = [];
+          [].forEach.call(document.querySelectorAll('.pilha'), function (pilha) {
+            var cards = [].filter.call(pilha.children, function (c) { return !c.classList.contains('estacao-vao'); });
+            if (cards.length < 2) return;
+            var m = { nat: [], parado: [] };
+            /* parado[k]: o topo (tela) do card k segurado pela linha do sticky */
+            var medir = function () {
+              var vao = parseFloat(getComputedStyle(pilha).rowGap) || 0, soma = 0, vh = window.innerHeight;
+              for (var k = 0; k < cards.length; k++) {
+                m.nat[k] = soma; soma += cards[k].offsetHeight + vao;
+                m.parado[k] = vh - (parseFloat(getComputedStyle(cards[k]).bottom) || 0) - cards[k].offsetHeight;
+              }
+            };
+            medir();
+            ST.addEventListener('refreshInit', medir);
+            medidores.push(medir);
+            /* onde está o topo da pilha (tela) quando o card k começa e termina de carregar */
+            var comeca = function (k) { return function () { var y = k === 0 ? window.innerHeight : k === 1 ? m.parado[1] : m.parado[k - 1] - m.nat[k - 1]; return 'top ' + Math.round(y) + 'px'; }; };
+            var termina = function (k) { return function () { var y = k === 0 ? m.parado[1] : m.parado[k] - m.nat[k]; return 'top ' + Math.round(y) + 'px'; }; };
+            cards.forEach(function (card, k) {
+              cartas.push(card);
+              var barra = card.querySelector(':scope > .carga');
+              if (!barra) {
+                barra = document.createElement('i'); barra.className = 'carga'; barra.setAttribute('aria-hidden', 'true');
+                barra.appendChild(document.createElement('b'));
+                var fio = document.createElement('i'); fio.className = 'carga-fio'; fio.setAttribute('aria-hidden', 'true');
+                var varre = document.createElement('i'); varre.className = 'carga-varre'; varre.setAttribute('aria-hidden', 'true');
+                card.appendChild(barra); card.appendChild(fio); card.appendChild(varre);
+              }
+              gsap.fromTo(barra.firstChild, { scaleX: 0 }, { scaleX: 1, ease: 'none', immediateRender: true,
+                scrollTrigger: { trigger: pilha, start: comeca(k), end: termina(k), scrub: true, invalidateOnRefresh: true,
+                  toggleClass: { targets: card, className: 'is-carregando' },
+                  /* o card da frente DOA: a energia desce da base dele para o que está aparecendo */
+                  onToggle: function (st) { if (k > 0) cards[k - 1].classList.toggle('is-doando', st.isActive); },
+                  onLeave: function () { card.classList.add('is-carregado'); carregou(card); },
+                  onEnterBack: function () { card.classList.remove('is-carregado'); } } });
+            });
+          });
+          return function () {
+            for (var k = 0; k < medidores.length; k++) ST.removeEventListener('refreshInit', medidores[k]);
+            cartas.forEach(function (c) { c.classList.remove('is-carregando', 'is-carregado', 'is-doando', 'is-varre-a', 'is-varre-b'); });
+          };
+        });
         mm.add('(max-width: 860px) and (prefers-reduced-motion: no-preference)', function () {
           if (!ST || html.classList.contains('menos-movimento')) return;
           /* (os cards da pilha, até 720 px, ficam segurados pelo sticky: o gatilho por posição mediria errado) */

@@ -908,3 +908,15 @@ move tudo no compositor, junto com o dedo — a versão com JS e parada parecia
 "travada". Saiu a coreografia de JS da pilha; o fundo vivo não desenha
 barramento entre os cards da pilha no celular. Conferido com toque real nos
 dois sentidos; verificador 12/12; acessibilidade ok.
+
+**A carga da pilha (mesmo dia, pedido: "efeitos de energia conforme for
+descendo, como se os cards estivessem carregando").** O movimento continua
+CSS; a energia é do `anima.js`: barra de 12 segmentos (borda dura) na BASE de
+cada card — a parte revelada primeiro; no topo ela enchia escondida atrás do
+card da frente — que enche enquanto ele é revelado (o 1º enquanto o grupo
+sobe até o monte); enquanto carrega, a energia desce (traços de 2 px) da base
+do card da frente para dentro dele; cheia, pisca branca e fica ciano, aresta
+e número acendem, uma linha de luz atravessa o card. Subindo, descarrega.
+Intervalos pela posição natural + a linha do sticky, medidos na pilha só no
+refresh; por quadro só o scaleX da barra. Conferido com toque real nos dois
+sentidos; verificador 12/12; acessibilidade ok.
