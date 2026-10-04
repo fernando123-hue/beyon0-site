@@ -392,7 +392,7 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
   const coroaN = criarCoroa(THREE, celular ? { ...CO, ...CO.celular } : CO, NU, cor, shader, A.coroa);
   guarda(coroaN.geo);
   const coroa = coroaN.malha;
-  const PARAM_COROA = { raio: 0, disco: 0, folego: 0, perto: 0, toque: 0, agitacao: 0, chegou: 99, t: 0, alvo: { x: 0, y: 0, f: 0 } };   /* reaproveitado por quadro */
+  const PARAM_COROA = { raio: 0, disco: 0, folego: 0, perto: 0, toque: 0, agitacao: 0, chegou: 99, t: 0, extra: 0, alvo: { x: 0, y: 0, f: 0 } };   /* reaproveitado por quadro */
   nucleo.add(coroa);
 
   /* o traço e a onda grande: sprites (sempre de frente para a câmera) */
@@ -460,8 +460,8 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
        instante em que a energia chega ao núcleo (uT inteiro). Travadas por
        `fica` do fôlego, soltam acelerando (q²), chegam com velocidade e o
        encaixe passa `passa` da casa e volta em `volta` (o clique). A
-       agitação e a rolagem (giroExtra) também giram as camadas em sentidos
-       alternados, como engrenagens */
+       agitação e a rolagem (giroExtra) giram as camadas em sentidos
+       alternados, como engrenagens (o arrasto de cada uma, spec.trava) */
     const uT = (t - RS.nucleo[0]) / RS.periodo - RS.inspira;
     const trava = travar(uT);
     const extra = e.giroExtra || 0;
@@ -469,7 +469,7 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
       const pa = paineis[i], M = pa.d.montagem;
       /* o campo e a onda vão para o plano da camada: desfaz o giro total
          (roda + camada) e a escala (o shader compara com a posição local) */
-      const rel = pa.d.trava * (passo * trava + extra * 0.8);
+      const rel = pa.d.trava * passo * trava + pa.d.arrasto * extra;   /* spec.trava: o arrasto é relativo à roda */
       pa.grupo.rotation.z = rel;
       const cg = Math.cos(-giro - rel), sg = Math.sin(-giro - rel);
       const k = suave((m - M.atraso) / (1 - M.atraso));
@@ -571,7 +571,7 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
     pc.raio = NU.raio * (0.55 + 0.45 * ig) * batida * inspira * (1 + perto * 0.3);
     pc.disco = (0.12 + 0.88 * ig) * (1 + perto);
     pc.folego = folego(t - RS.nucleo[0], RS.periodo, RS.inspira);
-    pc.perto = perto; pc.toque = envBatida; pc.agitacao = e.agitacao || 0; pc.chegou = chegou; pc.t = t;
+    pc.perto = perto; pc.toque = envBatida; pc.agitacao = e.agitacao || 0; pc.chegou = chegou; pc.t = t; pc.extra = extra;
     /* o cursor puxa os fios: forte perto do núcleo, de leve em qualquer ponto do hero */
     pc.alvo.x = o.x; pc.alvo.y = o.y; pc.alvo.f = Math.min(1, o.f * 0.5 + perto * 2.5);
     coroaN.atualizar(pc);

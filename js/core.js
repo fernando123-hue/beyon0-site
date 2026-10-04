@@ -17,7 +17,14 @@
   var reduced = mqReduce.matches || html.classList.contains('menos-movimento');
 
   /* ---- estado compartilhado: subsistemas LEEM, o núcleo escreve ---- */
-  var S = { t: 0, dt: 16, now: 0, fps: 60 };
+  var S = { t: 0, dt: 16, now: 0, fps: 60, sx: window.scrollX, sy: window.scrollY, rolouEm: 0 };
+  /* a rolagem em cache: ler window.scrollX/scrollY dentro do quadro, depois
+     que o GSAP escreveu estilo, obriga o navegador a refazer o layout no
+     meio do quadro (medido: ~40% do quadro rolando). Quem roda no laço lê
+     daqui; o evento só anota. */
+  function anotarRolagem() { S.sx = window.scrollX; S.sy = window.scrollY; S.rolouEm = performance.now(); }
+  window.addEventListener('scroll', anotarRolagem, { passive: true });
+  window.addEventListener('resize', anotarRolagem, { passive: true });
 
   /* ---- subsistemas ---- */
   var subs = [];

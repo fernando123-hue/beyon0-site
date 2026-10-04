@@ -292,7 +292,7 @@
        dela (o laço roda a rede antes do reator: com cy pronto ela andava um
        quadro atrás) */
     nucleo.px = centro.x; nucleo.py = centro.y;
-    nucleo.cx = centro.x - window.scrollX;
+    nucleo.cx = centro.x - B.S.sx;
     nucleo.cy = centro.y - rolagem;
     nucleo.r = p.entrada * pxPorUnidade;
     nucleo.sx = Math.cos(p.ry);

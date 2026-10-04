@@ -1,0 +1,97 @@
+/* ==========================================================================
+   A PASSAGEM — a transição entre as páginas do site (css/motion.css).
+
+   A View Transition entre documentos do navegador falhava quase sempre aqui
+   (Chrome real, 2026-10-04: 0 de 14 trocas), então a transição é do site:
+   no clique num link para outra página do site, o painel cobre a tela (o fio
+   de luz na frente, o nome do destino no centro) e só então navega; a página
+   nova nasce coberta (js/ancoras.js põe `passagem-chega` no <head>) e o
+   painel segue a varredura, revelando-a. Enquanto ele fecha, o destino já
+   foi pedido ao servidor: a intenção (cursor em cima, dedo encostado, foco)
+   pré-carrega a página.
+
+   Fica de fora: link com modificador (nova aba), outra origem, âncora na
+   mesma página, movimento reduzido. Voltar pelo histórico com a página
+   guardada (bfcache) tira o painel.
+   ========================================================================== */
+(function () {
+  'use strict';
+  var html = document.documentElement;
+  var B = window.BEYON || {};
+  var el = document.querySelector('.passagem');
+  if (!el) return;
+  var rotulo = el.querySelector('.passagem__rotulo');
+  var COBRE_MS = 420;          /* = a animação pass-entra-* do CSS */
+  var CHEGADA_MS = 900;        /* atraso + duração da abertura, com folga */
+  var NOMES = { '/': 'Beyon Zero', '/sites': 'Sites', '/automacao': 'Automação & IA' };
+  var saindo = false;
+
+  function caminho(u) {
+    var p = u.pathname.replace(/\/index\.html$/, '/').replace(/\.html$/, '').replace(/(.)\/$/, '$1');
+    return p || '/';
+  }
+  function reduzido() { return !!B.reduced || html.classList.contains('menos-movimento'); }
+
+  /* a chegada: tira a classe quando o painel terminou de abrir */
+  if (html.classList.contains('passagem-chega')) {
+    setTimeout(function () { html.classList.remove('passagem-chega'); }, CHEGADA_MS);
+  }
+
+  /* o link que vira passagem: mesma origem, página do site, outra página */
+  function destinoDe(e) {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return null;
+    var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+    if (!a || (a.target && a.target !== '_self') || a.hasAttribute('download')) return null;
+    var u;
+    try { u = new URL(a.href, location.href); } catch (err) { return null; }
+    if (u.origin !== location.origin) return null;
+    var p = caminho(u);
+    if (!Object.prototype.hasOwnProperty.call(NOMES, p) || p === caminho(location)) return null;
+    return { href: u.href, nome: NOMES[p] };
+  }
+
+  function sair(d) {
+    saindo = true;
+    rotulo.textContent = d.nome;
+    try { sessionStorage.setItem('bz-passagem', String(Date.now())); } catch (err) { /* sem armazenamento: chega sem cobertura */ }
+    html.classList.remove('passagem-chega');
+    el.classList.remove('is-cobre');
+    void el.offsetWidth;   /* reinicia a animação se a classe acabou de sair */
+    el.classList.add('is-cobre');
+    if (B.emit) B.emit('passagem', d);
+    setTimeout(function () { location.href = d.href; }, COBRE_MS);
+  }
+
+  document.addEventListener('click', function (e) {
+    var d = destinoDe(e);
+    if (!d || reduzido()) return;
+    e.preventDefault();
+    if (!saindo) sair(d);
+  });
+
+  /* voltou pelo histórico com a página guardada: sem painel */
+  window.addEventListener('pageshow', function (e) {
+    if (!e.persisted) return;
+    saindo = false;
+    el.classList.remove('is-cobre');
+    html.classList.remove('passagem-chega');
+  });
+
+  /* pré-carga na intenção: o HTML do destino chega enquanto o painel fecha */
+  var pedidos = {};
+  function precarregar(e) {
+    var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+    if (!a) return;
+    var u;
+    try { u = new URL(a.href, location.href); } catch (err) { return; }
+    var p = caminho(u);
+    if (u.origin !== location.origin || !Object.prototype.hasOwnProperty.call(NOMES, p) || p === caminho(location) || pedidos[p]) return;
+    pedidos[p] = true;
+    var l = document.createElement('link');
+    l.rel = 'prefetch'; l.href = u.pathname;
+    document.head.appendChild(l);
+  }
+  document.addEventListener('pointerover', precarregar, { passive: true });
+  document.addEventListener('touchstart', precarregar, { passive: true });
+  document.addEventListener('focusin', precarregar);
+})();

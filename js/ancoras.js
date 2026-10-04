@@ -32,6 +32,14 @@
   try {
     if (localStorage.getItem('bz-menos-movimento') === '1') html.classList.add('menos-movimento');
   } catch (e) { /* armazenamento bloqueado: segue o padrão do sistema */ }
+  /* a passagem (js/passagem.js): chegou por um link do site há pouco? a
+     página nasce coberta pelo painel, que abre já no primeiro quadro (CSS) */
+  try {
+    var saiu = +sessionStorage.getItem('bz-passagem');
+    sessionStorage.removeItem('bz-passagem');
+    if (saiu && Date.now() - saiu < 5000 && !html.classList.contains('menos-movimento') &&
+        !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) html.classList.add('passagem-chega');
+  } catch (e) { /* sem armazenamento: chega sem painel */ }
 
   var eu = document.currentScript;
   if (!eu || !location.hash) return;

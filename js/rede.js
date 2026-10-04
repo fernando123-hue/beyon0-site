@@ -205,7 +205,7 @@
   /* ---------- por quadro ---------- */
   function posicionar() {
     var nu = B.nucleo;
-    if (nu && nu.py !== undefined) { nu.cx = nu.px - window.scrollX; nu.cy = nu.py - rolagem; }   /* o mini lê o reator daqui */
+    if (nu && nu.py !== undefined) { nu.cx = nu.px - B.S.sx; nu.cy = nu.py - rolagem; }   /* o mini lê o reator daqui */
     for (var g = 0; g < grudes.length; g++) { var g0 = grudes[g]; g0.d = Math.max(0, Math.min(g0.fim - g0.inicio, rolagem - g0.inicio)); }
     for (var e = 0; e < elementos.length; e++) { var it = elementos[e]; it.x = it.dx; it.y = it.dy - rolagem + (it.ref ? it.ref.d : 0); }
     textosNaTela();
@@ -218,13 +218,15 @@
       giroAntes = nu.giro;
     }
     var rotor = rotorAng;
-    if (caixaNucleo) campo.origem(caixaNucleo.x - window.scrollX, caixaNucleo.y - rolagem, caixaNucleo.R0, 0, rotor);
-    else if (caixaArte) campo.origem(caixaArte.x - window.scrollX, caixaArte.y - rolagem, caixaArte.R0, 0, 0);
+    if (caixaNucleo) campo.origem(caixaNucleo.x - B.S.sx, caixaNucleo.y - rolagem, caixaNucleo.R0, 0, rotor);
+    else if (caixaArte) campo.origem(caixaArte.x - B.S.sx, caixaArte.y - rolagem, caixaArte.R0, 0, 0);
     else campo.origem(W / 2, -H * ACIMA - rolagem, R0_SEM_REATOR, 0, 0);
     if (trilho) trilho.origem(rolagem, topoTrilho(), W, H);
   }
   function quadro(S) {
-    if (pedidoEm && S.now - pedidoEm > 120) { pedidoEm = 0; sujo = true; }
+    /* remedir percorre a página inteira (layout forçado): espera a rolagem
+       parar, com teto de 1,2 s para não ficar velho numa rolagem longa */
+    if (pedidoEm && S.now - pedidoEm > 120 && (S.now - B.S.rolouEm > 180 || S.now - pedidoEm > 1200)) { pedidoEm = 0; sujo = true; }
     if (sujo) medir();
     if (parado) {
       var m0 = B.rede.extra, ass = Math.round(rolagem) * 7 + (m0 ? Math.round(m0.x) * 13 + Math.round(m0.y) * 17 + Math.round(m0.vis * 20) : 0);
@@ -627,9 +629,10 @@
   try { veioDoSite = Date.now() - (+sessionStorage.getItem('bz-campo') || 0) < 4000; } catch (e) { /* sem armazenamento */ }
   window.addEventListener('pagehide', function () { try { sessionStorage.setItem('bz-campo', String(Date.now())); } catch (e) { /* idem */ } });
   if (veioDoSite) {
+    /* logo depois do 1º quadro (não antes dele): medir a página inteira é
+       uma tarefa longa (~70 ms), e a página nova chega coberta pela passagem */
     cv.classList.add('is-herdada');
-    comecar();
-    quadro({ dt: 16, now: performance.now() });
+    requestAnimationFrame(function () { setTimeout(function () { comecar(); quadro({ dt: 16, now: performance.now() }); }, 0); });
   } else {
     var ocioso = window.requestIdleCallback || function (f) { return setTimeout(f, 1); };
     if (document.readyState === 'complete') ocioso(comecar, { timeout: 900 });

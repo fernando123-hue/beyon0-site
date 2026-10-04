@@ -311,7 +311,7 @@
       var naTela = !menu && sy > g.topo + R.carga && sy < altura - R.carga;
       if (naTela !== st.visivel) { cv.style.opacity = naTela ? '1' : '0'; cv.style.pointerEvents = naTela ? 'auto' : 'none'; st.visivel = naTela; }
       if (!naTela) continue;
-      cv.style.transform = 'translate3d(' + (st.x - window.scrollX - CORPO / 2).toFixed(1) + 'px,' + (sy - CORPO / 2).toFixed(1) + 'px,0)';
+      cv.style.transform = 'translate3d(' + (st.x - B.S.sx - CORPO / 2).toFixed(1) + 'px,' + (sy - CORPO / 2).toFixed(1) + 'px,0)';
       desenharCorpo(cv.getContext('2d'), st, folego);
     }
   }
@@ -395,10 +395,10 @@
       if (!st.corredores.length) return [];
       var c = st.corredores[0];
       for (var i = 1; i < st.corredores.length; i++) if (Math.abs(st.corredores[i] - st.yd) < Math.abs(c - st.yd)) c = st.corredores[i];
-      return [{ x: xDe, py: c }, { x: st.x - window.scrollX, py: c }];
+      return [{ x: xDe, py: c }, { x: st.x - B.S.sx, py: c }];
     },
     /* onde o mini fica acoplado (tela): no corredor, acima dela */
-    doca: function (st) { return { x: st.x - window.scrollX, y: st.yd - rolagem - MINI.acima }; },
+    doca: function (st) { return { x: st.x - B.S.sx, y: st.yd - rolagem - MINI.acima }; },
     acoplar: function (st) { if (!B.reduced && !st.acopla) st.acopla = { t: 0 }; },
     soltar: function (st) { st.acopla = null; },
     podeTurbinar: function (st) { return st.turboHa > 20 && !st.acopla; },

@@ -353,10 +353,6 @@
     escrever(elFps, 'movimento reduzido');
   }
 
-  /* a transição entre páginas (css/motion.css) respeita o interruptor */
-  window.addEventListener('pageswap', function (e) {
-    if (html.classList.contains('menos-movimento') && e.viewTransition) e.viewTransition.skipTransition();
-  });
 
   /* ---------- interruptor "menos movimento" (rodapé) ---------- */
   var btnMov = document.querySelector('.footer__motion');

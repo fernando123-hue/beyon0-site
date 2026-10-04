@@ -28,30 +28,30 @@ export const SPEC = {
 
   /* o núcleo: a fonte. Só ele é branco; o "no ar." do H1 continua sendo o
      ciano mais forte da tela.
-     2026-10-03, refeito do zero (dono: "os núcleos devem transmitir a
-     sensação de que estão TRANSBORDANDO de energia"): a COROA (coroa.js) —
-     núcleo de bordas que fervem, FILAMENTOS de plasma que batem no vidro da
-     lente (e o rompem no estouro da chegada), ecos em curva de nível e faíscas,
-     tudo em traço nítido. (A 1ª tentativa, línguas em lobos, lia como flor
-     ou órbita de átomo.)
-     `raio`: o núcleo (unidades do spec). `filamentos`: quantos, até onde
-     vão (o raio do vidro da lente), até onde vazam no estouro, ondulação
-     [larga, fina] (unidades). `faiscas`: quantas, quanto andam fora do vidro.
-     `ecos`: quantos, passo (× raio), alfa do 1º. `vidro`: marcas, rad/s, arcos
-     que correm nele. `pressao`: base e quanto o
+     2026-10-04 (dono: "sem deformações, redondinha e certinha, sem os
+     raios, mas que BRILHE"): a COROA (coroa.js) — círculos perfeitos; o
+     brilho em traço nítido (miolo que esquenta, reflexo que corre na borda,
+     halo em curvas de luz, emissão de anéis). A versão de plasma (fios,
+     bordas que ferviam, raios) está no commit 627242d.
+     `raio`: o núcleo (unidades do spec). `halo`: quantas curvas, passo
+     (× raio), alfa da 1ª. `emissao`: quantos anéis, onde nascem (× raio),
+     voltas/s, alfa. `reflexo`: meia-abertura (rad), rad/s, força, rad/s da
+     íris. `vidro`: raio, marcas, rad/s, quanto do impulso de giro ele leva
+     (negativo: ao contrário das pétalas), arcos. `pressao`: base e quanto o
      fôlego soma. `ondas`: a da chegada (s entre as duas, vida, raio final).
      `meia`: a meia-largura do quadrado (cobre a onda) */
   nucleo: {
     raio: 0.09,
     coroa: { meia: 0.55,
-      filamentos: { n: 14, ate: 0.275, vaza: 0.52, ondula: [0.016, 0.005] },
-      ecos: { n: 3, passo: 0.2, alfa: 0.55 },
-      vidro: { marcas: 48, giro: -0.12, arcos: 3 },
-      faiscas: { n: 14, alcance: 0.15 },
+      halo: { n: 5, passo: 0.1, alfa: 0.62 },
+      cintila: { n: 4, ritmo: 2.5 },
+      emissao: { n: 3, de: 1.75, vel: 0.32, alfa: 0.55 },
+      reflexo: { abre: 0.62, giro: 0.42, forca: 1, iris: 0.35 },
+      vidro: { raio: 0.275, marcas: 48, giro: -0.12, arrasto: -1.3, arcos: 3 },
       pressao: { base: 0.25, folego: 0.55 },
       ondas: { intervalo: 0.2, vida: 0.5, ate: 0.52, alfa: 0.7 },
       /* o que muda no celular (custo por pixel) */
-      celular: { filamentos: { n: 10, ate: 0.275, vaza: 0.52, ondula: [0.016, 0.005] }, faiscas: { n: 8, alcance: 0.15 }, ecos: { n: 2, passo: 0.2, alfa: 0.55 } } },
+      celular: { halo: { n: 4, passo: 0.1, alfa: 0.62 }, cintila: { n: 2, ritmo: 2.5 }, emissao: { n: 2, de: 1.75, vel: 0.32, alfa: 0.55 } } },
     /* o traço horizontal: nasce do núcleo na ignição e assenta curto (~3× a
        órbita), o reflexo achatado de antes sem desfoque. (Assentado longo e
        forte, com os jatos, formava uma mira de luneta — rodada 6) */
@@ -111,9 +111,9 @@ export const SPEC = {
      2026-10-03), a aresta de dentro acesa pelo núcleo e apagando para fora; preenchimento quase transparente
      (`luz`, caindo a zero em `cai` do comprimento). Câmaras ENTRE os raios,
      atrás; pétalas SOBRE os raios, à frente */
-  camaras: { n: 12, raio: [0.43, 0.66], vao: 0.3, z: -0.14, contorno: 0.95, luz: 0.22, cai: 0.6, trava: -1,
+  camaras: { n: 12, raio: [0.43, 0.66], vao: 0.3, z: -0.14, contorno: 0.95, luz: 0.22, cai: 0.6, trava: -1, arrasto: -2.2,
     montagem: { atraso: 0.2, escala: 1.25 } },
-  petalas: { n: 12, raio: [0.31, 0.385], vao: 0.42, z: 0.18, contorno: 0.72, luz: 0.3, cai: 0.9, trava: 1,
+  petalas: { n: 12, raio: [0.31, 0.385], vao: 0.42, z: 0.18, contorno: 0.72, luz: 0.3, cai: 0.9, trava: 1, arrasto: 0.5,
     montagem: { atraso: 0.38, escala: 1.4 } },
 
   /* a TRAVA (2026-10-03, dono: "a maioria gira para o mesmo lado; quero
@@ -124,7 +124,13 @@ export const SPEC = {
      encaixe elas ficam travadas (`fica`, fração do fôlego), soltam
      acelerando e chegam com velocidade; no encaixe passam `passa` da casa
      (~2°) e voltam em `volta` do fôlego (~0,3 s), como um clique; os raios
-     piscam juntos no mesmo instante. */
+     piscam juntos no mesmo instante.
+     ACELERANDO (rolagem, cliques no núcleo: giroExtra), cada camada leva o
+     impulso pelo seu `arrasto` (relativo à roda, que leva 1): câmaras
+     −2,2 → giram −1,2× (ao contrário do portal), pétalas +0,5 → +1,5×, e o
+     vidro do núcleo −1,3× (coroa.vidro.arrasto). Antes as camadas somavam
+     o impulso por cima do da roda e, aceleradas, iam todas para o mesmo
+     lado (dono, 2026-10-04). */
   trava: { fica: 0.3, passa: 0.06, volta: 0.045, pisca: 0.6 },
 
   /* o tracejado: 60 traços entre as câmaras e o trilho, PARADO (crítica de arte: no máximo 3 velocidades e duas referências
