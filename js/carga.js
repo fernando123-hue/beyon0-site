@@ -29,8 +29,8 @@
    - nos demais (e em todos no celular, onde não há estação): ACENDER — a
      linha de luz que atravessa o card no 100% acende as letras POR ONDE PASSA
      (um pico de luz e a letra assenta acesa), todas as linhas juntas, como
-     uma frente; elas ficam ACESAS enquanto o card estiver cheio (.is-acesas)
-     e, descarregando, apagam juntas. A vez de cada letra (--dx) vem da posição
+     uma frente; elas ficam ACESAS (.is-acesas) — também depois de o card
+     descarregar (dono, 2026-10-05: "eu quero que as letras fiquem acesas"). A vez de cada letra (--dx) vem da posição
      dela no card e da curva da linha (crítica: em ordem de leitura, a metade
      acesa durava ~2,6 s, descasada da linha, e parecia texto em negrito).
    CELULAR (dono, 2026-10-05: "transição mais suave, um pouco mais lenta, mais
@@ -138,7 +138,7 @@
       card.classList.toggle('is-carregado', cheio);
       /* (na ignição, a linha e as letras ficam para a entrada da sobrecarga, logo em seguida) */
       if (cheio && !(c.rampa && c.pediu)) { varrer(card); if (daEstacao(card)) letras(card); else acender(card, true); }
-      if (!cheio) acender(card, false);
+      /* (acesas ficam: o card que já acendeu não apaga ao descarregar — dono, 2026-10-05: "eu quero que as letras fiquem acesas") */
     }
   }
   /* os cantos crescem com a carga; a borda neon acende no último terço (quando a moldura fecha) */

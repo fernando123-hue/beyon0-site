@@ -148,6 +148,11 @@ html.menos-movimento .btn::after { display: none; }
    de recorte e a margem negativa devolve a caixa da linha, então layout e
    LCP não mudam; nenhuma descendente (p, g, q, ç) é cortada ---- */
 .split-word-mask, .split-line-mask { padding: .1em .06em .28em; margin: -.1em -.06em -.28em; }
+/* um título dividido que volta ao DOM original (js/anima.js, partir): as margens das linhas somando certo e sem
+   vazar para fora dele — a altura dividida = a normal, nada pula ao voltar */
+.partindo--linhas { display: flow-root; }   /* (as margens das linhas não vazam para fora do título) */
+/* (as margens negativas de duas linhas vizinhas colapsam na maior, -.28em, e não somam -.38em: a soma vem aqui) */
+.partindo--linhas > .split-line-mask + .split-line-mask { margin-top: -.38em; }
 
 /* ---- A ROTA dos passos (rodada 5; js/anima.js, rota). Só existe com a
    classe .passos--rota, que o JS põe apenas com movimento: o trilho de CSS

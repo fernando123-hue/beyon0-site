@@ -353,6 +353,27 @@ html.menos-movimento .estacao-cruza { display: none !important; }
   /* o card com foco de teclado vem para a frente: o foco nunca fica escondido */
   .pilha > :focus-within { z-index: 20; }
 }
+/* ---- O DESLIZAR (dono, 2026-10-05: "o próprio deslizar mais suave, um pouco
+   mais lento, mais perceptível"). Por cima do sticky (que segue igual): o card
+   da frente se SOLTA da linha devagar (~0,56× o dedo) e acelera até 1× enquanto
+   revela o de baixo; depois ALCANÇA de leve (pico ~1,3×). Animação ligada à
+   rolagem da página (animation-timeline): roda no compositor, colada no dedo,
+   e a página nunca para. As faixas (px) vêm de js/anima.js. Só translate (sem
+   escala: encolher a camada deixaria texto e borda borrados). Sem suporte, em
+   movimento reduzido ou com ?pilha=antes: o sticky puro. A revelação ocupa
+   43,5% da faixa (1 : 1,3 com o alcance), daí o quadro-chave do pico. ---- */
+@supports (animation-timeline: scroll()) {
+  @media (max-width: 720px) and (prefers-reduced-motion: no-preference) {
+    html.js:not(.menos-movimento):not(.pilha-antes) .pilha > .pilha-sai {
+      animation: pilha-sai linear both; animation-timeline: scroll(root); animation-range: var(--pa) var(--pb);
+    }
+  }
+}
+@keyframes pilha-sai {
+  0% { translate: 0 0; animation-timing-function: cubic-bezier(.25, .46, .6, 1); }
+  43.5% { translate: 0 var(--atraso); animation-timing-function: cubic-bezier(.37, 0, .63, 1); }
+  100% { translate: 0 0; }
+}
 
 /* ---- A CARGA (js/carga.js): no celular a pilha carrega com a rolagem; no
    desktop com mouse o card carrega conforme o cursor se aproxima (e um ARO

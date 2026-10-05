@@ -1136,3 +1136,34 @@ começa devagar e atraso nunca negativo: agora no máximo 23 px à frente.
 Medido (Chrome, 390 px, A/B com o commit anterior, CPU 4× mais lenta):
 quadros lentos 19 → 2, p95 92 → 33 ms. Verificador 12/12, acessibilidade ok,
 sequência da estação intacta (onda na sobrecarga).
+
+## 29. O próprio deslizar da pilha, letras sempre acesas e o salto da página (2026-10-05)
+
+Dono: "eu quero que as letras fiquem acesas, e eu tava falando sobre o próprio
+deslizar" (o pedido do §28 era o movimento dos cards, não os efeitos).
+
+**O deslizar (css/cartoes.css "O DESLIZAR", js/anima.js).** Por cima do sticky
+aprovado: o card da frente se SOLTA devagar (~0,6× o dedo) e acelera até 1×
+enquanto revela o de baixo; depois ALCANÇA de leve (pico 1,3×). Animação ligada à
+rolagem (animation-timeline: scroll(root)) só de `translate`: roda no
+compositor, colada no dedo, a página nunca para (o "travado" que o dono
+rejeitou). Faixas em px escritas pelo JS no refresh, na remedição da página e
+quando a área visível muda de altura (barra de endereço). A carga do card de
+baixo termina quando ele está DESCOBERTO. Sem suporte (Safari antigo/Firefox):
+o sticky puro; `?pilha=antes` para comparar. A escala do card de baixo saiu
+(encolher a camada borra texto e borda). Medido: card preso nunca desce (0
+inversões com toque real), soltura no px certo, nenhum card cheio coberto.
+
+**Letras.** Acesas ficam — também depois de descarregar; texto #D9E4E3.
+
+**O salto da página (antigo, achado agora).** Os h2 divididos em linhas para a
+entrada eram 40–55 px mais altos (um `<br class="br-l">` escondido no celular
+que o SplitText quebrava mesmo assim; margens das máscaras colapsando e vazando)
+e, ao voltar no meio da rolagem, tudo abaixo pulava. Corrigido: o br vira um
+span vazio enquanto dividido, `flow-root` e a soma das margens, e uma trava que
+desfaz a divisão se a altura mudar. Também o contador da prova (0 → 712 KB)
+re-quebrava a legenda e pulava 11 px: a largura final fica reservada. Conferido
+rolando as três páginas inteiras, celular e desktop: nenhuma seção muda de altura.
+
+Revisão: crítico visual (3 rodadas) e revisor de código; verificador 12/12,
+acessibilidade ok; A/B de desempenho empatado com a versão anterior.

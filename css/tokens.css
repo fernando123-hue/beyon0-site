@@ -60,7 +60,7 @@
   /* a letra acesa do card cheio (js/carga.js, acender): o título mais claro que o --t1 (branco com 20% do --ac-2);
      o texto clareia sem chegar ao branco (perto dele parecia negrito) e o título segue acima dele */
   --letra-acesa-t: #EDFDFC;
-  --letra-acesa-p: #CFDBDA;
+  --letra-acesa-p: #D9E4E3;
   /* --ac-2: o mais claro: hover, gradiente do botão, os fios de luz do reator */
   --ac-tinta: #03201E;   /* texto sobre o ciano: 11:1 */
   --ac-tinta-rgb: 3 32 30;

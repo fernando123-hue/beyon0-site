@@ -45,7 +45,7 @@
     /* contagem interrompida (reduzir no meio): o valor medido volta, e escrever() volta a atualizar */
     var contando = document.querySelectorAll('[data-contando]');
     for (var c = 0; c < contando.length; c++) {
-      if (contando[c]._final) contando[c]._final.alvo.textContent = contando[c]._final.txt;
+      if (contando[c]._final) { var fa = contando[c]._final.alvo; fa.textContent = contando[c]._final.txt; fa.style.minWidth = ''; fa.style.display = ''; }
       contando[c].removeAttribute('data-contando');
     }
     /* os filhos em cascata também: um reduzir() no meio da cascata deixava
@@ -68,13 +68,35 @@
      `revert` no fim devolve o DOM original (a divisão é um EVENTO, não um estado). */
   function partir(el, tipo) {
     if (!Split) return null;
+    /* (títulos que voltam ao DOM original: as margens das linhas somando certo, css/motion.css — a altura
+       dividida = a normal. Antes o h2 dividido ficava 40–55 px mais alto e, ao reverter no meio da rolagem, a
+       página pulava) */
+    var volta = el.tagName !== 'H1', alturaAntes = volta ? el.offsetHeight : 0;
+    if (volta) el.classList.add('partindo', tipo === 'words' ? 'partindo--palavras' : 'partindo--linhas');
+    /* uma quebra só do desktop (<br class="br-l">, escondida no celular) o SplitText quebra mesmo escondida:
+       no celular o título ganhava uma linha ("Três serviços, / um / padrão…"). Enquanto dividido ela vira um
+       <span> vazio marcado (um <wbr> o SplitText também quebrava) e volta a ser <br> no fim */
+    if (volta) [].forEach.call(el.querySelectorAll('br'), function (br) {
+      if (getComputedStyle(br).display !== 'none') return;
+      var w = document.createElement('span'); w.className = br.className; w.setAttribute('data-br', ''); br.parentNode.replaceChild(w, br);
+    });
+    var devolverBr = function () {
+      [].forEach.call(el.querySelectorAll('span[data-br]'), function (w) { var br = document.createElement('br'); br.className = w.className; w.parentNode.replaceChild(br, w); });
+    };
     try {
       var sp = tipo === 'words'
         ? new Split(el, { type: 'lines,words', mask: 'words', linesClass: 'split-line', wordsClass: 'split-word' })
         : new Split(el, { type: 'lines', mask: 'lines', linesClass: 'split-line' });
+      if (volta) {
+        var reverter = sp.revert.bind(sp);
+        sp.revert = function () { reverter(); el.classList.remove('partindo', 'partindo--palavras', 'partindo--linhas'); devolverBr(); };
+        /* trava: dividido ele não pode mudar de altura (ao voltar, a página pularia no meio da rolagem); se mudou,
+           desfaz já e o título entra sem a animação das linhas */
+        if (Math.abs(el.offsetHeight - alturaAntes) > 2) { sp.revert(); return null; }
+      }
       splits.push(sp);
       return sp;
-    } catch (e) { return null; }
+    } catch (e) { if (volta) el.classList.remove('partindo', 'partindo--palavras', 'partindo--linhas'); devolverBr(); return null; }
   }
 
   /* ---------- CONTAGEM até o valor medido (nunca além dele) ----------
@@ -91,10 +113,14 @@
     var obj = { v: 0 };
     el.setAttribute('data-contando', '');
     el._final = { alvo: alvo, txt: m[0] };   /* mostrarTudo devolve se a contagem morrer no meio */
+    /* a largura do número final fica reservada enquanto conta: de "0" a "712" ele crescia e, no celular, a legenda
+       ao lado mudava de 3 para 2 linhas e de volta — a seção da prova pulava 11 px (no <b> da prova; o resto é bloco) */
+    var reservar = alvo !== el;
+    if (reservar) { alvo.style.minWidth = alvo.getBoundingClientRect().width + 'px'; alvo.style.display = 'inline-block'; }
     gsap.fromTo(obj, { v: 0 }, {
       v: fim, duration: duracao || 1.1, delay: atraso || 0, ease: 'power3.out',
       onUpdate: function () { alvo.textContent = B.num(obj.v, casas) + sufixo; },
-      onComplete: function () { alvo.textContent = m[0]; el.removeAttribute('data-contando'); }
+      onComplete: function () { alvo.textContent = m[0]; el.removeAttribute('data-contando'); if (reservar) { alvo.style.minWidth = ''; alvo.style.display = ''; } }
     });
   }
 
@@ -519,7 +545,9 @@
     var kids = el.matches(COM_FILHOS) ? [].filter.call(el.children, function (c) { return !c.classList.contains('estacao-vao'); }) : null;
     gsap.to(el, { opacity: 1, y: 0, duration: imediato ? .35 : .45, ease: EXPO, overwrite: true });
     if (kids && kids.length) {
-      gsap.fromTo(kids, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: .8, delay: de(ATRASO, el, 0), ease: EXPO, stagger: { each: de(CASCATA, el, .12), grid: 'auto', from: 'start' }, clearProps: 'opacity,transform' });
+      /* (na pilha do celular só a opacidade: o GSAP embutiria no transform o translate do deslizar, css/cartoes.css) */
+      var naPilha = el.classList.contains('pilha') && window.matchMedia('(max-width: 720px)').matches;
+      gsap.fromTo(kids, { opacity: 0, y: naPilha ? 0 : 14 }, { opacity: 1, y: 0, duration: .8, delay: de(ATRASO, el, 0), ease: EXPO, stagger: { each: de(CASCATA, el, .12), grid: 'auto', from: 'start' }, clearProps: 'opacity,transform' });
     }
   }
   function scrollReveals() {
@@ -575,14 +603,35 @@
            segurado mediria errado). Só a barra anda por quadro (scaleX). */
         mm.add('(max-width: 720px) and (prefers-reduced-motion: no-preference)', function () {
           if (!ST || html.classList.contains('menos-movimento')) return;
-          var cartas = [], medidores = [];
+          var cartas = [], medidores = [], faixas = [];
+          /* o DESLIZAR (dono, 2026-10-05: "o próprio deslizar mais suave, um pouco mais lento, mais perceptível"):
+             o card da frente se solta da linha devagar (~0,56× o dedo) e acelera até 1× enquanto revela o de baixo;
+             depois alcança, de leve (pico ~1,3×), numa faixa de 1,3× a revelação. Quem anima é o CSS, por animação
+             ligada à rolagem (css/cartoes.css, "O DESLIZAR"): roda no compositor, junto com o dedo, sem o atraso de
+             um quadro do JS. Daqui saem só as FAIXAS (px de rolagem), escritas no refresh e quando a área visível
+             muda de altura (a barra de endereço do celular encolhendo: o sticky segue a tela nova, as faixas não
+             seguiam). Sem suporte (Safari antigo, Firefox) ou com ?pilha=antes: o sticky puro, como era */
+          var antes = /[?&]pilha=antes\b/.test(location.search);
+          var desliza = !antes && !!(window.CSS && CSS.supports && CSS.supports('animation-timeline: scroll()'));
+          var DESLIZA = { atraso: 0.24, alcanca: 1.3 };   /* × a revelação: o atraso máximo e a faixa do alcance */
+          html.classList.toggle('pilha-antes', antes);
+          /* onde a revelação já DESCOBRIU o card (o da frente a `folga` px de distância): a fração u do alcance em que
+             atraso·(1 − B(u)) = folga, com B = cubic-bezier(.37, 0, .63, 1), a curva do alcance */
+          var descobreEm = function (folga, atraso) {
+            if (atraso <= folga) return 0;
+            var alvo = 1 - folga / atraso, lo = 0, hi = 1, s = 0.5;
+            var bez = function (a, b, t) { var q = 1 - t; return 3 * q * q * t * a + 3 * q * t * t * b + t * t * t; };
+            for (var i = 0; i < 24; i++) { s = (lo + hi) / 2; if (bez(0, 1, s) < alvo) lo = s; else hi = s; }
+            return bez(0.37, 0.63, s);
+          };
           [].forEach.call(document.querySelectorAll('.pilha'), function (pilha) {
             var cards = [].filter.call(pilha.children, function (c) { return !c.classList.contains('estacao-vao'); });
             if (cards.length < 2) return;
-            var m = { nat: [], parado: [] };
+            var m = { nat: [], parado: [], vao: 0 };
             /* parado[k]: o topo (tela) do card k segurado pela linha do sticky */
             var medir = function () {
               var vao = parseFloat(getComputedStyle(pilha).rowGap) || 0, soma = 0, vh = window.innerHeight;
+              m.vao = vao;
               for (var k = 0; k < cards.length; k++) {
                 m.nat[k] = soma; soma += cards[k].offsetHeight + vao;
                 m.parado[k] = vh - (parseFloat(getComputedStyle(cards[k]).bottom) || 0) - cards[k].offsetHeight;
@@ -591,9 +640,19 @@
             medir();
             ST.addEventListener('refreshInit', medir);
             medidores.push(medir);
-            /* onde está o topo da pilha (tela) quando o card k começa e termina de carregar */
-            var comeca = function (k) { return function () { var y = k === 0 ? window.innerHeight : k === 1 ? m.parado[1] : m.parado[k - 1] - m.nat[k - 1]; return 'top ' + Math.round(y) + 'px'; }; };
-            var termina = function (k) { return function () { var y = k === 0 ? m.parado[1] : m.parado[k] - m.nat[k]; return 'top ' + Math.round(y) + 'px'; }; };
+            /* onde está o topo da pilha (tela) quando o card k começa e termina de ser revelado */
+            var yIni = function (k) { return k === 0 ? window.innerHeight : k === 1 ? m.parado[1] : m.parado[k - 1] - m.nat[k - 1]; };
+            var yFim = function (k) { return k === 0 ? m.parado[1] : m.parado[k] - m.nat[k]; };
+            /* com o deslizar, o card só fica à vista depois do fim da revelação (o da frente ainda atrasado): a carga
+               termina quando ele está DESCOBERTO — antes o 100%, a linha e as letras disparavam sob o da frente */
+            var yCheio = function (k) {
+              if (!desliza || k === 0) return yFim(k);
+              var r = yIni(k) - yFim(k);
+              return yFim(k) - descobreEm(Math.max(0, m.vao - 2), DESLIZA.atraso * r) * DESLIZA.alcanca * r;
+            };
+            var comeca = function (k) { return function () { return 'top ' + Math.round(yIni(k)) + 'px'; }; };
+            var termina = function (k) { return function () { return 'top ' + Math.round(yCheio(k)) + 'px'; }; };
+            if (desliza) cards.forEach(function (card, k) { if (k > 0) faixas.push({ pilha: pilha, medir: medir, frente: cards[k - 1], ini: yIni.bind(null, k), fim: yFim.bind(null, k) }); });
             cards.forEach(function (card, k) {
               cartas.push(card);
               /* a peça da carga (js/carga.js): o tubo neon, a porcentagem, as classes */
@@ -606,8 +665,51 @@
                 onLeaveBack: function () { B.carga.seguir(card, 0); } });
             });
           });
+          /* as faixas em px de rolagem: topo da pilha no documento − onde ele está (tela) no começo e no fim */
+          var escreverFaixas = function () {
+            faixas.forEach(function (fx) {
+              var topo = fx.pilha.getBoundingClientRect().top + window.scrollY;
+              var a = Math.round(topo - fx.ini()), b = Math.round(topo - fx.fim()), r = Math.max(1, b - a);
+              var chave = a + '|' + b;
+              if (fx.chave === chave) return;
+              fx.chave = chave;
+              fx.frente.style.setProperty('--pa', a + 'px');
+              fx.frente.style.setProperty('--pb', Math.round(b + DESLIZA.alcanca * r) + 'px');
+              fx.frente.style.setProperty('--atraso', Math.round(DESLIZA.atraso * r) + 'px');
+              fx.frente.classList.add('pilha-sai');
+            });
+          };
+          /* a área visível mudou de altura (barra de endereço): mede de novo e reescreve, num quadro, sem refresh */
+          /* (dispara também com a barra animando durante a rolagem e no zoom de pinça: só age se a altura mudou de
+             fato; mede cada pilha uma vez; escreve só o que mudou) */
+          var pedido = 0, vv = window.visualViewport, alturaVista = window.innerHeight;
+          var aoRedimensionar = function () {
+            if (pedido || window.innerHeight === alturaVista) return;
+            pedido = requestAnimationFrame(function () {
+              pedido = 0; alturaVista = window.innerHeight;
+              var medidas = [];
+              faixas.forEach(function (fx) { if (medidas.indexOf(fx.medir) < 0) { medidas.push(fx.medir); fx.medir(); } });
+              escreverFaixas();
+            });
+          };
+          /* (a página remediu: algo acima da pilha mudou de altura — as letras dos cards partidas em segundo plano
+             mexem alguns px — e o topo da pilha andou; sem isto a faixa começava ~23 px antes de o card se soltar
+             e o card ainda preso descia) */
+          var aoMedir = function () { escreverFaixas(); };
+          if (faixas.length) {
+            escreverFaixas();
+            ST.addEventListener('refresh', escreverFaixas);
+            if (vv) vv.addEventListener('resize', aoRedimensionar);
+            if (B.on) B.on('rede:medida', aoMedir);
+          }
           return function () {
             for (var k = 0; k < medidores.length; k++) ST.removeEventListener('refreshInit', medidores[k]);
+            ST.removeEventListener('refresh', escreverFaixas);
+            if (vv) vv.removeEventListener('resize', aoRedimensionar);
+            if (B.off) B.off('rede:medida', aoMedir);
+            if (pedido) cancelAnimationFrame(pedido);
+            faixas.forEach(function (fx) { fx.frente.classList.remove('pilha-sai'); ['--pa', '--pb', '--atraso'].forEach(function (v) { fx.frente.style.removeProperty(v); }); });
+            html.classList.remove('pilha-antes');
             cartas.forEach(function (c) { c.classList.remove('is-doando'); if (B.carga && c._carga) B.carga.seguir(c, 0, true); });
           };
         });
