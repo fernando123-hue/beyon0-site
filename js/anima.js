@@ -598,18 +598,17 @@
               cartas.push(card);
               /* a peça da carga (js/carga.js): o tubo neon, a porcentagem, as classes */
               if (!B.carga) return;
-              B.carga.montar(card, { fio: true });
+              B.carga.montar(card, { fio: true, doador: k > 0 ? cards[k - 1] : null });   /* (o fio desce do da frente enquanto este carrega: js/carga.js) */
               ST.create({ trigger: pilha, start: comeca(k), end: termina(k), invalidateOnRefresh: true,
-                onUpdate: function (st) { B.carga.definir(card, st.progress); },
-                onLeave: function () { B.carga.definir(card, 1); },
-                onLeaveBack: function () { B.carga.definir(card, 0); },
-                /* o card da frente DOA: a energia desce da base dele para o que está aparecendo */
-                onToggle: function (st) { if (k > 0) cards[k - 1].classList.toggle('is-doando', st.isActive); } });
+                /* a carga corre atrás da rolagem (js/carga.js, seguir): suave mesmo num deslizar rápido */
+                onUpdate: function (st) { B.carga.seguir(card, st.progress); },
+                onLeave: function () { B.carga.seguir(card, 1); },
+                onLeaveBack: function () { B.carga.seguir(card, 0); } });
             });
           });
           return function () {
             for (var k = 0; k < medidores.length; k++) ST.removeEventListener('refreshInit', medidores[k]);
-            cartas.forEach(function (c) { c.classList.remove('is-doando'); if (B.carga && c._carga) B.carga.definir(c, 0); });
+            cartas.forEach(function (c) { c.classList.remove('is-doando'); if (B.carga && c._carga) B.carga.seguir(c, 0, true); });
           };
         });
         mm.add('(max-width: 860px) and (prefers-reduced-motion: no-preference)', function () {

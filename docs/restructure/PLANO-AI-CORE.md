@@ -1108,3 +1108,31 @@ Descrições do Google longas (195 caracteres no Hub). "O primeiro ano do domín
 
 Verificador 12/12; acessibilidade ok; sequência da estação e encaixe no CTA
 conferidos no Chrome real.
+
+## 28. Pilha do celular mais suave e as letras em dois efeitos (2026-10-05)
+
+Dono: "para o mobile, a transição dos efeitos de sobreposição dos cards mais
+suaves, um pouco mais lentos, mais perceptíveis" e "o efeito das letras atual
+somente nos cards que possuem o AI Core médio; os demais, outro efeito, com uma
+transição suave que permita que as letras fiquem acesas".
+
+**Pilha (o movimento sticky aprovado não mudou: segue 1:1 com o dedo).** A
+carga corria junto com a rolagem e enchia em ~200 px (0,1–0,2 s num deslizar
+normal). Agora CORRE ATRÁS dela (`B.carga.seguir`: velocidade proporcional à
+distância, 0,35–2,2/s): 0→100% em ~0,95 s mesmo num deslizar rápido. Clarão e
+linha do 100% mais lentos no celular (1,1/1,15 s) e entrando em fade; o fio de
+energia segue a carga mostrada (não a rolagem crua) e desce mais devagar;
+histerese (cheio entra em 99,5% e sai abaixo de 90%; o número fica em 100%).
+
+**Letras.** Cards de uma estação viva (desktop): a onda de antes. Os demais (e
+todos no celular): ACENDER — a linha que atravessa o card acende as letras por
+onde passa (--dx pela posição de cada letra e pela curva da linha), um pico de
+luz e assentam acesas: título #EDFDFC (acima do --t1), texto #CFDBDA; apagam
+juntas em 0,6 s. Duas rodadas de crítica: (1) cor única quase branca parecia
+negrito e escurecia o título; ordem de leitura descasada da linha; sem
+histerese; (2) a luz corria ~120 px à frente da linha — pico a 6%, subida que
+começa devagar e atraso nunca negativo: agora no máximo 23 px à frente.
+
+Medido (Chrome, 390 px, A/B com o commit anterior, CPU 4× mais lenta):
+quadros lentos 19 → 2, p95 92 → 33 ms. Verificador 12/12, acessibilidade ok,
+sequência da estação intacta (onda na sobrecarga).

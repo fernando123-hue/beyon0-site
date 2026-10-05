@@ -20,8 +20,22 @@
    LETRAS (dono, 2026-10-04: "cada caractere com efeito quando os cards
    chegarem em 100%"): no 1º cheio o texto do card é partido em letras
    (SplitText, só então: nada pesa na carga da página; o leitor de tela lê a
-   frase inteira) e uma ONDA de luz o atravessa, letra por letra — cada uma
-   acende e dá um pulinho (no máximo uma onda a cada LETRAS.cada s).
+   frase inteira). Dois efeitos (dono, 2026-10-05: "esse efeito das letras
+   fique somente nos cards que possuem o AI Core médio; os que não tiverem
+   conectados a ele, outro efeito, com uma transição suave que permita que as
+   letras fiquem acesas"):
+   - nos cards de uma ESTAÇÃO viva (desktop): a ONDA de luz, letra por letra —
+     cada uma acende e dá um pulinho (no máximo uma a cada LETRAS.cada s);
+   - nos demais (e em todos no celular, onde não há estação): ACENDER — a
+     linha de luz que atravessa o card no 100% acende as letras POR ONDE PASSA
+     (um pico de luz e a letra assenta acesa), todas as linhas juntas, como
+     uma frente; elas ficam ACESAS enquanto o card estiver cheio (.is-acesas)
+     e, descarregando, apagam juntas. A vez de cada letra (--dx) vem da posição
+     dela no card e da curva da linha (crítica: em ordem de leitura, a metade
+     acesa durava ~2,6 s, descasada da linha, e parecia texto em negrito).
+   CELULAR (dono, 2026-10-05: "transição mais suave, um pouco mais lenta, mais
+   perceptível"): a carga da pilha CORRE ATRÁS da rolagem (seguir) em vez de
+   saltar com ela — até um deslizar rápido mostra a barra enchendo.
    SOBRECARGA (js/estacao.js, com o mini conectado ao AI Core médio): o card
    fica preso em 100% com a moldura neon acesa (parada), uma luz circulando
    pela borda, a barra em "MAX" e uma onda de letras a cada LETRAS.sobre s.
@@ -52,6 +66,15 @@
   /* o texto que vira letras; s entre ondas (normal e em sobrecarga); ms de atraso por letra e teto */
   var TEXTOS = 'h3, p, .servico__link, .celula__link, .laudo__n, .servico__n, .celula__n';
   var LETRAS = { cada: 3.5, sobre: 2.4, passo: 15, teto: 1500 };
+  /* seguir a rolagem (celular): /s proporcional à distância, com piso e teto (enche inteiro em ~0,9 s, sem a cauda
+     longa de uma exponencial pura) */
+  var SEGUE = { k: 4, min: 0.35, max: 2.2 };
+  /* cheio entra em 99,5% e só sai abaixo de 90%: um recuo mínimo do dedo não apaga e reacende tudo */
+  var CHEIO = { entra: 0.995, sai: 0.9 };
+  /* a linha que atravessa o card no 100% (css/cartoes.css, carga-varre): s no desktop e no celular; a curva dela;
+     quanto antes da passagem a animação da letra começa (o pico, 6% de 1,2 s, cai em cima da linha) */
+  var VARRE = { desktop: 0.7, celular: 1.15, curva: [0.3, 0, 0.2, 1], pico: 0.072 };
+  var estreito = window.matchMedia('(max-width: 720px)');
   /* a transição até a sobrecarga: s de ignição e de esfriar; teto do piso da pressão e de onde os cantos tremem */
   var IGNICAO = 0.9, ESFRIA = 0.6, PRESSAO = { teto: 0.82, acende: 0.6 };
   var CIRCULA = { vel: 170 };   /* px/s da luz que percorre a borda (um traço só, dando a volta) */
@@ -60,6 +83,7 @@
   /* ---------- a peça ---------- */
   function montar(card, op) {
     var c = card._carga;
+    if (c && op && op.doador) c.doador = op.doador;
     if (c) {
       /* já montada (pelo desktop, numa janela que encolheu): o fio da pilha, se pedido agora */
       if (op && op.fio && !c.fio) { c.fio = document.createElement('i'); c.fio.className = 'carga-fio'; c.fio.setAttribute('aria-hidden', 'true'); card.appendChild(c.fio); }
@@ -86,7 +110,7 @@
     var bracos = camada('carga-cantos', 8), halo = camada('carga-halo', 0);
     camada('carga-nos', 4);
     /* base: a carga pedida (cursor ou pilha); piso: o mínimo imposto pela estação (pressão, ignição, esfriar) */
-    c = card._carga = { card: card, tubo: tubo, pct: pct, txt: pct.firstChild, fio: fio, p: -1, num: 0, cheio: false, bracos: bracos.children, halo: halo, base: 0, piso: 0, rampa: null, pediu: false };
+    c = card._carga = { doador: op && op.doador, card: card, tubo: tubo, pct: pct, txt: pct.firstChild, fio: fio, p: -1, num: 0, cheio: false, bracos: bracos.children, halo: halo, base: 0, piso: 0, rampa: null, pediu: false };
     card.classList.add('tem-carga');
     return c;
   }
@@ -99,17 +123,22 @@
     p = p < 0 ? 0 : p > 1 ? 1 : p;
     /* só redesenha quando a carga muda ao menos 1% (a 0,2%, cada pixel de rolagem reescrevia o tubo e os 8 cantos) */
     if (Math.abs(p - c.p) >= 0.01 || (p >= 0.995) !== (c.p >= 0.995) || (p <= 0 && c.p > 0)) { c.tubo.style.transform = 'translate3d(' + ((p - 1) * 100).toFixed(2) + '%,0,0)'; c.p = p; variar(c, p); }
-    var n = Math.round(p * 100);
+    /* cheio (a histerese o mantém até 90%): o número fica em 100%, sem contradizer o card aceso */
+    var n = c.cheio && p >= CHEIO.sai ? 100 : Math.round(p * 100);
     /* nodeValue, não textContent: trocar o nó acionava o MutationObserver da rede (js/rede.js), que remedia a página inteira a cada número (revisão) */
     if (n !== c.num && !c.sobre) { c.txt.nodeValue = n + '%'; c.num = n; }
-    var carregando = p > 0.004 && p < 0.995;
+    var cheio = c.cheio ? p >= CHEIO.sai : p >= CHEIO.entra;
+    var carregando = p > 0.004 && !cheio;
     if (carregando !== card.classList.contains('is-carregando')) card.classList.toggle('is-carregando', carregando);
-    var cheio = p >= 0.995;
+    /* (pilha) a energia desce do card da frente enquanto ESTE carrega — a carga mostrada, não a rolagem crua:
+       num deslizar rápido o fio parava antes de a barra chegar (crítica) */
+    if (c.doador && carregando !== c.doador.classList.contains('is-doando')) c.doador.classList.toggle('is-doando', carregando);
     if (cheio !== c.cheio) {
       c.cheio = cheio;
       card.classList.toggle('is-carregado', cheio);
       /* (na ignição, a linha e as letras ficam para a entrada da sobrecarga, logo em seguida) */
-      if (cheio && !(c.rampa && c.pediu)) { varrer(card); letras(card); }
+      if (cheio && !(c.rampa && c.pediu)) { varrer(card); if (daEstacao(card)) letras(card); else acender(card, true); }
+      if (!cheio) acender(card, false);
     }
   }
   /* os cantos crescem com a carga; a borda neon acende no último terço (quando a moldura fecha) */
@@ -149,7 +178,7 @@
     } catch (e) { c.split = { chars: [] }; return false; }
     for (var k = 0; k < alvos.length; k++) alvos[k].setAttribute('data-carga-split', '');
     var n = c.split.chars.length, passo = n ? Math.min(LETRAS.passo, LETRAS.teto / n) : 0;
-    for (var i = 0; i < n; i++) c.split.chars[i].style.animationDelay = Math.round(i * passo) + 'ms';
+    for (var i = 0; i < n; i++) c.split.chars[i].style.setProperty('--d', Math.round(i * passo) + 'ms');   /* (a vez de cada letra: onda e acender) */
     return true;
   }
   /* partir ANTES, com o navegador ocioso, só os cards fora da tela: o pulo de layout (kerning entre caixas) não
@@ -168,6 +197,36 @@
     }, { timeout: 2500 });
   }
   B.on('rede:medida', function () { setTimeout(adiantar, 600); });
+  /* o card é de uma estação viva (o grupo .tem-estacao.is-ligada, js/estacao.js: só desktop com mouse)? */
+  function daEstacao(card) { return !!card.closest('.tem-estacao.is-ligada'); }
+  /* ACENDER: as letras clareiam cada uma na sua vez e ficam acesas (css/cartoes.css, .is-acesas) */
+  function acender(card, sim) {
+    if (sim === card.classList.contains('is-acesas')) return;
+    if (sim && (B.reduced || reduz.matches || !partir(card))) return;
+    if (sim) passagem(card._carga);
+    card.classList.toggle('is-acesas', sim);
+  }
+  /* o tempo (fração da duração) em que a linha chega à fração f da largura: a curva cubic-bezier dela invertida */
+  function quandoChega(f) {
+    var k = VARRE.curva, lo = 0, hi = 1, s = 0.5;
+    var bez = function (a, b, t) { var m = 1 - t; return 3 * m * m * t * a + 3 * m * t * t * b + t * t * t; };
+    for (var i = 0; i < 22; i++) { s = (lo + hi) / 2; if (bez(k[1], k[3], s) < f) lo = s; else hi = s; }
+    return bez(k[0], k[2], s);
+  }
+  /* --dx de cada letra: quando a linha passa por ela (lido uma vez por largura do card; a medida da página invalida) */
+  function passagem(c) {
+    var card = c.card, W = card.offsetWidth, T = estreito.matches ? VARRE.celular : VARRE.desktop;
+    if (!W || (c.dxW === W && c.dxT === T) || !c.split || !c.split.chars.length) return;
+    c.dxW = W; c.dxT = T;
+    var x0 = card.getBoundingClientRect().left, letras = c.split.chars, xs = [], i;
+    for (i = 0; i < letras.length; i++) { var r = letras[i].getBoundingClientRect(); xs.push((r.left + r.width / 2 - x0) / W); }
+    for (i = 0; i < letras.length; i++) {
+      var fx = xs[i] < 0 ? 0 : xs[i] > 1 ? 1 : xs[i];
+      /* (nunca negativo: a letra da borda começaria no meio da subida, num salto) */
+      letras[i].style.setProperty('--dx', Math.max(0, T * quandoChega(fx) - VARRE.pico).toFixed(3) + 's');
+    }
+  }
+  B.on('rede:medida', function () { var cs = document.querySelectorAll('.tem-carga'); for (var i = 0; i < cs.length; i++) if (cs[i]._carga) cs[i]._carga.dxW = 0; });
   /* a onda de luz pelas letras do card (reinicia alternando -a/-b, sem ler layout) */
   function letras(card, forcar) {
     if (B.reduced || reduz.matches || !window.SplitText) return;
@@ -175,6 +234,7 @@
     if (!c || (!forcar && agora - (c.letrasEm || -1e9) < LETRAS.cada * 1000)) return;
     c.letrasEm = agora;
     if (!partir(card)) return;
+    card.classList.remove('is-acesas');   /* (um card aceso antes de a estação ligar: agora é dela, a onda) */
     var a = card.classList.contains('is-letras-a');
     card.classList.remove(a ? 'is-letras-a' : 'is-letras-b');
     card.classList.add(a ? 'is-letras-b' : 'is-letras-a');
@@ -198,8 +258,33 @@
     c.rampa = { de: c.p < 0 ? 0 : c.p, para: para, t: 0, dura: dura, fim: fim };
     if (rampas.indexOf(c) < 0) rampas.push(c);
   }
+  /* SEGUIR (a pilha do celular, js/anima.js): o alvo vem da rolagem; a carga mostrada corre atrás dele */
+  var seguindo = [];
+  function seguir(card, alvo, ja) {
+    var c = card._carga || montar(card);
+    alvo = alvo < 0 ? 0 : alvo > 1 ? 1 : alvo;
+    c.alvo = alvo;
+    if (c.mostra === undefined) c.mostra = c.p < 0 ? 0 : c.p;
+    if (ja || B.reduced || reduz.matches) {
+      c.mostra = alvo;
+      var i = seguindo.indexOf(c); if (i >= 0) seguindo.splice(i, 1);
+      definir(card, alvo);
+      return;
+    }
+    if (seguindo.indexOf(c) < 0) seguindo.push(c);
+  }
+  function correr(dt) {
+    for (var i = seguindo.length - 1; i >= 0; i--) {
+      var c = seguindo[i], d = c.alvo - c.mostra, passo = Math.min(SEGUE.max, Math.max(SEGUE.min, Math.abs(d) * SEGUE.k)) * dt;
+      if (Math.abs(d) <= passo) { c.mostra = c.alvo; seguindo.splice(i, 1); }
+      else c.mostra += d > 0 ? passo : -passo;
+      try { definir(c.card, c.mostra); }
+      catch (e) { if (window.console && console.warn) console.warn('[beyon] carga-seguir:', e); }
+    }
+  }
   /* (sempre no laço; sem rampa, sai na primeira linha: tirar do laço no meio do quadro pularia o vizinho) */
   B.add('carga-rampa', function (S) {
+    if (seguindo.length) correr(Math.min(0.05, S.dt / 1000));
     if (!rampas.length) return;
     var dt = Math.min(0.05, S.dt / 1000);
     for (var i = rampas.length - 1; i >= 0; i--) {
@@ -269,7 +354,7 @@
     letras(card, true);
     c.relogio = setInterval(function () { letras(card, true); }, LETRAS.sobre * 1000);
   }
-  B.carga = { montar: montar, definir: definir, sobrecarga: sobrecarga, pressao: pressao };
+  B.carga = { montar: montar, definir: definir, seguir: seguir, sobrecarga: sobrecarga, pressao: pressao };
 
   /* ---------- desktop: o cursor ---------- */
   var desktop = window.matchMedia('(min-width: 721px) and (hover: hover) and (pointer: fine)');
