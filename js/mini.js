@@ -97,7 +97,10 @@
   var DOCA = { cada: 6, porCta: 12, hesita: 0.45, parado: 1.1, fica: 3.5, ficaMax: 8, pulsa: 0.6, perto: 64, vizinha: 220 };
   var FRENTE = { k: 0.1, max: 84 };
   /* o encaixe: px acima onde ele se alinha; s parado alinhando, descendo, travando, subindo ao sair; px em que começa a frear */
-  var ENCAIXE = { acima: 22, alinha: 0.45, desce: 0.7, trava: 0.3, sobe: 0.45, freia: 120 };
+  var ENCAIXE = { acima: 22, alinha: 0.14, desce: 0.62, trava: 0.3, sobe: 0.45, abre: 0.25 };
+  /* o TRAJETO até um encaixe e de volta (dono, 2026-10-04: "deixe o acoplar mais suave"): px de raio nos cantos;
+     a duração sai do comprimento (s fixos + px/s), com piso e teto */
+  var ROTA = { canto: 34, base: 0.25, vel: 560, min: 0.55, max: 1.6 };
   /* a criança: quanto a insistência sobe por s ignorado; pulinho (Hz e px, calmo e no máximo da insistência);
      puxão na manga (Hz, px); o pulo de festa (px); seguir o cursor (px de folga, s, chance); correr ao toque (s) */
   var CRIANCA = { sobe: 1 / 14, pula: [2.2, 4.2], altura: [2, 9], puxa: 26, puxao: 2.4, festa: 12,
@@ -125,12 +128,15 @@
   var sugestao = { ultima: -99, alvo: null, t: -1 };
   var insiste = 0, festa = 0, atencaoAntes = 0, toque = null, mergulho = false;
   var relogioMini = 0, espera = -1;   /* espera: s desde o último pulso de espera (−1: nenhum) */
+  var giro = 0, giroV = 0.35;         /* o ângulo dos arcos, integrado: mudar a velocidade não salta o ângulo */
   var ESPERA = { dura: 0.55, abre: 5, alfa: 0.3 };   /* o anel de espera: legível, curto (crítica rodada 2) */
 
   function limitar(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
   function suave(x) { x = limitar(x); return x * x * (3 - 2 * x); }
   function acaso(a, b) { return a + Math.random() * (b - a); }
   function saida(k) { k = limitar(k); return 1 - (1 - k) * (1 - k) * (1 - k); }
+  /* entra e sai em senoide (easeInOutSine): sai do repouso e chega ao repouso sem tranco */
+  function senoide(k) { return 0.5 - 0.5 * Math.cos(Math.PI * limitar(k)); }
   /* a cor do anel entre o ciano claro e o branco, pela carga (sem troca seca) */
   var C0 = AC2.split(',').map(Number), C1 = T1.split(',').map(Number);
   function mistura(c) { c = limitar(c); return Math.round(C0[0] + (C1[0] - C0[0]) * c) + ',' + Math.round(C0[1] + (C1[1] - C0[1]) * c) + ',' + Math.round(C0[2] + (C1[2] - C0[2]) * c); }
@@ -262,7 +268,7 @@
   }
   /* o destino estação, com o caminho pelo corredor (ida) e o inverso (volta) */
   function paraEstacao(st) {
-    var via = B.estacoes.via(st, mini.x);
+    var via = B.estacoes.via(st, mini.x, ENCAIXE.acima);
     return { estacao: st, via: via.slice(), volta: via.slice().reverse(), encaixa: true };
   }
   /* o próximo ponto do caminho (lista em coordenadas do documento), ou null */
@@ -273,6 +279,65 @@
       lista.shift();
     }
     return false;
+  }
+  /* o TRAJETO de um encaixe: de onde ele está, pelos pontos do caminho (documento), até `alvo` (tela). Antes ele
+     andava em velocidade constante, virava as quinas no seco e parava de uma vez; agora os cantos viram curvas
+     (raio ROTA.canto, no máximo metade de cada trecho) e ele percorre tudo numa senoide: sai devagar, embala e
+     chega freando até o repouso. Os pontos ficam RELATIVOS ao alvo: rolando no meio, o trajeto vai junto. */
+  function montarRota(ps, alvo, lista) {
+    var pts = [{ x: ps.pos.x, y: ps.pos.y }], i;
+    for (i = 0; lista && i < lista.length; i++) pts.push({ x: lista[i].x, y: lista[i].py - rolagem });
+    pts.push({ x: alvo.x, y: alvo.y });
+    var limpos = [pts[0]];
+    for (i = 1; i < pts.length; i++) {
+      var u = limpos[limpos.length - 1];
+      if (Math.hypot(pts[i].x - u.x, pts[i].y - u.y) > 2) limpos.push(pts[i]);
+    }
+    var curva = [limpos[0]];
+    for (i = 1; i < limpos.length - 1; i++) arredondar(curva, limpos[i - 1], limpos[i], limpos[i + 1]);
+    if (limpos.length > 1) curva.push(limpos[limpos.length - 1]);
+    var rel = [], acc = [0], L = 0;
+    for (i = 0; i < curva.length; i++) {
+      if (i) L += Math.hypot(curva[i].x - curva[i - 1].x, curva[i].y - curva[i - 1].y);
+      if (i) acc.push(L);
+      rel.push({ x: curva[i].x - alvo.x, y: curva[i].y - alvo.y });
+    }
+    return { dest: ps.dest, estado: ps.estado, pts: rel, acc: acc, L: L, T: Math.max(ROTA.min, Math.min(ROTA.max, ROTA.base + L / ROTA.vel)), t: 0 };
+  }
+  /* a quina em b vira uma curva (Bézier quadrática com controle na própria quina) */
+  function arredondar(curva, a, b, c) {
+    var lab = Math.hypot(b.x - a.x, b.y - a.y), lbc = Math.hypot(c.x - b.x, c.y - b.y);
+    var r = Math.min(ROTA.canto, lab / 2, lbc / 2), N = 8;
+    var p0 = { x: b.x - (b.x - a.x) / lab * r, y: b.y - (b.y - a.y) / lab * r };
+    var p2 = { x: b.x + (c.x - b.x) / lbc * r, y: b.y + (c.y - b.y) / lbc * r };
+    for (var k = 0; k <= N; k++) {
+      var t = k / N, m = 1 - t;
+      curva.push({ x: m * m * p0.x + 2 * m * t * b.x + t * t * p2.x, y: m * m * p0.y + 2 * m * t * b.y + t * t * p2.y });
+    }
+  }
+  /* anda no trajeto: devolve true quando chegou (pos já no alvo) */
+  function seguirRota(r, alvo, pos, dt) {
+    r.t += dt;
+    var s = senoide(r.t / r.T) * r.L, i = 1;
+    while (i < r.acc.length - 1 && r.acc[i] < s) i++;
+    var a = r.pts[i - 1] || r.pts[0], b = r.pts[i] || a, seg = (r.acc[i] - r.acc[i - 1]) || 1, k = limitar((s - r.acc[i - 1]) / seg);
+    pos.x = alvo.x + a.x + (b.x - a.x) * k; pos.y = alvo.y + a.y + (b.y - a.y) * k;
+    return r.t >= r.T;
+  }
+  /* o trajeto guardado ainda vale para este destino e este estado? */
+  function rotaValida(ps) { return !!ps.rota && ps.rota.dest === ps.dest && ps.rota.estado === ps.estado; }
+  /* largou o caminho no meio (rolagem rápida, alvo fora da tela): a volta vem direto de onde ele está, sem
+     refazer o corredor e o arco até a estação (revisão) */
+  function largarCaminho(ps) { ps.rota = null; if (ps.dest) ps.dest.volta = null; }
+  /* quanto ele fica no destino (s) */
+  function ficaPara(dest) {
+    if (dest.fica !== undefined) return dest.fica;
+    if (dest.estacao) return 99;
+    if (dest.cta) return DOCA.fica;
+    if (dest.sugere) return SUGESTAO.fica;
+    if (dest.cursor) return acaso(CRIANCA.segue.fica[0], CRIANCA.segue.fica[1]);
+    if (dest.toque) return CRIANCA.toque;
+    return acaso(PASSEIO.fica[0], PASSEIO.fica[1]);
   }
   function soltarEstacao(ps) {
     if (!ps.dest) return;
@@ -307,20 +372,25 @@
       if (!ps.dest) return null;
       ps.estado = 'indo'; ps.pos = { x: mini.x, y: mini.y };
     }
-    if (ps.estado !== 'voltando' && ps.estado !== 'desencaixando' && chamado) { ps.estado = 'voltando'; soltarSugestao(); soltarEstacao(ps); }
+    if (ps.estado !== 'voltando' && ps.estado !== 'desencaixando' && chamado) { if (ps.estado !== 'parado') largarCaminho(ps); ps.estado = 'voltando'; soltarSugestao(); soltarEstacao(ps); }
     if (ps.estado === 'indo') {
-      if (ps.dest.via && proximoDoCaminho(ps.dest.via, ps.pos, dt)) return ps.pos;
       var alvo = destinoXY(ps.dest);
-      if (alvo.y < TOPO - 20 || alvo.y > H - 40) { ps.estado = 'voltando'; soltarSugestao(); soltarEstacao(ps); return ps.pos; }
-      var veloc = ps.dest.estacao || ps.dest.cta ? PASSEIO.arranque : ps.dest.veloc || 1;
+      /* tomada e estação: o TRAJETO suave até o alinhamento, acima do encaixe (montarRota) */
       if (ps.dest.encaixa) {
-        alvo = { x: alvo.x, y: alvo.y - ENCAIXE.acima };
-        veloc *= Math.max(0.22, Math.min(1, Math.hypot(alvo.x - ps.pos.x, alvo.y - ps.pos.y) / ENCAIXE.freia));   /* desacelera chegando */
+        var alinha = { x: alvo.x, y: alvo.y - ENCAIXE.acima };
+        if (alinha.y < TOPO - 20 || alinha.y > H - 40) { largarCaminho(ps); ps.estado = 'voltando'; soltarSugestao(); soltarEstacao(ps); return ps.pos; }
+        if (!rotaValida(ps)) ps.rota = montarRota(ps, alinha, ps.dest.via);
+        if (seguirRota(ps.rota, alinha, ps.pos, dt)) {
+          /* chegou ao repouso: não para no soquete direto — ENCAIXA (alinha, desce devagar, trava) */
+          ps.rota = null; ps.fica = ficaPara(ps.dest);
+          ps.estado = 'encaixando'; ps.fase = 0; ps.travou = false;
+        }
+        return ps.pos;
       }
-      if (andarPara(ps.pos, alvo, dt * veloc, ps.dest.vh ? 'vh' : null)) {
-        ps.fica = ps.dest.fica !== undefined ? ps.dest.fica : ps.dest.estacao ? 99 : ps.dest.cta ? DOCA.fica : ps.dest.sugere ? SUGESTAO.fica : ps.dest.cursor ? acaso(CRIANCA.segue.fica[0], CRIANCA.segue.fica[1]) : ps.dest.toque ? CRIANCA.toque : acaso(PASSEIO.fica[0], PASSEIO.fica[1]);
-        /* tomada e estação: não chega direto — ENCAIXA (alinha acima, desce devagar, trava) */
-        if (ps.dest.encaixa) { ps.estado = 'encaixando'; ps.fase = 0; ps.travou = false; return ps.pos; }
+      if (ps.dest.via && proximoDoCaminho(ps.dest.via, ps.pos, dt)) return ps.pos;
+      if (alvo.y < TOPO - 20 || alvo.y > H - 40) { ps.estado = 'voltando'; soltarSugestao(); soltarEstacao(ps); return ps.pos; }
+      if (andarPara(ps.pos, alvo, dt * (ps.dest.veloc || 1), ps.dest.vh ? 'vh' : null)) {
+        ps.fica = ficaPara(ps.dest);
         ps.estado = 'parado';
         chegou(ps.dest);
       }
@@ -333,7 +403,7 @@
         /* alinha acima (parado, girando mais devagar), desce devagar (entra e sai suave), trava, assenta */
         var k = suave((ps.fase - E.alinha) / E.desce);
         ps.pos.x = ponto.x; ps.pos.y = ponto.y - E.acima * (1 - k);
-        if (ps.fase >= E.alinha + E.desce && !ps.travou) { ps.travou = true; chegou(ps.dest); }
+        if (ps.fase >= E.alinha + E.desce && !ps.travou) { ps.travou = true; ps.travadoHa = 0; chegou(ps.dest); }
         if (ps.fase >= E.alinha + E.desce + E.trava) { ps.estado = 'parado'; ps.travou = false; }
       } else {
         /* as travas abrem, ele sobe até o alinhamento e então vai embora */
@@ -370,7 +440,14 @@
       }
       return ps.pos;
     }
-    /* da estação, volta pelo corredor (sem cortar os módulos) */
+    /* de um encaixe, volta pelo mesmo trajeto suave (da estação, pelo corredor, sem cortar os módulos);
+       chamado pela rolagem, larga o trajeto e volta direto */
+    if (chamado) largarCaminho(ps);
+    else if (ps.dest && ps.dest.encaixa) {
+      if (!rotaValida(ps)) ps.rota = montarRota(ps, d, ps.dest.volta);
+      if (seguirRota(ps.rota, d, ps.pos, dt)) { ps.rota = null; ps.estado = 'doca'; ps.dest = null; return null; }
+      return ps.pos;
+    }
     if (ps.dest && ps.dest.volta && !chamado && proximoDoCaminho(ps.dest.volta, ps.pos, dt)) return ps.pos;
     if (andarPara(ps.pos, d, dt * (chamado ? 2 : ps.dest && ps.dest.estacao ? PASSEIO.arranque : 1), ps.dest && ps.dest.vh ? 'hv' : null)) { ps.estado = 'doca'; ps.dest = null; return null; }
     return ps.pos;
@@ -466,7 +543,8 @@
     alvoY -= Math.sin(festa * Math.PI) * CRIANCA.festa;
     /* mergulhando na passagem: direto para o centro da tela (o painel o cobre) */
     if (mergulho) { alvoX = W / 2; alvoY = H / 2; }
-    var naEstacao = passeio.dest && (passeio.dest.estacao || encaixado || (passeio.dest.exato && passeio.estado === 'parado'));   /* na estação ou encaixado: exatamente no lugar, imóvel */
+    /* na estação, encaixado ou no trajeto de um encaixe: exatamente no lugar (o trajeto já é suave; a mola por cima dava atraso e um salto no fim) */
+    var naEstacao = !mergulho && passeio.dest && (passeio.dest.estacao || encaixado || rotaValida(passeio) || (passeio.dest.exato && passeio.estado === 'parado'));
     if (!naEstacao) {
       alvoX += Math.cos(quer.a) * QUER.inclina * quer.f;
       alvoY += Math.sin(quer.a) * QUER.inclina * quer.f;
@@ -520,6 +598,13 @@
     if (espera >= 0) { espera += dt; if (espera > ESPERA.dura) espera = -1; }
     pulso = Math.max(0, pulso - dt * 0.9);
     if (feixe) { feixe.t += dt; if (feixe.t > FEIXE.desenha + FEIXE.segura + FEIXE.apaga) feixe = null; }
+    if (passeio.travadoHa !== undefined) passeio.travadoHa += dt;
+    /* os arcos: a velocidade muda devagar e o ângulo é somado (antes era relógio × velocidade: trocar a velocidade
+       no encaixe pulava o ângulo inteiro de uma vez) */
+    var vrot = passeio.estado === 'encaixando' || passeio.estado === 'desencaixando' ? 0.12 : (passeio.estado === 'doca' ? 0.35 : 0.85) + AGITA.giro * ag + 0.4 * quer.f + 1.2 * insiste;
+    if (mini.dormindo) vrot *= 0.15;
+    giroV += (vrot - giroV) * Math.min(1, dt * 3);
+    giro = (giro + dt * giroV) % TAU;
   }
 
   function momento(forca) {
@@ -606,9 +691,7 @@
     ctx.lineWidth = 1;
     ctx.strokeStyle = 'rgba(' + mistura(c) + ',' + Math.min(1, (0.7 + 0.3 * c) * v).toFixed(3) + ')';
     ctx.beginPath(); ctx.arc(x, y, 7.5 * s, 0, TAU); ctx.stroke();
-    var vrot = passeio.estado === 'encaixando' || passeio.estado === 'desencaixando' ? 0.12 : (passeio.estado === 'doca' ? 0.35 : 0.85) + AGITA.giro * ag + 0.4 * quer.f + 1.2 * insiste;
-    if (mini.dormindo) vrot *= 0.15;
-    var rot = B.reduced ? 0 : (relogioMini * vrot) % TAU;
+    var rot = B.reduced ? 0 : giro;
     ctx.strokeStyle = 'rgba(' + AC + ',' + Math.min(1, (0.5 + 0.4 * c) * v).toFixed(3) + ')';
     ctx.beginPath(); ctx.arc(x, y, 11.5 * s, rot, rot + 0.7); ctx.stroke();
     ctx.beginPath(); ctx.arc(x, y, 11.5 * s, rot + Math.PI, rot + Math.PI + 0.7); ctx.stroke();
@@ -628,9 +711,15 @@
       ctx.lineTo(x + ux * rr + uy * 3, y + uy * rr - ux * 3);
       ctx.closePath(); ctx.fill();
     }
-    /* encaixado numa tomada: três travas fecham sobre o anel, nas posições das três da tomada (−90°, 30°, 150°) */
-    if (passeio.estado === 'parado' && passeio.dest && passeio.dest.cta) {
-      var kt = saida(passeio.dest.cta.acopladaHa / 0.25), rt = (15 + 5 * (1 - kt)) * s;
+    /* encaixado (tomada ou estação): três travas fecham sobre o anel no instante em que ele assenta, nas posições
+       das três da tomada (−90°, 30°, 150°); saindo, abrem antes de ele subir */
+    var ps = passeio, kt = 0;
+    if (ps.dest && ps.dest.encaixa) {
+      if (ps.estado === 'parado' || (ps.estado === 'encaixando' && ps.travou)) kt = saida((ps.travadoHa || 0) / ENCAIXE.abre);
+      else if (ps.estado === 'desencaixando') kt = 1 - saida(ps.fase / ENCAIXE.abre);
+    }
+    if (kt > 0.01) {
+      var rt = (15 + 5 * (1 - kt)) * s;
       ctx.strokeStyle = 'rgba(' + T1 + ',' + (0.9 * kt * v).toFixed(3) + ')';
       ctx.lineWidth = 1.5;
       ctx.beginPath();
@@ -725,7 +814,14 @@
 
   /* o clique no núcleo da estação conectada: ele se solta e volta */
   mini.liberar = function (st) {
-    if (passeio.dest && passeio.dest.estacao === st && passeio.estado !== 'voltando') { passeio.estado = 'voltando'; soltarEstacao(passeio); pulsar(0.6); }
+    var ps = passeio;
+    if (ps.dest && ps.dest.estacao === st && ps.estado !== 'voltando' && ps.estado !== 'desencaixando') {
+      /* assentado: as travas abrem e ele sobe (desencaixa), como na saída pela rolagem; a caminho, volta direto */
+      var aqui = destinoXY(ps.dest);
+      if (ps.estado === 'parado' && aqui.y > TOPO && aqui.y < tela.H - 40) ps.estado = 'desencaixando';
+      else { largarCaminho(ps); ps.estado = 'voltando'; }
+      ps.fase = 0; soltarEstacao(ps); pulsar(0.6);
+    }
     else B.estacoes.soltar(st);
   };
   /* a api do repertório (js/mini-vida.js) */
@@ -739,6 +835,8 @@
   mini.dormindo = 0;
   mini.desenharFundo = desenharFundo;
   mini.irPara = irPara;
+  /* a estação para onde ele está indo ou onde está encaixado (o soquete dela se anuncia), ou null */
+  mini.rumo = function () { return passeio.dest && passeio.dest.estacao && passeio.estado !== 'voltando' && passeio.estado !== 'desencaixando' ? passeio.dest.estacao : null; };
   /* só leitura, para os testes (docs/verificar e afins): o que ele está fazendo */
   mini.estado = function () { return { passeio: passeio.estado, destino: passeio.dest && passeio.dest.nome ? passeio.dest.nome : passeio.dest ? Object.keys(passeio.dest).filter(function (k) { return passeio.dest[k] && k !== 'via' && k !== 'volta'; }).join('+') : '', sugerindo: !!sugestao.alvo, querendo: quer.f > 0.5, agitacao: B.agitacao || 0, insiste: +insiste.toFixed(2) }; };
   B.rede.extra = mini;

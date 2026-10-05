@@ -1031,3 +1031,46 @@ Revisão de código: o ponto ficava parado como "toco" fora do canto (corrigido
 com a opacidade na animação), a trilha 18 px mais curta (restaurada), a
 largura medida com a fonte reserva (limpa no carregamento da fonte), a barra
 presa em 99% (corrigido). Verificador 12/12; acessibilidade ok.
+
+## 26. Encaixe suave do mini e a transição até a sobrecarga (2026-10-04, 17ª sessão)
+
+Pedido do dono: "melhore o efeito do mini AI Core se acoplando, deixe-o mais
+suave" e "quando ele se acopla e a energia do AI Core médio entra em
+sobrecarga os cards instantaneamente entram no efeito, crie um estado de
+transição nesse espaço de tempo".
+
+**Encaixe (js/mini.js, js/estacao.js).** O que dava o tranco, medido quadro a
+quadro no Chrome real: velocidade constante (810 px/s) com quinas secas,
+freada no seco a ~180 px/s, e o ângulo dos arcos pulando ao trocar a
+velocidade de giro (era relógio × velocidade). Agora o caminho vira uma linha
+com cantos arredondados, percorrida numa senoide (sai do repouso, embala, chega
+ao repouso); a pausa de alinhamento caiu de 0,45 para 0,14 s; o giro é somado;
+as três travas fecham no instante em que ele assenta (estação também) e abrem
+antes de ele subir; a volta usa o mesmo trajeto. Na estação ele não atravessa
+mais o núcleo: vai pelo corredor e sobe num arco elíptico dentro da coluna dela
+(120 px; um arco redondo passaria por cima dos cards). O soquete acende conforme
+o mini vem para ela e o fio da transferência se desenha em 0,35 s.
+
+**Transição (js/carga.js, css/cartoes.css).** Três atos: PRESSÃO (enquanto o
+mini enche a estação, a carga dos cards sobe por baixo até 82%, no mínimo
+1,2 s, e os cantos tremem na reta final); IGNIÇÃO (o surto da conexão corre
+pelos ramos e cada card, o mais perto primeiro, vai a 100% em 0,9 s com a borda
+pegando aos trancos, como neon ligando); SOBRECARGA (linha de luz, onda de
+letras, MAX). Ao soltar, ESFRIA em 0,6 s em vez de cair de uma vez. Medido:
+acoplou → sobrecarga em ~2,5 s; borda na ignição 0,20 → 0,70 → 0,15 → … → 1.
+
+**Achado no caminho (js/pagina.js).** Os números ao vivo da prova recriavam
+nós a cada 0,5 s; o MutationObserver da rede remedia a PÁGINA INTEIRA a cada
+0,5 s (e apagava o surto das estações em voo). Agora só o texto muda: zero
+remedições durante a sequência.
+
+**Achado não corrigido (decisão do dono).** A sobrecarga declara um piscar da
+borda (`sobre-pisca`) que nunca rodou: o `opacity: 1 !important` vence a
+animação. O que o dono viu e aprovou é a borda acesa parada.
+
+Revisão por agente: arco começando no meio com fileiras ímpares, volta refazendo
+o caminho abandonado, travas sumindo ao soltar pelo clique, pressão estalando
+num reacoplamento, movimento reduzido no meio da sequência e o soquete
+acendendo para qualquer passagem — corrigidos. Verificador: 1ª rodada 12/12;
+depois, LCP falhando em alvos que trocam a cada rodada com a CPU a 100% (o
+falso alarme conhecido). Acessibilidade ok.

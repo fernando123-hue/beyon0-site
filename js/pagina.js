@@ -191,6 +191,12 @@
       for (var q = 0; q < elFcp.length; q++) if (elFcp[q].textContent === '—') { var cx = elFcp[q].closest('.hero__cota'); if (cx) cx.style.visibility = 'hidden';   /* some sem tirar do layout: nada pula sob o CTA */ }
     }, 3000); }, { once: true });
   }
+  /* troca o texto sem trocar o nó quando dá: recriar nós a cada número (o fps, 2×/s) acionava o MutationObserver
+     da rede (js/rede.js), que remedia a página inteira a cada 0,5 s e apagava o surto das estações em voo */
+  function trocarTexto(el, txt) {
+    if (el.childNodes.length === 1 && el.firstChild.nodeType === 3) el.firstChild.nodeValue = txt;
+    else el.textContent = txt;
+  }
   /* valor e unidade separados: na prova a unidade fica subordinada (<small>);
      nos demais alvos vira texto. Dois createElement: nada de innerHTML. */
   /* `data-so-numero`: a unidade é um nó fixo no HTML ao lado (console) */
@@ -201,14 +207,18 @@
       if (el.hasAttribute('data-contando') || el.getAttribute('data-txt') === txt) continue;
       el.setAttribute('data-txt', txt);
       if (el.hasAttribute('data-so-numero')) {
-        el.textContent = String(valor);
+        trocarTexto(el, String(valor));
       } else if (el.classList.contains('prova__val') && unidade) {
-        el.textContent = '';
-        var b = document.createElement('b'); b.textContent = String(valor);
-        var sm = document.createElement('small'); sm.textContent = unidade;
-        el.appendChild(b); el.appendChild(sm);
+        var b = el.querySelector(':scope > b'), sm = el.querySelector(':scope > small');
+        if (b && sm) { trocarTexto(b, String(valor)); trocarTexto(sm, unidade); }   /* já montado: só o texto */
+        else {
+          el.textContent = '';
+          b = document.createElement('b'); b.textContent = String(valor);
+          sm = document.createElement('small'); sm.textContent = unidade;
+          el.appendChild(b); el.appendChild(sm);
+        }
       } else {
-        el.textContent = txt;
+        trocarTexto(el, txt);
       }
       carimbar(el);
     }

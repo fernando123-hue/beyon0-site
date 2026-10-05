@@ -25,6 +25,17 @@
    SOBRECARGA (js/estacao.js, com o mini conectado ao AI Core médio): o card
    fica preso em 100% com a moldura neon cheia e piscando, os pontos mais
    rápidos, a barra em "MAX" e uma onda de letras a cada LETRAS.sobre s.
+   A TRANSIÇÃO até ela (dono, 2026-10-04: "crie um estado de transição nesse
+   espaço de tempo, para não ser algo que acontece do nada"), em três atos:
+   1) PRESSÃO (pressao): enquanto o mini enche a estação, ela empurra a carga
+      do card por baixo — um piso que sobe até PRESSAO.teto — e na reta final
+      os cantos tremem (.is-pressao);
+   2) IGNIÇÃO (sobrecarga sim): quando o surto da conexão chega à porta do
+      card, a carga vai de onde está a 100% em IGNICAO s, a porcentagem conta
+      e a borda acende aos trancos, como um tubo de neon pegando (.is-ignicao);
+   3) a SOBRECARGA entra com a linha de luz e a onda de letras.
+   Na volta (sobrecarga não) ela ESFRIA: a carga desce de 100% até onde o
+   cursor a deixaria em ESFRIA s, sem salto (.is-esfria).
    Leis do projeto: posições lidas só em evento (rede:medida); por quadro só
    transform/opacity e o texto da porcentagem quando o número muda.
    ========================================================================== */
@@ -39,6 +50,8 @@
   /* o texto que vira letras; s entre ondas (normal e em sobrecarga); ms de atraso por letra e teto */
   var TEXTOS = 'h3, p, .servico__link, .celula__link, .laudo__n, .servico__n, .celula__n';
   var LETRAS = { cada: 3.5, sobre: 2.4, passo: 15, teto: 1500 };
+  /* a transição até a sobrecarga: s de ignição e de esfriar; teto do piso da pressão e de onde os cantos tremem */
+  var IGNICAO = 0.9, ESFRIA = 0.6, PRESSAO = { teto: 0.82, treme: 0.6 };
   var reduz = window.matchMedia('(prefers-reduced-motion: reduce)');
 
   /* ---------- a peça ---------- */
@@ -71,14 +84,17 @@
     /* os oito braços dos cantos, a borda neon e os pontos que correm */
     var bracos = camada('carga-cantos', 8), halo = camada('carga-halo', 0);
     camada('carga-nos', 4);
-    c = card._carga = { card: card, tubo: tubo, pct: pct, txt: pct.firstChild, fio: fio, aro: aro, p: -1, num: 0, cheio: false, aroA: -1, bracos: bracos.children, halo: halo };
+    /* base: a carga pedida (cursor ou pilha); piso: o mínimo imposto pela estação (pressão, ignição, esfriar) */
+    c = card._carga = { card: card, tubo: tubo, pct: pct, txt: pct.firstChild, fio: fio, aro: aro, p: -1, num: 0, cheio: false, aroA: -1, bracos: bracos.children, halo: halo, base: 0, piso: 0, rampa: null, pediu: false };
     card.classList.add('tem-carga');
     return c;
   }
   /* a carga (0–1): o tubo, a porcentagem e as classes, só quando mudam */
   function definir(card, p) {
     var c = card._carga || montar(card);
+    c.base = p;
     if (c.sobre) p = 1;   /* em sobrecarga fica em 100%, quem comanda é a estação */
+    else if (c.piso > p) p = c.piso;
     p = p < 0 ? 0 : p > 1 ? 1 : p;
     /* só redesenha quando a carga muda ao menos 1% (a 0,2%, cada pixel de rolagem reescrevia o tubo e os 8 cantos) */
     if (Math.abs(p - c.p) >= 0.01 || (p >= 0.995) !== (c.p >= 0.995) || (p <= 0 && c.p > 0)) { c.tubo.style.transform = 'translate3d(' + ((p - 1) * 100).toFixed(2) + '%,0,0)'; c.p = p; variar(c, p); }
@@ -91,7 +107,8 @@
     if (cheio !== c.cheio) {
       c.cheio = cheio;
       card.classList.toggle('is-carregado', cheio);
-      if (cheio) { varrer(card); letras(card); }
+      /* (na ignição, a linha e as letras ficam para a entrada da sobrecarga, logo em seguida) */
+      if (cheio && !(c.rampa && c.pediu)) { varrer(card); letras(card); }
     }
   }
   /* os cantos crescem com a carga; a borda neon acende no último terço (quando a moldura fecha) */
@@ -155,24 +172,70 @@
     card.classList.remove(a ? 'is-letras-a' : 'is-letras-b');
     card.classList.add(a ? 'is-letras-b' : 'is-letras-a');
   }
-  /* a SOBRECARGA (js/estacao.js): presa em 100%, a barra em MAX, ondas de letras seguidas */
+  /* ---------- a transição até a sobrecarga (js/estacao.js) ---------- */
+  /* PRESSÃO: a estação enchendo (v de 0 a 1) empurra a carga por baixo */
+  function pressao(card, v) {
+    var c = card._carga || montar(card);
+    if (c.pediu || c.rampa) return;   /* em ignição, sobrecarga ou esfriando, quem manda é a rampa */
+    v = v < 0 ? 0 : v > 1 ? 1 : v;
+    c.piso = v * PRESSAO.teto;
+    var treme = v >= PRESSAO.treme;
+    if (treme !== card.classList.contains('is-pressao')) card.classList.toggle('is-pressao', treme);
+    definir(card, c.base);
+  }
+  /* uma rampa do piso: de onde a carga está até `para` em `dura` s (senoide), e depois `fim` */
+  var rampas = [];
+  function rampa(c, para, dura, fim) {
+    c.rampa = { de: c.p < 0 ? 0 : c.p, para: para, t: 0, dura: dura, fim: fim };
+    if (rampas.indexOf(c) < 0) rampas.push(c);
+  }
+  /* (sempre no laço; sem rampa, sai na primeira linha: tirar do laço no meio do quadro pularia o vizinho) */
+  B.add('carga-rampa', function (S) {
+    if (!rampas.length) return;
+    var dt = Math.min(0.05, S.dt / 1000);
+    for (var i = rampas.length - 1; i >= 0; i--) {
+      var c = rampas[i], r = c.rampa;
+      if (!r) { rampas.splice(i, 1); continue; }
+      r.t += dt;
+      var k = 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, r.t / r.dura));
+      c.piso = r.de + (r.para - r.de) * k;
+      definir(c.card, c.base);
+      if (r.t >= r.dura) { c.rampa = null; rampas.splice(i, 1); if (r.fim) r.fim(c); }
+    }
+  });
+  /* sim: IGNIÇÃO e então a SOBRECARGA (presa em 100%, a barra em MAX, ondas de letras seguidas); não: ESFRIA */
   function sobrecarga(card, sim) {
     var c = card._carga || montar(card);
-    if (!!c.sobre === !!sim) return;
-    c.sobre = !!sim;
-    card.classList.toggle('is-sobrecarga', c.sobre);
+    sim = !!sim;
+    /* (já pedida; ou já solta e sem nada a esfriar) */
+    if (sim ? c.pediu : !c.pediu && (c.rampa || !c.piso)) return;
+    c.pediu = sim;
     clearInterval(c.relogio);
-    if (c.sobre) {
-      definir(card, 1);
-      c.txt.nodeValue = 'MAX';
-      letras(card, true);
-      c.relogio = setInterval(function () { letras(card, true); }, LETRAS.sobre * 1000);
-    } else {
-      c.num = -1;   /* a porcentagem volta no próximo definir */
-      definir(card, c.p);
+    card.classList.remove('is-pressao');
+    if (sim) {
+      card.classList.remove('is-esfria');
+      card.classList.add('is-ignicao');
+      rampa(c, 1, IGNICAO, entrar);
+      return;
     }
+    c.sobre = false;
+    card.classList.remove('is-sobrecarga', 'is-ignicao');
+    c.num = -1;            /* a porcentagem volta no próximo definir */
+    card.classList.add('is-esfria');
+    rampa(c, 0, ESFRIA, function () { c.piso = 0; card.classList.remove('is-esfria'); definir(card, c.base); });
   }
-  B.carga = { montar: montar, definir: definir, sobrecarga: sobrecarga };
+  function entrar(c) {
+    var card = c.card;
+    card.classList.remove('is-ignicao');
+    card.classList.add('is-sobrecarga');
+    c.sobre = true;
+    definir(card, c.base);
+    c.txt.nodeValue = 'MAX';
+    varrer(card);
+    letras(card, true);
+    c.relogio = setInterval(function () { letras(card, true); }, LETRAS.sobre * 1000);
+  }
+  B.carga = { montar: montar, definir: definir, sobrecarga: sobrecarga, pressao: pressao };
 
   /* ---------- desktop: o cursor ---------- */
   var desktop = window.matchMedia('(min-width: 721px) and (hover: hover) and (pointer: fine)');

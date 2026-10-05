@@ -394,7 +394,7 @@ html.menos-movimento .estacao-cruza { display: none !important; }
   .is-carregado .carga__ponta { opacity: 0; }
   .tem-carga.is-carregado::before { opacity: 1; }
   /* (não vence os destaques ciano da estação, do turbo e da sugestão: revisão) */
-  .tem-carga.is-carregado:not(.is-alimentado):not(.is-energia):not(.is-sugerido):not(.is-sobrecarga) { border-color: var(--line-2); }
+  .tem-carga.is-carregado:not(.is-alimentado):not(.is-energia):not(.is-sugerido):not(.is-sobrecarga):not(.is-ignicao) { border-color: var(--line-2); }
   .tem-carga.is-carregado .laudo__n, .tem-carga.is-carregado .servico__n, .tem-carga.is-carregado .celula__n { color: var(--ac-3); }
   /* cheio: uma linha de luz atravessa o card uma vez */
   html.js:not(.menos-movimento) .tem-carga > .carga-varre { display: block; position: absolute; inset: 0; overflow: hidden; pointer-events: none; border-radius: inherit; }
@@ -495,4 +495,24 @@ html.menos-movimento .estacao-cruza { display: none !important; }
   .is-sobrecarga .carga__pct { color: var(--t1); letter-spacing: .12em; }
   .is-sobrecarga .carga__ponta { opacity: 0; }
   .tem-carga.is-sobrecarga { border-color: var(--ac-2); }
+
+  /* A TRANSIÇÃO até a sobrecarga (js/carga.js): a carga em si sobe e desce pelo JS (barra, cantos, borda);
+     aqui só o caráter de cada ato, em rajadas de opacidade (sem keyframes de layout, sem desfoque novo).
+     PRESSÃO, na reta final da estação enchendo: os cantos tremem, a porcentagem acende. */
+  html.js:not(.menos-movimento) .is-pressao > .carga-cantos > b { animation: pressao-treme .5s steps(1, end) infinite; }
+  @keyframes pressao-treme { 0% { opacity: 1; } 30% { opacity: .55; } 36% { opacity: 1; } 68% { opacity: .75; } 72% { opacity: 1; } }
+  .is-pressao .carga__pct { color: var(--t1); }
+  /* IGNIÇÃO, quando o surto chega à porta: a borda neon pega aos trancos, cada vez mais acesa, como um tubo de
+     neon ligando (a animação vence a opacidade que o JS escreve na borda); a barra e a moldura já em branco */
+  html.js:not(.menos-movimento) .is-ignicao > .carga-halo { animation: ignicao-pega .9s steps(1, end) both; }
+  @keyframes ignicao-pega {
+    0% { opacity: .2; } 9% { opacity: .7; } 13% { opacity: .15; } 27% { opacity: .8; } 31% { opacity: .3; }
+    46% { opacity: .95; } 49% { opacity: .45; } 63% { opacity: 1; } 66% { opacity: .6; } 78%, 100% { opacity: 1; }
+  }
+  .is-ignicao > .carga-cantos > b { background: var(--t1); transition: background .5s var(--ease); }
+  .is-ignicao .carga__tubo { background: var(--ac-2); }
+  .is-ignicao .carga__pct { color: var(--t1); }
+  .tem-carga.is-ignicao { border-color: var(--ac-2); transition: border-color .4s var(--ease); }
+  /* ESFRIA, ao soltar: a carga desce pelo JS; a borda do card volta devagar */
+  .tem-carga.is-esfria { transition: border-color .6s var(--ease); }
 }

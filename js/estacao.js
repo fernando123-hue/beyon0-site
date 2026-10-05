@@ -32,6 +32,10 @@
      FICA conectado — só solta se a pessoa clicar de novo no núcleo da
      estação ou rolar a página — e os cards dela entram em SOBRECARGA
      (B.carga.sobrecarga, js/carga.js) com a estação em turbo contínuo.
+     Sem salto (dono, 2026-10-04: "crie um estado de transição"): enquanto
+     ele enche a estação, ela PRESSIONA a carga dos cards por baixo
+     (B.carga.pressao); conectada, o surto corre pelos ramos e cada card
+     entra em IGNIÇÃO quando ele chega à sua porta (o mais perto primeiro).
    - O TURBO: carga cheia = surto rápido e duplo; os módulos acendem
      inteiros (.is-energia) e as cantoneiras da seção piscam. Quem enche: o
      MINI, que vem pelo corredor entre as fileiras, acopla acima dela e
@@ -53,14 +57,17 @@
   var CORPO = 152, R = { nucleo: 9, vidro: 24, fora: 44, aroB: 34, orbita: [39, 11], estator: 45, carga: 55 };
   var SURTO = { v: 800, vTurbo: 1500, cabeca: 14, degraus: [[40, 0.5], [110, 0.2]], escalona: 0.07 };
   var ALIMENTA = { v: 900, carga: 0.22, cabeca: 24, rastro: 80 };   /* px/s; quanto carrega; px */
-  var CARGA = { base: 0.35, folego: 0.1, cai: 0.09, enche: 2, teto: 3 };   /* /s; s para encher acoplada; s no máximo acoplada */
+  var CARGA = { base: 0.35, folego: 0.1, cai: 0.09, enche: 2, teto: 3, minimo: 1.2 };   /* /s; s para encher acoplada; s no máximo acoplada; s no mínimo até conectar (a pressão nos cards tem tempo de subir) */
   var GIRO = { a: -0.9, b: 0.5, turbo: 4, sob: 1.8 };          /* rad/s */
-  var MINI = { acima: 86 };                                     /* px: o mini acopla no corredor, acima dela */
+  var MINI = { acima: 86 }, ARCO = 12, ARCO_MARGEM = 14;   /* px: o mini acopla acima dela; pontos do arco até lá; px do arco à beira da coluna */
   var ORBITA = [3, 3], SEM_TRACO = [];                          /* (sem alocar por quadro) */
   /* o fluxo: px/s base, + por carga, + no foco, + no turbo; distância entre pacotes; comprimento do pacote;
      intervalo mínimo entre piscadas da porta e entre travessias (s) */
   var FLUXO = { v: 70, carga: 90, foco: 260, turbo: 420, espaco: 64, rastro: 16, cabeca: 4, porta: 0.5, cruza: 1.1 };
   var ONDA_MS = 600, TURBO_MS = 1300;                           /* quanto o módulo fica aceso */
+  var IGNITA = { rede: 1.6 };   /* s: conectada há tanto e algum card não recebeu o surto (fora da tela, ramo longo)? entra assim mesmo */
+  var SOQUETE = { perto: 180 };    /* px: o soquete acende conforme o mini (vindo para ela) se aproxima */
+  var TRANSFERE = { liga: 0.35 };  /* s: o fio da transferência se desenhando */
   /* a menção ao principal: legível parada (crítica: com 9 px cinza quase não se lia) */
   var ROTULO = { texto: '↑ AI CORE', fonte: '500 11px "JetBrains Mono", ui-monospace, monospace', alfa: 0.92 };
 
@@ -76,6 +83,7 @@
 
   function limitar(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
   function suave(x) { x = limitar(x); return x * x * (3 - 2 * x); }
+  function saida(k) { k = limitar(k); return 1 - (1 - k) * (1 - k) * (1 - k); }
   function cor(c, a) { return 'rgba(' + c + ',' + limitar(a).toFixed(3) + ')'; }
   /* entre o ciano e o branco (a rede acendendo no turbo) */
   var CA = AC.split(',').map(Number), CB = T1.split(',').map(Number);
@@ -134,7 +142,7 @@
       else if (nl) cy = (faixas[nl / 2 - 1][1] + faixas[nl / 2][0]) / 2;
       for (k = 0; k < raios.length; k++) raios[k].comp = Math.abs(raios[k].yb - cy) + Math.abs(raios[k].xb - cx);
       raios.sort(function (a, b) { return a.comp - b.comp; });
-      st.n = estacoes.length + 1; st.x = cx; st.yd = cy; st.vao = vao; st.raios = raios; st.corredores = corredores;
+      st.n = estacoes.length + 1; st.x = cx; st.yd = cy; st.vao = vao; st.meia = vao.offsetWidth / 2; st.raios = raios; st.corredores = corredores;
       st.secaoY = secao ? posDoc(secao).y : cy - 400; st.surtos.length = 0;
       vao.classList.add('is-viva');
       grupos[i].pai.classList.add('is-ligada');
@@ -215,8 +223,16 @@
   /* o pulso do reator entra pelo alimentador (de `de`, y do documento, até a estação) */
   function alimentar(st, de) { if (!B.reduced && !st.alim) st.alim = { s: 0, de: Math.max(st.secaoY, de || st.secaoY) }; }
   function soltarEstacao(st) {
-    st.acopla = null;
-    if (st.conectada) { st.conectada = false; sobrecarregar(st, false); }
+    var tinha = !!st.acopla || st.conectada;
+    st.acopla = null; st.conectada = false;
+    if (tinha) sobrecarregar(st, false);   /* (carregando ou conectada: a pressão e a sobrecarga esfriam) */
+  }
+  /* a pressão nos cards enquanto o mini enche a estação: de onde ela estava ao acoplar até cheia */
+  function pressionar(st) {
+    if (!B.carga) return;
+    /* (no mínimo CARGA.minimo s de subida: reacoplar com a estação ainda cheia estalava de 0 a 82% — revisão) */
+    var v = Math.min(limitar((st.carga - st.acopla.c0) / Math.max(0.05, 1 - st.acopla.c0)), st.acopla.t / CARGA.minimo);
+    for (var i = 0; i < st.raios.length; i++) B.carga.pressao(st.raios[i].el, v);
   }
   /* o mini vem (se estiver ativo); sem ele, ela turbina sozinha */
   function chamar(st) {
@@ -236,7 +252,7 @@
     for (var i = 0; i < estacoes.length; i++) {
       var st = estacoes[i], sy = st.yd - rolagem;
       st.turboHa += dt;
-      if (B.reduced) { st.surtos.length = 0; st.acopla = null; st.alim = null; continue; }
+      if (B.reduced) { if (st.acopla || st.conectada) soltarEstacao(st); st.surtos.length = 0; st.alim = null; continue; }
       /* a carga respira em volta da base; o alimentador e o mini a sobem */
       st.carga += (CARGA.base + CARGA.folego * folego - st.carga) * Math.min(1, dt * CARGA.cai);
       if (st.acopla) {
@@ -244,10 +260,14 @@
         if (!st.conectada) {
           st.carga = Math.min(1, st.carga + dt / CARGA.enche);
           if (st.acopla.t > CARGA.teto) st.carga = 1;   /* rede de segurança: nunca passa do teto */
-          if (st.carga >= 1) { st.conectada = true; turbinar(st); sobrecarregar(st, true); }
+          pressionar(st);
+          /* cheia: conecta e solta o surto; a sobrecarga entra card a card quando ele chega (abaixo) */
+          if (st.carga >= 1 && st.acopla.t >= CARGA.minimo) { st.conectada = true; st.conectadaHa = 0; turbinar(st); }
         } else {
           /* conectada: carga cheia e turbo contínuo (a rede branca, os pacotes rápidos) */
           st.carga = 1; st.turboHa = Math.min(st.turboHa, 0.4);
+          st.conectadaHa += dt;
+          if (st.conectadaHa > IGNITA.rede && !st.todos) { st.todos = true; sobrecarregar(st, true); }
         }
       }
       if (st.alim) {
@@ -283,7 +303,10 @@
       for (var k = st.surtos.length - 1; k >= 0; k--) {
         var su = st.surtos[k];
         su.s += dt * (su.turbo ? SURTO.vTurbo : SURTO.v);
-        if (!su.aceso && su.s >= su.raio.comp) { su.aceso = true; B.rede.acender(su.raio.el, su.turbo); energizar(su.raio.el, su.turbo); }
+        if (!su.aceso && su.s >= su.raio.comp) {
+          su.aceso = true; B.rede.acender(su.raio.el, su.turbo); energizar(su.raio.el, su.turbo);
+          if (st.conectada && su.turbo && B.carga) B.carga.sobrecarga(su.raio.el, true);   /* a ignição deste card */
+        }
         if (su.s - SURTO.degraus[1][0] > su.raio.comp) st.surtos.splice(k, 1);
       }
     }
@@ -360,14 +383,16 @@
       }
       /* o SOQUETE do mini, no alimentador acima dela (onde ele encaixa para
          turbinar): tracejado vazio; cheio e branco com ele acoplado */
-      var ys = sy - MINI.acima, acop = !!st.acopla && !B.reduced;
+      /* (com o mini chegando, o soquete acende antes: a chegada é anunciada, não um estalo) */
+      var ys = sy - MINI.acima, acop = !!st.acopla && !B.reduced, mini = B.rede.extra;
+      var aprox = !acop && mini && mini.ativo && !B.reduced && mini.rumo && mini.rumo() === st ? suave(1 - Math.hypot(mini.x - st.x, mini.y - ys) / SOQUETE.perto) : 0;
       if (ys > g.topo + 18) {
         ctx.lineWidth = 1;
-        ctx.strokeStyle = cor(acop ? T1 : AC, acop ? 0.9 : 0.55);
+        ctx.strokeStyle = cor(acop ? T1 : AC, acop ? 0.9 : 0.55 + 0.35 * aprox);
         if (!acop) ctx.setLineDash(ORBITA);
         ctx.beginPath(); ctx.arc(st.x, ys, 15, 0, TAU); ctx.stroke();
         ctx.setLineDash(SEM_TRACO);
-        ctx.strokeStyle = cor(AC, acop ? 0.8 : 0.4);
+        ctx.strokeStyle = cor(AC, acop ? 0.8 : 0.4 + 0.4 * aprox);
         ctx.beginPath(); ctx.arc(st.x, ys, 7, 0, TAU); ctx.stroke();
       }
       if (B.reduced) continue;
@@ -381,17 +406,19 @@
       }
       /* os surtos pelos ramos */
       for (j = 0; j < st.surtos.length; j++) desenharSurto(ctx, st, st.surtos[j], sy);
-      /* a transferência do mini acoplado: o trecho até ela aceso e pacotes descendo */
-      var mini = B.rede.extra;
+      /* a transferência do mini acoplado: o trecho até ela se DESENHA (TRANSFERE.liga s) e os pacotes descem
+         só por onde ele já chegou */
       if (st.acopla && mini) {
+        var L = Math.hypot(st.x - mini.x, sy - R.carga - mini.y) || 1, ux = (st.x - mini.x) / L, uy = (sy - R.carga - mini.y) / L;
+        var Lv = L * saida(st.acopla.t / TRANSFERE.liga);
         ctx.lineWidth = 1;
         ctx.strokeStyle = cor(AC2, 0.6);
-        ctx.beginPath(); ctx.moveTo(mini.x, mini.y); ctx.lineTo(st.x, sy - R.carga); ctx.stroke();
-        var L = Math.hypot(st.x - mini.x, sy - R.carga - mini.y) || 1, ux = (st.x - mini.x) / L, uy = (sy - R.carga - mini.y) / L;
+        ctx.beginPath(); ctx.moveTo(mini.x, mini.y); ctx.lineTo(mini.x + ux * Lv, mini.y + uy * Lv); ctx.stroke();
         ctx.strokeStyle = cor(T1, 0.95); ctx.lineWidth = 1.6;
         for (var p = 0; p < 3; p++) {
           var at = ((st.acopla.t * 2.2 + p / 3) % 1) * L;
-          ctx.beginPath(); ctx.moveTo(mini.x + ux * at, mini.y + uy * at); ctx.lineTo(mini.x + ux * Math.min(L, at + 7), mini.y + uy * Math.min(L, at + 7)); ctx.stroke();
+          if (at > Lv) continue;
+          ctx.beginPath(); ctx.moveTo(mini.x + ux * at, mini.y + uy * at); ctx.lineTo(mini.x + ux * Math.min(Lv, at + 7), mini.y + uy * Math.min(Lv, at + 7)); ctx.stroke();
         }
         ctx.lineWidth = 1;
       }
@@ -511,17 +538,28 @@
       }
       return melhor;
     },
-    /* o caminho do mini até ela (documento): pela régua até o corredor mais perto, pelo
-       corredor até o eixo dela; [] sem corredor */
-    via: function (st, xDe) {
+    /* o caminho do mini até ela (documento): pela régua até o corredor mais perto, pelo corredor até a
+       beira da coluna dela e dali num ARCO (elipse dentro da coluna: não passa por cima dos cards) até
+       `folga` px acima do soquete — antes ele atravessava o núcleo pelo corredor e subia reto; [] sem corredor */
+    via: function (st, xDe, folga) {
       if (!st.corredores.length) return [];
       var c = st.corredores[0];
       for (var i = 1; i < st.corredores.length; i++) if (Math.abs(st.corredores[i] - st.yd) < Math.abs(c - st.yd)) c = st.corredores[i];
-      return [{ x: xDe, py: c }, { x: st.x - B.S.sx, py: c }];
+      var x = st.x - B.S.sx, lado = xDe >= x ? 1 : -1, R = MINI.acima + (folga || 0);
+      var rx = Math.max(0, Math.min(R, (st.meia || 0) - ARCO_MARGEM));
+      /* o arco começa onde o corredor cruza a elipse (com fileiras ímpares o corredor fica acima do meio dela:
+         começar no meio fazia o mini descer e subir de novo — revisão) */
+      var a0 = Math.asin(Math.max(-1, Math.min(1, (st.yd - c) / R)));
+      var pts = [{ x: xDe, py: c }];
+      for (var k = 0; k <= ARCO; k++) {
+        var a = a0 + (k / ARCO) * (Math.PI / 2 - a0);   /* do corredor até em cima (90°) */
+        pts.push({ x: x + lado * rx * Math.cos(a), py: st.yd - R * Math.sin(a) });
+      }
+      return pts;
     },
     /* onde o mini fica acoplado (tela): no corredor, acima dela */
     doca: function (st) { return { x: st.x - B.S.sx, y: st.yd - rolagem - MINI.acima }; },
-    acoplar: function (st) { if (!B.reduced && !st.acopla) st.acopla = { t: 0 }; },
+    acoplar: function (st) { if (!B.reduced && !st.acopla) { st.acopla = { t: 0, c0: st.carga }; st.todos = false; } },
     soltar: function (st) { soltarEstacao(st); },
     podeTurbinar: function (st) { return st.turboHa > 20 && !st.acopla; },
     turbinando: function (st) { return !!st.acopla; },
