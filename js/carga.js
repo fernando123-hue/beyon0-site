@@ -134,11 +134,22 @@
   /* parte o texto do card em letras, uma vez: spans sem rótulo extra (o texto segue no lugar para o leitor de
      tela; aria-label em parágrafo é proibido pela ARIA), a seta (aria-hidden) fica de fora; o atraso de cada
      letra é distribuído pelo card inteiro (com teto, as últimas piscavam juntas) */
+  /* um alvo em flex ou grid (o h3 dos itens do padrão, com o losango ao lado) teria cada palavra partida virando um
+     item separado, espremido até quebrar no meio ("Fe/ito prim/eiro"): o texto vai antes para um span só */
+  function embrulhar(el) {
+    var d = getComputedStyle(el).display;
+    if (d.indexOf('flex') < 0 && d.indexOf('grid') < 0) return el;
+    var span = document.createElement('span');
+    span.className = 'carga-embrulho';
+    while (el.firstChild) span.appendChild(el.firstChild);
+    el.appendChild(span);
+    return span;
+  }
   function partir(card) {
     var c = card._carga;
     if (!c || !window.SplitText) return false;
     if (c.split) return true;
-    var alvos = [].filter.call(card.querySelectorAll(TEXTOS), function (el) { return !el.closest('.carga') && el.textContent.trim(); });
+    var alvos = [].filter.call(card.querySelectorAll(TEXTOS), function (el) { return !el.closest('.carga') && el.textContent.trim(); }).map(embrulhar);
     if (!alvos.length) return false;
     try {
       c.split = new window.SplitText(alvos, { type: 'words,chars', tag: 'span', aria: 'none', ignore: '[aria-hidden="true"]', charsClass: 'carga-letra', wordsClass: 'carga-palavra' });
