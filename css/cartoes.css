@@ -421,7 +421,7 @@ html.menos-movimento .estacao-cruza { display: none !important; }
    quatro lados; a barra de baixo em neon. O brilho difuso (box-shadow com
    desfoque) é EXCEÇÃO pedida pelo dono para esta peça, a partir da
    referência que ele mandou; no resto do site continua proibido. ---- */
-.carga-nos, .carga-cantos, .carga-halo { display: none; }
+.carga-nos, .carga-cantos, .carga-halo, .carga-circula { display: none; }
 @media (prefers-reduced-motion: no-preference) {
   html.js:not(.menos-movimento) .tem-carga { isolation: isolate; }
   /* o aro de proximidade da 1ª versão dá lugar aos cantos */
@@ -476,7 +476,8 @@ html.menos-movimento .estacao-cruza { display: none !important; }
    Em 100% uma onda de luz atravessa o texto do card letra por letra (cada
    uma acende e dá um pulinho; o atraso de cada letra é fixado uma vez, por
    JS). Em sobrecarga (o mini conectado ao AI Core médio): moldura neon cheia
-   e piscando, cantos brancos, pontos mais rápidos, barra crepitando em MAX.
+   e acesa, cantos brancos, uma luz que circula devagar pela borda e a barra em
+   MAX com o reflexo correndo (dono, 2026-10-05: nada piscando).
    Só transform/opacity/cor em rajadas curtas; nada disso em movimento reduzido. ---- */
 .carga-palavra, .carga-letra { display: inline-block; }
 @media (prefers-reduced-motion: no-preference) {
@@ -484,35 +485,47 @@ html.menos-movimento .estacao-cruza { display: none !important; }
   html.js:not(.menos-movimento) .is-letras-b .carga-letra { animation: letra-luz-b .38s cubic-bezier(.2, .7, .3, 1) backwards; }
   @keyframes letra-luz-a { 28% { color: var(--t1); transform: translateY(-3px); } 55% { color: var(--ac-2); } 100% { transform: none; } }
   @keyframes letra-luz-b { 28% { color: var(--t1); transform: translateY(-3px); } 55% { color: var(--ac-2); } 100% { transform: none; } }
-  /* sobrecarga */
-  html.js:not(.menos-movimento) .is-sobrecarga > .carga-halo { opacity: 1 !important; animation: sobre-pisca 1.3s steps(1, end) infinite; }
-  @keyframes sobre-pisca { 0% { opacity: 1; } 12% { opacity: .55; } 16% { opacity: 1; } 47% { opacity: .8; } 50% { opacity: 1; } 71% { opacity: .5; } 73% { opacity: 1; } }
-  html.js:not(.menos-movimento) .is-sobrecarga > .carga-cantos > b { transform: none !important; background: var(--t1); }
-  .is-sobrecarga > .carga-nos > b:nth-child(odd) { animation-duration: .9s; }
-  .is-sobrecarga > .carga-nos > b:nth-child(even) { animation-duration: .75s; }
-  .is-sobrecarga .carga__tubo { background: var(--t1); animation: sobre-crepita .45s steps(2, end) infinite; }
-  @keyframes sobre-crepita { 50% { opacity: .65; } }
+  /* sobrecarga: a moldura acesa e parada, em ciano um pouco abaixo do máximo (toda branca, a luz que circula
+     some nela); o movimento é só a luz, em branco, e o reflexo na barra */
+  html.js:not(.menos-movimento) .is-sobrecarga > .carga-halo { opacity: .7 !important; }
+  html.js:not(.menos-movimento) .is-sobrecarga > .carga-cantos > b { transform: none !important; background: var(--ac-2); opacity: .7; }
+  /* (os pontos dos quatro lados dão lugar à luz que circula: um movimento só) */
+  .is-sobrecarga > .carga-nos { opacity: 0; }
+  .is-sobrecarga .carga__tubo { background: var(--t1); }
+  .is-sobrecarga .carga__brilho::before { opacity: .55; animation: carga-reflexo 2.6s linear infinite; }
   .is-sobrecarga .carga__pct { color: var(--t1); letter-spacing: .12em; }
   .is-sobrecarga .carga__ponta { opacity: 0; }
   .tem-carga.is-sobrecarga { border-color: var(--ac-2); }
 
-  /* A TRANSIÇÃO até a sobrecarga (js/carga.js): a carga em si sobe e desce pelo JS (barra, cantos, borda);
-     aqui só o caráter de cada ato, em rajadas de opacidade (sem keyframes de layout, sem desfoque novo).
-     PRESSÃO, na reta final da estação enchendo: os cantos tremem, a porcentagem acende. */
-  html.js:not(.menos-movimento) .is-pressao > .carga-cantos > b { animation: pressao-treme .5s steps(1, end) infinite; }
-  @keyframes pressao-treme { 0% { opacity: 1; } 30% { opacity: .55; } 36% { opacity: 1; } 68% { opacity: .75; } 72% { opacity: 1; } }
+  /* A TRANSIÇÃO até a sobrecarga (js/carga.js): a carga em si sobe e desce pelo JS (barra, cantos, borda,
+     que acende junto com ela); nada pisca (dono, 2026-10-05). PRESSÃO: a porcentagem acende. */
   .is-pressao .carga__pct { color: var(--t1); }
-  /* IGNIÇÃO, quando o surto chega à porta: a borda neon pega aos trancos, cada vez mais acesa, como um tubo de
-     neon ligando (a animação vence a opacidade que o JS escreve na borda); a barra e a moldura já em branco */
-  html.js:not(.menos-movimento) .is-ignicao > .carga-halo { animation: ignicao-pega .9s steps(1, end) both; }
-  @keyframes ignicao-pega {
-    0% { opacity: .2; } 9% { opacity: .7; } 13% { opacity: .15; } 27% { opacity: .8; } 31% { opacity: .3; }
-    46% { opacity: .95; } 49% { opacity: .45; } 63% { opacity: 1; } 66% { opacity: .6; } 78%, 100% { opacity: 1; }
-  }
+  /* IGNIÇÃO, quando o surto chega à porta: a luz começa a circular, a barra e a moldura vão para o branco */
   .is-ignicao > .carga-cantos > b { background: var(--t1); transition: background .5s var(--ease); }
   .is-ignicao .carga__tubo { background: var(--ac-2); }
   .is-ignicao .carga__pct { color: var(--t1); }
   .tem-carga.is-ignicao { border-color: var(--ac-2); transition: border-color .4s var(--ease); }
-  /* ESFRIA, ao soltar: a carga desce pelo JS; a borda do card volta devagar */
+  /* ESFRIA, ao soltar: a carga desce pelo JS; a borda do card volta devagar e a luz que circula apaga andando */
   .tem-carga.is-esfria { transition: border-color .6s var(--ease); }
+
+  /* A LUZ QUE CIRCULA (js/carga.js, circular): um traço de 1,5 px, cabeça branca e cauda em degradê (sem desfoque) que dá a
+     volta na borda, devagar. Cada lado recorta a sua faixa; os de baixo e da esquerda são espelhados, para o
+     traço andar no sentido horário. Só anima na ignição, na sobrecarga e enquanto apaga. */
+  html.js:not(.menos-movimento) .tem-carga > .carga-circula { display: block; position: absolute; inset: -1px; pointer-events: none; opacity: 0; transition: opacity .6s var(--ease); }
+  .carga-circula > b { position: absolute; overflow: hidden; }
+  .carga-circula > b:nth-child(odd) { left: 0; right: 0; height: 1.5px; }
+  .carga-circula > b:nth-child(even) { top: 0; bottom: 0; width: 1.5px; }
+  .carga-circula > b:nth-child(1) { top: 0; }
+  .carga-circula > b:nth-child(2) { right: 0; }
+  .carga-circula > b:nth-child(3) { bottom: 0; transform: scaleX(-1); }
+  .carga-circula > b:nth-child(4) { left: 0; transform: scaleY(-1); }
+  .carga-circula > b > i { position: absolute; display: block; }
+  .carga-circula > b:nth-child(odd) > i { top: 0; height: 100%; right: 100%; background: linear-gradient(90deg, transparent calc(100% - 110px), rgb(var(--ac-2-rgb) / .85) calc(100% - 14px), var(--t1) calc(100% - 6px)); }
+  .carga-circula > b:nth-child(even) > i { left: 0; width: 100%; bottom: 100%; background: linear-gradient(180deg, transparent calc(100% - 110px), rgb(var(--ac-2-rgb) / .85) calc(100% - 14px), var(--t1) calc(100% - 6px)); }
+  html.js:not(.menos-movimento) .is-ignicao > .carga-circula, html.js:not(.menos-movimento) .is-sobrecarga > .carga-circula { opacity: 1; }
+  .is-ignicao > .carga-circula > b > i, .is-sobrecarga > .carga-circula > b > i, .is-esfria > .carga-circula > b > i { animation-timing-function: linear; animation-iteration-count: infinite; }
+  .is-ignicao > .carga-circula > b:nth-child(odd) > i, .is-sobrecarga > .carga-circula > b:nth-child(odd) > i, .is-esfria > .carga-circula > b:nth-child(odd) > i { animation-name: circula-x; }
+  .is-ignicao > .carga-circula > b:nth-child(even) > i, .is-sobrecarga > .carga-circula > b:nth-child(even) > i, .is-esfria > .carga-circula > b:nth-child(even) > i { animation-name: circula-y; }
+  @keyframes circula-x { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(100%, 0, 0); } }
+  @keyframes circula-y { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(0, 100%, 0); } }
 }

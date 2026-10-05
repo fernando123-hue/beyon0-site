@@ -31,9 +31,11 @@
       do card por baixo — um piso que sobe até PRESSAO.teto — e na reta final
       os cantos tremem (.is-pressao);
    2) IGNIÇÃO (sobrecarga sim): quando o surto da conexão chega à porta do
-      card, a carga vai de onde está a 100% em IGNICAO s, a porcentagem conta
-      e a borda acende aos trancos, como um tubo de neon pegando (.is-ignicao);
-   3) a SOBRECARGA entra com a linha de luz e a onda de letras.
+      card, a carga vai de onde está a 100% em IGNICAO s, a porcentagem conta,
+      a borda acende junto e uma LUZ começa a CIRCULAR pela borda (.is-ignicao);
+   3) a SOBRECARGA entra com a linha de luz e a onda de letras; a luz segue
+      circulando, devagar (dono, 2026-10-05: "tire o piscar por energia
+      transitando pelas bordas de forma bem suave e discreta/minimalista").
    Na volta (sobrecarga não) ela ESFRIA: a carga desce de 100% até onde o
    cursor a deixaria em ESFRIA s, sem salto (.is-esfria).
    Leis do projeto: posições lidas só em evento (rede:medida); por quadro só
@@ -52,6 +54,7 @@
   var LETRAS = { cada: 3.5, sobre: 2.4, passo: 15, teto: 1500 };
   /* a transição até a sobrecarga: s de ignição e de esfriar; teto do piso da pressão e de onde os cantos tremem */
   var IGNICAO = 0.9, ESFRIA = 0.6, PRESSAO = { teto: 0.82, treme: 0.6 };
+  var CIRCULA = { vel: 170 };   /* px/s da luz que percorre a borda (um traço só, dando a volta) */
   var reduz = window.matchMedia('(prefers-reduced-motion: reduce)');
 
   /* ---------- a peça ---------- */
@@ -203,6 +206,27 @@
       if (r.t >= r.dura) { c.rampa = null; rampas.splice(i, 1); if (r.fim) r.fim(c); }
     }
   });
+  /* a LUZ QUE CIRCULA pela borda: quatro lados recortados, cada um com uma faixa do tamanho do PERÍMETRO e o
+     traço na ponta dela; as quatro andam juntas (transform em % da própria faixa: compositor) e cada lado
+     começa defasado pelo trecho do perímetro que vem antes dele — o traço passa de um lado ao outro pelos
+     cantos como se fosse um só. Montada na 1ª ignição do card (enfeite: a rede ignora, js/rede.js) */
+  function circular(c) {
+    var card = c.card, W = c.w || card.offsetWidth, H = c.h || card.offsetHeight, P = 2 * (W + H);   /* (inset −1 px a partir da caixa interna = o tamanho do card) */
+    if (!c.circula) {
+      c.circula = document.createElement('i'); c.circula.className = 'carga-circula'; c.circula.setAttribute('aria-hidden', 'true');
+      for (var k = 0; k < 4; k++) { var lado = document.createElement('b'); lado.appendChild(document.createElement('i')); c.circula.appendChild(lado); }
+      card.appendChild(c.circula);
+    }
+    if (c.circulaP === P) return;
+    c.circulaP = P;
+    var T = P / CIRCULA.vel, antes = [0, W, W + H, 2 * W + H];
+    for (var i = 0; i < 4; i++) {
+      var faixa = c.circula.children[i].firstChild;
+      faixa.style[i % 2 ? 'height' : 'width'] = P + 'px';
+      faixa.style.animationDuration = T.toFixed(2) + 's';
+      faixa.style.animationDelay = (-(P - antes[i]) / P * T).toFixed(2) + 's';
+    }
+  }
   /* sim: IGNIÇÃO e então a SOBRECARGA (presa em 100%, a barra em MAX, ondas de letras seguidas); não: ESFRIA */
   function sobrecarga(card, sim) {
     var c = card._carga || montar(card);
@@ -214,6 +238,7 @@
     card.classList.remove('is-pressao');
     if (sim) {
       card.classList.remove('is-esfria');
+      if (!B.reduced && !reduz.matches) circular(c);
       card.classList.add('is-ignicao');
       rampa(c, 1, IGNICAO, entrar);
       return;
@@ -256,6 +281,7 @@
       if (!it) { montar(el, { aro: true }); it = { el: el, carga: 0 }; }
       var p = posDoc(el);
       it.x = p.x; it.y = p.y; it.w = el.offsetWidth; it.h = el.offsetHeight;
+      el._carga.w = it.w; el._carga.h = it.h;   /* (para a luz que circula: sem ler layout na hora) */
       novos.push(it);
     }
     lista = novos;
