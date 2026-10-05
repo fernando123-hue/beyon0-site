@@ -640,7 +640,7 @@
         });
         mm.add('(min-width: 861px) and (hover: hover) and (prefers-reduced-motion: no-preference)', function () {
           var hero = document.querySelector('.hero'), consoleEl = document.querySelector('.console');
-          if (!hero || !consoleEl) return;
+          if (!hero || !consoleEl || !consoleEl.offsetParent) return;   /* (no Hub o console fica oculto: nada de inclinar o invisível) */
           var rx = gsap.quickTo(consoleEl, 'rotationX', { duration: 1.2, ease: 'power3' });
           var ry = gsap.quickTo(consoleEl, 'rotationY', { duration: 1.2, ease: 'power3' });
           /* inclinação de instrumento, não de cartão de brinde: ±2° e ±1,2° */
@@ -861,6 +861,11 @@
     return function () {
       ST.removeEventListener('refreshInit', medir);
       ST.removeEventListener('refresh', repintar);
+      /* (saindo do desktop: nada do palco pode seguir medindo/pintando, nem a rede achar que #prova está presa) */
+      ST.removeEventListener('refresh', publicarPino);
+      if (mo) mo.disconnect();
+      if (remedirPalco) cancelAnimationFrame(remedirPalco);
+      if (B.pino && B.pino.el === sec) B.pino = null;
       prova.classList.remove('prova--palco');
       partes.forEach(function (p) { p.m.style.width = ''; });
       var limpar = [luz, barra].concat(partes.map(function (p) { return p.m; }), partes.map(function (p) { return p.t; }), partes.map(function (p) { return p.rot; })).filter(Boolean);

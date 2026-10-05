@@ -50,6 +50,8 @@
   /* com o menu em tela cheia aberto, o resto da página fica inerte: o Tab
      não sai do menu para links invisíveis por trás (revisão da V4.6) */
   function fundoInerte(sim) {
+    /* "Agendar diagnóstico" dentro do menu abre o modal e o menu fecha em seguida: o fundo continua do modal */
+    if (!sim && document.body.classList.contains('is-lead-open')) return;
     var fundo = document.querySelectorAll('main, footer, .barra, .wa, .skip-link');
     for (var f = 0; f < fundo.length; f++) { if (sim) fundo[f].setAttribute('inert', ''); else fundo[f].removeAttribute('inert'); }
   }

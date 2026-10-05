@@ -1074,3 +1074,37 @@ num reacoplamento, movimento reduzido no meio da sequência e o soquete
 acendendo para qualquer passagem — corrigidos. Verificador: 1ª rodada 12/12;
 depois, LCP falhando em alvos que trocam a cada rodada com a CPU a 100% (o
 falso alarme conhecido). Acessibilidade ok.
+
+## 27. Sem piscar: energia circulando pela borda; revisão geral (2026-10-05)
+
+Dono: "tire o piscar por energia transitando pelas bordas de forma bem suave
+e discreta/minimalista" e "revise tudo, procure bugs e possíveis melhorias".
+
+**A luz que circula (js/carga.js `circular`, css/cartoes.css).** Saíram o
+tremor da pressão, a borda "aos trancos" da ignição e a barra crepitando. Uma
+luz só (1,5 px, cabeça branca, cauda ciano em degradê, sem desfoque) dá a volta
+no card a 170 px/s: quatro lados recortados, cada um com uma faixa do tamanho
+do perímetro, defasados pelo trecho anterior — atravessa os cantos sem emenda;
+transform em %, no compositor. A moldura parada da sobrecarga ficou ciano a 70%
+(toda branca, a luz sumia nela), com transição na entrada e na saída.
+
+**Bugs achados e corrigidos.** Regra de estado perdendo para a base em
+especificidade (a luz nascia invisível; a borda do card sob o cursor na estação
+e a do link sugerido pelo mini na faixa do hero nunca acendiam). Títulos em flex
+quebrando no meio da palavra ao partir em letras ("Fe/ito prim/eiro", Sites). No
+celular, "Agendar diagnóstico" no menu abria o modal e devolvia o fundo ao Tab.
+O palco da prova, ao sair do desktop, deixava observador, ouvinte e B.pino vivos.
+Resumo: botão sem destino sem JS e PDF sem contato. Código morto escrevendo por
+quadro (o aro da V1). Seta do fluxo sem fallback. "Ver a prova" morto sem JS.
+Skip-link para o main. Laço: remover um subsistema no meio do quadro pulava o
+vizinho. Laço da rampa isolado por card.
+
+**Para o dono decidir.** Os pontos de luz que correm nas bordas (`.carga-nos`)
+estão invisíveis desde a versão escolhida (5fe12d2): ligar ou apagar o código?
+A imagem de compartilhamento (og-cover) está desatualizada (texto antigo, Arial).
+Descrições do Google longas (195 caracteres no Hub). "O primeiro ano do domínio
+é por minha conta" está no FAQ/dado estruturado: segue valendo? Ícone para iPhone
+(apple-touch-icon) não existe.
+
+Verificador 12/12; acessibilidade ok; sequência da estação e encaixe no CTA
+conferidos no Chrome real.

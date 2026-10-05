@@ -57,9 +57,12 @@ strong { color: var(--t1); font-weight: 600; }
 @media (min-width: 621px) { .r-btn { width: auto; } }
 .r-fine { margin-top: 1rem; font-size: .88rem; color: var(--t3); }
 
+.r-impresso { display: none; }
 @media print {
   :root { --bg: #fff; --t1: #111; --t2: #333; --t3: #555; --ac: #0A6E82; --ac-3: #0A6E82; --line-2: #d8d8d8; --stroke: #999; }
   body { background: #fff; }
   .r-nav__voltar, .r-btn, .r-fine { display: none; }
+  /* (no papel o botão some: o contato vai escrito) */
+  .r-impresso { display: block; margin-top: 1rem; color: var(--t1); }
   a { text-decoration: none; }
 }

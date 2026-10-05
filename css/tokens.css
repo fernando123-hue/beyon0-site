@@ -170,6 +170,7 @@ button { font: inherit; color: inherit; }
   transition: top var(--t-micro) var(--ease-micro);
 }
 .skip-link:focus { top: 16px; }
+main[tabindex="-1"]:focus { outline: none; }   /* o alvo do skip-link recebe o foco, sem moldura no conteúdo inteiro */
 
 /* ---- A ATMOSFERA ----
    Era duas manchas de luz desfocadas (ciano e metal). O dono, 2026-10-02:

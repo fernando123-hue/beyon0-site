@@ -80,7 +80,8 @@
 @media (max-width: 380px) { .servico__link, .celula__link { white-space: nowrap; letter-spacing: .04em; } }
 /* o mini AI Core sugere esta opção (js/mini.js): a borda e o link acendem enquanto ele aponta */
 /* a energia de uma estação chegando (js/estacao.js): no surto a aresta de cima (.is-onda); no turbo a borda também (.is-energia), por um instante (o canvas do fundo fica atrás do módulo opaco: quem mostra a chegada é o próprio módulo) */
-.is-energia { border-color: var(--line-hi); }
+/* (classe dobrada: com o cursor em cima, o :hover (0,2,0) vencia e a borda acesa não aparecia — revisão) */
+.is-energia.is-energia { border-color: var(--line-hi); }
 /* o turbo de uma estação: um traço de 1,5 px percorre a borda do módulo uma vez,
    em sentido horário — quatro lados (.energia-volta > b, inseridos por
    js/estacao.js só durante o turbo) que crescem um depois do outro por
@@ -96,8 +97,8 @@
 @keyframes apaga { to { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .energia-volta { display: none; } }
 .is-energia::before, .is-onda::before { opacity: 1; }
-.is-sugerido { border-color: var(--line-hi); }
-.is-sugerido::before { opacity: 1; }
+.is-sugerido.is-sugerido, .hero__rail > a.is-sugerido { border-color: var(--line-hi); }
+.is-sugerido::before, .hero__rail > a.is-sugerido::before { opacity: 1; }
 /* o sublinhado só no link do pé (o cartão-âncora inteiro ficava sublinhado) */
 .is-sugerido .servico__link, .is-sugerido .celula__link { color: var(--ac); }
 .is-sugerido .servico__link::after, .is-sugerido .celula__link::after { transform: none; }
@@ -188,7 +189,7 @@
 .fluxo li { position: relative; font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-dado); line-height: 1.4; color: var(--t2); padding: .3rem .5rem; border: 1px solid var(--line-2); border-radius: var(--raio-s); }
 .fluxo li:first-child { border-color: rgb(var(--ac-rgb) / .35); color: var(--t1); }
 /* a seta pertence ao chip seguinte: a quebra de linha a leva junto */
-.fluxo li + li::before { content: "→" / ""; position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: .45rem; color: var(--t3); }
+.fluxo li + li::before { content: "→"; content: "→" / ""; position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: .45rem; color: var(--t3); }
 /* o estado final contornado; o sólido só no foco */
 .fluxo li:last-child { background: rgb(var(--ac-3-rgb) / .1); border-color: rgb(var(--ac-3-rgb) / .55); color: var(--ac-3); font-weight: 600; }
 @media (hover: hover) { .cenario:hover .fluxo li:last-child { background: var(--ac-3); color: var(--ac-3-tinta); } }
@@ -312,7 +313,7 @@ html.menos-movimento .qa::details-content { transition: none; }
   .is-porta-b > .estacao-porta > b { animation: porta-b .5s cubic-bezier(.2, .7, .3, 1) both; }
   @keyframes porta-a { from { background: var(--t1); transform: scaleY(1.9); } to { transform: none; } }
   @keyframes porta-b { from { background: var(--t1); transform: scaleY(1.9); } to { transform: none; } }
-  .is-alimentado { border-color: var(--line-hi); }
+  .is-alimentado.is-alimentado { border-color: var(--line-hi); }
   .is-alimentado > .estacao-porta { border-color: var(--ac-2); }
   .tem-estacao.is-ligada .estacao-cruza { display: block; position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
   .estacao-cruza::before { content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 100%; border-left: 1px solid var(--ac-2); opacity: 0; }
@@ -361,7 +362,7 @@ html.menos-movimento .estacao-cruza { display: none !important; }
    por dentro enquanto carrega e a porcentagem ao lado. Cheio: um clarão no
    tubo, aresta e número acendem e uma linha de luz atravessa o card.
    Só transform/opacity se movem por quadro. ---- */
-.carga, .carga-fio, .carga-varre, .carga-aro { display: none; }
+.carga, .carga-fio, .carga-varre { display: none; }
 @media (prefers-reduced-motion: no-preference) {
   html.js:not(.menos-movimento) .tem-carga > .carga { display: block; position: absolute; left: var(--mod-pad); right: var(--mod-pad); bottom: 6px; height: 13px; pointer-events: none; transition: opacity .35s var(--ease); }
   /* em repouso a barra não aparece (zero por toda a página poluía): surge quando começa a carregar */
@@ -403,8 +404,6 @@ html.menos-movimento .estacao-cruza { display: none !important; }
   .is-varre-b > .carga-varre::before { animation: carga-varre-b .7s cubic-bezier(.3, 0, .2, 1) both; }
   @keyframes carga-varre-a { 0% { opacity: .9; transform: translateX(0); } 85% { opacity: .5; } 100% { opacity: 0; transform: translateX(100%); } }
   @keyframes carga-varre-b { 0% { opacity: .9; transform: translateX(0); } 85% { opacity: .5; } 100% { opacity: 0; transform: translateX(100%); } }
-  /* (desktop) o aro: um contorno nítido 5 px fora do card, aceso pela proximidade do cursor (opacidade por quadro) */
-  html.js:not(.menos-movimento) .tem-carga > .carga-aro { display: block; position: absolute; inset: -6px; border: 1px solid var(--ac-2); border-radius: calc(var(--raio) + 5px); opacity: 0; pointer-events: none; }
 }
 /* (celular, pilha) a energia descendo da base do card da frente para o que aparece embaixo dele */
 @media (max-width: 720px) and (prefers-reduced-motion: no-preference) {
@@ -424,8 +423,6 @@ html.menos-movimento .estacao-cruza { display: none !important; }
 .carga-nos, .carga-cantos, .carga-halo, .carga-circula { display: none; }
 @media (prefers-reduced-motion: no-preference) {
   html.js:not(.menos-movimento) .tem-carga { isolation: isolate; }
-  /* o aro de proximidade da 1ª versão dá lugar aos cantos */
-  .tem-carga > .carga-aro { display: none !important; }
   /* os cantos: dois braços cada, de 1,5 px, crescendo a partir do canto */
   html.js:not(.menos-movimento) .tem-carga > .carga-cantos { display: block; position: absolute; inset: -1px; pointer-events: none; }
   .carga-cantos > b { position: absolute; background: var(--ac-2); box-shadow: 0 0 8px 1px rgb(var(--ac-rgb) / .75); }
@@ -475,9 +472,9 @@ html.menos-movimento .estacao-cruza { display: none !important; }
 /* ---- AS LETRAS e a SOBRECARGA (js/carga.js, js/estacao.js) ----
    Em 100% uma onda de luz atravessa o texto do card letra por letra (cada
    uma acende e dá um pulinho; o atraso de cada letra é fixado uma vez, por
-   JS). Em sobrecarga (o mini conectado ao AI Core médio): moldura neon cheia
-   e acesa, cantos brancos, uma luz que circula devagar pela borda e a barra em
-   MAX com o reflexo correndo (dono, 2026-10-05: nada piscando).
+   JS). Em sobrecarga (o mini conectado ao AI Core médio): moldura neon acesa
+   em ciano, uma luz que circula devagar pela borda e a barra em MAX com o
+   reflexo correndo (dono, 2026-10-05: nada piscando).
    Só transform/opacity/cor em rajadas curtas; nada disso em movimento reduzido. ---- */
 .carga-palavra, .carga-letra { display: inline-block; }
 @media (prefers-reduced-motion: no-preference) {
@@ -493,6 +490,9 @@ html.menos-movimento .estacao-cruza { display: none !important; }
   .is-sobrecarga > .carga-nos { opacity: 0; }
   .is-sobrecarga .carga__tubo { background: var(--t1); }
   .is-sobrecarga .carga__brilho::before { opacity: .55; animation: carga-reflexo 2.6s linear infinite; }
+  /* entrando e saindo da sobrecarga a moldura passa de 100% para 70% e volta: em transição, nunca num quadro só */
+  .is-ignicao > .carga-halo, .is-sobrecarga > .carga-halo, .is-esfria > .carga-halo,
+  .is-ignicao > .carga-cantos > b, .is-sobrecarga > .carga-cantos > b, .is-esfria > .carga-cantos > b { transition: opacity .5s var(--ease), background .6s var(--ease); }
   .is-sobrecarga .carga__pct { color: var(--t1); letter-spacing: .12em; }
   .is-sobrecarga .carga__ponta { opacity: 0; }
   .tem-carga.is-sobrecarga { border-color: var(--ac-2); }
@@ -501,7 +501,7 @@ html.menos-movimento .estacao-cruza { display: none !important; }
      que acende junto com ela); nada pisca (dono, 2026-10-05). PRESSÃO: a porcentagem acende. */
   .is-pressao .carga__pct { color: var(--t1); }
   /* IGNIÇÃO, quando o surto chega à porta: a luz começa a circular, a barra e a moldura vão para o branco */
-  .is-ignicao > .carga-cantos > b { background: var(--t1); transition: background .5s var(--ease); }
+  .is-ignicao > .carga-cantos > b { background: var(--t1); }
   .is-ignicao .carga__tubo { background: var(--ac-2); }
   .is-ignicao .carga__pct { color: var(--t1); }
   .tem-carga.is-ignicao { border-color: var(--ac-2); transition: border-color .4s var(--ease); }

@@ -29,8 +29,14 @@
   /* ---- subsistemas ---- */
   var subs = [];
   function add(name, fn) { subs.push({ n: name, f: fn, erros: 0 }); }
+  /* sair do laço de dentro dele (um subsistema que desiste, falhou()) tirava o vizinho de um quadro: no meio do
+     quadro só marca, e a lista é compactada no fim dele */
+  var noQuadro = false, sujos = false;
   function remove(name) {
-    for (var i = subs.length - 1; i >= 0; i--) if (subs[i].n === name) subs.splice(i, 1);
+    for (var i = subs.length - 1; i >= 0; i--) {
+      if (subs[i].n !== name) continue;
+      if (noQuadro) { subs[i].fora = true; sujos = true; } else subs.splice(i, 1);
+    }
   }
 
   /* ---- eventos internos ---- */
@@ -56,9 +62,13 @@
     S.dt = dt; S.now = now; S.t++;
     S.fps += (1000 / Math.max(1, dt) - S.fps) * 0.1;
     /* um subsistema que lança não derruba os outros nem o laço */
+    noQuadro = true;
     for (var i = 0; i < subs.length; i++) {
+      if (subs[i].fora) continue;
       try { subs[i].f(S); subs[i].erros = 0; } catch (e) { falhou(subs[i], e); }
     }
+    noQuadro = false;
+    if (sujos) { sujos = false; for (var j = subs.length - 1; j >= 0; j--) if (subs[j].fora) subs.splice(j, 1); }
     requestAnimationFrame(frame);
   }
   /* três falhas seguidas e o subsistema sai do laço — o resto do site segue.

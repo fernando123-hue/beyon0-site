@@ -10,7 +10,7 @@
    ========================================================================== */
 
 /* sem o núcleo não há medida: a prova inteira e os rótulos de fps/carga não aparecem */
-html:not(.tem-medida) [data-metrica-caixa], html:not(.tem-medida) #prova { display: none; }
+html:not(.tem-medida) [data-metrica-caixa], html:not(.tem-medida) #prova, html:not(.js) a[href="#prova"] { display: none; }   /* (sem JS a prova não existe; html.js vem do head, sem pulo) */
 /* em movimento reduzido o medidor para: o item de fps sai, o resto da prova fica */
 html.menos-movimento [data-metrica-fps] { display: none; }
 @media (prefers-reduced-motion: reduce) { [data-metrica-fps] { display: none; } }

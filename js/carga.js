@@ -23,13 +23,13 @@
    frase inteira) e uma ONDA de luz o atravessa, letra por letra — cada uma
    acende e dá um pulinho (no máximo uma onda a cada LETRAS.cada s).
    SOBRECARGA (js/estacao.js, com o mini conectado ao AI Core médio): o card
-   fica preso em 100% com a moldura neon cheia e piscando, os pontos mais
-   rápidos, a barra em "MAX" e uma onda de letras a cada LETRAS.sobre s.
+   fica preso em 100% com a moldura neon acesa (parada), uma luz circulando
+   pela borda, a barra em "MAX" e uma onda de letras a cada LETRAS.sobre s.
    A TRANSIÇÃO até ela (dono, 2026-10-04: "crie um estado de transição nesse
    espaço de tempo, para não ser algo que acontece do nada"), em três atos:
    1) PRESSÃO (pressao): enquanto o mini enche a estação, ela empurra a carga
       do card por baixo — um piso que sobe até PRESSAO.teto — e na reta final
-      os cantos tremem (.is-pressao);
+      a porcentagem acende (.is-pressao);
    2) IGNIÇÃO (sobrecarga sim): quando o surto da conexão chega à porta do
       card, a carga vai de onde está a 100% em IGNICAO s, a porcentagem conta,
       a borda acende junto e uma LUZ começa a CIRCULAR pela borda (.is-ignicao);
@@ -53,7 +53,7 @@
   var TEXTOS = 'h3, p, .servico__link, .celula__link, .laudo__n, .servico__n, .celula__n';
   var LETRAS = { cada: 3.5, sobre: 2.4, passo: 15, teto: 1500 };
   /* a transição até a sobrecarga: s de ignição e de esfriar; teto do piso da pressão e de onde os cantos tremem */
-  var IGNICAO = 0.9, ESFRIA = 0.6, PRESSAO = { teto: 0.82, treme: 0.6 };
+  var IGNICAO = 0.9, ESFRIA = 0.6, PRESSAO = { teto: 0.82, acende: 0.6 };
   var CIRCULA = { vel: 170 };   /* px/s da luz que percorre a borda (um traço só, dando a volta) */
   var reduz = window.matchMedia('(prefers-reduced-motion: reduce)');
 
@@ -77,8 +77,6 @@
     var fio = null;
     if (op && op.fio) { fio = document.createElement('i'); fio.className = 'carga-fio'; fio.setAttribute('aria-hidden', 'true'); card.appendChild(fio); }
     var varre = document.createElement('i'); varre.className = 'carga-varre'; varre.setAttribute('aria-hidden', 'true'); card.appendChild(varre);
-    var aro = null;
-    if (op && op.aro) { aro = document.createElement('i'); aro.className = 'carga-aro'; aro.setAttribute('aria-hidden', 'true'); card.appendChild(aro); }
     var camada = function (classe, n, tag) {
       var el = document.createElement('i'); el.className = classe; el.setAttribute('aria-hidden', 'true');
       for (var k = 0; k < n; k++) el.appendChild(document.createElement(tag || 'b'));
@@ -88,7 +86,7 @@
     var bracos = camada('carga-cantos', 8), halo = camada('carga-halo', 0);
     camada('carga-nos', 4);
     /* base: a carga pedida (cursor ou pilha); piso: o mínimo imposto pela estação (pressão, ignição, esfriar) */
-    c = card._carga = { card: card, tubo: tubo, pct: pct, txt: pct.firstChild, fio: fio, aro: aro, p: -1, num: 0, cheio: false, aroA: -1, bracos: bracos.children, halo: halo, base: 0, piso: 0, rampa: null, pediu: false };
+    c = card._carga = { card: card, tubo: tubo, pct: pct, txt: pct.firstChild, fio: fio, p: -1, num: 0, cheio: false, bracos: bracos.children, halo: halo, base: 0, piso: 0, rampa: null, pediu: false };
     card.classList.add('tem-carga');
     return c;
   }
@@ -125,11 +123,6 @@
     var a = card.classList.contains('is-varre-a');
     card.classList.remove(a ? 'is-varre-a' : 'is-varre-b');
     card.classList.add(a ? 'is-varre-b' : 'is-varre-a');
-  }
-  function aro(card, a) {
-    var c = card._carga;
-    if (!c || !c.aro || Math.abs(a - c.aroA) < 0.01) return;
-    c.aro.style.opacity = a.toFixed(2); c.aroA = a;
   }
   /* parte o texto do card em letras, uma vez: spans sem rótulo extra (o texto segue no lugar para o leitor de
      tela; aria-label em parágrafo é proibido pela ARIA), a seta (aria-hidden) fica de fora; o atraso de cada
@@ -193,8 +186,10 @@
     if (c.pediu || c.rampa) return;   /* em ignição, sobrecarga ou esfriando, quem manda é a rampa */
     v = v < 0 ? 0 : v > 1 ? 1 : v;
     c.piso = v * PRESSAO.teto;
-    var treme = v >= PRESSAO.treme;
-    if (treme !== card.classList.contains('is-pressao')) card.classList.toggle('is-pressao', treme);
+    var acende = v >= PRESSAO.acende;
+    if (acende !== card.classList.contains('is-pressao')) card.classList.toggle('is-pressao', acende);
+    /* a luz que circula nasce já aqui, apagada: na ignição ela entra com fade (criada no mesmo quadro, não tinha) */
+    if (v > 0 && !c.circula && !B.reduced && !reduz.matches) circular(c);
     definir(card, c.base);
   }
   /* uma rampa do piso: de onde a carga está até `para` em `dura` s (senoide), e depois `fim` */
@@ -213,8 +208,11 @@
       r.t += dt;
       var k = 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, r.t / r.dura));
       c.piso = r.de + (r.para - r.de) * k;
-      definir(c.card, c.base);
-      if (r.t >= r.dura) { c.rampa = null; rampas.splice(i, 1); if (r.fim) r.fim(c); }
+      var acabou = r.t >= r.dura;
+      if (acabou) { c.rampa = null; rampas.splice(i, 1); }
+      /* (um card que falha não para os outros nem fica com a rampa presa: o laço sairia em 3 quadros) */
+      try { definir(c.card, c.base); if (acabou && r.fim) r.fim(c); }
+      catch (e) { if (window.console && console.warn) console.warn('[beyon] carga-rampa:', e); }
     }
   });
   /* a LUZ QUE CIRCULA pela borda: quatro lados recortados, cada um com uma faixa do tamanho do PERÍMETRO e o
@@ -228,8 +226,8 @@
       for (var k = 0; k < 4; k++) { var lado = document.createElement('b'); lado.appendChild(document.createElement('i')); c.circula.appendChild(lado); }
       card.appendChild(c.circula);
     }
-    if (c.circulaP === P) return;
-    c.circulaP = P;
+    if (c.circulaTam === W + 'x' + H) return;
+    c.circulaTam = W + 'x' + H;
     var T = P / CIRCULA.vel, antes = [0, W, W + H, 2 * W + H];
     for (var i = 0; i < 4; i++) {
       var faixa = c.circula.children[i].firstChild;
@@ -289,7 +287,7 @@
       if (!el.offsetWidth || el.closest('[aria-hidden="true"], .hero__arte')) continue;
       var it = null;
       for (var k = 0; k < lista.length && !it; k++) if (lista[k].el === el) it = lista[k];
-      if (!it) { montar(el, { aro: true }); it = { el: el, carga: 0 }; }
+      if (!it) { montar(el); it = { el: el, carga: 0 }; }
       var p = posDoc(el);
       it.x = p.x; it.y = p.y; it.w = el.offsetWidth; it.h = el.offsetHeight;
       el._carga.w = it.w; el._carga.h = it.h;   /* (para a luz que circula: sem ler layout na hora) */
@@ -300,16 +298,19 @@
   document.addEventListener('pointermove', function (e) { if (e.pointerType === 'mouse') { ponteiro.x = e.clientX; ponteiro.y = e.clientY; ponteiro.ativo = true; } }, { passive: true });
   document.documentElement.addEventListener('pointerleave', function () { ponteiro.ativo = false; }, { passive: true });
   B.on('rede:medida', medir);
-  B.on('reduzir', function (sim) { if (!sim) return; B.remove('carga'); B.off('rede:medida', medir); for (var i = 0; i < lista.length; i++) { definir(lista[i].el, 0); aro(lista[i].el, 0); } lista = []; });
+  /* a página mudou de largura com a luz circulando: as faixas e os atrasos vão para o tamanho novo (fora de fase,
+     ela não passaria mais de um lado ao outro nos cantos) */
+  B.on('rede:medida', function () { for (var i = 0; i < lista.length; i++) { var c = lista[i].el._carga; if (c && c.circula) circular(c); } });
+  B.on('reduzir', function (sim) { if (!sim) return; B.remove('carga'); B.off('rede:medida', medir); for (var i = 0; i < lista.length; i++) { definir(lista[i].el, 0); } lista = []; });
 
   B.add('carga', function (S) {
     /* a janela ficou estreita: devolve os cards (descarregados) para a pilha */
-    if (largo !== desktop.matches) { largo = desktop.matches; if (!largo) { for (var j = 0; j < lista.length; j++) { definir(lista[j].el, 0); aro(lista[j].el, 0); } lista = []; } }
+    if (largo !== desktop.matches) { largo = desktop.matches; if (!largo) { for (var j = 0; j < lista.length; j++) { definir(lista[j].el, 0); } lista = []; } }
     if (!largo || !lista.length) return;
     var dt = Math.min(0.05, S.dt / 1000), sx = B.S.sx, sy = B.S.sy;
     for (var i = 0; i < lista.length; i++) {
       var it = lista[i], x0 = it.x - sx, y0 = it.y - sy;
-      if (y0 > H + PERTO || y0 + it.h < -PERTO) { if (it.carga > 0) { it.carga = 0; definir(it.el, 0); aro(it.el, 0); } continue; }
+      if (y0 > H + PERTO || y0 + it.h < -PERTO) { if (it.carga > 0) { it.carga = 0; definir(it.el, 0); } continue; }
       var prox = 0;
       if (ponteiro.ativo) {
         var dx = Math.max(x0 - ponteiro.x, 0, ponteiro.x - (x0 + it.w)), dy = Math.max(y0 - ponteiro.y, 0, ponteiro.y - (y0 + it.h));
@@ -323,7 +324,6 @@
       if (alvo === 1 && it.carga > 0.985) it.carga = 1;
       if (alvo === 0 && it.carga < 0.004) it.carga = 0;
       definir(it.el, it.carga);
-      aro(it.el, prox >= 1 ? 1 : prox * prox * 0.8);
     }
   });
 })();
