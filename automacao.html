@@ -168,14 +168,14 @@
           <div class="hero__cota" aria-hidden="true" data-metrica-caixa><i class="hero__cota-tick"></i><i class="hero__cota-linha"></i><i class="hero__cota-tick"></i><span class="hero__cota-rot">1ª pintura em <b data-metrica="fcp">—</b>&#8239;s</span></div>
         <p class="hero__sub">Eu encontro esse ponto. Se a IA gerar receita, cortar custo ou devolver capacidade ali, eu construo o sistema. Se não gerar, eu digo.</p>
         <div class="hero__actions">
-          <a class="btn btn--primary" data-wa data-lead-gate href="https://wa.me/5521977167944" target="_blank" rel="noopener">Agendar diagnóstico <span aria-hidden="true" data-seta="direita">→</span></a>
-          <a class="btn btn--ghost" href="#projetos">Ver onde isso se aplica <span aria-hidden="true" data-seta="baixo">↓</span></a>
+          <a data-rotulo="Diagnóstico grátis" class="btn btn--primary" data-wa data-lead-gate href="https://wa.me/5521977167944" target="_blank" rel="noopener">Agendar diagnóstico <span aria-hidden="true" data-seta="direita">→</span></a>
+          <a data-rotulo="Onde a entidade perde" class="btn btn--ghost" href="#projetos">Ver onde isso se aplica <span aria-hidden="true" data-seta="baixo">↓</span></a>
         </div>
         <p class="hero__fine">Quem faz o diagnóstico é quem constrói. Sem equipe no meio do caminho.</p>
       </div>
 
       <div class="hero__arte" aria-hidden="true">
-        <div class="instrumento painel">
+        <div data-rotulo="O que o diagnóstico lê" class="instrumento painel">
           <div class="instrumento__topo"><span class="instrumento__k">Diagnóstico · três pontos que eu leio</span><span class="instrumento__led"></span></div>
           <div class="instrumento__linha"><span class="instrumento__rot">Trabalho repetitivo</span><span class="instrumento__val">lido</span><span class="instrumento__barra"><i class="instrumento__nivel instrumento__nivel--1"></i></span></div>
           <div class="instrumento__linha"><span class="instrumento__rot">Oportunidade sem resposta</span><span class="instrumento__val">lido</span><span class="instrumento__barra"><i class="instrumento__nivel instrumento__nivel--2"></i></span></div>
@@ -201,17 +201,17 @@
       <!-- LAUDO — três linhas, não três caixas: uma dor de operação é item de
            diagnóstico, não produto em vitrine. -->
       <div class="laudo pilha reveal">
-        <article class="laudo__row">
+        <article data-rotulo="Horas de gente em repetição" class="laudo__row">
           <span class="laudo__n" aria-hidden="true">01</span>
           <h3>Trabalho que não exige gente</h3>
           <p>Horas de gente cara em tarefa repetitiva. Vira folha de pagamento sem virar resultado, e ocupa justamente quem deveria estar decidindo.</p>
         </article>
-        <article class="laudo__row">
+        <article data-rotulo="Contato sem resposta" class="laudo__row">
           <span class="laudo__n" aria-hidden="true">02</span>
           <h3>Oportunidade que esfria</h3>
           <p>O contato sem resposta a tempo, o orçamento que ninguém retomou, o associado que perguntou e desistiu. Esse dinheiro já tinha batido na porta.</p>
         </article>
-        <article class="laudo__row">
+        <article data-rotulo="Existe, mas ninguém acha" class="laudo__row">
           <span class="laudo__n" aria-hidden="true">03</span>
           <h3>Conhecimento parado</h3>
           <p>Anos de histórico, documentos e conversas que ninguém acha na hora exata de decidir. O conhecimento existe; o acesso a ele, não.</p>
@@ -230,37 +230,37 @@
              UMA estrutura. Cada célula é um link: o valor de data-wa vai na
              mensagem do WhatsApp (js/pagina.js). -->
         <div class="malha reveal tem-estacao tem-estacao--3">
-          <a class="celula" data-wa="quero um agente de IA que execute tarefas na minha entidade" href="https://wa.me/5521977167944">
+          <a data-rotulo="Mais funcionário que chatbot" class="celula" data-wa="quero um agente de IA que execute tarefas na minha entidade" href="https://wa.me/5521977167944">
             <span class="celula__n" aria-hidden="true">01</span>
             <h3>Agentes que executam</h3>
             <p>Recebe uma tarefa, cumpre com as ferramentas certas e chama você só quando precisa de uma decisão. Mais funcionário do que chatbot.</p>
             <span class="celula__link">Conversar <span aria-hidden="true" data-seta="direita">→</span></span>
           </a>
-          <a class="celula" data-wa="quero escalar meu atendimento com IA" href="https://wa.me/5521977167944">
+          <a data-rotulo="Só o que precisa de gente" class="celula" data-wa="quero escalar meu atendimento com IA" href="https://wa.me/5521977167944">
             <span class="celula__n" aria-hidden="true">02</span>
             <h3>Atendimento que escala</h3>
             <p>Absorve o volume repetitivo, classifica o que chega e passa pra uma pessoa só o que precisa de uma.</p>
             <span class="celula__link">Conversar <span aria-hidden="true" data-seta="direita">→</span></span>
           </a>
-          <a class="celula" data-wa="quero recuperar contatos e oportunidades perdidas com IA" href="https://wa.me/5521977167944">
+          <a data-rotulo="Reabre a conversa perdida" class="celula" data-wa="quero recuperar contatos e oportunidades perdidas com IA" href="https://wa.me/5521977167944">
             <span class="celula__n" aria-hidden="true">03</span>
             <h3>Receita recuperada</h3>
             <p>Contato esquecido, orçamento sem resposta, associado que sumiu: o sistema encontra, prioriza e reabre a conversa.</p>
             <span class="celula__link">Conversar <span aria-hidden="true" data-seta="direita">→</span></span>
           </a>
-          <a class="celula" data-wa="quero automatizar um processo da minha entidade" href="https://wa.me/5521977167944">
+          <a data-rotulo="Gargalo vira fluxo" class="celula" data-wa="quero automatizar um processo da minha entidade" href="https://wa.me/5521977167944">
             <span class="celula__n" aria-hidden="true">04</span>
             <h3>Processos automatizados</h3>
             <p>O gargalo que trava a operação vira fluxo automático, com registro, validação e parada humana onde importa.</p>
             <span class="celula__link">Conversar <span aria-hidden="true" data-seta="direita">→</span></span>
           </a>
-          <a class="celula" data-wa="quero usar os dados da minha entidade com IA" href="https://wa.me/5521977167944">
+          <a data-rotulo="Resposta na hora de decidir" class="celula" data-wa="quero usar os dados da minha entidade com IA" href="https://wa.me/5521977167944">
             <span class="celula__n" aria-hidden="true">05</span>
             <h3>Dados que respondem</h3>
             <p>Documentos, histórico e conhecimento interno viram resposta pronta na hora exata em que alguém precisa decidir.</p>
             <span class="celula__link">Conversar <span aria-hidden="true" data-seta="direita">→</span></span>
           </a>
-          <a class="celula" data-wa="quero um sistema ou site potencializado por IA" href="https://wa.me/5521977167944">
+          <a data-rotulo="O software que junta tudo" class="celula" data-wa="quero um sistema ou site potencializado por IA" href="https://wa.me/5521977167944">
             <span class="celula__n" aria-hidden="true">06</span>
             <h3>Sistemas &amp; interfaces</h3>
             <p>O software que junta tudo isso: integração, painel de gestão e o site que já nasce como parte do sistema.</p>
@@ -277,17 +277,17 @@
         <h2 id="processo-titulo">Mapa, prioridade, construção.</h2>
       </div>
       <ol role="list" class="passos reveal">
-        <li class="passo">
+        <li data-rotulo="Onde o dinheiro para" class="passo">
           <span class="passo__n" aria-hidden="true">01</span>
           <h3>Mapa</h3>
           <p>Olho a operação de ponta a ponta: onde o dinheiro entra, onde sai, e onde ele para no caminho.</p>
         </li>
-        <li class="passo">
+        <li data-rotulo="O que se paga primeiro" class="passo">
           <span class="passo__n" aria-hidden="true">02</span>
           <h3>Prioridade</h3>
           <p>Listo onde a IA cabe, estimo o impacto de cada ponto e escolhemos juntos o que se paga mais rápido.</p>
         </li>
-        <li class="passo">
+        <li data-rotulo="Construir e medir" class="passo">
           <span class="passo__n" aria-hidden="true">03</span>
           <h3>Construção</h3>
           <p>Construo, integro ao que você já usa e meço o resultado. O que funciona, escala.</p>
@@ -303,7 +303,7 @@
       </div>
       <!-- uma operação ENTRA num estado e SAI em outro: só o último recebe cor -->
       <div class="cenarios reveal">
-        <article class="painel painel--tinta cenario">
+        <article data-rotulo="Esquecido, achado, reaberto" class="painel painel--tinta cenario">
           <p class="cenario__label"><b>01</b> · Comercial / vendas</p>
           <h3 class="cenario__title">A oportunidade que já tinha batido na porta</h3>
           <ol role="list" class="fluxo">
@@ -312,7 +312,7 @@
             <li>Reaberto</li>
           </ol>
         </article>
-        <article class="painel painel--tinta cenario">
+        <article data-rotulo="Volume, triagem, exceção" class="painel painel--tinta cenario">
           <p class="cenario__label"><b>02</b> · Atendimento / operação</p>
           <h3 class="cenario__title">O volume que consome o time inteiro</h3>
           <ol role="list" class="fluxo">
@@ -321,7 +321,7 @@
             <li>Exceção</li>
           </ol>
         </article>
-        <article class="painel painel--tinta cenario">
+        <article data-rotulo="Disperso vira consultável" class="painel painel--tinta cenario">
           <p class="cenario__label"><b>03</b> · Dados / decisão</p>
           <h3 class="cenario__title">O que a entidade já sabe e não consegue achar</h3>
           <ol role="list" class="fluxo">
@@ -342,43 +342,43 @@
            PALAVRA com o FAQPage JSON-LD no <head>. `name="faq"` torna
            exclusivo: abrir um fecha os demais. -->
       <div class="faq-list reveal">
-        <details class="qa" name="faq">
+        <details data-rotulo="Se não valer, eu digo" class="qa" name="faq">
           <summary><span class="qa__q">IA serve para a minha entidade?</span><span class="qa__mark" aria-hidden="true"></span></summary>
           <div class="qa__a"><p>Só olhando pra saber. O diagnóstico existe pra isso, e se não houver ganho claro, eu digo que não vale.</p></div>
         </details>
-        <details class="qa" name="faq">
+        <details data-rotulo="A forma vem depois" class="qa" name="faq">
           <summary><span class="qa__q">Isso é um chatbot?</span><span class="qa__mark" aria-hidden="true"></span></summary>
           <div class="qa__a"><p>Nem sempre. Chatbot é uma forma entre várias, e muita coisa se resolve com automação sem conversa nenhuma. A forma vem depois do problema.</p></div>
         </details>
-        <details class="qa" name="faq">
+        <details data-rotulo="Preço fechado antes" class="qa" name="faq">
           <summary><span class="qa__q">Quanto custa?</span><span class="qa__mark" aria-hidden="true"></span></summary>
           <div class="qa__a"><p>O diagnóstico é grátis. O valor da construção depende do que ele encontrar. Escopo e preço são fechados antes de construir qualquer coisa, e o critério é o valor que a solução destrava.</p></div>
         </details>
-        <details class="qa" name="faq">
+        <details data-rotulo="Sem mensalidade minha" class="qa" name="faq">
           <summary><span class="qa__q">Tem mensalidade?</span><span class="qa__mark" aria-hidden="true"></span></summary>
           <div class="qa__a"><p>Da minha parte, não: o preço da construção é fixo e fechado antes. O que existe são os custos de manter o sistema rodando, como ferramentas de IA e hospedagem, que ficam com a entidade. Antes de construir, você sabe quais são e quanto custam.</p></div>
         </details>
-        <details class="qa" name="faq">
+        <details data-rotulo="Prazo combinado na conversa" class="qa" name="faq">
           <summary><span class="qa__q">Quanto tempo leva o diagnóstico e quem participa?</span><span class="qa__mark" aria-hidden="true"></span></summary>
           <div class="qa__a"><p>Depende do tamanho do que vamos resolver. Começa com uma conversa direta com quem conhece a operação, e o prazo é combinado nela. Tudo acontece online, por videochamada e acesso remoto.</p></div>
         </details>
-        <details class="qa" name="faq">
+        <details data-rotulo="Eu entrego, a entidade opera" class="qa" name="faq">
           <summary><span class="qa__q">E depois de pronto, quem cuida?</span><span class="qa__mark" aria-hidden="true"></span></summary>
           <div class="qa__a"><p>Hoje eu construo e entrego. O sistema, as contas e os acessos ficam no nome da entidade, e tudo é feito para ser usado e ajustado sem depender de mim. Manutenção contínua não faz parte da entrega, e isso fica claro antes de começar.</p></div>
         </details>
-        <details class="qa" name="faq">
+        <details data-rotulo="Sem fornecedor único" class="qa" name="faq">
           <summary><span class="qa__q">Vou ficar preso a você ou a uma empresa de IA?</span><span class="qa__mark" aria-hidden="true"></span></summary>
           <div class="qa__a"><p>Não. O sistema é seu, os acessos são seus, e a arquitetura não depende de um único fornecedor de modelo.</p></div>
         </details>
-        <details class="qa" name="faq">
+        <details data-rotulo="Acesso só ao necessário" class="qa" name="faq">
           <summary><span class="qa__q">E os dados da entidade?</span><span class="qa__mark" aria-hidden="true"></span></summary>
           <div class="qa__a"><p>O sistema acessa só o que precisa para funcionar, com permissão, registro do que fez e limite de autonomia definido antes de ligar. Tudo fica em contas no nome da entidade, e você sabe o que ele acessa, por quê e o que fez. Transparência é regra, não opção.</p></div>
         </details>
-        <details class="qa" name="faq">
+        <details data-rotulo="O Brasil inteiro, online" class="qa" name="faq">
           <summary><span class="qa__q">Você atende fora do Rio de Janeiro?</span><span class="qa__mark" aria-hidden="true"></span></summary>
           <div class="qa__a"><p>Sim, o Brasil inteiro, online. Diagnóstico, construção e entrega acontecem por videochamada e acesso remoto, do começo ao fim.</p></div>
         </details>
-        <details class="qa" name="faq">
+        <details data-rotulo="Sem comissão de IA" class="qa" name="faq">
           <summary><span class="qa__q">Você ganha comissão de alguma ferramenta de IA?</span><span class="qa__mark" aria-hidden="true"></span></summary>
           <div class="qa__a"><p>Não. O preço é fixo. Não muda conforme a ferramenta ou fornecedor de IA usado na solução, inclusive quando a resposta certa é não usar IA nenhuma.</p></div>
         </details>
@@ -392,10 +392,10 @@
         <h2 id="contato-titulo">Comece pelo problema, não pelo <em>discurso</em> de venda.</h2>
         <p class="lead">O diagnóstico começa com uma conversa direta sobre a sua entidade. Escopo e preço fechados antes de construir, e se não houver onde a IA pague por si, eu digo.</p>
         <div class="cta__acoes">
-          <a class="btn btn--primary btn--lg" data-wa data-lead-gate href="https://wa.me/5521977167944" target="_blank" rel="noopener">Agendar diagnóstico <span aria-hidden="true" data-seta="direita">→</span></a>
+          <a data-rotulo="Quem responde é humano" class="btn btn--primary btn--lg" data-wa data-lead-gate href="https://wa.me/5521977167944" target="_blank" rel="noopener">Agendar diagnóstico <span aria-hidden="true" data-seta="direita">→</span></a>
         </div>
         <p class="fine">Quem responde é humano. O diagnóstico é grátis e sem compromisso.</p>
-        <p class="cta__resumo"><a href="/resumo">Prefere levar pra sua diretoria antes de decidir? Veja o resumo <span aria-hidden="true" data-seta="direita">→</span></a></p>
+        <p class="cta__resumo"><a data-rotulo="Uma página para a diretoria" href="/resumo">Prefere levar pra sua diretoria antes de decidir? Veja o resumo <span aria-hidden="true" data-seta="direita">→</span></a></p>
       </div>
     </section>
   </main>
@@ -427,7 +427,7 @@
   </footer>
 
   <div class="barra is-oculta" id="barra">
-    <a class="btn btn--primary" data-wa data-lead-gate href="https://wa.me/5521977167944" target="_blank" rel="noopener">Agendar diagnóstico <span aria-hidden="true" data-seta="direita">→</span></a>
+    <a data-rotulo="Quem responde é humano" class="btn btn--primary" data-wa data-lead-gate href="https://wa.me/5521977167944" target="_blank" rel="noopener">Agendar diagnóstico <span aria-hidden="true" data-seta="direita">→</span></a>
   </div>
 
   <!-- Modal curto antes do WhatsApp nos CTAs "Agendar diagnóstico". Só o tipo

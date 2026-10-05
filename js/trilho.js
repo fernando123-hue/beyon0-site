@@ -49,6 +49,13 @@
   var TRACEJADO = [2, 6], SEM_TRACO = [];   /* (sem alocar por quadro) */
   var FONTE = '400 10px "JetBrains Mono", ui-monospace, monospace';
   var FONTE_RUMO = '500 10px "JetBrains Mono", ui-monospace, monospace';
+  /* a LEITURA DO RUMO (dono, 2026-10-05: "com o cursor em cima de cada opção aparecia uma frase, resumindo em
+     poucas palavras o que estava escrito ali; era um charme a mais"): a frase-resumo da opção (data-rotulo no
+     HTML) na margem, ao lado da régua, em até RUMO.linhas linhas; se a margem não comporta (notebook de 1280 px),
+     em pé ao longo da régua, como o nome da seção. Ela se escreve em RUMO.digita letras por segundo. Antes era o
+     título cortado em 22 letras e só aparecia se coubesse inteiro numa linha: nenhuma opção em 1280 px, um terço
+     em 1440 px. px: entre linhas, folga da régua, margem mínima até a borda da tela */
+  var RUMO = { linhas: 2, entre: 13, folga: 12, borda: 8, digita: 80, emPe: 14 };
 
   function limitar(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
   function saida(k) { k = limitar(k); return 1 - (1 - k) * (1 - k) * (1 - k); }
@@ -61,8 +68,10 @@
     var tempo = 0, pisca = 0;   /* pisca: as cantoneiras da seção, no turbo de uma estação (1 → 0) */
     var secoes = [], ligacoes = [];
     var ondas = [], travessias = [], faiscas = [], pacotes = [], rotas = [], marcas = [];
-    var mira = { y: 0, f: 0 }, rumo = { y: 0, lado: -1, f: 0, ligado: false, rotulo: '', alvo: 0 };
+    var mira = { y: 0, f: 0 }, rumo = { y: 0, lado: -1, f: 0, ligado: false, rotulo: '', frase: '', alvo: 0, desde: 0, quebra: null };
     var desenhados = 0;
+    /* a quebra da frase medida com a fonte reserva fica errada quando a JetBrains Mono chega: refaz */
+    if (document.fonts) { document.fonts.ready.then(function () { rumo.quebra = null; }); document.fonts.addEventListener('loadingdone', function () { rumo.quebra = null; }); }
 
     function cor(c, a) { return 'rgba(' + c + ',' + limitar(a).toFixed(3) + ')'; }
     function telaY(yd) { return yd - G.rolagem; }
@@ -114,7 +123,10 @@
       if (x === null) { rumo.ligado = false; return; }
       var yd = y + G.rolagem;
       if (!rumo.ligado && rumo.f < 0.05) { rumo.y = yd; rumo.lado = ladoDe(x); }
+      if ((rotulo || '') !== rumo.rotulo || rumo.f < 0.05) rumo.desde = tempo;   /* frase nova: escreve de novo */
       rumo.alvo = yd; rumo.lado = ladoDe(x); rumo.rotulo = rotulo || ''; rumo.ligado = true;
+      /* a frase com a seta de texto montada aqui, não por quadro; espaço não separável: a seta nunca fica sozinha numa linha */
+      rumo.frase = rumo.rotulo ? (rumo.lado < 0 ? rumo.rotulo + '\u00a0→' : '←\u00a0' + rumo.rotulo) : '';
     }
 
     /* ---------- por quadro ---------- */
@@ -433,14 +445,50 @@
       ctx.beginPath();
       ctx.moveTo(x + dir * (s * 1.6 + 3), y); ctx.lineTo(x + dir * 3, y - s * 0.7); ctx.lineTo(x + dir * 3, y + s * 0.7);
       ctx.closePath(); ctx.fill();
-      if (!G.rotulos || !rumo.rotulo) return;
-      var txt = rumo.lado < 0 ? rumo.rotulo + ' →' : '← ' + rumo.rotulo;
+      if (!rumo.rotulo) return;
       B.fonte(ctx, FONTE_RUMO); ctx.textBaseline = 'middle';
-      ctx.textAlign = rumo.lado < 0 ? 'right' : 'left';
-      var tx = x - dir * 12, lw = B.largura(ctx, txt);
-      if ((rumo.lado < 0 ? tx - lw : G.W - tx - lw) < 8) return;   /* não cabe na margem */
+      var esp = (rumo.lado < 0 ? x : G.W - x) - RUMO.folga - RUMO.borda;
+      /* a seta de texto aponta para a opção, como antes: '← FRASE' à direita, 'FRASE →' à esquerda (apontar) */
+      var q = quebrarRumo(rumo.frase, esp);
+      var n = Math.floor((((tempo - rumo.desde) % 3600) + 3600) % 3600 * RUMO.digita);   /* letras já escritas (o tempo dá a volta em 1 h) */
+      if (n <= 0) return;
       ctx.fillStyle = cor(C.AC2, 0.9 * f);
-      ctx.fillText(txt, tx, y);
+      ctx.textAlign = 'left';
+      if (q.linhas) {
+        /* ao lado da régua: cada linha encostada nela (a seta aponta para a opção), escrevendo para fora */
+        var y0 = y - (q.linhas.length - 1) * RUMO.entre / 2;
+        for (var i = 0; i < q.linhas.length && n > 0; i++) {
+          var ln = q.linhas[i], lx = rumo.lado < 0 ? x - RUMO.folga - q.larg[i] : x + RUMO.folga;
+          ctx.fillText(n >= ln.length ? ln : ln.slice(0, n), lx, Math.round(y0 + i * RUMO.entre) + 0.5);
+          n -= ln.length + 1;
+        }
+        return;
+      }
+      /* em pé ao longo da régua, por fora dela, centrada na altura da opção e dentro da tela */
+      /* (sem a seta de texto: girada, ela apontaria para cima ou para baixo; o triângulo na régua já aponta) */
+      var vt = rumo.rotulo, lw = B.largura(ctx, vt), yc = Math.max(G.topo + lw / 2 + RUMO.borda, Math.min(G.H - lw / 2 - RUMO.borda, y));
+      ctx.save();
+      ctx.translate(x - dir * RUMO.emPe, yc); ctx.rotate(Math.PI / 2);
+      ctx.fillText(n >= vt.length ? vt : vt.slice(0, n), -lw / 2, 0);
+      ctx.restore(); ctx.__fonte = null;
+    }
+    /* a frase quebrada para caber em `esp` px em até RUMO.linhas linhas, guardada até mudar a frase ou o espaço
+       (medir e quebrar a cada quadro custava à toa); null em linhas = não cabe: vai em pé */
+    function quebrarRumo(txt, esp) {
+      var c = rumo.quebra, chave = txt + '|' + Math.round(esp);
+      if (c && c.chave === chave) return c;
+      var palavras = txt.split(' '), linhas = [], atual = '', i;
+      for (i = 0; i < palavras.length; i++) {
+        var tenta = atual ? atual + ' ' + palavras[i] : palavras[i];
+        if (B.largura(ctx, tenta) <= esp || !atual) atual = tenta;
+        else { linhas.push(atual); atual = palavras[i]; }
+      }
+      if (atual) linhas.push(atual);
+      var cabe = esp > 40 && linhas.length <= RUMO.linhas;
+      for (i = 0; cabe && i < linhas.length; i++) if (B.largura(ctx, linhas[i]) > esp) cabe = false;
+      c = rumo.quebra = { chave: chave, txt: txt, linhas: cabe ? linhas : null, larg: [] };
+      if (cabe) for (i = 0; i < linhas.length; i++) c.larg.push(B.largura(ctx, linhas[i]));
+      return c;
     }
 
     function desenhar(resp, vivo) {

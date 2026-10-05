@@ -47,7 +47,7 @@
   /* ---------- números ---------- */
   /* o que conta como elemento do site: as opções e os cartões de hoje e os
      que vierem (qualquer link, botão ou [data-campo]) */
-  var OPCOES = 'a[href], button, [role="button"], .painel, .celula, .cenario, .qa, .spec__item, .prova__item, .passo, [data-campo]';
+  var OPCOES = 'a[href], button, [role="button"], .painel, .celula, .cenario, .qa, .spec__item, .prova__item, .passo, .laudo__row, [data-campo]';
   /* os MÓDULOS que se ligam aos irmãos pelo barramento (css/cartoes.css):
      cada grupo é o conjunto de módulos com o mesmo pai, na ordem do documento */
   var LIGAVEIS = '.hero__rail > a, .hero__rail > div:not(.hero__rail-aresta), .servico, .laudo__row, .celula, .cenario, .qa, .spec__item, [data-campo]';
@@ -481,12 +481,13 @@
     B.emit('opcao', { el: el, x: cx, y: cy, w: r.width, h: r.height, entrou: true });
     return ro;
   }
-  /* o nome curto da opção para a leitura do rumo */
+  /* a frase da leitura do rumo (js/trilho.js): o resumo escrito para a opção (data-rotulo) ou, sem ele, o título;
+     o trilho a quebra em linhas (aqui só um teto, para nada atravessar a margem inteira) */
   function rotuloDe(el) {
-    var t = (el.getAttribute('aria-label') || el.getAttribute('data-rotulo') || '').trim();
+    var t = (el.getAttribute('data-rotulo') || el.getAttribute('aria-label') || '').trim();
     if (!t) { var h = el.querySelector('h3, .hero__rail-k, summary'); t = (h ? h.textContent : el.textContent) || ''; }
     t = t.replace(/[→↓↗\s]+/g, ' ').replace(/^\s*\d+\s+/, '').trim().toUpperCase();
-    return t.length > 22 ? t.slice(0, 21).trim() + '…' : t;
+    return t.length > 40 ? t.slice(0, 39).trim() + '…' : t;
   }
   function aoEntrar(e) {
     var el = opcaoDe(e.target);

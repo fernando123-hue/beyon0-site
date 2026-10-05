@@ -1167,3 +1167,24 @@ rolando as três páginas inteiras, celular e desktop: nenhuma seção muda de a
 
 Revisão: crítico visual (3 rodadas) e revisor de código; verificador 12/12,
 acessibilidade ok; A/B de desempenho empatado com a versão anterior.
+
+## 30. A frase-resumo na régua volta para todas as opções (2026-10-05)
+
+Dono (com print da régua, "← AUTOMAÇÃO & IA"): "com o cursor em cima de cada
+opção aparecia uma frase resumindo em poucas palavras o que estava escrito ali;
+você cortou muito disso; era um charme a mais; volte com ele e otimize".
+
+**O que cortava (medido).** A leitura do rumo era o título cortado em 22
+letras e só era desenhada se coubesse inteira numa linha, com margem ≥ 96 px:
+em 1280 px, 0 opções; em 1440 px, 8/15 (Hub), 13/31 (Sites), 5/27 (Automação);
+em 1920 px aparecia, mas truncada ("PERFORMANCE É REQUISI…") e, na prova,
+embaralhada ("1,00SATÉ A PÁGINA EST…"). Os cards de Garantias nem eram opção.
+
+**Agora.** Cada opção tem uma frase-resumo própria (`data-rotulo` no HTML, até
+~28 letras, tirada do texto do card — nada inventado). O trilho a quebra em até
+2 linhas ao lado da régua com a seta de texto; se a margem não comporta
+(1280 px), ela fica em pé ao longo da régua, como o nome da seção. Ela se
+escreve em 80 letras/s. Cards de Garantias (laudo__row) entram como opção.
+Otimização: a quebra é guardada (sem medir por quadro), a frase com a seta é
+montada uma vez no hover, refeita quando a fonte carrega. Revisão de código ok;
+verificador 12/12.
