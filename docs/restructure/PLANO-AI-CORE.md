@@ -1355,3 +1355,18 @@ com layout forçado (8 ms, 4 raízes) toda vez que o fps alternava entre 2 e 3 d
 (99 ↔ 100 num monitor de 100 Hz): agora só quando um número cresce além do medido.
 Fica para outra rodada: o custo de base de 7 ms por quadro (28 ms a 4×) dos três
 canvases; e o `.energia-volta` inserido/removido do DOM a cada turbo.
+
+## 36. O Ouro: o estado dourado reformulado (2026-10-06, 19ª sessão, pedido pelo celular)
+
+Dono: "estude o antigo estado dourado e aplique de uma forma completamente reformulada no
+site inteiro; seja criativo; quero ser surpreendido". O estudo do Estado Singular da V1 e as
+decisões estão em `OURO-2026-10-06.md`; fotos em `fotos-2026-10-06/ouro-*.png`.
+
+Em uma linha: o ouro deixou de ser um relógio e virou um estado CONQUISTADO — a energia que
+o reator deu volta a ele cheia — com a ignição em linha de 1 px que nasce onde foi conquistado
+(estação em sobrecarga por uma volta, grupo de cards cheio no celular, segurar o núcleo, cursor
+parado no miolo) e, uma vez por visita, sozinho aos 42 s de atenção. Reinado de 12 s com só as
+três cores de energia trocadas (estrutura fria, energia quente); resfriamento pela mesma linha.
+Peças: `js/ouro.js`; `B.ouro.k` e `B.tom` (core.js) para os canvases; `html.is-ouro` para o CSS;
+`cena.tingir(k)` para o reator. Medido: ignição sem quadro acima de 33 ms (máx. 30); verificador
+12/12; sem erro de console no desktop e no celular.

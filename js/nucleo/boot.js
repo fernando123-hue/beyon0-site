@@ -151,6 +151,7 @@
      acontece no laço, uma vez (`sujo`), e de novo só se algo pedir. */
   function pararMontado() {
     parado = true;
+    if (tinta && cena && cena.tingir) { tinta = 0; cena.tingir(0); }   /* (menos movimento no meio do ouro: parado em ciano, não em dourado) */
     estado.montagem = 1; estado.ignicao = 1; estado.abertura = 0;
     estado.desdeIgnicao = 99; estado.t = 12;
     /* sem campo, onda nem olhar: o gesto para de rodar com a esfera fora da
@@ -274,6 +275,10 @@
     estado.entrega = entregaCampo;
     estado.atento = (estado.atento || 0) + ((opcaoSob ? 1 : 0) - (estado.atento || 0)) * Math.min(1, dt * (opcaoSob ? 4 : 1.7));
     gesto.passo(dt, estado);
+    /* O OURO (js/ouro.js): o reator tinge para o dourado, clareia e gira mais enquanto durar */
+    var k = B.ouro ? B.ouro.k : 0;
+    if (k !== tinta) { tinta = k; if (cena.tingir) cena.tingir(k); }
+    if (k > 0) { estado.atento = Math.max(estado.atento, k * 0.9); estado.giroExtra = (estado.giroExtra || 0) + dt * 1.1 * k; }
 
     cena.desenhar(estado);
     publicar();
@@ -284,7 +289,7 @@
      centro, o raio onde os raios começam (a entrada da energia), o giro da
      roda e o achatamento da inclinação. Sem leitura de layout: o centro foi
      medido por evento, a rolagem vem do evento de scroll */
-  var nucleo = { cx: 0, cy: 0, r: 0, sx: 1, sy: 1, giro: 0, visivel: false };
+  var nucleo = { cx: 0, cy: 0, r: 0, sx: 1, sy: 1, giro: 0, visivel: false }, tinta = 0;
   function publicar() {
     var p = cena.pose();
     var pxPorUnidade = (centro.w * 1.44) / p.altura;   /* o canvas tem 144% da caixa (css/componentes.css) */

@@ -73,7 +73,7 @@
     /* a quebra da frase medida com a fonte reserva fica errada quando a JetBrains Mono chega: refaz */
     if (document.fonts) { document.fonts.ready.then(function () { rumo.quebra = null; }); document.fonts.addEventListener('loadingdone', function () { rumo.quebra = null; }); }
 
-    function cor(c, a) { return 'rgba(' + c + ',' + limitar(a).toFixed(3) + ')'; }
+    function cor(c, a) { return 'rgba(' + B.tom(c) + ',' + limitar(a).toFixed(3) + ')'; }   /* (B.tom: no ouro, ciano vira dourado) */
     function telaY(yd) { return yd - G.rolagem; }
     function trilhoX(lado) { return lado < 0 ? G.xE : G.xD; }
     function ladoDe(x) { return x < (G.colE + G.colD) / 2 ? -1 : 1; }

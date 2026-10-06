@@ -108,7 +108,10 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
   const guarda = (x) => { if (x) descartar.push(x); return x; };
   const cor = (nome) => cores[nome] || new THREE.Color(1, 1, 1);
   const ADITIVO = { transparent: true, blending: THREE.AdditiveBlending, depthWrite: false };
-  const aditivo = (nomeCor, alfa) => guarda(new THREE.MeshBasicMaterial({ color: cor(nomeCor), opacity: alfa, ...ADITIVO }));
+  /* (os materiais copiam a cor; a cena os retinge no ouro pela lista) */
+  const tingiveis = [];
+  const aditivo = (nomeCor, alfa) => { const m = guarda(new THREE.MeshBasicMaterial({ color: cor(nomeCor), opacity: alfa, ...ADITIVO })); tingiveis.push([m, nomeCor]); return m; };
+  const tingir = () => { for (const [m, nome] of tingiveis) if (cores[nome]) m.color.copy(cores[nome]); };
 
   /* quem tem uniform de tempo/força (atualizados juntos por quadro), com o
      atraso de acendimento da camada: acende de dentro para fora */
@@ -281,6 +284,7 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
      material só (piscam juntos) */
   const LP = R.lampejo;
   const matLampejo = guarda(new THREE.SpriteMaterial({ map: guarda(texturaHalo(THREE, 0.05)), color: cor(R.cor), opacity: 0, depthTest: false, ...ADITIVO }));
+  tingiveis.push([matLampejo, R.cor]);
   for (let i = 0; i < R.n; i++) {
     const a = i * (TAU / R.n);
     const sp = new THREE.Sprite(matLampejo);
@@ -397,9 +401,9 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
 
   /* o traço e a onda grande: sprites (sempre de frente para a câmera) */
   function sprite(tex, nomeCor, alfa) {
-    return new THREE.Sprite(guarda(new THREE.SpriteMaterial({
-      map: tex, color: cor(nomeCor), opacity: alfa, depthTest: false, ...ADITIVO
-    })));
+    const m = guarda(new THREE.SpriteMaterial({ map: tex, color: cor(nomeCor), opacity: alfa, depthTest: false, ...ADITIVO }));
+    tingiveis.push([m, nomeCor]);   /* (os traços e a onda do núcleo também se tingem no ouro) */
+    return new THREE.Sprite(m);
   }
   const texTraco = guarda(texturaTraco(THREE));
   const tracos = NU.tracos.map((d) => {
@@ -603,5 +607,5 @@ export function montar(THREE, SPEC, cores, { celular = false } = {}) {
     for (const x of descartar) if (x.dispose) x.dispose();
   }
 
-  return { raiz, atualizar, dispose, pose: () => pose };
+  return { raiz, atualizar, dispose, tingir, pose: () => pose };
 }

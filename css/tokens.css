@@ -73,6 +73,12 @@
   --ac-3-rgb:   28 181 185;
   --ac-3-tinta: #021B1C;   /* texto sobre o ciano profundo: 7,1:1 */
 
+  /* ---- O OURO (js/ouro.js): o dourado tecnológico do antigo Estado Singular, só no reinado. Os três tons de
+     energia que substituem o ciano, o ciano-claro e o ciano profundo; o core.js lê daqui (B.tom) ---- */
+  --ouro-rgb:   255 201 107;   /* #FFC96B: no preto 13,8:1 */
+  --ouro-2-rgb: 255 230 179;   /* #FFE6B3 */
+  --ouro-3-rgb: 210 154 58;    /* #D29A3A: no preto 8,9:1, no grafite 7,3:1 */
+
   /* ---- O METAL: o brilho frio das arestas (prata) e a atmosfera (#565656).
      A prata é o reflexo numa aresta, no anel da lente do reator, num painel
      tingido; o metal é a luz difusa do fundo. Metal nunca em texto (2,9:1). */
@@ -174,6 +180,33 @@ button { font: inherit; color: inherit; }
   transition: top var(--t-micro) var(--ease-micro);
 }
 .skip-link:focus { top: 16px; }
+
+/* ---- O OURO (js/ouro.js; docs/restructure/OURO-2026-10-06.md): no reinado a energia do site vira dourado
+   tecnológico (#FFC96B, o ouro do antigo Estado Singular) — ciano, ciano-claro e ciano profundo trocam; prata,
+   metal, branco e os cinzas ficam (estrutura fria, energia quente). Contraste: #FFC96B no preto 13,6:1; a tinta
+   #2A1A00 sobre o ouro 11:1; #D29A3A no preto 8,9:1 e no grafite 7,4:1. ---- */
+html.is-ouro {
+  --ac: #FFC96B; --ac-rgb: 255 201 107;
+  --ac-2: #FFE6B3; --ac-2-rgb: 255 230 179;
+  --ac-3: #D29A3A; --ac-3-rgb: 210 154 58;
+  --line-hi: rgb(255 201 107 / .4);
+  --ac-tinta: #2A1A00; --ac-tinta-rgb: 42 26 0;
+  --ac-3-tinta: #1F1400;
+  --letra-acesa-t: #FFF6E3; --letra-acesa-p: #EADFCB;
+}
+/* na vez da linha (ignição e resfriamento) cada portador transita no instante em que ela passa por ele: o
+   atraso é escrito pelo JS por elemento; fora disso, cada um volta à sua transição de sempre */
+html.is-ouro-varre :is(.hero__title em, .kicker b, .nav__brand b, .hero__status .dot, .btn, .servico__link, .celula__link, .servico__n, .celula__n, .laudo__n, .carga__pct, .tem-carga, .footer__motion, .prova__val, .console__v, .instrumento__val, .hero__cota-rot, .rumo-leitura, .nav__links a) {
+  transition-property: color, border-color, background-color, outline-color, transform, box-shadow; transition-duration: .55s; transition-timing-function: var(--ease);   /* (transform e box-shadow: o .btn não perde o clique e o hover na vez da linha) */
+}
+/* a linha da ignição: duas de 1 px (uma sobe, outra desce da origem) com um eco a 7 px; só transform */
+.ouro-linha { position: fixed; left: 0; right: 0; top: 0; height: 0; z-index: 60; pointer-events: none; }
+.ouro-linha > b { position: absolute; left: 0; right: 0; top: 0; height: 1px; background: rgb(var(--ouro-rgb)); opacity: 0; transform: translate3d(0, -9999px, 0); }
+.ouro-linha > b::after { content: ""; position: absolute; left: 0; right: 0; top: 7px; height: 1px; background: rgb(var(--ouro-rgb) / .35); }
+html.is-ouro-varre .ouro-linha > b { opacity: 1; will-change: transform; }
+@media (prefers-reduced-motion: reduce) { .ouro-linha { display: none; } }
+html.menos-movimento .ouro-linha { display: none; }
+
 /* o 2º interruptor de movimento, no topo da página (o do rodapé vem depois de dezenas de Tabs): botão com a mesma roupa */
 button.skip-link { border: 0; cursor: pointer; font: inherit; }
 .skip-link--mov { left: auto; right: 16px; }

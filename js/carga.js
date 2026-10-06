@@ -149,6 +149,7 @@
     if (cheio !== c.cheio) {
       c.cheio = cheio;
       card.classList.toggle('is-carregado', cheio);
+      if (cheio) B.emit('carga:cheio', card);   /* (js/ouro.js: no celular, o grupo inteiro cheio conquista o ouro) */
       /* cheio, a luz circula pela borda (dono, 2026-10-06: "uma coisa só, com energia circulando") */
       if (cheio && !B.reduced && !reduz.matches) circular(c);
       /* (na ignição, a linha e as letras ficam para a entrada da sobrecarga, logo em seguida) */

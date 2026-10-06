@@ -239,7 +239,7 @@
       ctx.ellipse(G.ox, G.oy, r, r * SY, 0, a0, a1);
     }
     function faixaAng() { faixa[0] = vis.cheio ? 0 : vis.a0; faixa[1] = vis.cheio ? TAU : vis.a1; return faixa; }
-    function cor(c, a) { return 'rgba(' + c + ',' + limitar(a).toFixed(3) + ')'; }
+    function cor(c, a) { return 'rgba(' + B.tom(c) + ',' + limitar(a).toFixed(3) + ')'; }   /* (B.tom: no ouro, ciano vira dourado) */
 
     function desenharAneis(resp) {
       var f = faixaAng(), i, an;

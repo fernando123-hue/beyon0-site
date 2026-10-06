@@ -39,7 +39,7 @@
   var rgb = function (nome, padrao) { return (est.getPropertyValue(nome).trim() || padrao).replace(/\s+/g, ','); };
   var AC = rgb('--ac-rgb', '73 229 221'), AC2 = rgb('--ac-2-rgb', '166 244 239'), T1 = '242,244,244';
   var FONTE = '400 10px "JetBrains Mono", ui-monospace, monospace', FONTE_P = '400 9px "JetBrains Mono", ui-monospace, monospace';
-  function cor(c, a) { return 'rgba(' + c + ',' + (a < 0 ? 0 : a > 1 ? 1 : a).toFixed(3) + ')'; }
+  function cor(c, a) { return 'rgba(' + B.tom(c) + ',' + (a < 0 ? 0 : a > 1 ? 1 : a).toFixed(3) + ')'; }   /* (B.tom: no ouro, ciano vira dourado) */
   function limitar(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
   function saida(k) { k = limitar(k); return 1 - (1 - k) * (1 - k) * (1 - k); }
   function num(v, c) { return B.num ? B.num(v, c) : v.toFixed(c); }

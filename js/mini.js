@@ -139,7 +139,12 @@
   function senoide(k) { return 0.5 - 0.5 * Math.cos(Math.PI * limitar(k)); }
   /* a cor do anel entre o ciano claro e o branco, pela carga (sem troca seca) */
   var C0 = AC2.split(',').map(Number), C1 = T1.split(',').map(Number);
-  function mistura(c) { c = limitar(c); return Math.round(C0[0] + (C1[0] - C0[0]) * c) + ',' + Math.round(C0[1] + (C1[1] - C0[1]) * c) + ',' + Math.round(C0[2] + (C1[2] - C0[2]) * c); }
+  var c0Base = AC2;
+  function mistura(c) {
+    var base = B.tom(AC2);
+    if (base !== c0Base) { c0Base = base; C0 = base.split(',').map(Number); }   /* (no ouro a mistura parte do dourado) */
+    c = limitar(c); return Math.round(C0[0] + (C1[0] - C0[0]) * c) + ',' + Math.round(C0[1] + (C1[1] - C0[1]) * c) + ',' + Math.round(C0[2] + (C1[2] - C0[2]) * c);
+  }
   function difAng(a, b) { var d = (a - b) % TAU; if (d > Math.PI) d -= TAU; else if (d < -Math.PI) d += TAU; return d; }
 
   /* de onde ele vem: a página anterior deixou onde ele estava (fração da tela) */
@@ -633,14 +638,14 @@
       var k = Math.min(1, vel / 400), ux = mini.vx / vel, uy = mini.vy / vel, L = 46 * k;
       ctx.lineWidth = 1.2;
       for (var dgr = 0; dgr < 3; dgr++) {
-        ctx.strokeStyle = 'rgba(' + AC + ',' + ([0.15, 0.3, 0.45][dgr] * k * v).toFixed(3) + ')';
+        ctx.strokeStyle = 'rgba(' + B.tom(AC) + ',' + ([0.15, 0.3, 0.45][dgr] * k * v).toFixed(3) + ')';
         ctx.beginPath(); ctx.moveTo(x - ux * L * (3 - dgr) / 3, y - uy * L * (3 - dgr) / 3); ctx.lineTo(x - ux * L * (2 - dgr) / 3, y - uy * L * (2 - dgr) / 3); ctx.stroke();
       }
     }
     if (feixe && feixe.alvo) {
       var ft = feixe.t, cresce = suave(ft / FEIXE.desenha), some = 1 - suave((ft - FEIXE.desenha - FEIXE.segura) / FEIXE.apaga);
       var ax = feixe.alvo.x, ay = feixe.alvo.y, hx = x + (ax - x) * cresce, hy = y + (ay - y) * cresce;
-      ctx.strokeStyle = 'rgba(' + AC + ',' + (0.42 * some * v).toFixed(3) + ')'; ctx.lineWidth = 0.9;
+      ctx.strokeStyle = 'rgba(' + B.tom(AC) + ',' + (0.42 * some * v).toFixed(3) + ')'; ctx.lineWidth = 0.9;
       ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(hx, hy); ctx.stroke();
     }
     /* a mira da sugestão: os quatro cantos da opção chegam de fora e travam */
@@ -650,12 +655,12 @@
       /* o fio do mini até a opção, nos primeiros 1,2 s: dá para ler QUAL ele indica */
       if (apaga && sugestao.t < 1.2) {
         var fk = 1 - limitar((sugestao.t - 0.8) / 0.4), tx = it.x + it.w / 2 > x ? it.x - 6 : it.x + it.w + 6, ty = Math.max(it.y, Math.min(it.y + it.h, y));
-        ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(' + AC2 + ',' + (0.6 * fk * v).toFixed(3) + ')';
+        ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(' + B.tom(AC2) + ',' + (0.6 * fk * v).toFixed(3) + ')';
         ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + (tx - x) * saida(sugestao.t / 0.35), y + (ty - y) * saida(sugestao.t / 0.35)); ctx.stroke();
       }
       if (apaga) {
         ctx.lineWidth = 1;
-        ctx.strokeStyle = 'rgba(' + AC2 + ',' + (0.9 * kk * v).toFixed(3) + ')';
+        ctx.strokeStyle = 'rgba(' + B.tom(AC2) + ',' + (0.9 * kk * v).toFixed(3) + ')';
         var x0 = it.x + 10 - afasta, y0 = it.y + 10 - afasta, x1 = it.x + it.w - 10 + afasta, y1 = it.y + it.h - 10 + afasta;
         ctx.beginPath();
         ctx.moveTo(x0, y0 + m); ctx.lineTo(x0, y0); ctx.lineTo(x0 + m, y0);
@@ -692,19 +697,19 @@
     ctx.strokeStyle = 'rgba(' + mistura(c) + ',' + Math.min(1, (0.7 + 0.3 * c) * v).toFixed(3) + ')';
     ctx.beginPath(); ctx.arc(x, y, 7.5 * s, 0, TAU); ctx.stroke();
     var rot = B.reduced ? 0 : giro;
-    ctx.strokeStyle = 'rgba(' + AC + ',' + Math.min(1, (0.5 + 0.4 * c) * v).toFixed(3) + ')';
+    ctx.strokeStyle = 'rgba(' + B.tom(AC) + ',' + Math.min(1, (0.5 + 0.4 * c) * v).toFixed(3) + ')';
     ctx.beginPath(); ctx.arc(x, y, 11.5 * s, rot, rot + 0.7); ctx.stroke();
     ctx.beginPath(); ctx.arc(x, y, 11.5 * s, rot + Math.PI, rot + Math.PI + 0.7); ctx.stroke();
     /* agitado: um terceiro arco, mais fora e ao contrário */
     if (ag > 0.05) {
-      ctx.strokeStyle = 'rgba(' + AC2 + ',' + (0.6 * ag * v).toFixed(3) + ')';
+      ctx.strokeStyle = 'rgba(' + B.tom(AC2) + ',' + (0.6 * ag * v).toFixed(3) + ')';
       ctx.beginPath(); ctx.arc(x, y, 15 * s, -rot * 1.6, -rot * 1.6 + 1.1); ctx.stroke();
     }
     /* a marca de rumo: um pequeno triângulo no aro, apontando para a opção */
     if (quer.f > 0.02 || sugestao.alvo) {
       var alvoA = sugestao.alvo ? Math.atan2(sugestao.alvo.y + sugestao.alvo.h / 2 - mini.y, sugestao.alvo.x + sugestao.alvo.w / 2 - mini.x) : quer.a;
       var fm = sugestao.alvo ? 1 : quer.f, rr = 11.5 * s + 3, ux = Math.cos(alvoA), uy = Math.sin(alvoA);
-      ctx.fillStyle = 'rgba(' + AC2 + ',' + (0.95 * fm * v).toFixed(3) + ')';
+      ctx.fillStyle = 'rgba(' + B.tom(AC2) + ',' + (0.95 * fm * v).toFixed(3) + ')';
       ctx.beginPath();
       ctx.moveTo(x + ux * (rr + 6), y + uy * (rr + 6));
       ctx.lineTo(x + ux * rr - uy * 3, y + uy * rr + ux * 3);
@@ -728,7 +733,7 @@
       ctx.lineWidth = 1;
     }
     if (mini.dormindo > 0.05) {
-      ctx.strokeStyle = 'rgba(' + AC2 + ',' + (0.6 * mini.dormindo * v).toFixed(3) + ')';
+      ctx.strokeStyle = 'rgba(' + B.tom(AC2) + ',' + (0.6 * mini.dormindo * v).toFixed(3) + ')';
       for (var z = 0; z < 3; z++) {
         var fz = ((relogioMini * 0.35 + z / 3) % 1), zx = x + 9 * s + fz * 8 * s, zy = y - 9 * s - fz * 16 * s, zr = (1.5 + fz * 2.2) * s;
         ctx.globalAlpha = 1 - fz;
@@ -738,24 +743,25 @@
     }
     if (pulso > 0.01) {
       var fase = 1 - pulso / Math.max(pulsoIni, 0.01);
-      ctx.strokeStyle = 'rgba(' + AC2 + ',' + (0.5 * pulso * v).toFixed(3) + ')';
+      ctx.strokeStyle = 'rgba(' + B.tom(AC2) + ',' + (0.5 * pulso * v).toFixed(3) + ')';
       ctx.beginPath(); ctx.arc(x, y, (7.5 + PULSO * pulsoIni * fase) * s, 0, TAU); ctx.stroke();
     }
     /* a espera (opção sob o cursor): um anel fino que abre 5 px em 0,55 s */
     if (espera >= 0) {
       var ke = espera / ESPERA.dura;
-      ctx.strokeStyle = 'rgba(' + AC2 + ',' + (ESPERA.alfa * (1 - ke) * v).toFixed(3) + ')';
+      ctx.strokeStyle = 'rgba(' + B.tom(AC2) + ',' + (ESPERA.alfa * (1 - ke) * v).toFixed(3) + ')';
       ctx.beginPath(); ctx.arc(x, y, (7.5 + ESPERA.abre * saida(ke)) * s, 0, TAU); ctx.stroke();
     }
     /* a sugestão: UM anel que abre de 0 a 24 px e some (só uma vez) */
     if (sugestao.alvo && sugestao.t < SUGESTAO.abre) {
       var ka = saida(sugestao.t / SUGESTAO.abre);
-      ctx.strokeStyle = 'rgba(' + AC2 + ',' + (0.8 * (1 - ka) * v).toFixed(3) + ')';
+      ctx.strokeStyle = 'rgba(' + B.tom(AC2) + ',' + (0.8 * (1 - ka) * v).toFixed(3) + ')';
       ctx.beginPath(); ctx.arc(x, y, Math.max(1, SUGESTAO.anel * ka), 0, TAU); ctx.stroke();
     }
     /* o núcleo: plasma (js/plasma.js) no modo PONTAS (no tamanho dele fio fino
        some): três pontas grossas que furam o anel, maiores no pulso */
     if (B.plasma) {
+      PLASMA.cores.AC = B.tom(AC); PLASMA.cores.AC2 = B.tom(AC2);
       PLASMA.r = (3.2 + 0.9 * c) * s; PLASMA.vidro = 7.5 * s; PLASMA.fora = 15 * s;
       PLASMA.pressao = 0.3 + 0.35 * folego + atencao * 0.6 + c * 0.6 + quer.f * 0.3 + ag;
       PLASMA.estouro = B.reduced ? 0 : Math.max(pulso * 0.9, ag * 0.6);

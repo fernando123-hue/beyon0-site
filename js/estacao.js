@@ -84,10 +84,14 @@
   function limitar(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
   function suave(x) { x = limitar(x); return x * x * (3 - 2 * x); }
   function saida(k) { k = limitar(k); return 1 - (1 - k) * (1 - k) * (1 - k); }
-  function cor(c, a) { return 'rgba(' + c + ',' + limitar(a).toFixed(3) + ')'; }
+  function cor(c, a) { return 'rgba(' + B.tom(c) + ',' + limitar(a).toFixed(3) + ')'; }   /* (B.tom: no ouro, ciano vira dourado) */
   /* entre o ciano e o branco (a rede acendendo no turbo) */
-  var CA = AC.split(',').map(Number), CB = T1.split(',').map(Number);
-  function misturaCor(k) { return Math.round(CA[0] + (CB[0] - CA[0]) * k) + ',' + Math.round(CA[1] + (CB[1] - CA[1]) * k) + ',' + Math.round(CA[2] + (CB[2] - CA[2]) * k); }
+  var CA = AC.split(',').map(Number), CB = T1.split(',').map(Number), caBase = AC;
+  function misturaCor(k) {
+    var base = B.tom(AC);
+    if (base !== caBase) { caBase = base; CA = base.split(',').map(Number); }   /* (no ouro a mistura parte do dourado) */
+    return Math.round(CA[0] + (CB[0] - CA[0]) * k) + ',' + Math.round(CA[1] + (CB[1] - CA[1]) * k) + ',' + Math.round(CA[2] + (CB[2] - CA[2]) * k);
+  }
   /* posição de LAYOUT no documento (ignora o transform das entradas) */
   function posDoc(el) { var x = 0, y = 0; for (var e = el; e; e = e.offsetParent) { x += e.offsetLeft; y += e.offsetTop; } return { x: x, y: y }; }
 
@@ -223,8 +227,17 @@
   function soltarEstacao(st) {
     var tinha = !!st.acopla || st.conectada;
     st.acopla = null; st.conectada = false;
-    if (tinha) sobrecarregar(st, false);   /* (carregando ou conectada: a pressão e a sobrecarga esfriam) */
+    if (tinha) { sobrecarregar(st, false); B.emit('estacao:solta', st); }   /* (carregando ou conectada: a pressão e a sobrecarga esfriam) */
   }
+  /* o ouro chegou (js/ouro.js): cada estação na tela turbina quando a linha passa por ela */
+  B.on('ouro', function (ev) {
+    if (ev.fase !== 'ignicao' || B.reduced) return;
+    for (var i = 0; i < estacoes.length; i++) (function (st) {
+      var sy = st.yd - rolagem;
+      if (sy < -200 || sy > altura + 200) return;
+      setTimeout(function () { if (!st.acopla && !B.reduced) turbinar(st); }, Math.abs(sy - ev.y) / Math.max(1, altura) * 1400);
+    })(estacoes[i]);
+  });
   /* a pressão nos cards enquanto o mini enche a estação: de onde ela estava ao acoplar até cheia */
   function pressionar(st) {
     if (!B.carga) return;
@@ -265,7 +278,7 @@
           /* conectada: carga cheia e turbo contínuo (a rede branca, os pacotes rápidos) */
           st.carga = 1; st.turboHa = Math.min(st.turboHa, 0.4);
           st.conectadaHa += dt;
-          if (st.conectadaHa > IGNITA.rede && !st.todos) { st.todos = true; sobrecarregar(st, true); }
+          if (st.conectadaHa > IGNITA.rede && !st.todos) { st.todos = true; sobrecarregar(st, true); B.emit('estacao:sobrecarga', st); }
         }
       }
       if (st.alim) {
@@ -507,6 +520,7 @@
     c.stroke();
     /* o núcleo em plasma, olhando para o cursor; rompe o vidro no turbo, quando o alimentador chega e acoplada */
     if (B.plasma) {
+      PLASMA.cores.AC = B.tom(AC); PLASMA.cores.AC2 = B.tom(AC2);
       PLASMA.r = R.nucleo * (1 + 0.12 * folego + 0.25 * turbo); PLASMA.vidro = R.vidro; PLASMA.fora = R.fora;
       PLASMA.pressao = 0.3 + 0.4 * folego + 0.7 * st.sob + 0.4 * st.carga;
       PLASMA.estouro = B.reduced ? 0 : Math.max(turbo, st.pulso, st.acopla ? 0.4 : 0);

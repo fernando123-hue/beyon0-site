@@ -416,14 +416,14 @@
       if (B.x >= A.x + A.w - 1) ctx.fillRect(A.x + A.w, Math.max(A.y, B.y), B.x - A.x - A.w, Math.min(A.y + A.h, B.y + B.h) - Math.max(A.y, B.y));
       else { var gx0 = Math.min(A.x, B.x), gx1 = Math.max(A.x + A.w, B.x + B.w); ctx.fillRect(gx0, A.y + A.h, gx1 - gx0, B.y - A.y - A.h); }
       ctx.globalCompositeOperation = 'source-over';
-      ctx.strokeStyle = 'rgba(' + AC3 + ',' + (BUS.alfa + BUS.aceso * k).toFixed(3) + ')';
+      ctx.strokeStyle = 'rgba(' + window.BEYON.tom(AC3) + ',' + (BUS.alfa + BUS.aceso * k).toFixed(3) + ')';   /* (aqui B é o ponto do barramento, não o BEYON) */
       ctx.beginPath(); ctx.moveTo(c[0], c[1]);
       for (var p = 2; p < c.length; p += 2) ctx.lineTo(c[p], c[p + 1]);
       ctx.stroke();
       /* o nó: no meio do trecho do meio (no caminho com chanfro, o horizontal) */
       var m = c.length > 4 ? 4 : 0, nx = (c[m] + c[m + 2]) / 2, ny = (c[m + 1] + c[m + 3]) / 2, s = BUS.no;
       ctx.fillStyle = 'rgba(0,0,0,0.9)'; ctx.fillRect(nx - s, ny - s, 2 * s, 2 * s);
-      ctx.strokeStyle = 'rgba(' + AC2 + ',' + (0.5 + 0.45 * k).toFixed(3) + ')';
+      ctx.strokeStyle = 'rgba(' + window.BEYON.tom(AC2) + ',' + (0.5 + 0.45 * k).toFixed(3) + ')';
       ctx.strokeRect(nx - s + 0.5, ny - s + 0.5, 2 * s - 1, 2 * s - 1);
     }
   }
@@ -462,7 +462,7 @@
       /* dentro do canto arredondado (o traço reto escapava dele, crítica rodada 2) */
       var x0 = it.x + 6, y0 = it.y + 0.5, x1 = it.x + it.w - 6;
       var andou = 1 - it.onda, xa = x0 + (x1 - x0) * Math.min(1, andou * 2.2);
-      ctx.strokeStyle = 'rgba(' + AC + ',' + (0.55 * it.onda).toFixed(3) + ')';
+      ctx.strokeStyle = 'rgba(' + B.tom(AC) + ',' + (0.55 * it.onda).toFixed(3) + ')';
       ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(xa, y0); ctx.stroke();
     }
   }
