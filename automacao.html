@@ -195,7 +195,7 @@
 
     <section class="section secao--fixa" id="dores" aria-labelledby="dores-titulo">
       <div class="section__head reveal">
-        <p class="kicker"><b>01</b> O problema</p>
+        <p class="kicker"><b aria-hidden="true">01</b> O problema</p>
         <h2 id="dores-titulo">Três lugares onde o dinheiro costuma vazar.</h2>
       </div>
       <!-- LAUDO — três linhas, não três caixas: uma dor de operação é item de
@@ -222,7 +222,7 @@
     <div class="faixa">
       <section class="section" id="servicos" aria-labelledby="servicos-titulo">
         <div class="section__head reveal">
-          <p class="kicker"><b>02</b> Capacidades</p>
+          <p class="kicker"><b aria-hidden="true">02</b> Capacidades</p>
           <h2 id="servicos-titulo">O que dá pra tirar da sua mesa.</h2>
           <p class="lead">Seis caminhos, um sistema só. Quem se reconhece num deles já começa a conversa pelo ponto certo.</p>
         </div>
@@ -273,7 +273,7 @@
 
     <section class="section" id="processo" aria-labelledby="processo-titulo">
       <div class="section__head reveal">
-        <p class="kicker"><b>03</b> Método</p>
+        <p class="kicker"><b aria-hidden="true">03</b> Método</p>
         <h2 id="processo-titulo">Mapa, prioridade, construção.</h2>
       </div>
       <ol role="list" class="passos reveal">
@@ -297,7 +297,7 @@
 
     <section class="section" id="projetos" aria-labelledby="projetos-titulo">
       <div class="section__head reveal">
-        <p class="kicker"><b>04</b> Cenários</p>
+        <p class="kicker"><b aria-hidden="true">04</b> Cenários</p>
         <h2 id="projetos-titulo">O mesmo método, operações diferentes.</h2>
         <p class="lead">Cenários de aplicação, não vitrine de clientes. Toda operação trava num lugar diferente, e é o diagnóstico que diz qual é o seu.</p>
       </div>
@@ -335,7 +335,7 @@
 
     <section class="section section--faq" id="faq" aria-labelledby="faq-titulo">
       <div class="section__head reveal">
-        <p class="kicker"><b>05</b> Perguntas</p>
+        <p class="kicker"><b aria-hidden="true">05</b> Perguntas</p>
         <h2 id="faq-titulo">Antes de agendar, o que costumam perguntar.</h2>
       </div>
       <!-- Accordion nativo (details/summary). O texto tem que bater PALAVRA POR
@@ -388,7 +388,7 @@
     <section class="conversa" id="contato" aria-labelledby="contato-titulo">
       <span class="conversa__regua" aria-hidden="true"></span><span class="varredura" aria-hidden="true"></span>
       <div class="section reveal">
-        <p class="kicker"><b>06</b> Conversa</p>
+        <p class="kicker"><b aria-hidden="true">06</b> Conversa</p>
         <h2 id="contato-titulo">Comece pelo problema, não pelo <em>discurso</em> de venda.</h2>
         <p class="lead">O diagnóstico começa com uma conversa direta sobre a sua entidade. Escopo e preço fechados antes de construir, e se não houver onde a IA pague por si, eu digo.</p>
         <div class="cta__acoes">
@@ -442,7 +442,7 @@
       <form id="leadForm" novalidate>
         <label class="lead-modal__field">
           <span>Tipo de organização</span>
-          <select name="tipo" required aria-describedby="leadTipoErro">
+          <select name="tipo" required>
             <option value="" disabled selected>Selecione</option>
             <option value="associação" data-artigo="uma">Associação</option>
             <option value="sindicato" data-artigo="um">Sindicato</option>
@@ -489,6 +489,7 @@
   <script src="js/passagem.js" defer></script>
   <script src="js/lead-form.js" defer></script>
   <script src="js/anima.js" defer></script>
+  <script src="js/escrita.js" defer></script>
   <script src="js/carga.js" defer></script>
   <script src="js/rede-texto.js" defer></script>
   <script src="js/campo.js" defer></script>

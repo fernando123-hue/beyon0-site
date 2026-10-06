@@ -45,7 +45,7 @@
       /* sem .focus(): quem navega o select com as setas seria arrancado dele.
          O campo novo é o próximo no Tab; o leitor de tela é avisado. */
       if (avisoTipo) avisoTipo.textContent = ehOutro ? 'Campo adicional: qual o tipo?' : '';
-      if (campoTipo.value && erroTipo) { erroTipo.hidden = true; campoTipo.removeAttribute('aria-invalid'); }
+      if (campoTipo.value && erroTipo) { erroTipo.hidden = true; campoTipo.removeAttribute('aria-invalid'); campoTipo.removeAttribute('aria-describedby'); }
     });
   }
   /* trava o resto da página fora do modal (teclado E leitor de tela) —
@@ -98,6 +98,7 @@
   }
 
   for (var i = 0; i < gated.length; i++) {
+    gated[i].setAttribute('aria-haspopup', 'dialog');
     gated[i].addEventListener('click', function (e) {
       e.preventDefault();
       abrir(this);
@@ -115,6 +116,7 @@
     if (campoTipo && !campoTipo.value) {
       if (erroTipo) erroTipo.hidden = false;
       campoTipo.setAttribute('aria-invalid', 'true');
+      campoTipo.setAttribute('aria-describedby', 'leadTipoErro');   /* (só com o erro à mostra: fixo, o leitor de tela lia o erro escondido em todo foco) */
       campoTipo.focus();
       return;
     }

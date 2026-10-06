@@ -23,6 +23,9 @@
     links[i].href = linkWA(links[i].getAttribute('data-wa'));
     links[i].rel = 'noopener noreferrer';
     links[i].target = '_blank';
+    if (!links[i].hasAttribute('aria-label') && !links[i].querySelector('.sr-only')) {
+      var aviso = document.createElement('span'); aviso.className = 'sr-only'; aviso.textContent = ' (abre em nova aba)'; links[i].appendChild(aviso);
+    }
   }
 
   var ano = document.getElementById('year');

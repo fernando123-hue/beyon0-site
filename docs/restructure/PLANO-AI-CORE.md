@@ -1232,3 +1232,111 @@ celular os 4 cards seguiam cheios fora da vista, 16 traços girando. A/B
 rolando o Hub a 390 px (4 execuções, medianas): antes 57,0 fps / 15 quadros
 lentos; sem a pausa 56,4 / 16; com a pausa 56,5 / 18 (ruído de 11 a 21).
 Verificador 12/12. Falta o dono escolher a borda em repouso e aprovar o aceso.
+
+## 33. Rodada de lapidação, fase 1: a sobrecarga sem lag (2026-10-06, 19ª sessão)
+
+Dono: "AI Core médio, lag na sobrecarga", com ordem explícita de medir antes e
+provar depois. Cenário medido no Chrome real (154, GPU) com Playwright: Hub a
+1440×900, estação de Garantias no centro, clique no núcleo, o mini vem, pressão,
+ignição, 6 s de sobrecarga, soltar, 2,5 s esfriando. Quadros por rAF, long
+tasks por PerformanceObserver, trace do DevTools e perfil de CPU por amostragem.
+Scripts no scratchpad da sessão (`medir-sobrecarga.mjs`, `ler-trace.mjs`,
+`ler-quietos.mjs`, `ler-inval.mjs`); monitor de 100 Hz, por isso "fps" aqui
+vai até 100.
+
+**Antes.** Sobrecarga a 39,9 fps (mínimo 5,9; 42 quadros acima de 33 ms em
+6 s; 3 long tasks); ignição a 48,8 fps (mínimo 6,2). Com a CPU 4× mais lenta:
+24,8 fps, 71 quadros lentos, 14 long tasks.
+
+**Causa 1 (A/B por camada): as letras.** Sem a animação das letras a
+sobrecarga ia a 99 fps; sem a luz circulando ou o reflexo da barra, nada
+mudava. Eram 553 letras (139+142+135+137) com quatro relógios de 2,4 s em
+fase: cada letra animando (cor OU transform, tanto faz — medido) custa estilo e
+pintura por quadro; o que pesa é quantas animam ao mesmo tempo. Cores literais
+nos keyframes em vez de `var()`: sem efeito (medido).
+
+**Causa 2 (perfil de CPU): `ctx.font`, `measureText` e `fillText`.** No Chrome,
+num canvas que está na página, os três chamam `UpdateStyleAndLayoutTree` ANTES
+de qualquer checagem (até repetir a mesma fonte): com o estilo sujo pelas
+letras, 1,5 s de `fonte` + 1,3 s de `fillText` em 13 s de perfil — todo texto
+do trilho, das estações e dos heros resolvia o estilo da página inteira no meio
+do laço, a cada quadro.
+
+**Causa 3 (trace com invalidação): o arranque da onda.** Ligar 139 animações
+num quadro só = 13 ms de estilo + 10 de pintura: o pico de cada onda (quadros
+de 35–45 ms). E 16 pontos `.carga-nos` invisíveis na sobrecarga seguiam
+animando (marcavam estilo a cada quadro).
+
+**O que mudou.**
+- `js/carga.js`: a onda da sobrecarga percorre o GRUPO card a card (uma fila
+  por estação, na ordem da página, dando voltas; `LETRAS.folga` entre elas); a
+  onda arranca POR PALAVRA (timers em lotes de 80 ms; `--d` relativo à
+  palavra; `.carga-palavra.is-luz-a/-b`); passo de 15 ms (teto 2600) → ~25
+  letras animando por vez em vez de 35; `B.carga.preparar` parte os cards em
+  letras no ocioso quando a estação acopla.
+- `js/core.js`: `B.texto` pinta cada texto UMA vez por (texto, fonte, cor, dpr)
+  numa oficina fora da página (OffscreenCanvas; sem ela, canvas solto) e faz
+  `drawImage` por quadro; alfa por `globalAlpha`; `B.largura` mede na oficina.
+  Trocados todos os `fillText` de trilho, estação, campo e heros.
+- `css/cartoes.css`: `.is-sobrecarga > .carga-nos > b { animation: none }`.
+
+**Depois (medianas de 3).** Sobrecarga 85–88 fps (mínimo 20–33; 0–3 quadros
+acima de 33 ms em 6 s; nenhuma long task); ignição 76–77 fps (mínimo 17–33).
+CPU 4×: 70,8 fps, 8 quadros lentos, nenhuma long task. No trace, o quadro com
+onda custa 11,7 ms na thread principal (p90 15,6: cabe nos 16,7 ms de um
+monitor de 60 Hz); o quadro quieto, 7,2 ms (é o custo de base da página com
+três canvases desenhando: rede, estação e mini — fica para outra rodada).
+
+## 34. Rodada de lapidação, fase 2: a luz de cada personagem (2026-10-06)
+
+Fotos antes/depois em `docs/restructure/fotos-2026-10-06/` (Chrome real, GPU, 2×). O
+diagnóstico pelas fotos: a luz do site já era coerente (uma família, traço nítido,
+o reator como fonte); o que faltava era HIERARQUIA entre estados e a mesma luz
+nos poucos lugares que ainda eram chapa. Ajustes cirúrgicos, sem reinterpretar o
+aprovado:
+
+| Personagem | O que mudou | A intenção da luz |
+|---|---|---|
+| Reator (hero do Hub) | nada | É a fonte: tudo o mais é iluminado por ele. Mexer nele é mexer na hierarquia inteira. |
+| Estação (AI Core médio), repouso | estator .32 → .42, vidro .45 → .55 (`js/estacao.js`) | A fonte do grupo nunca fica menos acesa que um card pela metade (ficava: um card a 49 % ofuscava a estação). |
+| Estação conectada / sobrecarga | portas dos cards em branco; moldura dos cards .7 → .84; índice (01–04) em branco (`css/cartoes.css`) | Três degraus legíveis: perto do cursor (cantos), cheio (moldura ciano + luz circulando), sobrecarga (moldura mais branca, porta e índice acesos, barra MAX). Cheio e sobrecarga eram quase iguais. |
+| Mini AI Core | nada | O menor dos três acende quando trabalha (pulso, travas, soquete); em repouso é só presença. |
+| Cards em repouso | a luz de canto vira a única borda; `?borda=b` e `?borda=antes` saíram (`css/cartoes.css`, `js/ancoras.js`) | A luz entra pelo canto de cima à esquerda, na tinta do módulo, e o canto oposto devolve prata: a mesma direção de luz em todos os módulos. |
+| Botão primário | `box-shadow` inset de 1 px: aresta clara em cima/esquerda, tinta embaixo/direita (`css/base.css`) | A mesma luz dos módulos chega ao botão; deixa de ser uma chapa ciano. Traço, sem desfoque. |
+| Rótulos mono (kicker) | a escrita (`js/escrita.js`, fase 3) | O painel acende: o nome do capítulo assenta em 320 ms ao entrar na tela. |
+| Hero de Sites | o rótulo "esta página · carga X s" manda: a régua do alto some sob ele (`js/hero-fundo.js`) | Dois textos no mesmo lugar não é luz, é ruído. |
+
+Variantes de borda: a B (quatro cantos alternando tinta e prata) fica no commit
+`9072482` se o dono preferir.
+
+## 35. Rodada de lapidação, fases 3 e 4: referências, auditoria e notas (2026-10-06)
+
+**Fase 3 — referências.** Quadro completo em `REFERENCIAS-2026-10-06.md` (pesquisa por
+agente: Magic UI, Aceternity, React Bits, Motion Primitives, Cult UI, Hover.dev, Animata,
+21st.dev, Osmo; Awwwards 2025–26). O que entrou nesta rodada: só a **escrita dos
+rótulos mono** (`js/escrita.js`, ideia #1): o nome do capítulo assenta caractere a
+caractere em 320 ms ao entrar na tela, alfabeto de instrumento (0–9 A–F · /), só
+dentro do subset da fonte, depois do reveal, com `data-nome` para o trilho. O resto do
+TOP 6 ficou de fora com motivo: draw-outline nos botões (o botão já tem o feixe em
+miniatura; dois gestos no mesmo lugar), autofoco dos cantos (os cantos de mira já
+crescem com a carga), contador em mono (a prova já conta), click spark (o CTA sai da
+página; o encaixe do mini já tem as travas), espinha scroll-driven (a rota dos passos
+já é isso). Efeito novo só onde não havia nada parecido.
+
+**Fase 4 — auditoria** (Chrome real 154 + headless; agentes de revisão de código ×2 e de
+acessibilidade; prints em 360/768/1440/1920 nas 3 páginas, 3 pontos de rolagem cada).
+
+| Área | Nota | Base da nota |
+|---|---|---|
+| Bugs e console | 9 | Zero erros de console nas 12 combinações (4 larguras × 3 páginas) e no verificador (12/12). Dois achados de revisão corrigidos antes de virar bug (regras de sobrecarga sem efeito por especificidade; `c.ondas` indefinido se o SplitText falhar). |
+| Performance | 8 | LCP 0,7–1,2 s, CLS 0, 754–773 KB por página (29 pedidos), nenhuma long task na sobrecarga; quadro quieto 7,2 ms (três canvases desenhando: o próximo alvo). Headless com agente em paralelo dá LCP falso de 11 s em Sites (2× hoje): medir sozinho. |
+| Animações | 8 | Sobrecarga 40 → 85–95 fps; onda por palavra; interrupção limpa (soltar no meio: fila passa a vez). Pendente: o quadro base de 7 ms. |
+| Responsividade | 9 | Sem overflow lateral em 360/768/1440/1920; pilha e barra do celular ok; a 768 a régua do hero de Sites colidia com a coluna (corrigido). |
+| Acessibilidade | 8 | Agente: 7,5 antes; corrigidos o foco cortado na barra (alto), describedby fixo do modal, forced-colors, console do hero mais opaco, foco após pouso em âncora, aviso "abre em nova aba", `aria-haspopup`, rótulo do rodapé, `aria-hidden` no número do kicker, nowrap a 320 px, pilha em zoom 400 %. Ficam: 2º controle de movimento no topo da página, nome longo dos cards-link (`aria-labelledby`), testar o SplitText no NVDA, copy do formulário ("Qual?"). |
+| Acabamento visual | 8 | Luz coerente (uma direção, três degraus de estado); variantes de borda removidas; rótulo da cascata sem sobreposição. Pendente do dono: as 84 frases-resumo; og-cover; descrições do Google. |
+
+Comparado aos premiados pesquisados (Lando Norris, Cerebrium, Lidar/Riotters): o site
+tem a disciplina de traço e de tipografia deles e um sistema de luz mais consistente;
+perde em "peso" de rolagem (eles usam smooth scroll com inércia: decisão do dono, custo
+alto no celular) e em paleta (eles usam 2 cores; aqui são 5 tons: preto, grafite, metal,
+prata, dois cianos).

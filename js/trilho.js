@@ -238,9 +238,7 @@
         }
         desenhados++;
         if (G.rotulos && secoes[i].rot && (!livre || livre(G.xE - 30, y - 12))) {
-          B.fonte(ctx, FONTE); ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'right';
-          ctx.fillStyle = cor(C.AC2, 0.6 * resp);
-          ctx.fillText(secoes[i].rot, G.xE - 12, y - 7);
+          B.texto(ctx, secoes[i].rot, FONTE, cor(C.AC2, 0.6 * resp), G.xE - 12, y - 7, 'right', 'alphabetic');
         }
       }
     }
@@ -280,15 +278,12 @@
       /* o nome: perto do começo da seção, mas sempre dentro da tela e do trecho */
       var y1 = Math.min(G.H, telaY(fim));
       var txt = (sc.rot ? sc.rot + '/' + ('0' + secoes.length).slice(-2) + ' · ' : '') + sc.nome;
-      B.fonte(ctx, FONTE);
-      var lw = B.largura(ctx, txt), yc = Math.min(y1 - 16 - lw / 2, Math.max(y0 + 40 + lw / 2, G.topo + 24 + lw / 2));
+      var lw = B.largura(ctx, txt, FONTE), yc = Math.min(y1 - 16 - lw / 2, Math.max(y0 + 40 + lw / 2, G.topo + 24 + lw / 2));
       if (yc - lw / 2 < y0 + 20 || (op.livre && !op.livre(G.xD + 24, yc))) return;
       ctx.save();
-      ctx.translate(G.xD + 24, yc); ctx.rotate(Math.PI / 2);
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillStyle = cor(C.AC2, ATUAL.rotulo * resp);
-      ctx.fillText(txt, 0, 0);
-      ctx.restore(); ctx.__fonte = null;
+      ctx.translate(B.pixel(ctx, G.xD + 24), B.pixel(ctx, yc)); ctx.rotate(Math.PI / 2);   /* (no pixel do aparelho: girado de 90°, o sprite cai inteiro) */
+      B.texto(ctx, txt, FONTE, cor(C.AC2, ATUAL.rotulo * resp), 0, 0, 'center', 'middle');
+      ctx.restore();
     }
     /* o fluxo: traços curtos correndo nas réguas, para baixo na esquerda e para cima na direita */
     function desenharFluxo() {
@@ -449,7 +444,6 @@
         ctx.closePath(); ctx.fill();
       }
       if (!rumo.rotulo) { mostrarLeitura(null); return; }
-      B.fonte(ctx, FONTE_RUMO);
       var esp = (rumo.lado < 0 ? x : G.W - x) - RUMO.folga - RUMO.borda;
       /* a seta de texto aponta para a opção, como antes: '← FRASE' à direita, 'FRASE →' à esquerda (apontar) */
       var q = quebrarRumo(rumo.frase, esp);
@@ -470,7 +464,7 @@
       }
       var emPe = !q.linhas, txt = emPe ? rumo.rotulo : q.linhas.join('\n');
       var chave = (emPe ? 'v|' : (rumo.lado < 0 ? 'e|' : 'd|')) + txt + '|' + rumo.desde;
-      var w = emPe ? B.largura(ctx, txt) : Math.max.apply(null, q.larg), h = (emPe ? 1 : q.linhas.length) * RUMO.entre;
+      var w = emPe ? B.largura(ctx, txt, FONTE_RUMO) : Math.max.apply(null, q.larg), h = (emPe ? 1 : q.linhas.length) * RUMO.entre;
       if (chave !== lido.chave) {
         lido.chave = chave;
         leitura.textContent = txt;
@@ -502,14 +496,14 @@
       var palavras = txt.split(' '), linhas = [], atual = '', i;
       for (i = 0; i < palavras.length; i++) {
         var tenta = atual ? atual + ' ' + palavras[i] : palavras[i];
-        if (B.largura(ctx, tenta) <= esp || !atual) atual = tenta;
+        if (B.largura(ctx, tenta, FONTE_RUMO) <= esp || !atual) atual = tenta;
         else { linhas.push(atual); atual = palavras[i]; }
       }
       if (atual) linhas.push(atual);
       var cabe = esp > 40 && linhas.length <= RUMO.linhas;
-      for (i = 0; cabe && i < linhas.length; i++) if (B.largura(ctx, linhas[i]) > esp) cabe = false;
+      for (i = 0; cabe && i < linhas.length; i++) if (B.largura(ctx, linhas[i], FONTE_RUMO) > esp) cabe = false;
       c = rumo.quebra = { chave: chave, txt: txt, linhas: cabe ? linhas : null, larg: [] };
-      if (cabe) for (i = 0; i < linhas.length; i++) c.larg.push(B.largura(ctx, linhas[i]));
+      if (cabe) for (i = 0; i < linhas.length; i++) c.larg.push(B.largura(ctx, linhas[i], FONTE_RUMO));
       return c;
     }
 

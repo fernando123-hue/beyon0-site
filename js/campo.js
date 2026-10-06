@@ -328,8 +328,8 @@
     }
     function desenharEscrita(resp, livre) {
       if (cel) return;
-      B.fonte(ctx, ESCRITA.fonte); ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
-      ctx.fillStyle = cor(C.PRATA, ESCRITA.alfa * resp);
+      var corEscrita = cor(C.PRATA, ESCRITA.alfa * resp);
+      ctx.fillStyle = corEscrita;
       for (var b = 0; b <= BMAX && G.Q * Math.pow(2, b) < vis.rMax; b++) {
         var r = G.Q * Math.pow(2, b);
         if (r < vis.rMin - 10) continue;
@@ -351,11 +351,9 @@
           if (perto < 0.02) continue;
           /* o rumo que a varredura acabou de cruzar acende (ciano) */
           var dv = op.varre ? atras(a) : 99;
-          if (dv < 50) ctx.fillStyle = cor(C.AC2, Math.min(1, ESCRITA.alfa + degrau(dv) * 1.6) * resp);
           ctx.globalAlpha = perto;
-          ctx.fillText(RUMOS[i], x, y);
+          B.texto(ctx, RUMOS[i], ESCRITA.fonte, dv < 50 ? cor(C.AC2, Math.min(1, ESCRITA.alfa + degrau(dv) * 1.6) * resp) : corEscrita, x, y, 'center', 'middle');
           ctx.globalAlpha = 1;
-          if (dv < 50) ctx.fillStyle = cor(C.PRATA, ESCRITA.alfa * resp);
         }
       }
     }
@@ -505,14 +503,12 @@
       var tx = x + ux * 22, ty = y + uy * 22;
       var graus = Math.round(((a * 180 / Math.PI + 90) % 360 + 360) % 360);
       var txt = '→ ' + rumo.rotulo + ' · ' + ('00' + graus).slice(-3) + '°';
-      B.fonte(ctx, RUMO.fonte); ctx.textBaseline = 'middle';
-      ctx.textAlign = ux < -0.2 ? 'right' : ux > 0.2 ? 'left' : 'center';
+      var alinha = ux < -0.2 ? 'right' : ux > 0.2 ? 'left' : 'center';
       if (livre) {
-        var lw = B.largura(ctx, txt), x0 = ctx.textAlign === 'right' ? tx - lw : ctx.textAlign === 'center' ? tx - lw / 2 : tx, f2 = 48;
+        var lw = B.largura(ctx, txt, RUMO.fonte), x0 = alinha === 'right' ? tx - lw : alinha === 'center' ? tx - lw / 2 : tx, f2 = 48;
         if (!livre(x0 - f2, ty) || !livre(x0 + lw + f2, ty) || !livre(x0 + lw / 2, ty - f2 / 2) || !livre(x0 + lw / 2, ty + f2 / 2)) return;
       }
-      ctx.fillStyle = cor(C.AC2, 0.9 * f);
-      ctx.fillText(txt, tx, ty);
+      B.texto(ctx, txt, RUMO.fonte, cor(C.AC2, 0.9 * f), tx, ty, alinha, 'middle');
     }
     /* `resp`: a respiração (0,8–1). `vivo`: falso no movimento reduzido (só a estrutura) */
     var desenhados = 0;

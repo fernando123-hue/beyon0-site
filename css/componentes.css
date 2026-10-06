@@ -184,7 +184,7 @@ html.menos-movimento .cascata__barra { transform: none; }
 /* o console é vidro: translúcido para os arcos de baixo aparecerem por trás.
    Sem backdrop-filter de propósito: um blur sobre um canvas que muda a cada
    quadro seria refeito a cada quadro. */
-.hero__arte--nucleo .console { width: 100%; min-height: 0; margin-top: -10%; z-index: 1; background: linear-gradient(170deg, rgb(var(--grafite-rgb) / .78), rgb(12 13 14 / .82)); }
+.hero__arte--nucleo .console { width: 100%; min-height: 0; margin-top: -10%; z-index: 1; background: linear-gradient(170deg, rgb(var(--grafite-rgb) / .94), rgb(12 13 14 / .95)); }   /* (.78/.82 → .94/.95: o texto cinza de 11 px fica sobre a sangria do canvas do reator; contraste caía a ~3:1 — auditoria 2026-10-06) */
 .hero__arte--nucleo .console__medida, .hero__arte--nucleo .cascata { display: none; }
 .hero__arte--nucleo .console__topo { margin-top: 0; }
 /* celular: respiro nas laterais (de borda a borda os arcos eram cortados) e
@@ -363,7 +363,7 @@ body.is-lead-open { overflow: hidden; }
   font-family: var(--sans); font-size: 1rem; padding: .85rem .95rem; min-height: 52px; appearance: none;
   transition: border-color var(--t-micro) var(--ease-micro), box-shadow var(--t-micro) var(--ease-micro);
 }
-.lead-modal__field input:focus-visible, .lead-modal__field select:focus-visible, .lead-modal__field textarea:focus-visible { outline: none; border-color: var(--ac); box-shadow: 0 0 0 3px rgb(var(--ac-rgb) / .2); }
+.lead-modal__field input:focus-visible, .lead-modal__field select:focus-visible, .lead-modal__field textarea:focus-visible { outline: 2px solid transparent; border-color: var(--ac); box-shadow: 0 0 0 3px rgb(var(--ac-rgb) / .2); }
 .lead-modal__field input::placeholder, .lead-modal__field textarea::placeholder { color: var(--t3); }
 .lead-modal__field [aria-invalid="true"] { border-color: #F08A7A; }
 .lead-modal__erro { font-size: var(--fs-s); color: #F08A7A; margin-top: -.4rem; }

@@ -413,6 +413,9 @@
     e.preventDefault();
     if (history.pushState) history.pushState(null, '', '#' + alvo.id);
     pousar(alvo, false);
+    /* (o preventDefault cancela o ponto de partida do foco: o Tab seguinte voltava ao hero) */
+    if (!alvo.hasAttribute('tabindex')) alvo.setAttribute('tabindex', '-1');
+    try { alvo.focus({ preventScroll: true }); } catch (er) { /* navegador antigo */ }
   });
   function restaurarRolagem() {
     var navEntry = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];

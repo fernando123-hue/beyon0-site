@@ -98,10 +98,13 @@
       var y0 = Math.ceil((topo + rol) / GRADE.regua) * GRADE.regua;
       for (y = y0; y - rol < fim; y += GRADE.regua) { var ly = y % 100 === 0 ? 9 : y % 50 === 0 ? 6 : 3; ctx.moveTo(rx, y - rol + 0.5); ctx.lineTo(rx + ly, y - rol + 0.5); }
       ctx.stroke();
-      B.fonte(ctx, FONTE_P); ctx.fillStyle = cor(AC2, 0.42); ctx.textBaseline = 'top'; ctx.textAlign = 'left';
-      for (x = 100; x < W - 30; x += 100) ctx.fillText(String(x), x + 3, ry + 4);
-      ctx.textBaseline = 'middle';
-      for (y = Math.ceil((topo + rol + 20) / 100) * 100; y - rol < fim - 8; y += 100) ctx.fillText(String(y), rx + 12, y - rol);
+      var corRegua = cor(AC2, 0.42);
+      /* (o rótulo da cascata, à direita acima da janela, tem prioridade: a régua some sob ele) */
+      var rot = rotuloCascata(g), rx0 = rot ? rot.x0 : 1e9, rx1 = rot ? rot.x1 : -1e9, rotY = rot ? rot.y : -1e9;
+      /* (o rótulo ocupa [rotY − 10, rotY]; os números, [ry + 4, ry + 13]) */
+      for (x = 100; x < W - 30; x += 100) if (!(rotY > ry + 4 && rotY - 10 < ry + 13 && x + 3 + 30 > rx0 && x + 3 < rx1)) B.texto(ctx, String(x), FONTE_P, corRegua, x + 3, ry + 4, 'left', 'top');
+      /* (a coluna do texto encostada na régua, como a 768 px: os números da esquerda saem, senão ficam sob o texto) */
+      if (m.colE > rx + 44) for (y = Math.ceil((topo + rol + 20) / 100) * 100; y - rol < fim - 8; y += 100) B.texto(ctx, String(y), FONTE_P, corRegua, rx + 12, y - rol, 'left', 'middle');
       /* as cotas da janela: largura e altura reais, em px */
       if (m.arte) {
         a = { x: m.arte.x - g.sx, y: m.arte.y - rol, w: m.arte.w, h: m.arte.h };
@@ -111,17 +114,16 @@
         ctx.moveTo(a.x, cy); ctx.lineTo(a.x + a.w, cy); ctx.moveTo(a.x + 0.5, cy - 4); ctx.lineTo(a.x + 0.5, cy + 4); ctx.moveTo(a.x + a.w - 0.5, cy - 4); ctx.lineTo(a.x + a.w - 0.5, cy + 4);
         if (cx < W - 40) { ctx.moveTo(cx, a.y); ctx.lineTo(cx, a.y + a.h); ctx.moveTo(cx - 4, a.y + 0.5); ctx.lineTo(cx + 4, a.y + 0.5); ctx.moveTo(cx - 4, a.y + a.h - 0.5); ctx.lineTo(cx + 4, a.y + a.h - 0.5); }
         ctx.stroke();
-        B.fonte(ctx, FONTE); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         var rotW = m.rotW, tw = rotW.length * 6 + 12;   /* mono de 10 px: ~6 px por caractere */
         ctx.fillStyle = '#000';
         ctx.globalCompositeOperation = 'destination-out'; ctx.fillRect(a.x + a.w / 2 - tw / 2, cy - 6, tw, 12); ctx.globalCompositeOperation = 'source-over';
-        ctx.fillStyle = cor(AC2, 0.8); ctx.fillText(rotW, a.x + a.w / 2, cy);
+        B.texto(ctx, rotW, FONTE, cor(AC2, 0.8), a.x + a.w / 2, cy, 'center', 'middle');
         if (cx < W - 40) {
-          ctx.save(); ctx.translate(cx, a.y + a.h / 2); ctx.rotate(-Math.PI / 2);
+          ctx.save(); ctx.translate(B.pixel(ctx, cx), B.pixel(ctx, a.y + a.h / 2)); ctx.rotate(-Math.PI / 2);   /* (no pixel do aparelho: girado de 90°, o sprite cai inteiro) */
           var rotH = m.rotH, th = rotH.length * 6 + 12;
           ctx.fillStyle = '#000';
           ctx.globalCompositeOperation = 'destination-out'; ctx.fillRect(-th / 2, -6, th, 12); ctx.globalCompositeOperation = 'source-over';
-          ctx.fillStyle = cor(AC2, 0.8); ctx.fillText(rotH, 0, 0); ctx.restore(); ctx.__fonte = null;
+          B.texto(ctx, rotH, FONTE, cor(AC2, 0.8), 0, 0, 'center', 'middle'); ctx.restore();
         }
         desenharCascata(ctx, g, a);
       }
@@ -136,8 +138,7 @@
         ctx.beginPath(); ctx.moveTo(c.x, ry); ctx.lineTo(c.x, ry + 12); ctx.moveTo(rx, c.y); ctx.lineTo(rx + 12, c.y); ctx.stroke();
         ctx.lineWidth = 1;
         if (g.livre(c.x + 70, c.y + 18)) {
-          B.fonte(ctx, FONTE); ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillStyle = cor(AC2, 0.75);
-          ctx.fillText('x ' + ('000' + Math.round(c.x)).slice(-4) + '  y ' + ('000' + Math.round(c.y + rol)).slice(-4), c.x + 12, c.y + 18);
+          B.textoMono(ctx, 'x ' + ('000' + Math.round(c.x)).slice(-4) + '  y ' + ('000' + Math.round(c.y + rol)).slice(-4), FONTE, cor(AC2, 0.75), c.x + 12, c.y + 18, 'middle');   /* (muda a cada quadro: um sprite por caractere) */
         }
       }
     }
@@ -163,9 +164,22 @@
       ctx.strokeStyle = cor(AC, 0.7);
       ctx.beginPath(); ctx.moveTo(Math.round(xm) - 0.5, alto - 4); ctx.lineTo(Math.round(xm) - 0.5, base + 4); ctx.stroke();
       if (p >= 1) {
-        B.fonte(ctx, FONTE); ctx.textAlign = 'right'; ctx.textBaseline = 'bottom'; ctx.fillStyle = cor(AC2, 0.8);
-        ctx.fillText('esta página · carga ' + num(cascata.total / 1000, 2) + ' s', a.x + a.w, alto - 6);
+        var rc = rotuloCascata(g);
+        if (rc) B.texto(ctx, rc.txt, FONTE, cor(AC2, 0.8), rc.x1, rc.y, 'right', 'bottom');
       }
+    }
+    /* o rótulo da cascata (só quando ela está inteira, p ≥ 1: antes disso a régua segue com os números): texto e
+       caixa (x0–x1, linha de base y), ou null. O texto e a largura são medidos uma vez por carga lida */
+    var rotulo = { total: -1, txt: '', w: 0 };
+    function rotuloCascata(g) {
+      var a = m.arte;
+      if (g.cel || !cascata || !a) return null;
+      if (!g.parado && limitar((g.t - tCascata) / GRADE.cascata.cresce) < 1) return null;
+      var n = cascata.linhas.length, base = a.y - g.rolagem - 34, alto = base - n * GRADE.cascata.passo;
+      if (alto < g.topo + 16) return null;
+      if (rotulo.total !== cascata.total) { rotulo.total = cascata.total; rotulo.txt = 'esta página · carga ' + num(cascata.total / 1000, 2) + ' s'; rotulo.w = B.largura(null, rotulo.txt, FONTE); }
+      var x1 = a.x - g.sx + a.w;
+      return { txt: rotulo.txt, x0: x1 - rotulo.w, x1: x1, y: alto - 6 };
     }
     return { medir: medir, desenhar: desenhar };
   }

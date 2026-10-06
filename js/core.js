@@ -124,23 +124,83 @@
   } catch (e) { /* sem armazenamento: o relógio começa nesta página */ }
   function relogio() { return (agora() - EPOCA) / 1000; }
 
-  /* a fonte do canvas só é trocada quando muda: trocar ctx.font obriga o navegador a resolver o estilo da
-     página se algo mudou no quadro (medido no celular rolando: ~225 ms de layout forçado numa rolagem curta).
-     Depois de ctx.restore() a fonte volta à de antes: quem restaura zera a memória (ctx.__fonte = null) */
-  function fonte(ctx, f) { if (ctx.__fonte !== f) { ctx.font = f; ctx.__fonte = f; } }
-  /* a largura de um texto no canvas, medida uma vez por fonte e texto (os rótulos se repetem quadro após
-     quadro: medir a cada quadro custava ~250 ms numa rolagem curta no celular). Use depois de B.fonte */
-  var larguras = new Map();
-  /* medidas feitas com a fonte reserva (antes da JetBrains Mono chegar) não ficam guardadas */
-  if (document.fonts) { document.fonts.ready.then(function () { larguras.clear(); }); document.fonts.addEventListener('loadingdone', function () { larguras.clear(); }); }
-  function largura(ctx, txt) {
-    var k = (ctx.__fonte || ctx.font) + '|' + txt, w = larguras.get(k);
-    if (w === undefined) { if (larguras.size > 600) larguras.clear(); w = ctx.measureText(txt).width; larguras.set(k, w); }
+  /* TEXTO NO CANVAS SEM TOCAR NO ESTILO DA PÁGINA (2026-10-06). No Chrome, ctx.font =, measureText e fillText
+     num canvas que está na página chamam UpdateStyleAndLayoutTree ANTES de qualquer coisa (até repetir a mesma
+     fonte): se algo mudou no quadro, o estilo da página inteira é resolvido ali, no meio do laço. Medido na
+     sobrecarga das estações (as letras sujam o estilo a cada quadro): 1,5 s de "fonte" + 1,3 s de "fillText" em
+     13 s de perfil; rolando, o mesmo imposto cai sobre o que o GSAP escreve. Agora o texto é pintado UMA vez por
+     (texto, fonte, cor, dpr) numa OFICINA fora da página (OffscreenCanvas; sem ela, um canvas solto) e, por
+     quadro, só drawImage — que não resolve estilo. A opacidade vai por globalAlpha, para a cor com alfa variável
+     (resp, fade) não virar um sprite por quadro. Posição arredondada ao pixel do aparelho: nítido, sem reamostrar. */
+  var oficina = null, sprites = new Map(), larguras = new Map(), SPRITES_MAX = 400;
+  function oficinaCtx() {
+    if (!oficina) oficina = (typeof OffscreenCanvas === 'function' ? new OffscreenCanvas(8, 8) : document.createElement('canvas')).getContext('2d');
+    return oficina;
+  }
+  /* o dpr do canvas de destino (quem desenha publica ctx.__dpr ao dimensionar; sem isso, o da tela até 2):
+     o sprite nasce nos pixels do aparelho desse canvas, 1:1, sem reamostrar */
+  function dprDe(ctx) { return ctx.__dpr || Math.min(window.devicePixelRatio || 1, 2); }
+  /* (sprites e medidas feitos com a fonte reserva, antes da JetBrains Mono chegar, não ficam guardados) */
+  function limparTexto() { sprites.clear(); larguras.clear(); }
+  if (document.fonts) { document.fonts.ready.then(limparTexto); document.fonts.addEventListener('loadingdone', limparTexto); }
+  /* a largura de um texto na fonte f, medida uma vez por fonte e texto, na oficina */
+  function largura(ctx, txt, f) {
+    var k = f + '|' + txt, w = larguras.get(k);
+    if (w === undefined) {
+      if (larguras.size > 600) larguras.clear();
+      var o = oficinaCtx(); o.font = f;
+      w = o.measureText(txt).width; larguras.set(k, w);
+    }
     return w;
   }
+  var PX = /(\d+(?:\.\d+)?)px/, RGBA = /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+))?\s*\)$/;
+  function sprite(txt, f, tinta, dpr) {
+    var k = f + '|' + tinta + '|' + dpr + '|' + txt, s = sprites.get(k);
+    if (s) return s;
+    if (sprites.size >= SPRITES_MAX) sprites.delete(sprites.keys().next().value);   /* (sai o mais antigo, nunca todos de uma vez) */
+    var o = oficinaCtx(); o.font = f;
+    var m = o.measureText(txt), px = +(PX.exec(f) || [0, 10])[1];
+    /* a caixa real do texto (com 1 px de folga) e as métricas da fonte (para as linhas de base top/middle/bottom
+       baterem com as do fillText: top = y + ascent, middle = y + (ascent − descent)/2, bottom = y − descent) */
+    var asc = Math.ceil(m.actualBoundingBoxAscent || px * 0.8) + 1, desc = Math.ceil(m.actualBoundingBoxDescent || px * 0.25) + 1;
+    var fa = m.fontBoundingBoxAscent !== undefined ? m.fontBoundingBoxAscent : px * 0.95, fd = m.fontBoundingBoxDescent !== undefined ? m.fontBoundingBoxDescent : px * 0.25;
+    var w = Math.ceil(m.width) + 2, h = asc + desc, W = Math.ceil(w * dpr), H = Math.ceil(h * dpr), cv;
+    if (typeof OffscreenCanvas === 'function') cv = new OffscreenCanvas(W, H);
+    else { cv = document.createElement('canvas'); cv.width = W; cv.height = H; }
+    var c = cv.getContext('2d');
+    c.scale(dpr, dpr); c.font = f; c.textBaseline = 'alphabetic'; c.textAlign = 'left';
+    c.fillStyle = tinta;
+    c.fillText(txt, 1, asc);
+    s = { cv: cv, w: W / dpr, h: H / dpr, asc: asc, fa: fa, fd: fd, lw: m.width };   /* (w, h: o bitmap inteiro em px CSS: 1:1 no destino) */
+    sprites.set(k, s);
+    return s;
+  }
+  /* pinta txt com a fonte f e a cor ("rgba(r,g,b,a)", "rgb(...)" ou "#…") em (x, y), com o alinhamento
+     ('left'|'center'|'right') e a linha de base ('alphabetic'|'top'|'middle'|'bottom') do fillText.
+     Num contexto girado (translate + rotate de ±90°), arredonde o translate ao pixel do aparelho (B.pixel) */
+  function texto(ctx, txt, f, cor, x, y, alinha, base) {
+    if (!txt) return;
+    var m = RGBA.exec(cor), tinta = m ? 'rgb(' + m[1] + ',' + m[2] + ',' + m[3] + ')' : cor, a = m && m[4] !== undefined ? +m[4] : 1;
+    if (a <= 0.003) return;
+    var dpr = dprDe(ctx), s = sprite(txt, f, tinta, dpr);
+    var dx = alinha === 'center' ? -s.lw / 2 : alinha === 'right' ? -s.lw : 0;
+    var linha = base === 'top' ? y + s.fa : base === 'bottom' ? y - s.fd : base === 'middle' ? y + (s.fa - s.fd) / 2 : y;
+    var X = Math.round((x + dx - 1) * dpr) / dpr, Y = Math.round((linha - s.asc) * dpr) / dpr;
+    var ga = ctx.globalAlpha;
+    if (a < 1) ctx.globalAlpha = ga * a;
+    ctx.drawImage(s.cv, X, Y, s.w, s.h);
+    if (a < 1) ctx.globalAlpha = ga;
+  }
+  /* um texto MONO que muda a cada quadro (a coordenada do cursor): um sprite por caractere, não por texto */
+  function textoMono(ctx, txt, f, cor, x, y, base) {
+    var adv = largura(ctx, '0', f);
+    for (var i = 0; i < txt.length; i++) if (txt[i] !== ' ') texto(ctx, txt[i], f, cor, x + i * adv, y, 'left', base);
+  }
+  /* uma coordenada em px CSS arredondada ao pixel do aparelho desse canvas */
+  function pixel(ctx, v) { var d = dprDe(ctx); return Math.round(v * d) / d; }
 
   window.BEYON = {
-    S: S, fonte: fonte, largura: largura, add: add, remove: remove, on: on, off: off, emit: emit, iniciar: iniciar, reduzir: reduzir,
+    S: S, largura: largura, texto: texto, textoMono: textoMono, pixel: pixel, add: add, remove: remove, on: on, off: off, emit: emit, iniciar: iniciar, reduzir: reduzir,
     reduced: reduced, sistemaReduz: mqReduce.matches, num: num, relogio: relogio,
     /* o fôlego: os mesmos números de SPEC.respira do reator (7 s, inspira em 42%) */
     FOLEGO: { periodo: 7, inspira: 0.42 }

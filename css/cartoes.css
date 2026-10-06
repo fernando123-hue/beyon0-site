@@ -49,7 +49,8 @@
    módulo, e corre pelos dois lados até sumir; o canto oposto devolve um reflexo em prata. Quatro tiras de
    1 px no fundo, por baixo do fio cinza da borda (que segue igual e recebe as cores dos estados): nítidas,
    paradas, sem pseudo-elemento (o ::before é a aresta do foco, o ::after a varredura) e sem desfoque.
-   Começam depois da curva do canto, como a aresta. ?borda=b: os quatro cantos; ?borda=antes: a chapada. */
+   Começam depois da curva do canto, como a aresta. (As variantes ?borda=b e ?borda=antes saíram em 2026-10-06:
+   ficou esta; a B — quatro cantos alternando tinta e prata — está no commit 9072482.) */
 .painel:not(:where(.console, .instrumento)), .celula, .laudo__row, .qa, .spec__item,
 .hero__rail > a, .hero__rail > div:not(.hero__rail-aresta) {
   --luz: rgb(var(--tinta-rgb, var(--ac-rgb)));
@@ -67,17 +68,6 @@
   background-position: var(--raio) 0, 0 var(--raio), var(--raio) 100%, 100% var(--raio);
   background-origin: border-box; background-repeat: no-repeat;
 }
-/* ?borda=b — quatro cantos acesos, curtos, alternando tinta e prata */
-.borda-b :is(.painel:not(:where(.console, .instrumento)), .celula, .laudo__row, .qa, .spec__item,
-.hero__rail > a, .hero__rail > div:not(.hero__rail-aresta)) {
-  background-image:
-    linear-gradient(90deg, var(--luz), var(--luz-0) 22%, var(--reflexo-0) 78%, var(--reflexo)),
-    linear-gradient(180deg, var(--luz), var(--luz-0) 30%, var(--reflexo-0) 70%, var(--reflexo)),
-    linear-gradient(270deg, var(--luz), var(--luz-0) 22%, var(--reflexo-0) 78%, var(--reflexo)),
-    linear-gradient(0deg, var(--luz), var(--luz-0) 30%, var(--reflexo-0) 70%, var(--reflexo));
-}
-.borda-antes :is(.painel:not(:where(.console, .instrumento)), .celula, .laudo__row, .qa, .spec__item,
-.hero__rail > a, .hero__rail > div:not(.hero__rail-aresta)) { background-image: none; }
 @media (hover: hover) {
   .painel:not(:where(.console, .instrumento)):hover, .celula:hover, .laudo__row:hover, .qa:hover, .spec__item:hover, .hero__rail > a:hover { border-color: var(--line-2); background-color: rgb(16 18 19 / .94); }
   .painel:not(:where(.console, .instrumento)):hover::before, .celula:hover::before, .laudo__row:hover::before, .qa:hover::before, .spec__item:hover::before, .hero__rail > a:hover::before { opacity: 1; }
@@ -111,7 +101,7 @@
 }
 .servico__link span, .celula__link span { display: inline-block; transition: transform var(--t-micro) var(--ease-micro); }
 .painel:hover .servico__link span, .celula:hover .celula__link span { transform: translateX(4px); }
-@media (max-width: 380px) { .servico__link, .celula__link { white-space: nowrap; letter-spacing: .04em; } }
+@media (max-width: 380px) { .servico__link, .celula__link { letter-spacing: .04em; } }   /* (sem nowrap: com espaçamento de texto do usuário o link era cortado — auditoria 2026-10-06) */
 /* o mini AI Core sugere esta opção (js/mini.js): a borda e o link acendem enquanto ele aponta */
 /* a energia de uma estação chegando (js/estacao.js): no surto a aresta de cima (.is-onda); no turbo a borda também (.is-energia), por um instante (o canvas do fundo fica atrás do módulo opaco: quem mostra a chegada é o próprio módulo) */
 /* (classe dobrada: com o cursor em cima, o :hover (0,2,0) vencia e a borda acesa não aparecia — revisão) */
@@ -348,7 +338,7 @@ html.menos-movimento .qa::details-content { transition: none; }
   @keyframes porta-a { from { background: var(--t1); transform: scaleY(1.9); } to { transform: none; } }
   @keyframes porta-b { from { background: var(--t1); transform: scaleY(1.9); } to { transform: none; } }
   .is-alimentado.is-alimentado { border-color: var(--line-hi); }
-  .is-alimentado > .estacao-porta { border-color: var(--ac-2); }
+  .is-alimentado.is-alimentado > .estacao-porta { border-color: var(--ac-2); }   /* (dobrada: vence a borda de .tem-estacao.is-ligada .estacao-porta) */
   .tem-estacao.is-ligada .estacao-cruza { display: block; position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
   .estacao-cruza::before { content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 100%; border-left: 1px solid var(--ac-2); opacity: 0; }
   [data-porta="d"].is-cruza-a > .estacao-cruza::before { animation: cruza-d-a .8s cubic-bezier(.3, 0, .2, 1) both; }
@@ -387,6 +377,10 @@ html.menos-movimento .estacao-cruza { display: none !important; }
   /* o card com foco de teclado vem para a frente: o foco nunca fica escondido */
   .pilha > :focus-within { z-index: 20; }
 }
+/* (zoom de 400 %, viewport mais baixo que um card: o monte cobriria os títulos; fica em fluxo) */
+@media (max-width: 720px) and (max-height: 560px) { .pilha > :not(.estacao-vao) { position: static; } }
+/* (zoom de 400 %, viewport mais baixo que um card: o monte cobriria os títulos; fica em fluxo) */
+@media (max-width: 720px) and (max-height: 560px) { .pilha > :not(.estacao-vao) { position: static; } }
 /* ---- O DESLIZAR (dono, 2026-10-05: "o próprio deslizar mais suave, um pouco
    mais lento, mais perceptível"). Por cima do sticky (que segue igual): o card
    da frente se SOLTA da linha devagar (~0,56× o dedo) e acelera até 1× enquanto
@@ -541,8 +535,10 @@ html.menos-movimento .estacao-cruza { display: none !important; }
    Só transform/opacity/cor em rajadas curtas; nada disso em movimento reduzido. ---- */
 .carga-palavra, .carga-letra { display: inline-block; }
 @media (prefers-reduced-motion: no-preference) {
-  html.js:not(.menos-movimento) .is-letras-a .carga-letra { animation: letra-luz-a .38s cubic-bezier(.2, .7, .3, 1) var(--d, 0s) backwards;   /* curta: menos letras animando ao mesmo tempo (a cor não vai para o compositor) */ }
-  html.js:not(.menos-movimento) .is-letras-b .carga-letra { animation: letra-luz-b .38s cubic-bezier(.2, .7, .3, 1) var(--d, 0s) backwards; }
+  /* a onda arranca POR PALAVRA (js/carga.js, letras: a palavra ganha is-luz-a/-b na vez dela; --d é a vez da letra
+     dentro da palavra). Curta: menos letras animando ao mesmo tempo (a cor não vai para o compositor) */
+  html.js:not(.menos-movimento) .carga-palavra.is-luz-a > .carga-letra { animation: letra-luz-a .38s cubic-bezier(.2, .7, .3, 1) var(--d, 0s) backwards; }
+  html.js:not(.menos-movimento) .carga-palavra.is-luz-b > .carga-letra { animation: letra-luz-b .38s cubic-bezier(.2, .7, .3, 1) var(--d, 0s) backwards; }
   /* ACENDER (cards fora de uma estação; todos no celular): cada letra do título e do texto clareia na sua vez,
      devagar, e fica acesa num branco com um toque do ciano enquanto o card estiver cheio; descarregando,
      todas apagam juntas, mais rápido. Só cor (sem desfoque); os números e os links seguem com a cor deles */
@@ -564,10 +560,16 @@ html.menos-movimento .estacao-cruza { display: none !important; }
   @keyframes letra-luz-b { 28% { color: var(--t1); transform: translateY(-3px); } 55% { color: var(--ac-2); } 100% { transform: none; } }
   /* sobrecarga: a moldura acesa e parada, em ciano um pouco abaixo do máximo (toda branca, a luz que circula
      some nela); o movimento é só a luz, em branco, e o reflexo na barra */
-  html.js:not(.menos-movimento) .is-sobrecarga > .carga-halo { opacity: .7 !important; }
+  html.js:not(.menos-movimento) .is-sobrecarga.is-sobrecarga > .carga-halo { opacity: .84 !important; }   /* (acima do cheio, que fica em .7 e também está na sobrecarga: dobrada para vencer; a luz branca que circula ainda aparece) */
+  /* a sobrecarga é mais que o cheio: o índice do card e a porta da estação acendem em branco (especificidade
+     igual à das regras de .is-carregado e .is-ligada, e depois delas) */
+  .tem-carga.is-sobrecarga .laudo__n, .tem-carga.is-sobrecarga .servico__n, .tem-carga.is-sobrecarga .celula__n { color: var(--t1); }
+  .is-sobrecarga.is-sobrecarga > .estacao-porta { border-color: var(--t1); }
+  .is-sobrecarga > .estacao-porta > b { background: var(--t1); }
   html.js:not(.menos-movimento) .is-sobrecarga > .carga-cantos > b { transform: none !important; background: var(--ac-2); opacity: .7; }
   /* (os pontos dos quatro lados dão lugar à luz que circula: um movimento só) */
   .is-sobrecarga > .carga-nos { opacity: 0; }
+  .is-sobrecarga > .carga-nos > b:nth-child(n) { animation-name: none; }   /* (invisíveis, mas 16 animações seguiam marcando estilo a cada quadro: trace de 2026-10-06; :nth-child(n) só para vencer as regras acima) */
   .is-sobrecarga .carga__tubo { background: var(--t1); }
   .is-sobrecarga .carga__brilho::before { opacity: .55; animation: carga-reflexo 2.6s linear infinite; }
   /* entrando e saindo da sobrecarga a moldura passa de 100% para 70% e volta: em transição, nunca num quadro só */

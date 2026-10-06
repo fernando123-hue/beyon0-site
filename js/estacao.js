@@ -376,9 +376,7 @@
         var ry = topoS + 24;
         if (ry > g.topo + 10 && ry < a1 - 10 && (!livre || livre(st.x + 60, ry))) {
           simbolo(ctx, st.x + 16, ry);
-          B.fonte(ctx, ROTULO.fonte); ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
-          ctx.fillStyle = cor(AC2, ROTULO.alfa);
-          ctx.fillText(ROTULO.texto, st.x + 28, ry);
+          B.texto(ctx, ROTULO.texto, ROTULO.fonte, cor(AC2, ROTULO.alfa), st.x + 28, ry, 'left', 'middle');
         }
       }
       /* o SOQUETE do mini, no alimentador acima dela (onde ele encaixa para
@@ -470,7 +468,7 @@
     c.clearRect(0, 0, CORPO, CORPO);
     c.lineWidth = 1;
     /* o estator: anel e 12 marcas, parado */
-    c.strokeStyle = cor(AC, 0.32 + 0.2 * st.sob);
+    c.strokeStyle = cor(AC, 0.42 + 0.2 * st.sob);   /* (em repouso ela é a fonte do grupo: nunca menos acesa que um card pela metade; era .32) */
     c.beginPath(); c.arc(m, m, R.estator, 0, TAU);
     for (j = 0; j < 12; j++) {
       var a = j * TAU / 12 - Math.PI / 2, l = j % 3 ? 3 : 5;
@@ -502,7 +500,7 @@
     c.setLineDash(SEM_TRACO);
     c.lineDashOffset = 0;
     /* o vidro: o anel onde os fios do plasma batem */
-    c.strokeStyle = cor(AC2, 0.45);
+    c.strokeStyle = cor(AC2, 0.55);
     c.beginPath(); c.arc(m, m, R.vidro, 0, TAU); c.stroke();
     /* o aro de 6 partes, girando */
     c.strokeStyle = cor(AC, 0.55);
@@ -559,7 +557,12 @@
     },
     /* onde o mini fica acoplado (tela): no corredor, acima dela */
     doca: function (st) { return { x: st.x - B.S.sx, y: st.yd - rolagem - MINI.acima }; },
-    acoplar: function (st) { if (!B.reduced && !st.acopla) { st.acopla = { t: 0, c0: st.carga }; st.todos = false; } },
+    acoplar: function (st) {
+      if (B.reduced || st.acopla) return;
+      st.acopla = { t: 0, c0: st.carga }; st.todos = false;
+      /* os cards em letras já, no ocioso: a ignição (em ~3 s) não paga o SplitText de todos num quadro só */
+      if (B.carga && B.carga.preparar) for (var i = 0; i < st.raios.length; i++) B.carga.preparar(st.raios[i].el);
+    },
     soltar: function (st) { soltarEstacao(st); },
     podeTurbinar: function (st) { return st.turboHa > 20 && !st.acopla; },
     turbinando: function (st) { return !!st.acopla; },

@@ -38,7 +38,14 @@
    saltar com ela — até um deslizar rápido mostra a barra enchendo.
    SOBRECARGA (js/estacao.js, com o mini conectado ao AI Core médio): o card
    fica preso em 100% com a moldura neon acesa (parada), uma luz circulando
-   pela borda, a barra em "MAX" e uma onda de letras a cada LETRAS.sobre s.
+   pela borda, a barra em "MAX" e a onda de letras percorrendo o GRUPO card a
+   card, sem parar (uma FILA por estação: a onda do seguinte só começa quando a
+   do anterior acabou, com LETRAS.folga s entre elas). Medido em 2026-10-06 no
+   Chrome real: as quatro ondas juntas (553 letras, quatro relógios de 2,4 s em
+   fase) derrubavam a sobrecarga de 99 para 40 fps (mínimo 6; 42 quadros acima
+   de 33 ms em 6 s) e sem as letras ela ficava em 99 fps. Cada letra animando
+   (cor ou transform, tanto faz) custa estilo e pintura por quadro: o que pesa
+   é quantas animam AO MESMO TEMPO, então uma de cada vez.
    A TRANSIÇÃO até ela (dono, 2026-10-04: "crie um estado de transição nesse
    espaço de tempo, para não ser algo que acontece do nada"), em três atos:
    1) PRESSÃO (pressao): enquanto o mini enche a estação, ela empurra a carga
@@ -63,9 +70,15 @@
   var PERTO = 300;                       /* px do cursor à borda do card em que ele começa a carregar */
   var ENCHE = 3.2, ESVAZIA = 1.6;        /* /s: a carga segue o alvo (enche mais rápido do que esvazia) */
   var CARDS = '.painel:not(:where(.console, .instrumento)), .celula, .laudo__row, .spec__item, .cenario';
-  /* o texto que vira letras; s entre ondas (normal e em sobrecarga); ms de atraso por letra e teto */
+  /* o texto que vira letras; LETRAS: ver abaixo */
   var TEXTOS = 'h3, p, .servico__link, .celula__link, .laudo__n, .servico__n, .celula__n';
-  var LETRAS = { cada: 3.5, sobre: 2.4, passo: 15, teto: 1500 };
+  /* passo: ms entre uma letra e a seguinte (com teto para o card inteiro); dura: a duração da animação de cada
+     letra (letra-luz em css/cartoes.css); folga: s entre a onda de um card e a do próximo na fila da sobrecarga;
+     lote: ms de janela em que as palavras arrancam juntas. A onda ARRANCA POR PALAVRA (timers curtos), não
+     pelo card: ligar 139 animações num quadro só custava 13 ms de estilo + 10 de pintura (trace, 2026-10-06);
+     por palavra são ~6 de cada vez. O passo de 15 ms (antes caía a 10,8 nos cards de 139 letras) deixa ~25
+     letras animando ao mesmo tempo em vez de 35: o custo por quadro é proporcional a esse número */
+  var LETRAS = { cada: 3.5, passo: 15, teto: 2600, dura: 0.38, folga: 0.45, lote: 80 };
   /* seguir a rolagem (celular): /s proporcional à distância, com piso e teto (enche inteiro em ~0,9 s, sem a cauda
      longa de uma exponencial pura) */
   var SEGUE = { k: 4, min: 0.35, max: 2.2 };
@@ -177,10 +190,18 @@
     if (!alvos.length) return false;
     try {
       c.split = new window.SplitText(alvos, { type: 'words,chars', tag: 'span', aria: 'none', ignore: '[aria-hidden="true"]', charsClass: 'carga-letra', wordsClass: 'carga-palavra' });
-    } catch (e) { c.split = { chars: [] }; return false; }
+    } catch (e) { c.split = { chars: [], words: [] }; c.ondas = []; return false; }
     for (var k = 0; k < alvos.length; k++) alvos[k].setAttribute('data-carga-split', '');
-    var n = c.split.chars.length, passo = n ? Math.min(LETRAS.passo, LETRAS.teto / n) : 0;
-    for (var i = 0; i < n; i++) c.split.chars[i].style.setProperty('--d', Math.round(i * passo) + 'ms');   /* (a vez de cada letra: onda e acender) */
+    var n = c.split.chars.length, passo = n ? Math.min(LETRAS.passo, LETRAS.teto / n) : 0, palavras = c.split.words, g = 0;
+    /* a vez de cada palavra (ms desde o arranque da onda) e, dentro dela, a de cada letra (--d, relativo à palavra) */
+    c.ondas = [];
+    for (var p = 0; p < palavras.length; p++) {
+      var ls = palavras[p].getElementsByClassName('carga-letra');
+      c.ondas.push({ el: palavras[p], t: Math.round(g * passo) });
+      for (var i = 0; i < ls.length; i++) ls[i].style.setProperty('--d', Math.round(i * passo) + 'ms');
+      g += ls.length;
+    }
+    c.onda = n * passo / 1000 + LETRAS.dura;   /* s que a onda inteira leva (a fila da sobrecarga espera por ela) */
     return true;
   }
   /* partir ANTES, com o navegador ocioso, só os cards fora da tela: o pulo de layout (kerning entre caixas) não
@@ -229,17 +250,71 @@
     }
   }
   B.on('rede:medida', function () { var cs = document.querySelectorAll('.tem-carga'); for (var i = 0; i < cs.length; i++) if (cs[i]._carga) cs[i]._carga.dxW = 0; });
-  /* a onda de luz pelas letras do card (reinicia alternando -a/-b, sem ler layout) */
+  /* a onda de luz pelas letras do card (reinicia alternando -a/-b, sem ler layout); devolve quanto ela dura (s) */
   function letras(card, forcar) {
-    if (B.reduced || reduz.matches || !window.SplitText) return;
+    if (B.reduced || reduz.matches || !window.SplitText) return 0;
     var c = card._carga, agora = performance.now();
-    if (!c || (!forcar && agora - (c.letrasEm || -1e9) < LETRAS.cada * 1000)) return;
+    if (!c || (!forcar && agora - (c.letrasEm || -1e9) < LETRAS.cada * 1000)) return 0;
     c.letrasEm = agora;
-    if (!partir(card)) return;
+    if (!partir(card) || !c.ondas || !c.ondas.length) return 0;
     card.classList.remove('is-acesas');   /* (um card aceso antes de a estação ligar: agora é dela, a onda) */
-    var a = card.classList.contains('is-letras-a');
-    card.classList.remove(a ? 'is-letras-a' : 'is-letras-b');
-    card.classList.add(a ? 'is-letras-b' : 'is-letras-a');
+    pararOnda(c);
+    /* cada palavra arranca na sua vez (alternando -a/-b: a animação reinicia sem ler layout), em lotes de LETRAS.lote ms */
+    c.ondaLado = !c.ondaLado;
+    var liga = c.ondaLado ? 'is-luz-a' : 'is-luz-b', desliga = c.ondaLado ? 'is-luz-b' : 'is-luz-a', lotes = {}, k;
+    for (var i = 0; i < c.ondas.length; i++) { k = Math.floor(c.ondas[i].t / LETRAS.lote) * LETRAS.lote; (lotes[k] || (lotes[k] = [])).push(c.ondas[i].el); }
+    c.ondaTimers = [];
+    for (k in lotes) c.ondaTimers.push(setTimeout(arrancar, +k, lotes[k], liga, desliga));
+    return c.onda || LETRAS.dura;
+  }
+  function arrancar(els, liga, desliga) { for (var i = 0; i < els.length; i++) { els[i].classList.remove(desliga); els[i].classList.add(liga); } }
+  function pararOnda(c) {
+    if (!c.ondaTimers) return;
+    for (var i = 0; i < c.ondaTimers.length; i++) clearTimeout(c.ondaTimers[i]);
+    c.ondaTimers = null;
+  }
+  /* A FILA da sobrecarga: por grupo (.tem-estacao), uma onda de cada vez, na ordem do HTML, dando voltas;
+     um card que sai (esfria) sai da fila sem parar a dos outros; a fila some com o último */
+  var filas = [];
+  function filaDe(card) {
+    var g = card.closest('.tem-estacao') || card;
+    for (var k = 0; k < filas.length; k++) if (filas[k].g === g) return filas[k];
+    var f = { g: g, cards: [], ultimo: null, timer: 0 };
+    filas.push(f);
+    return f;
+  }
+  function enfileirar(card) {
+    var f = filaDe(card);
+    if (f.cards.indexOf(card) >= 0) return;
+    f.cards.push(card);
+    f.cards.sort(function (a, b) { return a.compareDocumentPosition(b) & 4 ? -1 : 1; });   /* (na ordem da página) */
+    if (!f.timer) proximaOnda(f);
+  }
+  function desenfileirar(card) {
+    if (card._carga) pararOnda(card._carga);
+    var f = filaDe(card), i = f.cards.indexOf(card);
+    if (i >= 0) f.cards.splice(i, 1);
+    if (!f.cards.length) { clearTimeout(f.timer); f.timer = 0; filas.splice(filas.indexOf(f), 1); return; }
+    /* saiu o card cuja onda estava tocando: a vez passa já para o seguinte (sem esperar a onda dele acabar) */
+    if (f.ultimo === card) { clearTimeout(f.timer); f.ultimo = f.cards[i > 0 ? i - 1 : f.cards.length - 1]; proximaOnda(f); }
+  }
+  /* o seguinte ao último que tocou, na ordem da página (por referência, não por índice: a ordem de entrada é a
+     da ignição, por distância, e o sort ao enfileirar embaralharia um índice) */
+  function proximaOnda(f) {
+    f.timer = 0;
+    if (!f.cards.length) return;
+    var card = f.cards[(f.cards.indexOf(f.ultimo) + 1) % f.cards.length];
+    f.ultimo = card;
+    var dura = letras(card, true);
+    if (!dura) return;   /* (movimento reduzido ou sem SplitText: nada a repetir; a estação solta os cards nesse caso) */
+    f.timer = setTimeout(function () { proximaOnda(f); }, (dura + LETRAS.folga) * 1000);
+  }
+  /* parte em letras antes da hora, com o navegador ocioso (a estação acoplou: a ignição vem em ~3 s e não
+     deve pagar o SplitText de quatro cards no mesmo quadro) */
+  function preparar(card) {
+    if (B.reduced || reduz.matches || !window.SplitText || !card._carga || card._carga.split) return;
+    var ocioso = window.requestIdleCallback || function (fn) { return setTimeout(fn, 100); };
+    ocioso(function () { partir(card); }, { timeout: 800 });
   }
   /* ---------- a transição até a sobrecarga (js/estacao.js) ---------- */
   /* PRESSÃO: a estação enchendo (v de 0 a 1) empurra a carga por baixo */
@@ -336,7 +411,7 @@
     /* (já pedida; ou já solta e sem nada a esfriar) */
     if (sim ? c.pediu : !c.pediu && (c.rampa || !c.piso)) return;
     c.pediu = sim;
-    clearInterval(c.relogio);
+    desenfileirar(card);
     card.classList.remove('is-pressao');
     if (sim) {
       card.classList.remove('is-esfria');
@@ -359,10 +434,9 @@
     definir(card, c.base);
     c.txt.nodeValue = 'MAX';
     varrer(card);
-    letras(card, true);
-    c.relogio = setInterval(function () { letras(card, true); }, LETRAS.sobre * 1000);
+    enfileirar(card);   /* (a onda de letras: na vez dele, na fila do grupo) */
   }
-  B.carga = { montar: montar, definir: definir, seguir: seguir, sobrecarga: sobrecarga, pressao: pressao };
+  B.carga = { montar: montar, definir: definir, seguir: seguir, sobrecarga: sobrecarga, pressao: pressao, preparar: preparar };
 
   /* ---------- desktop: o cursor ---------- */
   var desktop = window.matchMedia('(min-width: 721px) and (hover: hover) and (pointer: fine)');

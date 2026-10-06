@@ -25,9 +25,6 @@
      celular (medido; já existia na V4.9). Rede: se o pagina.js não montar o
      menu até o load, a classe sai e os links voltam a aparecer em linha. */
   html.classList.add('tem-menu');
-  /* comparação da borda dos cartões (css/cartoes.css): ?borda=b ou ?borda=antes */
-  var borda = /[?&]borda=(b|antes)\b/.exec(location.search);
-  if (borda) html.classList.add('borda-' + borda[1]);
   window.addEventListener('load', function () {
     var botao = document.querySelector('.nav__toggle');
     if (!botao || botao.hidden) html.classList.remove('tem-menu');
