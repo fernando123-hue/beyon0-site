@@ -1384,3 +1384,5 @@ peças agora no mesmo relógio das linhas, linhas de um fio só (sem ecos empilh
 
 **Reinado de 30 s** (dono, 2026-10-06: "quero que o ouro dure 30 segundos"): `T.reinado` 12 → 30 em `js/ouro.js`.
 O evento inteiro passa a durar ~35,6 s (carga 1,8 + ignição 1,6 + reinado 30 + resfriamento 2,2).
+**Espera de 30 s entre eventos** (dono, 2026-10-06): `T.minimo` 60 → 30. Conta do fim de um evento ao começo do
+próximo; o automático segue uma vez por visita (só os gatilhos conquistados repetem).

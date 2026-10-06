@@ -29,7 +29,7 @@
    cards de um grupo de estação cheios na pilha (celular); segurar o núcleo
    1,3 s ou o cursor parado no miolo 2,5 s (ouvido no hero: .nucleo não recebe
    eventos); sozinho, uma vez por visita, aos 42 s de atenção somados entre
-   as páginas. Intervalo mínimo de 60 s. Movimento reduzido: não existe;
+   as páginas. Intervalo mínimo de 30 s entre o fim de um e o próximo. Movimento reduzido: não existe;
    ligado no meio, apaga na hora. API: B.ouro.acender(y?) / .k / .h / .carga /
    .estado; evento 'ouro' { fase, y }.
    ========================================================================== */
@@ -41,7 +41,7 @@
   if (B.reduced || reduz.matches || !document.body) return;
   /* s por ato; intervalo mínimo; o sozinho (s de atenção) e o que conta como atenção; segurar; mira; a volta da
      onda numa estação em sobrecarga; quanto a leitura fica no reinado */
-  var T = { carga: 1.8, ignicao: 1.6, reinado: 30, esfria: 2.2, minimo: 60, auto: 42, atencao: 15, segura: 1.3, mira: 2.5, volta: 10, leitura: 3.2 };
+  var T = { carga: 1.8, ignicao: 1.6, reinado: 30, esfria: 2.2, minimo: 30, auto: 42, atencao: 15, segura: 1.3, mira: 2.5, volta: 10, leitura: 3.2 };
   var ALCANCE = 1.15;   /* telas que a linha percorre da origem (a vez de cada peça usa a mesma conta) */
   /* a vez de cada peça corre no MESMO relógio das linhas (t, no laço): por timers de parede, num aparelho lento ou
      com a aba oculta as peças acendiam antes de a linha chegar */
