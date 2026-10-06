@@ -48,14 +48,14 @@
   var ATUAL = { alfa: 0.42, rotulo: 0.5, canto: 12, recuo: 20 };   /* px da cantoneira e do recuo dela */
   var TRACEJADO = [2, 6], SEM_TRACO = [];   /* (sem alocar por quadro) */
   var FONTE = '400 10px "JetBrains Mono", ui-monospace, monospace';
-  var FONTE_RUMO = '500 10px "JetBrains Mono", ui-monospace, monospace';
+  var FONTE_RUMO = '500 11px "JetBrains Mono", ui-monospace, monospace';   /* (a mesma de .rumo-leitura: mede o que o texto vai ocupar) */
   /* a LEITURA DO RUMO (dono, 2026-10-05: "com o cursor em cima de cada opção aparecia uma frase, resumindo em
      poucas palavras o que estava escrito ali; era um charme a mais"): a frase-resumo da opção (data-rotulo no
      HTML) na margem, ao lado da régua, em até RUMO.linhas linhas; se a margem não comporta (notebook de 1280 px),
-     em pé ao longo da régua, como o nome da seção. Ela se escreve em RUMO.digita letras por segundo. Antes era o
+     em pé ao longo da régua, como o nome da seção. Ela se escreve em degraus (css/cartoes.css). Antes era o
      título cortado em 22 letras e só aparecia se coubesse inteiro numa linha: nenhuma opção em 1280 px, um terço
      em 1440 px. px: entre linhas, folga da régua, margem mínima até a borda da tela */
-  var RUMO = { linhas: 2, entre: 13, folga: 12, borda: 8, digita: 80, emPe: 14 };
+  var RUMO = { linhas: 3, entre: 13, folga: 12, borda: 8, emPe: 14 };
 
   function limitar(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
   function saida(k) { k = limitar(k); return 1 - (1 - k) * (1 - k) * (1 - k); }
@@ -436,41 +436,63 @@
     }
     /* a marca de rumo na régua: a seta para a opção e o nome dela na margem */
     function desenharRumo() {
-      if (rumo.f < 0.02) return;
+      if (rumo.f < 0.02) { mostrarLeitura(null); return; }
       var x = trilhoX(rumo.lado), y = Math.round(telaY(rumo.y)) + 0.5, s = 6, dir = -rumo.lado, f = rumo.f;
-      ctx.lineWidth = 1;
-      ctx.strokeStyle = cor(C.AC2, 0.85 * f);
-      ctx.beginPath(); ctx.moveTo(x, y - 14); ctx.lineTo(x, y + 14); ctx.stroke();
-      ctx.fillStyle = cor(C.AC2, 0.95 * f);
-      ctx.beginPath();
-      ctx.moveTo(x + dir * (s * 1.6 + 3), y); ctx.lineTo(x + dir * 3, y - s * 0.7); ctx.lineTo(x + dir * 3, y + s * 0.7);
-      ctx.closePath(); ctx.fill();
-      if (!rumo.rotulo) return;
-      B.fonte(ctx, FONTE_RUMO); ctx.textBaseline = 'middle';
+      /* a marca na régua (só onde há régua: no hero ela ainda não começou) */
+      if (y > G.topo) {
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = cor(C.AC2, 0.85 * f);
+        ctx.beginPath(); ctx.moveTo(x, y - 14); ctx.lineTo(x, y + 14); ctx.stroke();
+        ctx.fillStyle = cor(C.AC2, 0.95 * f);
+        ctx.beginPath();
+        ctx.moveTo(x + dir * (s * 1.6 + 3), y); ctx.lineTo(x + dir * 3, y - s * 0.7); ctx.lineTo(x + dir * 3, y + s * 0.7);
+        ctx.closePath(); ctx.fill();
+      }
+      if (!rumo.rotulo) { mostrarLeitura(null); return; }
+      B.fonte(ctx, FONTE_RUMO);
       var esp = (rumo.lado < 0 ? x : G.W - x) - RUMO.folga - RUMO.borda;
       /* a seta de texto aponta para a opção, como antes: '← FRASE' à direita, 'FRASE →' à esquerda (apontar) */
       var q = quebrarRumo(rumo.frase, esp);
-      var n = Math.floor((((tempo - rumo.desde) % 3600) + 3600) % 3600 * RUMO.digita);   /* letras já escritas (o tempo dá a volta em 1 h) */
-      if (n <= 0) return;
-      ctx.fillStyle = cor(C.AC2, 0.9 * f);
-      ctx.textAlign = 'left';
-      if (q.linhas) {
-        /* ao lado da régua: cada linha encostada nela (a seta aponta para a opção), escrevendo para fora */
-        var y0 = y - (q.linhas.length - 1) * RUMO.entre / 2;
-        for (var i = 0; i < q.linhas.length && n > 0; i++) {
-          var ln = q.linhas[i], lx = rumo.lado < 0 ? x - RUMO.folga - q.larg[i] : x + RUMO.folga;
-          ctx.fillText(n >= ln.length ? ln : ln.slice(0, n), lx, Math.round(y0 + i * RUMO.entre) + 0.5);
-          n -= ln.length + 1;
-        }
-        return;
+      mostrarLeitura(q, x, y, dir, f);
+    }
+    /* a frase é TEXTO de verdade acima das seções (.rumo-leitura, css/cartoes.css), não pintura no canvas do fundo:
+       atrás das faixas de fundo cinza (60% opacas) ela saía apagada (dono: "menos ofuscadas pelo fundo"). Por
+       quadro só o transform e a opacidade, e só quando mudam; o texto troca quando a frase ou o modo mudam, e
+       aí a escrita recomeça (a animação em degraus, alternando -a/-b para reiniciar sem ler layout) */
+    var leitura = null, lido = { chave: '', tf: '', op: -1, ab: false };
+    function mostrarLeitura(q, x, y, dir, f) {
+      if (!q) { if (leitura && lido.op !== 0) { leitura.style.opacity = '0'; lido.op = 0; } return; }
+      if (!leitura) {
+        leitura = document.createElement('div');
+        leitura.className = 'rumo-leitura';
+        leitura.setAttribute('aria-hidden', 'true');
+        document.body.appendChild(leitura);
       }
-      /* em pé ao longo da régua, por fora dela, centrada na altura da opção e dentro da tela */
-      /* (sem a seta de texto: girada, ela apontaria para cima ou para baixo; o triângulo na régua já aponta) */
-      var vt = rumo.rotulo, lw = B.largura(ctx, vt), yc = Math.max(G.topo + lw / 2 + RUMO.borda, Math.min(G.H - lw / 2 - RUMO.borda, y));
-      ctx.save();
-      ctx.translate(x - dir * RUMO.emPe, yc); ctx.rotate(Math.PI / 2);
-      ctx.fillText(n >= vt.length ? vt : vt.slice(0, n), -lw / 2, 0);
-      ctx.restore(); ctx.__fonte = null;
+      var emPe = !q.linhas, txt = emPe ? rumo.rotulo : q.linhas.join('\n');
+      var chave = (emPe ? 'v|' : (rumo.lado < 0 ? 'e|' : 'd|')) + txt + '|' + rumo.desde;
+      var w = emPe ? B.largura(ctx, txt) : Math.max.apply(null, q.larg), h = (emPe ? 1 : q.linhas.length) * RUMO.entre;
+      if (chave !== lido.chave) {
+        lido.chave = chave;
+        leitura.textContent = txt;
+        leitura.style.width = Math.ceil(w + 2) + 'px';
+        leitura.classList.toggle('is-esquerda', !emPe && rumo.lado < 0);
+        lido.ab = !lido.ab;
+        leitura.classList.remove(lido.ab ? 'is-escreve-b' : 'is-escreve-a');
+        leitura.classList.add(lido.ab ? 'is-escreve-a' : 'is-escreve-b');
+      }
+      var tx, ty, gira = '';
+      if (emPe) {
+        /* em pé ao longo da régua, por fora dela, centrada na altura da opção e dentro da tela */
+        var yc = Math.max(G.topo + w / 2 + RUMO.borda, Math.min(G.H - w / 2 - RUMO.borda, y));
+        if (y <= G.topo) yc = Math.max(w / 2 + RUMO.borda + 72, Math.min(G.H - w / 2 - RUMO.borda, y));   /* (no hero: abaixo da barra do topo) */
+        tx = x - dir * RUMO.emPe - w / 2; ty = yc - h / 2; gira = ' rotate(90deg)';
+      } else {
+        tx = rumo.lado < 0 ? x - RUMO.folga - w : x + RUMO.folga; ty = y - h / 2;
+      }
+      var tf = 'translate3d(' + Math.round(tx) + 'px,' + Math.round(ty) + 'px,0)' + gira;
+      if (tf !== lido.tf) { leitura.style.transform = tf; lido.tf = tf; }
+      var op = Math.round(f * 50) / 50;
+      if (op !== lido.op) { leitura.style.opacity = String(op); lido.op = op; }
     }
     /* a frase quebrada para caber em `esp` px em até RUMO.linhas linhas, guardada até mudar a frase ou o espaço
        (medir e quebrar a cada quadro custava à toa); null em linhas = não cabe: vai em pé */
@@ -493,12 +515,12 @@
 
     function desenhar(resp, vivo) {
       desenhados = 0;
-      if (G.xD - G.xE < 200) return;
+      if (G.xD - G.xE < 200) { mostrarLeitura(null); return; }
       desenharReguas(resp);
       desenharHorizontes(resp);
       desenharLigacoes(resp);
       desenharAtual(resp);
-      if (!vivo) return;
+      if (!vivo) { mostrarLeitura(null); return; }
       desenharFluxo();
       desenharPulsos();
       desenharTravessias();

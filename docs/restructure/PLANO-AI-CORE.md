@@ -1188,3 +1188,23 @@ escreve em 80 letras/s. Cards de Garantias (laudo__row) entram como opção.
 Otimização: a quebra é guardada (sem medir por quadro), a frase com a seta é
 montada uma vez no hover, refeita quando a fonte carrega. Revisão de código ok;
 verificador 12/12.
+
+## 31. Sem fumaça no neon; a frase da régua nítida e também no hero (2026-10-05)
+
+Dono: "o brilho nas bordas dos cards e nas barras não pode ter essa fumaça, deixa
+o design sujo; tire completamente mantendo a essência ou substitua por algo
+melhor" e "as frases dos cards do hero falharam; em alguns lugares precisam de
+mais brilho, ofuscadas pelo fundo".
+
+**Neon a traço.** Saíram todas as sombras com desfoque da carga (cantos, borda
+22 px por fora e 26 px por dentro, pontos, barra, ponta). A borda virou um
+TUBO: o fio aceso, 1 px de fresta escura e um fio fino mais apagado, por fora e
+por dentro (box-shadow com desfoque zero). A barra: o fio de 2 px e dois
+trilhos de 1 px com fresta. A exceção ao "sem desfoque" deixa de existir.
+
+**A frase.** Era pintada no canvas do fundo, que fica ATRÁS das seções: nas
+faixas cinza (60% opacas) saía apagada. Agora é texto (.rumo-leitura) acima das
+seções, cor cheia, 11 px; posição e opacidade escritas só quando mudam; escreve-se
+em degraus (CSS). No hero a régua ainda não começa e o campo escondia a frase
+perto de texto: os cards da faixa do hero passam a mostrá-la na margem, na
+altura do card. Até 3 linhas antes de ir em pé. Verificador 12/12; acessibilidade ok.

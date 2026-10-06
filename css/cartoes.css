@@ -443,15 +443,17 @@ html.menos-movimento .estacao-cruza { display: none !important; }
 /* ---- O VISUAL DA CARGA (js/carga.js; escolha do dono, 2026-10-04: "uma
    junção da B e da D"): cantos de mira em neon que crescem e fecham a
    moldura; a borda neon acende quando ela fecha; pontos de luz correm nos
-   quatro lados; a barra de baixo em neon. O brilho difuso (box-shadow com
-   desfoque) é EXCEÇÃO pedida pelo dono para esta peça, a partir da
-   referência que ele mandou; no resto do site continua proibido. ---- */
+   quatro lados; a barra de baixo em neon. SEM FUMAÇA (dono, 2026-10-05: "o
+   brilho nas bordas e nas barras não pode ter essa fumaça, deixa o design
+   sujo"): o neon é desenhado a TRAÇO — o fio aceso, 1 px de fresta escura e
+   um segundo fio fino mais apagado, como o tubo de vidro em volta da luz —
+   com sombras de desfoque zero (nítidas). Nenhum desfoque no site. ---- */
 .carga-nos, .carga-cantos, .carga-halo, .carga-circula { display: none; }
 @media (prefers-reduced-motion: no-preference) {
   html.js:not(.menos-movimento) .tem-carga { isolation: isolate; }
   /* os cantos: dois braços cada, de 1,5 px, crescendo a partir do canto */
   html.js:not(.menos-movimento) .tem-carga > .carga-cantos { display: block; position: absolute; inset: -1px; pointer-events: none; }
-  .carga-cantos > b { position: absolute; background: var(--ac-2); box-shadow: 0 0 8px 1px rgb(var(--ac-rgb) / .75); }
+  .carga-cantos > b { position: absolute; background: var(--ac-2); }
   .carga-cantos > b:nth-child(odd) { height: 1.5px; width: 50%; transform: scaleX(0); }
   .carga-cantos > b:nth-child(even) { width: 1.5px; height: 50%; transform: scaleY(0); }
   .carga-cantos > b:nth-child(1) { top: 0; left: 0; transform-origin: left; } .carga-cantos > b:nth-child(2) { top: 0; left: 0; transform-origin: top; }
@@ -461,7 +463,7 @@ html.menos-movimento .estacao-cruza { display: none !important; }
   .is-carregado > .carga-cantos > b { background: var(--t1); transition: background .6s var(--ease); }
   /* a borda neon */
   html.js:not(.menos-movimento) .tem-carga > .carga-halo { display: block; position: absolute; inset: -1px; border: 1px solid var(--ac-2); border-radius: inherit; pointer-events: none; opacity: 0;
-    box-shadow: 0 0 22px 2px rgb(var(--ac-rgb) / .28), inset 0 0 26px rgb(var(--ac-rgb) / .07); }
+    box-shadow: 0 0 0 1px var(--bg), 0 0 0 2px rgb(var(--ac-rgb) / .38), inset 0 0 0 1px var(--bg), inset 0 0 0 2px rgb(var(--ac-rgb) / .16); }   /* (o tubo: fresta e fio por fora e por dentro, nítidos) */
   /* os pontos de luz que correm nos quatro lados (carregando e cheio) */
   html.js:not(.menos-movimento) .tem-carga > .carga-nos { display: block; position: absolute; inset: -1px; pointer-events: none; opacity: 0; transition: opacity .4s var(--ease); }
   .is-carregando > .carga-nos, .is-carregado > .carga-nos { opacity: 1; }
@@ -471,7 +473,7 @@ html.menos-movimento .estacao-cruza { display: none !important; }
      cheio e em sobrecarga. Antes animava sempre, até invisível, e em
      unidades de contêiner (cqw), que não vão para o compositor: ~12 mil recálculos de estilo numa rolagem. */
   .carga-nos > b { position: absolute; opacity: 0; }
-  .carga-nos > b::before { content: ""; position: absolute; background: var(--ac-2); box-shadow: 0 0 8px 1px rgb(var(--ac-rgb) / .9); }
+  .carga-nos > b::before { content: ""; position: absolute; background: var(--ac-2); }
   .carga-nos > b:nth-child(1), .carga-nos > b:nth-child(3) { left: var(--raio); right: var(--raio); height: 1.5px; transform: translateX(-100%); }
   .carga-nos > b:nth-child(1) { top: 0; } .carga-nos > b:nth-child(3) { bottom: 0; }
   .carga-nos > b:nth-child(2), .carga-nos > b:nth-child(4) { top: var(--raio); bottom: var(--raio); width: 1.5px; transform: translateY(-100%); }
@@ -489,10 +491,11 @@ html.menos-movimento .estacao-cruza { display: none !important; }
   @keyframes no-y { from { transform: translateY(-100%); opacity: 1; } to { transform: translateY(18px); opacity: 1; } }
   @keyframes no-y-volta { from { transform: translateY(18px); opacity: 1; } to { transform: translateY(-100%); opacity: 1; } }
   /* a barra de baixo em neon */
-  .carga__tubo { background: var(--ac); box-shadow: 0 0 8px 1px rgb(var(--ac-rgb) / .75); top: 5px; height: 2px; }
+  /* a barra: o fio de 2 px e dois trilhos de 1 px, um de cada lado, com fresta (o neon sem névoa) */
+  .carga__tubo { background: var(--ac); box-shadow: 0 -3px 0 -.5px rgb(var(--ac-rgb) / .4), 0 3px 0 -.5px rgb(var(--ac-rgb) / .4); top: 5px; height: 2px; }
   .carga__tubo::before, .carga__tubo::after { display: none; }
   .carga__trilho { overflow: visible; clip-path: inset(-10px 0 -10px 0); }
-  .carga__ponta { box-shadow: 0 0 6px 1px rgb(var(--ac-rgb) / .9); }
+  .carga__ponta { box-shadow: none; }
 }
 
 /* ---- AS LETRAS e a SOBRECARGA (js/carga.js, js/estacao.js) ----
@@ -572,3 +575,16 @@ html.menos-movimento .estacao-cruza { display: none !important; }
   @keyframes circula-x { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(100%, 0, 0); } }
   @keyframes circula-y { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(0, 100%, 0); } }
 }
+
+/* ---- A LEITURA DO RUMO (js/trilho.js): a frase-resumo da opção sob o cursor, na margem ao lado da régua (ou em
+   pé ao longo dela). Texto acima das seções (atrás das faixas cinza ela saía apagada); posição e opacidade pelo
+   JS só quando mudam. Escreve-se em degraus, como num terminal. Nítida: sem sombra, sem desfoque. ---- */
+.rumo-leitura { position: fixed; left: 0; top: 0; z-index: 44; pointer-events: none; opacity: 0; font: 500 11px/13px "JetBrains Mono", ui-monospace, monospace; letter-spacing: 0; color: var(--ac-2); white-space: pre; transform-origin: 50% 50%; }
+.rumo-leitura.is-esquerda { text-align: right; }
+@media (prefers-reduced-motion: no-preference) {
+  html.js:not(.menos-movimento) .rumo-leitura.is-escreve-a { animation: rumo-escreve-a .36s steps(18, end) both; }
+  html.js:not(.menos-movimento) .rumo-leitura.is-escreve-b { animation: rumo-escreve-b .36s steps(18, end) both; }
+}
+@keyframes rumo-escreve-a { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes rumo-escreve-b { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@media (max-width: 860px), (pointer: coarse) { .rumo-leitura { display: none; } }

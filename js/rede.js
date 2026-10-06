@@ -476,7 +476,14 @@
     if (it && !parado) it.ativo = 1;   /* reduzido: nada aceso que não apagaria */
     var fu = fundoEm(cx, cy);
     var ro = parado || fu.dentroDoVao(cx, cy) ? null : fu.rota(cx, cy, { fica: fica, vida: 1.4, cada: 0.875 });
-    if (!parado) { apontarNada(); fu.apontar(cx, cy, rotuloDe(el)); }
+    if (!parado) {
+      apontarNada();
+      /* no hero quem marca é o campo, mas a frase vai para a margem pela régua, como no resto da página (o campo a
+         escondia sempre que havia texto por perto: os cards da faixa do hero ficavam sem frase) */
+      var noHero = fu === campo && trilho;
+      fu.apontar(cx, cy, noHero ? '' : rotuloDe(el));
+      if (noHero) trilho.apontar(cx, cy, rotuloDe(el));
+    }
     rotaDona = fu;
     B.emit('opcao', { el: el, x: cx, y: cy, w: r.width, h: r.height, entrou: true });
     return ro;
