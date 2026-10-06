@@ -17,7 +17,7 @@
       incandescente; cada peça que ela cruza fica branca e esfria até o ouro
       (.is-brasa: os tokens dourados na própria peça + a animação do branco);
       os canvases misturam ciano→ouro→branco (B.tom, k e h); "IGNIÇÃO".
-   4. REINADO (12 s): ouro incandescente — a prata e o metal ficam frios
+   4. REINADO (30 s): ouro incandescente — a prata e o metal ficam frios
       (estrutura fria, energia quente); nos canvases e no reator o ouro
       tremula entre o ouro e o branco, como metal em brasa; "NÚCLEO EM OURO".
    5. RESFRIAMENTO (2,2 s): as linhas voltam das bordas recolhendo o ouro
@@ -41,7 +41,7 @@
   if (B.reduced || reduz.matches || !document.body) return;
   /* s por ato; intervalo mínimo; o sozinho (s de atenção) e o que conta como atenção; segurar; mira; a volta da
      onda numa estação em sobrecarga; quanto a leitura fica no reinado */
-  var T = { carga: 1.8, ignicao: 1.6, reinado: 12, esfria: 2.2, minimo: 60, auto: 42, atencao: 15, segura: 1.3, mira: 2.5, volta: 10, leitura: 3.2 };
+  var T = { carga: 1.8, ignicao: 1.6, reinado: 30, esfria: 2.2, minimo: 60, auto: 42, atencao: 15, segura: 1.3, mira: 2.5, volta: 10, leitura: 3.2 };
   var ALCANCE = 1.15;   /* telas que a linha percorre da origem (a vez de cada peça usa a mesma conta) */
   /* a vez de cada peça corre no MESMO relógio das linhas (t, no laço): por timers de parede, num aparelho lento ou
      com a aba oculta as peças acendiam antes de a linha chegar */

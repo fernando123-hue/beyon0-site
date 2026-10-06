@@ -1381,3 +1381,6 @@ CPU 4× 10,2 % contra 8,6 %, e um tranco de um quadro (40 ms a 1×, 160–300 ms
 no início da carga e do reinado, quando nada ainda se move. Revisão por agente: estilo preso pelo `both` (o
 resfriamento ficava seco), botão da barra do celular ilegível no clarão, peças fora da lista sem rampa, a vez das
 peças agora no mesmo relógio das linhas, linhas de um fio só (sem ecos empilhados). Fotos: `evento-*.png`.
+
+**Reinado de 30 s** (dono, 2026-10-06: "quero que o ouro dure 30 segundos"): `T.reinado` 12 → 30 em `js/ouro.js`.
+O evento inteiro passa a durar ~35,6 s (carga 1,8 + ignição 1,6 + reinado 30 + resfriamento 2,2).
