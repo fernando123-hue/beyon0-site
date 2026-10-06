@@ -372,6 +372,11 @@ body.is-lead-open { overflow: hidden; }
 .lead-modal__submit { width: 100%; margin-top: .2rem; }
 .lead-modal__fine { text-align: center; margin-top: .6rem; }
 .lead-modal__direto { text-align: center; margin-top: .9rem; font-size: var(--fs-m); }
+/* a confirmação com o plano B (js/lead-form.js) */
+.lead-modal__pronto { display: flex; flex-direction: column; gap: .8rem; margin-top: 1.2rem; }
+.lead-modal__pronto[hidden] { display: none; }
+.lead-modal__ok { color: var(--t1); font-size: 1.05rem; }
+.lead-modal__copiar { width: 100%; justify-content: center; }
 .lead-modal__direto a { color: var(--t2); text-decoration: underline; text-underline-offset: 3px; }
 @media (min-width: 621px) {
   .lead-modal { align-items: center; padding: var(--pad); }

@@ -81,6 +81,8 @@
     fechando = setTimeout(function () {
       modal.hidden = true;
       form.reset();
+      form.hidden = false;
+      if (pronto) pronto.hidden = true;
       if (campoTipoOutroWrap) campoTipoOutroWrap.hidden = true;
       if (campoTipoOutro) campoTipoOutro.required = false;
       /* o gatilho pode ter sido o link do menu do celular, que já fechou
@@ -146,10 +148,41 @@
       assunto += '. O desafio que eu quero resolver: ' + desafio;
     }
 
-    window.open(B.linkWA(assunto), '_blank', 'noopener,noreferrer');
-    form.reset();
-    if (campoTipoOutroWrap) campoTipoOutroWrap.hidden = true;
-    if (campoTipoOutro) campoTipoOutro.required = false;
-    fechar();
+    var link = B.linkWA(assunto);
+    window.open(link, '_blank', 'noopener,noreferrer');
+    if (B.emit) B.emit('contato', { origem: 'formulario' });   /* (js/medicao.js) */
+    /* não fecha: com noopener não dá para saber se o WhatsApp abriu (navegador do Instagram/LinkedIn, computador
+       sem WhatsApp Web). Fica a confirmação com o plano B */
+    mostrarPronto(link, decodeURIComponent(link.split('text=')[1] || ''));
   });
+
+  /* ---------- a confirmação, com o plano B ---------- */
+  var pronto = null;
+  function mostrarPronto(link, mensagem) {
+    if (!pronto) {
+      pronto = document.createElement('div');
+      pronto.className = 'lead-modal__pronto';
+      var ok = document.createElement('p'); ok.className = 'lead-modal__ok'; ok.setAttribute('role', 'status');
+      ok.textContent = 'Abrimos o WhatsApp com a sua mensagem. É só enviar por lá.';
+      var abrirDeNovo = document.createElement('a'); abrirDeNovo.className = 'btn btn--primary lead-modal__submit'; abrirDeNovo.target = '_blank'; abrirDeNovo.rel = 'noopener noreferrer';
+      abrirDeNovo.textContent = 'Não abriu? Abrir de novo';
+      var copiar = document.createElement('button'); copiar.type = 'button'; copiar.className = 'btn btn--ghost lead-modal__copiar';
+      copiar.textContent = 'Copiar a mensagem';
+      copiar.addEventListener('click', function () {
+        var feito = function () { copiar.textContent = 'Mensagem copiada'; };
+        var falhou = function () { copiar.textContent = 'Não deu para copiar: use o número abaixo'; };
+        try { navigator.clipboard.writeText(pronto.mensagem).then(feito, falhou); } catch (e) { falhou(); }
+      });
+      var tel = document.createElement('p'); tel.className = 'fine lead-modal__fine';
+      tel.textContent = 'Ou chame no WhatsApp (' + (window.BEYON_TEL || '').replace(/^55(\d{2})(\d{5})(\d{4})$/, '$1) $2-$3');
+      pronto.appendChild(ok); pronto.appendChild(abrirDeNovo); pronto.appendChild(copiar); pronto.appendChild(tel);
+      form.parentNode.insertBefore(pronto, form.nextSibling);
+      pronto.abrir = abrirDeNovo; pronto.copiar = copiar;
+    }
+    pronto.mensagem = mensagem;
+    pronto.abrir.href = link;
+    pronto.copiar.textContent = 'Copiar a mensagem';
+    form.hidden = true; pronto.hidden = false;
+    pronto.abrir.focus();
+  }
 })();

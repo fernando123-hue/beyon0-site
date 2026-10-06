@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Automação &amp; IA para associações, sindicatos e federações — Beyon Zero</title>
+  <title>Automação e IA para Associações e Sindicatos | Beyon Zero</title>
   <meta name="description" content="Diagnóstico grátis, sem comissão de ferramenta. Descubro onde a IA paga por si na sua associação, sindicato, federação ou cooperativa, e construo só isso." />
 
   <!-- URLs absolutas de propósito: crawlers de rede social não resolvem
@@ -30,20 +30,21 @@
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
 
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.googletagmanager.com https://www.googleadservices.com https://www.google.com; style-src 'self'; font-src 'self'; img-src 'self' data: https://*.google-analytics.com https://*.googletagmanager.com https://*.g.doubleclick.net https://www.google.com https://www.google.com.br https://www.googleadservices.com; connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.g.doubleclick.net https://www.google.com https://www.google.com.br https://www.googleadservices.com https://pagead2.googlesyndication.com; frame-src https://td.doubleclick.net; object-src 'none'; base-uri 'self'; form-action 'none'" />
 
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "ProfessionalService",
+    "@id": "https://beyon0-site.vercel.app/#negocio",
     "name": "Beyon Zero",
-    "url": "https://beyon0-site.vercel.app/automacao",
+    "url": "https://beyon0-site.vercel.app/",
     "image": "https://beyon0-site.vercel.app/assets/og-cover.jpg",
     "description": "Inteligência artificial aplicada: agentes, automação e sistemas que resolvem problemas reais de operação e geram valor econômico, com foco em associações, sindicatos, federações e cooperativas.",
     "telephone": "+55-21-97716-7944",
     "areaServed": { "@type": "Country", "name": "Brasil" },
     "knowsAbout": ["Inteligência artificial aplicada", "Automação de processos", "Associações de classe", "Sindicatos", "Federações", "Cooperativas"],
-    "address": { "@type": "PostalAddress", "addressRegion": "RJ", "addressCountry": "BR" },
+    "address": { "@type": "PostalAddress", "addressLocality": "Rio de Janeiro", "addressRegion": "RJ", "addressCountry": "BR" },
     "knowsLanguage": "pt-BR",
     "hasOfferCatalog": {
       "@type": "OfferCatalog",
@@ -68,6 +69,11 @@
     "@context": "https://schema.org",
     "@type": "FAQPage",
     "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "A IA vai substituir funcionários da entidade?",
+        "acceptedAnswer": { "@type": "Answer", "text": "O que eu construo tira tarefa repetitiva, não decide sobre pessoas. A equipe passa a ter tempo para o que exige gente: atender o associado, resolver exceção, decidir. O que fazer com esse tempo é decisão da diretoria, e no diagnóstico isso fica explícito." }
+      },
       {
         "@type": "Question",
         "name": "IA serve para a minha entidade?",
@@ -163,10 +169,10 @@
          instrumento (lugar reservado ao AI Core futuro). -->
     <section class="hero hero--longo" id="hero" aria-labelledby="hero-titulo" data-fundo="circuito">
       <div class="feixe" aria-hidden="true"><span class="feixe__linha"><span class="feixe__tag" data-feixe-tag></span></span></div>
-      <p class="hero__status"><span class="dot" aria-hidden="true"></span><span>Para entidades e associações</span></p>
+      <p class="hero__status"><span class="dot" aria-hidden="true"></span><span>Para associações, sindicatos, federações e cooperativas</span></p>
         <h1 class="hero__title" id="hero-titulo">Toda entidade perde dinheiro num&nbsp;ponto que ninguém está <em>auditando</em>.</h1>
         <div class="hero__main">
-          <div class="hero__cota" aria-hidden="true" data-metrica-caixa><i class="hero__cota-tick"></i><i class="hero__cota-linha"></i><i class="hero__cota-tick"></i><span class="hero__cota-rot">1ª pintura em <b data-metrica="fcp">—</b>&#8239;s</span></div>
+          <div class="hero__cota" aria-hidden="true" data-metrica-caixa><i class="hero__cota-tick"></i><i class="hero__cota-linha"></i><i class="hero__cota-tick"></i><span class="hero__cota-rot">na sua tela em <b data-metrica="fcp">—</b>&#8239;s</span></div>
         <p class="hero__sub">Eu encontro esse ponto. Se a IA gerar receita, cortar custo ou devolver capacidade ali, eu construo o sistema. Se não gerar, eu digo.</p>
         <div class="hero__actions">
           <a data-rotulo="Diagnóstico grátis" class="btn btn--primary" data-wa data-lead-gate href="https://wa.me/5521977167944" target="_blank" rel="noopener">Agendar diagnóstico <span aria-hidden="true" data-seta="direita">→</span></a>
@@ -202,10 +208,10 @@
       <!-- LAUDO — três linhas, não três caixas: uma dor de operação é item de
            diagnóstico, não produto em vitrine. -->
       <div class="laudo pilha reveal">
-        <article data-rotulo="Horas de gente em repetição" class="laudo__row">
+        <article data-rotulo="Tempo da equipe em repetição" class="laudo__row">
           <span class="laudo__n" aria-hidden="true">01</span>
-          <h3>Trabalho que não exige gente</h3>
-          <p>Horas de gente cara em tarefa repetitiva. Vira folha de pagamento sem virar resultado, e ocupa justamente quem deveria estar decidindo.</p>
+          <h3>A equipe presa no repetitivo</h3>
+          <p>Horas da equipe respondendo a mesma pergunta e copiando dado de um lugar para outro, enquanto o associado espera e quem decide fica sem tempo para decidir.</p>
         </article>
         <article data-rotulo="Contato sem resposta" class="laudo__row">
           <span class="laudo__n" aria-hidden="true">02</span>
@@ -231,10 +237,10 @@
              UMA estrutura. Cada célula é um link: o valor de data-wa vai na
              mensagem do WhatsApp (js/pagina.js). -->
         <div class="malha reveal tem-estacao tem-estacao--3">
-          <a data-rotulo="Mais funcionário que chatbot" class="celula" data-wa="quero um agente de IA que execute tarefas na minha entidade" href="https://wa.me/5521977167944" aria-labelledby="celula-1-t celula-1-l" aria-describedby="celula-1-p">
+          <a data-rotulo="Tira o repetitivo da equipe" class="celula" data-wa="quero entender como um agente de IA ajudaria a equipe da minha entidade" href="https://wa.me/5521977167944" aria-labelledby="celula-1-t celula-1-l" aria-describedby="celula-1-p">
             <span class="celula__n" aria-hidden="true">01</span>
             <h3 id="celula-1-t">Agentes que executam</h3>
-            <p id="celula-1-p">Recebe uma tarefa, cumpre com as ferramentas certas e chama você só quando precisa de uma decisão. Mais funcionário do que chatbot.</p>
+            <p id="celula-1-p">Recebe uma tarefa, cumpre com as ferramentas certas e chama a equipe só quando precisa de uma decisão. Um assistente que tira o repetitivo de quem atende.</p>
             <span class="celula__link" id="celula-1-l">Conversar <span aria-hidden="true" data-seta="direita">→</span></span>
           </a>
           <a data-rotulo="Só o que precisa de gente" class="celula" data-wa="quero escalar meu atendimento com IA" href="https://wa.me/5521977167944" aria-labelledby="celula-2-t celula-2-l" aria-describedby="celula-2-p">
@@ -343,6 +349,10 @@
            PALAVRA com o FAQPage JSON-LD no <head>. `name="faq"` torna
            exclusivo: abrir um fecha os demais. -->
       <div class="faq-list reveal">
+        <details data-rotulo="Tira tarefa, não decide sobre pessoas" class="qa" name="faq">
+          <summary><span class="qa__q">A IA vai substituir funcionários da entidade?</span><span class="qa__mark" aria-hidden="true"></span></summary>
+          <div class="qa__a"><p>O que eu construo tira tarefa repetitiva, não decide sobre pessoas. A equipe passa a ter tempo para o que exige gente: atender o associado, resolver exceção, decidir. O que fazer com esse tempo é decisão da diretoria, e no diagnóstico isso fica explícito.</p></div>
+        </details>
         <details data-rotulo="Se não valer, eu digo" class="qa" name="faq">
           <summary><span class="qa__q">IA serve para a minha entidade?</span><span class="qa__mark" aria-hidden="true"></span></summary>
           <div class="qa__a"><p>Só olhando pra saber. O diagnóstico existe pra isso, e se não houver ganho claro, eu digo que não vale.</p></div>
@@ -397,6 +407,7 @@
         </div>
         <p class="fine">Quem responde é humano. O diagnóstico é grátis e sem compromisso.</p>
         <p class="cta__resumo"><a data-rotulo="Uma página para a diretoria" href="/resumo">Prefere levar pra sua diretoria antes de decidir? Veja o resumo <span aria-hidden="true" data-seta="direita">→</span></a></p>
+        <p class="cta__resumo"><a data-rotulo="Mande para o grupo da diretoria" data-encaminhar="Achei isso sobre IA para a entidade, dá uma olhada antes da reunião:" href="/resumo">Encaminhar o resumo para a diretoria no WhatsApp <span aria-hidden="true" data-seta="direita">→</span></a></p>
       </div>
     </section>
   </main>
@@ -406,6 +417,7 @@
       <div class="footer__brand">
         <a href="/" aria-label="Beyon Zero — início"><span class="wordmark wordmark--lg">Beyon <b>Zero</b></span></a>
         <p>Ideias ganham forma. E o resultado se mede.</p>
+        <p class="footer__contato"><a data-wa href="https://wa.me/5521977167944">WhatsApp (21) 97716-7944</a> · Rio de Janeiro · atendo todo o Brasil</p>
       </div>
       <nav class="footer__links" aria-label="Links do rodapé">
         <p class="footer__links-title">Nesta página</p>
@@ -423,7 +435,11 @@
     </div>
     <div class="footer__base">
       <p class="footer__copy">© <span id="year">2026</span> Beyon Zero · Rio de Janeiro, RJ. Todos os direitos reservados.</p>
-      <button class="footer__motion" type="button" aria-pressed="false">Reduzir movimento</button>
+      <div class="footer__legal">
+        <a href="/privacidade">Privacidade</a>
+        <button class="footer__cookies" type="button" data-consentimento-abrir hidden>Cookies</button>
+        <button class="footer__motion" type="button" aria-pressed="false">Reduzir movimento</button>
+      </div>
     </div>
   </footer>
 
@@ -470,7 +486,7 @@
           Continuar no WhatsApp <span aria-hidden="true" data-seta="direita">→</span>
         </button>
         <p class="fine lead-modal__fine">Quem responde é humano. O diagnóstico é grátis e sem compromisso.</p>
-        <p class="lead-modal__direto"><a data-wa="quero agendar um diagnóstico" data-lead-close href="https://wa.me/5521977167944">Prefiro ir direto pro WhatsApp <span aria-hidden="true" data-seta="direita">→</span></a></p>
+        <p class="lead-modal__direto"><a data-wa="quero agendar o diagnóstico grátis. Minha entidade:" data-lead-close href="https://wa.me/5521977167944">Prefiro ir direto pro WhatsApp <span aria-hidden="true" data-seta="direita">→</span></a></p>
       </form>
     </div>
   </div>
@@ -487,6 +503,7 @@
   <script src="js/tel.js" defer></script>
   <script src="js/core.js" defer></script>
   <script src="js/pagina.js" defer></script>
+  <script src="js/medicao.js" defer></script>
   <script src="js/passagem.js" defer></script>
   <script src="js/lead-form.js" defer></script>
   <script src="js/anima.js" defer></script>

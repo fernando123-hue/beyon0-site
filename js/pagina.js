@@ -15,8 +15,18 @@
   var FONE = window.BEYON_TEL || '5521977167944';
   var PADRAO = document.body.getAttribute('data-wa-padrao') || 'quero entender como a Beyon Zero pode ajudar meu negócio';
   function linkWA(assunto) {
-    var txt = 'Oi! Vim pelo site da Beyon Zero e ' + (assunto || PADRAO) + '.';
+    var corpo = (assunto || PADRAO).replace(/\s+$/, '');
+    var abertura = html.classList.contains('via-anuncio') ? 'Oi! Vi o anúncio da Beyon Zero e ' : 'Oi! Vim pelo site da Beyon Zero e ';
+    /* termina em ":" = uma lacuna para a pessoa completar ("Meu negócio: "): sem ponto final, com um espaço */
+    var txt = abertura + corpo + (/:$/.test(corpo) ? ' ' : '.');
     return 'https://wa.me/' + FONE + '?text=' + encodeURIComponent(txt);
+  }
+  /* "Encaminhar o resumo para a diretoria": abre o WhatsApp SEM número (a pessoa escolhe o grupo), com o link */
+  var encaminhar = document.querySelectorAll('[data-encaminhar]');
+  for (var e2 = 0; e2 < encaminhar.length; e2++) {
+    encaminhar[e2].href = 'https://wa.me/?text=' + encodeURIComponent(encaminhar[e2].getAttribute('data-encaminhar') + ' ' + location.origin + '/resumo');
+    encaminhar[e2].rel = 'noopener noreferrer';
+    encaminhar[e2].target = '_blank';
   }
   var links = document.querySelectorAll('[data-wa]');
   for (var i = 0; i < links.length; i++) {

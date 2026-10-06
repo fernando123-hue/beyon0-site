@@ -261,6 +261,18 @@ html.is-ouro .ouro-leitura { color: #FFBE3C; }
 @media (prefers-reduced-motion: reduce) { .ouro-linha, .ouro-leitura { display: none; } }
 html.menos-movimento .ouro-linha, html.menos-movimento .ouro-leitura { display: none; }
 
+/* ---- O AVISO DE COOKIES (js/medicao.js; só aparece com os IDs do Google preenchidos). Aceitar e Recusar com o
+   mesmo peso; acima da barra do celular. Fica em tokens.css porque o resumo e a privacidade também o usam ---- */
+.consentimento { position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 70; max-width: 460px; padding: 1rem 1.1rem; background: var(--s1); border: 1px solid var(--line-2); border-radius: var(--raio); color: var(--t2); font-size: .875rem; line-height: 1.5; }
+.consentimento a { color: var(--t1); text-decoration: underline; text-underline-offset: 3px; }
+.consentimento__acoes { display: flex; gap: .6rem; margin-top: .8rem; }
+.consentimento__btn { flex: 1 1 0; min-height: 44px; padding: .6rem 1rem; border: 1px solid var(--stroke); border-radius: var(--raio-s); background: transparent; color: var(--t1); font: 500 .75rem/1.2 var(--mono); letter-spacing: .1em; text-transform: uppercase; cursor: pointer; }
+.consentimento__btn:hover { border-color: var(--t2); }
+@media (max-width: 980px) { .consentimento { bottom: calc(88px + env(safe-area-inset-bottom, 0px)); } }
+@media print { .consentimento { display: none; } }
+/* quem veio de anúncio e está na página de Sites não vê a saída para a outra frente no menu (uma decisão por página) */
+html.via-anuncio .pagina-sites .nav__links a[href="/automacao"] { display: none; }
+
 /* o 2º interruptor de movimento, no topo da página (o do rodapé vem depois de dezenas de Tabs): botão com a mesma roupa */
 button.skip-link { border: 0; cursor: pointer; font: inherit; }
 .skip-link--mov { left: auto; right: 16px; }

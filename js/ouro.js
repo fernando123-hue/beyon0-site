@@ -77,7 +77,8 @@
     ultimoTexto = txt; leituraTxt.nodeValue = txt;
     leitura.classList.toggle('is-viva', !!txt);
   }
-  function porLeitura(y) { leitura.style.transform = 'translate3d(0,' + Math.max(8, y - 22).toFixed(0) + 'px,0)'; }
+  /* a leitura fica abaixo do menu e acima da barra do celular, mesmo com a origem na borda da tela */
+  function porLeitura(y) { leitura.style.transform = 'translate3d(0,' + Math.max(76, Math.min(window.innerHeight - 110, y - 22)).toFixed(0) + 'px,0)'; }
   function claraoEm(y) {
     var n = B.nucleo, x = n && n.visivel ? n.cx : window.innerWidth / 2;
     clarao.style.setProperty('--y', (y - 1).toFixed(0) + 'px');
@@ -202,6 +203,7 @@
   /* ---------- gatilhos ---------- */
   /* 1. a estação em sobrecarga por uma volta inteira da onda: o ouro nasce nela (se ela estiver na tela) */
   var voltas = [];
+  var deAnuncio = function () { return html.classList.contains('via-anuncio'); };
   B.on('estacao:sobrecarga', function (st) {
     var tm = setTimeout(function () {
       var sy = st.yd - window.scrollY;
@@ -216,13 +218,14 @@
   /* 2. celular: todos os cards de um grupo de estação cheios na pilha */
   var estreito = window.matchMedia('(max-width: 720px)');
   B.on('carga:cheio', function (card) {
-    if (!estreito.matches) return;
+    if (!estreito.matches || deAnuncio()) return;
     var g = card.closest('.tem-estacao');
     if (!g) return;
     var cards = g.querySelectorAll('.tem-carga');
     if (!cards.length) return;
     for (var i = 0; i < cards.length; i++) if (!cards[i].classList.contains('is-carregado')) return;
     var r = g.getBoundingClientRect();
+    if (r.bottom < 0 || r.top > window.innerHeight) return;   /* (rolou direto para longe: o grupo encheu fora da vista, não houve conquista) */
     acender(r.top + r.height / 2);
   });
   /* 3. o reator: segurar o núcleo, ou o cursor parado no miolo. Ouvido no HERO: .nucleo não recebe eventos */
@@ -261,7 +264,7 @@
      páginas da visita */
   var jaVeio = false, atencao = 0;
   try { jaVeio = sessionStorage.getItem('bz-ouro') === '1'; atencao = +sessionStorage.getItem('bz-atencao') || 0; } catch (e) { /* sem armazenamento */ }
-  if (!jaVeio) {
+  if (!jaVeio && !deAnuncio()) {
     var ultimoGesto = performance.now();
     var gesto = function () { ultimoGesto = performance.now(); };
     var GESTOS = ['pointermove', 'scroll', 'touchstart', 'keydown', 'wheel'];
