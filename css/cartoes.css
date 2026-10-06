@@ -443,7 +443,7 @@ html.menos-movimento .estacao-cruza { display: none !important; }
   .carga__pct { position: absolute; right: 0; top: 0; width: 42px; text-align: right; font-family: var(--mono); font-size: 10px; line-height: 13px; letter-spacing: .04em; font-variant-numeric: tabular-nums; color: rgb(var(--ac-2-rgb) / .55); transition: color .3s var(--ease); }
   .is-carregando .carga__pct { color: var(--ac-2); }
   /* cheio: um clarão no tubo e o resto do card acende */
-  .carga__trilho::after { content: ""; position: absolute; left: 0; right: 0; top: 2px; height: 9px; border-top: 1px solid var(--t1); border-bottom: 1px solid var(--t1); opacity: 0; }
+  .carga__trilho::after { content: ""; position: absolute; left: 0; right: 0; top: 5px; height: 2px; background: var(--t1); opacity: 0; }
   .is-carregado .carga__trilho::after { animation: carga-clarao .7s ease-out both; }
   @keyframes carga-clarao { 0% { opacity: 0; } 12% { opacity: 1; } 100% { opacity: 0; } }   /* (entra em fade: nada aparece cheio num quadro só) */
   .is-carregado .carga__pct { color: var(--t1); }
@@ -479,9 +479,10 @@ html.menos-movimento .estacao-cruza { display: none !important; }
    moldura; a borda neon acende quando ela fecha; pontos de luz correm nos
    quatro lados; a barra de baixo em neon. SEM FUMAÇA (dono, 2026-10-05: "o
    brilho nas bordas e nas barras não pode ter essa fumaça, deixa o design
-   sujo"): o neon é desenhado a TRAÇO — o fio aceso, 1 px de fresta escura e
-   um segundo fio fino mais apagado, como o tubo de vidro em volta da luz —
-   com sombras de desfoque zero (nítidas). Nenhum desfoque no site. ---- */
+   sujo"): o neon é desenhado a TRAÇO. UM FIO SÓ (dono, 2026-10-06: o tubo
+   de três fios — aceso, fresta, fio apagado — "são bordas diferentes; quero
+   uma coisa só, com energia circulando"): a moldura e a barra são uma linha
+   cada, e no card cheio a luz circula pela borda. Nenhum desfoque no site. ---- */
 .carga-nos, .carga-cantos, .carga-halo, .carga-circula { display: none; }
 @media (prefers-reduced-motion: no-preference) {
   html.js:not(.menos-movimento) .tem-carga { isolation: isolate; }
@@ -496,8 +497,7 @@ html.menos-movimento .estacao-cruza { display: none !important; }
   .carga-cantos > b:nth-child(7) { bottom: 0; left: 0; transform-origin: left; } .carga-cantos > b:nth-child(8) { bottom: 0; left: 0; transform-origin: bottom; }
   .is-carregado > .carga-cantos > b { background: var(--t1); transition: background .6s var(--ease); }
   /* a borda neon */
-  html.js:not(.menos-movimento) .tem-carga > .carga-halo { display: block; position: absolute; inset: -1px; border: 1px solid var(--ac-2); border-radius: inherit; pointer-events: none; opacity: 0;
-    box-shadow: 0 0 0 1px var(--bg), 0 0 0 2px rgb(var(--ac-rgb) / .38), inset 0 0 0 1px var(--bg), inset 0 0 0 2px rgb(var(--ac-rgb) / .16); }   /* (o tubo: fresta e fio por fora e por dentro, nítidos) */
+  html.js:not(.menos-movimento) .tem-carga > .carga-halo { display: block; position: absolute; inset: -1px; border: 1px solid var(--ac-2); border-radius: inherit; pointer-events: none; opacity: 0; }   /* um fio só (dono, 2026-10-06: o tubo de três fios parecia bordas diferentes) */
   /* os pontos de luz que correm nos quatro lados (carregando e cheio) */
   html.js:not(.menos-movimento) .tem-carga > .carga-nos { display: block; position: absolute; inset: -1px; pointer-events: none; opacity: 0; transition: opacity .4s var(--ease); }
   .is-carregando > .carga-nos, .is-carregado > .carga-nos { opacity: 1; }
@@ -525,8 +525,8 @@ html.menos-movimento .estacao-cruza { display: none !important; }
   @keyframes no-y { from { transform: translateY(-100%); opacity: 1; } to { transform: translateY(18px); opacity: 1; } }
   @keyframes no-y-volta { from { transform: translateY(18px); opacity: 1; } to { transform: translateY(-100%); opacity: 1; } }
   /* a barra de baixo em neon */
-  /* a barra: o fio de 2 px e dois trilhos de 1 px, um de cada lado, com fresta (o neon sem névoa) */
-  .carga__tubo { background: var(--ac); box-shadow: 0 -3px 0 -.5px rgb(var(--ac-rgb) / .4), 0 3px 0 -.5px rgb(var(--ac-rgb) / .4); top: 5px; height: 2px; }
+  /* a barra: um fio de 2 px, sem trilhos (dono, 2026-10-06: uma linha só) */
+  .carga__tubo { background: var(--ac); top: 5px; height: 2px; }
   .carga__tubo::before, .carga__tubo::after { display: none; }
   .carga__trilho { overflow: visible; clip-path: inset(-10px 0 -10px 0); }
   .carga__ponta { box-shadow: none; }
@@ -588,13 +588,13 @@ html.menos-movimento .estacao-cruza { display: none !important; }
   /* ESFRIA, ao soltar: a carga desce pelo JS; a borda do card volta devagar e a luz que circula apaga andando */
   .tem-carga.is-esfria { transition: border-color .6s var(--ease); }
 
-  /* A LUZ QUE CIRCULA (js/carga.js, circular): um traço de 1,5 px, cabeça branca e cauda em degradê (sem desfoque) que dá a
+  /* A LUZ QUE CIRCULA (js/carga.js, circular): um traço de 1 px (a espessura da moldura), cabeça branca e cauda em degradê (sem desfoque) que dá a
      volta na borda, devagar. Cada lado recorta a sua faixa; os de baixo e da esquerda são espelhados, para o
      traço andar no sentido horário. Só anima na ignição, na sobrecarga e enquanto apaga. */
   html.js:not(.menos-movimento) .tem-carga > .carga-circula { display: block; position: absolute; inset: -1px; pointer-events: none; opacity: 0; transition: opacity .6s var(--ease); }
   .carga-circula > b { position: absolute; overflow: hidden; }
-  .carga-circula > b:nth-child(odd) { left: 0; right: 0; height: 1.5px; }
-  .carga-circula > b:nth-child(even) { top: 0; bottom: 0; width: 1.5px; }
+  .carga-circula > b:nth-child(odd) { left: 0; right: 0; height: 1px; }
+  .carga-circula > b:nth-child(even) { top: 0; bottom: 0; width: 1px; }
   .carga-circula > b:nth-child(1) { top: 0; }
   .carga-circula > b:nth-child(2) { right: 0; }
   .carga-circula > b:nth-child(3) { bottom: 0; transform: scaleX(-1); }
@@ -602,10 +602,16 @@ html.menos-movimento .estacao-cruza { display: none !important; }
   .carga-circula > b > i { position: absolute; display: block; }
   .carga-circula > b:nth-child(odd) > i { top: 0; height: 100%; right: 100%; background: linear-gradient(90deg, transparent calc(100% - 110px), rgb(var(--ac-2-rgb) / .85) calc(100% - 14px), var(--t1) calc(100% - 6px)); }
   .carga-circula > b:nth-child(even) > i { left: 0; width: 100%; bottom: 100%; background: linear-gradient(180deg, transparent calc(100% - 110px), rgb(var(--ac-2-rgb) / .85) calc(100% - 14px), var(--t1) calc(100% - 6px)); }
-  html.js:not(.menos-movimento) .is-ignicao > .carga-circula, html.js:not(.menos-movimento) .is-sobrecarga > .carga-circula { opacity: 1; }
-  .is-ignicao > .carga-circula > b > i, .is-sobrecarga > .carga-circula > b > i, .is-esfria > .carga-circula > b > i { animation-timing-function: linear; animation-iteration-count: infinite; }
-  .is-ignicao > .carga-circula > b:nth-child(odd) > i, .is-sobrecarga > .carga-circula > b:nth-child(odd) > i, .is-esfria > .carga-circula > b:nth-child(odd) > i { animation-name: circula-x; }
-  .is-ignicao > .carga-circula > b:nth-child(even) > i, .is-sobrecarga > .carga-circula > b:nth-child(even) > i, .is-esfria > .carga-circula > b:nth-child(even) > i { animation-name: circula-y; }
+  html.js:not(.menos-movimento) :is(.is-carregado, .is-ignicao, .is-sobrecarga) > .carga-circula { opacity: 1; }
+  :is(.is-carregado, .is-ignicao, .is-sobrecarga, .is-esfria) > .carga-circula > b > i { animation-timing-function: linear; animation-iteration-count: infinite; }
+  :is(.is-carregado, .is-ignicao, .is-sobrecarga, .is-esfria) > .carga-circula > b:nth-child(odd) > i { animation-name: circula-x; }
+  :is(.is-carregado, .is-ignicao, .is-sobrecarga, .is-esfria) > .carga-circula > b:nth-child(even) > i { animation-name: circula-y; }
+  /* CARD CHEIO (dono, 2026-10-06): a mesma moldura da sobrecarga — um fio ciano só, sem a mira dos cantos, e um
+     pouco abaixo do máximo — para a luz branca que circula aparecer nele (na moldura toda branca ela sumia) */
+  html.js:not(.menos-movimento) .is-carregado > .carga-halo { opacity: .7 !important; }
+  html.js:not(.menos-movimento) .tem-carga.is-fora > .carga-circula { display: none; }   /* (fora da tela, parada: js/carga.js) */
+  html.js:not(.menos-movimento) :is(.is-carregado, .is-sobrecarga) > .carga-cantos > b { opacity: 0; }   /* (a mira fecha a moldura e sai: por cima do fio ela fazia um 2º tom nos cantos) */
+  .is-carregado > .carga-halo, .is-carregado > .carga-cantos > b { transition: opacity .5s var(--ease), background .6s var(--ease); }
   @keyframes circula-x { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(100%, 0, 0); } }
   @keyframes circula-y { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(0, 100%, 0); } }
 }

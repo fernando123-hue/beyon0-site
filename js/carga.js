@@ -136,6 +136,8 @@
     if (cheio !== c.cheio) {
       c.cheio = cheio;
       card.classList.toggle('is-carregado', cheio);
+      /* cheio, a luz circula pela borda (dono, 2026-10-06: "uma coisa só, com energia circulando") */
+      if (cheio && !B.reduced && !reduz.matches) circular(c);
       /* (na ignição, a linha e as letras ficam para a entrada da sobrecarga, logo em seguida) */
       if (cheio && !(c.rampa && c.pediu)) { varrer(card); if (daEstacao(card)) letras(card); else acender(card, true); }
       /* (acesas ficam: o card que já acendeu não apaga ao descarregar — dono, 2026-10-05: "eu quero que as letras fiquem acesas") */
@@ -304,12 +306,18 @@
      traço na ponta dela; as quatro andam juntas (transform em % da própria faixa: compositor) e cada lado
      começa defasado pelo trecho do perímetro que vem antes dele — o traço passa de um lado ao outro pelos
      cantos como se fosse um só. Montada na 1ª ignição do card (enfeite: a rede ignora, js/rede.js) */
+  /* fora da tela a luz para (o card cheio segue cheio depois de passar; no Hub do celular eram 16 traços
+     girando fora da vista e os quadros lentos rolando subiram de 11 para 16, medido) */
+  var fora = 'IntersectionObserver' in window ? new IntersectionObserver(function (es) {
+    for (var i = 0; i < es.length; i++) es[i].target.classList.toggle('is-fora', !es[i].isIntersecting);
+  }) : null;
   function circular(c) {
     var card = c.card, W = c.w || card.offsetWidth, H = c.h || card.offsetHeight, P = 2 * (W + H);   /* (inset −1 px a partir da caixa interna = o tamanho do card) */
     if (!c.circula) {
       c.circula = document.createElement('i'); c.circula.className = 'carga-circula'; c.circula.setAttribute('aria-hidden', 'true');
       for (var k = 0; k < 4; k++) { var lado = document.createElement('b'); lado.appendChild(document.createElement('i')); c.circula.appendChild(lado); }
       card.appendChild(c.circula);
+      if (fora) fora.observe(card);
     }
     if (c.circulaTam === W + 'x' + H) return;
     c.circulaTam = W + 'x' + H;
