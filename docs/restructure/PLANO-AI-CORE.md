@@ -1208,3 +1208,27 @@ seções, cor cheia, 11 px; posição e opacidade escritas só quando mudam; esc
 em degraus (CSS). No hero a régua ainda não começa e o campo escondia a frase
 perto de texto: os cards da faixa do hero passam a mostrá-la na margem, na
 altura do card. Até 3 linhas antes de ir em pé. Verificador 12/12; acessibilidade ok.
+
+## 32. Borda com luz de canto e o neon de um fio só (2026-10-05/06)
+
+Dono, com o card do shine border da Magic UI como referência (só as bordas, "não
+é para copiar"): a borda chapada dos cards "ficou meio seca".
+
+**Repouso (`9072482`).** Quatro tiras de 1 px no fundo do módulo, paradas, por
+baixo do fio cinza da borda: a luz na tinta do card entra pelo canto de cima à
+esquerda e some nos dois lados; o canto oposto devolve um reflexo em prata.
+Sem pseudo-elemento (::before é a aresta do foco, ::after a varredura) e sem
+desfoque. Começam depois da curva do canto, como a aresta. Para comparar:
+`?borda=b` (os quatro cantos, tinta e prata alternados) e `?borda=antes`.
+
+**Aceso (`53e9c75`).** Print do dono (66 px) com o tubo da §31: "o meu problema
+são essas bordas diferentes; quero uma coisa só, com energia circulando; vale
+para todos que tiverem dessa forma". O tubo sai: moldura, barra e clarão do
+100% com uma linha cada. No card cheio a luz que circulava só na ignição e na
+sobrecarga corre pela borda, com 1 px; a moldura fica em .7 (na branca a luz
+sumia) e a mira dos cantos sai quando ela fecha (por cima do fio fazia um 2º
+tom). Fora da tela a luz para (IntersectionObserver, `.is-fora`): no Hub do
+celular os 4 cards seguiam cheios fora da vista, 16 traços girando. A/B
+rolando o Hub a 390 px (4 execuções, medianas): antes 57,0 fps / 15 quadros
+lentos; sem a pausa 56,4 / 16; com a pausa 56,5 / 18 (ruído de 11 a 21).
+Verificador 12/12. Falta o dono escolher a borda em repouso e aprovar o aceso.
