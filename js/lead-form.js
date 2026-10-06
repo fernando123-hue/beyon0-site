@@ -120,18 +120,27 @@
       campoTipo.focus();
       return;
     }
-    var nome = (campoNome && campoNome.value || '').trim();
+    /* "Outro" marcado e o campo vazio: o form tem novalidate, então o required do campo não valia nada (a
+       mensagem saía sem o tipo) */
+    var ehOutro = campoTipo && campoTipo.value === 'outro';
+    if (ehOutro && campoTipoOutro && !campoTipoOutro.value.trim()) {
+      campoTipoOutro.setAttribute('aria-invalid', 'true');
+      campoTipoOutro.focus();
+      return;
+    }
+    if (campoTipoOutro) campoTipoOutro.removeAttribute('aria-invalid');
+    /* sem a pontuação do fim: o pagina.js fecha a frase com ponto (saía "..", "?.") */
+    var semPonto = function (v) { return (v || '').trim().replace(/[\s.!?;:,]+$/, ''); };
+    var nome = semPonto(campoNome && campoNome.value);
     var opcaoTipo = campoTipo && campoTipo.value ? campoTipo.selectedOptions[0] : null;
-    var artigo = opcaoTipo ? (opcaoTipo.getAttribute('data-artigo') || 'um') : '';
-    var tipoTxt = opcaoTipo && opcaoTipo.value === 'outro'
-      ? (campoTipoOutro && campoTipoOutro.value || '').trim().toLowerCase()
-      : (opcaoTipo ? opcaoTipo.textContent.toLowerCase() : '');
-    var desafio = (campoDesafio && campoDesafio.value || '').trim();
+    var desafio = semPonto(campoDesafio && campoDesafio.value);
 
     /* js/pagina.js monta "Oi! Vim pelo site da Beyon Zero e " + assunto:
-       o assunto SEMPRE começa com verbo. */
+       o assunto SEMPRE começa com verbo. O tipo da lista vai com artigo ("para uma associação"); o digitado
+       em "Outro" vai como a pessoa escreveu, sem artigo nem minúsculas (saía "um igreja", "oab") */
     var assunto = 'quero agendar um diagnóstico';
-    if (tipoTxt) assunto += ' para ' + artigo + ' ' + tipoTxt;
+    if (ehOutro) assunto += '. Tipo de organização: ' + semPonto(campoTipoOutro && campoTipoOutro.value);
+    else if (opcaoTipo) assunto += ' para ' + (opcaoTipo.getAttribute('data-artigo') || 'um') + ' ' + opcaoTipo.textContent.toLowerCase();
     if (nome) assunto += '. Sou ' + nome;
     if (desafio) {
       assunto += '. O desafio que eu quero resolver: ' + desafio;
