@@ -1370,3 +1370,14 @@ três cores de energia trocadas (estrutura fria, energia quente); resfriamento p
 Peças: `js/ouro.js`; `B.ouro.k` e `B.tom` (core.js) para os canvases; `html.is-ouro` para o CSS;
 `cena.tingir(k)` para o reator. Medido: ignição sem quadro acima de 33 ms (máx. 30); verificador
 12/12; sem erro de console no desktop e no celular.
+
+**2ª versão do Ouro (mesma sessão).** Dono: "dourado incandescente; não quero que só mude de cor do nada, deve
+ser um evento". O ouro ficou mais quente (`#FFBE3C`) e a troca virou cinco atos com leitura mono: CARGA (linhas
+das bordas até a origem, ciano esquentando, "CARGA 0–100%"), CLARÃO (risco branco de três fios + estouro do
+núcleo), IGNIÇÃO (cada peça fica branca e esfria até o ouro), REINADO (o ouro tremula como metal em brasa nos
+canvases e no reator), RESFRIAMENTO. Medido: computador sem quadro acima de 33 ms em 1 830 quadros do evento;
+celular emulado com a mesma taxa de quadros lentos com e sem o evento (7,5 % e 7,6 %: é a linha de base); com
+CPU 4× 10,2 % contra 8,6 %, e um tranco de um quadro (40 ms a 1×, 160–300 ms a 4×) na troca das cores na raiz,
+no início da carga e do reinado, quando nada ainda se move. Revisão por agente: estilo preso pelo `both` (o
+resfriamento ficava seco), botão da barra do celular ilegível no clarão, peças fora da lista sem rampa, a vez das
+peças agora no mesmo relógio das linhas, linhas de um fio só (sem ecos empilhados). Fotos: `evento-*.png`.

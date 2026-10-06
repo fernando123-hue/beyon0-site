@@ -151,7 +151,7 @@
      acontece no laço, uma vez (`sujo`), e de novo só se algo pedir. */
   function pararMontado() {
     parado = true;
-    if (tinta && cena && cena.tingir) { tinta = 0; cena.tingir(0); }   /* (menos movimento no meio do ouro: parado em ciano, não em dourado) */
+    if (tinta && cena && cena.tingir) { tinta = 0; cena.tingir(0, 0); }   /* (menos movimento no meio do ouro: parado em ciano, não em dourado) */
     estado.montagem = 1; estado.ignicao = 1; estado.abertura = 0;
     estado.desdeIgnicao = 99; estado.t = 12;
     /* sem campo, onda nem olhar: o gesto para de rodar com a esfera fora da
@@ -276,9 +276,11 @@
     estado.atento = (estado.atento || 0) + ((opcaoSob ? 1 : 0) - (estado.atento || 0)) * Math.min(1, dt * (opcaoSob ? 4 : 1.7));
     gesto.passo(dt, estado);
     /* O OURO (js/ouro.js): o reator tinge para o dourado, clareia e gira mais enquanto durar */
-    var k = B.ouro ? B.ouro.k : 0;
-    if (k !== tinta) { tinta = k; if (cena.tingir) cena.tingir(k); }
-    if (k > 0) { estado.atento = Math.max(estado.atento, k * 0.9); estado.giroExtra = (estado.giroExtra || 0) + dt * 1.1 * k; }
+    var o = B.ouro || {}, k = o.k || 0, h = o.h || 0, ca = o.carga || 0;
+    var chave = Math.round(k * 48) * 100 + Math.round(h * 48);
+    if (chave !== tinta) { tinta = chave; if (cena.tingir) cena.tingir(k, h); }
+    /* na carga o reator acelera e clareia; no ouro gira mais e fica aceso */
+    if (k > 0 || ca > 0) { estado.atento = Math.max(estado.atento, k * 0.9, ca); estado.giroExtra = (estado.giroExtra || 0) + dt * (1.1 * k + 4 * ca * ca); }
 
     cena.desenhar(estado);
     publicar();

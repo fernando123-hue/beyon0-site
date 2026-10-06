@@ -13,7 +13,7 @@ import { montar } from './pecas.js';
 /* tokens do CSS que a esfera usa, lidos UMA vez (ler getComputedStyle por
    quadro foi o pecado que custou 76 ms por quadro a este projeto) */
 const TOKENS = { bg: '--bg', t1: '--t1', ac: '--ac', ac2: '--ac-2', metal: '--metal', prata: '--prata' };
-const OURO_TOKENS = { ac: '--ouro-rgb', ac2: '--ouro-2-rgb' }, OURO_PADRAO = { ac: '255 201 107', ac2: '255 230 179' };
+const OURO_TOKENS = { ac: '--ouro-rgb', ac2: '--ouro-2-rgb', brasa: '--brasa-rgb' }, OURO_PADRAO = { ac: '255 190 60', ac2: '255 226 150', brasa: '255 250 235' };
 const PADRAO = { bg: '#000000', t1: '#F2F4F4', ac: '#49E5DD', ac2: '#A6F4EF', metal: '#565656', prata: '#B7BFC0' };
 
 /* atributos do contexto. O teste de GPU e o renderer usam UM contexto só:
@@ -55,11 +55,12 @@ export function criarCena(canvas, gl, { celular = false } = {}) {
   let esfera = null, camera, cena, cores = null, frio = null;
   /* O OURO (js/ouro.js): k de 0 a 1 mistura o ciano do reator para o dourado tecnológico; os uniforms dos
      shaders apontam para os mesmos objetos de cor, os materiais copiados são retingidos pela lista */
-  const OURO = { ac: new THREE.Color('#FFC96B'), ac2: new THREE.Color('#FFE6B3') };
-  function tingir(k) {
+  const OURO = { ac: new THREE.Color('#FFBE3C'), ac2: new THREE.Color('#FFE296'), brasa: new THREE.Color('#FFFAEB') }, BRASA = OURO.brasa;   /* (os valores reais vêm dos tokens na montagem) */
+  /* k: ciano → ouro incandescente; h: → o branco da brasa (o clarão e o tremor do reinado) */
+  function tingir(k, h = 0) {
     if (!cores || !frio) return;
-    cores.ac.copy(frio.ac).lerp(OURO.ac, k);
-    cores.ac2.copy(frio.ac2).lerp(OURO.ac2, k);
+    cores.ac.copy(frio.ac).lerp(OURO.ac, k).lerp(BRASA, h);
+    cores.ac2.copy(frio.ac2).lerp(OURO.ac2, k).lerp(BRASA, h);
     if (esfera && esfera.tingir) esfera.tingir();
   }
   let largura = 0, altura = 0;

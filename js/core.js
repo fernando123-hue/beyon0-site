@@ -205,26 +205,30 @@
      misturada para o ouro conforme k — só para as três cores de energia (ac, ac-2, ac-3); prata, metal e
      branco voltam iguais (estrutura fria, energia quente). Uma string por cor por valor de k: nada aloca por
      chamada no mesmo quadro */
-  var ouro = { k: 0, estado: 'frio' };
+  var ouro = { k: 0, h: 0, carga: 0, estado: 'frio' };
   /* os pares ciano→ouro vêm dos tokens (css/tokens.css): se a paleta mudar, a mistura acompanha */
-  var ALVO_OURO = {}, DEGRAUS = 24;   /* (k em 24 degraus: os sprites de texto dos canvases são por cor; um por quadro era um por k) */
+  var ALVO_OURO = {}, BRASA = [255, 250, 235], DEGRAUS = 24;   /* (k em 24 degraus: os sprites de texto dos canvases são por cor; um por quadro era um por k) */
   (function () {
     var est = getComputedStyle(html), ler = function (n, p) { return (est.getPropertyValue(n).trim() || p).split(/\s+/).map(Number); };
     var pares = [['--ac-rgb', '73 229 221', '--ouro-rgb', '255 201 107'], ['--ac-2-rgb', '166 244 239', '--ouro-2-rgb', '255 230 179'], ['--ac-3-rgb', '28 181 185', '--ouro-3-rgb', '210 154 58']];
     for (var i = 0; i < pares.length; i++) ALVO_OURO[ler(pares[i][0], pares[i][1]).join(',')] = ler(pares[i][2], pares[i][3]);
+    BRASA = ler('--brasa-rgb', '255 250 235');
   })();
   var tons = {}, tomK = -1;
+  /* k: ciano → ouro; h: → o branco da brasa por cima (a carga esquenta o ciano; a ignição passa pelo branco) */
   function tom(c) {
-    var k = ouro.k;
-    if (!(k > 0)) return c;
+    var k = ouro.k, h = ouro.h;
+    if (!(k > 0) && !(h > 0)) return c;
     var alvo = ALVO_OURO[c];
     if (!alvo) return c;
-    k = Math.round(k * DEGRAUS) / DEGRAUS;
-    if (k !== tomK) { tons = {}; tomK = k; }
+    k = Math.round(k * DEGRAUS) / DEGRAUS; h = Math.round((h || 0) * 8) / 8;   /* (h em 8 degraus: o tremor do reinado não enche o cache de sprites de texto) */
+    var chave = k * 100 + h;
+    if (chave !== tomK) { tons = {}; tomK = chave; }
     var t = tons[c];
     if (!t) {
-      var de = c.split(',');
-      t = tons[c] = Math.round(+de[0] + (alvo[0] - de[0]) * k) + ',' + Math.round(+de[1] + (alvo[1] - de[1]) * k) + ',' + Math.round(+de[2] + (alvo[2] - de[2]) * k);
+      var de = c.split(','), m = [0, 0, 0];
+      for (var i = 0; i < 3; i++) { var v = +de[i] + (alvo[i] - de[i]) * k; m[i] = Math.round(v + (BRASA[i] - v) * h); }
+      t = tons[c] = m.join(',');
     }
     return t;
   }
