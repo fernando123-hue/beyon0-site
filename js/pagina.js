@@ -16,7 +16,9 @@
   var PADRAO = document.body.getAttribute('data-wa-padrao') || 'quero entender como a Beyon Zero pode ajudar meu negócio';
   function linkWA(assunto) {
     var corpo = (assunto || PADRAO).replace(/\s+$/, '');
-    var abertura = html.classList.contains('via-anuncio') ? 'Oi! Vi o anúncio da Beyon Zero e ' : 'Oi! Vim pelo site da Beyon Zero e ';
+    /* o código da visita (js/metricas.js, só com as métricas próprias ligadas): liga a conversa à origem no painel */
+    var cod = window.BEYON_CODIGO ? ' (código ' + window.BEYON_CODIGO + ')' : '';
+    var abertura = (html.classList.contains('via-anuncio') ? 'Oi! Vi o anúncio da Beyon Zero' : 'Oi! Vim pelo site da Beyon Zero') + cod + ' e ';
     /* termina em ":" = uma lacuna para a pessoa completar ("Meu negócio: "): sem ponto final, com um espaço */
     var txt = abertura + corpo + (/:$/.test(corpo) ? ' ' : '.');
     return 'https://wa.me/' + FONE + '?text=' + encodeURIComponent(txt);

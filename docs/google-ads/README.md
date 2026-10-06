@@ -58,6 +58,8 @@ Com a verificação de anunciante, o Google mostra o nome verificado de qualquer
    **secundária** (a principal é a tag do Ads; senão conta duas vezes).
 6. Lembre: **clique no WhatsApp não é conversa**. Parte das pessoas abre e não envia. Conte as conversas reais na
    planilha (mensagens que começam com "Vi o anúncio").
+7. **Mais preciso que a planilha:** as métricas próprias do site (docs/metricas/README.md) ligam cada conversa ao
+   anúncio pelo código na mensagem e devolvem os clientes fechados ao Google Ads como conversão off-line.
 
 ## 3. A campanha, pronta para montar
 

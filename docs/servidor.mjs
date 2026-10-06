@@ -2,6 +2,7 @@
 import http from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { join, extname, resolve, relative, isAbsolute } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const RAIZ = resolve(process.argv[2] || process.cwd());
 const PORTA = +(process.argv[3] || 8899);
@@ -25,8 +26,31 @@ const TIPOS = {
   '.txt': 'text/plain; charset=utf-8', '.ico': 'image/x-icon', '.mp4': 'video/mp4'
 };
 
+/* /api/* como na Vercel: o arquivo api/<nome>.mjs exporta GET/POST(Request) e devolve um Response.
+   Aqui o banco é o de memória (BZ_LOCAL=1, api/_banco.mjs); a chave do painel vem de PAINEL_CHAVE. */
+process.env.BZ_LOCAL = '1';
+delete process.env.SUPABASE_URL;    /* (teste local nunca grava no banco de produção) */
+delete process.env.SUPABASE_CHAVE;
+const HOSTS = new Set(['127.0.0.1:' + PORTA, 'localhost:' + PORTA]);
+async function api(req, res, caminho) {
+  const nome = caminho.slice(5).replace(/\/$/, '');
+  if (!/^[a-z]+$/.test(nome)) { res.writeHead(404); return res.end(); }
+  const mod = await import(pathToFileURL(join(RAIZ, 'api', nome + '.mjs')).href);
+  const fn = mod[req.method];
+  if (!fn) { res.writeHead(405); return res.end(); }
+  const partes = [];
+  for await (const p of req) partes.push(p);
+  const corpo = Buffer.concat(partes);
+  const pedido = new Request('http://' + req.headers.host + req.url, { method: req.method, headers: req.headers, body: corpo.length ? corpo : undefined });
+  const resposta = await fn(pedido);
+  res.writeHead(resposta.status, Object.fromEntries(resposta.headers));
+  res.end(Buffer.from(await resposta.arrayBuffer()));
+}
+
 http.createServer(async (req, res) => {
   try {
+    if (!HOSTS.has(req.headers.host)) { res.writeHead(421); return res.end(); }
+    if (req.url.startsWith('/api/')) return await api(req, res, new URL(req.url, 'http://x').pathname);
     let caminho = decodeURIComponent(new URL(req.url, 'http://x').pathname);
     if (caminho.endsWith('/')) caminho += 'index.html';
     const arquivo = resolve(join(RAIZ, caminho));

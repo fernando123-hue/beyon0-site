@@ -11,6 +11,7 @@
     "verificar": "node docs/verificar.mjs",
     "acessibilidade": "node docs/acessibilidade.mjs",
     "olhar": "node docs/olhar.mjs",
-    "medir": "node docs/medir.mjs"
+    "medir": "node docs/medir.mjs",
+    "testar": "node --test docs/testes/metricas.test.mjs"
   }
 }

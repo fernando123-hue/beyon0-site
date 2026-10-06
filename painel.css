@@ -1,0 +1,92 @@
+/* ==========================================================================
+   PAINEL.CSS — o painel de métricas do dono (painel.html). Celular primeiro,
+   tokens do site, sem movimento, sem desfoque.
+   ========================================================================== */
+body { font-size: 1rem; line-height: 1.55; background: var(--bg); color: var(--t2); }
+.pn { max-width: 1080px; margin: 0 auto; padding: 1rem var(--pad) 5rem; }
+.pn__topo { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 56px; border-bottom: 1px solid var(--stroke); margin-bottom: 1.6rem; }
+.pn__marca { font-family: var(--mono); font-weight: 600; display: flex; align-items: center; gap: .8rem; }
+.pn__marca a { color: var(--t1); display: inline-flex; align-items: center; gap: .3em; min-height: 44px; }
+.pn__marca b { color: var(--ac); }
+.pn__marca span, .pn__sair, .pn__periodo button, .pn label, .pn h3, .pn th { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-ctrl); text-transform: uppercase; color: var(--t3); }
+.pn h1 { font-weight: 300; font-size: clamp(1.8rem, 7vw, 2.4rem); color: var(--t1); line-height: 1.1; margin-bottom: .6rem; }
+.pn h2 { font-weight: 400; font-size: 1.3rem; color: var(--t1); margin-bottom: 1rem; }
+.pn h3 { margin: 1.6rem 0 .6rem; }
+
+/* ---- botões e campos ---- */
+.pn button { cursor: pointer; }
+.pn__sair, .pn__periodo button { background: none; border: 1px solid var(--stroke); border-radius: var(--raio-s); min-height: 44px; padding: 0 1rem; }
+.pn__sair:hover, .pn__periodo button:hover { color: var(--t1); border-color: var(--line-hi); }
+.pn__btn { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 0 1.4rem; border: 1px solid var(--ac); border-radius: var(--raio-s); background: var(--ac); color: #000; font-family: var(--mono); font-weight: 600; letter-spacing: var(--tr-ctrl); text-transform: uppercase; font-size: var(--fs-rotulo); }
+.pn__btn:disabled { opacity: .5; cursor: wait; }
+.pn__btn--fino { background: none; color: var(--ac); min-height: 44px; }
+.pn input[type="password"], .pn input[type="text"], .pn input[type="number"], .pn select {
+  width: 100%; min-height: 48px; padding: 0 .9rem; background: var(--s1); color: var(--t1); border: 1px solid var(--stroke); border-radius: var(--raio-s); font: inherit;
+}
+.pn input:focus-visible, .pn select:focus-visible, .pn button:focus-visible, .pn a:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
+.pn label { display: block; margin: 1.1rem 0 .4rem; }
+
+/* ---- entrada ---- */
+.pn__entrar { max-width: 440px; }
+.pn__entrar .pn__btn { width: 100%; margin-top: 1.4rem; }
+.pn__marcar { display: flex !important; align-items: center; gap: .6rem; min-height: 44px; text-transform: none !important; letter-spacing: 0 !important; font-family: var(--sans) !important; font-size: .95rem !important; color: var(--t2) !important; }
+.pn__marcar input { width: 20px; height: 20px; accent-color: var(--ac); }
+.pn__erro { color: #FF8A80; margin-top: 1rem; }
+
+/* ---- período e estado ---- */
+.pn__periodo { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; }
+.pn__periodo button { padding: 0 .4rem; }
+.pn__periodo button[aria-pressed="true"] { color: #000; background: var(--ac); border-color: var(--ac); }
+.pn__estado { min-height: 1.6em; margin: .8rem 0 0; font-family: var(--mono); font-size: var(--fs-rotulo); color: var(--t3); }
+
+/* ---- blocos ---- */
+.pn__bloco { border-top: 1px solid var(--stroke); padding: 1.8rem 0 .6rem; margin-top: 1.4rem; }
+.pn__ajuda { font-size: .95rem; max-width: 64ch; margin-bottom: 1rem; }
+.pn__kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: var(--stroke); border: 1px solid var(--stroke); }
+.pn__kpi { background: var(--bg); padding: 1rem .9rem; }
+.pn__kpi dt { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-ctrl); text-transform: uppercase; color: var(--t3); }
+.pn__kpi dd { font-family: var(--mono); font-size: 1.7rem; color: var(--t1); margin-top: .3rem; font-variant-numeric: tabular-nums; }
+.pn__funil { margin-top: 1.4rem; display: flex; flex-direction: column; gap: .9rem; }
+.pn__etapa p { display: flex; justify-content: space-between; gap: 1rem; font-size: .95rem; }
+.pn__etapa b { font-family: var(--mono); color: var(--t1); font-weight: 400; font-variant-numeric: tabular-nums; }
+.pn__barra { height: 6px; background: var(--s1); margin-top: .35rem; }
+.pn__barra i { display: block; height: 100%; background: var(--ac); width: 0; }
+
+/* ---- tabelas: rolam dentro da caixa no celular, a página nunca ---- */
+.pn__tabela { width: 100%; overflow-x: auto; }
+.pn table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+.pn th, .pn td { text-align: right; padding: .6rem .5rem; border-bottom: 1px solid var(--stroke); white-space: nowrap; }
+.pn th:first-child, .pn td:first-child { text-align: left; white-space: normal; min-width: 9rem; }
+.pn td { font-variant-numeric: tabular-nums; color: var(--t2); }
+.pn td:first-child { color: var(--t1); }
+.pn__vazio { color: var(--t3); font-size: .95rem; }
+
+/* ---- páginas e seções ---- */
+.pn__pagina { margin-top: 1.4rem; }
+.pn__pagina h3 { margin-top: 0; }
+.pn__pagina > p { font-size: .92rem; margin-bottom: .6rem; }
+.pn__secao { display: grid; grid-template-columns: 8rem 1fr 3.4rem; align-items: center; gap: .6rem; font-size: .88rem; min-height: 26px; }
+.pn__secao span:last-child { text-align: right; font-family: var(--mono); color: var(--t1); }
+
+/* ---- contatos: um cartão por contato no celular ---- */
+.pn__contato { border: 1px solid var(--stroke); border-radius: var(--raio-s); padding: 1rem; margin-bottom: .8rem; display: grid; gap: .7rem; }
+.pn__contato header { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
+.pn__codigo { font-family: var(--mono); font-size: 1.25rem; color: var(--t1); letter-spacing: .12em; }
+.pn__quando { font-family: var(--mono); font-size: var(--fs-rotulo); color: var(--t3); }
+.pn__contato p { font-size: .92rem; }
+.pn__campos { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+.pn__campos label { margin: 0 0 .3rem; }
+.pn__campos .pn__nota { grid-column: 1 / -1; }
+.pn__excluir { background: none; border: 0; color: var(--t3); text-decoration: underline; text-underline-offset: 3px; min-height: 44px; padding: 0 .6rem; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-ctrl); text-transform: uppercase; }
+.pn__excluir:hover { color: #FF8A80; }
+.pn__salvo { font-family: var(--mono); font-size: var(--fs-rotulo); color: var(--ac); min-height: 1.4em; }
+.pn__contato[data-status="cliente"] { border-color: var(--ac); }
+.pn__contato[data-status="descartado"] { opacity: .6; }
+#nomeConversao { max-width: 440px; margin-bottom: 1rem; display: block; }
+
+@media (min-width: 760px) {
+  .pn__kpis { grid-template-columns: repeat(3, 1fr); }
+  .pn__campos { grid-template-columns: 10rem 10rem 1fr auto; align-items: end; }
+  .pn__campos .pn__nota { grid-column: auto; }
+  .pn__secao { grid-template-columns: 12rem 1fr 3.4rem; }
+}

@@ -71,9 +71,11 @@
     travarResto(true);
     if (campoTipo) campoTipo.focus();
     document.addEventListener('keydown', aoEscapar);
+    if (B.emit) B.emit('formulario', { fase: 'abriu' });   /* (js/metricas.js: quem abre e onde desiste) */
   }
 
   function fechar() {
+    if (B.emit && modal.classList.contains('is-open')) B.emit('formulario', { fase: 'fechou' });
     modal.classList.remove('is-open');
     document.body.classList.remove('is-lead-open');
     document.removeEventListener('keydown', aoEscapar);
@@ -111,6 +113,11 @@
   for (var j = 0; j < fechadores.length; j++) {
     fechadores[j].addEventListener('click', fechar);
   }
+
+  /* o último campo tocado antes de desistir (só o NOME do campo; o que a pessoa escreve não sai daqui) */
+  form.addEventListener('focusin', function (e) {
+    if (B.emit && e.target && e.target.name) B.emit('formulario', { fase: 'campo', campo: e.target.name });
+  });
 
   form.addEventListener('submit', function (e) {
     e.preventDefault();

@@ -75,6 +75,8 @@
   function registrar(origem) {
     var dados = { origem_botao: origem, pagina: location.pathname || '/', via: viaAnuncio() ? 'anuncio' : 'site' };
     if (B.emit) B.emit('medicao:contato', dados);   /* (para os testes; nada sai do aparelho sem o sim) */
+    /* (js/metricas.js ouve este: funciona até na página Resumo, que não tem o BEYON) */
+    try { document.dispatchEvent(new CustomEvent('bz:contato', { detail: dados })); } catch (e) { /* navegador muito antigo */ }
     if (!ATIVO || escolha() !== 'sim') return;
     carregar();   /* (clique antes do ocioso: carrega agora; o gtag.js processa a fila na ordem: js, config, evento) */
     /* beacon: no celular a página vai para segundo plano quando o app do WhatsApp abre */
