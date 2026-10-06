@@ -198,10 +198,14 @@
   function itemDe(el) { for (var i = 0; i < elementos.length; i++) if (elementos[i].el === el) return elementos[i]; return null; }
 
   /* ---------- medida ---------- */
+  /* o teto do dpr do canvas do fundo: 1,5; numa página que anda devagar (B 'lento': 3 s abaixo de 42 fps) cai a 1
+     — o custo de pintar o fundo é por pixel (degrada medindo, como o reator) */
+  var tetoDpr = 1.5;
+  B.on('lento', function () { if (tetoDpr > 1) { tetoDpr = 1; pedirMedida(); } });
   function medir() {
     /* a largura do canvas é a da página SEM a barra de rolagem (inset: 0): com
        innerWidth o desenho saía ~1% comprimido (o ramo errava o card em 8 px) */
-    var w = document.documentElement.clientWidth || window.innerWidth, h = window.innerHeight, d = Math.min(window.devicePixelRatio || 1, celular ? 1.5 : 1.5);
+    var w = document.documentElement.clientWidth || window.innerWidth, h = window.innerHeight, d = Math.min(window.devicePixelRatio || 1, tetoDpr);
     if (w !== W || h !== H || d !== dpr) {
       W = w; H = h; dpr = d;
       cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); ctx.__dpr = dpr;   /* (B.texto desenha os sprites nos pixels deste canvas) */

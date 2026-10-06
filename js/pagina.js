@@ -369,24 +369,37 @@
   }
 
 
-  /* ---------- interruptor "menos movimento" (rodapé) ---------- */
-  var btnMov = document.querySelector('.footer__motion');
+  /* ---------- interruptores "menos movimento" (no topo, como skip-link, e no rodapé) ---------- */
+  var btnsMov = [].slice.call(document.querySelectorAll('[data-movimento], .footer__motion'));
   /* com prefers-reduced-motion ligado no sistema, o interruptor não tem o que
      fazer: o sistema manda, e um botão que não ativa nada mentiria */
-  if (btnMov && B.sistemaReduz) { btnMov.hidden = true; btnMov = null; }
-  if (btnMov) {
+  if (B.sistemaReduz) { btnsMov.forEach(function (b) { b.hidden = true; }); btnsMov = []; }
+  if (btnsMov.length) {
     var rotular = function () {
-      btnMov.setAttribute('aria-pressed', html.classList.contains('menos-movimento') ? 'true' : 'false');
+      var ligado = html.classList.contains('menos-movimento') ? 'true' : 'false';
+      btnsMov.forEach(function (b) { b.setAttribute('aria-pressed', ligado); });
     };
     rotular();
-    btnMov.addEventListener('click', function () {
-      var ligar = !html.classList.contains('menos-movimento');
-      B.reduzir(ligar, true);
-      /* reduzir desmonta a coreografia (splits, gatilhos, medidor) de vez;
-         religar o movimento é recarregar, com a preferência já gravada */
-      if (!ligar) { location.reload(); return; }
-      rotular();
+    btnsMov.forEach(function (b, i) {
+      b.addEventListener('click', function () {
+        var ligar = !html.classList.contains('menos-movimento');
+        B.reduzir(ligar, true);
+        /* reduzir desmonta a coreografia (splits, gatilhos, medidor) de vez;
+           religar o movimento é recarregar, com a preferência já gravada — guardando a rolagem e o foco
+           (a recarga devolvia a pessoa ao topo, sem foco: auditoria 2026-10-06) */
+        if (!ligar) { try { sessionStorage.setItem('bz-volta', window.scrollY + '|' + i); } catch (e) { /* sem armazenamento */ } location.reload(); return; }
+        rotular();
+      });
     });
+    /* a volta da recarga: mesma rolagem, foco no interruptor que foi usado */
+    try {
+      var volta = sessionStorage.getItem('bz-volta');
+      if (volta) {
+        sessionStorage.removeItem('bz-volta');
+        var partes = volta.split('|'), alvoMov = btnsMov[+partes[1]] || btnsMov[0];
+        window.addEventListener('load', function () { window.scrollTo({ top: +partes[0] || 0, behavior: 'instant' }); if (alvoMov) alvoMov.focus({ preventScroll: true }); }, { once: true });
+      }
+    } catch (e) { /* sem armazenamento */ }
   }
 
   B.iniciar();

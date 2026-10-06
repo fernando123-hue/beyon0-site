@@ -54,13 +54,15 @@
   /* ---- o laço ----
      S.fps é uma média móvel do intervalo real entre quadros: é o número que
      a prova mostra, então não pode mentir nem ser suavizado além da conta. */
-  var antes = 0, rodando = false;
+  var antes = 0, rodando = false, lentos = 0, avisouLento = false;
   function frame(now) {
     if (document.hidden) { rodando = false; return; }
     var dt = antes ? Math.min(50, now - antes) : 16;
     antes = now;
     S.dt = dt; S.now = now; S.t++;
     S.fps += (1000 / Math.max(1, dt) - S.fps) * 0.1;
+    /* a página anda devagar há 3 s (depois dos 10 s iniciais, com o reator subindo): quem puder, degrada — uma vez */
+    if (!avisouLento && S.t > 600) { lentos = S.fps < 42 ? lentos + 1 : 0; if (lentos > 180) { avisouLento = true; emit('lento'); } }
     /* um subsistema que lança não derruba os outros nem o laço */
     noQuadro = true;
     for (var i = 0; i < subs.length; i++) {

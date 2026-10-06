@@ -110,15 +110,26 @@
    em sentido horário — quatro lados (.energia-volta > b, inseridos por
    js/estacao.js só durante o turbo) que crescem um depois do outro por
    scale. Só transform e opacity (regra 1: nenhuma variável de CSS por quadro) */
-.energia-volta { position: absolute; inset: -1px; pointer-events: none; animation: apaga .45s linear .75s both; }
-.energia-volta > b { position: absolute; background: var(--ac-2); animation: .18s cubic-bezier(.45, 0, .55, 1) both; }
-.energia-volta > b:nth-child(1) { left: var(--raio); right: var(--raio); top: 0; height: 1.5px; transform-origin: left; animation-name: lado-x; }
-.energia-volta > b:nth-child(2) { top: var(--raio); bottom: var(--raio); right: 0; width: 1.5px; transform-origin: top; animation-name: lado-y; animation-delay: .17s; }
-.energia-volta > b:nth-child(3) { left: var(--raio); right: var(--raio); bottom: 0; height: 1.5px; transform-origin: right; animation-name: lado-x; animation-delay: .34s; }
-.energia-volta > b:nth-child(4) { top: var(--raio); bottom: var(--raio); left: 0; width: 1.5px; transform-origin: bottom; animation-name: lado-y; animation-delay: .51s; }
-@keyframes lado-x { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-@keyframes lado-y { from { transform: scaleY(0); } to { transform: scaleY(1); } }
-@keyframes apaga { to { opacity: 0; } }
+/* (fica no card desde a montagem e reinicia alternando is-volta-a/-b, js/estacao.js: inserir e remover o
+   elemento a cada turbo era DOM a mais no quadro da ignição) */
+.energia-volta { position: absolute; inset: -1px; pointer-events: none; opacity: 0; }
+.energia-volta > b { position: absolute; background: var(--ac-2); transform: scaleX(0); animation-duration: .18s; animation-timing-function: cubic-bezier(.45, 0, .55, 1); animation-fill-mode: both; }
+.energia-volta > b:nth-child(1) { left: var(--raio); right: var(--raio); top: 0; height: 1.5px; transform-origin: left; }
+.energia-volta > b:nth-child(2) { top: var(--raio); bottom: var(--raio); right: 0; width: 1.5px; transform-origin: top; transform: scaleY(0); animation-delay: .17s; }
+.energia-volta > b:nth-child(3) { left: var(--raio); right: var(--raio); bottom: 0; height: 1.5px; transform-origin: right; animation-delay: .34s; }
+.energia-volta > b:nth-child(4) { top: var(--raio); bottom: var(--raio); left: 0; width: 1.5px; transform-origin: bottom; transform: scaleY(0); animation-delay: .51s; }
+.is-volta-a > .energia-volta { animation: apaga-a .45s linear .75s both; }
+.is-volta-b > .energia-volta { animation: apaga-b .45s linear .75s both; }
+.is-volta-a > .energia-volta > b:nth-child(odd) { animation-name: lado-x-a; }
+.is-volta-a > .energia-volta > b:nth-child(even) { animation-name: lado-y-a; }
+.is-volta-b > .energia-volta > b:nth-child(odd) { animation-name: lado-x-b; }
+.is-volta-b > .energia-volta > b:nth-child(even) { animation-name: lado-y-b; }
+@keyframes lado-x-a { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes lado-x-b { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes lado-y-a { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes lado-y-b { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes apaga-a { from { opacity: 1; } to { opacity: 0; } }
+@keyframes apaga-b { from { opacity: 1; } to { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .energia-volta { display: none; } }
 .is-energia::before, .is-onda::before { opacity: 1; }
 .is-sugerido.is-sugerido, .hero__rail > a.is-sugerido { border-color: var(--line-hi); }

@@ -186,12 +186,22 @@
     var c = card._carga;
     if (!c || !window.SplitText) return false;
     if (c.split) return true;
-    var alvos = [].filter.call(card.querySelectorAll(TEXTOS), function (el) { return !el.closest('.carga') && el.textContent.trim(); }).map(embrulhar);
+    var pais = [].filter.call(card.querySelectorAll(TEXTOS), function (el) { return !el.closest('.carga') && el.textContent.trim(); });
+    var textos = pais.map(function (el) { return el.textContent.replace(/\s+/g, ' ').trim(); }), alvos = pais.map(embrulhar);
     if (!alvos.length) return false;
     try {
       c.split = new window.SplitText(alvos, { type: 'words,chars', tag: 'span', aria: 'none', ignore: '[aria-hidden="true"]', charsClass: 'carga-letra', wordsClass: 'carga-palavra' });
     } catch (e) { c.split = { chars: [], words: [] }; c.ondas = []; return false; }
-    for (var k = 0; k < alvos.length; k++) alvos[k].setAttribute('data-carga-split', '');
+    for (var k = 0; k < alvos.length; k++) {
+      alvos[k].setAttribute('data-carga-split', '');
+      /* letras em caixas separadas são lidas "S i t e s" (árvore de acessibilidade do Chrome, 2026-10-06): o
+         título e o link levam o texto inteiro no aria-label; o parágrafo (que a ARIA proíbe nomear) esconde as
+         letras e ganha uma cópia só para o leitor de tela */
+      if (pais[k].tagName === 'P') {
+        alvos[k].setAttribute('aria-hidden', 'true');
+        var copia = document.createElement('span'); copia.className = 'sr-only'; copia.textContent = textos[k]; pais[k].appendChild(copia);
+      } else pais[k].setAttribute('aria-label', textos[k]);
+    }
     var n = c.split.chars.length, passo = n ? Math.min(LETRAS.passo, LETRAS.teto / n) : 0, palavras = c.split.words, g = 0;
     /* a vez de cada palavra (ms desde o arranque da onda) e, dentro dela, a de cada letra (--d, relativo à palavra) */
     c.ondas = [];

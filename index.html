@@ -68,6 +68,7 @@
 </head>
 <body data-wa-padrao="quero entender qual dos seus serviços faz sentido pro meu negócio">
   <a href="#conteudo" class="skip-link">Pular para o conteúdo</a>
+  <button type="button" class="skip-link skip-link--mov" data-movimento aria-pressed="false">Reduzir movimento</button>
 
     <div class="atmosfera" aria-hidden="true"></div>
   <!-- a rede: o fundo vivo (js/rede.js) e o mini AI Core que segue a visita (js/mini.js) -->
@@ -157,31 +158,31 @@
         <p class="lead">Não sabe qual é o seu caso? A primeira conversa resolve isso, e é grátis.</p>
       </div>
       <div class="servicos reveal">
-        <a data-rotulo="Rápidos, primeiro no celular" class="painel painel--tinta servico" href="/sites">
+        <a data-rotulo="Rápidos, primeiro no celular" class="painel painel--tinta servico" href="/sites" aria-labelledby="servico-1-t servico-1-l" aria-describedby="servico-1-p">
           <span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span>
           <span class="servico__n" aria-hidden="true">01</span>
           <div class="servico__vitrine" aria-hidden="true"><div class="janela"><div class="janela__barra"><span class="janela__pt"></span><span class="janela__pt"></span><span class="janela__pt"></span><span class="janela__url">seunegocio.com.br</span></div><div class="janela__tela"><span class="mini__marca">Seu negócio</span><span class="mini__titulo">Atendimento que começa no <b>primeiro clique</b>.</span><span class="mini__btn">Começar</span></div></div></div>
           <ul class="servico__formatos" role="list"><li><b>01</b> Institucional</li><li><b>02</b> Landing page</li><li><b>03</b> Sob medida</li></ul>
-          <h3>Sites</h3>
-          <p>Institucionais, landing pages e sob medida. Rápidos, feitos primeiro para o celular, com a prova de velocidade rodando na sua frente.</p>
+          <h3 id="servico-1-t">Sites</h3>
+          <p id="servico-1-p">Institucionais, landing pages e sob medida. Rápidos, feitos primeiro para o celular, com a prova de velocidade rodando na sua frente.</p>
           <span class="servico__para">Para negócios que precisam ser encontrados e entendidos.</span>
-          <span class="servico__link">Ver sites <span aria-hidden="true" data-seta="direita">→</span></span>
+          <span class="servico__link" id="servico-1-l">Ver sites <span aria-hidden="true" data-seta="direita">→</span></span>
         </a>
-        <a data-rotulo="Só onde a conta fecha" class="painel painel--tinta servico" href="/automacao">
+        <a data-rotulo="Só onde a conta fecha" class="painel painel--tinta servico" href="/automacao" aria-labelledby="servico-2-t servico-2-l" aria-describedby="servico-2-p">
           <span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span>
           <span class="servico__n" aria-hidden="true">02</span>
-          <h3>Automação &amp; IA</h3>
-          <p>Agentes, automação de processos e sistemas que devolvem capacidade para a operação. Diagnóstico grátis primeiro; construção só onde a conta fecha.</p>
+          <h3 id="servico-2-t">Automação &amp; IA</h3>
+          <p id="servico-2-p">Agentes, automação de processos e sistemas que devolvem capacidade para a operação. Diagnóstico grátis primeiro; construção só onde a conta fecha.</p>
           <span class="servico__para">Para associações, sindicatos, federações e cooperativas.</span>
-          <span class="servico__link">Ver automação <span aria-hidden="true" data-seta="direita">→</span></span>
+          <span class="servico__link" id="servico-2-l">Ver automação <span aria-hidden="true" data-seta="direita">→</span></span>
         </a>
-        <a data-rotulo="Para ser lembrado" class="painel painel--tinta servico" data-wa="quero falar sobre uma experiência digital sob medida" href="https://wa.me/5521977167944">
+        <a data-rotulo="Para ser lembrado" class="painel painel--tinta servico" data-wa="quero falar sobre uma experiência digital sob medida" href="https://wa.me/5521977167944" aria-labelledby="servico-3-t servico-3-l" aria-describedby="servico-3-p">
           <span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span>
           <span class="servico__n" aria-hidden="true">03</span>
-          <h3>Experiências digitais</h3>
-          <p>Apresentações, lançamentos e interfaces que não cabem num site comum. Sem página própria, de propósito: cada projeto começa de um lugar diferente.</p>
+          <h3 id="servico-3-t">Experiências digitais</h3>
+          <p id="servico-3-p">Apresentações, lançamentos e interfaces que não cabem num site comum. Sem página própria, de propósito: cada projeto começa de um lugar diferente.</p>
           <span class="servico__para">Para quando o objetivo é ser lembrado.</span>
-          <span class="servico__link">Conversar sobre uma ideia <span aria-hidden="true" data-seta="direita">→</span></span>
+          <span class="servico__link" id="servico-3-l">Conversar sobre uma ideia <span aria-hidden="true" data-seta="direita">→</span></span>
         </a>
       </div>
     </section>

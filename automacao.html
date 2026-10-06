@@ -133,6 +133,7 @@
 </head>
 <body data-wa-padrao="quero entender onde a IA pode ajudar na minha entidade">
   <a href="#conteudo" class="skip-link">Pular para o conteúdo</a>
+  <button type="button" class="skip-link skip-link--mov" data-movimento aria-pressed="false">Reduzir movimento</button>
   <div class="atmosfera" aria-hidden="true"></div>
   <!-- a rede: o fundo vivo (js/rede.js) e o mini AI Core que segue a visita (js/mini.js) -->
   <canvas class="rede" data-rede aria-hidden="true"></canvas>
@@ -230,41 +231,41 @@
              UMA estrutura. Cada célula é um link: o valor de data-wa vai na
              mensagem do WhatsApp (js/pagina.js). -->
         <div class="malha reveal tem-estacao tem-estacao--3">
-          <a data-rotulo="Mais funcionário que chatbot" class="celula" data-wa="quero um agente de IA que execute tarefas na minha entidade" href="https://wa.me/5521977167944">
+          <a data-rotulo="Mais funcionário que chatbot" class="celula" data-wa="quero um agente de IA que execute tarefas na minha entidade" href="https://wa.me/5521977167944" aria-labelledby="celula-1-t celula-1-l" aria-describedby="celula-1-p">
             <span class="celula__n" aria-hidden="true">01</span>
-            <h3>Agentes que executam</h3>
-            <p>Recebe uma tarefa, cumpre com as ferramentas certas e chama você só quando precisa de uma decisão. Mais funcionário do que chatbot.</p>
-            <span class="celula__link">Conversar <span aria-hidden="true" data-seta="direita">→</span></span>
+            <h3 id="celula-1-t">Agentes que executam</h3>
+            <p id="celula-1-p">Recebe uma tarefa, cumpre com as ferramentas certas e chama você só quando precisa de uma decisão. Mais funcionário do que chatbot.</p>
+            <span class="celula__link" id="celula-1-l">Conversar <span aria-hidden="true" data-seta="direita">→</span></span>
           </a>
-          <a data-rotulo="Só o que precisa de gente" class="celula" data-wa="quero escalar meu atendimento com IA" href="https://wa.me/5521977167944">
+          <a data-rotulo="Só o que precisa de gente" class="celula" data-wa="quero escalar meu atendimento com IA" href="https://wa.me/5521977167944" aria-labelledby="celula-2-t celula-2-l" aria-describedby="celula-2-p">
             <span class="celula__n" aria-hidden="true">02</span>
-            <h3>Atendimento que escala</h3>
-            <p>Absorve o volume repetitivo, classifica o que chega e passa pra uma pessoa só o que precisa de uma.</p>
-            <span class="celula__link">Conversar <span aria-hidden="true" data-seta="direita">→</span></span>
+            <h3 id="celula-2-t">Atendimento que escala</h3>
+            <p id="celula-2-p">Absorve o volume repetitivo, classifica o que chega e passa pra uma pessoa só o que precisa de uma.</p>
+            <span class="celula__link" id="celula-2-l">Conversar <span aria-hidden="true" data-seta="direita">→</span></span>
           </a>
-          <a data-rotulo="Reabre a conversa perdida" class="celula" data-wa="quero recuperar contatos e oportunidades perdidas com IA" href="https://wa.me/5521977167944">
+          <a data-rotulo="Reabre a conversa perdida" class="celula" data-wa="quero recuperar contatos e oportunidades perdidas com IA" href="https://wa.me/5521977167944" aria-labelledby="celula-3-t celula-3-l" aria-describedby="celula-3-p">
             <span class="celula__n" aria-hidden="true">03</span>
-            <h3>Receita recuperada</h3>
-            <p>Contato esquecido, orçamento sem resposta, associado que sumiu: o sistema encontra, prioriza e reabre a conversa.</p>
-            <span class="celula__link">Conversar <span aria-hidden="true" data-seta="direita">→</span></span>
+            <h3 id="celula-3-t">Receita recuperada</h3>
+            <p id="celula-3-p">Contato esquecido, orçamento sem resposta, associado que sumiu: o sistema encontra, prioriza e reabre a conversa.</p>
+            <span class="celula__link" id="celula-3-l">Conversar <span aria-hidden="true" data-seta="direita">→</span></span>
           </a>
-          <a data-rotulo="Gargalo vira fluxo" class="celula" data-wa="quero automatizar um processo da minha entidade" href="https://wa.me/5521977167944">
+          <a data-rotulo="Gargalo vira fluxo" class="celula" data-wa="quero automatizar um processo da minha entidade" href="https://wa.me/5521977167944" aria-labelledby="celula-4-t celula-4-l" aria-describedby="celula-4-p">
             <span class="celula__n" aria-hidden="true">04</span>
-            <h3>Processos automatizados</h3>
-            <p>O gargalo que trava a operação vira fluxo automático, com registro, validação e parada humana onde importa.</p>
-            <span class="celula__link">Conversar <span aria-hidden="true" data-seta="direita">→</span></span>
+            <h3 id="celula-4-t">Processos automatizados</h3>
+            <p id="celula-4-p">O gargalo que trava a operação vira fluxo automático, com registro, validação e parada humana onde importa.</p>
+            <span class="celula__link" id="celula-4-l">Conversar <span aria-hidden="true" data-seta="direita">→</span></span>
           </a>
-          <a data-rotulo="Resposta na hora de decidir" class="celula" data-wa="quero usar os dados da minha entidade com IA" href="https://wa.me/5521977167944">
+          <a data-rotulo="Resposta na hora de decidir" class="celula" data-wa="quero usar os dados da minha entidade com IA" href="https://wa.me/5521977167944" aria-labelledby="celula-5-t celula-5-l" aria-describedby="celula-5-p">
             <span class="celula__n" aria-hidden="true">05</span>
-            <h3>Dados que respondem</h3>
-            <p>Documentos, histórico e conhecimento interno viram resposta pronta na hora exata em que alguém precisa decidir.</p>
-            <span class="celula__link">Conversar <span aria-hidden="true" data-seta="direita">→</span></span>
+            <h3 id="celula-5-t">Dados que respondem</h3>
+            <p id="celula-5-p">Documentos, histórico e conhecimento interno viram resposta pronta na hora exata em que alguém precisa decidir.</p>
+            <span class="celula__link" id="celula-5-l">Conversar <span aria-hidden="true" data-seta="direita">→</span></span>
           </a>
-          <a data-rotulo="O software que junta tudo" class="celula" data-wa="quero um sistema ou site potencializado por IA" href="https://wa.me/5521977167944">
+          <a data-rotulo="O software que junta tudo" class="celula" data-wa="quero um sistema ou site potencializado por IA" href="https://wa.me/5521977167944" aria-labelledby="celula-6-t celula-6-l" aria-describedby="celula-6-p">
             <span class="celula__n" aria-hidden="true">06</span>
-            <h3>Sistemas &amp; interfaces</h3>
-            <p>O software que junta tudo isso: integração, painel de gestão e o site que já nasce como parte do sistema.</p>
-            <span class="celula__link">Conversar <span aria-hidden="true" data-seta="direita">→</span></span>
+            <h3 id="celula-6-t">Sistemas &amp; interfaces</h3>
+            <p id="celula-6-p">O software que junta tudo isso: integração, painel de gestão e o site que já nasce como parte do sistema.</p>
+            <span class="celula__link" id="celula-6-l">Conversar <span aria-hidden="true" data-seta="direita">→</span></span>
           </a>
           <div class="estacao-vao" aria-hidden="true"><span class="estacao-vao__nucleo"></span></div>
         </div>
@@ -441,7 +442,7 @@
       <h2 id="lead-modal-titulo">Uma resposta e a conversa já começa no ponto certo</h2>
       <form id="leadForm" novalidate>
         <label class="lead-modal__field">
-          <span>Tipo de organização</span>
+          <span>Tipo de organização <span class="lead-modal__opt">(obrigatório)</span></span>
           <select name="tipo" required>
             <option value="" disabled selected>Selecione</option>
             <option value="associação" data-artigo="uma">Associação</option>
@@ -454,7 +455,7 @@
         <p class="lead-modal__erro" id="leadTipoErro" hidden>Escolha o tipo de organização para continuar.</p>
         <p class="sr-only" id="leadTipoAviso" role="status"></p>
         <label class="lead-modal__field" id="leadTipoOutroWrap" hidden>
-          <span>Qual?</span>
+          <span>Qual tipo de organização?</span>
           <input type="text" name="tipoOutro" maxlength="40" placeholder="Ex: conselho profissional" />
         </label>
         <label class="lead-modal__field">
@@ -463,7 +464,7 @@
         </label>
         <label class="lead-modal__field">
           <span>Seu nome e a organização <span class="lead-modal__opt">(opcional)</span></span>
-          <input type="text" name="nome" autocomplete="name" maxlength="80" placeholder="Ex: Maria, da Associação Comercial" />
+          <input type="text" name="nome" autocomplete="off" maxlength="80" placeholder="Ex: Maria, da Associação Comercial" />
         </label>
         <button type="submit" class="btn btn--primary lead-modal__submit">
           Continuar no WhatsApp <span aria-hidden="true" data-seta="direita">→</span>

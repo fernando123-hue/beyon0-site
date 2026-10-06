@@ -168,7 +168,12 @@
     var cruza = document.createElement('i');
     cruza.className = 'estacao-cruza';
     cruza.setAttribute('aria-hidden', 'true');
-    el.appendChild(porta); el.appendChild(cruza);
+    /* o traço do turbo, uma vez só (reinicia por classe, bater(el, 'volta')) */
+    var volta = document.createElement('i');
+    volta.className = 'energia-volta';
+    volta.setAttribute('aria-hidden', 'true');
+    for (var lado = 0; lado < 4; lado++) volta.appendChild(document.createElement('b'));
+    el.appendChild(porta); el.appendChild(cruza); el.appendChild(volta);
     if (ponteiroFino) {
       el.addEventListener('pointerenter', function () { focado = el; el.classList.add('is-alimentado'); });
       el.addEventListener('pointerleave', function () { if (focado === el) focado = null; el.classList.remove('is-alimentado'); });
@@ -205,15 +210,8 @@
     el.classList.add(classe);
     clearTimeout(el['_' + classe]);
     el['_' + classe] = setTimeout(function () { el.classList.remove(classe); }, turbo ? TURBO_MS : ONDA_MS);
-    /* no turbo, o traço que percorre a borda uma vez (css/cartoes.css: quatro lados) */
-    if (turbo && !el.querySelector(':scope > .energia-volta')) {
-      var volta = document.createElement('i');
-      volta.className = 'energia-volta';
-      volta.setAttribute('aria-hidden', 'true');
-      for (var lado = 0; lado < 4; lado++) volta.appendChild(document.createElement('b'));
-      el.appendChild(volta);
-      setTimeout(function () { volta.remove(); }, TURBO_MS);
-    }
+    /* no turbo, o traço que percorre a borda uma vez (css/cartoes.css: quatro lados; o elemento já está no card) */
+    if (turbo) bater(el, 'volta');
   }
   function sobrecarregar(st, sim) {
     if (!B.carga) return;
