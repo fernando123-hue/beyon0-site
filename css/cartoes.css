@@ -44,6 +44,40 @@
   opacity: 0; transition: opacity var(--t) var(--ease); pointer-events: none;
 }
 .painel--tinta::before { opacity: 1; }
+/* A BORDA COM LUZ DE CANTO (dono, 2026-10-05: a borda chapada "ficou meio seca"; referência: o shine border
+   da Magic UI, só a ideia da cor que se junta nos cantos). Em repouso a luz entra por um canto, na tinta do
+   módulo, e corre pelos dois lados até sumir; o canto oposto devolve um reflexo em prata. Quatro tiras de
+   1 px no fundo, por baixo do fio cinza da borda (que segue igual e recebe as cores dos estados): nítidas,
+   paradas, sem pseudo-elemento (o ::before é a aresta do foco, o ::after a varredura) e sem desfoque.
+   Começam depois da curva do canto, como a aresta. ?borda=b: os quatro cantos; ?borda=antes: a chapada. */
+.painel:not(:where(.console, .instrumento)), .celula, .laudo__row, .qa, .spec__item,
+.hero__rail > a, .hero__rail > div:not(.hero__rail-aresta) {
+  --luz: rgb(var(--tinta-rgb, var(--ac-rgb)));
+  --luz-0: rgb(var(--tinta-rgb, var(--ac-rgb)) / 0);
+  --reflexo: rgb(var(--prata-rgb) / .7);
+  --reflexo-0: rgb(var(--prata-rgb) / 0);
+  --tira-x: calc(100% - var(--raio) * 2) 1px;
+  --tira-y: 1px calc(100% - var(--raio) * 2);
+  background-image:
+    linear-gradient(90deg, var(--luz), var(--luz-0) 60%),
+    linear-gradient(180deg, var(--luz), var(--luz-0) 75%),
+    linear-gradient(270deg, var(--reflexo), var(--reflexo-0) 40%),
+    linear-gradient(0deg, var(--reflexo), var(--reflexo-0) 55%);
+  background-size: var(--tira-x), var(--tira-y), var(--tira-x), var(--tira-y);
+  background-position: var(--raio) 0, 0 var(--raio), var(--raio) 100%, 100% var(--raio);
+  background-origin: border-box; background-repeat: no-repeat;
+}
+/* ?borda=b — quatro cantos acesos, curtos, alternando tinta e prata */
+.borda-b :is(.painel:not(:where(.console, .instrumento)), .celula, .laudo__row, .qa, .spec__item,
+.hero__rail > a, .hero__rail > div:not(.hero__rail-aresta)) {
+  background-image:
+    linear-gradient(90deg, var(--luz), var(--luz-0) 22%, var(--reflexo-0) 78%, var(--reflexo)),
+    linear-gradient(180deg, var(--luz), var(--luz-0) 30%, var(--reflexo-0) 70%, var(--reflexo)),
+    linear-gradient(270deg, var(--luz), var(--luz-0) 22%, var(--reflexo-0) 78%, var(--reflexo)),
+    linear-gradient(0deg, var(--luz), var(--luz-0) 30%, var(--reflexo-0) 70%, var(--reflexo));
+}
+.borda-antes :is(.painel:not(:where(.console, .instrumento)), .celula, .laudo__row, .qa, .spec__item,
+.hero__rail > a, .hero__rail > div:not(.hero__rail-aresta)) { background-image: none; }
 @media (hover: hover) {
   .painel:not(:where(.console, .instrumento)):hover, .celula:hover, .laudo__row:hover, .qa:hover, .spec__item:hover, .hero__rail > a:hover { border-color: var(--line-2); background-color: rgb(16 18 19 / .94); }
   .painel:not(:where(.console, .instrumento)):hover::before, .celula:hover::before, .laudo__row:hover::before, .qa:hover::before, .spec__item:hover::before, .hero__rail > a:hover::before { opacity: 1; }
