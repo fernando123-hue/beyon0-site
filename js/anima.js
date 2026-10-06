@@ -888,13 +888,16 @@
        a sobra do número anterior aparecia ("2 KB" fantasma, crítica da rede,
        rodada 4). Mudou o texto, mede e repinta (um quadro, coalescido) */
     if ('MutationObserver' in window) {
-      var remedirPalco = 0, tamanhos = '';
-      var tamanhoAgora = function () { return partes.map(function (p) { var v = p.t.querySelector('.prova__val'); return v ? v.textContent.length : 0; }).join(','); };
-      tamanhos = tamanhoAgora();
+      /* só quando um número fica MAIS LONGO do que a máscara já mediu: encolher não transborda, e o fps
+         alternando entre 2 e 3 dígitos (99 ↔ 100 num monitor de 100 Hz) remedia o palco com layout forçado
+         (8 ms + 4 raízes de layout) a cada mudança, no meio da sobrecarga (trace, 2026-10-06) */
+      var remedirPalco = 0, maximos = [];
+      var tamanhoAgora = function () { return partes.map(function (p) { var v = p.t.querySelector('.prova__val'); return v ? v.textContent.length : 0; }); };
+      maximos = tamanhoAgora();
       var mo = new MutationObserver(function () {
-        var novo = tamanhoAgora(), mudou = novo !== tamanhos;
-        tamanhos = novo;   /* gravado antes: com o rAF pendente, a próxima mutação não remede de novo */
-        if (remedirPalco || !mudou) return;
+        var novo = tamanhoAgora(), cresceu = false;
+        for (var k = 0; k < novo.length; k++) if (novo[k] > (maximos[k] || 0)) { cresceu = true; maximos[k] = novo[k]; }   /* (gravado antes: com o rAF pendente, a próxima mutação não remede de novo) */
+        if (remedirPalco || !cresceu) return;
         remedirPalco = requestAnimationFrame(function () { remedirPalco = 0; medir(); pintar(tl.time()); });
       });
       partes.forEach(function (p) { var v = p.t.querySelector('.prova__val'); if (v) mo.observe(v, { childList: true, subtree: true, characterData: true }); });

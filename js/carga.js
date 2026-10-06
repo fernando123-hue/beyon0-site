@@ -78,7 +78,7 @@
      pelo card: ligar 139 animações num quadro só custava 13 ms de estilo + 10 de pintura (trace, 2026-10-06);
      por palavra são ~6 de cada vez. O passo de 15 ms (antes caía a 10,8 nos cards de 139 letras) deixa ~25
      letras animando ao mesmo tempo em vez de 35: o custo por quadro é proporcional a esse número */
-  var LETRAS = { cada: 3.5, passo: 15, teto: 2600, dura: 0.38, folga: 0.45, lote: 80 };
+  var LETRAS = { cada: 3.5, passo: 15, teto: 2600, dura: 0.38, folga: 0.45, lote: 80, primeira: 0.7 };   /* primeira: s até a 1ª onda da fila (a ignição dos 4 cards assenta antes) */
   /* seguir a rolagem (celular): /s proporcional à distância, com piso e teto (enche inteiro em ~0,9 s, sem a cauda
      longa de uma exponencial pura) */
   var SEGUE = { k: 4, min: 0.35, max: 2.2 };
@@ -204,20 +204,27 @@
     c.onda = n * passo / 1000 + LETRAS.dura;   /* s que a onda inteira leva (a fila da sobrecarga espera por ela) */
     return true;
   }
-  /* partir ANTES, com o navegador ocioso, só os cards fora da tela: o pulo de layout (kerning entre caixas) não
-     é visto e não acontece na hora do efeito (cortava o turbo da estação na 1ª conexão) */
-  var adiantou = false;
+  /* partir ANTES, com o navegador ocioso: os cards fora da tela (o pulo de layout, kerning entre caixas, não é
+     visto) e TODOS os cards de uma estação, estejam onde estiverem — UM por folga do navegador. Antes, quem
+     descia até Garantias logo depois de carregar chegava com os cards inteiros e o corte dos quatro caía no
+     instante do encaixe do mini (4 tarefas de 19–22 ms em 230 ms com a CPU 4× mais lenta: a "trava" que o
+     dono viu, 2026-10-06). Num card na tela o pulo é de ~1 px, uma vez; a trava na coreografia era pior. */
+  var adiantou = false, ocioso = window.requestIdleCallback || function (f) { return setTimeout(f, 200); };
   function adiantar() {
     if (adiantou || B.reduced || reduz.matches || !window.SplitText) return;
     adiantou = true;
-    var ocioso = window.requestIdleCallback || function (f) { return setTimeout(f, 200); };
-    ocioso(function () {
-      var cards = document.querySelectorAll('.tem-carga'), H = window.innerHeight;
-      for (var i = 0; i < cards.length; i++) {
-        var r = cards[i].getBoundingClientRect();
-        if (r.bottom < -40 || r.top > H + 40) partir(cards[i]);
-      }
-    }, { timeout: 2500 });
+    var fila = [].filter.call(document.querySelectorAll('.tem-carga'), function (card) {
+      var r = card.getBoundingClientRect();
+      return card.closest('.tem-estacao') || r.bottom < -40 || r.top > window.innerHeight + 40;
+    });
+    (function proximo() {
+      if (!fila.length) return;
+      var card = fila.shift(), c = card._carga;
+      partir(card);
+      /* (a luz que circula dos cards de estação nasce aqui também: antes era criada, para os quatro, no quadro do encaixe) */
+      if (c && !c.circula && card.closest('.tem-estacao') && !B.reduced && !reduz.matches) circular(c);
+      ocioso(proximo, { timeout: 1500 });
+    })();
   }
   B.on('rede:medida', function () { setTimeout(adiantar, 600); });
   /* o card é de uma estação viva (o grupo .tem-estacao.is-ligada, js/estacao.js: só desktop com mouse)? */
@@ -288,7 +295,7 @@
     if (f.cards.indexOf(card) >= 0) return;
     f.cards.push(card);
     f.cards.sort(function (a, b) { return a.compareDocumentPosition(b) & 4 ? -1 : 1; });   /* (na ordem da página) */
-    if (!f.timer) proximaOnda(f);
+    if (!f.timer) f.timer = setTimeout(function () { proximaOnda(f); }, LETRAS.primeira * 1000);   /* (a 1ª onda espera a ignição assentar) */
   }
   function desenfileirar(card) {
     if (card._carga) pararOnda(card._carga);
@@ -313,7 +320,6 @@
      deve pagar o SplitText de quatro cards no mesmo quadro) */
   function preparar(card) {
     if (B.reduced || reduz.matches || !window.SplitText || !card._carga || card._carga.split) return;
-    var ocioso = window.requestIdleCallback || function (fn) { return setTimeout(fn, 100); };
     ocioso(function () { partir(card); }, { timeout: 800 });
   }
   /* ---------- a transição até a sobrecarga (js/estacao.js) ---------- */

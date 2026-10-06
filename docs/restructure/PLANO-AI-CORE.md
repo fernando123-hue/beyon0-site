@@ -1340,3 +1340,18 @@ tem a disciplina de traço e de tipografia deles e um sistema de luz mais consis
 perde em "peso" de rolagem (eles usam smooth scroll com inércia: decisão do dono, custo
 alto no celular) e em paleta (eles usam 2 cores; aqui são 5 tons: preto, grafite, metal,
 prata, dois cianos).
+
+**Adendo (mesma sessão, print do dono: "ainda tem uma certa trava mais ou menos nesse
+momento", cards a 82 %, mini encaixado).** Reproduzido pelo caminho dele: rolar até
+Garantias LOGO depois de carregar. Aí os cards chegam inteiros (o pré-corte só pegava
+cards fora da tela) e o SplitText dos quatro cai no instante do encaixe: com a CPU 4×
+mais lenta, quatro tarefas de 19–22 ms em 230 ms (quadros de 30–40 ms). Correções:
+(1) `adiantar` corta todos os cards de estação no carregamento, um por folga do
+navegador (`requestIdleCallback` encadeado), estejam onde estiverem — o pulo de
+kerning de ~1 px num card na tela é menor que a trava na coreografia; (2) a primeira
+onda de letras espera 0,7 s depois de o card entrar na sobrecarga (`LETRAS.primeira`):
+antes começava junto com a rampa de ignição dos quatro; (3) o palco da prova remedia
+com layout forçado (8 ms, 4 raízes) toda vez que o fps alternava entre 2 e 3 dígitos
+(99 ↔ 100 num monitor de 100 Hz): agora só quando um número cresce além do medido.
+Fica para outra rodada: o custo de base de 7 ms por quadro (28 ms a 4×) dos três
+canvases; e o `.energia-volta` inserido/removido do DOM a cada turbo.
