@@ -3,10 +3,11 @@
 
    A View Transition entre documentos do navegador falhava quase sempre aqui
    (Chrome real, 2026-10-04: 0 de 14 trocas), então a transição é do site:
-   no clique num link para outra página do site, o painel cobre a tela (o fio
-   de luz na frente, o nome do destino no centro) e só então navega; a página
-   nova nasce coberta (js/ancoras.js põe `passagem-chega` no <head>) e o
-   painel segue a varredura, revelando-a. Enquanto ele fecha, o destino já
+   no clique num link para outra página do site, O MERGULHO (2026-10-06,
+   css/motion.css): o centro da tela abre e engole a página, os anéis passam
+   como um túnel, o nome do destino se escreve, e só então navega; a página
+   nova nasce dentro do túnel (js/ancoras.js põe `passagem-chega` no <head>)
+   e é revelada com ele se fechando no centro. Enquanto ele fecha, o destino já
    foi pedido ao servidor: a intenção (cursor em cima, dedo encostado, foco)
    pré-carrega a página.
 
@@ -21,10 +22,13 @@
   var el = document.querySelector('.passagem');
   if (!el) return;
   var rotulo = el.querySelector('.passagem__rotulo');
-  var COBRE_MS = 420;          /* = a animação pass-entra-* do CSS */
+  var leitura = el.querySelector('.passagem__leitura');
+  var COBRE_MS = 560;          /* = o escuro fechando (pass-abre, .54s) */
   var DESISTE_MS = 4000;       /* a navegação não aconteceu (Parar, Esc, o navegador cancelou): o painel sai */
-  var CHEGADA_MS = 900;        /* atraso + duração da abertura, com folga */
+  var CHEGADA_MS = 1250;       /* o último anel da chegada (.37s + .78s), com folga */
   var NOMES = { '/': 'Beyon Zero', '/sites': 'Sites', '/automacao': 'Automação & IA' };
+  var INDICE = { '/': '01', '/sites': '02', '/automacao': '03' };
+  var SINAIS = '01/\\<>[]=+*#';
   var saindo = false;
 
   function caminho(u) {
@@ -48,12 +52,26 @@
     if (u.origin !== location.origin) return null;
     var p = caminho(u);
     if (!Object.prototype.hasOwnProperty.call(NOMES, p) || p === caminho(location)) return null;
-    return { href: u.href, nome: NOMES[p] };
+    return { href: u.href, nome: NOMES[p], indice: INDICE[p] };
+  }
+
+  /* o nome do destino se ESCREVE: cada letra assenta da esquerda para a direita, depois de sinais (a mesma
+     escrita dos rótulos mono do site, js/escrita.js) */
+  function escrever(alvo, texto, ms) {
+    if (!alvo) return;
+    var t0 = performance.now();
+    (function passo() {
+      var k = Math.min(1, (performance.now() - t0) / ms), fixas = Math.floor(texto.length * k), s = '';
+      for (var i = 0; i < texto.length; i++) s += i < fixas || texto[i] === ' ' ? texto[i] : SINAIS[(Math.random() * SINAIS.length) | 0];
+      alvo.textContent = s;
+      if (k < 1) requestAnimationFrame(passo);
+    })();
   }
 
   function sair(d) {
     saindo = true;
-    if (rotulo) rotulo.textContent = d.nome;
+    escrever(rotulo, d.nome, 380);
+    if (leitura) leitura.textContent = d.indice + ' / 03';
     try { sessionStorage.setItem('bz-passagem', String(Date.now())); } catch (err) { /* sem armazenamento: chega sem cobertura */ }
     html.classList.remove('passagem-chega');
     el.classList.remove('is-cobre');

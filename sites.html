@@ -90,7 +90,7 @@
   <!-- a rede: o fundo vivo (js/rede.js) e o mini AI Core que segue a visita (js/mini.js) -->
   <canvas class="rede" data-rede aria-hidden="true"></canvas>
   <!-- a passagem entre páginas (js/passagem.js, css/motion.css) -->
-  <div class="passagem" aria-hidden="true"><div class="passagem__painel"><div class="passagem__miolo"><span class="passagem__marca"></span><span class="passagem__rotulo">Sites</span><span class="passagem__barra"></span></div></div></div>
+  <div class="passagem" aria-hidden="true"><div class="passagem__fundo"></div><div class="passagem__tunel"><i></i><i></i><i></i><i></i></div><div class="passagem__fio"></div><div class="passagem__miolo"><span class="passagem__aro"></span><span class="passagem__marca"></span><span class="passagem__rotulo">Sites</span><span class="passagem__leitura">02 / 03</span></div></div>
 
   <header class="nav" id="nav">
     <a href="/" class="nav__logo" aria-label="Beyon Zero — início"><span class="wordmark">Beyon <b>Zero</b></span></a>
@@ -261,7 +261,7 @@
       <span class="conversa__regua" aria-hidden="true"></span><span class="varredura" aria-hidden="true"></span>
       <div class="section reveal">
         <p class="kicker"><b aria-hidden="true">06</b> Conversa</p>
-        <h2 id="contato-titulo">Me conte o que seu site precisa <em>resolver</em>.</h2>
+        <h2 id="contato-titulo">Me conte o que seu site precisa <em data-palavras="resolver|mostrar|vender">resolver</em>.</h2>
         <p class="lead">Não precisa chegar com o projeto pronto na cabeça. Uma conversa curta sobre o negócio já diz qual dos três formatos faz sentido.</p>
         <div class="cta__acoes">
           <a data-rotulo="Quem responde é humano" class="btn btn--primary btn--lg" data-wa href="https://wa.me/5521977167944">Pedir orçamento no WhatsApp <span aria-hidden="true" data-seta="direita">→</span></a>
@@ -320,6 +320,7 @@
   <script src="js/passagem.js" defer></script>
   <script src="js/anima.js" defer></script>
   <script src="js/escrita.js" defer></script>
+  <script src="js/energia-texto.js" defer></script>
   <script src="js/carga.js" defer></script>
   <script src="js/rede-texto.js" defer></script>
   <script src="js/campo.js" defer></script>

@@ -769,6 +769,8 @@
      existe e fica o trilho de CSS de sempre. Repinta só a caixa do SVG e só
      enquanto se rola (medido em fps.mjs). */
   var SVG = 'http://www.w3.org/2000/svg';
+  var ROTA_ANTES = /[?&]rota=antes\b/.test(location.search);   /* (o desktop como era, para comparar) */
+  var deLado = function () { return window.innerWidth >= 821; };
   function rota(passos) {
     if (!ST || html.classList.contains('menos-movimento')) return null;
     var nos = [].slice.call(passos.querySelectorAll('.passo'));
@@ -782,10 +784,10 @@
     passos.appendChild(svg); passos.appendChild(fim);
     if (/no ar/i.test(nos[nos.length - 1].textContent)) fim.classList.add('rota__fim--mudo');
     passos.classList.add('passos--rota');
-    var L = 1, fr = [];
+    var L = 1, fr = [], COMETA = 48;
     function medir() {
       var box = passos.getBoundingClientRect();
-      var horizontal = window.innerWidth >= 821;
+      var horizontal = deLado();
       var pts = nos.map(function (no) { var r = no.getBoundingClientRect(); return horizontal ? { x: r.left - box.left + 5.5, y: r.top - box.top + 5.5 } : { x: r.left - box.left + 5.5, y: r.top - box.top + 10.5 }; });
       /* o caminho é montado nó a nó; guardar o trecho que termina em cada nó dá
          a fração exata em que ele é alcançado com uma medida por nó (a
@@ -796,7 +798,12 @@
         /* o embaraço nasce NO 1º nó (antes saía da coluna, à esquerda dela) */
         ate.push('M' + p0.x + ' ' + p0.y);
         d = 'M' + p0.x + ' ' + p0.y + ' q8 -12 16 0 t16 0 t16 0';
-        for (var i = 1; i < pts.length; i++) { d += ' H' + (pts[i].x - 24) + ' l8 -8 h8 l8 8'; ate.push(d); }
+        if (ROTA_ANTES) {
+          for (var i = 1; i < pts.length; i++) { d += ' H' + (pts[i].x - 24) + ' l8 -8 h8 l8 8'; ate.push(d); }
+        } else {
+          /* reta até cada nó: numa linha longa, o degrau parecia defeito (no celular, curta, ele é um traço de circuito) */
+          for (var k = 1; k < pts.length; k++) { d += ' H' + pts[k].x; ate.push(d); }
+        }
         d += ' h40';
       } else {
         d = 'M' + p0.x + ' ' + (p0.y - 72) + ' q12 8 0 16 t0 16 t0 16 L' + p0.x + ' ' + p0.y;
@@ -809,8 +816,10 @@
       var parciais = ate.map(function (trecho) { base.setAttribute('d', trecho); return base.getTotalLength(); });
       base.setAttribute('d', d); cometa.setAttribute('d', d);
       L = base.getTotalLength();
+      /* o cometa na mesma proporção do celular (~5% do caminho): 48 px sumiam em 1100 px */
+      COMETA = horizontal && !ROTA_ANTES ? Math.max(48, Math.round(L * 0.08)) : 48;
       base.style.strokeDasharray = L + ' ' + L;
-      cometa.style.strokeDasharray = '48 ' + L;
+      cometa.style.strokeDasharray = COMETA + ' ' + L;
       fr = parciais.map(function (l) { return l / L; });
       var ponta = base.getPointAtLength(L);
       fim.style.left = ponta.x + 'px'; fim.style.top = ponta.y + 'px';
@@ -825,11 +834,14 @@
     var tw = gsap.fromTo(prog, { p: 0 }, { p: 1, ease: 'none', immediateRender: true,
       onUpdate: function () {
         base.style.strokeDashoffset = L - prog.p * L;
-        cometa.style.strokeDashoffset = 48 - prog.p * L;
+        cometa.style.strokeDashoffset = COMETA - prog.p * L;
         marcar(prog.p);
       },
-      scrollTrigger: { trigger: passos, start: 'top 82%', end: 'bottom 62%', scrub: .6 } });
-    base.style.strokeDashoffset = L; cometa.style.strokeDashoffset = 48;
+      /* (funções: o ScrollTrigger reavalia no refresh, então girar a tela troca a régua junto com a geometria) */
+      scrollTrigger: { trigger: passos, scrub: .6,
+        start: function () { return deLado() && !ROTA_ANTES ? 'top 88%' : 'top 82%'; },
+        end: function () { return deLado() && !ROTA_ANTES ? 'top 30%' : 'bottom 62%'; } } });
+    base.style.strokeDashoffset = L; cometa.style.strokeDashoffset = COMETA;
     return function () {
       ST.removeEventListener('refreshInit', medir);
       if (tw.scrollTrigger) tw.scrollTrigger.kill();
