@@ -110,6 +110,9 @@
     alterar: function (pedido) { return chamar('POST', 'alterar', comConversa({ pedido: pedido })); },
     escopo: function () { return chamar('POST', 'escopo', comConversa()); },
     confirmar: function (propostaId, inicioImediato) { return chamar('POST', 'confirmar', comConversa({ proposta_id: propostaId, confirmo: true, inicio_imediato: inicioImediato })); },
-    pagar: function () { return chamar('POST', 'pagar', comConversa()); }
+    /* o valor NUNCA vai daqui: o servidor tira da proposta aceita */
+    pagar: function (metodo, pagador, cartao) { return chamar('POST', 'pagar', comConversa({ metodo: metodo, pagador: pagador, cartao: cartao })); },
+    pagamento: function () { return chamar('GET', 'pagamento', undefined, '&conversa=' + encodeURIComponent(sessao.conversa_id)); },
+    pagamentoConfig: function () { return http('GET', 'pagamento-config'); }
   };
 })();

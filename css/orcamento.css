@@ -183,3 +183,38 @@ html.visor-aberto { overflow: hidden; }
   .orc-est__valor.is-novo { animation: none; }
   .orc-log { scroll-behavior: auto; }
 }
+
+/* ---------- pagamento do sinal (Pix e cartão no próprio site) ---------- */
+.pag { max-width: 560px; gap: .4rem; }
+.pag-metodos { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; margin-bottom: .6rem; }
+.pag-metodo { display: flex; flex-direction: column; align-items: flex-start; gap: .2rem; min-height: 64px; padding: .8rem .9rem; border: 1px solid var(--stroke); border-radius: var(--raio); background: var(--s1); color: var(--t1); font: inherit; text-align: left; cursor: pointer; transition: border-color var(--t-micro) var(--ease-micro); }
+.pag-metodo:hover { border-color: var(--t1); }
+.pag-metodo[aria-checked="true"] { border-color: var(--ac); box-shadow: inset 0 0 0 1px var(--ac); }
+.pag-metodo:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
+.pag-metodo__nome { font-size: 1.05rem; font-weight: 500; }
+.pag-metodo__nota { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-dado); color: var(--t3); }
+.pag-grupo { border: 0; padding: 0; margin: .6rem 0 0; display: flex; flex-direction: column; gap: .4rem; min-width: 0; }
+.pag-grupo legend { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); padding: 0; margin-bottom: .2rem; }
+.pag-grupo label, .pag-rotulo { display: block; font-size: var(--fs-s); color: var(--t2); margin-top: .5rem; }
+.pag-par { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+.pag-par > div { min-width: 0; display: flex; flex-direction: column; gap: .4rem; }
+.pag-par label, .pag-par .pag-rotulo { margin-top: .5rem; }
+.pag select { width: 100%; min-height: 52px; padding: .7rem .9rem; border: 1px solid var(--stroke); border-radius: var(--raio-s); background: var(--bg); color: var(--t1); font: inherit; font-size: 1rem; }
+.pag select:focus-visible { outline: 2px solid var(--ac); outline-offset: 1px; border-color: var(--ac); }
+/* o contêiner do iframe do Mercado Pago: a borda e a altura são nossas, o campo é deles */
+.pag-campo { height: 52px; padding: 0 .9rem; border: 1px solid var(--stroke); border-radius: var(--raio-s); background: var(--bg); }
+.pag-campo:focus-within { border-color: var(--ac); outline: 2px solid var(--ac); outline-offset: 1px; }
+.pag-campo iframe { width: 100%; height: 100%; border: 0; }
+.pag-local { border-left: 2px solid rgb(var(--ouro-rgb)); padding-left: .7rem; }
+.pag .btn[type="submit"] { width: 100%; margin-top: .8rem; }
+
+.pix { display: grid; gap: 1rem; margin-top: 1.2rem; padding: 1rem; border: 1px solid var(--line-2); border-radius: var(--raio); background: var(--s1); max-width: 560px; }
+.pix__qr { width: 220px; height: 220px; padding: 10px; background: #FFFFFF; border-radius: var(--raio-s); justify-self: center; image-rendering: pixelated; }
+.pix__lado { display: flex; flex-direction: column; gap: .6rem; min-width: 0; }
+.pix__codigo { width: 100%; padding: .7rem .8rem; border: 1px solid var(--stroke); border-radius: var(--raio-s); background: var(--bg); color: var(--t1); font-family: var(--mono); font-size: var(--fs-ctrl); line-height: 1.5; resize: none; overflow-wrap: anywhere; }
+.pix .btn { align-self: flex-start; }
+.pag-desafio { max-width: 560px; }
+
+@media (min-width: 640px) {
+  .pix { grid-template-columns: auto 1fr; align-items: start; }
+}

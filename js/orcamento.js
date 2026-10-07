@@ -305,39 +305,19 @@
     finally { form.removeAttribute('aria-busy'); }
   });
 
-  /* ---------- pagamento do sinal ---------- */
-  function linkPagamento(st, link, abriu) {
-    st.textContent = 'Aguardando a confirmação do pagamento. ';
-    var a = el('a', '', abriu ? 'Abrir o pagamento de novo' : 'Abrir o pagamento');
-    a.href = link; a.target = '_blank'; a.rel = 'noopener noreferrer';
-    st.appendChild(a);
-  }
-  $('o-pagar').addEventListener('click', async function () {
-    var st = $('o-pag-status'), b = this;
-    if (b.disabled) return;
-    b.disabled = true;
-    st.textContent = 'Preparando o pagamento…';
-    try {
-      var r = await API.pagar();
-      if (r.link) linkPagamento(st, r.link, !!window.open(r.link, '_blank', 'noopener'));
-      else st.textContent = 'Aguardando a confirmação do pagamento.';
-      esperar();
-    } catch (e) { st.textContent = mensagemDe(e); }
-    finally { b.disabled = false; }
-  });
+  /* ---------- pagamento do sinal (js/orcamento-pagamento.js: Pix e cartão no próprio site) ---------- */
+  var telaPagamento = window.BZPagamentoTela ? window.BZPagamentoTela.criar({ API: API, dinheiro: dinheiro, aoPagar: function () { recarregar().catch(function () {}); } }) : null;
   function pagamento() {
     var pr = E.proposta;
     if (!pr) return;
     var sinais = E.pagamentos.filter(function (p) { return p.parcela === 'sinal'; });
     var ultimo = sinais[sinais.length - 1];
-    var sinal = ultimo ? Number(ultimo.valor) : Number(pr.valor_total) * Number(pr.sinal_percentual) / 100;
-    if (!mudou('pagamento', [pr, ultimo])) return;
-    $('o-pag-lead').textContent = 'Escopo confirmado: ' + dinheiro(pr.valor_total) + ' em até ' + pr.prazo_dias + ' dias. Para começar, o sinal de ' + pr.sinal_percentual + '%: ' + dinheiro(sinal) + '. O restante na entrega.';
-    $('o-pagar').textContent = 'Pagar o sinal de ' + dinheiro(sinal);
-    $('o-pag-escopo').textContent = pr.escopo || '';
-    var st = $('o-pag-status');
-    if (ultimo && ultimo.status === 'pendente' && ultimo.link) linkPagamento(st, ultimo.link, true);
-    else if (ultimo && (ultimo.status === 'cancelado' || ultimo.status === 'expirado')) st.textContent = 'O pagamento anterior não foi concluído. Toque no botão para gerar um novo link.';
+    var sinal = ultimo ? Number(ultimo.valor) : Math.round(Number(pr.valor_total) * Number(pr.sinal_percentual)) / 100;
+    if (mudou('pagamento', [pr, ultimo && ultimo.valor])) {
+      $('o-pag-lead').textContent = 'Escopo confirmado: ' + dinheiro(pr.valor_total) + ' em até ' + pr.prazo_dias + ' dias. Para começar, o sinal de ' + pr.sinal_percentual + '%: ' + dinheiro(sinal) + '. O restante na entrega.';
+      $('o-pag-escopo').textContent = pr.escopo || '';
+      if (telaPagamento) telaPagamento.mostrar(sinal);
+    }
   }
 
   /* ---------- o estado manda na tela ---------- */
@@ -403,7 +383,7 @@
     mostrar('o-pagamento', et === 'aguardando_pagamento');
     if (et === 'aguardando_pagamento') pagamento();
     mostrar('o-pronto', et === 'em_producao');
-    if (et === 'em_producao') pararEspera();
+    if (et === 'em_producao') { pararEspera(); if (telaPagamento) telaPagamento.parar(); }
     visor.atualizar();
   }
   /* uma leitura por vez; resposta de uma leitura mais velha que a última desenhada é descartada */
@@ -417,7 +397,7 @@
     if (minha !== seq) return E;
     E = novo;
     render();
-    if (E.conversa.etapa === 'gerando' || E.conversa.etapa === 'aguardando_pagamento') esperar();
+    if (E.conversa.etapa === 'gerando') esperar();   /* (no pagamento, quem consulta é js/orcamento-pagamento.js) */
     return E;
   }
 

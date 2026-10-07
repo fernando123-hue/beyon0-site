@@ -10,7 +10,7 @@
   <meta name="theme-color" content="#000000" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.googletagmanager.com https://www.googleadservices.com https://www.google.com; style-src 'self'; font-src 'self'; img-src 'self' data: https://*.google-analytics.com https://*.googletagmanager.com https://*.g.doubleclick.net https://www.google.com https://www.google.com.br https://www.googleadservices.com; connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.g.doubleclick.net https://www.google.com https://www.google.com.br https://www.googleadservices.com https://pagead2.googlesyndication.com; frame-src https://td.doubleclick.net; object-src 'none'; base-uri 'self'; form-action 'none'" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://sdk.mercadopago.com https://www.googletagmanager.com https://www.googleadservices.com https://www.google.com; style-src 'self'; font-src 'self'; img-src 'self' data: https://*.google-analytics.com https://*.googletagmanager.com https://*.g.doubleclick.net https://www.google.com https://www.google.com.br https://www.googleadservices.com; connect-src 'self' https://api.mercadopago.com https://secure-fields.mercadopago.com https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.g.doubleclick.net https://www.google.com https://www.google.com.br https://www.googleadservices.com https://pagead2.googlesyndication.com; frame-src https://td.doubleclick.net https://secure-fields.mercadopago.com; object-src 'none'; base-uri 'self'; form-action 'none'" />
   <script src="js/ancoras.js"></script>
   <link rel="preload" href="assets/fonts/sora-latin.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="assets/fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin />
@@ -178,17 +178,77 @@
     <section class="orc-bloco" id="o-pagamento" aria-labelledby="o-pag-titulo" hidden>
       <h2 id="o-pag-titulo">Para começar</h2>
       <p class="orc-bloco__lead" id="o-pag-lead"></p>
-      <button class="btn btn--primary" type="button" id="o-pagar">Pagar o sinal</button>
+      <p class="orc-aviso" id="o-pag-indisponivel" hidden>O pagamento online está indisponível agora. A Beyon Zero envia o pagamento pelo <a data-wa="quero pagar o sinal do meu projeto" href="https://wa.me/5521977167944">WhatsApp</a>.</p>
+
+      <form class="orc-form pag" id="o-pag-form" novalidate>
+        <div class="pag-metodos" role="radiogroup" aria-label="Forma de pagamento">
+          <button type="button" class="pag-metodo" role="radio" aria-checked="true" data-metodo="pix"><span class="pag-metodo__nome">Pix</span><span class="pag-metodo__nota">QR Code ou copia e cola</span></button>
+          <button type="button" class="pag-metodo" role="radio" aria-checked="false" data-metodo="cartao"><span class="pag-metodo__nome">Cartão</span><span class="pag-metodo__nota">crédito ou débito</span></button>
+        </div>
+        <fieldset class="pag-grupo">
+          <legend>Quem paga</legend>
+          <div class="pag-par">
+            <div><label for="o-pag-nome">Nome</label><input id="o-pag-nome" autocomplete="given-name" maxlength="60" required /></div>
+            <div><label for="o-pag-sobrenome">Sobrenome</label><input id="o-pag-sobrenome" autocomplete="family-name" maxlength="60" required /></div>
+          </div>
+          <label for="o-pag-email">E-mail</label>
+          <input id="o-pag-email" type="email" autocomplete="email" maxlength="254" required />
+          <label for="o-pag-doc">CPF ou CNPJ</label>
+          <input id="o-pag-doc" inputmode="numeric" autocomplete="off" maxlength="18" required />
+        </fieldset>
+        <fieldset class="pag-grupo" id="o-pag-cartao" hidden>
+          <legend>Cartão</legend>
+          <p class="orc-nota" id="o-pag-carregando" aria-live="polite"></p>
+          <div id="o-pag-campos">
+            <p class="orc-nota">Os campos do cartão são do Mercado Pago: os números não passam pelo site da Beyon Zero.</p>
+            <span class="pag-rotulo" id="o-mp-numero-rotulo">Número do cartão</span>
+            <div class="pag-campo" id="o-mp-numero" aria-labelledby="o-mp-numero-rotulo"></div>
+            <div class="pag-par">
+              <div><span class="pag-rotulo" id="o-mp-validade-rotulo">Validade</span><div class="pag-campo" id="o-mp-validade" aria-labelledby="o-mp-validade-rotulo"></div></div>
+              <div><span class="pag-rotulo" id="o-mp-cvv-rotulo">Código de segurança</span><div class="pag-campo" id="o-mp-cvv" aria-labelledby="o-mp-cvv-rotulo"></div></div>
+            </div>
+          </div>
+          <p class="orc-nota pag-local" id="o-pag-local" hidden>Modo local, sem dinheiro: no nome do titular, use APRO (aprova), FUND (sem limite), OTHE (recusa), CONT (em análise) ou CHAL (confirmação do banco).</p>
+          <label for="o-titular">Nome impresso no cartão</label>
+          <input id="o-titular" autocomplete="cc-name" maxlength="60" />
+          <label for="o-parcelas">Parcelas</label>
+          <select id="o-parcelas"></select>
+        </fieldset>
+        <p class="orc-erro" id="o-pag-erro" role="alert"></p>
+        <button class="btn btn--primary" type="submit" id="o-pag-enviar"></button>
+      </form>
+
+      <div class="pix" id="o-pix" hidden>
+        <img class="pix__qr" id="o-pix-qr" alt="QR Code do Pix" width="220" height="220" hidden />
+        <div class="pix__lado">
+          <p class="orc-rotulo">Pix copia e cola</p>
+          <label class="sr-only" for="o-pix-codigo">Código Pix copia e cola</label>
+          <textarea id="o-pix-codigo" class="pix__codigo" rows="3" readonly></textarea>
+          <button class="btn btn--sm" type="button" id="o-pix-copiar">Copiar o código</button>
+          <p class="orc-nota" id="o-pix-expira"></p>
+          <button class="btn btn--sm btn--ghost" type="button" id="o-pix-simular" hidden>Simular o pagamento (modo local)</button>
+          <button class="btn btn--sm btn--ghost" type="button" id="o-pix-trocar">Prefiro pagar com cartão</button>
+        </div>
+      </div>
+
+      <div class="orc-aviso pag-desafio" id="o-desafio" hidden>
+        <p>O seu banco pediu uma confirmação. Ela abre numa aba nova; depois, volte para esta tela, que atualiza sozinha.</p>
+        <div class="orc-aviso__acoes">
+          <a class="btn btn--sm btn--primary" id="o-desafio-link" href="#" target="_blank" rel="noopener noreferrer">Confirmar no banco</a>
+          <button class="btn btn--sm btn--ghost" type="button" id="o-desafio-simular" hidden>Simular a confirmação (modo local)</button>
+        </div>
+      </div>
+
       <p class="orc-pag-status" id="o-pag-status" role="status" aria-live="polite"></p>
       <details class="orc-det">
         <summary>Ver o escopo confirmado</summary>
         <div class="orc-escopo" id="o-pag-escopo"></div>
       </details>
-      <p class="orc-nota">O pagamento só é confirmado pelo aviso do banco ou da operadora. Esta página nunca pede dados de cartão.</p>
+      <p class="orc-nota">O pagamento é processado pelo Mercado Pago e só é dado como confirmado depois que o servidor da Beyon Zero consulta o Mercado Pago. Voltar para esta página não confirma nada sozinho.</p>
     </section>
 
     <section class="orc-bloco orc-pronto" id="o-pronto" aria-labelledby="o-pronto-titulo" hidden>
-      <h2 id="o-pronto-titulo">Pagamento confirmado. Seu projeto entrou em produção.</h2>
+      <h2 id="o-pronto-titulo">Pagamento confirmado. Seu projeto está liberado para começar.</h2>
       <p class="orc-bloco__lead">A Beyon Zero fala com você pelo contato informado para os próximos passos.</p>
     </section>
   </main>
@@ -229,6 +289,7 @@
   <script src="js/previa.js" defer></script>
   <script src="js/orcamento-api.js" defer></script>
   <script src="js/orcamento-visor.js" defer></script>
+  <script src="js/orcamento-pagamento.js" defer></script>
   <script src="js/orcamento.js" defer></script>
 </body>
 </html>

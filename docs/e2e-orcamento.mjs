@@ -109,13 +109,33 @@ try {
   await page.waitForSelector('#o-pagamento:not([hidden])');
   await foto(page, '4-pagamento-cel');
 
-  const [pagina] = await Promise.all([ctx.waitForEvent('page'), page.click('#o-pagar')]);
-  await pagina.waitForLoadState('load');
-  await pagina.click('[data-status="pago"]');
-  await pagina.waitForFunction(() => /aceito/i.test(document.getElementById('resultado').textContent), null, { timeout: 15000 });
-  await pagina.close();
+  /* pagamento: dados do pagador, cartão recusado, depois Pix (QR) e a confirmação SÓ pelo aviso do provedor */
+  await page.click('#o-pag-enviar');
+  ok((await page.textContent('#o-pag-erro')).includes('nome'), 'pagador sem dados: recusado com motivo');
+  await page.fill('#o-pag-nome', 'Ana'); await page.fill('#o-pag-sobrenome', 'Souza');
+  await page.fill('#o-pag-email', 'ana@exemplo.com'); await page.fill('#o-pag-doc', '529.982.247-25');
+  await page.click('[data-metodo="cartao"]');
+  ok(await page.locator('#o-pag-local').isVisible(), 'modo local: nomes de teste no lugar dos campos do Mercado Pago');
+  await page.fill('#o-titular', 'FUND');
+  await page.click('#o-pag-enviar');
+  await page.waitForFunction(() => /limite/.test(document.getElementById('o-pag-status').textContent), null, { timeout: 15000 });
+  ok(true, 'cartão recusado: motivo em português, nada liberado');
+  ok(await page.locator('#o-pronto').isHidden(), 'recusa não libera');
+  await page.click('[data-metodo="pix"]');
+  await page.click('#o-pag-enviar');
+  await page.waitForSelector('#o-pix:not([hidden])', { timeout: 15000 });
+  ok((await page.inputValue('#o-pix-codigo')).startsWith('000201'), 'Pix copia e cola');
+  ok(await page.locator('#o-pix-qr').isVisible(), 'QR do Pix');
+  ok(await semRolagemLateral(page), 'celular no Pix: sem rolagem lateral');
+  await page.locator('#o-pix').scrollIntoViewIfNeeded();
+  await foto(page, '4-pix-cel');
+  await page.reload({ waitUntil: 'load' });
+  await page.waitForSelector('#o-pix:not([hidden])', { timeout: 15000 });
+  ok(true, 'recarregar: o mesmo Pix volta (nenhuma cobrança nova)');
+  ok(await page.locator('#o-pronto').isHidden(), 'voltar para a página não confirma nada sozinho');
+  await page.click('#o-pix-simular');
   await page.waitForSelector('#o-pronto:not([hidden])', { timeout: 20000 });
-  ok(true, 'pagamento confirmado pelo aviso: projeto em produção');
+  ok(true, 'Pix confirmado pelo aviso assinado + consulta: projeto liberado');
   ok(erros.length === 0, 'sem erro de console' + (erros.length ? ': ' + erros.slice(0, 3).join(' | ') : ''));
   await ctx.close();
 
