@@ -14,10 +14,12 @@ const NOME_OP = { usar_paleta_de: 'cores da direção', usar_tipografia_de: 'fon
   mover_antes_de: 'seção movida', mover_depois_de: 'seção movida', remover_secao: 'seção removida', adicionar_secao: 'seção adicionada',
   trocar_texto: 'texto trocado', trocar_cta_menu: 'botão do menu trocado', adicional: 'item adicionado', paginas: 'número de páginas' };
 const CAMPO_SEGURO = /^[a-z_]{1,40}$/;
+/* a chave vem do modelo: só nomes próprios da tabela ("constructor" herdado escreveria "[native code]" no contrato) */
+const daTabela = (tabela, chave) => (typeof chave === 'string' && Object.hasOwn(tabela, chave) ? tabela[chave] : undefined);
 function linhaAlteracao(a) {
-  const partes = [NOME_OP[a.operacao] || 'ajuste'];
+  const partes = [daTabela(NOME_OP, a.operacao) || 'ajuste'];
   if (a.operacao === 'usar_paleta_de' || a.operacao === 'usar_tipografia_de') { if (Number.isInteger(a.direcao)) partes[0] += ' ' + a.direcao; }
-  if (NOME_SECAO[a.secao]) partes.push(NOME_SECAO[a.secao]);
+  if (daTabela(NOME_SECAO, a.secao)) partes.push(daTabela(NOME_SECAO, a.secao));
   if (a.operacao === 'cor' && /^#[0-9a-fA-F]{6}$/.test(a.valor || '')) partes.push(a.valor);
   if (a.operacao === 'tema' && ['claro', 'escuro'].includes(a.valor)) partes.push(a.valor);
   if (a.operacao === 'paginas' && /^\d{1,2}$/.test(a.valor || '')) partes.push(a.valor);
@@ -29,8 +31,8 @@ export function montarEscopo({ estimativa, direcao, alteracoesAplicadas, briefin
   const nome = briefing?.negocio?.nome || briefing?.negocio?.segmento || 'seu negócio';
   const titulo = (estimativa.formato?.nome || 'Site') + ' — ' + nome;
   const linhas = [];
-  linhas.push('DIREÇÃO ESCOLHIDA: ' + (direcao.nome_conceito || 'Direção') + ' (' + (ROTULO[direcao.estrategia] || direcao.estrategia) + ')');
-  linhas.push('Seções: ' + direcao.secoes.map(s => NOME_SECAO[s.tipo] || s.tipo).join(', ') + '.');
+  linhas.push('DIREÇÃO ESCOLHIDA: ' + (direcao.nome_conceito || 'Direção') + ' (' + (daTabela(ROTULO, direcao.estrategia) || direcao.estrategia) + ')');
+  linhas.push('Seções: ' + direcao.secoes.map(s => daTabela(NOME_SECAO, s.tipo) || s.tipo).join(', ') + '.');
   if (alteracoesAplicadas?.length) {
     linhas.push('', 'ALTERAÇÕES PEDIDAS');
     /* só campos de lista fechada: o texto livre do modelo (descricao) nunca entra no contrato */

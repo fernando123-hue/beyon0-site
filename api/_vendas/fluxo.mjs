@@ -248,8 +248,9 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     async alterar({ request, corpo }) {
       const vid = await visitante(request);
       exigir(ehUuid(corpo?.conversa_id), 400, 'Conversa inválida.');
-      const pedido = redigir(limparMensagem(corpo?.pedido));   /* (o modelo e o banco recebem o texto redigido) */
-      exigir(pedido, 400, 'Descreva a alteração em até 2.000 caracteres.');
+      const limpo = limparMensagem(corpo?.pedido);
+      exigir(limpo, 400, 'Descreva a alteração em até 2.000 caracteres.');   /* (antes de redigir: redigir(null) vira "null") */
+      const pedido = redigir(limpo);   /* (o modelo e o banco recebem o texto redigido) */
       const est = await estado(vid, corpo.conversa_id);
       exigir(est.escolha, 409, 'Escolha uma direção antes.');
       exigir(AJUSTE_ABERTO.includes(est.conversa.etapa), 409, 'Os ajustes desta proposta já foram fechados.');   /* (antes de pagar o modelo) */
