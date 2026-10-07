@@ -7,7 +7,7 @@
    A geração das direções tem o seu dublê em simulado-geracao.mjs.
    ========================================================================== */
 import { pareceInjecao } from '../_vendas/seguranca.mjs';
-import { gerarSimulado } from './simulado-geracao.mjs';
+import { gerarSimulado, extrairSimulado } from './simulado-geracao.mjs';
 
 const SEGMENTOS = [[/odonto|dentist/i, 'odontologia'], [/cl[ií]nica|consult[óo]rio|m[ée]dic/i, 'saúde'], [/advoca|advogad|escrit[óo]rio jur/i, 'advocacia'],
   [/restaurante|lanchonete|pizzaria|caf[ée]/i, 'alimentação'], [/academia|personal|pilates/i, 'fitness'], [/contab/i, 'contabilidade'],
@@ -77,7 +77,7 @@ function conversa({ mensagens }) {
   return resposta('', chamadas);
 }
 
-export function criarSimulada({ geracao = gerarSimulado, extracao } = {}) {
+export function criarSimulada({ geracao = gerarSimulado, extracao = extrairSimulado } = {}) {
   return {
     nome: 'simulada',
     async mensagem(pedido) {

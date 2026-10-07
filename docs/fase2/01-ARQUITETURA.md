@@ -100,3 +100,17 @@ Migrations `20261007120000` a `…120200`.
   - lorem ipsum recusado.
 - **Prova social:** sem dado no briefing, ela vira espaço reservado entre colchetes.
 - **Mesmo briefing, estratégias diferentes.** As 3 direções partem do mesmo briefing e do mesmo prompt de sistema, que fica em cache. Só a estratégia muda: conversão, autoridade ou experiência.
+
+## Incremento 5: alterações e escopo final
+
+- **Interpretação** (`api/_vendas/alteracoes.mjs`). O Sonnet 5.5, com esforço baixo e saída em JSON Schema, só traduz o pedido em operações de uma lista fechada:
+  - paleta ou tipografia de outra direção;
+  - cor;
+  - tema;
+  - mover, remover ou adicionar seção;
+  - trocar texto;
+  - escopo (adicional ou páginas);
+  - não suportado, sempre com o motivo.
+- **Quem aplica é o código.** Depois, a direção passa de novo pela higienização (o contraste é corrigido).
+- **Mudança de escopo volta ao motor de preço.** Nenhum preço muda por pedido escrito.
+- **Escopo final** (`api/_vendas/escopo.mjs`). É montado pelo código, sem IA, a partir da estimativa gravada e da direção final. Traz a direção escolhida, as alterações, o escopo, a fase seguinte, o investimento com o sinal e o prazo.
