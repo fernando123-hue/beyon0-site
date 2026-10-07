@@ -24,14 +24,17 @@ com credenciais reais**, salvo onde diz outra coisa.
    - **Pagamento desligado é o resultado esperado**: promovido, o projeto roda como produção (`VERCEL_ENV=production`)
      e `api/_pagamentos/config.mjs` só liga com `MP_AMBIENTE=producao`. Não "consertar" pondo `producao` nem
      credencial real: o pagamento de TESTE se ensaia na prévia.
-   - IA: ou `BZ_IA=simulada` (ensaio sem custo), ou uma chave Anthropic só do ensaio com limite de gasto baixo no
-     console. Nunca a chave de produção.
+   - IA: uma chave Anthropic só do ensaio, com limite de gasto baixo no console. Nunca a chave de produção. O
+     simulador NÃO serve aqui: promovido, o projeto roda como produção e, desde o PR 5, o código recusa o simulador
+     nesse ambiente (o consultor responde 503 com o WhatsApp — esse também é um resultado válido do ensaio sem
+     chave). O simulador vale só na prévia e no servidor local.
    - No fim: apagar o projeto de ensaio, apagar o banco de TESTE do ensaio e revogar a chave Anthropic do ensaio.
-   - Com `BZ_IA=simulada` no ensaio, o caminho da IA real só roda pela 1ª vez em produção: conferir o 1º turno
-     real logo depois de promover (ou ensaiar com a chave só do ensaio).
+   - Se o ensaio for feito sem chave, o caminho da IA real só roda pela 1ª vez em produção: conferir o 1º turno
+     real logo depois de promover.
 2. Variáveis de Produção: Supabase de produção, Mercado Pago de produção + webhook, `CRON_SECRET` com 32+
-   caracteres, e **sem** `BZ_IA=simulada` nem `BZ_LOCAL` (desde o PR 5 o código já recusa o simulador na produção
-   da Vercel: sem `ANTHROPIC_API_KEY`, o consultor fica desligado com o WhatsApp).
+   caracteres, e **sem** `BZ_IA=simulada` nem `BZ_LOCAL` (desde o PR 5 o código já recusa o simulador na Vercel fora da
+   prévia: sem `ANTHROPIC_API_KEY`, o consultor fica desligado com o WhatsApp). Prévias com a proteção de deploy
+   da Vercel ligada (quem tem o link não vê proposta simulada).
 3. Migrations aplicadas no banco de produção antes de promover.
 4. O PR traz "SHA para promover"; promover exatamente esse.
 5. Depois: `npm run verificar` com `BASE` de produção; site e `/orcamento` no celular sem digitar mensagem (nunca
@@ -59,7 +62,7 @@ com credenciais reais**, salvo onde diz outra coisa.
 | Técnica B1 | `ID_ORDER` do webhook sensível a maiúsculas | confirmar a forma real do MP no 1º teste com credenciais de TESTE |
 | Técnica B3 | `sinal_percentual` fracionário diverge entre cartão e Pix | aceitar só inteiro no motor de preço |
 | Segurança B4 | CSP de `/orcamento` libera domínios do Google que a página não usa | enxugar `vercel.json` |
-| ~~Segurança B5~~ | ~~`BZ_IA=simulada` sem trava na Vercel~~ | **feito no PR 5** (`criarIA` devolve nada com `VERCEL_ENV=production`) |
+| ~~Segurança B5~~ | ~~`BZ_IA=simulada` sem trava na Vercel~~ | **feito no PR 5** (`criarIA`: na Vercel, simulador só na prévia e no desenvolvimento; fechado por padrão) |
 
 ## Depois / quando acontecer
 
@@ -77,4 +80,6 @@ com credenciais reais**, salvo onde diz outra coisa.
 - Das revisões do PR 3: precisões na nota do guarda (`--admin`/`--auto` negados só nos projetos da Beyon; deploy de
   prévia passa de propósito; merge pela API do GitHub não é coberto). Feito no PR 5: `BASE` inválida no E2E dá a
   mensagem de recusa em vez de `TypeError`.
+- Da revisão do PR 5: o E2E olha só o nome do host; um túnel ou `vercel dev` local apontando para produção
+  passaria. Exigir que `GET /api/vendas?acao=pagamento-config` responda o ambiente simulado antes de rodar.
 - Teste: rodadas seguidas do E2E estouram o freio por IP (90/min) — esperar 1 min entre rodadas.

@@ -31,9 +31,11 @@ export async function criarIA(env = process.env) {
     const { criarAnthropic } = await import('./anthropic.mjs');
     return criarAnthropic(env);
   }
-  /* nunca o simulador na produção da Vercel: proposta inventada para cliente de verdade. Sem chave lá, o consultor
-     fica desligado (vendas.mjs responde 503 com o WhatsApp) */
-  if (env.VERCEL_ENV === 'production') return null;
+  /* nunca o simulador na produção da Vercel: proposta inventada para cliente de verdade. Fechado por padrão: na
+     Vercel só a prévia e o desenvolvimento aceitam o simulador. Sem chave, o consultor fica desligado (vendas.mjs
+     responde 503 com o WhatsApp) */
+  const naVercel = !!(env.VERCEL || env.VERCEL_ENV);
+  if (naVercel && !['preview', 'development'].includes(env.VERCEL_ENV)) return null;
   if (env.BZ_LOCAL === '1' || env.BZ_IA === 'simulada') {
     const { criarSimulada } = await import('./simulado.mjs');
     return criarSimulada();

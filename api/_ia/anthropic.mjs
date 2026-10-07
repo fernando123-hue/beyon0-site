@@ -25,7 +25,7 @@ const STATUS_DA_CONTA = new Set([402, 403, 404]);
 const LIMITE_DE_GASTO = /^(You have reached your specified (workspace )?API usage limits|Your credit balance is too low)/i;
 const mensagemDoProvedor = e => String(e?.error?.error?.message || '');
 /* sem texto do visitante: status, tipo do erro e o id do pedido para achar no painel da Anthropic */
-const logErroProvedor = e => console.error(JSON.stringify({ origem: 'ia', nivel: 'erro', status: e.status, tipo: String(e?.error?.error?.type || '').slice(0, 40) || null, request_id_provedor: e.requestID || null }));
+const logErroProvedor = e => console.error(JSON.stringify({ origem: 'ia', nivel: 'erro', status: e.status, tipo: String(e?.error?.error?.type || '').slice(0, 40) || null, request_id_provedor: String(e.requestID || '').slice(0, 80) || null }));
 
 export function criarAnthropic(env = process.env, cliente) {
   const client = cliente || new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, maxRetries: TENTATIVAS_PADRAO });

@@ -25,6 +25,10 @@ test('simulador nunca na produção da Vercel: sem chave, o consultor fica desli
   const { criarIA } = await import('../../api/_ia/provedor.mjs');
   assert.equal(await criarIA({ VERCEL: '1', VERCEL_ENV: 'production', BZ_IA: 'simulada' }), null, 'BZ_IA=simulada em produção');
   assert.equal(await criarIA({ VERCEL: '1', VERCEL_ENV: 'production', BZ_LOCAL: '1' }), null, 'BZ_LOCAL=1 em produção');
+  assert.equal(await criarIA({ VERCEL: '1', BZ_IA: 'simulada' }), null, 'na Vercel sem VERCEL_ENV: fechado');
+  assert.equal(await criarIA({ VERCEL_ENV: 'qualquer', BZ_IA: 'simulada' }), null, 'ambiente desconhecido: fechado');
+  const real = await criarIA({ VERCEL: '1', VERCEL_ENV: 'production', ANTHROPIC_API_KEY: 'sk-teste', BZ_IA: 'simulada' });
+  assert.equal(real?.nome, 'anthropic', 'com a chave, a produção usa a IA real (a trava não vem antes da chave)');
   assert.ok(await criarIA({ VERCEL: '1', VERCEL_ENV: 'preview', BZ_IA: 'simulada' }), 'na prévia o simulador vale');
   assert.ok(await criarIA({ BZ_LOCAL: '1' }), 'no servidor local o simulador vale');
 });
