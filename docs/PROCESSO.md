@@ -50,25 +50,28 @@ o `npm audit` das dependências de produção e, no PR para a `main`, o E2E do o
 
 1. O agente trabalha numa branch (`rebuild-v2` ou uma branch por tarefa) e faz push: a Vercel gera uma **prévia**.
 2. Abre um PR para a `main` com a evidência; o CI e o Processo rodam. Os checks são lidos um a um.
-3. **O dono** mescla o PR (um clique no GitHub). A `main` **não publica sozinha**: `vercel.json →
-   git.deploymentEnabled.main = false`.
+3. **O agente** mescla o PR (`gh pr merge`, nunca `--admin`) só depois de: todos os checks lidos e verdes,
+   revisão técnica (e de segurança, no nível 3) por agente diferente do autor publicadas no PR, achados
+   críticos/altos corrigidos. Qualquer check vermelho ou achado sem destino: não mescla. A `main` **não publica
+   sozinha**: `vercel.json → git.deploymentEnabled.main = false`. (Dono, 2026-10-07: "desde que você sempre siga
+   o processo de verificação e revisão, você pode mexer na main"; antes, quem mesclava era ele.)
 4. **O dono** promove para produção no painel da Vercel: Deployments → a prévia do commit mesclado →
    "Promote to Production". Voltar atrás: "Instant Rollback" no mesmo painel.
 5. Migration de banco: **antes** do passo 4, pelo dono, no roteiro de `docs/fundacao/02-OPERACAO.md`
    (o código novo nunca vai ao ar antes da migration que ele usa).
 
 O que impede o agente de pular isso (mecanismo, não texto): o guarda do Claude Code (`~/.claude/guarda/`)
-nega `vercel --prod`/`promote`/`rollback`, push na `main` ou forçado, `gh pr merge` e `gh workflow run` nos
-projetos da Beyon, `supabase db push` e a leitura de `.env`; e as regras `permissions.deny` do
+nega `vercel --prod`/`promote`/`rollback`, push direto na `main` ou forçado, `gh pr merge --admin`/`--auto` e
+`gh workflow run` nos projetos da Beyon, `supabase db push` e a leitura de `.env`; e as regras `permissions.deny` do
 `~/.claude/settings.json` repetem os principais.
 
 ## Sempre pedir o dono
 
-Apagar dado, trocar segredo, publicar ao vivo (mesclar na `main` e promover), migration no banco real, decisão de negócio.
+Apagar dado, trocar segredo, publicar ao vivo (promover na Vercel), migration no banco real, decisão de negócio.
 
 ## Limites (ditos como são)
 
 O portão confere declaração e links, não a verdade do texto. Revisores são o mesmo modelo em outra instância.
 Sem proteção de branch (repositório privado no plano gratuito), check vermelho não bloqueia o botão de mesclar:
-ler os checks é obrigatório — por isso quem mescla é o dono. O guarda é trava contra erro e instrução injetada,
+ler os checks é obrigatório antes de mesclar, e o que vale é a leitura, não o botão. O guarda é trava contra erro e instrução injetada,
 não contra quem quer burlar: o texto livre de shell tem muitas formas.

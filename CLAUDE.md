@@ -116,9 +116,11 @@ refresh); âncoras usam só `scroll-padding-top`.
    segurança em `js/pagina.js`; `npm run acessibilidade` confere.
 5. **Medir, não deduzir.** A/B na mesma sessão. O projeto já piorou o site três
    vezes otimizando por palpite.
-6. **Publicar é do dono.** Desde 2026-10-07 a `main` não publica sozinha (`vercel.json → git.deploymentEnabled`):
-   o agente trabalha em branch, abre PR com a evidência de `docs/PROCESSO.md`; o dono mescla e promove a prévia no
-   painel da Vercel. O guarda do Claude Code (`~/.claude/guarda/`) nega push na `main`, `vercel --prod`, `gh pr merge`.
+6. **Produção é do dono; a `main` é do processo.** Desde 2026-10-07 a `main` não publica sozinha
+   (`vercel.json → git.deploymentEnabled`): o agente trabalha em branch, abre PR com a evidência de `docs/PROCESSO.md`,
+   lê os checks um a um e, com tudo verde e revisado, **mescla ele mesmo** (dono, 2026-10-07: "desde que você sempre
+   siga o processo de verificação e revisão, você pode mexer na main"). Promover na Vercel continua do dono. O guarda
+   (`~/.claude/guarda/`) nega push direto na `main`, `gh pr merge --admin`, `vercel --prod`.
 7. **CSP sem inline.** `style-src 'self'`: nenhum `style=""` no HTML, nenhum
    `<style>`; só classes. `el.style.x` via JS continua permitido.
 8. **Mono só onde há rótulo, índice, dado ou controle.** Copy em Sora; títulos em Sora 300.

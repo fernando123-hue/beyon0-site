@@ -20,11 +20,17 @@ const nav = await chromium.launch({ executablePath: EXEC });
 let falhou = false;
 const ok = (cond, msg) => { console.log((cond ? 'OK   ' : 'FALHA') + ' ' + msg); if (!cond) falhou = true; };
 const semRolagemLateral = page => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
+/* diagnóstico: as últimas chamadas à API e o estado da tela aparecem quando o teste quebra */
+let pagina = null;
+const diario = [];
 const foto = (page, nome) => page.screenshot({ path: fileURLToPath(new URL(nome + '.png', PASTA)) });   /* (pathname deixa %20 no caminho) */
 
 try {
   const ctx = await nav.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   const page = await ctx.newPage();
+  pagina = page;
+  page.on('requestfinished', async r => { if (!r.url().includes('/api/')) return; const t = r.timing(); const resp = await r.response(); diario.push(`${r.method()} ${new URL(r.url()).pathname}${new URL(r.url()).search} → ${resp ? resp.status() : '?'} em ${Math.round(t.responseEnd)} ms`); });
+  page.on('requestfailed', r => { if (r.url().includes('/api/')) diario.push(`${r.method()} ${new URL(r.url()).pathname} → falhou: ${r.failure()?.errorText}`); });
   const erros = [];
   page.on('console', m => { if (m.type() === 'error') erros.push(m.text()); });
   page.on('pageerror', e => erros.push(String(e)));
@@ -157,7 +163,18 @@ try {
   ok(await ps.locator('.orc-mesa').isHidden(), 'sem JS: a conversa (que não funcionaria) some');
   await sj.close();
 } catch (e) {
-  ok(false, 'exceção: ' + (e && e.message ? e.message.split('\n')[0] : e));
+  ok(false, 'exceção: ' + (e && e.message ? e.message.split('\n').slice(0, 3).join(' | ') : e));
+  console.log('  últimas chamadas à API:\n    ' + diario.slice(-10).join('\n    '));
+  if (diario.some(l => l.includes('→ 429'))) console.log('  (429 = o freio por IP de api/vendas.mjs, que é real: rodadas seguidas somam no mesmo minuto.\n   Espere 1 minuto entre rodadas ou reinicie o servidor local; não é defeito do fluxo.)');
+  if (pagina) {
+    const tela = await pagina.evaluate(() => JSON.stringify({
+      etapa: document.querySelector('#o-etapas [aria-current]')?.dataset.passo,
+      abertos: ['o-est-cheio', 'o-contato', 'o-ajustes', 'o-escopo', 'o-pagamento', 'o-pix', 'o-pronto'].filter(id => document.getElementById(id) && !document.getElementById(id).hidden),
+      erroEscopo: document.getElementById('o-esc-erro')?.textContent || '',
+      ultimaMensagem: [...document.querySelectorAll('#o-log .msg')].pop()?.textContent.slice(0, 160) || '',
+    })).catch(x => 'sem leitura: ' + x.message);
+    console.log('  tela: ' + tela);
+  }
 } finally {
   await nav.close();
 }
