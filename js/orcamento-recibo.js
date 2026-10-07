@@ -15,7 +15,7 @@
   var $ = function (id) { return document.getElementById(id); };
   var METODOS = { pix: 'Pix', cartao: 'Cartão' };
   var BANDEIRA = /^[a-z]{2,16}$/;   /* o id do meio no Mercado Pago (visa, master, elo...) */
-  var CHEGADA_MS = 6000;            /* rede de segurança: a coreografia (css/orcamento.css, .recibo.is-chegando) dura 2,5 s */
+  var CHEGADA_MS = 6000;            /* rede de segurança: a coreografia (css/orcamento.css, .recibo.is-chegando) dura 3,2 s */
 
   function quando(iso) {
     var d = new Date(iso);
@@ -75,12 +75,18 @@
     }
 
     /* a chegada: uma vez, quando o pagamento acaba de ser confirmado com a tela aberta. A classe sai no fim
-       da última animação (o total); o relógio é só a rede de segurança (aba escondida, total sem animar) */
+       da ÚLTIMA animação: a marca da junção (rec-marca, 3,2 s); sem a parte da entrega, o total; sem partes
+       (recibo sem proposta), o eco do selo. O relógio é só a rede de segurança (aba escondida) */
     function chegar() {
-      var r = $('o-recibo'), fim = function () { clearTimeout(rede); r.classList.remove('is-chegando'); };
+      var r = $('o-recibo');
+      var ultima = $('o-rec-partes').hidden ? 'rec-descarga' : $('o-rec-entrega').hidden ? 'rec-aparece' : 'rec-marca';
+      var fim = function (ev) {
+        if (ev && (ev.animationName !== ultima || (ultima === 'rec-aparece' && ev.target.id !== 'o-rec-total'))) return;
+        clearTimeout(rede); r.removeEventListener('animationend', fim); r.classList.remove('is-chegando');
+      };
       var rede = setTimeout(fim, CHEGADA_MS);
       r.classList.add('is-chegando');
-      $('o-rec-total').addEventListener('animationend', fim, { once: true });
+      r.addEventListener('animationend', fim);
       $('o-pronto').scrollIntoView({ block: 'start' });
       $('o-pronto-titulo').focus({ preventScroll: true });   /* o aviso do pagamento sumiu com o bloco dele: o foco leva o leitor de tela ao recibo */
     }

@@ -250,11 +250,19 @@
     <!-- O RECIBO do sinal pago (js/orcamento-recibo.js): as duas partes do valor se encaixam num recibo só -->
     <section class="orc-bloco orc-pronto" id="o-pronto" aria-labelledby="o-pronto-titulo" hidden>
       <div class="recibo" id="o-recibo">
-        <svg class="recibo__selo" viewBox="0 0 64 64" width="64" height="64" aria-hidden="true" focusable="false">
-          <circle class="recibo__anel" cx="32" cy="32" r="27" pathLength="1" />
-          <path class="recibo__check" d="M21.5 33 L28.5 40 L43 24.5" pathLength="1" />
-        </svg>
-        <p class="recibo__rotulo">Sinal pago</p>
+        <div class="recibo__selo" aria-hidden="true">
+          <svg viewBox="0 0 64 64" width="64" height="64" focusable="false">
+            <circle class="recibo__anel" cx="32" cy="32" r="27" pathLength="1" />
+            <circle class="recibo__ponta" cx="32" cy="32" r="27" pathLength="1" />
+            <path class="recibo__check" d="M21.5 33 L28.5 40 L43 24.5" pathLength="1" />
+          </svg>
+          <svg class="recibo__volta" viewBox="0 0 64 64" width="64" height="64" focusable="false">
+            <circle class="recibo__volta-cauda" cx="32" cy="32" r="27" pathLength="1" />
+            <circle class="recibo__volta-meio" cx="32" cy="32" r="27" pathLength="1" />
+            <circle class="recibo__volta-cabeca" cx="32" cy="32" r="27" pathLength="1" />
+          </svg>
+        </div>
+        <p class="recibo__rotulo"><i class="recibo__led" aria-hidden="true"></i>Sinal pago</p>
         <h2 class="recibo__titulo" id="o-pronto-titulo" tabindex="-1">Pagamento confirmado.</h2>
         <p class="recibo__lead">Seu projeto está liberado para começar. A Beyon Zero fala com você pelo contato informado para os próximos passos.</p>
         <p class="recibo__codigo">Código do pagamento <b id="o-rec-codigo-v"></b></p>
@@ -267,7 +275,7 @@
             </div>
           </div>
           <div class="recibo__parte recibo__parte--entrega" id="o-rec-entrega">
-            <i class="recibo__luz" aria-hidden="true"></i>
+            <i class="recibo__luz" aria-hidden="true"><b></b></i>
             <p class="recibo__parte-rot"><span aria-hidden="true">↓</span> Na entrega</p>
             <div class="recibo__linha">
               <span class="recibo__chip recibo__chip--resto" id="o-rec-pct-resto"></span>

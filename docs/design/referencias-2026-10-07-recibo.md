@@ -31,6 +31,21 @@ embaixo troca de "calculando" para o valor; o ID da transação em verde.
 - A biblioteca (React + Motion): o `/orcamento` é HTML/CSS/JS puro; tudo em CSS (transform, opacity e o traço
   do selo de 64px, uma vez).
 
+## A energia (2ª rodada, mesmo dia: "efeitos de energia, bem minimalista, preciso nos pequenos detalhes")
+Vocabulário do próprio site, sem desfoque: cabeça branca e cauda ciano (a luz que circula nos cards), "tinta
+molhada" (o H1 do Hub), "a luz passa e imprime", LED que pisca uma vez por passagem (o hero).
+| Detalhe | Quando | Medida |
+|---|---|---|
+| Ponta branca DENTRO do fio, na frente do anel enquanto ele se fecha | 0,15–1,0 s | dash .05; offset .05 − progresso; mesma curva e giro do anel |
+| Descarga: um eco de 1px sai do anel e apaga | 1,3 s (fim do ✓) | escala 1 → 1,55, 0,7 s |
+| Tinta molhada no valor pago (ciano → branco) | 1,2 s (encaixe) | 1,1 s |
+| Luz na junção (cabeça branca, cauda de 110px) e a marca ciano que cresce atrás dela e apaga | 1,6 s | 0,8 s; marca 30 ms atrás, ease-in cúbica = 1ª metade da curva da cabeça |
+| Volta: uma luz percorre o anel, de 12 h a 12 h | a cada 9,6 s (desde 3,4 s, depois da chegada) | 1,44 s, no fio (1,5px, ponta reta) |
+| LED de "Sinal pago" pisca branco | no fim de cada volta | 0,1 s acende, ~1 s apaga |
+Só a parte PAGA tem energia; "Na entrega" fica apagada. Recusados: brilho/halo, partículas, pulso contínuo.
+Conferido congelando as animações em instantes exatos com zoom (ponta na frente do traço; anel parado sem a
+emenda de 3 h, que o tracejado deixava; marca nunca à frente da cabeça).
+
 ## Regras do recibo
 - Anima UMA vez, só quando a confirmação chega com a tela aberta (a etapa passa de "aguardando pagamento" para
   "em produção"). Quem volta depois vê o recibo pronto, parado. Movimento reduzido: parado.
