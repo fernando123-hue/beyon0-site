@@ -4,6 +4,11 @@
     "gru1"
   ],
   "installCommand": "npm ci --omit=dev",
+  "git": {
+    "deploymentEnabled": {
+      "main": false
+    }
+  },
   "functions": {
     "api/vendas.mjs": {
       "maxDuration": 300

@@ -1,0 +1,87 @@
+# CI da Beyon Zero (auditoria do Harness, 2026-10-07): o portão que faltava entre o código e a produção.
+# Grátis: GitHub Actions em repositório privado (cota mensal do plano gratuito). Padrão endurecido do SBP:
+# permissões mínimas, actions fixadas por SHA, nada de credencial persistida, texto externo só por env.
+# A produção NÃO sai daqui: a Vercel não publica a main sozinha (vercel.json → git.deploymentEnabled) e o dono
+# promove no painel depois de ler estes checks (docs/PROCESSO.md).
+name: CI
+
+on:
+  push:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  testes:
+    name: Testes (banco real, IA e pagamento simulados) e mutação
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run testar
+      - run: npm run testar:mutacao
+
+  segredos:
+    name: Segredos no código (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  dependencias:
+    name: Dependências de produção (npm audit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - run: npm audit --omit=dev --audit-level=high
+
+  e2e:
+    name: E2E do orçamento (Chromium, do 1º texto ao projeto pago)
+    # (pesado: só no PR para a main e à mão — o push comum roda os testes acima)
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npx playwright install --with-deps chromium
+      - name: Servidor local (banco PGlite, IA e Mercado Pago simulados)
+        run: |
+          node docs/servidor.mjs . 8899 > servidor.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://127.0.0.1:8899/orcamento > /dev/null && exit 0; sleep 1; done
+          cat servidor.log; exit 1
+      - run: npm run e2e:orcamento
+        env:
+          BASE: http://127.0.0.1:8899

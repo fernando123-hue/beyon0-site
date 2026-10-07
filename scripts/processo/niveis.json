@@ -1,0 +1,27 @@
+{
+  "_sobre": "Site estático + funções Vercel (api/) + Supabase. Usado por scripts/processo/nivel-de-risco.mjs. Primeira regra que casar vence; caminho sem regra = nível 3. Adotado em 2026-10-07 (auditoria do Harness, 06 Operação/).",
+  "nomes": { "0": "documentação", "1": "visual", "2": "comportamento", "3": "sensível" },
+  "regras": [
+    { "nivel": 3, "padrao": "^\\.github/", "motivo": "CI e deploy" },
+    { "nivel": 3, "padrao": "^\\.claude/|(^|/)CLAUDE\\.md$|^docs/PROCESSO\\.md$|^scripts/processo/", "motivo": "regras que governam os agentes e o próprio portão" },
+    { "nivel": 3, "padrao": "^api/", "motivo": "servidor: vendas, IA, pagamentos, leads, rotinas" },
+    { "nivel": 3, "padrao": "^supabase/", "motivo": "banco: migrations, RLS, funções" },
+    { "nivel": 3, "padrao": "^(vercel\\.json|\\.vercelignore|\\.gitignore|\\.env\\.example)$", "motivo": "CSP, cron, deploy, o que entra no Git e no ar, variáveis" },
+    { "nivel": 3, "padrao": "^package(-lock)?\\.json$", "motivo": "dependências" },
+    { "nivel": 3, "padrao": "^vendor/", "motivo": "código de terceiros embutido" },
+    { "nivel": 3, "padrao": "^js/(orcamento|lead-form|medicao|tel)[^/]*\\.js$|(^|/)(form|formulario|contato|whatsapp|analytics|pixel)[^/]*\\.js$", "motivo": "dado do visitante, pagamento ou envio para fora" },
+    { "nivel": 2, "padrao": "^docs/testes/|^docs/[^/]+\\.mjs$|^docs/workflows/", "motivo": "testes e ferramentas de verificação" },
+    { "nivel": 2, "padrao": "^(js|scripts?)/|\\.js$|\\.mjs$", "motivo": "comportamento da página" },
+    { "nivel": 1, "padrao": "\\.(html|css)$|^(css|assets|img|images|fonts)/|^(robots\\.txt|sitemap\\.xml)$", "motivo": "visual e conteúdo" },
+    { "nivel": 0, "padrao": "^docs/|\\.md$|\\.txt$", "motivo": "documentação" }
+  ],
+  "evidencias": [
+    { "secao": "Especificação", "aPartirDoNivel": 0 },
+    { "secao": "Visto rodando", "aPartirDoNivel": 1 },
+    { "secao": "Regressão", "aPartirDoNivel": 1 },
+    { "secao": "Verificação comportamental", "aPartirDoNivel": 2 },
+    { "secao": "Teste visto vermelho", "aPartirDoNivel": 2 },
+    { "secao": "Revisão técnica", "aPartirDoNivel": 2, "exigeLink": true },
+    { "secao": "Revisão de segurança", "aPartirDoNivel": 3, "exigeLink": true }
+  ]
+}

@@ -1,0 +1,48 @@
+# Origem: skill processo-qualidade (modelo do Sistema SBP), adotado em 2026-10-07 (auditoria do Harness).
+# Confere se o PR traz a evidência que o nível de risco exige (docs/PROCESSO.md).
+# Separado do CI de propósito: roda também quando o CORPO do PR é editado, sem cancelar a suíte de testes.
+name: Processo
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: processo-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  nivel:
+    name: Nível de risco e evidência
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.actor != 'dependabot[bot]'
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+    steps:
+      # Actions fixadas por SHA (mesmas do SBP). persist-credentials: false — nada aqui empurra código.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      # Script sem dependências: nada de npm ci neste job.
+      - name: Conferir evidência
+        # Tudo que vem do PR entra por variável de ambiente, NUNCA por ${{ }} dentro do run:
+        # (o corpo do PR é texto de quem abriu o PR; interpolar vira injeção de comando).
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          REPOSITORIO: ${{ github.repository }}
+          NUMERO_DO_PR: ${{ github.event.pull_request.number }}
+          CORPO_DO_PR: ${{ github.event.pull_request.body }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/processo/nivel-de-risco.mjs --pr
