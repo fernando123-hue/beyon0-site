@@ -25,7 +25,7 @@ const STATUS_DA_CONTA = new Set([402, 403, 404]);
 const LIMITE_DE_GASTO = /^(You have reached your specified (workspace )?API usage limits|Your credit balance is too low)/i;
 const mensagemDoProvedor = e => String(e?.error?.error?.message || '');
 /* sem texto do visitante: status, tipo do erro e o id do pedido para achar no painel da Anthropic */
-const logErroProvedor = e => console.error(JSON.stringify({ origem: 'ia', nivel: 'erro', status: e.status, tipo: e?.error?.error?.type || null, request_id: e.requestID || null }));
+const logErroProvedor = e => console.error(JSON.stringify({ origem: 'ia', nivel: 'erro', status: e.status, tipo: String(e?.error?.error?.type || '').slice(0, 40) || null, request_id_provedor: String(e.requestID || '').slice(0, 80) || null }));
 
 export function criarAnthropic(env = process.env, cliente) {
   const client = cliente || new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, maxRetries: TENTATIVAS_PADRAO });
@@ -52,6 +52,7 @@ export function criarAnthropic(env = process.env, cliente) {
         ? await client.beta.messages.stream(pedido, opcoes).finalMessage()   /* (saída longa: streaming evita o tempo esgotado do HTTP) */
         : await client.beta.messages.create(pedido, opcoes);
     } catch (e) {
+      if (e instanceof Anthropic.APIError && e.status >= 400 && e.status < 500) logErroProvedor(e);   /* (inclui 401 e 429) */
       if (e instanceof Anthropic.RateLimitError) throw new ErroIA('limite', 'limite de uso do provedor');
       /* tempo esgotado: o modelo pode ter gerado (e cobrado) em cada tentativa. Sem o uso real, conta o PIOR caso
          (a saída máxima do papel por tentativa), para o teto não ficar cego */
@@ -59,7 +60,6 @@ export function criarAnthropic(env = process.env, cliente) {
       if (e instanceof Anthropic.AuthenticationError) throw new ErroIA('indisponivel', 'credencial recusada');
       /* problema da CONTA, não do pedido (doc oficial "Claude API errors"): 402 cobrança, 403 permissão, 404 modelo ou
          recurso, e o 400 de limite de gasto/saldo. Conta no disjuntor e no alerta, senão o funil para sem aviso */
-      if (e instanceof Anthropic.APIError && e.status >= 400 && e.status < 500) logErroProvedor(e);
       if (e instanceof Anthropic.APIError && STATUS_DA_CONTA.has(e.status)) throw new ErroIA('indisponivel', 'provedor HTTP ' + e.status);
       if (e instanceof Anthropic.APIError && e.status === 400 && e?.error?.error?.type === 'invalid_request_error'
         && LIMITE_DE_GASTO.test(mensagemDoProvedor(e))) throw new ErroIA('indisponivel', 'limite de gasto ou saldo da conta');

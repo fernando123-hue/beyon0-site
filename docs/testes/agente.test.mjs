@@ -21,6 +21,18 @@ const chamada = (nome, entrada) => ({ id: 'c' + Math.random().toString(36).slice
 const comFerramentas = (...cs) => ({ texto: '', chamadas: cs, conteudo: cs.map(c => ({ type: 'tool_use', id: c.id, name: c.nome, input: c.entrada })), parada: 'ferramenta', custo_usd: 0.001 });
 const fim = texto => ({ texto, chamadas: [], conteudo: [{ type: 'text', text: texto }], parada: 'fim', custo_usd: 0.001 });
 
+test('simulador nunca na produção da Vercel: sem chave, o consultor fica desligado (revisão do PR 1, segurança B5)', async () => {
+  const { criarIA } = await import('../../api/_ia/provedor.mjs');
+  assert.equal(await criarIA({ VERCEL: '1', VERCEL_ENV: 'production', BZ_IA: 'simulada' }), null, 'BZ_IA=simulada em produção');
+  assert.equal(await criarIA({ VERCEL: '1', VERCEL_ENV: 'production', BZ_LOCAL: '1' }), null, 'BZ_LOCAL=1 em produção');
+  assert.equal(await criarIA({ VERCEL: '1', BZ_IA: 'simulada' }), null, 'na Vercel sem VERCEL_ENV: fechado');
+  assert.equal(await criarIA({ VERCEL_ENV: 'qualquer', BZ_IA: 'simulada' }), null, 'ambiente desconhecido: fechado');
+  const real = await criarIA({ VERCEL: '1', VERCEL_ENV: 'production', ANTHROPIC_API_KEY: 'sk-teste', BZ_IA: 'simulada' });
+  assert.equal(real?.nome, 'anthropic', 'com a chave, a produção usa a IA real (a trava não vem antes da chave)');
+  assert.ok(await criarIA({ VERCEL: '1', VERCEL_ENV: 'preview', BZ_IA: 'simulada' }), 'na prévia o simulador vale');
+  assert.ok(await criarIA({ BZ_LOCAL: '1' }), 'no servidor local o simulador vale');
+});
+
 test('o exemplo da especificação: aproveita o que a pessoa disse, monta o briefing e estima sem escrever preço', async () => {
   const r = await executarTurno({ ia: criarSimulada(), regras: REGRAS, conversa: nova(), mensagem: 'Tenho uma clínica odontológica e quero um site mais profissional porque hoje só tenho Instagram.' });
   assert.equal(r.briefing.negocio.segmento, 'odontologia');
@@ -145,7 +157,14 @@ test('adaptador Anthropic: problema da CONTA (cobrança, permissão, modelo sumi
   assert.equal(await motivoDe(400, 'messages.0.content: billing usage limit You have reached your specified API usage limits'), 'entrada', 'texto do visitante ecoado não conta');
   assert.equal(await motivoDe(400, 'You have reached your specified API usage limits', 'outro_tipo'), 'entrada', 'só o tipo invalid_request_error');
   assert.equal(await motivoDe(413, 'Request exceeds the maximum allowed number of bytes', 'request_too_large'), 'entrada', '413: tamanho do pedido');
-  assert.equal(await motivoDe(401, 'invalid x-api-key', 'authentication_error'), 'indisponivel', '401 segue indisponível');
+  const logs = [], original = console.error;
+  console.error = l => logs.push(String(l));
+  try { assert.equal(await motivoDe(401, 'invalid x-api-key segredo-do-visitante', 'authentication_error'), 'indisponivel', '401 segue indisponível'); }
+  finally { console.error = original; }
+  const linha = JSON.parse(logs.at(-1));
+  assert.equal(linha.status, 401, 'o 401 também vai ao log');
+  assert.equal(linha.tipo, 'authentication_error');
+  assert.ok('request_id_provedor' in linha && !logs.at(-1).includes('segredo-do-visitante'), 'log sem a mensagem do provedor');
   /* o caminho de saída longa (streaming) lança as mesmas classes */
   const erro402 = Anthropic.APIError.generate(402, { type: 'error', error: { type: 'billing_error', message: 'billing' } }, 'billing', new Headers());
   const longa = criarAnthropic({}, { beta: { messages: { stream: () => ({ finalMessage: async () => { throw erro402; } }) } } });
