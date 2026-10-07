@@ -57,6 +57,8 @@
 .chip:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
 
 .orc-envio { display: flex; gap: .6rem; align-items: flex-end; margin-top: 1rem; }
+/* o anti-robô (Turnstile) fica invisível; quando a Cloudflare pede interação, o widget aparece aqui */
+.orc-turnstile:not(:empty) { margin-top: .75rem; }
 .orc-envio textarea, .orc-form input { width: 100%; min-height: 52px; padding: .8rem .9rem; border: 1px solid var(--stroke); border-radius: var(--raio-s); background: var(--bg); color: var(--t1); font: inherit; font-size: 1rem; line-height: 1.45; }
 .orc-envio textarea { resize: vertical; max-height: 40vh; }
 .orc-envio textarea:focus-visible, .orc-form input:focus-visible { outline: 2px solid var(--ac); outline-offset: 1px; border-color: var(--ac); }
