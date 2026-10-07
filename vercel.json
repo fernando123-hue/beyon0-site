@@ -1,6 +1,8 @@
 {
   "cleanUrls": true,
   "regions": ["gru1"],
+  "installCommand": "npm ci --omit=dev",
+  "outputDirectory": ".",
   "trailingSlash": false,
   "headers": [
     {

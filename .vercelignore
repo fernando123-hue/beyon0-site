@@ -12,11 +12,9 @@ docs/
 # instruções internas do agente — não são página do site
 CLAUDE.md
 
-# ferramentas de desenvolvimento (o verificador com Playwright). Sem estes dois
-# arquivos no envio a Vercel trata o site como estático puro e não roda
-# `npm install` a cada deploy — que agora baixaria o Playwright para nada.
-package.json
-package-lock.json
+# (2026-10-07) package.json e package-lock.json passaram a ir no deploy: as funções de /api usam o SDK oficial
+# da Anthropic (a única dependência de execução). A instalação é só a de produção (vercel.json → installCommand
+# "npm ci --omit=dev"), então o Playwright e o PGlite, de desenvolvimento, não são baixados na Vercel.
 *.log
 .vercel/
 
