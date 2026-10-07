@@ -17,9 +17,14 @@
 --   inteira (a FK de app.pagamentos não tem ação). O número do funil fica.
 -- • Só o lead que VEIO do orçamento com IA (tem conversa). O lead criado à
 --   mão no painel (indicação, prospecção: a carteira do dono) nunca é
---   tocado. E nunca o lead em negociação pela equipe ("em_conversa",
---   "proposta"), o ganho, o com cliente ou com projeto, o que a equipe mexeu
---   dentro do prazo, ou o que tem alguma conversa ainda protegida.
+--   tocado. E nunca o lead em negociação marcado pela equipe ("proposta"),
+--   o ganho, o com cliente ou com projeto, o que a equipe mexeu dentro do
+--   prazo, ou o que tem alguma conversa ainda protegida. ("em_conversa" NÃO
+--   protege: é o status com que o agente cria todo lead.)
+-- • Quem VOLTA numa conversa anonimizada: o estado diz "sem contato" (o
+--   formulário reaparece) e preencher de novo devolve o contato ao MESMO lead
+--   (o da proposta), então o cliente nasce com contato se pagar. A API recusa
+--   pagar sem contato (api/_vendas/fluxo.mjs).
 -- ==========================================================================
 create or replace function app.vendas_reter(p jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
@@ -42,7 +47,7 @@ begin
     and not exists (
       select 1 from app.propostas pr join app.pagamentos pg on pg.org_id = pr.org_id and pg.proposta_id = pr.id
       where pr.org_id = c.org_id and pr.conversa_id = c.id
-        and (pg.status in ('pago', 'estornado') or (pg.status = 'pendente' and pg.created_at >= v_limite)));
+        and (pg.status in ('pago', 'estornado', 'contestado') or (pg.status = 'pendente' and pg.created_at >= v_limite)));
 
   delete from app.mensagens m where m.conversa_id = any(v_velhas);
   get diagnostics v_mensagens = row_count;
@@ -53,10 +58,11 @@ begin
 
   -- o contato de quem não fechou: anonimizado
   update app.leads l
-  set nome = '[apagado]', email = null, telefone = null, empresa = null, observacoes = null, motivo_perda = null
+  set nome = '[apagado]', email = null, telefone = null, empresa = null, observacoes = null, motivo_perda = null,
+      codigo_visita = null, termo = null   -- (o código da visita liga às métricas da visita; o termo é o que a pessoa buscou)
   where l.nome is distinct from '[apagado]'
     and l.updated_at < v_limite
-    and l.status not in ('ganho', 'em_conversa', 'proposta') and l.cliente_id is null
+    and l.status not in ('ganho', 'proposta') and l.cliente_id is null
     and exists (select 1 from app.conversas c where c.org_id = l.org_id and c.lead_id = l.id)
     and not exists (select 1 from app.conversas c where c.org_id = l.org_id and c.lead_id = l.id and not (c.id = any(v_velhas)))
     and not exists (select 1 from app.projetos pr where pr.org_id = l.org_id and pr.lead_id = l.id);
@@ -68,6 +74,42 @@ begin
                             'dias', v_dias, 'freio_apagado', v_freio);
 end $$;
 
+-- o estado: lead anonimizado conta como SEM contato (o resto é igual a 20261007120100_vendas_funcoes.sql)
+create or replace function app.vendas_estado(p jsonb) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare c app.conversas; v_geracao integer;
+begin
+  select * into c from app.conversas where id = (p ->> 'conversa_id')::uuid and visitante_id = (p ->> 'visitante_id')::uuid;
+  if not found then raise exception 'conversa não encontrada' using errcode = 'P0002'; end if;
+  select max(geracao) into v_geracao from app.direcoes where conversa_id = c.id;
+  return jsonb_build_object(
+    'conversa', jsonb_build_object('id', c.id, 'etapa', c.etapa, 'briefing', c.briefing, 'confianca', c.confianca,
+                                   'tem_contato', exists (select 1 from app.leads l where l.id = c.lead_id and l.nome is distinct from '[apagado]'), 'turnos', c.turnos, 'custo_ia_usd', c.custo_ia_usd),
+    'mensagens', coalesce((select jsonb_agg(jsonb_build_object('papel', m.papel, 'conteudo', m.conteudo, 'em', m.created_at) order by m.created_at)
+                           from (select * from app.mensagens where conversa_id = c.id order by created_at desc limit 60) m), '[]'),
+    'estimativa', (select jsonb_build_object('id', e.id, 'valor_total', e.valor_total, 'sinal', e.sinal, 'prazo_dias', e.prazo_dias,
+                                             'fase', e.fase, 'fatores', e.fatores, 'detalhes', e.detalhes)
+                   from app.estimativas e where e.conversa_id = c.id order by e.created_at desc limit 1),
+    'direcoes', coalesce((select jsonb_agg(jsonb_build_object('id', d.id, 'numero', d.numero, 'estrategia', d.estrategia,
+                                                              'status', d.status, 'conteudo', d.conteudo) order by d.numero)
+                          from app.direcoes d where d.conversa_id = c.id and d.geracao = v_geracao), '[]'),
+    'escolha', (select jsonb_build_object('direcao_id', s.direcao_id, 'em', s.created_at)
+                from app.escolhas s where s.conversa_id = c.id order by s.created_at desc limit 1),
+    'alteracoes', coalesce((select jsonb_agg(jsonb_build_object('id', a.id, 'pedido', a.pedido, 'mudancas', a.mudancas, 'status', a.status) order by a.created_at)
+                            from app.alteracoes a where a.conversa_id = c.id), '[]'),
+    'versao_final', (select a.resultado from app.alteracoes a where a.conversa_id = c.id and a.status = 'aplicada' order by a.created_at desc limit 1),
+    'proposta', (select jsonb_build_object('id', pr.id, 'versao', pr.versao, 'titulo', pr.titulo, 'escopo', pr.escopo,
+                                           'valor_total', pr.valor_total, 'sinal_percentual', pr.sinal_percentual,
+                                           'prazo_dias', pr.prazo_dias, 'status', pr.status)
+                 from app.propostas pr where pr.conversa_id = c.id and pr.status in ('enviada', 'aceita') order by pr.versao desc limit 1),
+    'pagamentos', coalesce((select jsonb_agg(jsonb_build_object('id', pg.id, 'parcela', pg.parcela, 'valor', pg.valor,
+                                                                'status', pg.status, 'link', pg.link) order by pg.created_at)
+                            from app.pagamentos pg join app.propostas pr on pr.id = pg.proposta_id where pr.conversa_id = c.id), '[]')
+  );
+end $$;
+
 -- (create or replace mantém as concessões; repetidas aqui para a migration se explicar sozinha)
 revoke all on function app.vendas_reter(jsonb) from public, anon, authenticated;
 grant execute on function app.vendas_reter(jsonb) to service_role;
+revoke all on function app.vendas_estado(jsonb) from public, anon, authenticated;
+grant execute on function app.vendas_estado(jsonb) to service_role;

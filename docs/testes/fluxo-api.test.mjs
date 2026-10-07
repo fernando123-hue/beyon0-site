@@ -307,6 +307,43 @@ test('retenção de contato: o lead do orçamento com IA de quem não fechou é 
   assert.equal(r2.leads_anonimizados, 0, 'rodar de novo não mexe no que já foi anonimizado');
 });
 
+test('retenção pelo caminho real: o lead que o agente cria ("em_conversa") é anonimizado; quem volta informa o contato de novo antes de pagar (revisões do PR 7)', async () => {
+  const q = (sql, p) => local.db.query(sql, p);
+  const n = navegador();
+  const { c } = await ateDirecoes(n);   /* conversa → estimativa → contato pela API → 3 direções */
+  const leadId = (await q('select lead_id from app.conversas where id = $1', [c])).rows[0].lead_id;
+  assert.equal((await q('select status from app.leads where id = $1', [leadId])).rows[0].status, 'em_conversa', 'o agente cria o lead assim');
+  /* outros dois, para as condições que o teste anterior não separava */
+  const { c: cRecente } = await ateDirecoes(navegador());   /* lead mexido pela equipe dentro do prazo: fica */
+  const leadRecente = (await q('select lead_id from app.conversas where id = $1', [cRecente])).rows[0].lead_id;
+  const { c: cProduzindo } = await ateDirecoes(navegador());   /* conversa em produção (pagou), mesmo velha: fica */
+  const leadProduzindo = (await q('select lead_id from app.conversas where id = $1', [cProduzindo])).rows[0].lead_id;
+  await local.db.exec(`begin; set local bz.transicao_livre = 'on'; update app.conversas set etapa = 'em_producao' where id = '${cProduzindo}'; commit;`);
+  for (const id of [c, cRecente, cProduzindo]) await noPassado('conversas', id, 'ultima_atividade', 70);
+  for (const id of [leadId, leadProduzindo]) await noPassado('leads', id, 'updated_at', 70);
+  await noPassado('leads', leadRecente, 'updated_at', 70);
+  await q("update app.leads set observacoes = 'ligar sexta' where id = $1", [leadRecente]);   /* a equipe mexeu hoje */
+
+  await local.rpc('vendas_reter', {});
+  const lead = async id => (await q('select nome, email, telefone, codigo_visita, termo from app.leads where id = $1', [id])).rows[0];
+  const anon = await lead(leadId);
+  assert.equal(anon.nome, '[apagado]', 'o lead real do orçamento é anonimizado');
+  assert.equal(anon.telefone, null);
+  assert.equal(anon.codigo_visita, null, 'o código da visita também sai');
+  assert.notEqual((await lead(leadRecente)).nome, '[apagado]', 'mexido pela equipe dentro do prazo: fica');
+  assert.notEqual((await lead(leadProduzindo)).nome, '[apagado]', 'conversa em produção: fica');
+
+  /* a pessoa volta: o estado diz "sem contato", pagar é recusado, e informar de novo devolve o contato ao MESMO lead */
+  const e = (await n.chamar('GET', 'estado', undefined, { query: '&conversa=' + c })).corpo;
+  assert.equal(e.conversa.tem_contato, false, 'lead anonimizado = sem contato: o formulário reaparece');
+  const pagar = await n.chamar('POST', 'pagar', { conversa_id: c, valor: 1, metodo: 'pix', pagador: PAGADOR });
+  assert.equal(pagar.status, 409, 'pagar sem contato: recusado — ' + JSON.stringify(pagar.corpo));
+  assert.equal((await n.chamar('POST', 'contato', { conversa_id: c, nome: 'Ana Volta', telefone: '(21) 98888-1111', aceite: true })).status, 200);
+  assert.equal((await q('select lead_id from app.conversas where id = $1', [c])).rows[0].lead_id, leadId, 'o mesmo lead (o da proposta)');
+  assert.equal((await lead(leadId)).nome, 'Ana Volta', 'o contato volta ao lead');
+  assert.equal((await n.chamar('GET', 'estado', undefined, { query: '&conversa=' + c })).corpo.conversa.tem_contato, true);
+});
+
 /* ======================= correções da revisão (2026-10-07) ======================= */
 async function ateDirecoes(n, texto = 'Tenho uma clínica e quero um site institucional para agendamentos') {
   const s = await n.iniciar();
