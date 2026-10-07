@@ -1,6 +1,6 @@
 # Fase 2 — status ao fim da implementação (2026-10-07)
 
-Branch `rebuild-v2`. Nada foi para produção: a `main` (o site no ar) segue `8103c99`. Nenhuma chamada real ao modelo foi feita (sem chave, e gasto precisa do aval do dono). Nenhum gateway real foi ligado.
+Branch `rebuild-v2`. Nada foi para produção: a `main` (o site no ar) segue `8103c99`. Nenhuma chamada real ao modelo foi feita (sem chave, e gasto precisa do aval do dono). Nenhum pagamento real foi feito. **Atualização (2026-10-07, mesma data):** o pagamento passou a ser Mercado Pago, Pix e cartão no próprio site, e o gateway simulado foi removido. Tudo do pagamento está em `docs/pagamentos/` (pesquisa, arquitetura, operação, checklist).
 
 ## IMPLEMENTADO
 
@@ -32,7 +32,7 @@ Branch `rebuild-v2`. Nada foi para produção: a `main` (o site no ar) segue `81
   - prova social sem dado vira espaço reservado.
 - **Alterações** em linguagem natural viram operações de uma lista fechada, e o código as aplica. Escopo novo passa pelo motor de preço.
 - **Escopo final** montado pelo código, com confirmação explícita e a marcação de início dentro dos 7 dias do CDC.
-- **Pagamento.** Cobrança do sinal com o valor tirado da proposta aceita. O webhook confere a assinatura, consulta o gateway e confirma no banco, de forma idempotente e com o valor conferido. O sinal pago cria o cliente e o projeto em produção. Gateway simulado para teste; os reais estão pendentes da escolha.
+- **Pagamento.** Cobrança do sinal com o valor tirado da proposta aceita. O webhook confere a assinatura, consulta o gateway e confirma no banco, de forma idempotente e com o valor conferido. O sinal pago cria o cliente e o projeto. **Substituído pelo módulo de pagamentos com Mercado Pago** (`docs/pagamentos/01-ARQUITETURA-E-OPERACAO.md`).
 - **API** (`/api/vendas`, `/api/pagamentos`): freio por IP, JSON obrigatório, corpo limitado, token do visitante, erros sem dado pessoal. Tetos de custo por conversa e por dia, e de turnos e de gerações.
 - **Página `/orcamento`**, celular primeiro:
   - conversa e investimento lado a lado;
@@ -100,7 +100,7 @@ A revisão por agentes (segurança e código) e as correções estão no fim des
 
 1. **Aprovar a tabela de preços** (`REGRAS-RASCUNHO.md`) e definir se o prazo é em dias corridos ou úteis. A tela hoje diz só "dias".
 2. **Chave da Anthropic** e o aval para rodar uma avaliação com o modelo real, que custa crédito.
-3. **Escolher o gateway** (Mercado Pago ou Asaas). Depois disso, escrever o adaptador.
+3. ~~Escolher o gateway~~: **Mercado Pago, decidido e implementado**. Faltam as credenciais de TESTE e o checklist de `docs/pagamentos/01-ARQUITETURA-E-OPERACAO.md` §9 a §11.
 4. **Nome completo, CPF e endereço** para o rodapé do `/orcamento` (Decreto 7.962/2013). Hoje há marcadores entre colchetes.
 5. **Advogado:** o texto do consentimento de início dentro dos 7 dias (CDC art. 49) e a política de privacidade.
 6. **Contas e planos:** Vercel Pro (o Hobby proíbe uso comercial) e o Supabase do projeto, com login anônimo ligado e o esquema `app` exposto (`02-OPERACAO.md`).

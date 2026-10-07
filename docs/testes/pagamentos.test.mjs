@@ -24,7 +24,7 @@ const PAGADOR = { nome: 'Ana', sobrenome: 'Souza', email: 'ana@exemplo.com', doc
 before(async () => {
   local = await montarLocal({ base: BASE });
   sim = local.mp.sim;
-  cfg = configPagamentos({});
+  cfg = { ...configPagamentos({}), intervaloAposRecusaS: 0 };   /* (o freio de 20 s depois de recusa tem teste próprio) */
   servico = criarServicoPagamentos({ banco: local.rpc, cfg, agora });
   deps = { banco: local.rpc, visitantes: local.auth, ia: criarSimulada(), pagamentos: servico };
 });
@@ -55,7 +55,7 @@ async function ateCobranca(n = navegador()) {
   return { n, c };
 }
 const pagarPix = (n, c, extra = {}) => n.chamar('POST', 'pagar', { conversa_id: c, metodo: 'pix', pagador: PAGADOR, ...extra });
-const pagarCartao = (n, c, nome, extra = {}) => n.chamar('POST', 'pagar', { conversa_id: c, metodo: 'cartao', pagador: PAGADOR, cartao: { token: 'local-' + nome + '-abc12345', meio: 'visa', tipo: 'credit_card', parcelas: 1 }, ...extra });
+const pagarCartao = (n, c, nome, extra = {}, d) => n.chamar('POST', 'pagar', { conversa_id: c, metodo: 'cartao', pagador: PAGADOR, cartao: { token: 'local-' + nome + '-abc12345', meio: 'visa', tipo: 'credit_card', parcelas: 1 }, ...extra }, d ? { deps: d } : {});
 const estado = (n, c) => n.chamar('GET', 'pagamento', undefined, { query: '&conversa=' + c });
 const tentativaDe = async c => (await local.db.query(`select t.* from app.tentativas_pagamento t join app.pagamentos p on p.id = t.pagamento_id join app.propostas pr on pr.id = p.proposta_id where pr.conversa_id = $1 order by t.created_at desc limit 1`, [c])).rows[0];
 const pagamentoDe = async c => (await local.db.query(`select p.* from app.pagamentos p join app.propostas pr on pr.id = p.proposta_id where pr.conversa_id = $1`, [c])).rows[0];
@@ -278,7 +278,7 @@ test('ataques ao webhook: forjado, sem assinatura, velho, adulterado, de outra o
   sim.pagarPix(id);   /* mesmo com o MP dizendo pago, só o aviso legítimo aplica */
   for (const [nome, status, opcoes, mexer] of casos) assert.equal((await aviso(id, opcoes, mexer)).status, status, nome);
   assert.equal((await pagamentoDe(c)).status, 'pendente', 'nenhum aviso inválido pagou');
-  assert.ok((await local.db.query(`select count(*)::int n from app.pagamentos_auditoria where evento = 'payment.webhook.rejected' and provedor_ref = $1`, [id])).rows[0].n >= 7);
+  assert.equal((await local.db.query(`select count(*)::int n from app.pagamentos_auditoria where evento = 'payment.webhook.rejected'`)).rows[0].n, 0, 'aviso sem assinatura válida não grava nada (não dá para encher a trilha sem o segredo)');
 
   /* aviso legítimo com o corpo "dizendo" pago de outra order não importa: vale a consulta */
   const outra = await ateCobranca();
@@ -292,7 +292,7 @@ test('ataques ao webhook: forjado, sem assinatura, velho, adulterado, de outra o
   const fantasma = 'ORD' + 'Z'.repeat(26);
   const sig = assinar({ dataId: fantasma.toLowerCase(), requestId: 'r1', ts: String(Date.now()), segredo: local.mp.segredo });
   const rf = await receber(new Request(BASE + '/api/pagamentos?data.id=' + fantasma + '&type=order', { method: 'POST', headers: { 'content-type': 'application/json', 'x-signature': sig, 'x-request-id': 'r1' }, body: JSON.stringify({ type: 'order', data: { id: fantasma } }) }), {}, { banco: local.rpc, cfg, servico });
-  assert.equal(rf.status, 200);
+  assert.equal(rf.status, 503, 'order que o MP não devolve (ainda): pede reenvio, nada aplicado');
 });
 
 test('ataques financeiros: valor, conta, referência e moeda adulterados no provedor não pagam; valor do navegador é ignorado', async () => {
@@ -356,16 +356,67 @@ test('reconciliação: pago sem aviso é aplicado; order desconhecida da conta �
   assert.equal(r.status, 200);
   const resumo = await r.json();
   assert.ok(resumo.aplicadas >= 1 && resumo.desconhecidas >= 1, JSON.stringify(resumo));
+  assert.ok(resumo.atencao >= 1, 'a order desconhecida conta como algo que pede uma pessoa');
   assert.equal((await pagamentoDe(c)).status, 'pago');
-  /* reembolso duas vezes: uma devolução só */
+  /* reembolso duas vezes: uma devolução só (a 2ª é recusada antes de chegar ao provedor) */
   await servico.reembolsar({ orderId: t.provedor_order_id });
-  await servico.reembolsar({ orderId: t.provedor_order_id });
+  await assert.rejects(servico.reembolsar({ orderId: t.provedor_order_id }), e => e.status === 409);
+  await assert.rejects(servico.reembolsar({ orderId: 'ORDDEOUTROSISTEMA0000' }), e => e.status === 404 || e.codigo === 'P0002', 'order que não é tentativa nossa: nunca reembolsa');
   const reembolsos = sim.chamadas.filter(x => x.caminho === '/v1/orders/' + t.provedor_order_id + '/refund');
-  assert.equal(reembolsos.length, 2);
-  assert.deepEqual([...new Set(reembolsos.map(x => x.chave))], ['rf-' + t.provedor_order_id], 'a mesma chave de idempotência nas duas');
+  assert.equal(reembolsos.length, 1);
+  assert.deepEqual(reembolsos.map(x => x.chave), ['rf-' + t.provedor_order_id], 'chave de idempotência fixa por order');
   assert.equal(sim.orders.get(t.provedor_order_id).transactions.refunds.length, 1, 'o provedor devolveu UMA vez');
   assert.equal((await pagamentoDe(c)).status, 'estornado');
   assert.deepEqual(await projetosDe(c), [{ status: 'pausado' }]);
   const trilha = (await local.db.query(`select evento from app.pagamentos_auditoria where tentativa_id = $1 order by id`, [t.id])).rows.map(x => x.evento);
   for (const ev of ['payment.created', 'payment.pending', 'payment.confirmed', 'project.ready', 'payment.refunded', 'project.paused']) assert.ok(trilha.includes(ev), 'trilha: ' + ev);
+});
+
+/* ======================= correções da auditoria adversarial ======================= */
+test('transporte REAL (PostgREST) aceita as funções de pagamento, recusa outras e não fica preso no banco travado', async () => {
+  const { criarTransporte } = await import('../../api/_vendas/transporte.mjs');
+  const original = globalThis.fetch;
+  const chamadas = [];
+  try {
+    globalThis.fetch = async (url, init) => { chamadas.push(url); if (init.signal) assert.ok(init.signal instanceof AbortSignal, 'com tempo limite'); return new Response('{"ok":true}', { status: 200, headers: { 'content-type': 'application/json' } }); };
+    const rpc = criarTransporte({ SUPABASE_URL: 'https://x.supabase.co', SUPABASE_CHAVE_SECRETA: 'sb_secret_teste' });
+    assert.deepEqual(await rpc('pagamentos_aplicar', {}), { ok: true });
+    assert.deepEqual(await rpc('vendas_estado', {}), { ok: true });
+    await assert.rejects(rpc('apagar_tudo', {}), e => e.codigo === '22023');
+    await assert.rejects(rpc('pagamentos_aplicar; drop', {}), e => e.codigo === '22023');
+    assert.deepEqual(chamadas, ['https://x.supabase.co/rest/v1/rpc/pagamentos_aplicar', 'https://x.supabase.co/rest/v1/rpc/vendas_estado']);
+    globalThis.fetch = async () => { const e = new Error('timeout'); e.name = 'TimeoutError'; throw e; };
+    await assert.rejects(rpc('pagamentos_aplicar', {}), e => e.codigo === '08006', 'banco travado vira erro rápido');
+  } finally { globalThis.fetch = original; }
+});
+
+test('credencial: a conta é obrigatória em teste também, e o token de outra conta desliga o pagamento', () => {
+  const salvo = globalThis.__BZ_LOCAL; globalThis.__BZ_LOCAL = undefined;
+  try {
+    const base = { VERCEL: '1', VERCEL_ENV: 'preview', MP_AMBIENTE: 'teste', MP_PUBLIC_KEY: 'APP_USR-pub-1234567890123456', MP_WEBHOOK_SEGREDO: 'segredo-muito-longo-123' };
+    assert.equal(configPagamentos({ ...base, MP_ACCESS_TOKEN: 'APP_USR-1234-100124-abcdef-123456' }).ativo, false, 'sem MP_USER_ID');
+    assert.equal(configPagamentos({ ...base, MP_ACCESS_TOKEN: 'APP_USR-1234-100124-abcdef-999999', MP_USER_ID: '123456' }).ativo, false, 'token de OUTRA conta (ex.: produção colada na prévia)');
+    assert.equal(configPagamentos({ ...base, MP_ACCESS_TOKEN: 'APP_USR-1234-100124-abcdef-123456', MP_USER_ID: '123456' }).ativo, true);
+  } finally { globalThis.__BZ_LOCAL = salvo; }
+});
+
+test('webhook: order ainda não legível pede reenvio (503) por algumas horas; cabeçalho estranho não derruba a função', async () => {
+  const fantasma = 'ORD' + 'Y'.repeat(26);
+  const enviar = ts => { const sig = assinar({ dataId: fantasma.toLowerCase(), requestId: 'r9', ts: String(ts), segredo: local.mp.segredo });
+    return receber(new Request(BASE + '/api/pagamentos?data.id=' + fantasma + '&type=order', { method: 'POST', headers: { 'content-type': 'application/json', 'x-signature': sig, 'x-request-id': 'r9' }, body: JSON.stringify({ type: 'order', data: { id: fantasma } }) }), {}, { banco: local.rpc, cfg, servico }); };
+  assert.equal((await enviar(Date.now())).status, 503, 'recente: o MP reenvia');
+  assert.equal((await enviar(Date.now() - 7 * 3600e3)).status, 200, 'velho: desiste (a reconciliação cobre)');
+  const r = await receber(new Request(BASE + '/api/pagamentos?acao=reconciliar', { method: 'POST', headers: { authorization: 'Bearer çãõ' + 'x'.repeat(40) } }), {}, { banco: local.rpc, cfg, servico });
+  assert.equal(r.status, 401);
+});
+
+test('teste de cartões pela API: logo depois de uma recusa, espera; o Pix segue livre', async () => {
+  const comFreio = criarServicoPagamentos({ banco: local.rpc, cfg: configPagamentos({}), agora });
+  const { n, c } = await ateCobranca();
+  const d = { ...deps, pagamentos: comFreio };
+  assert.equal((await pagarCartao(n, c, 'FUND', {}, d)).corpo.tentativa.status, 'recusada');
+  const de_novo = await n.chamar('POST', 'pagar', { conversa_id: c, metodo: 'cartao', pagador: PAGADOR, cartao: { token: 'local-APRO-abc12345', meio: 'visa', tipo: 'credit_card', parcelas: 1 } }, { deps: d });
+  assert.equal(de_novo.status, 429);
+  assert.match(de_novo.corpo.erro, /Espere/);
+  assert.equal((await n.chamar('POST', 'pagar', { conversa_id: c, metodo: 'pix', pagador: PAGADOR }, { deps: d })).corpo.tentativa.status, 'aguardando');
 });

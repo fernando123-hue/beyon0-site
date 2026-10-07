@@ -21,8 +21,7 @@ Como ligar, ajustar e desligar o agente. A base (migrations, testes, segredos, b
    Sem versão ativa, a conversa avisa "tabela em atualização" e oferece o WhatsApp. Uma versão aprovada não muda mais: preço novo é versão nova, e cada estimativa guarda a versão que usou.
 3. **Variáveis na Vercel** (nomes em `.env.example`):
    - `ANTHROPIC_API_KEY`, só no ambiente onde o agente deve funcionar;
-   - `SITE_URL`;
-   - `PAGAMENTO_GATEWAY`, vazia até existir o adaptador do gateway escolhido. Vazia, o botão de pagar diz que o link vem pelo WhatsApp.
+   - as do Mercado Pago (`MP_*` e `CRON_SECRET`): ver `docs/pagamentos/01-ARQUITETURA-E-OPERACAO.md` §9 e §10. Sem elas, o pagamento online fica desligado e o site oferece o WhatsApp.
 4. **Plano da Vercel.** O plano Hobby proíbe uso comercial, então o site que vende precisa do Pro. A geração de cada direção roda numa chamada própria, com até 300 s (`vercel.json › functions`).
 5. **Retenção** (o que a página de privacidade promete). Agendar no Supabase (pg_cron), uma vez por dia:
    ```sql
@@ -41,22 +40,9 @@ Como ligar, ajustar e desligar o agente. A base (migrations, testes, segredos, b
   Passou do teto: o modelo não é chamado, e a pessoa recebe o WhatsApp com o briefing salvo. Os valores são chute inicial: medir o custo real das primeiras conversas e ajustar.
 - **Preço do modelo** (`PRECO_POR_MILHAO`): conferir na página de preços da Anthropic antes de ligar. O custo gravado por conversa é calculado com essa tabela.
 
-## 3. Gateway de pagamento (pendente da escolha do dono)
+## 3. Pagamento (Mercado Pago)
 
-O adaptador implementa três funções (`api/_vendas/pagamento.mjs`):
-
-| Função | O que faz |
-|---|---|
-| `criarCobranca({ pagamento_id, valor, descricao, cliente })` | Cria a cobrança e devolve `{ gateway_ref, link }`. |
-| `verificarWebhook(request, corpo)` | Confere a autenticidade do aviso e devolve `{ valido, evento: { evento_id, tipo, gateway_ref } }`. |
-| `consultar(gateway_ref)` | Busca no gateway o status e o valor reais. É a fonte da verdade, não o corpo do aviso. |
-
-O que cada gateway pede (pesquisado na Fase 2, `00-AUDITORIA-E-ANALISE.md`):
-
-- **Mercado Pago:** assinatura HMAC-SHA256 no cabeçalho `x-signature` (`ts` e `v1`), com o segredo do painel. Consulta em `/v1/payments/{id}`.
-- **Asaas:** token fixo no cabeçalho `asaas-access-token`, sem HMAC. A consulta à cobrança é ainda mais importante aqui.
-
-O gateway **simulado** só liga em local, preview ou development (lista do que pode; na Vercel sem ambiente declarado, não liga). Não definir `PAGAMENTO_GATEWAY=simulado` em ambiente ligado ao banco real. Ele guarda as cobranças na memória do processo, e a página dele fica em `/docs`, que o deploy bloqueia. Ele serve para o servidor local e os testes. Numa função da Vercel, com várias instâncias, a consulta pode não achar a cobrança, então não serve como pagamento de verdade nem em preview. Ele nunca liga com `VERCEL_ENV=production`.
+Escolhido pelo dono em 2026-10-07: Mercado Pago, Pix e cartão no próprio site. Tudo sobre o pagamento (arquitetura, credenciais, webhook, estados, incidentes, configuração de TESTE e PRODUÇÃO e o checklist do primeiro pagamento real) está em `docs/pagamentos/01-ARQUITETURA-E-OPERACAO.md`. A pesquisa e as decisões estão em `docs/pagamentos/00-PESQUISA-E-PLANO.md`. O gateway simulado da Fase 2 foi removido. Local e testes usam um simulador fiel da Orders API (`docs/mp-simulado.mjs`).
 
 ## 4. Testar
 
@@ -73,4 +59,4 @@ Antes de ligar com a IA real: rodar um conjunto de conversas de avaliação com 
 
 - **Logs da função** (Vercel): `[vendas] <ação>: código <SQLSTATE>` e `[pagamentos] aviso recusado: <motivo>`. Sem dado pessoal e sem texto da conversa.
 - **Funil** (`app.eventos_funil`): `conversa_iniciada`, `estimativa_mostrada`, `contato_informado`, `direcoes_solicitadas`, `direcoes_prontas`, `direcoes_falharam`, `direcao_escolhida`, `alteracao_pedida`, `escopo_apresentado`, `escopo_confirmado`, `pagamento_iniciado`, `pagamento_confirmado`, `ia_falhou`, `tentativa_bloqueada`. É onde se vê em que etapa as pessoas param.
-- **Pagamento** (`app.eventos_pagamento`): cada aviso recebido, com o resultado. Um aviso repetido aparece uma vez só. Resultado `conciliar à mão` = o gateway disse "pago" para uma cobrança já cancelada ou expirada: o dinheiro entrou e nada foi aplicado. Conferir no painel do gateway e resolver com o cliente.
+- **Pagamento** (`app.pagamentos_auditoria`, `app.tentativas_pagamento`): a trilha financeira completa. Consultas prontas em `docs/pagamentos/01-ARQUITETURA-E-OPERACAO.md` §7.

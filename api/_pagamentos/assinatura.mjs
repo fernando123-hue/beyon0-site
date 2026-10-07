@@ -56,7 +56,7 @@ export function verificarAssinatura({ xSignature, xRequestId, dataId, segredo, a
   if (!ok) return { valido: false, motivo: 'assinatura não confere' };
   const tsMs = ts.length > 12 ? Number(ts) : Number(ts) * 1000;
   if (Math.abs(agora - tsMs) / 1000 > janelaS) return { valido: false, motivo: 'ts fora da janela' };
-  return { valido: true };
+  return { valido: true, tsMs };
 }
 
 /* para testes e para o simulador local: assina como o Mercado Pago */

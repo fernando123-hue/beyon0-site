@@ -57,6 +57,7 @@ export function criarMercadoPago({ token, base = 'https://api.mercadopago.com', 
     if (r.status === 401 || r.status === 403) throw new ErroProvedor('credencial', r.status, codigo);
     if (r.status === 404) throw new ErroProvedor('nao_encontrado', r.status, codigo);
     if (r.status === 409 || r.status === 423) throw new ErroProvedor('conflito', r.status, codigo);
+    if (r.status === 408) throw new ErroProvedor('tempo', r.status, codigo);
     if (r.status === 429) throw new ErroProvedor('limite', r.status, codigo, { tentarApos: Number(r.headers.get('retry-after')) || null });
     if (r.status >= 500) throw new ErroProvedor('indisponivel', r.status, codigo);
     throw new ErroProvedor('invalido', r.status, codigo);
@@ -137,6 +138,8 @@ export function retratoDe(order, { pixExpiraEm } = {}) {
     estado: p ? estadoDe(p.status, p.status_detail) : 'desconhecido'
   };
   if (order && order.currency !== undefined) r.currency = texto(order.currency);
+  const reembolsos = order && order.transactions && Array.isArray(order.transactions.refunds) ? order.transactions.refunds : [];
+  if (reembolsos.length) r.reembolsado = reembolsos.reduce((s, x) => s + (Number(x && x.amount) || 0), 0).toFixed(2);
   if (pm.type === 'bank_transfer' && pm.id === 'pix' && (pm.qr_code || pm.ticket_url)) {
     r.pix = { qr: texto(pm.qr_code), qr_base64: texto(pm.qr_code_base64), link: /^https:\/\//.test(pm.ticket_url || '') ? pm.ticket_url : null, expira_em: pixExpiraEm || null };
   }

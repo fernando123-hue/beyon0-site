@@ -42,7 +42,10 @@ export function configPagamentos(env = process.env) {
   if (!publicKey || !/^[A-Za-z0-9_-]{20,200}$/.test(publicKey)) return desligado('MP_PUBLIC_KEY ausente ou malformada');
   if (!segredo || segredo.length < 16) return desligado('MP_WEBHOOK_SEGREDO ausente');
   const contaEsperada = env.MP_USER_ID && /^\d{3,20}$/.test(env.MP_USER_ID) ? env.MP_USER_ID : null;
-  if (ambiente === 'producao' && !contaEsperada) return desligado('MP_USER_ID obrigatório em produção');
+  if (!contaEsperada) return desligado('MP_USER_ID obrigatório (a conta do Mercado Pago da Beyon Zero)');
+  /* o Access Token do MP termina no id da conta (APP_USR-<app>-<data>-<hash>-<user_id>): token colado de outra conta = desligado */
+  const sufixo = token.match(/-(\d{3,20})$/);
+  if (sufixo && sufixo[1] !== contaEsperada) return desligado('MP_ACCESS_TOKEN não é da conta MP_USER_ID');
   const tresDS = env.MP_3DS === 'on_fraud_risk' ? 'on_fraud_risk' : null;
   return { ativo: true, ambiente, provedor: 'mercadopago', token, publicKey, segredoWebhook: segredo, contaEsperada, tresDS,
     pixExpiracao: 'PT1H', base: 'https://api.mercadopago.com', fetch: null, cronSecret: env.CRON_SECRET && env.CRON_SECRET.length >= 16 ? env.CRON_SECRET : null };

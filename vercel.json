@@ -9,7 +9,7 @@
       "maxDuration": 300
     },
     "api/pagamentos.mjs": {
-      "maxDuration": 30
+      "maxDuration": 120
     }
   },
   "trailingSlash": false,

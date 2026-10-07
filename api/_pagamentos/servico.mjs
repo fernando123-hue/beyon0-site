@@ -26,6 +26,9 @@ const INDISPONIVEL = 'O pagamento online está indisponível agora. Tente em alg
 const CRIACAO_INCERTA_S = 90;          /* criação sem resposta: depois disso, procura a order pela referência */
 const CRIACAO_ABANDONADA_S = 5 * 60;   /* e, sem achar em 5 min, dá a tentativa por cancelada */
 const CONSULTA_MIN_S = 10;             /* a página pede atualização; o provedor é consultado no máximo a cada 10 s */
+const BUSCA_FALHANDO_S = 30 * 60;      /* a busca pela referência falha há 30 min: encerra (uma aprovação tardia ainda é aplicada) */
+const PARALELO = 5;                    /* consultas simultâneas na reconciliação */
+export const ORG = 'beyon-zero';
 
 /* ---------- validação do que vem do navegador (nada aqui decide valor) ---------- */
 const soDigitos = v => String(v || '').replace(/\D/g, '');
@@ -59,6 +62,17 @@ export function validarCartao(c) {
   return { dados: { token, meio, tipo, parcelas } };
 }
 
+/* os freios do banco viram mensagens que a pessoa entende */
+const PIX_MINUTOS = 60;   /* (igual a cfg.pixExpiracao = PT1H) */
+function traduzirLimite(e) {
+  const m = String(e && e.message || '');
+  if (e && e.codigo === '23514' && /cartão pausado/.test(m)) throw new ErroPagamento(503, 'O pagamento com cartão está pausado por segurança. Use o Pix ou fale com a Beyon Zero pelo WhatsApp.', { whatsapp: true });
+  if (e && e.codigo === '23514' && /tentativas esgotadas/.test(m)) throw new ErroPagamento(429, 'Foram muitas tentativas de pagamento. Fale com a Beyon Zero pelo WhatsApp para concluir.', { whatsapp: true });
+  if (e && e.codigo === '55P03') throw new ErroPagamento(429, 'Espere alguns segundos antes de tentar de novo.');
+  if (e && e.codigo === '55000' && /verificação/.test(m)) throw new ErroPagamento(409, 'Seu pagamento está em verificação pela equipe. A Beyon Zero fala com você em breve.', { whatsapp: true });
+  throw e;
+}
+
 export function criarServicoPagamentos({ banco, cfg, provedor, agora = () => Date.now() }) {
   if (!cfg || !cfg.ativo) throw new Error('pagamentos desligados');
   const mp = provedor || criarMercadoPago({ token: cfg.token, base: cfg.base, fetch: cfg.fetch || globalThis.fetch });
@@ -75,7 +89,7 @@ export function criarServicoPagamentos({ banco, cfg, provedor, agora = () => Dat
       await ocorrencia('payment.divergence', null, null, { motivo: 'order sem id válido' }, origem);
       return { ignorado: 'order sem id' };
     }
-    return banco('pagamentos_aplicar', { provedor: PROV, origem, request_id: request_id || null, conta_esperada: cfg.contaEsperada, retrato });
+    return banco('pagamentos_aplicar', { provedor: PROV, origem, request_id: request_id || null, conta_esperada: cfg.contaEsperada, org_slug: ORG, retrato });
   }
 
   /* traz uma tentativa ativa para o estado real do provedor. Erro do provedor: não muda nada */
@@ -94,8 +108,13 @@ export function criarServicoPagamentos({ banco, cfg, provedor, agora = () => Dat
       if (anos > CRIACAO_ABANDONADA_S) return await banco('pagamentos_encerrar_tentativa', { tentativa_id: t.tentativa_id, status: 'cancelada', motivo: 'criação sem order no provedor', origem });
       return { aguardando_criacao: true };
     } catch (e) {
-      if (e instanceof ErroProvedor) { await erroDoProvedor(e, t.tentativa_id, t.provedor_order_id, origem); return { erro_provedor: e.tipo }; }
-      throw e;
+      if (!(e instanceof ErroProvedor)) throw e;
+      await erroDoProvedor(e, t.tentativa_id, t.provedor_order_id, origem);
+      /* sem order e a busca falhando há muito tempo: encerra para não travar o visitante (aprovação tardia ainda é aplicada) */
+      if (!t.provedor_order_id && idade(t.criada_em) > BUSCA_FALHANDO_S) {
+        return await banco('pagamentos_encerrar_tentativa', { tentativa_id: t.tentativa_id, status: 'cancelada', motivo: 'criação sem order; busca indisponível', origem });
+      }
+      return { erro_provedor: e.tipo };
     }
   }
 
@@ -143,14 +162,16 @@ export function criarServicoPagamentos({ banco, cfg, provedor, agora = () => Dat
       let vc = null;
       if (metodo === 'cartao') { vc = validarCartao(cartao); if (vc.erro) throw new ErroPagamento(400, vc.erro); }
       const ctx = { conversa_id, visitante_id };
-      let t = await banco('pagamentos_iniciar_tentativa', { ...ctx, metodo, provedor: PROV });
+      const iniciarNoBanco = () => banco('pagamentos_iniciar_tentativa', { ...ctx, metodo, provedor: PROV,
+        max_tentativas: cfg.maxTentativasCartao ?? 5, intervalo_s: cfg.intervaloAposRecusaS ?? 20, max_recusas_hora: cfg.maxRecusasHora ?? 20 }).catch(traduzirLimite);
+      let t = await iniciarNoBanco();
       if (t.ativa) {
         const decisao = await resolverAtiva(ctx, t, metodo);
         if (!decisao.liberada) return this.estado(ctx);
-        t = await banco('pagamentos_iniciar_tentativa', { ...ctx, metodo, provedor: PROV });
+        t = await iniciarNoBanco();
         if (t.ativa) throw new ErroPagamento(409, AGUARDE, { aguarde: true });
       }
-      const pixExpiraEm = metodo === 'pix' ? new Date(agora() + 60 * 60e3).toISOString() : null;
+      const pixExpiraEm = metodo === 'pix' ? new Date(agora() + PIX_MINUTOS * 60e3).toISOString() : null;
       let criada;
       try {
         criada = await mp.criarOrdem({ chave: t.chave_idempotencia, referencia: t.external_reference, valor: t.valor, pagador: pagadorParaProvedor(vp.dados, metodo),
@@ -204,29 +225,36 @@ export function criarServicoPagamentos({ banco, cfg, provedor, agora = () => Dat
 
     /* reconciliação: confere no provedor o que está aberto e o que foi pago há pouco (estorno/contestação),
        e varre as orders recentes da conta atrás de pagamento que o banco não conhece */
-    async reconciliar({ limite = 100, varrerDias = 3 } = {}) {
+    async reconciliar({ limite = 50, varrerDias = 3, varrerPaginas = 3 } = {}) {
       const resumo = { conferidas: 0, aplicadas: 0, erros: 0, desconhecidas: 0 };
-      const lista = await banco('pagamentos_para_reconciliar', { provedor: PROV, limite, idade_min_s: 120, dias_aprovadas: 180 });
-      for (const t of lista) {
-        resumo.conferidas++;
-        const r = await atualizar({ ...t, criada_em: t.criada_em }, 'reconciliacao');
-        if (r && r.erro_provedor) { resumo.erros++; if (r.erro_provedor === 'limite') break; continue; }
-        if (r && r.aplicado) resumo.aplicadas++;
-      }
-      if (varrerDias > 0) {
-        try {
-          const desde = agora() - varrerDias * 86400e3;
-          for (let pagina = 1; pagina <= 5; pagina++) {
-            const orders = await mp.buscarRecentes(desde, agora(), pagina);
-            for (const o of orders) {
-              const r = await aplicar(o, 'reconciliacao');
-              if (r && r.ignorado === 'order desconhecida') resumo.desconhecidas++;
-              else if (r && r.aplicado) resumo.aplicadas++;
-            }
-            if (orders.length < 50) break;
+      const contar = r => { if (r && r.aplicado) resumo.aplicadas++; if (r && r.ignorado === 'order desconhecida') resumo.desconhecidas++; if (r && r.erro_provedor) resumo.erros++; };
+      /* um item com erro (banco, provedor, dado ruim) não derruba os outros */
+      const umPorVez = async (lista, fazer) => {
+        let i = 0;
+        await Promise.all(Array.from({ length: Math.min(PARALELO, lista.length) }, async () => {
+          while (i < lista.length) {
+            const item = lista[i++];
+            try { contar(await fazer(item)); }
+            catch (e) { resumo.erros++; console.error('[pagamentos] reconciliação, item:', e instanceof ErroProvedor ? 'provedor ' + e.tipo : (e && e.codigo) || 'erro'); }
           }
-        } catch (e) { if (!(e instanceof ErroProvedor)) throw e; resumo.erros++; await erroDoProvedor(e, null, null, 'reconciliacao'); }
+        }));
+      };
+      const lista = await banco('pagamentos_para_reconciliar', { provedor: PROV, limite, idade_min_s: 120 });
+      resumo.conferidas = lista.length;
+      await umPorVez(lista, t => atualizar(t, 'reconciliacao'));
+      if (varrerDias > 0) {
+        const desde = agora() - varrerDias * 86400e3;
+        for (let pagina = 1; pagina <= varrerPaginas; pagina++) {
+          let orders;
+          try { orders = await mp.buscarRecentes(desde, agora(), pagina); }
+          catch (e) { if (!(e instanceof ErroProvedor)) throw e; resumo.erros++; await erroDoProvedor(e, null, null, 'reconciliacao'); break; }
+          /* a listagem pode vir resumida: cada order é consultada inteira antes de aplicar */
+          await umPorVez(orders.filter(o => o && /^[A-Za-z0-9_-]{4,64}$/.test(String(o.id || ''))), async o => aplicar(await mp.consultarOrdem(String(o.id)), 'reconciliacao'));
+          if (orders.length < 50) break;
+        }
       }
+      try { resumo.atencao = (await banco('pagamentos_atencao', { horas: 25 })).total; } catch { resumo.atencao = null; }
+      if (resumo.atencao) console.error('[pagamentos] ATENÇÃO: ' + resumo.atencao + ' ocorrência(s) financeira(s) pedem uma pessoa (app.pagamentos_auditoria; ver 01-ARQUITETURA-E-OPERACAO §7)');
       await ocorrencia('payment.reconciled', null, null, resumo, 'reconciliacao');
       return resumo;
     },
@@ -234,9 +262,14 @@ export function criarServicoPagamentos({ banco, cfg, provedor, agora = () => Dat
     /* reembolso (operação da equipe; não há rota pública). A chave de idempotência é fixa por order:
        dois pedidos de reembolso da mesma order nunca devolvem duas vezes */
     async reembolsar({ orderId }) {
+      /* só order de uma tentativa NOSSA (nunca qualquer order da conta), e só a que tem dinheiro */
+      const t = await banco('pagamentos_tentativa', { provedor: PROV, provedor_order_id: String(orderId || '') });
+      if (!['aprovada', 'duplicada', 'estornada_parcial', 'contestada'].includes(t.status)) throw new ErroPagamento(409, 'Esta order não tem pagamento a reembolsar.');
+      let conflito = null;
       try { await mp.reembolsarOrdem(orderId, 'rf-' + orderId); }
-      catch (e) { if (!(e instanceof ErroProvedor)) throw e; await erroDoProvedor(e, null, orderId, 'operacao'); if (e.tipo !== 'conflito') throw e; }
-      return aplicar(await mp.consultarOrdem(orderId), 'operacao');
+      catch (e) { if (!(e instanceof ErroProvedor)) throw e; await erroDoProvedor(e, t.tentativa_id, orderId, 'operacao'); if (e.tipo !== 'conflito') throw e; conflito = e.codigo; }
+      const r = await aplicar(await mp.consultarOrdem(orderId), 'operacao');
+      return conflito ? { ...r, conflito } : r;   /* (409 do MP: já reembolsado ou em reembolso; o estado consultado diz qual) */
     }
   };
 }

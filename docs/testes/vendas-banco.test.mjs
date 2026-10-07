@@ -61,7 +61,7 @@ async function conversaAte(visitante, ate) {
 }
 
 /* o retrato de uma order aprovada (o que o serviço monta depois de CONSULTAR o provedor) */
-const aprovada = (ids, valor = '1500.00') => ({ provedor: 'mercadopago', origem: 'webhook', retrato: { order_id: ids.ref, external_reference: ids.tentativa, user_id: '1', total_amount: valor, country_code: 'BRA',
+const aprovada = (ids, valor = '1500.00') => ({ provedor: 'mercadopago', origem: 'webhook', conta_esperada: '1', retrato: { order_id: ids.ref, external_reference: ids.tentativa, user_id: '1', total_amount: valor, country_code: 'BRA',
   pagamento: { id: 'PAY1', amount: valor, paid_amount: valor, status: 'processed', status_detail: 'accredited', metodo_id: 'pix', metodo_tipo: 'bank_transfer' }, estado: 'aprovada' } });
 
 /* ======================= o caminho inteiro ======================= */

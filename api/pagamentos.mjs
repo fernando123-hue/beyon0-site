@@ -29,7 +29,10 @@ const json = (dados, status = 200) => new Response(JSON.stringify(dados), { stat
 export const POST = request => receber(request, process.env);
 export const GET = request => receber(request, process.env);
 
-const iguaisSeguro = (a, b) => typeof a === 'string' && typeof b === 'string' && a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
+/* compara BYTES (um caractere não ASCII no cabeçalho não pode derrubar a função) */
+const iguaisSeguro = (a, b) => typeof a === 'string' && typeof b === 'string' && Buffer.byteLength(a) === Buffer.byteLength(b) && timingSafeEqual(Buffer.from(a), Buffer.from(b));
+/* aviso com assinatura válida de uma order que o MP ainda não devolve (consistência eventual): pede reenvio por até 6 h */
+const REENVIO_ORDER_NAO_LEGIVEL_MS = 6 * 3600e3;
 
 export async function receber(request, env, deps = {}) {
   const query = new URL(request.url).searchParams;
@@ -48,9 +51,9 @@ export async function receber(request, env, deps = {}) {
 
 async function aviso(request, query, cfg, banco, servico) {
   const requestId = (request.headers.get('x-request-id') || '').slice(0, 120) || null;
-  const recusar = async (status, motivo, ref) => {
+  /* recusa ANTES da assinatura não grava no banco (quem não tem o segredo não pode encher a trilha): só o log */
+  const recusar = (status, motivo) => {
     console.error('[pagamentos] aviso recusado:', motivo);
-    await banco('pagamentos_registrar_aviso', { aceito: false, provedor: 'mercadopago', provedor_ref: ref, request_id: requestId, motivo }).catch(() => {});
     return json({ erro: status === 401 ? 'Assinatura inválida.' : 'Aviso inválido.' }, status);
   };
   const tamanho = Number(request.headers.get('content-length') || 0);
@@ -70,10 +73,13 @@ async function aviso(request, query, cfg, banco, servico) {
   const v = verificarAssinatura({ xSignature: request.headers.get('x-signature'), xRequestId: requestId, dataId, segredo: cfg.segredoWebhook });
   if (!v.valido) return recusar(401, v.motivo, dataId);
 
-  await banco('pagamentos_registrar_aviso', { aceito: true, provedor: 'mercadopago', provedor_ref: dataId, request_id: requestId,
-    acao: corpo && typeof corpo.action === 'string' ? corpo.action : null }).catch(() => {});
+  await banco('pagamentos_registrar_aviso', { provedor: 'mercadopago', provedor_ref: dataId, request_id: requestId,
+    acao: corpo && typeof corpo.action === 'string' ? corpo.action : null }).catch(e => console.error('[pagamentos] trilha do aviso falhou:', e && e.codigo));
   try {
     const r = await servico.processarAviso({ orderId: dataId, requestId });
+    if (r && r.ignorado === 'order não encontrada nesta conta' && Date.now() - v.tsMs < REENVIO_ORDER_NAO_LEGIVEL_MS) {
+      return json({ erro: 'Order ainda não disponível.' }, 503);   /* o MP reenvia a cada 15 min */
+    }
     return json({ ok: true, ...(r && r.duplicada ? { duplicada: true } : {}), ...(r && r.sem_mudanca ? { sem_mudanca: true } : {}) });
   } catch (e) {
     console.error('[pagamentos] falha ao processar aviso:', e instanceof ErroProvedor ? 'provedor ' + e.tipo : (e && e.codigo ? 'banco ' + e.codigo : 'erro'));
