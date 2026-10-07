@@ -5,7 +5,7 @@
      service_role (o que o backend faz em produção pelo PostgREST);
    • auth: visitantes anônimos com tokens HS256 de desenvolvimento (em
      produção é o login anônimo do Supabase);
-   • segredoPagamento: o segredo do gateway simulado.
+   • mp: o Mercado Pago simulado (docs/mp-simulado.mjs), com token, segredo do aviso e conta próprios.
    A tabela-rascunho de preços entra como ATIVA SÓ AQUI, para o fluxo rodar
    localmente; em produção só o dono ativa uma versão.
    ========================================================================== */
@@ -14,6 +14,7 @@ import { createHmac, randomBytes, randomUUID, timingSafeEqual } from 'node:crypt
 import { novoBanco, como } from './testes/_banco.mjs';
 import { tokenDe } from '../api/_supabase.mjs';
 import { ErroBanco } from '../api/_vendas/transporte.mjs';
+import { criarMpSimulado } from './mp-simulado.mjs';
 
 const b64 = o => Buffer.from(JSON.stringify(o)).toString('base64url');
 
@@ -53,9 +54,12 @@ export async function montarLocal({ base = 'http://127.0.0.1:8899', regras = tru
         return carga.sub;
       }
     },
-    segredoPagamento: randomBytes(32).toString('hex'),
     base
   };
+  /* o Mercado Pago simulado (Orders API fiel, sem dinheiro): o MESMO código do provedor real conversa com ele */
+  const mpToken = 'APP_USR-local-' + randomBytes(12).toString('hex'), mpSegredo = randomBytes(32).toString('hex');
+  const sim = criarMpSimulado({ token: mpToken, segredo: mpSegredo, userId: '1234567890' });
+  local.mp = { token: mpToken, segredo: mpSegredo, userId: '1234567890', fetch: sim.fetch, sim, cronSecret: randomBytes(24).toString('hex') };
   globalThis.__BZ_LOCAL = local;
   return local;
 }

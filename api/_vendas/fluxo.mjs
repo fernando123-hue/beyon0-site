@@ -3,7 +3,7 @@
    Cada ação: confere o visitante pelo token → valida a entrada (lista
    fechada) → aplica os tetos (taxa, turnos, custo) → chama a lógica de
    negócio e a IA → grava pelo banco (app.vendas_*, uma transação por passo).
-   As dependências entram por parâmetro (banco, ia, visitantes, gateway): os
+   As dependências entram por parâmetro (banco, ia, visitantes, pagamentos): os
    testes trocam por dublês sem tocar no fluxo.
    Falha de IA: nada é inventado; a resposta é a recuperação elegante pedida
    na especificação, e o que a pessoa já contou continua no banco.
@@ -18,6 +18,7 @@ import { ehUuid, normalizarTelefone } from '../_valida-app.mjs';
 import { TETOS } from '../_ia/config.mjs';
 import { ErroIA } from '../_ia/provedor.mjs';
 import { ErroBanco } from './transporte.mjs';
+import { ErroPagamento } from '../_pagamentos/servico.mjs';
 
 export const ORG = 'beyon-zero';
 export const RECUPERACAO = 'Não consegui concluir a análise neste momento. Suas informações foram preservadas. Vamos continuar de onde paramos.';
@@ -32,6 +33,7 @@ export class Recusa extends Error {
 }
 export function traduzirErro(e) {
   if (e instanceof Recusa) return e;
+  if (e instanceof ErroPagamento) return new Recusa(e.status, e.message, e.extra);
   if (e instanceof ErroIA) return new Recusa(503, RECUPERACAO, { recuperavel: true });
   if (e instanceof ErroBanco) {
     if (e.codigo === 'P0002') return new Recusa(404, 'Não encontrado.');
@@ -53,7 +55,7 @@ async function regrasAtivas(banco) {
   return r && r.regras ? r : null;
 }
 
-export function criarFluxo({ banco, ia, visitantes, gateway }) {
+export function criarFluxo({ banco, ia, visitantes, pagamentos }) {
   async function visitante(request) {
     const id = await visitantes.quem(request);
     exigir(id, 401, 'Sessão inválida ou expirada.');
@@ -245,23 +247,21 @@ export function criarFluxo({ banco, ia, visitantes, gateway }) {
       return banco('vendas_confirmar_escopo', { conversa_id: corpo.conversa_id, visitante_id: vid, proposta_id: corpo.proposta_id, confirmo: true, inicio_imediato: corpo.inicio_imediato === true });
     },
 
-    /* iniciar o pagamento do sinal: o valor vem da proposta aceita; o link vem do gateway */
+    /* pagar o sinal (Pix ou cartão) pelo serviço de pagamentos. O navegador escolhe o MEIO e manda os dados do
+       pagador e o token do cartão; o VALOR vem da proposta aceita, no banco (o corpo nunca define valor) */
     async pagar({ request, corpo }) {
       const vid = await visitante(request);
       exigir(ehUuid(corpo?.conversa_id), 400, 'Conversa inválida.');
-      exigir(gateway, 503, 'O pagamento online ainda não está disponível. A Beyon Zero envia o link pelo WhatsApp.');
-      const r = await banco('vendas_reservar_cobranca', { conversa_id: corpo.conversa_id, visitante_id: vid, gateway: gateway.nome });
-      if (r.link) return { link: r.link, valor: r.valor, status: r.status };
-      if (!r.nova) return { status: r.status, valor: r.valor, aguarde: true };
-      const contato = await banco('vendas_contato_da_conversa', { conversa_id: corpo.conversa_id, visitante_id: vid });
-      let c;
-      try { c = await gateway.criarCobranca({ pagamento_id: r.pagamento_id, valor: Number(r.valor), descricao: r.descricao, cliente: contato }); }
-      catch (e) {
-        console.error('[vendas] pagar: gateway não criou a cobrança');
-        throw new Recusa(503, 'Não consegui gerar o link de pagamento agora. Tente de novo em um minuto.', { whatsapp: true });
-      }
-      await banco('vendas_vincular_cobranca', { pagamento_id: r.pagamento_id, gateway_ref: c.gateway_ref, link: c.link });
-      return { link: c.link, valor: r.valor, status: 'pendente' };
+      exigir(pagamentos, 503, 'O pagamento online ainda não está disponível. A Beyon Zero envia o link pelo WhatsApp.');
+      return pagamentos.iniciar({ conversa_id: corpo.conversa_id, visitante_id: vid, metodo: corpo?.metodo, pagador: corpo?.pagador, cartao: corpo?.cartao });
+    },
+
+    /* o estado do pagamento (a página consulta enquanto espera; o provedor é consultado no máximo a cada 10 s) */
+    async pagamento({ request, query }) {
+      const vid = await visitante(request);
+      exigir(ehUuid(query.get('conversa')), 400, 'Conversa inválida.');
+      exigir(pagamentos, 503, 'O pagamento online ainda não está disponível.');
+      return pagamentos.estado({ conversa_id: query.get('conversa'), visitante_id: vid }, { atualizarProvedor: true });
     }
   };
 }

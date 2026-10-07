@@ -35,7 +35,7 @@ delete process.env.SUPABASE_CHAVE_PUBLICA;
 /* agente de vendas local: banco PGlite com as migrations, visitantes de desenvolvimento, gateway simulado.
    IA simulada por padrão (de graça); BZ_IA_REAL=1 + ANTHROPIC_API_KEY usa a de verdade (custa). */
 if (process.env.BZ_IA_REAL !== '1') delete process.env.ANTHROPIC_API_KEY;
-delete process.env.PAGAMENTO_SIMULADO_SEGREDO;
+for (const k of ['MP_AMBIENTE', 'MP_ACCESS_TOKEN', 'MP_PUBLIC_KEY', 'MP_WEBHOOK_SEGREDO', 'MP_USER_ID', 'CRON_SECRET']) delete process.env[k];   /* (local: o Mercado Pago SIMULADO; credencial real nunca roda aqui) */
 delete process.env.SITE_URL;
 try {
   const { montarLocal } = await import('./banco-local.mjs');

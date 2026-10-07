@@ -1,5 +1,5 @@
 /* O fluxo inteiro pela API (/api/vendas e /api/pagamentos), com o banco real (PGlite + migrations), a IA simulada e o
-   gateway simulado. Cobre a lista da especificação: fluxo normal, incompleto, falha da IA, segurança, injeção de
+   Mercado Pago simulado (os pagamentos em detalhe: pagamentos.test.mjs). Cobre a lista da especificação: fluxo normal, incompleto, falha da IA, segurança, injeção de
    prompt, preço, webhook inválido, concorrência e dados inconsistentes.  npm run testar */
 import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
@@ -7,18 +7,19 @@ import { montarLocal } from '../banco-local.mjs';
 import { atender, freioGeral } from '../../api/vendas.mjs';
 import { receber } from '../../api/pagamentos.mjs';
 import { criarSimulada } from '../../api/_ia/simulado.mjs';
-import { gatewaySimulado } from '../../api/_vendas/pagamento.mjs';
+import { criarServicoPagamentos } from '../../api/_pagamentos/servico.mjs';
+import { configPagamentos } from '../../api/_pagamentos/config.mjs';
 import { ErroIA } from '../../api/_ia/provedor.mjs';
 import { RECUPERACAO } from '../../api/_vendas/fluxo.mjs';
 import { SISTEMA } from '../../api/_vendas/agente.mjs';
 
-let local, deps, gateway;
+let local, deps;
+const PAGADOR = { nome: 'Ana', sobrenome: 'Souza', email: 'ana@exemplo.com', documento: '52998224725' };
 const BASE = 'http://127.0.0.1:8899';
 let ipSeq = 0;
 before(async () => {
   local = await montarLocal({ base: BASE });
-  gateway = gatewaySimulado({ segredo: local.segredoPagamento, base: BASE });
-  deps = { banco: local.rpc, visitantes: local.auth, ia: criarSimulada(), gateway };
+  deps = { banco: local.rpc, visitantes: local.auth, ia: criarSimulada(), pagamentos: criarServicoPagamentos({ banco: local.rpc, cfg: configPagamentos({}) }) };
 });
 
 /* um "navegador": cada um com um IP próprio (o freio é por IP) */
@@ -68,14 +69,14 @@ test('fluxo normal: visitante → conversa → estimativa → contato → 3 dire
   assert.equal(Number(esc.corpo.valor_total), 3650);
   assert.ok(esc.corpo.escopo.includes('ALTERAÇÕES PEDIDAS') && esc.corpo.escopo.includes('INVESTIMENTO'));
   assert.equal((await n.chamar('POST', 'confirmar', { conversa_id: c, proposta_id: esc.corpo.proposta_id, confirmo: true, inicio_imediato: true })).status, 200);
-  const pg = await n.chamar('POST', 'pagar', { conversa_id: c, valor: 1 });
-  assert.equal(Number(pg.corpo.valor), 1825, 'o sinal vem da proposta (50%), não do corpo');
-  const ref = pg.corpo.link.split('ref=')[1];
-  const wh = await receber(new Request(BASE + '/api/pagamentos?acao=simular', { method: 'POST', body: JSON.stringify({ ref, status: 'pago' }), headers: { 'content-type': 'application/json' } }), {}, { banco: local.rpc, gateway });
+  const pg = await n.chamar('POST', 'pagar', { conversa_id: c, valor: 1, metodo: 'pix', pagador: PAGADOR });
+  assert.equal(Number(pg.corpo.pagamento.valor), 1825, 'o sinal vem da proposta (50%), não do corpo');
+  assert.equal(pg.corpo.tentativa.status, 'aguardando', 'o Pix gerado');
+  const wh = await receber(new Request(BASE + '/api/pagamentos?acao=simular', { method: 'POST', body: JSON.stringify({ tentativa_id: pg.corpo.tentativa.id }), headers: { 'content-type': 'application/json' } }), {}, { banco: local.rpc });
   assert.equal(wh.status, 200);
   e = (await n.chamar('GET', 'estado', undefined, { query: '&conversa=' + c })).corpo;
   assert.equal(e.conversa.etapa, 'em_producao');
-  assert.deepEqual(await ultimoProjeto(), { status: 'em_producao', dias: m1.corpo.estimativa.prazo_dias, lead: 'ganho' }, 'prazo do projeto = prazo da estimativa (institucional 8 + agendamento 1)');
+  assert.deepEqual(await ultimoProjeto(), { status: 'pronto_para_producao', dias: m1.corpo.estimativa.prazo_dias, lead: 'ganho' }, 'prazo do projeto = prazo da estimativa (institucional 8 + agendamento 1)');
   assert.equal(m1.corpo.estimativa.prazo_dias, 9);
 });
 
@@ -127,7 +128,7 @@ test('segurança: sem token, token forjado e token de outro visitante não chega
   assert.equal((await a.chamar('GET', 'estado', undefined, { query: q, token: '' })).status, 401, 'sem token');
   const [h, p] = a.token.split('.');
   assert.equal((await a.chamar('GET', 'estado', undefined, { query: q, token: h + '.' + p + '.assinaturaforjada' })).status, 401, 'token forjado');
-  for (const [m, acao, corpo] of [['GET', 'estado'], ['POST', 'mensagem', { conversa_id: sa.conversa_id, texto: 'oi' }], ['POST', 'contato', { conversa_id: sa.conversa_id, nome: 'Xavier', email: 'x@x.com', aceite: true }], ['POST', 'gerar', { conversa_id: sa.conversa_id }], ['POST', 'pagar', { conversa_id: sa.conversa_id }]]) {
+  for (const [m, acao, corpo] of [['GET', 'estado'], ['POST', 'mensagem', { conversa_id: sa.conversa_id, texto: 'oi' }], ['POST', 'contato', { conversa_id: sa.conversa_id, nome: 'Xavier', email: 'x@x.com', aceite: true }], ['POST', 'gerar', { conversa_id: sa.conversa_id }], ['POST', 'pagar', { conversa_id: sa.conversa_id, metodo: 'pix', pagador: PAGADOR }]]) {
     const r = await b.chamar(m, acao, corpo, m === 'GET' ? { query: q } : {});
     assert.equal(r.status, 404, 'B em ' + acao + ' da conversa de A: "não existe"');
   }
@@ -149,34 +150,6 @@ test('injeção de prompt pela API: não revela o prompt, registra a tentativa, 
 });
 
 /* ======================= pagamento ======================= */
-test('webhook: assinatura inválida, aviso velho e evento repetido não pagam duas vezes; status vem da consulta ao gateway', async () => {
-  const n = navegador();
-  const s = await n.iniciar();
-  const c = s.conversa_id;
-  await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Tenho uma clínica e quero um site institucional para agendamentos' });
-  await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'sim' });
-  await n.chamar('POST', 'contato', { conversa_id: c, nome: 'Bia', email: 'bia@x.com', aceite: true });
-  const g = await n.chamar('POST', 'gerar', { conversa_id: c });
-  for (const d of g.corpo.direcoes) await n.chamar('POST', 'gerar-direcao', { conversa_id: c, direcao_id: d.id });
-  await n.chamar('POST', 'escolher', { conversa_id: c, direcao_id: g.corpo.direcoes[0].id });
-  const esc = await n.chamar('POST', 'escopo', { conversa_id: c });
-  await n.chamar('POST', 'confirmar', { conversa_id: c, proposta_id: esc.corpo.proposta_id, confirmo: true });
-  const [p1, p2] = await Promise.all([n.chamar('POST', 'pagar', { conversa_id: c }), n.chamar('POST', 'pagar', { conversa_id: c })]);
-  const ref = (p1.corpo.link || p2.corpo.link).split('ref=')[1];
-  assert.equal((await local.db.query('select count(*)::int n from app.pagamentos p join app.propostas pr on pr.id = p.proposta_id where pr.conversa_id = $1', [c])).rows[0].n, 1, 'dois cliques, uma cobrança');
-  const wh = (req) => receber(req, {}, { banco: local.rpc, gateway });
-  const aviso = gateway.pagar(ref, 'pago');
-  const forjado = new Request(BASE + '/api/pagamentos', { method: 'POST', body: aviso.corpo, headers: { ...aviso.cabecalhos, 'x-signature': aviso.cabecalhos['x-signature'].replace(/.$/, c => c === '0' ? '1' : '0') } });
-  assert.equal((await wh(forjado)).status, 401, 'assinatura forjada');
-  assert.equal((await wh(new Request(BASE + '/api/pagamentos', { method: 'POST', body: aviso.corpo, headers: { ...aviso.cabecalhos, 'x-signature': 'ts=1000000000000,v1=' + '0'.repeat(64) } }))).status, 401, 'aviso velho');
-  assert.equal((await n.chamar('GET', 'estado', undefined, { query: '&conversa=' + c })).corpo.conversa.etapa, 'aguardando_pagamento', 'nada mudou com aviso inválido');
-  const ok1 = await wh(new Request(BASE + '/api/pagamentos', { method: 'POST', body: aviso.corpo, headers: aviso.cabecalhos }));
-  const ok2 = await wh(new Request(BASE + '/api/pagamentos', { method: 'POST', body: aviso.corpo, headers: aviso.cabecalhos }));
-  assert.equal(ok1.status, 200);
-  assert.equal((await ok2.json()).duplicado, true, 'o mesmo aviso de novo');
-  assert.equal((await local.db.query('select count(*)::int n from app.projetos p join app.propostas pr on pr.projeto_id = p.id where pr.conversa_id = $1', [c])).rows[0].n, 1, 'um projeto só');
-});
-
 /* ======================= concorrência e dados ======================= */
 test('concorrência: a mesma direção pedida duas vezes ao mesmo tempo é gerada uma vez', async () => {
   const n = navegador();
@@ -270,13 +243,6 @@ async function ateDirecoes(n, texto = 'Tenho uma clínica e quero um site instit
   for (const d of g.corpo.direcoes) await n.chamar('POST', 'gerar-direcao', { conversa_id: c, direcao_id: d.id });
   return { c, dirs: g.corpo.direcoes };
 }
-async function ateCobranca(n) {
-  const { c, dirs } = await ateDirecoes(n);
-  await n.chamar('POST', 'escolher', { conversa_id: c, direcao_id: dirs[0].id });
-  const esc = await n.chamar('POST', 'escopo', { conversa_id: c });
-  await n.chamar('POST', 'confirmar', { conversa_id: c, proposta_id: esc.corpo.proposta_id, confirmo: true });
-  return c;
-}
 
 test('uma resposta de IA por vez: duas mensagens ao mesmo tempo dão uma resposta e um "aguarde"', async () => {
   const base = criarSimulada();
@@ -325,37 +291,3 @@ test('escopo amarrado à estimativa: se outra entrou no meio, o banco recusa', a
   await assert.rejects(local.rpc('vendas_apresentar_escopo', { conversa_id: c, visitante_id: vid, titulo: 'x', escopo: 'y', estimativa_id: c }), e => e.codigo === '40001');
 });
 
-test('gateway simulado só em local, preview e development', async () => {
-  const { criarGateway } = await import('../../api/_vendas/pagamento.mjs');
-  const seg = 'x'.repeat(40);
-  assert.equal(criarGateway({ PAGAMENTO_GATEWAY: 'simulado', PAGAMENTO_SIMULADO_SEGREDO: seg, VERCEL_ENV: 'production' }), null);
-  assert.equal(criarGateway({ PAGAMENTO_GATEWAY: 'simulado', PAGAMENTO_SIMULADO_SEGREDO: seg, VERCEL: '1' }), null, 'na Vercel sem ambiente declarado: não');
-  assert.ok(criarGateway({ PAGAMENTO_GATEWAY: 'simulado', PAGAMENTO_SIMULADO_SEGREDO: seg, VERCEL_ENV: 'preview' }));
-});
-
-test('gateway falhou ao criar a cobrança: 503 agora, e depois de 1 minuto o mesmo pagamento tenta de novo', async () => {
-  const quebrado = { ...gateway, criarCobranca: async () => { throw new Error('gateway fora'); } };
-  const n = navegador();
-  const c = await ateCobranca(n);
-  assert.equal((await n.chamar('POST', 'pagar', { conversa_id: c }, { deps: { ...deps, gateway: quebrado } })).status, 503);
-  assert.equal((await n.chamar('POST', 'pagar', { conversa_id: c })).corpo.aguarde, true, 'dentro do minuto: aguarde');
-  /* o carimbo do banco não deixa voltar o relógio; o modo de restauração deixa (só no teste) */
-  await local.db.transaction(async tx => {
-    await tx.query("select set_config('bz.restaurando', 'on', true)");
-    await tx.query(`update app.pagamentos p set updated_at = now() - interval '2 minutes' from app.propostas pr where pr.id = p.proposta_id and pr.conversa_id = $1`, [c]);
-  });
-  const ok = await n.chamar('POST', 'pagar', { conversa_id: c });
-  assert.ok(ok.corpo.link, 'refez a cobrança: ' + JSON.stringify(ok.corpo));
-  assert.equal((await local.db.query('select count(*)::int n from app.pagamentos p join app.propostas pr on pr.id = p.proposta_id where pr.conversa_id = $1', [c])).rows[0].n, 1, 'o mesmo pagamento, não outro');
-});
-
-test('pagamento depois de cancelado: responde ok, marca para conciliar e não cria projeto', async () => {
-  const n = navegador();
-  const c = await ateCobranca(n);
-  const ref = (await n.chamar('POST', 'pagar', { conversa_id: c })).corpo.link.split('ref=')[1];
-  const wh = s => receber(new Request(BASE + '/api/pagamentos?acao=simular', { method: 'POST', body: JSON.stringify({ ref, status: s }), headers: { 'content-type': 'application/json' } }), {}, { banco: local.rpc, gateway });
-  assert.equal((await wh('cancelado')).status, 200);
-  assert.equal((await wh('pago')).status, 200, 'sem 500 (o gateway não reenvia sem fim)');
-  assert.ok((await local.db.query(`select 1 from app.eventos_pagamento where resultado like 'conciliar%'`)).rows.length);
-  assert.equal((await local.db.query('select count(*)::int n from app.propostas where conversa_id = $1 and projeto_id is not null', [c])).rows[0].n, 0);
-});

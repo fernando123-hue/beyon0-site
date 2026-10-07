@@ -1,7 +1,7 @@
 /* ==========================================================================
    /api/vendas?acao=… — a API do agente de vendas (uma função; cada ação é um
    passo do fluxo, em api/_vendas/fluxo.mjs).
-     GET  estado
+     GET  estado, pagamento, pagamento-config
      POST sessao, renovar, mensagem, contato, gerar, gerar-direcao, escolher,
           alterar, escopo, confirmar, pagar
    Fronteira: freio por IP, JSON obrigatório (um formulário de outro site não
@@ -11,12 +11,13 @@
 import { criarFluxo, traduzirErro } from './_vendas/fluxo.mjs';
 import { criarTransporte } from './_vendas/transporte.mjs';
 import { criarVisitantes } from './_vendas/visitante.mjs';
-import { criarGateway } from './_vendas/pagamento.mjs';
+import { configPagamentos, configPublica } from './_pagamentos/config.mjs';
+import { criarServicoPagamentos } from './_pagamentos/servico.mjs';
 import { criarIA } from './_ia/provedor.mjs';
 import { criarFreio, ipDe } from './_freio.mjs';
 
 const ACOES = {
-  GET: { estado: 'estado' },
+  GET: { estado: 'estado', pagamento: 'pagamento', 'pagamento-config': 'pagamentoConfig' },
   POST: { sessao: 'sessao', renovar: 'renovar', mensagem: 'mensagem', contato: 'contato', gerar: 'gerar', 'gerar-direcao': 'gerarDirecao',
     escolher: 'escolher', alterar: 'alterar', escopo: 'escopo', confirmar: 'confirmar', pagar: 'pagar' }
 };
@@ -47,7 +48,15 @@ export async function atender(request, env, metodo, deps) {
     try { corpo = texto ? JSON.parse(texto) : {}; } catch { return json({ erro: 'JSON inválido.' }, 400); }
   }
 
-  const d = deps || { banco: criarTransporte(env), visitantes: criarVisitantes(env), ia: await criarIA(env), gateway: criarGateway(env) };
+  /* a configuração pública do pagamento (Public Key e ambiente): sem sessão, sem segredo */
+  if (acao === 'pagamentoConfig') return json(configPublica(deps && deps.cfgPagamentos ? deps.cfgPagamentos : configPagamentos(env)));
+
+  const d = deps || { banco: criarTransporte(env), visitantes: criarVisitantes(env), ia: await criarIA(env) };
+  if (!deps && d.banco) {
+    const cfg = configPagamentos(env);
+    if (cfg.ativo) d.pagamentos = criarServicoPagamentos({ banco: d.banco, cfg });
+    else if (cfg.motivo) console.error('[vendas] pagamentos desligados:', cfg.motivo);
+  }
   if (!d.banco || !d.visitantes) { console.error('[vendas] banco ou autenticação não configurados'); return json({ erro: 'Serviço indisponível.' }, 503); }
   if (PRECISA_IA.has(acao) && !d.ia) { console.error('[vendas] IA não configurada (ANTHROPIC_API_KEY)'); return json({ erro: 'O consultor está indisponível agora. Fale com a Beyon Zero pelo WhatsApp.', whatsapp: true }, 503); }
 

@@ -52,18 +52,23 @@ async function conversaAte(visitante, ate) {
   if (ate === 'escopo') return ids;
   await rpc('vendas_confirmar_escopo', { ...base, proposta_id: ids.proposta, confirmo: true, inicio_imediato: true });
   if (ate === 'confirmada') return ids;
-  const cob = await rpc('vendas_reservar_cobranca', { ...base, gateway: 'simulado' });
+  const cob = await rpc('pagamentos_iniciar_tentativa', { ...base, metodo: 'pix', provedor: 'mercadopago' });
   ids.pagamento = cob.pagamento_id;
-  ids.ref = 'sim-' + ids.pagamento.slice(0, 8);
-  await rpc('vendas_vincular_cobranca', { pagamento_id: ids.pagamento, gateway_ref: ids.ref, link: 'https://pagamento.teste/' + ids.ref });
+  ids.tentativa = cob.tentativa_id;
+  ids.ref = 'ORD' + ids.tentativa.replace(/-/g, '').slice(0, 26).toUpperCase();
+  await rpc('pagamentos_vincular', { tentativa_id: ids.tentativa, provedor_order_id: ids.ref });
   return ids;
 }
+
+/* o retrato de uma order aprovada (o que o serviço monta depois de CONSULTAR o provedor) */
+const aprovada = (ids, valor = '1500.00') => ({ provedor: 'mercadopago', origem: 'webhook', retrato: { order_id: ids.ref, external_reference: ids.tentativa, user_id: '1', total_amount: valor, country_code: 'BRA',
+  pagamento: { id: 'PAY1', amount: valor, paid_amount: valor, status: 'processed', status_detail: 'accredited', metodo_id: 'pix', metodo_tipo: 'bank_transfer' }, estado: 'aprovada' } });
 
 /* ======================= o caminho inteiro ======================= */
 test('fluxo completo: conversa → estimativa → contato → 3 direções → escolha → alteração → escopo → confirmação → sinal pago → projeto em produção', async () => {
   const ids = await conversaAte(V1, 'cobranca');
-  const r = await rpc('vendas_confirmar_pagamento', { gateway: 'simulado', evento_id: 'ev-1', tipo: 'pagamento', gateway_ref: ids.ref, status: 'pago', valor: 1500 });
-  assert.ok(r.projeto_id && r.cliente_id, 'o sinal pago criou cliente e projeto');
+  const r = await rpc('pagamentos_aplicar', aprovada(ids));
+  assert.ok(r.projeto_id, 'o sinal pago criou o projeto');
   const estado = await rpc('vendas_estado', { conversa_id: ids.conversa, visitante_id: V1 });
   assert.equal(estado.conversa.etapa, 'em_producao');
   assert.equal(estado.proposta.status, 'aceita');
@@ -71,7 +76,7 @@ test('fluxo completo: conversa → estimativa → contato → 3 direções → e
   const db2 = await db.query(`select l.status, l.cliente_id is not null as tem_cliente, p.status as projeto, p.tipo, p.previsto_para - p.inicio_em as dias,
     pr.projeto_id is not null as proposta_ligada, pr.inicio_imediato_em is not null as consentiu
     from app.leads l join app.projetos p on p.lead_id = l.id join app.propostas pr on pr.projeto_id = p.id where l.id = $1`, [ids.lead]);
-  assert.deepEqual(db2.rows[0], { status: 'ganho', tem_cliente: true, projeto: 'em_producao', tipo: 'site_institucional', dias: 10, proposta_ligada: true, consentiu: true });
+  assert.deepEqual(db2.rows[0], { status: 'ganho', tem_cliente: true, projeto: 'pronto_para_producao', tipo: 'site_institucional', dias: 10, proposta_ligada: true, consentiu: true });
   const funil = (await db.query(`select tipo from app.eventos_funil where conversa_id = $1 order by created_at, tipo`, [ids.conversa])).rows.map(x => x.tipo);
   for (const t of ['conversa_iniciada', 'briefing_completo', 'estimativa_mostrada', 'contato_informado', 'direcoes_solicitadas', 'direcoes_prontas', 'direcao_escolhida', 'alteracao_pedida', 'escopo_apresentado', 'escopo_confirmado', 'pagamento_iniciado', 'pagamento_confirmado']) {
     assert.ok(funil.includes(t), 'funil registrou ' + t);
@@ -85,25 +90,11 @@ test('preço: o escopo usa a ÚLTIMA ESTIMATIVA, nunca o valor enviado na chamad
   assert.equal(Number(pr.valor_total), 3000, 'o valor_total: 1 da chamada foi ignorado');
   assert.equal(pr.sinal_percentual, 50);
   await rpc('vendas_confirmar_escopo', { conversa_id: ids.conversa, visitante_id: V1, proposta_id: ids.proposta, confirmo: true });
-  const cob = await rpc('vendas_reservar_cobranca', { conversa_id: ids.conversa, visitante_id: V1, gateway: 'simulado', valor: 1 });
+  const cob = await rpc('pagamentos_iniciar_tentativa', { conversa_id: ids.conversa, visitante_id: V1, metodo: 'pix', provedor: 'mercadopago', valor: 1 });
   assert.equal(Number(cob.valor), 1500, 'o valor da cobrança vem da proposta, não da chamada');
   assert.equal((await erroDe(rpc('vendas_registrar_estimativa', { conversa_id: ids.conversa, visitante_id: V1, regras_id: RASCUNHO, fatores: {}, valor_total: 1, sinal: 0, prazo_dias: 10 })))?.codigo, ETAPA, 'estimativa depois da confirmação: recusada');
   const v = await conversaAte(V2, 'iniciada');
   assert.equal((await erroDe(rpc('vendas_registrar_estimativa', { conversa_id: v.conversa, visitante_id: V2, regras_id: RASCUNHO, fatores: {}, valor_total: 1, sinal: 0, prazo_dias: 10 })))?.codigo, ETAPA, 'tabela em rascunho não gera estimativa para visitante');
-});
-
-/* ======================= pagamento: webhook inválido, repetido e concorrente ======================= */
-test('pagamento: evento repetido é ignorado, valor divergente e cobrança desconhecida não pagam, e a situação não volta', async () => {
-  const ids = await conversaAte(V1, 'cobranca');
-  assert.deepEqual(await rpc('vendas_confirmar_pagamento', { gateway: 'simulado', evento_id: 'x-1', tipo: 'pagamento', gateway_ref: ids.ref, status: 'pago', valor: 1 }), { ignorado: 'valor divergente' });
-  assert.deepEqual(await rpc('vendas_confirmar_pagamento', { gateway: 'simulado', evento_id: 'x-2', tipo: 'pagamento', gateway_ref: 'nao-existe', status: 'pago', valor: 1500 }), { ignorado: 'cobrança desconhecida' });
-  const ok = await rpc('vendas_confirmar_pagamento', { gateway: 'simulado', evento_id: 'x-3', tipo: 'pagamento', gateway_ref: ids.ref, status: 'pago', valor: 1500 });
-  assert.ok(ok.projeto_id);
-  assert.deepEqual(await rpc('vendas_confirmar_pagamento', { gateway: 'simulado', evento_id: 'x-3', tipo: 'pagamento', gateway_ref: ids.ref, status: 'pago', valor: 1500 }), { duplicado: true }, 'mesmo evento duas vezes');
-  assert.deepEqual(await rpc('vendas_confirmar_pagamento', { gateway: 'simulado', evento_id: 'x-4', tipo: 'pagamento', gateway_ref: ids.ref, status: 'pago', valor: 1500 }), { sem_mudanca: true }, 'outro evento dizendo o mesmo');
-  const projetos = (await db.query('select count(*)::int n from app.projetos where lead_id = $1', [ids.lead])).rows[0].n;
-  assert.equal(projetos, 1, 'um projeto só, mesmo com três avisos de pago');
-  assert.ok(await erroDe(db.query(`update app.pagamentos set status = 'pendente' where id = $1`, [ids.pagamento])), 'pago não volta a pendente');
 });
 
 /* (o PGlite tem uma conexão só e põe as transações em fila: aqui se prova o resultado de dois pedidos seguidos. No Postgres
@@ -117,8 +108,10 @@ test('concorrência: dois pedidos de geração e duas cobranças ao mesmo tempo 
   assert.equal([g1.nova, g2.nova].filter(Boolean).length, 1, 'só uma criou');
   assert.equal((await db.query('select count(*)::int n from app.direcoes where conversa_id = $1', [ids.conversa])).rows[0].n, 3);
   const v = await conversaAte(V2, 'confirmada');
-  const [c1, c2] = await Promise.all([rpc('vendas_reservar_cobranca', { conversa_id: v.conversa, visitante_id: V2, gateway: 'simulado' }), rpc('vendas_reservar_cobranca', { conversa_id: v.conversa, visitante_id: V2, gateway: 'simulado' })]);
-  assert.equal(c1.pagamento_id, c2.pagamento_id, 'a mesma cobrança');
+  const pedir = () => rpc('pagamentos_iniciar_tentativa', { conversa_id: v.conversa, visitante_id: V2, metodo: 'pix', provedor: 'mercadopago' });
+  const [c1, c2] = await Promise.all([pedir(), pedir()]);
+  assert.equal(c1.pagamento_id, c2.pagamento_id, 'o mesmo pagamento');
+  assert.equal(c1.tentativa_id, c2.tentativa_id, 'a mesma tentativa (uma ativa por pagamento)');
 });
 
 /* ======================= etapas e limites ======================= */
@@ -155,7 +148,7 @@ test('isolamento: o visitante 2 não lê nem mexe na conversa do visitante 1 (me
   const ids = await conversaAte(V1, 'cobranca');
   const de2 = { conversa_id: ids.conversa, visitante_id: V2 };
   for (const [nome, extra] of [['vendas_estado', {}], ['vendas_registrar_turno', { mensagem_visitante: 'x', mensagem_agente: 'y' }], ['vendas_informar_contato', { nome: 'x' }],
-    ['vendas_iniciar_geracao', {}], ['vendas_confirmar_escopo', { proposta_id: ids.proposta, confirmo: true }], ['vendas_reservar_cobranca', { gateway: 'simulado' }]]) {
+    ['vendas_iniciar_geracao', {}], ['vendas_confirmar_escopo', { proposta_id: ids.proposta, confirmo: true }], ['pagamentos_iniciar_tentativa', { metodo: 'pix', provedor: 'mercadopago' }], ['pagamentos_estado', {}]]) {
     assert.equal((await erroDe(rpc(nome, { ...de2, ...extra })))?.codigo, NAO_ACHOU, nome);
   }
   await como(db, V2, async q => {
@@ -182,7 +175,7 @@ test('RLS: o visitante só LÊ o que é dele e não escreve nem executa nada; a 
   for (const sql of [`insert into app.mensagens (org_id, conversa_id, papel, conteudo) values ('${ORG}', '${ids.conversa}', 'agente', 'forjada')`,
     `update app.conversas set etapa = 'em_producao' where id = '${ids.conversa}'`,
     `update app.propostas set valor_total = 1 where conversa_id = '${ids.conversa}'`,
-    `select app.vendas_confirmar_pagamento('{}'::jsonb)`]) {
+    `select app.pagamentos_aplicar('{}'::jsonb)`]) {
     const e = await erroDe(como(db, V1, q => q(sql)));
     assert.ok(e && [SEM_PERMISSAO].includes(e.codigo) || (await como(db, V1, q => q(sql).then(r => r.affectedRows === 0).catch(() => true))), 'visitante não escreve: ' + sql.slice(0, 50));
   }
