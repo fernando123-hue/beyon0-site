@@ -183,6 +183,12 @@ test('anti-robô (Turnstile): a sessão só nasce com token conferido na Cloudfl
   assert.equal(fechado.exigido, true, 'produção sem chaves: fechado');
   assert.equal((await verificarHumano(fechado, 'x')).motivo, 'nao_configurado');
   assert.equal(configTurnstile({ VERCEL: '1', TURNSTILE_SITE_KEY: 's', TURNSTILE_SECRET: 'k' }).siteKey, 's');
+  /* revisões do PR 8: só uma das chaves fecha em qualquer ambiente; segredo de TESTE da Cloudflare na produção fecha */
+  assert.equal(configTurnstile({ TURNSTILE_SITE_KEY: 's' }).segredo, null, 'só a chave do site, no local: fechado');
+  assert.equal(configTurnstile({ TURNSTILE_SITE_KEY: 's' }).exigido, true);
+  assert.equal(configTurnstile({ TURNSTILE_SECRET: 'k' }).exigido, true, 'só o segredo: fechado');
+  assert.equal(configTurnstile({ VERCEL: '1', VERCEL_ENV: 'production', TURNSTILE_SITE_KEY: 's', TURNSTILE_SECRET: '1x0000000000000000000000000000000AA' }).segredo, null, 'segredo de teste na produção: fechado');
+  assert.ok(configTurnstile({ TURNSTILE_SITE_KEY: '1x00000000000000000000AA', TURNSTILE_SECRET: '1x0000000000000000000000000000000AA' }).segredo, 'no local, as chaves de teste valem');
 
   /* pela API, com um "siteverify" falso que registra o que recebeu */
   const enviados = [];
@@ -215,8 +221,18 @@ test('anti-robô (Turnstile): a sessão só nasce com token conferido na Cloudfl
   const fora = await chamar('sessao', 'POST', { turnstile: 'token-bom' }, { buscarTurnstile: async () => { throw new Error('rede'); } });
   assert.equal(fora.status, 503, 'Cloudflare fora do ar: indisponível, com WhatsApp');
   assert.equal(fora.corpo.whatsapp, true);
+  const antes = enviados.length;
   const gigante = await chamar('sessao', 'POST', { turnstile: 'x'.repeat(2049) }, { buscarTurnstile: siteverify(true) });
-  assert.equal(gigante.status, 403, 'token maior que 2.048: recusado sem consultar');
+  assert.equal(gigante.status, 403, 'token maior que 2.048: recusado');
+  assert.equal(enviados.length, antes, '… sem consultar a Cloudflare');
+  /* erro de CONFIGURAÇÃO ou da Cloudflare não é "robô": 503 com WhatsApp (revisões do PR 8) */
+  for (const codigo of ['invalid-input-secret', 'missing-input-secret', 'internal-error', 'bad-request']) {
+    const r = await chamar('sessao', 'POST', { turnstile: 'token-bom' }, { buscarTurnstile: async () => ({ json: async () => ({ success: false, 'error-codes': [codigo] }) }) });
+    assert.equal(r.status, 503, codigo + ': ' + JSON.stringify(r.corpo));
+    assert.equal(r.corpo.whatsapp, true);
+  }
+  const naoJson = await chamar('sessao', 'POST', { turnstile: 'token-bom' }, { buscarTurnstile: async () => ({ json: async () => { throw new SyntaxError('html'); } }) });
+  assert.equal(naoJson.status, 503, 'resposta que não é JSON: indisponível');
 });
 
 test('dados incompletos ou inconsistentes: cada um recusado com motivo, sem 500', async () => {

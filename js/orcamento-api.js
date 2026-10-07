@@ -85,14 +85,23 @@
     }
   }
 
-  async function garantirSessao() {
-    if (sessao && sessao.conversa_id) return sessao;
+  /* uma criação de sessão por vez: duas chamadas juntas esperam a mesma (não abrem dois desafios) */
+  var criando = null;
+  function garantirSessao() {
+    if (sessao && sessao.conversa_id) return Promise.resolve(sessao);
+    if (!criando) criando = criarSessao().finally(function () { criando = null; });
+    return criando;
+  }
+  async function criarSessao() {
     var corpo = origem();
     /* anti-robô (js/orcamento-turnstile.js): sem chave configurada, não há token e o servidor não exige */
     if (window.BZTurnstile) {
       var t;
       try { t = await window.BZTurnstile.token(); }
-      catch (e) { throw new Falha(403, { erro: 'Não foi possível confirmar que você não é um robô. Recarregue a página e tente de novo.' }); }
+      catch (e) {
+        if (e && e.tipo === 'carga') throw new Falha(503, { erro: 'A verificação de segurança não carregou. Tente de novo em instantes ou fale com a Beyon Zero pelo WhatsApp.', whatsapp: true });
+        throw new Falha(403, { erro: 'Não foi possível confirmar que você não é um robô. Recarregue a página e tente de novo.' });
+      }
       if (t) corpo = Object.assign({}, corpo, { turnstile: t });
     }
     var s = await http('POST', 'sessao', corpo);
