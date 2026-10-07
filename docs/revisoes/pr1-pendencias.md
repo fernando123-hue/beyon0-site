@@ -17,17 +17,30 @@ com credenciais reais**, salvo onde diz outra coisa.
 
 ## Antes da 1ª promoção (lista do dono, com o agente)
 
-1. Ensaiar a promoção num projeto Vercel separado, com banco e Mercado Pago de TESTE, e anotar o que a Vercel fez
-   de verdade (variáveis, domínio).
+1. Ensaiar a promoção num projeto Vercel SEPARADO e anotar o que a Vercel fez de verdade (variáveis, domínio,
+   rotinas, e o que o "Instant Rollback" faz com o domínio). Regras do ensaio:
+   - **Nenhuma credencial de produção** nesse projeto: banco de TESTE (com as 18 migrations aplicadas) e Mercado
+     Pago de TESTE.
+   - **Pagamento desligado é o resultado esperado**: promovido, o projeto roda como produção (`VERCEL_ENV=production`)
+     e `api/_pagamentos/config.mjs` só liga com `MP_AMBIENTE=producao`. Não "consertar" pondo `producao` nem
+     credencial real: o pagamento de TESTE se ensaia na prévia.
+   - IA: ou `BZ_IA=simulada` (ensaio sem custo), ou uma chave Anthropic só do ensaio com limite de gasto baixo no
+     console. Nunca a chave de produção.
+   - Apagar o projeto de ensaio no fim.
 2. Variáveis de Produção: Supabase de produção, Mercado Pago de produção + webhook, `CRON_SECRET` com 32+
-   caracteres, e **sem** `BZ_IA=simulada`.
+   caracteres, e **sem** `BZ_IA=simulada` nem `BZ_LOCAL` (os dois ligam o simulador).
 3. Migrations aplicadas no banco de produção antes de promover.
 4. O PR traz "SHA para promover"; promover exatamente esse.
-5. Depois: site e `/orcamento` no celular; `npm run verificar` com `BASE` de produção (nunca o `e2e:orcamento`).
+5. Depois: `npm run verificar` com `BASE` de produção; site e `/orcamento` no celular sem digitar mensagem (nunca
+   o `e2e:orcamento`).
 6. Rollback e migrations: na 1ª promoção, voltar atrás leva a `8103c99`, que não tem `api/` nem `supabase/`
    (conferido em 2026-10-07 com `git ls-tree 8103c99`): o site antigo não usa o banco, então as 18 migrations não o
-   quebram. Da 2ª promoção em diante, cada migration nova precisa funcionar com o código da promoção anterior
-   (adicionar coluna/tabela/função sim; renomear ou apagar só em duas promoções).
+   quebram. Mas essa volta tira do ar o `/orcamento`, o aviso do Mercado Pago e as rotinas (reconciliação e
+   retenção): Pix pago no intervalo só entra depois de promover de novo e reconciliar. Com clientes pagando, voltar
+   só para uma versão que já tenha a API. Da 2ª promoção em diante, cada migration nova precisa funcionar com o
+   código da promoção anterior: acrescentar tabela, função nova ou coluna que aceite vazio (ou tenha valor padrão)
+   pode; coluna obrigatória sem padrão, `CHECK`/`UNIQUE` novo, gatilho novo, mudar função existente, renomear ou
+   apagar exigem conferir o código anterior (ou ir em duas promoções).
 
 ## Antes de ligar credenciais reais / promover
 

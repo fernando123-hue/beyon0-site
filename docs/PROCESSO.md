@@ -58,18 +58,22 @@ o `npm audit` das dependências de produção e, no PR para a `main`, o E2E do o
 4. **O dono** promove para produção no painel da Vercel. Como a `main` não é construída, o que se promove é a
    **prévia do último commit da branch do PR**. Ao mesclar, **o agente** escreve no PR "SHA para promover: `<sha>`"
    depois de conferir que `git diff origin/main <sha>` sai vazio; se não sair vazio, escreve "não promover" e o
-   motivo, e a saída é um PR novo cuja branch fique com a árvore igual à da `main` (a Vercel gera a prévia certa no
-   push; o SHA para promover passa a ser o dela). O dono só confere o SHA no painel: Deployments → a prévia desse
-   SHA → ⋯ → "Promote to Production".
+   motivo, e a saída é um PR novo a partir da `main` (um commit vazio, `git commit --allow-empty`, basta para o
+   GitHub aceitar o PR); a Vercel gera a prévia certa no push e o SHA para promover passa a ser o dela. O dono só
+   confere o SHA no painel: Deployments → a prévia desse SHA → ⋯ → "Promote to Production".
    Segundo a doc oficial da Vercel ("Promoting Deployments", lida em 2026-10-07; **ainda não ensaiado aqui**),
    promover uma prévia a reconstrói do zero com as variáveis de Produção ("You cannot use your preview environment
-   variables in a production deployment"): banco, Mercado Pago e IA passam a ser os de produção. Antes da 1ª
-   promoção: ensaio num projeto Vercel separado, com banco e Mercado Pago de TESTE (nunca os de produção) e sem
-   `BZ_IA=simulada`, e a lista "Antes da 1ª promoção" de `docs/revisoes/pr1-pendencias.md`.
-   Logo depois de promover: abrir o site e o `/orcamento` no celular (o agente roda `npm run verificar` com
-   `BASE` de produção: só abre páginas, não cria conversa nem chama a IA). **`npm run e2e:orcamento` nunca roda
-   contra produção**: ele cria conversa, chama a IA paga e cria pedido de pagamento real. Voltar atrás: "Instant Rollback" (não reconstrói e **não desfaz migration**: toda migration
-   tem de funcionar também com o código anterior).
+   variables in a production deployment"): banco, Mercado Pago e IA passam a ser os de produção.
+   Antes da 1ª promoção: o ensaio e as DUAS listas de `docs/revisoes/pr1-pendencias.md` ("Antes da 1ª promoção" e
+   "Antes de ligar credenciais reais / promover").
+   Logo depois de promover: o agente roda `npm run verificar` com `BASE` de produção (só abre as páginas do site,
+   não o `/orcamento`); o dono abre o site e o `/orcamento` no celular **sem digitar mensagem** (a 1ª mensagem cria
+   conversa e chama a IA paga). **`npm run e2e:orcamento` nunca roda contra produção** (cria conversa, chama a IA
+   paga e cria pedido de pagamento real); o próprio script recusa `BASE` que não seja local.
+   Voltar atrás: "Instant Rollback". Não reconstrói e **não desfaz migration**. Voltar para uma versão sem a API
+   (como a `8103c99`) tira do ar o `/orcamento`, o aviso do Mercado Pago e as rotinas: um Pix pago nesse intervalo
+   só é aplicado depois de promover de novo e a reconciliação rodar. Com clientes pagando, voltar só para uma versão
+   que já tenha a API.
    Existe outro caminho (a `main` construir como produção "Staged", sem domínio, e o dono clicar em "Promote"), mas
    ele exige tirar a trava do `vercel.json` e desligar "Auto-assign Custom Production Domains" ANTES; na ordem
    errada, o merge iria ao ar sozinho. **Não usar sem decisão escrita do dono e revisão própria.**
