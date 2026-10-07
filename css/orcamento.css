@@ -1,0 +1,340 @@
+/* ==========================================================================
+   ORÇAMENTO COM IA (/orcamento) — celular primeiro (390px), cresce no desktop.
+   A IA é uma parte da mesa, não a página inteira: a conversa divide o espaço
+   com o investimento (o dado), e as direções, os ajustes e o escopo entram
+   como blocos próprios conforme a etapa. Sem desfoque e sem brilho: traço de
+   1px, a luz só passa (fio do "analisando", varredura do botão da base).
+   ========================================================================== */
+.orc { background: var(--bg); color: var(--t1); }
+.orc__main { max-width: var(--maxw); margin: 0 auto; padding: calc(var(--nav-h) + 1.6rem) var(--pad) var(--sp-2); }
+
+/* ---------- topo ---------- */
+.orc-kicker { display: inline-flex; align-items: center; gap: .6rem; font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-ctrl); text-transform: uppercase; color: var(--t2); }
+.orc-kicker .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ac-3); box-shadow: 0 0 0 3px rgb(var(--ac-3-rgb) / .18); }
+.orc-topo h1 { font-weight: 300; font-size: clamp(2.1rem, 1.2rem + 4.4vw, 4.2rem); line-height: 1.05; letter-spacing: -.03em; margin: .9rem 0 1rem; max-width: 16ch; }
+.orc-topo h1 em { font-style: normal; color: var(--ac); }
+.orc-lead { color: var(--t2); font-size: var(--fs-l); line-height: 1.55; max-width: 52ch; }
+
+/* as etapas: uma régua de 1px com índices; a atual acende */
+.orc-etapas { list-style: none; display: flex; gap: 0; margin: 1.8rem 0 0; padding: 0; overflow-x: auto; scrollbar-width: none; border-top: 1px solid var(--line); }
+.orc-etapas::-webkit-scrollbar { display: none; }
+.orc-etapas li { flex: 1 0 auto; display: flex; flex-direction: column; gap: .2rem; padding: .7rem .9rem .2rem 0; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); position: relative; white-space: nowrap; }
+.orc-etapas li span { color: var(--t3); }
+.orc-etapas li::before { content: ""; position: absolute; top: -1px; left: 0; right: .9rem; height: 1px; background: transparent; }
+.orc-etapas li.is-feita { color: var(--t2); }
+.orc-etapas li.is-feita::before { background: var(--line-2); }
+.orc-etapas li[aria-current="step"] { color: var(--t1); }
+.orc-etapas li[aria-current="step"] span { color: var(--ac); }
+.orc-etapas li[aria-current="step"]::before { background: var(--ac); }
+
+/* ---------- aviso de falha (a recuperação elegante) ---------- */
+.orc-aviso { margin: 1.6rem 0 0; padding: 1rem 1.1rem; border: 1px solid var(--line-2); border-left: 2px solid rgb(var(--ouro-rgb)); background: var(--s1); color: var(--t1); }
+.orc-aviso a { color: var(--ac); }
+.orc-aviso__acoes { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .8rem; }
+
+/* ---------- a mesa: conversa + investimento ---------- */
+.orc-mesa { display: grid; gap: 1.2rem; margin-top: 2rem; }
+.orc-rotulo { max-width: none; letter-spacing: var(--tr-rotulo); line-height: 1.4; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); font-weight: 500; margin-bottom: .8rem; }
+.orc-conversa, .orc-painel > div { border: 1px solid var(--line); background: var(--s1); border-radius: var(--raio); padding: 1rem; }
+.orc-painel { display: flex; flex-direction: column; gap: 1.2rem; }
+.orc-painel > .orc-rotulo { margin-bottom: -.6rem; }
+
+.orc-log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .8rem; max-height: min(56vh, 520px); overflow-y: auto; overscroll-behavior: contain; scroll-behavior: smooth; }
+.msg { max-width: 92%; font-size: var(--fs-b); line-height: 1.55; }
+.msg p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.msg--agente { align-self: flex-start; color: var(--t1); padding-left: .8rem; border-left: 1px solid var(--line-hi); }
+.msg--visitante { align-self: flex-end; color: var(--t1); background: var(--s2); border: 1px solid var(--line); border-radius: var(--raio); padding: .6rem .8rem; }
+.msg--sistema { align-self: stretch; max-width: none; font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-dado); color: var(--t3); }
+
+.orc-pensando { display: flex; align-items: center; gap: .7rem; margin-top: .8rem; font-family: var(--mono); font-size: var(--fs-ctrl); color: var(--t2); }
+.orc-pensando__fio { position: relative; width: 48px; height: 1px; background: var(--line-2); overflow: hidden; }
+.orc-pensando__fio::after { content: ""; position: absolute; inset: 0; background: var(--ac); transform: translateX(-100%); animation: orc-fio 1.2s var(--ease-io) infinite; }
+@keyframes orc-fio { to { transform: translateX(100%); } }
+
+.orc-atalhos { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
+.chip { min-height: 44px; padding: .5rem .9rem; border: 1px solid var(--stroke); border-radius: 999px; background: transparent; color: var(--t1); font: inherit; font-size: var(--fs-s); cursor: pointer; transition: border-color var(--t-micro) var(--ease-micro), color var(--t-micro) var(--ease-micro); }
+.chip:hover, .chip[aria-pressed="true"] { border-color: var(--ac); color: var(--ac); }
+.chip:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
+
+.orc-envio { display: flex; gap: .6rem; align-items: flex-end; margin-top: 1rem; }
+.orc-envio textarea, .orc-form input { width: 100%; min-height: 52px; padding: .8rem .9rem; border: 1px solid var(--stroke); border-radius: var(--raio-s); background: var(--bg); color: var(--t1); font: inherit; font-size: 1rem; line-height: 1.45; }
+.orc-envio textarea { resize: vertical; max-height: 40vh; }
+.orc-envio textarea:focus-visible, .orc-form input:focus-visible { outline: 2px solid var(--ac); outline-offset: 1px; border-color: var(--ac); }
+.orc-envio .btn { flex: none; }
+.orc-nota { margin-top: .8rem; font-size: var(--fs-s); color: var(--t3); }
+.orc-nota a, .orc-bloco a, .orc-check a { color: var(--ac); text-decoration: underline; text-underline-offset: 3px; }
+[aria-busy="true"] .btn[type="submit"], .btn[disabled] { opacity: .55; pointer-events: none; }
+
+/* ---------- o investimento (dado: o ciano é permitido aqui) ---------- */
+.orc-est__vazio { color: var(--t2); font-size: var(--fs-s); line-height: 1.6; }
+.orc-est__formato { font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-ctrl); text-transform: uppercase; color: var(--t2); }
+.orc-est__valor { font-family: var(--mono); font-size: clamp(2rem, 1.4rem + 2.4vw, 2.6rem); font-weight: 500; color: var(--ac); letter-spacing: -.02em; margin: .3rem 0 .9rem; font-variant-numeric: tabular-nums; }
+.orc-est__valor.is-novo { animation: orc-valor .6s var(--ease); }
+@keyframes orc-valor { from { opacity: 0; transform: translateY(6px); } }
+.orc-est__dados { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.orc-est__dados div { padding: .7rem 0; }
+.orc-est__dados div + div { padding-left: .7rem; border-left: 1px solid var(--line); }
+.orc-est__dados dt { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); }
+.orc-est__dados dd { margin: .2rem 0 0; font-family: var(--mono); font-size: var(--fs-s); color: var(--t1); font-variant-numeric: tabular-nums; }
+.orc-est__itens, .orc-est__fase ul { list-style: none; margin: .9rem 0 0; padding: 0; display: flex; flex-direction: column; gap: .35rem; font-size: var(--fs-s); color: var(--t2); }
+.orc-est__itens li::before, .orc-est__fase li::before { content: "+ "; font-family: var(--mono); color: var(--t3); }
+.orc-est__fase { margin-top: 1rem; padding-top: .9rem; border-top: 1px dashed var(--line-2); font-size: var(--fs-s); color: var(--t2); }
+.orc-est__fase .orc-rotulo { margin-bottom: .2rem; }
+.orc-est__nota { margin-top: 1rem; font-size: var(--fs-s); color: var(--t3); }
+.orc-sugestao__ideia { font-weight: 500; color: var(--t1); margin-bottom: .3rem; }
+.orc-sugestao p:last-child, .orc-diagnostico p { font-size: var(--fs-s); color: var(--t2); }
+.orc-diagnostico .btn { margin-top: .8rem; }
+
+/* ---------- os blocos das etapas seguintes ---------- */
+.orc-bloco { margin-top: var(--sp-1); padding-top: var(--sp-1); border-top: 1px solid var(--line); }
+.orc-bloco h2 { font-weight: 300; font-size: clamp(1.7rem, 1.2rem + 2.2vw, 2.6rem); letter-spacing: -.02em; line-height: 1.1; }
+.orc-bloco__lead { color: var(--t2); max-width: 60ch; margin: .8rem 0 1.4rem; line-height: 1.6; }
+
+.orc-form { display: flex; flex-direction: column; gap: .5rem; max-width: 520px; }
+.orc-form label:not(.orc-check) { font-size: var(--fs-s); color: var(--t2); margin-top: .6rem; }
+.orc-opcional { color: var(--t3); }
+.orc-check { display: flex; gap: .7rem; align-items: flex-start; margin-top: .9rem; font-size: var(--fs-s); color: var(--t2); line-height: 1.5; cursor: pointer; }
+.orc-check input { flex: none; width: 22px; height: 22px; margin: 0; accent-color: var(--ac); }
+.orc-erro { min-height: 1.4em; color: rgb(var(--ouro-rgb)); font-size: var(--fs-s); }
+.orc-form .btn { margin-top: .4rem; align-self: flex-start; }
+
+/* as direções: cartões com a miniatura viva */
+.orc-dirs { list-style: none; margin: 0; padding: 0; display: grid; gap: 1rem; }
+.dir { border: 1px solid var(--line); border-radius: var(--raio); background: var(--s1); overflow: hidden; display: flex; flex-direction: column; }
+.dir.is-escolhida { border-color: var(--ac); }
+.dir__mini { position: relative; height: 300px; overflow: hidden; border-bottom: 1px solid var(--line); background: var(--s2); cursor: pointer; }
+.dir__mini .pv-tela { position: absolute; top: 0; left: 0; width: 390px; transform-origin: top left; pointer-events: none; }
+.dir__progresso { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; gap: .8rem; padding: 1.2rem; font-family: var(--mono); font-size: var(--fs-ctrl); color: var(--t2); }
+.dir__progresso .orc-pensando__fio { width: 100%; }
+.dir__corpo { padding: 1rem; display: flex; flex-direction: column; gap: .5rem; flex: 1; }
+.dir__estrategia { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); }
+.dir__nome { font-size: 1.25rem; font-weight: 400; }
+.dir__resumo { font-size: var(--fs-s); color: var(--t2); line-height: 1.55; }
+.dir__acoes { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: auto; padding-top: .6rem; }
+
+.orc-versao:not(:empty) { margin-bottom: 1rem; max-width: 420px; }
+.orc-mudancas { list-style: none; margin: 0 0 1rem; padding: 0; display: flex; flex-direction: column; gap: .4rem; font-size: var(--fs-s); }
+.orc-mudancas li { color: var(--t2); padding-left: 1.4rem; position: relative; }
+.orc-mudancas li::before { position: absolute; left: 0; font-family: var(--mono); }
+.orc-mudancas li.is-ok::before { content: "✓"; color: var(--ac); }
+.orc-mudancas li.is-nao::before { content: "—"; color: var(--t3); }
+.orc-seguir { margin-top: 1.4rem; }
+.orc-aj-resposta:not(:empty) { margin: 0 0 1rem; color: var(--t1); padding-left: .8rem; border-left: 1px solid var(--line-hi); }
+.dir__selo { display: inline-flex; align-items: center; min-height: 42px; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--ac); }
+.orc-det { margin-top: 1.2rem; }
+.orc-det summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-size: var(--fs-s); color: var(--t2); }
+.orc-det summary::before { content: "+"; font-family: var(--mono); color: var(--ac); width: 1.2em; }
+.orc-det[open] summary::before { content: "−"; }
+.orc-det summary::-webkit-details-marker { display: none; }
+.orc-bloco, .orc-aviso, .orc-mesa { scroll-margin-top: calc(var(--nav-h) + 1rem); }
+.orc-det summary:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
+.orc-aviso:focus { outline: none; }
+.orc-aviso:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
+
+.orc-escopo { white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--mono); font-size: var(--fs-s); line-height: 1.7; color: var(--t1); background: var(--s1); border: 1px solid var(--line); border-radius: var(--raio); padding: 1rem; max-height: 60vh; overflow-y: auto; margin-bottom: 1rem; }
+.orc-escopo:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
+.orc-pag-status { margin-top: 1rem; min-height: 1.5em; font-family: var(--mono); font-size: var(--fs-s); color: var(--t2); }
+.orc-pag-status a { color: var(--ac); }
+
+/* ---------- O RECIBO do sinal pago (js/orcamento-recibo.js; referência: docs/design/referencias-2026-10-07-recibo.md).
+   O estado final é o padrão (quem volta vê o recibo pronto); .is-chegando só declara os COMEÇOS, com fill backwards.
+   Sem desfoque nem brilho: traço nítido de 1px, uma linha de luz só. ---------- */
+.recibo { display: flex; flex-direction: column; align-items: center; max-width: 460px; margin: 0 auto; padding: 1.6rem 1.1rem 1.2rem; border: 1px solid var(--line-2); border-radius: var(--raio); background: var(--s1); text-align: center; }
+.recibo__selo { position: relative; width: 64px; height: 64px; }
+.recibo__selo svg { display: block; overflow: visible; }
+.recibo__anel, .recibo__ponta, .recibo__check { fill: none; stroke: var(--ac); stroke-dasharray: 1; stroke-dashoffset: 0; }
+/* (parado, o anel não tem traço tracejado: com dasharray 1 sobrava a emenda do traço visível em 3 h) */
+.recibo__anel { stroke-width: 1.5; stroke-dasharray: none; transform-box: view-box; transform-origin: 32px 32px; }
+.recibo__check { stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round; }
+.recibo__rotulo { display: flex; align-items: center; justify-content: center; margin-top: 1rem; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--ac-3); }
+
+/* ---- A ENERGIA do recibo (dono, 2026-10-07: "efeitos de energia, bem minimalista, preciso nos pequenos detalhes").
+   O vocabulário é o do site: cabeça branca e cauda ciano, sem desfoque; a luz é EVENTO, não brilho parado.
+   Só a parte PAGA tem energia (selo, LED, o "Pago agora"); "Na entrega" fica apagada até lá. ---- */
+/* a PONTA: a frente do anel enquanto ele se fecha, um traço branco que corre na ponta do desenho (mesma curva e
+   mesmo giro do anel; dash de .05 que termina sempre onde o anel termina: offset = .05 − progresso) */
+.recibo__ponta { stroke: var(--t1); stroke-width: 1.5; stroke-dasharray: .05 .95; stroke-dashoffset: .05; opacity: 0; transform-box: view-box; transform-origin: 32px 32px; }
+/* a DESCARGA: quando o ✓ termina, um eco de 1px sai do anel (diâmetro 54 = r 27) e apaga. Um só */
+.recibo__selo::after { content: ""; position: absolute; inset: 5px; border: 1px solid var(--ac-2); border-radius: 50%; opacity: 0; pointer-events: none; }
+/* a VOLTA: depois da chegada, a cada 9,6 s uma luz dá UMA volta no anel (1,44 s), de 12 h a 12 h. A luz corre
+   DENTRO do fio (mesma espessura, ponta reta): cauda em dois degraus [0, .03] e [.03, .065], cabeça branca
+   [.065, .09]; o giro de -122,4° põe a cabeça em 12 h (o traço do círculo nasce em 3 h; .09 = 32,4°) */
+.recibo__volta { position: absolute; inset: 0; opacity: 0; transform: rotate(-122.4deg); pointer-events: none; }
+.recibo__volta circle { fill: none; stroke-width: 1.5; }
+.recibo__volta-cauda { stroke: var(--ac-2); stroke-dasharray: .03 .97; opacity: .45; }
+.recibo__volta-meio { stroke: var(--ac-2); stroke-dasharray: .035 .965; stroke-dashoffset: -.03; }
+.recibo__volta-cabeca { stroke: var(--t1); stroke-dasharray: .025 .975; stroke-dashoffset: -.065; }
+/* o LED do sinal pago: aceso e parado; pisca branco uma vez quando a volta se completa (mesmo relógio de 9,6 s) */
+.recibo__led { position: relative; flex: none; width: 6px; height: 6px; margin-right: .7em; border-radius: 50%; background: var(--ac-3); }   /* (sem o anel translúcido: lia como halo) */
+.recibo__led::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--t1); opacity: 0; }
+/* (a 1ª volta espera a chegada terminar: a marca da junção apaga aos 3,23 s) */
+html.js:not(.menos-movimento) .recibo__volta { animation: rec-volta 9.6s 3.4s infinite; }
+html.js:not(.menos-movimento) .recibo__led::after { animation: rec-led 9.6s linear 3.4s infinite; }
+@keyframes rec-volta {
+  0% { opacity: 0; transform: rotate(-122.4deg); animation-timing-function: cubic-bezier(.65, 0, .35, 1); }
+  1.5% { opacity: 1; } 13.5% { opacity: 1; }
+  15%, 100% { opacity: 0; transform: rotate(237.6deg); }
+}
+@keyframes rec-led { 0%, 14.6% { opacity: 0; } 15.2% { opacity: .9; } 26%, 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .recibo__volta, .recibo__led::after { animation: none !important; } }
+.orc-bloco .recibo__titulo { margin-top: .35rem; color: var(--t1); font-size: clamp(1.6rem, 1.3rem + 1.4vw, 2.1rem); }
+.recibo__titulo:focus { outline: none; }
+.recibo__titulo:focus-visible { outline: 2px solid var(--ac); outline-offset: 4px; }
+.recibo__lead { margin-top: .6rem; max-width: 38ch; font-size: var(--fs-s); line-height: 1.55; color: var(--t2); }
+.recibo__codigo { margin-top: .7rem; font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-dado); color: var(--t3); }
+.recibo__codigo b { font-weight: 500; color: var(--ac); }
+.recibo__codigo:has(b:empty) { visibility: hidden; }   /* a linha fica reservada até o código chegar: nada salta */
+
+/* as duas partes: encaixadas, com UMA linha entre elas (a borda de cima da entrega cobre a de baixo do pago) */
+.recibo__partes { width: 100%; margin-top: 1.3rem; text-align: left; }
+.recibo__parte { position: relative; padding: .8rem .9rem; border: 1px solid var(--line-2); background: var(--bg); }
+.recibo__parte--pago { border-radius: var(--raio) var(--raio) 0 0; }
+.recibo__partes.is-unica .recibo__parte--pago { border-radius: var(--raio); }
+.recibo__parte--entrega { margin-top: -1px; border-radius: 0 0 var(--raio) var(--raio); }
+.recibo__parte-rot { display: flex; align-items: center; gap: .4rem; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); }
+.recibo__linha { display: flex; align-items: center; gap: .75rem; margin-top: .45rem; }
+.recibo__chip { flex: none; display: inline-flex; align-items: center; justify-content: center; min-width: 44px; height: 32px; padding: 0 .4rem; border: 1px solid var(--ac); border-radius: var(--raio-s); font-family: var(--mono); font-size: var(--fs-ctrl); font-weight: 500; color: var(--ac); }
+.recibo__chip--resto { border-color: var(--stroke); color: var(--t2); }
+.recibo__dados { min-width: 0; }
+.recibo__valor { font-size: 1.15rem; font-weight: 400; line-height: 1.3; color: var(--t1); font-variant-numeric: tabular-nums; }
+.recibo__meio { font-size: var(--fs-s); line-height: 1.4; color: var(--t3); overflow-wrap: anywhere; }
+/* a luz que passa na junção quando as partes se encaixam (parada: apagada): a mesma luz que circula nos cards
+   (cabeça branca, cauda de 110px em degradê) atravessa a linha da esquerda para a direita e deixa a MARCA, a
+   linha acesa em ciano por trás da cabeça, que apaga devagar ("a luz passa e imprime") */
+.recibo__luz { position: absolute; left: -1px; right: -1px; top: -1px; height: 1px; overflow: hidden; pointer-events: none; }
+.recibo__luz::before { content: ""; position: absolute; inset: 0; background: var(--ac); opacity: 0; transform: scaleX(0); transform-origin: left center; }
+.recibo__luz > b { position: absolute; inset: 0; background: linear-gradient(90deg, transparent calc(100% - 110px), rgb(var(--ac-2-rgb) / .85) calc(100% - 14px), var(--t1) calc(100% - 6px)); transform: translateX(-100%); }
+.recibo__total { margin-top: .9rem; font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-dado); line-height: 1.6; color: var(--t3); }
+.recibo__total span { display: block; }
+.recibo__total span:first-child { color: var(--t2); }
+
+/* a CHEGADA (uma vez): o cartão sobe, o anel se fecha girando e o ✓ se desenha, o texto assenta, as partes chegam
+   separadas e se encaixam, a luz corre a junção, o total aparece. Transform e opacity; pintura só no traço do selo
+   (64px) e nos cantos das partes no encaixe (0,6 s), uma vez */
+.recibo.is-chegando { animation: rec-sobe .5s var(--ease) backwards; }
+.recibo.is-chegando .recibo__anel { animation: rec-anel .85s cubic-bezier(.65, 0, .35, 1) .15s backwards; }
+.recibo.is-chegando .recibo__ponta { animation: rec-ponta .85s cubic-bezier(.65, 0, .35, 1) .15s; }
+.recibo.is-chegando .recibo__check { animation: rec-traco .45s var(--ease) .9s backwards; }
+.recibo.is-chegando .recibo__selo::after { animation: rec-descarga .7s cubic-bezier(.23, 1, .32, 1) 1.3s; }
+.recibo.is-chegando :is(.recibo__rotulo, .recibo__titulo, .recibo__lead, .recibo__codigo) { animation: rec-sobe .5s var(--ease) backwards; }
+.recibo.is-chegando .recibo__rotulo { animation-delay: .35s; }
+.recibo.is-chegando .recibo__titulo { animation-delay: .45s; }
+.recibo.is-chegando .recibo__lead { animation-delay: .55s; }
+.recibo.is-chegando .recibo__codigo { animation-delay: .65s; }
+.recibo.is-chegando .recibo__partes { animation: rec-aparece .4s var(--ease) .6s backwards; }
+.recibo.is-chegando .recibo__parte--pago { animation: rec-pago .6s cubic-bezier(.32, .72, 0, 1) 1.15s backwards; }
+.recibo.is-chegando .recibo__parte--entrega { animation: rec-entrega .6s cubic-bezier(.32, .72, 0, 1) 1.15s backwards; }
+.recibo.is-chegando .recibo__parte--pago .recibo__valor { animation: rec-tinta 1.1s 1.2s backwards; }
+.recibo.is-chegando .recibo__luz > b { animation: rec-corre .8s cubic-bezier(.65, 0, .35, 1) 1.6s; }
+.recibo.is-chegando .recibo__luz::before { animation: rec-marca 1.6s 1.63s; }   /* (30 ms atrás: a marca nunca passa a cabeça) */
+.recibo.is-chegando .recibo__total { animation: rec-aparece .6s var(--ease) 1.9s backwards; }
+@keyframes rec-sobe { from { opacity: 0; transform: translateY(10px); } }
+@keyframes rec-aparece { from { opacity: 0; } }
+@keyframes rec-anel { from { stroke-dasharray: 1; stroke-dashoffset: 1; transform: rotate(-150deg); } to { stroke-dasharray: 1; stroke-dashoffset: 0; transform: rotate(0deg); } }
+@keyframes rec-traco { from { stroke-dashoffset: 1; } }
+@keyframes rec-pago { from { transform: translateY(-7px); border-radius: var(--raio); } }
+@keyframes rec-entrega { from { transform: translateY(7px); border-radius: var(--raio); } }
+/* a ponta nasce e morre no próprio traço (offset .05 → −.95 = progresso 0 → 1); só aparece depois do 1º passo */
+/* (apagada até o anel ter comprimento: com progresso < .05 o traço dava a volta e aparecia atrás do ponto de
+   partida; pela curva, p = .05 aos ~23% e p ≈ .09 aos 28%) */
+@keyframes rec-ponta { 0% { stroke-dashoffset: .05; transform: rotate(-150deg); opacity: 0; } 22% { opacity: 0; } 28%, 88% { opacity: 1; } 100% { stroke-dashoffset: -.95; transform: rotate(0deg); opacity: 0; } }
+@keyframes rec-descarga { from { opacity: .7; transform: scale(1); } to { opacity: 0; transform: scale(1.55); } }
+/* "tinta molhada" (o gesto do H1 do Hub): o valor pago acende em ciano no encaixe e seca para o branco */
+@keyframes rec-tinta {
+  0% { opacity: .5; color: var(--t1); animation-timing-function: cubic-bezier(.23, 1, .32, 1); }
+  22% { opacity: 1; color: var(--ac); animation-timing-function: cubic-bezier(.25, .1, .25, 1); }
+  100% { opacity: 1; color: var(--t1); }
+}
+@keyframes rec-corre { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+/* a marca cresce atrás da cabeça: a cabeça cruza a linha na 1ª metade da corrida (.4 s = 25% de 1,6 s), com a
+   1ª metade da mesma curva (ease-in cúbica); depois a linha apaga devagar */
+@keyframes rec-marca {
+  0% { opacity: .6; transform: scaleX(0); animation-timing-function: cubic-bezier(.32, 0, .67, 0); }
+  25% { opacity: .6; transform: scaleX(1); animation-timing-function: cubic-bezier(.23, 1, .32, 1); }
+  100% { opacity: 0; transform: scaleX(1); }
+}
+@media (prefers-reduced-motion: reduce) { .recibo.is-chegando, .recibo.is-chegando *, .recibo.is-chegando *::before, .recibo.is-chegando *::after { animation: none !important; } }
+html.menos-movimento .recibo.is-chegando, html.menos-movimento .recibo.is-chegando *, html.menos-movimento .recibo.is-chegando *::before, html.menos-movimento .recibo.is-chegando *::after { animation: none !important; }
+@media (min-width: 640px) { .recibo { padding: 2rem 1.6rem 1.4rem; } .recibo__parte { padding: .9rem 1.1rem; } }
+
+/* ---------- o visor das prévias (tela cheia; sem desfoque: fundo opaco) ---------- */
+.visor { position: fixed; inset: 0; z-index: 90; display: flex; flex-direction: column; background: var(--bg); }
+.visor[hidden] { display: none; }
+.visor__barra { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .6rem; padding: .5rem var(--pad); border-bottom: 1px solid var(--line); }
+.visor__titulo { order: 0; flex: 1 1 calc(100% - 60px); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-ctrl); text-transform: uppercase; color: var(--t2); }
+.visor__fechar { order: 1; flex: none; width: 44px; height: 44px; border: 1px solid var(--stroke); border-radius: 50%; background: transparent; color: var(--t1); font-size: 1.4rem; line-height: 1; cursor: pointer; }
+.visor__fechar:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
+.visor__abas, .visor__aparelho { order: 2; display: flex; gap: .35rem; }
+.visor__aparelho { margin-left: auto; }
+.visor .chip { min-height: 40px; padding: .3rem .8rem; }
+.visor__abas .chip { min-width: 40px; }
+.visor__abas .chip[aria-selected="true"] { border-color: var(--ac); color: var(--ac); }
+.visor__rodape { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .6rem 1rem; padding: .6rem var(--pad) calc(.6rem + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); }
+.visor__aviso { flex: 1 1 240px; font-size: var(--fs-s); color: var(--t3); }
+.visor__rodape .btn { flex: 1 1 auto; }
+.visor__resumo { padding: .6rem var(--pad); font-size: var(--fs-s); color: var(--t2); border-bottom: 1px solid var(--line); }
+.visor__palco { flex: 1; overflow: auto; padding: 1rem var(--pad) 2rem; background: var(--s1); }
+.visor__palco:focus-visible { outline: 2px solid var(--ac); outline-offset: -2px; }
+.visor__janela { position: relative; margin: 0 auto; overflow: hidden; border: 1px solid var(--line-2); border-radius: var(--raio); }
+.visor__janela--390 { max-width: 390px; }
+.visor__janela--1280 { max-width: 1280px; }
+.visor__janela .pv-tela { transform-origin: top left; }
+html.visor-aberto { overflow: hidden; }
+
+/* ---------- rodapé com a identificação do vendedor (Decreto 7.962/2013) ---------- */
+.orc-rodape { margin-top: var(--sp-2); }
+.orc-vendedor { font-size: var(--fs-s); color: var(--t3); }
+
+/* ---------- desktop ---------- */
+@media (min-width: 900px) {
+  .orc-mesa { grid-template-columns: minmax(0, 1.55fr) minmax(300px, 1fr); align-items: start; }
+  .orc-painel { position: sticky; top: calc(var(--nav-h) + 1rem); }
+  .orc-conversa { padding: 1.4rem; }
+  .orc-log { max-height: min(60vh, 620px); }
+  .orc-dirs { grid-template-columns: repeat(3, 1fr); }
+  .visor__titulo { flex: 0 1 auto; margin-right: 1rem; }
+  .visor__abas, .visor__aparelho { order: 0; }
+  .visor__fechar { order: 3; margin-left: .4rem; }
+  .visor__rodape .btn { flex: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orc-pensando__fio::after { animation: none; transform: none; opacity: .6; }
+  .orc-est__valor.is-novo { animation: none; }
+  .orc-log { scroll-behavior: auto; }
+}
+
+/* ---------- pagamento do sinal (Pix e cartão no próprio site) ---------- */
+.pag { max-width: 560px; gap: .4rem; }
+.pag-metodos { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; margin-bottom: .6rem; }
+.pag-metodo { display: flex; flex-direction: column; align-items: flex-start; gap: .2rem; min-height: 64px; padding: .8rem .9rem; border: 1px solid var(--stroke); border-radius: var(--raio); background: var(--s1); color: var(--t1); font: inherit; text-align: left; cursor: pointer; transition: border-color var(--t-micro) var(--ease-micro); }
+.pag-metodo:hover { border-color: var(--t1); }
+.pag-metodo[aria-checked="true"] { border-color: var(--ac); box-shadow: inset 0 0 0 1px var(--ac); }
+.pag-metodo:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
+.pag-metodo__nome { font-size: 1.05rem; font-weight: 500; }
+.pag-metodo__nota { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-dado); color: var(--t3); }
+.pag-grupo { border: 0; padding: 0; margin: .6rem 0 0; display: flex; flex-direction: column; gap: .4rem; min-width: 0; }
+.pag-grupo legend { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); padding: 0; margin-bottom: .2rem; }
+.pag-grupo label, .pag-rotulo { display: block; font-size: var(--fs-s); color: var(--t2); margin-top: .5rem; }
+.pag-par { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+.pag-par > div { min-width: 0; display: flex; flex-direction: column; gap: .4rem; }
+.pag-par label, .pag-par .pag-rotulo { margin-top: .5rem; }
+.pag select { width: 100%; min-height: 52px; padding: .7rem .9rem; border: 1px solid var(--stroke); border-radius: var(--raio-s); background: var(--bg); color: var(--t1); font: inherit; font-size: 1rem; }
+.pag select:focus-visible { outline: 2px solid var(--ac); outline-offset: 1px; border-color: var(--ac); }
+/* o contêiner do iframe do Mercado Pago: a borda e a altura são nossas, o campo é deles */
+.pag-campo { height: 52px; padding: 0 .9rem; border: 1px solid var(--stroke); border-radius: var(--raio-s); background: var(--bg); }
+.pag-campo:focus-within { border-color: var(--ac); outline: 2px solid var(--ac); outline-offset: 1px; }
+.pag-campo iframe { width: 100%; height: 100%; border: 0; }
+.pag-local { border-left: 2px solid rgb(var(--ouro-rgb)); padding-left: .7rem; }
+.pag .btn[type="submit"] { width: 100%; margin-top: .8rem; }
+
+.pix { display: grid; gap: 1rem; margin-top: 1.2rem; padding: 1rem; border: 1px solid var(--line-2); border-radius: var(--raio); background: var(--s1); max-width: 560px; }
+.pix__qr { width: 220px; height: 220px; padding: 10px; background: #FFFFFF; border-radius: var(--raio-s); justify-self: center; image-rendering: pixelated; }
+.pix__lado { display: flex; flex-direction: column; gap: .6rem; min-width: 0; }
+.pix__codigo { width: 100%; padding: .7rem .8rem; border: 1px solid var(--stroke); border-radius: var(--raio-s); background: var(--bg); color: var(--t1); font-family: var(--mono); font-size: var(--fs-ctrl); line-height: 1.5; resize: none; overflow-wrap: anywhere; }
+.pix .btn { align-self: flex-start; }
+.pag-desafio { max-width: 560px; }
+
+@media (min-width: 640px) {
+  .pix { grid-template-columns: auto 1fr; align-items: start; }
+}

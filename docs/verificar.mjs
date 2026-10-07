@@ -66,7 +66,9 @@ for (const [rota, nome, opcoes, { semNucleo = false, reduzirNoBoot = false, exig
   const page = await ctx.newPage();
   const erros = [];
   page.on('pageerror', e => erros.push('pageerror: ' + e.message));
-  page.on('console', m => { if (m.type() === 'error') erros.push('console: ' + m.text()); });
+  /* um subsistema que caiu do laço (core.js avisa com "[beyon]") é falha:
+     em 2026-10-03 a rede inteira caiu no celular sem nenhum erro visível */
+  page.on('console', m => { if (m.type() === 'error' || (m.type() === 'warning' && m.text().indexOf('[beyon]') >= 0)) erros.push('console: ' + m.text()); });
 
   await page.addInitScript(() => { window.__lcp = 0; try { new PerformanceObserver(l => { for (const e of l.getEntries()) window.__lcp = e.startTime; }).observe({ type: 'largest-contentful-paint', buffered: true }); } catch {} });
   await page.goto(BASE + rota, { waitUntil: 'load', timeout: 90000 });
@@ -96,12 +98,18 @@ for (const [rota, nome, opcoes, { semNucleo = false, reduzirNoBoot = false, exig
   await page.waitForTimeout(400);
   const fps = await medirFps(page);
   const lcp = Math.round(await page.evaluate(() => window.__lcp));
+  /* o CAMPO desenha (o fundo nunca pode virar tela preta em silêncio) */
+  const campo = await page.evaluate(() => {
+    const B = window.BEYON;
+    if (!document.querySelector('[data-rede]') || !document.documentElement.classList.contains('js')) return -1;
+    return B && B.rede && B.rede.desenhados ? B.rede.desenhados() : 0;
+  });
   /* lido DEPOIS da medição: se a esfera desistir sozinha no meio, aparece */
   const nucleo = await page.evaluate(() => document.documentElement.classList.contains('tem-nucleo') && !!document.querySelector('.nucleo.is-aceso'));
 
   const reais = erros.filter(e => !/ERR_CERT|GPU stall|swiftshader/i.test(e));
   const ok = (semNucleo || d.boot) && d.barraOk && d.overflowX === 0 &&
-    d.waProntos === d.waTotal && reais.length === 0 && d.presos === 0 && d.presosNoFim === 0 &&
+    d.waProntos === d.waTotal && reais.length === 0 && d.presos === 0 && d.presosNoFim === 0 && campo !== 0 &&
     (exige3d ? nucleo : (!nucleo && fps > 45)) &&
     /* LCP com orçamento (2,5s é o "bom" do Core Web Vitals); o primeiro alvo da rodada é artefato do headless */
     (primeiro || lcp < 2500);
@@ -116,6 +124,7 @@ for (const [rota, nome, opcoes, { semNucleo = false, reduzirNoBoot = false, exig
     'rolagemX=' + d.overflowX,
     'wa=' + d.waProntos + '/' + d.waTotal,
     'presos=' + d.presos + '/' + d.presosNoFim,
+    'campo=' + (campo < 0 ? '—' : campo > 0 ? 'ok' : 'VAZIO'),
     reais.length ? '\n     erros: ' + reais.join('\n     ') : ''
   );
   await ctx.close();

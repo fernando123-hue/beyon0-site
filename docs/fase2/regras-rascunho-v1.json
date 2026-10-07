@@ -1,0 +1,150 @@
+{
+  "_status": "RASCUNHO para o dono aprovar. Valores propostos a partir da pesquisa de mercado (fontes em docs/fase2/REGRAS-RASCUNHO.md). Só a versão ATIVA, aprovada pelo dono, gera preço para visitante.",
+  "moeda": "BRL",
+  "sinal_percentual": 50,
+  "prazo_max_dias": 10,
+  "arredondamento": 10,
+  "formatos": {
+    "landing_page": {
+      "nome": "Landing page",
+      "base": 1500,
+      "piso": 900,
+      "prazo_dias": 5,
+      "paginas_incluidas": 1,
+      "inclui": [
+        "Uma página com até 7 seções",
+        "Celular primeiro",
+        "Botão de WhatsApp e formulário",
+        "SEO básico e medição",
+        "Publicação no domínio do cliente"
+      ]
+    },
+    "institucional": {
+      "nome": "Site institucional",
+      "base": 3200,
+      "piso": 2200,
+      "prazo_dias": 8,
+      "paginas_incluidas": 5,
+      "inclui": [
+        "Até 5 páginas",
+        "Celular primeiro",
+        "WhatsApp, formulário e mapa",
+        "SEO básico e medição",
+        "Publicação no domínio do cliente"
+      ]
+    },
+    "sob_medida": {
+      "nome": "Site sob medida",
+      "base": 6500,
+      "piso": 4500,
+      "prazo_dias": 10,
+      "paginas_incluidas": 4,
+      "inclui": [
+        "Até 4 páginas com direção visual própria",
+        "Interações e animações",
+        "Celular primeiro",
+        "SEO básico e medição",
+        "Publicação no domínio do cliente"
+      ]
+    }
+  },
+  "adicionais": {
+    "pagina_extra": {
+      "nome": "Página extra",
+      "valor": 350,
+      "prazo_dias": 0.5,
+      "max": 10,
+      "prioridade": 5
+    },
+    "textos": {
+      "nome": "Textos escritos por nós (por página)",
+      "valor": 150,
+      "prazo_dias": 0.25,
+      "max": 15,
+      "prioridade": 10
+    },
+    "imagens": {
+      "nome": "Curadoria de imagens",
+      "valor": 250,
+      "prazo_dias": 0.5,
+      "max": 1,
+      "prioridade": 20
+    },
+    "formulario_avancado": {
+      "nome": "Formulário com etapas ou anexos",
+      "valor": 300,
+      "prazo_dias": 0.5,
+      "max": 3,
+      "prioridade": 30
+    },
+    "agendamento": {
+      "nome": "Agendamento online",
+      "valor": 450,
+      "prazo_dias": 1,
+      "max": 1,
+      "prioridade": 25
+    },
+    "blog": {
+      "nome": "Blog ou área de notícias",
+      "valor": 900,
+      "prazo_dias": 2,
+      "max": 1,
+      "prioridade": 40
+    },
+    "catalogo": {
+      "nome": "Catálogo de produtos (sem pagamento)",
+      "valor": 1500,
+      "prazo_dias": 3,
+      "max": 1,
+      "prioridade": 45
+    },
+    "integracao": {
+      "nome": "Integração (CRM, planilha, sistema)",
+      "valor": 600,
+      "prazo_dias": 1,
+      "max": 3,
+      "prioridade": 35
+    },
+    "idioma": {
+      "nome": "Idioma adicional",
+      "valor": 800,
+      "prazo_dias": 2,
+      "max": 2,
+      "prioridade": 50
+    },
+    "dominio_email": {
+      "nome": "Configuração de domínio e e-mail",
+      "valor": 200,
+      "prazo_dias": 0.5,
+      "max": 1,
+      "prioridade": 15
+    },
+    "loja_virtual": {
+      "nome": "Loja virtual com pagamento",
+      "fora_do_automatico": true
+    },
+    "area_restrita": {
+      "nome": "Área restrita com login",
+      "fora_do_automatico": true
+    },
+    "sistema_sob_medida": {
+      "nome": "Sistema ou painel sob medida",
+      "fora_do_automatico": true
+    }
+  },
+  "multiplicadores": {
+    "urgencia": {
+      "fator": 1.3,
+      "prazo_fator": 0.6,
+      "descricao": "Entrega antes do prazo padrão"
+    },
+    "complexidade_alta": {
+      "fator": 1.25,
+      "descricao": "Animações, 3D ou interações fora do padrão"
+    }
+  },
+  "descontos_autorizados": [],
+  "limites": {
+    "valor_max_automatico": 15000
+  }
+}

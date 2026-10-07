@@ -1,0 +1,20 @@
+/* ==========================================================================
+   PRIVACIDADE.CSS — página de texto, sem movimento, com os tokens do site.
+   ========================================================================== */
+body { font-size: 1rem; line-height: 1.7; }
+.priv { max-width: 720px; margin: 0 auto; padding: 2rem var(--pad) 5rem; }
+.priv__marca { font-family: var(--mono); font-weight: 600; margin-bottom: 2.4rem; }
+.priv__marca a { color: var(--t1); display: inline-flex; align-items: center; gap: .3em; min-height: 44px; }
+.priv__marca b { color: var(--ac); }
+.priv h1 { font-weight: 300; font-size: clamp(2rem, 7vw, 2.8rem); line-height: 1.1; letter-spacing: -.025em; color: var(--t1); }
+.priv__data { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-dado); color: var(--t3); margin: .8rem 0 2.2rem; }
+.priv h2 { font-weight: 400; font-size: 1.25rem; color: var(--t1); margin: 2.2rem 0 .7rem; }
+.priv p, .priv li { color: var(--t2); max-width: 64ch; }
+.priv strong { color: var(--t1); font-weight: 600; }
+.priv ul { list-style: none; display: flex; flex-direction: column; gap: .9rem; }
+.priv li { padding-left: 1.1rem; border-left: 1px solid var(--stroke); }
+.priv a { color: var(--ac); text-decoration: underline; text-underline-offset: 3px; }
+.priv code { font-family: var(--mono); font-size: .85em; color: var(--t1); }
+.priv__voltar { margin-top: 3rem; }
+.priv__voltar a { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-ctrl); text-transform: uppercase; display: inline-flex; align-items: center; min-height: 44px; }
+@media print { body { background: #fff; color: #000; } .priv p, .priv li, .priv h1, .priv h2 { color: #000; } }

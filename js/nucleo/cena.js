@@ -13,6 +13,7 @@ import { montar } from './pecas.js';
 /* tokens do CSS que a esfera usa, lidos UMA vez (ler getComputedStyle por
    quadro foi o pecado que custou 76 ms por quadro a este projeto) */
 const TOKENS = { bg: '--bg', t1: '--t1', ac: '--ac', ac2: '--ac-2', metal: '--metal', prata: '--prata' };
+const OURO_TOKENS = { ac: '--ouro-rgb', ac2: '--ouro-2-rgb', brasa: '--brasa-rgb' }, OURO_PADRAO = { ac: '255 190 60', ac2: '255 226 150', brasa: '255 250 235' };
 const PADRAO = { bg: '#000000', t1: '#F2F4F4', ac: '#49E5DD', ac2: '#A6F4EF', metal: '#565656', prata: '#B7BFC0' };
 
 /* atributos do contexto. O teste de GPU e o renderer usam UM contexto só:
@@ -51,7 +52,17 @@ export function criarCena(canvas, gl, { celular = false } = {}) {
   }
 
   const teto = celular ? 1.5 : 2;
-  let esfera = null, camera, cena;
+  let esfera = null, camera, cena, cores = null, frio = null;
+  /* O OURO (js/ouro.js): k de 0 a 1 mistura o ciano do reator para o dourado tecnológico; os uniforms dos
+     shaders apontam para os mesmos objetos de cor, os materiais copiados são retingidos pela lista */
+  const OURO = { ac: new THREE.Color('#FFBE3C'), ac2: new THREE.Color('#FFE296'), brasa: new THREE.Color('#FFFAEB') }, BRASA = OURO.brasa;   /* (os valores reais vêm dos tokens na montagem) */
+  /* k: ciano → ouro incandescente; h: → o branco da brasa (o clarão e o tremor do reinado) */
+  function tingir(k, h = 0) {
+    if (!cores || !frio) return;
+    cores.ac.copy(frio.ac).lerp(OURO.ac, k).lerp(BRASA, h);
+    cores.ac2.copy(frio.ac2).lerp(OURO.ac2, k).lerp(BRASA, h);
+    if (esfera && esfera.tingir) esfera.tingir();
+  }
   let largura = 0, altura = 0;
 
   function medir() {
@@ -62,13 +73,6 @@ export function criarCena(canvas, gl, { celular = false } = {}) {
     /* o canvas é sempre quadrado (144% de uma caixa aspect-ratio 1) */
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
-    escalaParticulas();
-  }
-
-  /* as partículas do disco têm tamanho em pixels: dependem da altura do
-     buffer (tamanho em CSS × pixel ratio) */
-  function escalaParticulas() {
-    if (esfera && altura) esfera.tamanhoTela(altura * renderer.getPixelRatio(), SPEC.camera.fov);
   }
 
   /* se a montagem falhar DEPOIS de o renderer existir, solta o contexto
@@ -80,7 +84,12 @@ export function criarCena(canvas, gl, { celular = false } = {}) {
     camera = new THREE.PerspectiveCamera(SPEC.camera.fov, 1, 0.1, 50);
     camera.position.set(0, 0, SPEC.camera.z);
     camera.updateMatrixWorld();
-    esfera = montar(THREE, SPEC, lerCores(canvas), { celular });
+    cores = lerCores(canvas);
+    /* (o frio é o ciano dos PADRÃO/tokens, nunca o que a página mostra agora: montada no meio de um ouro, a cena leria o dourado como frio) */
+    frio = { ac: new THREE.Color(PADRAO.ac), ac2: new THREE.Color(PADRAO.ac2) };
+    const est = getComputedStyle(canvas);
+    for (const [nome, token] of Object.entries(OURO_TOKENS)) { const v = (est.getPropertyValue(token).trim() || OURO_PADRAO[nome]).split(/\s+/).map(Number); OURO[nome].setRGB(v[0] / 255, v[1] / 255, v[2] / 255); }
+    esfera = montar(THREE, SPEC, cores, { celular });
     cena.add(esfera.raiz);
     medir();
   } catch (e) {
@@ -120,7 +129,6 @@ export function criarCena(canvas, gl, { celular = false } = {}) {
   function baixarResolucao() {
     if (renderer.getPixelRatio() <= 1) return false;
     renderer.setPixelRatio(1);
-    escalaParticulas();
     return true;
   }
 
@@ -128,7 +136,7 @@ export function criarCena(canvas, gl, { celular = false } = {}) {
      Quem chama não chama depois de ter baixado a resolução. */
   function ajustarDpr() {
     const alvo = Math.min(window.devicePixelRatio || 1, teto);
-    if (Math.abs(renderer.getPixelRatio() - alvo) > 0.01) { renderer.setPixelRatio(alvo); escalaParticulas(); }
+    if (Math.abs(renderer.getPixelRatio() - alvo) > 0.01) { renderer.setPixelRatio(alvo); }
   }
 
   function desmontar() {
@@ -142,5 +150,10 @@ export function criarCena(canvas, gl, { celular = false } = {}) {
     return { chamadas: r.calls, triangulos: r.triangles };
   }
 
-  return { medir, desenhar, projetar, baixarResolucao, ajustarDpr, desmontar, info };
+  /* a pose do reator e quantas unidades do spec cabem na altura do canvas
+     (no plano z = 0, onde estão os raios): a rede converte para px */
+  const UNIDADES_NA_ALTURA = 2 * Math.tan((SPEC.camera.fov * Math.PI) / 360) * SPEC.camera.z;
+  function pose() { const p = esfera.pose(); p.altura = UNIDADES_NA_ALTURA; p.camera = SPEC.camera.z; return p; }
+
+  return { medir, desenhar, projetar, pose, baixarResolucao, ajustarDpr, desmontar, info, tingir };
 }

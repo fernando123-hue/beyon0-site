@@ -14,6 +14,13 @@ Thumbs.db
 
 .vercel
 .env*
+!.env.example
+
+# Supabase CLI (estado local) e cópias do banco: têm dados em texto aberto (docs/fundacao/02-OPERACAO.md §5)
+supabase/.temp/
+supabase/.branches/
+*.dump
+restauracao.sql
 
 # assets grandes NÃO referenciados (0 refs) — ficam no disco, fora do repo/deploy
 assets/Logo.gif

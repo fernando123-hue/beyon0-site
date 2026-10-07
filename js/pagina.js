@@ -15,14 +15,29 @@
   var FONE = window.BEYON_TEL || '5521977167944';
   var PADRAO = document.body.getAttribute('data-wa-padrao') || 'quero entender como a Beyon Zero pode ajudar meu negócio';
   function linkWA(assunto) {
-    var txt = 'Oi! Vim pelo site da Beyon Zero e ' + (assunto || PADRAO) + '.';
+    var corpo = (assunto || PADRAO).replace(/\s+$/, '');
+    /* o código da visita (js/metricas.js, só com as métricas próprias ligadas): liga a conversa à origem no painel */
+    var cod = window.BEYON_CODIGO ? ' (código ' + window.BEYON_CODIGO + ')' : '';
+    var abertura = (html.classList.contains('via-anuncio') ? 'Oi! Vi o anúncio da Beyon Zero' : 'Oi! Vim pelo site da Beyon Zero') + cod + ' e ';
+    /* termina em ":" = uma lacuna para a pessoa completar ("Meu negócio: "): sem ponto final, com um espaço */
+    var txt = abertura + corpo + (/:$/.test(corpo) ? ' ' : '.');
     return 'https://wa.me/' + FONE + '?text=' + encodeURIComponent(txt);
+  }
+  /* "Encaminhar o resumo para a diretoria": abre o WhatsApp SEM número (a pessoa escolhe o grupo), com o link */
+  var encaminhar = document.querySelectorAll('[data-encaminhar]');
+  for (var e2 = 0; e2 < encaminhar.length; e2++) {
+    encaminhar[e2].href = 'https://wa.me/?text=' + encodeURIComponent(encaminhar[e2].getAttribute('data-encaminhar') + ' ' + location.origin + '/resumo');
+    encaminhar[e2].rel = 'noopener noreferrer';
+    encaminhar[e2].target = '_blank';
   }
   var links = document.querySelectorAll('[data-wa]');
   for (var i = 0; i < links.length; i++) {
     links[i].href = linkWA(links[i].getAttribute('data-wa'));
     links[i].rel = 'noopener noreferrer';
     links[i].target = '_blank';
+    if (!links[i].hasAttribute('aria-label') && !links[i].querySelector('.sr-only')) {
+      var aviso = document.createElement('span'); aviso.className = 'sr-only'; aviso.textContent = ' (abre em nova aba)'; links[i].appendChild(aviso);
+    }
   }
 
   var ano = document.getElementById('year');
@@ -50,6 +65,8 @@
   /* com o menu em tela cheia aberto, o resto da página fica inerte: o Tab
      não sai do menu para links invisíveis por trás (revisão da V4.6) */
   function fundoInerte(sim) {
+    /* "Agendar diagnóstico" dentro do menu abre o modal e o menu fecha em seguida: o fundo continua do modal */
+    if (!sim && document.body.classList.contains('is-lead-open')) return;
     var fundo = document.querySelectorAll('main, footer, .barra, .wa, .skip-link');
     for (var f = 0; f < fundo.length; f++) { if (sim) fundo[f].setAttribute('inert', ''); else fundo[f].removeAttribute('inert'); }
   }
@@ -191,6 +208,12 @@
       for (var q = 0; q < elFcp.length; q++) if (elFcp[q].textContent === '—') { var cx = elFcp[q].closest('.hero__cota'); if (cx) cx.style.visibility = 'hidden';   /* some sem tirar do layout: nada pula sob o CTA */ }
     }, 3000); }, { once: true });
   }
+  /* troca o texto sem trocar o nó quando dá: recriar nós a cada número (o fps, 2×/s) acionava o MutationObserver
+     da rede (js/rede.js), que remedia a página inteira a cada 0,5 s e apagava o surto das estações em voo */
+  function trocarTexto(el, txt) {
+    if (el.childNodes.length === 1 && el.firstChild.nodeType === 3) el.firstChild.nodeValue = txt;
+    else el.textContent = txt;
+  }
   /* valor e unidade separados: na prova a unidade fica subordinada (<small>);
      nos demais alvos vira texto. Dois createElement: nada de innerHTML. */
   /* `data-so-numero`: a unidade é um nó fixo no HTML ao lado (console) */
@@ -201,14 +224,18 @@
       if (el.hasAttribute('data-contando') || el.getAttribute('data-txt') === txt) continue;
       el.setAttribute('data-txt', txt);
       if (el.hasAttribute('data-so-numero')) {
-        el.textContent = String(valor);
+        trocarTexto(el, String(valor));
       } else if (el.classList.contains('prova__val') && unidade) {
-        el.textContent = '';
-        var b = document.createElement('b'); b.textContent = String(valor);
-        var sm = document.createElement('small'); sm.textContent = unidade;
-        el.appendChild(b); el.appendChild(sm);
+        var b = el.querySelector(':scope > b'), sm = el.querySelector(':scope > small');
+        if (b && sm) { trocarTexto(b, String(valor)); trocarTexto(sm, unidade); }   /* já montado: só o texto */
+        else {
+          el.textContent = '';
+          b = document.createElement('b'); b.textContent = String(valor);
+          sm = document.createElement('small'); sm.textContent = unidade;
+          el.appendChild(b); el.appendChild(sm);
+        }
       } else {
-        el.textContent = txt;
+        trocarTexto(el, txt);
       }
       carimbar(el);
     }
@@ -353,29 +380,38 @@
     escrever(elFps, 'movimento reduzido');
   }
 
-  /* a transição entre páginas (css/motion.css) respeita o interruptor */
-  window.addEventListener('pageswap', function (e) {
-    if (html.classList.contains('menos-movimento') && e.viewTransition) e.viewTransition.skipTransition();
-  });
 
-  /* ---------- interruptor "menos movimento" (rodapé) ---------- */
-  var btnMov = document.querySelector('.footer__motion');
+  /* ---------- interruptores "menos movimento" (no topo, como skip-link, e no rodapé) ---------- */
+  var btnsMov = [].slice.call(document.querySelectorAll('[data-movimento], .footer__motion'));
   /* com prefers-reduced-motion ligado no sistema, o interruptor não tem o que
      fazer: o sistema manda, e um botão que não ativa nada mentiria */
-  if (btnMov && B.sistemaReduz) { btnMov.hidden = true; btnMov = null; }
-  if (btnMov) {
+  if (B.sistemaReduz) { btnsMov.forEach(function (b) { b.hidden = true; }); btnsMov = []; }
+  if (btnsMov.length) {
     var rotular = function () {
-      btnMov.setAttribute('aria-pressed', html.classList.contains('menos-movimento') ? 'true' : 'false');
+      var ligado = html.classList.contains('menos-movimento') ? 'true' : 'false';
+      btnsMov.forEach(function (b) { b.setAttribute('aria-pressed', ligado); });
     };
     rotular();
-    btnMov.addEventListener('click', function () {
-      var ligar = !html.classList.contains('menos-movimento');
-      B.reduzir(ligar, true);
-      /* reduzir desmonta a coreografia (splits, gatilhos, medidor) de vez;
-         religar o movimento é recarregar, com a preferência já gravada */
-      if (!ligar) { location.reload(); return; }
-      rotular();
+    btnsMov.forEach(function (b, i) {
+      b.addEventListener('click', function () {
+        var ligar = !html.classList.contains('menos-movimento');
+        B.reduzir(ligar, true);
+        /* reduzir desmonta a coreografia (splits, gatilhos, medidor) de vez;
+           religar o movimento é recarregar, com a preferência já gravada — guardando a rolagem e o foco
+           (a recarga devolvia a pessoa ao topo, sem foco: auditoria 2026-10-06) */
+        if (!ligar) { try { sessionStorage.setItem('bz-volta', window.scrollY + '|' + i); } catch (e) { /* sem armazenamento */ } location.reload(); return; }
+        rotular();
+      });
     });
+    /* a volta da recarga: mesma rolagem, foco no interruptor que foi usado */
+    try {
+      var volta = sessionStorage.getItem('bz-volta');
+      if (volta) {
+        sessionStorage.removeItem('bz-volta');
+        var partes = volta.split('|'), alvoMov = btnsMov[+partes[1]] || btnsMov[0];
+        window.addEventListener('load', function () { window.scrollTo({ top: +partes[0] || 0, behavior: 'instant' }); if (alvoMov) alvoMov.focus({ preventScroll: true }); }, { once: true });
+      }
+    } catch (e) { /* sem armazenamento */ }
   }
 
   B.iniciar();

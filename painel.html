@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Painel — Beyon Zero</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="theme-color" content="#000000" />
+  <meta name="referrer" content="no-referrer" />
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'" />
+  <link rel="stylesheet" href="css/tokens.css" />
+  <link rel="stylesheet" href="painel.css" />
+</head>
+<body>
+  <main class="pn" id="conteudo">
+    <header class="pn__topo">
+      <p class="pn__marca"><a href="/">Beyon <b>Zero</b></a> <span>Painel</span></p>
+      <button class="pn__sair" type="button" id="sair" hidden>Sair</button>
+    </header>
+
+    <form class="pn__entrar" id="entrar" novalidate>
+      <h1>Métricas do site</h1>
+      <p>Visitas, cliques e clientes, medidos pelo próprio site, sem cookies.</p>
+      <label for="chave">Chave do painel</label>
+      <input id="chave" name="chave" type="password" autocomplete="current-password" required />
+      <label class="pn__marcar"><input type="checkbox" id="naoContar" checked /> Não contar as minhas visitas neste aparelho</label>
+      <button class="pn__btn" type="submit">Entrar</button>
+      <p class="pn__erro" id="erroEntrar" role="alert" hidden></p>
+    </form>
+
+    <div id="dados" hidden>
+      <div class="pn__periodo" role="group" aria-label="Período">
+        <button type="button" data-dias="7">7 dias</button>
+        <button type="button" data-dias="30" aria-pressed="true">30 dias</button>
+        <button type="button" data-dias="90">90 dias</button>
+        <button type="button" data-dias="365">1 ano</button>
+      </div>
+      <p class="pn__estado" id="estado" role="status"></p>
+
+      <!-- a SAÚDE do sistema (api/rotinas.mjs): alertas abertos e quando a rotina diária rodou -->
+      <section class="pn__bloco" aria-labelledby="t-saude">
+        <h2 id="t-saude">Saúde do sistema</h2>
+        <div id="saude"></div>
+      </section>
+
+      <section class="pn__bloco" aria-labelledby="t-resumo">
+        <h2 id="t-resumo">Resumo</h2>
+        <div id="kpis"></div>
+        <div class="pn__funil" id="funil"></div>
+      </section>
+
+      <section class="pn__bloco" aria-labelledby="t-contatos">
+        <h2 id="t-contatos">Contatos</h2>
+        <p class="pn__ajuda">Cada contato tem o código que vai na mensagem do WhatsApp. Quando a pessoa mandar mensagem, marque "conversa". Quando fechar, marque "cliente" e o valor. Não escreva nome nem telefone na nota.</p>
+        <div id="contatos"></div>
+      </section>
+
+      <section class="pn__bloco" aria-labelledby="t-origem">
+        <h2 id="t-origem">De onde vieram</h2>
+        <div class="pn__tabela" id="origens"></div>
+        <h3>Campanhas e termos do anúncio</h3>
+        <div class="pn__tabela" id="campanhas"></div>
+        <h3>Página de entrada</h3>
+        <div class="pn__tabela" id="entradas"></div>
+        <h3>Aparelho</h3>
+        <div class="pn__tabela" id="dispositivos"></div>
+      </section>
+
+      <section class="pn__bloco" aria-labelledby="t-paginas">
+        <h2 id="t-paginas">O que fizeram no site</h2>
+        <h3>Botão que levou à conversa</h3>
+        <div class="pn__tabela" id="botoes"></div>
+        <div id="paginas"></div>
+        <h3>Formulário da página de Automação</h3>
+        <div id="formulario"></div>
+        <h3>O Ouro</h3>
+        <div id="ouro"></div>
+      </section>
+
+      <section class="pn__bloco" aria-labelledby="t-dias">
+        <h2 id="t-dias">Por dia</h2>
+        <div class="pn__tabela" id="dias"></div>
+      </section>
+
+      <section class="pn__bloco" aria-labelledby="t-ads">
+        <h2 id="t-ads">Mandar os clientes para o Google Ads</h2>
+        <p class="pn__ajuda">Baixa os clientes que vieram de clique em anúncio (últimos 90 dias), no formato de "importar conversões off-line". Com isso o Google aprende quais buscas viram cliente, não só clique.</p>
+        <label for="nomeConversao">Nome da conversão no Google Ads</label>
+        <input id="nomeConversao" type="text" value="Cliente fechado" maxlength="80" />
+        <button class="pn__btn" type="button" id="baixarCsv">Baixar o arquivo</button>
+      </section>
+    </div>
+  </main>
+  <script src="js/painel.js" defer></script>
+</body>
+</html>

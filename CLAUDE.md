@@ -37,6 +37,7 @@ subindo); ignore a primeira medição de DCL/LCP.
 
 | Arquivo | O que é |
 |---|---|
+| `docs/fundacao/README.md` | **Banco e segurança** (2026-10-06): Supabase com esquemas app/metricas/privado, multi-organização com RLS, migrations em supabase/migrations, testes de banco reais (PGlite) em npm run testar, segredos só em variável de ambiente (.env.example). Antes de mexer no banco ou em api/, leia 01-ARQUITETURA e a lista de conferência de 02-OPERACAO §1. |
 | `docs/restructure/DIRECAO-V4.md` | **Comece aqui.** A direção da V4 "Tech refinado" (2026-10-01): a identidade da V1 (escuro, ciano, Sora + Mono, régua de 1px) com luz; celular primeiro. |
 | `docs/restructure/PLANO-AI-CORE.md` | **O AI Core** (2026-10-02): o reator em three.js no hero do Hub (v2, seção 11: simetria de 12 tempos, energia correndo para o núcleo; a v1, esfera de vidro da imagem do dono, foi vista como "emaranhado de fios"); medidas, rodadas da crítica e a proposta de motion. |
 | `docs/restructure/DIRECAO-V3.md` | A V3 clara ("Luz e vida"), rejeitada pelo dono no mesmo dia. Vale pela regra de celular primeiro. |
@@ -50,17 +51,17 @@ subindo); ignore a primeira medição de DCL/LCP.
 
 ```
 css/tokens.css (paleta 2026-10-02: preto, grafite, metal #565656 + prata, ciano-esverdeado #49E5DD / #1CB5B9; sem âmbar e sem azul; fontes, atmosfera) · base.css (tipo, nav, botões, hero, trilha, feixe, barra do celular, rodapé)
-css/componentes.css (painel, serviços, passos, laudo, prova, malha, cenários, FAQ, conversa, spec, planos, janela, instrumento, modal)
+css/componentes.css (passos, prova, conversa, console, janela, instrumento, modal) · css/cartoes.css (os cartões e opções como MÓDULOS separados com vão: painel, serviços, laudo, malha, cenários, perguntas, padrão de entrega, a faixa do hero; refeitos do zero em 2026-10-03)
 css/motion.css (estados iniciais html.js, varredura do painel, régua do kicker, reduced-motion)
-js/ancoras.js (head: html.js + âncoras antigas) · tel.js · core.js (loop, estado S, fps, reduzir, B.num pt-BR)
+js/ancoras.js (head: html.js + âncoras antigas) · tel.js · core.js (loop, estado S, fps, reduzir, B.num pt-BR, B.texto/B.largura: TEXTO NO CANVAS por sprite numa oficina fora da página — ctx.font/measureText/fillText num canvas da página forçam o estilo da página inteira no Chrome; nunca use fillText direto, PLANO-AI-CORE §33)
 js/pagina.js (nav, menu, WA, seção atual, barra do celular, medidas: carga, peso, fps, FCP, cascata, log do console, interruptor)
-js/anima.js (GSAP: boot do hero, cota, rota, palco da prova, fecho, entradas por seção, pilha do celular, pouso em âncora) · lead-form.js (só automação)
-js/nucleo/ (AI Core, só no Hub): boot.js (clássico: centra o cosmos, porteiro, import() depois do load, laço via B.add) · cena.js · gesto.js (ponteiro/dedo/toque/rolagem → estado) · pecas.js (emissor + shaders) · spec.js (o reator em dados, respiração e campo) · lab.js (laboratório, fora do deploy)
-O cosmos (fundo do hero do Hub, .cosmos em index.html + css/componentes.css): anéis colossais no plano do disco do reator, coluna de luz, névoa, fragmentos; estático, centrado no reator por --cx/--cy/--nw
+js/anima.js (GSAP: boot do hero, cota, rota, palco da prova, fecho, entradas por seção, pilha do celular, pouso em âncora) · lead-form.js (só automação) · escrita.js (os rótulos mono assentam caractere a caractere ao entrar na tela; data-nome guarda o texto final) · energia-texto.js (A DESCARGA: a frente de energia atravessa a palavra, letras viram faísca e se reimprimem; palavra viva em <em data-palavras="a|b|c"> nos h2 de contato, surto no destaque do h1 e no "Zero" da marca, B.energizar para o encaixe do mini) · passagem.js (O MERGULHO entre páginas: o centro abre, anéis em túnel, nome que se escreve; css/motion.css) · mini-docas.js (o ENCAIXE do mini na borda dos botões, sem tomada à mostra, e a IGNIÇÃO: frentes pela borda, encontro, varredura, luz que circula) · ouro.js (O OURO: o estado dourado conquistado — ignição em linha, reinado de 12 s, resfriamento; tokens em html.is-ouro, canvases por B.tom, reator por cena.tingir; docs/restructure/OURO-2026-10-06.md)
+js/nucleo/ (AI Core, só no Hub): boot.js (clássico: mede o centro do reator, publica B.nucleo, porteiro, import() depois do load, laço via B.add) · cena.js · gesto.js (ponteiro/dedo/toque/rolagem → estado) · pecas.js (emissor) · shaders.js (shaders das peças) · coroa.js (o NÚCLEO: globo de plasma num shader de frente para a câmera — fios que batem no vidro e o furam, cursor que os atrai, ecos, estouro na chegada) · spec.js (o reator em dados, respiração e campo) · lab.js (laboratório, fora do deploy)
+js/campo.js (o CAMPO DO REATOR, o fundo: geometria polar do AI Core — raios que se ramificam com teto, anéis com régua, rotor que gira com o reator e estator fixo, aro com rumos; onda a cada expiração, pacotes que voltam ao núcleo, mira polar, rota de uma opção, marca de rumo) · rede.js (a ponte do campo com a página: origem, fôlego, elementos acesos pela onda, opções sob o cursor → B.emit('opcao'), clique, entrega ao reator → B.emit('campo:chegou'), o BARRAMENTO entre módulos, registro automático por MutationObserver) · trilho.js (DESKTOP, do hero para baixo: o INSTRUMENTO DESENROLADO — réguas nas margens, horizontes por seção, progresso da seção, pulso por fôlego; no desktop o campo fica só no hero, com a varredura; o celular segue só com o campo) · estacao.js (DESKTOP com mouse: as ESTAÇÕES, AI Core médio NO CENTRO dos grupos .tem-estacao — espaço .estacao-vao no HTML, grupo em 2 colunas com corredor —, ramos até cada card, alimentador até o horizonte da seção com "↑ AI CORE"; a energia vem do reator pelo trilho e o mini turbina) · plasma.js (o núcleo dos AI Cores pequenos em 2D: mini em modo pontas, estação com fios e ecos) · rede-texto.js (zonas sem rede: todo texto, miolo de cartões, dados) · mini.js (o mini AI Core: doca, passeio, reação à opção sob o cursor, sugestão de opção, agitação; corpo num canvas próprio acima das seções). Relógio comum: B.relogio/B.FOLEGO em core.js. Histórico e decisões: PLANO-AI-CORE.md §16–20. Sem desfoque em lugar nenhum, nem no AI Core (o dono proíbe): só traço nítido. Um subsistema que lança cai do laço com aviso "[beyon]" no console; o verificador falha nisso e no campo vazio
 vendor/three/three-nucleo.min.js (three r160 reduzido às classes da esfera; receita em vendor/three/README.md)
 ```
 
-**O AI Core** (PLANO-AI-CORE.md) é o único canvas do site: monta por cima
+**O AI Core** (PLANO-AI-CORE.md) é o único WebGL do site (a rede de fundo e o mini AI Core são canvas 2D, §16–17) e é soberano: nada do fundo fica grudado nele, o cenário se molda a ele (§17). Monta por cima
 de um desenho em CSS que reserva o lugar (sem CLS) e fica sozinho sem JS,
 sem GPU (o WebGL é testado ANTES de baixar o three) ou com economia de
 dados. Movimento reduzido: um quadro, parado e aceso. Degrada medindo
@@ -115,7 +116,11 @@ refresh); âncoras usam só `scroll-padding-top`.
    segurança em `js/pagina.js`; `npm run acessibilidade` confere.
 5. **Medir, não deduzir.** A/B na mesma sessão. O projeto já piorou o site três
    vezes otimizando por palpite.
-6. **Não publicar sem o dono pedir.** Push na `main` é deploy.
+6. **Produção é do dono; a `main` é do processo.** Desde 2026-10-07 a `main` não publica sozinha
+   (`vercel.json → git.deploymentEnabled`): o agente trabalha em branch, abre PR com a evidência de `docs/PROCESSO.md`,
+   lê os checks um a um e, com tudo verde e revisado, **mescla ele mesmo** (dono, 2026-10-07: "desde que você sempre
+   siga o processo de verificação e revisão, você pode mexer na main"). Promover na Vercel continua do dono. O guarda
+   (`~/.claude/guarda/`) nega push direto na `main`, `gh pr merge --admin`, `vercel --prod`.
 7. **CSP sem inline.** `style-src 'self'`: nenhum `style=""` no HTML, nenhum
    `<style>`; só classes. `el.style.x` via JS continua permitido.
 8. **Mono só onde há rótulo, índice, dado ou controle.** Copy em Sora; títulos em Sora 300.

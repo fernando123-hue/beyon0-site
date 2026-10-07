@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Beyon Zero — sites, automação e IA: do problema ao sistema no ar</title>
-  <meta name="description" content="Sites, automação e inteligência artificial para negócios e entidades. Uma pessoa constrói do primeiro rascunho à publicação: diagnóstico primeiro, preço fechado antes, e tudo fica no seu nome." />
+  <title>Beyon Zero: criação de sites e automação, Rio de Janeiro</title>
+  <meta name="description" content="Estúdio de uma pessoa no Rio de Janeiro: sites, landing pages e automação. Diagnóstico primeiro, preço fechado antes, tudo no seu nome." />
 
   <link rel="canonical" href="https://beyon0-site.vercel.app/" />
   <meta property="og:url" content="https://beyon0-site.vercel.app/" />
@@ -27,20 +27,24 @@
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
 
   <!-- espelho da política servida em vercel.json (defesa em profundidade) -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.googletagmanager.com https://www.googleadservices.com https://www.google.com; style-src 'self'; font-src 'self'; img-src 'self' data: https://*.google-analytics.com https://*.googletagmanager.com https://*.g.doubleclick.net https://www.google.com https://www.google.com.br https://www.googleadservices.com; connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.g.doubleclick.net https://www.google.com https://www.google.com.br https://www.googleadservices.com https://pagead2.googlesyndication.com; frame-src https://td.doubleclick.net; object-src 'none'; base-uri 'self'; form-action 'none'" />
 
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "WebSite", "name": "Beyon Zero", "url": "https://beyon0-site.vercel.app/", "inLanguage": "pt-BR" }
+  </script>
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "ProfessionalService",
+    "@id": "https://beyon0-site.vercel.app/#negocio",
     "name": "Beyon Zero",
     "url": "https://beyon0-site.vercel.app/",
     "image": "https://beyon0-site.vercel.app/assets/og-cover.jpg",
-    "description": "Estúdio de tecnologia: sites, automação de processos e inteligência artificial aplicada a operações reais.",
+    "description": "Criação de sites e landing pages, e automação com inteligência artificial, feitas por uma pessoa no Rio de Janeiro, para o Brasil todo.",
     "telephone": "+55-21-97716-7944",
     "areaServed": { "@type": "Country", "name": "Brasil" },
     "knowsAbout": ["Criação de sites", "Landing pages", "Automação de processos", "Inteligência artificial aplicada", "Experiências digitais"],
-    "address": { "@type": "PostalAddress", "addressRegion": "RJ", "addressCountry": "BR" },
+    "address": { "@type": "PostalAddress", "addressLocality": "Rio de Janeiro", "addressRegion": "RJ", "addressCountry": "BR" },
     "knowsLanguage": "pt-BR",
     "hasOfferCatalog": {
       "@type": "OfferCatalog",
@@ -63,13 +67,18 @@
   <link rel="stylesheet" href="css/tokens.css" />
   <link rel="stylesheet" href="css/base.css" />
   <link rel="stylesheet" href="css/componentes.css" />
+  <link rel="stylesheet" href="css/cartoes.css" />
   <link rel="stylesheet" href="css/motion.css" />
 </head>
 <body data-wa-padrao="quero entender qual dos seus serviços faz sentido pro meu negócio">
-  <a href="#hero" class="skip-link">Pular para o conteúdo</a>
+  <a href="#conteudo" class="skip-link">Pular para o conteúdo</a>
+  <button type="button" class="skip-link skip-link--mov" data-movimento aria-pressed="false">Reduzir movimento</button>
 
-  <!-- a luz: duas manchas e a malha, estáticas (css/tokens.css) -->
-  <div class="atmosfera" aria-hidden="true"></div>
+    <div class="atmosfera" aria-hidden="true"></div>
+  <!-- a rede: o fundo vivo (js/rede.js) e o mini AI Core que segue a visita (js/mini.js) -->
+  <canvas class="rede" data-rede aria-hidden="true"></canvas>
+  <!-- a passagem entre páginas (js/passagem.js, css/motion.css) -->
+  <div class="passagem" aria-hidden="true"><div class="passagem__fundo"></div><div class="passagem__tunel"><i></i><i></i><i></i><i></i></div><div class="passagem__fio"></div><div class="passagem__miolo"><span class="passagem__aro"></span><span class="passagem__marca"></span><span class="passagem__rotulo">Beyon Zero</span><span class="passagem__leitura">01 / 03</span></div></div>
 
   <header class="nav" id="nav">
     <a href="/" class="nav__logo" aria-label="Beyon Zero — início">
@@ -86,68 +95,29 @@
       <span class="nav__sep" aria-hidden="true"></span>
       <a href="/sites">Sites</a>
       <a href="/automacao">Automação &amp; IA</a>
+      <a href="/orcamento">Orçamento com IA</a>
       <a class="btn btn--sm btn--primary" data-wa href="https://wa.me/5521977167944">Falar comigo</a>
     </nav>
   </header>
 
-  <main>
+  <main id="conteudo" tabindex="-1">
     <!-- HERO — no celular: status, frase, o que é e CTA na primeira tela; a
          arte (painéis de vidro, lugar reservado ao AI Core futuro) vem
          depois; a trilha fecha. No desktop: frase larga, arte estreita,
          trilha fechando a primeira tela. -->
     <section class="hero" id="hero" aria-labelledby="hero-titulo">
-      <!-- o cosmos: o fundo do hero (pedido do dono: "grandioso, misterioso",
-           em harmonia com o AI Core). Centrado no reator (boot.js mede e
-           ajusta --cx/--cy/--nw; sem JS vale o padrão do CSS). Os anéis
-           gigantes estão no MESMO plano do disco do reator: é o reator em
-           escala de arquitetura. Estático; só a coluna e os
-           fragmentos se mexem, por transform/opacity (css/componentes.css) -->
-      <div class="cosmos" aria-hidden="true">
-        <i class="cosmos__luz"></i>
-        <svg class="cosmos__aneis" viewBox="-1200 -700 2400 1400" preserveAspectRatio="xMidYMid meet" focusable="false">
-          <defs>
-            <linearGradient id="cosmos-g1" x1="1" y1="0" x2="0" y2="0">
-              <stop offset="0" stop-color="#B7BFC0" stop-opacity="0" />
-              <stop offset=".22" stop-color="#B7BFC0" stop-opacity=".55" />
-              <stop offset=".5" stop-color="#49E5DD" stop-opacity=".18" />
-              <stop offset=".8" stop-color="#1CB5B9" stop-opacity=".32" />
-              <stop offset="1" stop-color="#1CB5B9" stop-opacity="0" />
-            </linearGradient>
-            <linearGradient id="cosmos-g2" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stop-color="#B7BFC0" stop-opacity="0" />
-              <stop offset=".35" stop-color="#B7BFC0" stop-opacity=".4" />
-              <stop offset=".7" stop-color="#565656" stop-opacity=".3" />
-              <stop offset="1" stop-color="#565656" stop-opacity="0" />
-            </linearGradient>
-          </defs>
-          <g fill="none" stroke="url(#cosmos-g1)">
-            <ellipse rx="330" ry="62" stroke-width="1.4" />
-            <ellipse rx="520" ry="98" stroke-width="1" />
-            <ellipse rx="760" ry="146" stroke-width="1.6" stroke-dasharray="260 34 90 60 400 30" />
-            <ellipse rx="780" ry="152" stroke-width=".7" />
-            <ellipse rx="1080" ry="210" stroke-width=".8" stroke-dasharray="520 80" />
-          </g>
-          <g fill="none" stroke="url(#cosmos-g2)">
-            <ellipse cx="420" rx="1180" ry="1240" stroke-width="1.2" />
-            <ellipse cx="420" rx="1215" ry="1275" stroke-width=".6" />
-          </g>
-        </svg>
-        <i class="cosmos__coluna"></i>
-        <span class="cosmos__fragmentos"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
-        <i class="cosmos__nevoa"></i>
-      </div>
       <div class="feixe" aria-hidden="true"><span class="feixe__linha"><span class="feixe__tag" data-feixe-tag></span></span></div>
       <p class="hero__status">
           <span class="dot" aria-hidden="true"></span>
-          <span>Sistema online · Beyon Zero</span>
+          <span>Criação de sites e automação · Rio de Janeiro</span>
         </p>
         <h1 class="hero__title" id="hero-titulo">Do problema ao sistema <em>no ar</em>.</h1>
         <div class="hero__main">
-          <div class="hero__cota" aria-hidden="true" data-metrica-caixa><i class="hero__cota-tick"></i><i class="hero__cota-linha"></i><i class="hero__cota-tick"></i><span class="hero__cota-rot">1ª pintura em <b data-metrica="fcp">—</b>&#8239;s</span></div>
+          <div class="hero__cota" aria-hidden="true" data-metrica-caixa><i class="hero__cota-tick"></i><i class="hero__cota-linha"></i><i class="hero__cota-tick"></i><span class="hero__cota-rot">na sua tela em <b data-metrica="fcp">—</b>&#8239;s</span></div>
         <p class="hero__sub">Sites, automação e IA para negócios e entidades. Diagnóstico primeiro, preço fechado antes, e tudo fica no seu nome.</p>
         <div class="hero__actions">
-          <a class="btn btn--primary" data-wa href="https://wa.me/5521977167944">Falar comigo <span aria-hidden="true" data-seta="direita">→</span></a>
-          <a class="btn btn--ghost" href="#frentes">Ver os serviços <span aria-hidden="true" data-seta="baixo">↓</span></a>
+          <a data-rotulo="Conversa direta no WhatsApp" class="btn btn--primary" data-wa href="https://wa.me/5521977167944">Conversar no WhatsApp <span aria-hidden="true" data-seta="direita">→</span></a>
+          <a data-rotulo="Desce até os serviços" class="btn btn--ghost" href="#frentes">Ver os serviços <span aria-hidden="true" data-seta="baixo">↓</span></a>
         </div>
         <p class="hero__fine">Uma pessoa constrói do primeiro rascunho à publicação. Quem conversa é quem constrói.</p>
       </div>
@@ -161,7 +131,7 @@
           <canvas class="nucleo__tela"></canvas>
         </div>
         <!-- o console de boot deste site, com dados REAIS desta visita: a leitura do núcleo -->
-        <div class="console painel" data-console>
+        <div data-rotulo="Esta página medida ao vivo" class="console painel" data-console>
           <p class="console__medida" data-metrica-caixa><b data-metrica="carga" data-so-numero>—</b><small class="console__unid">s</small><span>pronta para usar, neste aparelho</span></p>
           <div class="cascata" data-cascata data-metrica-caixa></div>
           <div class="console__topo"><span>Beyon Zero · boot</span><span class="console__led"></span></div>
@@ -175,11 +145,11 @@
       <!-- a trilha: as três portas da casa e a medida desta visita -->
       <div class="hero__rail">
         <span class="hero__rail-aresta" aria-hidden="true"></span>
-        <a href="/sites"><span class="hero__rail-k"><b>01</b> Sites</span><span class="hero__rail-v">Institucionais, landing pages, sob medida</span></a>
-        <a href="/automacao"><span class="hero__rail-k"><b>02</b> Automação &amp; IA</span><span class="hero__rail-v">Para entidades, com diagnóstico grátis</span></a>
-        <a href="#frentes"><span class="hero__rail-k"><b>03</b> Experiências digitais</span><span class="hero__rail-v">Quando o site comum não dá conta</span></a>
+        <a data-rotulo="Três formatos de site" href="/sites"><span class="hero__rail-k"><b>01</b> Sites</span><span class="hero__rail-v">Institucionais, landing pages, sob medida</span></a>
+        <a data-rotulo="Diagnóstico grátis primeiro" href="/automacao"><span class="hero__rail-k"><b>02</b> Automação &amp; IA</span><span class="hero__rail-v">Para entidades, com diagnóstico grátis</span></a>
+        <a data-rotulo="Quando o site não dá conta" href="#frentes"><span class="hero__rail-k"><b>03</b> Experiências digitais</span><span class="hero__rail-v">Quando o site comum não dá conta</span></a>
         <div class="hero__rail--medida" data-metrica-caixa>
-          <span class="hero__rail-k">Medido agora, neste aparelho</span>
+          <span class="hero__rail-k">Medido neste aparelho</span>
           <span class="hero__rail-v"><b data-metrica="fps">— fps</b> · pronta em <b data-metrica="carga">—</b></span>
         </div>
       </div>
@@ -188,36 +158,36 @@
     <!-- SERVIÇOS — três painéis de vidro -->
     <section class="section" id="frentes" aria-labelledby="frentes-titulo">
       <div class="section__head reveal">
-        <p class="kicker"><b>01</b> Serviços</p>
+        <p class="kicker"><b aria-hidden="true">01</b> Serviços</p>
         <h2 id="frentes-titulo">Três serviços,<br class="br-l" /> um padrão de construção.</h2>
         <p class="lead">Não sabe qual é o seu caso? A primeira conversa resolve isso, e é grátis.</p>
       </div>
       <div class="servicos reveal">
-        <a class="painel painel--tinta servico" href="/sites">
+        <a data-rotulo="Rápidos, primeiro no celular" class="painel painel--tinta servico" href="/sites" aria-labelledby="servico-1-t servico-1-l" aria-describedby="servico-1-p">
           <span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span>
           <span class="servico__n" aria-hidden="true">01</span>
           <div class="servico__vitrine" aria-hidden="true"><div class="janela"><div class="janela__barra"><span class="janela__pt"></span><span class="janela__pt"></span><span class="janela__pt"></span><span class="janela__url">seunegocio.com.br</span></div><div class="janela__tela"><span class="mini__marca">Seu negócio</span><span class="mini__titulo">Atendimento que começa no <b>primeiro clique</b>.</span><span class="mini__btn">Começar</span></div></div></div>
           <ul class="servico__formatos" role="list"><li><b>01</b> Institucional</li><li><b>02</b> Landing page</li><li><b>03</b> Sob medida</li></ul>
-          <h3>Sites</h3>
-          <p>Institucionais, landing pages e sob medida. Rápidos, feitos primeiro para o celular, com a prova de velocidade rodando na sua frente.</p>
+          <h3 id="servico-1-t">Sites</h3>
+          <p id="servico-1-p">Institucionais, landing pages e sob medida. Rápidos, feitos primeiro para o celular, com a prova de velocidade rodando na sua frente.</p>
           <span class="servico__para">Para negócios que precisam ser encontrados e entendidos.</span>
-          <span class="servico__link">Ver sites <span aria-hidden="true" data-seta="direita">→</span></span>
+          <span class="servico__link" id="servico-1-l">Ver sites <span aria-hidden="true" data-seta="direita">→</span></span>
         </a>
-        <a class="painel painel--tinta servico" href="/automacao">
+        <a data-rotulo="Só onde a conta fecha" class="painel painel--tinta servico" href="/automacao" aria-labelledby="servico-2-t servico-2-l" aria-describedby="servico-2-p">
           <span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span>
           <span class="servico__n" aria-hidden="true">02</span>
-          <h3>Automação &amp; IA</h3>
-          <p>Agentes, automação de processos e sistemas que devolvem capacidade para a operação. Diagnóstico grátis primeiro; construção só onde a conta fecha.</p>
+          <h3 id="servico-2-t">Automação &amp; IA</h3>
+          <p id="servico-2-p">Agentes, automação de processos e sistemas que devolvem capacidade para a operação. Diagnóstico grátis primeiro; construção só onde a conta fecha.</p>
           <span class="servico__para">Para associações, sindicatos, federações e cooperativas.</span>
-          <span class="servico__link">Ver automação <span aria-hidden="true" data-seta="direita">→</span></span>
+          <span class="servico__link" id="servico-2-l">Ver automação <span aria-hidden="true" data-seta="direita">→</span></span>
         </a>
-        <a class="painel painel--tinta servico" data-wa="quero falar sobre uma experiência digital sob medida" href="https://wa.me/5521977167944">
+        <a data-rotulo="Para ser lembrado" class="painel painel--tinta servico" data-wa="quero falar sobre uma experiência digital sob medida" href="https://wa.me/5521977167944" aria-labelledby="servico-3-t servico-3-l" aria-describedby="servico-3-p">
           <span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span>
           <span class="servico__n" aria-hidden="true">03</span>
-          <h3>Experiências digitais</h3>
-          <p>Apresentações, lançamentos e interfaces que não cabem num site comum. Sem página própria, de propósito: cada projeto começa de um lugar diferente.</p>
+          <h3 id="servico-3-t">Experiências digitais</h3>
+          <p id="servico-3-p">Apresentações, lançamentos e interfaces que não cabem num site comum. Sem página própria, de propósito: cada projeto começa de um lugar diferente.</p>
           <span class="servico__para">Para quando o objetivo é ser lembrado.</span>
-          <span class="servico__link">Conversar sobre uma ideia <span aria-hidden="true" data-seta="direita">→</span></span>
+          <span class="servico__link" id="servico-3-l">Conversar sobre uma ideia <span aria-hidden="true" data-seta="direita">→</span></span>
         </a>
       </div>
     </section>
@@ -226,13 +196,13 @@
     <div class="faixa">
       <section class="section" id="metodo" aria-labelledby="metodo-titulo">
         <div class="section__head reveal">
-          <p class="kicker"><b>02</b> Como funciona</p>
+          <p class="kicker"><b aria-hidden="true">02</b> Como funciona</p>
           <h2 id="metodo-titulo">Diagnóstico primeiro. Construção depois.</h2>
         </div>
         <ol role="list" class="passos reveal">
-          <li class="passo"><span class="passo__n" aria-hidden="true">01</span><h3>Conversa</h3><p>O que está travando, para quem, e o que conta como resultado. Sem isso, qualquer ferramenta é chute com fatura.</p></li>
-          <li class="passo"><span class="passo__n" aria-hidden="true">02</span><h3>Diagnóstico e preço fechado</h3><p>Olho a operação, digo o que vale construir e o que não vale. Escopo e valor combinados antes de começar, sem comissão de fornecedor.</p></li>
-          <li class="passo"><span class="passo__n" aria-hidden="true">03</span><h3>Construção e entrega no seu nome</h3><p>Construo, integro ao que você já usa e publico. Código, domínio, contas e acessos ficam com você, feitos para serem usados sem mim.</p></li>
+          <li data-rotulo="O que conta como resultado" class="passo"><span class="passo__n" aria-hidden="true">01</span><h3>Conversa</h3><p>O que está travando, para quem, e o que conta como resultado. Sem isso, qualquer ferramenta é chute com fatura.</p></li>
+          <li data-rotulo="Preço fechado antes" class="passo"><span class="passo__n" aria-hidden="true">02</span><h3>Diagnóstico e preço fechado</h3><p>Olho a operação, digo o que vale construir e o que não vale. Escopo e valor combinados antes de começar, sem comissão de fornecedor.</p></li>
+          <li data-rotulo="Tudo fica no seu nome" class="passo"><span class="passo__n" aria-hidden="true">03</span><h3>Construção e entrega no seu nome</h3><p>Construo, integro ao que você já usa e publico. Código, domínio, contas e acessos ficam com você, feitos para serem usados sem mim.</p></li>
         </ol>
       </section>
     </div>
@@ -240,14 +210,15 @@
     <!-- GARANTIAS — quatro linhas com régua -->
     <section class="section secao--manifesto" id="garantias" aria-labelledby="garantias-titulo">
       <div class="section__head reveal">
-        <p class="kicker"><b>03</b> Garantias</p>
+        <p class="kicker"><b aria-hidden="true">03</b> Garantias</p>
         <h2 id="garantias-titulo">O que vale nos três serviços,<br class="br-l" /> sem precisar pedir.</h2>
       </div>
-      <div class="laudo reveal">
-        <article class="laudo__row"><span class="laudo__n" aria-hidden="true">01</span><h3>Começa pelo problema</h3><p>Antes de falar de site, de agente ou de ferramenta, quero saber o que está travando. Solução escolhida antes do diagnóstico é chute com fatura.</p></article>
-        <article class="laudo__row"><span class="laudo__n" aria-hidden="true">02</span><h3>Preço fechado antes</h3><p>Escopo e valor combinados antes de a construção começar. O preço não muda conforme a ferramenta, porque não recebo comissão de nenhum fornecedor.</p></article>
-        <article class="laudo__row"><span class="laudo__n" aria-hidden="true">03</span><h3>O que é seu continua seu</h3><p>Código, domínio, contas e acessos ficam no seu nome. Nada depende de uma plataforma que só eu opero, e sair nunca exige recomeçar do zero.</p></article>
-        <article class="laudo__row"><span class="laudo__n" aria-hidden="true">04</span><h3>Transparência em dados e custos</h3><p>Você sabe o que o sistema acessa, por quê e o que fez. E sabe, antes de construir, quais custos de manter tudo rodando ficam com você.</p></article>
+      <div class="laudo pilha reveal tem-estacao tem-estacao--2">
+        <article data-rotulo="Diagnóstico antes da solução" class="laudo__row"><span class="laudo__n" aria-hidden="true">01</span><h3>Começa pelo problema</h3><p>Antes de falar de site, de agente ou de ferramenta, quero saber o que está travando. Solução escolhida antes do diagnóstico é chute com fatura.</p></article>
+        <article data-rotulo="Sem comissão de fornecedor" class="laudo__row"><span class="laudo__n" aria-hidden="true">02</span><h3>Preço fechado antes</h3><p>Escopo e valor combinados antes de a construção começar. O preço não muda conforme a ferramenta, porque não recebo comissão de nenhum fornecedor.</p></article>
+        <article data-rotulo="Nada preso a uma plataforma" class="laudo__row"><span class="laudo__n" aria-hidden="true">03</span><h3>O que é seu continua seu</h3><p>Código, domínio, contas e acessos ficam no seu nome. Nada depende de uma plataforma que só eu opero, e sair nunca exige recomeçar do zero.</p></article>
+        <article data-rotulo="Acessos e custos à vista" class="laudo__row"><span class="laudo__n" aria-hidden="true">04</span><h3>Transparência em dados e custos</h3><p>Você sabe o que o sistema acessa, por quê e o que fez. E sabe, antes de construir, quais custos de manter tudo rodando ficam com você.</p></article>
+        <div class="estacao-vao" aria-hidden="true"><span class="estacao-vao__nucleo"></span></div>
       </div>
     </section>
 
@@ -255,14 +226,14 @@
     <div class="faixa faixa--prova">
     <section class="section" id="prova" aria-labelledby="prova-titulo">
       <div class="section__head reveal">
-        <p class="kicker"><b>04</b> Prova</p>
+        <p class="kicker"><b aria-hidden="true">04</b> Prova</p>
         <h2 id="prova-titulo">Esta página se mede enquanto você lê.</h2>
         <p class="lead">Em vez de prometer velocidade, deixo o seu navegador medir. Os números abaixo são desta visita, neste aparelho.</p>
       </div>
       <div class="prova reveal" data-metrica-caixa>
-        <div class="prova__item"><span class="prova__mascara"><span class="prova__tinta"><span class="prova__val" data-metrica="carga">—</span></span></span><span class="prova__rot">até a página estar pronta para uso</span></div>
-        <div class="prova__item"><span class="prova__mascara"><span class="prova__tinta"><span class="prova__val" data-metrica="peso">—</span></span></span><span class="prova__rot">baixados deste domínio até agora, fontes incluídas</span></div>
-        <div class="prova__item" data-metrica-fps><span class="prova__mascara"><span class="prova__tinta"><span class="prova__val" data-metrica="fps">—</span></span></span><span class="prova__rot">quadros por segundo sustentados agora, com o movimento rodando</span></div>
+        <div data-rotulo="Tempo até estar pronta" class="prova__item"><span class="prova__mascara"><span class="prova__tinta"><span class="prova__val" data-metrica="carga">—</span></span></span><span class="prova__rot">até a página estar pronta para uso</span></div>
+        <div data-rotulo="Peso desta visita" class="prova__item"><span class="prova__mascara"><span class="prova__tinta"><span class="prova__val" data-metrica="peso">—</span></span></span><span class="prova__rot">baixados deste domínio até agora, fontes incluídas</span></div>
+        <div data-rotulo="Fluidez medida agora" class="prova__item" data-metrica-fps><span class="prova__mascara"><span class="prova__tinta"><span class="prova__val" data-metrica="fps">—</span></span></span><span class="prova__rot">quadros por segundo sustentados agora, com o movimento rodando</span></div>
         <span class="varredura" aria-hidden="true"></span>
         <div class="prova__passo" aria-hidden="true"><ol class="prova__indice"><li><b>01</b> carga</li><li><b>02</b> peso</li><li><b>03</b> movimento</li></ol><i class="prova__barra"></i></div>
       </div>
@@ -274,11 +245,11 @@
     <section class="conversa" id="conversa" aria-labelledby="conversa-titulo">
       <span class="conversa__regua" aria-hidden="true"></span><span class="varredura" aria-hidden="true"></span>
       <div class="section reveal">
-        <p class="kicker"><b>05</b> Conversa</p>
-        <h2 id="conversa-titulo">Me diga o que precisa acontecer. <span class="h2-frase">Eu&nbsp;digo <em>como</em>.</span></h2>
+        <p class="kicker"><b aria-hidden="true">05</b> Conversa</p>
+        <h2 id="conversa-titulo">Me diga o que precisa acontecer. <span class="h2-frase">Eu&nbsp;digo <em data-palavras="como|quanto|quando">como</em>.</span></h2>
         <p class="lead">Uma conversa curta resolve a primeira pergunta: se o seu caso é site, automação, as duas coisas ou nenhuma delas.</p>
         <div class="cta__acoes">
-          <a class="btn btn--primary btn--lg" data-wa href="https://wa.me/5521977167944">Falar comigo <span aria-hidden="true" data-seta="direita">→</span></a>
+          <a data-rotulo="Quem responde é humano" class="btn btn--primary btn--lg" data-wa href="https://wa.me/5521977167944">Conversar no WhatsApp <span aria-hidden="true" data-seta="direita">→</span></a>
         </div>
         <p class="fine">Quem responde é humano. A primeira conversa é grátis e sem compromisso.</p>
       </div>
@@ -290,6 +261,7 @@
       <div class="footer__brand">
         <a href="/" aria-label="Beyon Zero — início"><span class="wordmark wordmark--lg">Beyon <b>Zero</b></span></a>
         <p>Ideias ganham forma. E o resultado se mede.</p>
+        <p class="footer__contato"><a data-wa href="https://wa.me/5521977167944">WhatsApp (21) 97716-7944</a> · Rio de Janeiro · atendo todo o Brasil</p>
       </div>
       <nav class="footer__links" aria-label="Serviços">
         <p class="footer__links-title">Serviços</p>
@@ -297,7 +269,7 @@
         <a href="/automacao">Automação &amp; IA</a>
         <a data-wa="quero falar sobre uma experiência digital sob medida" href="https://wa.me/5521977167944">Experiências digitais</a>
       </nav>
-      <nav class="footer__links" aria-label="Links do rodapé">
+      <nav class="footer__links" aria-label="Nesta página">
         <p class="footer__links-title">Nesta página</p>
         <a href="#metodo">Como funciona</a>
         <a href="#garantias">Garantias</a>
@@ -306,12 +278,16 @@
     </div>
     <div class="footer__base">
       <p class="footer__copy">© <span id="year">2026</span> Beyon Zero · Rio de Janeiro, RJ. Todos os direitos reservados.</p>
-      <button class="footer__motion" type="button" aria-pressed="false">Reduzir movimento</button>
+      <div class="footer__legal">
+        <a href="/privacidade">Privacidade</a>
+        <button class="footer__cookies" type="button" data-consentimento-abrir hidden>Cookies</button>
+        <button class="footer__motion" type="button" aria-pressed="false">Reduzir movimento</button>
+      </div>
     </div>
   </footer>
 
   <div class="barra is-oculta" id="barra">
-    <a class="btn btn--primary" data-wa href="https://wa.me/5521977167944">Falar comigo <span aria-hidden="true" data-seta="direita">→</span></a>
+    <a data-rotulo="Quem responde é humano" class="btn btn--primary" data-wa href="https://wa.me/5521977167944">Conversar no WhatsApp <span aria-hidden="true" data-seta="direita">→</span></a>
   </div>
 
   <a data-wa class="wa" href="https://wa.me/5521977167944" aria-label="Falar no WhatsApp (abre em nova aba)">
@@ -325,7 +301,23 @@
   <script src="js/tel.js" defer></script>
   <script src="js/core.js" defer></script>
   <script src="js/pagina.js" defer></script>
+  <script src="js/medicao.js" defer></script>
+  <script src="js/metricas.js" defer></script>
+  <script src="js/passagem.js" defer></script>
   <script src="js/anima.js" defer></script>
+  <script src="js/escrita.js" defer></script>
+  <script src="js/energia-texto.js" defer></script>
+  <script src="js/carga.js" defer></script>
+  <script src="js/rede-texto.js" defer></script>
+  <script src="js/campo.js" defer></script>
+  <script src="js/trilho.js" defer></script>
+  <script src="js/rede.js" defer></script>
+  <script src="js/plasma.js" defer></script>
+  <script src="js/mini-docas.js" defer></script>
+  <script src="js/mini.js" defer></script>
+  <script src="js/mini-vida.js" defer></script>
+  <script src="js/estacao.js" defer></script>
+  <script src="js/ouro.js" defer></script>
   <script src="js/nucleo/boot.js" defer></script>
 </body>
 </html>

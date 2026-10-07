@@ -1,0 +1,3 @@
+/* sem JavaScript a conversa não funciona: some a mesa, fica o aviso com o WhatsApp (carregado por <noscript> no head) */
+.orc-mesa, .orc-etapas { display: none !important; }
+.orc-aviso--semjs { display: block; }

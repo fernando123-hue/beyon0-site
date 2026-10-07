@@ -4,8 +4,24 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Beyon Zero — resumo pra levar pra diretoria</title>
-  <meta name="description" content="Resumo de uma página pra levar pra diretoria: onde a IA paga por si na sua associação, sindicato, federação ou cooperativa, sem comissão de ferramenta envolvida." />
+  <meta name="description" content="Resumo de uma página para levar à diretoria: onde a IA paga por si na sua associação, sindicato, federação ou cooperativa." />
+  <!-- não é para ser achado na busca (duplica a FAQ de Automação); serve para encaminhar no WhatsApp e imprimir -->
+  <meta name="robots" content="noindex, follow" />
   <link rel="canonical" href="https://beyon0-site.vercel.app/resumo" />
+  <!-- prévia do link: o resumo existe para ser encaminhado no WhatsApp para a diretoria (sem isto, chegava sem cartão) -->
+  <meta property="og:url" content="https://beyon0-site.vercel.app/resumo" />
+  <meta property="og:site_name" content="Beyon Zero" />
+  <meta property="og:locale" content="pt_BR" />
+  <meta property="og:title" content="Resumo para a diretoria: onde a IA paga por si na sua entidade — Beyon Zero" />
+  <meta property="og:description" content="Uma página para levar à reunião: o que a IA resolve numa associação, sindicato, federação ou cooperativa, como funciona o diagnóstico grátis e o que fica no nome da entidade." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="https://beyon0-site.vercel.app/assets/og-cover.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Beyon Zero — sites, automação e inteligência artificial" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Resumo para a diretoria: onde a IA paga por si na sua entidade — Beyon Zero" />
+  <meta name="twitter:image" content="https://beyon0-site.vercel.app/assets/og-cover.jpg" />
 
   <meta name="theme-color" content="#000000" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
@@ -14,7 +30,7 @@
   <!-- Página isolada de propósito: sem o movimento do site principal. É pra
        ser lida rápido por alguém que não viu o site, ou impressa/salva como
        PDF pela diretoria. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.googletagmanager.com https://www.googleadservices.com https://www.google.com; style-src 'self'; font-src 'self'; img-src 'self' data: https://*.google-analytics.com https://*.googletagmanager.com https://*.g.doubleclick.net https://www.google.com https://www.google.com.br https://www.googleadservices.com; connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.g.doubleclick.net https://www.google.com https://www.google.com.br https://www.googleadservices.com https://pagead2.googlesyndication.com; frame-src https://td.doubleclick.net; object-src 'none'; base-uri 'self'; form-action 'none'" />
 
   <link rel="stylesheet" href="css/tokens.css" />
   <link rel="stylesheet" href="resumo.css" />
@@ -36,7 +52,7 @@
     <section class="r-section">
       <h2>O problema</h2>
       <ul role="list" class="r-list">
-        <li><strong>Trabalho que não exige gente.</strong> Horas de gente cara em tarefa repetitiva. Vira folha de pagamento sem virar resultado.</li>
+        <li><strong>A equipe presa no repetitivo.</strong> Horas respondendo a mesma pergunta e copiando dado de um lugar para outro, enquanto o associado espera.</li>
         <li><strong>Oportunidade que esfria.</strong> O contato sem resposta a tempo, o orçamento que ninguém retomou, o associado que perguntou e desistiu.</li>
         <li><strong>Conhecimento parado.</strong> Anos de histórico, documentos e conversas que ninguém acha na hora exata de decidir.</li>
       </ul>
@@ -45,7 +61,7 @@
     <section class="r-section">
       <h2>O que a Beyon Zero faz</h2>
       <ul role="list" class="r-list r-list--grid">
-        <li><strong>Agentes que executam.</strong> Recebe uma tarefa, cumpre com as ferramentas certas e chama alguém só quando precisa de uma decisão. Mais funcionário do que chatbot.</li>
+        <li><strong>Agentes que executam.</strong> Recebe uma tarefa, cumpre com as ferramentas certas e chama a equipe só quando precisa de uma decisão. Um assistente que tira o repetitivo de quem atende.</li>
         <li><strong>Atendimento que escala.</strong> Absorve o volume repetitivo, classifica o que chega e passa pra uma pessoa só o que precisa de uma.</li>
         <li><strong>Receita recuperada.</strong> Contato esquecido, orçamento sem resposta, associado que sumiu. O sistema encontra, prioriza e reabre a conversa.</li>
         <li><strong>Processos automatizados.</strong> O gargalo que trava a operação vira fluxo automático, com registro e parada humana onde importa.</li>
@@ -88,12 +104,15 @@
     <section class="r-cta">
       <h2>Próximo passo</h2>
       <p>Uma conversa direta sobre a entidade de vocês. O preço da construção é fixo e não muda com a ferramenta escolhida, porque não recebo comissão de nenhum fornecedor. Se não houver onde a IA pague por si, eu digo.</p>
-      <a class="r-btn" id="resumoWa" href="#" target="_blank" rel="noopener">Agendar diagnóstico <span aria-hidden="true">→</span></a>
+      <a class="r-btn" id="resumoWa" href="https://wa.me/5521977167944" target="_blank" rel="noopener">Agendar diagnóstico <span aria-hidden="true">→</span></a>
       <p class="r-fine">Quem responde é humano. O diagnóstico é grátis e sem compromisso.</p>
+      <p class="r-impresso">WhatsApp (21) 97716-7944 · beyon0-site.vercel.app</p>
     </section>
   </main>
 
   <script src="js/tel.js" defer></script>
   <script src="js/resumo.js" defer></script>
+  <script src="js/medicao.js" defer></script>
+  <script src="js/metricas.js" defer></script>
 </body>
 </html>
