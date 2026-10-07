@@ -111,9 +111,39 @@ test('privacidade: formatos que escapavam também saem (revisão do PR 1, segura
   assert.equal(redigir('cnpj 12 345 678 0001 95'), 'cnpj [documento]');
   assert.equal(redigir('meu cpf 123 456 789 09'), 'meu cpf [documento]');
   assert.equal(redigir('tel (21) 3333-4444'), 'tel [telefone]');
+  assert.equal(redigir('zap 11987654321'), 'zap [telefone]', 'celular sem pontuação é telefone, não documento');
+  /* revisões do PR 6: outros formatos comuns */
+  for (const [texto, vazou] of [
+    ['(11)98765.4321', '98765'], ['zap 99999.9999', '99999'], ['zap 9 9999-9999', '9999'],
+    ['ana @ gmail.com', 'gmail'], ['ana@gmail ponto com', 'gmail'], ['joao [at] empresa [dot] com', 'empresa'],
+    ['１１９８７６５４３２１', '９８７'], ['ana＠gmail.com', 'gmail'], ['11​98765​4321', '98765'],
+  ]) assert.ok(!redigir(texto).includes(vazou) && !redigir(texto).normalize('NFKC').includes(vazou.normalize('NFKC')), texto + ' → ' + redigir(texto));
   /* o que NÃO é dado pessoal fica: preço, faixa, quantidade, ano, horário, prazo */
-  for (const texto of ['orçamento entre 2000-3000 reais', 'site com 5 páginas em 2026', 'atendo das 8 às 18', 'umas 300 visitas por mês', 'prazo de 15 dias', 'look at this.site', 'R$ 1.500.000,00 em 2025', 'me chama às 9h']) {
+  for (const texto of ['orçamento entre 2000-3000 reais', 'site com 5 páginas em 2026', 'atendo das 8 às 18', 'umas 300 visitas por mês', 'prazo de 15 dias', 'look at this.site', 'R$ 1.500.000,00 em 2025', 'me chama às 9h',
+    'faturamento de 50.000-100.000 por mês', 'faturo 50000-100000', 'R$ 50.000-100.000', '100000-200000 por ano',
+    'meta de 1.200.000.000', 'entrega em 15/12/2026 18h', 'reunião 2026-10-07 14:30', 'dia 07.10.2026 14.30',
+    'de 10/10/2026 a 15/10/2026', 'O preço da arroba subiu. Preciso de um site', 'preço da arroba é 300 reais', 'siga @clinica.sorriso no insta']) {
     assert.equal(redigir(texto), texto, 'não mexe em: ' + texto);
+  }
+});
+
+test('privacidade: redigir é linear — mensagem adversária de 2.000 caracteres não trava o servidor (revisões do PR 6, ReDoS)', () => {
+  const adversarias = [
+    'a' + ' '.repeat(1000) + 'arroba' + ' '.repeat(993) + '!',
+    'a'.repeat(1000) + ' '.repeat(1000),
+    'a'.repeat(1000) + '\n'.repeat(1000),
+    'a.'.repeat(1000),
+    'a '.repeat(500) + 'at '.repeat(300) + '!',
+    '1 '.repeat(1000),
+    '1-'.repeat(1000),
+    '9'.repeat(2000),
+    ('ana arroba ' + 'x ponto '.repeat(3)).repeat(60).slice(0, 2000),
+  ];
+  for (const texto of adversarias) {
+    const inicio = performance.now();
+    redigir(texto);
+    const ms = performance.now() - inicio;
+    assert.ok(ms < 50, 'redigir levou ' + ms.toFixed(1) + ' ms em: ' + JSON.stringify(texto.slice(0, 30)) + '…');
   }
 });
 
