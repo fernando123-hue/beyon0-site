@@ -13,6 +13,11 @@ import { mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8899';
+/* só servidor local: contra um site de verdade este teste cria conversa, chama a IA paga e cria pedido de pagamento */
+if (!['127.0.0.1', 'localhost', '[::1]'].includes(new URL(BASE).hostname)) {
+  console.error('Recusado: BASE precisa ser o servidor local (127.0.0.1, localhost ou [::1]), não ' + new URL(BASE).host + '. Ver docs/PROCESSO.md, passo 4.');
+  process.exit(2);
+}
 const EXEC = process.env.CHROMIUM || undefined;
 const PASTA = new URL('./olhar-orcamento/', import.meta.url);
 await mkdir(PASTA, { recursive: true });

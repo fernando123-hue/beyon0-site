@@ -1,5 +1,12 @@
 # Beyon Zero — transferência de contexto
 
+> **2026-10-07 — `main` = rebuild-v2 + correções (PRs 1 e 2), NÃO PROMOVIDA.** A produção segue `8103c99`.
+> O agente mescla PRs na `main` seguindo `docs/PROCESSO.md` (autorização do dono, 2026-10-07). O guarda do
+> Claude Code (`~/.claude/guarda/`) libera o merge comum desde a mesma data (o dono escolheu e o script
+> `06 Operação/liberar-merge-no-guarda.cjs` do vault foi rodado); seguem negados merge com `--admin`/`--auto`,
+> push direto na `main` e publicar na Vercel. Estado vivo: bloco ESTADO no topo do `LEIA-ME.md` do vault.
+> O que vem abaixo é histórico.
+
 > **V2 — RECONSTRUÇÃO COMPLETA (2026-10-01, branch `rebuild-v2`, NÃO PUBLICADA).**
 > Design, copy, motion, arquitetura, performance e segurança foram refeitos.
 > Leia `docs/restructure/DIRECAO-V2.md` e a seção 13 de
