@@ -87,7 +87,15 @@
 
   async function garantirSessao() {
     if (sessao && sessao.conversa_id) return sessao;
-    var s = await http('POST', 'sessao', origem());
+    var corpo = origem();
+    /* anti-robô (js/orcamento-turnstile.js): sem chave configurada, não há token e o servidor não exige */
+    if (window.BZTurnstile) {
+      var t;
+      try { t = await window.BZTurnstile.token(); }
+      catch (e) { throw new Falha(403, { erro: 'Não foi possível confirmar que você não é um robô. Recarregue a página e tente de novo.' }); }
+      if (t) corpo = Object.assign({}, corpo, { turnstile: t });
+    }
+    var s = await http('POST', 'sessao', corpo);
     gravar({ token: s.token, refresh: s.refresh, expira_em: s.expira_em, conversa_id: s.conversa_id });
     return sessao;
   }
