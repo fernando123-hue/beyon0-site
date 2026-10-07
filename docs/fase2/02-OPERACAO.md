@@ -27,7 +27,9 @@ Como ligar, ajustar e desligar o agente. A base (migrations, testes, segredos, b
    ```sql
    select cron.schedule('bz-retencao', '17 4 * * *', $$ select app.vendas_reter('{}'::jsonb) $$);
    ```
-   A função apaga o texto das conversas sem contrato paradas há 90 dias. Ficam os números do funil.
+   A função apaga o texto das conversas sem contrato paradas há 60 dias (2 meses, decisão do dono de 2026-10-07) e o
+   lead (nome, WhatsApp, e-mail) de quem não fechou, parado há 60 dias (migration `…120500_retencao_leads.sql`).
+   Ficam os números do funil.
 
 ## 2. Desligar ou conter
 

@@ -244,6 +244,44 @@ test('retenção: o texto de conversa parada sem contrato some; a com cobrança 
   assert.ok((await local.db.query('select 1 from app.estimativas where conversa_id = $1', [sv.conversa_id])).rows.length, 'o número do funil fica');
 });
 
+test('retenção de leads: quem não fechou some 2 meses depois da última atividade (decisão do dono, 2026-10-07)', async () => {
+  const q = (sql, p) => local.db.query(sql, p);
+  const org = (await q('select id from app.organizacoes limit 1')).rows[0].id;
+  const novoLead = async (nome, extra = {}) => {
+    const id = (await q(`insert into app.leads (org_id, nome, telefone, status, cliente_id) values ($1, $2, '+5521999990000', $3, $4) returning id`,
+      [org, nome, extra.status || 'novo', extra.cliente_id || null])).rows[0].id;
+    /* (montagem: a data vem do banco; só o modo de restauração aceita uma data passada) */
+    await local.db.exec(`begin; set local bz.restaurando = 'on'; update app.leads set updated_at = now() - interval '${Number(extra.dias ?? 61)} days' where id = '${id}'; commit;`);
+    return id;
+  };
+  const velho = await novoLead('Lead velho');
+  const recente = await novoLead('Lead recente', { dias: 10 });
+  const cliente = (await q(`insert into app.clientes (org_id, nome) values ($1, 'Cliente pago') returning id`, [org])).rows[0].id;
+  const ganho = await novoLead('Lead ganho', { status: 'ganho', cliente_id: cliente });
+  /* lead velho, mas a conversa dele está aguardando pagamento: fica */
+  const n = navegador();
+  const s = await n.iniciar();
+  await n.chamar('POST', 'mensagem', { conversa_id: s.conversa_id, texto: 'Tenho uma escola e quero um site institucional para captar matrículas' });
+  const emPagamento = await novoLead('Lead pagando');
+  await q('update app.conversas set lead_id = $1 where id = $2', [emPagamento, s.conversa_id]);
+  await local.db.exec(`begin; set local bz.transicao_livre = 'on'; update app.conversas set etapa = 'aguardando_pagamento', ultima_atividade = now() - interval '90 days' where id = '${s.conversa_id}'; commit;`);
+  /* lead velho com conversa ainda ativa: fica (a última atividade é a da conversa) */
+  const m = navegador();
+  const sm = await m.iniciar();
+  const conversando = await novoLead('Lead conversando');
+  await q('update app.conversas set lead_id = $1 where id = $2', [conversando, sm.conversa_id]);
+
+  const r = await local.rpc('vendas_reter', {});
+  assert.equal(r.dias, 60, 'o padrão é 2 meses');
+  assert.ok(r.leads_apagados >= 1, JSON.stringify(r));
+  const existe = async id => (await q('select 1 from app.leads where id = $1', [id])).rows.length === 1;
+  assert.equal(await existe(velho), false, 'lead parado há 61 dias sem fechar: apagado');
+  assert.equal(await existe(recente), true, 'lead de 10 dias: fica');
+  assert.equal(await existe(ganho), true, 'lead que virou cliente: fica');
+  assert.equal(await existe(emPagamento), true, 'lead com cobrança em aberto: fica');
+  assert.equal(await existe(conversando), true, 'lead com conversa recente: fica');
+});
+
 /* ======================= correções da revisão (2026-10-07) ======================= */
 async function ateDirecoes(n, texto = 'Tenho uma clínica e quero um site institucional para agendamentos') {
   const s = await n.iniciar();
