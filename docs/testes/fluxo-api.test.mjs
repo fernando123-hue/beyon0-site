@@ -176,7 +176,13 @@ test('dados incompletos ou inconsistentes: cada um recusado com motivo, sem 500'
   const c = s.conversa_id;
   const casos = [
     ['POST', 'acao-que-nao-existe', {}, 404],
+    ['GET', 'constructor', undefined, 404],      /* nome herdado do Object.prototype não é ação (revisão do PR 1, B1) */
+    ['GET', 'toString', undefined, 404],
+    ['POST', '__proto__', {}, 404],
     ['POST', 'mensagem', '{quebrado', 400],
+    ['POST', 'alterar', { conversa_id: c, pedido: '' }, 400],      /* não pode virar a string "null" (revisão do PR 1, M1) */
+    ['POST', 'alterar', { conversa_id: c, pedido: 'a'.repeat(2001) }, 400],
+    ['POST', 'alterar', { conversa_id: c }, 400],
     ['POST', 'mensagem', { conversa_id: 'x', texto: 'oi' }, 400],
     ['POST', 'mensagem', { conversa_id: c, texto: '' }, 400],
     ['POST', 'mensagem', { conversa_id: c, texto: 'a'.repeat(2001) }, 400],
@@ -190,7 +196,7 @@ test('dados incompletos ou inconsistentes: cada um recusado com motivo, sem 500'
   ];
   for (const [m, acao, corpo, esperado] of casos) {
     const r = await n.chamar(m, acao, corpo);
-    assert.equal(r.status, esperado, acao + ' ' + JSON.stringify(corpo).slice(0, 60) + ' → ' + JSON.stringify(r.corpo));
+    assert.equal(r.status, esperado, acao + ' ' + String(JSON.stringify(corpo)).slice(0, 60) + ' → ' + JSON.stringify(r.corpo));
   }
   assert.equal((await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'oi' }, { tipo: 'text/plain' })).status, 415, 'formulário de outro site');
 });

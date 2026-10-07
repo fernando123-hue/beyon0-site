@@ -55,14 +55,22 @@ o `npm audit` das dependências de produção e, no PR para a `main`, o E2E do o
    críticos/altos corrigidos. Qualquer check vermelho ou achado sem destino: não mescla. A `main` **não publica
    sozinha**: `vercel.json → git.deploymentEnabled.main = false`. (Dono, 2026-10-07: "desde que você sempre siga
    o processo de verificação e revisão, você pode mexer na main"; antes, quem mesclava era ele.)
-4. **O dono** promove para produção no painel da Vercel: Deployments → a prévia do commit mesclado →
-   "Promote to Production". Voltar atrás: "Instant Rollback" no mesmo painel.
+4. **O dono** promove para produção no painel da Vercel. Como a `main` não é construída, o que se promove é a
+   **prévia do último commit da branch do PR** (o PR mostra o SHA; com merge comum, a árvore é a mesma da `main` —
+   conferir com `git diff origin/main <sha>` vazio). Deployments → essa prévia → ⋯ → "Promote to Production".
+   A Vercel **reconstrói do zero com as variáveis de Produção** (doc oficial "Promoting Deployments", conferida em
+   2026-10-07: "You cannot use your preview environment variables in a production deployment"), então banco e
+   Mercado Pago passam a ser os de produção. Voltar atrás: "Instant Rollback" (não reconstrói).
+   Alternativa sem reconstrução, se o dono preferir: ligar a construção da `main` só DEPOIS de desligar
+   "Auto-assign Custom Production Domains" (Settings → Environments → Production); aí cada merge vira uma
+   produção "Staged" e o dono clica em "Promote". Nessa ordem; ao contrário, o merge iria ao ar sozinho.
 5. Migration de banco: **antes** do passo 4, pelo dono, no roteiro de `docs/fundacao/02-OPERACAO.md`
    (o código novo nunca vai ao ar antes da migration que ele usa).
 
 O que impede o agente de pular isso (mecanismo, não texto): o guarda do Claude Code (`~/.claude/guarda/`)
 nega `vercel --prod`/`promote`/`rollback`, push direto na `main` ou forçado, `gh pr merge --admin`/`--auto` e
-`gh workflow run` nos projetos da Beyon, `supabase db push` e a leitura de `.env`; e as regras `permissions.deny` do
+`gh workflow run` nos projetos da Beyon, `supabase db push` e a leitura de `.env` (até o dono aplicar a liberação
+do merge comum no guarda — o agente não pode alterar o próprio guarda —, ele nega todo `gh pr merge`); e as regras `permissions.deny` do
 `~/.claude/settings.json` repetem os principais.
 
 ## Sempre pedir o dono

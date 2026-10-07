@@ -41,7 +41,8 @@ export async function atender(request, env, metodo, deps) {
   const requestId = randomUUID();
   const responder = (dados, status) => json(dados, status, requestId);
   const query = new URL(request.url).searchParams;
-  const acao = ACOES[metodo] && ACOES[metodo][query.get('acao')];
+  const nome = query.get('acao');
+  const acao = Object.hasOwn(ACOES, metodo) && Object.hasOwn(ACOES[metodo], nome) ? ACOES[metodo][nome] : null;   /* (não "constructor", "__proto__"…) */
   if (!acao) return responder({ erro: 'Ação inválida.' }, 404);
   const ip = ipDe(request);
   if (freioGeral(ip) || (acao === 'sessao' && freioSessao(ip))) return responder({ erro: 'Muitas requisições. Espere um minuto.' }, 429);
