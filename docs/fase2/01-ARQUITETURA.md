@@ -65,3 +65,38 @@ Migrations `20261007120000` a `…120200`.
 - as regras comerciais.
 
 **Limite conhecido do teste:** o PGlite tem uma conexão só e enfileira as transações. A corrida verdadeira é coberta, no Postgres real, pela trava `FOR UPDATE` e pelos índices únicos, não por este teste.
+
+## Incremento 2: o motor de regras comerciais
+
+`api/_vendas/precos.mjs` é a única fonte de preço.
+
+- **Entrada:** o agente escolhe fatores (formato, páginas, adicionais, urgência, complexidade), validados em lista fechada.
+- **Cálculo:** base mais adicionais, vezes os multiplicadores, com piso, arredondamento e sinal pela regra.
+- **Teto de 10 dias:** o que não cabe vira fase 1 mais fase seguinte, por prioridade.
+- **Diagnóstico:** o que está fora do automático e os valores acima do limite vão para o diagnóstico, sem preço.
+- **Valores:** a tabela-rascunho com fontes está em `docs/fase2/REGRAS-RASCUNHO.md`. Só a versão ativa, aprovada pelo dono, gera preço.
+
+## Incremento 3: a camada de IA e o agente
+
+`api/_ia/` é a interface única: `mensagem({ papel, sistema, mensagens, ferramentas, esquema })`.
+
+- **Provedor real:** Anthropic, pelo SDK oficial com versão fixa. Sonnet 5.5 com esforço médio na conversa e Opus 5.5 com esforço alto na geração. Fallback do servidor, cache do prompt e erros tipados.
+- **Provedor simulado:** só para testes e o servidor local.
+- **O turno do agente:** `api/_vendas/agente.mjs`, com 5 ferramentas e sem nenhuma que mexa em preço, desconto, dados de terceiros ou pagamento.
+- **O valor fora do modelo:** o modelo não recebe o valor da estimativa, e um valor em dinheiro no texto é removido.
+- **Briefing:** lista fechada, com a confiança calculada pela cobertura dos campos.
+- **Privacidade:** dado pessoal é redigido antes de ir ao modelo.
+
+## Incremento 4: a geração das 3 direções
+
+- **Uma direção por pedido.** As 3 rodam em paralelo pelo navegador, cada uma dentro do limite de 300 s da Vercel Hobby.
+- **Posse no banco** (`app.vendas_reivindicar_direcao`). Outra aba não gera a mesma direção, e uma posse abandonada vence em 6 minutos.
+- **O modelo devolve estrutura,** no JSON Schema `ESQUEMA_DIRECAO`. Ela é higienizada por `api/_vendas/direcao.mjs`:
+  - lista fechada de seções e fontes;
+  - tamanhos;
+  - cores em hexadecimal;
+  - contraste de leitura corrigido;
+  - HTML removido;
+  - lorem ipsum recusado.
+- **Prova social:** sem dado no briefing, ela vira espaço reservado entre colchetes.
+- **Mesmo briefing, estratégias diferentes.** As 3 direções partem do mesmo briefing e do mesmo prompt de sistema, que fica em cache. Só a estratégia muda: conversão, autoridade ou experiência.
