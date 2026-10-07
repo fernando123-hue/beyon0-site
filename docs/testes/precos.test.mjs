@@ -1,0 +1,70 @@
+/* Motor de regras comerciais (api/_vendas/precos.mjs) contra a tabela-rascunho v1. O preço sai só daqui. */
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { estimar, validarRegras, validarFatores } from '../../api/_vendas/precos.mjs';
+
+const REGRAS = JSON.parse(fs.readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
+const copia = () => JSON.parse(JSON.stringify(REGRAS));
+
+test('a tabela-rascunho é válida, e tabela quebrada é recusada', () => {
+  assert.deepEqual(validarRegras(REGRAS), { ok: true });
+  const r = copia(); r.formatos.landing_page.piso = 99999; r.sinal_percentual = 150; delete r.adicionais.pagina_extra;
+  const e = validarRegras(r).erros;
+  assert.ok(e.some(x => x.includes('piso')) && e.some(x => x.includes('sinal_percentual')) && e.some(x => x.includes('pagina_extra')));
+  assert.throws(() => estimar({ formato: 'landing_page' }, r), /regras inválidas/);
+});
+
+test('casos de referência (os números do REGRAS-RASCUNHO.md)', () => {
+  const l = estimar({ formato: 'landing_page' }, REGRAS);
+  assert.deepEqual([l.valor_total, l.sinal, l.prazo_dias, l.fase], [1500, 750, 5, 'unica']);
+  const i = estimar({ formato: 'institucional', paginas: 7, adicionais: { textos: 7, agendamento: 1 } }, REGRAS);
+  assert.deepEqual([i.valor_total, i.sinal, i.prazo_dias, i.fase], [4500, 2250, 10, 'fase1']);
+  assert.deepEqual(i.itens.map(x => x.chave + 'x' + x.qtd), ['pagina_extrax2', 'textosx4'], 'páginas antes dos textos, até o teto');
+  assert.deepEqual(i.fase_seguinte.itens.map(x => x.chave + 'x' + x.qtd), ['textosx3', 'agendamentox1']);
+  assert.equal(i.fase_seguinte.valor_estimado, 900);
+  const g = estimar({ formato: 'institucional', paginas: 10, adicionais: { blog: 1, catalogo: 1 } }, REGRAS);
+  assert.deepEqual([g.valor_total, g.prazo_dias, g.fase, g.fase_seguinte.valor_estimado], [4600, 10, 'fase1', 2750]);
+  const u = estimar({ formato: 'landing_page', urgencia: true }, REGRAS);
+  assert.deepEqual([u.valor_total, u.prazo_dias], [1950, 3]);
+  assert.equal(estimar({ formato: 'sob_medida', complexidade: 'alta' }, REGRAS).valor_total, 8130);
+});
+
+test('nunca passa do teto de prazo, nunca fica abaixo do piso', () => {
+  for (const formato of ['landing_page', 'institucional', 'sob_medida']) {
+    for (const paginas of [1, 5, 12, 30]) {
+      const e = estimar({ formato, paginas, adicionais: { blog: 1, idioma: 2, integracao: 3 }, urgencia: paginas > 10, complexidade: 'alta' }, REGRAS);
+      if (e.encaminhar_diagnostico) continue;
+      assert.ok(e.prazo_dias <= REGRAS.prazo_max_dias, formato + ' ' + paginas + ' páginas: ' + e.prazo_dias + ' dias');
+      assert.ok(e.valor_total >= REGRAS.formatos[formato].piso);
+      assert.equal(e.sinal, e.valor_total / 2);
+    }
+  }
+  /* base abaixo do piso é tabela incoerente: recusada, em vez de calcular um preço que ninguém aprovou */
+  const r = copia(); r.formatos.landing_page.base = 100;
+  assert.throws(() => estimar({ formato: 'landing_page' }, r), /piso/);
+});
+
+test('fora do automático e valor alto vão para o diagnóstico, sem preço', () => {
+  const loja = estimar({ formato: 'institucional', adicionais: { loja_virtual: 1 } }, REGRAS);
+  assert.equal(loja.encaminhar_diagnostico, true);
+  assert.equal(loja.valor_total, undefined, 'nenhum valor inventado');
+  const r = copia(); r.limites.valor_max_automatico = 2000;
+  assert.equal(estimar({ formato: 'institucional' }, r).encaminhar_diagnostico, true);
+});
+
+test('fatores: lista fechada; preço, desconto e quantidade fora da regra não entram', () => {
+  assert.ok(validarFatores({ formato: 'landing_page', valor_total: 1 }, REGRAS).erros.some(e => e.includes('valor_total')), 'o modelo não manda preço');
+  assert.ok(validarFatores({ formato: 'landing_page', desconto: 50 }, REGRAS).erros, 'nem desconto');
+  assert.ok(validarFatores({ formato: 'site_gratis' }, REGRAS).erros);
+  assert.ok(validarFatores({ formato: 'landing_page', adicionais: { brinde: 1 } }, REGRAS).erros, 'adicional inventado');
+  assert.ok(validarFatores({ formato: 'landing_page', adicionais: { blog: -1 } }, REGRAS).erros, 'quantidade negativa');
+  assert.ok(validarFatores({ formato: 'landing_page', paginas: 0.5 }, REGRAS).erros);
+  assert.equal(validarFatores({ formato: 'landing_page', adicionais: { integracao: 99 } }, REGRAS).dados.adicionais.integracao, 3, 'limitado ao máximo da regra');
+  assert.ok(estimar({ formato: 'landing_page', adicionais: { brinde: 1 } }, REGRAS).erros);
+});
+
+test('o mesmo pedido dá sempre o mesmo preço (determinístico)', () => {
+  const f = { formato: 'institucional', paginas: 6, adicionais: { textos: 6, imagens: 1 } };
+  assert.deepEqual(estimar(f, REGRAS), estimar(JSON.parse(JSON.stringify(f)), REGRAS));
+});
