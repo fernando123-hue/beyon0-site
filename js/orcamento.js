@@ -307,14 +307,23 @@
 
   /* ---------- pagamento do sinal (js/orcamento-pagamento.js: Pix e cartão no próprio site) ---------- */
   var telaPagamento = window.BZPagamentoTela ? window.BZPagamentoTela.criar({ API: API, dinheiro: dinheiro, aoPagar: function () { recarregar().catch(function () {}); } }) : null;
+  var recibo = window.BZRecibo ? window.BZRecibo.criar({ API: API, dinheiro: dinheiro }) : null;
+  var viuAguardando = false;   /* a etapa "aguardando pagamento" foi vista nesta tela: a confirmação chega ao vivo e o recibo anima */
+  function sinalPct(pr) { return pr.sinal_percentual == null ? 50 : Number(pr.sinal_percentual); }   /* (o servidor usa 50 quando falta: app.vendas_*) */
+  function dias(n) { return n + (Number(n) === 1 ? ' dia' : ' dias'); }
+  /* o sinal: o registro PAGO quando houver; senão o último criado; sem nenhum, o combinado na proposta */
+  function valorDoSinal(pr) {
+    var sinais = E.pagamentos.filter(function (p) { return p.parcela === 'sinal'; });
+    var pagos = sinais.filter(function (p) { return p.status === 'pago'; });
+    var ultimo = pagos[pagos.length - 1] || sinais[sinais.length - 1];
+    return ultimo ? Number(ultimo.valor) : Math.round(Number(pr.valor_total) * sinalPct(pr)) / 100;
+  }
   function pagamento() {
     var pr = E.proposta;
     if (!pr) return;
-    var sinais = E.pagamentos.filter(function (p) { return p.parcela === 'sinal'; });
-    var ultimo = sinais[sinais.length - 1];
-    var sinal = ultimo ? Number(ultimo.valor) : Math.round(Number(pr.valor_total) * Number(pr.sinal_percentual)) / 100;
-    if (mudou('pagamento', [pr, ultimo && ultimo.valor])) {
-      $('o-pag-lead').textContent = 'Escopo confirmado: ' + dinheiro(pr.valor_total) + ' em até ' + pr.prazo_dias + ' dias. Para começar, o sinal de ' + pr.sinal_percentual + '%: ' + dinheiro(sinal) + '. O restante na entrega.';
+    var sinal = valorDoSinal(pr);
+    if (mudou('pagamento', [pr, sinal])) {
+      $('o-pag-lead').textContent = 'Escopo confirmado: ' + dinheiro(pr.valor_total) + ' em até ' + dias(pr.prazo_dias) + '. Para começar, o sinal de ' + sinalPct(pr) + '%: ' + dinheiro(sinal) + '. O restante na entrega.';
       $('o-pag-escopo').textContent = pr.escopo || '';
       if (telaPagamento) telaPagamento.mostrar(sinal);
     }
@@ -381,9 +390,14 @@
     mostrar('o-escopo', temProposta);
     if (temProposta && mudou('escopo', E.proposta.escopo)) $('o-esc-texto').textContent = E.proposta.escopo;
     mostrar('o-pagamento', et === 'aguardando_pagamento');
-    if (et === 'aguardando_pagamento') pagamento();
-    mostrar('o-pronto', et === 'em_producao');
-    if (et === 'em_producao') { pararEspera(); if (telaPagamento) telaPagamento.parar(); }
+    if (et === 'aguardando_pagamento') { viuAguardando = true; pagamento(); }
+    var pronto = et === 'em_producao', chegou = pronto && $('o-pronto').hidden && viuAguardando;
+    mostrar('o-pronto', pronto);
+    if (pronto) {
+      pararEspera(); if (telaPagamento) telaPagamento.parar();
+      var pr = E.proposta;
+      if (recibo) recibo.desenhar(pr ? { id: pr.id, total: Number(pr.valor_total), sinal: valorDoSinal(pr), prazo: pr.prazo_dias } : null, chegou);
+    }
     visor.atualizar();
   }
   /* uma leitura por vez; resposta de uma leitura mais velha que a última desenhada é descartada */

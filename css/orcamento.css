@@ -135,7 +135,71 @@
 .orc-escopo:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
 .orc-pag-status { margin-top: 1rem; min-height: 1.5em; font-family: var(--mono); font-size: var(--fs-s); color: var(--t2); }
 .orc-pag-status a { color: var(--ac); }
-.orc-pronto h2 { color: var(--t1); }
+
+/* ---------- O RECIBO do sinal pago (js/orcamento-recibo.js; referência: docs/design/referencias-2026-10-07-recibo.md).
+   O estado final é o padrão (quem volta vê o recibo pronto); .is-chegando só declara os COMEÇOS, com fill backwards.
+   Sem desfoque nem brilho: traço nítido de 1px, uma linha de luz só. ---------- */
+.recibo { display: flex; flex-direction: column; align-items: center; max-width: 460px; margin: 0 auto; padding: 1.6rem 1.1rem 1.2rem; border: 1px solid var(--line-2); border-radius: var(--raio); background: var(--s1); text-align: center; }
+.recibo__selo { width: 64px; height: 64px; overflow: visible; }
+.recibo__anel, .recibo__check { fill: none; stroke: var(--ac); stroke-dasharray: 1; stroke-dashoffset: 0; }
+.recibo__anel { stroke-width: 1.5; transform-box: view-box; transform-origin: 32px 32px; }
+.recibo__check { stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round; }
+.recibo__rotulo { margin-top: 1rem; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--ac-3); }
+.orc-bloco .recibo__titulo { margin-top: .35rem; color: var(--t1); font-size: clamp(1.6rem, 1.3rem + 1.4vw, 2.1rem); }
+.recibo__titulo:focus { outline: none; }
+.recibo__titulo:focus-visible { outline: 2px solid var(--ac); outline-offset: 4px; }
+.recibo__lead { margin-top: .6rem; max-width: 38ch; font-size: var(--fs-s); line-height: 1.55; color: var(--t2); }
+.recibo__codigo { margin-top: .7rem; font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-dado); color: var(--t3); }
+.recibo__codigo b { font-weight: 500; color: var(--ac); }
+.recibo__codigo:has(b:empty) { visibility: hidden; }   /* a linha fica reservada até o código chegar: nada salta */
+
+/* as duas partes: encaixadas, com UMA linha entre elas (a borda de cima da entrega cobre a de baixo do pago) */
+.recibo__partes { width: 100%; margin-top: 1.3rem; text-align: left; }
+.recibo__parte { position: relative; padding: .8rem .9rem; border: 1px solid var(--line-2); background: var(--bg); }
+.recibo__parte--pago { border-radius: var(--raio) var(--raio) 0 0; }
+.recibo__partes.is-unica .recibo__parte--pago { border-radius: var(--raio); }
+.recibo__parte--entrega { margin-top: -1px; border-radius: 0 0 var(--raio) var(--raio); }
+.recibo__parte-rot { display: flex; align-items: center; gap: .4rem; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); }
+.recibo__linha { display: flex; align-items: center; gap: .75rem; margin-top: .45rem; }
+.recibo__chip { flex: none; display: inline-flex; align-items: center; justify-content: center; min-width: 44px; height: 32px; padding: 0 .4rem; border: 1px solid var(--ac); border-radius: var(--raio-s); font-family: var(--mono); font-size: var(--fs-ctrl); font-weight: 500; color: var(--ac); }
+.recibo__chip--resto { border-color: var(--stroke); color: var(--t2); }
+.recibo__dados { min-width: 0; }
+.recibo__valor { font-size: 1.15rem; font-weight: 400; line-height: 1.3; color: var(--t1); font-variant-numeric: tabular-nums; }
+.recibo__meio { font-size: var(--fs-s); line-height: 1.4; color: var(--t3); overflow-wrap: anywhere; }
+/* a luz que passa na junção quando as partes se encaixam (parada: apagada) */
+.recibo__luz { position: absolute; left: -1px; right: -1px; top: -1px; height: 1px; background: var(--ac-2); opacity: 0; transform: scaleX(0); transform-origin: left center; pointer-events: none; }
+.recibo__total { margin-top: .9rem; font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-dado); line-height: 1.6; color: var(--t3); }
+.recibo__total span { display: block; }
+.recibo__total span:first-child { color: var(--t2); }
+
+/* a CHEGADA (uma vez): o cartão sobe, o anel se fecha girando e o ✓ se desenha, o texto assenta, as partes chegam
+   separadas e se encaixam, a luz corre a junção, o total aparece. Transform e opacity; pintura só no traço do selo
+   (64px) e nos cantos das partes no encaixe (0,6 s), uma vez */
+.recibo.is-chegando { animation: rec-sobe .5s var(--ease) backwards; }
+.recibo.is-chegando .recibo__anel { animation: rec-anel .85s cubic-bezier(.65, 0, .35, 1) .15s backwards; }
+.recibo.is-chegando .recibo__check { animation: rec-traco .45s var(--ease) .9s backwards; }
+.recibo.is-chegando :is(.recibo__rotulo, .recibo__titulo, .recibo__lead, .recibo__codigo) { animation: rec-sobe .5s var(--ease) backwards; }
+.recibo.is-chegando .recibo__rotulo { animation-delay: .35s; }
+.recibo.is-chegando .recibo__titulo { animation-delay: .45s; }
+.recibo.is-chegando .recibo__lead { animation-delay: .55s; }
+.recibo.is-chegando .recibo__codigo { animation-delay: .65s; }
+.recibo.is-chegando .recibo__partes { animation: rec-aparece .4s var(--ease) .6s backwards; }
+.recibo.is-chegando .recibo__parte--pago { animation: rec-pago .6s cubic-bezier(.32, .72, 0, 1) 1.15s backwards; }
+.recibo.is-chegando .recibo__parte--entrega { animation: rec-entrega .6s cubic-bezier(.32, .72, 0, 1) 1.15s backwards; }
+.recibo.is-chegando .recibo__parte--pago .recibo__valor { animation: rec-acende .4s var(--ease) 1.15s backwards; }
+.recibo.is-chegando .recibo__luz { animation: rec-luz .9s cubic-bezier(.2, .7, .3, 1) 1.6s; }
+.recibo.is-chegando .recibo__total { animation: rec-aparece .6s var(--ease) 1.9s backwards; }
+@keyframes rec-sobe { from { opacity: 0; transform: translateY(10px); } }
+@keyframes rec-aparece { from { opacity: 0; } }
+@keyframes rec-anel { from { stroke-dashoffset: 1; transform: rotate(-150deg); } }
+@keyframes rec-traco { from { stroke-dashoffset: 1; } }
+@keyframes rec-pago { from { transform: translateY(-7px); border-radius: var(--raio); } }
+@keyframes rec-entrega { from { transform: translateY(7px); border-radius: var(--raio); } }
+@keyframes rec-acende { from { opacity: .5; } }
+@keyframes rec-luz { 0% { opacity: 1; transform: scaleX(0); } 70% { opacity: 1; transform: scaleX(1); } 100% { opacity: 0; transform: scaleX(1); } }
+@media (prefers-reduced-motion: reduce) { .recibo.is-chegando, .recibo.is-chegando * { animation: none !important; } }
+html.menos-movimento .recibo.is-chegando, html.menos-movimento .recibo.is-chegando * { animation: none !important; }
+@media (min-width: 640px) { .recibo { padding: 2rem 1.6rem 1.4rem; } .recibo__parte { padding: .9rem 1.1rem; } }
 
 /* ---------- o visor das prévias (tela cheia; sem desfoque: fundo opaco) ---------- */
 .visor { position: fixed; inset: 0; z-index: 90; display: flex; flex-direction: column; background: var(--bg); }

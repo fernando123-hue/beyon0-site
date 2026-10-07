@@ -247,9 +247,36 @@
       <p class="orc-nota">O pagamento é processado pelo Mercado Pago e só é dado como confirmado depois que o servidor da Beyon Zero consulta o Mercado Pago. Voltar para esta página não confirma nada sozinho.</p>
     </section>
 
+    <!-- O RECIBO do sinal pago (js/orcamento-recibo.js): as duas partes do valor se encaixam num recibo só -->
     <section class="orc-bloco orc-pronto" id="o-pronto" aria-labelledby="o-pronto-titulo" hidden>
-      <h2 id="o-pronto-titulo">Pagamento confirmado. Seu projeto está liberado para começar.</h2>
-      <p class="orc-bloco__lead">A Beyon Zero fala com você pelo contato informado para os próximos passos.</p>
+      <div class="recibo" id="o-recibo">
+        <svg class="recibo__selo" viewBox="0 0 64 64" width="64" height="64" aria-hidden="true" focusable="false">
+          <circle class="recibo__anel" cx="32" cy="32" r="27" pathLength="1" />
+          <path class="recibo__check" d="M21.5 33 L28.5 40 L43 24.5" pathLength="1" />
+        </svg>
+        <p class="recibo__rotulo">Sinal pago</p>
+        <h2 class="recibo__titulo" id="o-pronto-titulo" tabindex="-1">Pagamento confirmado.</h2>
+        <p class="recibo__lead">Seu projeto está liberado para começar. A Beyon Zero fala com você pelo contato informado para os próximos passos.</p>
+        <p class="recibo__codigo">Código do pagamento <b id="o-rec-codigo-v"></b></p>
+        <div class="recibo__partes" id="o-rec-partes">
+          <div class="recibo__parte recibo__parte--pago">
+            <p class="recibo__parte-rot"><span aria-hidden="true">↑</span> Pago agora</p>
+            <div class="recibo__linha">
+              <span class="recibo__chip" id="o-rec-pct-sinal"></span>
+              <div class="recibo__dados"><p class="recibo__valor" id="o-rec-sinal"></p><p class="recibo__meio" id="o-rec-meio"></p></div>
+            </div>
+          </div>
+          <div class="recibo__parte recibo__parte--entrega" id="o-rec-entrega">
+            <i class="recibo__luz" aria-hidden="true"></i>
+            <p class="recibo__parte-rot"><span aria-hidden="true">↓</span> Na entrega</p>
+            <div class="recibo__linha">
+              <span class="recibo__chip recibo__chip--resto" id="o-rec-pct-resto"></span>
+              <div class="recibo__dados"><p class="recibo__valor" id="o-rec-resto"></p><p class="recibo__meio" id="o-rec-prazo"></p></div>
+            </div>
+          </div>
+        </div>
+        <p class="recibo__total" id="o-rec-total"><span id="o-rec-total-v"></span> <span id="o-rec-total-prazo"></span></p>
+      </div>
     </section>
   </main>
 
@@ -290,6 +317,7 @@
   <script src="js/orcamento-api.js" defer></script>
   <script src="js/orcamento-visor.js" defer></script>
   <script src="js/orcamento-pagamento.js" defer></script>
+  <script src="js/orcamento-recibo.js" defer></script>
   <script src="js/orcamento.js" defer></script>
 </body>
 </html>
