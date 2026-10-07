@@ -11,7 +11,18 @@ com credenciais reais**, salvo onde diz outra coisa.
 |---|---|---|
 | Técnica M1 = Segurança B2 | pedido de ajuste vazio ou > 2.000 caracteres virava a string `"null"` e ia ao modelo | valida antes de redigir (`api/_vendas/fluxo.mjs`); teste em `fluxo-api.test.mjs` |
 | Segurança B1 | `?acao=constructor`/`toString`/`__proto__` davam 500 | só ações próprias da tabela (`Object.hasOwn`, `api/vendas.mjs`); teste idem |
-| Técnica M3 | o processo mandava promover "a prévia do commit mesclado", que não existe | `docs/PROCESSO.md` passo 4, conferido na doc oficial da Vercel |
+| Técnica M3 | o processo mandava promover "a prévia do commit mesclado", que não existe | texto do `docs/PROCESSO.md` passo 4 corrigido pela doc da Vercel; **o ensaio continua pendente** (abaixo) |
+| PR 2 segurança M1 = técnica B4 | seção/operação vinda do modelo com nome herdado (`constructor`) escrevia "[native code]" no escopo do contrato | `daTabela` com `Object.hasOwn` em `api/_vendas/escopo.mjs`; teste em `alteracoes.test.mjs` |
+| PR 2 segurança M2, técnica M1/M2/B1/B2 | passo 4 afirmava sem ensaio; quem roda o `git diff`; caminho "Staged" perigoso; aviso temporário no processo | passo 4 reescrito (agente escreve "SHA para promover"; "ainda não ensaiado"; rollback não desfaz migration; caminho "Staged" só com decisão escrita; `deploymentEnabled` em "Sempre pedir o dono") |
+
+## Antes da 1ª promoção (lista do dono, com o agente)
+
+1. Ensaiar a promoção com um deploy descartável e anotar o que a Vercel fez de verdade (variáveis, domínio).
+2. Variáveis de Produção: Supabase de produção, Mercado Pago de produção + webhook, `CRON_SECRET` com 32+
+   caracteres, e **sem** `BZ_IA=simulada`.
+3. Migrations aplicadas no banco de produção antes de promover.
+4. O PR traz "SHA para promover"; promover exatamente esse.
+5. Depois: site e `/orcamento` no celular; `npm run verificar` com `BASE` de produção.
 
 ## Antes de ligar credenciais reais / promover
 
@@ -35,4 +46,6 @@ com credenciais reais**, salvo onde diz outra coisa.
 - Segurança B8: injeção de fórmula no CSV do painel (só o dono controla o parâmetro).
 - Técnica B2: o portão aceita revisão anterior ao último commit; comparar datas.
 - Técnica B4: alerta quando a rotina diária não roda há > 36 h (passo no `reconciliar.yml`).
+- PR 2 técnica B3 / segurança B4: os casos de entrada inválida provam o status, não que o modelo e o banco
+  ficaram sem chamada; separar em testes por caso.
 - Teste: rodadas seguidas do E2E estouram o freio por IP (90/min) — esperar 1 min entre rodadas.

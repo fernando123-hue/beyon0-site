@@ -70,3 +70,12 @@ test('escopo final: direção, alterações, escopo, investimento e prazo, a par
   }
   assert.ok(!e.escopo.includes('Desconto') && !e.escopo.includes('grátis'), 'texto livre do modelo nunca entra no contrato');
 });
+
+test('escopo: nome herdado do Object.prototype vindo do modelo não entra no contrato (revisão do PR 2, M1)', async () => {
+  const direcoes = await tresDirecoes();
+  const est = estimar({ formato: 'institucional', paginas: 7, adicionais: { textos: 7 } }, REGRAS);
+  const herdados = ['constructor', '__proto__', 'toString', 'hasOwnProperty'];
+  const e = montarEscopo({ estimativa: est, direcao: direcoes[1].conteudo, briefing: BRIEFING,
+    alteracoesAplicadas: herdados.flatMap(h => [{ operacao: 'adicional', secao: h }, { operacao: h, secao: 'hero' }]) });
+  assert.ok(!/native code|\[object Object\]|function/.test(e.escopo), 'sem "[native code]" nem "[object Object]" no contrato:\n' + e.escopo);
+});

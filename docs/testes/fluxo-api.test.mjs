@@ -183,6 +183,8 @@ test('dados incompletos ou inconsistentes: cada um recusado com motivo, sem 500'
     ['POST', 'alterar', { conversa_id: c, pedido: '' }, 400],      /* não pode virar a string "null" (revisão do PR 1, M1) */
     ['POST', 'alterar', { conversa_id: c, pedido: 'a'.repeat(2001) }, 400],
     ['POST', 'alterar', { conversa_id: c }, 400],
+    ['POST', 'alterar', { conversa_id: c, pedido: 123 }, 400],
+    ['GET', '', undefined, 404],
     ['POST', 'mensagem', { conversa_id: 'x', texto: 'oi' }, 400],
     ['POST', 'mensagem', { conversa_id: c, texto: '' }, 400],
     ['POST', 'mensagem', { conversa_id: c, texto: 'a'.repeat(2001) }, 400],
