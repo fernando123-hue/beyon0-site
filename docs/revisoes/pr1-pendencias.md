@@ -26,9 +26,12 @@ com credenciais reais**, salvo onde diz outra coisa.
      credencial real: o pagamento de TESTE se ensaia na prévia.
    - IA: ou `BZ_IA=simulada` (ensaio sem custo), ou uma chave Anthropic só do ensaio com limite de gasto baixo no
      console. Nunca a chave de produção.
-   - Apagar o projeto de ensaio no fim.
+   - No fim: apagar o projeto de ensaio, apagar o banco de TESTE do ensaio e revogar a chave Anthropic do ensaio.
+   - Com `BZ_IA=simulada` no ensaio, o caminho da IA real só roda pela 1ª vez em produção: conferir o 1º turno
+     real logo depois de promover (ou ensaiar com a chave só do ensaio).
 2. Variáveis de Produção: Supabase de produção, Mercado Pago de produção + webhook, `CRON_SECRET` com 32+
-   caracteres, e **sem** `BZ_IA=simulada` nem `BZ_LOCAL` (os dois ligam o simulador).
+   caracteres, e **sem** `BZ_IA=simulada` nem `BZ_LOCAL` (desde o PR 5 o código já recusa o simulador na produção
+   da Vercel: sem `ANTHROPIC_API_KEY`, o consultor fica desligado com o WhatsApp).
 3. Migrations aplicadas no banco de produção antes de promover.
 4. O PR traz "SHA para promover"; promover exatamente esse.
 5. Depois: `npm run verificar` com `BASE` de produção; site e `/orcamento` no celular sem digitar mensagem (nunca
@@ -49,14 +52,14 @@ com credenciais reais**, salvo onde diz outra coisa.
 | Segurança M1 | criar visitante anônimo sem CAPTCHA; freio em memória por instância; retenção não apaga conversas vazias nem anônimos | Turnstile (grátis) no `sessao` ou freio no banco; `vendas_reter` apagar anônimos sem conversa após N dias |
 | Segurança M2 | redação de dado pessoal deixa passar telefone com espaços, "98765-4321", CPF com espaços, e-mail por extenso | ampliar `api/_vendas/seguranca.mjs` com casos de teste de cada formato |
 | Segurança M3 | `app.leads` de quem nunca pagou não tem prazo; a política de privacidade não diz | **decisão do dono**: prazo (ex.: 12 meses) + texto em `privacidade.html` + `vendas_reter` |
-| Técnica M2 | 4xx da IA (sem saldo, modelo fora) conta como "entrada": disjuntor e alerta não disparam | classificar 402/403/404 e o 400 de saldo como `indisponivel` em `api/_ia/anthropic.mjs` |
+| ~~Técnica M2~~ | ~~4xx da IA conta como "entrada"~~ | **feito no PR 4** (402/403/404 e o 400 de limite de gasto/saldo → `indisponivel`) |
 | Técnica M4 | mutação só sabota as migrations de RLS | sabotagens em `pagamentos_aplicar` e `conferir_transicao` |
 | Segurança B3 | `CRON_SECRET` aceita 16 caracteres; tentativas erradas sem freio | mínimo 32 e freio nas rotas de rotina |
 | Segurança B6 | teto de custo lido antes e somado depois: 3 direções em paralelo passam do teto em ~1/3 | reservar o custo no banco antes de chamar |
 | Técnica B1 | `ID_ORDER` do webhook sensível a maiúsculas | confirmar a forma real do MP no 1º teste com credenciais de TESTE |
 | Técnica B3 | `sinal_percentual` fracionário diverge entre cartão e Pix | aceitar só inteiro no motor de preço |
 | Segurança B4 | CSP de `/orcamento` libera domínios do Google que a página não usa | enxugar `vercel.json` |
-| Segurança B5 | `BZ_IA=simulada` sem trava na Vercel | recusar o simulador quando `VERCEL_ENV=production` |
+| ~~Segurança B5~~ | ~~`BZ_IA=simulada` sem trava na Vercel~~ | **feito no PR 5** (`criarIA` devolve nada com `VERCEL_ENV=production`) |
 
 ## Depois / quando acontecer
 
@@ -68,4 +71,10 @@ com credenciais reais**, salvo onde diz outra coisa.
   `e2e:orcamento` nunca em produção; credenciais do ensaio; rollback × migrations (item 6 acima).
 - PR 2 técnica B3 / segurança B4: os casos de entrada inválida provam o status, não que o modelo e o banco
   ficaram sem chamada; separar em testes por caso.
+- Das revisões do PR 4: alerta de surto de 400 da IA (se o provedor mudar a frase do limite de gasto, o erro volta
+  a ser "entrada" em silêncio); alerta `ia_falhando` exigir 2 conversas, como o disjuntor; `.gitattributes` com
+  `*.sql text eol=lf`. Feitos no PR 5: o log de 4xx inclui 401 e 429 e o campo virou `request_id_provedor`.
+- Das revisões do PR 3: precisões na nota do guarda (`--admin`/`--auto` negados só nos projetos da Beyon; deploy de
+  prévia passa de propósito; merge pela API do GitHub não é coberto). Feito no PR 5: `BASE` inválida no E2E dá a
+  mensagem de recusa em vez de `TypeError`.
 - Teste: rodadas seguidas do E2E estouram o freio por IP (90/min) — esperar 1 min entre rodadas.
