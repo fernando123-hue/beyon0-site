@@ -18,27 +18,36 @@
    docs/testes/agente.test.mjs. A redação é um cuidado a mais, não garantia (escrever de propósito para driblar passa). */
 const EMAIL = /(?<![\w.%+-])[A-Za-z0-9._%+-]{1,64}(?:@|\s{1,3}@\s{1,3})[A-Za-z0-9-]{1,63}(?:\.[A-Za-z0-9-]{1,63}){0,4}\.[A-Za-z]{2,24}\b/g;
 /* e-mail por extenso: "ana arroba gmail ponto com", "ana (arroba) clinica.com.br", "ana@gmail ponto com". O ponto
-   literal vem colado no domínio: "o preço da arroba subiu. Preciso…" não é e-mail */
-const EMAIL_EXTENSO = /(?<![\w.+-])[\w.+-]{1,64}(?:[\s([]{0,4}\barroba\b[\s)\]]{0,4}|@)[\w-]{1,63}(?:\.[a-z]{2,24}|\s{1,3}ponto\s{1,3}[a-z]{2,24}){1,5}\b/gi;
+   literal vem colado no domínio e o que vem depois dele é minúsculo: "o preço da arroba subiu. Preciso…" e
+   "…subiu.Preciso" não são e-mail */
+const EMAIL_EXTENSO = /(?<![\w.+-])[\w.+-]{1,64}(?:[\s([]{0,4}\b[Aa][Rr][Rr][Oo][Bb][Aa]\b[\s)\]]{0,4}|@)[\w-]{1,63}(?:\.[a-z]{2,24}|\s{1,3}[Pp][Oo][Nn][Tt][Oo]\s{1,3}[a-zA-Z]{2,24}){1,5}\b/g;
 /* em inglês, só com "at" E "dot" ("joao at empresa dot com", "joao [at] empresa [dot] com"): "look at this.site" fica */
 const EMAIL_EXTENSO_EN = /(?<![\w.+-])[\w.+-]{1,64}[\s([]{1,3}at[\s)\]]{1,3}[\w-]{1,63}(?:[\s([]{1,3}dot[\s)\]]{1,3}[a-z]{2,24}){1,5}\b/gi;
 /* CPF/CNPJ com a pontuação oficial; sem pontuação, quem pega é NUMERO_LONGO (que distingue celular de CPF) */
 const CPF_CNPJ = /(?<!\d)(?:\d{3}\.\d{3}\.\d{3}-\d{2}|\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})(?!\d)/g;
-const TELEFONE = /(?<!\d)(?:\+?55\s?)?\(?\d{2}\)?\s?9?\d{4}[-.\s]?\d{4}(?!\d)/g;
+const TELEFONE = /(?<!\d)(?:\+?55[\s-]?)?\(?\d{2}\)?[\s.-]?9?[\s.-]?\d{4}[-.\s]?\d{4}(?!\d)/g;
 /* o que é número do NEGÓCIO e não pode sumir (o agente precisa do prazo, do faturamento, da meta): data, valor com
    milhar e faixa crescente ("50000-100000"). Ficam guardados enquanto os padrões de número longo rodam */
 const DATA = /(?<!\d)(?:\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}|\d{4}-\d{2}-\d{2})(?!\d)/g;
-const MILHAR = /(?<![\d.])\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?(?![\d.])/g;
-const FAIXA = /(?<![\d.])(\d{4,9})\s?-\s?(\d{4,9})(?![\d.])/g;
+const MILHAR = /(?<![\d.])\d{1,3}(?:\.\d{3}){1,2}(?:,\d{1,2})?(?![\d.]|[\s/-]\d)/g;
+const FAIXA = /(?<![\d.]|\d[\s.-])(\d{1,3}(?:\.\d{3}){1,2}|\d{4,9})\s?-\s?(\d{1,3}(?:\.\d{3}){1,2}|\d{4,9})(?![\d.]|[\s/-]\d)/g;
 /* qualquer sequência de 10 a 19 dígitos com espaço, ponto, hífen ou barra entre eles: telefone com DDD (10–11),
    CPF (11), CNPJ (14) ou cartão (13–19), escritos de qualquer jeito ("11 9 8765 4321", "123 456 789 09") */
 const NUMERO_LONGO = /(?<![\d+])\+?(?:\d[\s.\-/]?){9,18}\d(?!\d)/g;
 /* celular sem DDD: 9 + 8 dígitos ("98765-4321", "9 9999-9999", "99999.9999"); fixo sem DDD fica de fora (confunde
    com faixa de preço "2000-3000") */
 const CELULAR_SEM_DDD = /(?<!\d)9\s?\d{4}[-.\s]?\d{4}(?!\d)/g;
-/* invisíveis e a área de uso privado (onde ficam os marcadores de guarda) saem; NFKC traz dígito e @ de largura
-   total para o normal */
-const INVISIVEIS = /[­​-‏⁠﻿-]/g;
+/* invisíveis, controles bidirecionais e a área de uso privado (onde ficam os marcadores de guarda) saem. Dígitos de
+   outros alfabetos e o @ de largura total viram os comuns, um por um (o texto não cresce; "m²" fica como está) */
+const INVISIVEIS = /[­​-‏‪-‮⁠-⁩﻿-]/g;
+const ZEROS = [0x0660, 0x06f0, 0x0966, 0x09e6, 0xff10];   /* árabe, persa, devanágari, bengali, largura total */
+const DIGITO_OU_ARROBA = /[٠-٩۰-۹०-९০-৯０-９＠]/g;
+const comum = c => {
+  const n = c.charCodeAt(0);
+  if (n === 0xff20) return '@';
+  const zero = ZEROS.find(z => n >= z && n <= z + 9);
+  return String(n - zero);
+};
 const rotuloDoNumero = trecho => {
   const d = trecho.replace(/\D/g, '');
   if ((d.length === 12 || d.length === 13) && d.startsWith('55')) return '[telefone]';   /* +55 DDD número */
@@ -51,7 +60,7 @@ const rotuloDoNumero = trecho => {
 export function redigir(texto) {
   const guardados = [];
   const guardar = trecho => { guardados.push(trecho); return String.fromCharCode(0xe100 + guardados.length - 1); };
-  return String(texto).normalize('NFKC').replace(INVISIVEIS, '')
+  return String(texto).replace(INVISIVEIS, '').replace(DIGITO_OU_ARROBA, comum)
     .replace(EMAIL, '[e-mail]')
     .replace(EMAIL_EXTENSO, '[e-mail]')
     .replace(EMAIL_EXTENSO_EN, '[e-mail]')
@@ -59,7 +68,7 @@ export function redigir(texto) {
     .replace(TELEFONE, '[telefone]')
     .replace(DATA, guardar)
     .replace(MILHAR, guardar)
-    .replace(FAIXA, (trecho, a, b) => (Number(b) > Number(a) ? guardar(trecho) : trecho))
+    .replace(FAIXA, (trecho, a, b) => (Number(b.replace(/\./g, '')) > Number(a.replace(/\./g, '')) ? guardar(trecho) : trecho))
     .replace(NUMERO_LONGO, rotuloDoNumero)
     .replace(CELULAR_SEM_DDD, '[telefone]')
     .replace(/[-]/g, c => guardados[c.charCodeAt(0) - 0xe100] ?? '');

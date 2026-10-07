@@ -117,11 +117,15 @@ test('privacidade: formatos que escapavam também saem (revisão do PR 1, segura
     ['(11)98765.4321', '98765'], ['zap 99999.9999', '99999'], ['zap 9 9999-9999', '9999'],
     ['ana @ gmail.com', 'gmail'], ['ana@gmail ponto com', 'gmail'], ['joao [at] empresa [dot] com', 'empresa'],
     ['１１９８７６５４３２１', '９８７'], ['ana＠gmail.com', 'gmail'], ['11​98765​4321', '98765'],
+    /* 2ª rodada do PR 6: fim do número crescente não pode virar "faixa"; CPF com separador misto */
+    ['11-3333-4444', '3333'], ['+55-21-3333-4444', '3333'], ['55-11-9876-5432', '9876'], ['11 9 1234-5678', '1234'],
+    ['9 1234-5678', '1234'], ['21 9 1234-5678', '1234'], ['11.987.654.321', '987'], ['123.456.789 09', '456'],
+    ['cpf 123.456.789/09', '456'], ['123 456.789-09', '456'], ['12.345.678/0001 95', '345'], ['٠١١٩٨٧٦٥٤٣٢١', '٩٨٧'],
   ]) assert.ok(!redigir(texto).includes(vazou) && !redigir(texto).normalize('NFKC').includes(vazou.normalize('NFKC')), texto + ' → ' + redigir(texto));
   /* o que NÃO é dado pessoal fica: preço, faixa, quantidade, ano, horário, prazo */
   for (const texto of ['orçamento entre 2000-3000 reais', 'site com 5 páginas em 2026', 'atendo das 8 às 18', 'umas 300 visitas por mês', 'prazo de 15 dias', 'look at this.site', 'R$ 1.500.000,00 em 2025', 'me chama às 9h',
     'faturamento de 50.000-100.000 por mês', 'faturo 50000-100000', 'R$ 50.000-100.000', '100000-200000 por ano',
-    'meta de 1.200.000.000', 'entrega em 15/12/2026 18h', 'reunião 2026-10-07 14:30', 'dia 07.10.2026 14.30',
+    'meta de 1.200.000', 'área de 120 m²', 'O preço da arroba subiu.Preciso de um site', 'entrega em 15/12/2026 18h', 'reunião 2026-10-07 14:30', 'dia 07.10.2026 14.30',
     'de 10/10/2026 a 15/10/2026', 'O preço da arroba subiu. Preciso de um site', 'preço da arroba é 300 reais', 'siga @clinica.sorriso no insta']) {
     assert.equal(redigir(texto), texto, 'não mexe em: ' + texto);
   }

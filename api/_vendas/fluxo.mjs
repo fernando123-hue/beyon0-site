@@ -13,7 +13,7 @@ import { estimar } from './precos.mjs';
 import { gerarDirecao } from './gerador.mjs';
 import { interpretar, aplicar, fatoresComEscopo } from './alteracoes.mjs';
 import { montarEscopo } from './escopo.mjs';
-import { limparMensagem, pareceInjecao, redigir } from './seguranca.mjs';
+import { limparMensagem, pareceInjecao, redigir, MSG_MAX } from './seguranca.mjs';
 import { ehUuid, normalizarTelefone } from '../_valida-app.mjs';
 import { TETOS } from '../_ia/config.mjs';
 import { ErroIA } from '../_ia/provedor.mjs';
@@ -250,7 +250,9 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       exigir(ehUuid(corpo?.conversa_id), 400, 'Conversa inválida.');
       const limpo = limparMensagem(corpo?.pedido);
       exigir(limpo, 400, 'Descreva a alteração em até 2.000 caracteres.');   /* (antes de redigir: redigir(null) vira "null") */
-      const pedido = redigir(limpo);   /* (o modelo e o banco recebem o texto redigido) */
+      /* (o modelo e o banco recebem o texto redigido; o marcador pode ser maior que o dado — "a@b.co" vira
+         "[e-mail]" — e o banco aceita até MSG_MAX no pedido) */
+      const pedido = redigir(limpo).slice(0, MSG_MAX);
       const est = await estado(vid, corpo.conversa_id);
       exigir(est.escolha, 409, 'Escolha uma direção antes.');
       exigir(AJUSTE_ABERTO.includes(est.conversa.etapa), 409, 'Os ajustes desta proposta já foram fechados.');   /* (antes de pagar o modelo) */
