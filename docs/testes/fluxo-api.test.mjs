@@ -174,6 +174,67 @@ test('concorrência: a mesma direção pedida duas vezes ao mesmo tempo é gerad
   assert.equal(geracoes, 1, 'o modelo caro rodou uma vez só');
 });
 
+test('anti-robô (Turnstile): a sessão só nasce com token conferido na Cloudflare (decisão do dono, 2026-10-07)', async () => {
+  const { configTurnstile, verificarHumano } = await import('../../api/_vendas/turnstile.mjs');
+  /* configuração: produção sem chaves fecha; prévia e local sem chaves não exigem */
+  assert.equal(configTurnstile({}).exigido, false, 'servidor local sem chaves: não exige');
+  assert.equal(configTurnstile({ VERCEL: '1', VERCEL_ENV: 'preview' }).exigido, false, 'prévia sem chaves: não exige');
+  const fechado = configTurnstile({ VERCEL: '1', VERCEL_ENV: 'production' });
+  assert.equal(fechado.exigido, true, 'produção sem chaves: fechado');
+  assert.equal((await verificarHumano(fechado, 'x')).motivo, 'nao_configurado');
+  assert.equal(configTurnstile({ VERCEL: '1', TURNSTILE_SITE_KEY: 's', TURNSTILE_SECRET: 'k' }).siteKey, 's');
+  /* revisões do PR 8: só uma das chaves fecha em qualquer ambiente; segredo de TESTE da Cloudflare na produção fecha */
+  assert.equal(configTurnstile({ TURNSTILE_SITE_KEY: 's' }).segredo, null, 'só a chave do site, no local: fechado');
+  assert.equal(configTurnstile({ TURNSTILE_SITE_KEY: 's' }).exigido, true);
+  assert.equal(configTurnstile({ TURNSTILE_SECRET: 'k' }).exigido, true, 'só o segredo: fechado');
+  assert.equal(configTurnstile({ VERCEL: '1', VERCEL_ENV: 'production', TURNSTILE_SITE_KEY: 's', TURNSTILE_SECRET: '1x0000000000000000000000000000000AA' }).segredo, null, 'segredo de teste na produção: fechado');
+  assert.ok(configTurnstile({ TURNSTILE_SITE_KEY: '1x00000000000000000000AA', TURNSTILE_SECRET: '1x0000000000000000000000000000000AA' }).segredo, 'no local, as chaves de teste valem');
+
+  /* pela API, com um "siteverify" falso que registra o que recebeu */
+  const enviados = [];
+  const siteverify = sucesso => async (url, opcoes) => {
+    enviados.push({ url, corpo: JSON.parse(opcoes.body) });
+    return { json: async () => (sucesso ? { success: true } : { success: false, 'error-codes': ['invalid-input-response'] }) };
+  };
+  const cfgTurnstile = { exigido: true, siteKey: '1x00000000000000000000AA', segredo: 'segredo-teste' };
+  const chamar = async (acao, metodo, corpo, extra) => {
+    const r = await atender(new Request(BASE + '/api/vendas?acao=' + acao, {
+      method: metodo, body: corpo === undefined ? undefined : JSON.stringify(corpo),
+      headers: { 'x-forwarded-for': '198.51.100.' + (200 + enviados.length), ...(corpo !== undefined ? { 'content-type': 'application/json' } : {}) }
+    }), {}, metodo, { ...deps, cfgTurnstile, ...extra });
+    return { status: r.status, corpo: await r.json() };
+  };
+  assert.deepEqual((await chamar('sessao-config', 'GET')).corpo, { turnstile: '1x00000000000000000000AA' }, 'a página recebe a chave pública');
+  const sem = await chamar('sessao', 'POST', {}, { buscarTurnstile: siteverify(true) });
+  assert.equal(sem.status, 403, 'sem token: recusado');
+  assert.ok(/robô/.test(sem.corpo.erro));
+  const recusado = await chamar('sessao', 'POST', { turnstile: 'token-ruim' }, { buscarTurnstile: siteverify(false) });
+  assert.equal(recusado.status, 403, 'token recusado pela Cloudflare');
+  const ok = await chamar('sessao', 'POST', { turnstile: 'token-bom', meio: 'busca' }, { buscarTurnstile: siteverify(true) });
+  assert.equal(ok.status, 200, JSON.stringify(ok.corpo));
+  assert.ok(ok.corpo.conversa_id);
+  const ultimo = enviados.at(-1);
+  assert.equal(ultimo.url, 'https://challenges.cloudflare.com/turnstile/v0/siteverify');
+  assert.equal(ultimo.corpo.secret, 'segredo-teste');
+  assert.equal(ultimo.corpo.response, 'token-bom');
+  assert.equal(ultimo.corpo.remoteip, undefined, 'o IP do visitante não vai para a Cloudflare');
+  const fora = await chamar('sessao', 'POST', { turnstile: 'token-bom' }, { buscarTurnstile: async () => { throw new Error('rede'); } });
+  assert.equal(fora.status, 503, 'Cloudflare fora do ar: indisponível, com WhatsApp');
+  assert.equal(fora.corpo.whatsapp, true);
+  const antes = enviados.length;
+  const gigante = await chamar('sessao', 'POST', { turnstile: 'x'.repeat(2049) }, { buscarTurnstile: siteverify(true) });
+  assert.equal(gigante.status, 403, 'token maior que 2.048: recusado');
+  assert.equal(enviados.length, antes, '… sem consultar a Cloudflare');
+  /* erro de CONFIGURAÇÃO ou da Cloudflare não é "robô": 503 com WhatsApp (revisões do PR 8) */
+  for (const codigo of ['invalid-input-secret', 'missing-input-secret', 'internal-error', 'bad-request']) {
+    const r = await chamar('sessao', 'POST', { turnstile: 'token-bom' }, { buscarTurnstile: async () => ({ json: async () => ({ success: false, 'error-codes': [codigo] }) }) });
+    assert.equal(r.status, 503, codigo + ': ' + JSON.stringify(r.corpo));
+    assert.equal(r.corpo.whatsapp, true);
+  }
+  const naoJson = await chamar('sessao', 'POST', { turnstile: 'token-bom' }, { buscarTurnstile: async () => ({ json: async () => { throw new SyntaxError('html'); } }) });
+  assert.equal(naoJson.status, 503, 'resposta que não é JSON: indisponível');
+});
+
 test('dados incompletos ou inconsistentes: cada um recusado com motivo, sem 500', async () => {
   const n = navegador();
   const s = await n.iniciar();

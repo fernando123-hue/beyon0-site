@@ -16,9 +16,10 @@ import { criarServicoPagamentos } from './_pagamentos/servico.mjs';
 import { criarIA } from './_ia/provedor.mjs';
 import { criarFreio, ipDe } from './_freio.mjs';
 import { randomUUID } from 'node:crypto';
+import { configTurnstile, verificarHumano } from './_vendas/turnstile.mjs';
 
 const ACOES = {
-  GET: { estado: 'estado', pagamento: 'pagamento', 'pagamento-config': 'pagamentoConfig' },
+  GET: { estado: 'estado', pagamento: 'pagamento', 'pagamento-config': 'pagamentoConfig', 'sessao-config': 'sessaoConfig' },
   POST: { sessao: 'sessao', renovar: 'renovar', mensagem: 'mensagem', contato: 'contato', gerar: 'gerar', 'gerar-direcao': 'gerarDirecao',
     escolher: 'escolher', alterar: 'alterar', escopo: 'escopo', confirmar: 'confirmar', pagar: 'pagar' }
 };
@@ -57,6 +58,9 @@ export async function atender(request, env, metodo, deps) {
 
   /* a configuração pública do pagamento (Public Key e ambiente): sem sessão, sem segredo */
   if (acao === 'pagamentoConfig') return responder(configPublica(deps && deps.cfgPagamentos ? deps.cfgPagamentos : configPagamentos(env)));
+  /* a chave PÚBLICA do anti-robô (api/_vendas/turnstile.mjs): sem sessão, sem segredo */
+  const cfgTurnstile = deps && deps.cfgTurnstile ? deps.cfgTurnstile : configTurnstile(env);
+  if (acao === 'sessaoConfig') return responder({ turnstile: cfgTurnstile.siteKey });
 
   /* segredoFreio: o HMAC do IP no freio diário (api/_vendas/ip.mjs); um segredo próprio, ou o do servidor do Supabase */
   const d = deps || { banco: criarTransporte(env), visitantes: criarVisitantes(env), ia: await criarIA(env), segredoFreio: env.FREIO_SEGREDO || env.SUPABASE_CHAVE_SECRETA };
@@ -67,6 +71,16 @@ export async function atender(request, env, metodo, deps) {
   }
   if (!d.banco || !d.visitantes) { log('erro', { request_id: requestId, evento: 'banco ou autenticação não configurados' }); return responder({ erro: 'Serviço indisponível.' }, 503); }
   if (PRECISA_IA.has(acao) && !d.ia) { log('erro', { request_id: requestId, evento: 'IA não configurada (ANTHROPIC_API_KEY)' }); return responder({ erro: 'O consultor está indisponível agora. Fale com a Beyon Zero pelo WhatsApp.', whatsapp: true }, 503); }
+
+  /* o visitante anônimo só nasce depois do anti-robô */
+  if (acao === 'sessao') {
+    const humano = await verificarHumano(cfgTurnstile, corpo && corpo.turnstile, (deps && deps.buscarTurnstile) || fetch);
+    if (!humano.ok) {
+      log('erro', { request_id: requestId, evento: 'anti-robô', motivo: humano.motivo, codigos: humano.codigos || null, config: cfgTurnstile.motivo || null });
+      if (humano.motivo === 'nao_configurado' || humano.motivo === 'indisponivel') return responder({ erro: 'O consultor está indisponível agora. Fale com a Beyon Zero pelo WhatsApp.', whatsapp: true }, 503);
+      return responder({ erro: 'Não foi possível confirmar que você não é um robô. Recarregue a página e tente de novo.' }, 403);
+    }
+  }
 
   try {
     return responder(await criarFluxo({ ...d, requestId })[acao]({ request, query, corpo }));
