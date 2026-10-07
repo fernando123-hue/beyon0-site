@@ -207,7 +207,7 @@ create table app.pagamentos (
   status        text not null default 'pendente' check (status in ('pendente', 'pago', 'cancelado', 'expirado', 'estornado')),
   gateway       text not null check (gateway ~ '^[a-z0-9_]{2,30}$'),
   gateway_ref   text check (char_length(gateway_ref) between 1 and 120),
-  link          text check (char_length(link) <= 500 and link ~ '^https://'),
+  link          text check (char_length(link) <= 500 and (link ~ '^https://' or link ~ '^http://(127\.0\.0\.1|localhost)(:[0-9]{2,5})?/')),   -- (http só o servidor local de desenvolvimento)
   pago_em       timestamptz,
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now(),

@@ -114,3 +114,22 @@ Migrations `20261007120000` a `…120200`.
 - **Quem aplica é o código.** Depois, a direção passa de novo pela higienização (o contraste é corrigido).
 - **Mudança de escopo volta ao motor de preço.** Nenhum preço muda por pedido escrito.
 - **Escopo final** (`api/_vendas/escopo.mjs`). É montado pelo código, sem IA, a partir da estimativa gravada e da direção final. Traz a direção escolhida, as alterações, o escopo, a fase seguinte, o investimento com o sinal e o prazo.
+
+## Incremento 6: a API e o pagamento
+
+- **Uma função para o fluxo** (`api/vendas.mjs`, ações em `api/_vendas/fluxo.mjs`). A borda:
+  - freio por IP (90 por minuto; criar sessão: 8 a cada 10 minutos);
+  - JSON obrigatório (415): um formulário de outro site não chega aqui;
+  - corpo até 16 KB (413);
+  - token do visitante em toda ação, exceto criar a sessão;
+  - erro interno genérico; o detalhe vai só para o log, sem dado pessoal.
+- **Visitante** (`api/_vendas/visitante.mjs`). Em produção é o login anônimo do Supabase, com token renovável. Conversa de outro visitante responde "não existe" (404), igual a conversa inexistente.
+- **Banco** (`api/_vendas/transporte.mjs`). Chama as funções `app.vendas_*` pelo PostgREST com a chave secreta, que só existe no servidor.
+- **Tetos de custo** (migration `…120400_vendas_api.sql`). O custo de cada chamada à IA é somado na conversa e no dia (horário de Brasília). Passou do teto: 429 com a oferta do WhatsApp, sem chamar o modelo.
+- **Webhook** (`api/pagamentos.mjs`), em 3 passos:
+  1. confere a assinatura (sem ela: 401, nada muda);
+  2. consulta o gateway: status e valor vêm da fonte, não do aviso;
+  3. aplica no banco numa transação, idempotente por evento; o sinal pago cria cliente e projeto.
+- **Gateway** (`api/_vendas/pagamento.mjs`). Hoje só o simulado, que nunca liga em produção. Os adaptadores do Asaas ou do Mercado Pago entram quando o dono escolher.
+- **Ambiente local** (`docs/banco-local.mjs`, ligado por `docs/servidor.mjs`). PGlite com as mesmas migrations, IA simulada por padrão (de graça) e a página `docs/pagamento-simulado.html`, que faz o papel do gateway.
+- **Testes** (`docs/testes/fluxo-api.test.mjs`, 9 casos pela API): fluxo normal até o projeto criado, abandono e retomada, falha da IA, acesso de outro visitante, injeção de prompt, webhook forjado, velho e repetido, concorrência, dados inválidos, tetos.

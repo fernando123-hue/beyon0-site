@@ -32,6 +32,15 @@ process.env.BZ_LOCAL = '1';
 delete process.env.SUPABASE_URL;    /* (teste local nunca grava no banco de produção) */
 delete process.env.SUPABASE_CHAVE_SECRETA;
 delete process.env.SUPABASE_CHAVE_PUBLICA;
+/* agente de vendas local: banco PGlite com as migrations, visitantes de desenvolvimento, gateway simulado.
+   IA simulada por padrão (de graça); BZ_IA_REAL=1 + ANTHROPIC_API_KEY usa a de verdade (custa). */
+if (process.env.BZ_IA_REAL !== '1') delete process.env.ANTHROPIC_API_KEY;
+delete process.env.PAGAMENTO_SIMULADO_SEGREDO;
+delete process.env.SITE_URL;
+try {
+  const { montarLocal } = await import('./banco-local.mjs');
+  await montarLocal({ base: 'http://127.0.0.1:' + PORTA });
+} catch (e) { console.warn('[servidor] agente de vendas local indisponível (rode npm install):', e.message); }
 const HOSTS = new Set(['127.0.0.1:' + PORTA, 'localhost:' + PORTA]);
 async function api(req, res, caminho) {
   const nome = caminho.slice(5).replace(/\/$/, '');

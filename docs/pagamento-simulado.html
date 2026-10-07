@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Pagamento simulado</title>
+<link rel="stylesheet" href="/css/tokens.css">
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/docs/pagamento-simulado.css">
+</head>
+<body class="ps">
+<main class="ps-caixa">
+  <p class="ps-aviso">AMBIENTE DE DESENVOLVIMENTO · NENHUM DINHEIRO REAL</p>
+  <h1>Pagamento simulado</h1>
+  <p>Esta página faz o papel do gateway. O botão gera o aviso assinado que o gateway real mandaria, e ele passa pelo mesmo caminho: assinatura, consulta da cobrança e confirmação no banco.</p>
+  <p class="ps-ref">Cobrança: <code id="ref">—</code></p>
+  <div class="ps-botoes">
+    <button class="btn" type="button" data-status="pago">Simular pagamento aprovado</button>
+    <button class="btn btn-sec" type="button" data-status="cancelado">Simular cancelado</button>
+  </div>
+  <p id="resultado" class="ps-resultado" role="status" aria-live="polite"></p>
+  <p><a href="/orcamento">Voltar ao orçamento</a></p>
+</main>
+<script src="/docs/pagamento-simulado.js" defer></script>
+</body>
+</html>
