@@ -176,7 +176,35 @@
     return g;
   }
 
+  /* a saúde: alertas da rotina diária (com "resolvido") e quando ela rodou bem pela última vez.
+     Rotina parada há mais de 2 dias é alerta por si: silêncio não é saúde */
+  function saude(s) {
+    var caixa = $('saude');
+    caixa.textContent = '';
+    if (!s) { caixa.appendChild(el('p', 'pn__vazio', 'Não deu para ler a saúde do sistema agora (banco das vendas indisponível ou não configurado).')); return; }
+    var ultima = s.ultima_rotina ? new Date(s.ultima_rotina + 'T12:00:00') : null;
+    var parada = !ultima || (Date.now() - ultima.getTime()) > 2.5 * 864e5;
+    caixa.appendChild(el('p', parada ? 'pn__alerta pn__alerta--urgente' : 'pn__vazio',
+      ultima ? 'Rotina diária: rodou pela última vez em ' + ultima.toLocaleDateString('pt-BR') + (parada ? ' — PARADA: confira o CRON_SECRET e o cron da Vercel.' : '.') : 'Rotina diária: ainda não rodou (confira o CRON_SECRET e o cron da Vercel).'));
+    var nenhum = function () { caixa.appendChild(el('p', 'pn__vazio', 'Nenhum alerta aberto.')); };
+    if (!s.alertas.length) { nenhum(); return; }
+    s.alertas.forEach(function (a) {
+      var p = el('div', 'pn__alerta' + (a.nivel === 'urgente' ? ' pn__alerta--urgente' : ''));
+      p.appendChild(el('p', null, a.dia.split('-').reverse().join('/') + ' · ' + a.mensagem));
+      var b = el('button', 'pn__btn pn__btn--fino', 'Resolvido'); b.type = 'button';
+      b.addEventListener('click', function () {
+        b.disabled = true;
+        pedir('', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ resolver_alerta: a.id }) })
+          .then(function () { p.remove(); if (!caixa.querySelector('div.pn__alerta')) nenhum(); })
+          .catch(function (e) { b.disabled = false; $('estado').textContent = e.message; });
+      });
+      p.appendChild(b);
+      caixa.appendChild(p);
+    });
+  }
+
   function mostrar(r, soNumeros) {
+    saude(r.saude);
     resumo(r);
     if (!soNumeros) contatos(r);
     tabela('origens', COLS('Origem'), r.origens);

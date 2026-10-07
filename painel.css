@@ -60,6 +60,10 @@ body { font-size: 1rem; line-height: 1.55; background: var(--bg); color: var(--t
 .pn td { font-variant-numeric: tabular-nums; color: var(--t2); }
 .pn td:first-child { color: var(--t1); }
 .pn__vazio { color: var(--t3); font-size: .95rem; }
+/* os alertas da rotina diária: borda de 1px na cor do nível, sem brilho */
+.pn__alerta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .4rem 1rem; padding: .7rem .9rem; margin-top: .6rem; border: 1px solid var(--line-2); border-left: 2px solid var(--ac-3); border-radius: var(--raio-s); color: var(--t1); }
+.pn__alerta > p { flex: 1 1 240px; }
+.pn__alerta--urgente { border-left-color: rgb(var(--ouro-rgb)); }
 
 /* ---- páginas e seções ---- */
 .pn__pagina { margin-top: 1.4rem; }

@@ -112,7 +112,7 @@ test('P0 custo: ajuste fora da etapa não chama o modelo', async () => {
   const n = navegador({ ...deps, ia });
   const { c, dirs } = await ateDirecoes(n);
   await n.chamar('POST', 'escolher', { conversa_id: c, direcao_id: dirs[0].id });
-  await local.db.query(`update app.conversas set etapa = 'escopo' where id = $1`, [c]);
+  await local.db.exec(`begin; set local bz.transicao_livre = 'on'; update app.conversas set etapa = 'escopo' where id = '${c}'; commit;`);
   const r = await n.chamar('POST', 'alterar', { conversa_id: c, pedido: 'quero tema claro' });
   assert.equal(r.status, 409, JSON.stringify(r.corpo));
   assert.equal(ia.chamadas, 0, 'nenhum gasto numa etapa que não aceita ajuste');
@@ -138,7 +138,7 @@ test('P0 custo: o modelo que recusa responder também é pago (turno e geração
   const depoisTurno = (await conversa(c)).custo;
   assert.ok(Math.abs(depoisTurno - antes - 0.02) < 1e-9, 'a recusa do turno entrou na conta: ' + (depoisTurno - antes));
   await local.db.query(`update app.direcoes set status = 'gerando', conteudo = null, iniciada_em = null where id = $1`, [dirs[0].id]);
-  await local.db.query(`update app.conversas set etapa = 'gerando' where id = $1`, [c]);
+  await local.db.exec(`begin; set local bz.transicao_livre = 'on'; update app.conversas set etapa = 'gerando' where id = '${c}'; commit;`);
   const g = await n.chamar('POST', 'gerar-direcao', { conversa_id: c, direcao_id: dirs[0].id }, { deps: { ...deps, ia: recusa } });
   assert.equal(g.corpo.status, 'falhou');
   assert.ok((await conversa(c)).custo > depoisTurno, 'a recusa da geração entrou na conta');

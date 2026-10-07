@@ -32,8 +32,11 @@ export function tokenDe(request, agora = Date.now()) {
 }
 
 /* quem é o dono do token: o próprio Supabase Auth confere assinatura e validade. null = token recusado */
+/* (auditoria 2026-10-07) toda chamada ao Supabase tem tempo máximo: sem ele, uma lentidão prendia a função até o teto da Vercel */
+export const TEMPO_MAXIMO_MS = 10000;
+
 export async function usuarioDoToken(cfg, token) {
-  const r = await fetch(cfg.url + '/auth/v1/user', { headers: { apikey: cfg.publica, authorization: 'Bearer ' + token } });
+  const r = await fetch(cfg.url + '/auth/v1/user', { headers: { apikey: cfg.publica, authorization: 'Bearer ' + token }, signal: AbortSignal.timeout(TEMPO_MAXIMO_MS) });
   if (r.status === 401 || r.status === 403) return null;
   if (!r.ok) throw new Error('auth respondeu HTTP ' + r.status);
   const u = await r.json().catch(() => null);
@@ -45,7 +48,7 @@ export function comoUsuario(cfg, token) {
   return async function rest(metodo, caminho, { corpo, prefer, esquema = 'app' } = {}) {
     const cab = { apikey: cfg.publica, authorization: 'Bearer ' + token, 'content-type': 'application/json', 'accept-profile': esquema, 'content-profile': esquema };
     if (prefer) cab.prefer = prefer;
-    const r = await fetch(cfg.url + '/rest/v1/' + caminho, { method: metodo, headers: cab, body: corpo === undefined ? undefined : JSON.stringify(corpo) });
+    const r = await fetch(cfg.url + '/rest/v1/' + caminho, { method: metodo, headers: cab, body: corpo === undefined ? undefined : JSON.stringify(corpo), signal: AbortSignal.timeout(TEMPO_MAXIMO_MS) });
     const texto = await r.text();
     let dados = null;
     try { dados = texto ? JSON.parse(texto) : null; } catch { dados = null; }

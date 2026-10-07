@@ -22,7 +22,8 @@ import { ErroPagamento } from '../_pagamentos/servico.mjs';
 import { ipDe } from '../_freio.mjs';
 import { chaveDoIp } from './ip.mjs';
 
-export const ORG = 'beyon-zero';
+import { ORG } from './org.mjs';
+export { ORG };
 export const RECUPERACAO = 'Não consegui concluir a análise neste momento. Suas informações foram preservadas. Vamos continuar de onde paramos.';
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const ORIGENS = ['anuncio', 'busca', 'social', 'mensagem', 'email', 'referencia', 'direto'];
@@ -41,6 +42,8 @@ export function traduzirErro(e) {
   if (e instanceof Recusa) return e;
   if (e instanceof ErroPagamento) return new Recusa(e.status, e.message, e.extra);
   if (e instanceof ErroIA) return new Recusa(503, RECUPERACAO, { recuperavel: true });
+  /* tempo máximo de uma chamada ao Supabase esgotado: lentidão passageira, não erro interno */
+  if (e && (e.name === 'TimeoutError' || e.name === 'AbortError')) return new Recusa(503, 'O serviço está lento agora. Suas informações foram preservadas; tente de novo em instantes.', { recuperavel: true });
   if (e instanceof ErroBanco) {
     if (e.codigo === 'P0002') return new Recusa(404, 'Não encontrado.');
     if (e.codigo === '55000') return new Recusa(409, 'Esta etapa ainda não está disponível.');
@@ -61,7 +64,27 @@ async function regrasAtivas(banco) {
   return r && r.regras ? r : null;
 }
 
-export function criarFluxo({ banco, ia, visitantes, pagamentos, segredoFreio }) {
+export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoFreio, requestId }) {
+  /* o REGISTRO das chamadas de IA (app.ia_chamadas): cada chamada ao modelo vira uma linha — papel, modelo,
+     tokens, custo, ferramentas pedidas, tempo, erro — sem o texto de ninguém; gravado no fim da ação, dê certo ou não */
+  const chamadas = [];
+  const ia = iaBase && { ...iaBase, async mensagem(p) {
+    const t0 = Date.now();
+    try {
+      const r = await iaBase.mensagem(p);
+      chamadas.push({ papel: p.papel, modelo: r.modelo, parada: r.parada, custo_usd: r.custo_usd || 0, tokens_entrada: r.uso?.entrada ?? null,
+        tokens_saida: r.uso?.saida ?? null, ferramentas: (r.chamadas || []).map(c => c.nome), ms: Date.now() - t0 });
+      return r;
+    } catch (e) {
+      chamadas.push({ papel: p.papel, erro: e instanceof ErroIA ? e.motivo : 'interno', custo_usd: (e && e.custo_usd) || 0, ms: Date.now() - t0 });
+      throw e;
+    }
+  } };
+  async function gravarChamadas(conversaId, vid) {
+    if (!chamadas.length) return;
+    await banco('vendas_registrar_ia', { conversa_id: conversaId, visitante_id: vid, request_id: requestId || null, chamadas: chamadas.splice(0) })
+      .catch(e => console.error(JSON.stringify({ origem: 'vendas', nivel: 'erro', request_id: requestId || null, evento: 'registro de IA não gravado', codigo: e && e.codigo })));
+  }
   async function visitante(request) {
     const id = await visitantes.quem(request);
     exigir(id, 401, 'Sessão inválida ou expirada.');
@@ -87,6 +110,11 @@ export function criarFluxo({ banco, ia, visitantes, pagamentos, segredoFreio }) 
     if (Number(est.conversa.custo_ia_usd) >= TETOS.conversa_usd) throw new Recusa(429, 'Chegamos ao limite desta conversa por aqui. Continue com a Beyon Zero pelo WhatsApp: o seu briefing já está salvo.', { whatsapp: true });
     const dia = await banco('vendas_custo_dia', { org_slug: ORG });
     if (Number(dia.custo_usd) >= TETOS.dia_usd) throw new Recusa(503, 'O consultor está com muita procura agora. Seu briefing está salvo; tente de novo mais tarde ou fale pelo WhatsApp.', { whatsapp: true });
+    /* o disjuntor: o provedor de IA falhou nas últimas 5 chamadas (10 min) → não chama, oferece o WhatsApp */
+    /* (consulta que falha — ex.: migration ainda não aplicada — não derruba o agente: na dúvida, chama; o log avisa) */
+    const disjuntor = await banco('vendas_ia_disponivel', { org_slug: ORG })
+      .catch(e => { console.error(JSON.stringify({ origem: 'vendas', nivel: 'erro', request_id: requestId || null, evento: 'disjuntor não consultado', codigo: e && e.codigo })); return null; });
+    if (disjuntor && disjuntor.disponivel === false) throw new Recusa(503, 'O consultor está fora do ar por alguns minutos. Seu briefing está salvo; tente de novo daqui a pouco ou fale pelo WhatsApp.', { whatsapp: true });
   }
 
   /* um turno com a trava da IA já reservada. O que se GRAVA é o texto redigido (sem telefone, e-mail,
@@ -158,6 +186,7 @@ export function criarFluxo({ banco, ia, visitantes, pagamentos, segredoFreio }) 
       try {
         return await turno(vid, corpo.conversa_id, est, regras, msg);
       } finally {
+        await gravarChamadas(corpo.conversa_id, vid);
         await banco('vendas_liberar_ia', { conversa_id: corpo.conversa_id, visitante_id: vid }).catch(() => {});
       }
     },
@@ -204,6 +233,8 @@ export function criarFluxo({ banco, ia, visitantes, pagamentos, segredoFreio }) 
         await banco('vendas_concluir_direcao', { direcao_id: p.direcao_id, erro: 'não foi possível gerar (' + motivo + ')' });
         if (e instanceof ErroIA) return { status: 'falhou', mensagem: RECUPERACAO };
         throw e;
+      } finally {
+        await gravarChamadas(corpo.conversa_id, vid);
       }
     },
 
@@ -231,7 +262,10 @@ export function criarFluxo({ banco, ia, visitantes, pagamentos, segredoFreio }) 
       let t;
       try { t = await interpretar({ ia, pedido, direcoes, escolhida: escolhida.numero }); }
       catch (e) { await somarCusto(corpo.conversa_id, vid, e && e.custo_usd); throw e; }
-      finally { await banco('vendas_liberar_ia', { conversa_id: corpo.conversa_id, visitante_id: vid }).catch(() => {}); }
+      finally {
+        await banco('vendas_liberar_ia', { conversa_id: corpo.conversa_id, visitante_id: vid }).catch(() => {});
+        await gravarChamadas(corpo.conversa_id, vid);
+      }
       /* a chamada ao modelo já foi paga: o custo entra no teto agora, dê certo ou não o que vem depois */
       await somarCusto(corpo.conversa_id, vid, t.custo_usd);
       const a = aplicar({ base, mudancas: t.mudancas, direcoes });

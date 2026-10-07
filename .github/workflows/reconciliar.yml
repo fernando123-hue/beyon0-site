@@ -1,0 +1,33 @@
+# Conferência dos pagamentos com o Mercado Pago a cada 3 horas (auditoria do Harness, 2026-10-07).
+# O cron da Vercel no plano gratuito roda 1x por dia; este agendamento do GitHub Actions é grátis e chama a MESMA
+# rota protegida (/api/pagamentos?acao=reconciliar, com o CRON_SECRET). Desligado até o dono cadastrar, em
+# Settings → Secrets and variables → Actions: PRODUCAO_URL (https://…, sem barra no fim, o domínio final sem
+# redirecionamento) e CRON_SECRET. Só quem tem push no repositório (o dono) pode mudar este arquivo.
+name: Reconciliar pagamentos
+
+on:
+  schedule:
+    - cron: '23 */3 * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: reconciliar
+  cancel-in-progress: false
+
+jobs:
+  reconciliar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Chamar a reconciliação
+        env:
+          URL: ${{ secrets.PRODUCAO_URL }}
+          SEGREDO: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$URL" ] || [ -z "$SEGREDO" ]; then echo "::warning::Reconciliação desligada: faltam os segredos PRODUCAO_URL e CRON_SECRET."; exit 0; fi
+          case "$URL" in https://*) ;; *) echo "::error::PRODUCAO_URL precisa começar com https:// (o segredo não vai em texto puro)."; exit 1;; esac
+          codigo=$(curl -sS --max-time 150 -o resposta.json -w '%{http_code}' -H "Authorization: Bearer $SEGREDO" "${URL%/}/api/pagamentos?acao=reconciliar")
+          if [ "$codigo" != "200" ] || ! grep -q '"ok":true' resposta.json; then echo "::error::Reconciliação respondeu HTTP $codigo."; exit 1; fi
+          echo "Reconciliação ok."

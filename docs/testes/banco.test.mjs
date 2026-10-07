@@ -31,7 +31,7 @@ before(async () => {
 test('o banco nasce do zero só pelas migrations, com o public vazio', async () => {
   const r = await db.query("select table_schema s, count(*)::int n from information_schema.tables where table_schema in ('app','metricas','public') group by 1");
   const n = Object.fromEntries(r.rows.map(x => [x.s, x.n]));
-  assert.equal(n.app, 21, '9 da Fase 1 + 10 do agente de vendas (Fase 2) + 2 de pagamentos (tentativas e auditoria)');
+  assert.equal(n.app, 24, '9 da Fase 1 + 10 do agente de vendas (Fase 2) + 2 de pagamentos (tentativas e auditoria) + registro das chamadas de IA + rotinas e alertas');
   assert.equal(n.metricas, 2);
   assert.equal(n.public, undefined);
   const semRls = await db.query("select relname from pg_class c join pg_namespace s on s.oid = c.relnamespace where nspname in ('app','metricas') and relkind = 'r' and not relrowsecurity");

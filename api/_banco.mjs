@@ -11,6 +11,8 @@
    o caminho inteiro no navegador sem conta nenhuma.
    Esquema das tabelas: supabase/migrations/20261006120100_metricas.sql.
    ========================================================================== */
+import { TEMPO_MAXIMO_MS } from './_supabase.mjs';
+
 const PAGINA_REST = 1000;   /* o PostgREST devolve no máximo 1000 linhas por vez */
 const TETO_LINHAS = 50000;  /* o painel nunca puxa mais que isso (proteção de memória) */
 
@@ -21,7 +23,7 @@ function supabase(url, chave) {
   const cab = extra => Object.assign({ apikey: chave, 'content-type': 'application/json', 'accept-profile': 'metricas', 'content-profile': 'metricas' },
     chave.startsWith('eyJ') ? { authorization: 'Bearer ' + chave } : {}, extra);
   async function pedir(caminho, opcoes, rotulo) {
-    const r = await fetch(base + caminho, opcoes);
+    const r = await fetch(base + caminho, { ...opcoes, signal: AbortSignal.timeout(TEMPO_MAXIMO_MS) });   /* (tempo máximo: auditoria 2026-10-07) */
     if (!r.ok) {
       const corpo = await r.json().catch(() => null);
       throw new Error(rotulo + ': HTTP ' + r.status + (corpo && corpo.code ? ' código ' + corpo.code : ''));

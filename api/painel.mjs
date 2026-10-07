@@ -7,14 +7,18 @@
                               importação de conversões off-line do Google Ads
      POST {codigo, status, valor, nota}   marca conversa/cliente num contato
      POST {codigo, excluir: true}         apaga o contato (pedido do titular, LGPD art. 18)
+     POST {resolver_alerta: <id>}         marca um alerta da rotina diária como resolvido
+   A resposta do GET traz também "saude": alertas abertos e a data da última rotina diária.
    ========================================================================== */
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { banco } from './_banco.mjs';
 import { resumir, csvGoogleAds } from './_resumo.mjs';
 import { validarMudanca, CODIGO } from './_valida.mjs';
+import { criarTransporte } from './_vendas/transporte.mjs';
+import { ehUuid } from './_valida-app.mjs';
+import { ORG } from './_vendas/org.mjs';
 
 const CHAVE_MINIMA = 32;
-const RETENCAO_DIAS = 400;          /* ~13 meses: o que é mais velho sai do banco (docs/metricas/README.md) */
 const PERIODOS = [7, 30, 90, 365];
 const JANELA_ADS_DIAS = 90;         /* o Google Ads só aceita conversão até 90 dias depois do clique */
 const TENTATIVAS = { max: 10, janelaMs: 15 * 60e3 };
@@ -43,6 +47,15 @@ async function autorizar(request, env) {
   return json({ erro: 'Chave errada.' }, 401);
 }
 
+/* a saúde (alertas abertos e quando a rotina diária rodou bem pela última vez): sem ela, silêncio parecia saúde.
+   Falhar aqui não derruba o painel: devolve null e o painel diz que não deu para ler */
+async function saudeDoSistema(env) {
+  const rpc = criarTransporte(env);
+  if (!rpc) return null;
+  try { return await rpc('rotinas_painel', { org_slug: ORG }); }
+  catch (e) { console.error('[painel] saúde:', e && e.codigo); return null; }
+}
+
 export const GET = request => ler(request, process.env);
 export const POST = request => mudar(request, process.env);
 export async function ler(request, env) {
@@ -58,10 +71,10 @@ export async function ler(request, env) {
       return new Response(csvGoogleAds(contatos, nome), { headers: { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': 'attachment; filename="conversoes-google-ads.csv"', 'cache-control': 'no-store' } });
     }
     const dias = PERIODOS.includes(+q.get('dias')) ? +q.get('dias') : 30;
-    await db.apagarAntigos(diasAtras(RETENCAO_DIAS));
+    /* (abrir o painel não apaga mais nada: a retenção de ~13 meses roda na rotina diária, api/rotinas.mjs) */
     const desde = diasAtras(dias);
-    const [paginas, contatos] = await Promise.all([db.listar('paginas', 'inicio', desde), db.listar('contatos', 'quando', desde)]);
-    return json(resumir(paginas, contatos, { dias }));
+    const [paginas, contatos, saude] = await Promise.all([db.listar('paginas', 'inicio', desde), db.listar('contatos', 'quando', desde), saudeDoSistema(env)]);
+    return json({ ...resumir(paginas, contatos, { dias }), saude });
   } catch (e) {
     console.error('[metricas] painel:', e.message);
     return json({ erro: 'Não deu para ler o banco agora. Tente de novo em instantes.' }, 500);
@@ -75,6 +88,14 @@ export async function mudar(request, env) {
   if (!db.ligado) return json({ erro: 'Banco não configurado.' }, 503);
   let bruto;
   try { bruto = JSON.parse(await request.text()); } catch { bruto = null; }
+  /* marcar um alerta como resolvido */
+  if (bruto && typeof bruto.resolver_alerta === 'string') {
+    if (!ehUuid(bruto.resolver_alerta)) return json({ erro: 'Pedido inválido.' }, 400);
+    const rpc = criarTransporte(env);
+    if (!rpc) return json({ erro: 'Banco não configurado.' }, 503);
+    try { await rpc('rotinas_resolver', { id: bruto.resolver_alerta, org_slug: ORG }); return json({ ok: true }); }
+    catch (e) { return e && e.codigo === 'P0002' ? json({ erro: 'Alerta não encontrado.' }, 404) : json({ erro: 'Não deu para salvar agora.' }, 500); }
+  }
   if (bruto && bruto.excluir === true && CODIGO.test(String(bruto.codigo))) {
     try { return (await db.apagarContato(bruto.codigo)) ? json({ ok: true, excluido: bruto.codigo }) : json({ erro: 'Código não encontrado.' }, 404); }
     catch (e) { console.error('[metricas] painel excluir:', e.message); return json({ erro: 'Não deu para excluir agora.' }, 500); }

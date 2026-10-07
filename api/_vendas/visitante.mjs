@@ -11,7 +11,7 @@
    ligado (o cadastro com e-mail continua desligado) — docs/fase2/02-OPERACAO.md.
    Local e testes: globalThis.__BZ_LOCAL.auth (tokens HS256 de desenvolvimento).
    ========================================================================== */
-import { configUsuario, tokenDe, usuarioDoToken } from '../_supabase.mjs';
+import { configUsuario, tokenDe, usuarioDoToken, TEMPO_MAXIMO_MS } from '../_supabase.mjs';
 
 export function criarVisitantes(env = process.env) {
   const cfg = configUsuario(env);
@@ -20,13 +20,13 @@ export function criarVisitantes(env = process.env) {
     const sessao = s => (s && s.access_token && s.user?.id ? { token: s.access_token, refresh: s.refresh_token, expira_em: s.expires_at || null, visitante_id: s.user.id } : null);
     return {
       async criar() {
-        const r = await fetch(cfg.url + '/auth/v1/signup', { method: 'POST', headers: cab, body: JSON.stringify({ data: {} }) });
+        const r = await fetch(cfg.url + '/auth/v1/signup', { method: 'POST', headers: cab, body: JSON.stringify({ data: {} }), signal: AbortSignal.timeout(TEMPO_MAXIMO_MS) });
         if (!r.ok) throw new Error('login anônimo recusado: HTTP ' + r.status);
         return sessao(await r.json());
       },
       async renovar(refresh) {
         if (typeof refresh !== 'string' || refresh.length > 512 || !/^[A-Za-z0-9_-]+$/.test(refresh)) return null;
-        const r = await fetch(cfg.url + '/auth/v1/token?grant_type=refresh_token', { method: 'POST', headers: cab, body: JSON.stringify({ refresh_token: refresh }) });
+        const r = await fetch(cfg.url + '/auth/v1/token?grant_type=refresh_token', { method: 'POST', headers: cab, body: JSON.stringify({ refresh_token: refresh }), signal: AbortSignal.timeout(TEMPO_MAXIMO_MS) });
         return r.ok ? sessao(await r.json()) : null;
       },
       async quem(request) {

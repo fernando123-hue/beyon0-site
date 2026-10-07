@@ -221,7 +221,7 @@ test('retenção: o texto de conversa parada sem contrato some; a com cobrança 
   const sv = await velha.iniciar(), sp = await paga.iniciar();
   for (const [n, c] of [[velha, sv.conversa_id], [paga, sp.conversa_id]]) await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Tenho uma escola e quero um site institucional para captar matrículas' });
   await local.db.query(`update app.conversas set ultima_atividade = now() - interval '120 days' where id in ($1, $2)`, [sv.conversa_id, sp.conversa_id]);
-  await local.db.query(`update app.conversas set etapa = 'aguardando_pagamento' where id = $1`, [sp.conversa_id]);
+  await local.db.exec(`begin; set local bz.transicao_livre = 'on'; update app.conversas set etapa = 'aguardando_pagamento' where id = '${sp.conversa_id}'; commit;`);   /* (montagem: pula etapas com licença) */
   await assert.rejects(local.rpc('vendas_reter', { dias: 7 }), e => e.codigo === '22023', 'menos de 30 dias: recusado');
   const r = await local.rpc('vendas_reter', {});
   assert.ok(r.mensagens_apagadas >= 2);
@@ -269,7 +269,7 @@ test('conversa encerrada para o agente: não chama o modelo (sem custo) e respon
   const contando = { ...deps, ia: { ...base, mensagem: p => { chamadas++; return base.mensagem(p); } } };
   const n = navegador(contando);
   const s = await n.iniciar();
-  await local.db.query(`update app.conversas set etapa = 'aguardando_pagamento' where id = $1`, [s.conversa_id]);
+  await local.db.exec(`begin; set local bz.transicao_livre = 'on'; update app.conversas set etapa = 'aguardando_pagamento' where id = '${s.conversa_id}'; commit;`);
   assert.equal((await n.chamar('POST', 'mensagem', { conversa_id: s.conversa_id, texto: 'oi' })).status, 409);
   assert.equal(chamadas, 0);
 });

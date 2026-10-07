@@ -12,6 +12,8 @@
    Erros do banco viram ErroBanco com o código SQLSTATE (P0002 não achou,
    55000 etapa errada, 22023 inválido, 23514 regra, 42501 sem permissão).
    ========================================================================== */
+import { TEMPO_MAXIMO_MS } from '../_supabase.mjs';
+
 export class ErroBanco extends Error {
   constructor(codigo, mensagem) { super(mensagem || codigo); this.codigo = codigo; }
 }
@@ -23,9 +25,9 @@ export function criarTransporte(env = process.env) {
     const cab = { apikey: chave, 'content-type': 'application/json', 'content-profile': 'app', 'accept-profile': 'app',
       ...(chave.startsWith('eyJ') ? { authorization: 'Bearer ' + chave } : {}) };
     return async function rpc(nome, p) {
-      if (!/^(vendas|pagamentos)_[a-z_]{2,40}$/.test(nome)) throw new ErroBanco('22023', 'função inválida');
+      if (!/^(vendas|pagamentos|rotinas)_[a-z_]{2,40}$/.test(nome)) throw new ErroBanco('22023', 'função inválida');
       let r;
-      try { r = await fetch(base + nome, { method: 'POST', headers: cab, body: JSON.stringify({ p }), signal: AbortSignal.timeout(10000) }); }
+      try { r = await fetch(base + nome, { method: 'POST', headers: cab, body: JSON.stringify({ p }), signal: AbortSignal.timeout(TEMPO_MAXIMO_MS) }); }
       catch (e) { throw new ErroBanco('08006', 'rpc ' + nome + ': banco indisponível'); }
       const corpo = await r.json().catch(() => null);
       if (!r.ok) throw new ErroBanco((corpo && corpo.code) || 'HTTP' + r.status, 'rpc ' + nome + ': HTTP ' + r.status);

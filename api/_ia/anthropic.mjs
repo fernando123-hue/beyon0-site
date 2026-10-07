@@ -48,6 +48,9 @@ export function criarAnthropic(env = process.env, cliente) {
          (a saída máxima do papel por tentativa), para o teto não ficar cego */
       if (e instanceof Anthropic.APIConnectionTimeoutError) throw new ErroIA('tempo', 'tempo esgotado', custoUsd(cfg.modelo, { saida: cfg.max_tokens }) * (1 + tentativas));
       if (e instanceof Anthropic.AuthenticationError) throw new ErroIA('indisponivel', 'credencial recusada');
+      /* 4xx (menos 429) vem do pedido — o conteúdo que o visitante controla —, não do provedor fora do ar: "entrada"
+         não conta no disjuntor (app.vendas_ia_disponivel); 5xx e sem status, sim ("falha") */
+      if (e instanceof Anthropic.APIError && e.status >= 400 && e.status < 500) throw new ErroIA('entrada', 'provedor HTTP ' + e.status);
       if (e instanceof Anthropic.APIError) throw new ErroIA('falha', 'provedor HTTP ' + (e.status || '?'));
       throw new ErroIA('falha', 'erro de rede');
     }

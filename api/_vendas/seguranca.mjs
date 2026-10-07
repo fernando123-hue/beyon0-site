@@ -28,8 +28,11 @@ export function redigir(texto) {
 
 /* o agente não escreve valores em dinheiro (nem "uns 2 mil"): quem mostra o preço é o cartão da estimativa */
 const DINHEIRO = /(R\$\s?\d[\d.,]*(?:\s?(?:mil|k))?|\d[\d.,]*\s?(?:reais|mil reais)|US\$\s?\d[\d.,]*)/gi;
+/* (auditoria 2026-10-07) o valor por extenso também: "dois mil e quinhentos reais", "uns três mil reais" */
+const PALAVRAS = 'um|uma|dois|duas|tr[eê]s|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|treze|quatorze|catorze|quinze|dezesseis|dezessete|dezoito|dezenove|vinte|trinta|quarenta|cinquenta|sessenta|setenta|oitenta|noventa|cem|cento|duzentos|trezentos|quatrocentos|quinhentos|seiscentos|setecentos|oitocentos|novecentos|mil|milh[aã]o|milh[oõ]es';
+const POR_EXTENSO = new RegExp('\\b(?:' + PALAVRAS + ')(?:\\s+(?:e\\s+)?(?:' + PALAVRAS + '))*\\s+(?:de\\s+)?reais\\b', 'gi');
 export function semPrecoNoTexto(texto) {
-  return String(texto).replace(DINHEIRO, 'o valor (no cartão da estimativa)');
+  return String(texto).replace(DINHEIRO, 'o valor (no cartão da estimativa)').replace(POR_EXTENSO, 'o valor (no cartão da estimativa)');
 }
 
 const INJECAO = [

@@ -70,7 +70,7 @@ Nenhuma chave entra no código: elas ficam só nas variáveis da Vercel (e no In
 - **Robôs que se declaram** são descartados pelo navegador informado. Robô disfarçado pode entrar; tráfego estranho aparece como pico no "Por dia".
 - **Endpoint público**: qualquer um pode mandar retratos falsos com um programa. Há três freios. Só passam campos da lista fechada; UTM com e-mail ou telefone é descartado. Cada IP pode mandar até 60 por minuto, por instância da função. O painel lê do mais novo para o mais velho, então lixo antigo não esconde dado novo. Para uma muralha de verdade, crie no **Firewall da Vercel** uma regra de limite para POST /api/evento, por exemplo 30 por minuto por IP.
 - **Código ocupado**: um atacante que inventasse milhões de códigos poderia tomar o de uma visita real, e o contato dela se perderia. Com o freio por IP isso é impraticável; o risco foi aceito e fica registrado aqui.
-- **Retenção**: páginas vistas e contatos que não viraram cliente, com mais de 400 dias, uns 13 meses, são apagados. A limpeza roda quando o painel abre e em 1 de cada 100 visitas, então acontece mesmo sem o dono abrir o painel. Quem virou cliente fica. O botão Excluir de cada contato apaga o registro a pedido da pessoa, como manda a LGPD.
+- **Retenção**: páginas vistas e contatos que não viraram cliente, com mais de 400 dias, uns 13 meses, são apagados. A limpeza roda na rotina diária (`/api/rotinas`, desde 2026-10-07; abrir o painel não apaga mais nada) e em 1 de cada 100 visitas. Quem virou cliente fica. O botão Excluir de cada contato apaga o registro a pedido da pessoa, como manda a LGPD.
 - **Supabase grátis** pausa o projeto depois de 7 dias sem uso. Com visitas chegando, ele não para.
 
 ## Testar sem conta nenhuma
