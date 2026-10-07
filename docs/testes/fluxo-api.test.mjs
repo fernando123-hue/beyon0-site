@@ -64,6 +64,10 @@ test('fluxo normal: visitante → conversa → estimativa → contato → 3 dire
   assert.equal((await n.chamar('POST', 'escolher', { conversa_id: c, direcao_id: segunda.id })).status, 200);
   const alt = await n.chamar('POST', 'alterar', { conversa_id: c, pedido: 'Gostei da segunda, mas quero a cor da primeira e quero colocar os depoimentos antes dos serviços.' });
   assert.ok(alt.corpo.resultado.every(r => r.aplicada));
+  /* marcador maior que o dado ("a@b.co" → "[e-mail]"): o pedido redigido passaria de 2.000 e o banco recusaria
+     DEPOIS de pagar o modelo (revisão do PR 6) */
+  const longo = await n.chamar('POST', 'alterar', { conversa_id: c, pedido: 'a@b.co '.repeat(285).trim() });
+  assert.equal(longo.status, 200, 'pedido de 1.994 caracteres com e-mails: ' + JSON.stringify(longo.corpo).slice(0, 200));
   const esc = await n.chamar('POST', 'escopo', { conversa_id: c });
   assert.equal(esc.status, 200);
   assert.equal(Number(esc.corpo.valor_total), 3650);

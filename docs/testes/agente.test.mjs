@@ -30,6 +30,7 @@ test('simulador nunca na produção da Vercel: sem chave, o consultor fica desli
   const real = await criarIA({ VERCEL: '1', VERCEL_ENV: 'production', ANTHROPIC_API_KEY: 'sk-teste', BZ_IA: 'simulada' });
   assert.equal(real?.nome, 'anthropic', 'com a chave, a produção usa a IA real (a trava não vem antes da chave)');
   assert.ok(await criarIA({ VERCEL: '1', VERCEL_ENV: 'preview', BZ_IA: 'simulada' }), 'na prévia o simulador vale');
+  assert.ok(await criarIA({ VERCEL: '1', VERCEL_ENV: 'development', BZ_IA: 'simulada' }), 'no desenvolvimento da Vercel (vercel dev) também');
   assert.ok(await criarIA({ BZ_LOCAL: '1' }), 'no servidor local o simulador vale');
 });
 
@@ -91,6 +92,63 @@ test('privacidade: e-mail, telefone e CPF saem antes de ir para o modelo', async
   assert.ok(!/ana@clinica|99999|123\.456/.test(enviado), enviado);
   assert.equal(redigir('fale no 21 98888-7777'), 'fale no [telefone]');
   assert.equal(semPrecoNoTexto('custa R$ 1.500,00'), 'custa o valor (no cartão da estimativa)');
+});
+
+test('privacidade: formatos que escapavam também saem (revisão do PR 1, segurança M2)', () => {
+  const casos = [
+    ['me liga 11 9 8765 4321', '8765'],                 /* telefone com espaços entre os grupos */
+    ['zap 98765-4321 depois das 18h', '98765'],          /* celular sem DDD */
+    ['+55 21 98765 4321', '98765'],
+    ['meu cpf 123 456 789 09', '789'],                   /* CPF com espaços */
+    ['cpf 12345678909', '12345678909'],                  /* CPF sem pontuação */
+    ['cnpj 12 345 678 0001 95', '0001'],                 /* CNPJ com espaços */
+    ['ana.souza arroba gmail ponto com', 'gmail'],       /* e-mail por extenso */
+    ['ana (arroba) clinica.com.br', 'clinica'],
+    ['joao at empresa dot com', 'empresa'],
+  ];
+  for (const [texto, vazou] of casos) assert.ok(!redigir(texto).includes(vazou), texto + ' → ' + redigir(texto));
+  assert.equal(redigir('+55 21 98765 4321'), '[telefone]');
+  assert.equal(redigir('cnpj 12 345 678 0001 95'), 'cnpj [documento]');
+  assert.equal(redigir('meu cpf 123 456 789 09'), 'meu cpf [documento]');
+  assert.equal(redigir('tel (21) 3333-4444'), 'tel [telefone]');
+  assert.equal(redigir('zap 11987654321'), 'zap [telefone]', 'celular sem pontuação é telefone, não documento');
+  /* revisões do PR 6: outros formatos comuns */
+  for (const [texto, vazou] of [
+    ['(11)98765.4321', '98765'], ['zap 99999.9999', '99999'], ['zap 9 9999-9999', '9999'],
+    ['ana @ gmail.com', 'gmail'], ['ana@gmail ponto com', 'gmail'], ['joao [at] empresa [dot] com', 'empresa'],
+    ['１１９８７６５４３２１', '９８７'], ['ana＠gmail.com', 'gmail'], ['11​98765​4321', '98765'],
+    /* 2ª rodada do PR 6: fim do número crescente não pode virar "faixa"; CPF com separador misto */
+    ['11-3333-4444', '3333'], ['+55-21-3333-4444', '3333'], ['55-11-9876-5432', '9876'], ['11 9 1234-5678', '1234'],
+    ['9 1234-5678', '1234'], ['21 9 1234-5678', '1234'], ['11.987.654.321', '987'], ['123.456.789 09', '456'],
+    ['cpf 123.456.789/09', '456'], ['123 456.789-09', '456'], ['12.345.678/0001 95', '345'], ['٠١١٩٨٧٦٥٤٣٢١', '٩٨٧'],
+  ]) assert.ok(!redigir(texto).includes(vazou) && !redigir(texto).normalize('NFKC').includes(vazou.normalize('NFKC')), texto + ' → ' + redigir(texto));
+  /* o que NÃO é dado pessoal fica: preço, faixa, quantidade, ano, horário, prazo */
+  for (const texto of ['orçamento entre 2000-3000 reais', 'site com 5 páginas em 2026', 'atendo das 8 às 18', 'umas 300 visitas por mês', 'prazo de 15 dias', 'look at this.site', 'R$ 1.500.000,00 em 2025', 'me chama às 9h',
+    'faturamento de 50.000-100.000 por mês', 'faturo 50000-100000', 'R$ 50.000-100.000', '100000-200000 por ano',
+    'meta de 1.200.000', 'área de 120 m²', 'O preço da arroba subiu.Preciso de um site', 'entrega em 15/12/2026 18h', 'reunião 2026-10-07 14:30', 'dia 07.10.2026 14.30',
+    'de 10/10/2026 a 15/10/2026', 'O preço da arroba subiu. Preciso de um site', 'preço da arroba é 300 reais', 'siga @clinica.sorriso no insta']) {
+    assert.equal(redigir(texto), texto, 'não mexe em: ' + texto);
+  }
+});
+
+test('privacidade: redigir é linear — mensagem adversária de 2.000 caracteres não trava o servidor (revisões do PR 6, ReDoS)', () => {
+  const adversarias = [
+    'a' + ' '.repeat(1000) + 'arroba' + ' '.repeat(993) + '!',
+    'a'.repeat(1000) + ' '.repeat(1000),
+    'a'.repeat(1000) + '\n'.repeat(1000),
+    'a.'.repeat(1000),
+    'a '.repeat(500) + 'at '.repeat(300) + '!',
+    '1 '.repeat(1000),
+    '1-'.repeat(1000),
+    '9'.repeat(2000),
+    ('ana arroba ' + 'x ponto '.repeat(3)).repeat(60).slice(0, 2000),
+  ];
+  for (const texto of adversarias) {
+    const inicio = performance.now();
+    redigir(texto);
+    const ms = performance.now() - inicio;
+    assert.ok(ms < 50, 'redigir levou ' + ms.toFixed(1) + ' ms em: ' + JSON.stringify(texto.slice(0, 30)) + '…');
+  }
 });
 
 test('contato só depois da estimativa; falha e recusa do modelo não inventam resposta', async () => {

@@ -1,7 +1,7 @@
 /* ==========================================================================
    CAMADA DE IA — provedor SIMULADO (só testes e servidor local; nunca liga
-   em produção: criarIA só o escolhe sem ANTHROPIC_API_KEY, fora da produção
-   da Vercel e com BZ_LOCAL=1 ou BZ_IA=simulada). Determinístico: palavras-chave → as mesmas chamadas de
+   em produção: criarIA só o escolhe sem ANTHROPIC_API_KEY, fora da Vercel ou
+   na prévia/desenvolvimento dela, e com BZ_LOCAL=1 ou BZ_IA=simulada). Determinístico: palavras-chave → as mesmas chamadas de
    ferramenta e o mesmo formato de resposta do modelo real, para o fluxo
    inteiro ser exercitado sem custo. Não é o agente: é um dublê dele.
    A geração das direções tem o seu dublê em simulado-geracao.mjs.
