@@ -1,13 +1,15 @@
 /* ==========================================================================
    MÉTRICAS PRÓPRIAS — onde os dados ficam (2026-10-06).
    Produção: Supabase (Postgres), pela API REST com fetch, sem biblioteca.
-   Variáveis de ambiente na Vercel (só no ambiente Production):
-     SUPABASE_URL          https://xxxx.supabase.co
-     SUPABASE_CHAVE        a chave secreta (secret / service_role), NUNCA a pública
+   As tabelas ficam no esquema `metricas` (supabase/migrations/…_metricas.sql),
+   que só o backend acessa: anon e authenticated não têm concessão nenhuma.
+   Variáveis de ambiente (só no servidor; .env.example; docs/fundacao/02-OPERACAO.md):
+     SUPABASE_URL            https://xxxx.supabase.co
+     SUPABASE_CHAVE_SECRETA  a chave secreta (sb_secret_…), NUNCA a pública
    Sem elas, o banco fica DESLIGADO: o endpoint responde 204 e não grava.
    Local (docs/servidor.mjs liga BZ_LOCAL=1): um banco em memória, para testar
    o caminho inteiro no navegador sem conta nenhuma.
-   Esquema das tabelas: docs/metricas/esquema.sql.
+   Esquema das tabelas: supabase/migrations/20261006120100_metricas.sql.
    ========================================================================== */
 const PAGINA_REST = 1000;   /* o PostgREST devolve no máximo 1000 linhas por vez */
 const TETO_LINHAS = 50000;  /* o painel nunca puxa mais que isso (proteção de memória) */
@@ -15,11 +17,15 @@ const TETO_LINHAS = 50000;  /* o painel nunca puxa mais que isso (proteção de 
 function supabase(url, chave) {
   const base = url.replace(/\/+$/, '') + '/rest/v1/';
   /* chave nova (sb_secret_…) vai só no apikey; a antiga (JWT, "eyJ…") também no Authorization */
-  const cab = extra => Object.assign({ apikey: chave, 'content-type': 'application/json' },
+  /* o esquema metricas (não o public): Accept-Profile na leitura, Content-Profile na escrita (o PostgREST aceita os dois em todas) */
+  const cab = extra => Object.assign({ apikey: chave, 'content-type': 'application/json', 'accept-profile': 'metricas', 'content-profile': 'metricas' },
     chave.startsWith('eyJ') ? { authorization: 'Bearer ' + chave } : {}, extra);
   async function pedir(caminho, opcoes, rotulo) {
     const r = await fetch(base + caminho, opcoes);
-    if (!r.ok) throw new Error(rotulo + ': HTTP ' + r.status + ' ' + (await r.text()).slice(0, 200));
+    if (!r.ok) {
+      const corpo = await r.json().catch(() => null);
+      throw new Error(rotulo + ': HTTP ' + r.status + (corpo && corpo.code ? ' código ' + corpo.code : ''));
+    }
     return r;
   }
   return {
@@ -89,7 +95,7 @@ const local = {
 const desligado = { ligado: false };
 
 export function banco(env = process.env) {
-  if (env.SUPABASE_URL && env.SUPABASE_CHAVE) return supabase(env.SUPABASE_URL, env.SUPABASE_CHAVE);
+  if (env.SUPABASE_URL && env.SUPABASE_CHAVE_SECRETA) return supabase(env.SUPABASE_URL, env.SUPABASE_CHAVE_SECRETA);
   if (env.BZ_LOCAL === '1' && !env.VERCEL) return local;   /* (na Vercel, nunca: sem Supabase fica desligado) */
   return desligado;
 }

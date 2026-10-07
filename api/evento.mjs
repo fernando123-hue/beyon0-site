@@ -6,18 +6,12 @@
    ========================================================================== */
 import { banco } from './_banco.mjs';
 import { validarPacote, ehRobo, LIMITE_BYTES } from './_valida.mjs';
+import { criarFreio, ipDe } from './_freio.mjs';
 
 const vazio = status => new Response(null, { status, headers: { 'cache-control': 'no-store' } });
-const FREIO = { max: 60, janelaMs: 60e3, ips: 5000 };   /* 60 retratos por minuto por IP: uma pessoa real manda menos de 10 */
+/* 60 retratos por minuto por IP: uma pessoa real manda menos de 10 */
+export const freado = criarFreio({ max: 60, janelaMs: 60e3 });
 const LIMPEZA = { chance: 0.01, retencaoDias: 400 };     /* 1 em cada 100 pedidos apaga o que passou de ~13 meses */
-const contagem = new Map();                              /* (por instância da função: freio, não muralha; a muralha é o firewall da Vercel) */
-export function freado(ip, agora = Date.now()) {
-  if (contagem.size > FREIO.ips) contagem.clear();
-  const c = contagem.get(ip);
-  if (!c || agora - c.desde > FREIO.janelaMs) { contagem.set(ip, { desde: agora, n: 1 }); return false; }
-  c.n++;
-  return c.n > FREIO.max;
-}
 
 /* o pedido veio de uma página deste mesmo site? (METRICAS_HOSTS: lista extra, separada por vírgula) */
 export function origemPermitida(request, env = process.env) {
@@ -34,7 +28,7 @@ export const POST = request => receber(request, process.env);
 export async function receber(request, env) {
   if (!origemPermitida(request, env)) return vazio(403);
   if (ehRobo(request.headers.get('user-agent'))) return vazio(204);
-  if (freado((request.headers.get('x-forwarded-for') || 'local').split(',')[0].trim())) return vazio(429);
+  if (freado(ipDe(request))) return vazio(429);
   const db = banco(env);
   if (!db.ligado) return vazio(204);
   const corpo = await request.text();

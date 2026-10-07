@@ -27,7 +27,10 @@ const diasAtras = n => new Date(Date.now() - n * 864e5).toISOString();
 
 async function autorizar(request, env) {
   const chave = env.PAINEL_CHAVE || '';
-  if (chave.length < CHAVE_MINIMA) return json({ erro: 'Painel não configurado: falta a variável PAINEL_CHAVE (mínimo ' + CHAVE_MINIMA + ' caracteres).' }, 503);
+  if (chave.length < CHAVE_MINIMA) {
+    console.error('[metricas] painel: PAINEL_CHAVE ausente ou com menos de ' + CHAVE_MINIMA + ' caracteres');
+    return json({ erro: 'Painel indisponível.' }, 503);
+  }
   const quem = (request.headers.get('x-forwarded-for') || 'local').split(',')[0].trim();
   if (erros.size > 5000) erros.clear();
   const agora = Date.now();
@@ -46,7 +49,7 @@ export async function ler(request, env) {
   const negado = await autorizar(request, env);
   if (negado) return negado;
   const db = banco(env);
-  if (!db.ligado) return json({ erro: 'Banco não configurado: faltam SUPABASE_URL e SUPABASE_CHAVE.' }, 503);
+  if (!db.ligado) return json({ erro: 'Banco não configurado: faltam SUPABASE_URL e SUPABASE_CHAVE_SECRETA no servidor.' }, 503);   /* (só depois da chave certa) */
   const q = new URL(request.url).searchParams;
   try {
     if (q.get('csv') === 'ads') {

@@ -1,4 +1,10 @@
 node_modules/
+
+# segredos locais nunca vão no deploy (o deploy vem do git, mas um "vercel deploy" local enviaria a pasta)
+.env*
+
+# o banco: migrations e configuração do Supabase não são página do site
+supabase/
 .claude/
 .superpowers/
 docs/

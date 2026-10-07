@@ -30,7 +30,8 @@ const TIPOS = {
    Aqui o banco é o de memória (BZ_LOCAL=1, api/_banco.mjs); a chave do painel vem de PAINEL_CHAVE. */
 process.env.BZ_LOCAL = '1';
 delete process.env.SUPABASE_URL;    /* (teste local nunca grava no banco de produção) */
-delete process.env.SUPABASE_CHAVE;
+delete process.env.SUPABASE_CHAVE_SECRETA;
+delete process.env.SUPABASE_CHAVE_PUBLICA;
 const HOSTS = new Set(['127.0.0.1:' + PORTA, 'localhost:' + PORTA]);
 async function api(req, res, caminho) {
   const nome = caminho.slice(5).replace(/\/$/, '');

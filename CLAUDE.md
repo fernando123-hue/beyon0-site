@@ -37,6 +37,7 @@ subindo); ignore a primeira medição de DCL/LCP.
 
 | Arquivo | O que é |
 |---|---|
+| `docs/fundacao/README.md` | **Banco e segurança** (2026-10-06): Supabase com esquemas app/metricas/privado, multi-organização com RLS, migrations em supabase/migrations, testes de banco reais (PGlite) em npm run testar, segredos só em variável de ambiente (.env.example). Antes de mexer no banco ou em api/, leia 01-ARQUITETURA e a lista de conferência de 02-OPERACAO §1. |
 | `docs/restructure/DIRECAO-V4.md` | **Comece aqui.** A direção da V4 "Tech refinado" (2026-10-01): a identidade da V1 (escuro, ciano, Sora + Mono, régua de 1px) com luz; celular primeiro. |
 | `docs/restructure/PLANO-AI-CORE.md` | **O AI Core** (2026-10-02): o reator em three.js no hero do Hub (v2, seção 11: simetria de 12 tempos, energia correndo para o núcleo; a v1, esfera de vidro da imagem do dono, foi vista como "emaranhado de fios"); medidas, rodadas da crítica e a proposta de motion. |
 | `docs/restructure/DIRECAO-V3.md` | A V3 clara ("Luz e vida"), rejeitada pelo dono no mesmo dia. Vale pela regra de celular primeiro. |

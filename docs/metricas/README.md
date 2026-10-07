@@ -34,30 +34,19 @@ O site mede a si mesmo, sem Google e sem cookies, e liga **cada conversa no What
 | `api/_resumo.mjs` | as contas do painel (função pura, testada) |
 | `api/_banco.mjs` | Supabase por fetch, sem biblioteca; em memória no servidor local |
 | `painel.html`, `painel.css`, `js/painel.js` | o painel, celular primeiro |
-| `docs/metricas/esquema.sql` | as duas tabelas |
+| `supabase/migrations/20261006120100_metricas.sql` | as duas tabelas, no esquema `metricas` |
 | `docs/testes/metricas.test.mjs` | `npm run testar` |
 
 ## Para ligar (uns 20 minutos)
 
 Antes: os bloqueios de `docs/google-ads/README.md` seção 0 valem aqui também. O plano grátis da Vercel não permite uso comercial.
 
-1. Crie uma conta no **Supabase** (plano grátis) e um projeto na região **São Paulo**.
-2. No projeto, abra **SQL Editor**, cole `docs/metricas/esquema.sql` inteiro e rode.
-3. Em **Project Settings › API Keys**, copie a **Project URL** e a chave **secret** (nunca a publishable/anon).
-4. Gere a chave do painel. Ela precisa de pelo menos 32 caracteres aleatórios:
+1. Monte o banco seguindo **docs/fundacao/02-OPERACAO.md** (Supabase em São Paulo, as migrations de supabase/migrations, o esquema metricas exposto na API e as variáveis na Vercel). As métricas vivem no esquema `metricas`, que só o backend acessa.
+2. Confirme na Vercel, **só no ambiente Production**, as variáveis `SUPABASE_URL`, `SUPABASE_CHAVE_SECRETA` e `PAINEL_CHAVE`. Assim as prévias não sujam os números. Guarde a `PAINEL_CHAVE` num gerenciador de senhas.
+3. Em `js/metricas.js`, troque `ativo: false` por `ativo: true`. Publique.
+4. Abra `/painel` no seu celular e no seu computador e entre com a chave. Deixe marcado "Não contar as minhas visitas neste aparelho".
 
-   ```bash
-   node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"
-   ```
-
-5. Na **Vercel › projeto › Settings › Environment Variables**, crie as três variáveis **só no ambiente Production**. Assim as prévias não sujam os números.
-   - `SUPABASE_URL`: a Project URL.
-   - `SUPABASE_CHAVE`: a chave secret.
-   - `PAINEL_CHAVE`: a chave gerada no passo 4. Guarde num gerenciador de senhas.
-6. Em `js/metricas.js`, troque `ativo: false` por `ativo: true`. Publique.
-7. Abra `/painel` no seu celular e no seu computador e entre com a chave. Deixe marcado "Não contar as minhas visitas neste aparelho".
-
-Nenhuma chave entra no código: as três ficam só nas variáveis da Vercel.
+Nenhuma chave entra no código: elas ficam só nas variáveis da Vercel (e no Infisical, na próxima fase).
 
 ## A rotina (5 minutos por semana)
 
