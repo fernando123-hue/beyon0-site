@@ -9,7 +9,7 @@ Branch `rebuild-v2`. Nada foi para produção: a `main` (o site no ar) segue `81
   - estimativas que guardam a versão da tabela de preços;
   - as 3 direções como estrutura, a escolha, as alterações e o escopo (proposta);
   - pagamentos e avisos do gateway idempotentes;
-  - o funil e a retenção de 90 dias.
+  - o funil e a retenção (90 dias na época; 2 meses desde 2026-10-07, com o contato anonimizado).
   - O visitante é um usuário anônimo e só vê o que é dele (RLS). Só o servidor executa as funções.
 - **Motor de preço** determinístico, com a tabela-rascunho com base no mercado (`regras-rascunho-v1.json`, a aprovar). Ele faz:
   - base, adicionais, multiplicadores, piso e arredondamento;
@@ -94,7 +94,7 @@ A revisão por agentes (segurança e código) e as correções estão no fim des
 - **O gateway simulado guarda cobranças na memória.** Ele não serve nem como teste em preview com várias instâncias.
 - **Os tempos de geração com o Opus em esforço alto não foram medidos.** O limite é de 300 s por direção. O cronômetro do cartão recomeça do zero quando a página é recarregada.
 - **Trocar de direção só vale até o primeiro ajuste.** É uma trava para o escopo nunca descrever outra direção. Se o dono quiser troca livre, os ajustes passam a ser guardados por direção.
-- **Os direcionamentos gerados ficam no banco depois dos 90 dias.** A retenção apaga as mensagens, os pedidos de ajuste e o briefing. O conteúdo das direções fica, e ele pode repetir a descrição do negócio que a pessoa deu.
+- **Os direcionamentos gerados ficam no banco depois do prazo de retenção (2 meses desde 2026-10-07; a privacidade diz isso).** A retenção apaga as mensagens, os pedidos de ajuste e o briefing. O conteúdo das direções fica, e ele pode repetir a descrição do negócio que a pessoa deu.
 
 ## PENDÊNCIAS (do dono)
 
