@@ -17,13 +17,34 @@ const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
 const CARTAO = /\b(?:\d[ -]?){13,19}\b/g;
 const CPF_CNPJ = /\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b|\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/g;
 const TELEFONE = /(?:\+?55\s?)?\(?\d{2}\)?\s?9?\d{4}[-\s]?\d{4}\b/g;
+/* e-mail por extenso: "ana arroba gmail ponto com", "ana (arroba) clinica.com.br"; em inglês só com "at" E "dot"
+   ("joao at empresa dot com"), para "look at this.site" não virar e-mail */
+const EMAIL_EXTENSO = /[\w.+-]+\s*[([]?\s*\barroba\b\s*[)\]]?\s*[\w-]+(?:\s*(?:\.|\bponto\b)\s*[a-z]{2,})+\b/gi;
+const EMAIL_EXTENSO_EN = /[\w.+-]+\s+\bat\b\s+[\w-]+(?:\s+\bdot\b\s+[a-z]{2,})+\b/gi;
+/* qualquer sequência de 10 a 19 dígitos com espaço, ponto, hífen ou barra entre eles: telefone com DDD (10–11),
+   CPF (11), CNPJ (14) ou cartão (13–19), escritos de qualquer jeito ("11 9 8765 4321", "123 456 789 09") */
+const NUMERO_LONGO = /(?<![\d+])\+?(?:\d[\s.\-/]?){9,18}\d(?![\d])/g;
+/* celular sem DDD: 9 + 8 dígitos ("98765-4321"); fixo sem DDD fica de fora (confunde com faixa de preço "2000-3000") */
+const CELULAR_SEM_DDD = /(?<![\d])9\d{4}[-\s]?\d{4}(?![\d])/g;
+const rotuloDoNumero = trecho => {
+  const d = trecho.replace(/\D/g, '');
+  if ((d.length === 12 || d.length === 13) && d.startsWith('55')) return '[telefone]';   /* +55 DDD número */
+  if (d.length === 14) return '[documento]';
+  if (d.length === 11) return d[2] === '9' ? '[telefone]' : '[documento]';   /* DDD + 9 = celular; senão, CPF */
+  if (d.length === 10) return '[telefone]';
+  return '[número]';
+};
 
 export function redigir(texto) {
   return String(texto)
     .replace(EMAIL, '[e-mail]')
+    .replace(EMAIL_EXTENSO, '[e-mail]')
+    .replace(EMAIL_EXTENSO_EN, '[e-mail]')
     .replace(CPF_CNPJ, '[documento]')
+    .replace(NUMERO_LONGO, rotuloDoNumero)
     .replace(CARTAO, '[número]')
-    .replace(TELEFONE, '[telefone]');
+    .replace(TELEFONE, '[telefone]')
+    .replace(CELULAR_SEM_DDD, '[telefone]');
 }
 
 /* o agente não escreve valores em dinheiro (nem "uns 2 mil"): quem mostra o preço é o cartão da estimativa */
