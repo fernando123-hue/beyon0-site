@@ -21,7 +21,8 @@
      simulado.mjs   respostas determinísticas, para testes e o servidor local
    ========================================================================== */
 export class ErroIA extends Error {
-  constructor(motivo, mensagem) { super(mensagem || motivo); this.motivo = motivo; }
+  /* custo_usd: o que já foi pago antes da falha (recusa, formato, resposta cortada, rodadas anteriores): o fluxo soma no teto */
+  constructor(motivo, mensagem, custo_usd = 0) { super(mensagem || motivo); this.motivo = motivo; this.custo_usd = custo_usd; }
 }
 
 /* qual implementação: a chave na Vercel liga a real; o servidor local e os testes usam a simulada */

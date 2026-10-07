@@ -34,9 +34,9 @@ export async function gerarDirecao({ ia, briefing, estrategia, numero, fatores }
     '\n\nFORMATO E ESCOPO DA ESTIMATIVA:\n' + JSON.stringify({ formato: fatores?.formato, paginas: fatores?.paginas || null }) +
     '\n\nESTRATÉGIA DESTA DIREÇÃO (' + numero + ' de 3):\n' + ESTRATEGIAS[estrategia];
   const r = await ia.mensagem({ papel: 'geracao', sistema: SISTEMA_GERACAO, mensagens: [{ role: 'user', content: pedido }], esquema: ESQUEMA_DIRECAO });
-  if (r.parada === 'recusa') throw new ErroIA('recusa', 'o modelo recusou');
-  if (r.parada === 'limite') throw new ErroIA('formato', 'a resposta foi cortada');
+  if (r.parada === 'recusa') throw new ErroIA('recusa', 'o modelo recusou', r.custo_usd || 0);
+  if (r.parada === 'limite') throw new ErroIA('formato', 'a resposta foi cortada', r.custo_usd || 0);
   const h = higienizar(r.json, estrategia);
-  if (h.erro) throw new ErroIA('formato', h.erro);
+  if (h.erro) throw new ErroIA('formato', h.erro, r.custo_usd || 0);
   return { direcao: h.direcao, ajustes: h.ajustes, modelo: r.modelo, custo_usd: r.custo_usd || 0 };
 }

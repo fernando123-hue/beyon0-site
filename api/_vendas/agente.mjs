@@ -103,9 +103,11 @@ export async function executarTurno({ ia, regras, conversa, mensagem }) {
   let texto = '';
 
   for (let i = 0; i < MAX_ITERACOES; i++) {
-    const r = await ia.mensagem({ papel: 'conversa', sistema: SISTEMA, contexto, mensagens, ferramentas: tools });
+    /* (falha numa rodada: o erro leva o custo das rodadas anteriores, que já foram pagas) */
+    const r = await ia.mensagem({ papel: 'conversa', sistema: SISTEMA, contexto, mensagens, ferramentas: tools })
+      .catch(e => { if (e && typeof e === 'object') e.custo_usd = (e.custo_usd || 0) + custo; throw e; });
     custo += r.custo_usd || 0;
-    if (r.parada === 'recusa') throw new ErroIA('recusa', 'o modelo recusou');
+    if (r.parada === 'recusa') throw new ErroIA('recusa', 'o modelo recusou', custo);
     texto = r.texto || texto;
     if (r.parada !== 'ferramenta' || !r.chamadas.length) break;
     mensagens.push({ role: 'assistant', content: r.conteudo });

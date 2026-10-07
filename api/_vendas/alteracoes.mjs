@@ -53,8 +53,8 @@ export async function interpretar({ ia, pedido, direcoes, escolhida }) {
   const resumo = direcoes.map(d => ({ numero: d.numero, estrategia: d.estrategia, secoes: (d.conteudo?.secoes || []).map(s => s.tipo) }));
   const r = await ia.mensagem({ papel: 'extracao', sistema: SISTEMA_ALTERACOES, esquema: ESQUEMA_MUDANCAS,
     mensagens: [{ role: 'user', content: 'DIREÇÕES: ' + JSON.stringify(resumo) + '\nESCOLHIDA: ' + escolhida + '\nPEDIDO DO CLIENTE: ' + redigir(pedido) }] });
-  if (r.parada === 'recusa') throw new ErroIA('recusa', 'o modelo recusou');
-  if (!r.json || !Array.isArray(r.json.mudancas)) throw new ErroIA('formato', 'tradução fora do formato');
+  if (r.parada === 'recusa') throw new ErroIA('recusa', 'o modelo recusou', r.custo_usd || 0);
+  if (!r.json || !Array.isArray(r.json.mudancas)) throw new ErroIA('formato', 'tradução fora do formato', r.custo_usd || 0);
   return { mudancas: r.json.mudancas.slice(0, 12), resposta: String(r.json.resposta || '').slice(0, 400), custo_usd: r.custo_usd || 0 };
 }
 

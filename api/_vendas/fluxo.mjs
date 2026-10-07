@@ -19,6 +19,8 @@ import { TETOS } from '../_ia/config.mjs';
 import { ErroIA } from '../_ia/provedor.mjs';
 import { ErroBanco } from './transporte.mjs';
 import { ErroPagamento } from '../_pagamentos/servico.mjs';
+import { ipDe } from '../_freio.mjs';
+import { chaveDoIp } from './ip.mjs';
 
 export const ORG = 'beyon-zero';
 export const RECUPERACAO = 'Não consegui concluir a análise neste momento. Suas informações foram preservadas. Vamos continuar de onde paramos.';
@@ -26,6 +28,10 @@ const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const ORIGENS = ['anuncio', 'busca', 'social', 'mensagem', 'email', 'referencia', 'direto'];
 /* etapas em que a conversa com o agente ainda vale (depois disso, o fluxo segue pelos blocos da página) */
 const CONVERSA_ABERTA = ['descoberta', 'estimativa', 'contato', 'direcoes', 'escolhida', 'alteracoes'];
+/* etapas que aceitam ajuste (= app.vendas_registrar_alteracao): conferidas ANTES de chamar o modelo */
+const AJUSTE_ABERTO = ['escolhida', 'alteracoes'];
+/* a trava de "uma resposta de IA por vez" dura o pior caso que cabe na função (300 s na Vercel) */
+const TRAVA_IA_S = 300;
 
 /* respostas de erro: o que o visitante vê (sem detalhe interno) */
 export class Recusa extends Error {
@@ -41,7 +47,7 @@ export function traduzirErro(e) {
     if (e.codigo === '23514') return new Recusa(409, 'Limite atingido para esta conversa.');
     if (e.codigo === '22023') return new Recusa(400, 'Dados inválidos.');
     if (e.codigo === '55P03') return new Recusa(409, 'Ainda estou respondendo à mensagem anterior. Um instante.');
-    if (e.codigo === '40001') return new Recusa(409, 'O investimento mudou enquanto o escopo era montado. Tente de novo.');
+    if (e.codigo === '40001') return new Recusa(409, 'A proposta mudou enquanto eu preparava isso (outra aba?). Confira e tente de novo.');
   }
   return null;
 }
@@ -55,7 +61,7 @@ async function regrasAtivas(banco) {
   return r && r.regras ? r : null;
 }
 
-export function criarFluxo({ banco, ia, visitantes, pagamentos }) {
+export function criarFluxo({ banco, ia, visitantes, pagamentos, segredoFreio }) {
   async function visitante(request) {
     const id = await visitantes.quem(request);
     exigir(id, 401, 'Sessão inválida ou expirada.');
@@ -63,6 +69,19 @@ export function criarFluxo({ banco, ia, visitantes, pagamentos }) {
   }
   async function estado(vid, conversa_id) {
     return banco('vendas_estado', { conversa_id, visitante_id: vid });
+  }
+  /* o que o modelo cobrou entra no teto da conversa, também quando a chamada falhou (recusa, formato, ajuste
+     recusado): sem isso, pedidos que falham gastavam fora da conta */
+  async function somarCusto(conversaId, vid, custo) {
+    if (!(custo > 0)) return;
+    await banco('vendas_somar_custo', { conversa_id: conversaId, visitante_id: vid, custo_usd: custo })
+      .catch(e => console.error('[vendas] custo não somado:', e && e.codigo));
+  }
+  /* a trava de "uma resposta de IA por vez", que na 1ª vez da conversa também conta o IP do dia (só um HMAC chega ao banco) */
+  async function reservarIa(conversaId, vid, request) {
+    const r = await banco('vendas_reservar_ia', { conversa_id: conversaId, visitante_id: vid, max_turnos: TETOS.turnos_por_conversa, teto_usd: TETOS.conversa_usd,
+      segundos: TRAVA_IA_S, chave_ip: request ? chaveDoIp(ipDe(request), segredoFreio) : null, max_por_ip: TETOS.conversas_por_ip_dia });
+    if (r && r.ok === false && r.freio_ip) throw new Recusa(429, 'Muitas conversas deste endereço hoje. Fale com a Beyon Zero pelo WhatsApp: a gente continua por lá.', { whatsapp: true });
   }
   async function dentroDoCusto(est) {
     if (Number(est.conversa.custo_ia_usd) >= TETOS.conversa_usd) throw new Recusa(429, 'Chegamos ao limite desta conversa por aqui. Continue com a Beyon Zero pelo WhatsApp: o seu briefing já está salvo.', { whatsapp: true });
@@ -77,10 +96,13 @@ export function criarFluxo({ banco, ia, visitantes, pagamentos }) {
     try {
       r = await executarTurno({ ia, regras: regras.regras, conversa: { etapa: est.conversa.etapa, briefing: est.conversa.briefing, mensagens: est.mensagens, estimativa: est.estimativa }, mensagem: msg });
     } catch (e) {
+      await somarCusto(conversaId, vid, e && e.custo_usd);   /* (as rodadas pagas antes da falha, de qualquer tipo de erro) */
       if (e instanceof ErroIA) await banco('vendas_registrar_evento', { conversa_id: conversaId, visitante_id: vid, tipo: 'ia_falhou', dados: { motivo: e.motivo } }).catch(() => {});
       throw e;
     }
-    await banco('vendas_registrar_turno', { conversa_id: conversaId, visitante_id: vid, mensagem_visitante: redigir(msg), mensagem_agente: r.resposta, briefing: r.briefing, confianca: r.confianca, custo_usd: r.custo_usd });
+    /* o custo do turno é gravado junto com as mensagens; se a gravação falhar, ele entra assim mesmo */
+    await banco('vendas_registrar_turno', { conversa_id: conversaId, visitante_id: vid, mensagem_visitante: redigir(msg), mensagem_agente: r.resposta, briefing: r.briefing, confianca: r.confianca, custo_usd: r.custo_usd })
+      .catch(async e => { await somarCusto(conversaId, vid, r.custo_usd); throw e; });
     let estimativa = null;
     if (r.estimativa) {
       await banco('vendas_registrar_estimativa', { conversa_id: conversaId, visitante_id: vid, regras_id: regras.id, fatores: r.estimativa.fatores,
@@ -132,7 +154,7 @@ export function criarFluxo({ banco, ia, visitantes, pagamentos }) {
       const regras = await regrasAtivas(banco);
       exigir(regras, 503, 'A tabela de valores está em atualização. Seu briefing está salvo; fale com a Beyon Zero pelo WhatsApp.');
       if (pareceInjecao(msg)) await banco('vendas_registrar_evento', { conversa_id: corpo.conversa_id, visitante_id: vid, tipo: 'tentativa_bloqueada' }).catch(() => {});
-      await banco('vendas_reservar_ia', { conversa_id: corpo.conversa_id, visitante_id: vid, max_turnos: TETOS.turnos_por_conversa, teto_usd: TETOS.conversa_usd });
+      await reservarIa(corpo.conversa_id, vid, request);
       try {
         return await turno(vid, corpo.conversa_id, est, regras, msg);
       } finally {
@@ -173,11 +195,12 @@ export function criarFluxo({ banco, ia, visitantes, pagamentos }) {
       if (!p.reivindicada) return { status: p.status };
       try {
         const g = await gerarDirecao({ ia, briefing: p.briefing, estrategia: p.estrategia, numero: p.numero, fatores: p.fatores });
+        await somarCusto(corpo.conversa_id, vid, g.custo_usd);   /* (antes de gravar: a Opus já cobrou, dê certo ou não a gravação) */
         await banco('vendas_concluir_direcao', { direcao_id: p.direcao_id, conteudo: g.direcao, modelo: g.modelo });
-        await banco('vendas_somar_custo', { conversa_id: corpo.conversa_id, visitante_id: vid, custo_usd: g.custo_usd }).catch(() => {});
         return { status: 'pronta' };
       } catch (e) {
         const motivo = e instanceof ErroIA ? e.motivo : 'falha';
+        if (e instanceof ErroIA) await somarCusto(corpo.conversa_id, vid, e.custo_usd);
         await banco('vendas_concluir_direcao', { direcao_id: p.direcao_id, erro: 'não foi possível gerar (' + motivo + ')' });
         if (e instanceof ErroIA) return { status: 'falhou', mensagem: RECUPERACAO };
         throw e;
@@ -197,31 +220,36 @@ export function criarFluxo({ banco, ia, visitantes, pagamentos }) {
       const pedido = redigir(limparMensagem(corpo?.pedido));   /* (o modelo e o banco recebem o texto redigido) */
       exigir(pedido, 400, 'Descreva a alteração em até 2.000 caracteres.');
       const est = await estado(vid, corpo.conversa_id);
-      await dentroDoCusto(est);
       exigir(est.escolha, 409, 'Escolha uma direção antes.');
+      exigir(AJUSTE_ABERTO.includes(est.conversa.etapa), 409, 'Os ajustes desta proposta já foram fechados.');   /* (antes de pagar o modelo) */
+      await dentroDoCusto(est);
       const direcoes = est.direcoes.filter(d => d.status === 'pronta');
       const escolhida = direcoes.find(d => d.id === est.escolha.direcao_id);
       exigir(escolhida, 409, 'Escolha uma direção antes.');
       const base = est.versao_final || escolhida.conteudo;
-      await banco('vendas_reservar_ia', { conversa_id: corpo.conversa_id, visitante_id: vid, max_turnos: TETOS.turnos_por_conversa, teto_usd: TETOS.conversa_usd });
+      await reservarIa(corpo.conversa_id, vid, request);
       let t;
       try { t = await interpretar({ ia, pedido, direcoes, escolhida: escolhida.numero }); }
+      catch (e) { await somarCusto(corpo.conversa_id, vid, e && e.custo_usd); throw e; }
       finally { await banco('vendas_liberar_ia', { conversa_id: corpo.conversa_id, visitante_id: vid }).catch(() => {}); }
+      /* a chamada ao modelo já foi paga: o custo entra no teto agora, dê certo ou não o que vem depois */
+      await somarCusto(corpo.conversa_id, vid, t.custo_usd);
       const a = aplicar({ base, mudancas: t.mudancas, direcoes });
       exigir(!a.erro, 422, 'Não consegui aplicar essa alteração. Pode descrever de outro jeito?');
-      let estimativa = null;
+      let estimativa = null, novaEstimativa;
       if (a.escopo.length) {
         const regras = await regrasAtivas(banco);
         exigir(regras, 503, 'A tabela de valores está em atualização.');
         const e = estimar(fatoresComEscopo(est.estimativa?.fatores, a.escopo), regras.regras);
         if (e.encaminhar_diagnostico) return { resposta: 'Esse pedido muda o projeto além do que a estimativa automática cobre. Vamos ver isso no diagnóstico pelo WhatsApp.', diagnostico: true, resultado: a.resultado };
-        if (!e.erros) {
-          await banco('vendas_registrar_estimativa', { conversa_id: corpo.conversa_id, visitante_id: vid, regras_id: regras.id, fatores: e.fatores, valor_total: e.valor_total, sinal: e.sinal, prazo_dias: e.prazo_dias, fase: e.fase, detalhes: e });
-          estimativa = cartao(e);
-        }
+        /* o motor recusou o novo escopo: o ajuste NÃO entra (senão o contrato teria um item sem preço) */
+        exigir(!e.erros, 422, 'Esse pedido muda o escopo de um jeito que a estimativa automática não cobre. Pode descrever de outro jeito, ou falamos pelo WhatsApp?');
+        novaEstimativa = { regras_id: regras.id, fatores: e.fatores, valor_total: e.valor_total, sinal: e.sinal, prazo_dias: e.prazo_dias, fase: e.fase, detalhes: e };
+        estimativa = cartao(e);
       }
-      await banco('vendas_registrar_alteracao', { conversa_id: corpo.conversa_id, visitante_id: vid, pedido, mudancas: a.resultado, resultado: a.direcao });
-      await banco('vendas_somar_custo', { conversa_id: corpo.conversa_id, visitante_id: vid, custo_usd: t.custo_usd }).catch(() => {});
+      /* ajuste + estimativa nova numa transação só; o banco recusa se a escolha mudou enquanto o modelo traduzia */
+      await banco('vendas_registrar_alteracao', { conversa_id: corpo.conversa_id, visitante_id: vid, direcao_id: escolhida.id, pedido, mudancas: a.resultado, resultado: a.direcao,
+        ...(novaEstimativa ? { estimativa: novaEstimativa } : {}) });
       return { resposta: t.resposta, resultado: a.resultado.map(x => ({ operacao: x.operacao, aplicada: x.aplicada, motivo: x.motivo || null })), estimativa };
     },
 

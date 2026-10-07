@@ -9,8 +9,10 @@
 export const PAPEIS = {
   conversa: { modelo: 'claude-sonnet-5-5', esforco: 'medium', max_tokens: 4000, timeout_ms: 45000 },
   extracao: { modelo: 'claude-sonnet-5-5', esforco: 'low', max_tokens: 3000, timeout_ms: 45000 },
-  geracao: { modelo: 'claude-opus-5-5', esforco: 'high', max_tokens: 24000, timeout_ms: 240000 }
+  /* (sem nova tentativa automática: 2 × 240 s não cabem nos 300 s da função; a tela oferece "gerar de novo") */
+  geracao: { modelo: 'claude-opus-5-5', esforco: 'high', max_tokens: 24000, timeout_ms: 240000, tentativas: 0 }
 };
+export const TENTATIVAS_PADRAO = 2;
 
 /* US$ por milhão de tokens: entrada, saída, leitura de cache, escrita de cache (~1,25× a entrada) */
 export const PRECO_POR_MILHAO = {
@@ -24,12 +26,22 @@ export const TETOS = {
   conversa_usd: 1.5,          // por conversa (descoberta + direções + alterações)
   dia_usd: 25,                // somando todas as conversas do dia
   turnos_por_conversa: 40,
-  geracoes_por_conversa: 3    // = app.vendas_iniciar_geracao (max_geracoes)
+  geracoes_por_conversa: 3,   // = app.vendas_iniciar_geracao (max_geracoes)
+  /* conversas que USAM a IA, por IP por dia, contadas no banco (o teto do dia é global: sem isto, um IP o esgotava).
+     8 × conversa_usd = US$ 12 < dia_usd: um IP sozinho não derruba o agente para todos */
+  conversas_por_ip_dia: 8
 };
 
+/* o mais caro da tabela, por item: um modelo fora da tabela (o servidor da Anthropic pode responder com outro)
+   conta como o mais caro, nunca como zero, para os tetos não ficarem cegos */
+const MAIS_CARO = Object.values(PRECO_POR_MILHAO).reduce((m, p) => ({
+  entrada: Math.max(m.entrada, p.entrada), saida: Math.max(m.saida, p.saida),
+  cache_leitura: Math.max(m.cache_leitura, p.cache_leitura), cache_escrita: Math.max(m.cache_escrita, p.cache_escrita)
+}), { entrada: 0, saida: 0, cache_leitura: 0, cache_escrita: 0 });
+
 export function custoUsd(modelo, uso) {
-  const p = PRECO_POR_MILHAO[modelo];
-  if (!p || !uso) return 0;
+  const p = PRECO_POR_MILHAO[modelo] || MAIS_CARO;
+  if (!uso) return 0;
   const m = 1e6;
   return (uso.entrada || 0) * p.entrada / m + (uso.saida || 0) * p.saida / m
     + (uso.cache_leitura || 0) * p.cache_leitura / m + (uso.cache_escrita || 0) * p.cache_escrita / m;

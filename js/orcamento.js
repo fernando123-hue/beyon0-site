@@ -179,6 +179,7 @@
     return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
   }
   var podeEscolher = function () { return E && (E.conversa.etapa === 'direcoes' || E.conversa.etapa === 'escolhida'); };   /* (o servidor trava a troca depois do 1º ajuste) */
+  var podeGerar = function () { return E && ['contato', 'estimativa', 'direcoes', 'escolhida'].indexOf(E.conversa.etapa) >= 0; };   /* (= app.vendas_iniciar_geracao) */
   var escolhidaId = function () { return E && E.escolha ? E.escolha.direcao_id : null; };
 
   function botao(classe, texto, aoClicar) { var b = el('button', classe, texto); b.type = 'button'; b.addEventListener('click', aoClicar); return b; }
@@ -208,8 +209,10 @@
       var p = el('div', 'dir__progresso');
       p.appendChild(el('p', '', 'Esta direção não saiu desta vez.'));
       mini.appendChild(p);
-      corpo.appendChild(el('p', 'dir__resumo', 'Você pode gerar as três de novo ou seguir com as que ficaram prontas.'));
-      corpo.appendChild(botao('btn btn--sm', 'Gerar de novo', gerarTodas));
+      if (podeGerar()) {
+        corpo.appendChild(el('p', 'dir__resumo', 'Você pode gerar as três de novo ou seguir com as que ficaram prontas.'));
+        corpo.appendChild(botao('btn btn--sm', 'Gerar de novo', gerarTodas));
+      } else corpo.appendChild(el('p', 'dir__resumo', 'Os ajustes seguem sobre a direção escolhida.'));
     } else {
       var g = el('div', 'dir__progresso');
       g.appendChild(el('p', '', 'Desenhando a direção de ' + (NOMES[d.estrategia] || '').toLowerCase() + '…'));
@@ -364,7 +367,7 @@
     var temDirecoes = E.direcoes.length > 0;
     mostrar('o-direcoes', temDirecoes || (E.conversa.tem_contato && et === 'contato'));
     var resumo = E.direcoes.map(function (d) { return [d.id, d.status, d.conteudo]; });
-    if (mudou('direcoes', [resumo, escolhidaId(), podeEscolher(), E.conversa.tem_contato])) {
+    if (mudou('direcoes', [resumo, escolhidaId(), podeEscolher(), podeGerar(), E.conversa.tem_contato])) {
       var ul = $('o-dirs');
       ul.textContent = '';
       if (temDirecoes) { E.direcoes.forEach(function (d) { ul.appendChild(cartaoDirecao(d)); }); encaixarMinis(); }

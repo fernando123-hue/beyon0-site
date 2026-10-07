@@ -13,13 +13,13 @@
    A chave vem só de process.env.ANTHROPIC_API_KEY (Vercel/Infisical), nunca do código.
    ========================================================================== */
 import Anthropic from '@anthropic-ai/sdk';
-import { PAPEIS, custoUsd } from './config.mjs';
+import { PAPEIS, custoUsd, TENTATIVAS_PADRAO } from './config.mjs';
 import { ErroIA } from './provedor.mjs';
 
 const BETA_FALLBACK = 'server-side-fallback-2026-07-01';
 
 export function criarAnthropic(env = process.env, cliente) {
-  const client = cliente || new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, maxRetries: 2 });
+  const client = cliente || new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, maxRetries: TENTATIVAS_PADRAO });
 
   async function mensagem({ papel, sistema, contexto, mensagens, ferramentas, esquema }) {
     const cfg = PAPEIS[papel];
@@ -35,14 +35,18 @@ export function criarAnthropic(env = process.env, cliente) {
     };
     if (ferramentas && ferramentas.length) pedido.tools = ferramentas;
 
+    const tentativas = cfg.tentativas ?? TENTATIVAS_PADRAO;
+    const opcoes = { timeout: cfg.timeout_ms, maxRetries: tentativas };
     let r;
     try {
       r = cfg.max_tokens > 16000
-        ? await client.beta.messages.stream(pedido, { timeout: cfg.timeout_ms }).finalMessage()   /* (saída longa: streaming evita o tempo esgotado do HTTP) */
-        : await client.beta.messages.create(pedido, { timeout: cfg.timeout_ms });
+        ? await client.beta.messages.stream(pedido, opcoes).finalMessage()   /* (saída longa: streaming evita o tempo esgotado do HTTP) */
+        : await client.beta.messages.create(pedido, opcoes);
     } catch (e) {
       if (e instanceof Anthropic.RateLimitError) throw new ErroIA('limite', 'limite de uso do provedor');
-      if (e instanceof Anthropic.APIConnectionTimeoutError) throw new ErroIA('tempo', 'tempo esgotado');
+      /* tempo esgotado: o modelo pode ter gerado (e cobrado) em cada tentativa. Sem o uso real, conta o PIOR caso
+         (a saída máxima do papel por tentativa), para o teto não ficar cego */
+      if (e instanceof Anthropic.APIConnectionTimeoutError) throw new ErroIA('tempo', 'tempo esgotado', custoUsd(cfg.modelo, { saida: cfg.max_tokens }) * (1 + tentativas));
       if (e instanceof Anthropic.AuthenticationError) throw new ErroIA('indisponivel', 'credencial recusada');
       if (e instanceof Anthropic.APIError) throw new ErroIA('falha', 'provedor HTTP ' + (e.status || '?'));
       throw new ErroIA('falha', 'erro de rede');
@@ -61,7 +65,7 @@ export function criarAnthropic(env = process.env, cliente) {
     const chamadas = r.content.filter(b => b.type === 'tool_use').map(b => ({ id: b.id, nome: b.name, entrada: b.input }));
     let json = null;
     if (esquema) {
-      try { json = JSON.parse(texto); } catch { throw new ErroIA('formato', 'a resposta não veio no formato pedido'); }
+      try { json = JSON.parse(texto); } catch { throw new ErroIA('formato', 'a resposta não veio no formato pedido', base.custo_usd); }
     }
     const parada = r.stop_reason === 'tool_use' ? 'ferramenta' : r.stop_reason === 'max_tokens' ? 'limite' : 'fim';
     return { ...base, parada, texto, json, chamadas, conteudo: r.content };

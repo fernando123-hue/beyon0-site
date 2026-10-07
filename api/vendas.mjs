@@ -51,7 +51,8 @@ export async function atender(request, env, metodo, deps) {
   /* a configuração pública do pagamento (Public Key e ambiente): sem sessão, sem segredo */
   if (acao === 'pagamentoConfig') return json(configPublica(deps && deps.cfgPagamentos ? deps.cfgPagamentos : configPagamentos(env)));
 
-  const d = deps || { banco: criarTransporte(env), visitantes: criarVisitantes(env), ia: await criarIA(env) };
+  /* segredoFreio: o HMAC do IP no freio diário (api/_vendas/ip.mjs); um segredo próprio, ou o do servidor do Supabase */
+  const d = deps || { banco: criarTransporte(env), visitantes: criarVisitantes(env), ia: await criarIA(env), segredoFreio: env.FREIO_SEGREDO || env.SUPABASE_CHAVE_SECRETA };
   if (!deps && d.banco) {
     const cfg = configPagamentos(env);
     if (cfg.ativo) d.pagamentos = criarServicoPagamentos({ banco: d.banco, cfg });
