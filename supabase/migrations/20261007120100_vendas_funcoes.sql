@@ -137,6 +137,7 @@ language plpgsql security definer set search_path = '' as $$
 declare c app.conversas; v_lead uuid;
 begin
   c := privado.conversa_do((p ->> 'conversa_id')::uuid, (p ->> 'visitante_id')::uuid);
+  if coalesce((p ->> 'aceite')::boolean, false) is not true then raise exception 'aceite necessário' using errcode = '22023'; end if;
   if c.lead_id is null then
     insert into app.leads (org_id, nome, email, telefone, interesse, status, origem_meio, origem_fonte, campanha, termo, codigo_visita)
     values (c.org_id, nullif(p ->> 'nome', ''), nullif(p ->> 'email', ''), nullif(p ->> 'telefone', ''), 'site', 'em_conversa',
@@ -152,7 +153,7 @@ begin
     where id = c.lead_id returning id into v_lead;
   end if;
   update app.conversas set lead_id = v_lead, etapa = case when etapa in ('descoberta', 'estimativa') then 'contato' else etapa end,
-                           ultima_atividade = now() where id = c.id;
+                           contato_aceite_em = now(), ultima_atividade = now() where id = c.id;
   perform privado.evento(c.org_id, c.id, 'contato_informado');
   return jsonb_build_object('lead_id', v_lead);
 end $$;
@@ -215,7 +216,8 @@ language plpgsql security definer set search_path = '' as $$
 declare c app.conversas; d app.direcoes;
 begin
   c := privado.conversa_do((p ->> 'conversa_id')::uuid, (p ->> 'visitante_id')::uuid);
-  perform privado.exigir_etapa(c, array['direcoes', 'escolhida', 'alteracoes']);
+  -- trocar de direção só ANTES do 1º ajuste: os ajustes são sobre a direção escolhida (senão o escopo descreve outra)
+  perform privado.exigir_etapa(c, array['direcoes', 'escolhida']);
   select * into d from app.direcoes where id = (p ->> 'direcao_id')::uuid and conversa_id = c.id and status = 'pronta';
   if not found then raise exception 'direção não encontrada' using errcode = 'P0002'; end if;
   insert into app.escolhas (org_id, conversa_id, direcao_id, visitante_id, lead_id, geracao)
@@ -252,6 +254,10 @@ begin
   perform privado.exigir_etapa(c, array['escolhida', 'alteracoes', 'escopo']);
   select * into e from app.estimativas where conversa_id = c.id order by created_at desc limit 1;
   if not found then raise exception 'sem estimativa' using errcode = '55000'; end if;
+  -- o texto do escopo foi montado com UMA estimativa: se outra entrou no meio, o texto e o preço não batem
+  if p ? 'estimativa_id' and e.id is distinct from (p ->> 'estimativa_id')::uuid then
+    raise exception 'a estimativa mudou; monte o escopo de novo' using errcode = '40001';
+  end if;
   select direcao_id into v_escolhida from app.escolhas where conversa_id = c.id order by created_at desc limit 1;
   v_sinal_pct := case when e.valor_total > 0 then round(e.sinal / e.valor_total * 100) else 0 end;
   -- a versão anterior apresentada é substituída (o histórico fica)
@@ -296,7 +302,13 @@ begin
   select * into pr from app.propostas where conversa_id = c.id and status = 'aceita' order by versao desc limit 1;
   if not found then raise exception 'proposta aceita não encontrada' using errcode = 'P0002'; end if;
   -- já existe cobrança viva do sinal: devolve a mesma (dois cliques, uma cobrança)
-  select * into pg from app.pagamentos where proposta_id = pr.id and parcela = 'sinal' and status in ('pendente', 'pago');
+  select * into pg from app.pagamentos where proposta_id = pr.id and parcela = 'sinal' and status in ('pendente', 'pago') for update;
+  -- cobrança reservada cujo link nunca veio (o gateway falhou): depois de 1 minuto, quem chama tenta criar de novo
+  if found and pg.status = 'pendente' and pg.gateway_ref is null and pg.updated_at < now() - interval '1 minute' then
+    update app.pagamentos set link = null where id = pg.id;   -- (renova updated_at: um pedido por minuto refaz)
+    return jsonb_build_object('pagamento_id', pg.id, 'valor', pg.valor, 'link', null, 'status', 'pendente', 'nova', true,
+                              'descricao', left(pr.titulo, 120), 'lead_id', c.lead_id);
+  end if;
   if found then return jsonb_build_object('pagamento_id', pg.id, 'valor', pg.valor, 'link', pg.link, 'status', pg.status, 'nova', false); end if;
   v_valor := round(pr.valor_total * coalesce(pr.sinal_percentual, 50) / 100.0, 2);
   insert into app.pagamentos (org_id, proposta_id, parcela, valor, gateway)
@@ -321,15 +333,12 @@ create function app.vendas_confirmar_pagamento(p jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare pg app.pagamentos; pr app.propostas; c app.conversas; l app.leads; v_cliente uuid; v_projeto uuid; v_tipo text; v_status text;
 begin
+  -- a cobrança antes do evento: um aviso de cobrança ainda não vinculada NÃO fica gravado (o reenvio do gateway vale)
+  select * into pg from app.pagamentos where gateway = p ->> 'gateway' and gateway_ref = p ->> 'gateway_ref' for update;
+  if not found then return jsonb_build_object('ignorado', 'cobrança desconhecida'); end if;
   insert into app.eventos_pagamento (gateway, evento_id, tipo) values (p ->> 'gateway', p ->> 'evento_id', p ->> 'tipo')
   on conflict (gateway, evento_id) do nothing;
   if not found then return jsonb_build_object('duplicado', true); end if;
-
-  select * into pg from app.pagamentos where gateway = p ->> 'gateway' and gateway_ref = p ->> 'gateway_ref' for update;
-  if not found then
-    update app.eventos_pagamento set resultado = 'cobrança desconhecida' where gateway = p ->> 'gateway' and evento_id = p ->> 'evento_id';
-    return jsonb_build_object('ignorado', 'cobrança desconhecida');
-  end if;
   v_status := p ->> 'status';
   if v_status = 'pago' and (p ->> 'valor')::numeric is distinct from pg.valor then
     update app.eventos_pagamento set pagamento_id = pg.id, resultado = 'valor divergente' where gateway = p ->> 'gateway' and evento_id = p ->> 'evento_id';
@@ -338,6 +347,13 @@ begin
   if v_status = pg.status then
     update app.eventos_pagamento set pagamento_id = pg.id, resultado = 'sem mudança' where gateway = p ->> 'gateway' and evento_id = p ->> 'evento_id';
     return jsonb_build_object('sem_mudanca', true);
+  end if;
+  -- transição que a regra não permite (ex.: pago depois de cancelado/expirado): registra para conciliar à mão,
+  -- responde ok (senão o gateway reenvia sem fim) e não aplica nada
+  if not ((pg.status = 'pendente' and v_status in ('pago', 'cancelado', 'expirado')) or (pg.status = 'pago' and v_status = 'estornado')) then
+    update app.eventos_pagamento set pagamento_id = pg.id, resultado = left('conciliar à mão: ' || pg.status || ' para ' || coalesce(v_status, '?'), 300)
+    where gateway = p ->> 'gateway' and evento_id = p ->> 'evento_id';
+    return jsonb_build_object('conciliar', true);
   end if;
   update app.pagamentos set status = v_status, pago_em = case when v_status = 'pago' then now() else pago_em end where id = pg.id;
   update app.eventos_pagamento set pagamento_id = pg.id, resultado = 'aplicado: ' || v_status where gateway = p ->> 'gateway' and evento_id = p ->> 'evento_id';

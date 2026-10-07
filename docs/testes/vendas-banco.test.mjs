@@ -38,7 +38,7 @@ async function conversaAte(visitante, ate) {
   await rpc('vendas_registrar_turno', { ...base, mensagem_visitante: 'Tenho uma clínica odontológica e só tenho Instagram', mensagem_agente: 'Entendi. Qual é o principal objetivo do site?', briefing: { negocio: { nome: 'Clínica Sorriso', segmento: 'odontologia' }, projeto: { formato: 'institucional' } }, confianca: 0.75, custo_usd: 0.01 });
   ids.estimativa = (await rpc('vendas_registrar_estimativa', { ...base, regras_id: REGRAS, fatores: { formato: 'institucional', paginas: 5 }, valor_total: 3000, sinal: 1500, prazo_dias: 10 })).estimativa_id;
   if (ate === 'estimativa') return ids;
-  ids.lead = (await rpc('vendas_informar_contato', { ...base, nome: 'Dra. Ana', telefone: '+5521999990000' })).lead_id;
+  ids.lead = (await rpc('vendas_informar_contato', { ...base, nome: 'Dra. Ana', telefone: '+5521999990000', aceite: true })).lead_id;
   if (ate === 'contato') return ids;
   const g = await rpc('vendas_iniciar_geracao', base);
   ids.direcoes = g.direcoes.map(d => d.id);

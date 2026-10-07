@@ -1,0 +1,76 @@
+# Fase 2 — operação do agente de vendas (/orcamento)
+
+Como ligar, ajustar e desligar o agente. A base (migrations, testes, segredos, backup) está em `docs/fundacao/02-OPERACAO.md`; aqui só o que a Fase 2 acrescenta.
+
+**Nada disto foi feito em produção.** A branch `rebuild-v2` tem o código; a `main` (o site no ar) não foi tocada.
+
+## 1. Ligar, na ordem
+
+1. **Supabase**, no projeto da Fase 1:
+   - aplicar as migrations novas: `supabase db push` (de `20261007120000` a `20261007120500`);
+   - **Authentication › Sign In / Providers › Anonymous sign-ins: ligar.** O visitante do orçamento é um usuário anônimo;
+   - **API › Exposed schemas: incluir `app`.** O backend chama `/rest/v1/rpc/vendas_*` com `Content-Profile: app`. Nenhuma função `vendas_*` aceita chamada de `anon` ou `authenticated`: só a chave secreta executa;
+   - **Rate Limits › anonymous sign-ins: subir o limite.** O login anônimo é feito pelo servidor, então TODOS os visitantes chegam ao Supabase com os IPs da Vercel. Com o limite padrão por IP, poucas dezenas de sessões por hora derrubariam o orçamento para todo mundo;
+   - recomendado pelo próprio Supabase para login anônimo: CAPTCHA (Turnstile) no cadastro. Fica para a etapa do Cloudflare, junto com a decisão de criar a sessão direto do navegador (aí o limite por IP volta a ser o de cada visitante). Até lá, o freio é o do servidor (8 sessões por IP a cada 10 minutos, na memória de cada instância).
+2. **Tabela de preços.** O rascunho `docs/fase2/regras-rascunho-v1.json` precisa da aprovação do dono. Depois, um dono ou admin grava a versão como `ativa`:
+   ```sql
+   insert into app.regras_comerciais (org_id, versao, status, regras, fontes, aprovada_em)
+   select id, 1, 'ativa', '<json aprovado>'::jsonb, 'aprovada pelo dono em <data>', now()
+   from app.organizacoes where slug = 'beyon-zero';
+   ```
+   Sem versão ativa, a conversa avisa "tabela em atualização" e oferece o WhatsApp. Uma versão aprovada não muda mais: preço novo é versão nova, e cada estimativa guarda a versão que usou.
+3. **Variáveis na Vercel** (nomes em `.env.example`):
+   - `ANTHROPIC_API_KEY`, só no ambiente onde o agente deve funcionar;
+   - `SITE_URL`;
+   - `PAGAMENTO_GATEWAY`, vazia até existir o adaptador do gateway escolhido. Vazia, o botão de pagar diz que o link vem pelo WhatsApp.
+4. **Plano da Vercel.** O plano Hobby proíbe uso comercial, então o site que vende precisa do Pro. A geração de cada direção roda numa chamada própria, com até 300 s (`vercel.json › functions`).
+5. **Retenção** (o que a página de privacidade promete). Agendar no Supabase (pg_cron), uma vez por dia:
+   ```sql
+   select cron.schedule('bz-retencao', '17 4 * * *', $$ select app.vendas_reter('{}'::jsonb) $$);
+   ```
+   A função apaga o texto das conversas sem contrato paradas há 90 dias. Ficam os números do funil.
+
+## 2. Desligar ou conter
+
+- **Desligar o agente:** apagar `ANTHROPIC_API_KEY` e publicar. A página continua de pé, com a resposta "indisponível" e o WhatsApp.
+- **Tetos de custo** (`api/_ia/config.mjs › TETOS`):
+  - US$ 1,50 por conversa;
+  - US$ 25 por dia;
+  - 40 turnos por conversa;
+  - 3 gerações de direções por conversa.
+  Passou do teto: o modelo não é chamado, e a pessoa recebe o WhatsApp com o briefing salvo. Os valores são chute inicial: medir o custo real das primeiras conversas e ajustar.
+- **Preço do modelo** (`PRECO_POR_MILHAO`): conferir na página de preços da Anthropic antes de ligar. O custo gravado por conversa é calculado com essa tabela.
+
+## 3. Gateway de pagamento (pendente da escolha do dono)
+
+O adaptador implementa três funções (`api/_vendas/pagamento.mjs`):
+
+| Função | O que faz |
+|---|---|
+| `criarCobranca({ pagamento_id, valor, descricao, cliente })` | Cria a cobrança e devolve `{ gateway_ref, link }`. |
+| `verificarWebhook(request, corpo)` | Confere a autenticidade do aviso e devolve `{ valido, evento: { evento_id, tipo, gateway_ref } }`. |
+| `consultar(gateway_ref)` | Busca no gateway o status e o valor reais. É a fonte da verdade, não o corpo do aviso. |
+
+O que cada gateway pede (pesquisado na Fase 2, `00-AUDITORIA-E-ANALISE.md`):
+
+- **Mercado Pago:** assinatura HMAC-SHA256 no cabeçalho `x-signature` (`ts` e `v1`), com o segredo do painel. Consulta em `/v1/payments/{id}`.
+- **Asaas:** token fixo no cabeçalho `asaas-access-token`, sem HMAC. A consulta à cobrança é ainda mais importante aqui.
+
+O gateway **simulado** só liga em local, preview ou development (lista do que pode; na Vercel sem ambiente declarado, não liga). Não definir `PAGAMENTO_GATEWAY=simulado` em ambiente ligado ao banco real. Ele guarda as cobranças na memória do processo, e a página dele fica em `/docs`, que o deploy bloqueia. Ele serve para o servidor local e os testes. Numa função da Vercel, com várias instâncias, a consulta pode não achar a cobrança, então não serve como pagamento de verdade nem em preview. Ele nunca liga com `VERCEL_ENV=production`.
+
+## 4. Testar
+
+| Comando | O que cobre |
+|---|---|
+| `npm run testar` | Banco real (PGlite com as migrations), motor de preço, agente, geração, alterações e o fluxo inteiro pela API. Inclui webhook forjado, velho e repetido, outro visitante, injeção, falha da IA, tetos e retenção. |
+| `npm run testar:mutacao` | Sabotagens no banco que os testes precisam pegar. |
+| `npm run e2e:orcamento` | A página `/orcamento` no Chromium, do primeiro texto ao projeto em produção (servidor local ligado). |
+| `node docs/servidor.mjs . 8899` | Servidor local com banco, IA simulada (de graça) e a página de pagamento simulado. `BZ_IA_REAL=1` com `ANTHROPIC_API_KEY` usa o modelo de verdade, e isso **custa**. |
+
+Antes de ligar com a IA real: rodar um conjunto de conversas de avaliação com o modelo de verdade. Conferir que os fatores extraídos batem com o caso, que nenhum valor aparece no texto e que as 3 direções saem boas o bastante para "vender sozinhas". Isso gasta crédito da API e precisa do aval do dono.
+
+## 5. Onde olhar quando algo der errado
+
+- **Logs da função** (Vercel): `[vendas] <ação>: código <SQLSTATE>` e `[pagamentos] aviso recusado: <motivo>`. Sem dado pessoal e sem texto da conversa.
+- **Funil** (`app.eventos_funil`): `conversa_iniciada`, `estimativa_mostrada`, `contato_informado`, `direcoes_solicitadas`, `direcoes_prontas`, `direcoes_falharam`, `direcao_escolhida`, `alteracao_pedida`, `escopo_apresentado`, `escopo_confirmado`, `pagamento_iniciado`, `pagamento_confirmado`, `ia_falhou`, `tentativa_bloqueada`. É onde se vê em que etapa as pessoas param.
+- **Pagamento** (`app.eventos_pagamento`): cada aviso recebido, com o resultado. Um aviso repetido aparece uma vez só. Resultado `conciliar à mão` = o gateway disse "pago" para uma cobrança já cancelada ou expirada: o dinheiro entrou e nada foi aplicado. Conferir no painel do gateway e resolver com o cliente.

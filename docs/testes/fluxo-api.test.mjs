@@ -258,3 +258,104 @@ test('retenção: o texto de conversa parada sem contrato some; a com cobrança 
   assert.deepEqual((await local.db.query('select briefing from app.conversas where id = $1', [sv.conversa_id])).rows[0].briefing, {});
   assert.ok((await local.db.query('select 1 from app.estimativas where conversa_id = $1', [sv.conversa_id])).rows.length, 'o número do funil fica');
 });
+
+/* ======================= correções da revisão (2026-10-07) ======================= */
+async function ateDirecoes(n, texto = 'Tenho uma clínica e quero um site institucional para agendamentos') {
+  const s = await n.iniciar();
+  const c = s.conversa_id;
+  await n.chamar('POST', 'mensagem', { conversa_id: c, texto });
+  await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'sim' });
+  await n.chamar('POST', 'contato', { conversa_id: c, nome: 'Rita', email: 'rita@x.com', aceite: true });
+  const g = await n.chamar('POST', 'gerar', { conversa_id: c });
+  for (const d of g.corpo.direcoes) await n.chamar('POST', 'gerar-direcao', { conversa_id: c, direcao_id: d.id });
+  return { c, dirs: g.corpo.direcoes };
+}
+async function ateCobranca(n) {
+  const { c, dirs } = await ateDirecoes(n);
+  await n.chamar('POST', 'escolher', { conversa_id: c, direcao_id: dirs[0].id });
+  const esc = await n.chamar('POST', 'escopo', { conversa_id: c });
+  await n.chamar('POST', 'confirmar', { conversa_id: c, proposta_id: esc.corpo.proposta_id, confirmo: true });
+  return c;
+}
+
+test('uma resposta de IA por vez: duas mensagens ao mesmo tempo dão uma resposta e um "aguarde"', async () => {
+  const base = criarSimulada();
+  const lenta = { ...deps, ia: { ...base, mensagem: async p => { await new Promise(r => setTimeout(r, 80)); return base.mensagem(p); } } };
+  const n = navegador(lenta);
+  const s = await n.iniciar();
+  const [a, b] = await Promise.all([1, 2].map(() => n.chamar('POST', 'mensagem', { conversa_id: s.conversa_id, texto: 'Tenho uma academia e quero um site' })));
+  assert.deepEqual([a.status, b.status].sort(), [200, 409]);
+  assert.equal((await n.chamar('POST', 'mensagem', { conversa_id: s.conversa_id, texto: 'quero para gerar contatos' })).status, 200, 'a trava solta depois');
+  assert.equal((await local.db.query('select turnos from app.conversas where id = $1', [s.conversa_id])).rows[0].turnos, 2);
+});
+
+test('o texto gravado é o redigido (telefone e documento não ficam no banco)', async () => {
+  const n = navegador();
+  const s = await n.iniciar();
+  await n.chamar('POST', 'mensagem', { conversa_id: s.conversa_id, texto: 'Sou contador, meu zap é (21) 98888-7777 e o CPF 123.456.789-09' });
+  const m = (await local.db.query(`select conteudo from app.mensagens where conversa_id = $1 and papel = 'visitante'`, [s.conversa_id])).rows[0].conteudo;
+  assert.ok(!m.includes('98888') && !m.includes('123.456') && m.includes('[telefone]'), m);
+});
+
+test('conversa encerrada para o agente: não chama o modelo (sem custo) e responde 409', async () => {
+  let chamadas = 0;
+  const base = criarSimulada();
+  const contando = { ...deps, ia: { ...base, mensagem: p => { chamadas++; return base.mensagem(p); } } };
+  const n = navegador(contando);
+  const s = await n.iniciar();
+  await local.db.query(`update app.conversas set etapa = 'aguardando_pagamento' where id = $1`, [s.conversa_id]);
+  assert.equal((await n.chamar('POST', 'mensagem', { conversa_id: s.conversa_id, texto: 'oi' })).status, 409);
+  assert.equal(chamadas, 0);
+});
+
+test('trocar de direção só antes do 1º ajuste (os ajustes são da direção escolhida)', async () => {
+  const n = navegador();
+  const { c, dirs } = await ateDirecoes(n);
+  assert.equal((await n.chamar('POST', 'escolher', { conversa_id: c, direcao_id: dirs[1].id })).status, 200);
+  assert.equal((await n.chamar('POST', 'escolher', { conversa_id: c, direcao_id: dirs[2].id })).status, 200, 'antes de ajustar pode trocar');
+  await n.chamar('POST', 'alterar', { conversa_id: c, pedido: 'quero os depoimentos antes dos serviços' });
+  assert.equal((await n.chamar('POST', 'escolher', { conversa_id: c, direcao_id: dirs[0].id })).status, 409);
+});
+
+test('escopo amarrado à estimativa: se outra entrou no meio, o banco recusa', async () => {
+  const n = navegador();
+  const { c, dirs } = await ateDirecoes(n);
+  await n.chamar('POST', 'escolher', { conversa_id: c, direcao_id: dirs[0].id });
+  const vid = (await local.db.query('select visitante_id from app.conversas where id = $1', [c])).rows[0].visitante_id;
+  await assert.rejects(local.rpc('vendas_apresentar_escopo', { conversa_id: c, visitante_id: vid, titulo: 'x', escopo: 'y', estimativa_id: c }), e => e.codigo === '40001');
+});
+
+test('gateway simulado só em local, preview e development', async () => {
+  const { criarGateway } = await import('../../api/_vendas/pagamento.mjs');
+  const seg = 'x'.repeat(40);
+  assert.equal(criarGateway({ PAGAMENTO_GATEWAY: 'simulado', PAGAMENTO_SIMULADO_SEGREDO: seg, VERCEL_ENV: 'production' }), null);
+  assert.equal(criarGateway({ PAGAMENTO_GATEWAY: 'simulado', PAGAMENTO_SIMULADO_SEGREDO: seg, VERCEL: '1' }), null, 'na Vercel sem ambiente declarado: não');
+  assert.ok(criarGateway({ PAGAMENTO_GATEWAY: 'simulado', PAGAMENTO_SIMULADO_SEGREDO: seg, VERCEL_ENV: 'preview' }));
+});
+
+test('gateway falhou ao criar a cobrança: 503 agora, e depois de 1 minuto o mesmo pagamento tenta de novo', async () => {
+  const quebrado = { ...gateway, criarCobranca: async () => { throw new Error('gateway fora'); } };
+  const n = navegador();
+  const c = await ateCobranca(n);
+  assert.equal((await n.chamar('POST', 'pagar', { conversa_id: c }, { deps: { ...deps, gateway: quebrado } })).status, 503);
+  assert.equal((await n.chamar('POST', 'pagar', { conversa_id: c })).corpo.aguarde, true, 'dentro do minuto: aguarde');
+  /* o carimbo do banco não deixa voltar o relógio; o modo de restauração deixa (só no teste) */
+  await local.db.transaction(async tx => {
+    await tx.query("select set_config('bz.restaurando', 'on', true)");
+    await tx.query(`update app.pagamentos p set updated_at = now() - interval '2 minutes' from app.propostas pr where pr.id = p.proposta_id and pr.conversa_id = $1`, [c]);
+  });
+  const ok = await n.chamar('POST', 'pagar', { conversa_id: c });
+  assert.ok(ok.corpo.link, 'refez a cobrança: ' + JSON.stringify(ok.corpo));
+  assert.equal((await local.db.query('select count(*)::int n from app.pagamentos p join app.propostas pr on pr.id = p.proposta_id where pr.conversa_id = $1', [c])).rows[0].n, 1, 'o mesmo pagamento, não outro');
+});
+
+test('pagamento depois de cancelado: responde ok, marca para conciliar e não cria projeto', async () => {
+  const n = navegador();
+  const c = await ateCobranca(n);
+  const ref = (await n.chamar('POST', 'pagar', { conversa_id: c })).corpo.link.split('ref=')[1];
+  const wh = s => receber(new Request(BASE + '/api/pagamentos?acao=simular', { method: 'POST', body: JSON.stringify({ ref, status: s }), headers: { 'content-type': 'application/json' } }), {}, { banco: local.rpc, gateway });
+  assert.equal((await wh('cancelado')).status, 200);
+  assert.equal((await wh('pago')).status, 200, 'sem 500 (o gateway não reenvia sem fim)');
+  assert.ok((await local.db.query(`select 1 from app.eventos_pagamento where resultado like 'conciliar%'`)).rows.length);
+  assert.equal((await local.db.query('select count(*)::int n from app.propostas where conversa_id = $1 and projeto_id is not null', [c])).rows[0].n, 0);
+});

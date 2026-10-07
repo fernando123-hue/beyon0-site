@@ -119,6 +119,17 @@
 .orc-mudancas li.is-ok::before { content: "✓"; color: var(--ac); }
 .orc-mudancas li.is-nao::before { content: "—"; color: var(--t3); }
 .orc-seguir { margin-top: 1.4rem; }
+.orc-aj-resposta:not(:empty) { margin: 0 0 1rem; color: var(--t1); padding-left: .8rem; border-left: 1px solid var(--line-hi); }
+.dir__selo { display: inline-flex; align-items: center; min-height: 42px; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--ac); }
+.orc-det { margin-top: 1.2rem; }
+.orc-det summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-size: var(--fs-s); color: var(--t2); }
+.orc-det summary::before { content: "+"; font-family: var(--mono); color: var(--ac); width: 1.2em; }
+.orc-det[open] summary::before { content: "−"; }
+.orc-det summary::-webkit-details-marker { display: none; }
+.orc-bloco, .orc-aviso, .orc-mesa { scroll-margin-top: calc(var(--nav-h) + 1rem); }
+.orc-det summary:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
+.orc-aviso:focus { outline: none; }
+.orc-aviso:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
 
 .orc-escopo { white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--mono); font-size: var(--fs-s); line-height: 1.7; color: var(--t1); background: var(--s1); border: 1px solid var(--line); border-radius: var(--raio); padding: 1rem; max-height: 60vh; overflow-y: auto; margin-bottom: 1rem; }
 .orc-escopo:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }

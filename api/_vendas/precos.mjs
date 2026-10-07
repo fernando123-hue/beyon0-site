@@ -64,7 +64,7 @@ export function validarFatores(f, regras) {
   if (paginas !== null && !(Number.isInteger(paginas) && paginas >= 1 && paginas <= 60)) erros.push('paginas: inteiro de 1 a 60');
   const adicionais = {};
   for (const [k, q] of Object.entries(f.adicionais || {})) {
-    const def = regras.adicionais[k];
+    const def = Object.hasOwn(regras.adicionais, k) ? regras.adicionais[k] : null;   /* (constructor, toString…: não são adicionais) */
     if (!def) { erros.push('adicional desconhecido: ' + k); continue; }
     if (!(Number.isInteger(q) && q >= 0)) { erros.push('adicionais.' + k + ': quantidade inteira'); continue; }
     if (q > 0) adicionais[k] = def.fora_do_automatico ? q : Math.min(q, def.max);

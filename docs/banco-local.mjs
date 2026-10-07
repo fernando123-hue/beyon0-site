@@ -44,9 +44,13 @@ export async function montarLocal({ base = 'http://127.0.0.1:8899', regras = tru
         const t = tokenDe(request);
         if (!t) return null;
         const [cab, corpo, sig] = t.split('.');
+        if (!cab || !corpo || !sig) return null;
         const esperado = createHmac('sha256', segredo).update(cab + '.' + corpo).digest('base64url');
         if (sig.length !== esperado.length || !timingSafeEqual(Buffer.from(sig), Buffer.from(esperado))) return null;
-        return JSON.parse(Buffer.from(corpo, 'base64url').toString()).sub;
+        let carga;
+        try { carga = JSON.parse(Buffer.from(corpo, 'base64url').toString()); } catch { return null; }
+        if (!carga || typeof carga.exp !== 'number' || carga.exp * 1000 <= Date.now()) return null;   /* vencido: como o Supabase */
+        return carga.sub;
       }
     },
     segredoPagamento: randomBytes(32).toString('hex'),

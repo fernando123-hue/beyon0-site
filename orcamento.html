@@ -57,7 +57,7 @@
 
     <noscript><p class="orc-aviso orc-aviso--semjs">Esta página precisa de JavaScript. Fale com a Beyon Zero pelo <a href="https://wa.me/5521977167944">WhatsApp (21) 97716-7944</a>.</p></noscript>
 
-    <div class="orc-aviso" id="o-aviso" role="alert" hidden>
+    <div class="orc-aviso" id="o-aviso" role="alert" tabindex="-1" hidden>
       <p id="o-aviso-texto"></p>
       <div class="orc-aviso__acoes">
         <button class="btn btn--sm" type="button" id="o-tentar">Tentar de novo</button>
@@ -83,6 +83,7 @@
           <textarea id="o-texto" rows="2" maxlength="2000" placeholder="Ex.: tenho uma clínica em Niterói e quero mais agendamentos" autocomplete="off"></textarea>
           <button class="btn btn--primary" type="submit" id="o-enviar">Enviar</button>
         </form>
+        <p class="orc-nota" id="o-conversa-fechada" hidden>A conversa com o consultor ficou registrada acima. Daqui em diante, o seu orçamento segue pelas etapas abaixo.</p>
         <p class="orc-nota">Não escreva senhas nem dados de cartão aqui. <a href="/privacidade#orcamento">Como a conversa é tratada</a>.</p>
       </section>
 
@@ -147,9 +148,10 @@
     <!-- AJUSTES -->
     <section class="orc-bloco" id="o-ajustes" aria-labelledby="o-aj-titulo" hidden>
       <h2 id="o-aj-titulo">Ajuste do seu jeito</h2>
-      <p class="orc-bloco__lead">Escreva o que mudaria. Exemplos: "quero a cor da primeira", "coloque os depoimentos antes dos serviços", "quero mais uma página".</p>
+      <p class="orc-bloco__lead">Escreva o que mudaria (a troca de direção vale até o primeiro ajuste). Exemplos: "quero a cor da primeira", "coloque os depoimentos antes dos serviços", "quero mais uma página".</p>
       <div class="orc-versao" id="o-versao"></div>
-      <ul class="orc-mudancas" id="o-mudancas" aria-live="polite"></ul>
+      <p class="orc-aj-resposta" id="o-aj-resposta" aria-live="polite"></p>
+      <ul class="orc-mudancas" id="o-mudancas"></ul>
       <form class="orc-envio" id="o-aj-form" novalidate>
         <label class="sr-only" for="o-aj-texto">O que você mudaria?</label>
         <textarea id="o-aj-texto" rows="2" maxlength="2000" placeholder="O que você mudaria?"></textarea>
@@ -162,7 +164,8 @@
     <section class="orc-bloco" id="o-escopo" aria-labelledby="o-esc-titulo" hidden>
       <h2 id="o-esc-titulo">Escopo final</h2>
       <p class="orc-bloco__lead">Confira tudo. É isto que será feito, pelo valor e no prazo abaixo.</p>
-      <div class="orc-escopo" id="o-esc-texto" tabindex="0" aria-label="Texto do escopo"></div>
+      <div class="orc-escopo" id="o-esc-texto" tabindex="0" role="region" aria-label="Texto do escopo"></div>
+      <p class="orc-nota">Quer mudar algo antes de confirmar? <a data-wa="quero ajustar o escopo do meu orçamento antes de confirmar" href="https://wa.me/5521977167944">Fale com a Beyon Zero pelo WhatsApp</a>.</p>
       <form class="orc-form" id="o-esc-form" novalidate>
         <label class="orc-check"><input type="checkbox" id="o-confirmo" required /> <span>Li e confirmo este escopo, o valor e o prazo.</span></label>
         <label class="orc-check"><input type="checkbox" id="o-inicio" /> <span>Peço que o trabalho comece já, dentro do prazo de 7 dias para desistir da compra (Código de Defesa do Consumidor, art. 49).</span></label>
@@ -177,6 +180,10 @@
       <p class="orc-bloco__lead" id="o-pag-lead"></p>
       <button class="btn btn--primary" type="button" id="o-pagar">Pagar o sinal</button>
       <p class="orc-pag-status" id="o-pag-status" role="status" aria-live="polite"></p>
+      <details class="orc-det">
+        <summary>Ver o escopo confirmado</summary>
+        <div class="orc-escopo" id="o-pag-escopo"></div>
+      </details>
       <p class="orc-nota">O pagamento só é confirmado pelo aviso do banco ou da operadora. Esta página nunca pede dados de cartão.</p>
     </section>
 
@@ -190,7 +197,7 @@
   <div class="visor" id="o-visor" role="dialog" aria-modal="true" aria-labelledby="o-visor-titulo" hidden>
     <div class="visor__barra">
       <p class="visor__titulo" id="o-visor-titulo"></p>
-      <div class="visor__abas" role="tablist" aria-label="Direções" id="o-visor-abas"></div>
+      <div class="visor__abas" role="group" aria-label="Direções" id="o-visor-abas"></div>
       <div class="visor__aparelho" role="group" aria-label="Tamanho da tela">
         <button type="button" class="chip" data-aparelho="390" aria-pressed="true">Celular</button>
         <button type="button" class="chip" data-aparelho="1280" aria-pressed="false">Computador</button>
@@ -198,7 +205,7 @@
       <button type="button" class="visor__fechar" id="o-visor-fechar" aria-label="Fechar a prévia">×</button>
     </div>
     <p class="visor__resumo" id="o-visor-resumo"></p>
-    <div class="visor__palco" id="o-visor-palco" tabindex="0" aria-label="Prévia do site"></div>
+    <div class="visor__palco" id="o-visor-palco" tabindex="0" role="region" aria-label="Prévia do site"></div>
     <div class="visor__rodape">
       <p class="visor__aviso">Prévia de direção: textos entre colchetes são espaços para os seus dados reais.</p>
       <button type="button" class="btn btn--primary" id="o-visor-escolher">Escolher esta direção</button>
@@ -221,6 +228,7 @@
   <script src="js/metricas.js" defer></script>
   <script src="js/previa.js" defer></script>
   <script src="js/orcamento-api.js" defer></script>
+  <script src="js/orcamento-visor.js" defer></script>
   <script src="js/orcamento.js" defer></script>
 </body>
 </html>

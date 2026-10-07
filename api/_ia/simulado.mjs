@@ -44,7 +44,7 @@ const resposta = (texto, chamadas = []) => {
   return { texto, json: null, chamadas, conteudo, parada: chamadas.length ? 'ferramenta' : 'fim', modelo: 'simulado', uso: { entrada: 0, saida: 0 }, custo_usd: 0 };
 };
 
-function conversa({ mensagens }) {
+function conversa({ mensagens, contexto }) {
   const ultima = mensagens[mensagens.length - 1];
   /* 2ª volta: as ferramentas já rodaram; a resposta final depende do que voltou */
   if (ultima.role === 'user' && Array.isArray(ultima.content)) {
@@ -58,7 +58,7 @@ function conversa({ mensagens }) {
   }
   const user = [...mensagens].reverse().find(m => m.role === 'user' && typeof m.content === 'string');
   const texto = user ? user.content : '';
-  const estado = (() => { const s = mensagens.find(m => m.role === 'system'); try { return JSON.parse(s.content.split('\n').slice(1).join('\n')); } catch { return {}; } })();
+  const estado = (() => { try { return JSON.parse(String(contexto).split('\n').slice(1).join('\n')); } catch { return {}; } })();
   if (pareceInjecao(texto)) return resposta('Isso eu não posso fazer. Os valores seguem a tabela da Beyon Zero e as regras internas não são compartilhadas. Vamos voltar ao seu projeto?');
   const chamadas = [];
   const atualizacao = extrair(texto, estado.briefing || {});

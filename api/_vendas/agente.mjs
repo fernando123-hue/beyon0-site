@@ -95,14 +95,15 @@ export async function executarTurno({ ia, regras, conversa, mensagem }) {
   let estimativa = null, pedirContato = false, diagnostico = null;
   const sugestoes = [];
   let custo = 0;
-  const historico = (conversa.mensagens || []).slice(-HISTORICO).map(m => ({ role: m.papel === 'visitante' ? 'user' : 'assistant', content: m.conteudo }));
-  const mensagens = [...historico, { role: 'user', content: redigir(mensagem) },
-    { role: 'system', content: estadoParaModelo({ briefing, estimativa: conversa.estimativa, etapa: conversa.etapa }) }];
+  const historico = (conversa.mensagens || []).slice(-HISTORICO).map(m => ({ role: m.papel === 'visitante' ? 'user' : 'assistant', content: redigir(m.conteudo) }));
+  const mensagens = [...historico, { role: 'user', content: redigir(mensagem) }];
+  /* o estado vai num 2º bloco do prompt de sistema (sem cache), não como mensagem: a API só aceita user/assistant em messages */
+  const contexto = estadoParaModelo({ briefing, estimativa: conversa.estimativa, etapa: conversa.etapa });
   const tools = ferramentas(regras);
   let texto = '';
 
   for (let i = 0; i < MAX_ITERACOES; i++) {
-    const r = await ia.mensagem({ papel: 'conversa', sistema: SISTEMA, mensagens, ferramentas: tools });
+    const r = await ia.mensagem({ papel: 'conversa', sistema: SISTEMA, contexto, mensagens, ferramentas: tools });
     custo += r.custo_usd || 0;
     if (r.parada === 'recusa') throw new ErroIA('recusa', 'o modelo recusou');
     texto = r.texto || texto;

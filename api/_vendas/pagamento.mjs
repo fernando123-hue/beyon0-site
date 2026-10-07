@@ -59,7 +59,9 @@ export function gatewaySimulado({ segredo, base }) {
 let simuladoUnico = null;
 export function criarGateway(env = process.env) {
   if (env.PAGAMENTO_GATEWAY === 'simulado' || globalThis.__BZ_LOCAL) {
-    if (env.VERCEL_ENV === 'production') return null;   /* nunca cobra "de mentira" em produção */
+    /* nunca cobra "de mentira" fora de teste: lista do que PODE (local, preview, development), não do que não pode */
+    const ambiente = env.VERCEL_ENV;
+    if (ambiente ? !['preview', 'development'].includes(ambiente) : !!env.VERCEL) return null;
     const segredo = env.PAGAMENTO_SIMULADO_SEGREDO || (globalThis.__BZ_LOCAL && globalThis.__BZ_LOCAL.segredoPagamento);
     if (!segredo || segredo.length < 32) return null;
     simuladoUnico = simuladoUnico || gatewaySimulado({ segredo, base: env.SITE_URL || (globalThis.__BZ_LOCAL && globalThis.__BZ_LOCAL.base) || 'https://localhost' });

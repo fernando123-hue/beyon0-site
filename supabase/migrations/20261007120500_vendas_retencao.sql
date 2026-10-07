@@ -1,7 +1,7 @@
 -- ==========================================================================
 -- FASE 2 — retenção do orçamento com IA (o que a página de privacidade promete):
 -- o TEXTO das conversas que não viraram contrato some depois de N dias sem
--- atividade (padrão 90). Apaga as mensagens e esvazia o briefing; ficam os
+-- atividade (padrão 90). Apaga as mensagens, os pedidos de ajuste e esvazia o briefing; ficam os
 -- números do funil (etapa, estimativa, custo), que não têm o que a pessoa
 -- escreveu. Conversa com sinal pago (em produção) ou cobrança em aberto não
 -- entra: ali o texto é parte do contrato.
@@ -23,6 +23,11 @@ begin
     delete from app.mensagens m using velhas v where m.conversa_id = v.id returning m.id
   )
   select count(*) into v_mensagens from apagadas;
+  -- o pedido de ajuste também é texto do visitante
+  update app.alteracoes a set pedido = '[apagado]'
+  from app.conversas c
+  where a.conversa_id = c.id and a.pedido <> '[apagado]'
+    and c.ultima_atividade < now() - make_interval(days => v_dias) and c.etapa not in ('aguardando_pagamento', 'em_producao');
   update app.conversas set briefing = '{}'
   where ultima_atividade < now() - make_interval(days => v_dias)
     and etapa not in ('aguardando_pagamento', 'em_producao')

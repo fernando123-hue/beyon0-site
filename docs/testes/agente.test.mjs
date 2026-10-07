@@ -122,3 +122,20 @@ test('adaptador Anthropic: o pedido sai no formato da documentação oficial e o
   const falha = criarAnthropic({}, { beta: { messages: { create: async () => { throw new Anthropic.RateLimitError(429, {}, 'x', new Headers()); } } } });
   await assert.rejects(falha.mensagem({ papel: 'conversa', sistema: 'S', mensagens: [] }), e => e.motivo === 'limite');
 });
+
+test('o turno manda só user/assistant em messages; o estado vai no 2º bloco do sistema; histórico redigido', async () => {
+  const { executarTurno } = await import('../../api/_vendas/agente.mjs');
+  const { criarAnthropic } = await import('../../api/_ia/anthropic.mjs');
+  const regras = JSON.parse((await import('node:fs')).readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
+  const pedidos = [];
+  const cliente = { beta: { messages: { create: async p => { pedidos.push(p); return { model: 'claude-sonnet-5-5', stop_reason: 'end_turn', content: [{ type: 'text', text: 'ok' }], usage: { input_tokens: 1, output_tokens: 1 } }; } } } };
+  const ia = criarAnthropic({}, cliente);
+  await executarTurno({ ia, regras, conversa: { etapa: 'descoberta', briefing: {}, mensagens: [{ papel: 'visitante', conteudo: 'meu CPF é 123.456.789-09 e o fone (21) 99999-0000' }, { papel: 'agente', conteudo: 'certo' }] }, mensagem: 'oi' });
+  const p = pedidos[0];
+  assert.ok(p.messages.every(m => m.role === 'user' || m.role === 'assistant'), 'a API não aceita role system em messages');
+  assert.equal(p.system.length, 2);
+  assert.ok(p.system[1].text.startsWith('ESTADO ATUAL'));
+  assert.equal(p.system[1].cache_control, undefined, 'o estado muda a cada turno: fora do cache');
+  const enviado = JSON.stringify(p.messages);
+  assert.ok(!enviado.includes('123.456.789-09') && !enviado.includes('99999-0000'), 'histórico redigido antes do modelo');
+});

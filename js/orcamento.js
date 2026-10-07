@@ -1,36 +1,43 @@
 /* ==========================================================================
    ORÇAMENTO COM IA — a página (/orcamento). A tela segue o ESTADO que o
    servidor devolve (etapa, mensagens, estimativa, direções, escolha,
-   alterações, proposta, pagamentos): recarregar a página, sair e voltar ou
-   abrir em outra aba dá no mesmo lugar. Os números (valor, sinal, prazo)
-   vêm sempre do motor de preço pelo servidor; aqui só se formata.
+   alterações, proposta, pagamentos): recarregar, sair e voltar ou abrir em
+   outra aba dá no mesmo lugar. Os números (valor, sinal, prazo) vêm sempre
+   do motor de preço pelo servidor; aqui só se formata.
    Todo texto entra por textContent (nada de innerHTML com dado de fora).
+   Regras da revisão (2026-10-07): nada é redesenhado se não mudou (foco e
+   rolagem ficam); um pedido por vez; respostas velhas são descartadas; a
+   espera não morre em silêncio; o aviso de erro vai para onde a pessoa vê.
    ========================================================================== */
 (function () {
   'use strict';
   var API = window.BZOrcamento, PV = window.BZPrevia;
-  if (!API || !PV) return;
+  if (!API || !PV || !window.BZVisor) return;
   var $ = function (id) { return document.getElementById(id); };
   var RECUPERACAO = 'Não consegui concluir a análise neste momento. Suas informações foram preservadas. Vamos continuar de onde paramos.';
   var NOMES = { conversao: 'Conversão', autoridade: 'Autoridade', experiencia: 'Experiência' };
-  var ESPERA_MS = 5000, ESPERA_MAX_MS = 15 * 60e3;
+  var CONVERSA_ABERTA = ['descoberta', 'estimativa', 'contato', 'direcoes', 'escolhida', 'alteracoes'];
+  var ESPERA_MS = 5000, ESPERA_MAX_MS = 15 * 60e3, REPEDIR_MS = 60e3;
   var E = null;                 /* o último estado do servidor */
-  var pediuContato = false, restaurado = false;
-  var gerando = {};             /* direções que ESTA aba está pedindo (não pedir duas vezes) */
+  var seq = 0, emVoo = null;    /* respostas fora de ordem: só a mais nova vale */
+  var pedindo = {};             /* direção → até quando NÃO pedir de novo (posse de outro pedido) */
   var inicioGeracao = {};
-  var ultimaAcao = null;        /* o que "Tentar de novo" repete */
-  var espera = null;
+  var assinaturas = {};         /* bloco → o que foi desenhado (não refaz o que não mudou) */
+  var ultimaAcao = null, espera = null, relogio = null, enviando = false;
 
   var dinheiro = function (n) { return Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 2 }); };
   function el(tag, classe, texto) { var e = document.createElement(tag); if (classe) e.className = classe; if (texto != null) e.textContent = texto; return e; }
   function mostrar(id, sim) { $(id).hidden = !sim; }
+  function mudou(bloco, dados) { var s = JSON.stringify(dados); if (assinaturas[bloco] === s) return false; assinaturas[bloco] = s; return true; }
 
-  /* ---------- aviso (falha, limite, recuperação) ---------- */
+  /* ---------- aviso (falha, limite, recuperação): vai para a vista e recebe o foco ---------- */
   function avisar(msg, acao) {
     ultimaAcao = acao || null;
     $('o-aviso-texto').textContent = msg;
     $('o-tentar').hidden = !acao;
     mostrar('o-aviso', true);
+    $('o-aviso').scrollIntoView({ block: 'center' });
+    $('o-aviso').focus({ preventScroll: true });
   }
   function limparAviso() { mostrar('o-aviso', false); ultimaAcao = null; }
   function mensagemDe(e) {
@@ -48,37 +55,40 @@
     $('o-log').scrollTop = $('o-log').scrollHeight;
     return li;
   }
-  function pensando(sim) { mostrar('o-pensando', sim); $('o-form').setAttribute('aria-busy', sim ? 'true' : 'false'); $('o-enviar').disabled = sim; }
+  function ocupado(sim) { enviando = sim; mostrar('o-pensando', sim); $('o-form').setAttribute('aria-busy', String(sim)); $('o-enviar').disabled = sim; }
 
   async function enviar(texto) {
+    if (enviando) return;   /* (Enter repetido não manda dois turnos) */
     limparAviso();
     var minha = msg('visitante', texto);
     $('o-atalhos').hidden = true;
-    pensando(true);
-    try {
-      var r = await API.mensagem(texto);
-      msg('agente', r.resposta || 'Entendi.');
-      if (r.estimativa) investimento(r.estimativa, true);
-      if (r.sugestoes_ia && r.sugestoes_ia.length) sugestao(r.sugestoes_ia[0]);
-      if (r.diagnostico) mostrar('o-diagnostico', true);
-      if (r.pedir_contato) pediuContato = true;
-      await recarregar();
-      if (r.pedir_contato) $('o-contato').scrollIntoView({ block: 'start' });
-    } catch (e) {
+    ocupado(true);
+    var r;
+    try { r = await API.mensagem(texto); }
+    catch (e) {
       minha.remove();               /* não ficou gravada: volta para a caixa */
       $('o-texto').value = texto;
-      avisar(mensagemDe(e), e.status === 429 ? null : function () { $('o-texto').value = ''; enviar(texto); });
-    } finally { pensando(false); }
+      ocupado(false);
+      avisar(mensagemDe(e), e.status === 429 || e.status === 409 ? null : function () { $('o-texto').value = ''; enviar(texto); });
+      return;
+    }
+    ocupado(false);
+    msg('agente', r.resposta || 'Entendi.');
+    if (r.estimativa) investimento(r.estimativa, true);
+    if (r.sugestoes_ia && r.sugestoes_ia.length) sugestao(r.sugestoes_ia[0]);
+    if (r.diagnostico) mostrar('o-diagnostico', true);
+    try { await recarregar(); } catch (e) { /* o turno já está gravado; a espera ou a próxima ação atualizam */ }
+    if (r.pedir_contato && !$('o-contato').hidden) $('o-contato').scrollIntoView({ block: 'start' });
   }
   $('o-form').addEventListener('submit', function (ev) {
     ev.preventDefault();
     var t = $('o-texto').value.trim();
-    if (!t) return;
+    if (!t || enviando) return;
     $('o-texto').value = '';
     enviar(t.slice(0, 2000));
   });
   $('o-texto').addEventListener('keydown', function (ev) {
-    if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); $('o-form').requestSubmit(); }
+    if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); if (!enviando) $('o-form').requestSubmit(); }
   });
   [].forEach.call(document.querySelectorAll('[data-atalho]'), function (b) {
     b.addEventListener('click', function () { enviar(b.getAttribute('data-atalho')); });
@@ -95,12 +105,12 @@
   }
   function investimento(est, novo) {
     var c = cartaoDe(est);
-    if (c.valor_total == null) return;
+    if (c.valor_total == null || !mudou('investimento', c)) return;
     mostrar('o-est-vazio', false);
     mostrar('o-est-cheio', true);
     $('o-est-formato').textContent = c.formato || '';
     var v = $('o-est-valor');
-    if (v.textContent !== dinheiro(c.valor_total) && novo) { v.classList.remove('is-novo'); void v.offsetWidth; v.classList.add('is-novo'); }
+    if (novo) { v.classList.remove('is-novo'); void v.offsetWidth; v.classList.add('is-novo'); }
     v.textContent = dinheiro(c.valor_total);
     $('o-est-prazo').textContent = c.prazo_dias + (c.prazo_dias === 1 ? ' dia' : ' dias');
     $('o-est-sinal').textContent = dinheiro(c.sinal);
@@ -110,7 +120,7 @@
     mostrar('o-est-fase', !!(f && f.itens && f.itens.length));
     if (f && f.itens) {
       lista($('o-est-fase-itens'), f.itens);
-      $('o-est-fase-valor').textContent = 'Estimativa da fase seguinte: ' + dinheiro(f.valor_estimado) + '. O prazo máximo de cada fase é de 10 dias.';
+      $('o-est-fase-valor').textContent = 'Estimativa da fase seguinte: ' + dinheiro(f.valor_estimado) + '.';
     }
   }
   function sugestao(s) {
@@ -122,7 +132,8 @@
   /* ---------- o contato ---------- */
   $('o-contato-form').addEventListener('submit', async function (ev) {
     ev.preventDefault();
-    var erro = $('o-contato-erro');
+    var form = this, erro = $('o-contato-erro');
+    if (form.getAttribute('aria-busy') === 'true') return;
     var dados = { nome: $('o-nome').value.trim(), telefone: $('o-tel').value.trim(), email: $('o-email').value.trim(), aceite: $('o-aceite').checked };
     if (dados.nome.length < 2) { erro.textContent = 'Informe seu nome.'; $('o-nome').focus(); return; }
     if (!dados.telefone && !dados.email) { erro.textContent = 'Informe o WhatsApp ou o e-mail.'; $('o-tel').focus(); return; }
@@ -130,12 +141,11 @@
     if (!dados.telefone) delete dados.telefone;
     if (!dados.email) delete dados.email;
     erro.textContent = '';
-    this.setAttribute('aria-busy', 'true');
-    try {
-      await API.contato(dados);
-      await gerarTodas();
-    } catch (e) { erro.textContent = mensagemDe(e); }
-    finally { this.removeAttribute('aria-busy'); }
+    form.setAttribute('aria-busy', 'true');
+    try { await API.contato(dados); }
+    catch (e) { erro.textContent = mensagemDe(e); form.removeAttribute('aria-busy'); return; }
+    form.removeAttribute('aria-busy');
+    await gerarTodas();
   });
 
   /* ---------- as três direções ---------- */
@@ -147,62 +157,59 @@
       $('o-direcoes').scrollIntoView({ block: 'start' });
     } catch (e) { avisar(mensagemDe(e), e.status === 409 || e.status === 429 ? null : gerarTodas); }
   }
+  /* pede UMA direção. "em_andamento" = outro pedido tem a posse: não insiste (a espera de 5 s acompanha);
+     tenta de novo só depois de um minuto, caso a posse tenha caído */
   async function pedirDirecao(id) {
-    if (gerando[id]) return;
-    gerando[id] = true;
+    if (pedindo[id] && pedindo[id] > Date.now()) return;
+    pedindo[id] = Infinity;
     inicioGeracao[id] = inicioGeracao[id] || Date.now();
     try {
       var r = await API.gerarDirecao(id);
-      if (r.status === 'em_andamento') esperar();
-    } catch (e) { /* o estado mostra "falhou" se for o caso */ }
-    gerando[id] = false;
-    await recarregar().catch(function () {});
+      if (r.status === 'em_andamento') { pedindo[id] = Date.now() + REPEDIR_MS; esperar(); return; }
+      pedindo[id] = 0;
+      await recarregar().catch(function () {});
+    } catch (e) {
+      pedindo[id] = Date.now() + REPEDIR_MS;
+      if (e.status === 429 || e.status === 503) avisar(mensagemDe(e));
+      esperar();
+    }
   }
   function tempo(id) {
     var s = Math.max(0, Math.round((Date.now() - (inicioGeracao[id] || Date.now())) / 1000));
     return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
   }
-  function miniatura(conteudo) {
-    var tela = el('div', 'pv-tela');
-    tela.appendChild(PV.desenhar(conteudo));
-    return tela;
-  }
+  var podeEscolher = function () { return E && (E.conversa.etapa === 'direcoes' || E.conversa.etapa === 'escolhida'); };   /* (o servidor trava a troca depois do 1º ajuste) */
+  var escolhidaId = function () { return E && E.escolha ? E.escolha.direcao_id : null; };
+
+  function botao(classe, texto, aoClicar) { var b = el('button', classe, texto); b.type = 'button'; b.addEventListener('click', aoClicar); return b; }
   function cartaoDirecao(d) {
     var li = el('li', 'dir');
-    var escolhida = E.escolha && E.escolha.direcao_id === d.id;
+    var escolhida = escolhidaId() === d.id;
     if (escolhida) li.classList.add('is-escolhida');
     var mini = el('div', 'dir__mini');
     var corpo = el('div', 'dir__corpo');
     corpo.appendChild(el('p', 'dir__estrategia', String(d.numero).padStart(2, '0') + ' · ' + (NOMES[d.estrategia] || d.estrategia)));
     if (d.status === 'pronta' && d.conteudo) {
-      var tela = miniatura(d.conteudo);
+      var tela = el('div', 'pv-tela');
+      tela.appendChild(PV.desenhar(d.conteudo));
       mini.appendChild(tela);
       mini.setAttribute('aria-hidden', 'true');
-      mini.addEventListener('click', function () { abrirVisor(d.id); });
+      mini.addEventListener('click', function () { visor.abrir(d.id); });
       corpo.appendChild(el('h3', 'dir__nome', d.conteudo.nome_conceito));
       corpo.appendChild(el('p', 'dir__resumo', d.conteudo.resumo));
       var acoes = el('div', 'dir__acoes');
-      var abrir = el('button', 'btn btn--sm', 'Abrir prévia');
-      abrir.type = 'button';
-      abrir.addEventListener('click', function () { abrirVisor(d.id); });
+      var abrir = botao('btn btn--sm', 'Abrir prévia', function () { visor.abrir(d.id); });
+      abrir.setAttribute('data-abrir', d.id);
       acoes.appendChild(abrir);
-      if (podeEscolher()) {
-        var esc = el('button', 'btn btn--sm' + (escolhida ? ' btn--ghost' : ' btn--primary'), escolhida ? 'Escolhida' : 'Escolher esta');
-        esc.type = 'button';
-        esc.disabled = escolhida;
-        esc.addEventListener('click', function () { escolher(d.id); });
-        acoes.appendChild(esc);
-      }
+      if (escolhida) acoes.appendChild(el('span', 'dir__selo', 'Escolhida'));
+      else if (podeEscolher()) acoes.appendChild(botao('btn btn--sm btn--primary', 'Escolher esta', function () { escolher(d.id); }));
       corpo.appendChild(acoes);
     } else if (d.status === 'falhou') {
       var p = el('div', 'dir__progresso');
       p.appendChild(el('p', '', 'Esta direção não saiu desta vez.'));
       mini.appendChild(p);
       corpo.appendChild(el('p', 'dir__resumo', 'Você pode gerar as três de novo ou seguir com as que ficaram prontas.'));
-      var de = el('button', 'btn btn--sm', 'Gerar de novo');
-      de.type = 'button';
-      de.addEventListener('click', gerarTodas);
-      corpo.appendChild(de);
+      corpo.appendChild(botao('btn btn--sm', 'Gerar de novo', gerarTodas));
     } else {
       var g = el('div', 'dir__progresso');
       g.appendChild(el('p', '', 'Desenhando a direção de ' + (NOMES[d.estrategia] || '').toLowerCase() + '…'));
@@ -217,137 +224,81 @@
     li.appendChild(corpo);
     return li;
   }
-  var podeEscolher = function () { return ['direcoes', 'escolhida', 'alteracoes'].indexOf(E.conversa.etapa) >= 0; };
-  setInterval(function () { [].forEach.call(document.querySelectorAll('[data-tempo]'), function (t) { t.textContent = tempo(t.getAttribute('data-tempo')); }); }, 1000);
+  function encaixarMinis() { [].forEach.call(document.querySelectorAll('.dir__mini'), function (m) { var t = m.querySelector('.pv-tela'); if (t) PV.encaixar(m, t, 390); }); }
+  var adiado = null;
+  window.addEventListener('resize', function () { clearTimeout(adiado); adiado = setTimeout(encaixarMinis, 150); });
+  /* o relógio dos cartões em geração: só roda enquanto há geração */
+  function relogioDosCartoes(ligar) {
+    if (ligar && !relogio) relogio = setInterval(function () { [].forEach.call(document.querySelectorAll('[data-tempo]'), function (t) { t.textContent = tempo(t.getAttribute('data-tempo')); }); }, 1000);
+    if (!ligar && relogio) { clearInterval(relogio); relogio = null; }
+  }
 
   async function escolher(id) {
     limparAviso();
-    try { await API.escolher(id); fecharVisor(); await recarregar(); $('o-ajustes').scrollIntoView({ block: 'start' }); }
-    catch (e) { avisar(mensagemDe(e), function () { escolher(id); }); }
+    try { await API.escolher(id); visor.fechar(); await recarregar(); $('o-ajustes').scrollIntoView({ block: 'start' }); }
+    catch (e) { avisar(mensagemDe(e), e.status === 409 ? null : function () { escolher(id); }); }
   }
 
-  /* ---------- o visor: abrir, navegar, comparar ---------- */
-  var visor = { id: null, largura: 390, origem: null };
-  function prontas() {
-    var l = E.direcoes.filter(function (d) { return d.status === 'pronta' && d.conteudo; });
-    if (E.versao_final) l = l.concat([{ id: 'final', numero: 0, estrategia: 'final', conteudo: E.versao_final }]);
-    return l;
-  }
-  function desenharVisor() {
-    var lista = prontas();
-    var d = lista.filter(function (x) { return x.id === visor.id; })[0] || lista[0];
-    if (!d) return fecharVisor();
-    visor.id = d.id;
-    $('o-visor-titulo').textContent = d.id === 'final' ? 'Sua versão, com os ajustes' : 'Direção ' + d.numero + ' · ' + (NOMES[d.estrategia] || '') + ' · ' + d.conteudo.nome_conceito;
-    $('o-visor-resumo').textContent = d.conteudo.resumo || '';
-    var abas = $('o-visor-abas');
-    abas.textContent = '';
-    lista.forEach(function (x) {
-      var b = el('button', 'chip', x.id === 'final' ? 'Sua versão' : String(x.numero));
-      b.type = 'button';
-      b.setAttribute('role', 'tab');
-      b.setAttribute('aria-selected', String(x.id === d.id));
-      if (x.id !== 'final') b.setAttribute('aria-label', 'Direção ' + x.numero + ': ' + (NOMES[x.estrategia] || ''));
-      b.addEventListener('click', function () { visor.id = x.id; desenharVisor(); });
-      abas.appendChild(b);
-    });
-    var esc = $('o-visor-escolher');
-    esc.hidden = d.id === 'final' || !podeEscolher() || (E.escolha && E.escolha.direcao_id === d.id);
-    var palco = $('o-visor-palco');
-    palco.textContent = '';
-    var janela = el('div', 'visor__janela visor__janela--' + visor.largura);
-    var tela = el('div', 'pv-tela' + (visor.largura === 1280 ? ' pv-tela--1280' : ''));
-    tela.appendChild(PV.desenhar(d.conteudo));
-    janela.appendChild(tela);
-    palco.appendChild(janela);
-    palco.scrollTop = 0;
-    PV.encaixar(janela, tela, visor.largura, true);   /* (síncrono: mede o layout já; rAF não roda em aba oculta) */
-  }
-  function abrirVisor(id) {
-    visor.id = id;
-    visor.origem = document.activeElement;
-    mostrar('o-visor', true);
-    document.documentElement.classList.add('visor-aberto');
-    desenharVisor();
-    $('o-visor-fechar').focus();
-  }
-  function fecharVisor() {
-    if ($('o-visor').hidden) return;
-    mostrar('o-visor', false);
-    document.documentElement.classList.remove('visor-aberto');
-    if (visor.origem && visor.origem.focus) visor.origem.focus();
-  }
-  $('o-visor-fechar').addEventListener('click', fecharVisor);
-  $('o-visor-escolher').addEventListener('click', function () { escolher(visor.id); });
-  [].forEach.call(document.querySelectorAll('[data-aparelho]'), function (b) {
-    b.addEventListener('click', function () {
-      visor.largura = Number(b.getAttribute('data-aparelho'));
-      [].forEach.call(document.querySelectorAll('[data-aparelho]'), function (x) { x.setAttribute('aria-pressed', String(x === b)); });
-      desenharVisor();
-    });
+  var visor = window.BZVisor.criar({
+    lista: function () {
+      var l = E ? E.direcoes.filter(function (d) { return d.status === 'pronta' && d.conteudo; }) : [];
+      if (E && E.versao_final) l = l.concat([{ id: 'final', numero: 0, estrategia: 'final', conteudo: E.versao_final }]);
+      return l;
+    },
+    podeEscolher: podeEscolher,
+    escolhida: escolhidaId,
+    aoEscolher: escolher
   });
-  document.addEventListener('keydown', function (ev) {
-    if ($('o-visor').hidden) return;
-    if (ev.key === 'Escape') { ev.preventDefault(); fecharVisor(); return; }
-    if (ev.key !== 'Tab') return;   /* o foco fica dentro do visor */
-    var f = [].filter.call($('o-visor').querySelectorAll('button:not([hidden]), [tabindex="0"]'), function (x) { return x.offsetParent !== null; });
-    if (!f.length) return;
-    if (ev.shiftKey && document.activeElement === f[0]) { ev.preventDefault(); f[f.length - 1].focus(); }
-    else if (!ev.shiftKey && document.activeElement === f[f.length - 1]) { ev.preventDefault(); f[0].focus(); }
-  });
-  function encaixarMinis() { [].forEach.call(document.querySelectorAll('.dir__mini'), function (m) { var t = m.querySelector('.pv-tela'); if (t) PV.encaixar(m, t, 390); }); }
-  window.addEventListener('resize', function () { encaixarMinis(); if (!$('o-visor').hidden) desenharVisor(); });
 
   /* ---------- ajustes ---------- */
   $('o-aj-form').addEventListener('submit', async function (ev) {
     ev.preventDefault();
-    var pedido = $('o-aj-texto').value.trim();
-    if (!pedido) return;
-    var form = this;
+    var form = this, pedido = $('o-aj-texto').value.trim();
+    if (!pedido || form.getAttribute('aria-busy') === 'true') return;
     form.setAttribute('aria-busy', 'true');
     limparAviso();
+    $('o-aj-resposta').textContent = 'Aplicando…';
     try {
       var r = await API.alterar(pedido.slice(0, 2000));
       $('o-aj-texto').value = '';
+      $('o-aj-resposta').textContent = r.resposta || '';
       if (r.estimativa) investimento(r.estimativa, true);
       if (r.diagnostico) mostrar('o-diagnostico', true);
-      if (r.resposta) msg('agente', r.resposta);
-      await recarregar();
-    } catch (e) { avisar(mensagemDe(e)); }
+      await recarregar().catch(function () {});
+    } catch (e) { $('o-aj-resposta').textContent = ''; avisar(mensagemDe(e)); }
     finally { form.removeAttribute('aria-busy'); }
   });
   var OPERACOES = { usar_paleta_de: 'Cores de outra direção', usar_tipografia_de: 'Fontes de outra direção', cor: 'Cor trocada', tipografia: 'Fontes trocadas', tema: 'Tema claro/escuro', mover_antes_de: 'Seção movida', mover_depois_de: 'Seção movida', remover_secao: 'Seção removida', adicionar_secao: 'Seção adicionada', trocar_texto: 'Texto trocado', trocar_cta_menu: 'Botão do menu trocado', adicional: 'Item adicionado ao escopo', paginas: 'Número de páginas', outro: 'Pedido' };
   function mudancas() {
+    if (!mudou('mudancas', [E.alteracoes, !!E.versao_final])) return;
     var ul = $('o-mudancas');
     ul.textContent = '';
     E.alteracoes.forEach(function (a) {
       (a.mudancas || []).forEach(function (m) {
-        var li = el('li', m.aplicada ? 'is-ok' : 'is-nao', (OPERACOES[m.operacao] || m.operacao) + (m.aplicada ? '' : ': ' + (m.motivo || 'não foi possível')));
-        ul.appendChild(li);
+        ul.appendChild(el('li', m.aplicada ? 'is-ok' : 'is-nao', (OPERACOES[m.operacao] || m.operacao) + (m.aplicada ? '' : ': ' + (m.motivo || 'não foi possível'))));
       });
     });
     var v = $('o-versao');
     v.textContent = '';
     if (E.versao_final) {
-      var b = el('button', 'btn btn--sm', 'Abrir a sua versão');
-      b.type = 'button';
-      b.addEventListener('click', function () { abrirVisor('final'); });
+      var b = botao('btn btn--sm', 'Abrir a sua versão', function () { visor.abrir('final'); });
+      b.setAttribute('data-abrir', 'final');
       v.appendChild(b);
     }
   }
   $('o-fechar-escopo').addEventListener('click', async function () {
     limparAviso();
     try { await API.escopo(); await recarregar(); $('o-escopo').scrollIntoView({ block: 'start' }); }
-    catch (e) { avisar(mensagemDe(e)); }
+    catch (e) { avisar(mensagemDe(e), e.status === 409 ? function () { $('o-fechar-escopo').click(); } : null); }
   });
 
   /* ---------- escopo e confirmação ---------- */
   $('o-esc-form').addEventListener('submit', async function (ev) {
     ev.preventDefault();
-    var erro = $('o-esc-erro');
+    var form = this, erro = $('o-esc-erro');
+    if (form.getAttribute('aria-busy') === 'true') return;
     if (!$('o-confirmo').checked) { erro.textContent = 'Marque a confirmação do escopo.'; $('o-confirmo').focus(); return; }
     erro.textContent = '';
-    var form = this;
     form.setAttribute('aria-busy', 'true');
     try { await API.confirmar(E.proposta.id, $('o-inicio').checked); await recarregar(); $('o-pagamento').scrollIntoView({ block: 'start' }); }
     catch (e) { erro.textContent = mensagemDe(e); }
@@ -355,21 +306,39 @@
   });
 
   /* ---------- pagamento do sinal ---------- */
+  function linkPagamento(st, link, abriu) {
+    st.textContent = 'Aguardando a confirmação do pagamento. ';
+    var a = el('a', '', abriu ? 'Abrir o pagamento de novo' : 'Abrir o pagamento');
+    a.href = link; a.target = '_blank'; a.rel = 'noopener noreferrer';
+    st.appendChild(a);
+  }
   $('o-pagar').addEventListener('click', async function () {
-    var st = $('o-pag-status');
+    var st = $('o-pag-status'), b = this;
+    if (b.disabled) return;
+    b.disabled = true;
     st.textContent = 'Preparando o pagamento…';
     try {
       var r = await API.pagar();
-      if (r.link) {
-        var janela = window.open(r.link, '_blank', 'noopener');
-        st.textContent = 'Aguardando a confirmação do pagamento. ';
-        var a = el('a', '', janela ? 'Abrir o pagamento de novo' : 'Abrir o pagamento');
-        a.href = r.link; a.target = '_blank'; a.rel = 'noopener noreferrer';
-        st.appendChild(a);
-      } else st.textContent = 'Aguardando a confirmação do pagamento.';
+      if (r.link) linkPagamento(st, r.link, !!window.open(r.link, '_blank', 'noopener'));
+      else st.textContent = 'Aguardando a confirmação do pagamento.';
       esperar();
     } catch (e) { st.textContent = mensagemDe(e); }
+    finally { b.disabled = false; }
   });
+  function pagamento() {
+    var pr = E.proposta;
+    if (!pr) return;
+    var sinais = E.pagamentos.filter(function (p) { return p.parcela === 'sinal'; });
+    var ultimo = sinais[sinais.length - 1];
+    var sinal = ultimo ? Number(ultimo.valor) : Number(pr.valor_total) * Number(pr.sinal_percentual) / 100;
+    if (!mudou('pagamento', [pr, ultimo])) return;
+    $('o-pag-lead').textContent = 'Escopo confirmado: ' + dinheiro(pr.valor_total) + ' em até ' + pr.prazo_dias + ' dias. Para começar, o sinal de ' + pr.sinal_percentual + '%: ' + dinheiro(sinal) + '. O restante na entrega.';
+    $('o-pagar').textContent = 'Pagar o sinal de ' + dinheiro(sinal);
+    $('o-pag-escopo').textContent = pr.escopo || '';
+    var st = $('o-pag-status');
+    if (ultimo && ultimo.status === 'pendente' && ultimo.link) linkPagamento(st, ultimo.link, true);
+    else if (ultimo && (ultimo.status === 'cancelado' || ultimo.status === 'expirado')) st.textContent = 'O pagamento anterior não foi concluído. Toque no botão para gerar um novo link.';
+  }
 
   /* ---------- o estado manda na tela ---------- */
   function passoAtual() {
@@ -383,6 +352,7 @@
   }
   function etapas() {
     var atual = passoAtual(), passou = true;
+    if (!mudou('etapas', atual)) return;
     [].forEach.call(document.querySelectorAll('#o-etapas li'), function (li) {
       var eh = li.getAttribute('data-passo') === atual;
       if (eh) passou = false;
@@ -400,40 +370,52 @@
     E.mensagens.forEach(function (m) { msg(m.papel === 'agente' ? 'agente' : 'visitante', m.conteudo); });
     $('o-atalhos').hidden = E.mensagens.length > 0;
   }
+  function direcoes() {
+    var et = E.conversa.etapa;
+    var temDirecoes = E.direcoes.length > 0;
+    mostrar('o-direcoes', temDirecoes || (E.conversa.tem_contato && et === 'contato'));
+    var resumo = E.direcoes.map(function (d) { return [d.id, d.status, d.conteudo]; });
+    if (mudou('direcoes', [resumo, escolhidaId(), podeEscolher(), E.conversa.tem_contato])) {
+      var ul = $('o-dirs');
+      ul.textContent = '';
+      if (temDirecoes) { E.direcoes.forEach(function (d) { ul.appendChild(cartaoDirecao(d)); }); encaixarMinis(); }
+      else if (E.conversa.tem_contato) ul.appendChild(botao('btn btn--primary', 'Gerar as três direções', gerarTodas));
+    }
+    var emGeracao = E.direcoes.filter(function (d) { return d.status === 'gerando'; });
+    relogioDosCartoes(emGeracao.length > 0);
+    emGeracao.forEach(function (d) { pedirDirecao(d.id); });
+  }
   function render() {
     var et = E.conversa.etapa;
     etapas();
     if (E.estimativa) investimento(E.estimativa, false);
-    mostrar('o-contato', !E.conversa.tem_contato && !!E.estimativa && (pediuContato || restaurado));
-    var temDirecoes = E.direcoes.length > 0;
-    mostrar('o-direcoes', temDirecoes || (E.conversa.tem_contato && et === 'contato'));
-    var ul = $('o-dirs');
-    ul.textContent = '';
-    if (temDirecoes) { E.direcoes.forEach(function (d) { ul.appendChild(cartaoDirecao(d)); }); encaixarMinis(); }
-    else if (E.conversa.tem_contato) {
-      var b = el('button', 'btn btn--primary', 'Gerar as três direções');
-      b.type = 'button';
-      b.addEventListener('click', gerarTodas);
-      ul.appendChild(b);
-    }
-    E.direcoes.forEach(function (d) { if (d.status === 'gerando') pedirDirecao(d.id); });
+    var aberta = CONVERSA_ABERTA.indexOf(et) >= 0;
+    mostrar('o-form', aberta);
+    mostrar('o-conversa-fechada', !aberta);
+    if (!aberta) $('o-atalhos').hidden = true;
+    mostrar('o-contato', !E.conversa.tem_contato && !!E.estimativa);
+    direcoes();
     mostrar('o-ajustes', et === 'escolhida' || et === 'alteracoes');
     mudancas();
     var temProposta = !!(E.proposta && et === 'escopo');
     mostrar('o-escopo', temProposta);
-    if (temProposta) $('o-esc-texto').textContent = E.proposta.escopo;
+    if (temProposta && mudou('escopo', E.proposta.escopo)) $('o-esc-texto').textContent = E.proposta.escopo;
     mostrar('o-pagamento', et === 'aguardando_pagamento');
-    if (et === 'aguardando_pagamento' && E.proposta) {
-      var sinal = Number(E.proposta.valor_total) * Number(E.proposta.sinal_percentual) / 100;
-      $('o-pag-lead').textContent = 'Escopo confirmado: ' + dinheiro(E.proposta.valor_total) + ' em ' + E.proposta.prazo_dias + ' dias. Para começar, o sinal de ' + E.proposta.sinal_percentual + '%: ' + dinheiro(sinal) + '. O restante na entrega.';
-      $('o-pagar').textContent = 'Pagar o sinal de ' + dinheiro(sinal);
-    }
+    if (et === 'aguardando_pagamento') pagamento();
     mostrar('o-pronto', et === 'em_producao');
     if (et === 'em_producao') pararEspera();
-    if (!$('o-visor').hidden) desenharVisor();
+    visor.atualizar();
   }
+  /* uma leitura por vez; resposta de uma leitura mais velha que a última desenhada é descartada */
   async function recarregar() {
-    E = await API.estado();
+    if (!API.temSessao()) return null;
+    var minha = ++seq;
+    var p = API.estado();
+    emVoo = p;
+    var novo;
+    try { novo = await p; } finally { if (emVoo === p) emVoo = null; }
+    if (minha !== seq) return E;
+    E = novo;
     render();
     if (E.conversa.etapa === 'gerando' || E.conversa.etapa === 'aguardando_pagamento') esperar();
     return E;
@@ -444,8 +426,8 @@
     if (espera) return;
     var inicio = Date.now();
     espera = setInterval(async function () {
-      if (document.hidden) return;
-      if (Date.now() - inicio > ESPERA_MAX_MS) return pararEspera();
+      if (document.hidden || emVoo) return;
+      if (Date.now() - inicio > ESPERA_MAX_MS) { pararEspera(); recarregar().catch(function () {}); return; }   /* (uma última olhada) */
       try {
         await recarregar();
         if (E.conversa.etapa !== 'gerando' && E.conversa.etapa !== 'aguardando_pagamento') pararEspera();
@@ -453,12 +435,15 @@
     }, ESPERA_MS);
   }
   function pararEspera() { clearInterval(espera); espera = null; }
-  document.addEventListener('visibilitychange', function () { if (!document.hidden && API.temSessao() && E && E.conversa.etapa === 'aguardando_pagamento') recarregar().catch(function () {}); });
+  /* voltou para a aba (do WhatsApp, do pagamento): olha de novo e retoma a espera se ainda for o caso */
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden || !E || !API.temSessao()) return;
+    if (E.conversa.etapa === 'gerando' || E.conversa.etapa === 'aguardando_pagamento') recarregar().catch(function () {});
+  });
 
   /* ---------- começo: retoma a conversa salva neste aparelho ---------- */
   async function retomar() {
     if (!API.temSessao()) return;
-    restaurado = true;
     try {
       await recarregar();
       conversa();
@@ -466,7 +451,9 @@
       var alvo = BLOCOS[passoAtual()];
       if (alvo && !$(alvo).hidden) $(alvo).scrollIntoView({ block: 'start' });   /* quem volta cai na etapa em que parou */
     } catch (e) {
-      if (e.status === 401 || e.status === 404 || e.status === 400) { API.esquecer(); return; }
+      /* conversa que não existe mais (ou sessão que o servidor recusou de vez): começa limpo.
+         Falha de rede ou do servidor: a sessão fica, e o aviso oferece tentar de novo */
+      if (e.status === 404 || e.status === 400 || !API.temSessao()) { API.esquecer(); return; }
       avisar(mensagemDe(e), retomar);
     }
   }

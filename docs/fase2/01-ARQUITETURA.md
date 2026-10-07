@@ -169,3 +169,13 @@ Migrations `20261007120000` a `…120200`.
   - sem JS.
   - Fotos em `docs/olhar-orcamento/`.
 - As páginas existentes seguem verdes no `npm run verificar` (12 alvos) e no `npm run acessibilidade`, depois do item novo no menu.
+
+## Depois da revisão (2026-10-07)
+
+- **Visor em módulo próprio** (`js/orcamento-visor.js`). Só redesenha o que mudou e devolve o foco a quem abriu.
+- **Uma resposta de IA por vez por conversa** (`app.vendas_reservar_ia` e `app.vendas_liberar_ia`). A trava fica no banco, com prazo de até 300 s.
+- **Escopo amarrado à estimativa** com que foi montado (`estimativa_id`, recusa 40001).
+- **Troca de direção só até o 1º ajuste.**
+- **Texto redigido antes de gravar.**
+- **Estado do turno no 2º bloco do prompt de sistema.**
+- Detalhes e testes em `03-STATUS.md`, seção "Revisão por agentes".

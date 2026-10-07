@@ -45,8 +45,12 @@ try {
   ok(/^R\$\s?\d/.test(valor.trim()), 'investimento vem do motor: ' + valor.trim());
   ok(await page.evaluate(() => document.querySelector('#o-etapas [aria-current]').dataset.passo) === 'estimativa', 'etapa atual: investimento');
 
+  const antes = await page.locator('#o-log .msg--visitante').count();
   await page.fill('#o-texto', 'Sim, quero ver as propostas');
   await page.press('#o-texto', 'Enter');
+  await page.press('#o-texto', 'Enter');   /* Enter repetido */
+  await page.waitForSelector('#o-pensando[hidden]', { state: 'attached', timeout: 30000 });
+  ok(await page.locator('#o-log .msg--visitante').count() === antes + 1, 'Enter repetido não manda dois turnos');
   await page.waitForSelector('#o-contato:not([hidden])', { timeout: 30000 });
   await page.fill('#o-nome', 'Teste E2E');
   await page.fill('#o-tel', '(21) 99999-0000');
@@ -85,6 +89,8 @@ try {
   await page.click('#o-aj-form button[type=submit]');
   await page.waitForSelector('#o-mudancas li', { timeout: 30000 });
   ok(await page.locator('#o-mudancas li.is-ok').count() >= 1, 'ajuste aplicado e listado');
+  await page.waitForFunction(() => !document.querySelector('.dir .btn--primary'));
+  ok(true, 'depois do ajuste não há mais troca de direção');
 
   /* sair e voltar */
   await page.reload({ waitUntil: 'load' });

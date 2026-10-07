@@ -50,16 +50,29 @@
     return dados;
   }
 
-  async function renovar() {
-    if (!sessao || !sessao.refresh) return false;
-    try {
-      var s = await http('POST', 'renovar', { refresh: sessao.refresh });
-      gravar(Object.assign({}, sessao, { token: s.token, refresh: s.refresh, expira_em: s.expira_em }));
-      return true;
-    } catch (e) {
-      if (e.status === 401) gravar(null);   /* a renovação venceu: começa de novo */
-      return false;
-    }
+  /* UMA renovação por vez nesta aba (duas com o mesmo refresh: a 2ª levaria 401 e apagaria a sessão boa).
+     Outra aba pode ter renovado antes: relê o aparelho antes de concluir que a sessão morreu. */
+  var renovando = null;
+  function renovar() {
+    if (renovando) return renovando;
+    renovando = (async function () {
+      var guardada = ler();
+      if (guardada && sessao && guardada.refresh !== sessao.refresh && guardada.conversa_id === sessao.conversa_id) { sessao = guardada; return true; }
+      if (!sessao || !sessao.refresh) return false;
+      var usado = sessao.refresh;
+      try {
+        var s = await http('POST', 'renovar', { refresh: usado });
+        gravar(Object.assign({}, sessao, { token: s.token, refresh: s.refresh, expira_em: s.expira_em }));
+        return true;
+      } catch (e) {
+        if (e.status !== 401) return false;   /* rede ou servidor: a sessão fica para tentar depois */
+        var agora = ler();
+        if (agora && agora.refresh !== usado) { sessao = agora; return true; }   /* outra aba renovou */
+        gravar(null);   /* a renovação venceu de verdade: começa de novo */
+        return false;
+      }
+    })().finally(function () { renovando = null; });
+    return renovando;
   }
 
   async function chamar(metodo, acao, corpo, query) {
@@ -85,7 +98,10 @@
     Falha: Falha,
     temSessao: function () { return !!(sessao && sessao.conversa_id); },
     esquecer: function () { gravar(null); },
-    estado: function () { return chamar('GET', 'estado', undefined, '&conversa=' + encodeURIComponent(sessao.conversa_id)); },
+    estado: function () {
+      if (!sessao || !sessao.conversa_id) return Promise.reject(new Falha(401, { erro: 'Sessão encerrada.' }));
+      return chamar('GET', 'estado', undefined, '&conversa=' + encodeURIComponent(sessao.conversa_id));
+    },
     mensagem: async function (texto) { await garantirSessao(); return chamar('POST', 'mensagem', comConversa({ texto: texto })); },
     contato: function (dados) { return chamar('POST', 'contato', comConversa(dados)); },
     gerar: function () { return chamar('POST', 'gerar', comConversa()); },

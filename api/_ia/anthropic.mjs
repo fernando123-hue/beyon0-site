@@ -21,13 +21,13 @@ const BETA_FALLBACK = 'server-side-fallback-2026-07-01';
 export function criarAnthropic(env = process.env, cliente) {
   const client = cliente || new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, maxRetries: 2 });
 
-  async function mensagem({ papel, sistema, mensagens, ferramentas, esquema }) {
+  async function mensagem({ papel, sistema, contexto, mensagens, ferramentas, esquema }) {
     const cfg = PAPEIS[papel];
     if (!cfg) throw new ErroIA('falha', 'papel desconhecido: ' + papel);
     const pedido = {
       model: cfg.modelo,
       max_tokens: cfg.max_tokens,
-      system: [{ type: 'text', text: sistema, cache_control: { type: 'ephemeral' } }],
+      system: [{ type: 'text', text: sistema, cache_control: { type: 'ephemeral' } }, ...(contexto ? [{ type: 'text', text: contexto }] : [])],   /* o fixo em cache; o estado do turno depois */
       messages: mensagens,
       output_config: { effort: cfg.esforco, ...(esquema ? { format: { type: 'json_schema', schema: esquema } } : {}) },
       betas: [BETA_FALLBACK],

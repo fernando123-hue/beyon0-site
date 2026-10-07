@@ -110,6 +110,11 @@
       "permanent": false
     },
     {
+      "source": "/docs/:caminho*",
+      "destination": "/",
+      "permanent": false
+    },
+    {
       "source": "/.env:resto*",
       "destination": "/",
       "permanent": false

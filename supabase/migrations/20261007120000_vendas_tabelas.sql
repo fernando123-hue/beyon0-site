@@ -63,6 +63,8 @@ create table app.conversas (
   codigo_visita      text check (codigo_visita ~ '^[ACDEFGHJKMNPQRTUVWXY34679]{5}$'),
   turnos             integer not null default 0 check (turnos between 0 and 400),
   custo_ia_usd       numeric(10, 4) not null default 0 check (custo_ia_usd >= 0),
+  ia_ate             timestamptz,   -- uma chamada de IA por vez por conversa (trava com prazo: app.vendas_reservar_ia)
+  contato_aceite_em  timestamptz,   -- quando a pessoa concordou com o uso dos dados (LGPD: prova do consentimento)
   ultima_atividade   timestamptz not null default now(),
   created_at         timestamptz not null default now(),
   updated_at         timestamptz not null default now(),
