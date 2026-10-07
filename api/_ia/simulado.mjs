@@ -50,7 +50,7 @@ function conversa({ mensagens }) {
   if (ultima.role === 'user' && Array.isArray(ultima.content)) {
     const res = ultima.content.map(r => JSON.parse(r.content));
     if (res.some(r => r.encaminhar_diagnostico)) return resposta('O que você descreveu pede uma conversa de diagnóstico, porque não tem estimativa automática. Posso te levar para o WhatsApp da Beyon Zero?');
-    if (res.some(r => r.prazo_dias)) return resposta('Pronto: o investimento estimado está no cartão ao lado, com o prazo. Se fizer sentido, eu gero três direções de site para o seu negócio.');
+    if (res.some(r => r.prazo_dias)) return resposta('Pronto: o investimento estimado está no cartão de investimento, com o prazo. Se fizer sentido, eu gero três direções de site para o seu negócio.');
     const conf = res.find(r => r.faltam);
     const falta = conf && conf.faltam[0];
     const perguntas = { negocio: 'O que a sua empresa faz?', objetivo: 'Qual é o principal objetivo do site: trazer contatos, agendamentos, vender ou apresentar a empresa?', formato: 'Você imagina uma página única (landing page) ou um site com várias páginas?', publico: 'Quem você precisa convencer com o site?', servicos: 'Quais serviços ou produtos precisam aparecer?' };

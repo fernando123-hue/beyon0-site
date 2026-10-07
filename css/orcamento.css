@@ -1,0 +1,174 @@
+/* ==========================================================================
+   ORÇAMENTO COM IA (/orcamento) — celular primeiro (390px), cresce no desktop.
+   A IA é uma parte da mesa, não a página inteira: a conversa divide o espaço
+   com o investimento (o dado), e as direções, os ajustes e o escopo entram
+   como blocos próprios conforme a etapa. Sem desfoque e sem brilho: traço de
+   1px, a luz só passa (fio do "analisando", varredura do botão da base).
+   ========================================================================== */
+.orc { background: var(--bg); color: var(--t1); }
+.orc__main { max-width: var(--maxw); margin: 0 auto; padding: calc(var(--nav-h) + 1.6rem) var(--pad) var(--sp-2); }
+
+/* ---------- topo ---------- */
+.orc-kicker { display: inline-flex; align-items: center; gap: .6rem; font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-ctrl); text-transform: uppercase; color: var(--t2); }
+.orc-kicker .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ac-3); box-shadow: 0 0 0 3px rgb(var(--ac-3-rgb) / .18); }
+.orc-topo h1 { font-weight: 300; font-size: clamp(2.1rem, 1.2rem + 4.4vw, 4.2rem); line-height: 1.05; letter-spacing: -.03em; margin: .9rem 0 1rem; max-width: 16ch; }
+.orc-topo h1 em { font-style: normal; color: var(--ac); }
+.orc-lead { color: var(--t2); font-size: var(--fs-l); line-height: 1.55; max-width: 52ch; }
+
+/* as etapas: uma régua de 1px com índices; a atual acende */
+.orc-etapas { list-style: none; display: flex; gap: 0; margin: 1.8rem 0 0; padding: 0; overflow-x: auto; scrollbar-width: none; border-top: 1px solid var(--line); }
+.orc-etapas::-webkit-scrollbar { display: none; }
+.orc-etapas li { flex: 1 0 auto; display: flex; flex-direction: column; gap: .2rem; padding: .7rem .9rem .2rem 0; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); position: relative; white-space: nowrap; }
+.orc-etapas li span { color: var(--t3); }
+.orc-etapas li::before { content: ""; position: absolute; top: -1px; left: 0; right: .9rem; height: 1px; background: transparent; }
+.orc-etapas li.is-feita { color: var(--t2); }
+.orc-etapas li.is-feita::before { background: var(--line-2); }
+.orc-etapas li[aria-current="step"] { color: var(--t1); }
+.orc-etapas li[aria-current="step"] span { color: var(--ac); }
+.orc-etapas li[aria-current="step"]::before { background: var(--ac); }
+
+/* ---------- aviso de falha (a recuperação elegante) ---------- */
+.orc-aviso { margin: 1.6rem 0 0; padding: 1rem 1.1rem; border: 1px solid var(--line-2); border-left: 2px solid rgb(var(--ouro-rgb)); background: var(--s1); color: var(--t1); }
+.orc-aviso a { color: var(--ac); }
+.orc-aviso__acoes { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .8rem; }
+
+/* ---------- a mesa: conversa + investimento ---------- */
+.orc-mesa { display: grid; gap: 1.2rem; margin-top: 2rem; }
+.orc-rotulo { max-width: none; letter-spacing: var(--tr-rotulo); line-height: 1.4; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); font-weight: 500; margin-bottom: .8rem; }
+.orc-conversa, .orc-painel > div { border: 1px solid var(--line); background: var(--s1); border-radius: var(--raio); padding: 1rem; }
+.orc-painel { display: flex; flex-direction: column; gap: 1.2rem; }
+.orc-painel > .orc-rotulo { margin-bottom: -.6rem; }
+
+.orc-log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .8rem; max-height: min(56vh, 520px); overflow-y: auto; overscroll-behavior: contain; scroll-behavior: smooth; }
+.msg { max-width: 92%; font-size: var(--fs-b); line-height: 1.55; }
+.msg p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.msg--agente { align-self: flex-start; color: var(--t1); padding-left: .8rem; border-left: 1px solid var(--line-hi); }
+.msg--visitante { align-self: flex-end; color: var(--t1); background: var(--s2); border: 1px solid var(--line); border-radius: var(--raio); padding: .6rem .8rem; }
+.msg--sistema { align-self: stretch; max-width: none; font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-dado); color: var(--t3); }
+
+.orc-pensando { display: flex; align-items: center; gap: .7rem; margin-top: .8rem; font-family: var(--mono); font-size: var(--fs-ctrl); color: var(--t2); }
+.orc-pensando__fio { position: relative; width: 48px; height: 1px; background: var(--line-2); overflow: hidden; }
+.orc-pensando__fio::after { content: ""; position: absolute; inset: 0; background: var(--ac); transform: translateX(-100%); animation: orc-fio 1.2s var(--ease-io) infinite; }
+@keyframes orc-fio { to { transform: translateX(100%); } }
+
+.orc-atalhos { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
+.chip { min-height: 44px; padding: .5rem .9rem; border: 1px solid var(--stroke); border-radius: 999px; background: transparent; color: var(--t1); font: inherit; font-size: var(--fs-s); cursor: pointer; transition: border-color var(--t-micro) var(--ease-micro), color var(--t-micro) var(--ease-micro); }
+.chip:hover, .chip[aria-pressed="true"] { border-color: var(--ac); color: var(--ac); }
+.chip:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
+
+.orc-envio { display: flex; gap: .6rem; align-items: flex-end; margin-top: 1rem; }
+.orc-envio textarea, .orc-form input { width: 100%; min-height: 52px; padding: .8rem .9rem; border: 1px solid var(--stroke); border-radius: var(--raio-s); background: var(--bg); color: var(--t1); font: inherit; font-size: 1rem; line-height: 1.45; }
+.orc-envio textarea { resize: vertical; max-height: 40vh; }
+.orc-envio textarea:focus-visible, .orc-form input:focus-visible { outline: 2px solid var(--ac); outline-offset: 1px; border-color: var(--ac); }
+.orc-envio .btn { flex: none; }
+.orc-nota { margin-top: .8rem; font-size: var(--fs-s); color: var(--t3); }
+.orc-nota a, .orc-bloco a, .orc-check a { color: var(--ac); text-decoration: underline; text-underline-offset: 3px; }
+[aria-busy="true"] .btn[type="submit"], .btn[disabled] { opacity: .55; pointer-events: none; }
+
+/* ---------- o investimento (dado: o ciano é permitido aqui) ---------- */
+.orc-est__vazio { color: var(--t2); font-size: var(--fs-s); line-height: 1.6; }
+.orc-est__formato { font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-ctrl); text-transform: uppercase; color: var(--t2); }
+.orc-est__valor { font-family: var(--mono); font-size: clamp(2rem, 1.4rem + 2.4vw, 2.6rem); font-weight: 500; color: var(--ac); letter-spacing: -.02em; margin: .3rem 0 .9rem; font-variant-numeric: tabular-nums; }
+.orc-est__valor.is-novo { animation: orc-valor .6s var(--ease); }
+@keyframes orc-valor { from { opacity: 0; transform: translateY(6px); } }
+.orc-est__dados { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.orc-est__dados div { padding: .7rem 0; }
+.orc-est__dados div + div { padding-left: .7rem; border-left: 1px solid var(--line); }
+.orc-est__dados dt { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); }
+.orc-est__dados dd { margin: .2rem 0 0; font-family: var(--mono); font-size: var(--fs-s); color: var(--t1); font-variant-numeric: tabular-nums; }
+.orc-est__itens, .orc-est__fase ul { list-style: none; margin: .9rem 0 0; padding: 0; display: flex; flex-direction: column; gap: .35rem; font-size: var(--fs-s); color: var(--t2); }
+.orc-est__itens li::before, .orc-est__fase li::before { content: "+ "; font-family: var(--mono); color: var(--t3); }
+.orc-est__fase { margin-top: 1rem; padding-top: .9rem; border-top: 1px dashed var(--line-2); font-size: var(--fs-s); color: var(--t2); }
+.orc-est__fase .orc-rotulo { margin-bottom: .2rem; }
+.orc-est__nota { margin-top: 1rem; font-size: var(--fs-s); color: var(--t3); }
+.orc-sugestao__ideia { font-weight: 500; color: var(--t1); margin-bottom: .3rem; }
+.orc-sugestao p:last-child, .orc-diagnostico p { font-size: var(--fs-s); color: var(--t2); }
+.orc-diagnostico .btn { margin-top: .8rem; }
+
+/* ---------- os blocos das etapas seguintes ---------- */
+.orc-bloco { margin-top: var(--sp-1); padding-top: var(--sp-1); border-top: 1px solid var(--line); }
+.orc-bloco h2 { font-weight: 300; font-size: clamp(1.7rem, 1.2rem + 2.2vw, 2.6rem); letter-spacing: -.02em; line-height: 1.1; }
+.orc-bloco__lead { color: var(--t2); max-width: 60ch; margin: .8rem 0 1.4rem; line-height: 1.6; }
+
+.orc-form { display: flex; flex-direction: column; gap: .5rem; max-width: 520px; }
+.orc-form label:not(.orc-check) { font-size: var(--fs-s); color: var(--t2); margin-top: .6rem; }
+.orc-opcional { color: var(--t3); }
+.orc-check { display: flex; gap: .7rem; align-items: flex-start; margin-top: .9rem; font-size: var(--fs-s); color: var(--t2); line-height: 1.5; cursor: pointer; }
+.orc-check input { flex: none; width: 22px; height: 22px; margin: 0; accent-color: var(--ac); }
+.orc-erro { min-height: 1.4em; color: rgb(var(--ouro-rgb)); font-size: var(--fs-s); }
+.orc-form .btn { margin-top: .4rem; align-self: flex-start; }
+
+/* as direções: cartões com a miniatura viva */
+.orc-dirs { list-style: none; margin: 0; padding: 0; display: grid; gap: 1rem; }
+.dir { border: 1px solid var(--line); border-radius: var(--raio); background: var(--s1); overflow: hidden; display: flex; flex-direction: column; }
+.dir.is-escolhida { border-color: var(--ac); }
+.dir__mini { position: relative; height: 300px; overflow: hidden; border-bottom: 1px solid var(--line); background: var(--s2); cursor: pointer; }
+.dir__mini .pv-tela { position: absolute; top: 0; left: 0; width: 390px; transform-origin: top left; pointer-events: none; }
+.dir__progresso { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; gap: .8rem; padding: 1.2rem; font-family: var(--mono); font-size: var(--fs-ctrl); color: var(--t2); }
+.dir__progresso .orc-pensando__fio { width: 100%; }
+.dir__corpo { padding: 1rem; display: flex; flex-direction: column; gap: .5rem; flex: 1; }
+.dir__estrategia { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); }
+.dir__nome { font-size: 1.25rem; font-weight: 400; }
+.dir__resumo { font-size: var(--fs-s); color: var(--t2); line-height: 1.55; }
+.dir__acoes { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: auto; padding-top: .6rem; }
+
+.orc-versao:not(:empty) { margin-bottom: 1rem; max-width: 420px; }
+.orc-mudancas { list-style: none; margin: 0 0 1rem; padding: 0; display: flex; flex-direction: column; gap: .4rem; font-size: var(--fs-s); }
+.orc-mudancas li { color: var(--t2); padding-left: 1.4rem; position: relative; }
+.orc-mudancas li::before { position: absolute; left: 0; font-family: var(--mono); }
+.orc-mudancas li.is-ok::before { content: "✓"; color: var(--ac); }
+.orc-mudancas li.is-nao::before { content: "—"; color: var(--t3); }
+.orc-seguir { margin-top: 1.4rem; }
+
+.orc-escopo { white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--mono); font-size: var(--fs-s); line-height: 1.7; color: var(--t1); background: var(--s1); border: 1px solid var(--line); border-radius: var(--raio); padding: 1rem; max-height: 60vh; overflow-y: auto; margin-bottom: 1rem; }
+.orc-escopo:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
+.orc-pag-status { margin-top: 1rem; min-height: 1.5em; font-family: var(--mono); font-size: var(--fs-s); color: var(--t2); }
+.orc-pag-status a { color: var(--ac); }
+.orc-pronto h2 { color: var(--t1); }
+
+/* ---------- o visor das prévias (tela cheia; sem desfoque: fundo opaco) ---------- */
+.visor { position: fixed; inset: 0; z-index: 90; display: flex; flex-direction: column; background: var(--bg); }
+.visor[hidden] { display: none; }
+.visor__barra { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .6rem; padding: .5rem var(--pad); border-bottom: 1px solid var(--line); }
+.visor__titulo { order: 0; flex: 1 1 calc(100% - 60px); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-ctrl); text-transform: uppercase; color: var(--t2); }
+.visor__fechar { order: 1; flex: none; width: 44px; height: 44px; border: 1px solid var(--stroke); border-radius: 50%; background: transparent; color: var(--t1); font-size: 1.4rem; line-height: 1; cursor: pointer; }
+.visor__fechar:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
+.visor__abas, .visor__aparelho { order: 2; display: flex; gap: .35rem; }
+.visor__aparelho { margin-left: auto; }
+.visor .chip { min-height: 40px; padding: .3rem .8rem; }
+.visor__abas .chip { min-width: 40px; }
+.visor__abas .chip[aria-selected="true"] { border-color: var(--ac); color: var(--ac); }
+.visor__rodape { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .6rem 1rem; padding: .6rem var(--pad) calc(.6rem + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); }
+.visor__aviso { flex: 1 1 240px; font-size: var(--fs-s); color: var(--t3); }
+.visor__rodape .btn { flex: 1 1 auto; }
+.visor__resumo { padding: .6rem var(--pad); font-size: var(--fs-s); color: var(--t2); border-bottom: 1px solid var(--line); }
+.visor__palco { flex: 1; overflow: auto; padding: 1rem var(--pad) 2rem; background: var(--s1); }
+.visor__palco:focus-visible { outline: 2px solid var(--ac); outline-offset: -2px; }
+.visor__janela { position: relative; margin: 0 auto; overflow: hidden; border: 1px solid var(--line-2); border-radius: var(--raio); }
+.visor__janela--390 { max-width: 390px; }
+.visor__janela--1280 { max-width: 1280px; }
+.visor__janela .pv-tela { transform-origin: top left; }
+html.visor-aberto { overflow: hidden; }
+
+/* ---------- rodapé com a identificação do vendedor (Decreto 7.962/2013) ---------- */
+.orc-rodape { margin-top: var(--sp-2); }
+.orc-vendedor { font-size: var(--fs-s); color: var(--t3); }
+
+/* ---------- desktop ---------- */
+@media (min-width: 900px) {
+  .orc-mesa { grid-template-columns: minmax(0, 1.55fr) minmax(300px, 1fr); align-items: start; }
+  .orc-painel { position: sticky; top: calc(var(--nav-h) + 1rem); }
+  .orc-conversa { padding: 1.4rem; }
+  .orc-log { max-height: min(60vh, 620px); }
+  .orc-dirs { grid-template-columns: repeat(3, 1fr); }
+  .visor__titulo { flex: 0 1 auto; margin-right: 1rem; }
+  .visor__abas, .visor__aparelho { order: 0; }
+  .visor__fechar { order: 3; margin-left: .4rem; }
+  .visor__rodape .btn { flex: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orc-pensando__fio::after { animation: none; transform: none; opacity: .6; }
+  .orc-est__valor.is-novo { animation: none; }
+  .orc-log { scroll-behavior: auto; }
+}

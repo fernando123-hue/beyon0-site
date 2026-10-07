@@ -1,0 +1,138 @@
+/* ==========================================================================
+   E2E do ORÇAMENTO COM IA (/orcamento) num Chromium de verdade, contra o
+   servidor local (docs/servidor.mjs: banco PGlite, IA simulada, gateway
+   simulado). Celular primeiro (390px), depois 320px e desktop.
+   Cobre: conversa → investimento → contato → 3 direções → visor (abrir,
+   trocar, aparelho, Escape devolve o foco) → escolha → ajuste → retomada
+   depois de recarregar → escopo (exige a confirmação) → pagamento simulado
+   → projeto em produção. E segurança na tela: texto com HTML vira texto.
+   Uso: BASE=http://127.0.0.1:8899 CHROMIUM=... npm run e2e:orcamento
+   ========================================================================== */
+import { chromium } from 'playwright';
+import { mkdir } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+
+const BASE = process.env.BASE || 'http://127.0.0.1:8899';
+const EXEC = process.env.CHROMIUM || undefined;
+const PASTA = new URL('./olhar-orcamento/', import.meta.url);
+await mkdir(PASTA, { recursive: true });
+const nav = await chromium.launch({ executablePath: EXEC });
+let falhou = false;
+const ok = (cond, msg) => { console.log((cond ? 'OK   ' : 'FALHA') + ' ' + msg); if (!cond) falhou = true; };
+const semRolagemLateral = page => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
+const foto = (page, nome) => page.screenshot({ path: fileURLToPath(new URL(nome + '.png', PASTA)) });   /* (pathname deixa %20 no caminho) */
+
+try {
+  const ctx = await nav.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const page = await ctx.newPage();
+  const erros = [];
+  page.on('console', m => { if (m.type() === 'error') erros.push(m.text()); });
+  page.on('pageerror', e => erros.push(String(e)));
+  page.on('dialog', d => { erros.push('diálogo inesperado: ' + d.message()); d.dismiss(); });
+
+  await page.goto(BASE + '/orcamento', { waitUntil: 'load', timeout: 90000 });
+  ok(await page.locator('h1').isVisible(), 'celular: título visível');
+  ok(await semRolagemLateral(page), 'celular: sem rolagem lateral');
+  ok(await page.evaluate(() => localStorage.getItem('bz-orcamento') === null), 'nenhuma sessão criada só por abrir a página');
+  await foto(page, '1-inicio-cel');
+
+  /* segurança na tela: HTML digitado aparece como texto */
+  await page.fill('#o-texto', '<img src=x onerror=alert(1)> Tenho uma clínica odontológica e quero um site institucional para mais agendamentos');
+  await page.press('#o-texto', 'Enter');
+  await page.waitForSelector('#o-est-cheio:not([hidden])', { timeout: 30000 });
+  ok(await page.locator('#o-log img').count() === 0, 'texto com HTML vira texto (nenhuma <img> criada)');
+  const valor = await page.textContent('#o-est-valor');
+  ok(/^R\$\s?\d/.test(valor.trim()), 'investimento vem do motor: ' + valor.trim());
+  ok(await page.evaluate(() => document.querySelector('#o-etapas [aria-current]').dataset.passo) === 'estimativa', 'etapa atual: investimento');
+
+  await page.fill('#o-texto', 'Sim, quero ver as propostas');
+  await page.press('#o-texto', 'Enter');
+  await page.waitForSelector('#o-contato:not([hidden])', { timeout: 30000 });
+  await page.fill('#o-nome', 'Teste E2E');
+  await page.fill('#o-tel', '(21) 99999-0000');
+  await page.click('#o-contato-form button[type=submit]');
+  ok((await page.textContent('#o-contato-erro')).includes('concordar'), 'contato sem aceite: recusado com motivo');
+  await page.check('#o-aceite');
+  await page.click('#o-contato-form button[type=submit]');
+  await page.waitForFunction(() => document.querySelectorAll('.dir .dir__nome').length === 3, null, { timeout: 120000 });
+  ok(true, '3 direções prontas');
+  ok(await page.evaluate(() => [...document.querySelectorAll('.dir__mini .pv-tela')].every(t => /scale/.test(t.style.transform))), 'miniaturas encaixadas no cartão');
+  ok(await semRolagemLateral(page), 'celular com direções: sem rolagem lateral');
+  await page.locator('#o-direcoes').scrollIntoViewIfNeeded();
+  await foto(page, '2-direcoes-cel');
+
+  /* o visor */
+  const abrir = page.locator('.dir').first().getByRole('button', { name: 'Abrir prévia' });
+  await abrir.click();
+  ok(await page.locator('#o-visor').isVisible(), 'visor abre');
+  ok(await page.evaluate(() => document.activeElement.id) === 'o-visor-fechar', 'foco vai para o fechar');
+  await page.locator('#o-visor-abas .chip').nth(1).click();
+  ok((await page.textContent('#o-visor-titulo')).startsWith('Direção 2'), 'troca para a direção 2');
+  await page.click('[data-aparelho="1280"]');
+  ok(await page.evaluate(() => document.querySelector('#o-visor-palco .pv-menu') && getComputedStyle(document.querySelector('#o-visor-palco .pv-menu')).display === 'flex'), 'modo computador: menu da prévia aparece (container query)');
+  await foto(page, '3-visor-cel');
+  await page.keyboard.press('Escape');
+  ok(await page.locator('#o-visor').isHidden(), 'Escape fecha o visor');
+  ok(await abrir.evaluate(b => b === document.activeElement), 'foco volta ao botão que abriu');
+
+  await abrir.click();
+  await page.locator('#o-visor-abas .chip').nth(1).click();
+  await page.click('#o-visor-escolher');
+  await page.waitForSelector('#o-ajustes:not([hidden])');
+  ok(await page.locator('.dir.is-escolhida .dir__estrategia').textContent().then(t => t.startsWith('02')), 'direção 2 escolhida');
+
+  await page.fill('#o-aj-texto', 'Quero a cor da primeira e os depoimentos antes dos serviços');
+  await page.click('#o-aj-form button[type=submit]');
+  await page.waitForSelector('#o-mudancas li', { timeout: 30000 });
+  ok(await page.locator('#o-mudancas li.is-ok').count() >= 1, 'ajuste aplicado e listado');
+
+  /* sair e voltar */
+  await page.reload({ waitUntil: 'load' });
+  await page.waitForSelector('#o-ajustes:not([hidden])', { timeout: 30000 });
+  ok(await page.locator('#o-log .msg').count() >= 5, 'recarregar: a conversa volta');
+  ok(await page.locator('#o-versao button').isVisible(), 'recarregar: a versão ajustada volta');
+
+  await page.click('#o-fechar-escopo');
+  await page.waitForSelector('#o-escopo:not([hidden])');
+  ok((await page.textContent('#o-esc-texto')).includes('INVESTIMENTO'), 'escopo final com investimento');
+  ok(!(await page.textContent('#o-esc-texto')).includes('hero'), 'escopo sem nome técnico de seção');
+  await page.click('#o-esc-form button[type=submit]');
+  ok((await page.textContent('#o-esc-erro')).length > 0, 'escopo sem confirmação: recusado');
+  await page.check('#o-confirmo');
+  await page.click('#o-esc-form button[type=submit]');
+  await page.waitForSelector('#o-pagamento:not([hidden])');
+  await foto(page, '4-pagamento-cel');
+
+  const [pagina] = await Promise.all([ctx.waitForEvent('page'), page.click('#o-pagar')]);
+  await pagina.waitForLoadState('load');
+  await pagina.click('[data-status="pago"]');
+  await pagina.waitForFunction(() => /aceito/i.test(document.getElementById('resultado').textContent), null, { timeout: 15000 });
+  await pagina.close();
+  await page.waitForSelector('#o-pronto:not([hidden])', { timeout: 20000 });
+  ok(true, 'pagamento confirmado pelo aviso: projeto em produção');
+  ok(erros.length === 0, 'sem erro de console' + (erros.length ? ': ' + erros.slice(0, 3).join(' | ') : ''));
+  await ctx.close();
+
+  /* 320px e desktop: só o layout */
+  for (const [w, h, nome] of [[320, 640, '5-inicio-320'], [1440, 900, '6-inicio-desktop']]) {
+    const c = await nav.newContext({ viewport: { width: w, height: h } });
+    const p = await c.newPage();
+    await p.goto(BASE + '/orcamento', { waitUntil: 'load' });
+    ok(await semRolagemLateral(p), w + 'px: sem rolagem lateral');
+    await foto(p, nome);
+    await c.close();
+  }
+
+  /* sem JS: a página avisa e oferece o WhatsApp */
+  const sj = await nav.newContext({ javaScriptEnabled: false });
+  const ps = await sj.newPage();
+  await ps.goto(BASE + '/orcamento', { waitUntil: 'load' });
+  ok(await ps.locator('.orc-aviso--semjs').isVisible(), 'sem JS: aviso com o WhatsApp visível');
+  ok(await ps.locator('.orc-mesa').isHidden(), 'sem JS: a conversa (que não funcionaria) some');
+  await sj.close();
+} catch (e) {
+  ok(false, 'exceção: ' + (e && e.message ? e.message.split('\n')[0] : e));
+} finally {
+  await nav.close();
+}
+process.exit(falhou ? 1 : 0);

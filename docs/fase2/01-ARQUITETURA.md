@@ -133,3 +133,39 @@ Migrations `20261007120000` a `…120200`.
 - **Gateway** (`api/_vendas/pagamento.mjs`). Hoje só o simulado, que nunca liga em produção. Os adaptadores do Asaas ou do Mercado Pago entram quando o dono escolher.
 - **Ambiente local** (`docs/banco-local.mjs`, ligado por `docs/servidor.mjs`). PGlite com as mesmas migrations, IA simulada por padrão (de graça) e a página `docs/pagamento-simulado.html`, que faz o papel do gateway.
 - **Testes** (`docs/testes/fluxo-api.test.mjs`, 9 casos pela API): fluxo normal até o projeto criado, abandono e retomada, falha da IA, acesso de outro visitante, injeção de prompt, webhook forjado, velho e repetido, concorrência, dados inválidos, tetos.
+
+## Incremento 7: a página /orcamento
+
+- **A IA é parte da mesa, não a página inteira.** No celular, a conversa vem primeiro e o investimento logo abaixo. No desktop ficam lado a lado, com o investimento fixo na lateral. As etapas seguintes (contato, direções, ajustes, escopo, pagamento) entram como blocos próprios, conforme a etapa que o servidor devolve.
+- **O estado do servidor manda na tela** (`js/orcamento.js`). Recarregar, sair e voltar ou abrir em outra aba dá no mesmo lugar, e a página rola até a etapa em que a pessoa parou.
+- **Sessão** (`js/orcamento-api.js`). Nasce na primeira mensagem, não a cada visita, e fica no `localStorage` com renovação automática do token. Token vencido ou de outro banco: a página esquece e recomeça limpa.
+- **As prévias** (`js/previa.js`, `css/previa.css`):
+  - o JSON da direção vira página só com `textContent`;
+  - cor só `#RRGGBB`, fonte só de uma lista fechada de pilhas locais;
+  - a paleta entra por `el.style.setProperty`, permitido pela CSP;
+  - a disposição responde ao container, então a mesma prévia cabe no cartão e no visor (celular 390 ou computador 1280, escalado);
+  - texto entre colchetes aparece marcado como espaço reservado.
+- **O visor**: tela cheia opaca (sem desfoque), abas 1, 2, 3 e "Sua versão", troca de aparelho, Escape fecha e devolve o foco, foco preso dentro, "Escolher esta direção" embaixo no celular.
+- **Falha**: a mensagem volta para a caixa, nada inventado aparece, e o aviso traz o texto de recuperação da especificação, "Tentar de novo" e o WhatsApp.
+- **Sem JS**: some a conversa e fica o aviso com o WhatsApp (`css/orcamento-semjs.css` por `<noscript>`).
+- **Rodapé**: a identificação do vendedor exigida pelo Decreto 7.962/2013 está com marcadores entre colchetes até o dono mandar nome, CPF e endereço.
+- **Menu**: "Orçamento com IA" entrou no menu do Início, de Sites e de Automação.
+- **Privacidade**: nova seção `#orcamento`. As frases que diziam que o site não guarda nada do que se escreve foram corrigidas. A Anthropic entrou entre os operadores, com retenção de 90 dias (migration `…120500_vendas_retencao.sql`, função `app.vendas_reter`).
+
+## Incremento 8: testes de ponta a ponta
+
+- `npm run e2e:orcamento` (`docs/e2e-orcamento.mjs`, Chromium de verdade contra o servidor local), 29 conferências:
+  - texto com HTML vira texto;
+  - nenhuma sessão criada só por abrir a página;
+  - contato sem aceite é recusado;
+  - 3 direções e miniaturas;
+  - visor: abrir, trocar, aparelho, Escape e foco;
+  - escolha e ajuste;
+  - retomada depois de recarregar;
+  - escopo sem nome técnico e sem confirmação recusado;
+  - pagamento simulado até "projeto em produção";
+  - sem erro de console;
+  - 320px e 1440px sem rolagem lateral;
+  - sem JS.
+  - Fotos em `docs/olhar-orcamento/`.
+- As páginas existentes seguem verdes no `npm run verificar` (12 alvos) e no `npm run acessibilidade`, depois do item novo no menu.

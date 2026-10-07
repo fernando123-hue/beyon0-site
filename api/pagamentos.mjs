@@ -46,7 +46,7 @@ export async function receber(request, env, deps) {
     if (!fonte) return json({ ok: true, ignorado: 'cobrança desconhecida no gateway' });
     const r = await banco('vendas_confirmar_pagamento', { gateway: gateway.nome, evento_id: v.evento.evento_id, tipo: v.evento.tipo,
       gateway_ref: v.evento.gateway_ref, status: fonte.status, valor: fonte.valor });
-    return json({ ok: true, ...r });
+    return json({ ok: true, aplicado: r.aplicado || null, duplicado: !!r.duplicado, sem_mudanca: !!r.sem_mudanca });   /* (sem ids internos na resposta ao gateway) */
   } catch (e) {
     console.error('[pagamentos] falha ao aplicar:', e && e.codigo ? 'código ' + e.codigo : 'erro');
     return json({ erro: 'Erro interno.' }, 500);

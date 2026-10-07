@@ -4,6 +4,14 @@
     "gru1"
   ],
   "installCommand": "npm ci --omit=dev",
+  "functions": {
+    "api/vendas.mjs": {
+      "maxDuration": 300
+    },
+    "api/pagamentos.mjs": {
+      "maxDuration": 30
+    }
+  },
   "trailingSlash": false,
   "headers": [
     {

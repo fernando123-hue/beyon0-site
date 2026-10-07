@@ -14,7 +14,8 @@
     "olhar": "node docs/olhar.mjs",
     "medir": "node docs/medir.mjs",
     "testar": "node --test docs/testes/metricas.test.mjs docs/testes/api.test.mjs docs/testes/banco.test.mjs docs/testes/vendas-banco.test.mjs docs/testes/precos.test.mjs docs/testes/agente.test.mjs docs/testes/geracao.test.mjs docs/testes/alteracoes.test.mjs docs/testes/fluxo-api.test.mjs",
-    "testar:mutacao": "node docs/testes/mutacao.mjs"
+    "testar:mutacao": "node docs/testes/mutacao.mjs",
+    "e2e:orcamento": "node docs/e2e-orcamento.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.131.0"

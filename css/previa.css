@@ -1,0 +1,73 @@
+/* ==========================================================================
+   PRÉVIA das direções (js/previa.js). A paleta e as fontes chegam como
+   variáveis postas por script (--pv-*); a largura do "aparelho" vem da
+   .pv-tela (390 ou 1280) e a disposição responde ao CONTAINER, não à janela,
+   para a mesma prévia caber num cartão e no visor.
+   ========================================================================== */
+.pv-tela { container-type: inline-size; width: 390px; }
+.pv-tela--1280 { width: 1280px; }
+
+.pv {
+  --pv-fundo: #FFFFFF; --pv-sup: #F4F4F4; --pv-texto: #111111; --pv-suave: #555555; --pv-dest: #111111; --pv-dest-texto: #FFFFFF;
+  --pv-raio: 8px; --pv-esp: 56px;
+  background: var(--pv-fundo); color: var(--pv-texto);
+  font-family: var(--pv-f-txt); font-size: 16px; line-height: 1.55; text-align: left;
+}
+.pv * { margin: 0; padding: 0; box-sizing: border-box; }
+.pv-cantos--retos { --pv-raio: 0; }
+.pv-cantos--redondos { --pv-raio: 18px; }
+.pv-dens--arejada { --pv-esp: 80px; }
+.pv-dens--compacta { --pv-esp: 36px; }
+
+.pv h3, .pv h4, .pv h5, .pv-marca, .pv-numero { font-family: var(--pv-f-tit); color: var(--pv-texto); }
+.pv-nav { display: flex; align-items: center; gap: 16px; padding: 16px 20px; border-bottom: 1px solid color-mix(in srgb, var(--pv-texto) 12%, transparent); }
+.pv-marca { font-weight: 700; font-size: 18px; letter-spacing: -.01em; margin-right: auto; }
+.pv-menu { display: none; list-style: none; gap: 20px; font-size: 14px; color: var(--pv-suave); }
+.pv-btn { display: inline-flex; align-items: center; min-height: 44px; padding: 10px 18px; border-radius: var(--pv-raio); background: var(--pv-dest); color: var(--pv-dest-texto); font-weight: 600; font-size: 15px; font-family: var(--pv-f-txt); }
+.pv-btn--nav { min-height: 36px; padding: 6px 14px; font-size: 13px; }
+
+.pv-sec { padding: var(--pv-esp) 20px; display: flex; flex-direction: column; gap: 24px; }
+.pv-sec:nth-of-type(even) { background: var(--pv-sup); }
+.pv-cab { display: flex; flex-direction: column; gap: 12px; align-items: flex-start; max-width: 720px; }
+.pv-rotulo { font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--pv-suave); }
+.pv-h1 { font-size: 36px; line-height: 1.08; letter-spacing: -.02em; font-weight: 600; }
+.pv-h2 { font-size: 26px; line-height: 1.15; letter-spacing: -.01em; font-weight: 600; }
+.pv-sub { font-size: 18px; color: var(--pv-suave); }
+.pv-texto { color: var(--pv-suave); }
+.pv-arte { width: 100%; aspect-ratio: 16 / 10; border-radius: var(--pv-raio); background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--pv-texto) 6%, transparent) 0 1px, transparent 1px 14px), var(--pv-sup); border: 1px solid color-mix(in srgb, var(--pv-texto) 10%, transparent); }
+.pv-sec--hero { gap: 28px; }
+.pv-v--centro .pv-cab { align-items: center; text-align: center; margin: 0 auto; }
+
+.pv-itens { list-style: none; display: grid; gap: 14px; }
+.pv-item { padding: 18px; border-radius: var(--pv-raio); background: var(--pv-fundo); border: 1px solid color-mix(in srgb, var(--pv-texto) 10%, transparent); display: flex; flex-direction: column; gap: 6px; }
+.pv-sec:nth-of-type(even) .pv-item { background: var(--pv-fundo); }
+.pv-item__t { font-size: 17px; font-weight: 600; }
+.pv-item__x { font-size: 15px; color: var(--pv-suave); }
+.pv-item__n { font-family: var(--pv-f-tit); font-size: 13px; font-weight: 700; color: var(--pv-dest); }
+.pv-numero { font-size: 32px; font-weight: 700; color: var(--pv-dest); }
+.pv-citacao { font-size: 16px; font-style: italic; color: var(--pv-texto); }
+.pv-item__autor { font-size: 13px; font-weight: 600; color: var(--pv-suave); }
+.pv-v--lista .pv-item, .pv-v--linha_do_tempo .pv-item { background: transparent; border: 0; border-left: 2px solid var(--pv-dest); border-radius: 0; padding: 4px 0 4px 16px; }
+.pv-v--faixa { background: var(--pv-dest) !important; }
+.pv-v--faixa .pv-h2, .pv-v--faixa .pv-texto, .pv-v--faixa .pv-sub, .pv-v--faixa .pv-rotulo { color: var(--pv-dest-texto); }
+.pv-v--faixa .pv-btn { background: var(--pv-dest-texto); color: var(--pv-dest); }
+.pv-sec--faq .pv-item { background: transparent; border: 0; border-bottom: 1px solid color-mix(in srgb, var(--pv-texto) 12%, transparent); border-radius: 0; padding: 14px 0; }
+.pv-rodape { padding: 28px 20px; font-size: 13px; color: var(--pv-suave); border-top: 1px solid color-mix(in srgb, var(--pv-texto) 12%, transparent); }
+
+/* o espaço reservado: o dado que o cliente ainda vai mandar */
+.pv-reservado { background: color-mix(in srgb, var(--pv-dest) 14%, transparent); outline: 1px dashed color-mix(in srgb, var(--pv-dest) 60%, transparent); border-radius: 3px; padding: 0 3px; font-style: normal; }
+
+@container (min-width: 760px) {
+  .pv-nav { padding: 20px 56px; gap: 28px; }
+  .pv-menu { display: flex; }
+  .pv-sec { padding: calc(var(--pv-esp) * 1.4) 56px; }
+  .pv-h1 { font-size: 60px; }
+  .pv-h2 { font-size: 38px; }
+  .pv-itens { grid-template-columns: repeat(3, 1fr); }
+  .pv-v--lista .pv-itens, .pv-sec--faq .pv-itens { grid-template-columns: 1fr; max-width: 760px; }
+  .pv-v--linha_do_tempo .pv-itens { grid-template-columns: repeat(4, 1fr); }
+  .pv-v--split.pv-sec, .pv-sec--hero.pv-v--split { display: grid; grid-template-columns: 1.1fr 1fr; align-items: center; gap: 56px; }
+  .pv-sec--hero.pv-v--centro .pv-arte { max-width: 960px; margin: 0 auto; }
+  .pv-v--grade .pv-itens { grid-template-columns: repeat(2, 1fr); }
+  .pv-rodape { padding: 32px 56px; }
+}

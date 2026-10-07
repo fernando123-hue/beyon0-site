@@ -7,13 +7,15 @@
    ========================================================================== */
 const brl = v => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const ROTULO = { conversao: 'Conversão', autoridade: 'Autoridade', experiencia: 'Experiência' };
+/* o nome que o cliente lê (o tipo técnico fica só nos dados) */
+const NOME_SECAO = { hero: 'abertura', servicos: 'serviços', sobre: 'sobre', diferenciais: 'diferenciais', processo: 'como funciona', depoimentos: 'depoimentos', numeros: 'números', galeria: 'galeria', faq: 'perguntas frequentes', cta: 'chamada para contato', contato: 'contato', equipe: 'equipe', destaque: 'destaque', localizacao: 'localização' };
 
 export function montarEscopo({ estimativa, direcao, alteracoesAplicadas, briefing }) {
   const nome = briefing?.negocio?.nome || briefing?.negocio?.segmento || 'seu negócio';
   const titulo = (estimativa.formato?.nome || 'Site') + ' — ' + nome;
   const linhas = [];
   linhas.push('DIREÇÃO ESCOLHIDA: ' + (direcao.nome_conceito || 'Direção') + ' (' + (ROTULO[direcao.estrategia] || direcao.estrategia) + ')');
-  linhas.push('Seções: ' + direcao.secoes.map(s => s.tipo).join(', ') + '.');
+  linhas.push('Seções: ' + direcao.secoes.map(s => NOME_SECAO[s.tipo] || s.tipo).join(', ') + '.');
   if (alteracoesAplicadas?.length) {
     linhas.push('', 'ALTERAÇÕES PEDIDAS');
     for (const a of alteracoesAplicadas) linhas.push('- ' + (a.descricao || [a.operacao, a.secao, a.campo, a.valor].filter(Boolean).join(' ')));

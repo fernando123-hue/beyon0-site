@@ -229,7 +229,32 @@ test('tetos: custo da conversa e taxa por IP', async () => {
   const r = await n.chamar('POST', 'mensagem', { conversa_id: s.conversa_id, texto: 'oi' });
   assert.equal(r.status, 429);
   assert.equal(r.corpo.whatsapp, true, 'oferece o WhatsApp');
+  await local.db.query('update app.conversas set custo_ia_usd = 0 where id = $1', [s.conversa_id]);   /* (senão o teto do DIA trava os testes seguintes) */
+  /* teto do dia (todas as conversas de hoje): outra conversa gastou demais, esta também para, sem chamar o modelo */
+  const outra = navegador();
+  const so = await outra.iniciar();
+  await local.db.query('update app.conversas set custo_ia_usd = 30 where id = $1', [s.conversa_id]);
+  const d = await outra.chamar('POST', 'mensagem', { conversa_id: so.conversa_id, texto: 'oi' });
+  assert.equal(d.status, 503);
+  assert.equal(d.corpo.whatsapp, true);
+  await local.db.query('update app.conversas set custo_ia_usd = 0 where id = $1', [s.conversa_id]);
   const ip = '203.0.113.250';
   for (let i = 0; i < 91; i++) freioGeral(ip);
   assert.equal(freioGeral(ip), true);
+});
+
+test('retenção: o texto de conversa parada sem contrato some; a com cobrança em aberto fica', async () => {
+  const velha = navegador(), paga = navegador();
+  const sv = await velha.iniciar(), sp = await paga.iniciar();
+  for (const [n, c] of [[velha, sv.conversa_id], [paga, sp.conversa_id]]) await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Tenho uma escola e quero um site institucional para captar matrículas' });
+  await local.db.query(`update app.conversas set ultima_atividade = now() - interval '120 days' where id in ($1, $2)`, [sv.conversa_id, sp.conversa_id]);
+  await local.db.query(`update app.conversas set etapa = 'aguardando_pagamento' where id = $1`, [sp.conversa_id]);
+  await assert.rejects(local.rpc('vendas_reter', { dias: 7 }), e => e.codigo === '22023', 'menos de 30 dias: recusado');
+  const r = await local.rpc('vendas_reter', {});
+  assert.ok(r.mensagens_apagadas >= 2);
+  const msgs = async c => (await local.db.query('select count(*)::int n from app.mensagens where conversa_id = $1', [c])).rows[0].n;
+  assert.equal(await msgs(sv.conversa_id), 0, 'conversa velha sem contrato: texto apagado');
+  assert.equal(await msgs(sp.conversa_id), 2, 'cobrança em aberto: fica');
+  assert.deepEqual((await local.db.query('select briefing from app.conversas where id = $1', [sv.conversa_id])).rows[0].briefing, {});
+  assert.ok((await local.db.query('select 1 from app.estimativas where conversa_id = $1', [sv.conversa_id])).rows.length, 'o número do funil fica');
 });

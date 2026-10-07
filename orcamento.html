@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Orçamento com IA — Beyon Zero</title>
+  <meta name="description" content="Conte o seu negócio, veja o investimento calculado pela tabela da Beyon Zero e receba três direções de site para comparar antes de fechar." />
+  <link rel="canonical" href="https://beyon0-site.vercel.app/orcamento" />
+  <meta name="robots" content="index, follow" />
+  <meta name="theme-color" content="#000000" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.googletagmanager.com https://www.googleadservices.com https://www.google.com; style-src 'self'; font-src 'self'; img-src 'self' data: https://*.google-analytics.com https://*.googletagmanager.com https://*.g.doubleclick.net https://www.google.com https://www.google.com.br https://www.googleadservices.com; connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.g.doubleclick.net https://www.google.com https://www.google.com.br https://www.googleadservices.com https://pagead2.googlesyndication.com; frame-src https://td.doubleclick.net; object-src 'none'; base-uri 'self'; form-action 'none'" />
+  <script src="js/ancoras.js"></script>
+  <link rel="preload" href="assets/fonts/sora-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="assets/fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="css/tokens.css" />
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/orcamento.css" />
+  <link rel="stylesheet" href="css/previa.css" />
+  <noscript><link rel="stylesheet" href="css/orcamento-semjs.css" /></noscript>
+</head>
+<body class="orc" data-wa-padrao="quero um orçamento de site">
+  <a href="#conteudo" class="skip-link">Pular para o conteúdo</a>
+
+  <header class="nav" id="nav">
+    <a href="/" class="nav__logo" aria-label="Beyon Zero — início">
+      <span class="wordmark">Beyon <b>Zero</b></span>
+    </a>
+    <button class="nav__toggle" type="button" hidden aria-expanded="false" aria-controls="nav-links" aria-label="Menu">
+      <span class="nav__toggle-bar" aria-hidden="true"></span>
+      <span class="nav__toggle-bar" aria-hidden="true"></span>
+    </button>
+    <nav class="nav__links" id="nav-links" aria-label="Navegação principal">
+      <a href="/">Início</a>
+      <a href="/sites">Sites</a>
+      <a href="/automacao">Automação &amp; IA</a>
+      <a href="/orcamento" class="is-current" aria-current="page">Orçamento com IA</a>
+      <a class="btn btn--sm btn--primary" data-wa href="https://wa.me/5521977167944">Falar comigo</a>
+    </nav>
+  </header>
+
+  <main id="conteudo" tabindex="-1" class="orc__main">
+    <section class="orc-topo" aria-labelledby="orc-titulo">
+      <p class="orc-kicker"><span class="dot" aria-hidden="true"></span>Orçamento com IA</p>
+      <h1 id="orc-titulo">Veja o seu site <em>antes</em> de fechar.</h1>
+      <p class="orc-lead">Conte o seu negócio. O consultor entende o caso, o investimento sai da tabela da Beyon Zero e você recebe três direções de site para abrir, comparar e ajustar.</p>
+      <ol class="orc-etapas" id="o-etapas" aria-label="Etapas">
+        <li data-passo="conversa" aria-current="step"><span>01</span>Conversa</li>
+        <li data-passo="estimativa"><span>02</span>Investimento</li>
+        <li data-passo="direcoes"><span>03</span>Direções</li>
+        <li data-passo="ajustes"><span>04</span>Ajustes</li>
+        <li data-passo="escopo"><span>05</span>Escopo</li>
+        <li data-passo="pagamento"><span>06</span>Início</li>
+      </ol>
+    </section>
+
+    <noscript><p class="orc-aviso orc-aviso--semjs">Esta página precisa de JavaScript. Fale com a Beyon Zero pelo <a href="https://wa.me/5521977167944">WhatsApp (21) 97716-7944</a>.</p></noscript>
+
+    <div class="orc-aviso" id="o-aviso" role="alert" hidden>
+      <p id="o-aviso-texto"></p>
+      <div class="orc-aviso__acoes">
+        <button class="btn btn--sm" type="button" id="o-tentar">Tentar de novo</button>
+        <a class="btn btn--sm btn--ghost" data-wa="quero continuar o meu orçamento" href="https://wa.me/5521977167944">Continuar no WhatsApp</a>
+      </div>
+    </div>
+
+    <div class="orc-mesa">
+      <!-- A CONVERSA -->
+      <section class="orc-conversa" aria-labelledby="o-conversa-titulo">
+        <h2 id="o-conversa-titulo" class="orc-rotulo">Conversa com o consultor</h2>
+        <ol class="orc-log" id="o-log" aria-live="polite" aria-relevant="additions">
+          <li class="msg msg--agente"><p>Olá! Me conte sobre o seu negócio e o que você espera do site. Pode ser do seu jeito, sem termos técnicos.</p></li>
+        </ol>
+        <p class="orc-pensando" id="o-pensando" hidden><span class="orc-pensando__fio" aria-hidden="true"></span>Analisando o seu caso…</p>
+        <div class="orc-atalhos" id="o-atalhos">
+          <button type="button" class="chip" data-atalho="Quero um site para o meu negócio.">Quero um site</button>
+          <button type="button" class="chip" data-atalho="Quero automatizar o atendimento do meu negócio.">Automatizar o atendimento</button>
+          <button type="button" class="chip" data-atalho="Não sei bem do que preciso. Pode me ajudar?">Não sei, me ajude</button>
+        </div>
+        <form class="orc-envio" id="o-form" novalidate>
+          <label class="sr-only" for="o-texto">Sua mensagem</label>
+          <textarea id="o-texto" rows="2" maxlength="2000" placeholder="Ex.: tenho uma clínica em Niterói e quero mais agendamentos" autocomplete="off"></textarea>
+          <button class="btn btn--primary" type="submit" id="o-enviar">Enviar</button>
+        </form>
+        <p class="orc-nota">Não escreva senhas nem dados de cartão aqui. <a href="/privacidade#orcamento">Como a conversa é tratada</a>.</p>
+      </section>
+
+      <!-- O INVESTIMENTO (do motor de preço; o modelo nunca escreve estes números) -->
+      <aside class="orc-painel" aria-labelledby="o-est-titulo">
+        <h2 id="o-est-titulo" class="orc-rotulo">Investimento estimado</h2>
+        <div class="orc-est" id="o-est">
+          <p class="orc-est__vazio" id="o-est-vazio">O valor aparece aqui assim que o consultor entender o formato do site. Ele vem da tabela da Beyon Zero, não de um palpite.</p>
+          <div id="o-est-cheio" hidden>
+            <p class="orc-est__formato" id="o-est-formato"></p>
+            <p class="orc-est__valor" id="o-est-valor"></p>
+            <dl class="orc-est__dados">
+              <div><dt>Prazo</dt><dd id="o-est-prazo"></dd></div>
+              <div><dt>Para começar</dt><dd id="o-est-sinal"></dd></div>
+              <div><dt>Na entrega</dt><dd id="o-est-resto"></dd></div>
+            </dl>
+            <ul class="orc-est__itens" id="o-est-itens"></ul>
+            <div class="orc-est__fase" id="o-est-fase" hidden>
+              <p class="orc-rotulo">Fica para uma fase seguinte</p>
+              <ul id="o-est-fase-itens"></ul>
+              <p id="o-est-fase-valor"></p>
+            </div>
+            <p class="orc-est__nota">O valor final é o do escopo que você confirma antes de pagar qualquer coisa.</p>
+          </div>
+        </div>
+        <div class="orc-sugestao" id="o-sugestao" hidden>
+          <p class="orc-rotulo">Ideia de IA para o seu caso</p>
+          <p class="orc-sugestao__ideia" id="o-sugestao-ideia"></p>
+          <p id="o-sugestao-motivo"></p>
+        </div>
+        <div class="orc-diagnostico" id="o-diagnostico" hidden>
+          <p>Esse pedido precisa de uma conversa de diagnóstico: ele não tem valor automático na tabela.</p>
+          <a class="btn btn--sm btn--primary" data-wa="quero um diagnóstico para o meu projeto" href="https://wa.me/5521977167944">Conversar no WhatsApp</a>
+        </div>
+      </aside>
+    </div>
+
+    <!-- O CONTATO (antes de gerar as direções) -->
+    <section class="orc-bloco" id="o-contato" aria-labelledby="o-contato-titulo" hidden>
+      <h2 id="o-contato-titulo">Para quem vamos desenhar?</h2>
+      <p class="orc-bloco__lead">Com o seu contato, o consultor gera três direções de site para o seu negócio: uma focada em conversão, uma em autoridade e uma em experiência.</p>
+      <form class="orc-form" id="o-contato-form" novalidate>
+        <label for="o-nome">Seu nome</label>
+        <input id="o-nome" name="nome" autocomplete="name" maxlength="120" required />
+        <label for="o-tel">WhatsApp</label>
+        <input id="o-tel" name="telefone" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="(21) 99999-0000" />
+        <label for="o-email">E-mail <span class="orc-opcional">(ou só o WhatsApp)</span></label>
+        <input id="o-email" name="email" type="email" autocomplete="email" maxlength="254" />
+        <label class="orc-check"><input type="checkbox" id="o-aceite" required /> <span>Concordo que a Beyon Zero use estes dados para preparar as propostas e falar comigo sobre elas (<a href="/privacidade#orcamento">privacidade</a>).</span></label>
+        <p class="orc-erro" id="o-contato-erro" role="alert"></p>
+        <button class="btn btn--primary" type="submit">Gerar as três direções</button>
+      </form>
+    </section>
+
+    <!-- AS TRÊS DIREÇÕES -->
+    <section class="orc-bloco" id="o-direcoes" aria-labelledby="o-dir-titulo" hidden>
+      <h2 id="o-dir-titulo">Três direções para o seu site</h2>
+      <p class="orc-bloco__lead" id="o-dir-lead">Mesmo briefing, três estratégias. Abra cada uma, compare e escolha a que mais tem a cara do seu negócio. Isso pode levar alguns minutos; o progresso fica salvo se você sair.</p>
+      <ol class="orc-dirs" id="o-dirs"></ol>
+    </section>
+
+    <!-- AJUSTES -->
+    <section class="orc-bloco" id="o-ajustes" aria-labelledby="o-aj-titulo" hidden>
+      <h2 id="o-aj-titulo">Ajuste do seu jeito</h2>
+      <p class="orc-bloco__lead">Escreva o que mudaria. Exemplos: "quero a cor da primeira", "coloque os depoimentos antes dos serviços", "quero mais uma página".</p>
+      <div class="orc-versao" id="o-versao"></div>
+      <ul class="orc-mudancas" id="o-mudancas" aria-live="polite"></ul>
+      <form class="orc-envio" id="o-aj-form" novalidate>
+        <label class="sr-only" for="o-aj-texto">O que você mudaria?</label>
+        <textarea id="o-aj-texto" rows="2" maxlength="2000" placeholder="O que você mudaria?"></textarea>
+        <button class="btn" type="submit">Aplicar</button>
+      </form>
+      <button class="btn btn--primary orc-seguir" type="button" id="o-fechar-escopo">Está bom assim: ver o escopo final</button>
+    </section>
+
+    <!-- ESCOPO FINAL -->
+    <section class="orc-bloco" id="o-escopo" aria-labelledby="o-esc-titulo" hidden>
+      <h2 id="o-esc-titulo">Escopo final</h2>
+      <p class="orc-bloco__lead">Confira tudo. É isto que será feito, pelo valor e no prazo abaixo.</p>
+      <div class="orc-escopo" id="o-esc-texto" tabindex="0" aria-label="Texto do escopo"></div>
+      <form class="orc-form" id="o-esc-form" novalidate>
+        <label class="orc-check"><input type="checkbox" id="o-confirmo" required /> <span>Li e confirmo este escopo, o valor e o prazo.</span></label>
+        <label class="orc-check"><input type="checkbox" id="o-inicio" /> <span>Peço que o trabalho comece já, dentro do prazo de 7 dias para desistir da compra (Código de Defesa do Consumidor, art. 49).</span></label>
+        <p class="orc-erro" id="o-esc-erro" role="alert"></p>
+        <button class="btn btn--primary" type="submit">Confirmar o escopo</button>
+      </form>
+    </section>
+
+    <!-- PAGAMENTO DO SINAL -->
+    <section class="orc-bloco" id="o-pagamento" aria-labelledby="o-pag-titulo" hidden>
+      <h2 id="o-pag-titulo">Para começar</h2>
+      <p class="orc-bloco__lead" id="o-pag-lead"></p>
+      <button class="btn btn--primary" type="button" id="o-pagar">Pagar o sinal</button>
+      <p class="orc-pag-status" id="o-pag-status" role="status" aria-live="polite"></p>
+      <p class="orc-nota">O pagamento só é confirmado pelo aviso do banco ou da operadora. Esta página nunca pede dados de cartão.</p>
+    </section>
+
+    <section class="orc-bloco orc-pronto" id="o-pronto" aria-labelledby="o-pronto-titulo" hidden>
+      <h2 id="o-pronto-titulo">Pagamento confirmado. Seu projeto entrou em produção.</h2>
+      <p class="orc-bloco__lead">A Beyon Zero fala com você pelo contato informado para os próximos passos.</p>
+    </section>
+  </main>
+
+  <!-- O VISOR das prévias: abrir, navegar e comparar -->
+  <div class="visor" id="o-visor" role="dialog" aria-modal="true" aria-labelledby="o-visor-titulo" hidden>
+    <div class="visor__barra">
+      <p class="visor__titulo" id="o-visor-titulo"></p>
+      <div class="visor__abas" role="tablist" aria-label="Direções" id="o-visor-abas"></div>
+      <div class="visor__aparelho" role="group" aria-label="Tamanho da tela">
+        <button type="button" class="chip" data-aparelho="390" aria-pressed="true">Celular</button>
+        <button type="button" class="chip" data-aparelho="1280" aria-pressed="false">Computador</button>
+      </div>
+      <button type="button" class="visor__fechar" id="o-visor-fechar" aria-label="Fechar a prévia">×</button>
+    </div>
+    <p class="visor__resumo" id="o-visor-resumo"></p>
+    <div class="visor__palco" id="o-visor-palco" tabindex="0" aria-label="Prévia do site"></div>
+    <div class="visor__rodape">
+      <p class="visor__aviso">Prévia de direção: textos entre colchetes são espaços para os seus dados reais.</p>
+      <button type="button" class="btn btn--primary" id="o-visor-escolher">Escolher esta direção</button>
+    </div>
+  </div>
+
+  <footer class="footer orc-rodape">
+    <div class="footer__base">
+      <p class="footer__copy">© <span id="year">2026</span> Beyon Zero · Rio de Janeiro, RJ.</p>
+      <p class="orc-vendedor" id="o-vendedor">Vendedor: [nome completo do responsável] · CPF [número] · [endereço completo] · WhatsApp (21) 97716-7944</p>
+      <div class="footer__legal">
+        <a href="/privacidade">Privacidade</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/tel.js" defer></script>
+  <script src="js/core.js" defer></script>
+  <script src="js/pagina.js" defer></script>
+  <script src="js/metricas.js" defer></script>
+  <script src="js/previa.js" defer></script>
+  <script src="js/orcamento-api.js" defer></script>
+  <script src="js/orcamento.js" defer></script>
+</body>
+</html>
