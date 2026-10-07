@@ -123,6 +123,35 @@ test('adaptador Anthropic: o pedido sai no formato da documentação oficial e o
   await assert.rejects(falha.mensagem({ papel: 'conversa', sistema: 'S', mensagens: [] }), e => e.motivo === 'limite');
 });
 
+test('adaptador Anthropic: problema da CONTA (cobrança, permissão, modelo sumido, limite de gasto) abre o disjuntor; problema do PEDIDO não', async () => {
+  /* doc oficial "Claude API errors" (lida em 2026-10-07): 402 billing_error, 403 permission_error, 404 not_found_error,
+     e 400 também "when usage reaches an organization or workspace spend limit you set". Revisão do PR 1, técnica M2 */
+  const { criarAnthropic } = await import('../../api/_ia/anthropic.mjs');
+  const Anthropic = (await import('@anthropic-ai/sdk')).default;
+  const motivoDe = async (status, mensagem, tipo = 'invalid_request_error') => {
+    const erro = Anthropic.APIError.generate(status, { type: 'error', error: { type: tipo, message: mensagem } }, mensagem, new Headers());
+    const ia = criarAnthropic({}, { beta: { messages: { create: async () => { throw erro; } } } });
+    try { await ia.mensagem({ papel: 'conversa', sistema: 'S', mensagens: [] }); } catch (e) { return e.motivo; }
+    return 'sem erro';
+  };
+  assert.equal(await motivoDe(402, 'There is an issue with your billing', 'billing_error'), 'indisponivel', '402: cobrança');
+  assert.equal(await motivoDe(403, 'Your API key does not have permission', 'permission_error'), 'indisponivel', '403: permissão');
+  assert.equal(await motivoDe(404, 'model: claude-x not found', 'not_found_error'), 'indisponivel', '404: modelo ou recurso sumiu');
+  assert.equal(await motivoDe(400, 'You have reached your specified workspace API usage limits. You will regain access on 2026-11-01.'), 'indisponivel', '400 por limite de gasto do workspace');
+  assert.equal(await motivoDe(400, 'You have reached your specified API usage limits.'), 'indisponivel', '400 por limite de gasto da organização');
+  assert.equal(await motivoDe(400, 'Your credit balance is too low to access the Anthropic API.'), 'indisponivel', '400 por saldo');
+  assert.equal(await motivoDe(400, 'messages.0.content: text too long'), 'entrada', '400 do conteúdo: não conta no disjuntor');
+  /* o visitante não abre o disjuntor de todos escrevendo as palavras: só a frase do provedor, no começo, vale */
+  assert.equal(await motivoDe(400, 'messages.0.content: billing usage limit You have reached your specified API usage limits'), 'entrada', 'texto do visitante ecoado não conta');
+  assert.equal(await motivoDe(400, 'You have reached your specified API usage limits', 'outro_tipo'), 'entrada', 'só o tipo invalid_request_error');
+  assert.equal(await motivoDe(413, 'Request exceeds the maximum allowed number of bytes', 'request_too_large'), 'entrada', '413: tamanho do pedido');
+  assert.equal(await motivoDe(401, 'invalid x-api-key', 'authentication_error'), 'indisponivel', '401 segue indisponível');
+  /* o caminho de saída longa (streaming) lança as mesmas classes */
+  const erro402 = Anthropic.APIError.generate(402, { type: 'error', error: { type: 'billing_error', message: 'billing' } }, 'billing', new Headers());
+  const longa = criarAnthropic({}, { beta: { messages: { stream: () => ({ finalMessage: async () => { throw erro402; } }) } } });
+  await assert.rejects(longa.mensagem({ papel: 'geracao', sistema: 'S', mensagens: [] }), e => e.motivo === 'indisponivel', 'streaming: 402');
+});
+
 test('o turno manda só user/assistant em messages; o estado vai no 2º bloco do sistema; histórico redigido', async () => {
   const { executarTurno } = await import('../../api/_vendas/agente.mjs');
   const { criarAnthropic } = await import('../../api/_ia/anthropic.mjs');

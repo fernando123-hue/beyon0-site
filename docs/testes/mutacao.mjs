@@ -27,7 +27,7 @@ for (const s of SABOTAGENS) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bz-mutacao-'));
   for (const f of fs.readdirSync(ORIGEM)) fs.copyFileSync(path.join(ORIGEM, f), path.join(dir, f));
   const alvo = path.join(dir, s.arquivo);
-  let sql = fs.readFileSync(alvo, 'utf8');
+  let sql = fs.readFileSync(alvo, 'utf8').replace(/\r\n/g, '\n');   /* (checkout no Windows com autocrlf: o texto da sabotagem é LF) */
   if (s.acrescentar) sql += s.acrescentar;
   else { if (!sql.includes(s.de)) { console.log('SABOTAGEM NÃO APLICADA (texto mudou):', s.nome); process.exitCode = 1; continue; } sql = sql.replace(s.de, s.para); }
   fs.writeFileSync(alvo, sql);

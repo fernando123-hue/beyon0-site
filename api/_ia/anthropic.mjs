@@ -17,6 +17,15 @@ import { PAPEIS, custoUsd, TENTATIVAS_PADRAO } from './config.mjs';
 import { ErroIA } from './provedor.mjs';
 
 const BETA_FALLBACK = 'server-side-fallback-2026-07-01';
+const STATUS_DA_CONTA = new Set([402, 403, 404]);
+/* o 400 de limite de gasto não tem tipo próprio (é invalid_request_error): só a mensagem do PROVEDOR distingue.
+   Ancorado no começo da mensagem (o provedor cita campo e posição, não o texto do visitante). Fontes: doc oficial de
+   limites ("You have reached your specified API usage limits" / "...workspace API usage limits") e a mensagem de
+   conta sem crédito ("Your credit balance is too low…", conhecida, não documentada na página de erros) */
+const LIMITE_DE_GASTO = /^(You have reached your specified (workspace )?API usage limits|Your credit balance is too low)/i;
+const mensagemDoProvedor = e => String(e?.error?.error?.message || '');
+/* sem texto do visitante: status, tipo do erro e o id do pedido para achar no painel da Anthropic */
+const logErroProvedor = e => console.error(JSON.stringify({ origem: 'ia', nivel: 'erro', status: e.status, tipo: e?.error?.error?.type || null, request_id: e.requestID || null }));
 
 export function criarAnthropic(env = process.env, cliente) {
   const client = cliente || new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, maxRetries: TENTATIVAS_PADRAO });
@@ -48,8 +57,14 @@ export function criarAnthropic(env = process.env, cliente) {
          (a saída máxima do papel por tentativa), para o teto não ficar cego */
       if (e instanceof Anthropic.APIConnectionTimeoutError) throw new ErroIA('tempo', 'tempo esgotado', custoUsd(cfg.modelo, { saida: cfg.max_tokens }) * (1 + tentativas));
       if (e instanceof Anthropic.AuthenticationError) throw new ErroIA('indisponivel', 'credencial recusada');
-      /* 4xx (menos 429) vem do pedido — o conteúdo que o visitante controla —, não do provedor fora do ar: "entrada"
-         não conta no disjuntor (app.vendas_ia_disponivel); 5xx e sem status, sim ("falha") */
+      /* problema da CONTA, não do pedido (doc oficial "Claude API errors"): 402 cobrança, 403 permissão, 404 modelo ou
+         recurso, e o 400 de limite de gasto/saldo. Conta no disjuntor e no alerta, senão o funil para sem aviso */
+      if (e instanceof Anthropic.APIError && e.status >= 400 && e.status < 500) logErroProvedor(e);
+      if (e instanceof Anthropic.APIError && STATUS_DA_CONTA.has(e.status)) throw new ErroIA('indisponivel', 'provedor HTTP ' + e.status);
+      if (e instanceof Anthropic.APIError && e.status === 400 && e?.error?.error?.type === 'invalid_request_error'
+        && LIMITE_DE_GASTO.test(mensagemDoProvedor(e))) throw new ErroIA('indisponivel', 'limite de gasto ou saldo da conta');
+      /* o resto dos 4xx (menos 429) vem do pedido — o conteúdo que o visitante controla —, não do provedor fora do ar:
+         "entrada" não conta no disjuntor (app.vendas_ia_disponivel); 5xx e sem status, sim ("falha") */
       if (e instanceof Anthropic.APIError && e.status >= 400 && e.status < 500) throw new ErroIA('entrada', 'provedor HTTP ' + e.status);
       if (e instanceof Anthropic.APIError) throw new ErroIA('falha', 'provedor HTTP ' + (e.status || '?'));
       throw new ErroIA('falha', 'erro de rede');
