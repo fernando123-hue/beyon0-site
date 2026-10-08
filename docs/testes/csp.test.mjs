@@ -48,7 +48,8 @@ test('CSP do /orcamento: sem origem que a página não usa (Google), com Mercado
   assert.ok(!/googletagmanager/.test(html), 'a página não carrega o Google');
   /* a medição entra só para decidir o que é contato (métricas próprias), sem o Google: data-sem-google */
   const scripts = html.match(/<script[^>]*medicao\.js[^>]*>/g) || [];
-  assert.ok(scripts.every(s => /data-sem-google/.test(s)), 'medicao.js no orçamento só com data-sem-google: ' + scripts.join(' '));
+  assert.equal(scripts.length, 1, 'o orçamento carrega a medição uma vez (sem ela, o WhatsApp de lá deixa de contar)');
+  assert.ok(scripts.every(s => /\sdata-sem-google[\s>]/.test(s)), 'medicao.js no orçamento só com data-sem-google: ' + scripts.join(' '));
   const d = diretivas(csp);
   for (const origem of ['https://sdk.mercadopago.com', 'https://challenges.cloudflare.com']) assert.ok(d['script-src'].includes(origem), origem);
   for (const origem of ['https://secure-fields.mercadopago.com', 'https://challenges.cloudflare.com']) assert.ok(d['frame-src'].includes(origem), origem);

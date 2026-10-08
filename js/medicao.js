@@ -44,7 +44,8 @@
   var B = window.BEYON || {};
   var html = document.documentElement;
   var eu = document.currentScript;
-  var SEM_GOOGLE = !!(eu && eu.hasAttribute('data-sem-google'));
+  /* fechado por padrão: sem o próprio <script> (módulo, injetado, empacotado) ou na página do orçamento, sem Google */
+  var SEM_GOOGLE = !eu || eu.hasAttribute('data-sem-google') || /^\/orcamento/.test(location.pathname);
   var ATIVO = !SEM_GOOGLE && !!(CONFIG.ga4 || CONFIG.ads), CHAVE = 'bz-consentimento';
   var carregado = false;
 
@@ -75,7 +76,10 @@
 
   /* ---------- a conversão ---------- */
   /* de onde veio o clique: a seção, a barra do celular, o ícone, o menu (ou o data-origem de quem não tem id) */
-  function botao(a) {
+  function botao(a) { return limpo(origemDe(a)); }
+  /* o mesmo filtro do js/metricas.js: só [a-z0-9-], até 30 caracteres (o valor vai para o Google como veio) */
+  function limpo(v) { return String(v || 'pagina').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 30) || 'pagina'; }
+  function origemDe(a) {
     var marcado = a.closest('[data-origem]');
     if (marcado) return marcado.getAttribute('data-origem');
     if (a.classList.contains('wa')) return 'icone';
@@ -169,6 +173,8 @@
     reabrir[i].addEventListener('click', mostrarAviso);
   }
   var atual = escolha();
-  if (atual === 'sim') quandoOcioso(carregar);
+  /* quem já aceitou: o Google sobe no load, sem esperar o ocioso. O clique mais provável (o CTA do hero, logo no
+     começo) sai da página em meio segundo pela passagem; com o gtag.js ainda baixando, o evento morria na fila */
+  if (atual === 'sim') { if (document.readyState === 'complete') carregar(); else window.addEventListener('load', carregar, { once: true }); }
   else if (atual !== 'nao') quandoOcioso(mostrarAviso);
 })();
