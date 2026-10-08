@@ -56,7 +56,7 @@ function iaDeAjuste(mudancas, custo = 0.01) {
   const ia = { ...base, chamadas: 0, mensagem: async p => {
     if (p.papel === 'extracao' && String(p.mensagens?.[0]?.content || '').startsWith('DIREÇÕES:')) {
       ia.chamadas++;
-      return { json: { mudancas, resposta: 'ok' }, parada: 'fim', custo_usd: custo, modelo: 'claude-sonnet-5-5' };
+      return { json: { mudancas, resposta: 'ok' }, parada: 'fim', custo_usd: custo, modelo: 'claude-haiku-5-5' };
     }
     return base.mensagem(p);
   } };
@@ -127,10 +127,21 @@ test('P0 custo: modelo fora da tabela de preços conta como o mais caro, nunca z
   assert.equal(custoUsd('modelo-desconhecido', null), 0, 'sem uso, sem custo');
 });
 
+test('custo: Haiku 5.5 tem duas tabelas, pela soma da entrada do pedido (até 100 mil tokens e acima)', () => {
+  /* referência da API (2026-10-06): US$ 0,10 / 0,50 por milhão até 100K de prompt; 0,50 / 2,50 acima;
+     leitura de cache 0,1× e escrita de 5 min 1,25× a entrada da mesma tabela */
+  const perto = (a, b) => Math.abs(a - b) < 1e-9;
+  assert.ok(perto(custoUsd('claude-haiku-5-5', { entrada: 10000, saida: 1000 }), 0.001 + 0.0005), 'curto: tabela de baixo');
+  assert.ok(perto(custoUsd('claude-haiku-5-5', { entrada: 2000, cache_leitura: 8000, cache_escrita: 1000, saida: 0 }), 0.0002 + 0.00008 + 0.000125), 'cache na tabela de baixo');
+  /* o limite conta a entrada INTEIRA (sem cache + lida do cache + escrita no cache) */
+  assert.ok(perto(custoUsd('claude-haiku-5-5', { entrada: 20000, cache_leitura: 90000, saida: 1000 }), 0.01 + 0.0045 + 0.0025), 'acima de 100K: tabela de cima');
+  assert.ok(perto(custoUsd('claude-haiku-5-5', { entrada: 100000, saida: 0 }), 0.01), '100K exatos ainda é a de baixo');
+});
+
 test('P0 custo: o modelo que recusa responder também é pago (turno e geração)', async () => {
   const base = criarSimulada();
   const recusa = { ...base, mensagem: async p => p.papel === 'conversa' || p.papel === 'geracao'
-    ? { texto: '', json: null, chamadas: [], conteudo: [], parada: 'recusa', modelo: 'claude-sonnet-5-5', uso: {}, custo_usd: 0.02 }
+    ? { texto: '', json: null, chamadas: [], conteudo: [], parada: 'recusa', modelo: 'claude-haiku-5-5', uso: {}, custo_usd: 0.02 }
     : base.mensagem(p) };
   const n = navegador();
   const { c, dirs } = await ateDirecoes(n);
@@ -190,7 +201,7 @@ test('P0 freio: a mesma conversa conta uma vez só; sem segredo ou servidor loca
 test('P0 custo: o modelo que recusa traduzir o ajuste também é pago (503 e custo somado)', async () => {
   const base = criarSimulada();
   const recusa = { ...base, mensagem: async p => String(p.mensagens?.[0]?.content || '').startsWith('DIREÇÕES:')
-    ? { texto: '', json: null, chamadas: [], conteudo: [], parada: 'recusa', modelo: 'claude-sonnet-5-5', uso: {}, custo_usd: 0.03 }
+    ? { texto: '', json: null, chamadas: [], conteudo: [], parada: 'recusa', modelo: 'claude-haiku-5-5', uso: {}, custo_usd: 0.03 }
     : base.mensagem(p) };
   const n = navegador();
   const { c, dirs } = await ateDirecoes(n);
@@ -205,7 +216,7 @@ test('P0 custo: falha numa rodada do agente leva o custo das rodadas anteriores'
   let rodada = 0;
   const ia = { mensagem: async () => {
     rodada++;
-    if (rodada === 1) return { texto: '', json: null, conteudo: [], parada: 'ferramenta', modelo: 'claude-sonnet-5-5', uso: {}, custo_usd: 0.05,
+    if (rodada === 1) return { texto: '', json: null, conteudo: [], parada: 'ferramenta', modelo: 'claude-haiku-5-5', uso: {}, custo_usd: 0.05,
       chamadas: [{ id: 't1', nome: 'atualizar_briefing', entrada: { negocio: { segmento: 'padaria' } } }] };
     throw new ErroIA('tempo', 'tempo esgotado', 0.01);
   } };
@@ -219,7 +230,7 @@ test('P0 troca de direção: escolher outra enquanto o modelo traduz o ajuste n�
   const base = criarSimulada();
   let troca;
   const lenta = { ...base, mensagem: async p => {
-    if (String(p.mensagens?.[0]?.content || '').startsWith('DIREÇÕES:')) { await troca(); return { json: { mudancas: [{ tipo: 'visual', operacao: 'tema', valor: 'claro' }], resposta: 'ok' }, parada: 'fim', custo_usd: 0, modelo: 'claude-sonnet-5-5' }; }
+    if (String(p.mensagens?.[0]?.content || '').startsWith('DIREÇÕES:')) { await troca(); return { json: { mudancas: [{ tipo: 'visual', operacao: 'tema', valor: 'claro' }], resposta: 'ok' }, parada: 'fim', custo_usd: 0, modelo: 'claude-haiku-5-5' }; }
     return base.mensagem(p);
   } };
   const n = navegador();

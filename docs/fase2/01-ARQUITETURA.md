@@ -80,7 +80,7 @@ Migrations `20261007120000` a `…120200`.
 
 `api/_ia/` é a interface única: `mensagem({ papel, sistema, mensagens, ferramentas, esquema })`.
 
-- **Provedor real:** Anthropic, pelo SDK oficial com versão fixa. Sonnet 5.5 com esforço médio na conversa e Opus 5.5 com esforço alto na geração. Fallback do servidor, cache do prompt e erros tipados.
+- **Provedor real:** Anthropic, pelo SDK oficial com versão fixa. Haiku 5.5 com esforço médio na conversa (modo econômico, dono 2026-10-08; antes, Sonnet 5.5) e Opus 5.5 com esforço alto na geração. Fallback do servidor só nos modelos que o têm (Opus e Sonnet; o Haiku 5.5 não tem), cache do prompt e erros tipados.
 - **Provedor simulado:** só para testes e o servidor local.
 - **O turno do agente:** `api/_vendas/agente.mjs`, com 5 ferramentas e sem nenhuma que mexa em preço, desconto, dados de terceiros ou pagamento.
 - **O valor fora do modelo:** o modelo não recebe o valor da estimativa, e um valor em dinheiro no texto é removido.
@@ -103,7 +103,7 @@ Migrations `20261007120000` a `…120200`.
 
 ## Incremento 5: alterações e escopo final
 
-- **Interpretação** (`api/_vendas/alteracoes.mjs`). O Sonnet 5.5, com esforço baixo e saída em JSON Schema, só traduz o pedido em operações de uma lista fechada:
+- **Interpretação** (`api/_vendas/alteracoes.mjs`). O Haiku 5.5 (modo econômico; antes, Sonnet 5.5), com esforço baixo e saída em JSON Schema, só traduz o pedido em operações de uma lista fechada:
   - paleta ou tipografia de outra direção;
   - cor;
   - tema;
