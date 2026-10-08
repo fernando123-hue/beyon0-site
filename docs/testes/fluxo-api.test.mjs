@@ -289,20 +289,120 @@ test('tetos: custo da conversa e taxa por IP', async () => {
   assert.equal(freioGeral(ip), true);
 });
 
-test('retenção: o texto de conversa parada sem contrato some; a com cobrança em aberto fica', async () => {
-  const velha = navegador(), paga = navegador();
-  const sv = await velha.iniciar(), sp = await paga.iniciar();
-  for (const [n, c] of [[velha, sv.conversa_id], [paga, sp.conversa_id]]) await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Tenho uma escola e quero um site institucional para captar matrículas' });
-  await local.db.query(`update app.conversas set ultima_atividade = now() - interval '120 days' where id in ($1, $2)`, [sv.conversa_id, sp.conversa_id]);
-  await local.db.exec(`begin; set local bz.transicao_livre = 'on'; update app.conversas set etapa = 'aguardando_pagamento' where id = '${sp.conversa_id}'; commit;`);   /* (montagem: pula etapas com licença) */
+/* montagem dos testes de retenção: datas passadas só no modo de restauração (o banco carimba as datas) */
+async function noPassado(tabela, id, coluna, dias) {
+  await local.db.exec(`begin; set local bz.restaurando = 'on'; set local bz.transicao_livre = 'on'; update app.${tabela} set ${coluna} = now() - interval '${Number(dias)} days' where id = '${id}'; commit;`);
+}
+async function leadDaConversa(conversaId, nome, extra = {}) {
+  const org = (await local.db.query('select org_id from app.conversas where id = $1', [conversaId])).rows[0].org_id;
+  const id = (await local.db.query(`insert into app.leads (org_id, nome, telefone, email, status) values ($1, $2, '+5521999990000', 'ana@exemplo.com', $3) returning id`,
+    [org, nome, extra.status || 'novo'])).rows[0].id;
+  await local.db.query('update app.conversas set lead_id = $1 where id = $2', [id, conversaId]);
+  return { id, org };
+}
+/* uma cobrança da conversa: proposta (do lead) + pagamento no estado pedido */
+async function cobranca(conversaId, leadId, org, status, diasAtras = 0) {
+  const pr = (await local.db.query(`insert into app.propostas (org_id, lead_id, conversa_id, titulo, escopo, valor_total) values ($1, $2, $3, 'Site', 'Escopo', 3000) returning id`,
+    [org, leadId, conversaId])).rows[0].id;
+  const pg = (await local.db.query(`insert into app.pagamentos (org_id, proposta_id, parcela, valor, status, gateway, gateway_ref, pago_em) values ($1, $2, 'sinal', 1500, $3, 'teste', $4, $5) returning id`,
+    [org, pr, status, 'ref-' + pr, status === 'pago' || status === 'estornado' ? new Date().toISOString() : null])).rows[0].id;
+  if (diasAtras) await noPassado('pagamentos', pg, 'created_at', diasAtras);
+}
+
+test('retenção: o texto de conversa parada sem fechar some; a com cobrança pendente recente ou paga fica', async () => {
+  const velha = navegador(), pendente = navegador(), paga = navegador(), desistiu = navegador();
+  const ss = await Promise.all([velha, pendente, paga, desistiu].map(n => n.iniciar()));
+  const [sv, sp, sg, sd] = ss;
+  for (const [n, s] of [[velha, sv], [pendente, sp], [paga, sg], [desistiu, sd]]) {
+    await n.chamar('POST', 'mensagem', { conversa_id: s.conversa_id, texto: 'Tenho uma escola e quero um site institucional para captar matrículas' });
+  }
+  for (const s of [sp, sg, sd]) await local.db.exec(`begin; set local bz.transicao_livre = 'on'; update app.conversas set etapa = 'aguardando_pagamento' where id = '${s.conversa_id}'; commit;`);
+  const lp = await leadDaConversa(sp.conversa_id, 'Pendente'), lg = await leadDaConversa(sg.conversa_id, 'Pagou'), ld = await leadDaConversa(sd.conversa_id, 'Desistiu');
+  await cobranca(sp.conversa_id, lp.id, lp.org, 'pendente', 5);     /* tentativa ativa, recente */
+  await cobranca(sg.conversa_id, lg.id, lg.org, 'pago');            /* fechou */
+  await cobranca(sd.conversa_id, ld.id, ld.org, 'expirado', 100);   /* o Pix venceu e ninguém pagou */
+  for (const s of ss) await noPassado('conversas', s.conversa_id, 'ultima_atividade', 120);
   await assert.rejects(local.rpc('vendas_reter', { dias: 7 }), e => e.codigo === '22023', 'menos de 30 dias: recusado');
   const r = await local.rpc('vendas_reter', {});
-  assert.ok(r.mensagens_apagadas >= 2);
+  assert.equal(r.dias, 60, 'o padrão é 2 meses (decisão do dono, 2026-10-07)');
   const msgs = async c => (await local.db.query('select count(*)::int n from app.mensagens where conversa_id = $1', [c])).rows[0].n;
   assert.equal(await msgs(sv.conversa_id), 0, 'conversa velha sem contrato: texto apagado');
-  assert.equal(await msgs(sp.conversa_id), 2, 'cobrança em aberto: fica');
+  assert.equal(await msgs(sd.conversa_id), 0, 'aceitou o escopo, o Pix venceu e não pagou: também sai (a etapa não protege mais)');
+  assert.equal(await msgs(sp.conversa_id), 2, 'cobrança pendente recente: fica');
+  assert.equal(await msgs(sg.conversa_id), 2, 'pagou: fica');
   assert.deepEqual((await local.db.query('select briefing from app.conversas where id = $1', [sv.conversa_id])).rows[0].briefing, {});
   assert.ok((await local.db.query('select 1 from app.estimativas where conversa_id = $1', [sv.conversa_id])).rows.length, 'o número do funil fica');
+});
+
+test('retenção de contato: o lead do orçamento com IA de quem não fechou é anonimizado em 2 meses; o resto fica (decisão do dono, 2026-10-07)', async () => {
+  const q = (sql, p) => local.db.query(sql, p);
+  const novo = async () => { const n = navegador(); const s = await n.iniciar(); return s.conversa_id; };
+  const [cVelha, cAtiva, cNegocia, cGanho, cProjeto, cCobra] = await Promise.all([novo(), novo(), novo(), novo(), novo(), novo()]);
+  const velho = await leadDaConversa(cVelha, 'Velho');
+  const ativo = await leadDaConversa(cAtiva, 'Ativo');
+  const negocia = await leadDaConversa(cNegocia, 'Negociando', { status: 'proposta' });
+  const ganhoLead = await leadDaConversa(cGanho, 'Ganho');
+  const cliente = (await q(`insert into app.clientes (org_id, nome) values ($1, 'Cliente') returning id`, [ganhoLead.org])).rows[0].id;
+  await q(`update app.leads set status = 'ganho', cliente_id = $1 where id = $2`, [cliente, ganhoLead.id]);
+  const comProjeto = await leadDaConversa(cProjeto, 'Com projeto');
+  await q(`insert into app.projetos (org_id, cliente_id, lead_id, nome, tipo) values ($1, $2, $3, 'Projeto', 'site_institucional')`, [comProjeto.org, cliente, comProjeto.id]);
+  const comCobranca = await leadDaConversa(cCobra, 'Com cobrança vencida');
+  await cobranca(cCobra, comCobranca.id, comCobranca.org, 'expirado', 100);   /* não trava a rotina (a FK de pagamentos) */
+  /* lead manual (painel: indicação), sem conversa: a carteira do dono, nunca tocada */
+  const manual = (await q(`insert into app.leads (org_id, nome, telefone, origem_meio, status) values ($1, 'Indicação do João', '+5521988887777', 'indicacao', 'novo') returning id`, [velho.org])).rows[0].id;
+  for (const c of [cVelha, cNegocia, cGanho, cProjeto, cCobra]) await noPassado('conversas', c, 'ultima_atividade', 70);
+  for (const l of [velho.id, ativo.id, negocia.id, ganhoLead.id, comProjeto.id, comCobranca.id, manual]) await noPassado('leads', l, 'updated_at', 70);
+
+  const r = await local.rpc('vendas_reter', {});
+  assert.ok(r.leads_anonimizados >= 2, JSON.stringify(r));
+  const lead = async id => (await q('select nome, email, telefone from app.leads where id = $1', [id])).rows[0];
+  assert.deepEqual(await lead(velho.id), { nome: '[apagado]', email: null, telefone: null }, 'parado há 70 dias sem fechar: anonimizado');
+  assert.deepEqual(await lead(comCobranca.id), { nome: '[apagado]', email: null, telefone: null }, 'cobrança vencida sem pagamento: anonimizado, e a rotina não trava');
+  assert.equal((await lead(ativo.id)).nome, 'Ativo', 'conversa recente: fica');
+  assert.equal((await lead(negocia.id)).nome, 'Negociando', 'em negociação pela equipe: fica');
+  assert.equal((await lead(ganhoLead.id)).nome, 'Ganho', 'virou cliente: fica');
+  assert.equal((await lead(comProjeto.id)).nome, 'Com projeto', 'tem projeto: fica');
+  assert.equal((await lead(manual)).nome, 'Indicação do João', 'lead manual do painel: nunca tocado');
+  assert.equal((await q('select count(*)::int n from app.propostas where lead_id = $1', [comCobranca.id])).rows[0].n, 1, 'a proposta e a cobrança ficam (registro)');
+  const r2 = await local.rpc('vendas_reter', {});
+  assert.equal(r2.leads_anonimizados, 0, 'rodar de novo não mexe no que já foi anonimizado');
+});
+
+test('retenção pelo caminho real: o lead que o agente cria ("em_conversa") é anonimizado; quem volta informa o contato de novo antes de pagar (revisões do PR 7)', async () => {
+  const q = (sql, p) => local.db.query(sql, p);
+  const n = navegador();
+  const { c } = await ateDirecoes(n);   /* conversa → estimativa → contato pela API → 3 direções */
+  const leadId = (await q('select lead_id from app.conversas where id = $1', [c])).rows[0].lead_id;
+  assert.equal((await q('select status from app.leads where id = $1', [leadId])).rows[0].status, 'em_conversa', 'o agente cria o lead assim');
+  /* outros dois, para as condições que o teste anterior não separava */
+  const { c: cRecente } = await ateDirecoes(navegador());   /* lead mexido pela equipe dentro do prazo: fica */
+  const leadRecente = (await q('select lead_id from app.conversas where id = $1', [cRecente])).rows[0].lead_id;
+  const { c: cProduzindo } = await ateDirecoes(navegador());   /* conversa em produção (pagou), mesmo velha: fica */
+  const leadProduzindo = (await q('select lead_id from app.conversas where id = $1', [cProduzindo])).rows[0].lead_id;
+  await local.db.exec(`begin; set local bz.transicao_livre = 'on'; update app.conversas set etapa = 'em_producao' where id = '${cProduzindo}'; commit;`);
+  for (const id of [c, cRecente, cProduzindo]) await noPassado('conversas', id, 'ultima_atividade', 70);
+  for (const id of [leadId, leadProduzindo]) await noPassado('leads', id, 'updated_at', 70);
+  await noPassado('leads', leadRecente, 'updated_at', 70);
+  await q("update app.leads set observacoes = 'ligar sexta' where id = $1", [leadRecente]);   /* a equipe mexeu hoje */
+
+  await local.rpc('vendas_reter', {});
+  const lead = async id => (await q('select nome, email, telefone, codigo_visita, termo from app.leads where id = $1', [id])).rows[0];
+  const anon = await lead(leadId);
+  assert.equal(anon.nome, '[apagado]', 'o lead real do orçamento é anonimizado');
+  assert.equal(anon.telefone, null);
+  assert.equal(anon.codigo_visita, null, 'o código da visita também sai');
+  assert.notEqual((await lead(leadRecente)).nome, '[apagado]', 'mexido pela equipe dentro do prazo: fica');
+  assert.notEqual((await lead(leadProduzindo)).nome, '[apagado]', 'conversa em produção: fica');
+
+  /* a pessoa volta: o estado diz "sem contato", pagar é recusado, e informar de novo devolve o contato ao MESMO lead */
+  const e = (await n.chamar('GET', 'estado', undefined, { query: '&conversa=' + c })).corpo;
+  assert.equal(e.conversa.tem_contato, false, 'lead anonimizado = sem contato: o formulário reaparece');
+  const pagar = await n.chamar('POST', 'pagar', { conversa_id: c, valor: 1, metodo: 'pix', pagador: PAGADOR });
+  assert.equal(pagar.status, 409, 'pagar sem contato: recusado — ' + JSON.stringify(pagar.corpo));
+  assert.equal((await n.chamar('POST', 'contato', { conversa_id: c, nome: 'Ana Volta', telefone: '(21) 98888-1111', aceite: true })).status, 200);
+  assert.equal((await q('select lead_id from app.conversas where id = $1', [c])).rows[0].lead_id, leadId, 'o mesmo lead (o da proposta)');
+  assert.equal((await lead(leadId)).nome, 'Ana Volta', 'o contato volta ao lead');
+  assert.equal((await n.chamar('GET', 'estado', undefined, { query: '&conversa=' + c })).corpo.conversa.tem_contato, true);
 });
 
 /* ======================= correções da revisão (2026-10-07) ======================= */

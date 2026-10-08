@@ -241,7 +241,7 @@ test('P0 consentimento: informar o contato de novo não apaga a data do 1º acei
   assert.equal((await conversa(c)).contato_aceite_em.getTime(), primeiro);
 });
 
-/* ---------- 6. a retenção de 90 dias prometida na privacidade passa a rodar sozinha (rotina diária, com segredo) ---------- */
+/* ---------- 6. a retenção prometida na privacidade (90 dias na época; 60 desde a migration 20261008120500) passa a rodar sozinha (rotina diária, com segredo) ---------- */
 test('P0 rotina diária: só com o segredo do cron; roda a retenção', async () => {
   const env = { CRON_SECRET: 'segredo-de-teste-123' };
   const pedir = auth => rotinas(new Request(BASE + '/api/rotinas?acao=diaria', { headers: auth ? { authorization: auth } : {} }), env, { banco: local.rpc });

@@ -27,7 +27,14 @@ Como ligar, ajustar e desligar o agente. A base (migrations, testes, segredos, b
    ```sql
    select cron.schedule('bz-retencao', '17 4 * * *', $$ select app.vendas_reter('{}'::jsonb) $$);
    ```
-   A função apaga o texto das conversas sem contrato paradas há 90 dias. Ficam os números do funil.
+   A função apaga o texto das conversas paradas há 60 dias que não fecharam (2 meses, decisão do dono de 2026-10-07;
+   "fechou" = pagamento pago/estornado, cobrança pendente recente ou em produção) e anonimiza o lead do orçamento
+   com IA de quem não fechou (migration `…120500_retencao_leads.sql`). Lead manual do painel nunca é tocado.
+   **Procedimento da equipe:** lead do orçamento que está sendo atendido pelo WhatsApp precisa ser marcado como
+   `proposta` no painel (ou editado) a cada 2 meses; `em_conversa` é o status com que o agente cria todo lead e não
+   protege. Quem volta numa conversa anonimizada informa o contato de novo antes de pagar (a API recusa sem contato).
+   A 1ª execução em produção pega todo o acumulado: antes de promover, contar com o mesmo critério.
+   Ficam os números do funil.
 
 ## 2. Desligar ou conter
 

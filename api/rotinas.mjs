@@ -3,7 +3,8 @@
    (vercel.json → crons) com o segredo do cron no cabeçalho. Uma porta só
    para o que roda sozinho, pelas MESMAS funções do banco que a API usa (a
    rotina não tem caminho próprio para contornar regra nenhuma).
-     1. retenção de 90 dias que a página de privacidade promete (app.vendas_reter)
+     1. retenção de 2 meses (60 dias) que a página de privacidade promete: texto das conversas e o lead de quem
+        não fechou (app.vendas_reter)
      2. retenção das métricas (~13 meses; antes era feita ao ABRIR o painel)
      3. a SAÚDE: app.rotinas_conferir grava a execução e os alertas do dia
         (pagamento que pede uma pessoa, teto de IA, IA falhando, freio por IP,
