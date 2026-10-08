@@ -144,7 +144,7 @@ const estadoPassagem = page => page.evaluate(() => {
   try { chave = sessionStorage.getItem('bz-passagem'); } catch {}
   return {
     url: location.pathname, opacidade: main.opacity, escala: main.transform,
-    classes: ['passagem-sai', 'passagem-chega', 'passagem-ancora'].filter(k => c.contains(k)).join(',') || '—', chave
+    classes: [...c].filter(k => /^(passagem-|sai-|chega-)/.test(k)).join(',') || '—', chave
   };
 });
 const inteira = s => s.opacidade === '1' && s.escala === 'none' && s.classes === '—';
@@ -206,7 +206,7 @@ await cenario('passagem-desiste', DESKTOP, async page => {
   const noLink = origem.x >= caixa.x && origem.x <= caixa.x + caixa.width && origem.y >= caixa.y && origem.y <= caixa.y + caixa.height;
   await page.waitForTimeout(2800);   /* SAI_MS (0,6 s) + DESISTE_MS (2 s) e folga */
   const s = await estadoPassagem(page);
-  return { ok: saindo.classes === 'passagem-sai' && noLink && inteira(s) && s.chave === null,
+  return { ok: saindo.classes === 'passagem-sai,sai-sites' && noLink && inteira(s) && s.chave === null,
     info: `saindo=${saindo.classes} origem no link=${noLink} 2,95 s depois: opacidade=${s.opacidade} escala=${s.escala} classes=${s.classes} chave=${s.chave}` };
 });
 await cenario('passagem-menu', CELULAR, async page => {
@@ -220,7 +220,7 @@ await cenario('passagem-menu', CELULAR, async page => {
   const altura = await page.evaluate(() => Math.round(document.querySelector('.nav__links').getBoundingClientRect().height));
   const s = await estadoPassagem(page);
   /* o menu fecha na hora: a transição de 320 ms cobriria o voo */
-  return { ok: s.classes === 'passagem-sai' && altura === 0, info: `menu 60 ms depois: altura=${altura}px classes=${s.classes}` };
+  return { ok: s.classes === 'passagem-sai,sai-sites' && altura === 0, info: `menu 60 ms depois: altura=${altura}px classes=${s.classes}` };
 });
 await cenario('passagem-ancora', DESKTOP, async page => {
   await page.goto(BASE + '/', { waitUntil: 'load' });
@@ -230,8 +230,35 @@ await cenario('passagem-ancora', DESKTOP, async page => {
   await page.waitForTimeout(2500);
   const s = await estadoPassagem(page);
   const rolou = await page.evaluate(() => Math.round(scrollY));
-  return { ok: chegando.classes === 'passagem-chega,passagem-ancora' && inteira(s) && rolou > 0,
+  return { ok: chegando.classes === 'passagem-chega,chega-automacao,passagem-ancora' && inteira(s) && rolou > 0,
     info: `chegou=${chegando.classes} depois: opacidade=${s.opacidade} escala=${s.escala} classes=${s.classes} rolagem=${rolou}` };
+});
+
+/* cada destino com a sua viagem (css/passagem-destinos.css): a saída certa para cada link e a chegada certa em cada página */
+const VIAGENS = [
+  { de: '/sites', link: '.nav__logo', nome: 'inicio', sai: 'pass-inicio-sai', chega: 'pass-assenta' },
+  { de: '/', link: '.nav a[href="/sites"]', nome: 'sites', sai: 'pass-sites-sai', chega: 'pass-sites-chega' },
+  { de: '/', link: '.nav a[href="/automacao"]', nome: 'automacao', sai: 'pass-auto-sai', chega: 'pass-auto-chega' },
+  { de: '/', link: '.nav a[href="/orcamento"]', nome: 'orcamento', sai: 'pass-orc-sai', chega: 'pass-orc-chega' }
+];
+await cenario('passagem-destinos', DESKTOP, async page => {
+  const linhas = [];
+  let ok = true;
+  for (const v of VIAGENS) {
+    await page.goto(BASE + v.de, { waitUntil: 'load' });
+    await page.waitForTimeout(800);
+    await segurarNavegacao(page);
+    await page.locator(v.link).first().click();
+    await page.waitForTimeout(100);
+    const saida = await page.evaluate(() => ({ classes: document.documentElement.className, anim: getComputedStyle(document.querySelector('main')).animationName }));
+    await page.evaluate(() => sessionStorage.setItem('bz-passagem', String(Date.now())));
+    await page.goto(BASE + (v.nome === 'inicio' ? '/' : '/' + v.nome), { waitUntil: 'domcontentloaded' });
+    const chegada = await page.evaluate(() => ({ classes: document.documentElement.className, anim: getComputedStyle(document.querySelector('main')).animationName }));
+    const certo = saida.classes.includes('sai-' + v.nome) && saida.anim === v.sai && chegada.classes.includes('chega-' + v.nome) && chegada.anim === v.chega;
+    if (!certo) ok = false;
+    linhas.push(`${v.nome}: sai=${saida.anim} chega=${chegada.anim}${certo ? '' : ' (ERRADO)'}`);
+  }
+  return { ok, info: linhas.join(' · ') };
 });
 
 /* ==========================================================================

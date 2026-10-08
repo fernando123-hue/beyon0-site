@@ -4,7 +4,8 @@
    A View Transition entre documentos do navegador falhava quase sempre aqui
    (Chrome real, 2026-10-04: 0 de 14 trocas), então a transição é do site.
    A TRAVESSIA (2026-10-09): sem painel e sem rótulo, a própria página se
-   move. No clique num link para outra página do site, o conteúdo voa na
+   move, e cada destino tem a sua viagem (css/passagem-destinos.css: o
+   núcleo, a grade, o fluxo, a régua). No clique num link para outra página do site, o conteúdo voa na
    direção de quem olha a partir do ponto tocado, a rede do fundo vem junto
    mais devagar, riscos de luz saem desse ponto, e só então navega. A página
    nova (js/ancoras.js põe `passagem-chega` no <head>) vem de longe e assenta.
@@ -26,7 +27,14 @@
   var DESISTE_MS = 2000;       /* a navegação não aconteceu (Parar, Esc, o navegador cancelou): a página volta.
                                   Curto: sem painel, a página sumida por muito tempo parece travada (revisão do PR #23) */
   var CHEGADA_MS = 1050;       /* a página assentada (pass-assenta, .92s), com folga */
-  var PAGINAS = ['/', '/sites', '/automacao', '/orcamento'];
+  /* cada destino tem a sua viagem (css/passagem-destinos.css); o mesmo mapa está no js/ancoras.js, que roda no <head>
+     antes deste e marca a chegada */
+  var DESTINOS = { '/': 'inicio', '/sites': 'sites', '/automacao': 'automacao', '/orcamento': 'orcamento' };
+  var CLASSES_SAIDA = ['sai-inicio', 'sai-sites', 'sai-automacao', 'sai-orcamento'];
+  var CLASSES_CHEGADA = ['chega-inicio', 'chega-sites', 'chega-automacao', 'chega-orcamento'];
+  /* de onde a viagem parte: o ponto tocado (Sites), o centro da tela (Início, o núcleo) ou nenhum ponto (Automação e
+     Orçamento andam de lado e de baixo; os riscos ficam nas trilhas do CSS) */
+  var PARTIDA = { inicio: 'centro', sites: 'toque', automacao: 'nenhum', orcamento: 'nenhum' };
   var saindo = false;
   var mexidos = [];            /* quem recebeu origem e classe na saída: tudo volta como estava se desistir */
   var chegada = 0;             /* o timer do fim da chegada */
@@ -38,7 +46,7 @@
     return p || '/';
   }
   function reduzido() { return !!B.reduced || html.classList.contains('menos-movimento'); }
-  function ehPagina(u) { return u.origin === location.origin && PAGINAS.indexOf(caminho(u)) >= 0 && caminho(u) !== caminho(location); }
+  function ehPagina(u) { return u.origin === location.origin && Object.prototype.hasOwnProperty.call(DESTINOS, caminho(u)) && caminho(u) !== caminho(location); }
 
   /* o fim da chegada. Enquanto <main> está em escala, quem mede pelo getBoundingClientRect (o ScrollTrigger, as
      entradas por seção) mediria errado: o js/anima.js espera 'passagem:chegou' para ligar, e aqui o ScrollTrigger
@@ -46,7 +54,7 @@
   function fimDaChegada() {
     clearTimeout(chegada);
     if (!html.classList.contains('passagem-chega')) return;
-    html.classList.remove('passagem-chega', 'passagem-ancora');
+    html.classList.remove.apply(html.classList, ['passagem-chega', 'passagem-ancora'].concat(CLASSES_CHEGADA));
     if (window.ScrollTrigger) window.ScrollTrigger.refresh();
     if (B.emit) B.emit('passagem:chegou');
   }
@@ -59,7 +67,7 @@
     if (!a || (a.target && a.target !== '_self') || a.hasAttribute('download')) return null;
     var u;
     try { u = new URL(a.href, location.href); } catch (err) { return null; }
-    return ehPagina(u) ? { href: u.href, link: a } : null;
+    return ehPagina(u) ? { href: u.href, link: a, nome: DESTINOS[caminho(u)] } : null;
   }
 
   /* o menu é o do celular quando o botão dele está à mostra (html.tem-menu vale no desktop também; o .is-open já
@@ -93,7 +101,7 @@
   function desfazer() {
     clearTimeout(desiste);
     saindo = false;
-    html.classList.remove('passagem-sai');
+    html.classList.remove.apply(html.classList, ['passagem-sai'].concat(CLASSES_SAIDA));
     mexidos.forEach(function (a) { a.n.classList.remove(a.c); a.n.style.transformOrigin = ''; });
     mexidos = [];
     try { sessionStorage.removeItem('bz-passagem'); } catch (err) { /* sem armazenamento: nada a apagar */ }
@@ -102,8 +110,10 @@
   function sair(d, p) {
     saindo = true;
     fimDaChegada();   /* clicou com a página ainda chegando: ela assenta antes de medir */
-    riscos.style.left = p.x + 'px';
-    riscos.style.top = p.y + 'px';
+    var partida = PARTIDA[d.nome] || 'toque';
+    if (partida === 'centro') p = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    riscos.style.left = partida === 'nenhum' ? '' : p.x + 'px';
+    riscos.style.top = partida === 'nenhum' ? '' : p.y + 'px';
     mexidos = alvos();
     mexidos.forEach(function (a) {
       var r = a.n.getBoundingClientRect();
@@ -111,7 +121,7 @@
       a.n.classList.add(a.c);
     });
     try { sessionStorage.setItem('bz-passagem', String(Date.now())); } catch (err) { /* sem armazenamento: chega sem a travessia */ }
-    html.classList.add('passagem-sai');
+    html.classList.add('passagem-sai', 'sai-' + d.nome);
     if (B.emit) B.emit('passagem', d);   /* o mini mergulha junto (js/mini.js) */
     setTimeout(function () { location.href = d.href; }, SAI_MS);
     desiste = setTimeout(desfazer, SAI_MS + DESISTE_MS);

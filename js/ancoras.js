@@ -40,6 +40,10 @@
     if (saiu && Date.now() - saiu < 5000 && !html.classList.contains('menos-movimento') &&
         !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) {
       html.classList.add('passagem-chega');
+      /* a cara da chegada é a desta página (css/passagem-destinos.css; o mesmo mapa do js/passagem.js) */
+      var aqui = location.pathname.replace(/\/index\.html$/, '/').replace(/\.html$/, '').replace(/(.)\/$/, '$1') || '/';
+      var chegadas = { '/': 'inicio', '/sites': 'sites', '/automacao': 'automacao', '/orcamento': 'orcamento' };
+      if (Object.prototype.hasOwnProperty.call(chegadas, aqui)) html.classList.add('chega-' + chegadas[aqui]);
       if (location.hash) html.classList.add('passagem-ancora');   /* nasce rolada até a âncora: só aparece, sem escala */
     }
   } catch (e) { /* sem armazenamento: chega sem painel */ }

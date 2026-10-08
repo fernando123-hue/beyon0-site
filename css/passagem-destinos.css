@@ -1,0 +1,122 @@
+/* ==========================================================================
+   A PASSAGEM POR DESTINO (js/passagem.js; 2026-10-09)
+   Dono: "quero que a transição seja específica para cada opção que clicamos",
+   e escolheu "cada destino com a sua cara". A base é a TRAVESSIA
+   (css/passagem.css): a página se move, sem painel nem rótulo. Aqui cada
+   destino muda a viagem:
+   - INÍCIO: você volta ao núcleo. A página encolhe para o centro, os riscos
+     convergem para lá e um anel se fecha; na chegada o anel se abre.
+   - SITES: a grade de colunas do layout se desenha sobre a página; na
+     chegada a página nova é revelada coluna a coluna.
+   - AUTOMAÇÃO: fluxo. A página desliza para o lado e linhas atravessam a
+     tela como dados; a nova entra pelo outro lado (a próxima etapa).
+   - ORÇAMENTO: a régua de medida sobe pela tela; a página nova assenta de
+     baixo para cima.
+   O JS põe sai-<destino> no clique; o js/ancoras.js põe chega-<página> no
+   <head>. Tempos e curvas são os da travessia suave (saída .58s
+   easeInOutSine, chegada easeOutCubic), cobertos por SAI_MS e CHEGADA_MS.
+   Só transform e opacity; as regras de âncora (passagem-ancora) e de
+   movimento reduzido vêm em css/passagem.css e continuam valendo.
+   ========================================================================== */
+
+/* ---------- as peças novas (escondidas fora da viagem delas) ---------- */
+.passagem__colunas { position: absolute; inset: 0; display: flex; }
+.passagem__colunas i { flex: 1; border-left: 1px solid rgb(var(--ac-rgb) / .3); transform-origin: 50% 0; opacity: 0; }
+.passagem__colunas i:first-child { border-left-color: transparent; }
+.passagem__regua { position: absolute; left: 0; right: 0; top: 0; height: 1px; background: rgb(var(--ac-rgb) / .8); opacity: 0; }
+.passagem__regua::before, .passagem__regua::after { content: ""; position: absolute; left: 0; right: 0; bottom: 1px; }
+.passagem__regua::before { height: 6px; background: repeating-linear-gradient(90deg, rgb(var(--ac-rgb) / .45) 0 1px, transparent 1px 16px); }
+.passagem__regua::after { height: 12px; background: repeating-linear-gradient(90deg, rgb(var(--ac-rgb) / .8) 0 1px, transparent 1px 96px); }
+.passagem__anel { position: absolute; left: 50%; top: 50%; width: 120vmax; height: 120vmax; margin: -60vmax 0 0 -60vmax; border-radius: 50%;
+  border: 1px solid rgb(var(--ac-rgb) / .6); opacity: 0; }
+/* no celular, 6 colunas (a grade do layout no celular) */
+@media (max-width: 620px) { .passagem__colunas i:nth-child(n + 7) { display: none; } }
+
+/* ---------- INÍCIO: de volta ao núcleo ---------- */
+html.passagem-sai.sai-inicio .passagem-mergulha { animation-name: pass-inicio-sai; }
+html.passagem-sai.sai-inicio .passagem-voa { animation-name: pass-inicio-voa; }
+html.passagem-sai.sai-inicio .rede { animation-name: pass-inicio-rede; }
+html.passagem-sai.sai-inicio .passagem__riscos i { animation-name: pass-risco-converge; }
+html.passagem-sai.sai-inicio .passagem__anel { animation: pass-anel-fecha .58s cubic-bezier(.37, 0, .63, 1) both; }
+html.passagem-chega.chega-inicio .passagem__anel { animation: pass-anel-abre 1s cubic-bezier(.33, 1, .68, 1) .05s both; }
+@keyframes pass-inicio-sai { from { transform: none; opacity: 1; } 20% { opacity: 1; } 90% { opacity: 0; } to { transform: scale(.78); opacity: 0; } }
+@keyframes pass-inicio-voa { from { transform: none; } to { transform: scale(.78); } }
+@keyframes pass-inicio-rede { from { transform: none; } to { transform: scale(.9); } }
+@keyframes pass-risco-converge { 0% { transform: translateX(70vmax) scaleX(1.9); opacity: 0; } 25% { opacity: .85; } 80% { opacity: .85; } 100% { transform: translateX(28px) scaleX(.2); opacity: 0; } }
+@keyframes pass-anel-fecha { 0% { transform: none; opacity: 0; } 25% { opacity: .6; } 100% { transform: scale(.04); opacity: 1; } }
+@keyframes pass-anel-abre { 0% { transform: scale(.04); opacity: 1; } 100% { transform: none; opacity: 0; } }
+
+/* ---------- SITES: a grade se desenha; a página é montada coluna a coluna ---------- */
+html.passagem-sai.sai-sites .passagem-mergulha { animation-name: pass-sites-sai; }
+html.passagem-sai.sai-sites .passagem-voa { animation-name: pass-sites-voa; }
+html.passagem-sai.sai-sites .rede { animation-name: none; }
+html.passagem-sai.sai-sites .passagem__riscos i,
+html.passagem-chega.chega-sites .passagem__riscos i { animation-name: none; }
+/* (propriedades longas: o atalho apagaria o atraso de cada coluna, lá embaixo) */
+html.passagem-sai.sai-sites .passagem__colunas i { animation-name: pass-coluna-desenha; animation-duration: .45s; animation-timing-function: cubic-bezier(.33, 1, .68, 1); animation-fill-mode: both; }
+/* a chegada: as colunas cobrem (o mesmo preto em que a saída terminou) e sobem uma a uma, da esquerda para a direita */
+html.passagem-chega.chega-sites .passagem__colunas i { background: var(--bg); animation-name: pass-coluna-sobe; animation-duration: .55s; animation-timing-function: cubic-bezier(.65, 0, .35, 1); animation-fill-mode: both; }
+html.passagem-chega.chega-sites main, html.passagem-chega.chega-sites .footer { animation-name: pass-sites-chega; }
+.passagem__colunas i:nth-child(2) { animation-delay: .03s; }
+.passagem__colunas i:nth-child(3) { animation-delay: .06s; }
+.passagem__colunas i:nth-child(4) { animation-delay: .09s; }
+.passagem__colunas i:nth-child(5) { animation-delay: .12s; }
+.passagem__colunas i:nth-child(6) { animation-delay: .15s; }
+.passagem__colunas i:nth-child(7) { animation-delay: .18s; }
+.passagem__colunas i:nth-child(8) { animation-delay: .21s; }
+.passagem__colunas i:nth-child(9) { animation-delay: .24s; }
+.passagem__colunas i:nth-child(10) { animation-delay: .27s; }
+.passagem__colunas i:nth-child(11) { animation-delay: .3s; }
+.passagem__colunas i:nth-child(12) { animation-delay: .33s; }
+@keyframes pass-sites-sai { from { transform: none; opacity: 1; } 20% { opacity: 1; } 90% { opacity: 0; } to { transform: scale(.96); opacity: 0; } }
+@keyframes pass-sites-voa { from { transform: none; } to { transform: scale(.96); } }
+@keyframes pass-sites-chega { from { transform: scale(.985); } to { transform: none; } }
+@keyframes pass-coluna-desenha { from { transform: scaleY(0); opacity: 1; } to { transform: none; opacity: 1; } }
+@keyframes pass-coluna-sobe { from { transform: none; opacity: 1; } to { transform: translateY(-101%); opacity: 1; } }
+
+/* ---------- AUTOMAÇÃO: fluxo de lado ---------- */
+html.sai-automacao .passagem__riscos, html.chega-automacao .passagem__riscos { left: 0; top: 0; width: 100%; height: 100%; }
+html.sai-automacao .passagem__riscos i, html.chega-automacao .passagem__riscos i { left: 100%; rotate: none; transform-origin: 0 50%;
+  background: linear-gradient(270deg, transparent, rgb(var(--ac-rgb) / .85)); }
+html.sai-automacao .passagem__riscos i:nth-child(3n), html.chega-automacao .passagem__riscos i:nth-child(3n) { background: linear-gradient(270deg, transparent, rgb(var(--ac-2-rgb) / .9)); }
+/* as linhas do fluxo em alturas espalhadas (vinte trilhas, sem ordem aparente) */
+.passagem__riscos i:nth-child(1) { top: 7%; }   .passagem__riscos i:nth-child(2) { top: 52%; }  .passagem__riscos i:nth-child(3) { top: 23%; }
+.passagem__riscos i:nth-child(4) { top: 81%; }  .passagem__riscos i:nth-child(5) { top: 38%; }  .passagem__riscos i:nth-child(6) { top: 66%; }
+.passagem__riscos i:nth-child(7) { top: 14%; }  .passagem__riscos i:nth-child(8) { top: 91%; }  .passagem__riscos i:nth-child(9) { top: 45%; }
+.passagem__riscos i:nth-child(10) { top: 29%; } .passagem__riscos i:nth-child(11) { top: 73%; } .passagem__riscos i:nth-child(12) { top: 58%; }
+.passagem__riscos i:nth-child(13) { top: 3%; }  .passagem__riscos i:nth-child(14) { top: 86%; } .passagem__riscos i:nth-child(15) { top: 33%; }
+.passagem__riscos i:nth-child(16) { top: 62%; } .passagem__riscos i:nth-child(17) { top: 19%; } .passagem__riscos i:nth-child(18) { top: 77%; }
+.passagem__riscos i:nth-child(19) { top: 49%; } .passagem__riscos i:nth-child(20) { top: 96%; }
+/* (fora da automação o container dos riscos tem altura 0, então esses `top` em % dão 0: não mexem nos rumos radiais) */
+html.passagem-sai.sai-automacao .passagem-mergulha { animation-name: pass-auto-sai; }
+html.passagem-sai.sai-automacao .passagem-voa { animation-name: pass-auto-voa; }
+html.passagem-sai.sai-automacao .rede { animation-name: pass-auto-rede; }
+html.passagem-sai.sai-automacao .passagem__riscos i { animation-name: pass-fluxo-sai; }
+html.passagem-chega.chega-automacao main, html.passagem-chega.chega-automacao .footer { animation-name: pass-auto-chega; }
+html.passagem-chega.chega-automacao .passagem__riscos i { animation-name: pass-fluxo-chega; }
+@keyframes pass-auto-sai { from { transform: none; opacity: 1; } 20% { opacity: 1; } 90% { opacity: 0; } to { transform: translateX(-22%); opacity: 0; } }
+@keyframes pass-auto-voa { from { transform: none; } to { transform: translateX(-22%); } }
+@keyframes pass-auto-rede { from { transform: none; } to { transform: translateX(-5%); } }
+@keyframes pass-auto-chega { 0% { transform: translateX(18%); opacity: 0; } 45% { opacity: 1; } 100% { transform: none; opacity: 1; } }
+@keyframes pass-fluxo-sai { 0% { transform: translateX(0); opacity: 0; } 15% { opacity: .85; } 85% { opacity: .85; } 100% { transform: translateX(-130vw); opacity: 0; } }
+@keyframes pass-fluxo-chega { 0% { transform: translateX(0); opacity: 0; } 15% { opacity: .8; } 100% { transform: translateX(-120vw); opacity: 0; } }
+
+/* ---------- ORÇAMENTO: a régua mede e a página assenta de baixo ---------- */
+html.passagem-sai.sai-orcamento .passagem-mergulha { animation-name: pass-orc-sai; }
+html.passagem-sai.sai-orcamento .passagem-voa { animation-name: pass-orc-voa; }
+html.passagem-sai.sai-orcamento .rede { animation-name: pass-orc-rede; }
+html.passagem-sai.sai-orcamento .passagem__riscos i,
+html.passagem-chega.chega-orcamento .passagem__riscos i { animation-name: none; }
+/* a régua sobe do pé da tela até pouco acima do meio na saída e segue dali na chegada: um traço só */
+html.passagem-sai.sai-orcamento .passagem__regua { animation: pass-regua-sobe .58s cubic-bezier(.37, 0, .63, 1) both; }
+html.passagem-chega.chega-orcamento .passagem__regua { animation: pass-regua-segue .92s cubic-bezier(.33, 1, .68, 1) both; }
+html.passagem-chega.chega-orcamento main, html.passagem-chega.chega-orcamento .footer { animation-name: pass-orc-chega; }
+@keyframes pass-orc-sai { from { transform: none; opacity: 1; } 20% { opacity: 1; } 90% { opacity: 0; } to { transform: translateY(-14%); opacity: 0; } }
+@keyframes pass-orc-voa { from { transform: none; } to { transform: translateY(-14%); } }
+@keyframes pass-orc-rede { from { transform: none; } to { transform: translateY(-5%); } }
+@keyframes pass-orc-chega { 0% { transform: translateY(14%); opacity: 0; } 45% { opacity: 1; } 100% { transform: none; opacity: 1; } }
+@keyframes pass-regua-sobe { 0% { transform: translateY(100vh); opacity: 0; } 15% { opacity: 1; } 100% { transform: translateY(45vh); opacity: 1; } }
+@keyframes pass-regua-segue { 0% { transform: translateY(45vh); opacity: 1; } 75% { opacity: 1; } 100% { transform: translateY(-2vh); opacity: 0; } }
+
+/* chegando a uma âncora, a página só aparece (vale sobre qualquer destino: esta regra vem por último) */
+html.passagem-chega.passagem-ancora main, html.passagem-chega.passagem-ancora .footer { animation-name: pass-surge; }
