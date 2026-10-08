@@ -25,17 +25,19 @@ const TOKEN_MAX = 2048;
 const TEMPO_MS = 8000;
 /* segredos de TESTE da Cloudflare (1x… passa sempre, 2x… falha, 3x… já usado): nunca valem na produção */
 const SEGREDO_DE_TESTE = /^[123]x0{20,}/;
+const CHAVE_DE_TESTE = /^[123]x0{18,}/;   /* (1x…AA passa, 2x…AB falha, 3x…FF força o clique, 1x/2x…BB invisível) */
 /* recusa que vem da CONFIGURAÇÃO ou da Cloudflare, não do visitante: 503 com WhatsApp, não "robô" */
 const ERRO_NOSSO = new Set(['missing-input-secret', 'invalid-input-secret', 'internal-error', 'bad-request']);
 
 export function configTurnstile(env = {}) {
-  const siteKey = env.TURNSTILE_SITE_KEY || null, segredo = env.TURNSTILE_SECRET || null;
+  const siteKey = String(env.TURNSTILE_SITE_KEY || '').trim() || null, segredo = String(env.TURNSTILE_SECRET || '').trim() || null;
   const fechado = motivo => ({ exigido: true, siteKey: null, segredo: null, motivo });
   const naVercel = !!(env.VERCEL || env.VERCEL_ENV);
   const producao = naVercel && !['preview', 'development'].includes(env.VERCEL_ENV);
   if (!!siteKey !== !!segredo) return fechado('só uma das chaves do Turnstile está configurada');   /* (meia configuração: em qualquer ambiente) */
   if (siteKey && segredo) {
     if (producao && SEGREDO_DE_TESTE.test(segredo)) return fechado('segredo de teste da Cloudflare na produção');
+    if (producao && CHAVE_DE_TESTE.test(siteKey)) return fechado('chave de site de teste da Cloudflare na produção');
     return { exigido: true, siteKey, segredo };
   }
   if (producao) return fechado('TURNSTILE_SITE_KEY/TURNSTILE_SECRET ausentes na produção');
