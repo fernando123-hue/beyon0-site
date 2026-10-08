@@ -46,7 +46,7 @@ function estadoParaModelo({ briefing, estimativa, etapa }) {
 }
 
 /* um turno completo. ia: a interface de _ia/provedor.mjs */
-export async function executarTurno({ ia, regras, conversa, mensagem }) {
+export async function executarTurno({ ia, regras, conversa, mensagem, direcoes }) {
   let briefing = conversa.briefing || {};
   let estimativa = null, pedirContato = false, diagnostico = null;
   const sugestoes = [];
@@ -56,7 +56,7 @@ export async function executarTurno({ ia, regras, conversa, mensagem }) {
   /* o estado vai num 2º bloco do prompt de sistema (sem cache), não como mensagem: a API só aceita user/assistant em messages */
   const contexto = estadoParaModelo({ briefing, estimativa: conversa.estimativa, etapa: conversa.etapa });
   const tools = ferramentas(regras);
-  const sistema = montarSistema(regras, { direcoes: modoDirecoes() });
+  const sistema = montarSistema(regras, { direcoes: direcoes || modoDirecoes() });   /* (o fluxo passa o mesmo modo que usa) */
   let texto = '';
 
   for (let i = 0; i < MAX_ITERACOES; i++) {

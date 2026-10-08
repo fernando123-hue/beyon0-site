@@ -23,6 +23,7 @@ import { ORG } from './_vendas/org.mjs';
 import { higienizar } from './_vendas/direcao.mjs';
 
 const CHAVE_MINIMA = 32;
+const CORPO_MAX = 200000;          /* caracteres do POST do painel */
 const PERIODOS = [7, 30, 90, 365];
 const JANELA_ADS_DIAS = 90;         /* o Google Ads só aceita conversão até 90 dias depois do clique */
 const TENTATIVAS = { max: 10, janelaMs: 15 * 60e3 };
@@ -92,7 +93,9 @@ export async function mudar(request, env) {
   const db = banco(env);
   if (!db.ligado) return json({ erro: 'Banco não configurado.' }, 503);
   let bruto;
-  try { bruto = JSON.parse(await request.text()); } catch { bruto = null; }
+  const texto = await request.text();
+  if (texto.length > CORPO_MAX) return json({ erro: 'Pedido grande demais.' }, 413);   /* (uma direção higienizada cabe com folga) */
+  try { bruto = JSON.parse(texto); } catch { bruto = null; }
   if (bruto && typeof bruto.entregar_direcao === 'string') return entregarDirecao(bruto, env);
   if (bruto && typeof bruto.avisado === 'string') return marcarAvisado(bruto, env);
   /* marcar um alerta como resolvido */
@@ -122,7 +125,12 @@ export async function mudar(request, env) {
 async function filaDirecoes(env) {
   const rpc = criarTransporte(env);
   if (!rpc) return json({ erro: 'Banco não configurado.' }, 503);
-  try { return json({ fila: await rpc('vendas_fila_direcoes', { org_slug: ORG }) }); }
+  try {
+    const r = await rpc('vendas_fila_direcoes', { org_slug: ORG });
+    const fila = r && Array.isArray(r.itens) ? r.itens : [];
+    const total = r && Number.isInteger(r.total) ? r.total : fila.length;
+    return json({ fila, total, truncada: total > fila.length });   /* (a lista mostra até 50: o total avisa o que ficou de fora) */
+  }
   catch (e) { console.error('[painel] fila de direções:', e && e.codigo); return json({ erro: 'Não deu para ler a fila agora.' }, 500); }
 }
 

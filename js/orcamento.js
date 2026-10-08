@@ -234,6 +234,7 @@
       f.appendChild(el('p', '', 'Na fila: a direção de ' + (NOMES[d.estrategia] || '').toLowerCase() + ' fica pronta em até 24 horas úteis.'));
       mini.appendChild(f);
       corpo.appendChild(el('p', 'dir__resumo', 'Avisamos pelo seu WhatsApp. O progresso fica salvo neste aparelho.'));
+      corpo.appendChild(botao('btn btn--sm', 'Conferir agora', function () { recarregar().catch(function () {}); }));   /* (sem consulta automática: a pessoa confere quando quiser) */
     } else {
       var g = el('div', 'dir__progresso');
       g.appendChild(el('p', '', 'Desenhando a direção de ' + (NOMES[d.estrategia] || '').toLowerCase() + '…'));

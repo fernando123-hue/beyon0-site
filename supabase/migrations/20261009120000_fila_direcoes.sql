@@ -11,34 +11,34 @@
 -- ==========================================================================
 alter table app.direcoes add column avisada_em timestamptz;   -- quando o dono avisou o cliente de que ficaram prontas
 
--- a fila: pedidos com direção na fila, ou prontos e ainda não avisados (a geração mais recente de cada conversa)
+-- a fila: pedidos com direção na fila, ou prontos e ainda não avisados (a geração mais recente de cada conversa).
+-- Devolve { itens: os 50 mais antigos, total: quantos há }: um pedido novo nunca some calado da lista
 create function app.vendas_fila_direcoes(p jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
-declare v_org uuid;
+declare v_org uuid; v_itens jsonb; v_total integer;
 begin
   select id into v_org from app.organizacoes where slug = p ->> 'org_slug';
   if not found then raise exception 'organização não encontrada' using errcode = 'P0002'; end if;
-  return coalesce((
-    select jsonb_agg(q.item order by q.pedido_em) from (
-      select min(d.created_at) as pedido_em, jsonb_build_object(
-        'conversa_id', c.id, 'etapa', c.etapa, 'pedido_em', min(d.created_at),
-        'contato', jsonb_build_object('nome', l.nome, 'telefone', l.telefone, 'email', l.email),
-        'briefing', c.briefing,
-        'fatores', (select e.fatores from app.estimativas e where e.conversa_id = c.id order by e.created_at desc limit 1),
-        'direcoes', jsonb_agg(jsonb_build_object('id', d.id, 'numero', d.numero, 'estrategia', d.estrategia, 'status', d.status) order by d.numero)
-      ) as item
-      from app.conversas c
-      join app.direcoes d on d.conversa_id = c.id
-       and d.geracao = (select max(x.geracao) from app.direcoes x where x.conversa_id = c.id)
-      left join app.leads l on l.org_id = c.org_id and l.id = c.lead_id
-      where c.org_id = v_org and c.etapa in ('contato', 'gerando', 'direcoes', 'escolhida', 'alteracoes')
-      group by c.id, l.nome, l.telefone, l.email
-      having bool_or(d.status = 'gerando')
-          or (bool_and(d.status <> 'gerando') and bool_or(d.status = 'pronta') and bool_or(d.status = 'pronta' and d.avisada_em is null))
-      order by min(d.created_at)
-      limit 50
-    ) q
-  ), '[]'::jsonb);
+  with pedidos as (
+    select min(d.created_at) as pedido_em, jsonb_build_object(
+      'conversa_id', c.id, 'etapa', c.etapa, 'pedido_em', min(d.created_at),
+      'contato', jsonb_build_object('nome', l.nome, 'telefone', l.telefone, 'email', l.email),
+      'briefing', c.briefing,
+      'fatores', (select e.fatores from app.estimativas e where e.conversa_id = c.id order by e.created_at desc limit 1),
+      'direcoes', jsonb_agg(jsonb_build_object('id', d.id, 'numero', d.numero, 'estrategia', d.estrategia, 'status', d.status) order by d.numero)
+    ) as item
+    from app.conversas c
+    join app.direcoes d on d.conversa_id = c.id
+     and d.geracao = (select max(x.geracao) from app.direcoes x where x.conversa_id = c.id)
+    left join app.leads l on l.org_id = c.org_id and l.id = c.lead_id
+    where c.org_id = v_org and c.etapa in ('contato', 'gerando', 'direcoes', 'escolhida', 'alteracoes')
+    group by c.id, l.nome, l.telefone, l.email
+    having bool_or(d.status = 'gerando') or bool_or(d.status = 'pronta' and d.avisada_em is null)
+  )
+  select (select coalesce(jsonb_agg(q.item order by q.pedido_em), '[]'::jsonb) from (select * from pedidos order by pedido_em limit 50) q),
+         (select count(*) from pedidos)
+    into v_itens, v_total;
+  return jsonb_build_object('itens', v_itens, 'total', v_total);
 end $$;
 
 -- o que o painel precisa saber de UMA direção antes de entregar (a estratégia vem do banco, nunca do arquivo)

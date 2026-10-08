@@ -141,3 +141,41 @@ test('painel: entregar passa pelo mesmo filtro da geração; as 3 prontas libera
   assert.ok(!(await painelGet('?fila=direcoes')).corpo.fila.some(x => x.conversa_id === c), 'avisado: sai da fila');
   assert.equal((await painelPost({ avisado: '00000000-0000-4000-8000-000000000000' })).status, 404);
 });
+
+test('controle positivo: no modo da API a geração chama o modelo (o espião enxerga)', async () => {
+  const { n, c } = await ateAFila('api');
+  await n.chamar('POST', 'gerar', { conversa_id: c });
+  const d = (await n.chamar('GET', 'estado', undefined, '&conversa=' + c)).corpo.direcoes[0];
+  const antes = chamadasGeracao;
+  const r = await n.chamar('POST', 'gerar-direcao', { conversa_id: c, direcao_id: d.id });
+  assert.equal(r.corpo.status, 'pronta', JSON.stringify(r.corpo));
+  assert.ok(chamadasGeracao > antes, 'o modelo de geração foi chamado');
+});
+
+test('modo manual: a fila não depende dos tetos de gasto da IA (não há gasto de API na fila)', async () => {
+  /* revisão técnica: o disjuntor aberto ou o teto da conversa não podem barrar quem acabou de deixar o WhatsApp */
+  /* (acima do teto da conversa, US$ 1,50, e longe do teto do dia, US$ 25, que valeria para os outros testes) */
+  const { n, c } = await ateAFila();
+  const api = await ateAFila('api');
+  await local.db.exec(`update app.conversas set custo_ia_usd = 1.6 where id in ('${c}', '${api.c}')`);
+  const g = await n.chamar('POST', 'gerar', { conversa_id: c });
+  assert.equal(g.status, 200, JSON.stringify(g.corpo));
+  assert.equal((await api.n.chamar('POST', 'gerar', { conversa_id: api.c })).status, 429, 'no modo da API o teto segue valendo');
+});
+
+test('painel: a fila diz o total (pedido novo nunca some calado), avisado antes da hora não perde o pedido, POST sem chave e corpo grande são recusados', async () => {
+  const { n, c } = await ateAFila();
+  await n.chamar('POST', 'gerar', { conversa_id: c });
+  const f = await painelGet('?fila=direcoes');
+  assert.equal(typeof f.corpo.total, 'number');
+  assert.ok(f.corpo.total >= f.corpo.fila.length);
+  assert.equal(f.corpo.truncada, f.corpo.total > f.corpo.fila.length);
+  const cedo = await painelPost({ avisado: c });
+  assert.equal(cedo.status, 200);
+  assert.equal(cedo.corpo.avisadas, 0, 'nada pronto: nada marcado');
+  assert.ok((await painelGet('?fila=direcoes')).corpo.fila.some(x => x.conversa_id === c), 'segue na fila');
+  const semChave = await mudar(new Request(BASE + '/api/painel', { method: 'POST', body: JSON.stringify({ avisado: c }), headers: { 'x-forwarded-for': '192.0.2.78' } }), ENV);
+  assert.equal(semChave.status, 401);
+  const grande = await mudar(new Request(BASE + '/api/painel', comChave({ method: 'POST', body: JSON.stringify({ entregar_direcao: c, conteudo: { lixo: 'x'.repeat(300000) } }) })), ENV);
+  assert.equal(grande.status, 413);
+});

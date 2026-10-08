@@ -165,7 +165,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
   async function turno(vid, conversaId, est, regras, msg) {
     let r;
     try {
-      r = await executarTurno({ ia, regras: regras.regras, conversa: { etapa: est.conversa.etapa, briefing: est.conversa.briefing, mensagens: est.mensagens, estimativa: est.estimativa }, mensagem: msg });
+      r = await executarTurno({ ia, direcoes: modo, regras: regras.regras, conversa: { etapa: est.conversa.etapa, briefing: est.conversa.briefing, mensagens: est.mensagens, estimativa: est.estimativa }, mensagem: msg });
     } catch (e) {
       await somarCusto(conversaId, vid, e && e.custo_usd);   /* (as rodadas pagas antes da falha, de qualquer tipo de erro) */
       if (e instanceof ErroIA) await banco('vendas_registrar_evento', { conversa_id: conversaId, visitante_id: vid, tipo: 'ia_falhou', dados: { motivo: e.motivo } }).catch(() => {});
@@ -255,7 +255,8 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     async gerar({ request, corpo }) {
       const vid = await visitante(request);
       exigir(ehUuid(corpo?.conversa_id), 400, 'Conversa inválida.');
-      await dentroDoCusto(await estado(vid, corpo.conversa_id));
+      /* (fila manual: não há gasto de API; o disjuntor ou o teto da IA não barram quem acabou de deixar o WhatsApp) */
+      if (modo !== 'manual') await dentroDoCusto(await estado(vid, corpo.conversa_id));
       return banco('vendas_iniciar_geracao', { conversa_id: corpo.conversa_id, visitante_id: vid, max_geracoes: TETOS.geracoes_por_conversa });
     },
 
