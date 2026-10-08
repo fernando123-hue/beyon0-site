@@ -15,7 +15,7 @@ import { interpretar, aplicar, fatoresComEscopo } from './alteracoes.mjs';
 import { montarEscopo } from './escopo.mjs';
 import { limparMensagem, pareceInjecao, redigir, MSG_MAX } from './seguranca.mjs';
 import { ehUuid, normalizarTelefone } from '../_valida-app.mjs';
-import { TETOS, reservaUsd } from '../_ia/config.mjs';
+import { TETOS, reservaUsd, modoDirecoes } from '../_ia/config.mjs';
 import { ErroIA } from '../_ia/provedor.mjs';
 import { ErroBanco } from './transporte.mjs';
 import { ErroPagamento } from '../_pagamentos/servico.mjs';
@@ -75,7 +75,10 @@ async function regrasAtivas(banco) {
   return r;
 }
 
-export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoFreio, requestId }) {
+export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoFreio, requestId, direcoes }) {
+  /* as direções: geradas pela API na hora, ou na FILA MANUAL (o dono produz no Claude Code, em até 24 horas úteis;
+     decisão do dono 2026-10-08). Os testes passam o modo; o site lê BZ_DIRECOES */
+  const modo = direcoes === 'manual' || direcoes === 'api' ? direcoes : modoDirecoes();
   /* o REGISTRO das chamadas de IA (app.ia_chamadas): cada chamada ao modelo vira uma linha — papel, modelo,
      tokens, custo, ferramentas pedidas, tempo, erro — sem o texto de ninguém; gravado no fim da ação, dê certo ou não */
   const chamadas = [];
@@ -162,7 +165,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
   async function turno(vid, conversaId, est, regras, msg) {
     let r;
     try {
-      r = await executarTurno({ ia, regras: regras.regras, conversa: { etapa: est.conversa.etapa, briefing: est.conversa.briefing, mensagens: est.mensagens, estimativa: est.estimativa }, mensagem: msg });
+      r = await executarTurno({ ia, direcoes: modo, regras: regras.regras, conversa: { etapa: est.conversa.etapa, briefing: est.conversa.briefing, mensagens: est.mensagens, estimativa: est.estimativa }, mensagem: msg });
     } catch (e) {
       await somarCusto(conversaId, vid, e && e.custo_usd);   /* (as rodadas pagas antes da falha, de qualquer tipo de erro) */
       if (e instanceof ErroIA) await banco('vendas_registrar_evento', { conversa_id: conversaId, visitante_id: vid, tipo: 'ia_falhou', dados: { motivo: e.motivo } }).catch(() => {});
@@ -206,7 +209,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       exigir(ehUuid(query.get('conversa')), 400, 'Conversa inválida.');
       const e = await estado(vid, query.get('conversa'));
       delete e.conversa.custo_ia_usd;   /* (métrica interna) */
-      return e;
+      return { ...e, modo_direcoes: modo };   /* (a tela troca "alguns minutos" por "até 24 horas úteis") */
     },
 
     /* um turno de conversa com o agente */
@@ -242,6 +245,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       exigir(!email || (email.length <= 254 && EMAIL.test(email)), 400, 'E-mail inválido.');
       exigir(corpo?.telefone ? telefone : true, 400, 'WhatsApp inválido.');
       exigir(email || telefone, 400, 'Informe WhatsApp ou e-mail.');
+      exigir(modo !== 'manual' || telefone, 400, 'Informe seu WhatsApp: é por ele que avisamos quando as direções ficarem prontas.');
       exigir(corpo?.aceite === true, 400, 'É preciso concordar com o uso dos dados para receber as propostas.');
       await banco('vendas_informar_contato', { conversa_id: corpo.conversa_id, visitante_id: vid, nome, email, telefone, aceite: true });   /* (o banco guarda quando) */
       return { ok: true };
@@ -251,7 +255,8 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     async gerar({ request, corpo }) {
       const vid = await visitante(request);
       exigir(ehUuid(corpo?.conversa_id), 400, 'Conversa inválida.');
-      await dentroDoCusto(await estado(vid, corpo.conversa_id));
+      /* (fila manual: não há gasto de API; o disjuntor ou o teto da IA não barram quem acabou de deixar o WhatsApp) */
+      if (modo !== 'manual') await dentroDoCusto(await estado(vid, corpo.conversa_id));
       return banco('vendas_iniciar_geracao', { conversa_id: corpo.conversa_id, visitante_id: vid, max_geracoes: TETOS.geracoes_por_conversa });
     },
 
@@ -265,6 +270,8 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       const atual = (est.direcoes || []).find(d => d.id === corpo.direcao_id);
       exigir(atual, 404, 'Não encontrado.');
       if (atual.status !== 'gerando') return { status: atual.status };
+      /* fila manual: nada a gerar aqui, o dono entrega pelo painel (vendas_concluir_direcao) */
+      if (modo === 'manual') return { status: 'na_fila' };
       /* em geração por outro pedido (o navegador repede a cada 60 s): responde sem entrar na trava da organização
          (revisão de segurança do PR 16). Só a consulta ainda inexistente (migration a aplicar) segue para reivindicar */
       const andamento = await banco('vendas_direcao_em_andamento', { conversa_id: corpo.conversa_id, visitante_id: vid, direcao_id: corpo.direcao_id })
