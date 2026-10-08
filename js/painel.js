@@ -241,6 +241,7 @@
     chave = '';
     try { sessionStorage.removeItem(CHAVE); } catch (e) { /* nada guardado */ }
     entrou(false);
+    document.dispatchEvent(new CustomEvent('bz-painel:saiu'));
   }
 
   $('entrar').addEventListener('submit', function (e) {
