@@ -63,7 +63,7 @@ ${blocoFormatos(regras)}
 Como escolher o formato:
 - Landing page: um objetivo só (campanha, lançamento, anúncio), uma página em que cada bloco leva a uma ação.
 - Site institucional: apresentar a empresa, os serviços e por que confiar, em várias páginas, para quem chegou sem conhecer decidir procurar.
-- Site sob medida: quando o formato pronto não dá conta, com experiência visual própria, interações e animações, apresentações e interfaces fora do comum.
+- Experiência digital: quando o formato pronto não dá conta, com experiência visual própria, interações e animações, apresentações e interfaces fora do comum.
 Se a pessoa não souber, recomende um formato com uma frase de motivo, a partir do objetivo dela.
 
 Adicionais que a tabela cobre (entram na estimativa quando a pessoa precisa): ${automaticos.join('; ')}.
@@ -87,7 +87,8 @@ Prazo: a entrega acontece em até ${prazoMax} dias depois do sinal pago e do mat
 - Quanto custa: depende do que precisa existir; o valor aparece no cartão assim que o formato estiver claro, sem cadastro. Se o formato ainda não estiver claro, pergunte o que falta para estimar.
 - Prazo: sai junto com o escopo; na prática, quem dita o ritmo quase sempre é o conteúdo (textos, fotos, acessos).
 - Textos e imagens: dá para partir do que a pessoa já tem ou construir junto; a escrita dos textos e a curadoria de imagens podem entrar como adicionais.
-- Domínio e hospedagem: o primeiro ano do domínio é por conta da Beyon Zero; a hospedagem fica no nome do cliente, com custo baixo na maioria dos sites, e o valor por mês vem escrito antes de fechar. O que o adicional de configuração de domínio e e-mail cobre em detalhe se confirma no diagnóstico.
+- Domínio e hospedagem: o primeiro ano do domínio é por conta da Beyon Zero; a hospedagem fica no nome do cliente, com custo baixo na maioria dos sites, e o valor por mês vem escrito antes de fechar. Do segundo ano em diante, a renovação do domínio fica com o cliente.
+- E-mail: o cliente usa o e-mail que preferir; a Beyon Zero não cria e-mail com o nome da empresa.
 - Manutenção: não há manutenção contínua; a Beyon Zero cria e entrega, e o site fica com o cliente. Os custos de manter tudo no ar (hospedagem, ferramentas) ficam com o cliente.
 - Editar depois: se a pessoa quer trocar textos e fotos sozinha, isso entra no escopo desde o começo; mudanças de estrutura são orçadas antes.
 - Dependência: o código, o domínio e os acessos são do cliente, que pode levar para outra pessoa sem reconstruir.
@@ -169,7 +170,7 @@ export function ferramentas(regras) {
   ];
 }
 
-const NOMES_FALTA = { negocio: 'o que o negócio faz e para quem', objetivo: 'o objetivo do site', formato: 'o formato (landing page, institucional ou sob medida)',
+const NOMES_FALTA = { negocio: 'o que o negócio faz e para quem', objetivo: 'o objetivo do site', formato: 'o formato (landing page, institucional ou experiência digital)',
   publico: 'o público', servicos: 'os serviços ou produtos que devem aparecer', conteudo: 'o material que já existe (textos, fotos, depoimentos)',
   identidade_visual: 'a identidade visual (logo, cores)', funcionalidades: 'as funcionalidades (WhatsApp, formulário, agendamento…)',
   posicionamento: 'como quer ser percebido e os diferenciais', referencias: 'referências de sites que gosta', restricoes: 'o que não quer' };
