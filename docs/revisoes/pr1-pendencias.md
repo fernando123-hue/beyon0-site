@@ -69,6 +69,10 @@ com credenciais reais**, salvo onde diz outra coisa.
 
 ## Depois / quando acontecer
 
+- Revisão do PR "Monte seu orçamento" (2026-10-08), ANTES de ligar GA4/Ads: (a) `/orcamento` não carrega
+  `js/medicao.js`, então os cliques em WhatsApp dentro dele não contam; (b) o clique em "Monte seu orçamento" não
+  gera evento (só wa.me conta): emitir `orcamento_iniciar` com `origem_botao` (mesma `botao()`) e medir lead e
+  sinal pago como conversões de verdade. Nível 3 (`js/medicao.js`), PR próprio.
 - Segurança B7: com Cloudflare na frente, usar `cf-connecting-ip` **só** com a origem restrita à Cloudflare.
 - Segurança B8: injeção de fórmula no CSV do painel (só o dono controla o parâmetro).
 - Técnica B2: o portão aceita revisão anterior ao último commit; comparar datas.

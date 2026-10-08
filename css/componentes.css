@@ -130,8 +130,8 @@ html:not(.has-gsap) .varredura, html.menos-movimento .varredura { display: none;
 /* o WhatsApp para quem prefere uma pessoa: sempre à mão, um degrau abaixo do orçamento */
 .cta__alt { margin-top: 1.75rem; color: var(--t3); }
 .hero__fine .cta__alt { margin: 1.1rem 0 0; }
-.cta__alt a { white-space: nowrap; color: var(--t1); text-decoration: underline; text-decoration-color: var(--line-hi); text-underline-offset: 4px; transition: color var(--t-micro) var(--ease-micro), text-decoration-color var(--t-micro) var(--ease-micro); }
-.cta__alt a:hover { color: var(--ac); text-decoration-color: currentColor; }
+.cta__alt a { display: inline-block; padding-block: .7rem; margin-block: -.7rem; white-space: nowrap; color: var(--t1); text-decoration: underline; text-decoration-color: var(--line-hi); text-underline-offset: 4px; transition: color var(--t-micro) var(--ease-micro), text-decoration-color var(--t-micro) var(--ease-micro); }
+.cta__alt a:hover { text-decoration-color: var(--ac); }
 
 
 /* ==========================================================================
