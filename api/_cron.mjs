@@ -26,5 +26,8 @@ const iguaisSeguro = (a, b) => typeof a === 'string' && typeof b === 'string' &&
 /* 'ok' | 'negado' (401) | 'freado' (429) */
 export function conferirCron(request, segredo) {
   if (segredo && iguaisSeguro(request.headers.get('authorization') || '', 'Bearer ' + segredo)) return 'ok';
+  /* rotina desligada por configuração: avisa no log (sem o valor), senão a retenção, os alertas e a reconciliação
+     param calados (revisão técnica do PR 11) */
+  if (!segredo) console.error(JSON.stringify({ origem: 'cron', nivel: 'erro', evento: 'rotina desligada: CRON_SECRET ausente ou com menos de ' + MINIMO + ' caracteres' }));
   return freioErros(ipDe(request)) ? 'freado' : 'negado';
 }

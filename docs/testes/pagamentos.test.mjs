@@ -112,6 +112,10 @@ test('credenciais: teste e produção nunca se misturam; faltou algo, pagamento 
     assert.equal(configPagamentos({ ...base, VERCEL: '1', VERCEL_ENV: 'preview', MP_AMBIENTE: 'teste', MP_WEBHOOK_SEGREDO: '' }).ativo, false, 'sem segredo do webhook');
     const ok = configPagamentos({ ...base, VERCEL: '1', VERCEL_ENV: 'production', MP_AMBIENTE: 'producao' });
     assert.equal(ok.ativo, true);
+    /* o segredo da reconciliação vem de api/_cron.mjs (revisão do PR 11): 32+ depois de aparar, senão desligada */
+    const cron = v => configPagamentos({ ...base, VERCEL: '1', VERCEL_ENV: 'production', MP_AMBIENTE: 'producao', CRON_SECRET: v }).cronSecret;
+    assert.equal(cron('x'.repeat(20)), null, 'segredo de 20 caracteres não autoriza a reconciliação');
+    assert.equal(cron(' ' + 'y'.repeat(40) + '\n'), 'y'.repeat(40));
     const pub = JSON.stringify(configPublica(ok));
     assert.ok(!pub.includes(base.MP_ACCESS_TOKEN) && !pub.includes(base.MP_WEBHOOK_SEGREDO), 'só a Public Key vai ao navegador');
     assert.ok(pub.includes(base.MP_PUBLIC_KEY));

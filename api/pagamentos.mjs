@@ -29,7 +29,6 @@ const json = (dados, status = 200) => new Response(JSON.stringify(dados), { stat
 export const POST = request => receber(request, process.env);
 export const GET = request => receber(request, process.env);
 
-/* compara BYTES (um caractere não ASCII no cabeçalho não pode derrubar a função) */
 /* aviso com assinatura válida de uma order que o MP ainda não devolve (consistência eventual): pede reenvio por até 6 h */
 const REENVIO_ORDER_NAO_LEGIVEL_MS = 6 * 3600e3;
 
