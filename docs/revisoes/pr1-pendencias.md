@@ -60,7 +60,7 @@ com credenciais reais**, salvo onde diz outra coisa.
 | Segurança B3 | `CRON_SECRET` aceita 16 caracteres; tentativas erradas sem freio | mínimo 32 e freio nas rotas de rotina |
 | Segurança B6 | teto de custo lido antes e somado depois: 3 direções em paralelo passam do teto em ~1/3 | reservar o custo no banco antes de chamar |
 | Técnica B1 | `ID_ORDER` do webhook sensível a maiúsculas | confirmar a forma real do MP no 1º teste com credenciais de TESTE |
-| Técnica B3 | `sinal_percentual` fracionário diverge entre cartão e Pix | aceitar só inteiro no motor de preço |
+| ~~Técnica B3~~ | ~~`sinal_percentual` fracionário diverge entre cartão e Pix~~ | **feito no PR 12** (`validarRegras` exige inteiro) |
 | Segurança B4 | CSP de `/orcamento` libera domínios do Google que a página não usa | enxugar `vercel.json` |
 | ~~Segurança B5~~ | ~~`BZ_IA=simulada` sem trava na Vercel~~ | **feito no PR 5** (`criarIA`: na Vercel, simulador só na prévia e no desenvolvimento; fechado por padrão) |
 

@@ -15,6 +15,14 @@ test('a tabela-rascunho é válida, e tabela quebrada é recusada', () => {
   assert.throws(() => estimar({ formato: 'landing_page' }, r), /regras inválidas/);
 });
 
+test('sinal: só porcentagem inteira (a proposta guarda inteiro; fração dava um valor no cartão e outro no Pix) — revisão do PR 1, técnica B3', () => {
+  for (const p of [33.5, 0.5, 49.99]) {
+    const e = validarRegras({ ...REGRAS, sinal_percentual: p }).erros || [];
+    assert.ok(e.some(x => /sinal_percentual/.test(x)), p + ': recusado — ' + JSON.stringify(e));
+  }
+  for (const p of [0, 30, 50, 100]) assert.deepEqual(validarRegras({ ...REGRAS, sinal_percentual: p }), { ok: true }, p + ': aceito');
+});
+
 test('casos de referência (os números do REGRAS-RASCUNHO.md)', () => {
   const l = estimar({ formato: 'landing_page' }, REGRAS);
   assert.deepEqual([l.valor_total, l.sinal, l.prazo_dias, l.fase], [1500, 750, 5, 'unica']);

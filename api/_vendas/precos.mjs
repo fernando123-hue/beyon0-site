@@ -21,7 +21,8 @@ export function validarRegras(r) {
   const erros = [];
   if (!r || typeof r !== 'object' || Array.isArray(r)) return { erros: ['regras: esperado um objeto'] };
   if (r.moeda !== 'BRL') erros.push('moeda: só BRL');
-  if (!numero(r.sinal_percentual, 0, 100)) erros.push('sinal_percentual: 0 a 100');
+  /* inteiro: a proposta guarda inteiro (app.propostas.sinal_percentual); com fração, o cartão mostrava um valor e o Pix outro */
+  if (!numero(r.sinal_percentual, 0, 100) || !Number.isInteger(r.sinal_percentual)) erros.push('sinal_percentual: inteiro de 0 a 100');
   if (!numero(r.prazo_max_dias, 1, 60)) erros.push('prazo_max_dias: 1 a 60');
   if (!numero(r.arredondamento, 1, 1000)) erros.push('arredondamento: 1 a 1000');
   const f = r.formatos || {};
