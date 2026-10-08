@@ -1,0 +1,78 @@
+/* ==========================================================================
+   A PASSAGEM — A TRAVESSIA (js/passagem.js; 2026-10-09)
+   Dono, duas vezes: "não quero que a transição seja uma tela de carregamento,
+   quero algo imersivo". O MERGULHO (06/10) e a ÍRIS (09/10, não publicada)
+   cobriam a página com um painel e o nome do destino no meio: era tela de
+   carregamento com outra roupa. Aqui não há painel nem rótulo: A PRÓPRIA
+   PÁGINA SE MOVE, como uma câmera que anda para a frente.
+   SAÍDA: o conteúdo voa na sua direção a partir do ponto tocado (você
+   atravessa o link), a rede do fundo vem junto mais devagar (profundidade)
+   e riscos de luz de 1 px passam por você saindo desse ponto.
+   CHEGADA: a página nova vem de longe e assenta no lugar, os riscos seguem
+   para fora desacelerando, a rede do fundo se aproxima.
+   Só transform e opacity, em @keyframes (compositor). Nenhuma variável muda
+   por quadro: o ponto de origem é posto uma vez, no clique. Nada de desfoque.
+   O que é `position: fixed` (nav, barra, mini, rede) fica fora de <main>;
+   o palco fixado do desktop é tratado no JS. Sem JS ou com movimento
+   reduzido, nada disso existe.
+   ========================================================================== */
+.passagem { position: fixed; inset: 0; z-index: 48; overflow: hidden; pointer-events: none; visibility: hidden; contain: strict; }
+/* o ponto de onde saem os riscos: o centro da tela na chegada; o ponto tocado na saída (o JS põe left/top) */
+.passagem__riscos { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
+/* cada risco é uma linha de 1 px num rumo próprio (rumos irregulares: velocidade, não relógio) */
+.passagem__riscos i { position: absolute; left: 0; top: 0; width: 120px; height: 1px; margin-top: -.5px; transform-origin: 0 50%;
+  background: linear-gradient(90deg, transparent, rgb(var(--ac-rgb) / .85)); opacity: 0; }
+.passagem__riscos i:nth-child(3n) { width: 200px; background: linear-gradient(90deg, transparent, rgb(var(--ac-2-rgb) / .9)); }
+.passagem__riscos i:nth-child(4n + 1) { width: 80px; background: linear-gradient(90deg, transparent, rgb(var(--prata-rgb) / .7)); }
+.passagem__riscos i:nth-child(1) { rotate: 4deg; }
+.passagem__riscos i:nth-child(2) { rotate: 23deg; }
+.passagem__riscos i:nth-child(3) { rotate: 41deg; }
+.passagem__riscos i:nth-child(4) { rotate: 58deg; }
+.passagem__riscos i:nth-child(5) { rotate: 77deg; }
+.passagem__riscos i:nth-child(6) { rotate: 95deg; }
+.passagem__riscos i:nth-child(7) { rotate: 112deg; }
+.passagem__riscos i:nth-child(8) { rotate: 131deg; }
+.passagem__riscos i:nth-child(9) { rotate: 149deg; }
+.passagem__riscos i:nth-child(10) { rotate: 166deg; }
+.passagem__riscos i:nth-child(11) { rotate: 185deg; }
+.passagem__riscos i:nth-child(12) { rotate: 203deg; }
+.passagem__riscos i:nth-child(13) { rotate: 221deg; }
+.passagem__riscos i:nth-child(14) { rotate: 238deg; }
+.passagem__riscos i:nth-child(15) { rotate: 257deg; }
+.passagem__riscos i:nth-child(16) { rotate: 275deg; }
+.passagem__riscos i:nth-child(17) { rotate: 292deg; }
+.passagem__riscos i:nth-child(18) { rotate: 311deg; }
+.passagem__riscos i:nth-child(19) { rotate: 329deg; }
+.passagem__riscos i:nth-child(20) { rotate: 346deg; }
+
+/* a SAÍDA (html.passagem-sai): acelera para dentro do ponto tocado; o JS navega no fim (SAI_MS) */
+html.passagem-sai .passagem { visibility: visible; pointer-events: auto; }
+html.passagem-sai .passagem-mergulha { animation: pass-mergulha .48s cubic-bezier(.32, 0, .67, 0) both; }
+html.passagem-sai .passagem-esmaece { animation: pass-esmaece .48s cubic-bezier(.32, 0, .67, 0) both; }
+html.passagem-sai .rede { animation: pass-rede-sai .48s cubic-bezier(.32, 0, .67, 0) both; }
+html.passagem-sai .passagem__riscos i { animation: pass-risco-sai .46s cubic-bezier(.32, 0, .67, 0) both; }
+/* a CHEGADA (html.passagem-chega, posta no <head> por js/ancoras.js): vem de longe e assenta */
+html.passagem-chega .passagem { visibility: visible; }
+html.passagem-chega main, html.passagem-chega .footer { transform-origin: 50% 50vh; animation: pass-assenta .76s var(--ease) both; }
+html.passagem-chega .rede { animation: pass-rede-chega .9s var(--ease) both; }
+html.passagem-chega .passagem__riscos i { animation: pass-risco-chega .7s var(--ease) both; }
+/* os riscos não saem juntos: quatro levas (o `html` na frente vence o atalho `animation` das regras acima) */
+html .passagem__riscos i:nth-child(4n + 2) { animation-delay: .04s; }
+html .passagem__riscos i:nth-child(4n + 3) { animation-delay: .08s; }
+html .passagem__riscos i:nth-child(4n) { animation-delay: .12s; }
+
+@keyframes pass-mergulha { from { transform: none; opacity: 1; } 60% { opacity: 1; } to { transform: scale(1.9); opacity: 0; } }
+@keyframes pass-esmaece { from { opacity: 1; } to { opacity: 0; } }
+@keyframes pass-rede-sai { from { transform: none; } to { transform: scale(1.25); } }
+@keyframes pass-risco-sai { 0% { transform: translateX(24px) scaleX(.2); opacity: 0; } 18% { opacity: 1; } 100% { transform: translateX(78vmax) scaleX(2.6); opacity: 1; } }
+@keyframes pass-assenta { 0% { transform: scale(.6); opacity: 0; } 45% { opacity: 1; } 100% { transform: none; opacity: 1; } }
+@keyframes pass-rede-chega { from { transform: scale(.8); } to { transform: none; } }
+@keyframes pass-risco-chega { 0% { transform: translateX(0) scaleX(2.4); opacity: 1; } 100% { transform: translateX(72vmax) scaleX(.3); opacity: 0; } }
+
+/* movimento reduzido (sistema ou interruptor): navegação comum */
+@media (prefers-reduced-motion: reduce) {
+  .passagem { display: none; }
+  html.passagem-chega main, html.passagem-chega .footer, html.passagem-chega .rede { animation: none; }
+}
+html.menos-movimento .passagem { display: none; }
+html.menos-movimento.passagem-chega main, html.menos-movimento.passagem-chega .footer, html.menos-movimento.passagem-chega .rede { animation: none; }

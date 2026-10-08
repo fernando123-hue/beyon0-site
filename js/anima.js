@@ -343,9 +343,9 @@
       mostrarTudo();
     }
   }
-  /* chegando pela passagem (js/passagem.js), o boot espera o painel começar a
-     abrir: o fio atravessando o hero não passa escondido por baixo dele */
-  var heroQuando = function () { if (html.classList.contains('passagem-chega')) setTimeout(heroEntra, 380); else heroEntra(); };
+  /* chegando pela passagem (js/passagem.js), o boot espera a página começar a
+     assentar: o fio atravessando o hero não passa enquanto ela ainda está longe */
+  var heroQuando = function () { if (html.classList.contains('passagem-chega')) setTimeout(heroEntra, 300); else heroEntra(); };
   if (document.body.classList.contains('booted')) heroQuando();
   else B.on('booted', heroQuando);
 
