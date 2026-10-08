@@ -88,8 +88,8 @@ test('P1 alertas: pagamento que pede uma pessoa e teto de IA perto do fim viram 
   const vidC = (await local.db.query('select visitante_id from app.conversas where id = $1', [c])).rows[0].visitante_id;
   await local.rpc('vendas_registrar_ia', { conversa_id: c, visitante_id: vidC, chamadas: [{ papel: 'geracao', parada: 'fim', custo_usd: 21, ms: 9 }] });   /* (o gasto das últimas 24 h vem do registro) */
   const enviados = [];
-  const env = { CRON_SECRET: 'segredo-de-teste-123', ALERTA_NTFY_TOPICO: 'beyon-alertas-teste-0123456789' };
-  const pedir = () => rotinas(new Request('http://x/api/rotinas?acao=diaria', { headers: { authorization: 'Bearer segredo-de-teste-123' } }), env,
+  const env = { CRON_SECRET: 'segredo-de-teste-com-mais-de-32-caracteres', ALERTA_NTFY_TOPICO: 'beyon-alertas-teste-0123456789' };
+  const pedir = () => rotinas(new Request('http://x/api/rotinas?acao=diaria', { headers: { authorization: 'Bearer segredo-de-teste-com-mais-de-32-caracteres' } }), env,
     { banco: local.rpc, enviarAlerta: async (topico, texto) => enviados.push({ topico, texto }) });
   const r = await (await pedir()).json();
   const tipos = r.saude.alertas.map(a => a.tipo);
@@ -105,9 +105,9 @@ test('P1 alertas: pagamento que pede uma pessoa e teto de IA perto do fim viram 
 });
 
 test('P1 rotina: etapa que falha vira alerta urgente e as outras seguem (envio do aviso que falha não derruba a rotina)', async () => {
-  const env = { CRON_SECRET: 'segredo-de-teste-123', ALERTA_NTFY_TOPICO: 'beyon-alertas-teste-0123456789' };
+  const env = { CRON_SECRET: 'segredo-de-teste-com-mais-de-32-caracteres', ALERTA_NTFY_TOPICO: 'beyon-alertas-teste-0123456789' };
   const quebraRetencao = (nome, p) => nome === 'vendas_reter' ? Promise.reject(Object.assign(new Error('x'), { codigo: '08006' })) : local.rpc(nome, p);
-  const r = await (await rotinas(new Request('http://x/api/rotinas?acao=diaria', { headers: { authorization: 'Bearer segredo-de-teste-123' } }), env,
+  const r = await (await rotinas(new Request('http://x/api/rotinas?acao=diaria', { headers: { authorization: 'Bearer segredo-de-teste-com-mais-de-32-caracteres' } }), env,
     { banco: quebraRetencao, enviarAlerta: async () => { throw new Error('ntfy fora'); } })).json();
   assert.equal(r.ok, false);
   assert.ok(r.saude.alertas.some(a => a.tipo === 'rotina_falhou' && a.nivel === 'urgente'), JSON.stringify(r.saude.alertas));

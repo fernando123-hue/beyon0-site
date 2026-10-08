@@ -13,7 +13,7 @@
    ?acao=reconciliar  — agendado (Vercel Cron), exige Authorization: Bearer CRON_SECRET.
    ?acao=simular      — SÓ no servidor local: "paga" o Pix no simulador e manda o aviso assinado.
    ========================================================================== */
-import { timingSafeEqual } from 'node:crypto';
+import { conferirCron } from './_cron.mjs';
 import { criarTransporte } from './_vendas/transporte.mjs';
 import { configPagamentos } from './_pagamentos/config.mjs';
 import { criarServicoPagamentos } from './_pagamentos/servico.mjs';
@@ -30,7 +30,6 @@ export const POST = request => receber(request, process.env);
 export const GET = request => receber(request, process.env);
 
 /* compara BYTES (um caractere não ASCII no cabeçalho não pode derrubar a função) */
-const iguaisSeguro = (a, b) => typeof a === 'string' && typeof b === 'string' && Buffer.byteLength(a) === Buffer.byteLength(b) && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 /* aviso com assinatura válida de uma order que o MP ainda não devolve (consistência eventual): pede reenvio por até 6 h */
 const REENVIO_ORDER_NAO_LEGIVEL_MS = 6 * 3600e3;
 
@@ -88,8 +87,9 @@ async function aviso(request, query, cfg, banco, servico) {
 }
 
 async function reconciliar(request, cfg, servico) {
-  const auth = request.headers.get('authorization') || '';
-  if (!cfg.cronSecret || !iguaisSeguro(auth, 'Bearer ' + cfg.cronSecret)) return json({ erro: 'Não autorizado.' }, 401);
+  const acesso = conferirCron(request, cfg.cronSecret);   /* (api/_cron.mjs: 32+ caracteres, tentativa errada freia) */
+  if (acesso === 'freado') return json({ erro: 'Muitas tentativas.' }, 429);
+  if (acesso !== 'ok') return json({ erro: 'Não autorizado.' }, 401);
   try { return json({ ok: true, ...(await servico.reconciliar({})) }); }
   catch (e) { console.error('[pagamentos] reconciliação falhou:', e && e.codigo ? 'banco ' + e.codigo : (e && e.tipo) || 'erro'); return json({ erro: 'Erro interno.' }, 500); }
 }
