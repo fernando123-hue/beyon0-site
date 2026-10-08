@@ -44,7 +44,9 @@ o `npm audit` das dependências de produção e, no PR para a `main`, o E2E do o
 ## Comandos de verificação
 
 `npm run testar` · `npm run testar:mutacao` · `npm run e2e:orcamento` (servidor local ligado) · `npm run verificar`
-· `npm run acessibilidade` (os dois últimos quando a mudança toca as páginas). Detalhes no `CLAUDE.md`.
+· `npm run acessibilidade` (os dois últimos quando a mudança toca as páginas) · `npm run e2e:turnstile` (quando a
+mudança toca o anti-robô; servidor local com as chaves de TESTE da Cloudflare, ver o cabeçalho de `docs/e2e-turnstile.mjs`).
+Detalhes no `CLAUDE.md`.
 
 ## Como se publica (a barreira)
 

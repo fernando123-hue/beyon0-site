@@ -189,6 +189,10 @@ test('anti-robô (Turnstile): a sessão só nasce com token conferido na Cloudfl
   assert.equal(configTurnstile({ TURNSTILE_SECRET: 'k' }).exigido, true, 'só o segredo: fechado');
   assert.equal(configTurnstile({ VERCEL: '1', VERCEL_ENV: 'production', TURNSTILE_SITE_KEY: 's', TURNSTILE_SECRET: '1x0000000000000000000000000000000AA' }).segredo, null, 'segredo de teste na produção: fechado');
   assert.ok(configTurnstile({ TURNSTILE_SITE_KEY: '1x00000000000000000000AA', TURNSTILE_SECRET: '1x0000000000000000000000000000000AA' }).segredo, 'no local, as chaves de teste valem');
+  /* revisões do PR 8, 2ª rodada: espaço colado não escapa da trava; chave de SITE de teste na produção também fecha */
+  assert.equal(configTurnstile({ VERCEL: '1', VERCEL_ENV: 'production', TURNSTILE_SITE_KEY: 's', TURNSTILE_SECRET: ' 1x0000000000000000000000000000000AA\n' }).segredo, null, 'segredo de teste com espaço: fechado');
+  assert.equal(configTurnstile({ TURNSTILE_SITE_KEY: '   ', TURNSTILE_SECRET: 'k' }).segredo, null, 'chave só de espaços conta como ausente: fechado');
+  assert.equal(configTurnstile({ VERCEL: '1', VERCEL_ENV: 'production', TURNSTILE_SITE_KEY: '3x00000000000000000000FF', TURNSTILE_SECRET: 'segredo-real' }).segredo, null, 'chave de site de teste na produção: fechado');
 
   /* pela API, com um "siteverify" falso que registra o que recebeu */
   const enviados = [];
