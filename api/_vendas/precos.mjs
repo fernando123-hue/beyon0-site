@@ -17,9 +17,11 @@ const CHAVE = /^[a-z][a-z0-9_]{1,40}$/;
 const numero = (v, min, max) => typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max;
 
 /* ---------- a tabela (validada antes de ativar e antes de cada uso) ---------- */
+const objeto = v => !!v && typeof v === 'object' && !Array.isArray(v);
+
 export function validarRegras(r) {
   const erros = [];
-  if (!r || typeof r !== 'object' || Array.isArray(r)) return { erros: ['regras: esperado um objeto'] };
+  if (!objeto(r)) return { erros: ['regras: esperado um objeto'] };
   if (r.moeda !== 'BRL') erros.push('moeda: só BRL');
   /* inteiro: a proposta guarda inteiro (app.propostas.sinal_percentual); com fração, o cartão mostrava um valor e o Pix
      outro. Mínimo 1: a cobrança exige valor > 0 (app.pagamentos), e 0% falharia depois de o cliente confirmar o escopo */
@@ -30,7 +32,7 @@ export function validarRegras(r) {
   const f = r.formatos || {};
   for (const k of FORMATOS) {
     const x = f[k];
-    if (!x) { erros.push('formatos.' + k + ': falta'); continue; }
+    if (!objeto(x)) { erros.push('formatos.' + k + ': falta'); continue; }
     if (!numero(x.base, 1, 1e6)) erros.push('formatos.' + k + '.base');
     if (!numero(x.piso, 0, 1e6) || x.piso > x.base) erros.push('formatos.' + k + '.piso: 0 até a base');
     if (!numero(x.prazo_dias, 1, r.prazo_max_dias || 60)) erros.push('formatos.' + k + '.prazo_dias: até o prazo máximo');
@@ -38,9 +40,11 @@ export function validarRegras(r) {
     if (typeof x.nome !== 'string' || !x.nome) erros.push('formatos.' + k + '.nome');
   }
   const a = r.adicionais || {};
-  if (typeof a !== 'object' || Array.isArray(a)) erros.push('adicionais: objeto');
+  if (!objeto(a)) erros.push('adicionais: objeto');
   for (const [k, x] of Object.entries(a)) {
     if (!CHAVE.test(k)) erros.push('adicionais: chave inválida ' + k);
+    /* (nulo ou não objeto: erro na lista, não TypeError — a tabela ativa inválida vira "em atualização", não 500) */
+    if (!objeto(x)) { erros.push('adicionais.' + k + ': objeto'); continue; }
     if (typeof x.nome !== 'string' || !x.nome) erros.push('adicionais.' + k + '.nome');
     if (x.fora_do_automatico === true) continue;
     if (!numero(x.valor, 0, 1e6)) erros.push('adicionais.' + k + '.valor');
