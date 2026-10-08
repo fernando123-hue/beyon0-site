@@ -239,6 +239,21 @@ test('anti-robô (Turnstile): a sessão só nasce com token conferido na Cloudfl
   assert.equal(naoJson.status, 503, 'resposta que não é JSON: indisponível');
 });
 
+test('tabela de preços ATIVA inválida: "tabela em atualização" (503) sem chamar o modelo — revisão do PR 12', async () => {
+  let chamadasIa = 0;
+  const contando = { ...deps.ia, mensagem: async p => { chamadasIa++; return deps.ia.mensagem(p); } };
+  const comTabelaRuim = { ...deps, ia: contando, banco: async (nome, p) => {
+    const r = await deps.banco(nome, p);
+    return nome === 'vendas_regras_ativas' && r ? { ...r, regras: { ...r.regras, sinal_percentual: 33.5 } } : r;
+  } };
+  const n = navegador(comTabelaRuim);
+  const s = await n.iniciar();
+  const r = await n.chamar('POST', 'mensagem', { conversa_id: s.conversa_id, texto: 'Tenho uma clínica odontológica e quero um site institucional com agendamento' });
+  assert.equal(r.status, 503, JSON.stringify(r.corpo));
+  assert.match(r.corpo.erro, /atualização/);
+  assert.equal(chamadasIa, 0, 'o modelo não foi chamado (nada pago)');
+});
+
 test('dados incompletos ou inconsistentes: cada um recusado com motivo, sem 500', async () => {
   const n = navegador();
   const s = await n.iniciar();
