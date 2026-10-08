@@ -208,7 +208,8 @@ test('conteúdo (revisão de fidelidade): nada de promessa jurídica sem o advog
   assert.ok(!s.includes('—'), 'sem travessão (o modelo imita)');
   assert.match(s, /1 página incluída\)/, 'concordância');
   assert.match(s, /não há manutenção contínua/i, 'decisão do dono 2026-10-01');
-  assert.ok(!/sob medida:[^\n]*lançamento/i.test(s), 'lançamento é da landing page');
+  assert.ok(/Experiência digital:/.test(s), 'o formato com o nome novo (dono, 2026-10-09)');
+  assert.ok(!/(experiência digital|sob medida):[^\n]*lançamento/i.test(s), 'lançamento é da landing page');
   /* cada fala de exemplo cumpre as regras gerais que o avaliador aplica */
   const falas = [...s.matchAll(/^Você(?: \([^)]*\))?: "([^"]+)"/gm)].map(m => m[1]);
   assert.ok(falas.length >= 4, 'exemplos de bons turnos');
