@@ -9,7 +9,7 @@
    na especificação, e o que a pessoa já contou continua no banco.
    ========================================================================== */
 import { executarTurno } from './agente.mjs';
-import { estimar } from './precos.mjs';
+import { estimar, validarRegras } from './precos.mjs';
 import { gerarDirecao } from './gerador.mjs';
 import { interpretar, aplicar, fatoresComEscopo } from './alteracoes.mjs';
 import { montarEscopo } from './escopo.mjs';
@@ -58,10 +58,18 @@ export function traduzirErro(e) {
 const exigir = (cond, status, msg) => { if (!cond) throw new Recusa(status, msg); };
 const texto = (v, max) => (typeof v === 'string' ? v.replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, max) : '');
 
-/* as regras comerciais ATIVAS (sem elas não há estimativa: nada de preço inventado) */
+/* as regras comerciais ATIVAS (sem elas não há estimativa: nada de preço inventado). A ativação é um insert manual
+   (docs/fase2/02-OPERACAO.md): uma versão ativa INVÁLIDA vale como ausente — "tabela em atualização" antes de chamar
+   o modelo, em vez de erro interno depois de pagar por ele (revisão técnica do PR 12) */
 async function regrasAtivas(banco) {
   const r = await banco('vendas_regras_ativas', { org_slug: ORG });
-  return r && r.regras ? r : null;
+  if (!r || !r.regras) return null;
+  const v = validarRegras(r.regras);
+  if (v.erros) {
+    console.error(JSON.stringify({ origem: 'vendas', nivel: 'erro', evento: 'tabela de preços ativa inválida', versao: r.versao ?? null, erros: v.erros.slice(0, 5) }));
+    return null;
+  }
+  return r;
 }
 
 export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoFreio, requestId }) {

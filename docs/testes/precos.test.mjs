@@ -16,11 +16,13 @@ test('a tabela-rascunho é válida, e tabela quebrada é recusada', () => {
 });
 
 test('sinal: só porcentagem inteira (a proposta guarda inteiro; fração dava um valor no cartão e outro no Pix) — revisão do PR 1, técnica B3', () => {
-  for (const p of [33.5, 0.5, 49.99]) {
+  for (const p of [33.5, 0.5, 49.99, 0]) {   /* (0: a cobrança exige valor > 0 — revisão de segurança do PR 12) */
     const e = validarRegras({ ...REGRAS, sinal_percentual: p }).erros || [];
     assert.ok(e.some(x => /sinal_percentual/.test(x)), p + ': recusado — ' + JSON.stringify(e));
   }
-  for (const p of [0, 30, 50, 100]) assert.deepEqual(validarRegras({ ...REGRAS, sinal_percentual: p }), { ok: true }, p + ': aceito');
+  for (const p of [1, 30, 50, 100]) assert.deepEqual(validarRegras({ ...REGRAS, sinal_percentual: p }), { ok: true }, p + ': aceito');
+  /* o passo de arredondamento também inteiro: com 3,3 o motor mostrava 1 centavo a menos que o banco cobrava */
+  assert.ok((validarRegras({ ...REGRAS, arredondamento: 3.3 }).erros || []).some(x => /arredondamento/.test(x)), 'arredondamento 3,3: recusado');
 });
 
 test('casos de referência (os números do REGRAS-RASCUNHO.md)', () => {
