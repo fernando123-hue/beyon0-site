@@ -45,41 +45,48 @@
 .passagem__riscos i:nth-child(19) { rotate: 329deg; }
 .passagem__riscos i:nth-child(20) { rotate: 346deg; }
 
-/* a SAÍDA (html.passagem-sai): acelera para dentro do ponto tocado; o JS navega no fim (SAI_MS).
+/* SUAVE (dono, 2026-10-09: "está ficando muito boa… tente deixá-la um pouco mais suave"). Medido nos quadros:
+   a saída ia a 1.9 e sumia de uma vez no fim (estalo), a chegada partia de .6 numa curva que arranca rápido demais
+   (pulo), os riscos acendiam e apagavam secos. Agora: viagem mais curta e mais longa no tempo, curvas com início e
+   fim macios, a página esmaece ao longo do voo, os riscos acendem e apagam devagar.
+   Curvas de easings.net: easeInOutSine na saída, easeOutCubic na chegada. */
+
+/* a SAÍDA (html.passagem-sai): avança para dentro do ponto tocado; o JS navega no fim (SAI_MS).
    Propriedades longas (sem o atalho `animation`), para o atraso das levas de riscos lá embaixo valer sempre. */
 html.passagem-sai .passagem { visibility: visible; pointer-events: auto; }
 html.passagem-sai .passagem-mergulha, html.passagem-sai .passagem-voa, html.passagem-sai .passagem-esmaece,
-html.passagem-sai .rede, html.passagem-sai .passagem__riscos i { animation-duration: .48s; animation-timing-function: cubic-bezier(.32, 0, .67, 0); animation-fill-mode: both; }
+html.passagem-sai .rede, html.passagem-sai .passagem__riscos i { animation-duration: .58s; animation-timing-function: cubic-bezier(.37, 0, .63, 1); animation-fill-mode: both; }
 html.passagem-sai .passagem-mergulha { animation-name: pass-mergulha; }
 html.passagem-sai .passagem-voa { animation-name: pass-voa; }           /* o palco fixado: só a escala (o esmaecer vem de <main>) */
 html.passagem-sai .passagem-esmaece { animation-name: pass-esmaece; }
 html.passagem-sai .rede { animation-name: pass-rede-sai; }
-html.passagem-sai .passagem__riscos i { animation-name: pass-risco-sai; animation-duration: .46s; }
+html.passagem-sai .passagem__riscos i { animation-name: pass-risco-sai; animation-duration: .54s; }
 /* menu do celular aberto: fecha sem a transição de 320 ms (ela cobriria o voo) */
 html.passagem-sai.tem-menu .nav .nav__links { transition: none; }
 /* a CHEGADA (html.passagem-chega, posta no <head> por js/ancoras.js): vem de longe e assenta.
    Chegando a uma âncora (passagem-ancora) a página já nasce rolada: só aparece, sem escala. */
 html.passagem-chega .passagem { visibility: visible; }
 html.passagem-chega main, html.passagem-chega .footer, html.passagem-chega .rede,
-html.passagem-chega .passagem__riscos i { animation-timing-function: var(--ease); animation-fill-mode: both; }
-html.passagem-chega main, html.passagem-chega .footer { transform-origin: 50% 50vh; animation-name: pass-assenta; animation-duration: .76s; }
-html.passagem-chega.passagem-ancora main, html.passagem-chega.passagem-ancora .footer { animation-name: pass-surge; animation-duration: .4s; }
-html.passagem-chega .rede { animation-name: pass-rede-chega; animation-duration: .9s; }
-html.passagem-chega .passagem__riscos i { animation-name: pass-risco-chega; animation-duration: .7s; }
+html.passagem-chega .passagem__riscos i { animation-timing-function: cubic-bezier(.33, 1, .68, 1); animation-fill-mode: both; }
+html.passagem-chega main, html.passagem-chega .footer { transform-origin: 50% 50vh; animation-name: pass-assenta; animation-duration: .92s; }
+html.passagem-chega.passagem-ancora main, html.passagem-chega.passagem-ancora .footer { animation-name: pass-surge; animation-duration: .5s; }
+html.passagem-chega .rede { animation-name: pass-rede-chega; animation-duration: 1s; }
+html.passagem-chega .passagem__riscos i { animation-name: pass-risco-chega; animation-duration: .8s; }
 /* os riscos não saem juntos: quatro levas */
 .passagem__riscos i:nth-child(4n + 2) { animation-delay: .04s; }
 .passagem__riscos i:nth-child(4n + 3) { animation-delay: .08s; }
 .passagem__riscos i:nth-child(4n) { animation-delay: .12s; }
 
-@keyframes pass-mergulha { from { transform: none; opacity: 1; } 60% { opacity: 1; } to { transform: scale(1.9); opacity: 0; } }
-@keyframes pass-voa { from { transform: none; } to { transform: scale(1.9); } }
-@keyframes pass-esmaece { from { opacity: 1; } to { opacity: 0; } }
-@keyframes pass-rede-sai { from { transform: none; } to { transform: scale(1.25); } }
-@keyframes pass-risco-sai { 0% { transform: translateX(24px) scaleX(.2); opacity: 0; } 18% { opacity: 1; } 100% { transform: translateX(78vmax) scaleX(2.6); opacity: 1; } }
-@keyframes pass-assenta { 0% { transform: scale(.6); opacity: 0; } 35% { opacity: 1; } 100% { transform: none; opacity: 1; } }
+/* a página esmaece ao longo do voo (de 20% a 90%), não no último instante */
+@keyframes pass-mergulha { from { transform: none; opacity: 1; } 20% { opacity: 1; } 90% { opacity: 0; } to { transform: scale(1.45); opacity: 0; } }
+@keyframes pass-voa { from { transform: none; } to { transform: scale(1.45); } }
+@keyframes pass-esmaece { from { opacity: 1; } 20% { opacity: 1; } 90% { opacity: 0; } to { opacity: 0; } }
+@keyframes pass-rede-sai { from { transform: none; } to { transform: scale(1.1); } }
+@keyframes pass-risco-sai { 0% { transform: translateX(24px) scaleX(.2); opacity: 0; } 30% { opacity: .85; } 75% { opacity: .85; } 100% { transform: translateX(70vmax) scaleX(1.9); opacity: 0; } }
+@keyframes pass-assenta { 0% { transform: scale(.82); opacity: 0; } 45% { opacity: 1; } 100% { transform: none; opacity: 1; } }
 @keyframes pass-surge { from { opacity: 0; } to { opacity: 1; } }
-@keyframes pass-rede-chega { from { transform: scale(.8); } to { transform: none; } }
-@keyframes pass-risco-chega { 0% { transform: translateX(0) scaleX(2.4); opacity: 1; } 100% { transform: translateX(72vmax) scaleX(.3); opacity: 0; } }
+@keyframes pass-rede-chega { from { transform: scale(.92); } to { transform: none; } }
+@keyframes pass-risco-chega { 0% { transform: translateX(0) scaleX(1.9); opacity: 0; } 15% { opacity: .8; } 100% { transform: translateX(66vmax) scaleX(.3); opacity: 0; } }
 
 /* movimento reduzido (sistema ou interruptor): navegação comum */
 @media (prefers-reduced-motion: reduce) {

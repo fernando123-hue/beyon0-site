@@ -161,10 +161,10 @@ async function cenario(nome, opcoes, roteiro) {
   console.log((ok ? 'OK  ' : 'FALHA ') + nome.padEnd(18), r.info, erros.length ? '\n     erros: ' + erros.join('\n     ') : '');
   await ctx.close();
 }
-/* segura a navegação da saída (o setTimeout de SAI_MS, 500 ms): a página fica como se o navegador tivesse desistido */
+/* segura a navegação da saída (o setTimeout de SAI_MS, 600 ms): a página fica como se o navegador tivesse desistido */
 const segurarNavegacao = page => page.evaluate(() => {
   const st = window.setTimeout;
-  window.setTimeout = (f, ms, ...r) => (ms === 500 ? 0 : st(f, ms, ...r));
+  window.setTimeout = (f, ms, ...r) => (ms === 600 ? 0 : st(f, ms, ...r));
 });
 
 await cenario('passagem-vai', CELULAR, async page => {
@@ -204,10 +204,10 @@ await cenario('passagem-desiste', DESKTOP, async page => {
   /* no desktop os riscos saem do ponto clicado (o menu do topo não é o do celular) */
   const origem = await page.evaluate(() => { const r = document.querySelector('.passagem__riscos'); return { x: parseFloat(r.style.left), y: parseFloat(r.style.top) }; });
   const noLink = origem.x >= caixa.x && origem.x <= caixa.x + caixa.width && origem.y >= caixa.y && origem.y <= caixa.y + caixa.height;
-  await page.waitForTimeout(2600);   /* SAI_MS + DESISTE_MS (2 s) e folga */
+  await page.waitForTimeout(2800);   /* SAI_MS (0,6 s) + DESISTE_MS (2 s) e folga */
   const s = await estadoPassagem(page);
   return { ok: saindo.classes === 'passagem-sai' && noLink && inteira(s) && s.chave === null,
-    info: `saindo=${saindo.classes} origem no link=${noLink} 2,75 s depois: opacidade=${s.opacidade} escala=${s.escala} classes=${s.classes} chave=${s.chave}` };
+    info: `saindo=${saindo.classes} origem no link=${noLink} 2,95 s depois: opacidade=${s.opacidade} escala=${s.escala} classes=${s.classes} chave=${s.chave}` };
 });
 await cenario('passagem-menu', CELULAR, async page => {
   await page.goto(BASE + '/', { waitUntil: 'load' });

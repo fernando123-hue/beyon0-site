@@ -22,10 +22,10 @@
   var el = document.querySelector('.passagem');
   if (!el) return;
   var riscos = el.querySelector('.passagem__riscos');
-  var SAI_MS = 500;            /* = o conteúdo sumindo no ponto tocado (pass-mergulha, .48s) */
+  var SAI_MS = 600;            /* = o conteúdo sumindo no ponto tocado (pass-mergulha, .58s) */
   var DESISTE_MS = 2000;       /* a navegação não aconteceu (Parar, Esc, o navegador cancelou): a página volta.
                                   Curto: sem painel, a página sumida por muito tempo parece travada (revisão do PR #23) */
-  var CHEGADA_MS = 900;        /* a página assentada (pass-assenta, .76s), com folga */
+  var CHEGADA_MS = 1050;       /* a página assentada (pass-assenta, .92s), com folga */
   var PAGINAS = ['/', '/sites', '/automacao', '/orcamento'];
   var saindo = false;
   var mexidos = [];            /* quem recebeu origem e classe na saída: tudo volta como estava se desistir */

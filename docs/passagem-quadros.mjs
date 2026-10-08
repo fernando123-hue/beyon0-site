@@ -11,8 +11,8 @@ import { mkdirSync } from 'node:fs';
 const BASE = process.env.BASE || 'http://127.0.0.1:8899';
 const PASTA = process.argv[2] || 'docs/quadros-passagem';
 const DESTINO = process.env.DESTINO || '/sites';
-const SAIDA_MS = [0, 120, 240, 360, 480];
-const CHEGADA_MS = [0, 120, 240, 400, 600, 900];
+const SAIDA_MS = [0, 150, 300, 450, 580];
+const CHEGADA_MS = [0, 150, 300, 500, 700, 1000];
 const TELAS = { cel: { width: 390, height: 844 }, desk: { width: 1440, height: 900 } };
 
 mkdirSync(PASTA, { recursive: true });
