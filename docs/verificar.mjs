@@ -251,12 +251,18 @@ await cenario('passagem-destinos', DESKTOP, async page => {
     await page.locator(v.link).first().click();
     await page.waitForTimeout(100);
     const saida = await page.evaluate(() => ({ classes: document.documentElement.className, anim: getComputedStyle(document.querySelector('main')).animationName }));
+    /* no fim da saída, <main> anda no máximo 30% da TELA (um % do próprio elemento, numa página longa, vira milhares de px) */
+    const desloc = await page.evaluate(() => {
+      document.getAnimations().forEach(a => { if (/^pass-/.test(a.animationName || '')) { a.pause(); a.currentTime = 580; } });
+      const m = new DOMMatrix(getComputedStyle(document.querySelector('main')).transform);
+      return Math.round(Math.max(Math.abs(m.e) / innerWidth, Math.abs(m.f) / innerHeight) * 100);
+    });
     await page.evaluate(() => sessionStorage.setItem('bz-passagem', String(Date.now())));
     await page.goto(BASE + (v.nome === 'inicio' ? '/' : '/' + v.nome), { waitUntil: 'domcontentloaded' });
     const chegada = await page.evaluate(() => ({ classes: document.documentElement.className, anim: getComputedStyle(document.querySelector('main')).animationName }));
-    const certo = saida.classes.includes('sai-' + v.nome) && saida.anim === v.sai && chegada.classes.includes('chega-' + v.nome) && chegada.anim === v.chega;
+    const certo = saida.classes.includes('sai-' + v.nome) && saida.anim === v.sai && desloc <= 30 && chegada.classes.includes('chega-' + v.nome) && chegada.anim === v.chega;
     if (!certo) ok = false;
-    linhas.push(`${v.nome}: sai=${saida.anim} chega=${chegada.anim}${certo ? '' : ' (ERRADO)'}`);
+    linhas.push(`${v.nome}: sai=${saida.anim} desloc=${desloc}% chega=${chegada.anim}${certo ? '' : ' (ERRADO)'}`);
   }
   return { ok, info: linhas.join(' · ') };
 });

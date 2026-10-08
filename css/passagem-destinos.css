@@ -52,8 +52,9 @@ html.passagem-sai.sai-sites .passagem-voa { animation-name: pass-sites-voa; }
 html.passagem-sai.sai-sites .rede { animation-name: none; }
 html.passagem-sai.sai-sites .passagem__riscos i,
 html.passagem-chega.chega-sites .passagem__riscos i { animation-name: none; }
-/* (propriedades longas: o atalho apagaria o atraso de cada coluna, lá embaixo) */
-html.passagem-sai.sai-sites .passagem__colunas i { animation-name: pass-coluna-desenha; animation-duration: .45s; animation-timing-function: cubic-bezier(.33, 1, .68, 1); animation-fill-mode: both; }
+/* (propriedades longas: o atalho apagaria o atraso de cada coluna, lá embaixo. Na saída, .26 s: a 12ª coluna
+   começa em .33 s e termina antes da navegação, em SAI_MS) */
+html.passagem-sai.sai-sites .passagem__colunas i { animation-name: pass-coluna-desenha; animation-duration: .26s; animation-timing-function: cubic-bezier(.33, 1, .68, 1); animation-fill-mode: both; }
 /* a chegada: as colunas cobrem (o mesmo preto em que a saída terminou) e sobem uma a uma, da esquerda para a direita */
 html.passagem-chega.chega-sites .passagem__colunas i { background: var(--bg); animation-name: pass-coluna-sobe; animation-duration: .55s; animation-timing-function: cubic-bezier(.65, 0, .35, 1); animation-fill-mode: both; }
 html.passagem-chega.chega-sites main, html.passagem-chega.chega-sites .footer { animation-name: pass-sites-chega; }
@@ -101,7 +102,9 @@ html.passagem-chega.chega-automacao .passagem__riscos i { animation-name: pass-f
 @keyframes pass-fluxo-sai { 0% { transform: translateX(0); opacity: 0; } 15% { opacity: .85; } 85% { opacity: .85; } 100% { transform: translateX(-130vw); opacity: 0; } }
 @keyframes pass-fluxo-chega { 0% { transform: translateX(0); opacity: 0; } 15% { opacity: .8; } 100% { transform: translateX(-120vw); opacity: 0; } }
 
-/* ---------- ORÇAMENTO: a régua mede e a página assenta de baixo ---------- */
+/* ---------- ORÇAMENTO: a régua mede e a página assenta de baixo ----------
+   (deslocamento em vh, da TELA: um % seria do próprio <main>, milhares de px numa página longa, e o rodapé ficaria
+   para trás; revisão do PR #23) */
 html.passagem-sai.sai-orcamento .passagem-mergulha { animation-name: pass-orc-sai; }
 html.passagem-sai.sai-orcamento .passagem-voa { animation-name: pass-orc-voa; }
 html.passagem-sai.sai-orcamento .rede { animation-name: pass-orc-rede; }
@@ -111,10 +114,10 @@ html.passagem-chega.chega-orcamento .passagem__riscos i { animation-name: none; 
 html.passagem-sai.sai-orcamento .passagem__regua { animation: pass-regua-sobe .58s cubic-bezier(.37, 0, .63, 1) both; }
 html.passagem-chega.chega-orcamento .passagem__regua { animation: pass-regua-segue .92s cubic-bezier(.33, 1, .68, 1) both; }
 html.passagem-chega.chega-orcamento main, html.passagem-chega.chega-orcamento .footer { animation-name: pass-orc-chega; }
-@keyframes pass-orc-sai { from { transform: none; opacity: 1; } 20% { opacity: 1; } 90% { opacity: 0; } to { transform: translateY(-14%); opacity: 0; } }
-@keyframes pass-orc-voa { from { transform: none; } to { transform: translateY(-14%); } }
+@keyframes pass-orc-sai { from { transform: none; opacity: 1; } 20% { opacity: 1; } 90% { opacity: 0; } to { transform: translateY(-14vh); opacity: 0; } }
+@keyframes pass-orc-voa { from { transform: none; } to { transform: translateY(-14vh); } }
 @keyframes pass-orc-rede { from { transform: none; } to { transform: translateY(-5%); } }
-@keyframes pass-orc-chega { 0% { transform: translateY(14%); opacity: 0; } 45% { opacity: 1; } 100% { transform: none; opacity: 1; } }
+@keyframes pass-orc-chega { 0% { transform: translateY(14vh); opacity: 0; } 45% { opacity: 1; } 100% { transform: none; opacity: 1; } }
 @keyframes pass-regua-sobe { 0% { transform: translateY(100vh); opacity: 0; } 15% { opacity: 1; } 100% { transform: translateY(45vh); opacity: 1; } }
 @keyframes pass-regua-segue { 0% { transform: translateY(45vh); opacity: 1; } 75% { opacity: 1; } 100% { transform: translateY(-2vh); opacity: 0; } }
 
