@@ -89,7 +89,7 @@ test('próximo passo: o código diz ao modelo o que fazer agora, pela ordem do f
   /* loja virtual ou área restrita: diagnóstico, não estimar (sem laço de "chame estimar") */
   const loja = { negocio: { segmento: 'loja de roupas' }, objetivos: ['vender'], projeto: { formato: 'institucional' }, funcionalidades: ['loja'] };
   assert.match(p(loja), /encaminhar_diagnostico/);
-  assert.doesNotMatch(p(loja), /(?<!não )chame estimar/i);
+  assert.doesNotMatch(p(loja), /(?<!não )chame estimar(?! sem ele)/i, "só estima sem o item fora do automático");
 });
 
 test('o turno usa o harness: instruções montadas da tabela, estado com o próximo passo', async () => {
