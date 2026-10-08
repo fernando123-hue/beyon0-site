@@ -80,6 +80,11 @@ Migrations `20261007120000` a `…120200`.
 
 `api/_ia/` é a interface única: `mensagem({ papel, sistema, mensagens, ferramentas, esquema })`.
 
+- **Harness do consultor** (`api/_vendas/consultor.mjs`, 2026-10-08), escrito para o Haiku 5.5 pelas orientações oficiais desse modelo:
+  - **Instruções** montadas da tabela ATIVA, sem valores. Trazem o que cada formato inclui, os adicionais e o que fica fora do automático. Também trazem textos já publicados no site: padrão de entrega, garantias, FAQ, etapas do orçamento, exemplos de bons turnos e os limites, com a linha "as regras valem a conversa inteira". São idênticas entre turnos, por isso entram em cache.
+  - **Ferramentas** com critério de uso: quando chamar e quando não chamar.
+  - **`proximo_passo`**, calculado pelo código a cada turno pela ordem do funil: o modelo não deduz o momento de estimar ou de pedir o contato.
+  - **Avaliação com o modelo real:** `npm run avaliar:consultor`, com roteiros em `docs/avaliacao/consultor-cenarios.mjs` e regras objetivas por resposta. Custa centavos por rodada e aceita `--esforco` para comparar níveis. Cada erro visto em conversa real deve virar um roteiro.
 - **Provedor real:** Anthropic, pelo SDK oficial com versão fixa. Haiku 5.5 com esforço médio na conversa (modo econômico, dono 2026-10-08; antes, Sonnet 5.5) e Opus 5.5 com esforço alto na geração. Fallback do servidor só nos modelos que o têm (Opus e Sonnet; o Haiku 5.5 não tem), cache do prompt e erros tipados.
 - **Provedor simulado:** só para testes e o servidor local.
 - **O turno do agente:** `api/_vendas/agente.mjs`, com 5 ferramentas e sem nenhuma que mexa em preço, desconto, dados de terceiros ou pagamento.
