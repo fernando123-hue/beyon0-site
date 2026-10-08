@@ -287,6 +287,100 @@ test('dados incompletos ou inconsistentes: cada um recusado com motivo, sem 500'
   assert.equal((await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'oi' }, { tipo: 'text/plain' })).status, 415, 'formulário de outro site');
 });
 
+test('teto de custo RESERVADO antes de chamar: as 3 direções em paralelo, com a conversa perto do teto, não passam juntas (revisão do PR 1, segurança B6)', async () => {
+  /* o modelo "lento": as 3 chamadas ficam em voo ao mesmo tempo, como no navegador */
+  let emVoo = 0, picoEmVoo = 0, chamadas = 0;
+  const lenta = { ...deps.ia, mensagem: async p => {
+    chamadas++; emVoo++; picoEmVoo = Math.max(picoEmVoo, emVoo);
+    await new Promise(r => setTimeout(r, 300));
+    try { return await deps.ia.mensagem(p); } finally { emVoo--; }
+  } };
+  const comLenta = { ...deps, ia: lenta };
+  const n = navegador(comLenta);
+  const { c, dirs } = await ateDirecoes(n);
+  /* caminho feliz: gasto típico de uma conversa (US$ 0,60) → as 3 direções saem (a reserva é realista, não o pior caso) */
+  await local.db.query('update app.conversas set custo_ia_usd = 0.6 where id = $1', [c]);
+  const g0 = await n.chamar('POST', 'gerar', { conversa_id: c });
+  assert.equal(g0.status, 200, JSON.stringify(g0.corpo));
+  chamadas = 0;
+  const r0 = await Promise.all(g0.corpo.direcoes.map(d => n.chamar('POST', 'gerar-direcao', { conversa_id: c, direcao_id: d.id })));
+  assert.equal(chamadas, 3, 'com US$ 0,60 gastos, as 3 chamam o modelo — status: ' + JSON.stringify(r0.map(x => x.status)));
+  /* perto do teto: US$ 1,20 de 1,50 → 1,20 e 1,45 ainda começam; a 3ª (1,70 comprometidos) não */
+  await local.db.query('update app.conversas set custo_ia_usd = 1.2 where id = $1', [c]);
+  const g = await n.chamar('POST', 'gerar', { conversa_id: c });
+  assert.equal(g.status, 200, JSON.stringify(g.corpo));
+  chamadas = 0; picoEmVoo = 0;
+  const r = await Promise.all(g.corpo.direcoes.map(d => n.chamar('POST', 'gerar-direcao', { conversa_id: c, direcao_id: d.id })));
+  assert.equal(chamadas, 2, 'com US$ 1,20 gastos, só 2 chamam o modelo — status: ' + JSON.stringify(r.map(x => x.status)));
+  assert.equal(r.filter(x => x.status === 429).length, 1, 'a 3ª: limite, com WhatsApp');
+  assert.ok(r.filter(x => x.status === 429).every(x => x.corpo.whatsapp === true));
+  /* a reserva some depois da chamada: nada fica preso */
+  const presas = (await local.db.query('select count(*)::int n from privado.reservas_ia where conversa_id = $1', [c])).rows[0].n;
+  assert.equal(presas, 0, 'reserva liberada depois da chamada');
+  await local.db.query('update app.conversas set custo_ia_usd = 0 where id = $1', [c]);   /* (o teto do DIA não trava os testes seguintes) */
+});
+
+test('reserva de custo: erro do banco fecha (sem chamar o modelo); só a função ainda inexistente segue como antes — revisões do PR 15', async () => {
+  let chamadas = 0;
+  const contando = { ...deps.ia, mensagem: async p => { chamadas++; return deps.ia.mensagem(p); } };
+  const comErro = codigo => ({ ...deps, ia: contando, banco: async (nome, p) => {
+    if (nome === 'vendas_reservar_custo') throw Object.assign(new Error('x'), { codigo });
+    return deps.banco(nome, p);
+  } });
+  const fechado = navegador(comErro('57014'));
+  const sf = await fechado.iniciar();
+  const rf = await fechado.chamar('POST', 'mensagem', { conversa_id: sf.conversa_id, texto: 'Tenho uma clínica e quero um site institucional' });
+  assert.equal(rf.status, 503, JSON.stringify(rf.corpo));
+  assert.equal(chamadas, 0, 'erro do banco (tempo esgotado): o modelo não é chamado');
+  const semFuncao = navegador(comErro('42883'));
+  const sa = await semFuncao.iniciar();
+  const ra = await semFuncao.chamar('POST', 'mensagem', { conversa_id: sa.conversa_id, texto: 'Tenho uma clínica e quero um site institucional' });
+  assert.equal(ra.status, 200, 'função ainda não criada (migration a aplicar): segue como antes — ' + JSON.stringify(ra.corpo));
+  assert.equal(chamadas > 0, true);
+});
+
+test('direção já pronta: o pedido devolve o status sem reservar (não segura a trava das reservas) — revisão do PR 15', async () => {
+  let reservas = 0;
+  const contando = { ...deps, banco: async (nome, p) => { if (nome === 'vendas_reservar_custo') reservas++; return deps.banco(nome, p); } };
+  const n = navegador(contando);
+  const { c, dirs } = await ateDirecoes(n);
+  reservas = 0;
+  const r = await n.chamar('POST', 'gerar-direcao', { conversa_id: c, direcao_id: dirs[0].id });
+  assert.equal(r.status, 200);
+  assert.equal(r.corpo.status, 'pronta');
+  assert.equal(reservas, 0, 'nenhuma reserva para direção que já está pronta');
+});
+
+test('reserva de custo no banco: soma o gasto e as reservas em aberto; vencida não conta; só a dona libera', async () => {
+  const q = (sql, p) => local.db.query(sql, p);
+  const n = navegador();
+  const s = await n.iniciar();
+  const vid = (await q('select visitante_id from app.conversas where id = $1', [s.conversa_id])).rows[0].visitante_id;
+  const reservar = v => local.rpc('vendas_reservar_custo', { conversa_id: s.conversa_id, visitante_id: vid, valor_usd: v, teto_conversa_usd: 1.5, teto_dia_usd: 1000, segundos: 600 });
+  /* a regra: começa se (gasto + reservas em aberto) ainda está ABAIXO do teto — o estouro máximo é UMA chamada */
+  const a = await reservar(0.6), b = await reservar(0.6), c3 = await reservar(0.6), d4 = await reservar(0.6);
+  assert.equal(a.ok, true); assert.equal(b.ok, true);
+  assert.equal(c3.ok, true, '1,20 reservados < 1,50: a 3ª ainda começa');
+  assert.equal(d4.ok, false, '1,80 reservados ≥ 1,50: a 4ª não começa');
+  assert.equal(d4.motivo, 'conversa');
+  await local.rpc('vendas_liberar_reserva', { reserva_id: a.reserva_id, conversa_id: s.conversa_id, visitante_id: vid });
+  assert.equal((await reservar(0.6)).ok, true, 'liberada a 1ª, abre vaga');
+  /* reserva vencida (a função caiu no meio) não prende a conversa para sempre */
+  await q("update privado.reservas_ia set expira_em = now() - interval '1 second' where conversa_id = $1", [s.conversa_id]);
+  assert.equal((await reservar(0.6)).ok, true, 'vencidas não contam');
+  await assert.rejects(local.rpc('vendas_reservar_custo', { conversa_id: s.conversa_id, visitante_id: vid, valor_usd: -1, teto_conversa_usd: 1.5, teto_dia_usd: 25, segundos: 600 }), e => e.codigo === '22023', 'valor negativo: recusado');
+  /* teto do DIA: reservas abertas de TODA a organização contam */
+  const dia = await local.rpc('vendas_reservar_custo', { conversa_id: s.conversa_id, visitante_id: vid, valor_usd: 0.1, teto_conversa_usd: 1000, teto_dia_usd: 0.0001, segundos: 600 });
+  assert.equal(dia.ok, false); assert.equal(dia.motivo, 'dia');
+  /* só a conversa dona libera: outro visitante não acha a conversa */
+  const r1 = await reservar(0.1);
+  const outro = navegador(); const so = await outro.iniciar();
+  const vidOutro = (await q('select visitante_id from app.conversas where id = $1', [so.conversa_id])).rows[0].visitante_id;
+  await assert.rejects(local.rpc('vendas_liberar_reserva', { reserva_id: r1.reserva_id, conversa_id: s.conversa_id, visitante_id: vidOutro }), e => e.codigo === 'P0002');
+  assert.equal((await q('select count(*)::int n from privado.reservas_ia where id = $1', [r1.reserva_id])).rows[0].n, 1, 'a reserva continua');
+  await q('delete from privado.reservas_ia where conversa_id = $1', [s.conversa_id]);
+});
+
 test('tetos: custo da conversa e taxa por IP', async () => {
   const n = navegador();
   const s = await n.iniciar();
