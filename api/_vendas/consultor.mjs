@@ -87,7 +87,7 @@ Prazo: a entrega acontece em até ${prazoMax} dias depois do sinal pago e do mat
 - Quanto custa: depende do que precisa existir; o valor aparece no cartão assim que o formato estiver claro, sem cadastro. Se o formato ainda não estiver claro, pergunte o que falta para estimar.
 - Prazo: sai junto com o escopo; na prática, quem dita o ritmo quase sempre é o conteúdo (textos, fotos, acessos).
 - Textos e imagens: dá para partir do que a pessoa já tem ou construir junto; a escrita dos textos e a curadoria de imagens podem entrar como adicionais.
-- Domínio e hospedagem: o primeiro ano do domínio é por conta da Beyon Zero; a hospedagem fica no nome do cliente, com custo baixo na maioria dos sites, e o valor por mês vem escrito antes de fechar. O que o adicional de configuração de domínio e e-mail cobre em detalhe aparece no escopo.
+- Domínio e hospedagem: o primeiro ano do domínio é por conta da Beyon Zero; a hospedagem fica no nome do cliente, com custo baixo na maioria dos sites, e o valor por mês vem escrito antes de fechar. O que o adicional de configuração de domínio e e-mail cobre em detalhe se confirma no diagnóstico.
 - Manutenção: não há manutenção contínua; a Beyon Zero cria e entrega, e o site fica com o cliente. Os custos de manter tudo no ar (hospedagem, ferramentas) ficam com o cliente.
 - Editar depois: se a pessoa quer trocar textos e fotos sozinha, isso entra no escopo desde o começo; mudanças de estrutura são orçadas antes.
 - Dependência: o código, o domínio e os acessos são do cliente, que pode levar para outra pessoa sem reconstruir.
@@ -185,7 +185,8 @@ export function proximoPasso({ etapa, briefing, estimativa }) {
   const b = briefing || {};
   if (ETAPAS_DA_TELA.includes(etapa)) return 'O orçamento já segue pelos blocos da tela (etapa ' + etapa + '). Responda dúvidas em poucas frases e indique o próximo bloco na tela; não chame estimar nem pedir_contato.';
   if (etapa === 'contato') return 'O contato já foi recebido: as três direções saem pelo botão "Gerar as três direções" na tela. Responda dúvidas e indique esse botão; chame estimar de novo só se o escopo mudar; não chame pedir_contato.';
-  if ((b.funcionalidades || []).some(f => FORA_DO_AUTOMATICO.includes(f))) return 'O projeto pede algo fora da estimativa automática (loja virtual com pagamento ou área restrita com login): chame encaminhar_diagnostico, se ainda não chamou, e explique em uma frase; não chame estimar com esse item.';
+  /* (a lista do briefing só soma: quem desiste da loja e já foi estimado sem ela segue o funil) */
+  if (!estimativa && (b.funcionalidades || []).some(f => FORA_DO_AUTOMATICO.includes(f))) return 'O projeto pede algo fora da estimativa automática (loja virtual com pagamento ou área restrita com login): chame encaminhar_diagnostico, se ainda não chamou, e explique em uma frase; não chame estimar com esse item. Se a pessoa desistir desse item e quiser só o site, chame estimar sem ele.';
   const { confianca, faltam } = avaliar(b);
   if (!prontoParaEstimar(b)) {
     const falta = faltam.find(f => ['negocio', 'objetivo', 'formato'].includes(f)) || faltam[0];

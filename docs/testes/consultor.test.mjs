@@ -218,3 +218,11 @@ test('conteúdo (revisão de fidelidade): nada de promessa jurídica sem o advog
     assert.ok(!/faz (bastante )?sentido|ótim|vamos montar isso juntos/i.test(f), 'sem elogio vazio nem fórmula: ' + f);
   }
 });
+
+test('próximo passo: quem desiste da loja e quer só o site sai do diagnóstico (a lista do briefing só soma)', () => {
+  const loja = { negocio: { segmento: 'loja de roupas' }, objetivos: ['vender'], projeto: { formato: 'institucional' }, funcionalidades: ['loja'] };
+  assert.match(proximoPasso({ etapa: 'descoberta', briefing: loja, estimativa: null }), /se a pessoa desistir desse item[^.]*chame estimar sem ele/i);
+  /* depois de estimar sem a loja, o funil segue: nada de voltar ao diagnóstico */
+  const est = { prazo_dias: 8, detalhes: { itens: [{ nome: 'Site institucional' }] } };
+  assert.doesNotMatch(proximoPasso({ etapa: 'estimativa', briefing: loja, estimativa: est }), /encaminhar_diagnostico/);
+});
