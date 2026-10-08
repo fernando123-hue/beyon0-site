@@ -13,7 +13,7 @@
    A reconciliação de pagamentos segue no seu cron (/api/pagamentos?acao=reconciliar).
    Uso: GET /api/rotinas?acao=diaria  com  Authorization: Bearer <CRON_SECRET>
    ========================================================================== */
-import { timingSafeEqual } from 'node:crypto';
+import { conferirCron, segredoDoCron } from './_cron.mjs';
 import { criarTransporte } from './_vendas/transporte.mjs';
 import { banco as bancoMetricas } from './_banco.mjs';
 import { TETOS } from './_ia/config.mjs';
@@ -22,7 +22,6 @@ import { ORG } from './_vendas/org.mjs';
 const RETENCAO_METRICAS_DIAS = 400;   /* ~13 meses (docs/metricas/README.md); antes rodava ao abrir o painel */
 const TOPICO = /^[A-Za-z0-9_-]{20,64}$/;   /* o tópico do ntfy é o segredo: longo e aleatório */
 const json = (dados, status = 200) => new Response(JSON.stringify(dados), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' } });
-const iguaisSeguro = (a, b) => typeof a === 'string' && typeof b === 'string' && Buffer.byteLength(a) === Buffer.byteLength(b) && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 const log = dados => console.log(JSON.stringify({ origem: 'rotinas', ...dados }));
 
 export const GET = request => executar(request, process.env);
@@ -38,9 +37,10 @@ async function ntfy(topico, texto, urgente, token) {
 }
 
 export async function executar(request, env, deps = {}) {
-  /* segredo curto ou ausente = rotina desligada (nunca "aberta") */
-  const segredo = typeof env.CRON_SECRET === 'string' && env.CRON_SECRET.length >= 16 ? env.CRON_SECRET : null;
-  if (!segredo || !iguaisSeguro(request.headers.get('authorization') || '', 'Bearer ' + segredo)) return json({ erro: 'Não autorizado.' }, 401);
+  /* segredo curto ou ausente = rotina desligada (nunca "aberta"); tentativa errada freia por IP (api/_cron.mjs) */
+  const acesso = conferirCron(request, segredoDoCron(env));
+  if (acesso === 'freado') return json({ erro: 'Muitas tentativas.' }, 429);
+  if (acesso !== 'ok') return json({ erro: 'Não autorizado.' }, 401);
   if (new URL(request.url).searchParams.get('acao') !== 'diaria') return json({ erro: 'Não encontrado.' }, 404);
   const banco = deps.banco || criarTransporte(env);
   if (!banco) { log({ nivel: 'erro', evento: 'sem banco' }); return json({ erro: 'Indisponível.' }, 503); }

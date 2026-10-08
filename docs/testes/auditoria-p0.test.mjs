@@ -15,6 +15,8 @@ import { chaveDoIp } from '../../api/_vendas/ip.mjs';
 import { ErroIA } from '../../api/_ia/provedor.mjs';
 import { TIPOS_SECAO } from '../../api/_vendas/direcao.mjs';
 import { executar as rotinas } from '../../api/rotinas.mjs';
+/* segredo do cron nos testes: 40 caracteres de baixa entropia (uma string "aleatória" vira falso positivo no gitleaks) */
+const SEGREDO_CRON_TESTE = 'teste'.repeat(8);
 
 let local, deps;
 const BASE = 'http://127.0.0.1:8899';
@@ -243,12 +245,32 @@ test('P0 consentimento: informar o contato de novo não apaga a data do 1º acei
 
 /* ---------- 6. a retenção prometida na privacidade (90 dias na época; 60 desde a migration 20261008120500) passa a rodar sozinha (rotina diária, com segredo) ---------- */
 test('P0 rotina diária: só com o segredo do cron; roda a retenção', async () => {
-  const env = { CRON_SECRET: 'segredo-de-teste-123' };
+  const env = { CRON_SECRET: SEGREDO_CRON_TESTE };
   const pedir = auth => rotinas(new Request(BASE + '/api/rotinas?acao=diaria', { headers: auth ? { authorization: auth } : {} }), env, { banco: local.rpc });
   assert.equal((await pedir()).status, 401);
   assert.equal((await pedir('Bearer errado')).status, 401);
-  const ok = await pedir('Bearer segredo-de-teste-123');
+  const ok = await pedir('Bearer ' + SEGREDO_CRON_TESTE);
   assert.equal(ok.status, 200);
   const corpo = await ok.json();
   assert.equal(typeof corpo.retencao.mensagens_apagadas, 'number', JSON.stringify(corpo));
+});
+
+test('segredo das rotinas: 32+ caracteres, espaço colado não atrapalha, tentativas erradas freiam (revisão do PR 1, segurança B3)', async () => {
+  const pedir = (env, auth, ip = '198.51.100.90') => rotinas(new Request(BASE + '/api/rotinas?acao=diaria', { headers: { 'x-forwarded-for': ip, ...(auth ? { authorization: auth } : {}) } }), env, { banco: local.rpc });
+  const curto = 'a'.repeat(31);
+  assert.equal((await pedir({ CRON_SECRET: curto }, 'Bearer ' + curto)).status, 401, '31 caracteres: rotina desligada');
+  const forte = 'b'.repeat(40);
+  assert.equal((await pedir({ CRON_SECRET: '  ' + forte + '\n' }, 'Bearer ' + forte)).status, 200, 'espaço/quebra colados no segredo da Vercel não desligam');
+  /* tentativas erradas do mesmo IP: depois de 10 em 10 min, 429 (o certo de outro IP continua passando) */
+  const ip = '198.51.100.91';
+  const erros = [];
+  for (let i = 0; i < 12; i++) erros.push((await pedir({ CRON_SECRET: forte }, 'Bearer chute-' + i, ip)).status);
+  assert.deepEqual(erros.slice(0, 10), Array(10).fill(401));
+  assert.deepEqual(erros.slice(10), [429, 429], 'a 11ª tentativa errada é freada');
+  assert.equal((await pedir({ CRON_SECRET: forte }, 'Bearer ' + forte, '198.51.100.92')).status, 200, 'o cron de verdade (outro IP) não é afetado');
+  /* a reconciliação de pagamentos lê o segredo pela mesma função (api/_pagamentos/config.mjs → api/_cron.mjs) */
+  const { segredoDoCron } = await import('../../api/_cron.mjs');
+  assert.equal(segredoDoCron({ CRON_SECRET: curto }), null);
+  assert.equal(segredoDoCron({ CRON_SECRET: ' ' + forte + ' ' }), forte);
+  assert.equal(segredoDoCron({}), null);
 });

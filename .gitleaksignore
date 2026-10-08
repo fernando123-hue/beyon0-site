@@ -1,0 +1,8 @@
+# Falsos positivos do gitleaks, um por linha (commit:arquivo:regra:linha). Cada entrada precisa de motivo.
+#
+# 2026-10-07, PR #11 (commit 9bd0181): a string de TESTE 'segredo-de-teste-com-mais-de-32-caracteres' (valor
+# público, só nos testes, nunca usado fora deles) foi lida pela regra generic-api-key. Os testes passaram a usar
+# 'teste'.repeat(8) no commit seguinte; estas linhas só cobrem o commit antigo, que fica no histórico do PR.
+9bd01810d7705d4bc9fb740032d7edf0d0f800fa:docs/testes/auditoria-p0.test.mjs:generic-api-key:246
+9bd01810d7705d4bc9fb740032d7edf0d0f800fa:docs/testes/auditoria-p1.test.mjs:generic-api-key:91
+9bd01810d7705d4bc9fb740032d7edf0d0f800fa:docs/testes/auditoria-p1.test.mjs:generic-api-key:108
