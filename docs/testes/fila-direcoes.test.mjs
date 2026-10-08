@@ -179,3 +179,91 @@ test('painel: a fila diz o total (pedido novo nunca some calado), avisado antes 
   const grande = await mudar(new Request(BASE + '/api/painel', comChave({ method: 'POST', body: JSON.stringify({ entregar_direcao: c, conteudo: { lixo: 'x'.repeat(300000) } }) })), ENV);
   assert.equal(grande.status, 413);
 });
+
+test('comando local: o pedido para o modelo NUNCA leva nome, telefone ou e-mail (promessa da privacidade)', async () => {
+  const { pedidoParaModelo, acharPedido, conferir, montarArquivoPedido } = await import('../../scripts/direcoes.mjs');
+  const p = { conversa_id: '1234abcd-0000-4000-8000-000000000000', pedido_em: '2026-10-08T10:00:00Z',
+    contato: { nome: 'Ana Souza', telefone: '+5521999990000', email: 'ana@exemplo.com' },
+    briefing: { negocio: { segmento: 'clínica' } }, fatores: { formato: 'institucional', paginas: 5 },
+    direcoes: [{ id: 'd1', numero: 1, estrategia: 'conversao', status: 'gerando' }] };
+  const obj = pedidoParaModelo(p), m = JSON.stringify(obj);
+  assert.ok(!('contato' in obj), 'sem o campo de contato');
+  for (const proibido of ['Ana', 'Souza', '99999', 'ana@exemplo.com', '+55']) assert.ok(!m.includes(proibido), 'sem ' + proibido);
+  assert.ok(m.includes('clínica') && m.includes('institucional') && m.includes('CONVERSÃO'), 'leva o briefing, o escopo e a instrução da estratégia');
+  /* achar pelo começo do id: curto, ausente e ambíguo dão erro claro */
+  assert.equal(acharPedido([p], '1234ABCD').conversa_id, p.conversa_id);
+  assert.throws(() => acharPedido([p], '1234'), /8 primeiros/);
+  assert.throws(() => acharPedido([p], '99999999'), /não está na fila/);
+  assert.throws(() => acharPedido([p, { ...p }], '1234abcd'), /Mais de um/);
+  /* conferir = o mesmo filtro do servidor */
+  assert.equal(conferir(direcao(), 'conversao').erro, undefined);
+  assert.match(conferir({ ...direcao(), secoes: [] }, 'conversao').erro, /poucas seções/);
+  assert.match(conferir(direcao(), 'qualquer').erro, /estratégia desconhecida/);
+  /* o ARQUIVO inteiro que o modelo lê (revisão técnica: o teste olhava só uma parte) */
+  const arquivo = montarArquivoPedido(p), texto = JSON.stringify(arquivo);
+  assert.ok(!('contato' in arquivo) && !/Ana|Souza|99999|ana@exemplo/.test(texto), 'o arquivo inteiro sem contato');
+  assert.ok(arquivo.instrucoes.sistema.length > 500 && arquivo.instrucoes.esquema.properties.secoes, 'as instruções da geração automática');
+});
+
+test('comando local (revisão de segurança): a chave só vai para o site certo, por https', async () => {
+  const { validarBase } = await import('../../scripts/direcoes.mjs');
+  for (const ok of ['https://beyon0-site.vercel.app', 'https://beyon0-site-git-fila-beyond0.vercel.app/', 'http://127.0.0.1:8897', 'http://localhost:8899'])
+    assert.doesNotThrow(() => validarBase(ok), ok);
+  for (const ruim of ['http://beyon0-site.vercel.app', 'https://beyon0-site.vercel.app.evil.com', 'https://evil.com', 'https://beyon0-site.vercel.app@evil.com', 'ftp://127.0.0.1', '', 'beyon0-site.vercel.app'])
+    assert.throws(() => validarBase(ruim), /BZ_BASE/, ruim);
+});
+
+test('comando local (revisão de segurança): o briefing para o modelo vai sem o nome, o telefone e o e-mail do cliente, mesmo escritos dentro dele', async () => {
+  const { pedidoParaModelo } = await import('../../scripts/direcoes.mjs');
+  const p = { conversa_id: '1234abcd-0000-4000-8000-000000000000', pedido_em: '2026-10-08T10:00:00Z',
+    contato: { nome: 'Joana Prado', telefone: '+5521987654321', email: 'joana@clinica.com.br' },
+    briefing: { negocio: { nome: 'Clínica da Joana', descricao: 'Sou a Joana Prado, meu zap é 21 98765-4321 e o e-mail joana@clinica.com.br' },
+      publico: { descricao: 'pacientes; falar com Joana' }, servicos: ['Pilates com a Joana', 'ligue 987654321'] },
+    fatores: { formato: 'institucional' }, direcoes: [{ id: 'd1', numero: 1, estrategia: 'conversao', status: 'gerando' }] };
+  const m = JSON.stringify(pedidoParaModelo(p));
+  for (const proibido of ['Joana', 'Prado', '98765', '4321', 'joana@', 'clinica.com.br']) assert.ok(!m.includes(proibido), 'sem ' + proibido + ': ' + m);
+  assert.ok(m.includes('Clínica da') && m.includes('Pilates'), 'o resto do briefing fica');
+  assert.throws(() => pedidoParaModelo({ ...p, conversa_id: '../../x' }), /pedido inválido/i, 'id fora do formato não vira pasta');
+});
+
+test('comando local: entregar o pedido inteiro só com os 3 arquivos conferidos; limpar apaga pastas velhas', async () => {
+  const fs = await import('node:fs'), os = await import('node:os'), path = await import('node:path');
+  const { planejarEntrega, limparPastas } = await import('../../scripts/direcoes.mjs');
+  const raiz = fs.mkdtempSync(path.join(os.tmpdir(), 'bz-dir-'));
+  const pasta = path.join(raiz, '1234abcd');
+  fs.mkdirSync(pasta);
+  const dirs = [{ id: 'aaaaaaaa-0000-4000-8000-000000000001', estrategia: 'conversao', status: 'gerando' }, { id: 'aaaaaaaa-0000-4000-8000-000000000002', estrategia: 'autoridade', status: 'gerando' }, { id: 'aaaaaaaa-0000-4000-8000-000000000003', estrategia: 'experiencia', status: 'pronta' }];
+  fs.writeFileSync(path.join(pasta, 'pedido.json'), JSON.stringify({ direcoes: dirs }));
+  fs.writeFileSync(path.join(pasta, 'conversao.json'), JSON.stringify(direcao()));
+  assert.throws(() => planejarEntrega(pasta), /autoridade\.json/, 'falta um arquivo: nada sai');
+  fs.writeFileSync(path.join(pasta, 'autoridade.json'), JSON.stringify({ ...direcao(), secoes: [] }));
+  assert.throws(() => planejarEntrega(pasta), /autoridade[^]*poucas seções/, 'arquivo recusado pelo filtro: nada sai');
+  fs.writeFileSync(path.join(pasta, 'autoridade.json'), JSON.stringify(direcao()));
+  assert.deepEqual(planejarEntrega(pasta).map(e => e.estrategia), ['conversao', 'autoridade'], 'só as que estão na fila');
+  const velha = path.join(raiz, 'abcd1234');
+  fs.mkdirSync(velha);
+  const antigo = new Date(Date.now() - 10 * 864e5);
+  fs.utimesSync(velha, antigo, antigo);
+  assert.deepEqual(limparPastas(raiz, 7), ['abcd1234']);
+  assert.ok(fs.existsSync(pasta) && !fs.existsSync(velha));
+  fs.rmSync(raiz, { recursive: true, force: true });
+});
+
+test('comando local (revisões): a entrega confere os ids com a fila do servidor e retoma o que já foi entregue; nome com "dos" não pica o briefing', async () => {
+  const fs = await import('node:fs'), os = await import('node:os'), path = await import('node:path');
+  const { planejarEntrega, pedidoParaModelo } = await import('../../scripts/direcoes.mjs');
+  const raiz = fs.mkdtempSync(path.join(os.tmpdir(), 'bz-dir-'));
+  const id = n => 'bbbbbbbb-0000-4000-8000-00000000000' + n;
+  const dirs = [{ id: id(1), estrategia: 'conversao', status: 'gerando' }, { id: id(2), estrategia: 'autoridade', status: 'gerando' }];
+  fs.writeFileSync(path.join(raiz, 'pedido.json'), JSON.stringify({ direcoes: dirs }));
+  for (const d of dirs) fs.writeFileSync(path.join(raiz, d.estrategia + '.json'), JSON.stringify(direcao()));
+  /* a fila do servidor: a 1ª já foi entregue (queda no meio) → só a 2ª sai */
+  const servidor = { todos: new Set([id(1), id(2), id(3)]), naFila: new Set([id(2)]) };
+  assert.deepEqual(planejarEntrega(raiz, servidor).map(e => e.estrategia), ['autoridade']);
+  /* id que não é deste pedido (pedido.json editado) → nada sai */
+  assert.throws(() => planejarEntrega(raiz, { todos: new Set([id(2)]), naFila: new Set([id(2)]) }), /não batem com a fila/);
+  fs.rmSync(raiz, { recursive: true, force: true });
+  const p = { conversa_id: '1234abcd-0000-4000-8000-000000000000', contato: { nome: 'Maria dos Santos' }, briefing: { negocio: { descricao: 'Moda dos anos 80 da Maria' } }, direcoes: [] };
+  const t = JSON.stringify(pedidoParaModelo(p));
+  assert.ok(t.includes('dos anos 80') && !t.includes('Maria') && !t.includes('Santos'), t);
+});

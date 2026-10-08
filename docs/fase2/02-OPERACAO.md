@@ -57,7 +57,20 @@ Enquanto não há verba para a API, as três direções não são geradas pelo m
   - Quando as 3 ficam prontas, o cliente já pode escolher.
 - `POST /api/painel {avisado: <conversa_id>}`: depois de mandar a mensagem pelo WhatsApp, o pedido sai da fila.
 
-A tela da fila no painel e o comando local do Claude Code vêm no PR seguinte.
+**No dia a dia:**
+- **Painel, seção "Direções na fila"** (`js/painel-fila.js`):
+  - mostra cada pedido, há quanto tempo chegou e quantas das 3 estão prontas;
+  - o pedido fica destacado quando passa de 20 horas;
+  - com as 3 prontas, aparece **"Avisar no WhatsApp"**, que abre o WhatsApp do dono com a mensagem pronta e o link `/orcamento` ("no mesmo aparelho"). Sem telefone, aparece "Avisar por e-mail";
+  - depois de mandar, **"Já avisei"**.
+- **Comando `scripts/direcoes.mjs` e skill `produzir-direcoes`** (`.claude/skills/produzir-direcoes/SKILL.md`). A chave **nunca** fica na sessão do Claude Code que lê o briefing, porque o briefing é texto de visitante (revisão de segurança):
+  - **O dono roda no terminal dele**, com `BZ_BASE` (https do site, conferido pelo comando) e `PAINEL_CHAVE` só ali:
+    - `fila`;
+    - `pedido <id>`: grava em `~/BeyonZero-direcoes/<id>/pedido.json`, fora do repositório. O briefing vai com nome, telefone e e-mail do cliente apagados;
+    - `entregar-pedido <id>`: as 3 de uma vez, cada arquivo no id certo, conferidas antes; apaga a pasta quando as 3 ficam prontas.
+  - **O Claude Code roda, sem chave:**
+    - `conferir <arquivo> <estrategia>`: o mesmo filtro do servidor;
+    - `limpar [dias]`: apaga pastas esquecidas, padrão 3 dias.
 
 **Voltar para a API:** apagar `BZ_DIRECOES`. Direções que estiverem na fila nesse momento são geradas pela API quando o cliente voltar à página.
 
