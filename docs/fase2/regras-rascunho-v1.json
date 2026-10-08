@@ -34,7 +34,7 @@
       ]
     },
     "sob_medida": {
-      "nome": "Site sob medida",
+      "nome": "Experiência digital",
       "base": 6500,
       "piso": 4500,
       "prazo_dias": 10,
@@ -111,13 +111,6 @@
       "prazo_dias": 2,
       "max": 2,
       "prioridade": 50
-    },
-    "dominio_email": {
-      "nome": "Configuração de domínio e e-mail",
-      "valor": 200,
-      "prazo_dias": 0.5,
-      "max": 1,
-      "prioridade": 15
     },
     "loja_virtual": {
       "nome": "Loja virtual com pagamento",

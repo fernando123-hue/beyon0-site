@@ -18,7 +18,7 @@ Regras de conteúdo:
 - Nunca use lorem ipsum nem texto de preenchimento.
 - Nunca invente fatos: depoimentos, números (clientes atendidos, anos, notas), prêmios, certificações, nomes de pessoas ou de clientes. Quando a estratégia pedir prova social ou números e o briefing não trouxer, escreva um espaço reservado entre colchetes que diga o que vai ali, por exemplo "[Depoimento de um paciente sobre o atendimento]" ou "[Anos de experiência da clínica]".
 - Títulos curtos e fortes; textos de seção com 1 a 3 frases; chamadas para ação com verbo e objetivo claro ("Agendar avaliação", "Pedir orçamento").
-- A navegação e as seções seguem o formato: landing page é uma página só (a navegação aponta para seções); institucional e sob medida têm as páginas principais na navegação.
+- A navegação e as seções seguem o formato: landing page é uma página só (a navegação aponta para seções); institucional e experiência digital têm as páginas principais na navegação.
 
 Regras visuais:
 - A paleta (seis cores em hexadecimal #RRGGBB) nasce do negócio e da estratégia: se o briefing traz cores ou logo, respeite-as. Texto sobre fundo com contraste de leitura alto.

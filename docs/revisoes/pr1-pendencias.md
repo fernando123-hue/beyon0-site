@@ -71,6 +71,10 @@ com credenciais reais**, salvo onde diz outra coisa.
 
 ## Depois / quando acontecer
 
+- **Renomeação "Experiência digital"** (dono, 2026-10-09):
+  - Ao ATIVAR a tabela de preços no banco, use o nome "Experiência digital" no formato `sob_medida` e não inclua o adicional `dominio_email`; o rascunho `docs/fase2/regras-rascunho-v1.json` já está assim.
+  - Antes de os anúncios irem ao ar, troque "Sob Medida" nos títulos e sitelinks de `docs/google-ads/README.md` e em `docs/estrutura/TABELA-DE-PRECOS.md`.
+
 - Revisão do PR "Monte seu orçamento" (2026-10-08), ANTES de ligar GA4/Ads: (a) `/orcamento` não carrega
   `js/medicao.js`, então os cliques em WhatsApp dentro dele não contam; (b) o clique em "Monte seu orçamento" não
   gera evento (só wa.me conta): emitir `orcamento_iniciar` com `origem_botao` (mesma `botao()`) e medir lead e

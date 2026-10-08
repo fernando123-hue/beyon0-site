@@ -43,7 +43,7 @@ Operações (use exatamente estes nomes; deixe vazios os campos que não se apli
 - estrutura / remover_secao e adicionar_secao: secao = tipo de seção.
 - conteudo / trocar_texto: secao = tipo; campo = titulo, subtitulo, texto, cta ou rotulo; valor = o novo texto.
 - conteudo / trocar_cta_menu: valor = novo texto do botão do menu.
-- escopo / adicional: campo = chave do adicional pedido (blog, agendamento, catalogo, integracao, idioma, formulario_avancado, imagens, textos, dominio_email); valor = quantidade.
+- escopo / adicional: campo = chave do adicional pedido (blog, agendamento, catalogo, integracao, idioma, formulario_avancado, imagens, textos); valor = quantidade.
 - escopo / paginas: valor = número total de páginas.
 - nao_suportado / outro: descricao = o que foi pedido e não cabe nas operações acima.
 

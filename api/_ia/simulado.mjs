@@ -24,7 +24,7 @@ function extrair(texto, briefing) {
   if (objs.length) a.objetivos = objs;
   let formato = null;
   if (/landing/i.test(texto)) formato = 'landing_page';
-  else if (/sob medida|apresenta[çc][ãa]o|lan[çc]amento|anima[çc]/i.test(texto)) formato = 'sob_medida';
+  else if (/sob medida|experi[êe]ncia digital|apresenta[çc][ãa]o|lan[çc]amento|anima[çc]/i.test(texto)) formato = 'sob_medida';
   else if (/institucional|site (completo|profissional|mais profissional)|p[áa]ginas|um site/i.test(texto)) formato = 'institucional';
   const pag = texto.match(/(\d{1,2})\s*p[áa]ginas/i);
   if (formato || pag) a.projeto = { ...(formato ? { formato } : {}), ...(pag ? { paginas: Number(pag[1]) } : {}) };
