@@ -58,7 +58,7 @@ com credenciais reais**, salvo onde diz outra coisa.
 | ~~Técnica M2~~ | ~~4xx da IA conta como "entrada"~~ | **feito no PR 4** (402/403/404 e o 400 de limite de gasto/saldo → `indisponivel`) |
 | Técnica M4 | mutação só sabota as migrations de RLS | sabotagens em `pagamentos_aplicar` e `conferir_transicao` |
 | ~~Segurança B3~~ | ~~`CRON_SECRET` aceita 16 caracteres; tentativas erradas sem freio~~ | **feito no PR 11** (`api/_cron.mjs`: 32+ depois de `.trim()`, freio de tentativa errada por IP) |
-| Segurança B6 | teto de custo lido antes e somado depois: 3 direções em paralelo passam do teto em ~1/3 | reservar o custo no banco antes de chamar |
+| ~~Segurança B6~~ | ~~teto de custo lido antes e somado depois~~ | **feito no PR 15** (`app.vendas_reservar_custo`: reserva o pior caso numa transação que trava a organização; estouro máximo de UMA chamada) |
 | Técnica B1 | `ID_ORDER` do webhook sensível a maiúsculas | confirmar a forma real do MP no 1º teste com credenciais de TESTE |
 | ~~Técnica B3~~ | ~~`sinal_percentual` fracionário diverge entre cartão e Pix~~ | **feito no PR 12** (`validarRegras` exige inteiro) |
 | ~~Segurança B4~~ | ~~CSP de `/orcamento` libera domínios do Google que a página não usa~~ | **feito no PR 13** (Google fora do `/orcamento`; `/painel` com header próprio igual ao `<meta>`; `docs/testes/csp.test.mjs` prende header e `<meta>` juntos) |

@@ -39,6 +39,15 @@ const MAIS_CARO = Object.values(PRECO_POR_MILHAO).reduce((m, p) => ({
   cache_leitura: Math.max(m.cache_leitura, p.cache_leitura), cache_escrita: Math.max(m.cache_escrita, p.cache_escrita)
 }), { entrada: 0, saida: 0, cache_leitura: 0, cache_escrita: 0 });
 
+/* o PIOR caso de uma chamada do papel (entrada generosa + saída máxima, vezes as novas tentativas): o valor que se
+   RESERVA no teto antes de chamar (app.vendas_reservar_custo) */
+export const ENTRADA_RESERVA = 20000;
+export function reservaUsd(papel) {
+  const c = PAPEIS[papel];
+  if (!c) return 1;
+  return custoUsd(c.modelo, { entrada: ENTRADA_RESERVA, saida: c.max_tokens }) * (1 + (c.tentativas ?? TENTATIVAS_PADRAO));
+}
+
 export function custoUsd(modelo, uso) {
   const p = PRECO_POR_MILHAO[modelo] || MAIS_CARO;
   if (!uso) return 0;

@@ -17,7 +17,7 @@ import { estimar } from './precos.mjs';
 import { redigir, semPrecoNoTexto } from './seguranca.mjs';
 import { ErroIA } from '../_ia/provedor.mjs';
 
-const MAX_ITERACOES = 4;
+export const MAX_ITERACOES = 4;
 const HISTORICO = 12;   // mensagens anteriores enviadas ao modelo (o briefing carrega o resto)
 
 /* pontos de integração futuros (spec: "prepare interfaces, não implemente o cérebro") */
