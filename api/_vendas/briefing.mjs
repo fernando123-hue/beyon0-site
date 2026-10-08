@@ -11,6 +11,7 @@ export const FUNCIONALIDADES = ['whatsapp', 'formulario', 'agendamento', 'mapa',
 export const OBJETIVOS = ['gerar_leads', 'apresentar_empresa', 'vender', 'agendamentos', 'autoridade', 'captar_contatos', 'lancar_produto', 'outro'];
 const POSSE = ['tem', 'parcial', 'nao'];
 const t = (v, max) => (typeof v === 'string' ? v.replace(/[\u0000-\u001f<>]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max) : undefined);
+export const limparTexto = t;   /* (o mesmo corte para o texto livre das outras ferramentas do agente) */
 const lista = (v, max, itemMax) => (Array.isArray(v) ? [...new Set(v.map(x => t(x, itemMax)).filter(Boolean))].slice(0, max) : undefined);
 const enumLista = (v, permitidos, max) => (Array.isArray(v) ? [...new Set(v.filter(x => permitidos.includes(x)))].slice(0, max) : undefined);
 const bool = v => (typeof v === 'boolean' ? v : undefined);

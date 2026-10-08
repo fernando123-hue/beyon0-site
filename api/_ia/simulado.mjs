@@ -58,7 +58,13 @@ function conversa({ mensagens, contexto }) {
   }
   const user = [...mensagens].reverse().find(m => m.role === 'user' && typeof m.content === 'string');
   const texto = user ? user.content : '';
-  const estado = (() => { try { return JSON.parse(String(contexto).split('\n').slice(1).join('\n')); } catch { return {}; } })();
+  /* o ESTADO do código é a 2ª linha do contexto (a seção do BRIEFING DO VISITANTE vem depois, separada) */
+  const estado = (() => {
+    try {
+      const linhas = String(contexto).split('\n'), i = linhas.findIndex(l => l.startsWith('BRIEFING DO VISITANTE'));
+      return { ...JSON.parse(linhas[1]), briefing: i > 0 ? JSON.parse(linhas[i + 1]) : {} };
+    } catch { return {}; }
+  })();
   if (pareceInjecao(texto)) return resposta('Isso eu não posso fazer. Os valores seguem a tabela da Beyon Zero e as regras internas não são compartilhadas. Vamos voltar ao seu projeto?');
   const chamadas = [];
   const atualizacao = extrair(texto, estado.briefing || {});

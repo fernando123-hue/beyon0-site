@@ -16,6 +16,10 @@ export const PAPEIS = {
 };
 export const TENTATIVAS_PADRAO = 2;
 
+/* as três direções: geradas pela API na hora ("api") ou produzidas pelo dono no Claude Code, em até 24 horas úteis
+   ("manual", decisão do dono 2026-10-08, enquanto não há verba para a API). BZ_DIRECOES na Vercel; lido a cada uso */
+export const modoDirecoes = (env = process.env) => (String(env.BZ_DIRECOES || '').trim().toLowerCase() === 'manual' ? 'manual' : 'api');
+
 /* US$ por milhão de tokens: entrada, saída, leitura de cache, escrita de cache (~1,25× a entrada). `longo`: a tabela que
    vale quando a entrada inteira do pedido (sem cache + lida + escrita) passa de `ate_tokens` */
 export const PRECO_POR_MILHAO = {

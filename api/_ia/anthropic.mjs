@@ -27,11 +27,12 @@ const mensagemDoProvedor = e => String(e?.error?.error?.message || '');
 /* sem texto do visitante: status, tipo do erro e o id do pedido para achar no painel da Anthropic */
 const logErroProvedor = e => console.error(JSON.stringify({ origem: 'ia', nivel: 'erro', status: e.status, tipo: String(e?.error?.error?.type || '').slice(0, 40) || null, request_id_provedor: String(e.requestID || '').slice(0, 80) || null }));
 
-export function criarAnthropic(env = process.env, cliente) {
+/* ajustes: { papel: { esforco } } só para a AVALIAÇÃO comparar níveis (docs/avaliacao/consultor.mjs); o site não passa */
+export function criarAnthropic(env = process.env, cliente, ajustes = {}) {
   const client = cliente || new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, maxRetries: TENTATIVAS_PADRAO });
 
   async function mensagem({ papel, sistema, contexto, mensagens, ferramentas, esquema }) {
-    const cfg = PAPEIS[papel];
+    const cfg = PAPEIS[papel] && { ...PAPEIS[papel], ...(ajustes[papel] || {}) };
     if (!cfg) throw new ErroIA('falha', 'papel desconhecido: ' + papel);
     const pedido = {
       model: cfg.modelo,
