@@ -39,13 +39,14 @@ const MAIS_CARO = Object.values(PRECO_POR_MILHAO).reduce((m, p) => ({
   cache_leitura: Math.max(m.cache_leitura, p.cache_leitura), cache_escrita: Math.max(m.cache_escrita, p.cache_escrita)
 }), { entrada: 0, saida: 0, cache_leitura: 0, cache_escrita: 0 });
 
-/* o PIOR caso de uma chamada do papel (entrada generosa + saída máxima, vezes as novas tentativas): o valor que se
-   RESERVA no teto antes de chamar (app.vendas_reservar_custo) */
-export const ENTRADA_RESERVA = 20000;
+/* o valor que se RESERVA no teto antes de cada chamada (app.vendas_reservar_custo). Realista, não o pior caso: com o
+   pior caso (~US$ 0,56 por direção no Opus) a 3ª direção era recusada sempre que a conversa já tinha gastado mais de
+   US$ 0,38 (revisões do PR 15). Base: o teto da estimativa de docs/fase2/00-AUDITORIA-E-ANALISE.md (3 direções no Opus
+   ~US$ 0,40 a 0,70 → até ~0,23 cada; conversa de ~10 turnos no Sonnet ~US$ 0,05 a 0,12). A MEDIR: com chamadas reais,
+   trocar pelo p95 de app.ia_chamadas por papel. O que passar da reserva ainda é somado depois (o estouro fica pequeno) */
+export const RESERVA_USD = { conversa: 0.05, extracao: 0.03, geracao: 0.25 };
 export function reservaUsd(papel) {
-  const c = PAPEIS[papel];
-  if (!c) return 1;
-  return custoUsd(c.modelo, { entrada: ENTRADA_RESERVA, saida: c.max_tokens }) * (1 + (c.tentativas ?? TENTATIVAS_PADRAO));
+  return RESERVA_USD[papel] ?? 0.25;
 }
 
 export function custoUsd(modelo, uso) {

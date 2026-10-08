@@ -20,7 +20,10 @@ create table privado.reservas_ia (
 );
 create index reservas_ia_org on privado.reservas_ia (org_id, expira_em);
 create index reservas_ia_conversa on privado.reservas_ia (conversa_id);
-revoke all on table privado.reservas_ia from public, anon, authenticated;
+alter table privado.reservas_ia enable row level security;   -- (sem política: ninguém lê por API; só as funções do dono)
+revoke all on table privado.reservas_ia from public, anon, authenticated, service_role;
+-- a soma do gasto do dia roda dentro da trava: com índice
+create index if not exists conversas_org_atividade on app.conversas (org_id, ultima_atividade);
 
 -- p = { conversa_id, visitante_id, valor_usd, teto_conversa_usd, teto_dia_usd, segundos }
 -- → { ok: true, reserva_id } | { ok: false, motivo: 'conversa' | 'dia' }
@@ -41,15 +44,17 @@ begin
   if v_teto_conv is null or v_teto_conv <= 0 or v_teto_dia is null or v_teto_dia <= 0 then raise exception 'teto inválido' using errcode = '22023'; end if;
   if v_segundos < 30 or v_segundos > 900 then raise exception 'validade da reserva inválida' using errcode = '22023'; end if;
   c := privado.conversa_do((p ->> 'conversa_id')::uuid, (p ->> 'visitante_id')::uuid);
-  -- uma reserva por vez na organização inteira (o teto do dia é da organização)
-  perform 1 from app.organizacoes where id = c.org_id for update;
+  -- uma reserva por vez na organização inteira (o teto do dia é da organização). "for no key update": exclui as
+  -- outras reservas sem bloquear quem só cria linhas que apontam para a organização (conversas, eventos)
+  perform 1 from app.organizacoes where id = c.org_id for no key update;
   delete from privado.reservas_ia where org_id = c.org_id and expira_em < now();
   select coalesce(sum(valor_usd), 0) into v_reservado_conv from privado.reservas_ia where conversa_id = c.id;
   if c.custo_ia_usd + v_reservado_conv >= v_teto_conv then return jsonb_build_object('ok', false, 'motivo', 'conversa'); end if;
   select coalesce(sum(valor_usd), 0) into v_reservado_org from privado.reservas_ia where org_id = c.org_id;
   -- o gasto do dia: a mesma conta de app.vendas_custo_dia
   select coalesce(sum(x.custo_ia_usd), 0) into v_gasto_dia from app.conversas x
-  where x.org_id = c.org_id and (x.ultima_atividade at time zone 'America/Sao_Paulo')::date = (now() at time zone 'America/Sao_Paulo')::date;
+  where x.org_id = c.org_id
+    and x.ultima_atividade >= (date_trunc('day', now() at time zone 'America/Sao_Paulo') at time zone 'America/Sao_Paulo');
   if v_gasto_dia + v_reservado_org >= v_teto_dia then return jsonb_build_object('ok', false, 'motivo', 'dia'); end if;
   insert into privado.reservas_ia (org_id, conversa_id, valor_usd, expira_em)
   values (c.org_id, c.id, v_valor, now() + make_interval(secs => v_segundos))

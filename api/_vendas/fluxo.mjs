@@ -8,7 +8,7 @@
    Falha de IA: nada é inventado; a resposta é a recuperação elegante pedida
    na especificação, e o que a pessoa já contou continua no banco.
    ========================================================================== */
-import { executarTurno, MAX_ITERACOES } from './agente.mjs';
+import { executarTurno } from './agente.mjs';
 import { estimar, validarRegras } from './precos.mjs';
 import { gerarDirecao } from './gerador.mjs';
 import { interpretar, aplicar, fatoresComEscopo } from './alteracoes.mjs';
@@ -122,8 +122,8 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
      do teto da conversa e do dia; o estouro máximo é UMA chamada. A reserva sai no fim, depois de somar o custo real.
      Reserva que falha por erro do banco (ex.: migration ainda não aplicada) não derruba o agente: segue como antes
      (dentroDoCusto ainda confere o gasto) e o log avisa */
-  async function comReserva(conversaId, vid, papel, vezes, fn) {
-    const valor = Math.min(10, Math.round(reservaUsd(papel) * vezes * 10000) / 10000);
+  async function comReserva(conversaId, vid, papel, fn) {
+    const valor = reservaUsd(papel);
     let reserva = null;
     try {
       const r = await banco('vendas_reservar_custo', { conversa_id: conversaId, visitante_id: vid, valor_usd: valor,
@@ -132,7 +132,11 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       reserva = r && r.reserva_id;
     } catch (e) {
       if (e instanceof Recusa || (e && e.codigo === 'P0002')) throw e;
-      console.error(JSON.stringify({ origem: 'vendas', nivel: 'erro', request_id: requestId || null, evento: 'reserva de custo não feita', codigo: e && e.codigo }));
+      /* só a função ainda inexistente (migration a aplicar) segue como antes; qualquer outro erro do banco FECHA: sem
+         reserva não se chama o modelo (revisões do PR 15) */
+      const semFuncao = e && (e.codigo === '42883' || e.codigo === 'PGRST202');
+      console.error(JSON.stringify({ origem: 'vendas', nivel: 'erro', request_id: requestId || null, evento: semFuncao ? 'reserva de custo indisponível (função ausente): segue sem reserva' : 'reserva de custo falhou: não chama o modelo', codigo: e && e.codigo }));
+      if (!semFuncao) throw new Recusa(503, 'O consultor está indisponível agora. Seu briefing está salvo; tente de novo em instantes ou fale pelo WhatsApp.', { whatsapp: true });
     }
     try { return await fn(); }
     finally {
@@ -218,7 +222,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       if (pareceInjecao(msg)) await banco('vendas_registrar_evento', { conversa_id: corpo.conversa_id, visitante_id: vid, tipo: 'tentativa_bloqueada' }).catch(() => {});
       await reservarIa(corpo.conversa_id, vid, request);
       try {
-        return await comReserva(corpo.conversa_id, vid, 'conversa', MAX_ITERACOES, () => turno(vid, corpo.conversa_id, est, regras, msg));
+        return await comReserva(corpo.conversa_id, vid, 'conversa', () => turno(vid, corpo.conversa_id, est, regras, msg));
       } finally {
         await gravarChamadas(corpo.conversa_id, vid);
         await banco('vendas_liberar_ia', { conversa_id: corpo.conversa_id, visitante_id: vid }).catch(() => {});
@@ -254,7 +258,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       const vid = await visitante(request);
       exigir(ehUuid(corpo?.conversa_id) && ehUuid(corpo?.direcao_id), 400, 'Dados inválidos.');
       await dentroDoCusto(await estado(vid, corpo.conversa_id));   /* (o Opus é a chamada mais cara: confere antes) */
-      return comReserva(corpo.conversa_id, vid, 'geracao', 1, async () => {
+      return comReserva(corpo.conversa_id, vid, 'geracao', async () => {
         const p = await banco('vendas_reivindicar_direcao', { conversa_id: corpo.conversa_id, visitante_id: vid, direcao_id: corpo.direcao_id });
         if (!p.reivindicada) return { status: p.status };
         try {
@@ -298,7 +302,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       exigir(escolhida, 409, 'Escolha uma direção antes.');
       const base = est.versao_final || escolhida.conteudo;
       await reservarIa(corpo.conversa_id, vid, request);
-      const t = await comReserva(corpo.conversa_id, vid, 'extracao', 1, async () => {
+      const t = await comReserva(corpo.conversa_id, vid, 'extracao', async () => {
         let r;
         try { r = await interpretar({ ia, pedido, direcoes, escolhida: escolhida.numero }); }
         catch (e) { await somarCusto(corpo.conversa_id, vid, e && e.custo_usd); throw e; }
