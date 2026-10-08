@@ -69,14 +69,18 @@ export function criarAnthropic(env = process.env, cliente) {
       throw new ErroIA('falha', 'erro de rede');
     }
 
-    const uso = {
-      entrada: r.usage?.input_tokens || 0,
-      saida: r.usage?.output_tokens || 0,
-      cache_leitura: r.usage?.cache_read_input_tokens || 0,
-      cache_escrita: r.usage?.cache_creation_input_tokens || 0
-    };
+    /* sem uso na resposta: o pior caso do papel (a saída máxima), nunca zero — o teto não fica cego */
+    const uso = r.usage ? {
+      entrada: r.usage.input_tokens || 0,
+      saida: r.usage.output_tokens || 0,
+      cache_leitura: r.usage.cache_read_input_tokens || 0,
+      cache_escrita: r.usage.cache_creation_input_tokens || 0
+    } : { entrada: 0, saida: cfg.max_tokens, cache_leitura: 0, cache_escrita: 0 };
     const modelo = r.model || cfg.modelo;
-    const base = { modelo, uso, custo_usd: custoUsd(modelo, uso) };
+    /* o mesmo modelo pedido com sufixo (ex.: data) conta pela tabela dele; contado como o mais caro, o Haiku sairia ~40×
+       mais caro e a conversa bateria o teto em poucos turnos (revisões do PR do Haiku). Outro id segue a regra geral */
+    const modeloCusto = modelo.startsWith(cfg.modelo + '-') ? cfg.modelo : modelo;
+    const base = { modelo, uso, custo_usd: custoUsd(modeloCusto, uso) };
     if (r.stop_reason === 'refusal') return { ...base, parada: 'recusa', texto: '', json: null, chamadas: [], conteudo: r.content };
     const texto = r.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
     const chamadas = r.content.filter(b => b.type === 'tool_use').map(b => ({ id: b.id, nome: b.name, entrada: b.input }));

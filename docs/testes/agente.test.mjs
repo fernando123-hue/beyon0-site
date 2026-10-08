@@ -168,7 +168,7 @@ test('adaptador Anthropic: o pedido sai no formato da documentação oficial e o
   const { criarAnthropic } = await import('../../api/_ia/anthropic.mjs');
   const Anthropic = (await import('@anthropic-ai/sdk')).default;
   const pedidos = [];
-  const respostaFalsa = { model: 'claude-sonnet-5-5', stop_reason: 'end_turn', content: [{ type: 'text', text: 'ok' }], usage: { input_tokens: 1000, output_tokens: 100, cache_read_input_tokens: 4000 } };
+  const respostaFalsa = { model: 'claude-haiku-5-5', stop_reason: 'end_turn', content: [{ type: 'text', text: 'ok' }], usage: { input_tokens: 1000, output_tokens: 100, cache_read_input_tokens: 4000 } };
   const cliente = { beta: { messages: {
     create: async (p, o) => { pedidos.push({ p, o }); return respostaFalsa; },
     stream: (p, o) => { pedidos.push({ p, o }); return { finalMessage: async () => ({ ...respostaFalsa, model: 'claude-opus-5-5', content: [{ type: 'text', text: '{"a":1}' }] }) }; }
@@ -194,6 +194,43 @@ test('adaptador Anthropic: o pedido sai no formato da documentação oficial e o
   assert.deepEqual(g.json, { a: 1 });
   const falha = criarAnthropic({}, { beta: { messages: { create: async () => { throw new Anthropic.RateLimitError(429, {}, 'x', new Headers()); } } } });
   await assert.rejects(falha.mensagem({ papel: 'conversa', sistema: 'S', mensagens: [] }), e => e.motivo === 'limite');
+});
+
+test('adaptador Anthropic + Haiku 5.5: recusa crua, bloco de raciocínio, id com sufixo e uso ausente', async () => {
+  /* revisão técnica do PR do Haiku: sem fallback do servidor, a recusa do Haiku só chega pelo stop_reason; o
+     pensamento adaptativo põe blocos "thinking" antes do texto e da ferramenta (referência da API, 2026-10-06) */
+  const { criarAnthropic } = await import('../../api/_ia/anthropic.mjs');
+  const { custoUsd, PAPEIS } = await import('../../api/_ia/config.mjs');
+  const com = resposta => criarAnthropic({}, { beta: { messages: { create: async () => resposta } } });
+  const uso = { input_tokens: 2000, output_tokens: 300 };
+
+  const recusa = await com({ model: 'claude-haiku-5-5', stop_reason: 'refusal', stop_details: { type: 'refusal', category: 'general_harms' }, content: [], usage: uso })
+    .mensagem({ papel: 'conversa', sistema: 'S', mensagens: [] });
+  assert.equal(recusa.parada, 'recusa');
+  assert.deepEqual(recusa.chamadas, []);
+  assert.equal(recusa.custo_usd, custoUsd('claude-haiku-5-5', { entrada: 2000, saida: 300 }), 'a recusa também é paga');
+
+  const pensamento = { type: 'thinking', thinking: '', signature: 'sig' };
+  const ferramenta = { type: 'tool_use', id: 't1', name: 'atualizar_briefing', input: { negocio: { segmento: 'clínica' } } };
+  const r = await com({ model: 'claude-haiku-5-5', stop_reason: 'tool_use', content: [pensamento, ferramenta], usage: uso })
+    .mensagem({ papel: 'conversa', sistema: 'S', mensagens: [] });
+  assert.equal(r.parada, 'ferramenta');
+  assert.equal(r.texto, '', 'o raciocínio não vira resposta');
+  assert.deepEqual(r.chamadas, [{ id: 't1', nome: 'atualizar_briefing', entrada: { negocio: { segmento: 'clínica' } } }]);
+  assert.deepEqual(r.conteudo, [pensamento, ferramenta], 'o bloco volta inalterado no laço de ferramentas');
+
+  /* um id com sufixo (ex.: data) do MESMO modelo pedido conta pela tabela dele, não como o mais caro (40× no Haiku) */
+  const sufixo = await com({ model: 'claude-haiku-5-5-20261001', stop_reason: 'end_turn', content: [{ type: 'text', text: 'ok' }], usage: uso })
+    .mensagem({ papel: 'conversa', sistema: 'S', mensagens: [] });
+  assert.equal(sufixo.custo_usd, custoUsd('claude-haiku-5-5', { entrada: 2000, saida: 300 }));
+  const outro = await com({ model: 'modelo-estranho', stop_reason: 'end_turn', content: [{ type: 'text', text: 'ok' }], usage: uso })
+    .mensagem({ papel: 'conversa', sistema: 'S', mensagens: [] });
+  assert.equal(outro.custo_usd, custoUsd('modelo-estranho', { entrada: 2000, saida: 300 }), 'id de outro modelo segue como o mais caro');
+
+  /* sem uso na resposta: conta o pior caso do papel (saída máxima), nunca zero */
+  const semUso = await com({ model: 'claude-haiku-5-5', stop_reason: 'end_turn', content: [{ type: 'text', text: 'ok' }] })
+    .mensagem({ papel: 'conversa', sistema: 'S', mensagens: [] });
+  assert.equal(semUso.custo_usd, custoUsd('claude-haiku-5-5', { saida: PAPEIS.conversa.max_tokens }));
 });
 
 test('adaptador Anthropic: problema da CONTA (cobrança, permissão, modelo sumido, limite de gasto) abre o disjuntor; problema do PEDIDO não', async () => {
@@ -237,7 +274,7 @@ test('o turno manda só user/assistant em messages; o estado vai no 2º bloco do
   const { criarAnthropic } = await import('../../api/_ia/anthropic.mjs');
   const regras = JSON.parse((await import('node:fs')).readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
   const pedidos = [];
-  const cliente = { beta: { messages: { create: async p => { pedidos.push(p); return { model: 'claude-sonnet-5-5', stop_reason: 'end_turn', content: [{ type: 'text', text: 'ok' }], usage: { input_tokens: 1, output_tokens: 1 } }; } } } };
+  const cliente = { beta: { messages: { create: async p => { pedidos.push(p); return { model: 'claude-haiku-5-5', stop_reason: 'end_turn', content: [{ type: 'text', text: 'ok' }], usage: { input_tokens: 1, output_tokens: 1 } }; } } } };
   const ia = criarAnthropic({}, cliente);
   await executarTurno({ ia, regras, conversa: { etapa: 'descoberta', briefing: {}, mensagens: [{ papel: 'visitante', conteudo: 'meu CPF é 123.456.789-09 e o fone (21) 99999-0000' }, { papel: 'agente', conteudo: 'certo' }] }, mensagem: 'oi' });
   const p = pedidos[0];

@@ -2,7 +2,7 @@
    O AGENTE DE VENDAS — um turno de conversa (Fase 2, etapas 4 e 5).
    Fluxo de um turno: a mensagem do visitante (já limpa e com dado pessoal
    redigido) + o briefing atual + as últimas mensagens → o modelo de conversa
-   (Sonnet 5.5, esforço médio) com 5 ferramentas → o código executa as
+   (Haiku 5.5, esforço médio; modo econômico) com 5 ferramentas → o código executa as
    ferramentas (briefing, motor de preço, pedir contato, sugestão de IA,
    diagnóstico) → a resposta final, sem valor em dinheiro no texto.
    O que o modelo NÃO tem: ferramenta de preço livre, desconto, dados de

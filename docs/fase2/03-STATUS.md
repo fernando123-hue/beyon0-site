@@ -17,7 +17,7 @@ Branch `rebuild-v2`. Nada foi para produção: a `main` (o site no ar) segue `81
   - teto de 10 dias, dividindo o excedente numa fase seguinte por prioridade;
   - o que não tem preço automático vai para diagnóstico.
 - **Camada de IA** trocável (`api/_ia`):
-  - Sonnet 5.5 na conversa e na extração; Opus 5.5 com esforço alto na geração;
+  - Haiku 5.5 na conversa e na extração (modo econômico, 2026-10-08; antes Sonnet 5.5); Opus 5.5 com esforço alto na geração;
   - reserva automática do servidor;
   - cache do prompt de sistema;
   - saída em JSON Schema;
