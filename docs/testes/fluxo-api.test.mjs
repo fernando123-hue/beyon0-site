@@ -310,17 +310,20 @@ async function cobranca(conversaId, leadId, org, status, diasAtras = 0) {
 }
 
 test('retenção: o texto de conversa parada sem fechar some; a com cobrança pendente recente ou paga fica', async () => {
-  const velha = navegador(), pendente = navegador(), paga = navegador(), desistiu = navegador();
-  const ss = await Promise.all([velha, pendente, paga, desistiu].map(n => n.iniciar()));
-  const [sv, sp, sg, sd] = ss;
-  for (const [n, s] of [[velha, sv], [pendente, sp], [paga, sg], [desistiu, sd]]) {
+  const velha = navegador(), pendente = navegador(), paga = navegador(), desistiu = navegador(), estornada = navegador(), contestada = navegador();
+  const ss = await Promise.all([velha, pendente, paga, desistiu, estornada, contestada].map(n => n.iniciar()));
+  const [sv, sp, sg, sd, se, sc] = ss;
+  for (const [n, s] of [[velha, sv], [pendente, sp], [paga, sg], [desistiu, sd], [estornada, se], [contestada, sc]]) {
     await n.chamar('POST', 'mensagem', { conversa_id: s.conversa_id, texto: 'Tenho uma escola e quero um site institucional para captar matrículas' });
   }
-  for (const s of [sp, sg, sd]) await local.db.exec(`begin; set local bz.transicao_livre = 'on'; update app.conversas set etapa = 'aguardando_pagamento' where id = '${s.conversa_id}'; commit;`);
+  for (const s of [sp, sg, sd, se, sc]) await local.db.exec(`begin; set local bz.transicao_livre = 'on'; update app.conversas set etapa = 'aguardando_pagamento' where id = '${s.conversa_id}'; commit;`);
   const lp = await leadDaConversa(sp.conversa_id, 'Pendente'), lg = await leadDaConversa(sg.conversa_id, 'Pagou'), ld = await leadDaConversa(sd.conversa_id, 'Desistiu');
   await cobranca(sp.conversa_id, lp.id, lp.org, 'pendente', 5);     /* tentativa ativa, recente */
   await cobranca(sg.conversa_id, lg.id, lg.org, 'pago');            /* fechou */
   await cobranca(sd.conversa_id, ld.id, ld.org, 'expirado', 100);   /* o Pix venceu e ninguém pagou */
+  const le = await leadDaConversa(se.conversa_id, 'Estornou'), lc = await leadDaConversa(sc.conversa_id, 'Contestou');
+  await cobranca(se.conversa_id, le.id, le.org, 'estornado', 100);   /* houve dinheiro: registro legal */
+  await cobranca(sc.conversa_id, lc.id, lc.org, 'contestado', 100);
   for (const s of ss) await noPassado('conversas', s.conversa_id, 'ultima_atividade', 120);
   await assert.rejects(local.rpc('vendas_reter', { dias: 7 }), e => e.codigo === '22023', 'menos de 30 dias: recusado');
   const r = await local.rpc('vendas_reter', {});
@@ -330,6 +333,8 @@ test('retenção: o texto de conversa parada sem fechar some; a com cobrança pe
   assert.equal(await msgs(sd.conversa_id), 0, 'aceitou o escopo, o Pix venceu e não pagou: também sai (a etapa não protege mais)');
   assert.equal(await msgs(sp.conversa_id), 2, 'cobrança pendente recente: fica');
   assert.equal(await msgs(sg.conversa_id), 2, 'pagou: fica');
+  assert.equal(await msgs(se.conversa_id), 2, 'estornado: fica (registro)');
+  assert.equal(await msgs(sc.conversa_id), 2, 'contestado: fica');
   assert.deepEqual((await local.db.query('select briefing from app.conversas where id = $1', [sv.conversa_id])).rows[0].briefing, {});
   assert.ok((await local.db.query('select 1 from app.estimativas where conversa_id = $1', [sv.conversa_id])).rows.length, 'o número do funil fica');
 });
@@ -371,8 +376,14 @@ test('retenção de contato: o lead do orçamento com IA de quem não fechou é 
 test('retenção pelo caminho real: o lead que o agente cria ("em_conversa") é anonimizado; quem volta informa o contato de novo antes de pagar (revisões do PR 7)', async () => {
   const q = (sql, p) => local.db.query(sql, p);
   const n = navegador();
-  const { c } = await ateDirecoes(n);   /* conversa → estimativa → contato pela API → 3 direções */
+  const { c, dirs } = await ateDirecoes(n);   /* conversa → estimativa → contato pela API → 3 direções */
+  /* até a cobrança: escolha → escopo → confirmação (proposta aceita, aguardando pagamento, nenhuma cobrança criada) */
+  assert.equal((await n.chamar('POST', 'escolher', { conversa_id: c, direcao_id: dirs[0].id })).status, 200);
+  const esc = await n.chamar('POST', 'escopo', { conversa_id: c });
+  assert.equal((await n.chamar('POST', 'confirmar', { conversa_id: c, proposta_id: esc.corpo.proposta_id, confirmo: true, inicio_imediato: true })).status, 200);
   const leadId = (await q('select lead_id from app.conversas where id = $1', [c])).rows[0].lead_id;
+  await q("update app.leads set codigo_visita = 'TQ9RW', termo = 'site clinica niteroi' where id = $1", [leadId]);
+  await q("update app.conversas set codigo_visita = 'TQ9RW', termo = 'site clinica niteroi' where id = $1", [c]);
   assert.equal((await q('select status from app.leads where id = $1', [leadId])).rows[0].status, 'em_conversa', 'o agente cria o lead assim');
   /* outros dois, para as condições que o teste anterior não separava */
   const { c: cRecente } = await ateDirecoes(navegador());   /* lead mexido pela equipe dentro do prazo: fica */
@@ -391,6 +402,9 @@ test('retenção pelo caminho real: o lead que o agente cria ("em_conversa") é 
   assert.equal(anon.nome, '[apagado]', 'o lead real do orçamento é anonimizado');
   assert.equal(anon.telefone, null);
   assert.equal(anon.codigo_visita, null, 'o código da visita também sai');
+  assert.equal(anon.termo, null, 'e o termo buscado');
+  const conv = (await q('select codigo_visita, termo, contato_aceite_em from app.conversas where id = $1', [c])).rows[0];
+  assert.deepEqual(conv, { codigo_visita: null, termo: null, contato_aceite_em: null }, 'na conversa também (o aceite antigo valia para o contato que saiu)');
   assert.notEqual((await lead(leadRecente)).nome, '[apagado]', 'mexido pela equipe dentro do prazo: fica');
   assert.notEqual((await lead(leadProduzindo)).nome, '[apagado]', 'conversa em produção: fica');
 
@@ -399,10 +413,14 @@ test('retenção pelo caminho real: o lead que o agente cria ("em_conversa") é 
   assert.equal(e.conversa.tem_contato, false, 'lead anonimizado = sem contato: o formulário reaparece');
   const pagar = await n.chamar('POST', 'pagar', { conversa_id: c, valor: 1, metodo: 'pix', pagador: PAGADOR });
   assert.equal(pagar.status, 409, 'pagar sem contato: recusado — ' + JSON.stringify(pagar.corpo));
+  assert.match(pagar.corpo.erro, /informe de novo/, 'recusado pela trava de contato (a conversa estava pronta para pagar)');
   assert.equal((await n.chamar('POST', 'contato', { conversa_id: c, nome: 'Ana Volta', telefone: '(21) 98888-1111', aceite: true })).status, 200);
   assert.equal((await q('select lead_id from app.conversas where id = $1', [c])).rows[0].lead_id, leadId, 'o mesmo lead (o da proposta)');
   assert.equal((await lead(leadId)).nome, 'Ana Volta', 'o contato volta ao lead');
   assert.equal((await n.chamar('GET', 'estado', undefined, { query: '&conversa=' + c })).corpo.conversa.tem_contato, true);
+  assert.ok((await q('select contato_aceite_em from app.conversas where id = $1', [c])).rows[0].contato_aceite_em, 'o novo aceite fica registrado');
+  const depois = await n.chamar('POST', 'pagar', { conversa_id: c, valor: 1, metodo: 'pix', pagador: PAGADOR });
+  assert.equal(depois.status, 200, 'com o contato de volta, paga — ' + JSON.stringify(depois.corpo).slice(0, 200));
 });
 
 /* ======================= correções da revisão (2026-10-07) ======================= */
