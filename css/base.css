@@ -215,6 +215,11 @@ html:not(.js) .barra.is-oculta { transform: none; opacity: 1; pointer-events: au
   .barra .btn--primary { background-color: rgb(var(--ac-rgb) / .07); color: var(--ac); border: 0; min-height: 56px; box-shadow: none; }   /* (a doca é a borda: sem a aresta do botão cheio) */
   .barra .btn--primary:hover { background-color: rgb(var(--ac-rgb) / .16); }
   .barra .btn--primary::after { background: linear-gradient(90deg, rgb(var(--ac-rgb) / 0) 0%, rgb(var(--ac-rgb) / .14) 92%, var(--ac) 99%, rgb(var(--ac-rgb) / 0) 100%); }
+  /* o WhatsApp na mesma doca: uma célula quadrada depois de um traço, sem competir com o orçamento */
+  .barra { gap: 0; }
+  .barra__wa { display: grid; place-items: center; flex: none; width: 56px; align-self: stretch; color: var(--t2); border-left: 1px solid rgb(var(--ac-rgb) / .38); transition: color var(--t-micro) var(--ease-micro), background-color var(--t-micro) var(--ease-micro); }
+  .barra__wa:hover { color: var(--t1); background-color: rgb(255 255 255 / .04); }
+  .barra__wa:focus-visible { outline-offset: -4px; }
 }
 @media (max-width: 620px) {
   /* a seta do CTA vira célula de ação */

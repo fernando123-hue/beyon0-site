@@ -118,6 +118,20 @@ html:not(.has-gsap) .varredura, html.menos-movimento .varredura { display: none;
 .cta__resumo a { color: var(--t2); text-decoration: underline; text-underline-offset: 3px; }
 .cta__resumo a:hover { color: var(--t1); }
 @media (min-width: 621px) { .cta__acoes { flex-direction: row; } .cta__acoes .btn { width: auto; } }
+/* A CONFIANÇA do "Monte seu orçamento" (hero e Conversa): três fatos que o código garante — preço só da tabela
+   (api/_vendas/precos.mjs), contato só depois da estimativa (agente.mjs, pedir_contato), direções antes do
+   pagamento. Cada um abre com o traço de 1px da régua; sem ícone, sem caixa. */
+.confianca { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: .5rem; color: var(--t2); }
+.confianca li { display: flex; align-items: center; gap: .75rem; }
+.confianca li::before { content: ""; flex: none; width: 14px; height: 1px; background: var(--ac-3); }
+@media (min-width: 621px) { .confianca { flex-direction: row; flex-wrap: wrap; gap: .5rem 1.75rem; } }
+.hero__fine:has(> .confianca) { max-width: none; }
+.cta__acoes + .confianca { margin-top: 1.1rem; }
+/* o WhatsApp para quem prefere uma pessoa: sempre à mão, um degrau abaixo do orçamento */
+.cta__alt { margin-top: 1.75rem; color: var(--t3); }
+.hero__fine .cta__alt { margin: 1.1rem 0 0; }
+.cta__alt a { white-space: nowrap; color: var(--t1); text-decoration: underline; text-decoration-color: var(--line-hi); text-underline-offset: 4px; transition: color var(--t-micro) var(--ease-micro), text-decoration-color var(--t-micro) var(--ease-micro); }
+.cta__alt a:hover { color: var(--ac); text-decoration-color: currentColor; }
 
 
 /* ==========================================================================
