@@ -18,7 +18,11 @@
   var CONFIG_MS = 8000;      /* a chave pública */
   var SCRIPT_MS = 15000;     /* o script da Cloudflare */
   var DESAFIO_MS = 120000;   /* desafio que a pessoa não resolve em 2 min: desiste e mostra o erro */
-  var chavePedida = null, carregando = null, widget = null;
+  /* códigos de erro da Cloudflare que são CONFIGURAÇÃO ou bloqueio do quadro (doc oficial "Client-side errors"):
+     recarregar não resolve, a página oferece o WhatsApp. 110100/400020 chave inválida, 110110 não encontrada, 110200
+     domínio não autorizado, 400021 região, 400070 desativada, 200500 o quadro da Cloudflare não carregou */
+  var ERRO_DE_CARGA = /^(1101|1102|4000|200500)/;
+  var chavePedida = null, carregando = null, widget = null, tagScript = null;
 
   function erro(tipo) { var e = new Error('turnstile: ' + tipo); e.tipo = tipo; return e; }
 
@@ -39,7 +43,8 @@
     if (window.turnstile) return Promise.resolve(window.turnstile);
     if (!carregando) {
       carregando = new Promise(function (ok, falha) {
-        var s = document.createElement('script');
+        if (tagScript) tagScript.remove();   /* a tentativa anterior estourou o tempo: não acumula <script> */
+        var s = tagScript = document.createElement('script');
         var relogio = setTimeout(function () { carregando = null; falha(erro('carga')); }, SCRIPT_MS);
         s.src = SCRIPT;
         s.async = true;
@@ -68,10 +73,18 @@
       var relogio = setTimeout(function () { tirar(ts); falha(erro('desafio')); }, DESAFIO_MS);
       widget = ts.render(caixa, {
         sitekey: k, execution: 'execute', appearance: 'interaction-only', theme: 'dark', size: 'flexible', retry: 'never',
+        language: 'pt-br',   /* o site é em português, qualquer que seja o idioma do navegador */
         callback: function (t) { clearTimeout(relogio); ok(t); setTimeout(function () { tirar(ts); }, 0); },
-        'error-callback': function () { clearTimeout(relogio); tirar(ts); falha(erro('desafio')); return true; },
+        'error-callback': function (codigo) {
+          clearTimeout(relogio); tirar(ts);
+          falha(erro(ERRO_DE_CARGA.test(String(codigo || '')) ? 'carga' : 'desafio'));
+          return true;
+        },
         /* a Cloudflare vai pedir um clique: no celular, com o teclado aberto, o widget podia ficar fora da tela */
-        'before-interactive-callback': function () { caixa.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+        'before-interactive-callback': function () {
+          var reduzir = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+          caixa.scrollIntoView({ block: 'center', behavior: reduzir ? 'auto' : 'smooth' });
+        }
       });
       ts.execute(caixa);
     });
