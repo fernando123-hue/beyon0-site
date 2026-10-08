@@ -176,10 +176,11 @@ test('adaptador Anthropic: o pedido sai no formato da documentação oficial e o
   const ia = criarAnthropic({}, cliente);
   const r = await ia.mensagem({ papel: 'conversa', sistema: 'S', mensagens: [{ role: 'user', content: 'oi' }], ferramentas: [{ name: 'x', input_schema: { type: 'object' } }] });
   const p = pedidos[0].p;
-  assert.equal(p.model, 'claude-sonnet-5-5');
+  assert.equal(p.model, 'claude-haiku-5-5', 'modo econômico (dono, 2026-10-08): a conversa no Haiku 5.5');
   assert.equal(p.output_config.effort, 'medium');
-  assert.deepEqual(p.betas, ['server-side-fallback-2026-07-01']);
-  assert.equal(p.fallbacks, 'default');
+  /* o Haiku 5.5 não tem fallback do servidor (referência da API, "Migrating to Claude Haiku 5.5"): sem o parâmetro */
+  assert.equal(p.betas, undefined, 'Haiku: sem o beta do fallback');
+  assert.equal(p.fallbacks, undefined, 'Haiku: sem fallbacks');
   assert.deepEqual(p.system[0].cache_control, { type: 'ephemeral' });
   assert.equal(p.tool_choice, undefined, 'nunca força ferramenta (400 nos modelos 5.5)');
   assert.equal(p.thinking, undefined, 'o pensamento adaptativo é o padrão; nada de budget_tokens');
@@ -187,6 +188,8 @@ test('adaptador Anthropic: o pedido sai no formato da documentação oficial e o
   const g = await ia.mensagem({ papel: 'geracao', sistema: 'S', mensagens: [{ role: 'user', content: 'gere' }], esquema: { type: 'object' } });
   assert.equal(pedidos[1].p.model, 'claude-opus-5-5');
   assert.equal(pedidos[1].p.output_config.effort, 'high');
+  assert.deepEqual(pedidos[1].p.betas, ['server-side-fallback-2026-07-01'], 'Opus: segue com o fallback do servidor');
+  assert.equal(pedidos[1].p.fallbacks, 'default');
   assert.deepEqual(pedidos[1].p.output_config.format, { type: 'json_schema', schema: { type: 'object' } });
   assert.deepEqual(g.json, { a: 1 });
   const falha = criarAnthropic({}, { beta: { messages: { create: async () => { throw new Anthropic.RateLimitError(429, {}, 'x', new Headers()); } } } });

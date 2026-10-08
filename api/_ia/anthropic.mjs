@@ -3,8 +3,8 @@
    versão fixa). Só este arquivo conhece o provedor.
    • modelo e esforço por papel (_ia/config.mjs); pensamento adaptativo é o
      padrão nos modelos 5.5 (não se desliga: o esforço é o controle);
-   • fallback do servidor no modo "default" (beta server-side-fallback-2026-07-01):
-     se o modelo recusar por política, a Anthropic tenta outro no mesmo pedido;
+   • fallback do servidor no modo "default" (beta server-side-fallback-2026-07-01), só nos modelos que o têm
+     (COM_FALLBACK): se o modelo recusar por política, a Anthropic tenta outro no mesmo pedido;
    • o prompt de sistema vai com cache_control (é estável): conversas seguidas
      pagam ~10% pela parte repetida;
    • ferramenta nunca é forçada (nos 5.5 isso é recusado): o prompt orienta;
@@ -13,7 +13,7 @@
    A chave vem só de process.env.ANTHROPIC_API_KEY (Vercel/Infisical), nunca do código.
    ========================================================================== */
 import Anthropic from '@anthropic-ai/sdk';
-import { PAPEIS, custoUsd, TENTATIVAS_PADRAO } from './config.mjs';
+import { PAPEIS, custoUsd, TENTATIVAS_PADRAO, COM_FALLBACK } from './config.mjs';
 import { ErroIA } from './provedor.mjs';
 
 const BETA_FALLBACK = 'server-side-fallback-2026-07-01';
@@ -38,10 +38,9 @@ export function criarAnthropic(env = process.env, cliente) {
       max_tokens: cfg.max_tokens,
       system: [{ type: 'text', text: sistema, cache_control: { type: 'ephemeral' } }, ...(contexto ? [{ type: 'text', text: contexto }] : [])],   /* o fixo em cache; o estado do turno depois */
       messages: mensagens,
-      output_config: { effort: cfg.esforco, ...(esquema ? { format: { type: 'json_schema', schema: esquema } } : {}) },
-      betas: [BETA_FALLBACK],
-      fallbacks: 'default'
+      output_config: { effort: cfg.esforco, ...(esquema ? { format: { type: 'json_schema', schema: esquema } } : {}) }
     };
+    if (COM_FALLBACK.has(cfg.modelo)) Object.assign(pedido, { betas: [BETA_FALLBACK], fallbacks: 'default' });
     if (ferramentas && ferramentas.length) pedido.tools = ferramentas;
 
     const tentativas = cfg.tentativas ?? TENTATIVAS_PADRAO;

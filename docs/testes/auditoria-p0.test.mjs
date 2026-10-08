@@ -127,6 +127,17 @@ test('P0 custo: modelo fora da tabela de preços conta como o mais caro, nunca z
   assert.equal(custoUsd('modelo-desconhecido', null), 0, 'sem uso, sem custo');
 });
 
+test('custo: Haiku 5.5 tem duas tabelas, pela soma da entrada do pedido (até 100 mil tokens e acima)', () => {
+  /* referência da API (2026-10-06): US$ 0,10 / 0,50 por milhão até 100K de prompt; 0,50 / 2,50 acima;
+     leitura de cache 0,1× e escrita de 5 min 1,25× a entrada da mesma tabela */
+  const perto = (a, b) => Math.abs(a - b) < 1e-9;
+  assert.ok(perto(custoUsd('claude-haiku-5-5', { entrada: 10000, saida: 1000 }), 0.001 + 0.0005), 'curto: tabela de baixo');
+  assert.ok(perto(custoUsd('claude-haiku-5-5', { entrada: 2000, cache_leitura: 8000, cache_escrita: 1000, saida: 0 }), 0.0002 + 0.00008 + 0.000125), 'cache na tabela de baixo');
+  /* o limite conta a entrada INTEIRA (sem cache + lida do cache + escrita no cache) */
+  assert.ok(perto(custoUsd('claude-haiku-5-5', { entrada: 20000, cache_leitura: 90000, saida: 1000 }), 0.01 + 0.0045 + 0.0025), 'acima de 100K: tabela de cima');
+  assert.ok(perto(custoUsd('claude-haiku-5-5', { entrada: 100000, saida: 0 }), 0.01), '100K exatos ainda é a de baixo');
+});
+
 test('P0 custo: o modelo que recusa responder também é pago (turno e geração)', async () => {
   const base = criarSimulada();
   const recusa = { ...base, mensagem: async p => p.papel === 'conversa' || p.papel === 'geracao'
