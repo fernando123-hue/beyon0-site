@@ -19,10 +19,12 @@ import { CENARIOS } from './consultor-cenarios.mjs';
 
 /* as regras que valem para TODA resposta do consultor */
 export const REGRAS_GERAIS = [
-  ['sem dinheiro no texto', r => !/R\$|\breais\b|\d+\s*%|\b\d+\s*mil\b/i.test(r)],
+  /* (o site já apaga R$ e "reais"; aqui pega o que passa: porcentagem, "mil", "3k", números de 4+ dígitos ou com milhar) */
+  ['sem dinheiro no texto', r => !/R\$|\breais\b|\d+\s*%|\bmil\b|\b\d+\s*k\b|\b\d{1,3}(?:\.\d{3})+\b|\b\d{4,}\b/i.test(r)],
   ['no máximo 3 frases', r => r.split(/[.!?]+(?:\s|$)/).filter(s => s.trim().length > 2).length <= 3],
   ['no máximo uma pergunta', r => (r.match(/\?/g) || []).length <= 1],
-  ['não pede contato no texto', r => !/(qual|me (passa|manda|informa|envia)|deixe?|informe)[^.?!]{0,30}(seu |o )?(telefone|whats(app)?|e-?mail|celular)/i.test(r)],
+  /* pedir o contato, não citar o canal ("avisamos pelo WhatsApp informado" e "o formulário pede seu WhatsApp" passam) */
+  ['não pede contato no texto', r => !/\b(qual (é )?(o )?(seu|teu)|quais (são )?(os )?seus|me (passa|passe|manda|mande|informa|informe|envia|envie|diz|diga)|pode(ria)? (me )?(passar|mandar|informar|enviar))\b[^.?!]{0,25}\b(telefone|whats(app)?|zap|e-?mail|celular|n[úu]mero|contato)\b/i.test(r)],
   ['não vaza instruções', r => !/(^|\n)#\s|sua missão|respostas aprovadas|proximo_passo|ESTADO ATUAL/i.test(r)],
   ['não vem vazia', r => r.trim().length > 0]
 ];
@@ -52,9 +54,10 @@ export async function avaliarCenario({ ia, regras, cenario }) {
     const r = await executarTurno({ ia: espiao, regras, conversa: { etapa: s.etapa, briefing: s.briefing, mensagens: s.mensagens, estimativa: s.estimativa }, mensagem });
     s.custo += r.custo_usd || 0;
     s.briefing = r.briefing;
-    if (r.estimativa) { s.estimativa = r.estimativa; if (s.etapa === 'descoberta') s.etapa = 'estimativa'; }
+    /* como o banco devolve a estimativa nos turnos seguintes (vendas_estado): itens em detalhes */
+    if (r.estimativa) { s.estimativa = { prazo_dias: r.estimativa.prazo_dias, fase: r.estimativa.fase, fatores: r.estimativa.fatores, detalhes: r.estimativa }; if (s.etapa === 'descoberta') s.etapa = 'estimativa'; }
     if (r.diagnostico) s.diagnostico = r.diagnostico;
-    if (r.pedir_contato) s.etapa = 'contato';
+    /* (pedir_contato só rola a tela até o formulário; a etapa vira 'contato' quando o formulário é ENVIADO, fora da conversa) */
     s.mensagens = [...s.mensagens, { papel: 'visitante', conteudo: mensagem }, { papel: 'agente', conteudo: r.resposta }];
     const falhas = REGRAS_GERAIS.filter(([, ok]) => !ok(r.resposta)).map(([nome]) => nome);
     s.turnos.push({ mensagem, resposta: r.resposta, ferramentas: nomes, falhas });
@@ -92,7 +95,7 @@ async function principal() {
   }
   const total = resultados.reduce((n, r) => n + (r.custo_usd || 0), 0);
   const saida = arg('saida', path.join(os.tmpdir(), 'avaliacao-consultor-' + new Date().toISOString().replace(/[:.]/g, '-') + '.json'));
-  fs.writeFileSync(saida, JSON.stringify({ quando: new Date().toISOString(), esforco: esforco || 'padrão', modo, resultados }, null, 2));
+  fs.writeFileSync(saida, JSON.stringify({ quando: new Date().toISOString(), esforco: esforco || 'padrão', modo, resultados }, null, 2), { mode: 0o600 });   /* (só quem rodou lê) */
   console.log(`\n${resultados.filter(r => r.passou).length}/${resultados.length} roteiros passaram · custo US$ ${total.toFixed(4)} · relatório: ${saida}`);
   process.exit(resultados.every(r => r.passou) ? 0 : 1);
 }
