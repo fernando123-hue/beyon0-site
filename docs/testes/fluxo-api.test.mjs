@@ -356,6 +356,39 @@ test('direção já pronta: o pedido devolve o status sem reservar (não segura 
   assert.equal(reservas, 0, 'nenhuma reserva para direção que já está pronta');
 });
 
+test('gerar-direcao sem trabalho a fazer não entra na trava da organização: id de outra conversa → 404; direção em geração por outro pedido → em_andamento — revisão de segurança do PR 16', async () => {
+  let reservas = 0, chamadas = 0;
+  const contando = { ...deps, ia: { ...deps.ia, mensagem: async p => { chamadas++; return deps.ia.mensagem(p); } },
+    banco: async (nome, p) => { if (nome === 'vendas_reservar_custo') reservas++; return deps.banco(nome, p); } };
+  const n = navegador(contando);
+  const { c, dirs } = await ateDirecoes(n);
+  reservas = 0; chamadas = 0;
+  const inexistente = await n.chamar('POST', 'gerar-direcao', { conversa_id: c, direcao_id: '00000000-0000-4000-8000-000000000000' });
+  assert.equal(inexistente.status, 404, JSON.stringify(inexistente.corpo));
+  /* outro pedido reivindicou há pouco (a geração leva até 300 s; o navegador repede a cada 60 s) */
+  await local.db.query("update app.direcoes set status = 'gerando', conteudo = null, iniciada_em = now() where id = $1", [dirs[0].id]);
+  const andando = await n.chamar('POST', 'gerar-direcao', { conversa_id: c, direcao_id: dirs[0].id });
+  assert.equal(andando.status, 200, JSON.stringify(andando.corpo));
+  assert.equal(andando.corpo.status, 'em_andamento');
+  assert.equal(reservas, 0, 'nenhuma reserva sem trabalho a fazer');
+  assert.equal(chamadas, 0);
+  /* a posse venceu (o pedido que gerava caiu): esta sim reserva e gera */
+  await local.db.query("update app.direcoes set iniciada_em = now() - interval '1 hour' where id = $1", [dirs[0].id]);
+  const retomada = await n.chamar('POST', 'gerar-direcao', { conversa_id: c, direcao_id: dirs[0].id });
+  assert.equal(retomada.corpo.status, 'pronta', JSON.stringify(retomada.corpo));
+  assert.equal(reservas, 1);
+});
+
+test('reserva de custo: resposta sem reserva_id fecha (não segue sem reserva) — revisão de segurança do PR 16', async () => {
+  let chamadas = 0;
+  const n = navegador({ ...deps, ia: { ...deps.ia, mensagem: async p => { chamadas++; return deps.ia.mensagem(p); } },
+    banco: async (nome, p) => (nome === 'vendas_reservar_custo' ? null : deps.banco(nome, p)) });
+  const s = await n.iniciar();
+  const r = await n.chamar('POST', 'mensagem', { conversa_id: s.conversa_id, texto: 'Tenho uma clínica e quero um site institucional' });
+  assert.equal(r.status, 503, JSON.stringify(r.corpo));
+  assert.equal(chamadas, 0);
+});
+
 test('reserva de custo no banco: soma o gasto e as reservas em aberto; vencida não conta; só a dona libera', async () => {
   const q = (sql, p) => local.db.query(sql, p);
   const n = navegador();
@@ -388,7 +421,7 @@ test('reserva de custo no banco: soma o gasto e as reservas em aberto; vencida n
   await q('begin');
   await q('select app.vendas_reservar_custo($1::jsonb)', [JSON.stringify({ conversa_id: s.conversa_id, visitante_id: vid, valor_usd: 0.01, teto_conversa_usd: 1000, teto_dia_usd: 1000, segundos: 600 })]);
   const dentro = (await q("select current_setting('lock_timeout') t")).rows[0].t;
-  await q('rollback');
+  await q('commit');   /* (commit, não rollback: o rollback desfaz também um set_config de sessão e esconderia o vazamento — revisão técnica do PR 16) */
   const fora = (await q("select current_setting('lock_timeout') t")).rows[0].t;
   assert.equal(dentro, '2s', 'dentro da transação da reserva: 2 s de espera na trava');
   assert.notEqual(fora, '2s', 'fora dela: o limite não vaza para a conexão');

@@ -19,7 +19,7 @@ com credenciais reais**, salvo onde diz outra coisa.
 
 1. Ensaiar a promoção num projeto Vercel SEPARADO e anotar o que a Vercel fez de verdade (variáveis, domínio,
    rotinas, e o que o "Instant Rollback" faz com o domínio). Regras do ensaio:
-   - **Nenhuma credencial de produção** nesse projeto: banco de TESTE (com as 18 migrations aplicadas) e Mercado
+   - **Nenhuma credencial de produção** nesse projeto: banco de TESTE (com todas as migrations de `supabase/migrations/` aplicadas) e Mercado
      Pago de TESTE.
    - **Pagamento desligado é o resultado esperado**: promovido, o projeto roda como produção (`VERCEL_ENV=production`)
      e `api/_pagamentos/config.mjs` só liga com `MP_AMBIENTE=producao`. Não "consertar" pondo `producao` nem
@@ -43,7 +43,7 @@ com credenciais reais**, salvo onde diz outra coisa.
 5. Depois: `npm run verificar` com `BASE` de produção; site e `/orcamento` no celular sem digitar mensagem (nunca
    o `e2e:orcamento`).
 6. Rollback e migrations: na 1ª promoção, voltar atrás leva a `8103c99`, que não tem `api/` nem `supabase/`
-   (conferido em 2026-10-07 com `git ls-tree 8103c99`): o site antigo não usa o banco, então as 18 migrations não o
+   (conferido em 2026-10-07 com `git ls-tree 8103c99`): o site antigo não usa o banco, então as migrations não o
    quebram. Mas essa volta tira do ar o `/orcamento`, o aviso do Mercado Pago e as rotinas (reconciliação e
    retenção): Pix pago no intervalo só entra depois de promover de novo e reconciliar. Com clientes pagando, voltar
    só para uma versão que já tenha a API. Da 2ª promoção em diante, cada migration nova precisa funcionar com o
@@ -87,10 +87,15 @@ com credenciais reais**, salvo onde diz outra coisa.
   passaria. Exigir que `GET /api/vendas?acao=pagamento-config` responda o ambiente simulado antes de rodar.
 - Teste: rodadas seguidas do E2E estouram o freio por IP (90/min) — esperar 1 min entre rodadas.
 - Das revisões do PR 15 (reserva de custo). Feito no PR 16: teste do 55P03 (trava da organização além de 2 s → 503
-  com WhatsApp, sem chamar o modelo) e do `lock_timeout` restrito à transação da função. **Decidido não fazer:**
-  direção em `gerando` cuja posse já é de outro pedido ainda reserva antes de `vendas_reivindicar_direcao` dizer
-  que não é dela; a reserva sai em milissegundos e o pior efeito é um 429 falso num clique duplo perto do teto.
-  Reivindicar antes de reservar deixaria a direção presa se a reserva fosse recusada. Aceito: a soma do gasto do dia
-  roda sob a trava (com índice `conversas_org_atividade`); medir com o volume real.
+  com WhatsApp, sem chamar o modelo) e do `lock_timeout` restrito à transação da função (com `commit`: o `rollback`
+  desfaz também um ajuste de sessão e esconderia o vazamento). Também no PR 16 (revisão de segurança, M1): `gerar-direcao`
+  sem trabalho a fazer não entra mais na trava da organização — id fora da geração atual da conversa → 404, direção em
+  geração por outro pedido → `em_andamento` pela consulta sem trava `app.vendas_direcao_em_andamento` (migration
+  `20261008120800`); antes, o repedido de 60 s do navegador, ou alguém martelando, enfileirava a trava (503 para outros
+  visitantes) e segurava reservas no teto do dia. Reserva sem `reserva_id` na resposta agora fecha (503).
+  **Aceitos:** a soma do gasto do dia roda sob a trava (índice `conversas_org_atividade`; medir com o volume real);
+  `privado.conversa_do` trava a conversa antes do `lock_timeout` (só espera sem limite quem martela a própria
+  conversa); a função de reserva ausente (42883) segue sem reserva por desenho — as migrations `120700` e `120800`
+  entram no banco ANTES do código que as usa.
 - Feito no PR 16: tabela de preços com adicional ou formato nulo (ou que não é objeto) dava `TypeError` em
   `validarRegras` (500 em vez de "tabela em atualização"); agora é erro na lista.

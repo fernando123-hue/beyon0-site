@@ -131,6 +131,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
         teto_conversa_usd: TETOS.conversa_usd, teto_dia_usd: TETOS.dia_usd, segundos: RESERVA_S });
       if (r && r.ok === false) throw r.motivo === 'dia' ? new Recusa(503, LIMITE_DIA, { whatsapp: true }) : new Recusa(429, LIMITE_CONVERSA, { whatsapp: true });
       reserva = r && r.reserva_id;
+      if (!reserva) throw Object.assign(new Error('reserva sem id'), { codigo: 'SEM_RESERVA' });   /* (resposta inesperada: fecha) */
     } catch (e) {
       if (e instanceof Recusa || (e && e.codigo === 'P0002')) throw e;
       /* só a função ainda inexistente (migration a aplicar) segue como antes; qualquer outro erro do banco FECHA: sem
@@ -262,7 +263,13 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       /* direção já pronta ou que falhou: nada a gerar, nada a reservar (o pedido que não custa modelo não segura a trava
          das reservas — revisão de segurança do PR 15) */
       const atual = (est.direcoes || []).find(d => d.id === corpo.direcao_id);
-      if (atual && atual.status !== 'gerando') return { status: atual.status };
+      exigir(atual, 404, 'Não encontrado.');
+      if (atual.status !== 'gerando') return { status: atual.status };
+      /* em geração por outro pedido (o navegador repede a cada 60 s): responde sem entrar na trava da organização
+         (revisão de segurança do PR 16). Só a consulta ainda inexistente (migration a aplicar) segue para reivindicar */
+      const andamento = await banco('vendas_direcao_em_andamento', { conversa_id: corpo.conversa_id, visitante_id: vid, direcao_id: corpo.direcao_id })
+        .catch(e => { if (e && (e.codigo === '42883' || e.codigo === 'PGRST202')) return null; throw e; });
+      if (andamento && andamento.em_andamento) return { status: 'em_andamento' };
       await dentroDoCusto(est);   /* (o Opus é a chamada mais cara: confere antes) */
       return comReserva(corpo.conversa_id, vid, 'geracao', async () => {
         const p = await banco('vendas_reivindicar_direcao', { conversa_id: corpo.conversa_id, visitante_id: vid, direcao_id: corpo.direcao_id });
