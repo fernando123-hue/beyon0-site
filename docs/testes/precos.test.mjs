@@ -78,3 +78,16 @@ test('o mesmo pedido dá sempre o mesmo preço (determinístico)', () => {
   const f = { formato: 'institucional', paginas: 6, adicionais: { textos: 6, imagens: 1 } };
   assert.deepEqual(estimar(f, REGRAS), estimar(JSON.parse(JSON.stringify(f)), REGRAS));
 });
+
+test('tabela com adicional nulo ou que não é objeto: recusada com erro, não erro interno (a ativação é um insert manual)', () => {
+  for (const ruim of [null, 5, 'texto', []]) {
+    const r = copia(); r.adicionais.textos = ruim;
+    let v;
+    assert.doesNotThrow(() => { v = validarRegras(r); }, 'adicional ' + JSON.stringify(ruim) + ': não lança');
+    assert.ok((v.erros || []).some(x => /adicionais\.textos/.test(x)), JSON.stringify(ruim) + ': recusado — ' + JSON.stringify(v));
+  }
+  for (const ruim of [null, 5]) {
+    const r = copia(); r.formatos.landing_page = ruim;
+    assert.ok((validarRegras(r).erros || []).some(x => /formatos\.landing_page/.test(x)), 'formato ' + ruim + ': recusado');
+  }
+});

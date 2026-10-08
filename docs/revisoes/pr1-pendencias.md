@@ -61,7 +61,7 @@ com credenciais reais**, salvo onde diz outra coisa.
 | ~~Técnica M2~~ | ~~4xx da IA conta como "entrada"~~ | **feito no PR 4** (402/403/404 e o 400 de limite de gasto/saldo → `indisponivel`) |
 | ~~Técnica M4~~ | ~~mutação só sabota as migrations de RLS~~ | **feito no PR 14** (11 sabotagens: conta, valor e valor pago na conferência do pagamento; máquina de estados; retenção de quem pagou) |
 | ~~Segurança B3~~ | ~~`CRON_SECRET` aceita 16 caracteres; tentativas erradas sem freio~~ | **feito no PR 11** (`api/_cron.mjs`: 32+ depois de `.trim()`, freio de tentativa errada por IP) |
-| ~~Segurança B6~~ | ~~teto de custo lido antes e somado depois~~ | **feito no PR 15** (`app.vendas_reservar_custo`: reserva o pior caso numa transação que trava a organização; estouro máximo de UMA chamada) |
+| ~~Segurança B6~~ | ~~teto de custo lido antes e somado depois~~ | **feito no PR 15** (`app.vendas_reservar_custo`: reserva um valor REALISTA por papel numa transação que trava a organização; o estouro fica no que as chamadas já em voo gastarem além das reservas; freio final no item 4b) |
 | Técnica B1 | `ID_ORDER` do webhook sensível a maiúsculas | confirmar a forma real do MP no 1º teste com credenciais de TESTE |
 | ~~Técnica B3~~ | ~~`sinal_percentual` fracionário diverge entre cartão e Pix~~ | **feito no PR 12** (`validarRegras` exige inteiro) |
 | ~~Segurança B4~~ | ~~CSP de `/orcamento` libera domínios do Google que a página não usa~~ | **feito no PR 13** (Google fora do `/orcamento`; `/painel` com header próprio igual ao `<meta>`; `docs/testes/csp.test.mjs` prende header e `<meta>` juntos) |
@@ -86,3 +86,11 @@ com credenciais reais**, salvo onde diz outra coisa.
 - Da revisão do PR 5: o E2E olha só o nome do host; um túnel ou `vercel dev` local apontando para produção
   passaria. Exigir que `GET /api/vendas?acao=pagamento-config` responda o ambiente simulado antes de rodar.
 - Teste: rodadas seguidas do E2E estouram o freio por IP (90/min) — esperar 1 min entre rodadas.
+- Das revisões do PR 15 (reserva de custo). Feito no PR 16: teste do 55P03 (trava da organização além de 2 s → 503
+  com WhatsApp, sem chamar o modelo) e do `lock_timeout` restrito à transação da função. **Decidido não fazer:**
+  direção em `gerando` cuja posse já é de outro pedido ainda reserva antes de `vendas_reivindicar_direcao` dizer
+  que não é dela; a reserva sai em milissegundos e o pior efeito é um 429 falso num clique duplo perto do teto.
+  Reivindicar antes de reservar deixaria a direção presa se a reserva fosse recusada. Aceito: a soma do gasto do dia
+  roda sob a trava (com índice `conversas_org_atividade`); medir com o volume real.
+- Feito no PR 16: tabela de preços com adicional ou formato nulo (ou que não é objeto) dava `TypeError` em
+  `validarRegras` (500 em vez de "tabela em atualização"); agora é erro na lista.

@@ -327,11 +327,16 @@ test('reserva de custo: erro do banco fecha (sem chamar o modelo); só a funçã
     if (nome === 'vendas_reservar_custo') throw Object.assign(new Error('x'), { codigo });
     return deps.banco(nome, p);
   } });
-  const fechado = navegador(comErro('57014'));
-  const sf = await fechado.iniciar();
-  const rf = await fechado.chamar('POST', 'mensagem', { conversa_id: sf.conversa_id, texto: 'Tenho uma clínica e quero um site institucional' });
-  assert.equal(rf.status, 503, JSON.stringify(rf.corpo));
-  assert.equal(chamadas, 0, 'erro do banco (tempo esgotado): o modelo não é chamado');
+  /* 57014: consulta cancelada; 55P03: a trava da organização passou de 2 s (lock_timeout da função). O 55P03 fora da
+     reserva vira 409 "ainda respondendo"; aqui tem de ser 503 com WhatsApp (revisões do PR 15) */
+  for (const codigo of ['57014', '55P03']) {
+    const fechado = navegador(comErro(codigo));
+    const sf = await fechado.iniciar();
+    const rf = await fechado.chamar('POST', 'mensagem', { conversa_id: sf.conversa_id, texto: 'Tenho uma clínica e quero um site institucional' });
+    assert.equal(rf.status, 503, codigo + ': ' + JSON.stringify(rf.corpo));
+    assert.equal(rf.corpo.whatsapp, true, codigo + ': oferece o WhatsApp');
+    assert.equal(chamadas, 0, codigo + ': o modelo não é chamado');
+  }
   const semFuncao = navegador(comErro('42883'));
   const sa = await semFuncao.iniciar();
   const ra = await semFuncao.chamar('POST', 'mensagem', { conversa_id: sa.conversa_id, texto: 'Tenho uma clínica e quero um site institucional' });
@@ -378,6 +383,15 @@ test('reserva de custo no banco: soma o gasto e as reservas em aberto; vencida n
   const vidOutro = (await q('select visitante_id from app.conversas where id = $1', [so.conversa_id])).rows[0].visitante_id;
   await assert.rejects(local.rpc('vendas_liberar_reserva', { reserva_id: r1.reserva_id, conversa_id: s.conversa_id, visitante_id: vidOutro }), e => e.codigo === 'P0002');
   assert.equal((await q('select count(*)::int n from privado.reservas_ia where id = $1', [r1.reserva_id])).rows[0].n, 1, 'a reserva continua');
+  /* fila na trava da organização: a função desiste em 2 s (55P03, que o servidor responde com 503 + WhatsApp), e o
+     limite vale só dentro da transação dela (revisões do PR 15; o PGlite tem uma conexão só, a fila em si não se simula) */
+  await q('begin');
+  await q('select app.vendas_reservar_custo($1::jsonb)', [JSON.stringify({ conversa_id: s.conversa_id, visitante_id: vid, valor_usd: 0.01, teto_conversa_usd: 1000, teto_dia_usd: 1000, segundos: 600 })]);
+  const dentro = (await q("select current_setting('lock_timeout') t")).rows[0].t;
+  await q('rollback');
+  const fora = (await q("select current_setting('lock_timeout') t")).rows[0].t;
+  assert.equal(dentro, '2s', 'dentro da transação da reserva: 2 s de espera na trava');
+  assert.notEqual(fora, '2s', 'fora dela: o limite não vaza para a conexão');
   await q('delete from privado.reservas_ia where conversa_id = $1', [s.conversa_id]);
 });
 
