@@ -59,7 +59,7 @@ com credenciais reais**, salvo onde diz outra coisa.
 | ~~Segurança M2~~ | ~~redação de dado pessoal com furos~~ | **feito no PR 6** (números de 10–19 dígitos com qualquer separador, celular sem DDD, `+55`, e-mail por extenso em português e inglês; casos que NÃO são dado pessoal também testados) |
 | Segurança M3 | `app.leads` de quem nunca pagou não tem prazo; a política de privacidade não diz | **decisão do dono**: prazo (ex.: 12 meses) + texto em `privacidade.html` + `vendas_reter` |
 | ~~Técnica M2~~ | ~~4xx da IA conta como "entrada"~~ | **feito no PR 4** (402/403/404 e o 400 de limite de gasto/saldo → `indisponivel`) |
-| Técnica M4 | mutação só sabota as migrations de RLS | sabotagens em `pagamentos_aplicar` e `conferir_transicao` |
+| ~~Técnica M4~~ | ~~mutação só sabota as migrations de RLS~~ | **feito no PR 14** (11 sabotagens: conta, valor e valor pago na conferência do pagamento; máquina de estados; retenção de quem pagou) |
 | ~~Segurança B3~~ | ~~`CRON_SECRET` aceita 16 caracteres; tentativas erradas sem freio~~ | **feito no PR 11** (`api/_cron.mjs`: 32+ depois de `.trim()`, freio de tentativa errada por IP) |
 | ~~Segurança B6~~ | ~~teto de custo lido antes e somado depois~~ | **feito no PR 15** (`app.vendas_reservar_custo`: reserva o pior caso numa transação que trava a organização; estouro máximo de UMA chamada) |
 | Técnica B1 | `ID_ORDER` do webhook sensível a maiúsculas | confirmar a forma real do MP no 1º teste com credenciais de TESTE |
