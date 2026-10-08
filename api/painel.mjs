@@ -8,6 +8,9 @@
      POST {codigo, status, valor, nota}   marca conversa/cliente num contato
      POST {codigo, excluir: true}         apaga o contato (pedido do titular, LGPD art. 18)
      POST {resolver_alerta: <id>}         marca um alerta da rotina diária como resolvido
+     GET  ?fila=direcoes                  a FILA MANUAL das direções: briefing, escopo e contato de cada pedido
+     POST {entregar_direcao: <id>, conteudo}  entrega uma direção produzida pelo dono (mesmo filtro da geração)
+     POST {avisado: <conversa_id>}        o cliente foi avisado pelo WhatsApp: sai da fila
    A resposta do GET traz também "saude": alertas abertos e a data da última rotina diária.
    ========================================================================== */
 import { createHash, timingSafeEqual } from 'node:crypto';
@@ -17,6 +20,7 @@ import { validarMudanca, CODIGO } from './_valida.mjs';
 import { criarTransporte } from './_vendas/transporte.mjs';
 import { ehUuid } from './_valida-app.mjs';
 import { ORG } from './_vendas/org.mjs';
+import { higienizar } from './_vendas/direcao.mjs';
 
 const CHAVE_MINIMA = 32;
 const PERIODOS = [7, 30, 90, 365];
@@ -64,6 +68,7 @@ export async function ler(request, env) {
   const db = banco(env);
   if (!db.ligado) return json({ erro: 'Banco não configurado: faltam SUPABASE_URL e SUPABASE_CHAVE_SECRETA no servidor.' }, 503);   /* (só depois da chave certa) */
   const q = new URL(request.url).searchParams;
+  if (q.get('fila') === 'direcoes') return filaDirecoes(env);
   try {
     if (q.get('csv') === 'ads') {
       const nome = (q.get('nome') || 'Cliente fechado').slice(0, 80);
@@ -88,6 +93,8 @@ export async function mudar(request, env) {
   if (!db.ligado) return json({ erro: 'Banco não configurado.' }, 503);
   let bruto;
   try { bruto = JSON.parse(await request.text()); } catch { bruto = null; }
+  if (bruto && typeof bruto.entregar_direcao === 'string') return entregarDirecao(bruto, env);
+  if (bruto && typeof bruto.avisado === 'string') return marcarAvisado(bruto, env);
   /* marcar um alerta como resolvido */
   if (bruto && typeof bruto.resolver_alerta === 'string') {
     if (!ehUuid(bruto.resolver_alerta)) return json({ erro: 'Pedido inválido.' }, 400);
@@ -107,6 +114,47 @@ export async function mudar(request, env) {
     return contato ? json({ ok: true, contato }) : json({ erro: 'Código não encontrado.' }, 404);
   } catch (e) {
     console.error('[metricas] painel mudar:', e.message);
+    return json({ erro: 'Não deu para salvar agora.' }, 500);
+  }
+}
+
+/* ---------- a FILA MANUAL das direções (decisão do dono, 2026-10-08) ---------- */
+async function filaDirecoes(env) {
+  const rpc = criarTransporte(env);
+  if (!rpc) return json({ erro: 'Banco não configurado.' }, 503);
+  try { return json({ fila: await rpc('vendas_fila_direcoes', { org_slug: ORG }) }); }
+  catch (e) { console.error('[painel] fila de direções:', e && e.codigo); return json({ erro: 'Não deu para ler a fila agora.' }, 500); }
+}
+
+/* a direção produzida pelo dono passa pelo MESMO filtro da geração automática (lista fechada, tamanhos, cores,
+   contraste, sem lorem ipsum); a estratégia vem do banco, nunca do arquivo; só entra direção que está na fila */
+async function entregarDirecao(bruto, env) {
+  if (!ehUuid(bruto.entregar_direcao) || !bruto.conteudo || typeof bruto.conteudo !== 'object' || Array.isArray(bruto.conteudo)) return json({ erro: 'Pedido inválido.' }, 400);
+  const rpc = criarTransporte(env);
+  if (!rpc) return json({ erro: 'Banco não configurado.' }, 503);
+  try {
+    const d = await rpc('vendas_direcao_info', { direcao_id: bruto.entregar_direcao, org_slug: ORG });
+    if (d.status !== 'gerando') return json({ erro: 'Esta direção não está na fila (status: ' + d.status + ').' }, 409);
+    const h = higienizar(bruto.conteudo, d.estrategia);
+    if (h.erro) return json({ erro: 'Direção recusada pelo filtro: ' + h.erro + '.' }, 422);
+    const r = await rpc('vendas_concluir_direcao', { direcao_id: d.id, conteudo: h.direcao, modelo: 'claude-code (dono)' });
+    if (r && r.ignorado) return json({ erro: 'Esta direção não está mais na fila.' }, 409);
+    return json({ ok: true, direcao_id: d.id, estrategia: d.estrategia, ajustes: h.ajustes, pendentes: r ? r.pendentes : null });
+  } catch (e) {
+    if (e && e.codigo === 'P0002') return json({ erro: 'Direção não encontrada.' }, 404);
+    console.error('[painel] entregar direção:', e && e.codigo);
+    return json({ erro: 'Não deu para salvar agora.' }, 500);
+  }
+}
+
+async function marcarAvisado(bruto, env) {
+  if (!ehUuid(bruto.avisado)) return json({ erro: 'Pedido inválido.' }, 400);
+  const rpc = criarTransporte(env);
+  if (!rpc) return json({ erro: 'Banco não configurado.' }, 503);
+  try { return json({ ok: true, ...(await rpc('vendas_marcar_avisado', { conversa_id: bruto.avisado, org_slug: ORG })) }); }
+  catch (e) {
+    if (e && e.codigo === 'P0002') return json({ erro: 'Conversa não encontrada.' }, 404);
+    console.error('[painel] marcar avisado:', e && e.codigo);
     return json({ erro: 'Não deu para salvar agora.' }, 500);
   }
 }

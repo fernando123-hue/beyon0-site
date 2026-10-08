@@ -40,6 +40,27 @@ Como ligar, ajustar e desligar o agente. A base (migrations, testes, segredos, b
    A 1ª execução em produção pega todo o acumulado: antes de promover, contar com o mesmo critério.
    Ficam os números do funil.
 
+## 1b. Fila manual das direções (modo econômico, decisão do dono 2026-10-08)
+
+Enquanto não há verba para a API, as três direções não são geradas pelo modelo: o dono as produz no Claude Code e o cliente é avisado pelo WhatsApp. O prazo prometido na tela é de até 24 horas úteis.
+
+**Ligar, na ordem:**
+1. Aplicar no banco a migration `20261009120000_fila_direcoes.sql`. Ela só acrescenta: a coluna `app.direcoes.avisada_em` e as funções `vendas_fila_direcoes`, `vendas_direcao_info` e `vendas_marcar_avisado`.
+2. Definir `BZ_DIRECOES=manual` na Vercel e publicar. A tela troca "alguns minutos" por "até 24 horas úteis, avisamos pelo seu WhatsApp", o WhatsApp vira obrigatório no contato, e `gerar-direcao` responde `na_fila` sem chamar o modelo. O consultor diz o mesmo, porque `api/_vendas/consultor.mjs` lê `modoDirecoes()`.
+
+**Como o dono atende** (precisa de `PAINEL_CHAVE`):
+- `GET /api/painel?fila=direcoes` lista a fila. Cada pedido traz a hora do pedido, o contato, o briefing, o escopo (`fatores`) e as 3 direções com a estratégia de cada uma.
+- `POST /api/painel {entregar_direcao: <id>, conteudo: <direção>}` entrega uma direção.
+  - O conteúdo segue o `ESQUEMA_DIRECAO` de `api/_vendas/direcao.mjs` e passa pelo mesmo `higienizar` da geração automática.
+  - A estratégia vem do banco, nunca do arquivo.
+  - Recusa com 422 o que o filtro recusa.
+  - Quando as 3 ficam prontas, o cliente já pode escolher.
+- `POST /api/painel {avisado: <conversa_id>}`: depois de mandar a mensagem pelo WhatsApp, o pedido sai da fila.
+
+A tela da fila no painel e o comando local do Claude Code vêm no PR seguinte.
+
+**Voltar para a API:** apagar `BZ_DIRECOES`. Direções que estiverem na fila nesse momento são geradas pela API quando o cliente voltar à página.
+
 ## 2. Desligar ou conter
 
 - **Desligar o agente:** apagar `ANTHROPIC_API_KEY` e publicar. A página continua de pé, com a resposta "indisponível" e o WhatsApp.

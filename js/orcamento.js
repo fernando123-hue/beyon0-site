@@ -137,6 +137,7 @@
     var dados = { nome: $('o-nome').value.trim(), telefone: $('o-tel').value.trim(), email: $('o-email').value.trim(), aceite: $('o-aceite').checked };
     if (dados.nome.length < 2) { erro.textContent = 'Informe seu nome.'; $('o-nome').focus(); return; }
     if (!dados.telefone && !dados.email) { erro.textContent = 'Informe o WhatsApp ou o e-mail.'; $('o-tel').focus(); return; }
+    if (manual() && !dados.telefone) { erro.textContent = 'Informe seu WhatsApp: é por ele que avisamos quando as direções ficarem prontas.'; $('o-tel').focus(); return; }
     if (!dados.aceite) { erro.textContent = 'É preciso concordar com o uso dos dados para receber as propostas.'; $('o-aceite').focus(); return; }
     if (!dados.telefone) delete dados.telefone;
     if (!dados.email) delete dados.email;
@@ -178,6 +179,21 @@
     var s = Math.max(0, Math.round((Date.now() - (inicioGeracao[id] || Date.now())) / 1000));
     return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
   }
+  /* FILA MANUAL (decisão do dono, 2026-10-08): as direções são feitas pela Beyon Zero em até 24 horas úteis e o aviso
+     vai pelo WhatsApp; a página não pede a geração nem fica consultando: confere de novo quando a pessoa volta */
+  var manual = function () { return !!E && E.modo_direcoes === 'manual'; };
+  var TEXTOS_MANUAL = {
+    contato: 'Com o seu contato, a Beyon Zero desenha três direções de site para o seu negócio: uma focada em conversão, uma em autoridade e uma em experiência. Ficam prontas em até 24 horas úteis, e avisamos pelo seu WhatsApp.',
+    direcoes: 'Mesmo briefing, três estratégias. Ficam prontas em até 24 horas úteis e avisamos pelo seu WhatsApp; é só voltar a esta página, neste aparelho, para abrir, comparar e escolher.',
+    prontas: 'Mesmo briefing, três estratégias. Abra cada uma, compare e escolha a que mais tem a cara do seu negócio.'
+  };
+  function textosDoModo() {
+    if (!manual() || !mudou('modo', 'manual')) return;
+    $('o-contato-lead').textContent = TEXTOS_MANUAL.contato;
+    var opcional = document.querySelector('label[for="o-email"] .orc-opcional');
+    if (opcional) opcional.textContent = '(opcional)';
+    $('o-tel').required = true;
+  }
   var podeEscolher = function () { return E && (E.conversa.etapa === 'direcoes' || E.conversa.etapa === 'escolhida'); };   /* (o servidor trava a troca depois do 1º ajuste) */
   var podeGerar = function () { return E && ['contato', 'estimativa', 'direcoes', 'escolhida'].indexOf(E.conversa.etapa) >= 0; };   /* (= app.vendas_iniciar_geracao) */
   var escolhidaId = function () { return E && E.escolha ? E.escolha.direcao_id : null; };
@@ -213,6 +229,11 @@
         corpo.appendChild(el('p', 'dir__resumo', 'Você pode gerar as três de novo ou seguir com as que ficaram prontas.'));
         corpo.appendChild(botao('btn btn--sm', 'Gerar de novo', gerarTodas));
       } else corpo.appendChild(el('p', 'dir__resumo', 'Os ajustes seguem sobre a direção escolhida.'));
+    } else if (manual()) {
+      var f = el('div', 'dir__progresso');
+      f.appendChild(el('p', '', 'Na fila: a direção de ' + (NOMES[d.estrategia] || '').toLowerCase() + ' fica pronta em até 24 horas úteis.'));
+      mini.appendChild(f);
+      corpo.appendChild(el('p', 'dir__resumo', 'Avisamos pelo seu WhatsApp. O progresso fica salvo neste aparelho.'));
     } else {
       var g = el('div', 'dir__progresso');
       g.appendChild(el('p', '', 'Desenhando a direção de ' + (NOMES[d.estrategia] || '').toLowerCase() + '…'));
@@ -373,12 +394,14 @@
       if (temDirecoes) { E.direcoes.forEach(function (d) { ul.appendChild(cartaoDirecao(d)); }); encaixarMinis(); }
       else if (E.conversa.tem_contato) ul.appendChild(botao('btn btn--primary', 'Gerar as três direções', gerarTodas));
     }
-    var emGeracao = E.direcoes.filter(function (d) { return d.status === 'gerando'; });
+    if (manual()) $('o-dir-lead').textContent = E.direcoes.some(function (d) { return d.status === 'gerando'; }) || !temDirecoes ? TEXTOS_MANUAL.direcoes : TEXTOS_MANUAL.prontas;
+    var emGeracao = manual() ? [] : E.direcoes.filter(function (d) { return d.status === 'gerando'; });   /* (fila manual: nada a pedir) */
     relogioDosCartoes(emGeracao.length > 0);
     emGeracao.forEach(function (d) { pedirDirecao(d.id); });
   }
   function render() {
     var et = E.conversa.etapa;
+    textosDoModo();
     etapas();
     if (E.estimativa) investimento(E.estimativa, false);
     var aberta = CONVERSA_ABERTA.indexOf(et) >= 0;
@@ -414,7 +437,7 @@
     if (minha !== seq) return E;
     E = novo;
     render();
-    if (E.conversa.etapa === 'gerando') esperar();   /* (no pagamento, quem consulta é js/orcamento-pagamento.js) */
+    if (E.conversa.etapa === 'gerando' && !manual()) esperar();   /* (no pagamento, quem consulta é js/orcamento-pagamento.js; na fila manual, só ao voltar à aba) */
     return E;
   }
 
