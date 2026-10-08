@@ -130,6 +130,59 @@ for (const [rota, nome, opcoes, { semNucleo = false, reduzirNoBoot = false, exig
   await ctx.close();
 }
 
+/* ==========================================================================
+   A MEDIÇÃO do caminho principal (js/medicao.js): o clique em "Monte seu
+   orçamento" vira 'orcamento_iniciar' (não contato), e o WhatsApp de dentro
+   do orçamento conta como contato nas métricas próprias, sem Google.
+   ========================================================================== */
+async function cenario(nome, opcoes, roteiro) {
+  const ctx = await navegador.newContext(opcoes);
+  const page = await ctx.newPage();
+  const erros = [];
+  page.on('pageerror', e => erros.push('pageerror: ' + e.message));
+  page.on('console', m => { if (m.type() === 'error' && !/ERR_FAILED|wa\.me/.test(m.text())) erros.push('console: ' + m.text()); });
+  let r;
+  try { r = await roteiro(page); } catch (e) { r = { ok: false, info: 'quebrou: ' + e.message }; }
+  const ok = r.ok && erros.length === 0;
+  if (!ok) falhou = true;
+  console.log((ok ? 'OK  ' : 'FALHA ') + nome.padEnd(18), r.info, erros.length ? '\n     erros: ' + erros.join('\n     ') : '');
+  await ctx.close();
+}
+await cenario('medicao-orcamento', CELULAR, async page => {
+  await page.goto(BASE + '/', { waitUntil: 'load' });
+  await page.waitForTimeout(1000);
+  await page.evaluate(() => {
+    window.__orc = []; window.__contato = [];
+    window.BEYON.on('medicao:orcamento', d => window.__orc.push(d));
+    window.BEYON.on('medicao:contato', d => window.__contato.push(d));
+    /* segura a navegação: cancela o clique antes de todos (a medição ouve mesmo assim; a passagem respeita o cancelado) */
+    window.addEventListener('click', e => e.preventDefault(), true);
+  });
+  await page.locator('.hero a[href="/orcamento"]:visible').first().click();
+  await page.waitForTimeout(150);
+  const r = await page.evaluate(() => ({ orc: window.__orc, contato: window.__contato.length }));
+  const d = r.orc[0] || {};
+  return { ok: r.orc.length === 1 && d.origem_botao && d.origem_botao !== 'pagina' && d.pagina === '/' && r.contato === 0,
+    info: `eventos=${r.orc.length} origem=${d.origem_botao} pagina=${d.pagina} contatos=${r.contato}` };
+});
+await cenario('medicao-wa-orc', DESKTOP, async page => {
+  await page.route('https://wa.me/**', rota => rota.abort());
+  await page.goto(BASE + '/orcamento', { waitUntil: 'load' });
+  await page.waitForTimeout(1500);
+  await page.evaluate(() => { window.__contato = []; document.addEventListener('bz:contato', e => window.__contato.push(e.detail)); });
+  await page.locator('.orc-conversa a[href^="https://wa.me/"]').first().click();
+  await page.waitForTimeout(300);
+  /* o link do menu para o próprio orçamento não é "começar o orçamento" */
+  await page.evaluate(() => { window.__orc = 0; window.BEYON.on('medicao:orcamento', () => window.__orc++); window.addEventListener('click', e => e.preventDefault(), true); });
+  await page.locator('.nav a[href="/orcamento"]').first().click({ force: true });
+  const r = await page.evaluate(() => ({
+    contato: window.__contato, orc: window.__orc, google: !!document.querySelector('script[src*="googletagmanager"]'), aviso: !!document.querySelector('.consentimento')
+  }));
+  const d = r.contato[0] || {};
+  return { ok: r.contato.length === 1 && d.origem_botao === 'orcamento-conversa' && d.pagina === '/orcamento' && r.orc === 0 && !r.google && !r.aviso,
+    info: `contatos=${r.contato.length} origem=${d.origem_botao} pagina=${d.pagina} inicios=${r.orc} google=${r.google} aviso=${r.aviso}` };
+});
+
 await navegador.close();
 console.log(falhou ? '\nAlguma coisa falhou — leia acima.' : '\nTudo certo.');
 process.exit(falhou ? 1 : 0);

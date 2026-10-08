@@ -56,6 +56,10 @@ Com a verificação de anunciante, o Google mostra o nome verificado de qualquer
 5. No GA4, em Administrador › Definições personalizadas, crie três dimensões de evento: `origem_botao`, `pagina` e
    `via` (sem isso os relatórios não mostram de qual botão veio o clique). Marque o evento `contato_whatsapp` como evento-chave. Se importar para o Google Ads, deixe como
    **secundária** (a principal é a tag do Ads; senão conta duas vezes).
+   O caminho principal do site é o orçamento: o clique em "Monte seu orçamento" chega como o evento
+   `orcamento_iniciar` (com `origem_botao`). Marque-o também como evento-chave no GA4, mas **não** como conversão do
+   Ads: começar o orçamento ainda não é contato. Dentro de `/orcamento` o Google não carrega (há pagamento na página);
+   os cliques no WhatsApp de lá contam só nas métricas próprias (`js/metricas.js`).
 6. Lembre: **clique no WhatsApp não é conversa**. Parte das pessoas abre e não envia. Conte as conversas reais na
    planilha (mensagens que começam com "Vi o anúncio").
 7. **Mais preciso que a planilha:** as métricas próprias do site (docs/metricas/README.md) ligam cada conversa ao
