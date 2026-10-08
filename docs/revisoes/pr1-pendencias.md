@@ -75,10 +75,10 @@ com credenciais reais**, salvo onde diz outra coisa.
   - Ao ATIVAR a tabela de preços no banco, use o nome "Experiência digital" no formato `sob_medida` e não inclua o adicional `dominio_email`; o rascunho `docs/fase2/regras-rascunho-v1.json` já está assim.
   - Antes de os anúncios irem ao ar, troque "Sob Medida" nos títulos e sitelinks de `docs/google-ads/README.md` e em `docs/estrutura/TABELA-DE-PRECOS.md`.
 
-- Revisão do PR "Monte seu orçamento" (2026-10-08), ANTES de ligar GA4/Ads: (a) `/orcamento` não carrega
-  `js/medicao.js`, então os cliques em WhatsApp dentro dele não contam; (b) o clique em "Monte seu orçamento" não
-  gera evento (só wa.me conta): emitir `orcamento_iniciar` com `origem_botao` (mesma `botao()`) e medir lead e
-  sinal pago como conversões de verdade. Nível 3 (`js/medicao.js`), PR próprio.
+- ~~Revisão do PR "Monte seu orçamento" (2026-10-08): (a) `/orcamento` sem `js/medicao.js`; (b) clique em "Monte seu
+  orçamento" sem evento.~~ Feito no PR da medição (2026-10-09): (a) entra com `data-sem-google` (só métricas
+  próprias; a CSP do pagamento segue sem Google); (b) `orcamento_iniciar`. **Continua aberto:** medir lead e sinal pago
+  como conversões de verdade (servidor, quando o GA4/Ads for ligado).
 - Segurança B7: com Cloudflare na frente, usar `cf-connecting-ip` **só** com a origem restrita à Cloudflare.
 - Segurança B8: injeção de fórmula no CSV do painel (só o dono controla o parâmetro).
 - Técnica B2: o portão aceita revisão anterior ao último commit; comparar datas.

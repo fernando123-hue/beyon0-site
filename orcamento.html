@@ -61,7 +61,7 @@
 
     <noscript><p class="orc-aviso orc-aviso--semjs">Esta página precisa de JavaScript. Fale com a Beyon Zero pelo <a href="https://wa.me/5521977167944">WhatsApp (21) 97716-7944</a>.</p></noscript>
 
-    <div class="orc-aviso" id="o-aviso" role="alert" tabindex="-1" hidden>
+    <div class="orc-aviso" id="o-aviso" data-origem="orcamento-erro" role="alert" tabindex="-1" hidden>
       <p id="o-aviso-texto"></p>
       <div class="orc-aviso__acoes">
         <button class="btn btn--sm" type="button" id="o-tentar">Tentar de novo</button>
@@ -71,7 +71,7 @@
 
     <div class="orc-mesa">
       <!-- A CONVERSA -->
-      <section class="orc-conversa" aria-labelledby="o-conversa-titulo">
+      <section class="orc-conversa" data-origem="orcamento-conversa" aria-labelledby="o-conversa-titulo">
         <h2 id="o-conversa-titulo" class="orc-rotulo">Conversa com o consultor</h2>
         <ol class="orc-log" id="o-log" aria-live="polite" aria-relevant="additions">
           <li class="msg msg--agente"><p>Olá! Me conte sobre o seu negócio e o que você espera do site. Pode ser do seu jeito, sem termos técnicos.</p></li>
@@ -94,7 +94,7 @@
       </section>
 
       <!-- O INVESTIMENTO (do motor de preço; o modelo nunca escreve estes números) -->
-      <aside class="orc-painel" aria-labelledby="o-est-titulo">
+      <aside class="orc-painel" data-origem="orcamento-painel" aria-labelledby="o-est-titulo">
         <h2 id="o-est-titulo" class="orc-rotulo">Investimento estimado</h2>
         <div class="orc-est" id="o-est">
           <p class="orc-est__vazio" id="o-est-vazio">O valor aparece aqui assim que o consultor entender o formato do site. Ele vem da tabela da Beyon Zero, não de um palpite.</p>
@@ -327,6 +327,7 @@
   <script src="js/core.js" defer></script>
   <script src="js/pagina.js" defer></script>
   <script src="js/passagem.js" defer></script>
+  <script src="js/medicao.js" data-sem-google defer></script>
   <script src="js/metricas.js" defer></script>
   <script src="js/previa.js" defer></script>
   <script src="js/orcamento-turnstile.js" defer></script>
