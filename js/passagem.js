@@ -30,6 +30,8 @@
   var saindo = false;
   var mexidos = [];            /* quem recebeu origem e classe na saída: tudo volta como estava se desistir */
   var chegada = 0;             /* o timer do fim da chegada */
+  var desiste = 0;             /* o timer do desfazer: cancelado ao desfazer (um timer velho, congelado no bfcache,
+                                  não pode desfazer o voo seguinte) */
 
   function caminho(u) {
     var p = u.pathname.replace(/\/index\.html$/, '/').replace(/\.html$/, '').replace(/(.)\/$/, '$1');
@@ -60,10 +62,17 @@
     return ehPagina(u) ? { href: u.href, link: a } : null;
   }
 
+  /* o menu é o do celular quando o botão dele está à mostra (html.tem-menu vale no desktop também; o .is-open já
+     saiu quando este clique chega, porque o js/pagina.js fecha o menu antes) */
+  function menuDoCelular() {
+    var t = document.querySelector('.nav__toggle');
+    return !!t && t.getClientRects().length > 0;
+  }
+
   /* o ponto tocado; pelo teclado (Enter) o clique vem sem coordenada: o centro do link. Link do menu do celular:
      o centro da tela (o menu fecha na hora e o ponto tocado ficaria em cima de nada) */
   function pontoDe(e, a) {
-    if (html.classList.contains('tem-menu') && a.closest('.nav__links')) return { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    if (menuDoCelular() && a.closest('.nav__links')) return { x: window.innerWidth / 2, y: window.innerHeight / 2 };
     if (e.detail > 0 && (e.clientX || e.clientY)) return { x: e.clientX, y: e.clientY };
     var r = a.getBoundingClientRect();
     return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
@@ -82,6 +91,7 @@
   }
 
   function desfazer() {
+    clearTimeout(desiste);
     saindo = false;
     html.classList.remove('passagem-sai');
     mexidos.forEach(function (a) { a.n.classList.remove(a.c); a.n.style.transformOrigin = ''; });
@@ -104,7 +114,7 @@
     html.classList.add('passagem-sai');
     if (B.emit) B.emit('passagem', d);   /* o mini mergulha junto (js/mini.js) */
     setTimeout(function () { location.href = d.href; }, SAI_MS);
-    setTimeout(desfazer, SAI_MS + DESISTE_MS);
+    desiste = setTimeout(desfazer, SAI_MS + DESISTE_MS);
   }
 
   document.addEventListener('click', function (e) {

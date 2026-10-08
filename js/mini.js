@@ -808,7 +808,7 @@
   B.on('passagem', function () {
     if (!mini.ativo || B.reduced) return;
     mergulho = true; soltarSugestao(); soltarEstacao(passeio); passeio.estado = "doca"; passeio.dest = null; pulsar(1);
-    setTimeout(function () { mergulho = false; }, 4500);   /* a navegação não aconteceu: ele volta ao normal */
+    setTimeout(function () { mergulho = false; }, 2500);   /* a navegação não aconteceu: ele volta junto com a página (js/passagem.js, SAI_MS + DESISTE_MS) */
   });
   /* uma pergunta do FAQ aberta: ele comemora e olha para ela */
   document.addEventListener('toggle', function (e) {

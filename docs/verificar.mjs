@@ -196,13 +196,18 @@ await cenario('passagem-desiste', DESKTOP, async page => {
   await page.goto(BASE + '/', { waitUntil: 'load' });
   await page.waitForTimeout(1000);
   await segurarNavegacao(page);
-  await page.locator('.nav a[href="/sites"]').first().click();
+  const link = page.locator('.nav a[href="/sites"]').first();
+  const caixa = await link.boundingBox();
+  await link.click();
   await page.waitForTimeout(150);
   const saindo = await estadoPassagem(page);
+  /* no desktop os riscos saem do ponto clicado (o menu do topo não é o do celular) */
+  const origem = await page.evaluate(() => { const r = document.querySelector('.passagem__riscos'); return { x: parseFloat(r.style.left), y: parseFloat(r.style.top) }; });
+  const noLink = origem.x >= caixa.x && origem.x <= caixa.x + caixa.width && origem.y >= caixa.y && origem.y <= caixa.y + caixa.height;
   await page.waitForTimeout(2600);   /* SAI_MS + DESISTE_MS (2 s) e folga */
   const s = await estadoPassagem(page);
-  return { ok: saindo.classes === 'passagem-sai' && inteira(s) && s.chave === null,
-    info: `saindo=${saindo.classes} 2,75 s depois: opacidade=${s.opacidade} escala=${s.escala} classes=${s.classes} chave=${s.chave}` };
+  return { ok: saindo.classes === 'passagem-sai' && noLink && inteira(s) && s.chave === null,
+    info: `saindo=${saindo.classes} origem no link=${noLink} 2,75 s depois: opacidade=${s.opacidade} escala=${s.escala} classes=${s.classes} chave=${s.chave}` };
 });
 await cenario('passagem-menu', CELULAR, async page => {
   await page.goto(BASE + '/', { waitUntil: 'load' });
