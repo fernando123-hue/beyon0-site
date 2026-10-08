@@ -45,7 +45,10 @@ test('CSP do /orcamento: sem origem que a página não usa (Google), com Mercado
   const csp = cspDoHeader('/orcamento');
   assert.ok(!/google|doubleclick|googlesyndication|googleadservices|googletagmanager/i.test(csp), 'sem Google: ' + csp);
   const html = readFileSync(new URL('orcamento.html', RAIZ), 'utf8');
-  assert.ok(!/medicao\.js|googletagmanager/.test(html), 'a página não carrega a medição do Google (se passar a carregar, a CSP volta a precisar)');
+  assert.ok(!/googletagmanager/.test(html), 'a página não carrega o Google');
+  /* a medição entra só para decidir o que é contato (métricas próprias), sem o Google: data-sem-google */
+  const scripts = html.match(/<script[^>]*medicao\.js[^>]*>/g) || [];
+  assert.ok(scripts.every(s => /data-sem-google/.test(s)), 'medicao.js no orçamento só com data-sem-google: ' + scripts.join(' '));
   const d = diretivas(csp);
   for (const origem of ['https://sdk.mercadopago.com', 'https://challenges.cloudflare.com']) assert.ok(d['script-src'].includes(origem), origem);
   for (const origem of ['https://secure-fields.mercadopago.com', 'https://challenges.cloudflare.com']) assert.ok(d['frame-src'].includes(origem), origem);

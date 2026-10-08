@@ -23,6 +23,16 @@
    js/lead-form.js). Cada clique leva de qual botão veio e se a visita veio de
    anúncio (js/ancoras.js marca html.via-anuncio a partir do gclid/utm). Os
    dados da conversa (o que a pessoa escreve) nunca passam por aqui.
+
+   O caminho principal (2026-10-09): o clique em "Monte seu orçamento" (todo
+   link para /orcamento) vira o evento 'orcamento_iniciar' no GA4, com o
+   botão de origem. Não é conversão do Ads nem conta como contato: a pessoa
+   ainda não falou com ninguém.
+
+   Na página do orçamento o script entra com data-sem-google: ali há
+   pagamento (Mercado Pago) e a CSP não libera o Google, de propósito. Ele só
+   decide o que é contato e avisa as métricas próprias (js/metricas.js); o
+   Google e o aviso de cookies não existem nessa página.
    ========================================================================== */
 (function () {
   'use strict';
@@ -33,7 +43,9 @@
   };
   var B = window.BEYON || {};
   var html = document.documentElement;
-  var ATIVO = !!(CONFIG.ga4 || CONFIG.ads), CHAVE = 'bz-consentimento';
+  var eu = document.currentScript;
+  var SEM_GOOGLE = !!(eu && eu.hasAttribute('data-sem-google'));
+  var ATIVO = !SEM_GOOGLE && !!(CONFIG.ga4 || CONFIG.ads), CHAVE = 'bz-consentimento';
   var carregado = false;
 
   window.dataLayer = window.dataLayer || [];
@@ -62,8 +74,10 @@
   }
 
   /* ---------- a conversão ---------- */
-  /* de onde veio o clique: a seção, a barra do celular, o ícone, o menu */
+  /* de onde veio o clique: a seção, a barra do celular, o ícone, o menu (ou o data-origem de quem não tem id) */
   function botao(a) {
+    var marcado = a.closest('[data-origem]');
+    if (marcado) return marcado.getAttribute('data-origem');
     if (a.classList.contains('wa')) return 'icone';
     if (a.closest('.barra')) return 'barra';
     if (a.closest('.nav')) return 'menu';
@@ -92,6 +106,24 @@
     registrar(botao(a));
   }, true);
   if (B.on) B.on('contato', function (d) { registrar((d && d.origem) || 'formulario'); });
+
+  /* ---------- o caminho principal: começar o orçamento ---------- */
+  function iniciarOrcamento(origem) {
+    var dados = { origem_botao: origem, pagina: location.pathname || '/', via: viaAnuncio() ? 'anuncio' : 'site' };
+    if (B.emit) B.emit('medicao:orcamento', dados);   /* (para os testes; nada sai do aparelho sem o sim) */
+    if (!ATIVO || escolha() !== 'sim' || !CONFIG.ga4) return;
+    carregar();
+    /* beacon: a página vai embora logo depois (a passagem navega em meio segundo) */
+    gtag('event', 'orcamento_iniciar', Object.assign({ transport_type: 'beacon' }, dados));
+  }
+  document.addEventListener('click', function (e) {
+    var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+    if (!a || e.button !== 0) return;
+    var u;
+    try { u = new URL(a.href, location.href); } catch (err) { return; }
+    if (u.origin !== location.origin || !/^\/orcamento(\.html)?\/?$/.test(u.pathname) || /^\/orcamento/.test(location.pathname)) return;
+    iniciarOrcamento(botao(a));
+  }, true);
 
   if (!ATIVO) return;
 
