@@ -15,7 +15,7 @@
   var ALERTA_H = 20;   /* horas corridas: perto do prazo de 24 horas úteis */
   var NOMES = { conversao: 'conversão', autoridade: 'autoridade', experiencia: 'experiência' };
   var NOME_OK = /^[\p{L}'-]{1,20}$/u;
-  var EMAIL_OK = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+  var EMAIL_OK = /^[A-Za-z0-9._+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
 
   var idCurto = function (id) { return String(id).slice(0, 8); };
   var primeiroNome = function (n) { var p = String(n || '').trim().split(/\s+/)[0] || ''; return NOME_OK.test(p) ? p : ''; };
@@ -107,9 +107,13 @@
     return c;
   }
 
+  /* cada leitura tem a sua vez: resposta que chega depois de sair (ou de uma leitura mais nova) é descartada */
+  var vez = 0;
   function carregar(aviso) {
+    var minha = ++vez;
     $('fila-estado').textContent = 'Carregando a fila…';
     P.pedir('?fila=direcoes').then(function (r) { return r.json(); }).then(function (r) {
+      if (minha !== vez) return;
       var alvo = $('fila');
       alvo.textContent = '';
       $('bloco-fila').hidden = false;
@@ -117,10 +121,10 @@
       var contagem = !r.fila.length ? 'Nenhum pedido na fila.'
         : r.total + (r.total === 1 ? ' pedido' : ' pedidos') + (r.truncada ? ' (mostrando os ' + r.fila.length + ' mais antigos)' : '') + '.';
       $('fila-estado').textContent = (typeof aviso === 'string' ? aviso + ' ' : '') + contagem;
-    }).catch(function (e) { $('bloco-fila').hidden = false; $('fila-estado').textContent = e.message; });
+    }).catch(function (e) { if (minha !== vez) return; $('bloco-fila').hidden = false; $('fila-estado').textContent = e.message; });
   }
-  /* saiu do painel: nome e telefone dos clientes não ficam na página */
-  function esvaziar() { $('fila').textContent = ''; $('fila-estado').textContent = ''; $('bloco-fila').hidden = true; }
+  /* saiu do painel: nome e telefone dos clientes não ficam na página (e nenhuma leitura em voo os traz de volta) */
+  function esvaziar() { vez++; $('fila').textContent = ''; $('fila-estado').textContent = ''; $('bloco-fila').hidden = true; }
 
   document.addEventListener('bz-painel:entrou', function () { carregar(); });
   document.addEventListener('bz-painel:saiu', esvaziar);

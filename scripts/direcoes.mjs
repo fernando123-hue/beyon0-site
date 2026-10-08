@@ -29,7 +29,10 @@ import { redigir } from '../api/_vendas/seguranca.mjs';
 export const PASTA = path.join(os.homedir(), 'BeyonZero-direcoes');
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /* para onde a chave do painel pode ir: o site (e as prévias da Vercel) por https; o servidor local por http */
+/* AO TROCAR DE DOMÍNIO (o .com.br próprio): acrescentar o host aqui e no teste de validarBase */
 const HOSTS = [/^beyon0-site\.vercel\.app$/, /^beyon0-site-[a-z0-9-]+-beyond0\.vercel\.app$/];
+/* partes do nome que não identificam ninguém (ficam no briefing: "Moda dos anos 80") */
+const NAO_E_NOME = new Set(['dos', 'das', 'del', 'van', 'von']);
 const LOCAIS = ['127.0.0.1', 'localhost'];
 const TEMPO_MS = 20000;
 
@@ -49,7 +52,7 @@ export function validarBase(valor) {
 function apagador(contato) {
   const c = contato || {};
   const letra = '\\p{L}';
-  const partes = String(c.nome || '').split(/\s+/).filter(x => x.length >= 3).map(x => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const partes = String(c.nome || '').split(/\s+/).filter(x => x.length >= 3 && !NAO_E_NOME.has(x.toLowerCase())).map(x => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
   const nome = partes.length ? new RegExp('(?<!' + letra + ')(' + partes.join('|') + ')(?!' + letra + ')', 'giu') : null;
   const email = c.email ? new RegExp(String(c.email).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi') : null;
   const ult = String(c.telefone || '').replace(/\D/g, '').slice(-8);
@@ -96,10 +99,15 @@ export function conferir(conteudo, estrategia) {
 }
 
 /* a entrega do pedido inteiro: cada direção na fila pelo SEU arquivo (<estrategia>.json), conferido; o id vem do
-   pedido.json, nunca digitado (revisão técnica: arquivo errado no id errado era irreversível). Falta ou recusa = nada sai */
-export function planejarEntrega(pasta) {
+   pedido.json, nunca digitado (revisão técnica: arquivo errado no id errado era irreversível). Falta ou recusa = nada sai.
+   servidor = { todos, naFila }: os ids do pedido NA FILA DO SERVIDOR (o pedido.json fica numa pasta onde o modelo
+   escreve; revisões de segurança e técnica) — id de fora do pedido recusa tudo; o que já foi entregue não sai de novo
+   (retoma depois de uma queda no meio) */
+export function planejarEntrega(pasta, servidor) {
   const pedido = JSON.parse(fs.readFileSync(path.join(pasta, 'pedido.json'), 'utf8'));
-  return pedido.direcoes.filter(d => d.status === 'gerando').map(d => {
+  if (servidor && pedido.direcoes.some(d => !servidor.todos.has(d.id))) throw new Error('Os ids do pedido.json não batem com a fila do servidor: rode "pedido" de novo.');
+  const aEntregar = pedido.direcoes.filter(d => (servidor ? servidor.naFila.has(d.id) : d.status === 'gerando'));
+  return aEntregar.map(d => {
     const arquivo = path.join(pasta, d.estrategia + '.json');
     if (!fs.existsSync(arquivo)) throw new Error('Falta ' + d.estrategia + '.json na pasta do pedido.');
     const conteudo = JSON.parse(fs.readFileSync(arquivo, 'utf8'));
@@ -163,7 +171,9 @@ const COMANDOS = {
     const p = String(prefixo || '').trim().toLowerCase();
     if (!/^[0-9a-f]{8}/.test(p)) throw new Error('Informe os 8 primeiros caracteres do pedido.');
     const pasta = path.join(PASTA, p.slice(0, 8));
-    const plano = planejarEntrega(pasta);
+    const doServidor = acharPedido((await painel('GET', '?fila=direcoes')).fila, p);
+    const plano = planejarEntrega(pasta, { todos: new Set(doServidor.direcoes.map(d => d.id)), naFila: new Set(doServidor.direcoes.filter(d => d.status === 'gerando').map(d => d.id)) });
+    if (!plano.length) { fs.rmSync(pasta, { recursive: true, force: true }); return console.log('Nada a entregar: as direções deste pedido já estão prontas. Pasta apagada; avise o cliente pelo painel.'); }
     let pendentes = null;
     for (const e of plano) {
       const r = await painel('POST', '', { entregar_direcao: e.id, conteudo: e.conteudo });

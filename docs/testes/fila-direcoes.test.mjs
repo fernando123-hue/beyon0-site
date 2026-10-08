@@ -248,3 +248,22 @@ test('comando local: entregar o pedido inteiro só com os 3 arquivos conferidos;
   assert.ok(fs.existsSync(pasta) && !fs.existsSync(velha));
   fs.rmSync(raiz, { recursive: true, force: true });
 });
+
+test('comando local (revisões): a entrega confere os ids com a fila do servidor e retoma o que já foi entregue; nome com "dos" não pica o briefing', async () => {
+  const fs = await import('node:fs'), os = await import('node:os'), path = await import('node:path');
+  const { planejarEntrega, pedidoParaModelo } = await import('../../scripts/direcoes.mjs');
+  const raiz = fs.mkdtempSync(path.join(os.tmpdir(), 'bz-dir-'));
+  const id = n => 'bbbbbbbb-0000-4000-8000-00000000000' + n;
+  const dirs = [{ id: id(1), estrategia: 'conversao', status: 'gerando' }, { id: id(2), estrategia: 'autoridade', status: 'gerando' }];
+  fs.writeFileSync(path.join(raiz, 'pedido.json'), JSON.stringify({ direcoes: dirs }));
+  for (const d of dirs) fs.writeFileSync(path.join(raiz, d.estrategia + '.json'), JSON.stringify(direcao()));
+  /* a fila do servidor: a 1ª já foi entregue (queda no meio) → só a 2ª sai */
+  const servidor = { todos: new Set([id(1), id(2), id(3)]), naFila: new Set([id(2)]) };
+  assert.deepEqual(planejarEntrega(raiz, servidor).map(e => e.estrategia), ['autoridade']);
+  /* id que não é deste pedido (pedido.json editado) → nada sai */
+  assert.throws(() => planejarEntrega(raiz, { todos: new Set([id(2)]), naFila: new Set([id(2)]) }), /não batem com a fila/);
+  fs.rmSync(raiz, { recursive: true, force: true });
+  const p = { conversa_id: '1234abcd-0000-4000-8000-000000000000', contato: { nome: 'Maria dos Santos' }, briefing: { negocio: { descricao: 'Moda dos anos 80 da Maria' } }, direcoes: [] };
+  const t = JSON.stringify(pedidoParaModelo(p));
+  assert.ok(t.includes('dos anos 80') && !t.includes('Maria') && !t.includes('Santos'), t);
+});
