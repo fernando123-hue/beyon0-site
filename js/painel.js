@@ -229,6 +229,7 @@
     return pedir('?dias=' + dias).then(function (r) { return r.json(); }).then(function (r) {
       entrou(true);
       mostrar(r, soNumeros === true);
+      if (!soNumeros) document.dispatchEvent(new CustomEvent('bz-painel:entrou'));
       $('estado').textContent = 'Atualizado às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + '.';
     }).catch(function (e) {
       if (e.status === 401 || e.status === 429) { sair(); $('erroEntrar').hidden = false; $('erroEntrar').textContent = e.message; return; }
@@ -275,5 +276,7 @@
     }).catch(function (e) { $('estado').textContent = e.message; });
   });
   try { $('naoContar').checked = localStorage.getItem('bz-nao-contar') !== '0'; } catch (e) { /* padrão: marcado */ }
+  /* a fila manual das direções (js/painel-fila.js) usa o mesmo pedido autenticado */
+  window.BZPainel = { pedir: pedir, el: el, data: data };
   if (chave) carregar();
 })();

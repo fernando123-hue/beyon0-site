@@ -179,3 +179,25 @@ test('painel: a fila diz o total (pedido novo nunca some calado), avisado antes 
   const grande = await mudar(new Request(BASE + '/api/painel', comChave({ method: 'POST', body: JSON.stringify({ entregar_direcao: c, conteudo: { lixo: 'x'.repeat(300000) } }) })), ENV);
   assert.equal(grande.status, 413);
 });
+
+test('comando local: o pedido para o modelo NUNCA leva nome, telefone ou e-mail (promessa da privacidade)', async () => {
+  const { pedidoParaModelo, acharPedido, conferir, instrucoes } = await import('../../scripts/direcoes.mjs');
+  const p = { conversa_id: '1234abcd-0000-4000-8000-000000000000', pedido_em: '2026-10-08T10:00:00Z',
+    contato: { nome: 'Ana Souza', telefone: '+5521999990000', email: 'ana@exemplo.com' },
+    briefing: { negocio: { segmento: 'clínica' } }, fatores: { formato: 'institucional', paginas: 5 },
+    direcoes: [{ id: 'd1', numero: 1, estrategia: 'conversao', status: 'gerando' }] };
+  const obj = pedidoParaModelo(p), m = JSON.stringify(obj);
+  assert.ok(!('contato' in obj), 'sem o campo de contato');
+  for (const proibido of ['Ana', 'Souza', '99999', 'ana@exemplo.com', '+55']) assert.ok(!m.includes(proibido), 'sem ' + proibido);
+  assert.ok(m.includes('clínica') && m.includes('institucional') && m.includes('CONVERSÃO'), 'leva o briefing, o escopo e a instrução da estratégia');
+  /* achar pelo começo do id: curto, ausente e ambíguo dão erro claro */
+  assert.equal(acharPedido([p], '1234ABCD').conversa_id, p.conversa_id);
+  assert.throws(() => acharPedido([p], '1234'), /8 primeiros/);
+  assert.throws(() => acharPedido([p], '99999999'), /não está na fila/);
+  assert.throws(() => acharPedido([p, { ...p }], '1234abcd'), /Mais de um/);
+  /* conferir = o mesmo filtro do servidor */
+  assert.equal(conferir(direcao(), 'conversao').erro, undefined);
+  assert.match(conferir({ ...direcao(), secoes: [] }, 'conversao').erro, /poucas seções/);
+  assert.match(conferir(direcao(), 'qualquer').erro, /estratégia desconhecida/);
+  assert.ok(instrucoes().sistema.length > 500 && instrucoes().esquema.properties.secoes, 'as instruções da geração automática');
+});
