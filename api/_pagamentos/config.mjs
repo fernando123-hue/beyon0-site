@@ -16,6 +16,7 @@
    • "simulado" só existe no servidor local (docs/servidor.mjs), fora da Vercel.
    Nenhum valor secreto sai deste módulo para log ou resposta.
    ========================================================================== */
+import { segredoDoCron } from '../_cron.mjs';
 
 const NA_VERCEL = env => !!(env.VERCEL || env.VERCEL_ENV);
 
@@ -48,7 +49,7 @@ export function configPagamentos(env = process.env) {
   if (sufixo && sufixo[1] !== contaEsperada) return desligado('MP_ACCESS_TOKEN não é da conta MP_USER_ID');
   const tresDS = env.MP_3DS === 'on_fraud_risk' ? 'on_fraud_risk' : null;
   return { ativo: true, ambiente, provedor: 'mercadopago', token, publicKey, segredoWebhook: segredo, contaEsperada, tresDS,
-    pixExpiracao: 'PT1H', base: 'https://api.mercadopago.com', fetch: null, cronSecret: env.CRON_SECRET && env.CRON_SECRET.length >= 16 ? env.CRON_SECRET : null };
+    pixExpiracao: 'PT1H', base: 'https://api.mercadopago.com', fetch: null, cronSecret: segredoDoCron(env) };
 }
 
 /* o que pode ir ao navegador */
