@@ -61,7 +61,7 @@ com credenciais reais**, salvo onde diz outra coisa.
 | Segurança B6 | teto de custo lido antes e somado depois: 3 direções em paralelo passam do teto em ~1/3 | reservar o custo no banco antes de chamar |
 | Técnica B1 | `ID_ORDER` do webhook sensível a maiúsculas | confirmar a forma real do MP no 1º teste com credenciais de TESTE |
 | Técnica B3 | `sinal_percentual` fracionário diverge entre cartão e Pix | aceitar só inteiro no motor de preço |
-| Segurança B4 | CSP de `/orcamento` libera domínios do Google que a página não usa | enxugar `vercel.json` |
+| ~~Segurança B4~~ | ~~CSP de `/orcamento` libera domínios do Google que a página não usa~~ | **feito no PR 13** (Google fora do `/orcamento`; `/painel` com header próprio igual ao `<meta>`; `docs/testes/csp.test.mjs` prende header e `<meta>` juntos) |
 | ~~Segurança B5~~ | ~~`BZ_IA=simulada` sem trava na Vercel~~ | **feito no PR 5** (`criarIA`: na Vercel, simulador só na prévia e no desenvolvimento; fechado por padrão) |
 
 ## Depois / quando acontecer
