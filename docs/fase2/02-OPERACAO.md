@@ -12,7 +12,11 @@ Como ligar, ajustar e desligar o agente. A base (migrations, testes, segredos, b
    - **API › Exposed schemas: incluir `app`.** O backend chama `/rest/v1/rpc/vendas_*` com `Content-Profile: app`. Nenhuma função `vendas_*` aceita chamada de `anon` ou `authenticated`: só a chave secreta executa;
    - **Rate Limits › anonymous sign-ins: subir o limite.** O login anônimo é feito pelo servidor, então TODOS os visitantes chegam ao Supabase com os IPs da Vercel. Com o limite padrão por IP, poucas dezenas de sessões por hora derrubariam o orçamento para todo mundo;
    - recomendado pelo próprio Supabase para login anônimo: CAPTCHA (Turnstile) no cadastro. Fica para a etapa do Cloudflare, junto com a decisão de criar a sessão direto do navegador (aí o limite por IP volta a ser o de cada visitante). Até lá, o freio é o do servidor (8 sessões por IP a cada 10 minutos, na memória de cada instância).
-2. **Tabela de preços.** O rascunho `docs/fase2/regras-rascunho-v1.json` precisa da aprovação do dono. Depois, um dono ou admin grava a versão como `ativa`:
+2. **Tabela de preços.** O rascunho `docs/fase2/regras-rascunho-v1.json` precisa da aprovação do dono. **Antes de ativar**, validar
+   com a mesma regra do servidor: `npm run validar:regras -- <arquivo.json>` tem de dizer "Tabela válida." (porcentagem
+   do sinal inteira de 1 a 100, passo de arredondamento inteiro, etc.). Uma versão ativa inválida não quebra o site, mas
+   faz o orçamento responder "tabela em atualização" para todos até entrar uma versão nova. Depois, um dono ou admin
+   grava a versão como `ativa`:
    ```sql
    insert into app.regras_comerciais (org_id, versao, status, regras, fontes, aprovada_em)
    select id, 1, 'ativa', '<json aprovado>'::jsonb, 'aprovada pelo dono em <data>', now()

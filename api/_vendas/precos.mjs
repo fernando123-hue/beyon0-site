@@ -21,9 +21,12 @@ export function validarRegras(r) {
   const erros = [];
   if (!r || typeof r !== 'object' || Array.isArray(r)) return { erros: ['regras: esperado um objeto'] };
   if (r.moeda !== 'BRL') erros.push('moeda: só BRL');
-  if (!numero(r.sinal_percentual, 0, 100)) erros.push('sinal_percentual: 0 a 100');
+  /* inteiro: a proposta guarda inteiro (app.propostas.sinal_percentual); com fração, o cartão mostrava um valor e o Pix
+     outro. Mínimo 1: a cobrança exige valor > 0 (app.pagamentos), e 0% falharia depois de o cliente confirmar o escopo */
+  if (!numero(r.sinal_percentual, 1, 100) || !Number.isInteger(r.sinal_percentual)) erros.push('sinal_percentual: inteiro de 1 a 100');
   if (!numero(r.prazo_max_dias, 1, 60)) erros.push('prazo_max_dias: 1 a 60');
-  if (!numero(r.arredondamento, 1, 1000)) erros.push('arredondamento: 1 a 1000');
+  /* inteiro: com passo fracionário (3,3) o motor mostrava 1 centavo a menos do que o banco cobrava */
+  if (!numero(r.arredondamento, 1, 1000) || !Number.isInteger(r.arredondamento)) erros.push('arredondamento: inteiro de 1 a 1000');
   const f = r.formatos || {};
   for (const k of FORMATOS) {
     const x = f[k];
