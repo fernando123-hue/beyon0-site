@@ -37,6 +37,9 @@ com credenciais reais**, salvo onde diz outra coisa.
    da Vercel ligada (quem tem o link não vê proposta simulada).
 3. Migrations aplicadas no banco de produção antes de promover.
 4. O PR traz "SHA para promover"; promover exatamente esse.
+4b. Anthropic: limite de gasto MENSAL no console (o freio de última instância do custo; a reserva no banco é realista,
+    não o pior caso — revisão de segurança do PR 15). Com as primeiras chamadas reais, trocar `RESERVA_USD`
+    (`api/_ia/config.mjs`) pelo p95 de `app.ia_chamadas` por papel e decidir uma margem no teto do dia.
 5. Depois: `npm run verificar` com `BASE` de produção; site e `/orcamento` no celular sem digitar mensagem (nunca
    o `e2e:orcamento`).
 6. Rollback e migrations: na 1ª promoção, voltar atrás leva a `8103c99`, que não tem `api/` nem `supabase/`

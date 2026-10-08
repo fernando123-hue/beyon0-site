@@ -3,10 +3,11 @@
 -- PR #1, B6). Antes, o teto era LIDO antes e SOMADO depois: chamadas em
 -- paralelo (as 3 direções de site, muitas conversas ao mesmo tempo) passavam
 -- todas pela leitura e o teto da conversa e o do dia estouravam sem limite.
--- Agora cada chamada reserva o seu pior caso numa transação que trava a
--- organização: só começa se (gasto + reservas em aberto) ainda está ABAIXO do
--- teto — da conversa e do dia. O estouro máximo fica limitado a UMA chamada
--- (a que começou com o teto ainda não alcançado). Depois da chamada, o custo
+-- Agora cada chamada reserva um valor REALISTA (RESERVA_USD em api/_ia/config.mjs)
+-- numa transação que trava a organização: só começa se (gasto + reservas em
+-- aberto) ainda está ABAIXO do teto — da conversa e do dia. O estouro fica no que
+-- as chamadas já em voo gastarem além das reservas; o freio de última instância
+-- é o limite de gasto no console da Anthropic. Depois da chamada, o custo
 -- real é somado (como antes) e a reserva é liberada; reserva esquecida (a
 -- função caiu no meio) vence sozinha e deixa de contar.
 -- ==========================================================================
@@ -46,6 +47,7 @@ begin
   c := privado.conversa_do((p ->> 'conversa_id')::uuid, (p ->> 'visitante_id')::uuid);
   -- uma reserva por vez na organização inteira (o teto do dia é da organização). "for no key update": exclui as
   -- outras reservas sem bloquear quem só cria linhas que apontam para a organização (conversas, eventos)
+  perform set_config('lock_timeout', '2000', true);   -- (fila longa na trava: desiste em 2 s, e o servidor responde 503 com WhatsApp)
   perform 1 from app.organizacoes where id = c.org_id for no key update;
   delete from privado.reservas_ia where org_id = c.org_id and expira_em < now();
   select coalesce(sum(valor_usd), 0) into v_reservado_conv from privado.reservas_ia where conversa_id = c.id;

@@ -339,6 +339,18 @@ test('reserva de custo: erro do banco fecha (sem chamar o modelo); só a funçã
   assert.equal(chamadas > 0, true);
 });
 
+test('direção já pronta: o pedido devolve o status sem reservar (não segura a trava das reservas) — revisão do PR 15', async () => {
+  let reservas = 0;
+  const contando = { ...deps, banco: async (nome, p) => { if (nome === 'vendas_reservar_custo') reservas++; return deps.banco(nome, p); } };
+  const n = navegador(contando);
+  const { c, dirs } = await ateDirecoes(n);
+  reservas = 0;
+  const r = await n.chamar('POST', 'gerar-direcao', { conversa_id: c, direcao_id: dirs[0].id });
+  assert.equal(r.status, 200);
+  assert.equal(r.corpo.status, 'pronta');
+  assert.equal(reservas, 0, 'nenhuma reserva para direção que já está pronta');
+});
+
 test('reserva de custo no banco: soma o gasto e as reservas em aberto; vencida não conta; só a dona libera', async () => {
   const q = (sql, p) => local.db.query(sql, p);
   const n = navegador();

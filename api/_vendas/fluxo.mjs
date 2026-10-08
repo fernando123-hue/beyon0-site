@@ -117,11 +117,12 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       segundos: TRAVA_IA_S, chave_ip: request ? chaveDoIp(ipDe(request), segredoFreio) : null, max_por_ip: TETOS.conversas_por_ip_dia });
     if (r && r.ok === false && r.freio_ip) throw new Recusa(429, 'Muitas conversas deste endereço hoje. Fale com a Beyon Zero pelo WhatsApp: a gente continua por lá.', { whatsapp: true });
   }
-  /* RESERVA o pior caso da chamada no teto antes de chamar o modelo (app.vendas_reservar_custo, numa transação que trava
-     a organização): chamadas em paralelo não passam mais todas pela leitura. Começa só se (gasto + reservas) está abaixo
-     do teto da conversa e do dia; o estouro máximo é UMA chamada. A reserva sai no fim, depois de somar o custo real.
-     Reserva que falha por erro do banco (ex.: migration ainda não aplicada) não derruba o agente: segue como antes
-     (dentroDoCusto ainda confere o gasto) e o log avisa */
+  /* RESERVA um valor REALISTA da chamada (RESERVA_USD em api/_ia/config.mjs) no teto antes de chamar o modelo
+     (app.vendas_reservar_custo, numa transação que trava a organização): chamadas em paralelo não passam mais todas pela
+     mesma leitura. Começa só se (gasto + reservas) está abaixo do teto da conversa e do dia; o estouro fica no que as
+     chamadas já em voo gastarem além das suas reservas (o freio de última instância é o limite de gasto no console da
+     Anthropic). A reserva sai no fim, depois de somar o custo real. Erro do banco na reserva FECHA (503, sem chamar o
+     modelo); só a função ainda inexistente (migration a aplicar) segue sem reserva, com log */
   async function comReserva(conversaId, vid, papel, fn) {
     const valor = reservaUsd(papel);
     let reserva = null;
@@ -257,7 +258,12 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     async gerarDirecao({ request, corpo }) {
       const vid = await visitante(request);
       exigir(ehUuid(corpo?.conversa_id) && ehUuid(corpo?.direcao_id), 400, 'Dados inválidos.');
-      await dentroDoCusto(await estado(vid, corpo.conversa_id));   /* (o Opus é a chamada mais cara: confere antes) */
+      const est = await estado(vid, corpo.conversa_id);
+      /* direção já pronta ou que falhou: nada a gerar, nada a reservar (o pedido que não custa modelo não segura a trava
+         das reservas — revisão de segurança do PR 15) */
+      const atual = (est.direcoes || []).find(d => d.id === corpo.direcao_id);
+      if (atual && atual.status !== 'gerando') return { status: atual.status };
+      await dentroDoCusto(est);   /* (o Opus é a chamada mais cara: confere antes) */
       return comReserva(corpo.conversa_id, vid, 'geracao', async () => {
         const p = await banco('vendas_reivindicar_direcao', { conversa_id: corpo.conversa_id, visitante_id: vid, direcao_id: corpo.direcao_id });
         if (!p.reivindicada) return { status: p.status };
