@@ -18,6 +18,9 @@
      visibility hidden depois de 3,5s — o GSAP tem que ter revelado);
    · rolagem lateral zero; caixas `.cena` fora do fluxo;
    · todos os links de WhatsApp montados; sem erro de console; fps > 45.
+   E a PASSAGEM entre páginas (no fim): chega inteira e sem nada preso, volta
+   pelo histórico inteira, desiste em 2 s, fecha o menu do celular na hora e
+   chega a uma âncora só aparecendo.
    ========================================================================== */
 import { chromium } from 'playwright';
 
@@ -129,6 +132,102 @@ for (const [rota, nome, opcoes, { semNucleo = false, reduzirNoBoot = false, exig
   );
   await ctx.close();
 }
+
+/* ==========================================================================
+   A PASSAGEM entre páginas (js/passagem.js, css/passagem.css): a página voa
+   e volta. O risco é ela ficar presa sumida, em escala ou medida errada.
+   ========================================================================== */
+const estadoPassagem = page => page.evaluate(() => {
+  const main = getComputedStyle(document.querySelector('main'));
+  const c = document.documentElement.classList;
+  let chave = null;
+  try { chave = sessionStorage.getItem('bz-passagem'); } catch {}
+  return {
+    url: location.pathname, opacidade: main.opacity, escala: main.transform,
+    classes: ['passagem-sai', 'passagem-chega', 'passagem-ancora'].filter(k => c.contains(k)).join(',') || '—', chave
+  };
+});
+const inteira = s => s.opacidade === '1' && s.escala === 'none' && s.classes === '—';
+async function cenario(nome, opcoes, roteiro) {
+  const ctx = await navegador.newContext(opcoes);
+  const page = await ctx.newPage();
+  const erros = [];
+  page.on('pageerror', e => erros.push('pageerror: ' + e.message));
+  page.on('console', m => { if (m.type() === 'error') erros.push('console: ' + m.text()); });
+  let r;
+  try { r = await roteiro(page); } catch (e) { r = { ok: false, info: 'quebrou: ' + e.message }; }
+  const ok = r.ok && erros.length === 0;
+  if (!ok) falhou = true;
+  console.log((ok ? 'OK  ' : 'FALHA ') + nome.padEnd(16), r.info, erros.length ? '\n     erros: ' + erros.join('\n     ') : '');
+  await ctx.close();
+}
+/* segura a navegação da saída (o setTimeout de SAI_MS, 500 ms): a página fica como se o navegador tivesse desistido */
+const segurarNavegacao = page => page.evaluate(() => {
+  const st = window.setTimeout;
+  window.setTimeout = (f, ms, ...r) => (ms === 500 ? 0 : st(f, ms, ...r));
+});
+
+await cenario('passagem-vai', CELULAR, async page => {
+  await page.goto(BASE + '/', { waitUntil: 'load' });
+  await page.waitForTimeout(1500);
+  await page.locator('a[href="/sites"]:visible').first().click();
+  await page.waitForURL('**/sites', { timeout: 8000 });
+  const chegando = await estadoPassagem(page);
+  await page.waitForTimeout(2500);
+  const s = await estadoPassagem(page);
+  await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
+  await page.waitForTimeout(1500);
+  const presos = await page.evaluate(() => [...document.querySelectorAll('.reveal')].filter(e => getComputedStyle(e).opacity === '0').length);
+  return { ok: chegando.classes.includes('passagem-chega') && inteira(s) && presos === 0,
+    info: `chegou=${chegando.classes} depois: opacidade=${s.opacidade} escala=${s.escala} classes=${s.classes} presos=${presos}` };
+});
+await cenario('passagem-volta', CELULAR, async page => {
+  await page.goto(BASE + '/', { waitUntil: 'load' });
+  await page.waitForTimeout(1000);
+  await page.locator('a[href="/sites"]:visible').first().click();
+  await page.waitForURL('**/sites', { timeout: 8000 });
+  await page.waitForTimeout(1200);
+  await page.goBack();
+  await page.waitForTimeout(800);
+  const s = await estadoPassagem(page);
+  return { ok: s.url === '/' && inteira(s), info: `url=${s.url} opacidade=${s.opacidade} escala=${s.escala} classes=${s.classes}` };
+});
+await cenario('passagem-desiste', DESKTOP, async page => {
+  await page.goto(BASE + '/', { waitUntil: 'load' });
+  await page.waitForTimeout(1000);
+  await segurarNavegacao(page);
+  await page.locator('.nav a[href="/sites"]').first().click();
+  await page.waitForTimeout(150);
+  const saindo = await estadoPassagem(page);
+  await page.waitForTimeout(2600);   /* SAI_MS + DESISTE_MS (2 s) e folga */
+  const s = await estadoPassagem(page);
+  return { ok: saindo.classes === 'passagem-sai' && inteira(s) && s.chave === null,
+    info: `saindo=${saindo.classes} 2,75 s depois: opacidade=${s.opacidade} escala=${s.escala} classes=${s.classes} chave=${s.chave}` };
+});
+await cenario('passagem-menu', CELULAR, async page => {
+  await page.goto(BASE + '/', { waitUntil: 'load' });
+  await page.waitForTimeout(1000);
+  await segurarNavegacao(page);
+  await page.locator('.nav__toggle').click();
+  await page.waitForTimeout(500);
+  await page.locator('.nav__links a[href="/sites"]').click();
+  await page.waitForTimeout(60);
+  const altura = await page.evaluate(() => Math.round(document.querySelector('.nav__links').getBoundingClientRect().height));
+  const s = await estadoPassagem(page);
+  /* o menu fecha na hora: a transição de 320 ms cobriria o voo */
+  return { ok: s.classes === 'passagem-sai' && altura === 0, info: `menu 60 ms depois: altura=${altura}px classes=${s.classes}` };
+});
+await cenario('passagem-ancora', DESKTOP, async page => {
+  await page.goto(BASE + '/', { waitUntil: 'load' });
+  await page.evaluate(() => sessionStorage.setItem('bz-passagem', String(Date.now())));
+  await page.goto(BASE + '/automacao#faq', { waitUntil: 'domcontentloaded' });
+  const chegando = await estadoPassagem(page);
+  await page.waitForTimeout(2500);
+  const s = await estadoPassagem(page);
+  const rolou = await page.evaluate(() => Math.round(scrollY));
+  return { ok: chegando.classes === 'passagem-chega,passagem-ancora' && inteira(s) && rolou > 0,
+    info: `chegou=${chegando.classes} depois: opacidade=${s.opacidade} escala=${s.escala} classes=${s.classes} rolagem=${rolou}` };
+});
 
 await navegador.close();
 console.log(falhou ? '\nAlguma coisa falhou — leia acima.' : '\nTudo certo.');

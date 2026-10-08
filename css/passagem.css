@@ -12,9 +12,9 @@
    para fora desacelerando, a rede do fundo se aproxima.
    Só transform e opacity, em @keyframes (compositor). Nenhuma variável muda
    por quadro: o ponto de origem é posto uma vez, no clique. Nada de desfoque.
-   O que é `position: fixed` (nav, barra, mini, rede) fica fora de <main>;
-   o palco fixado do desktop é tratado no JS. Sem JS ou com movimento
-   reduzido, nada disso existe.
+   Nav, barra e mini (position: fixed) ficam fora de <main> e não se mexem;
+   a rede do fundo se mexe de propósito; o palco fixado do desktop é tratado
+   no JS. Sem JS ou com movimento reduzido, nada disso existe.
    ========================================================================== */
 .passagem { position: fixed; inset: 0; z-index: 48; overflow: hidden; pointer-events: none; visibility: hidden; contain: strict; }
 /* o ponto de onde saem os riscos: o centro da tela na chegada; o ponto tocado na saída (o JS põe left/top) */
@@ -45,34 +45,46 @@
 .passagem__riscos i:nth-child(19) { rotate: 329deg; }
 .passagem__riscos i:nth-child(20) { rotate: 346deg; }
 
-/* a SAÍDA (html.passagem-sai): acelera para dentro do ponto tocado; o JS navega no fim (SAI_MS) */
+/* a SAÍDA (html.passagem-sai): acelera para dentro do ponto tocado; o JS navega no fim (SAI_MS).
+   Propriedades longas (sem o atalho `animation`), para o atraso das levas de riscos lá embaixo valer sempre. */
 html.passagem-sai .passagem { visibility: visible; pointer-events: auto; }
-html.passagem-sai .passagem-mergulha { animation: pass-mergulha .48s cubic-bezier(.32, 0, .67, 0) both; }
-html.passagem-sai .passagem-esmaece { animation: pass-esmaece .48s cubic-bezier(.32, 0, .67, 0) both; }
-html.passagem-sai .rede { animation: pass-rede-sai .48s cubic-bezier(.32, 0, .67, 0) both; }
-html.passagem-sai .passagem__riscos i { animation: pass-risco-sai .46s cubic-bezier(.32, 0, .67, 0) both; }
-/* a CHEGADA (html.passagem-chega, posta no <head> por js/ancoras.js): vem de longe e assenta */
+html.passagem-sai .passagem-mergulha, html.passagem-sai .passagem-voa, html.passagem-sai .passagem-esmaece,
+html.passagem-sai .rede, html.passagem-sai .passagem__riscos i { animation-duration: .48s; animation-timing-function: cubic-bezier(.32, 0, .67, 0); animation-fill-mode: both; }
+html.passagem-sai .passagem-mergulha { animation-name: pass-mergulha; }
+html.passagem-sai .passagem-voa { animation-name: pass-voa; }           /* o palco fixado: só a escala (o esmaecer vem de <main>) */
+html.passagem-sai .passagem-esmaece { animation-name: pass-esmaece; }
+html.passagem-sai .rede { animation-name: pass-rede-sai; }
+html.passagem-sai .passagem__riscos i { animation-name: pass-risco-sai; animation-duration: .46s; }
+/* menu do celular aberto: fecha sem a transição de 320 ms (ela cobriria o voo) */
+html.passagem-sai.tem-menu .nav .nav__links { transition: none; }
+/* a CHEGADA (html.passagem-chega, posta no <head> por js/ancoras.js): vem de longe e assenta.
+   Chegando a uma âncora (passagem-ancora) a página já nasce rolada: só aparece, sem escala. */
 html.passagem-chega .passagem { visibility: visible; }
-html.passagem-chega main, html.passagem-chega .footer { transform-origin: 50% 50vh; animation: pass-assenta .76s var(--ease) both; }
-html.passagem-chega .rede { animation: pass-rede-chega .9s var(--ease) both; }
-html.passagem-chega .passagem__riscos i { animation: pass-risco-chega .7s var(--ease) both; }
-/* os riscos não saem juntos: quatro levas (o `html` na frente vence o atalho `animation` das regras acima) */
-html .passagem__riscos i:nth-child(4n + 2) { animation-delay: .04s; }
-html .passagem__riscos i:nth-child(4n + 3) { animation-delay: .08s; }
-html .passagem__riscos i:nth-child(4n) { animation-delay: .12s; }
+html.passagem-chega main, html.passagem-chega .footer, html.passagem-chega .rede,
+html.passagem-chega .passagem__riscos i { animation-timing-function: var(--ease); animation-fill-mode: both; }
+html.passagem-chega main, html.passagem-chega .footer { transform-origin: 50% 50vh; animation-name: pass-assenta; animation-duration: .76s; }
+html.passagem-chega.passagem-ancora main, html.passagem-chega.passagem-ancora .footer { animation-name: pass-surge; animation-duration: .4s; }
+html.passagem-chega .rede { animation-name: pass-rede-chega; animation-duration: .9s; }
+html.passagem-chega .passagem__riscos i { animation-name: pass-risco-chega; animation-duration: .7s; }
+/* os riscos não saem juntos: quatro levas */
+.passagem__riscos i:nth-child(4n + 2) { animation-delay: .04s; }
+.passagem__riscos i:nth-child(4n + 3) { animation-delay: .08s; }
+.passagem__riscos i:nth-child(4n) { animation-delay: .12s; }
 
 @keyframes pass-mergulha { from { transform: none; opacity: 1; } 60% { opacity: 1; } to { transform: scale(1.9); opacity: 0; } }
+@keyframes pass-voa { from { transform: none; } to { transform: scale(1.9); } }
 @keyframes pass-esmaece { from { opacity: 1; } to { opacity: 0; } }
 @keyframes pass-rede-sai { from { transform: none; } to { transform: scale(1.25); } }
 @keyframes pass-risco-sai { 0% { transform: translateX(24px) scaleX(.2); opacity: 0; } 18% { opacity: 1; } 100% { transform: translateX(78vmax) scaleX(2.6); opacity: 1; } }
-@keyframes pass-assenta { 0% { transform: scale(.6); opacity: 0; } 45% { opacity: 1; } 100% { transform: none; opacity: 1; } }
+@keyframes pass-assenta { 0% { transform: scale(.6); opacity: 0; } 35% { opacity: 1; } 100% { transform: none; opacity: 1; } }
+@keyframes pass-surge { from { opacity: 0; } to { opacity: 1; } }
 @keyframes pass-rede-chega { from { transform: scale(.8); } to { transform: none; } }
 @keyframes pass-risco-chega { 0% { transform: translateX(0) scaleX(2.4); opacity: 1; } 100% { transform: translateX(72vmax) scaleX(.3); opacity: 0; } }
 
 /* movimento reduzido (sistema ou interruptor): navegação comum */
 @media (prefers-reduced-motion: reduce) {
   .passagem { display: none; }
-  html.passagem-chega main, html.passagem-chega .footer, html.passagem-chega .rede { animation: none; }
+  html.passagem-chega main, html.passagem-chega .footer, html.passagem-chega .rede { animation-name: none; }
 }
 html.menos-movimento .passagem { display: none; }
-html.menos-movimento.passagem-chega main, html.menos-movimento.passagem-chega .footer, html.menos-movimento.passagem-chega .rede { animation: none; }
+html.menos-movimento.passagem-chega main, html.menos-movimento.passagem-chega .footer, html.menos-movimento.passagem-chega .rede { animation-name: none; }

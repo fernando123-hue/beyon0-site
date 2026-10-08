@@ -23,11 +23,13 @@
   if (!el) return;
   var riscos = el.querySelector('.passagem__riscos');
   var SAI_MS = 500;            /* = o conteúdo sumindo no ponto tocado (pass-mergulha, .48s) */
-  var DESISTE_MS = 4000;       /* a navegação não aconteceu (Parar, Esc, o navegador cancelou): a página volta */
+  var DESISTE_MS = 2000;       /* a navegação não aconteceu (Parar, Esc, o navegador cancelou): a página volta.
+                                  Curto: sem painel, a página sumida por muito tempo parece travada (revisão do PR #23) */
   var CHEGADA_MS = 900;        /* a página assentada (pass-assenta, .76s), com folga */
   var PAGINAS = ['/', '/sites', '/automacao', '/orcamento'];
   var saindo = false;
   var mexidos = [];            /* quem recebeu origem e classe na saída: tudo volta como estava se desistir */
+  var chegada = 0;             /* o timer do fim da chegada */
 
   function caminho(u) {
     var p = u.pathname.replace(/\/index\.html$/, '/').replace(/\.html$/, '').replace(/(.)\/$/, '$1');
@@ -36,20 +38,17 @@
   function reduzido() { return !!B.reduced || html.classList.contains('menos-movimento'); }
   function ehPagina(u) { return u.origin === location.origin && PAGINAS.indexOf(caminho(u)) >= 0 && caminho(u) !== caminho(location); }
 
-  /* a chegada: chegou a uma âncora (página rolada)? a página vem do centro da TELA, não do topo dela */
-  if (html.classList.contains('passagem-chega')) {
-    var chegou = function () {
-      if (window.scrollY > 0) {
-        var meio = window.scrollY + window.innerHeight / 2;
-        document.querySelectorAll('main, .footer').forEach(function (n) { n.style.transformOrigin = '50% ' + (meio - n.offsetTop) + 'px'; });
-      }
-    };
-    chegou();
-    setTimeout(function () {
-      html.classList.remove('passagem-chega');
-      document.querySelectorAll('main, .footer').forEach(function (n) { n.style.transformOrigin = ''; });
-    }, CHEGADA_MS);
+  /* o fim da chegada. Enquanto <main> está em escala, quem mede pelo getBoundingClientRect (o ScrollTrigger, as
+     entradas por seção) mediria errado: o js/anima.js espera 'passagem:chegou' para ligar, e aqui o ScrollTrigger
+     mede de novo. (Âncora: js/ancoras.js põe passagem-ancora e a página só aparece, sem escala.) */
+  function fimDaChegada() {
+    clearTimeout(chegada);
+    if (!html.classList.contains('passagem-chega')) return;
+    html.classList.remove('passagem-chega', 'passagem-ancora');
+    if (window.ScrollTrigger) window.ScrollTrigger.refresh();
+    if (B.emit) B.emit('passagem:chegou');
   }
+  if (html.classList.contains('passagem-chega')) chegada = setTimeout(fimDaChegada, CHEGADA_MS);
 
   /* o link que vira passagem: mesma origem, página do site, outra página */
   function destinoDe(e) {
@@ -61,8 +60,10 @@
     return ehPagina(u) ? { href: u.href, link: a } : null;
   }
 
-  /* o ponto tocado; pelo teclado (Enter) o clique vem sem coordenada: o centro do link */
+  /* o ponto tocado; pelo teclado (Enter) o clique vem sem coordenada: o centro do link. Link do menu do celular:
+     o centro da tela (o menu fecha na hora e o ponto tocado ficaria em cima de nada) */
   function pontoDe(e, a) {
+    if (html.classList.contains('tem-menu') && a.closest('.nav__links')) return { x: window.innerWidth / 2, y: window.innerHeight / 2 };
     if (e.detail > 0 && (e.clientX || e.clientY)) return { x: e.clientX, y: e.clientY };
     var r = a.getBoundingClientRect();
     return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
@@ -74,7 +75,7 @@
     var main = document.querySelector('main');
     var fixo = null;
     document.querySelectorAll('.pin-spacer > *').forEach(function (n) { if (getComputedStyle(n).position === 'fixed') fixo = n; });
-    var lista = fixo ? [{ n: fixo, c: 'passagem-mergulha' }, { n: main, c: 'passagem-esmaece' }] : [{ n: main, c: 'passagem-mergulha' }];
+    var lista = fixo ? [{ n: fixo, c: 'passagem-voa' }, { n: main, c: 'passagem-esmaece' }] : [{ n: main, c: 'passagem-mergulha' }];
     var rodape = document.querySelector('.footer');
     if (rodape) lista.push({ n: rodape, c: 'passagem-mergulha' });
     return lista.filter(function (a) { return a.n; });
@@ -85,10 +86,12 @@
     html.classList.remove('passagem-sai');
     mexidos.forEach(function (a) { a.n.classList.remove(a.c); a.n.style.transformOrigin = ''; });
     mexidos = [];
+    try { sessionStorage.removeItem('bz-passagem'); } catch (err) { /* sem armazenamento: nada a apagar */ }
   }
 
   function sair(d, p) {
     saindo = true;
+    fimDaChegada();   /* clicou com a página ainda chegando: ela assenta antes de medir */
     riscos.style.left = p.x + 'px';
     riscos.style.top = p.y + 'px';
     mexidos = alvos();
@@ -98,7 +101,6 @@
       a.n.classList.add(a.c);
     });
     try { sessionStorage.setItem('bz-passagem', String(Date.now())); } catch (err) { /* sem armazenamento: chega sem a travessia */ }
-    html.classList.remove('passagem-chega');
     html.classList.add('passagem-sai');
     if (B.emit) B.emit('passagem', d);   /* o mini mergulha junto (js/mini.js) */
     setTimeout(function () { location.href = d.href; }, SAI_MS);
@@ -116,7 +118,7 @@
   window.addEventListener('pageshow', function (e) {
     if (!e.persisted) return;
     desfazer();
-    html.classList.remove('passagem-chega');
+    fimDaChegada();
   });
 
   /* pré-carga na intenção: o HTML do destino chega enquanto a página voa */

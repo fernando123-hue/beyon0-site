@@ -993,7 +993,11 @@
     };
   }
   /* liga depois do boot: não revela cedo demais nem compete com o hero */
-  var ligar = function () { setTimeout(scrollReveals, 120); };
+  var ligar = function () {
+    /* chegando pela passagem, <main> ainda está em escala: mede só depois que ela assenta (js/passagem.js) */
+    if (html.classList.contains('passagem-chega') && B.on) B.on('passagem:chegou', function () { setTimeout(scrollReveals, 120); });
+    else setTimeout(scrollReveals, 120);
+  };
   if (document.body.classList.contains('booted')) ligar();
   else B.on('booted', ligar);
   /* rede: nunca deixa conteúdo preso invisível */

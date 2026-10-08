@@ -38,7 +38,10 @@
     var saiu = +sessionStorage.getItem('bz-passagem');
     sessionStorage.removeItem('bz-passagem');
     if (saiu && Date.now() - saiu < 5000 && !html.classList.contains('menos-movimento') &&
-        !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) html.classList.add('passagem-chega');
+        !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+      html.classList.add('passagem-chega');
+      if (location.hash) html.classList.add('passagem-ancora');   /* nasce rolada até a âncora: só aparece, sem escala */
+    }
   } catch (e) { /* sem armazenamento: chega sem painel */ }
 
   /* veio de ANÚNCIO? (gclid/gbraid/wbraid do Google Ads, ou utm_medium pago). Vale para a visita inteira
