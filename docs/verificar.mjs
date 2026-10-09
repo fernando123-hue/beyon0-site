@@ -259,6 +259,30 @@ await cenario('passagem-palco', DESKTOP, async page => {
   return { ok: achou >= 0 && antes !== null && antes === depois, info: `palco fixado em y=${achou}: topo antes=${antes} depois do toque=${depois}` };
 });
 
+/* saindo do orçamento (que não tem a rede do fundo) para o Início: a rede só se mede com a página assentada. Medida
+   no meio da chegada, ela gravaria zonas e cartões em escala (revisão final do PR #23) */
+await cenario('passagem-orc-inicio', DESKTOP, async page => {
+  await page.addInitScript(() => {
+    window.__t = {};
+    const marcar = () => {
+      const h = document.documentElement;
+      if (h.classList.contains('passagem-chega')) window.__t.chegando = true;
+      else if (window.__t.chegando && !window.__t.chegou) window.__t.chegou = performance.now();
+      const r = document.querySelector('.rede');
+      if (r && r.classList.contains('is-viva') && !window.__t.viva) window.__t.viva = performance.now();
+    };
+    new MutationObserver(marcar).observe(document, { subtree: true, attributes: true, attributeFilter: ['class'] });
+  });
+  await page.goto(BASE + '/orcamento', { waitUntil: 'load' });
+  await page.waitForTimeout(1000);
+  await page.locator('.nav a[href="/"]').first().click();
+  await page.waitForURL(u => new URL(u).pathname === '/', { timeout: 8000 });
+  await page.waitForTimeout(4500);
+  const t = await page.evaluate(() => window.__t);
+  const ok = !!t.chegando && !!t.chegou && !!t.viva && t.viva >= t.chegou;
+  return { ok, info: `chegou aos ${Math.round(t.chegou || 0)} ms, rede acesa aos ${Math.round(t.viva || 0)} ms` };
+});
+
 /* cada destino com a sua viagem (css/passagem-destinos.css): a saída certa para cada link e a chegada certa em cada página */
 const VIAGENS = [
   { de: '/sites', link: '.nav__logo', nome: 'inicio', sai: 'pass-inicio-sai', chega: 'pass-assenta' },

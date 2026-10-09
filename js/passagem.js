@@ -5,10 +5,10 @@
    (Chrome real, 2026-10-04: 0 de 14 trocas), então a transição é do site.
    A TRAVESSIA (2026-10-09): sem painel e sem rótulo, a própria página se
    move, e cada destino tem a sua viagem (css/passagem-destinos.css: o
-   núcleo, a grade, o fluxo, a régua). No clique num link para outra página do site, o conteúdo voa na
-   direção de quem olha a partir do ponto tocado, a rede do fundo vem junto
-   mais devagar, riscos de luz saem desse ponto, e só então navega. A página
-   nova (js/ancoras.js põe `passagem-chega` no <head>) vem de longe e assenta.
+   núcleo, a janela, o fluxo, a régua). No clique num link para outra página
+   do site, o conteúdo faz a viagem de saída do destino, a rede do fundo vem
+   junto, e só então navega. A página nova (js/ancoras.js põe `passagem-chega`
+   e `chega-<página>` no <head>) faz a viagem de chegada e assenta.
    Enquanto isso o destino já foi pedido ao servidor: a intenção (cursor em
    cima, dedo encostado, foco) pré-carrega a página.
 
@@ -23,17 +23,18 @@
   var el = document.querySelector('.passagem');
   if (!el) return;
   var riscos = el.querySelector('.passagem__riscos');
-  var SAI_MS = 600;            /* = o conteúdo sumindo no ponto tocado (pass-mergulha, .58s) */
+  var SAI_MS = 600;            /* = as viagens de saída (.58s, css/passagem-destinos.css) */
   var DESISTE_MS = 2000;       /* a navegação não aconteceu (Parar, Esc, o navegador cancelou): a página volta.
                                   Curto: sem painel, a página sumida por muito tempo parece travada (revisão do PR #23) */
-  var CHEGADA_MS = 1050;       /* a página assentada (pass-assenta, .92s), com folga */
+  var CHEGADA_MS = 1050;       /* as viagens de chegada: a página assenta em .92s; o anel do Início e a rede, em 1,05s */
   /* cada destino tem a sua viagem (css/passagem-destinos.css); o mesmo mapa está no js/ancoras.js, que roda no <head>
      antes deste e marca a chegada */
   var DESTINOS = { '/': 'inicio', '/sites': 'sites', '/automacao': 'automacao', '/orcamento': 'orcamento' };
   var CLASSES_SAIDA = ['sai-inicio', 'sai-sites', 'sai-automacao', 'sai-orcamento'];
   var CLASSES_CHEGADA = ['chega-inicio', 'chega-sites', 'chega-automacao', 'chega-orcamento'];
   /* de onde a viagem parte: o centro da tela (Início, o núcleo; Sites, a janela) ou nenhum ponto (Automação e
-     Orçamento andam de lado e de baixo; os riscos ficam nas trilhas do CSS) */
+     Orçamento só deslizam, sem escala: a origem não importa e não se mede nada no toque; os riscos ficam nas
+     trilhas do CSS). (O ponto tocado das primeiras versões saiu: nenhum destino usa mais) */
   var PARTIDA = { inicio: 'centro', sites: 'centro', automacao: 'nenhum', orcamento: 'nenhum' };
   var saindo = false;
   var mexidos = [];            /* quem recebeu origem e classe na saída: tudo volta como estava se desistir */
@@ -63,8 +64,9 @@
   /* enquanto a página chega, os canvases esperam (js/core.js, pausar): o compositor fica só com o voo */
   if (html.classList.contains('passagem-chega')) {
     if (B.pausar) B.pausar(true);
-    /* solta a chegada (passagem-espera) dois quadros depois do DOMContentLoaded: aí a página já desenha, e o voo
-       começa do 1º quadro em vez de pular os que caíram carregando. O relógio do fim conta dali */
+    /* solta a chegada (passagem-espera) dois quadros depois de o DOM ficar pronto (com `defer`, este script já roda
+       com ele pronto): aí a página já desenha, e o voo começa do 1º quadro em vez de pular os que caíram carregando.
+       O relógio do fim conta dali */
     var soltar = function () {
       requestAnimationFrame(function () {
         requestAnimationFrame(function () {
@@ -84,23 +86,7 @@
     if (!a || (a.target && a.target !== '_self') || a.hasAttribute('download') || a.hasAttribute('data-sem-passagem')) return null;
     var u;
     try { u = new URL(a.href, location.href); } catch (err) { return null; }
-    return ehPagina(u) ? { href: u.href, link: a, nome: DESTINOS[caminho(u)] } : null;
-  }
-
-  /* o menu é o do celular quando o botão dele está à mostra (html.tem-menu vale no desktop também; o .is-open já
-     saiu quando este clique chega, porque o js/pagina.js fecha o menu antes) */
-  function menuDoCelular() {
-    var t = document.querySelector('.nav__toggle');
-    return !!t && t.getClientRects().length > 0;
-  }
-
-  /* o ponto tocado; pelo teclado (Enter) o clique vem sem coordenada: o centro do link. Link do menu do celular:
-     o centro da tela (o menu fecha na hora e o ponto tocado ficaria em cima de nada) */
-  function pontoDe(e, a) {
-    if (menuDoCelular() && a.closest('.nav__links')) return { x: window.innerWidth / 2, y: window.innerHeight / 2 };
-    if (e.detail > 0 && (e.clientX || e.clientY)) return { x: e.clientX, y: e.clientY };
-    var r = a.getBoundingClientRect();
-    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    return ehPagina(u) ? { href: u.href, nome: DESTINOS[caminho(u)] } : null;
   }
 
   /* quem mergulha: <main> e o rodapé. Se o palco do desktop estiver FIXADO (pin do GSAP, position: fixed dentro
@@ -127,17 +113,19 @@
     if (B.emit) B.emit('passagem:desfeita');   /* o menu do celular termina de fechar (js/pagina.js) */
   }
 
-  function sair(d, p) {
+  function sair(d) {
     saindo = true;
     fimDaChegada();   /* clicou com a página ainda chegando: ela assenta antes de medir */
-    var partida = PARTIDA[d.nome] || 'toque';
-    if (partida === 'centro') p = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
-    riscos.style.left = partida === 'nenhum' ? '' : p.x + 'px';
-    riscos.style.top = partida === 'nenhum' ? '' : p.y + 'px';
+    var centro = PARTIDA[d.nome] !== 'nenhum';
+    var p = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    riscos.style.left = centro ? p.x + 'px' : '';
+    riscos.style.top = centro ? p.y + 'px' : '';
     mexidos = alvos();
     mexidos.forEach(function (a) {
-      var r = a.n.getBoundingClientRect();
-      a.n.style.transformOrigin = (p.x - r.left) + 'px ' + (p.y - r.top) + 'px';
+      if (centro) {
+        var r = a.n.getBoundingClientRect();
+        a.n.style.transformOrigin = (p.x - r.left) + 'px ' + (p.y - r.top) + 'px';
+      }
       a.n.classList.add(a.c);
     });
     try { sessionStorage.setItem('bz-passagem', String(Date.now())); } catch (err) { /* sem armazenamento: chega sem a travessia */ }
@@ -156,7 +144,7 @@
     var d = destinoDe(e);
     if (!d || reduzido()) return;
     e.preventDefault();
-    if (!saindo) sair(d, pontoDe(e, d.link));
+    if (!saindo) sair(d);
   }, true);
 
   /* voltou pelo histórico com a página guardada: ela estava no meio do voo; volta inteira */
@@ -168,7 +156,8 @@
 
   /* a camada pronta antes do clique: no começo do toque (ou do clique do mouse) num link de passagem, <main> e o
      rodapé ganham will-change (css/passagem.css, .passagem-pronta) e o navegador monta a camada nos ~100 ms até o
-     clique. Sem clique, sai em 1,5 s */
+     clique. Sem clique, sai em 1,5 s; se o toque virar rolagem, sai na hora (um pin do GSAP que se fixasse com
+     <main> preparado sairia do lugar) */
   var prontos = [], soltaCamadas = 0;
   function soltarCamadas() {
     clearTimeout(soltaCamadas);
@@ -190,6 +179,9 @@
   }
   document.addEventListener('pointerdown', preparar, { passive: true });
   document.addEventListener('touchstart', preparar, { passive: true });
+  var desistirDoToque = function () { if (!saindo && prontos.length) soltarCamadas(); };
+  document.addEventListener('touchmove', desistirDoToque, { passive: true });
+  document.addEventListener('pointercancel', desistirDoToque, { passive: true });
 
   /* pré-carga na intenção: o HTML do destino chega enquanto a página voa */
   var pedidos = {};

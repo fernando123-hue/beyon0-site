@@ -141,5 +141,8 @@ html.passagem-chega.chega-orcamento main, html.passagem-chega.chega-orcamento .f
 @keyframes pass-regua-sobe { 0% { transform: translateY(100vh); opacity: 0; } 15% { opacity: 1; } 100% { transform: translateY(45vh); opacity: 1; } }
 @keyframes pass-regua-segue { 0% { transform: translateY(45vh); opacity: 1; } 75% { opacity: 1; } 100% { transform: translateY(-2vh); opacity: 0; } }
 
-/* chegando a uma âncora, a página só aparece (vale sobre qualquer destino: esta regra vem por último) */
+/* chegando a uma âncora, a página só aparece: sem escala, sem anel, régua ou riscos (vale sobre qualquer destino:
+   estas regras vêm por último) */
 html.passagem-chega.passagem-ancora main, html.passagem-chega.passagem-ancora .footer { animation-name: pass-surge; }
+html.passagem-chega.passagem-ancora .passagem__anel, html.passagem-chega.passagem-ancora .passagem__regua,
+html.passagem-chega.passagem-ancora .passagem__riscos i { animation: none; }

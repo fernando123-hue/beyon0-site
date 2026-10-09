@@ -462,6 +462,16 @@
     if (E.conversa.etapa === 'gerando' || E.conversa.etapa === 'aguardando_pagamento') recarregar().catch(function () {});
   });
 
+  /* chegando pela passagem (js/passagem.js), <main> ainda está se movendo: o scrollIntoView mediria a caixa em
+     movimento e a rolagem pararia fora do lugar. Rola quando ela assenta ('passagem:chegou') */
+  function rolarAte(el) {
+    var Bp = window.BEYON;
+    if (document.documentElement.classList.contains('passagem-chega') && Bp && Bp.on) {
+      var uma = function () { Bp.off('passagem:chegou', uma); el.scrollIntoView({ block: 'start' }); };
+      Bp.on('passagem:chegou', uma);
+    } else el.scrollIntoView({ block: 'start' });
+  }
+
   /* ---------- começo: retoma a conversa salva neste aparelho ---------- */
   async function retomar() {
     if (!API.temSessao()) return;
@@ -470,7 +480,7 @@
       conversa();
       var BLOCOS = { direcoes: 'o-direcoes', ajustes: 'o-ajustes', escopo: 'o-escopo', pagamento: E.conversa.etapa === 'em_producao' ? 'o-pronto' : 'o-pagamento' };
       var alvo = BLOCOS[passoAtual()];
-      if (alvo && !$(alvo).hidden) $(alvo).scrollIntoView({ block: 'start' });   /* quem volta cai na etapa em que parou */
+      if (alvo && !$(alvo).hidden) rolarAte($(alvo));   /* quem volta cai na etapa em que parou */
     } catch (e) {
       /* conversa que não existe mais (ou sessão que o servidor recusou de vez): começa limpo.
          Falha de rede ou do servidor: a sessão fica, e o aviso oferece tentar de novo */

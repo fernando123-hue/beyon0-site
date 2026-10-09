@@ -680,10 +680,11 @@
   try { veioDoSite = Date.now() - (+sessionStorage.getItem('bz-campo') || 0) < 4000; } catch (e) { /* sem armazenamento */ }
   window.addEventListener('pagehide', function () { try { sessionStorage.setItem('bz-campo', String(Date.now())); } catch (e) { /* idem */ } });
   var Bc = window.BEYON;
-  if (veioDoSite && document.documentElement.classList.contains('passagem-chega') && Bc && Bc.on) {
-    /* chegando pela PASSAGEM (js/passagem.js): a página nova está voando, sem nada por cima. Medir a página inteira
-       é uma tarefa longa (310 ms no celular simulado, docs/passagem-medir.mjs) e derrubava os quadros da chegada:
-       espera ela assentar ('passagem:chegou') e o navegador folgar, e acende devagar (sem is-herdada) */
+  if (document.documentElement.classList.contains('passagem-chega') && Bc && Bc.on) {
+    /* chegando pela PASSAGEM (js/passagem.js), venha de onde vier (do orçamento, que não tem rede, o veioDoSite é
+       falso): a página nova está voando, sem nada por cima. Medir a página inteira é uma tarefa longa (310 ms no
+       celular simulado, docs/passagem-medir.mjs), derrubava os quadros da chegada e mediria tudo em escala: espera
+       ela assentar ('passagem:chegou') e o navegador folgar, e acende devagar (sem is-herdada) */
     var comecou = false;
     var umaVez = function () { if (comecou) return; comecou = true; comecar(); };
     Bc.on('passagem:chegou', function () {

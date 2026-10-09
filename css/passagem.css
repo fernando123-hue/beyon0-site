@@ -5,19 +5,18 @@
    cobriam a página com um painel e o nome do destino no meio: era tela de
    carregamento com outra roupa. Aqui não há painel nem rótulo: A PRÓPRIA
    PÁGINA SE MOVE, como uma câmera que anda para a frente.
-   SAÍDA: o conteúdo voa na sua direção a partir do ponto tocado (você
-   atravessa o link), a rede do fundo vem junto mais devagar (profundidade)
-   e riscos de luz de 1 px passam por você saindo desse ponto.
-   CHEGADA: a página nova vem de longe e assenta no lugar, os riscos seguem
-   para fora desacelerando, a rede do fundo se aproxima.
+   Aqui ficam a base e a chegada padrão (a página vem de longe e assenta, os
+   riscos de luz de 1 px seguem para fora, a rede do fundo se aproxima); a
+   viagem de cada destino (o núcleo, a janela, o fluxo, a régua) está em
+   css/passagem-destinos.css.
    Só transform e opacity, em @keyframes (compositor). Nenhuma variável muda
-   por quadro: o ponto de origem é posto uma vez, no clique. Nada de desfoque.
+   por quadro: a origem (o centro da tela) é posta uma vez, no clique. Nada de desfoque.
    Nav, barra e mini (position: fixed) ficam fora de <main> e não se mexem;
    a rede do fundo se mexe de propósito; o palco fixado do desktop é tratado
    no JS. Sem JS ou com movimento reduzido, nada disso existe.
    ========================================================================== */
 .passagem { position: fixed; inset: 0; z-index: 48; overflow: hidden; pointer-events: none; visibility: hidden; contain: strict; }
-/* o ponto de onde saem os riscos: o centro da tela na chegada; o ponto tocado na saída (o JS põe left/top) */
+/* o ponto de onde saem os riscos: o centro da tela (na saída o JS põe left/top; na automação, nas trilhas do CSS) */
 .passagem__riscos { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
 /* cada risco é uma linha de 1 px num rumo próprio (rumos irregulares: velocidade, não relógio) */
 .passagem__riscos i { position: absolute; left: 0; top: 0; width: 120px; height: 1px; margin-top: -.5px; transform-origin: 0 50%;
@@ -51,7 +50,9 @@
    fim macios, a página esmaece ao longo do voo, os riscos acendem e apagam devagar.
    Curvas de easings.net: easeInOutSine na saída, easeOutCubic na chegada. */
 
-/* a SAÍDA (html.passagem-sai): avança para dentro do ponto tocado; o JS navega no fim (SAI_MS).
+/* a SAÍDA (html.passagem-sai): durações e curva de todas as saídas; cada destino troca o nome da animação em
+   css/passagem-destinos.css (o pass-mergulha daqui é a viagem padrão de um destino que ainda não tenha a sua). O JS
+   navega no fim (SAI_MS).
    Propriedades longas (sem o atalho `animation`), para o atraso das levas de riscos lá embaixo valer sempre. */
 html.passagem-sai .passagem { visibility: visible; pointer-events: auto; }
 html.passagem-sai .passagem-mergulha, html.passagem-sai .passagem-voa, html.passagem-sai .passagem-esmaece,
