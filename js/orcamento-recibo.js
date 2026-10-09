@@ -71,7 +71,7 @@
       $('o-rec-entrega').hidden = !(restante > 0);
       $('o-rec-partes').classList.toggle('is-unica', !(restante > 0));
       $('o-rec-total-v').textContent = 'Total do projeto ' + o.dinheiro(r.total);
-      $('o-rec-total-prazo').textContent = 'entrega em até ' + r.prazo + (Number(r.prazo) === 1 ? ' dia' : ' dias');
+      $('o-rec-total-prazo').textContent = 'entrega em até ' + r.prazo + (Number(r.prazo) === 1 ? ' dia corrido' : ' dias corridos');
     }
 
     /* a chegada: uma vez, quando o pagamento acaba de ser confirmado com a tela aberta. A classe sai no fim
