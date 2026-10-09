@@ -238,6 +238,8 @@
          de direções carrega assim mesmo (tem o próprio pedido e o próprio aviso de erro). Antes a fila só vinha
          junto com as métricas, e uma falha delas escondia pedidos esperando o prazo de 24 h (auditoria 2026-10-09) */
       var primeira = $('dados').hidden;
+      /* sem resposta nenhuma (rede caiu) na primeira entrada, a chave nem foi conferida: fica na tela de entrar */
+      if (primeira && !(e.status >= 500)) { sair(); $('erroEntrar').hidden = false; $('erroEntrar').textContent = 'Sem conexão com o servidor. Tente de novo.'; return; }
       entrou(true);
       $('estado').textContent = 'Não foi possível carregar as métricas: ' + e.message;
       if (primeira && soNumeros !== true) document.dispatchEvent(new CustomEvent('bz-painel:entrou'));

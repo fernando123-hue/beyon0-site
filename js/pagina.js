@@ -29,7 +29,9 @@
     encaminhar[e2].href = 'https://wa.me/?text=' + encodeURIComponent(encaminhar[e2].getAttribute('data-encaminhar') + ' ' + location.origin + '/resumo');
     encaminhar[e2].rel = 'noopener noreferrer';
     encaminhar[e2].target = '_blank';
-    encaminhar[e2].insertAdjacentHTML('beforeend', '<span class="sr-only"> (abre em nova aba)</span>');
+    var aviso = document.createElement('span');   /* (sem innerHTML, regra do site) */
+    aviso.className = 'sr-only'; aviso.textContent = ' (abre em nova aba)';
+    encaminhar[e2].appendChild(aviso);
     /* nasce hidden no HTML (o bloco ou o próprio link): sem JS ele levaria só ao /resumo, sem encaminhar nada */
     var oculto = encaminhar[e2].closest('[hidden]');
     if (oculto) oculto.hidden = false;
