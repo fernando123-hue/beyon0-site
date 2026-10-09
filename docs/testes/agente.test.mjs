@@ -293,3 +293,20 @@ test('o turno manda só user/assistant em messages; o estado vai no 2º bloco do
   const enviado = JSON.stringify(p.messages);
   assert.ok(!enviado.includes('123.456.789-09') && !enviado.includes('99999-0000'), 'histórico redigido antes do modelo');
 });
+
+test('escopo e sinal: só dúvidas; estimar, pedir_contato e briefing pedidos pelo modelo voltam como erro e nada muda (PROPOSTA de 2026-10-09, §4, 3b)', async () => {
+  for (const etapa of ['escopo', 'aguardando_pagamento']) {
+    const conversa = { etapa, briefing: { negocio: { segmento: 'odontologia' }, projeto: { formato: 'institucional' } }, mensagens: [], estimativa: { prazo_dias: 10, fase: 'unica', detalhes: { itens: [{ nome: 'Site institucional' }] } } };
+    const ia = roteiro([
+      comFerramentas(chamada('estimar', { formato: 'landing_page' }), chamada('pedir_contato', {}), chamada('atualizar_briefing', { negocio: { segmento: 'advocacia' } })),
+      fim('O sinal pode ser no Pix ou no cartão, aqui na tela.')
+    ]);
+    const r = await executarTurno({ ia, regras: REGRAS, conversa, mensagem: 'Posso pagar no cartão?' });
+    assert.deepEqual(ia.recebidos[0].ferramentas.map(f => f.name), ['encaminhar_diagnostico'], etapa + ': o modelo só recebe a saída para uma pessoa');
+    assert.ok(ia.recebidos[1].mensagens.at(-1).content.every(x => x.is_error), etapa + ': ferramenta fora da etapa volta como erro');
+    assert.equal(r.estimativa, null, etapa);
+    assert.equal(r.pedir_contato, false, etapa);
+    assert.deepEqual(r.briefing, conversa.briefing, etapa + ': o briefing do escopo confirmado não muda');
+    assert.match(r.resposta, /Pix/);
+  }
+});

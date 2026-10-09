@@ -27,7 +27,9 @@
   }
   var RECUPERACAO = 'Não consegui concluir a análise neste momento. Suas informações foram preservadas. Vamos continuar de onde paramos.';
   var NOMES = { conversao: 'Conversão', autoridade: 'Autoridade', experiencia: 'Experiência' };
-  var CONVERSA_ABERTA = ['descoberta', 'estimativa', 'contato', 'direcoes', 'escolhida', 'alteracoes'];
+  /* até o sinal; no escopo e no sinal, só para dúvidas (api/_vendas/consultor.mjs, ETAPAS_SO_DUVIDAS) */
+  var CONVERSA_ABERTA = ['descoberta', 'estimativa', 'contato', 'direcoes', 'escolhida', 'alteracoes', 'escopo', 'aguardando_pagamento'];
+  var DICA_DUVIDA = { escopo: 'Ex.: o domínio já vem incluído?', aguardando_pagamento: 'Ex.: quando eu pago o restante?' };
   var ESPERA_MS = 5000, ESPERA_MAX_MS = 15 * 60e3, REPEDIR_MS = 60e3;
   var E = null;                 /* o último estado do servidor */
   var seq = 0, emVoo = null;    /* respostas fora de ordem: só a mais nova vale */
@@ -225,6 +227,15 @@
   });
   [].forEach.call(document.querySelectorAll('[data-atalho]'), function (b) {
     b.addEventListener('click', function () { enviar(b.getAttribute('data-atalho')); });
+  });
+  /* "Pergunte ao consultor" no escopo e no sinal: leva à caixa da conversa, que fica lá em cima */
+  var dicaPadrao = $('o-texto').placeholder;
+  [].forEach.call(document.querySelectorAll('[data-perguntar]'), function (a) {
+    a.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      $('o-form').scrollIntoView({ block: 'center' });
+      $('o-texto').focus({ preventScroll: true });
+    });
   });
 
   /* ---------- o investimento (o cartão do motor de preço) ---------- */
@@ -662,6 +673,7 @@
     if (E.estimativa) investimento(E.estimativa, false);
     var aberta = CONVERSA_ABERTA.indexOf(et) >= 0;
     mostrar('o-form', aberta);
+    $('o-texto').placeholder = DICA_DUVIDA[et] || dicaPadrao;
     mostrar('o-conversa-fechada', !aberta);
     if (!aberta) $('o-atalhos').hidden = true;
     mostrar('o-contato', !E.conversa.tem_contato && !!E.estimativa);

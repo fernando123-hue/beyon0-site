@@ -287,3 +287,19 @@ test('vendedor: a dor vem antes do formato, a recomendação vem com o preço, e
   assert.match(contato, /no máximo 2 perguntas rápidas sobre [^.]+, para as direções/);
   assert.match(contato, /não chame pedir_contato/);
 });
+
+test('conversa aberta até o pagamento: no escopo e no sinal o consultor só tira dúvidas (PROPOSTA de 2026-10-09, §4, 3b)', () => {
+  /* só a saída para uma pessoa: estimar, pedir_contato e o briefing já não cabem depois do escopo */
+  for (const etapa of ['escopo', 'aguardando_pagamento'])
+    assert.deepEqual(ferramentas(REGRAS, { etapa }).map(f => f.name), ['encaminhar_diagnostico'], etapa);
+  for (const etapa of ['descoberta', 'estimativa', 'contato', 'alteracoes'])
+    assert.equal(ferramentas(REGRAS, { etapa }).length, 5, etapa);
+  const esc = proximoPasso({ etapa: 'escopo', briefing: {}, estimativa: null });
+  assert.match(esc, /Escopo final/);
+  assert.match(esc, /Confirmar o escopo/);
+  assert.match(esc, /WhatsApp/, 'mudança de escopo agora é pelo WhatsApp: os ajustes fecharam');
+  const pag = proximoPasso({ etapa: 'aguardando_pagamento', briefing: {}, estimativa: null });
+  assert.match(pag, /Pix ou cartão/);
+  assert.match(pag, /nunca diga que o pagamento/i);
+  for (const p of [esc, pag]) assert.match(p, /não chame estimar nem pedir_contato/i);
+});

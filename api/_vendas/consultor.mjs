@@ -169,8 +169,19 @@ Você: "O preço é o mesmo para todo mundo, por isso não tenho como dar descon
 
 const OBJETIVOS_DESC = 'objetivos (lista fechada): gerar_leads = receber pedidos de orçamento ou contato; apresentar_empresa; vender; agendamentos; autoridade = ser visto como referência; captar_contatos = juntar contatos para campanhas; lancar_produto; outro (detalhe em objetivo_detalhe).';
 
-/* as ferramentas; o esquema de 'estimar' nasce dos adicionais da tabela ATIVA (o modelo só escolhe o que existe) */
-export function ferramentas(regras) {
+/* depois do escopo a conversa segue aberta SÓ para dúvidas, até o sinal (PROPOSTA de 2026-10-09, §4, 3b): o escopo e o
+   preço já estão fechados, então o modelo só recebe a saída para uma pessoa; o código recusa qualquer outra ferramenta
+   (api/_vendas/agente.mjs) e o banco não deixa o briefing mudar (app.vendas_registrar_turno) */
+export const ETAPAS_SO_DUVIDAS = ['escopo', 'aguardando_pagamento'];
+const FERRAMENTAS_SO_DUVIDAS = ['encaminhar_diagnostico'];
+
+/* as ferramentas da etapa; o esquema de 'estimar' nasce dos adicionais da tabela ATIVA (o modelo só escolhe o que existe) */
+export function ferramentas(regras, { etapa } = {}) {
+  const todas = todasAsFerramentas(regras);
+  return ETAPAS_SO_DUVIDAS.includes(etapa) ? todas.filter(f => FERRAMENTAS_SO_DUVIDAS.includes(f.name)) : todas;
+}
+
+function todasAsFerramentas(regras) {
   const adicionais = {};
   for (const [k, v] of Object.entries(regras.adicionais || {})) adicionais[k] = { type: 'integer', description: v.nome + (v.fora_do_automatico ? ' (fora do automático: leva ao diagnóstico)' : '') };
   return [
@@ -214,6 +225,8 @@ export function proximoPasso({ etapa, briefing, estimativa, regras = null }) {
   /* sem a tabela, vale a v2; com ela, a loja só é vendável se a tabela ativa a traz */
   const temLoja = !regras || !!regras.formatos?.loja_plataforma;
   const b = briefing || {};
+  if (etapa === 'escopo') return 'A pessoa está conferindo o bloco "Escopo final" na tela, com o valor e o prazo. Responda a dúvida em poucas frases, com o que está nas suas instruções, e indique o botão "Confirmar o escopo", sem pressa. Os ajustes já foram fechados: se ela quiser mudar algo no escopo, diga que é pelo WhatsApp da Beyon Zero (o link está no bloco do escopo); você não muda escopo, valor nem prazo. Não chame estimar nem pedir_contato.';
+  if (etapa === 'aguardando_pagamento') return 'O escopo foi confirmado e a pessoa está no bloco "Para começar", que cobra o sinal por Pix ou cartão; o restante é pago na entrega. Responda a dúvida em poucas frases, com o que está nas suas instruções, e indique esse bloco. Nunca diga que o pagamento foi recebido ou confirmado: a própria tela mostra quando ele cai. Se o pagamento online falhar ou a pessoa preferir, a Beyon Zero envia o pagamento pelo WhatsApp. Não chame estimar nem pedir_contato.';
   if (ETAPAS_DA_TELA.includes(etapa)) return 'O orçamento já segue pelos blocos da tela (etapa ' + etapa + '). Responda dúvidas em poucas frases e indique o próximo bloco na tela; não chame estimar nem pedir_contato.';
   if (etapa === 'contato') {
     const { confianca: c, faltam: f } = avaliar(b);

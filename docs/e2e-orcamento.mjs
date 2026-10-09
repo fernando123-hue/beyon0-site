@@ -122,6 +122,22 @@ try {
   await page.waitForSelector('#o-pagamento:not([hidden])');
   await foto(page, '4-pagamento-cel');
 
+  /* a conversa segue aberta para dúvidas até o sinal (PROPOSTA de 2026-10-09, §4, 3b) */
+  ok(await page.locator('#o-form').isVisible(), 'tela do sinal: a caixa da conversa continua');
+  ok(await page.locator('#o-conversa-fechada').isHidden(), 'tela do sinal: sem o aviso de conversa fechada');
+  const respostasAntes = await page.locator('#o-log .msg--agente').count();
+  await page.click('#o-pagamento [data-perguntar]');
+  ok(await page.evaluate(() => document.activeElement && document.activeElement.id === 'o-texto'), '"Pergunte ao consultor" leva à caixa da conversa');
+  await page.fill('#o-texto', 'Quando eu pago o restante?');
+  await page.click('#o-enviar');
+  await page.waitForFunction(n => document.querySelectorAll('#o-log .msg--agente').length > n, respostasAntes, { timeout: 30000 });
+  const fim = await page.$$eval('#o-log .msg', l => l.slice(-2).map(x => x.className.replace('msg msg--', '') + ': ' + x.textContent));
+  ok(/^visitante: Quando eu pago/.test(fim[0]) && /^agente: /.test(fim[1]), 'tela do sinal: a resposta vem logo depois da pergunta (' + JSON.stringify(fim) + ')');
+  await page.waitForFunction(() => !document.getElementById('o-pagamento').hidden && document.getElementById('o-pronto').hidden);
+  ok(true, 'a dúvida não muda a etapa: o sinal continua esperando');
+  await page.waitForTimeout(800);   /* (a caixa da conversa rola com suavidade até a resposta) */
+  await foto(page, '4b-duvida-no-sinal-cel');
+
   /* pagamento: dados do pagador, cartão recusado, depois Pix (QR) e a confirmação SÓ pelo aviso do provedor */
   await page.click('#o-pag-enviar');
   ok((await page.textContent('#o-pag-erro')).includes('nome'), 'pagador sem dados: recusado com motivo');

@@ -82,6 +82,7 @@ fila manual com o briefing delimitado e a regra de que é dado.
 | Item | O que falta | Por quê / quem |
 |---|---|---|
 | S10 | aplicar `20261009130000_retencao_ajustes.sql` no banco real **antes** de promover | migration em banco real é do dono (`docs/fundacao/02-OPERACAO.md`) |
+| 3b | aplicar `20261009140000_conversa_ate_pagamento.sql` no banco real **antes** de promover | sem ela, a pergunta na tela do sinal paga o modelo e o banco recusa a gravação (409 "Esta etapa ainda não está disponível"); migration é do dono |
 | S1 | conferir com `curl -I` na prévia: `/CLAUDE.md`, `/scripts/processo/niveis.json`, `/.github/workflows/ci.yml`, `/vercel.json` → redirect para `/`. E as variações que o revisor pediu, **todas redirect ou 404, nunca 200**: `/%2Egithub/workflows/ci.yml`, `/CLAUDE.md/`, `//scripts/processo/niveis.json`, `/Scripts/processo/niveis.json`, `/.ENV.example` | só dá para ver numa prévia da Vercel (precisa de push); se alguma der 200, a regra precisa da forma insensível a maiúsculas ou da barra final |
 | S10 (baixa) | retomada de conversa limpa pela retenção: se a pessoa voltar depois dos 60 dias e seguir até a proposta, o escopo novo sai **sem os ajustes** (as operações foram apagadas) e a prévia volta à direção escolhida, sem aviso | aceito por ora; se acontecer, avisar na tela "os ajustes de antes foram apagados pelo prazo de privacidade" (lote do front) |
 | S2 | ajustes JÁ gravados guardam o motivo antigo ("não cabe…: " + texto do modelo), que a lista de ajustes mostra | só ajustes novos mudaram; os antigos saem com a retenção (60 dias) |
