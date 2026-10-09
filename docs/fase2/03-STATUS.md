@@ -98,7 +98,7 @@ A revisão por agentes (segurança e código) e as correções estão no fim des
 
 ## PENDÊNCIAS (do dono)
 
-1. **Aprovar a tabela de preços** (`REGRAS-RASCUNHO.md`) e definir se o prazo é em dias corridos ou úteis. A tela hoje diz só "dias".
+1. ~~Aprovar a tabela de preços e definir dias corridos ou úteis~~: **tabela v2 aprovada pelo dono em 2026-10-09** (valores em `REGRAS-RASCUNHO.md`) e **prazo em dias corridos** (escopo, consultor, cartão, recibo e site dizem o mesmo).
 2. **Chave da Anthropic** e o aval para rodar uma avaliação com o modelo real, que custa crédito.
 3. ~~Escolher o gateway~~: **Mercado Pago, decidido e implementado**. Faltam as credenciais de TESTE e o checklist de `docs/pagamentos/01-ARQUITETURA-E-OPERACAO.md` §9 a §11.
 4. **Nome completo, CPF e endereço** para o rodapé do `/orcamento` (Decreto 7.962/2013). Hoje há marcadores entre colchetes.
