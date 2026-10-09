@@ -16,6 +16,8 @@
   var $ = function (id) { return document.getElementById(id); };
   var SDK = 'https://sdk.mercadopago.com/js/v2';
   var ESPERA_MS = 5000;
+  var CONFIG_DE_NOVO_MS = 15000;   /* configuração que falhou: tenta de novo (não fica "indisponível" até recarregar, F4) */
+  var ERRO_CARTAO = 'Não foi possível reconhecer o cartão. Confira o número.';
   var MENSAGENS = {
     bad_filled_card_data: 'Algum dado do cartão não confere. Confira e tente de novo.',
     insufficient_amount: 'O cartão não tem limite para este valor.',
@@ -30,24 +32,32 @@
   };
   function el(tag, classe, texto) { var e = document.createElement(tag); if (classe) e.className = classe; if (texto != null) e.textContent = texto; return e; }
   function mostrar(id, sim) { $(id).hidden = !sim; }
+  var CAMPOS_FORM = ['o-pag-nome', 'o-pag-sobrenome', 'o-pag-email', 'o-pag-doc', 'o-titular'];
+  /* o erro fica ligado ao campo (A7): aria-invalid no campo; o aria-describedby do HTML aponta para #o-pag-erro */
+  function marcarInvalido(id) { CAMPOS_FORM.forEach(function (c) { if (c === id) $(c).setAttribute('aria-invalid', 'true'); else $(c).removeAttribute('aria-invalid'); }); }
+  /* (dedo: "toque e segure"; teclado: Ctrl+C) */
+  var toque = function () { return !!(window.matchMedia && matchMedia('(pointer: coarse)').matches); };
 
   function criar(o) {
     var trocando = false, cfg = null, valor = 0, metodo = 'pix', espera = null, mp = null, campos = null, cartaoInfo = null, enviando = false, ultimoEstado = '';
 
-    /* ---------- configuração pública (Public Key e ambiente) ---------- */
+    /* ---------- configuração pública (Public Key e ambiente) ----------
+       Só o sucesso fica guardado: uma falha passageira não deixa o pagamento "indisponível" até recarregar (F4) */
+    var deNovo = null;
     async function configurar() {
       if (cfg) return cfg;
-      try { cfg = await o.API.pagamentoConfig(); } catch (e) { cfg = { ativo: false }; }
-      return cfg;
+      try { cfg = await o.API.pagamentoConfig(); return cfg; } catch (e) { return { ativo: false, falhou: true }; }
     }
 
     /* ---------- escolha do meio ---------- */
     function escolherMetodo(m) {
       metodo = m;
-      [].forEach.call(document.querySelectorAll('[data-metodo]'), function (b) { b.setAttribute('aria-checked', String(b.getAttribute('data-metodo') === m)); });
+      /* grupo de rádio com roving tabindex (A16): só o marcado entra no Tab; as setas trocam */
+      [].forEach.call(document.querySelectorAll('[data-metodo]'), function (b) { var sim = b.getAttribute('data-metodo') === m; b.setAttribute('aria-checked', String(sim)); b.tabIndex = sim ? 0 : -1; });
       mostrar('o-pag-cartao', m === 'cartao');
       $('o-pag-enviar').textContent = m === 'pix' ? 'Gerar o Pix de ' + o.dinheiro(valor) : 'Pagar ' + o.dinheiro(valor) + ' no cartão';
       $('o-pag-erro').textContent = '';
+      marcarInvalido(null);
       if (m === 'cartao') prepararCartao();
     }
     [].forEach.call(document.querySelectorAll('[data-metodo]'), function (b) {
@@ -61,21 +71,51 @@
     });
 
     /* ---------- cartão: campos seguros do Mercado Pago (ou o modo local) ---------- */
+    var tagSdk = null, preparando = false;
     function carregarSdk() {
       if (window.MercadoPago) return Promise.resolve();
       return new Promise(function (ok, falha) {
-        var s = document.createElement('script');
+        if (tagSdk) tagSdk.remove();   /* (a tentativa anterior falhou: não acumula <script>) */
+        var s = tagSdk = document.createElement('script');
         s.src = SDK; s.async = true;
         s.onload = ok; s.onerror = function () { falha(new Error('sdk')); };
         document.head.appendChild(s);
       });
     }
+    /* SDK que não carregou ou campos que não montaram (F16): o aviso ganha "Carregar de novo" */
+    function falhaDoCartao() {
+      mp = null; campos = null;
+      $('o-pag-carregando').textContent = 'Não foi possível carregar o pagamento com cartão. Use o Pix ou carregue de novo.';
+      if ($('o-pag-recarregar')) return;
+      var b = el('button', 'btn btn--sm', 'Carregar de novo');
+      b.type = 'button'; b.id = 'o-pag-recarregar';
+      b.addEventListener('click', function () { b.remove(); prepararCartao(); });
+      $('o-pag-carregando').insertAdjacentElement('afterend', b);
+    }
+    /* os iframes do Mercado Pago chegam depois do mount: cada um ganha o title do seu rótulo, se faltar (A9) */
+    var titulos = null;
+    function titularIframes() {
+      if (titulos || typeof MutationObserver !== 'function') return;
+      titulos = new MutationObserver(function () {
+        [['o-mp-numero', 'Número do cartão'], ['o-mp-validade', 'Validade do cartão'], ['o-mp-cvv', 'Código de segurança do cartão']].forEach(function (p) {
+          [].forEach.call($(p[0]).querySelectorAll('iframe'), function (f) { if (!f.getAttribute('title')) f.setAttribute('title', p[1]); });
+        });
+      });
+      ['o-mp-numero', 'o-mp-validade', 'o-mp-cvv'].forEach(function (id) { titulos.observe($(id), { childList: true, subtree: true }); });
+    }
     async function prepararCartao() {
-      if (campos || !cfg || !cfg.ativo) return;
+      if (campos || preparando || !cfg || !cfg.ativo) return;
       if (cfg.ambiente === 'simulado') { campos = 'simulado'; mostrar('o-pag-local', true); mostrar('o-pag-campos', false); parcelasLocais(); return; }
       mostrar('o-pag-local', false);
       $('o-pag-carregando').textContent = 'Carregando os campos seguros do Mercado Pago…';
-      try { await carregarSdk(); } catch (e) { $('o-pag-carregando').textContent = 'Não foi possível carregar o pagamento com cartão. Use o Pix ou tente de novo.'; return; }
+      preparando = true;
+      try { await carregarSdk(); montarCampos(); }
+      catch (e) { falhaDoCartao(); }
+      finally { preparando = false; }
+    }
+    function montarCampos() {
+      titularIframes();
+      ['o-mp-numero', 'o-mp-validade', 'o-mp-cvv'].forEach(function (id) { $(id).textContent = ''; });   /* (uma montagem anterior pela metade) */
       /* advancedFraudPrevention injeta script inline (medido: bloqueado pela CSP sem 'unsafe-inline'); trackingDisabled: sem métrica de uso do SDK */
       mp = new window.MercadoPago(cfg.publicKey, { locale: 'pt-BR', advancedFraudPrevention: false, trackingDisabled: true });
       var estilo = { color: '#F2F4F4', placeholderColor: '#858C8C', fontSize: '16px' };
@@ -92,6 +132,7 @@
           var pm = (await mp.getPaymentMethods({ bin: d.bin })).results[0];
           if (!pm) return;
           cartaoInfo = { meio: pm.id, tipo: pm.payment_type_id };
+          if ($('o-pag-erro').textContent === ERRO_CARTAO) $('o-pag-erro').textContent = '';   /* (o número agora confere: o erro antigo sai) */
           var cs = pm.settings && pm.settings[0] && pm.settings[0].security_code;
           if (cs) campos.cvv.update({ settings: { mode: cs.mode, length: cs.length } });
           var opcoes = await mp.getInstallments({ amount: Number(valor).toFixed(2), bin: d.bin, paymentTypeId: pm.payment_type_id });
@@ -99,7 +140,7 @@
           ((opcoes[0] && opcoes[0].payer_costs) || []).filter(function (c) { return c.installments <= 12; }).forEach(function (c) {
             var op = el('option', '', c.recommended_message); op.value = String(c.installments); sel.appendChild(op);
           });
-        } catch (e) { $('o-pag-erro').textContent = 'Não foi possível reconhecer o cartão. Confira o número.'; }
+        } catch (e) { $('o-pag-erro').textContent = ERRO_CARTAO; }
       });
     }
     function parcelasLocais() {
@@ -136,18 +177,28 @@
       ev.preventDefault();
       if (enviando) return;
       var erro = $('o-pag-erro'), pagador = pagadorDoFormulario(), ruim = validarLocal(pagador);
-      if (ruim) { erro.textContent = ruim[1]; $(ruim[0]).focus(); return; }
+      if (ruim) { erro.textContent = ruim[1]; marcarInvalido(ruim[0]); $(ruim[0]).focus(); return; }
       erro.textContent = '';
-      enviando = true; $('o-pag-enviar').disabled = true; $('o-pag-form').setAttribute('aria-busy', 'true');
+      marcarInvalido(null);
+      /* (aria-disabled, não disabled: o botão desligado com foco jogava o foco no body, A3; o "enviando" já protege) */
+      enviando = true; $('o-pag-enviar').setAttribute('aria-disabled', 'true'); $('o-pag-form').setAttribute('aria-busy', 'true');
       $('o-pag-status').textContent = metodo === 'pix' ? 'Gerando o Pix…' : 'Enviando ao Mercado Pago…';
       try {
         var cartao = metodo === 'cartao' ? await tokenDoCartao(pagador) : undefined;
         desenhar(await o.API.pagar(metodo, pagador, cartao));
+        /* o Pix gerado esconde o formulário: o foco vai para o código (A3) */
+        if (!$('o-pix').hidden) $('o-pix-codigo').focus();
+        else if (!$('o-desafio').hidden) $('o-desafio-link').focus();
       } catch (e) {
         $('o-pag-status').textContent = '';
-        if (e && e.status === 503 && e.dados && e.dados.aguarde) { $('o-pag-status').textContent = e.message; esperar(); }
-        else erro.textContent = (e && e.message) || 'Não foi possível concluir agora. Tente de novo.';
-      } finally { enviando = false; $('o-pag-enviar').disabled = false; $('o-pag-form').removeAttribute('aria-busy'); }
+        /* "aguarde" vem em 503 e também em 409 (pedido já em criação): é espera, não erro (F3) */
+        if (e && e.dados && e.dados.aguarde) { $('o-pag-status').textContent = e.message; esperar(); }
+        else {
+          if (metodo === 'cartao' && e && !e.status && /titular|impresso/i.test(e.message || '')) marcarInvalido('o-titular');
+          erro.textContent = e && e.status === 500 ? 'Não consegui concluir agora.' + (e.dados && typeof e.dados.pedido === 'string' ? ' Código: ' + e.dados.pedido.slice(0, 8) + '.' : '') + ' Tente de novo ou fale com a Beyon Zero pelo WhatsApp.'
+            : (e && e.message) || 'Não foi possível concluir agora. Tente de novo.';
+        }
+      } finally { enviando = false; $('o-pag-enviar').removeAttribute('aria-disabled'); $('o-pag-form').removeAttribute('aria-busy'); }
     });
 
     /* ---------- o estado (vem do servidor) ---------- */
@@ -165,7 +216,22 @@
       $('o-pix-expira').textContent = t.expira_em ? minutosAte(t.expira_em) : '';
       mostrar('o-pix-simular', cfg && cfg.ambiente === 'simulado');
     }
+    /* uma troca de tela (consulta de fundo) escondeu o que tinha o foco: ele vai para o que apareceu, nunca para o body (A3) */
+    function focoDentro() { var a = document.activeElement; return !!a && ($('o-pag-form').contains(a) || $('o-pix').contains(a) || $('o-desafio').contains(a)); }
+    function devolverFoco(estava) {
+      var a = document.activeElement;
+      if (!estava || (a && a !== document.body && a.offsetParent !== null)) return;
+      if (!$('o-pix').hidden) $('o-pix-codigo').focus();
+      else if (!$('o-desafio').hidden) $('o-desafio-link').focus();
+      else if (!$('o-pag-form').hidden) $('o-pag-enviar').focus();
+      else { var h = $('o-pag-titulo'); h.setAttribute('tabindex', '-1'); h.focus(); }
+    }
     function desenhar(e) {
+      var estava = focoDentro();
+      desenharEstado(e);
+      devolverFoco(estava);
+    }
+    function desenharEstado(e) {
       if (!e || !e.pagamento) { mostrar('o-pix', false); mostrar('o-desafio', false); mostrar('o-pag-form', true); return; }
       var t = e.tentativa;
       var chave = JSON.stringify([e.pagamento.status, t && t.status, t && t.id, t && t.expira_em]);
@@ -201,11 +267,20 @@
       if (!document.hidden && espera) o.API.pagamento().then(desenhar).catch(function () {});
     });
 
+    /* copiar: "Copiado" também é ANUNCIADO no status (A14); sem a área de transferência, seleciona o código
+       (no iPhone, select() num readonly não seleciona: foco + setSelectionRange) e diz como copiar (F15) */
     $('o-pix-copiar').addEventListener('click', async function () {
-      var b = this;
-      try { await navigator.clipboard.writeText($('o-pix-codigo').value); b.textContent = 'Copiado'; }
-      catch (e) { $('o-pix-codigo').select(); b.textContent = 'Selecionado: copie com Ctrl+C'; }
-      setTimeout(function () { b.textContent = 'Copiar o código'; }, 2500);
+      var b = this, st = $('o-pag-status'), antes = st.textContent, aviso;
+      try { await navigator.clipboard.writeText($('o-pix-codigo').value); b.textContent = 'Copiado'; aviso = 'Código Pix copiado.'; }
+      catch (e) {
+        var c = $('o-pix-codigo');
+        c.focus();
+        try { c.setSelectionRange(0, c.value.length); } catch (x) { c.select(); }
+        aviso = toque() ? 'Código selecionado: toque e segure para copiar.' : 'Código selecionado: copie com Ctrl+C.';
+        b.textContent = toque() ? 'Toque e segure para copiar' : 'Selecionado: copie com Ctrl+C';
+      }
+      st.textContent = aviso;
+      setTimeout(function () { b.textContent = 'Copiar o código'; if (st.textContent === aviso) st.textContent = antes; }, 2500);
     });
     /* modo local: o simulador "paga" o Pix (ou conclui o 3DS) e o aviso assinado passa pelo caminho real */
     async function simularLocal(acao) {
@@ -218,20 +293,23 @@
     $('o-pix-trocar').addEventListener('click', function () { trocando = true; mostrar('o-pag-form', true); escolherMetodo('cartao'); document.querySelector('[data-metodo="cartao"]').focus(); });
     $('o-desafio-simular').addEventListener('click', function () { simularLocal('desafio'); });
 
-    return {
+    var tela = {
       /* chamado pela página quando a etapa é "aguardando pagamento" */
       async mostrar(valorSinal) {
         valor = Number(valorSinal) || 0;
-        await configurar();
-        mostrar('o-pag-indisponivel', !cfg.ativo);
-        mostrar('o-pag-form', cfg.ativo);
-        if (!cfg.ativo) return;
+        var c = await configurar();
+        mostrar('o-pag-indisponivel', !c.ativo);
+        mostrar('o-pag-form', c.ativo);
+        clearTimeout(deNovo);
+        if (c.falhou) { deNovo = setTimeout(function () { if (!$('o-pagamento').hidden) tela.mostrar(valor); }, CONFIG_DE_NOVO_MS); return; }
+        if (!c.ativo) return;
         mostrar('o-desafio-simular', cfg.ambiente === 'simulado');
         if (!$('o-pag-enviar').textContent.trim() || $('o-pag-enviar').dataset.valor !== String(valor)) { $('o-pag-enviar').dataset.valor = String(valor); escolherMetodo(metodo); }
         try { desenhar(await o.API.pagamento()); } catch (e) { /* o formulário segue disponível */ }
       },
-      parar: pararEspera
+      parar: function () { pararEspera(); clearTimeout(deNovo); }
     };
+    return tela;
   }
 
   window.BZPagamentoTela = { criar: criar };
