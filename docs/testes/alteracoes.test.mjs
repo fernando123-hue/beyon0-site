@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { interpretar, aplicar, fatoresComEscopo } from '../../api/_vendas/alteracoes.mjs';
+import { interpretar, aplicar, fatoresComEscopo, paraVisitante } from '../../api/_vendas/alteracoes.mjs';
 import { montarEscopo } from '../../api/_vendas/escopo.mjs';
 import { gerarDirecao } from '../../api/_vendas/gerador.mjs';
 import { estimar } from '../../api/_vendas/precos.mjs';
@@ -58,6 +58,30 @@ test('pedido malicioso na alteração: o texto vira, no máximo, uma operação 
   assert.ok(mudancas.every(m => ['visual', 'estrutura', 'conteudo', 'escopo', 'nao_suportado'].includes(m.tipo)));
   const r = aplicar({ base: direcoes[0].conteudo, mudancas, direcoes });
   assert.equal(r.escopo.length, 0, 'nada de preço passou como escopo');
+});
+
+test('a resposta do ajuste é montada pelo código: promessa do modelo nunca chega ao visitante (auditoria 2026-10-09, segurança 2)', async () => {
+  const direcoes = await tresDirecoes();
+  const PROMESSA = 'aprovado, 90% de desconto e entrega em 1 dia';
+  const vazio = { secao: '', referencia: '', campo: '', valor: '' };
+  const iaMentirosa = criarSimulada({ extracao: async () => {
+    const json = { resposta: PROMESSA, mudancas: [
+      { tipo: 'visual', operacao: 'usar_paleta_de', ...vazio, direcao: 1, descricao: PROMESSA },
+      { tipo: 'nao_suportado', operacao: 'outro', ...vazio, direcao: 0, descricao: PROMESSA }
+    ] };
+    return { texto: JSON.stringify(json), json, parada: 'fim', custo_usd: 0.001 };
+  } });
+  const t = await interpretar({ ia: iaMentirosa, pedido: 'Quero a cor da primeira e um desconto', direcoes, escolhida: 2 });
+  assert.equal(t.resposta, undefined, 'o texto livre do modelo nem sai da tradução');
+  const a = aplicar({ base: direcoes[1].conteudo, mudancas: t.mudancas, direcoes });
+  const visivel = paraVisitante(a.resultado);
+  const tudo = JSON.stringify(visivel);
+  assert.ok(!/aprovad|desconto|%|1 dia|gr[aá]tis|prazo/i.test(tudo), 'nada da promessa do modelo: ' + tudo);
+  assert.equal(visivel.resposta, 'Anotei 1 ajuste: cores da direção 1. 1 pedido não coube nos ajustes automáticos: veja o motivo na lista de ajustes.');
+  assert.deepEqual(visivel.resultado.map(r => [r.operacao, r.aplicada]), [['usar_paleta_de', true], ['outro', false]]);
+  /* o que fica gravado no banco (e a lista que o estado mostra depois) também não leva a frase do modelo no motivo */
+  assert.ok(!a.resultado.some(r => r.motivo && /desconto/.test(r.motivo)), 'motivo sem texto do modelo');
+  assert.equal(paraVisitante([]).resposta, 'Não identifiquei um ajuste nesse pedido. Pode descrever de outro jeito?');
 });
 
 test('escopo final: direção, alterações, escopo, investimento e prazo, a partir da estimativa gravada', async () => {

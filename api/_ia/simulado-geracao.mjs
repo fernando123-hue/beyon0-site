@@ -67,6 +67,6 @@ export function extrairSimulado({ mensagens }) {
   if (tit) mudancas.push({ ...vazio, tipo: 'conteudo', operacao: 'trocar_texto', secao: 'hero', campo: 'titulo', valor: tit[1].trim() });
   if (/\bblog\b/i.test(pedido)) mudancas.push({ ...vazio, tipo: 'escopo', operacao: 'adicional', campo: 'blog', valor: '1' });
   if (/app|aplicativo/i.test(pedido)) mudancas.push({ ...vazio, tipo: 'nao_suportado', operacao: 'outro', descricao: 'aplicativo de celular' });
-  const json = { mudancas, resposta: mudancas.length ? 'Certo, vou aplicar essas mudanças.' : 'Não identifiquei uma mudança. Pode descrever de outro jeito?' };
+  const json = { mudancas };   /* (sem "resposta": a frase para o visitante é do código, alteracoes.mjs → paraVisitante) */
   return { texto: JSON.stringify(json), json, chamadas: [], conteudo: [], parada: 'fim', modelo: 'simulado', uso: {}, custo_usd: 0 };
 }

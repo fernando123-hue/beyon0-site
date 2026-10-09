@@ -16,7 +16,8 @@ const NOME_OP = { usar_paleta_de: 'cores da direção', usar_tipografia_de: 'fon
 const CAMPO_SEGURO = /^[a-z_]{1,40}$/;
 /* a chave vem do modelo: só nomes próprios da tabela ("constructor" herdado escreveria "[native code]" no contrato) */
 const daTabela = (tabela, chave) => (typeof chave === 'string' && Object.hasOwn(tabela, chave) ? tabela[chave] : undefined);
-function linhaAlteracao(a) {
+/* (também a frase do ajuste para o visitante: alteracoes.mjs → paraVisitante) */
+export function linhaAlteracao(a) {
   const partes = [daTabela(NOME_OP, a.operacao) || 'ajuste'];
   if (a.operacao === 'usar_paleta_de' || a.operacao === 'usar_tipografia_de') { if (Number.isInteger(a.direcao)) partes[0] += ' ' + a.direcao; }
   if (daTabela(NOME_SECAO, a.secao)) partes.push(daTabela(NOME_SECAO, a.secao));
