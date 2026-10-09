@@ -141,9 +141,25 @@
     for (var k = 0; k < partes.length - 1; k++) dominios.push('.' + partes.slice(k).join('.'));
     nomes.forEach(function (n) { dominios.forEach(function (d) { document.cookie = n + '=; Max-Age=0; path=/' + (d ? '; domain=' + d : ''); }); });
   }
-  function fecharAviso() { if (aviso) { aviso.remove(); aviso = null; } }
-  function mostrarAviso() {
-    if (aviso) return;
+  /* o foco (auditoria 2026-10-09): reaberto pelo rodapé, ele vai ao 1º botão; ao fechar com o foco dentro, volta a
+     quem abriu (ou ao main), senão caía no body e o Tab recomeçava do topo */
+  var quemAbriu = null;
+  function devolverFoco() {
+    var alvo = quemAbriu && quemAbriu.isConnected ? quemAbriu : document.querySelector('main');
+    quemAbriu = null;
+    if (!alvo) return;
+    if (alvo.tagName === 'MAIN' && !alvo.hasAttribute('tabindex')) alvo.setAttribute('tabindex', '-1');
+    alvo.focus({ preventScroll: true });
+  }
+  function fecharAviso() {
+    if (!aviso) return;
+    var tinhaFoco = aviso.contains(document.activeElement);
+    aviso.remove(); aviso = null;
+    if (tinhaFoco) devolverFoco(); else quemAbriu = null;
+  }
+  function mostrarAviso(abridor) {
+    if (abridor && abridor.nodeType === 1) quemAbriu = abridor;
+    if (aviso) { if (quemAbriu) aviso.querySelector('button').focus(); return; }
     aviso = document.createElement('div');
     aviso.className = 'consentimento';
     aviso.setAttribute('role', 'region');
@@ -164,13 +180,17 @@
       acoes.appendChild(bt);
     });
     aviso.appendChild(p); aviso.appendChild(acoes);
+    /* nasceu com o menu ou o formulário aberto: fica inerte como o resto; js/pagina.js e js/lead-form.js o soltam ao fechar */
+    var cls = document.body.classList;
+    if (cls.contains('is-menu') || cls.contains('is-lead-open')) aviso.inert = true;
     document.body.insertBefore(aviso, document.body.firstChild);   /* (1º no DOM: quem navega por teclado chega nele antes do resto) */
+    if (quemAbriu) aviso.querySelector('button').focus();
   }
   /* o link "Cookies" do rodapé reabre a escolha */
   var reabrir = document.querySelectorAll('[data-consentimento-abrir]');
   for (var i = 0; i < reabrir.length; i++) {
     reabrir[i].hidden = false;
-    reabrir[i].addEventListener('click', mostrarAviso);
+    reabrir[i].addEventListener('click', function (e) { mostrarAviso(e.currentTarget); });
   }
   var atual = escolha();
   /* quem já aceitou: o Google sobe no load, sem esperar o ocioso. O clique mais provável (o CTA do hero, logo no
