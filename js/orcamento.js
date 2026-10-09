@@ -52,6 +52,26 @@
     $('o-aviso').focus({ preventScroll: true });
   }
   function limparAviso() { mostrar('o-aviso', false); ultimaAcao = null; }
+
+  /* ---------- a voz (A2): o leitor de tela ouve só o que importa ("Analisando…", a resposta, o investimento,
+     a direção pronta), não a própria fala nem o histórico inteiro na retomada. Limpa e escreve no tique seguinte:
+     a mesma frase duas vezes também é lida ---------- */
+  var vozAdiada = null;
+  function anunciar(texto) {
+    var v = $('o-voz');
+    clearTimeout(vozAdiada);
+    v.textContent = '';
+    if (texto) vozAdiada = setTimeout(function () { v.textContent = texto; }, 80);
+  }
+  /* uma etapa nova: rola até ela e o foco vai para o título (A3), sem anel no clique */
+  function irPara(id) {
+    var bloco = $(id);
+    bloco.scrollIntoView({ block: 'start' });
+    var h = bloco.querySelector('h2');
+    if (!h) return;
+    if (!h.hasAttribute('tabindex')) h.setAttribute('tabindex', '-1');
+    h.focus({ preventScroll: true });
+  }
   function mensagemDe(e) {
     if (e && e.status === 0) return e.dados && e.dados.tempo ? e.message + ' Tente de novo em instantes.' : e.message;
     if (e && e.status === 503 && e.dados && e.dados.recuperavel) return RECUPERACAO;
@@ -104,7 +124,17 @@
     $('o-log-caixa').scrollTop = $('o-log-caixa').scrollHeight;   /* (quem rola é a caixa da conversa, não a lista) */
     return li;
   }
-  function ocupado(sim) { enviando = sim; mostrar('o-pensando', sim); $('o-form').setAttribute('aria-busy', String(sim)); $('o-enviar').disabled = sim; }
+  /* (aria-disabled, não disabled: o botão desligado com o foco nele jogava o foco no body, A3; o "enviando" já protege) */
+  function ocupado(sim) {
+    enviando = sim; mostrar('o-pensando', sim); $('o-form').setAttribute('aria-busy', String(sim));
+    if (sim) $('o-enviar').setAttribute('aria-disabled', 'true'); else $('o-enviar').removeAttribute('aria-disabled');
+  }
+  /* o chip de atalho some depois da 1ª mensagem: se o foco estava nele, passa antes para a caixa de texto (A3) */
+  function esconderAtalhos() {
+    if ($('o-atalhos').contains(document.activeElement) && !$('o-form').hidden) $('o-texto').focus({ preventScroll: true });
+    $('o-atalhos').hidden = true;
+  }
+  var ultimaDoAgente = function () { var a = E ? E.mensagens.filter(function (m) { return m.papel === 'agente'; }) : []; return a.length ? a[a.length - 1].conteudo : ''; };
 
   var visitantesNoServidor = function () { return E ? E.mensagens.filter(function (m) { return m.papel !== 'agente'; }).length : 0; };
 
@@ -113,8 +143,9 @@
     limparAviso();
     var antes = visitantesNoServidor(), totalAntes = E ? E.mensagens.length : 0;
     var minha = msg('visitante', texto);
-    $('o-atalhos').hidden = true;
+    esconderAtalhos();
     ocupado(true);
+    anunciar('Analisando…');
     var r;
     try { r = await API.mensagem(texto); }
     catch (e) { await falhaNoEnvio(e, texto, minha, antes); return; }
@@ -122,11 +153,12 @@
     /* a conversa no servidor agora tem +2 mensagens; se uma leitura de fundo já a redesenhou, não repete a resposta */
     var esperado = JSON.stringify(totalAntes + 2);
     if (assinaturas.conversa !== esperado) { assinaturas.conversa = esperado; msg('agente', r.resposta || 'Entendi.'); }
-    if (r.estimativa) investimento(r.estimativa, true);
+    var valorNovo = r.estimativa ? investimento(r.estimativa, true) : '';
+    anunciar((r.resposta || 'Entendi.') + (valorNovo ? ' Investimento estimado: ' + valorNovo + '.' : ''));
     if (r.sugestoes_ia && r.sugestoes_ia.length) sugestao(r.sugestoes_ia[0]);
     if (r.diagnostico) mostrar('o-diagnostico', true);
     try { await recarregar(); } catch (e) { /* o turno já está gravado; a espera ou a próxima ação atualizam */ }
-    if (r.pedir_contato && !$('o-contato').hidden) $('o-contato').scrollIntoView({ block: 'start' });
+    if (r.pedir_contato && !$('o-contato').hidden) $('o-contato').scrollIntoView({ block: 'start' });   /* (sem tirar o foco: a resposta ainda está sendo lida) */
   }
   /* a rede caiu ou o tempo estourou com a IA respondendo (F2): o turno pode ter sido gravado mesmo assim. A tela
      segue o servidor: relê o estado (render redesenha a conversa se ela mudou) e só devolve o texto à caixa se o
@@ -139,8 +171,9 @@
       if (minha.isConnected) minha.remove();
       if (!$('o-texto').value) $('o-texto').value = texto;
     }
-    if (sessaoTerminou(e)) return avisarSessao();
-    if (gravada) return;   /* a resposta já está na conversa: nada a refazer */
+    if (sessaoTerminou(e)) { anunciar(''); return avisarSessao(); }
+    if (gravada) { anunciar(ultimaDoAgente()); return; }   /* a resposta já está na conversa: nada a refazer */
+    anunciar('');
     var respondendo = e.status === 409 && /respondendo/i.test(e.message || '');   /* (a mensagem anterior ainda está com a IA) */
     avisar(mensagemDe(e), repetivel(e) || respondendo ? function () { reenviar(texto, antes); } : null);
   }
@@ -176,9 +209,10 @@
     ul.textContent = '';
     itens.forEach(function (i) { ul.appendChild(el('li', '', i.nome + (i.qtd > 1 ? ' × ' + i.qtd : ''))); });
   }
+  /* devolve o valor formatado quando o cartão mudou (a voz anuncia), '' quando não */
   function investimento(est, novo) {
     var c = cartaoDe(est);
-    if (c.valor_total == null || !mudou('investimento', c)) return;
+    if (c.valor_total == null || !mudou('investimento', c)) return '';
     mostrar('o-est-vazio', false);
     mostrar('o-est-cheio', true);
     $('o-est-formato').textContent = c.formato || '';
@@ -195,6 +229,7 @@
       lista($('o-est-fase-itens'), f.itens);
       $('o-est-fase-valor').textContent = 'Estimativa da fase seguinte: ' + dinheiro(f.valor_estimado) + '.';
     }
+    return dinheiro(c.valor_total);
   }
   function sugestao(s) {
     $('o-sugestao-ideia').textContent = s.ideia;
@@ -202,19 +237,30 @@
     mostrar('o-sugestao', true);
   }
 
-  /* ---------- o contato ---------- */
+  /* ---------- o contato ----------
+     O erro fica ligado ao campo (A7): aria-invalid nele; o aria-describedby do HTML aponta para a mensagem */
+  var CAMPOS_CONTATO = ['o-nome', 'o-tel', 'o-email', 'o-aceite'];
+  function erroNoCampo(campos, saida, id, texto) {
+    saida.textContent = texto;
+    campos.forEach(function (c) { if (c === id) $(c).setAttribute('aria-invalid', 'true'); else $(c).removeAttribute('aria-invalid'); });
+  }
+  function validarContato(d) {
+    if (d.nome.length < 2) return ['o-nome', 'Informe seu nome.'];
+    if (!d.telefone && !d.email) return ['o-tel', 'Informe o WhatsApp ou o e-mail.'];
+    if (manual() && !d.telefone) return ['o-tel', 'Informe seu WhatsApp: é por ele que avisamos quando as direções ficarem prontas.'];
+    if (!d.aceite) return ['o-aceite', 'É preciso concordar com o uso dos dados para receber as propostas.'];
+    return null;
+  }
   $('o-contato-form').addEventListener('submit', async function (ev) {
     ev.preventDefault();
     var form = this, erro = $('o-contato-erro');
     if (form.getAttribute('aria-busy') === 'true') return;
     var dados = { nome: $('o-nome').value.trim(), telefone: $('o-tel').value.trim(), email: $('o-email').value.trim(), aceite: $('o-aceite').checked };
-    if (dados.nome.length < 2) { erro.textContent = 'Informe seu nome.'; $('o-nome').focus(); return; }
-    if (!dados.telefone && !dados.email) { erro.textContent = 'Informe o WhatsApp ou o e-mail.'; $('o-tel').focus(); return; }
-    if (manual() && !dados.telefone) { erro.textContent = 'Informe seu WhatsApp: é por ele que avisamos quando as direções ficarem prontas.'; $('o-tel').focus(); return; }
-    if (!dados.aceite) { erro.textContent = 'É preciso concordar com o uso dos dados para receber as propostas.'; $('o-aceite').focus(); return; }
+    var ruim = validarContato(dados);
+    if (ruim) { erroNoCampo(CAMPOS_CONTATO, erro, ruim[0], ruim[1]); $(ruim[0]).focus(); return; }
     if (!dados.telefone) delete dados.telefone;
     if (!dados.email) delete dados.email;
-    erro.textContent = '';
+    erroNoCampo(CAMPOS_CONTATO, erro, null, '');
     /* só gera se a conversa ainda está ANTES das direções (F20: um contato apagado aos 60 dias reaparecia o
        formulário mais adiante, e o envio pedia a geração fora da etapa) */
     var gerarDepois = !!E && ['contato', 'estimativa'].indexOf(E.conversa.etapa) >= 0;
@@ -223,7 +269,9 @@
     catch (e) {
       form.removeAttribute('aria-busy');
       if (sessaoTerminou(e)) { avisarSessao(); return; }
-      erro.textContent = mensagemDe(e);
+      /* (a recusa do servidor também aponta o campo, quando diz qual) */
+      var m = mensagemDe(e), campo = /e-mail/i.test(m) ? 'o-email' : /whatsapp|telefone/i.test(m) ? 'o-tel' : /nome/i.test(m) ? 'o-nome' : null;
+      erroNoCampo(CAMPOS_CONTATO, erro, campo, m);
       return;
     }
     form.removeAttribute('aria-busy');
@@ -250,7 +298,7 @@
       try {
         await API.gerar();
         await recarregar();
-        $('o-direcoes').scrollIntoView({ block: 'start' });
+        irPara('o-direcoes');
       } catch (e) { falhou(e, e.status === 409 || e.status === 429 ? null : gerarTodas); }
     });
   }
@@ -289,7 +337,9 @@
     $('o-contato-lead').textContent = TEXTOS_MANUAL.contato;
     var opcional = document.querySelector('label[for="o-email"] .orc-opcional');
     if (opcional) opcional.textContent = '(opcional)';
+    $('o-tel-obrig').textContent = '(obrigatório)';   /* (A8: o rótulo diz, não só a validação) */
     $('o-tel').required = true;
+    $('o-tel').setAttribute('aria-required', 'true');
   }
   var podeEscolher = function () { return E && (E.conversa.etapa === 'direcoes' || E.conversa.etapa === 'escolhida'); };   /* (o servidor trava a troca depois do 1º ajuste) */
   var podeGerar = function () { return E && ['contato', 'estimativa', 'direcoes', 'escolhida'].indexOf(E.conversa.etapa) >= 0; };   /* (= app.vendas_iniciar_geracao) */
@@ -300,6 +350,7 @@
   function botaoAcao(classe, texto, aoClicar) { var b = botao(classe, texto, aoClicar); b.setAttribute('data-acao', ''); if (acaoEmVoo) b.setAttribute('aria-disabled', 'true'); return b; }
   function cartaoDirecao(d) {
     var li = el('li', 'dir');
+    li.setAttribute('data-id', d.id);
     var escolhida = escolhidaId() === d.id;
     if (escolhida) li.classList.add('is-escolhida');
     var mini = el('div', 'dir__mini');
@@ -373,7 +424,7 @@
   function escolher(id) {
     return umaAcao(async function () {
       limparAviso();
-      try { await API.escolher(id); visor.fechar(); await recarregar(); $('o-ajustes').scrollIntoView({ block: 'start' }); }
+      try { await API.escolher(id); visor.fechar(); await recarregar(); irPara('o-ajustes'); }
       catch (e) { falhou(e, e.status === 409 ? null : function () { escolher(id); }); }
     });
   }
@@ -440,7 +491,7 @@
   function fecharEscopo() {
     return umaAcao(async function () {
       limparAviso();
-      try { await API.escopo(); await recarregar(); $('o-escopo').scrollIntoView({ block: 'start' }); }
+      try { await API.escopo(); await recarregar(); irPara('o-escopo'); }
       catch (e) { falhou(e, e.status === 409 || repetivel(e) ? fecharEscopo : null); }
     });
   }
@@ -451,10 +502,11 @@
     ev.preventDefault();
     var form = this, erro = $('o-esc-erro');
     if (form.getAttribute('aria-busy') === 'true') return;
-    if (!$('o-confirmo').checked) { erro.textContent = 'Marque a confirmação do escopo.'; $('o-confirmo').focus(); return; }
+    if (!$('o-confirmo').checked) { erro.textContent = 'Marque a confirmação do escopo.'; $('o-confirmo').setAttribute('aria-invalid', 'true'); $('o-confirmo').focus(); return; }
     erro.textContent = '';
+    $('o-confirmo').removeAttribute('aria-invalid');
     form.setAttribute('aria-busy', 'true');
-    try { await API.confirmar(E.proposta.id, $('o-inicio').checked); await recarregar(); $('o-pagamento').scrollIntoView({ block: 'start' }); }
+    try { await API.confirmar(E.proposta.id, $('o-inicio').checked); await recarregar(); irPara('o-pagamento'); }
     catch (e) { if (sessaoTerminou(e)) avisarSessao(); else erro.textContent = mensagemDe(e); }
     finally { form.removeAttribute('aria-busy'); }
   });
@@ -511,23 +563,54 @@
     log.textContent = '';
     if (primeira) log.appendChild(primeira);
     E.mensagens.forEach(function (m) { msg(m.papel === 'agente' ? 'agente' : 'visitante', m.conteudo); });
-    $('o-atalhos').hidden = E.mensagens.length > 0;
+    if (E.mensagens.length > 0) esconderAtalhos(); else $('o-atalhos').hidden = false;
   }
   function direcoes() {
     var et = E.conversa.etapa;
     var temDirecoes = E.direcoes.length > 0;
     mostrar('o-direcoes', temDirecoes || (E.conversa.tem_contato && et === 'contato'));
     var resumo = E.direcoes.map(function (d) { return [d.id, d.status, d.conteudo]; });
+    anunciarProntas();
     if (mudou('direcoes', [resumo, escolhidaId(), podeEscolher(), podeGerar(), E.conversa.tem_contato])) {
       var ul = $('o-dirs');
+      var foco = focoNaLista(ul);
       ul.textContent = '';
       if (temDirecoes) { E.direcoes.forEach(function (d) { ul.appendChild(cartaoDirecao(d)); }); encaixarMinis(); }
       else if (E.conversa.tem_contato && podeGerar()) ul.appendChild(botaoAcao('btn btn--primary', 'Gerar as três direções', gerarTodas));   /* (F20: só na etapa que gera) */
+      devolverFocoNaLista(ul, foco);
     }
     if (manual()) $('o-dir-lead').textContent = E.direcoes.some(function (d) { return d.status === 'gerando'; }) || !temDirecoes ? TEXTOS_MANUAL.direcoes : TEXTOS_MANUAL.prontas;
     var emGeracao = manual() ? [] : E.direcoes.filter(function (d) { return d.status === 'gerando'; });   /* (fila manual: nada a pedir) */
     relogioDosCartoes(emGeracao.length > 0);
     emGeracao.forEach(function (d) { pedirDirecao(d.id); });
+  }
+  /* o foco estava num botão da lista que vai ser refeita: guarda qual (cartão + texto) para devolver depois */
+  function focoNaLista(ul) {
+    var a = document.activeElement;
+    if (!a || !ul.contains(a)) return null;
+    var li = a.closest('li[data-id]');
+    return { id: li ? li.getAttribute('data-id') : null, texto: a.textContent };
+  }
+  function devolverFocoNaLista(ul, foco) {
+    if (!foco) return;
+    var li = foco.id ? ul.querySelector('li[data-id="' + foco.id + '"]') : null;
+    var botoes = [].slice.call((li || ul).querySelectorAll('button'));
+    var alvo = botoes.filter(function (b) { return b.textContent === foco.texto; })[0] || botoes[0];
+    if (alvo) { alvo.focus({ preventScroll: true }); return; }
+    var h = $('o-dir-titulo');
+    if (!h.hasAttribute('tabindex')) h.setAttribute('tabindex', '-1');
+    h.focus({ preventScroll: true });
+  }
+  /* "Direção N pronta" só para o que ficou pronto COM a pessoa na página (a retomada não anuncia o que já estava) */
+  var statusVisto = null;
+  function anunciarProntas() {
+    var agora = {}, prontas = [];
+    E.direcoes.forEach(function (d) {
+      agora[d.id] = d.status;
+      if (statusVisto && statusVisto[d.id] && statusVisto[d.id] !== 'pronta' && d.status === 'pronta') prontas.push('Direção ' + d.numero + ' pronta.');
+    });
+    statusVisto = agora;
+    if (prontas.length) anunciar(prontas.join(' '));
   }
   function render() {
     var et = E.conversa.etapa;
