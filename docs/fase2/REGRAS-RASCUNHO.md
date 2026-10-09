@@ -9,8 +9,10 @@ Pesquisa de mercado de 2026, sempre na **metade de cima** das faixas de freelanc
 | Formato | Mercado (fonte) | Proposta | Prazo |
 |---|---|---|---|
 | Landing page | R$ 500 a R$ 2.500 com freelancer bom ([InfinitePay](https://www.infinitepay.io/blog/quanto-custa-criar-um-site), [Wix](https://pt.wix.com/blog/quanto-custa-uma-landing-page)) | Base R$ 1.500 (piso R$ 900) | 5 dias |
-| Institucional | R$ 800 a R$ 2.000 simples; R$ 2.500 a R$ 8.000 em média ([Locaweb](https://www.locaweb.com.br/blog/temas/primeiros-passos/quanto-custa-um-site/)) | Base R$ 3.200 com 5 páginas (piso R$ 2.200) | 8 dias |
-| Sob medida | R$ 2.000 a R$ 50.000 com funcionalidades ([Locaweb](https://www.locaweb.com.br/blog/temas/primeiros-passos/quanto-custa-um-site/)) | Base R$ 6.500 com 4 páginas (piso R$ 4.500) | 10 dias |
+| Institucional | R$ 800 a R$ 2.000 simples; R$ 2.500 a R$ 8.000 em média ([Locaweb](https://www.locaweb.com.br/blog/temas/primeiros-passos/quanto-custa-um-site/)) | Base R$ 3.500 com 5 páginas (piso R$ 2.200; era R$ 3.200, valor aprovado pelo dono em 2026-10-09) | 8 dias |
+| Experiência digital (sob medida) | R$ 2.000 a R$ 50.000 com funcionalidades ([Locaweb](https://www.locaweb.com.br/blog/temas/primeiros-passos/quanto-custa-um-site/)) | Base R$ 8.900 com 4 páginas (piso R$ 4.500; era R$ 6.500, aprovado em 2026-10-09: agência cobra de R$ 10.000 a R$ 35.000) | 10 dias |
+
+Em 2026-10-09 o dono aprovou também: textos de R$ 150 para R$ 250 por página ("escritos pela Beyon Zero") e integração de R$ 600 para R$ 900 (pesquisa em `03 Projetos/auditoria-2026-10-09/pesquisa-precos-loja-area-sistema.md`).
 
 Os adicionais seguem a mesma lógica: um valor por unidade, um prazo por unidade e uma prioridade. A prioridade define o que entra primeiro quando o prazo de 10 dias aperta.
 
@@ -27,12 +29,12 @@ Os adicionais seguem a mesma lógica: um valor por unidade, um prazo por unidade
 |---|---|---|---|
 | Landing page simples | R$ 1.500 | R$ 750 | 5 dias |
 | Landing page com urgência | R$ 1.950 | R$ 975 | 3 dias |
-| Institucional com 7 páginas, textos nas 7 e agendamento | Fase 1 de R$ 4.500 | R$ 2.250 | 10 dias |
-| Institucional com 10 páginas, blog e catálogo | Fase 1 de R$ 4.600 | R$ 2.300 | 10 dias |
-| Sob medida de complexidade alta | R$ 8.130 | R$ 4.065 | 10 dias |
+| Institucional com 7 páginas, textos nas 7 e agendamento | Fase 1 de R$ 5.200 | R$ 2.600 | 10 dias |
+| Institucional com 10 páginas, blog e catálogo | Fase 1 de R$ 4.900 | R$ 2.450 | 10 dias |
+| Experiência digital de complexidade alta | R$ 11.130 | R$ 5.565 | 10 dias |
 | Qualquer formato com loja virtual | sem preço automático | — | vai para o diagnóstico |
 
-No institucional com 7 páginas, a fase 1 traz as 2 páginas extras e os textos de 4 páginas. Ficam para a fase seguinte, com valor estimado de R$ 900, os textos de 3 páginas e o agendamento. No de 10 páginas, ficam para a fase seguinte, com R$ 2.750, uma página, o blog e o catálogo. É o efeito do teto de 10 dias: com base de 8 dias, o institucional tem 2 dias para adicionais. Se o dono quiser mais folga, é só baixar o prazo base ou o prazo dos adicionais.
+No institucional com 7 páginas, a fase 1 traz as 2 páginas extras e os textos de 4 páginas. Ficam para a fase seguinte, com valor estimado de R$ 1.200, os textos de 3 páginas e o agendamento. No de 10 páginas, ficam para a fase seguinte, com R$ 2.750, uma página, o blog e o catálogo. É o efeito do teto de 10 dias: com base de 8 dias, o institucional tem 2 dias para adicionais. Se o dono quiser mais folga, é só baixar o prazo base ou o prazo dos adicionais.
 
 ## O que o dono decide
 

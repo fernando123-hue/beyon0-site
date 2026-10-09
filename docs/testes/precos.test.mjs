@@ -29,15 +29,15 @@ test('casos de referência (os números do REGRAS-RASCUNHO.md)', () => {
   const l = estimar({ formato: 'landing_page' }, REGRAS);
   assert.deepEqual([l.valor_total, l.sinal, l.prazo_dias, l.fase], [1500, 750, 5, 'unica']);
   const i = estimar({ formato: 'institucional', paginas: 7, adicionais: { textos: 7, agendamento: 1 } }, REGRAS);
-  assert.deepEqual([i.valor_total, i.sinal, i.prazo_dias, i.fase], [4500, 2250, 10, 'fase1']);
+  assert.deepEqual([i.valor_total, i.sinal, i.prazo_dias, i.fase], [5200, 2600, 10, 'fase1']);
   assert.deepEqual(i.itens.map(x => x.chave + 'x' + x.qtd), ['pagina_extrax2', 'textosx4'], 'páginas antes dos textos, até o teto');
   assert.deepEqual(i.fase_seguinte.itens.map(x => x.chave + 'x' + x.qtd), ['textosx3', 'agendamentox1']);
-  assert.equal(i.fase_seguinte.valor_estimado, 900);
+  assert.equal(i.fase_seguinte.valor_estimado, 1200);   /* 3 textos × 250 + agendamento 450 */
   const g = estimar({ formato: 'institucional', paginas: 10, adicionais: { blog: 1, catalogo: 1 } }, REGRAS);
-  assert.deepEqual([g.valor_total, g.prazo_dias, g.fase, g.fase_seguinte.valor_estimado], [4600, 10, 'fase1', 2750]);
+  assert.deepEqual([g.valor_total, g.prazo_dias, g.fase, g.fase_seguinte.valor_estimado], [4900, 10, 'fase1', 2750]);
   const u = estimar({ formato: 'landing_page', urgencia: true }, REGRAS);
   assert.deepEqual([u.valor_total, u.prazo_dias], [1950, 3]);
-  assert.equal(estimar({ formato: 'sob_medida', complexidade: 'alta' }, REGRAS).valor_total, 8130);
+  assert.equal(estimar({ formato: 'sob_medida', complexidade: 'alta' }, REGRAS).valor_total, 11130);   /* 8900 × 1,25 = 11125, arredondado de 10 em 10 */
 });
 
 test('nunca passa do teto de prazo, nunca fica abaixo do piso', () => {

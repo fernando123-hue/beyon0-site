@@ -29,7 +29,7 @@ before(async () => {
   deps = { banco: local.rpc, visitantes: local.auth, ia: criarSimulada(), pagamentos: servico };
 });
 
-/* ---------- um visitante até a cobrança (sinal de R$ 1.825: institucional 3200 + agendamento 450, 50%) ---------- */
+/* ---------- um visitante até a cobrança (sinal de R$ 1.975: institucional 3500 + agendamento 450, 50%) ---------- */
 function navegador(d = deps) {
   const meuIp = '198.51.100.' + (++ip % 250);
   let token = null;
@@ -146,7 +146,7 @@ test('Pix: QR gerado; pedir de novo devolve o MESMO; pago só pelo aviso + consu
   assert.equal(r1.status, 200, JSON.stringify(r1.corpo));
   assert.equal(r1.corpo.tentativa.status, 'aguardando');
   assert.ok(r1.corpo.tentativa.pix_qr && r1.corpo.tentativa.pix_qr_base64);
-  assert.equal(Number(r1.corpo.pagamento.valor), 1825);
+  assert.equal(Number(r1.corpo.pagamento.valor), 1975);
   const r2 = await pagarPix(n, c);
   assert.equal(r2.corpo.tentativa.id, r1.corpo.tentativa.id, 'o mesmo Pix, nenhuma order nova');
   assert.equal(sim.chamadas.filter(x => x.metodo === 'POST' && x.caminho === '/v1/orders').length >= 1, true);
@@ -310,7 +310,7 @@ test('ataques financeiros: valor, conta, referência e moeda adulterados no prov
     const { n, c } = await ateCobranca();
     await pagarPix(n, c, { valor: 1, amount: '1.00', pagamento: { valor: 1 } });
     const t = await tentativaDe(c);
-    assert.equal(Number(t.valor), 1825, 'o valor veio da proposta, não do corpo');
+    assert.equal(Number(t.valor), 1975, 'o valor veio da proposta, não do corpo');
     sim.pagarPix(t.provedor_order_id);
     sim.editar(t.provedor_order_id, adulterar);
     assert.equal((await aviso(t.provedor_order_id)).status, 200);

@@ -21,7 +21,7 @@
     },
     "institucional": {
       "nome": "Site institucional",
-      "base": 3200,
+      "base": 3500,
       "piso": 2200,
       "prazo_dias": 8,
       "paginas_incluidas": 5,
@@ -35,7 +35,7 @@
     },
     "sob_medida": {
       "nome": "Experiência digital",
-      "base": 6500,
+      "base": 8900,
       "piso": 4500,
       "prazo_dias": 10,
       "paginas_incluidas": 4,
@@ -57,8 +57,8 @@
       "prioridade": 5
     },
     "textos": {
-      "nome": "Textos escritos por nós (por página)",
-      "valor": 150,
+      "nome": "Textos escritos pela Beyon Zero (por página)",
+      "valor": 250,
       "prazo_dias": 0.25,
       "max": 15,
       "prioridade": 10
@@ -100,7 +100,7 @@
     },
     "integracao": {
       "nome": "Integração (CRM, planilha, sistema)",
-      "valor": 600,
+      "valor": 900,
       "prazo_dias": 1,
       "max": 3,
       "prioridade": 35

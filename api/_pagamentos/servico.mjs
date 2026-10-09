@@ -69,7 +69,7 @@ function traduzirLimite(e) {
   if (e && e.codigo === '23514' && /cartão pausado/.test(m)) throw new ErroPagamento(503, 'O pagamento com cartão está pausado por segurança. Use o Pix ou fale com a Beyon Zero pelo WhatsApp.', { whatsapp: true });
   if (e && e.codigo === '23514' && /tentativas esgotadas/.test(m)) throw new ErroPagamento(429, 'Foram muitas tentativas de pagamento. Fale com a Beyon Zero pelo WhatsApp para concluir.', { whatsapp: true });
   if (e && e.codigo === '55P03') throw new ErroPagamento(429, 'Espere alguns segundos antes de tentar de novo.');
-  if (e && e.codigo === '55000' && /verificação/.test(m)) throw new ErroPagamento(409, 'Seu pagamento está em verificação pela equipe. A Beyon Zero fala com você em breve.', { whatsapp: true });
+  if (e && e.codigo === '55000' && /verificação/.test(m)) throw new ErroPagamento(409, 'Seu pagamento está em verificação. A Beyon Zero fala com você em breve.', { whatsapp: true });
   throw e;
 }
 
