@@ -5,6 +5,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
 const RAIZ = new URL('../../', import.meta.url);
 const HEADERS = JSON.parse(readFileSync(new URL('vercel.json', RAIZ), 'utf8')).headers || [];
@@ -53,4 +55,33 @@ test('CSP do /orcamento: sem origem que a página não usa (Google), com Mercado
   const d = diretivas(csp);
   for (const origem of ['https://sdk.mercadopago.com', 'https://challenges.cloudflare.com']) assert.ok(d['script-src'].includes(origem), origem);
   for (const origem of ['https://secure-fields.mercadopago.com', 'https://challenges.cloudflare.com']) assert.ok(d['frame-src'].includes(origem), origem);
+});
+
+/* (auditoria 2026-10-09, segurança 1) o .vercelignore pode não valer num deploy feito pelo Git: o que é do repositório
+   e não é página nem asset tem de ter uma regra no vercel.json que o tire do ar (o mesmo padrão de /docs e /supabase:
+   redirect para a página inicial). A lista vem do próprio git: um arquivo ou pasta novo na raiz sem regra falha aqui. */
+const PUBLICO = new Set(['api/', 'assets/', 'css/', 'js/', 'vendor/', 'robots.txt', 'sitemap.xml']);
+const ehPublico = nome => PUBLICO.has(nome) || /^[a-z0-9-]+\.(html|css)$/.test(nome);
+const REDIRECTS = JSON.parse(readFileSync(new URL('vercel.json', RAIZ), 'utf8')).redirects || [];
+/* a forma de caminho da Vercel (path-to-regexp): ":nome*" casa zero ou mais segmentos, ":nome" casa um trecho */
+const casaRedirect = caminho => REDIRECTS.some(r => new RegExp('^' + r.source
+  .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+  .replace(/\/:[a-z]+\*/gi, '(?:/.*)?')
+  .replace(/:[a-z]+\*/gi, '.*')
+  .replace(/:[a-z]+/gi, '[^/]+') + '$').test(caminho));
+
+test('deploy: nada do repositório que não é página nem asset fica no ar (regra no vercel.json para cada um)', () => {
+  const raiz = [...new Set(execFileSync('git', ['ls-files'], { cwd: fileURLToPath(RAIZ), encoding: 'utf8' })
+    .split('\n').filter(Boolean).map(f => (f.includes('/') ? f.split('/')[0] + '/' : f)))];
+  assert.ok(raiz.includes('index.html') && raiz.includes('docs/'), 'leu a raiz do repositório: ' + raiz.join(' '));
+  const internos = raiz.filter(n => !ehPublico(n));
+  const sem = internos.filter(n => (n.endsWith('/') ? !(casaRedirect('/' + n.slice(0, -1)) && casaRedirect('/' + n + 'qualquer/coisa.md')) : !casaRedirect('/' + n)));
+  assert.deepEqual(sem, [], 'sem regra no vercel.json (redirects): ' + sem.join(', '));
+  /* o que o .vercelignore tira do deploy (caminho fixo, sem curinga) também tem a regra, para o caso de ele não valer */
+  const ignorados = readFileSync(new URL('.vercelignore', RAIZ), 'utf8').split('\n').map(l => l.trim())
+    .filter(l => l && !l.startsWith('#') && !l.includes('*')).map(l => '/' + l.replace(/\/$/, ''));
+  const semRegra = ignorados.filter(p => !casaRedirect(p));
+  assert.deepEqual(semRegra, [], 'no .vercelignore e sem regra no vercel.json: ' + semRegra.join(', '));
+  /* a regra não pode pegar o site */
+  for (const p of ['/', '/sites', '/orcamento', '/css/base.css', '/js/core.js', '/api/vendas', '/robots.txt']) assert.ok(!casaRedirect(p), 'a regra tirou do ar uma página: ' + p);
 });
