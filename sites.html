@@ -85,7 +85,7 @@
 </head>
 <body class="pagina-sites" data-wa-padrao="quero um orçamento de site. Meu negócio:">
   <a href="#conteudo" class="skip-link">Pular para o conteúdo</a>
-  <button type="button" class="skip-link skip-link--mov" data-movimento aria-pressed="false">Reduzir movimento</button>
+  <button type="button" class="skip-link skip-link--mov" data-movimento aria-pressed="false" hidden>Reduzir movimento</button>
   <div class="atmosfera" aria-hidden="true"></div>
   <!-- a rede: o fundo vivo (js/rede.js) e o mini AI Core que segue a visita (js/mini.js) -->
   <canvas class="rede" data-rede aria-hidden="true"></canvas>
@@ -169,26 +169,26 @@
         <p class="lead">O que muda de um para o outro é o tamanho do problema, nunca o cuidado com o resultado.</p>
       </div>
       <div class="servicos servicos--pilha pilha reveal">
-        <a data-rotulo="A casa da marca" class="painel painel--tinta servico" href="/orcamento">
+        <a data-rotulo="A casa da marca" class="painel painel--tinta servico" href="/orcamento" aria-labelledby="formato-1-t formato-1-l" aria-describedby="formato-1-p">
           <span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span>
           <span class="servico__n" aria-hidden="true">01</span>
-          <h3>Site institucional</h3>
-          <p>A casa da marca. Quem você é, o que faz, para quem, e por que confiar, organizado para quem chegou sem te conhecer decidir te procurar.</p>
-          <span class="servico__link">Monte seu orçamento <span aria-hidden="true" data-seta="direita">→</span></span>
+          <h3 id="formato-1-t">Site institucional</h3>
+          <p id="formato-1-p">A casa da marca. Quem você é, o que faz, para quem, e por que confiar, organizado para quem chegou sem te conhecer decidir te procurar.</p>
+          <span class="servico__link" id="formato-1-l">Monte seu orçamento <span aria-hidden="true" data-seta="direita">→</span></span>
         </a>
-        <a data-rotulo="Um objetivo, nenhuma saída" class="painel painel--tinta servico" href="/orcamento">
+        <a data-rotulo="Um objetivo, nenhuma saída" class="painel painel--tinta servico" href="/orcamento" aria-labelledby="formato-2-t formato-2-l" aria-describedby="formato-2-p">
           <span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span>
           <span class="servico__n" aria-hidden="true">02</span>
-          <h3>Landing page</h3>
-          <p>Uma página, um objetivo, nenhuma saída lateral. Feita para campanha, lançamento ou anúncio, onde cada bloco leva a uma ação.</p>
-          <span class="servico__link">Monte seu orçamento <span aria-hidden="true" data-seta="direita">→</span></span>
+          <h3 id="formato-2-t">Landing page</h3>
+          <p id="formato-2-p">Uma página, um objetivo, nenhuma saída lateral. Feita para campanha, lançamento ou anúncio, onde cada bloco leva a uma ação.</p>
+          <span class="servico__link" id="formato-2-l">Monte seu orçamento <span aria-hidden="true" data-seta="direita">→</span></span>
         </a>
-        <a data-rotulo="Uma experiência só sua" class="painel painel--tinta servico" href="/orcamento">
+        <a data-rotulo="Uma experiência só sua" class="painel painel--tinta servico" href="/orcamento" aria-labelledby="formato-3-t formato-3-l" aria-describedby="formato-3-p">
           <span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span>
           <span class="servico__n" aria-hidden="true">03</span>
-          <h3>Experiência digital</h3>
-          <p>Quando o formato pronto não dá conta: identidade visual própria, interações e animações, apresentações e interfaces fora do comum.</p>
-          <span class="servico__link">Monte seu orçamento <span aria-hidden="true" data-seta="direita">→</span></span>
+          <h3 id="formato-3-t">Experiência digital</h3>
+          <p id="formato-3-p">Quando o formato pronto não dá conta: identidade visual própria, interações e animações, apresentações e interfaces fora do comum.</p>
+          <span class="servico__link" id="formato-3-l">Monte seu orçamento <span aria-hidden="true" data-seta="direita">→</span></span>
         </a>
       </div>
     </section>
@@ -198,7 +198,7 @@
         <div class="section__head reveal">
           <p class="kicker"><b aria-hidden="true">02</b> Padrão de entrega</p>
           <h2 id="incluso-titulo">O que vem em todo site, sem negociar.</h2>
-          <p class="lead">Isso não é extra. É o mínimo, e não se negocia.</p>
+          <p class="lead">Isso não é extra: é o mínimo de qualquer projeto.</p>
         </div>
         <div class="spec reveal tem-estacao tem-estacao--3">
           <article data-rotulo="Velocidade desde o começo" class="spec__item"><h3>Performance é requisito</h3><p>Velocidade é decisão de arquitetura do começo, não ajuste do fim. Um site lento perde a visita antes de ela virar leitura.</p></article>
@@ -287,8 +287,8 @@
     <div class="footer__grid">
       <div class="footer__brand">
         <a href="/" aria-label="Beyon Zero — início"><span class="wordmark wordmark--lg">Beyon <b>Zero</b></span></a>
-        <p>Ideias ganham forma. E o resultado se mede.</p>
-        <p class="footer__contato"><a data-wa href="https://wa.me/5521977167944">WhatsApp (21) 97716-7944</a> · Rio de Janeiro · atendo todo o Brasil</p>
+        <p>Ideias ganham forma. E&nbsp;o&nbsp;resultado se mede.</p>
+        <p class="footer__contato"><a data-wa href="https://wa.me/5521977167944">WhatsApp (21)&nbsp;97716-7944</a> · Rio&nbsp;de&nbsp;Janeiro · atendo todo o Brasil</p>
       </div>
       <nav class="footer__links" aria-label="Links desta página">
         <p class="footer__links-title">Nesta página</p>
@@ -304,11 +304,11 @@
       </nav>
     </div>
     <div class="footer__base">
-      <p class="footer__copy">© <span id="year">2026</span> Beyon Zero · Rio de Janeiro, RJ. Todos os direitos reservados.</p>
+      <p class="footer__copy">© <span id="year">2026</span> Beyon Zero · Rio&nbsp;de&nbsp;Janeiro, RJ. Todos os direitos reservados.</p>
       <div class="footer__legal">
         <a href="/privacidade">Privacidade</a>
         <button class="footer__cookies" type="button" data-consentimento-abrir hidden>Cookies</button>
-        <button class="footer__motion" type="button" aria-pressed="false">Reduzir movimento</button>
+        <button class="footer__motion" type="button" aria-pressed="false" hidden>Reduzir movimento</button>
       </div>
     </div>
   </footer>

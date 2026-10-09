@@ -29,6 +29,12 @@
     encaminhar[e2].href = 'https://wa.me/?text=' + encodeURIComponent(encaminhar[e2].getAttribute('data-encaminhar') + ' ' + location.origin + '/resumo');
     encaminhar[e2].rel = 'noopener noreferrer';
     encaminhar[e2].target = '_blank';
+    var aviso = document.createElement('span');   /* (sem innerHTML, regra do site) */
+    aviso.className = 'sr-only'; aviso.textContent = ' (abre em nova aba)';
+    encaminhar[e2].appendChild(aviso);
+    /* nasce hidden no HTML (o bloco ou o próprio link): sem JS ele levaria só ao /resumo, sem encaminhar nada */
+    var oculto = encaminhar[e2].closest('[hidden]');
+    if (oculto) oculto.hidden = false;
   }
   var links = document.querySelectorAll('[data-wa]');
   for (var i = 0; i < links.length; i++) {
@@ -67,7 +73,7 @@
   function fundoInerte(sim) {
     /* "Agendar diagnóstico" dentro do menu abre o modal e o menu fecha em seguida: o fundo continua do modal */
     if (!sim && document.body.classList.contains('is-lead-open')) return;
-    var fundo = document.querySelectorAll('main, footer, .barra, .wa, .skip-link');
+    var fundo = document.querySelectorAll('main, footer, .barra, .wa, .skip-link, .consentimento');   /* (o aviso de cookies, js/medicao.js, também fica por trás) */
     for (var f = 0; f < fundo.length; f++) { if (sim) fundo[f].setAttribute('inert', ''); else fundo[f].removeAttribute('inert'); }
   }
   if (navEl) {
@@ -402,6 +408,8 @@
      fazer: o sistema manda, e um botão que não ativa nada mentiria */
   if (B.sistemaReduz) { btnsMov.forEach(function (b) { b.hidden = true; }); btnsMov = []; }
   if (btnsMov.length) {
+    /* nascem hidden no HTML: sem JS (ou sem o núcleo) o botão não faria nada (auditoria 2026-10-09) */
+    btnsMov.forEach(function (b) { b.hidden = false; });
     var rotular = function () {
       var ligado = html.classList.contains('menos-movimento') ? 'true' : 'false';
       btnsMov.forEach(function (b) { b.setAttribute('aria-pressed', ligado); });

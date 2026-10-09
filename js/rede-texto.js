@@ -49,7 +49,9 @@
         /* texto partido em letras (js/carga.js): a zona é o elemento inteiro, logo abaixo (letra a letra, um card
            virava ~250 zonas: custo por quadro e o apagado engrossava) */
         if (el.closest('[data-carga-split]')) continue;
-        if (!el.offsetParent || el.closest(FORA + ', .hero__arte, script, style, noscript')) continue;
+        /* (.sr-only: as cópias só para o leitor de tela, js/carga.js e js/escrita.js, são invisíveis; medi-las abria
+           buracos na rede sem texto à vista) */
+        if (!el.offsetParent || el.closest(FORA + ', .hero__arte, .sr-only, script, style, noscript')) continue;
         /* o 1º fragmento (num inline que quebra de linha, o offsetLeft é dele;
            a caixa inteira começaria mais à esquerda) */
         q = posicaoDoc(el); caixa = el.getClientRects()[0] || el.getBoundingClientRect(); ref = refDe(el);
