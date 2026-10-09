@@ -34,7 +34,7 @@
   function mensagem(nome) {
     var oi = primeiroNome(nome) ? 'Oi, ' + primeiroNome(nome) + '!' : 'Oi!';
     return oi + ' Aqui é da Beyon Zero. As três direções do seu site ficaram prontas. É só abrir ' + location.origin +
-      '/orcamento no mesmo aparelho em que você fez o orçamento, comparar e escolher a sua.';
+      '/orcamento no mesmo navegador em que você fez o orçamento, comparar e escolher a sua.';
   }
   /* telefone do banco em E.164 (+5521…): o link só leva os dígitos */
   var linkWhatsApp = function (tel, texto) { return 'https://wa.me/' + String(tel).replace(/\D/g, '') + '?text=' + encodeURIComponent(texto); };

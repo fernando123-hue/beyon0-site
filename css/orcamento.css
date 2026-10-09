@@ -26,10 +26,22 @@
 .orc-etapas li[aria-current="step"] { color: var(--t1); }
 .orc-etapas li[aria-current="step"] span { color: var(--ac); }
 .orc-etapas li[aria-current="step"]::before { background: var(--ac); }
+/* celular (auditoria 2026-10-09, D2/A6): a régua cortada escondia etapas sem sinal de rolagem; abaixo de 600px as
+   seis etapas ficam em 3 colunas × 2 linhas, tudo à vista; cada etapa leva o próprio pedaço da régua */
+@media (max-width: 599px) {
+  .orc-etapas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: .5rem; overflow: visible; border-top: 0; }
+  .orc-etapas li { min-width: 0; padding-right: .5rem; border-top: 1px solid var(--line); white-space: normal; overflow-wrap: anywhere; }
+  .orc-etapas li::before { right: .5rem; }
+}
+@media (max-width: 359px) { .orc-etapas li { letter-spacing: .04em; padding-right: .4rem; } .orc-etapas li::before { right: .4rem; } }
+
+/* o código do pedido (8 primeiros caracteres da conversa, o mesmo id curto do painel): discreto, para citar no WhatsApp */
+.orc-codigo { margin-top: .9rem; font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-dado); color: var(--t3); }
+.orc-codigo b { font-weight: 500; color: var(--t2); }
 
 /* ---------- aviso de falha (a recuperação elegante) ---------- */
 .orc-aviso { margin: 1.6rem 0 0; padding: 1rem 1.1rem; border: 1px solid var(--line-2); border-left: 2px solid rgb(var(--ouro-rgb)); background: var(--s1); color: var(--t1); }
-.orc-aviso a { color: var(--ac); }
+.orc-aviso a:not(.btn) { color: var(--t1); text-decoration: underline; text-decoration-color: var(--line-hi); text-underline-offset: 4px; }
 .orc-aviso__acoes { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .8rem; }
 
 /* ---------- a mesa: conversa + investimento ---------- */
@@ -39,7 +51,11 @@
 .orc-painel { display: flex; flex-direction: column; gap: 1.2rem; }
 .orc-painel > .orc-rotulo { margin-bottom: -.6rem; }
 
-.orc-log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .8rem; max-height: min(56vh, 520px); overflow-y: auto; overscroll-behavior: contain; scroll-behavior: smooth; }
+/* a caixa rolável é uma região focável (A17: no Safari, sem foco, o teclado não rola); a lista fica dentro */
+.orc-log { max-height: min(56vh, 520px); overflow-y: auto; overscroll-behavior: contain; scroll-behavior: smooth; }
+.orc-log:focus { outline: none; }
+.orc-log:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
+.orc-log__lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .8rem; }
 .msg { max-width: 92%; font-size: var(--fs-b); line-height: 1.55; }
 .msg p { white-space: pre-wrap; overflow-wrap: anywhere; }
 .msg--agente { align-self: flex-start; color: var(--t1); padding-left: .8rem; border-left: 1px solid var(--line-hi); }
@@ -52,8 +68,11 @@
 @keyframes orc-fio { to { transform: translateX(100%); } }
 
 .orc-atalhos { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
-.chip { min-height: 44px; padding: .5rem .9rem; border: 1px solid var(--stroke); border-radius: 999px; background: transparent; color: var(--t1); font: inherit; font-size: var(--fs-s); cursor: pointer; transition: border-color var(--t-micro) var(--ease-micro), color var(--t-micro) var(--ease-micro); }
+.chip { min-height: 44px; padding: .5rem .9rem; border: 1px solid var(--stroke); border-radius: var(--raio-s); background: transparent; color: var(--t1); font: inherit; font-size: var(--fs-s); cursor: pointer; transition: border-color var(--t-micro) var(--ease-micro), color var(--t-micro) var(--ease-micro); }
 .chip:hover, .chip[aria-pressed="true"] { border-color: var(--ac); color: var(--ac); }
+/* selecionado também pela FORMA, não só pela cor (A21): o ✓ antes do rótulo e a borda dupla */
+.chip[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--ac); }
+.chip[aria-pressed="true"]::before { content: "✓"; content: "✓" / ""; margin-right: .4em; font-family: var(--mono); }
 .chip:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
 
 .orc-envio { display: flex; gap: .6rem; align-items: flex-end; margin-top: 1rem; }
@@ -63,9 +82,17 @@
 .orc-envio textarea { resize: vertical; max-height: 40vh; }
 .orc-envio textarea:focus-visible, .orc-form input:focus-visible { outline: 2px solid var(--ac); outline-offset: 1px; border-color: var(--ac); }
 .orc-envio .btn { flex: none; }
+/* celular estreito (D3/A6): a caixa de texto ao lado do Enviar ficava com ~110px; abaixo de 480px, uma coluna */
+@media (max-width: 479px) {
+  .orc-envio { flex-direction: column; align-items: stretch; }
+  .orc-envio .btn { width: 100%; min-height: 48px; justify-content: center; }
+}
 .orc-nota { margin-top: .8rem; font-size: var(--fs-s); color: var(--t3); }
-.orc-nota a, .orc-bloco a, .orc-check a { color: var(--ac); text-decoration: underline; text-underline-offset: 3px; }
-[aria-busy="true"] .btn[type="submit"], .btn[disabled] { opacity: .55; pointer-events: none; }
+/* links de texto sem ciano (regra 8; D10): o mesmo traje do .cta__alt das outras páginas, alvo de 44px na altura */
+.orc-nota a, .orc-bloco a:not(.btn), .orc-check a { display: inline-block; padding-block: .7rem; margin-block: -.7rem; color: var(--t1); text-decoration: underline; text-decoration-color: var(--line-hi); text-underline-offset: 4px; transition: text-decoration-color var(--t-micro) var(--ease-micro); }
+.orc-nota a:hover, .orc-bloco a:not(.btn):hover, .orc-check a:hover, .orc-aviso a:not(.btn):hover { text-decoration-color: var(--ac); }
+.orc-sem-quebra { white-space: nowrap; }
+[aria-busy="true"] .btn[type="submit"], .btn[disabled], .btn[aria-disabled="true"] { opacity: .55; pointer-events: none; }
 
 /* ---------- o investimento (dado: o ciano é permitido aqui) ---------- */
 .orc-est__vazio { color: var(--t2); font-size: var(--fs-s); line-height: 1.6; }
@@ -90,11 +117,15 @@
 /* ---------- os blocos das etapas seguintes ---------- */
 .orc-bloco { margin-top: var(--sp-1); padding-top: var(--sp-1); border-top: 1px solid var(--line); }
 .orc-bloco h2 { font-weight: 300; font-size: clamp(1.7rem, 1.2rem + 2.2vw, 2.6rem); letter-spacing: -.02em; line-height: 1.1; }
+/* (a etapa nova recebe o foco no título, A3: sem anel no clique, com anel no teclado) */
+.orc-bloco h2:focus { outline: none; }
+.orc-bloco h2:focus-visible { outline: 2px solid var(--ac); outline-offset: 4px; }
 .orc-bloco__lead { color: var(--t2); max-width: 60ch; margin: .8rem 0 1.4rem; line-height: 1.6; }
 
 .orc-form { display: flex; flex-direction: column; gap: .5rem; max-width: 520px; }
 .orc-form label:not(.orc-check) { font-size: var(--fs-s); color: var(--t2); margin-top: .6rem; }
 .orc-opcional { color: var(--t3); }
+.orc-form input[aria-invalid="true"] { border-color: rgb(var(--ouro-rgb)); }
 .orc-check { display: flex; gap: .7rem; align-items: flex-start; margin-top: .9rem; font-size: var(--fs-s); color: var(--t2); line-height: 1.5; cursor: pointer; }
 .orc-check input { flex: none; width: 22px; height: 22px; margin: 0; accent-color: var(--ac); }
 .orc-erro { min-height: 1.4em; color: rgb(var(--ouro-rgb)); font-size: var(--fs-s); }
@@ -136,7 +167,7 @@
 .orc-escopo { white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--mono); font-size: var(--fs-s); line-height: 1.7; color: var(--t1); background: var(--s1); border: 1px solid var(--line); border-radius: var(--raio); padding: 1rem; max-height: 60vh; overflow-y: auto; margin-bottom: 1rem; }
 .orc-escopo:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
 .orc-pag-status { margin-top: 1rem; min-height: 1.5em; font-family: var(--mono); font-size: var(--fs-s); color: var(--t2); }
-.orc-pag-status a { color: var(--ac); }
+.orc-pag-status a { color: var(--t1); text-decoration: underline; text-decoration-color: var(--line-hi); text-underline-offset: 4px; }
 
 /* ---------- O RECIBO do sinal pago (js/orcamento-recibo.js; referência: docs/design/referencias-2026-10-07-recibo.md).
    O estado final é o padrão (quem volta vê o recibo pronto); .is-chegando só declara os COMEÇOS, com fill backwards.
@@ -263,14 +294,13 @@ html.menos-movimento .recibo.is-chegando, html.menos-movimento .recibo.is-chegan
 .visor { position: fixed; inset: 0; z-index: 90; display: flex; flex-direction: column; background: var(--bg); }
 .visor[hidden] { display: none; }
 .visor__barra { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .6rem; padding: .5rem var(--pad); border-bottom: 1px solid var(--line); }
-.visor__titulo { order: 0; flex: 1 1 calc(100% - 60px); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-ctrl); text-transform: uppercase; color: var(--t2); }
+.visor__titulo { order: 0; flex: 1 1 calc(100% - 60px); min-width: 0; max-width: none; margin: 0; line-height: 1.4; font-weight: 400; text-wrap: nowrap; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-ctrl); text-transform: uppercase; color: var(--t2); }
 .visor__fechar { order: 1; flex: none; width: 44px; height: 44px; border: 1px solid var(--stroke); border-radius: 50%; background: transparent; color: var(--t1); font-size: 1.4rem; line-height: 1; cursor: pointer; }
 .visor__fechar:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
 .visor__abas, .visor__aparelho { order: 2; display: flex; gap: .35rem; }
 .visor__aparelho { margin-left: auto; }
 .visor .chip { min-height: 40px; padding: .3rem .8rem; }
 .visor__abas .chip { min-width: 40px; }
-.visor__abas .chip[aria-selected="true"] { border-color: var(--ac); color: var(--ac); }
 .visor__rodape { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .6rem 1rem; padding: .6rem var(--pad) calc(.6rem + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); }
 .visor__aviso { flex: 1 1 240px; font-size: var(--fs-s); color: var(--t3); }
 .visor__rodape .btn { flex: 1 1 auto; }
@@ -284,7 +314,10 @@ html.menos-movimento .recibo.is-chegando, html.menos-movimento .recibo.is-chegan
 html.visor-aberto { overflow: hidden; }
 
 /* ---------- rodapé com a identificação do vendedor (Decreto 7.962/2013) ---------- */
-.orc-rodape { margin-top: var(--sp-2); }
+/* sem o vão vazio no topo (D5): o rodapé daqui só tem a linha de base; e sem a folga da barra fixa, que esta página não tem */
+.orc-rodape { margin-top: 0; padding-top: clamp(24px, 4vw, 40px); }
+.orc-rodape .footer__base { margin-top: 0; }
+@media (max-width: 980px) { body.orc { padding-bottom: 0; } }
 .orc-vendedor { font-size: var(--fs-s); color: var(--t3); }
 
 /* ---------- desktop ---------- */
@@ -305,6 +338,10 @@ html.visor-aberto { overflow: hidden; }
   .orc-est__valor.is-novo { animation: none; }
   .orc-log { scroll-behavior: auto; }
 }
+/* o interruptor "Reduzir movimento" do rodapé (js/pagina.js) vale aqui também */
+html.menos-movimento .orc-pensando__fio::after { animation: none; transform: none; opacity: .6; }
+html.menos-movimento .orc-est__valor.is-novo { animation: none; }
+html.menos-movimento .orc-log { scroll-behavior: auto; }
 
 /* ---------- pagamento do sinal (Pix e cartão no próprio site) ---------- */
 .pag { max-width: 560px; gap: .4rem; }

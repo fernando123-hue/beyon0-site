@@ -74,11 +74,12 @@
         <li data-passo="direcoes"><span>03</span>Direções</li>
         <li data-passo="ajustes"><span>04</span>Ajustes</li>
         <li data-passo="escopo"><span>05</span>Escopo</li>
-        <li data-passo="pagamento"><span>06</span>Início</li>
+        <li data-passo="pagamento"><span>06</span>Sinal</li>
       </ol>
+      <p class="orc-codigo" id="o-codigo" hidden>Código do pedido <b id="o-codigo-v"></b><span class="orc-codigo__nota"> · fica salvo neste navegador; cite-o se falar com a Beyon Zero</span></p>
     </section>
 
-    <noscript><p class="orc-aviso orc-aviso--semjs">Esta página precisa de JavaScript. Fale com a Beyon Zero pelo <a href="https://wa.me/5521977167944">WhatsApp (21) 97716-7944</a>.</p></noscript>
+    <noscript><p class="orc-aviso orc-aviso--semjs">Esta página precisa de JavaScript. Fale com a Beyon Zero pelo <a href="https://wa.me/5521977167944">WhatsApp (21)&nbsp;97716-7944</a>.</p></noscript>
 
     <div class="orc-aviso" id="o-aviso" data-origem="orcamento-erro" role="alert" tabindex="-1" hidden>
       <p id="o-aviso-texto"></p>
@@ -88,13 +89,18 @@
       </div>
     </div>
 
+    <!-- o que um leitor de tela ouve (A2): "Analisando…", a resposta do consultor, o investimento, as direções prontas -->
+    <p class="sr-only" id="o-voz" role="status"></p>
+
     <div class="orc-mesa">
       <!-- A CONVERSA -->
       <section class="orc-conversa" data-origem="orcamento-conversa" aria-labelledby="o-conversa-titulo">
         <h2 id="o-conversa-titulo" class="orc-rotulo">Conversa com o consultor</h2>
-        <ol class="orc-log" id="o-log" aria-live="polite" aria-relevant="additions">
-          <li class="msg msg--agente"><p>Olá! Me conte sobre o seu negócio e o que você espera do site. Pode ser do seu jeito, sem termos técnicos.</p></li>
-        </ol>
+        <div class="orc-log" id="o-log-caixa" tabindex="0" role="region" aria-label="Conversa">
+          <ol class="orc-log__lista" id="o-log">
+            <li class="msg msg--agente"><p>Olá! Me conte sobre o seu negócio e o que você espera do site. Pode ser do seu jeito, sem termos técnicos.</p></li>
+          </ol>
+        </div>
         <p class="orc-pensando" id="o-pensando" hidden><span class="orc-pensando__fio" aria-hidden="true"></span>Analisando o seu caso…</p>
         <div class="orc-atalhos" id="o-atalhos">
           <button type="button" class="chip" data-atalho="Quero um site para o meu negócio.">Quero um site</button>
@@ -103,12 +109,12 @@
         </div>
         <form class="orc-envio" id="o-form" novalidate>
           <label class="sr-only" for="o-texto">Sua mensagem</label>
-          <textarea id="o-texto" rows="2" maxlength="2000" placeholder="Ex.: tenho uma clínica em Niterói e quero mais agendamentos" autocomplete="off"></textarea>
+          <textarea id="o-texto" rows="3" maxlength="2000" placeholder="Ex.: tenho uma clínica em Niterói e quero mais agendamentos" autocomplete="off"></textarea>
           <button class="btn btn--primary" type="submit" id="o-enviar">Enviar</button>
         </form>
         <div class="orc-turnstile" id="o-turnstile"></div>
         <p class="orc-nota" id="o-conversa-fechada" hidden>A conversa com o consultor ficou registrada acima. Daqui em diante, o seu orçamento segue pelas etapas abaixo.</p>
-        <p class="orc-nota">Prefere falar com uma pessoa? <a data-wa href="https://wa.me/5521977167944">Chame no WhatsApp</a>.</p>
+        <p class="orc-nota">Prefere falar com uma pessoa? <a class="orc-sem-quebra" data-wa href="https://wa.me/5521977167944">Chame no WhatsApp</a>.</p>
         <p class="orc-nota">Não escreva senhas nem dados de cartão aqui. <a href="/privacidade#orcamento">Como a conversa é tratada</a>.</p>
       </section>
 
@@ -151,9 +157,9 @@
       <h2 id="o-contato-titulo">Para quem vamos desenhar?</h2>
       <p class="orc-bloco__lead" id="o-contato-lead">Com o seu contato, o consultor gera três direções de site para o seu negócio: uma focada em conversão, uma em autoridade e uma em experiência.</p>
       <form class="orc-form" id="o-contato-form" novalidate>
-        <label for="o-nome">Seu nome</label>
+        <label for="o-nome">Seu nome <span class="orc-opcional">(obrigatório)</span></label>
         <input id="o-nome" name="nome" autocomplete="name" maxlength="120" required />
-        <label for="o-tel">WhatsApp</label>
+        <label for="o-tel">WhatsApp <span class="orc-opcional" id="o-tel-obrig">(ou só o e-mail)</span></label>
         <input id="o-tel" name="telefone" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="(21) 99999-0000" />
         <label for="o-email">E-mail <span class="orc-opcional">(ou só o WhatsApp)</span></label>
         <input id="o-email" name="email" type="email" autocomplete="email" maxlength="254" />
@@ -173,16 +179,16 @@
     <!-- AJUSTES -->
     <section class="orc-bloco" id="o-ajustes" aria-labelledby="o-aj-titulo" hidden>
       <h2 id="o-aj-titulo">Ajuste do seu jeito</h2>
-      <p class="orc-bloco__lead">Escreva o que mudaria (a troca de direção vale até o primeiro ajuste). Exemplos: "quero a cor da primeira", "coloque os depoimentos antes dos serviços", "quero mais uma página".</p>
+      <p class="orc-bloco__lead">Escreva o que mudaria (a troca de direção vale até o primeiro ajuste). Exemplos: “quero a cor da primeira”, “coloque os depoimentos antes dos serviços”, “quero mais uma página”.</p>
       <div class="orc-versao" id="o-versao"></div>
       <p class="orc-aj-resposta" id="o-aj-resposta" aria-live="polite"></p>
       <ul class="orc-mudancas" id="o-mudancas"></ul>
       <form class="orc-envio" id="o-aj-form" novalidate>
         <label class="sr-only" for="o-aj-texto">O que você mudaria?</label>
-        <textarea id="o-aj-texto" rows="2" maxlength="2000" placeholder="O que você mudaria?"></textarea>
+        <textarea id="o-aj-texto" rows="3" maxlength="2000" placeholder="O que você mudaria?"></textarea>
         <button class="btn" type="submit">Aplicar</button>
       </form>
-      <button class="btn btn--primary orc-seguir" type="button" id="o-fechar-escopo">Está bom assim: ver o escopo final</button>
+      <button class="btn btn--primary orc-seguir" type="button" id="o-fechar-escopo" data-acao>Está bom assim: ver o escopo final</button>
     </section>
 
     <!-- ESCOPO FINAL -->
@@ -207,18 +213,18 @@
 
       <form class="orc-form pag" id="o-pag-form" novalidate>
         <div class="pag-metodos" role="radiogroup" aria-label="Forma de pagamento">
-          <button type="button" class="pag-metodo" role="radio" aria-checked="true" data-metodo="pix"><span class="pag-metodo__nome">Pix</span><span class="pag-metodo__nota">QR Code ou copia e cola</span></button>
-          <button type="button" class="pag-metodo" role="radio" aria-checked="false" data-metodo="cartao"><span class="pag-metodo__nome">Cartão</span><span class="pag-metodo__nota">crédito ou débito</span></button>
+          <button type="button" class="pag-metodo" role="radio" aria-checked="true" tabindex="0" data-metodo="pix"><span class="pag-metodo__nome">Pix</span><span class="pag-metodo__nota">QR Code ou copia e cola</span></button>
+          <button type="button" class="pag-metodo" role="radio" aria-checked="false" tabindex="-1" data-metodo="cartao"><span class="pag-metodo__nome">Cartão</span><span class="pag-metodo__nota">crédito ou débito</span></button>
         </div>
         <fieldset class="pag-grupo">
           <legend>Quem paga</legend>
           <div class="pag-par">
-            <div><label for="o-pag-nome">Nome</label><input id="o-pag-nome" autocomplete="given-name" maxlength="60" required /></div>
-            <div><label for="o-pag-sobrenome">Sobrenome</label><input id="o-pag-sobrenome" autocomplete="family-name" maxlength="60" required /></div>
+            <div><label for="o-pag-nome">Nome <span class="orc-opcional">(obrigatório)</span></label><input id="o-pag-nome" autocomplete="given-name" maxlength="60" required /></div>
+            <div><label for="o-pag-sobrenome">Sobrenome <span class="orc-opcional">(obrigatório)</span></label><input id="o-pag-sobrenome" autocomplete="family-name" maxlength="60" required /></div>
           </div>
-          <label for="o-pag-email">E-mail</label>
+          <label for="o-pag-email">E-mail <span class="orc-opcional">(obrigatório)</span></label>
           <input id="o-pag-email" type="email" autocomplete="email" maxlength="254" required />
-          <label for="o-pag-doc">CPF ou CNPJ</label>
+          <label for="o-pag-doc">CPF ou CNPJ <span class="orc-opcional">(obrigatório)</span></label>
           <input id="o-pag-doc" inputmode="numeric" autocomplete="off" maxlength="18" required />
         </fieldset>
         <fieldset class="pag-grupo" id="o-pag-cartao" hidden>
@@ -226,15 +232,15 @@
           <p class="orc-nota" id="o-pag-carregando" aria-live="polite"></p>
           <div id="o-pag-campos">
             <p class="orc-nota">Os campos do cartão são do Mercado Pago: os números não passam pelo site da Beyon Zero.</p>
-            <span class="pag-rotulo" id="o-mp-numero-rotulo">Número do cartão</span>
-            <div class="pag-campo" id="o-mp-numero" aria-labelledby="o-mp-numero-rotulo"></div>
+            <span class="pag-rotulo" id="o-mp-numero-rotulo">Número do cartão <span class="orc-opcional">(obrigatório)</span></span>
+            <div class="pag-campo" id="o-mp-numero" role="group" aria-labelledby="o-mp-numero-rotulo"></div>
             <div class="pag-par">
-              <div><span class="pag-rotulo" id="o-mp-validade-rotulo">Validade</span><div class="pag-campo" id="o-mp-validade" aria-labelledby="o-mp-validade-rotulo"></div></div>
-              <div><span class="pag-rotulo" id="o-mp-cvv-rotulo">Código de segurança</span><div class="pag-campo" id="o-mp-cvv" aria-labelledby="o-mp-cvv-rotulo"></div></div>
+              <div><span class="pag-rotulo" id="o-mp-validade-rotulo">Validade <span class="orc-opcional">(obrigatório)</span></span><div class="pag-campo" id="o-mp-validade" role="group" aria-labelledby="o-mp-validade-rotulo"></div></div>
+              <div><span class="pag-rotulo" id="o-mp-cvv-rotulo">Código de segurança <span class="orc-opcional">(obrigatório)</span></span><div class="pag-campo" id="o-mp-cvv" role="group" aria-labelledby="o-mp-cvv-rotulo"></div></div>
             </div>
           </div>
           <p class="orc-nota pag-local" id="o-pag-local" hidden>Modo local, sem dinheiro: no nome do titular, use APRO (aprova), FUND (sem limite), OTHE (recusa), CONT (em análise) ou CHAL (confirmação do banco).</p>
-          <label for="o-titular">Nome impresso no cartão</label>
+          <label for="o-titular">Nome impresso no cartão <span class="orc-opcional">(obrigatório)</span></label>
           <input id="o-titular" autocomplete="cc-name" maxlength="60" />
           <label for="o-parcelas">Parcelas</label>
           <select id="o-parcelas"></select>
@@ -316,7 +322,7 @@
   <!-- O VISOR das prévias: abrir, navegar e comparar -->
   <div class="visor" id="o-visor" role="dialog" aria-modal="true" aria-labelledby="o-visor-titulo" hidden>
     <div class="visor__barra">
-      <p class="visor__titulo" id="o-visor-titulo"></p>
+      <h2 class="visor__titulo" id="o-visor-titulo"></h2>
       <div class="visor__abas" role="group" aria-label="Direções" id="o-visor-abas"></div>
       <div class="visor__aparelho" role="group" aria-label="Tamanho da tela">
         <button type="button" class="chip" data-aparelho="390" aria-pressed="true">Celular</button>
@@ -325,19 +331,24 @@
       <button type="button" class="visor__fechar" id="o-visor-fechar" aria-label="Fechar a prévia">×</button>
     </div>
     <p class="visor__resumo" id="o-visor-resumo"></p>
+    <p class="sr-only" id="o-visor-voz" role="status"></p>
     <div class="visor__palco" id="o-visor-palco" tabindex="0" role="region" aria-label="Prévia do site"></div>
     <div class="visor__rodape">
       <p class="visor__aviso">Prévia de direção: textos entre colchetes são espaços para os seus dados reais.</p>
-      <button type="button" class="btn btn--primary" id="o-visor-escolher">Escolher esta direção</button>
+      <button type="button" class="btn btn--primary" id="o-visor-escolher" data-acao>Escolher esta direção</button>
     </div>
   </div>
 
   <footer class="footer orc-rodape">
     <div class="footer__base">
       <p class="footer__copy">© <span id="year">2026</span> Beyon Zero · Rio de Janeiro, RJ.</p>
-      <p class="orc-vendedor" id="o-vendedor">Vendedor: [nome completo do responsável] · CPF [número] · [endereço completo] · WhatsApp (21) 97716-7944</p>
+      <!-- PENDÊNCIA DO DONO (Decreto 7.962/2013, art. 2º): nome completo do vendedor, CPF/CNPJ e endereço físico.
+           A linha fica escondida até ele preencher com os dados reais (nada aqui pode ser inventado).
+           O PAGAMENTO NÃO VAI A PRODUÇÃO SEM ESTA LINHA PREENCHIDA E VISÍVEL (tirar o hidden). -->
+      <p class="orc-vendedor" id="o-vendedor" hidden>Vendedor: [nome completo do responsável] · CPF [número] · [endereço completo] · WhatsApp (21)&nbsp;97716-7944</p>
       <div class="footer__legal">
         <a href="/privacidade">Privacidade</a>
+        <button class="footer__motion" type="button" aria-pressed="false">Reduzir movimento</button>
       </div>
     </div>
   </footer>

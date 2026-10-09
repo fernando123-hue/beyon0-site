@@ -6,7 +6,10 @@
    • Diálogo modal: foco vai para o fechar, fica preso dentro, Escape fecha e
      devolve o foco a quem abriu (ou ao botão "Abrir prévia" daquela direção,
      se o cartão foi refeito).
-   • As direções são botões com aria-pressed (não abas sem setas).
+   • As direções são botões com aria-pressed (não abas sem setas); a troca é anunciada (role=status).
+   • O fundo fica inert enquanto o visor está aberto (A13).
+   • O Voltar do celular fecha o visor em vez de sair do /orcamento (F21): abrir empilha um estado no
+     histórico; fechar pelo botão ou pelo Escape desempilha.
    Uso: BZVisor.criar({ lista, podeEscolher, escolhida, aoEscolher })
    ========================================================================== */
 (function () {
@@ -21,6 +24,39 @@
     var estado = { id: null, largura: 390, origem: null, assinatura: '' };
     var raiz = $('o-visor'), palco = $('o-visor-palco'), abas = $('o-visor-abas'), botaoEscolher = $('o-visor-escolher');
     var aberto = function () { return !raiz.hidden; };
+    var fundo = [], empilhado = false, desempilhando = false, restauracao = null;
+
+    /* o fundo sai do teclado e do leitor de tela (inert); volta ao fechar */
+    function fundoInerte(sim) {
+      if (sim) {
+        fundo = [].filter.call(document.body.children, function (n) { return n !== raiz && n.tagName !== 'SCRIPT' && !n.inert; });
+        fundo.forEach(function (n) { n.inert = true; });
+      } else { fundo.forEach(function (n) { n.inert = false; }); fundo = []; }
+    }
+    function anunciar(texto) {
+      var v = $('o-visor-voz');
+      if (!v) return;
+      v.textContent = '';
+      setTimeout(function () { v.textContent = texto; }, 80);
+    }
+    /* (com o visor empilhado, a rolagem da página não é restaurada pelo navegador no Voltar: ela não mudou) */
+    function empilhar() {
+      if (empilhado || !window.history || typeof history.pushState !== 'function') return;
+      try {
+        restauracao = history.scrollRestoration || null;
+        if (restauracao) history.scrollRestoration = 'manual';
+        history.pushState({ bzVisor: true }, '');
+        empilhado = true;
+      } catch (e) { /* sem histórico: o visor fecha só pelo botão e pelo Escape */ }
+    }
+    function restaurarRolagem() { if (restauracao) { try { history.scrollRestoration = restauracao; } catch (e) { /* nada */ } restauracao = null; } }
+    window.addEventListener('popstate', function () {
+      if (desempilhando) { desempilhando = false; restaurarRolagem(); return; }   /* (o desempilhar do próprio fechar) */
+      if (!empilhado) return;
+      empilhado = false;
+      fechar();
+      restaurarRolagem();
+    });
 
     function atual() {
       var lista = o.lista();
@@ -36,7 +72,7 @@
         b.setAttribute('data-id', x.id);
         b.setAttribute('aria-pressed', String(x.id === d.id));
         b.setAttribute('aria-label', x.id === 'final' ? 'Sua versão, com os ajustes' : 'Direção ' + x.numero + ': ' + (NOMES[x.estrategia] || ''));
-        b.addEventListener('click', function () { estado.id = x.id; desenhar(true); b = abas.querySelector('[data-id="' + x.id + '"]'); if (b) b.focus(); });
+        b.addEventListener('click', function () { estado.id = x.id; desenhar(true); b = abas.querySelector('[data-id="' + x.id + '"]'); if (b) b.focus(); anunciar($('o-visor-titulo').textContent); });
         abas.appendChild(b);
       });
       if (focoNaAba) { var f = abas.querySelector('[data-id="' + focoNaAba + '"]'); if (f) f.focus(); }
@@ -71,6 +107,8 @@
       estado.origem = document.activeElement;
       raiz.hidden = false;
       document.documentElement.classList.add('visor-aberto');
+      fundoInerte(true);
+      empilhar();
       desenhar(true);
       $('o-visor-fechar').focus();
     }
@@ -78,6 +116,8 @@
       if (!aberto()) return;
       raiz.hidden = true;
       document.documentElement.classList.remove('visor-aberto');
+      fundoInerte(false);
+      if (empilhado) { empilhado = false; desempilhando = true; history.back(); }
       var volta = estado.origem && estado.origem.isConnected ? estado.origem : document.querySelector('[data-abrir="' + estado.id + '"]') || $('o-dir-titulo');
       if (volta) { if (!volta.hasAttribute('tabindex') && volta.tagName === 'H2') volta.setAttribute('tabindex', '-1'); volta.focus(); }
     }
