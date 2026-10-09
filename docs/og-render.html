@@ -87,13 +87,14 @@
     x.fillStyle = AC; x.fillText('Zero', P + x.measureText('Beyon ').width, 96);
 
     x.font = '300 60px Sora, sans-serif'; x.fillStyle = T1;
-    ['Inteligência artificial', 'aplicada ao que o seu', 'negócio perde hoje.']
-      .forEach(function (linha, n) { x.fillText(linha, P, 250 + n * 70); });
+    /* duas linhas centradas no vão entre a marca (96) e a régua (505); eram três a partir de 250 */
+    ['Do problema ao', 'sistema no ar.']
+      .forEach(function (linha, n) { x.fillText(linha, P, 280 + n * 70); });
 
     x.strokeStyle = LINE; x.lineWidth = 1;
     x.beginPath(); x.moveTo(P, 505.5); x.lineTo(P + 560, 505.5); x.stroke();
     x.font = '400 17px "JetBrains Mono", monospace'; x.fillStyle = T3;
-    x.fillText('DIAGNÓSTICO  ·  AGENTES  ·  AUTOMAÇÃO  ·  SISTEMAS', P, 545);
+    x.fillText('SITES  ·  AUTOMAÇÃO  ·  IA', P, 545);
 
     document.title = 'pronto';   /* sinal pro --virtual-time-budget/polling */
   }
