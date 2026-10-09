@@ -19,8 +19,10 @@
       <button class="pn__sair" type="button" id="sair" hidden>Sair</button>
     </header>
 
-    <form class="pn__entrar" id="entrar" novalidate>
-      <h1>Métricas do site</h1>
+    <!-- o h1 fica fora do formulário: depois de entrar o formulário some e a página seguia sem título (o js/painel.js
+         o deixa só para o leitor de tela nesse estado) -->
+    <h1 id="titulo">Métricas do site</h1>
+    <form class="pn__entrar" id="entrar" novalidate aria-labelledby="titulo">
       <p>Visitas, cliques e clientes, medidos pelo próprio site, sem cookies.</p>
       <label for="chave">Chave do painel</label>
       <input id="chave" name="chave" type="password" autocomplete="current-password" required />

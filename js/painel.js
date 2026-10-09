@@ -220,6 +220,7 @@
   /* ---------- entrar, carregar, sair ---------- */
   function entrou(sim) {
     $('entrar').hidden = sim;
+    $('titulo').classList.toggle('sr-only', sim);   /* (com os dados à mostra, o título segue para o leitor de tela) */
     $('dados').hidden = !sim;
     $('sair').hidden = !sim;
   }
@@ -233,8 +234,13 @@
       $('estado').textContent = 'Atualizado às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + '.';
     }).catch(function (e) {
       if (e.status === 401 || e.status === 429) { sair(); $('erroEntrar').hidden = false; $('erroEntrar').textContent = e.message; return; }
-      if (!$('dados').hidden) { $('estado').textContent = e.message; return; }
-      $('erroEntrar').hidden = false; $('erroEntrar').textContent = e.message;
+      /* a chave não foi recusada, só as métricas falharam: o painel abre com o erro na linha das métricas e a fila
+         de direções carrega assim mesmo (tem o próprio pedido e o próprio aviso de erro). Antes a fila só vinha
+         junto com as métricas, e uma falha delas escondia pedidos esperando o prazo de 24 h (auditoria 2026-10-09) */
+      var primeira = $('dados').hidden;
+      entrou(true);
+      $('estado').textContent = 'Não foi possível carregar as métricas: ' + e.message;
+      if (primeira && soNumeros !== true) document.dispatchEvent(new CustomEvent('bz-painel:entrou'));
     });
   }
   function sair() {
