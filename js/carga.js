@@ -169,14 +169,25 @@
     card.classList.remove(a ? 'is-varre-a' : 'is-varre-b');
     card.classList.add(a ? 'is-varre-b' : 'is-varre-a');
   }
-  /* parte o texto do card em letras, uma vez: spans sem rótulo extra (o texto segue no lugar para o leitor de
-     tela; aria-label em parágrafo é proibido pela ARIA), a seta (aria-hidden) fica de fora; o atraso de cada
-     letra é distribuído pelo card inteiro (com teto, as últimas piscavam juntas) */
-  /* um alvo em flex ou grid (o h3 dos itens do padrão, com o losango ao lado) teria cada palavra partida virando um
-     item separado, espremido até quebrar no meio ("Fe/ito prim/eiro"): o texto vai antes para um span só */
+  /* parte o texto do card em letras, uma vez (o leitor de tela lê a cópia, ver partir); a seta (aria-hidden) fica
+     de fora; o atraso de cada letra é distribuído pelo card inteiro (com teto, as últimas piscavam juntas) */
+  /* o texto vai sempre para um span só, e é ELE que se parte: num alvo em flex ou grid (o h3 dos itens do padrão,
+     com o losango ao lado) cada palavra partida virava um item separado, espremido até quebrar no meio
+     ("Fe/ito prim/eiro"); e o span é o que se esconde do leitor de tela, com a cópia legível ao lado dele, no pai */
+  /* o texto como o leitor de tela o lê: sem o que é aria-hidden (a seta "→", o número decorativo); vazio se o
+     próprio elemento já está fora da árvore. Lido ANTES de partir (o span partido vira aria-hidden) */
+  function textoLido(el) {
+    if (el.closest('[aria-hidden="true"]')) return '';
+    var t = '';
+    (function andar(no) {
+      for (var f = no.firstChild; f; f = f.nextSibling) {
+        if (f.nodeType === 3) t += f.nodeValue;
+        else if (f.nodeType === 1 && f.getAttribute('aria-hidden') !== 'true') andar(f);
+      }
+    })(el);
+    return t.replace(/\s+/g, ' ').trim();
+  }
   function embrulhar(el) {
-    var d = getComputedStyle(el).display;
-    if (d.indexOf('flex') < 0 && d.indexOf('grid') < 0) return el;
     var span = document.createElement('span');
     span.className = 'carga-embrulho';
     while (el.firstChild) span.appendChild(el.firstChild);
@@ -188,20 +199,20 @@
     if (!c || !window.SplitText) return false;
     if (c.split) return true;
     var pais = [].filter.call(card.querySelectorAll(TEXTOS), function (el) { return !el.closest('.carga') && el.textContent.trim(); });
-    var textos = pais.map(function (el) { return el.textContent.replace(/\s+/g, ' ').trim(); }), alvos = pais.map(embrulhar);
+    var textos = pais.map(textoLido), alvos = pais.map(embrulhar);
     if (!alvos.length) return false;
     try {
       c.split = new window.SplitText(alvos, { type: 'words,chars', tag: 'span', aria: 'none', ignore: '[aria-hidden="true"]', charsClass: 'carga-letra', wordsClass: 'carga-palavra' });
     } catch (e) { c.split = { chars: [], words: [] }; c.ondas = []; return false; }
     for (var k = 0; k < alvos.length; k++) {
       alvos[k].setAttribute('data-carga-split', '');
-      /* letras em caixas separadas são lidas "S i t e s" (árvore de acessibilidade do Chrome, 2026-10-06): o
-         título e o link levam o texto inteiro no aria-label; o parágrafo (que a ARIA proíbe nomear) esconde as
-         letras e ganha uma cópia só para o leitor de tela */
-      if (pais[k].tagName === 'P') {
-        alvos[k].setAttribute('aria-hidden', 'true');
-        var copia = document.createElement('span'); copia.className = 'sr-only'; copia.textContent = textos[k]; pais[k].appendChild(copia);
-      } else pais[k].setAttribute('aria-label', textos[k]);
+      /* letras em caixas separadas são lidas "S i t e s" (árvore de acessibilidade do Chrome, 2026-10-06): um padrão
+         só para título, link, parágrafo e número (auditoria 2026-10-09): o span partido sai da árvore e o pai ganha
+         uma cópia inteira só para o leitor de tela. Antes o título e o link levavam aria-label (proibido em span
+         genérico) e o parágrafo se escondia junto com a própria cópia. Quem já era aria-hidden não ganha cópia */
+      alvos[k].setAttribute('aria-hidden', 'true');
+      if (!textos[k]) continue;
+      var copia = document.createElement('span'); copia.className = 'sr-only'; copia.textContent = textos[k]; pais[k].appendChild(copia);
     }
     var n = c.split.chars.length, passo = n ? Math.min(LETRAS.passo, LETRAS.teto / n) : 0, palavras = c.split.words, g = 0;
     /* a vez de cada palavra (ms desde o arranque da onda) e, dentro dela, a de cada letra (--d, relativo à palavra) */
