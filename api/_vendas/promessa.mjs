@@ -37,7 +37,7 @@ const TETO = 2000;
 function normalizar(texto) {
   return String(texto).slice(0, TETO).replace(INVISIVEIS, '').normalize('NFKC').toLowerCase()
     .replace(/[Ͱ-ӿԀ-ԯ]/g, c => PARECIDAS[c] || c)
-    .normalize('NFD').replace(/[̀-ͯ]/g, '');
+    .normalize('NFD').replace(/[̀-ͯ]/g, '').slice(0, TETO);
 }
 /* só para procurar palavras: dígito no meio de palavra vira letra ("c0nfirmado"), letras soltas se juntam
    ("c o n f i r m a d o"), o resto da pontuação vira espaço */
@@ -50,30 +50,35 @@ const frasesDe = t => t.split(/[.!?;\n]+/).map(paraPalavras).filter(Boolean);
 
 /* ---------- dar o pagamento como feito ---------- */
 const SUJEITO = '(?:pagamento|sinal|pix|cobranca|deposito|transferencia|cartao)s?';
-const PARTICIPIO = '(?:[ck]o[nm]fi?rmad|recebid|realizad|efetuad|identificad|aprovad|compensad|creditad|processad|concluid|quitad|cobrad|liquidad|acertad|regularizad)[oa]s?';
+const PARTICIPIO = '(?:[ck]o[nm]fi?rmad|recebid|realizad|efetuad|identificad|aprovad|compensad|creditad|processad|concluid|quitad|cobrad|liquidad|acertad|regularizad|validad|liberad|autorizad|aceit)[oa]s?';
 const AFIRMACOES = [
   /* "seu sinal foi creditado", "o Pix já está compensado" */
-  new RegExp('\\b' + SUJEITO + '\\s+(?:\\w+\\s+){0,2}(?:foi|foram|esta|estao|ja|ta|ficou)\\s+(?:\\w+\\s+)?(?:' + PARTICIPIO + '|ok)\\b'),
+  new RegExp('\\b' + SUJEITO + '\\s+(?:\\w+\\s+){0,2}(?:foi|foram|esta|estao|ja|ta|ficou)\\s+(?:\\w+\\s+)?(?:' + PARTICIPIO + '|ok|pag[oa]s?)\\b'),
   /* "pagamento identificado", "pagamentoconfirmado", "pagamento confirma", "pagamento ok" */
   new RegExp('\\b' + SUJEITO + '\\s*(?:' + PARTICIPIO + '|confirma|ok)\\b'),
   /* "tá pago", "tudo pago", "status: pago", "pode considerar pago", "pago com sucesso", "pago", "recebido" */
-  /\b(?:ta|esta|ja|tudo|status|considerar|considere|como)\s+(?:\w+\s+)?pag[oa]s?\b|\bpag[oa]s? com sucesso\b|^(?:pag|recebid|confirmad|quitad)[oa]s?$/,
+  /\b(?:ta|esta|ja|tudo|status|considerar|considere|como)\s+(?:\w+\s+)?pag[oa]s?\b|\bpag[oa]s? com sucesso\b|^(?:pag|recebid|confirmad|quitad)[oa]s?$|^(?:caiu|bateu|entrou|chegou)(?: aqui)?$|\bnada mais a pagar\b/,
   /\bquitad[oa]s?\b|\bcomprovante\s+(?:\w+\s+)?(?:aprovad|recebid|confirmad|ok)|\bconsta (?:o |seu )?pagamento\b|\b(?:pagamento|pix|sinal) ja aparece\b|\bregistrou (?:o |seu |o seu )?(?:pagamento|pix|sinal)\b/,
-  /\b(?:obrigad[oa]|agradecemos|agradeco)\s+(?:\w+\s+){0,2}(?:pagamento|pix|sinal)\b|\bparabens pel[ao] (?:contratacao|compra|pagamento)\b|\bcompra (?:esta )?garantid/,
+  /\b(?:obrigad[oa]|agradecemos|agradeco|valeu)\s+(?:\w+\s+){0,2}(?:pagamento|pix|sinal)\b|\bparabens pel[ao] (?:contratacao|compra|pagamento)\b|\bcompra (?:esta )?garantid/,
   /* o projeto começado */
   /\b(?:projeto|trabalho|site)\s+(?:ja\s+)?(?:esta|foi para|entrou)\s+(?:\w+\s+)?em producao\b|\bja (?:esta|entrou) em producao\b|\bprojeto (?:\w+ )?comecou\b|\b(?:ja )?comecamos o (?:seu )?(?:projeto|trabalho)\b|\b(?:liberei|liberamos)\b/
 ];
+/* "confirmado o pagamento", "está confirmado o seu pagamento", "você já pagou" (fora de condicional: "depois de confirmado o
+   pagamento", "se você já pagou") */
+const PARTICIPIO_ANTES = new RegExp('\\b(?:esta\\s+|foi\\s+)?' + PARTICIPIO + '\\s+(?:o\\s+|a\\s+)?(?:seu\\s+|sua\\s+)?' + SUJEITO + '\\b');
+const VOCE_PAGOU = /\b(?:voce|vc)\s+(?:ja\s+)?pagou\b/;
 const PRIMEIRA_PESSOA = /\b(?:recebemos|recebi|confirmei|confirmamos|anotei|anotamos|creditamos|identificamos|registrei|registramos|baixei|visualizei|vi o (?:pix|pagamento)|temos o seu)\b/;
 const CHEGOU = /\b(?:caiu|caido|chegou|entrou)\b/;
 const ASSUNTO = /\b(?:pagamento|pago|paga|sinal|pix|cartao|cobranca|deposito|transferencia|inicio|trabalho)\b/;
 /* "assim que recebemos", "se o Pix não caiu", "quando o pagamento for confirmado": falar do processo não é afirmar */
-const CONDICIONAL = /\b(?:assim que|depois que|logo que|quando|apos|antes que|se|caso|nao|ainda)\s+(?:\w+\s+){0,3}$/;
+const CONDICIONAL = /\b(?:assim que|depois que|depois de|logo que|quando|apos|antes que|antes de|se|caso|nao|ainda)\s+(?:\w+\s+){0,3}$/;
 function semCondicional(frase, regra) {
   const m = frase.match(regra);
   return !!m && !CONDICIONAL.test(frase.slice(0, m.index));
 }
 function afirmaPagamento(frase) {
   if (AFIRMACOES.some(r => r.test(frase))) return true;
+  if (semCondicional(frase, PARTICIPIO_ANTES) || semCondicional(frase, VOCE_PAGOU)) return true;
   return (semCondicional(frase, PRIMEIRA_PESSOA) || semCondicional(frase, CHEGOU)) && ASSUNTO.test(frase);
 }
 const EMOJI_DE_PAGO = /(?:pagamento|pago|sinal|pix)\s*[✅✔☑\u{1F44D}]/u;
@@ -122,9 +127,30 @@ export function semPromessaDePagamento(texto) {
 }
 
 /* ---------- na entrada ---------- */
-const PEDE_PAGAMENTO_FEITO = /\b(?:paguei|pagei|ja pag(?:uei|ou|amos)|transferi|depositei|mandei o (?:pix|comprovante)|comprovante|finja|fingir|faz de conta|confirm\w* (?:o |meu |que )?(?:pagamento|pix|sinal|paguei)|(?:caiu|chegou|recebeu|receberam) (?:o |a )?(?:meu |minha |seu )?(?:pagamento|pix|sinal|dinheiro)|(?:pagamento|pix|sinal|dinheiro) (?:ja )?(?:caiu|chegou|entrou))\b/;
-const PEDE_CONDICAO = /desconto|abatimento|mais barato|abaixa\w*|baixa\w* o (?:valor|preco)|reduz\w* o (?:valor|preco|sinal)|sem (?:o )?sinal|nao pagar (?:o )?sinal|(?:dono|fernando|chefe|gerente) (?:\w+ )?(?:autorizou|liberou|deixou)|de graca|\bgratis\b|cortesia|metade (?:do|da) (?:sinal|valor|preco)/;
-const PEDE_OUTRO_MEIO = /chave (?:do )?pix|qual (?:e )?(?:o )?pix|pix (?:de|da|do) (?:voces|empresa|beyon|fernando|dono)|transfer\w*|deposit\w*|boleto|dinheiro vivo|em especie|link (?:de|para|pra) pag\w*|por fora|conta (?:bancaria|corrente)|outr[oa] (?:meio|jeito|forma|maneira) de pag\w*/;
+/* (revisões do PR 34, rodada 4: "já paguei o domínio", "vou receber comprovante?", "o domínio é de graça?", "posso
+   transferir o domínio?" e "o boleto vence quando?" são dúvidas reais e vão ao modelo) */
+const PEDE_PAGAMENTO_FEITO = new RegExp([
+  '\\b(?:paguei|pagei|pagamos|ja pag(?:uei|ou|amos)|acabei de pagar|quitei|efetuei o pagamento|fiz o pix|transferi|depositei)\\b(?!\\s+(?:\\w+\\s+){0,3}(?:dominio|hospedagem|registro|logo|designer|grafica|empresa|outr\\w*|antes)\\b)',
+  '\\b(?:mandei|enviei|segue|anexo|anexei|olha|aqui esta|aqui vai)\\s+(?:\\w+\\s+){0,2}comprovante',
+  '\\b(?:confirma|confirme|confirmem|pode confirmar|consegue confirmar)\\s+(?:\\w+\\s+){0,2}(?:pagamento|pix|sinal|que paguei)',
+  '\\b(?:caiu|chegou|recebeu|receberam)\\s+(?:o\\s+|a\\s+)?(?:meu\\s+|minha\\s+|seu\\s+)?(?:pagamento|pix|sinal|dinheiro)\\b',
+  '\\b(?:pagamento|pix|sinal|dinheiro)\\s+(?:ja\\s+)?(?:caiu|chegou|entrou)\\b',
+  '\\b(?:finja|fingir|faz de conta)\\b|\\bimagine\\s+(?:\\w+\\s+){0,5}pag\\w*',
+  '\\b(?:considere|considera|marque|marca|coloque|coloca|diga|diz|escreva|repita)\\b\\s+(?:\\w+\\s+){0,4}(?:pag[oa]|confirmad\\w*|quitad\\w*|recebid\\w*)\\b'
+].join('|'));
+const PEDE_CONDICAO = new RegExp([
+  'desconto|abatimento|mais barato|faz por menos|preco especial|promocao|cortesia',
+  'abaixa\\w*|baixa\\w* o (?:valor|preco)|reduz\\w* o (?:valor|preco|sinal)|metade (?:do|da) (?:sinal|valor|preco)',
+  '(?:posso|quero|da para|consigo) (?:\\w+ )?(?:nao pagar|sem pagar|comecar sem) (?:o )?sinal|\\bsem (?:o )?sinal\\b(?! (?:pago|hoje))',
+  '\\b(?:dono|fernando|chefe|gerente|socio)\\s+(?:\\w+\\s+)?(?:autorizou|liberou|deixou|falou|disse|combinou)',
+  '\\bcombin\\w*\\s+(?:\\w+\\s+){0,4}(?:valor|preco|desconto|menor)'
+].join('|'));
+const PEDE_OUTRO_MEIO = new RegExp([
+  'chave (?:do )?pix|qual (?:e )?(?:o )?pix|pix (?:de|da|do) (?:voces|empresa|beyon|fernando|dono)|(?:me )?(?:passa|manda|mande|envia|envie) (?:o |a |um )?(?:pix|chave|link)',
+  '\\blink (?:de|do|da|para|pra) pag\\w*|\\bpag\\w* por fora\\b|conta (?:bancaria|corrente)|conta (?:para|pra) (?:deposit|transfer|pag)\\w*',
+  '\\b(?:pag\\w*|aceit\\w*|pode ser|posso fazer|faco|fazer)\\s+(?:\\w+\\s+){0,2}(?:transferencia|ted|deposito|boleto|dinheiro|paypal|picpay|bitcoin|cripto\\w*|cheque)\\b',
+  'dinheiro vivo|em especie|outr[oa] (?:meio|jeito|forma|maneira) de pag\\w*'
+].join('|'));
 /* o motivo da resposta fixa para a PERGUNTA da pessoa, ou null quando ela vai ao modelo */
 export function motivoDaPergunta(texto) {
   const p = paraPalavras(normalizar(texto));
