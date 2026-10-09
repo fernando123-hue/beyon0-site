@@ -93,6 +93,7 @@ async function atender(req, res) {
 
 /* TLS_CERT + TLS_CHAVE (arquivos PEM): HTTP/2 com TLS, como a Vercel. A prioridade de download (fetchpriority,
    preload) se comporta diferente em HTTP/1.1, com 6 conexões; docs/medir-carga.mjs com H2=1 gera o certificado */
+if (!process.env.TLS_CERT !== !process.env.TLS_CHAVE) throw new Error('TLS_CERT e TLS_CHAVE vão juntos (só uma das duas está definida)');
 const TLS = process.env.TLS_CERT && process.env.TLS_CHAVE;
 const servidor = TLS
   ? http2.createSecureServer({ cert: await readFile(process.env.TLS_CERT), key: await readFile(process.env.TLS_CHAVE), allowHTTP1: true }, atender)
