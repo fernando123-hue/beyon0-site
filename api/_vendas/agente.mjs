@@ -16,7 +16,8 @@ import { limparAtualizacao, limparTexto, mesclar, avaliar, prontoParaEstimar } f
 import { IDENTIDADE, montarSistema, ferramentas, proximoPasso, ETAPAS_SO_DUVIDAS } from './consultor.mjs';
 import { modoDirecoes } from '../_ia/config.mjs';
 import { estimar } from './precos.mjs';
-import { redigir, semPrecoNoTexto, semPromessaDePagamento } from './seguranca.mjs';
+import { redigir, semPrecoNoTexto } from './seguranca.mjs';
+import { semPromessaDePagamento } from './promessa.mjs';
 import { ErroIA } from '../_ia/provedor.mjs';
 
 const MAX_ITERACOES = 4;
@@ -102,8 +103,9 @@ export async function executarTurno({ ia, regras, conversa, mensagem, direcoes }
   }
 
   if (sugestoes.length) briefing = mesclar(briefing, { oportunidades_ia: sugestoes.map(s => s.ideia) });
-  const semPreco = semPrecoNoTexto(texto).trim() || 'Pode me contar um pouco mais sobre o seu negócio?';
-  const resposta = ETAPAS_SO_DUVIDAS.includes(conversa.etapa) ? semPromessaDePagamento(semPreco) : semPreco;
+  const soDuvidas = ETAPAS_SO_DUVIDAS.includes(conversa.etapa);
+  const semPreco = semPrecoNoTexto(texto).trim() || (soDuvidas ? 'Pode repetir a sua dúvida?' : 'Pode me contar um pouco mais sobre o seu negócio?');
+  const resposta = soDuvidas ? semPromessaDePagamento(semPreco) : semPreco;
   const { confianca, faltam } = avaliar(briefing);
   return { resposta: resposta.slice(0, 1500), briefing, confianca, faltam, estimativa, pedir_contato: pedirContato, diagnostico, sugestoes_ia: sugestoes, custo_usd: custo, pronto_estimar: prontoParaEstimar(briefing) };
 }

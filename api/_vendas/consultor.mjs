@@ -172,7 +172,7 @@ const OBJETIVOS_DESC = 'objetivos (lista fechada): gerar_leads = receber pedidos
 /* depois do escopo a conversa segue aberta SÓ para dúvidas, até o sinal (PROPOSTA de 2026-10-09, §4, 3b): o escopo e o
    preço já estão fechados, então o modelo não recebe ferramenta (nem o diagnóstico, que mostraria "não tem valor
    automático" ao lado do valor confirmado); o código recusa a que ele inventar (api/_vendas/agente.mjs), filtra a
-   resposta (semPromessaDePagamento) e o banco não deixa o briefing mudar (app.vendas_registrar_turno) */
+   resposta (api/_vendas/promessa.mjs) e o banco não deixa o briefing mudar (app.vendas_registrar_turno) */
 export const ETAPAS_SO_DUVIDAS = ['escopo', 'aguardando_pagamento'];
 
 /* as ferramentas da etapa; o esquema de 'estimar' nasce dos adicionais da tabela ATIVA (o modelo só escolhe o que existe) */

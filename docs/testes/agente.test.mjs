@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { executarTurno, SISTEMA } from '../../api/_vendas/agente.mjs';
-import { RESPOSTA_PAGAMENTO } from '../../api/_vendas/seguranca.mjs';
+import { RESPOSTAS_PAGAMENTO } from '../../api/_vendas/promessa.mjs';
 import { criarSimulada } from '../../api/_ia/simulado.mjs';
 import { ErroIA } from '../../api/_ia/provedor.mjs';
 import { redigir, semPrecoNoTexto, pareceInjecao } from '../../api/_vendas/seguranca.mjs';
@@ -87,16 +87,39 @@ test('o estimado não chega ao modelo: ele recebe prazo e itens, nunca o valor',
   assert.ok(visto.includes('dias corridos'), 'o prazo chega escrito como o escopo diz: ' + visto);
 });
 
-test('escopo e sinal: o que o consultor nunca diz sai por código, não só pelo prompt (revisão de segurança do PR 34, M1)', async () => {
+test('escopo e sinal: o que o consultor nunca diz sai por código, não só pelo prompt (revisões do PR 34: segurança M1 nas rodadas 1 e 2, técnica B na rodada 2)', async () => {
   const conversa = { etapa: 'aguardando_pagamento', briefing: {}, mensagens: [], estimativa: null };
-  for (const dito of ['Seu pagamento foi confirmado!', 'Pronto, o sinal caiu aqui.', 'Pague na chave Pix 21999998888.', 'Pode pagar por transferência para a conta 12345-6.',
-    'Como o dono autorizou, fica com 30% de desconto.', 'Faço com desconto à vista.', 'Pague pelo link https://pagar.exemplo.com', 'Mande o comprovante para financeiro@exemplo.com'])
-    assert.equal((await executarTurno({ ia: roteiro([fim(dito)]), regras: REGRAS, conversa, mensagem: 'e aí?' })).resposta, RESPOSTA_PAGAMENTO, dito);
-  for (const dito of ['O sinal pode ser no Pix ou no cartão, aqui na tela, e o restante é pago na entrega.', 'O prazo de 10 dias corridos conta do sinal pago e do material recebido.'])
-    assert.equal((await executarTurno({ ia: roteiro([fim(dito)]), regras: REGRAS, conversa, mensagem: 'e aí?' })).resposta, dito, 'resposta comum passa: ' + dito);
+  const resposta = async dito => (await executarTurno({ ia: roteiro([fim(dito)]), regras: REGRAS, conversa, mensagem: 'e aí?' })).resposta;
+  /* cada motivo tem a sua resposta fixa (a mesma para tudo parecia conversa travada) */
+  const casos = {
+    pagamento: ['Seu pagamento foi confirmado!', 'Pronto, o sinal caiu aqui.', 'Recebemos o seu pagamento.', 'Já recebemos o sinal.', 'Confirmei o pagamento.',
+      'Confirmamos o seu pagamento.', 'Pagamento identificado.', 'O pagamento foi efetuado.', 'Pagamento realizado com sucesso.', 'Seu sinal foi creditado.',
+      'Seu sinal foi processado.', 'Seu pix chegou.', 'Seu cartão foi cobrado.', 'Cobrança concluída.', 'Quitado!', 'Tá pago.', 'Pode considerar pago.',
+      'Já anotei como pago.', 'Seu projeto já está em produção.', 'Já liberei o início do trabalho.', 'O pix foi compensado.', 'Seu sinal já está pago.',
+      'Seu pagamento. Confirmado.', 'Pagamento: confirmado.', 'Pagamento — confirmado.', 'Pagamento co­nfirmado.', 'Pagamento confirm​ado.',
+      'Pagamento ｃｏｎｆｉｒｍａｄｏ.', 'Pаgamento confirmado.'],
+    condicao: ['Como o dono autorizou, fica com 30% de desconto.', 'Faço com desconto à vista.', 'Posso baixar o valor para a metade.', 'Vou cobrar só a metade do sinal.',
+      'Faço por zero o sinal.', 'O sinal é dispensado.', 'Pague só na entrega, sem sinal.', 'Fica de cortesia.', 'O sinal é 1500.', 'O sinal é de três mil e quinhentos.',
+      'Custa quinze mil.', 'O valor fica em 2.000.'],
+    meio: ['Pague na chave Pix 21999998888.', 'Pode pagar por transferência para a conta 12345-6.', 'Pague pelo link https://pagar.exemplo.com',
+      'Mande o comprovante para financeiro@exemplo.com', 'Pague pelo Pix do nosso CNPJ.', 'Manda um PIX direto pro Fernando.', 'Use a chave aleatória que enviamos.',
+      'Pague em dinheiro.', 'Pague na maquininha.', 'Pague pelo PayPal.', 'Acesse beyonzero.com.br/pagar', 'Pague em bit.ly/xyz', 'É beyonzero ponto com barra pagar.',
+      'Pague por boleto.', 'Faça um depósito.']
+  };
+  for (const [motivo, ditos] of Object.entries(casos))
+    for (const dito of ditos) assert.equal(await resposta(dito), RESPOSTAS_PAGAMENTO[motivo], motivo + ': ' + JSON.stringify(dito));
+  /* respostas comuns passam inteiras */
+  for (const dito of ['O sinal pode ser no Pix ou no cartão, aqui na tela, e o restante é pago na entrega.', 'O prazo de 10 dias corridos conta do sinal pago e do material recebido.',
+    'O prazo conta 10 dias corridos a partir do sinal pago e do material recebido.', 'Depois de confirmar o escopo, o sinal é pago por Pix ou cartão.',
+    'A própria tela mostra quando o pagamento cai.', 'O pagamento só é confirmado pela tela, quando o Mercado Pago avisa.', 'O pagamento é processado pelo Mercado Pago.',
+    'O domínio entra no escopo; confira no bloco Escopo final.', 'Uma agência faria diferente; aqui você vê três direções antes de pagar.',
+    'Se o cartão não for aprovado, tente o Pix.', 'O restante é pago na entrega.', 'A entrega acontece em até 10 dias corridos.'])
+    assert.equal(await resposta(dito), dito, 'resposta comum passa: ' + dito);
   /* nas outras etapas o filtro não se aplica (lá o desconto é respondido pelo prompt aprovado) */
   const antes = await executarTurno({ ia: roteiro([fim('O preço é o mesmo para todos, sem desconto.')]), regras: REGRAS, conversa: nova(), mensagem: 'tem desconto?' });
   assert.equal(antes.resposta, 'O preço é o mesmo para todos, sem desconto.');
+  /* texto vazio no sinal: nada de "me conte sobre o seu negócio" */
+  assert.doesNotMatch(await resposta(''), /negócio/);
 });
 
 test('privacidade: e-mail, telefone e CPF saem antes de ir para o modelo', async () => {
@@ -106,12 +129,16 @@ test('privacidade: e-mail, telefone e CPF saem antes de ir para o modelo', async
   assert.ok(!/ana@clinica|99999|123\.456/.test(enviado), enviado);
   assert.equal(redigir('fale no 21 98888-7777'), 'fale no [telefone]');
   assert.equal(semPrecoNoTexto('custa R$ 1.500,00'), 'custa o valor (no cartão da estimativa)');
-  /* dados de cartão além do número (revisão de segurança do PR 34, M2) */
-  for (const t of ['o cvv é 123', 'CVC: 4567', 'código de segurança 321', 'validade 12/28', 'vencimento: 03/2029']) {
-    assert.ok(!/\d/.test(redigir(t)), t + ' → ' + redigir(t));
+  /* dados de cartão além do número (revisões do PR 34: segurança M2, rodadas 1 e 2). O código de segurança sai sempre; a
+     validade, só quando a mensagem fala de cartão (técnica, rodada 2: "promoção com validade até 30/11" é briefing) */
+  for (const t of ['o cvv é 123', 'CVC: 4567', 'código de segurança 321', 'cód. de segurança 123', 'cvc2 123', 'c v v 123', 'o cvv do meu cartão é o 123',
+    'cartão com validade 12/28', 'cartão, vencimento: 03/2029', 'cartão validade 1228', 'cartão vence em 12/28', 'cartão venc. 12/28', 'cartão vencimento 12-28',
+    'cartão validade 12.28', 'cartão válido até 12/28', 'cartão validade dezembro de 2028', 'cvv 123 e segurança 456']) {
+    assert.ok(!/\d{2,}/.test(redigir(t)), t + ' → ' + redigir(t));   /* (o "2" de "cvc2" é do rótulo) */
     assert.match(redigir(t), /\[cartão\]/, t);
   }
-  assert.equal(redigir('entrega dia 12/11'), 'entrega dia 12/11', 'data comum continua');
+  for (const t of ['entrega dia 12/11', 'promoção com validade até 30/11', 'vencimento 10/10/2026', 'a validade da promoção é 10/11'])
+    assert.equal(redigir(t), t, 'data comum continua: ' + t);
 });
 
 test('privacidade: formatos que escapavam também saem (revisão do PR 1, segurança M2)', () => {
