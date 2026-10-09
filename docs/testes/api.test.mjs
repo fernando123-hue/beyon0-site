@@ -188,6 +188,23 @@ test('freio: IPv6 conta pelo prefixo /64; IPv4 e IPv4 mapeado contam pelo endere
   assert.deepEqual(resultados, [false, false, false, true], 'trocar o fim do IPv6 não escapa do freio');
 });
 
+/* (revisão de segurança do lote 1) as outras formas de escrever IPv4 dentro do IPv6, e os endereços com os 64 bits
+   iniciais zerados, não podem cair todos na mesma chave "0:0:0:0::" (um visitante frearia todos os outros) */
+test('freio: IPv4 mapeado em qualquer forma é o IPv4; endereço com prefixo zerado não vira /64', () => {
+  const de = xff => ipDe(new Request('https://site.test/', { headers: { 'x-forwarded-for': xff } }));
+  for (const forma of ['::ffff:c000:201', '0:0:0:0:0:ffff:192.0.2.1', '::FFFF:192.0.2.1', '::ffff:192.0.2.1%eth0', '64:ff9b::c000:201', '64:ff9b::192.0.2.1']) {
+    assert.equal(de(forma), '192.0.2.1', forma);
+  }
+  assert.notEqual(de('::ffff:c000:201'), de('::ffff:c000:202'), 'IPv4 diferentes, chaves diferentes');
+  const zerados = ['::1', '::2', '::192.0.2.1', '::192.0.2.2', '::ffff:0:c000:201', '::ffff:0:c000:202'].map(de);
+  assert.equal(new Set(zerados).size, zerados.length, 'prefixo zerado: cada endereço é uma chave: ' + zerados.join(' | '));
+  assert.ok(zerados.every(z => isIP(z) === 6), 'e continua um IPv6 válido');
+  assert.equal(de('fe80::1%eth0'), de('fe80::2'), 'a zona sai; o /64 vale como para qualquer IPv6');
+  const dia = new Date('2026-10-09T12:00:00Z');
+  assert.equal(chaveDoIp('::ffff:c000:201', 'k', dia), chaveDoIp('192.0.2.1', 'k', dia), 'o freio diário também lê o IPv4 mapeado');
+  assert.notEqual(chaveDoIp(de('::1'), 'k', dia), chaveDoIp(de('::2'), 'k', dia), 'e não junta os de prefixo zerado');
+});
+
 /* ======================= o visitante do orçamento: Auth instável não é "sessão expirada" ======================= */
 /* (auditoria 2026-10-09, funcionalidades 5 e 7) 429 e 5xx do Supabase viravam 401 "sessão expirada" (o navegador
    jogava a conversa fora) e a falha do login anônimo virava 500 "Erro interno.". */
