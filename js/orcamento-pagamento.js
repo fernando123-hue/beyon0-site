@@ -16,7 +16,9 @@
   var $ = function (id) { return document.getElementById(id); };
   var SDK = 'https://sdk.mercadopago.com/js/v2';
   var ESPERA_MS = 5000;
-  var CONFIG_DE_NOVO_MS = 15000;   /* configuração que falhou: tenta de novo (não fica "indisponível" até recarregar, F4) */
+  /* configuração que falhou: tenta de novo (não fica "indisponível" até recarregar, F4), com recuo 15 → 30 → 60 s
+     e nunca com a aba escondida (retoma ao voltar) */
+  var CONFIG_DE_NOVO_MS = 15000, CONFIG_DE_NOVO_MAX_MS = 60000;
   var ERRO_CARTAO = 'Não foi possível reconhecer o cartão. Confira o número.';
   var MENSAGENS = {
     bad_filled_card_data: 'Algum dado do cartão não confere. Confira e tente de novo.',
@@ -33,8 +35,13 @@
   function el(tag, classe, texto) { var e = document.createElement(tag); if (classe) e.className = classe; if (texto != null) e.textContent = texto; return e; }
   function mostrar(id, sim) { $(id).hidden = !sim; }
   var CAMPOS_FORM = ['o-pag-nome', 'o-pag-sobrenome', 'o-pag-email', 'o-pag-doc', 'o-titular'];
-  /* o erro fica ligado ao campo (A7): aria-invalid no campo; o aria-describedby do HTML aponta para #o-pag-erro */
-  function marcarInvalido(id) { CAMPOS_FORM.forEach(function (c) { if (c === id) $(c).setAttribute('aria-invalid', 'true'); else $(c).removeAttribute('aria-invalid'); }); }
+  /* o erro fica ligado ao campo (A7): só o campo com erro ganha aria-invalid e aria-describedby (#o-pag-erro);
+     corrigido (input), perde os dois */
+  function desmarcar(c) { $(c).removeAttribute('aria-invalid'); $(c).removeAttribute('aria-describedby'); }
+  function marcarInvalido(id) {
+    CAMPOS_FORM.forEach(function (c) { if (c === id) { $(c).setAttribute('aria-invalid', 'true'); $(c).setAttribute('aria-describedby', 'o-pag-erro'); } else desmarcar(c); });
+  }
+  CAMPOS_FORM.forEach(function (c) { $(c).addEventListener('input', function () { if ($(c).getAttribute('aria-invalid') === 'true') desmarcar(c); }); });
   /* (dedo: "toque e segure"; teclado: Ctrl+C) */
   var toque = function () { return !!(window.matchMedia && matchMedia('(pointer: coarse)').matches); };
 
@@ -43,7 +50,15 @@
 
     /* ---------- configuração pública (Public Key e ambiente) ----------
        Só o sucesso fica guardado: uma falha passageira não deixa o pagamento "indisponível" até recarregar (F4) */
-    var deNovo = null;
+    var deNovo = null, recuo = CONFIG_DE_NOVO_MS, naVolta = false;
+    function configDeNovo() {
+      clearTimeout(deNovo);
+      deNovo = setTimeout(function () {
+        if (document.hidden) { naVolta = true; return; }
+        if (!$('o-pagamento').hidden) tela.mostrar(valor);
+      }, recuo);
+      recuo = Math.min(recuo * 2, CONFIG_DE_NOVO_MAX_MS);
+    }
     async function configurar() {
       if (cfg) return cfg;
       try { cfg = await o.API.pagamentoConfig(); return cfg; } catch (e) { return { ativo: false, falhou: true }; }
@@ -195,7 +210,7 @@
         if (e && e.dados && e.dados.aguarde) { $('o-pag-status').textContent = e.message; esperar(); }
         else {
           if (metodo === 'cartao' && e && !e.status && /titular|impresso/i.test(e.message || '')) marcarInvalido('o-titular');
-          erro.textContent = e && e.status === 500 ? 'Não consegui concluir agora.' + (e.dados && typeof e.dados.pedido === 'string' ? ' Código: ' + e.dados.pedido.slice(0, 8) + '.' : '') + ' Tente de novo ou fale com a Beyon Zero pelo WhatsApp.'
+          erro.textContent = e && e.status === 500 ? 'Não consegui concluir agora.' + (e.dados && typeof e.dados.pedido === 'string' ? ' Código do erro: ' + e.dados.pedido.slice(0, 8) + '.' : '') + ' Tente de novo ou fale com a Beyon Zero pelo WhatsApp.'
             : (e && e.message) || 'Não foi possível concluir agora. Tente de novo.';
         }
       } finally { enviando = false; $('o-pag-enviar').removeAttribute('aria-disabled'); $('o-pag-form').removeAttribute('aria-busy'); }
@@ -264,7 +279,9 @@
     }
     function pararEspera() { clearInterval(espera); espera = null; }
     document.addEventListener('visibilitychange', function () {
-      if (!document.hidden && espera) o.API.pagamento().then(desenhar).catch(function () {});
+      if (document.hidden) return;
+      if (espera) o.API.pagamento().then(desenhar).catch(function () {});
+      if (naVolta) { naVolta = false; if (!$('o-pagamento').hidden) tela.mostrar(valor); }   /* (a configuração que ficou para depois) */
     });
 
     /* copiar: "Copiado" também é ANUNCIADO no status (A14); sem a área de transferência, seleciona o código
@@ -301,13 +318,14 @@
         mostrar('o-pag-indisponivel', !c.ativo);
         mostrar('o-pag-form', c.ativo);
         clearTimeout(deNovo);
-        if (c.falhou) { deNovo = setTimeout(function () { if (!$('o-pagamento').hidden) tela.mostrar(valor); }, CONFIG_DE_NOVO_MS); return; }
+        if (c.falhou) { configDeNovo(); return; }
+        recuo = CONFIG_DE_NOVO_MS;
         if (!c.ativo) return;
         mostrar('o-desafio-simular', cfg.ambiente === 'simulado');
         if (!$('o-pag-enviar').textContent.trim() || $('o-pag-enviar').dataset.valor !== String(valor)) { $('o-pag-enviar').dataset.valor = String(valor); escolherMetodo(metodo); }
         try { desenhar(await o.API.pagamento()); } catch (e) { /* o formulário segue disponível */ }
       },
-      parar: function () { pararEspera(); clearTimeout(deNovo); }
+      parar: function () { pararEspera(); clearTimeout(deNovo); naVolta = false; }
     };
     return tela;
   }
