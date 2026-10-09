@@ -48,7 +48,7 @@ test('fluxo normal: visitante → conversa → estimativa → contato → 3 dire
   const c = s.conversa_id;
   const m1 = await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Tenho uma clínica odontológica em Niterói e quero um site mais profissional porque hoje só tenho Instagram. Quero mais agendamentos.' });
   assert.equal(m1.status, 200);
-  assert.equal(m1.corpo.estimativa.valor_total, 3650, 'o cartão vem do motor de preço: institucional 3200 + agendamento 450');
+  assert.equal(m1.corpo.estimativa.valor_total, 3950, 'o cartão vem do motor de preço: institucional 3500 + agendamento 450');
   assert.ok(!/R\$/.test(m1.corpo.resposta));
   const m2 = await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Sim, quero ver as propostas' });
   assert.equal(m2.corpo.pedir_contato, true);
@@ -70,11 +70,11 @@ test('fluxo normal: visitante → conversa → estimativa → contato → 3 dire
   assert.equal(longo.status, 200, 'pedido de 1.994 caracteres com e-mails: ' + JSON.stringify(longo.corpo).slice(0, 200));
   const esc = await n.chamar('POST', 'escopo', { conversa_id: c });
   assert.equal(esc.status, 200);
-  assert.equal(Number(esc.corpo.valor_total), 3650);
+  assert.equal(Number(esc.corpo.valor_total), 3950);
   assert.ok(esc.corpo.escopo.includes('ALTERAÇÕES PEDIDAS') && esc.corpo.escopo.includes('INVESTIMENTO'));
   assert.equal((await n.chamar('POST', 'confirmar', { conversa_id: c, proposta_id: esc.corpo.proposta_id, confirmo: true, inicio_imediato: true })).status, 200);
   const pg = await n.chamar('POST', 'pagar', { conversa_id: c, valor: 1, metodo: 'pix', pagador: PAGADOR });
-  assert.equal(Number(pg.corpo.pagamento.valor), 1825, 'o sinal vem da proposta (50%), não do corpo');
+  assert.equal(Number(pg.corpo.pagamento.valor), 1975, 'o sinal vem da proposta (50%), não do corpo');
   assert.equal(pg.corpo.tentativa.status, 'aguardando', 'o Pix gerado');
   const wh = await receber(new Request(BASE + '/api/pagamentos?acao=simular', { method: 'POST', body: JSON.stringify({ tentativa_id: pg.corpo.tentativa.id }), headers: { 'content-type': 'application/json' } }), {}, { banco: local.rpc });
   assert.equal(wh.status, 200);

@@ -39,7 +39,7 @@ test('o exemplo da especificação: aproveita o que a pessoa disse, monta o brie
   assert.equal(r.briefing.negocio.segmento, 'odontologia');
   assert.ok(r.briefing.objetivos.includes('apresentar_empresa'));
   assert.equal(r.briefing.projeto.formato, 'institucional');
-  assert.equal(r.estimativa.valor_total, 3200, 'o preço vem do motor');
+  assert.equal(r.estimativa.valor_total, 3500, 'o preço vem do motor');
   assert.ok(!/R\$|reais/i.test(r.resposta), 'nenhum valor no texto');
   assert.ok(!/O que a sua empresa faz/i.test(r.resposta), 'não pergunta de novo o que já sabe');
 });
@@ -80,9 +80,9 @@ test('modelo malicioso: ferramenta inexistente vira erro; laço de ferramentas p
 test('o estimado não chega ao modelo: ele recebe prazo e itens, nunca o valor', async () => {
   const ia = roteiro([comFerramentas(chamada('estimar', { formato: 'institucional', paginas: 6 })), fim('Pronto, veja o cartão.')]);
   const r = await executarTurno({ ia, regras: REGRAS, conversa: nova(), mensagem: 'site institucional de 6 páginas' });
-  assert.equal(r.estimativa.valor_total, 3550);
+  assert.equal(r.estimativa.valor_total, 3850);
   const visto = ia.recebidos[1].mensagens.at(-1).content[0].content;
-  assert.ok(!visto.includes('3550') && !visto.includes('1775'), 'o modelo não viu o valor: ' + visto);
+  assert.ok(!visto.includes('3850') && !visto.includes('1925'), 'o modelo não viu o valor: ' + visto);
 });
 
 test('privacidade: e-mail, telefone e CPF saem antes de ir para o modelo', async () => {
