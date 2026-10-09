@@ -9,6 +9,8 @@ import { banco } from '../../api/_banco.mjs';
 import { criarFreio, ipDe } from '../../api/_freio.mjs';
 import { chaveDoIp } from '../../api/_vendas/ip.mjs';
 import { isIP } from 'node:net';
+import { atender } from '../../api/vendas.mjs';
+import { criarVisitantes } from '../../api/_vendas/visitante.mjs';
 
 const ENV = { SUPABASE_URL: 'https://falso.supabase.co', SUPABASE_CHAVE_PUBLICA: 'sb_publishable_teste', SUPABASE_CHAVE_SECRETA: 'sb_secret_NUNCA_NO_USUARIO' };
 const O1 = '11111111-0000-4000-8000-000000000001', O2 = '22222222-0000-4000-8000-000000000002';
@@ -35,6 +37,10 @@ beforeEach(() => {
       if (simulacao.authFora) return new Response('x', { status: 500 });
       return h.authorization === 'Bearer ' + TOKEN_A ? Response.json({ id: A }) : new Response('{"msg":"bad jwt"}', { status: 401 });
     }
+    /* o login anônimo e a renovação do visitante (api/_vendas/visitante.mjs) */
+    const sessaoA = () => Response.json({ access_token: TOKEN_A, refresh_token: 'refresh-A', expires_at: AGORA_S + 3600, user: { id: A } });
+    if (u.pathname === '/auth/v1/signup') return simulacao.signup ? simulacao.signup() : sessaoA();
+    if (u.pathname === '/auth/v1/token') return simulacao.token ? simulacao.token() : sessaoA();
     if (u.pathname === '/rest/v1/membros') return Response.json(u.search.includes('org_id=eq.' + O1) ? [{ papel: 'dono' }] : []);
     if (u.pathname === '/rest/v1/leads' && op.method === 'POST') {
       const corpo = JSON.parse(op.body);
@@ -180,4 +186,53 @@ test('freio: IPv6 conta pelo prefixo /64; IPv4 e IPv4 mapeado contam pelo endere
   const freado = criarFreio({ max: 3, janelaMs: 60e3 });
   const resultados = [1, 2, 3, 4].map(n => freado(de('2001:db8:a:b::' + n.toString(16)), 0));
   assert.deepEqual(resultados, [false, false, false, true], 'trocar o fim do IPv6 não escapa do freio');
+});
+
+/* ======================= o visitante do orçamento: Auth instável não é "sessão expirada" ======================= */
+/* (auditoria 2026-10-09, funcionalidades 5 e 7) 429 e 5xx do Supabase viravam 401 "sessão expirada" (o navegador
+   jogava a conversa fora) e a falha do login anônimo virava 500 "Erro interno.". */
+let ipVisitante = 0;
+async function vendas(metodo, acao, { corpo, token, query = '' } = {}) {
+  const deps = { banco: async () => ({ conversa_id: O1 }), visitantes: criarVisitantes(ENV), ia: null };
+  const r = await atender(new Request('https://site.test/api/vendas?acao=' + acao + query, {
+    method: metodo, body: corpo === undefined ? undefined : JSON.stringify(corpo),
+    headers: { 'x-forwarded-for': '192.0.2.' + (++ipVisitante), ...(corpo !== undefined ? { 'content-type': 'application/json' } : {}), ...(token ? { authorization: 'Bearer ' + token } : {}) }
+  }), {}, metodo, deps);
+  return { status: r.status, corpo: await r.json() };
+}
+const falha = status => () => new Response('{"msg":"x"}', { status });
+
+test('visitante: o login anônimo falhando (429, 5xx, rede) é 503 com mensagem humana, nunca 500', async () => {
+  assert.equal((await vendas('POST', 'sessao', { corpo: {} })).status, 200, 'o caminho normal');
+  for (const [nome, simular] of [['429', falha(429)], ['500', falha(500)], ['503', falha(503)], ['rede', () => { throw new TypeError('fetch failed'); }]]) {
+    simulacao.signup = simular;
+    const r = await vendas('POST', 'sessao', { corpo: {} });
+    assert.equal(r.status, 503, nome + ': ' + JSON.stringify(r.corpo));
+    assert.equal(r.corpo.recuperavel, true, nome + ': dá para tentar de novo');
+    assert.match(r.corpo.erro, /tente de novo/i, nome + ': mensagem humana');
+    assert.ok(!/interno|HTTP|supabase/i.test(r.corpo.erro), nome + ': sem detalhe interno: ' + r.corpo.erro);
+  }
+  assert.ok(logs.some(l => l.includes('login anônimo recusado: HTTP 503')), 'o motivo técnico fica no log para a equipe');
+});
+
+test('visitante: só a recusa do token (400/401) é "sessão expirada"; 429 e 5xx são 503 recuperável', async () => {
+  assert.equal((await vendas('POST', 'renovar', { corpo: { refresh: 'refresh-A' } })).status, 200, 'o caminho normal');
+  for (const s of [400, 401]) {
+    simulacao.token = falha(s);
+    const r = await vendas('POST', 'renovar', { corpo: { refresh: 'refresh-A' } });
+    assert.equal(r.status, 401, s + ': o Supabase recusou o refresh, a sessão acabou');
+  }
+  for (const s of [429, 500, 502, 503]) {
+    simulacao.token = falha(s);
+    const r = await vendas('POST', 'renovar', { corpo: { refresh: 'refresh-A' } });
+    assert.equal(r.status, 503, s + ': Auth instável não é sessão expirada: ' + JSON.stringify(r.corpo));
+    assert.equal(r.corpo.recuperavel, true);
+  }
+  /* a conferência do token em cada ação: Auth fora do ar também é 503, não 500 */
+  simulacao.authFora = true;
+  const e = await vendas('GET', 'estado', { token: TOKEN_A, query: '&conversa=' + O1 });
+  assert.equal(e.status, 503, 'Auth fora do ar na conferência do token: ' + JSON.stringify(e.corpo));
+  assert.equal(e.corpo.recuperavel, true);
+  simulacao.authFora = false;
+  assert.equal((await vendas('GET', 'estado', { token: TOKEN_FALSO, query: '&conversa=' + O1 })).status, 401, 'token recusado continua 401');
 });

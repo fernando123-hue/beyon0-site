@@ -35,10 +35,17 @@ export function tokenDe(request, agora = Date.now()) {
 /* (auditoria 2026-10-07) toda chamada ao Supabase tem tempo máximo: sem ele, uma lentidão prendia a função até o teto da Vercel */
 export const TEMPO_MAXIMO_MS = 10000;
 
+/* o Auth não conseguiu responder (429, 5xx, rede): falha passageira, não token recusado. Quem chama devolve 503
+   recuperável, nunca 401 "sessão expirada" (o navegador jogaria a conversa fora) nem 500 (auditoria 2026-10-09).
+   paraVisitante: a frase que a pessoa lê; a mensagem do erro é só para o log. */
+export class AuthIndisponivel extends Error {
+  constructor(detalhe, paraVisitante) { super(detalhe); this.name = 'AuthIndisponivel'; this.paraVisitante = paraVisitante || null; }
+}
+
 export async function usuarioDoToken(cfg, token) {
   const r = await fetch(cfg.url + '/auth/v1/user', { headers: { apikey: cfg.publica, authorization: 'Bearer ' + token }, signal: AbortSignal.timeout(TEMPO_MAXIMO_MS) });
   if (r.status === 401 || r.status === 403) return null;
-  if (!r.ok) throw new Error('auth respondeu HTTP ' + r.status);
+  if (!r.ok) throw new AuthIndisponivel('auth respondeu HTTP ' + r.status);
   const u = await r.json().catch(() => null);
   return u && typeof u.id === 'string' ? { id: u.id } : null;
 }
