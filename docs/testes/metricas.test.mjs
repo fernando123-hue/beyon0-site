@@ -132,3 +132,13 @@ test('proteções da revisão de segurança', async () => {
   /* na Vercel o banco de memória nunca liga */
   assert.equal((await receber(pedido(base()), { BZ_LOCAL: '1', VERCEL: '1' })).status, 204);
 });
+
+/* (revisão técnica do lote 1 da auditoria de 2026-10-09) o freio de tentativas da chave do painel conta o IPv6 pelo /64,
+   como os outros freios (ipDe em api/_freio.mjs): trocar o fim do endereço não dá 10 tentativas novas */
+test('painel: tentativas de chave errada contam o IPv6 pelo prefixo /64', async () => {
+  const errada = n => painel('?dias=7', { headers: { authorization: 'Bearer errada', 'x-forwarded-for': '2001:db8:77:1::' + n.toString(16) } });
+  const respostas = await Promise.all(Array.from({ length: 10 }, (_, i) => ler(errada(i + 1), ENV)));
+  assert.ok(respostas.every(r => r.status === 401), '10 chaves erradas: 401');
+  assert.equal((await ler(errada(99), ENV)).status, 429, 'a 11ª, de outro fim do mesmo /64: freada');
+  assert.equal((await ler(painel('?dias=7', { headers: { authorization: 'Bearer errada', 'x-forwarded-for': '2001:db8:77:2::1' } }), ENV)).status, 401, 'outro /64 não é afetado');
+});
