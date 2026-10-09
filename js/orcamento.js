@@ -100,13 +100,15 @@
   }
   /* Recomeçar: esquece a sessão (nenhuma outra aba a grava de volta) e limpa os dados digitados antes de
      recarregar, para o navegador não os restaurar num aparelho compartilhado */
-  var CAMPOS_PESSOAIS = ['o-texto', 'o-aj-texto', 'o-nome', 'o-tel', 'o-email', 'o-pag-nome', 'o-pag-sobrenome', 'o-pag-email', 'o-pag-doc', 'o-titular'];
+  var CAMPOS_PESSOAIS = ['o-texto', 'o-aj-texto', 'o-nome', 'o-tel', 'o-email', 'o-pag-nome', 'o-pag-sobrenome', 'o-pag-email', 'o-pag-doc', 'o-titular', 'o-pix-codigo'];
   function recomecar() {
     API.esquecer();
     CAMPOS_PESSOAIS.forEach(function (id) { if ($(id)) $(id).value = ''; });
     ['o-aceite', 'o-confirmo', 'o-inicio'].forEach(function (id) { if ($(id)) $(id).checked = false; });
     location.reload();
   }
+  /* outra aba esqueceu a sessão (js/orcamento-api.js): avisa já, quieto, em vez de esperar a próxima ação */
+  document.addEventListener('bz-orcamento:perdida', function () { avisarSessao(true); });
   function falhou(e, acao) {
     if (sessaoTerminou(e)) return avisarSessao();
     avisar(mensagemDe(e), acao);
@@ -187,8 +189,10 @@
      segue o servidor: relê o estado (render redesenha a conversa se ela mudou) e só devolve o texto à caixa se o
      turno NÃO entrou */
   async function falhaNoEnvio(e, texto, minha, antes) {
-    ocupado(false);   /* (antes da releitura: se ela pendurar, a tela não fica presa no "Analisando") */
+    /* a tela segue ocupada DURANTE a releitura (que tem limite de 15 s, js/orcamento-api.js): um segundo envio
+       nesse meio tempo poderia duplicar o turno se o primeiro tinha entrado */
     try { await recarregar(); } catch (x) { /* sem conexão: decide pelo que já se sabe */ }
+    ocupado(false);
     var gravada = visitantesNoServidor() > antes;
     if (!gravada) {
       if (minha.isConnected) minha.remove();
@@ -494,8 +498,8 @@
       await recarregar().catch(function () {});
     } catch (e) {
       $('o-aj-resposta').textContent = '';
-      form.removeAttribute('aria-busy');   /* (antes da releitura: se ela pendurar, o formulário não fica preso) */
-      /* (F2) a rede caiu com o ajuste em andamento: ele pode ter entrado. Relê antes de oferecer de novo */
+      /* (F2) a rede caiu com o ajuste em andamento: ele pode ter entrado. Relê antes de oferecer de novo, com o
+         formulário ainda ocupado (a releitura tem limite de 15 s): um segundo ajuste igual não sai no meio */
       try { await recarregar(); } catch (x) { /* sem conexão */ }
       if (E && E.alteracoes.length > antes) { $('o-aj-texto').value = ''; return; }
       falhou(e, repetivel(e) ? function () { reajustar(antes); } : null);

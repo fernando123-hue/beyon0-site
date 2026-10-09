@@ -32,9 +32,13 @@
     gravar(null);
     perdida = true;
   }
-  /* outra aba apagou a sessão (Recomeçar, ou a renovação recusada lá): esta também para, e avisa na próxima ação */
+  /* outra aba apagou a sessão (Recomeçar, ou a renovação recusada lá): esta também para e avisa já (a página ouve
+     'bz-orcamento:perdida': para a espera e o pagamento e mostra o aviso quieto) */
   window.addEventListener('storage', function (ev) {
-    if (ev.key === CHAVE && ev.newValue === null && sessao && sessao.conversa_id) { codigoPerdido = String(sessao.conversa_id).slice(0, 8); sessao = null; perdida = true; }
+    if (ev.key === CHAVE && ev.newValue === null && sessao && sessao.conversa_id) {
+      codigoPerdido = String(sessao.conversa_id).slice(0, 8); sessao = null; perdida = true;
+      try { document.dispatchEvent(new CustomEvent('bz-orcamento:perdida')); } catch (e) { /* navegador muito antigo: avisa na próxima ação */ }
+    }
   });
 
   /* a origem da visita (js/metricas.js, sessionStorage): só meio, fonte, campanha, termo e o código curto */
@@ -78,13 +82,13 @@
   function renovar() {
     if (renovando) return renovando;
     renovando = (async function () {
+      falhaDaRenovacao = null;   /* (no início: uma saída antecipada não pode deixar um 503 velho para trás) */
       var guardada = ler();
       if (guardada && sessao && guardada.refresh !== sessao.refresh && guardada.conversa_id === sessao.conversa_id) { sessao = guardada; return true; }
       if (!sessao || !sessao.refresh) return false;
       var usado = sessao.refresh;
-      falhaDaRenovacao = null;
       try {
-        var s = await http('POST', 'renovar', { refresh: usado });
+        var s = await http('POST', 'renovar', { refresh: usado }, undefined, undefined, ESTADO_MS);   /* (com limite: a renovação vem antes de toda chamada) */
         gravar(Object.assign({}, sessao, { token: s.token, refresh: s.refresh, expira_em: s.expira_em }));
         return true;
       } catch (e) {
@@ -106,7 +110,10 @@
       return await http(metodo, acao, corpo, query, sessao && sessao.token, limiteMs);
     } catch (e) {
       if (e.status !== 401) throw e;
-      if (await renovar()) return http(metodo, acao, corpo, query, sessao.token, limiteMs);
+      if (await renovar()) {
+        if (!sessao) throw e;   /* (renovou, mas a sessão foi esquecida no meio: Recomeçar em outra aba) */
+        return http(metodo, acao, corpo, query, sessao.token, limiteMs);
+      }
       if (sessao && falhaDaRenovacao) throw falhaDaRenovacao;   /* (a sessão segue: o erro passageiro é o que vale) */
       throw e;
     }
