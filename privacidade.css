@@ -13,7 +13,12 @@ body { font-size: 1rem; line-height: 1.7; }
 .priv strong { color: var(--t1); font-weight: 600; }
 .priv ul { list-style: none; display: flex; flex-direction: column; gap: .9rem; }
 .priv li { padding-left: 1.1rem; border-left: 1px solid var(--stroke); }
-.priv a { color: var(--ac); text-decoration: underline; text-underline-offset: 3px; }
+/* links de texto no padrão do .cta__alt a (css/componentes.css): branco com sublinhado discreto que acende no
+   hover. Ciano em texto fica só no H1, no h2 da Conversa e em dado (regra 8; auditoria 2026-10-09) */
+.priv a { color: var(--t1); text-decoration: underline; text-decoration-color: var(--line-hi); text-underline-offset: 4px; transition: text-decoration-color var(--t-micro) var(--ease-micro); }
+.priv a:hover { text-decoration-color: var(--ac); }
+/* o logotipo é marca, não link de texto: sem sublinhado e sem herdar a cor do .priv a ("Zero" segue ciano, como na nav) */
+.priv .priv__marca a { color: var(--t1); text-decoration: none; }
 .priv code { font-family: var(--mono); font-size: .85em; color: var(--t1); }
 .priv__voltar { margin-top: 3rem; }
 .priv__voltar a { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-ctrl); text-transform: uppercase; display: inline-flex; align-items: center; min-height: 44px; }

@@ -200,13 +200,18 @@ html.tem-menu .nav.is-open .nav__links { max-height: calc(100dvh - var(--nav-h))
 /* uma gramática só nas 3 páginas: botão inteiro, rótulo à esquerda, seta à direita (rodada 6) */
 .barra .btn { width: 100%; flex: 1 1 auto; justify-content: space-between; padding-inline: 1.25rem 1.1rem; min-height: 48px; }
 .barra .btn:focus-visible { outline-offset: -4px; }   /* (a barra recorta o que sai dela: o foco fica por dentro, senão era invisível — auditoria 2026-10-06) */
-.barra .btn:focus-visible { outline-offset: -4px; }   /* (a barra recorta o que sai dela: o foco fica por dentro, senão era invisível — auditoria 2026-10-06) */
+/* "Monte seu orçamento" numa linha só, até no 320 (auditoria 2026-10-09: quebrava em duas) */
+.barra .btn { white-space: nowrap; }
+@media (max-width: 359px) { .barra .btn { letter-spacing: .03em; padding-inline: 1rem .9rem; } }
 .barra.is-oculta { transform: translateY(110%); opacity: 0; pointer-events: none; visibility: hidden; transition-delay: 0s, 0s, var(--t); }
 /* sem JS ninguém a mostra: nasce visível */
 html:not(.js) .barra.is-oculta { transform: none; opacity: 1; pointer-events: auto; visibility: visible; }
 @media (min-width: 981px) { .barra { display: none; } }
 @media (max-width: 980px) {
-  body { padding-bottom: 76px; }
+  /* o vão da barra fica DENTRO do rodapé, e só onde há barra: no body ele virava
+     uma faixa preta abaixo do rodapé, inclusive no orçamento, que não tem barra
+     (auditoria 2026-10-09). 76px = a doca (56) + a folga dela (12) + respiro */
+  body:has(.barra) .footer { padding-bottom: calc(clamp(24px, 4vw, 40px) + 76px); }
   /* a barra é uma DOCA escura flutuante; o botão é contornado, não uma placa
      ciano sólida em toda tela (o ciano cheio fica no hero e na Conversa) */
   .barra { left: 12px; right: 12px; bottom: max(12px, env(safe-area-inset-bottom)); padding: 6px; border: 1px solid var(--line-2); border-radius: var(--raio); background: rgb(12 13 14); box-shadow: inset 0 1px 0 rgb(255 255 255 / .06), 0 18px 40px -14px rgb(0 0 0 / .95); }
@@ -409,7 +414,9 @@ html.has-gsap .feixe.is-loop ~ .hero__arte .instrumento__led { animation: led-pa
 /* ---- RODAPÉ ---- */
 .footer { position: relative; border-top: 1px solid var(--line); background: var(--s1); color: var(--t3); padding: clamp(40px, 7vw, 72px) var(--pad) clamp(24px, 4vw, 40px); }
 .footer::before { content: ""; position: absolute; left: 0; right: 0; top: -1px; height: 1px; background: linear-gradient(90deg, transparent, rgb(var(--ac-rgb) / .5), rgb(var(--prata-rgb) / .4), transparent); }
-.footer__grid { max-width: var(--maxw); margin: 0 auto; display: grid; grid-template-columns: 1fr; gap: 2rem; }
+/* a largura útil do conteúdo: a .section tem --maxw COM o recuo por dentro; o rodapé, sem
+   descontar o recuo, saía 2×--pad mais largo que o texto acima dele (auditoria 2026-10-09) */
+.footer__grid { max-width: calc(var(--maxw) - 2 * var(--pad)); margin: 0 auto; display: grid; grid-template-columns: 1fr; gap: 2rem; }
 .footer__brand > a { display: inline-flex; align-items: center; min-height: 28px; }
 .footer__brand p { font-weight: 300; font-size: 1.3rem; line-height: 1.25; letter-spacing: -.02em; color: var(--t1); margin-top: .9rem; max-width: 20ch; }
 .footer__links { display: flex; flex-direction: column; }
@@ -417,7 +424,7 @@ html.has-gsap .feixe.is-loop ~ .hero__arte .instrumento__led { animation: led-pa
 .footer__links a { font-size: var(--fs-m); color: var(--t2); display: flex; align-items: center; min-height: 44px; transition: color var(--t-micro) var(--ease-micro); }
 .footer__links a:hover { color: var(--ac); }
 .footer__base {
-  max-width: var(--maxw); margin: clamp(32px, 5vw, 56px) auto 0; padding-top: 1.4rem;
+  max-width: calc(var(--maxw) - 2 * var(--pad)); margin: clamp(32px, 5vw, 56px) auto 0; padding-top: 1.4rem;
   border-top: 1px solid var(--line);
   display: flex; flex-wrap: wrap; gap: .8rem 1.5rem; justify-content: space-between; align-items: center;
 }
@@ -431,7 +438,11 @@ html.has-gsap .feixe.is-loop ~ .hero__arte .instrumento__led { animation: led-pa
 /* (o "Cookies" tem a roupa do interruptor de movimento, mas outra classe: o .footer__motion é ligado pelo js/pagina.js) */
 .footer__cookies { background: none; border: 0; padding: 0; min-height: 28px; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-ctrl); text-transform: uppercase; color: var(--t3); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
 .footer__cookies:hover { color: var(--t1); }
-@media (pointer: coarse) { .footer__legal a, .footer__legal button { min-height: 44px; } }
+/* no dedo, todo alvo do rodapé e o botão pequeno com 44px (WCAG 2.5.8; auditoria 2026-10-09) */
+@media (pointer: coarse) {
+  .footer__legal a, .footer__legal button, .footer__brand > a, .footer__contato a { min-height: 44px; }
+  .btn--sm { min-height: 44px; }
+}
 .footer__motion { background: none; border: 0; padding: 0; min-height: 28px; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-ctrl); text-transform: uppercase; color: var(--t3); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
 .footer__motion:hover { color: var(--t1); }
 @media (min-width: 721px) { .footer__grid { grid-template-columns: 1.4fr 1fr 1fr; gap: 3rem; } }
@@ -441,10 +452,13 @@ html.has-gsap .feixe.is-loop ~ .hero__arte .instrumento__led { animation: led-pa
   display: none; position: fixed; right: 20px; bottom: 20px; z-index: 40;
   width: 52px; height: 52px; border-radius: var(--raio);
   place-items: center; color: var(--t1); background: var(--s2); border: 1px solid var(--stroke);
-  transition: border-color var(--t-micro) var(--ease-micro), color var(--t-micro) var(--ease-micro), box-shadow var(--t-micro) var(--ease-micro), opacity var(--t) var(--ease), transform var(--t) var(--ease);
+  transition: border-color var(--t-micro) var(--ease-micro), color var(--t-micro) var(--ease-micro), box-shadow var(--t-micro) var(--ease-micro), opacity var(--t) var(--ease), transform var(--t) var(--ease), visibility 0s linear 0s;
 }
 .wa:hover { border-color: var(--ac); color: var(--ac); }
-.wa.is-oculta { opacity: 0; transform: translateY(8px); pointer-events: none; }
+/* oculto também para o Tab: só opacity deixava um botão invisível focável. O visibility
+   espera o fade terminar (o 6º atraso), como na .barra.is-oculta (auditoria 2026-10-09) */
+.wa.is-oculta { opacity: 0; transform: translateY(8px); pointer-events: none; visibility: hidden; transition-delay: 0s, 0s, 0s, 0s, 0s, var(--t); }
+html:not(.js) .wa.is-oculta { opacity: 1; transform: none; pointer-events: auto; visibility: visible; }
 @media (min-width: 981px) { .wa { display: grid; } }
 
 /* a nav no eixo da coluna de conteúdo (logo em 184, CTA termina em 1256 a

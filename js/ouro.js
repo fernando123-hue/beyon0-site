@@ -77,8 +77,13 @@
     ultimoTexto = txt; leituraTxt.nodeValue = txt;
     leitura.classList.toggle('is-viva', !!txt);
   }
-  /* a leitura fica abaixo do menu e acima da barra do celular, mesmo com a origem na borda da tela */
-  function porLeitura(y) { leitura.style.transform = 'translate3d(0,' + Math.max(76, Math.min(window.innerHeight - 110, y - 22)).toFixed(0) + 'px,0)'; }
+  /* a leitura fica abaixo do menu e acima da barra do celular, mesmo com a origem na borda da tela.
+     No celular (≤720px) ela não segue a linha: presa logo abaixo do menu, à direita (css/tokens.css), porque
+     presa à linha ela caía em cima do texto (auditoria 2026-10-09) */
+  var leituraPresa = window.matchMedia('(max-width: 720px)');
+  function porLeitura(y) {
+    if (leituraPresa.matches) { leitura.style.transform = ''; return; }
+    leitura.style.transform = 'translate3d(0,' + Math.max(76, Math.min(window.innerHeight - 110, y - 22)).toFixed(0) + 'px,0)'; }
   function claraoEm(y) {
     var n = B.nucleo, x = n && n.visivel ? n.cx : window.innerWidth / 2;
     clarao.style.setProperty('--y', (y - 1).toFixed(0) + 'px');

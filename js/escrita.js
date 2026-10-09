@@ -35,9 +35,27 @@
     return !r || !html.classList.contains('has-gsap') || r.classList.contains('is-in');
   }
   function assentar(e) { for (var i = 0; i < e.nos.length; i++) e.nos[i].no.nodeValue = e.nos[i].fim; clearTimeout(e.timer); var k = ativos.indexOf(e); if (k >= 0) ativos.splice(k, 1); }
+  /* o texto real fica legível para o leitor de tela enquanto embaralha (auditoria 2026-10-09): os nós que mudam vão
+     para um span aria-hidden e o rótulo ganha uma cópia .sr-only do texto final (o kicker é um <p>, que a ARIA não
+     deixa nomear por aria-label). Feito UMA vez, na montagem, antes do js/rede.js: trocar nós durante a escrita
+     acionaria o MutationObserver da rede, que remede a página inteira. Num kicker em flex, o span ocupa o lugar do
+     item anônimo do texto e a cópia é absoluta: o layout não muda */
+  function preparar(el, nos) {
+    for (var i = 0; i < nos.length; i++) {
+      var casca = document.createElement('span');
+      casca.setAttribute('aria-hidden', 'true');
+      el.replaceChild(casca, nos[i].no);
+      casca.appendChild(nos[i].no);
+    }
+    var copia = document.createElement('span');
+    copia.className = 'sr-only';
+    copia.textContent = el.getAttribute('data-nome');
+    el.appendChild(copia);
+    el._escrita = nos;
+  }
   function escrever(el) {
-    var nos = nosDe(el);
-    if (!nos.length) return;
+    var nos = el._escrita;
+    if (!nos || !nos.length) return;
     var e = { nos: nos, t0: performance.now(), timer: 0 };
     ativos.push(e);
     (function passo() {
@@ -68,6 +86,7 @@
     var nos = nosDe(rotulos[i]);
     if (!nos.length) continue;
     rotulos[i].setAttribute('data-nome', nos.map(function (n) { return n.fim; }).join(' ').trim());
+    preparar(rotulos[i], nos);
     io.observe(rotulos[i]);
   }
   B.on('reduzir', function (sim) { if (!sim) return; io.disconnect(); while (ativos.length) assentar(ativos[0]); });

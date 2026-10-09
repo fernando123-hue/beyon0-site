@@ -151,6 +151,10 @@ html {
    rodada 4). Tem de ser CSS desde o início: o ScrollTrigger detecta a
    rolagem suave ao nascer e a religa inline a cada refresh. */
 @media (min-width: 981px) and (prefers-reduced-motion: no-preference) { html.has-gsap { scroll-behavior: auto; } }
+/* movimento reduzido (do sistema ou do interruptor): rolagem direta em TODA página. Mora aqui
+   porque orçamento, privacidade, resumo e painel não carregam o motion.css (auditoria 2026-10-09) */
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+html.menos-movimento { scroll-behavior: auto; }
 body {
   position: relative;
   background: var(--bg);
@@ -258,6 +262,8 @@ html.is-ouro-esfria .ouro-linha > b { background: #FFBE3C; }
 html.is-ouro-ignicao .ouro-leitura { color: #FFFAEB; }
 html.is-ouro .ouro-leitura { color: #FFBE3C; }
 @media (min-width: 981px) { .ouro-leitura { left: max(16px, calc((100% - 1180px) / 2)); } }
+/* celular: presa logo abaixo do menu, à direita; seguindo a linha ela cobria o texto (js/ouro.js não a move aqui) */
+@media (max-width: 720px) { .ouro-leitura { left: auto; right: 16px; top: calc(var(--nav-h) + 8px); } }
 @media (prefers-reduced-motion: reduce) { .ouro-linha, .ouro-leitura { display: none; } }
 html.menos-movimento .ouro-linha, html.menos-movimento .ouro-leitura { display: none; }
 
