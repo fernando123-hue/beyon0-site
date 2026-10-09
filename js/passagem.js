@@ -32,9 +32,9 @@
   var DESTINOS = { '/': 'inicio', '/sites': 'sites', '/automacao': 'automacao', '/orcamento': 'orcamento' };
   var CLASSES_SAIDA = ['sai-inicio', 'sai-sites', 'sai-automacao', 'sai-orcamento'];
   var CLASSES_CHEGADA = ['chega-inicio', 'chega-sites', 'chega-automacao', 'chega-orcamento'];
-  /* de onde a viagem parte: o ponto tocado (Sites), o centro da tela (Início, o núcleo) ou nenhum ponto (Automação e
+  /* de onde a viagem parte: o centro da tela (Início, o núcleo; Sites, a janela) ou nenhum ponto (Automação e
      Orçamento andam de lado e de baixo; os riscos ficam nas trilhas do CSS) */
-  var PARTIDA = { inicio: 'centro', sites: 'toque', automacao: 'nenhum', orcamento: 'nenhum' };
+  var PARTIDA = { inicio: 'centro', sites: 'centro', automacao: 'nenhum', orcamento: 'nenhum' };
   var saindo = false;
   var mexidos = [];            /* quem recebeu origem e classe na saída: tudo volta como estava se desistir */
   var chegada = 0;             /* o timer do fim da chegada */
@@ -54,11 +54,28 @@
   function fimDaChegada() {
     clearTimeout(chegada);
     if (!html.classList.contains('passagem-chega')) return;
+    html.classList.remove('passagem-espera');
     html.classList.remove.apply(html.classList, ['passagem-chega', 'passagem-ancora'].concat(CLASSES_CHEGADA));
     if (window.ScrollTrigger) window.ScrollTrigger.refresh();
+    if (B.pausar) B.pausar(false);
     if (B.emit) B.emit('passagem:chegou');
   }
-  if (html.classList.contains('passagem-chega')) chegada = setTimeout(fimDaChegada, CHEGADA_MS);
+  /* enquanto a página chega, os canvases esperam (js/core.js, pausar): o compositor fica só com o voo */
+  if (html.classList.contains('passagem-chega')) {
+    if (B.pausar) B.pausar(true);
+    /* solta a chegada (passagem-espera) dois quadros depois do DOMContentLoaded: aí a página já desenha, e o voo
+       começa do 1º quadro em vez de pular os que caíram carregando. O relógio do fim conta dali */
+    var soltar = function () {
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          html.classList.remove('passagem-espera');
+          chegada = setTimeout(fimDaChegada, CHEGADA_MS);
+        });
+      });
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', soltar, { once: true });
+    else soltar();
+  }
 
   /* o link que vira passagem: mesma origem, página do site, outra página */
   function destinoDe(e) {
@@ -100,11 +117,14 @@
 
   function desfazer() {
     clearTimeout(desiste);
+    soltarCamadas();
+    if (B.pausar) B.pausar(false);
     saindo = false;
     html.classList.remove.apply(html.classList, ['passagem-sai'].concat(CLASSES_SAIDA));
     mexidos.forEach(function (a) { a.n.classList.remove(a.c); a.n.style.transformOrigin = ''; });
     mexidos = [];
     try { sessionStorage.removeItem('bz-passagem'); } catch (err) { /* sem armazenamento: nada a apagar */ }
+    if (B.emit) B.emit('passagem:desfeita');   /* o menu do celular termina de fechar (js/pagina.js) */
   }
 
   function sair(d, p) {
@@ -122,17 +142,20 @@
     });
     try { sessionStorage.setItem('bz-passagem', String(Date.now())); } catch (err) { /* sem armazenamento: chega sem a travessia */ }
     html.classList.add('passagem-sai', 'sai-' + d.nome);
+    if (B.pausar) B.pausar(true);   /* os canvases param enquanto a página voa (js/core.js) */
     if (B.emit) B.emit('passagem', d);   /* o mini mergulha junto (js/mini.js) */
     setTimeout(function () { location.href = d.href; }, SAI_MS);
     desiste = setTimeout(desfazer, SAI_MS + DESISTE_MS);
   }
 
+  /* na CAPTURA: decide antes de quem ouve o clique no caminho (o menu do celular, js/pagina.js, vê o clique já
+     cancelado e só recolhe, sem soltar a página) */
   document.addEventListener('click', function (e) {
     var d = destinoDe(e);
     if (!d || reduzido()) return;
     e.preventDefault();
     if (!saindo) sair(d, pontoDe(e, d.link));
-  });
+  }, true);
 
   /* voltou pelo histórico com a página guardada: ela estava no meio do voo; volta inteira */
   window.addEventListener('pageshow', function (e) {
@@ -140,6 +163,29 @@
     desfazer();
     fimDaChegada();
   });
+
+  /* a camada pronta antes do clique: no começo do toque (ou do clique do mouse) num link de passagem, <main> e o
+     rodapé ganham will-change (css/passagem.css, .passagem-pronta) e o navegador monta a camada nos ~100 ms até o
+     clique. Sem clique, sai em 1,5 s */
+  var prontos = [], soltaCamadas = 0;
+  function soltarCamadas() {
+    clearTimeout(soltaCamadas);
+    prontos.forEach(function (n) { n.classList.remove('passagem-pronta'); });
+    prontos = [];
+  }
+  function preparar(e) {
+    var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+    if (!a || saindo || reduzido()) return;
+    var u;
+    try { u = new URL(a.href, location.href); } catch (err) { return; }
+    if (!ehPagina(u)) return;
+    soltarCamadas();
+    prontos = [document.querySelector('main'), document.querySelector('.footer')].filter(Boolean);
+    prontos.forEach(function (n) { n.classList.add('passagem-pronta'); });
+    soltaCamadas = setTimeout(function () { if (!saindo) soltarCamadas(); }, 1500);
+  }
+  document.addEventListener('pointerdown', preparar, { passive: true });
+  document.addEventListener('touchstart', preparar, { passive: true });
 
   /* pré-carga na intenção: o HTML do destino chega enquanto a página voa */
   var pedidos = {};

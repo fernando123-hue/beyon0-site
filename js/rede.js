@@ -679,9 +679,18 @@
   var veioDoSite = false;
   try { veioDoSite = Date.now() - (+sessionStorage.getItem('bz-campo') || 0) < 4000; } catch (e) { /* sem armazenamento */ }
   window.addEventListener('pagehide', function () { try { sessionStorage.setItem('bz-campo', String(Date.now())); } catch (e) { /* idem */ } });
-  if (veioDoSite) {
+  var Bc = window.BEYON;
+  if (veioDoSite && document.documentElement.classList.contains('passagem-chega') && Bc && Bc.on) {
+    /* chegando pela PASSAGEM (js/passagem.js): a página nova está voando, sem nada por cima. Medir a página inteira
+       é uma tarefa longa (310 ms no celular simulado, docs/passagem-medir.mjs) e derrubava os quadros da chegada:
+       espera ela assentar ('passagem:chegou') e o navegador folgar, e acende devagar (sem is-herdada) */
+    Bc.on('passagem:chegou', function () {
+      var ocioso2 = window.requestIdleCallback || function (fn) { return setTimeout(fn, 1); };
+      ocioso2(comecar, { timeout: 600 });
+    });
+  } else if (veioDoSite) {
     /* logo depois do 1º quadro (não antes dele): medir a página inteira é
-       uma tarefa longa (~70 ms), e a página nova chega coberta pela passagem */
+       uma tarefa longa (~70 ms) */
     cv.classList.add('is-herdada');
     requestAnimationFrame(function () { setTimeout(function () { comecar(); quadro({ dt: 16, now: performance.now() }); }, 0); });
   } else {

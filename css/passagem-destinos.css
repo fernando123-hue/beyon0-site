@@ -6,8 +6,9 @@
    destino muda a viagem:
    - INÍCIO: você volta ao núcleo. A página encolhe para o centro, os riscos
      convergem para lá e um anel se fecha; na chegada o anel se abre.
-   - SITES: a grade de colunas do layout se desenha sobre a página; na
-     chegada a página nova é revelada coluna a coluna.
+   - SITES: a janela do navegador. A página encolhe para dentro da moldura
+     de uma janela e ela se afasta; na chegada o site aparece pequeno na
+     janela, que se expande até a tela.
    - AUTOMAÇÃO: fluxo. A página desliza para o lado e linhas atravessam a
      tela como dados; a nova entra pelo outro lado (a próxima etapa).
    - ORÇAMENTO: a régua de medida sobe pela tela; a página nova assenta de
@@ -20,17 +21,22 @@
    ========================================================================== */
 
 /* ---------- as peças novas (escondidas fora da viagem delas) ---------- */
-.passagem__colunas { position: absolute; inset: 0; display: flex; }
-.passagem__colunas i { flex: 1; border-left: 1px solid rgb(var(--ac-rgb) / .3); transform-origin: 50% 0; opacity: 0; }
-.passagem__colunas i:first-child { border-left-color: transparent; }
+/* a janela do navegador (Sites): moldura de 1 px na borda da tela, barra com os três pontos e o campo de endereço
+   (sem texto); a sombra preta cobre o que fica fora dela quando ela encolhe */
+.passagem__janela { position: absolute; inset: 0; border: 1px solid rgb(var(--ac-rgb) / .55); border-radius: 12px; opacity: 0;
+  box-shadow: 0 0 0 40vmax var(--bg); }
+.passagem__janela::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 34px; border-radius: 11px 11px 0 0;
+  border-bottom: 1px solid rgb(var(--ac-rgb) / .25);
+  background: radial-gradient(circle at 18px 17px, var(--ac) 3px, transparent 3.5px),
+              radial-gradient(circle at 32px 17px, rgb(var(--prata-rgb) / .5) 3px, transparent 3.5px),
+              radial-gradient(circle at 46px 17px, rgb(var(--prata-rgb) / .5) 3px, transparent 3.5px), var(--s1); }
+.passagem__janela::after { content: ""; position: absolute; top: 9px; left: 30%; right: 30%; height: 16px; border-radius: 8px; border: 1px solid rgb(var(--ac-rgb) / .25); }
 .passagem__regua { position: absolute; left: 0; right: 0; top: 0; height: 1px; background: rgb(var(--ac-rgb) / .8); opacity: 0; }
 .passagem__regua::before, .passagem__regua::after { content: ""; position: absolute; left: 0; right: 0; bottom: 1px; }
 .passagem__regua::before { height: 6px; background: repeating-linear-gradient(90deg, rgb(var(--ac-rgb) / .45) 0 1px, transparent 1px 16px); }
 .passagem__regua::after { height: 12px; background: repeating-linear-gradient(90deg, rgb(var(--ac-rgb) / .8) 0 1px, transparent 1px 96px); }
 .passagem__anel { position: absolute; left: 50%; top: 50%; width: 120vmax; height: 120vmax; margin: -60vmax 0 0 -60vmax; border-radius: 50%;
   border: 1px solid rgb(var(--ac-rgb) / .6); opacity: 0; }
-/* no celular, 6 colunas (a grade do layout no celular) */
-@media (max-width: 620px) { .passagem__colunas i:nth-child(n + 7) { display: none; } }
 
 /* ---------- INÍCIO: de volta ao núcleo ---------- */
 html.passagem-sai.sai-inicio .passagem-mergulha { animation-name: pass-inicio-sai; }
@@ -46,34 +52,48 @@ html.passagem-chega.chega-inicio .passagem__anel { animation: pass-anel-abre 1s 
 @keyframes pass-anel-fecha { 0% { transform: none; opacity: 0; } 25% { opacity: .6; } 100% { transform: scale(.04); opacity: 1; } }
 @keyframes pass-anel-abre { 0% { transform: scale(.04); opacity: 1; } 100% { transform: none; opacity: 0; } }
 
-/* ---------- SITES: a grade se desenha; a página é montada coluna a coluna ---------- */
+/* ---------- SITES: a janela (reformulada a pedido do dono, 2026-10-09: "dê uma reformulada na transição do sites")
+   Saindo: surge a moldura de uma janela de navegador em volta da tela (a mesma janela do hero, com os três pontos e
+   o campo de endereço, sem texto), a página encolhe para dentro dela e a janela se afasta para cima. Chegando: o
+   site novo aparece pequeno dentro da janela, que se expande até a tela e se desfaz. A sombra preta da janela
+   (box-shadow) cobre o resto da página fora dela: um só desenho, animado só por transform e opacity.
+   <main> e a janela têm a mesma origem (o centro da tela) e as mesmas escalas: a página fica sempre dentro dela, e a
+   janela acende antes e apaga depois da página (a parte da página fora dela nunca aparece pela sombra a meio tom). ---- */
 html.passagem-sai.sai-sites .passagem-mergulha { animation-name: pass-sites-sai; }
 html.passagem-sai.sai-sites .passagem-voa { animation-name: pass-sites-voa; }
 html.passagem-sai.sai-sites .rede { animation-name: none; }
 html.passagem-sai.sai-sites .passagem__riscos i,
 html.passagem-chega.chega-sites .passagem__riscos i { animation-name: none; }
-/* (propriedades longas: o atalho apagaria o atraso de cada coluna, lá embaixo. Na saída, .26 s: a 12ª coluna
-   começa em .33 s e termina antes da navegação, em SAI_MS) */
-html.passagem-sai.sai-sites .passagem__colunas i { animation-name: pass-coluna-desenha; animation-duration: .26s; animation-timing-function: cubic-bezier(.33, 1, .68, 1); animation-fill-mode: both; }
-/* a chegada: as colunas cobrem (o mesmo preto em que a saída terminou) e sobem uma a uma, da esquerda para a direita */
-html.passagem-chega.chega-sites .passagem__colunas i { background: var(--bg); animation-name: pass-coluna-sobe; animation-duration: .55s; animation-timing-function: cubic-bezier(.65, 0, .35, 1); animation-fill-mode: both; }
+html.passagem-sai.sai-sites .passagem__janela { animation: pass-janela-sai .58s cubic-bezier(.37, 0, .63, 1) both; }
+html.passagem-chega.chega-sites .passagem__janela { animation: pass-janela-chega .92s cubic-bezier(.33, 1, .68, 1) both; }
 html.passagem-chega.chega-sites main, html.passagem-chega.chega-sites .footer { animation-name: pass-sites-chega; }
-.passagem__colunas i:nth-child(2) { animation-delay: .03s; }
-.passagem__colunas i:nth-child(3) { animation-delay: .06s; }
-.passagem__colunas i:nth-child(4) { animation-delay: .09s; }
-.passagem__colunas i:nth-child(5) { animation-delay: .12s; }
-.passagem__colunas i:nth-child(6) { animation-delay: .15s; }
-.passagem__colunas i:nth-child(7) { animation-delay: .18s; }
-.passagem__colunas i:nth-child(8) { animation-delay: .21s; }
-.passagem__colunas i:nth-child(9) { animation-delay: .24s; }
-.passagem__colunas i:nth-child(10) { animation-delay: .27s; }
-.passagem__colunas i:nth-child(11) { animation-delay: .3s; }
-.passagem__colunas i:nth-child(12) { animation-delay: .33s; }
-@keyframes pass-sites-sai { from { transform: none; opacity: 1; } 20% { opacity: 1; } 90% { opacity: 0; } to { transform: scale(.96); opacity: 0; } }
-@keyframes pass-sites-voa { from { transform: none; } to { transform: scale(.96); } }
-@keyframes pass-sites-chega { from { transform: scale(.985); } to { transform: none; } }
-@keyframes pass-coluna-desenha { from { transform: scaleY(0); opacity: 1; } to { transform: none; opacity: 1; } }
-@keyframes pass-coluna-sobe { from { transform: none; opacity: 1; } to { transform: translateY(-101%); opacity: 1; } }
+/* o menu do topo entra quando a janela termina de abrir (a barra dela, com os três pontos, passaria por baixo dele) */
+html.passagem-chega.chega-sites .nav { animation: pass-surge .3s cubic-bezier(.33, 1, .68, 1) .74s both; }
+html.passagem-chega.passagem-ancora .nav { animation: none; }
+/* chegando a uma âncora a página só aparece: sem janela */
+html.passagem-chega.passagem-ancora .passagem__janela { animation: none; }
+@keyframes pass-sites-sai {
+  0% { transform: none; opacity: 1; }
+  55% { transform: scale(.84); opacity: 1; }
+  88% { opacity: 0; }
+  100% { transform: translateY(-9vh) scale(.84); opacity: 0; } }
+@keyframes pass-sites-voa { 0% { transform: none; } 55% { transform: scale(.84); } 100% { transform: translateY(-9vh) scale(.84); } }
+@keyframes pass-janela-sai {
+  0% { transform: none; opacity: 0; }
+  25% { opacity: 1; }
+  55% { transform: scale(.84); opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(-9vh) scale(.84); opacity: 0; } }
+@keyframes pass-sites-chega {
+  0% { transform: translateY(9vh) scale(.84); opacity: 0; }
+  30% { transform: scale(.84); opacity: 1; }
+  100% { transform: none; opacity: 1; } }
+@keyframes pass-janela-chega {
+  0% { transform: translateY(9vh) scale(.84); opacity: 0; }
+  15% { opacity: 1; }
+  30% { transform: scale(.84); opacity: 1; }
+  85% { transform: none; opacity: 1; }
+  100% { transform: none; opacity: 0; } }
 
 /* ---------- AUTOMAÇÃO: fluxo de lado ---------- */
 html.sai-automacao .passagem__riscos, html.chega-automacao .passagem__riscos { left: 0; top: 0; width: 100%; height: 100%; }

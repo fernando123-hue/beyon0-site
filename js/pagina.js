@@ -93,7 +93,22 @@
         toggle.setAttribute('aria-expanded', abrindo ? 'true' : 'false');
         menuAberto = abrindo; mostrarBarra();
       });
-      painel.addEventListener('click', function (e) { if (e.target.closest('a')) fechar(false); });
+      /* link do menu que virou PASSAGEM (js/passagem.js decide antes, na captura, e cancela o clique): a página está indo
+         embora, então o menu só se recolhe. Tirar o inert de <main> recalculava o estilo da página inteira no toque
+         (medido: 44 ms dos 75 ms da tarefa do toque, no celular simulado) e o voo começava travado. Se a navegação
+         não acontecer, a passagem avisa ('passagem:desfeita') e o fechamento termina */
+      var recolher = function () {
+        navEl.classList.remove('is-open');
+        toggle.setAttribute('aria-expanded', 'false');
+        var Bp = window.BEYON;
+        if (!Bp || !Bp.on) return fechar(false);
+        var terminar = function () { Bp.off('passagem:desfeita', terminar); navEl.classList.add('is-open'); fechar(false); };
+        Bp.on('passagem:desfeita', terminar);
+      };
+      painel.addEventListener('click', function (e) {
+        if (!e.target.closest('a')) return;
+        if (e.defaultPrevented && html.classList.contains('passagem-sai')) recolher(); else fechar(false);
+      });
       aoEscapar.push(function () { fechar(true); });
       /* a janela cresceu para o desktop com o menu aberto: fecha (senão a barra
          seguia oculta e o menu reaparecia aberto ao voltar ao celular) */

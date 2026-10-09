@@ -88,6 +88,13 @@ html.passagem-chega .passagem__riscos i { animation-name: pass-risco-chega; anim
 @keyframes pass-rede-chega { from { transform: scale(.92); } to { transform: none; } }
 @keyframes pass-risco-chega { 0% { transform: translateX(0) scaleX(1.9); opacity: 0; } 15% { opacity: .8; } 100% { transform: translateX(66vmax) scaleX(.3); opacity: 0; } }
 
+/* a chegada espera a página conseguir desenhar (passagem-espera, posta no <head> pelo js/ancoras.js, tirada pelo
+   js/passagem.js dois quadros depois do DOMContentLoaded): parada no 1º quadro em vez de começar aos pulos */
+html.passagem-espera main, html.passagem-espera .footer, html.passagem-espera .rede, html.passagem-espera .nav, html.passagem-espera .passagem * { animation-play-state: paused; }
+/* a página se prepara para voar no começo do toque (js/passagem.js, pronta): a camada já existe quando o clique chega,
+   em vez de ser montada no 1º quadro do voo (medido: 23 de 25 quadros perdidos nos 100 ms depois do toque) */
+.passagem-pronta { will-change: transform, opacity; }
+
 /* movimento reduzido (sistema ou interruptor): navegação comum */
 @media (prefers-reduced-motion: reduce) {
   .passagem { display: none; }

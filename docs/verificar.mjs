@@ -144,7 +144,7 @@ const estadoPassagem = page => page.evaluate(() => {
   try { chave = sessionStorage.getItem('bz-passagem'); } catch {}
   return {
     url: location.pathname, opacidade: main.opacity, escala: main.transform,
-    classes: [...c].filter(k => /^(passagem-|sai-|chega-)/.test(k)).join(',') || '—', chave
+    classes: [...c].filter(k => /^(passagem-|sai-|chega-)/.test(k) && k !== 'passagem-espera').join(',') || '—', chave
   };
 });
 const inteira = s => s.opacidade === '1' && s.escala === 'none' && s.classes === '—';
@@ -201,13 +201,14 @@ await cenario('passagem-desiste', DESKTOP, async page => {
   await link.click();
   await page.waitForTimeout(150);
   const saindo = await estadoPassagem(page);
-  /* no desktop os riscos saem do ponto clicado (o menu do topo não é o do celular) */
+  /* a janela do Sites parte do centro da tela, onde quer que o link esteja (o menu do topo, no canto) */
   const origem = await page.evaluate(() => { const r = document.querySelector('.passagem__riscos'); return { x: parseFloat(r.style.left), y: parseFloat(r.style.top) }; });
-  const noLink = origem.x >= caixa.x && origem.x <= caixa.x + caixa.width && origem.y >= caixa.y && origem.y <= caixa.y + caixa.height;
+  const tela = await page.evaluate(() => ({ x: innerWidth / 2, y: innerHeight / 2 }));
+  const noCentro = Math.abs(origem.x - tela.x) < 2 && Math.abs(origem.y - tela.y) < 2 && !(origem.x >= caixa.x && origem.x <= caixa.x + caixa.width && origem.y >= caixa.y && origem.y <= caixa.y + caixa.height);
   await page.waitForTimeout(2800);   /* SAI_MS (0,6 s) + DESISTE_MS (2 s) e folga */
   const s = await estadoPassagem(page);
-  return { ok: saindo.classes === 'passagem-sai,sai-sites' && noLink && inteira(s) && s.chave === null,
-    info: `saindo=${saindo.classes} origem no link=${noLink} 2,95 s depois: opacidade=${s.opacidade} escala=${s.escala} classes=${s.classes} chave=${s.chave}` };
+  return { ok: saindo.classes === 'passagem-sai,sai-sites' && noCentro && inteira(s) && s.chave === null,
+    info: `saindo=${saindo.classes} origem no centro=${noCentro} 2,95 s depois: opacidade=${s.opacidade} escala=${s.escala} classes=${s.classes} chave=${s.chave}` };
 });
 await cenario('passagem-menu', CELULAR, async page => {
   await page.goto(BASE + '/', { waitUntil: 'load' });

@@ -54,9 +54,9 @@
   /* ---- o laço ----
      S.fps é uma média móvel do intervalo real entre quadros: é o número que
      a prova mostra, então não pode mentir nem ser suavizado além da conta. */
-  var antes = 0, rodando = false, lentos = 0, avisouLento = false;
+  var antes = 0, rodando = false, lentos = 0, avisouLento = false, pausado = false;
   function frame(now) {
-    if (document.hidden) { rodando = false; return; }
+    if (document.hidden || pausado) { rodando = false; return; }
     var dt = antes ? Math.min(50, now - antes) : 16;
     antes = now;
     S.dt = dt; S.now = now; S.t++;
@@ -88,6 +88,13 @@
     requestAnimationFrame(frame);
   }
   document.addEventListener('visibilitychange', function () { if (!document.hidden) iniciar(); });
+  /* a PASSAGEM entre páginas (js/passagem.js) para o laço enquanto a página voa: os canvases (rede, mini, reator)
+     deixam de redesenhar e de subir textura a cada quadro, e o compositor fica só com o voo (medido em
+     docs/passagem-medir.mjs) */
+  function pausar(sim) {
+    pausado = !!sim;
+    if (!pausado) iniciar();
+  }
 
   /* ---- "menos movimento" em tempo de execução ----
      `persistir` só quando foi a pessoa, no interruptor do rodapé: se foi o
@@ -234,7 +241,7 @@
   }
 
   window.BEYON = {
-    S: S, largura: largura, texto: texto, textoMono: textoMono, pixel: pixel, ouro: ouro, tom: tom, add: add, remove: remove, on: on, off: off, emit: emit, iniciar: iniciar, reduzir: reduzir,
+    S: S, largura: largura, texto: texto, textoMono: textoMono, pixel: pixel, ouro: ouro, tom: tom, add: add, remove: remove, on: on, off: off, emit: emit, iniciar: iniciar, pausar: pausar, reduzir: reduzir,
     reduced: reduced, sistemaReduz: mqReduce.matches, num: num, relogio: relogio,
     /* o fôlego: os mesmos números de SPEC.respira do reator (7 s, inspira em 42%) */
     FOLEGO: { periodo: 7, inspira: 0.42 }

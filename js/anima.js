@@ -345,7 +345,11 @@
   }
   /* chegando pela passagem (js/passagem.js), o boot espera a página começar a
      assentar: o fio atravessando o hero não passa enquanto ela ainda está longe */
-  var heroQuando = function () { if (html.classList.contains('passagem-chega')) setTimeout(heroEntra, 360); else heroEntra(); };
+  /* (no Sites o site chega numa janela que cresce, css/passagem-destinos.css: o texto se imprime cedo, dentro dela) */
+  var heroQuando = function () {
+    if (!html.classList.contains('passagem-chega')) return heroEntra();
+    setTimeout(heroEntra, html.classList.contains('chega-sites') ? 150 : 360);
+  };
   if (document.body.classList.contains('booted')) heroQuando();
   else B.on('booted', heroQuando);
 
