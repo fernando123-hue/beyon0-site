@@ -10,7 +10,7 @@ body { font-size: 1rem; line-height: 1.65; }
 
 h1, h2 { font-weight: 300; color: var(--t1); line-height: 1.1; letter-spacing: -.025em; }
 h1 { font-size: clamp(2.1rem, 8vw, 2.9rem); margin-bottom: 1rem; }
-h1 em { font-style: normal; font-weight: 500; color: var(--ac); }
+h1 em { font-style: normal; font-weight: 300; color: var(--ac); }   /* (títulos em Sora 300 inteiros, o destaque só pela cor) */
 h2 { font-size: clamp(1.5rem, 5vw, 1.8rem); margin-bottom: 1rem; }
 strong { color: var(--t1); font-weight: 600; }
 
@@ -20,7 +20,7 @@ strong { color: var(--t1); font-weight: 600; }
 }
 .r-nav__logo { font-family: var(--mono); font-weight: 600; color: var(--t1); display: inline-flex; align-items: center; gap: .3em; min-height: 44px; }
 .r-nav__logo b { color: var(--ac); }
-.r-nav__voltar { font-family: var(--mono); font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: var(--t3); display: inline-flex; align-items: center; min-height: 44px; }
+.r-nav__voltar { font-family: var(--mono); font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: var(--t3); display: inline-flex; align-items: center; gap: .5em; min-height: 44px; }   /* (o gap: no flex o espaço depois da seta sumia, "←VOLTAR") */
 .r-nav__voltar:hover { color: var(--t1); }
 
 .r-main { max-width: var(--r-maxw); margin: 0 auto; padding: 0 var(--pad) 5rem; }
@@ -28,8 +28,9 @@ strong { color: var(--t1); font-weight: 600; }
 .r-hero { padding: 1rem 0 2.4rem; border-bottom: 1px solid var(--line-2); }
 .r-kicker {
   font-family: var(--mono); font-size: .66rem; font-weight: 500; letter-spacing: .14em;
-  text-transform: uppercase; color: var(--ac-3); margin-bottom: .9rem;
+  text-transform: uppercase; color: var(--t3); margin-bottom: .9rem;
 }
+.r-kicker b { color: var(--ac-3); font-weight: 500; margin-right: .5em; }   /* (como o .kicker do site: rótulo em t3, só o índice em ciano) */
 .r-lead { max-width: 56ch; margin-top: .8rem; color: var(--t2); }
 
 .r-section { padding: 2.4rem 0; border-bottom: 1px solid var(--line-2); }
@@ -47,12 +48,24 @@ strong { color: var(--t1); font-weight: 600; }
 .r-faq dd { margin-top: .3rem; color: var(--t2); }
 
 .r-cta { padding: 2.6rem 0 1rem; }
+/* o botão no padrão do CTA principal do site (.btn.btn--primary.btn--lg de css/base.css, que esta página não
+   carrega): mono 13px caixa-alta, aresta de luz em traço, rótulo à esquerda e seta numa célula no celular */
 .r-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: .6rem;
-  width: 100%; min-height: 56px; margin-top: 1.4rem;
-  font-family: var(--mono); font-size: .8rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
-  padding: .9rem 1.6rem; border-radius: var(--raio-s);
-  background: var(--ac); color: var(--ac-tinta);
+  width: 100%; min-height: 58px; margin-top: 1.4rem; padding: 1rem 1.9rem;
+  font-family: var(--mono); font-size: .8125rem; font-weight: 600; line-height: 1.4; letter-spacing: var(--tr-ctrl); text-transform: uppercase;
+  border: 1px solid var(--ac); border-radius: var(--raio-s);
+  background-color: var(--ac); color: var(--ac-tinta);
+  box-shadow: inset 1px 1px 0 rgb(255 255 255 / .42), inset -1px -1px 0 rgb(var(--ac-tinta-rgb) / .28);
+  transition: background-color var(--t-micro) var(--ease-micro), border-color var(--t-micro) var(--ease-micro);
+}
+.r-btn:hover { background-color: var(--ac-2); border-color: var(--ac-2); }
+.r-btn:focus-visible { outline-color: var(--prata); }
+.r-btn [data-seta] { display: inline-block; transition: transform var(--t-micro) var(--ease-micro); }
+.r-btn:hover [data-seta] { transform: translateX(3px); }
+@media (max-width: 620px) {
+  .r-btn { justify-content: space-between; padding-inline: 1.25rem 1.1rem; }
+  .r-btn [data-seta] { display: grid; place-items: center; width: 32px; height: 32px; margin-right: -.45rem; border-left: 1px solid rgb(var(--ac-tinta-rgb) / .25); }
 }
 @media (min-width: 621px) { .r-btn { width: auto; } }
 .r-fine { margin-top: 1rem; font-size: .88rem; color: var(--t3); }
