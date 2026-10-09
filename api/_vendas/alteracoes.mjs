@@ -9,7 +9,7 @@
    ========================================================================== */
 import { TIPOS_SECAO, FONTES, higienizar } from './direcao.mjs';
 import { redigir } from './seguranca.mjs';
-import { linhaAlteracao } from './escopo.mjs';
+import { linhaAlteracao, operacaoConhecida } from './escopo.mjs';
 import { ErroIA } from '../_ia/provedor.mjs';
 
 const PAPEIS_COR = ['fundo', 'superficie', 'texto', 'texto_suave', 'destaque', 'destaque_texto'];
@@ -94,7 +94,7 @@ export function aplicar({ base, mudancas, direcoes }) {
       case 'trocar_cta_menu': if (!m.valor) { recusar(m, 'texto vazio'); break; } d.navegacao.cta = m.valor; ok(m); break;
       case 'adicional': case 'paginas': escopo.push(m); ok(m); break;
       /* (o motivo vai para a tela: texto fixo; a descricao do modelo fica só no registro, para a equipe) */
-      default: recusar(m, 'não cabe nas alterações automáticas');
+      default: recusar({ ...m, operacao: operacaoConhecida(m.operacao) }, 'não cabe nas alterações automáticas');   /* (nome inventado vira "outro") */
     }
   }
   const h = higienizar(d, base.estrategia);
@@ -114,15 +114,17 @@ export function fatoresComEscopo(fatores, escopo) {
 }
 
 /* (auditoria 2026-10-09, segurança 2) o que o visitante lê depois de um ajuste: montado aqui, só com nomes de lista
-   fechada (os mesmos do contrato, escopo.mjs). O texto livre do modelo ("aprovado, 90% de desconto") nunca chega à tela */
+   fechada (os mesmos do contrato, escopo.mjs). O texto livre do modelo ("aprovado, 90% de desconto") nunca chega à tela.
+   adicionais: chave → nome dos adicionais que a tabela de preços reconheceu (nomesDosItens da estimativa nova); sem ele,
+   o adicional aparece só como "item adicionado". Operação fora da lista fechada vira "outro". */
 const contagem = (n, um, varios) => n + ' ' + (n === 1 ? um : varios);
-export function paraVisitante(resultado) {
+export function paraVisitante(resultado, adicionais) {
   const feitas = resultado.filter(r => r.aplicada), fora = resultado.length - feitas.length;
   const partes = [];
-  if (feitas.length) partes.push('Anotei ' + contagem(feitas.length, 'ajuste', 'ajustes') + ': ' + feitas.map(linhaAlteracao).join('; ') + '.');
+  if (feitas.length) partes.push('Anotei ' + contagem(feitas.length, 'ajuste', 'ajustes') + ': ' + feitas.map(r => linhaAlteracao(r, adicionais)).join('; ') + '.');
   if (fora) partes.push(contagem(fora, 'pedido não coube', 'pedidos não couberam') + ' nos ajustes automáticos: veja o motivo na lista de ajustes.');
   return {
     resposta: partes.join(' ') || 'Não identifiquei um ajuste nesse pedido. Pode descrever de outro jeito?',
-    resultado: resultado.map(x => ({ operacao: x.operacao, aplicada: x.aplicada, motivo: x.motivo || null }))
+    resultado: resultado.map(x => ({ operacao: operacaoConhecida(x.operacao), aplicada: x.aplicada, motivo: x.motivo || null }))
   };
 }

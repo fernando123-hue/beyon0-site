@@ -12,7 +12,7 @@ import { executarTurno } from './agente.mjs';
 import { estimar, validarRegras } from './precos.mjs';
 import { gerarDirecao } from './gerador.mjs';
 import { interpretar, aplicar, fatoresComEscopo, paraVisitante } from './alteracoes.mjs';
-import { montarEscopo } from './escopo.mjs';
+import { montarEscopo, nomesDosItens } from './escopo.mjs';
 import { limparMensagem, pareceInjecao, redigir, MSG_MAX } from './seguranca.mjs';
 import { ehUuid, normalizarTelefone } from '../_valida-app.mjs';
 import { TETOS, reservaUsd, modoDirecoes } from '../_ia/config.mjs';
@@ -353,7 +353,8 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       /* ajuste + estimativa nova numa transação só; o banco recusa se a escolha mudou enquanto o modelo traduzia */
       await banco('vendas_registrar_alteracao', { conversa_id: corpo.conversa_id, visitante_id: vid, direcao_id: escolhida.id, pedido, mudancas: a.resultado, resultado: a.direcao,
         ...(novaEstimativa ? { estimativa: novaEstimativa } : {}) });
-      return { ...paraVisitante(a.resultado), estimativa };   /* (a frase é do código, nunca do modelo: auditoria 2026-10-09) */
+      /* (a frase é do código, nunca do modelo: auditoria 2026-10-09; o nome do adicional, o da tabela de preços) */
+      return { ...paraVisitante(a.resultado, novaEstimativa ? nomesDosItens(novaEstimativa.detalhes) : undefined), estimativa };
     },
 
     /* o escopo final (montado pelo código; o preço é o da última estimativa, conferido pelo banco) */
