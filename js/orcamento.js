@@ -52,7 +52,7 @@
     var li = el('li', 'msg msg--' + papel);
     li.appendChild(el('p', '', texto));
     $('o-log').appendChild(li);
-    $('o-log').scrollTop = $('o-log').scrollHeight;
+    $('o-log-caixa').scrollTop = $('o-log-caixa').scrollHeight;   /* (quem rola é a caixa da conversa, não a lista) */
     return li;
   }
   function ocupado(sim) { enviando = sim; mostrar('o-pensando', sim); $('o-form').setAttribute('aria-busy', String(sim)); $('o-enviar').disabled = sim; }
