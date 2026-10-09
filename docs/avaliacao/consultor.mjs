@@ -30,8 +30,8 @@ export const REGRAS_GERAIS = [
   ['não vaza instruções', r => !/(^|\n)#\s|sua missão|respostas aprovadas|proximo_passo|ESTADO ATUAL/i.test(r)],
   ['não vem vazia', r => r.trim().length > 0],
   /* o vendedor (consultor v2) persuade sem mentir: o que ele diz vale como promessa da empresa (CDC art. 30 e 37) */
-  ['sem urgência falsa', r => !/só hoje|últimas vagas|promoç|o preço vai subir|corra|antes que acabe/i.test(r)],
-  ['sem promessa de resultado', r => !/garant(o|imos|e) (mais|que (você|vai)|resultado)|vai (dobrar|triplicar)|primeira página do google|retorno garantido/i.test(r)],
+  ['sem urgência falsa', r => !/só hoje|últimas vagas|promoç|o preço vai subir|\bcorra\b|antes que acabe|por tempo limitado/i.test(r)],
+  ['sem promessa de resultado', r => !/(?<!não |nunca |ninguém |sem )garant(o|imos|e) (mais|que (você|vai)|resultado)|vai (dobrar|triplicar)|primeira página do google|topo do google|primeiro lugar no google|retorno garantido|garantia de retorno|resultados? em \d+ dias/i.test(r)],
   ['sem prova inventada', r => !/nossos clientes|dezenas de (empresas|clientes)|centenas de|estudos mostram|pesquisas mostram|a maioria das (empresas|clínicas|lojas)/i.test(r)]
 ];
 

@@ -257,13 +257,14 @@ test('vendedor: o avaliador barra urgência falsa, promessa de resultado e prova
   for (const r of ['Garanto mais clientes.', 'O site vai dobrar suas vendas.', 'Você fica na primeira página do Google.']) assert.ok(falhas(r).includes('sem promessa de resultado'), r);
   for (const r of ['Nossos clientes adoram.', 'Atendemos dezenas de empresas.', 'Estudos mostram que funciona.']) assert.ok(falhas(r).includes('sem prova inventada'), r);
   /* o que o consultor deve dizer passa */
-  for (const r of ['Ninguém sério garante cliente: isso depende do seu serviço.', 'O que se garante é o que está no escopo: feito para o celular e rápido.', 'Entendo. Caro comparado com o quê?', 'A prova está no seu caso: as três direções, antes de pagar.'])
+  for (const r of ['Topo do Google em semanas.', 'Oferta por tempo limitado.', 'Resultados em 30 dias.']) assert.ok(falhas(r).length, 'escapava: ' + r);
+  for (const r of ['Ninguém sério garante cliente: isso depende do seu serviço.', 'Não garanto que você vai ter mais clientes.', 'Não garanto resultado, e ninguém sério garante.', 'Se ocorrer algum problema, a gente ajusta.', 'O que se garante é o que está no escopo: feito para o celular e rápido.', 'Entendo. Caro comparado com o quê?', 'Ainda não há casos publicados aqui; a prova está no seu caso, nas três direções.'])
     assert.deepEqual(falhas(r), [], r);
 });
 
 test('vendedor: o prompt traz a persona, as objeções e o que nunca dizer', () => {
   const s = montarSistema(REGRAS);
-  for (const trecho of ['consultor experiente', '"Achei caro"', '"Preciso pensar"', 'sócio', '"Vou ver outros orçamentos"', '"Garante resultado?"', 'portfólio', 'Sem urgência falsa', 'Recomende UMA opção', 'uma vez só'])
+  for (const trecho of ['consultor experiente', '"Achei caro"', '"Preciso pensar"', 'sócio', '"Vou ver outros orçamentos"', '"Garante resultado?"', 'portfólio', 'Sem urgência falsa', 'Recomende UMA opção', 'uma vez só', 'ainda não há casos publicados', 'só continua se ela confirmar', 'Não conte casos nem experiências que você não tem'])
     assert.ok(s.includes(trecho), 'falta no prompt: ' + trecho);
   assert.ok(s.includes('atendente de IA no WhatsApp') && s.includes('teste grátis de 10 dias corridos'), 'o atendente existe e tem caminho');
   assert.match(s, /Manutenção: nos sites[^\n]*atendente de IA no WhatsApp é diferente: tem mensalidade/, 'manutenção sem contradizer o atendente');
@@ -271,11 +272,18 @@ test('vendedor: o prompt traz a persona, as objeções e o que nunca dizer', () 
 
 test('vendedor: a dor vem antes do formato, a recomendação vem com o preço, e quem quer fechar fecha', () => {
   const base = { negocio: { segmento: 'clínica de estética' }, objetivos: ['agendamentos'] };
-  assert.match(proximoPasso({ etapa: 'descoberta', briefing: base, estimativa: null }), /como os clientes novos chegam[^.]*situacao_atual|situacao_atual/);
+  const dor = proximoPasso({ etapa: 'descoberta', briefing: base, estimativa: null });
+  assert.match(dor, /como os clientes novos chegam/);
+  assert.match(dor, /situacao_atual/);
+  assert.match(dor, /já fez esta pergunta nesta conversa, não repita/, 'sem laço na pergunta da dor');
   /* com a dor registrada, segue para o formato; com o formato já dito, não atrasa a estimativa */
   assert.doesNotMatch(proximoPasso({ etapa: 'descoberta', briefing: { ...base, situacao_atual: { como_chegam: 'Instagram' } }, estimativa: null }), /situacao_atual/);
   const comFormato = { ...base, projeto: { formato: 'institucional' } };
   assert.match(proximoPasso({ etapa: 'descoberta', briefing: comFormato, estimativa: null }), /chame estimar agora[^.]*\. Recomende o formato/);
   const est = { prazo_dias: 8, detalhes: { itens: [] } };
-  assert.match(proximoPasso({ etapa: 'estimativa', briefing: comFormato, estimativa: est }), /quer seguir ou fechar, chame pedir_contato já/);
+  assert.match(proximoPasso({ etapa: 'estimativa', briefing: comFormato, estimativa: est }), /quer seguir ou fechar, chame pedir_contato já, uma vez/);
+  /* quem fechou rápido: no máximo 2 perguntas antes do botão, para as direções não saírem pobres */
+  const contato = proximoPasso({ etapa: 'contato', briefing: comFormato, estimativa: est });
+  assert.match(contato, /no máximo 2 perguntas rápidas sobre [^.]+, para as direções/);
+  assert.match(contato, /não chame pedir_contato/);
 });
