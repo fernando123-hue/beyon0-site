@@ -34,8 +34,11 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.googletagmanager.com https://www.googleadservices.com https://www.google.com; style-src 'self'; font-src 'self'; img-src 'self' data: https://*.google-analytics.com https://*.googletagmanager.com https://*.g.doubleclick.net https://www.google.com https://www.google.com.br https://www.googleadservices.com; connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.g.doubleclick.net https://www.google.com https://www.google.com.br https://www.googleadservices.com https://pagead2.googlesyndication.com; frame-src https://td.doubleclick.net; object-src 'none'; base-uri 'self'; form-action 'none'" />
 
   <script type="application/ld+json">
-  { "@context": "https://schema.org", "@type": "WebSite", "name": "Beyon Zero", "url": "https://beyon0-site.vercel.app/", "inLanguage": "pt-BR" }
+  { "@context": "https://schema.org", "@type": "WebSite", "@id": "https://beyon0-site.vercel.app/#site", "name": "Beyon Zero", "url": "https://beyon0-site.vercel.app/", "inLanguage": "pt-BR", "publisher": { "@id": "https://beyon0-site.vercel.app/#negocio" } }
   </script>
+  <!-- A definição completa da entidade (#negocio) existe SÓ aqui. /sites e /automacao descrevem o próprio
+       serviço e apontam para cá com "provider": { "@id": ".../#negocio" }; telefone, endereço e descrição
+       se mudam neste bloco, não lá. -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -47,15 +50,15 @@
     "description": "Criação de sites e landing pages, e automação com inteligência artificial, feitas por uma pessoa no Rio de Janeiro, para o Brasil todo.",
     "telephone": "+55-21-97716-7944",
     "areaServed": { "@type": "Country", "name": "Brasil" },
-    "knowsAbout": ["Criação de sites", "Landing pages", "Automação de processos", "Inteligência artificial aplicada", "Experiências digitais"],
+    "knowsAbout": ["Criação de sites", "Landing pages", "Automação de processos", "Inteligência artificial aplicada", "Experiências digitais", "Associações de classe", "Sindicatos", "Federações", "Cooperativas"],
     "address": { "@type": "PostalAddress", "addressLocality": "Rio de Janeiro", "addressRegion": "RJ", "addressCountry": "BR" },
     "knowsLanguage": "pt-BR",
     "hasOfferCatalog": {
       "@type": "OfferCatalog",
       "name": "Serviços",
       "itemListElement": [
-        { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Criação de sites", "url": "https://beyon0-site.vercel.app/sites" } },
-        { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Automação e inteligência artificial", "url": "https://beyon0-site.vercel.app/automacao" } },
+        { "@type": "Offer", "itemOffered": { "@type": "Service", "@id": "https://beyon0-site.vercel.app/sites#servico", "name": "Criação de sites", "url": "https://beyon0-site.vercel.app/sites" } },
+        { "@type": "Offer", "itemOffered": { "@type": "Service", "@id": "https://beyon0-site.vercel.app/automacao#servico", "name": "Automação e inteligência artificial", "url": "https://beyon0-site.vercel.app/automacao" } },
         { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Experiências digitais" } }
       ]
     }
