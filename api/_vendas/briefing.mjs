@@ -27,6 +27,8 @@ export const ESQUEMA_ATUALIZACAO = {
     negocio: { type: 'object', additionalProperties: false, properties: { nome: { type: 'string' }, segmento: { type: 'string' }, descricao: { type: 'string' }, cidade: { type: 'string' } } },
     objetivos: { type: 'array', items: { type: 'string', enum: OBJETIVOS } },
     objetivo_detalhe: { type: 'string' },
+    /* a dor (consultor v2): como os clientes chegam hoje e o que se perde; não pesa na confiança, só registra que a pergunta foi feita */
+    situacao_atual: { type: 'object', additionalProperties: false, properties: { como_chegam: { type: 'string' }, o_que_se_perde: { type: 'string' } } },
     publico: { type: 'object', additionalProperties: false, properties: { descricao: { type: 'string' } } },
     servicos: { type: 'array', items: { type: 'string' } },
     posicionamento: { type: 'object', additionalProperties: false, properties: { percepcao: { type: 'string' }, diferenciais: { type: 'array', items: { type: 'string' } } } },
@@ -47,6 +49,7 @@ export function limparAtualizacao(a) {
   if (a.negocio) o.negocio = limpar({ nome: t(a.negocio.nome, 120), segmento: t(a.negocio.segmento, 80), descricao: t(a.negocio.descricao, 600), cidade: t(a.negocio.cidade, 80) });
   o.objetivos = enumLista(a.objetivos, OBJETIVOS, 5);
   o.objetivo_detalhe = t(a.objetivo_detalhe, 400);
+  if (a.situacao_atual) o.situacao_atual = limpar({ como_chegam: t(a.situacao_atual.como_chegam, 300), o_que_se_perde: t(a.situacao_atual.o_que_se_perde, 300) });
   if (a.publico) o.publico = limpar({ descricao: t(a.publico.descricao, 500) });
   o.servicos = lista(a.servicos, 15, 120);
   if (a.posicionamento) o.posicionamento = limpar({ percepcao: t(a.posicionamento.percepcao, 300), diferenciais: lista(a.posicionamento.diferenciais, 8, 160) });
