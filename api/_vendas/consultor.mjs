@@ -39,6 +39,14 @@ function blocoAdicionais(regras) {
   return { automaticos, fora };
 }
 
+/* loja e área restrita (tabela v2): só entram nas instruções se a tabela ativa as traz */
+function linhasV2(regras) {
+  const linhas = [];
+  if (regras.formatos?.loja_plataforma) linhas.push('- Loja virtual: vender online com carrinho e pagamento, numa plataforma pronta (Nuvemshop ou Shopify), com a cara da marca. Se a pessoa precisa de uma loja feita do zero, em código próprio, isso vai para o diagnóstico.');
+  if (regras.adicionais?.area_restrita && !regras.adicionais.area_restrita.fora_do_automatico) linhas.push('- Área restrita com login (para associados, alunos, clientes) é um adicional; os extras dela (telas, perfis, cobrança de anuidade, documentos, importar usuários) só existem junto com ela.' + (regras.formatos?.loja_plataforma ? ' Numa loja em plataforma pronta, um login próprio costuma não ser viável: confirme com a pessoa antes de somar os dois.' : ''));
+  return linhas.length ? '\n' + linhas.join('\n') : '';
+}
+
 function blocoMultiplicadores(regras) {
   const m = regras.multiplicadores || {};
   const out = [];
@@ -63,9 +71,7 @@ ${blocoFormatos(regras)}
 Como escolher o formato:
 - Landing page: um objetivo só (campanha, lançamento, anúncio), uma página em que cada bloco leva a uma ação.
 - Site institucional: apresentar a empresa, os serviços e por que confiar, em várias páginas, para quem chegou sem conhecer decidir procurar.
-- Experiência digital: quando o formato pronto não dá conta, com experiência visual própria, interações e animações, apresentações e interfaces fora do comum.
-- Loja virtual: vender online com carrinho e pagamento, numa plataforma pronta (Nuvemshop ou Shopify), com a cara da marca. Se a pessoa precisa de uma loja feita do zero, em código próprio, isso vai para o diagnóstico.
-- Área restrita com login (para associados, alunos, clientes) é um adicional de qualquer formato; os extras dela (telas, perfis, cobrança de anuidade, documentos, importar usuários) só existem junto com ela.
+- Experiência digital: quando o formato pronto não dá conta, com experiência visual própria, interações e animações, apresentações e interfaces fora do comum.${linhasV2(regras)}
 Se a pessoa não souber, recomende um formato com uma frase de motivo, a partir do objetivo dela.
 
 Adicionais que a tabela cobre (entram na estimativa quando a pessoa precisa): ${automaticos.join('; ')}.
@@ -185,11 +191,14 @@ const LOJA = 'loja';
 /* o que fazer agora, pela ordem do funil (texto para o modelo; o código decide, o modelo executa).
    Na tela, o formulário de contato aparece sozinho quando há estimativa e ainda não há contato (js/orcamento.js);
    pedir_contato só leva a pessoa até ele. Na etapa 'contato' o contato JÁ chegou (vendas_informar_contato) */
-export function proximoPasso({ etapa, briefing, estimativa }) {
+export function proximoPasso({ etapa, briefing, estimativa, regras = null }) {
+  /* sem a tabela, vale a v2; com ela, a loja só é vendável se a tabela ativa a traz */
+  const temLoja = !regras || !!regras.formatos?.loja_plataforma;
   const b = briefing || {};
   if (ETAPAS_DA_TELA.includes(etapa)) return 'O orçamento já segue pelos blocos da tela (etapa ' + etapa + '). Responda dúvidas em poucas frases e indique o próximo bloco na tela; não chame estimar nem pedir_contato.';
   if (etapa === 'contato') return 'O contato já foi recebido: as três direções saem pelo botão "Gerar as três direções" na tela. Responda dúvidas e indique esse botão; chame estimar de novo só se o escopo mudar; não chame pedir_contato.';
   /* (a lista do briefing só soma: quem desiste da loja e já foi estimado sem ela segue o funil) */
+  if (!estimativa && (b.funcionalidades || []).includes(LOJA) && !temLoja) return 'O projeto pede uma loja virtual, que a tabela atual não estima: chame encaminhar_diagnostico, se ainda não chamou, e explique em uma frase; não chame estimar com a loja. Se a pessoa desistir da loja e quiser só o site, chame estimar sem ela.';
   if (!estimativa && (b.funcionalidades || []).includes(LOJA) && b.projeto?.formato !== 'loja_plataforma') return 'A pessoa quer vender online. Pergunte se uma loja em plataforma pronta (Nuvemshop ou Shopify), com a cara da marca, resolve: se sim, o formato é loja_plataforma e dá para estimar. Se ela precisa de uma loja feita do zero, em código próprio, chame encaminhar_diagnostico e explique em uma frase; não chame estimar com o adicional loja_virtual. Se a pessoa desistir da loja e quiser só o site, chame estimar sem ela.';
   const { confianca, faltam } = avaliar(b);
   if (!prontoParaEstimar(b)) {

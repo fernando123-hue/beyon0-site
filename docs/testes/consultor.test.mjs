@@ -232,3 +232,19 @@ test('próximo passo: quem desiste da loja e quer só o site sai do diagnóstico
   const est = { prazo_dias: 8, detalhes: { itens: [{ nome: 'Site institucional' }] } };
   assert.doesNotMatch(proximoPasso({ etapa: 'estimativa', briefing: loja, estimativa: est }), /encaminhar_diagnostico/);
 });
+
+test('loja e área restrita só aparecem para o modelo se a tabela ATIVA as traz (o código pode subir antes da v2)', () => {
+  const v2 = montarSistema(REGRAS);
+  assert.match(v2, /Loja virtual: vender online/);
+  assert.match(v2, /Área restrita com login[^\n]*login próprio costuma não ser viável/);
+  const antiga = JSON.parse(JSON.stringify(REGRAS));
+  delete antiga.formatos.loja_plataforma;
+  for (const [k, x] of Object.entries(antiga.adicionais)) if (x.requer || k === 'area_restrita') delete antiga.adicionais[k];
+  antiga.adicionais.area_restrita = { nome: 'Área restrita com login', fora_do_automatico: true };
+  const s = montarSistema(antiga);
+  assert.doesNotMatch(s, /Loja virtual: vender online|Área restrita com login \(para associados/, 'não vende o que não orça');
+  const loja = { negocio: { segmento: 'loja de roupas' }, objetivos: ['vender'], projeto: { formato: 'institucional' }, funcionalidades: ['loja'] };
+  const p = proximoPasso({ etapa: 'descoberta', briefing: loja, estimativa: null, regras: antiga });
+  assert.match(p, /tabela atual não estima[^.]*encaminhar_diagnostico/);
+  assert.doesNotMatch(p, /loja_plataforma/, 'não manda usar um formato que a tabela não tem');
+});
