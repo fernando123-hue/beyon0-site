@@ -12,7 +12,10 @@
    do limite encaminham para o diagnóstico (conversa com o dono).
    Funções puras: sem banco, sem rede. Testes: docs/testes/precos.test.mjs.
    ========================================================================== */
-export const FORMATOS = ['landing_page', 'institucional', 'sob_medida', 'loja_plataforma'];   /* (loja em plataforma pronta: tabela v2, 2026-10-09) */
+export const FORMATOS = ['landing_page', 'institucional', 'sob_medida', 'loja_plataforma'];
+/* a loja (tabela v2, 2026-10-09) é OPCIONAL: uma tabela ativa anterior, sem ela, continua válida; se o código subir antes
+   da v2 ser ativada, o orçamento segue funcionando com os três formatos (revisão de segurança) */
+const OBRIGATORIOS = ['landing_page', 'institucional', 'sob_medida'];
 const CHAVE = /^[a-z][a-z0-9_]{1,40}$/;
 const numero = (v, min, max) => typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max;
 
@@ -32,6 +35,7 @@ export function validarRegras(r) {
   const f = r.formatos || {};
   for (const k of FORMATOS) {
     const x = f[k];
+    if (x === undefined && !OBRIGATORIOS.includes(k)) continue;
     if (!objeto(x)) { erros.push('formatos.' + k + ': falta'); continue; }
     if (!numero(x.base, 1, 1e6)) erros.push('formatos.' + k + '.base');
     if (!numero(x.piso, 0, 1e6) || x.piso > x.base) erros.push('formatos.' + k + '.piso: 0 até a base');
@@ -52,9 +56,19 @@ export function validarRegras(r) {
     if (!numero(x.max, 1, 100)) erros.push('adicionais.' + k + '.max');
     if (!numero(x.prioridade, 1, 100)) erros.push('adicionais.' + k + '.prioridade');
     /* requer: o adicional só existe junto de um destes (formato ou outro adicional), ex.: a cobrança de anuidade só com a área restrita */
-    if (x.requer !== undefined && (!Array.isArray(x.requer) || !x.requer.length || x.requer.some(r => !(FORMATOS.includes(r) || (r !== k && Object.hasOwn(a, r) && objeto(a[r]) && !a[r].fora_do_automatico))))) erros.push('adicionais.' + k + '.requer: formatos ou adicionais automáticos da tabela');
+    if (Array.isArray(x.requer) && x.requer.some(r => objeto(a[r]) && numero(a[r].prioridade, 1, 100) && !(x.prioridade > a[r].prioridade))) erros.push('adicionais.' + k + '.prioridade: maior que a da base (' + x.requer.filter(r => objeto(a[r])).join(', ') + '), para entrar depois dela');
+    if (x.requer !== undefined && (!Array.isArray(x.requer) || !x.requer.length || x.requer.some(r => !((FORMATOS.includes(r) && objeto(f[r])) || (r !== k && Object.hasOwn(a, r) && objeto(a[r]) && !a[r].fora_do_automatico))))) erros.push('adicionais.' + k + '.requer: formatos ou adicionais automáticos da tabela');
   }
   if (!a.pagina_extra || a.pagina_extra.fora_do_automatico) erros.push('adicionais.pagina_extra: obrigatório');
+  /* toda dependência precisa terminar num formato: A exige B e B exige A nunca entraria em fase nenhuma */
+  if (objeto(a)) {
+    const ok = new Set();
+    for (let mudou = true; mudou;) {
+      mudou = false;
+      for (const [k, x] of Object.entries(a)) if (objeto(x) && !ok.has(k) && (!Array.isArray(x.requer) || x.requer.some(r => FORMATOS.includes(r) || ok.has(r)))) { ok.add(k); mudou = true; }
+    }
+    for (const [k, x] of Object.entries(a)) if (objeto(x) && !x.fora_do_automatico && !ok.has(k)) erros.push('adicionais.' + k + '.requer: dependência circular, nunca chega a um formato');
+  }
   const m = r.multiplicadores || {};
   for (const k of ['urgencia', 'complexidade_alta']) if (!numero(m[k]?.fator, 1, 3)) erros.push('multiplicadores.' + k + '.fator: 1 a 3');
   if (!numero(m.urgencia?.prazo_fator, 0.3, 1)) erros.push('multiplicadores.urgencia.prazo_fator: 0,3 a 1');
@@ -70,7 +84,8 @@ export function validarFatores(f, regras) {
   const erros = [];
   if (!f || typeof f !== 'object' || Array.isArray(f)) return { erros: ['fatores: esperado um objeto'] };
   for (const k of Object.keys(f)) if (!['formato', 'paginas', 'adicionais', 'urgencia', 'complexidade'].includes(k)) erros.push('campo não permitido: ' + k);
-  if (!FORMATOS.includes(f.formato)) erros.push('formato: um de ' + FORMATOS.join(', '));
+  const disponiveis = FORMATOS.filter(k => objeto(regras.formatos?.[k]));   /* (só os que a tabela ATIVA traz) */
+  if (!disponiveis.includes(f.formato)) erros.push('formato: um de ' + disponiveis.join(', '));
   const paginas = f.paginas === undefined ? null : f.paginas;
   if (paginas !== null && !(Number.isInteger(paginas) && paginas >= 1 && paginas <= 60)) erros.push('paginas: inteiro de 1 a 60');
   const adicionais = {};
@@ -157,7 +172,7 @@ export function estimar(fatoresBrutos, regras) {
     sinal_percentual: regras.sinal_percentual,
     prazo_dias: prazoDias,
     fase: proximaFase.length ? 'fase1' : 'unica',
-    fase_seguinte: proximaFase.length ? { itens: proximaFase.map(p => ({ chave: p.chave, nome: p.nome, qtd: p.qtd })), valor_estimado: valorFase2, prazo_dias: prazoFase2 } : null,
+    fase_seguinte: proximaFase.length ? { itens: proximaFase.map(p => ({ chave: p.chave, nome: p.nome, qtd: p.qtd })), valor_estimado: valorFase2, prazo_dias: prazoFase2, fases: Math.ceil(prazoFase2 / teto), prazo_max_fase: teto } : null,
     fatores: f
   };
 }

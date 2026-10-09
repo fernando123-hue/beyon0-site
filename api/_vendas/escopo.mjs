@@ -55,7 +55,7 @@ export function montarEscopo({ estimativa, direcao, alteracoesAplicadas, briefin
   for (const i of estimativa.itens || []) if (i.chave !== 'pagina_extra') linhas.push('- ' + i.nome + (i.qtd > 1 ? ' (' + i.qtd + ')' : '') + '.');
   if (estimativa.multiplicadores?.urgencia) linhas.push('- Entrega com urgência.');
   if (estimativa.fase === 'fase1' && estimativa.fase_seguinte) {
-    linhas.push('', 'FICA PARA A FASE SEGUINTE (orçada à parte, sem compromisso agora' + (estimativa.fase_seguinte.prazo_dias ? '; prazo estimado de ' + estimativa.fase_seguinte.prazo_dias + ' dias corridos, contados do início dela' : '') + ')');
+    linhas.push('', 'FICA PARA A FASE SEGUINTE (orçada à parte, sem compromisso agora' + (estimativa.fase_seguinte.prazo_dias ? '; prazo estimado de ' + estimativa.fase_seguinte.prazo_dias + ' dias corridos' + (estimativa.fase_seguinte.fases > 1 ? ', em ' + estimativa.fase_seguinte.fases + ' fases de até ' + estimativa.fase_seguinte.prazo_max_fase + ' dias corridos cada, contados do início de cada uma' : ', contados do início dela') : '') + ')');
     for (const i of estimativa.fase_seguinte.itens) linhas.push('- ' + i.nome + (i.qtd > 1 ? ' (' + i.qtd + ')' : '') + '.');
   }
   linhas.push('', 'INVESTIMENTO: ' + brl(estimativa.valor_total) + ' — ' + estimativa.sinal_percentual + '% para começar (' + brl(estimativa.sinal) + ') e o restante na entrega.');

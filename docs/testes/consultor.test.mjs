@@ -86,10 +86,14 @@ test('próximo passo: o código diz ao modelo o que fazer agora, pela ordem do f
   /* as etapas reais das migrations; nenhuma etapa depois do contato cai no funil */
   for (const etapa of ['gerando', 'direcoes', 'escolhida', 'alteracoes', 'escopo', 'aguardando_pagamento', 'em_producao', 'encerrada'])
     assert.doesNotMatch(proximoPasso({ etapa, briefing: cheio, estimativa: est }), /(?<!não )chame (estimar|pedir_contato)/i, etapa);
-  /* loja virtual ou área restrita: diagnóstico, não estimar (sem laço de "chame estimar") */
+  /* loja (tabela v2): pergunta se a plataforma pronta resolve; só a feita do zero vai para o diagnóstico */
   const loja = { negocio: { segmento: 'loja de roupas' }, objetivos: ['vender'], projeto: { formato: 'institucional' }, funcionalidades: ['loja'] };
-  assert.match(p(loja), /encaminhar_diagnostico/);
-  assert.doesNotMatch(p(loja), /(?<!não )chame estimar(?! sem ele)/i, "só estima sem o item fora do automático");
+  assert.match(p(loja), /plataforma pronta/);
+  assert.match(p(loja), /feita do zero[^.]*encaminhar_diagnostico/);
+  assert.doesNotMatch(p(loja), /(?<!não )chame estimar(?! sem ela)/i, 'não estima a loja do zero');
+  /* loja em plataforma: estima direto; área restrita: estima com o adicional */
+  assert.match(p({ ...loja, projeto: { formato: 'loja_plataforma' } }), /Já dá para estimar/);
+  assert.match(p({ ...loja, projeto: { formato: 'institucional' }, funcionalidades: ['area_restrita'] }), /chame estimar agora[^.]*inclua o adicional area_restrita/);
 });
 
 test('o turno usa o harness: instruções montadas da tabela, estado com o próximo passo', async () => {
@@ -223,7 +227,7 @@ test('conteúdo (revisão de fidelidade): nada de promessa jurídica sem o advog
 
 test('próximo passo: quem desiste da loja e quer só o site sai do diagnóstico (a lista do briefing só soma)', () => {
   const loja = { negocio: { segmento: 'loja de roupas' }, objetivos: ['vender'], projeto: { formato: 'institucional' }, funcionalidades: ['loja'] };
-  assert.match(proximoPasso({ etapa: 'descoberta', briefing: loja, estimativa: null }), /se a pessoa desistir desse item[^.]*chame estimar sem ele/i);
+  assert.match(proximoPasso({ etapa: 'descoberta', briefing: loja, estimativa: null }), /se a pessoa desistir da loja[^.]*chame estimar sem ela/i);
   /* depois de estimar sem a loja, o funil segue: nada de voltar ao diagnóstico */
   const est = { prazo_dias: 8, detalhes: { itens: [{ nome: 'Site institucional' }] } };
   assert.doesNotMatch(proximoPasso({ etapa: 'estimativa', briefing: loja, estimativa: est }), /encaminhar_diagnostico/);

@@ -134,3 +134,33 @@ test('tabela com requer inválido é recusada', () => {
   const r = copia(); r.limites.valor_max_projeto = 100;
   assert.ok((validarRegras(r).erros || []).some(x => /valor_max_projeto/.test(x)), 'teto do projeto abaixo do teto da fase');
 });
+
+test('tabela anterior, sem a loja, continua válida (o código pode subir antes de a v2 ser ativada)', () => {
+  const r = copia(); delete r.formatos.loja_plataforma;
+  for (const [k, x] of Object.entries(r.adicionais)) if (x.requer?.includes('loja_plataforma')) delete r.adicionais[k];
+  assert.deepEqual(validarRegras(r), { ok: true });
+  assert.equal(estimar({ formato: 'institucional' }, r).valor_total, 3500, 'os três formatos seguem');
+  assert.ok(estimar({ formato: 'loja_plataforma' }, r).erros?.some(e => /formato: um de landing_page, institucional, sob_medida$/.test(e)), 'loja só existe se a tabela trouxer');
+  const sem = copia(); delete sem.formatos.loja_plataforma;
+  assert.ok((validarRegras(sem).erros || []).some(x => /produtos_lote_25\.requer/.test(x)), 'adicional que exige formato ausente é recusado');
+});
+
+test('dependência circular é recusada: A exige B e B exige A nunca chega a uma fase', () => {
+  const r = copia();
+  r.adicionais.area_restrita.requer = ['area_tela_extra'];
+  assert.ok((validarRegras(r).erros || []).some(x => /area_restrita\.requer: dependência circular/.test(x)), JSON.stringify(validarRegras(r)));
+});
+
+test('o dependente vem depois da base na prioridade (senão cairia na fase seguinte com a base cabendo)', () => {
+  const r = copia(); r.adicionais.area_tela_extra.prioridade = 5;   /* a base, área restrita, tem 12 */
+  assert.ok((validarRegras(r).erros || []).some(x => /area_tela_extra\.prioridade: maior que a da base \(area_restrita\)/.test(x)), JSON.stringify(validarRegras(r)));
+});
+
+test('fase seguinte longa diz em quantas fases de até 10 dias ela se divide', async () => {
+  const r = estimar({ formato: 'institucional', adicionais: { area_restrita: 1, area_tela_extra: 8, area_perfil_extra: 3, area_cobranca_recorrente: 1, area_documentos: 1 } }, REGRAS);
+  /* 4 + 8×1 + 3×1,5 + 3 + 1 = 20,5 dias -> 21, em 3 fases de até 10 */
+  assert.deepEqual([r.fase_seguinte.prazo_dias, r.fase_seguinte.fases, r.fase_seguinte.prazo_max_fase], [21, 3, 10]);
+  const { montarEscopo } = await import('../../api/_vendas/escopo.mjs');
+  const e = montarEscopo({ estimativa: r, direcao: { nome: 'Autoridade', secoes: [], paginas: [] }, briefing: { negocio: { descricao: 'x' } }, alteracoesAplicadas: [] });
+  assert.ok(e.escopo.includes('prazo estimado de 21 dias corridos, em 3 fases de até 10 dias corridos cada'), 'o contrato não lê 21 dias como uma entrega só');
+});
