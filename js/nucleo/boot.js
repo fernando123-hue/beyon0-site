@@ -108,6 +108,20 @@
   }
 
   /* ---------- montagem ---------- */
+  /* os módulos da esfera pedidos JUNTOS: sem isto o navegador só descobre o three e as peças ao ler o cena.js,
+     e as peças do núcleo ao ler o pecas.js (3 idas e voltas em série; ~1,1 s parado no 4G lento, auditoria
+     2026-10-09). Os caminhos são os mesmos que os import() resolvem; um módulo novo que falte aqui só volta a
+     chegar em série, nada quebra */
+  var MODULOS = ['/js/nucleo/cena.js', '/js/nucleo/gesto.js', '/js/nucleo/spec.js', '/js/nucleo/pecas.js',
+    '/js/nucleo/coroa.js', '/js/nucleo/shaders.js', '/vendor/three/three-nucleo.min.js'];
+  function preCarregar() {
+    MODULOS.forEach(function (href) {
+      var l = document.createElement('link');
+      l.rel = 'modulepreload'; l.href = href;
+      document.head.appendChild(l);
+    });
+  }
+
   function carregar() {
     /* WebGL de verdade (GPU)? Testado no próprio canvas ANTES de baixar o
        three: quem não tem não paga os bytes, e o three nunca tenta um
@@ -115,6 +129,7 @@
     var gl;
     try { gl = canvas.getContext('webgl2', ATRIBUTOS) || canvas.getContext('webgl', ATRIBUTOS); } catch (e) { gl = null; }
     if (!gl) { B.nucleoEstado = 'sem'; return; }   /* fica o desenho em CSS */
+    preCarregar();
     Promise.all([import('/js/nucleo/cena.js'), import('/js/nucleo/gesto.js')]).then(function (mods) {
       cena = mods[0].criarCena(canvas, gl, { celular: celular });
       if (!cena) { B.nucleoEstado = 'sem'; return; }
