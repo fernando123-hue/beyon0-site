@@ -68,7 +68,7 @@ html.passagem-sai.sai-sites .passagem__janela { animation: pass-janela-sai .58s 
 html.passagem-chega.chega-sites .passagem__janela { animation: pass-janela-chega .92s cubic-bezier(.33, 1, .68, 1) both; }
 html.passagem-chega.chega-sites main, html.passagem-chega.chega-sites .footer { animation-name: pass-sites-chega; }
 /* o menu do topo entra quando a janela termina de abrir (a barra dela, com os três pontos, passaria por baixo dele) */
-html.passagem-chega.chega-sites .nav { animation: pass-surge .3s cubic-bezier(.33, 1, .68, 1) .74s both; }
+html.passagem-chega.chega-sites .nav { animation: pass-surge .3s cubic-bezier(.33, 1, .68, 1) .7s both; }
 html.passagem-chega.passagem-ancora .nav { animation: none; }
 /* chegando a uma âncora a página só aparece: sem janela */
 html.passagem-chega.passagem-ancora .passagem__janela { animation: none; }

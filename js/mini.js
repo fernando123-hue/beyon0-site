@@ -546,7 +546,7 @@
       alvoY -= Math.abs(Math.sin(relogioMini * Math.PI * hz)) * alto * (passeio.estado === 'doca' ? 0.6 : 1);
     }
     alvoY -= Math.sin(festa * Math.PI) * CRIANCA.festa;
-    /* mergulhando na passagem: direto para o centro da tela (a página voa e some atrás dele) */
+    /* mergulhando na passagem: direto para o centro da tela (com o laço pausado no voo, só se o voo for desfeito) */
     if (mergulho) { alvoX = W / 2; alvoY = H / 2; }
     /* na estação, encaixado ou no trajeto de um encaixe: exatamente no lugar (o trajeto já é suave; a mola por cima dava atraso e um salto no fim) */
     var naEstacao = !mergulho && passeio.dest && (passeio.dest.estacao || encaixado || rotaValida(passeio) || (passeio.dest.exato && passeio.estado === 'parado'));
@@ -803,7 +803,8 @@
     if (passeio.estado === 'doca') passeio.espera = 0;
   }, { passive: true });
 
-  /* a PASSAGEM entre páginas (js/passagem.js): ele mergulha no centro enquanto a página voa
+  /* a PASSAGEM entre páginas (js/passagem.js): o laço pausa enquanto a página voa (js/core.js, pausar), então ele não
+     anda; o que vale é a posição guardada no pagehide, o centro
      (a posição guardada ao sair é o centro: na página nova ele reaparece de lá) */
   B.on('passagem', function () {
     if (!mini.ativo || B.reduced) return;

@@ -235,6 +235,30 @@ await cenario('passagem-ancora', DESKTOP, async page => {
     info: `chegou=${chegando.classes} depois: opacidade=${s.opacidade} escala=${s.escala} classes=${s.classes} rolagem=${rolou}` };
 });
 
+/* o palco fixado do desktop (pin do GSAP, position: fixed dentro de <main>) não sai do lugar quando a página se prepara
+   para voar no começo do clique (will-change em <main> faria dele o bloco de contenção do fixed) */
+await cenario('passagem-palco', DESKTOP, async page => {
+  await page.goto(BASE + '/', { waitUntil: 'load' });
+  await page.waitForTimeout(1500);
+  const achou = await page.evaluate(async () => {
+    for (let y = 0; y < document.body.scrollHeight; y += 200) {
+      window.scrollTo(0, y); await new Promise(r => setTimeout(r, 80));
+      if ([...document.querySelectorAll('.pin-spacer > *')].some(n => getComputedStyle(n).position === 'fixed')) return y;
+    }
+    return -1;
+  });
+  await page.waitForTimeout(400);
+  const caixa = () => page.evaluate(() => { const n = [...document.querySelectorAll('.pin-spacer > *')].find(e => getComputedStyle(e).position === 'fixed'); return n ? Math.round(n.getBoundingClientRect().top) : null; });
+  const antes = await caixa();
+  const link = await page.locator('.nav a[href="/sites"]').first().boundingBox();
+  await page.mouse.move(link.x + 5, link.y + 5);
+  await page.mouse.down();
+  await page.waitForTimeout(120);
+  const depois = await caixa();
+  await page.mouse.up({ button: 'left' }).catch(() => {});
+  return { ok: achou >= 0 && antes !== null && antes === depois, info: `palco fixado em y=${achou}: topo antes=${antes} depois do toque=${depois}` };
+});
+
 /* cada destino com a sua viagem (css/passagem-destinos.css): a saída certa para cada link e a chegada certa em cada página */
 const VIAGENS = [
   { de: '/sites', link: '.nav__logo', nome: 'inicio', sai: 'pass-inicio-sai', chega: 'pass-assenta' },

@@ -684,10 +684,13 @@
     /* chegando pela PASSAGEM (js/passagem.js): a página nova está voando, sem nada por cima. Medir a página inteira
        é uma tarefa longa (310 ms no celular simulado, docs/passagem-medir.mjs) e derrubava os quadros da chegada:
        espera ela assentar ('passagem:chegou') e o navegador folgar, e acende devagar (sem is-herdada) */
+    var comecou = false;
+    var umaVez = function () { if (comecou) return; comecou = true; comecar(); };
     Bc.on('passagem:chegou', function () {
       var ocioso2 = window.requestIdleCallback || function (fn) { return setTimeout(fn, 1); };
-      ocioso2(comecar, { timeout: 600 });
+      ocioso2(umaVez, { timeout: 600 });
     });
+    setTimeout(umaVez, 3000);   /* a rede: o js/passagem.js não carregou ou a aba ficou oculta na chegada */
   } else if (veioDoSite) {
     /* logo depois do 1º quadro (não antes dele): medir a página inteira é
        uma tarefa longa (~70 ms) */

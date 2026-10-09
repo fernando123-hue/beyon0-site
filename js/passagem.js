@@ -81,7 +81,7 @@
   function destinoDe(e) {
     if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return null;
     var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
-    if (!a || (a.target && a.target !== '_self') || a.hasAttribute('download')) return null;
+    if (!a || (a.target && a.target !== '_self') || a.hasAttribute('download') || a.hasAttribute('data-sem-passagem')) return null;
     var u;
     try { u = new URL(a.href, location.href); } catch (err) { return null; }
     return ehPagina(u) ? { href: u.href, link: a, nome: DESTINOS[caminho(u)] } : null;
@@ -143,13 +143,15 @@
     try { sessionStorage.setItem('bz-passagem', String(Date.now())); } catch (err) { /* sem armazenamento: chega sem a travessia */ }
     html.classList.add('passagem-sai', 'sai-' + d.nome);
     if (B.pausar) B.pausar(true);   /* os canvases param enquanto a página voa (js/core.js) */
-    if (B.emit) B.emit('passagem', d);   /* o mini mergulha junto (js/mini.js) */
+    if (B.emit) B.emit('passagem', d);   /* o mini guarda o centro da tela como posição de saída (js/mini.js): com o laço
+                                            pausado ele não anda, e reaparece do centro na página nova */
     setTimeout(function () { location.href = d.href; }, SAI_MS);
     desiste = setTimeout(desfazer, SAI_MS + DESISTE_MS);
   }
 
   /* na CAPTURA: decide antes de quem ouve o clique no caminho (o menu do celular, js/pagina.js, vê o clique já
-     cancelado e só recolhe, sem soltar a página) */
+     cancelado e só recolhe, sem soltar a página). Por isso um link interno com manipulador próprio (um modal, por
+     exemplo) não consegue mais cancelar a passagem pela bolha: ele leva data-sem-passagem */
   document.addEventListener('click', function (e) {
     var d = destinoDe(e);
     if (!d || reduzido()) return;
@@ -180,7 +182,9 @@
     try { u = new URL(a.href, location.href); } catch (err) { return; }
     if (!ehPagina(u)) return;
     soltarCamadas();
-    prontos = [document.querySelector('main'), document.querySelector('.footer')].filter(Boolean);
+    /* só quem vai voar por transform: com o palco do desktop fixado (pin do GSAP), will-change em <main> o tiraria do
+       lugar já no toque (o mesmo motivo do alvos()); aí ganham ele e o rodapé, e <main> só esmaece */
+    prontos = alvos().filter(function (a) { return a.c !== 'passagem-esmaece'; }).map(function (a) { return a.n; });
     prontos.forEach(function (n) { n.classList.add('passagem-pronta'); });
     soltaCamadas = setTimeout(function () { if (!saindo) soltarCamadas(); }, 1500);
   }
