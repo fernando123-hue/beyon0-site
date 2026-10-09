@@ -11,15 +11,31 @@
   'use strict';
   var CHAVE = 'bz-orcamento';
   var MARGEM_S = 60;   /* renova o token um minuto antes de vencer */
-  var MENSAGEM_MS = 90e3;   /* tempo limite de um turno com a IA (auditoria 2026-10-09, F2): sem ele, a rede caída deixava a página esperando para sempre */
+  var MENSAGEM_MS = 90e3;   /* tempo limite de um turno com a IA (mensagem e ajuste; auditoria 2026-10-09, F2): sem ele, a rede caída deixava a página esperando para sempre */
+  var ESTADO_MS = 15e3;     /* a leitura do estado: curta, para a releitura depois de uma falha não pendurar a tela */
+  var ESQUECIDA = 'bz-orcamento-esquecida';   /* a conversa que a pessoa mandou recomeçar: nenhuma aba a grava de novo */
 
   function ler() { try { return JSON.parse(localStorage.getItem(CHAVE) || 'null'); } catch (e) { return null; } }
   var sessao = ler();
   var perdida = false;   /* a sessão existia e o servidor a recusou de vez: a página avisa em vez de abrir conversa nova em silêncio */
+  var codigoPerdido = null;   /* o código do pedido da sessão perdida: o aviso cita (ele saiu do aparelho junto com a sessão) */
+  var falhaDaRenovacao = null;   /* a renovação não concluiu por rede ou servidor instável (503 recuperável): a sessão fica e o erro sobe */
+  var esquecida = function () { try { return localStorage.getItem(ESQUECIDA); } catch (e) { return null; } };
   function gravar(s) {
+    if (s && s.conversa_id && s.conversa_id === esquecida()) s = null;   /* (outra aba ainda com a sessão na memória: não ressuscita) */
     sessao = s;
     try { if (s) localStorage.setItem(CHAVE, JSON.stringify(s)); else localStorage.removeItem(CHAVE); } catch (e) { /* sem armazenamento: vale só nesta aba */ }
   }
+  if (sessao && sessao.conversa_id && sessao.conversa_id === esquecida()) gravar(null);   /* (gravada por outra aba depois do Recomeçar) */
+  function perder() {
+    if (sessao && sessao.conversa_id) codigoPerdido = String(sessao.conversa_id).slice(0, 8);
+    gravar(null);
+    perdida = true;
+  }
+  /* outra aba apagou a sessão (Recomeçar, ou a renovação recusada lá): esta também para, e avisa na próxima ação */
+  window.addEventListener('storage', function (ev) {
+    if (ev.key === CHAVE && ev.newValue === null && sessao && sessao.conversa_id) { codigoPerdido = String(sessao.conversa_id).slice(0, 8); sessao = null; perdida = true; }
+  });
 
   /* a origem da visita (js/metricas.js, sessionStorage): só meio, fonte, campanha, termo e o código curto */
   function origem() {
@@ -66,16 +82,18 @@
       if (guardada && sessao && guardada.refresh !== sessao.refresh && guardada.conversa_id === sessao.conversa_id) { sessao = guardada; return true; }
       if (!sessao || !sessao.refresh) return false;
       var usado = sessao.refresh;
+      falhaDaRenovacao = null;
       try {
         var s = await http('POST', 'renovar', { refresh: usado });
         gravar(Object.assign({}, sessao, { token: s.token, refresh: s.refresh, expira_em: s.expira_em }));
         return true;
       } catch (e) {
-        if (e.status !== 401) return false;   /* rede ou servidor: a sessão fica para tentar depois */
+        /* rede ou servidor instável (o servidor responde 503 recuperável quando o Auth oscila): a sessão FICA,
+           e quem chamou recebe esse erro (frase do servidor + "Tentar de novo"), não "Sua sessão terminou" */
+        if (e.status !== 401) { falhaDaRenovacao = e; return false; }
         var agora = ler();
         if (agora && agora.refresh !== usado) { sessao = agora; return true; }   /* outra aba renovou */
-        gravar(null);   /* a renovação venceu de verdade: a página avisa ("Sua sessão terminou") e oferece recomeçar */
-        perdida = true;
+        perder();   /* só o 401 de verdade: a página avisa ("Sua sessão terminou") e oferece recomeçar */
         return false;
       }
     })().finally(function () { renovando = null; });
@@ -87,7 +105,9 @@
     try {
       return await http(metodo, acao, corpo, query, sessao && sessao.token, limiteMs);
     } catch (e) {
-      if (e.status === 401 && (await renovar())) return http(metodo, acao, corpo, query, sessao.token, limiteMs);
+      if (e.status !== 401) throw e;
+      if (await renovar()) return http(metodo, acao, corpo, query, sessao.token, limiteMs);
+      if (sessao && falhaDaRenovacao) throw falhaDaRenovacao;   /* (a sessão segue: o erro passageiro é o que vale) */
       throw e;
     }
   }
@@ -126,22 +146,30 @@
     perdeuSessao: function () { return perdida; },
     /* o código do pedido: os 8 primeiros caracteres da conversa (o mesmo id curto do painel) */
     codigo: function () { return sessao && sessao.conversa_id ? String(sessao.conversa_id).slice(0, 8) : null; },
-    esquecer: function () { gravar(null); perdida = false; },
+    codigoPerdido: function () { return codigoPerdido; },
+    /* Recomeçar: apaga a sessão e marca a conversa como esquecida (outra aba aberta não a grava de volta) */
+    esquecer: function () {
+      try { if (sessao && sessao.conversa_id) localStorage.setItem(ESQUECIDA, sessao.conversa_id); } catch (e) { /* sem armazenamento */ }
+      gravar(null); perdida = false; codigoPerdido = null;
+    },
     estado: function () {
       if (!sessao || !sessao.conversa_id) return Promise.reject(new Falha(401, { erro: 'Sessão encerrada.' }));
-      return chamar('GET', 'estado', undefined, '&conversa=' + encodeURIComponent(sessao.conversa_id));
+      return chamar('GET', 'estado', undefined, '&conversa=' + encodeURIComponent(sessao.conversa_id), ESTADO_MS);
     },
     mensagem: async function (texto) { await garantirSessao(); return chamar('POST', 'mensagem', comConversa({ texto: texto }), undefined, MENSAGEM_MS); },
     contato: function (dados) { return chamar('POST', 'contato', comConversa(dados)); },
     gerar: function () { return chamar('POST', 'gerar', comConversa()); },
     gerarDirecao: function (id) { return chamar('POST', 'gerar-direcao', comConversa({ direcao_id: id })); },
     escolher: function (id) { return chamar('POST', 'escolher', comConversa({ direcao_id: id })); },
-    alterar: function (pedido) { return chamar('POST', 'alterar', comConversa({ pedido: pedido })); },
+    alterar: function (pedido) { return chamar('POST', 'alterar', comConversa({ pedido: pedido }), undefined, MENSAGEM_MS); },
     escopo: function () { return chamar('POST', 'escopo', comConversa()); },
     confirmar: function (propostaId, inicioImediato) { return chamar('POST', 'confirmar', comConversa({ proposta_id: propostaId, confirmo: true, inicio_imediato: inicioImediato })); },
     /* o valor NUNCA vai daqui: o servidor tira da proposta aceita */
     pagar: function (metodo, pagador, cartao) { return chamar('POST', 'pagar', comConversa({ metodo: metodo, pagador: pagador, cartao: cartao })); },
-    pagamento: function () { return chamar('GET', 'pagamento', undefined, '&conversa=' + encodeURIComponent(sessao.conversa_id)); },
+    pagamento: function () {
+      if (!sessao || !sessao.conversa_id) return Promise.reject(new Falha(401, { erro: 'Sessão encerrada.' }));   /* (sem sessão: erro, não TypeError) */
+      return chamar('GET', 'pagamento', undefined, '&conversa=' + encodeURIComponent(sessao.conversa_id));
+    },
     pagamentoConfig: function () { return http('GET', 'pagamento-config'); }
   };
 })();
