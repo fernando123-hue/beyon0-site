@@ -16,10 +16,12 @@ Em 2026-10-09 o dono aprovou também: textos de R$ 150 para R$ 250 por página (
 
 Os adicionais seguem a mesma lógica: um valor por unidade, um prazo por unidade e uma prioridade. A prioridade define o que entra primeiro quando o prazo de 10 dias aperta.
 
-- **Fora do automático** (sempre vão para conversa com o dono): loja virtual com pagamento, área restrita com login e sistema sob medida.
+- **Loja em plataforma pronta** (Nuvemshop ou Shopify, tabela v2, 2026-10-09): base R$ 4.800 (piso R$ 3.500), 8 dias, até 30 produtos. Adicionais que só existem com ela (campo `requer`): +25 produtos R$ 300, meio de pagamento extra R$ 400, frete por transportadora R$ 500, ERP/nota fiscal R$ 1.500, marketplace R$ 1.200, migração R$ 1.500. A mensalidade da plataforma é do cliente.
+- **Área restrita com login** (adicional de qualquer formato): R$ 4.500, 4 dias. Extras que só existem com ela: tela R$ 700, perfil R$ 1.200, cobrança de anuidade R$ 2.500, documentos por usuário R$ 900, importar usuários R$ 400. Item dependente só fica na fase 1 se a base também ficar.
+- **Fora do automático** (sempre vão para conversa com o dono): loja feita do zero, em código próprio, e sistema sob medida.
 - **Urgência:** multiplica o valor por 1,3 e o prazo por 0,6.
 - **Complexidade alta:** multiplica o valor por 1,25.
-- **Limite automático:** R$ 15.000. Acima disso, o caso vai para o diagnóstico.
+- **Limite automático:** R$ 15.000 por fase e R$ 60.000 por projeto (fase 1 + fase seguinte). Acima disso, o caso vai para o diagnóstico. A fase seguinte tem valor e prazo estimados.
 - **Sinal:** 50%.
 - **Descontos:** nenhum autorizado. O agente não dá desconto.
 

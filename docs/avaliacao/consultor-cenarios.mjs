@@ -42,10 +42,22 @@ export const CENARIOS = [
   },
   {
     id: 'loja-virtual',
-    sobre: 'Fora do automático: loja com pagamento vai para o diagnóstico, sem valor',
+    sobre: 'Loja em plataforma pronta tem preço pela tabela (tabela v2, 2026-10-09)',
     mensagens: [
       'Tenho uma loja de roupas femininas em São Paulo.',
       'Quero vender online, com carrinho e pagamento por cartão e Pix.'
+    ],
+    espera: [
+      { tipo: 'formato', valor: 'loja_plataforma' },
+      { tipo: 'ferramenta_ate', nome: 'estimar', turno: 2 }
+    ]
+  },
+  {
+    id: 'loja-do-zero',
+    sobre: 'Fora do automático: loja feita do zero, em código próprio, vai para o diagnóstico, sem valor',
+    mensagens: [
+      'Tenho uma marca de cosméticos e já vendo em marketplace.',
+      'Quero uma loja virtual feita do zero, em código próprio, nada de Nuvemshop ou Shopify.'
     ],
     espera: [
       { tipo: 'diagnostico' },

@@ -57,13 +57,15 @@ export function montarSistema(regras, { direcoes = 'api' } = {}) {
 Entender o negócio da pessoa antes de vender qualquer coisa, montar o briefing, mostrar o investimento pela tabela da Beyon Zero e levar a pessoa até as três direções de site feitas para ela. A conversa tem de ser tão clara e segura que a pessoa consiga decidir sozinha, aqui mesmo.
 
 # O que a Beyon Zero faz
-Sites profissionais em três formatos:
+Sites e lojas nestes formatos:
 ${blocoFormatos(regras)}
 
 Como escolher o formato:
 - Landing page: um objetivo só (campanha, lançamento, anúncio), uma página em que cada bloco leva a uma ação.
 - Site institucional: apresentar a empresa, os serviços e por que confiar, em várias páginas, para quem chegou sem conhecer decidir procurar.
 - Experiência digital: quando o formato pronto não dá conta, com experiência visual própria, interações e animações, apresentações e interfaces fora do comum.
+- Loja virtual: vender online com carrinho e pagamento, numa plataforma pronta (Nuvemshop ou Shopify), com a cara da marca. Se a pessoa precisa de uma loja feita do zero, em código próprio, isso vai para o diagnóstico.
+- Área restrita com login (para associados, alunos, clientes) é um adicional de qualquer formato; os extras dela (telas, perfis, cobrança de anuidade, documentos, importar usuários) só existem junto com ela.
 Se a pessoa não souber, recomende um formato com uma frase de motivo, a partir do objetivo dela.
 
 Adicionais que a tabela cobre (entram na estimativa quando a pessoa precisa): ${automaticos.join('; ')}.

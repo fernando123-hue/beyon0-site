@@ -1,5 +1,5 @@
 {
-  "_status": "RASCUNHO para o dono aprovar. Valores propostos a partir da pesquisa de mercado (fontes em docs/fase2/REGRAS-RASCUNHO.md). Só a versão ATIVA, aprovada pelo dono, gera preço para visitante.",
+  "_status": "RASCUNHO para o dono aprovar. Valores propostos a partir da pesquisa de mercado (fontes em docs/fase2/REGRAS-RASCUNHO.md). Só a versão ATIVA, aprovada pelo dono, gera preço para visitante. Tabela v2 aprovada pelo dono em 2026-10-09 (\"Aprovo como está\"): loja em plataforma e área restrita entram no automático; limite de R$ 15.000 por fase e R$ 60.000 por projeto.",
   "moeda": "BRL",
   "sinal_percentual": 50,
   "prazo_max_dias": 10,
@@ -45,6 +45,20 @@
         "Celular primeiro",
         "SEO básico e medição",
         "Publicação no domínio do cliente"
+      ]
+    },
+    "loja_plataforma": {
+      "nome": "Loja virtual (Nuvemshop ou Shopify)",
+      "base": 4800,
+      "piso": 3500,
+      "prazo_dias": 8,
+      "paginas_incluidas": 5,
+      "inclui": [
+        "Configuração da plataforma e tema próprio",
+        "Até 30 produtos cadastrados com dados e fotos do cliente",
+        "Pix e cartão pelo meio de pagamento da plataforma",
+        "Frete pela tabela da plataforma",
+        "Páginas de política e contato"
       ]
     }
   },
@@ -112,13 +126,126 @@
       "max": 2,
       "prioridade": 50
     },
+    "produtos_lote_25": {
+      "nome": "Mais 25 produtos cadastrados",
+      "valor": 300,
+      "prazo_dias": 0.5,
+      "max": 20,
+      "prioridade": 15,
+      "requer": [
+        "loja_plataforma"
+      ]
+    },
+    "pagamento_extra": {
+      "nome": "Meio de pagamento extra na loja",
+      "valor": 400,
+      "prazo_dias": 0.5,
+      "max": 2,
+      "prioridade": 20,
+      "requer": [
+        "loja_plataforma"
+      ]
+    },
+    "frete_transportadora": {
+      "nome": "Frete por transportadora (Melhor Envio, Frenet)",
+      "valor": 500,
+      "prazo_dias": 1,
+      "max": 1,
+      "prioridade": 22,
+      "requer": [
+        "loja_plataforma"
+      ]
+    },
+    "integracao_erp": {
+      "nome": "Integração da loja com ERP ou nota fiscal (Bling, Tiny)",
+      "valor": 1500,
+      "prazo_dias": 2,
+      "max": 2,
+      "prioridade": 35,
+      "requer": [
+        "loja_plataforma"
+      ]
+    },
+    "marketplace": {
+      "nome": "Integração com marketplace (Mercado Livre, Shopee)",
+      "valor": 1200,
+      "prazo_dias": 1.5,
+      "max": 2,
+      "prioridade": 40,
+      "requer": [
+        "loja_plataforma"
+      ]
+    },
+    "migracao_loja": {
+      "nome": "Migração de outra loja",
+      "valor": 1500,
+      "prazo_dias": 2,
+      "max": 1,
+      "prioridade": 30,
+      "requer": [
+        "loja_plataforma"
+      ]
+    },
     "loja_virtual": {
-      "nome": "Loja virtual com pagamento",
+      "nome": "Loja feita do zero, em código próprio",
       "fora_do_automatico": true
     },
     "area_restrita": {
-      "nome": "Área restrita com login",
-      "fora_do_automatico": true
+      "nome": "Área restrita com login (1 perfil, até 3 telas)",
+      "valor": 4500,
+      "prazo_dias": 4,
+      "max": 1,
+      "prioridade": 12
+    },
+    "area_tela_extra": {
+      "nome": "Tela extra na área restrita",
+      "valor": 700,
+      "prazo_dias": 1,
+      "max": 8,
+      "prioridade": 18,
+      "requer": [
+        "area_restrita"
+      ]
+    },
+    "area_perfil_extra": {
+      "nome": "Perfil extra na área restrita (ex.: associado e diretoria)",
+      "valor": 1200,
+      "prazo_dias": 1.5,
+      "max": 3,
+      "prioridade": 16,
+      "requer": [
+        "area_restrita"
+      ]
+    },
+    "area_cobranca_recorrente": {
+      "nome": "Cobrança de anuidade ou mensalidade na área restrita (Pix, boleto, cartão)",
+      "valor": 2500,
+      "prazo_dias": 3,
+      "max": 1,
+      "prioridade": 14,
+      "requer": [
+        "area_restrita"
+      ]
+    },
+    "area_documentos": {
+      "nome": "Documentos e certificados por usuário na área restrita",
+      "valor": 900,
+      "prazo_dias": 1,
+      "max": 1,
+      "prioridade": 24,
+      "requer": [
+        "area_restrita"
+      ]
+    },
+    "area_importar_usuarios": {
+      "nome": "Importar a lista de usuários para a área restrita",
+      "valor": 400,
+      "prazo_dias": 0.5,
+      "max": 1,
+      "prioridade": 13,
+      "requer": [
+        "area_restrita"
+      ]
     },
     "sistema_sob_medida": {
       "nome": "Sistema ou painel sob medida",
@@ -138,6 +265,7 @@
   },
   "descontos_autorizados": [],
   "limites": {
-    "valor_max_automatico": 15000
+    "valor_max_automatico": 15000,
+    "valor_max_projeto": 60000
   }
 }

@@ -91,3 +91,46 @@ test('tabela com adicional nulo ou que não é objeto: recusada com erro, não e
     assert.ok((validarRegras(r).erros || []).some(x => /formatos\.landing_page/.test(x)), 'formato ' + ruim + ': recusado');
   }
 });
+
+/* ---------- tabela v2 (2026-10-09): loja em plataforma, área restrita, dependências, fase seguinte, limite do projeto ---------- */
+test('loja em plataforma: base de R$ 4.800, adicionais de loja até o teto de 10 dias', () => {
+  const l = estimar({ formato: 'loja_plataforma' }, REGRAS);
+  assert.deepEqual([l.valor_total, l.sinal, l.prazo_dias, l.fase], [4800, 2400, 8, 'unica']);
+  const m = estimar({ formato: 'loja_plataforma', adicionais: { produtos_lote_25: 2, frete_transportadora: 1 } }, REGRAS);
+  assert.deepEqual([m.valor_total, m.prazo_dias, m.fase], [5900, 10, 'unica'], '4800 + 2×300 + 500, 8 + 1 + 1 dias');
+});
+
+test('o que depende de outro item não entra sem ele: o modelo recebe o motivo', () => {
+  const sem = validarFatores({ formato: 'landing_page', adicionais: { area_tela_extra: 1 } }, REGRAS);
+  assert.ok(sem.erros?.some(e => /area_tela_extra exige/.test(e) && /Área restrita/.test(e)), JSON.stringify(sem));
+  assert.ok(validarFatores({ formato: 'institucional', adicionais: { frete_transportadora: 1 } }, REGRAS).erros?.some(e => /exige.*Loja virtual/.test(e)), 'extra de loja sem loja');
+  assert.deepEqual(validarFatores({ formato: 'landing_page', adicionais: { area_restrita: 1, area_tela_extra: 2 } }, REGRAS).erros, undefined, 'com a base, entra');
+  assert.ok(estimar({ formato: 'landing_page', adicionais: { area_cobranca_recorrente: 1 } }, REGRAS).erros, 'estimar também recusa');
+});
+
+test('área restrita que não cabe no prazo vai para a fase seguinte, levando junto o que depende dela', () => {
+  const r = estimar({ formato: 'institucional', adicionais: { area_restrita: 1, area_importar_usuarios: 1 } }, REGRAS);
+  assert.equal(r.fase, 'fase1');
+  assert.deepEqual(r.itens, [], 'a importação (meio dia) caberia, mas sem a área ela não existe na fase 1');
+  assert.deepEqual(r.fase_seguinte.itens.map(i => i.chave).sort(), ['area_importar_usuarios', 'area_restrita']);
+  assert.deepEqual([r.valor_total, r.fase_seguinte.valor_estimado, r.fase_seguinte.prazo_dias], [3500, 4900, 5], '4500 + 400, 4 + 0,5 dias');
+  const cabe = estimar({ formato: 'landing_page', adicionais: { area_restrita: 1, area_tela_extra: 1 } }, REGRAS);
+  assert.deepEqual([cabe.valor_total, cabe.prazo_dias, cabe.fase], [6700, 10, 'unica'], 'landing 5 + área 4 + tela 1 = 10 dias');
+});
+
+test('limite do projeto: fase 1 + fase seguinte acima de valor_max_projeto vão para o diagnóstico', () => {
+  const r = copia(); r.limites.valor_max_automatico = 5000; r.limites.valor_max_projeto = 8000;   /* (fase 1 de 3500 passa no teto da fase) */
+  const e = estimar({ formato: 'institucional', adicionais: { area_restrita: 1, area_cobranca_recorrente: 1 } }, r);
+  assert.equal(e.encaminhar_diagnostico, true, '3500 + 7000 > 8000');
+  assert.equal(e.valor_total, undefined, 'sem valor');
+  assert.equal(estimar({ formato: 'institucional', adicionais: { area_restrita: 1, area_cobranca_recorrente: 1 } }, REGRAS).fase_seguinte.valor_estimado, 7000, 'na tabela real (R$ 60.000) passa');
+});
+
+test('tabela com requer inválido é recusada', () => {
+  for (const ruim of [['nao_existe'], [], 'area_restrita', ['loja_virtual'], ['area_tela_extra']]) {
+    const r = copia(); r.adicionais.area_tela_extra.requer = ruim;
+    assert.ok((validarRegras(r).erros || []).some(x => /area_tela_extra\.requer/.test(x)), JSON.stringify(ruim) + ': recusado');
+  }
+  const r = copia(); r.limites.valor_max_projeto = 100;
+  assert.ok((validarRegras(r).erros || []).some(x => /valor_max_projeto/.test(x)), 'teto do projeto abaixo do teto da fase');
+});
