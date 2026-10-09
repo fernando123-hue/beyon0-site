@@ -12,8 +12,19 @@
 (function () {
   'use strict';
   var API = window.BZOrcamento, PV = window.BZPrevia;
-  if (!API || !PV || !window.BZVisor) return;
   var $ = function (id) { return document.getElementById(id); };
+  /* um script não chegou (rede, bloqueador): sem isso a página ficava morta sem dizer nada (auditoria 2026-10-09, F19) */
+  if (!API || !PV || !window.BZVisor) { semScripts(); return; }
+  function semScripts() {
+    var aviso = $('o-aviso');
+    if (!aviso) return;
+    $('o-aviso-texto').textContent = 'Parte desta página não carregou. Recarregue para tentar de novo ou continue pelo WhatsApp.';
+    $('o-tentar').textContent = 'Recarregar';
+    $('o-tentar').addEventListener('click', function () { location.reload(); });
+    $('o-form').hidden = true;
+    $('o-atalhos').hidden = true;
+    aviso.hidden = false;
+  }
   var RECUPERACAO = 'Não consegui concluir a análise neste momento. Suas informações foram preservadas. Vamos continuar de onde paramos.';
   var NOMES = { conversao: 'Conversão', autoridade: 'Autoridade', experiencia: 'Experiência' };
   var CONVERSA_ABERTA = ['descoberta', 'estimativa', 'contato', 'direcoes', 'escolhida', 'alteracoes'];
@@ -31,9 +42,10 @@
   function mudou(bloco, dados) { var s = JSON.stringify(dados); if (assinaturas[bloco] === s) return false; assinaturas[bloco] = s; return true; }
 
   /* ---------- aviso (falha, limite, recuperação): vai para a vista e recebe o foco ---------- */
-  function avisar(msg, acao) {
+  function avisar(msg, acao, rotulo) {
     ultimaAcao = acao || null;
     $('o-aviso-texto').textContent = msg;
+    $('o-tentar').textContent = rotulo || 'Tentar de novo';
     $('o-tentar').hidden = !acao;
     mostrar('o-aviso', true);
     $('o-aviso').scrollIntoView({ block: 'center' });
@@ -41,11 +53,48 @@
   }
   function limparAviso() { mostrar('o-aviso', false); ultimaAcao = null; }
   function mensagemDe(e) {
-    if (e && e.status === 0) return e.message;
+    if (e && e.status === 0) return e.dados && e.dados.tempo ? e.message + ' Tente de novo em instantes.' : e.message;
     if (e && e.status === 503 && e.dados && e.dados.recuperavel) return RECUPERACAO;
+    /* erro do servidor: nunca o "Erro interno." cru; o código do pedido deixa a equipe achar o caso no log (F7) */
+    if (e && e.status === 500) {
+      var cod = e.dados && typeof e.dados.pedido === 'string' ? e.dados.pedido.slice(0, 8) : '';
+      return 'Não consegui concluir agora.' + (cod ? ' Código: ' + cod + '.' : '') + ' Tente de novo em instantes ou fale com a Beyon Zero pelo WhatsApp.';
+    }
     return (e && e.message) || RECUPERACAO;
   }
+  /* rede ou servidor: vale oferecer "Tentar de novo" (recusa de regra, não) */
+  var repetivel = function (e) { return !!e && (e.status === 0 || e.status >= 500); };
+  /* a sessão existia e o servidor a recusou de vez (F5): "Recomeçar" em vez de um laço de "Tentar de novo" */
+  var sessaoTerminou = function (e) { return API.perdeuSessao() || (!!E && !!e && e.status === 401 && !API.temSessao()); };
+  function avisarSessao() {
+    pararEspera();
+    avisar('Sua sessão terminou. Recomece o orçamento por aqui ou continue pelo WhatsApp, citando o código do pedido.', function () { API.esquecer(); location.reload(); }, 'Recomeçar');
+  }
+  function falhou(e, acao) {
+    if (sessaoTerminou(e)) return avisarSessao();
+    avisar(mensagemDe(e), acao);
+  }
   $('o-tentar').addEventListener('click', function () { var a = ultimaAcao; limparAviso(); if (a) a(); });
+
+  /* ---------- o código do pedido e o WhatsApp com ele (F1, F6) ----------
+     Os links [data-wa] são montados por js/pagina.js; aqui só se acrescenta "(pedido XXXXXXXX)" ao assunto, no
+     próprio data-wa (quem remontar os links depois, como js/metricas.js, leva o pedido junto) */
+  var codigoMostrado = null;
+  function identificar() {
+    var c = API.codigo();
+    if (!c || c === codigoMostrado) return;
+    codigoMostrado = c;
+    $('o-codigo-v').textContent = c;
+    mostrar('o-codigo', true);
+    var B = window.BEYON, padrao = document.body.getAttribute('data-wa-padrao') || '';
+    if (!B || typeof B.linkWA !== 'function') return;
+    [].forEach.call(document.querySelectorAll('[data-wa]'), function (a) {
+      if (!a.hasAttribute('data-wa-base')) a.setAttribute('data-wa-base', a.getAttribute('data-wa') || padrao);
+      var assunto = a.getAttribute('data-wa-base') + ' (pedido ' + c + ')';
+      a.setAttribute('data-wa', assunto);
+      a.href = B.linkWA(assunto);
+    });
+  }
 
   /* ---------- a conversa ---------- */
   function msg(papel, texto) {
@@ -57,29 +106,53 @@
   }
   function ocupado(sim) { enviando = sim; mostrar('o-pensando', sim); $('o-form').setAttribute('aria-busy', String(sim)); $('o-enviar').disabled = sim; }
 
+  var visitantesNoServidor = function () { return E ? E.mensagens.filter(function (m) { return m.papel !== 'agente'; }).length : 0; };
+
   async function enviar(texto) {
     if (enviando) return;   /* (Enter repetido não manda dois turnos) */
     limparAviso();
+    var antes = visitantesNoServidor(), totalAntes = E ? E.mensagens.length : 0;
     var minha = msg('visitante', texto);
     $('o-atalhos').hidden = true;
     ocupado(true);
     var r;
     try { r = await API.mensagem(texto); }
-    catch (e) {
-      minha.remove();               /* não ficou gravada: volta para a caixa */
-      $('o-texto').value = texto;
-      ocupado(false);
-      avisar(mensagemDe(e), e.status === 429 || e.status === 409 ? null : function () { $('o-texto').value = ''; enviar(texto); });
-      return;
-    }
+    catch (e) { await falhaNoEnvio(e, texto, minha, antes); return; }
     ocupado(false);
-    msg('agente', r.resposta || 'Entendi.');
+    /* a conversa no servidor agora tem +2 mensagens; se uma leitura de fundo já a redesenhou, não repete a resposta */
+    var esperado = JSON.stringify(totalAntes + 2);
+    if (assinaturas.conversa !== esperado) { assinaturas.conversa = esperado; msg('agente', r.resposta || 'Entendi.'); }
     if (r.estimativa) investimento(r.estimativa, true);
     if (r.sugestoes_ia && r.sugestoes_ia.length) sugestao(r.sugestoes_ia[0]);
     if (r.diagnostico) mostrar('o-diagnostico', true);
     try { await recarregar(); } catch (e) { /* o turno já está gravado; a espera ou a próxima ação atualizam */ }
     if (r.pedir_contato && !$('o-contato').hidden) $('o-contato').scrollIntoView({ block: 'start' });
   }
+  /* a rede caiu ou o tempo estourou com a IA respondendo (F2): o turno pode ter sido gravado mesmo assim. A tela
+     segue o servidor: relê o estado (render redesenha a conversa se ela mudou) e só devolve o texto à caixa se o
+     turno NÃO entrou */
+  async function falhaNoEnvio(e, texto, minha, antes) {
+    try { await recarregar(); } catch (x) { /* sem conexão: decide pelo que já se sabe */ }
+    ocupado(false);
+    var gravada = visitantesNoServidor() > antes;
+    if (!gravada) {
+      if (minha.isConnected) minha.remove();
+      if (!$('o-texto').value) $('o-texto').value = texto;
+    }
+    if (sessaoTerminou(e)) return avisarSessao();
+    if (gravada) return;   /* a resposta já está na conversa: nada a refazer */
+    var respondendo = e.status === 409 && /respondendo/i.test(e.message || '');   /* (a mensagem anterior ainda está com a IA) */
+    avisar(mensagemDe(e), repetivel(e) || respondendo ? function () { reenviar(texto, antes); } : null);
+  }
+  /* antes de mandar de novo, confere se o turno anterior chegou nesse meio-tempo (senão entraria duas vezes) */
+  async function reenviar(texto, antes) {
+    try { await recarregar(); } catch (x) { /* o envio diz se a rede voltou */ }
+    if ($('o-texto').value === texto) $('o-texto').value = '';
+    if (visitantesNoServidor() > antes) return;
+    enviar(texto);
+  }
+  /* Safari < 16 não tem requestSubmit (F14): o clique no botão de envio faz o mesmo caminho */
+  function submeter(form, botaoEnvio) { if (typeof form.requestSubmit === 'function') form.requestSubmit(); else botaoEnvio.click(); }
   $('o-form').addEventListener('submit', function (ev) {
     ev.preventDefault();
     var t = $('o-texto').value.trim();
@@ -88,7 +161,7 @@
     enviar(t.slice(0, 2000));
   });
   $('o-texto').addEventListener('keydown', function (ev) {
-    if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); if (!enviando) $('o-form').requestSubmit(); }
+    if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); if (!enviando) submeter($('o-form'), $('o-enviar')); }
   });
   [].forEach.call(document.querySelectorAll('[data-atalho]'), function (b) {
     b.addEventListener('click', function () { enviar(b.getAttribute('data-atalho')); });
@@ -142,21 +215,44 @@
     if (!dados.telefone) delete dados.telefone;
     if (!dados.email) delete dados.email;
     erro.textContent = '';
+    /* só gera se a conversa ainda está ANTES das direções (F20: um contato apagado aos 60 dias reaparecia o
+       formulário mais adiante, e o envio pedia a geração fora da etapa) */
+    var gerarDepois = !!E && ['contato', 'estimativa'].indexOf(E.conversa.etapa) >= 0;
     form.setAttribute('aria-busy', 'true');
     try { await API.contato(dados); }
-    catch (e) { erro.textContent = mensagemDe(e); form.removeAttribute('aria-busy'); return; }
+    catch (e) {
+      form.removeAttribute('aria-busy');
+      if (sessaoTerminou(e)) { avisarSessao(); return; }
+      erro.textContent = mensagemDe(e);
+      return;
+    }
     form.removeAttribute('aria-busy');
-    await gerarTodas();
+    if (gerarDepois) await gerarTodas();
+    else await recarregar().catch(function () {});
   });
 
+  /* ---------- ações que mudam a etapa: uma por vez, botões desligados em voo (F10: duplo toque gerava 2 escopos) ---------- */
+  var acaoEmVoo = false;
+  function travarAcoes(sim) {
+    acaoEmVoo = sim;
+    [].forEach.call(document.querySelectorAll('[data-acao]'), function (b) { if (sim) b.setAttribute('aria-disabled', 'true'); else b.removeAttribute('aria-disabled'); });
+  }
+  async function umaAcao(fn) {
+    if (acaoEmVoo) return;
+    travarAcoes(true);
+    try { await fn(); } finally { travarAcoes(false); }
+  }
+
   /* ---------- as três direções ---------- */
-  async function gerarTodas() {
-    limparAviso();
-    try {
-      await API.gerar();
-      await recarregar();
-      $('o-direcoes').scrollIntoView({ block: 'start' });
-    } catch (e) { avisar(mensagemDe(e), e.status === 409 || e.status === 429 ? null : gerarTodas); }
+  function gerarTodas() {
+    return umaAcao(async function () {
+      limparAviso();
+      try {
+        await API.gerar();
+        await recarregar();
+        $('o-direcoes').scrollIntoView({ block: 'start' });
+      } catch (e) { falhou(e, e.status === 409 || e.status === 429 ? null : gerarTodas); }
+    });
   }
   /* pede UMA direção. "em_andamento" = outro pedido tem a posse: não insiste (a espera de 5 s acompanha);
      tenta de novo só depois de um minuto, caso a posse tenha caído */
@@ -171,6 +267,7 @@
       await recarregar().catch(function () {});
     } catch (e) {
       pedindo[id] = Date.now() + REPEDIR_MS;
+      if (sessaoTerminou(e)) { avisarSessao(); return; }
       if (e.status === 429 || e.status === 503) avisar(mensagemDe(e));
       esperar();
     }
@@ -184,7 +281,7 @@
   var manual = function () { return !!E && E.modo_direcoes === 'manual'; };
   var TEXTOS_MANUAL = {
     contato: 'Com o seu contato, a Beyon Zero desenha três direções de site para o seu negócio: uma focada em conversão, uma em autoridade e uma em experiência. Ficam prontas em até 24 horas úteis, e avisamos pelo seu WhatsApp.',
-    direcoes: 'Mesmo briefing, três estratégias. Ficam prontas em até 24 horas úteis e avisamos pelo seu WhatsApp; é só voltar a esta página, neste aparelho, para abrir, comparar e escolher.',
+    direcoes: 'Mesmo briefing, três estratégias. Ficam prontas em até 24 horas úteis e avisamos pelo seu WhatsApp; é só voltar a esta página, neste mesmo navegador, para abrir, comparar e escolher.',
     prontas: 'Mesmo briefing, três estratégias. Abra cada uma, compare e escolha a que mais tem a cara do seu negócio.'
   };
   function textosDoModo() {
@@ -199,6 +296,8 @@
   var escolhidaId = function () { return E && E.escolha ? E.escolha.direcao_id : null; };
 
   function botao(classe, texto, aoClicar) { var b = el('button', classe, texto); b.type = 'button'; b.addEventListener('click', aoClicar); return b; }
+  /* botão de uma ação que muda a etapa (escolher, gerar): nasce desligado se outra está em voo */
+  function botaoAcao(classe, texto, aoClicar) { var b = botao(classe, texto, aoClicar); b.setAttribute('data-acao', ''); if (acaoEmVoo) b.setAttribute('aria-disabled', 'true'); return b; }
   function cartaoDirecao(d) {
     var li = el('li', 'dir');
     var escolhida = escolhidaId() === d.id;
@@ -219,7 +318,7 @@
       abrir.setAttribute('data-abrir', d.id);
       acoes.appendChild(abrir);
       if (escolhida) acoes.appendChild(el('span', 'dir__selo', 'Escolhida'));
-      else if (podeEscolher()) acoes.appendChild(botao('btn btn--sm btn--primary', 'Escolher esta', function () { escolher(d.id); }));
+      else if (podeEscolher()) acoes.appendChild(botaoAcao('btn btn--sm btn--primary', 'Escolher esta', function () { escolher(d.id); }));
       corpo.appendChild(acoes);
     } else if (d.status === 'falhou') {
       var p = el('div', 'dir__progresso');
@@ -227,14 +326,16 @@
       mini.appendChild(p);
       if (podeGerar()) {
         corpo.appendChild(el('p', 'dir__resumo', 'Você pode gerar as três de novo ou seguir com as que ficaram prontas.'));
-        corpo.appendChild(botao('btn btn--sm', 'Gerar de novo', gerarTodas));
+        corpo.appendChild(botaoAcao('btn btn--sm', 'Gerar de novo', gerarTodas));
       } else corpo.appendChild(el('p', 'dir__resumo', 'Os ajustes seguem sobre a direção escolhida.'));
     } else if (manual()) {
       var f = el('div', 'dir__progresso');
       f.appendChild(el('p', '', 'Na fila: a direção de ' + (NOMES[d.estrategia] || '').toLowerCase() + ' fica pronta em até 24 horas úteis.'));
       mini.appendChild(f);
-      corpo.appendChild(el('p', 'dir__resumo', 'Avisamos pelo seu WhatsApp. O progresso fica salvo neste aparelho.'));
-      corpo.appendChild(botao('btn btn--sm', 'Conferir agora', function () { recarregar().catch(function () {}); }));   /* (sem consulta automática: a pessoa confere quando quiser) */
+      corpo.appendChild(el('p', 'dir__resumo', 'Avisamos pelo seu WhatsApp. O progresso fica salvo neste navegador.'));
+      var conf = botao('btn btn--sm', 'Conferir agora', function () { conferir(conf); });   /* (sem consulta automática: a pessoa confere quando quiser) */
+      conf.setAttribute('data-conferir', '');
+      corpo.appendChild(conf);
     } else {
       var g = el('div', 'dir__progresso');
       g.appendChild(el('p', '', 'Desenhando a direção de ' + (NOMES[d.estrategia] || '').toLowerCase() + '…'));
@@ -243,7 +344,7 @@
       t.setAttribute('data-tempo', d.id);
       g.appendChild(t);
       mini.appendChild(g);
-      corpo.appendChild(el('p', 'dir__resumo', 'Pode continuar conversando ou sair: o progresso fica salvo.'));
+      corpo.appendChild(el('p', 'dir__resumo', 'Pode sair: ao voltar a esta página, a geração continua.'));
     }
     li.appendChild(mini);
     li.appendChild(corpo);
@@ -254,14 +355,27 @@
   window.addEventListener('resize', function () { clearTimeout(adiado); adiado = setTimeout(encaixarMinis, 150); });
   /* o relógio dos cartões em geração: só roda enquanto há geração */
   function relogioDosCartoes(ligar) {
+    if (desistiu) ligar = false;   /* (a espera desistiu: o relógio para junto, não conta um tempo que ninguém acompanha) */
     if (ligar && !relogio) relogio = setInterval(function () { [].forEach.call(document.querySelectorAll('[data-tempo]'), function (t) { t.textContent = tempo(t.getAttribute('data-tempo')); }); }, 1000);
     if (!ligar && relogio) { clearInterval(relogio); relogio = null; }
   }
 
-  async function escolher(id) {
-    limparAviso();
-    try { await API.escolher(id); visor.fechar(); await recarregar(); $('o-ajustes').scrollIntoView({ block: 'start' }); }
-    catch (e) { avisar(mensagemDe(e), e.status === 409 ? null : function () { escolher(id); }); }
+  /* fila manual: "Conferir agora" mostra que está conferindo e não engole o erro (F13) */
+  async function conferir(b) {
+    if (b.getAttribute('aria-disabled') === 'true') return;
+    b.textContent = 'Conferindo…';
+    b.setAttribute('aria-disabled', 'true');
+    try { await recarregar(); }
+    catch (e) { falhou(e, function () { var nb = document.querySelector('[data-conferir]'); if (nb) conferir(nb); }); }
+    finally { if (b.isConnected) { b.textContent = 'Conferir agora'; b.removeAttribute('aria-disabled'); } }
+  }
+
+  function escolher(id) {
+    return umaAcao(async function () {
+      limparAviso();
+      try { await API.escolher(id); visor.fechar(); await recarregar(); $('o-ajustes').scrollIntoView({ block: 'start' }); }
+      catch (e) { falhou(e, e.status === 409 ? null : function () { escolher(id); }); }
+    });
   }
 
   var visor = window.BZVisor.criar({
@@ -283,6 +397,7 @@
     form.setAttribute('aria-busy', 'true');
     limparAviso();
     $('o-aj-resposta').textContent = 'Aplicando…';
+    var antes = E ? E.alteracoes.length : 0;
     try {
       var r = await API.alterar(pedido.slice(0, 2000));
       $('o-aj-texto').value = '';
@@ -290,9 +405,20 @@
       if (r.estimativa) investimento(r.estimativa, true);
       if (r.diagnostico) mostrar('o-diagnostico', true);
       await recarregar().catch(function () {});
-    } catch (e) { $('o-aj-resposta').textContent = ''; avisar(mensagemDe(e)); }
+    } catch (e) {
+      $('o-aj-resposta').textContent = '';
+      /* (F2) a rede caiu com o ajuste em andamento: ele pode ter entrado. Relê antes de oferecer de novo */
+      try { await recarregar(); } catch (x) { /* sem conexão */ }
+      if (E && E.alteracoes.length > antes) { $('o-aj-texto').value = ''; return; }
+      falhou(e, repetivel(e) ? function () { reajustar(antes); } : null);
+    }
     finally { form.removeAttribute('aria-busy'); }
   });
+  async function reajustar(antes) {
+    try { await recarregar(); } catch (x) { /* o envio diz se a rede voltou */ }
+    if (E && E.alteracoes.length > antes) { $('o-aj-texto').value = ''; return; }
+    submeter($('o-aj-form'), $('o-aj-form').querySelector('[type="submit"]'));
+  }
   var OPERACOES = { usar_paleta_de: 'Cores de outra direção', usar_tipografia_de: 'Fontes de outra direção', cor: 'Cor trocada', tipografia: 'Fontes trocadas', tema: 'Tema claro/escuro', mover_antes_de: 'Seção movida', mover_depois_de: 'Seção movida', remover_secao: 'Seção removida', adicionar_secao: 'Seção adicionada', trocar_texto: 'Texto trocado', trocar_cta_menu: 'Botão do menu trocado', adicional: 'Item adicionado ao escopo', paginas: 'Número de páginas', outro: 'Pedido' };
   function mudancas() {
     if (!mudou('mudancas', [E.alteracoes, !!E.versao_final])) return;
@@ -311,11 +437,14 @@
       v.appendChild(b);
     }
   }
-  $('o-fechar-escopo').addEventListener('click', async function () {
-    limparAviso();
-    try { await API.escopo(); await recarregar(); $('o-escopo').scrollIntoView({ block: 'start' }); }
-    catch (e) { avisar(mensagemDe(e), e.status === 409 ? function () { $('o-fechar-escopo').click(); } : null); }
-  });
+  function fecharEscopo() {
+    return umaAcao(async function () {
+      limparAviso();
+      try { await API.escopo(); await recarregar(); $('o-escopo').scrollIntoView({ block: 'start' }); }
+      catch (e) { falhou(e, e.status === 409 || repetivel(e) ? fecharEscopo : null); }
+    });
+  }
+  $('o-fechar-escopo').addEventListener('click', fecharEscopo);
 
   /* ---------- escopo e confirmação ---------- */
   $('o-esc-form').addEventListener('submit', async function (ev) {
@@ -326,7 +455,7 @@
     erro.textContent = '';
     form.setAttribute('aria-busy', 'true');
     try { await API.confirmar(E.proposta.id, $('o-inicio').checked); await recarregar(); $('o-pagamento').scrollIntoView({ block: 'start' }); }
-    catch (e) { erro.textContent = mensagemDe(e); }
+    catch (e) { if (sessaoTerminou(e)) avisarSessao(); else erro.textContent = mensagemDe(e); }
     finally { form.removeAttribute('aria-busy'); }
   });
 
@@ -393,7 +522,7 @@
       var ul = $('o-dirs');
       ul.textContent = '';
       if (temDirecoes) { E.direcoes.forEach(function (d) { ul.appendChild(cartaoDirecao(d)); }); encaixarMinis(); }
-      else if (E.conversa.tem_contato) ul.appendChild(botao('btn btn--primary', 'Gerar as três direções', gerarTodas));
+      else if (E.conversa.tem_contato && podeGerar()) ul.appendChild(botaoAcao('btn btn--primary', 'Gerar as três direções', gerarTodas));   /* (F20: só na etapa que gera) */
     }
     if (manual()) $('o-dir-lead').textContent = E.direcoes.some(function (d) { return d.status === 'gerando'; }) || !temDirecoes ? TEXTOS_MANUAL.direcoes : TEXTOS_MANUAL.prontas;
     var emGeracao = manual() ? [] : E.direcoes.filter(function (d) { return d.status === 'gerando'; });   /* (fila manual: nada a pedir) */
@@ -403,7 +532,10 @@
   function render() {
     var et = E.conversa.etapa;
     textosDoModo();
+    identificar();
     etapas();
+    /* a conversa segue o servidor: redesenha quando o número de mensagens mudou (F2: resposta gravada com a rede caída) */
+    if (mudou('conversa', E.mensagens.length)) conversa();
     if (E.estimativa) investimento(E.estimativa, false);
     var aberta = CONVERSA_ABERTA.indexOf(et) >= 0;
     mostrar('o-form', aberta);
@@ -442,23 +574,35 @@
     return E;
   }
 
-  /* espera pelo que acontece fora desta aba (direção feita por outro pedido, aviso do pagamento) */
+  /* espera pelo que acontece fora desta aba (direção feita por outro pedido, aviso do pagamento).
+     Aos 15 min ela desiste (F12): para o relógio dos cartões e AVISA, com "Conferir agora" e o WhatsApp; volta a
+     esperar quando a pessoa confere ou volta para a aba */
+  var desistiu = false;
   function esperar() {
-    if (espera) return;
+    if (espera || desistiu) return;
     var inicio = Date.now();
     espera = setInterval(async function () {
       if (document.hidden || emVoo) return;
-      if (Date.now() - inicio > ESPERA_MAX_MS) { pararEspera(); recarregar().catch(function () {}); return; }   /* (uma última olhada) */
+      if (Date.now() - inicio > ESPERA_MAX_MS) { desistir(); return; }
       try {
         await recarregar();
         if (E.conversa.etapa !== 'gerando' && E.conversa.etapa !== 'aguardando_pagamento') pararEspera();
-      } catch (e) { /* tenta na próxima */ }
+      } catch (e) { if (sessaoTerminou(e)) avisarSessao(); /* senão, tenta na próxima */ }
     }, ESPERA_MS);
   }
   function pararEspera() { clearInterval(espera); espera = null; }
+  async function desistir() {
+    pararEspera();
+    desistiu = true;
+    relogioDosCartoes(false);
+    try { await recarregar(); } catch (e) { /* o aviso abaixo oferece conferir de novo */ }   /* (uma última olhada) */
+    if (E && E.conversa.etapa === 'gerando') avisar('Está demorando mais que o normal. Confira de novo daqui a pouco ou fale com a Beyon Zero pelo WhatsApp.', conferirGeracao, 'Conferir agora');
+  }
+  function conferirGeracao() { desistiu = false; recarregar().catch(function (e) { falhou(e, conferirGeracao); }); }
   /* voltou para a aba (do WhatsApp, do pagamento): olha de novo e retoma a espera se ainda for o caso */
   document.addEventListener('visibilitychange', function () {
     if (document.hidden || !E || !API.temSessao()) return;
+    desistiu = false;
     if (E.conversa.etapa === 'gerando' || E.conversa.etapa === 'aguardando_pagamento') recarregar().catch(function () {});
   });
 
@@ -478,15 +622,15 @@
   async function retomar() {
     if (!API.temSessao()) return;
     try {
-      await recarregar();
-      conversa();
+      await recarregar();   /* (o render desenha a conversa salva) */
       var BLOCOS = { direcoes: 'o-direcoes', ajustes: 'o-ajustes', escopo: 'o-escopo', pagamento: E.conversa.etapa === 'em_producao' ? 'o-pronto' : 'o-pagamento' };
       var alvo = BLOCOS[passoAtual()];
       if (alvo && !$(alvo).hidden) rolarAte($(alvo));   /* quem volta cai na etapa em que parou */
     } catch (e) {
-      /* conversa que não existe mais (ou sessão que o servidor recusou de vez): começa limpo.
-         Falha de rede ou do servidor: a sessão fica, e o aviso oferece tentar de novo */
-      if (e.status === 404 || e.status === 400 || !API.temSessao()) { API.esquecer(); return; }
+      /* conversa que não existe mais: começa limpo. Sessão que o servidor recusou de vez: avisa e oferece
+         recomeçar (F5). Falha de rede ou do servidor: a sessão fica, e o aviso oferece tentar de novo */
+      if (e.status === 404 || e.status === 400) { API.esquecer(); return; }
+      if (sessaoTerminou(e) || !API.temSessao()) { avisarSessao(); return; }
       avisar(mensagemDe(e), retomar);
     }
   }
