@@ -1,19 +1,25 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- lastmod = data do último commit que mexeu no arquivo da página: git log -1 --format=%cs -- <pagina>.html
+     Atualize junto quando a página mudar; o Google ignora lastmod que não bate com mudança real. -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://beyon0-site.vercel.app/</loc>
-    <lastmod>2026-10-06</lastmod>
+    <lastmod>2026-10-09</lastmod>
   </url>
   <url>
     <loc>https://beyon0-site.vercel.app/sites</loc>
-    <lastmod>2026-10-06</lastmod>
+    <lastmod>2026-10-09</lastmod>
   </url>
   <url>
     <loc>https://beyon0-site.vercel.app/automacao</loc>
-    <lastmod>2026-10-06</lastmod>
+    <lastmod>2026-10-09</lastmod>
+  </url>
+  <url>
+    <loc>https://beyon0-site.vercel.app/orcamento</loc>
+    <lastmod>2026-10-09</lastmod>
   </url>
   <url>
     <loc>https://beyon0-site.vercel.app/privacidade</loc>
-    <lastmod>2026-10-06</lastmod>
+    <lastmod>2026-10-09</lastmod>
   </url>
 </urlset>
