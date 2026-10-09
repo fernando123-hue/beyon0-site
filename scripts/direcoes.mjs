@@ -23,7 +23,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { higienizar, ESTRATEGIAS, ESQUEMA_DIRECAO } from '../api/_vendas/direcao.mjs';
-import { SISTEMA_GERACAO } from '../api/_vendas/gerador.mjs';
+import { SISTEMA_GERACAO, REGRA_BRIEFING, briefingDelimitado } from '../api/_vendas/gerador.mjs';
 import { redigir } from '../api/_vendas/seguranca.mjs';
 
 export const PASTA = path.join(os.homedir(), 'BeyonZero-direcoes');
@@ -75,7 +75,10 @@ export function pedidoParaModelo(p) {
   return {
     pedido: idCurto(p.conversa_id),
     pedido_em: p.pedido_em,
-    briefing: limparProfundo(p.briefing || {}, apagador(p.contato)),
+    /* (revisão de segurança do lote 1, auditoria 2026-10-09) a mesma marca e o mesmo escape do gerador automático: o
+       visitante não fecha a marca para escrever fora dela; a regra vem antes do briefing */
+    regra: REGRA_BRIEFING,
+    briefing: briefingDelimitado(limparProfundo(p.briefing || {}, apagador(p.contato))),
     formato_e_escopo: { formato: p.fatores?.formato || null, paginas: p.fatores?.paginas || null, adicionais: p.fatores?.adicionais || {} },
     direcoes: (p.direcoes || []).map(d => ({ id: d.id, numero: d.numero, estrategia: d.estrategia, status: d.status, instrucao: ESTRATEGIAS[d.estrategia] || null }))
   };

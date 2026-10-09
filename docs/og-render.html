@@ -3,15 +3,15 @@
 <head>
 <meta charset="UTF-8" />
 <title>og-render</title>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 <style>
+  /* as fontes do próprio site (assets/fonts), não do Google: sem internet a capa saía em fonte genérica */
+  @font-face { font-family: Sora; src: url("../assets/fonts/sora-latin.woff2") format("woff2"); font-weight: 100 800; }
+  @font-face { font-family: "JetBrains Mono"; src: url("../assets/fonts/jetbrains-mono-latin.woff2") format("woff2"); font-weight: 100 800; }
   /* NADA além do canvas: esta página existe só para ser fotografada por
      Chrome headless (--window-size=1200,630 --screenshot). Qualquer margem,
      padding ou segundo elemento vaza para dentro do PNG capturado. Ver
      docs/og-gerador.html para a versão com interface, usada manualmente. */
-  html, body { margin: 0; padding: 0; background: #050507; }
+  html, body { margin: 0; padding: 0; background: #000; }
   canvas { display: block; }
 </style>
 </head>
@@ -20,7 +20,8 @@
 <script>
 (function () {
   var W = 1200, H = 630;
-  var BG = '#050507', LINE = '#1C1C22', AC = '#4FD8F0', T1 = '#EDEDF1', T3 = '#7E7E8A';
+  /* a paleta V4 (css/tokens.css): preto, ciano-esverdeado, texto e cinza de hoje */
+  var BG = '#000000', LINE = '#1A1D1E', AC = '#49E5DD', T1 = '#F2F4F4', T3 = '#858C8C';
   var TAU = Math.PI * 2, LAMINAS = 6, K_HEX = 1 / Math.cos(Math.PI / LAMINAS);
 
   function desenhar(x) {
@@ -73,11 +74,9 @@
     x.moveTo(cx, cy - R * .96); x.lineTo(cx, cy + R * .96);
     x.stroke();
 
-    var g = x.createRadialGradient(cx, cy, 0, cx, cy, R * .13);
-    g.addColorStop(0, 'rgba(240,242,246,.55)');
-    g.addColorStop(1, 'rgba(240,242,246,0)');
-    x.fillStyle = g; x.beginPath(); x.arc(cx, cy, R * .13, 0, TAU); x.fill();
-    x.fillStyle = '#F4F5F8'; x.beginPath(); x.arc(cx, cy, 6, 0, TAU); x.fill();
+    /* o núcleo: ponto nítido com aro, sem halo (o dono proíbe brilho e desfoque) */
+    x.strokeStyle = AC; x.lineWidth = 1.5; x.beginPath(); x.arc(cx, cy, 11, 0, TAU); x.stroke();
+    x.fillStyle = T1; x.beginPath(); x.arc(cx, cy, 6, 0, TAU); x.fill();
     x.restore();
 
     var P = 76;
@@ -87,21 +86,23 @@
     x.fillStyle = AC; x.fillText('Zero', P + x.measureText('Beyon ').width, 96);
 
     x.font = '300 60px Sora, sans-serif'; x.fillStyle = T1;
-    ['Inteligência artificial', 'aplicada ao que o seu', 'negócio perde hoje.']
-      .forEach(function (linha, n) { x.fillText(linha, P, 250 + n * 70); });
+    /* duas linhas centradas no vão entre a marca (96) e a régua (505); eram três a partir de 250 */
+    ['Do problema ao', 'sistema no ar.']
+      .forEach(function (linha, n) { x.fillText(linha, P, 280 + n * 70); });
 
     x.strokeStyle = LINE; x.lineWidth = 1;
     x.beginPath(); x.moveTo(P, 505.5); x.lineTo(P + 560, 505.5); x.stroke();
     x.font = '400 17px "JetBrains Mono", monospace'; x.fillStyle = T3;
-    x.fillText('DIAGNÓSTICO  ·  AGENTES  ·  AUTOMAÇÃO  ·  SISTEMAS', P, 545);
+    x.fillText('SITES  ·  AUTOMAÇÃO  ·  IA', P, 545);
 
     document.title = 'pronto';   /* sinal pro --virtual-time-budget/polling */
   }
 
   var c = document.getElementById('c');
   var ctx = c.getContext('2d');
-  (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve())
-    .then(function () { desenhar(ctx); });
+  /* o canvas não pede fonte sozinho: carrega as usadas antes de desenhar */
+  var fontes = document.fonts ? Promise.all(['300 60px Sora', '500 21px "JetBrains Mono"', '400 17px "JetBrains Mono"'].map(function (q) { return document.fonts.load(q); })) : Promise.resolve();
+  fontes.then(function () { desenhar(ctx); }, function () { desenhar(ctx); });
 })();
 </script>
 </body>

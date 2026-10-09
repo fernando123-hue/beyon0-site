@@ -194,3 +194,24 @@ test('regras comerciais: dono cria rascunho, membro não; aprovada não muda; um
   assert.ok(await erroDe(db.query(`update app.regras_comerciais set status = 'ativa', aprovada_em = now() where id = '${RASCUNHO}'`)), 'duas ativas');
   assert.ok(await erroDe(db.query(`insert into app.regras_comerciais (org_id, versao, status, regras) values ('${ORG}', 12, 'ativa', '{}')`)), 'ativa sem aprovação');
 });
+
+/* (auditoria 2026-10-09, segurança 10) a política de privacidade diz que os pedidos de ajuste saem aos 2 meses; a
+   retenção apagava o pedido, mas as operações (com o texto novo que a pessoa pediu) e a direção ajustada ficavam */
+test('retenção: o ajuste de conversa parada fica sem o texto inteiro (pedido, operações e direção ajustada); o registro e a prévia seguem', async () => {
+  const V3 = 'cccccccc-0000-4000-8000-0000000000c3';
+  await db.exec(`insert into auth.users (id) values ('${V3}')`);
+  const ids = await conversaAte(V3, 'escopo');
+  const antes = (await db.query('select mudancas, resultado, status from app.alteracoes where conversa_id = $1', [ids.conversa])).rows[0];
+  assert.equal(antes.status, 'aplicada');
+  assert.ok(antes.mudancas.length && antes.resultado, 'o caso de partida tem operações e direção ajustada');
+  await db.exec(`begin; set local bz.restaurando = 'on'; set local bz.transicao_livre = 'on';
+    update app.conversas set ultima_atividade = now() - interval '70 days' where id = '${ids.conversa}'; commit;`);
+  await rpc('vendas_reter', {});
+  const depois = (await db.query('select pedido, mudancas, resultado, status from app.alteracoes where conversa_id = $1', [ids.conversa])).rows;
+  assert.deepEqual(depois, [{ pedido: '[apagado]', mudancas: [], resultado: null, status: 'aplicada' }], 'fica só o registro de que houve um ajuste');
+  const e = await rpc('vendas_estado', { conversa_id: ids.conversa, visitante_id: V3 });
+  assert.equal(e.versao_final, null, 'sem a direção ajustada, a prévia volta à direção escolhida (não quebra)');
+  assert.deepEqual(e.alteracoes.map(a => [a.pedido, a.mudancas]), [['[apagado]', []]]);
+  /* a regra "aplicada tem resultado" continua valendo para ajuste novo */
+  assert.ok(await erroDe(db.query(`insert into app.alteracoes (org_id, conversa_id, direcao_id, pedido, status) values ('${ORG}', '${ids.conversa}', '${ids.direcoes[1]}', 'x', 'aplicada')`)), 'ajuste aplicado sem resultado: recusado');
+});
