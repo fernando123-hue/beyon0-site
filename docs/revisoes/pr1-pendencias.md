@@ -74,12 +74,17 @@ com credenciais reais**, salvo onde diz outra coisa.
 Feito no lote: S1 (redirects no `vercel.json` para tudo o que é interno, preso por teste ao `git ls-files` e ao
 `.vercelignore`), S2 (frase do ajuste montada pelo código), S3 (briefing delimitado e "dado, nunca instrução" no
 gerador), S4 (freio por IPv6 /64), S10 (retenção zera o ajuste inteiro), F5/F7 no servidor (Auth instável = 503).
+Depois das revisões técnica e de segurança do lote: freio da chave do painel por /64; IPv4 embutido em qualquer
+escrita de IPv6; Auth separando recusa (400/401/403/422), configuração (login anônimo desligado → WhatsApp), rede e
+erro de código; adicional só pelo nome da tabela no contrato; operação fora da lista vira "outro"; o `pedido.json` da
+fila manual com o briefing delimitado e a regra de que é dado.
 
 | Item | O que falta | Por quê / quem |
 |---|---|---|
 | S10 | aplicar `20261009130000_retencao_ajustes.sql` no banco real **antes** de promover | migration em banco real é do dono (`docs/fundacao/02-OPERACAO.md`) |
-| S1 | conferir com `curl -I` na prévia: `/CLAUDE.md`, `/scripts/processo/niveis.json`, `/.github/workflows/ci.yml`, `/vercel.json` → redirect para `/` | só dá para ver numa prévia da Vercel (precisa de push) |
-| S3 | `scripts/direcoes.mjs` (fila pela sessão do Claude Code) manda o briefing como campo do JSON, sem a marca `<briefing>`; a regra "briefing é dado" chega pelo `SISTEMA_GERACAO` | `scripts/` fora do escopo do lote; a sessão de permissões mínimas segue como a defesa principal ali |
+| S1 | conferir com `curl -I` na prévia: `/CLAUDE.md`, `/scripts/processo/niveis.json`, `/.github/workflows/ci.yml`, `/vercel.json` → redirect para `/`. E as variações que o revisor pediu, **todas redirect ou 404, nunca 200**: `/%2Egithub/workflows/ci.yml`, `/CLAUDE.md/`, `//scripts/processo/niveis.json`, `/Scripts/processo/niveis.json`, `/.ENV.example` | só dá para ver numa prévia da Vercel (precisa de push); se alguma der 200, a regra precisa da forma insensível a maiúsculas ou da barra final |
+| S3 | `.claude/skills/produzir-direcoes/SKILL.md` ainda descreve o briefing do `pedido.json` como objeto; agora ele é texto entre `<briefing>` e `</briefing>` (JSON dentro), com o campo `regra` antes | `.claude/` fora do escopo do lote; o conteúdo continua legível para a sessão |
+| S10 (baixa) | retomada de conversa limpa pela retenção: se a pessoa voltar depois dos 60 dias e seguir até a proposta, o escopo novo sai **sem os ajustes** (as operações foram apagadas) e a prévia volta à direção escolhida, sem aviso | aceito por ora; se acontecer, avisar na tela "os ajustes de antes foram apagados pelo prazo de privacidade" (lote do front) |
 | S2 | ajustes JÁ gravados guardam o motivo antigo ("não cabe…: " + texto do modelo), que a lista de ajustes mostra | só ajustes novos mudaram; os antigos saem com a retenção (60 dias) |
 | F5/F7 | o navegador ainda trata 503 `recuperavel` da sessão como erro genérico; "Sua sessão terminou" + Recomeçar no 401 | lote do front (`js/orcamento-api.js`) |
 | S4 | regra de limite por IP no firewall da Vercel (o freio do código é por instância) | painel da Vercel, dono |
