@@ -765,7 +765,7 @@ também em opções como o CTA; um agente ativo para a imersão no site inteiro;
 Automação únicos; a transição entre páginas tinha sumido e o site parecia
 travar: otimizar e trazer a transição de volta, melhor.
 
-**Transição (`js/passagem.js`, `css/motion.css`).** Medido no Chrome real
+**Transição (`js/passagem.js`, `css/motion.css`).** *(Superada em 2026-10-09 pela TRAVESSIA, sem painel: `css/passagem.css`, PR #23.)* Medido no Chrome real
 (Playwright com `C:/Program Files/Google/Chrome`, janela visível): a View
 Transition entre documentos falhava em 14 de 14 trocas (a página velha
 iniciava, a nova chegava com `pagereveal` nulo); a bisseção mostrou que GSAP,

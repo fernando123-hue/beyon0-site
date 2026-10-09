@@ -38,7 +38,18 @@
     var saiu = +sessionStorage.getItem('bz-passagem');
     sessionStorage.removeItem('bz-passagem');
     if (saiu && Date.now() - saiu < 5000 && !html.classList.contains('menos-movimento') &&
-        !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) html.classList.add('passagem-chega');
+        !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+      /* passagem-espera: a chegada fica parada no 1º quadro até a página conseguir desenhar (js/passagem.js solta);
+         sem isso, os primeiros quadros caíam enquanto a página carregava e o voo começava aos pulos. A rede: se o
+         passagem.js não soltar, solta sozinha */
+      html.classList.add('passagem-chega', 'passagem-espera');
+      setTimeout(function () { html.classList.remove('passagem-espera'); }, 1500);
+      /* a cara da chegada é a desta página (css/passagem-destinos.css; o mesmo mapa do js/passagem.js) */
+      var aqui = location.pathname.replace(/\/index\.html$/, '/').replace(/\.html$/, '').replace(/(.)\/$/, '$1') || '/';
+      var chegadas = { '/': 'inicio', '/sites': 'sites', '/automacao': 'automacao', '/orcamento': 'orcamento' };
+      if (Object.prototype.hasOwnProperty.call(chegadas, aqui)) html.classList.add('chega-' + chegadas[aqui]);
+      if (location.hash) html.classList.add('passagem-ancora');   /* nasce rolada até a âncora: só aparece, sem escala */
+    }
   } catch (e) { /* sem armazenamento: chega sem painel */ }
 
   /* veio de ANÚNCIO? (gclid/gbraid/wbraid do Google Ads, ou utm_medium pago). Vale para a visita inteira

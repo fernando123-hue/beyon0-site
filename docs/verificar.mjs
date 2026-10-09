@@ -18,6 +18,9 @@
      visibility hidden depois de 3,5s — o GSAP tem que ter revelado);
    · rolagem lateral zero; caixas `.cena` fora do fluxo;
    · todos os links de WhatsApp montados; sem erro de console; fps > 45.
+   E a PASSAGEM entre páginas (no fim): chega inteira e sem nada preso, volta
+   pelo histórico inteira, desiste em 2 s, fecha o menu do celular na hora e
+   chega a uma âncora só aparecendo.
    ========================================================================== */
 import { chromium } from 'playwright';
 
@@ -131,10 +134,20 @@ for (const [rota, nome, opcoes, { semNucleo = false, reduzirNoBoot = false, exig
 }
 
 /* ==========================================================================
-   A MEDIÇÃO do caminho principal (js/medicao.js): o clique em "Monte seu
-   orçamento" vira 'orcamento_iniciar' (não contato), e o WhatsApp de dentro
-   do orçamento conta como contato nas métricas próprias, sem Google.
+   A PASSAGEM entre páginas (js/passagem.js, css/passagem.css): a página voa
+   e volta. O risco é ela ficar presa sumida, em escala ou medida errada.
    ========================================================================== */
+const estadoPassagem = page => page.evaluate(() => {
+  const main = getComputedStyle(document.querySelector('main'));
+  const c = document.documentElement.classList;
+  let chave = null;
+  try { chave = sessionStorage.getItem('bz-passagem'); } catch {}
+  return {
+    url: location.pathname, opacidade: main.opacity, escala: main.transform,
+    classes: [...c].filter(k => /^(passagem-|sai-|chega-)/.test(k) && k !== 'passagem-espera').join(',') || '—', chave
+  };
+});
+const inteira = s => s.opacidade === '1' && s.escala === 'none' && s.classes === '—';
 async function cenario(nome, opcoes, roteiro) {
   const ctx = await navegador.newContext(opcoes);
   const page = await ctx.newPage();
@@ -148,6 +161,166 @@ async function cenario(nome, opcoes, roteiro) {
   console.log((ok ? 'OK  ' : 'FALHA ') + nome.padEnd(18), r.info, erros.length ? '\n     erros: ' + erros.join('\n     ') : '');
   await ctx.close();
 }
+/* segura a navegação da saída (o setTimeout de SAI_MS, 600 ms): a página fica como se o navegador tivesse desistido */
+const segurarNavegacao = page => page.evaluate(() => {
+  const st = window.setTimeout;
+  window.setTimeout = (f, ms, ...r) => (ms === 600 ? 0 : st(f, ms, ...r));
+});
+
+await cenario('passagem-vai', CELULAR, async page => {
+  await page.goto(BASE + '/', { waitUntil: 'load' });
+  await page.waitForTimeout(1500);
+  await page.locator('a[href="/sites"]:visible').first().click();
+  await page.waitForURL('**/sites', { timeout: 8000 });
+  const chegando = await estadoPassagem(page);
+  await page.waitForTimeout(2500);
+  const s = await estadoPassagem(page);
+  await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
+  await page.waitForTimeout(1500);
+  const presos = await page.evaluate(() => [...document.querySelectorAll('.reveal')].filter(e => getComputedStyle(e).opacity === '0').length);
+  return { ok: chegando.classes.includes('passagem-chega') && inteira(s) && presos === 0,
+    info: `chegou=${chegando.classes} depois: opacidade=${s.opacidade} escala=${s.escala} classes=${s.classes} presos=${presos}` };
+});
+await cenario('passagem-volta', CELULAR, async page => {
+  await page.goto(BASE + '/', { waitUntil: 'load' });
+  await page.waitForTimeout(1000);
+  await page.locator('a[href="/sites"]:visible').first().click();
+  await page.waitForURL('**/sites', { timeout: 8000 });
+  await page.waitForTimeout(1200);
+  await page.goBack();
+  await page.waitForTimeout(800);
+  const s = await estadoPassagem(page);
+  return { ok: s.url === '/' && inteira(s), info: `url=${s.url} opacidade=${s.opacidade} escala=${s.escala} classes=${s.classes}` };
+});
+await cenario('passagem-desiste', DESKTOP, async page => {
+  await page.goto(BASE + '/', { waitUntil: 'load' });
+  await page.waitForTimeout(1000);
+  await segurarNavegacao(page);
+  const link = page.locator('.nav a[href="/sites"]').first();
+  const caixa = await link.boundingBox();
+  await link.click();
+  await page.waitForTimeout(150);
+  const saindo = await estadoPassagem(page);
+  /* a janela do Sites parte do centro da tela, onde quer que o link esteja (o menu do topo, no canto) */
+  const origem = await page.evaluate(() => { const r = document.querySelector('.passagem__riscos'); return { x: parseFloat(r.style.left), y: parseFloat(r.style.top) }; });
+  const tela = await page.evaluate(() => ({ x: innerWidth / 2, y: innerHeight / 2 }));
+  const noCentro = Math.abs(origem.x - tela.x) < 2 && Math.abs(origem.y - tela.y) < 2 && !(origem.x >= caixa.x && origem.x <= caixa.x + caixa.width && origem.y >= caixa.y && origem.y <= caixa.y + caixa.height);
+  await page.waitForTimeout(2800);   /* SAI_MS (0,6 s) + DESISTE_MS (2 s) e folga */
+  const s = await estadoPassagem(page);
+  return { ok: saindo.classes === 'passagem-sai,sai-sites' && noCentro && inteira(s) && s.chave === null,
+    info: `saindo=${saindo.classes} origem no centro=${noCentro} 2,95 s depois: opacidade=${s.opacidade} escala=${s.escala} classes=${s.classes} chave=${s.chave}` };
+});
+await cenario('passagem-menu', CELULAR, async page => {
+  await page.goto(BASE + '/', { waitUntil: 'load' });
+  await page.waitForTimeout(1000);
+  await segurarNavegacao(page);
+  await page.locator('.nav__toggle').click();
+  await page.waitForTimeout(500);
+  await page.locator('.nav__links a[href="/sites"]').click();
+  await page.waitForTimeout(60);
+  const altura = await page.evaluate(() => Math.round(document.querySelector('.nav__links').getBoundingClientRect().height));
+  const s = await estadoPassagem(page);
+  /* o menu fecha na hora: a transição de 320 ms cobriria o voo */
+  return { ok: s.classes === 'passagem-sai,sai-sites' && altura === 0, info: `menu 60 ms depois: altura=${altura}px classes=${s.classes}` };
+});
+await cenario('passagem-ancora', DESKTOP, async page => {
+  await page.goto(BASE + '/', { waitUntil: 'load' });
+  await page.evaluate(() => sessionStorage.setItem('bz-passagem', String(Date.now())));
+  await page.goto(BASE + '/automacao#faq', { waitUntil: 'domcontentloaded' });
+  const chegando = await estadoPassagem(page);
+  await page.waitForTimeout(2500);
+  const s = await estadoPassagem(page);
+  const rolou = await page.evaluate(() => Math.round(scrollY));
+  return { ok: chegando.classes === 'passagem-chega,chega-automacao,passagem-ancora' && inteira(s) && rolou > 0,
+    info: `chegou=${chegando.classes} depois: opacidade=${s.opacidade} escala=${s.escala} classes=${s.classes} rolagem=${rolou}` };
+});
+
+/* o palco fixado do desktop (pin do GSAP, position: fixed dentro de <main>) não sai do lugar quando a página se prepara
+   para voar no começo do clique (will-change em <main> faria dele o bloco de contenção do fixed) */
+await cenario('passagem-palco', DESKTOP, async page => {
+  await page.goto(BASE + '/', { waitUntil: 'load' });
+  await page.waitForTimeout(1500);
+  const achou = await page.evaluate(async () => {
+    for (let y = 0; y < document.body.scrollHeight; y += 200) {
+      window.scrollTo(0, y); await new Promise(r => setTimeout(r, 80));
+      if ([...document.querySelectorAll('.pin-spacer > *')].some(n => getComputedStyle(n).position === 'fixed')) return y;
+    }
+    return -1;
+  });
+  await page.waitForTimeout(400);
+  const caixa = () => page.evaluate(() => { const n = [...document.querySelectorAll('.pin-spacer > *')].find(e => getComputedStyle(e).position === 'fixed'); return n ? Math.round(n.getBoundingClientRect().top) : null; });
+  const antes = await caixa();
+  const link = await page.locator('.nav a[href="/sites"]').first().boundingBox();
+  await page.mouse.move(link.x + 5, link.y + 5);
+  await page.mouse.down();
+  await page.waitForTimeout(120);
+  const depois = await caixa();
+  await page.mouse.up({ button: 'left' }).catch(() => {});
+  return { ok: achou >= 0 && antes !== null && antes === depois, info: `palco fixado em y=${achou}: topo antes=${antes} depois do toque=${depois}` };
+});
+
+/* saindo do orçamento (que não tem a rede do fundo) para o Início: a rede só se mede com a página assentada. Medida
+   no meio da chegada, ela gravaria zonas e cartões em escala (revisão final do PR #23) */
+await cenario('passagem-orc-inicio', DESKTOP, async page => {
+  await page.addInitScript(() => {
+    window.__t = {};
+    const marcar = () => {
+      const h = document.documentElement;
+      if (h.classList.contains('passagem-chega')) window.__t.chegando = true;
+      else if (window.__t.chegando && !window.__t.chegou) window.__t.chegou = performance.now();
+      const r = document.querySelector('.rede');
+      if (r && r.classList.contains('is-viva') && !window.__t.viva) window.__t.viva = performance.now();
+    };
+    new MutationObserver(marcar).observe(document, { subtree: true, attributes: true, attributeFilter: ['class'] });
+  });
+  await page.goto(BASE + '/orcamento', { waitUntil: 'load' });
+  await page.waitForTimeout(1000);
+  await page.locator('.nav a[href="/"]').first().click();
+  await page.waitForURL(u => new URL(u).pathname === '/', { timeout: 8000 });
+  await page.waitForTimeout(4500);
+  const t = await page.evaluate(() => window.__t);
+  const ok = !!t.chegando && !!t.chegou && !!t.viva && t.viva >= t.chegou;
+  return { ok, info: `chegou aos ${Math.round(t.chegou || 0)} ms, rede acesa aos ${Math.round(t.viva || 0)} ms` };
+});
+
+/* cada destino com a sua viagem (css/passagem-destinos.css): a saída certa para cada link e a chegada certa em cada página */
+const VIAGENS = [
+  { de: '/sites', link: '.nav__logo', nome: 'inicio', sai: 'pass-inicio-sai', chega: 'pass-assenta' },
+  { de: '/', link: '.nav a[href="/sites"]', nome: 'sites', sai: 'pass-sites-sai', chega: 'pass-sites-chega' },
+  { de: '/', link: '.nav a[href="/automacao"]', nome: 'automacao', sai: 'pass-auto-sai', chega: 'pass-auto-chega' },
+  { de: '/', link: '.nav a[href="/orcamento"]', nome: 'orcamento', sai: 'pass-orc-sai', chega: 'pass-orc-chega' }
+];
+await cenario('passagem-destinos', DESKTOP, async page => {
+  const linhas = [];
+  let ok = true;
+  for (const v of VIAGENS) {
+    await page.goto(BASE + v.de, { waitUntil: 'load' });
+    await page.waitForTimeout(800);
+    await segurarNavegacao(page);
+    await page.locator(v.link).first().click();
+    await page.waitForTimeout(100);
+    const saida = await page.evaluate(() => ({ classes: document.documentElement.className, anim: getComputedStyle(document.querySelector('main')).animationName }));
+    /* no fim da saída, <main> anda no máximo 30% da TELA (um % do próprio elemento, numa página longa, vira milhares de px) */
+    const desloc = await page.evaluate(() => {
+      document.getAnimations().forEach(a => { if (/^pass-/.test(a.animationName || '')) { a.pause(); a.currentTime = 580; } });
+      const m = new DOMMatrix(getComputedStyle(document.querySelector('main')).transform);
+      return Math.round(Math.max(Math.abs(m.e) / innerWidth, Math.abs(m.f) / innerHeight) * 100);
+    });
+    await page.evaluate(() => sessionStorage.setItem('bz-passagem', String(Date.now())));
+    await page.goto(BASE + (v.nome === 'inicio' ? '/' : '/' + v.nome), { waitUntil: 'domcontentloaded' });
+    const chegada = await page.evaluate(() => ({ classes: document.documentElement.className, anim: getComputedStyle(document.querySelector('main')).animationName }));
+    const certo = saida.classes.includes('sai-' + v.nome) && saida.anim === v.sai && desloc <= 30 && chegada.classes.includes('chega-' + v.nome) && chegada.anim === v.chega;
+    if (!certo) ok = false;
+    linhas.push(`${v.nome}: sai=${saida.anim} desloc=${desloc}% chega=${chegada.anim}${certo ? '' : ' (ERRADO)'}`);
+  }
+  return { ok, info: linhas.join(' · ') };
+});
+
+/* ==========================================================================
+   A MEDIÇÃO do caminho principal (js/medicao.js): o clique em "Monte seu
+   orçamento" vira 'orcamento_iniciar' (não contato), e o WhatsApp de dentro
+   do orçamento conta como contato nas métricas próprias, sem Google.
+   ========================================================================== */
 await cenario('medicao-orcamento', CELULAR, async page => {
   await page.goto(BASE + '/', { waitUntil: 'load' });
   await page.waitForTimeout(1000);

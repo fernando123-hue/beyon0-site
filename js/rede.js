@@ -679,9 +679,22 @@
   var veioDoSite = false;
   try { veioDoSite = Date.now() - (+sessionStorage.getItem('bz-campo') || 0) < 4000; } catch (e) { /* sem armazenamento */ }
   window.addEventListener('pagehide', function () { try { sessionStorage.setItem('bz-campo', String(Date.now())); } catch (e) { /* idem */ } });
-  if (veioDoSite) {
+  var Bc = window.BEYON;
+  if (document.documentElement.classList.contains('passagem-chega') && Bc && Bc.on) {
+    /* chegando pela PASSAGEM (js/passagem.js), venha de onde vier (do orçamento, que não tem rede, o veioDoSite é
+       falso): a página nova está voando, sem nada por cima. Medir a página inteira é uma tarefa longa (310 ms no
+       celular simulado, docs/passagem-medir.mjs), derrubava os quadros da chegada e mediria tudo em escala: espera
+       ela assentar ('passagem:chegou') e o navegador folgar, e acende devagar (sem is-herdada) */
+    var comecou = false;
+    var umaVez = function () { if (comecou) return; comecou = true; comecar(); };
+    Bc.on('passagem:chegou', function () {
+      var ocioso2 = window.requestIdleCallback || function (fn) { return setTimeout(fn, 1); };
+      ocioso2(umaVez, { timeout: 600 });
+    });
+    setTimeout(umaVez, 3000);   /* a rede: o js/passagem.js não carregou ou a aba ficou oculta na chegada */
+  } else if (veioDoSite) {
     /* logo depois do 1º quadro (não antes dele): medir a página inteira é
-       uma tarefa longa (~70 ms), e a página nova chega coberta pela passagem */
+       uma tarefa longa (~70 ms) */
     cv.classList.add('is-herdada');
     requestAnimationFrame(function () { setTimeout(function () { comecar(); quadro({ dt: 16, now: performance.now() }); }, 0); });
   } else {
