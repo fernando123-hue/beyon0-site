@@ -3,9 +3,16 @@ Assets — o que o site baixa e o que é arte-mestre
 
 SERVIDOS AO VISITANTE (o site referencia estes)
 -----------------------------------------------
-favicon.svg          ícone da aba (<link rel="icon">). 338 B.
+favicon.svg          ícone da aba (<link rel="icon" type="image/svg+xml">). 338 B.
 
-og-cover.jpg         imagem de preview em redes sociais (og:image). 88 KB.
+favicon.ico          (na RAIZ do site) 48x48, PNG dentro de um ICO: navegadores e
+                     robôs pedem /favicon.ico por padrão. Gerado do favicon.svg.
+
+apple-touch-icon.png 180x180, ícone da tela inicial do iPhone. Gerado do favicon.svg.
+                     Mudou o favicon.svg? Regere os dois (Chromium headless,
+                     screenshot do SVG no tamanho, sem fundo).
+
+og-cover.jpg         imagem de preview em redes sociais (og:image). 60 KB.
                      1200x630. NÃO vem mais de frame de vídeo — a intro em
                      vídeo foi REMOVIDA do site (2026-08-21, não cabia mais na
                      identidade visual nova). A capa atual é renderizada a
