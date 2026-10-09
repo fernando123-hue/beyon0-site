@@ -246,7 +246,7 @@
     var v = $('o-est-valor');
     if (novo) { v.classList.remove('is-novo'); void v.offsetWidth; v.classList.add('is-novo'); }
     v.textContent = dinheiro(c.valor_total);
-    $('o-est-prazo').textContent = c.prazo_dias + (c.prazo_dias === 1 ? ' dia' : ' dias');
+    $('o-est-prazo').textContent = dias(c.prazo_dias);
     $('o-est-sinal').textContent = dinheiro(c.sinal);
     $('o-est-resto').textContent = dinheiro(Number(c.valor_total) - Number(c.sinal));
     lista($('o-est-itens'), c.itens);
@@ -556,7 +556,7 @@
   var recibo = window.BZRecibo ? window.BZRecibo.criar({ API: API, dinheiro: dinheiro }) : null;
   var viuAguardando = false;   /* a etapa "aguardando pagamento" foi vista nesta tela: a confirmação chega ao vivo e o recibo anima */
   function sinalPct(pr) { return pr.sinal_percentual == null ? 50 : Number(pr.sinal_percentual); }   /* (o servidor usa 50 quando falta: app.vendas_*) */
-  function dias(n) { return n + (Number(n) === 1 ? ' dia' : ' dias'); }
+  function dias(n) { return n + (Number(n) === 1 ? ' dia corrido' : ' dias corridos'); }   /* (corridos: decisão do dono, 2026-10-09; é o que o escopo diz) */
   /* o sinal: o registro PAGO quando houver; senão o último criado; sem nenhum, o combinado na proposta */
   function valorDoSinal(pr) {
     var sinais = E.pagamentos.filter(function (p) { return p.parcela === 'sinal'; });
