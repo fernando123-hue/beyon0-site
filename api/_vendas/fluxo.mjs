@@ -11,8 +11,8 @@
 import { executarTurno } from './agente.mjs';
 import { estimar, validarRegras } from './precos.mjs';
 import { gerarDirecao } from './gerador.mjs';
-import { interpretar, aplicar, fatoresComEscopo } from './alteracoes.mjs';
-import { montarEscopo } from './escopo.mjs';
+import { interpretar, aplicar, fatoresComEscopo, paraVisitante } from './alteracoes.mjs';
+import { montarEscopo, nomesDosItens } from './escopo.mjs';
 import { limparMensagem, pareceInjecao, redigir, MSG_MAX } from './seguranca.mjs';
 import { ehUuid, normalizarTelefone } from '../_valida-app.mjs';
 import { TETOS, reservaUsd, modoDirecoes } from '../_ia/config.mjs';
@@ -21,6 +21,7 @@ import { ErroBanco } from './transporte.mjs';
 import { ErroPagamento } from '../_pagamentos/servico.mjs';
 import { ipDe } from '../_freio.mjs';
 import { chaveDoIp } from './ip.mjs';
+import { AuthIndisponivel } from '../_supabase.mjs';
 
 import { ORG } from './org.mjs';
 export { ORG };
@@ -47,6 +48,8 @@ export function traduzirErro(e) {
   if (e instanceof ErroIA) return new Recusa(503, RECUPERACAO, { recuperavel: true });
   /* tempo máximo de uma chamada ao Supabase esgotado: lentidão passageira, não erro interno */
   if (e && (e.name === 'TimeoutError' || e.name === 'AbortError')) return new Recusa(503, 'O serviço está lento agora. Suas informações foram preservadas; tente de novo em instantes.', { recuperavel: true });
+  /* o Auth do Supabase instável (429, 5xx, rede): passageiro, nunca "sessão expirada" nem erro interno (auditoria 2026-10-09) */
+  if (e instanceof AuthIndisponivel) return new Recusa(503, e.paraVisitante || 'O serviço está instável agora. Suas informações foram preservadas; tente de novo em instantes.', e.recuperavel ? { recuperavel: true } : { whatsapp: true });
   if (e instanceof ErroBanco) {
     if (e.codigo === 'P0002') return new Recusa(404, 'Não encontrado.');
     if (e.codigo === '55000') return new Recusa(409, 'Esta etapa ainda não está disponível.');
@@ -341,7 +344,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
         const regras = await regrasAtivas(banco);
         exigir(regras, 503, 'A tabela de valores está em atualização.');
         const e = estimar(fatoresComEscopo(est.estimativa?.fatores, a.escopo), regras.regras);
-        if (e.encaminhar_diagnostico) return { resposta: 'Esse pedido muda o projeto além do que a estimativa automática cobre. Vamos ver isso no diagnóstico pelo WhatsApp.', diagnostico: true, resultado: a.resultado };
+        if (e.encaminhar_diagnostico) return { resposta: 'Esse pedido muda o projeto além do que a estimativa automática cobre. Vamos ver isso no diagnóstico pelo WhatsApp.', diagnostico: true, resultado: paraVisitante(a.resultado).resultado };
         /* o motor recusou o novo escopo: o ajuste NÃO entra (senão o contrato teria um item sem preço) */
         exigir(!e.erros, 422, 'Esse pedido muda o escopo de um jeito que a estimativa automática não cobre. Pode descrever de outro jeito, ou falamos pelo WhatsApp?');
         novaEstimativa = { regras_id: regras.id, fatores: e.fatores, valor_total: e.valor_total, sinal: e.sinal, prazo_dias: e.prazo_dias, fase: e.fase, detalhes: e };
@@ -350,7 +353,8 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       /* ajuste + estimativa nova numa transação só; o banco recusa se a escolha mudou enquanto o modelo traduzia */
       await banco('vendas_registrar_alteracao', { conversa_id: corpo.conversa_id, visitante_id: vid, direcao_id: escolhida.id, pedido, mudancas: a.resultado, resultado: a.direcao,
         ...(novaEstimativa ? { estimativa: novaEstimativa } : {}) });
-      return { resposta: t.resposta, resultado: a.resultado.map(x => ({ operacao: x.operacao, aplicada: x.aplicada, motivo: x.motivo || null })), estimativa };
+      /* (a frase é do código, nunca do modelo: auditoria 2026-10-09; o nome do adicional, o da tabela de preços) */
+      return { ...paraVisitante(a.resultado, novaEstimativa ? nomesDosItens(novaEstimativa.detalhes) : undefined), estimativa };
     },
 
     /* o escopo final (montado pelo código; o preço é o da última estimativa, conferido pelo banco) */

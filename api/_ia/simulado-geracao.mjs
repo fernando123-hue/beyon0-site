@@ -18,7 +18,7 @@ const ORDEM = {
 
 export function gerarSimulado({ mensagens }) {
   const txt = mensagens[0].content;
-  const briefing = JSON.parse(txt.split('BRIEFING DO CLIENTE:\n')[1].split('\n\n')[0]);
+  const briefing = JSON.parse(txt.split('<briefing>\n')[1].split('\n</briefing>')[0]);   /* (o delimitador de gerador.mjs) */
   const estrategia = /AUTORIDADE/.test(txt) ? 'autoridade' : /EXPERIÊNCIA/.test(txt) ? 'experiencia' : 'conversao';
   const neg = briefing.negocio || {};
   const marca = neg.nome || (neg.segmento ? 'Sua ' + neg.segmento : 'Sua empresa');
@@ -67,6 +67,6 @@ export function extrairSimulado({ mensagens }) {
   if (tit) mudancas.push({ ...vazio, tipo: 'conteudo', operacao: 'trocar_texto', secao: 'hero', campo: 'titulo', valor: tit[1].trim() });
   if (/\bblog\b/i.test(pedido)) mudancas.push({ ...vazio, tipo: 'escopo', operacao: 'adicional', campo: 'blog', valor: '1' });
   if (/app|aplicativo/i.test(pedido)) mudancas.push({ ...vazio, tipo: 'nao_suportado', operacao: 'outro', descricao: 'aplicativo de celular' });
-  const json = { mudancas, resposta: mudancas.length ? 'Certo, vou aplicar essas mudanças.' : 'Não identifiquei uma mudança. Pode descrever de outro jeito?' };
+  const json = { mudancas };   /* (sem "resposta": a frase para o visitante é do código, alteracoes.mjs → paraVisitante) */
   return { texto: JSON.stringify(json), json, chamadas: [], conteudo: [], parada: 'fim', modelo: 'simulado', uso: {}, custo_usd: 0 };
 }

@@ -192,6 +192,76 @@
       "source": "/api/_:caminho*",
       "destination": "/",
       "permanent": false
+    },
+    {
+      "source": "/scripts/:caminho*",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/.github/:caminho*",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/.claude/:caminho*",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/.superpowers/:caminho*",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/.vercel/:caminho*",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/CLAUDE.md",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/vercel.json",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/.gitignore",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/.gitleaksignore",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/.vercelignore",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/assets/README.txt",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/js/nucleo/lab.js",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/vendor/three/entrada.js",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/vendor/three/README.md",
+      "destination": "/",
+      "permanent": false
     }
   ],
   "crons": [
