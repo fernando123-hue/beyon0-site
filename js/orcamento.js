@@ -467,8 +467,10 @@
   function rolarAte(el) {
     var Bp = window.BEYON;
     if (document.documentElement.classList.contains('passagem-chega') && Bp && Bp.on) {
-      var uma = function () { Bp.off('passagem:chegou', uma); el.scrollIntoView({ block: 'start' }); };
+      var feito = false;
+      var uma = function () { if (feito) return; feito = true; Bp.off('passagem:chegou', uma); el.scrollIntoView({ block: 'start' }); };
       Bp.on('passagem:chegou', uma);
+      setTimeout(uma, 3000);   /* a rede: o js/passagem.js não carregou (o evento não viria) */
     } else el.scrollIntoView({ block: 'start' });
   }
 
