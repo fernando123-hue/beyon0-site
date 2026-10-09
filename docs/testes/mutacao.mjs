@@ -33,7 +33,8 @@ const SABOTAGENS = [
   { nome: 'conversa pula etapa (qualquer transição vale)', arquivo: '20261008120100_transicoes_conversa.sql', testes: ['docs/testes/auditoria-p1.test.mjs'],
     de: 'if not exists (select 1 from privado.transicoes_conversa t where t.de = old.etapa and t.para = new.etapa) then', para: 'if false then' },
   /* ---- a retenção: quem pagou não perde a conversa ---- */
-  { nome: 'retenção apaga a conversa de quem pagou', arquivo: '20261008120600_retencao_conversa.sql', testes: ['docs/testes/fluxo-api.test.mjs'],
+  /* (a função vendas_reter vive na migration MAIS NOVA que a redefine: sabotar a antiga não tinha efeito) */
+  { nome: 'retenção apaga a conversa de quem pagou', arquivo: '20261009130000_retencao_ajustes.sql', testes: ['docs/testes/fluxo-api.test.mjs'],
     de: "pg.status in ('pago', 'estornado', 'contestado')", para: "pg.status in ('estornado', 'contestado')" }
 ];
 

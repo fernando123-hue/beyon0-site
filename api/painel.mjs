@@ -21,6 +21,7 @@ import { criarTransporte } from './_vendas/transporte.mjs';
 import { ehUuid } from './_valida-app.mjs';
 import { ORG } from './_vendas/org.mjs';
 import { higienizar } from './_vendas/direcao.mjs';
+import { ipDe } from './_freio.mjs';
 
 const CHAVE_MINIMA = 32;
 const CORPO_MAX = 200000;          /* caracteres do POST do painel */
@@ -40,7 +41,7 @@ async function autorizar(request, env) {
     console.error('[metricas] painel: PAINEL_CHAVE ausente ou com menos de ' + CHAVE_MINIMA + ' caracteres');
     return json({ erro: 'Painel indisponível.' }, 503);
   }
-  const quem = (request.headers.get('x-forwarded-for') || 'local').split(',')[0].trim();
+  const quem = ipDe(request);   /* (o IPv6 conta pelo /64, como nos outros freios) */
   if (erros.size > 5000) erros.clear();
   const agora = Date.now();
   const tent = (erros.get(quem) || []).filter(t => agora - t < TENTATIVAS.janelaMs);

@@ -6,6 +6,11 @@ import assert from 'node:assert/strict';
 import { listar, criar } from '../../api/leads.mjs';
 import { validarNovoLead, normalizarTelefone } from '../../api/_valida-app.mjs';
 import { banco } from '../../api/_banco.mjs';
+import { criarFreio, ipDe } from '../../api/_freio.mjs';
+import { chaveDoIp } from '../../api/_vendas/ip.mjs';
+import { isIP } from 'node:net';
+import { atender } from '../../api/vendas.mjs';
+import { criarVisitantes } from '../../api/_vendas/visitante.mjs';
 
 const ENV = { SUPABASE_URL: 'https://falso.supabase.co', SUPABASE_CHAVE_PUBLICA: 'sb_publishable_teste', SUPABASE_CHAVE_SECRETA: 'sb_secret_NUNCA_NO_USUARIO' };
 const O1 = '11111111-0000-4000-8000-000000000001', O2 = '22222222-0000-4000-8000-000000000002';
@@ -30,8 +35,13 @@ beforeEach(() => {
     const u = new URL(url);
     if (u.pathname === '/auth/v1/user') {
       if (simulacao.authFora) return new Response('x', { status: 500 });
+      if (simulacao.user) return simulacao.user();
       return h.authorization === 'Bearer ' + TOKEN_A ? Response.json({ id: A }) : new Response('{"msg":"bad jwt"}', { status: 401 });
     }
+    /* o login anônimo e a renovação do visitante (api/_vendas/visitante.mjs) */
+    const sessaoA = () => Response.json({ access_token: TOKEN_A, refresh_token: 'refresh-A', expires_at: AGORA_S + 3600, user: { id: A } });
+    if (u.pathname === '/auth/v1/signup') return simulacao.signup ? simulacao.signup() : sessaoA();
+    if (u.pathname === '/auth/v1/token') return simulacao.token ? simulacao.token() : sessaoA();
     if (u.pathname === '/rest/v1/membros') return Response.json(u.search.includes('org_id=eq.' + O1) ? [{ papel: 'dono' }] : []);
     if (u.pathname === '/rest/v1/leads' && op.method === 'POST') {
       const corpo = JSON.parse(op.body);
@@ -158,4 +168,122 @@ test('freio: rajada do mesmo IP vira 429 antes de gastar o Auth', async () => {
   const authAntes = chamadas.filter(c => c.url.includes('/auth/v1/')).length;
   await listar(deIp(), ENV);
   assert.equal(chamadas.filter(c => c.url.includes('/auth/v1/')).length, authAntes, 'freado não chama o Auth');
+});
+
+/* (auditoria 2026-10-09, segurança 4) quem tem IPv6 tem um /64 inteiro e troca os 64 bits finais à vontade: o freio
+   conta pelo prefixo /64, como o freio diário do banco (api/_vendas/ip.mjs). IPv4 fica igual. */
+test('freio: IPv6 conta pelo prefixo /64; IPv4 e IPv4 mapeado contam pelo endereço', async () => {
+  const de = xff => ipDe(new Request('https://site.test/', { headers: xff ? { 'x-forwarded-for': xff } : {} }));
+  assert.equal(de('203.0.113.9'), '203.0.113.9');
+  assert.equal(de('203.0.113.9, 10.0.0.1'), '203.0.113.9', 'o primeiro da lista (o da Vercel)');
+  assert.equal(de(null), 'local');
+  assert.equal(de('::ffff:203.0.113.9'), '203.0.113.9', 'IPv4 mapeado é o próprio IPv4 (senão todos caíam no mesmo /64 ::ffff)');
+  const mesmaCasa = ['2001:db8:a:b:c:d:e:f', '2001:DB8:A:B::1', '2001:0db8:000a:000b:ffff::2'].map(de);
+  assert.equal(new Set(mesmaCasa).size, 1, 'o mesmo /64 é uma chave só: ' + mesmaCasa.join(' | '));
+  assert.notEqual(de('2001:db8:a:c::1'), mesmaCasa[0], 'outro /64, outra chave');
+  assert.equal(isIP(mesmaCasa[0]), 6, 'a chave continua um IPv6 válido (o freio diário do banco a usa)');
+  const dia = new Date('2026-10-09T12:00:00Z');
+  assert.equal(chaveDoIp(de('2001:db8:a:b::99'), 'segredo', dia), chaveDoIp('2001:db8:a:b:1:2:3:4', 'segredo', dia), 'o freio diário dá a mesma chave');
+  const freado = criarFreio({ max: 3, janelaMs: 60e3 });
+  const resultados = [1, 2, 3, 4].map(n => freado(de('2001:db8:a:b::' + n.toString(16)), 0));
+  assert.deepEqual(resultados, [false, false, false, true], 'trocar o fim do IPv6 não escapa do freio');
+});
+
+/* (revisão de segurança do lote 1) as outras formas de escrever IPv4 dentro do IPv6, e os endereços com os 64 bits
+   iniciais zerados, não podem cair todos na mesma chave "0:0:0:0::" (um visitante frearia todos os outros) */
+test('freio: IPv4 mapeado em qualquer forma é o IPv4; endereço com prefixo zerado não vira /64', () => {
+  const de = xff => ipDe(new Request('https://site.test/', { headers: { 'x-forwarded-for': xff } }));
+  for (const forma of ['::ffff:c000:201', '0:0:0:0:0:ffff:192.0.2.1', '::FFFF:192.0.2.1', '::ffff:192.0.2.1%eth0', '64:ff9b::c000:201', '64:ff9b::192.0.2.1']) {
+    assert.equal(de(forma), '192.0.2.1', forma);
+  }
+  assert.notEqual(de('::ffff:c000:201'), de('::ffff:c000:202'), 'IPv4 diferentes, chaves diferentes');
+  const zerados = ['::1', '::2', '::192.0.2.1', '::192.0.2.2', '::ffff:0:c000:201', '::ffff:0:c000:202'].map(de);
+  assert.equal(new Set(zerados).size, zerados.length, 'prefixo zerado: cada endereço é uma chave: ' + zerados.join(' | '));
+  assert.ok(zerados.every(z => isIP(z) === 6), 'e continua um IPv6 válido');
+  assert.equal(de('fe80::1%eth0'), de('fe80::2'), 'a zona sai; o /64 vale como para qualquer IPv6');
+  const dia = new Date('2026-10-09T12:00:00Z');
+  assert.equal(chaveDoIp('::ffff:c000:201', 'k', dia), chaveDoIp('192.0.2.1', 'k', dia), 'o freio diário também lê o IPv4 mapeado');
+  assert.notEqual(chaveDoIp(de('::1'), 'k', dia), chaveDoIp(de('::2'), 'k', dia), 'e não junta os de prefixo zerado');
+});
+
+/* ======================= o visitante do orçamento: Auth instável não é "sessão expirada" ======================= */
+/* (auditoria 2026-10-09, funcionalidades 5 e 7) 429 e 5xx do Supabase viravam 401 "sessão expirada" (o navegador
+   jogava a conversa fora) e a falha do login anônimo virava 500 "Erro interno.". */
+let ipVisitante = 0;
+async function vendas(metodo, acao, { corpo, token, query = '' } = {}) {
+  const deps = { banco: async () => ({ conversa_id: O1 }), visitantes: criarVisitantes(ENV), ia: null };
+  const r = await atender(new Request('https://site.test/api/vendas?acao=' + acao + query, {
+    method: metodo, body: corpo === undefined ? undefined : JSON.stringify(corpo),
+    headers: { 'x-forwarded-for': '192.0.2.' + (++ipVisitante), ...(corpo !== undefined ? { 'content-type': 'application/json' } : {}), ...(token ? { authorization: 'Bearer ' + token } : {}) }
+  }), {}, metodo, deps);
+  return { status: r.status, corpo: await r.json() };
+}
+const falha = status => () => new Response('{"msg":"x"}', { status });
+
+test('visitante: o login anônimo falhando (429, 5xx, rede) é 503 com mensagem humana, nunca 500', async () => {
+  assert.equal((await vendas('POST', 'sessao', { corpo: {} })).status, 200, 'o caminho normal');
+  for (const [nome, simular] of [['429', falha(429)], ['500', falha(500)], ['503', falha(503)], ['rede', () => { throw new TypeError('fetch failed'); }]]) {
+    simulacao.signup = simular;
+    const r = await vendas('POST', 'sessao', { corpo: {} });
+    assert.equal(r.status, 503, nome + ': ' + JSON.stringify(r.corpo));
+    assert.equal(r.corpo.recuperavel, true, nome + ': dá para tentar de novo');
+    assert.match(r.corpo.erro, /tente de novo/i, nome + ': mensagem humana');
+    assert.ok(!/interno|HTTP|supabase/i.test(r.corpo.erro), nome + ': sem detalhe interno: ' + r.corpo.erro);
+  }
+  assert.ok(logs.some(l => l.includes('login anônimo recusado: HTTP 503')), 'o motivo técnico fica no log para a equipe');
+});
+
+test('visitante: só a recusa do token (400/401) é "sessão expirada"; 429 e 5xx são 503 recuperável', async () => {
+  assert.equal((await vendas('POST', 'renovar', { corpo: { refresh: 'refresh-A' } })).status, 200, 'o caminho normal');
+  for (const s of [400, 401]) {
+    simulacao.token = falha(s);
+    const r = await vendas('POST', 'renovar', { corpo: { refresh: 'refresh-A' } });
+    assert.equal(r.status, 401, s + ': o Supabase recusou o refresh, a sessão acabou');
+  }
+  for (const s of [429, 500, 502, 503]) {
+    simulacao.token = falha(s);
+    const r = await vendas('POST', 'renovar', { corpo: { refresh: 'refresh-A' } });
+    assert.equal(r.status, 503, s + ': Auth instável não é sessão expirada: ' + JSON.stringify(r.corpo));
+    assert.equal(r.corpo.recuperavel, true);
+  }
+  /* a conferência do token em cada ação: Auth fora do ar também é 503, não 500 */
+  simulacao.authFora = true;
+  const e = await vendas('GET', 'estado', { token: TOKEN_A, query: '&conversa=' + O1 });
+  assert.equal(e.status, 503, 'Auth fora do ar na conferência do token: ' + JSON.stringify(e.corpo));
+  assert.equal(e.corpo.recuperavel, true);
+  simulacao.authFora = false;
+  assert.equal((await vendas('GET', 'estado', { token: TOKEN_FALSO, query: '&conversa=' + O1 })).status, 401, 'token recusado continua 401');
+});
+
+/* (revisão técnica do lote 1) o Supabase também recusa refresh com 403 e 422; e o login anônimo DESLIGADO no painel
+   (422 anonymous_provider_disabled) não se resolve tentando de novo: a pessoa vai para o WhatsApp e o log diz o porquê */
+test('visitante: refresh recusado com 403/422 encerra a sessão; login anônimo desligado não manda "tentar de novo"', async () => {
+  for (const s of [403, 422]) {
+    simulacao.token = falha(s);
+    assert.equal((await vendas('POST', 'renovar', { corpo: { refresh: 'refresh-A' } })).status, 401, s + ': recusa do refresh');
+  }
+  for (const s of [400, 403, 404, 422]) {
+    simulacao.signup = falha(s);
+    const r = await vendas('POST', 'sessao', { corpo: {} });
+    assert.equal(r.status, 503, s + ': ' + JSON.stringify(r.corpo));
+    assert.equal(r.corpo.recuperavel, undefined, s + ': tentar de novo não resolve configuração');
+    assert.equal(r.corpo.whatsapp, true, s + ': a saída é o WhatsApp');
+    assert.ok(!/HTTP|supabase|anonymous/i.test(r.corpo.erro), s + ': sem detalhe interno: ' + r.corpo.erro);
+  }
+  assert.ok(logs.some(l => /login anônimo desligado ou mal configurado.*HTTP 422/.test(l)), 'o log diz o que conferir no Supabase: ' + logs.join('\n'));
+});
+
+/* (revisão de segurança do lote 1) só falha de REDE do fetch vira "Auth instável"; erro de programação continua erro
+   interno (500 com log), para não ficar escondido atrás de um 503 "tente de novo" */
+test('visitante: na conferência do token, só a falha de rede é 503; erro de código é 500 com log', async () => {
+  simulacao.user = () => { throw new TypeError('fetch failed'); };
+  const rede = await vendas('GET', 'estado', { token: TOKEN_A, query: '&conversa=' + O1 });
+  assert.equal(rede.status, 503, 'rede: ' + JSON.stringify(rede.corpo));
+  assert.equal(rede.corpo.recuperavel, true);
+  simulacao.user = () => { throw new RangeError('bug no código'); };
+  const bug = await vendas('GET', 'estado', { token: TOKEN_A, query: '&conversa=' + O1 });
+  assert.equal(bug.status, 500, 'erro de código: ' + JSON.stringify(bug.corpo));
+  assert.ok(logs.some(l => l.includes('bug no código')), 'o erro de código fica no log');
+  simulacao.signup = () => { throw new RangeError('bug no login'); };
+  assert.equal((await vendas('POST', 'sessao', { corpo: {} })).status, 500, 'o mesmo no login anônimo');
 });

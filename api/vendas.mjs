@@ -86,6 +86,8 @@ export async function atender(request, env, metodo, deps) {
     return responder(await criarFluxo({ ...d, requestId })[acao]({ request, query, corpo }));
   } catch (e) {
     const r = traduzirErro(e);
+    /* a falha passageira (IA, Auth, banco lento) também fica no log, com o motivo técnico (a pessoa só lê a frase) */
+    if (r && r.status >= 500 && e !== r) log('erro', { request_id: requestId, acao, evento: 'falha recuperável', erro: e && e.message ? e.message.slice(0, 120) : 'erro' });
     if (r) return responder({ erro: r.message, ...(r.extra || {}) }, r.status);
     log('erro', { request_id: requestId, acao, codigo: e && e.codigo ? e.codigo : null, erro: e && e.message ? e.message.slice(0, 120) : 'erro' });
     return responder({ erro: 'Erro interno.', pedido: requestId }, 500);   /* (o código do pedido: a pessoa cita, a equipe acha no log) */
