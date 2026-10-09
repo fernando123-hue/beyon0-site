@@ -83,6 +83,7 @@ test('o estimado não chega ao modelo: ele recebe prazo e itens, nunca o valor',
   assert.equal(r.estimativa.valor_total, 3850);
   const visto = ia.recebidos[1].mensagens.at(-1).content[0].content;
   assert.ok(!visto.includes('3850') && !visto.includes('1925'), 'o modelo não viu o valor: ' + visto);
+  assert.ok(visto.includes('dias corridos'), 'o prazo chega escrito como o escopo diz: ' + visto);
 });
 
 test('privacidade: e-mail, telefone e CPF saem antes de ir para o modelo', async () => {

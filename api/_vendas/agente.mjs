@@ -78,7 +78,7 @@ export async function executarTurno({ ia, regras, conversa, mensagem, direcoes }
         const e = estimar(ch.entrada, regras);
         if (e.erros) saida = { ok: false, erros: e.erros };
         else if (e.encaminhar_diagnostico) { diagnostico = e.motivo; saida = { ok: true, encaminhar_diagnostico: true, motivo: e.motivo, itens: e.itens_diagnostico }; }
-        else { estimativa = e; briefing = mesclar(briefing, { projeto: { formato: e.fatores.formato } }); saida = { ok: true, prazo_dias: e.prazo_dias, fase: e.fase, itens: e.itens.map(x => x.nome), fase_seguinte: e.fase_seguinte ? e.fase_seguinte.itens.map(x => x.nome) : null, valor: 'mostrado no cartão para a pessoa', proximo_passo: proximoPasso({ etapa: conversa.etapa, briefing, estimativa: e }) }; }
+        else { estimativa = e; briefing = mesclar(briefing, { projeto: { formato: e.fatores.formato } }); saida = { ok: true, prazo_dias: e.prazo_dias, prazo: e.prazo_dias + (e.prazo_dias === 1 ? ' dia corrido' : ' dias corridos'), fase: e.fase,   /* (prazo escrito: o consultor repete "corridos", como o escopo) */ itens: e.itens.map(x => x.nome), fase_seguinte: e.fase_seguinte ? e.fase_seguinte.itens.map(x => x.nome) : null, valor: 'mostrado no cartão para a pessoa', proximo_passo: proximoPasso({ etapa: conversa.etapa, briefing, estimativa: e }) }; }
       } else if (ch.nome === 'pedir_contato') {
         pedirContato = !!(estimativa || conversa.estimativa);
         saida = pedirContato ? { ok: true } : { ok: false, motivo: 'peça a estimativa antes' };
