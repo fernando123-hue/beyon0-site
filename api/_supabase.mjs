@@ -37,9 +37,15 @@ export const TEMPO_MAXIMO_MS = 10000;
 
 /* o Auth não conseguiu responder (429, 5xx, rede): falha passageira, não token recusado. Quem chama devolve 503
    recuperável, nunca 401 "sessão expirada" (o navegador jogaria a conversa fora) nem 500 (auditoria 2026-10-09).
-   paraVisitante: a frase que a pessoa lê; a mensagem do erro é só para o log. */
+   paraVisitante: a frase que a pessoa lê; a mensagem do erro é só para o log. recuperavel: false quando tentar de novo
+   não resolve (o Auth recusou por configuração, ex.: login anônimo desligado): 503 com a saída pelo WhatsApp. */
 export class AuthIndisponivel extends Error {
-  constructor(detalhe, paraVisitante) { super(detalhe); this.name = 'AuthIndisponivel'; this.paraVisitante = paraVisitante || null; }
+  constructor(detalhe, paraVisitante, { recuperavel = true } = {}) {
+    super(detalhe);
+    this.name = 'AuthIndisponivel';
+    this.paraVisitante = paraVisitante || null;
+    this.recuperavel = recuperavel;
+  }
 }
 
 export async function usuarioDoToken(cfg, token) {

@@ -49,7 +49,7 @@ export function traduzirErro(e) {
   /* tempo máximo de uma chamada ao Supabase esgotado: lentidão passageira, não erro interno */
   if (e && (e.name === 'TimeoutError' || e.name === 'AbortError')) return new Recusa(503, 'O serviço está lento agora. Suas informações foram preservadas; tente de novo em instantes.', { recuperavel: true });
   /* o Auth do Supabase instável (429, 5xx, rede): passageiro, nunca "sessão expirada" nem erro interno (auditoria 2026-10-09) */
-  if (e instanceof AuthIndisponivel) return new Recusa(503, e.paraVisitante || 'O serviço está instável agora. Suas informações foram preservadas; tente de novo em instantes.', { recuperavel: true });
+  if (e instanceof AuthIndisponivel) return new Recusa(503, e.paraVisitante || 'O serviço está instável agora. Suas informações foram preservadas; tente de novo em instantes.', e.recuperavel ? { recuperavel: true } : { whatsapp: true });
   if (e instanceof ErroBanco) {
     if (e.codigo === 'P0002') return new Recusa(404, 'Não encontrado.');
     if (e.codigo === '55000') return new Recusa(409, 'Esta etapa ainda não está disponível.');

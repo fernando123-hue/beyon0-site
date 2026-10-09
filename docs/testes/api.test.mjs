@@ -35,6 +35,7 @@ beforeEach(() => {
     const u = new URL(url);
     if (u.pathname === '/auth/v1/user') {
       if (simulacao.authFora) return new Response('x', { status: 500 });
+      if (simulacao.user) return simulacao.user();
       return h.authorization === 'Bearer ' + TOKEN_A ? Response.json({ id: A }) : new Response('{"msg":"bad jwt"}', { status: 401 });
     }
     /* o login anônimo e a renovação do visitante (api/_vendas/visitante.mjs) */
@@ -252,4 +253,37 @@ test('visitante: só a recusa do token (400/401) é "sessão expirada"; 429 e 5x
   assert.equal(e.corpo.recuperavel, true);
   simulacao.authFora = false;
   assert.equal((await vendas('GET', 'estado', { token: TOKEN_FALSO, query: '&conversa=' + O1 })).status, 401, 'token recusado continua 401');
+});
+
+/* (revisão técnica do lote 1) o Supabase também recusa refresh com 403 e 422; e o login anônimo DESLIGADO no painel
+   (422 anonymous_provider_disabled) não se resolve tentando de novo: a pessoa vai para o WhatsApp e o log diz o porquê */
+test('visitante: refresh recusado com 403/422 encerra a sessão; login anônimo desligado não manda "tentar de novo"', async () => {
+  for (const s of [403, 422]) {
+    simulacao.token = falha(s);
+    assert.equal((await vendas('POST', 'renovar', { corpo: { refresh: 'refresh-A' } })).status, 401, s + ': recusa do refresh');
+  }
+  for (const s of [400, 403, 404, 422]) {
+    simulacao.signup = falha(s);
+    const r = await vendas('POST', 'sessao', { corpo: {} });
+    assert.equal(r.status, 503, s + ': ' + JSON.stringify(r.corpo));
+    assert.equal(r.corpo.recuperavel, undefined, s + ': tentar de novo não resolve configuração');
+    assert.equal(r.corpo.whatsapp, true, s + ': a saída é o WhatsApp');
+    assert.ok(!/HTTP|supabase|anonymous/i.test(r.corpo.erro), s + ': sem detalhe interno: ' + r.corpo.erro);
+  }
+  assert.ok(logs.some(l => /login anônimo desligado ou mal configurado.*HTTP 422/.test(l)), 'o log diz o que conferir no Supabase: ' + logs.join('\n'));
+});
+
+/* (revisão de segurança do lote 1) só falha de REDE do fetch vira "Auth instável"; erro de programação continua erro
+   interno (500 com log), para não ficar escondido atrás de um 503 "tente de novo" */
+test('visitante: na conferência do token, só a falha de rede é 503; erro de código é 500 com log', async () => {
+  simulacao.user = () => { throw new TypeError('fetch failed'); };
+  const rede = await vendas('GET', 'estado', { token: TOKEN_A, query: '&conversa=' + O1 });
+  assert.equal(rede.status, 503, 'rede: ' + JSON.stringify(rede.corpo));
+  assert.equal(rede.corpo.recuperavel, true);
+  simulacao.user = () => { throw new RangeError('bug no código'); };
+  const bug = await vendas('GET', 'estado', { token: TOKEN_A, query: '&conversa=' + O1 });
+  assert.equal(bug.status, 500, 'erro de código: ' + JSON.stringify(bug.corpo));
+  assert.ok(logs.some(l => l.includes('bug no código')), 'o erro de código fica no log');
+  simulacao.signup = () => { throw new RangeError('bug no login'); };
+  assert.equal((await vendas('POST', 'sessao', { corpo: {} })).status, 500, 'o mesmo no login anônimo');
 });

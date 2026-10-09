@@ -14,16 +14,21 @@
 import { configUsuario, tokenDe, usuarioDoToken, TEMPO_MAXIMO_MS, AuthIndisponivel } from '../_supabase.mjs';
 
 const SEM_LOGIN = 'Não consegui abrir o atendimento agora. Tente de novo em instantes.';
-/* (auditoria 2026-10-09) só o Supabase RECUSANDO o refresh (400/401) encerra a sessão; o resto é passageiro */
-const RECUSOU_TOKEN = new Set([400, 401]);
+const LOGIN_DESLIGADO = 'O consultor está indisponível agora. Fale com a Beyon Zero pelo WhatsApp.';
+/* (auditoria 2026-10-09 e revisão técnica do lote 1) só o Supabase RECUSANDO o refresh encerra a sessão (400 token
+   inválido, 401, 403, 422 refresh já usado ou revogado); 429, 408 e 5xx são passageiros */
+const RECUSOU_TOKEN = new Set([400, 401, 403, 422]);
+const passageiro = status => status === 429 || status === 408 || status >= 500;
 
-/* uma chamada ao Auth: falha de rede vira AuthIndisponivel (503 recuperável); o tempo esgotado segue como está
-   (TimeoutError, que o fluxo já traduz para 503) */
+/* uma chamada ao Auth: só a falha de REDE do fetch (TypeError "fetch failed") vira AuthIndisponivel (503 recuperável);
+   o tempo esgotado segue como está (TimeoutError, que o fluxo já traduz para 503); erro de código segue como erro
+   (500 com log), para não se esconder atrás de um "tente de novo" (revisão de segurança do lote 1) */
+const deRede = e => e instanceof TypeError;
 async function chamarAuth(url, opcoes, paraVisitante) {
   try { return await fetch(url, { ...opcoes, signal: AbortSignal.timeout(TEMPO_MAXIMO_MS) }); }
   catch (e) {
-    if (e && (e.name === 'TimeoutError' || e.name === 'AbortError')) throw e;
-    throw new AuthIndisponivel('auth sem resposta: ' + (e && e.name ? e.name : 'erro'), paraVisitante);
+    if (!deRede(e)) throw e;
+    throw new AuthIndisponivel('auth sem resposta: ' + e.message, paraVisitante);
   }
 }
 
@@ -35,7 +40,10 @@ export function criarVisitantes(env = process.env) {
     return {
       async criar() {
         const r = await chamarAuth(cfg.url + '/auth/v1/signup', { method: 'POST', headers: cab, body: JSON.stringify({ data: {} }) }, SEM_LOGIN);
-        if (!r.ok) throw new AuthIndisponivel('login anônimo recusado: HTTP ' + r.status, SEM_LOGIN);
+        if (!r.ok && passageiro(r.status)) throw new AuthIndisponivel('login anônimo recusado: HTTP ' + r.status, SEM_LOGIN);
+        /* outro 4xx é configuração (ex.: 422 anonymous_provider_disabled): tentar de novo não resolve. A pessoa vai
+           para o WhatsApp e o log diz o que conferir; não é 500 porque o código não errou */
+        if (!r.ok) throw new AuthIndisponivel('login anônimo desligado ou mal configurado no Supabase (Authentication › Allow anonymous sign-ins): HTTP ' + r.status, LOGIN_DESLIGADO, { recuperavel: false });
         return sessao(await r.json());
       },
       async renovar(refresh) {
@@ -51,8 +59,8 @@ export function criarVisitantes(env = process.env) {
         let u;
         try { u = await usuarioDoToken(cfg, t); }   /* (recusa = null; 429/5xx = AuthIndisponivel) */
         catch (e) {
-          if (e instanceof AuthIndisponivel || (e && (e.name === 'TimeoutError' || e.name === 'AbortError'))) throw e;
-          throw new AuthIndisponivel('auth sem resposta: ' + (e && e.name ? e.name : 'erro'));   /* (rede) */
+          if (!deRede(e)) throw e;   /* (AuthIndisponivel, tempo esgotado e erro de código seguem como vieram) */
+          throw new AuthIndisponivel('auth sem resposta: ' + e.message);
         }
         return u ? u.id : null;
       }
