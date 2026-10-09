@@ -42,7 +42,7 @@ p em, li em { font-style: normal; font-weight: 500; color: var(--t1); }
 .section__head { margin-bottom: clamp(24px, 4vw, 48px); }
 /* o deslocamento das âncoras vem só do scroll-padding-top do html (o
    scroll-margin das seções somava e o clique caía 80px mais baixo) */
-#frentes.section { padding-top: var(--sp-1); }       /* puxa a rolagem depois do hero */
+#perdas.section { padding-top: var(--sp-1); }       /* puxa a rolagem depois do hero (a home abre com "Onde o cliente se perde") */
 #prova.section, .conversa .section { padding-top: var(--sp-3); }   /* abrem capítulo */
 /* um véu translúcido, sem régua própria: a malha continua por trás e o
    fechamento da lista anterior é o único divisor (sem fio duplo). Corte
