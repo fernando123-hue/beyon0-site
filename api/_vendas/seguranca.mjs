@@ -60,10 +60,10 @@ const rotuloDoNumero = trecho => {
 /* dados do cartão além do número, que a pessoa pode colar perto do pagamento (revisões de segurança do PR 34, M2).
    O código de segurança sai sempre; a validade e "segurança 123", só quando a mensagem fala de cartão: "promoção com
    validade até 30/11" é briefing (revisão técnica do PR 34, rodada 2) */
-const CARTAO_CODIGO = /\b(c\s?v\s?[vc]2?|c[óo]d(?:igo|\.)?\s*(?:de\s+)?seguran[çc]a)\b\D{0,30}?\d{3,4}\b/gi;
+const CARTAO_CODIGO = /\b(c\s?v\s?[vc]2?|csc|c[óo]d(?:igo|\.)?\s*(?:de\s+)?seguran[çc]a)(?:\b|(?=\d))\D{0,30}?\d{3,4}\b/gi;
 const CONTEXTO_CARTAO = /cart[ãa]o|cvv|cvc|cr[ée]dito|d[ée]bito|visa|master|\belo\b|amex|titular/i;
 const MESES = 'janeiro|fevereiro|mar[çc]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro';
-const CARTAO_VALIDADE = new RegExp('\\b(validade|vencimento|venc\\.?|vence(?:\\s+em)?|v[áa]lid[oa]\\s+at[ée])(?=\\W)\\D{0,20}?(?:\\d{1,2}\\s?[/.-]\\s?\\d{2,4}|\\d{4}|(?:' + MESES + ')(?:\\s+de)?\\s+\\d{2,4})\\b', 'gi');
+const CARTAO_VALIDADE = new RegExp('\\b(validade|vencimento|venc\\.?|val\\.?|vence(?:\\s+em)?|expira(?:\\s+em)?|v[áa]lid[oa]\\s+at[ée])(?=\\W)\\D{0,20}?(?:\\d{1,2}\\s?[/.-]\\s?\\d{2,4}|\\d{4}|(?:' + MESES + ')(?:\\s+de)?\\s+\\d{2,4})\\b', 'gi');
 const CARTAO_SEGURANCA = /\b(seguran[çc]a)\b\D{0,10}\d{3,4}\b/gi;
 function semDadosDoCartao(t) {
   const semCodigo = t.replace(CARTAO_CODIGO, (_, rotulo) => rotulo + ' [cartão]');
