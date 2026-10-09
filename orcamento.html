@@ -140,12 +140,12 @@
       <p class="orc-bloco__lead" id="o-contato-lead">Com o seu contato, o consultor gera três direções de site para o seu negócio: uma focada em conversão, uma em autoridade e uma em experiência.</p>
       <form class="orc-form" id="o-contato-form" novalidate>
         <label for="o-nome">Seu nome <span class="orc-opcional">(obrigatório)</span></label>
-        <input id="o-nome" name="nome" autocomplete="name" maxlength="120" required aria-describedby="o-contato-erro" />
+        <input id="o-nome" name="nome" autocomplete="name" maxlength="120" required />
         <label for="o-tel">WhatsApp <span class="orc-opcional" id="o-tel-obrig">(ou só o e-mail)</span></label>
-        <input id="o-tel" name="telefone" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="(21) 99999-0000" aria-describedby="o-contato-erro" />
+        <input id="o-tel" name="telefone" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="(21) 99999-0000" />
         <label for="o-email">E-mail <span class="orc-opcional">(ou só o WhatsApp)</span></label>
-        <input id="o-email" name="email" type="email" autocomplete="email" maxlength="254" aria-describedby="o-contato-erro" />
-        <label class="orc-check"><input type="checkbox" id="o-aceite" required aria-describedby="o-contato-erro" /> <span>Concordo que a Beyon Zero use estes dados para preparar as propostas e falar comigo sobre elas (<a href="/privacidade#orcamento">privacidade</a>).</span></label>
+        <input id="o-email" name="email" type="email" autocomplete="email" maxlength="254" />
+        <label class="orc-check"><input type="checkbox" id="o-aceite" required /> <span>Concordo que a Beyon Zero use estes dados para preparar as propostas e falar comigo sobre elas (<a href="/privacidade#orcamento">privacidade</a>).</span></label>
         <p class="orc-erro" id="o-contato-erro" role="alert"></p>
         <button class="btn btn--primary" type="submit">Gerar as três direções</button>
       </form>
@@ -180,7 +180,7 @@
       <div class="orc-escopo" id="o-esc-texto" tabindex="0" role="region" aria-label="Texto do escopo"></div>
       <p class="orc-nota">Quer mudar algo antes de confirmar? <a data-wa="quero ajustar o escopo do meu orçamento antes de confirmar" href="https://wa.me/5521977167944">Fale com a Beyon Zero pelo WhatsApp</a>.</p>
       <form class="orc-form" id="o-esc-form" novalidate>
-        <label class="orc-check"><input type="checkbox" id="o-confirmo" required aria-describedby="o-esc-erro" /> <span>Li e confirmo este escopo, o valor e o prazo.</span></label>
+        <label class="orc-check"><input type="checkbox" id="o-confirmo" required /> <span>Li e confirmo este escopo, o valor e o prazo.</span></label>
         <label class="orc-check"><input type="checkbox" id="o-inicio" /> <span>Peço que o trabalho comece já, dentro do prazo de 7 dias para desistir da compra (Código de Defesa do Consumidor, art. 49).</span></label>
         <p class="orc-erro" id="o-esc-erro" role="alert"></p>
         <button class="btn btn--primary" type="submit">Confirmar o escopo</button>
@@ -201,13 +201,13 @@
         <fieldset class="pag-grupo">
           <legend>Quem paga</legend>
           <div class="pag-par">
-            <div><label for="o-pag-nome">Nome <span class="orc-opcional">(obrigatório)</span></label><input id="o-pag-nome" autocomplete="given-name" maxlength="60" required aria-describedby="o-pag-erro" /></div>
-            <div><label for="o-pag-sobrenome">Sobrenome <span class="orc-opcional">(obrigatório)</span></label><input id="o-pag-sobrenome" autocomplete="family-name" maxlength="60" required aria-describedby="o-pag-erro" /></div>
+            <div><label for="o-pag-nome">Nome <span class="orc-opcional">(obrigatório)</span></label><input id="o-pag-nome" autocomplete="given-name" maxlength="60" required /></div>
+            <div><label for="o-pag-sobrenome">Sobrenome <span class="orc-opcional">(obrigatório)</span></label><input id="o-pag-sobrenome" autocomplete="family-name" maxlength="60" required /></div>
           </div>
           <label for="o-pag-email">E-mail <span class="orc-opcional">(obrigatório)</span></label>
-          <input id="o-pag-email" type="email" autocomplete="email" maxlength="254" required aria-describedby="o-pag-erro" />
+          <input id="o-pag-email" type="email" autocomplete="email" maxlength="254" required />
           <label for="o-pag-doc">CPF ou CNPJ <span class="orc-opcional">(obrigatório)</span></label>
-          <input id="o-pag-doc" inputmode="numeric" autocomplete="off" maxlength="18" required aria-describedby="o-pag-erro" />
+          <input id="o-pag-doc" inputmode="numeric" autocomplete="off" maxlength="18" required />
         </fieldset>
         <fieldset class="pag-grupo" id="o-pag-cartao" hidden>
           <legend>Cartão</legend>
@@ -223,7 +223,7 @@
           </div>
           <p class="orc-nota pag-local" id="o-pag-local" hidden>Modo local, sem dinheiro: no nome do titular, use APRO (aprova), FUND (sem limite), OTHE (recusa), CONT (em análise) ou CHAL (confirmação do banco).</p>
           <label for="o-titular">Nome impresso no cartão <span class="orc-opcional">(obrigatório)</span></label>
-          <input id="o-titular" autocomplete="cc-name" maxlength="60" aria-describedby="o-pag-erro" />
+          <input id="o-titular" autocomplete="cc-name" maxlength="60" />
           <label for="o-parcelas">Parcelas</label>
           <select id="o-parcelas"></select>
         </fieldset>

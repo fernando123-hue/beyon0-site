@@ -41,13 +41,16 @@
   function mostrar(id, sim) { $(id).hidden = !sim; }
   function mudou(bloco, dados) { var s = JSON.stringify(dados); if (assinaturas[bloco] === s) return false; assinaturas[bloco] = s; return true; }
 
-  /* ---------- aviso (falha, limite, recuperação): vai para a vista e recebe o foco ---------- */
-  function avisar(msg, acao, rotulo) {
+  /* ---------- aviso (falha, limite, recuperação): vai para a vista e recebe o foco ----------
+     quieto: o aviso nasceu na carga (retomada), sem a pessoa ter feito nada: aparece no lugar, sem rolar nem
+     tirar o foco (role=alert já o anuncia) */
+  function avisar(msg, acao, rotulo, quieto) {
     ultimaAcao = acao || null;
     $('o-aviso-texto').textContent = msg;
     $('o-tentar').textContent = rotulo || 'Tentar de novo';
     $('o-tentar').hidden = !acao;
     mostrar('o-aviso', true);
+    if (quieto) return;
     $('o-aviso').scrollIntoView({ block: 'center' });
     $('o-aviso').focus({ preventScroll: true });
   }
@@ -74,21 +77,35 @@
   }
   function mensagemDe(e) {
     if (e && e.status === 0) return e.dados && e.dados.tempo ? e.message + ' Tente de novo em instantes.' : e.message;
-    if (e && e.status === 503 && e.dados && e.dados.recuperavel) return RECUPERACAO;
-    /* erro do servidor: nunca o "Erro interno." cru; o código do pedido deixa a equipe achar o caso no log (F7) */
+    /* instabilidade passageira (IA, Auth do Supabase): a frase do servidor, que já é humana; a sessão continua */
+    if (e && e.status === 503 && e.dados && e.dados.recuperavel) return e.dados.erro || RECUPERACAO;
+    /* erro do servidor: nunca o "Erro interno." cru; o código do ERRO (o request id, não o do pedido) deixa a
+       equipe achar o caso no log (F7) */
     if (e && e.status === 500) {
       var cod = e.dados && typeof e.dados.pedido === 'string' ? e.dados.pedido.slice(0, 8) : '';
-      return 'Não consegui concluir agora.' + (cod ? ' Código: ' + cod + '.' : '') + ' Tente de novo em instantes ou fale com a Beyon Zero pelo WhatsApp.';
+      return 'Não consegui concluir agora.' + (cod ? ' Código do erro: ' + cod + '.' : '') + ' Tente de novo em instantes ou fale com a Beyon Zero pelo WhatsApp.';
     }
     return (e && e.message) || RECUPERACAO;
   }
   /* rede ou servidor: vale oferecer "Tentar de novo" (recusa de regra, não) */
   var repetivel = function (e) { return !!e && (e.status === 0 || e.status >= 500); };
-  /* a sessão existia e o servidor a recusou de vez (F5): "Recomeçar" em vez de um laço de "Tentar de novo" */
+  /* a sessão existia e o servidor a recusou DE VERDADE (401; F5): "Recomeçar" em vez de um laço de "Tentar de
+     novo". O 503 recuperável (Auth instável) não entra aqui: a sessão fica e o aviso oferece tentar de novo */
   var sessaoTerminou = function (e) { return API.perdeuSessao() || (!!E && !!e && e.status === 401 && !API.temSessao()); };
-  function avisarSessao() {
+  function avisarSessao(quieto) {
     pararEspera();
-    avisar('Sua sessão terminou. Recomece o orçamento por aqui ou continue pelo WhatsApp, citando o código do pedido.', function () { API.esquecer(); location.reload(); }, 'Recomeçar');
+    if (telaPagamento) telaPagamento.parar();
+    var cod = API.codigoPerdido() || codigoMostrado;
+    avisar('Sua sessão terminou. Recomece o orçamento por aqui' + (cod ? ' ou continue pelo WhatsApp citando o código do pedido ' + cod + '.' : ' ou continue pelo WhatsApp.'), recomecar, 'Recomeçar', quieto);
+  }
+  /* Recomeçar: esquece a sessão (nenhuma outra aba a grava de volta) e limpa os dados digitados antes de
+     recarregar, para o navegador não os restaurar num aparelho compartilhado */
+  var CAMPOS_PESSOAIS = ['o-texto', 'o-aj-texto', 'o-nome', 'o-tel', 'o-email', 'o-pag-nome', 'o-pag-sobrenome', 'o-pag-email', 'o-pag-doc', 'o-titular'];
+  function recomecar() {
+    API.esquecer();
+    CAMPOS_PESSOAIS.forEach(function (id) { if ($(id)) $(id).value = ''; });
+    ['o-aceite', 'o-confirmo', 'o-inicio'].forEach(function (id) { if ($(id)) $(id).checked = false; });
+    location.reload();
   }
   function falhou(e, acao) {
     if (sessaoTerminou(e)) return avisarSessao();
@@ -129,9 +146,15 @@
     enviando = sim; mostrar('o-pensando', sim); $('o-form').setAttribute('aria-busy', String(sim));
     if (sim) $('o-enviar').setAttribute('aria-disabled', 'true'); else $('o-enviar').removeAttribute('aria-disabled');
   }
-  /* o chip de atalho some depois da 1ª mensagem: se o foco estava nele, passa antes para a caixa de texto (A3) */
+  /* o chip de atalho some depois da 1ª mensagem: se o foco estava nele, passa antes para outro lugar (A3).
+     Com mouse/teclado, a caixa de texto; no toque, a conversa (focar a caixa subiria o teclado por cima do
+     "Analisando…") */
+  var ponteiroFino = function () { return !!(window.matchMedia && matchMedia('(pointer: fine)').matches); };
   function esconderAtalhos() {
-    if ($('o-atalhos').contains(document.activeElement) && !$('o-form').hidden) $('o-texto').focus({ preventScroll: true });
+    if ($('o-atalhos').contains(document.activeElement)) {
+      if (ponteiroFino() && !$('o-form').hidden) $('o-texto').focus({ preventScroll: true });
+      else $('o-log-caixa').focus({ preventScroll: true });
+    }
     $('o-atalhos').hidden = true;
   }
   var ultimaDoAgente = function () { var a = E ? E.mensagens.filter(function (m) { return m.papel === 'agente'; }) : []; return a.length ? a[a.length - 1].conteudo : ''; };
@@ -164,8 +187,8 @@
      segue o servidor: relê o estado (render redesenha a conversa se ela mudou) e só devolve o texto à caixa se o
      turno NÃO entrou */
   async function falhaNoEnvio(e, texto, minha, antes) {
+    ocupado(false);   /* (antes da releitura: se ela pendurar, a tela não fica presa no "Analisando") */
     try { await recarregar(); } catch (x) { /* sem conexão: decide pelo que já se sabe */ }
-    ocupado(false);
     var gravada = visitantesNoServidor() > antes;
     if (!gravada) {
       if (minha.isConnected) minha.remove();
@@ -237,13 +260,26 @@
     mostrar('o-sugestao', true);
   }
 
-  /* ---------- o contato ----------
-     O erro fica ligado ao campo (A7): aria-invalid nele; o aria-describedby do HTML aponta para a mensagem */
-  var CAMPOS_CONTATO = ['o-nome', 'o-tel', 'o-email', 'o-aceite'];
+  /* ---------- o erro ligado ao campo (A7) ----------
+     Só o campo com erro ganha aria-invalid e aria-describedby (apontando para a mensagem); ao ser corrigido
+     (input/change), ele perde os dois */
+  function marcarCampo(id, saidaId) { $(id).setAttribute('aria-invalid', 'true'); $(id).setAttribute('aria-describedby', saidaId); }
+  function desmarcarCampo(id) { $(id).removeAttribute('aria-invalid'); $(id).removeAttribute('aria-describedby'); }
   function erroNoCampo(campos, saida, id, texto) {
     saida.textContent = texto;
-    campos.forEach(function (c) { if (c === id) $(c).setAttribute('aria-invalid', 'true'); else $(c).removeAttribute('aria-invalid'); });
+    campos.forEach(function (c) { if (c === id) marcarCampo(c, saida.id); else desmarcarCampo(c); });
   }
+  function soltarAoCorrigir(campos) {
+    campos.forEach(function (c) {
+      var soltar = function () { if ($(c).getAttribute('aria-invalid') === 'true') desmarcarCampo(c); };
+      $(c).addEventListener('input', soltar);
+      $(c).addEventListener('change', soltar);
+    });
+  }
+
+  /* ---------- o contato ---------- */
+  var CAMPOS_CONTATO = ['o-nome', 'o-tel', 'o-email', 'o-aceite'];
+  soltarAoCorrigir(CAMPOS_CONTATO.concat(['o-confirmo']));
   function validarContato(d) {
     if (d.nome.length < 2) return ['o-nome', 'Informe seu nome.'];
     if (!d.telefone && !d.email) return ['o-tel', 'Informe o WhatsApp ou o e-mail.'];
@@ -425,7 +461,7 @@
     return umaAcao(async function () {
       limparAviso();
       try { await API.escolher(id); visor.fechar(); await recarregar(); irPara('o-ajustes'); }
-      catch (e) { falhou(e, e.status === 409 ? null : function () { escolher(id); }); }
+      catch (e) { visor.fechar(); falhou(e, e.status === 409 ? null : function () { escolher(id); }); }   /* (o aviso não fica atrás do fundo inerte do visor) */
     });
   }
 
@@ -458,6 +494,7 @@
       await recarregar().catch(function () {});
     } catch (e) {
       $('o-aj-resposta').textContent = '';
+      form.removeAttribute('aria-busy');   /* (antes da releitura: se ela pendurar, o formulário não fica preso) */
       /* (F2) a rede caiu com o ajuste em andamento: ele pode ter entrado. Relê antes de oferecer de novo */
       try { await recarregar(); } catch (x) { /* sem conexão */ }
       if (E && E.alteracoes.length > antes) { $('o-aj-texto').value = ''; return; }
@@ -502,9 +539,8 @@
     ev.preventDefault();
     var form = this, erro = $('o-esc-erro');
     if (form.getAttribute('aria-busy') === 'true') return;
-    if (!$('o-confirmo').checked) { erro.textContent = 'Marque a confirmação do escopo.'; $('o-confirmo').setAttribute('aria-invalid', 'true'); $('o-confirmo').focus(); return; }
-    erro.textContent = '';
-    $('o-confirmo').removeAttribute('aria-invalid');
+    if (!$('o-confirmo').checked) { erroNoCampo(['o-confirmo'], erro, 'o-confirmo', 'Marque a confirmação do escopo.'); $('o-confirmo').focus(); return; }
+    erroNoCampo(['o-confirmo'], erro, null, '');
     form.setAttribute('aria-busy', 'true');
     try { await API.confirmar(E.proposta.id, $('o-inicio').checked); await recarregar(); irPara('o-pagamento'); }
     catch (e) { if (sessaoTerminou(e)) avisarSessao(); else erro.textContent = mensagemDe(e); }
@@ -631,6 +667,7 @@
     var temProposta = !!(E.proposta && et === 'escopo');
     mostrar('o-escopo', temProposta);
     if (temProposta && mudou('escopo', E.proposta.escopo)) $('o-esc-texto').textContent = E.proposta.escopo;
+    if (et === 'aguardando_pagamento' && $('o-pagamento').hidden) delete assinaturas.pagamento;   /* (reapareceu: a tela de pagamento confere de novo, inclusive a configuração) */
     mostrar('o-pagamento', et === 'aguardando_pagamento');
     if (et === 'aguardando_pagamento') { viuAguardando = true; pagamento(); }
     var pronto = et === 'em_producao', chegou = pronto && $('o-pronto').hidden && viuAguardando;
@@ -713,8 +750,8 @@
       /* conversa que não existe mais: começa limpo. Sessão que o servidor recusou de vez: avisa e oferece
          recomeçar (F5). Falha de rede ou do servidor: a sessão fica, e o aviso oferece tentar de novo */
       if (e.status === 404 || e.status === 400) { API.esquecer(); return; }
-      if (sessaoTerminou(e) || !API.temSessao()) { avisarSessao(); return; }
-      avisar(mensagemDe(e), retomar);
+      if (sessaoTerminou(e) || !API.temSessao()) { avisarSessao(true); return; }
+      avisar(mensagemDe(e), retomar, null, true);
     }
   }
   retomar();
