@@ -60,7 +60,7 @@ test('CSP do /orcamento: sem origem que a página não usa (Google), com Mercado
 /* (auditoria 2026-10-09, segurança 1) o .vercelignore pode não valer num deploy feito pelo Git: o que é do repositório
    e não é página nem asset tem de ter uma regra no vercel.json que o tire do ar (o mesmo padrão de /docs e /supabase:
    redirect para a página inicial). A lista vem do próprio git: um arquivo ou pasta novo na raiz sem regra falha aqui. */
-const PUBLICO = new Set(['api/', 'assets/', 'css/', 'js/', 'vendor/', 'robots.txt', 'sitemap.xml']);
+const PUBLICO = new Set(['api/', 'assets/', 'css/', 'js/', 'vendor/', 'robots.txt', 'sitemap.xml', 'favicon.ico']);   /* (favicon.ico: os navegadores e robôs pedem /favicon.ico por padrão) */
 const ehPublico = nome => PUBLICO.has(nome) || /^[a-z0-9-]+\.(html|css)$/.test(nome);
 const REDIRECTS = JSON.parse(readFileSync(new URL('vercel.json', RAIZ), 'utf8')).redirects || [];
 /* a forma de caminho da Vercel (path-to-regexp): ":nome*" casa zero ou mais segmentos, ":nome" casa um trecho */
