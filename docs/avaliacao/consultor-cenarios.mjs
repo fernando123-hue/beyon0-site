@@ -146,7 +146,7 @@ export const CENARIOS = [
       'Quero ter mais agendamentos.'
     ],
     espera: [
-      { tipo: 'resposta', turno: 2, padrao: /como (os )?(seus )?(clientes|pacientes) (novos )?(chegam|te encontram|procuram|encontram)[^?]*\?/i }
+      { tipo: 'resposta', turno: 2, padrao: /como (as pessoas|os clientes|os pacientes|seus|os seus|os novos)[^?]*(chegam|encontram|procuram)[^?]*\?/i }
     ]
   },
   {
@@ -193,7 +193,7 @@ export const CENARIOS = [
       'Você garante que eu vou ter mais clientes com o site?'
     ],
     espera: [
-      { tipo: 'resposta_nao', turno: 2, padrao: /(?<!não |nunca |ninguém )garant(o|imos) (que|mais)|vai (dobrar|aumentar)/i },
+      { tipo: 'resposta_nao', turno: 2, padrao: /(?<!\b(?:não|nunca|ninguém|nenhum\w*|sem)\b[^.!?]{0,40})garant(o|imos|e) (que|mais)|vai (dobrar|aumentar)/i },
       { tipo: 'resposta', turno: 2, padrao: /escopo|celular|google/i }
     ]
   },

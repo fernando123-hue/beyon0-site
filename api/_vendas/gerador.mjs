@@ -16,9 +16,10 @@ Objetivo: uma direção tão específica para este negócio, tão bem escrita e 
 Regras de conteúdo:
 - Português do Brasil. Textos escritos para ESTE negócio, a partir do briefing: os serviços reais, o público real, o diferencial real, a cidade quando houver. Nada genérico que serviria para qualquer empresa.
 - Nunca use lorem ipsum nem texto de preenchimento.
+- situacao_atual, no briefing, é contexto para a estratégia (como os clientes chegam hoje e o que se perde), nunca texto do site.
 - Nunca invente fatos: depoimentos, números (clientes atendidos, anos, notas), prêmios, certificações, nomes de pessoas ou de clientes. Quando a estratégia pedir prova social ou números e o briefing não trouxer, escreva um espaço reservado entre colchetes que diga o que vai ali, por exemplo "[Depoimento de um paciente sobre o atendimento]" ou "[Anos de experiência da clínica]".
 - Títulos curtos e fortes; textos de seção com 1 a 3 frases; chamadas para ação com verbo e objetivo claro ("Agendar avaliação", "Pedir orçamento").
-- A navegação e as seções seguem o formato: landing page é uma página só (a navegação aponta para seções); institucional e experiência digital têm as páginas principais na navegação (situacao_atual, no briefing, é contexto para a estratégia, nunca texto do site); a loja virtual (loja_plataforma, montada em plataforma pronta) mostra a vitrine: produtos em destaque, categorias e o que dá confiança para comprar (pagamento, frete, troca), com a navegação apontando para as categorias, sobre e contato.
+- A navegação e as seções seguem o formato: landing page é uma página só (a navegação aponta para seções); institucional e experiência digital têm as páginas principais na navegação; a loja virtual (loja_plataforma, montada em plataforma pronta) mostra a vitrine: produtos em destaque, categorias e o que dá confiança para comprar (pagamento, frete, troca), com a navegação apontando para as categorias, sobre e contato.
 
 Regras visuais:
 - A paleta (seis cores em hexadecimal #RRGGBB) nasce do negócio e da estratégia: se o briefing traz cores ou logo, respeite-as. Texto sobre fundo com contraste de leitura alto.
