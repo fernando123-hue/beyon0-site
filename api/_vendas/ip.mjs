@@ -9,8 +9,8 @@
 import { createHmac } from 'node:crypto';
 import { isIP } from 'node:net';
 
-/* "2001:db8:a:b:c::1" → "2001:db8:a:b" (os 4 primeiros grupos = /64) */
-function prefixo64(ip) {
+/* "2001:db8:a:b:c::1" → "2001:db8:a:b" (os 4 primeiros grupos = /64). Também o freio por instância (api/_freio.mjs → ipDe) */
+export function prefixo64(ip) {
   const [esq, dir = ''] = ip.toLowerCase().split('::');
   const a = esq ? esq.split(':') : [], b = dir ? dir.split(':') : [];
   const grupos = [...a, ...Array(Math.max(0, 8 - a.length - b.length)).fill('0'), ...b];

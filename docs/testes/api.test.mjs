@@ -6,6 +6,9 @@ import assert from 'node:assert/strict';
 import { listar, criar } from '../../api/leads.mjs';
 import { validarNovoLead, normalizarTelefone } from '../../api/_valida-app.mjs';
 import { banco } from '../../api/_banco.mjs';
+import { criarFreio, ipDe } from '../../api/_freio.mjs';
+import { chaveDoIp } from '../../api/_vendas/ip.mjs';
+import { isIP } from 'node:net';
 
 const ENV = { SUPABASE_URL: 'https://falso.supabase.co', SUPABASE_CHAVE_PUBLICA: 'sb_publishable_teste', SUPABASE_CHAVE_SECRETA: 'sb_secret_NUNCA_NO_USUARIO' };
 const O1 = '11111111-0000-4000-8000-000000000001', O2 = '22222222-0000-4000-8000-000000000002';
@@ -158,4 +161,23 @@ test('freio: rajada do mesmo IP vira 429 antes de gastar o Auth', async () => {
   const authAntes = chamadas.filter(c => c.url.includes('/auth/v1/')).length;
   await listar(deIp(), ENV);
   assert.equal(chamadas.filter(c => c.url.includes('/auth/v1/')).length, authAntes, 'freado não chama o Auth');
+});
+
+/* (auditoria 2026-10-09, segurança 4) quem tem IPv6 tem um /64 inteiro e troca os 64 bits finais à vontade: o freio
+   conta pelo prefixo /64, como o freio diário do banco (api/_vendas/ip.mjs). IPv4 fica igual. */
+test('freio: IPv6 conta pelo prefixo /64; IPv4 e IPv4 mapeado contam pelo endereço', async () => {
+  const de = xff => ipDe(new Request('https://site.test/', { headers: xff ? { 'x-forwarded-for': xff } : {} }));
+  assert.equal(de('203.0.113.9'), '203.0.113.9');
+  assert.equal(de('203.0.113.9, 10.0.0.1'), '203.0.113.9', 'o primeiro da lista (o da Vercel)');
+  assert.equal(de(null), 'local');
+  assert.equal(de('::ffff:203.0.113.9'), '203.0.113.9', 'IPv4 mapeado é o próprio IPv4 (senão todos caíam no mesmo /64 ::ffff)');
+  const mesmaCasa = ['2001:db8:a:b:c:d:e:f', '2001:DB8:A:B::1', '2001:0db8:000a:000b:ffff::2'].map(de);
+  assert.equal(new Set(mesmaCasa).size, 1, 'o mesmo /64 é uma chave só: ' + mesmaCasa.join(' | '));
+  assert.notEqual(de('2001:db8:a:c::1'), mesmaCasa[0], 'outro /64, outra chave');
+  assert.equal(isIP(mesmaCasa[0]), 6, 'a chave continua um IPv6 válido (o freio diário do banco a usa)');
+  const dia = new Date('2026-10-09T12:00:00Z');
+  assert.equal(chaveDoIp(de('2001:db8:a:b::99'), 'segredo', dia), chaveDoIp('2001:db8:a:b:1:2:3:4', 'segredo', dia), 'o freio diário dá a mesma chave');
+  const freado = criarFreio({ max: 3, janelaMs: 60e3 });
+  const resultados = [1, 2, 3, 4].map(n => freado(de('2001:db8:a:b::' + n.toString(16)), 0));
+  assert.deepEqual(resultados, [false, false, false, true], 'trocar o fim do IPv6 não escapa do freio');
 });
