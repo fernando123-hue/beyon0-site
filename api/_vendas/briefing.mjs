@@ -7,6 +7,8 @@
    Dado de contato (nome da pessoa, telefone, e-mail) NÃO entra aqui: vem pelo
    formulário de contato e vai para app.leads, longe do modelo.
    ========================================================================== */
+import { FORMATOS } from './precos.mjs';   /* (os formatos que o briefing aceita são os do motor) */
+
 export const FUNCIONALIDADES = ['whatsapp', 'formulario', 'agendamento', 'mapa', 'blog', 'integracao', 'ia', 'area_restrita', 'automacao', 'catalogo', 'loja', 'idioma', 'galeria', 'depoimentos'];
 export const OBJETIVOS = ['gerar_leads', 'apresentar_empresa', 'vender', 'agendamentos', 'autoridade', 'captar_contatos', 'lancar_produto', 'outro'];
 const POSSE = ['tem', 'parcial', 'nao'];
@@ -34,7 +36,7 @@ export const ESQUEMA_ATUALIZACAO = {
     restricoes: { type: 'array', items: { type: 'string' } },
     funcionalidades: { type: 'array', items: { type: 'string', enum: FUNCIONALIDADES } },
     preferencias: { type: 'array', items: { type: 'string' } },
-    projeto: { type: 'object', additionalProperties: false, properties: { formato: { type: 'string', enum: ['landing_page', 'institucional', 'sob_medida'] }, paginas: { type: 'integer' }, urgencia: { type: 'boolean' }, complexidade: { type: 'string', enum: ['normal', 'alta'] } } }
+    projeto: { type: 'object', additionalProperties: false, properties: { formato: { type: 'string', enum: FORMATOS }, paginas: { type: 'integer' }, urgencia: { type: 'boolean' }, complexidade: { type: 'string', enum: ['normal', 'alta'] } } }
   }
 };
 
@@ -60,7 +62,7 @@ export function limparAtualizacao(a) {
   if (a.projeto) {
     const p = a.projeto;
     o.projeto = limpar({
-      formato: ['landing_page', 'institucional', 'sob_medida'].includes(p.formato) ? p.formato : undefined,
+      formato: FORMATOS.includes(p.formato) ? p.formato : undefined,
       paginas: Number.isInteger(p.paginas) && p.paginas >= 1 && p.paginas <= 60 ? p.paginas : undefined,
       urgencia: bool(p.urgencia),
       complexidade: ['normal', 'alta'].includes(p.complexidade) ? p.complexidade : undefined

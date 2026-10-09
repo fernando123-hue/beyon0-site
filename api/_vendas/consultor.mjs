@@ -39,6 +39,14 @@ function blocoAdicionais(regras) {
   return { automaticos, fora };
 }
 
+/* loja e área restrita (tabela v2): só entram nas instruções se a tabela ativa as traz */
+function linhasV2(regras) {
+  const linhas = [];
+  if (regras.formatos?.loja_plataforma) linhas.push('- Loja virtual: vender online com carrinho e pagamento, numa plataforma pronta (Nuvemshop ou Shopify), com a cara da marca. Se a pessoa precisa de uma loja feita do zero, em código próprio, isso vai para o diagnóstico.');
+  if (regras.adicionais?.area_restrita && !regras.adicionais.area_restrita.fora_do_automatico) linhas.push('- Área restrita com login (para associados, alunos, clientes) é um adicional; os extras dela (telas, perfis, cobrança de anuidade, documentos, importar usuários) só existem junto com ela.' + (regras.formatos?.loja_plataforma ? ' Numa loja em plataforma pronta, um login próprio costuma não ser viável: confirme com a pessoa antes de somar os dois.' : ''));
+  return linhas.length ? '\n' + linhas.join('\n') : '';
+}
+
 function blocoMultiplicadores(regras) {
   const m = regras.multiplicadores || {};
   const out = [];
@@ -57,13 +65,13 @@ export function montarSistema(regras, { direcoes = 'api' } = {}) {
 Entender o negócio da pessoa antes de vender qualquer coisa, montar o briefing, mostrar o investimento pela tabela da Beyon Zero e levar a pessoa até as três direções de site feitas para ela. A conversa tem de ser tão clara e segura que a pessoa consiga decidir sozinha, aqui mesmo.
 
 # O que a Beyon Zero faz
-Sites profissionais em três formatos:
+Sites e lojas nestes formatos:
 ${blocoFormatos(regras)}
 
 Como escolher o formato:
 - Landing page: um objetivo só (campanha, lançamento, anúncio), uma página em que cada bloco leva a uma ação.
 - Site institucional: apresentar a empresa, os serviços e por que confiar, em várias páginas, para quem chegou sem conhecer decidir procurar.
-- Experiência digital: quando o formato pronto não dá conta, com experiência visual própria, interações e animações, apresentações e interfaces fora do comum.
+- Experiência digital: quando o formato pronto não dá conta, com experiência visual própria, interações e animações, apresentações e interfaces fora do comum.${linhasV2(regras)}
 Se a pessoa não souber, recomende um formato com uma frase de motivo, a partir do objetivo dela.
 
 Adicionais que a tabela cobre (entram na estimativa quando a pessoa precisa): ${automaticos.join('; ')}.
@@ -170,30 +178,34 @@ export function ferramentas(regras) {
   ];
 }
 
-const NOMES_FALTA = { negocio: 'o que o negócio faz e para quem', objetivo: 'o objetivo do site', formato: 'o formato (landing page, institucional ou experiência digital)',
+const NOMES_FALTA = { negocio: 'o que o negócio faz e para quem', objetivo: 'o objetivo do site', formato: 'o formato (landing page, institucional, loja virtual ou experiência digital)',
   publico: 'o público', servicos: 'os serviços ou produtos que devem aparecer', conteudo: 'o material que já existe (textos, fotos, depoimentos)',
   identidade_visual: 'a identidade visual (logo, cores)', funcionalidades: 'as funcionalidades (WhatsApp, formulário, agendamento…)',
   posicionamento: 'como quer ser percebido e os diferenciais', referencias: 'referências de sites que gosta', restricoes: 'o que não quer' };
 /* as etapas de app.conversas.etapa (supabase/migrations/*vendas_tabelas*, *transicoes_conversa*) depois do contato */
 const ETAPAS_DA_TELA = ['gerando', 'direcoes', 'escolhida', 'alteracoes', 'escopo', 'aguardando_pagamento', 'em_producao', 'encerrada'];
-/* funcionalidades do briefing que a tabela não estima: vão para o diagnóstico (sem laço de "chame estimar") */
-const FORA_DO_AUTOMATICO = ['loja', 'area_restrita'];
+/* loja (tabela v2, 2026-10-09): em plataforma pronta é o formato loja_plataforma, com preço; só a feita do zero vai para o
+   diagnóstico. A área restrita virou adicional com preço e não passa mais por aqui */
+const LOJA = 'loja';
 
 /* o que fazer agora, pela ordem do funil (texto para o modelo; o código decide, o modelo executa).
    Na tela, o formulário de contato aparece sozinho quando há estimativa e ainda não há contato (js/orcamento.js);
    pedir_contato só leva a pessoa até ele. Na etapa 'contato' o contato JÁ chegou (vendas_informar_contato) */
-export function proximoPasso({ etapa, briefing, estimativa }) {
+export function proximoPasso({ etapa, briefing, estimativa, regras = null }) {
+  /* sem a tabela, vale a v2; com ela, a loja só é vendável se a tabela ativa a traz */
+  const temLoja = !regras || !!regras.formatos?.loja_plataforma;
   const b = briefing || {};
   if (ETAPAS_DA_TELA.includes(etapa)) return 'O orçamento já segue pelos blocos da tela (etapa ' + etapa + '). Responda dúvidas em poucas frases e indique o próximo bloco na tela; não chame estimar nem pedir_contato.';
   if (etapa === 'contato') return 'O contato já foi recebido: as três direções saem pelo botão "Gerar as três direções" na tela. Responda dúvidas e indique esse botão; chame estimar de novo só se o escopo mudar; não chame pedir_contato.';
   /* (a lista do briefing só soma: quem desiste da loja e já foi estimado sem ela segue o funil) */
-  if (!estimativa && (b.funcionalidades || []).some(f => FORA_DO_AUTOMATICO.includes(f))) return 'O projeto pede algo fora da estimativa automática (loja virtual com pagamento ou área restrita com login): chame encaminhar_diagnostico, se ainda não chamou, e explique em uma frase; não chame estimar com esse item. Se a pessoa desistir desse item e quiser só o site, chame estimar sem ele.';
+  if (!estimativa && (b.funcionalidades || []).includes(LOJA) && !temLoja) return 'O projeto pede uma loja virtual, que a tabela atual não estima: chame encaminhar_diagnostico, se ainda não chamou, e explique em uma frase; não chame estimar com a loja. Se a pessoa desistir da loja e quiser só o site, chame estimar sem ela.';
+  if (!estimativa && (b.funcionalidades || []).includes(LOJA) && b.projeto?.formato !== 'loja_plataforma') return 'A pessoa quer vender online. Pergunte se uma loja em plataforma pronta (Nuvemshop ou Shopify), com a cara da marca, resolve: se sim, o formato é loja_plataforma e dá para estimar. Se ela precisa de uma loja feita do zero, em código próprio, chame encaminhar_diagnostico e explique em uma frase; não chame estimar com o adicional loja_virtual. Se a pessoa desistir da loja e quiser só o site, chame estimar sem ela.';
   const { confianca, faltam } = avaliar(b);
   if (!prontoParaEstimar(b)) {
     const falta = faltam.find(f => ['negocio', 'objetivo', 'formato'].includes(f)) || faltam[0];
     return 'Descobrir ' + NOMES_FALTA[falta] + '. Uma pergunta só, concreta.' + (falta === 'formato' ? ' Se a pessoa não souber, recomende um formato com uma frase de motivo e confirme.' : '');
   }
-  if (!estimativa) return 'Já dá para estimar: chame estimar agora com o formato e o que já se sabe do escopo, e diga que o investimento está no cartão.';
+  if (!estimativa) return 'Já dá para estimar: chame estimar agora com o formato e o que já se sabe do escopo' + ((b.funcionalidades || []).includes('area_restrita') ? ' (inclua o adicional area_restrita; os extras dela só se a pessoa pediu)' : '') + ', e diga que o investimento está no cartão.';
   if (confianca < LIMIAR_DIRECOES) {
     const proximos = faltam.slice(0, 2).map(f => NOMES_FALTA[f]).join(' e ');
     return 'Estimativa já mostrada; o formulário de contato já aparece na tela, abaixo do cartão. Antes de oferecer as direções, complete o briefing: falta ' + proximos + ' (uma pergunta por vez).';

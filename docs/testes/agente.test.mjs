@@ -159,8 +159,15 @@ test('contato só depois da estimativa; falha e recusa do modelo não inventam r
   await assert.rejects(executarTurno({ ia: roteiro([{ parada: 'recusa', texto: '', chamadas: [] }]), regras: REGRAS, conversa: nova(), mensagem: 'oi' }), e => e.motivo === 'recusa');
 });
 
-test('fora do automático (loja virtual) vai para o diagnóstico, sem preço', async () => {
-  const r = await executarTurno({ ia: criarSimulada(), regras: REGRAS, conversa: nova(), mensagem: 'Tenho uma loja de roupas e quero um site institucional para vender online com loja virtual' });
+test('loja em plataforma pronta tem preço pela tabela (tabela v2)', async () => {
+  const r = await executarTurno({ ia: criarSimulada(), regras: REGRAS, conversa: nova(), mensagem: 'Tenho uma loja de roupas e quero vender online com loja virtual, para aumentar as vendas' });
+  assert.equal(r.diagnostico, null, 'não vai para o diagnóstico');
+  assert.equal(r.estimativa?.formato?.chave, 'loja_plataforma');
+  assert.equal(r.estimativa.valor_total, 4800, 'o preço vem do motor');
+});
+
+test('fora do automático (loja feita do zero) vai para o diagnóstico, sem preço', async () => {
+  const r = await executarTurno({ ia: criarSimulada(), regras: REGRAS, conversa: nova(), mensagem: 'Tenho uma loja de roupas e quero um site institucional para vender online com loja virtual feita do zero, em código próprio' });
   assert.equal(r.estimativa, null);
   assert.ok(r.diagnostico);
 });

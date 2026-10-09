@@ -26,6 +26,9 @@ function extrair(texto, briefing) {
   if (/landing/i.test(texto)) formato = 'landing_page';
   else if (/sob medida|experi[êe]ncia digital|apresenta[çc][ãa]o|lan[çc]amento|anima[çc]/i.test(texto)) formato = 'sob_medida';
   else if (/institucional|site (completo|profissional|mais profissional)|p[áa]ginas|um site/i.test(texto)) formato = 'institucional';
+  /* loja: em plataforma pronta é formato com preço (tabela v2); feita do zero vai para o diagnóstico */
+  const loja = /loja virtual|e-?commerce|vender online/i.test(texto), lojaDoZero = loja && /do zero|c[óo]digo pr[óo]prio|sob medida|personalizad/i.test(texto);
+  if (loja && !lojaDoZero) formato = 'loja_plataforma';
   const pag = texto.match(/(\d{1,2})\s*p[áa]ginas/i);
   if (formato || pag) a.projeto = { ...(formato ? { formato } : {}), ...(pag ? { paginas: Number(pag[1]) } : {}) };
   const funcs = FUNCS.filter(([r]) => r.test(texto)).map(x => x[1]);
@@ -33,7 +36,7 @@ function extrair(texto, briefing) {
   if (/para (pacientes|clientes|empresas|fam[íi]lias|jovens)[^.]*/i.test(texto)) a.publico = { descricao: texto.match(/para (pacientes|clientes|empresas|fam[íi]lias|jovens)[^.]*/i)[0].slice(0, 200) };
   if (/tenho logo|j[áa] tenho (a )?logo/i.test(texto)) a.identidade_visual = { tem_logo: true };
   if (/sem fotos|n[ãa]o tenho fotos/i.test(texto)) a.conteudo = { imagens: 'nao' };
-  if (/loja virtual|e-?commerce|vender online/i.test(texto)) a.funcionalidades = [...(a.funcionalidades || []), 'loja'];
+  if (lojaDoZero) a.funcionalidades = [...(a.funcionalidades || []), 'loja'];
   return a;
 }
 

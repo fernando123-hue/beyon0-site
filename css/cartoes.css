@@ -169,6 +169,7 @@
 .servico__para { font-size: var(--fs-s); line-height: 1.5; color: var(--t3); }
 .servico__formatos { display: none; }
 @media (min-width: 721px) { .servicos { grid-template-columns: repeat(3, minmax(0, 1fr)); } .servico { min-height: 300px; } }
+@media (min-width: 721px) and (max-width: 980px) { .servicos--quatro { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 /* Automação: o fecho do atendente (o botão do teste e a letra miúda, que diz o que é pago e por quem) */
 .atendente__fecho { display: flex; flex-direction: column; align-items: flex-start; gap: 1rem; margin-top: clamp(24px, 4vw, 40px); }
 .atendente__nota { max-width: 62ch; font-size: var(--fs-s); line-height: 1.55; color: var(--t2); }
@@ -188,6 +189,7 @@
   .servico__formatos b { display: none; }
   /* Sites: os três formatos são iguais (sem cartão gigante) */
   .servicos--pilha > *, .servicos--pilha > :first-child { grid-column: span 4; grid-row: auto; }
+  .servicos--quatro > *, .servicos--quatro > :first-child { grid-column: span 3; }
   .servicos--pilha > :first-child h3 { margin-top: 0; font-size: var(--h3-cartao); }
   .servicos--pilha > :first-child .servico__link, .servicos--pilha .servico__link { margin-top: auto; }
 }
