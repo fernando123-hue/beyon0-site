@@ -32,7 +32,7 @@ export const REGRAS_GERAIS = [
   /* o vendedor (consultor v2) persuade sem mentir: o que ele diz vale como promessa da empresa (CDC art. 30 e 37) */
   ['sem urgência falsa', r => !/só hoje|últimas vagas|promoç|o preço vai subir|\bcorra\b|antes que acabe|por tempo limitado/i.test(r)],
   /* (a negação pode vir umas palavras antes: "ninguém sério garante resultado", "eu não te garanto que…") */
-  ['sem promessa de resultado', r => !/(?<!\b(?:não|nunca|ninguém|nenhum\w*|sem)\b[^.!?]{0,40})garant(o|imos|e) (mais|que (você|vai)|resultado)|vai (dobrar|triplicar)|primeira página do google|topo do google|primeiro lugar no google|retorno garantido|garantia de retorno|resultados? em \d+ dias/i.test(r)],
+  ['sem promessa de resultado', r => !/(?<!\b(?:não|nunca|ninguém|nenhum\w*|sem)\b[^.!?,:]{0,40})garant(o|imos|e) (mais|que (você|vai)|resultado)|vai (dobrar|triplicar)|primeira página do google|topo do google|primeiro lugar no google|retorno garantido|garantia de retorno|resultados? em \d+ dias/i.test(r)],
   ['sem prova inventada', r => !/nossos clientes|dezenas de (empresas|clientes)|centenas de|estudos mostram|pesquisas mostram|a maioria das (empresas|clínicas|lojas)/i.test(r)]
 ];
 

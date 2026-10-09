@@ -254,7 +254,7 @@ test('vendedor: o avaliador barra urgência falsa, promessa de resultado e prova
   const { REGRAS_GERAIS } = await import('../avaliacao/consultor.mjs');
   const falhas = r => REGRAS_GERAIS.filter(([, ok]) => !ok(r)).map(([n]) => n);
   for (const r of ['Fecha hoje que é só hoje.', 'Restam as últimas vagas do mês.', 'Aproveite a promoção.']) assert.ok(falhas(r).includes('sem urgência falsa'), r);
-  for (const r of ['Garanto mais clientes.', 'O site vai dobrar suas vendas.', 'Você fica na primeira página do Google.']) assert.ok(falhas(r).includes('sem promessa de resultado'), r);
+  for (const r of ['Garanto mais clientes.', 'Não se preocupe, garanto mais clientes.', 'Sem dúvida: garanto resultado.', 'O site vai dobrar suas vendas.', 'Você fica na primeira página do Google.']) assert.ok(falhas(r).includes('sem promessa de resultado'), r);
   for (const r of ['Nossos clientes adoram.', 'Atendemos dezenas de empresas.', 'Estudos mostram que funciona.']) assert.ok(falhas(r).includes('sem prova inventada'), r);
   /* o que o consultor deve dizer passa */
   for (const r of ['Topo do Google em semanas.', 'Oferta por tempo limitado.', 'Resultados em 30 dias.']) assert.ok(falhas(r).length, 'escapava: ' + r);
