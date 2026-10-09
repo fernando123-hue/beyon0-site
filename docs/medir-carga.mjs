@@ -173,7 +173,8 @@ try {
      CADA pedido pelo Node e mudaria os números que se quer medir (revisão técnica) */
   const soLocal = '--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE 127.0.0.1';
   const grafico = GPU ? ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'] : ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'];
-  nav = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined, args: [soLocal, ...grafico] });
+  /* (sem proxy: com um proxy no sistema o Chrome entregaria o nome a ele, sem passar pela regra acima) */
+  nav = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined, args: [soLocal, '--no-proxy-server', ...grafico] });
   const todas = [];
   for (const pagina of PAGINAS) {
     /* aquecimento em cada versão: a 1ª carga do headless sobe o processo de GPU (CLAUDE.md) e o servidor de cada
@@ -183,7 +184,8 @@ try {
       for (const v of (k % 2 ? [...versoes].reverse() : versoes)) {
         const r = { versao: v.nome, pagina, perfil: PERFIL, gpu: GPU, ...(await rodada(nav, v.base, pagina)) };
         todas.push(r);
-        registro.push({ quando: new Date().toISOString(), pasta: v.pasta, ...r });
+        /* (soLocal: o regime com a rede externa bloqueada; linhas antigas do mesmo dia não têm a marca) */
+        registro.push({ quando: new Date().toISOString(), pasta: v.pasta, soLocal: true, ...r });
         writeFileSync(SAIDA, JSON.stringify(registro, null, 1));
         process.stdout.write('.');
       }
