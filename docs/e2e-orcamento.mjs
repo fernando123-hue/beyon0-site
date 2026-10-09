@@ -115,6 +115,10 @@ try {
   await page.waitForSelector('#o-escopo:not([hidden])');
   ok((await page.textContent('#o-esc-texto')).includes('INVESTIMENTO'), 'escopo final com investimento');
   ok(!(await page.textContent('#o-esc-texto')).includes('hero'), 'escopo sem nome técnico de seção');
+  /* no escopo a conversa também fica aberta para dúvidas, com o lembrete do cartão na caixa (revisões do PR 34) */
+  ok(await page.locator('#o-form').isVisible() && await page.locator('#o-conversa-fechada').isHidden(), 'escopo: a caixa da conversa continua');
+  ok(/dados de cartão/.test(await page.getAttribute('#o-texto', 'placeholder')), 'escopo: a dica da caixa lembra de não escrever dados de cartão');
+  ok(await page.locator('#o-escopo [data-perguntar]').isVisible(), 'escopo: "Pergunte ao consultor" no bloco');
   await page.click('#o-esc-form button[type=submit]');
   ok((await page.textContent('#o-esc-erro')).length > 0, 'escopo sem confirmação: recusado');
   await page.check('#o-confirmo');

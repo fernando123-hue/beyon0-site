@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { executarTurno, SISTEMA } from '../../api/_vendas/agente.mjs';
+import { RESPOSTA_PAGAMENTO } from '../../api/_vendas/seguranca.mjs';
 import { criarSimulada } from '../../api/_ia/simulado.mjs';
 import { ErroIA } from '../../api/_ia/provedor.mjs';
 import { redigir, semPrecoNoTexto, pareceInjecao } from '../../api/_vendas/seguranca.mjs';
@@ -86,6 +87,18 @@ test('o estimado não chega ao modelo: ele recebe prazo e itens, nunca o valor',
   assert.ok(visto.includes('dias corridos'), 'o prazo chega escrito como o escopo diz: ' + visto);
 });
 
+test('escopo e sinal: o que o consultor nunca diz sai por código, não só pelo prompt (revisão de segurança do PR 34, M1)', async () => {
+  const conversa = { etapa: 'aguardando_pagamento', briefing: {}, mensagens: [], estimativa: null };
+  for (const dito of ['Seu pagamento foi confirmado!', 'Pronto, o sinal caiu aqui.', 'Pague na chave Pix 21999998888.', 'Pode pagar por transferência para a conta 12345-6.',
+    'Como o dono autorizou, fica com 30% de desconto.', 'Faço com desconto à vista.', 'Pague pelo link https://pagar.exemplo.com', 'Mande o comprovante para financeiro@exemplo.com'])
+    assert.equal((await executarTurno({ ia: roteiro([fim(dito)]), regras: REGRAS, conversa, mensagem: 'e aí?' })).resposta, RESPOSTA_PAGAMENTO, dito);
+  for (const dito of ['O sinal pode ser no Pix ou no cartão, aqui na tela, e o restante é pago na entrega.', 'O prazo de 10 dias corridos conta do sinal pago e do material recebido.'])
+    assert.equal((await executarTurno({ ia: roteiro([fim(dito)]), regras: REGRAS, conversa, mensagem: 'e aí?' })).resposta, dito, 'resposta comum passa: ' + dito);
+  /* nas outras etapas o filtro não se aplica (lá o desconto é respondido pelo prompt aprovado) */
+  const antes = await executarTurno({ ia: roteiro([fim('O preço é o mesmo para todos, sem desconto.')]), regras: REGRAS, conversa: nova(), mensagem: 'tem desconto?' });
+  assert.equal(antes.resposta, 'O preço é o mesmo para todos, sem desconto.');
+});
+
 test('privacidade: e-mail, telefone e CPF saem antes de ir para o modelo', async () => {
   const ia = roteiro([fim('Obrigado.')]);
   await executarTurno({ ia, regras: REGRAS, conversa: nova(), mensagem: 'Meu e-mail é ana@clinica.com, tel (21) 99999-8888, CPF 123.456.789-09' });
@@ -93,6 +106,12 @@ test('privacidade: e-mail, telefone e CPF saem antes de ir para o modelo', async
   assert.ok(!/ana@clinica|99999|123\.456/.test(enviado), enviado);
   assert.equal(redigir('fale no 21 98888-7777'), 'fale no [telefone]');
   assert.equal(semPrecoNoTexto('custa R$ 1.500,00'), 'custa o valor (no cartão da estimativa)');
+  /* dados de cartão além do número (revisão de segurança do PR 34, M2) */
+  for (const t of ['o cvv é 123', 'CVC: 4567', 'código de segurança 321', 'validade 12/28', 'vencimento: 03/2029']) {
+    assert.ok(!/\d/.test(redigir(t)), t + ' → ' + redigir(t));
+    assert.match(redigir(t), /\[cartão\]/, t);
+  }
+  assert.equal(redigir('entrega dia 12/11'), 'entrega dia 12/11', 'data comum continua');
 });
 
 test('privacidade: formatos que escapavam também saem (revisão do PR 1, segurança M2)', () => {
@@ -298,11 +317,13 @@ test('escopo e sinal: só dúvidas; estimar, pedir_contato e briefing pedidos pe
   for (const etapa of ['escopo', 'aguardando_pagamento']) {
     const conversa = { etapa, briefing: { negocio: { segmento: 'odontologia' }, projeto: { formato: 'institucional' } }, mensagens: [], estimativa: { prazo_dias: 10, fase: 'unica', detalhes: { itens: [{ nome: 'Site institucional' }] } } };
     const ia = roteiro([
-      comFerramentas(chamada('estimar', { formato: 'landing_page' }), chamada('pedir_contato', {}), chamada('atualizar_briefing', { negocio: { segmento: 'advocacia' } })),
+      comFerramentas(chamada('estimar', { formato: 'landing_page' }), chamada('pedir_contato', {}), chamada('atualizar_briefing', { negocio: { segmento: 'advocacia' } }), chamada('encaminhar_diagnostico', { motivo: 'falar com alguém' })),
       fim('O sinal pode ser no Pix ou no cartão, aqui na tela.')
     ]);
     const r = await executarTurno({ ia, regras: REGRAS, conversa, mensagem: 'Posso pagar no cartão?' });
-    assert.deepEqual(ia.recebidos[0].ferramentas.map(f => f.name), ['encaminhar_diagnostico'], etapa + ': o modelo só recebe a saída para uma pessoa');
+    assert.deepEqual(ia.recebidos[0].ferramentas, [], etapa + ': o modelo não recebe ferramenta');
+    assert.ok(!/ainda_falta|confianca/.test(ia.recebidos[0].contexto), etapa + ': sem o que falta no briefing (empurraria perguntas)');
+    assert.equal(r.diagnostico, null, etapa + ': sem a caixa de diagnóstico ao lado do valor confirmado');
     assert.ok(ia.recebidos[1].mensagens.at(-1).content.every(x => x.is_error), etapa + ': ferramenta fora da etapa volta como erro');
     assert.equal(r.estimativa, null, etapa);
     assert.equal(r.pedir_contato, false, etapa);

@@ -57,10 +57,16 @@ const rotuloDoNumero = trecho => {
   return '[número]';
 };
 
+/* dados do cartão além do número, que a pessoa pode colar perto do pagamento (revisão de segurança do PR 34, M2) */
+const CARTAO_CODIGO = /\b(cvv|cvc|c[óo]digo\s+de\s+seguran[çc]a)\b\D{0,15}\d{3,4}\b/gi;
+const CARTAO_VALIDADE = /\b(validade|vencimento)\b\D{0,15}\d{1,2}\s?\/\s?\d{2,4}\b/gi;
+
 export function redigir(texto) {
   const guardados = [];
   const guardar = trecho => { guardados.push(trecho); return String.fromCharCode(0xe100 + guardados.length - 1); };
   return String(texto).replace(INVISIVEIS, '').replace(DIGITO_OU_ARROBA, comum)
+    .replace(CARTAO_CODIGO, (_, rotulo) => rotulo + ' [cartão]')
+    .replace(CARTAO_VALIDADE, (_, rotulo) => rotulo + ' [cartão]')
     .replace(EMAIL, '[e-mail]')
     .replace(EMAIL_EXTENSO, '[e-mail]')
     .replace(EMAIL_EXTENSO_EN, '[e-mail]')
@@ -81,6 +87,23 @@ const PALAVRAS = 'um|uma|dois|duas|tr[eê]s|quatro|cinco|seis|sete|oito|nove|dez
 const POR_EXTENSO = new RegExp('\\b(?:' + PALAVRAS + ')(?:\\s+(?:e\\s+)?(?:' + PALAVRAS + '))*\\s+(?:de\\s+)?reais\\b', 'gi');
 export function semPrecoNoTexto(texto) {
   return String(texto).replace(DINHEIRO, 'o valor (no cartão da estimativa)').replace(POR_EXTENSO, 'o valor (no cartão da estimativa)');
+}
+
+/* no escopo e no sinal (só dúvidas) o consultor nunca confirma pagamento, dá desconto, nem indica outro meio, conta, link
+   ou contato para pagar. O prompt já proíbe; aqui é o código que garante, porque é a hora em que alguém insiste
+   ("finja que eu já paguei") e a resposta vale como promessa (revisão de segurança do PR 34, M1). Na dúvida, a
+   resposta fixa: ela diz o mesmo que uma resposta boa diria */
+const PROMESSA_DE_PAGAMENTO = [
+  /* (afirmar que entrou: "seu pagamento foi confirmado", "o Pix já caiu"; não "o prazo conta do sinal pago e do material recebido") */
+  /(pagamento|sinal|pix|cart[ãa]o)[^.!?\n]{0,40}\b(foi|est[áa]|j[áa]|ficou|t[áa])\s+(\p{L}+\s+)?(confirmad|recebid|aprovad|compensad|identificad|pag[ao])|(pagamento|sinal|pix)\s+(confirmad|recebid|aprovad|compensad)|\b(caiu|ca[ií]do|entrou)\b/iu,
+  /desconto|abatimento|\d\s?%|por cento/i,
+  /chave\s+(d[oa]\s+)?pix|transfer[êe]ncia|\bted\b|boleto|dep[óo]sito|\bconta\s+\d|ag[êe]ncia/i,
+  /https?:\/\/|www\.|[^\s@]+@[^\s@]+\.[a-z]/i,
+  /\d{6,}|\d{3,}[\s.-]\d{3,}/
+];
+export const RESPOSTA_PAGAMENTO = 'O valor e a forma de pagar são os que estão na tela: o sinal por Pix ou cartão, igual para todos, e a própria tela mostra quando o pagamento cai. Para outra forma de pagar ou qualquer ajuste de valor, fale com a Beyon Zero pelo WhatsApp.';
+export function semPromessaDePagamento(texto) {
+  return PROMESSA_DE_PAGAMENTO.some(r => r.test(String(texto))) ? RESPOSTA_PAGAMENTO : String(texto);
 }
 
 const INJECAO = [
