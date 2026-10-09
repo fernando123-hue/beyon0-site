@@ -18,7 +18,7 @@ const ORDEM = {
 
 export function gerarSimulado({ mensagens }) {
   const txt = mensagens[0].content;
-  const briefing = JSON.parse(txt.split('BRIEFING DO CLIENTE:\n')[1].split('\n\n')[0]);
+  const briefing = JSON.parse(txt.split('<briefing>\n')[1].split('\n</briefing>')[0]);   /* (o delimitador de gerador.mjs) */
   const estrategia = /AUTORIDADE/.test(txt) ? 'autoridade' : /EXPERIÊNCIA/.test(txt) ? 'experiencia' : 'conversao';
   const neg = briefing.negocio || {};
   const marca = neg.nome || (neg.segmento ? 'Sua ' + neg.segmento : 'Sua empresa');
