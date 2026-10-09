@@ -224,11 +224,6 @@
       "permanent": false
     },
     {
-      "source": "/README.md",
-      "destination": "/",
-      "permanent": false
-    },
-    {
       "source": "/vercel.json",
       "destination": "/",
       "permanent": false
