@@ -60,9 +60,10 @@ function certificado(pasta) {
   const tls = { TLS_CERT: join(pasta, 'cert.pem'), TLS_CHAVE: join(pasta, 'chave.pem') };
   try {
     execFileSync(process.env.OPENSSL || 'openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '2', '-subj', '/CN=127.0.0.1',
-      '-keyout', tls.TLS_CHAVE, '-out', tls.TLS_CERT], { stdio: 'ignore', cwd: pasta });
+      '-keyout', tls.TLS_CHAVE, '-out', tls.TLS_CERT], { stdio: ['ignore', 'ignore', 'pipe'], cwd: pasta });
   } catch (e) {
-    throw new Error('H2=1 precisa do openssl (' + e.code + '): rode pelo Git Bash, ou aponte OPENSSL para o executável');
+    if (e.code === 'ENOENT') throw new Error('H2=1 precisa do openssl, que não está no PATH: rode pelo Git Bash, ou aponte OPENSSL para o executável');
+    throw new Error('o openssl falhou (saída ' + e.status + '): ' + String(e.stderr || '').trim().slice(0, 300));
   }
   return tls;
 }
@@ -95,8 +96,6 @@ function sondas() {
 
 async function rodada(nav, base, pagina) {
   const ctx = await nav.newContext({ ...CELULAR, ignoreHTTPSErrors: H2 });
-  /* só o servidor local: nada de fora entra na medida (e o ignoreHTTPSErrors não vale para outro destino) */
-  await ctx.route(/^https?:\/\/(?!127\.0\.0\.1[:/])/, r => r.abort());
   const page = await ctx.newPage();
   const erros = [];
   /* pedidos locais que falharam ou voltaram >= 400: uma pasta errada ou um preload com caminho errado aparecem
@@ -125,8 +124,9 @@ async function rodada(nav, base, pagina) {
       pedidos: recursos.length + 1, protocolo: nav.nextHopProtocol, classes: window.__m.classes
     };
   });
+  const errosDaRodada = [...erros];   /* (antes de fechar: um pedido em voo cancelado no fechamento não é erro da página) */
   await ctx.close();
-  return { ...r, erros };
+  return { ...r, erros: errosDaRodada };
 }
 
 /* mediana de verdade (com N par, a média dos dois do meio); valores ausentes ficam de fora, e quem imprime diz quantos */
@@ -142,7 +142,8 @@ function relatorio(todas) {
   for (const pagina of PAGINAS) for (const v of versoes) {
     const rs = todas.filter(r => r.pagina === pagina && r.versao === v.nome);
     const nucleos = rs.map(r => r.classes['tem-nucleo']).filter(x => typeof x === 'number');
-    const esfera = nucleos.length ? 'esfera ' + mediana(nucleos) + ' (montou ' + nucleos.length + '/' + rs.length + ')' : '';
+    /* com GPU, sempre: "montou 0/N" numa versão é justamente o pior caso a ver */
+    const esfera = nucleos.length || GPU ? 'esfera ' + (mediana(nucleos) ?? '-') + ' (montou ' + nucleos.length + '/' + rs.length + ')' : '';
     const lcpEls = [...new Set(rs.map(r => r.lcpEl))].join(' | ');
     const erros = rs.flatMap(r => r.erros);
     console.log([pagina.padEnd(15), v.nome, 'FCP', mediana(rs.map(r => r.fcp)), 'LCP', mediana(rs.map(r => r.lcp)), 'DCL', mediana(rs.map(r => r.dcl)),
@@ -151,12 +152,15 @@ function relatorio(todas) {
   }
 }
 
-/* Ctrl-C: sai pelo exit do Node, que leva os filhos junto (no Windows eles ficariam segurando as portas) */
+/* Ctrl-C não passa pelo finally: mata os filhos (no Windows ficariam segurando as portas) e apaga a chave aqui */
 const servidores = [];
-const encerrar = () => { for (const p of servidores) p.kill(); };
+const pastaTls = H2 ? mkdtempSync(join(tmpdir(), 'bz-medir-')) : null;
+const encerrar = () => {
+  for (const p of servidores) p.kill();
+  if (pastaTls) rmSync(pastaTls, { recursive: true, force: true });   /* (a chave não fica para trás) */
+};
 process.on('SIGINT', () => { encerrar(); process.exit(130); });
 
-const pastaTls = H2 ? mkdtempSync(join(tmpdir(), 'bz-medir-')) : null;
 let nav = null;
 try {
   const tls = H2 ? certificado(pastaTls) : {};
@@ -164,7 +168,12 @@ try {
     v.base = (H2 ? 'https' : 'http') + '://127.0.0.1:' + (PORTA_INICIAL + i);
     servidores.push(await servir(v.pasta, PORTA_INICIAL + i, tls));
   }
-  nav = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined, args: GPU ? ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'] : ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
+  /* só 127.0.0.1 resolve: nada de fora entra na medida, e o ignoreHTTPSErrors não alcança outro destino (revisão de
+     segurança). Pela resolução de nomes do próprio Chrome, sem interceptar pedido: uma rota do Playwright passaria
+     CADA pedido pelo Node e mudaria os números que se quer medir (revisão técnica) */
+  const soLocal = '--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE 127.0.0.1';
+  const grafico = GPU ? ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'] : ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'];
+  nav = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined, args: [soLocal, ...grafico] });
   const todas = [];
   for (const pagina of PAGINAS) {
     /* aquecimento em cada versão: a 1ª carga do headless sobe o processo de GPU (CLAUDE.md) e o servidor de cada
@@ -182,7 +191,6 @@ try {
   }
   relatorio(todas);
 } finally {
-  if (nav) await nav.close();
+  if (nav) await nav.close().catch(() => { /* Chrome travado ou caído: a limpeza abaixo roda assim mesmo */ });
   encerrar();
-  if (pastaTls) rmSync(pastaTls, { recursive: true, force: true });   /* (a chave não fica para trás) */
 }

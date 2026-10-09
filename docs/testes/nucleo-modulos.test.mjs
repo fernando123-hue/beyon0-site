@@ -9,10 +9,11 @@ import { readFileSync } from 'node:fs';
 const RAIZ = new URL('../../', import.meta.url);
 const ler = caminho => readFileSync(new URL('.' + caminho, RAIZ), 'utf8');
 
-/* os import estáticos de um módulo, resolvidos como o navegador resolve (relativos ao próprio arquivo) */
+/* os import estáticos de um módulo (e os `export … from`, que também puxam módulo), resolvidos como o navegador resolve
+   (relativos ao próprio arquivo). O import() dinâmico dentro da esfera não entra: hoje não há nenhum */
 function importsDe(caminho) {
   const fonte = ler(caminho);
-  const especificadores = [...fonte.matchAll(/^\s*import\s+(?:[^'"]*?\s+from\s+)?['"]([^'"]+)['"]/gm)].map(m => m[1]);
+  const especificadores = [...fonte.matchAll(/^\s*(?:import|export)\s+(?:[^'"]*?\s+from\s+)?['"]([^'"]+)['"]/gm)].map(m => m[1]);
   return especificadores.map(e => new URL(e, 'https://x' + caminho).pathname);
 }
 
