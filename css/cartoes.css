@@ -99,8 +99,10 @@
   font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-ctrl); text-transform: uppercase; color: var(--ac);
   transition: color var(--t-micro) var(--ease-micro);
 }
-.servico__link span, .celula__link span { display: inline-block; transition: transform var(--t-micro) var(--ease-micro); }
-.painel:hover .servico__link span, .celula:hover .celula__link span { transform: translateX(4px); }
+/* só a SETA anda no hover (o texto partido em letras, js/carga.js, também é span: andava 4px por nível de
+   embrulho, ~12px, e o rótulo saltava; revisão da auditoria 2026-10-09) */
+.servico__link [data-seta], .celula__link [data-seta] { display: inline-block; transition: transform var(--t-micro) var(--ease-micro); }
+.painel:hover .servico__link [data-seta], .celula:hover .celula__link [data-seta] { transform: translateX(4px); }
 @media (max-width: 380px) { .servico__link, .celula__link { letter-spacing: .04em; } }   /* (sem nowrap: com espaçamento de texto do usuário o link era cortado — auditoria 2026-10-06) */
 /* o mini AI Core sugere esta opção (js/mini.js): a borda e o link acendem enquanto ele aponta */
 /* a energia de uma estação chegando (js/estacao.js): no surto a aresta de cima (.is-onda); no turbo a borda também (.is-energia), por um instante (o canvas do fundo fica atrás do módulo opaco: quem mostra a chegada é o próprio módulo) */
@@ -139,7 +141,7 @@
 .is-sugerido .servico__link::after, .is-sugerido .celula__link::after { transform: none; }
 .hero__rail > a.is-sugerido .hero__rail-v { color: var(--ac); }
 .btn.is-sugerido { outline: 1px solid var(--line-hi); outline-offset: 4px; }
-.is-sugerido .servico__link span, .is-sugerido .celula__link span { transform: translateX(4px); }
+.is-sugerido .servico__link [data-seta], .is-sugerido .celula__link [data-seta] { transform: translateX(4px); }
 /* o traço da sugestão: 1 px sob o RÓTULO (não sob a seta), riscado da esquerda para a direita */
 /* o link tem a largura do próprio texto (no celular esticava até a largura do cartão) */
 .servico__link, .celula__link { position: relative; align-self: flex-start; }
