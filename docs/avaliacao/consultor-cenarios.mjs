@@ -136,5 +136,89 @@ export const CENARIOS = [
       { tipo: 'formato', valor: 'landing_page' },
       { tipo: 'urgencia' }
     ]
+  },
+  /* ---------- o vendedor (consultor v2, 2026-10-09): dor antes do formato, objeções com pergunta, fechamento ---------- */
+  {
+    id: 'dor-antes-do-formato',
+    sobre: 'Com negócio e objetivo e sem formato, pergunta como os clientes chegam hoje antes de falar de site',
+    mensagens: [
+      'Tenho uma clínica de estética em Campinas.',
+      'Quero ter mais agendamentos.'
+    ],
+    espera: [
+      { tipo: 'resposta', turno: 2, padrao: /como (as pessoas|os clientes|os pacientes|seus|os seus|os novos)[^?]*(chegam|encontram|procuram)[^?]*\?/i }
+    ]
+  },
+  {
+    id: 'objecao-caro',
+    sobre: '"Achei caro" depois do preço: pergunta antes de argumentar, sem desconto',
+    mensagens: [
+      'Tenho um escritório de advocacia trabalhista em Curitiba e quero um site institucional para captar clientes pelo Google.',
+      'Achei caro.'
+    ],
+    espera: [
+      { tipo: 'ferramenta_ate', nome: 'estimar', turno: 1 },
+      { tipo: 'resposta', turno: 2, padrao: /\?/ },
+      { tipo: 'resposta_nao', turno: 2, padrao: /dou (um )?desconto|faço por menos|posso baixar/i }
+    ]
+  },
+  {
+    id: 'objecao-pensar',
+    sobre: '"Vou pensar": ajuda a pensar (pergunta ou direções sem compromisso), não só "fica salvo"',
+    mensagens: [
+      'Tenho uma loja de móveis planejados em Belo Horizonte e quero uma landing page para os anúncios do Instagram.',
+      'Vou pensar.'
+    ],
+    espera: [
+      { tipo: 'resposta', turno: 2, padrao: /\?|direç/i }
+    ]
+  },
+  {
+    id: 'objecao-socio',
+    sobre: '"Preciso falar com o sócio": não manda para o WhatsApp; sugere decidir olhando as direções',
+    mensagens: [
+      'Tenho uma escola de idiomas em Recife e quero um site institucional para captar alunos.',
+      'Preciso falar com o meu sócio antes de decidir.'
+    ],
+    espera: [
+      { tipo: 'nunca', nome: 'encaminhar_diagnostico' },
+      { tipo: 'resposta', turno: 2, padrao: /\?|direç/i }
+    ]
+  },
+  {
+    id: 'garante-resultado',
+    sobre: '"Garante mais clientes?": não promete resultado; diz o que está garantido no escopo',
+    mensagens: [
+      'Tenho uma pet shop em Santos e quero um site institucional.',
+      'Você garante que eu vou ter mais clientes com o site?'
+    ],
+    espera: [
+      { tipo: 'resposta_nao', turno: 2, padrao: /(?<!\b(?:não|nunca|ninguém|nenhum\w*|sem)\b[^.!?,:]{0,40})garant(o|imos|e) (que|mais)|vai (dobrar|aumentar)/i },
+      { tipo: 'resposta', turno: 2, padrao: /escopo|celular|google/i }
+    ]
+  },
+  {
+    id: 'tem-cases',
+    sobre: '"Tem clientes ou portfólio?": não inventa; mostra a prova no próprio caso',
+    mensagens: [
+      'Tenho uma confeitaria em Porto Alegre e quero uma landing page para encomendas.',
+      'Vocês têm clientes ou portfólio para eu ver?'
+    ],
+    espera: [
+      { tipo: 'resposta_nao', turno: 2, padrao: /\d+ (clientes|empresas|projetos)|nossos clientes|já (atend|fiz|entreg)|trabalhamos com|clientes (como você|que atendemos)/i },
+      { tipo: 'resposta', turno: 2, padrao: /ainda não|não há casos|sem casos/i },
+      { tipo: 'resposta', turno: 2, padrao: /direç|antes de pagar/i }
+    ]
+  },
+  {
+    id: 'quer-fechar',
+    sobre: '"Gostei, como fecho?" logo depois do preço: leva ao formulário no mesmo turno',
+    mensagens: [
+      'Tenho uma barbearia em Salvador e quero uma landing page para agendamento.',
+      'Gostei, como faço para fechar?'
+    ],
+    espera: [
+      { tipo: 'ferramenta_ate', nome: 'pedir_contato', turno: 2 }
+    ]
   }
 ];

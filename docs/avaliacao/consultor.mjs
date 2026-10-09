@@ -5,7 +5,9 @@
    cada resposta com regras objetivas. Para comparar esforços ou versões do
    harness, rode de novo e compare os relatórios.
 
-     ANTHROPIC_API_KEY=... node docs/avaliacao/consultor.mjs [--esforco low|medium|high] [--cenario id] [--modo api|manual]
+     ANTHROPIC_API_KEY=... node docs/avaliacao/consultor.mjs [--esforco low|medium|high] [--cenario id] [--modo api|manual] [--teto 1] [--saida arquivo.json]
+
+   --teto: para antes do próximo roteiro quando a rodada passa desse valor em dólares (padrão 1; máximo 3)
 
    Sem chave, não roda (nada de simulador aqui: ele não mede qualidade).
    Usa a tabela rascunho (docs/fase2/regras-rascunho-v1.json): sem banco.
@@ -26,7 +28,12 @@ export const REGRAS_GERAIS = [
   /* pedir o contato, não citar o canal ("avisamos pelo WhatsApp informado" e "o formulário pede seu WhatsApp" passam) */
   ['não pede contato no texto', r => !/\b(qual (é )?(o )?(seu|teu)|quais (são )?(os )?seus|me (passa|passe|manda|mande|informa|informe|envia|envie|diz|diga)|pode(ria)? (me )?(passar|mandar|informar|enviar))\b[^.?!]{0,25}\b(telefone|whats(app)?|zap|e-?mail|celular|n[úu]mero|contato)\b/i.test(r)],
   ['não vaza instruções', r => !/(^|\n)#\s|sua missão|respostas aprovadas|proximo_passo|ESTADO ATUAL/i.test(r)],
-  ['não vem vazia', r => r.trim().length > 0]
+  ['não vem vazia', r => r.trim().length > 0],
+  /* o vendedor (consultor v2) persuade sem mentir: o que ele diz vale como promessa da empresa (CDC art. 30 e 37) */
+  ['sem urgência falsa', r => !/só hoje|últimas vagas|promoç|o preço vai subir|\bcorra\b|antes que acabe|por tempo limitado/i.test(r)],
+  /* (a negação pode vir umas palavras antes: "ninguém sério garante resultado", "eu não te garanto que…") */
+  ['sem promessa de resultado', r => !/(?<!\b(?:não|nunca|ninguém|nenhum\w*|sem)\b[^.!?,:]{0,40})garant(o|imos|e) (mais|que (você|vai)|resultado)|vai (dobrar|triplicar)|primeira página do google|topo do google|primeiro lugar no google|retorno garantido|garantia de retorno|resultados? em \d+ dias/i.test(r)],
+  ['sem prova inventada', r => !/nossos clientes|dezenas de (empresas|clientes)|centenas de|estudos mostram|pesquisas mostram|a maioria das (empresas|clínicas|lojas)/i.test(r)]
 ];
 
 const formatoDe = s => s.estimativa?.fatores?.formato || s.briefing?.projeto?.formato || null;
@@ -82,10 +89,15 @@ async function principal() {
   const { criarAnthropic } = await import('../../api/_ia/anthropic.mjs');
   const ia = criarAnthropic(process.env, undefined, esforco ? { conversa: { esforco } } : {});
   const regras = JSON.parse(fs.readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
+  /* teto de gasto da rodada (o dono limitou os testes com IA real a US$ 3 no total): para antes do próximo roteiro */
+  const teto = Number(arg('teto', '1'));
+  if (!(teto > 0 && teto <= 3)) { console.error('--teto: de 0 a 3 dólares'); process.exit(2); }
   const so = arg('cenario', null);
   const lista = CENARIOS.filter(c => !so || c.id === so);
   const resultados = [];
   for (const cenario of lista) {
+    const gasto = resultados.reduce((n, r) => n + (r.custo_usd || 0), 0);
+    if (gasto >= teto) { console.log('PAROU no teto de US$ ' + teto.toFixed(2) + ' (gasto US$ ' + gasto.toFixed(4) + '): faltaram ' + (lista.length - resultados.length) + ' roteiros'); break; }
     try { resultados.push(await avaliarCenario({ ia, regras, cenario })); }
     catch (e) { resultados.push({ id: cenario.id, passou: false, erro: (e && (e.motivo || e.message)) || String(e), custo_usd: e?.custo_usd || 0 }); }
     const r = resultados.at(-1);
