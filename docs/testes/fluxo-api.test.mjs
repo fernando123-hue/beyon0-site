@@ -620,9 +620,32 @@ test('conversa encerrada para o agente: não chama o modelo (sem custo) e respon
   const contando = { ...deps, ia: { ...base, mensagem: p => { chamadas++; return base.mensagem(p); } } };
   const n = navegador(contando);
   const s = await n.iniciar();
-  await local.db.exec(`begin; set local bz.transicao_livre = 'on'; update app.conversas set etapa = 'aguardando_pagamento' where id = '${s.conversa_id}'; commit;`);
+  await local.db.exec(`begin; set local bz.transicao_livre = 'on'; update app.conversas set etapa = 'em_producao' where id = '${s.conversa_id}'; commit;`);
   assert.equal((await n.chamar('POST', 'mensagem', { conversa_id: s.conversa_id, texto: 'oi' })).status, 409);
   assert.equal(chamadas, 0);
+});
+
+test('conversa aberta até o pagamento: no escopo e na tela do sinal a pessoa pergunta e o consultor responde, sem mexer em preço, contato ou briefing (PROPOSTA de 2026-10-09, §4, 3b)', async () => {
+  for (const etapa of ['escopo', 'aguardando_pagamento']) {
+    const n = navegador();
+    const c = (await n.iniciar()).conversa_id;
+    await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Tenho uma clínica e quero um site institucional para agendamentos' });
+    const ler = async () => (await n.chamar('GET', 'estado', undefined, { query: '&conversa=' + c })).corpo;
+    const estimativas = async () => Number((await local.db.query('select count(*) as n from app.estimativas where conversa_id = $1', [c])).rows[0].n);
+    const antes = await ler(), estAntes = await estimativas();
+    await local.db.exec(`begin; set local bz.transicao_livre = 'on'; update app.conversas set etapa = '${etapa}' where id = '${c}'; commit;`);
+    /* (o dublê do modelo tenta registrar e estimar uma landing page com blog: a etapa não deixa) */
+    const r = await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Sou advogado e queria uma landing page com blog. O sinal pode ser no cartão?' });
+    assert.equal(r.status, 200, etapa + ': ' + JSON.stringify(r.corpo));
+    assert.ok(r.corpo.resposta.length > 0, etapa);
+    assert.equal(r.corpo.estimativa, null, etapa + ': sem estimativa nova');
+    assert.equal(r.corpo.pedir_contato, false, etapa);
+    const depois = await ler();
+    assert.equal(depois.conversa.etapa, etapa, etapa + ': a etapa não anda pela conversa');
+    assert.deepEqual(depois.conversa.briefing, antes.conversa.briefing, etapa + ': o briefing não muda');
+    assert.equal(depois.mensagens.length, antes.mensagens.length + 2, etapa + ': pergunta e resposta gravadas');
+    assert.equal(await estimativas(), estAntes, etapa + ': nenhuma estimativa gravada');
+  }
 });
 
 test('trocar de direção só antes do 1º ajuste (os ajustes são da direção escolhida)', async () => {

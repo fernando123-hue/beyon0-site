@@ -115,12 +115,32 @@ try {
   await page.waitForSelector('#o-escopo:not([hidden])');
   ok((await page.textContent('#o-esc-texto')).includes('INVESTIMENTO'), 'escopo final com investimento');
   ok(!(await page.textContent('#o-esc-texto')).includes('hero'), 'escopo sem nome técnico de seção');
+  /* no escopo a conversa também fica aberta para dúvidas, com o lembrete do cartão na caixa (revisões do PR 34) */
+  ok(await page.locator('#o-form').isVisible() && await page.locator('#o-conversa-fechada').isHidden(), 'escopo: a caixa da conversa continua');
+  ok(/dados de cartão/.test(await page.getAttribute('#o-texto', 'placeholder')), 'escopo: a dica da caixa lembra de não escrever dados de cartão');
+  ok(await page.locator('#o-escopo [data-perguntar]').isVisible(), 'escopo: "Pergunte ao consultor" no bloco');
   await page.click('#o-esc-form button[type=submit]');
   ok((await page.textContent('#o-esc-erro')).length > 0, 'escopo sem confirmação: recusado');
   await page.check('#o-confirmo');
   await page.click('#o-esc-form button[type=submit]');
   await page.waitForSelector('#o-pagamento:not([hidden])');
   await foto(page, '4-pagamento-cel');
+
+  /* a conversa segue aberta para dúvidas até o sinal (PROPOSTA de 2026-10-09, §4, 3b) */
+  ok(await page.locator('#o-form').isVisible(), 'tela do sinal: a caixa da conversa continua');
+  ok(await page.locator('#o-conversa-fechada').isHidden(), 'tela do sinal: sem o aviso de conversa fechada');
+  const respostasAntes = await page.locator('#o-log .msg--agente').count();
+  await page.click('#o-pagamento [data-perguntar]');
+  ok(await page.evaluate(() => document.activeElement && document.activeElement.id === 'o-texto'), '"Pergunte ao consultor" leva à caixa da conversa');
+  await page.fill('#o-texto', 'Quando eu pago o restante?');
+  await page.click('#o-enviar');
+  await page.waitForFunction(n => document.querySelectorAll('#o-log .msg--agente').length > n, respostasAntes, { timeout: 30000 });
+  const fim = await page.$$eval('#o-log .msg', l => l.slice(-2).map(x => x.className.replace('msg msg--', '') + ': ' + x.textContent));
+  ok(/^visitante: Quando eu pago/.test(fim[0]) && /^agente: /.test(fim[1]), 'tela do sinal: a resposta vem logo depois da pergunta (' + JSON.stringify(fim) + ')');
+  await page.waitForFunction(() => !document.getElementById('o-pagamento').hidden && document.getElementById('o-pronto').hidden);
+  ok(true, 'a dúvida não muda a etapa: o sinal continua esperando');
+  await page.waitForTimeout(800);   /* (a caixa da conversa rola com suavidade até a resposta) */
+  await foto(page, '4b-duvida-no-sinal-cel');
 
   /* pagamento: dados do pagador, cartão recusado, depois Pix (QR) e a confirmação SÓ pelo aviso do provedor */
   await page.click('#o-pag-enviar');

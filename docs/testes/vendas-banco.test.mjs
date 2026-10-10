@@ -215,3 +215,22 @@ test('retenção: o ajuste de conversa parada fica sem o texto inteiro (pedido, 
   /* a regra "aplicada tem resultado" continua valendo para ajuste novo */
   assert.ok(await erroDe(db.query(`insert into app.alteracoes (org_id, conversa_id, direcao_id, pedido, status) values ('${ORG}', '${ids.conversa}', '${ids.direcoes[1]}', 'x', 'aplicada')`)), 'ajuste aplicado sem resultado: recusado');
 });
+
+test('conversa aberta até o pagamento: no escopo e no sinal o turno grava pergunta e resposta, mas não mexe no briefing nem na confiança; em produção, nada (PROPOSTA de 2026-10-09, §4, 3b)', async () => {
+  const esc = await conversaAte(V1, 'escopo');
+  const pag = await conversaAte(V1, 'confirmada');
+  for (const ids of [esc, pag]) {
+    const base = { conversa_id: ids.conversa, visitante_id: V1 };
+    const ler = async () => (await db.query('select etapa, briefing, confianca, turnos from app.conversas where id = $1', [ids.conversa])).rows[0];
+    const antes = await ler();
+    await rpc('vendas_registrar_turno', { ...base, mensagem_visitante: 'O sinal pode ser no cartão?', mensagem_agente: 'Pode, por Pix ou cartão, aqui na tela.', briefing: { negocio: { segmento: 'advocacia' } }, confianca: 0.1, custo_usd: 0.002 });
+    const depois = await ler();
+    assert.equal(depois.etapa, antes.etapa);
+    assert.deepEqual(depois.briefing, antes.briefing, antes.etapa + ': o briefing do escopo confirmado não muda');
+    assert.equal(Number(depois.confianca), Number(antes.confianca), antes.etapa);
+    assert.equal(depois.turnos, antes.turnos + 1, antes.etapa + ': o turno conta (teto de turnos)');
+  }
+  assert.equal((await db.query('select etapa from app.conversas where id = $1', [pag.conversa])).rows[0].etapa, 'aguardando_pagamento');
+  await db.exec(`begin; set local bz.transicao_livre = 'on'; update app.conversas set etapa = 'em_producao' where id = '${pag.conversa}'; commit;`);
+  assert.equal((await erroDe(rpc('vendas_registrar_turno', { conversa_id: pag.conversa, visitante_id: V1, mensagem_visitante: 'x', mensagem_agente: 'y' })))?.codigo, ETAPA, 'em produção: a conversa com o agente acabou');
+});

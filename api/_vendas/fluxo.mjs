@@ -22,14 +22,16 @@ import { ErroPagamento } from '../_pagamentos/servico.mjs';
 import { ipDe } from '../_freio.mjs';
 import { chaveDoIp } from './ip.mjs';
 import { AuthIndisponivel } from '../_supabase.mjs';
+import { ETAPAS_SO_DUVIDAS } from './consultor.mjs';
 
 import { ORG } from './org.mjs';
 export { ORG };
 export const RECUPERACAO = 'Não consegui concluir a análise neste momento. Suas informações foram preservadas. Vamos continuar de onde paramos.';
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const ORIGENS = ['anuncio', 'busca', 'social', 'mensagem', 'email', 'referencia', 'direto'];
-/* etapas em que a conversa com o agente ainda vale (depois disso, o fluxo segue pelos blocos da página) */
-const CONVERSA_ABERTA = ['descoberta', 'estimativa', 'contato', 'direcoes', 'escolhida', 'alteracoes'];
+/* etapas em que a conversa com o agente ainda vale: até o sinal, e no escopo e no sinal só para dúvidas (ETAPAS_SO_DUVIDAS);
+   depois do sinal pago, o fluxo segue pelos blocos da página */
+const CONVERSA_ABERTA = ['descoberta', 'estimativa', 'contato', 'direcoes', 'escolhida', 'alteracoes', ...ETAPAS_SO_DUVIDAS];
 /* etapas que aceitam ajuste (= app.vendas_registrar_alteracao): conferidas ANTES de chamar o modelo */
 const AJUSTE_ABERTO = ['escolhida', 'alteracoes'];
 /* a trava de "uma resposta de IA por vez" dura o pior caso que cabe na função (300 s na Vercel) */
@@ -174,16 +176,19 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       if (e instanceof ErroIA) await banco('vendas_registrar_evento', { conversa_id: conversaId, visitante_id: vid, tipo: 'ia_falhou', dados: { motivo: e.motivo } }).catch(() => {});
       throw e;
     }
-    /* o custo do turno é gravado junto com as mensagens; se a gravação falhar, ele entra assim mesmo */
-    await banco('vendas_registrar_turno', { conversa_id: conversaId, visitante_id: vid, mensagem_visitante: redigir(msg), mensagem_agente: r.resposta, briefing: r.briefing, confianca: r.confianca, custo_usd: r.custo_usd })
+    /* o custo do turno é gravado junto com as mensagens; se a gravação falhar, ele entra assim mesmo. No escopo e no sinal
+       (só dúvidas) o briefing e a confiança ficam como estão: o escopo já foi montado com eles */
+    const soDuvidas = ETAPAS_SO_DUVIDAS.includes(est.conversa.etapa);
+    await banco('vendas_registrar_turno', { conversa_id: conversaId, visitante_id: vid, mensagem_visitante: redigir(msg), mensagem_agente: r.resposta,
+      ...(soDuvidas ? {} : { briefing: r.briefing, confianca: r.confianca }), custo_usd: r.custo_usd })
       .catch(async e => { await somarCusto(conversaId, vid, r.custo_usd); throw e; });
     let estimativa = null;
-    if (r.estimativa) {
+    if (r.estimativa && !soDuvidas) {
       await banco('vendas_registrar_estimativa', { conversa_id: conversaId, visitante_id: vid, regras_id: regras.id, fatores: r.estimativa.fatores,
         valor_total: r.estimativa.valor_total, sinal: r.estimativa.sinal, prazo_dias: r.estimativa.prazo_dias, fase: r.estimativa.fase, detalhes: r.estimativa });
       estimativa = cartao(r.estimativa);
     }
-    return { resposta: r.resposta, estimativa, pedir_contato: r.pedir_contato, diagnostico: r.diagnostico, sugestoes_ia: r.sugestoes_ia, confianca: r.confianca };
+    return { resposta: r.resposta, estimativa, pedir_contato: !soDuvidas && r.pedir_contato, diagnostico: r.diagnostico, sugestoes_ia: r.sugestoes_ia, confianca: r.confianca };
   }
 
   return {

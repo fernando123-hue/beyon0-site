@@ -287,3 +287,24 @@ test('vendedor: a dor vem antes do formato, a recomendação vem com o preço, e
   assert.match(contato, /no máximo 2 perguntas rápidas sobre [^.]+, para as direções/);
   assert.match(contato, /não chame pedir_contato/);
 });
+
+test('conversa aberta até o pagamento: no escopo e no sinal o consultor só tira dúvidas (PROPOSTA de 2026-10-09, §4, 3b)', () => {
+  /* nenhuma ferramenta: estimar, pedir_contato e o briefing já não cabem depois do escopo, e o diagnóstico mostraria
+     "não tem valor automático" ao lado do valor confirmado (revisão técnica do PR 34, M1) */
+  for (const etapa of ['escopo', 'aguardando_pagamento'])
+    assert.deepEqual(ferramentas(REGRAS, { etapa }), [], etapa);
+  for (const etapa of ['descoberta', 'estimativa', 'contato', 'alteracoes'])
+    assert.equal(ferramentas(REGRAS, { etapa }).length, 5, etapa);
+  const esc = proximoPasso({ etapa: 'escopo', briefing: {}, estimativa: null });
+  assert.match(esc, /Escopo final/);
+  assert.match(esc, /Confirmar o escopo/);
+  assert.match(esc, /WhatsApp/, 'mudança de escopo agora é pelo WhatsApp: os ajustes fecharam');
+  const pag = proximoPasso({ etapa: 'aguardando_pagamento', briefing: {}, estimativa: null });
+  assert.match(pag, /Pix ou cartão/);
+  assert.match(pag, /nunca diga que o pagamento/i);
+  for (const p of [esc, pag]) {
+    assert.match(p, /não chame estimar nem pedir_contato/i);
+    /* o que está ou não incluído é do escopo, não da memória do modelo (revisões do PR 34: técnica B3, segurança M3) */
+    assert.match(p, /incluído[^.]*não afirme[^.]*Escopo final/i);
+  }
+});
