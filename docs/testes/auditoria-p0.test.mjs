@@ -178,7 +178,7 @@ test('P0 freio no banco: conversas que usam a IA por IP por dia têm limite; o I
   assert.ok((await local.db.query(`select 1 from app.eventos_funil where conversa_id = $1 and tipo = 'freio_ip'`, [passou.conversa])).rows.length, 'o dono vê o freio no funil');
   assert.equal((await porIp('203.0.113.78')('Tenho uma padaria e quero um site')).status, 200, 'outro IP segue livre');
   const chaves = (await local.db.query('select chave from privado.freio_ip')).rows.map(r => r.chave);
-  assert.ok(chaves.length >= 2 && chaves.every(c => /^[0-9a-f]{64}$/.test(c) && !c.includes('203')), 'só o HMAC (64 hex), nunca o IP');
+  assert.ok(chaves.length >= 2 && chaves.every(c => /^[0-9a-f]{64}$/.test(c) && !c.includes('203.0.113')), 'só o HMAC (64 hex), nunca o IP');   /* (o IP inteiro: um hex qualquer pode conter "203" por acaso, e a chave muda com o dia; em 2026-10-11 continha) */
 });
 
 test('P0 freio: a mesma conversa conta uma vez só; sem segredo ou servidor local, não conta', async () => {

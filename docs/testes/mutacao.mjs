@@ -34,8 +34,10 @@ const SABOTAGENS = [
     de: 'if not exists (select 1 from privado.transicoes_conversa t where t.de = old.etapa and t.para = new.etapa) then', para: 'if false then' },
   /* ---- a retenção: quem pagou não perde a conversa ---- */
   /* (a função vendas_reter vive na migration MAIS NOVA que a redefine: sabotar a antiga não tinha efeito) */
-  { nome: 'retenção apaga a conversa de quem pagou', arquivo: '20261009130000_retencao_ajustes.sql', testes: ['docs/testes/fluxo-api.test.mjs'],
-    de: "pg.status in ('pago', 'estornado', 'contestado')", para: "pg.status in ('estornado', 'contestado')" }
+  { nome: 'retenção apaga a conversa de quem pagou', arquivo: '20261011120000_retencao_pagos_e_contato.sql', testes: ['docs/testes/fluxo-api.test.mjs'],
+    de: "pg.status in ('pago', 'estornado', 'contestado')", para: "pg.status in ('estornado', 'contestado')" },
+  { nome: 'retenção apaga a prova de um pagamento contestado', arquivo: '20261011120000_retencao_pagos_e_contato.sql', testes: ['docs/testes/fluxo-api.test.mjs'],
+    de: "and pg.status = 'contestado');", para: "and false);" }
 ];
 
 let pegas = 0;

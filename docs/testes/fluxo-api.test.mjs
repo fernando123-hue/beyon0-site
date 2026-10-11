@@ -469,7 +469,7 @@ async function cobranca(conversaId, leadId, org, status, diasAtras = 0) {
   if (diasAtras) await noPassado('pagamentos', pg, 'created_at', diasAtras);
 }
 
-test('retenção: o texto de conversa parada sem fechar some; a com cobrança pendente recente ou paga fica', async () => {
+test('retenção: o texto de conversa parada sem fechar some em 2 meses; o de quem pagou, em 30 dias (menos contestação); briefing, proposta e contato de quem pagou ficam', async () => {
   const velha = navegador(), pendente = navegador(), paga = navegador(), desistiu = navegador(), estornada = navegador(), contestada = navegador();
   const ss = await Promise.all([velha, pendente, paga, desistiu, estornada, contestada].map(n => n.iniciar()));
   const [sv, sp, sg, sd, se, sc] = ss;
@@ -484,27 +484,44 @@ test('retenção: o texto de conversa parada sem fechar some; a com cobrança pe
   const le = await leadDaConversa(se.conversa_id, 'Estornou'), lc = await leadDaConversa(sc.conversa_id, 'Contestou');
   await cobranca(se.conversa_id, le.id, le.org, 'estornado', 100);   /* houve dinheiro: registro legal */
   await cobranca(sc.conversa_id, lc.id, lc.org, 'contestado', 100);
+  /* (como na vida real: o sinal foi pago, o projeto começou e depois o pagamento foi contestado) */
+  await local.db.exec(`begin; set local bz.transicao_livre = 'on'; update app.conversas set etapa = 'em_producao' where id = '${sc.conversa_id}'; commit;`);
   for (const s of ss) await noPassado('conversas', s.conversa_id, 'ultima_atividade', 120);
   await assert.rejects(local.rpc('vendas_reter', { dias: 7 }), e => e.codigo === '22023', 'menos de 30 dias: recusado');
+  /* quem pagou há pouco: o texto ainda fica (30 dias, decisão do dono 2026-10-09) */
+  const recente = navegador(), sr = await recente.iniciar();
+  await recente.chamar('POST', 'mensagem', { conversa_id: sr.conversa_id, texto: 'Tenho uma escola e quero um site institucional para captar matrículas' });
+  await local.db.exec(`begin; set local bz.transicao_livre = 'on'; update app.conversas set etapa = 'aguardando_pagamento' where id = '${sr.conversa_id}'; commit;`);
+  const lr = await leadDaConversa(sr.conversa_id, 'Pagou há pouco');
+  await cobranca(sr.conversa_id, lr.id, lr.org, 'pago');
+  await noPassado('conversas', sr.conversa_id, 'ultima_atividade', 20);
+  const briefingPago = (await local.db.query('select briefing from app.conversas where id = $1', [sg.conversa_id])).rows[0].briefing;
   const r = await local.rpc('vendas_reter', {});
-  assert.equal(r.dias, 60, 'o padrão é 2 meses (decisão do dono, 2026-10-07)');
+  assert.equal(r.dias, 60, 'o texto de quem não fechou: 2 meses (decisão do dono, 2026-10-07)');
+  assert.equal(r.dias_pagos, 30, 'o texto de quem pagou: 30 dias (decisão do dono, 2026-10-09)');
   const msgs = async c => (await local.db.query('select count(*)::int n from app.mensagens where conversa_id = $1', [c])).rows[0].n;
   assert.equal(await msgs(sv.conversa_id), 0, 'conversa velha sem contrato: texto apagado');
   assert.equal(await msgs(sd.conversa_id), 0, 'aceitou o escopo, o Pix venceu e não pagou: também sai (a etapa não protege mais)');
   assert.equal(await msgs(sp.conversa_id), 2, 'cobrança pendente recente: fica');
-  assert.equal(await msgs(sg.conversa_id), 2, 'pagou: fica');
-  assert.equal(await msgs(se.conversa_id), 2, 'estornado: fica (registro)');
-  assert.equal(await msgs(sc.conversa_id), 2, 'contestado: fica');
+  assert.equal(await msgs(sg.conversa_id), 0, 'pagou há mais de 30 dias: o texto da conversa sai');
+  assert.equal(await msgs(se.conversa_id), 0, 'estornado há mais de 30 dias: o texto sai');
+  assert.equal(await msgs(sc.conversa_id), 2, 'contestado: fica enquanto a disputa durar (é a prova)');
+  assert.equal(await msgs(sr.conversa_id), 2, 'pagou há 20 dias: fica');
+  /* de quem pagou, só o texto da conversa sai: o briefing (base do projeto), a proposta, o pagamento e o contato ficam */
+  assert.deepEqual((await local.db.query('select briefing from app.conversas where id = $1', [sg.conversa_id])).rows[0].briefing, briefingPago, 'pagou: o briefing fica');
+  assert.ok((await local.db.query('select 1 from app.propostas where conversa_id = $1', [sg.conversa_id])).rows.length, 'pagou: a proposta fica');
+  assert.equal((await local.db.query('select nome from app.leads where id = $1', [lg.id])).rows[0].nome, 'Pagou', 'pagou: o contato fica');
   assert.deepEqual((await local.db.query('select briefing from app.conversas where id = $1', [sv.conversa_id])).rows[0].briefing, {});
   assert.ok((await local.db.query('select 1 from app.estimativas where conversa_id = $1', [sv.conversa_id])).rows.length, 'o número do funil fica');
 });
 
-test('retenção de contato: o lead do orçamento com IA de quem não fechou é anonimizado em 2 meses; o resto fica (decisão do dono, 2026-10-07)', async () => {
+test('retenção de contato: o lead do orçamento com IA de quem não fechou é anonimizado em 12 meses; o resto fica (decisões do dono, 2026-10-07 e 2026-10-11)', async () => {
   const q = (sql, p) => local.db.query(sql, p);
   const novo = async () => { const n = navegador(); const s = await n.iniciar(); return s.conversa_id; };
-  const [cVelha, cAtiva, cNegocia, cGanho, cProjeto, cCobra] = await Promise.all([novo(), novo(), novo(), novo(), novo(), novo()]);
+  const [cVelha, cAtiva, cNegocia, cGanho, cProjeto, cCobra, cMeses] = await Promise.all([novo(), novo(), novo(), novo(), novo(), novo(), novo()]);
   const velho = await leadDaConversa(cVelha, 'Velho');
   const ativo = await leadDaConversa(cAtiva, 'Ativo');
+  const meses = await leadDaConversa(cMeses, 'Parado há 70 dias');
   const negocia = await leadDaConversa(cNegocia, 'Negociando', { status: 'proposta' });
   const ganhoLead = await leadDaConversa(cGanho, 'Ganho');
   const cliente = (await q(`insert into app.clientes (org_id, nome) values ($1, 'Cliente') returning id`, [ganhoLead.org])).rows[0].id;
@@ -515,13 +532,17 @@ test('retenção de contato: o lead do orçamento com IA de quem não fechou é 
   await cobranca(cCobra, comCobranca.id, comCobranca.org, 'expirado', 100);   /* não trava a rotina (a FK de pagamentos) */
   /* lead manual (painel: indicação), sem conversa: a carteira do dono, nunca tocada */
   const manual = (await q(`insert into app.leads (org_id, nome, telefone, origem_meio, status) values ($1, 'Indicação do João', '+5521988887777', 'indicacao', 'novo') returning id`, [velho.org])).rows[0].id;
-  for (const c of [cVelha, cNegocia, cGanho, cProjeto, cCobra]) await noPassado('conversas', c, 'ultima_atividade', 70);
-  for (const l of [velho.id, ativo.id, negocia.id, ganhoLead.id, comProjeto.id, comCobranca.id, manual]) await noPassado('leads', l, 'updated_at', 70);
+  for (const c of [cVelha, cNegocia, cGanho, cProjeto, cCobra]) await noPassado('conversas', c, 'ultima_atividade', 370);
+  for (const l of [velho.id, ativo.id, negocia.id, ganhoLead.id, comProjeto.id, comCobranca.id, manual]) await noPassado('leads', l, 'updated_at', 370);
+  await noPassado('conversas', cMeses, 'ultima_atividade', 70);
+  await noPassado('leads', meses.id, 'updated_at', 70);
 
   const r = await local.rpc('vendas_reter', {});
+  assert.equal(r.dias_contato, 365, 'o contato de quem não fechou: 12 meses');
   assert.ok(r.leads_anonimizados >= 2, JSON.stringify(r));
   const lead = async id => (await q('select nome, email, telefone from app.leads where id = $1', [id])).rows[0];
-  assert.deepEqual(await lead(velho.id), { nome: '[apagado]', email: null, telefone: null }, 'parado há 70 dias sem fechar: anonimizado');
+  assert.deepEqual(await lead(velho.id), { nome: '[apagado]', email: null, telefone: null }, 'parado há mais de 12 meses sem fechar: anonimizado');
+  assert.equal((await lead(meses.id)).nome, 'Parado há 70 dias', 'parado há 70 dias: o contato fica (o texto da conversa já saiu)');
   assert.deepEqual(await lead(comCobranca.id), { nome: '[apagado]', email: null, telefone: null }, 'cobrança vencida sem pagamento: anonimizado, e a rotina não trava');
   assert.equal((await lead(ativo.id)).nome, 'Ativo', 'conversa recente: fica');
   assert.equal((await lead(negocia.id)).nome, 'Negociando', 'em negociação pela equipe: fica');
@@ -551,9 +572,9 @@ test('retenção pelo caminho real: o lead que o agente cria ("em_conversa") é 
   const { c: cProduzindo } = await ateDirecoes(navegador());   /* conversa em produção (pagou), mesmo velha: fica */
   const leadProduzindo = (await q('select lead_id from app.conversas where id = $1', [cProduzindo])).rows[0].lead_id;
   await local.db.exec(`begin; set local bz.transicao_livre = 'on'; update app.conversas set etapa = 'em_producao' where id = '${cProduzindo}'; commit;`);
-  for (const id of [c, cRecente, cProduzindo]) await noPassado('conversas', id, 'ultima_atividade', 70);
-  for (const id of [leadId, leadProduzindo]) await noPassado('leads', id, 'updated_at', 70);
-  await noPassado('leads', leadRecente, 'updated_at', 70);
+  for (const id of [c, cRecente, cProduzindo]) await noPassado('conversas', id, 'ultima_atividade', 370);
+  for (const id of [leadId, leadProduzindo]) await noPassado('leads', id, 'updated_at', 370);
+  await noPassado('leads', leadRecente, 'updated_at', 370);
   await q("update app.leads set observacoes = 'ligar sexta' where id = $1", [leadRecente]);   /* a equipe mexeu hoje */
 
   await local.rpc('vendas_reter', {});

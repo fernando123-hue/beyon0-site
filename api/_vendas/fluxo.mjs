@@ -390,7 +390,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       const vid = await visitante(request);
       exigir(ehUuid(corpo?.conversa_id), 400, 'Conversa inválida.');
       exigir(pagamentos, 503, 'O pagamento online ainda não está disponível. A Beyon Zero envia o link pelo WhatsApp.');
-      /* sem contato (ou com o contato anonimizado pela retenção de 2 meses), o cliente nasceria sem nome nem telefone */
+      /* sem contato (ou com o contato anonimizado pela retenção de 12 meses), o cliente nasceria sem nome nem telefone */
       const est = await estado(vid, corpo.conversa_id);
       exigir(est.conversa.tem_contato, 409, 'Antes de pagar, informe de novo o seu nome e WhatsApp no formulário de contato.');
       return pagamentos.iniciar({ conversa_id: corpo.conversa_id, visitante_id: vid, metodo: corpo?.metodo, pagador: corpo?.pagador, cartao: corpo?.cartao });
