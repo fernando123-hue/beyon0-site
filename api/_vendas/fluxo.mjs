@@ -370,6 +370,10 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       exigir(est.escolha && est.estimativa, 409, 'Escolha uma direção antes.');
       const direcao = est.versao_final || est.direcoes.find(d => d.id === est.escolha.direcao_id)?.conteudo;
       exigir(direcao, 409, 'Escolha uma direção antes.');
+      /* quem volta depois que a retenção de 2 meses apagou o resumo do caso e os pedidos de ajuste (o contato fica 12
+         meses): o escopo sairia sem o que foi combinado; melhor recomeçar (revisão técnica do PR 35) */
+      const apagado = !Object.keys(est.conversa.briefing || {}).length || (est.alteracoes || []).some(a => a.pedido === '[apagado]');
+      exigir(!apagado, 409, 'Este orçamento ficou parado por muito tempo e parte do que você contou foi apagada pelo nosso prazo de privacidade. Comece um novo orçamento ou fale com a Beyon Zero pelo WhatsApp.');
       const aplicadas = est.alteracoes.filter(a => a.status === 'aplicada').flatMap(a => (a.mudancas || []).filter(m => m.aplicada));
       const { titulo, escopo } = montarEscopo({ estimativa: est.estimativa.detalhes, direcao, alteracoesAplicadas: aplicadas, briefing: est.conversa.briefing });
       const r = await banco('vendas_apresentar_escopo', { conversa_id: corpo.conversa_id, visitante_id: vid, titulo, escopo, estimativa_id: est.estimativa.id });

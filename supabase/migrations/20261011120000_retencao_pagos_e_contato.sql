@@ -28,7 +28,7 @@ language sql stable security definer set search_path = '' as $$
       where pr.org_id = c.org_id and pr.conversa_id = c.id
         and (pg.status in ('pago', 'estornado', 'contestado') or (pg.status = 'pendente' and pg.created_at >= p_limite)));
 $$;
-revoke all on function privado.conversas_paradas(timestamptz) from public, anon, authenticated;
+revoke all on function privado.conversas_paradas(timestamptz) from public, anon, authenticated, service_role;   -- (interna: só vendas_reter chama)
 
 create or replace function app.vendas_reter(p jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
@@ -71,9 +71,11 @@ begin
     and (c.etapa = 'em_producao' or exists (
       select 1 from app.propostas pr join app.pagamentos pg on pg.org_id = pr.org_id and pg.proposta_id = pr.id
       where pr.org_id = c.org_id and pr.conversa_id = c.id and pg.status in ('pago', 'estornado')))
-    and not exists (
+    and not exists (   -- (o estorno é final no banco: a contestação que chega depois dele aparece só na tentativa)
       select 1 from app.propostas pr join app.pagamentos pg on pg.org_id = pr.org_id and pg.proposta_id = pr.id
-      where pr.org_id = c.org_id and pr.conversa_id = c.id and pg.status = 'contestado');
+      where pr.org_id = c.org_id and pr.conversa_id = c.id
+        and (pg.status = 'contestado' or exists (
+          select 1 from app.tentativas_pagamento t where t.org_id = pg.org_id and t.pagamento_id = pg.id and t.status = 'contestada')));
   delete from app.mensagens m where m.conversa_id = any(v_pagas);
   get diagnostics v_mensagens_pagas = row_count;
 

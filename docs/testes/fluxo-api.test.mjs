@@ -686,3 +686,28 @@ test('escopo amarrado à estimativa: se outra entrou no meio, o banco recusa', a
   await assert.rejects(local.rpc('vendas_apresentar_escopo', { conversa_id: c, visitante_id: vid, titulo: 'x', escopo: 'y', estimativa_id: c }), e => e.codigo === '40001');
 });
 
+
+test('retenção: quem volta depois que o texto saiu (2 meses) e o contato ficou (12 meses) não gera escopo sem o que foi combinado (revisão técnica do PR 35)', async () => {
+  const n = navegador();
+  const { c, dirs } = await ateDirecoes(n);
+  assert.equal((await n.chamar('POST', 'escolher', { conversa_id: c, direcao_id: dirs[0].id })).status, 200);
+  /* o que a retenção de 60 dias faz: o resumo do caso sai (e os pedidos de ajuste viram "[apagado]") */
+  await local.db.exec(`begin; set local bz.restaurando = 'on'; update app.conversas set briefing = '{}' where id = '${c}'; commit;`);
+  const r = await n.chamar('POST', 'escopo', { conversa_id: c });
+  assert.equal(r.status, 409, JSON.stringify(r.corpo));
+  assert.match(r.corpo.erro, /novo orçamento|WhatsApp/);
+  assert.equal((await local.db.query('select count(*)::int n from app.propostas where conversa_id = $1', [c])).rows[0].n, 0, 'nenhuma proposta sem o que foi combinado');
+});
+
+test('retenção: contestação que chega depois do estorno também segura o texto (revisão de segurança do PR 35)', async () => {
+  const n = navegador(), s = await n.iniciar();
+  await n.chamar('POST', 'mensagem', { conversa_id: s.conversa_id, texto: 'Tenho uma escola e quero um site institucional para captar matrículas' });
+  await local.db.exec(`begin; set local bz.transicao_livre = 'on'; update app.conversas set etapa = 'em_producao' where id = '${s.conversa_id}'; commit;`);
+  const l = await leadDaConversa(s.conversa_id, 'Estornou e contestou');
+  await cobranca(s.conversa_id, l.id, l.org, 'estornado', 100);
+  const pg = (await local.db.query('select pg.id from app.pagamentos pg join app.propostas pr on pr.id = pg.proposta_id where pr.conversa_id = $1', [s.conversa_id])).rows[0].id;
+  await local.db.exec(`begin; set local bz.restaurando = 'on'; insert into app.tentativas_pagamento (org_id, pagamento_id, provedor, metodo, valor, chave_idempotencia, status) values ('${l.org}', '${pg}', 'teste', 'cartao', 1500, 'chave-contestada-${pg}', 'contestada'); commit;`);
+  await noPassado('conversas', s.conversa_id, 'ultima_atividade', 120);
+  await local.rpc('vendas_reter', {});
+  assert.equal((await local.db.query('select count(*)::int n from app.mensagens where conversa_id = $1', [s.conversa_id])).rows[0].n, 2, 'o estorno é final no banco; a disputa aparece na tentativa');
+});
