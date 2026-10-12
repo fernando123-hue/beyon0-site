@@ -18,8 +18,8 @@ strong { color: var(--t1); font-weight: 600; }
   display: flex; align-items: center; justify-content: space-between;
   max-width: var(--r-maxw); margin: 0 auto; padding: 1.2rem var(--pad);
 }
-.r-nav__logo { font-family: var(--mono); font-weight: 600; color: var(--t1); display: inline-flex; align-items: center; gap: .3em; min-height: 44px; }
-.r-nav__logo b { color: var(--ac); }
+.r-nav__logo { display: inline-flex; align-items: center; min-height: 44px; }
+.r-nav__logo .marca { display: block; width: auto; height: 40px; }
 .r-nav__voltar { font-family: var(--mono); font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: var(--t3); display: inline-flex; align-items: center; gap: .5em; min-height: 44px; }   /* (o gap: no flex o espaço depois da seta sumia, "←VOLTAR") */
 .r-nav__voltar:hover { color: var(--t1); }
 

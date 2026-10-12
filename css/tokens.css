@@ -73,6 +73,12 @@
   --ac-3-rgb:   28 181 185;
   --ac-3-tinta: #021B1C;   /* texto sobre o ciano profundo: 7,1:1 */
 
+  /* ---- A LOGO (03 Projetos/marca/logo, aprovada 2026-10-12): aro e lente no --ac-3, a luz que sai e o
+     "Zero" no --ac, o núcleo e "Beyon" no --t1; a luz que ENTRA é mais apagada que o aro. No ouro estes
+     dois trocam com o resto (html.is-ouro, .is-brasa, .is-frio) ---- */
+  --logo-entrada: #0F6F72;
+  --logo-nucleo:  #F2F4F4;
+
   /* ---- O OURO (js/ouro.js): o dourado INCANDESCENTE (dono, 2026-10-06), só no evento. Os três tons de energia
      que substituem o ciano, o ciano-claro e o ciano profundo, e o branco da brasa; o core.js lê daqui (B.tom) ---- */
   --ouro-rgb:   255 190 60;    /* #FFBE3C: no preto 12,7:1 */
@@ -201,6 +207,7 @@ html.is-ouro, .is-brasa {
   --ac-tinta: #2A1500; --ac-tinta-rgb: 42 21 0;
   --ac-3-tinta: #241100;
   --letra-acesa-t: #FFF4DC; --letra-acesa-p: #EBDDC6;
+  --logo-entrada: #9A5508; --logo-nucleo: #FFFAEB;
 }
 /* a CARGA: a energia esquenta antes de virar ouro (ciano clareando para o branco) */
 html.is-ouro-carga {
@@ -218,6 +225,7 @@ html.is-ouro-carga {
   --ac-tinta: #03201E; --ac-tinta-rgb: 3 32 30;
   --ac-3-tinta: #021B1C;
   --letra-acesa-t: #EDFDFC; --letra-acesa-p: #D9E4E3;
+  --logo-entrada: #0F6F72; --logo-nucleo: #F2F4F4;
 }
 /* os PORTADORES (o que carrega a cor de energia): esquentam devagar na carga, transitam na vez da linha */
 html.is-ouro-carga:not(.is-ouro-ignicao) :is(.hero__title em, .kicker b, .nav__brand b, .hero__status .dot, .btn, .servico__link, .celula__link, .servico__n, .celula__n, .laudo__n, .carga__pct, .tem-carga, .footer__motion, .prova__val, .console__v, .instrumento__val, .hero__cota-rot, .rumo-leitura, .nav__links a, .console__led, .instrumento__led) {
@@ -308,3 +316,15 @@ main[tabindex="-1"]:focus { outline: none; }   /* o alvo do skip-link recebe o f
 .mini { position: absolute; left: 0; top: 0; width: 96px; height: 96px; pointer-events: none; opacity: 0; will-change: transform; }
 /* vindo de outra página do site: acesa desde o primeiro quadro (a mesma rede continua) */
 .rede.is-herdada { transition: none; }
+
+/* ---- A LOGO: cada peça pinta por token (o SVG no HTML não traz cor; a CSP proíbe estilo embutido).
+   No evento ouro a linha passa pela logo (.marca está entre os portadores de js/ouro.js): aro, lente,
+   luz e "Zero" viram ouro e o núcleo vira brasa, como em marca/logo/estudos/ouro.mjs ---- */
+.marca__aro, .marca__lente { fill: var(--ac-3); }
+.marca__entrada { fill: var(--logo-entrada); }
+.marca__saida, .marca__zero { fill: var(--ac); }
+.marca__nucleo { fill: var(--logo-nucleo); }
+.marca__nome { fill: var(--t1); }
+.marca__aro, .marca__lente, .marca__entrada, .marca__saida, .marca__zero, .marca__nucleo { transition: fill .8s var(--ease); }
+.marca__pulso-in { fill: var(--ac); opacity: 0; }
+.marca__pulso-out { fill: var(--t1); opacity: 0; }

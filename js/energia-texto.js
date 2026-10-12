@@ -156,8 +156,7 @@
     for (var i = 0; i < titulos.length; i++) if (titulos[i].querySelector('em[data-palavras]')) palavraViva(titulos[i]);
     var destaque = document.querySelector('.hero__title em');
     if (destaque) surto(destaque);
-    var marca = document.querySelector('.nav__logo .wordmark b');
-    if (marca) surto(marca);
+    /* (a marca escrita tinha um surto no "Zero"; a logo é desenho: a luz dela passa por css/motion.css) */
   }
   var ocioso = window.requestIdleCallback || function (f) { return setTimeout(f, 600); };
   var ir = function () { setTimeout(function () { ocioso(iniciar, { timeout: 2000 }); }, 2500); };

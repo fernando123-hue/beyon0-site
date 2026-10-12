@@ -72,10 +72,11 @@ p em, li em { font-style: normal; font-weight: 500; color: var(--t1); }
    sem o desfoque, o texto que passa por baixo aparecia como fantasma */
 .nav.is-stuck { background-color: rgb(6 9 14); box-shadow: 0 1px 0 var(--line); }
 .nav.is-open { background-color: var(--bg); }
-.wordmark { font-family: var(--mono); font-weight: 600; font-size: 1rem; letter-spacing: -.01em; color: var(--t1); }
-.wordmark b { color: var(--ac); font-weight: 600; transition: color .6s var(--ease); }
-.wordmark--lg { font-size: 1.15rem; }
-.nav__logo { display: inline-flex; align-items: center; min-height: 48px; }
+/* a logo (03 Projetos/marca/logo): a compacta no topo (40 px: o nome sem a luz no "o", que abaixo de
+   57 px vira ruído) e a horizontal com a luz no rodapé (60 px); as cores ficam em tokens.css */
+.marca { display: block; flex: none; width: auto; max-width: none; height: 40px; overflow: visible; }
+.marca--rodape { height: 60px; }
+.nav__logo { display: inline-flex; align-items: center; min-height: 48px; flex: none; }
 .nav__toggle {
   display: flex; width: 48px; height: 48px; flex: none; margin-right: -8px;
   background: none; border: 0; cursor: pointer; border-radius: var(--raio-s);
@@ -144,10 +145,18 @@ html.tem-menu .nav.is-open .nav__links { max-height: calc(100dvh - var(--nav-h))
   .nav__links a:not(.btn)::after { content: ""; position: absolute; left: 0; right: 0; bottom: -2px; height: 1px; background: var(--ac); transform: scaleX(0); transform-origin: right; transition: transform .35s var(--ease); }
   .nav__links a:not(.btn):hover::after, .nav__links a.is-current::after { transform: scaleX(1); transform-origin: left; }
   .nav__sep { display: block; width: 1px; height: 16px; background: var(--line-2); }
-  .nav__links .btn { margin: 0; }
+  .nav__links .btn { margin: 0; white-space: nowrap; }
+  /* a logo é mais larga que a marca escrita: no desktop ela desce a 34 px (o médio aguenta: a luz que
+     entra fica com 1 px) e a nav não aperta o CTA em duas linhas */
+  .marca--nav { height: 34px; }
   /* com movimento no desktop, o CTA da nav espera o do hero sair (anima.js liga
      .nav--espera só no contexto com movimento e marca .is-cta) */
   .nav--espera:not(.is-cta) .nav__links .btn--primary { background-color: transparent; border-color: var(--line-hi); color: var(--ac); box-shadow: none; }   /* (sem corpo, sem aresta) */
+}
+/* de 981 a 1279 px o nome não cabe ao lado dos links (medido: o flex espremia a logo a 5 px): fica só o
+   símbolo, a versão responsiva prevista no manual da marca; o link mantém o aria-label "Beyon Zero" */
+@media (min-width: 981px) and (max-width: 1279px) {
+  .nav__logo { width: 40px; overflow: hidden; }
 }
 
 /* ---- BOTÕES — mono, retangular, dois pesos, brilho que passa ---- */

@@ -31,8 +31,18 @@ html.js .hero__cota-rot { opacity: 0; }
 /* ---- a assinatura: o feixe passa e imprime; a marca e a ênfase ACENDEM ----
    Sem GSAP (ou com movimento reduzido) já nascem cianas: nada escondido. */
 html.has-gsap:not(.menos-movimento) .hero__title:not(.is-lit) em,
-html.has-gsap:not(.menos-movimento) h2:not(.is-lit) em,
-html.has-gsap:not(.menos-movimento) .wordmark b:not(.is-lit) { color: var(--t1); }
+html.has-gsap:not(.menos-movimento) h2:not(.is-lit) em { color: var(--t1); }
+/* a LOGO: quando o feixe do hero chega a ela (.is-lit, js/anima.js) a luz passa uma vez — entra pela
+   fenda até o núcleo e sai mais forte pelo feixe — e de novo a cada passada do cursor ou foco. Uma
+   passagem de 1,4 s, nunca em laço (WCAG 2.2.2). Os mesmos tempos de marca/logo/estudos/sistema.mjs */
+@keyframes marca-entra { 0% { transform: translateX(0); opacity: 1; } 12% { transform: translateX(36px); opacity: 1; } 12.5%, 100% { transform: translateX(36px); opacity: 0; } }
+@keyframes marca-sai { 0%, 12% { transform: translateX(0); opacity: 0; } 12.5% { opacity: 1; } 29% { transform: translateX(70px); opacity: 1; } 29.5%, 100% { transform: translateX(70px); opacity: 0; } }
+@keyframes marca-entra-2 { 0% { transform: translateX(0); opacity: 1; } 12% { transform: translateX(36px); opacity: 1; } 12.5%, 100% { transform: translateX(36px); opacity: 0; } }
+@keyframes marca-sai-2 { 0%, 12% { transform: translateX(0); opacity: 0; } 12.5% { opacity: 1; } 29% { transform: translateX(70px); opacity: 1; } 29.5%, 100% { transform: translateX(70px); opacity: 0; } }
+html:not(.menos-movimento) .marca--nav.is-lit .marca__pulso-in { animation: marca-entra 4.8s cubic-bezier(.5, 0, 1, 1) both; }
+html:not(.menos-movimento) .marca--nav.is-lit .marca__pulso-out { animation: marca-sai 4.8s cubic-bezier(0, 0, .3, 1) both; }
+html:not(.menos-movimento) .nav__logo:is(:hover, :focus-visible) .marca__pulso-in { animation: marca-entra-2 4.8s cubic-bezier(.5, 0, 1, 1) both; }
+html:not(.menos-movimento) .nav__logo:is(:hover, :focus-visible) .marca__pulso-out { animation: marca-sai-2 4.8s cubic-bezier(0, 0, .3, 1) both; }
 html.js .hero__rail-aresta { transform: scaleX(0); }
 /* o console já imprime linha a linha: a varredura extra competia com o feixe e saiu (rodada 6) */
 html.js .console.is-in::after { animation: none; }
@@ -124,7 +134,8 @@ html.js .spec.is-in .spec__item:nth-child(6) h3::before { transition-delay: .3s;
   html.js .kicker::after, html.js .hero__rail-aresta, html.js .conversa__regua, html.js .hero__cota-linha, html.js .hero__cota-tick, html.js .prova__item::before, html.js .passo::before, html.js .passo::after, html.js .laudo__row::after, html.js .spec__item h3::before { transform: none; }
   html.js .spec__item h3::before { transform: rotate(45deg); }
   html.js .laudo__n, html.js .fluxo li, html.js .fluxo li:last-child { transform: none; opacity: 1; }
-  html.has-gsap .hero__title em, html.has-gsap h2 em, html.has-gsap .wordmark b { color: var(--ac); }
+  html.has-gsap .hero__title em, html.has-gsap h2 em { color: var(--ac); }
+  .marca__pulso-in, .marca__pulso-out { animation: none !important; }
   .hero__rail-aresta { animation: none; }
   .feixe__linha, .hero__status .dot, .painel::after, .celula::before, .console::after, .console__led { animation: none; }
   .feixe { display: none; }
@@ -138,7 +149,7 @@ html.menos-movimento .hero__title { visibility: visible; }
 html.menos-movimento .kicker::after, html.menos-movimento .hero__rail-aresta, html.menos-movimento .conversa__regua, html.menos-movimento .hero__cota-linha, html.menos-movimento .hero__cota-tick, html.menos-movimento .prova__item::before, html.menos-movimento .passo::before, html.menos-movimento .passo::after, html.menos-movimento .laudo__row::after { transform: none; }
 html.menos-movimento .spec__item h3::before { transform: rotate(45deg); }
 html.menos-movimento .laudo__n, html.menos-movimento .fluxo li, html.js.menos-movimento .fluxo li:last-child { transform: none; opacity: 1; }
-html.menos-movimento .hero__title em, html.menos-movimento h2 em, html.menos-movimento .wordmark b { color: var(--ac); }
+html.menos-movimento .hero__title em, html.menos-movimento h2 em { color: var(--ac); }
 html.menos-movimento .hero__rail-aresta { animation: none; }
 html.menos-movimento .feixe__linha, html.menos-movimento .hero__status .dot, html.menos-movimento .painel::after, html.menos-movimento .celula::before, html.menos-movimento .console::after, html.menos-movimento .console__led { animation: none; }
 html.menos-movimento .feixe { display: none; }

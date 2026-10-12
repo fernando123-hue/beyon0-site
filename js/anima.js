@@ -52,7 +52,7 @@
        .qa/.celula com opacity parcial ou zero para sempre (achado da revisão) */
     gsap.set(LIMPAR, { clearProps: 'all' });
     html.classList.remove('js');
-    acender('.hero__title, h2, .wordmark b');
+    acender('.hero__title, h2');
     var todos = document.querySelectorAll('.reveal, .console');
     var instrs = document.querySelectorAll('.instrumento');
     for (var n = 0; n < instrs.length; n++) instrs[n].classList.add('is-lido');
@@ -210,7 +210,8 @@
     var titulo = document.querySelector('.hero__title');
     var status = document.querySelector('.hero__status');
     var dot = status && status.querySelector('.dot');
-    var marca = document.querySelector('.wordmark b');
+    /* a logo: quando o feixe chega a ela, a luz passa pela logo uma vez (.is-lit, css/motion.css) */
+    var marca = document.querySelector('.nav__logo .marca');
     var sub = document.querySelector('.hero__sub');
     var acoes = document.querySelector('.hero__actions');
     var fine = document.querySelector('.hero__fine');

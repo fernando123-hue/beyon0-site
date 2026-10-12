@@ -1,17 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <!-- A ABERTURA — o mesmo mecanismo que o canvas desenha no hero, reduzido ao
-       que sobrevive a 16px: o hexágono do diafragma e o ponto central.
-
-       O favicon anterior desenhava um ".0" em #00F5FF: era a marca "beyon.0",
-       nome que a empresa abandonou (o commit 19ea74e corrigiu o site inteiro
-       para "Beyon Zero"), na paleta neon que a reformulação substituiu. Ficou
-       duas identidades atrás do resto.
-
-       Sem lâminas, sem anel de registro, sem malha: em 16px cada um desses
-       vira sujeira. O que identifica é a silhueta hexagonal com o núcleo
-       aceso. -->
-  <rect width="64" height="64" rx="14" fill="#050507"/>
-  <polygon points="46.7,40.5 32,49 17.3,40.5 17.3,23.5 32,15 46.7,23.5"
-           fill="none" stroke="#49E5DD" stroke-width="3.5" stroke-linejoin="round"/>
-  <circle cx="32" cy="32" r="4" fill="#EDEDF1"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="64" height="64"><rect width="100" height="100" rx="18.75" fill="#000000"/><clipPath id="c1"><rect width="100" height="100" rx="18.75"/></clipPath><g clip-path="url(#c1)"><g transform="translate(0 0) scale(1)"><path fill="#1CB5B9" d="M14.645 37.5A37.5 37.5 0 0 1 85.355 37.5L71.651 37.5A25 25 0 0 0 28.349 37.5ZM14.645 62.5A37.5 37.5 0 0 0 85.355 62.5L71.651 62.5A25 25 0 0 1 28.349 62.5Z"/><path fill="#0F6F72" d="M12.5 43.75h27.5v12.5h-27.5Z"/><path fill="#49E5DD" d="M50 43.75h300v12.5h-300Z"/><path fill="#F2F4F4" d="M37.5 50a12.5 12.5 0 1 0 25 0a12.5 12.5 0 1 0 -25 0Z"/></g></g></svg>

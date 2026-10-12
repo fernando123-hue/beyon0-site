@@ -100,3 +100,25 @@ test('deploy: todo arquivo público versionado continua no ar; regra fixa só pa
   const mortas = fixas.filter(s => !VERSIONADOS.includes(s.slice(1)) && !IGNORADOS.includes(s));
   assert.deepEqual(mortas, [], 'regra para arquivo que não existe no repositório: ' + mortas.join(', '));
 });
+
+/* A LOGO (2026-10-12, 03 Projetos/marca/logo): entra como SVG no HTML. Pela CSP (style-src 'self') ela não pode
+   trazer <style> nem style="", e não traz cor fixa: as cores vêm de css/tokens.css (.marca__*), para a logo
+   acompanhar o evento ouro (js/ouro.js a tem entre os portadores). Nenhuma página fica com a marca escrita antiga. */
+test('logo: as páginas usam a logo em SVG, sem estilo nem cor embutidos e com o nome acessível no link', () => {
+  for (const arquivo of ['index.html', 'sites.html', 'automacao.html', 'orcamento.html', 'resumo.html']) {
+    const html = readFileSync(new URL(arquivo, RAIZ), 'utf8');
+    assert.ok(!/class="wordmark|class="r-nav__logo">Beyon/.test(html), arquivo + ': sobrou a marca escrita antiga');
+    const logos = [...html.matchAll(/<svg[^>]*class="marca[ "][\s\S]*?<\/svg>/g)].map(m => m[0]);
+    assert.ok(logos.length >= 1, arquivo + ': sem a logo');
+    for (const svg of logos) {
+      assert.ok(!/<style|style="/.test(svg), arquivo + ': estilo embutido na logo (a CSP bloqueia)');
+      assert.ok(!/fill="#/.test(svg), arquivo + ': cor fixa na logo (o ouro não a alcançaria)');
+      assert.match(svg, /aria-hidden="true"/, arquivo + ': a logo é desenho; o nome fica no link');
+    }
+    assert.match(html, /<a href="\/" class="(nav__logo|r-nav__logo)" aria-label="Beyon Zero — início">\s*<svg/, arquivo + ': o link da logo sem nome acessível');
+  }
+  const tokens = readFileSync(new URL('css/tokens.css', RAIZ), 'utf8');
+  for (const peca of ['aro', 'lente', 'entrada', 'saida', 'nucleo', 'nome', 'zero']) assert.ok(tokens.includes('.marca__' + peca), 'tokens.css sem a cor de .marca__' + peca);
+  const ouro = readFileSync(new URL('js/ouro.js', RAIZ), 'utf8');
+  assert.match(ouro.match(/var PORTADORES = '([^']*)'/)[1], /(^|, )\.marca(,|$)/, 'js/ouro.js: a logo fora dos portadores do ouro');
+});
