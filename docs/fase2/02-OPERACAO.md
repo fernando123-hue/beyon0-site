@@ -76,7 +76,7 @@ Enquanto não há verba para a API, as três direções não são geradas pelo m
 
 ## 2. Desligar ou conter
 
-- **Desligar o agente:** apagar `ANTHROPIC_API_KEY` e publicar. A página continua de pé, com a resposta "indisponível" e o WhatsApp.
+- **Desligar o agente:** apagar `ANTHROPIC_API_KEY` e publicar. Desde o orçamento sem IA (PR 37), a página continua vendendo: some a conversa com o consultor e ficam as quatro perguntas, o preço pela tabela e o "Quer ajustar?". Os três modelos vão para a fila manual (o dono produz no Claude Code, skill `produzir-direcoes`). Sem as chaves do Turnstile (`TURNSTILE_SITE_KEY`/`TURNSTILE_SECRET`), ninguém vê o preço: "Ver o preço" cria a sessão e responde "O orçamento está indisponível agora". Confira as duas antes de promover.
 - **Tetos de custo** (`api/_ia/config.mjs › TETOS`):
   - US$ 1,50 por conversa;
   - US$ 25 por dia;

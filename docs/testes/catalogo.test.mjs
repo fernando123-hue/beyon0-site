@@ -77,3 +77,13 @@ test('respostas ruins não quebram nem deixam chave undefined no briefing', () =
   assert.ok(!JSON.stringify(b).includes('undefined') && Object.values(b).every(v => v !== undefined));
   assert.deepEqual(limparAtualizacao(b), b);
 });
+
+/* revisão de segurança do PR 37: o texto livre (outro ramo, cidade) vai ao briefing; telefone e e-mail digitados ali
+   são trocados por marcadores, como a privacidade promete para o que se escreve no orçamento */
+test('texto livre do formulário: telefone e e-mail viram marcadores no briefing', () => {
+  const b = respostasParaBriefing({ ramo: 'outro', outro: 'Doceria 11 98765-4321', cidade: 'fulano@exemplo.com', objetivos: [] }, 'landing_page');
+  assert.ok(!/98765|fulano@/.test(JSON.stringify(b)), JSON.stringify(b.negocio));
+  assert.match(b.negocio.segmento, /Doceria \[telefone\]/);
+  assert.equal(b.negocio.cidade, '[e-mail]');
+  assert.equal(respostasParaBriefing({ ramo: 'outro', outro: 'Doceria', cidade: 'Campo Grande', objetivos: [] }, 'landing_page').negocio.cidade, 'Campo Grande', 'texto comum fica igual');
+});

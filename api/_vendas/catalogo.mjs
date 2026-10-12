@@ -5,6 +5,7 @@
    revisado no PR 4 (linguagem); sem "sob medida".
    ========================================================================== */
 import { LANDING_MAX_PAGINAS } from './precos.mjs';
+import { redigir } from './seguranca.mjs';
 
 export const FRASES = {
   pagina_extra: 'Mais uma página além das que vêm no pacote.',
@@ -74,8 +75,9 @@ export function respostasParaBriefing(r, formato) {
   /* entrada ruim não quebra: objetivos que não é lista vira vazio; ramo/material desconhecido some do briefing */
   const lista = Array.isArray(r.objetivos) ? r.objetivos : [];
   const objetivos = [...new Set(lista.map(o => OBJETIVO_BRIEFING[o] || 'outro'))];
-  const segmento = r.ramo === 'outro' && r.outro ? r.outro : NOME_RAMO[r.ramo];
-  const negocio = { ...(segmento ? { segmento } : {}), ...(r.cidade ? { cidade: r.cidade } : {}) };
+  /* o texto livre (outro ramo, cidade) passa por redigir(): telefone, e-mail e documento viram marcadores (privacidade) */
+  const segmento = r.ramo === 'outro' && r.outro ? redigir(r.outro) : NOME_RAMO[r.ramo];
+  const negocio = { ...(segmento ? { segmento } : {}), ...(r.cidade ? { cidade: redigir(r.cidade) } : {}) };
   const sabeMaterial = Boolean(POSSE[r.material]);
   /* grupo vazio não entra (o limparAtualizacao também o descartaria) */
   const b = {

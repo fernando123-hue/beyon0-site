@@ -14,7 +14,7 @@
 import { configUsuario, tokenDe, usuarioDoToken, TEMPO_MAXIMO_MS, AuthIndisponivel } from '../_supabase.mjs';
 
 const SEM_LOGIN = 'Não consegui abrir o atendimento agora. Tente de novo em instantes.';
-const LOGIN_DESLIGADO = 'O consultor está indisponível agora. Fale com a Beyon Zero pelo WhatsApp.';
+const LOGIN_DESLIGADO = 'O orçamento está indisponível agora. Fale com a Beyon Zero pelo WhatsApp.';
 /* (auditoria 2026-10-09 e revisão técnica do lote 1) só o Supabase RECUSANDO o refresh encerra a sessão (400 token
    inválido, 401, 403, 422 refresh já usado ou revogado); 429, 408 e 5xx são passageiros */
 const RECUSOU_TOKEN = new Set([400, 401, 403, 422]);

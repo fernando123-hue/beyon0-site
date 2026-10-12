@@ -133,6 +133,15 @@ test('o catálogo da landing oferece no máximo 2 páginas extras; o do instituc
   assert.equal((await pagina('institucional')).max, TABELA.adicionais.pagina_extra.max);
 });
 
+/* revisão de segurança do PR 37: o filtro do corpo não aceitava dígito e "mais 25 produtos" sumia em silêncio do preço */
+test('extra com dígito na chave (produtos_lote_25) entra no preço', async () => {
+  const n = navegador(), c = await n.iniciar();
+  const s = await n.chamar('POST', 'simular', { conversa_id: c, respostas: RESP, formato: 'loja_plataforma', extras: { produtos_lote_25: 1 } });
+  assert.equal(s.status, 200, JSON.stringify(s.corpo));
+  const todos = s.corpo.estimativa.itens.concat(s.corpo.estimativa.fase_seguinte?.itens || []);
+  assert.ok(todos.some(i => i.chave === 'produtos_lote_25'), 'o lote de produtos está no pacote: ' + JSON.stringify(todos));
+});
+
 test('os itens do cartão trazem a chave do extra (a tela casa pela chave, não pelo nome)', async () => {
   const n = navegador(), c = await n.iniciar();
   /* (institucional 8 + agendamento 1 + blog 2 passa do teto de 10 dias: o blog vai para a fase seguinte) */

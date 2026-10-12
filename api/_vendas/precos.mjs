@@ -19,7 +19,7 @@ export const LANDING_GRANDE = 'A landing page vai até 3 páginas. Para 4 ou mai
 /* a loja (tabela v2, 2026-10-09) é OPCIONAL: uma tabela ativa anterior, sem ela, continua válida; se o código subir antes
    da v2 ser ativada, o orçamento segue funcionando com os três formatos (revisão de segurança) */
 const OBRIGATORIOS = ['landing_page', 'institucional', 'sob_medida'];
-const CHAVE = /^[a-z][a-z0-9_]{1,40}$/;
+export const CHAVE = /^[a-z][a-z0-9_]{1,40}$/;   /* (o fluxo filtra o corpo com esta mesma: um padrão só) */
 const numero = (v, min, max) => typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max;
 
 /* ---------- a tabela (validada antes de ativar e antes de cada uso) ---------- */

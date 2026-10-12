@@ -82,7 +82,7 @@ export async function atender(request, env, metodo, deps) {
     const humano = await verificarHumano(cfgTurnstile, corpo && corpo.turnstile, (deps && deps.buscarTurnstile) || fetch);
     if (!humano.ok) {
       log('erro', { request_id: requestId, evento: 'anti-robô', motivo: humano.motivo, codigos: humano.codigos || null, config: cfgTurnstile.motivo || null });
-      if (humano.motivo === 'nao_configurado' || humano.motivo === 'indisponivel') return responder({ erro: 'O consultor está indisponível agora. Fale com a Beyon Zero pelo WhatsApp.', whatsapp: true }, 503);
+      if (humano.motivo === 'nao_configurado' || humano.motivo === 'indisponivel') return responder({ erro: 'O orçamento está indisponível agora. Fale com a Beyon Zero pelo WhatsApp.', whatsapp: true }, 503);
       return responder({ erro: 'Não foi possível confirmar que você não é um robô. Recarregue a página e tente de novo.' }, 403);
     }
   }
