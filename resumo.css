@@ -72,7 +72,7 @@ strong { color: var(--t1); font-weight: 600; }
 
 .r-impresso { display: none; }
 @media print {
-  :root { --bg: #fff; --t1: #111; --t2: #333; --t3: #555; --ac: #0A6E82; --ac-3: #0A6E82; --line-2: #d8d8d8; --stroke: #999; }
+  :root { --bg: #fff; --t1: #111; --t2: #333; --t3: #555; --ac: #0A6E82; --ac-3: #0A6E82; --line-2: #d8d8d8; --stroke: #999; --logo-nucleo: #111; --logo-entrada: #6FB6C2; }
   body { background: #fff; }
   .r-nav__voltar, .r-btn, .r-fine { display: none; }
   /* (no papel o botão some: o contato vai escrito) */

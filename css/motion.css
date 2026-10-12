@@ -37,12 +37,10 @@ html.has-gsap:not(.menos-movimento) h2:not(.is-lit) em { color: var(--t1); }
    passagem de 1,4 s, nunca em laço (WCAG 2.2.2). Os mesmos tempos de marca/logo/estudos/sistema.mjs */
 @keyframes marca-entra { 0% { transform: translateX(0); opacity: 1; } 12% { transform: translateX(36px); opacity: 1; } 12.5%, 100% { transform: translateX(36px); opacity: 0; } }
 @keyframes marca-sai { 0%, 12% { transform: translateX(0); opacity: 0; } 12.5% { opacity: 1; } 29% { transform: translateX(70px); opacity: 1; } 29.5%, 100% { transform: translateX(70px); opacity: 0; } }
-@keyframes marca-entra-2 { 0% { transform: translateX(0); opacity: 1; } 12% { transform: translateX(36px); opacity: 1; } 12.5%, 100% { transform: translateX(36px); opacity: 0; } }
-@keyframes marca-sai-2 { 0%, 12% { transform: translateX(0); opacity: 0; } 12.5% { opacity: 1; } 29% { transform: translateX(70px); opacity: 1; } 29.5%, 100% { transform: translateX(70px); opacity: 0; } }
-html:not(.menos-movimento) .marca--nav.is-lit .marca__pulso-in { animation: marca-entra 4.8s cubic-bezier(.5, 0, 1, 1) both; }
-html:not(.menos-movimento) .marca--nav.is-lit .marca__pulso-out { animation: marca-sai 4.8s cubic-bezier(0, 0, .3, 1) both; }
-html:not(.menos-movimento) .nav__logo:is(:hover, :focus-visible) .marca__pulso-in { animation: marca-entra-2 4.8s cubic-bezier(.5, 0, 1, 1) both; }
-html:not(.menos-movimento) .nav__logo:is(:hover, :focus-visible) .marca__pulso-out { animation: marca-sai-2 4.8s cubic-bezier(0, 0, .3, 1) both; }
+/* (o .is-lit sai quando a passada do boot acaba, js/anima.js: com ele preso, tirar o cursor trocava o nome da
+   animação e a luz passava de novo na saída — revisão do PR) */
+html:not(.menos-movimento) :is(.marca--nav.is-lit, .nav__logo:hover .marca, .nav__logo:focus-visible .marca) .marca__pulso-in { animation: marca-entra 4.8s cubic-bezier(.5, 0, 1, 1) both; }
+html:not(.menos-movimento) :is(.marca--nav.is-lit, .nav__logo:hover .marca, .nav__logo:focus-visible .marca) .marca__pulso-out { animation: marca-sai 4.8s cubic-bezier(0, 0, .3, 1) both; }
 html.js .hero__rail-aresta { transform: scaleX(0); }
 /* o console já imprime linha a linha: a varredura extra competia com o feixe e saiu (rodada 6) */
 html.js .console.is-in::after { animation: none; }

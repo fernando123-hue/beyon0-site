@@ -75,7 +75,8 @@ p em, li em { font-style: normal; font-weight: 500; color: var(--t1); }
 /* a logo (03 Projetos/marca/logo): a compacta no topo (40 px: o nome sem a luz no "o", que abaixo de
    57 px vira ruído) e a horizontal com a luz no rodapé (60 px); as cores ficam em tokens.css */
 .marca { display: block; flex: none; width: auto; max-width: none; height: 40px; overflow: visible; }
-.marca--rodape { height: 60px; }
+/* no rodapé ela encolhe com a coluna: a 60 px tem 332 de largura e a 320 px de tela estourava (revisão) */
+.marca--rodape { height: auto; width: min(332px, calc(100vw - 2 * var(--pad))); }
 .nav__logo { display: inline-flex; align-items: center; min-height: 48px; flex: none; }
 .nav__toggle {
   display: flex; width: 48px; height: 48px; flex: none; margin-right: -8px;

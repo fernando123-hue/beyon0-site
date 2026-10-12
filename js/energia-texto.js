@@ -15,8 +15,9 @@
       palavra a cada ~4 s enquanto está na tela, pela descarga. As listas
       estão no HTML (o dono edita lá). Uma alternativa que mudaria a altura
       do título nesta largura de tela fica de fora (nada pula na página).
-   2. O SURTO: a palavra de destaque do título do hero e o "Zero" da marca
-      levam uma descarga rápida de vez em quando (12 a 20 s), sem trocar.
+   2. O SURTO: a palavra de destaque do título do hero leva uma descarga
+      rápida de vez em quando (12 a 20 s), sem trocar. (O "Zero" da marca
+      escrita também levava; desde 2026-10-12 a marca é a logo, um desenho.)
    3. B.energizar(el|textNode, {para, ms}): a ignição do botão quando o mini
       AI Core encaixa (js/mini-docas.js).
    Movimento reduzido: nada disso; o texto fica o original.

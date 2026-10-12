@@ -4,8 +4,8 @@
 body { font-size: 1rem; line-height: 1.7; }
 .priv { max-width: 720px; margin: 0 auto; padding: 2rem var(--pad) 5rem; }
 .priv__marca { font-family: var(--mono); font-weight: 600; margin-bottom: 2.4rem; }
-.priv__marca a { color: var(--t1); display: inline-flex; align-items: center; gap: .3em; min-height: 44px; }
-.priv__marca b { color: var(--ac); }
+.priv__marca a { color: var(--t1); display: inline-flex; align-items: center; min-height: 44px; }
+.priv__marca .marca { display: block; width: auto; height: 40px; }
 .priv h1 { font-weight: 300; font-size: clamp(2rem, 7vw, 2.8rem); line-height: 1.1; letter-spacing: -.025em; color: var(--t1); }
 .priv__data { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-dado); color: var(--t3); margin: .8rem 0 2.2rem; }
 .priv h2 { font-weight: 400; font-size: 1.25rem; color: var(--t1); margin: 2.2rem 0 .7rem; }

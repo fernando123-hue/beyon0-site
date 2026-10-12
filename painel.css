@@ -6,8 +6,8 @@ body { font-size: 1rem; line-height: 1.55; background: var(--bg); color: var(--t
 .pn { max-width: 1080px; margin: 0 auto; padding: 1rem var(--pad) 5rem; }
 .pn__topo { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 56px; border-bottom: 1px solid var(--stroke); margin-bottom: 1.6rem; }
 .pn__marca { font-family: var(--mono); font-weight: 600; display: flex; align-items: center; gap: .8rem; }
-.pn__marca a { color: var(--t1); display: inline-flex; align-items: center; gap: .3em; min-height: 44px; }
-.pn__marca b { color: var(--ac); }
+.pn__marca a { color: var(--t1); display: inline-flex; align-items: center; min-height: 44px; }
+.pn__marca .marca { display: block; width: auto; height: 32px; }
 .pn__marca span, .pn__sair, .pn__periodo button, .pn label, .pn h3, .pn th { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-ctrl); text-transform: uppercase; color: var(--t3); }
 .pn h1 { font-weight: 300; font-size: clamp(1.8rem, 7vw, 2.4rem); color: var(--t1); line-height: 1.1; margin-bottom: .6rem; }
 .pn h2 { font-weight: 400; font-size: 1.3rem; color: var(--t1); margin-bottom: 1rem; }
