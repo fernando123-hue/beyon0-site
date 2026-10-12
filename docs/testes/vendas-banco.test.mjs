@@ -234,3 +234,17 @@ test('conversa aberta até o pagamento: no escopo e no sinal o turno grava pergu
   await db.exec(`begin; set local bz.transicao_livre = 'on'; update app.conversas set etapa = 'em_producao' where id = '${pag.conversa}'; commit;`);
   assert.equal((await erroDe(rpc('vendas_registrar_turno', { conversa_id: pag.conversa, visitante_id: V1, mensagem_visitante: 'x', mensagem_agente: 'y' })))?.codigo, ETAPA, 'em produção: a conversa com o agente acabou');
 });
+
+test('respostas do formulário: gravam o briefing sem turno (sem mensagem, sem custo), só antes do contato', async () => {
+  const ids = await conversaAte(V1, 'iniciada');
+  const base = { conversa_id: ids.conversa, visitante_id: V1 };
+  await rpc('vendas_registrar_respostas', { ...base, briefing: { negocio: { segmento: 'saúde', cidade: 'Goiânia' }, projeto: { formato: 'institucional' } }, confianca: 0.4 });
+  const c = (await db.query('select briefing, confianca, turnos, custo_ia_usd from app.conversas where id = $1', [ids.conversa])).rows[0];
+  assert.equal(c.briefing.negocio.cidade, 'Goiânia');
+  assert.equal(Number(c.confianca), 0.4);
+  assert.equal(c.turnos, 0, 'não conta turno');
+  assert.equal((await db.query('select count(*)::int n from app.mensagens where conversa_id = $1', [ids.conversa])).rows[0].n, 0, 'nenhuma mensagem');
+  const depois = await conversaAte(V1, 'contato');
+  assert.equal((await erroDe(rpc('vendas_registrar_respostas', { conversa_id: depois.conversa, visitante_id: V1, briefing: {}, confianca: 0 })))?.codigo, ETAPA, 'depois do contato: recusado');
+  assert.equal((await erroDe(rpc('vendas_registrar_respostas', { conversa_id: ids.conversa, visitante_id: V2, briefing: {}, confianca: 0 })))?.codigo, NAO_ACHOU, 'conversa de outro visitante');
+});
