@@ -9,7 +9,8 @@
    Cobre (doc oficial "Client-side errors"): erro de CONFIGURAÇÃO (110200
    domínio não autorizado, 110100 chave inválida, 200500 quadro bloqueado)
    → mensagem com WhatsApp; desafio recusado (600010) → "recarregue";
-   desafio interativo → a página rola até o widget; o texto volta à caixa.
+   desafio interativo → a página rola até o widget; na recusa, a pessoa
+   continua nas perguntas com as respostas (a sessão nasce no "Ver o preço").
    ========================================================================== */
 import { chromium } from 'playwright';
 
@@ -33,18 +34,24 @@ async function cenario(nome, codigoJs, verificar) {
   await p.route('https://challenges.cloudflare.com/**', r => r.fulfill({ status: 200, contentType: 'application/javascript', body: falso(codigoJs) }));
   await p.goto(BASE + '/orcamento', { waitUntil: 'load', timeout: 90000 });
   ok((await (await p.request.get(BASE + '/api/vendas?acao=sessao-config')).json()).turnstile, nome + ': o servidor tem chave (senão o widget nem carrega)');
-  await p.fill('#o-texto', 'Tenho uma clínica e quero um site');
-  await p.press('#o-texto', 'Enter');
+  /* orçamento sem IA: a sessão (e o anti-robô) nasce no "Ver o preço" das perguntas */
+  await p.waitForSelector('#o-perguntas:not([hidden])');
+  await p.click('[data-ramo="saude"]');
+  await p.click('.orc-p:not([hidden]) .orc-p__seguir');
+  await p.click('[data-objetivo="agendamentos"]');
+  await p.click('.orc-p:not([hidden]) .orc-p__seguir');
+  await p.click('#o-p-ver-preco');
   await verificar(p);
   await ctx.close();
 }
-const aviso = p => p.waitForSelector('#o-aviso:not([hidden])', { timeout: 20000 }).then(() => p.textContent('#o-aviso-texto'));
+/* a recusa aparece embaixo das perguntas (js/orcamento-perguntas.js) */
+const aviso = p => p.waitForFunction(() => document.getElementById('o-p-erro').textContent.trim().length > 0, null, { timeout: 20000 }).then(() => p.textContent('#o-p-erro'));
 
 try {
   for (const codigo of ['110200', '110100', '200500']) {
     await cenario('erro de configuração ' + codigo, `o['error-callback']('${codigo}')`, async p => {
       ok(/WhatsApp/.test(await aviso(p)), codigo + ': mensagem com WhatsApp (recarregar não resolveria)');
-      ok((await p.inputValue('#o-texto')).includes('clínica'), codigo + ': o texto volta para a caixa');
+      ok(await p.locator('#o-perguntas').isVisible() && await p.getAttribute('[data-ramo="saude"]', 'aria-pressed') === 'true', codigo + ': a pessoa continua nas perguntas, com as respostas');
     });
   }
   await cenario('desafio recusado', `o['error-callback']('600010')`, async p => {

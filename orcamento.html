@@ -67,14 +67,14 @@
     <section class="orc-topo" aria-labelledby="orc-titulo">
       <p class="orc-kicker"><span class="dot" aria-hidden="true"></span>Monte seu orçamento</p>
       <h1 id="orc-titulo">Veja o seu site <em>antes</em> de fechar.</h1>
-      <p class="orc-lead">Conte o seu negócio ao consultor de IA. Ele entende o caso, o investimento sai da tabela da Beyon Zero e você recebe três direções de site para abrir, comparar e ajustar.</p>
+      <p class="orc-lead">Quatro perguntas rápidas e você vê o preço na hora, sem cadastro. Depois, se quiser, eu desenho três modelos de site para o seu negócio. Você não paga nada até escolher um deles e confirmar.</p>
       <ol class="orc-etapas" id="o-etapas" aria-label="Etapas">
-        <li data-passo="conversa" aria-current="step"><span>01</span>Conversa</li>
-        <li data-passo="estimativa"><span>02</span>Investimento</li>
-        <li data-passo="direcoes"><span>03</span>Direções</li>
+        <li data-passo="conversa" aria-current="step"><span>01</span>Perguntas</li>
+        <li data-passo="estimativa"><span>02</span>Preço</li>
+        <li data-passo="direcoes"><span>03</span>Modelos</li>
         <li data-passo="ajustes"><span>04</span>Ajustes</li>
-        <li data-passo="escopo"><span>05</span>Escopo</li>
-        <li data-passo="pagamento"><span>06</span>Sinal</li>
+        <li data-passo="escopo"><span>05</span>Resumo</li>
+        <li data-passo="pagamento"><span>06</span>Entrada</li>
       </ol>
       <p class="orc-codigo" id="o-codigo" hidden>Código do pedido <b id="o-codigo-v"></b><span class="orc-codigo__nota"> · fica salvo neste navegador; cite-o se falar com a Beyon Zero</span></p>
     </section>
@@ -92,9 +92,69 @@
     <!-- o que um leitor de tela ouve (A2): "Analisando…", a resposta do consultor, o investimento, as direções prontas -->
     <p class="sr-only" id="o-voz" role="status"></p>
 
+    <!-- AS PERGUNTAS (orçamento sem IA, spec 2026-10-11 §2): uma por tela, botões grandes (js/orcamento-perguntas.js) -->
+    <section class="orc-perguntas" id="o-perguntas" data-origem="orcamento-perguntas" aria-labelledby="o-p-titulo" hidden>
+      <p class="orc-perguntas__passo" id="o-p-passo">Passo 1 de 3</p>
+      <div class="orc-p" data-p="1">
+        <h2 id="o-p-titulo">O que o seu negócio faz?</h2>
+        <div class="orc-opcoes" role="group" aria-labelledby="o-p-titulo">
+          <button type="button" class="orc-op" aria-pressed="false" data-ramo="servicos">Serviços <small>oficina, assistência técnica, advocacia…</small></button>
+          <button type="button" class="orc-op" aria-pressed="false" data-ramo="saude">Saúde <small>clínica, consultório, fisioterapia…</small></button>
+          <button type="button" class="orc-op" aria-pressed="false" data-ramo="beleza">Beleza <small>salão, barbearia, estética…</small></button>
+          <button type="button" class="orc-op" aria-pressed="false" data-ramo="alimentacao">Alimentação <small>restaurante, lanchonete, padaria…</small></button>
+          <button type="button" class="orc-op" aria-pressed="false" data-ramo="comercio">Comércio <small>loja, mercado, distribuidora…</small></button>
+          <button type="button" class="orc-op" aria-pressed="false" data-ramo="educacao">Educação <small>escola, curso, aulas…</small></button>
+          <button type="button" class="orc-op" aria-pressed="false" data-ramo="associacao">Associação ou entidade</button>
+          <button type="button" class="orc-op" aria-pressed="false" data-ramo="outro">Outro</button>
+        </div>
+        <label class="orc-p__campo" for="o-p-outro" id="o-p-outro-rotulo" hidden>Qual? <input id="o-p-outro" maxlength="60" autocomplete="off" /></label>
+        <label class="orc-p__campo" for="o-p-cidade">Em qual cidade? <input id="o-p-cidade" maxlength="60" autocomplete="address-level2" /></label>
+        <button type="button" class="btn btn--primary orc-p__seguir" id="o-p-seguir">Seguir</button>
+        <button type="button" class="orc-p__naosei" data-naosei="1">Não sei, escolha por mim</button>
+      </div>
+      <div class="orc-p" data-p="2" hidden>
+        <h2 id="o-p2-titulo">O que o site precisa trazer para você?</h2>
+        <p class="orc-p__nota">Pode marcar mais de um.</p>
+        <div class="orc-opcoes" role="group" aria-labelledby="o-p2-titulo">
+          <button type="button" class="orc-op" aria-pressed="false" data-objetivo="pedidos_whatsapp">Receber pedidos e orçamentos pelo WhatsApp</button>
+          <button type="button" class="orc-op" aria-pressed="false" data-objetivo="achado_google">Ser achado no Google e no mapa</button>
+          <button type="button" class="orc-op" aria-pressed="false" data-objetivo="agendamentos">Agendamentos</button>
+          <button type="button" class="orc-op" aria-pressed="false" data-objetivo="vender_online">Vender online</button>
+          <button type="button" class="orc-op" aria-pressed="false" data-objetivo="apresentar">Apresentar a empresa</button>
+          <button type="button" class="orc-op" aria-pressed="false" data-objetivo="campanha">Uma campanha ou lançamento</button>
+        </div>
+        <button type="button" class="btn btn--primary orc-p__seguir" data-seguir="2">Seguir</button>
+        <button type="button" class="orc-p__naosei" data-naosei="2">Não sei, escolha por mim</button>
+      </div>
+      <div class="orc-p" data-p="3" hidden>
+        <h2 id="o-p3-titulo">Já tem site ou endereço próprio?</h2>
+        <div class="orc-opcoes" role="group" aria-labelledby="o-p3-titulo">
+          <button type="button" class="orc-op" aria-pressed="false" data-site-atual="nao">Não</button>
+          <button type="button" class="orc-op" aria-pressed="false" data-site-atual="instagram">Só o Instagram</button>
+          <button type="button" class="orc-op" aria-pressed="false" data-site-atual="tenho_site">Tenho site</button>
+          <button type="button" class="orc-op" aria-pressed="false" data-site-atual="so_endereco">Tenho só o endereço (.com.br)</button>
+        </div>
+        <h2 id="o-p4-titulo">Já tem logo e textos?</h2>
+        <div class="orc-opcoes" role="group" aria-labelledby="o-p4-titulo">
+          <button type="button" class="orc-op" aria-pressed="false" data-material="tenho">Tenho</button>
+          <button type="button" class="orc-op" aria-pressed="false" data-material="parte">Tenho uma parte</button>
+          <button type="button" class="orc-op" aria-pressed="false" data-material="nao">Não tenho</button>
+        </div>
+        <button type="button" class="btn btn--primary orc-p__seguir" id="o-p-ver-preco">Ver o preço</button>
+      </div>
+      <p class="orc-erro" id="o-p-erro" role="alert"></p>
+      <p class="orc-nota">Prefere falar com uma pessoa? <a class="orc-sem-quebra" data-wa href="https://wa.me/5521977167944">Chame no WhatsApp</a>.</p>
+    </section>
+
+    <!-- o anti-robô (js/orcamento-turnstile.js): fora da conversa, porque a sessão nasce no "Ver o preço" e a conversa
+         pode estar escondida; vazio, não ocupa espaço -->
+    <div class="orc-turnstile" id="o-turnstile"></div>
+
+    <button class="btn btn--ghost btn--sm orc-conversar" type="button" id="o-conversar" hidden>Prefere conversar? Fale com o consultor</button>
+
     <div class="orc-mesa">
-      <!-- A CONVERSA -->
-      <section class="orc-conversa" data-origem="orcamento-conversa" aria-labelledby="o-conversa-titulo">
+      <!-- A CONVERSA (só quando há consultor e a pessoa abre "Prefere conversar?", ou a conversa já tem mensagens) -->
+      <section class="orc-conversa" id="o-conversa" data-origem="orcamento-conversa" aria-labelledby="o-conversa-titulo" hidden>
         <h2 id="o-conversa-titulo" class="orc-rotulo">Conversa com o consultor</h2>
         <div class="orc-log" id="o-log-caixa" tabindex="0" role="region" aria-label="Conversa">
           <ol class="orc-log__lista" id="o-log">
@@ -112,7 +172,6 @@
           <textarea id="o-texto" rows="3" maxlength="2000" placeholder="Ex.: tenho uma clínica em Niterói e quero mais agendamentos" autocomplete="off"></textarea>
           <button class="btn btn--primary" type="submit" id="o-enviar">Enviar</button>
         </form>
-        <div class="orc-turnstile" id="o-turnstile"></div>
         <p class="orc-nota" id="o-conversa-fechada" hidden>A conversa com o consultor ficou registrada acima. Daqui em diante, o seu orçamento segue pelas etapas abaixo.</p>
         <p class="orc-nota">Prefere falar com uma pessoa? <a class="orc-sem-quebra" data-wa href="https://wa.me/5521977167944">Chame no WhatsApp</a>.</p>
         <p class="orc-nota">Não escreva senhas nem dados de cartão aqui. <a href="/privacidade#orcamento">Como a conversa é tratada</a>.</p>
@@ -122,22 +181,35 @@
       <aside class="orc-painel" data-origem="orcamento-painel" aria-labelledby="o-est-titulo">
         <h2 id="o-est-titulo" class="orc-rotulo">Investimento estimado</h2>
         <div class="orc-est" id="o-est">
-          <p class="orc-est__vazio" id="o-est-vazio">O valor aparece aqui assim que o consultor entender o formato do site. Ele vem da tabela da Beyon Zero, não de um palpite.</p>
+          <p class="orc-est__vazio" id="o-est-vazio">O preço aparece aqui assim que você responder as perguntas. Ele vem da tabela da Beyon Zero.</p>
           <div id="o-est-cheio" hidden>
             <p class="orc-est__formato" id="o-est-formato"></p>
             <p class="orc-est__valor" id="o-est-valor"></p>
+            <p class="orc-est__motivo" id="o-est-motivo"></p>
             <dl class="orc-est__dados">
               <div><dt>Prazo</dt><dd id="o-est-prazo"></dd></div>
               <div><dt>Para começar</dt><dd id="o-est-sinal"></dd></div>
               <div><dt>Na entrega</dt><dd id="o-est-resto"></dd></div>
             </dl>
+            <p class="orc-est__assumido" id="o-est-assumido" hidden></p>
+            <p class="orc-est__assumido" id="o-est-troca" hidden>Com 3 páginas ou mais, o site com várias páginas sai igual ou mais em conta.</p>
             <ul class="orc-est__itens" id="o-est-itens"></ul>
             <div class="orc-est__fase" id="o-est-fase" hidden>
               <p class="orc-rotulo">Fica para uma fase seguinte</p>
               <ul id="o-est-fase-itens"></ul>
               <p id="o-est-fase-valor"></p>
             </div>
-            <p class="orc-est__nota">O valor final é o do escopo que você confirma antes de pagar qualquer coisa.</p>
+            <div class="orc-est__inclui" id="o-est-inclui-caixa" hidden><p class="orc-rotulo">Já vem no pacote</p><ul id="o-est-inclui"></ul></div>
+            <p class="orc-est__sem-risco" id="o-est-sem-risco">Você não paga nada até escolher um modelo e confirmar o resumo.</p>
+            <!-- os controles do preço (js/orcamento-perguntas.js): só enquanto o pacote não foi gravado -->
+            <div class="orc-est__acoes" id="o-est-acoes" hidden>
+              <div class="orc-vizinhos" id="o-vizinhos"></div>
+              <p class="orc-erro" id="o-est-erro" role="alert"></p>
+              <button class="btn btn--primary" type="button" id="o-quero-modelos">Quero os três modelos</button>
+              <button class="btn btn--ghost" type="button" id="o-ajustar-abrir" aria-expanded="false" aria-controls="o-ajustar">Quer ajustar?</button>
+              <button class="orc-p__naosei" type="button" id="o-p-refazer">Mudar as respostas</button>
+            </div>
+            <p class="orc-est__nota">O valor final é o do resumo do que será feito, que você confirma antes de pagar qualquer coisa.</p>
           </div>
         </div>
         <div class="orc-sugestao" id="o-sugestao" hidden>
@@ -150,12 +222,20 @@
           <a class="btn btn--sm btn--primary" data-wa="quero um diagnóstico para o meu projeto" href="https://wa.me/5521977167944">Conversar no WhatsApp</a>
         </div>
       </aside>
+
+      <!-- QUER AJUSTAR? (spec §3): os extras da tabela ativa, com o preço ao vivo pelo servidor (simular, não grava) -->
+      <section class="orc-ajustar" id="o-ajustar" aria-labelledby="o-ajustar-titulo" hidden>
+        <h2 id="o-ajustar-titulo">Quer ajustar?</h2>
+        <fieldset id="o-ajustar-principais"><legend class="sr-only">Extras para o seu negócio</legend></fieldset>
+        <details class="orc-ajustar__mais"><summary>Ver mais opções</summary><fieldset id="o-ajustar-mais"><legend class="sr-only">Outras opções</legend></fieldset></details>
+        <label class="orc-check orc-extra" for="o-x-urgencia"><input type="checkbox" id="o-x-urgencia" /> <span id="o-x-urgencia-texto">Preciso antes do prazo</span></label>
+      </section>
     </div>
 
     <!-- O CONTATO (antes de gerar as direções) -->
     <section class="orc-bloco" id="o-contato" aria-labelledby="o-contato-titulo" hidden>
-      <h2 id="o-contato-titulo">Para quem vamos desenhar?</h2>
-      <p class="orc-bloco__lead" id="o-contato-lead">Com o seu contato, o consultor gera três direções de site para o seu negócio: uma focada em conversão, uma em autoridade e uma em experiência.</p>
+      <h2 id="o-contato-titulo">Para quem vou desenhar?</h2>
+      <p class="orc-bloco__lead" id="o-contato-lead">Com o seu contato, eu desenho três modelos de site para o seu negócio: um feito para trazer pedidos, um que passa confiança e um mais moderno e chamativo.</p>
       <form class="orc-form" id="o-contato-form" novalidate>
         <label for="o-nome">Seu nome <span class="orc-opcional">(obrigatório)</span></label>
         <input id="o-nome" name="nome" autocomplete="name" maxlength="120" required />
@@ -197,7 +277,7 @@
       <p class="orc-bloco__lead">Confira tudo. É isto que será feito, pelo valor e no prazo abaixo.</p>
       <div class="orc-escopo" id="o-esc-texto" tabindex="0" role="region" aria-label="Texto do escopo"></div>
       <p class="orc-nota">Quer mudar algo antes de confirmar? <a data-wa="quero ajustar o escopo do meu orçamento antes de confirmar" href="https://wa.me/5521977167944">Fale com a Beyon Zero pelo WhatsApp</a>.</p>
-      <p class="orc-nota">Alguma dúvida? <a href="#o-texto" data-perguntar>Pergunte ao consultor</a>, aqui na conversa. Ele tira dúvidas, mas não muda o escopo nem o valor: vale o que está escrito aqui.</p>
+      <p class="orc-nota orc-perguntar" hidden>Alguma dúvida? <a href="#o-texto" data-perguntar>Pergunte ao consultor</a>, aqui na conversa. Ele tira dúvidas, mas não muda o escopo nem o valor: vale o que está escrito aqui.</p>
       <form class="orc-form" id="o-esc-form" novalidate>
         <label class="orc-check"><input type="checkbox" id="o-confirmo" required /> <span>Li e confirmo este escopo, o valor e o prazo.</span></label>
         <label class="orc-check"><input type="checkbox" id="o-inicio" /> <span>Peço que o trabalho comece já, dentro do prazo de 7 dias para desistir da compra (Código de Defesa do Consumidor, art. 49).</span></label>
@@ -210,7 +290,7 @@
     <section class="orc-bloco" id="o-pagamento" aria-labelledby="o-pag-titulo" hidden>
       <h2 id="o-pag-titulo">Para começar</h2>
       <p class="orc-bloco__lead" id="o-pag-lead"></p>
-      <p class="orc-nota">Alguma dúvida antes de pagar? <a href="#o-texto" data-perguntar>Pergunte ao consultor</a>. Ele tira dúvidas, mas não confirma pagamento nem muda o valor: quem mostra que o pagamento entrou é esta tela.</p>
+      <p class="orc-nota orc-perguntar" hidden>Alguma dúvida antes de pagar? <a href="#o-texto" data-perguntar>Pergunte ao consultor</a>. Ele tira dúvidas, mas não confirma pagamento nem muda o valor: quem mostra que o pagamento entrou é esta tela.</p>
       <p class="orc-aviso" id="o-pag-indisponivel" hidden>O pagamento online está indisponível agora. A Beyon Zero envia o pagamento pelo <a data-wa="quero pagar o sinal do meu projeto" href="https://wa.me/5521977167944">WhatsApp</a>.</p>
 
       <form class="orc-form pag" id="o-pag-form" novalidate>
@@ -367,6 +447,7 @@
   <script src="js/orcamento-visor.js" defer></script>
   <script src="js/orcamento-pagamento.js" defer></script>
   <script src="js/orcamento-recibo.js" defer></script>
+  <script src="js/orcamento-perguntas.js" defer></script>
   <script src="js/orcamento.js" defer></script>
 </body>
 </html>

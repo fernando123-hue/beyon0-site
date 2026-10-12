@@ -4,8 +4,8 @@
    renovação e o id da conversa) para quem sai e volta continuar de onde
    parou. O token só abre a conversa deste visitante; não há preço, regra ou
    chave aqui: tudo isso fica no servidor.
-   A sessão nasce na PRIMEIRA mensagem (não a cada visita): sem visitante
-   anônimo criado à toa.
+   A sessão nasce no "Ver o preço" das perguntas (ou na primeira mensagem
+   ao consultor), não a cada visita: sem visitante anônimo criado à toa.
    ========================================================================== */
 (function () {
   'use strict';
@@ -177,6 +177,15 @@
       if (!sessao || !sessao.conversa_id) return Promise.reject(new Falha(401, { erro: 'Sessão encerrada.' }));   /* (sem sessão: erro, não TypeError) */
       return chamar('GET', 'pagamento', undefined, '&conversa=' + encodeURIComponent(sessao.conversa_id));
     },
-    pagamentoConfig: function () { return http('GET', 'pagamento-config'); }
+    pagamentoConfig: function () { return http('GET', 'pagamento-config'); },
+    /* o orçamento sem IA (spec 2026-10-11): se há consultor; o catálogo da tabela ativa; o preço ao vivo (simular,
+       que NÃO grava) e o pacote gravado uma vez (confirmar-pacote, com a versão da tabela que a pessoa viu) */
+    sessaoConfig: function () { return http('GET', 'sessao-config', undefined, undefined, undefined, ESTADO_MS); },
+    catalogo: async function (formato, ramo) {
+      await garantirSessao();
+      return chamar('GET', 'catalogo', undefined, '&conversa=' + encodeURIComponent(sessao.conversa_id) + '&formato=' + encodeURIComponent(formato || '') + '&ramo=' + encodeURIComponent(ramo || ''), ESTADO_MS);
+    },
+    simular: async function (dados) { await garantirSessao(); return chamar('POST', 'simular', comConversa(dados), undefined, ESTADO_MS); },
+    confirmarPacote: function (dados) { return chamar('POST', 'confirmar-pacote', comConversa(dados), undefined, ESTADO_MS); }
   };
 })();

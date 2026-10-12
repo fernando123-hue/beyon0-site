@@ -77,6 +77,15 @@ test('catálogo com sessão e sem nada interno; sessao-config diz se há consult
   assert.equal((await cfg.json()).consultor, false);
 });
 
+test('BZ_SEM_CONSULTOR desliga o consultor da tela só no servidor local, nunca na Vercel', async () => {
+  const comIA = { ...deps, ia: {} };
+  const cfg = async env => (await (await atender(new Request(BASE + '/api/vendas?acao=sessao-config'), env, 'GET', comIA)).json()).consultor;
+  assert.equal(await cfg({}), true, 'com IA: há consultor');
+  assert.equal(await cfg({ BZ_LOCAL: '1', BZ_SEM_CONSULTOR: '1' }), false, 'local com a chave: a tela sem consultor');
+  assert.equal(await cfg({ BZ_SEM_CONSULTOR: '1' }), true, 'sem BZ_LOCAL: a chave não vale');
+  assert.equal(await cfg({ BZ_LOCAL: '1', BZ_SEM_CONSULTOR: '1', VERCEL: '1', VERCEL_ENV: 'production' }), true, 'na Vercel: a chave não vale');
+});
+
 test('sem chave da Anthropic, os modelos saem sempre pela fila manual', () => {
   assert.equal(modoDirecoes({}), 'manual');
   assert.equal(modoDirecoes({ BZ_DIRECOES: 'api' }), 'manual', 'sem chave, mesmo pedindo api');

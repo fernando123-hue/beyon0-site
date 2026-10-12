@@ -2,11 +2,15 @@
    E2E do ORÇAMENTO COM IA (/orcamento) num Chromium de verdade, contra o
    servidor local (docs/servidor.mjs: banco PGlite, IA simulada, gateway
    simulado). Celular primeiro (390px), depois 320px e desktop.
-   Cobre: conversa → investimento → contato → 3 direções → visor (abrir,
+   Cobre: as perguntas → preço (motivo, vizinho, "Quer ajustar?" ao vivo) →
+   pacote gravado → contato → 3 modelos → visor (abrir,
    trocar, aparelho, Escape devolve o foco) → escolha → ajuste → retomada
    depois de recarregar → escopo (exige a confirmação) → pagamento simulado
-   → projeto em produção. E segurança na tela: texto com HTML vira texto.
-   Uso: BASE=http://127.0.0.1:8899 CHROMIUM=... npm run e2e:orcamento
+   → projeto em produção. Com CONSULTOR=1, também a conversa: texto com HTML
+   vira texto, Enter repetido, dúvidas no resumo e no sinal.
+   Uso: servidor local com BZ_SEM_CONSULTOR=1, depois
+   BASE=http://127.0.0.1:8899 CHROMIUM=... node docs/e2e-orcamento.mjs
+   (CONSULTOR=1 com o servidor local SEM BZ_SEM_CONSULTOR)
    ========================================================================== */
 import { chromium } from 'playwright';
 import { mkdir } from 'node:fs/promises';
@@ -25,6 +29,9 @@ const PASTA = new URL('./olhar-orcamento/', import.meta.url);
 await mkdir(PASTA, { recursive: true });
 const nav = await chromium.launch({ executablePath: EXEC });
 let falhou = false;
+/* CONSULTOR=1: o servidor local com a IA simulada mostrando o consultor (sem BZ_SEM_CONSULTOR); as checagens da
+   conversa só valem aí. Sem ele, o caminho é só o das perguntas (rodar o servidor com BZ_SEM_CONSULTOR=1) */
+const CONSULTOR = process.env.CONSULTOR === '1';
 const ok = (cond, msg) => { console.log((cond ? 'OK   ' : 'FALHA') + ' ' + msg); if (!cond) falhou = true; };
 const semRolagemLateral = page => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
 /* diagnóstico: as últimas chamadas à API e o estado da tela aparecem quando o teste quebra */
@@ -49,22 +56,73 @@ try {
   ok(await page.evaluate(() => localStorage.getItem('bz-orcamento') === null), 'nenhuma sessão criada só por abrir a página');
   await foto(page, '1-inicio-cel');
 
-  /* segurança na tela: HTML digitado aparece como texto */
-  await page.fill('#o-texto', '<img src=x onerror=alert(1)> Tenho uma clínica odontológica e quero um site institucional para mais agendamentos');
-  await page.press('#o-texto', 'Enter');
-  await page.waitForSelector('#o-est-cheio:not([hidden])', { timeout: 30000 });
-  ok(await page.locator('#o-log img').count() === 0, 'texto com HTML vira texto (nenhuma <img> criada)');
-  const valor = await page.textContent('#o-est-valor');
-  ok(/^R\$\s?\d/.test(valor.trim()), 'investimento vem do motor: ' + valor.trim());
-  ok(await page.evaluate(() => document.querySelector('#o-etapas [aria-current]').dataset.passo) === 'estimativa', 'etapa atual: investimento');
+  /* orçamento sem IA (spec 2026-10-11): 4 perguntas → preço → ajustar → quero os três modelos */
+  await page.waitForSelector('#o-perguntas:not([hidden])');
+  ok(await page.locator('#o-conversa').isHidden(), 'sem IA: a conversa com o consultor não aparece');
+  await page.locator('#o-perguntas').scrollIntoViewIfNeeded();
+  await foto(page, '1a-perguntas-cel');
+  await page.click('[data-ramo="saude"]');
+  await page.fill('#o-p-cidade', 'Goiânia');
+  await page.click('.orc-p:not([hidden]) .orc-p__seguir');
+  await page.click('[data-objetivo="agendamentos"]');
+  await page.click('.orc-p:not([hidden]) .orc-p__seguir');
+  await page.click('[data-site-atual="instagram"]');
+  await page.click('[data-material="tenho"]');
+  await page.click('#o-p-ver-preco');
+  await page.waitForSelector('#o-est-cheio:not([hidden])', { timeout: 15000 });
+  ok((await page.textContent('#o-est-valor')).includes('3.950'), 'preço pela tabela: R$ 3.950');
+  ok(/agend/i.test(await page.textContent('#o-est-motivo')), 'o motivo da recomendação, nas palavras da pessoa');
+  ok(await page.locator('#o-vizinhos [data-formato="landing_page"]').isVisible(), 'o formato vizinho ao lado (âncora honesta)');
+  ok(/não paga nada/i.test(await page.textContent('#o-est-sem-risco')), 'sem risco até confirmar');
+  ok(await semRolagemLateral(page), 'celular no preço: sem rolagem lateral');
+  ok(await page.evaluate(() => document.querySelector('#o-etapas [aria-current]').dataset.passo) === 'estimativa', 'com o preço na tela, a etapa já é "Preço"');
+  await foto(page, '1b-preco-cel');
+  await page.click('#o-ajustar-abrir');
+  ok(await page.isChecked('#o-x-agendamento'), 'ajustar: o extra da recomendação (agendamento) já vem marcado');
+  /* (a tabela limita a fase a 10 dias: institucional 8 + agendamento 1 deixa espaço para as imagens, meio dia; o blog,
+     de 2 dias, vai para a fase seguinte e o total desta fase não muda) */
+  await page.check('#o-x-imagens');
+  await page.waitForFunction(() => document.getElementById('o-est-valor').textContent.includes('4.200'));
+  ok(true, 'ajustar: o preço muda na hora pelo servidor (3.950 + imagens 250)');
+  await page.locator('#o-ajustar').scrollIntoViewIfNeeded();
+  await foto(page, '1c-ajustar-cel');
+  await page.uncheck('#o-x-imagens');
+  await page.waitForFunction(() => document.getElementById('o-est-valor').textContent.includes('3.950'));
+  await page.check('#o-x-blog');
+  await page.waitForSelector('#o-est-fase:not([hidden])');
+  ok(/blog/i.test(await page.textContent('#o-est-fase')), 'ajustar: o que passa do prazo vai para a fase seguinte (blog), pelo servidor');
+  await page.uncheck('#o-x-blog');
+  await page.waitForSelector('#o-est-fase', { state: 'hidden' });
+  /* trocar de formato e voltar não perde o extra da recomendação (o servidor só o soma no formato recomendado) */
+  await page.click('#o-vizinhos [data-formato="landing_page"]');
+  await page.waitForFunction(() => document.getElementById('o-est-valor').textContent.includes('1.950'));
+  ok(true, 'vizinho: site de uma página com o agendamento (1.500 + 450)');
+  await page.click('#o-vizinhos [data-formato="institucional"]');
+  await page.waitForFunction(() => document.getElementById('o-est-valor').textContent.includes('3.950'));
+  ok(true, 'voltar ao recomendado: o agendamento continua (3.950)');
+  await page.click('#o-quero-modelos');
+  await page.waitForSelector('#o-contato:not([hidden])');
+  ok(true, 'pacote gravado: segue para o contato');
+  ok(await page.evaluate(() => document.querySelector('#o-etapas [aria-current]').dataset.passo) === 'estimativa', 'etapa atual: preço');
+  ok(await page.locator('#o-ajustar').isHidden() && await page.locator('#o-quero-modelos').isHidden(), 'pacote gravado: os controles do preço saem de cena');
 
-  const antes = await page.locator('#o-log .msg--visitante').count();
-  await page.fill('#o-texto', 'Sim, quero ver as propostas');
-  await page.press('#o-texto', 'Enter');
-  await page.press('#o-texto', 'Enter');   /* Enter repetido */
-  await page.waitForSelector('#o-pensando[hidden]', { state: 'attached', timeout: 30000 });
-  ok(await page.locator('#o-log .msg--visitante').count() === antes + 1, 'Enter repetido não manda dois turnos');
-  await page.waitForSelector('#o-contato:not([hidden])', { timeout: 30000 });
+  if (CONSULTOR) {
+    /* com o consultor: "Prefere conversar?" abre a conversa. Segurança na tela: HTML digitado aparece como texto */
+    await page.click('#o-conversar');
+    const respostas = await page.locator('#o-log .msg--agente').count();
+    await page.fill('#o-texto', '<img src=x onerror=alert(1)> Tenho uma clínica odontológica e quero mais agendamentos');
+    await page.press('#o-texto', 'Enter');
+    await page.waitForFunction(n => document.querySelectorAll('#o-log .msg--agente').length > n, respostas, { timeout: 30000 });
+    ok(await page.locator('#o-log img').count() === 0, 'texto com HTML vira texto (nenhuma <img> criada)');
+    const antes = await page.locator('#o-log .msg--visitante').count();
+    await page.fill('#o-texto', 'Sim, quero ver os modelos');
+    await page.press('#o-texto', 'Enter');
+    await page.press('#o-texto', 'Enter');   /* Enter repetido */
+    await page.waitForSelector('#o-pensando[hidden]', { state: 'attached', timeout: 30000 });
+    ok(await page.locator('#o-log .msg--visitante').count() === antes + 1, 'Enter repetido não manda dois turnos');
+  } else {
+    ok(await page.locator('#o-conversar').isHidden(), 'sem consultor: nenhum convite para conversar');
+  }
   await page.fill('#o-nome', 'Teste E2E');
   await page.fill('#o-tel', '(21) 99999-0000');
   await page.click('#o-contato-form button[type=submit]');
@@ -108,17 +166,20 @@ try {
   /* sair e voltar */
   await page.reload({ waitUntil: 'load' });
   await page.waitForSelector('#o-ajustes:not([hidden])', { timeout: 30000 });
-  ok(await page.locator('#o-log .msg').count() >= 5, 'recarregar: a conversa volta');
+  if (CONSULTOR) ok(await page.locator('#o-log .msg').count() >= 5, 'recarregar: a conversa volta');
+  else ok(await page.locator('#o-conversa').isHidden() && await page.locator('#o-perguntas').isHidden(), 'recarregar: nem conversa nem perguntas de novo');
   ok(await page.locator('#o-versao button').isVisible(), 'recarregar: a versão ajustada volta');
 
   await page.click('#o-fechar-escopo');
   await page.waitForSelector('#o-escopo:not([hidden])');
   ok((await page.textContent('#o-esc-texto')).includes('INVESTIMENTO'), 'escopo final com investimento');
   ok(!(await page.textContent('#o-esc-texto')).includes('hero'), 'escopo sem nome técnico de seção');
-  /* no escopo a conversa também fica aberta para dúvidas, com o lembrete do cartão na caixa (revisões do PR 34) */
-  ok(await page.locator('#o-form').isVisible() && await page.locator('#o-conversa-fechada').isHidden(), 'escopo: a caixa da conversa continua');
-  ok(/dados de cartão/.test(await page.getAttribute('#o-texto', 'placeholder')), 'escopo: a dica da caixa lembra de não escrever dados de cartão');
-  ok(await page.locator('#o-escopo [data-perguntar]').isVisible(), 'escopo: "Pergunte ao consultor" no bloco');
+  if (CONSULTOR) {
+    /* no escopo a conversa também fica aberta para dúvidas, com o lembrete do cartão na caixa (revisões do PR 34) */
+    ok(await page.locator('#o-form').isVisible() && await page.locator('#o-conversa-fechada').isHidden(), 'escopo: a caixa da conversa continua');
+    ok(/dados de cartão/.test(await page.getAttribute('#o-texto', 'placeholder')), 'escopo: a dica da caixa lembra de não escrever dados de cartão');
+    ok(await page.locator('#o-escopo [data-perguntar]').isVisible(), 'escopo: "Pergunte ao consultor" no bloco');
+  } else ok(await page.locator('#o-escopo [data-perguntar]').isHidden(), 'sem consultor: o resumo não oferece "Pergunte ao consultor"');
   await page.click('#o-esc-form button[type=submit]');
   ok((await page.textContent('#o-esc-erro')).length > 0, 'escopo sem confirmação: recusado');
   await page.check('#o-confirmo');
@@ -126,21 +187,23 @@ try {
   await page.waitForSelector('#o-pagamento:not([hidden])');
   await foto(page, '4-pagamento-cel');
 
-  /* a conversa segue aberta para dúvidas até o sinal (PROPOSTA de 2026-10-09, §4, 3b) */
-  ok(await page.locator('#o-form').isVisible(), 'tela do sinal: a caixa da conversa continua');
-  ok(await page.locator('#o-conversa-fechada').isHidden(), 'tela do sinal: sem o aviso de conversa fechada');
-  const respostasAntes = await page.locator('#o-log .msg--agente').count();
-  await page.click('#o-pagamento [data-perguntar]');
-  ok(await page.evaluate(() => document.activeElement && document.activeElement.id === 'o-texto'), '"Pergunte ao consultor" leva à caixa da conversa');
-  await page.fill('#o-texto', 'Quando eu pago o restante?');
-  await page.click('#o-enviar');
-  await page.waitForFunction(n => document.querySelectorAll('#o-log .msg--agente').length > n, respostasAntes, { timeout: 30000 });
-  const fim = await page.$$eval('#o-log .msg', l => l.slice(-2).map(x => x.className.replace('msg msg--', '') + ': ' + x.textContent));
-  ok(/^visitante: Quando eu pago/.test(fim[0]) && /^agente: /.test(fim[1]), 'tela do sinal: a resposta vem logo depois da pergunta (' + JSON.stringify(fim) + ')');
-  await page.waitForFunction(() => !document.getElementById('o-pagamento').hidden && document.getElementById('o-pronto').hidden);
-  ok(true, 'a dúvida não muda a etapa: o sinal continua esperando');
-  await page.waitForTimeout(800);   /* (a caixa da conversa rola com suavidade até a resposta) */
-  await foto(page, '4b-duvida-no-sinal-cel');
+  if (CONSULTOR) {
+    /* a conversa segue aberta para dúvidas até o sinal (PROPOSTA de 2026-10-09, §4, 3b) */
+    ok(await page.locator('#o-form').isVisible(), 'tela do sinal: a caixa da conversa continua');
+    ok(await page.locator('#o-conversa-fechada').isHidden(), 'tela do sinal: sem o aviso de conversa fechada');
+    const respostasAntes = await page.locator('#o-log .msg--agente').count();
+    await page.click('#o-pagamento [data-perguntar]');
+    ok(await page.evaluate(() => document.activeElement && document.activeElement.id === 'o-texto'), '"Pergunte ao consultor" leva à caixa da conversa');
+    await page.fill('#o-texto', 'Quando eu pago o restante?');
+    await page.click('#o-enviar');
+    await page.waitForFunction(n => document.querySelectorAll('#o-log .msg--agente').length > n, respostasAntes, { timeout: 30000 });
+    const fim = await page.$$eval('#o-log .msg', l => l.slice(-2).map(x => x.className.replace('msg msg--', '') + ': ' + x.textContent));
+    ok(/^visitante: Quando eu pago/.test(fim[0]) && /^agente: /.test(fim[1]), 'tela do sinal: a resposta vem logo depois da pergunta (' + JSON.stringify(fim) + ')');
+    await page.waitForFunction(() => !document.getElementById('o-pagamento').hidden && document.getElementById('o-pronto').hidden);
+    ok(true, 'a dúvida não muda a etapa: o sinal continua esperando');
+    await page.waitForTimeout(800);   /* (a caixa da conversa rola com suavidade até a resposta) */
+    await foto(page, '4b-duvida-no-sinal-cel');
+  } else ok(await page.locator('#o-pagamento [data-perguntar]').isHidden(), 'sem consultor: a tela do sinal não oferece "Pergunte ao consultor"');
 
   /* pagamento: dados do pagador, cartão recusado, depois Pix (QR) e a confirmação SÓ pelo aviso do provedor */
   await page.click('#o-pag-enviar');
@@ -172,13 +235,33 @@ try {
   ok(erros.length === 0, 'sem erro de console' + (erros.length ? ': ' + erros.slice(0, 3).join(' | ') : ''));
   await ctx.close();
 
-  /* 320px e desktop: só o layout */
+  /* 320px e desktop: o layout das perguntas, do preço e do "Quer ajustar?" */
   for (const [w, h, nome] of [[320, 640, '5-inicio-320'], [1440, 900, '6-inicio-desktop']]) {
     const c = await nav.newContext({ viewport: { width: w, height: h } });
     const p = await c.newPage();
     await p.goto(BASE + '/orcamento', { waitUntil: 'load' });
     ok(await semRolagemLateral(p), w + 'px: sem rolagem lateral');
     await foto(p, nome);
+    await p.waitForSelector('#o-perguntas:not([hidden])');
+    await p.locator('#o-perguntas').scrollIntoViewIfNeeded();
+    await foto(p, nome + '-perguntas');
+    await p.click('[data-naosei="1"]');
+    await p.click('[data-objetivo="pedidos_whatsapp"]');
+    await p.click('.orc-p:not([hidden]) .orc-p__seguir');
+    await foto(p, nome + '-passo3');
+    await p.click('#o-p-ver-preco');
+    await p.waitForSelector('#o-est-cheio:not([hidden])', { timeout: 15000 });
+    ok(/escolhi por você/i.test(await p.textContent('#o-est-assumido')), w + 'px: o "Não sei" assumido aparece escrito');
+    ok(await semRolagemLateral(p), w + 'px no preço: sem rolagem lateral');
+    await foto(p, nome + '-preco');
+    await p.click('#o-ajustar-abrir');
+    await p.waitForSelector('#o-x-imagens');   /* (sem ramo, só os extras de qualquer ramo ficam à vista) */
+    await p.locator('#o-ajustar').scrollIntoViewIfNeeded();
+    ok(await semRolagemLateral(p), w + 'px no ajustar: sem rolagem lateral');
+    await foto(p, nome + '-ajustar');
+    await p.click('#o-p-refazer');
+    ok(await p.locator('#o-perguntas').isVisible() && await p.locator('#o-ajustar').isHidden(), w + 'px: "Mudar as respostas" volta às perguntas');
+    ok(await p.evaluate(() => document.querySelector('#o-etapas [aria-current]').dataset.passo) === 'conversa', w + 'px: e a etapa volta para "Perguntas"');
     await c.close();
   }
 

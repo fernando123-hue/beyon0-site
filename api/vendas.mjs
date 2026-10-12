@@ -61,8 +61,11 @@ export async function atender(request, env, metodo, deps) {
   if (acao === 'pagamentoConfig') return responder(configPublica(deps && deps.cfgPagamentos ? deps.cfgPagamentos : configPagamentos(env)));
   /* a chave PÚBLICA do anti-robô (api/_vendas/turnstile.mjs): sem sessão, sem segredo */
   const cfgTurnstile = deps && deps.cfgTurnstile ? deps.cfgTurnstile : configTurnstile(env);
-  /* consultor: se há IA para a conversa (a tela sem IA mostra só o formulário do orçamento) */
-  if (acao === 'sessaoConfig') return responder({ turnstile: cfgTurnstile.siteKey, consultor: deps ? !!deps.ia : !!(await criarIA(env)) });
+  /* consultor: se há IA para a conversa (a tela sem IA mostra só o formulário do orçamento). BZ_SEM_CONSULTOR=1 só
+     no servidor local (docs/servidor.mjs, BZ_LOCAL) e nunca na Vercel: o E2E testa a tela sem consultor com a IA
+     simulada ainda ligada para gerar os modelos */
+  const semConsultorLocal = env.BZ_LOCAL === '1' && env.BZ_SEM_CONSULTOR === '1' && !(env.VERCEL || env.VERCEL_ENV);
+  if (acao === 'sessaoConfig') return responder({ turnstile: cfgTurnstile.siteKey, consultor: semConsultorLocal ? false : deps ? !!deps.ia : !!(await criarIA(env)) });
 
   /* segredoFreio: o HMAC do IP no freio diário (api/_vendas/ip.mjs); um segredo próprio, ou o do servidor do Supabase */
   const d = deps || { banco: criarTransporte(env), visitantes: criarVisitantes(env), ia: await criarIA(env), segredoFreio: env.FREIO_SEGREDO || env.SUPABASE_CHAVE_SECRETA };

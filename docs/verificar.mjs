@@ -343,7 +343,8 @@ await cenario('medicao-wa-orc', DESKTOP, async page => {
   await page.goto(BASE + '/orcamento', { waitUntil: 'load' });
   await page.waitForTimeout(1500);
   await page.evaluate(() => { window.__contato = []; document.addEventListener('bz:contato', e => window.__contato.push(e.detail)); });
-  await page.locator('.orc-conversa a[href^="https://wa.me/"]').first().click();
+  /* (orçamento sem IA: a conversa só aparece com consultor; o WhatsApp de dentro do orçamento à vista é o das perguntas) */
+  await page.locator('#o-perguntas a[href^="https://wa.me/"]').first().click();
   await page.waitForTimeout(300);
   /* o link do menu para o próprio orçamento não é "começar o orçamento" */
   await page.evaluate(() => { window.__orc = 0; window.BEYON.on('medicao:orcamento', () => window.__orc++); window.addEventListener('click', e => e.preventDefault(), true); });
@@ -352,7 +353,7 @@ await cenario('medicao-wa-orc', DESKTOP, async page => {
     contato: window.__contato, orc: window.__orc, google: !!document.querySelector('script[src*="googletagmanager"]'), aviso: !!document.querySelector('.consentimento')
   }));
   const d = r.contato[0] || {};
-  return { ok: r.contato.length === 1 && d.origem_botao === 'orcamento-conversa' && d.pagina === '/orcamento' && r.orc === 0 && !r.google && !r.aviso,
+  return { ok: r.contato.length === 1 && d.origem_botao === 'orcamento-perguntas' && d.pagina === '/orcamento' && r.orc === 0 && !r.google && !r.aviso,
     info: `contatos=${r.contato.length} origem=${d.origem_botao} pagina=${d.pagina} inicios=${r.orc} google=${r.google} aviso=${r.aviso}` };
 });
 

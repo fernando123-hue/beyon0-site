@@ -39,6 +39,9 @@ delete process.env.SUPABASE_CHAVE_PUBLICA;
 /* agente de vendas local: banco PGlite com as migrations, visitantes de desenvolvimento, gateway simulado.
    IA simulada por padrão (de graça); BZ_IA_REAL=1 + ANTHROPIC_API_KEY usa a de verdade (custa). */
 if (process.env.BZ_IA_REAL !== '1') delete process.env.ANTHROPIC_API_KEY;
+/* BZ_SEM_CONSULTOR=1: a tela se comporta como sem consultor (sessao-config diz consultor: false; api/vendas.mjs só
+   aceita isso com BZ_LOCAL); a IA simulada continua gerando os modelos. É o modo do E2E do orçamento sem IA */
+if (process.env.BZ_SEM_CONSULTOR === '1') console.log('[servidor] BZ_SEM_CONSULTOR=1: a página do orçamento abre sem o consultor');
 for (const k of ['MP_AMBIENTE', 'MP_ACCESS_TOKEN', 'MP_PUBLIC_KEY', 'MP_WEBHOOK_SEGREDO', 'MP_USER_ID', 'CRON_SECRET']) delete process.env[k];   /* (local: o Mercado Pago SIMULADO; credencial real nunca roda aqui) */
 delete process.env.SITE_URL;
 try {
