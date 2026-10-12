@@ -356,7 +356,8 @@ try {
     await p.unroute(SIMULAR, comPaginas);
     await p.click('#o-est-sugerido');
     ok(await espera(p, () => !document.getElementById('o-est-erro').textContent && document.getElementById('o-est-sugerido').hidden && !document.getElementById('o-est-cheio').hidden
-      && document.getElementById('o-est-formato').textContent.trim() === 'Site com várias páginas'), 'o botão troca para o site com várias páginas e o erro sai');
+      && document.getElementById('o-est-formato').textContent.trim() === 'Site com várias páginas'), 'o botão troca para o site com várias páginas e o erro sai'
+      + await p.evaluate(() => { const e = document.getElementById('o-est-erro').textContent; return e ? ' (erro na tela: ' + e + ')' : ' (formato: ' + document.getElementById('o-est-formato').textContent.trim() + ')'; }));
     await c.close();
   }
 
