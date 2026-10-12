@@ -18,8 +18,8 @@ strong { color: var(--t1); font-weight: 600; }
   display: flex; align-items: center; justify-content: space-between;
   max-width: var(--r-maxw); margin: 0 auto; padding: 1.2rem var(--pad);
 }
-.r-nav__logo { font-family: var(--mono); font-weight: 600; color: var(--t1); display: inline-flex; align-items: center; gap: .3em; min-height: 44px; }
-.r-nav__logo b { color: var(--ac); }
+.r-nav__logo { display: inline-flex; align-items: center; min-height: 44px; }
+.r-nav__logo .marca { display: block; width: auto; height: 40px; }
 .r-nav__voltar { font-family: var(--mono); font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: var(--t3); display: inline-flex; align-items: center; gap: .5em; min-height: 44px; }   /* (o gap: no flex o espaço depois da seta sumia, "←VOLTAR") */
 .r-nav__voltar:hover { color: var(--t1); }
 
@@ -72,7 +72,7 @@ strong { color: var(--t1); font-weight: 600; }
 
 .r-impresso { display: none; }
 @media print {
-  :root { --bg: #fff; --t1: #111; --t2: #333; --t3: #555; --ac: #0A6E82; --ac-3: #0A6E82; --line-2: #d8d8d8; --stroke: #999; }
+  :root { --bg: #fff; --t1: #111; --t2: #333; --t3: #555; --ac: #0A6E82; --ac-3: #0A6E82; --line-2: #d8d8d8; --stroke: #999; --logo-nucleo: #111; --logo-entrada: #6FB6C2; }
   body { background: #fff; }
   .r-nav__voltar, .r-btn, .r-fine { display: none; }
   /* (no papel o botão some: o contato vai escrito) */
