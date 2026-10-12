@@ -306,15 +306,13 @@ try {
     ok(await espera(p, () => /conversa/i.test(document.getElementById('o-voz').textContent)), 'diagnóstico: o leitor de tela ouve que precisa de uma conversa');
     ok(await semRolagemLateral(p), 'diagnóstico: sem rolagem lateral');
     await foto(p, '7-diagnostico-cel');
-    /* 1º preço sem valor e depois um ajuste (liga e desliga a urgência): os extras da recomendação continuam no pacote.
-       O preço que fica é comparado abaixo com o da recomendação pura (depois de "Mudar as respostas") */
+    /* 1º preço sem valor, depois o formato vizinho e de volta ao recomendado (re-revisão do 68a160a): os extras da
+       recomendação continuam no pacote. O preço que fica é comparado abaixo com o da recomendação pura */
     forcar = false;
-    await p.click('#o-ajustar-abrir');
-    await p.check('#o-x-urgencia');
-    await p.waitForSelector('#o-est-cheio:not([hidden])', { timeout: 15000 });
-    const comUrgencia = (await p.textContent('#o-est-valor')).trim();
-    await p.uncheck('#o-x-urgencia');
-    await p.waitForFunction(u => document.getElementById('o-est-valor').textContent.trim() !== u, comUrgencia, { timeout: 8000 });
+    await p.click('#o-vizinhos [data-formato="landing_page"]');
+    ok(await espera(p, () => document.getElementById('o-est-formato').textContent.trim() === 'Site de uma página' && !document.getElementById('o-est-cheio').hidden), 'diagnóstico no 1º preço: o vizinho mostra o preço dele');
+    await p.click('#o-vizinhos [data-formato="institucional"]');
+    ok(await espera(p, () => document.getElementById('o-est-formato').textContent.trim() === 'Site com várias páginas'), 'e de volta ao recomendado');
     const depoisDoDiagnostico = (await p.textContent('#o-est-valor')).trim();
     /* de um preço de verdade para o diagnóstico e de volta: o preço velho não fica na tela */
     forcar = false;

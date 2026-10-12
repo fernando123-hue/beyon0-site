@@ -29,6 +29,7 @@
   var r = { objetivos: [] };          /* as respostas */
   var formato = null;                 /* null até o 1º preço: o servidor recomenda */
   var extras = {}, iniciais = {};     /* chave → quantidade; iniciais: a quantidade que a recomendação trouxe */
+  var conhecidos = false;             /* a tela já sabe quais extras a recomendação traz (veio um preço com valor no formato recomendado) */
   var urgencia = false, catalogo = null, catalogoDe = null;
   var seq = 0, emVoo = null, adiado = null, gravando = false, gravado = false, opcoes = {};
   var mostrado = null;   /* as escolhas do último preço que deu certo ({formato, extras, urgencia}): para onde a tela volta se a conta falhar */
@@ -132,11 +133,11 @@
     }
     return atual;
   }
-  /* explícito: cada extra do catálogo vai com a quantidade marcada ou 0 (o 0 vence o extra da recomendação). Antes do
-     1º preço com valor (formato ainda a recomendar), só os marcados: o servidor soma os da recomendação, que a tela
-     ainda não conhece (o 1º preço pode ter vindo sem valor, pedindo conversa) */
+  /* explícito: cada extra do catálogo vai com a quantidade marcada ou 0 (o 0 vence o extra da recomendação). Enquanto a
+     tela não conhece os extras da recomendação (o 1º preço pode ter vindo sem valor, pedindo conversa), só os marcados:
+     o servidor soma os da recomendação no formato recomendado, e um 0 aqui apagaria o que a pessoa nunca viu */
   function pedidoDeExtras() {
-    if (!formato) return Object.keys(extras).reduce(function (p, k) { return extras[k] > 0 ? com(p, k, extras[k]) : p; }, {});
+    if (!conhecidos) return Object.keys(extras).reduce(function (p, k) { return extras[k] > 0 ? com(p, k, extras[k]) : p; }, {});
     return todosExtras().reduce(function (p, x) { return x.fale_comigo ? p : com(p, x.chave, extras[x.chave] > 0 ? extras[x.chave] : 0); }, Object.assign({}, extras));
   }
   /* o 1º preço traz os extras da recomendação (ex.: agendamento): eles viram o estado da tela, pela chave do item */
@@ -169,8 +170,10 @@
           catalogo = cat; catalogoDe = fmt;
           if ($('o-ajustar').hidden === false) montarExtras();
         }
-        if (!formato && res.estimativa) {   /* (sem valor, o formato segue a recomendar: senão os extras dela se perdiam) */
-          formato = fmt; extras = extrasDoPreco(res.estimativa); iniciais = extras;
+        /* o 1º preço com valor no formato recomendado ensina à tela os extras da recomendação. Sem valor, segue a
+           recomendar; se a pessoa já mexeu de novo (outra conta esperando), quem ensina é a conta seguinte (o clique fica) */
+        if (!conhecidos && res.estimativa && fmt === res.recomendacao.formato && !adiado) {
+          formato = fmt; extras = extrasDoPreco(res.estimativa); iniciais = extras; conhecidos = true;
           escolhas = { formato: formato, extras: extras, urgencia: escolhas.urgencia };
         }
         mostrado = escolhas;
@@ -323,7 +326,7 @@
     clearTimeout(adiado); adiado = null; seq++;
     ocupado(false); emVoo = null;   /* (a conta em voo foi descartada pelo seq: ela não solta o cartão sozinha) */
     /* (o catálogo também: com ele, os extras iriam explícitos em 0 e apagariam os da nova recomendação) */
-    formato = null; extras = {}; iniciais = {}; urgencia = false; catalogo = null; catalogoDe = null;
+    formato = null; extras = {}; iniciais = {}; conhecidos = false; urgencia = false; catalogo = null; catalogoDe = null;
     mostrado = null; valido = null;
     erro('');
     fecharControles();
