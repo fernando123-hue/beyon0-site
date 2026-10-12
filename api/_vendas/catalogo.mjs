@@ -4,7 +4,7 @@
    prazo por item, piso, limites, descontos). As frases são texto de tela,
    revisado no PR 4 (linguagem); sem "sob medida".
    ========================================================================== */
-const FRASES = {
+export const FRASES = {
   pagina_extra: 'Mais uma página além das que vêm no pacote.',
   textos: 'Eu escrevo os textos de cada página a partir do que você me contar.',
   imagens: 'Eu escolho as fotos e imagens que combinam com o seu negócio.',
@@ -29,18 +29,22 @@ const FRASES = {
   area_importar_usuarios: 'Eu importo a sua lista de pessoas para a área com login.',
   sistema_sob_medida: 'Um sistema ou painel feito para o seu caso.'
 };
+/* nomes de tela que trocam o nome da tabela (a tabela é do dono e não se mexe; a tela não diz "sob medida") */
+const NOMES = {
+  sistema_sob_medida: 'Sistema ou painel para o seu caso'
+};
 /* extras que valem para qualquer ramo, e os que valem só para certos ramos */
 const SEMPRE = ['pagina_extra', 'textos', 'imagens', 'formulario_avancado', 'idioma'];
 const POR_RAMO = { agendamento: ['saude', 'beleza', 'servicos', 'educacao'], catalogo: ['comercio', 'alimentacao'], blog: ['saude', 'educacao', 'associacao', 'servicos'], integracao: ['servicos', 'comercio', 'associacao'] };
 
 /* um extra como a tela o vê: sem prioridade nem prazo por item */
 function extra(chave, def) {
-  return { chave, nome: def.nome, frase: FRASES[chave] || def.nome, valor: def.fora_do_automatico ? null : def.valor, max: def.fora_do_automatico ? null : def.max,
+  return { chave, nome: NOMES[chave] || def.nome, frase: FRASES[chave] || def.nome, valor: def.fora_do_automatico ? null : def.valor, max: def.fora_do_automatico ? null : def.max,
     requer: Array.isArray(def.requer) ? def.requer : null, fale_comigo: def.fora_do_automatico === true };
 }
 
 export function catalogoPublico(regras, { formato, ramo }) {
-  const formatos = Object.entries(regras.formatos || {}).map(([chave, f]) => ({ chave, nome: f.nome, a_partir_de: f.base, paginas_incluidas: f.paginas_incluidas, inclui: f.inclui || [] }));
+  const formatos = Object.entries(regras.formatos || {}).map(([chave, f]) => ({ chave, nome: NOMES[chave] || f.nome, a_partir_de: f.base, paginas_incluidas: f.paginas_incluidas, inclui: f.inclui || [] }));
   const principais = [], mais = [];
   for (const [chave, def] of Object.entries(regras.adicionais || {})) {
     if (Array.isArray(def.requer) && def.requer.includes('loja_plataforma') && formato !== 'loja_plataforma') continue;   /* (os da loja só com a loja) */
@@ -57,14 +61,19 @@ const POSSE = { tenho: 'tem', parte: 'parcial', nao: 'nao' };
 
 /* as respostas viram o começo do briefing (o mesmo formato que o consultor monta), para a fila de modelos */
 export function respostasParaBriefing(r, formato) {
-  const objetivos = [...new Set(r.objetivos.map(o => OBJETIVO_BRIEFING[o] || 'outro'))];
+  /* entrada ruim não quebra: objetivos que não é lista vira vazio; ramo/material desconhecido some do briefing */
+  const lista = Array.isArray(r.objetivos) ? r.objetivos : [];
+  const objetivos = [...new Set(lista.map(o => OBJETIVO_BRIEFING[o] || 'outro'))];
+  const segmento = r.ramo === 'outro' && r.outro ? r.outro : NOME_RAMO[r.ramo];
+  const negocio = { ...(segmento ? { segmento } : {}), ...(r.cidade ? { cidade: r.cidade } : {}) };
+  const sabeMaterial = Boolean(POSSE[r.material]);
+  /* grupo vazio não entra (o limparAtualizacao também o descartaria) */
   const b = {
-    negocio: { segmento: r.ramo === 'outro' && r.outro ? r.outro : NOME_RAMO[r.ramo], ...(r.cidade ? { cidade: r.cidade } : {}) },
-    objetivos,
-    conteudo: { textos: POSSE[r.material] },
-    identidade_visual: { tem_logo: r.material === 'tenho' },
+    ...(Object.keys(negocio).length ? { negocio } : {}),
+    ...(objetivos.length ? { objetivos } : {}),
+    ...(sabeMaterial ? { conteudo: { textos: POSSE[r.material] }, identidade_visual: { tem_logo: r.material === 'tenho' } } : {}),
     projeto: { formato }
   };
-  if (r.objetivos.includes('achado_google')) b.objetivo_detalhe = 'ser achado no Google';
+  if (lista.includes('achado_google')) b.objetivo_detalhe = 'ser achado no Google';
   return b;
 }
