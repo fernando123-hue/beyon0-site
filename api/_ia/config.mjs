@@ -17,8 +17,18 @@ export const PAPEIS = {
 export const TENTATIVAS_PADRAO = 2;
 
 /* as três direções: geradas pela API na hora ("api") ou produzidas pelo dono no Claude Code, em até 24 horas úteis
-   ("manual", decisão do dono 2026-10-08, enquanto não há verba para a API). BZ_DIRECOES na Vercel; lido a cada uso */
-export const modoDirecoes = (env = process.env) => (String(env.BZ_DIRECOES || '').trim().toLowerCase() === 'manual' ? 'manual' : 'api');
+   ("manual", decisão do dono 2026-10-08, enquanto não há verba para a API). BZ_DIRECOES na Vercel; lido a cada uso.
+   Sem chave da Anthropic os modelos saem SEMPRE pela fila manual (spec do orçamento sem IA §7); o simulador local
+   (BZ_IA=simulada / BZ_LOCAL=1) continua gerando para os testes e o servidor local. A mesma condição de criarIA
+   (api/_ia/provedor.mjs): na produção da Vercel o simulador nunca liga, então lá "simulada" sem chave também é fila
+   manual (senão as direções ficariam presas em "gerando", sem modelo para gerá-las) */
+export const modoDirecoes = (env = process.env) => {
+  if (String(env.BZ_DIRECOES || '').trim().toLowerCase() === 'manual') return 'manual';
+  if (env.ANTHROPIC_API_KEY) return 'api';
+  const producaoVercel = !!(env.VERCEL || env.VERCEL_ENV) && !['preview', 'development'].includes(env.VERCEL_ENV);
+  const simulada = env.BZ_LOCAL === '1' || env.BZ_IA === 'simulada';
+  return simulada && !producaoVercel ? 'api' : 'manual';
+};
 
 /* US$ por milhão de tokens: entrada, saída, leitura de cache, escrita de cache (~1,25× a entrada). `longo`: a tabela que
    vale quando a entrada inteira do pedido (sem cache + lida + escrita) passa de `ate_tokens` */

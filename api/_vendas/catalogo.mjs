@@ -33,18 +33,20 @@ export const FRASES = {
 const NOMES = {
   sistema_sob_medida: 'Sistema ou painel para o seu caso'
 };
+/* o nome que a tela mostra para uma chave da tabela (também na lista do "fale comigo" do simular) */
+export const nomeDeTela = (chave, nome) => (Object.hasOwn(NOMES, chave) ? NOMES[chave] : nome);
 /* extras que valem para qualquer ramo, e os que valem só para certos ramos */
 const SEMPRE = ['pagina_extra', 'textos', 'imagens', 'formulario_avancado', 'idioma'];
 const POR_RAMO = { agendamento: ['saude', 'beleza', 'servicos', 'educacao'], catalogo: ['comercio', 'alimentacao'], blog: ['saude', 'educacao', 'associacao', 'servicos'], integracao: ['servicos', 'comercio', 'associacao'] };
 
 /* um extra como a tela o vê: sem prioridade nem prazo por item */
 function extra(chave, def) {
-  return { chave, nome: NOMES[chave] || def.nome, frase: FRASES[chave] || def.nome, valor: def.fora_do_automatico ? null : def.valor, max: def.fora_do_automatico ? null : def.max,
+  return { chave, nome: nomeDeTela(chave, def.nome), frase: FRASES[chave] || def.nome, valor: def.fora_do_automatico ? null : def.valor, max: def.fora_do_automatico ? null : def.max,
     requer: Array.isArray(def.requer) ? def.requer : null, fale_comigo: def.fora_do_automatico === true };
 }
 
 export function catalogoPublico(regras, { formato, ramo }) {
-  const formatos = Object.entries(regras.formatos || {}).map(([chave, f]) => ({ chave, nome: NOMES[chave] || f.nome, a_partir_de: f.base, paginas_incluidas: f.paginas_incluidas, inclui: f.inclui || [] }));
+  const formatos = Object.entries(regras.formatos || {}).map(([chave, f]) => ({ chave, nome: nomeDeTela(chave, f.nome), a_partir_de: f.base, paginas_incluidas: f.paginas_incluidas, inclui: f.inclui || [] }));
   const principais = [], mais = [];
   for (const [chave, def] of Object.entries(regras.adicionais || {})) {
     if (Array.isArray(def.requer) && def.requer.includes('loja_plataforma') && formato !== 'loja_plataforma') continue;   /* (os da loja só com a loja) */

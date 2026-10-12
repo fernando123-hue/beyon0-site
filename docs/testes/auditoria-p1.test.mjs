@@ -51,7 +51,7 @@ async function navegar(deps) {
 }
 
 test('P1 ledger: cada chamada ao modelo fica registrada com o id do pedido (sucesso e falha), sem conteúdo', async () => {
-  const deps = { banco: local.rpc, visitantes: local.auth, ia: criarSimulada() };
+  const deps = { banco: local.rpc, visitantes: local.auth, ia: criarSimulada(), direcoes: 'api' };
   const n = await navegar(deps);
   const s = await n('POST', 'sessao', {});
   assert.match(s.id || '', /^[0-9a-f-]{36}$/, 'toda resposta leva o x-request-id');
@@ -116,7 +116,7 @@ test('P1 rotina: etapa que falha vira alerta urgente e as outras seguem (envio d
 });
 
 test('P1 ledger: o caminho do ajuste também registra a chamada (papel extracao)', async () => {
-  const deps = { banco: local.rpc, visitantes: local.auth, ia: criarSimulada() };
+  const deps = { banco: local.rpc, visitantes: local.auth, ia: criarSimulada(), direcoes: 'api' };
   const n = await navegar(deps);
   const s = await n('POST', 'sessao', {});
   const c = s.corpo.conversa_id;
@@ -142,7 +142,7 @@ test('P1 dinheiro por extenso também sai do texto do agente', () => {
 test('P1 disjuntor: 5 falhas seguidas da IA em 10 min param as chamadas e oferecem o WhatsApp; 4 não', async () => {
   let chamadas = 0;
   const base = criarSimulada();
-  const deps = { banco: local.rpc, visitantes: local.auth, ia: { ...base, mensagem: p => { chamadas++; return base.mensagem(p); } } };
+  const deps = { banco: local.rpc, visitantes: local.auth, direcoes: 'api', ia: { ...base, mensagem: p => { chamadas++; return base.mensagem(p); } } };
   const n = await navegar(deps);
   const s = await n('POST', 'sessao', {});
   const vid = (await local.db.query('select visitante_id from app.conversas where id = $1', [s.corpo.conversa_id])).rows[0].visitante_id;

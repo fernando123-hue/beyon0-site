@@ -1,9 +1,9 @@
 /* ==========================================================================
    /api/vendas?acao=… — a API do agente de vendas (uma função; cada ação é um
    passo do fluxo, em api/_vendas/fluxo.mjs).
-     GET  estado, pagamento, pagamento-config
+     GET  estado, pagamento, pagamento-config, sessao-config, catalogo
      POST sessao, renovar, mensagem, contato, gerar, gerar-direcao, escolher,
-          alterar, escopo, confirmar, pagar
+          alterar, escopo, confirmar, pagar, simular, confirmar-pacote
    Fronteira: freio por IP, JSON obrigatório (um formulário de outro site não
    chega aqui), corpo limitado, token do visitante em cada ação (exceto criar
    a sessão), erro interno genérico (detalhe só no log, sem dado pessoal).
@@ -19,9 +19,10 @@ import { randomUUID } from 'node:crypto';
 import { configTurnstile, verificarHumano } from './_vendas/turnstile.mjs';
 
 const ACOES = {
-  GET: { estado: 'estado', pagamento: 'pagamento', 'pagamento-config': 'pagamentoConfig', 'sessao-config': 'sessaoConfig' },
+  GET: { estado: 'estado', pagamento: 'pagamento', 'pagamento-config': 'pagamentoConfig', 'sessao-config': 'sessaoConfig', catalogo: 'catalogo' },
   POST: { sessao: 'sessao', renovar: 'renovar', mensagem: 'mensagem', contato: 'contato', gerar: 'gerar', 'gerar-direcao': 'gerarDirecao',
-    escolher: 'escolher', alterar: 'alterar', escopo: 'escopo', confirmar: 'confirmar', pagar: 'pagar' }
+    escolher: 'escolher', alterar: 'alterar', escopo: 'escopo', confirmar: 'confirmar', pagar: 'pagar',
+    simular: 'simular', 'confirmar-pacote': 'confirmarPacote' }
 };
 const PRECISA_IA = new Set(['mensagem', 'gerarDirecao', 'alterar']);
 const LIMITE_BYTES = 16384;
@@ -60,7 +61,8 @@ export async function atender(request, env, metodo, deps) {
   if (acao === 'pagamentoConfig') return responder(configPublica(deps && deps.cfgPagamentos ? deps.cfgPagamentos : configPagamentos(env)));
   /* a chave PÚBLICA do anti-robô (api/_vendas/turnstile.mjs): sem sessão, sem segredo */
   const cfgTurnstile = deps && deps.cfgTurnstile ? deps.cfgTurnstile : configTurnstile(env);
-  if (acao === 'sessaoConfig') return responder({ turnstile: cfgTurnstile.siteKey });
+  /* consultor: se há IA para a conversa (a tela sem IA mostra só o formulário do orçamento) */
+  if (acao === 'sessaoConfig') return responder({ turnstile: cfgTurnstile.siteKey, consultor: deps ? !!deps.ia : !!(await criarIA(env)) });
 
   /* segredoFreio: o HMAC do IP no freio diário (api/_vendas/ip.mjs); um segredo próprio, ou o do servidor do Supabase */
   const d = deps || { banco: criarTransporte(env), visitantes: criarVisitantes(env), ia: await criarIA(env), segredoFreio: env.FREIO_SEGREDO || env.SUPABASE_CHAVE_SECRETA };

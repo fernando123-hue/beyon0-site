@@ -99,7 +99,7 @@ test('próximo passo: o código diz ao modelo o que fazer agora, pela ordem do f
 test('o turno usa o harness: instruções montadas da tabela, estado com o próximo passo', async () => {
   const recebidos = [];
   const ia = { mensagem: async p => { recebidos.push(p); return { texto: 'Que tipo de negócio você tem?', chamadas: [], conteudo: [], parada: 'fim', custo_usd: 0 }; } };
-  await executarTurno({ ia, regras: REGRAS, conversa: { etapa: 'descoberta', briefing: {}, mensagens: [], estimativa: null }, mensagem: 'oi' });
+  await executarTurno({ ia, direcoes: 'api', regras: REGRAS, conversa: { etapa: 'descoberta', briefing: {}, mensagens: [], estimativa: null }, mensagem: 'oi' });
   assert.equal(recebidos[0].sistema, montarSistema(REGRAS));
   assert.match(recebidos[0].contexto, /proximo_passo/);
 });

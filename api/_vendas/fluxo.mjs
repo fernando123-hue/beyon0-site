@@ -19,10 +19,13 @@ import { TETOS, reservaUsd, modoDirecoes } from '../_ia/config.mjs';
 import { ErroIA } from '../_ia/provedor.mjs';
 import { ErroBanco } from './transporte.mjs';
 import { ErroPagamento } from '../_pagamentos/servico.mjs';
-import { ipDe } from '../_freio.mjs';
+import { criarFreio, ipDe } from '../_freio.mjs';
 import { chaveDoIp } from './ip.mjs';
 import { AuthIndisponivel } from '../_supabase.mjs';
 import { ETAPAS_SO_DUVIDAS } from './consultor.mjs';
+import { classificar } from '../_classificador/index.mjs';
+import { catalogoPublico, respostasParaBriefing, nomeDeTela } from './catalogo.mjs';
+import { limparAtualizacao } from './briefing.mjs';
 
 import { ORG } from './org.mjs';
 export { ORG };
@@ -79,6 +82,40 @@ async function regrasAtivas(banco) {
   }
   return r;
 }
+
+/* ---------- o ORÇAMENTO SEM IA (spec docs/specs/2026-10-11-orcamento-sem-ia.md): as escolhas viram fatores AQUI; o
+   navegador nunca manda preço, fator nem complexidade ---------- */
+/* por conversa, no módulo: o fluxo é criado a cada pedido (vendas.mjs), um freio dentro dele zeraria sempre.
+   Por instância, como o freio por IP (o freio no banco vem no PR 2) */
+const freioPacote = criarFreio({ max: 60, janelaMs: 60 * 60e3 });
+const ETAPAS_PACOTE = ['descoberta', 'estimativa'];   /* = app.vendas_registrar_respostas: depois do contato o pacote não muda por aqui */
+const CONFIANCA_FORMULARIO = 0.4;   /* fixa: o formulário dá o começo do briefing; nunca vem do corpo */
+const CHAVE_EXTRA = /^[a-z_]{2,40}$/;
+const PAGINAS_VIRA_INSTITUCIONAL = 3;
+const TABELA_EM_ATUALIZACAO = 'A tabela de valores está em atualização. Fale com a Beyon Zero pelo WhatsApp.';
+
+/* os extras do corpo: só chave e quantidade inteira (o resto é ignorado; o motor confere contra a tabela) */
+function extrasDoCorpo(v) {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return {};
+  return Object.fromEntries(Object.entries(v).filter(([k, q]) => CHAVE_EXTRA.test(k) && Number.isInteger(q)));
+}
+
+/* decisão do dono: a landing com páginas extras saía mais cara que o institucional. Com 3 páginas ou mais vira
+   institucional, que já traz as suas (5 na tabela); só o que passa delas segue como página extra */
+function landingQueCresceu(formato, extras, tabela) {
+  const landing = tabela.formatos.landing_page, inst = tabela.formatos.institucional;
+  if (formato !== 'landing_page' || !landing || !inst) return null;
+  const extrasPag = Number.isInteger(extras.pagina_extra) && extras.pagina_extra > 0 ? extras.pagina_extra : 0;
+  const paginas = landing.paginas_incluidas + extrasPag;
+  if (paginas < PAGINAS_VIRA_INSTITUCIONAL) return null;
+  const resto = Object.fromEntries(Object.entries(extras).filter(([k]) => k !== 'pagina_extra'));
+  const sobra = Math.max(0, paginas - inst.paginas_incluidas);
+  return { formato: 'institucional', extras: sobra ? { ...resto, pagina_extra: sobra } : resto };
+}
+
+/* o que a tela recebe da recomendação (sem as respostas validadas nem os adicionais internos) */
+const publicaRec = (rec, trocou) => ({ formato: rec.formato, alternativa: rec.alternativa, fale_comigo: rec.fale_comigo, sugestoes: rec.sugestoes,
+  motivo: rec.motivo, assumido: rec.assumido, trocou_para_institucional: trocou });
 
 export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoFreio, requestId, direcoes }) {
   /* as direções: geradas pela API na hora, ou na FILA MANUAL (o dono produz no Claude Code, em até 24 horas úteis;
@@ -191,6 +228,25 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     return { resposta: r.resposta, estimativa, pedir_contato: !soDuvidas && r.pedir_contato, diagnostico: r.diagnostico, sugestoes_ia: r.sugestoes_ia, confianca: r.confianca };
   }
 
+  /* respostas + escolhas → recomendação e estimativa pelo motor, contra a tabela ATIVA (nada grava aqui) */
+  async function pacote(corpo) {
+    const regras = await regrasAtivas(banco);
+    exigir(regras, 503, TABELA_EM_ATUALIZACAO);
+    const tabela = regras.regras;
+    const rec = (await classificar('recomendar_pacote', { respostas: corpo?.respostas, formatos: Object.keys(tabela.formatos) })).dados;
+    exigir(!rec.erros, 400, 'Respostas inválidas.');
+    const escolhido = typeof corpo?.formato === 'string' && Object.hasOwn(tabela.formatos, corpo.formato) ? corpo.formato : rec.formato;
+    const pedidos = extrasDoCorpo(corpo?.extras);
+    const troca = landingQueCresceu(escolhido, pedidos, tabela);
+    const formato = troca ? troca.formato : escolhido;
+    /* os adicionais da recomendação só entram se a pessoa ficou no formato recomendado (quem escolheu a landing e
+       passou para o institucional pelas páginas não ganha o que não pediu); os extras dela vencem os da recomendação */
+    const adicionais = { ...(escolhido === rec.formato ? rec.adicionais : {}), ...(troca ? troca.extras : pedidos) };
+    const e = estimar({ formato, adicionais, urgencia: corpo?.urgencia === true }, tabela);
+    if (e.erros) throw new Recusa(400, e.erros[0]);
+    return { regras, rec, e, formato, trocou: !!troca };
+  }
+
   return {
     /* começar: cria o visitante anônimo e a conversa, com a origem da visita (das métricas, sem dado pessoal) */
     async sessao({ corpo }) {
@@ -218,6 +274,45 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       const e = await estado(vid, query.get('conversa'));
       delete e.conversa.custo_ia_usd;   /* (métrica interna) */
       return { ...e, modo_direcoes: modo };   /* (a tela troca "alguns minutos" por "até 24 horas úteis") */
+    },
+
+    /* o catálogo público da tabela ativa (o "Quer ajustar?"): só com a sessão e a conversa deste visitante */
+    async catalogo({ request, query }) {
+      const vid = await visitante(request);
+      exigir(ehUuid(query.get('conversa')), 400, 'Conversa inválida.');
+      await estado(vid, query.get('conversa'));   /* (a conversa é deste visitante; de outro: 404) */
+      const regras = await regrasAtivas(banco);
+      exigir(regras, 503, TABELA_EM_ATUALIZACAO);
+      return { versao: regras.id, ...catalogoPublico(regras.regras, { formato: query.get('formato'), ramo: query.get('ramo') }) };
+    },
+
+    /* o preço ao vivo: calcula, NÃO grava (spec §3) */
+    async simular({ request, corpo }) {
+      const vid = await visitante(request);
+      exigir(ehUuid(corpo?.conversa_id), 400, 'Conversa inválida.');
+      await estado(vid, corpo.conversa_id);   /* (antes do freio: ninguém gasta a cota da conversa de outro) */
+      exigir(!freioPacote(corpo.conversa_id), 429, 'Muitas simulações seguidas. Espere um pouco ou fale pelo WhatsApp.');
+      const { regras, rec, e, trocou } = await pacote(corpo);
+      const recomendacao = publicaRec(rec, trocou);
+      if (e.encaminhar_diagnostico) return { versao: regras.id, recomendacao, estimativa: null, diagnostico: { itens: e.itens_diagnostico.map(i => nomeDeTela(i.chave, i.nome)) } };
+      return { versao: regras.id, recomendacao, estimativa: cartao(e), diagnostico: null };
+    },
+
+    /* grava o pacote UMA vez, com a versão da tabela que a pessoa viu (spec §3 e §7) */
+    async confirmarPacote({ request, corpo }) {
+      const vid = await visitante(request);
+      exigir(ehUuid(corpo?.conversa_id), 400, 'Conversa inválida.');
+      const est = await estado(vid, corpo.conversa_id);
+      exigir(!freioPacote(corpo.conversa_id), 429, 'Muitas tentativas seguidas. Espere um pouco ou fale pelo WhatsApp.');
+      exigir(ETAPAS_PACOTE.includes(est.conversa.etapa), 409, 'O pacote já foi fechado. Para mudar, fale com a Beyon Zero pelo WhatsApp.');
+      const { regras, rec, e, formato } = await pacote(corpo);
+      if (corpo?.versao !== regras.id) throw new Recusa(409, 'A tabela de valores mudou enquanto você montava o orçamento. Confira o valor novo.', { versao_nova: regras.id });
+      exigir(!e.encaminhar_diagnostico, 409, 'Esse pacote precisa de uma conversa. Fale com a Beyon Zero pelo WhatsApp.');
+      await banco('vendas_registrar_respostas', { conversa_id: corpo.conversa_id, visitante_id: vid,
+        briefing: limparAtualizacao(respostasParaBriefing(rec.respostas, formato)), confianca: CONFIANCA_FORMULARIO });
+      await banco('vendas_registrar_estimativa', { conversa_id: corpo.conversa_id, visitante_id: vid, regras_id: regras.id, fatores: e.fatores,
+        valor_total: e.valor_total, sinal: e.sinal, prazo_dias: e.prazo_dias, fase: e.fase, detalhes: e });
+      return { estimativa: cartao(e) };
     },
 
     /* um turno de conversa com o agente */
