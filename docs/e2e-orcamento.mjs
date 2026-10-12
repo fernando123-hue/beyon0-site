@@ -123,16 +123,19 @@ try {
   const gravarDevagar = async route => { await new Promise(r => setTimeout(r, 800)); await route.continue(); };
   await page.route(GRAVAR, gravarDevagar);
   const pedidoGravar = page.waitForRequest(r => GRAVAR(new URL(r.url())));
+  /* a corrida: marcar imagens e clicar "Quero" ainda dentro da espera da conta. "Quero" espera a conta terminar e grava
+     o pedido do preço que ela mostrou (com imagens), nunca o de antes */
+  await page.check('#o-x-imagens');
   await page.click('#o-quero-modelos');
   const corpoGravar = JSON.parse((await pedidoGravar).postData() || '{}');
-  ok(corpoGravar.formato === 'institucional' && corpoGravar.extras && corpoGravar.extras.agendamento === 1,
-    'Quero grava as escolhas do último preço mostrado (institucional com agendamento), não as da conta que falhou: ' + JSON.stringify({ formato: corpoGravar.formato, agendamento: corpoGravar.extras && corpoGravar.extras.agendamento }));
+  ok(corpoGravar.formato === 'institucional' && corpoGravar.extras && corpoGravar.extras.agendamento === 1 && corpoGravar.extras.imagens === 1,
+    'Quero com conta pendente: espera e grava o pedido do último preço (institucional, agendamento e imagens), não o da conta que falhou nem o de antes: ' + JSON.stringify({ formato: corpoGravar.formato, extras: corpoGravar.extras }));
   ok(await page.textContent('#o-quero-modelos') === 'Guardando…', 'enquanto grava, o botão diz "Guardando…"');
   ok(await page.evaluate(() => document.getElementById('o-ajustar-principais').disabled && document.getElementById('o-x-urgencia').disabled), 'enquanto grava, os extras ficam travados');
   await page.waitForSelector('#o-contato:not([hidden])');
   await page.unroute(GRAVAR, gravarDevagar);
   ok(true, 'pacote gravado: segue para o contato');
-  ok((await page.textContent('#o-est-valor')).includes('3.950'), 'o cartão depois de gravar mostra o preço gravado (3.950)');
+  ok((await page.textContent('#o-est-valor')).includes('4.200'), 'o cartão depois de gravar mostra o preço gravado (3.950 + imagens 250 = 4.200)');
   ok((await page.textContent('#o-contato-form button[type=submit]')).trim() === 'Quero os três modelos', 'contato: o botão diz "Quero os três modelos"');
   ok(await page.evaluate(() => document.querySelector('#o-etapas [aria-current]').dataset.passo) === 'estimativa', 'etapa atual: preço');
   ok(await page.locator('#o-ajustar').isHidden() && await page.locator('#o-quero-modelos').isHidden(), 'pacote gravado: os controles do preço saem de cena');
@@ -282,8 +285,8 @@ try {
     });
     /* (as respostas ficam ao voltar por "Mudar as respostas": o objetivo só é marcado na 1ª vez) */
     const verOPreco = async primeira => {
-      await p.click('[data-naosei="1"]');
-      if (primeira) await p.click('[data-objetivo="pedidos_whatsapp"]');
+      await p.click('.orc-p:not([hidden]) .orc-p__seguir');   /* (o ramo é a saúde marcada pela seta, abaixo) */
+      if (primeira) await p.click('[data-objetivo="agendamentos"]');   /* (com saúde, a recomendação traz o agendamento: um extra que não pode sumir) */
       await p.click('.orc-p:not([hidden]) .orc-p__seguir');
       await p.click('#o-p-ver-preco');
     };
@@ -303,12 +306,24 @@ try {
     ok(await espera(p, () => /conversa/i.test(document.getElementById('o-voz').textContent)), 'diagnóstico: o leitor de tela ouve que precisa de uma conversa');
     ok(await semRolagemLateral(p), 'diagnóstico: sem rolagem lateral');
     await foto(p, '7-diagnostico-cel');
+    /* 1º preço sem valor e depois um ajuste (liga e desliga a urgência): os extras da recomendação continuam no pacote.
+       O preço que fica é comparado abaixo com o da recomendação pura (depois de "Mudar as respostas") */
+    forcar = false;
+    await p.click('#o-ajustar-abrir');
+    await p.check('#o-x-urgencia');
+    await p.waitForSelector('#o-est-cheio:not([hidden])', { timeout: 15000 });
+    const comUrgencia = (await p.textContent('#o-est-valor')).trim();
+    await p.uncheck('#o-x-urgencia');
+    await p.waitForFunction(u => document.getElementById('o-est-valor').textContent.trim() !== u, comUrgencia, { timeout: 8000 });
+    const depoisDoDiagnostico = (await p.textContent('#o-est-valor')).trim();
     /* de um preço de verdade para o diagnóstico e de volta: o preço velho não fica na tela */
     forcar = false;
     await p.click('#o-p-refazer');
     await verOPreco();
     await p.waitForSelector('#o-est-cheio:not([hidden])', { timeout: 15000 });
     const valor = (await p.textContent('#o-est-valor')).trim();
+    ok(await p.evaluate(() => /agendamento/i.test(document.getElementById('o-est-itens').textContent)), 'a recomendação traz um extra (agendamento nos itens): o teste abaixo tem o que provar');
+    ok(depoisDoDiagnostico === valor,'diagnóstico no 1º preço e um ajuste: os extras da recomendação não somem (' + depoisDoDiagnostico + ' = ' + valor + ')');
     await p.click('#o-ajustar-abrir');
     forcar = true;
     await p.check('#o-x-imagens');
@@ -324,15 +339,26 @@ try {
       if (corpo.formato !== 'landing_page') return route.continue();
       await route.continue({ postData: JSON.stringify({ ...corpo, extras: { ...corpo.extras, pagina_extra: 3 } }) });
     };
+    const formatoNaTela = async () => (await p.textContent('#o-est-formato')).trim();
+    const doRecomendado = await formatoNaTela();
+    /* (a) de outro formato para a landing grande: a tela volta ao formato mostrado; se ele já é o indicado, sem botão */
     await p.route(SIMULAR, comPaginas);
     await p.click('#o-vizinhos [data-formato="landing_page"]');
     ok(await espera(p, () => /até 3 páginas/.test(document.getElementById('o-est-erro').textContent)), 'landing com 4 páginas: a recusa do servidor aparece no cartão');
-    ok(await p.locator('#o-est-sugerido').isVisible() && /várias páginas/.test(await p.textContent('#o-est-sugerido')), 'landing com 4 páginas: botão para o site com várias páginas');
-    ok((await p.textContent('#o-est-valor')).trim() === valor, 'landing recusada: o preço na tela continua o último (' + valor + ')');
+    ok((await p.textContent('#o-est-valor')).trim() === valor && await formatoNaTela() === doRecomendado, 'landing recusada: o preço e o formato na tela continuam os últimos (' + valor + ', ' + doRecomendado + ')');
+    if (doRecomendado === 'Site com várias páginas') ok(await p.locator('#o-est-sugerido').isHidden(), 'já no site com várias páginas: sem o botão que não levaria a lugar nenhum');
+    /* (b) na landing (até 3 páginas, aceita), uma conta que passa de 3 é recusada e o botão TROCA o formato */
+    await p.unroute(SIMULAR, comPaginas);
+    await p.click('#o-vizinhos [data-formato="landing_page"]');
+    ok(await espera(p, () => !document.getElementById('o-est-erro').textContent && document.getElementById('o-est-formato').textContent.trim() === 'Site de uma página'), 'landing até 3 páginas: aceita, com o preço');
+    await p.route(SIMULAR, comPaginas);
+    await p.click('#o-x-urgencia');
+    ok(await espera(p, () => /até 3 páginas/.test(document.getElementById('o-est-erro').textContent) && !document.getElementById('o-est-sugerido').hidden), 'na landing, passar de 3 páginas: recusa com o botão');
+    ok(/várias páginas/.test(await p.textContent('#o-est-sugerido')), 'o botão diz para onde vai');
     await p.unroute(SIMULAR, comPaginas);
     await p.click('#o-est-sugerido');
-    ok(await espera(p, () => !document.getElementById('o-est-erro').textContent && document.getElementById('o-est-sugerido').hidden && !document.getElementById('o-est-cheio').hidden),
-      'o botão leva ao site com várias páginas e o erro sai');
+    ok(await espera(p, () => !document.getElementById('o-est-erro').textContent && document.getElementById('o-est-sugerido').hidden && !document.getElementById('o-est-cheio').hidden
+      && document.getElementById('o-est-formato').textContent.trim() === 'Site com várias páginas'), 'o botão troca para o site com várias páginas e o erro sai');
     await c.close();
   }
 

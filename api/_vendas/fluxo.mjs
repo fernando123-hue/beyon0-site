@@ -9,7 +9,7 @@
    na especificação, e o que a pessoa já contou continua no banco.
    ========================================================================== */
 import { executarTurno } from './agente.mjs';
-import { estimar, validarRegras } from './precos.mjs';
+import { estimar, validarRegras, LANDING_GRANDE } from './precos.mjs';
 import { gerarDirecao } from './gerador.mjs';
 import { interpretar, aplicar, fatoresComEscopo, paraVisitante } from './alteracoes.mjs';
 import { montarEscopo, nomesDosItens } from './escopo.mjs';
@@ -91,7 +91,6 @@ const freioPacote = criarFreio({ max: 60, janelaMs: 60 * 60e3 });
 const ETAPAS_PACOTE = ['descoberta', 'estimativa'];   /* = app.vendas_registrar_respostas: depois do contato o pacote não muda por aqui */
 const CONFIANCA_FORMULARIO = 0.4;   /* fixa: o formulário dá o começo do briefing; nunca vem do corpo */
 const CHAVE_EXTRA = /^[a-z_]{2,40}$/;
-const LANDING_GRANDE = 'A landing page vai até 3 páginas. Para 4 ou mais, escolha o site com várias páginas.';
 const TABELA_EM_ATUALIZACAO = 'A tabela de valores está em atualização. Fale com a Beyon Zero pelo WhatsApp.';
 
 /* os extras do corpo: só chave e quantidade inteira (o resto é ignorado; o motor confere contra a tabela) */

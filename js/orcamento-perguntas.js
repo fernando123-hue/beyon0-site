@@ -64,9 +64,12 @@
     botoes.forEach(function (b, i) {
       b.addEventListener('click', function () { marcarUm(attr, b.getAttribute(attr), campo); if (depois) depois(); });
       b.addEventListener('keydown', function (ev) {
-        if (!SETAS[ev.key]) return;
+        /* (com Alt, Ctrl ou Meta a tecla é do navegador: Alt+← volta a página) */
+        if (ev.altKey || ev.ctrlKey || ev.metaKey) return;
+        var alvo = ev.key === 'Home' ? 0 : ev.key === 'End' ? botoes.length - 1 : SETAS[ev.key] ? (i + SETAS[ev.key] + botoes.length) % botoes.length : -1;
+        if (alvo < 0) return;
         ev.preventDefault();
-        var outro = botoes[(i + SETAS[ev.key] + botoes.length) % botoes.length];
+        var outro = botoes[alvo];
         outro.focus();
         outro.click();
       });
@@ -107,7 +110,8 @@
     var noCartao = $('o-perguntas').hidden;
     $('o-p-erro').textContent = noCartao ? '' : msg;
     $('o-est-erro').textContent = noCartao ? msg : '';
-    sugerido = noCartao && msg && NOMES[formatoIndicado] ? formatoIndicado : null;
+    /* (a conta que falhou já devolveu a tela ao formato mostrado: se é o indicado, o botão não levaria a lugar nenhum) */
+    sugerido = noCartao && msg && NOMES[formatoIndicado] && formatoIndicado !== formato ? formatoIndicado : null;
     $('o-est-sugerido').hidden = !sugerido;
     if (sugerido) $('o-est-sugerido').textContent = 'Ver o ' + NOMES[sugerido].toLowerCase();
   }
@@ -128,8 +132,11 @@
     }
     return atual;
   }
-  /* explícito: cada extra do catálogo vai com a quantidade marcada ou 0 (o 0 vence o extra da recomendação) */
+  /* explícito: cada extra do catálogo vai com a quantidade marcada ou 0 (o 0 vence o extra da recomendação). Antes do
+     1º preço com valor (formato ainda a recomendar), só os marcados: o servidor soma os da recomendação, que a tela
+     ainda não conhece (o 1º preço pode ter vindo sem valor, pedindo conversa) */
   function pedidoDeExtras() {
+    if (!formato) return Object.keys(extras).reduce(function (p, k) { return extras[k] > 0 ? com(p, k, extras[k]) : p; }, {});
     return todosExtras().reduce(function (p, x) { return x.fale_comigo ? p : com(p, x.chave, extras[x.chave] > 0 ? extras[x.chave] : 0); }, Object.assign({}, extras));
   }
   /* o 1º preço traz os extras da recomendação (ex.: agendamento): eles viram o estado da tela, pela chave do item */
@@ -162,7 +169,7 @@
           catalogo = cat; catalogoDe = fmt;
           if ($('o-ajustar').hidden === false) montarExtras();
         }
-        if (!formato) {
+        if (!formato && res.estimativa) {   /* (sem valor, o formato segue a recomendar: senão os extras dela se perdiam) */
           formato = fmt; extras = extrasDoPreco(res.estimativa); iniciais = extras;
           escolhas = { formato: formato, extras: extras, urgencia: escolhas.urgencia };
         }
@@ -201,26 +208,27 @@
   function desenhar(res) {
     if (gravado) return;   /* (o pacote já foi gravado: uma conta atrasada não reabre os controles) */
     var rec = res.recomendacao;
-    $('o-est-motivo').textContent = formato === rec.formato ? (rec.motivo || '') : '';
+    var atual = formato || rec.formato;   /* (a recomendar: o da recomendação) */
+    $('o-est-motivo').textContent = atual === rec.formato ? (rec.motivo || '') : '';
     $('o-est-motivo').hidden = !$('o-est-motivo').textContent;
     var assumidos = (rec.assumido || []).map(function (k) { return ASSUMIDO[k]; }).filter(Boolean);
     $('o-est-assumido').hidden = !assumidos.length;
     $('o-est-assumido').textContent = assumidos.length ? 'Escolhi por você: ' + assumidos.join(', ') + '. Dá para trocar em "Mudar as respostas".' : '';
     /* o cartão (e o pacote que pede conversa) é desenhado por js/orcamento.js, o mesmo do resto da página */
     document.dispatchEvent(new CustomEvent('bz:preco', { detail: { estimativa: res.estimativa, diagnostico: res.diagnostico } }));
-    if (res.estimativa && NOMES[formato]) $('o-est-formato').textContent = NOMES[formato];   /* (as palavras da tela, as mesmas dos vizinhos) */
-    vizinhos(rec);
-    incluidos(formato);
+    if (res.estimativa && NOMES[atual]) $('o-est-formato').textContent = NOMES[atual];   /* (as palavras da tela, as mesmas dos vizinhos) */
+    vizinhos(rec, atual);
+    incluidos(atual);
     $('o-quero-modelos').hidden = !res.estimativa;   /* (pacote que pede conversa não se grava por aqui) */
     $('o-est-acoes').hidden = false;
     if (!$('o-ajustar').hidden) atualizarExtras();
   }
   /* os formatos ao lado (âncora honesta): a alternativa da recomendação e, fora dela, o próprio recomendado */
-  function vizinhos(rec) {
+  function vizinhos(rec, atual) {
     var caixa = $('o-vizinhos');
     caixa.textContent = '';
     if (!catalogo) return;
-    var chaves = [rec.alternativa, rec.formato].filter(function (k, i, l) { return k && k !== formato && l.indexOf(k) === i; });
+    var chaves = [rec.alternativa, rec.formato].filter(function (k, i, l) { return k && k !== atual && l.indexOf(k) === i; });
     var achados = chaves.map(function (k) { return catalogo.formatos.filter(function (x) { return x.chave === k; })[0]; }).filter(Boolean);
     if (!achados.length) return;
     var rot = document.createElement('p'); rot.className = 'orc-rotulo'; rot.textContent = 'Compare com';
@@ -269,7 +277,7 @@
     rotulo.setAttribute('for', c.id);
     rotulo.appendChild(c); rotulo.appendChild(t);
     c.addEventListener('change', function () {
-      extras = c.checked ? com(extras, x.chave, iniciais[x.chave] || 1) : semOrfaos(sem(extras, x.chave), formato);
+      extras = c.checked ? com(extras, x.chave, iniciais[x.chave] || 1) : semOrfaos(sem(extras, x.chave), formato || catalogoDe);
       atualizarExtras();
       agendar();
     });
@@ -280,7 +288,7 @@
       var c = $('o-x-' + x.chave);
       if (!c) return;
       c.checked = extras[x.chave] > 0;
-      if (x.requer) c.closest('.orc-extra').hidden = !x.requer.some(function (q) { return q === formato || extras[q] > 0; });
+      if (x.requer) c.closest('.orc-extra').hidden = !x.requer.some(function (q) { return q === (formato || catalogoDe) || extras[q] > 0; });   /* (a recomendar: o do catálogo, que é o recomendado) */
     });
     $('o-x-urgencia').checked = urgencia;
   }

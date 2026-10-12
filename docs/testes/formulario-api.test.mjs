@@ -106,12 +106,11 @@ test('landing com até 2 páginas extras: continua landing, pelo preço da tabel
   const n = navegador(), c = await n.iniciar();
   const tres = await n.chamar('POST', 'simular', { conversa_id: c, respostas: RESP, formato: 'landing_page', extras: { pagina_extra: 2 } });
   assert.equal(tres.status, 200, JSON.stringify(tres.corpo));
-  assert.equal(tres.corpo.estimativa.valor_total, LANDING + 2 * PAGINA, 'landing 1500 + 2 páginas de 350 = 2200');
-  assert.equal(tres.corpo.estimativa.valor_total, 2200);
+  assert.equal(tres.corpo.estimativa.valor_total, LANDING + 2 * PAGINA, 'a landing + 2 páginas extras, pela tabela');
   assert.ok(!('trocou_para_institucional' in tres.corpo.recomendacao), 'nada troca de formato sozinho');
   const ok = await n.chamar('POST', 'confirmar-pacote', { conversa_id: c, respostas: RESP, formato: 'landing_page', extras: { pagina_extra: 2 }, versao: tres.corpo.versao });
   assert.equal(ok.status, 200, JSON.stringify(ok.corpo));
-  assert.equal(ok.corpo.estimativa.valor_total, 2200);
+  assert.equal(ok.corpo.estimativa.valor_total, LANDING + 2 * PAGINA);
   const conv = (await local.db.query('select briefing from app.conversas where id = $1', [c])).rows[0];
   assert.equal(conv.briefing.projeto.formato, 'landing_page');
 });

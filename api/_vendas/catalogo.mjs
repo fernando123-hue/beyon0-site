@@ -4,6 +4,8 @@
    prazo por item, piso, limites, descontos). As frases são texto de tela,
    revisado no PR 4 (linguagem); sem "sob medida".
    ========================================================================== */
+import { LANDING_MAX_PAGINAS } from './precos.mjs';
+
 export const FRASES = {
   pagina_extra: 'Mais uma página além das que vêm no pacote.',
   textos: 'Eu escrevo os textos de cada página a partir do que você me contar.',
@@ -39,10 +41,8 @@ export const nomeDeTela = (chave, nome) => (Object.hasOwn(NOMES, chave) ? NOMES[
 const SEMPRE = ['pagina_extra', 'textos', 'imagens', 'formulario_avancado', 'idioma'];
 const POR_RAMO = { agendamento: ['saude', 'beleza', 'servicos', 'educacao'], catalogo: ['comercio', 'alimentacao'], blog: ['saude', 'educacao', 'associacao', 'servicos'], integracao: ['servicos', 'comercio', 'associacao'] };
 
-/* decisão do dono (2026-10-12): a landing page vai até 3 páginas; de 4 em diante, só o site com várias páginas.
-   O servidor recusa o que passa disso (fluxo.mjs) e o catálogo da landing nem oferece */
-export const LANDING_MAX_PAGINAS = 3;
-/* quantas páginas extras a landing aceita: as 3 menos as que já vêm no pacote (1 na tabela → 2 extras) */
+/* a landing vai até 3 páginas: o motor recusa o que passa disso (precos.mjs) e o catálogo da landing nem oferece.
+   Quantas páginas extras a landing aceita: as 3 menos as que já vêm no pacote (1 na tabela → 2 extras) */
 export const landingMaxExtras = landing => Math.max(0, LANDING_MAX_PAGINAS - (landing?.paginas_incluidas ?? 1));
 
 /* um extra como a tela o vê: sem prioridade nem prazo por item */

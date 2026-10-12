@@ -45,6 +45,7 @@ test('nunca passa do teto de prazo, nunca fica abaixo do piso', () => {
     for (const paginas of [1, 5, 12, 30]) {
       const e = estimar({ formato, paginas, adicionais: { blog: 1, idioma: 2, integracao: 3 }, urgencia: paginas > 10, complexidade: 'alta' }, REGRAS);
       if (e.encaminhar_diagnostico) continue;
+      if (e.erros) { assert.ok(formato === 'landing_page' && paginas > 3, formato + ' ' + paginas + ': ' + e.erros); continue; }   /* (landing até 3 páginas) */
       assert.ok(e.prazo_dias <= REGRAS.prazo_max_dias, formato + ' ' + paginas + ' páginas: ' + e.prazo_dias + ' dias');
       assert.ok(e.valor_total >= REGRAS.formatos[formato].piso);
       assert.equal(e.sinal, e.valor_total / 2);
@@ -72,6 +73,18 @@ test('fatores: lista fechada; preço, desconto e quantidade fora da regra não e
   assert.ok(validarFatores({ formato: 'landing_page', paginas: 0.5 }, REGRAS).erros);
   assert.equal(validarFatores({ formato: 'landing_page', adicionais: { integracao: 99 } }, REGRAS).dados.adicionais.integracao, 3, 'limitado ao máximo da regra');
   assert.ok(estimar({ formato: 'landing_page', adicionais: { brinde: 1 } }, REGRAS).erros);
+});
+
+/* decisão do dono (2026-10-12): a landing vai até 3 páginas. A regra mora no motor, para valer em TODO caminho que
+   calcula preço (formulário, consultor e ajuste depois de gravar), não só na tela do preço (re-revisão do 990a87e) */
+test('landing com mais de 3 páginas é recusada pelo motor, por páginas ou por página extra', () => {
+  const incluidas = REGRAS.formatos.landing_page.paginas_incluidas;
+  assert.equal(estimar({ formato: 'landing_page', paginas: 3 }, REGRAS).erros, undefined, '3 páginas: cabe');
+  assert.equal(estimar({ formato: 'landing_page', adicionais: { pagina_extra: 3 - incluidas } }, REGRAS).erros, undefined, 'até 3 pela página extra: cabe');
+  assert.ok(validarFatores({ formato: 'landing_page', paginas: 4 }, REGRAS).erros?.some(e => /até 3 páginas/.test(e)), '4 páginas: recusada');
+  assert.ok(estimar({ formato: 'landing_page', paginas: 12 }, REGRAS).erros?.some(e => /até 3 páginas/.test(e)), 'o ajuste "quero 12 páginas"');
+  assert.ok(estimar({ formato: 'landing_page', adicionais: { pagina_extra: 4 - incluidas } }, REGRAS).erros?.some(e => /até 3 páginas/.test(e)), 'pela página extra também');
+  assert.equal(estimar({ formato: 'institucional', paginas: 12 }, REGRAS).erros, undefined, 'o institucional não tem esse limite');
 });
 
 test('o mesmo pedido dá sempre o mesmo preço (determinístico)', () => {
