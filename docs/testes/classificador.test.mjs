@@ -16,6 +16,7 @@ test('respostas: lista fechada; "não sei" vira o padrão e fica registrado como
   assert.deepEqual(v.dados.assumido.sort(), ['material', 'objetivos', 'ramo', 'site_atual']);
   assert.equal(validarRespostas({ ...base, outro: 'a'.repeat(200), objetivos: [] }).dados.outro.length, 60, 'texto curto');
   assert.equal(validarRespostas({ ...base, cidade: '<b>Goiânia</b>', objetivos: [] }).dados.cidade, 'bGoiânia/b', 'sem < > nem controles');
+  assert.equal(validarRespostas({ objetivos: [], cidade: 'Goi\u007fânia\nGO' }).dados.cidade, 'Goiânia GO', 'sem DEL/C1; quebra de linha vira espaço');
 });
 
 test('tabela explícita: um objetivo só NÃO leva à landing (a dentista que quer agendamentos)', async () => {
@@ -65,4 +66,21 @@ test('o JEV: desligado por padrão; ligado mas indisponível ou lento → recua 
     adaptadores: { jev: () => new Promise(r => setTimeout(() => r({ disponivel: true, dados: {} }), 200)) } });
   assert.equal(lento.motor, 'regras', 'passou do prazo: recua');
   await assert.rejects(classificar('tarefa_inventada', entrada), /tarefa/);
+});
+
+test('o JEV: resposta válida é usada (motor jev)', async () => {
+  const entrada = { respostas: { ...base, objetivos: ['agendamentos'] }, formatos: TODOS };
+  const r = await classificar('recomendar_pacote', entrada, { cfg: { jev: true, prazoMs: 50 },
+    adaptadores: { jev: async () => ({ disponivel: true, dados: { formato: 'landing_page', alternativa: null, adicionais: {}, sugestoes: [], motivo: 'x', assumido: [] } }) } });
+  assert.equal(r.motor, 'jev');
+  assert.equal(r.dados.formato, 'landing_page');
+});
+
+test('o JEV: resposta fora do contrato ou adaptador que quebra → recua para as regras', async () => {
+  const entrada = { respostas: { ...base, objetivos: ['agendamentos'] }, formatos: TODOS };
+  const com = jev => classificar('recomendar_pacote', entrada, { cfg: { jev: true, prazoMs: 50 }, adaptadores: { jev } });
+  assert.equal((await com(async () => ({ disponivel: true, dados: {} }))).motor, 'regras', 'dados vazios');
+  assert.equal((await com(async () => ({ disponivel: true, dados: { formato: 'sob_medida', motivo: 'x' } }))).motor, 'regras', 'sob medida nunca sozinho');
+  assert.equal((await com(async () => ({ disponivel: true, dados: { formato: 'fora_da_lista', motivo: 'x' } }))).motor, 'regras', 'formato fora de entrada.formatos');
+  assert.equal((await com(() => { throw new Error('quebrou'); })).motor, 'regras', 'lança na hora');
 });

@@ -14,7 +14,8 @@ export const OBJETIVOS = ['pedidos_whatsapp', 'achado_google', 'agendamentos', '
 export const SITE_ATUAL = ['nao', 'instagram', 'tenho_site', 'so_endereco'];
 export const MATERIAL = ['tenho', 'parte', 'nao'];
 
-const curto = (v, max) => (typeof v === 'string' ? v.replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, max) : '');
+/* texto curto e limpo: quebra de linha e tab viram um espaço; os demais controles (inclui DEL e C1) e < > saem */
+const curto = (v, max) => (typeof v === 'string' ? v.replace(/[\r\n\t]+/g, ' ').replace(/[\u0000-\u001f\u007f-\u009f<>]/g, '').trim().slice(0, max) : '');
 
 /* as respostas do formulário (lista fechada). Resposta ausente = "não sei": vale o padrão e fica em `assumido` */
 export function validarRespostas(r) {
