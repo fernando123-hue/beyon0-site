@@ -65,14 +65,31 @@
   }
   /* o preço ao vivo das perguntas (js/orcamento-perguntas.js) usa o mesmo cartão; a voz anuncia o valor novo */
   var precoNaTela = false;
+  var VAZIO = $('o-est-vazio').textContent, SEM_VALOR = 'Esse pacote precisa de uma conversa.';
   document.addEventListener('bz:preco', function (ev) {
-    var valorNovo = ev.detail.estimativa ? investimento(ev.detail.estimativa, true) : '';
-    if (valorNovo) anunciar('Preço: ' + valorNovo + '.');
+    if (ev.detail.estimativa) {
+      var valorNovo = investimento(ev.detail.estimativa, true);
+      if (valorNovo) anunciar('Preço: ' + valorNovo + '.');
+    } else if (ev.detail.diagnostico) semValorAutomatico();
     mostrar('o-diagnostico', !!ev.detail.diagnostico);
     precoNaTela = true; etapas();
   });
-  /* "Mudar as respostas": a etapa volta para as perguntas */
-  document.addEventListener('bz:perguntas', function () { precoNaTela = false; etapas(); });
+  /* o pacote pede conversa (fora do automático ou acima do limite): nada do preço anterior (valor, prazo, itens) fica
+     na tela, e a voz avisa uma vez */
+  function semValorAutomatico() {
+    var jaAvisou = !$('o-est-vazio').hidden && $('o-est-vazio').textContent === SEM_VALOR;
+    assinaturas.investimento = null;   /* (se o mesmo preço de antes voltar, o cartão é desenhado de novo) */
+    mostrar('o-est-cheio', false);
+    $('o-est-vazio').textContent = SEM_VALOR;
+    mostrar('o-est-vazio', true);
+    if (!jaAvisou) anunciar(SEM_VALOR + ' Fale com a Beyon Zero pelo WhatsApp.');
+  }
+  /* "Mudar as respostas": a etapa volta para as perguntas (e o cartão vazio, para o texto de antes do preço) */
+  document.addEventListener('bz:perguntas', function () {
+    $('o-est-vazio').textContent = VAZIO;
+    mostrar('o-diagnostico', false);
+    precoNaTela = false; etapas();
+  });
   /* o pacote foi gravado: a tela segue o servidor (o contato aparece) e leva a pessoa até ele */
   document.addEventListener('bz:pacote-confirmado', function seguir() {
     recarregar().then(function () { if (!$('o-contato').hidden) irPara('o-contato'); })

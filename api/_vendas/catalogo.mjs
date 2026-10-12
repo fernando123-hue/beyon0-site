@@ -39,6 +39,12 @@ export const nomeDeTela = (chave, nome) => (Object.hasOwn(NOMES, chave) ? NOMES[
 const SEMPRE = ['pagina_extra', 'textos', 'imagens', 'formulario_avancado', 'idioma'];
 const POR_RAMO = { agendamento: ['saude', 'beleza', 'servicos', 'educacao'], catalogo: ['comercio', 'alimentacao'], blog: ['saude', 'educacao', 'associacao', 'servicos'], integracao: ['servicos', 'comercio', 'associacao'] };
 
+/* decisão do dono (2026-10-12): a landing page vai até 3 páginas; de 4 em diante, só o site com várias páginas.
+   O servidor recusa o que passa disso (fluxo.mjs) e o catálogo da landing nem oferece */
+export const LANDING_MAX_PAGINAS = 3;
+/* quantas páginas extras a landing aceita: as 3 menos as que já vêm no pacote (1 na tabela → 2 extras) */
+export const landingMaxExtras = landing => Math.max(0, LANDING_MAX_PAGINAS - (landing?.paginas_incluidas ?? 1));
+
 /* um extra como a tela o vê: sem prioridade nem prazo por item */
 function extra(chave, def) {
   return { chave, nome: nomeDeTela(chave, def.nome), frase: FRASES[chave] || def.nome, valor: def.fora_do_automatico ? null : def.valor, max: def.fora_do_automatico ? null : def.max,
@@ -51,7 +57,9 @@ export function catalogoPublico(regras, { formato, ramo }) {
   for (const [chave, def] of Object.entries(regras.adicionais || {})) {
     if (Array.isArray(def.requer) && def.requer.includes('loja_plataforma') && formato !== 'loja_plataforma') continue;   /* (os da loja só com a loja) */
     const doRamo = SEMPRE.includes(chave) || (POR_RAMO[chave] || []).includes(ramo) || (formato === 'loja_plataforma' && Array.isArray(def.requer) && def.requer.includes('loja_plataforma'));
-    (doRamo && !def.fora_do_automatico ? principais : mais).push(extra(chave, def));
+    const x = extra(chave, def);
+    const limitado = chave === 'pagina_extra' && formato === 'landing_page' && x.max != null ? { ...x, max: Math.min(x.max, landingMaxExtras(regras.formatos?.landing_page)) } : x;
+    (doRamo && !def.fora_do_automatico ? principais : mais).push(limitado);
   }
   const u = regras.multiplicadores?.urgencia;
   return { formatos, extras: { principais, mais }, urgencia: u ? { acrescimo_percentual: Math.round((u.fator - 1) * 100), prazo_fator: u.prazo_fator } : null };

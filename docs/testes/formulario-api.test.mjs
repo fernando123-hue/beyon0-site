@@ -97,30 +97,50 @@ test('sem chave da Anthropic, os modelos saem sempre pela fila manual', () => {
   assert.equal(modoDirecoes({ BZ_IA: 'simulada', VERCEL: '1', VERCEL_ENV: 'preview' }), 'api');
 });
 
-/* decisão do dono: a landing com páginas extras saía mais cara que o institucional. Com 3 páginas ou mais, o pacote
-   vira institucional (que já traz 5); a tela recebe o aviso da troca. Os valores vêm da tabela, não daqui */
+/* decisão do dono (2026-10-12): a landing page vai até 3 páginas (até 2 extras); de 4 em diante, só o site com várias
+   páginas. Nada troca sozinho: o servidor recusa e diz qual formato serve. Os valores vêm da tabela, não daqui */
 const TABELA = JSON.parse(fs.readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
-const LANDING = TABELA.formatos.landing_page.base, INSTITUCIONAL = TABELA.formatos.institucional.base, PAGINA = TABELA.adicionais.pagina_extra.valor;
+const LANDING = TABELA.formatos.landing_page.base, PAGINA = TABELA.adicionais.pagina_extra.valor;
 
-test('landing com 3 páginas ou mais vira institucional, com o aviso; com 2 páginas continua landing', async () => {
+test('landing com até 2 páginas extras: continua landing, pelo preço da tabela', async () => {
   const n = navegador(), c = await n.iniciar();
   const tres = await n.chamar('POST', 'simular', { conversa_id: c, respostas: RESP, formato: 'landing_page', extras: { pagina_extra: 2 } });
   assert.equal(tres.status, 200, JSON.stringify(tres.corpo));
-  assert.equal(tres.corpo.estimativa.valor_total, INSTITUCIONAL, 'as 3 páginas cabem nas 5 do institucional: sem página extra');
-  assert.equal(tres.corpo.recomendacao.trocou_para_institucional, true);
-  assert.ok(!tres.corpo.estimativa.itens.some(i => /página extra/i.test(i.nome)));
-  const duas = await n.chamar('POST', 'simular', { conversa_id: c, respostas: RESP, formato: 'landing_page', extras: { pagina_extra: 1 } });
-  assert.equal(duas.corpo.estimativa.valor_total, LANDING + PAGINA);
-  assert.equal(duas.corpo.recomendacao.trocou_para_institucional, false);
-  /* além das 5 do institucional, as páginas a mais seguem como extra: landing + 6 extras = 7 páginas = institucional + 2 */
-  const sete = await n.chamar('POST', 'simular', { conversa_id: c, respostas: RESP, formato: 'landing_page', extras: { pagina_extra: 6 } });
-  assert.equal(sete.corpo.estimativa.valor_total, INSTITUCIONAL + 2 * PAGINA);
-  /* e o que se grava é o institucional, com o briefing do formato trocado */
+  assert.equal(tres.corpo.estimativa.valor_total, LANDING + 2 * PAGINA, 'landing 1500 + 2 páginas de 350 = 2200');
+  assert.equal(tres.corpo.estimativa.valor_total, 2200);
+  assert.ok(!('trocou_para_institucional' in tres.corpo.recomendacao), 'nada troca de formato sozinho');
   const ok = await n.chamar('POST', 'confirmar-pacote', { conversa_id: c, respostas: RESP, formato: 'landing_page', extras: { pagina_extra: 2 }, versao: tres.corpo.versao });
   assert.equal(ok.status, 200, JSON.stringify(ok.corpo));
-  assert.equal(ok.corpo.estimativa.valor_total, INSTITUCIONAL);
+  assert.equal(ok.corpo.estimativa.valor_total, 2200);
   const conv = (await local.db.query('select briefing from app.conversas where id = $1', [c])).rows[0];
-  assert.equal(conv.briefing.projeto.formato, 'institucional');
+  assert.equal(conv.briefing.projeto.formato, 'landing_page');
+});
+
+test('landing com 3 páginas extras ou mais: recusada, com o formato que serve', async () => {
+  const n = navegador(), c = await n.iniciar();
+  for (const acao of ['simular', 'confirmar-pacote']) {
+    const r = await n.chamar('POST', acao, { conversa_id: c, respostas: RESP, formato: 'landing_page', extras: { pagina_extra: 3 }, versao: 'x' });
+    assert.equal(r.status, 400, acao + ': ' + JSON.stringify(r.corpo));
+    assert.equal(r.corpo.formato_sugerido, 'institucional');
+    assert.match(r.corpo.erro, /até 3 páginas/);
+  }
+  assert.equal((await local.db.query('select count(*)::int n from app.estimativas where conversa_id = $1', [c])).rows[0].n, 0, 'nada gravado');
+});
+
+test('o catálogo da landing oferece no máximo 2 páginas extras; o do institucional, o da tabela', async () => {
+  const n = navegador(), c = await n.iniciar();
+  const pagina = async formato => (await n.chamar('GET', 'catalogo', undefined, '&conversa=' + c + '&formato=' + formato + '&ramo=saude')).corpo.extras.principais.find(x => x.chave === 'pagina_extra');
+  assert.equal((await pagina('landing_page')).max, 2);
+  assert.equal((await pagina('institucional')).max, TABELA.adicionais.pagina_extra.max);
+});
+
+test('os itens do cartão trazem a chave do extra (a tela casa pela chave, não pelo nome)', async () => {
+  const n = navegador(), c = await n.iniciar();
+  /* (institucional 8 + agendamento 1 + blog 2 passa do teto de 10 dias: o blog vai para a fase seguinte) */
+  const s = await n.chamar('POST', 'simular', { conversa_id: c, respostas: RESP, extras: { blog: 1 } });
+  assert.equal(s.status, 200, JSON.stringify(s.corpo));
+  assert.deepEqual(s.corpo.estimativa.itens.map(i => i.chave), ['agendamento']);
+  assert.deepEqual(s.corpo.estimativa.fase_seguinte.itens.map(i => i.chave), ['blog']);
 });
 
 test('a confiança gravada é a do servidor, nunca a do corpo', async () => {

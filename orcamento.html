@@ -97,15 +97,15 @@
       <p class="orc-perguntas__passo" id="o-p-passo">Passo 1 de 3</p>
       <div class="orc-p" data-p="1">
         <h2 id="o-p-titulo">O que o seu negócio faz?</h2>
-        <div class="orc-opcoes" role="group" aria-labelledby="o-p-titulo">
-          <button type="button" class="orc-op" aria-pressed="false" data-ramo="servicos">Serviços <small>oficina, assistência técnica, advocacia…</small></button>
-          <button type="button" class="orc-op" aria-pressed="false" data-ramo="saude">Saúde <small>clínica, consultório, fisioterapia…</small></button>
-          <button type="button" class="orc-op" aria-pressed="false" data-ramo="beleza">Beleza <small>salão, barbearia, estética…</small></button>
-          <button type="button" class="orc-op" aria-pressed="false" data-ramo="alimentacao">Alimentação <small>restaurante, lanchonete, padaria…</small></button>
-          <button type="button" class="orc-op" aria-pressed="false" data-ramo="comercio">Comércio <small>loja, mercado, distribuidora…</small></button>
-          <button type="button" class="orc-op" aria-pressed="false" data-ramo="educacao">Educação <small>escola, curso, aulas…</small></button>
-          <button type="button" class="orc-op" aria-pressed="false" data-ramo="associacao">Associação ou entidade</button>
-          <button type="button" class="orc-op" aria-pressed="false" data-ramo="outro">Outro</button>
+        <div class="orc-opcoes" role="radiogroup" aria-labelledby="o-p-titulo">
+          <button type="button" class="orc-op" role="radio" aria-checked="false" tabindex="0" data-ramo="servicos">Serviços <small>oficina, assistência técnica, advocacia…</small></button>
+          <button type="button" class="orc-op" role="radio" aria-checked="false" tabindex="-1" data-ramo="saude">Saúde <small>clínica, consultório, fisioterapia…</small></button>
+          <button type="button" class="orc-op" role="radio" aria-checked="false" tabindex="-1" data-ramo="beleza">Beleza <small>salão, barbearia, estética…</small></button>
+          <button type="button" class="orc-op" role="radio" aria-checked="false" tabindex="-1" data-ramo="alimentacao">Alimentação <small>restaurante, lanchonete, padaria…</small></button>
+          <button type="button" class="orc-op" role="radio" aria-checked="false" tabindex="-1" data-ramo="comercio">Comércio <small>loja, mercado, distribuidora…</small></button>
+          <button type="button" class="orc-op" role="radio" aria-checked="false" tabindex="-1" data-ramo="educacao">Educação <small>escola, curso, aulas…</small></button>
+          <button type="button" class="orc-op" role="radio" aria-checked="false" tabindex="-1" data-ramo="associacao">Associação ou entidade</button>
+          <button type="button" class="orc-op" role="radio" aria-checked="false" tabindex="-1" data-ramo="outro">Outro</button>
         </div>
         <label class="orc-p__campo" for="o-p-outro" id="o-p-outro-rotulo" hidden>Qual? <input id="o-p-outro" maxlength="60" autocomplete="off" /></label>
         <label class="orc-p__campo" for="o-p-cidade">Em qual cidade? <input id="o-p-cidade" maxlength="60" autocomplete="address-level2" /></label>
@@ -128,17 +128,17 @@
       </div>
       <div class="orc-p" data-p="3" hidden>
         <h2 id="o-p3-titulo">Já tem site ou endereço próprio?</h2>
-        <div class="orc-opcoes" role="group" aria-labelledby="o-p3-titulo">
-          <button type="button" class="orc-op" aria-pressed="false" data-site-atual="nao">Não</button>
-          <button type="button" class="orc-op" aria-pressed="false" data-site-atual="instagram">Só o Instagram</button>
-          <button type="button" class="orc-op" aria-pressed="false" data-site-atual="tenho_site">Tenho site</button>
-          <button type="button" class="orc-op" aria-pressed="false" data-site-atual="so_endereco">Tenho só o endereço (.com.br)</button>
+        <div class="orc-opcoes" role="radiogroup" aria-labelledby="o-p3-titulo">
+          <button type="button" class="orc-op" role="radio" aria-checked="false" tabindex="0" data-site-atual="nao">Não</button>
+          <button type="button" class="orc-op" role="radio" aria-checked="false" tabindex="-1" data-site-atual="instagram">Só o Instagram</button>
+          <button type="button" class="orc-op" role="radio" aria-checked="false" tabindex="-1" data-site-atual="tenho_site">Tenho site</button>
+          <button type="button" class="orc-op" role="radio" aria-checked="false" tabindex="-1" data-site-atual="so_endereco">Tenho só o endereço (.com.br)</button>
         </div>
         <h2 id="o-p4-titulo">Já tem logo e textos?</h2>
-        <div class="orc-opcoes" role="group" aria-labelledby="o-p4-titulo">
-          <button type="button" class="orc-op" aria-pressed="false" data-material="tenho">Tenho</button>
-          <button type="button" class="orc-op" aria-pressed="false" data-material="parte">Tenho uma parte</button>
-          <button type="button" class="orc-op" aria-pressed="false" data-material="nao">Não tenho</button>
+        <div class="orc-opcoes" role="radiogroup" aria-labelledby="o-p4-titulo">
+          <button type="button" class="orc-op" role="radio" aria-checked="false" tabindex="0" data-material="tenho">Tenho</button>
+          <button type="button" class="orc-op" role="radio" aria-checked="false" tabindex="-1" data-material="parte">Tenho uma parte</button>
+          <button type="button" class="orc-op" role="radio" aria-checked="false" tabindex="-1" data-material="nao">Não tenho</button>
         </div>
         <button type="button" class="btn btn--primary orc-p__seguir" id="o-p-ver-preco">Ver o preço</button>
       </div>
@@ -192,7 +192,6 @@
               <div><dt>Na entrega</dt><dd id="o-est-resto"></dd></div>
             </dl>
             <p class="orc-est__assumido" id="o-est-assumido" hidden></p>
-            <p class="orc-est__assumido" id="o-est-troca" hidden>Com 3 páginas ou mais, o site com várias páginas sai igual ou mais em conta.</p>
             <ul class="orc-est__itens" id="o-est-itens"></ul>
             <div class="orc-est__fase" id="o-est-fase" hidden>
               <p class="orc-rotulo">Fica para uma fase seguinte</p>
@@ -201,14 +200,6 @@
             </div>
             <div class="orc-est__inclui" id="o-est-inclui-caixa" hidden><p class="orc-rotulo">Já vem no pacote</p><ul id="o-est-inclui"></ul></div>
             <p class="orc-est__sem-risco" id="o-est-sem-risco">Você não paga nada até escolher um modelo e confirmar o resumo.</p>
-            <!-- os controles do preço (js/orcamento-perguntas.js): só enquanto o pacote não foi gravado -->
-            <div class="orc-est__acoes" id="o-est-acoes" hidden>
-              <div class="orc-vizinhos" id="o-vizinhos"></div>
-              <p class="orc-erro" id="o-est-erro" role="alert"></p>
-              <button class="btn btn--primary" type="button" id="o-quero-modelos">Quero os três modelos</button>
-              <button class="btn btn--ghost" type="button" id="o-ajustar-abrir" aria-expanded="false" aria-controls="o-ajustar">Quer ajustar?</button>
-              <button class="orc-p__naosei" type="button" id="o-p-refazer">Mudar as respostas</button>
-            </div>
             <p class="orc-est__nota">O valor final é o do resumo do que será feito, que você confirma antes de pagar qualquer coisa.</p>
           </div>
         </div>
@@ -220,6 +211,16 @@
         <div class="orc-diagnostico" id="o-diagnostico" hidden>
           <p>Esse pedido precisa de uma conversa de diagnóstico: ele não tem valor automático na tabela.</p>
           <a class="btn btn--sm btn--primary" data-wa="quero um diagnóstico para o meu projeto" href="https://wa.me/5521977167944">Conversar no WhatsApp</a>
+        </div>
+        <!-- os controles do preço (js/orcamento-perguntas.js): só enquanto o pacote não foi gravado. Ficam fora do cartão
+             cheio para valerem também quando o pacote pede conversa (sem valor), inclusive no 1º preço -->
+        <div class="orc-est__acoes" id="o-est-acoes" hidden>
+          <div class="orc-vizinhos" id="o-vizinhos"></div>
+          <p class="orc-erro" id="o-est-erro" role="alert"></p>
+          <button class="btn btn--ghost" type="button" id="o-est-sugerido" hidden></button>
+          <button class="btn btn--primary" type="button" id="o-quero-modelos">Quero os três modelos</button>
+          <button class="btn btn--ghost" type="button" id="o-ajustar-abrir" aria-expanded="false" aria-controls="o-ajustar">Quer ajustar?</button>
+          <button class="orc-p__naosei" type="button" id="o-p-refazer">Mudar as respostas</button>
         </div>
       </aside>
 
@@ -245,7 +246,7 @@
         <input id="o-email" name="email" type="email" autocomplete="email" maxlength="254" />
         <label class="orc-check"><input type="checkbox" id="o-aceite" required /> <span>Concordo que a Beyon Zero use estes dados para preparar as propostas e falar comigo sobre elas (<a href="/privacidade#orcamento">privacidade</a>).</span></label>
         <p class="orc-erro" id="o-contato-erro" role="alert"></p>
-        <button class="btn btn--primary" type="submit">Gerar as três direções</button>
+        <button class="btn btn--primary" type="submit">Quero os três modelos</button>
       </form>
     </section>
 
@@ -268,12 +269,12 @@
         <textarea id="o-aj-texto" rows="3" maxlength="2000" placeholder="O que você mudaria?"></textarea>
         <button class="btn" type="submit">Aplicar</button>
       </form>
-      <button class="btn btn--primary orc-seguir" type="button" id="o-fechar-escopo" data-acao>Está bom assim: ver o escopo final</button>
+      <button class="btn btn--primary orc-seguir" type="button" id="o-fechar-escopo" data-acao>Está bom assim: ver o resumo</button>
     </section>
 
-    <!-- ESCOPO FINAL -->
+    <!-- O RESUMO DO QUE SERÁ FEITO (o escopo final) -->
     <section class="orc-bloco" id="o-escopo" aria-labelledby="o-esc-titulo" hidden>
-      <h2 id="o-esc-titulo">Escopo final</h2>
+      <h2 id="o-esc-titulo">Resumo do que será feito</h2>
       <p class="orc-bloco__lead">Confira tudo. É isto que será feito, pelo valor e no prazo abaixo.</p>
       <div class="orc-escopo" id="o-esc-texto" tabindex="0" role="region" aria-label="Texto do escopo"></div>
       <p class="orc-nota">Quer mudar algo antes de confirmar? <a data-wa="quero ajustar o escopo do meu orçamento antes de confirmar" href="https://wa.me/5521977167944">Fale com a Beyon Zero pelo WhatsApp</a>.</p>

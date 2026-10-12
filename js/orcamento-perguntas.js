@@ -7,6 +7,8 @@
    Os extras vão SEMPRE explícitos (marcado = quantidade, desmarcado = 0): o
    servidor só soma os extras da recomendação no formato recomendado, então
    trocar de formato e voltar não pode depender dele para não perder nada.
+   O que se grava é exatamente o pedido do ÚLTIMO preço que apareceu na tela:
+   uma conta que falha (rede, 429, tempo) devolve a tela a esse preço.
    ========================================================================== */
 (function () {
   'use strict';
@@ -19,12 +21,19 @@
   var ASSUMIDO = { ramo: 'o seu ramo', objetivos: 'o que o site precisa trazer', site_atual: 'se já tem site', material: 'se já tem logo e textos' };
   var FALHA_CALCULO = 'Não consegui calcular agora. Tente de novo ou fale pelo WhatsApp.';
   var FALHA_GRAVAR = 'Não consegui guardar agora. Tente de novo.';
+  var QUERO = 'Quero os três modelos', GUARDANDO = 'Guardando…';
+  var SETAS = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
+  /* o que fica parado enquanto o pacote é gravado (nada muda o pedido no meio) */
+  var CONTROLES = ['o-ajustar-principais', 'o-ajustar-mais', 'o-x-urgencia', 'o-ajustar-abrir', 'o-p-refazer', 'o-est-sugerido'];
 
   var r = { objetivos: [] };          /* as respostas */
   var formato = null;                 /* null até o 1º preço: o servidor recomenda */
   var extras = {}, iniciais = {};     /* chave → quantidade; iniciais: a quantidade que a recomendação trouxe */
-  var urgencia = false, versao = null, catalogo = null, catalogoDe = null;
-  var seq = 0, emVoo = null, adiado = null, gravando = false, opcoes = {};
+  var urgencia = false, catalogo = null, catalogoDe = null;
+  var seq = 0, emVoo = null, adiado = null, gravando = false, gravado = false, opcoes = {};
+  var mostrado = null;   /* as escolhas do último preço que deu certo ({formato, extras, urgencia}): para onde a tela volta se a conta falhar */
+  var valido = null;     /* o pedido e a versão do último preço mostrado; null sem preço ou com diagnóstico. É o que "Quero" grava */
+  var sugerido = null;   /* o formato que o servidor indicou na recusa (a landing grande demais) */
   var telas = [].slice.call(document.querySelectorAll('#o-perguntas .orc-p'));
 
   var dinheiro = function (n) { return Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 2 }); };
@@ -42,13 +51,31 @@
     var h = telas[n - 1].querySelector('h2');
     if (h) { h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }); }
   }
+  /* escolha única (ramo, site atual, material): grupo de rádio com roving tabindex, como as formas de pagamento —
+     só o marcado entra no Tab (nada marcado: o 1º) e as setas trocam */
   function marcarUm(attr, valor, campo) {
-    todos('[' + attr + ']').forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute(attr) === valor)); });
+    var botoes = todos('[' + attr + ']');
+    botoes.forEach(function (b) { var sim = b.getAttribute(attr) === valor; b.setAttribute('aria-checked', String(sim)); b.tabIndex = sim ? 0 : -1; });
+    if (valor == null) botoes[0].tabIndex = 0;
     r = valor == null ? sem(r, campo) : com(r, campo, valor);
   }
-  todos('[data-ramo]').forEach(function (b) {
-    b.addEventListener('click', function () { marcarUm('data-ramo', b.getAttribute('data-ramo'), 'ramo'); $('o-p-outro-rotulo').hidden = r.ramo !== 'outro'; });
-  });
+  function grupoUnico(attr, campo, depois) {
+    var botoes = todos('[' + attr + ']');
+    botoes.forEach(function (b, i) {
+      b.addEventListener('click', function () { marcarUm(attr, b.getAttribute(attr), campo); if (depois) depois(); });
+      b.addEventListener('keydown', function (ev) {
+        if (!SETAS[ev.key]) return;
+        ev.preventDefault();
+        var outro = botoes[(i + SETAS[ev.key] + botoes.length) % botoes.length];
+        outro.focus();
+        outro.click();
+      });
+    });
+  }
+  grupoUnico('data-ramo', 'ramo', function () { $('o-p-outro-rotulo').hidden = r.ramo !== 'outro'; });
+  grupoUnico('data-site-atual', 'site_atual');
+  grupoUnico('data-material', 'material');
+  /* os objetivos são de marcar vários: botões de alternar (aria-pressed) */
   todos('[data-objetivo]').forEach(function (b) {
     b.addEventListener('click', function () {
       var o = b.getAttribute('data-objetivo'), tinha = r.objetivos.indexOf(o) >= 0;
@@ -56,8 +83,6 @@
       b.setAttribute('aria-pressed', String(!tinha));
     });
   });
-  todos('[data-site-atual]').forEach(function (b) { b.addEventListener('click', function () { marcarUm('data-site-atual', b.getAttribute('data-site-atual'), 'site_atual'); }); });
-  todos('[data-material]').forEach(function (b) { b.addEventListener('click', function () { marcarUm('data-material', b.getAttribute('data-material'), 'material'); }); });
   todos('.orc-p__seguir').forEach(function (b) {
     if (b.id === 'o-p-ver-preco') return;
     b.addEventListener('click', function () { irPara(Number(b.closest('.orc-p').getAttribute('data-p')) + 1, true); });
@@ -76,8 +101,16 @@
     return { ramo: r.ramo, outro: r.ramo === 'outro' ? $('o-p-outro').value.trim() : '', cidade: $('o-p-cidade').value.trim(), objetivos: r.objetivos.slice(), site_atual: r.site_atual, material: r.material };
   }
   function lista(ul, itens) { ul.textContent = ''; itens.forEach(function (t) { var li = document.createElement('li'); li.textContent = t; ul.appendChild(li); }); }
-  /* o erro vai para onde a pessoa está olhando: as perguntas ou o cartão do preço */
-  function erro(msg) { $('o-p-erro').textContent = $('o-perguntas').hidden ? '' : msg; $('o-est-erro').textContent = $('o-perguntas').hidden ? msg : ''; }
+  /* o erro vai para onde a pessoa está olhando: as perguntas ou o cartão do preço. No cartão, a recusa que indica outro
+     formato (a landing passou de 3 páginas) ganha o botão para ver esse formato */
+  function erro(msg, formatoIndicado) {
+    var noCartao = $('o-perguntas').hidden;
+    $('o-p-erro').textContent = noCartao ? '' : msg;
+    $('o-est-erro').textContent = noCartao ? msg : '';
+    sugerido = noCartao && msg && NOMES[formatoIndicado] ? formatoIndicado : null;
+    $('o-est-sugerido').hidden = !sugerido;
+    if (sugerido) $('o-est-sugerido').textContent = 'Ver o ' + NOMES[sugerido].toLowerCase();
+  }
   var mensagem = function (e, padrao) { return (e && e.message) || padrao; };
 
   /* ---------- os extras: o que vai ao servidor ---------- */
@@ -99,13 +132,13 @@
   function pedidoDeExtras() {
     return todosExtras().reduce(function (p, x) { return x.fale_comigo ? p : com(p, x.chave, extras[x.chave] > 0 ? extras[x.chave] : 0); }, Object.assign({}, extras));
   }
-  /* o 1º preço traz os extras da recomendação (ex.: agendamento): eles viram o estado da tela, pelo nome do item */
+  /* o 1º preço traz os extras da recomendação (ex.: agendamento): eles viram o estado da tela, pela chave do item */
   function extrasDoPreco(est) {
     if (!est) return {};
+    var chaves = todosExtras().map(function (x) { return x.chave; });
     var itens = (est.itens || []).concat(est.fase_seguinte ? est.fase_seguinte.itens : []);
     return itens.reduce(function (ex, i) {
-      var x = todosExtras().filter(function (c) { return c.nome === i.nome; })[0];
-      return x ? com(ex, x.chave, (ex[x.chave] || 0) + i.qtd) : ex;
+      return chaves.indexOf(i.chave) >= 0 ? com(ex, i.chave, (ex[i.chave] || 0) + i.qtd) : ex;
     }, {});
   }
 
@@ -114,11 +147,13 @@
   /* uma conta por vez vale: a resposta de um pedido mais velho que o último é descartada. Devolve se deu certo */
   function calcular() {
     var meu = ++seq;
+    var pedido = { respostas: respostas(), formato: formato, extras: pedidoDeExtras(), urgencia: urgencia };
+    var escolhas = { formato: formato, extras: extras, urgencia: urgencia };
     ocupado(true);
     erro('');
     emVoo = (async function () {
       try {
-        var res = await API.simular({ respostas: respostas(), formato: formato, extras: pedidoDeExtras(), urgencia: urgencia });
+        var res = await API.simular(pedido);
         if (meu !== seq) return false;
         var fmt = formato || res.recomendacao.formato;
         if (catalogoDe !== fmt) {
@@ -127,38 +162,55 @@
           catalogo = cat; catalogoDe = fmt;
           if ($('o-ajustar').hidden === false) montarExtras();
         }
-        if (!formato) { formato = fmt; extras = extrasDoPreco(res.estimativa); iniciais = extras; }
+        if (!formato) {
+          formato = fmt; extras = extrasDoPreco(res.estimativa); iniciais = extras;
+          escolhas = { formato: formato, extras: extras, urgencia: escolhas.urgencia };
+        }
+        mostrado = escolhas;
+        valido = res.estimativa ? { pedido: pedido, versao: res.versao } : null;
         desenhar(res);
         return true;
       } catch (e) {
-        if (meu === seq) erro(mensagem(e, FALHA_CALCULO));
+        if (meu === seq) contaFalhou(e);
         return false;
       } finally { if (meu === seq) { ocupado(false); emVoo = null; } }
     })();
     return emVoo;
   }
+  /* a conta falhou: a tela volta às escolhas do último preço que apareceu (é ele que "Quero" grava). Se a pessoa já
+     mexeu de novo (outra conta esperando), quem decide é a conta seguinte */
+  function contaFalhou(e) {
+    if (mostrado && !adiado) {
+      formato = mostrado.formato; extras = mostrado.extras; urgencia = mostrado.urgencia;
+      atualizarExtras();
+    }
+    erro(mensagem(e, FALHA_CALCULO), e && e.status === 400 && e.dados ? e.dados.formato_sugerido : null);
+  }
   function agendar() { clearTimeout(adiado); adiado = setTimeout(function () { adiado = null; calcular(); }, ESPERA_MS); }
-  /* antes de gravar: a conta pendente (espera ou em voo) termina, para gravar exatamente o preço que está na tela */
-  function assentar() {
-    if (adiado) { clearTimeout(adiado); adiado = null; return calcular(); }
-    return emVoo || Promise.resolve(true);
+  /* antes de gravar: as contas pendentes (espera ou em voo, inclusive uma que começou durante a espera) terminam, para
+     gravar exatamente o preço que está na tela. Devolve se a última deu certo (se falhou, o erro já está na tela) */
+  async function assentar() {
+    var deu = true;
+    while (adiado || emVoo) {
+      if (adiado) { clearTimeout(adiado); adiado = null; calcular(); }
+      deu = await emVoo;
+    }
+    return deu;
   }
 
   function desenhar(res) {
-    versao = res.versao;
+    if (gravado) return;   /* (o pacote já foi gravado: uma conta atrasada não reabre os controles) */
     var rec = res.recomendacao;
-    var noPreco = rec.trocou_para_institucional ? 'institucional' : formato;
     $('o-est-motivo').textContent = formato === rec.formato ? (rec.motivo || '') : '';
     $('o-est-motivo').hidden = !$('o-est-motivo').textContent;
     var assumidos = (rec.assumido || []).map(function (k) { return ASSUMIDO[k]; }).filter(Boolean);
     $('o-est-assumido').hidden = !assumidos.length;
     $('o-est-assumido').textContent = assumidos.length ? 'Escolhi por você: ' + assumidos.join(', ') + '. Dá para trocar em "Mudar as respostas".' : '';
-    $('o-est-troca').hidden = !rec.trocou_para_institucional;
-    /* o cartão é desenhado por js/orcamento.js (o mesmo do resto da página) */
+    /* o cartão (e o pacote que pede conversa) é desenhado por js/orcamento.js, o mesmo do resto da página */
     document.dispatchEvent(new CustomEvent('bz:preco', { detail: { estimativa: res.estimativa, diagnostico: res.diagnostico } }));
-    if (res.estimativa && NOMES[noPreco]) $('o-est-formato').textContent = NOMES[noPreco];   /* (as palavras da tela, as mesmas dos vizinhos) */
+    if (res.estimativa && NOMES[formato]) $('o-est-formato').textContent = NOMES[formato];   /* (as palavras da tela, as mesmas dos vizinhos) */
     vizinhos(rec);
-    incluidos(noPreco);
+    incluidos(formato);
     $('o-quero-modelos').hidden = !res.estimativa;   /* (pacote que pede conversa não se grava por aqui) */
     $('o-est-acoes').hidden = false;
     if (!$('o-ajustar').hidden) atualizarExtras();
@@ -257,12 +309,15 @@
     if (abrir) $('o-ajustar').scrollIntoView({ block: 'nearest' });
   });
   $('o-x-urgencia').addEventListener('change', function () { urgencia = this.checked; agendar(); });
+  $('o-est-sugerido').addEventListener('click', function () { var k = sugerido; erro(''); if (k) trocarFormato(k); });
   /* "Mudar as respostas": volta às perguntas; o preço será recomendado de novo */
   $('o-p-refazer').addEventListener('click', function () {
     clearTimeout(adiado); adiado = null; seq++;
     ocupado(false); emVoo = null;   /* (a conta em voo foi descartada pelo seq: ela não solta o cartão sozinha) */
     /* (o catálogo também: com ele, os extras iriam explícitos em 0 e apagariam os da nova recomendação) */
     formato = null; extras = {}; iniciais = {}; urgencia = false; catalogo = null; catalogoDe = null;
+    mostrado = null; valido = null;
+    erro('');
     fecharControles();
     $('o-perguntas').hidden = false;
     document.dispatchEvent(new CustomEvent('bz:perguntas'));
@@ -273,15 +328,26 @@
     $('o-ajustar').hidden = true;
     $('o-ajustar-abrir').setAttribute('aria-expanded', 'false');
   }
+  /* enquanto grava: nada muda o pedido (extras, urgência, formato, respostas) e o botão diz o que está fazendo */
+  function travar(sim, botao) {
+    CONTROLES.forEach(function (id) { $(id).disabled = sim; });
+    todos('#o-vizinhos .orc-vizinho').forEach(function (v) { v.disabled = sim; });
+    if (sim) botao.setAttribute('aria-disabled', 'true'); else botao.removeAttribute('aria-disabled');
+    botao.textContent = sim ? GUARDANDO : QUERO;
+  }
   $('o-quero-modelos').addEventListener('click', async function () {
     var b = this;
-    if (gravando) return;
+    if (gravando || gravado) return;
     gravando = true;
-    b.setAttribute('aria-disabled', 'true');
+    travar(true, b);
     erro('');
     try {
-      if (!(await assentar())) return;   /* (a conta falhou: o erro já está na tela) */
-      var res = await API.confirmarPacote({ respostas: respostas(), formato: formato, extras: pedidoDeExtras(), urgencia: urgencia, versao: versao });
+      if (!(await assentar()) || !valido) return;   /* (a conta falhou: o erro já está na tela; com diagnóstico, nada a gravar) */
+      var res = await API.confirmarPacote(com(valido.pedido, 'versao', valido.versao));
+      /* gravado: nenhuma conta atrasada redesenha o preço nem reabre os controles */
+      gravado = true;
+      clearTimeout(adiado); adiado = null; seq++;
+      ocupado(false); emVoo = null;
       fecharControles();
       document.dispatchEvent(new CustomEvent('bz:pacote-confirmado', { detail: { estimativa: res.estimativa } }));
       if (typeof opcoes.aoConfirmar === 'function') opcoes.aoConfirmar(res.estimativa);
@@ -291,7 +357,7 @@
       erro(mensagem(e, FALHA_GRAVAR));
     } finally {
       gravando = false;
-      b.removeAttribute('aria-disabled');
+      travar(false, b);
     }
   });
 

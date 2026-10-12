@@ -51,7 +51,7 @@ try {
   for (const codigo of ['110200', '110100', '200500']) {
     await cenario('erro de configuração ' + codigo, `o['error-callback']('${codigo}')`, async p => {
       ok(/WhatsApp/.test(await aviso(p)), codigo + ': mensagem com WhatsApp (recarregar não resolveria)');
-      ok(await p.locator('#o-perguntas').isVisible() && await p.getAttribute('[data-ramo="saude"]', 'aria-pressed') === 'true', codigo + ': a pessoa continua nas perguntas, com as respostas');
+      ok(await p.locator('#o-perguntas').isVisible() && await p.getAttribute('[data-ramo="saude"]', 'aria-checked') === 'true', codigo + ': a pessoa continua nas perguntas, com as respostas');
     });
   }
   await cenario('desafio recusado', `o['error-callback']('600010')`, async p => {
