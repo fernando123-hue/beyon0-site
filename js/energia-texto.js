@@ -15,8 +15,9 @@
       palavra a cada ~4 s enquanto está na tela, pela descarga. As listas
       estão no HTML (o dono edita lá). Uma alternativa que mudaria a altura
       do título nesta largura de tela fica de fora (nada pula na página).
-   2. O SURTO: a palavra de destaque do título do hero e o "Zero" da marca
-      levam uma descarga rápida de vez em quando (12 a 20 s), sem trocar.
+   2. O SURTO: a palavra de destaque do título do hero leva uma descarga
+      rápida de vez em quando (12 a 20 s), sem trocar. (O "Zero" da marca
+      escrita também levava; desde 2026-10-12 a marca é a logo, um desenho.)
    3. B.energizar(el|textNode, {para, ms}): a ignição do botão quando o mini
       AI Core encaixa (js/mini-docas.js).
    Movimento reduzido: nada disso; o texto fica o original.
@@ -156,8 +157,7 @@
     for (var i = 0; i < titulos.length; i++) if (titulos[i].querySelector('em[data-palavras]')) palavraViva(titulos[i]);
     var destaque = document.querySelector('.hero__title em');
     if (destaque) surto(destaque);
-    var marca = document.querySelector('.nav__logo .wordmark b');
-    if (marca) surto(marca);
+    /* (a marca escrita tinha um surto no "Zero"; a logo é desenho: a luz dela passa por css/motion.css) */
   }
   var ocioso = window.requestIdleCallback || function (f) { return setTimeout(f, 600); };
   var ir = function () { setTimeout(function () { ocioso(iniciar, { timeout: 2000 }); }, 2500); };

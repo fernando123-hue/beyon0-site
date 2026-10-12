@@ -100,3 +100,36 @@ test('deploy: todo arquivo público versionado continua no ar; regra fixa só pa
   const mortas = fixas.filter(s => !VERSIONADOS.includes(s.slice(1)) && !IGNORADOS.includes(s));
   assert.deepEqual(mortas, [], 'regra para arquivo que não existe no repositório: ' + mortas.join(', '));
 });
+
+/* A LOGO (2026-10-12, 03 Projetos/marca/logo): entra como SVG no HTML. Pela CSP (style-src 'self') ela não pode
+   trazer <style> nem style="", e não traz cor fixa: as cores vêm de css/tokens.css (.marca__*), para a logo
+   acompanhar o evento ouro (js/ouro.js a tem entre os portadores). Nenhuma página fica com a marca escrita antiga. */
+test('logo: as páginas usam a logo em SVG, sem estilo nem cor embutidos e com o nome acessível no link', () => {
+  for (const arquivo of paginas) {
+    const html = readFileSync(new URL(arquivo, RAIZ), 'utf8');
+    assert.ok(!/class="wordmark|Beyon <b>Zero<\/b>/.test(html), arquivo + ': sobrou a marca escrita antiga');
+    const logos = [...html.matchAll(/(<a [^>]*>)\s*(<svg[^>]*class="marca[ "][\s\S]*?<\/svg>)/g)];
+    if (!/<a href="\/"/.test(html)) continue; // página sem link para o início não leva a logo
+    assert.ok(logos.length >= 1, arquivo + ': sem a logo');
+    for (const [, link, svg] of logos) {
+      assert.ok(!/<style|style="/.test(svg), arquivo + ': estilo embutido na logo (a CSP bloqueia)');
+      assert.ok(!/fill="#/.test(svg), arquivo + ': cor fixa na logo (o ouro não a alcançaria)');
+      assert.match(svg, /aria-hidden="true"/, arquivo + ': a logo é desenho; o nome fica no link');
+      assert.match(link, /aria-label="Beyon Zero — início"/, arquivo + ': link da logo sem nome acessível');
+    }
+    assert.ok((html.match(/id="marca-pulso"/g) || []).length <= 1, arquivo + ': o recorte da luz da logo repetido (id duplicado)');
+  }
+  const tokens = readFileSync(new URL('css/tokens.css', RAIZ), 'utf8');
+  for (const peca of ['aro', 'lente', 'entrada', 'saida', 'nucleo', 'nome', 'zero']) assert.ok(tokens.includes('.marca__' + peca), 'tokens.css sem a cor de .marca__' + peca);
+  /* no ouro (html.is-ouro, .is-brasa) e na volta (.is-frio) as duas cores próprias da logo trocam junto */
+  for (const bloco of [/html\.is-ouro, \.is-brasa \{([^}]*)\}/, /\.is-frio \{([^}]*)\}/]) {
+    const corpo = (tokens.match(bloco) || [])[1] || '';
+    assert.match(corpo, /--logo-entrada:[^;]+;[\s\S]*--logo-nucleo:/, 'tokens.css: o ouro não alcança a entrada e o núcleo da logo em ' + bloco);
+  }
+  const ouro = readFileSync(new URL('js/ouro.js', RAIZ), 'utf8');
+  assert.match(ouro.match(/var PORTADORES = '([^']*)'/)[1], /(^|, )\.marca(,|$)/, 'js/ouro.js: a logo fora dos portadores do ouro');
+  /* a luz que passa pela logo some com movimento reduzido */
+  const motion = readFileSync(new URL('css/motion.css', RAIZ), 'utf8');
+  const reduzido = motion.slice(motion.search(/@media \(prefers-reduced-motion: reduce\) \{\r?\n/));
+  assert.match(reduzido, /\.marca__pulso-in, \.marca__pulso-out \{ animation: none/, 'motion.css: a luz da logo não desliga com movimento reduzido');
+});

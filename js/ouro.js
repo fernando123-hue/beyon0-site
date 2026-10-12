@@ -45,7 +45,8 @@
   var ALCANCE = 1.15;   /* telas que a linha percorre da origem (a vez de cada peça usa a mesma conta) */
   /* a vez de cada peça corre no MESMO relógio das linhas (t, no laço): por timers de parede, num aparelho lento ou
      com a aba oculta as peças acendiam antes de a linha chegar */
-  var PORTADORES = '.hero__title em, .kicker b, .nav__brand b, .hero__status .dot, .btn, .servico__link, .celula__link, .servico__n, .celula__n, .laudo__n, .carga__pct, .tem-carga, .footer__motion, .prova__val, .console__v, .instrumento__val, .hero__cota-rot, .rumo-leitura, .nav__links a, .console__led, .instrumento__led';
+  /* (.marca: a logo — aro, lente, luz e "Zero" pintam por --ac/--ac-3, então viram ouro na vez da linha) */
+  var PORTADORES = '.hero__title em, .kicker b, .nav__brand b, .marca, .hero__status .dot, .btn, .servico__link, .celula__link, .servico__n, .celula__n, .laudo__n, .carga__pct, .tem-carga, .footer__motion, .prova__val, .console__v, .instrumento__val, .hero__cota-rot, .rumo-leitura, .nav__links a, .console__led, .instrumento__led';
   var FASES = ['is-ouro-carga', 'is-ouro-ignicao', 'is-ouro-esfria', 'is-ouro-linha'];
   var estado = 'frio', t = 0, origemY = 0, ultimoFim = -1e9, vezes = 0, fila = [], filaI = 0, filaFn = null, marcados = [], fimTroca = 0;
   /* (estende o B.ouro do core.js — B.tom lê k e h DESSE objeto) */

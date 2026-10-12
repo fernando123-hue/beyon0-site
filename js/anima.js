@@ -52,7 +52,7 @@
        .qa/.celula com opacity parcial ou zero para sempre (achado da revisão) */
     gsap.set(LIMPAR, { clearProps: 'all' });
     html.classList.remove('js');
-    acender('.hero__title, h2, .wordmark b');
+    acender('.hero__title, h2');
     var todos = document.querySelectorAll('.reveal, .console');
     var instrs = document.querySelectorAll('.instrumento');
     for (var n = 0; n < instrs.length; n++) instrs[n].classList.add('is-lido');
@@ -210,7 +210,8 @@
     var titulo = document.querySelector('.hero__title');
     var status = document.querySelector('.hero__status');
     var dot = status && status.querySelector('.dot');
-    var marca = document.querySelector('.wordmark b');
+    /* a logo: quando o feixe chega a ela, a luz passa pela logo uma vez (.is-lit, css/motion.css) */
+    var marca = document.querySelector('.nav__logo .marca');
     var sub = document.querySelector('.hero__sub');
     var acoes = document.querySelector('.hero__actions');
     var fine = document.querySelector('.hero__fine');
@@ -264,7 +265,13 @@
       }
       if (status) tl.fromTo(status, { y: 10 }, { opacity: 1, y: 0, duration: .8 }, .05);
       if (dot) tl.from(dot, { scale: 0, duration: .4, ease: 'back.out(2)', clearProps: 'transform' }, tEm(dot));
-      if (marca) tl.add(function () { marca.classList.add('is-lit'); }, tEm(marca));
+      if (marca) tl.add(function () {
+        /* a passada do boot é uma só: quando a luz de saída termina, o .is-lit sai e daí em diante só o
+           cursor ou o foco a repetem (com ele preso, tirar o cursor fazia a luz passar de novo) */
+        var saida = marca.querySelector('.marca__pulso-out');
+        if (saida) saida.addEventListener('animationend', function () { marca.classList.remove('is-lit'); }, { once: true });
+        marca.classList.add('is-lit');
+      }, tEm(marca));
 
       if (titulo) {
         var sp = partir(titulo, 'words');
