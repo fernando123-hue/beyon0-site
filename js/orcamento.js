@@ -14,7 +14,7 @@
   var API = window.BZOrcamento, PV = window.BZPrevia;
   var $ = function (id) { return document.getElementById(id); };
   /* um script não chegou (rede, bloqueador): sem isso a página ficava morta sem dizer nada (auditoria 2026-10-09, F19) */
-  if (!API || !PV || !window.BZVisor) { semScripts(); return; }
+  if (!API || !PV || !window.BZVisor || !window.BZPerguntas) { semScripts(); return; }
   function semScripts() {
     var aviso = $('o-aviso');
     if (!aviso) return;
@@ -38,6 +38,63 @@
   var inicioGeracao = {};
   var assinaturas = {};         /* bloco → o que foi desenhado (não refaz o que não mudou) */
   var ultimaAcao = null, espera = null, relogio = null, enviando = false;
+
+  /* ---------- orçamento sem IA (spec 2026-10-11): as perguntas são o núcleo; a conversa só existe quando há consultor ----------
+     A conversa aparece se o servidor diz que há consultor E a pessoa abriu "Prefere conversar?" (ou a conversa já tem
+     mensagens). Sem configuração (rede), segue sem consultor: as perguntas bastam */
+  var temConsultor = false, abriuConversa = false, perguntasIniciadas = false;
+  function verConversa() {
+    var aberta = !E || CONVERSA_ABERTA.indexOf(E.conversa.etapa) >= 0;
+    mostrar('o-conversa', temConsultor && (abriuConversa || (!!E && E.mensagens.length > 0)));
+    mostrar('o-conversar', temConsultor && aberta && $('o-conversa').hidden);
+    [].forEach.call(document.querySelectorAll('.orc-perguntar'), function (p) { p.hidden = !temConsultor; });
+  }
+  function abrirConversa() { abriuConversa = true; verConversa(); }
+  API.sessaoConfig().then(function (cfg) { temConsultor = !!(cfg && cfg.consultor); verConversa(); })
+    .catch(function () { /* sem configuração: segue sem consultor */ });
+  $('o-conversar').addEventListener('click', function () {
+    abrirConversa();
+    $('o-conversa').scrollIntoView({ block: 'start' });
+    $('o-texto').focus({ preventScroll: true });
+  });
+  /* uma conversa nova (sem mensagens nem preço gravado) começa pelas perguntas, uma vez */
+  function iniciarPerguntas() {
+    if (perguntasIniciadas || !window.BZPerguntas) return;
+    perguntasIniciadas = true;
+    window.BZPerguntas.iniciar();
+  }
+  /* o preço ao vivo das perguntas (js/orcamento-perguntas.js) usa o mesmo cartão; a voz anuncia o valor novo */
+  var precoNaTela = false;
+  var VAZIO = $('o-est-vazio').textContent, SEM_VALOR = 'Esse pacote precisa de uma conversa.';
+  document.addEventListener('bz:preco', function (ev) {
+    if (ev.detail.estimativa) {
+      var valorNovo = investimento(ev.detail.estimativa, true);
+      if (valorNovo) anunciar('Preço: ' + valorNovo + '.');
+    } else if (ev.detail.diagnostico) semValorAutomatico();
+    mostrar('o-diagnostico', !!ev.detail.diagnostico);
+    precoNaTela = true; etapas();
+  });
+  /* o pacote pede conversa (fora do automático ou acima do limite): nada do preço anterior (valor, prazo, itens) fica
+     na tela, e a voz avisa uma vez */
+  function semValorAutomatico() {
+    var jaAvisou = !$('o-est-vazio').hidden && $('o-est-vazio').textContent === SEM_VALOR;
+    assinaturas.investimento = null;   /* (se o mesmo preço de antes voltar, o cartão é desenhado de novo) */
+    mostrar('o-est-cheio', false);
+    $('o-est-vazio').textContent = SEM_VALOR;
+    mostrar('o-est-vazio', true);
+    if (!jaAvisou) anunciar(SEM_VALOR + ' Fale com a Beyon Zero pelo WhatsApp.');
+  }
+  /* "Mudar as respostas": a etapa volta para as perguntas (e o cartão vazio, para o texto de antes do preço) */
+  document.addEventListener('bz:perguntas', function () {
+    $('o-est-vazio').textContent = VAZIO;
+    mostrar('o-diagnostico', false);
+    precoNaTela = false; etapas();
+  });
+  /* o pacote foi gravado: a tela segue o servidor (o contato aparece) e leva a pessoa até ele */
+  document.addEventListener('bz:pacote-confirmado', function seguir() {
+    recarregar().then(function () { if (!$('o-contato').hidden) irPara('o-contato'); })
+      .catch(function (e) { falhou(e, function () { seguir(); }); });
+  });
 
   var dinheiro = function (n) { return Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 2 }); };
   function el(tag, classe, texto) { var e = document.createElement(tag); if (classe) e.className = classe; if (texto != null) e.textContent = texto; return e; }
@@ -237,6 +294,7 @@
   [].forEach.call(document.querySelectorAll('[data-perguntar]'), function (a) {
     a.addEventListener('click', function (ev) {
       ev.preventDefault();
+      abrirConversa();   /* (o link só aparece quando há consultor) */
       $('o-form').scrollIntoView({ block: 'center' });
       $('o-texto').focus({ preventScroll: true });
     });
@@ -383,7 +441,7 @@
      vai pelo WhatsApp; a página não pede a geração nem fica consultando: confere de novo quando a pessoa volta */
   var manual = function () { return !!E && E.modo_direcoes === 'manual'; };
   var TEXTOS_MANUAL = {
-    contato: 'Com o seu contato, a Beyon Zero desenha três direções de site para o seu negócio: uma focada em conversão, uma em autoridade e uma em experiência. Ficam prontas em até 24 horas úteis, e avisamos pelo seu WhatsApp.',
+    contato: 'Com o seu contato, eu desenho três modelos de site para o seu negócio: um feito para trazer pedidos, um que passa confiança e um mais moderno e chamativo. Ficam prontos em até 24 horas úteis, e eu aviso pelo seu WhatsApp.',
     direcoes: 'Mesmo briefing, três estratégias. Ficam prontas em até 24 horas úteis e avisamos pelo seu WhatsApp; é só voltar a esta página, neste mesmo navegador, para abrir, comparar e escolher.',
     prontas: 'Mesmo briefing, três estratégias. Abra cada uma, compare e escolha a que mais tem a cara do seu negócio.'
   };
@@ -601,7 +659,8 @@
     return 'conversa';
   }
   function etapas() {
-    var atual = passoAtual(), passou = true;
+    var atual = E ? passoAtual() : 'conversa', passou = true;
+    if (precoNaTela && atual === 'conversa') atual = 'estimativa';   /* (o preço das perguntas já está na tela, ainda sem gravar) */
     if (!mudou('etapas', atual)) return;
     [].forEach.call(document.querySelectorAll('#o-etapas li'), function (li) {
       var eh = li.getAttribute('data-passo') === atual;
@@ -674,6 +733,9 @@
     etapas();
     /* a conversa segue o servidor: redesenha quando o número de mensagens mudou (F2: resposta gravada com a rede caída) */
     if (mudou('conversa', E.mensagens.length)) conversa();
+    verConversa();
+    /* as perguntas: só numa conversa nova; com o preço gravado (ou a conversa já andando), ficam escondidas */
+    if (!E.estimativa && E.mensagens.length === 0) iniciarPerguntas(); else mostrar('o-perguntas', false);
     if (E.estimativa) investimento(E.estimativa, false);
     var aberta = CONVERSA_ABERTA.indexOf(et) >= 0;
     mostrar('o-form', aberta);
@@ -760,7 +822,7 @@
 
   /* ---------- começo: retoma a conversa salva neste aparelho ---------- */
   async function retomar() {
-    if (!API.temSessao()) return;
+    if (!API.temSessao()) { iniciarPerguntas(); return; }   /* (primeira visita: as perguntas; a sessão nasce no "Ver o preço") */
     try {
       await recarregar();   /* (o render desenha a conversa salva) */
       var BLOCOS = { direcoes: 'o-direcoes', ajustes: 'o-ajustes', escopo: 'o-escopo', pagamento: E.conversa.etapa === 'em_producao' ? 'o-pronto' : 'o-pagamento' };
@@ -769,7 +831,7 @@
     } catch (e) {
       /* conversa que não existe mais: começa limpo. Sessão que o servidor recusou de vez: avisa e oferece
          recomeçar (F5). Falha de rede ou do servidor: a sessão fica, e o aviso oferece tentar de novo */
-      if (e.status === 404 || e.status === 400) { API.esquecer(); return; }
+      if (e.status === 404 || e.status === 400) { API.esquecer(); iniciarPerguntas(); return; }
       if (sessaoTerminou(e) || !API.temSessao()) { avisarSessao(true); return; }
       avisar(mensagemDe(e), retomar, null, true);
     }

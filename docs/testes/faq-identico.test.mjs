@@ -45,3 +45,12 @@ for (const { f, html } of paginas) {
     for (const [q, a] of ld) assert.equal(visto.get(q), a, f + ' — resposta diferente em: ' + q);
   });
 }
+
+/* enquanto o orçamento é sem IA (spec 2026-10-11 §1), nenhuma página promete o consultor de IA nem fala em "sob medida" */
+test('nenhuma página promete o consultor de IA enquanto o orçamento é sem IA (spec 2026-10-11 §1)', () => {
+  for (const pagina of ['index.html', 'sites.html', 'orcamento.html', 'privacidade.html']) {
+    const html = readFileSync(new URL('../../' + pagina, import.meta.url), 'utf8').replace(/<!--[^]*?-->/g, '');
+    assert.ok(!/consultor de IA/i.test(html), pagina + ' ainda fala em "consultor de IA"');
+    assert.ok(!/sob medida/i.test(html.replace(/sistema_sob_medida|sob_medida/g, '')), pagina + ' usa "sob medida"');
+  }
+});

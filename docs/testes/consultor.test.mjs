@@ -99,7 +99,7 @@ test('próximo passo: o código diz ao modelo o que fazer agora, pela ordem do f
 test('o turno usa o harness: instruções montadas da tabela, estado com o próximo passo', async () => {
   const recebidos = [];
   const ia = { mensagem: async p => { recebidos.push(p); return { texto: 'Que tipo de negócio você tem?', chamadas: [], conteudo: [], parada: 'fim', custo_usd: 0 }; } };
-  await executarTurno({ ia, regras: REGRAS, conversa: { etapa: 'descoberta', briefing: {}, mensagens: [], estimativa: null }, mensagem: 'oi' });
+  await executarTurno({ ia, direcoes: 'api', regras: REGRAS, conversa: { etapa: 'descoberta', briefing: {}, mensagens: [], estimativa: null }, mensagem: 'oi' });
   assert.equal(recebidos[0].sistema, montarSistema(REGRAS));
   assert.match(recebidos[0].contexto, /proximo_passo/);
 });
@@ -296,7 +296,10 @@ test('conversa aberta até o pagamento: no escopo e no sinal o consultor só tir
   for (const etapa of ['descoberta', 'estimativa', 'contato', 'alteracoes'])
     assert.equal(ferramentas(REGRAS, { etapa }).length, 5, etapa);
   const esc = proximoPasso({ etapa: 'escopo', briefing: {}, estimativa: null });
-  assert.match(esc, /Escopo final/);
+  /* os nomes que o modelo cita são os da tela: se a tela renomear, este teste quebra (re-revisão do 990a87e) */
+  const tela = fs.readFileSync(new URL('../../orcamento.html', import.meta.url), 'utf8');
+  for (const nome of ['Resumo do que será feito', 'Confirmar o escopo', 'Ver o escopo confirmado', 'Para começar']) assert.ok(tela.includes('>' + nome + '<'), 'a tela tem "' + nome + '"');
+  assert.match(esc, /Resumo do que será feito/);
   assert.match(esc, /Confirmar o escopo/);
   assert.match(esc, /WhatsApp/, 'mudança de escopo agora é pelo WhatsApp: os ajustes fecharam');
   const pag = proximoPasso({ etapa: 'aguardando_pagamento', briefing: {}, estimativa: null });
@@ -305,6 +308,6 @@ test('conversa aberta até o pagamento: no escopo e no sinal o consultor só tir
   for (const p of [esc, pag]) {
     assert.match(p, /não chame estimar nem pedir_contato/i);
     /* o que está ou não incluído é do escopo, não da memória do modelo (revisões do PR 34: técnica B3, segurança M3) */
-    assert.match(p, /incluído[^.]*não afirme[^.]*Escopo final/i);
+    assert.match(p, /incluído[^.]*não afirme[^.]*Resumo do que será feito/i);
   }
 });

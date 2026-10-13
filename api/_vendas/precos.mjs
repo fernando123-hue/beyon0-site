@@ -13,10 +13,13 @@
    Funções puras: sem banco, sem rede. Testes: docs/testes/precos.test.mjs.
    ========================================================================== */
 export const FORMATOS = ['landing_page', 'institucional', 'sob_medida', 'loja_plataforma'];
+/* decisão do dono (2026-10-12): a landing page vai até 3 páginas (validarFatores; o catálogo da landing nem oferece mais) */
+export const LANDING_MAX_PAGINAS = 3;
+export const LANDING_GRANDE = 'A landing page vai até 3 páginas. Para 4 ou mais, escolha o site com várias páginas.';
 /* a loja (tabela v2, 2026-10-09) é OPCIONAL: uma tabela ativa anterior, sem ela, continua válida; se o código subir antes
    da v2 ser ativada, o orçamento segue funcionando com os três formatos (revisão de segurança) */
 const OBRIGATORIOS = ['landing_page', 'institucional', 'sob_medida'];
-const CHAVE = /^[a-z][a-z0-9_]{1,40}$/;
+export const CHAVE = /^[a-z][a-z0-9_]{1,40}$/;   /* (o fluxo filtra o corpo com esta mesma: um padrão só) */
 const numero = (v, min, max) => typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max;
 
 /* ---------- a tabela (validada antes de ativar e antes de cada uso) ---------- */
@@ -99,6 +102,13 @@ export function validarFatores(f, regras) {
   for (const k of Object.keys(adicionais)) {
     const req = regras.adicionais[k].requer;
     if (req && !req.some(r => r === f.formato || adicionais[r] > 0)) erros.push(k + ' exige um destes: ' + req.map(r => regras.formatos[r]?.nome || regras.adicionais[r]?.nome || r).join(', '));
+  }
+  /* decisão do dono (2026-10-12): a landing vai até 3 páginas; de 4 em diante, só o site com várias páginas. Aqui vale
+     para todo caminho que calcula preço. As páginas a mais sobrepõem a página extra, como em estimar() */
+  const landing = f.formato === 'landing_page' && objeto(regras.formatos?.landing_page) ? regras.formatos.landing_page : null;
+  if (landing && !erros.length) {
+    const aMais = Math.max(0, (paginas ?? landing.paginas_incluidas) - landing.paginas_incluidas) || (adicionais.pagina_extra || 0);
+    if (landing.paginas_incluidas + aMais > LANDING_MAX_PAGINAS) erros.push(LANDING_GRANDE);
   }
   if (f.urgencia !== undefined && typeof f.urgencia !== 'boolean') erros.push('urgencia: sim ou não');
   if (f.complexidade !== undefined && !['normal', 'alta'].includes(f.complexidade)) erros.push('complexidade: normal ou alta');

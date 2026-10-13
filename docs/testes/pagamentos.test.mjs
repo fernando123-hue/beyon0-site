@@ -26,7 +26,7 @@ before(async () => {
   sim = local.mp.sim;
   cfg = { ...configPagamentos({}), intervaloAposRecusaS: 0 };   /* (o freio de 20 s depois de recusa tem teste próprio) */
   servico = criarServicoPagamentos({ banco: local.rpc, cfg, agora });
-  deps = { banco: local.rpc, visitantes: local.auth, ia: criarSimulada(), pagamentos: servico };
+  deps = { banco: local.rpc, visitantes: local.auth, ia: criarSimulada(), direcoes: 'api', pagamentos: servico };
 });
 
 /* ---------- um visitante até a cobrança (sinal de R$ 1.975: institucional 3500 + agendamento 450, 50%) ---------- */

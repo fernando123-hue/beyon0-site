@@ -23,7 +23,7 @@ const BASE = 'http://127.0.0.1:8899';
 let ipSeq = 0;
 before(async () => {
   local = await montarLocal({ base: BASE });
-  deps = { banco: local.rpc, visitantes: local.auth, ia: criarSimulada(), pagamentos: criarServicoPagamentos({ banco: local.rpc, cfg: configPagamentos({}) }) };
+  deps = { banco: local.rpc, visitantes: local.auth, ia: criarSimulada(), direcoes: 'api', pagamentos: criarServicoPagamentos({ banco: local.rpc, cfg: configPagamentos({}) }) };
 });
 
 function navegador(d = deps, ip = '192.0.2.' + (++ipSeq)) {

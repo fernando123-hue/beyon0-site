@@ -81,11 +81,25 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - run: npx playwright install --with-deps chromium
-      - name: Servidor local (banco PGlite, IA e Mercado Pago simulados)
+      # o orçamento sem IA (o modo de venda hoje): a página abre sem o consultor (BZ_SEM_CONSULTOR só vale com BZ_LOCAL)
+      - name: Servidor local sem consultor (banco PGlite, IA e Mercado Pago simulados)
         run: |
-          node docs/servidor.mjs . 8899 > servidor.log 2>&1 &
+          BZ_SEM_CONSULTOR=1 node docs/servidor.mjs . 8899 > servidor.log 2>&1 &
+          echo $! > servidor.pid
           for i in $(seq 1 60); do curl -sf http://127.0.0.1:8899/orcamento > /dev/null && exit 0; sleep 1; done
           cat servidor.log; exit 1
       - run: npm run e2e:orcamento
         env:
           BASE: http://127.0.0.1:8899
+      # com o consultor ligado (IA simulada): a conversa, o HTML que vira texto e as dúvidas no resumo e no sinal.
+      # Servidor novo: o freio local de sessões por IP não passa de uma rodada para a outra
+      - name: Servidor local com consultor
+        run: |
+          kill "$(cat servidor.pid)"; sleep 1
+          node docs/servidor.mjs . 8899 > servidor-consultor.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://127.0.0.1:8899/orcamento > /dev/null && exit 0; sleep 1; done
+          cat servidor-consultor.log; exit 1
+      - run: npm run e2e:orcamento
+        env:
+          BASE: http://127.0.0.1:8899
+          CONSULTOR: '1'
