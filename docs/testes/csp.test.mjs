@@ -101,6 +101,27 @@ test('deploy: todo arquivo público versionado continua no ar; regra fixa só pa
   assert.deepEqual(mortas, [], 'regra para arquivo que não existe no repositório: ' + mortas.join(', '));
 });
 
+/* (revisão final do PR 2a, B6) a CI grava no GITHUB_ENV valores gerados no próprio job (a chave do painel do E2E). O
+   GitHub só esconde do log os segredos que ele conhece: o valor gerado vai mascarado (::add-mask::) ANTES de ser gravado,
+   numa variável do shell, nunca por $(...) direto na linha que grava */
+test('CI: todo valor gravado no GITHUB_ENV é mascarado antes (::add-mask::), sem $(...) na linha que grava', () => {
+  const pasta = new URL('.github/workflows/', RAIZ);
+  let gravacoes = 0;
+  for (const arquivo of readdirSync(pasta).filter(f => /\.ya?ml$/.test(f))) {
+    const linhas = readFileSync(new URL(arquivo, pasta), 'utf8').split(/\r?\n/);
+    linhas.forEach((l, i) => {
+      if (!/>>\s*"?\$GITHUB_ENV"?/.test(l)) return;
+      gravacoes++;
+      assert.ok(!l.includes('$('), arquivo + ':' + (i + 1) + ': valor calculado direto na linha que grava (o log não o esconde)');
+      const v = /echo\s+"\w+=\$\{?(\w+)\}?"/.exec(l);
+      assert.ok(v, arquivo + ':' + (i + 1) + ': grave a partir de uma variável do shell ("NOME=$VAR")');
+      const mascara = linhas.slice(0, i).some(x => x.includes('echo "::add-mask::$' + v[1] + '"'));
+      assert.ok(mascara, arquivo + ':' + (i + 1) + ': $' + v[1] + ' sem ::add-mask:: antes');
+    });
+  }
+  assert.ok(gravacoes >= 1, 'a chave do painel do E2E é gravada no GITHUB_ENV (o teste tem o que provar)');
+});
+
 /* A LOGO (2026-10-12, 03 Projetos/marca/logo): entra como SVG no HTML. Pela CSP (style-src 'self') ela não pode
    trazer <style> nem style="", e não traz cor fixa: as cores vêm de css/tokens.css (.marca__*), para a logo
    acompanhar o evento ouro (js/ouro.js a tem entre os portadores). Nenhuma página fica com a marca escrita antiga. */
