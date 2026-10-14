@@ -296,6 +296,39 @@ try {
   ok(await semRolagemLateral(page), 'celular com direções: sem rolagem lateral');
   await page.locator('#o-direcoes').scrollIntoViewIfNeeded();
   await foto(page, '2-direcoes-cel');
+  /* (revisão final do PR 2a, M1) a tela não contradiz o servidor depois de descartar ou arquivar. O estado vem do
+     servidor com o pedido mudado; cada checagem roda com a rota ainda ativa (nenhuma releitura traz o estado real).
+     A releitura é a da própria página ("bz:detalhes-enviados" relê o estado), e não um reload: um reload faz cinco
+     chamadas à API e, somadas, estouravam o freio de 90 por minuto do IP local no fim do teste */
+  const comPedido = (status, mexer) => async route => {
+    const r = await route.fetch();
+    const j = await r.json();
+    if (j && j.pedido) { j.pedido.status = status; if (mexer) mexer(j); }
+    await route.fulfill({ response: r, json: j });
+  };
+  const relerEstado = () => Promise.all([page.waitForResponse(r => r.url().includes('acao=estado')),
+    page.evaluate(() => document.dispatchEvent(new CustomEvent('bz:detalhes-enviados')))]);
+  const desenhar = async (rota, pronto) => {
+    await page.route(ESTADO, rota);
+    await relerEstado();
+    return espera(page, pronto, 15000);
+  };
+  /* cenário B: descartado com as três prontas (etapa "direcoes"): "pedido encerrado" e nenhuma escolha */
+  const descartadoB = comPedido('descartado');
+  ok(await desenhar(descartadoB, () => !document.getElementById('o-pedido-fim').hidden && document.querySelectorAll('.dir .dir__nome').length === 3), 'descartado com as três prontas: a tela diz que o pedido foi encerrado');
+  ok(await page.getByRole('button', { name: 'Escolher esta' }).count() === 0, 'descartado com as três prontas: nenhum "Escolher esta" (o servidor recusaria)');
+  await page.unroute(ESTADO, descartadoB);
+  /* cenário A: confirmado e depois arquivado ou descartado com a geração em andamento: as três viram "falhou" e a
+     conversa volta a "contato" (privado.parar_geracao) */
+  const pararam = j => { j.conversa.etapa = 'contato'; j.escolha = null; j.direcoes = j.direcoes.map(d => ({ ...d, status: 'falhou', conteudo: null })); };
+  for (const status of ['arquivado', 'descartado']) {
+    const rota = comPedido(status, pararam);
+    ok(await desenhar(rota, () => [...document.querySelectorAll('.dir .dir__progresso')].filter(p => /não saiu/.test(p.textContent)).length === 3), status + ' com a geração parada: os três cartões "não saiu"');
+    ok(await page.getByRole('button', { name: 'Gerar de novo' }).count() === 0, status + ' com a geração parada: nenhum "Gerar de novo" (o servidor recusaria)');
+    await page.unroute(ESTADO, rota);
+  }
+  await relerEstado();
+  await page.waitForFunction(() => document.querySelectorAll('.dir .dir__nome').length === 3 && document.getElementById('o-pedido-fim').hidden, null, { timeout: 30000 });
 
   /* o visor */
   const abrir = page.locator('.dir').first().getByRole('button', { name: 'Abrir prévia' });

@@ -49,7 +49,7 @@ const SABOTAGENS = [
     de: 'where pd.org_id = v_org and privado.pedido_na_fila(pd)', para: 'where pd.org_id = v_org' },
   /* ---- o freio que vive no JS: gerar só com o pedido confirmado (o banco ainda aceita a conversa sem pedido; PR2a-banco) ---- */
   { nome: 'gerar sem o pedido confirmado pelo WhatsApp (freio do JS)', fonte: 'api/_vendas/fluxo.mjs', testes: ['docs/testes/fluxo-api.test.mjs'],
-    de: "exigir(est.pedido && est.pedido.status === 'confirmado', 409,", para: 'exigir(true, 409,' }
+    de: 'if (semConfirmacao) throw semConfirmacao;', para: 'if (false) throw semConfirmacao;' }
 ];
 
 /* o arquivo de código sabotado no lugar volta ao que era, aconteça o que acontecer */

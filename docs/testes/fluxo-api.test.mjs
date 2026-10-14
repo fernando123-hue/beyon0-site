@@ -316,6 +316,96 @@ test('gerar só com o pedido CONFIRMADO: conversa antiga em contato (sem pedido)
   assert.equal(confirmado.status, 200, 'confirmado: gera — ' + JSON.stringify(confirmado.corpo));
 });
 
+/* (revisão final do PR 2a, M1) "Descartar encerra o pedido e para o que faltava fazer" (regra do dono): com o pedido
+   descartado, o SERVIDOR recusa cada ação seguinte do visitante com a frase do encerramento e o WhatsApp, sem gravar
+   nada. Arquivado (resolvido por fora) não bloqueia, mas também não gera de novo; e o "gerar" diz o porquê de cada caso */
+const ENCERRADO = /^Este pedido foi encerrado\. Fale com a Beyon Zero pelo WhatsApp\.$/;
+const mudarPedido = (conversa_id, acao) => local.rpc('vendas_mudar_pedido', { org_slug: 'beyon-zero', conversa_id, acao });
+async function rastroDa(c) {
+  const n = async sql => Number((await local.db.query(sql, [c])).rows[0].n);
+  return {
+    etapa: (await local.db.query('select etapa from app.conversas where id = $1', [c])).rows[0].etapa,
+    direcoes: await n('select count(*) n from app.direcoes where conversa_id = $1'),
+    escolhas: await n('select count(*) n from app.escolhas where conversa_id = $1'),
+    alteracoes: await n('select count(*) n from app.alteracoes where conversa_id = $1'),
+    ia: await n('select count(*) n from app.ia_chamadas where conversa_id = $1'),
+    propostas: Number((await local.db.query('select count(*) n from app.propostas')).rows[0].n),
+    tentativas: Number((await local.db.query('select count(*) n from app.tentativas_pagamento')).rows[0].n)
+  };
+}
+
+test('pedido descartado com as três prontas: gerar, gerar-direcao, escolher, alterar, escopo e pagar dão 409 "encerrado" com o WhatsApp e nada é gravado', async () => {
+  const n = navegador();
+  const { c, dirs } = await ateDirecoes(n);
+  assert.equal((await rastroDa(c)).etapa, 'direcoes');
+  assert.deepEqual(await mudarPedido(c, 'descartar'), { ok: true, status: 'descartado' });
+  const antes = await rastroDa(c);
+  for (const [acao, corpo] of [
+    ['gerar', { conversa_id: c }],
+    ['gerar-direcao', { conversa_id: c, direcao_id: dirs[0].id }],
+    ['escolher', { conversa_id: c, direcao_id: dirs[1].id }],
+    ['alterar', { conversa_id: c, pedido: 'Quero a cor da primeira' }],
+    ['escopo', { conversa_id: c }],
+    ['pagar', { conversa_id: c, metodo: 'pix', pagador: PAGADOR }]
+  ]) {
+    const r = await n.chamar('POST', acao, corpo);
+    assert.equal(r.status, 409, acao + ': ' + JSON.stringify(r.corpo));
+    assert.match(r.corpo.erro, ENCERRADO, acao);
+    assert.equal(r.corpo.whatsapp, true, acao + ': o WhatsApp à mão');
+  }
+  assert.deepEqual(await rastroDa(c), antes, 'nada gravado (etapa, direções, escolha, ajuste, chamada de IA, proposta, cobrança)');
+});
+
+test('descartado com a geração em andamento (as direções viram "falhou"): gerar diz "encerrado", não "ainda não foi confirmado"', async () => {
+  const n = navegador();
+  const c = (await n.iniciar()).conversa_id;
+  await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Tenho uma clínica e quero um site institucional para agendamentos' });
+  await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'sim' });
+  await detalhesEConfirmar(n.chamar, local.rpc, c);
+  await mudarPedido(c, 'descartar');
+  const antes = await rastroDa(c);
+  assert.equal(antes.etapa, 'contato', 'a geração parou e a conversa voltou a "contato"');
+  const g = await n.chamar('POST', 'gerar', { conversa_id: c });
+  assert.equal(g.status, 409, JSON.stringify(g.corpo));
+  assert.match(g.corpo.erro, ENCERRADO);
+  assert.deepEqual(await rastroDa(c), antes);
+});
+
+test('gerar responde uma frase por situação do pedido: aguardando a confirmação, expirado (encerrado) e arquivado (segue pelo WhatsApp)', async () => {
+  const ate = async () => {
+    const n = navegador();
+    const c = (await n.iniciar()).conversa_id;
+    await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Tenho uma clínica e quero um site institucional para agendamentos' });
+    await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'sim' });
+    assert.equal((await n.chamar('POST', 'detalhes', { conversa_id: c, negocio: 'Clínica Sol', vende: 'Consultas', telefone: telefoneDeTeste(), aceite: true })).status, 200);
+    return { n, c };
+  };
+  const a = await ate();
+  const aguardando = await a.n.chamar('POST', 'gerar', { conversa_id: a.c });
+  assert.equal(aguardando.status, 409);
+  assert.match(aguardando.corpo.erro, /aguardando a confirmação pelo WhatsApp/);
+  const v = await ate();
+  await local.db.query("update app.pedidos set expira_em = now() - interval '1 minute' where conversa_id = $1", [v.c]);
+  const expirado = await v.n.chamar('POST', 'gerar', { conversa_id: v.c });
+  assert.equal(expirado.status, 409);
+  assert.match(expirado.corpo.erro, ENCERRADO);
+  const q = await ate();
+  await local.rpc('vendas_confirmar_whatsapp', { org_slug: 'beyon-zero', conversa_id: q.c });
+  await mudarPedido(q.c, 'arquivar');
+  const arquivado = await q.n.chamar('POST', 'gerar', { conversa_id: q.c });
+  assert.equal(arquivado.status, 409);
+  assert.match(arquivado.corpo.erro, /segue com a Beyon Zero pelo WhatsApp/);
+  assert.equal(arquivado.corpo.whatsapp, true);
+});
+
+test('pedido arquivado (resolvido por fora) com as prontas: a escolha continua valendo', async () => {
+  const n = navegador();
+  const { c, dirs } = await ateDirecoes(n);
+  assert.deepEqual(await mudarPedido(c, 'arquivar'), { ok: true, status: 'arquivado' });
+  const r = await n.chamar('POST', 'escolher', { conversa_id: c, direcao_id: dirs[1].id });
+  assert.equal(r.status, 200, JSON.stringify(r.corpo));
+});
+
 test('teto de custo RESERVADO antes de chamar: as 3 direções em paralelo, com a conversa perto do teto, não passam juntas (revisão do PR 1, segurança B6)', async () => {
   /* o modelo "lento": as 3 chamadas ficam em voo ao mesmo tempo, como no navegador */
   let emVoo = 0, picoEmVoo = 0, chamadas = 0;

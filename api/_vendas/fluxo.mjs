@@ -93,6 +93,29 @@ const ETAPAS_PACOTE = ['descoberta', 'estimativa'];   /* = app.vendas_registrar_
 const CONFIANCA_FORMULARIO = 0.4;   /* fixa: o formulário dá o começo do briefing; nunca vem do corpo */
 const TABELA_EM_ATUALIZACAO = 'A tabela de valores está em atualização. Fale com a Beyon Zero pelo WhatsApp.';
 
+/* (PR 2a, revisão final M1) a situação do pedido nas ações do visitante. Regra do dono: "Descartar encerra o pedido e
+   para o que faltava fazer": descartado, NENHUMA ação seguinte passa (gerar, gerar-direcao, escolher, alterar, escopo,
+   pagar). Arquivado (resolvido por fora) não bloqueia; só não gera de novo, como todo pedido que não está confirmado */
+const PEDIDO_ENCERRADO = 'Este pedido foi encerrado. Fale com a Beyon Zero pelo WhatsApp.';
+const NAO_GERA = {
+  aguardando: ['O pedido ainda está aguardando a confirmação pelo WhatsApp.', undefined],
+  expirado: [PEDIDO_ENCERRADO, { whatsapp: true }],
+  descartado: [PEDIDO_ENCERRADO, { whatsapp: true }],
+  arquivado: ['Este pedido segue com a Beyon Zero pelo WhatsApp.', { whatsapp: true }]
+};
+/* sem pedido (o fluxo antigo, contato direto) ou em situação desconhecida: a frase de sempre */
+const SEM_CONFIRMACAO = ['O pedido ainda não foi confirmado pelo WhatsApp.', undefined];
+function exigirNaoDescartado(est) {
+  if (est.pedido && est.pedido.status === 'descartado') throw new Recusa(409, PEDIDO_ENCERRADO, { whatsapp: true });
+}
+/* null: o pedido está confirmado e pode gerar; senão, a recusa com a frase da situação */
+function recusaDoGerar(pedido) {
+  const status = pedido && pedido.status;
+  if (status === 'confirmado') return null;
+  const [frase, extra] = Object.hasOwn(NAO_GERA, String(status)) ? NAO_GERA[status] : SEM_CONFIRMACAO;
+  return new Recusa(409, frase, extra);
+}
+
 /* os extras do corpo: só chave e quantidade inteira (o resto é ignorado; o motor confere contra a tabela) */
 function extrasDoCorpo(v) {
   if (!v || typeof v !== 'object' || Array.isArray(v)) return {};
@@ -358,12 +381,13 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
 
     /* pedir as 3 direções (devolve os ids; o navegador pede cada uma em paralelo). (PR 2a) Só com o pedido CONFIRMADO
        pelo WhatsApp, nos dois modos (decisão D2): sem pedido (o caminho antigo) ou esperando a confirmação, nada nasce.
-       O banco ainda aceita o caminho sem pedido; aperta no 2b */
+       Uma frase por situação (aguardando, encerrado, arquivado); o banco também recusa (vendas_iniciar_geracao) */
     async gerar({ request, corpo }) {
       const vid = await visitante(request);
       exigir(ehUuid(corpo?.conversa_id), 400, 'Conversa inválida.');
       const est = await estado(vid, corpo.conversa_id);
-      exigir(est.pedido && est.pedido.status === 'confirmado', 409, 'O pedido ainda não foi confirmado pelo WhatsApp.');
+      const semConfirmacao = recusaDoGerar(est.pedido);
+      if (semConfirmacao) throw semConfirmacao;
       /* (fila manual: não há gasto de API; o disjuntor ou o teto da IA não barram quem acabou de deixar o WhatsApp) */
       if (modo !== 'manual') await dentroDoCusto(est);
       /* no modo manual, uma geração por conversa: a 2ª só por pedido explícito ao dono (spec §0) */
@@ -375,6 +399,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       const vid = await visitante(request);
       exigir(ehUuid(corpo?.conversa_id) && ehUuid(corpo?.direcao_id), 400, 'Dados inválidos.');
       const est = await estado(vid, corpo.conversa_id);
+      exigirNaoDescartado(est);
       /* direção já pronta ou que falhou: nada a gerar, nada a reservar (o pedido que não custa modelo não segura a trava
          das reservas — revisão de segurança do PR 15) */
       const atual = (est.direcoes || []).find(d => d.id === corpo.direcao_id);
@@ -411,6 +436,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     async escolher({ request, corpo }) {
       const vid = await visitante(request);
       exigir(ehUuid(corpo?.conversa_id) && ehUuid(corpo?.direcao_id), 400, 'Dados inválidos.');
+      exigirNaoDescartado(await estado(vid, corpo.conversa_id));
       return banco('vendas_escolher', { conversa_id: corpo.conversa_id, visitante_id: vid, direcao_id: corpo.direcao_id });
     },
 
@@ -424,6 +450,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
          "[e-mail]" — e o banco aceita até MSG_MAX no pedido) */
       const pedido = redigir(limpo).slice(0, MSG_MAX);
       const est = await estado(vid, corpo.conversa_id);
+      exigirNaoDescartado(est);   /* (antes de pagar o modelo) */
       exigir(est.escolha, 409, 'Escolha uma direção antes.');
       exigir(AJUSTE_ABERTO.includes(est.conversa.etapa), 409, 'Os ajustes desta proposta já foram fechados.');   /* (antes de pagar o modelo) */
       await dentroDoCusto(est);
@@ -469,6 +496,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       const vid = await visitante(request);
       exigir(ehUuid(corpo?.conversa_id), 400, 'Conversa inválida.');
       const est = await estado(vid, corpo.conversa_id);
+      exigirNaoDescartado(est);
       exigir(est.escolha && est.estimativa, 409, 'Escolha uma direção antes.');
       const direcao = est.versao_final || est.direcoes.find(d => d.id === est.escolha.direcao_id)?.conteudo;
       exigir(direcao, 409, 'Escolha uma direção antes.');
@@ -498,6 +526,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       exigir(pagamentos, 503, 'O pagamento online ainda não está disponível. A Beyon Zero envia o link pelo WhatsApp.');
       /* sem contato (ou com o contato anonimizado pela retenção de 12 meses), o cliente nasceria sem nome nem telefone */
       const est = await estado(vid, corpo.conversa_id);
+      exigirNaoDescartado(est);
       if (!est.conversa.tem_contato) throw new Recusa(409, 'Antes de pagar, precisamos do seu contato de novo: fale com a Beyon Zero pelo WhatsApp citando o código do pedido.', { whatsapp: true });
       return pagamentos.iniciar({ conversa_id: corpo.conversa_id, visitante_id: vid, metodo: corpo?.metodo, pagador: corpo?.pagador, cartao: corpo?.cartao });
     },

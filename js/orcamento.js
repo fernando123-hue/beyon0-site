@@ -419,7 +419,9 @@
     direcoes: 'Mesmo briefing, três estratégias. Ficam prontas em até 24 horas úteis e avisamos pelo seu WhatsApp; é só voltar a esta página, neste mesmo navegador, para abrir, comparar e escolher.',
     prontas: 'Mesmo briefing, três estratégias. Abra cada uma, compare e escolha a que mais tem a cara do seu negócio.'
   };
-  var podeEscolher = function () { return E && (E.conversa.etapa === 'direcoes' || E.conversa.etapa === 'escolhida'); };   /* (o servidor trava a troca depois do 1º ajuste) */
+  /* (PR 2a) descartado pelo dono: o pedido acabou e o servidor recusa escolher, ajustar e seguir (api/_vendas/fluxo.mjs) */
+  var descartado = function () { return !!(E && E.pedido && E.pedido.status === 'descartado'); };
+  var podeEscolher = function () { return E && !descartado() && (E.conversa.etapa === 'direcoes' || E.conversa.etapa === 'escolhida'); };   /* (o servidor trava a troca depois do 1º ajuste) */
   var podeGerar = function () { return E && ['contato', 'estimativa', 'direcoes', 'escolhida'].indexOf(E.conversa.etapa) >= 0; };   /* (= app.vendas_iniciar_geracao) */
   var escolhidaId = function () { return E && E.escolha ? E.escolha.direcao_id : null; };
 
@@ -453,7 +455,9 @@
       var p = el('div', 'dir__progresso');
       p.appendChild(el('p', '', 'Esta direção não saiu desta vez.'));
       mini.appendChild(p);
-      if (podeGerar()) {
+      /* (PR 2a) só com o pedido confirmado: arquivado ou descartado, a geração parou de propósito e o servidor recusaria */
+      if (window.BZDetalhes.pendente(E)) corpo.appendChild(el('p', 'dir__resumo', 'Este pedido segue com a Beyon Zero pelo WhatsApp.'));
+      else if (podeGerar()) {
         corpo.appendChild(el('p', 'dir__resumo', 'Você pode gerar as três de novo ou seguir com as que ficaram prontas.'));
         corpo.appendChild(botaoAcao('btn btn--sm', 'Gerar de novo', gerarTodas));
       } else corpo.appendChild(el('p', 'dir__resumo', 'Os ajustes seguem sobre a direção escolhida.'));
@@ -710,7 +714,7 @@
     if (!aberta) $('o-atalhos').hidden = true;
     window.BZDetalhes.atualizar(E);   /* os detalhes, a confirmação pelo WhatsApp ou o pedido encerrado (js/orcamento-detalhes.js) */
     direcoes();
-    mostrar('o-ajustes', et === 'escolhida' || et === 'alteracoes');
+    mostrar('o-ajustes', (et === 'escolhida' || et === 'alteracoes') && !descartado());
     mudancas();
     var temProposta = !!(E.proposta && et === 'escopo');
     mostrar('o-escopo', temProposta);
