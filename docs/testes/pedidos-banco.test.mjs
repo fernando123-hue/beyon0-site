@@ -5,6 +5,7 @@
 import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID, createHash } from 'node:crypto';
+import fs from 'node:fs';
 import { novoBanco, como, erroDe } from './_banco.mjs';
 
 const ORG = '99999999-0000-4000-8000-000000000099';
@@ -449,4 +450,50 @@ test('fila: nunca esconde nem sobra — o total é exatamente o número de pedid
   assert.equal(r.total, r.itens.length);
   assert.equal(r.total, await naFila(), 'fila = pedido_na_fila');
   assert.ok(r.total >= 52);
+});
+
+/* ---------- a conferência da promoção: nenhuma conversa do fluxo antigo some da fila (docs/revisoes/fila-antiga-vazia.sql) ---------- */
+const CONSULTA_FILA_ANTIGA = fs.readFileSync(new URL('../revisoes/fila-antiga-vazia.sql', import.meta.url), 'utf8').trim();
+const filaAntiga = async banco => Number((await banco.query(CONSULTA_FILA_ANTIGA)).rows[0].count);
+/* uma conversa montada do jeito antigo: sem linha em app.pedidos, com as direções que o teste pedir */
+async function conversaAntiga(etapa, direcoes) {
+  const b = await comPacote();
+  await forcarEtapa(b.conversa_id, etapa);
+  for (const d of direcoes)
+    await db.query(`insert into app.direcoes (org_id, conversa_id, geracao, numero, estrategia, status, conteudo, avisada_em)
+      values ($1, $2, $3, $4, $5, $6, $7, $8)`, [ORG, b.conversa_id, d.geracao ?? 1, d.numero, ['conversao', 'autoridade', 'experiencia'][d.numero - 1], d.status,
+      d.status === 'pronta' ? '{"secoes":[]}' : null, d.avisada_em ?? null]);
+  return b.conversa_id;
+}
+
+test('promoção: a consulta da fila antiga dá 0 num banco sem conversa antiga e conta SÓ o que a fila antiga mostrava', async () => {
+  const vazio = await novoBanco();
+  assert.equal(await filaAntiga(vazio), 0, 'banco sem conversa antiga');
+  await vazio.close?.();
+  const base = await filaAntiga(db);
+  const nova = async (etapa, direcoes) => { await conversaAntiga(etapa, direcoes); return (await filaAntiga(db)) - base; };
+  const tres = status => [1, 2, 3].map(numero => ({ numero, status }));
+  const tresProntas = avisada_em => [1, 2, 3].map(numero => ({ numero, status: 'pronta', avisada_em }));
+  assert.equal(await nova('gerando', tres('gerando')), 1, 'direção na fila (gerando), etapa da lista, sem pedido');
+  const depois1 = await filaAntiga(db);
+  await conversaAntiga('direcoes', tresProntas(null));
+  assert.equal(await filaAntiga(db), depois1 + 1, 'pronta e não avisada');
+  await conversaAntiga('direcoes', tresProntas(new Date().toISOString()));
+  assert.equal(await filaAntiga(db), depois1 + 1, 'pronta e já avisada: fora');
+  await conversaAntiga('gerando', [...tres('gerando'), ...[1, 2, 3].map(numero => ({ geracao: 2, numero, status: 'falhou' }))]);
+  assert.equal(await filaAntiga(db), depois1 + 1, 'só a ÚLTIMA geração conta: a antiga ainda "gerando" não vale');
+  await conversaAntiga('encerrada', tres('gerando'));
+  await conversaAntiga('estimativa', tres('gerando'));
+  assert.equal(await filaAntiga(db), depois1 + 1, 'etapa fora da lista da fila antiga: fora');
+  const comPedido = await pedidoAguardando();
+  await confirmar(comPedido.conversa_id);   /* (as três direções nascem "gerando", mas há pedido: aparece na fila nova) */
+  assert.equal(await filaAntiga(db), depois1 + 1, 'com linha em app.pedidos: fora');
+  assert.equal(await um('select count(*) n from app.direcoes where conversa_id = $1 and status = $2', [comPedido.conversa_id, 'gerando']).then(r => Number(r.n)), 3);
+});
+
+test('promoção: o cabeçalho da migration e o plano citam o MESMO texto da consulta', () => {
+  const migration = fs.readFileSync(new URL('../../supabase/migrations/20261013120200_fila_confirmados.sql', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const plano = fs.readFileSync(new URL('../superpowers/plans/2026-10-13-orcamento-sem-ia-pr2a.md', import.meta.url), 'utf8');
+  assert.ok(migration.includes('--   ' + CONSULTA_FILA_ANTIGA + '\n'), 'cabeçalho da migration');
+  assert.ok(plano.includes('`' + CONSULTA_FILA_ANTIGA + '`'), 'linha PR2a da Task 9');
 });

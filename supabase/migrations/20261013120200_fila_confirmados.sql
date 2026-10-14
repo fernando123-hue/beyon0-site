@@ -6,10 +6,14 @@
 -- ordem da confirmação. SEM o corte de 50 (o teto da fila global limita quantos são).
 -- ATENÇÃO na promoção: a fila do painel deixa de mostrar pedidos sem confirmação. Aplicar esta migration e
 -- promover o código deste PR JUNTOS (docs/revisoes/pr1-pendencias.md, PR 2a).
--- ANTES de aplicar: esvaziar a fila antiga (entregar e avisar). Conversas do fluxo antigo (contato + gerar) não têm
--- linha em app.pedidos: com direções "gerando" ou prontas e não avisadas, somem da fila (e o comando "pedido" e o
--- "entregar-pedido" deixam de achá-las). Esta consulta precisa dar 0:
---   select count(distinct d.conversa_id) from app.direcoes d where (d.status = 'gerando' or (d.status = 'pronta' and d.avisada_em is null)) and not exists (select 1 from app.pedidos p where p.conversa_id = d.conversa_id);
+-- Conversas do fluxo antigo (contato + gerar) não têm linha em app.pedidos: com direção "gerando" (ou pronta e não
+-- avisada) na última geração, somem desta fila, e o comando "pedido" e o "entregar-pedido" deixam de achá-las.
+-- ORDEM: (1) aplicar 20261013120000_pedidos.sql e 20261013120100_pedidos_dono.sql (a fila antiga segue valendo);
+-- (2) rodar a consulta abaixo (o mesmo texto de docs/revisoes/fila-antiga-vazia.sql): tem que dar 0; se não der,
+-- entregar e avisar esses pedidos pelo jeito antigo; (3) aplicar ESTA migration; (4) promover o código e rodar a
+-- consulta de novo. Mais simples, como alternativa: antes de aplicar qualquer uma das três, conferir que a fila
+-- antiga do painel está vazia.
+--   select count(distinct c.id) from app.conversas c join app.direcoes d on d.conversa_id = c.id and d.geracao = (select max(x.geracao) from app.direcoes x where x.conversa_id = c.id) where c.etapa in ('contato', 'gerando', 'direcoes', 'escolhida', 'alteracoes') and (d.status = 'gerando' or (d.status = 'pronta' and d.avisada_em is null)) and not exists (select 1 from app.pedidos p where p.conversa_id = c.id);
 -- ==========================================================================
 create or replace function app.vendas_fila_direcoes(p jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
