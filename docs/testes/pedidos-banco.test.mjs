@@ -52,6 +52,7 @@ async function forcarEtapa(conversa, etapa) {
   });
 }
 const vencer = conversa => db.query("update app.pedidos set expira_em = now() - interval '1 minute' where conversa_id = $1", [conversa]);
+const pedidosDa = async conversa => Number((await um('select count(*) n from app.pedidos where conversa_id = $1', [conversa])).n);   /* (quantos pedidos a conversa tem) */
 const naFila = async () => Number((await um('select count(*) n from app.pedidos pd where privado.pedido_na_fila(pd)')).n);
 
 test('detalhes: viram pedido com código BZ-XXXXX, lead com o WhatsApp e o aceite, briefing mesclado e a etapa "contato"', async () => {
@@ -87,6 +88,9 @@ test('detalhes: só antes do contato (uma recusa por etapa), só com o pacote gr
   const b = await comPacote();
   assert.equal((await detalhes(b)).ok, true);
   assert.equal((await erroDe(detalhes(b)))?.codigo, ETAPA, 'a 2ª vez: a conversa já está no contato');
+  await forcarEtapa(b.conversa_id, 'estimativa');   /* etapa de volta (só por mão de dono): a trava do pedido único é a própria tabela */
+  assert.deepEqual(await detalhes(b), { ok: false, motivo: 'ja_enviado' }, 'conversa que já tem pedido');
+  assert.equal(await pedidosDa(b.conversa_id), 1, 'e o pedido continua um só');
   assert.equal((await erroDe(detalhes({ ...(await comPacote()), visitante_id: randomUUID() })))?.codigo, NAO_ACHOU, 'conversa de outro visitante');
 });
 
@@ -96,6 +100,9 @@ test('detalhes: os mínimos (nome do negócio, o que vende, WhatsApp) e o tamanh
     ['sem o que vende', { briefing: { negocio: { nome: 'Clínica Sol' } } }],
     ['telefone fora do E.164', { telefone: '21999990000' }],
     ['hash inválido', { telefone_hash: 'x' }],
+    ['chave de IP fora do formato (curta)', { chave_ip: 'ABC' }],
+    ['chave de IP em hex maiúsculo', { chave_ip: hex('ip').toUpperCase() }],
+    ['chave de IP cortada', { chave_ip: hex('ip').slice(0, 63) }],
     ['briefing grande demais', { briefing: { negocio: { nome: 'Clínica Sol', descricao: 'Consultas' }, servicos: Array(400).fill('x'.repeat(40)) } }]
   ]) {
     const b = await comPacote();
@@ -122,7 +129,10 @@ test('freio por IP: o 4º pedido do mesmo IP no dia é recusado, com o evento fr
   const b = await comPacote();
   assert.deepEqual(await detalhes(b, { chave_ip }), { ok: false, motivo: 'freio_ip' });
   assert.deepEqual((await um("select dados from app.eventos_funil where conversa_id = $1 and tipo = 'freio_ip'", [b.conversa_id])).dados, { onde: 'detalhes' });
+  const linhas = async () => Number((await um('select count(*) n from privado.freio_ip')).n);
+  const antes = await linhas();
   assert.equal((await detalhes(await comPacote(), { chave_ip: null })).ok, true, 'sem chave (servidor local sem segredo): não conta');
+  assert.equal(await linhas(), antes, 'sem chave: o freio_ip não ganhou linha');
 });
 
 test('fila global: o teto conta pela regra da fila (pedido_na_fila); aguardando e concluído não ocupam', async () => {
@@ -193,6 +203,15 @@ test('pedido: a situação só anda para a frente; código e conversa não mudam
   assert.equal((await erroDe(db.query("update app.pedidos set telefone_hash = $2 where conversa_id = $1", [b.conversa_id, hex('outro')])))?.codigo, REGRA, 'trocar o hash');
   await db.query('update app.pedidos set telefone_hash = null where conversa_id = $1', [b.conversa_id]);   /* (apagar pode: a rotina faz) */
   assert.equal((await erroDe(db.query("update app.pedidos set status = 'confirmado' where conversa_id = $1", [b.conversa_id])))?.codigo, REGRA, 'confirmado sem a data');
+  /* retrocesso e saída de estado final */
+  const x = await comPacote();
+  await detalhes(x);
+  await db.query("update app.pedidos set status = 'confirmado', confirmado_em = now() where conversa_id = $1", [x.conversa_id]);
+  assert.equal((await erroDe(db.query("update app.pedidos set status = 'aguardando' where conversa_id = $1", [x.conversa_id])))?.codigo, REGRA, 'confirmado → aguardando');
+  const y = await comPacote();
+  await detalhes(y);
+  await db.query("update app.pedidos set status = 'expirado', encerrado_em = now() where conversa_id = $1", [y.conversa_id]);
+  assert.equal((await erroDe(db.query("update app.pedidos set status = 'confirmado', confirmado_em = now() where conversa_id = $1", [y.conversa_id])))?.codigo, REGRA, 'expirado → confirmado');
   for (const quem of ['anon', b.visitante_id])
     assert.equal((await erroDe(como(db, quem, q => q('select * from app.pedidos'))))?.codigo, SEM_PERMISSAO, String(quem));
 });

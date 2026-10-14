@@ -164,6 +164,7 @@ begin
   end if;
   -- os mínimos obrigatórios (nome do negócio, o que vende e WhatsApp), conferidos AQUI, antes de qualquer geração
   if v_tel is null or v_tel !~ '^[0-9a-f]{64}$' or coalesce(p ->> 'telefone', '') !~ '^\+[1-9][0-9]{7,14}$'
+     or (v_chave_ip is not null and v_chave_ip !~ '^[0-9a-f]{64}$')   -- (chave de IP mal formada: erro, e não freio desligado em silêncio)
      or jsonb_typeof(p -> 'briefing') is distinct from 'object' or pg_column_size(p -> 'briefing') > 8192
      or char_length(coalesce(p #>> '{briefing,negocio,nome}', '')) < 2
      or char_length(coalesce(p #>> '{briefing,negocio,descricao}', '')) < 3 then
@@ -186,9 +187,9 @@ begin
     return jsonb_build_object('ok', false, 'motivo', 'telefone_dia');
   end if;
   -- por IP (por último: só conta quem passou pelo resto; o evento fica, porque a função RETORNA em vez de falhar).
-  -- Sem chave (servidor local sem segredo), não conta
+  -- Sem chave (null: servidor local sem segredo), não conta; chave não nula e mal formada já foi recusada lá em cima (22023)
   -- (dois ifs, e não um "and": o Postgres não garante a ordem do "and", e contar_ip com chave nula falha)
-  if coalesce(v_chave_ip, '') ~ '^[0-9a-f]{64}$' then
+  if v_chave_ip is not null then
     if not privado.contar_ip(v_chave_ip, coalesce((p ->> 'max_por_ip')::integer, 3)) then
       perform privado.evento(c.org_id, c.id, 'freio_ip', jsonb_build_object('onde', 'detalhes'));
       return jsonb_build_object('ok', false, 'motivo', 'freio_ip');
