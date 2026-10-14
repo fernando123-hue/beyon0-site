@@ -618,9 +618,11 @@ test('retenção pelo caminho real: o lead que o agente cria ("em_conversa") é 
   assert.notEqual((await lead(leadRecente)).nome, '[apagado]', 'mexido pela equipe dentro do prazo: fica');
   assert.notEqual((await lead(leadProduzindo)).nome, '[apagado]', 'conversa em produção: fica');
 
-  /* a pessoa volta: o estado diz "sem contato", pagar é recusado, e informar de novo devolve o contato ao MESMO lead */
+  /* a pessoa volta: o estado diz "sem contato" e pagar é recusado. PR2a-recontato (docs/revisoes/pr1-pendencias.md): a tela
+     não tem mais o formulário de contato para quem já tem pedido; o contato volta ao MESMO lead pela função do banco (o dono,
+     a partir do WhatsApp), que é o que este teste usa abaixo no lugar do "informar de novo" da tela antiga */
   const e = (await n.chamar('GET', 'estado', undefined, { query: '&conversa=' + c })).corpo;
-  assert.equal(e.conversa.tem_contato, false, 'lead anonimizado = sem contato: o formulário reaparece');
+  assert.equal(e.conversa.tem_contato, false, 'lead anonimizado = sem contato (a tela não oferece o formulário de novo: PR2a-recontato)');
   const pagar = await n.chamar('POST', 'pagar', { conversa_id: c, valor: 1, metodo: 'pix', pagador: PAGADOR });
   assert.equal(pagar.status, 409, 'pagar sem contato: recusado — ' + JSON.stringify(pagar.corpo));
   assert.match(pagar.corpo.erro, /WhatsApp/, 'recusado pela trava de contato, com o WhatsApp (o contato de novo é com a Beyon Zero)');
