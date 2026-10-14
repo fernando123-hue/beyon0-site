@@ -49,6 +49,15 @@ test('condições: preço, entrada e restante fecham, e a entrada é 40%', () =>
   assert.deepEqual(painel, [Number(preco), Number(entrada), Number(restante)], 'o painel de valores diverge do texto');
 });
 
+/* fundador: landing R$ 800 e institucional R$ 1.900, nada nos outros formatos (dono, 2026-10-14) */
+test('condições: o institucional de fundador custa R$ 1.900 e também fecha em 40% + 60%', () => {
+  const [, preco, entrada, restante] = texto.match(/site institucional, de até 5 páginas, por R\$ ([\d.]+)\..*?No institucional: R\$ ([\d.]+) \(40%\) para começar e R\$ ([\d.]+) \(60%\) com o site no ar\./) || [];
+  assert.ok(preco, 'não achei o institucional com entrada e restante');
+  const n = v => Number(v.replace('.', ''));
+  assert.deepEqual([n(preco), n(entrada), n(restante)], [1900, 760, 1140]);
+  assert.ok(!/loja|experiência digital/i.test(texto), 'o preço de fundador não vale para outros formatos');
+});
+
 test('condições: meta, canonical e OG apontam para /condicoes no domínio vigente (decisão do dono, 2026-10-14)', () => {
   for (const re of [/rel="canonical" href="https:\/\/beyon0-site\.vercel\.app\/condicoes"/, /property="og:url" content="https:\/\/beyon0-site\.vercel\.app\/condicoes"/,
     /property="og:title"/, /property="og:image" content="https:\/\/beyon0-site\.vercel\.app\/assets\/og-cover\.jpg"/, /name="description"/, /<h1>Condições do lançamento<\/h1>/]) {
@@ -72,11 +81,25 @@ test('condições: só para quem recebe o link: noindex, fora do sitemap e fora 
 
 test('condições: desistência diz os 7 dias (CDC art. 49), a devolução inteira e como pedir', () => {
   assert.match(texto, /Até 7 dias depois de aceitar.*entrada inteira \(Código de Defesa do Consumidor, art\. 49\)/);
-  assert.match(texto, /Depois dos 7 dias, se eu ainda não comecei o site, devolvo a entrada inteira/);
-  assert.match(texto, /Depois dos 7 dias, se eu já comecei, a entrada fica/);
+  /* depois dos 7 dias a entrada fica, comece ou não o trabalho (dono, 2026-10-14: "Caso ela cancele após o primeiro pagamento, ficará comigo") */
+  assert.match(texto, /Depois dos 7 dias, a entrada paga o trabalho reservado para você e não é devolvida\. Se você desistir, não paga o restante, e o site não vai ao ar\./);
+  assert.ok(!/se eu ainda não comecei|se eu já comecei/.test(texto), 'a regra antiga (depende de ter começado) sobrou');
   assert.match(html, /<a data-wa="[^"]*desistir[^"]*" href="https:\/\/wa\.me\/\d+">WhatsApp da Beyon Zero<\/a>/);
   assert.match(texto, /devolução é imediata, pelo mesmo meio do pagamento \(o Pix\), com o valor corrigido/);
   assert.match(texto, /orçamento automático do site segue a tabela normal/);
+});
+
+/* o Banco Central proibiu o nome "Pix Parcelado" (dez/2025); o pagamento à Beyon Zero continua só Pix (dono, 2026-10-14) */
+test('condições: parcelar é pelo banco do cliente, com o nome permitido (Pix no crédito)', () => {
+  assert.match(texto, /Se quiser parcelar, dá para usar o parcelamento do seu banco \(Pix no crédito\)\./);
+  assert.ok(!/Pix parcelado/i.test(texto), 'nome proibido pelo Banco Central');
+});
+
+/* a indicação virou só pedido, sem Pix; a troca do fundador é depoimento + portfólio (dono, 2026-10-14; texto de
+   03 Projetos/captacao/docs/parte6/condicoes-lancamento.md, commit 97c221a) */
+test('condições: indicação sem pagamento; a troca do preço de fundador é depoimento e portfólio', () => {
+  assert.match(texto, /Em troca do preço de fundador Se gostar do resultado, peço um depoimento curto e a permissão de mostrar o seu site no portfólio da Beyon Zero\. E, se conhecer alguém que precisa de site, uma indicação ajuda muito \(sem obrigação\)\./);
+  assert.ok(!/eu pago a você|recompensa|5%|30%/.test(texto), 'a indicação paga sobrou');
 });
 
 test('condições: a vaga é confirmada na conversa, antes do "ok"', () => {
@@ -89,9 +112,9 @@ test('condições: diz, sem tom de aviso, que por enquanto não há nota fiscal 
 
 /* a política de privacidade cobre o que a captação faz, conforme o código (captacao/negocios: verificar.mjs, faxina.mjs,
    receita/estabelecimentos.mjs, fila.mjs) e as decisões de 2026-10-12 */
-test('privacidade: cobre o primeiro contato, a busca na web com a Anthropic, o Pix direto e a indicação', () => {
+test('privacidade: cobre o primeiro contato, a busca na web com a Anthropic, o Pix direto, o depoimento e o portfólio', () => {
   for (const trecho of ['Quando a Beyon Zero procura o seu negócio', 'cadastro público de empresas da Receita Federal',
-    'legítimo interesse (artigo 7º, inciso IX', 'responda “não”', '90 dias depois do último envio', 'Pix direto', 'Quem indica um negócio',
+    'legítimo interesse (artigo 7º, inciso IX', 'responda “não”', '90 dias depois do último envio', 'Pix direto', 'Depoimento e portfólio', 'com a sua autorização por escrito',
     'a Beyon Zero manda o nome, o tipo, a cidade, o estado (UF) e o celular do negócio à Anthropic', 'conta de assinatura do próprio fundador',
     'buscador usado pela Anthropic', 'anthropic.com/legal/privacy', 'A Anthropic guarda os dados conforme a política de privacidade dela',
     'o Registro.br exige o seu CPF ou CNPJ', 'a hospedagem do site dos clientes da oferta de lançamento, na conta da Beyon Zero',
@@ -102,7 +125,8 @@ test('privacidade: cobre o primeiro contato, a busca na web com a Anthropic, o P
     'todos os telefones do cadastro (fixos também)', 'atividade da empresa', 'enquanto a Beyon Zero fizer esse tipo de contato', 'execução de contrato (artigo 7º, inciso V']) assert.ok(priv.includes(trecho), 'privacidade sem: ' + trecho);
   assert.match(priv, /Anthropic \([^)]*faz uma busca na web[^)]*\)/, 'a Anthropic e a busca na web em "Com quem os dados são tratados"');
   const retencao = 'enquanto durar a relação e, depois, pelo prazo legal de guarda de comprovantes';
-  assert.equal(priv.split(retencao).length - 1, 2, 'a guarda do Pix direto e da indicação, sem número de anos');
+  assert.equal(priv.split(retencao).length - 1, 1, 'a guarda do Pix direto, sem número de anos');
+  assert.ok(!/Quem indica um negócio|chave Pix que você informar|recompensa/.test(priv), 'a indicação paga saiu (dono, 2026-10-14): nada de guardar o Pix de quem indica');
   assert.match(priv, /Registro\.br \(o registro do domínio[^)]*CPF ou CNPJ do titular\)/, 'o Registro.br em "Com quem os dados são tratados"');
   assert.match(ler('privacidade.html'), /<a href="https:\/\/www\.anthropic\.com\/legal\/privacy"[^>]*>anthropic\.com\/legal\/privacy<\/a>/);
 });
