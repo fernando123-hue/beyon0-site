@@ -233,21 +233,74 @@
       </section>
     </div>
 
-    <!-- O CONTATO (antes de gerar as direções) -->
+    <!-- OS DETALHES (spec 2026-10-11 §3): uma tela, celular primeiro; viram o pedido com código (js/orcamento-detalhes.js).
+         O aceite de privacidade continua aqui e vai ao banco pelo mesmo caminho de antes (app.vendas_informar_contato) -->
     <section class="orc-bloco" id="o-contato" aria-labelledby="o-contato-titulo" hidden>
       <h2 id="o-contato-titulo">Para quem vou desenhar?</h2>
-      <p class="orc-bloco__lead" id="o-contato-lead">Com o seu contato, eu desenho três modelos de site para o seu negócio: um feito para trazer pedidos, um que passa confiança e um mais moderno e chamativo.</p>
-      <form class="orc-form" id="o-contato-form" novalidate>
-        <label for="o-nome">Seu nome <span class="orc-opcional">(obrigatório)</span></label>
-        <input id="o-nome" name="nome" autocomplete="name" maxlength="120" required />
-        <label for="o-tel">WhatsApp <span class="orc-opcional" id="o-tel-obrig">(ou só o e-mail)</span></label>
-        <input id="o-tel" name="telefone" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="(21) 99999-0000" />
-        <label for="o-email">E-mail <span class="orc-opcional">(ou só o WhatsApp)</span></label>
-        <input id="o-email" name="email" type="email" autocomplete="email" maxlength="254" />
-        <label class="orc-check"><input type="checkbox" id="o-aceite" required /> <span>Concordo que a Beyon Zero use estes dados para preparar as propostas e falar comigo sobre elas (<a href="/privacidade#orcamento">privacidade</a>).</span></label>
+      <p class="orc-bloco__lead" id="o-contato-lead">Conte um pouco do seu negócio. Leva uns 2 minutos, e é com isso que eu desenho três modelos de site: um feito para trazer pedidos, um que passa confiança e um mais moderno e chamativo.</p>
+      <p class="orc-aviso orc-fila-cheia" id="o-fila-cheia" role="status" tabindex="-1" hidden>Muita procura agora: a fila de modelos está cheia. Fale com a Beyon Zero pelo <a data-wa="quero os três modelos do meu site (a fila estava cheia)" href="https://wa.me/5521977167944">WhatsApp</a> e a gente segue por lá.</p>
+      <form class="orc-form" id="o-detalhes-form" novalidate>
+        <p class="orc-nota orc-nota--aviso">Não escreva CPF, telefone ou dados de outras pessoas nos campos de texto.</p>
+        <label for="o-d-negocio">Nome do negócio <span class="orc-opcional">(obrigatório)</span></label>
+        <input id="o-d-negocio" maxlength="60" autocomplete="organization" required />
+        <label for="o-d-vende">O que você vende <span class="orc-opcional">(obrigatório; toque numa sugestão ou escreva)</span></label>
+        <div class="orc-sugestoes" id="o-d-sugestoes" role="group" aria-label="Sugestões para o que você vende"></div>
+        <input id="o-d-vende" maxlength="200" autocomplete="off" required />
+        <label for="o-tel">WhatsApp <span class="orc-opcional">(obrigatório: é por ele que você confirma o pedido e eu aviso quando os modelos ficarem prontos)</span></label>
+        <input id="o-tel" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="(21) 99999-0000" required />
+        <fieldset class="orc-opcionais">
+          <legend>Se quiser, conte mais <span class="orc-opcional">(opcional)</span></legend>
+          <label for="o-nome">Como quer ser chamado</label>
+          <input id="o-nome" maxlength="60" autocomplete="given-name" />
+          <label for="o-d-publico">Para quem você vende</label>
+          <input id="o-d-publico" maxlength="200" autocomplete="off" />
+          <label for="o-d-diferencial">O que diferencia o seu negócio</label>
+          <input id="o-d-diferencial" maxlength="160" autocomplete="off" />
+          <label for="o-d-instagram">@ do Instagram do negócio</label>
+          <input id="o-d-instagram" maxlength="80" autocomplete="off" placeholder="@seunegocio" />
+          <details class="orc-redes">
+            <summary>Outras redes do negócio</summary>
+            <div class="orc-redes__campos">
+              <label for="o-d-facebook">Facebook</label>
+              <input id="o-d-facebook" maxlength="120" autocomplete="off" />
+              <label for="o-d-tiktok">TikTok</label>
+              <input id="o-d-tiktok" maxlength="80" autocomplete="off" />
+              <label for="o-d-youtube">YouTube</label>
+              <input id="o-d-youtube" maxlength="120" autocomplete="off" />
+              <label for="o-d-linkedin">LinkedIn</label>
+              <input id="o-d-linkedin" maxlength="160" autocomplete="off" />
+            </div>
+          </details>
+          <label class="orc-check" for="o-d-redes-ok"><input type="checkbox" id="o-d-redes-ok" /> <span>Autorizo a Beyon Zero a olhar essas redes para preparar os modelos.</span></label>
+          <label for="o-d-admira">Um site que você admira (só o nome)</label>
+          <input id="o-d-admira" maxlength="60" autocomplete="off" />
+        </fieldset>
+        <label class="orc-check"><input type="checkbox" id="o-aceite" required /> <span>Concordo que a Beyon Zero use estes dados para preparar os modelos e falar comigo sobre eles (<a href="/privacidade#orcamento">privacidade</a>).</span></label>
         <p class="orc-erro" id="o-contato-erro" role="alert"></p>
         <button class="btn btn--primary" type="submit">Quero os três modelos</button>
       </form>
+    </section>
+
+    <!-- A CONFIRMAÇÃO PELO WHATSAPP (spec §3 e §0): o código grande e a conversa aberta pela própria pessoa. Fora da
+         medição (data-sem-medicao): o Ads só conta pedido confirmado (decisão D6) -->
+    <section class="orc-bloco orc-confirmar" id="o-confirmar" aria-labelledby="o-confirmar-titulo" data-sem-medicao hidden>
+      <h2 id="o-confirmar-titulo">Confirme pelo WhatsApp</h2>
+      <p class="orc-bloco__lead">Mande a mensagem pronta para a Beyon Zero. É assim que eu sei que o número é seu e coloco o seu pedido na fila.</p>
+      <p class="orc-rotulo">Código do pedido</p>
+      <p class="orc-codigo-grande" id="o-confirmar-codigo"></p>
+      <p class="orc-nota">Tire um print desta tela: o código identifica o seu pedido.</p>
+      <a class="btn btn--primary" id="o-confirmar-wa" href="https://wa.me/5521977167944" target="_blank" rel="noopener noreferrer">Confirmar pelo WhatsApp<span class="sr-only"> (abre em nova aba)</span></a>
+      <p class="orc-nota" id="o-confirmar-prazo"></p>
+    </section>
+
+    <!-- o pedido saiu da fila (venceu sem confirmação ou foi encerrado): o caminho é um orçamento novo ou o WhatsApp -->
+    <section class="orc-bloco" id="o-pedido-fim" aria-labelledby="o-pedido-fim-titulo" hidden>
+      <h2 id="o-pedido-fim-titulo">Este pedido não está mais na fila</h2>
+      <p class="orc-bloco__lead" id="o-pedido-fim-texto"></p>
+      <div class="orc-aviso__acoes">
+        <button class="btn btn--sm" type="button" id="o-pedido-recomecar">Fazer um orçamento novo</button>
+        <a class="btn btn--sm btn--ghost" data-wa="quero retomar o meu pedido de modelos" href="https://wa.me/5521977167944">Falar pelo WhatsApp</a>
+      </div>
     </section>
 
     <!-- AS TRÊS DIREÇÕES -->
@@ -449,6 +502,8 @@
   <script src="js/orcamento-pagamento.js" defer></script>
   <script src="js/orcamento-recibo.js" defer></script>
   <script src="js/orcamento-perguntas.js" defer></script>
+  <script src="js/orcamento-detalhes.js" defer></script>
+  <script src="js/orcamento-espera.js" defer></script>
   <script src="js/orcamento.js" defer></script>
 </body>
 </html>

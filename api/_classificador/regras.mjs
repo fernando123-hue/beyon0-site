@@ -4,6 +4,7 @@
    landing": a dentista que quer agendamentos precisa de várias páginas.
    ========================================================================== */
 import { validarRespostas, resultado } from './contrato.mjs';
+import { pareceInjecao } from '../_vendas/seguranca.mjs';
 
 const PAGINAS = { landing_page: 1, institucional: 5, loja_plataforma: 5, sob_medida: 4 };
 const NOME_OBJETIVO = { pedidos_whatsapp: 'receber pedidos pelo WhatsApp', achado_google: 'ser achado no Google', agendamentos: 'agendamentos',
@@ -27,7 +28,16 @@ function motivo(formato, objetivos) {
   return quer + 'm site com várias páginas apresenta o seu negócio e leva o cliente até ' + destino + '.';
 }
 
-export function regras(tarefa, { respostas, formatos }) {
+/* a TRIAGEM do pedido (spec §4 e §8, etapa B): texto que parece tentativa de dar ordem vira selo no painel.
+   Só marca; não bloqueia nada (o dono lê antes de produzir) */
+function triar(tarefa, { textos }) {
+  const lista = Array.isArray(textos) ? textos.filter(t => typeof t === 'string') : [];
+  return resultado(tarefa, 'regras', { suspeito: lista.some(t => pareceInjecao(t)) });
+}
+
+export function regras(tarefa, entrada) {
+  if (tarefa === 'triar_pedido') return triar(tarefa, entrada || {});
+  const { respostas, formatos } = entrada || {};
   const v = validarRespostas(respostas);
   if (v.erros) return resultado(tarefa, 'regras', { erros: v.erros });
   const r = v.dados;

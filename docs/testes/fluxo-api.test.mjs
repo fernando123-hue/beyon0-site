@@ -12,6 +12,7 @@ import { configPagamentos } from '../../api/_pagamentos/config.mjs';
 import { ErroIA } from '../../api/_ia/provedor.mjs';
 import { RECUPERACAO } from '../../api/_vendas/fluxo.mjs';
 import { SISTEMA } from '../../api/_vendas/agente.mjs';
+import { LIMITES_DE_TESTE, detalhesEConfirmar, telefoneDeTeste } from './_pedido.mjs';
 
 let local, deps;
 const PAGADOR = { nome: 'Ana', sobrenome: 'Souza', email: 'ana@exemplo.com', documento: '52998224725' };
@@ -19,7 +20,7 @@ const BASE = 'http://127.0.0.1:8899';
 let ipSeq = 0;
 before(async () => {
   local = await montarLocal({ base: BASE });
-  deps = { banco: local.rpc, visitantes: local.auth, ia: criarSimulada(), direcoes: 'api', pagamentos: criarServicoPagamentos({ banco: local.rpc, cfg: configPagamentos({}) }) };
+  deps = { banco: local.rpc, visitantes: local.auth, ia: criarSimulada(), direcoes: 'api', segredoFreio: 's'.repeat(32), limitesPedido: LIMITES_DE_TESTE, pagamentos: criarServicoPagamentos({ banco: local.rpc, cfg: configPagamentos({}) }) };
 });
 
 /* um "navegador": cada um com um IP próprio (o freio é por IP) */
@@ -52,7 +53,7 @@ test('fluxo normal: visitante → conversa → estimativa → contato → 3 dire
   assert.ok(!/R\$/.test(m1.corpo.resposta));
   const m2 = await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Sim, quero ver as propostas' });
   assert.equal(m2.corpo.pedir_contato, true);
-  assert.equal((await n.chamar('POST', 'contato', { conversa_id: c, nome: 'Dra. Ana', telefone: '(21) 99999-0000', aceite: true })).status, 200);
+  await detalhesEConfirmar(n.chamar, local.rpc, c, { nome: 'Dra. Ana' });
   const g = await n.chamar('POST', 'gerar', { conversa_id: c });
   assert.equal(g.corpo.direcoes.length, 3);
   const prontas = await Promise.all(g.corpo.direcoes.map(d => n.chamar('POST', 'gerar-direcao', { conversa_id: c, direcao_id: d.id })));
@@ -114,7 +115,7 @@ test('IA falha: recuperação elegante, nada inventado, nada perdido; volta a fu
   assert.equal((await n.chamar('POST', 'mensagem', { conversa_id: s.conversa_id, texto: 'Tenho uma academia e quero um site institucional para gerar contatos' })).status, 200, 'segue de onde parou');
   /* a geração falhando não vira direção nem preço */
   await n.chamar('POST', 'mensagem', { conversa_id: s.conversa_id, texto: 'sim, quero' });
-  await n.chamar('POST', 'contato', { conversa_id: s.conversa_id, nome: 'Rui', email: 'rui@x.com', aceite: true });
+  await detalhesEConfirmar(n.chamar, local.rpc, s.conversa_id, { nome: 'Rui' });
   const g = await n.chamar('POST', 'gerar', { conversa_id: s.conversa_id });
   const falhou = await n.chamar('POST', 'gerar-direcao', { conversa_id: s.conversa_id, direcao_id: g.corpo.direcoes[0].id }, { deps: quebrada });
   assert.equal(falhou.corpo.status, 'falhou');
@@ -132,7 +133,7 @@ test('segurança: sem token, token forjado e token de outro visitante não chega
   assert.equal((await a.chamar('GET', 'estado', undefined, { query: q, token: '' })).status, 401, 'sem token');
   const [h, p] = a.token.split('.');
   assert.equal((await a.chamar('GET', 'estado', undefined, { query: q, token: h + '.' + p + '.assinaturaforjada' })).status, 401, 'token forjado');
-  for (const [m, acao, corpo] of [['GET', 'estado'], ['POST', 'mensagem', { conversa_id: sa.conversa_id, texto: 'oi' }], ['POST', 'contato', { conversa_id: sa.conversa_id, nome: 'Xavier', email: 'x@x.com', aceite: true }], ['POST', 'gerar', { conversa_id: sa.conversa_id }], ['POST', 'pagar', { conversa_id: sa.conversa_id, metodo: 'pix', pagador: PAGADOR }]]) {
+  for (const [m, acao, corpo] of [['GET', 'estado'], ['POST', 'mensagem', { conversa_id: sa.conversa_id, texto: 'oi' }], ['POST', 'detalhes', { conversa_id: sa.conversa_id, negocio: 'Escola X', vende: 'Matrículas', telefone: '(21) 98765-0000', aceite: true }], ['POST', 'gerar', { conversa_id: sa.conversa_id }], ['POST', 'pagar', { conversa_id: sa.conversa_id, metodo: 'pix', pagador: PAGADOR }]]) {
     const r = await b.chamar(m, acao, corpo, m === 'GET' ? { query: q } : {});
     assert.equal(r.status, 404, 'B em ' + acao + ' da conversa de A: "não existe"');
   }
@@ -160,7 +161,7 @@ test('concorrência: a mesma direção pedida duas vezes ao mesmo tempo é gerad
   const s = await n.iniciar();
   await n.chamar('POST', 'mensagem', { conversa_id: s.conversa_id, texto: 'Tenho uma contabilidade e quero um site institucional para gerar contatos' });
   await n.chamar('POST', 'mensagem', { conversa_id: s.conversa_id, texto: 'sim' });
-  await n.chamar('POST', 'contato', { conversa_id: s.conversa_id, nome: 'Léo', email: 'leo@x.com', aceite: true });
+  await detalhesEConfirmar(n.chamar, local.rpc, s.conversa_id, { nome: 'Léo' });
   const g = await n.chamar('POST', 'gerar', { conversa_id: s.conversa_id });
   const id = g.corpo.direcoes[0].id;
   let geracoes = 0;
@@ -272,10 +273,10 @@ test('dados incompletos ou inconsistentes: cada um recusado com motivo, sem 500'
     ['POST', 'mensagem', { conversa_id: 'x', texto: 'oi' }, 400],
     ['POST', 'mensagem', { conversa_id: c, texto: '' }, 400],
     ['POST', 'mensagem', { conversa_id: c, texto: 'a'.repeat(2001) }, 400],
-    ['POST', 'contato', { conversa_id: c, nome: 'A', email: 'a@a.com', aceite: true }, 400],
-    ['POST', 'contato', { conversa_id: c, nome: 'Ana', email: 'sem-arroba', aceite: true }, 400],
-    ['POST', 'contato', { conversa_id: c, nome: 'Ana', email: 'a@a.com' }, 400],
-    ['POST', 'contato', { conversa_id: c, nome: 'Ana' , aceite: true }, 400],
+    ['POST', 'contato', { conversa_id: c, nome: 'Ana', telefone: '(21) 99999-0000', aceite: true }, 404],   /* (PR 2a: o contato vem pelos detalhes) */
+    ['POST', 'detalhes', { conversa_id: c, negocio: 'A', vende: 'Consultas', telefone: '(21) 98765-0000', aceite: true }, 400],
+    ['POST', 'detalhes', { conversa_id: c, negocio: 'Clínica', vende: 'Consultas', telefone: '123', aceite: true }, 400],
+    ['POST', 'detalhes', { conversa_id: c, negocio: 'Clínica', vende: 'Consultas', telefone: '(21) 98765-0000' }, 400],
     ['POST', 'gerar', { conversa_id: c }, 409],
     ['POST', 'escopo', { conversa_id: c }, 409],
     ['POST', 'confirmar', { conversa_id: c, proposta_id: c, confirmo: false }, 400]
@@ -285,6 +286,124 @@ test('dados incompletos ou inconsistentes: cada um recusado com motivo, sem 500'
     assert.equal(r.status, esperado, acao + ' ' + String(JSON.stringify(corpo)).slice(0, 60) + ' → ' + JSON.stringify(r.corpo));
   }
   assert.equal((await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'oi' }, { tipo: 'text/plain' })).status, 415, 'formulário de outro site');
+});
+
+test('gerar só com o pedido CONFIRMADO: conversa antiga em contato (sem pedido) e pedido esperando recebem 409 da API com a frase certa; confirmado gera (o banco também recusa o 1º caso)', async () => {
+  const n = navegador();
+  const s = await n.iniciar();
+  const c = s.conversa_id;
+  await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Tenho uma clínica e quero um site institucional para agendamentos' });
+  await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'sim' });
+  const vid = (await local.db.query('select visitante_id from app.conversas where id = $1', [c])).rows[0].visitante_id;
+  /* o fluxo antigo: contato informado direto, sem linha em app.pedidos */
+  await local.rpc('vendas_informar_contato', { conversa_id: c, visitante_id: vid, nome: 'Ana', telefone: '+5521999990000', aceite: true });
+  assert.equal(Number((await local.db.query('select count(*) n from app.pedidos where conversa_id = $1', [c])).rows[0].n), 0, 'sem pedido');
+  const antiga = await n.chamar('POST', 'gerar', { conversa_id: c });
+  assert.equal(antiga.status, 409, 'sem pedido: a API recusa — ' + JSON.stringify(antiga.corpo));
+  assert.match(antiga.corpo.erro, /ainda não foi confirmado pelo WhatsApp/);
+  assert.equal(Number((await local.db.query('select count(*) n from app.direcoes where conversa_id = $1', [c])).rows[0].n), 0, 'nenhuma direção nasceu');
+  /* o pedido esperando a confirmação */
+  const n2 = navegador();
+  const c2 = (await n2.iniciar()).conversa_id;
+  await n2.chamar('POST', 'mensagem', { conversa_id: c2, texto: 'Tenho uma clínica e quero um site institucional para agendamentos' });
+  await n2.chamar('POST', 'mensagem', { conversa_id: c2, texto: 'sim' });
+  const det = await n2.chamar('POST', 'detalhes', { conversa_id: c2, negocio: 'Clínica Sol', vende: 'Consultas', telefone: telefoneDeTeste(), aceite: true });
+  assert.equal(det.status, 200, JSON.stringify(det.corpo));
+  const aguardando = await n2.chamar('POST', 'gerar', { conversa_id: c2 });
+  assert.equal(aguardando.status, 409, 'esperando a confirmação: recusado — ' + JSON.stringify(aguardando.corpo));
+  await local.rpc('vendas_confirmar_whatsapp', { org_slug: 'beyon-zero', conversa_id: c2 });
+  const confirmado = await n2.chamar('POST', 'gerar', { conversa_id: c2 });
+  assert.equal(confirmado.status, 200, 'confirmado: gera — ' + JSON.stringify(confirmado.corpo));
+});
+
+/* (revisão final do PR 2a, M1) "Descartar encerra o pedido e para o que faltava fazer" (regra do dono): com o pedido
+   descartado, o SERVIDOR recusa cada ação seguinte do visitante com a frase do encerramento e o WhatsApp, sem gravar
+   nada. Arquivado (resolvido por fora) não bloqueia, mas também não gera de novo; e o "gerar" diz o porquê de cada caso */
+const ENCERRADO = /^Este pedido foi encerrado\. Fale com a Beyon Zero pelo WhatsApp\.$/;
+const mudarPedido = (conversa_id, acao) => local.rpc('vendas_mudar_pedido', { org_slug: 'beyon-zero', conversa_id, acao });
+async function rastroDa(c) {
+  const n = async sql => Number((await local.db.query(sql, [c])).rows[0].n);
+  return {
+    etapa: (await local.db.query('select etapa from app.conversas where id = $1', [c])).rows[0].etapa,
+    direcoes: await n('select count(*) n from app.direcoes where conversa_id = $1'),
+    escolhas: await n('select count(*) n from app.escolhas where conversa_id = $1'),
+    alteracoes: await n('select count(*) n from app.alteracoes where conversa_id = $1'),
+    ia: await n('select count(*) n from app.ia_chamadas where conversa_id = $1'),
+    propostas: Number((await local.db.query('select count(*) n from app.propostas')).rows[0].n),
+    tentativas: Number((await local.db.query('select count(*) n from app.tentativas_pagamento')).rows[0].n)
+  };
+}
+
+test('pedido descartado com as três prontas: gerar, gerar-direcao, escolher, alterar, escopo e pagar dão 409 "encerrado" com o WhatsApp e nada é gravado', async () => {
+  const n = navegador();
+  const { c, dirs } = await ateDirecoes(n);
+  assert.equal((await rastroDa(c)).etapa, 'direcoes');
+  assert.deepEqual(await mudarPedido(c, 'descartar'), { ok: true, status: 'descartado' });
+  const antes = await rastroDa(c);
+  for (const [acao, corpo] of [
+    ['gerar', { conversa_id: c }],
+    ['gerar-direcao', { conversa_id: c, direcao_id: dirs[0].id }],
+    ['escolher', { conversa_id: c, direcao_id: dirs[1].id }],
+    ['alterar', { conversa_id: c, pedido: 'Quero a cor da primeira' }],
+    ['escopo', { conversa_id: c }],
+    ['pagar', { conversa_id: c, metodo: 'pix', pagador: PAGADOR }]
+  ]) {
+    const r = await n.chamar('POST', acao, corpo);
+    assert.equal(r.status, 409, acao + ': ' + JSON.stringify(r.corpo));
+    assert.match(r.corpo.erro, ENCERRADO, acao);
+    assert.equal(r.corpo.whatsapp, true, acao + ': o WhatsApp à mão');
+  }
+  assert.deepEqual(await rastroDa(c), antes, 'nada gravado (etapa, direções, escolha, ajuste, chamada de IA, proposta, cobrança)');
+});
+
+test('descartado com a geração em andamento (as direções viram "falhou"): gerar diz "encerrado", não "ainda não foi confirmado"', async () => {
+  const n = navegador();
+  const c = (await n.iniciar()).conversa_id;
+  await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Tenho uma clínica e quero um site institucional para agendamentos' });
+  await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'sim' });
+  await detalhesEConfirmar(n.chamar, local.rpc, c);
+  await mudarPedido(c, 'descartar');
+  const antes = await rastroDa(c);
+  assert.equal(antes.etapa, 'contato', 'a geração parou e a conversa voltou a "contato"');
+  const g = await n.chamar('POST', 'gerar', { conversa_id: c });
+  assert.equal(g.status, 409, JSON.stringify(g.corpo));
+  assert.match(g.corpo.erro, ENCERRADO);
+  assert.deepEqual(await rastroDa(c), antes);
+});
+
+test('gerar responde uma frase por situação do pedido: aguardando a confirmação, expirado (encerrado) e arquivado (segue pelo WhatsApp)', async () => {
+  const ate = async () => {
+    const n = navegador();
+    const c = (await n.iniciar()).conversa_id;
+    await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Tenho uma clínica e quero um site institucional para agendamentos' });
+    await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'sim' });
+    assert.equal((await n.chamar('POST', 'detalhes', { conversa_id: c, negocio: 'Clínica Sol', vende: 'Consultas', telefone: telefoneDeTeste(), aceite: true })).status, 200);
+    return { n, c };
+  };
+  const a = await ate();
+  const aguardando = await a.n.chamar('POST', 'gerar', { conversa_id: a.c });
+  assert.equal(aguardando.status, 409);
+  assert.match(aguardando.corpo.erro, /aguardando a confirmação pelo WhatsApp/);
+  const v = await ate();
+  await local.db.query("update app.pedidos set expira_em = now() - interval '1 minute' where conversa_id = $1", [v.c]);
+  const expirado = await v.n.chamar('POST', 'gerar', { conversa_id: v.c });
+  assert.equal(expirado.status, 409);
+  assert.match(expirado.corpo.erro, ENCERRADO);
+  const q = await ate();
+  await local.rpc('vendas_confirmar_whatsapp', { org_slug: 'beyon-zero', conversa_id: q.c });
+  await mudarPedido(q.c, 'arquivar');
+  const arquivado = await q.n.chamar('POST', 'gerar', { conversa_id: q.c });
+  assert.equal(arquivado.status, 409);
+  assert.match(arquivado.corpo.erro, /segue com a Beyon Zero pelo WhatsApp/);
+  assert.equal(arquivado.corpo.whatsapp, true);
+});
+
+test('pedido arquivado (resolvido por fora) com as prontas: a escolha continua valendo', async () => {
+  const n = navegador();
+  const { c, dirs } = await ateDirecoes(n);
+  assert.deepEqual(await mudarPedido(c, 'arquivar'), { ok: true, status: 'arquivado' });
+  const r = await n.chamar('POST', 'escolher', { conversa_id: c, direcao_id: dirs[1].id });
+  assert.equal(r.status, 200, JSON.stringify(r.corpo));
 });
 
 test('teto de custo RESERVADO antes de chamar: as 3 direções em paralelo, com a conversa perto do teto, não passam juntas (revisão do PR 1, segurança B6)', async () => {
@@ -589,13 +708,18 @@ test('retenção pelo caminho real: o lead que o agente cria ("em_conversa") é 
   assert.notEqual((await lead(leadRecente)).nome, '[apagado]', 'mexido pela equipe dentro do prazo: fica');
   assert.notEqual((await lead(leadProduzindo)).nome, '[apagado]', 'conversa em produção: fica');
 
-  /* a pessoa volta: o estado diz "sem contato", pagar é recusado, e informar de novo devolve o contato ao MESMO lead */
+  /* a pessoa volta: o estado diz "sem contato" e pagar é recusado. PR2a-recontato (docs/revisoes/pr1-pendencias.md): a tela
+     não tem mais o formulário de contato para quem já tem pedido; o contato volta ao MESMO lead pela função do banco (o dono,
+     a partir do WhatsApp), que é o que este teste usa abaixo no lugar do "informar de novo" da tela antiga */
   const e = (await n.chamar('GET', 'estado', undefined, { query: '&conversa=' + c })).corpo;
-  assert.equal(e.conversa.tem_contato, false, 'lead anonimizado = sem contato: o formulário reaparece');
+  assert.equal(e.conversa.tem_contato, false, 'lead anonimizado = sem contato (a tela não oferece o formulário de novo: PR2a-recontato)');
   const pagar = await n.chamar('POST', 'pagar', { conversa_id: c, valor: 1, metodo: 'pix', pagador: PAGADOR });
   assert.equal(pagar.status, 409, 'pagar sem contato: recusado — ' + JSON.stringify(pagar.corpo));
-  assert.match(pagar.corpo.erro, /informe de novo/, 'recusado pela trava de contato (a conversa estava pronta para pagar)');
-  assert.equal((await n.chamar('POST', 'contato', { conversa_id: c, nome: 'Ana Volta', telefone: '(21) 98888-1111', aceite: true })).status, 200);
+  assert.match(pagar.corpo.erro, /WhatsApp/, 'recusado pela trava de contato, com o WhatsApp (o contato de novo é com a Beyon Zero)');
+  assert.equal(pagar.corpo.whatsapp, true);
+  /* (PR 2a) o contato de novo entra pela mesma função do banco (o dono, a partir do WhatsApp; ver PR2a-recontato) */
+  const vid = (await q('select visitante_id from app.conversas where id = $1', [c])).rows[0].visitante_id;
+  await local.rpc('vendas_informar_contato', { conversa_id: c, visitante_id: vid, nome: 'Ana Volta', telefone: '+5521988881111', aceite: true });
   assert.equal((await q('select lead_id from app.conversas where id = $1', [c])).rows[0].lead_id, leadId, 'o mesmo lead (o da proposta)');
   assert.equal((await lead(leadId)).nome, 'Ana Volta', 'o contato volta ao lead');
   assert.equal((await n.chamar('GET', 'estado', undefined, { query: '&conversa=' + c })).corpo.conversa.tem_contato, true);
@@ -610,7 +734,7 @@ async function ateDirecoes(n, texto = 'Tenho uma clínica e quero um site instit
   const c = s.conversa_id;
   await n.chamar('POST', 'mensagem', { conversa_id: c, texto });
   await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'sim' });
-  await n.chamar('POST', 'contato', { conversa_id: c, nome: 'Rita', email: 'rita@x.com', aceite: true });
+  await detalhesEConfirmar(n.chamar, local.rpc, c);
   const g = await n.chamar('POST', 'gerar', { conversa_id: c });
   for (const d of g.corpo.direcoes) await n.chamar('POST', 'gerar-direcao', { conversa_id: c, direcao_id: d.id });
   return { c, dirs: g.corpo.direcoes };

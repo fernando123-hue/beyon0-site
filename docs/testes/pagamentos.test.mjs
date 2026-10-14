@@ -15,6 +15,7 @@ import { configPagamentos, configPublica } from '../../api/_pagamentos/config.mj
 import { criarMercadoPago, ErroProvedor, retratoDe } from '../../api/_pagamentos/mercadopago.mjs';
 import { criarServicoPagamentos, validarPagador } from '../../api/_pagamentos/servico.mjs';
 import { ferramentas } from '../../api/_vendas/agente.mjs';
+import { LIMITES_DE_TESTE, detalhesEConfirmar } from './_pedido.mjs';
 
 const BASE = 'http://127.0.0.1:8899';
 let local, sim, cfg, servico, deps, ip = 0, desvio = 0;
@@ -26,7 +27,7 @@ before(async () => {
   sim = local.mp.sim;
   cfg = { ...configPagamentos({}), intervaloAposRecusaS: 0 };   /* (o freio de 20 s depois de recusa tem teste próprio) */
   servico = criarServicoPagamentos({ banco: local.rpc, cfg, agora });
-  deps = { banco: local.rpc, visitantes: local.auth, ia: criarSimulada(), direcoes: 'api', pagamentos: servico };
+  deps = { banco: local.rpc, visitantes: local.auth, ia: criarSimulada(), direcoes: 'api', segredoFreio: 's'.repeat(32), limitesPedido: LIMITES_DE_TESTE, pagamentos: servico };
 });
 
 /* ---------- um visitante até a cobrança (sinal de R$ 1.975: institucional 3500 + agendamento 450, 50%) ---------- */
@@ -46,7 +47,7 @@ async function ateCobranca(n = navegador()) {
   const s = await n.iniciar(), c = s.conversa_id;
   await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Tenho uma clínica e quero um site institucional para agendamentos' });
   await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'sim' });
-  await n.chamar('POST', 'contato', { conversa_id: c, nome: 'Ana', email: 'ana@x.com', aceite: true });
+  await detalhesEConfirmar(n.chamar, local.rpc, c, { nome: 'Ana' });
   const g = await n.chamar('POST', 'gerar', { conversa_id: c });
   for (const d of g.corpo.direcoes) await n.chamar('POST', 'gerar-direcao', { conversa_id: c, direcao_id: d.id });
   await n.chamar('POST', 'escolher', { conversa_id: c, direcao_id: g.corpo.direcoes[0].id });

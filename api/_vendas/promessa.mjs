@@ -30,11 +30,12 @@ export const RESPOSTAS_PAGAMENTO = {
 /* ---------- normalização ---------- */
 const INVISIVEIS = /[­​-‏‪-‮⁠-⁩﻿]/g;
 const PARECIDAS = { 'а': 'a', 'е': 'e', 'о': 'o', 'р': 'p', 'с': 'c', 'х': 'x', 'у': 'y', 'і': 'i', 'ј': 'j', 'ѕ': 's', 'ԁ': 'd', 'ο': 'o', 'α': 'a', 'ε': 'e', 'ι': 'i', 'ρ': 'p' };
-const DIGITO_LETRA = { '0': 'o', '1': 'i', '3': 'e', '4': 'a' };
+export const DIGITO_LETRA = Object.freeze({ '0': 'o', '1': 'i', '3': 'e', '4': 'a' });
 /* (teto: a resposta mostrada tem até 1.500 caracteres e a pergunta até 2.000; acima disso algumas regras crescem
    com o quadrado do tamanho) */
 const TETO = 2000;
-function normalizar(texto) {
+/* (também a do selo de texto suspeito, api/_vendas/seguranca.mjs → pareceInjecao) */
+export function normalizar(texto) {
   return String(texto).slice(0, TETO).replace(INVISIVEIS, '').normalize('NFKC').toLowerCase()
     .replace(/[Ͱ-ӿԀ-ԯ]/g, c => PARECIDAS[c] || c)
     .normalize('NFD').replace(/[̀-ͯ]/g, '').slice(0, TETO);

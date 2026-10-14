@@ -189,6 +189,18 @@ test('freio: IPv6 conta pelo prefixo /64; IPv4 e IPv4 mapeado contam pelo endere
   assert.deepEqual(resultados, [false, false, false, true], 'trocar o fim do IPv6 não escapa do freio');
 });
 
+/* (revisão final do PR 2a, M3b) na Vercel, o x-vercel-forwarded-for é o valor que a plataforma garante; o x-forwarded-for
+   fica só como reserva. O cf-connecting-ip NÃO é lido aqui: é a pendência PR2a-cloudflare (só com a origem restrita) */
+test('freio: ipDe prefere o x-vercel-forwarded-for; sem ele, o x-forwarded-for; o cf-connecting-ip ainda não vale', () => {
+  const de = h => ipDe(new Request('https://site.test/', { headers: h }));
+  assert.equal(de({ 'x-vercel-forwarded-for': '203.0.113.7', 'x-forwarded-for': '198.51.100.9' }), '203.0.113.7');
+  assert.equal(de({ 'x-vercel-forwarded-for': '203.0.113.7, 10.0.0.1' }), '203.0.113.7', 'o primeiro da lista');
+  assert.equal(de({ 'x-forwarded-for': '198.51.100.9' }), '198.51.100.9', 'sem o da Vercel, o x-forwarded-for');
+  assert.equal(de({ 'x-vercel-forwarded-for': '2001:db8:a:b::1', 'x-forwarded-for': '198.51.100.9' }), '2001:db8:a:b::', 'com as mesmas regras (/64)');
+  assert.equal(de({ 'cf-connecting-ip': '192.0.2.5', 'x-forwarded-for': '198.51.100.9' }), '198.51.100.9', 'cf-connecting-ip não é lido (PR2a-cloudflare)');
+  assert.equal(de({}), 'local');
+});
+
 /* (revisão de segurança do lote 1) as outras formas de escrever IPv4 dentro do IPv6, e os endereços com os 64 bits
    iniciais zerados, não podem cair todos na mesma chave "0:0:0:0::" (um visitante frearia todos os outros) */
 test('freio: IPv4 mapeado em qualquer forma é o IPv4; endereço com prefixo zerado não vira /64', () => {

@@ -233,7 +233,7 @@
       if (!soNumeros) document.dispatchEvent(new CustomEvent('bz-painel:entrou'));
       $('estado').textContent = 'Atualizado às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + '.';
     }).catch(function (e) {
-      if (e.status === 401 || e.status === 429) { sair(); $('erroEntrar').hidden = false; $('erroEntrar').textContent = e.message; return; }
+      if (recusada(e)) return;
       /* a chave não foi recusada, só as métricas falharam: o painel abre com o erro na linha das métricas e a fila
          de direções carrega assim mesmo (tem o próprio pedido e o próprio aviso de erro). Antes a fila só vinha
          junto com as métricas, e uma falha delas escondia pedidos esperando o prazo de 24 h (auditoria 2026-10-09) */
@@ -246,6 +246,14 @@
       $('estado').textContent = 'Não foi possível carregar as métricas: ' + e.message;
       if (primeira && soNumeros !== true) document.dispatchEvent(new CustomEvent('bz-painel:entrou'));
     });
+  }
+  /* a chave foi recusada (401) ou o freio de tentativas segurou (429): volta para a entrada, com o motivo. true = tratado */
+  function recusada(e) {
+    if (!e || (e.status !== 401 && e.status !== 429)) return false;
+    sair();
+    $('erroEntrar').hidden = false;
+    $('erroEntrar').textContent = e.message;
+    return true;
   }
   function sair() {
     chave = '';
@@ -288,6 +296,6 @@
   });
   try { $('naoContar').checked = localStorage.getItem('bz-nao-contar') !== '0'; } catch (e) { /* padrão: marcado */ }
   /* a fila manual das direções (js/painel-fila.js) usa o mesmo pedido autenticado */
-  window.BZPainel = { pedir: pedir, el: el, data: data };
+  window.BZPainel = { pedir: pedir, el: el, data: data, recusada: recusada };
   if (chave) carregar();
 })();

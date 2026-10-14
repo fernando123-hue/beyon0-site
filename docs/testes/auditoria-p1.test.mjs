@@ -9,6 +9,7 @@ import { criarSimulada } from '../../api/_ia/simulado.mjs';
 import { ErroIA } from '../../api/_ia/provedor.mjs';
 import { executar as rotinas } from '../../api/rotinas.mjs';
 import { semPrecoNoTexto } from '../../api/_vendas/seguranca.mjs';
+import { LIMITES_DE_TESTE, detalhesEConfirmar } from './_pedido.mjs';
 /* segredo do cron nos testes: 40 caracteres de baixa entropia (uma string "aleatória" vira falso positivo no gitleaks) */
 const SEGREDO_CRON_TESTE = 'teste'.repeat(8);
 
@@ -51,7 +52,7 @@ async function navegar(deps) {
 }
 
 test('P1 ledger: cada chamada ao modelo fica registrada com o id do pedido (sucesso e falha), sem conteúdo', async () => {
-  const deps = { banco: local.rpc, visitantes: local.auth, ia: criarSimulada(), direcoes: 'api' };
+  const deps = { banco: local.rpc, visitantes: local.auth, ia: criarSimulada(), direcoes: 'api', segredoFreio: 's'.repeat(32), limitesPedido: LIMITES_DE_TESTE };
   const n = await navegar(deps);
   const s = await n('POST', 'sessao', {});
   assert.match(s.id || '', /^[0-9a-f-]{36}$/, 'toda resposta leva o x-request-id');
@@ -116,13 +117,13 @@ test('P1 rotina: etapa que falha vira alerta urgente e as outras seguem (envio d
 });
 
 test('P1 ledger: o caminho do ajuste também registra a chamada (papel extracao)', async () => {
-  const deps = { banco: local.rpc, visitantes: local.auth, ia: criarSimulada(), direcoes: 'api' };
+  const deps = { banco: local.rpc, visitantes: local.auth, ia: criarSimulada(), direcoes: 'api', segredoFreio: 's'.repeat(32), limitesPedido: LIMITES_DE_TESTE };
   const n = await navegar(deps);
   const s = await n('POST', 'sessao', {});
   const c = s.corpo.conversa_id;
   await n('POST', 'mensagem', { conversa_id: c, texto: 'Tenho uma clínica e quero um site institucional para agendamentos' });
   await n('POST', 'mensagem', { conversa_id: c, texto: 'sim' });
-  await n('POST', 'contato', { conversa_id: c, nome: 'Rita', email: 'rita@x.com', aceite: true });
+  await detalhesEConfirmar(n, local.rpc, c);
   const g = await n('POST', 'gerar', { conversa_id: c });
   for (const d of g.corpo.direcoes) await n('POST', 'gerar-direcao', { conversa_id: c, direcao_id: d.id });
   assert.ok((await local.db.query(`select 1 from app.ia_chamadas where conversa_id = $1 and papel = 'geracao'`, [c])).rows.length, 'a geração registrou');
@@ -142,7 +143,7 @@ test('P1 dinheiro por extenso também sai do texto do agente', () => {
 test('P1 disjuntor: 5 falhas seguidas da IA em 10 min param as chamadas e oferecem o WhatsApp; 4 não', async () => {
   let chamadas = 0;
   const base = criarSimulada();
-  const deps = { banco: local.rpc, visitantes: local.auth, direcoes: 'api', ia: { ...base, mensagem: p => { chamadas++; return base.mensagem(p); } } };
+  const deps = { banco: local.rpc, visitantes: local.auth, direcoes: 'api', segredoFreio: 's'.repeat(32), limitesPedido: LIMITES_DE_TESTE, ia: { ...base, mensagem: p => { chamadas++; return base.mensagem(p); } } };
   const n = await navegar(deps);
   const s = await n('POST', 'sessao', {});
   const vid = (await local.db.query('select visitante_id from app.conversas where id = $1', [s.corpo.conversa_id])).rows[0].visitante_id;

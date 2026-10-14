@@ -288,6 +288,30 @@ test('vendedor: a dor vem antes do formato, a recomendação vem com o preço, e
   assert.match(contato, /não chame pedir_contato/);
 });
 
+test('PR 2a: na etapa "contato" o pedido espera a confirmação pelo WhatsApp (código BZ-); os modelos só começam depois, e os nomes citados são os da tela', () => {
+  const est = { prazo_dias: 8, detalhes: { itens: [] } };
+  const contato = proximoPasso({ etapa: 'contato', briefing: { negocio: { segmento: 'clínica' } }, estimativa: est });
+  assert.match(contato, /espera a confirmação pelo WhatsApp/);
+  assert.match(contato, /código BZ-/);
+  assert.match(contato, /só começam depois que a Beyon Zero confirma/);
+  assert.match(contato, /não chame pedir_contato/);
+  assert.doesNotMatch(contato, /Gerar as três direções/, 'o botão "Gerar" não existe mais nesta etapa');
+  const pedir = ferramentas(REGRAS, { etapa: 'estimativa' }).find(f => f.name === 'pedir_contato').description;
+  assert.doesNotMatch(pedir, /libera as três direções/);
+  assert.match(pedir, /Quero os três modelos/);
+  assert.match(pedir, /confirmação pelo WhatsApp/);
+  for (const modo of ['api', 'manual']) {
+    const s = montarSistema(REGRAS, { direcoes: modo });
+    assert.doesNotMatch(s, /depois do formulário de contato/, modo);
+    assert.match(s, /confirma[^.]*pelo WhatsApp/, modo + ': a confirmação vem antes dos modelos');
+  }
+  /* os nomes que o modelo cita são os da tela: se a tela renomear, este teste quebra */
+  const tela = fs.readFileSync(new URL('../../orcamento.html', import.meta.url), 'utf8');
+  for (const nome of ['Quero os três modelos', 'Confirme pelo WhatsApp']) assert.ok(tela.includes('>' + nome + '<'), 'a tela tem "' + nome + '"');
+  assert.ok(tela.includes('>Confirmar pelo WhatsApp<'), 'a tela tem o botão "Confirmar pelo WhatsApp"');
+  assert.match(contato, /"Confirme pelo WhatsApp"/);
+});
+
 test('conversa aberta até o pagamento: no escopo e no sinal o consultor só tira dúvidas (PROPOSTA de 2026-10-09, §4, 3b)', () => {
   /* nenhuma ferramenta: estimar, pedir_contato e o briefing já não cabem depois do escopo, e o diagnóstico mostraria
      "não tem valor automático" ao lado do valor confirmado (revisão técnica do PR 34, M1) */

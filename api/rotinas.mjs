@@ -6,6 +6,7 @@
      1. retenção que a página de privacidade promete (app.vendas_reter): texto das conversas de quem não fechou em
         60 dias, o contato dele em 12 meses, e o texto da conversa de quem pagou em 30 dias (menos contestação)
      2. retenção das métricas (~13 meses; antes era feita ao ABRIR o painel)
+     2b. o pedido de modelos (PR 2a): vence quem não confirmou pelo WhatsApp em 72 h e apaga o hash do telefone e as redes no prazo
      3. a SAÚDE: app.rotinas_conferir grava a execução e os alertas do dia
         (pagamento que pede uma pessoa, teto de IA, IA falhando, freio por IP,
         rotina que falhou) e o dono recebe o resumo no celular pelo ntfy.sh
@@ -50,6 +51,9 @@ export async function executar(request, env, deps = {}) {
   let retencao = null;
   try { retencao = await banco('vendas_reter', {}); }
   catch (e) { falhas.push('retenção (' + (e && e.codigo ? 'banco ' + e.codigo : 'erro') + ')'); }
+  let pedidos = null;
+  try { pedidos = await banco('vendas_expirar_pedidos', {}); }
+  catch (e) { falhas.push('pedidos (' + (e && e.codigo ? 'banco ' + e.codigo : 'erro') + ')'); }
   const metricas = deps.metricas || bancoMetricas(env);
   if (metricas && metricas.ligado) {
     try { await metricas.apagarAntigos(new Date(Date.now() - RETENCAO_METRICAS_DIAS * 864e5).toISOString()); }
@@ -72,6 +76,6 @@ export async function executar(request, env, deps = {}) {
       await banco('rotinas_avisado', {});
     } catch (e) { log({ nivel: 'erro', evento: 'alerta não enviado', erro: e && e.message ? e.message.slice(0, 80) : 'erro' }); }
   }
-  log({ nivel: falhas.length ? 'erro' : 'info', evento: 'diária', retencao, alertas: saude.alertas.map(a => a.tipo), falhas });
-  return json({ ok: !falhas.length, retencao, saude });
+  log({ nivel: falhas.length ? 'erro' : 'info', evento: 'diária', retencao, pedidos, alertas: saude.alertas.map(a => a.tipo), falhas });
+  return json({ ok: !falhas.length, retencao, pedidos, saude });
 }

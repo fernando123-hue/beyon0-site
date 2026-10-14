@@ -11,6 +11,10 @@
      GET  ?fila=direcoes                  a FILA MANUAL das direções: briefing, escopo e contato de cada pedido
      POST {entregar_direcao: <id>, conteudo}  entrega uma direção produzida pelo dono (mesmo filtro da geração)
      POST {avisado: <conversa_id>}        o cliente foi avisado pelo WhatsApp: sai da fila
+     GET  ?fila=pendentes[&codigo=BZ-…]   os pedidos ESPERANDO a confirmação pelo WhatsApp (lista separada; busca pelo código)
+     POST {confirmar_whatsapp: <conversa_id>}  a mensagem com o código chegou do WhatsApp informado: entra na fila
+     POST {descartar_pedido | arquivar_pedido: <conversa_id>}  descartar encerra e para a geração; arquivar = resolvido por fora
+   As duas listas trazem "alarme": a fila no teto (o orçamento oferece o WhatsApp) ou pendentes demais.
    A resposta do GET traz também "saude": alertas abertos e a data da última rotina diária.
    ========================================================================== */
 import { createHash, timingSafeEqual } from 'node:crypto';
@@ -22,6 +26,7 @@ import { ehUuid } from './_valida-app.mjs';
 import { ORG } from './_vendas/org.mjs';
 import { higienizar } from './_vendas/direcao.mjs';
 import { ipDe } from './_freio.mjs';
+import { PEDIDOS } from './_vendas/pedido.mjs';
 
 const CHAVE_MINIMA = 32;
 const CORPO_MAX = 200000;          /* caracteres do POST do painel */
@@ -71,6 +76,7 @@ export async function ler(request, env) {
   if (!db.ligado) return json({ erro: 'Banco não configurado: faltam SUPABASE_URL e SUPABASE_CHAVE_SECRETA no servidor.' }, 503);   /* (só depois da chave certa) */
   const q = new URL(request.url).searchParams;
   if (q.get('fila') === 'direcoes') return filaDirecoes(env);
+  if (q.get('fila') === 'pendentes') return filaPendentes(env, q.get('codigo'));
   try {
     if (q.get('csv') === 'ads') {
       const nome = (q.get('nome') || 'Cliente fechado').slice(0, 80);
@@ -99,6 +105,8 @@ export async function mudar(request, env) {
   try { bruto = JSON.parse(texto); } catch { bruto = null; }
   if (bruto && typeof bruto.entregar_direcao === 'string') return entregarDirecao(bruto, env);
   if (bruto && typeof bruto.avisado === 'string') return marcarAvisado(bruto, env);
+  const acaoPedido = bruto && typeof bruto === 'object' ? Object.keys(ACOES_PEDIDO).find(k => typeof bruto[k] === 'string') : null;
+  if (acaoPedido) return acaoDoPedido(ACOES_PEDIDO[acaoPedido], bruto[acaoPedido], env);
   /* marcar um alerta como resolvido */
   if (bruto && typeof bruto.resolver_alerta === 'string') {
     if (!ehUuid(bruto.resolver_alerta)) return json({ erro: 'Pedido inválido.' }, 400);
@@ -130,7 +138,8 @@ async function filaDirecoes(env) {
     const r = await rpc('vendas_fila_direcoes', { org_slug: ORG });
     const fila = r && Array.isArray(r.itens) ? r.itens : [];
     const total = r && Number.isInteger(r.total) ? r.total : fila.length;
-    return json({ fila, total, truncada: total > fila.length });   /* (a lista mostra até 50: o total avisa o que ficou de fora) */
+    /* (PR 2a: só confirmados, sem corte; o alarme diz quando a fila chegou ao teto e o orçamento oferece o WhatsApp) */
+    return json({ fila, total, truncada: total > fila.length, alarme: total >= PEDIDOS.fila_confirmados });
   }
   catch (e) { console.error('[painel] fila de direções:', e && e.codigo); return json({ erro: 'Não deu para ler a fila agora.' }, 500); }
 }
@@ -164,6 +173,51 @@ async function marcarAvisado(bruto, env) {
   catch (e) {
     if (e && e.codigo === 'P0002') return json({ erro: 'Conversa não encontrada.' }, 404);
     console.error('[painel] marcar avisado:', e && e.codigo);
+    return json({ erro: 'Não deu para salvar agora.' }, 500);
+  }
+}
+
+/* ---------- o PEDIDO DE MODELOS (orçamento sem IA, PR 2a): confirmação pelo WhatsApp, descartar e arquivar ---------- */
+const ACOES_PEDIDO = { confirmar_whatsapp: 'confirmar', descartar_pedido: 'descartar', arquivar_pedido: 'arquivar' };
+const CODIGO_PEDIDO = /^BZ-[ACDEFGHJKMNPQRTUVWXY34679]{5}$/;
+/* o código como o dono digitar ("bz-k7m3q", "K7M3Q", "BZK7M3Q"): normaliza ou null */
+export function codigoDaBusca(v) {
+  const s = String(v || '').toUpperCase().replace(/\s+/g, '');
+  const c = s.startsWith('BZ-') ? s : 'BZ-' + s.replace(/^BZ/, '');
+  return CODIGO_PEDIDO.test(c) ? c : null;
+}
+
+async function filaPendentes(env, busca) {
+  const codigo = busca == null || busca === '' ? null : codigoDaBusca(busca);
+  if (busca != null && busca !== '' && !codigo) return json({ erro: 'Código inválido: são 5 letras ou números depois de "BZ-".' }, 400);
+  const rpc = criarTransporte(env);
+  if (!rpc) return json({ erro: 'Banco não configurado.' }, 503);
+  try {
+    const r = await rpc('vendas_pedidos_pendentes', { org_slug: ORG, ...(codigo ? { codigo } : {}) });
+    const itens = r && Array.isArray(r.itens) ? r.itens : [];
+    const total = r && Number.isInteger(r.total) ? r.total : itens.length;
+    return json({ pendentes: itens, total, truncada: total > itens.length, alarme: !codigo && total >= PEDIDOS.alarme_pendentes });
+  } catch (e) { console.error('[painel] pendentes:', e && e.codigo); return json({ erro: 'Não deu para ler os pedidos agora.' }, 500); }
+}
+
+async function acaoDoPedido(acao, conversaId, env) {
+  if (!ehUuid(conversaId)) return json({ erro: 'Pedido inválido.' }, 400);
+  const rpc = criarTransporte(env);
+  if (!rpc) return json({ erro: 'Banco não configurado.' }, 503);
+  try {
+    const r = acao === 'confirmar'
+      ? await rpc('vendas_confirmar_whatsapp', { org_slug: ORG, conversa_id: conversaId })
+      : await rpc('vendas_mudar_pedido', { org_slug: ORG, conversa_id: conversaId, acao });
+    if (r && r.ok === false) {
+      const erro = r.status === 'expirado' ? 'Este pedido expirou: passou de 72 horas sem a confirmação. Peça à pessoa um orçamento novo.'
+        : 'Este pedido não está esperando confirmação (situação: ' + r.status + ').';
+      return json({ erro, status: r.status }, 409);
+    }
+    return json({ ok: true, ...r });
+  } catch (e) {
+    if (e && e.codigo === 'P0002') return json({ erro: 'Pedido não encontrado.' }, 404);
+    if (e && (e.codigo === '55000' || e.codigo === '23514')) return json({ erro: 'Este pedido não pode mudar agora (etapa ou situação).' }, 409);
+    console.error('[painel] pedido:', acao, e && e.codigo);
     return json({ erro: 'Não deu para salvar agora.' }, 500);
   }
 }
