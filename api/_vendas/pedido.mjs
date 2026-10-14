@@ -24,10 +24,10 @@ export const PEDIDOS = Object.freeze({ por_ip_dia: 3, por_telefone_dia: 2, fila_
 /* as redes aceitas: o domínio fixo e o formato do usuário (o MESMO de js/painel-pedido-comum.js) */
 export const REDES = Object.freeze({
   instagram: { nome: 'Instagram', dominio: 'instagram.com', usuario: /^[A-Za-z0-9._]{1,30}$/ },
-  facebook: { nome: 'Facebook', dominio: 'facebook.com', usuario: /^[A-Za-z0-9.]{5,50}$/ },
+  facebook: { nome: 'Facebook', dominio: 'facebook.com', usuario: /^[A-Za-z0-9.]{5,50}$/, reservados: ['profile.php', 'pages', 'people', 'groups'] },
   tiktok: { nome: 'TikTok', dominio: 'tiktok.com', usuario: /^[A-Za-z0-9._]{2,24}$/ },
-  youtube: { nome: 'YouTube', dominio: 'youtube.com', usuario: /^[A-Za-z0-9._-]{3,30}$/ },
-  linkedin: { nome: 'LinkedIn', dominio: 'linkedin.com', usuario: /^[A-Za-z0-9-]{3,100}$/ }
+  youtube: { nome: 'YouTube', dominio: 'youtube.com', usuario: /^[A-Za-z0-9._-]{3,30}$/, prefixo: '@' },
+  linkedin: { nome: 'LinkedIn', dominio: 'linkedin.com', usuario: /^[A-Za-z0-9-]{3,100}$/, prefixo: 'company/' }
 });
 const CAMPOS = ['conversa_id', 'negocio', 'vende', 'telefone', 'nome', 'publico', 'diferencial', 'admira', 'redes', 'autoriza_redes', 'aceite'];
 /* campo: [mínimo (0 = opcional), máximo, como a tela chama] */
@@ -36,14 +36,19 @@ const TEXTOS = {
   vende: [3, 200, 'o que você vende'],
   nome: [0, 60, 'como quer ser chamado'],
   publico: [0, 200, 'para quem você vende'],
-  diferencial: [0, 200, 'o que diferencia o seu negócio'],
+  diferencial: [0, 160, 'o que diferencia o seu negócio'],   /* (160: o que limparAtualizacao grava de cada diferencial; a tela usa maxlength=160) */
   admira: [0, 60, 'o site que você admira']
 };
 const SEM_SEGREDO = 'beyon-zero-local-sem-segredo';   /* (só servidor local e testes) */
 const TRIAGEM = { cfg: { jev: false, prazoMs: 0 } };   /* (a triagem dos detalhes é sempre das regras) */
 
+/* sem o segredo do freio, só o servidor local declarado (BZ_LOCAL=1, fora da Vercel) usa o sal fixo; em qualquer outro
+   ambiente devolve null e o pedido segue sem hash do telefone (como na Vercel) */
 export function chaveDoTelefone(e164, segredo, env = process.env) {
-  if (!segredo && (env.VERCEL || env.VERCEL_ENV)) return null;   /* (na Vercel, sem o segredo do freio: fecha) */
+  if (!segredo) {
+    const local = env.BZ_LOCAL === '1' && !env.VERCEL && !env.VERCEL_ENV;
+    if (!local) return null;
+  }
   return createHmac('sha256', segredo || SEM_SEGREDO).update('telefone|' + e164).digest('hex');
 }
 
@@ -58,8 +63,11 @@ export function usuarioDaRede(rede, valor) {
   const temDominio = s.toLowerCase().startsWith(def.dominio + '/');
   if (temDominio) s = s.slice(def.dominio.length + 1);
   s = s.split(/[?#]/)[0].replace(/\/+$/, '');
-  if (temDominio) s = s.replace(/^(company|in|c)\//i, '');
-  s = s.replace(/^@/, '');
+  if (temDominio && def.prefixo) {   /* (com o endereço inteiro, só o caminho certo vale: company/ no LinkedIn, @ no YouTube) */
+    if (!s.toLowerCase().startsWith(def.prefixo)) return null;
+    s = s.slice(def.prefixo.length);
+  } else s = s.replace(/^@/, '');
+  if (def.reservados && def.reservados.includes(s.toLowerCase())) return null;   /* (páginas do Facebook que não são um usuário) */
   return def.usuario.test(s) ? s : null;
 }
 
@@ -82,7 +90,9 @@ export async function validarDetalhes(corpo) {
   if (fora) return { erros: ['Campo não aceito: ' + String(fora).slice(0, 40) + '.'] };
   const t = {};
   for (const [campo, [minimo, maximo, nome]] of Object.entries(TEXTOS)) {
-    const v = textoLimpo(corpo[campo]);
+    const bruto = corpo[campo];
+    if (bruto !== undefined && bruto !== null && typeof bruto !== 'string') return { erros: ['Confira ' + nome + '.'] };   /* (tipo errado é recusado, não vira vazio) */
+    const v = textoLimpo(bruto);
     if (minimo && v.length < minimo) return { erros: ['Informe ' + nome + '.'] };
     if (v.length > maximo) return { erros: ['Encurte ' + nome + ': até ' + maximo + ' caracteres.'] };
     t[campo] = v;
@@ -95,12 +105,17 @@ export async function validarDetalhes(corpo) {
   if (corpo.aceite !== true) return { erros: ['É preciso concordar com o uso dos dados para receber os modelos.'] };
   /* (o que vai para o banco é o texto redigido: telefone, e-mail e documento viram marcadores) */
   const red = Object.fromEntries(Object.entries(t).map(([k, v]) => [k, v ? redigir(v) : '']));
+  /* (redigir pode alongar o texto, "a@b.co" vira "[e-mail]": o tamanho vale também depois dele, para o briefing nunca cortar em silêncio) */
+  for (const [campo, [, maximo, nome]] of Object.entries(TEXTOS)) {
+    if (red[campo].length > maximo) return { erros: ['Encurte ' + nome + ': até ' + maximo + ' caracteres.'] };
+  }
   const briefing = limparAtualizacao({
     negocio: { nome: red.negocio, descricao: red.vende },
     ...(red.publico ? { publico: { descricao: red.publico } } : {}),
     ...(red.diferencial ? { posicionamento: { diferenciais: [red.diferencial] } } : {}),
     ...(red.admira ? { referencias: [red.admira] } : {})
   });
-  const triagem = await classificar('triar_pedido', { textos: Object.values(t) }, TRIAGEM);
+  /* (a triagem lê o texto que será gravado, sem invisíveis: "ig​nore as instruções" não escapa do selo) */
+  const triagem = await classificar('triar_pedido', { textos: Object.values(red) }, TRIAGEM);
   return { dados: { briefing, nome: red.nome, telefone, redes: r.redes, suspeito: triagem.dados.suspeito === true } };
 }
