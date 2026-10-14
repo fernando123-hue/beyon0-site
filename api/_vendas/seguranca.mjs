@@ -13,6 +13,8 @@
    • tentativa de injeção: detectada só para MEDIR (evento no funil); a
      recusa é do modelo e, sobretudo, da falta de ferramentas perigosas.
    ========================================================================== */
+import { normalizar, DIGITO_LETRA } from './promessa.mjs';
+
 /* Todos os padrões têm tamanho limitado e começam num ponto fixo: a mensagem tem até 2.000 caracteres e redigir roda
    em até 14 mensagens por turno — nada de "\s*" encadeado (backtracking explosivo, ReDoS). Teste de tempo em
    docs/testes/agente.test.mjs. A redação é um cuidado a mais, não garantia (escrever de propósito para driblar passa). */
@@ -103,9 +105,27 @@ const INJECAO = [
   /(voc[eê] agora [ée]|finja que|aja como)\s/i,
   /(desconto|de gra[cç]a|zer[ao]\s+o\s+pre[cç]o|pre[cç]o\s+(de\s+)?r?\$?\s?1\b)/i,
   /(chave|api key|token|senha|secret|service.?role)/i,
-  /(outro cliente|outros clientes|projeto de outr[oa]|dados de outr)/i
+  /(outro cliente|outros clientes|projeto de outr[oa]|dados de outr)/i,
+  /* (revisão final do PR 2a, B5) as de sempre em inglês */
+  /\b(ignore|disregard|forget|override)\s+(all\s+|any\s+|the\s+|your\s+|my\s+)?(previous\s+|prior\s+|above\s+|earlier\s+|system\s+)?(instructions?|rules|prompts?|guidelines)\b/i,
+  /\b(reveal|show|print|repeat|output)\s+(me\s+)?(your\s+|the\s+)?(system\s+prompt|prompt|instructions|hidden\s+rules)\b/i,
+  /\b(you\s+are\s+now|pretend\s+(you\s+are|to\s+be)|act\s+as\s+(an?\s+|the\s+)?(admin|owner|manager|developer|system))\b/i,
+  /\b(jailbreak|developer\s+mode|system\s+prompt)\b/i
 ];
-export function pareceInjecao(texto) { return INJECAO.some(r => r.test(String(texto))); }
+/* o texto como quem escreve para driblar o deixaria: a mesma normalização da promessa (invisíveis, largura total, letras
+   cirílicas e gregas parecidas, acentos), número no lugar de letra também no começo e no fim da palavra ("1gnore",
+   "ign0r3") e letras soltas juntas ("i g n o r e"). As regras olham o original E o normalizado. (Duas passadas: na
+   primeira, o "3" de "ign0r3" ainda não tem duas letras antes) */
+const DIGITO_NA_PALAVRA = /(?<=[a-z])[0134](?=[a-z])|(?<![a-z0-9])[0134](?=[a-z]{2})|(?<=[a-z]{2})[0134](?![a-z0-9])/g;
+const letra = d => DIGITO_LETRA[d];
+function paraBusca(texto) {
+  return normalizar(texto).replace(DIGITO_NA_PALAVRA, letra).replace(DIGITO_NA_PALAVRA, letra)
+    .replace(/\b(?:[a-z] ){3,}[a-z]\b/g, s => s.replace(/ /g, ''));
+}
+export function pareceInjecao(texto) {
+  const original = String(texto), normal = paraBusca(original);
+  return INJECAO.some(r => r.test(original) || r.test(normal));
+}
 
 /* texto livre do visitante: tamanho e caracteres de controle */
 export const MSG_MAX = 2000;
