@@ -76,6 +76,8 @@ export function pedidoParaModelo(p) {
   return {
     pedido: idCurto(p.conversa_id),
     pedido_em: p.pedido_em,
+    /* (o selo de texto suspeito, FORA do briefing: a sessão que produz o vê e trata o briefing com mais cuidado) */
+    suspeito: p.suspeito === true,
     /* (revisão de segurança do lote 1, auditoria 2026-10-09) a mesma marca e o mesmo escape do gerador automático: o
        visitante não fecha a marca para escrever fora dela; a regra vem antes do briefing */
     regra: REGRA_BRIEFING,

@@ -322,6 +322,21 @@ test('painel: buscar pelo código que chegou no WhatsApp (de qualquer jeito que 
   assert.equal(p.corpo.alarme, p.corpo.total >= PEDIDOS.alarme_pendentes);
 });
 
+test('painel: o alarme LIGA — fila no teto de confirmados e pendentes demais (sem alarme na busca por código)', async () => {
+  const antes = (await painelGet('?fila=direcoes')).corpo.total;
+  for (let k = antes; k < PEDIDOS.fila_confirmados; k++) await ateAFila('manual');
+  const f = await painelGet('?fila=direcoes');
+  assert.ok(f.corpo.total >= PEDIDOS.fila_confirmados, 'fila no teto: ' + f.corpo.total);
+  assert.equal(f.corpo.alarme, true, 'fila no teto: alarme ligado');
+  let ultimo;
+  const pendentesAntes = (await painelGet('?fila=pendentes')).corpo.total;
+  for (let k = pendentesAntes; k < PEDIDOS.alarme_pendentes; k++) ultimo = await ateAFila('manual', { confirmar: false });
+  const p = await painelGet('?fila=pendentes');
+  assert.ok(p.corpo.total >= PEDIDOS.alarme_pendentes, 'pendentes no limite: ' + p.corpo.total);
+  assert.equal(p.corpo.alarme, true, 'pendentes demais: alarme ligado');
+  if (ultimo) assert.equal((await painelGet('?fila=pendentes&codigo=' + ultimo.detalhes.corpo.codigo)).corpo.alarme, false, 'a busca por código não alarma');
+});
+
 test('painel: ações de pedido pedem a chave e um id válido; pedido vencido não confirma (409 com o motivo)', async () => {
   const a = await ateAFila('manual', { confirmar: false });
   const semChave = await mudar(new Request(BASE + '/api/painel', { method: 'POST', body: JSON.stringify({ confirmar_whatsapp: a.c }), headers: { 'x-forwarded-for': '192.0.2.79' } }), ENV);
@@ -347,6 +362,25 @@ test('rotina diária: vence os pedidos sem confirmação em 72 h (com o evento) 
   assert.equal((await local.db.query('select status from app.pedidos where conversa_id = $1', [c])).rows[0].status, 'expirado');
 });
 
+test('rotina diária: se uma etapa do banco quebra, a outra segue e o resultado diz qual falhou (nas duas ordens)', async () => {
+  const CRON = 'c'.repeat(40);
+  const quebrar = alvo => (nome, p) => nome === alvo ? Promise.reject(Object.assign(new Error('x'), { codigo: '08006' })) : local.rpc(nome, p);
+  const rodar = async banco => {
+    const r = await rotinas(new Request(BASE + '/api/rotinas?acao=diaria', { headers: { authorization: 'Bearer ' + CRON, 'x-forwarded-for': '192.0.2.41' } }),
+      { CRON_SECRET: CRON }, { banco, metricas: { ligado: false } });
+    return r.json();
+  };
+  const semPedidos = await rodar(quebrar('vendas_expirar_pedidos'));
+  assert.equal(semPedidos.ok, false);
+  assert.equal(semPedidos.pedidos, null, 'a etapa dos pedidos falhou');
+  assert.ok(semPedidos.retencao, 'a retenção saiu mesmo assim');
+  assert.ok(semPedidos.saude.alertas.some(a => a.tipo === 'rotina_falhou'), JSON.stringify(semPedidos.saude.alertas));
+  const semRetencao = await rodar(quebrar('vendas_reter'));
+  assert.equal(semRetencao.ok, false);
+  assert.equal(semRetencao.retencao, null, 'a retenção falhou');
+  assert.ok(semRetencao.pedidos && Number.isInteger(semRetencao.pedidos.expirados), 'os pedidos saíram mesmo assim: ' + JSON.stringify(semRetencao.pedidos));
+});
+
 test('comando local: a linha da fila só leva campos de lista fechada (o texto livre do visitante fica no briefing delimitado)', async () => {
   const { linhaDaFila } = await import('../../scripts/direcoes.mjs');
   const p = { conversa_id: '1234abcd-0000-4000-8000-000000000000', codigo: 'BZ-K7M3Q', prioridade: 2, suspeito: true, pedido_em: '2026-10-13T10:00:00Z',
@@ -358,4 +392,14 @@ test('comando local: a linha da fila só leva campos de lista fechada (o texto l
   assert.ok(!linhaDaFila({ ...p, codigo: 'BZ-<script>', fatores: { formato: 'qualquer; rm -rf' } }).match(/script|rm -rf/), 'código e formato fora da lista não saem');
   assert.ok(!linhaDaFila({ ...p, suspeito: false }).includes('SUSPEITO'));
   assert.ok(linhaDaFila({ ...p, prioridade: 1 }).includes('avisar'));
+});
+
+test('comando local: o selo de texto suspeito vai para a sessão que produz, fora do briefing', async () => {
+  const { pedidoParaModelo, montarArquivoPedido } = await import('../../scripts/direcoes.mjs');
+  const base = { conversa_id: '1234abcd-0000-4000-8000-000000000000', pedido_em: '2026-10-13T10:00:00Z', contato: {},
+    briefing: { negocio: { segmento: 'clínica' } }, fatores: { formato: 'institucional' }, direcoes: [] };
+  assert.equal(pedidoParaModelo({ ...base, suspeito: true }).suspeito, true);
+  assert.equal(montarArquivoPedido({ ...base, suspeito: true }).suspeito, true, 'o arquivo inteiro leva o selo');
+  assert.ok(!pedidoParaModelo({ ...base, suspeito: true }).briefing.includes('suspeito'), 'o selo não entra no briefing delimitado');
+  for (const v of [false, undefined, 'true', 1]) assert.equal(pedidoParaModelo({ ...base, suspeito: v }).suspeito, false, String(v));
 });

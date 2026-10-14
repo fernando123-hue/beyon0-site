@@ -3316,7 +3316,7 @@ git commit -m "feat(painel): esperando confirmação com busca pelo código, ala
 ### Task 9: Verificação final e o PR (nível 3)
 
 **Files:**
-- Modify: `docs/revisoes/pr1-pendencias.md` (as linhas do PR 2a)
+- Modify: `docs/revisoes/pr1-pendencias.md` (as linhas do PR 2a), `.claude/skills/produzir-direcoes/SKILL.md`, `docs/fase2/02-OPERACAO.md`
 
 - [ ] **Step 1: A suíte inteira (SUITE) e a mutação**
 
@@ -3333,7 +3333,7 @@ Servidor reiniciado, com `BZ_SEM_CONSULTOR=1` e `PAINEL_CHAVE`: E2E duas vezes (
 - [ ] **Step 3: As pendências para o dono**: em `docs/revisoes/pr1-pendencias.md`, na tabela "Auditoria 2026-10-09, lote 1 … o que ficou de fora", depois da linha `PR36`, acrescentar:
 
 ```markdown
-| PR2a | aplicar `20261013120000_pedidos.sql`, `20261013120100_pedidos_dono.sql` e `20261013120200_fila_confirmados.sql` no banco real e promover JUNTO com este código: a fila do painel passa a mostrar só pedidos confirmados pelo WhatsApp, e a API deixa de aceitar `contato` | dono |
+| PR2a | aplicar `20261013120000_pedidos.sql`, `20261013120100_pedidos_dono.sql` e `20261013120200_fila_confirmados.sql` no banco real e promover JUNTO com este código: a fila do painel passa a mostrar só pedidos confirmados pelo WhatsApp, e a API deixa de aceitar `contato`. ANTES de aplicar: esvaziar a fila antiga (entregar e avisar), porque conversas do fluxo antigo (contato + gerar) não têm linha em `app.pedidos` e somem da fila (o comando `pedido` e o `entregar-pedido` também deixam de achá-las). Esta consulta precisa dar 0: `select count(distinct d.conversa_id) from app.direcoes d where (d.status = 'gerando' or (d.status = 'pronta' and d.avisada_em is null)) and not exists (select 1 from app.pedidos p where p.conversa_id = d.conversa_id);` | dono |
 | PR2a-D | decisões aprovadas por omissão (plano `docs/superpowers/plans/2026-10-13-orcamento-sem-ia-pr2a.md`): D1 teto 10; D2 confirmação também com IA; D3 nome opcional e sem e-mail; D4 as cinco redes por 60 dias, escrito em /privacidade; D5 estilo por imagem no PR 3; D6 confirmar fora da conversão do Ads; D7 nada guardado no navegador | dono pode rever |
 | PR2a-recontato | quem volta depois da retenção de 12 meses (contato anonimizado) não informa o contato de novo pela tela: o pagar pede o WhatsApp, e o dono não tem ainda a ação no painel para recolocar o contato | PR 3: uma tela de contato reduzida (só WhatsApp e aceite) ou a ação do dono no painel |
 | PR2a-banco | `vendas_iniciar_geracao` ainda aceita a conversa sem pedido (só a API recusa) | 2b: exigir o pedido confirmado também no banco, depois de conferir que nenhuma conversa antiga em produção depende disso |
@@ -3346,6 +3346,8 @@ node .superpowers/sdd/crlf.mjs docs/revisoes/pr1-pendencias.md
 git add docs/revisoes/pr1-pendencias.md
 git commit -m "docs(revisoes): o que o dono precisa fazer e decidir antes de promover o PR 2a"
 ```
+
+- [ ] **Step 3b: Os guias da fila** — atualizar `.claude/skills/produzir-direcoes/SKILL.md` e `docs/fase2/02-OPERACAO.md` (seção 1b) para a fila nova: só pedidos confirmados pelo WhatsApp, cada um com o código `BZ-XXXXX` (para achar a conversa no WhatsApp), os não confirmados na lista "Esperando confirmação" do painel (confirmar, descartar ou arquivar), o alarme no teto de 10, e o botão "Já avisei" que conclui o pedido. Incluir, na promoção, a consulta de fila antiga zerada (Step 3, linha PR2a). Depois `node .superpowers/sdd/crlf.mjs` nos dois arquivos e commit `docs(fila): guias da fila manual para o pedido confirmado pelo WhatsApp`.
 
 - [ ] **Step 4: Nível de risco, push e PR**
 

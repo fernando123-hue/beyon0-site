@@ -6,6 +6,10 @@
 -- ordem da confirmação. SEM o corte de 50 (o teto da fila global limita quantos são).
 -- ATENÇÃO na promoção: a fila do painel deixa de mostrar pedidos sem confirmação. Aplicar esta migration e
 -- promover o código deste PR JUNTOS (docs/revisoes/pr1-pendencias.md, PR 2a).
+-- ANTES de aplicar: esvaziar a fila antiga (entregar e avisar). Conversas do fluxo antigo (contato + gerar) não têm
+-- linha em app.pedidos: com direções "gerando" ou prontas e não avisadas, somem da fila (e o comando "pedido" e o
+-- "entregar-pedido" deixam de achá-las). Esta consulta precisa dar 0:
+--   select count(distinct d.conversa_id) from app.direcoes d where (d.status = 'gerando' or (d.status = 'pronta' and d.avisada_em is null)) and not exists (select 1 from app.pedidos p where p.conversa_id = d.conversa_id);
 -- ==========================================================================
 create or replace function app.vendas_fila_direcoes(p jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
