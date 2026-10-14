@@ -3,7 +3,10 @@
    Cada sabotagem diz quais testes têm de pegá-la (padrão: os de banco da fundação). Desde 2026-10-07 (revisão técnica
    do PR #1, M4) também o DINHEIRO (conferência do pagamento), a máquina de estados da conversa e a retenção.
    Sabotagem com "fonte" não é de migration: sabota um arquivo de código do repositório NO LUGAR, com cópia de segurança
-   restaurada no fim (e também se o processo morrer): é a única forma de provar o freio que vive no JS (api/_vendas/fluxo.mjs). */
+   restaurada no fim (e também se o processo morrer): é a única forma de provar o freio que vive no JS (api/_vendas/fluxo.mjs).
+   Na partida, recusa rodar se um arquivo "fonte" já está sabotado ou tem mudança fora do git (revisão final do PR 2a, B7):
+   a cópia de segurança guardaria a sabotagem de uma rodada que morreu como se fosse o original. A conferência da partida
+   e a lista de sinais são testadas em docs/testes/mutacao.test.mjs (importar este arquivo não roda nada). */
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -12,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const ORIGEM = path.join(RAIZ, 'supabase', 'migrations');
-const SABOTAGENS = [
+export const SABOTAGENS = [
   { nome: 'RLS de leitura aberta para todos', arquivo: '20261006120500_app_rls.sql',
     de: "for select to authenticated using (org_id in (select privado.minhas_orgs()))', t || '_ler'", para: "for select to authenticated using (true)', t || '_ler'" },
   /* (as três camadas abertas: só a concessão da tabela não basta, o anon nem tem USAGE no esquema app) */
@@ -53,36 +56,71 @@ const SABOTAGENS = [
     de: 'if (semConfirmacao) throw semConfirmacao;', para: 'if (false) throw semConfirmacao;' }
 ];
 
-/* o arquivo de código sabotado no lugar volta ao que era, aconteça o que acontecer */
-const restauracoes = new Map();
-function restaurar() { for (const [caminho, original] of restauracoes) fs.writeFileSync(caminho, original); restauracoes.clear(); }
-process.on('exit', restaurar);
-for (const sinal of ['SIGINT', 'SIGTERM']) process.on(sinal, () => { restaurar(); process.exit(130); });
+/* os sinais em que o arquivo sabotado volta ao original antes de sair: Ctrl+C, o kill comum, o terminal que fecha
+   (SIGHUP) e o Ctrl+Break do Windows (SIGBREAK) */
+export const SINAIS_DE_SAIDA = Object.freeze(['SIGINT', 'SIGTERM', 'SIGHUP', 'SIGBREAK']);
 
-let pegas = 0;
-for (const s of SABOTAGENS) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bz-mutacao-'));
-  for (const f of fs.readdirSync(ORIGEM)) fs.copyFileSync(path.join(ORIGEM, f), path.join(dir, f));
-  const alvo = path.join(s.fonte ? RAIZ : dir, s.fonte || s.arquivo);
-  const bruto = fs.readFileSync(alvo, 'utf8');
-  let sql = bruto.replace(/\r\n/g, '\n');   /* (checkout no Windows com autocrlf: o texto da sabotagem é LF) */
-  if (s.acrescentar) sql += s.acrescentar;
-  else { if (!sql.includes(s.de)) { console.log('SABOTAGEM NÃO APLICADA (texto mudou):', s.nome); process.exitCode = 1; fs.rmSync(dir, { recursive: true, force: true }); continue; } sql = sql.replace(s.de, () => s.para); }
-  if (s.fonte) { restauracoes.set(alvo, bruto); if (bruto.includes('\r\n')) sql = sql.replace(/\n/g, '\r\n'); }
-  fs.writeFileSync(alvo, sql);
-  const testes = (s.testes || ['docs/testes/banco.test.mjs']).map(t => path.join(RAIZ, t));
-  const r = spawnSync(process.execPath, ['--test', ...testes], { env: { ...process.env, BZ_MIGRATIONS: dir }, encoding: 'utf8' });
-  const falhas = (r.stdout.match(/^✖ .+$/gm) || []).filter(l => !/failing tests/.test(l));
-  /* "pegou" = um teste caiu numa ASSERÇÃO. Migration que nem carrega ou suíte que nem roda também saem com erro, mas
-     não provam nada: contam como sabotagem mal feita (revisão técnica do PR 14) */
-  const quebrou = /migration .* falhou|SyntaxError|Cannot find module|ERR_MODULE_NOT_FOUND/.test(r.stdout + r.stderr);
-  const testesRodados = Number((r.stdout.match(/^ℹ tests (\d+)/m) || [])[1] || 0);
-  restaurar();   /* (já rodou: o arquivo de código volta ao que era antes de qualquer saída abaixo) */
-  if (quebrou || testesRodados === 0) { console.log('INVÁLIDA ' + s.nome + ' (a sabotagem quebrou a carga ou nenhum teste rodou)'); process.exitCode = 1; fs.rmSync(dir, { recursive: true, force: true }); continue; }
-  const pegou = r.status !== 0 && falhas.length > 0;
-  if (pegou) pegas++;
-  console.log((pegou ? 'PEGOU ' : 'ESCAPOU') + '  ' + s.nome + (pegou ? '  ← ' + [...new Set(falhas)].slice(0, 2).join(' | ').replace(/\s*\(\d+(\.\d+)?ms\)/g, '') : ''));
-  fs.rmSync(dir, { recursive: true, force: true });
+/* o arquivo tem mudança fora do git? (null: sem git ou fora de um repositório; não dá para conferir) */
+function gitLimpo(arquivo) {
+  const r = spawnSync('git', ['diff', '--quiet', '--', arquivo], { cwd: RAIZ });
+  if (r.error || (r.status !== 0 && r.status !== 1)) return null;
+  return r.status === 0;
 }
-console.log(pegas + ' de ' + SABOTAGENS.length + ' sabotagens pegas pelos testes');
-if (pegas < SABOTAGENS.length) process.exitCode = 1;
+
+/* o que impede a partida: um arquivo "fonte" que já tem a sabotagem (sobra de uma rodada que morreu sem restaurar) ou que
+   tem mudança fora do git. A cópia de segurança guardaria esse estado como o original */
+export function problemasNaPartida(sabotagens, raiz = RAIZ, limpo = gitLimpo) {
+  const problemas = [];
+  for (const s of sabotagens.filter(x => x.fonte)) {
+    const texto = fs.readFileSync(path.join(raiz, s.fonte), 'utf8').replace(/\r\n/g, '\n');
+    if (texto.includes(s.para) && !texto.includes(s.de)) problemas.push(s.fonte + ' já está sabotado ("' + s.para + '"): restaure com git checkout -- ' + s.fonte);
+    else if (limpo(s.fonte) === false) problemas.push(s.fonte + ' tem mudança fora do git: faça o commit (ou desfaça) antes de rodar a mutação');
+  }
+  return problemas;
+}
+
+function rodar() {
+  const problemas = problemasNaPartida(SABOTAGENS);
+  if (problemas.length) {
+    for (const p of problemas) console.log('RECUSADO: ' + p);
+    process.exitCode = 2;
+    return;
+  }
+  /* o arquivo de código sabotado no lugar volta ao que era, aconteça o que acontecer */
+  const restauracoes = new Map();
+  const restaurar = () => { for (const [caminho, original] of restauracoes) fs.writeFileSync(caminho, original); restauracoes.clear(); };
+  process.on('exit', restaurar);
+  for (const sinal of SINAIS_DE_SAIDA) if (os.constants.signals[sinal] !== undefined) process.on(sinal, () => { restaurar(); process.exit(130); });
+
+  let pegas = 0;
+  for (const s of SABOTAGENS) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bz-mutacao-'));
+    for (const f of fs.readdirSync(ORIGEM)) fs.copyFileSync(path.join(ORIGEM, f), path.join(dir, f));
+    const alvo = path.join(s.fonte ? RAIZ : dir, s.fonte || s.arquivo);
+    const bruto = fs.readFileSync(alvo, 'utf8');
+    let sql = bruto.replace(/\r\n/g, '\n');   /* (checkout no Windows com autocrlf: o texto da sabotagem é LF) */
+    if (s.acrescentar) sql += s.acrescentar;
+    else { if (!sql.includes(s.de)) { console.log('SABOTAGEM NÃO APLICADA (texto mudou):', s.nome); process.exitCode = 1; fs.rmSync(dir, { recursive: true, force: true }); continue; } sql = sql.replace(s.de, () => s.para); }
+    if (s.fonte) { restauracoes.set(alvo, bruto); if (bruto.includes('\r\n')) sql = sql.replace(/\n/g, '\r\n'); }
+    fs.writeFileSync(alvo, sql);
+    const testes = (s.testes || ['docs/testes/banco.test.mjs']).map(t => path.join(RAIZ, t));
+    const r = spawnSync(process.execPath, ['--test', ...testes], { env: { ...process.env, BZ_MIGRATIONS: dir }, encoding: 'utf8' });
+    const falhas = (r.stdout.match(/^✖ .+$/gm) || []).filter(l => !/failing tests/.test(l));
+    /* "pegou" = um teste caiu numa ASSERÇÃO. Migration que nem carrega ou suíte que nem roda também saem com erro, mas
+       não provam nada: contam como sabotagem mal feita (revisão técnica do PR 14) */
+    const quebrou = /migration .* falhou|SyntaxError|Cannot find module|ERR_MODULE_NOT_FOUND/.test(r.stdout + r.stderr);
+    const testesRodados = Number((r.stdout.match(/^ℹ tests (\d+)/m) || [])[1] || 0);
+    restaurar();   /* (já rodou: o arquivo de código volta ao que era antes de qualquer saída abaixo) */
+    if (quebrou || testesRodados === 0) { console.log('INVÁLIDA ' + s.nome + ' (a sabotagem quebrou a carga ou nenhum teste rodou)'); process.exitCode = 1; fs.rmSync(dir, { recursive: true, force: true }); continue; }
+    const pegou = r.status !== 0 && falhas.length > 0;
+    if (pegou) pegas++;
+    console.log((pegou ? 'PEGOU ' : 'ESCAPOU') + '  ' + s.nome + (pegou ? '  ← ' + [...new Set(falhas)].slice(0, 2).join(' | ').replace(/\s*\(\d+(\.\d+)?ms\)/g, '') : ''));
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+  console.log(pegas + ' de ' + SABOTAGENS.length + ' sabotagens pegas pelos testes');
+  if (pegas < SABOTAGENS.length) process.exitCode = 1;
+}
+
+/* só roda chamado direto (node docs/testes/mutacao.mjs); importado pelo teste, nada é sabotado */
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) rodar();
+
