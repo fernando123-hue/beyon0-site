@@ -80,6 +80,9 @@ Enquanto não há verba para a API, as três direções não são geradas pelo m
     - `limpar [dias]`: apaga pastas esquecidas, padrão 3 dias.
 
 **Voltar para a API:** apagar `BZ_DIRECOES`. Direções que estiverem na fila nesse momento são geradas pela API quando o cliente voltar à página.
+- A confirmação pelo WhatsApp continua valendo no modo API (decisão D2): sem ela, nada é gerado.
+- No modo API, cada pedido confirmado ainda passa pela fila do painel: com as três prontas, ele fica **"Pronto para avisar"** e **ocupa o teto de 10** até o dono tocar **"Já avisei"** ou o cliente escolher um modelo. Com a fila cheia, os detalhes de quem chega recebem o WhatsApp no lugar do pedido.
+- Então, também no modo API, o dono avisa o cliente pelo WhatsApp e toca **"Já avisei"** para liberar o lugar na fila.
 
 ## 2. Desligar ou conter
 
