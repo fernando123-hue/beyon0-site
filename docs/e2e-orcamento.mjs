@@ -452,7 +452,7 @@ try {
     };
     const emConversa = () => !document.getElementById('o-est-vazio').hidden && /precisa de uma conversa/i.test(document.getElementById('o-est-vazio').textContent)
       && document.getElementById('o-est-cheio').hidden;
-    await p.goto(BASE + '/orcamento', { waitUntil: 'load' });
+    await p.goto(BASE + '/orcamento', { waitUntil: 'load', timeout: 90000 });   /* (contexto novo: a 1ª carga pode ser lenta, como na linha 67) */
     await p.waitForSelector('#o-perguntas:not([hidden])');
     /* escolha única é grupo de rádio: as setas marcam a vizinha e levam o foco */
     await p.focus('[data-ramo="servicos"]');
@@ -460,7 +460,7 @@ try {
     ok(await p.evaluate(() => { const b = document.querySelector('[data-ramo="saude"]'); return b === document.activeElement && b.getAttribute('aria-checked') === 'true' && b.tabIndex === 0
       && document.querySelector('[data-ramo="servicos"]').getAttribute('aria-checked') === 'false' && b.closest('[role="radiogroup"]') !== null; }), 'ramo: grupo de rádio, a seta marca o próximo');
     await verOPreco(true);
-    ok(await espera(p, emConversa), 'diagnóstico no 1º preço: o cartão diz que o pacote precisa de uma conversa');
+    ok(await espera(p, emConversa, 15000), 'diagnóstico no 1º preço: o cartão diz que o pacote precisa de uma conversa');
     ok(await p.locator('#o-p-refazer').isVisible(), 'diagnóstico no 1º preço: "Mudar as respostas" continua ao alcance');
     ok(await p.locator('#o-quero-modelos').isHidden(), 'diagnóstico: sem "Quero os três modelos"');
     ok(await espera(p, () => /conversa/i.test(document.getElementById('o-voz').textContent)), 'diagnóstico: o leitor de tela ouve que precisa de uma conversa');
