@@ -50,14 +50,18 @@ const SIMULAR = daAcao('simular'), GRAVAR = daAcao('confirmar-pacote');
 /* diagnóstico: as últimas chamadas à API e o estado da tela aparecem quando o teste quebra */
 let pagina = null;
 const diario = [];
+/* as chamadas à API de cada página vão para o diário, com o nome da página (um 429 do freio aparece onde aconteceu) */
+const anotar = (pg, rotulo) => {
+  pg.on('requestfinished', async r => { if (!r.url().includes('/api/')) return; const t = r.timing(); const resp = await r.response(); diario.push(`${rotulo}: ${r.method()} ${new URL(r.url()).pathname}${new URL(r.url()).search} → ${resp ? resp.status() : '?'} em ${Math.round(t.responseEnd)} ms`); });
+  pg.on('requestfailed', r => { if (r.url().includes('/api/')) diario.push(`${rotulo}: ${r.method()} ${new URL(r.url()).pathname} → falhou: ${r.failure()?.errorText}`); });
+};
 const foto = (page, nome) => page.screenshot({ path: fileURLToPath(new URL(nome + (CONSULTOR ? '-consultor' : '') + '.png', PASTA)) });   /* (pathname deixa %20 no caminho) */
 
 try {
   const ctx = await nav.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   const page = await ctx.newPage();
   pagina = page;
-  page.on('requestfinished', async r => { if (!r.url().includes('/api/')) return; const t = r.timing(); const resp = await r.response(); diario.push(`${r.method()} ${new URL(r.url()).pathname}${new URL(r.url()).search} → ${resp ? resp.status() : '?'} em ${Math.round(t.responseEnd)} ms`); });
-  page.on('requestfailed', r => { if (r.url().includes('/api/')) diario.push(`${r.method()} ${new URL(r.url()).pathname} → falhou: ${r.failure()?.errorText}`); });
+  anotar(page, 'principal');
   const erros = [];
   let falhaForcada = false;   /* (o 400 ou 503 que o próprio teste força numa conta ou nos detalhes não é erro da página) */
   page.on('console', m => { if (m.type() === 'error' && !(falhaForcada && /status of (400|503)/.test(m.text()))) erros.push(m.text()); });
@@ -436,6 +440,7 @@ try {
   {
     const c = await nav.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
     const p = await c.newPage();
+    anotar(p, 'diagnóstico');
     let forcar = true;
     await p.route(SIMULAR, async route => {
       if (!forcar) return route.continue();
@@ -525,6 +530,7 @@ try {
   for (const [w, h, nome] of [[320, 640, '5-inicio-320'], [1440, 900, '6-inicio-desktop']]) {
     const c = await nav.newContext({ viewport: { width: w, height: h } });
     const p = await c.newPage();
+    anotar(p, w + 'px');
     await p.goto(BASE + '/orcamento', { waitUntil: 'load' });
     ok(await semRolagemLateral(p), w + 'px: sem rolagem lateral');
     await foto(p, nome);
@@ -572,6 +578,8 @@ try {
     console.log('  tela: ' + tela);
   }
 } finally {
+  /* o freio local de sessões é 8 por IP a cada 10 min (api/vendas.mjs, freioSessao): perto disso, uma máquina rápida estoura */
+  console.log('sessões criadas nesta rodada: ' + diario.filter(l => l.includes('POST /api/vendas?acao=sessao →')).length);
   await nav.close();
 }
 process.exit(falhou ? 1 : 0);
