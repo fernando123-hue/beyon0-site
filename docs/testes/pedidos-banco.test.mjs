@@ -519,8 +519,10 @@ test('promoção: a conversa antiga parada em "contato" (lead, sem pedido) é co
 test('promoção: o cabeçalho da migration e o plano citam o MESMO texto das DUAS consultas', () => {
   const migration = fs.readFileSync(new URL('../../supabase/migrations/20261013120200_fila_confirmados.sql', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   const plano = fs.readFileSync(new URL('../superpowers/plans/2026-10-13-orcamento-sem-ia-pr2a.md', import.meta.url), 'utf8');
+  const pendencias = fs.readFileSync(new URL('../revisoes/pr1-pendencias.md', import.meta.url), 'utf8');
   for (const [nome, consulta] of [['fila antiga', CONSULTA_FILA_ANTIGA], ['contato antigo', CONSULTA_CONTATO_ANTIGO]]) {
     assert.ok(migration.includes('--   ' + consulta + '\n'), 'cabeçalho da migration: ' + nome);
     assert.ok(plano.includes('`' + consulta + '`'), 'linha PR2a da Task 9: ' + nome);
+    assert.ok(pendencias.includes('`' + consulta + '`'), 'linha PR2a de docs/revisoes/pr1-pendencias.md: ' + nome);
   }
 });
