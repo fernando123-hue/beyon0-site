@@ -15,12 +15,15 @@ h2 { font-size: clamp(1.5rem, 5vw, 1.8rem); margin-bottom: 1rem; }
 strong { color: var(--t1); font-weight: 600; }
 
 .r-nav {
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
   max-width: var(--r-maxw); margin: 0 auto; padding: 1.2rem var(--pad);
 }
-.r-nav__logo { display: inline-flex; align-items: center; min-height: 44px; }
+/* a logo não encolhe (espremida, a luz no "o" sumia — revisão de 2026-10-14); quem cede é o "Voltar" */
+.r-nav__logo { display: inline-flex; align-items: center; min-height: 44px; flex: none; }
 .r-nav__logo .marca { display: block; width: auto; height: 40px; }
-.r-nav__voltar { font-family: var(--mono); font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: var(--t3); display: inline-flex; align-items: center; gap: .5em; min-height: 44px; }   /* (o gap: no flex o espaço depois da seta sumia, "←VOLTAR") */
+.r-nav__voltar { font-family: var(--mono); font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: var(--t3); display: inline-flex; align-items: center; gap: .5em; min-height: 44px; min-width: 0; text-align: right; }   /* (o gap: no flex o espaço depois da seta sumia, "←VOLTAR") */
+/* celular estreito: a logo no tamanho do desktop (34 px, para o qual o canal do "o" foi desenhado) */
+@media (max-width: 440px) { .r-nav__logo .marca { height: 34px; } }
 .r-nav__voltar:hover { color: var(--t1); }
 
 .r-main { max-width: var(--r-maxw); margin: 0 auto; padding: 0 var(--pad) 5rem; }

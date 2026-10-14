@@ -137,6 +137,8 @@ test('logo: as páginas usam a logo em SVG, sem estilo nem cor embutidos e com o
       assert.ok(!/fill="#/.test(svg), arquivo + ': cor fixa na logo (o ouro não a alcançaria)');
       assert.match(svg, /aria-hidden="true"/, arquivo + ': a logo é desenho; o nome fica no link');
       assert.match(link, /aria-label="Beyon Zero — início"/, arquivo + ': link da logo sem nome acessível');
+      /* o último "o" de Zero com o canal e a luz em toda logo, inclusive no topo (dono, 2026-10-14: "Quero essa parte da logo") */
+      assert.match(svg, /class="marca__zero" d="[^"]*"\/>(<path class="marca__entrada" d="[^"]*"\/>)?<path class="marca__saida"/, arquivo + ': a logo sem a luz no "o" de Zero');
     }
     assert.ok((html.match(/id="marca-pulso"/g) || []).length <= 1, arquivo + ': o recorte da luz da logo repetido (id duplicado)');
   }
