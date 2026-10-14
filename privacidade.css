@@ -20,6 +20,16 @@ body { font-size: 1rem; line-height: 1.7; }
 /* o logotipo é marca, não link de texto: sem sublinhado e sem herdar a cor do .priv a ("Zero" segue ciano, como na nav) */
 .priv .priv__marca a { color: var(--t1); text-decoration: none; }
 .priv code { font-family: var(--mono); font-size: .85em; color: var(--t1); }
+/* parágrafo junto de lista (condições: "Por Pix, com recibo." + itens) respira como o resto; o número de telefone não quebra no hífen */
+.priv p + ul, .priv ul + p { margin-top: .9rem; }
+.priv a[href^="https://wa.me"] { white-space: nowrap; }
 .priv__voltar { margin-top: 3rem; }
 .priv__voltar a { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-ctrl); text-transform: uppercase; display: inline-flex; align-items: center; min-height: 44px; }
-@media print { body { background: #fff; color: #000; } .priv p, .priv li, .priv h1, .priv h2 { color: #000; } }
+/* os três valores da página de condições (dado: preço, entrada, restante), um por linha no celular e lado a lado a partir de 600px */
+.priv__valores { display: grid; gap: 1.1rem; margin: 1.8rem 0 2.2rem; }
+.priv__valores > div { padding-left: 1.1rem; border-left: 1px solid var(--stroke); }
+.priv__valores dt { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-ctrl); text-transform: uppercase; color: var(--t3); }
+.priv__valores dd { margin: .25rem 0 0; font-weight: 300; font-size: 1.9rem; line-height: 1.15; letter-spacing: -.02em; color: var(--ac); }
+.priv__valores small { display: block; margin-top: .3rem; font-size: 1rem; line-height: 1.45; letter-spacing: 0; color: var(--t2); }
+@media (min-width: 600px) { .priv__valores { grid-template-columns: repeat(3, 1fr); gap: 1.4rem; } }
+@media print { body { background: #fff; color: #000; } .priv p, .priv li, .priv h1, .priv h2, .priv__valores dt, .priv__valores dd, .priv__valores small { color: #000; } }
