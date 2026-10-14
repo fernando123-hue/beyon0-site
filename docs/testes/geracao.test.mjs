@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { gerarDirecao, SISTEMA_GERACAO } from '../../api/_vendas/gerador.mjs';
 import { higienizar, contraste, ESTRATEGIAS } from '../../api/_vendas/direcao.mjs';
 import { criarSimulada } from '../../api/_ia/simulado.mjs';
-import { novoBanco, como } from './_banco.mjs';
+import { novoBanco, como, pedidoConfirmado } from './_banco.mjs';
 
 const BRIEFING = { negocio: { nome: 'Clínica Sorriso', segmento: 'odontologia', cidade: 'Niterói', descricao: 'Clínica odontológica familiar com foco em implantes.' }, objetivos: ['agendamentos'], servicos: ['Implantes', 'Clareamento', 'Ortodontia'] };
 
@@ -62,6 +62,7 @@ test('posse no banco: uma direção é gerada por um pedido só; posse abandonad
   const b = { conversa_id: c, visitante_id: V };
   await rpc('vendas_registrar_estimativa', { ...b, regras_id: regras, fatores: { formato: 'landing_page' }, valor_total: 1500, sinal: 750, prazo_dias: 5 });
   await rpc('vendas_informar_contato', { ...b, nome: 'X', email: 'x@x.com', aceite: true });
+  await pedidoConfirmado(db, c);
   const g = await rpc('vendas_iniciar_geracao', b);
   const d1 = g.direcoes[0].id;
   const r1 = await rpc('vendas_reivindicar_direcao', { ...b, direcao_id: d1 });

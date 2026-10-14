@@ -15,6 +15,7 @@ import { chaveDoIp } from '../../api/_vendas/ip.mjs';
 import { ErroIA } from '../../api/_ia/provedor.mjs';
 import { TIPOS_SECAO } from '../../api/_vendas/direcao.mjs';
 import { executar as rotinas } from '../../api/rotinas.mjs';
+import { LIMITES_DE_TESTE, detalhesEConfirmar } from './_pedido.mjs';
 /* segredo do cron nos testes: 40 caracteres de baixa entropia (uma string "aleatória" vira falso positivo no gitleaks) */
 const SEGREDO_CRON_TESTE = 'teste'.repeat(8);
 
@@ -23,7 +24,7 @@ const BASE = 'http://127.0.0.1:8899';
 let ipSeq = 0;
 before(async () => {
   local = await montarLocal({ base: BASE });
-  deps = { banco: local.rpc, visitantes: local.auth, ia: criarSimulada(), direcoes: 'api', pagamentos: criarServicoPagamentos({ banco: local.rpc, cfg: configPagamentos({}) }) };
+  deps = { banco: local.rpc, visitantes: local.auth, ia: criarSimulada(), direcoes: 'api', segredoFreio: 's'.repeat(32), limitesPedido: LIMITES_DE_TESTE, pagamentos: criarServicoPagamentos({ banco: local.rpc, cfg: configPagamentos({}) }) };
 });
 
 function navegador(d = deps, ip = '192.0.2.' + (++ipSeq)) {
@@ -42,7 +43,7 @@ async function ateDirecoes(n) {
   const c = s.conversa_id;
   await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Tenho uma clínica e quero um site institucional para agendamentos' });
   await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'sim' });
-  await n.chamar('POST', 'contato', { conversa_id: c, nome: 'Rita', email: 'rita@x.com', aceite: true });
+  await detalhesEConfirmar(n.chamar, local.rpc, c);
   const g = await n.chamar('POST', 'gerar', { conversa_id: c });
   for (const d of g.corpo.direcoes) await n.chamar('POST', 'gerar-direcao', { conversa_id: c, direcao_id: d.id });
   return { c, dirs: g.corpo.direcoes };
@@ -189,7 +190,7 @@ test('P0 freio: a mesma conversa conta uma vez só; sem segredo ou servidor loca
   const n = async () => (await local.db.query('select coalesce(sum(n), 0)::int n from privado.freio_ip')).rows[0].n;
   const antes = await n();
   await porIp('local')('Tenho uma escola e quero um site');
-  await porIp('198.51.100.201', { ...deps })('Tenho uma escola e quero um site');   /* (sem segredo) */
+  await porIp('198.51.100.201', { ...deps, segredoFreio: undefined })('Tenho uma escola e quero um site');   /* (sem segredo) */
   assert.equal(await n(), antes, 'servidor local e sem segredo: nada contado');
   assert.ok(antes >= 1);
   const ipv6 = ['2001:db8:a:b:1::1', '2001:db8:a:b:ffff::9'].map(ip => chaveDoIp(ip, 'k'));
@@ -247,10 +248,11 @@ test('P0 consentimento: informar o contato de novo não apaga a data do 1º acei
   const n = navegador();
   const s = await n.iniciar();
   const c = s.conversa_id;
-  await n.chamar('POST', 'contato', { conversa_id: c, nome: 'Ana', email: 'ana@x.com', aceite: true });
+  const vid = (await local.db.query('select visitante_id from app.conversas where id = $1', [c])).rows[0].visitante_id;
+  await local.rpc('vendas_informar_contato', { conversa_id: c, visitante_id: vid, nome: 'Ana', telefone: '+5521999990000', aceite: true });
   await local.db.query(`update app.conversas set contato_aceite_em = now() - interval '3 days' where id = $1`, [c]);
   const primeiro = (await conversa(c)).contato_aceite_em.getTime();
-  await n.chamar('POST', 'contato', { conversa_id: c, nome: 'Ana Souza', email: 'ana@x.com', aceite: true });
+  await local.rpc('vendas_informar_contato', { conversa_id: c, visitante_id: vid, nome: 'Ana Souza', telefone: '+5521999990000', aceite: true });
   assert.equal((await conversa(c)).contato_aceite_em.getTime(), primeiro);
 });
 

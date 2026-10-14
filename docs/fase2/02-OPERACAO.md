@@ -44,35 +44,45 @@ Como ligar, ajustar e desligar o agente. A base (migrations, testes, segredos, b
 
 Enquanto não há verba para a API, as três direções não são geradas pelo modelo: o dono as produz no Claude Code e o cliente é avisado pelo WhatsApp. O prazo prometido na tela é de até 24 horas úteis.
 
+**Desde o PR 2a só entra na fila o pedido confirmado pelo WhatsApp.** A pessoa preenche os detalhes (nome do negócio, o que vende, WhatsApp) e recebe um código **`BZ-XXXXX`**; manda "Meu pedido é BZ-…" para o WhatsApp da Beyon Zero. O dono procura o código no painel, confere que a mensagem veio do número informado e toca em **"Chegou: confirmar"**; só então o pedido entra na fila e as três direções nascem. Isso vale nos dois modos (decisão D2). Os pedidos sem confirmação ficam na lista **"Esperando confirmação no WhatsApp"** do painel (confirmar, descartar ou arquivar), e a rotina diária (`/api/rotinas?acao=diaria`, a mesma da retenção) **expira em 72 horas** o que não foi confirmado. O teto é de **10 pedidos confirmados na fila** (decisão D1): ao chegar nele o painel mostra o alarme e a página oferece o WhatsApp no lugar dos detalhes. A migration é a `20261013120200_fila_confirmados.sql`; as outras duas, `20261013120000_pedidos.sql` e `20261013120100_pedidos_dono.sql`.
+
+**Ao promover o PR 2a** (detalhe e consultas em `docs/revisoes/pr1-pendencias.md`, linha PR2a): aplicar as migrations e o código JUNTOS, nesta ordem: (1) `20261013120000_pedidos.sql` e `20261013120100_pedidos_dono.sql`; (2) rodar as duas consultas de `docs/revisoes/fila-antiga-vazia.sql` (direção na fila antiga sem pedido, e conversa antiga parada em `contato`): **têm que dar 0**; se não der, entregar e avisar esses pedidos pelo jeito antigo ou resolver pelo WhatsApp; (3) aplicar `20261013120200_fila_confirmados.sql`; (4) promover o código e rodar as consultas de novo. As conversas do fluxo antigo não têm linha em `app.pedidos` e somem da fila nova.
+
 **Ligar, na ordem:**
 1. Aplicar no banco a migration `20261009120000_fila_direcoes.sql`. Ela só acrescenta: a coluna `app.direcoes.avisada_em` e as funções `vendas_fila_direcoes`, `vendas_direcao_info` e `vendas_marcar_avisado`.
 2. Definir `BZ_DIRECOES=manual` na Vercel e publicar. A tela troca "alguns minutos" por "até 24 horas úteis, avisamos pelo seu WhatsApp", o WhatsApp vira obrigatório no contato, e `gerar-direcao` responde `na_fila` sem chamar o modelo. O consultor diz o mesmo, porque `api/_vendas/consultor.mjs` lê `modoDirecoes()`.
 
 **Como o dono atende** (precisa de `PAINEL_CHAVE`):
-- `GET /api/painel?fila=direcoes` lista a fila. Cada pedido traz a hora do pedido, o contato, o briefing, o escopo (`fatores`) e as 3 direções com a estratégia de cada uma.
+- `GET /api/painel?fila=direcoes` lista a fila, só com pedidos confirmados. Cada pedido traz o código `BZ-XXXXX`, a hora do pedido, o contato, o briefing, o escopo (`fatores`), as redes que a pessoa autorizou olhar e as 3 direções com a estratégia de cada uma.
+- `GET /api/painel?fila=pendentes[&codigo=BZ-…]` lista os pedidos esperando confirmação, ou procura um pelo código. `POST /api/painel {confirmar_whatsapp: <conversa_id>}` confirma; `{descartar_pedido: <conversa_id>}` encerra (e para a geração, se já começou); `{arquivar_pedido: <conversa_id>}` tira da fila um pedido resolvido por fora.
 - `POST /api/painel {entregar_direcao: <id>, conteudo: <direção>}` entrega uma direção.
   - O conteúdo segue o `ESQUEMA_DIRECAO` de `api/_vendas/direcao.mjs` e passa pelo mesmo `higienizar` da geração automática.
   - A estratégia vem do banco, nunca do arquivo.
   - Recusa com 422 o que o filtro recusa.
   - Quando as 3 ficam prontas, o cliente já pode escolher.
-- `POST /api/painel {avisado: <conversa_id>}`: depois de mandar a mensagem pelo WhatsApp, o pedido sai da fila.
+- `POST /api/painel {avisado: <conversa_id>}`: depois de mandar a mensagem pelo WhatsApp, o pedido sai da fila (conclui). Se a pessoa escolher um modelo antes do aviso, ou se as três direções falharem, o pedido conclui sozinho.
 
 **No dia a dia:**
+- **Painel, seção "Esperando confirmação no WhatsApp"** (`js/painel-pedidos.js`, antes da fila): a busca pelo código, o alarme de "muitos pedidos esperando" e, em cada pedido, **"Chegou: confirmar"** e **"Descartar"**. O selo "Texto suspeito: leia antes de produzir" marca o pedido cujo texto parece ordem ao modelo (às vezes é falso positivo; leia antes de confirmar).
 - **Painel, seção "Direções na fila"** (`js/painel-fila.js`):
-  - mostra cada pedido, há quanto tempo chegou e quantas das 3 estão prontas;
+  - mostra cada pedido confirmado com o código `BZ-XXXXX` (para achar a conversa no WhatsApp), há quanto tempo chegou e quantas das 3 estão prontas; no teto de 10, o alarme da fila;
   - o pedido fica destacado quando passa de 20 horas;
   - com as 3 prontas, aparece **"Avisar no WhatsApp"**, que abre o WhatsApp do dono com a mensagem pronta e o link `/orcamento` ("no mesmo aparelho"). Sem telefone, aparece "Avisar por e-mail";
-  - depois de mandar, **"Já avisei"**.
+  - depois de mandar, **"Já avisei"**, que conclui o pedido e o tira da fila;
+  - **"Arquivar"** (resolvido por fora) e **"Descartar"** (encerra e para a geração), cada um com um segundo toque.
 - **Comando `scripts/direcoes.mjs` e skill `produzir-direcoes`** (`.claude/skills/produzir-direcoes/SKILL.md`). A chave **nunca** fica na sessão do Claude Code que lê o briefing, porque o briefing é texto de visitante (revisão de segurança):
   - **O dono roda no terminal dele**, com `BZ_BASE` (https do site, conferido pelo comando) e `PAINEL_CHAVE` só ali:
-    - `fila`;
-    - `pedido <id>`: grava em `~/BeyonZero-direcoes/<id>/pedido.json`, fora do repositório. O briefing vai com nome, telefone e e-mail do cliente apagados;
+    - `fila`: só pedidos confirmados; cada linha traz o id curto, o código `BZ-XXXXX`, "avisar" ou "produzir" e, se for o caso, "TEXTO SUSPEITO";
+    - `pedido <id>` (os 8 primeiros caracteres do id curto, não o código `BZ-`): grava em `~/BeyonZero-direcoes/<id>/pedido.json`, fora do repositório. O briefing vai com nome, telefone e e-mail do cliente apagados;
     - `entregar-pedido <id>`: as 3 de uma vez, cada arquivo no id certo, conferidas antes; apaga a pasta quando as 3 ficam prontas.
   - **O Claude Code roda, sem chave:**
     - `conferir <arquivo> <estrategia>`: o mesmo filtro do servidor;
     - `limpar [dias]`: apaga pastas esquecidas, padrão 3 dias.
 
 **Voltar para a API:** apagar `BZ_DIRECOES`. Direções que estiverem na fila nesse momento são geradas pela API quando o cliente voltar à página.
+- A confirmação pelo WhatsApp continua valendo no modo API (decisão D2): sem ela, nada é gerado.
+- No modo API, cada pedido confirmado ainda passa pela fila do painel: com as três prontas, ele fica **"Pronto para avisar"** e **ocupa o teto de 10** até o dono tocar **"Já avisei"** ou o cliente escolher um modelo. Com a fila cheia, os detalhes de quem chega recebem o WhatsApp no lugar do pedido.
+- Então, também no modo API, o dono avisa o cliente pelo WhatsApp e toca **"Já avisei"** para liberar o lugar na fila.
 
 ## 2. Desligar ou conter
 

@@ -7,6 +7,15 @@ description: Produz as três direções de site dos pedidos na fila manual do or
 
 Decisão do dono (2026-10-08): enquanto não há verba para a API, as três direções de cada pedido são produzidas no Claude Code do dono e entregues pelo painel. O prazo prometido ao cliente é de **até 24 horas úteis**. O dono avisa o cliente pelo WhatsApp com um toque, no painel.
 
+## A fila só tem pedido confirmado pelo WhatsApp (PR 2a)
+
+- O cliente preenche os detalhes na página e recebe um código **`BZ-XXXXX`**. O pedido só entra na fila de produção depois que o **dono confirma** que a mensagem "Meu pedido é BZ-…" chegou do WhatsApp informado.
+- Os pedidos **ainda não confirmados** ficam na lista **"Esperando confirmação no WhatsApp"** do painel, fora da fila. Lá o dono procura o código, confere o número e toca em **"Chegou: confirmar"** (o pedido entra na fila e as três direções nascem) ou em **"Descartar"**. Quem não confirma em **72 horas** expira sozinho: a rotina diária (`/api/rotinas?acao=diaria`) faz isso.
+- A fila (`node scripts/direcoes.mjs fila`) mostra só pedidos confirmados, cada linha com o id curto (os 8 primeiros caracteres, que os comandos pedem) e o código `BZ-XXXXX` (para achar a conversa no WhatsApp). "avisar" é o pedido com as 3 prontas e ainda sem aviso (vem primeiro); "produzir" é o resto.
+- O teto é de **10 pedidos confirmados na fila**: ao chegar nele, o painel mostra o alarme e a página oferece o WhatsApp no lugar dos detalhes.
+- O pedido sai da fila quando o dono toca em **"Já avisei"** (conclui), ou em **"Arquivar"** (resolvido por fora) ou **"Descartar"** (encerra e para a geração), com um segundo toque. Se o cliente escolher um modelo antes do aviso, o pedido também conclui.
+- Esta sessão **nunca confirma, descarta nem arquiva** pedido: isso é do dono, no painel.
+
 ## Quem faz o quê (segurança: a chave nunca fica nesta sessão)
 
 O briefing foi escrito a partir do que um desconhecido digitou. Por isso, **esta sessão nunca tem a chave do painel**.
@@ -45,7 +54,7 @@ O briefing foi escrito a partir do que um desconhecido digitou. Por isso, **esta
    - Se vier recusada, corrija e confira de novo.
    - Se o filtro corrigir o contraste, repense a paleta.
 6. **Mostre ao dono** o nome do conceito, o resumo e a paleta de cada uma das 3. Se ele pedir, mostre uma prévia com o renderizador `js/previa.js`.
-7. Com o "pode entregar" dele, diga para ele rodar `entregar-pedido` no terminal dele. Depois ele abre o painel, em "Direções na fila", toca em **"Avisar no WhatsApp"** e depois em **"Já avisei"**.
+7. Com o "pode entregar" dele, diga para ele rodar `entregar-pedido` no terminal dele. Depois ele abre o painel, em "Direções na fila", toca em **"Avisar no WhatsApp"** e depois em **"Já avisei"**, que conclui o pedido e o tira da fila.
 
 ## Limpeza
 

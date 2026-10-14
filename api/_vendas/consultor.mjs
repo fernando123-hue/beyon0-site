@@ -21,8 +21,8 @@ import { ESQUEMA_ATUALIZACAO, avaliar, prontoParaEstimar, LIMIAR_DIRECOES } from
 export const IDENTIDADE = 'Você é o consultor de IA da Beyon Zero, um estúdio brasileiro que cria sites profissionais para pequenas e médias empresas. Você conversa aqui no site com quem está avaliando contratar e conduz o orçamento do começo ao fim, sem que a pessoa precise falar com ninguém. Fala com a clareza e a convicção de um consultor experiente: entende o negócio antes do site, recomenda com clareza e conduz até a decisão, sem pressão. Não conte casos nem experiências que você não tem.';
 
 const PROCESSO = {
-  api: 'As três direções são geradas na hora, logo depois do formulário de contato; levam alguns minutos e o progresso fica salvo se a pessoa sair da página.',
-  manual: 'As três direções ficam prontas em até 24 horas úteis depois do formulário de contato. A Beyon Zero avisa pelo WhatsApp informado, e o progresso fica salvo: é só voltar a esta página.'
+  api: 'As três direções são geradas na hora, logo depois que a Beyon Zero confirma o pedido pelo WhatsApp (a pessoa manda a mensagem com o código BZ- do pedido); levam alguns minutos e o progresso fica salvo se a pessoa sair da página.',
+  manual: 'As três direções ficam prontas em até 24 horas úteis depois que a Beyon Zero confirma o pedido pelo WhatsApp (a pessoa manda a mensagem com o código BZ- do pedido). A Beyon Zero avisa pelo WhatsApp informado, e o progresso fica salvo: é só voltar a esta página.'
 };
 
 const lista = itens => itens.map(i => '- ' + i).join('\n');
@@ -84,7 +84,7 @@ Garantias: começa pelo problema, não pela ferramenta; escopo e valor combinado
 # Como o orçamento funciona (as etapas que a pessoa vê na tela)
 1. Conversa: você entende o caso e monta o briefing.
 2. Investimento: a ferramenta estimar calcula pela tabela; o valor e o sinal aparecem num cartão na tela.
-3. Direções: com o contato (formulário na tela), a Beyon Zero desenha três direções de site, uma para conversão, uma para autoridade e uma para experiência, para abrir, comparar e escolher. ${PROCESSO[direcoes] || PROCESSO.api}
+3. Direções: com o pedido confirmado pelo WhatsApp (o formulário da tela gera o código BZ-), a Beyon Zero desenha três direções de site, uma para conversão, uma para autoridade e uma para experiência, para abrir, comparar e escolher. ${PROCESSO[direcoes] || PROCESSO.api}
 4. Ajustes: a pessoa escreve o que mudaria; a troca de direção vale até o primeiro ajuste.
 5. Escopo: o escopo final, com valor e prazo, para conferir e confirmar.
 6. Início: pagamento do sinal no próprio site, por Pix ou cartão; o restante é pago na entrega. Se a tela disser que o pagamento online está indisponível, a Beyon Zero envia o pagamento pelo WhatsApp.
@@ -196,7 +196,7 @@ function todasAsFerramentas(regras) {
         urgencia: { type: 'boolean' },
         complexidade: { type: 'string', enum: ['normal', 'alta'] } } } },
     { name: 'pedir_contato',
-      description: 'Mostra na tela o formulário de contato que libera as três direções de site. Chame quando o proximo_passo do ESTADO indicar (estimativa já mostrada e briefing completo o bastante), ou antes disso se a pessoa pedir para ver as direções ou disser que quer fechar, e já houver estimativa. No mesmo turno, diga em uma frase (dentro das 3) o que ela recebe. Não peça os dados no texto.',
+      description: 'Mostra na tela o formulário (negócio, o que vende e WhatsApp), com o botão "Quero os três modelos". Depois dele, o pedido espera a confirmação pelo WhatsApp, com um código BZ-: os modelos só começam quando a Beyon Zero confirma. Chame quando o proximo_passo do ESTADO indicar (estimativa já mostrada e briefing completo o bastante), ou antes disso se a pessoa pedir para ver as direções ou disser que quer fechar, e já houver estimativa. No mesmo turno, diga em uma frase (dentro das 3) o que ela recebe. Não peça os dados no texto.',
       input_schema: { type: 'object', additionalProperties: false, properties: {} } },
     { name: 'sugerir_solucao_ia',
       description: 'Registra uma oportunidade clara de solução com IA para este negócio (ex.: atendimento que responde e agenda sozinho, automação de uma tarefa repetida). Use no máximo uma vez por conversa, quando o que a pessoa contou mostrar a oportunidade; explique em uma frase e diga que isso é visto no diagnóstico, sem prometer preço.',
@@ -219,7 +219,7 @@ const LOJA = 'loja';
 
 /* o que fazer agora, pela ordem do funil (texto para o modelo; o código decide, o modelo executa).
    Na tela, o formulário de contato aparece sozinho quando há estimativa e ainda não há contato (js/orcamento.js);
-   pedir_contato só leva a pessoa até ele. Na etapa 'contato' o contato JÁ chegou (vendas_informar_contato) */
+   pedir_contato só leva a pessoa até ele. Na etapa 'contato' o pedido JÁ existe e espera a confirmação pelo WhatsApp (vendas_registrar_detalhes, PR 2a) */
 export function proximoPasso({ etapa, briefing, estimativa, regras = null }) {
   /* sem a tabela, vale a v2; com ela, a loja só é vendável se a tabela ativa a traz */
   const temLoja = !regras || !!regras.formatos?.loja_plataforma;
@@ -229,8 +229,8 @@ export function proximoPasso({ etapa, briefing, estimativa, regras = null }) {
   if (ETAPAS_DA_TELA.includes(etapa)) return 'O orçamento já segue pelos blocos da tela (etapa ' + etapa + '). Responda dúvidas em poucas frases e indique o próximo bloco na tela; não chame estimar nem pedir_contato.';
   if (etapa === 'contato') {
     const { confianca: c, faltam: f } = avaliar(b);
-    const antes = c < LIMIAR_DIRECOES ? ' Antes do botão, faça no máximo 2 perguntas rápidas sobre ' + f.slice(0, 2).map(x => NOMES_FALTA[x]).join(' e ') + ', para as direções saírem com a cara do negócio; se a pessoa preferir, indique o botão já.' : '';
-    return 'O contato já foi recebido: as três direções saem pelo botão "Gerar as três direções" na tela.' + antes + ' Responda dúvidas e indique esse botão; chame estimar de novo só se o escopo mudar; não chame pedir_contato.';
+    const antes = c < LIMIAR_DIRECOES ? ' Enquanto ela não confirma, faça no máximo 2 perguntas rápidas sobre ' + f.slice(0, 2).map(x => NOMES_FALTA[x]).join(' e ') + ', para as direções saírem com a cara do negócio; se a pessoa preferir, indique o bloco de confirmação já.' : '';
+    return 'O contato já foi recebido e o pedido espera a confirmação pelo WhatsApp: a pessoa manda a mensagem pronta, com o código BZ- do pedido, pelo botão "Confirmar pelo WhatsApp" do bloco "Confirme pelo WhatsApp". Os modelos só começam depois que a Beyon Zero confirma; não diga que já estão sendo feitos.' + antes + ' Responda dúvidas e indique esse bloco; chame estimar de novo só se o escopo mudar; não chame pedir_contato.';
   }
   /* (a lista do briefing só soma: quem desiste da loja e já foi estimado sem ela segue o funil) */
   if (!estimativa && (b.funcionalidades || []).includes(LOJA) && !temLoja) return 'O projeto pede uma loja virtual, que a tabela atual não estima: chame encaminhar_diagnostico, se ainda não chamou, e explique em uma frase; não chame estimar com a loja. Se a pessoa desistir da loja e quiser só o site, chame estimar sem ela.';

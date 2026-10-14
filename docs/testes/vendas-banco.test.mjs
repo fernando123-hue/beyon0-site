@@ -2,7 +2,7 @@
    o isolamento entre visitantes e o RLS. Postgres de verdade (PGlite) com as migrations reais.  npm run testar */
 import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
-import { novoBanco, como, erroDe } from './_banco.mjs';
+import { novoBanco, como, erroDe, pedidoConfirmado } from './_banco.mjs';
 
 const A = 'aaaaaaaa-0000-4000-8000-0000000000a1';    // dono da Beyon Zero
 const B = 'bbbbbbbb-0000-4000-8000-0000000000b2';    // membro comum
@@ -39,6 +39,7 @@ async function conversaAte(visitante, ate) {
   ids.estimativa = (await rpc('vendas_registrar_estimativa', { ...base, regras_id: REGRAS, fatores: { formato: 'institucional', paginas: 5 }, valor_total: 3000, sinal: 1500, prazo_dias: 10 })).estimativa_id;
   if (ate === 'estimativa') return ids;
   ids.lead = (await rpc('vendas_informar_contato', { ...base, nome: 'Dra. Ana', telefone: '+5521999990000', aceite: true })).lead_id;
+  await pedidoConfirmado(db, ids.conversa);   /* (PR 2a: as direções só nascem com o pedido confirmado pelo dono) */
   if (ate === 'contato') return ids;
   const g = await rpc('vendas_iniciar_geracao', base);
   ids.direcoes = g.direcoes.map(d => d.id);

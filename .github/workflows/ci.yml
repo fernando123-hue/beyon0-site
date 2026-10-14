@@ -81,6 +81,13 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - run: npx playwright install --with-deps chromium
+      # a chave do painel só deste job: o E2E confirma o pedido pelo painel, como o dono (gerada aqui, nunca no repositório).
+      # Mascarada ANTES de ir ao GITHUB_ENV: o GitHub só esconde do log os segredos que conhece
+      - name: Chave do painel para o E2E
+        run: |
+          CHAVE="$(node -e "process.stdout.write(require('node:crypto').randomBytes(24).toString('hex'))")"
+          echo "::add-mask::$CHAVE"
+          echo "PAINEL_CHAVE=$CHAVE" >> "$GITHUB_ENV"
       # o orçamento sem IA (o modo de venda hoje): a página abre sem o consultor (BZ_SEM_CONSULTOR só vale com BZ_LOCAL)
       - name: Servidor local sem consultor (banco PGlite, IA e Mercado Pago simulados)
         run: |

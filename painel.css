@@ -102,3 +102,24 @@ body { font-size: 1rem; line-height: 1.55; background: var(--bg); color: var(--t
 .pn__fila-nome { font-weight: 600; }
 .pn__fila-meta { font-family: var(--mono); font-size: var(--fs-rotulo); color: var(--t3); }
 .pn__fila-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+
+/* o pedido de modelos (PR 2a): o código é dado (mono); o selo avisa sem gritar; links das redes com alvo de toque de 44px.
+   Texto que o dono precisa ler (número, selo, rótulo da busca, botões) com 16px; botões em frase normal. */
+.pn__fila-texto .pn__codigo { margin: 0 0 .25rem; font-size: 1.25rem; letter-spacing: .06em; }
+.pn__selo { display: inline-block; margin: 0 0 .35rem; padding: .15rem .5rem; border: 1px solid rgb(var(--ouro-rgb)); border-radius: var(--raio-s); color: rgb(var(--ouro-rgb)); font-size: 1rem; }
+.pn__dado { font-size: 1rem; color: var(--t2); }
+.pn__redes { display: flex; flex-wrap: wrap; gap: 0 .9rem; margin: .25rem 0 0; padding: 0; list-style: none; }
+.pn__redes a { display: inline-block; min-height: 44px; line-height: 44px; color: var(--ac); overflow-wrap: anywhere; }
+.pn__busca { display: flex; flex-wrap: wrap; align-items: flex-end; gap: .5rem .75rem; margin: .75rem 0; }
+.pn__busca label { flex: 1 0 100%; margin: 0; font-family: var(--sans); font-size: 1rem; letter-spacing: 0; text-transform: none; color: var(--t2); }
+.pn__busca input { flex: 1 1 10rem; width: auto; min-height: 48px; font-family: var(--mono); font-size: 1rem; text-transform: uppercase; }
+.pn__busca input::placeholder { text-transform: none; }
+.pn__fila-acoes .pn__btn, .pn__busca .pn__btn, #pendentes-atualizar { font-family: var(--sans); font-size: 1rem; letter-spacing: 0; text-transform: none; }
+.pn__fila-acoes .pn__btn { text-align: center; }
+#bloco-pendentes .pn__ajuda, #bloco-fila .pn__ajuda { font-size: 1rem; }
+#bloco-pendentes .pn__estado, #bloco-fila .pn__estado { font-family: var(--sans); font-size: 1rem; color: var(--t2); }
+#fila-atualizar { font-family: var(--sans); font-size: 1rem; letter-spacing: 0; text-transform: none; }
+/* na fila e nos pendentes, o que o dono lê para decidir vai em Sora de 16px; o mono fica só no código, no id e no comando */
+.pn__fila .pn__fila-meta { font-family: var(--sans); font-size: 1rem; letter-spacing: 0; color: var(--t2); }
+.pn__fila-id { font-family: var(--mono); font-size: 1rem; color: var(--t3); }
+.pn__status { font-size: 1rem; font-weight: 600; color: var(--t1); }

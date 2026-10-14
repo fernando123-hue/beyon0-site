@@ -7,15 +7,17 @@
    preço é o motor (api/_vendas/precos.mjs) e quem decide é o código.
    ========================================================================== */
 export const VERSAO_CONTRATO = 1;
-export const TAREFAS = ['recomendar_pacote'];
+export const TAREFAS = ['recomendar_pacote', 'triar_pedido'];
 
 export const RAMOS = ['servicos', 'saude', 'beleza', 'alimentacao', 'comercio', 'educacao', 'associacao', 'outro'];
 export const OBJETIVOS = ['pedidos_whatsapp', 'achado_google', 'agendamentos', 'vender_online', 'apresentar', 'campanha'];
 export const SITE_ATUAL = ['nao', 'instagram', 'tenho_site', 'so_endereco'];
 export const MATERIAL = ['tenho', 'parte', 'nao'];
 
-/* texto curto e limpo: quebra de linha e tab viram um espaço; os demais controles (inclui DEL e C1) e < > saem */
-const curto = (v, max) => (typeof v === 'string' ? v.replace(/[\r\n\t]+/g, ' ').replace(/[\u0000-\u001f\u007f-\u009f<>]/g, '').trim().slice(0, max) : '');
+/* texto limpo: quebra de linha e tab viram um espaço; os demais controles (inclui DEL e C1) e < > saem.
+   Exportado: os detalhes do pedido (api/_vendas/pedido.mjs) medem o tamanho no texto limpo antes de cortar */
+export const textoLimpo = v => (typeof v === 'string' ? v.replace(/[\r\n\t]+/g, ' ').replace(/[\u0000-\u001f\u007f-\u009f<>]/g, '').trim() : '');
+const curto = (v, max) => textoLimpo(v).slice(0, max);
 
 /* as respostas do formulário (lista fechada). Resposta ausente = "não sei": vale o padrão e fica em `assumido` */
 export function validarRespostas(r) {

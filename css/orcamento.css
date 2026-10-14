@@ -448,3 +448,23 @@ html.menos-movimento .orc-log { scroll-behavior: auto; }
 @media (min-width: 900px) {
   .orc-mesa:has(> .orc-conversa[hidden]) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* OS DETALHES E A CONFIRMAÇÃO PELO WHATSAPP (orçamento sem IA, PR 2a): celular primeiro; texto que importa ≥ 16px;
+   só traço nítido (sem desfoque); o código é dado, por isso em mono */
+.orc-form .orc-nota--aviso { margin-top: 0; font-size: 1rem; color: var(--t2); }
+.orc-sugestoes { display: flex; flex-wrap: wrap; gap: .5rem; }
+.orc-sugestoes .chip { font-size: 1rem; }
+.orc-opcionais { display: flex; flex-direction: column; gap: .5rem; min-width: 0; margin: 1rem 0 0; padding: 0; border: 0; }
+.orc-opcionais legend { padding: 0; font-size: 1rem; color: var(--t1); }
+.orc-redes summary { display: flex; align-items: center; min-height: 44px; font-size: 1rem; color: var(--t2); cursor: pointer; }
+.orc-redes summary:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
+.orc-redes__campos { display: flex; flex-direction: column; gap: .5rem; }
+.orc-confirmar .orc-codigo-grande { margin: .3rem 0 .6rem; font-family: var(--mono); font-size: clamp(2.2rem, 1.6rem + 3vw, 3.2rem); letter-spacing: .08em; line-height: 1.1; color: var(--t1); overflow-wrap: anywhere; }
+.orc-confirmar .btn { margin-top: .6rem; }
+.orc-confirmar .orc-nota { font-size: 1rem; color: var(--t2); }
+.orc-fila-cheia { margin-bottom: 1rem; }
+.orc-fila-cheia:focus { outline: none; }
+.orc-fila-cheia:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
+/* texto que importa com 16px e botões em frase normal (como os das perguntas e do preço) */
+#o-detalhes-form label:not(.orc-check), #o-detalhes-form .orc-check, #o-detalhes-form .orc-erro { font-size: 1rem; }
+#o-detalhes-form .btn, .orc-confirmar .btn, #o-pedido-fim .btn { font-family: var(--sans); font-size: var(--fs-b); text-transform: none; letter-spacing: normal; }
