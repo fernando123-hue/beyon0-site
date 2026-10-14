@@ -256,7 +256,9 @@ try {
   };
   await page.route(ESTADO, comoArquivado);
   await Promise.all([page.waitForResponse(r => r.url().includes('acao=estado')), page.reload({ waitUntil: 'load' })]);
-  await page.waitForTimeout(800);
+  /* (o bloco já nasce escondido: "sumir" não prova nada; a prova de que a tela desenhou o estado do servidor é o código do pedido
+     no topo, que só vira BZ-XXXXX no render com o pedido, e o render escolhe o bloco e os botões de uma vez) */
+  await page.waitForFunction(c => document.getElementById('o-codigo-v').textContent.trim() === c, codigo, { timeout: 15000 });
   ok(await page.locator('#o-confirmar').isHidden(), 'arquivado: a tela não pede mais a confirmação pelo WhatsApp');
   ok(await page.getByRole('button', { name: 'Gerar as três direções' }).count() === 0, 'arquivado, de volta à etapa contato: nenhum "Gerar as três direções" (o servidor recusaria)');
   await page.unroute(ESTADO, comoArquivado);
