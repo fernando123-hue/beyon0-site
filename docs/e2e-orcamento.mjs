@@ -526,7 +526,11 @@ try {
     await c.close();
   }
 
-  /* 320px e desktop: o layout das perguntas, do preço e do "Quer ajustar?" */
+  /* 320px e desktop: o layout das perguntas, do preço e do "Quer ajustar?"
+     Antes, espera a janela do freio geral (90 chamadas por minuto por IP, api/vendas.mjs) esvaziar: numa máquina rápida
+     (o CI) o fluxo principal soma mais de 90 no mesmo minuto e a sessão do 1440 levava 429 (visto no diário do CI). O
+     freio é real e fica como está; quem espera é o teste */
+  await new Promise(r => setTimeout(r, 61e3));
   for (const [w, h, nome] of [[320, 640, '5-inicio-320'], [1440, 900, '6-inicio-desktop']]) {
     const c = await nav.newContext({ viewport: { width: w, height: h } });
     const p = await c.newPage();
