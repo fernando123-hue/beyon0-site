@@ -90,7 +90,7 @@ test('privacidade: cobre o primeiro contato, a busca na web com a Anthropic, o P
     'legítimo interesse (artigo 7º, inciso IX', 'responda “não”', '90 dias depois do último envio', 'Pix direto', 'Quem indica um negócio',
     'a Beyon Zero manda o nome, o tipo, a cidade e o celular do negócio à Anthropic', 'a data da publicação mais recente',
     'se o celular do negócio aparece nela', 'o endereço da logo', 'uma nota de 0 a 100', 'o CNPJ e a natureza jurídica',
-    'De todo contato apagado, ficam por 12 meses', 'execução de contrato (artigo 7º, inciso V']) assert.ok(priv.includes(trecho), 'privacidade sem: ' + trecho);
+    'De todo contato apagado, ficam por 12 meses', 'todos os telefones do cadastro (fixos também)', 'atividade da empresa', 'enquanto a Beyon Zero fizer esse tipo de contato', 'execução de contrato (artigo 7º, inciso V']) assert.ok(priv.includes(trecho), 'privacidade sem: ' + trecho);
   assert.match(priv, /Anthropic \([^)]*faz uma busca na web[^)]*\)/, 'a Anthropic e a busca na web em "Com quem os dados são tratados"');
 });
 
