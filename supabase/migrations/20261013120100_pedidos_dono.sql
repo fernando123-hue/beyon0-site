@@ -23,6 +23,15 @@ begin
   return privado.conversa_do(p_conversa, v_visitante);   -- (FOR UPDATE)
 end $$;
 
+-- a geração para junto com o pedido (descartar ou arquivar): nem o dono (a entrega exige "gerando") nem a IA fazem
+-- as direções que faltam, e a conversa não fica presa em "gerando". Chamada com a conversa já travada
+create function privado.parar_geracao(p_conversa uuid, p_erro text) returns void
+language plpgsql security definer set search_path = '' as $$
+begin
+  update app.direcoes set status = 'falhou', erro = p_erro where conversa_id = p_conversa and status = 'gerando';
+  update app.conversas set etapa = 'contato', ultima_atividade = now() where id = p_conversa and etapa = 'gerando';
+end $$;
+
 -- ---------- a conclusão automática: o pedido sai do trabalho do dono junto com a conversa ----------
 create function privado.pedido_conclui_com_a_conversa() returns trigger
 language plpgsql security definer set search_path = '' as $$
@@ -64,6 +73,10 @@ language plpgsql security definer set search_path = '' as $$
 declare c app.conversas; pd app.pedidos; v_acao text := p ->> 'acao'; v_status text;
 begin
   if v_acao is null or v_acao not in ('descartar', 'arquivar') then raise exception 'ação inválida' using errcode = '22023'; end if;
+  -- a mesma ordem de travas de vendas_concluir_direcao (direções, depois a conversa): sem espera circular (40P01).
+  -- A organização é conferida aqui também, para não travar direção de outra organização
+  perform 1 from app.direcoes d join app.conversas cv on cv.id = d.conversa_id join app.organizacoes o on o.id = cv.org_id
+   where d.conversa_id = (p ->> 'conversa_id')::uuid and o.slug = p ->> 'org_slug' for update of d;
   c := privado.conversa_da_org(p ->> 'org_slug', (p ->> 'conversa_id')::uuid);
   -- descartar só antes do resumo (depois disso há proposta e pagamento); arquivar em qualquer etapa depois do contato
   perform privado.exigir_etapa(c, case when v_acao = 'descartar'
@@ -75,10 +88,9 @@ begin
   if v_acao = 'descartar' and pd.status not in ('aguardando', 'confirmado') then raise exception 'pedido já encerrado' using errcode = '23514'; end if;
   v_status := case v_acao when 'descartar' then 'descartado' else 'arquivado' end;
   update app.pedidos set status = v_status, encerrado_em = now() where id = pd.id;
+  -- encerrado por qualquer das duas ações, o pedido não pode deixar direções órfãs em "gerando"
+  perform privado.parar_geracao(c.id, case v_acao when 'descartar' then 'pedido descartado' else 'pedido arquivado' end);
   if v_acao = 'descartar' then
-    -- a geração para junto: nem o dono (a entrega exige "gerando") nem a IA fazem as direções que faltam
-    update app.direcoes set status = 'falhou', erro = 'pedido descartado' where conversa_id = c.id and status = 'gerando';
-    update app.conversas set etapa = 'contato', ultima_atividade = now() where id = c.id and etapa = 'gerando';
     perform privado.evento(c.org_id, c.id, 'pedido_descartado');
   end if;
   return jsonb_build_object('ok', true, 'status', v_status);
@@ -123,7 +135,8 @@ begin
    where conversa_id = c.id and status = 'pronta' and avisada_em is null
      and geracao = (select max(x.geracao) from app.direcoes x where x.conversa_id = c.id);
   get diagnostics v_n = row_count;
-  if v_n > 0 then
+  -- (só conclui se nada ficou em "gerando": avisar as prontas não tira do dono o que ainda falta fazer)
+  if v_n > 0 and not exists (select 1 from app.direcoes where conversa_id = c.id and status = 'gerando') then
     update app.pedidos set concluido_em = now() where conversa_id = c.id and status = 'confirmado' and concluido_em is null;
   end if;
   return jsonb_build_object('avisadas', v_n);
@@ -198,4 +211,5 @@ begin
   end loop;
 end $$;
 revoke all on function privado.conversa_da_org(text, uuid) from public, anon, authenticated, service_role;
+revoke all on function privado.parar_geracao(uuid, text) from public, anon, authenticated, service_role;
 revoke all on function privado.pedido_conclui_com_a_conversa() from public, anon, authenticated, service_role;

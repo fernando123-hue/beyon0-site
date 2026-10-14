@@ -306,7 +306,7 @@ test('pendentes: os não confirmados numa lista separada (mais novos primeiro), 
   assert.deepEqual(p.itens[ia].redes, { instagram: 'clinicasol' });
   assert.ok(p.itens.length <= 50 && p.total >= p.itens.length);
   const busca = await rpc('vendas_pedidos_pendentes', { org_slug: 'beyon-zero', codigo: a.codigo.toLowerCase() });
-  assert.deepEqual(busca.itens.map(x => x.conversa_id), [a.conversa_id], 'a busca acha o pedido mesmo fora dos 50 mais novos');
+  assert.deepEqual(busca.itens.map(x => x.conversa_id), [a.conversa_id], 'a busca pelo código acha o pedido (em minúsculas também; o caso de mais de 50 está no teste dos 50 mais novos)');
   assert.equal(busca.total, 1);
   await confirmar(a.conversa_id);
   await mudar(b.conversa_id, 'descartar');
@@ -361,4 +361,56 @@ test('rotina: vence os não confirmados (evento uma vez), apaga o hash do telefo
   assert.match((await pedido(recente.conversa_id)).telefone_hash, /^[0-9a-f]{64}$/, 'encerrado hoje: ainda conta para o limite do dia');
   assert.equal((await rpc('vendas_expirar_pedidos', {})).expirados, 0, 'de novo: nada');
   assert.equal(Number((await um("select count(*) n from app.eventos_funil where conversa_id = $1 and tipo = 'pedido_expirado'", [p.conversa_id])).n), 1);
+});
+
+/* ---------- correções da revisão da Task 2 ---------- */
+test('arquivar com a geração em andamento: para as direções e devolve a etapa, como o descartar (nenhuma órfã)', async () => {
+  const p = await pedidoAguardando();
+  await confirmar(p.conversa_id);
+  assert.equal((await um('select etapa from app.conversas where id = $1', [p.conversa_id])).etapa, 'gerando');
+  assert.deepEqual(await mudar(p.conversa_id, 'arquivar'), { ok: true, status: 'arquivado' });
+  const dirs = (await db.query('select status, erro from app.direcoes where conversa_id = $1', [p.conversa_id])).rows;
+  assert.equal(dirs.length, 3);
+  assert.ok(dirs.every(d => d.status === 'falhou' && d.erro === 'pedido arquivado'), 'nenhuma direção segue "gerando"');
+  assert.equal((await um('select etapa from app.conversas where id = $1', [p.conversa_id])).etapa, 'contato');
+  assert.equal((await pedido(p.conversa_id)).status, 'arquivado');
+});
+
+test('"Já avisei" com uma direção ainda em "gerando": avisa as prontas mas o pedido segue na fila até a última sair', async () => {
+  const p = await pedidoAguardando();
+  await confirmar(p.conversa_id);
+  const ids = (await db.query("select id from app.direcoes where conversa_id = $1 order by numero", [p.conversa_id])).rows.map(r => r.id);
+  for (const id of ids.slice(0, 2)) await rpc('vendas_concluir_direcao', { direcao_id: id, conteudo: { secoes: [] }, modelo: 'teste' });
+  assert.equal((await rpc('vendas_marcar_avisado', { org_slug: 'beyon-zero', conversa_id: p.conversa_id })).avisadas, 2);
+  assert.equal((await pedido(p.conversa_id)).concluido_em, null, 'falta uma direção: o dono ainda tem trabalho');
+  await rpc('vendas_concluir_direcao', { direcao_id: ids[2], conteudo: { secoes: [] }, modelo: 'teste' });
+  assert.equal((await rpc('vendas_marcar_avisado', { org_slug: 'beyon-zero', conversa_id: p.conversa_id })).avisadas, 1);
+  assert.ok((await pedido(p.conversa_id)).concluido_em, 'nenhuma em "gerando": concluído');
+});
+
+test('pendentes: a lista traz só os 50 mais novos, e a busca pelo código acha um pedido que está fora deles', async () => {
+  const antigo = await pedidoAguardando();
+  for (let i = 0; i < 50; i++) await pedidoAguardando();
+  const lista = await rpc('vendas_pedidos_pendentes', { org_slug: 'beyon-zero' });
+  assert.equal(lista.itens.length, 50);
+  assert.ok(lista.total >= 51);
+  assert.ok(!lista.itens.some(x => x.conversa_id === antigo.conversa_id), 'o mais antigo ficou fora dos 50');
+  const busca = await rpc('vendas_pedidos_pendentes', { org_slug: 'beyon-zero', codigo: antigo.codigo });
+  assert.deepEqual(busca.itens.map(x => x.conversa_id), [antigo.conversa_id]);
+  assert.equal(busca.total, 1);
+});
+
+test('pedido já encerrado: descartar de novo e descartar expirado são recusados; confirmar o que já foi confirmado devolve a situação', async () => {
+  const d = await pedidoAguardando();
+  await mudar(d.conversa_id, 'descartar');
+  assert.equal((await erroDe(mudar(d.conversa_id, 'descartar')))?.codigo, REGRA, 'descartar duas vezes');
+  const e = await pedidoAguardando();
+  await vencer(e.conversa_id);
+  assert.deepEqual(await confirmar(e.conversa_id), { ok: false, status: 'expirado' });
+  assert.equal((await erroDe(mudar(e.conversa_id, 'descartar')))?.codigo, REGRA, 'descartar o expirado');
+  const f = await pedidoAguardando();
+  await confirmar(f.conversa_id);
+  await concluirDirecoes(f.conversa_id, { erro: 'teste' });   /* as três falham: a conversa volta a "contato" */
+  assert.equal((await um('select etapa from app.conversas where id = $1', [f.conversa_id])).etapa, 'contato');
+  assert.deepEqual(await confirmar(f.conversa_id), { ok: false, status: 'confirmado' }, 'confirmar de novo não regera');
 });
