@@ -56,7 +56,7 @@ test('condições: desistência diz os 7 dias (CDC art. 49), a devolução intei
   assert.match(texto, /Depois dos 7 dias, se eu ainda não comecei o site, devolvo a entrada inteira/);
   assert.match(texto, /Se eu já comecei, a entrada fica/);
   assert.match(html, /<a data-wa="[^"]*desistir[^"]*" href="https:\/\/wa\.me\/\d+">WhatsApp da Beyon Zero<\/a>/);
-  assert.match(texto, /mesmo meio do pagamento/);
+  assert.match(texto, /devolução é imediata, pelo mesmo meio do pagamento \(o Pix\), com o valor corrigido/);
   assert.match(texto, /orçamento automático do site segue a tabela normal/);
 });
 
