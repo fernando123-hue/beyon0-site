@@ -12,7 +12,7 @@ import { configPagamentos } from '../../api/_pagamentos/config.mjs';
 import { ErroIA } from '../../api/_ia/provedor.mjs';
 import { RECUPERACAO } from '../../api/_vendas/fluxo.mjs';
 import { SISTEMA } from '../../api/_vendas/agente.mjs';
-import { LIMITES_DE_TESTE, detalhesEConfirmar } from './_pedido.mjs';
+import { LIMITES_DE_TESTE, detalhesEConfirmar, telefoneDeTeste } from './_pedido.mjs';
 
 let local, deps;
 const PAGADOR = { nome: 'Ana', sobrenome: 'Souza', email: 'ana@exemplo.com', documento: '52998224725' };
@@ -286,6 +286,34 @@ test('dados incompletos ou inconsistentes: cada um recusado com motivo, sem 500'
     assert.equal(r.status, esperado, acao + ' ' + String(JSON.stringify(corpo)).slice(0, 60) + ' → ' + JSON.stringify(r.corpo));
   }
   assert.equal((await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'oi' }, { tipo: 'text/plain' })).status, 415, 'formulário de outro site');
+});
+
+test('gerar só com o pedido CONFIRMADO: conversa antiga em contato (sem pedido) e pedido esperando recebem 409 da API; confirmado gera (o banco ainda aceita o 1º caso, PR2a-banco)', async () => {
+  const n = navegador();
+  const s = await n.iniciar();
+  const c = s.conversa_id;
+  await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Tenho uma clínica e quero um site institucional para agendamentos' });
+  await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'sim' });
+  const vid = (await local.db.query('select visitante_id from app.conversas where id = $1', [c])).rows[0].visitante_id;
+  /* o fluxo antigo: contato informado direto, sem linha em app.pedidos */
+  await local.rpc('vendas_informar_contato', { conversa_id: c, visitante_id: vid, nome: 'Ana', telefone: '+5521999990000', aceite: true });
+  assert.equal(Number((await local.db.query('select count(*) n from app.pedidos where conversa_id = $1', [c])).rows[0].n), 0, 'sem pedido');
+  const antiga = await n.chamar('POST', 'gerar', { conversa_id: c });
+  assert.equal(antiga.status, 409, 'sem pedido: a API recusa — ' + JSON.stringify(antiga.corpo));
+  assert.match(antiga.corpo.erro, /ainda não foi confirmado pelo WhatsApp/);
+  assert.equal(Number((await local.db.query('select count(*) n from app.direcoes where conversa_id = $1', [c])).rows[0].n), 0, 'nenhuma direção nasceu');
+  /* o pedido esperando a confirmação */
+  const n2 = navegador();
+  const c2 = (await n2.iniciar()).conversa_id;
+  await n2.chamar('POST', 'mensagem', { conversa_id: c2, texto: 'Tenho uma clínica e quero um site institucional para agendamentos' });
+  await n2.chamar('POST', 'mensagem', { conversa_id: c2, texto: 'sim' });
+  const det = await n2.chamar('POST', 'detalhes', { conversa_id: c2, negocio: 'Clínica Sol', vende: 'Consultas', telefone: telefoneDeTeste(), aceite: true });
+  assert.equal(det.status, 200, JSON.stringify(det.corpo));
+  const aguardando = await n2.chamar('POST', 'gerar', { conversa_id: c2 });
+  assert.equal(aguardando.status, 409, 'esperando a confirmação: recusado — ' + JSON.stringify(aguardando.corpo));
+  await local.rpc('vendas_confirmar_whatsapp', { org_slug: 'beyon-zero', conversa_id: c2 });
+  const confirmado = await n2.chamar('POST', 'gerar', { conversa_id: c2 });
+  assert.equal(confirmado.status, 200, 'confirmado: gera — ' + JSON.stringify(confirmado.corpo));
 });
 
 test('teto de custo RESERVADO antes de chamar: as 3 direções em paralelo, com a conversa perto do teto, não passam juntas (revisão do PR 1, segurança B6)', async () => {
