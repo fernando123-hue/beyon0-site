@@ -7,8 +7,8 @@
 --     além) ou a geração acabou sem pendência (as três falharam). Assim nenhum confirmado ocupa o teto e o
 --     telefone sem aparecer na fila (privado.pedido_na_fila, 20261013120000_pedidos.sql);
 --   • gerar direções exige o pedido confirmado, também na conversa sem pedido (o caminho antigo: nada nasce);
---   • a rotina diária vence quem não confirmou em 72 h, apaga o hash do telefone 2 dias depois do encerramento e
---     as redes do cliente depois de 60 dias.
+--   • a rotina diária vence quem não confirmou em 72 h, apaga o hash do telefone 2 dias depois do encerramento ou da
+--     conclusão (e, em qualquer caso, 30 dias depois do pedido) e as redes do cliente depois de 60 dias.
 -- A fila do painel (só confirmados) vem em 20261013120200_fila_confirmados.sql.
 -- ==========================================================================
 
@@ -190,10 +190,13 @@ begin
     returning 1
   )
   select count(*) into v_expirados from eventos;
-  -- o hash só serve para os freios (aberto e "2 por dia"): 2 dias depois de encerrado ou concluído, não serve mais
+  -- o hash só serve para os freios (aberto e "2 por dia"): 2 dias depois de encerrado ou concluído, não serve mais.
+  -- E nunca passa de 30 dias do pedido (revisão final, B9): o confirmado que ninguém conclui ficava com ele sem prazo; um
+  -- pedido parado há 30 dias na fila está abandonado (o dono o vê na fila; o número só volta a poder pedir)
   update app.pedidos set telefone_hash = null
   where telefone_hash is not null
-    and coalesce(encerrado_em, concluido_em) < now() - make_interval(days => greatest(1, coalesce((p ->> 'dias_telefone')::integer, 2)));
+    and (coalesce(encerrado_em, concluido_em) < now() - make_interval(days => greatest(1, coalesce((p ->> 'dias_telefone')::integer, 2)))
+         or created_at < now() - make_interval(days => greatest(7, coalesce((p ->> 'dias_telefone_max')::integer, 30))));
   get diagnostics v_telefones = row_count;
   update app.pedidos set redes = '{}', redes_autorizadas_em = null
   where redes <> '{}' and created_at < now() - make_interval(days => greatest(30, coalesce((p ->> 'dias_redes')::integer, 60)));

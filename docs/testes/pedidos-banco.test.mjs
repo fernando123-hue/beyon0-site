@@ -397,6 +397,26 @@ test('rotina: vence os não confirmados (evento uma vez), apaga o hash do telefo
   assert.equal(Number((await um("select count(*) n from app.eventos_funil where conversa_id = $1 and tipo = 'pedido_expirado'", [p.conversa_id])).n), 1);
 });
 
+/* (revisão final do PR 2a, B9) o confirmado que ninguém conclui (o dono não avisa, o cliente não escolhe) ficava com o
+   hash do telefone sem prazo. O hash sai também 30 dias depois do pedido, em qualquer situação: o freio por telefone só
+   precisa dele no dia ("2 por dia") e enquanto o pedido está aberto, e um pedido parado há 30 dias na fila é um pedido
+   abandonado (o dono o vê na fila; o número só volta a poder pedir) */
+test('rotina: o hash do telefone sai também do confirmado que nunca concluiu, 30 dias depois do pedido; o pedido segue na fila', async () => {
+  const preso = await pedidoAguardando();
+  await confirmar(preso.conversa_id);
+  await db.query("update app.pedidos set created_at = now() - interval '31 days', confirmado_em = now() - interval '31 days' where conversa_id = $1", [preso.conversa_id]);
+  const recente = await pedidoAguardando();
+  await confirmar(recente.conversa_id);
+  await db.query("update app.pedidos set created_at = now() - interval '29 days', confirmado_em = now() - interval '29 days' where conversa_id = $1", [recente.conversa_id]);
+  const r = await rpc('vendas_expirar_pedidos', {});
+  assert.ok(r.telefones_apagados >= 1, JSON.stringify(r));
+  const pd = await pedido(preso.conversa_id);
+  assert.equal(pd.telefone_hash, null, 'pedido de 31 dias, nunca concluído: o hash sai');
+  assert.equal(pd.status, 'confirmado');
+  assert.equal((await um('select privado.pedido_na_fila(pd) f from app.pedidos pd where conversa_id = $1', [preso.conversa_id])).f, true, 'só o hash sai: o pedido segue na fila do dono');
+  assert.match((await pedido(recente.conversa_id)).telefone_hash, /^[0-9a-f]{64}$/, '29 dias: o hash fica');
+});
+
 /* ---------- correções da revisão da Task 2 ---------- */
 test('arquivar com a geração em andamento: para as direções e devolve a etapa, como o descartar (nenhuma órfã)', async () => {
   const p = await pedidoAguardando();
