@@ -18,8 +18,10 @@ import { textoLimpo } from '../_classificador/contrato.mjs';
 
 /* os freios do pedido, passados ao banco a cada chamada (o banco tem os mesmos números como padrão). O teto da fila é
    a decisão D1 (plano docs/superpowers/plans/2026-10-13-orcamento-sem-ia-pr2a.md); o alarme dos pendentes avisa o
-   dono no painel quando a lista de não confirmados cresce além do normal */
-export const PEDIDOS = Object.freeze({ por_ip_dia: 3, por_telefone_dia: 2, fila_confirmados: 10, horas_para_confirmar: 72, alarme_pendentes: 20 });
+   dono no painel quando a lista de não confirmados cresce além do normal. tentativas_por_conversa: quantas vezes a mesma
+   conversa envia os detalhes (revisão final, M2: trocar o telefone para sondar se um número já pediu) */
+export const PEDIDOS = Object.freeze({ por_ip_dia: 3, por_telefone_dia: 2, fila_confirmados: 10, horas_para_confirmar: 72, alarme_pendentes: 20,
+  tentativas_por_conversa: 3 });
 
 /* as redes aceitas: o domínio fixo e o formato do usuário (o MESMO de js/painel-pedido-comum.js) */
 export const REDES = Object.freeze({

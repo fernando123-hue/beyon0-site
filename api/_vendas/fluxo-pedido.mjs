@@ -20,7 +20,9 @@ const MOTIVOS = {
   fila_cheia: { status: 503, texto: 'Muita procura agora: a fila de modelos está cheia. Fale com a Beyon Zero pelo WhatsApp e a gente segue por lá.', extra: { fila_cheia: true, whatsapp: true } },
   telefone_aberto: { status: 409, texto: TELEFONE, extra: { whatsapp: true } },
   telefone_dia: { status: 409, texto: TELEFONE, extra: { whatsapp: true } },
-  freio_ip: { status: 429, texto: 'Muitos pedidos deste endereço hoje. Fale com a Beyon Zero pelo WhatsApp: a gente continua por lá.', extra: { whatsapp: true } }
+  freio_ip: { status: 429, texto: 'Muitos pedidos deste endereço hoje. Fale com a Beyon Zero pelo WhatsApp: a gente continua por lá.', extra: { whatsapp: true } },
+  /* (revisão final, M2) a mesma conversa tentou demais: não diz nada do número */
+  tentativas: { status: 429, texto: 'Muitas tentativas neste pedido. Fale com a Beyon Zero pelo WhatsApp: a gente continua por lá.', extra: { whatsapp: true } }
 };
 
 export function criarAcoesDoPedido({ banco, visitante, segredoFreio, limites = PEDIDOS, requestId }) {
@@ -43,7 +45,7 @@ export function criarAcoesDoPedido({ banco, visitante, segredoFreio, limites = P
           conversa_id: corpo.conversa_id, visitante_id: vid, nome: d.nome, telefone: d.telefone, aceite: true,
           briefing: d.briefing, redes: d.redes, suspeito: d.suspeito, telefone_hash: telefoneHash,
           chave_ip: chaveDoIp(ipDe(request), segredoFreio, new Date(), 'pedido'),
-          max_por_ip: limites.por_ip_dia, max_por_telefone_dia: limites.por_telefone_dia,
+          max_por_ip: limites.por_ip_dia, max_por_telefone_dia: limites.por_telefone_dia, max_tentativas: limites.tentativas_por_conversa,
           teto_fila: limites.fila_confirmados, horas: limites.horas_para_confirmar
         });
       } catch (e) {

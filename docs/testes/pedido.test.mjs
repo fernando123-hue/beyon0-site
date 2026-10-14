@@ -14,7 +14,8 @@ const OK = { conversa_id: '00000000-0000-4000-8000-000000000001', negocio: 'Clí
 const SEM_JEV = { cfg: { jev: false, prazoMs: 50 } };
 
 test('os freios do pedido: os números do spec §0, o teto da fila (D1) e o alarme dos pendentes', () => {
-  assert.deepEqual({ ...PEDIDOS }, { por_ip_dia: 3, por_telefone_dia: 2, fila_confirmados: 10, horas_para_confirmar: 72, alarme_pendentes: 20 });
+  assert.deepEqual({ ...PEDIDOS }, { por_ip_dia: 3, por_telefone_dia: 2, fila_confirmados: 10, horas_para_confirmar: 72, alarme_pendentes: 20,
+    tentativas_por_conversa: 3 });
 });
 
 test('detalhes: esquema fechado, obrigatórios e tamanhos (60 a 200), com motivo em português', async () => {

@@ -3,8 +3,9 @@
 -- Os detalhes do negócio viram um pedido com código (BZ-K7M3Q). A pessoa confirma escrevendo para o WhatsApp
 -- da Beyon Zero; o dono marca "confirmado" no painel (20261013120100_pedidos_dono.sql). Sem IA, o recurso
 -- escasso é o tempo do dono, e os freios ficam AQUI (valem entre instâncias da função):
---   • uma vez por conversa, só antes do contato e só com o pacote gravado;
---   • por IP: 3 pedidos por dia (privado.contar_ip; a chave é um HMAC feito no servidor, com uso próprio);
+--   • uma vez por conversa, só antes do contato e só com o pacote gravado; no máximo 3 TENTATIVAS por conversa;
+--   • por IP: 3 tentativas por dia (privado.contar_ip; a chave é um HMAC feito no servidor, com uso próprio).
+--     Contado ANTES do telefone: quem sonda se um número já pediu gasta a cota;
 --   • por telefone (HMAC do número normalizado, feito no servidor): 1 pedido aberto e 2 por dia;
 --   • fila global: com o teto de pedidos NA FILA atingido, a tela oferece o WhatsApp.
 -- UMA regra decide o que ocupa o dono (privado.pedido_na_fila): a fila, o teto, o estado e o freio por telefone
@@ -25,6 +26,10 @@ alter table app.eventos_funil add constraint eventos_funil_tipo_check check (tip
   'alteracao_pedida', 'escopo_apresentado', 'escopo_confirmado', 'pagamento_iniciado',
   'pagamento_confirmado', 'ia_falhou', 'tentativa_bloqueada', 'freio_ip',
   'respostas_formulario', 'confirmacao_whatsapp', 'pedido_expirado', 'pedido_descartado'));
+
+-- as tentativas de enviar os detalhes, por conversa (revisão final do PR 2a, M2): a mesma conversa não reenvia à vontade
+-- trocando o telefone para descobrir se um número já pediu
+alter table app.conversas add column tentativas_detalhes smallint not null default 0 check (tentativas_detalhes >= 0);
 
 -- ---------- o pedido ----------
 create table app.pedidos (
@@ -155,7 +160,7 @@ declare
   v_tel text := p ->> 'telefone_hash';
   v_chave_ip text := p ->> 'chave_ip';
   v_hoje timestamptz := date_trunc('day', now() at time zone 'America/Sao_Paulo') at time zone 'America/Sao_Paulo';
-  v_codigo text; v_expira timestamptz; v_tentativa integer;
+  v_codigo text; v_expira timestamptz; v_tentativa integer; v_tentativas integer;
 begin
   c := privado.conversa_do((p ->> 'conversa_id')::uuid, (p ->> 'visitante_id')::uuid);
   perform privado.exigir_etapa(c, array['descoberta', 'estimativa']);
@@ -179,21 +184,28 @@ begin
      >= coalesce((p ->> 'teto_fila')::integer, 10) then
     return jsonb_build_object('ok', false, 'motivo', 'fila_cheia');
   end if;
+  -- (revisão final, M2) daqui em diante toda tentativa CONTA, e as contas ficam: a função RETORNA em vez de falhar.
+  -- Assim "telefone aberto" e "limite do dia" (mesma frase na API) não viram um oráculo de graça: a mesma conversa tenta
+  -- no máximo 3 vezes, e cada tentativa gasta a cota do IP antes de qualquer teste de telefone
+  update app.conversas set tentativas_detalhes = tentativas_detalhes + 1 where id = c.id
+  returning tentativas_detalhes into v_tentativas;
+  if v_tentativas > coalesce((p ->> 'max_tentativas')::integer, 3) then
+    return jsonb_build_object('ok', false, 'motivo', 'tentativas');
+  end if;
+  -- por IP. Sem chave (null: servidor local sem segredo), não conta; chave não nula e mal formada já foi recusada lá em
+  -- cima (22023). (dois ifs, e não um "and": o Postgres não garante a ordem do "and", e contar_ip com chave nula falha)
+  if v_chave_ip is not null then
+    if not privado.contar_ip(v_chave_ip, coalesce((p ->> 'max_por_ip')::integer, 3)) then
+      perform privado.evento(c.org_id, c.id, 'freio_ip', jsonb_build_object('onde', 'detalhes'));
+      return jsonb_build_object('ok', false, 'motivo', 'freio_ip');
+    end if;
+  end if;
   if exists (select 1 from app.pedidos pd where pd.org_id = c.org_id and pd.telefone_hash = v_tel and privado.pedido_aberto(pd)) then
     return jsonb_build_object('ok', false, 'motivo', 'telefone_aberto');
   end if;
   if (select count(*) from app.pedidos pd where pd.org_id = c.org_id and pd.telefone_hash = v_tel and pd.created_at >= v_hoje)
      >= coalesce((p ->> 'max_por_telefone_dia')::integer, 2) then
     return jsonb_build_object('ok', false, 'motivo', 'telefone_dia');
-  end if;
-  -- por IP (por último: só conta quem passou pelo resto; o evento fica, porque a função RETORNA em vez de falhar).
-  -- Sem chave (null: servidor local sem segredo), não conta; chave não nula e mal formada já foi recusada lá em cima (22023)
-  -- (dois ifs, e não um "and": o Postgres não garante a ordem do "and", e contar_ip com chave nula falha)
-  if v_chave_ip is not null then
-    if not privado.contar_ip(v_chave_ip, coalesce((p ->> 'max_por_ip')::integer, 3)) then
-      perform privado.evento(c.org_id, c.id, 'freio_ip', jsonb_build_object('onde', 'detalhes'));
-      return jsonb_build_object('ok', false, 'motivo', 'freio_ip');
-    end if;
   end if;
   -- o contato vira lead pelo MESMO caminho de sempre: aceite obrigatório e a data do 1º aceite preservada (LGPD)
   perform app.vendas_informar_contato(jsonb_build_object('conversa_id', c.id, 'visitante_id', c.visitante_id,

@@ -136,6 +136,26 @@ test('freio por IP: o 4º pedido do mesmo IP no dia é recusado, com o evento fr
   assert.equal(await linhas(), antes, 'sem chave: o freio_ip não ganhou linha');
 });
 
+/* (revisão final do PR 2a, M2) o banco não pode responder a quem sonda se um número já pediu orçamento: toda tentativa
+   gasta a cota do IP (contado ANTES dos testes de telefone) e a mesma conversa tenta no máximo 3 vezes, contadas no banco */
+test('detalhes: a mesma conversa tenta no máximo 3 vezes; a 4ª é recusada mesmo com um número novo, sem gravar o pedido', async () => {
+  const telefone = telefoneNovo();
+  assert.equal((await detalhes(await comPacote(), { telefone })).ok, true);
+  const b = await comPacote();
+  for (let i = 1; i <= 3; i++) assert.deepEqual(await detalhes(b, { telefone }), { ok: false, motivo: 'telefone_aberto' }, 'tentativa ' + i);
+  assert.deepEqual(await detalhes(b), { ok: false, motivo: 'tentativas' }, 'a 4ª, trocando o telefone');
+  assert.equal(await pedidosDa(b.conversa_id), 0, 'nenhum pedido');
+  assert.equal((await um('select etapa from app.conversas where id = $1', [b.conversa_id])).etapa, 'estimativa');
+});
+
+test('detalhes: a recusa por telefone gasta a cota do IP (as sondas param no freio do IP como qualquer pedido)', async () => {
+  const chave_ip = hex('ip-sonda-' + Date.now());
+  const telefone = telefoneNovo();
+  assert.equal((await detalhes(await comPacote(), { telefone })).ok, true);
+  for (let i = 1; i <= 3; i++) assert.deepEqual(await detalhes(await comPacote(), { telefone, chave_ip }), { ok: false, motivo: 'telefone_aberto' }, 'sonda ' + i);
+  assert.deepEqual(await detalhes(await comPacote(), { chave_ip }), { ok: false, motivo: 'freio_ip' }, 'as três sondas gastaram a cota do dia');
+});
+
 test('fila global: o teto conta pela regra da fila (pedido_na_fila); aguardando e concluído não ocupam', async () => {
   const a = await comPacote();
   await detalhes(a);

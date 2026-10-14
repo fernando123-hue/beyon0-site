@@ -87,6 +87,20 @@ test('freio por telefone: o mesmo WhatsApp com outra escrita, em outra conversa,
   assert.match(r.corpo.erro, /WhatsApp/);
 });
 
+/* (revisão final do PR 2a, M2) a mesma conversa reenviando os detalhes trocando o telefone (para descobrir se um número já
+   pediu) para na 4ª tentativa, com o WhatsApp à mão e sem dizer nada do número */
+test('detalhes: a 4ª tentativa na mesma conversa leva 429 com o WhatsApp, mesmo com um número novo', async () => {
+  const fone = '(21) 97777-' + String(1000 + (++telSeq));
+  const a = navegador(), ca = await comPacote(a);
+  assert.equal((await a.chamar('POST', 'detalhes', { conversa_id: ca, ...DETALHES(), telefone: fone })).status, 200);
+  const n = navegador(), c = await comPacote(n);
+  for (let i = 1; i <= 3; i++) assert.equal((await n.chamar('POST', 'detalhes', { conversa_id: c, ...DETALHES(), telefone: fone })).status, 409, 'tentativa ' + i);
+  const r = await n.chamar('POST', 'detalhes', { conversa_id: c, ...DETALHES() });
+  assert.equal(r.status, 429, JSON.stringify(r.corpo));
+  assert.equal(r.corpo.whatsapp, true);
+  assert.doesNotMatch(r.corpo.erro, /aberto|limite de pedidos de hoje/, 'não fala do número');
+});
+
 test('freio por IP: o 4º pedido do mesmo endereço no dia leva 429 (com segredo; IPv6 conta pelo /64)', async () => {
   for (let i = 1; i <= 3; i++) {
     const n = navegador('2001:db8:aa:bb::' + i), c = await comPacote(n);
