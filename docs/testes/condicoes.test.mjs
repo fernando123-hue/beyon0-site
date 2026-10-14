@@ -39,9 +39,30 @@ test('condições: meta, canonical e OG apontam para /condicoes no domínio vige
   assert.ok(!/https?:\/\/(?!beyon0-site\.vercel\.app|wa\.me|www\.w3\.org)/.test(visivel.replace(/http-equiv[^>]*>/, '')), 'domínio ou link externo fora do combinado');
 });
 
-test('condições: o rodapé de toda página com "Privacidade" leva também às condições, e o sitemap a lista', () => {
+test('condições: o rodapé de toda página com "Privacidade" leva também às condições', () => {
   const comRodape = readdirSync(RAIZ).filter(f => f.endsWith('.html') && ler(f).includes('footer__legal'));
   assert.ok(comRodape.length >= 4, 'esperava index, sites, automação e orçamento: ' + comRodape.join(', '));
   for (const f of comRodape) assert.match(ler(f), /<a href="\/privacidade">Privacidade<\/a>\s*<a href="\/condicoes">Condições do lançamento<\/a>/, f + ': sem o link das condições ao lado de Privacidade');
-  assert.match(ler('sitemap.xml'), /<loc>https:\/\/beyon0-site\.vercel\.app\/condicoes<\/loc>/);
+});
+
+/* a oferta vence em 31/12/2026 ou no 10º cliente: a página é para quem recebe o link, não para o Google (decisão do coordenador, 2026-10-14) */
+test('condições: fora do Google (noindex) e fora do sitemap', () => {
+  assert.match(html, /<meta name="robots" content="noindex, follow" \/>/);
+  assert.ok(!/condicoes/.test(ler('sitemap.xml')), 'a página está no sitemap');
+});
+
+test('condições: desistência diz os 7 dias (CDC art. 49), a devolução inteira e como pedir', () => {
+  assert.match(texto, /Até 7 dias depois de aceitar.*entrada inteira \(Código de Defesa do Consumidor, art\. 49\)/);
+  assert.match(texto, /Depois dos 7 dias, se eu ainda não comecei o site, devolvo a entrada inteira/);
+  assert.match(texto, /Se eu já comecei, a entrada fica/);
+  assert.match(html, /<a data-wa="[^"]*desistir[^"]*" href="https:\/\/wa\.me\/\d+">WhatsApp da Beyon Zero<\/a>/);
+  assert.match(texto, /mesmo meio do pagamento/);
+  assert.match(texto, /orçamento automático do site segue a tabela normal/);
+});
+
+/* a política de privacidade cobre o que a captação faz (Decisões 2026-10-12; docs/lgpd/ da captação) */
+test('privacidade: cobre o primeiro contato, o Pix direto e a indicação', () => {
+  const priv = ler('privacidade.html').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ');
+  for (const trecho of ['Quando a Beyon Zero procura o seu negócio', 'cadastro público de empresas da Receita Federal', 'legítimo interesse (artigo 7º, inciso IX',
+    'responda “não”', '90 dias depois do último envio', '12 meses', 'Pix direto', 'Quem indica um negócio']) assert.ok(priv.includes(trecho), 'privacidade sem: ' + trecho);
 });
