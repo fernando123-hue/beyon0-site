@@ -42,7 +42,9 @@ const SABOTAGENS = [
   { nome: 'telefone sem limite de pedido aberto', arquivo: '20261013120000_pedidos.sql', testes: ['docs/testes/pedidos-banco.test.mjs'],
     de: 'if exists (select 1 from app.pedidos pd where pd.org_id = c.org_id and pd.telefone_hash = v_tel and privado.pedido_aberto(pd)) then', para: 'if false then' },
   { nome: 'direções geradas sem a confirmação pelo WhatsApp', arquivo: '20261013120100_pedidos_dono.sql', testes: ['docs/testes/pedidos-banco.test.mjs'],
-    de: "if exists (select 1 from app.pedidos pd where pd.conversa_id = c.id and pd.status <> 'confirmado') then", para: 'if false then' }
+    de: "if exists (select 1 from app.pedidos pd where pd.conversa_id = c.id and pd.status <> 'confirmado') then", para: 'if false then' },
+  { nome: 'fila do dono mostra pedido fora da fila (descartado, arquivado, concluído)', arquivo: '20261013120200_fila_confirmados.sql', testes: ['docs/testes/pedidos-banco.test.mjs'],
+    de: 'where pd.org_id = v_org and privado.pedido_na_fila(pd)', para: 'where pd.org_id = v_org' }
 ];
 
 let pegas = 0;

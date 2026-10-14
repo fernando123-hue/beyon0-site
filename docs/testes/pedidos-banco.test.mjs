@@ -414,3 +414,39 @@ test('pedido já encerrado: descartar de novo e descartar expirado são recusado
   assert.equal((await um('select etapa from app.conversas where id = $1', [f.conversa_id])).etapa, 'contato');
   assert.deepEqual(await confirmar(f.conversa_id), { ok: false, status: 'confirmado' }, 'confirmar de novo não regera');
 });
+
+/* ---------- a fila só de confirmados (20261013120200_fila_confirmados.sql) ---------- */
+const fila = async () => (await rpc('vendas_fila_direcoes', { org_slug: 'beyon-zero' })).itens;
+
+test('fila: só os pedidos na fila (descartado, arquivado, aguardando e concluído ficam fora); prontos para avisar vêm antes', async () => {
+  const aguardando = await pedidoAguardando();
+  const produzir = await pedidoAguardando({ suspeito: true });
+  await confirmar(produzir.conversa_id);
+  const avisar = await pedidoAguardando();
+  await confirmar(avisar.conversa_id);
+  await concluirDirecoes(avisar.conversa_id);
+  const descartado = await pedidoAguardando();
+  await confirmar(descartado.conversa_id);
+  await mudar(descartado.conversa_id, 'descartar');
+  const arquivado = await pedidoAguardando();
+  await confirmar(arquivado.conversa_id);
+  await mudar(arquivado.conversa_id, 'arquivar');
+  const f = await fila(), ids = f.map(x => x.conversa_id);
+  for (const [nome, p] of [['aguardando', aguardando], ['descartado', descartado], ['arquivado', arquivado]])
+    assert.ok(!ids.includes(p.conversa_id), nome + ': fora da fila de trabalho');
+  const i = ids.indexOf(avisar.conversa_id), j = ids.indexOf(produzir.conversa_id);
+  assert.ok(i >= 0 && j >= 0 && i < j, 'prontos para avisar antes dos que faltam produzir');
+  assert.equal(f[i].prioridade, 1);
+  assert.equal(f[j].prioridade, 2);
+  assert.equal(f[j].codigo, produzir.codigo);
+  assert.equal(f[j].suspeito, true);
+  assert.ok(f[j].contato.telefone && f[j].briefing.negocio.nome, 'o que o dono precisa para produzir');
+});
+
+test('fila: nunca esconde nem sobra — o total é exatamente o número de pedidos na fila (a mesma regra do teto), sem o corte de 50', async () => {
+  for (let k = 0; k < 52; k++) await confirmar((await pedidoAguardando()).conversa_id);
+  const r = await rpc('vendas_fila_direcoes', { org_slug: 'beyon-zero' });
+  assert.equal(r.total, r.itens.length);
+  assert.equal(r.total, await naFila(), 'fila = pedido_na_fila');
+  assert.ok(r.total >= 52);
+});
