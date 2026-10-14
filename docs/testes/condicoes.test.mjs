@@ -79,6 +79,10 @@ test('condições: desistência diz os 7 dias (CDC art. 49), a devolução intei
   assert.match(texto, /orçamento automático do site segue a tabela normal/);
 });
 
+test('condições: a vaga é confirmada na conversa, antes do "ok"', () => {
+  assert.match(texto, /A vaga é confirmada na conversa, antes do seu “ok”\./);
+});
+
 test('condições: diz, sem tom de aviso, que por enquanto não há nota fiscal (decisão do dono, 2026-10-11)', () => {
   assert.match(texto, /Por enquanto, não emito nota fiscal/);
 });
@@ -88,10 +92,19 @@ test('condições: diz, sem tom de aviso, que por enquanto não há nota fiscal 
 test('privacidade: cobre o primeiro contato, a busca na web com a Anthropic, o Pix direto e a indicação', () => {
   for (const trecho of ['Quando a Beyon Zero procura o seu negócio', 'cadastro público de empresas da Receita Federal',
     'legítimo interesse (artigo 7º, inciso IX', 'responda “não”', '90 dias depois do último envio', 'Pix direto', 'Quem indica um negócio',
-    'a Beyon Zero manda o nome, o tipo, a cidade e o celular do negócio à Anthropic', 'a data da publicação mais recente',
+    'a Beyon Zero manda o nome, o tipo, a cidade, o estado (UF) e o celular do negócio à Anthropic', 'conta de assinatura do próprio fundador',
+    'buscador usado pela Anthropic', 'anthropic.com/legal/privacy', 'A Anthropic guarda os dados conforme a política de privacidade dela',
+    'o Registro.br exige o seu CPF ou CNPJ', 'a hospedagem do site dos clientes da oferta de lançamento, na conta da Beyon Zero',
+    'obrigação legal (artigo 7º, inciso II', 'a ponderação do artigo 10', 'dados mínimos', 'envio um a um', 'oposição imediata',
+    'A avaliação fica registrada por escrito pela Beyon Zero (este texto e as decisões internas) e é enviada a pedido',
+    'De todo contato apagado, fica por 12 meses um código embaralhado do contato usado no envio', 'a data da publicação mais recente',
     'se o celular do negócio aparece nela', 'o endereço da logo', 'uma nota de 0 a 100', 'o CNPJ e a natureza jurídica',
-    'De todo contato apagado, ficam por 12 meses', 'todos os telefones do cadastro (fixos também)', 'atividade da empresa', 'enquanto a Beyon Zero fizer esse tipo de contato', 'execução de contrato (artigo 7º, inciso V']) assert.ok(priv.includes(trecho), 'privacidade sem: ' + trecho);
+    'todos os telefones do cadastro (fixos também)', 'atividade da empresa', 'enquanto a Beyon Zero fizer esse tipo de contato', 'execução de contrato (artigo 7º, inciso V']) assert.ok(priv.includes(trecho), 'privacidade sem: ' + trecho);
   assert.match(priv, /Anthropic \([^)]*faz uma busca na web[^)]*\)/, 'a Anthropic e a busca na web em "Com quem os dados são tratados"');
+  const retencao = 'enquanto durar a relação e, depois, pelo prazo legal de guarda de comprovantes';
+  assert.equal(priv.split(retencao).length - 1, 2, 'a guarda do Pix direto e da indicação, sem número de anos');
+  assert.match(priv, /Registro\.br \(o registro do domínio[^)]*CPF ou CNPJ do titular\)/, 'o Registro.br em "Com quem os dados são tratados"');
+  assert.match(ler('privacidade.html'), /<a href="https:\/\/www\.anthropic\.com\/legal\/privacy"[^>]*>anthropic\.com\/legal\/privacy<\/a>/);
 });
 
 test('privacidade: não afirma o que o código não faz nem o que o dono ainda não confirmou', () => {
@@ -99,5 +112,8 @@ test('privacidade: não afirma o que o código não faz nem o que o dono ainda n
     [/fora de qualquer serviço de terceiros/, 'a busca na web e a mensagem saem do computador'],
     [/não copia dados de redes sociais/, 'a busca guarda a página pública do negócio (Instagram, Facebook)'],
     [/mesmo WhatsApp de onde saem as mensagens/, 'o dono ainda vai confirmar o número'],
-    [/hospedada na Cloudflare, fora do Google/, 'a parte 4 (prévias) ainda não tem código']]) assert.ok(!re.test(priv), 'privacidade ainda diz algo falso: ' + porque);
+    [/hospedada na Cloudflare, fora do Google/, 'a parte 4 (prévias) ainda não tem código'],
+    [/dois códigos embaralhados|um do número e outro do e-mail/, 'o código guarda um só resumo, do contato usado no envio'],
+    [/trein/i, 'a opção de treino da Anthropic o dono ainda vai confirmar'],
+    [/[0-9]+ anos/, 'o prazo legal de guarda de comprovantes não leva número de anos']]) assert.ok(!re.test(priv), 'privacidade ainda diz algo falso: ' + porque);
 });
