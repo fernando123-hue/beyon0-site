@@ -16,7 +16,7 @@ const BASE = 'http://127.0.0.1:8899';
 let local, deps, ipSeq = 0, telSeq = 0;
 before(async () => {
   local = await montarLocal({ base: BASE });
-  deps = { banco: local.rpc, visitantes: local.auth, ia: null, direcoes: 'manual', segredoFreio: 's'.repeat(32), limitesPedido: { ...LIMITES_DE_TESTE, por_ip_dia: PEDIDOS.por_ip_dia } };
+  deps = { banco: local.rpc, visitantes: local.auth, ia: null, direcoes: 'manual', segredoFreio: 's'.repeat(32), limitesPedido: { ...LIMITES_DE_TESTE, por_ip_dia: PEDIDOS.por_ip_dia, por_ip48_dia: PEDIDOS.por_ip48_dia } };
 });
 
 function navegador(ip = '198.51.100.' + (++ipSeq), extra = {}) {
@@ -131,6 +131,37 @@ test('produção sem o segredo do freio: os detalhes fecham com 503 e o WhatsApp
     assert.equal(r.corpo.whatsapp, true);
     assert.equal(await um('select 1 from app.pedidos where conversa_id = $1', [c]), undefined);
   } finally { if (antes === undefined) delete process.env.VERCEL_ENV; else process.env.VERCEL_ENV = antes; }
+});
+
+/* (revisão final do PR 2a, M3a) sem uma chave de IP (cabeçalho ausente ou que não é IP) o freio do IP sumiria em silêncio:
+   em produção os detalhes fecham, como sem o segredo do telefone; no servidor local, seguem sem o freio do IP */
+test('produção com o segredo, mas sem IP que dê chave: os detalhes fecham com 503 e o WhatsApp (nada gravado); no local, seguem', async () => {
+  const antes = process.env.VERCEL_ENV;
+  process.env.VERCEL_ENV = 'production';
+  try {
+    const n = navegador('desconhecido'), c = await comPacote(n);
+    const r = await n.chamar('POST', 'detalhes', { conversa_id: c, ...DETALHES() });
+    assert.equal(r.status, 503, JSON.stringify(r.corpo));
+    assert.equal(r.corpo.whatsapp, true);
+    assert.equal(await um('select 1 from app.pedidos where conversa_id = $1', [c]), undefined);
+    assert.deepEqual(await um('select etapa, tentativas_detalhes from app.conversas where id = $1', [c]), { etapa: 'estimativa', tentativas_detalhes: 0 }, 'nem a tentativa foi ao banco');
+  } finally { if (antes === undefined) delete process.env.VERCEL_ENV; else process.env.VERCEL_ENV = antes; }
+  const m = navegador('desconhecido'), d = await comPacote(m);
+  assert.equal((await m.chamar('POST', 'detalhes', { conversa_id: d, ...DETALHES() })).status, 200, 'fora da Vercel: pula o freio do IP');
+});
+
+/* (revisão final do PR 2a, M3c) o IPv6 de uma casa ou empresa costuma ser um /48 inteiro: trocar de /64 não escapa */
+test('freio por IP (IPv6): o 11º pedido do mesmo /48 no dia leva 429, mesmo vindo de /64 diferentes', async () => {
+  for (let i = 1; i <= PEDIDOS.por_ip48_dia; i++) {
+    const n = navegador('2001:db8:48:' + i.toString(16) + '::1'), c = await comPacote(n);
+    assert.equal((await n.chamar('POST', 'detalhes', { conversa_id: c, ...DETALHES() })).status, 200, 'pedido ' + i);
+  }
+  const n = navegador('2001:db8:48:ff::1'), c = await comPacote(n);
+  const r = await n.chamar('POST', 'detalhes', { conversa_id: c, ...DETALHES() });
+  assert.equal(r.status, 429, JSON.stringify(r.corpo));
+  assert.equal(r.corpo.whatsapp, true);
+  const o = navegador('2001:db8:49::1'), co = await comPacote(o);
+  assert.equal((await o.chamar('POST', 'detalhes', { conversa_id: co, ...DETALHES() })).status, 200, 'outro /48: livre');
 });
 
 test('modo manual: nada é gerado antes da confirmação; depois dela, uma geração só por conversa', async () => {

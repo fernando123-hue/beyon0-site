@@ -156,6 +156,18 @@ test('detalhes: a recusa por telefone gasta a cota do IP (as sondas param no fre
   assert.deepEqual(await detalhes(await comPacote(), { chave_ip }), { ok: false, motivo: 'freio_ip' }, 'as três sondas gastaram a cota do dia');
 });
 
+/* (revisão final do PR 2a, M3c) o IPv6 também por /48: outra chave (outro "uso" no servidor), o mesmo privado.contar_ip */
+test('freio por IP (IPv6): além do /64, um teto diário por /48 (10, com chave própria); a chave /48 mal formada é recusada', async () => {
+  const chave_ip48 = hex('p48-' + Date.now());
+  for (let i = 0; i < 10; i++)
+    assert.equal((await detalhes(await comPacote(), { chave_ip: hex('p64-' + Date.now() + '-' + i), chave_ip48 })).ok, true, 'pedido ' + (i + 1) + ', cada um de um /64');
+  const b = await comPacote();
+  assert.deepEqual(await detalhes(b, { chave_ip: hex('p64-outro-' + Date.now()), chave_ip48 }), { ok: false, motivo: 'freio_ip' }, 'o 11º do mesmo /48');
+  assert.deepEqual((await um("select dados from app.eventos_funil where conversa_id = $1 and tipo = 'freio_ip'", [b.conversa_id])).dados, { onde: 'detalhes', prefixo: 48 });
+  assert.equal((await detalhes(await comPacote(), { chave_ip48: hex('p48-outro-' + Date.now()) })).ok, true, 'outro /48: livre');
+  assert.equal((await erroDe(detalhes(await comPacote(), { chave_ip48: 'ABC' })))?.codigo, INVALIDO, 'chave /48 mal formada: erro, não freio desligado');
+});
+
 test('fila global: o teto conta pela regra da fila (pedido_na_fila); aguardando e concluído não ocupam', async () => {
   const a = await comPacote();
   await detalhes(a);

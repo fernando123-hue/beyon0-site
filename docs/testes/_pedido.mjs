@@ -3,7 +3,7 @@
    esbarram no teto da fila nem no freio por IP (os freios têm testes próprios em detalhes-api e pedidos-banco). */
 import { PEDIDOS } from '../../api/_vendas/pedido.mjs';
 
-export const LIMITES_DE_TESTE = Object.freeze({ ...PEDIDOS, fila_confirmados: 1000, por_ip_dia: 1000 });
+export const LIMITES_DE_TESTE = Object.freeze({ ...PEDIDOS, fila_confirmados: 1000, por_ip_dia: 1000, por_ip48_dia: 1000 });
 let seq = 0;
 /* um WhatsApp novo a cada chamada (o freio por telefone vale nos testes também) */
 export const telefoneDeTeste = () => '(21) 9' + String(1000 + (++seq % 9000)) + '-' + String(1000 + Math.floor(seq / 9000) % 9000);

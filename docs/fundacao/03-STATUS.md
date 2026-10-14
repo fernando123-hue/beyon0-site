@@ -70,7 +70,7 @@ A fase parou aqui, como pedido. **Infisical e Cloudflare não foram iniciados.**
 
 O que já se sabe que vai mudar quando a Cloudflare entrar (para não ser surpresa):
 
-- **IP do visitante nos freios** (`api/_freio.mjs`, `ipDe`). Hoje vem do `x-forwarded-for` da Vercel. Atrás do proxy da Cloudflare, esse IP vira o da Cloudflare, e todos os visitantes cairiam no mesmo freio. A troca: ler o `cf-connecting-ip` quando a requisição comprovadamente vier da Cloudflare, com teste.
+- **IP do visitante nos freios** (`api/_freio.mjs`, `ipDe`). Hoje vem do `x-vercel-forwarded-for` (o valor que a Vercel garante; o `x-forwarded-for` só quando ele falta). Atrás do proxy da Cloudflare, esse IP vira o da Cloudflare, e todos os visitantes cairiam no mesmo freio. A troca: ler o `cf-connecting-ip` quando a requisição comprovadamente vier da Cloudflare, com teste.
 - **Onde fica a muralha de limite e firewall:** as regras planejadas para o firewall da Vercel (`02-OPERACAO.md` §4.3, passo 7) passam para o WAF e as regras de limite da Cloudflare. A Vercel fica sem duplicar.
 - **Modo do DNS e SSL:** decidir entre o proxy da Cloudflare na frente da Vercel e só o DNS (a Vercel tem rede de borda própria e recomenda cuidado com o proxy na frente). Com proxy, o SSL fica em "Full (strict)", nunca "Flexible".
 - **Cache:** o HTML e o `/api/*` não podem ser guardados em cache. Hoje a Vercel e os cabeçalhos `no-store` da API cuidam disso; as regras da Cloudflare têm de respeitar.

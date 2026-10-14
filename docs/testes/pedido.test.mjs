@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createHmac } from 'node:crypto';
 import { validarDetalhes, chaveDoTelefone, usuarioDaRede, PEDIDOS } from '../../api/_vendas/pedido.mjs';
-import { chaveDoIp } from '../../api/_vendas/ip.mjs';
+import { chaveDoIp, chaveDoIp48 } from '../../api/_vendas/ip.mjs';
 import { classificar } from '../../api/_classificador/index.mjs';
 import { regrasAtivas, esquecerRegras } from '../../api/_vendas/regras-ativas.mjs';
 import { criarTransporte } from '../../api/_vendas/transporte.mjs';
@@ -15,7 +15,21 @@ const SEM_JEV = { cfg: { jev: false, prazoMs: 50 } };
 
 test('os freios do pedido: os números do spec §0, o teto da fila (D1) e o alarme dos pendentes', () => {
   assert.deepEqual({ ...PEDIDOS }, { por_ip_dia: 3, por_telefone_dia: 2, fila_confirmados: 10, horas_para_confirmar: 72, alarme_pendentes: 20,
-    tentativas_por_conversa: 3 });
+    tentativas_por_conversa: 3, por_ip48_dia: 10 });
+});
+
+/* (revisão final do PR 2a, M3c) quem tem IPv6 costuma ter um /48 inteiro (65.536 redes /64): além do /64, um teto por /48 */
+test('chave do /48 (IPv6): o mesmo /48 dá a mesma chave, com uso próprio; IPv4, IPv4 mapeado e prefixo zerado não têm /48', () => {
+  const dia = new Date('2026-10-13T15:00:00Z');
+  const a = chaveDoIp48('2001:db8:a:b::1', 'seg', dia, 'pedido48');
+  assert.equal(a, createHmac('sha256', 'seg').update('pedido48|2026-10-13|2001:db8:a::/48').digest('hex'));
+  assert.equal(chaveDoIp48('2001:DB8:A:FFFF:1::9', 'seg', dia, 'pedido48'), a, 'outro /64 do mesmo /48');
+  assert.notEqual(chaveDoIp48('2001:db8:b::1', 'seg', dia, 'pedido48'), a, 'outro /48');
+  assert.notEqual(a, chaveDoIp('2001:db8:a:b::1', 'seg', dia, 'pedido'), 'não soma com a chave do /64');
+  for (const ip of ['203.0.113.9', '::ffff:203.0.113.9', '64:ff9b::c000:201', '::1', 'não-é-ip'])
+    assert.equal(chaveDoIp48(ip, 'seg', dia, 'pedido48'), null, ip);
+  assert.equal(chaveDoIp48('2001:db8:a:b::1', '', dia, 'pedido48'), null, 'sem segredo: sem chave');
+  assert.match(a, /^[0-9a-f]{64}$/);
 });
 
 test('detalhes: esquema fechado, obrigatórios e tamanhos (60 a 200), com motivo em português', async () => {

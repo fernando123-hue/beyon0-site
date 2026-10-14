@@ -7,8 +7,8 @@
    ========================================================================== */
 import { Recusa } from './recusa.mjs';
 import { ErroBanco } from './transporte.mjs';
-import { validarDetalhes, chaveDoTelefone, PEDIDOS } from './pedido.mjs';
-import { chaveDoIp } from './ip.mjs';
+import { validarDetalhes, chaveDoTelefone, naVercel, PEDIDOS } from './pedido.mjs';
+import { chaveDoIp, chaveDoIp48 } from './ip.mjs';
 import { ipDe } from '../_freio.mjs';
 import { ehUuid } from '../_valida-app.mjs';
 
@@ -26,6 +26,11 @@ const MOTIVOS = {
 };
 
 export function criarAcoesDoPedido({ banco, visitante, segredoFreio, limites = PEDIDOS, requestId }) {
+  /* um freio do pedido faltando: nada é gravado, a pessoa recebe o WhatsApp e o log diz qual */
+  function indisponivel(evento) {
+    console.error(JSON.stringify({ origem: 'vendas', nivel: 'erro', request_id: requestId || null, evento }));
+    throw new Recusa(503, 'O pedido de modelos está indisponível agora. Fale com a Beyon Zero pelo WhatsApp.', { whatsapp: true });
+  }
   return {
     async detalhes({ request, corpo }) {
       const vid = await visitante(request);
@@ -34,17 +39,19 @@ export function criarAcoesDoPedido({ banco, visitante, segredoFreio, limites = P
       if (v.erros) throw new Recusa(400, v.erros[0]);
       const d = v.dados;
       const telefoneHash = chaveDoTelefone(d.telefone, segredoFreio);
-      if (!telefoneHash) {
-        /* (na Vercel sem FREIO_SEGREDO nem SUPABASE_CHAVE_SECRETA: sem freio por telefone, nada é gravado) */
-        console.error(JSON.stringify({ origem: 'vendas', nivel: 'erro', request_id: requestId || null, evento: 'detalhes sem o segredo do freio' }));
-        throw new Recusa(503, 'O pedido de modelos está indisponível agora. Fale com a Beyon Zero pelo WhatsApp.', { whatsapp: true });
-      }
+      /* (na Vercel sem FREIO_SEGREDO nem SUPABASE_CHAVE_SECRETA: sem freio por telefone, nada é gravado) */
+      if (!telefoneHash) indisponivel('detalhes sem o segredo do freio');
+      const ip = ipDe(request), agora = new Date();
+      const chaveIp = chaveDoIp(ip, segredoFreio, agora, 'pedido');
+      /* (revisão final, M3a) na Vercel, sem a chave do IP (cabeçalho ausente ou que não é IP) o freio do IP sumiria em
+         silêncio: fecha como sem o segredo. No servidor local (BZ_LOCAL, fora da Vercel) segue sem esse freio */
+      if (!chaveIp && naVercel()) indisponivel('detalhes sem a chave do IP');
       let r;
       try {
         r = await banco('vendas_registrar_detalhes', {
           conversa_id: corpo.conversa_id, visitante_id: vid, nome: d.nome, telefone: d.telefone, aceite: true,
           briefing: d.briefing, redes: d.redes, suspeito: d.suspeito, telefone_hash: telefoneHash,
-          chave_ip: chaveDoIp(ipDe(request), segredoFreio, new Date(), 'pedido'),
+          chave_ip: chaveIp, chave_ip48: chaveDoIp48(ip, segredoFreio, agora, 'pedido48'), max_por_ip48: limites.por_ip48_dia,
           max_por_ip: limites.por_ip_dia, max_por_telefone_dia: limites.por_telefone_dia, max_tentativas: limites.tentativas_por_conversa,
           teto_fila: limites.fila_confirmados, horas: limites.horas_para_confirmar
         });

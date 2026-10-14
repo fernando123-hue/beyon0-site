@@ -46,10 +46,25 @@ export function normalizarIp(ip) {
 /* uso: um prefixo que separa os freios que dividem a tabela privado.freio_ip (ex.: 'pedido' para os detalhes, PR 2a).
    Sem uso, a chave é a mesma de antes (o freio das conversas com IA não muda) */
 export function chaveDoIp(ip, segredo, agora = new Date(), uso = '') {
-  if (!segredo || typeof ip !== 'string' || ip.length > 64) return null;
-  const n = normalizarIp(ip);
+  const n = normalDe(ip, segredo);
   if (!n) return null;
-  const normal = n.endsWith('::') ? n + '/64' : n;   /* ("2001:db8:a:b::/64": a mesma chave de antes desta revisão) */
+  return hmacDoDia(segredo, uso, agora, n.endsWith('::') ? n + '/64' : n);   /* ("2001:db8:a:b::/64": a mesma chave de antes desta revisão) */
+}
+
+/* o /48 do IPv6 (revisão final do PR 2a, M3c): a casa ou a empresa costuma receber um /48 inteiro, 65.536 redes /64; o
+   freio dos pedidos conta também por ele. Só o IPv6 contado pelo /64 tem /48: IPv4 (também o mapeado) e o endereço de
+   prefixo zerado não têm (null: esse teto não conta) */
+export function chaveDoIp48(ip, segredo, agora = new Date(), uso = '') {
+  const n = normalDe(ip, segredo);
+  if (!n || !n.endsWith('::')) return null;
+  return hmacDoDia(segredo, uso, agora, n.slice(0, -2).split(':').slice(0, 3).join(':') + '::/48');
+}
+
+function normalDe(ip, segredo) {
+  if (!segredo || typeof ip !== 'string' || ip.length > 64) return null;
+  return normalizarIp(ip);
+}
+function hmacDoDia(segredo, uso, agora, normal) {
   const dia = agora.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });   /* AAAA-MM-DD no fuso do teto diário */
   return createHmac('sha256', segredo).update((uso ? uso + '|' : '') + dia + '|' + normal).digest('hex');
 }

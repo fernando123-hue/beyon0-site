@@ -4,8 +4,8 @@
 -- da Beyon Zero; o dono marca "confirmado" no painel (20261013120100_pedidos_dono.sql). Sem IA, o recurso
 -- escasso é o tempo do dono, e os freios ficam AQUI (valem entre instâncias da função):
 --   • uma vez por conversa, só antes do contato e só com o pacote gravado; no máximo 3 TENTATIVAS por conversa;
---   • por IP: 3 tentativas por dia (privado.contar_ip; a chave é um HMAC feito no servidor, com uso próprio).
---     Contado ANTES do telefone: quem sonda se um número já pediu gasta a cota;
+--   • por IP: 3 tentativas por dia (privado.contar_ip; a chave é um HMAC feito no servidor, com uso próprio), e o IPv6
+--     também por /48 (10 por dia, outra chave). Contado ANTES do telefone: quem sonda se um número já pediu gasta a cota;
 --   • por telefone (HMAC do número normalizado, feito no servidor): 1 pedido aberto e 2 por dia;
 --   • fila global: com o teto de pedidos NA FILA atingido, a tela oferece o WhatsApp.
 -- UMA regra decide o que ocupa o dono (privado.pedido_na_fila): a fila, o teto, o estado e o freio por telefone
@@ -159,6 +159,7 @@ declare
   c app.conversas;
   v_tel text := p ->> 'telefone_hash';
   v_chave_ip text := p ->> 'chave_ip';
+  v_chave_ip48 text := p ->> 'chave_ip48';   -- (o /48 do IPv6, outro "uso" no servidor; IPv4: null)
   v_hoje timestamptz := date_trunc('day', now() at time zone 'America/Sao_Paulo') at time zone 'America/Sao_Paulo';
   v_codigo text; v_expira timestamptz; v_tentativa integer; v_tentativas integer;
 begin
@@ -170,6 +171,7 @@ begin
   -- os mínimos obrigatórios (nome do negócio, o que vende e WhatsApp), conferidos AQUI, antes de qualquer geração
   if v_tel is null or v_tel !~ '^[0-9a-f]{64}$' or coalesce(p ->> 'telefone', '') !~ '^\+[1-9][0-9]{7,14}$'
      or (v_chave_ip is not null and v_chave_ip !~ '^[0-9a-f]{64}$')   -- (chave de IP mal formada: erro, e não freio desligado em silêncio)
+     or (v_chave_ip48 is not null and v_chave_ip48 !~ '^[0-9a-f]{64}$')
      or jsonb_typeof(p -> 'briefing') is distinct from 'object' or pg_column_size(p -> 'briefing') > 8192
      or char_length(coalesce(p #>> '{briefing,negocio,nome}', '')) < 2
      or char_length(coalesce(p #>> '{briefing,negocio,descricao}', '')) < 3 then
@@ -197,6 +199,13 @@ begin
   if v_chave_ip is not null then
     if not privado.contar_ip(v_chave_ip, coalesce((p ->> 'max_por_ip')::integer, 3)) then
       perform privado.evento(c.org_id, c.id, 'freio_ip', jsonb_build_object('onde', 'detalhes'));
+      return jsonb_build_object('ok', false, 'motivo', 'freio_ip');
+    end if;
+  end if;
+  -- (revisão final, M3c) o IPv6 também pelo /48: a casa ou a empresa troca de /64 à vontade dentro dele
+  if v_chave_ip48 is not null then
+    if not privado.contar_ip(v_chave_ip48, coalesce((p ->> 'max_por_ip48')::integer, 10)) then
+      perform privado.evento(c.org_id, c.id, 'freio_ip', jsonb_build_object('onde', 'detalhes', 'prefixo', 48));
       return jsonb_build_object('ok', false, 'motivo', 'freio_ip');
     end if;
   end if;
