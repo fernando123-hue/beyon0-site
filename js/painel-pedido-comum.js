@@ -49,15 +49,16 @@
   }
   function negocio(n) { n = n || {}; return [n.nome, n.segmento, n.cidade].filter(Boolean).join(' · ') || 'Negócio sem descrição'; }
 
-  /* uma ação do dono num pedido: POST, e as duas listas recarregam (o aviso vai junto) */
-  function agir(corpo, botao, saida, aviso) {
+  /* uma ação do dono num pedido: POST, e as duas listas recarregam (o aviso vai junto). codigo: o do pedido, para o aviso de conflito */
+  function agir(corpo, botao, saida, aviso, codigo) {
     botao.disabled = true;
     return P.pedir('', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(corpo) })
       .then(function (r) { return r.json(); })
       .then(function () { document.dispatchEvent(new CustomEvent('bz-painel:pedidos-mudaram', { detail: { aviso: aviso } })); })
       .catch(function (e) {
-        /* 404/409: o pedido já mudou (expirou, foi confirmado em outra aba): as listas recarregam com o motivo */
-        if (e.status === 404 || e.status === 409) { document.dispatchEvent(new CustomEvent('bz-painel:pedidos-mudaram', { detail: { aviso: e.message } })); return; }
+        if (P.recusada(e)) return;   /* (a chave não vale mais: volta para a entrada) */
+        /* 404/409: o pedido já mudou (expirou, foi confirmado em outra aba): as listas recarregam com o motivo e o código */
+        if (e.status === 404 || e.status === 409) { document.dispatchEvent(new CustomEvent('bz-painel:pedidos-mudaram', { detail: { aviso: (codigo ? 'Pedido ' + codigo + ': ' : '') + e.message } })); return; }
         saida.textContent = e.message;
         botao.disabled = false;
       });
@@ -68,7 +69,13 @@
     b.type = 'button';
     b.setAttribute('aria-label', texto + ' ' + rotulo);
     b.addEventListener('click', function () {
-      if (armado) { clearTimeout(armado); armado = null; aoConfirmar(b); return; }
+      if (armado) {   /* (volta ao texto de antes de agir: se a ação falhar, o botão não fica pedindo um 2º toque que já foi dado) */
+        clearTimeout(armado); armado = null;
+        b.textContent = texto;
+        b.setAttribute('aria-label', texto + ' ' + rotulo);
+        aoConfirmar(b);
+        return;
+      }
       b.textContent = 'Toque de novo para ' + texto.toLowerCase();
       b.setAttribute('aria-label', 'Toque de novo para ' + texto.toLowerCase() + ' ' + rotulo);
       armado = setTimeout(function () { armado = null; b.textContent = texto; b.setAttribute('aria-label', texto + ' ' + rotulo); }, ARMADO_MS);

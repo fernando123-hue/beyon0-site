@@ -245,6 +245,23 @@ try {
   ok(await semRolagemLateral(page), '320 px na confirmação: o código cabe');
   await foto(page, '1e-confirmar-320');
   await page.setViewportSize({ width: 390, height: 844 });
+  /* pedido arquivado cuja geração parou: a conversa volta à etapa "contato" e o servidor recusaria o "Gerar".
+     A tela (BZDetalhes.pendente) não pode oferecê-lo: o estado vem do servidor com o pedido arquivado */
+  const ESTADO = daAcao('estado');
+  const comoArquivado = async route => {
+    const r = await route.fetch();
+    const j = await r.json();
+    if (j && j.pedido) j.pedido.status = 'arquivado';
+    await route.fulfill({ response: r, json: j });
+  };
+  await page.route(ESTADO, comoArquivado);
+  await Promise.all([page.waitForResponse(r => r.url().includes('acao=estado')), page.reload({ waitUntil: 'load' })]);
+  await page.waitForTimeout(800);
+  ok(await page.locator('#o-confirmar').isHidden(), 'arquivado: a tela não pede mais a confirmação pelo WhatsApp');
+  ok(await page.getByRole('button', { name: 'Gerar as três direções' }).count() === 0, 'arquivado, de volta à etapa contato: nenhum "Gerar as três direções" (o servidor recusaria)');
+  await page.unroute(ESTADO, comoArquivado);
+  await page.reload({ waitUntil: 'load' });
+  await page.waitForSelector('#o-confirmar:not([hidden])', { timeout: 15000 });
   /* o dono confirma NA TELA DO PAINEL (celular): busca o código que chegou, confere o WhatsApp, o selo e as redes */
   const painel = await ctx.newPage();
   await painel.goto(BASE + '/painel', { waitUntil: 'load' });

@@ -14,6 +14,8 @@
   var el = P.el;
   var ALERTA_H = 20;   /* horas corridas: perto do prazo de 24 horas úteis */
   var NOMES = { conversao: 'conversão', autoridade: 'autoridade', experiencia: 'experiência' };
+  /* os nomes de formato, os mesmos da tela de perguntas (js/orcamento-perguntas.js, NOMES) */
+  var FORMATOS = { landing_page: 'Site de uma página', institucional: 'Site com várias páginas', sob_medida: 'Site com visual exclusivo', loja_plataforma: 'Loja virtual' };
   var NOME_OK = /^[\p{L}'-]{1,20}$/u;
   var EMAIL_OK = /^[A-Za-z0-9._+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
 
@@ -48,7 +50,7 @@
         carregar(r.avisadas ? null : 'Nada marcado: o pedido já tinha sido avisado (em outra aba?) ou ainda não está pronto.');
         $('t-fila').focus();
       })
-      .catch(function (e) { $('fila-estado').textContent = e.message; botao.disabled = false; });
+      .catch(function (e) { if (P.recusada(e)) return; $('fila-estado').textContent = e.message; botao.disabled = false; });
   }
 
   function botaoAviso(p) {
@@ -87,8 +89,8 @@
     }
     /* (PR 2a) tirar da fila: arquivar (resolvido por fora) ou descartar (encerra e para a geração), com um segundo toque */
     var rotulo = 'o pedido ' + (p.codigo || idCurto(p.conversa_id));
-    acoes.appendChild(C.botaoDuplo('pn__btn pn__btn--fino', 'Arquivar', rotulo, function (b) { C.agir({ arquivar_pedido: p.conversa_id }, b, $('fila-estado'), 'Pedido ' + (p.codigo || '') + ' arquivado.'); }));
-    acoes.appendChild(C.botaoDuplo('pn__btn pn__btn--fino', 'Descartar', rotulo, function (b) { C.agir({ descartar_pedido: p.conversa_id }, b, $('fila-estado'), 'Pedido ' + (p.codigo || '') + ' descartado.'); }));
+    acoes.appendChild(C.botaoDuplo('pn__btn pn__btn--fino', 'Arquivar', rotulo, function (b) { C.agir({ arquivar_pedido: p.conversa_id }, b, $('fila-estado'), 'Pedido ' + (p.codigo || '') + ' arquivado.', p.codigo); }));
+    acoes.appendChild(C.botaoDuplo('pn__btn pn__btn--fino', 'Descartar', rotulo, function (b) { C.agir({ descartar_pedido: p.conversa_id }, b, $('fila-estado'), 'Pedido ' + (p.codigo || '') + ' descartado.', p.codigo); }));
     return acoes;
   }
 
@@ -98,15 +100,21 @@
     var atrasando = prontas < p.direcoes.length && horas >= ALERTA_H;
     var c = el('div', 'pn__alerta pn__fila' + (atrasando ? ' pn__alerta--urgente' : ''));
     var texto = el('div', 'pn__fila-texto');
-    if (p.codigo) texto.appendChild(el('p', 'pn__codigo', p.codigo + (p.prioridade === 1 ? ' · pronto para avisar' : ' · a produzir')));
+    if (p.codigo) {
+      texto.appendChild(el('p', 'pn__codigo', p.codigo));
+      texto.appendChild(el('p', 'pn__status', p.prioridade === 1 ? 'Pronto para avisar' : 'A produzir'));
+    }
     var selo = C.selo(p.suspeito);
     if (selo) texto.appendChild(selo);
     texto.appendChild(el('p', 'pn__fila-nome', (p.contato && p.contato.nome) || 'Sem nome'));
-    texto.appendChild(el('p', null, negocio(p.briefing) + (p.fatores && p.fatores.formato ? ' · ' + p.fatores.formato.replace('_', ' ') : '')));
-    texto.appendChild(el('p', 'pn__fila-meta', (atrasando ? 'Passa de ' + ALERTA_H + ' h · ' : '') + 'Pedido em ' + P.data(p.pedido_em) + ' (há ' + Math.floor(horas) + ' h) · ' + prontas + ' de ' + p.direcoes.length + ' prontas: ' +
-      p.direcoes.map(function (d) { return (NOMES[d.estrategia] || d.estrategia) + (d.status === 'pronta' ? ' ✓' : d.status === 'falhou' ? ' ✗' : ''); }).join(', ')));
+    var formato = p.fatores && Object.prototype.hasOwnProperty.call(FORMATOS, p.fatores.formato) ? FORMATOS[p.fatores.formato] : '';
+    texto.appendChild(el('p', null, negocio(p.briefing) + (formato ? ' · ' + formato : '')));
+    var andamento = prontas + ' de ' + p.direcoes.length + ' prontas' + (p.direcoes.length
+      ? ': ' + p.direcoes.map(function (d) { return (NOMES[d.estrategia] || d.estrategia) + (d.status === 'pronta' ? ' ✓' : d.status === 'falhou' ? ' ✗' : ''); }).join(', ')
+      : '.');
+    texto.appendChild(el('p', 'pn__fila-meta', (atrasando ? 'Passa de ' + ALERTA_H + ' h · ' : '') + 'Pedido em ' + P.data(p.pedido_em) + ' (há ' + Math.floor(horas) + ' h) · ' + andamento));
     texto.appendChild(el('p', 'pn__dado', 'WhatsApp ' + C.telefone(p.contato && p.contato.telefone)));
-    texto.appendChild(el('p', 'pn__fila-meta', 'Pedido ' + idCurto(p.conversa_id)));
+    texto.appendChild(el('p', 'pn__fila-id', 'Pedido ' + idCurto(p.conversa_id)));
     var redes = C.redes(p.redes);
     if (redes) texto.appendChild(redes);
     c.appendChild(texto);
@@ -129,7 +137,7 @@
       var contagem = !r.fila.length ? 'Nenhum pedido confirmado na fila.'
         : r.total + (r.total === 1 ? ' pedido confirmado' : ' pedidos confirmados') + ', por prioridade.';
       $('fila-estado').textContent = (typeof aviso === 'string' ? aviso + ' ' : '') + contagem;
-    }).catch(function (e) { if (minha !== vez) return; $('bloco-fila').hidden = false; $('fila-estado').textContent = e.message; });
+    }).catch(function (e) { if (minha !== vez) return; if (P.recusada(e)) return; $('bloco-fila').hidden = false; $('fila-estado').textContent = e.message; });
   }
   /* saiu do painel: nome e telefone dos clientes não ficam na página (e nenhuma leitura em voo os traz de volta) */
   function esvaziar() { vez++; $('fila').textContent = ''; $('fila-estado').textContent = ''; $('fila-alarme').hidden = true; $('bloco-fila').hidden = true; }

@@ -119,3 +119,7 @@ body { font-size: 1rem; line-height: 1.55; background: var(--bg); color: var(--t
 #bloco-pendentes .pn__ajuda, #bloco-fila .pn__ajuda { font-size: 1rem; }
 #bloco-pendentes .pn__estado, #bloco-fila .pn__estado { font-family: var(--sans); font-size: 1rem; color: var(--t2); }
 #fila-atualizar { font-family: var(--sans); font-size: 1rem; letter-spacing: 0; text-transform: none; }
+/* na fila e nos pendentes, o que o dono lê para decidir vai em Sora de 16px; o mono fica só no código, no id e no comando */
+.pn__fila .pn__fila-meta { font-family: var(--sans); font-size: 1rem; letter-spacing: 0; color: var(--t2); }
+.pn__fila-id { font-family: var(--mono); font-size: 1rem; color: var(--t3); }
+.pn__status { font-size: 1rem; font-weight: 600; color: var(--t1); }

@@ -28,11 +28,11 @@
     var acoes = el('div', 'pn__fila-acoes');
     var ok = el('button', 'pn__btn', 'Chegou: confirmar');
     ok.type = 'button';
-    ok.setAttribute('aria-label', 'Chegou a mensagem do pedido ' + p.codigo + ': confirmar');
-    ok.addEventListener('click', function () { C.agir({ confirmar_whatsapp: p.conversa_id }, ok, $('pendentes-estado'), 'Pedido ' + p.codigo + ' confirmado: entrou na fila.'); });
+    ok.setAttribute('aria-label', 'Chegou: confirmar o pedido ' + p.codigo);   /* (começa pelo texto visível: WCAG 2.5.3) */
+    ok.addEventListener('click', function () { C.agir({ confirmar_whatsapp: p.conversa_id }, ok, $('pendentes-estado'), 'Pedido ' + p.codigo + ' confirmado: entrou na fila.', p.codigo); });
     acoes.appendChild(ok);
     acoes.appendChild(C.botaoDuplo('pn__btn pn__btn--fino', 'Descartar', 'o pedido ' + p.codigo, function (b) {
-      C.agir({ descartar_pedido: p.conversa_id }, b, $('pendentes-estado'), 'Pedido ' + p.codigo + ' descartado.');
+      C.agir({ descartar_pedido: p.conversa_id }, b, $('pendentes-estado'), 'Pedido ' + p.codigo + ' descartado.', p.codigo);
     }));
     c.appendChild(acoes);
     return c;
@@ -55,7 +55,19 @@
         : !r.pendentes.length ? 'Nenhum pedido esperando confirmação.'
         : r.total + (r.total === 1 ? ' pedido esperando' : ' pedidos esperando') + (r.truncada ? ' (mostrando os ' + r.pendentes.length + ' mais novos; procure pelo código)' : '') + '.';
       $('pendentes-estado').textContent = (typeof aviso === 'string' ? aviso + ' ' : '') + contagem;
-    }).catch(function (e) { if (minha !== vez) return; $('bloco-pendentes').hidden = false; $('pendentes-estado').textContent = e.message; });
+    }).catch(function (e) {
+      if (minha !== vez) return;
+      if (P.recusada(e)) return;
+      if (busca) $('pendentes').textContent = '';   /* (busca recusada, ex.: código mal formado: nada da lista de antes fica parecendo o resultado) */
+      $('bloco-pendentes').hidden = false;
+      $('pendentes-estado').textContent = e.message;
+    });
+  }
+  /* o dono pode colar a mensagem inteira ("Meu pedido é BZ-K7M3Q"): fica só o código; sem "BZ" (digitado à mão), vale como está */
+  var CODIGO_NO_TEXTO = /BZ-?([A-Z0-9]{5})/i;
+  function codigoDoTexto(v) {
+    var m = String(v).match(CODIGO_NO_TEXTO);
+    return m ? 'BZ-' + m[1].toUpperCase() : String(v).trim();
   }
   /* saiu do painel: nome e telefone dos clientes não ficam na página */
   function esvaziar() {
@@ -68,7 +80,7 @@
     $('bloco-pendentes').hidden = true;
   }
 
-  $('pendentes-busca').addEventListener('submit', function (ev) { ev.preventDefault(); busca = $('pendentes-codigo').value.trim(); carregar(); });
+  $('pendentes-busca').addEventListener('submit', function (ev) { ev.preventDefault(); busca = codigoDoTexto($('pendentes-codigo').value); $('pendentes-codigo').value = busca; carregar(); });
   $('pendentes-atualizar').addEventListener('click', function () { busca = ''; $('pendentes-codigo').value = ''; carregar(); });
   document.addEventListener('bz-painel:entrou', function () { carregar(); });
   document.addEventListener('bz-painel:saiu', esvaziar);
