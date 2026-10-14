@@ -63,9 +63,10 @@
         botao.disabled = false;
       });
   }
-  /* um botão que pede um segundo toque, sem janela do navegador: "Descartar" → "Toque de novo para descartar" */
-  function botaoDuplo(classe, texto, rotulo, aoConfirmar) {
-    var b = el('button', classe, texto), armado = null;
+  /* um botão que pede um segundo toque, sem janela do navegador: "Descartar" → "Toque de novo para descartar"
+     (verbo: o que o 2º toque faz, quando o texto do botão não é só o verbo: "Chegou: confirmar" → "confirmar") */
+  function botaoDuplo(classe, texto, rotulo, aoConfirmar, verbo) {
+    var b = el('button', classe, texto), armado = null, deNovo = 'Toque de novo para ' + (verbo || texto.toLowerCase());
     b.type = 'button';
     b.setAttribute('aria-label', texto + ' ' + rotulo);
     b.addEventListener('click', function () {
@@ -76,8 +77,8 @@
         aoConfirmar(b);
         return;
       }
-      b.textContent = 'Toque de novo para ' + texto.toLowerCase();
-      b.setAttribute('aria-label', 'Toque de novo para ' + texto.toLowerCase() + ' ' + rotulo);
+      b.textContent = deNovo;
+      b.setAttribute('aria-label', deNovo + ' ' + rotulo);
       armado = setTimeout(function () { armado = null; b.textContent = texto; b.setAttribute('aria-label', texto + ' ' + rotulo); }, ARMADO_MS);
     });
     return b;

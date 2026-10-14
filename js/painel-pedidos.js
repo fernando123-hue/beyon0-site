@@ -26,11 +26,11 @@
     if (r) texto.appendChild(r);
     c.appendChild(texto);
     var acoes = el('div', 'pn__fila-acoes');
-    var ok = el('button', 'pn__btn', 'Chegou: confirmar');
-    ok.type = 'button';
-    ok.setAttribute('aria-label', 'Chegou: confirmar o pedido ' + p.codigo);   /* (começa pelo texto visível: WCAG 2.5.3) */
-    ok.addEventListener('click', function () { C.agir({ confirmar_whatsapp: p.conversa_id }, ok, $('pendentes-estado'), 'Pedido ' + p.codigo + ' confirmado: entrou na fila.', p.codigo); });
-    acoes.appendChild(ok);
+    /* 2 toques, como Descartar e Arquivar (dono, 2026-10-14): confirmar põe o pedido na fila e, com a IA ligada, gasta
+       (o aria-label começa pelo texto visível: WCAG 2.5.3) */
+    acoes.appendChild(C.botaoDuplo('pn__btn', 'Chegou: confirmar', 'o pedido ' + p.codigo, function (b) {
+      C.agir({ confirmar_whatsapp: p.conversa_id }, b, $('pendentes-estado'), 'Pedido ' + p.codigo + ' confirmado: entrou na fila.', p.codigo);
+    }, 'confirmar'));
     acoes.appendChild(C.botaoDuplo('pn__btn pn__btn--fino', 'Descartar', 'o pedido ' + p.codigo, function (b) {
       C.agir({ descartar_pedido: p.conversa_id }, b, $('pendentes-estado'), 'Pedido ' + p.codigo + ' descartado.', p.codigo);
     }));
