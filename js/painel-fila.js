@@ -8,9 +8,9 @@
    nome só entra na mensagem se for um nome (sem link nem número).
    ========================================================================== */
 (function () {
-  var P = window.BZPainel;
+  var P = window.BZPainel, C = window.BZPainelPedido;
   var $ = function (id) { return document.getElementById(id); };
-  if (!P || !$('fila')) return;
+  if (!P || !C || !$('fila')) return;
   var el = P.el;
   var ALERTA_H = 20;   /* horas corridas: perto do prazo de 24 horas úteis */
   var NOMES = { conversao: 'conversão', autoridade: 'autoridade', experiencia: 'experiência' };
@@ -74,20 +74,21 @@
   function acoesDe(p, prontas) {
     var acoes = el('div', 'pn__fila-acoes');
     var naFila = p.direcoes.some(function (d) { return d.status === 'gerando'; });
-    if (naFila) {
-      acoes.appendChild(el('p', 'pn__fila-meta', 'No Claude Code: "produzir as direções do pedido ' + idCurto(p.conversa_id) + '".'));
-      return acoes;
+    if (naFila) acoes.appendChild(el('p', 'pn__fila-meta', 'No Claude Code: "produzir as direções do pedido ' + idCurto(p.conversa_id) + '".'));
+    else if (!p.direcoes.length) acoes.appendChild(el('p', 'pn__fila-meta', 'Nenhuma direção neste pedido ainda: não há o que avisar.'));   /* (sem direção, "prontas = total = 0" não pode virar um aviso falso) */
+    else if (prontas < p.direcoes.length) acoes.appendChild(el('p', 'pn__fila-meta', 'Uma direção falhou (no modo da API): o cliente pode gerar de novo na página dele. Não avise ainda.'));
+    else {
+      acoes.appendChild(botaoAviso(p));
+      var feito = el('button', 'pn__btn pn__btn--fino', 'Já avisei');
+      feito.type = 'button';
+      feito.setAttribute('aria-label', 'Já avisei ' + ((p.contato && p.contato.nome) || 'o cliente'));
+      feito.addEventListener('click', function () { marcarAvisado(p, feito); });
+      acoes.appendChild(feito);
     }
-    if (prontas < p.direcoes.length) {
-      acoes.appendChild(el('p', 'pn__fila-meta', 'Uma direção falhou (no modo da API): o cliente pode gerar de novo na página dele. Não avise ainda.'));
-      return acoes;
-    }
-    acoes.appendChild(botaoAviso(p));
-    var feito = el('button', 'pn__btn pn__btn--fino', 'Já avisei');
-    feito.type = 'button';
-    feito.setAttribute('aria-label', 'Já avisei ' + ((p.contato && p.contato.nome) || 'o cliente'));
-    feito.addEventListener('click', function () { marcarAvisado(p, feito); });
-    acoes.appendChild(feito);
+    /* (PR 2a) tirar da fila: arquivar (resolvido por fora) ou descartar (encerra e para a geração), com um segundo toque */
+    var rotulo = 'o pedido ' + (p.codigo || idCurto(p.conversa_id));
+    acoes.appendChild(C.botaoDuplo('pn__btn pn__btn--fino', 'Arquivar', rotulo, function (b) { C.agir({ arquivar_pedido: p.conversa_id }, b, $('fila-estado'), 'Pedido ' + (p.codigo || '') + ' arquivado.'); }));
+    acoes.appendChild(C.botaoDuplo('pn__btn pn__btn--fino', 'Descartar', rotulo, function (b) { C.agir({ descartar_pedido: p.conversa_id }, b, $('fila-estado'), 'Pedido ' + (p.codigo || '') + ' descartado.'); }));
     return acoes;
   }
 
@@ -97,11 +98,17 @@
     var atrasando = prontas < p.direcoes.length && horas >= ALERTA_H;
     var c = el('div', 'pn__alerta pn__fila' + (atrasando ? ' pn__alerta--urgente' : ''));
     var texto = el('div', 'pn__fila-texto');
+    if (p.codigo) texto.appendChild(el('p', 'pn__codigo', p.codigo + (p.prioridade === 1 ? ' · pronto para avisar' : ' · a produzir')));
+    var selo = C.selo(p.suspeito);
+    if (selo) texto.appendChild(selo);
     texto.appendChild(el('p', 'pn__fila-nome', (p.contato && p.contato.nome) || 'Sem nome'));
     texto.appendChild(el('p', null, negocio(p.briefing) + (p.fatores && p.fatores.formato ? ' · ' + p.fatores.formato.replace('_', ' ') : '')));
     texto.appendChild(el('p', 'pn__fila-meta', (atrasando ? 'Passa de ' + ALERTA_H + ' h · ' : '') + 'Pedido em ' + P.data(p.pedido_em) + ' (há ' + Math.floor(horas) + ' h) · ' + prontas + ' de ' + p.direcoes.length + ' prontas: ' +
       p.direcoes.map(function (d) { return (NOMES[d.estrategia] || d.estrategia) + (d.status === 'pronta' ? ' ✓' : d.status === 'falhou' ? ' ✗' : ''); }).join(', ')));
+    texto.appendChild(el('p', 'pn__dado', 'WhatsApp ' + C.telefone(p.contato && p.contato.telefone)));
     texto.appendChild(el('p', 'pn__fila-meta', 'Pedido ' + idCurto(p.conversa_id)));
+    var redes = C.redes(p.redes);
+    if (redes) texto.appendChild(redes);
     c.appendChild(texto);
     c.appendChild(acoesDe(p, prontas));
     return c;
@@ -117,16 +124,18 @@
       var alvo = $('fila');
       alvo.textContent = '';
       $('bloco-fila').hidden = false;
+      $('fila-alarme').hidden = !r.alarme;
       r.fila.forEach(function (p) { alvo.appendChild(cartao(p)); });
-      var contagem = !r.fila.length ? 'Nenhum pedido na fila.'
-        : r.total + (r.total === 1 ? ' pedido' : ' pedidos') + (r.truncada ? ' (mostrando os ' + r.fila.length + ' mais antigos)' : '') + '.';
+      var contagem = !r.fila.length ? 'Nenhum pedido confirmado na fila.'
+        : r.total + (r.total === 1 ? ' pedido confirmado' : ' pedidos confirmados') + ', por prioridade.';
       $('fila-estado').textContent = (typeof aviso === 'string' ? aviso + ' ' : '') + contagem;
     }).catch(function (e) { if (minha !== vez) return; $('bloco-fila').hidden = false; $('fila-estado').textContent = e.message; });
   }
   /* saiu do painel: nome e telefone dos clientes não ficam na página (e nenhuma leitura em voo os traz de volta) */
-  function esvaziar() { vez++; $('fila').textContent = ''; $('fila-estado').textContent = ''; $('bloco-fila').hidden = true; }
+  function esvaziar() { vez++; $('fila').textContent = ''; $('fila-estado').textContent = ''; $('fila-alarme').hidden = true; $('bloco-fila').hidden = true; }
 
   document.addEventListener('bz-painel:entrou', function () { carregar(); });
   document.addEventListener('bz-painel:saiu', esvaziar);
+  document.addEventListener('bz-painel:pedidos-mudaram', function (ev) { carregar(ev.detail && ev.detail.aviso); });
   $('fila-atualizar').addEventListener('click', function () { carregar(); });
 })();

@@ -148,7 +148,7 @@
     if (fim) $('o-pedido-fim-texto').textContent = FIM[pedido.status];
   }
   /* o pedido ainda não pode gerar modelos (esperando a confirmação, vencido ou encerrado) */
-  function pendente(E) { return !!(E && E.pedido && E.pedido.status !== 'confirmado' && E.pedido.status !== 'arquivado'); }
+  function pendente(E) { return !!(E && E.pedido && E.pedido.status !== 'confirmado'); }   /* (arquivado também: a geração parou e a conversa voltou a "contato", o servidor recusaria o "Gerar") */
   function iniciar(g) { if (g && typeof g.sessaoTerminou === 'function' && typeof g.avisarSessao === 'function') ganchos = g; }
 
   window.BZDetalhes = { iniciar: iniciar, atualizar: atualizar, pendente: pendente };
