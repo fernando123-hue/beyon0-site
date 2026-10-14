@@ -43,6 +43,8 @@
     if (!id) return;
     $(id).setAttribute('aria-invalid', 'true');
     $(id).setAttribute('aria-describedby', 'o-contato-erro');
+    var dentro = $(id).closest('details');   /* (o campo de uma rede fica dentro de "Outras redes": abre antes de focar) */
+    if (dentro) dentro.open = true;
     $(id).focus();
   }
   CAMPOS.forEach(function (c) {
@@ -91,14 +93,14 @@
     if (!d.aceite) return ['o-aceite', 'É preciso concordar com o uso dos dados para receber os modelos.'];
     return null;
   }
-  /* a recusa do servidor também aponta o campo, quando diz qual */
+  /* a recusa do servidor também aponta o campo, quando diz qual. A ordem importa: os nomes mais específicos
+     ("o que diferencia o seu negócio", "para quem você vende") vêm antes de "negócio" e "vende" */
+  var CAMPO_DA_REDE = [[/instagram/i, 'o-d-instagram'], [/facebook/i, 'o-d-facebook'], [/tiktok/i, 'o-d-tiktok'], [/youtube/i, 'o-d-youtube'], [/linkedin/i, 'o-d-linkedin']];
+  var CAMPO_DO_TEXTO = [[/whatsapp|telefone/i, 'o-tel'], [/autoriza/i, 'o-d-redes-ok'], [/diferencia/i, 'o-d-diferencial'], [/para quem/i, 'o-d-publico'],
+    [/chamado/i, 'o-nome'], [/admira/i, 'o-d-admira'], [/redes?/i, 'o-d-instagram'], [/vende/i, 'o-d-vende'], [/neg[óo]cio/i, 'o-d-negocio'], [/concordar/i, 'o-aceite']];
   function campoDaMensagem(m) {
-    if (/neg[óo]cio/i.test(m)) return 'o-d-negocio';
-    if (/vende/i.test(m)) return 'o-d-vende';
-    if (/whatsapp|telefone/i.test(m)) return 'o-tel';
-    if (/autoriza/i.test(m)) return 'o-d-redes-ok';
-    if (/instagram|facebook|tiktok|youtube|linkedin|rede/i.test(m)) return 'o-d-instagram';
-    if (/concordar/i.test(m)) return 'o-aceite';
+    var lista = CAMPO_DA_REDE.concat(CAMPO_DO_TEXTO);
+    for (var i = 0; i < lista.length; i++) if (lista[i][0].test(m)) return lista[i][1];
     return null;
   }
 
@@ -115,7 +117,7 @@
       document.dispatchEvent(new CustomEvent('bz:detalhes-enviados', { detail: { codigo: r.codigo } }));
     } catch (e) {
       if (ganchos.sessaoTerminou(e)) { ganchos.avisarSessao(); return; }
-      if (e && e.dados && e.dados.fila_cheia) { $('o-fila-cheia').hidden = false; form.hidden = true; return; }
+      if (e && e.dados && e.dados.fila_cheia) { $('o-fila-cheia').hidden = false; form.hidden = true; $('o-fila-cheia').focus(); return; }   /* (o foco não se perde com o formulário escondido) */
       var m = (e && e.message) || 'Não consegui guardar agora. Tente de novo ou fale com a Beyon Zero pelo WhatsApp.';
       marcarErro(e && e.status === 400 ? campoDaMensagem(m) : null, m);
     } finally { form.removeAttribute('aria-busy'); }

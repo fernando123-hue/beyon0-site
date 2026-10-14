@@ -463,6 +463,8 @@ html.menos-movimento .orc-log { scroll-behavior: auto; }
 .orc-confirmar .btn { margin-top: .6rem; }
 .orc-confirmar .orc-nota { font-size: 1rem; color: var(--t2); }
 .orc-fila-cheia { margin-bottom: 1rem; }
+.orc-fila-cheia:focus { outline: none; }
+.orc-fila-cheia:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
 /* texto que importa com 16px e botões em frase normal (como os das perguntas e do preço) */
 #o-detalhes-form label:not(.orc-check), #o-detalhes-form .orc-check, #o-detalhes-form .orc-erro { font-size: 1rem; }
 #o-detalhes-form .btn, .orc-confirmar .btn, #o-pedido-fim .btn { font-family: var(--sans); font-size: var(--fs-b); text-transform: none; letter-spacing: normal; }
