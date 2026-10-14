@@ -2454,7 +2454,7 @@ Expected: a linha `FALHA detalhes: o botão diz "Quero os três modelos"` e um t
           <label for="o-d-publico">Para quem você vende</label>
           <input id="o-d-publico" maxlength="200" autocomplete="off" />
           <label for="o-d-diferencial">O que diferencia o seu negócio</label>
-          <input id="o-d-diferencial" maxlength="200" autocomplete="off" />
+          <input id="o-d-diferencial" maxlength="160" autocomplete="off" />
           <label for="o-d-instagram">@ do Instagram do negócio</label>
           <input id="o-d-instagram" maxlength="80" autocomplete="off" placeholder="@seunegocio" />
           <details class="orc-redes">
