@@ -453,8 +453,11 @@ test('fila: nunca esconde nem sobra — o total é exatamente o número de pedid
 });
 
 /* ---------- a conferência da promoção: nenhuma conversa do fluxo antigo some da fila (docs/revisoes/fila-antiga-vazia.sql) ---------- */
-const CONSULTA_FILA_ANTIGA = fs.readFileSync(new URL('../revisoes/fila-antiga-vazia.sql', import.meta.url), 'utf8').trim();
-const filaAntiga = async banco => Number((await banco.query(CONSULTA_FILA_ANTIGA)).rows[0].count);
+/* o arquivo tem DUAS consultas, uma por linha: (1) direção na fila antiga, sem pedido; (2) conversa antiga parada em 'contato' (com lead, sem pedido) */
+const [CONSULTA_FILA_ANTIGA, CONSULTA_CONTATO_ANTIGO, ...SOBRA] = fs.readFileSync(new URL('../revisoes/fila-antiga-vazia.sql', import.meta.url), 'utf8').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+const contar = async (banco, consulta) => Number((await banco.query(consulta)).rows[0].count);
+const filaAntiga = banco => contar(banco, CONSULTA_FILA_ANTIGA);
+const contatoAntigo = banco => contar(banco, CONSULTA_CONTATO_ANTIGO);
 /* uma conversa montada do jeito antigo: sem linha em app.pedidos, com as direções que o teste pedir */
 async function conversaAntiga(etapa, direcoes) {
   const b = await comPacote();
@@ -491,9 +494,33 @@ test('promoção: a consulta da fila antiga dá 0 num banco sem conversa antiga 
   assert.equal(await um('select count(*) n from app.direcoes where conversa_id = $1 and status = $2', [comPedido.conversa_id, 'gerando']).then(r => Number(r.n)), 3);
 });
 
-test('promoção: o cabeçalho da migration e o plano citam o MESMO texto da consulta', () => {
+test('promoção: a conversa antiga parada em "contato" (lead, sem pedido) é contada; com pedido, sem lead ou em outra etapa, não', async () => {
+  assert.equal(SOBRA.length, 0, 'o arquivo tem exatamente duas consultas');
+  assert.match(CONSULTA_CONTATO_ANTIGO, /^select count\(\*\) from app\.conversas c where c\.etapa = 'contato' and c\.lead_id is not null and not exists/);
+  const vazio = await novoBanco();
+  assert.equal(await contatoAntigo(vazio), 0, 'banco sem conversa antiga');
+  await vazio.close?.();
+  const base = await contatoAntigo(db);
+  const b = await comPacote();
+  await rpc('vendas_informar_contato', { ...b, nome: 'Ana', telefone: '+5521999990000', aceite: true });   /* o fluxo antigo: contato sem pedido */
+  assert.equal((await um('select etapa from app.conversas where id = $1', [b.conversa_id])).etapa, 'contato');
+  assert.equal(await contatoAntigo(db), base + 1, 'contato + lead, sem pedido: conta');
+  await pedidoAguardando();   /* contato + lead + pedido: fora */
+  assert.equal(await contatoAntigo(db), base + 1, 'com pedido: fora');
+  const semLead = await comPacote();
+  await forcarEtapa(semLead.conversa_id, 'contato');
+  assert.equal(await contatoAntigo(db), base + 1, 'em contato, mas sem lead: fora');
+  const outra = await comPacote();
+  await rpc('vendas_informar_contato', { ...outra, nome: 'Bia', telefone: '+5521999990001', aceite: true });
+  await forcarEtapa(outra.conversa_id, 'encerrada');
+  assert.equal(await contatoAntigo(db), base + 1, 'lead sem pedido, mas fora de "contato": fora');
+});
+
+test('promoção: o cabeçalho da migration e o plano citam o MESMO texto das DUAS consultas', () => {
   const migration = fs.readFileSync(new URL('../../supabase/migrations/20261013120200_fila_confirmados.sql', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   const plano = fs.readFileSync(new URL('../superpowers/plans/2026-10-13-orcamento-sem-ia-pr2a.md', import.meta.url), 'utf8');
-  assert.ok(migration.includes('--   ' + CONSULTA_FILA_ANTIGA + '\n'), 'cabeçalho da migration');
-  assert.ok(plano.includes('`' + CONSULTA_FILA_ANTIGA + '`'), 'linha PR2a da Task 9');
+  for (const [nome, consulta] of [['fila antiga', CONSULTA_FILA_ANTIGA], ['contato antigo', CONSULTA_CONTATO_ANTIGO]]) {
+    assert.ok(migration.includes('--   ' + consulta + '\n'), 'cabeçalho da migration: ' + nome);
+    assert.ok(plano.includes('`' + consulta + '`'), 'linha PR2a da Task 9: ' + nome);
+  }
 });

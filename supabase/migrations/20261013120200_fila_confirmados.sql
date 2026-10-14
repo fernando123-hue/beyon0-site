@@ -14,6 +14,10 @@
 -- consulta de novo. Mais simples, como alternativa: antes de aplicar qualquer uma das três, conferir que a fila
 -- antiga do painel está vazia.
 --   select count(distinct c.id) from app.conversas c join app.direcoes d on d.conversa_id = c.id and d.geracao = (select max(x.geracao) from app.direcoes x where x.conversa_id = c.id) where c.etapa in ('contato', 'gerando', 'direcoes', 'escolhida', 'alteracoes') and (d.status = 'gerando' or (d.status = 'pronta' and d.avisada_em is null)) and not exists (select 1 from app.pedidos p where p.conversa_id = c.id);
+-- A 2ª consulta (também de docs/revisoes/fila-antiga-vazia.sql) pega o que a 1ª não vê: conversa antiga parada em
+-- "contato", com o contato já informado e sem pedido (ainda sem direção). Também tem que dar 0 ou ser resolvida pelo
+-- WhatsApp: a API deixa de aceitar "contato", então essa pessoa não consegue gerar os modelos pela tela.
+--   select count(*) from app.conversas c where c.etapa = 'contato' and c.lead_id is not null and not exists (select 1 from app.pedidos p where p.conversa_id = c.id);
 -- ==========================================================================
 create or replace function app.vendas_fila_direcoes(p jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$

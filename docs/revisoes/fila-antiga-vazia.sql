@@ -1,1 +1,2 @@
 select count(distinct c.id) from app.conversas c join app.direcoes d on d.conversa_id = c.id and d.geracao = (select max(x.geracao) from app.direcoes x where x.conversa_id = c.id) where c.etapa in ('contato', 'gerando', 'direcoes', 'escolhida', 'alteracoes') and (d.status = 'gerando' or (d.status = 'pronta' and d.avisada_em is null)) and not exists (select 1 from app.pedidos p where p.conversa_id = c.id);
+select count(*) from app.conversas c where c.etapa = 'contato' and c.lead_id is not null and not exists (select 1 from app.pedidos p where p.conversa_id = c.id);
