@@ -43,11 +43,13 @@ export function normalizarIp(ip) {
   return g.slice(0, 4).map(hex).join(':') + '::';
 }
 
-export function chaveDoIp(ip, segredo, agora = new Date()) {
+/* uso: um prefixo que separa os freios que dividem a tabela privado.freio_ip (ex.: 'pedido' para os detalhes, PR 2a).
+   Sem uso, a chave é a mesma de antes (o freio das conversas com IA não muda) */
+export function chaveDoIp(ip, segredo, agora = new Date(), uso = '') {
   if (!segredo || typeof ip !== 'string' || ip.length > 64) return null;
   const n = normalizarIp(ip);
   if (!n) return null;
   const normal = n.endsWith('::') ? n + '/64' : n;   /* ("2001:db8:a:b::/64": a mesma chave de antes desta revisão) */
   const dia = agora.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });   /* AAAA-MM-DD no fuso do teto diário */
-  return createHmac('sha256', segredo).update(dia + '|' + normal).digest('hex');
+  return createHmac('sha256', segredo).update((uso ? uso + '|' : '') + dia + '|' + normal).digest('hex');
 }
