@@ -21,9 +21,9 @@ body { font-size: 1rem; line-height: 1.7; }
 .priv .priv__marca a { color: var(--t1); text-decoration: none; }
 .priv code { font-family: var(--mono); font-size: .85em; color: var(--t1); }
 /* parágrafo junto de lista (condições: "Por Pix, com recibo." + itens) respira como o resto; o número de telefone não quebra no hífen */
-.priv p + ul, .priv ul + p { margin-top: .9rem; }
+.priv p + p, .priv p + ul, .priv ul + p { margin-top: .9rem; }
 .priv a[href^="https://wa.me"] { white-space: nowrap; }
-.priv__voltar { margin-top: 3rem; }
+.priv .priv__voltar { margin-top: 3rem; }
 .priv__voltar a { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-ctrl); text-transform: uppercase; display: inline-flex; align-items: center; min-height: 44px; }
 /* os três valores da página de condições (dado: preço, entrada, restante), um por linha no celular e lado a lado a partir de 600px */
 .priv__valores { display: grid; gap: 1.1rem; margin: 1.8rem 0 2.2rem; }
