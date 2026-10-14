@@ -14,7 +14,7 @@
   var API = window.BZOrcamento, PV = window.BZPrevia;
   var $ = function (id) { return document.getElementById(id); };
   /* um script não chegou (rede, bloqueador): sem isso a página ficava morta sem dizer nada (auditoria 2026-10-09, F19) */
-  if (!API || !PV || !window.BZVisor || !window.BZPerguntas) { semScripts(); return; }
+  if (!API || !PV || !window.BZVisor || !window.BZPerguntas || !window.BZDetalhes || !window.BZEspera) { semScripts(); return; }
   function semScripts() {
     var aviso = $('o-aviso');
     if (!aviso) return;
@@ -31,13 +31,13 @@
   var CONVERSA_ABERTA = ['descoberta', 'estimativa', 'contato', 'direcoes', 'escolhida', 'alteracoes', 'escopo', 'aguardando_pagamento'];
   /* (perto do pagamento, o lembrete de não colar dados do cartão vai na própria caixa: revisão de segurança do PR 34) */
   var DICA_DUVIDA = { escopo: 'Ex.: o domínio já vem incluído? (não escreva dados de cartão)', aguardando_pagamento: 'Ex.: quando eu pago o restante? (não escreva dados de cartão)' };
-  var ESPERA_MS = 5000, ESPERA_MAX_MS = 15 * 60e3, REPEDIR_MS = 60e3;
+  var REPEDIR_MS = 60e3;
   var E = null;                 /* o último estado do servidor */
   var seq = 0, emVoo = null;    /* respostas fora de ordem: só a mais nova vale */
   var pedindo = {};             /* direção → até quando NÃO pedir de novo (posse de outro pedido) */
   var inicioGeracao = {};
   var assinaturas = {};         /* bloco → o que foi desenhado (não refaz o que não mudou) */
-  var ultimaAcao = null, espera = null, relogio = null, enviando = false;
+  var ultimaAcao = null, relogio = null, enviando = false;
 
   /* ---------- orçamento sem IA (spec 2026-10-11): as perguntas são o núcleo; a conversa só existe quando há consultor ----------
      A conversa aparece se o servidor diz que há consultor E a pessoa abriu "Prefere conversar?" (ou a conversa já tem
@@ -93,6 +93,11 @@
   /* o pacote foi gravado: a tela segue o servidor (o contato aparece) e leva a pessoa até ele */
   document.addEventListener('bz:pacote-confirmado', function seguir() {
     recarregar().then(function () { if (!$('o-contato').hidden) irPara('o-contato'); })
+      .catch(function (e) { falhou(e, function () { seguir(); }); });
+  });
+  /* os detalhes viraram pedido (PR 2a): a tela segue o servidor e leva a pessoa até a confirmação pelo WhatsApp */
+  document.addEventListener('bz:detalhes-enviados', function seguir() {
+    recarregar().then(function () { if (!$('o-confirmar').hidden) irPara('o-confirmar'); })
       .catch(function (e) { falhou(e, function () { seguir(); }); });
   });
 
@@ -153,20 +158,22 @@
      novo". O 503 recuperável (Auth instável) não entra aqui: a sessão fica e o aviso oferece tentar de novo */
   var sessaoTerminou = function (e) { return API.perdeuSessao() || (!!E && !!e && e.status === 401 && !API.temSessao()); };
   function avisarSessao(quieto) {
-    pararEspera();
+    vigia.parar();
     if (telaPagamento) telaPagamento.parar();
     var cod = API.codigoPerdido() || codigoMostrado;
     avisar('Sua sessão terminou. Recomece o orçamento por aqui' + (cod ? ' ou continue pelo WhatsApp citando o código do pedido ' + cod + '.' : ' ou continue pelo WhatsApp.'), recomecar, 'Recomeçar', quieto);
   }
   /* Recomeçar: esquece a sessão (nenhuma outra aba a grava de volta) e limpa os dados digitados antes de
      recarregar, para o navegador não os restaurar num aparelho compartilhado */
-  var CAMPOS_PESSOAIS = ['o-texto', 'o-aj-texto', 'o-nome', 'o-tel', 'o-email', 'o-pag-nome', 'o-pag-sobrenome', 'o-pag-email', 'o-pag-doc', 'o-titular', 'o-pix-codigo'];
+  var CAMPOS_PESSOAIS = ['o-texto', 'o-aj-texto', 'o-nome', 'o-tel', 'o-d-negocio', 'o-d-vende', 'o-d-publico', 'o-d-diferencial', 'o-d-instagram',
+    'o-d-facebook', 'o-d-tiktok', 'o-d-youtube', 'o-d-linkedin', 'o-d-admira', 'o-pag-nome', 'o-pag-sobrenome', 'o-pag-email', 'o-pag-doc', 'o-titular', 'o-pix-codigo'];
   function recomecar() {
     API.esquecer();
     CAMPOS_PESSOAIS.forEach(function (id) { if ($(id)) $(id).value = ''; });
-    ['o-aceite', 'o-confirmo', 'o-inicio'].forEach(function (id) { if ($(id)) $(id).checked = false; });
+    ['o-aceite', 'o-d-redes-ok', 'o-confirmo', 'o-inicio'].forEach(function (id) { if ($(id)) $(id).checked = false; });
     location.reload();
   }
+  $('o-pedido-recomecar').addEventListener('click', recomecar);   /* (pedido vencido ou encerrado: um orçamento novo) */
   /* outra aba esqueceu a sessão (js/orcamento-api.js): avisa já, quieto, em vez de esperar a próxima ação */
   document.addEventListener('bz-orcamento:perdida', function () { avisarSessao(true); });
   function falhou(e, acao) {
@@ -174,13 +181,16 @@
     avisar(mensagemDe(e), acao);
   }
   $('o-tentar').addEventListener('click', function () { var a = ultimaAcao; limparAviso(); if (a) a(); });
+  /* o formulário de detalhes trata a sessão recusada como o contato antigo tratava (PR 2a) */
+  window.BZDetalhes.iniciar({ sessaoTerminou: sessaoTerminou, avisarSessao: avisarSessao });
 
   /* ---------- o código do pedido e o WhatsApp com ele (F1, F6) ----------
      Os links [data-wa] são montados por js/pagina.js; aqui só se acrescenta "(pedido XXXXXXXX)" ao assunto, no
      próprio data-wa (quem remontar os links depois, como js/metricas.js, leva o pedido junto) */
   var codigoMostrado = null;
   function identificar() {
-    var c = API.codigo();
+    /* o código do pedido (BZ-XXXXX) depois dos detalhes; antes, o id curto da conversa */
+    var c = E && E.pedido && E.pedido.codigo ? E.pedido.codigo : API.codigo();
     if (!c || c === codigoMostrado) return;
     codigoMostrado = c;
     $('o-codigo-v').textContent = c;
@@ -354,43 +364,8 @@
     });
   }
 
-  /* ---------- o contato ---------- */
-  var CAMPOS_CONTATO = ['o-nome', 'o-tel', 'o-email', 'o-aceite'];
-  soltarAoCorrigir(CAMPOS_CONTATO.concat(['o-confirmo']));
-  function validarContato(d) {
-    if (d.nome.length < 2) return ['o-nome', 'Informe seu nome.'];
-    if (!d.telefone && !d.email) return ['o-tel', 'Informe o WhatsApp ou o e-mail.'];
-    if (manual() && !d.telefone) return ['o-tel', 'Informe seu WhatsApp: é por ele que avisamos quando as direções ficarem prontas.'];
-    if (!d.aceite) return ['o-aceite', 'É preciso concordar com o uso dos dados para receber as propostas.'];
-    return null;
-  }
-  $('o-contato-form').addEventListener('submit', async function (ev) {
-    ev.preventDefault();
-    var form = this, erro = $('o-contato-erro');
-    if (form.getAttribute('aria-busy') === 'true') return;
-    var dados = { nome: $('o-nome').value.trim(), telefone: $('o-tel').value.trim(), email: $('o-email').value.trim(), aceite: $('o-aceite').checked };
-    var ruim = validarContato(dados);
-    if (ruim) { erroNoCampo(CAMPOS_CONTATO, erro, ruim[0], ruim[1]); $(ruim[0]).focus(); return; }
-    if (!dados.telefone) delete dados.telefone;
-    if (!dados.email) delete dados.email;
-    erroNoCampo(CAMPOS_CONTATO, erro, null, '');
-    /* só gera se a conversa ainda está ANTES das direções (F20: um contato apagado aos 60 dias reaparecia o
-       formulário mais adiante, e o envio pedia a geração fora da etapa) */
-    var gerarDepois = !!E && ['contato', 'estimativa'].indexOf(E.conversa.etapa) >= 0;
-    form.setAttribute('aria-busy', 'true');
-    try { await API.contato(dados); }
-    catch (e) {
-      form.removeAttribute('aria-busy');
-      if (sessaoTerminou(e)) { avisarSessao(); return; }
-      /* (a recusa do servidor também aponta o campo, quando diz qual) */
-      var m = mensagemDe(e), campo = /e-mail/i.test(m) ? 'o-email' : /whatsapp|telefone/i.test(m) ? 'o-tel' : /nome/i.test(m) ? 'o-nome' : null;
-      erroNoCampo(CAMPOS_CONTATO, erro, campo, m);
-      return;
-    }
-    form.removeAttribute('aria-busy');
-    if (gerarDepois) await gerarTodas();
-    else await recarregar().catch(function () {});
-  });
+  /* ---------- os detalhes e a confirmação pelo WhatsApp: js/orcamento-detalhes.js (PR 2a) ---------- */
+  soltarAoCorrigir(['o-confirmo']);
 
   /* ---------- ações que mudam a etapa: uma por vez, botões desligados em voo (F10: duplo toque gerava 2 escopos) ---------- */
   var acaoEmVoo = false;
@@ -423,14 +398,14 @@
     inicioGeracao[id] = inicioGeracao[id] || Date.now();
     try {
       var r = await API.gerarDirecao(id);
-      if (r.status === 'em_andamento') { pedindo[id] = Date.now() + REPEDIR_MS; esperar(); return; }
+      if (r.status === 'em_andamento') { pedindo[id] = Date.now() + REPEDIR_MS; vigia.esperar(); return; }
       pedindo[id] = 0;
       await recarregar().catch(function () {});
     } catch (e) {
       pedindo[id] = Date.now() + REPEDIR_MS;
       if (sessaoTerminou(e)) { avisarSessao(); return; }
       if (e.status === 429 || e.status === 503) avisar(mensagemDe(e));
-      esperar();
+      vigia.esperar();
     }
   }
   function tempo(id) {
@@ -441,19 +416,9 @@
      vai pelo WhatsApp; a página não pede a geração nem fica consultando: confere de novo quando a pessoa volta */
   var manual = function () { return !!E && E.modo_direcoes === 'manual'; };
   var TEXTOS_MANUAL = {
-    contato: 'Com o seu contato, eu desenho três modelos de site para o seu negócio: um feito para trazer pedidos, um que passa confiança e um mais moderno e chamativo. Ficam prontos em até 24 horas úteis, e eu aviso pelo seu WhatsApp.',
     direcoes: 'Mesmo briefing, três estratégias. Ficam prontas em até 24 horas úteis e avisamos pelo seu WhatsApp; é só voltar a esta página, neste mesmo navegador, para abrir, comparar e escolher.',
     prontas: 'Mesmo briefing, três estratégias. Abra cada uma, compare e escolha a que mais tem a cara do seu negócio.'
   };
-  function textosDoModo() {
-    if (!manual() || !mudou('modo', 'manual')) return;
-    $('o-contato-lead').textContent = TEXTOS_MANUAL.contato;
-    var opcional = document.querySelector('label[for="o-email"] .orc-opcional');
-    if (opcional) opcional.textContent = '(opcional)';
-    $('o-tel-obrig').textContent = '(obrigatório)';   /* (A8: o rótulo diz, não só a validação) */
-    $('o-tel').required = true;
-    $('o-tel').setAttribute('aria-required', 'true');
-  }
   var podeEscolher = function () { return E && (E.conversa.etapa === 'direcoes' || E.conversa.etapa === 'escolhida'); };   /* (o servidor trava a troca depois do 1º ajuste) */
   var podeGerar = function () { return E && ['contato', 'estimativa', 'direcoes', 'escolhida'].indexOf(E.conversa.etapa) >= 0; };   /* (= app.vendas_iniciar_geracao) */
   var escolhidaId = function () { return E && E.escolha ? E.escolha.direcao_id : null; };
@@ -519,7 +484,7 @@
   window.addEventListener('resize', function () { clearTimeout(adiado); adiado = setTimeout(encaixarMinis, 150); });
   /* o relógio dos cartões em geração: só roda enquanto há geração */
   function relogioDosCartoes(ligar) {
-    if (desistiu) ligar = false;   /* (a espera desistiu: o relógio para junto, não conta um tempo que ninguém acompanha) */
+    if (vigia.desistiu()) ligar = false;   /* (a espera desistiu: o relógio para junto, não conta um tempo que ninguém acompanha) */
     if (ligar && !relogio) relogio = setInterval(function () { [].forEach.call(document.querySelectorAll('[data-tempo]'), function (t) { t.textContent = tempo(t.getAttribute('data-tempo')); }); }, 1000);
     if (!ligar && relogio) { clearInterval(relogio); relogio = null; }
   }
@@ -682,15 +647,17 @@
   function direcoes() {
     var et = E.conversa.etapa;
     var temDirecoes = E.direcoes.length > 0;
-    mostrar('o-direcoes', temDirecoes || (E.conversa.tem_contato && et === 'contato'));
+    /* (PR 2a) com o pedido esperando a confirmação pelo WhatsApp, vencido ou encerrado: nada de "Gerar" (o servidor recusaria) */
+    var pendente = window.BZDetalhes.pendente(E);
+    mostrar('o-direcoes', temDirecoes || (E.conversa.tem_contato && et === 'contato' && !pendente));
     var resumo = E.direcoes.map(function (d) { return [d.id, d.status, d.conteudo]; });
     anunciarProntas();
-    if (mudou('direcoes', [resumo, escolhidaId(), podeEscolher(), podeGerar(), E.conversa.tem_contato])) {
+    if (mudou('direcoes', [resumo, escolhidaId(), podeEscolher(), podeGerar(), E.conversa.tem_contato, pendente])) {
       var ul = $('o-dirs');
       var foco = focoNaLista(ul);
       ul.textContent = '';
       if (temDirecoes) { E.direcoes.forEach(function (d) { ul.appendChild(cartaoDirecao(d)); }); encaixarMinis(); }
-      else if (E.conversa.tem_contato && podeGerar()) ul.appendChild(botaoAcao('btn btn--primary', 'Gerar as três direções', gerarTodas));   /* (F20: só na etapa que gera) */
+      else if (E.conversa.tem_contato && podeGerar() && !pendente) ul.appendChild(botaoAcao('btn btn--primary', 'Gerar as três direções', gerarTodas));   /* (F20: só na etapa que gera) */
       devolverFocoNaLista(ul, foco);
     }
     if (manual()) $('o-dir-lead').textContent = E.direcoes.some(function (d) { return d.status === 'gerando'; }) || !temDirecoes ? TEXTOS_MANUAL.direcoes : TEXTOS_MANUAL.prontas;
@@ -728,7 +695,6 @@
   }
   function render() {
     var et = E.conversa.etapa;
-    textosDoModo();
     identificar();
     etapas();
     /* a conversa segue o servidor: redesenha quando o número de mensagens mudou (F2: resposta gravada com a rede caída) */
@@ -742,7 +708,7 @@
     $('o-texto').placeholder = Object.prototype.hasOwnProperty.call(DICA_DUVIDA, et) ? DICA_DUVIDA[et] : dicaPadrao;
     mostrar('o-conversa-fechada', !aberta);
     if (!aberta) $('o-atalhos').hidden = true;
-    mostrar('o-contato', !E.conversa.tem_contato && !!E.estimativa);
+    window.BZDetalhes.atualizar(E);   /* os detalhes, a confirmação pelo WhatsApp ou o pedido encerrado (js/orcamento-detalhes.js) */
     direcoes();
     mostrar('o-ajustes', et === 'escolhida' || et === 'alteracoes');
     mudancas();
@@ -755,7 +721,7 @@
     var pronto = et === 'em_producao', chegou = pronto && $('o-pronto').hidden && viuAguardando;
     mostrar('o-pronto', pronto);
     if (pronto) {
-      pararEspera(); if (telaPagamento) telaPagamento.parar();
+      vigia.parar(); if (telaPagamento) telaPagamento.parar();
       var pr = E.proposta;
       if (recibo) recibo.desenhar(pr ? { id: pr.id, total: Number(pr.valor_total), sinal: valorDoSinal(pr), prazo: pr.prazo_dias } : null, chegou);
     }
@@ -772,41 +738,14 @@
     if (minha !== seq) return E;
     E = novo;
     render();
-    if (E.conversa.etapa === 'gerando' && !manual()) esperar();   /* (no pagamento, quem consulta é js/orcamento-pagamento.js; na fila manual, só ao voltar à aba) */
+    if (E.conversa.etapa === 'gerando' && !manual()) vigia.esperar();   /* (no pagamento, quem consulta é js/orcamento-pagamento.js; na fila manual, só ao voltar à aba) */
     return E;
   }
 
-  /* espera pelo que acontece fora desta aba (direção feita por outro pedido, aviso do pagamento).
-     Aos 15 min ela desiste (F12): para o relógio dos cartões e AVISA, com "Conferir agora" e o WhatsApp; volta a
-     esperar quando a pessoa confere ou volta para a aba */
-  var desistiu = false;
-  function esperar() {
-    if (espera || desistiu) return;
-    var inicio = Date.now();
-    espera = setInterval(async function () {
-      if (document.hidden || emVoo) return;
-      if (Date.now() - inicio > ESPERA_MAX_MS) { desistir(); return; }
-      try {
-        await recarregar();
-        if (E.conversa.etapa !== 'gerando' && E.conversa.etapa !== 'aguardando_pagamento') pararEspera();
-      } catch (e) { if (sessaoTerminou(e)) avisarSessao(); /* senão, tenta na próxima */ }
-    }, ESPERA_MS);
-  }
-  function pararEspera() { clearInterval(espera); espera = null; }
-  async function desistir() {
-    pararEspera();
-    desistiu = true;
-    relogioDosCartoes(false);
-    try { await recarregar(); } catch (e) { /* o aviso abaixo oferece conferir de novo */ }   /* (uma última olhada) */
-    if (E && E.conversa.etapa === 'gerando') avisar('Está demorando mais que o normal. Confira de novo daqui a pouco ou fale com a Beyon Zero pelo WhatsApp.', conferirGeracao, 'Conferir agora');
-  }
-  function conferirGeracao() { desistiu = false; recarregar().catch(function (e) { falhou(e, conferirGeracao); }); }
-  /* voltou para a aba (do WhatsApp, do pagamento): olha de novo e retoma a espera se ainda for o caso */
-  document.addEventListener('visibilitychange', function () {
-    if (document.hidden || !E || !API.temSessao()) return;
-    desistiu = false;
-    if (E.conversa.etapa === 'gerando' || E.conversa.etapa === 'aguardando_pagamento') recarregar().catch(function () {});
-  });
+  /* a espera pelo que acontece fora desta aba e a volta à aba: js/orcamento-espera.js (saiu daqui no PR 2a) */
+  var vigia = window.BZEspera.criar({ recarregar: recarregar, estado: function () { return E; }, emVoo: function () { return !!emVoo; },
+    temSessao: API.temSessao, relogioDosCartoes: relogioDosCartoes, avisar: avisar, falhou: falhou,
+    sessaoTerminou: sessaoTerminou, avisarSessao: avisarSessao });
 
   /* chegando pela passagem (js/passagem.js), <main> ainda está se movendo: o scrollIntoView mediria a caixa em
      movimento e a rolagem pararia fora do lugar. Rola quando ela assenta ('passagem:chegou') */

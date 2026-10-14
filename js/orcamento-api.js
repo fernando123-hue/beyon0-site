@@ -165,6 +165,8 @@
     },
     mensagem: async function (texto) { await garantirSessao(); return chamar('POST', 'mensagem', comConversa({ texto: texto }), undefined, MENSAGEM_MS); },
     contato: function (dados) { return chamar('POST', 'contato', comConversa(dados)); },
+    /* os detalhes do negócio (PR 2a): viram o pedido com código; o servidor redige e confere tudo de novo */
+    detalhes: function (dados) { return chamar('POST', 'detalhes', comConversa(dados), undefined, ESTADO_MS); },
     gerar: function () { return chamar('POST', 'gerar', comConversa()); },
     gerarDirecao: function (id) { return chamar('POST', 'gerar-direcao', comConversa({ direcao_id: id })); },
     escolher: function (id) { return chamar('POST', 'escolher', comConversa({ direcao_id: id })); },
