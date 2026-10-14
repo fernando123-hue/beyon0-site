@@ -288,7 +288,7 @@ test('dados incompletos ou inconsistentes: cada um recusado com motivo, sem 500'
   assert.equal((await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'oi' }, { tipo: 'text/plain' })).status, 415, 'formulário de outro site');
 });
 
-test('gerar só com o pedido CONFIRMADO: conversa antiga em contato (sem pedido) e pedido esperando recebem 409 da API; confirmado gera (o banco ainda aceita o 1º caso, PR2a-banco)', async () => {
+test('gerar só com o pedido CONFIRMADO: conversa antiga em contato (sem pedido) e pedido esperando recebem 409 da API com a frase certa; confirmado gera (o banco também recusa o 1º caso)', async () => {
   const n = navegador();
   const s = await n.iniciar();
   const c = s.conversa_id;

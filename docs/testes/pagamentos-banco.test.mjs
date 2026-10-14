@@ -4,7 +4,7 @@
    pausam o projeto, e que a auditoria não se reescreve.  npm run testar */
 import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
-import { novoBanco, como, erroDe } from './_banco.mjs';
+import { novoBanco, como, erroDe, pedidoConfirmado } from './_banco.mjs';
 
 const A = 'aaaaaaaa-0000-4000-8000-0000000000a1';    // dono da Beyon Zero
 const X = 'cccccccc-0000-4000-8000-0000000000c3';    // dono de OUTRA organização
@@ -32,6 +32,7 @@ async function ateCobranca(v = V1) {
   await rpc('vendas_registrar_turno', { ...b, mensagem_visitante: 'oi', mensagem_agente: 'olá', briefing: { projeto: { formato: 'institucional' } }, confianca: 0.8 });
   await rpc('vendas_registrar_estimativa', { ...b, regras_id: REGRAS, fatores: { formato: 'institucional' }, valor_total: 3000, sinal: 1500, prazo_dias: 10 });
   await rpc('vendas_informar_contato', { ...b, nome: 'Ana', email: 'ana@x.com', aceite: true });
+  await pedidoConfirmado(db, conversa);   /* (PR 2a: as direções só nascem com o pedido confirmado pelo dono) */
   const g = await rpc('vendas_iniciar_geracao', b);
   for (const d of g.direcoes) await rpc('vendas_concluir_direcao', { direcao_id: d.id, conteudo: { secoes: [] }, modelo: 't' });
   await rpc('vendas_escolher', { ...b, direcao_id: g.direcoes[0].id });

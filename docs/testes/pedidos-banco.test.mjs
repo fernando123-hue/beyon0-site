@@ -287,12 +287,13 @@ test('confirmar: recusa cada etapa fora de "contato"; pedido vencido vira expira
   assert.equal(Number((await um('select count(*) n from app.direcoes where conversa_id = $1', [v.conversa_id])).n), 0);
 });
 
-test('gerar antes da confirmação: recusado; sem pedido (o caminho antigo do consultor), o banco ainda aceita (a API recusa, Task 7)', async () => {
+test('gerar antes da confirmação: recusado; sem pedido (o caminho antigo do consultor), o banco TAMBÉM recusa (revisão final, B4)', async () => {
   const p = await pedidoAguardando();
   assert.equal((await erroDe(rpc('vendas_iniciar_geracao', { conversa_id: p.conversa_id, visitante_id: p.visitante_id })))?.codigo, ETAPA);
   const b = await comPacote();
   await rpc('vendas_informar_contato', { ...b, nome: 'Ana', telefone: '+5521999990000', aceite: true });
-  assert.equal((await rpc('vendas_iniciar_geracao', b)).nova, true);
+  assert.equal((await erroDe(rpc('vendas_iniciar_geracao', b)))?.codigo, ETAPA, 'sem linha em app.pedidos: nada nasce');
+  assert.equal(Number((await um('select count(*) n from app.direcoes where conversa_id = $1', [b.conversa_id])).n), 0);
 });
 
 test('conclusão automática: as três direções falham → o pedido sai da fila, do teto e libera o telefone', async () => {

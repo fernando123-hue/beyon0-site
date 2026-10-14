@@ -6,7 +6,7 @@
 --   • o pedido CONCLUI sozinho quando sai do trabalho do dono: "Já avisei", o cliente escolheu um modelo (ou foi
 --     além) ou a geração acabou sem pendência (as três falharam). Assim nenhum confirmado ocupa o teto e o
 --     telefone sem aparecer na fila (privado.pedido_na_fila, 20261013120000_pedidos.sql);
---   • gerar direções exige o pedido confirmado quando a conversa tem pedido (a API recusa o caminho sem pedido);
+--   • gerar direções exige o pedido confirmado, também na conversa sem pedido (o caminho antigo: nada nasce);
 --   • a rotina diária vence quem não confirmou em 72 h, apaga o hash do telefone 2 dias depois do encerramento e
 --     as redes do cliente depois de 60 dias.
 -- A fila do painel (só confirmados) vem em 20261013120200_fila_confirmados.sql.
@@ -152,8 +152,9 @@ begin
   if not exists (select 1 from app.estimativas e where e.conversa_id = c.id) then
     raise exception 'a estimativa vem antes das direções' using errcode = '55000';
   end if;
-  -- (PR 2a) o pedido feito pelos detalhes só gera depois que o dono confirma pelo WhatsApp
-  if exists (select 1 from app.pedidos pd where pd.conversa_id = c.id and pd.status <> 'confirmado') then
+  -- (PR 2a) só gera o pedido CONFIRMADO pelo dono no WhatsApp. Também sem linha em app.pedidos (o caminho antigo, contato
+  -- direto): a API já recusava, e agora o banco fecha também (revisão final, B4)
+  if not exists (select 1 from app.pedidos pd where pd.conversa_id = c.id and pd.status = 'confirmado') then
     raise exception 'o pedido ainda não foi confirmado' using errcode = '55000';
   end if;
   -- uma geração em andamento: devolve a mesma

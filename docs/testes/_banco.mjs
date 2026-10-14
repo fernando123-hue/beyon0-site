@@ -63,6 +63,13 @@ export async function como(db, quem, fn, { manter = true } = {}) {
   });
 }
 
+/* o pedido CONFIRMADO de uma conversa, como o dono deixa no painel (PR 2a): sem ele, vendas_iniciar_geracao não gera
+   (revisão final, B4). Para os testes de banco que montam o caminho até as direções à mão */
+export function pedidoConfirmado(db, conversaId) {
+  return db.query(`insert into app.pedidos (org_id, conversa_id, codigo, status, confirmado_em, expira_em)
+    select org_id, id, privado.novo_codigo_pedido(), 'confirmado', now(), now() + interval '72 hours' from app.conversas where id = $1`, [conversaId]);
+}
+
 /* o erro do Postgres (código SQLSTATE e mensagem) de uma operação que deve falhar */
 export async function erroDe(promessa) {
   try { await promessa; } catch (e) { return { codigo: e.code, msg: e.message }; }
