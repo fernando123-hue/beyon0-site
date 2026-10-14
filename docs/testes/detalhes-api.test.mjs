@@ -221,3 +221,22 @@ test('"Quero" com a tabela trocada há pouco: lê de novo sem o cache antes do 4
     assert.equal(velho.corpo.versao_nova, mais, 'a versão de agora, e não a que estava guardada (' + nova + ')');
   } finally { globalThis.__BZ_LOCAL = local; }
 });
+
+test('a ação "contato" saiu e gerar exige o pedido confirmado, nos dois modos (nenhum caminho cria direções sem os freios)', async () => {
+  const { criarSimulada } = await import('../../api/_ia/simulado.mjs');
+  for (const extra of [{}, { direcoes: 'api', ia: criarSimulada() }]) {
+    const n = navegador(undefined, extra), c = await comPacote(n);
+    assert.equal((await n.chamar('POST', 'contato', { conversa_id: c, nome: 'Ana', telefone: '(21) 99999-0000', aceite: true })).status, 404, 'contato: ação inválida');
+    /* o caminho antigo, direto no banco (lead sem pedido): a API não gera */
+    const vid = (await um('select visitante_id from app.conversas where id = $1', [c])).visitante_id;
+    await local.rpc('vendas_informar_contato', { conversa_id: c, visitante_id: vid, nome: 'Ana', telefone: '+5521999990000', aceite: true });
+    const g = await n.chamar('POST', 'gerar', { conversa_id: c });
+    assert.equal(g.status, 409, (extra.direcoes || 'manual') + ': ' + JSON.stringify(g.corpo));
+    assert.match(g.corpo.erro, /confirmado/);
+    assert.equal(Number((await um('select count(*) n from app.direcoes where conversa_id = $1', [c])).n), 0);
+  }
+  /* com a IA ligada: detalhes sem confirmação também não gera (D2) */
+  const n = navegador(undefined, { direcoes: 'api', ia: criarSimulada() }), c = await comPacote(n);
+  assert.equal((await n.chamar('POST', 'detalhes', { conversa_id: c, ...DETALHES() })).status, 200);
+  assert.equal((await n.chamar('POST', 'gerar', { conversa_id: c })).status, 409);
+});

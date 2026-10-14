@@ -9,7 +9,7 @@ import { modoDirecoes } from '../../api/_ia/config.mjs';
 
 let local, deps, ipSeq = 0;
 const BASE = 'http://127.0.0.1:8899';
-before(async () => { local = await montarLocal({ base: BASE }); deps = { banco: local.rpc, visitantes: local.auth, ia: null }; });
+before(async () => { local = await montarLocal({ base: BASE }); deps = { banco: local.rpc, visitantes: local.auth, ia: null, segredoFreio: 's'.repeat(32) }; });
 
 function navegador() {
   const ip = '198.51.100.' + (200 + (++ipSeq));
@@ -62,7 +62,7 @@ test('confirmar-pacote grava uma vez, com a versão da tabela; versão velha →
   assert.equal(conv.etapa, 'estimativa');
   assert.equal(conv.briefing.negocio.cidade, 'Goiânia');
   assert.equal(conv.turnos, 0);
-  assert.equal((await n.chamar('POST', 'contato', { conversa_id: c, nome: 'Ana', telefone: '(62) 99999-0000', aceite: true })).status, 200);
+  assert.equal((await n.chamar('POST', 'detalhes', { conversa_id: c, negocio: 'Clínica Sol', vende: 'Consultas', telefone: '(62) 99999-0000', aceite: true })).status, 200);
   assert.equal((await n.chamar('POST', 'confirmar-pacote', { conversa_id: c, respostas: RESP, versao: s.corpo.versao })).status, 409, 'depois do contato o pacote não muda por aqui');
 });
 

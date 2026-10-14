@@ -12,6 +12,7 @@ import { configPagamentos } from '../../api/_pagamentos/config.mjs';
 import { ErroIA } from '../../api/_ia/provedor.mjs';
 import { RECUPERACAO } from '../../api/_vendas/fluxo.mjs';
 import { SISTEMA } from '../../api/_vendas/agente.mjs';
+import { LIMITES_DE_TESTE, detalhesEConfirmar } from './_pedido.mjs';
 
 let local, deps;
 const PAGADOR = { nome: 'Ana', sobrenome: 'Souza', email: 'ana@exemplo.com', documento: '52998224725' };
@@ -19,7 +20,7 @@ const BASE = 'http://127.0.0.1:8899';
 let ipSeq = 0;
 before(async () => {
   local = await montarLocal({ base: BASE });
-  deps = { banco: local.rpc, visitantes: local.auth, ia: criarSimulada(), direcoes: 'api', pagamentos: criarServicoPagamentos({ banco: local.rpc, cfg: configPagamentos({}) }) };
+  deps = { banco: local.rpc, visitantes: local.auth, ia: criarSimulada(), direcoes: 'api', segredoFreio: 's'.repeat(32), limitesPedido: LIMITES_DE_TESTE, pagamentos: criarServicoPagamentos({ banco: local.rpc, cfg: configPagamentos({}) }) };
 });
 
 /* um "navegador": cada um com um IP próprio (o freio é por IP) */
@@ -52,7 +53,7 @@ test('fluxo normal: visitante → conversa → estimativa → contato → 3 dire
   assert.ok(!/R\$/.test(m1.corpo.resposta));
   const m2 = await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Sim, quero ver as propostas' });
   assert.equal(m2.corpo.pedir_contato, true);
-  assert.equal((await n.chamar('POST', 'contato', { conversa_id: c, nome: 'Dra. Ana', telefone: '(21) 99999-0000', aceite: true })).status, 200);
+  await detalhesEConfirmar(n.chamar, local.rpc, c, { nome: 'Dra. Ana' });
   const g = await n.chamar('POST', 'gerar', { conversa_id: c });
   assert.equal(g.corpo.direcoes.length, 3);
   const prontas = await Promise.all(g.corpo.direcoes.map(d => n.chamar('POST', 'gerar-direcao', { conversa_id: c, direcao_id: d.id })));
@@ -114,7 +115,7 @@ test('IA falha: recuperação elegante, nada inventado, nada perdido; volta a fu
   assert.equal((await n.chamar('POST', 'mensagem', { conversa_id: s.conversa_id, texto: 'Tenho uma academia e quero um site institucional para gerar contatos' })).status, 200, 'segue de onde parou');
   /* a geração falhando não vira direção nem preço */
   await n.chamar('POST', 'mensagem', { conversa_id: s.conversa_id, texto: 'sim, quero' });
-  await n.chamar('POST', 'contato', { conversa_id: s.conversa_id, nome: 'Rui', email: 'rui@x.com', aceite: true });
+  await detalhesEConfirmar(n.chamar, local.rpc, s.conversa_id, { nome: 'Rui' });
   const g = await n.chamar('POST', 'gerar', { conversa_id: s.conversa_id });
   const falhou = await n.chamar('POST', 'gerar-direcao', { conversa_id: s.conversa_id, direcao_id: g.corpo.direcoes[0].id }, { deps: quebrada });
   assert.equal(falhou.corpo.status, 'falhou');
@@ -132,7 +133,7 @@ test('segurança: sem token, token forjado e token de outro visitante não chega
   assert.equal((await a.chamar('GET', 'estado', undefined, { query: q, token: '' })).status, 401, 'sem token');
   const [h, p] = a.token.split('.');
   assert.equal((await a.chamar('GET', 'estado', undefined, { query: q, token: h + '.' + p + '.assinaturaforjada' })).status, 401, 'token forjado');
-  for (const [m, acao, corpo] of [['GET', 'estado'], ['POST', 'mensagem', { conversa_id: sa.conversa_id, texto: 'oi' }], ['POST', 'contato', { conversa_id: sa.conversa_id, nome: 'Xavier', email: 'x@x.com', aceite: true }], ['POST', 'gerar', { conversa_id: sa.conversa_id }], ['POST', 'pagar', { conversa_id: sa.conversa_id, metodo: 'pix', pagador: PAGADOR }]]) {
+  for (const [m, acao, corpo] of [['GET', 'estado'], ['POST', 'mensagem', { conversa_id: sa.conversa_id, texto: 'oi' }], ['POST', 'detalhes', { conversa_id: sa.conversa_id, negocio: 'Escola X', vende: 'Matrículas', telefone: '(21) 98765-0000', aceite: true }], ['POST', 'gerar', { conversa_id: sa.conversa_id }], ['POST', 'pagar', { conversa_id: sa.conversa_id, metodo: 'pix', pagador: PAGADOR }]]) {
     const r = await b.chamar(m, acao, corpo, m === 'GET' ? { query: q } : {});
     assert.equal(r.status, 404, 'B em ' + acao + ' da conversa de A: "não existe"');
   }
@@ -160,7 +161,7 @@ test('concorrência: a mesma direção pedida duas vezes ao mesmo tempo é gerad
   const s = await n.iniciar();
   await n.chamar('POST', 'mensagem', { conversa_id: s.conversa_id, texto: 'Tenho uma contabilidade e quero um site institucional para gerar contatos' });
   await n.chamar('POST', 'mensagem', { conversa_id: s.conversa_id, texto: 'sim' });
-  await n.chamar('POST', 'contato', { conversa_id: s.conversa_id, nome: 'Léo', email: 'leo@x.com', aceite: true });
+  await detalhesEConfirmar(n.chamar, local.rpc, s.conversa_id, { nome: 'Léo' });
   const g = await n.chamar('POST', 'gerar', { conversa_id: s.conversa_id });
   const id = g.corpo.direcoes[0].id;
   let geracoes = 0;
@@ -272,10 +273,10 @@ test('dados incompletos ou inconsistentes: cada um recusado com motivo, sem 500'
     ['POST', 'mensagem', { conversa_id: 'x', texto: 'oi' }, 400],
     ['POST', 'mensagem', { conversa_id: c, texto: '' }, 400],
     ['POST', 'mensagem', { conversa_id: c, texto: 'a'.repeat(2001) }, 400],
-    ['POST', 'contato', { conversa_id: c, nome: 'A', email: 'a@a.com', aceite: true }, 400],
-    ['POST', 'contato', { conversa_id: c, nome: 'Ana', email: 'sem-arroba', aceite: true }, 400],
-    ['POST', 'contato', { conversa_id: c, nome: 'Ana', email: 'a@a.com' }, 400],
-    ['POST', 'contato', { conversa_id: c, nome: 'Ana' , aceite: true }, 400],
+    ['POST', 'contato', { conversa_id: c, nome: 'Ana', telefone: '(21) 99999-0000', aceite: true }, 404],   /* (PR 2a: o contato vem pelos detalhes) */
+    ['POST', 'detalhes', { conversa_id: c, negocio: 'A', vende: 'Consultas', telefone: '(21) 98765-0000', aceite: true }, 400],
+    ['POST', 'detalhes', { conversa_id: c, negocio: 'Clínica', vende: 'Consultas', telefone: '123', aceite: true }, 400],
+    ['POST', 'detalhes', { conversa_id: c, negocio: 'Clínica', vende: 'Consultas', telefone: '(21) 98765-0000' }, 400],
     ['POST', 'gerar', { conversa_id: c }, 409],
     ['POST', 'escopo', { conversa_id: c }, 409],
     ['POST', 'confirmar', { conversa_id: c, proposta_id: c, confirmo: false }, 400]
@@ -594,8 +595,11 @@ test('retenção pelo caminho real: o lead que o agente cria ("em_conversa") é 
   assert.equal(e.conversa.tem_contato, false, 'lead anonimizado = sem contato: o formulário reaparece');
   const pagar = await n.chamar('POST', 'pagar', { conversa_id: c, valor: 1, metodo: 'pix', pagador: PAGADOR });
   assert.equal(pagar.status, 409, 'pagar sem contato: recusado — ' + JSON.stringify(pagar.corpo));
-  assert.match(pagar.corpo.erro, /informe de novo/, 'recusado pela trava de contato (a conversa estava pronta para pagar)');
-  assert.equal((await n.chamar('POST', 'contato', { conversa_id: c, nome: 'Ana Volta', telefone: '(21) 98888-1111', aceite: true })).status, 200);
+  assert.match(pagar.corpo.erro, /WhatsApp/, 'recusado pela trava de contato, com o WhatsApp (o contato de novo é com a Beyon Zero)');
+  assert.equal(pagar.corpo.whatsapp, true);
+  /* (PR 2a) o contato de novo entra pela mesma função do banco (o dono, a partir do WhatsApp; ver PR2a-recontato) */
+  const vid = (await q('select visitante_id from app.conversas where id = $1', [c])).rows[0].visitante_id;
+  await local.rpc('vendas_informar_contato', { conversa_id: c, visitante_id: vid, nome: 'Ana Volta', telefone: '+5521988881111', aceite: true });
   assert.equal((await q('select lead_id from app.conversas where id = $1', [c])).rows[0].lead_id, leadId, 'o mesmo lead (o da proposta)');
   assert.equal((await lead(leadId)).nome, 'Ana Volta', 'o contato volta ao lead');
   assert.equal((await n.chamar('GET', 'estado', undefined, { query: '&conversa=' + c })).corpo.conversa.tem_contato, true);
@@ -610,7 +614,7 @@ async function ateDirecoes(n, texto = 'Tenho uma clínica e quero um site instit
   const c = s.conversa_id;
   await n.chamar('POST', 'mensagem', { conversa_id: c, texto });
   await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'sim' });
-  await n.chamar('POST', 'contato', { conversa_id: c, nome: 'Rita', email: 'rita@x.com', aceite: true });
+  await detalhesEConfirmar(n.chamar, local.rpc, c);
   const g = await n.chamar('POST', 'gerar', { conversa_id: c });
   for (const d of g.corpo.direcoes) await n.chamar('POST', 'gerar-direcao', { conversa_id: c, direcao_id: d.id });
   return { c, dirs: g.corpo.direcoes };

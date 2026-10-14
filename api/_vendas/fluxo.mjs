@@ -14,7 +14,7 @@ import { gerarDirecao } from './gerador.mjs';
 import { interpretar, aplicar, fatoresComEscopo, paraVisitante } from './alteracoes.mjs';
 import { montarEscopo, nomesDosItens } from './escopo.mjs';
 import { limparMensagem, pareceInjecao, redigir, MSG_MAX } from './seguranca.mjs';
-import { ehUuid, normalizarTelefone } from '../_valida-app.mjs';
+import { ehUuid } from '../_valida-app.mjs';
 import { TETOS, reservaUsd, modoDirecoes } from '../_ia/config.mjs';
 import { ErroIA } from '../_ia/provedor.mjs';
 import { ErroBanco } from './transporte.mjs';
@@ -34,7 +34,6 @@ import { PEDIDOS } from './pedido.mjs';
 import { ORG } from './org.mjs';
 export { ORG };
 export const RECUPERACAO = 'Não consegui concluir a análise neste momento. Suas informações foram preservadas. Vamos continuar de onde paramos.';
-const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const ORIGENS = ['anuncio', 'busca', 'social', 'mensagem', 'email', 'referencia', 'direto'];
 /* etapas em que a conversa com o agente ainda vale: até o sinal, e no escopo e no sinal só para dúvidas (ETAPAS_SO_DUVIDAS);
    depois do sinal pago, o fluxo segue pelos blocos da página */
@@ -357,31 +356,17 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       }
     },
 
-    /* o contato (nome + WhatsApp ou e-mail): vira lead e libera as direções */
-    async contato({ request, corpo }) {
-      const vid = await visitante(request);
-      exigir(ehUuid(corpo?.conversa_id), 400, 'Conversa inválida.');
-      const nome = texto(corpo?.nome, 120);
-      const email = typeof corpo?.email === 'string' && corpo.email.trim() ? corpo.email.trim().toLowerCase() : null;
-      const telefone = typeof corpo?.telefone === 'string' && corpo.telefone.trim() ? normalizarTelefone(corpo.telefone) : null;
-      exigir(nome.length >= 2, 400, 'Informe seu nome.');
-      exigir(!email || (email.length <= 254 && EMAIL.test(email)), 400, 'E-mail inválido.');
-      exigir(corpo?.telefone ? telefone : true, 400, 'WhatsApp inválido.');
-      exigir(email || telefone, 400, 'Informe WhatsApp ou e-mail.');
-      exigir(modo !== 'manual' || telefone, 400, 'Informe seu WhatsApp: é por ele que avisamos quando as direções ficarem prontas.');
-      exigir(corpo?.aceite === true, 400, 'É preciso concordar com o uso dos dados para receber as propostas.');
-      await banco('vendas_informar_contato', { conversa_id: corpo.conversa_id, visitante_id: vid, nome, email, telefone, aceite: true });   /* (o banco guarda quando) */
-      return { ok: true };
-    },
-
-    /* pedir as 3 direções (devolve os ids; o navegador pede cada uma em paralelo) */
+    /* pedir as 3 direções (devolve os ids; o navegador pede cada uma em paralelo). (PR 2a) Só com o pedido CONFIRMADO
+       pelo WhatsApp, nos dois modos (decisão D2): sem pedido (o caminho antigo) ou esperando a confirmação, nada nasce.
+       O banco ainda aceita o caminho sem pedido; aperta no 2b */
     async gerar({ request, corpo }) {
       const vid = await visitante(request);
       exigir(ehUuid(corpo?.conversa_id), 400, 'Conversa inválida.');
+      const est = await estado(vid, corpo.conversa_id);
+      exigir(est.pedido && est.pedido.status === 'confirmado', 409, 'O pedido ainda não foi confirmado pelo WhatsApp.');
       /* (fila manual: não há gasto de API; o disjuntor ou o teto da IA não barram quem acabou de deixar o WhatsApp) */
-      if (modo !== 'manual') await dentroDoCusto(await estado(vid, corpo.conversa_id));
-      /* no modo manual, uma geração por conversa: a 2ª só por pedido explícito ao dono (spec §0). Com pedido, só depois
-         da confirmação pelo WhatsApp (o banco confere; a Task 7 fecha também o caminho sem pedido) */
+      if (modo !== 'manual') await dentroDoCusto(est);
+      /* no modo manual, uma geração por conversa: a 2ª só por pedido explícito ao dono (spec §0) */
       return banco('vendas_iniciar_geracao', { conversa_id: corpo.conversa_id, visitante_id: vid, max_geracoes: modo === 'manual' ? 1 : TETOS.geracoes_por_conversa });
     },
 
@@ -513,7 +498,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       exigir(pagamentos, 503, 'O pagamento online ainda não está disponível. A Beyon Zero envia o link pelo WhatsApp.');
       /* sem contato (ou com o contato anonimizado pela retenção de 12 meses), o cliente nasceria sem nome nem telefone */
       const est = await estado(vid, corpo.conversa_id);
-      exigir(est.conversa.tem_contato, 409, 'Antes de pagar, informe de novo o seu nome e WhatsApp no formulário de contato.');
+      if (!est.conversa.tem_contato) throw new Recusa(409, 'Antes de pagar, precisamos do seu contato de novo: fale com a Beyon Zero pelo WhatsApp citando o código do pedido.', { whatsapp: true });
       return pagamentos.iniciar({ conversa_id: corpo.conversa_id, visitante_id: vid, metodo: corpo?.metodo, pagador: corpo?.pagador, cartao: corpo?.cartao });
     },
 

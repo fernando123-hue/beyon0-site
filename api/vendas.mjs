@@ -2,8 +2,9 @@
    /api/vendas?acao=… — a API do agente de vendas (uma função; cada ação é um
    passo do fluxo, em api/_vendas/fluxo.mjs).
      GET  estado, pagamento, pagamento-config, sessao-config, catalogo
-     POST sessao, renovar, mensagem, contato, gerar, gerar-direcao, escolher,
+     POST sessao, renovar, mensagem, gerar, gerar-direcao, escolher,
           alterar, escopo, confirmar, pagar, simular, confirmar-pacote, detalhes
+   (PR 2a: o contato vem pelos detalhes; a ação "contato" saiu, porque passava por cima dos freios do pedido)
    Fronteira: freio por IP, JSON obrigatório (um formulário de outro site não
    chega aqui), corpo limitado, token do visitante em cada ação (exceto criar
    a sessão), erro interno genérico (detalhe só no log, sem dado pessoal).
@@ -20,7 +21,7 @@ import { configTurnstile, verificarHumano } from './_vendas/turnstile.mjs';
 
 const ACOES = {
   GET: { estado: 'estado', pagamento: 'pagamento', 'pagamento-config': 'pagamentoConfig', 'sessao-config': 'sessaoConfig', catalogo: 'catalogo' },
-  POST: { sessao: 'sessao', renovar: 'renovar', mensagem: 'mensagem', contato: 'contato', gerar: 'gerar', 'gerar-direcao': 'gerarDirecao',
+  POST: { sessao: 'sessao', renovar: 'renovar', mensagem: 'mensagem', gerar: 'gerar', 'gerar-direcao': 'gerarDirecao',
     escolher: 'escolher', alterar: 'alterar', escopo: 'escopo', confirmar: 'confirmar', pagar: 'pagar',
     simular: 'simular', 'confirmar-pacote': 'confirmarPacote', detalhes: 'detalhes' }
 };
