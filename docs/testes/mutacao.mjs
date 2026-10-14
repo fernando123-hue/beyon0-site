@@ -37,7 +37,12 @@ const SABOTAGENS = [
   { nome: 'retenção apaga o briefing e o contato de quem pagou', arquivo: '20261011120000_retencao_pagos_e_contato.sql', testes: ['docs/testes/fluxo-api.test.mjs'],
     de: "pg.status in ('pago', 'estornado', 'contestado')", para: "pg.status in ('estornado', 'contestado')" },
   { nome: 'retenção apaga a prova de um pagamento contestado', arquivo: '20261011120000_retencao_pagos_e_contato.sql', testes: ['docs/testes/fluxo-api.test.mjs'],
-    de: "and (pg.status = 'contestado' or exists (", para: "and (false and exists (" }
+    de: "and (pg.status = 'contestado' or exists (", para: "and (false and exists (" },
+  /* ---- o pedido de modelos (PR 2a): os freios ---- */
+  { nome: 'telefone sem limite de pedido aberto', arquivo: '20261013120000_pedidos.sql', testes: ['docs/testes/pedidos-banco.test.mjs'],
+    de: 'if exists (select 1 from app.pedidos pd where pd.org_id = c.org_id and pd.telefone_hash = v_tel and privado.pedido_aberto(pd)) then', para: 'if false then' },
+  { nome: 'direções geradas sem a confirmação pelo WhatsApp', arquivo: '20261013120100_pedidos_dono.sql', testes: ['docs/testes/pedidos-banco.test.mjs'],
+    de: "if exists (select 1 from app.pedidos pd where pd.conversa_id = c.id and pd.status <> 'confirmado') then", para: 'if false then' }
 ];
 
 let pegas = 0;

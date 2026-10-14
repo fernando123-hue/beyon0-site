@@ -215,3 +215,150 @@ test('pedido: a situação só anda para a frente; código e conversa não mudam
   for (const quem of ['anon', b.visitante_id])
     assert.equal((await erroDe(como(db, quem, q => q('select * from app.pedidos'))))?.codigo, SEM_PERMISSAO, String(quem));
 });
+
+/* ---------- o lado do dono (20261013120100_pedidos_dono.sql) ---------- */
+async function pedidoAguardando(extra) { const b = await comPacote(); const r = await detalhes(b, extra); return { ...b, codigo: r.codigo }; }
+const confirmar = conversa_id => rpc('vendas_confirmar_whatsapp', { org_slug: 'beyon-zero', conversa_id });
+const mudar = (conversa_id, acao) => rpc('vendas_mudar_pedido', { org_slug: 'beyon-zero', conversa_id, acao });
+const pedido = conversa => um('select * from app.pedidos where conversa_id = $1', [conversa]);
+async function concluirDirecoes(conversa, extra = { conteudo: { secoes: [] }, modelo: 'teste' }) {
+  for (const d of (await db.query("select id from app.direcoes where conversa_id = $1 and status = 'gerando'", [conversa])).rows)
+    await rpc('vendas_concluir_direcao', { direcao_id: d.id, ...extra });
+}
+
+test('confirmar pelo WhatsApp (só o dono): o pedido entra na fila e as três direções nascem; repetir é recusado', async () => {
+  const p = await pedidoAguardando();
+  const r = await confirmar(p.conversa_id);
+  assert.equal(r.ok, true, JSON.stringify(r));
+  assert.equal(r.codigo, p.codigo);
+  const d = (await db.query('select status, geracao from app.direcoes where conversa_id = $1', [p.conversa_id])).rows;
+  assert.equal(d.length, 3);
+  assert.ok(d.every(x => x.status === 'gerando' && x.geracao === 1));
+  assert.equal((await um('select etapa from app.conversas where id = $1', [p.conversa_id])).etapa, 'gerando');
+  assert.ok(await um("select 1 from app.eventos_funil where conversa_id = $1 and tipo = 'confirmacao_whatsapp'", [p.conversa_id]));
+  assert.equal((await erroDe(confirmar(p.conversa_id)))?.codigo, ETAPA, 'de novo: a etapa já é "gerando"');
+  assert.equal((await erroDe(rpc('vendas_confirmar_whatsapp', { org_slug: 'outra', conversa_id: p.conversa_id })))?.codigo, NAO_ACHOU, 'outra organização');
+});
+
+test('confirmar: recusa cada etapa fora de "contato"; pedido vencido vira expirado (com o evento) e nada é gerado', async () => {
+  for (const etapa of TODAS.filter(e => e !== 'contato')) {
+    const p = await pedidoAguardando();
+    await forcarEtapa(p.conversa_id, etapa);
+    assert.equal((await erroDe(confirmar(p.conversa_id)))?.codigo, ETAPA, etapa);
+  }
+  const v = await pedidoAguardando();
+  await vencer(v.conversa_id);
+  assert.deepEqual(await confirmar(v.conversa_id), { ok: false, status: 'expirado' });
+  assert.equal((await pedido(v.conversa_id)).status, 'expirado');
+  assert.ok(await um("select 1 from app.eventos_funil where conversa_id = $1 and tipo = 'pedido_expirado'", [v.conversa_id]));
+  assert.equal(Number((await um('select count(*) n from app.direcoes where conversa_id = $1', [v.conversa_id])).n), 0);
+});
+
+test('gerar antes da confirmação: recusado; sem pedido (o caminho antigo do consultor), o banco ainda aceita (a API recusa, Task 7)', async () => {
+  const p = await pedidoAguardando();
+  assert.equal((await erroDe(rpc('vendas_iniciar_geracao', { conversa_id: p.conversa_id, visitante_id: p.visitante_id })))?.codigo, ETAPA);
+  const b = await comPacote();
+  await rpc('vendas_informar_contato', { ...b, nome: 'Ana', telefone: '+5521999990000', aceite: true });
+  assert.equal((await rpc('vendas_iniciar_geracao', b)).nova, true);
+});
+
+test('conclusão automática: as três direções falham → o pedido sai da fila, do teto e libera o telefone', async () => {
+  const telefone = telefoneNovo();
+  const p = await pedidoAguardando({ telefone });
+  await confirmar(p.conversa_id);
+  assert.equal((await um('select privado.pedido_na_fila(pd) f from app.pedidos pd where conversa_id = $1', [p.conversa_id])).f, true);
+  await concluirDirecoes(p.conversa_id, { erro: 'teste' });
+  assert.equal((await um('select etapa from app.conversas where id = $1', [p.conversa_id])).etapa, 'contato');
+  assert.ok((await pedido(p.conversa_id)).concluido_em, 'concluído: nada mais a fazer na fila');
+  assert.equal((await detalhes(await comPacote(), { telefone })).ok, true, 'o número pode pedir de novo (2º do dia)');
+});
+
+test('conclusão automática: o cliente escolhe um modelo antes do "Já avisei" → o pedido conclui', async () => {
+  const p = await pedidoAguardando();
+  await confirmar(p.conversa_id);
+  await concluirDirecoes(p.conversa_id);
+  assert.equal((await pedido(p.conversa_id)).concluido_em, null, 'prontas e não avisadas: ainda na fila');
+  const d = (await um("select id from app.direcoes where conversa_id = $1 limit 1", [p.conversa_id])).id;
+  await rpc('vendas_escolher', { conversa_id: p.conversa_id, visitante_id: p.visitante_id, direcao_id: d });
+  assert.ok((await pedido(p.conversa_id)).concluido_em, 'o cliente já viu e escolheu: sai da fila');
+});
+
+test('"Já avisei" conclui o pedido: o número pode pedir de novo', async () => {
+  const telefone = telefoneNovo();
+  const p = await pedidoAguardando({ telefone });
+  await confirmar(p.conversa_id);
+  await concluirDirecoes(p.conversa_id);
+  assert.deepEqual(await detalhes(await comPacote(), { telefone }), { ok: false, motivo: 'telefone_aberto' }, 'na fila: aberto');
+  assert.equal((await rpc('vendas_marcar_avisado', { org_slug: 'beyon-zero', conversa_id: p.conversa_id })).avisadas, 3);
+  assert.ok((await pedido(p.conversa_id)).concluido_em);
+  assert.equal((await detalhes(await comPacote(), { telefone })).ok, true, 'concluído: pede de novo (2º do dia)');
+});
+
+test('pendentes: os não confirmados numa lista separada (mais novos primeiro), com código, WhatsApp, negócio e redes; busca pelo código', async () => {
+  const a = await pedidoAguardando({ redes: { instagram: 'clinicasol' } });
+  const b = await pedidoAguardando();
+  const p = await rpc('vendas_pedidos_pendentes', { org_slug: 'beyon-zero' });
+  const ia = p.itens.findIndex(x => x.conversa_id === a.conversa_id), ib = p.itens.findIndex(x => x.conversa_id === b.conversa_id);
+  assert.ok(ib >= 0 && ia > ib, 'o mais novo primeiro');
+  assert.equal(p.itens[ia].codigo, a.codigo);
+  assert.match(p.itens[ia].contato.telefone, /^\+55/);
+  assert.equal(p.itens[ia].negocio.nome, 'Clínica Sol');
+  assert.deepEqual(p.itens[ia].redes, { instagram: 'clinicasol' });
+  assert.ok(p.itens.length <= 50 && p.total >= p.itens.length);
+  const busca = await rpc('vendas_pedidos_pendentes', { org_slug: 'beyon-zero', codigo: a.codigo.toLowerCase() });
+  assert.deepEqual(busca.itens.map(x => x.conversa_id), [a.conversa_id], 'a busca acha o pedido mesmo fora dos 50 mais novos');
+  assert.equal(busca.total, 1);
+  await confirmar(a.conversa_id);
+  await mudar(b.conversa_id, 'descartar');
+  const depois = (await rpc('vendas_pedidos_pendentes', { org_slug: 'beyon-zero' })).itens.map(x => x.conversa_id);
+  assert.ok(!depois.includes(a.conversa_id) && !depois.includes(b.conversa_id));
+  assert.ok(await um("select 1 from app.eventos_funil where conversa_id = $1 and tipo = 'pedido_descartado'", [b.conversa_id]));
+});
+
+test('descartar para a geração; arquivar só confirmado, em qualquer etapa depois do contato; etapas recusadas uma a uma', async () => {
+  const g = await pedidoAguardando();
+  await confirmar(g.conversa_id);
+  assert.deepEqual(await mudar(g.conversa_id, 'descartar'), { ok: true, status: 'descartado' });
+  const dirs = (await db.query('select status, erro from app.direcoes where conversa_id = $1', [g.conversa_id])).rows;
+  assert.ok(dirs.every(d => d.status === 'falhou' && d.erro === 'pedido descartado'), 'nenhuma direção segue "gerando" (nem dono, nem IA)');
+  assert.equal((await um('select etapa from app.conversas where id = $1', [g.conversa_id])).etapa, 'contato');
+  assert.equal((await erroDe(rpc('vendas_iniciar_geracao', { conversa_id: g.conversa_id, visitante_id: g.visitante_id })))?.codigo, ETAPA, 'descartado não gera');
+  const a = await pedidoAguardando();
+  assert.equal((await erroDe(mudar(a.conversa_id, 'arquivar')))?.codigo, REGRA, 'arquivar exige confirmado');
+  await confirmar(a.conversa_id);
+  await forcarEtapa(a.conversa_id, 'aguardando_pagamento');
+  assert.deepEqual(await mudar(a.conversa_id, 'arquivar'), { ok: true, status: 'arquivado' }, 'arquivar vale depois do resumo');
+  assert.equal((await erroDe(mudar(a.conversa_id, 'descartar')))?.codigo, ETAPA, 'descartar quem já está pagando: não');
+  assert.equal((await erroDe(mudar(a.conversa_id, 'apagar')))?.codigo, INVALIDO);
+  for (const etapa of ['descoberta', 'estimativa', 'escopo', 'aguardando_pagamento', 'em_producao', 'encerrada']) {
+    const p = await pedidoAguardando();
+    await forcarEtapa(p.conversa_id, etapa);
+    assert.equal((await erroDe(mudar(p.conversa_id, 'descartar')))?.codigo, ETAPA, 'descartar em ' + etapa);
+  }
+  for (const etapa of ['descoberta', 'estimativa']) {
+    const p = await pedidoAguardando();
+    await confirmar(p.conversa_id);
+    await forcarEtapa(p.conversa_id, etapa);
+    assert.equal((await erroDe(mudar(p.conversa_id, 'arquivar')))?.codigo, ETAPA, 'arquivar em ' + etapa);
+  }
+});
+
+test('rotina: vence os não confirmados (evento uma vez), apaga o hash do telefone dias depois do encerramento e as redes depois de 60 dias', async () => {
+  const p = await pedidoAguardando({ redes: { instagram: 'antiga' } });
+  await db.query("update app.pedidos set expira_em = now() - interval '1 hour', created_at = now() - interval '61 days' where conversa_id = $1", [p.conversa_id]);
+  const recente = await pedidoAguardando();
+  await mudar(recente.conversa_id, 'descartar');
+  const velho = await pedidoAguardando();
+  await mudar(velho.conversa_id, 'descartar');
+  await db.query("update app.pedidos set encerrado_em = now() - interval '3 days' where conversa_id = $1", [velho.conversa_id]);
+  const r = await rpc('vendas_expirar_pedidos', {});
+  assert.ok(r.expirados >= 1 && r.redes_apagadas >= 1 && r.telefones_apagados >= 1, JSON.stringify(r));
+  const pd = await pedido(p.conversa_id);
+  assert.equal(pd.status, 'expirado');
+  assert.deepEqual(pd.redes, {});
+  assert.equal(pd.redes_autorizadas_em, null);
+  assert.equal((await pedido(velho.conversa_id)).telefone_hash, null, 'encerrado há 3 dias: o hash sai');
+  assert.match((await pedido(recente.conversa_id)).telefone_hash, /^[0-9a-f]{64}$/, 'encerrado hoje: ainda conta para o limite do dia');
+  assert.equal((await rpc('vendas_expirar_pedidos', {})).expirados, 0, 'de novo: nada');
+  assert.equal(Number((await um("select count(*) n from app.eventos_funil where conversa_id = $1 and tipo = 'pedido_expirado'", [p.conversa_id])).n), 1);
+});
