@@ -1,5 +1,5 @@
 {
-  "_status": "RASCUNHO para o dono aprovar. Valores propostos a partir da pesquisa de mercado (fontes em docs/fase2/REGRAS-RASCUNHO.md). Só a versão ATIVA, aprovada pelo dono, gera preço para visitante. Tabela v2 aprovada pelo dono em 2026-10-09 (\"Aprovo como está\"): loja em plataforma e área restrita entram no automático; limite de R$ 15.000 por fase e R$ 60.000 por projeto.",
+  "_status": "RASCUNHO para o dono aprovar. Valores propostos a partir da pesquisa de mercado (fontes em docs/fase2/REGRAS-RASCUNHO.md). Só a versão ATIVA, aprovada pelo dono, gera preço para visitante. Tabela v2 aprovada pelo dono em 2026-10-09 (\"Aprovo como está\"): loja em plataforma e área restrita entram no automático; limite de R$ 15.000 por fase e R$ 60.000 por projeto. Revisão de 2026-10-14 (dono, pacote do relatório \"Preço premium para pequenos negócios\" e decisões de preço do mesmo dia): landing R$ 1.800 e institucional R$ 3.900 (preço regular, que vale do 11º cliente em diante; o fundador, R$ 800 e R$ 1.900, fica só na página de condições); textos por página R$ 350; área restrita sai do automático (\"a partir de R$ 4.500, com escopo escrito\", pela conversa), com as telas, perfis, cobrança, documentos e importação que dependiam dela.",
   "moeda": "BRL",
   "sinal_percentual": 50,
   "prazo_max_dias": 10,
@@ -7,7 +7,7 @@
   "formatos": {
     "landing_page": {
       "nome": "Landing page",
-      "base": 1500,
+      "base": 1800,
       "piso": 900,
       "prazo_dias": 5,
       "paginas_incluidas": 1,
@@ -21,7 +21,7 @@
     },
     "institucional": {
       "nome": "Site institucional",
-      "base": 3500,
+      "base": 3900,
       "piso": 2200,
       "prazo_dias": 8,
       "paginas_incluidas": 5,
@@ -72,7 +72,7 @@
     },
     "textos": {
       "nome": "Textos escritos pela Beyon Zero (por página)",
-      "valor": 250,
+      "valor": 350,
       "prazo_dias": 0.25,
       "max": 15,
       "prioridade": 10
@@ -191,61 +191,8 @@
       "fora_do_automatico": true
     },
     "area_restrita": {
-      "nome": "Área restrita com login (1 perfil, até 3 telas)",
-      "valor": 4500,
-      "prazo_dias": 4,
-      "max": 1,
-      "prioridade": 12
-    },
-    "area_tela_extra": {
-      "nome": "Tela extra na área restrita",
-      "valor": 700,
-      "prazo_dias": 1,
-      "max": 8,
-      "prioridade": 18,
-      "requer": [
-        "area_restrita"
-      ]
-    },
-    "area_perfil_extra": {
-      "nome": "Perfil extra na área restrita (ex.: associado e diretoria)",
-      "valor": 1200,
-      "prazo_dias": 1.5,
-      "max": 3,
-      "prioridade": 16,
-      "requer": [
-        "area_restrita"
-      ]
-    },
-    "area_cobranca_recorrente": {
-      "nome": "Cobrança de anuidade ou mensalidade na área restrita (Pix, boleto, cartão)",
-      "valor": 2500,
-      "prazo_dias": 3,
-      "max": 1,
-      "prioridade": 14,
-      "requer": [
-        "area_restrita"
-      ]
-    },
-    "area_documentos": {
-      "nome": "Documentos e certificados por usuário na área restrita",
-      "valor": 900,
-      "prazo_dias": 1,
-      "max": 1,
-      "prioridade": 24,
-      "requer": [
-        "area_restrita"
-      ]
-    },
-    "area_importar_usuarios": {
-      "nome": "Importar a lista de usuários para a área restrita",
-      "valor": 400,
-      "prazo_dias": 0.5,
-      "max": 1,
-      "prioridade": 13,
-      "requer": [
-        "area_restrita"
-      ]
+      "nome": "Área restrita com login",
+      "fora_do_automatico": true
     },
     "sistema_sob_medida": {
       "nome": "Sistema ou painel sob medida",

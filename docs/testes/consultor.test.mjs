@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { montarSistema, proximoPasso, ferramentas, IDENTIDADE } from '../../api/_vendas/consultor.mjs';
 import { executarTurno } from '../../api/_vendas/agente.mjs';
+import { comArea } from './_area-v2.mjs';
 
 const REGRAS = JSON.parse(fs.readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
 
@@ -93,7 +94,13 @@ test('próximo passo: o código diz ao modelo o que fazer agora, pela ordem do f
   assert.doesNotMatch(p(loja), /(?<!não )chame estimar(?! sem ela)/i, 'não estima a loja do zero');
   /* loja em plataforma: estima direto; área restrita: estima com o adicional */
   assert.match(p({ ...loja, projeto: { formato: 'loja_plataforma' } }), /Já dá para estimar/);
-  assert.match(p({ ...loja, projeto: { formato: 'institucional' }, funcionalidades: ['area_restrita'] }), /chame estimar agora[^.]*inclua o adicional area_restrita/);
+  const area = { ...loja, projeto: { formato: 'institucional' }, funcionalidades: ['area_restrita'] };
+  assert.match(p(area, { regras: comArea(REGRAS) }), /chame estimar agora[^.]*inclua o adicional area_restrita/);
+  /* tabela de 2026-10-14: a área restrita é orçada numa conversa (revisão do PR #42: o modelo mandava estimar com ela,
+     o motor devolvia o diagnóstico e a estimativa ficava nula, turno após turno) */
+  const fora = p(area, { regras: REGRAS });
+  assert.match(fora, /área restrita[^.]*conversa[^.]*encaminhar_diagnostico/i);
+  assert.doesNotMatch(fora, /(?<!não )chame estimar(?! sem ela)|inclua o adicional area_restrita/i, 'não estima com a área restrita');
 });
 
 test('o turno usa o harness: instruções montadas da tabela, estado com o próximo passo', async () => {
@@ -234,9 +241,10 @@ test('próximo passo: quem desiste da loja e quer só o site sai do diagnóstico
 });
 
 test('loja e área restrita só aparecem para o modelo se a tabela ATIVA as traz (o código pode subir antes da v2)', () => {
-  const v2 = montarSistema(REGRAS);
+  const v2 = montarSistema(comArea(REGRAS));   /* (a área automática da v2; a tabela de 2026-10-14 a tirou do automático) */
   assert.match(v2, /Loja virtual: vender online/);
   assert.match(v2, /Área restrita com login[^\n]*login próprio costuma não ser viável/);
+  assert.doesNotMatch(montarSistema(REGRAS), /Área restrita com login \(para associados/, 'a tabela atual não orça a área: o modelo não a vende como adicional');
   const antiga = JSON.parse(JSON.stringify(REGRAS));
   delete antiga.formatos.loja_plataforma;
   for (const [k, x] of Object.entries(antiga.adicionais)) if (x.requer || k === 'area_restrita') delete antiga.adicionais[k];

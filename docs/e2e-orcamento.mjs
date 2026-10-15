@@ -88,7 +88,7 @@ try {
   await page.click('[data-material="tenho"]');
   await page.click('#o-p-ver-preco');
   await page.waitForSelector('#o-est-cheio:not([hidden])', { timeout: 15000 });
-  ok((await page.textContent('#o-est-valor')).includes('3.950'), 'preço pela tabela: R$ 3.950');
+  ok((await page.textContent('#o-est-valor')).includes('4.350'), 'preço pela tabela: R$ 4.350');
   ok(/agend/i.test(await page.textContent('#o-est-motivo')), 'o motivo da recomendação, nas palavras da pessoa');
   ok(await page.locator('#o-vizinhos [data-formato="landing_page"]').isVisible(), 'o formato vizinho ao lado (âncora honesta)');
   ok(/não paga nada/i.test(await page.textContent('#o-est-sem-risco')), 'sem risco até confirmar');
@@ -100,12 +100,12 @@ try {
   /* (a tabela limita a fase a 10 dias: institucional 8 + agendamento 1 deixa espaço para as imagens, meio dia; o blog,
      de 2 dias, vai para a fase seguinte e o total desta fase não muda) */
   await page.check('#o-x-imagens');
-  await page.waitForFunction(() => document.getElementById('o-est-valor').textContent.includes('4.200'));
-  ok(true, 'ajustar: o preço muda na hora pelo servidor (3.950 + imagens 250)');
+  await page.waitForFunction(() => document.getElementById('o-est-valor').textContent.includes('4.600'));
+  ok(true, 'ajustar: o preço muda na hora pelo servidor (4.350 + imagens 250)');
   await page.locator('#o-ajustar').scrollIntoViewIfNeeded();
   await foto(page, '1c-ajustar-cel');
   await page.uncheck('#o-x-imagens');
-  await page.waitForFunction(() => document.getElementById('o-est-valor').textContent.includes('3.950'));
+  await page.waitForFunction(() => document.getElementById('o-est-valor').textContent.includes('4.350'));
   await page.check('#o-x-blog');
   await page.waitForSelector('#o-est-fase:not([hidden])');
   ok(/blog/i.test(await page.textContent('#o-est-fase')), 'ajustar: o que passa do prazo vai para a fase seguinte (blog), pelo servidor');
@@ -113,11 +113,11 @@ try {
   await page.waitForSelector('#o-est-fase', { state: 'hidden' });
   /* trocar de formato e voltar não perde o extra da recomendação (o servidor só o soma no formato recomendado) */
   await page.click('#o-vizinhos [data-formato="landing_page"]');
-  await page.waitForFunction(() => document.getElementById('o-est-valor').textContent.includes('1.950'));
-  ok(true, 'vizinho: site de uma página com o agendamento (1.500 + 450)');
+  await page.waitForFunction(() => document.getElementById('o-est-valor').textContent.includes('2.250'));
+  ok(true, 'vizinho: site de uma página com o agendamento (1.800 + 450)');
   await page.click('#o-vizinhos [data-formato="institucional"]');
-  await page.waitForFunction(() => document.getElementById('o-est-valor').textContent.includes('3.950'));
-  ok(true, 'voltar ao recomendado: o agendamento continua (3.950)');
+  await page.waitForFunction(() => document.getElementById('o-est-valor').textContent.includes('4.350'));
+  ok(true, 'voltar ao recomendado: o agendamento continua (4.350)');
   /* uma conta que falha (rede, 429, tempo) não muda o que se grava: vale o último preço que apareceu na tela */
   let falharSimular = true;
   falhaForcada = true;
@@ -127,7 +127,7 @@ try {
   await page.route(SIMULAR, simularQueFalha);
   await page.click('#o-vizinhos [data-formato="landing_page"]');
   const errou = await espera(page, () => document.getElementById('o-est-erro').textContent.length > 0);
-  ok(errou && (await page.textContent('#o-est-valor')).includes('3.950'), 'conta que falha: o erro aparece e o preço na tela continua o último (3.950)');
+  ok(errou && (await page.textContent('#o-est-valor')).includes('4.350'), 'conta que falha: o erro aparece e o preço na tela continua o último (4.350)');
   falharSimular = false;
   await page.unroute(SIMULAR, simularQueFalha);
   falhaForcada = false;
@@ -147,7 +147,7 @@ try {
   await page.waitForSelector('#o-contato:not([hidden])');
   await page.unroute(GRAVAR, gravarDevagar);
   ok(true, 'pacote gravado: segue para o contato');
-  ok((await page.textContent('#o-est-valor')).includes('4.200'), 'o cartão depois de gravar mostra o preço gravado (3.950 + imagens 250 = 4.200)');
+  ok((await page.textContent('#o-est-valor')).includes('4.600'), 'o cartão depois de gravar mostra o preço gravado (4.350 + imagens 250 = 4.600)');
   ok((await page.textContent('#o-detalhes-form button[type=submit]')).trim() === 'Quero os três modelos', 'detalhes: o botão diz "Quero os três modelos"');
   ok(await page.evaluate(() => document.querySelector('#o-etapas [aria-current]').dataset.passo) === 'estimativa', 'etapa atual: preço');
   ok(await page.locator('#o-ajustar').isHidden() && await page.locator('#o-quero-modelos').isHidden(), 'pacote gravado: os controles do preço saem de cena');
