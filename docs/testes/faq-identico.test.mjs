@@ -54,3 +54,17 @@ test('nenhuma página promete o consultor de IA enquanto o orçamento é sem IA 
     assert.ok(!/sob medida/i.test(html.replace(/sistema_sob_medida|sob_medida/g, '')), pagina + ' usa "sob medida"');
   }
 });
+
+/* o preço que o FAQ de sites.html cita sai da tabela: em 2026-10-14 o dono mudou landing e institucional, e nada ligava
+   o texto à tabela (o orçamento mostraria um preço e o FAQ outro) */
+test('sites.html: o FAQ de preço diz as bases da tabela, e a área restrita vai para a conversa', () => {
+  const regras = JSON.parse(readFileSync(new URL('docs/fase2/regras-rascunho-v1.json', RAIZ), 'utf8'));
+  const real = v => 'R$ ' + v.toLocaleString('pt-BR');
+  const faq = [...doJsonLd(readFileSync(new URL('sites.html', RAIZ), 'utf8')).values()].find(r => r.startsWith('A landing page começa em'));
+  assert.ok(faq, 'a resposta de preço sumiu do FAQ de sites.html');
+  const f = regras.formatos;
+  assert.ok(faq.includes('A landing page começa em ' + real(f.landing_page.base) + ', o site institucional em ' + real(f.institucional.base)
+    + ', a loja virtual em ' + real(f.loja_plataforma.base) + ' e a experiência digital em ' + real(f.sob_medida.base) + '.'), faq);
+  assert.equal(regras.adicionais.area_restrita.fora_do_automatico, true);
+  assert.ok(faq.includes('Área restrita com login começa em R$ 4.500 e é orçada numa conversa, com o escopo escrito.'), faq);
+});

@@ -28,7 +28,7 @@ test('sem IA: simular recomenda e calcula pelo motor, sem gravar nada', async ()
   const s = await n.chamar('POST', 'simular', { conversa_id: c, respostas: RESP });
   assert.equal(s.status, 200, JSON.stringify(s.corpo));
   assert.equal(s.corpo.recomendacao.formato, 'institucional');
-  assert.equal(s.corpo.estimativa.valor_total, 3950, 'institucional 3500 + agendamento 450, pela tabela');
+  assert.equal(s.corpo.estimativa.valor_total, 4350, 'institucional 3900 + agendamento 450, pela tabela');
   assert.ok(s.corpo.versao);
   assert.equal((await local.db.query('select count(*)::int n from app.estimativas where conversa_id = $1', [c])).rows[0].n, 0, 'simular não grava');
 });
@@ -36,12 +36,13 @@ test('sem IA: simular recomenda e calcula pelo motor, sem gravar nada', async ()
 test('o navegador não manda preço nem complexidade: valores do corpo são ignorados ou recusados', async () => {
   const n = navegador(), c = await n.iniciar();
   const s = await n.chamar('POST', 'simular', { conversa_id: c, respostas: RESP, valor_total: 1, complexidade: 'normal', extras: { agendamento: 1 } });
-  assert.equal(s.corpo.estimativa.valor_total, 3950);
+  assert.equal(s.corpo.estimativa.valor_total, 4350);
   const alta = await n.chamar('POST', 'simular', { conversa_id: c, respostas: RESP, fatores: { complexidade: 'alta' } });
-  assert.equal(alta.corpo.estimativa.valor_total, 3950, 'complexidade nunca vem do corpo');
-  const dep = await n.chamar('POST', 'simular', { conversa_id: c, respostas: RESP, extras: { area_documentos: 1 } });
+  assert.equal(alta.corpo.estimativa.valor_total, 4350, 'complexidade nunca vem do corpo');
+  /* (um extra da loja num site institucional; a área restrita, que tinha dependentes, saiu do automático em 2026-10-14) */
+  const dep = await n.chamar('POST', 'simular', { conversa_id: c, respostas: RESP, extras: { frete_transportadora: 1 } });
   assert.equal(dep.status, 400, 'dependente sem o item de que depende: recusado com motivo');
-  assert.match(dep.corpo.erro, /área restrita/i);
+  assert.match(dep.corpo.erro, /loja virtual/i);
   const fora = await n.chamar('POST', 'simular', { conversa_id: c, respostas: RESP, extras: { sistema_sob_medida: 1 } });
   assert.equal(fora.status, 200);
   assert.equal(fora.corpo.estimativa, null);
@@ -57,7 +58,7 @@ test('confirmar-pacote grava uma vez, com a versão da tabela; versão velha →
   assert.equal(velha.corpo.versao_nova, s.corpo.versao);
   const ok = await n.chamar('POST', 'confirmar-pacote', { conversa_id: c, respostas: RESP, versao: s.corpo.versao });
   assert.equal(ok.status, 200, JSON.stringify(ok.corpo));
-  assert.equal(ok.corpo.estimativa.valor_total, 3950);
+  assert.equal(ok.corpo.estimativa.valor_total, 4350);
   const conv = (await local.db.query('select etapa, briefing, turnos from app.conversas where id = $1', [c])).rows[0];
   assert.equal(conv.etapa, 'estimativa');
   assert.equal(conv.briefing.negocio.cidade, 'Goiânia');
