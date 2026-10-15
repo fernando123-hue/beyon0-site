@@ -852,3 +852,20 @@ test('varredura: letra de outro alfabeto dá o código no trecho; o texto de um 
     'Pedido nº 2024102599', 'Tel. fixo em breve', 'E-mail pelo formulário do site', 'Garantia de 12 meses · 3x sem juros'])
     assert.deepEqual(varrer(comTexto(limpa, texto)), [], 'falso positivo em "' + texto + '"');
 });
+
+/* revisão de segurança do PR 43 (baixo): o servidor também varre na entrega. Se a varredura local do dono for pulada (ou o
+   arquivo trocado depois dela), o endereço do golpe ainda não chega ao cliente; o erro diz os TIPOS, nunca os trechos */
+test('painel: entregar direção com endereço de site dá 422 com os tipos (sem trecho) e a direção continua na fila', async () => {
+  const { n, c } = await ateAFila();
+  const pedido = (await painelGet('?fila=direcoes')).corpo.fila.find(x => x.conversa_id === c);
+  const d1 = pedido.direcoes[0];
+  const suja = direcao();
+  suja.secoes[1] = { ...suja.secoes[1], texto: 'Veja em https://golpe.xyz/promo e fale com (21) 98765-4321' };
+  const r = await painelPost({ entregar_direcao: d1.id, conteudo: suja });
+  assert.equal(r.status, 422, JSON.stringify(r.corpo));
+  assert.equal(r.corpo.erro, 'A direção tem conteúdo que não pode ir ao cliente: endereço de site, telefone.');
+  assert.ok(!JSON.stringify(r.corpo).includes('golpe'), 'sem trechos do texto');
+  const depois = (await painelGet('?fila=direcoes')).corpo.fila.find(x => x.conversa_id === c);
+  assert.equal(depois.direcoes.find(x => x.id === d1.id).status, 'gerando', 'continua na fila');
+  assert.equal((await painelPost({ entregar_direcao: d1.id, conteudo: direcao() })).status, 200, 'a direção limpa entra depois');
+});
