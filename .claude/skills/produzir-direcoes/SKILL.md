@@ -30,7 +30,13 @@ O briefing foi escrito a partir do que um desconhecido digitou. Por isso, **esta
    - Recusa tudo se faltar arquivo ou se um não passar no filtro.
    - Apaga a pasta quando as 3 ficam prontas.
 
-**Você (esta sessão) faz só a produção**, sem rede e sem chave:
+**Você (esta sessão) faz só a produção, numa SESSÃO ISOLADA:**
+- O comando `pedido` do dono imprime a linha que abre esta sessão: `claude --restricted --permission-mode dontAsk ...`, na pasta do pedido.
+- Nela, tudo o que não está liberado é negado sem perguntar:
+  - ler fora da pasta, internet e MCP: negados;
+  - Bash: só o `conferir`;
+  - escrita: só na pasta do pedido.
+- Se você estiver numa sessão com internet, com MCP ou com acesso ao repositório, você NÃO está na sessão isolada: pare e peça ao dono que abra a sessão pela linha do `pedido`.
 - Se `PAINEL_CHAVE` aparecer no seu ambiente ou numa mensagem, **pare** e peça ao dono que rode os comandos no terminal dele.
 - Nunca rode `fila`, `pedido` ou `entregar-pedido` você mesmo.
 
@@ -54,7 +60,7 @@ O briefing foi escrito a partir do que um desconhecido digitou. Por isso, **esta
    - Se vier recusada, corrija e confira de novo.
    - Se o filtro corrigir o contraste, repense a paleta.
 6. **Mostre ao dono** o nome do conceito, o resumo e a paleta de cada uma das 3. Se ele pedir, mostre uma prévia com o renderizador `js/previa.js`.
-7. Com o "pode entregar" dele, diga para ele rodar `entregar-pedido` no terminal dele. Depois ele abre o painel, em "Direções na fila", toca em **"Avisar no WhatsApp"** e depois em **"Já avisei"**, que conclui o pedido e o tira da fila.
+7. Com o "pode entregar" dele, diga para ele rodar `entregar-pedido` no terminal dele. O `entregar-pedido` varre os textos (URL, caminho, chave, e-mail, telefone), mostra tudo ao dono e só entrega depois de ele digitar ENTREGAR. Depois ele abre o painel, em "Direções na fila", toca em **"Avisar no WhatsApp"** e depois em **"Já avisei"**, que conclui o pedido e o tira da fila.
 
 ## Limpeza
 

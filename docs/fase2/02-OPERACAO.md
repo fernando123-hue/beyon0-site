@@ -73,7 +73,7 @@ Enquanto não há verba para a API, as três direções não são geradas pelo m
 - **Comando `scripts/direcoes.mjs` e skill `produzir-direcoes`** (`.claude/skills/produzir-direcoes/SKILL.md`). A chave **nunca** fica na sessão do Claude Code que lê o briefing, porque o briefing é texto de visitante (revisão de segurança):
   - **O dono roda no terminal dele**, com `BZ_BASE` (https do site, conferido pelo comando) e `PAINEL_CHAVE` só ali:
     - `fila`: só pedidos confirmados; cada linha traz o id curto, o código `BZ-XXXXX`, "avisar" ou "produzir" e, se for o caso, "TEXTO SUSPEITO";
-    - `pedido <id>` (os 8 primeiros caracteres do id curto, não o código `BZ-`): grava em `~/BeyonZero-direcoes/<id>/pedido.json`, fora do repositório. O briefing vai com nome, telefone e e-mail do cliente apagados;
+    - `pedido <id>` (os 8 primeiros caracteres do id curto, não o código `BZ-`): grava em `~/BeyonZero-direcoes/<id>/pedido.json`, fora do repositório. O briefing vai com nome, telefone e e-mail do cliente apagados. Também imprime a linha que abre a sessão isolada (PowerShell). A produção acontece só nela: dontAsk, leitura e escrita só na pasta do pedido, Bash só para o `conferir`, sem internet nem MCP. A pasta `~/BeyonZero-direcoes/.claude/settings.json` antiga (lista de proibições) fica superada;
     - `entregar-pedido <id>`: as 3 de uma vez, cada arquivo no id certo, conferidas antes; apaga a pasta quando as 3 ficam prontas.
   - **O Claude Code roda, sem chave:**
     - `conferir <arquivo> <estrategia>`: o mesmo filtro do servidor;

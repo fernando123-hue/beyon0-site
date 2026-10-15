@@ -216,6 +216,13 @@ const COMANDOS = {
     const arquivo = path.join(dir, 'pedido.json');
     fs.writeFileSync(arquivo, JSON.stringify(montarArquivoPedido(p), null, 2), { mode: 0o600 });
     console.log('Pedido gravado (sem contato) em ' + arquivo);
+    /* a sessão isolada (PR 2b-1): settings e instruções DENTRO da pasta do pedido (a sessão lê só ali), e a linha pronta */
+    const { configSessao, comandoSessao } = await import('./sessao-isolada.mjs');
+    const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+    const settings = path.join(dir, '.sessao.json'), instrucoes = path.join(dir, '.instrucoes.md');
+    fs.writeFileSync(settings, JSON.stringify(configSessao({ repo }), null, 2), { mode: 0o600 });
+    fs.copyFileSync(path.join(repo, '.claude', 'skills', 'produzir-direcoes', 'SKILL.md'), instrucoes);
+    console.log('\nAbra a sessão isolada (PowerShell), e só ela, para produzir:\n' + comandoSessao({ pasta: dir, settings, instrucoes }));
   },
   conferir(arquivo, estrategia) {
     const r = avaliarArquivo(JSON.parse(fs.readFileSync(arquivo, 'utf8')), estrategia);

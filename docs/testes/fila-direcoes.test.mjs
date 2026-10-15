@@ -537,3 +537,21 @@ test('confirmação: só a resposta exata ao código sorteado vale; vazio, palav
   assert.equal(await pedirConfirmacao(perguntar), false);
   fechar();
 });
+
+/* PR 2b-1 (spec §4): a sessão que lê o briefing roda numa lista do que é PERMITIDO: sem rede, sem MCP, Bash só para o
+   conferir, escrita só na pasta do pedido, leitura fora da pasta recusada */
+test('sessão isolada: settings em dontAsk, só o conferir no Bash, sem rede e sem ler fora da pasta; o comando usa --restricted', async () => {
+  const { configSessao, caminhoClaude, comandoSessao } = await import('../../scripts/sessao-isolada.mjs');
+  assert.equal(caminhoClaude('C:\\Vault - Fernando\\Beyon Zero\\x'), '//c/Vault - Fernando/Beyon Zero/x');
+  const c = configSessao({ repo: 'C:\\Vault - Fernando\\Beyon Zero\\03 Projetos\\site' });
+  assert.equal(c.permissions.defaultMode, 'dontAsk');
+  assert.equal(c.permissions.blockReadsOutsideWorkingDirectories, true);
+  assert.equal(c.permissions.disableBypassPermissionsMode, 'disable');
+  assert.deepEqual(c.permissions.allow, ['Edit(./**)', 'Bash(node "C:/Vault - Fernando/Beyon Zero/03 Projetos/site/scripts/direcoes.mjs" conferir *)'], 'nada além de escrever na pasta e conferir');
+  for (const r of ['WebFetch', 'WebSearch', 'mcp__*', 'Edit(./.sessao.json)', 'Edit(./.instrucoes.md)', 'Read(//c/Vault - Fernando/Beyon Zero/03 Projetos/site/**)', 'Bash(cat *)', 'Bash(curl *)', 'Bash(node -e *)'])
+    assert.ok(c.permissions.deny.includes(r), 'deny sem ' + r);
+  assert.ok(!c.permissions.allow.some(r => /fila|pedido|entregar|limpar/.test(r)), 'os comandos com a chave do painel nunca ficam liberados');
+  const cmd = comandoSessao({ pasta: 'C:\\Users\\x\\BeyonZero-direcoes\\1234abcd', settings: 'C:\\Users\\x\\BeyonZero-direcoes\\1234abcd\\.sessao.json', instrucoes: 'C:\\Users\\x\\BeyonZero-direcoes\\1234abcd\\.instrucoes.md' });
+  for (const parte of ["Set-Location -LiteralPath 'C:\\Users\\x\\BeyonZero-direcoes\\1234abcd'", '--restricted', '--permission-mode dontAsk', '--strict-mcp-config', "--tools 'Read,Edit,Write,Bash'", "--disallowedTools 'WebFetch' 'WebSearch' 'mcp__*'", "--settings 'C:\\Users\\x\\BeyonZero-direcoes\\1234abcd\\.sessao.json'", "--append-system-prompt-file 'C:\\Users\\x\\BeyonZero-direcoes\\1234abcd\\.instrucoes.md'"])
+    assert.ok(cmd.includes(parte), 'comando sem ' + parte + ': ' + cmd);
+});
