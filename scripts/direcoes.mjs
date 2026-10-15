@@ -27,7 +27,7 @@ import { createInterface } from 'node:readline/promises';
 import { higienizar, ESTRATEGIAS, ESQUEMA_DIRECAO } from '../api/_vendas/direcao.mjs';
 import { SISTEMA_GERACAO, REGRA_BRIEFING, briefingDelimitado } from '../api/_vendas/gerador.mjs';
 import { redigir } from '../api/_vendas/seguranca.mjs';
-import { configSessao, comandoSessao, instrucoesSessao } from './sessao-isolada.mjs';
+import { configSessao, comandoSessao, instrucoesSessao, linhaDoDono } from './sessao-isolada.mjs';
 import { FORMATOS } from '../api/_vendas/precos.mjs';
 import { varrer, textosDe } from './varredura.mjs';
 
@@ -46,6 +46,7 @@ export const idCurto = id => String(id).slice(0, 8);
 /* o conferir roda SEM sandbox no Windows (a sessão isolada o libera): só pode abrir o arquivo de direção de um pedido,
    isto é, <raiz>/<8 hex>/<estrategia>.json, comparando caminhos já resolvidos (sem ".." sobrando) */
 const ARQUIVOS_DE_DIRECAO = ['conversao.json', 'autoridade.json', 'experiencia.json'];
+const ARQUIVOS_DO_PEDIDO = ['pedido.json', '.sessao.json', '.instrucoes.md', ...ARQUIVOS_DE_DIRECAO];
 export function arquivoDeDirecao(arquivo, raiz = PASTA) {
   const recusa = () => new Error('Só confiro conversao.json, autoridade.json ou experiencia.json dentro da pasta de um pedido.');
   const absoluto = path.resolve(String(arquivo));
@@ -145,6 +146,9 @@ export function conferir(conteudo, estrategia) {
    escreve; revisões de segurança e técnica) — id de fora do pedido recusa tudo; o que já foi entregue não sai de novo
    (retoma depois de uma queda no meio) */
 export function planejarEntrega(pasta, servidor) {
+  /* a pasta é onde a sessão escreve: qualquer coisa fora desta lista (um scripts/ plantado, por exemplo) e nada sai */
+  const estranhos = fs.readdirSync(pasta).filter(n => !ARQUIVOS_DO_PEDIDO.includes(n)).sort();
+  if (estranhos.length) throw new Error('A pasta do pedido tem arquivos que não deviam estar lá (' + estranhos.join(', ') + '): nada sai. Apague a pasta e rode "pedido" de novo.');
   const pedido = JSON.parse(fs.readFileSync(path.join(pasta, 'pedido.json'), 'utf8'));
   if (servidor && pedido.direcoes.some(d => !servidor.todos.has(d.id))) throw new Error('Os ids do pedido.json não batem com a fila do servidor: rode "pedido" de novo.');
   const aEntregar = pedido.direcoes.filter(d => (servidor ? servidor.naFila.has(d.id) : d.status === 'gerando'));
@@ -254,6 +258,8 @@ const COMANDOS = {
     const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
     const { settings, instrucoes } = prepararPastaSessao({ dir, repo });
     console.log('\nAbra a sessão isolada (PowerShell), e só ela, para produzir:\n' + comandoSessao({ pasta: dir, settings, instrucoes }));
+    /* depois de produzir, o dono entrega com ESTA linha (caminho absoluto), nunca com "node scripts/..." de dentro da pasta do pedido */
+    console.log('\nDepois de produzir, entregue com esta linha (de qualquer outra pasta):\n' + linhaDoDono({ repo, comando: 'entregar-pedido', arg: idCurto(pedidoParaModelo(p).pedido) }));
   },
   conferir(arquivo, estrategia) {
     /* sem e.message nem conteúdo: o arquivo é de origem não confiável e o erro do JSON.parse cita pedaços do texto */

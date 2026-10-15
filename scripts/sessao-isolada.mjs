@@ -17,6 +17,10 @@ const barras = p => String(p).replace(/\\/g, '/');
 /* o caminho do script do conferir: UMA fonte, usada pela regra de allow e pelo texto das instruções, para nunca divergirem */
 const scriptConferir = repo => barras(repo) + '/scripts/direcoes.mjs';
 
+/* a linha de um comando do DONO, sempre com o caminho ABSOLUTO do script: com "node scripts/..." relativo, de dentro da pasta de
+   um pedido, o que rodaria seria o arquivo que a sessão deixou lá (revisão de segurança do PR 43) */
+export const linhaDoDono = ({ repo, comando, arg }) => 'node "' + scriptConferir(repo) + '" ' + comando + (arg ? ' ' + arg : '');
+
 export function configSessao({ repo }) {
   const script = scriptConferir(repo);
   return {

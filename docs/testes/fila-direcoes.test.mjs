@@ -729,3 +729,31 @@ test('conferir (processo filho): na pasta do pedido, com caminho relativo, diz O
     assert.ok(!ruim.stdout.includes('isto não é json'), 'o conteúdo do arquivo não volta na saída');
   } finally { fs.rmSync(home, { recursive: true, force: true }); }
 });
+
+/* revisão de segurança do PR 43 (crítico), itens c e d: o dono nunca roda "node scripts/..." com caminho relativo de dentro
+   da pasta de um pedido, e a entrega recusa a pasta que tem qualquer coisa além dos arquivos do pedido */
+test('o pedido imprime a linha EXATA e absoluta para entregar depois, com as barras normais', async () => {
+  const { linhaDoDono } = await import('../../scripts/sessao-isolada.mjs');
+  assert.equal(linhaDoDono({ repo: 'C:\\Vault - Fernando\\Beyon Zero\\03 Projetos\\site', comando: 'entregar-pedido', arg: '1234abcd' }),
+    'node "C:/Vault - Fernando/Beyon Zero/03 Projetos/site/scripts/direcoes.mjs" entregar-pedido 1234abcd');
+});
+
+test('entregar: a pasta do pedido com arquivo fora da lista (um scripts/direcoes.mjs plantado) é recusada, e nada sai', async () => {
+  const fs = await import('node:fs'), os = await import('node:os'), path = await import('node:path');
+  const { planejarEntrega } = await import('../../scripts/direcoes.mjs');
+  const raiz = fs.mkdtempSync(path.join(os.tmpdir(), 'bz-estranho-'));
+  try {
+    const pasta = path.join(raiz, '1234abcd');
+    fs.mkdirSync(pasta);
+    const dirs = ['conversao', 'autoridade', 'experiencia'].map((estrategia, i) => ({ id: 'aaaaaaaa-0000-4000-8000-00000000000' + (i + 1), estrategia, status: 'gerando' }));
+    fs.writeFileSync(path.join(pasta, 'pedido.json'), JSON.stringify({ direcoes: dirs }));
+    for (const e of ['conversao', 'autoridade', 'experiencia']) fs.writeFileSync(path.join(pasta, e + '.json'), JSON.stringify(direcao()));
+    for (const n of ['.sessao.json', '.instrucoes.md']) fs.writeFileSync(path.join(pasta, n), 'x');
+    assert.equal(planejarEntrega(pasta).length, 3, 'só os arquivos do pedido: segue');
+    fs.mkdirSync(path.join(pasta, 'scripts'));
+    fs.writeFileSync(path.join(pasta, 'scripts', 'direcoes.mjs'), 'console.log("plantado")');
+    fs.writeFileSync(path.join(pasta, 'saida.txt'), 'x');
+    assert.throws(() => planejarEntrega(pasta),
+      e => e.message === 'A pasta do pedido tem arquivos que não deviam estar lá (saida.txt, scripts): nada sai. Apague a pasta e rode "pedido" de novo.');
+  } finally { fs.rmSync(raiz, { recursive: true, force: true }); }
+});
