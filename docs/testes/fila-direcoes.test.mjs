@@ -460,13 +460,23 @@ test('varredura: disfarces de endereço, caminho, chave e telefone são recusado
     ['chave', 'sk_live_abcdefghij'], ['chave', 'ghp_' + 'a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8'], ['chave', 'AKIAIOSFODNN7EXAMPLE'],
     ['chave', 'Bearer abcdefghijklmnop1234'], ['chave', '3f2b8c1e-9a4d-4e7b-8c2a-1d5f6a7b8c9d'],
     ['telefone', '98765-4321'], ['telefone', '0800 123 4567'], ['telefone', '+5521987654321'], ['telefone', '21 9 8765 4321'],
-    ['telefone', '2133-4455'], ['telefone', '+351 21 123 4567']
+    ['telefone', '2133-4455'], ['telefone', '+351 21 123 4567'],
+    /* revisão de segurança do PR 43 (médio) */
+    ['telefone', '(21) 9 8765-4321'],
+    ['endereço de site', 'golpe。com'], ['endereço de site', 'golpe｡com'], ['endereço de site', 'golpe．com'],
+    ['letra de outro alfabeto', 'gоlpe.com'], ['letra de outro alfabeto', 'Clínica Ωmega'], ['letra de outro alfabeto', 'Clínica Ա'],
+    ['endereço de site', 'golpe ponto com'], ['endereço de site', 'golpe (ponto) net'], ['endereço de site', 'golpe [ponto] org'],
+    ['perfil de rede social', 'siga @clinicasol'], ['perfil de rede social', 'fale com (@clinica.sol)'],
+    /* chave Pix e documento entram depois, pelo dono, nunca pela fila */
+    ['documento', 'CNPJ 12.345.678/0001-90'], ['documento', 'CPF 123.456.789-09'], ['documento', 'CPF 12345678909'],
+    ['conta bancária', 'agência 1234 conta 56789-0'], ['conta bancária', 'Ag. 0001 C/C 12345-6']
   ];
   for (const [tipo, texto] of casos) {
     const achados = varrer(comTexto(limpa, texto));
     assert.ok(achados.some(a => a.tipo === tipo && a.caminho === 'secoes[1].texto'), tipo + ' em "' + texto + '": ' + JSON.stringify(achados));
   }
-  const aceitos = ['CNPJ 12.345.678/0001-90', 'CEP 22041-001', 'Feito com Next.js', 'Dra. Silva e Dr. Souza, Ltda.', 'Pediatria/Ortopedia/Cardiologia/Dermatologia/Geral',
+  /* (o CNPJ 12.345.678/0001-90 saiu desta lista: agora é recusado como documento, ver os casos acima) */
+  const aceitos = ['CEP 22041-001', 'Feito com Next.js', 'Dra. Silva e Dr. Souza, Ltda.', 'Pediatria/Ortopedia/Cardiologia/Dermatologia/Geral',
     'Pedido nº 2024102599', 'De 2020-2024 atendemos 300 famílias', 'Atendimento 24h'];
   for (const texto of aceitos) assert.deepEqual(varrer(comTexto(limpa, texto)), [], 'falso positivo em "' + texto + '"');
 });
@@ -830,4 +840,15 @@ test('entregar: JSON quebrado e estratégia trocada dentro do arquivo dão mensa
     fs.writeFileSync(path.join(pasta, 'conversao.json'), JSON.stringify({ ...direcao(), estrategia: 'XYZsegredo' + String.fromCharCode(0x1b) + '[31m' }));
     assert.throws(() => planejarEntrega(pasta), e => /diz ser de outra estratégia/.test(e.message) && !e.message.includes('XYZsegredo') && !e.message.includes(String.fromCharCode(0x1b)));
   } finally { fs.rmSync(raiz, { recursive: true, force: true }); }
+});
+
+test('varredura: letra de outro alfabeto dá o código no trecho; o texto de um site brasileiro comum segue limpo', async () => {
+  const { varrer } = await import('../../scripts/varredura.mjs');
+  const { conferir } = await import('../../scripts/direcoes.mjs');
+  const limpa = conferir(direcao(), 'conversao').direcao;
+  const a = varrer(comTexto(limpa, 'g' + String.fromCharCode(0x043e) + 'lpe')).find(x => x.tipo === 'letra de outro alfabeto');
+  assert.equal(a?.trecho, 'U+043E');
+  for (const texto of ['Av. Brasil 100, sala 12 · Niterói', 'Atendemos com hora marcada, de segunda a sexta', 'Ponto de ônibus na porta', 'Ag. de viagens desde 1998',
+    'Pedido nº 2024102599', 'Tel. fixo em breve', 'E-mail pelo formulário do site', 'Garantia de 12 meses · 3x sem juros'])
+    assert.deepEqual(varrer(comTexto(limpa, texto)), [], 'falso positivo em "' + texto + '"');
 });
