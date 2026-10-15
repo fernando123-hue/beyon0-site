@@ -12,7 +12,7 @@ import { ler, mudar } from '../../api/painel.mjs';
 import { criarSimulada } from '../../api/_ia/simulado.mjs';
 import { executar as rotinas } from '../../api/rotinas.mjs';
 import { PEDIDOS } from '../../api/_vendas/pedido.mjs';
-import { LIMITES_DE_TESTE } from './_pedido.mjs';
+import { LIMITES_DE_TESTE, telefoneDeTeste } from './_pedido.mjs';
 
 const BASE = 'http://127.0.0.1:8899';
 const CHAVE = 'k'.repeat(40);
@@ -60,9 +60,7 @@ const direcao = (nome = 'Clareza que agenda') => ({
 
 /* até a fila (PR 2a): perguntas → pacote → detalhes → o dono confirma pelo WhatsApp (no painel) */
 const RESP = { ramo: 'saude', cidade: 'Niterói', objetivos: ['agendamentos'], site_atual: 'instagram', material: 'tenho' };
-let telSeq = 0;
-const telefoneNovo = () => '(21) 9' + String(6000 + (++telSeq)) + '-0000';
-async function ateAFila(direcoes = 'manual', { confirmar = true, telefone = telefoneNovo(), extra = {} } = {}) {
+async function ateAFila(direcoes = 'manual', { confirmar = true, telefone = telefoneDeTeste(), extra = {} } = {}) {
   const n = navegador(direcoes);
   const c = await n.iniciar();
   const s = await n.chamar('POST', 'simular', { conversa_id: c, respostas: RESP });
@@ -171,7 +169,7 @@ test('painel: a fila diz o total (pedido novo nunca some calado), avisado antes 
   const f = await painelGet('?fila=direcoes');
   assert.equal(typeof f.corpo.total, 'number');
   assert.ok(f.corpo.total >= f.corpo.fila.length);
-  assert.equal(f.corpo.truncada, f.corpo.total > f.corpo.fila.length);
+  assert.equal(f.corpo.truncada, undefined, 'PR2a-truncada: a fila não corta, o campo saiu');
   const cedo = await painelPost({ avisado: c });
   assert.equal(cedo.status, 200);
   assert.equal(cedo.corpo.avisadas, 0, 'nada pronto: nada marcado');

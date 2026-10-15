@@ -7,12 +7,13 @@ import assert from 'node:assert/strict';
 import { randomUUID, createHash } from 'node:crypto';
 import fs from 'node:fs';
 import { novoBanco, como, erroDe } from './_banco.mjs';
+import { telefoneE164DeTeste } from './_pedido.mjs';
 
 const ORG = '99999999-0000-4000-8000-000000000099';
 const REGRAS = 'dddddddd-0000-4000-8000-0000000000d0';
 const NAO_ACHOU = 'P0002', ETAPA = '55000', REGRA = '23514', INVALIDO = '22023', SEM_PERMISSAO = '42501';
 const TODAS = ['descoberta', 'estimativa', 'contato', 'gerando', 'direcoes', 'escolhida', 'alteracoes', 'escopo', 'aguardando_pagamento', 'em_producao', 'encerrada'];
-let db, seq = 0;
+let db;
 
 /* o backend chama cada passo como service_role, passando o visitante tirado do token conferido */
 const rpc = (nome, p) => como(db, 'service_role', q => q(`select app.${nome}($1::jsonb) as r`, [JSON.stringify(p)])).then(x => x.rows[0].r);
@@ -38,9 +39,8 @@ async function comPacote() {
   return base;
 }
 /* os detalhes como o servidor manda: o telefone já em E.164 e o hash feito lá */
-const telefoneNovo = () => '+55219' + String(80000000 + (++seq));
 function detalhes(base, extra = {}) {
-  const telefone = extra.telefone || telefoneNovo();
+  const telefone = extra.telefone || telefoneE164DeTeste();
   return rpc('vendas_registrar_detalhes', { ...base, telefone, telefone_hash: hex('tel|' + telefone), nome: 'Ana', aceite: true,
     briefing: { negocio: { nome: 'Clínica Sol', descricao: 'Consultas e exames' } }, redes: {}, suspeito: false,
     chave_ip: null, max_por_ip: 3, max_por_telefone_dia: 2, teto_fila: 1000, horas: 72, ...extra });
@@ -112,7 +112,7 @@ test('detalhes: os mínimos (nome do negócio, o que vende, WhatsApp) e o tamanh
 });
 
 test('freio por telefone: 1 pedido aberto e 2 por dia (recusado: nada gravado)', async () => {
-  const telefone = telefoneNovo();
+  const telefone = telefoneE164DeTeste();
   const a = await comPacote();
   assert.equal((await detalhes(a, { telefone })).ok, true);
   const b = await comPacote();
@@ -139,7 +139,7 @@ test('freio por IP: o 4º pedido do mesmo IP no dia é recusado, com o evento fr
 /* (revisão final do PR 2a, M2) o banco não pode responder a quem sonda se um número já pediu orçamento: toda tentativa
    gasta a cota do IP (contado ANTES dos testes de telefone) e a mesma conversa tenta no máximo 3 vezes, contadas no banco */
 test('detalhes: a mesma conversa tenta no máximo 3 vezes; a 4ª é recusada mesmo com um número novo, sem gravar o pedido', async () => {
-  const telefone = telefoneNovo();
+  const telefone = telefoneE164DeTeste();
   assert.equal((await detalhes(await comPacote(), { telefone })).ok, true);
   const b = await comPacote();
   for (let i = 1; i <= 3; i++) assert.deepEqual(await detalhes(b, { telefone }), { ok: false, motivo: 'telefone_aberto' }, 'tentativa ' + i);
@@ -150,7 +150,7 @@ test('detalhes: a mesma conversa tenta no máximo 3 vezes; a 4ª é recusada mes
 
 test('detalhes: a recusa por telefone gasta a cota do IP (as sondas param no freio do IP como qualquer pedido)', async () => {
   const chave_ip = hex('ip-sonda-' + Date.now());
-  const telefone = telefoneNovo();
+  const telefone = telefoneE164DeTeste();
   assert.equal((await detalhes(await comPacote(), { telefone })).ok, true);
   for (let i = 1; i <= 3; i++) assert.deepEqual(await detalhes(await comPacote(), { telefone, chave_ip }), { ok: false, motivo: 'telefone_aberto' }, 'sonda ' + i);
   assert.deepEqual(await detalhes(await comPacote(), { chave_ip }), { ok: false, motivo: 'freio_ip' }, 'as três sondas gastaram a cota do dia');
@@ -297,7 +297,7 @@ test('gerar antes da confirmação: recusado; sem pedido (o caminho antigo do co
 });
 
 test('conclusão automática: as três direções falham → o pedido sai da fila, do teto e libera o telefone', async () => {
-  const telefone = telefoneNovo();
+  const telefone = telefoneE164DeTeste();
   const p = await pedidoAguardando({ telefone });
   await confirmar(p.conversa_id);
   assert.equal((await um('select privado.pedido_na_fila(pd) f from app.pedidos pd where conversa_id = $1', [p.conversa_id])).f, true);
@@ -318,7 +318,7 @@ test('conclusão automática: o cliente escolhe um modelo antes do "Já avisei" 
 });
 
 test('"Já avisei" conclui o pedido: o número pode pedir de novo', async () => {
-  const telefone = telefoneNovo();
+  const telefone = telefoneE164DeTeste();
   const p = await pedidoAguardando({ telefone });
   await confirmar(p.conversa_id);
   await concluirDirecoes(p.conversa_id);

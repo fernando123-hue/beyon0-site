@@ -139,7 +139,7 @@ async function filaDirecoes(env) {
     const fila = r && Array.isArray(r.itens) ? r.itens : [];
     const total = r && Number.isInteger(r.total) ? r.total : fila.length;
     /* (PR 2a: só confirmados, sem corte; o alarme diz quando a fila chegou ao teto e o orçamento oferece o WhatsApp) */
-    return json({ fila, total, truncada: total > fila.length, alarme: total >= PEDIDOS.fila_confirmados });
+    return json({ fila, total, alarme: total >= PEDIDOS.fila_confirmados });
   }
   catch (e) { console.error('[painel] fila de direções:', e && e.codigo); return json({ erro: 'Não deu para ler a fila agora.' }, 500); }
 }

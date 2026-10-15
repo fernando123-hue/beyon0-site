@@ -10,7 +10,7 @@ import { PEDIDOS } from '../../api/_vendas/pedido.mjs';
 import { Recusa } from '../../api/_vendas/recusa.mjs';
 import { traduzirErro, Recusa as RecusaDoFluxo } from '../../api/_vendas/fluxo.mjs';
 import { criarSimulada } from '../../api/_ia/simulado.mjs';
-import { LIMITES_DE_TESTE } from './_pedido.mjs';
+import { LIMITES_DE_TESTE, telefoneDeTeste } from './_pedido.mjs';
 
 const BASE = 'http://127.0.0.1:8899';
 let local, deps, ipSeq = 0, telSeq = 0;
@@ -30,8 +30,7 @@ function navegador(ip = '198.51.100.' + (++ipSeq), extra = {}) {
   return { chamar, async iniciar() { const r = await chamar('POST', 'sessao', {}); token = r.corpo.token; return r.corpo.conversa_id; } };
 }
 const RESP = { ramo: 'saude', cidade: 'Goiânia', objetivos: ['agendamentos'], site_atual: 'instagram', material: 'tenho' };
-const telefone = () => '(21) 9' + String(7000 + (++telSeq)) + '-' + String(1000 + telSeq);
-const DETALHES = () => ({ negocio: 'Clínica Sol', vende: 'Consultas e exames', telefone: telefone(), aceite: true });
+const DETALHES = () => ({ negocio: 'Clínica Sol', vende: 'Consultas e exames', telefone: telefoneDeTeste(), aceite: true });
 const um = async (sql, params) => (await local.db.query(sql, params)).rows[0];
 
 /* perguntas → preço → "Quero os três modelos" (o pacote gravado) */
@@ -284,4 +283,28 @@ test('a ação "contato" saiu e gerar exige o pedido confirmado, nos dois modos 
   const n = navegador(undefined, { direcoes: 'api', ia: criarSimulada() }), c = await comPacote(n);
   assert.equal((await n.chamar('POST', 'detalhes', { conversa_id: c, ...DETALHES() })).status, 200);
   assert.equal((await n.chamar('POST', 'gerar', { conversa_id: c })).status, 409);
+});
+
+/* PR 2b-1, PR2a-22P02: parâmetro malformado que chega ao banco é 400, não 500 */
+test('traduzirErro: 22P02 (texto que não converte) vira 400 "Dados inválidos."', async () => {
+  const { traduzirErro } = await import('../../api/_vendas/fluxo.mjs');
+  const { ErroBanco } = await import('../../api/_vendas/transporte.mjs');
+  const r = traduzirErro(new ErroBanco('22P02', 'invalid input syntax for type uuid'));
+  assert.equal(r?.status, 400);
+  assert.equal(r?.message, 'Dados inválidos.');
+});
+
+/* PR2a-motivo-log: motivo que o servidor não conhece vira 409, mas com log (antes sumia) */
+test('detalhes: motivo desconhecido do banco vira o 409 de "só uma vez" com log do motivo', async () => {
+  const { recusaDoMotivo } = await import('../../api/_vendas/fluxo-pedido.mjs');
+  const logs = [], original = console.error;
+  console.error = (...a) => logs.push(a.join(' '));
+  try {
+    const r = recusaDoMotivo({ ok: false, motivo: 'motivo_novo' });
+    assert.equal(r.status, 409);
+    assert.ok(logs.some(l => l.includes('motivo_novo')), 'o motivo aparece no log: ' + logs.join(' | '));
+    logs.length = 0;
+    assert.equal(recusaDoMotivo({ ok: false, motivo: 'fila_cheia' }).status, 503);
+    assert.equal(logs.length, 0, 'motivo conhecido não loga');
+  } finally { console.error = original; }
 });

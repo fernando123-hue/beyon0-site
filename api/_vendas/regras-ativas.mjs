@@ -27,7 +27,7 @@ export async function regrasAtivas(banco, { cache = false, agora = Date.now() } 
   let valor = null;
   if (r && r.regras) {
     const v = validarRegras(r.regras);
-    if (v.erros) console.error(JSON.stringify({ origem: 'vendas', nivel: 'erro', evento: 'tabela de preços ativa inválida', versao: r.versao ?? null, erros: v.erros.slice(0, 5) }));
+    if (v.erros) console.error(JSON.stringify({ origem: 'vendas', nivel: 'erro', evento: 'tabela de preços ativa inválida', regras_id: r.id ?? null, erros: v.erros.slice(0, 5) }));
     else valor = congelar(r);
   }
   guardada = valor ? { chave, em: agora, valor } : null;   /* (a leitura sem cache também renova o guardado) */
