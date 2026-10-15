@@ -757,3 +757,77 @@ test('entregar: a pasta do pedido com arquivo fora da lista (um scripts/direcoes
       e => e.message === 'A pasta do pedido tem arquivos que não deviam estar lá (saida.txt, scripts): nada sai. Apague a pasta e rode "pedido" de novo.');
   } finally { fs.rmSync(raiz, { recursive: true, force: true }); }
 });
+
+/* revisão de segurança do PR 43 (alto): o conferir roda na sessão de um desconhecido; a saída dele volta para o modelo e
+   para o terminal. Nenhum argumento recebido pode ser repetido na saída (era assim que "$PAINEL_CHAVE" e companhia
+   voltavam para a tela), e o estranho é sempre uma mensagem fixa */
+test('conferir: estratégia desconhecida vira mensagem fixa, sem repetir o argumento', async () => {
+  const { avaliarArquivo, conferir } = await import('../../scripts/direcoes.mjs');
+  const FIXA = 'estratégia desconhecida (use conversao, autoridade ou experiencia)';
+  assert.equal(conferir(direcao(), 'XYZsegredo').erro, FIXA);
+  const r = avaliarArquivo(direcao(), 'XYZsegredo');
+  assert.equal(r.ok, false);
+  assert.equal(r.mensagem, 'RECUSADA: ' + FIXA);
+  assert.ok(!r.mensagem.includes('XYZsegredo'));
+});
+
+test('conferir (processo filho): nem a estratégia nem o caminho recebidos voltam na saída', async () => {
+  const { spawnSync } = await import('node:child_process');
+  const fs = await import('node:fs'), os = await import('node:os'), path = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+  const script = fileURLToPath(new URL('../../scripts/direcoes.mjs', import.meta.url));
+  const home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'bz-eco-')));
+  try {
+    const pedido = path.join(home, 'BeyonZero-direcoes', '1234abcd');
+    fs.mkdirSync(pedido, { recursive: true });
+    fs.writeFileSync(path.join(pedido, 'conversao.json'), JSON.stringify(direcao()));
+    const env = { ...process.env, HOME: home, USERPROFILE: home };
+    const rodar = args => spawnSync(process.execPath, [script, 'conferir', ...args], { cwd: pedido, env, encoding: 'utf8' });
+    const a = rodar(['./conversao.json', 'XYZsegredo']);
+    assert.equal(a.status, 1);
+    assert.ok(!(a.stdout + a.stderr).includes('XYZsegredo'), a.stdout + a.stderr);
+    const b = rodar(['./XYZcaminho.json', 'conversao']);
+    assert.equal(b.status, 1);
+    assert.ok(!(b.stdout + b.stderr).includes('XYZcaminho'), b.stdout + b.stderr);
+  } finally { fs.rmSync(home, { recursive: true, force: true }); }
+});
+
+/* (alto, c) o dono vê TUDO o que vai sair, inclusive as cores, numa linha só */
+test('entregar-pedido: as linhas que o dono lê trazem a paleta inteira numa linha só', async () => {
+  const { linhasDaDirecao } = await import('../../scripts/direcoes.mjs');
+  const linhas = linhasDaDirecao(direcao());
+  const paleta = linhas.filter(l => l.startsWith('| paleta:'));
+  assert.deepEqual(paleta, ['| paleta: fundo #FFFFFF, superficie #F4F6F8, texto #111111, texto_suave #4A4F55, destaque #0B6E6E, destaque_texto #FFFFFF']);
+  assert.ok(!linhas.some(l => l.startsWith('| identidade.paleta')), 'a paleta não aparece duas vezes');
+  assert.ok(linhas.some(l => l.startsWith('| secoes[0].titulo: Fisioterapia que cabe na sua rotina')));
+});
+
+/* (médio) texto vindo de arquivo da pasta não chega cru ao terminal do dono: sequências de escape, controles de direção e
+   invisíveis viram "?" (a nova linha fica), e o corte é em 300 */
+test('paraTerminal: tira ESC, inversão de leitura e invisíveis; corta em 300', async () => {
+  const { paraTerminal } = await import('../../scripts/direcoes.mjs');
+  const esc = String.fromCharCode(0x1b), rlo = String.fromCharCode(0x202e), zw = String.fromCharCode(0x200b), tag = String.fromCodePoint(0xe0072), pua = String.fromCharCode(0xe000);
+  const s = paraTerminal('a' + esc + '[31mb' + rlo + 'c' + zw + 'd' + tag + 'e' + pua + 'f');
+  assert.equal(s, 'a?[31mb?c?d?e?f');
+  assert.ok(!s.includes(esc) && !s.includes(rlo));
+  assert.equal(paraTerminal('linha 1\nlinha 2'), 'linha 1\nlinha 2', 'a nova linha fica');
+  assert.equal(paraTerminal('x'.repeat(500)).length, 300);
+  assert.equal(paraTerminal('x'.repeat(500), 1000).length, 500, 'o teto pode ser maior onde o dono precisa ler tudo');
+  assert.equal(paraTerminal(undefined), '');
+});
+
+test('entregar: JSON quebrado e estratégia trocada dentro do arquivo dão mensagens que não repetem o conteúdo do arquivo', async () => {
+  const fs = await import('node:fs'), os = await import('node:os'), path = await import('node:path');
+  const { planejarEntrega } = await import('../../scripts/direcoes.mjs');
+  const raiz = fs.mkdtempSync(path.join(os.tmpdir(), 'bz-msg-'));
+  try {
+    const pasta = path.join(raiz, '1234abcd');
+    fs.mkdirSync(pasta);
+    const dirs = [{ id: 'aaaaaaaa-0000-4000-8000-000000000001', estrategia: 'conversao', status: 'gerando' }];
+    fs.writeFileSync(path.join(pasta, 'pedido.json'), JSON.stringify({ direcoes: dirs }));
+    fs.writeFileSync(path.join(pasta, 'conversao.json'), '{ "XYZsegredo": ');
+    assert.throws(() => planejarEntrega(pasta), e => !e.message.includes('XYZsegredo') && /conversao\.json/.test(e.message));
+    fs.writeFileSync(path.join(pasta, 'conversao.json'), JSON.stringify({ ...direcao(), estrategia: 'XYZsegredo' + String.fromCharCode(0x1b) + '[31m' }));
+    assert.throws(() => planejarEntrega(pasta), e => /diz ser de outra estratégia/.test(e.message) && !e.message.includes('XYZsegredo') && !e.message.includes(String.fromCharCode(0x1b)));
+  } finally { fs.rmSync(raiz, { recursive: true, force: true }); }
+});

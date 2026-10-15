@@ -134,9 +134,36 @@ export function acharPedido(fila, prefixo) {
   return achados[0];
 }
 
+/* TUDO o que o conferir e o entregar-pedido imprimem e que veio de arquivo da pasta (escrita pela sessão do desconhecido)
+   passa por aqui: controles (ESC e as sequências de cor/cursor), marcas e controles de direção, invisíveis e uso privado
+   viram "?" (a nova linha fica) e o corte é em 300. Sem isso o texto do modelo mexeria no terminal do dono ou o faria ler
+   uma coisa diferente do que está escrito. */
+export function paraTerminal(s, max = 300) {
+  return Array.from(String(s ?? '').replace(/[\p{Cc}\p{Cf}\p{Co}\p{Default_Ignorable_Code_Point}]/gu, c => (c === '\n' ? c : '?'))).slice(0, max).join('');
+}
+
+/* o que o dono lê antes de digitar o código: cada texto da direção com o seu caminho e a paleta INTEIRA numa linha só
+   (as cores também são conteúdo que sai). Cada linha começa com "| " para não se confundir com instrução. O teto é 1000,
+   não 300: o maior texto de uma direção tem 700 e o dono não pode aprovar o que não viu inteiro */
+const LEITURA_DO_DONO = 1000;
+export function linhasDaDirecao(direcao) {
+  const paleta = Object.entries(direcao?.identidade?.paleta || {}).map(([nome, cor]) => paraTerminal(nome, 40) + ' ' + paraTerminal(cor, 40)).join(', ');
+  const linhas = paleta ? ['| paleta: ' + paleta] : [];
+  for (const t of textosDe(direcao)) {
+    if (t.texto && !t.caminho.startsWith('identidade.paleta.')) linhas.push('| ' + paraTerminal(t.caminho, 120) + ': ' + paraTerminal(t.texto, LEITURA_DO_DONO));
+  }
+  return linhas;
+}
+
+/* JSON de arquivo da pasta (escrita pela sessão): o erro do JSON.parse cita pedaços do texto, então a mensagem é fixa */
+function lerJson(arquivo, nome) {
+  try { return JSON.parse(fs.readFileSync(arquivo, 'utf8')); } catch { throw new Error(nome + ' não é um JSON válido.'); }
+}
+
 /* o mesmo filtro do servidor, antes de entregar */
 export function conferir(conteudo, estrategia) {
-  if (!Object.hasOwn(ESTRATEGIAS, estrategia)) return { erro: 'estratégia desconhecida: ' + estrategia };
+  /* mensagem FIXA: o argumento vem da sessão do desconhecido e não pode voltar na saída (revisão de segurança do PR 43) */
+  if (!Object.hasOwn(ESTRATEGIAS, estrategia)) return { erro: 'estratégia desconhecida (use conversao, autoridade ou experiencia)' };
   return higienizar(conteudo, estrategia);
 }
 
@@ -149,18 +176,18 @@ export function planejarEntrega(pasta, servidor) {
   /* a pasta é onde a sessão escreve: qualquer coisa fora desta lista (um scripts/ plantado, por exemplo) e nada sai */
   const estranhos = fs.readdirSync(pasta).filter(n => !ARQUIVOS_DO_PEDIDO.includes(n)).sort();
   if (estranhos.length) throw new Error('A pasta do pedido tem arquivos que não deviam estar lá (' + estranhos.join(', ') + '): nada sai. Apague a pasta e rode "pedido" de novo.');
-  const pedido = JSON.parse(fs.readFileSync(path.join(pasta, 'pedido.json'), 'utf8'));
+  const pedido = lerJson(path.join(pasta, 'pedido.json'), 'pedido.json');
   if (servidor && pedido.direcoes.some(d => !servidor.todos.has(d.id))) throw new Error('Os ids do pedido.json não batem com a fila do servidor: rode "pedido" de novo.');
   const aEntregar = pedido.direcoes.filter(d => (servidor ? servidor.naFila.has(d.id) : d.status === 'gerando'));
   return aEntregar.map(d => {
     const arquivo = path.join(pasta, d.estrategia + '.json');
     if (!fs.existsSync(arquivo)) throw new Error('Falta ' + d.estrategia + '.json na pasta do pedido.');
-    const conteudo = JSON.parse(fs.readFileSync(arquivo, 'utf8'));
+    const conteudo = lerJson(arquivo, d.estrategia + '.json');
     const h = conferir(conteudo, d.estrategia);
     if (h.erro) throw new Error(d.estrategia + '.json recusado pelo filtro: ' + h.erro);
     const achados = varrer(h.direcao);
     if (achados.length) throw new Error(d.estrategia + '.json recusado pela varredura: ' + achados.map(a => a.tipo + ' em ' + a.caminho).join('; '));
-    if (conteudo.estrategia && conteudo.estrategia !== d.estrategia) throw new Error(d.estrategia + '.json diz ser da estratégia ' + conteudo.estrategia + '.');
+    if (conteudo.estrategia && conteudo.estrategia !== d.estrategia) throw new Error(d.estrategia + '.json diz ser de outra estratégia.');
     return { id: d.id, estrategia: d.estrategia, arquivo, conteudo, direcao: h.direcao };
   });
 }
@@ -169,9 +196,10 @@ export function planejarEntrega(pasta, servidor) {
 export function avaliarArquivo(conteudo, estrategia) {
   const h = conferir(conteudo, estrategia);
   if (h.erro) return { ok: false, mensagem: 'RECUSADA: ' + h.erro };
+  /* o resto da saída leva texto do arquivo (nome do conceito, caminho, trecho): passa por paraTerminal */
   const achados = varrer(h.direcao);
-  if (achados.length) return { ok: false, mensagem: 'RECUSADA pela varredura: ' + achados.map(a => a.tipo + ' em ' + a.caminho + ' ("' + a.trecho + '")').join('; ') };
-  return { ok: true, mensagem: 'OK' + (h.ajustes.length ? ' (o filtro corrigiu: ' + h.ajustes.join(', ') + ')' : '') + ' · ' + h.direcao.secoes.length + ' seções · "' + h.direcao.nome_conceito + '"' };
+  if (achados.length) return { ok: false, mensagem: 'RECUSADA pela varredura: ' + achados.map(a => a.tipo + ' em ' + paraTerminal(a.caminho) + ' ("' + paraTerminal(a.trecho) + '")').join('; ') };
+  return { ok: true, mensagem: 'OK' + (h.ajustes.length ? ' (o filtro corrigiu: ' + h.ajustes.join(', ') + ')' : '') + ' · ' + h.direcao.secoes.length + ' seções · "' + paraTerminal(h.direcao.nome_conceito) + '"' };
 }
 
 /* A CONFIRMAÇÃO DO DONO: o código muda a cada pergunta, então "echo ENTREGAR | ..." não entrega nada; só vale a resposta
@@ -280,8 +308,8 @@ const COMANDOS = {
     if (!plano.length) { fs.rmSync(pasta, { recursive: true, force: true }); return console.log('Nada a entregar: as direções deste pedido já estão prontas. Pasta apagada; avise o cliente pelo painel.'); }
     /* o terminal é do DONO: ele lê o texto que vai sair e digita a palavra; cada linha começa com "| " para não se confundir com instrução */
     for (const e of plano) {
-      console.log('\n=== ' + e.estrategia + ': "' + e.direcao.nome_conceito + '" ===');
-      for (const t of textosDe(e.direcao)) if (t.texto && !/^#[0-9A-F]{6}$/.test(t.texto)) console.log('| ' + t.caminho + ': ' + t.texto);
+      console.log('\n=== ' + e.estrategia + ': "' + paraTerminal(e.direcao.nome_conceito) + '" ===');
+      for (const linha of linhasDaDirecao(e.direcao)) console.log(linha);
     }
     const { perguntar, fechar } = criarPerguntador();
     const confirmado = await pedirConfirmacao(perguntar);
@@ -307,5 +335,5 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   if (!Object.hasOwn(COMANDOS, comando || '')) {
     console.log('Uso: node scripts/direcoes.mjs fila | pedido <id> | entregar-pedido <id> | conferir <arquivo> <estrategia> | limpar [dias]');
     process.exitCode = 2;
-  } else (async () => COMANDOS[comando](...args))().catch(e => { console.error('Erro: ' + e.message); process.exitCode = 1; });
+  } else (async () => COMANDOS[comando](...args))().catch(e => { console.error('Erro: ' + paraTerminal(e && e.message)); process.exitCode = 1; });
 }
