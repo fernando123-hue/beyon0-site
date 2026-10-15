@@ -27,8 +27,9 @@ export function configSessao({ repo }) {
       allow: ['Edit(./**)', 'Bash(node "' + script + '" conferir *)'],
       deny: [
         'WebFetch', 'WebSearch', 'mcp__*',
-        /* a sessão escreve na pasta, mas não na própria configuração nem nas instruções (deny vence o Edit(./**)) */
-        'Edit(./.sessao.json)', 'Edit(./.instrucoes.md)',
+        /* a sessão escreve na pasta, mas não na própria configuração nem nas instruções (deny vence o Edit(./**)); nem no
+           pedido.json: o entregar-pedido confia nele para casar cada id com a sua estratégia */
+        'Edit(./.sessao.json)', 'Edit(./.instrucoes.md)', 'Edit(./pedido.json)',
         /* nem nos arquivos que o Claude Code carrega sozinho da pasta de trabalho (configuração, memória, MCP) */
         'Edit(./.claude/**)', 'Edit(./CLAUDE.md)', 'Edit(./CLAUDE.local.md)', 'Edit(./.mcp.json)',
         'Read(' + caminhoClaude(repo) + '/**)', 'Read(~/.claude/**)', 'Read(~/.ssh/**)', 'Read(~/.config/**)',
