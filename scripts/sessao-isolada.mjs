@@ -67,14 +67,16 @@ export function instrucoesSessao({ repo, skill }) {
    Push-Location/Pop-Location em vez de Set-Location: ao sair da sessão (mesmo com erro) o PowerShell do dono volta à pasta
    de antes, e não fica dentro da pasta do pedido, onde um arquivo plantado poderia ser executado por caminho relativo.
    A chave do painel e o endereço saem do ambiente ANTES do claude (a sessão e seus filhos não os herdam) e voltam no finally,
-   para o entregar-pedido do dono. A captura fica dentro do try, junto do que ela protege. */
+   para o entregar-pedido do dono, e as variáveis bz* somem (a chave não fica em variável da sessão do PowerShell).
+   O Push-Location fica ANTES do try e para com erro (-ErrorAction Stop): se a pasta não existir, o claude NÃO abre na pasta
+   atual, e o finally nunca roda um Pop-Location sem ter feito o Push. */
 const ps = s => "'" + String(s).replace(/'/g, "''") + "'";
 export function comandoSessao({ pasta, settings, instrucoes }) {
-  return 'Push-Location -LiteralPath ' + ps(pasta) + '; try { $bzChave = $env:PAINEL_CHAVE; $env:PAINEL_CHAVE = $null; $bzBase = $env:BZ_BASE; $env:BZ_BASE = $null;'
+  return 'Push-Location -LiteralPath ' + ps(pasta) + ' -ErrorAction Stop; try { $bzChave = $env:PAINEL_CHAVE; $env:PAINEL_CHAVE = $null; $bzBase = $env:BZ_BASE; $env:BZ_BASE = $null;'
     + ' claude --restricted --permission-mode dontAsk --strict-mcp-config'
     + " --tools 'Read,Edit,Write,Bash' --disallowedTools 'WebFetch' 'WebSearch' 'mcp__*'"
     + ' --settings ' + ps(settings) + ' --append-system-prompt-file ' + ps(instrucoes)
     /* sem acento: a página de código do Windows estraga o argumento */
     + " 'Produza as 3 direcoes do pedido.json desta pasta, seguindo as instrucoes da sessao.'"
-    + ' } finally { Pop-Location; $env:PAINEL_CHAVE = $bzChave; $env:BZ_BASE = $bzBase }';
+    + ' } finally { Pop-Location; $env:PAINEL_CHAVE = $bzChave; $env:BZ_BASE = $bzBase; Remove-Variable bzChave, bzBase -ErrorAction SilentlyContinue }';
 }
