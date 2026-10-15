@@ -576,12 +576,21 @@ test('sessão isolada: settings em dontAsk, só o conferir no Bash, sem rede e s
   assert.equal(c.permissions.defaultMode, 'dontAsk');
   assert.equal(c.permissions.blockReadsOutsideWorkingDirectories, true);
   assert.equal(c.permissions.disableBypassPermissionsMode, 'disable');
-  assert.deepEqual(c.permissions.allow, ['Edit(./**)', 'Bash(node "C:/Vault - Fernando/Beyon Zero/03 Projetos/site/scripts/direcoes.mjs" conferir *)'], 'nada além de escrever na pasta e conferir');
-  for (const r of ['WebFetch', 'WebSearch', 'mcp__*', 'Edit(./.sessao.json)', 'Edit(./.instrucoes.md)', 'Edit(./pedido.json)', 'Read(//c/Vault - Fernando/Beyon Zero/03 Projetos/site/**)', 'Bash(cat *)', 'Bash(curl *)', 'Bash(node -e *)'])
+  /* revisão de segurança: NÃO é Edit(./**). A sessão gravava ./scripts/direcoes.mjs na pasta do pedido e o dono, de dentro
+     dela, rodava "node scripts/direcoes.mjs entregar-pedido" (caminho relativo) com a chave: executava o arquivo plantado */
+  assert.deepEqual(c.permissions.allow, ['Edit(./conversao.json)', 'Edit(./autoridade.json)', 'Edit(./experiencia.json)', 'Bash(node "C:/Vault - Fernando/Beyon Zero/03 Projetos/site/scripts/direcoes.mjs" conferir *)'], 'nada além de gravar as 3 direções e conferir');
+  for (const r of ['WebFetch', 'WebSearch', 'mcp__*', 'Edit(./.sessao.json)', 'Edit(./.instrucoes.md)', 'Edit(./pedido.json)', 'Edit(./scripts/**)','Read(//c/Vault - Fernando/Beyon Zero/03 Projetos/site/**)', 'Bash(cat *)', 'Bash(curl *)', 'Bash(node -e *)'])
     assert.ok(c.permissions.deny.includes(r), 'deny sem ' + r);
   assert.ok(!c.permissions.allow.some(r => /fila|pedido|entregar|limpar/.test(r)), 'os comandos com a chave do painel nunca ficam liberados');
   const cmd = comandoSessao({ pasta: 'C:\\Users\\x\\BeyonZero-direcoes\\1234abcd', settings: 'C:\\Users\\x\\BeyonZero-direcoes\\1234abcd\\.sessao.json', instrucoes: 'C:\\Users\\x\\BeyonZero-direcoes\\1234abcd\\.instrucoes.md' });
-  for (const parte of ["Set-Location -LiteralPath 'C:\\Users\\x\\BeyonZero-direcoes\\1234abcd'", '--restricted', '--permission-mode dontAsk', '--strict-mcp-config', "--tools 'Read,Edit,Write,Bash'", "--disallowedTools 'WebFetch' 'WebSearch' 'mcp__*'", "--settings 'C:\\Users\\x\\BeyonZero-direcoes\\1234abcd\\.sessao.json'", "--append-system-prompt-file 'C:\\Users\\x\\BeyonZero-direcoes\\1234abcd\\.instrucoes.md'"])
+  assert.ok(!cmd.includes('Set-Location'), 'Set-Location deixaria o PowerShell do dono dentro da pasta do pedido');
+  /* a ordem importa: entra na pasta; guarda a chave e o endereço e tira os dois do ambiente ANTES do claude; ao sair (mesmo com
+     erro) volta à pasta de antes e devolve a chave e o endereço, para o entregar-pedido */
+  const ordem = ["Push-Location -LiteralPath 'C:\\Users\\x\\BeyonZero-direcoes\\1234abcd'; try { ", '$bzChave = $env:PAINEL_CHAVE; $env:PAINEL_CHAVE = $null;', '$bzBase = $env:BZ_BASE; $env:BZ_BASE = $null;', 'claude --restricted', "'Produza as 3 direcoes", ' } finally { Pop-Location; $env:PAINEL_CHAVE = $bzChave; $env:BZ_BASE = $bzBase }'];
+  let pos = -1;
+  for (const parte of ordem) { const i = cmd.indexOf(parte, pos + 1); assert.ok(i > pos, 'fora de ordem ou ausente: ' + parte + ' em ' + cmd); pos = i; }
+  assert.ok(cmd.endsWith(' }'), 'o finally fecha a linha');
+  for (const parte of ['--restricted', '--permission-mode dontAsk', '--strict-mcp-config', "--tools 'Read,Edit,Write,Bash'", "--disallowedTools 'WebFetch' 'WebSearch' 'mcp__*'", "--settings 'C:\\Users\\x\\BeyonZero-direcoes\\1234abcd\\.sessao.json'", "--append-system-prompt-file 'C:\\Users\\x\\BeyonZero-direcoes\\1234abcd\\.instrucoes.md'"])
     assert.ok(cmd.includes(parte), 'comando sem ' + parte + ': ' + cmd);
 });
 

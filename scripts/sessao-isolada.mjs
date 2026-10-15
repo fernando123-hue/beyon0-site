@@ -24,12 +24,15 @@ export function configSessao({ repo }) {
       defaultMode: 'dontAsk',
       disableBypassPermissionsMode: 'disable',
       blockReadsOutsideWorkingDirectories: true,
-      allow: ['Edit(./**)', 'Bash(node "' + script + '" conferir *)'],
+      /* escrita só nos 3 arquivos de direção, NUNCA ./** (revisão de segurança): com ./** a sessão gravava
+         ./scripts/direcoes.mjs na pasta do pedido, e o dono, de dentro dela, rodava "node scripts/direcoes.mjs entregar-pedido"
+         com caminho relativo: executava o arquivo plantado, com a chave do painel e com internet */
+      allow: ['Edit(./conversao.json)', 'Edit(./autoridade.json)', 'Edit(./experiencia.json)', 'Bash(node "' + script + '" conferir *)'],
       deny: [
         'WebFetch', 'WebSearch', 'mcp__*',
-        /* a sessão escreve na pasta, mas não na própria configuração nem nas instruções (deny vence o Edit(./**)); nem no
+        /* a sessão escreve na pasta, mas não na própria configuração nem nas instruções (deny vence qualquer allow); nem no
            pedido.json: o entregar-pedido confia nele para casar cada id com a sua estratégia */
-        'Edit(./.sessao.json)', 'Edit(./.instrucoes.md)', 'Edit(./pedido.json)',
+        'Edit(./.sessao.json)', 'Edit(./.instrucoes.md)', 'Edit(./pedido.json)', 'Edit(./scripts/**)',
         /* nem nos arquivos que o Claude Code carrega sozinho da pasta de trabalho (configuração, memória, MCP) */
         'Edit(./.claude/**)', 'Edit(./CLAUDE.md)', 'Edit(./CLAUDE.local.md)', 'Edit(./.mcp.json)',
         'Read(' + caminhoClaude(repo) + '/**)', 'Read(~/.claude/**)', 'Read(~/.ssh/**)', 'Read(~/.config/**)',
@@ -56,12 +59,18 @@ export function instrucoesSessao({ repo, skill }) {
   ].join('\n');
 }
 
-/* a linha que o DONO roda no PowerShell, na pasta do pedido (aspas simples: o PowerShell não expande nada dentro) */
+/* a linha que o DONO roda no PowerShell (aspas simples: o PowerShell não expande nada dentro).
+   Push-Location/Pop-Location em vez de Set-Location: ao sair da sessão (mesmo com erro) o PowerShell do dono volta à pasta
+   de antes, e não fica dentro da pasta do pedido, onde um arquivo plantado poderia ser executado por caminho relativo.
+   A chave do painel e o endereço saem do ambiente ANTES do claude (a sessão e seus filhos não os herdam) e voltam no finally,
+   para o entregar-pedido do dono. A captura fica dentro do try, junto do que ela protege. */
 const ps = s => "'" + String(s).replace(/'/g, "''") + "'";
 export function comandoSessao({ pasta, settings, instrucoes }) {
-  return 'Set-Location -LiteralPath ' + ps(pasta) + '; claude --restricted --permission-mode dontAsk --strict-mcp-config'
+  return 'Push-Location -LiteralPath ' + ps(pasta) + '; try { $bzChave = $env:PAINEL_CHAVE; $env:PAINEL_CHAVE = $null; $bzBase = $env:BZ_BASE; $env:BZ_BASE = $null;'
+    + ' claude --restricted --permission-mode dontAsk --strict-mcp-config'
     + " --tools 'Read,Edit,Write,Bash' --disallowedTools 'WebFetch' 'WebSearch' 'mcp__*'"
     + ' --settings ' + ps(settings) + ' --append-system-prompt-file ' + ps(instrucoes)
     /* sem acento: a página de código do Windows estraga o argumento */
-    + " 'Produza as 3 direcoes do pedido.json desta pasta, seguindo as instrucoes da sessao.'";
+    + " 'Produza as 3 direcoes do pedido.json desta pasta, seguindo as instrucoes da sessao.'"
+    + ' } finally { Pop-Location; $env:PAINEL_CHAVE = $bzChave; $env:BZ_BASE = $bzBase }';
 }
