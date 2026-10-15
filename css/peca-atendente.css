@@ -1,0 +1,79 @@
+/* ==========================================================================
+   O PLANTÃO — a peça do cartão do Atendente de IA (2026-10-14; docs/restructure/PECAS-SERVICOS.md).
+   Essência da referência (a conversa no WhatsApp respondida na hora pela IA, e a passagem para uma
+   pessoa): uma conversa no vocabulário do site, com uma RÉGUA DE 24 HORAS em cima, que começa na hora de
+   verdade de quem está vendo. O visitante toca numa pergunta de cliente (as respostas rápidas, como no
+   WhatsApp) e a resposta vem na hora, com o horário da régua. Arrastar até a madrugada apaga o expediente
+   (a equipe sai do ar) e o atendente continua respondendo: é o gesto da peça. "Quero falar com uma
+   pessoa" mostra o resumo indo para a equipe. Se a pessoa pôs o nome do negócio na peça de Sites, o
+   atendente aparece com esse nome. Dados do negócio entram como [espaço reservado], nunca inventados.
+   Custo: HTML + CSS; os balões estão no HTML (o JS só troca texto e atributos). Sem JS a peça some;
+   movimento reduzido: resposta sem a espera do "digitando".
+   ========================================================================== */
+.plantao { display: none; }
+.plantao.is-viva { display: flex; flex-direction: column; gap: .8rem; position: relative; z-index: 2; margin: .3rem 0 .4rem; }
+
+/* ---------- a régua de 24 horas ---------- */
+.plantao__relogio { position: relative; padding-top: 22px; }
+.plantao__slider { position: relative; height: 26px; touch-action: pan-y; cursor: ew-resize; user-select: none; -webkit-user-select: none; outline: none; }
+.plantao__trilho { position: absolute; left: 0; right: 0; top: 10px; height: 8px; border-top: 1px solid var(--line-2);
+  background-image: linear-gradient(90deg, var(--line-2) 1px, transparent 1px); background-size: calc(100% / 24) 5px; background-repeat: repeat-x; }
+/* o expediente (8h às 18h, exemplo): o trecho em que a equipe está no ar */
+.plantao__expediente { position: absolute; top: 9px; left: calc(8 / 24 * 100%); width: calc(10 / 24 * 100%); height: 2px; background: var(--ac-3); }
+.plantao__cursor { position: absolute; left: 0; top: 0; width: 0; height: 26px; }
+.plantao__cursor::before { content: ""; position: absolute; left: -1px; top: 2px; width: 2px; height: 20px; background: var(--ac); }
+.plantao__cursor::after { content: ""; position: absolute; left: -8px; top: 5px; width: 14px; height: 14px; border: 1px solid var(--ac); border-radius: 50%; background: var(--bg); }
+@media (pointer: coarse) { .plantao__cursor::after { left: -12px; top: 1px; width: 22px; height: 22px; } }
+.plantao__hora { position: absolute; left: 0; top: -22px; transform: translateX(-50%); font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-dado); font-variant-numeric: tabular-nums; color: var(--ac); white-space: nowrap; }
+.plantao__slider:focus-visible .plantao__cursor::after { outline: 2px solid var(--ac); outline-offset: 3px; }
+.plantao__escala { display: flex; justify-content: space-between; margin-top: 4px; font-family: var(--mono); font-size: 10px; letter-spacing: var(--tr-dado); color: var(--t3); }
+
+/* ---------- a conversa ---------- */
+.plantao__tela { display: flex; flex-direction: column; border: 1px solid var(--line-2); border-radius: var(--raio); background: #070909; overflow: hidden; transition: background-color .4s var(--ease), border-color .4s var(--ease); }
+.plantao__topo { display: flex; align-items: center; gap: .7rem; padding: .7rem .8rem; border-bottom: 1px solid var(--line); }
+.plantao__avatar { flex: none; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--ac-3); font-weight: 600; font-size: .875rem; color: var(--t1); }
+.plantao__quem { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.plantao__quem b { font-weight: 600; font-size: .9375rem; color: var(--t1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.plantao__quem span { font-family: var(--mono); font-size: 10px; letter-spacing: var(--tr-dado); color: var(--ac-3); }
+.plantao__equipe { margin-left: auto; flex: none; padding: 3px 7px; border: 1px solid var(--line-2); border-radius: var(--raio-s); font-family: var(--mono); font-size: 10px; letter-spacing: var(--tr-dado); color: var(--t2); white-space: nowrap; }
+.plantao__conversa { list-style: none; margin: 0; padding: .9rem .8rem; display: flex; flex-direction: column; gap: .5rem; min-height: 15.5rem; }
+.pt-msg { position: relative; max-width: 86%; padding: .55rem .7rem 1.25rem; border-radius: 8px; font-size: .875rem; line-height: 1.45; color: var(--t1); }
+.pt-msg[hidden] { display: none; }
+.pt-msg--ia { align-self: flex-start; border: 1px solid rgb(var(--ac-rgb) / .28); background: rgb(var(--ac-rgb) / .05); border-top-left-radius: 2px; }
+.pt-msg--cliente { align-self: flex-end; background: var(--s2); border: 1px solid var(--line); border-top-right-radius: 2px; }
+.pt-msg--sistema { align-self: center; max-width: 100%; padding: .4rem .7rem; border: 1px dashed var(--line-2); border-radius: var(--raio-s); font-family: var(--mono); font-size: 11px; letter-spacing: var(--tr-dado); color: var(--t2); text-align: center; }
+.pt-hora { position: absolute; right: .55rem; bottom: .3rem; font-family: var(--mono); font-size: 10px; color: var(--t3); }
+.pt-msg--ia .pt-hora::after { content: " ✓✓"; color: var(--ac-3); }
+/* a resposta que acabou de chegar: a aresta de cima acende e corre (a varredura dos painéis do site) */
+.pt-msg--ia::before { content: ""; position: absolute; left: 6px; right: 6px; top: -1px; height: 1px; background: var(--ac); transform: scaleX(0); transform-origin: left; opacity: 0; }
+.pt-msg--ia.is-chegou::before { animation: pt-chega .7s var(--ease); }
+@keyframes pt-chega { 0% { transform: scaleX(0); opacity: 1; } 70% { transform: scaleX(1); opacity: 1; } 100% { transform: scaleX(1); opacity: 0; } }
+/* o dado que o dono passa na implantação: marcado, nunca como fato */
+.pt-reservado { padding: 0 2px; border-bottom: 1px dashed rgb(var(--ac-rgb) / .6); color: var(--ac-2); font-family: var(--mono); font-size: .8em; }
+.pt-reservado.is-vazio { display: none; }
+/* digitando: três pontos que acendem em sequência (opacidade) */
+.pt-digitando { display: none; gap: 4px; padding: .2rem 0 .1rem; }
+.pt-digitando i { width: 5px; height: 5px; border-radius: 50%; background: var(--t2); opacity: .3; animation: pt-ponto .9s steps(1) infinite; }
+.pt-digitando i:nth-child(2) { animation-delay: .3s; } .pt-digitando i:nth-child(3) { animation-delay: .6s; }
+@keyframes pt-ponto { 0% { opacity: 1; } 33% { opacity: .3; } }
+.pt-msg.is-digitando .pt-digitando { display: flex; }
+.pt-msg.is-digitando .pt-txt, .pt-msg.is-digitando .pt-hora { display: none; }
+
+/* as perguntas: as respostas rápidas do WhatsApp, embaixo da conversa (não outra grade de botões) */
+.plantao__sugestoes { display: flex; flex-wrap: wrap; gap: .35rem; padding: .7rem .8rem .8rem; border-top: 1px solid var(--line); }
+.plantao__sugestao {
+  min-height: 36px; padding: .35rem .75rem; border: 1px solid rgb(var(--ac-rgb) / .4); border-radius: 18px; background: transparent;
+  color: var(--t1); font: inherit; font-size: .8125rem; line-height: 1.3; text-align: left; cursor: pointer;
+  transition: border-color var(--t-micro) var(--ease-micro), background-color var(--t-micro) var(--ease-micro);
+}
+.plantao__sugestao:hover { border-color: var(--ac); background: rgb(var(--ac-rgb) / .06); }
+.plantao__sugestao:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
+.plantao__sugestao[aria-pressed="true"] { border-color: var(--ac); background: rgb(var(--ac-rgb) / .1); }
+@media (pointer: coarse) { .plantao__sugestao { min-height: 44px; } }
+
+/* ---------- a madrugada: a equipe fora do ar, o atendente respondendo ---------- */
+.plantao.is-noite .plantao__tela { background: #030404; border-color: var(--line); }
+.plantao.is-noite .plantao__equipe { border-style: dashed; color: var(--t3); }
+.plantao.is-noite .pt-msg--cliente { background: #0D0F10; }
+.servico .plantao__nota { margin: 0; font-size: var(--fs-rotulo); line-height: 1.45; color: var(--t3); }
+.plantao__nota .pt-reservado { font-size: 1em; }

@@ -161,6 +161,27 @@ test('logo: as páginas usam a logo em SVG, sem estilo nem cor embutidos e com o
    nome do negócio dele: o nome entra na página só como texto (nada de innerHTML), nunca sai pela rede nem pela
    URL, e só vai ao orçamento (sessionStorage, nesta aba) se a pessoa clicar em "Quero este site". A peça segue a
    CSP (nenhum style="" no HTML) e funciona sem mouse: a régua é um slider com valor falado e as paradas são botões. */
+/* O DESPACHO e O PLANTÃO (as peças de Automação e do Atendente): nenhum estilo embutido, texto só como texto,
+   nada sai pela rede nem pela URL, o que vai a outra página só no clique de um botão de ação, e controles de
+   verdade (botões; a régua de horas é um slider com valor falado). */
+test('peças de Automação e do Atendente: CSP, nada sai da página e controles acessíveis', () => {
+  const html = readFileSync(new URL('index.html', RAIZ), 'utf8');
+  for (const [marca, js] of [['data-despacho', 'js/peca-automacao.js'], ['data-plantao', 'js/peca-atendente.js']]) {
+    const peca = (html.match(new RegExp('<div class="[a-z]+" ' + marca + '[\\s\\S]*?<\\/article>')) || [])[0];
+    assert.ok(peca, 'index.html: o cartão sem a peça ' + marca);
+    assert.ok(!/style="/.test(peca), 'index.html: estilo embutido na peça ' + marca + ' (a CSP bloqueia)');
+    assert.ok(/<button type="button"/.test(peca), 'a peça ' + marca + ' precisa de botões de verdade');
+    const codigo = readFileSync(new URL(js, RAIZ), 'utf8');
+    assert.ok(!/innerHTML|outerHTML|insertAdjacentHTML|document\.write/.test(codigo), js + ': texto só como texto');
+    assert.ok(!/fetch\(|XMLHttpRequest|sendBeacon|location\s*=|location\.href\s*=|history\.(push|replace)State|localStorage/.test(codigo), js + ': nada sai pela rede, pela URL nem fica guardado');
+    const guardados = (codigo.match(/sessionStorage\.setItem/g) || []).length;
+    const noClique = (codigo.match(/quero\.addEventListener\('click'[\s\S]*?\n  \}\);/) || [''])[0];
+    assert.equal((noClique.match(/sessionStorage\.setItem/g) || []).length, guardados, js + ': só o clique do botão de ação guarda algo para a outra página');
+  }
+  const plantao = (html.match(/<div class="plantao__slider"[^>]*>/) || [''])[0];
+  for (const a of ['role="slider"', 'tabindex="0"', 'aria-label=', 'aria-valuemin=', 'aria-valuemax=', 'aria-valuenow=', 'aria-valuetext=']) assert.ok(plantao.includes(a), 'régua de horas sem ' + a);
+});
+
 test('peça de Sites: o nome não sai da página, a CSP vale e a régua é acessível', () => {
   const html = readFileSync(new URL('index.html', RAIZ), 'utf8');
   const peca = (html.match(/<div class="planta" data-planta[\s\S]*?<\/article>/) || [])[0];

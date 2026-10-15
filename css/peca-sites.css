@@ -21,7 +21,7 @@
 
 /* ---------- os controles: tipo de negócio e nome ---------- */
 .planta__controles { display: flex; flex-direction: column; gap: .55rem; padding-top: .3rem; }
-.planta__agora { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--ac-3); }
+.planta__agora { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t2); }   /* (ciano em texto só no H1, no h2 da Conversa e em dado — CLAUDE.md, regra 8) */
 /* os quatro numa linha só já a 320 px (o vão encolhe antes de quebrar) */
 .planta__nichos { display: flex; flex-wrap: wrap; gap: .3rem; }
 .planta__nicho {
@@ -231,7 +231,9 @@
   .planta__regua { display: grid; grid-template-columns: repeat(3, 1fr); align-items: end; height: auto; padding-top: 34px; }
   .planta__parada, .planta__parada[data-parada="390"] { position: static; left: auto !important; transform: none; padding: 12px 4px 0; text-align: center; }
   .planta__parada::before, .planta__parada[data-parada="390"]::before { display: none; }
+  .planta__marca { display: block; }   /* as marcas no trilho continuam na posição de verdade (é régua de cota) */
 }
+.planta__marca { display: none; position: absolute; top: 14px; height: 9px; border-left: 1px solid var(--t2); }
 
 /* ---------- a prova e o próximo passo ---------- */
 .servico .planta__prova { display: flex; align-items: center; gap: .5rem; margin: 0; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-dado); line-height: 1.5; color: var(--t3); }

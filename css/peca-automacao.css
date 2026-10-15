@@ -1,18 +1,20 @@
 /* ==========================================================================
    O DESPACHO — a peça do cartão de Automação & IA (2026-10-14; docs/restructure/PECAS-SERVICOS.md).
-   Essência da referência (canais diferentes chegando num centro que organiza e devolve trabalho feito):
-   uma placa de circuito no vocabulário do site (o barramento de 1 px com chanfro de 45°, js/rede.js), com
-   três canais de entrada, o AGENTE no meio e quatro saídas. O visitante escolhe um pedido típico de
-   entidade e a luz percorre a rota dele enquanto o registro imprime o que foi feito, passo a passo — a
-   peça EXPLICA o que se compra (sem número, e dito como exemplo).
-   Custo: HTML + SVG; as trilhas são desenhadas pelo JS (js/peca-automacao.js) a partir da posição dos
-   nós, uma vez por tamanho; a luz é stroke-dashoffset de um traço só, por vez. Sem JS a peça some (o
-   cartão fica inteiro); movimento reduzido: a rota aparece acesa de uma vez e o registro inteiro.
+   Essência da referência (canais diferentes chegando num centro que devolve trabalho feito): uma placa de
+   circuito no vocabulário do site (barramento de 1 px com chanfro de 45°, js/rede.js), com três canais
+   de entrada, o AGENTE no meio e quatro saídas. O visitante escolhe um pedido típico de entidade:
+   - o pacote sai do canal e corre pela trilha (velocidade constante, só transform);
+   - o agente diz o que está fazendo ("conferindo CPF…");
+   - O LEQUE: todas as saídas do pedido partem ao mesmo tempo (um pedido vira várias tarefas, sem fila);
+   - O RETORNO: a resposta volta ao canal pela trilha paralela e ele recebe "✓": o ciclo fecha na placa.
+   O registro numera os passos na ordem real de chegada e o mesmo número aparece no nó. Dito como exemplo.
+   Custo: HTML + SVG; trilhas desenhadas uma vez por tamanho (atributo "d"), acesas por classe na chegada;
+   o pacote é transform puro (WAAPI). Sem JS a peça some; movimento reduzido: rota acesa de uma vez.
    ========================================================================== */
-.despacho { display: none; }
-.despacho.is-viva { display: flex; flex-direction: column; gap: .9rem; position: relative; z-index: 2; margin: .3rem 0 .4rem; }
+.despacho { display: none; container: despacho / inline-size; }
+.despacho.is-viva { display: flex; flex-direction: column; gap: .8rem; position: relative; z-index: 2; margin: .3rem 0 .4rem; }
 
-/* os pedidos: os mesmos botões dos tipos de negócio da Planta */
+.despacho__guia { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t2); }
 .despacho__pedidos { display: grid; grid-template-columns: 1fr 1fr; gap: .3rem; }
 .despacho__pedido {
   min-height: 40px; padding: .4rem .6rem; border: 1px solid var(--line-2); border-radius: var(--raio-s);
@@ -25,7 +27,7 @@
 @media (pointer: coarse) { .despacho__pedido { min-height: 44px; } }
 
 /* ---------- a placa ---------- */
-.despacho__placa { position: relative; display: flex; flex-direction: column; gap: 40px; padding: 18px 0; contain: layout paint; will-change: transform; }
+.despacho__placa { position: relative; display: flex; flex-direction: column; gap: 44px; padding: 20px 0 14px; contain: layout paint; }
 .despacho__placa::before {   /* a malha, parada e barata (a mesma da Planta) */
   content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .45;
   background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
@@ -34,45 +36,57 @@
   mask-image: linear-gradient(180deg, transparent, #000 15%, #000 85%, transparent);
 }
 .despacho__trilhas { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
-.dp-trilha { fill: none; stroke: var(--line-2); stroke-width: 1; }
-.dp-trilha.is-feita { stroke: rgb(var(--ac-3-rgb) / .7); }
-.dp-luz { fill: none; stroke: var(--ac); stroke-width: 1.5; stroke-linecap: round; }
+.dp-trilha { fill: none; stroke: var(--line-2); stroke-width: 1; }   /* (1 px nítido: o JS põe as coordenadas no meio do pixel) */
+.dp-trilha.is-acesa { stroke: var(--ac-3); }
+.dp-volta { stroke: transparent; stroke-dasharray: 3 3; }
+.dp-volta.is-acesa { stroke: var(--ac-3); }
+/* o pacote: um segmento de 1 × 10 px que corre pela trilha (transform, na placa de vídeo) */
+.dp-pacote { position: absolute; left: 0; top: 0; width: 1px; height: 10px; margin: -5px 0 0 0; background: var(--ac); opacity: 0; pointer-events: none; z-index: 2; }
+
 .despacho__linha { position: relative; display: flex; justify-content: space-between; gap: 6px; }
 .despacho__centro { position: relative; display: flex; justify-content: center; }
-
 .dp-no {
-  position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 6px; padding: 6px 8px;
+  position: relative; z-index: 1; flex: 1 1 0; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 7px 8px;
   border: 1px solid var(--line-2); border-radius: var(--raio-s); background: var(--mod-fundo-opaco);
-  font-family: var(--mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--t3); white-space: nowrap;
-  transition: border-color .25s var(--ease), color .25s var(--ease);
+  font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: .04em; text-transform: uppercase; color: var(--t2); white-space: nowrap;
+  transition: border-color .2s var(--ease), color .2s var(--ease), opacity .2s var(--ease);
 }
 .dp-no svg { width: 13px; height: 13px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }
-.dp-no.is-feito { border-color: rgb(var(--ac-3-rgb) / .7); color: var(--t2); }
+.dp-no.is-feito { border-color: rgb(var(--ac-3-rgb) / .8); color: var(--t1); }
 .dp-no.is-aceso { border-color: var(--ac); color: var(--t1); }
-.dp-no.is-aceso svg { color: var(--ac); }
-/* na linha, cada nó divide o espaço por igual e nunca alarga o cartão (medido: as quatro saídas em fila davam
-   371 px numa coluna de 293 e abriam rolagem lateral na página toda); no celular, o ícone vai em cima */
-.despacho__linha .dp-no { flex: 1 1 0; min-width: 0; justify-content: center; }
-@media (max-width: 479px) { .despacho__linha .dp-no { flex-direction: column; gap: 4px; padding: 7px 2px; font-size: 9px; letter-spacing: .02em; } }
-@media (min-width: 480px) { .dp-no { font-size: var(--fs-rotulo); padding: 7px 10px; } }
+.dp-no.is-aceso svg, .dp-no.is-feito svg { color: var(--ac); }
+/* a equipe que NÃO precisou parar ("2ª via do boleto"): tracejada e apagada — a frase que vende vira imagem */
+.dp-no.is-livre { border-style: dashed; opacity: .5; }
+/* o número do passo, o mesmo do registro; no canal de origem, ao fim, o "✓" de respondido */
+.dp-n { position: absolute; top: -8px; right: -6px; padding: 0 3px; border: 1px solid var(--ac); border-radius: 2px; background: var(--bg); font-size: 9px; font-weight: 400; line-height: 13px; letter-spacing: 0; color: var(--ac); }
+.dp-no:not(.tem-n) .dp-n { display: none; }
+/* coluna estreita (o cartão do desktop tem ~400 px; o celular, ~290): ícone em cima da palavra */
+@container despacho (max-width: 519px) {
+  .despacho__linha .dp-no { flex-direction: column; gap: 4px; padding: 7px 2px; letter-spacing: 0; }
+}
+@container despacho (max-width: 259px) { .despacho__linha .dp-no { font-size: 10px; } }
 
-/* o agente: um chip com pinos (o vocabulário de placa), e quatro LEDs que correm enquanto ele trabalha */
-.dp-agente { padding: 10px 18px; gap: 10px; border-color: var(--stroke); color: var(--t1); letter-spacing: var(--tr-rotulo); }
+/* o agente: o protagonista — um chip largo, com pinos, que DIZ o que está fazendo (pensa em palavras, não em luz) */
+.dp-agente { flex: 0 1 auto; min-width: 62%; flex-direction: column; gap: 2px; padding: 9px 14px; border-color: var(--stroke); }
 .dp-agente::before, .dp-agente::after {   /* os pinos de cima e de baixo */
-  content: ""; position: absolute; left: 10px; right: 10px; height: 5px;
-  background-image: linear-gradient(90deg, var(--stroke) 1px, transparent 1px); background-size: 8px 5px;
+  content: ""; position: absolute; left: 8px; right: 8px; height: 5px;
+  background-image: linear-gradient(90deg, var(--stroke) 1px, transparent 1px); background-size: 7px 5px;
 }
 .dp-agente::before { top: -6px; }
 .dp-agente::after { bottom: -6px; }
-.dp-agente i { width: 4px; height: 4px; background: var(--line-2); }
-.dp-agente.is-aceso i { animation: dp-led .6s steps(1) infinite; }
-.dp-agente.is-aceso i:nth-child(2) { animation-delay: .15s; } .dp-agente.is-aceso i:nth-child(3) { animation-delay: .3s; } .dp-agente.is-aceso i:nth-child(4) { animation-delay: .45s; }
-@keyframes dp-led { 0% { background: var(--ac); } 25% { background: var(--line-2); } }
+.dp-agente__nome { color: var(--t1); letter-spacing: var(--tr-rotulo); }
+.dp-agente__verbo { font-size: 10px; letter-spacing: var(--tr-dado); text-transform: none; color: var(--t3); }
+.dp-agente.is-aceso .dp-agente__verbo { color: var(--ac); }
 
 /* ---------- o registro ---------- */
-.despacho__registro { list-style: none; margin: 0; padding: 0; min-height: calc(4 * 1.6em); font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-dado); line-height: 1.6; color: var(--t2); counter-reset: dp; }
-.despacho__registro li { counter-increment: dp; display: flex; gap: .7em; opacity: 0; transform: translateY(4px); transition: opacity .3s var(--ease), transform .3s var(--ease); }
+.despacho__registro { list-style: none; margin: 0; padding: 0; font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-dado); line-height: 1.6; color: var(--t2); counter-reset: dp; }
+.despacho__registro li { counter-increment: dp; display: flex; gap: .7em; opacity: 0; transform: translateY(4px); transition: opacity .25s var(--ease), transform .25s var(--ease); }
 .despacho__registro li::before { content: counter(dp, decimal-leading-zero); color: var(--t3); }
 .despacho__registro li.is-feito { opacity: 1; transform: none; }
-.servico .despacho__fim { min-height: 1.5em; margin: 0; font-size: var(--fs-s); line-height: 1.5; color: var(--ac); }
+.despacho__registro li.is-novo::before { color: var(--ac); }
+/* o resultado em texto normal (ciano em texto só no H1, no h2 da Conversa e em dado — CLAUDE.md, regra 8);
+   o ciano fica no marcador */
+.servico .despacho__fim { display: flex; align-items: baseline; gap: .6em; min-height: 1.5em; margin: 0; font-size: var(--fs-s); line-height: 1.5; color: var(--t1); }
+.despacho__ok { flex: none; width: 7px; height: 7px; background: var(--ac); opacity: 0; transform: translateY(-1px); }
+.despacho__fim.is-pronto .despacho__ok { opacity: 1; }
 .servico .despacho__nota { margin: 0; font-size: var(--fs-rotulo); line-height: 1.45; color: var(--t3); }

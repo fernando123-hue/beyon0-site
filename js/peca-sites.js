@@ -142,6 +142,7 @@
     if (window.getComputedStyle(regua).display !== 'grid') {
       [].forEach.call(paradas, function (p) { p.style.left = posicao(+p.getAttribute('data-parada')).toFixed(1) + 'px'; });
     }
+    [].forEach.call(raiz.querySelectorAll('[data-marca]'), function (m) { m.style.left = posicao(+m.getAttribute('data-marca')).toFixed(1) + 'px'; });
     var t = tela();
     voce.hidden = false;
     voce.classList.toggle('is-acima', t > MAX);
@@ -360,6 +361,8 @@
     escrever(cta, cfg.cta);
     escrever(botao, cfg.btn);
     if (queroTexto) escrever(queroTexto, nome ? 'Quero este site para ' + nome : 'Quero um site assim');
+    /* o atendente de IA (js/peca-atendente.js) passa a falar com este nome e este tipo de negócio */
+    document.dispatchEvent(new CustomEvent('bz:negocio', { detail: { nome: nome, nicho: nicho } }));
   }
   var esperaNome = 0;
   /* a luz atravessa e a tinta do nome seca, cada palavra quando a luz passa por ela (x / largura) */

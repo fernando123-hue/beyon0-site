@@ -51,11 +51,11 @@
 
   var aoEscapar = [];
   /* a barra do celular: some com o menu aberto ou com o fim da página na tela */
-  var barra = document.getElementById('barra'), wa = document.querySelector('.wa'), menuAberto = false, fimDaPagina = false, heroCtaVisivel = true;
+  var barra = document.getElementById('barra'), wa = document.querySelector('.wa'), menuAberto = false, fimDaPagina = false, heroCtaVisivel = true, acoesNaTela = false;
   function mostrarBarra() {
-    if (barra) barra.classList.toggle('is-oculta', menuAberto || fimDaPagina || heroCtaVisivel);
+    if (barra) barra.classList.toggle('is-oculta', menuAberto || fimDaPagina || heroCtaVisivel || acoesNaTela);
     /* na Conversa o CTA grande já está na tela: o flutuante sai, como a barra */
-    if (wa) wa.classList.toggle('is-oculta', heroCtaVisivel || fimDaPagina);
+    if (wa) wa.classList.toggle('is-oculta', heroCtaVisivel || fimDaPagina || acoesNaTela);
   }
 
   /* ---------- nav ---------- */
@@ -196,6 +196,22 @@
     }, { rootMargin: '0px 0px -40% 0px' });
     var fins = document.querySelectorAll('.conversa, body > footer');
     for (var f = 0; f < fins.length; f++) ioBarra.observe(fins[f]);
+  }
+  /* as ações de um cartão com peça ("Quero este site…", "Quero o diagnóstico…", com o WhatsApp ao lado,
+     docs/restructure/PECAS-SERVICOS.md) na tela: a barra e o flutuante saem (eram três chamadas para o
+     mesmo lugar, e a barra cobria o botão — crítica de celular) */
+  var acoes = document.querySelectorAll('.servico--peca .servico__acoes');
+  if ((barra || wa) && acoes.length && 'IntersectionObserver' in window) {
+    var acoesVistas = [];
+    var ioAcoes = new IntersectionObserver(function (ents) {
+      for (var a = 0; a < ents.length; a++) {
+        var i = acoesVistas.indexOf(ents[a].target);
+        if (ents[a].isIntersecting && i < 0) acoesVistas.push(ents[a].target);
+        else if (!ents[a].isIntersecting && i >= 0) acoesVistas.splice(i, 1);
+      }
+      acoesNaTela = acoesVistas.length > 0; mostrarBarra();
+    });
+    for (var c = 0; c < acoes.length; c++) ioAcoes.observe(acoes[c]);
   }
   /* enquanto o CTA do hero está na tela, a barra e o WhatsApp flutuante esperam */
   var heroCta = document.querySelector('.hero__actions');

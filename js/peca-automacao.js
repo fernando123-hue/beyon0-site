@@ -1,37 +1,51 @@
 /* ==========================================================================
    O DESPACHO (2026-10-14) — o comportamento da peça do cartão de Automação (css/peca-automacao.css).
-   1. As trilhas: do pé de cada canal de entrada até um pino do AGENTE, e de outro pino dele até cada
-      saída; reto, com chanfro de 45° (o barramento do site). Desenhadas a partir da posição dos nós,
-      de novo só quando o tamanho muda. Os <path> são criados UMA vez: depois só muda o atributo "d"
-      (nó novo aciona o MutationObserver da rede, js/rede.js, que remede a página inteira).
-   2. A rota: escolher um pedido acende o canal por onde ele chega, a luz corre até o agente (os LEDs
-      dele correm enquanto trabalha) e dali para cada saída, em ordem; a cada chegada o registro imprime
-      o passo. Termina com o resultado. A luz é stroke-dashoffset de um traço por vez.
-   3. A entrada: com a peça bem visível e a rolagem parada, roda uma vez o primeiro pedido. Depois, só
-      pela mão de quem vê.
+   1. As trilhas: do pé de cada canal a um pino do AGENTE (e uma paralela, 3 px ao lado, para a volta),
+      e de outro pino dele a cada saída; retas com chanfro de 45° (o barramento do site), coordenadas no
+      meio do pixel (1 px nítido). Desenhadas de novo só quando o tamanho ou a fonte mudam; os <path>
+      estão no HTML (nó novo aciona o MutationObserver da rede, js/rede.js, que remede a página inteira).
+   2. A rota de um pedido:
+      - o canal acende e o PACOTE (1 × 10 px) corre pela trilha a velocidade constante (0,4 px/ms, linear:
+        sinal não acelera nem freia), só por transform; a trilha acende por classe quando ele chega;
+      - o agente diz o que está fazendo e "pensa" 360 ms;
+      - O LEQUE: todas as saídas do pedido partem ao mesmo tempo; chegam na ordem do comprimento;
+      - O RETORNO: a resposta sobe pela trilha paralela até o canal, que recebe o "✓".
+      O registro imprime na ordem real de chegada, e o número do passo aparece no nó.
+   3. A entrada: com a peça bem visível e a rolagem parada, roda uma vez o boleto (a rota em que a equipe
+      fica livre). Depois, só pela mão de quem vê.
    Movimento reduzido: a rota aparece acesa de uma vez, com o registro inteiro.
    ========================================================================== */
 (function () {
   'use strict';
   var raiz = document.querySelector('[data-despacho]');
   if (!raiz || !window.IntersectionObserver) return;
+  var B = window.BEYON || {};
   var html = document.documentElement;
+  var cartao = raiz.closest('article') || document;
   var placa = raiz.querySelector('.despacho__placa');
-  var svg = raiz.querySelector('.despacho__trilhas');
-  var registro = raiz.querySelector('.despacho__registro');
-  var fim = raiz.querySelector('.despacho__fim');
+  var linhas = [].slice.call(raiz.querySelectorAll('.despacho__registro li'));
+  var fim = raiz.querySelector('.despacho__fim'), fimTexto = raiz.querySelector('[data-despacho-fim]');
+  var verbo = raiz.querySelector('[data-verbo]');
+  var pacotes = [].slice.call(raiz.querySelectorAll('.dp-pacote'));
   var botoes = raiz.querySelectorAll('[data-pedido]');
-  var nos = {};
+  var quero = cartao.querySelector('[data-despacho-quero]'), wa = cartao.querySelector('[data-despacho-wa]');
+  var nos = {}, trilhas = {}, voltas = {};
   [].forEach.call(raiz.querySelectorAll('[data-no]'), function (n) { nos[n.getAttribute('data-no')] = n; });
+  [].forEach.call(raiz.querySelectorAll('[data-trilha]'), function (p) { trilhas[p.getAttribute('data-trilha')] = { el: p, pts: [] }; });
+  [].forEach.call(raiz.querySelectorAll('[data-volta]'), function (p) { voltas[p.getAttribute('data-volta')] = { el: p, pts: [] }; });
   var ENTRADAS = ['whatsapp', 'email', 'site'], SAIDAS = ['sistema', 'financeiro', 'planilha', 'equipe'];
-  var NS = 'http://www.w3.org/2000/svg';
-  var TRILHA_MS = 420, PAUSA_MS = 260;
-  /* rotinas de EXEMPLO de uma entidade (o texto da peça diz isso): cada passo acende um nó */
+  var VELOCIDADE = 0.4, PENSA_MS = 360, ARRANQUE_MS = 120, RESPIRO_MS = 200;
+  /* rotinas de EXEMPLO de uma entidade (a nota da peça diz isso). Cada pedido: o canal, o que o agente faz,
+     duas saídas em leque, quem fica livre e o resultado */
   var ROTAS = {
-    boleto: { passos: [['whatsapp', 'Pedido chegou pelo WhatsApp'], ['agente', 'Associado identificado pelo CPF'], ['financeiro', 'Boleto do mês gerado nas finanças'], ['planilha', 'Envio registrado na planilha']], fim: 'Respondido na conversa, sem ninguém da equipe parar.' },
-    filiacao: { passos: [['site', 'Ficha de filiação enviada pelo site'], ['agente', 'Documentos conferidos'], ['sistema', 'Cadastro criado no sistema'], ['equipe', 'Diretoria avisada para aprovar']], fim: 'Pronto para aprovar, com tudo conferido.' },
-    cadastro: { passos: [['email', 'Pedido de atualização por e-mail'], ['agente', 'Dados novos lidos da mensagem'], ['sistema', 'Cadastro atualizado'], ['planilha', 'Alteração registrada']], fim: 'Confirmação respondida por e-mail.' },
-    pessoa: { passos: [['whatsapp', 'Mensagem pedindo uma pessoa'], ['agente', 'Assunto resumido em três linhas'], ['equipe', 'Pessoa certa avisada, com o resumo'], ['planilha', 'Atendimento registrado']], fim: 'Ninguém precisa repetir a história.' }
+    boleto: { rotulo: '2ª via do boleto', canal: ['whatsapp', 'Pedido chegou pelo WhatsApp'], agente: ['conferindo CPF…', 'Associado identificado pelo CPF'],
+      saidas: [['financeiro', 'Boleto do mês gerado nas finanças'], ['planilha', 'Envio registrado na planilha']], livre: ['equipe'], fim: 'Respondido na conversa, sem ninguém da equipe parar.' },
+    filiacao: { rotulo: 'nova filiação', canal: ['site', 'Ficha de filiação enviada pelo site'], agente: ['conferindo documentos…', 'Documentos conferidos'],
+      saidas: [['sistema', 'Cadastro criado no sistema'], ['equipe', 'Diretoria avisada para aprovar']], livre: [], fim: 'Pronto para aprovar, com tudo conferido.' },
+    cadastro: { rotulo: 'atualização de cadastro', canal: ['email', 'Pedido de atualização por e-mail'], agente: ['lendo a mensagem…', 'Dados novos lidos da mensagem'],
+      saidas: [['sistema', 'Cadastro atualizado no sistema'], ['planilha', 'Alteração registrada na planilha']], livre: ['equipe'], fim: 'Confirmação respondida por e-mail.' },
+    pessoa: { rotulo: 'falar com uma pessoa', canal: ['whatsapp', 'Mensagem pedindo uma pessoa'], agente: ['resumindo o assunto…', 'Assunto resumido em três linhas'],
+      saidas: [['equipe', 'Pessoa certa avisada, com o resumo'], ['planilha', 'Atendimento registrado na planilha']], livre: [], fim: 'Ninguém precisa repetir a história.' }
   };
   var mq = window.matchMedia('(prefers-reduced-motion: reduce)');
   function reduzido() { return mq.matches || html.classList.contains('menos-movimento'); }
@@ -40,108 +54,163 @@
     if (n && n.nodeType === 3) { if (n.nodeValue !== s) n.nodeValue = s; }
     else if (s) el.textContent = s;
   }
+  /* o número do passo no nó (o <b> já traz um nó de texto no HTML: só o nodeValue muda) */
+  function numerar(no, s) { escrever(no.querySelector('.dp-n'), s || ' '); no.classList.toggle('tem-n', !!s); }
 
   /* ---------- 1. as trilhas ---------- */
-  var trilhas = {};   /* "whatsapp" → {base, luz, comprimento}; a de saída tem a chave da saída */
-  var linhas = [];
-  function criar() {
-    ENTRADAS.concat(SAIDAS).forEach(function (k) {
-      var base = document.createElementNS(NS, 'path'), luz = document.createElementNS(NS, 'path');
-      base.setAttribute('class', 'dp-trilha'); luz.setAttribute('class', 'dp-luz');
-      svg.appendChild(base); svg.appendChild(luz);
-      trilhas[k] = { base: base, luz: luz, comprimento: 0 };
-    });
-    for (var i = 0; i < 4; i++) { var li = document.createElement('li'); li.appendChild(document.createTextNode('')); registro.appendChild(li); linhas.push(li); }
-    fim.appendChild(document.createTextNode(''));
-  }
+  var px = function (v) { return Math.round(v) + 0.5; };   /* o meio do pixel: a linha de 1 px não se divide em duas */
   /* de (x1, y1) a (x2, y2), descendo: vertical, chanfro de 45°, horizontal, chanfro, vertical */
-  function caminho(x1, y1, x2, y2) {
-    var dx = x2 - x1, s = dx < 0 ? -1 : 1, meio = (y1 + y2) / 2;
-    var d = Math.min(Math.abs(dx) / 2, 9, (y2 - y1) / 2 - 2);
-    if (Math.abs(dx) < 1) return 'M' + x1 + ' ' + y1 + 'V' + y2;
-    return 'M' + x1 + ' ' + y1 + 'V' + (meio - d) + 'L' + (x1 + s * d) + ' ' + meio + 'H' + (x2 - s * d) + 'L' + x2 + ' ' + (meio + d) + 'V' + y2;
+  function pontos(x1, y1, x2, y2) {
+    x1 = px(x1); x2 = px(x2); y1 = Math.round(y1); y2 = Math.round(y2);
+    var dx = x2 - x1, s = dx < 0 ? -1 : 1, meio = Math.round((y1 + y2) / 2);
+    var d = Math.floor(Math.min(Math.abs(dx) / 2, 9, (y2 - y1) / 2 - 2));
+    if (Math.abs(dx) < 1 || d < 1) return [[x1, y1], [x1, meio], [x2, meio], [x2, y2]].filter(function (p, i, a) { return !i || p[0] !== a[i - 1][0] || p[1] !== a[i - 1][1]; });
+    return [[x1, y1], [x1, meio - d], [x1 + s * d, meio], [x2 - s * d, meio], [x2, meio + d], [x2, y2]];
   }
+  function d(pts) { return pts.map(function (p, i) { return (i ? 'L' : 'M') + p[0] + ' ' + p[1]; }).join(''); }
   function desenhar() {
     var p = placa.getBoundingClientRect();
     if (!p.width) return;
-    var a = nos.agente.getBoundingClientRect();
     function r(el) { var b = el.getBoundingClientRect(); return { cx: b.left + b.width / 2 - p.left, top: b.top - p.top, bottom: b.bottom - p.top }; }
+    var a = nos.agente.getBoundingClientRect();
     var ag = { left: a.left - p.left, w: a.width, top: a.top - p.top - 6, bottom: a.bottom - p.top + 6 };
     ENTRADAS.forEach(function (k, i) {
-      var n = r(nos[k]);
-      trilhas[k].d = caminho(n.cx, n.bottom, ag.left + ag.w * (i + 1) / (ENTRADAS.length + 1), ag.top);
+      var n = r(nos[k]), pino = ag.left + ag.w * (i + 1) / (ENTRADAS.length + 1);
+      trilhas[k].pts = pontos(n.cx, n.bottom, pino, ag.top);
+      voltas[k].pts = pontos(n.cx + 3, n.bottom, pino + 3, ag.top).reverse();   /* a volta sobe, 3 px ao lado */
     });
     SAIDAS.forEach(function (k, i) {
       var n = r(nos[k]);
-      trilhas[k].d = caminho(ag.left + ag.w * (i + 1) / (SAIDAS.length + 1), ag.bottom, n.cx, n.top);
+      trilhas[k].pts = pontos(ag.left + ag.w * (i + 1) / (SAIDAS.length + 1), ag.bottom, n.cx, n.top);
     });
-    Object.keys(trilhas).forEach(function (k) {
-      var t = trilhas[k];
-      t.base.setAttribute('d', t.d); t.luz.setAttribute('d', t.d);
-      t.comprimento = t.luz.getTotalLength();
-      t.luz.style.strokeDasharray = t.comprimento + ' ' + t.comprimento;
-      if (!t.acesa) t.luz.style.strokeDashoffset = String(t.comprimento);
-    });
+    [trilhas, voltas].forEach(function (grupo) { Object.keys(grupo).forEach(function (k) { grupo[k].el.setAttribute('d', d(grupo[k].pts)); }); });
   }
 
-  /* ---------- 2. a rota ---------- */
-  var vez = 0;   /* cada pedido novo invalida os tempos do anterior */
-  function limpar() {
-    Object.keys(trilhas).forEach(function (k) {
-      var t = trilhas[k]; t.acesa = false;
-      t.luz.getAnimations().forEach(function (an) { an.cancel(); });
-      t.luz.style.strokeDashoffset = String(t.comprimento);
-      t.base.classList.remove('is-feita');
+  /* ---------- 2. o pacote ---------- */
+  /* quadros-chave pelos cantos da trilha, com o tempo proporcional à distância: velocidade constante; nos
+     cantos o segmento gira junto (vertical, 45° ou horizontal) */
+  function correr(pacote, pts, aoChegar) {
+    var segs = [], total = 0;
+    for (var i = 1; i < pts.length; i++) {
+      var dx = pts[i][0] - pts[i - 1][0], dy = pts[i][1] - pts[i - 1][1], l = Math.hypot(dx, dy);
+      segs.push({ l: l, giro: Math.atan2(dy, dx) * 180 / Math.PI - 90 }); total += l;
+    }
+    if (!total) { aoChegar(); return; }
+    var quadros = [], feito = 0;
+    segs.forEach(function (s, i) {
+      quadros.push({ transform: 'translate(' + pts[i][0] + 'px,' + pts[i][1] + 'px) rotate(' + s.giro + 'deg)', offset: feito / total, opacity: 1 });
+      feito += s.l;
+      quadros.push({ transform: 'translate(' + pts[i + 1][0] + 'px,' + pts[i + 1][1] + 'px) rotate(' + s.giro + 'deg)', offset: feito / total, opacity: 1 });
     });
-    Object.keys(nos).forEach(function (k) { nos[k].classList.remove('is-aceso', 'is-feito'); });
-    linhas.forEach(function (li) { li.classList.remove('is-feito'); });
-    escrever(fim, '');
+    var an = pacote.animate(quadros, { duration: Math.max(160, total / VELOCIDADE), easing: 'linear' });
+    an.onfinish = aoChegar;
+    emVoo.push(an);
   }
-  function acender(trilha, ms) {
-    var t = trilhas[trilha]; t.acesa = true;
-    t.base.classList.add('is-feita');
-    if (!ms) { t.luz.style.strokeDashoffset = '0'; return; }
-    t.luz.animate([{ strokeDashoffset: t.comprimento }, { strokeDashoffset: 0 }], { duration: ms, easing: 'cubic-bezier(.65, 0, .35, 1)', fill: 'forwards' });
+
+  /* ---------- 3. a rota ---------- */
+  var vez = 0, emVoo = [], passo = 0;
+  function limpar() {
+    emVoo.forEach(function (an) { an.onfinish = null; an.cancel(); }); emVoo = [];
+    [trilhas, voltas].forEach(function (g) { Object.keys(g).forEach(function (k) { g[k].el.classList.remove('is-acesa'); }); });
+    Object.keys(nos).forEach(function (k) { nos[k].classList.remove('is-aceso', 'is-feito', 'is-livre'); numerar(nos[k], ''); });
+    linhas.forEach(function (li) { li.classList.remove('is-feito', 'is-novo'); });
+    fim.classList.remove('is-pronto'); escrever(fimTexto, ' ');
+    escrever(verbo, 'pronto');
+    passo = 0;
   }
-  function marcarNo(k) {
-    Object.keys(nos).forEach(function (o) { if (nos[o].classList.contains('is-aceso')) { nos[o].classList.remove('is-aceso'); nos[o].classList.add('is-feito'); } });
-    nos[k].classList.add('is-aceso');
+  /* imprime a próxima linha do registro e põe o mesmo número no nó */
+  function registrar(no, texto) {
+    var li = linhas[passo]; passo++;
+    escrever(li, texto);
+    linhas.forEach(function (o) { o.classList.remove('is-novo'); });
+    li.classList.add('is-feito', 'is-novo');
+    numerar(nos[no], (passo < 10 ? '0' : '') + passo);
   }
   function rodar(nome) {
     var rota = ROTAS[nome], minha = ++vez;
+    var vale = function (fn) { return function () { if (minha === vez) fn(); }; };
     [].forEach.call(botoes, function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-pedido') === nome)); });
     limpar();
-    rota.passos.forEach(function (p, i) { escrever(linhas[i], p[1]); });
-    var entrada = rota.passos[0][0];
+    var canal = rota.canal[0];
     if (reduzido()) {
-      acender(entrada, 0);
-      rota.passos.slice(2).forEach(function (p) { acender(p[0], 0); });
-      rota.passos.forEach(function (p) { nos[p[0]].classList.add('is-feito'); });
-      linhas.forEach(function (li) { li.classList.add('is-feito'); });
-      escrever(fim, rota.fim);
+      trilhas[canal].el.classList.add('is-acesa'); voltas[canal].el.classList.add('is-acesa');
+      registrar(canal, rota.canal[1]); registrar('agente', rota.agente[1]);
+      rota.saidas.forEach(function (s) { trilhas[s[0]].el.classList.add('is-acesa'); nos[s[0]].classList.add('is-feito'); registrar(s[0], s[1]); });
+      rota.livre.forEach(function (k) { nos[k].classList.add('is-livre'); });
+      nos[canal].classList.add('is-feito'); nos.agente.classList.add('is-feito');
+      numerar(nos[canal], '✓');
+      escrever(verbo, 'feito'); escrever(fimTexto, rota.fim); fim.classList.add('is-pronto');
       return;
     }
-    var agenda = [], t = 0;
-    function depois(ms, fn) { t += ms; agenda.push([t, fn]); }
-    depois(0, function () { marcarNo(entrada); linhas[0].classList.add('is-feito'); });
-    depois(PAUSA_MS, function () { acender(entrada, TRILHA_MS); });
-    depois(TRILHA_MS, function () { marcarNo('agente'); linhas[1].classList.add('is-feito'); });
-    rota.passos.slice(2).forEach(function (p, i) {
-      depois(PAUSA_MS + (i ? 0 : 300), function () { acender(p[0], TRILHA_MS); });   /* (o agente "pensa" um pouco antes da 1ª saída) */
-      depois(TRILHA_MS, function () { marcarNo(p[0]); linhas[i + 2].classList.add('is-feito'); });
-    });
-    depois(PAUSA_MS, function () { marcarNo(entrada); nos[entrada].classList.remove('is-aceso'); escrever(fim, rota.fim); });
-    agenda.forEach(function (a) { setTimeout(function () { if (minha === vez) a[1](); }, a[0]); });
+    nos[canal].classList.add('is-aceso');
+    registrar(canal, rota.canal[1]);
+    setTimeout(vale(function () {
+      correr(pacotes[0], trilhas[canal].pts, vale(function () {
+        trilhas[canal].el.classList.add('is-acesa');
+        nos[canal].classList.replace('is-aceso', 'is-feito');
+        nos.agente.classList.add('is-aceso');
+        escrever(verbo, rota.agente[0]);
+        rota.livre.forEach(function (k) { nos[k].classList.add('is-livre'); });
+        setTimeout(vale(function () {
+          registrar('agente', rota.agente[1]);
+          leque(rota, vale);
+        }), PENSA_MS);
+      }));
+    }), ARRANQUE_MS);
   }
-  [].forEach.call(botoes, function (b) { b.addEventListener('click', function () { rodar(b.getAttribute('data-pedido')); }); });
+  /* O LEQUE: todas as saídas partem juntas; comprimentos iguais ganham 60 ms de folga para não empatar */
+  function leque(rota, vale) {
+    var faltam = rota.saidas.length, vistos = {};
+    rota.saidas.forEach(function (s, i) {
+      var t = trilhas[s[0]], chave = Math.round(t.el.getTotalLength());
+      var folga = vistos[chave] ? 60 : 0; vistos[chave] = true;
+      setTimeout(vale(function () {
+        correr(pacotes[1 + i], t.pts, vale(function () {
+          t.el.classList.add('is-acesa');
+          nos[s[0]].classList.add('is-feito');
+          registrar(s[0], s[1]);
+          if (--faltam === 0) setTimeout(vale(function () { retorno(rota, vale); }), RESPIRO_MS);
+        }));
+      }), folga);
+    });
+  }
+  /* O RETORNO: a resposta sobe pela trilha paralela até o canal, que recebe o "✓" */
+  function retorno(rota, vale) {
+    var canal = rota.canal[0];
+    escrever(verbo, 'respondendo…');
+    correr(pacotes[3], voltas[canal].pts, vale(function () {
+      voltas[canal].el.classList.add('is-acesa');
+      nos.agente.classList.replace('is-aceso', 'is-feito');
+      numerar(nos[canal], '✓');
+      escrever(verbo, 'feito');
+      escrever(fimTexto, rota.fim);
+      fim.classList.add('is-pronto');
+    }));
+  }
+  var escolhido = null;
+  [].forEach.call(botoes, function (b) {
+    b.addEventListener('click', function () {
+      escolhido = b.getAttribute('data-pedido');
+      fim.setAttribute('aria-live', 'polite');   /* o leitor de tela só anuncia o que a pessoa pediu (a rota da entrada roda sozinha) */
+      rodar(escolhido);
+    });
+  });
+  /* o pedido escolhido vai junto só se a pessoa pedir o diagnóstico (nesta aba, nunca pela URL) */
+  if (quero) quero.addEventListener('click', function () {
+    try { if (escolhido) sessionStorage.setItem('bz-despacho-pedido', ROTAS[escolhido].rotulo); else sessionStorage.removeItem('bz-despacho-pedido'); }
+    catch (e) { /* sem armazenamento: o formulário abre vazio */ }
+  });
+  if (wa) wa.addEventListener('click', function () {
+    if (!B.linkWA) return;
+    wa.href = B.linkWA(escolhido ? 'quero automatizar a ' + ROTAS[escolhido].rotulo + ' na minha entidade' : 'quero entender o que dá para automatizar na minha entidade');
+  });
 
   /* ---------- liga ---------- */
   raiz.classList.add('is-viva');
-  criar();
   desenhar();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(desenhar);   /* (a largura do chip depende da fonte) */
   if (window.ResizeObserver) new ResizeObserver(desenhar).observe(placa);
   else window.addEventListener('resize', desenhar);
-  /* entra uma vez, com a peça bem visível e a rolagem parada */
   var visivel = false, entrou = false, parada = 0;
   function talvezEntrar() {
     clearTimeout(parada);

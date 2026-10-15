@@ -77,6 +77,7 @@
   <link rel="stylesheet" href="css/cartoes.css" />
   <link rel="stylesheet" href="css/peca-sites.css" />
   <link rel="stylesheet" href="css/peca-automacao.css" />
+  <link rel="stylesheet" href="css/peca-atendente.css" />
   <link rel="stylesheet" href="css/motion.css" />
   <link rel="stylesheet" href="css/passagem.css" />
   <link rel="stylesheet" href="css/passagem-destinos.css" />
@@ -251,6 +252,7 @@
             <div class="planta__regua">
               <div class="planta__slider" role="slider" tabindex="0" aria-label="Largura da tela do exemplo" aria-valuemin="360" aria-valuemax="1440" aria-valuenow="1280" aria-valuetext="Computador, 1280 pixels">
                 <span class="planta__trilho"></span>
+                <span class="planta__marca" data-marca="390"></span><span class="planta__marca" data-marca="768"></span><span class="planta__marca" data-marca="1280"></span>
                 <span class="planta__voce" hidden></span>
                 <span class="planta__cursor"><span class="planta__cota">1280 px</span></span>
                 <span class="planta__dica" aria-hidden="true">arraste</span>
@@ -262,7 +264,7 @@
               <div class="planta__nichos" role="group" aria-label="Tipo de negócio do exemplo">
                 <button type="button" class="planta__nicho" data-nicho="clinica" aria-pressed="false">Clínica</button><button type="button" class="planta__nicho" data-nicho="escritorio" aria-pressed="false">Escritório</button><button type="button" class="planta__nicho" data-nicho="loja" aria-pressed="false">Loja</button><button type="button" class="planta__nicho" data-nicho="entidade" aria-pressed="false">Entidade</button>
               </div>
-              <label class="planta__nome"><span>O nome dele</span><input type="text" maxlength="28" autocomplete="off" autocapitalize="words" enterkeyhint="done" spellcheck="false" placeholder="Ex.: Clínica Sorriso" aria-describedby="planta-nota" data-planta-campo /></label>
+              <label class="planta__nome"><span>Nome do negócio</span><input type="text" maxlength="28" autocomplete="off" autocapitalize="words" enterkeyhint="done" spellcheck="false" placeholder="Ex.: Clínica Sorriso" aria-describedby="planta-nota" data-planta-campo /></label>
               <span class="planta__nota" id="planta-nota">Aparece no site de exemplo acima. Fica só no seu aparelho.</span>
             </div>
             <p class="planta__prova" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M13 2L5 14h6l-1 8 8-12h-6z"/></svg><span data-planta-prova></span></p>
@@ -281,40 +283,79 @@
           <h3 id="servico-2-t">Automação &amp; IA</h3>
           <span class="servico__para">Para associações, sindicatos, federações e cooperativas.</span>
           <div class="despacho" data-despacho role="group" aria-label="Demonstração: o caminho de um pedido numa rotina automatizada">
-            <div class="despacho__pedidos" role="group" aria-label="Escolha um pedido">
+            <span class="despacho__guia" id="despacho-guia">Toque num pedido e veja o caminho</span>
+            <div class="despacho__pedidos" role="group" aria-labelledby="despacho-guia">
               <button type="button" class="despacho__pedido" data-pedido="boleto" aria-pressed="false">2ª via do boleto</button><button type="button" class="despacho__pedido" data-pedido="filiacao" aria-pressed="false">Nova filiação</button><button type="button" class="despacho__pedido" data-pedido="cadastro" aria-pressed="false">Atualizar cadastro</button><button type="button" class="despacho__pedido" data-pedido="pessoa" aria-pressed="false">Falar com uma pessoa</button>
             </div>
             <div class="despacho__placa" aria-hidden="true">
-              <svg class="despacho__trilhas" focusable="false"></svg>
+              <svg class="despacho__trilhas" focusable="false">
+                <path class="dp-trilha" data-trilha="whatsapp"/><path class="dp-trilha" data-trilha="email"/><path class="dp-trilha" data-trilha="site"/>
+                <path class="dp-trilha dp-volta" data-volta="whatsapp"/><path class="dp-trilha dp-volta" data-volta="email"/><path class="dp-trilha dp-volta" data-volta="site"/>
+                <path class="dp-trilha" data-trilha="sistema"/><path class="dp-trilha" data-trilha="financeiro"/><path class="dp-trilha" data-trilha="planilha"/><path class="dp-trilha" data-trilha="equipe"/>
+              </svg>
+              <i class="dp-pacote"></i><i class="dp-pacote"></i><i class="dp-pacote"></i><i class="dp-pacote"></i>
               <div class="despacho__linha">
-                <span class="dp-no" data-no="whatsapp"><svg viewBox="0 0 24 24" focusable="false"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 19.2z"/></svg>WhatsApp</span>
-                <span class="dp-no" data-no="email"><svg viewBox="0 0 24 24" focusable="false"><path d="M3 6h18v12H3zM3 7l9 6 9-6"/></svg>E-mail</span>
-                <span class="dp-no" data-no="site"><svg viewBox="0 0 24 24" focusable="false"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>Site</span>
+                <span class="dp-no" data-no="whatsapp"><b class="dp-n"> </b><svg viewBox="0 0 24 24" focusable="false"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 19.2z"/></svg><span>WhatsApp</span></span>
+                <span class="dp-no" data-no="email"><b class="dp-n"> </b><svg viewBox="0 0 24 24" focusable="false"><path d="M3 6h18v12H3zM3 7l9 6 9-6"/></svg><span>E-mail</span></span>
+                <span class="dp-no" data-no="site"><b class="dp-n"> </b><svg viewBox="0 0 24 24" focusable="false"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg><span>Site</span></span>
               </div>
-              <div class="despacho__centro"><span class="dp-no dp-agente" data-no="agente"><i></i><i></i><i></i><i></i>Agente</span></div>
+              <div class="despacho__centro"><span class="dp-no dp-agente" data-no="agente"><b class="dp-n"> </b><span class="dp-agente__nome">Agente</span><span class="dp-agente__verbo" data-verbo>pronto</span></span></div>
               <div class="despacho__linha">
-                <span class="dp-no" data-no="sistema"><svg viewBox="0 0 24 24" focusable="false"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>Sistema</span>
-                <span class="dp-no" data-no="financeiro"><svg viewBox="0 0 24 24" focusable="false"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6"/></svg>Finanças</span>
-                <span class="dp-no" data-no="planilha"><svg viewBox="0 0 24 24" focusable="false"><path d="M3 4h18v16H3zM3 9h18M3 14h18M9 4v16"/></svg>Planilha</span>
-                <span class="dp-no" data-no="equipe"><svg viewBox="0 0 24 24" focusable="false"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg>Equipe</span>
+                <span class="dp-no" data-no="sistema"><b class="dp-n"> </b><svg viewBox="0 0 24 24" focusable="false"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg><span>Sistema</span></span>
+                <span class="dp-no" data-no="financeiro"><b class="dp-n"> </b><svg viewBox="0 0 24 24" focusable="false"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6"/></svg><span>Finanças</span></span>
+                <span class="dp-no" data-no="planilha"><b class="dp-n"> </b><svg viewBox="0 0 24 24" focusable="false"><path d="M3 4h18v16H3zM3 9h18M3 14h18M9 4v16"/></svg><span>Planilha</span></span>
+                <span class="dp-no" data-no="equipe"><b class="dp-n"> </b><svg viewBox="0 0 24 24" focusable="false"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg><span>Equipe</span></span>
               </div>
             </div>
-            <ol class="despacho__registro" role="list"></ol>
-            <p class="despacho__fim" aria-live="polite"></p>
+            <ol class="despacho__registro" role="list"><li> </li><li> </li><li> </li><li> </li></ol>
+            <p class="despacho__fim"><span class="despacho__ok" aria-hidden="true"></span><span data-despacho-fim> </span></p>
             <p class="despacho__nota">Exemplo de rotina. Cada entidade tem as suas: o diagnóstico grátis mostra quais valem automatizar.</p>
-            <a class="despacho__quero peca-quero" href="/automacao#contato">Quero o diagnóstico grátis <span aria-hidden="true" data-seta="direita">→</span></a>
           </div>
           <p id="servico-2-p">Agentes, automação de processos e sistemas que devolvem capacidade para a operação. Diagnóstico grátis primeiro; construção só onde a conta fecha.</p>
-          <a class="servico__link" id="servico-2-l" href="/automacao" aria-describedby="servico-2-p">Ver automação <span aria-hidden="true" data-seta="direita">→</span></a>
+          <div class="servico__acoes">
+            <a class="peca-quero peca-quero--cheio" href="/automacao#contato" data-despacho-quero><span class="peca-quero__texto">Quero o diagnóstico grátis</span> <span aria-hidden="true" data-seta="direita">→</span></a>
+            <a class="peca-wa" href="https://wa.me/5521977167944" data-wa="quero entender o que dá para automatizar na minha entidade" data-despacho-wa>ou peça pelo WhatsApp</a>
+            <a class="servico__link" id="servico-2-l" href="/automacao" aria-describedby="servico-2-p">Ver automação <span aria-hidden="true" data-seta="direita">→</span></a>
+          </div>
         </article>
-        <a data-rotulo="Responde até de madrugada" class="painel painel--tinta servico" data-wa="quero testar o atendente de IA no WhatsApp por 10 dias grátis" href="https://wa.me/5521977167944" aria-labelledby="servico-3-t servico-3-l" aria-describedby="servico-3-p">
+        <article data-rotulo="Responde até de madrugada" class="painel painel--tinta servico servico--peca" aria-labelledby="servico-3-t">
           <span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span>
           <span class="servico__n" aria-hidden="true">03</span>
           <h3 id="servico-3-t">Atendente de IA no WhatsApp</h3>
-          <p id="servico-3-p">Responde preço, horário e dúvidas assim que a mensagem chega e avisa você quando precisa de uma pessoa. Teste 10&nbsp;dias grátis no seu número.</p>
           <span class="servico__para">Para clínicas, escritórios, lojas e entidades. A partir de R$&nbsp;590 por mês (plano Essencial), mais a implantação.</span>
-          <span class="servico__link" id="servico-3-l">Testar 10 dias grátis <span aria-hidden="true" data-seta="direita">→</span><span class="sr-only"> (abre em nova aba)</span></span>
-        </a>
+          <div class="plantao" data-plantao role="group" aria-label="Demonstração: o atendente respondendo no WhatsApp, a qualquer hora">
+            <div class="plantao__relogio">
+              <div class="plantao__slider" role="slider" tabindex="0" aria-label="Hora da conversa" aria-valuemin="0" aria-valuemax="1439" aria-valuenow="600" aria-valuetext="10:00, equipe no horário">
+                <span class="plantao__trilho"></span><span class="plantao__expediente"></span>
+                <span class="plantao__cursor"><span class="plantao__hora" data-plantao-hora>10:00</span></span>
+              </div>
+              <div class="plantao__escala" aria-hidden="true"><span>0h</span><span>6h</span><span>12h</span><span>18h</span><span>24h</span></div>
+            </div>
+            <div class="plantao__tela">
+              <div class="plantao__topo">
+                <span class="plantao__avatar" aria-hidden="true" data-plantao-inicial>S</span>
+                <span class="plantao__quem"><b data-plantao-nome>Seu negócio</b><span>atendente virtual</span></span>
+                <span class="plantao__equipe" data-plantao-equipe>equipe no horário</span>
+              </div>
+              <ol class="plantao__conversa" role="list">
+                <li class="pt-msg pt-msg--ia" data-msg="ola"><span class="pt-txt">Olá! Sou o atendente virtual. Posso ajudar com preço, horário ou o que precisar.</span><span class="pt-hora">10:00</span></li>
+                <li class="pt-msg pt-msg--cliente" data-msg="pergunta" hidden><span class="pt-txt"> </span><span class="pt-hora">10:00</span></li>
+                <li class="pt-msg pt-msg--ia" data-msg="resposta" hidden><span class="pt-digitando" aria-hidden="true"><i></i><i></i><i></i></span><span class="pt-txt"><span> </span><span class="pt-reservado"> </span><span> </span></span><span class="pt-hora">10:00</span></li>
+                <li class="pt-msg pt-msg--sistema" data-msg="resumo" hidden><span class="pt-txt"> </span></li>
+              </ol>
+              <div class="plantao__sugestoes" role="group" aria-label="Pergunte como um cliente">
+                <button type="button" class="plantao__sugestao" data-pergunta="0"> </button><button type="button" class="plantao__sugestao" data-pergunta="1"> </button><button type="button" class="plantao__sugestao" data-pergunta="2"> </button><button type="button" class="plantao__sugestao" data-pergunta="pessoa">Quero falar com uma pessoa</button>
+              </div>
+            </div>
+            <p class="plantao__resposta-sr sr-only" aria-live="polite"> </p>
+            <p class="plantao__nota">Exemplo de conversa. <span class="pt-reservado">[Entre colchetes]</span> entra o dado do seu negócio, que você passa na implantação; o expediente das 8h às 18h também é exemplo.</p>
+          </div>
+          <p id="servico-3-p">Responde preço, horário e dúvidas assim que a mensagem chega e avisa você quando precisa de uma pessoa. Teste 10&nbsp;dias grátis no seu número.</p>
+          <div class="servico__acoes">
+            <a class="peca-quero peca-quero--cheio" data-wa="quero testar o atendente de IA no WhatsApp por 10 dias grátis" href="https://wa.me/5521977167944" data-plantao-quero><span class="peca-quero__texto">Testar 10 dias grátis</span> <span aria-hidden="true" data-seta="direita">→</span><span class="sr-only"> (abre o WhatsApp)</span></a>
+            <a class="servico__link" id="servico-3-l" href="/automacao#atendente" aria-describedby="servico-3-p">Como funciona <span aria-hidden="true" data-seta="direita">→</span></a>
+          </div>
+        </article>
       </div>
     </section>
 
@@ -452,6 +493,7 @@
   <script src="js/ouro.js" defer></script>
   <script src="js/peca-sites.js" defer></script>
   <script src="js/peca-automacao.js" defer></script>
+  <script src="js/peca-atendente.js" defer></script>
   <script src="js/nucleo/boot.js" defer></script>
 </body>
 </html>
