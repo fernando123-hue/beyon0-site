@@ -579,3 +579,28 @@ test('promoção: o cabeçalho da migration e o plano citam o MESMO texto das DU
     assert.ok(pendencias.includes('`' + consulta + '`'), 'linha PR2a de docs/revisoes/pr1-pendencias.md: ' + nome);
   }
 });
+
+/* PR 2b-1, pendências PR2a-teto-pacotes, PR2a-ordem-trava, PR2a-dono-leitura e PR2a-testes-borda */
+test('estimativa (o caminho do consultor): o mesmo teto de 30 pacotes por conversa das respostas', async () => {
+  const b = await comPacote();   /* (já gravou 1) */
+  for (let i = 0; i < 29; i++) await rpc('vendas_registrar_estimativa', { ...b, regras_id: REGRAS, fatores: { formato: 'institucional' }, valor_total: 3950, sinal: 1975, prazo_dias: 9 });
+  assert.equal((await erroDe(rpc('vendas_registrar_estimativa', { ...b, regras_id: REGRAS, fatores: { formato: 'institucional' }, valor_total: 3950, sinal: 1975, prazo_dias: 9 })))?.codigo, REGRA, 'a 31ª é recusada');
+});
+
+test('trava das direções em ordem fixa (sem espera circular) e a consulta leve do dono sem trava', async () => {
+  const fonte = async nome => (await um("select prosrc from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'app' and p.proname = $1", [nome])).prosrc;
+  assert.match(await fonte('vendas_mudar_pedido'), /order by d\.id\s+for update of d/i, 'PR2a-ordem-trava');
+  const dono = await fonte('vendas_conversa_dono');
+  assert.doesNotMatch(dono, /for update|conversa_do\(/i, 'PR2a-dono-leitura: a leitura não trava a conversa');
+  const b = await comPacote();
+  assert.equal((await rpc('vendas_conversa_dono', { ...b, etapas: ['estimativa'] })).etapa, 'estimativa', 'continua funcionando');
+  assert.equal((await erroDe(rpc('vendas_conversa_dono', { ...b, visitante_id: randomUUID(), etapas: ['estimativa'] })))?.codigo, NAO_ACHOU, 'outro visitante');
+  assert.equal((await erroDe(rpc('vendas_conversa_dono', { ...b, etapas: ['contato'] })))?.codigo, ETAPA, 'etapa fora da lista');
+});
+
+test('bordas das funções do PR 2a (PR2a-testes-borda): outro visitante ou organização → P0002; entrada inválida → 22023', async () => {
+  const b = await comPacote();
+  assert.equal((await erroDe(rpc('vendas_registrar_respostas', { ...b, visitante_id: randomUUID(), briefing: {}, confianca: 0 })))?.codigo, NAO_ACHOU);
+  assert.equal((await erroDe(rpc('vendas_conversa_dono', { ...b, etapas: { estimativa: true } })))?.codigo, INVALIDO, 'etapas que não são lista');
+  assert.equal((await erroDe(rpc('vendas_mudar_pedido', { org_slug: 'outra', conversa_id: b.conversa_id, acao: 'arquivar' })))?.codigo, NAO_ACHOU);
+});
