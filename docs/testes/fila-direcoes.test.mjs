@@ -479,12 +479,12 @@ test('varredura: caractere invisível (inversão de leitura, hífen mole) é ach
   const { avaliarArquivo, conferir } = await import('../../scripts/direcoes.mjs');
   const limpa = conferir(direcao(), 'conversao').direcao;
   const casos = [
-    ['Pague o sinal em ‮' + 'xip/moc.eplog//:sptth' + '‬', 'U+202E'],
-    ['Pague em ‮gro.eplog‬', 'U+202E'],
-    ['⁧ten.eplog⁩', 'U+2067'],
-    ['golpe.or­g', 'U+00AD'],
-    ['Atende hoje', 'U+007F'],
-    ['Atende​ hoje', 'U+200B']
+    ['Pague o sinal em \u202E' + 'xip/moc.eplog//:sptth' + '\u202C', 'U+202E'],
+    ['Pague em \u202Egro.eplog\u202C', 'U+202E'],
+    ['\u2067ten.eplog\u2069', 'U+2067'],
+    ['golpe.or\u00ADg', 'U+00AD'],
+    ['Atende\u007F hoje', 'U+007F'],
+    ['Atende\u200B hoje', 'U+200B']
   ];
   for (const [texto, codigo] of casos) {
     const achados = varrer(comTexto(limpa, texto));
