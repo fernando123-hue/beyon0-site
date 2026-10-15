@@ -157,7 +157,7 @@
 @media (min-width: 861px) { .hero__rail { gap: clamp(14px, 1.4vw, 20px); } }
 
 /* ---------- 2. SERVIÇOS ---------- */
-.servicos { display: grid; grid-template-columns: 1fr; gap: var(--vao); }
+.servicos { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--vao); }   /* (minmax: um conteúdo largo dentro de um cartão nunca alarga a página — o nome longo no botão da peça abria rolagem lateral) */
 .servicos > :nth-child(1), .servicos > :nth-child(2) { --tinta-rgb: var(--ac-rgb); }
 .servicos > :nth-child(3) { --tinta-rgb: var(--prata-rgb); }
 .servico { display: flex; flex-direction: column; gap: .6rem; padding: var(--mod-pad); }
@@ -170,6 +170,36 @@
 .servico__formatos { display: none; }
 @media (min-width: 721px) { .servicos { grid-template-columns: repeat(3, minmax(0, 1fr)); } .servico { min-height: 300px; } }
 @media (min-width: 721px) and (max-width: 980px) { .servicos--quatro { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* O CARTÃO COM PEÇA (2026-10-14, docs/restructure/PECAS-SERVICOS.md): a peça interativa (css/peca-*.css) mora no
+   cartão, então o cartão deixa de ser um <a> inteiro (link dentro de controle não vale) e vira <article> com o
+   link esticado por baixo; a peça fica por cima (z-index 2) e continua interativa.
+   Celular: título e preço antes da peça (a ordem do HTML); do tablet para cima a peça abre o cartão. */
+/* o próximo passo de cada peça ("Quero este site…", "Quero o diagnóstico…") */
+.peca-quero {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: .6rem; min-height: 48px; padding: 0 1.1rem;
+  border: 1px solid rgb(var(--ac-rgb) / .6); border-radius: var(--raio-s); color: var(--ac);
+  font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-ctrl); text-transform: uppercase; text-decoration: none;
+  transition: background-color var(--t-micro) var(--ease-micro), border-color var(--t-micro) var(--ease-micro);
+}
+.peca-quero:hover { background: rgb(var(--ac-rgb) / .08); border-color: var(--ac); }
+.peca-quero:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
+.peca-quero [data-seta] { transition: transform var(--t-micro) var(--ease-micro); }
+.peca-quero:hover [data-seta] { transform: translateX(4px); }
+@media (max-width: 420px) { .peca-quero { align-self: stretch; justify-content: space-between; } }
+.peca-quero--cheio { background: var(--ac); border-color: var(--ac); color: var(--ac-tinta); font-family: var(--sans); font-size: .9375rem; font-weight: 500; letter-spacing: 0; text-transform: none; max-width: 100%; min-width: 0; overflow: hidden; }
+.peca-quero--cheio:hover { background: var(--ac-2); border-color: var(--ac-2); }
+.peca-quero__texto { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.peca-wa { color: var(--t2); font-size: var(--fs-s); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line-2); }
+.peca-wa:hover { color: var(--t1); text-decoration-color: currentColor; }
+/* a ordem é a do HTML em todas as larguras: título, preço, a peça, o texto, as ações (crítica, rodada 2: com a peça
+   antes do título, o botão de conversão vinha antes de a pessoa saber o que era e quanto custava) */
+.servico--peca > h3, .servicos > .servico--peca:first-child h3 { margin-top: 0; }
+.servico__acoes { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1.2rem; margin-top: .4rem; }
+.servico__acoes > :not(.servico__link) { position: relative; z-index: 2; }   /* (acima do link esticado do cartão) */
+.servicos .servico__acoes .servico__link { margin: 0 0 0 auto; padding: 0; }
+.servico--peca .servico__link::before { content: ""; position: absolute; inset: 0; z-index: 1; }
+.servico--peca .servico__link { position: static; }
+.servico--peca .servico__link::after { display: none; }
 /* Automação: o fecho do atendente (o botão do teste e a letra miúda, que diz o que é pago e por quem) */
 .atendente__fecho { display: flex; flex-direction: column; align-items: flex-start; gap: 1rem; margin-top: clamp(24px, 4vw, 40px); }
 .atendente__nota { max-width: 62ch; font-size: var(--fs-s); line-height: 1.55; color: var(--t2); }

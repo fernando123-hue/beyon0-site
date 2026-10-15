@@ -19,18 +19,9 @@
 .planta { display: none; }
 .planta.is-viva { display: flex; flex-direction: column; gap: .9rem; position: relative; z-index: 2; margin: .3rem 0 .4rem; }
 
-/* celular: título e preço antes da peça (a ordem do HTML); do tablet para cima a peça abre o cartão */
-@media (min-width: 721px) {
-  .servico--peca > .planta { order: 1; }
-  .servico--peca > .servico__formatos { order: 2; }
-  .servico--peca > h3 { order: 3; }
-  .servico--peca > p { order: 4; }
-  .servico--peca > .servico__para { order: 5; }
-  .servico--peca > .servico__link { order: 6; }
-}
-
 /* ---------- os controles: tipo de negócio e nome ---------- */
-.planta__controles { display: flex; flex-direction: column; gap: .55rem; }
+.planta__controles { display: flex; flex-direction: column; gap: .55rem; padding-top: .3rem; }
+.planta__agora { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--ac-3); }
 /* os quatro numa linha só já a 320 px (o vão encolhe antes de quebrar) */
 .planta__nichos { display: flex; flex-wrap: wrap; gap: .3rem; }
 .planta__nicho {
@@ -153,17 +144,34 @@
 /* cada bloco CARIMBA no instante em que a luz passa (duração 0, só o atraso, posto pelo JS): o palco repinta
    ~10 vezes por impressão, não a cada quadro (medido: o desbotamento de .45 s dava tarefas de 60–100 ms) */
 .pl-b { transition-property: background-color, color, border-color, box-shadow, opacity; transition-duration: 0s; }
-.planta:not(.is-impressa) .pl-b { background-color: transparent; color: transparent; border-color: rgb(var(--ac-rgb) / .4); box-shadow: inset 0 0 0 2px rgb(var(--ac-rgb) / .3); }
+.planta:not(.is-impressa) .pl-b { background-color: transparent; color: transparent; border-color: rgb(var(--ac-rgb) / .4); box-shadow: inset 0 0 0 var(--fio, 2px) rgb(var(--ac-rgb) / .35); }
+/* o que está DENTRO de um bloco carimba junto com ele (o atraso vem do bloco: sem isso a fachada e os ícones
+   acendiam no primeiro quadro, antes da luz — crítica de motion) */
+.pl-b svg, .pl-titulo b, .pl-titulo span, .pl-vidro { transition-property: opacity, color, fill; transition-duration: 0s; transition-delay: inherit; }
+.pl-foto svg { transition-delay: inherit; }
 .planta:not(.is-impressa) .pl-b svg, .planta:not(.is-impressa) svg.pl-b { opacity: .35; }
-.pl-titulo b, .pl-titulo span { transition: color 0s; transition-delay: inherit; }
 .planta:not(.is-impressa) .pl-titulo b, .planta:not(.is-impressa) .pl-titulo span { color: transparent; }
-/* desmontado pela mão (régua tocada): a grade de 12 colunas da planta aparece por trás */
+/* desmontado pela mão (régua tocada): o texto fica legível em cinza (é ele que mostra o site se reorganizando)
+   e a grade de 12 colunas da planta aparece por trás, com o traço compensado pela escala (1 px de tela) */
+.planta.is-tracando .pl-b, .planta.is-tracando .pl-titulo b, .planta.is-tracando .pl-titulo span { color: var(--t3); }
 .pl { position: relative; isolation: isolate; --pl-px: 64px; }   /* (a grade fica atrás dos blocos: z-index -1 dentro do .pl) */
 @container planta (max-width: 899px) { .pl { --pl-px: 48px; } }
 @container planta (max-width: 599px) { .pl { --pl-px: 32px; } }
-.pl::before { content: ""; position: absolute; top: 0; bottom: 0; left: var(--pl-px); right: var(--pl-px); z-index: -1; pointer-events: none; opacity: 0; transition: opacity .3s var(--ease);
-  background-image: repeating-linear-gradient(90deg, rgb(var(--ac-rgb) / .12) 0 2px, transparent 2px calc(100% / 12)); }
+.pl::before { content: ""; position: absolute; top: 0; bottom: 0; left: var(--pl-px); right: var(--pl-px); z-index: -1; pointer-events: none; opacity: 0; transition: opacity .25s var(--ease);
+  background-image: repeating-linear-gradient(90deg, rgb(var(--ac-rgb) / .3) 0 var(--fio, 2px), transparent var(--fio, 2px) calc(100% / 12)); }
 .planta.is-tracando .pl::before { opacity: 1; }
+.pl::after { content: "12 colunas"; position: absolute; top: 4px; left: var(--pl-px); z-index: -1; opacity: 0; transition: opacity .25s var(--ease);
+  font-family: var(--mono); font-size: calc(var(--fio, 2px) * 11); letter-spacing: .1em; text-transform: uppercase; color: rgb(var(--ac-rgb) / .7); }
+.planta.is-tracando .pl::after { opacity: 1; }
+/* a tinta molhada (a do H1): a palavra carimba em ciano e seca para a cor dela, no mesmo atraso do carimbo; a
+   transição de duração 0 segura a cor de planta até lá (na cascata, a transição vence a animação) */
+.pl-seca { animation: pl-seca .5s var(--ease); }
+.pl-titulo b.pl-seca { animation-name: pl-seca-destaque; }
+@keyframes pl-seca { from { color: var(--ac); } }
+@keyframes pl-seca-destaque { from { color: var(--ac-2); } }
+/* nome longo: o título desce um degrau para os recursos não saírem da moldura */
+.pl-titulo.is-longo { font-size: 50px; }
+@container planta (max-width: 599px) { .pl-titulo.is-longo { font-size: 40px; } }
 /* a luz que imprime: desce (entrada e soltar a régua) e atravessa (o nome) */
 .planta__luz, .planta__luz-v { position: absolute; background: var(--ac); opacity: 0; pointer-events: none; z-index: 4; }
 .planta__luz { left: 0; right: 0; top: 0; height: 3px; }
@@ -172,8 +180,9 @@
 .planta.is-assinando .planta__luz-v { animation: planta-atravessa 450ms linear forwards; }
 @keyframes planta-desce { 0% { opacity: 0; transform: translateY(0); } 6% { opacity: 1; } 88% { opacity: 1; } 100% { opacity: 0; transform: translateY(var(--luz-fim, 800px)); } }
 @keyframes planta-atravessa { 0% { opacity: 0; transform: translateX(0); } 10% { opacity: 1; } 85% { opacity: 1; } 100% { opacity: 0; transform: translateX(var(--luz-fim-x, 1280px)); } }
-/* a tinta molhada (a do H1): o nome passa por ciano e seca para a cor dele */
-.pl-tinta { color: var(--ac) !important; transition: none !important; }
+/* o tempo da página viaja pendurado na luz e pousa no pé da moldura: a impressão é a prova de velocidade */
+.planta__tempo { position: absolute; left: 0; top: 0; z-index: 5; pointer-events: none; font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-dado); color: var(--ac); white-space: nowrap; }
+.planta__tempo span { display: block; padding: 2px 6px; background: var(--bg); border: 1px solid rgb(var(--ac-rgb) / .5); border-radius: var(--raio-s); }
 
 /* a fachada da foto */
 .pl-traco { fill: none; stroke: var(--t3); stroke-width: 1.4; vector-effect: non-scaling-stroke; }
@@ -181,6 +190,7 @@
 .pl-vidro { fill: rgb(var(--ac-rgb) / .1); stroke: rgb(var(--ac-rgb) / .55); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .pl-vidro--acesa { fill: rgb(var(--ac-rgb) / .28); }
 .planta:not(.is-impressa) .pl-vidro { fill: transparent; }
+.planta.is-tracando .pl-vidro { fill: transparent; }
 
 /* ---------- a régua ---------- */
 .planta__regua { position: relative; height: 66px; contain: layout; }
@@ -189,6 +199,10 @@
   background-image: linear-gradient(90deg, var(--line-2) 1px, transparent 1px); background-size: calc(100% / 27) 6px; background-repeat: repeat-x; }
 .planta__voce { position: absolute; top: 4px; height: 20px; border-left: 1px dashed rgb(var(--prata-rgb) / .55); transition: border-color .3s var(--ease); }
 .planta__regua.is-sua .planta__voce { border-left: 1px solid var(--ac); }
+/* tela fora da régua (mais de 1440 ou menos de 360): a marca fica na ponta e diz a medida de verdade */
+.planta__voce span { position: absolute; top: -18px; font-family: var(--mono); font-size: 10px; letter-spacing: var(--tr-dado); color: var(--t3); white-space: nowrap; }
+.planta__voce.is-acima span { right: 4px; }
+.planta__voce.is-abaixo span { left: 4px; }
 .planta__cursor { position: absolute; left: 0; top: 2px; width: 0; height: 30px; }
 .planta__cursor::before { content: ""; position: absolute; left: -1px; top: 0; width: 2px; height: 22px; background: var(--ac); }
 .planta__cursor::after { content: ""; position: absolute; left: -9px; top: 4px; width: 16px; height: 16px; border: 1px solid var(--ac); border-radius: 50%; background: var(--bg); }
@@ -211,24 +225,15 @@
 .planta__parada[aria-pressed="true"], .planta__parada:hover { color: var(--t1); }
 .planta__parada[aria-pressed="true"]::before { border-color: var(--ac); }
 .planta__parada:focus-visible { outline: 2px solid var(--ac); outline-offset: -2px; border-radius: var(--raio-s); }
+/* celular estreito: as três paradas viram três partes iguais embaixo da régua (as de 44 px encostavam e um toque
+   na divisa ia para a errada); as marcas no trilho continuam */
+@media (max-width: 399px) {
+  .planta__regua { display: grid; grid-template-columns: repeat(3, 1fr); align-items: end; height: auto; padding-top: 34px; }
+  .planta__parada, .planta__parada[data-parada="390"] { position: static; left: auto !important; transform: none; padding: 12px 4px 0; text-align: center; }
+  .planta__parada::before, .planta__parada[data-parada="390"]::before { display: none; }
+}
 
 /* ---------- a prova e o próximo passo ---------- */
 .servico .planta__prova { display: flex; align-items: center; gap: .5rem; margin: 0; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-dado); line-height: 1.5; color: var(--t3); }
 .planta__prova[hidden] { display: none; }
 .planta__prova svg { flex: none; width: 14px; height: 14px; color: var(--ac); }
-.planta__quero {
-  align-self: flex-start; display: inline-flex; align-items: center; gap: .6rem; min-height: 48px; padding: 0 1.1rem;
-  border: 1px solid rgb(var(--ac-rgb) / .6); border-radius: var(--raio-s); color: var(--ac);
-  font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-ctrl); text-transform: uppercase; text-decoration: none;
-  transition: background-color var(--t-micro) var(--ease-micro), border-color var(--t-micro) var(--ease-micro);
-}
-.planta__quero:hover { background: rgb(var(--ac-rgb) / .08); border-color: var(--ac); }
-.planta__quero:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
-.planta__quero [data-seta] { transition: transform var(--t-micro) var(--ease-micro); }
-.planta__quero:hover [data-seta] { transform: translateX(4px); }
-@media (max-width: 420px) { .planta__quero { align-self: stretch; justify-content: space-between; } }
-
-/* o cartão inteiro leva a /sites; a peça fica por cima do link para continuar interativa */
-.servico--peca .servico__link::before { content: ""; position: absolute; inset: 0; z-index: 1; }
-.servico--peca .servico__link { position: static; }
-.servico--peca .servico__link::after { display: none; }

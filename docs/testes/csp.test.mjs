@@ -163,7 +163,7 @@ test('logo: as páginas usam a logo em SVG, sem estilo nem cor embutidos e com o
    CSP (nenhum style="" no HTML) e funciona sem mouse: a régua é um slider com valor falado e as paradas são botões. */
 test('peça de Sites: o nome não sai da página, a CSP vale e a régua é acessível', () => {
   const html = readFileSync(new URL('index.html', RAIZ), 'utf8');
-  const peca = (html.match(/<div class="planta" data-planta[\s\S]*?<a class="planta__quero"[^>]*>/) || [])[0];
+  const peca = (html.match(/<div class="planta" data-planta[\s\S]*?<\/article>/) || [])[0];
   assert.ok(peca, 'index.html: o cartão de Sites sem a peça');
   assert.ok(!/style="/.test(peca), 'index.html: estilo embutido na peça (a CSP bloqueia)');
   const slider = (peca.match(/<div class="planta__slider"[^>]*>/) || [''])[0];

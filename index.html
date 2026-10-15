@@ -76,6 +76,7 @@
   <link rel="stylesheet" href="css/componentes.css" />
   <link rel="stylesheet" href="css/cartoes.css" />
   <link rel="stylesheet" href="css/peca-sites.css" />
+  <link rel="stylesheet" href="css/peca-automacao.css" />
   <link rel="stylesheet" href="css/motion.css" />
   <link rel="stylesheet" href="css/passagem.css" />
   <link rel="stylesheet" href="css/passagem-destinos.css" />
@@ -211,13 +212,6 @@
           <h3 id="servico-1-t">Sites</h3>
           <span class="servico__para">Para quem precisa ser encontrado. A partir de R$&nbsp;1.800.</span>
           <div class="planta" data-planta role="group" aria-label="Demonstração: um site de exemplo com o nome do seu negócio, no celular, no tablet e no computador">
-            <div class="planta__controles">
-              <div class="planta__nichos" role="group" aria-label="Tipo de negócio do exemplo">
-                <button type="button" class="planta__nicho" data-nicho="clinica" aria-pressed="false">Clínica</button><button type="button" class="planta__nicho" data-nicho="escritorio" aria-pressed="false">Escritório</button><button type="button" class="planta__nicho" data-nicho="loja" aria-pressed="false">Loja</button><button type="button" class="planta__nicho" data-nicho="entidade" aria-pressed="false">Entidade</button>
-              </div>
-              <label class="planta__nome"><span>Experimente: o nome do seu negócio</span><input type="text" maxlength="28" autocomplete="off" autocapitalize="words" enterkeyhint="done" spellcheck="false" placeholder="Ex.: Clínica Sorriso" aria-describedby="planta-nota" data-planta-campo /></label>
-              <span class="planta__nota" id="planta-nota">Aparece no site de exemplo abaixo. Fica só no seu aparelho.</span>
-            </div>
             <div class="planta__palco" aria-hidden="true">
               <div class="planta__moldura">
                 <span class="planta__luz"></span><span class="planta__luz-v"></span><span class="planta__camera"></span>
@@ -245,13 +239,14 @@
                     </div>
                   </div>
                   <ul class="pl-recursos">
-                    <li data-flip><svg class="pl-b" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" focusable="false"><path d="M13 2L5 14h6l-1 8 8-12h-6z"/></svg><span class="pl-rot pl-b">Rápido</span><i class="pl-barra pl-b"></i></li>
-                    <li data-flip><svg class="pl-b" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" focusable="false"><path d="M12 2l8 3v6c0 5-3.5 9-8 11-4.5-2-8-6-8-11V5z"/></svg><span class="pl-rot pl-b">Seguro</span><i class="pl-barra pl-b"></i></li>
-                    <li data-flip><svg class="pl-b" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" focusable="false"><path d="M12 3l9 5-9 5-9-5zM3 13l9 5 9-5"/></svg><span class="pl-rot pl-b">No seu nome</span><i class="pl-barra pl-b"></i></li>
-                    <li data-flip><svg class="pl-b" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" focusable="false"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span class="pl-rot pl-b">No ar em 10 dias</span><i class="pl-barra pl-b"></i></li>
+                    <li data-flip><svg class="pl-b" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" focusable="false"><path d="M13 2L5 14h6l-1 8 8-12h-6z"/></svg><span class="pl-rot pl-b" data-planta-recurso>Serviços</span><i class="pl-barra pl-b"></i></li>
+                    <li data-flip><svg class="pl-b" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" focusable="false"><path d="M12 2l8 3v6c0 5-3.5 9-8 11-4.5-2-8-6-8-11V5z"/></svg><span class="pl-rot pl-b" data-planta-recurso>Depoimentos</span><i class="pl-barra pl-b"></i></li>
+                    <li data-flip><svg class="pl-b" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" focusable="false"><path d="M12 3l9 5-9 5-9-5zM3 13l9 5 9-5"/></svg><span class="pl-rot pl-b" data-planta-recurso>Como chegar</span><i class="pl-barra pl-b"></i></li>
+                    <li data-flip><svg class="pl-b" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" focusable="false"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span class="pl-rot pl-b" data-planta-recurso>WhatsApp</span><i class="pl-barra pl-b"></i></li>
                   </ul>
                 </div>
               </div>
+              <span class="planta__tempo" hidden><span data-planta-tempo></span></span>
             </div>
             <div class="planta__regua">
               <div class="planta__slider" role="slider" tabindex="0" aria-label="Largura da tela do exemplo" aria-valuemin="360" aria-valuemax="1440" aria-valuenow="1280" aria-valuetext="Computador, 1280 pixels">
@@ -262,21 +257,56 @@
               </div>
               <button type="button" class="planta__parada" data-parada="390" aria-pressed="false">Celular</button><button type="button" class="planta__parada" data-parada="768" aria-pressed="false">Tablet</button><button type="button" class="planta__parada" data-parada="1280" aria-pressed="true">Computador</button>
             </div>
+            <div class="planta__controles">
+              <span class="planta__agora">Agora com o seu negócio</span>
+              <div class="planta__nichos" role="group" aria-label="Tipo de negócio do exemplo">
+                <button type="button" class="planta__nicho" data-nicho="clinica" aria-pressed="false">Clínica</button><button type="button" class="planta__nicho" data-nicho="escritorio" aria-pressed="false">Escritório</button><button type="button" class="planta__nicho" data-nicho="loja" aria-pressed="false">Loja</button><button type="button" class="planta__nicho" data-nicho="entidade" aria-pressed="false">Entidade</button>
+              </div>
+              <label class="planta__nome"><span>O nome dele</span><input type="text" maxlength="28" autocomplete="off" autocapitalize="words" enterkeyhint="done" spellcheck="false" placeholder="Ex.: Clínica Sorriso" aria-describedby="planta-nota" data-planta-campo /></label>
+              <span class="planta__nota" id="planta-nota">Aparece no site de exemplo acima. Fica só no seu aparelho.</span>
+            </div>
             <p class="planta__prova" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M13 2L5 14h6l-1 8 8-12h-6z"/></svg><span data-planta-prova></span></p>
-            <a class="planta__quero" href="/orcamento" data-planta-quero>Quero um site assim <span aria-hidden="true" data-seta="direita">→</span></a>
           </div>
           <ul class="servico__formatos" role="list"><li><b>01</b> Institucional</li><li><b>02</b> Landing page</li><li><b>03</b> Experiência digital</li></ul>
-          <p id="servico-1-p">Institucionais, landing pages e experiências digitais, no ar em até 10&nbsp;dias corridos depois do sinal e do material. Rápidos no celular, com a prova de velocidade rodando na sua frente.</p>
-          <a class="servico__link" id="servico-1-l" href="/sites" aria-describedby="servico-1-p">Ver sites <span aria-hidden="true" data-seta="direita">→</span></a>
+          <p id="servico-1-p">Institucionais, landing pages e experiências digitais, no ar em até 10&nbsp;dias corridos depois do sinal e do material.</p>
+          <div class="servico__acoes">
+            <a class="peca-quero peca-quero--cheio" href="/orcamento" data-planta-quero><span class="peca-quero__texto">Quero um site assim</span> <span aria-hidden="true" data-seta="direita">→</span></a>
+            <a class="peca-wa" href="https://wa.me/5521977167944" data-wa="quero um site para o meu negócio" data-planta-wa>ou peça pelo WhatsApp</a>
+            <a class="servico__link" id="servico-1-l" href="/sites" aria-describedby="servico-1-p">Ver sites <span aria-hidden="true" data-seta="direita">→</span></a>
+          </div>
         </article>
-        <a data-rotulo="Só onde a conta fecha" class="painel painel--tinta servico" href="/automacao" aria-labelledby="servico-2-t servico-2-l" aria-describedby="servico-2-p">
+        <article data-rotulo="Só onde a conta fecha" class="painel painel--tinta servico servico--peca" aria-labelledby="servico-2-t">
           <span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span>
           <span class="servico__n" aria-hidden="true">02</span>
           <h3 id="servico-2-t">Automação &amp; IA</h3>
-          <p id="servico-2-p">Agentes, automação de processos e sistemas que devolvem capacidade para a operação. Diagnóstico grátis primeiro; construção só onde a conta fecha.</p>
           <span class="servico__para">Para associações, sindicatos, federações e cooperativas.</span>
-          <span class="servico__link" id="servico-2-l">Ver automação <span aria-hidden="true" data-seta="direita">→</span></span>
-        </a>
+          <div class="despacho" data-despacho role="group" aria-label="Demonstração: o caminho de um pedido numa rotina automatizada">
+            <div class="despacho__pedidos" role="group" aria-label="Escolha um pedido">
+              <button type="button" class="despacho__pedido" data-pedido="boleto" aria-pressed="false">2ª via do boleto</button><button type="button" class="despacho__pedido" data-pedido="filiacao" aria-pressed="false">Nova filiação</button><button type="button" class="despacho__pedido" data-pedido="cadastro" aria-pressed="false">Atualizar cadastro</button><button type="button" class="despacho__pedido" data-pedido="pessoa" aria-pressed="false">Falar com uma pessoa</button>
+            </div>
+            <div class="despacho__placa" aria-hidden="true">
+              <svg class="despacho__trilhas" focusable="false"></svg>
+              <div class="despacho__linha">
+                <span class="dp-no" data-no="whatsapp"><svg viewBox="0 0 24 24" focusable="false"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 19.2z"/></svg>WhatsApp</span>
+                <span class="dp-no" data-no="email"><svg viewBox="0 0 24 24" focusable="false"><path d="M3 6h18v12H3zM3 7l9 6 9-6"/></svg>E-mail</span>
+                <span class="dp-no" data-no="site"><svg viewBox="0 0 24 24" focusable="false"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>Site</span>
+              </div>
+              <div class="despacho__centro"><span class="dp-no dp-agente" data-no="agente"><i></i><i></i><i></i><i></i>Agente</span></div>
+              <div class="despacho__linha">
+                <span class="dp-no" data-no="sistema"><svg viewBox="0 0 24 24" focusable="false"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>Sistema</span>
+                <span class="dp-no" data-no="financeiro"><svg viewBox="0 0 24 24" focusable="false"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6"/></svg>Finanças</span>
+                <span class="dp-no" data-no="planilha"><svg viewBox="0 0 24 24" focusable="false"><path d="M3 4h18v16H3zM3 9h18M3 14h18M9 4v16"/></svg>Planilha</span>
+                <span class="dp-no" data-no="equipe"><svg viewBox="0 0 24 24" focusable="false"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg>Equipe</span>
+              </div>
+            </div>
+            <ol class="despacho__registro" role="list"></ol>
+            <p class="despacho__fim" aria-live="polite"></p>
+            <p class="despacho__nota">Exemplo de rotina. Cada entidade tem as suas: o diagnóstico grátis mostra quais valem automatizar.</p>
+            <a class="despacho__quero peca-quero" href="/automacao#contato">Quero o diagnóstico grátis <span aria-hidden="true" data-seta="direita">→</span></a>
+          </div>
+          <p id="servico-2-p">Agentes, automação de processos e sistemas que devolvem capacidade para a operação. Diagnóstico grátis primeiro; construção só onde a conta fecha.</p>
+          <a class="servico__link" id="servico-2-l" href="/automacao" aria-describedby="servico-2-p">Ver automação <span aria-hidden="true" data-seta="direita">→</span></a>
+        </article>
         <a data-rotulo="Responde até de madrugada" class="painel painel--tinta servico" data-wa="quero testar o atendente de IA no WhatsApp por 10 dias grátis" href="https://wa.me/5521977167944" aria-labelledby="servico-3-t servico-3-l" aria-describedby="servico-3-p">
           <span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span>
           <span class="servico__n" aria-hidden="true">03</span>
@@ -421,6 +451,7 @@
   <script src="js/estacao.js" defer></script>
   <script src="js/ouro.js" defer></script>
   <script src="js/peca-sites.js" defer></script>
+  <script src="js/peca-automacao.js" defer></script>
   <script src="js/nucleo/boot.js" defer></script>
 </body>
 </html>
