@@ -156,3 +156,24 @@ test('logo: as páginas usam a logo em SVG, sem estilo nem cor embutidos e com o
   const reduzido = motion.slice(motion.search(/@media \(prefers-reduced-motion: reduce\) \{\r?\n/));
   assert.match(reduzido, /\.marca__pulso-in, \.marca__pulso-out \{ animation: none/, 'motion.css: a luz da logo não desliga com movimento reduzido');
 });
+
+/* A PLANTA (2026-10-14, a peça do cartão de Sites: docs/restructure/PECAS-SERVICOS.md). O visitante digita o
+   nome do negócio dele: o nome entra na página só como texto (nada de innerHTML), nunca sai pela rede nem pela
+   URL, e só vai ao orçamento (sessionStorage, nesta aba) se a pessoa clicar em "Quero este site". A peça segue a
+   CSP (nenhum style="" no HTML) e funciona sem mouse: a régua é um slider com valor falado e as paradas são botões. */
+test('peça de Sites: o nome não sai da página, a CSP vale e a régua é acessível', () => {
+  const html = readFileSync(new URL('index.html', RAIZ), 'utf8');
+  const peca = (html.match(/<div class="planta" data-planta[\s\S]*?<a class="planta__quero"[^>]*>/) || [])[0];
+  assert.ok(peca, 'index.html: o cartão de Sites sem a peça');
+  assert.ok(!/style="/.test(peca), 'index.html: estilo embutido na peça (a CSP bloqueia)');
+  const slider = (peca.match(/<div class="planta__slider"[^>]*>/) || [''])[0];
+  for (const a of ['role="slider"', 'tabindex="0"', 'aria-label=', 'aria-valuemin=', 'aria-valuemax=', 'aria-valuenow=', 'aria-valuetext=']) assert.ok(slider.includes(a), 'régua sem ' + a);
+  assert.equal((peca.match(/<button type="button" class="planta__parada"/g) || []).length, 3, 'as três paradas da régua têm de ser botões');
+  assert.match(peca, /<label class="planta__nome">[\s\S]*?<input[^>]*aria-describedby="planta-nota"[^>]*data-planta-campo/, 'o campo do nome sem rótulo ou sem a nota de privacidade');
+  const js = readFileSync(new URL('js/peca-sites.js', RAIZ), 'utf8');
+  assert.ok(!/innerHTML|outerHTML|insertAdjacentHTML|document\.write/.test(js), 'js/peca-sites.js: o nome tem de entrar como texto');
+  assert.ok(!/fetch\(|XMLHttpRequest|sendBeacon|navigator\.sendBeacon|location\s*=|location\.href\s*=|history\.(push|replace)State/.test(js), 'js/peca-sites.js: o nome não pode sair pela rede nem pela URL');
+  const usos = js.match(/sessionStorage\.setItem/g) || [];
+  const noClique = (js.match(/quero\.addEventListener\('click'[\s\S]*?\n  \}\);/) || [''])[0];
+  assert.ok(usos.length > 0 && (noClique.match(/sessionStorage\.setItem/g) || []).length === usos.length, 'js/peca-sites.js: o nome só pode ir para o sessionStorage no clique de "Quero este site"');
+});
