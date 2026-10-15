@@ -170,3 +170,50 @@ livre vieram dela.
 - **Dados do negócio:** entram como **[espaço reservado]**, marcado, nunca inventado: preço, convênios,
   horários.
 - **O próximo passo:** "Testar 10 dias grátis", no WhatsApp com a mensagem pronta (com o nome, se houver).
+
+## Estado e retomada (2026-10-15)
+
+**Dono:** "Quero que continue aprimorando agora somente a parte dos sites, as outras duas estão maravilhosas".
+- **O Despacho e O Plantão estão APROVADOS:** não mexer neles sem pedido.
+- **A Planta continua em aprimoramento.**
+
+**Onde está:**
+- branch `pecas-servicos` (worktree `03 Projetos/site-logo`), último commit `25a8d6b`, enviado; sem PR ainda;
+- prévia da Vercel: `beyon0-site-git-pecas-servicos-beyond0.vercel.app` (pede login da conta do dono);
+- servidor local: `node docs/servidor.mjs . 8897`.
+
+**Ferramentas de verificação** (scripts no scratchpad da sessão; recriar a partir desta descrição se sumirem):
+- `checar.mjs`: rolagem lateral de 320 a 1440 px no pior caso;
+- `quadros.mjs <largura>`: sequências de quadros dos momentos principais;
+- `medir-pecas.mjs`: A/B com GPU e CPU 4× a 390 px, sempre rolando até o topo de cada cartão;
+- `rastro.mjs` e `camadas.mjs`: linha do tempo do navegador.
+
+Ao medir, ponha `sessionStorage bz-ouro=1`, para a ignição do ouro não entrar no teste.
+
+**Críticos usados:** júri de prêmio, diretor de motion, celular e conversão. As notas da Planta, por rodada:
+
+| Rodada | Júri | Celular e conversão |
+|---|---|---|
+| 1 | 6,0 | 6,5 |
+| 2 | 6,8 | 8,0 |
+| 3 | 7,3 | 8,5 |
+| 4 | 7,8 | 8,5 |
+
+**O que ainda falta na Planta** (da rodada 4 dos críticos):
+1. A cota do LCP pendurada na luz nunca foi vista numa captura (o headless passa de 2,5 s). Ver num celular de verdade ou com rede rápida, e conferir se dá para ler sobre a luz.
+2. A tinta que seca na marca do topo quase não aparece; dar mais contraste.
+3. Parada, a peça ainda lê "um navegador". Ideias do júri:
+   - uma cota de largura colada embaixo da moldura (linha de 1 px com riscos nas pontas e "390 px"), que acompanha a largura por `scaleX`;
+   - ou um contorno fantasma tracejado do tamanho de onde o arraste começou.
+4. Continuidade: um selo "para {nome}" nos cartões quando há nome.
+5. Teclado num celular de verdade: confirmar que o palco grudado funciona.
+6. A demonstração ainda muda a largura a cada quadro. É uma exceção medida: no aparelho lento é pulada.
+
+**PRs pendentes, separados (nível 3):**
+- `/orcamento` pré-preencher o nome e o nicho (`bz-planta-nome`, `bz-planta-nicho`, apagando ao ler);
+- `js/lead-form.js` usar `bz-despacho-pedido`.
+
+**Antes de mesclar:**
+- trazer a `main` (memória `atualizar-com-main-antes-de-mesclar`);
+- abrir o PR com as revisões técnica e de segurança;
+- o dono promove na Vercel.
