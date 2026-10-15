@@ -94,7 +94,13 @@ test('próximo passo: o código diz ao modelo o que fazer agora, pela ordem do f
   assert.doesNotMatch(p(loja), /(?<!não )chame estimar(?! sem ela)/i, 'não estima a loja do zero');
   /* loja em plataforma: estima direto; área restrita: estima com o adicional */
   assert.match(p({ ...loja, projeto: { formato: 'loja_plataforma' } }), /Já dá para estimar/);
-  assert.match(p({ ...loja, projeto: { formato: 'institucional' }, funcionalidades: ['area_restrita'] }), /chame estimar agora[^.]*inclua o adicional area_restrita/);
+  const area = { ...loja, projeto: { formato: 'institucional' }, funcionalidades: ['area_restrita'] };
+  assert.match(p(area, { regras: comArea(REGRAS) }), /chame estimar agora[^.]*inclua o adicional area_restrita/);
+  /* tabela de 2026-10-14: a área restrita é orçada numa conversa (revisão do PR #42: o modelo mandava estimar com ela,
+     o motor devolvia o diagnóstico e a estimativa ficava nula, turno após turno) */
+  const fora = p(area, { regras: REGRAS });
+  assert.match(fora, /área restrita[^.]*conversa[^.]*encaminhar_diagnostico/i);
+  assert.doesNotMatch(fora, /(?<!não )chame estimar(?! sem ela)|inclua o adicional area_restrita/i, 'não estima com a área restrita');
 });
 
 test('o turno usa o harness: instruções montadas da tabela, estado com o próximo passo', async () => {

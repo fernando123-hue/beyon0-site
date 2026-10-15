@@ -68,3 +68,24 @@ test('sites.html: o FAQ de preço diz as bases da tabela, e a área restrita vai
   assert.equal(regras.adicionais.area_restrita.fora_do_automatico, true);
   assert.ok(faq.includes('Área restrita com login começa em R$ 4.500 e é orçada numa conversa, com o escopo escrito.'), faq);
 });
+
+/* os cartões de formato também citam preço (revisão do PR #42: sites.html e index.html ficaram com 1.500 e 3.500
+   depois de a tabela mudar). Cada "A partir de R$ X" do cartão sai da base do formato do título dele. */
+test('sites.html e index.html: o preço dos cartões de formato é a base da tabela', () => {
+  const regras = JSON.parse(readFileSync(new URL('docs/fase2/regras-rascunho-v1.json', RAIZ), 'utf8'));
+  const real = v => 'R$ ' + v.toLocaleString('pt-BR');
+  const f = regras.formatos;
+  const base = { 'Site institucional': f.institucional.base, 'Landing page': f.landing_page.base, 'Experiência digital': f.sob_medida.base,
+    'Loja virtual': f.loja_plataforma.base, 'Sites': f.landing_page.base };
+  let vistos = 0;
+  for (const arquivo of ['sites.html', 'index.html']) {
+    const html = readFileSync(new URL(arquivo, RAIZ), 'utf8');
+    for (const [, titulo, para] of html.matchAll(/<h3 id="(?:formato|servico)-\d+-t">([^<]+)<\/h3>[\s\S]*?<span class="servico__para">([^<]*)<\/span>/g)) {
+      const preco = limpar(para).match(/R\$ \d{1,3}(?:\.\d{3})*/);   /* (sem o ponto final da frase) */
+      if (!preco || !(titulo in base)) continue;
+      vistos++;
+      assert.equal(preco[0], real(base[titulo]), arquivo + ': cartão "' + titulo + '"');
+    }
+  }
+  assert.ok(vistos >= 4, 'esperava os cartões de preço de sites.html e o de Sites em index.html: ' + vistos);
+});

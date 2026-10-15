@@ -214,8 +214,9 @@ const NOMES_FALTA = { negocio: 'o que o negócio faz e para quem', objetivo: 'o 
 /* as etapas de app.conversas.etapa (supabase/migrations/*vendas_tabelas*, *transicoes_conversa*) depois do contato */
 const ETAPAS_DA_TELA = ['gerando', 'direcoes', 'escolhida', 'alteracoes', 'escopo', 'aguardando_pagamento', 'em_producao', 'encerrada'];
 /* loja (tabela v2, 2026-10-09): em plataforma pronta é o formato loja_plataforma, com preço; só a feita do zero vai para o
-   diagnóstico. A área restrita virou adicional com preço e não passa mais por aqui */
-const LOJA = 'loja';
+   diagnóstico. A área restrita foi adicional com preço na v2 e voltou para a conversa na tabela de 2026-10-14 (dono:
+   "a partir de R$ 4.500, com escopo escrito"); o que vale é o que a tabela ATIVA diz */
+const LOJA = 'loja', AREA = 'area_restrita';
 
 /* o que fazer agora, pela ordem do funil (texto para o modelo; o código decide, o modelo executa).
    Na tela, o formulário de contato aparece sozinho quando há estimativa e ainda não há contato (js/orcamento.js);
@@ -223,6 +224,7 @@ const LOJA = 'loja';
 export function proximoPasso({ etapa, briefing, estimativa, regras = null }) {
   /* sem a tabela, vale a v2; com ela, a loja só é vendável se a tabela ativa a traz */
   const temLoja = !regras || !!regras.formatos?.loja_plataforma;
+  const areaNaConversa = !!regras?.adicionais?.[AREA]?.fora_do_automatico;
   const b = briefing || {};
   if (etapa === 'escopo') return 'A pessoa está conferindo o bloco "Resumo do que será feito" na tela, com o valor e o prazo. Responda a dúvida em poucas frases, com o que está nas suas instruções, e indique o botão "Confirmar o escopo", sem pressa. Os ajustes já foram fechados: se ela quiser mudar algo no escopo, diga que é pelo WhatsApp da Beyon Zero (o link está no bloco do escopo); você não muda escopo, valor nem prazo. Sobre o que está ou não incluído, não afirme de memória: peça para a pessoa conferir no bloco "Resumo do que será feito"; se não estiver escrito lá, a Beyon Zero confirma pelo WhatsApp. Não chame estimar nem pedir_contato.';
   if (etapa === 'aguardando_pagamento') return 'O escopo foi confirmado e a pessoa está no bloco "Para começar", que cobra o sinal por Pix ou cartão; o restante é pago na entrega. Responda a dúvida em poucas frases, com o que está nas suas instruções, e indique esse bloco. Nunca diga que o pagamento foi recebido ou confirmado: a própria tela mostra quando ele cai. Se o pagamento online falhar ou a pessoa preferir, a Beyon Zero envia o pagamento pelo WhatsApp. Sobre o que está ou não incluído, não afirme de memória: peça para a pessoa conferir no bloco "Resumo do que será feito" (em "Ver o escopo confirmado", no bloco "Para começar"); se não estiver escrito lá, a Beyon Zero confirma pelo WhatsApp. Não chame estimar nem pedir_contato.';
@@ -235,6 +237,7 @@ export function proximoPasso({ etapa, briefing, estimativa, regras = null }) {
   /* (a lista do briefing só soma: quem desiste da loja e já foi estimado sem ela segue o funil) */
   if (!estimativa && (b.funcionalidades || []).includes(LOJA) && !temLoja) return 'O projeto pede uma loja virtual, que a tabela atual não estima: chame encaminhar_diagnostico, se ainda não chamou, e explique em uma frase; não chame estimar com a loja. Se a pessoa desistir da loja e quiser só o site, chame estimar sem ela.';
   if (!estimativa && (b.funcionalidades || []).includes(LOJA) && b.projeto?.formato !== 'loja_plataforma') return 'A pessoa quer vender online. Pergunte se uma loja em plataforma pronta (Nuvemshop ou Shopify), com a cara da marca, resolve: se sim, o formato é loja_plataforma e dá para estimar. Se ela precisa de uma loja feita do zero, em código próprio, chame encaminhar_diagnostico e explique em uma frase; não chame estimar com o adicional loja_virtual. Se a pessoa desistir da loja e quiser só o site, chame estimar sem ela.';
+  if (!estimativa && (b.funcionalidades || []).includes(AREA) && areaNaConversa) return 'O projeto pede uma área restrita com login, que é orçada numa conversa, com o escopo escrito: chame encaminhar_diagnostico, se ainda não chamou, e explique em uma frase; não chame estimar com a área restrita. Se a pessoa desistir da área e quiser só o site, chame estimar sem ela.';
   const { confianca, faltam } = avaliar(b);
   /* a dor (SPIN): uma pergunta, depois do negócio e do objetivo e antes do formato; registrada em situacao_atual */
   if (!estimativa && !b.situacao_atual && (b.negocio?.segmento || b.negocio?.descricao) && (b.objetivos?.length || b.objetivo_detalhe) && !b.projeto?.formato) return 'Antes do formato, uma pergunta sobre o que acontece hoje: como os clientes novos chegam e o que se perde no caminho (quem procura e não acha, quem pergunta e não tem resposta). Registre o que a pessoa disser em situacao_atual, mesmo que seja "não sei". Se ela pedir o valor, ou se você já fez esta pergunta nesta conversa, não repita: siga para o formato.';
@@ -242,7 +245,7 @@ export function proximoPasso({ etapa, briefing, estimativa, regras = null }) {
     const falta = faltam.find(f => ['negocio', 'objetivo', 'formato'].includes(f)) || faltam[0];
     return 'Descobrir ' + NOMES_FALTA[falta] + '. Uma pergunta só, concreta.' + (falta === 'formato' ? ' Se a pessoa não souber, recomende um formato com uma frase de motivo e confirme.' : '');
   }
-  if (!estimativa) return 'Já dá para estimar: chame estimar agora com o formato e o que já se sabe do escopo' + ((b.funcionalidades || []).includes('area_restrita') ? ' (inclua o adicional area_restrita; os extras dela só se a pessoa pediu)' : '') + '. Recomende o formato em uma frase, com o motivo ligado ao que a pessoa contou (de preferência a situação de hoje), diga que o investimento está no cartão e termine com uma pergunta de confirmação, como "Seguimos por esse caminho?".';
+  if (!estimativa) return 'Já dá para estimar: chame estimar agora com o formato e o que já se sabe do escopo' + ((b.funcionalidades || []).includes(AREA) && !areaNaConversa ? ' (inclua o adicional area_restrita; os extras dela só se a pessoa pediu)' : '') + '. Recomende o formato em uma frase, com o motivo ligado ao que a pessoa contou (de preferência a situação de hoje), diga que o investimento está no cartão e termine com uma pergunta de confirmação, como "Seguimos por esse caminho?".';
   if (confianca < LIMIAR_DIRECOES) {
     const proximos = faltam.slice(0, 2).map(f => NOMES_FALTA[f]).join(' e ');
     return 'Estimativa já mostrada; o formulário de contato já aparece na tela, abaixo do cartão. Antes de oferecer as direções, complete o briefing: falta ' + proximos + ' (uma pergunta por vez), dando a continuação como certa ("para as direções saírem com a cara do seu negócio: …"). Se a pessoa disser que quer seguir ou fechar, chame pedir_contato já, uma vez (não repita nos turnos seguintes): quem quer comprar não espera pergunta. Se a pessoa levantar uma objeção, trate-a antes, com uma pergunta.';

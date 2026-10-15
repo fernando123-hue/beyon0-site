@@ -174,6 +174,13 @@ test('tabela anterior, sem a loja, continua válida (o código pode subir antes 
   assert.ok((validarRegras(sem).erros || []).some(x => /produtos_lote_25\.requer/.test(x)), 'adicional que exige formato ausente é recusado');
 });
 
+/* tirar a base do automático sem tirar os dependentes (o caso de 2026-10-14) deixaria extras que nunca entram: a tabela
+   é recusada (revisão do PR #42) */
+test('dependente de uma base fora do automático é recusado', () => {
+  const r = copiaArea(); r.adicionais.area_restrita = { nome: 'Área restrita com login', fora_do_automatico: true };
+  assert.ok((validarRegras(r).erros || []).some(x => /area_tela_extra\.requer: formatos ou adicionais automáticos/.test(x)), JSON.stringify(validarRegras(r)));
+});
+
 test('dependência circular é recusada: A exige B e B exige A nunca chega a uma fase', () => {
   const r = copiaArea();
   r.adicionais.area_restrita.requer = ['area_tela_extra'];
