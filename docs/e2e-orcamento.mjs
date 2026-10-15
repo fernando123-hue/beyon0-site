@@ -287,12 +287,18 @@ try {
   ok(await semRolagemLateral(painel), 'painel no celular: sem rolagem lateral');
   await foto(painel, '5-painel-pendentes-cel');
   /* 2 toques (dono, 2026-10-14): confirmar põe o pedido na fila e, com a IA ligada, gasta; o 1º toque só arma */
+  /* (conta as ações mandadas ao servidor, em vez de esperar um tempo fixo: num CI lento, esperar daria falso verde) */
+  const ehAcao = req => req.method() === 'POST' && new URL(req.url()).pathname === '/api/painel';
+  let acoes = 0;
+  painel.on('request', req => { if (ehAcao(req)) acoes++; });
   const confirmar = cartao.getByRole('button', { name: /confirmar/i });
   await confirmar.click();
   ok((await confirmar.textContent()).trim() === 'Toque de novo para confirmar', 'painel: o 1º toque em "Chegou: confirmar" só arma o botão');
-  await painel.waitForTimeout(800);   /* (tempo de uma resposta do servidor local: se o 1º toque tivesse confirmado, o pedido já teria saído) */
-  ok(await painel.locator('#pendentes .pn__fila', { hasText: codigo }).count() === 1, 'painel: com 1 toque, o pedido continua esperando confirmação');
+  ok(acoes === 0 && await painel.locator('#pendentes .pn__fila', { hasText: codigo }).count() === 1, 'painel: com 1 toque, nada vai ao servidor e o pedido continua esperando confirmação');
+  const vai = painel.waitForRequest(ehAcao, { timeout: 15000 });
   await confirmar.click();
+  await vai;
+  ok(acoes === 1, 'painel: o 2º toque manda a confirmação, uma vez');
   const naFila = painel.locator('#fila .pn__fila', { hasText: codigo });
   await naFila.waitFor({ timeout: 15000 });
   ok(await naFila.isVisible(), 'painel: confirmado, o pedido passa para a fila de trabalho');
