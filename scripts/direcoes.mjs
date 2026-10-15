@@ -7,9 +7,9 @@
      node scripts/direcoes.mjs fila
      node scripts/direcoes.mjs pedido <8+ caracteres do pedido>
      node scripts/direcoes.mjs entregar-pedido <8+ caracteres do pedido>
-   Sem chave (o Claude Code roda):
-     node scripts/direcoes.mjs conferir <arquivo.json> <conversao|autoridade|experiencia>
      node scripts/direcoes.mjs limpar [dias, padrão 3]
+   Sem chave (o único comando que a sessão do Claude Code roda):
+     node scripts/direcoes.mjs conferir <arquivo.json> <conversao|autoridade|experiencia>
 
    Ambiente do dono: BZ_BASE (o site, https) e PAINEL_CHAVE (nunca em arquivo).
    PRIVACIDADE: o pedido gravado para o modelo leva o briefing (com nome,
@@ -56,10 +56,16 @@ export function arquivoDeDirecao(arquivo, raiz = PASTA) {
 
 /* prepara a pasta onde a sessão isolada vai trabalhar: o Claude Code carrega dali configuração, memória e MCP, então o
    que estiver plantado é apagado; settings e instruções são gravados por último, depois de checar a SKILL de origem.
+   A pasta-mãe (~/BeyonZero-direcoes) não se apaga daqui: o Claude Code também lê o CLAUDE.md e o .claude das pastas ACIMA
+   da de trabalho, então, se existirem lá, o preparo recusa (antes de tocar em qualquer coisa) e pede ao dono que os tire.
    No Windows o modo 0o600 não vale: a proteção real é a pasta ficar fora do repositório, no perfil do dono */
+const CONFIG_DO_CLAUDE = ['CLAUDE.md', 'CLAUDE.local.md', '.claude'];
 export function prepararPastaSessao({ dir, repo }) {
   const origem = path.join(repo, '.claude', 'skills', 'produzir-direcoes', 'SKILL.md');
   if (!fs.existsSync(origem)) throw new Error('Falta a SKILL ' + origem + ': não dá para montar as instruções da sessão isolada.');
+  const mae = path.dirname(dir);
+  const naMae = CONFIG_DO_CLAUDE.filter(n => fs.existsSync(path.join(mae, n)));
+  if (naMae.length) throw new Error('A pasta ' + mae + ' tem ' + naMae.join(', ') + ': apague (ou mova) antes, porque a sessão isolada leria essas instruções.');
   const skill = fs.readFileSync(origem, 'utf8');
   for (const n of ['.claude', 'CLAUDE.md', 'CLAUDE.local.md', '.mcp.json']) fs.rmSync(path.join(dir, n), { recursive: true, force: true });
   const settings = path.join(dir, '.sessao.json'), instrucoes = path.join(dir, '.instrucoes.md');
@@ -164,8 +170,10 @@ export function avaliarArquivo(conteudo, estrategia) {
   return { ok: true, mensagem: 'OK' + (h.ajustes.length ? ' (o filtro corrigiu: ' + h.ajustes.join(', ') + ')' : '') + ' · ' + h.direcao.secoes.length + ' seções · "' + h.direcao.nome_conceito + '"' };
 }
 
-/* A CONFIRMAÇÃO DO DONO: o código muda a cada pergunta, então "echo ENTREGAR | ..." ou um script não entrega nada;
-   só quem leu a tela e digitou o código de agora. Resposta vazia ou terminal fechado = não entrega. */
+/* A CONFIRMAÇÃO DO DONO: o código muda a cada pergunta, então "echo ENTREGAR | ..." não entrega nada; só vale a resposta
+   exata ao código de agora. Resposta vazia ou terminal fechado = não entrega. O código sorteado é um freio contra
+   confirmação automática por pipe ou eco, não contra um programa que lê a tela; a defesa real é que a sessão que lê o
+   briefing não tem a chave do painel nem o comando. */
 const ALFABETO_CODIGO = 'ACDEFGHJKMNPQRTUVWXY34679';
 export function codigoAleatorio() {
   let codigo = 'ENTREGAR-';

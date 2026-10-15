@@ -660,3 +660,31 @@ test('prepararPastaSessao: grava settings e instruções, apaga configuração p
     assert.deepEqual(fs.readdirSync(dir2), ['CLAUDE.md']);
   } finally { fs.rmSync(base, { recursive: true, force: true }); }
 });
+
+/* revisão final: o Claude Code lê o CLAUDE.md das pastas ACIMA da pasta de trabalho. Um que sobrou em
+   ~/BeyonZero-direcoes (de uma versão antiga do procedimento) entraria na sessão isolada sem que o preparo da pasta do
+   pedido o visse; por isso o preparo recusa enquanto existir, e não grava nem apaga nada */
+test('prepararPastaSessao: recusa se a pasta-mãe tem configuração do Claude Code, sem gravar nem apagar nada', async () => {
+  const { prepararPastaSessao } = await import('../../scripts/direcoes.mjs');
+  const fs = await import('node:fs'), os = await import('node:os'), path = await import('node:path');
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'bz-mae-'));
+  try {
+    const repo = path.join(base, 'repo');
+    fs.mkdirSync(path.join(repo, '.claude', 'skills', 'produzir-direcoes'), { recursive: true });
+    fs.writeFileSync(path.join(repo, '.claude', 'skills', 'produzir-direcoes', 'SKILL.md'), '# SKILL de teste\n');
+    const mae = path.join(base, 'direcoes'), dir = path.join(mae, '1234abcd');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(mae, 'CLAUDE.md'), 'plantado na pasta-mãe');
+    fs.mkdirSync(path.join(mae, '.claude'));
+    fs.writeFileSync(path.join(dir, 'CLAUDE.md'), 'plantado no pedido');
+    assert.throws(() => prepararPastaSessao({ dir, repo }),
+      e => e.message === 'A pasta ' + mae + ' tem CLAUDE.md, .claude: apague (ou mova) antes, porque a sessão isolada leria essas instruções.');
+    assert.deepEqual(fs.readdirSync(dir), ['CLAUDE.md'], 'nada gravado e nada apagado na pasta do pedido');
+    assert.equal(fs.readFileSync(path.join(dir, 'CLAUDE.md'), 'utf8'), 'plantado no pedido');
+    assert.deepEqual(fs.readdirSync(mae).sort(), ['.claude', '1234abcd', 'CLAUDE.md']);
+    /* sem nada na pasta-mãe, segue normal */
+    fs.rmSync(path.join(mae, 'CLAUDE.md')); fs.rmSync(path.join(mae, '.claude'), { recursive: true });
+    const r = prepararPastaSessao({ dir, repo });
+    assert.ok(fs.existsSync(r.settings) && !fs.existsSync(path.join(dir, 'CLAUDE.md')));
+  } finally { fs.rmSync(base, { recursive: true, force: true }); }
+});
