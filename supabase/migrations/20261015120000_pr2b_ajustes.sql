@@ -9,7 +9,8 @@ declare c app.conversas; pd app.pedidos; v_acao text := p ->> 'acao'; v_status t
 begin
   if v_acao is null or v_acao not in ('descartar', 'arquivar') then raise exception 'ação inválida' using errcode = '22023'; end if;
   -- a mesma ordem de travas de vendas_concluir_direcao (direções, depois a conversa), e as direções por id: sem espera
-  -- circular (40P01). A organização é conferida aqui também, para não travar direção de outra organização
+  -- circular (40P01) contra `vendas_concluir_direcao`; `vendas_escolher` e `vendas_marcar_avisado` seguem em
+  -- PR2b1-escolher-trava e PR2b-avisado. A organização é conferida aqui também, para não travar direção de outra organização
   perform 1 from app.direcoes d join app.conversas cv on cv.id = d.conversa_id join app.organizacoes o on o.id = cv.org_id
    where d.conversa_id = (p ->> 'conversa_id')::uuid and o.slug = p ->> 'org_slug' order by d.id for update of d;
   c := privado.conversa_da_org(p ->> 'org_slug', (p ->> 'conversa_id')::uuid);
