@@ -26,6 +26,7 @@ import { higienizar, ESTRATEGIAS, ESQUEMA_DIRECAO } from '../api/_vendas/direcao
 import { SISTEMA_GERACAO, REGRA_BRIEFING, briefingDelimitado } from '../api/_vendas/gerador.mjs';
 import { redigir } from '../api/_vendas/seguranca.mjs';
 import { FORMATOS } from '../api/_vendas/precos.mjs';
+import { varrer, textosDe } from './varredura.mjs';
 
 export const PASTA = path.join(os.homedir(), 'BeyonZero-direcoes');
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -119,6 +120,8 @@ export function planejarEntrega(pasta, servidor) {
     const conteudo = JSON.parse(fs.readFileSync(arquivo, 'utf8'));
     const h = conferir(conteudo, d.estrategia);
     if (h.erro) throw new Error(d.estrategia + '.json recusado pelo filtro: ' + h.erro);
+    const achados = varrer(h.direcao);
+    if (achados.length) throw new Error(d.estrategia + '.json recusado pela varredura: ' + achados.map(a => a.tipo + ' em ' + a.caminho).join('; '));
     if (conteudo.estrategia && conteudo.estrategia !== d.estrategia) throw new Error(d.estrategia + '.json diz ser da estratégia ' + conteudo.estrategia + '.');
     return { id: d.id, estrategia: d.estrategia, arquivo, conteudo };
   });
@@ -180,6 +183,8 @@ const COMANDOS = {
   conferir(arquivo, estrategia) {
     const h = conferir(JSON.parse(fs.readFileSync(arquivo, 'utf8')), estrategia);
     if (h.erro) { console.log('RECUSADA: ' + h.erro); process.exitCode = 1; return; }
+    const achados = varrer(h.direcao);
+    if (achados.length) { console.log('RECUSADA pela varredura: ' + achados.map(a => a.tipo + ' em ' + a.caminho + ' ("' + a.trecho + '")').join('; ')); process.exitCode = 1; return; }
     console.log('OK' + (h.ajustes.length ? ' (o filtro corrigiu: ' + h.ajustes.join(', ') + ')' : '') + ' · ' + h.direcao.secoes.length + ' seções · "' + h.direcao.nome_conceito + '"');
   },
   async 'entregar-pedido'(prefixo) {
@@ -189,6 +194,17 @@ const COMANDOS = {
     const doServidor = acharPedido((await painel('GET', '?fila=direcoes')).fila, p);
     const plano = planejarEntrega(pasta, { todos: new Set(doServidor.direcoes.map(d => d.id)), naFila: new Set(doServidor.direcoes.filter(d => d.status === 'gerando').map(d => d.id)) });
     if (!plano.length) { fs.rmSync(pasta, { recursive: true, force: true }); return console.log('Nada a entregar: as direções deste pedido já estão prontas. Pasta apagada; avise o cliente pelo painel.'); }
+    /* o terminal é do DONO: ele lê o texto que vai sair e digita a palavra; cada linha começa com "| " para não se confundir com instrução */
+    for (const e of plano) {
+      const d = conferir(e.conteudo, e.estrategia).direcao;
+      console.log('\n=== ' + e.estrategia + ': "' + d.nome_conceito + '" ===');
+      for (const t of textosDe(d)) if (t.texto && !/^#[0-9A-F]{6}$/.test(t.texto)) console.log('| ' + t.caminho + ': ' + t.texto);
+    }
+    const { createInterface } = await import('node:readline/promises');
+    const rl = createInterface({ input: process.stdin, output: process.stdout });
+    const resposta = (await rl.question('\nLeia o texto acima. Para entregar as ' + plano.length + ' direções, digite ENTREGAR: ')).trim();
+    rl.close();
+    if (resposta !== 'ENTREGAR') { console.log('Nada foi entregue.'); return; }
     let pendentes = null;
     for (const e of plano) {
       const r = await painel('POST', '', { entregar_direcao: e.id, conteudo: e.conteudo });

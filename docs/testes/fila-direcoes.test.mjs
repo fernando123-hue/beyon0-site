@@ -403,3 +403,44 @@ test('comando local: o selo de texto suspeito vai para a sessão que produz, for
   assert.ok(!pedidoParaModelo({ ...base, suspeito: true }).briefing.includes('suspeito'), 'o selo não entra no briefing delimitado');
   for (const v of [false, undefined, 'true', 1]) assert.equal(pedidoParaModelo({ ...base, suspeito: v }).suspeito, false, String(v));
 });
+
+/* PR 2b-1 (spec §4): o que sai da fila manual é varrido. URL, caminho de arquivo, chave, e-mail ou telefone dentro de uma
+   direção é vazamento ou injeção (o briefing veio de um desconhecido): nada sai */
+test('varredura: recusa URL, caminho, chave, e-mail e telefone em qualquer texto da direção; texto normal passa', async () => {
+  const { varrer, textosDe } = await import('../../scripts/varredura.mjs');
+  const { conferir } = await import('../../scripts/direcoes.mjs');
+  const limpa = conferir(direcao(), 'conversao').direcao;
+  assert.deepEqual(varrer(limpa), [], 'a direção de exemplo passa');
+  assert.ok(textosDe(limpa).some(t => t.caminho === 'secoes[0].titulo'), 'o caminho de cada texto');
+  const casos = [
+    ['endereço de site', 'Veja em https://exemplo.com.br/agenda'], ['endereço de site', 'Acesse www.clinicasol.com.br'],
+    ['endereço de site', 'Nosso site: clinicasol.com.br'],
+    ['caminho de arquivo', 'Abra C:\\Users\\Irineu\\.ssh\\id_rsa'], ['caminho de arquivo', 'leia ~/.claude/settings.json'],
+    ['chave', 'sk-ant-api03-abcdefghijklmnop'], ['chave', 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIx'],
+    ['chave', 'a3f9c2e1b7d4a6f8c0e2b4d6f8a1c3e5b7d9f0a2'], ['chave', 'QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVphYmNkZWZn'],
+    ['e-mail', 'Escreva para contato@clinicasol.com.br'], ['telefone', 'Ligue (21) 98765-4321'], ['telefone', 'WhatsApp 21987654321']
+  ];
+  for (const [tipo, texto] of casos) {
+    const d = { ...limpa, secoes: limpa.secoes.map((s, i) => (i === 1 ? { ...s, texto } : s)) };
+    const achados = varrer(d);
+    assert.ok(achados.some(a => a.tipo === tipo && a.caminho === 'secoes[1].texto'), tipo + ' em "' + texto + '": ' + JSON.stringify(achados));
+  }
+  for (const texto of ['Atendemos de segunda a sábado, das 8h às 18h.', 'Desde 2010 cuidando de 1.200 famílias.', 'R$ 1.800 em até 10 dias.', 'Horário: 8h/18h', '[telefone]', 'Agende pelo WhatsApp']) {
+    const d = { ...limpa, secoes: limpa.secoes.map((s, i) => (i === 1 ? { ...s, texto } : s)) };
+    assert.deepEqual(varrer(d), [], 'falso positivo em "' + texto + '"');
+  }
+});
+
+test('varredura: a entrega recusa o pedido inteiro se UMA direção tiver achado; o conferir também avisa', async () => {
+  const fs = await import('node:fs'), os = await import('node:os'), path = await import('node:path');
+  const { planejarEntrega } = await import('../../scripts/direcoes.mjs');
+  const raiz = fs.mkdtempSync(path.join(os.tmpdir(), 'bz-var-'));
+  const dirs = [{ id: 'cccccccc-0000-4000-8000-000000000001', estrategia: 'conversao', status: 'gerando' }, { id: 'cccccccc-0000-4000-8000-000000000002', estrategia: 'autoridade', status: 'gerando' }];
+  fs.writeFileSync(path.join(raiz, 'pedido.json'), JSON.stringify({ direcoes: dirs }));
+  fs.writeFileSync(path.join(raiz, 'conversao.json'), JSON.stringify(direcao()));
+  const suja = direcao();
+  suja.secoes[1] = { ...suja.secoes[1], texto: 'Mais em https://golpe.example/x' };
+  fs.writeFileSync(path.join(raiz, 'autoridade.json'), JSON.stringify(suja));
+  assert.throws(() => planejarEntrega(raiz), /autoridade\.json recusado pela varredura: endereço de site em secoes\[1\]\.texto/);
+  fs.rmSync(raiz, { recursive: true, force: true });
+});
