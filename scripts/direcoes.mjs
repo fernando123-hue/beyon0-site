@@ -22,6 +22,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { randomInt } from 'node:crypto';
+import { createInterface } from 'node:readline/promises';
 import { higienizar, ESTRATEGIAS, ESQUEMA_DIRECAO } from '../api/_vendas/direcao.mjs';
 import { SISTEMA_GERACAO, REGRA_BRIEFING, briefingDelimitado } from '../api/_vendas/gerador.mjs';
 import { redigir } from '../api/_vendas/seguranca.mjs';
@@ -123,8 +125,43 @@ export function planejarEntrega(pasta, servidor) {
     const achados = varrer(h.direcao);
     if (achados.length) throw new Error(d.estrategia + '.json recusado pela varredura: ' + achados.map(a => a.tipo + ' em ' + a.caminho).join('; '));
     if (conteudo.estrategia && conteudo.estrategia !== d.estrategia) throw new Error(d.estrategia + '.json diz ser da estratégia ' + conteudo.estrategia + '.');
-    return { id: d.id, estrategia: d.estrategia, arquivo, conteudo };
+    return { id: d.id, estrategia: d.estrategia, arquivo, conteudo, direcao: h.direcao };
   });
+}
+
+/* a decisão do comando "conferir", separada para poder ser provada: { ok, mensagem } */
+export function avaliarArquivo(conteudo, estrategia) {
+  const h = conferir(conteudo, estrategia);
+  if (h.erro) return { ok: false, mensagem: 'RECUSADA: ' + h.erro };
+  const achados = varrer(h.direcao);
+  if (achados.length) return { ok: false, mensagem: 'RECUSADA pela varredura: ' + achados.map(a => a.tipo + ' em ' + a.caminho + ' ("' + a.trecho + '")').join('; ') };
+  return { ok: true, mensagem: 'OK' + (h.ajustes.length ? ' (o filtro corrigiu: ' + h.ajustes.join(', ') + ')' : '') + ' · ' + h.direcao.secoes.length + ' seções · "' + h.direcao.nome_conceito + '"' };
+}
+
+/* A CONFIRMAÇÃO DO DONO: o código muda a cada pergunta, então "echo ENTREGAR | ..." ou um script não entrega nada;
+   só quem leu a tela e digitou o código de agora. Resposta vazia ou terminal fechado = não entrega. */
+const ALFABETO_CODIGO = 'ACDEFGHJKMNPQRTUVWXY34679';
+export function codigoAleatorio() {
+  let codigo = 'ENTREGAR-';
+  for (let i = 0; i < 4; i++) codigo += ALFABETO_CODIGO[randomInt(ALFABETO_CODIGO.length)];
+  return codigo;
+}
+
+export async function pedirConfirmacao(perguntar, gerar = codigoAleatorio) {
+  const codigo = gerar();
+  try {
+    const resposta = await perguntar('\nLeia o texto acima. Para entregar, digite ' + codigo + ': ');
+    return typeof resposta === 'string' && resposta.trim() === codigo;
+  } catch {
+    return false;
+  }
+}
+
+/* o terminal do dono: a pergunta resolve vazia se o stdin fechar (sem isso o await ficaria pendurado) */
+export function criarPerguntador(entrada = process.stdin, saida = process.stdout) {
+  const rl = createInterface({ input: entrada, output: saida });
+  const fechou = new Promise(resolver => rl.once('close', () => resolver('')));
+  return { perguntar: texto => Promise.race([rl.question(texto), fechou]), fechar: () => rl.close() };
 }
 
 /* apaga as pastas de pedido mais velhas que N dias (a retenção do site é de 2 meses; aqui, dias) */
@@ -181,11 +218,9 @@ const COMANDOS = {
     console.log('Pedido gravado (sem contato) em ' + arquivo);
   },
   conferir(arquivo, estrategia) {
-    const h = conferir(JSON.parse(fs.readFileSync(arquivo, 'utf8')), estrategia);
-    if (h.erro) { console.log('RECUSADA: ' + h.erro); process.exitCode = 1; return; }
-    const achados = varrer(h.direcao);
-    if (achados.length) { console.log('RECUSADA pela varredura: ' + achados.map(a => a.tipo + ' em ' + a.caminho + ' ("' + a.trecho + '")').join('; ')); process.exitCode = 1; return; }
-    console.log('OK' + (h.ajustes.length ? ' (o filtro corrigiu: ' + h.ajustes.join(', ') + ')' : '') + ' · ' + h.direcao.secoes.length + ' seções · "' + h.direcao.nome_conceito + '"');
+    const r = avaliarArquivo(JSON.parse(fs.readFileSync(arquivo, 'utf8')), estrategia);
+    console.log(r.mensagem);
+    if (!r.ok) process.exitCode = 1;
   },
   async 'entregar-pedido'(prefixo) {
     const p = String(prefixo || '').trim().toLowerCase();
@@ -196,15 +231,13 @@ const COMANDOS = {
     if (!plano.length) { fs.rmSync(pasta, { recursive: true, force: true }); return console.log('Nada a entregar: as direções deste pedido já estão prontas. Pasta apagada; avise o cliente pelo painel.'); }
     /* o terminal é do DONO: ele lê o texto que vai sair e digita a palavra; cada linha começa com "| " para não se confundir com instrução */
     for (const e of plano) {
-      const d = conferir(e.conteudo, e.estrategia).direcao;
-      console.log('\n=== ' + e.estrategia + ': "' + d.nome_conceito + '" ===');
-      for (const t of textosDe(d)) if (t.texto && !/^#[0-9A-F]{6}$/.test(t.texto)) console.log('| ' + t.caminho + ': ' + t.texto);
+      console.log('\n=== ' + e.estrategia + ': "' + e.direcao.nome_conceito + '" ===');
+      for (const t of textosDe(e.direcao)) if (t.texto && !/^#[0-9A-F]{6}$/.test(t.texto)) console.log('| ' + t.caminho + ': ' + t.texto);
     }
-    const { createInterface } = await import('node:readline/promises');
-    const rl = createInterface({ input: process.stdin, output: process.stdout });
-    const resposta = (await rl.question('\nLeia o texto acima. Para entregar as ' + plano.length + ' direções, digite ENTREGAR: ')).trim();
-    rl.close();
-    if (resposta !== 'ENTREGAR') { console.log('Nada foi entregue.'); return; }
+    const { perguntar, fechar } = criarPerguntador();
+    const confirmado = await pedirConfirmacao(perguntar);
+    fechar();
+    if (!confirmado) { console.log('Nada foi entregue.'); process.exitCode = 1; return; }
     let pendentes = null;
     for (const e of plano) {
       const r = await painel('POST', '', { entregar_direcao: e.id, conteudo: e.conteudo });

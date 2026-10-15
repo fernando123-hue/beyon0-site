@@ -431,7 +431,7 @@ test('varredura: recusa URL, caminho, chave, e-mail e telefone em qualquer texto
   }
 });
 
-test('varredura: a entrega recusa o pedido inteiro se UMA direção tiver achado; o conferir também avisa', async () => {
+test('varredura: a entrega recusa o pedido inteiro se UMA direção tiver achado (o pedido inteiro não sai)', async () => {
   const fs = await import('node:fs'), os = await import('node:os'), path = await import('node:path');
   const { planejarEntrega } = await import('../../scripts/direcoes.mjs');
   const raiz = fs.mkdtempSync(path.join(os.tmpdir(), 'bz-var-'));
@@ -443,4 +443,97 @@ test('varredura: a entrega recusa o pedido inteiro se UMA direção tiver achado
   fs.writeFileSync(path.join(raiz, 'autoridade.json'), JSON.stringify(suja));
   assert.throws(() => planejarEntrega(raiz), /autoridade\.json recusado pela varredura: endereço de site em secoes\[1\]\.texto/);
   fs.rmSync(raiz, { recursive: true, force: true });
+});
+
+/* correções da revisão da Tarefa 1: a varredura cobre os disfarces comuns e NÃO recusa texto normal de negócio */
+const comTexto = (limpa, texto) => ({ ...limpa, secoes: limpa.secoes.map((s, i) => (i === 1 ? { ...s, texto } : s)) });
+
+test('varredura: disfarces de endereço, caminho, chave e telefone são recusados com o tipo certo', async () => {
+  const { varrer } = await import('../../scripts/varredura.mjs');
+  const { conferir } = await import('../../scripts/direcoes.mjs');
+  const limpa = conferir(direcao(), 'conversao').direcao;
+  const casos = [
+    ['endereço de site', 'wa.me/5521987654321'], ['endereço de site', 'bit.ly/abc'], ['endereço de site', 'golpe.xyz'],
+    ['endereço de site', '192.168.0.1'], ['endereço de site', 'localhost:3000'], ['endereço de site', 'ftp://a.b'],
+    ['endereço de site', '//cdn.evil/x'], ['endereço de site', 'hxxp://golpe.xyz'], ['endereço de site', 'clinicasol[.]com'],
+    ['endereço de site', 'clinicasol(.)com'],
+    ['endereço de site', 'ｈｔｔｐｓ：//x.com'], ['endereço de site', 'ht​tps://x.com'],
+    ['caminho de arquivo', '../../etc/passwd'],
+    ['chave', 'sk_live_abcdefghij'], ['chave', 'ghp_' + 'a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8'], ['chave', 'AKIAIOSFODNN7EXAMPLE'],
+    ['chave', 'Bearer abcdefghijklmnop1234'], ['chave', '3f2b8c1e-9a4d-4e7b-8c2a-1d5f6a7b8c9d'],
+    ['telefone', '98765-4321'], ['telefone', '0800 123 4567'], ['telefone', '+5521987654321'], ['telefone', '21 9 8765 4321'],
+    ['telefone', '2133-4455'], ['telefone', '+351 21 123 4567']
+  ];
+  for (const [tipo, texto] of casos) {
+    const achados = varrer(comTexto(limpa, texto));
+    assert.ok(achados.some(a => a.tipo === tipo && a.caminho === 'secoes[1].texto'), tipo + ' em "' + texto + '": ' + JSON.stringify(achados));
+  }
+  const aceitos = ['CNPJ 12.345.678/0001-90', 'CEP 22041-001', 'Feito com Next.js', 'Dra. Silva e Dr. Souza, Ltda.', 'Pediatria/Ortopedia/Cardiologia/Dermatologia/Geral',
+    'Pedido nº 2024102599', 'De 2020-2024 atendemos 300 famílias', 'Atendimento 24h'];
+  for (const texto of aceitos) assert.deepEqual(varrer(comTexto(limpa, texto)), [], 'falso positivo em "' + texto + '"');
+});
+
+test('varredura: e-mail dá um achado só (o domínio dele não vira "endereço de site"), e o trecho de chave e telefone sai mascarado', async () => {
+  const { varrer } = await import('../../scripts/varredura.mjs');
+  const { conferir } = await import('../../scripts/direcoes.mjs');
+  const limpa = conferir(direcao(), 'conversao').direcao;
+  const email = varrer(comTexto(limpa, 'Escreva para contato@clinicasol.com.br'));
+  assert.deepEqual(email.map(a => a.tipo), ['e-mail']);
+  const chave = varrer(comTexto(limpa, 'sk-ant-api03-abcdefghijklmnop'));
+  assert.equal(chave.length, 1);
+  assert.equal(chave[0].trecho, 'sk-a…');
+  const fone = varrer(comTexto(limpa, 'Ligue (21) 98765-4321'));
+  assert.equal(fone.length, 1);
+  assert.ok(!fone[0].trecho.includes('4321') && fone[0].trecho.endsWith('…'), fone[0].trecho);
+});
+
+test('conferir: avaliarArquivo recusa direção com achado da varredura e aceita a limpa', async () => {
+  const { avaliarArquivo } = await import('../../scripts/direcoes.mjs');
+  const suja = direcao();
+  suja.secoes[1] = { ...suja.secoes[1], texto: 'Mais em https://golpe.example/x' };
+  const r = avaliarArquivo(suja, 'conversao');
+  assert.equal(r.ok, false);
+  assert.match(r.mensagem, /^RECUSADA pela varredura: endereço de site em secoes\[1\]\.texto/);
+  const ok = avaliarArquivo(direcao(), 'conversao');
+  assert.equal(ok.ok, true);
+  assert.match(ok.mensagem, /^OK/);
+});
+
+test('entrega: o plano leva a direção já higienizada de cada item', async () => {
+  const fs = await import('node:fs'), os = await import('node:os'), path = await import('node:path');
+  const { planejarEntrega } = await import('../../scripts/direcoes.mjs');
+  const raiz = fs.mkdtempSync(path.join(os.tmpdir(), 'bz-var-'));
+  fs.writeFileSync(path.join(raiz, 'pedido.json'), JSON.stringify({ direcoes: [{ id: 'cccccccc-0000-4000-8000-000000000001', estrategia: 'conversao', status: 'gerando' }] }));
+  fs.writeFileSync(path.join(raiz, 'conversao.json'), JSON.stringify(direcao('Clareza que agenda')));
+  const plano = planejarEntrega(raiz);
+  fs.rmSync(raiz, { recursive: true, force: true });
+  assert.equal(plano.length, 1);
+  assert.equal(plano[0].direcao.nome_conceito, 'Clareza que agenda');
+});
+
+/* a confirmação do dono: o código muda a cada pergunta, então "echo ENTREGAR | ..." não entrega nada */
+test('confirmação: só a resposta exata ao código sorteado vale; vazio, palavra fixa ou stdin fechado recusam', async () => {
+  const { pedirConfirmacao, codigoAleatorio, criarPerguntador } = await import('../../scripts/direcoes.mjs');
+  const { PassThrough } = await import('node:stream');
+  const gerar = () => 'ENTREGAR-AB34';
+  let pergunta = '';
+  assert.equal(await pedirConfirmacao(async t => { pergunta = t; return '  ENTREGAR-AB34 \n'; }, gerar), true);
+  assert.ok(pergunta.includes('ENTREGAR-AB34'), 'a pergunta mostra o código');
+  assert.equal(await pedirConfirmacao(async () => 'ENTREGAR', gerar), false, 'a palavra fixa não vale');
+  assert.equal(await pedirConfirmacao(async () => 'entregar-ab34', gerar), false);
+  assert.equal(await pedirConfirmacao(async () => '', gerar), false);
+  assert.equal(await pedirConfirmacao(async () => { throw new Error('fechado'); }, gerar), false);
+  const a = codigoAleatorio(), b = codigoAleatorio(), c = codigoAleatorio();
+  for (const x of [a, b, c]) assert.match(x, /^ENTREGAR-[ACDEFGHJKMNPQRTUVWXY34679]{4}$/);
+  assert.ok(new Set([a, b, c, codigoAleatorio(), codigoAleatorio()]).size > 1, 'o código muda de uma chamada para outra');
+  const perguntas = new Set();
+  for (let i = 0; i < 6; i++) await pedirConfirmacao(async t => { perguntas.add(t); return ''; });
+  assert.ok(perguntas.size > 1, 'com o gerador real, o código muda de uma pergunta para outra');
+  /* stdin que fecha sem resposta: não pode ficar pendurado */
+  const entrada = new PassThrough(), saida = new PassThrough();
+  saida.resume();
+  const { perguntar, fechar } = criarPerguntador(entrada, saida);
+  setTimeout(() => entrada.end(), 20);
+  assert.equal(await pedirConfirmacao(perguntar), false);
+  fechar();
 });
