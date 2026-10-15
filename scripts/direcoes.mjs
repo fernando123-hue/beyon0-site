@@ -2,6 +2,10 @@
    O COMANDO DA FILA MANUAL (decisão do dono, 2026-10-08). Procedimento:
    .claude/skills/produzir-direcoes/SKILL.md.
 
+   Os comandos abaixo aparecem como "node scripts/direcoes.mjs" só para encurtar: o DONO sempre roda com o caminho ABSOLUTO
+   do script (o "pedido" imprime a linha pronta do entregar-pedido), e NUNCA "node scripts/..." relativo de dentro da pasta
+   de um pedido, onde o arquivo seria o que a sessão deixou lá (revisão de segurança do PR 43).
+
    Com a chave do painel (o DONO roda, no terminal dele — a sessão do Claude
    Code que lê o briefing nunca tem a chave; revisão de segurança):
      node scripts/direcoes.mjs fila
