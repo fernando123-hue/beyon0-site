@@ -14,8 +14,11 @@ const REDE_E_ATALHOS = ['curl', 'wget', 'node -e', 'node --eval', 'node -p', 'no
 export const caminhoClaude = p => '//' + String(p).replace(/\\/g, '/').replace(/^([A-Za-z]):/, (_, l) => l.toLowerCase());
 const barras = p => String(p).replace(/\\/g, '/');
 
+/* o caminho do script do conferir: UMA fonte, usada pela regra de allow e pelo texto das instruções, para nunca divergirem */
+const scriptConferir = repo => barras(repo) + '/scripts/direcoes.mjs';
+
 export function configSessao({ repo }) {
-  const script = barras(repo) + '/scripts/direcoes.mjs';
+  const script = scriptConferir(repo);
   return {
     permissions: {
       defaultMode: 'dontAsk',
@@ -26,6 +29,8 @@ export function configSessao({ repo }) {
         'WebFetch', 'WebSearch', 'mcp__*',
         /* a sessão escreve na pasta, mas não na própria configuração nem nas instruções (deny vence o Edit(./**)) */
         'Edit(./.sessao.json)', 'Edit(./.instrucoes.md)',
+        /* nem nos arquivos que o Claude Code carrega sozinho da pasta de trabalho (configuração, memória, MCP) */
+        'Edit(./.claude/**)', 'Edit(./CLAUDE.md)', 'Edit(./CLAUDE.local.md)', 'Edit(./.mcp.json)',
         'Read(' + caminhoClaude(repo) + '/**)', 'Read(~/.claude/**)', 'Read(~/.ssh/**)', 'Read(~/.config/**)',
         ...SO_LEITURA.flatMap(c => ['Bash(' + c + ')', 'Bash(' + c + ' *)']),
         ...REDE_E_ATALHOS.flatMap(c => ['Bash(' + c + ')', 'Bash(' + c + ' *)'])
@@ -34,11 +39,28 @@ export function configSessao({ repo }) {
   };
 }
 
+/* o texto que a sessão lê como instrução: a SKILL mais o que é específico desta pasta. O conferir só roda com a linha
+   EXATA do allow (a sessão abre na pasta do pedido, então o caminho do script é o absoluto e o arquivo é relativo) */
+export function instrucoesSessao({ repo, skill }) {
+  const linha = 'node "' + scriptConferir(repo) + '" conferir ./<estrategia>.json <estrategia>';
+  return [
+    String(skill).trimEnd(),
+    '',
+    '## Nesta sessão isolada',
+    '',
+    '- O pedido está em `./pedido.json`.',
+    '- Grave `./conversao.json`, `./autoridade.json` e `./experiencia.json`.',
+    '- Para conferir, rode EXATAMENTE (com estas aspas e barras): `' + linha + '`, trocando `<estrategia>` por `conversao`, `autoridade` ou `experiencia`. Qualquer outra forma é negada.',
+    ''
+  ].join('\n');
+}
+
 /* a linha que o DONO roda no PowerShell, na pasta do pedido (aspas simples: o PowerShell não expande nada dentro) */
 const ps = s => "'" + String(s).replace(/'/g, "''") + "'";
 export function comandoSessao({ pasta, settings, instrucoes }) {
   return 'Set-Location -LiteralPath ' + ps(pasta) + '; claude --restricted --permission-mode dontAsk --strict-mcp-config'
     + " --tools 'Read,Edit,Write,Bash' --disallowedTools 'WebFetch' 'WebSearch' 'mcp__*'"
     + ' --settings ' + ps(settings) + ' --append-system-prompt-file ' + ps(instrucoes)
-    + " 'Produza as três direções do pedido.json desta pasta, seguindo as instruções da sessão.'";
+    /* sem acento: a página de código do Windows estraga o argumento */
+    + " 'Produza as 3 direcoes do pedido.json desta pasta, seguindo as instrucoes da sessao.'";
 }

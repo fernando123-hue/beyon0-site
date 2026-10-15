@@ -74,10 +74,10 @@ Enquanto não há verba para a API, as três direções não são geradas pelo m
   - **O dono roda no terminal dele**, com `BZ_BASE` (https do site, conferido pelo comando) e `PAINEL_CHAVE` só ali:
     - `fila`: só pedidos confirmados; cada linha traz o id curto, o código `BZ-XXXXX`, "avisar" ou "produzir" e, se for o caso, "TEXTO SUSPEITO";
     - `pedido <id>` (os 8 primeiros caracteres do id curto, não o código `BZ-`): grava em `~/BeyonZero-direcoes/<id>/pedido.json`, fora do repositório. O briefing vai com nome, telefone e e-mail do cliente apagados. Também imprime a linha que abre a sessão isolada (PowerShell). A produção acontece só nela: dontAsk, leitura e escrita só na pasta do pedido, Bash só para o `conferir`, sem internet nem MCP. A pasta `~/BeyonZero-direcoes/.claude/settings.json` antiga (lista de proibições) fica superada;
-    - `entregar-pedido <id>`: as 3 de uma vez, cada arquivo no id certo, conferidas antes; apaga a pasta quando as 3 ficam prontas.
-  - **O Claude Code roda, sem chave:**
-    - `conferir <arquivo> <estrategia>`: o mesmo filtro do servidor;
-    - `limpar [dias]`: apaga pastas esquecidas, padrão 3 dias.
+    - `entregar-pedido <id>`: as 3 de uma vez, cada arquivo no id certo, conferidas antes; apaga a pasta quando as 3 ficam prontas;
+    - `limpar [dias]`: apaga pastas esquecidas, padrão 3 dias (do dono; a sessão isolada não roda).
+  - **O Claude Code (sessão isolada) roda, sem chave, só isto:**
+    - `conferir <arquivo> <estrategia>`: o mesmo filtro do servidor; só abre `conversao.json`, `autoridade.json` ou `experiencia.json` dentro da pasta de um pedido.
 
 **Voltar para a API:** apagar `BZ_DIRECOES`. Direções que estiverem na fila nesse momento são geradas pela API quando o cliente voltar à página.
 - A confirmação pelo WhatsApp continua valendo no modo API (decisão D2): sem ela, nada é gerado.

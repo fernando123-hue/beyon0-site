@@ -27,6 +27,7 @@ import { createInterface } from 'node:readline/promises';
 import { higienizar, ESTRATEGIAS, ESQUEMA_DIRECAO } from '../api/_vendas/direcao.mjs';
 import { SISTEMA_GERACAO, REGRA_BRIEFING, briefingDelimitado } from '../api/_vendas/gerador.mjs';
 import { redigir } from '../api/_vendas/seguranca.mjs';
+import { configSessao, comandoSessao, instrucoesSessao } from './sessao-isolada.mjs';
 import { FORMATOS } from '../api/_vendas/precos.mjs';
 import { varrer, textosDe } from './varredura.mjs';
 
@@ -41,6 +42,31 @@ const LOCAIS = ['127.0.0.1', 'localhost'];
 const TEMPO_MS = 20000;
 
 export const idCurto = id => String(id).slice(0, 8);
+
+/* o conferir roda SEM sandbox no Windows (a sessão isolada o libera): só pode abrir o arquivo de direção de um pedido,
+   isto é, <raiz>/<8 hex>/<estrategia>.json, comparando caminhos já resolvidos (sem ".." sobrando) */
+const ARQUIVOS_DE_DIRECAO = ['conversao.json', 'autoridade.json', 'experiencia.json'];
+export function arquivoDeDirecao(arquivo, raiz = PASTA) {
+  const recusa = () => new Error('Só confiro conversao.json, autoridade.json ou experiencia.json dentro da pasta de um pedido.');
+  const absoluto = path.resolve(String(arquivo));
+  const partes = path.relative(path.resolve(raiz), absoluto).split(path.sep);
+  if (partes.length !== 2 || !/^[0-9a-f]{8}$/.test(partes[0]) || !ARQUIVOS_DE_DIRECAO.includes(partes[1])) throw recusa();
+  return absoluto;
+}
+
+/* prepara a pasta onde a sessão isolada vai trabalhar: o Claude Code carrega dali configuração, memória e MCP, então o
+   que estiver plantado é apagado; settings e instruções são gravados por último, depois de checar a SKILL de origem.
+   No Windows o modo 0o600 não vale: a proteção real é a pasta ficar fora do repositório, no perfil do dono */
+export function prepararPastaSessao({ dir, repo }) {
+  const origem = path.join(repo, '.claude', 'skills', 'produzir-direcoes', 'SKILL.md');
+  if (!fs.existsSync(origem)) throw new Error('Falta a SKILL ' + origem + ': não dá para montar as instruções da sessão isolada.');
+  const skill = fs.readFileSync(origem, 'utf8');
+  for (const n of ['.claude', 'CLAUDE.md', 'CLAUDE.local.md', '.mcp.json']) fs.rmSync(path.join(dir, n), { recursive: true, force: true });
+  const settings = path.join(dir, '.sessao.json'), instrucoes = path.join(dir, '.instrucoes.md');
+  fs.writeFileSync(settings, JSON.stringify(configSessao({ repo }), null, 2), { mode: 0o600 });
+  fs.writeFileSync(instrucoes, instrucoesSessao({ repo, skill }), { mode: 0o600 });
+  return { settings, instrucoes };
+}
 
 export function validarBase(valor) {
   let u;
@@ -217,15 +243,17 @@ const COMANDOS = {
     fs.writeFileSync(arquivo, JSON.stringify(montarArquivoPedido(p), null, 2), { mode: 0o600 });
     console.log('Pedido gravado (sem contato) em ' + arquivo);
     /* a sessão isolada (PR 2b-1): settings e instruções DENTRO da pasta do pedido (a sessão lê só ali), e a linha pronta */
-    const { configSessao, comandoSessao } = await import('./sessao-isolada.mjs');
     const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-    const settings = path.join(dir, '.sessao.json'), instrucoes = path.join(dir, '.instrucoes.md');
-    fs.writeFileSync(settings, JSON.stringify(configSessao({ repo }), null, 2), { mode: 0o600 });
-    fs.copyFileSync(path.join(repo, '.claude', 'skills', 'produzir-direcoes', 'SKILL.md'), instrucoes);
+    const { settings, instrucoes } = prepararPastaSessao({ dir, repo });
     console.log('\nAbra a sessão isolada (PowerShell), e só ela, para produzir:\n' + comandoSessao({ pasta: dir, settings, instrucoes }));
   },
   conferir(arquivo, estrategia) {
-    const r = avaliarArquivo(JSON.parse(fs.readFileSync(arquivo, 'utf8')), estrategia);
+    /* sem e.message nem conteúdo: o arquivo é de origem não confiável e o erro do JSON.parse cita pedaços do texto */
+    const caminho = arquivoDeDirecao(arquivo);
+    let direcao;
+    try { direcao = JSON.parse(fs.readFileSync(caminho, 'utf8')); }
+    catch { console.log('RECUSADA: o arquivo não é um JSON de direção válido.'); process.exitCode = 1; return; }
+    const r = avaliarArquivo(direcao, estrategia);
     console.log(r.mensagem);
     if (!r.ok) process.exitCode = 1;
   },
@@ -265,5 +293,5 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   if (!Object.hasOwn(COMANDOS, comando || '')) {
     console.log('Uso: node scripts/direcoes.mjs fila | pedido <id> | entregar-pedido <id> | conferir <arquivo> <estrategia> | limpar [dias]');
     process.exitCode = 2;
-  } else Promise.resolve(COMANDOS[comando](...args)).catch(e => { console.error('Erro: ' + e.message); process.exitCode = 1; });
+  } else (async () => COMANDOS[comando](...args))().catch(e => { console.error('Erro: ' + e.message); process.exitCode = 1; });
 }

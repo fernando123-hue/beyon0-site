@@ -555,3 +555,84 @@ test('sessão isolada: settings em dontAsk, só o conferir no Bash, sem rede e s
   for (const parte of ["Set-Location -LiteralPath 'C:\\Users\\x\\BeyonZero-direcoes\\1234abcd'", '--restricted', '--permission-mode dontAsk', '--strict-mcp-config', "--tools 'Read,Edit,Write,Bash'", "--disallowedTools 'WebFetch' 'WebSearch' 'mcp__*'", "--settings 'C:\\Users\\x\\BeyonZero-direcoes\\1234abcd\\.sessao.json'", "--append-system-prompt-file 'C:\\Users\\x\\BeyonZero-direcoes\\1234abcd\\.instrucoes.md'"])
     assert.ok(cmd.includes(parte), 'comando sem ' + parte + ': ' + cmd);
 });
+
+/* revisão da Tarefa 2: a instrução que a sessão lê tem de bater com o que o allow libera, senão ela erra o caminho do
+   conferir e fica sem conseguir conferir (o dontAsk nega a forma relativa) */
+test('sessão isolada: as instruções trazem a linha EXATA do conferir, que casa com o allow; o deny cobre a configuração do Claude Code; o prompt é ASCII', async () => {
+  const { configSessao, instrucoesSessao, comandoSessao } = await import('../../scripts/sessao-isolada.mjs');
+  const repo = 'C:\\Vault - Fernando\\Beyon Zero\\03 Projetos\\site';
+  const c = configSessao({ repo });
+  const texto = instrucoesSessao({ repo, skill: '# SKILL\ncorpo da skill\n' });
+  assert.ok(texto.startsWith('# SKILL\ncorpo da skill\n'), 'o texto da SKILL vem primeiro');
+  assert.ok(texto.includes('## Nesta sessão isolada'));
+  assert.ok(texto.includes('`./pedido.json`') && texto.includes('`./conversao.json`, `./autoridade.json` e `./experiencia.json`'));
+  const linha = 'node "C:/Vault - Fernando/Beyon Zero/03 Projetos/site/scripts/direcoes.mjs" conferir ./<estrategia>.json <estrategia>';
+  assert.ok(texto.includes('`' + linha + '`'), 'a linha exata, com aspas e barras normais');
+  /* a regra do allow vira um prefixo (Bash(<x> *) -> <x>) e a linha do texto, trocada a estratégia, tem de começar por ele */
+  const regra = c.permissions.allow.find(r => r.startsWith('Bash('));
+  const prefixo = regra.slice('Bash('.length, -' *)'.length);
+  for (const e of ['conversao', 'autoridade', 'experiencia'])
+    assert.ok(linha.replace(/<estrategia>/g, e).startsWith(prefixo + ' '), 'a linha do texto não casa com o allow para ' + e);
+  for (const r of ['Edit(./.claude/**)', 'Edit(./CLAUDE.md)', 'Edit(./CLAUDE.local.md)', 'Edit(./.mcp.json)'])
+    assert.ok(c.permissions.deny.includes(r), 'deny sem ' + r);
+  const cmd = comandoSessao({ pasta: 'C:\\p', settings: 'C:\\p\\.sessao.json', instrucoes: 'C:\\p\\.instrucoes.md' });
+  assert.ok(cmd.includes("'Produza as 3 direcoes do pedido.json desta pasta, seguindo as instrucoes da sessao.'"));
+  assert.ok(/^[\x20-\x7e]*$/.test(cmd.slice(cmd.lastIndexOf("'Produza"))), 'o prompt final não leva acento');
+});
+
+/* revisão da Tarefa 2: o conferir roda sem sandbox no Windows; só pode abrir o arquivo de direção de um pedido */
+test('conferir: arquivoDeDirecao só aceita conversao/autoridade/experiencia.json dentro da pasta de um pedido', async () => {
+  const { arquivoDeDirecao } = await import('../../scripts/direcoes.mjs');
+  const fs = await import('node:fs'), os = await import('node:os'), path = await import('node:path');
+  const raiz = path.resolve(os.tmpdir(), 'bz-raiz-conferir');
+  const ok = path.join(raiz, '1234abcd', 'conversao.json');
+  assert.equal(arquivoDeDirecao(ok, raiz), ok);
+  assert.equal(arquivoDeDirecao(path.join(raiz, '1234abcd', '.', 'experiencia.json'), raiz), path.join(raiz, '1234abcd', 'experiencia.json'));
+  const MSG = 'Só confiro conversao.json, autoridade.json ou experiencia.json dentro da pasta de um pedido.';
+  for (const ruim of [
+    path.join(os.tmpdir(), 'conversao.json'),
+    path.join(raiz, '1234abcd', '..', '..', 'conversao.json'),
+    path.join(raiz, '1234abcd', '..', 'conversao.json'),
+    path.join(raiz, '1234abcd', 'pedido.json'),
+    path.join(raiz, '1234abcd', '.sessao.json'),
+    path.join(raiz, '1234abcd', 'sub', 'conversao.json'),
+    path.join(raiz, 'curto', 'conversao.json'),
+    path.join(raiz, '1234ABCD', 'conversao.json'),
+    path.join(raiz, '1234abcdef', 'conversao.json'),
+    path.join(raiz + '-outra', '1234abcd', 'conversao.json'),
+    'C:\\Windows\\win.ini', 'conversao.json'
+  ]) assert.throws(() => arquivoDeDirecao(ruim, raiz), e => e.message === MSG, 'devia recusar ' + ruim);
+});
+
+/* revisão da Tarefa 2: a pasta do pedido é a pasta de trabalho da sessão, e o Claude Code carrega dali configuração,
+   memória e MCP. Quem plantasse um CLAUDE.md (ou o próprio modelo, em outra rodada) mudaria a sessão: o preparo apaga */
+test('prepararPastaSessao: grava settings e instruções, apaga configuração plantada e falha antes de gravar se faltar a SKILL', async () => {
+  const { prepararPastaSessao } = await import('../../scripts/direcoes.mjs');
+  const fs = await import('node:fs'), os = await import('node:os'), path = await import('node:path');
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'bz-sessao-'));
+  try {
+    const repo = path.join(base, 'repo');
+    fs.mkdirSync(path.join(repo, '.claude', 'skills', 'produzir-direcoes'), { recursive: true });
+    fs.writeFileSync(path.join(repo, '.claude', 'skills', 'produzir-direcoes', 'SKILL.md'), '# SKILL de teste\n');
+    const dir = path.join(base, 'pedido');
+    fs.mkdirSync(path.join(dir, '.claude'), { recursive: true });
+    fs.writeFileSync(path.join(dir, '.claude', 'settings.json'), '{"hooks":{}}');
+    for (const n of ['CLAUDE.md', 'CLAUDE.local.md', '.mcp.json']) fs.writeFileSync(path.join(dir, n), 'plantado');
+    fs.writeFileSync(path.join(dir, 'pedido.json'), '{}');
+    const r = prepararPastaSessao({ dir, repo });
+    assert.equal(r.settings, path.join(dir, '.sessao.json'));
+    assert.equal(r.instrucoes, path.join(dir, '.instrucoes.md'));
+    for (const n of ['.claude', 'CLAUDE.md', 'CLAUDE.local.md', '.mcp.json']) assert.ok(!fs.existsSync(path.join(dir, n)), n + ' devia ter sido apagado');
+    assert.ok(fs.existsSync(path.join(dir, 'pedido.json')), 'o pedido.json fica');
+    assert.equal(JSON.parse(fs.readFileSync(r.settings, 'utf8')).permissions.defaultMode, 'dontAsk');
+    const texto = fs.readFileSync(r.instrucoes, 'utf8');
+    assert.ok(texto.startsWith('# SKILL de teste'));
+    assert.ok(texto.includes('node "' + repo.replace(/\\/g, '/') + '/scripts/direcoes.mjs" conferir ./<estrategia>.json <estrategia>'), 'a linha exata do conferir');
+    /* sem a SKILL: erro claro e NADA gravado nem apagado */
+    const dir2 = path.join(base, 'pedido2');
+    fs.mkdirSync(dir2);
+    fs.writeFileSync(path.join(dir2, 'CLAUDE.md'), 'plantado');
+    assert.throws(() => prepararPastaSessao({ dir: dir2, repo: path.join(base, 'sem-skill') }), /SKILL/);
+    assert.deepEqual(fs.readdirSync(dir2), ['CLAUDE.md']);
+  } finally { fs.rmSync(base, { recursive: true, force: true }); }
+});
