@@ -34,8 +34,8 @@ O briefing foi escrito a partir do que um desconhecido digitou. Por isso, **esta
 - O comando `pedido` do dono imprime a linha que abre esta sessão: `claude --restricted --permission-mode dontAsk ...`, na pasta do pedido.
 - Nela, tudo o que não está liberado é negado sem perguntar:
   - ler fora da pasta, internet e MCP: negados;
-  - Bash: só o `conferir`;
-  - escrita: só na pasta do pedido.
+  - Bash: só o `conferir`, pela linha `node ./.conferir.mjs ./<estrategia>.json <estrategia>`. O Claude Code nega, nesse modo, comando que cita caminho fora da pasta; por isso a pasta traz a partida `.conferir.mjs`, que chama o script do projeto, e uma guarda libera só essa linha exata (uma lista do que é permitido, porque comandos de "só leitura" como `nl` e `rg` escapam de proibições);
+  - escrita: só nos 3 arquivos de direção, na pasta do pedido.
 - Se você estiver numa sessão com internet, com MCP ou com acesso ao repositório, você NÃO está na sessão isolada: pare e peça ao dono que abra a sessão pela linha do `pedido`.
 - Se `PAINEL_CHAVE` aparecer no seu ambiente ou numa mensagem, **pare** e peça ao dono que rode os comandos no terminal dele.
 - Nunca rode `fila`, `pedido` ou `entregar-pedido` você mesmo.

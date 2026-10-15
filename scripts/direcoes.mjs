@@ -31,7 +31,7 @@ import { createInterface } from 'node:readline/promises';
 import { higienizar, ESTRATEGIAS, ESQUEMA_DIRECAO } from '../api/_vendas/direcao.mjs';
 import { SISTEMA_GERACAO, REGRA_BRIEFING, briefingDelimitado } from '../api/_vendas/gerador.mjs';
 import { redigir } from '../api/_vendas/seguranca.mjs';
-import { configSessao, comandoSessao, instrucoesSessao, linhaDoDono } from './sessao-isolada.mjs';
+import { configSessao, comandoSessao, instrucoesSessao, linhaDoDono, partidaConferir } from './sessao-isolada.mjs';
 import { FORMATOS } from '../api/_vendas/precos.mjs';
 import { varrer, textosDe } from './varredura.mjs';
 
@@ -50,7 +50,7 @@ export const idCurto = id => String(id).slice(0, 8);
 /* o conferir roda SEM sandbox no Windows (a sessão isolada o libera): só pode abrir o arquivo de direção de um pedido,
    isto é, <raiz>/<8 hex>/<estrategia>.json, comparando caminhos já resolvidos (sem ".." sobrando) */
 const ARQUIVOS_DE_DIRECAO = ['conversao.json', 'autoridade.json', 'experiencia.json'];
-const ARQUIVOS_DO_PEDIDO = ['pedido.json', '.sessao.json', '.instrucoes.md', ...ARQUIVOS_DE_DIRECAO];
+const ARQUIVOS_DO_PEDIDO = ['pedido.json', '.sessao.json', '.instrucoes.md', '.conferir.mjs', ...ARQUIVOS_DE_DIRECAO];
 export function arquivoDeDirecao(arquivo, raiz = PASTA) {
   const recusa = () => new Error('Só confiro conversao.json, autoridade.json ou experiencia.json dentro da pasta de um pedido.');
   const absoluto = path.resolve(String(arquivo));
@@ -73,10 +73,12 @@ export function prepararPastaSessao({ dir, repo }) {
   if (naMae.length) throw new Error('A pasta ' + mae + ' tem ' + naMae.join(', ') + ': apague (ou mova) antes, porque a sessão isolada leria essas instruções.');
   const skill = fs.readFileSync(origem, 'utf8');
   for (const n of ['.claude', 'CLAUDE.md', 'CLAUDE.local.md', '.mcp.json']) fs.rmSync(path.join(dir, n), { recursive: true, force: true });
-  const settings = path.join(dir, '.sessao.json'), instrucoes = path.join(dir, '.instrucoes.md');
+  const settings = path.join(dir, '.sessao.json'), instrucoes = path.join(dir, '.instrucoes.md'), partida = path.join(dir, '.conferir.mjs');
   fs.writeFileSync(settings, JSON.stringify(configSessao({ repo }), null, 2), { mode: 0o600 });
   fs.writeFileSync(instrucoes, instrucoesSessao({ repo, skill }), { mode: 0o600 });
-  return { settings, instrucoes };
+  /* a partida do conferir (conteúdo fixo, a sessão não a altera): ver partidaConferir em sessao-isolada.mjs */
+  fs.writeFileSync(partida, partidaConferir(repo), { mode: 0o600 });
+  return { settings, instrucoes, partida };
 }
 
 export function validarBase(valor) {
@@ -196,6 +198,17 @@ export function planejarEntrega(pasta, servidor) {
   });
 }
 
+/* o comando "conferir" inteiro, sem imprimir nem mexer no código de saída, para a partida da sessão e o comando usarem a mesma
+   lógica: { ok, linha }. Nada do que veio de argumento ou de arquivo é repetido (mensagens fixas) e a linha passa por paraTerminal */
+export function executarConferir(arquivo, estrategia, raiz = PASTA) {
+  let caminho;
+  try { caminho = arquivoDeDirecao(arquivo, raiz); } catch (e) { return { ok: false, linha: 'RECUSADA: ' + paraTerminal(e.message) }; }
+  let direcao;
+  try { direcao = JSON.parse(fs.readFileSync(caminho, 'utf8')); } catch { return { ok: false, linha: 'RECUSADA: o arquivo não é um JSON de direção válido.' }; }
+  const r = avaliarArquivo(direcao, estrategia);
+  return { ok: r.ok, linha: paraTerminal(r.mensagem, 600) };
+}
+
 /* a decisão do comando "conferir", separada para poder ser provada: { ok, mensagem } */
 export function avaliarArquivo(conteudo, estrategia) {
   const h = conferir(conteudo, estrategia);
@@ -295,12 +308,8 @@ const COMANDOS = {
   },
   conferir(arquivo, estrategia) {
     /* sem e.message nem conteúdo: o arquivo é de origem não confiável e o erro do JSON.parse cita pedaços do texto */
-    const caminho = arquivoDeDirecao(arquivo);
-    let direcao;
-    try { direcao = JSON.parse(fs.readFileSync(caminho, 'utf8')); }
-    catch { console.log('RECUSADA: o arquivo não é um JSON de direção válido.'); process.exitCode = 1; return; }
-    const r = avaliarArquivo(direcao, estrategia);
-    console.log(r.mensagem);
+    const r = executarConferir(arquivo, estrategia);
+    console.log(r.linha);
     if (!r.ok) process.exitCode = 1;
   },
   async 'entregar-pedido'(prefixo) {
