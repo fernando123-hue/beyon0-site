@@ -5,9 +5,13 @@
    sai. O contato do cliente entra no site depois, pelo dono, nunca por aqui.
    Cada tipo é uma lista de detectores; um detector devolve o trecho achado ou null. A varredura olha uma cópia
    normalizada do texto (largura total vira normal, caracteres invisíveis somem), e o e-mail sai do texto antes dos
-   outros tipos, para o domínio dele não virar um segundo achado.
+   outros tipos, para o domínio dele não virar um segundo achado. Mas o invisível em si é um achado: um texto que traz
+   controle de direção ou hífen mole não tem motivo de ser, e apagá-lo antes de olhar deixava passar o que o dono lê
+   diferente do que a varredura lê ("gro.eplog" invertido aparece na tela como "golpe.org").
    ========================================================================== */
-const INVISIVEIS = /[​-‏‪-‮⁠-⁤﻿\u007F-\u009F]/g;
+/* escritos só com \u para o arquivo não esconder o que ele mesmo procura: hífen mole, largura zero, marcas e controles de
+   direção (inclusive os que invertem a leitura), invisíveis do bloco 2060-2069, marca de ordem de bytes e controles C0/C1 */
+const INVISIVEIS = /[\u00AD\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF\u007F-\u009F]/g;
 const normalizar = texto => texto.replace(INVISIVEIS, '').normalize('NFKC').replace(INVISIVEIS, '');
 
 const EMAIL = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i;
@@ -66,12 +70,20 @@ export function textosDe(valor, caminho = '') {
   return [];
 }
 
+/* o primeiro invisível do texto ORIGINAL, como U+XXXX (hexadecimal maiúsculo, 4 dígitos), ou null */
+function primeiroInvisivel(texto) {
+  const m = texto.match(INVISIVEIS);
+  return m ? 'U+' + m[0].charCodeAt(0).toString(16).toUpperCase().padStart(4, '0') : null;
+}
+
 const trechoDe = (achado, mascarar) => (mascarar ? achado.slice(0, 4) + '…' : achado.slice(0, 40));
 
 /* os achados de uma direção já higienizada: vazio = pode sair (um achado por tipo em cada texto) */
 export function varrer(direcao) {
   const achados = [];
   for (const { caminho, texto } of textosDe(direcao)) {
+    const invisivel = primeiroInvisivel(texto);
+    if (invisivel) achados.push({ caminho, tipo: 'caractere invisível', trecho: invisivel });
     const limpo = normalizar(texto);
     const email = limpo.match(EMAIL);
     if (email) achados.push({ caminho, tipo: 'e-mail', trecho: trechoDe(email[0], false) });

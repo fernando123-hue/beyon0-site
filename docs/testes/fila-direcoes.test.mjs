@@ -471,6 +471,32 @@ test('varredura: disfarces de endereço, caminho, chave e telefone são recusado
   for (const texto of aceitos) assert.deepEqual(varrer(comTexto(limpa, texto)), [], 'falso positivo em "' + texto + '"');
 });
 
+/* revisão final: caractere invisível ou de direção invertida é achado por si só. Antes a varredura os APAGAVA e olhava o
+   resto: "gro.eplog" escrito ao contrário, com o controle que inverte a leitura, aparecia na tela do dono como "golpe.org"
+   e passava sem achado */
+test('varredura: caractere invisível (inversão de leitura, hífen mole) é achado, mesmo quando o texto sem ele parece limpo', async () => {
+  const { varrer } = await import('../../scripts/varredura.mjs');
+  const { avaliarArquivo, conferir } = await import('../../scripts/direcoes.mjs');
+  const limpa = conferir(direcao(), 'conversao').direcao;
+  const casos = [
+    ['Pague o sinal em ‮' + 'xip/moc.eplog//:sptth' + '‬', 'U+202E'],
+    ['Pague em ‮gro.eplog‬', 'U+202E'],
+    ['⁧ten.eplog⁩', 'U+2067'],
+    ['golpe.or­g', 'U+00AD'],
+    ['Atende hoje', 'U+007F'],
+    ['Atende​ hoje', 'U+200B']
+  ];
+  for (const [texto, codigo] of casos) {
+    const achados = varrer(comTexto(limpa, texto));
+    const a = achados.find(x => x.tipo === 'caractere invisível' && x.caminho === 'secoes[1].texto');
+    assert.ok(a, 'sem achado de caractere invisível em ' + JSON.stringify(texto) + ': ' + JSON.stringify(achados));
+    assert.equal(a.trecho, codigo, 'o trecho diz o código do primeiro caractere');
+    const r = avaliarArquivo(comTexto(direcao(), texto), 'conversao');
+    assert.equal(r.ok, false, 'o conferir devia recusar ' + JSON.stringify(texto));
+  }
+  assert.deepEqual(varrer(comTexto(limpa, 'Atendimento sem caractere escondido, com acento e emoji ✓')), []);
+});
+
 test('varredura: e-mail dá um achado só (o domínio dele não vira "endereço de site"), e o trecho de chave e telefone sai mascarado', async () => {
   const { varrer } = await import('../../scripts/varredura.mjs');
   const { conferir } = await import('../../scripts/direcoes.mjs');
