@@ -688,3 +688,30 @@ test('prepararPastaSessao: recusa se a pasta-mãe tem configuração do Claude C
     assert.ok(fs.existsSync(r.settings) && !fs.existsSync(path.join(dir, 'CLAUDE.md')));
   } finally { fs.rmSync(base, { recursive: true, force: true }); }
 });
+
+/* revisão final: o que a sessão isolada de fato roda é o PROCESSO "conferir", com a pasta do pedido como pasta de
+   trabalho e o caminho relativo. Aqui ele roda de verdade, num processo filho, com o perfil (HOME e USERPROFILE: o
+   os.homedir() lê um no Linux e o outro no Windows) trocado por uma pasta temporária; nada toca ~/BeyonZero-direcoes real */
+test('conferir (processo filho): na pasta do pedido, com caminho relativo, diz OK e sai com 0; com JSON quebrado, RECUSADA e sai com 1', async () => {
+  const { spawnSync } = await import('node:child_process');
+  const fs = await import('node:fs'), os = await import('node:os'), path = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+  const script = fileURLToPath(new URL('../../scripts/direcoes.mjs', import.meta.url));
+  const home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'bz-home-')));
+  try {
+    const pedido = path.join(home, 'BeyonZero-direcoes', '1234abcd');
+    fs.mkdirSync(pedido, { recursive: true });
+    const arquivo = path.join(pedido, 'conversao.json');
+    const env = { ...process.env, HOME: home, USERPROFILE: home };
+    const rodar = () => spawnSync(process.execPath, [script, 'conferir', './conversao.json', 'conversao'], { cwd: pedido, env, encoding: 'utf8' });
+    fs.writeFileSync(arquivo, JSON.stringify(direcao()));
+    const ok = rodar();
+    assert.equal(ok.status, 0, ok.stdout + ok.stderr);
+    assert.match(ok.stdout, /^OK/);
+    fs.writeFileSync(arquivo, '{ isto não é json');
+    const ruim = rodar();
+    assert.equal(ruim.status, 1, ruim.stdout + ruim.stderr);
+    assert.equal(ruim.stdout.trim(), 'RECUSADA: o arquivo não é um JSON de direção válido.');
+    assert.ok(!ruim.stdout.includes('isto não é json'), 'o conteúdo do arquivo não volta na saída');
+  } finally { fs.rmSync(home, { recursive: true, force: true }); }
+});

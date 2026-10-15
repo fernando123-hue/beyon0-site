@@ -590,6 +590,9 @@ test('estimativa (o caminho do consultor): o mesmo teto de 30 pacotes por conver
 test('trava das direções em ordem fixa (sem espera circular) e a consulta leve do dono sem trava', async () => {
   const fonte = async nome => (await um("select prosrc from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'app' and p.proname = $1", [nome])).prosrc;
   assert.match(await fonte('vendas_mudar_pedido'), /order by d\.id\s+for update of d/i, 'PR2a-ordem-trava');
+  /* a ordem importa: as direções (por id) travam ANTES da conversa; o contrário reabre a espera circular com vendas_concluir_direcao */
+  const mudar = await fonte('vendas_mudar_pedido');
+  assert.ok(mudar.indexOf('for update of d') !== -1 && mudar.indexOf('for update of d') < mudar.indexOf('conversa_da_org('), 'as direções travam antes da conversa');
   const dono = await fonte('vendas_conversa_dono');
   assert.doesNotMatch(dono, /for update|conversa_do\(/i, 'PR2a-dono-leitura: a leitura não trava a conversa');
   const b = await comPacote();
@@ -598,9 +601,11 @@ test('trava das direções em ordem fixa (sem espera circular) e a consulta leve
   assert.equal((await erroDe(rpc('vendas_conversa_dono', { ...b, etapas: ['contato'] })))?.codigo, ETAPA, 'etapa fora da lista');
 });
 
-test('bordas das funções do PR 2a (PR2a-testes-borda): outro visitante ou organização → P0002; entrada inválida → 22023', async () => {
+test('bordas das funções do PR 2a (PR2a-testes-borda): outro visitante ou organização → P0002 (respostas, mudar_pedido, marcar_avisado); entrada inválida → 22023', async () => {
   const b = await comPacote();
   assert.equal((await erroDe(rpc('vendas_registrar_respostas', { ...b, visitante_id: randomUUID(), briefing: {}, confianca: 0 })))?.codigo, NAO_ACHOU);
   assert.equal((await erroDe(rpc('vendas_conversa_dono', { ...b, etapas: { estimativa: true } })))?.codigo, INVALIDO, 'etapas que não são lista');
   assert.equal((await erroDe(rpc('vendas_mudar_pedido', { org_slug: 'outra', conversa_id: b.conversa_id, acao: 'arquivar' })))?.codigo, NAO_ACHOU);
+  /* o "Já avisei" de outra organização não acha a conversa: P0002, e nada é avisado (não devolve { avisadas: 0 }) */
+  assert.equal((await erroDe(rpc('vendas_marcar_avisado', { org_slug: 'outra', conversa_id: b.conversa_id })))?.codigo, NAO_ACHOU, 'marcar_avisado de outra organização');
 });
