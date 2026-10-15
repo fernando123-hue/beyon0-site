@@ -484,7 +484,11 @@ test('varredura: caractere invisível (inversão de leitura, hífen mole) é ach
     ['\u2067ten.eplog\u2069', 'U+2067'],
     ['golpe.or\u00ADg', 'U+00AD'],
     ['Atende\u007F hoje', 'U+007F'],
-    ['Atende\u200B hoje', 'U+200B']
+    ['Atende\u200B hoje', 'U+200B'],
+    /* outros invis\u00EDveis (re-revis\u00E3o N1): marca de letra \u00E1rabe, separador mongol, preenchimento hangul, "tag" acima de
+       U+FFFF (o c\u00F3digo sai inteiro, n\u00E3o o substituto), uso privado, \u00E2ncora de anota\u00E7\u00E3o e seletor de varia\u00E7\u00E3o */
+    ['golpe.o\u061Crg', 'U+061C'], ['golpe.o\u180Erg', 'U+180E'], ['golpe.o\u3164rg', 'U+3164'], ['golpe.o\u{E0072}rg', 'U+E0072'],
+    ['golpe.o\uE000rg', 'U+E000'], ['golpe.o\uFFF9rg', 'U+FFF9'], ['golpe.o\uFE0Frg', 'U+FE0F']
   ];
   for (const [texto, codigo] of casos) {
     const achados = varrer(comTexto(limpa, texto));
@@ -494,7 +498,8 @@ test('varredura: caractere invisível (inversão de leitura, hífen mole) é ach
     const r = avaliarArquivo(comTexto(direcao(), texto), 'conversao');
     assert.equal(r.ok, false, 'o conferir devia recusar ' + JSON.stringify(texto));
   }
-  assert.deepEqual(varrer(comTexto(limpa, 'Atendimento sem caractere escondido, com acento e emoji ✓')), []);
+  for (const texto of ['Atendimento sem caractere escondido, com acento e emoji ✓', 'Clínica São José · Niterói — 24h', '✓'])
+    assert.deepEqual(varrer(comTexto(limpa, texto)), [], 'falso positivo em "' + texto + '"');
 });
 
 test('varredura: e-mail dá um achado só (o domínio dele não vira "endereço de site"), e o trecho de chave e telefone sai mascarado', async () => {

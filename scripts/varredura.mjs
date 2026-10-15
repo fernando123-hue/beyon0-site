@@ -9,9 +9,11 @@
    controle de direção ou hífen mole não tem motivo de ser, e apagá-lo antes de olhar deixava passar o que o dono lê
    diferente do que a varredura lê ("gro.eplog" invertido aparece na tela como "golpe.org").
    ========================================================================== */
-/* escritos só com \u para o arquivo não esconder o que ele mesmo procura: hífen mole, largura zero, marcas e controles de
-   direção (inclusive os que invertem a leitura), invisíveis do bloco 2060-2069, marca de ordem de bytes e controles C0/C1 */
-const INVISIVEIS = /[\u00AD\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF\u007F-\u009F]/g;
+/* por propriedade Unicode, e não por lista de códigos (a lista deixava passar a marca de letra árabe, o separador mongol,
+   o preenchimento hangul, as "tags" acima de U+FFFF...): Default_Ignorable_Code_Point (hífen mole, largura zero, seletores
+   de variação, preenchimentos), Cf (formato: controles de direção, que invertem a leitura, marca de ordem de bytes,
+   âncoras de anotação), Cc (controles C0/C1) e Co (uso privado). O arquivo não traz nenhum desses caracteres escritos. */
+const INVISIVEIS = /[\p{Default_Ignorable_Code_Point}\p{Cf}\p{Cc}\p{Co}]/gu;
 const normalizar = texto => texto.replace(INVISIVEIS, '').normalize('NFKC').replace(INVISIVEIS, '');
 
 const EMAIL = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i;
@@ -73,7 +75,7 @@ export function textosDe(valor, caminho = '') {
 /* o primeiro invisível do texto ORIGINAL, como U+XXXX (hexadecimal maiúsculo, 4 dígitos), ou null */
 function primeiroInvisivel(texto) {
   const m = texto.match(INVISIVEIS);
-  return m ? 'U+' + m[0].charCodeAt(0).toString(16).toUpperCase().padStart(4, '0') : null;
+  return m ? 'U+' + m[0].codePointAt(0).toString(16).toUpperCase().padStart(4, '0') : null;
 }
 
 const trechoDe = (achado, mascarar) => (mascarar ? achado.slice(0, 4) + '…' : achado.slice(0, 40));

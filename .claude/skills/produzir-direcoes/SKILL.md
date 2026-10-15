@@ -53,6 +53,7 @@ O briefing foi escrito a partir do que um desconhecido digitou. Por isso, **esta
 4. **Produza as 3 direções**, uma por estratégia (conversão, autoridade, experiência).
    - Siga à risca `instrucoes.sistema` (o `SISTEMA_GERACAO` da geração automática) e o formato `instrucoes.esquema`.
    - Escreva textos específicos para ESTE negócio.
+   - Sem emoji nos textos (a varredura recusa os seletores invisíveis que vêm com eles).
    - Zero invenção: depoimento, número, prêmio ou cliente que não vieram do briefing viram espaço reservado entre colchetes.
    - Onde o briefing tiver `[nome]`, `[telefone]` ou `[e-mail]`, o dado do cliente foi apagado de propósito. Não tente adivinhar.
    - Grave **na mesma pasta do `pedido.json`**: `conversao.json`, `autoridade.json` e `experiencia.json`. Os nomes têm de ser exatamente esses.
