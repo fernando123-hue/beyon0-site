@@ -13,7 +13,7 @@ import { criarSimulada } from '../../api/_ia/simulado.mjs';
 import { LIMITES_DE_TESTE, telefoneDeTeste } from './_pedido.mjs';
 
 const BASE = 'http://127.0.0.1:8899';
-let local, deps, ipSeq = 0, telSeq = 0;
+let local, deps, ipSeq = 0;
 before(async () => {
   local = await montarLocal({ base: BASE });
   deps = { banco: local.rpc, visitantes: local.auth, ia: null, direcoes: 'manual', segredoFreio: 's'.repeat(32), limitesPedido: { ...LIMITES_DE_TESTE, por_ip_dia: PEDIDOS.por_ip_dia, por_ip48_dia: PEDIDOS.por_ip48_dia } };
@@ -89,7 +89,7 @@ test('freio por telefone: o mesmo WhatsApp com outra escrita, em outra conversa,
 /* (revisão final do PR 2a, M2) a mesma conversa reenviando os detalhes trocando o telefone (para descobrir se um número já
    pediu) para na 4ª tentativa, com o WhatsApp à mão e sem dizer nada do número */
 test('detalhes: a 4ª tentativa na mesma conversa leva 429 com o WhatsApp, mesmo com um número novo', async () => {
-  const fone = '(21) 97777-' + String(1000 + (++telSeq));
+  const fone = telefoneDeTeste();
   const a = navegador(), ca = await comPacote(a);
   assert.equal((await a.chamar('POST', 'detalhes', { conversa_id: ca, ...DETALHES(), telefone: fone })).status, 200);
   const n = navegador(), c = await comPacote(n);
@@ -292,6 +292,35 @@ test('traduzirErro: 22P02 (texto que não converte) vira 400 "Dados inválidos."
   const r = traduzirErro(new ErroBanco('22P02', 'invalid input syntax for type uuid'));
   assert.equal(r?.status, 400);
   assert.equal(r?.message, 'Dados inválidos.');
+});
+
+/* revisão final: o 22P02 virou 400 neste PR e, com isso, saiu do log (só 500 ou erro sem tradução logava). Um uuid malformado
+   que chega ao banco é sinal de bug ou de sondagem, e a equipe precisa ver. O log leva o código e a ação, nunca a mensagem
+   do banco (ela cita o valor que o visitante mandou) */
+test('22P02 do banco: a resposta é 400 e o log tem o aviso, sem a mensagem do erro (ela cita o valor do visitante)', async () => {
+  const { ErroBanco } = await import('../../api/_vendas/transporte.mjs');
+  let quebrar = false;
+  const banco = async (nome, params) => {
+    if (quebrar) throw new ErroBanco('22P02', 'invalid input syntax for type uuid: "valor-do-visitante-123"');
+    return local.rpc(nome, params);
+  };
+  const n = navegador(undefined, { banco }), c = await n.iniciar();
+  const logs = [], original = console.error;
+  console.error = (...a) => logs.push(a.join(' '));
+  try {
+    quebrar = true;
+    const r = await n.chamar('GET', 'estado', undefined, '&conversa=' + c);
+    assert.equal(r.status, 400, JSON.stringify(r.corpo));
+    assert.equal(r.corpo.erro, 'Dados inválidos.');
+  } finally { console.error = original; }
+  const aviso = logs.map(l => { try { return JSON.parse(l); } catch { return null; } }).find(l => l && l.evento === 'parâmetro malformado no banco (22P02)');
+  assert.ok(aviso, 'o log tem o aviso: ' + logs.join(' | '));
+  assert.equal(aviso.origem, 'vendas');
+  assert.equal(aviso.nivel, 'aviso');
+  assert.equal(aviso.codigo, '22P02');
+  assert.equal(aviso.acao, 'estado');
+  assert.match(aviso.request_id, /\S/);
+  assert.ok(!logs.join('\n').includes('valor-do-visitante-123'), 'a mensagem do banco não vai para o log: ' + logs.join(' | '));
 });
 
 /* PR2a-motivo-log: motivo que o servidor não conhece vira 409, mas com log (antes sumia) */
