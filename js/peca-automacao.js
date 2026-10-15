@@ -44,8 +44,9 @@
       saidas: [['sistema', 'Cadastro criado no sistema'], ['equipe', 'Diretoria avisada para aprovar']], livre: [], fim: 'Pronto para aprovar, com tudo conferido.' },
     cadastro: { rotulo: 'atualização de cadastro', canal: ['email', 'Pedido de atualização por e-mail'], agente: ['lendo a mensagem…', 'Dados novos lidos da mensagem'],
       saidas: [['sistema', 'Cadastro atualizado no sistema'], ['planilha', 'Alteração registrada na planilha']], livre: ['equipe'], fim: 'Confirmação respondida por e-mail.' },
-    pessoa: { rotulo: 'falar com uma pessoa', canal: ['whatsapp', 'Mensagem pedindo uma pessoa'], agente: ['resumindo o assunto…', 'Assunto resumido em três linhas'],
-      saidas: [['equipe', 'Pessoa certa avisada, com o resumo'], ['planilha', 'Atendimento registrado na planilha']], livre: [], fim: 'Ninguém precisa repetir a história.' }
+    /* (era "falar com uma pessoa", que é o que o cartão do Atendente vende: cada cartão vende uma coisa) */
+    relatorio: { rotulo: 'o relatório do mês', canal: ['email', 'Diretoria pediu o relatório do mês'], agente: ['juntando os números…', 'Números do mês conferidos'],
+      saidas: [['planilha', 'Planilha do mês fechada'], ['equipe', 'Relatório entregue à diretoria']], livre: [], fim: 'Relatório pronto sem ninguém montar planilha.' }
   };
   var mq = window.matchMedia('(prefers-reduced-motion: reduce)');
   function reduzido() { return mq.matches || html.classList.contains('menos-movimento'); }
@@ -89,7 +90,8 @@
   /* ---------- 2. o pacote ---------- */
   /* quadros-chave pelos cantos da trilha, com o tempo proporcional à distância: velocidade constante; nos
      cantos o segmento gira junto (vertical, 45° ou horizontal) */
-  function correr(pacote, pts, aoChegar) {
+  function comprimento(pts) { var l = 0; for (var i = 1; i < pts.length; i++) l += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); return l; }
+  function correr(pacote, pts, aoChegar, msFixo) {
     var segs = [], total = 0;
     for (var i = 1; i < pts.length; i++) {
       var dx = pts[i][0] - pts[i - 1][0], dy = pts[i][1] - pts[i - 1][1], l = Math.hypot(dx, dy);
@@ -102,7 +104,7 @@
       feito += s.l;
       quadros.push({ transform: 'translate(' + pts[i + 1][0] + 'px,' + pts[i + 1][1] + 'px) rotate(' + s.giro + 'deg)', offset: feito / total, opacity: 1 });
     });
-    var an = pacote.animate(quadros, { duration: Math.max(160, total / VELOCIDADE), easing: 'linear' });
+    var an = pacote.animate(quadros, { duration: msFixo || Math.max(160, total / VELOCIDADE), easing: 'linear' });
     an.onfinish = aoChegar;
     emVoo.push(an);
   }
@@ -112,7 +114,7 @@
   function limpar() {
     emVoo.forEach(function (an) { an.onfinish = null; an.cancel(); }); emVoo = [];
     [trilhas, voltas].forEach(function (g) { Object.keys(g).forEach(function (k) { g[k].el.classList.remove('is-acesa'); }); });
-    Object.keys(nos).forEach(function (k) { nos[k].classList.remove('is-aceso', 'is-feito', 'is-livre'); numerar(nos[k], ''); });
+    Object.keys(nos).forEach(function (k) { nos[k].classList.remove('is-aceso', 'is-feito', 'is-livre', 'is-respondido'); numerar(nos[k], ''); });
     linhas.forEach(function (li) { li.classList.remove('is-feito', 'is-novo'); });
     fim.classList.remove('is-pronto'); escrever(fimTexto, ' ');
     escrever(verbo, 'pronto');
@@ -138,7 +140,7 @@
       rota.saidas.forEach(function (s) { trilhas[s[0]].el.classList.add('is-acesa'); nos[s[0]].classList.add('is-feito'); registrar(s[0], s[1]); });
       rota.livre.forEach(function (k) { nos[k].classList.add('is-livre'); });
       nos[canal].classList.add('is-feito'); nos.agente.classList.add('is-feito');
-      numerar(nos[canal], '✓');
+      numerar(nos[canal], '✓'); nos[canal].classList.add('is-respondido');
       escrever(verbo, 'feito'); escrever(fimTexto, rota.fim); fim.classList.add('is-pronto');
       return;
     }
@@ -150,7 +152,6 @@
         nos[canal].classList.replace('is-aceso', 'is-feito');
         nos.agente.classList.add('is-aceso');
         escrever(verbo, rota.agente[0]);
-        rota.livre.forEach(function (k) { nos[k].classList.add('is-livre'); });
         setTimeout(vale(function () {
           registrar('agente', rota.agente[1]);
           leque(rota, vale);
@@ -158,20 +159,21 @@
       }));
     }), ARRANQUE_MS);
   }
-  /* O LEQUE: todas as saídas partem juntas; comprimentos iguais ganham 60 ms de folga para não empatar */
+  /* O LEQUE: todas as saídas partem JUNTAS (os pinos de baixo estalam); as durações saem do comprimento, mas a
+     chegada segue a ordem da rota, 60 ms uma da outra — a ordem do registro não depende da largura da tela */
   function leque(rota, vale) {
-    var faltam = rota.saidas.length, vistos = {};
+    var faltam = rota.saidas.length, anterior = 0;
+    nos.agente.classList.add('is-despacha');
+    setTimeout(function () { nos.agente.classList.remove('is-despacha'); }, 160);
     rota.saidas.forEach(function (s, i) {
-      var t = trilhas[s[0]], chave = Math.round(t.el.getTotalLength());
-      var folga = vistos[chave] ? 60 : 0; vistos[chave] = true;
-      setTimeout(vale(function () {
-        correr(pacotes[1 + i], t.pts, vale(function () {
-          t.el.classList.add('is-acesa');
-          nos[s[0]].classList.add('is-feito');
-          registrar(s[0], s[1]);
-          if (--faltam === 0) setTimeout(vale(function () { retorno(rota, vale); }), RESPIRO_MS);
-        }));
-      }), folga);
+      var t = trilhas[s[0]];
+      var ms = Math.max(160, comprimento(t.pts) / VELOCIDADE, anterior + 60); anterior = ms;
+      correr(pacotes[1 + i], t.pts, vale(function () {
+        t.el.classList.add('is-acesa');
+        nos[s[0]].classList.add('is-feito');
+        registrar(s[0], s[1]);
+        if (--faltam === 0) setTimeout(vale(function () { retorno(rota, vale); }), RESPIRO_MS);
+      }), ms);
     });
   }
   /* O RETORNO: a resposta sobe pela trilha paralela até o canal, que recebe o "✓" */
@@ -181,7 +183,9 @@
     correr(pacotes[3], voltas[canal].pts, vale(function () {
       voltas[canal].el.classList.add('is-acesa');
       nos.agente.classList.replace('is-aceso', 'is-feito');
-      numerar(nos[canal], '✓');
+      numerar(nos[canal], '✓'); nos[canal].classList.add('is-respondido');
+      /* a equipe que não precisou parar fica tracejada só agora, no fim (antes, entregava o final) */
+      rota.livre.forEach(function (k) { nos[k].classList.add('is-livre'); });
       escrever(verbo, 'feito');
       escrever(fimTexto, rota.fim);
       fim.classList.add('is-pronto');

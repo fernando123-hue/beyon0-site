@@ -41,7 +41,7 @@
 .dp-volta { stroke: transparent; stroke-dasharray: 3 3; }
 .dp-volta.is-acesa { stroke: var(--ac-3); }
 /* o pacote: um segmento de 1 × 10 px que corre pela trilha (transform, na placa de vídeo) */
-.dp-pacote { position: absolute; left: 0; top: 0; width: 1px; height: 10px; margin: -5px 0 0 0; background: var(--ac); opacity: 0; pointer-events: none; z-index: 2; }
+.dp-pacote { position: absolute; left: 0; top: 0; width: 2px; height: 18px; margin: -9px 0 0 -1px; background: var(--ac-2); opacity: 0; pointer-events: none; z-index: 2; }   /* (1 × 10 px sumia no celular — crítica) */
 
 .despacho__linha { position: relative; display: flex; justify-content: space-between; gap: 6px; }
 .despacho__centro { position: relative; display: flex; justify-content: center; }
@@ -58,8 +58,11 @@
 /* a equipe que NÃO precisou parar ("2ª via do boleto"): tracejada e apagada — a frase que vende vira imagem */
 .dp-no.is-livre { border-style: dashed; opacity: .5; }
 /* o número do passo, o mesmo do registro; no canal de origem, ao fim, o "✓" de respondido */
-.dp-n { position: absolute; top: -8px; right: -6px; padding: 0 3px; border: 1px solid var(--ac); border-radius: 2px; background: var(--bg); font-size: 9px; font-weight: 400; line-height: 13px; letter-spacing: 0; color: var(--ac); }
+.dp-n { position: absolute; top: -8px; right: 3px; padding: 0 3px; border: 1px solid var(--ac); border-radius: 2px; background: var(--bg); font-size: 9px; font-weight: 400; line-height: 13px; letter-spacing: 0; color: var(--ac); }
 .dp-no:not(.tem-n) .dp-n { display: none; }
+/* o "✓" de respondido carimba maior, e entra encolhendo (só transform) */
+.dp-no.is-respondido .dp-n { top: -10px; padding: 1px 5px; font-size: 12px; line-height: 15px; animation: dp-carimba .35s var(--ease); }
+@keyframes dp-carimba { from { transform: scale(1.8); } }
 /* coluna estreita (o cartão do desktop tem ~400 px; o celular, ~290): ícone em cima da palavra */
 @container despacho (max-width: 519px) {
   .despacho__linha .dp-no { flex-direction: column; gap: 4px; padding: 7px 2px; letter-spacing: 0; }
@@ -72,6 +75,8 @@
   content: ""; position: absolute; left: 8px; right: 8px; height: 5px;
   background-image: linear-gradient(90deg, var(--stroke) 1px, transparent 1px); background-size: 7px 5px;
 }
+/* O LEQUE: na partida, os pinos de baixo "estalam" num instante (o clique do despacho) */
+.dp-agente.is-despacha::after { background-image: linear-gradient(90deg, var(--ac) 1px, transparent 1px); }
 .dp-agente::before { top: -6px; }
 .dp-agente::after { bottom: -6px; }
 .dp-agente__nome { color: var(--t1); letter-spacing: var(--tr-rotulo); }

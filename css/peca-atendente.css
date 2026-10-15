@@ -13,30 +13,45 @@
 .plantao { display: none; }
 .plantao.is-viva { display: flex; flex-direction: column; gap: .8rem; position: relative; z-index: 2; margin: .3rem 0 .4rem; }
 
+/* ---------- a manchete: a hora da régua dita em voz alta ---------- */
+.servico .plantao__manchete { display: flex; flex-wrap: wrap; align-items: baseline; gap: .2rem .7rem; margin: 0; font-size: 1.0625rem; font-weight: 400; line-height: 1.4; color: var(--t1); }
+.plantao__madrugada {
+  min-height: 36px; padding: 0; border: 0; background: none; cursor: pointer;
+  font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-ctrl); text-transform: uppercase; color: var(--ac);
+  text-decoration: underline; text-underline-offset: 4px; text-decoration-color: rgb(var(--ac-rgb) / .4);
+}
+.plantao__madrugada:hover { text-decoration-color: var(--ac); }
+.plantao__madrugada:focus-visible { outline: 2px solid var(--ac); outline-offset: 3px; border-radius: 2px; }
+@media (pointer: coarse) { .plantao__madrugada { min-height: 44px; } }
+.plantao.is-noite .plantao__madrugada { display: none; }
+
 /* ---------- a régua de 24 horas ---------- */
 .plantao__relogio { position: relative; padding-top: 22px; }
 .plantao__slider { position: relative; height: 26px; touch-action: pan-y; cursor: ew-resize; user-select: none; -webkit-user-select: none; outline: none; }
+@media (pointer: coarse) { .plantao__slider { height: 44px; } .plantao__slider > * { margin-top: 9px; } }   /* (alvo de toque de 44 px) */
 .plantao__trilho { position: absolute; left: 0; right: 0; top: 10px; height: 8px; border-top: 1px solid var(--line-2);
   background-image: linear-gradient(90deg, var(--line-2) 1px, transparent 1px); background-size: calc(100% / 24) 5px; background-repeat: repeat-x; }
 /* o expediente (8h às 18h, exemplo): o trecho em que a equipe está no ar */
-.plantao__expediente { position: absolute; top: 9px; left: calc(8 / 24 * 100%); width: calc(10 / 24 * 100%); height: 2px; background: var(--ac-3); }
+.plantao__expediente { position: absolute; top: 9px; left: calc(8 / 24 * 100%); width: calc(10 / 24 * 100%); height: 2px; background: var(--ac-3); transition: opacity .4s var(--ease); }
+/* o cursor é um PONTEIRO DE HORA (uma linha que corta o trilho), não o botão redondo da régua da Planta */
 .plantao__cursor { position: absolute; left: 0; top: 0; width: 0; height: 26px; }
-.plantao__cursor::before { content: ""; position: absolute; left: -1px; top: 2px; width: 2px; height: 20px; background: var(--ac); }
-.plantao__cursor::after { content: ""; position: absolute; left: -8px; top: 5px; width: 14px; height: 14px; border: 1px solid var(--ac); border-radius: 50%; background: var(--bg); }
-@media (pointer: coarse) { .plantao__cursor::after { left: -12px; top: 1px; width: 22px; height: 22px; } }
+.plantao__cursor::before { content: ""; position: absolute; left: 0; top: 0; width: 1px; height: 26px; background: var(--ac); }
+.plantao__cursor::after { content: ""; position: absolute; left: -4px; top: 0; border: 4px solid transparent; border-top-color: var(--ac); border-bottom: 0; }
 .plantao__hora { position: absolute; left: 0; top: -22px; transform: translateX(-50%); font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-dado); font-variant-numeric: tabular-nums; color: var(--ac); white-space: nowrap; }
-.plantao__slider:focus-visible .plantao__cursor::after { outline: 2px solid var(--ac); outline-offset: 3px; }
+.plantao__slider:focus-visible .plantao__hora { outline: 2px solid var(--ac); outline-offset: 3px; border-radius: 2px; }
 .plantao__escala { display: flex; justify-content: space-between; margin-top: 4px; font-family: var(--mono); font-size: 10px; letter-spacing: var(--tr-dado); color: var(--t3); }
 
 /* ---------- a conversa ---------- */
-.plantao__tela { display: flex; flex-direction: column; border: 1px solid var(--line-2); border-radius: var(--raio); background: #070909; overflow: hidden; transition: background-color .4s var(--ease), border-color .4s var(--ease); }
-.plantao__topo { display: flex; align-items: center; gap: .7rem; padding: .7rem .8rem; border-bottom: 1px solid var(--line); }
+.plantao__tela { display: flex; flex-direction: column; border: 1px solid var(--line-2); border-radius: var(--raio); background: #070909; overflow: hidden; transition: border-color .4s var(--ease); }
+.plantao__topo { position: relative; display: flex; align-items: center; gap: .7rem; padding: .7rem .8rem; border-bottom: 1px solid var(--line); }
 .plantao__avatar { flex: none; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--ac-3); font-weight: 600; font-size: .875rem; color: var(--t1); }
-.plantao__quem { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.plantao__quem { display: flex; flex-direction: column; flex: 1; min-width: 0; line-height: 1.3; }
 .plantao__quem b { font-weight: 600; font-size: .9375rem; color: var(--t1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.plantao__quem span { font-family: var(--mono); font-size: 10px; letter-spacing: var(--tr-dado); color: var(--ac-3); }
-.plantao__equipe { margin-left: auto; flex: none; padding: 3px 7px; border: 1px solid var(--line-2); border-radius: var(--raio-s); font-family: var(--mono); font-size: 10px; letter-spacing: var(--tr-dado); color: var(--t2); white-space: nowrap; }
-.plantao__conversa { list-style: none; margin: 0; padding: .9rem .8rem; display: flex; flex-direction: column; gap: .5rem; min-height: 15.5rem; }
+.plantao__quem > span { font-family: var(--mono); font-size: 10px; letter-spacing: var(--tr-dado); color: var(--t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.plantao.is-digitando [data-plantao-estado] { color: var(--ac); }   /* "digitando…" embaixo do nome, como no WhatsApp */
+.plantao__equipe { transition: opacity .4s var(--ease) .08s; }
+/* a altura das quatro mensagens já reservada: o resumo entra sem empurrar as perguntas para baixo do dedo */
+.plantao__conversa { list-style: none; margin: 0; padding: .9rem .8rem; display: flex; flex-direction: column; gap: .5rem; min-height: 21rem; contain: content; }
 .pt-msg { position: relative; max-width: 86%; padding: .55rem .7rem 1.25rem; border-radius: 8px; font-size: .875rem; line-height: 1.45; color: var(--t1); }
 .pt-msg[hidden] { display: none; }
 .pt-msg--ia { align-self: flex-start; border: 1px solid rgb(var(--ac-rgb) / .28); background: rgb(var(--ac-rgb) / .05); border-top-left-radius: 2px; }
@@ -51,13 +66,9 @@
 /* o dado que o dono passa na implantação: marcado, nunca como fato */
 .pt-reservado { padding: 0 2px; border-bottom: 1px dashed rgb(var(--ac-rgb) / .6); color: var(--ac-2); font-family: var(--mono); font-size: .8em; }
 .pt-reservado.is-vazio { display: none; }
-/* digitando: três pontos que acendem em sequência (opacidade) */
-.pt-digitando { display: none; gap: 4px; padding: .2rem 0 .1rem; }
-.pt-digitando i { width: 5px; height: 5px; border-radius: 50%; background: var(--t2); opacity: .3; animation: pt-ponto .9s steps(1) infinite; }
-.pt-digitando i:nth-child(2) { animation-delay: .3s; } .pt-digitando i:nth-child(3) { animation-delay: .6s; }
-@keyframes pt-ponto { 0% { opacity: 1; } 33% { opacity: .3; } }
-.pt-msg.is-digitando .pt-digitando { display: flex; }
-.pt-msg.is-digitando .pt-txt, .pt-msg.is-digitando .pt-hora { display: none; }
+/* o balão que entra sobe 6 px e aparece (transform e opacidade) */
+.pt-msg.is-entrando { animation: pt-entra .22s var(--ease) both; }
+@keyframes pt-entra { from { opacity: 0; transform: translateY(6px); } }
 
 /* as perguntas: as respostas rápidas do WhatsApp, embaixo da conversa (não outra grade de botões) */
 .plantao__sugestoes { display: flex; flex-wrap: wrap; gap: .35rem; padding: .7rem .8rem .8rem; border-top: 1px solid var(--line); }
@@ -71,9 +82,16 @@
 .plantao__sugestao[aria-pressed="true"] { border-color: var(--ac); background: rgb(var(--ac-rgb) / .1); }
 @media (pointer: coarse) { .plantao__sugestao { min-height: 44px; } }
 
-/* ---------- a madrugada: a equipe fora do ar, o atendente respondendo ---------- */
-.plantao.is-noite .plantao__tela { background: #030404; border-color: var(--line); }
-.plantao.is-noite .plantao__equipe { border-style: dashed; color: var(--t3); }
-.plantao.is-noite .pt-msg--cliente { background: #0D0F10; }
+/* ---------- a madrugada: SÓ A CONVERSA FICA ACESA ----------
+   Fora do expediente, o "escritório" apaga em volta (o trecho do expediente na régua, a equipe no topo, a aresta
+   do cartão), em sequência, por opacidade; a conversa continua acesa e ganha a borda "de plantão". Ao virar a
+   noite, uma luz de 1 px atravessa o topo da conversa (a assinatura do site: a luz passa e imprime). */
+.plantao.is-noite .plantao__expediente { opacity: .3; }
+.plantao.is-noite .plantao__equipe { opacity: .55; }
+.plantao.is-noite .plantao__tela { border-color: rgb(var(--ac-3-rgb) / .8); }
+.servico--peca:has(.plantao.is-noite)::before { opacity: .25; transition: opacity .4s var(--ease) .16s; }
+.plantao__topo::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px; background: var(--ac); transform: scaleX(0); transform-origin: left; opacity: 0; pointer-events: none; }
+.plantao.is-virou .plantao__topo::after { animation: pt-vira .6s var(--ease); }
+@keyframes pt-vira { 0% { transform: scaleX(0); opacity: 1; } 75% { transform: scaleX(1); opacity: 1; } 100% { transform: scaleX(1); opacity: 0; } }
 .servico .plantao__nota { margin: 0; font-size: var(--fs-rotulo); line-height: 1.45; color: var(--t3); }
 .plantao__nota .pt-reservado { font-size: 1em; }

@@ -77,7 +77,10 @@
   function nomeDaFaixa(w) { return ['Celular', 'Tablet', 'Computador'][faixa(w)]; }
   function altura(w) { return w < 600 ? 820 : 800; }
   /* a tela de verdade, sem limite (para dizer a verdade) e a mesma dentro da régua (para a moldura) */
-  function tela() { return Math.round(window.innerWidth); }
+  /* (lida só em marcar(), quando o tamanho muda: no celular, ler window.innerWidth força layout — medido: 145 ms
+     na demo com CPU 4× quando era lida a cada quadro) */
+  var larguraDaTela = Math.round(window.innerWidth);
+  function tela() { return larguraDaTela; }
   function telaNaRegua() { return Math.max(MIN, Math.min(MAX, tela())); }
   function telaCabe() { var t = tela(); return t >= MIN && t <= MAX; }
 
@@ -139,6 +142,7 @@
   function valorEm(x) { return MIN + x / (medida.rw || 1) * (MAX - MIN); }
   function marcar() {
     medida = { pw: palco.clientWidth, ph: palco.clientHeight, rw: slider.clientWidth };
+    larguraDaTela = Math.round(window.innerWidth);
     if (window.getComputedStyle(regua).display !== 'grid') {
       [].forEach.call(paradas, function (p) { p.style.left = posicao(+p.getAttribute('data-parada')).toFixed(1) + 'px'; });
     }
@@ -249,20 +253,22 @@
   raiz.addEventListener('focusin', function (ev) { if (ev.target === campo) tocou(); });
   /* no celular, quando o teclado termina de abrir, o campo sobe para o topo e o site de exemplo (logo acima
      dele) fica à vista; só rola se o palco estiver fora da área visível */
+  /* o palco gruda no topo (css: .is-digitando) e a página rola só o necessário para o campo ficar logo acima do
+     teclado — o exemplo e o campo cabem juntos; a régua e os tipos passam por baixo do palco */
   campo.addEventListener('focus', function () {
     if (!grosso.matches) return;
+    raiz.classList.add('is-digitando');
     var vv = window.visualViewport, feito = false;
-    function subir() {
+    function ajustar() {
       if (feito) return; feito = true;
-      if (vv) vv.removeEventListener('resize', subir);
-      var nav = document.querySelector('.nav'), topoNav = nav ? nav.offsetHeight : 64;
-      var p = palco.getBoundingClientRect(), alto = vv ? vv.height : window.innerHeight;
-      if (p.top >= topoNav && campo.getBoundingClientRect().bottom <= alto) return;
-      window.scrollTo({ top: p.top + window.scrollY - topoNav - 8, behavior: reduzido() ? 'auto' : 'smooth' });
+      if (vv) vv.removeEventListener('resize', ajustar);
+      var alto = vv ? vv.height : window.innerHeight, baixo = campo.getBoundingClientRect().bottom;
+      if (baixo > alto - 8) window.scrollBy({ top: baixo - (alto - 8), behavior: 'auto' });
     }
-    if (vv) vv.addEventListener('resize', subir);
-    setTimeout(subir, 600);   /* (sem teclado virtual, ou se o resize não vier) */
+    if (vv) vv.addEventListener('resize', ajustar);
+    setTimeout(ajustar, 600);   /* (sem teclado virtual, ou se o resize não vier) */
   });
+  campo.addEventListener('blur', function () { raiz.classList.remove('is-digitando'); });
 
   /* ---------- 3. a impressão e a entrada ---------- */
   function limparAtrasos() { [].forEach.call(blocos, function (el) { el.style.transitionDelay = ''; }); }
@@ -273,11 +279,12 @@
     while (alvo && alvo !== moldura) { y += alvo.offsetTop; alvo = alvo.offsetParent; }
     return y;
   }
-  function secar(el, atrasoMs) {
-    el.classList.remove('pl-seca');
-    el.style.animationDelay = atrasoMs + 'ms';
-    void el.offsetWidth;
-    el.classList.add('pl-seca');
+  /* a tinta molhada em lote: tira de todas, UM reflow, põe em todas (um reflow por palavra, logo depois de
+     trocar a classe, forçava ~12 recálculos de estilo seguidos) */
+  function secar(lista) {
+    lista.forEach(function (p) { p[0].classList.remove('pl-seca'); p[0].style.animationDelay = p[1] + 'ms'; });
+    void moldura.offsetWidth;
+    lista.forEach(function (p) { p[0].classList.add('pl-seca'); });
   }
   function imprimir(ms) {
     if (reduzido()) { raiz.classList.add('is-impressa'); impressa = true; return; }
@@ -293,17 +300,20 @@
     void luz.offsetWidth;   /* (o reflow fixa o estado de planta: reinicia a luz e as transições partem dele) */
     raiz.classList.add('is-montando', 'is-impressa');
     /* as palavras carimbam em ciano e secam, no atraso do bloco delas */
-    palavras.forEach(function (el) {
-      var b = el.closest('.pl-b');
-      secar(el, atraso.get(b) || atraso.get(el) || 0);
-    });
+    secar(palavras.map(function (el) { var b = el.closest('.pl-b'); return [el, atraso.get(b) || atraso.get(el) || 0]; }));
     impressa = true;
     setTimeout(limparAtrasos, ms + 500);
   }
   /* a demonstração: tablet, celular e pousa na tela de quem vê (no celular, para no celular) */
   var emDemo = false;
+  /* aparelho lento (o laço do site, js/core.js: 'lento' ou a média de quadros abaixo de 45): a demonstração
+     de larguras — que refaz o layout do site de exemplo a cada quadro — vira um pouso direto na tela de quem vê
+     (medido com CPU 4×: era o único custo real das três peças, +3 tarefas longas na mediana) */
+  var aparelhoLento = false;
+  if (B.on) B.on('lento', function () { aparelhoLento = true; });
+  function lento() { return aparelhoLento || (B.S && B.S.t > 60 && B.S.fps < 45); }
   function demonstrar() {
-    if (reduzido()) { aplicar(telaNaRegua(), false, true); return; }
+    if (reduzido() || lento()) { aplicar(telaNaRegua(), false, true); return; }
     var fim = telaNaRegua();
     function pousar() { emDemo = false; aplicar(fim, false, true); }
     emDemo = true;
@@ -343,7 +353,10 @@
     /* a cota pousada sai junto com a primeira mudança de tamanho (ela mediria a moldura de antes) */
     setTimeout(function () { tempo.hidden = true; }, ms + 1200);
   }
-  function entrar() { imprimir(ENTRADA_MS); provar(ENTRADA_MS); demonstrar(); }
+  function entrar() {
+    if (lento() && !reduzido()) { aplicar(telaNaRegua(), false, true); imprimir(ENTRADA_MS); provar(ENTRADA_MS); return; }   /* (a largura antes da luz) */
+    imprimir(ENTRADA_MS); provar(ENTRADA_MS); demonstrar();
+  }
 
   /* ---------- 4. nome e tipo de negócio ---------- */
   function endereco(s) {
@@ -370,11 +383,11 @@
     if (reduzido() || !impressa) return;
     luzV.style.setProperty('--luz-fim-x', largura + 'px');
     raiz.classList.remove('is-assinando'); void luzV.offsetWidth; raiz.classList.add('is-assinando');
-    [].slice.call(nomes).concat([titulo.children[1], url]).forEach(function (el) {
+    secar([].slice.call(nomes).concat([titulo.children[1], url]).map(function (el) {
       var x = 0, a = el;
       while (a && a !== moldura) { x += a.offsetLeft || 0; a = a.offsetParent; }
-      secar(el, Math.round(Math.max(0, Math.min(1, x / largura)) * 450));
-    });
+      return [el, Math.round(Math.max(0, Math.min(1, x / largura)) * 450)];
+    }));
   }
   campo.addEventListener('input', function () {
     nome = campo.value.replace(/\s+/g, ' ').trim().slice(0, 28);

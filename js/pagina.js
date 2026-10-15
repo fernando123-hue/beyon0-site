@@ -200,7 +200,9 @@
   /* as ações de um cartão com peça ("Quero este site…", "Quero o diagnóstico…", com o WhatsApp ao lado,
      docs/restructure/PECAS-SERVICOS.md) na tela: a barra e o flutuante saem (eram três chamadas para o
      mesmo lugar, e a barra cobria o botão — crítica de celular) */
-  var acoes = document.querySelectorAll('.servico--peca .servico__acoes');
+  /* (a área dos cartões inteira, como uma região só: observando cada bloco de ações, a barra sumia e voltava
+     três vezes ao rolar pelos serviços — crítica de celular) */
+  var acoes = [].filter.call(document.querySelectorAll('.servicos'), function (s) { return s.querySelector('.servico--peca'); });
   if ((barra || wa) && acoes.length && 'IntersectionObserver' in window) {
     var acoesVistas = [];
     var ioAcoes = new IntersectionObserver(function (ents) {

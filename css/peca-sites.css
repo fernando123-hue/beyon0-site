@@ -45,6 +45,9 @@
    tarefas de 58–107 ms na impressão). O palco não tem escala, então a camada não congela nitidez */
 .planta__palco { position: relative; aspect-ratio: 1 / 1.02; overflow: hidden; contain: layout paint; will-change: transform; }
 @media (min-width: 721px) { .planta__palco { aspect-ratio: 16 / 11; } }
+/* no celular, com o campo do nome em foco, o palco gruda no topo: o exemplo fica à vista acima do teclado
+   enquanto a pessoa digita (sem isso, o teclado escondia o site em que o nome dela aparece) */
+.planta.is-digitando .planta__palco { position: sticky; top: calc(var(--nav-h) + 4px); z-index: 3; background: var(--mod-fundo-opaco); }
 .planta__palco::before {   /* a malha da planta, parada e barata */
   content: ""; position: absolute; inset: 0; pointer-events: none;
   background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
@@ -154,14 +157,20 @@
 /* desmontado pela mão (régua tocada): o texto fica legível em cinza (é ele que mostra o site se reorganizando)
    e a grade de 12 colunas da planta aparece por trás, com o traço compensado pela escala (1 px de tela) */
 .planta.is-tracando .pl-b, .planta.is-tracando .pl-titulo b, .planta.is-tracando .pl-titulo span { color: var(--t3); }
-.pl { position: relative; isolation: isolate; --pl-px: 64px; }   /* (a grade fica atrás dos blocos: z-index -1 dentro do .pl) */
-@container planta (max-width: 899px) { .pl { --pl-px: 48px; } }
-@container planta (max-width: 599px) { .pl { --pl-px: 32px; } }
+/* a grade de verdade de cada faixa: 12 colunas no computador, 8 no tablet, 4 no celular (o desmonte ensina o
+   que muda entre as telas; 12 colunas num celular seria uma planta errada — crítica do júri) */
+.pl { position: relative; isolation: isolate; --pl-px: 64px; --cols: 12; }   /* (a grade fica atrás dos blocos: z-index -1 dentro do .pl) */
+@container planta (max-width: 899px) { .pl { --pl-px: 48px; --cols: 8; } }
+@container planta (max-width: 599px) { .pl { --pl-px: 32px; --cols: 4; } }
 .pl::before { content: ""; position: absolute; top: 0; bottom: 0; left: var(--pl-px); right: var(--pl-px); z-index: -1; pointer-events: none; opacity: 0; transition: opacity .25s var(--ease);
-  background-image: repeating-linear-gradient(90deg, rgb(var(--ac-rgb) / .3) 0 var(--fio, 2px), transparent var(--fio, 2px) calc(100% / 12)); }
+  background-image: repeating-linear-gradient(90deg, rgb(var(--ac-rgb) / .3) 0 var(--fio, 2px), transparent var(--fio, 2px) calc(100% / var(--cols))); }
 .planta.is-tracando .pl::before { opacity: 1; }
-.pl::after { content: "12 colunas"; position: absolute; top: 4px; left: var(--pl-px); z-index: -1; opacity: 0; transition: opacity .25s var(--ease);
-  font-family: var(--mono); font-size: calc(var(--fio, 2px) * 11); letter-spacing: .1em; text-transform: uppercase; color: rgb(var(--ac-rgb) / .7); }
+/* o rótulo embaixo, à esquerda (em cima ficava sob o recorte da câmera do celular) */
+.pl::after { content: "12 colunas"; position: absolute; bottom: calc(var(--fio, 2px) * 6); left: var(--pl-px); z-index: 1; opacity: 0; transition: opacity .25s var(--ease);
+  padding: 0 calc(var(--fio, 2px) * 3); background: #050607;
+  font-family: var(--mono); font-size: calc(var(--fio, 2px) * 11); letter-spacing: .1em; text-transform: uppercase; color: var(--ac); }
+@container planta (max-width: 899px) { .pl::after { content: "8 colunas"; } }   /* (depois da regra-base: senão ela vencia) */
+@container planta (max-width: 599px) { .pl::after { content: "4 colunas"; } }
 .planta.is-tracando .pl::after { opacity: 1; }
 /* a tinta molhada (a do H1): a palavra carimba em ciano e seca para a cor dela, no mesmo atraso do carimbo; a
    transição de duração 0 segura a cor de planta até lá (na cascata, a transição vence a animação) */
