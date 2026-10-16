@@ -84,10 +84,10 @@
   var borda = parseFloat(getComputedStyle(moldura).borderLeftWidth) || 0;
   var faixaAplicada = -1, disposicaoAplicada = -1;
   function miolo(w) { return w - 2 * borda; }
-  function faixa(w) { var m = miolo(w); return m < 600 ? 0 : m < 900 ? 1 : 2; }
+  function faixa(w) { var m = miolo(w); return m <= 599 ? 0 : m <= 899 ? 1 : 2; }
   /* o layout do site de exemplo tem um corte a mais que a faixa (760: duas colunas viram uma); o deslize segue o
      layout, a faixa segue o aria, o is-celular e as paradas */
-  function disposicao(w) { var m = miolo(w); return m < 600 ? 0 : m < 760 ? 1 : m < 900 ? 2 : 3; }
+  function disposicao(w) { var m = miolo(w); return m <= 599 ? 0 : m <= 759 ? 1 : m <= 899 ? 2 : 3; }
   function nomeDaFaixa(w) { return ['Celular', 'Tablet', 'Computador'][faixa(w)]; }
   function altura(w) { return w < 600 ? 820 : 800; }
   /* a tela de verdade, sem limite (para dizer a verdade) e a mesma dentro da régua (para a moldura) */
@@ -202,10 +202,12 @@
     saida: function (k) { return 1 - Math.pow(1 - k, 4); }
   };
   function parar() { cancelAnimationFrame(tween); tween = 0; passos.forEach(clearTimeout); passos = []; }
+  var alvoDoDeslize = 0;
   function irPara(alvo, ms, curva, fim) {
     cancelAnimationFrame(tween); tween = 0;
     if (reduzido() || !ms) { aplicar(alvo, false, true); if (fim) fim(); return; }
     var de = largura, t0 = performance.now(), f = CURVAS[curva] || CURVAS.io;
+    alvoDoDeslize = alvo;
     (function passo(t) {
       var k = Math.min(1, (t - t0) / ms);
       aplicar(de + (alvo - de) * f(k), true, k === 1);
@@ -249,13 +251,16 @@
     if (!arrastando) return;
     ultimoX = xNa(ev);
     if (!desmontada && Math.abs(ev.clientX - x0) > 8) { cancelAnimationFrame(tween); tween = 0; desmontar(); }
-    if (!desmontada) return;
+    if (!desmontada && !reduzido()) return;   /* no movimento reduzido não desmonta, mas arrasta igual */
     if (!pedido) pedido = requestAnimationFrame(function () { pedido = 0; aplicar(valorEm(ultimoX), true); });
   });
   function soltar() {
     if (!arrastando) return;
     arrastando = false;
-    var alvo = ima(largura);
+    /* o último passo do arraste ainda na fila vale (sem ele, a parada e o aria ficavam um passo atrás) */
+    if (pedido) { cancelAnimationFrame(pedido); pedido = 0; aplicar(valorEm(ultimoX), true); }
+    /* clique curto longe do cursor: o deslize do clique ainda está no caminho; a parada é decidida pelo ponto clicado */
+    var alvo = ima(tween ? alvoDoDeslize : largura);
     var ms = Math.min(280, 140 + 3 * Math.abs(posicao(alvo) - posicao(largura)));
     var reimprimir = desmontada;
     irPara(alvo, alvo === largura ? 0 : ms, 'saida', function () {
@@ -303,6 +308,7 @@
   campo.addEventListener('blur', function () { raiz.classList.remove('is-digitando'); });
 
   /* ---------- 3. a impressão e a entrada ---------- */
+  var limpeza = 0;
   function limparAtrasos() { [].forEach.call(blocos, function (el) { el.style.transitionDelay = ''; }); }
   /* a borda de BAIXO de cada bloco, pelo layout (offsetTop), não pela tela: getBoundingClientRect pegaria a
      posição no meio de um deslize (FLIP) e o carimbo sairia fora de sincronia com a luz */
@@ -334,7 +340,7 @@
     /* as palavras carimbam em ciano e secam, no atraso do bloco delas */
     secar(palavras.map(function (el) { var b = el.closest('.pl-b'); return [el, atraso.get(b) || atraso.get(el) || 0]; }));
     impressa = true;
-    setTimeout(limparAtrasos, ms + 500);
+    clearTimeout(limpeza); limpeza = setTimeout(limparAtrasos, ms + 500);   /* uma reimpressão logo depois não perde os atrasos dela */
   }
   /* a demonstração: tablet, celular e pousa na tela de quem vê (no celular, para no celular) */
   var emDemo = false;
@@ -412,7 +418,7 @@
   }
   function textos() {
     var n = nome || NOME_PADRAO, cfg = NICHOS[nicho];
-    var t = (nicho === 'padrao' && nome ? cfg.comNome : cfg.t).map(function (s) { return s.replace('{n}', n); });
+    var t = (nicho === 'padrao' && nome ? cfg.comNome : cfg.t).map(function (s) { return s.replace('{n}', function () { return n; }); });   /* (função: um $& digitado fica texto) */
     [].forEach.call(titulo.children, function (el, i) { escrever(el, t[i]); });
     titulo.classList.toggle('is-longo', n.length > NOME_LONGO);
     [].forEach.call(nomes, function (el) { escrever(el, n); });
@@ -436,7 +442,7 @@
     }));
   }
   campo.addEventListener('input', function () {
-    nome = campo.value.replace(/\s+/g, ' ').trim().slice(0, 28);
+    nome = campo.value.replace(/[\u0000-\u001F\u007F-\u009F­​‎‏‪-‮⁠-⁯﻿]/g, '').replace(/\s+/g, ' ').trim().slice(0, 28);   /* sem controle nem inversão de direção (U+202E) no exemplo e no WhatsApp; o ZWJ dos emojis fica */
     textos();
     clearTimeout(esperaNome);
     esperaNome = setTimeout(assinar, 500);
@@ -453,7 +459,7 @@
     });
   });
   /* o nome só sai desta página se a pessoa pedir: ao orçamento nesta aba (nunca pela URL), e apagado de lá
-     quando ela apagou aqui */
+     quando ela apagou aqui. Quem lê (o /orcamento pré-preenchido) vem num PR próprio (PECAS-SERVICOS.md) */
   if (quero) quero.addEventListener('click', function () {
     try {
       if (nome) sessionStorage.setItem('bz-planta-nome', nome); else sessionStorage.removeItem('bz-planta-nome');
@@ -485,6 +491,7 @@
   new IntersectionObserver(function (es) {
     visivel = es[0].isIntersecting;
     if (visivel && !entrou) { window.addEventListener('scroll', talvezEntrar, { passive: true }); talvezEntrar(); }
+    else if (!visivel) window.removeEventListener('scroll', talvezEntrar);   /* passou rápido: nada escuta a rolagem fora da tela */
     if (!visivel && emDemo) { parar(); emDemo = false; aplicar(telaNaRegua(), false, true); }
   }, { threshold: 0.6 }).observe(palco);
 })();

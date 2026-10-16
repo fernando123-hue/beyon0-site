@@ -199,7 +199,7 @@
     if (relogioMini - sugestao.ultima > SUGESTAO.cada && paradoHa > SUGESTAO.parado && Math.random() < SUGESTAO.chance) {
       var op = B.rede.elementoAoAcaso(mini.x, mini.y, SUGESTAO.longe[0], SUGESTAO.longe[1], function (it) {
         /* o topo dele visível e longe da barra (a mira não pode sair cortada sob o menu) */
-        return it.el.matches(SUGERIVEIS) && (celular || it.w < W * 0.8) && it.y - 14 > B.rede.topo() + 8 && it.y < H - 160;
+        return it.el.matches(SUGERIVEIS) && !it.el.matches('.servico--peca') && (celular || it.w < W * 0.8) && it.y - 14 > B.rede.topo() + 8 && it.y < H - 160;
       });
       if (op) {
         sugestao.ultima = relogioMini;

@@ -225,5 +225,6 @@
   new IntersectionObserver(function (es) {
     visivel = es[0].isIntersecting;
     if (visivel && !entrou) { window.addEventListener('scroll', talvezEntrar, { passive: true }); talvezEntrar(); }
+    else if (!visivel) window.removeEventListener('scroll', talvezEntrar);   /* passou rápido: nada escuta a rolagem fora da tela */
   }, { threshold: 0.6 }).observe(placa);
 })();

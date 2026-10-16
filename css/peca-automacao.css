@@ -95,3 +95,8 @@
 .despacho__ok { flex: none; width: 7px; height: 7px; background: var(--ac); opacity: 0; transform: translateY(-1px); }
 .despacho__fim.is-pronto .despacho__ok { opacity: 1; }
 .servico .despacho__nota { margin: 0; font-size: var(--fs-rotulo); line-height: 1.45; color: var(--t3); }
+
+/* movimento reduzido: o carimbo e as linhas do registro aparecem prontos */
+@media (prefers-reduced-motion: reduce) { .dp-no.is-respondido .dp-n { animation: none; } .despacho__registro li { transition: none; } }
+html.menos-movimento .dp-no.is-respondido .dp-n { animation: none; }
+html.menos-movimento .despacho__registro li { transition: none; }

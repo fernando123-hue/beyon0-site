@@ -187,6 +187,7 @@ test('peça de Sites: o nome não sai da página, a CSP vale e a régua é acess
   const peca = (html.match(/<div class="planta" data-planta[\s\S]*?<\/article>/) || [])[0];
   assert.ok(peca, 'index.html: o cartão de Sites sem a peça');
   assert.ok(!/style="/.test(peca), 'index.html: estilo embutido na peça (a CSP bloqueia)');
+  assert.ok(!/<style|\sstyle="|\son[a-z]+=/.test(html), 'index.html: <style>, style="" ou handler inline (a CSP bloqueia)');
   const slider = (peca.match(/<div class="planta__slider"[^>]*>/) || [''])[0];
   for (const a of ['role="slider"', 'tabindex="0"', 'aria-label=', 'aria-valuemin=', 'aria-valuemax=', 'aria-valuenow=', 'aria-valuetext=']) assert.ok(slider.includes(a), 'régua sem ' + a);
   assert.equal((peca.match(/<button type="button" class="planta__parada"/g) || []).length, 3, 'as três paradas da régua têm de ser botões');

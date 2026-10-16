@@ -272,3 +272,7 @@
 /* (max-width: o 44ch dos parágrafos do primeiro cartão, medido em mono, quebrava a prova em três linhas curtas) */
 .servico p.planta__prova { max-width: none; display: flex; align-items: center; gap: .5rem; margin: 0; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-dado); line-height: 1.5; color: var(--t3); }
 .planta__prova svg { flex: none; width: 14px; height: 14px; color: var(--ac); }
+
+/* movimento reduzido: ao cruzar 600 px a moldura, a barra e a câmera trocam de uma vez (o JS já não liga a luz nem o deslize) */
+@media (prefers-reduced-motion: reduce) { .planta__moldura, .planta__barra, .planta__camera { transition: none; } }
+html.menos-movimento :is(.planta__moldura, .planta__barra, .planta__camera) { transition: none; }

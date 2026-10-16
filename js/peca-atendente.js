@@ -50,9 +50,6 @@
     consulta: ['A consulta sai por ', '[o valor da sua tabela]', '. Quer que eu reserve um horário?'],
     horario: ['Amanhã tenho ', '[os horários livres da sua agenda]', '. Qual fica melhor?'],
     convenio: ['Atendemos ', '[os convênios que você aceita]', '. Me diz o seu que eu confiro.'],
-    honorario: ['Depende do caso: ', '[como você cobra]', '. Me conta rapidinho o que aconteceu?'],
-    caso: ['Atuamos com ', '[as suas áreas]', '. Posso já marcar uma conversa?'],
-    semana: ['Esta semana temos ', '[os horários livres]', '. Algum serve?'],
     estoque: ['Tenho, sim: ', '[o que está no seu estoque]', '. Quer que eu separe para você?'],
     entrega: ['Entregamos em ', '[os bairros que você atende]', '. Qual é o seu CEP?'],
     aberto: ['Abrimos ', '[no seu horário]', ', mas por aqui eu te ajudo agora mesmo.'],
@@ -61,8 +58,7 @@
     boleto: ['Claro! Me passa o seu CPF que eu ', '[gero a 2ª via no seu sistema]', '.']
   };
   var ASSUNTO = { preco: 'quer saber o preço', amanha: 'quer horário amanhã', prazo: 'quer saber o prazo', regiao: 'quer saber se vocês atendem a região dele', local: 'quer o endereço', consulta: 'quer saber o valor da consulta',
-    horario: 'quer horário amanhã', convenio: 'quer saber do convênio', honorario: 'quer saber quanto custa', caso: 'quer saber se vocês atendem o caso',
-    semana: 'quer horário esta semana', estoque: 'quer saber do estoque', entrega: 'quer saber da entrega', aberto: 'quer saber o horário',
+    horario: 'quer horário amanhã', convenio: 'quer saber do convênio', estoque: 'quer saber do estoque', entrega: 'quer saber da entrega', aberto: 'quer saber o horário',
     associar: 'quer se associar', mensalidade: 'quer saber da mensalidade', boleto: 'precisa da 2ª via do boleto' };
   var DIGITANDO_MS = 900;
   var mq = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -112,6 +108,7 @@
   var esquerda = 0, pendente = null, arrastando = false;
   function emMinuto(ev) { return (ev.clientX - esquerda) / (largura || 1) * 1439; }
   slider.addEventListener('pointerdown', function (ev) {
+    cancelAnimationFrame(deslize);   /* a mão da pessoa vence o deslize da entrada */
     esquerda = slider.getBoundingClientRect().left;
     if (ev.pointerType === 'touch') { pendente = { x: ev.clientX, y: ev.clientY }; return; }
     arrastando = true; slider.setPointerCapture(ev.pointerId); aplicar(emMinuto(ev));
@@ -127,7 +124,7 @@
   });
   function soltar(ev) {
     if (pendente && ev && ev.type === 'pointerup') aplicar(emMinuto(ev), true);
-    else if (arrastando) aplicar(minuto, true);
+    else if (arrastando) { var m = pedido ? alvoMin : minuto; cancelAnimationFrame(pedido); pedido = 0; aplicar(m, true); }   /* o último passo na fila vale */
     pendente = null; arrastando = false;
   }
   slider.addEventListener('pointerup', soltar);
@@ -139,7 +136,7 @@
     else if (ev.key === 'Home') alvo = 0;
     else if (ev.key === 'End') alvo = 1439;
     if (alvo === null) return;
-    ev.preventDefault(); aplicar(alvo, true);
+    ev.preventDefault(); cancelAnimationFrame(deslize); aplicar(alvo, true);
   });
 
   /* ---------- 2. as perguntas ---------- */
@@ -259,11 +256,12 @@
       /* de noite, a pergunta chega na hora de verdade (o caso mais pessoal); de dia, a régua desliza uma vez
          até as 23h e a pergunta chega lá — a noite é o argumento, e a peça fica nela */
       if (!noExpediente()) { fazer('0'); return; }
-      irPara(23 * 60, 900, function () { setTimeout(function () { fazer('0'); }, 250); });
+      irPara(23 * 60, 900, function () { setTimeout(function () { if (msgs.pergunta.hidden) fazer('0'); }, 250); });   /* uma pergunta clicada nesse meio-tempo fica */
     }, 150);
   }
   new IntersectionObserver(function (es) {
     visivel = es[0].isIntersecting;
     if (visivel && !entrou) { window.addEventListener('scroll', talvezEntrar, { passive: true }); talvezEntrar(); }
+    else if (!visivel) window.removeEventListener('scroll', talvezEntrar);   /* passou rápido: nada escuta a rolagem fora da tela */
   }, { threshold: 0.6 }).observe($('.plantao__tela'));
 })();
