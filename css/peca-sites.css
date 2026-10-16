@@ -97,7 +97,7 @@
 .pl-hero { display: grid; grid-template-columns: 1fr 1.02fr; gap: 56px; align-items: center; padding: 24px 0 32px; }
 .pl-texto { display: flex; flex-direction: column; gap: 18px; }
 .pl-kicker { width: 120px; height: 10px; border-radius: 5px; background: rgb(var(--ac-rgb) / .55); }
-.pl-titulo { font-size: min(62px, 4.9cqi); font-weight: 300; line-height: 1.04; letter-spacing: -.03em; max-width: 12ch; overflow-wrap: anywhere; }
+.pl-titulo { font-size: 62px; font-weight: 300; line-height: 1.04; letter-spacing: -.03em; max-width: 12ch; overflow-wrap: anywhere; }
 .pl-titulo b { font-weight: 300; color: var(--ac); }
 .pl-par { display: flex; flex-direction: column; gap: 12px; }
 .pl-par .pl-barra:nth-child(1) { width: 92%; } .pl-par .pl-barra:nth-child(2) { width: 84%; } .pl-par .pl-barra:nth-child(3) { width: 56%; }
@@ -184,7 +184,10 @@
 @keyframes pl-seca { 0%, 40% { color: var(--ac); animation-timing-function: cubic-bezier(.4, 0, .2, 1); } }
 @keyframes pl-seca-destaque { 0%, 40% { color: var(--ac-2); animation-timing-function: cubic-bezier(.4, 0, .2, 1); } }
 /* nome longo: o título desce um degrau para os recursos não saírem da moldura */
-.pl-titulo.is-longo { font-size: min(50px, 4.1cqi); }
+.pl-titulo.is-longo { font-size: 50px; }
+/* no computador o título acompanha a largura (cqi) para o site caber inteiro na moldura; só aqui: no tablet o cqi
+   do nome longo vencia os 58px e o título caía para ~25px (revisão, rodada 5) */
+@container planta (min-width: 900px) { .pl-titulo { font-size: min(62px, 4.9cqi); } .pl-titulo.is-longo { font-size: min(50px, 4.1cqi); } }
 @container planta (max-width: 599px) { .pl-titulo.is-longo { font-size: 40px; } }
 /* a luz que imprime: desce (entrada e soltar a régua) e atravessa (o nome) */
 .planta__luz, .planta__luz-v { position: absolute; background: var(--ac); opacity: 0; pointer-events: none; z-index: 4; }
@@ -260,5 +263,4 @@
 /* ---------- a prova e o próximo passo ---------- */
 /* (max-width: o 44ch dos parágrafos do primeiro cartão, medido em mono, quebrava a prova em três linhas curtas) */
 .servico p.planta__prova { max-width: none; display: flex; align-items: center; gap: .5rem; margin: 0; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-dado); line-height: 1.5; color: var(--t3); }
-.servico p.planta__prova[hidden] { display: none; }
 .planta__prova svg { flex: none; width: 14px; height: 14px; color: var(--ac); }

@@ -90,19 +90,22 @@
   function telaCabe() { var t = tela(); return t >= MIN && t <= MAX; }
 
   /* ---------- 1. encaixe ---------- */
+  /* fio de 1 px em meio pixel vira duas fileiras apagadas: a cota anda em pixel físico inteiro, contado do
+     canto da página (ela nasce em left: 50% do palco, cuja largura e topo caem em fração de pixel; revisão, rodada 5) */
+  function px(v, base) { base = base || 0; return (Math.round((base + v) * medida.dpr) / medida.dpr - base).toFixed(3) + 'px'; }
   function encaixar() {
     if (!medida.pw || !medida.ph) return;
     escala = Math.min(medida.pw / largura, (medida.ph - COTA_RESERVA) / altura(largura)) * 0.94;
     moldura.style.transform = 'translate(-50%, calc(-50% - ' + COTA_RESERVA / 2 + 'px)) scale(' + escala.toFixed(4) + ')';
     /* a cota acompanha a moldura: 12 px abaixo do pé dela, da largura dela */
     var sw = largura * escala, pe = (medida.ph - COTA_RESERVA + altura(largura) * escala) / 2;
-    cotaMoldura.style.transform = 'translateY(' + (pe + 10).toFixed(1) + 'px)';
+    cotaMoldura.style.transform = 'translateY(' + px(pe + 10, medida.topo) + ')';
     /* o vão da medida: a fonte é mono, então a largura sai da contagem de letras ("390 px", "1280 px") */
     var vao = medida.letra * (String(largura).length + 3) / 2 + COTA_VAO, trecho = (Math.max(0, sw / 2 - vao) / 100).toFixed(4);
-    cotaLinhas[0].style.transform = 'translateX(' + (-sw / 2).toFixed(1) + 'px) scaleX(' + trecho + ')';
-    cotaLinhas[1].style.transform = 'translateX(' + vao.toFixed(1) + 'px) scaleX(' + trecho + ')';
-    cotaPontas[0].style.transform = 'translateX(' + (-sw / 2).toFixed(1) + 'px)';
-    cotaPontas[1].style.transform = 'translateX(' + (sw / 2 - 1).toFixed(1) + 'px)';
+    cotaLinhas[0].style.transform = 'translateX(' + px(-sw / 2, medida.centro) + ') scaleX(' + trecho + ')';
+    cotaLinhas[1].style.transform = 'translateX(' + px(vao, medida.centro) + ') scaleX(' + trecho + ')';
+    cotaPontas[0].style.transform = 'translateX(' + px(-sw / 2, medida.centro) + ')';
+    cotaPontas[1].style.transform = 'translateX(' + px(sw / 2 - 1, medida.centro) + ')';
   }
   /* espessuras que dependem da escala: 1 px de tela exato (mais que isso suaviza a linha em duas fileiras de
      pixel); só quando a faixa ou a tela muda, nunca a cada passo */
@@ -157,7 +160,8 @@
   function posicao(w) { return (w - MIN) / (MAX - MIN) * medida.rw; }
   function valorEm(x) { return MIN + x / (medida.rw || 1) * (MAX - MIN); }
   function marcar() {
-    medida = { pw: palco.clientWidth, ph: palco.clientHeight, rw: slider.clientWidth, letra: cotaNum.offsetWidth / (cotaNum.textContent.length || 1) };
+    var caixa = palco.getBoundingClientRect();
+    medida = { pw: palco.clientWidth, centro: caixa.left + window.scrollX + caixa.width / 2, topo: caixa.top + window.scrollY, ph: palco.clientHeight, rw: slider.clientWidth, letra: cotaNum.offsetWidth / (cotaNum.textContent.length || 1), dpr: window.devicePixelRatio || 1 };
     larguraDaTela = Math.round(window.innerWidth);
     if (window.getComputedStyle(regua).display !== 'grid') {
       [].forEach.call(paradas, function (p) { p.style.left = posicao(+p.getAttribute('data-parada')).toFixed(1) + 'px'; });
@@ -441,6 +445,8 @@
   raiz.classList.add('is-viva');
   marcar();
   textos();
+  /* (a largura da letra da cota depende da fonte mono, que chega depois com font-display: swap) */
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(marcar);
   if (window.ResizeObserver) new ResizeObserver(function () { marcar(); }).observe(palco);
   else window.addEventListener('resize', marcar);
   /* entra com a peça bem visível e a rolagem parada (a 40% e no meio da rolagem, o gesto da marca acontecia
