@@ -198,6 +198,7 @@ Ao medir, ponha `sessionStorage bz-ouro=1`, para a ignição do ouro não entrar
 | 2 | 6,8 | 8,0 |
 | 3 | 7,3 | 8,5 |
 | 4 | 7,8 | 8,5 |
+| 5 | 8,3 | 8,7 |
 
 **O que ainda falta na Planta** (da rodada 4 dos críticos):
 1. A cota do LCP pendurada na luz nunca foi vista numa captura (o headless passa de 2,5 s). Ver num celular de verdade ou com rede rápida, e conferir se dá para ler sobre a luz.
@@ -270,12 +271,48 @@ acessibilidade 23 OK, `csp.test.mjs` OK, sem rolagem lateral de 320 a 1440 px. A
 entrada + demo + arraste, 3 rodadas, antes = HEAD servido por rota): tarefas longas mediana 5 × 3; quadros > 33 ms 38 × 40
 (ruído).
 
-**Interrompido pela passagem automática:** a revisão de código (agente code-reviewer) e o crítico visual (júri +
-celular, rodada 5) foram lançados e parados antes de responder. **Próximo passo exato:**
-1. subir `node docs/servidor.mjs . 8897`, gerar quadros (`OUT=<scratchpad>/ node docs/pecas/quadros.mjs 390` e `1440`,
-   `node docs/pecas/checar.mjs c`);
-2. rodar de novo a revisão de código do diff da rodada 5 (`git show` do commit) e o crítico visual com esses PNG;
-3. corrigir o que apontarem, atualizar esta seção e as notas da tabela (rodada 5).
+**Revisão e crítico da rodada 5 (refeitos depois da passagem, 2026-10-16):**
+- **Revisão de código:** APROVAR COM AJUSTES. Feito no commit `b8d22d3`:
+  - o título em `cqi` ficou só no computador (`@container planta (min-width: 900px)`); no tablet o nome longo caía
+    para ~25–31 px;
+  - a cota anda em pixel físico inteiro, contado da página (`px(v, base)`, `medida.centro`/`medida.topo`);
+  - a letra da cota é medida de novo em `document.fonts.ready`;
+  - saiu o `[hidden]` redundante da prova.
+- **Crítico visual (júri 8,3, celular 8,7):** a cota ajuda (pendente 3 resolvido) e a tinta do nome aparece (pendente 2
+  resolvido). Corrigido em seguida:
+  - **o tempo "1,0 s" caía em cima do botão e da foto no celular** (o `Math.min` o empurrava para dentro da
+    moldura). Agora: ao lado da moldura se cabe; senão no canto de baixo do palco, quando a luz chega ao pé; senão
+    (computador com palco justo) na borda direita como antes;
+  - o rótulo "4 colunas" sumia devagar por trás da reimpressão: agora some na hora;
+  - "até 2,5 s" não quebra mais sozinho na última linha (espaço inquebrável).
+- **Não feito, de propósito:**
+  - bolinha da régua maior: no toque ela já tem 24 px e a régua inteira (34 px de altura) recebe o dedo; o crítico
+    viu a versão de mouse do headless;
+  - **sugestões de estilo para o dono decidir** (não mexem em defeito):
+    - J2, a moldura no meio da demonstração mostra a foto por cima do título por um instante; o crítico sugere o
+      estado "desmontando" (cinza) também na demonstração;
+    - J3, sublinhar o número da cota (convenção de "fora de escala");
+    - J4, riscos a 45° nas pontas da cota, para ela não parecer uma segunda régua;
+    - J5 e M3, letras do site de exemplo pequenas (6–8 px) e o celular de exemplo ocupando 41% do cartão;
+    - M4b, a luz vertical passa entre as letras de "AGENDAR" num quadro.
+  - fora da Planta: o ponto que viaja da peça do fio passa por cima da borda da moldura a 1440.
+- **Verificado depois das correções:** `verificar` 22 OK, acessibilidade 23 OK, `csp.test` 8/8, sem rolagem lateral
+  de 320 a 1440 px. Quadros em 390 e 1440 conferidos a olho (o tempo no canto não colide nem com a demonstração em
+  andamento).
+
+**Interrompido pela 2ª passagem automática (2026-10-16):** a revisão de código das correções do crítico (o tempo no
+canto, o rótulo "4 colunas", o "até 2,5 s") foi lançada e parada antes de responder.
+
+**Próximo passo exato:**
+1. revisar o diff do commit "fix: Planta rodada 5 — correções do crítico visual" (`git show HEAD -- js css`) com o
+   agente code-reviewer; o que olhar: o caso de movimento reduzido no chip (fica sem `opacity`?), o
+   `fill: 'both'` com opacidade 0 durante o atraso, colisão no canto durante a demonstração, leitura de layout em
+   `offsetWidth` logo após `hidden = false`;
+2. corrigir o que apontar, e rodar de novo `verificar`, `acessibilidade`, `csp.test` e `docs/pecas/checar.mjs`
+   (servidor: `node docs/servidor.mjs . 8897`);
+3. mostrar ao dono (celular primeiro) e perguntar das sugestões J2–J5;
+4. abrir o PR da branch `pecas-servicos` com as revisões técnica e de segurança (trazer a `main` antes; em
+   2026-10-16 a branch estava em dia com `origin/main` `caec5eb`).
 
 **Ainda pendentes:** 4 (selo "para {nome}" nos outros cartões: mexe no Despacho/Plantão, aprovados → só com pedido do
 dono); 5 (teclado num celular de verdade); 6 (exceção medida). Defeito antigo visto, não corrigido: a borda da moldura

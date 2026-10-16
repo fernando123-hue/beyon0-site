@@ -175,6 +175,8 @@
 @container planta (max-width: 899px) { .pl::after { content: "8 colunas"; } }   /* (depois da regra-base: senão ela vencia) */
 @container planta (max-width: 599px) { .pl::after { content: "4 colunas"; } }
 .planta.is-tracando .pl::after { opacity: 1; }
+/* (o rótulo some na hora ao soltar: com a saída de .25s ele ficava apagando por trás da reimpressão, crítica rodada 5) */
+.planta:not(.is-tracando) .pl::after { transition-duration: 0s; }
 /* a tinta molhada (a do H1): a palavra carimba em ciano e seca para a cor dela, no mesmo atraso do carimbo; a
    transição de duração 0 segura a cor de planta até lá (na cascata, a transição vence a animação) */
 /* a tinta fica molhada um instante antes de secar (com a curva de saída ela sumia nos primeiros 100 ms e a marca do

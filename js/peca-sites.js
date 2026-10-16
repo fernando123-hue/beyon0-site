@@ -354,6 +354,7 @@
   /* LCP (o maior bloco da primeira tela), o mesmo número que o Google usa; o "bom" dele vai até 2,5 s. Acima
      disso a prova não aparece (nunca um número inventado nem arredondado a favor) */
   var PROVA_BOA_MS = 2500, lcp = 0;
+  var COTA_ATE_PE = 23;   /* do pé da moldura ao fim da cota, com folga (10 de vão + 9 da cota + 4) */
   try {
     new PerformanceObserver(function (l) { var es = l.getEntries(); if (es.length) lcp = es[es.length - 1].startTime; })
       .observe({ type: 'largest-contentful-paint', buffered: true });
@@ -361,14 +362,25 @@
   function provar(ms) {
     if (!lcp || lcp > PROVA_BOA_MS) return;
     var s = num(lcp / 1000, 1);
-    escrever(provaTexto, 'Esta página abriu em ' + s + ' s no seu aparelho. O Google considera bom até 2,5 s.');
+    escrever(provaTexto, 'Esta página abriu em ' + s + ' s no seu aparelho. O Google considera bom até 2,5 s.');
     escrever(tempoTexto, s + ' s');
     var r = moldura.getBoundingClientRect(), p = palco.getBoundingClientRect();
-    var x = Math.min(r.right - p.left + 8, p.width - 56), y0 = r.top - p.top, y1 = r.bottom - p.top - 22;
-    tempo.style.left = Math.max(0, x).toFixed(0) + 'px';
     tempo.hidden = false;
-    if (!reduzido()) tempo.animate([{ transform: 'translateY(' + y0 + 'px)' }, { transform: 'translateY(' + y1 + 'px)' }], { duration: ms, easing: 'linear', fill: 'forwards' });
-    else tempo.style.transform = 'translateY(' + y1 + 'px)';
+    var cw = tempo.offsetWidth, ch = tempo.offsetHeight, x, y0 = r.top - p.top, y1 = r.bottom - p.top - ch, abaixo = false;
+    /* onde o tempo pousa (crítica da rodada 5: no celular ele caía em cima do botão e da foto do site de exemplo):
+       1. ao lado da moldura, descendo com a luz;
+       2. sem vão ao lado, no canto de baixo do palco, quando a luz chega ao pé (a demonstração vem logo depois:
+          moldura larga é baixa e moldura alta é estreita, então o canto fica livre nas duas);
+       3. sem nenhum dos dois (computador com o palco justo), na borda direita, descendo com a luz: ali passa pela
+          margem vazia do site de exemplo */
+    if (r.right - p.left + 8 + cw <= p.width) x = r.right - p.left + 8;
+    else if (r.bottom - p.top + COTA_ATE_PE + ch <= p.height) { abaixo = true; x = p.width - cw; y1 = p.height - ch; y0 = y1 - 8; }
+    else x = p.width - cw;
+    tempo.style.left = Math.max(0, x).toFixed(0) + 'px';
+    var pousa = { transform: 'translateY(' + y1 + 'px)', opacity: 1 };
+    if (reduzido()) tempo.style.transform = pousa.transform;
+    else if (abaixo) tempo.animate([{ transform: 'translateY(' + y0 + 'px)', opacity: 0 }, pousa], { duration: 300, delay: ms, easing: 'cubic-bezier(.16, 1, .3, 1)', fill: 'both' });
+    else tempo.animate([{ transform: 'translateY(' + y0 + 'px)' }, { transform: pousa.transform }], { duration: ms, easing: 'linear', fill: 'forwards' });
     setTimeout(function () { prova.hidden = false; }, reduzido() ? 0 : ms);
     /* a cota pousada sai junto com a primeira mudança de tamanho (ela mediria a moldura de antes) */
     setTimeout(function () { tempo.hidden = true; }, ms + 1200);
