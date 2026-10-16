@@ -300,6 +300,35 @@ entrada + demo + arraste, 3 rodadas, antes = HEAD servido por rota): tarefas lon
   de 320 a 1440 px. Quadros em 390 e 1440 conferidos a olho (o tempo no canto não colide nem com a demonstração em
   andamento).
 
+**Retomado em 2026-10-16 (noite, 3ª) — revisão do `5df81f5` feita, commits `bd5e886` e `18f2d37` (pushed):**
+- Revisão do `5df81f5` (code-reviewer): APROVAR COM AJUSTES. Achado MÉDIO: o deslize (FLIP) não seguia o corte
+  novo de 760. Corrigido com `disposicao()` (600/760/900). Medindo, apareceu a causa de fundo (o "defeito antigo"
+  abaixo): a borda da moldura entrava na largura do container, e entre 600–603/760–763/900–903 o JS dizia uma faixa
+  e o CSS mostrava outra. **Visto vermelho:** de 10 em 10 px, o CSS mudava em 760 e o deslize só disparava em 750
+  (idem 600/590). Agora `faixa()`/`disposicao()` medem o `miolo()` (largura − 2 × borda).
+- 2ª revisão (`bd5e886`): APROVAR COM AJUSTES, dois MÉDIO, corrigidos em `18f2d37`: a borda lida era a pedida
+  (2,46 px) e o navegador usa 2 px — agora lê a computada, só em `espessuras()`; e a classe `is-celular` era
+  decidida com a borda velha e o aria com a nova — agora a borda nova vem antes e tudo compara com
+  `faixaAplicada`/`disposicaoAplicada`. BAIXO não feitos: `altura()` ainda usa `w < 600` (20 px de altura em
+  600–603, invisível); 1ª chamada lê a borda da folha (se corrige no ResizeObserver).
+- **Provado:** arrastando a régua de 1 em 1 px (DPR 1 e 2), classe e aria batem com o layout do CSS em todo
+  passo, e o deslize dispara em 903→902, 762→761, 603→602, onde o CSS muda (`docs/pecas/cortes.mjs`).
+  Varredura da régua sem nada passar do pé; `checar.mjs` sem rolagem/erros; acessibilidade 23 OK;
+  `csp.test` 8/8; unidade 394/394.
+- **Não feito (visual, decisão do dono):** achado 4 da 1ª revisão — de 600 a 759 px o título ainda tem
+  `max-width: 12ch` (4 linhas) e a foto fica uma faixa baixa e larga com barras dos lados. Não corta. Correção
+  possível: `.pl-titulo { max-width: none }` no bloco de 759. Também: o rótulo "8 colunas" aparece nessa faixa de
+  uma coluna (já era assim).
+- `verificar` rodado 2× com o processador em 100% (svchost/WMI/antivírus/Roblox — não são desta sessão): só falhas
+  de tempo (LCP/fps/goto 30 s), em páginas diferentes a cada rodada, inclusive sem a Planta. **Rodar de novo com a
+  máquina livre antes de mesclar.**
+- Prévia do `18f2d37`: https://beyon0-site-132vpq66k-beyond0.vercel.app
+- Nível de risco do PR: 2 (sem revisão de segurança obrigatória). Exige: especificação, visto rodando, regressão,
+  verificação comportamental, teste visto vermelho, revisão técnica (link de comentário no PR).
+- **Próximo passo exato:** abrir o PR (rascunho) da `pecas-servicos`; revisão técnica da branch inteira por agente
+  diferente, publicada como comentário; `verificar` com a máquina livre; dono vê a prévia no celular (e decide o
+  achado 4 e J2–J5); só então mesclar.
+
 **Passagem 2026-10-16 (noite, 2ª) — corte no celular/tablet e falas de teste, commit `5df81f5`:**
 - O dono viu a prévia no celular: no celular e no tablet o exemplo parecia bugado (cortado no pé da moldura;
   medido 215 px e 400 px além) e as falas davam a entender que o exemplo é o site que a pessoa recebe. Registrado
