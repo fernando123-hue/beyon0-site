@@ -71,13 +71,13 @@ Enquanto não há verba para a API, as três direções não são geradas pelo m
   - depois de mandar, **"Já avisei"**, que conclui o pedido e o tira da fila;
   - **"Arquivar"** (resolvido por fora) e **"Descartar"** (encerra e para a geração), cada um com um segundo toque.
 - **Comando `scripts/direcoes.mjs` e skill `produzir-direcoes`** (`.claude/skills/produzir-direcoes/SKILL.md`). A chave **nunca** fica na sessão do Claude Code que lê o briefing, porque o briefing é texto de visitante (revisão de segurança):
-  - **O dono roda no terminal dele**, com `BZ_BASE` (https do site, conferido pelo comando) e `PAINEL_CHAVE` só ali:
+  - **O dono roda no terminal dele**, com `BZ_BASE` (https do site, conferido pelo comando) e `PAINEL_CHAVE` só ali. Sempre com o caminho ABSOLUTO do script (`node "<repo>/scripts/direcoes.mjs" <comando>`, `<repo>` com barras normais) ou com a linha que o comando anterior imprimiu: **nunca rode `node scripts/...` com caminho relativo de dentro da pasta de um pedido**, porque o que está lá é de quem escreve na pasta, não o script do projeto:
     - `fila`: só pedidos confirmados; cada linha traz o id curto, o código `BZ-XXXXX`, "avisar" ou "produzir" e, se for o caso, "TEXTO SUSPEITO";
-    - `pedido <id>` (os 8 primeiros caracteres do id curto, não o código `BZ-`): grava em `~/BeyonZero-direcoes/<id>/pedido.json`, fora do repositório. O briefing vai com nome, telefone e e-mail do cliente apagados;
-    - `entregar-pedido <id>`: as 3 de uma vez, cada arquivo no id certo, conferidas antes; apaga a pasta quando as 3 ficam prontas.
-  - **O Claude Code roda, sem chave:**
-    - `conferir <arquivo> <estrategia>`: o mesmo filtro do servidor;
-    - `limpar [dias]`: apaga pastas esquecidas, padrão 3 dias.
+    - `pedido <id>` (os 8 primeiros caracteres do id curto, não o código `BZ-`): grava em `~/BeyonZero-direcoes/<id>/pedido.json`, fora do repositório. O briefing vai com nome, telefone e e-mail do cliente apagados. Também imprime a linha que abre a sessão isolada (PowerShell). A produção acontece só nela: dontAsk, leitura só na pasta do pedido, escrita só nos 3 arquivos de direção, SEM Bash (a sessão não tem terminal), sem internet nem MCP. Sem Bash porque, no Windows, a guarda por hook pode não abrir ("fork: Permission denied", código 254) e deixar o comando passar, e comandos de "só leitura" (`nl`, `rg`) escapam de qualquer lista de proibições. O `pedido` também apaga um `.conferir.mjs` de versões anteriores. Antes da primeira vez, apague (ou mova para fora) `~/BeyonZero-direcoes/CLAUDE.md`, `~/BeyonZero-direcoes/.claude/` e `~/BeyonZero-direcoes/config/`, que sobraram da lista de proibições antiga. O motivo: o Claude Code lê o `CLAUDE.md` das pastas acima da pasta de trabalho, e o `pedido` se recusa a preparar a sessão enquanto eles existirem;
+    - `entregar-pedido <id>` (o `pedido` imprime a linha pronta, com o caminho absoluto): as 3 de uma vez, cada arquivo no id certo, conferidas antes (filtro e varredura); recusa tudo se a pasta tiver arquivo fora do pedido; mostra o texto ao dono e pede o código sorteado (`ENTREGAR-XXXX`) antes de enviar qualquer coisa; apaga a pasta quando as 3 ficam prontas;
+    - `limpar [dias]`: apaga pastas esquecidas, padrão 3 dias (do dono; a sessão isolada não roda).
+  - **O Claude Code (sessão isolada) não roda comando nenhum.** Quem confere é o dono, se quiser olhar antes de entregar:
+    - `conferir <arquivo> <estrategia>` (`node "<repo>/scripts/direcoes.mjs" conferir "<pasta do pedido>/<estrategia>.json" <estrategia>`): o mesmo filtro e a mesma varredura do servidor; só abre `conversao.json`, `autoridade.json` ou `experiencia.json` dentro da pasta de um pedido.
 
 **Voltar para a API:** apagar `BZ_DIRECOES`. Direções que estiverem na fila nesse momento são geradas pela API quando o cliente voltar à página.
 - A confirmação pelo WhatsApp continua valendo no modo API (decisão D2): sem ela, nada é gerado.

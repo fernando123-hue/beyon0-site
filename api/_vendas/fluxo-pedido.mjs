@@ -25,6 +25,15 @@ const MOTIVOS = {
   tentativas: { status: 429, texto: 'Muitas tentativas neste pedido. Fale com a Beyon Zero pelo WhatsApp: a gente continua por lá.', extra: { whatsapp: true } }
 };
 
+/* a recusa de um motivo do banco; motivo que este servidor não conhece (migration à frente do código) vira o 409 de
+   "só uma vez", com log, para não sumir (PR2a-motivo-log) */
+export function recusaDoMotivo(r) {
+  const motivo = String(r && r.motivo);
+  if (!Object.hasOwn(MOTIVOS, motivo)) console.error(JSON.stringify({ origem: 'vendas', nivel: 'erro', evento: 'detalhes: motivo desconhecido', motivo: motivo.slice(0, 40) }));
+  const m = Object.hasOwn(MOTIVOS, motivo) ? MOTIVOS[motivo] : MOTIVOS.ja_enviado;
+  return new Recusa(m.status, m.texto, m.extra);
+}
+
 export function criarAcoesDoPedido({ banco, visitante, segredoFreio, limites = PEDIDOS, requestId }) {
   /* um freio do pedido faltando: nada é gravado, a pessoa recebe o WhatsApp e o log diz qual */
   function indisponivel(evento) {
@@ -59,10 +68,7 @@ export function criarAcoesDoPedido({ banco, visitante, segredoFreio, limites = P
         if (e instanceof ErroBanco && e.codigo === '55000') throw new Recusa(409, FORA_DA_ETAPA);
         throw e;
       }
-      if (!r || r.ok !== true) {
-        const m = Object.hasOwn(MOTIVOS, String(r && r.motivo)) ? MOTIVOS[r.motivo] : MOTIVOS.ja_enviado;
-        throw new Recusa(m.status, m.texto, m.extra);
-      }
+      if (!r || r.ok !== true) throw recusaDoMotivo(r);
       return { codigo: r.codigo, expira_em: r.expira_em };
     }
   };
