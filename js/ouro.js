@@ -25,9 +25,8 @@
    Traço nítido, nenhum desfoque. Por quadro: dois transform, três números
    (B.ouro.k ouro, .h branco, .carga) e o texto da leitura quando muda.
 
-   Gatilhos: estação em sobrecarga por uma volta da onda (desktop); todos os
-   cards de um grupo de estação cheios na pilha (celular); segurar o núcleo
-   1,3 s ou o cursor parado no miolo 2,5 s (ouvido no hero: .nucleo não recebe
+   Gatilhos: estação em sobrecarga por uma volta da onda (desktop); segurar o
+   núcleo 1,3 s ou o cursor parado no miolo 2,5 s (ouvido no hero: .nucleo não recebe
    eventos); sozinho, uma vez por visita, aos 42 s de atenção somados entre
    as páginas. Intervalo mínimo de 30 s entre o fim de um e o próximo. Movimento reduzido: não existe;
    ligado no meio, apaga na hora. API: B.ouro.acender(y?) / .k / .h / .carga /
@@ -221,20 +220,7 @@
   B.on('estacao:solta', function (st) {
     for (var i = voltas.length - 1; i >= 0; i--) if (voltas[i].st === st) { clearTimeout(voltas[i].tm); voltas.splice(i, 1); }
   });
-  /* 2. celular: todos os cards de um grupo de estação cheios na pilha */
-  var estreito = window.matchMedia('(max-width: 720px)');
-  B.on('carga:cheio', function (card) {
-    if (!estreito.matches || deAnuncio()) return;
-    var g = card.closest('.tem-estacao');
-    if (!g) return;
-    var cards = g.querySelectorAll('.tem-carga');
-    if (!cards.length) return;
-    for (var i = 0; i < cards.length; i++) if (!cards[i].classList.contains('is-carregado')) return;
-    var r = g.getBoundingClientRect();
-    if (r.bottom < 0 || r.top > window.innerHeight) return;   /* (rolou direto para longe: o grupo encheu fora da vista, não houve conquista) */
-    acender(r.top + r.height / 2);
-  });
-  /* 3. o reator: segurar o núcleo, ou o cursor parado no miolo. Ouvido no HERO: .nucleo não recebe eventos */
+  /* 2. o reator: segurar o núcleo, ou o cursor parado no miolo. Ouvido no HERO: .nucleo não recebe eventos */
   var caixaNucleo = document.querySelector('.nucleo'), hero = caixaNucleo && caixaNucleo.closest('.hero');
   if (caixaNucleo && hero) {
     var segurando = 0, x0 = 0, y0 = 0, mira = 0;
@@ -266,7 +252,7 @@
       });
     }
   }
-  /* 4. sozinho, uma vez por visita: aos T.auto s de atenção (página visível e alguém mexendo), somados entre as
+  /* 3. sozinho, uma vez por visita: aos T.auto s de atenção (página visível e alguém mexendo), somados entre as
      páginas da visita */
   var jaVeio = false, atencao = 0;
   try { jaVeio = sessionStorage.getItem('bz-ouro') === '1'; atencao = +sessionStorage.getItem('bz-atencao') || 0; } catch (e) { /* sem armazenamento */ }

@@ -408,72 +408,31 @@ html.menos-movimento .qa::details-content { transition: none; }
 html.menos-movimento .estacao-cruza { display: none !important; }
 
 
-/* ---- A PILHA (celular, até 720 px; pedido do dono, 2026-10-04, escolhido
-   entre duas opções: "o monte que se abre"). Você chega a um MONTE (o 1º
-   card na frente, os outros atrás, com as bordas de baixo em degraus de
-   8 px); descendo, a página NÃO para: o card da frente sobe com ela e o de
-   trás fica parado, sendo revelado, até chegar ao lugar dele e seguir; aí o
-   próximo é revelado, e assim por diante. Subindo, cada card volta a se
-   esconder atrás do anterior até virar monte de novo.
-   É CSS puro: `position: sticky` pelo BAIXO. Enquanto o lugar natural de um
-   card está abaixo da linha (acima da barra fixa do celular), ele fica
-   segurado nela; o contêiner não o deixa subir além do topo do grupo, então
-   antes da hora ele fica atrás do 1º (o monte). O navegador move tudo junto
-   com a rolagem, no compositor: nada atrasa em relação ao dedo (a versão
-   com JS e a página parada parecia "travada", disse o dono). Os da frente
-   ficam por cima (z-index decrescente); fundo opaco. ---- */
+/* ---- A PILHA (celular, até 720 px): o FICHÁRIO COM CHEGADA (dono, 2026-10-16, escolhida entre três opções:
+   "vamos com a B, só quero que as letras acendam também"). Ela troca o monte que se abria pelo pé, com carga e
+   deslize — "um amontoado de efeitos", sem fluidez — pelo conforto da publicada: cada card, ao chegar ao topo,
+   fica preso logo abaixo do menu, 14 px abaixo do anterior; o seguinte sobe por cima, colado no dedo, e deixa à
+   mostra só a faixa de cima de cada um. Um sinal só: o card que assenta no degrau ACENDE (borda inteira em ciano,
+   número ciano, letras acesas — as da carga, js/carga.js) e o de baixo, coberto, apaga (js/anima.js,
+   pilhaChegadas: só classes, uma vez por passagem). Traço nítido, sem sombra nem desfoque. ---- */
 @media (max-width: 720px) {
-  .pilha { --pilha-linha: calc(96px + env(safe-area-inset-bottom, 0px)); }
-  .pilha > :not(.estacao-vao) { --k: 0; position: sticky; bottom: calc(var(--pilha-linha) - var(--k) * 8px); z-index: calc(10 - var(--k)); background-color: var(--mod-fundo-opaco); }
+  .pilha > :not(.estacao-vao) { --k: 0; position: sticky; top: calc(var(--nav-h) + 12px + var(--k) * 14px); z-index: calc(1 + var(--k)); background-color: var(--mod-fundo-opaco); transition: border-color .3s var(--ease); }
   .pilha > :nth-child(2) { --k: 1; }
   .pilha > :nth-child(3) { --k: 2; }
   .pilha > :nth-child(4) { --k: 3; }
   /* o card com foco de teclado vem para a frente: o foco nunca fica escondido */
   .pilha > :focus-within { z-index: 20; }
+  .pilha > .is-foco { border-color: rgb(var(--ac-rgb) / .6); }
+  .pilha > :not(.estacao-vao) :is(h3, p) { transition: color .3s var(--ease); }
+  .pilha > .is-foco h3 { color: var(--letra-acesa-t); }
+  .pilha > .is-foco p { color: var(--letra-acesa-p); }
+  .pilha > :not(.estacao-vao) > * { transition: opacity .35s var(--ease); }
+  .pilha > .is-coberto > * { opacity: .45; }   /* (a faixa de 14 px do coberto segue legível) */
 }
-/* (zoom de 400 %, viewport mais baixo que um card: o monte cobriria os títulos; fica em fluxo) */
+/* (zoom de 400 %, viewport mais baixo que um card: o fichário cobriria os títulos; fica em fluxo) */
 @media (max-width: 720px) and (max-height: 560px) { .pilha > :not(.estacao-vao) { position: static; } }
-/* ---- AS OPÇÕES EM TESTE (dono, 2026-10-16: no celular a pilha atual é "um amontoado de efeitos", a publicada
-   "é bem mais confortável"; quer uma melhor, usando as duas como dados). ?pilha=a|b|c (js/ancoras.js); nenhuma tem
-   carga nem deslize (js/anima.js), e o card anda colado no dedo. A: o FICHÁRIO da publicada — preso pelo TOPO,
-   14 px abaixo do anterior, o de baixo sobe por cima; nada se move sozinho. B: o fichário + a CHEGADA — o card
-   que assenta no degrau acende (.is-foco) e o coberto apaga o texto. C: a LISTA — sem empilhar; o card no meio da
-   tela acende (.is-foco, como os outros cards do celular). Sem sombra nem desfoque. ---- */
-@media (max-width: 720px) {
-  html:is(.pilha-a, .pilha-b) .pilha > :not(.estacao-vao) { top: calc(var(--nav-h) + 12px + var(--k) * 14px); bottom: auto; z-index: calc(1 + var(--k)); }
-  html:is(.pilha-a, .pilha-b) .pilha > :focus-within { z-index: 20; }
-  html.pilha-b .pilha > :not(.estacao-vao) > * { transition: opacity .35s var(--ease); }
-  html.pilha-b .pilha > .is-coberto > * { opacity: .45; }   /* (a faixa de 14 px do coberto segue legível) */
-  html.pilha-c .pilha > :not(.estacao-vao) { position: static; }
-  /* o aceso de B e C se vê: a borda inteira em ciano, traço nítido (o .is-foco de sempre só mudava o número de cor
-     e a borda de 10 % para 18 %: o dono, no celular, achou a B igual à A e a C sem brilho nenhum) */
-  html:is(.pilha-b, .pilha-c) .pilha > :not(.estacao-vao) { transition: border-color .3s var(--ease); }
-  html:is(.pilha-b, .pilha-c) .pilha > .is-foco { border-color: rgb(var(--ac-rgb) / .6); }
-}
-/* ---- O DESLIZAR (dono, 2026-10-05: "o próprio deslizar mais suave, um pouco
-   mais lento, mais perceptível"). Por cima do sticky (que segue igual): o card
-   da frente se SOLTA da linha devagar (~0,56× o dedo) e acelera até 1× enquanto
-   revela o de baixo; depois ALCANÇA de leve (pico ~1,3×). Animação ligada à
-   rolagem da página (animation-timeline): roda no compositor, colada no dedo,
-   e a página nunca para. As faixas (px) vêm de js/anima.js. Só translate (sem
-   escala: encolher a camada deixaria texto e borda borrados). Sem suporte, em
-   movimento reduzido ou com ?pilha=antes: o sticky puro. A revelação ocupa
-   43,5% da faixa (1 : 1,3 com o alcance), daí o quadro-chave do pico. ---- */
-@supports (animation-timeline: scroll()) {
-  @media (max-width: 720px) and (prefers-reduced-motion: no-preference) {
-    html.js:not(.menos-movimento):not(.pilha-antes) .pilha > .pilha-sai {
-      animation: pilha-sai linear both; animation-timeline: scroll(root); animation-range: var(--pa) var(--pb);
-    }
-  }
-}
-@keyframes pilha-sai {
-  0% { translate: 0 0; animation-timing-function: cubic-bezier(.25, .46, .6, 1); }
-  43.5% { translate: 0 var(--atraso); animation-timing-function: cubic-bezier(.37, 0, .63, 1); }
-  100% { translate: 0 0; }
-}
 
-/* ---- A CARGA (js/carga.js): no celular a pilha carrega com a rolagem; no
-   desktop com mouse o card carrega conforme o cursor se aproxima (e um ARO
+/* ---- A CARGA (js/carga.js): no desktop com mouse o card carrega conforme o cursor se aproxima (e um ARO
    nítido aparece). A barra é um TUBO NEON em traço nítido — nada desfocado
    (o dono proíbe): núcleo branco com bordas ciano em degraus duros, duas
    linhas finas de cada lado, a PONTA acesa na frente, um REFLEXO que corre

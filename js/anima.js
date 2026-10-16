@@ -552,8 +552,8 @@
     }
   }
   function de(tabela, el, padrao) { for (var k in tabela) if (el.matches(k)) return tabela[k]; return padrao; }
-  /* opção B da pilha do celular (?pilha=b): no fichário (css/cartoes.css), o card que chega ao degrau dele acende
-     (.is-foco) e o de baixo, coberto, apaga o texto (.is-coberto). Só classes, uma vez por passagem; os gatilhos medem
+  /* a CHEGADA da pilha do celular (dono, 2026-10-16): no fichário (css/cartoes.css), o card que chega ao degrau dele
+     acende (.is-foco: borda, número e letras) e o de baixo, coberto, apaga (.is-coberto). Só classes, uma vez por passagem; os gatilhos medem
      a PILHA (o card segurado pelo sticky mediria errado): o card k chega quando o topo da pilha está no degrau dele
      menos a distância natural do card ao topo da pilha */
   function pilhaChegadas() {
@@ -604,9 +604,7 @@
     var kids = el.matches(COM_FILHOS) ? [].filter.call(el.children, function (c) { return !c.classList.contains('estacao-vao'); }) : null;
     gsap.to(el, { opacity: 1, y: 0, duration: imediato ? .35 : .45, ease: EXPO, overwrite: true });
     if (kids && kids.length) {
-      /* (na pilha do celular só a opacidade: o GSAP embutiria no transform o translate do deslizar, css/cartoes.css) */
-      var naPilha = el.classList.contains('pilha') && window.matchMedia('(max-width: 720px)').matches;
-      gsap.fromTo(kids, { opacity: 0, y: naPilha ? 0 : 14 }, { opacity: 1, y: 0, duration: .8, delay: de(ATRASO, el, 0), ease: EXPO, stagger: { each: de(CASCATA, el, .12), grid: 'auto', from: 'start' }, clearProps: 'opacity,transform' });
+      gsap.fromTo(kids, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: .8, delay: de(ATRASO, el, 0), ease: EXPO, stagger: { each: de(CASCATA, el, .12), grid: 'auto', from: 'start' }, clearProps: 'opacity,transform' });
     }
   }
   function scrollReveals() {
@@ -646,149 +644,26 @@
           var desfazer = [].map.call(document.querySelectorAll('.passos'), rota).filter(Boolean);
           return function () { desfazer.forEach(function (f) { f(); }); };
         });
-        /* celular: sem hover, o item no meio da tela é o "em foco" (índice âmbar,
-           régua acesa). Classe por evento de rolagem, nada por quadro. */
-        /* A CARGA da pilha do celular (pedido do dono, 2026-10-04: "efeitos de
-           energia conforme for descendo, como se os cards estivessem
-           carregando"). O movimento do monte é CSS (sticky pelo baixo, ver
-           css/cartoes.css); aqui só a energia: cada card tem uma BARRA de 12
-           segmentos na BASE (a parte que aparece primeiro) que enche enquanto ele é revelado (o 1º, enquanto
-           o grupo sobe até o monte assentar); enquanto carrega, a energia DESCE
-           da base do card da frente para dentro dele; cheia, ele fica
-           CARREGADO (a barra pisca branca e fica ciano, a aresta e o número
-           acendem, uma linha de luz o atravessa uma vez). Subindo, descarrega.
-           Os intervalos vêm da posição natural de cada card e da linha do
-           sticky (lidas só no refresh); os gatilhos medem a PILHA (o card
-           segurado mediria errado). Só a barra anda por quadro (scaleX). */
+        /* a pilha do celular (css/cartoes.css, o fichário com chegada; dono, 2026-10-16): o card que assenta no degrau
+           acende e o coberto apaga. Sem carga nem deslize: o movimento é só o do dedo */
         mm.add('(max-width: 720px) and (prefers-reduced-motion: no-preference)', function () {
           if (!ST || html.classList.contains('menos-movimento')) return;
-          /* opções em teste (?pilha=a|b|c, js/ancoras.js): sem carga nem deslize; só a B tem gatilhos */
-          var opcao = /\bpilha-([abc])\b/.exec(html.className);
-          if (opcao) return opcao[1] === 'b' ? pilhaChegadas() : undefined;
-          var cartas = [], medidores = [], faixas = [];
-          /* o DESLIZAR (dono, 2026-10-05: "o próprio deslizar mais suave, um pouco mais lento, mais perceptível"):
-             o card da frente se solta da linha devagar (~0,56× o dedo) e acelera até 1× enquanto revela o de baixo;
-             depois alcança, de leve (pico ~1,3×), numa faixa de 1,3× a revelação. Quem anima é o CSS, por animação
-             ligada à rolagem (css/cartoes.css, "O DESLIZAR"): roda no compositor, junto com o dedo, sem o atraso de
-             um quadro do JS. Daqui saem só as FAIXAS (px de rolagem), escritas no refresh e quando a área visível
-             muda de altura (a barra de endereço do celular encolhendo: o sticky segue a tela nova, as faixas não
-             seguiam). Sem suporte (Safari antigo, Firefox) ou com ?pilha=antes: o sticky puro, como era */
-          var antes = /[?&]pilha=antes\b/.test(location.search);
-          var desliza = !antes && !!(window.CSS && CSS.supports && CSS.supports('animation-timeline: scroll()'));
-          var DESLIZA = { atraso: 0.24, alcanca: 1.3 };   /* × a revelação: o atraso máximo e a faixa do alcance */
-          html.classList.toggle('pilha-antes', antes);
-          /* onde a revelação já DESCOBRIU o card (o da frente a `folga` px de distância): a fração u do alcance em que
-             atraso·(1 − B(u)) = folga, com B = cubic-bezier(.37, 0, .63, 1), a curva do alcance */
-          var descobreEm = function (folga, atraso) {
-            if (atraso <= folga) return 0;
-            var alvo = 1 - folga / atraso, lo = 0, hi = 1, s = 0.5;
-            var bez = function (a, b, t) { var q = 1 - t; return 3 * q * q * t * a + 3 * q * t * t * b + t * t * t; };
-            for (var i = 0; i < 24; i++) { s = (lo + hi) / 2; if (bez(0, 1, s) < alvo) lo = s; else hi = s; }
-            return bez(0.37, 0.63, s);
-          };
-          [].forEach.call(document.querySelectorAll('.pilha'), function (pilha) {
-            var cards = [].filter.call(pilha.children, function (c) { return !c.classList.contains('estacao-vao'); });
-            if (cards.length < 2) return;
-            var m = { nat: [], parado: [], vao: 0 };
-            /* parado[k]: o topo (tela) do card k segurado pela linha do sticky */
-            var medir = function () {
-              var vao = parseFloat(getComputedStyle(pilha).rowGap) || 0, soma = 0, vh = window.innerHeight;
-              m.vao = vao;
-              for (var k = 0; k < cards.length; k++) {
-                m.nat[k] = soma; soma += cards[k].offsetHeight + vao;
-                m.parado[k] = vh - (parseFloat(getComputedStyle(cards[k]).bottom) || 0) - cards[k].offsetHeight;
-              }
-            };
-            medir();
-            ST.addEventListener('refreshInit', medir);
-            medidores.push(medir);
-            /* onde está o topo da pilha (tela) quando o card k começa e termina de ser revelado */
-            var yIni = function (k) { return k === 0 ? window.innerHeight : k === 1 ? m.parado[1] : m.parado[k - 1] - m.nat[k - 1]; };
-            var yFim = function (k) { return k === 0 ? m.parado[1] : m.parado[k] - m.nat[k]; };
-            /* com o deslizar, o card só fica à vista depois do fim da revelação (o da frente ainda atrasado): a carga
-               termina quando ele está DESCOBERTO — antes o 100%, a linha e as letras disparavam sob o da frente */
-            var yCheio = function (k) {
-              if (!desliza || k === 0) return yFim(k);
-              var r = yIni(k) - yFim(k);
-              return yFim(k) - descobreEm(Math.max(0, m.vao - 2), DESLIZA.atraso * r) * DESLIZA.alcanca * r;
-            };
-            var comeca = function (k) { return function () { return 'top ' + Math.round(yIni(k)) + 'px'; }; };
-            var termina = function (k) { return function () { return 'top ' + Math.round(yCheio(k)) + 'px'; }; };
-            if (desliza) cards.forEach(function (card, k) { if (k > 0) faixas.push({ pilha: pilha, medir: medir, frente: cards[k - 1], ini: yIni.bind(null, k), fim: yFim.bind(null, k) }); });
-            cards.forEach(function (card, k) {
-              cartas.push(card);
-              /* a peça da carga (js/carga.js): o tubo neon, a porcentagem, as classes */
-              if (!B.carga) return;
-              B.carga.montar(card, { fio: true, doador: k > 0 ? cards[k - 1] : null });   /* (o fio desce do da frente enquanto este carrega: js/carga.js) */
-              ST.create({ trigger: pilha, start: comeca(k), end: termina(k), invalidateOnRefresh: true,
-                /* a carga corre atrás da rolagem (js/carga.js, seguir): suave mesmo num deslizar rápido */
-                onUpdate: function (st) { B.carga.seguir(card, st.progress); },
-                onLeave: function () { B.carga.seguir(card, 1); },
-                onLeaveBack: function () { B.carga.seguir(card, 0); } });
-            });
-          });
-          /* as faixas em px de rolagem: topo da pilha no documento − onde ele está (tela) no começo e no fim */
-          var escreverFaixas = function () {
-            faixas.forEach(function (fx) {
-              var topo = fx.pilha.getBoundingClientRect().top + window.scrollY;
-              var a = Math.round(topo - fx.ini()), b = Math.round(topo - fx.fim()), r = Math.max(1, b - a);
-              var chave = a + '|' + b;
-              if (fx.chave === chave) return;
-              fx.chave = chave;
-              fx.frente.style.setProperty('--pa', a + 'px');
-              fx.frente.style.setProperty('--pb', Math.round(b + DESLIZA.alcanca * r) + 'px');
-              fx.frente.style.setProperty('--atraso', Math.round(DESLIZA.atraso * r) + 'px');
-              fx.frente.classList.add('pilha-sai');
-            });
-          };
-          /* a área visível mudou de altura (barra de endereço): mede de novo e reescreve, num quadro, sem refresh */
-          /* (dispara também com a barra animando durante a rolagem e no zoom de pinça: só age se a altura mudou de
-             fato; mede cada pilha uma vez; escreve só o que mudou) */
-          var pedido = 0, vv = window.visualViewport, alturaVista = window.innerHeight;
-          var aoRedimensionar = function () {
-            if (pedido || window.innerHeight === alturaVista) return;
-            pedido = requestAnimationFrame(function () {
-              pedido = 0; alturaVista = window.innerHeight;
-              var medidas = [];
-              faixas.forEach(function (fx) { if (medidas.indexOf(fx.medir) < 0) { medidas.push(fx.medir); fx.medir(); } });
-              escreverFaixas();
-            });
-          };
-          /* (a página remediu: algo acima da pilha mudou de altura — as letras dos cards partidas em segundo plano
-             mexem alguns px — e o topo da pilha andou; sem isto a faixa começava ~23 px antes de o card se soltar
-             e o card ainda preso descia) */
-          var aoMedir = function () { escreverFaixas(); };
-          if (faixas.length) {
-            escreverFaixas();
-            ST.addEventListener('refresh', escreverFaixas);
-            if (vv) vv.addEventListener('resize', aoRedimensionar);
-            if (B.on) B.on('rede:medida', aoMedir);
-          }
-          return function () {
-            for (var k = 0; k < medidores.length; k++) ST.removeEventListener('refreshInit', medidores[k]);
-            ST.removeEventListener('refresh', escreverFaixas);
-            if (vv) vv.removeEventListener('resize', aoRedimensionar);
-            if (B.off) B.off('rede:medida', aoMedir);
-            if (pedido) cancelAnimationFrame(pedido);
-            faixas.forEach(function (fx) { fx.frente.classList.remove('pilha-sai'); ['--pa', '--pb', '--atraso'].forEach(function (v) { fx.frente.style.removeProperty(v); }); });
-            html.classList.remove('pilha-antes');
-            cartas.forEach(function (c) { c.classList.remove('is-doando'); if (B.carga && c._carga) B.carga.seguir(c, 0, true); });
-          };
+          return pilhaChegadas();
         });
+        /* celular: sem hover, o item no meio da tela é o "em foco" (índice âmbar,
+           régua acesa). Classe por evento de rolagem, nada por quadro. */
         mm.add('(max-width: 860px) and (prefers-reduced-motion: no-preference)', function () {
           if (!ST || html.classList.contains('menos-movimento')) return;
-          /* (os cards da pilha, até 720 px, ficam segurados pelo sticky: o gatilho por posição mediria errado) */
-          /* (a C não empilha; na B o aceso da pilha é de pilhaChegadas, em qualquer largura: este bloco não roda de novo ao
-             girar o celular de 844 para 390, e os dois disputariam o .is-foco) */
-          var naPilha = (window.matchMedia('(max-width: 720px)').matches && !html.classList.contains('pilha-c')) || html.classList.contains('pilha-b');
-          gsap.utils.toArray('.servico, .laudo__row, .celula, .passo, .cenario').forEach(function (el) {
+          /* (até 720 px o aceso dos cards da pilha é da chegada, pilhaChegadas: este bloco não roda de novo ao girar o
+             celular de 844 para 390, então a largura é lida na hora de cada troca, e os dois não disputam o .is-foco) */
+          var estreito = window.matchMedia('(max-width: 720px)');
+          var itens = gsap.utils.toArray('.servico, .laudo__row, .celula, .passo, .cenario');
+          itens.forEach(function (el) {
             var daPilha = el.parentElement && el.parentElement.classList.contains('pilha');
-            if (naPilha && daPilha) return;
-            /* na lista da C acende UM card: o que cruza a linha do meio da tela (com a faixa de 62 % a 38 %, dois cards
-               altos ficavam acesos juntos) */
-            var meio = daPilha && html.classList.contains('pilha-c');
-            ST.create({ trigger: el, start: meio ? 'top 50%' : 'top 62%', end: meio ? 'bottom 50%' : 'bottom 38%', toggleClass: { targets: el, className: 'is-foco' } });
+            ST.create({ trigger: el, start: 'top 62%', end: 'bottom 38%',
+              onToggle: function (st) { if (!(daPilha && estreito.matches)) el.classList.toggle('is-foco', st.isActive); } });
           });
+          return function () { itens.forEach(function (el) { el.classList.remove('is-foco'); }); };
         });
         mm.add('(min-width: 861px) and (prefers-reduced-motion: no-preference)', function () {
           var hero = document.querySelector('.hero');
