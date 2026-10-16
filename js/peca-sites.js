@@ -78,7 +78,13 @@
     else if (s) el.textContent = s;
   }
   function num(v, casas) { return B.num ? B.num(v, casas) : v.toFixed(casas).replace('.', ','); }
-  function faixa(w) { return w < 600 ? 0 : w < 900 ? 1 : 2; }
+  /* o container do CSS mede o miolo: a borda da moldura (1 px de tela) fica de fora; sem descontar, entre 600–603,
+     760–763 e 900–903 o JS dizia uma faixa e o CSS mostrava outra, e o pulo do layout saía sem deslize (revisão) */
+  function miolo(w) { return w - 2 * (parseFloat(moldura.style.borderWidth) || 0); }
+  function faixa(w) { var m = miolo(w); return m < 600 ? 0 : m < 900 ? 1 : 2; }
+  /* o layout do site de exemplo tem um corte a mais que a faixa (760: duas colunas viram uma); o deslize segue o
+     layout, a faixa segue o aria, o is-celular e as paradas */
+  function disposicao(w) { var m = miolo(w); return m < 600 ? 0 : m < 760 ? 1 : m < 900 ? 2 : 3; }
   function nomeDaFaixa(w) { return ['Celular', 'Tablet', 'Computador'][faixa(w)]; }
   function altura(w) { return w < 600 ? 820 : 800; }
   /* a tela de verdade, sem limite (para dizer a verdade) e a mesma dentro da régua (para a moldura) */
@@ -133,7 +139,8 @@
     w = Math.round(Math.max(MIN, Math.min(MAX, w)));
     if (w === largura && !anunciar) return;
     var cruzou = faixa(w) !== faixa(largura);
-    var antes = cruzou && animar && !reduzido() ? medir() : null;
+    var mudou = disposicao(w) !== disposicao(largura);
+    var antes = mudou && animar && !reduzido() ? medir() : null;
     largura = w;
     moldura.style.width = w + 'px';
     moldura.style.height = altura(w) + 'px';

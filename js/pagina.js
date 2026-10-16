@@ -197,7 +197,7 @@
     var fins = document.querySelectorAll('.conversa, body > footer');
     for (var f = 0; f < fins.length; f++) ioBarra.observe(fins[f]);
   }
-  /* as ações de um cartão com peça ("Quero este site…", "Quero o diagnóstico…", com o WhatsApp ao lado,
+  /* as ações de um cartão com peça ("Quero o meu site", "Quero o diagnóstico…", com o WhatsApp ao lado,
      docs/restructure/PECAS-SERVICOS.md) na tela: a barra e o flutuante saem (eram três chamadas para o
      mesmo lugar, e a barra cobria o botão — crítica de celular) */
   /* (a área dos cartões inteira, como uma região só: observando cada bloco de ações, a barra sumia e voltava

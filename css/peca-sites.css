@@ -8,7 +8,7 @@
    - A RÉGUA (o vocabulário da cota): arrastar de 360 a 1440 px reorganiza o mesmo site ao vivo; tocar
      a régua desmonta o site em planta, soltar imprime de novo. Abaixo de 600 px a moldura vira celular.
    - A prova: o peso e a primeira tela DESTA página, medidos no aparelho de quem vê.
-   - O próximo passo: "Quero o site da {nome}" leva ao orçamento.
+   - O próximo passo: "Quero o meu site" leva ao orçamento.
    Custo: HTML + SVG + CSS, sem canvas nem imagem. A moldura é desenhada em pixels de tela de verdade e
    encolhida por transform; as faixas do layout são container queries dela. JS (js/peca-sites.js) só
    acorda com a peça na tela. Sem JS a peça some (o cartão fica inteiro); movimento reduzido: impressa e
@@ -191,10 +191,9 @@
 .pl-titulo b.pl-seca { animation-name: pl-seca-destaque; }
 @keyframes pl-seca { 0%, 40% { color: var(--ac); animation-timing-function: cubic-bezier(.4, 0, .2, 1); } }
 @keyframes pl-seca-destaque { 0%, 40% { color: var(--ac-2); animation-timing-function: cubic-bezier(.4, 0, .2, 1); } }
-/* nome longo: o título desce um degrau para os recursos não saírem da moldura */
-.pl-titulo.is-longo { font-size: 50px; }
-/* no computador o título acompanha a largura (cqi) para o site caber inteiro na moldura; só aqui: no tablet o cqi
-   do nome longo vencia os 58px e o título caía para ~25px (revisão, rodada 5) */
+/* nome longo: o título desce um degrau para os recursos não saírem da moldura. No computador o título acompanha a
+   largura (cqi) para o site caber inteiro; só aqui: no tablet o cqi do nome longo derrubava o título para ~25px
+   (revisão, rodada 5) */
 @container planta (min-width: 900px) { .pl-titulo { font-size: min(62px, 4.9cqi); } .pl-titulo.is-longo { font-size: min(46px, 3.8cqi); } }
 @container planta (max-width: 899px) { .pl-titulo.is-longo { font-size: 38px; } }   /* tablet: meia coluna */
 @container planta (max-width: 759px) { .pl-titulo.is-longo { font-size: 40px; } }   /* uma coluna */

@@ -174,7 +174,7 @@
    cartão, então o cartão deixa de ser um <a> inteiro (link dentro de controle não vale) e vira <article> com o
    link esticado por baixo; a peça fica por cima (z-index 2) e continua interativa.
    Celular: título e preço antes da peça (a ordem do HTML); do tablet para cima a peça abre o cartão. */
-/* o próximo passo de cada peça ("Quero este site…", "Quero o diagnóstico…") */
+/* o próximo passo de cada peça ("Quero o meu site", "Quero o diagnóstico…") */
 .peca-quero {
   align-self: flex-start; display: inline-flex; align-items: center; gap: .6rem; min-height: 48px; padding: 0 1.1rem;
   border: 1px solid rgb(var(--ac-rgb) / .6); border-radius: var(--raio-s); color: var(--ac);
