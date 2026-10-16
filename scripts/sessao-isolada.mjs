@@ -32,7 +32,8 @@ export const linhaDoDono = ({ repo, comando, arg }) => 'node "' + scriptConferir
    permitido no Bash, porque comandos de "só leitura" (nl, rg) escapam de qualquer lista de proibições. */
 export const partidaConferir = repo => [
   '/* Partida do conferir da sessão isolada (gerada pelo comando "pedido"; a sessão não pode alterá-la). */',
-  "const { executarConferir } = await import('" + pathToFileURL(path.join(repo, 'scripts', 'direcoes.mjs')).href + "');",
+  /* literal JSON: uma aspa no caminho (O'Brien) não quebra o arquivo gerado */
+  'const { executarConferir } = await import(' + JSON.stringify(pathToFileURL(path.join(repo, 'scripts', 'direcoes.mjs')).href) + ');',
   'const [arquivo, estrategia] = process.argv.slice(2);',
   'const r = executarConferir(arquivo, estrategia);',
   'console.log(r.linha);',
@@ -62,8 +63,9 @@ export function configSessao({ repo }) {
         ...REDE_E_ATALHOS.flatMap(c => ['Bash(' + c + ')', 'Bash(' + c + ' *)'])
       ]
     },
-    /* a guarda: segunda camada, e a que decide o Bash (as proibições acima ficam como reforço) */
-    hooks: { PreToolUse: [{ matcher: 'Bash', hooks: [{ type: 'command', command: 'node "' + barras(repo) + '/scripts/guarda-sessao.mjs"' }] }] }
+    /* a guarda: segunda camada, e a que decide o Bash (as proibições acima ficam como reforço). "|| exit 2": no Claude Code só a
+       saída 2 bloqueia; qualquer outro erro (script sumiu ou quebrou, node não achado) deixaria a chamada seguir. */
+    hooks: { PreToolUse: [{ matcher: 'Bash', hooks: [{ type: 'command', command: 'node "' + barras(repo) + '/scripts/guarda-sessao.mjs" || exit 2' }] }] }
   };
 }
 

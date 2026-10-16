@@ -592,7 +592,8 @@ test('sessão isolada: settings em dontAsk, só o conferir no Bash, sem rede e s
   /* ensaio real: o Claude Code NEGA, no dontAsk, comando que cita caminho fora da pasta de trabalho (o do script do
      repositório), com regra ou sem. Por isso o conferir da sessão é a partida ./.conferir.mjs, que importa o script por URL;
      a guarda (hook PreToolUse) é a lista do que é permitido, porque "só leitura" como nl e rg escapa de proibições */
-  assert.deepEqual(c.hooks, { PreToolUse: [{ matcher: 'Bash', hooks: [{ type: 'command', command: 'node "C:/Vault - Fernando/Beyon Zero/03 Projetos/site/scripts/guarda-sessao.mjs"' }] }] });
+  assert.deepEqual(c.hooks, { PreToolUse: [{ matcher: 'Bash', hooks: [{ type: 'command', command: 'node "C:/Vault - Fernando/Beyon Zero/03 Projetos/site/scripts/guarda-sessao.mjs" || exit 2' }] }] });
+  assert.ok(c.hooks.PreToolUse[0].hooks[0].command.endsWith(' || exit 2'), 'guarda que falha (script sumiu, node não achado) tem de BLOQUEAR: só a saída 2 bloqueia');
   for (const r of ['WebFetch', 'WebSearch', 'mcp__*', 'Edit(./.sessao.json)', 'Edit(./.conferir.mjs)', 'Edit(./.instrucoes.md)', 'Edit(./pedido.json)', 'Edit(./scripts/**)','Read(//c/Vault - Fernando/Beyon Zero/03 Projetos/site/**)', 'Bash(cat *)', 'Bash(curl *)', 'Bash(node -e *)'])
     assert.ok(c.permissions.deny.includes(r), 'deny sem ' + r);
   assert.ok(!c.permissions.allow.some(r => /fila|pedido|entregar|limpar/.test(r)), 'os comandos com a chave do painel nunca ficam liberados');
@@ -998,4 +999,25 @@ test('executarConferir: a mesma lógica do comando, devolvendo { ok, linha } sem
     assert.equal(fora.ok, false);
     assert.equal(fora.linha, 'RECUSADA: Só confiro conversao.json, autoridade.json ou experiencia.json dentro da pasta de um pedido.');
   } finally { fs.rmSync(raiz, { recursive: true, force: true }); }
+});
+
+/* 3ª rodada: a URL da partida entra no código gerado como literal JSON; um repositório com aspa simples no caminho
+   (O'Brien) não pode quebrar o arquivo */
+test('partidaConferir: caminho do repositório com aspa simples gera JavaScript válido com a URL certa', async () => {
+  const { spawnSync } = await import('node:child_process');
+  const fs = await import('node:fs'), os = await import('node:os'), path = await import('node:path');
+  const { pathToFileURL } = await import('node:url');
+  const { partidaConferir } = await import('../../scripts/sessao-isolada.mjs');
+  const repo = path.join(os.tmpdir(), "O'Brien", 'site');
+  const conteudo = partidaConferir(repo);
+  const url = pathToFileURL(path.join(repo, 'scripts', 'direcoes.mjs')).href;
+  assert.ok(url.includes("O'Brien"), 'o caso de teste tem mesmo a aspa na URL: ' + url);
+  assert.ok(conteudo.includes(JSON.stringify(url)), 'a URL certa, como literal JSON');
+  const pasta = fs.mkdtempSync(path.join(os.tmpdir(), 'bz-sintaxe-'));
+  try {
+    const arquivo = path.join(pasta, 'partida.mjs');
+    fs.writeFileSync(arquivo, conteudo);
+    const r = spawnSync(process.execPath, ['--check', arquivo], { encoding: 'utf8' });
+    assert.equal(r.status, 0, 'sintaxe inválida: ' + r.stderr);
+  } finally { fs.rmSync(pasta, { recursive: true, force: true }); }
 });
