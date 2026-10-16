@@ -300,6 +300,29 @@ entrada + demo + arraste, 3 rodadas, antes = HEAD servido por rota): tarefas lon
   de 320 a 1440 px. Quadros em 390 e 1440 conferidos a olho (o tempo no canto não colide nem com a demonstração em
   andamento).
 
+**Passagem 2026-10-16 (noite, 5ª) — revisão da branch publicada, correções em `2a34d4d`:**
+- Revisão técnica da branch inteira (agente `code-reviewer`), APROVAR COM AJUSTES, publicada:
+  https://github.com/fernando123-hue/beyon0-site/pull/44#issuecomment-6222579435 (o link AINDA NÃO está no corpo
+  do PR: o portão "Nível de risco e evidência" falha só por isso).
+- `2a34d4d` corrige o ALTO (arraste da Planta parado com movimento reduzido; visto vermelho `1440 → 1440` e verde
+  `1440 → 1043` no teste novo de `docs/acessibilidade.mjs`), o MÉDIO do clique curto e os BAIXO baratos (lista no
+  commit). Não feitos, com motivo no commit: leitor do `sessionStorage` (PR próprio) e helper comum às 3 peças.
+- Conferido depois: `csp.test` 8/8; sintaxe dos 4 JS; acessibilidade verde até `/automacao.html` sem JS (o run foi
+  parado pela passagem antes de terminar e antes do `verificar`).
+- **Próximo passo exato:** (1) conferir que a branch subiu (`git status -sb` sem "ahead"); (2) provar o MÉDIO:
+  `BASE=<prévia antiga https://beyon0-site-132vpq66k-beyond0.vercel.app> node docs/pecas/clique.mjs` deve FALHAR
+  (vermelho) e com o servidor local (`BASE=http://127.0.0.1:8897`) PASSAR — é sensível a tempo, rodar com a máquina
+  menos ocupada; (3) acessibilidade inteira + `verificar` + unidade (`node --test` do script `testar`); (4) pôr no
+  corpo do #44 o link da revisão em "### Revisão técnica" e as provas em "Regressão" (`gh pr edit 44 --body-file`);
+  (5) revisão curta do `2a34d4d` por outro agente (diff pequeno); (6) ler o CI (`mcp__ccd_pr__get_status`);
+  (7) dono vê a prévia nova no celular, decide achado 4 e J2–J5; (8) trazer a `main`, tirar do rascunho e mesclar.
+- Armadilhas novas: o servidor em segundo plano morre entre chamadas do Bash (exit 127) — rodar servidor e teste no
+  MESMO comando (`node docs/servidor.mjs . 8897 & SP=$!; …; kill $SP`); outra sessão roda `e2e-orcamento` e um
+  servidor na 8899 (não mexer); a CPU (4 núcleos) fica em 60–100% com explorer/svchost/wallpaper32; `$_` em
+  `powershell -Command` dentro do Bash vira lixo — usar `.ps1` no scratchpad.
+- Decisões do dono em aberto: achado 4 (título 12ch em 600–759), J2–J5; e se a borda em degradê da grade
+  (`mask-image`, não é desfoque) é aceitável.
+
 **Passagem 2026-10-16 (noite, 4ª) — PR #44 aberto (rascunho), head `5073de8`:**
 - PR https://github.com/fernando123-hue/beyon0-site/pull/44 (rascunho, vinculado à sessão "Logo da Beyon Zero").
   Corpo já com toda a evidência de nível 2; CI ao abrir: 4 passando, 1 pendente, 0 falha.
