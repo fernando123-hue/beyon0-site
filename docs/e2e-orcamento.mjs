@@ -3,7 +3,7 @@
    servidor local (docs/servidor.mjs: banco PGlite, IA simulada, gateway
    simulado). Celular primeiro (390px), depois 320px e desktop.
    Cobre: as perguntas → preço (motivo, vizinho, "Quer ajustar?" ao vivo) →
-   conta que falha não muda o que se grava → pacote gravado → detalhes → código e confirmação pelo WhatsApp (o dono confirma no painel) → 3 modelos → visor (abrir,
+   conta que falha não muda o que se grava → pacote gravado → detalhes → código e confirmação pelo WhatsApp (o dono confirma no painel) → 3 modelos → abrir o pedido em outro aparelho pelo link do aviso → visor (abrir,
    trocar, aparelho, Escape devolve o foco) → escolha → ajuste → retomada
    depois de recarregar → escopo (exige a confirmação) → pagamento simulado
    → projeto em produção. À parte: o pacote que pede conversa (sem valor) e
@@ -64,7 +64,8 @@ try {
   anotar(page, 'principal');
   const erros = [];
   let falhaForcada = false;   /* (o 400 ou 503 que o próprio teste força numa conta ou nos detalhes não é erro da página) */
-  page.on('console', m => { if (m.type() === 'error' && !(falhaForcada && /status of (400|503)/.test(m.text()))) erros.push(m.text()); });
+  let perdeuOPedido = false;   /* (PR 2b-2: depois que outro aparelho abre o pedido pelo link, a aba de antes leva 404 ao reler o estado, e isso é o esperado) */
+  page.on('console', m => { if (m.type() === 'error' && !(falhaForcada && /status of (400|503)/.test(m.text())) && !(perdeuOPedido && /status of 404/.test(m.text()))) erros.push(m.text()); });
   page.on('pageerror', e => erros.push(String(e)));
   page.on('dialog', d => { erros.push('diálogo inesperado: ' + d.message()); d.dismiss(); });
 
@@ -312,6 +313,84 @@ try {
   ok(await semRolagemLateral(page), 'celular com direções: sem rolagem lateral');
   await page.locator('#o-direcoes').scrollIntoViewIfNeeded();
   await foto(page, '2-direcoes-cel');
+  /* (PR 2b-2) abrir o pedido pelo link do aviso, num aparelho novo. O dono gera o link no painel; o código chega no
+     fragmento, sai da barra na hora e só é gasto no toque. O aparelho antigo perde o acesso (e volta por outro link,
+     para o resto do teste seguir nele) */
+  const conversaId = await page.evaluate(() => JSON.parse(localStorage.getItem('bz-orcamento')).conversa_id);
+  const linkDoPainel = async () => {
+    const r = await fetch(BASE + '/api/painel', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + PAINEL_CHAVE }, body: JSON.stringify({ link_retomada: conversaId }) });
+    return { status: r.status, ...(await r.json().catch(() => ({}))) };
+  };
+  const CODIGO_LINK = /^[A-Za-z0-9_-]{32}$/;
+  const aparelhoNovo = async rotulo => {
+    const c = await nav.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    const p = await c.newPage();
+    anotar(p, rotulo);
+    const toques = [];   /* (as chamadas de retomada: nenhuma antes do toque) */
+    p.on('request', r => { if (r.url().includes('acao=retomar')) toques.push(r.url()); });
+    p.on('console', m => { if (m.type() === 'error' && !/status of (410)/.test(m.text())) erros.push(rotulo + ': ' + m.text()); });
+    p.on('pageerror', e => erros.push(rotulo + ': ' + String(e)));
+    return { c, p, toques };
+  };
+  const link1 = await linkDoPainel();
+  perdeuOPedido = true;
+  ok(link1.status === 200 && CODIGO_LINK.test(link1.codigo || ''), 'retomada: o painel gera o código do link (32 caracteres, só letras, números, - e _)');
+  const novo = await aparelhoNovo('aparelho-novo');
+  await novo.p.goto(BASE + '/orcamento#retomar=' + link1.codigo, { waitUntil: 'load', timeout: 90000 });
+  ok(await espera(novo.p, () => !document.getElementById('o-retomada').hidden), 'retomada: o link abre a tela "Abrir o seu pedido"');
+  ok(await novo.p.evaluate(() => location.hash === '' && !location.href.includes('retomar')), 'retomada: o código sai da barra de endereço na hora');
+  ok(await novo.p.evaluate(() => localStorage.getItem('bz-orcamento') === null) && novo.toques.length === 0, 'retomada: sem o toque, o link não é gasto e nenhuma sessão é criada');
+  ok(await novo.p.evaluate(() => ['o-perguntas', 'o-direcoes'].every(id => document.getElementById(id).hidden)), 'retomada: antes do toque, nem as perguntas nem os modelos aparecem');
+  ok(await novo.p.evaluate(() => document.activeElement.id) === 'o-ret-abrir', 'retomada: o foco fica em "Abrir o meu pedido"');
+  ok(Math.round((await novo.p.locator('#o-ret-abrir').boundingBox()).height) >= 44, 'retomada: o botão tem 44 px de altura ou mais');
+  ok(await semRolagemLateral(novo.p), 'retomada no celular: sem rolagem lateral');
+  const aSecao = p => p.evaluate(() => document.getElementById('o-retomada').scrollIntoView({ block: 'center' }));
+  await aSecao(novo.p);
+  await foto(novo.p, '6-retomada-cel');
+  await novo.p.setViewportSize({ width: 320, height: 640 });
+  ok(await semRolagemLateral(novo.p), 'retomada a 320 px: sem rolagem lateral');
+  await aSecao(novo.p);
+  await foto(novo.p, '6-retomada-320');
+  await novo.p.setViewportSize({ width: 390, height: 844 });
+  await novo.p.click('#o-ret-abrir');
+  ok(await espera(novo.p, () => document.querySelectorAll('#o-direcoes:not([hidden]) .dir .dir__nome').length === 3, 30000), 'retomada: ao toque, o pedido abre neste aparelho, com os três modelos');
+  ok(await novo.p.locator('#o-retomada').isHidden(), 'retomada: a tela do link some depois de abrir');
+  ok(novo.toques.length === 1, 'retomada: uma única chamada de retomada, no toque');
+  await foto(novo.p, '6-retomada-aberta-cel');
+
+  /* o aparelho de antes perdeu o acesso: a página começa limpa ou avisa, e não mostra o pedido */
+  const velho = await ctx.newPage();
+  await velho.goto(BASE + '/orcamento', { waitUntil: 'load', timeout: 90000 });
+  ok(await espera(velho, () => !document.getElementById('o-perguntas').hidden || !document.getElementById('o-aviso').hidden), 'retomada: no aparelho de antes, a página começa limpa ou avisa que a sessão terminou');
+  ok(await velho.locator('.dir .dir__nome').count() === 0, 'retomada: o aparelho de antes não mostra mais os modelos desse pedido');
+  await velho.close();
+
+  /* o mesmo link outra vez: uso único */
+  const outra = await novo.c.newPage();
+  await outra.goto(BASE + '/orcamento#retomar=' + link1.codigo, { waitUntil: 'load', timeout: 90000 });
+  await outra.waitForSelector('#o-retomada:not([hidden])');
+  await outra.click('#o-ret-abrir');
+  ok(await espera(outra, () => /já foi usado/.test(document.getElementById('o-ret-estado').textContent)), 'retomada: o mesmo link outra vez diz que já foi usado');
+  ok(await outra.locator('#o-ret-wa').isVisible() && (await outra.getAttribute('#o-ret-wa', 'href')).startsWith('https://wa.me/5521977167944?text='), 'retomada: com o botão do WhatsApp para pedir um link novo');
+  ok(await outra.locator('#o-ret-abrir').isHidden(), 'retomada: e sem o botão de abrir, que não adiantaria');
+  ok(await semRolagemLateral(outra), 'link usado no celular: sem rolagem lateral');
+  ok(Math.round((await outra.locator('#o-ret-wa').boundingBox()).height) >= 44, 'link usado: o botão do WhatsApp tem 44 px de altura ou mais');
+  await aSecao(outra);
+  await foto(outra, '6-retomada-usado-cel');
+  await novo.c.close();
+
+  /* o pedido volta ao aparelho de antes por um link novo, e o resto do teste segue nele */
+  const link2 = await linkDoPainel();
+  ok(link2.status === 200 && CODIGO_LINK.test(link2.codigo || '') && link2.codigo !== link1.codigo, 'retomada: o painel gera outro link, com outro código');
+  const volta = await ctx.newPage();
+  await volta.goto(BASE + '/orcamento#retomar=' + link2.codigo, { waitUntil: 'load', timeout: 90000 });
+  await volta.waitForSelector('#o-retomada:not([hidden])');
+  await volta.click('#o-ret-abrir');
+  ok(await espera(volta, () => document.querySelectorAll('#o-direcoes:not([hidden]) .dir .dir__nome').length === 3, 30000), 'retomada: de volta ao aparelho de antes, com os três modelos (uma conversa "esquecida" por lá também abre)');
+  await volta.close();
+  await page.reload({ waitUntil: 'load' });
+  await page.waitForFunction(() => document.querySelectorAll('.dir .dir__nome').length === 3, null, { timeout: 60000 });
+  perdeuOPedido = false;
   /* (revisão final do PR 2a, M1) a tela não contradiz o servidor depois de descartar ou arquivar. O estado vem do
      servidor com o pedido mudado; cada checagem roda com a rota ainda ativa (nenhuma releitura traz o estado real).
      A releitura é a da própria página ("bz:detalhes-enviados" relê o estado), e não um reload: um reload faz cinco

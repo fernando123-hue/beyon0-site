@@ -765,6 +765,8 @@
 
   /* ---------- começo: retoma a conversa salva neste aparelho ---------- */
   async function retomar() {
+    /* chegou pelo link do aviso (js/orcamento-retomada.js): primeiro abre o pedido neste aparelho, depois segue daqui */
+    if (window.BZRetomada && window.BZRetomada.pendente()) { window.BZRetomada.mostrar(retomar); return; }
     if (!API.temSessao()) { iniciarPerguntas(); return; }   /* (primeira visita: as perguntas; a sessão nasce no "Ver o preço") */
     try {
       await recarregar();   /* (o render desenha a conversa salva) */

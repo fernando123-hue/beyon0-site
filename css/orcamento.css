@@ -121,6 +121,9 @@
 .orc-bloco h2:focus { outline: none; }
 .orc-bloco h2:focus-visible { outline: 2px solid var(--ac); outline-offset: 4px; }
 .orc-bloco__lead { color: var(--t2); max-width: 60ch; margin: .8rem 0 1.4rem; line-height: 1.6; }
+/* abrir o pedido pelo link do aviso (PR 2b-2) */
+.orc-ret__estado { margin-top: 12px; font-size: 1rem; }
+.orc-ret__estado:empty { display: none; }
 
 .orc-form { display: flex; flex-direction: column; gap: .5rem; max-width: 520px; }
 .orc-form label:not(.orc-check) { font-size: var(--fs-s); color: var(--t2); margin-top: .6rem; }

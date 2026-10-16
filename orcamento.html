@@ -89,6 +89,17 @@
       </div>
     </div>
 
+    <!-- ABRIR O PEDIDO PELO LINK DO AVISO (PR 2b-2, js/orcamento-retomada.js) -->
+    <section class="orc-bloco" id="o-retomada" aria-labelledby="o-ret-titulo" hidden>
+      <h2 id="o-ret-titulo">Abrir o seu pedido</h2>
+      <p class="orc-bloco__lead">O link do aviso abre o seu pedido neste aparelho. Ele vale uma vez: depois, o pedido fica salvo aqui.</p>
+      <div class="orc-aviso__acoes">
+        <button class="btn btn--primary" type="button" id="o-ret-abrir">Abrir o meu pedido</button>
+        <a class="btn btn--sm btn--ghost" id="o-ret-wa" target="_blank" rel="noopener noreferrer" hidden>Pedir um link novo no WhatsApp</a>
+      </div>
+      <p class="orc-ret__estado" id="o-ret-estado" role="status"></p>
+    </section>
+
     <!-- o que um leitor de tela ouve (A2): o preço, os modelos prontos e, com o consultor ligado, a resposta dele -->
     <p class="sr-only" id="o-voz" role="status"></p>
 
@@ -504,6 +515,7 @@
   <script src="js/orcamento-perguntas.js" defer></script>
   <script src="js/orcamento-detalhes.js" defer></script>
   <script src="js/orcamento-espera.js" defer></script>
+  <script src="js/orcamento-retomada.js" defer></script>
   <script src="js/orcamento.js" defer></script>
 </body>
 </html>
