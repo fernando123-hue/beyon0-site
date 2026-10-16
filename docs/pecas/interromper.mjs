@@ -2,6 +2,8 @@
    chega lá). A mão vence o deslize (rolar a página com o dedo por cima não conta), mas a 1ª pergunta tem de chegar
    mesmo assim (revisão do 2a34d4d: o cancelAnimationFrame matava o fim do deslize). O gesto sai de dentro da página,
    no quadro em que a régua passa de 700: pelo Playwright ele chegava depois do deslize acabar com a máquina ocupada.
+   Os ponteiros são sintéticos: "rolar" prova a lógica do toque pendente, não o touch-action real do navegador; em
+   "arrastar" o setPointerCapture vira função vazia (o ponteiro 7 não existe de verdade e o navegador recusaria).
    Servidor: node docs/servidor.mjs . 8897. Uso: BASE=http://127.0.0.1:8897 node docs/pecas/interromper.mjs */
 import { createRequire } from 'node:module';
 const require = createRequire(process.cwd() + '/package.json');
@@ -9,8 +11,8 @@ const { chromium } = require('playwright');
 const BASE = process.env.BASE || 'http://127.0.0.1:8897';
 const b = await chromium.launch({ executablePath: `${process.env.LOCALAPPDATA}/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-win64/chrome-headless-shell.exe` });
 let problemas = 0;
-for (const gesto of ['mouse', 'teclado', 'toque', 'rolar']) {
-  const celular = gesto === 'toque' || gesto === 'rolar';
+for (const gesto of ['mouse', 'teclado', 'toque', 'arrastar', 'rolar']) {
+  const celular = gesto === 'toque' || gesto === 'arrastar' || gesto === 'rolar';
   const ctx = await b.newContext({ viewport: celular ? { width: 390, height: 844 } : { width: 1440, height: 900 } });
   /* a régua nasce na hora real de quem vê: o relógio da página fica em 10:00 (dia), para sempre haver o deslize */
   await ctx.addInitScript(() => {
@@ -32,6 +34,7 @@ for (const gesto of ['mouse', 'teclado', 'toque', 'rolar']) {
       const ponteiro = (tipo, pointerType) => s.dispatchEvent(new PointerEvent(tipo, { bubbles: true, clientX: x, clientY: y, pointerId: pointerType === 'mouse' ? 1 : 7, pointerType, isPrimary: true }));
       if (gesto === 'teclado') s.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
       else if (gesto === 'rolar') { ponteiro('pointerdown', 'touch'); s.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: x, clientY: y + 30, pointerId: 7, pointerType: 'touch' })); ponteiro('pointercancel', 'touch'); }
+      else if (gesto === 'arrastar') { s.setPointerCapture = () => {}; ponteiro('pointerdown', 'touch'); s.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: x + 20, clientY: y, pointerId: 7, pointerType: 'touch' })); ponteiro('pointerup', 'touch'); }
       else { ponteiro('pointerdown', gesto === 'toque' ? 'touch' : 'mouse'); ponteiro('pointerup', gesto === 'toque' ? 'touch' : 'mouse'); }
     })();
   }, gesto);
