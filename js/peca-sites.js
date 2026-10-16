@@ -315,7 +315,11 @@
     if (vv) vv.addEventListener('resize', ajustar);
     setTimeout(ajustar, 600);   /* (sem teclado virtual, ou se o resize não vier) */
   });
-  campo.addEventListener('blur', function () { raiz.classList.remove('is-digitando'); });
+  /* (sair do campo devolve ao palco a altura de fora da digitação, ~55 px a mais: tocar num tipo de negócio tira o foco
+     no começo do toque, e o botão descia antes de o toque terminar. A volta espera o toque acabar) */
+  var saindo = 0;
+  campo.addEventListener('focus', function () { clearTimeout(saindo); });
+  campo.addEventListener('blur', function () { clearTimeout(saindo); saindo = setTimeout(function () { raiz.classList.remove('is-digitando'); }, 300); });
 
   /* ---------- 3. a impressão e a entrada ---------- */
   var limpeza = 0;

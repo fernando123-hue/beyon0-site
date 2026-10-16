@@ -20,9 +20,18 @@ for (const [w, h] of [[360, 640], [390, 844], [430, 932]]) {
     const pa = document.querySelector('.planta__palco').getBoundingClientRect(), c = document.querySelector('.planta__nome input').getBoundingClientRect();
     return { palcoFim: Math.round(pa.bottom), campoTopo: Math.round(c.top), campoFim: Math.round(c.bottom), alto: innerHeight, digitando: document.querySelector('.planta').classList.contains('is-digitando') };
   });
-  const ok = r.digitando && r.campoTopo >= r.palcoFim && r.campoFim <= r.alto;
+  /* saindo do campo, o palco só cresce depois que o toque acaba (o botão tocado não pode descer sob o dedo) */
+  const alturaPalco = () => p.evaluate(() => Math.round(document.querySelector('.planta__palco').getBoundingClientRect().height));
+  const digitandoAlto = await alturaPalco();
+  await p.evaluate(() => document.querySelector('.planta__nome input').blur());
+  await p.waitForTimeout(80);
+  const logoDepois = await alturaPalco();
+  await p.waitForTimeout(600);
+  const depois = await alturaPalco();
+  const blurOk = logoDepois === digitandoAlto && depois > digitandoAlto;
+  const ok = r.digitando && r.campoTopo >= r.palcoFim && r.campoFim <= r.alto && blurOk;
   if (!ok) problemas++;
-  console.log(`${ok ? 'OK   ' : 'FALHA'} ${w}×${h}: palco até ${r.palcoFim}, campo de ${r.campoTopo} a ${r.campoFim} (tela ${r.alto})${r.digitando ? '' : ', sem is-digitando'}`);
+  console.log(`${ok ? 'OK   ' : 'FALHA'} ${w}×${h}: palco até ${r.palcoFim}, campo de ${r.campoTopo} a ${r.campoFim} (tela ${r.alto})${r.digitando ? '' : ', sem is-digitando'}; palco digitando ${digitandoAlto}, 80 ms depois do blur ${logoDepois}, 680 ms depois ${depois}`);
   await ctx.close();
 }
 await b.close();

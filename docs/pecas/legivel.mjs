@@ -17,8 +17,9 @@ for (const w of [360, 390, 430]) {
   await p.addInitScript(() => { try { sessionStorage.setItem('bz-ouro', '1'); } catch (e) {} });
   await p.goto(BASE + '/', { waitUntil: 'load', timeout: 240000 });
   await p.locator('.planta__palco').evaluate((el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
-  await p.waitForFunction(() => document.querySelector('.planta__moldura').classList.contains('is-celular'), null, { timeout: 30000 });
-  await p.waitForTimeout(2500);
+  /* pousada: a régua na largura da tela de quem vê (não um tempo fixo: em máquina lenta mediria no meio do deslize) */
+  await p.waitForFunction(() => +document.querySelector('.planta__slider').getAttribute('aria-valuenow') === Math.max(360, Math.min(1440, innerWidth)) && document.querySelector('.planta__moldura').classList.contains('is-celular'), null, { timeout: 60000 });
+  await p.waitForTimeout(600);
   const r = await p.evaluate(() => {
     const m = document.querySelector('.planta__moldura'), card = m.closest('.servico');
     const rm = m.getBoundingClientRect(), esc = rm.width / m.offsetWidth;
