@@ -442,7 +442,7 @@
     }));
   }
   campo.addEventListener('input', function () {
-    nome = campo.value.replace(/[\u0000-\u001F\u007F-\u009F­​‎‏‪-‮⁠-⁯﻿]/g, '').replace(/\s+/g, ' ').trim().slice(0, 28);   /* sem controle nem inversão de direção (U+202E) no exemplo e no WhatsApp; o ZWJ dos emojis fica */
+    nome = campo.value.replace(/[\u0000-\u001F\u007F-\u009F\u00AD\u061C\u200B\u200E\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/g, '').replace(/\s+/g, ' ').trim().slice(0, 28);   /* sem controle nem inversão de direção (U+202E) no exemplo e no WhatsApp; o ZWJ dos emojis fica */
     textos();
     clearTimeout(esperaNome);
     esperaNome = setTimeout(assinar, 500);

@@ -107,23 +107,23 @@
   function aplicarNoQuadro(m) { alvoMin = m; if (!pedido) pedido = requestAnimationFrame(function () { pedido = 0; aplicar(alvoMin); }); }
   var esquerda = 0, pendente = null, arrastando = false;
   function emMinuto(ev) { return (ev.clientX - esquerda) / (largura || 1) * 1439; }
+  /* no toque, o deslize só para quando o dedo de fato arrasta ou toca a régua (rolar a página por cima não conta) */
   slider.addEventListener('pointerdown', function (ev) {
-    cancelAnimationFrame(deslize);   /* a mão da pessoa vence o deslize da entrada */
     esquerda = slider.getBoundingClientRect().left;
     if (ev.pointerType === 'touch') { pendente = { x: ev.clientX, y: ev.clientY }; return; }
-    arrastando = true; slider.setPointerCapture(ev.pointerId); aplicar(emMinuto(ev));
+    largarDeslize(); arrastando = true; slider.setPointerCapture(ev.pointerId); aplicar(emMinuto(ev));
   });
   slider.addEventListener('pointermove', function (ev) {
     if (pendente) {
       var dx = Math.abs(ev.clientX - pendente.x), dy = Math.abs(ev.clientY - pendente.y);
-      if (dx > 8 && dx > dy) { arrastando = true; pendente = null; slider.setPointerCapture(ev.pointerId); }
+      if (dx > 8 && dx > dy) { largarDeslize(); arrastando = true; pendente = null; slider.setPointerCapture(ev.pointerId); }
       else if (dy > 8) pendente = null;
       return;
     }
     if (arrastando) aplicarNoQuadro(emMinuto(ev));
   });
   function soltar(ev) {
-    if (pendente && ev && ev.type === 'pointerup') aplicar(emMinuto(ev), true);
+    if (pendente && ev && ev.type === 'pointerup') { largarDeslize(); aplicar(emMinuto(ev), true); }
     else if (arrastando) { var m = pedido ? alvoMin : minuto; cancelAnimationFrame(pedido); pedido = 0; aplicar(m, true); }   /* o último passo na fila vale */
     pendente = null; arrastando = false;
   }
@@ -136,7 +136,7 @@
     else if (ev.key === 'Home') alvo = 0;
     else if (ev.key === 'End') alvo = 1439;
     if (alvo === null) return;
-    ev.preventDefault(); cancelAnimationFrame(deslize); aplicar(alvo, true);
+    ev.preventDefault(); largarDeslize(); aplicar(alvo, true);
   });
 
   /* ---------- 2. as perguntas ---------- */
@@ -204,15 +204,25 @@
     });
   });
   /* a régua desliza até uma hora (a demonstração e "E às 3 da manhã?") */
-  var deslize = 0;
+  var deslize = 0, fimDoDeslize = null;
+  /* a mão da pessoa vence o deslize; o que viria no fim dele (a 1ª pergunta da entrada) vem mesmo assim */
+  function largarDeslize() {
+    if (!deslize) return;
+    cancelAnimationFrame(deslize); deslize = 0;
+    var fim = fimDoDeslize; fimDoDeslize = null;
+    if (fim) fim();
+  }
   function irPara(alvo, ms, fim) {
-    cancelAnimationFrame(deslize);
+    largarDeslize();
     if (reduzido()) { aplicar(alvo, true); if (fim) fim(); return; }
     var de = minuto, t0 = performance.now();
+    fimDoDeslize = fim || null;
     (function passo(t) {
       var k = Math.min(1, (t - t0) / ms), e = k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
       aplicar(de + (alvo - de) * e, k === 1);
-      if (k < 1) deslize = requestAnimationFrame(passo); else if (fim) fim();
+      if (k < 1) { deslize = requestAnimationFrame(passo); return; }
+      deslize = 0; fimDoDeslize = null;
+      if (fim) fim();
     })(t0);
   }
   madrugada.addEventListener('click', function () { irPara(180, 900); });
