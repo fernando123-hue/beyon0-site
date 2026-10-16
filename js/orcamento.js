@@ -766,13 +766,13 @@
   /* ---------- começo: retoma a conversa salva neste aparelho ---------- */
   async function retomar() {
     /* chegou pelo link do aviso (js/orcamento-retomada.js): primeiro abre o pedido neste aparelho, depois segue daqui */
-    if (window.BZRetomada && window.BZRetomada.pendente()) { window.BZRetomada.mostrar(retomar); return; }
+    if (window.BZRetomada && window.BZRetomada.pendente()) { window.BZRetomada.mostrar(retomar, { mensagemDe: mensagemDe, rolarAte: rolarAte }); return; }
     if (!API.temSessao()) { iniciarPerguntas(); return; }   /* (primeira visita: as perguntas; a sessão nasce no "Ver o preço") */
     try {
       await recarregar();   /* (o render desenha a conversa salva) */
       var BLOCOS = { direcoes: 'o-direcoes', ajustes: 'o-ajustes', escopo: 'o-escopo', pagamento: E.conversa.etapa === 'em_producao' ? 'o-pronto' : 'o-pagamento' };
       var alvo = BLOCOS[passoAtual()];
-      if (alvo && !$(alvo).hidden) rolarAte($(alvo));   /* quem volta cai na etapa em que parou */
+      if (alvo && !$(alvo).hidden) { rolarAte($(alvo)); if (window.BZRetomada) window.BZRetomada.focar($(alvo)); }   /* quem volta cai na etapa em que parou */
     } catch (e) {
       /* conversa que não existe mais: começa limpo. Sessão que o servidor recusou de vez: avisa e oferece
          recomeçar (F5). Falha de rede ou do servidor: a sessão fica, e o aviso oferece tentar de novo */

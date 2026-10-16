@@ -12,6 +12,9 @@
    Uso: servidor local com PAINEL_CHAVE (32+) e BZ_SEM_CONSULTOR=1, depois PAINEL_CHAVE=<a mesma>
    BASE=http://127.0.0.1:8899 CHROMIUM=... node docs/e2e-orcamento.mjs
    (CONSULTOR=1 com o servidor local SEM BZ_SEM_CONSULTOR)
+   FREIO LOCAL: cada rodada cria 4 sessões no freio do servidor local (8 por 10 min por IP, api/vendas.mjs, freioSessao),
+   3 delas no passo de abrir o pedido pelo link. Uma 3ª rodada seguida em menos de 10 min no mesmo servidor estoura (429):
+   espere ou reinicie o servidor.
    ========================================================================== */
 import { chromium } from 'playwright';
 import { mkdir } from 'node:fs/promises';
@@ -342,8 +345,40 @@ try {
   ok(await novo.p.evaluate(() => localStorage.getItem('bz-orcamento') === null) && novo.toques.length === 0, 'retomada: sem o toque, o link não é gasto e nenhuma sessão é criada');
   ok(await novo.p.evaluate(() => ['o-perguntas', 'o-direcoes'].every(id => document.getElementById(id).hidden)), 'retomada: antes do toque, nem as perguntas nem os modelos aparecem');
   ok(await novo.p.evaluate(() => document.activeElement.id) === 'o-ret-abrir', 'retomada: o foco fica em "Abrir o meu pedido"');
+  /* a página de trás não diz que a pessoa está no começo: sem etapas, sem o texto de abertura, sem a mesa com o cartão do preço */
+  const escondidos = p => p.evaluate(() => ['o-etapas', 'o-est-vazio', 'o-conversar'].every(id => !document.getElementById(id).getClientRects().length)
+    && !document.querySelector('.orc-lead').getClientRects().length && !document.querySelector('.orc-mesa').getClientRects().length);
+  ok(await escondidos(novo.p), 'retomada: enquanto o link espera o toque, as etapas, o preço vazio e a conversa ficam escondidos');
   ok(Math.round((await novo.p.locator('#o-ret-abrir').boundingBox()).height) >= 44, 'retomada: o botão tem 44 px de altura ou mais');
   ok(await semRolagemLateral(novo.p), 'retomada no celular: sem rolagem lateral');
+  /* link cortado: avisa, sem botão de abrir; sem pedido neste aparelho, a saída é o WhatsApp (com o foco nele) */
+  const cortada = await novo.c.newPage();
+  await cortada.goto(BASE + '/orcamento#retomar=curto', { waitUntil: 'load', timeout: 90000 });
+  ok(await espera(cortada, () => !document.getElementById('o-retomada').hidden && /incompleto/.test(document.getElementById('o-ret-estado').textContent)), 'link cortado: a tela avisa que o link chegou incompleto');
+  ok(await cortada.locator('#o-ret-abrir').isHidden() && await cortada.locator('#o-ret-salvo').isHidden() && await cortada.locator('#o-ret-wa').isVisible(), 'link cortado, sem pedido neste aparelho: só o WhatsApp (sem abrir, sem "pedido salvo")');
+  ok(await cortada.evaluate(() => document.activeElement.id) === 'o-ret-wa', 'link cortado: o foco vai para o WhatsApp');
+  ok(await escondidos(cortada), 'link cortado: as etapas e a mesa continuam escondidas (não há pedido para mostrar)');
+  await cortada.close();
+  /* erros simulados na troca do código (a rota devolve a resposta; o link não é gasto), num celular baixo: o botão cabe na tela */
+  const erra = await novo.c.newPage();
+  await erra.setViewportSize({ width: 375, height: 667 });
+  let respostaForcada = null;
+  await erra.route(u => u.searchParams.get('acao') === 'retomar', r => r.fulfill({ status: respostaForcada.status, contentType: 'application/json', body: JSON.stringify(respostaForcada.corpo) }));
+  await erra.goto(BASE + '/orcamento#retomar=' + link1.codigo, { waitUntil: 'load', timeout: 90000 });
+  await erra.waitForSelector('#o-retomada:not([hidden])');
+  const naTela = await erra.evaluate(() => { const r = document.getElementById('o-ret-abrir').getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; });
+  ok(naTela, 'retomada a 375x667: o botão "Abrir o meu pedido" está dentro da tela');
+  respostaForcada = { status: 500, corpo: { erro: 'Erro interno.', pedido: 'abcdef12-3456' } };
+  await erra.click('#o-ret-abrir');
+  ok(await espera(erra, () => /Código do erro: abcdef12\./.test(document.getElementById('o-ret-estado').textContent)), 'retomada: erro 500 mostra a frase da página, com o código do erro');
+  ok(!/Erro interno/.test(await erra.textContent('#o-ret-estado')) && /WhatsApp/.test(await erra.textContent('#o-ret-estado')), 'retomada: erro 500 nunca mostra "Erro interno." cru e aponta o WhatsApp');
+  ok(await erra.locator('#o-ret-wa').isVisible() && await erra.locator('#o-ret-abrir').isVisible() && await erra.locator('#o-ret-abrir').getAttribute('aria-disabled') === null, 'retomada: erro 500 deixa tentar de novo e oferece o WhatsApp');
+  ok(await escondidos(erra), 'retomada: depois de um erro, as etapas e a mesa seguem escondidas');
+  respostaForcada = { status: 403, corpo: { erro: 'Não foi possível confirmar que você não é um robô. Recarregue a página e tente de novo.' } };
+  await erra.click('#o-ret-abrir');
+  ok(await espera(erra, () => /Toque de novo em/.test(document.getElementById('o-ret-estado').textContent)), 'retomada: o anti-robô recusado manda tocar de novo, e não recarregar (recarregar perderia o link)');
+  ok(!/Recarregue/.test(await erra.textContent('#o-ret-estado')), 'retomada: a frase do anti-robô não pede para recarregar');
+  await erra.close();
   const aSecao = p => p.evaluate(() => document.getElementById('o-retomada').scrollIntoView({ block: 'center' }));
   await aSecao(novo.p);
   await foto(novo.p, '6-retomada-cel');
@@ -355,6 +390,8 @@ try {
   await novo.p.click('#o-ret-abrir');
   ok(await espera(novo.p, () => document.querySelectorAll('#o-direcoes:not([hidden]) .dir .dir__nome').length === 3, 30000), 'retomada: ao toque, o pedido abre neste aparelho, com os três modelos');
   ok(await novo.p.locator('#o-retomada').isHidden(), 'retomada: a tela do link some depois de abrir');
+  ok(await novo.p.locator('#o-etapas').isVisible() && await novo.p.locator('.orc-mesa').isVisible(), 'retomada: depois de abrir, as etapas e a mesa voltam');
+  ok(await espera(novo.p, () => document.activeElement.tagName === 'H2' && !!document.activeElement.closest('#o-direcoes'), 5000), 'retomada: depois de abrir, o foco vai para o título da etapa em que o pedido parou');
   ok(novo.toques.length === 1, 'retomada: uma única chamada de retomada, no toque');
   await foto(novo.p, '6-retomada-aberta-cel');
 
@@ -373,10 +410,23 @@ try {
   ok(await espera(outra, () => /já foi usado/.test(document.getElementById('o-ret-estado').textContent)), 'retomada: o mesmo link outra vez diz que já foi usado');
   ok(await outra.locator('#o-ret-wa').isVisible() && (await outra.getAttribute('#o-ret-wa', 'href')).startsWith('https://wa.me/5521977167944?text='), 'retomada: com o botão do WhatsApp para pedir um link novo');
   ok(await outra.locator('#o-ret-abrir').isHidden(), 'retomada: e sem o botão de abrir, que não adiantaria');
+  ok(await outra.locator('#o-ret-salvo').isVisible() && await outra.evaluate(() => document.activeElement.id) === 'o-ret-salvo', 'retomada: neste aparelho já há o pedido, então oferece "Ver o pedido salvo" e o foco vai para ele');
+  ok(await escondidos(outra), 'link usado: as etapas e a mesa seguem escondidas até a pessoa escolher');
   ok(await semRolagemLateral(outra), 'link usado no celular: sem rolagem lateral');
   ok(Math.round((await outra.locator('#o-ret-wa').boundingBox()).height) >= 44, 'link usado: o botão do WhatsApp tem 44 px de altura ou mais');
   await aSecao(outra);
   await foto(outra, '6-retomada-usado-cel');
+  await outra.click('#o-ret-salvo');
+  ok(await espera(outra, () => document.querySelectorAll('#o-direcoes:not([hidden]) .dir .dir__nome').length === 3 && document.getElementById('o-retomada').hidden, 30000), 'retomada: "Ver o pedido salvo" leva ao pedido, com os três modelos');
+  ok(await outra.locator('#o-etapas').isVisible() && await outra.locator('.orc-mesa').isVisible(), 'retomada: e a página de trás volta (etapas e mesa)');
+  ok(await espera(outra, () => document.activeElement.tagName === 'H2' && !!document.activeElement.closest('#o-direcoes'), 5000), 'retomada: o foco vai para o título da etapa');
+  /* o link cortado no aparelho que já tem o pedido: mesmo caminho */
+  const cortada2 = await novo.c.newPage();
+  await cortada2.goto(BASE + '/orcamento#retomar=curto', { waitUntil: 'load', timeout: 90000 });
+  ok(await espera(cortada2, () => !document.getElementById('o-ret-salvo').hidden && document.activeElement.id === 'o-ret-salvo'), 'link cortado, com pedido neste aparelho: oferece "Ver o pedido salvo", com o foco nele');
+  await cortada2.click('#o-ret-salvo');
+  ok(await espera(cortada2, () => document.querySelectorAll('#o-direcoes:not([hidden]) .dir .dir__nome').length === 3, 30000), 'link cortado: "Ver o pedido salvo" abre o pedido');
+  await cortada2.close();
   await novo.c.close();
 
   /* o pedido volta ao aparelho de antes por um link novo, e o resto do teste segue nele */

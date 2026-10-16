@@ -122,7 +122,10 @@
 .orc-bloco h2:focus-visible { outline: 2px solid var(--ac); outline-offset: 4px; }
 .orc-bloco__lead { color: var(--t2); max-width: 60ch; margin: .8rem 0 1.4rem; line-height: 1.6; }
 /* abrir o pedido pelo link do aviso (PR 2b-2) */
-.orc-ret__estado { margin-top: 12px; font-size: 1rem; }
+.orc-ret__estado { margin-top: .8rem; font-size: var(--fs-b); color: var(--t2); }
+/* enquanto o link do aviso espera o toque: nada da página de trás (etapas, preço vazio, conversa) diz que a pessoa
+   está no começo; a classe sai quando o pedido abre (js/orcamento-retomada.js) */
+html.orc-retomando .orc-lead, html.orc-retomando .orc-etapas, html.orc-retomando .orc-conversar, html.orc-retomando .orc-mesa { display: none; }
 .orc-ret__estado:empty { display: none; }
 
 .orc-form { display: flex; flex-direction: column; gap: .5rem; max-width: 520px; }
