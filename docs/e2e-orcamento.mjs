@@ -335,7 +335,48 @@ try {
     p.on('pageerror', e => erros.push(rotulo + ': ' + String(e)));
     return { c, p, toques };
   };
-  const link1 = await linkDoPainel();
+  /* (PR 2b-2) o dono prepara o aviso NO PAINEL, no celular: nada vai ao servidor antes do toque; o toque gera o link e
+     troca o botão por "Abrir no WhatsApp" com a mensagem pronta. O código é segredo de uso único: só no endereço desse
+     botão, nunca na barra, no console nem no armazenamento do navegador */
+  const painel2 = await ctx.newPage();
+  const falaDoPainel = [];
+  painel2.on('console', m => falaDoPainel.push(m.text()));
+  painel2.on('pageerror', e => erros.push('painel: ' + String(e)));
+  await painel2.goto(BASE + '/painel', { waitUntil: 'load' });
+  await painel2.fill('#chave', PAINEL_CHAVE);
+  await painel2.click('#entrar button[type=submit]');
+  const avisoNaFila = painel2.locator('#fila .pn__fila', { hasText: codigo });
+  await avisoNaFila.waitFor({ timeout: 15000 });
+  const ehLink = req => req.method() === 'POST' && new URL(req.url()).pathname === '/api/painel' && /link_retomada/.test(req.postData() || '');
+  let linksPedidos = 0;
+  painel2.on('request', req => { if (ehLink(req)) linksPedidos++; });
+  const preparar = avisoNaFila.getByRole('button', { name: /Preparar aviso/ });
+  ok(await preparar.count() === 1 && await avisoNaFila.getByRole('link', { name: /WhatsApp/ }).count() === 0, 'painel: com as três prontas, a fila oferece "Preparar aviso" (ainda sem o botão do WhatsApp)');
+  ok(Math.round((await preparar.boundingBox()).height) >= 44, 'painel: "Preparar aviso" tem 44 px de altura ou mais');
+  ok(linksPedidos === 0, 'painel: antes do toque, nenhum link de retomada é pedido ao servidor');
+  await painel2.locator('#bloco-fila').scrollIntoViewIfNeeded();
+  await foto(painel2, '5c-painel-preparar-cel');
+  const veioLink = painel2.waitForRequest(ehLink, { timeout: 15000 });
+  await preparar.click();
+  await veioLink;
+  const abrirZap = avisoNaFila.getByRole('link', { name: /Abrir no WhatsApp/ });
+  await abrirZap.waitFor({ timeout: 15000 });
+  const hrefZap = await abrirZap.getAttribute('href');
+  const mensagemZap = decodeURIComponent((hrefZap.split('?text=')[1] || ''));
+  const CODIGO_NO_TEXTO = /\/orcamento#retomar=([A-Za-z0-9_-]{32})$/;
+  ok(linksPedidos === 1 && hrefZap.startsWith('https://wa.me/55' + TELEFONE.replace(/\D/g, '') + '?text='), 'painel: um toque pede um link só e o botão abre o WhatsApp do cliente (wa.me só com dígitos)');
+  ok(CODIGO_NO_TEXTO.test(mensagemZap) && hrefZap.includes('%23retomar%3D') && /^Oi! Aqui é da Beyon Zero\. Os três modelos do seu site ficaram prontos/.test(mensagemZap), 'painel: a mensagem leva o link de retomada (32 caracteres, # codificado) e fala em modelos prontos');
+  ok(!/mesmo navegador/.test(mensagemZap), 'painel: a mensagem não manda mais voltar "no mesmo navegador"');
+  ok(await abrirZap.getAttribute('target') === '_blank' && /noopener/.test(await abrirZap.getAttribute('rel')), 'painel: o WhatsApp abre em outra aba, sem passar a página de origem');
+  ok(await painel2.evaluate(() => document.activeElement.textContent) === 'Abrir no WhatsApp', 'painel: o foco vai para o botão que acabou de aparecer');
+  ok(await avisoNaFila.getByRole('button', { name: /Preparar aviso/ }).count() === 0, 'painel: "Preparar aviso" sai de cena (o mesmo link não é preparado duas vezes sem querer)');
+  const codigoDoLink = mensagemZap.match(CODIGO_NO_TEXTO)[1];
+  const guardado = await painel2.evaluate(() => JSON.stringify({ l: Object.entries(localStorage), s: Object.entries(sessionStorage) }) + location.href + document.cookie);
+  ok(!guardado.includes(codigoDoLink) && !falaDoPainel.some(l => l.includes(codigoDoLink)), 'painel: o código do link não está no endereço, no armazenamento, nos cookies nem no console');
+  ok(await semRolagemLateral(painel2), 'painel com o aviso pronto, no celular: sem rolagem lateral');
+  await avisoNaFila.scrollIntoViewIfNeeded();
+  await foto(painel2, '5d-painel-aviso-pronto-cel');
+  const link1 = { status: 200, codigo: codigoDoLink };
   perdeuOPedido = true;
   ok(link1.status === 200 && CODIGO_LINK.test(link1.codigo || ''), 'retomada: o painel gera o código do link (32 caracteres, só letras, números, - e _)');
   const novo = await aparelhoNovo('aparelho-novo');
@@ -478,6 +519,49 @@ try {
   await page.reload({ waitUntil: 'load' });
   await page.waitForFunction(() => document.querySelectorAll('.dir .dir__nome').length === 3, null, { timeout: 60000 });
   perdeuOPedido = false;
+  /* (PR 2b-2) os LEMBRETES no painel. Sem pedido avisado há 2 dias no banco local (o relógio do banco não anda), a
+     lista real vem vazia; depois a resposta de ?fila=lembretes é forjada com este pedido, mas o resto é de verdade: o
+     "Preparar lembrete" gera um link novo no servidor e o "Já lembrei" grava no banco. Só então a lista forjada esvazia */
+  let lembrado = false;
+  await painel2.locator('#bloco-lembretes').scrollIntoViewIfNeeded();
+  ok(await painel2.locator('#bloco-lembretes').isVisible() && /Nenhum lembrete/.test(await painel2.textContent('#lembretes-estado')), 'lembretes: sem ninguém avisado há 2 dias, a seção diz que não há lembrete');
+  const contatoDoPedido = { nome: 'Ana Souza', telefone: '+55' + TELEFONE.replace(/\D/g, ''), email: null };
+  const forjarLembretes = async route => {
+    if (route.request().method() !== 'GET') { await route.continue(); return; }
+    const itens = lembrado ? [] : [{ conversa_id: conversaId, codigo, avisado_em: new Date(Date.now() - 3 * 864e5).toISOString(), contato: contatoDoPedido }];
+    await route.fulfill({ json: { lembretes: itens, total: itens.length } });
+  };
+  await painel2.route(/\/api\/painel\?fila=lembretes/, forjarLembretes);
+  await painel2.click('#lembretes-atualizar');
+  const cartaoLembrete = painel2.locator('#lembretes .pn__fila', { hasText: codigo });
+  await cartaoLembrete.waitFor({ timeout: 15000 });
+  ok(/1 lembrete para mandar/.test(await painel2.textContent('#lembretes-estado')), 'lembretes: o pedido avisado há 3 dias aparece na lista, com a contagem');
+  ok((await cartaoLembrete.textContent()).includes('Ana Souza') && (await cartaoLembrete.textContent()).includes(TELEFONE.replace(/\D/g, '').slice(-4)), 'lembretes: o cartão mostra o nome e o WhatsApp para conferir');
+  const prepararLembrete = cartaoLembrete.getByRole('button', { name: /Preparar lembrete/ });
+  ok(await prepararLembrete.count() === 1 && Math.round((await prepararLembrete.boundingBox()).height) >= 44, 'lembretes: "Preparar lembrete" com 44 px ou mais');
+  await painel2.locator('#bloco-lembretes').scrollIntoViewIfNeeded();
+  await foto(painel2, '5e-painel-lembretes-cel');
+  const veioLink2 = painel2.waitForRequest(ehLink, { timeout: 15000 });
+  await prepararLembrete.click();
+  await veioLink2;
+  const zapLembrete = cartaoLembrete.getByRole('link', { name: /Abrir no WhatsApp/ });
+  await zapLembrete.waitFor({ timeout: 15000 });
+  const msgLembrete = decodeURIComponent(((await zapLembrete.getAttribute('href')).split('?text=')[1] || ''));
+  ok(/^Oi, Ana! Aqui é da Beyon Zero\. Passando para lembrar/.test(msgLembrete) && CODIGO_NO_TEXTO.test(msgLembrete) && msgLembrete.match(CODIGO_NO_TEXTO)[1] !== codigoDoLink, 'lembretes: a mensagem chama pelo primeiro nome e leva um link NOVO (não o do aviso)');
+  ok(!(await painel2.evaluate(() => JSON.stringify({ l: Object.entries(localStorage), s: Object.entries(sessionStorage) }) + location.href + document.cookie)).includes(msgLembrete.match(CODIGO_NO_TEXTO)[1]) && !falaDoPainel.some(l => l.includes(msgLembrete.match(CODIGO_NO_TEXTO)[1])), 'lembretes: o código do link novo também fica fora do endereço, do armazenamento e do console');
+  await foto(painel2, '5f-painel-lembrete-pronto-cel');
+  const feitoLembrete = cartaoLembrete.getByRole('button', { name: /Já lembrei/ });
+  const respMarca = painel2.waitForResponse(r => r.request().method() === 'POST' && /lembrado/.test(r.request().postData() || ''), { timeout: 15000 });
+  lembrado = true;   /* (a releitura que vem logo depois do "Já lembrei" já deve achar a lista vazia) */
+  await feitoLembrete.click();
+  ok((await (await respMarca).json()).lembrados === 1, 'lembretes: "Já lembrei" grava no banco (lembrados: 1)');
+  ok(await espera(painel2, () => document.querySelectorAll('#lembretes .pn__fila').length === 0 && /Lembrete marcado\. Nenhum lembrete/.test(document.getElementById('lembretes-estado').textContent)), 'lembretes: o pedido sai da lista e o aviso diz que foi marcado');
+  ok(await painel2.evaluate(() => document.activeElement.id) === 't-lembretes', 'lembretes: o foco volta ao título da seção');
+  await painel2.unroute(/\/api\/painel\?fila=lembretes/, forjarLembretes);
+  await painel2.setViewportSize({ width: 1280, height: 900 });
+  await painel2.locator('#bloco-lembretes').scrollIntoViewIfNeeded();
+  await foto(painel2, '5g-painel-lembretes-desktop');
+  await painel2.close();
   /* (revisão final do PR 2a, M1) a tela não contradiz o servidor depois de descartar ou arquivar. O estado vem do
      servidor com o pedido mudado; cada checagem roda com a rota ainda ativa (nenhuma releitura traz o estado real).
      A releitura é a da própria página ("bz:detalhes-enviados" relê o estado), e não um reload: um reload faz cinco
