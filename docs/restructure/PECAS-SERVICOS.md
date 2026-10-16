@@ -300,6 +300,26 @@ entrada + demo + arraste, 3 rodadas, antes = HEAD servido por rota): tarefas lon
   de 320 a 1440 px. Quadros em 390 e 1440 conferidos a olho (o tempo no canto não colide nem com a demonstração em
   andamento).
 
+**Passagem 2026-10-16 (noite, 9ª) — #44 com tudo e provado; próximo: dono no celular, mesclar; depois o visual dos cartões:**
+- Feito desde a 8ª: revisão do `acf9d1b` com ajustes em `0357fd7` (transição do coberto, carga morta do celular fora;
+  carga do desktop conferida com mouse: enche a 100 % e acende as letras); corpo do #44 reescrito com a pilha B, a
+  Planta, os vermelhos e as revisões; **`verificar` no `0357fd7`: 77 OK e 1 FALHA de ruído** (`sites` desktop LCP 51,3 s com a CPU a 100 %, wallpaper e Roblox abertos; remedido sozinho em 4 cargas: 1404/1212/11128/900 ms, `sites-cel` 716 ms); CI do `0357fd7` todo verde; `main` parada em `5f11339` (já contida).
+- **Próximo passo exato:** (1) FEITO (CI verde; repetir só se entrar commit novo); (2) o dono vê a prévia
+  no celular (pilha B com letras; Planta) — ela está atrás do login da Vercel, só ele abre; (3) trazer a `main`
+  (`git fetch`; se andou, mesclar e retestar: unidade, `pilha-celular.mjs`, `legivel.mjs`, `checar.mjs`), tirar do
+  rascunho (`gh pr ready 44`) e mesclar pelo processo ([[main-liberada-com-processo]]); avisar a sessão "Beyon Zero".
+- **Depois (decisão do dono, 16/10, Decisões.md):** reformular o VISUAL DOS CARTÕES em geral, em PR próprio, mostrando
+  2–3 direções antes de implementar (skill `referencias-visuais`; ele não deu referência, só "não estão me deixando feliz
+  faz um tempo"). Já levantado: o módulo de hoje empilha sinais — borda com luz de canto (tiras de 1 px), aresta de cima
+  no foco, marcas de canto em L, número mono + traço, link mono, e no desktop a carga (barra/aro/letras), a volta de
+  energia e as estações. Pontos aprovados a PRESERVAR: módulos separados com vão e a conexão do campo (03/10), estações
+  (desktop), carga do desktop (04/10, "B e D"), a pilha B (16/10), identidade V4, sem desfoque, regra 8 do ciano.
+  Primeiro passo: fotos de cada grupo (hub: faixa do hero, laudo, serviços; sites: formatos, spec; automação: malha,
+  cenários, FAQ) a 390 e 1440 com movimento reduzido, diagnóstico curto e uma página com o mesmo cartão em 3 direções.
+- Armadilhas novas: a prévia da Vercel exige login (headless cai em vercel.com/login): testar no servidor local; o fork
+  do Git Bash falha com a CPU alta — repetir o comando sozinho, e conferir o que já rodou antes (commit/push podem ter
+  passado); arquivos tocados por `git checkout` voltam com CRLF misto (scripts de troca devem normalizar `\r\n`).
+
 **Passagem 2026-10-16 (noite, 8ª) — pilha do celular B e Planta (achado 4, J2–J5), decisões do dono aplicadas:**
 - Decisões (01 Empresa/Decisões.md, 16/10): aplicar achado 4 e J2–J5 ("Sim aplique todas as sugestões"); a pilha do
   celular devia MELHORAR (não voltar à publicada: "tendo tanto o atual quanto o do publicado como dados"); entre três
