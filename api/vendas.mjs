@@ -2,7 +2,7 @@
    /api/vendas?acao=… — a API do agente de vendas (uma função; cada ação é um
    passo do fluxo, em api/_vendas/fluxo.mjs).
      GET  estado, pagamento, pagamento-config, sessao-config, catalogo
-     POST sessao, renovar, mensagem, gerar, gerar-direcao, escolher,
+     POST sessao, retomar, renovar, mensagem, gerar, gerar-direcao, escolher,
           alterar, escopo, confirmar, pagar, simular, confirmar-pacote, detalhes
    (PR 2a: o contato vem pelos detalhes; a ação "contato" saiu, porque passava por cima dos freios do pedido)
    Fronteira: freio por IP, JSON obrigatório (um formulário de outro site não
@@ -21,7 +21,7 @@ import { configTurnstile, verificarHumano } from './_vendas/turnstile.mjs';
 
 const ACOES = {
   GET: { estado: 'estado', pagamento: 'pagamento', 'pagamento-config': 'pagamentoConfig', 'sessao-config': 'sessaoConfig', catalogo: 'catalogo' },
-  POST: { sessao: 'sessao', renovar: 'renovar', mensagem: 'mensagem', gerar: 'gerar', 'gerar-direcao': 'gerarDirecao',
+  POST: { sessao: 'sessao', retomar: 'retomar', renovar: 'renovar', mensagem: 'mensagem', gerar: 'gerar', 'gerar-direcao': 'gerarDirecao',
     escolher: 'escolher', alterar: 'alterar', escopo: 'escopo', confirmar: 'confirmar', pagar: 'pagar',
     simular: 'simular', 'confirmar-pacote': 'confirmarPacote', detalhes: 'detalhes' }
 };
@@ -48,7 +48,8 @@ export async function atender(request, env, metodo, deps) {
   const acao = Object.hasOwn(ACOES, metodo) && Object.hasOwn(ACOES[metodo], nome) ? ACOES[metodo][nome] : null;   /* (não "constructor", "__proto__"…) */
   if (!acao) return responder({ erro: 'Ação inválida.' }, 404);
   const ip = ipDe(request);
-  if (freioGeral(ip) || (acao === 'sessao' && freioSessao(ip))) return responder({ erro: 'Muitas requisições. Espere um minuto.' }, 429);
+  const criaSessao = acao === 'sessao' || acao === 'retomar';   /* (a retomada também cria um visitante anônimo e testa códigos: mesma cota) */
+  if (freioGeral(ip) || (criaSessao && freioSessao(ip))) return responder({ erro: 'Muitas requisições. Espere um minuto.' }, 429);
 
   let corpo = null;
   if (metodo === 'POST') {
@@ -78,8 +79,8 @@ export async function atender(request, env, metodo, deps) {
   if (!d.banco || !d.visitantes) { log('erro', { request_id: requestId, evento: 'banco ou autenticação não configurados' }); return responder({ erro: 'Serviço indisponível.' }, 503); }
   if (PRECISA_IA.has(acao) && !d.ia) { log('erro', { request_id: requestId, evento: 'IA não configurada (ANTHROPIC_API_KEY)' }); return responder({ erro: 'O consultor está indisponível agora. Fale com a Beyon Zero pelo WhatsApp.', whatsapp: true }, 503); }
 
-  /* o visitante anônimo só nasce depois do anti-robô */
-  if (acao === 'sessao') {
+  /* o visitante anônimo (sessão nova ou retomada) só nasce depois do anti-robô */
+  if (criaSessao) {
     const humano = await verificarHumano(cfgTurnstile, corpo && corpo.turnstile, (deps && deps.buscarTurnstile) || fetch);
     if (!humano.ok) {
       log('erro', { request_id: requestId, evento: 'anti-robô', motivo: humano.motivo, codigos: humano.codigos || null, config: cfgTurnstile.motivo || null });

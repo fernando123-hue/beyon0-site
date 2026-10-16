@@ -14,6 +14,9 @@
      GET  ?fila=pendentes[&codigo=BZ-…]   os pedidos ESPERANDO a confirmação pelo WhatsApp (lista separada; busca pelo código)
      POST {confirmar_whatsapp: <conversa_id>}  a mensagem com o código chegou do WhatsApp informado: entra na fila
      POST {descartar_pedido | arquivar_pedido: <conversa_id>}  descartar encerra e para a geração; arquivar = resolvido por fora
+     POST {link_retomada: <conversa_id>}   o código do link de retomada (uso único, 7 dias; o painel monta o link)
+     GET  ?fila=lembretes                 os pedidos avisados há 2 dias ou mais, ainda sem escolha e sem lembrete
+     POST {lembrado: <conversa_id>}        o dono mandou o lembrete: sai da lista
    As duas listas trazem "alarme": a fila no teto (o orçamento oferece o WhatsApp) ou pendentes demais.
    A resposta do GET traz também "saude": alertas abertos e a data da última rotina diária.
    ========================================================================== */
@@ -28,6 +31,7 @@ import { higienizar } from './_vendas/direcao.mjs';
 import { varrer } from './_vendas/varredura.mjs';
 import { ipDe } from './_freio.mjs';
 import { PEDIDOS } from './_vendas/pedido.mjs';
+import { novoCodigoRetomada, hashDaRetomada, DIAS_RETOMADA } from './_vendas/retomada.mjs';
 
 const CHAVE_MINIMA = 32;
 const CORPO_MAX = 200000;          /* caracteres do POST do painel */
@@ -78,6 +82,7 @@ export async function ler(request, env) {
   const q = new URL(request.url).searchParams;
   if (q.get('fila') === 'direcoes') return filaDirecoes(env);
   if (q.get('fila') === 'pendentes') return filaPendentes(env, q.get('codigo'));
+  if (q.get('fila') === 'lembretes') return filaLembretes(env);
   try {
     if (q.get('csv') === 'ads') {
       const nome = (q.get('nome') || 'Cliente fechado').slice(0, 80);
@@ -106,6 +111,8 @@ export async function mudar(request, env) {
   try { bruto = JSON.parse(texto); } catch { bruto = null; }
   if (bruto && typeof bruto.entregar_direcao === 'string') return entregarDirecao(bruto, env);
   if (bruto && typeof bruto.avisado === 'string') return marcarAvisado(bruto, env);
+  if (bruto && typeof bruto.link_retomada === 'string') return linkDeRetomada(bruto.link_retomada, env);
+  if (bruto && typeof bruto.lembrado === 'string') return marcarLembrado(bruto.lembrado, env);
   const acaoPedido = bruto && typeof bruto === 'object' ? Object.keys(ACOES_PEDIDO).find(k => typeof bruto[k] === 'string') : null;
   if (acaoPedido) return acaoDoPedido(ACOES_PEDIDO[acaoPedido], bruto[acaoPedido], env);
   /* marcar um alerta como resolvido */
@@ -180,6 +187,44 @@ async function marcarAvisado(bruto, env) {
     console.error('[painel] marcar avisado:', e && e.codigo);
     return json({ erro: 'Não deu para salvar agora.' }, 500);
   }
+}
+
+/* ---------- o LINK DE RETOMADA e o LEMBRETE (PR 2b-2) ---------- */
+const DIAS_LEMBRETE = 2;
+/* o código sai UMA vez, nesta resposta, para o painel montar a mensagem; o banco guarda só o hash. Pedir de novo
+   apaga o anterior que não foi usado (um link valendo por vez) */
+async function linkDeRetomada(conversaId, env) {
+  if (!ehUuid(conversaId)) return json({ erro: 'Pedido inválido.' }, 400);
+  const rpc = criarTransporte(env);
+  if (!rpc) return json({ erro: 'Banco não configurado.' }, 503);
+  const codigo = novoCodigoRetomada();
+  try {
+    const r = await rpc('vendas_criar_retomada', { org_slug: ORG, conversa_id: conversaId, codigo_hash: hashDaRetomada(codigo), dias: DIAS_RETOMADA });
+    return json({ codigo, expira_em: r.expira_em });
+  } catch (e) {
+    if (e && e.codigo === 'P0002') return json({ erro: 'Conversa não encontrada.' }, 404);
+    if (e && e.codigo === '55000') return json({ erro: 'Este pedido não está confirmado ou já passou do resumo: sem link de retomada.' }, 409);
+    console.error('[painel] link de retomada:', e && e.codigo);
+    return json({ erro: 'Não deu para gerar o link agora.' }, 500);
+  }
+}
+
+async function filaLembretes(env) {
+  const rpc = criarTransporte(env);
+  if (!rpc) return json({ erro: 'Banco não configurado.' }, 503);
+  try {
+    const r = await rpc('vendas_lembretes', { org_slug: ORG, dias: DIAS_LEMBRETE });
+    const itens = r && Array.isArray(r.itens) ? r.itens : [];
+    return json({ lembretes: itens, total: itens.length });
+  } catch (e) { console.error('[painel] lembretes:', e && e.codigo); return json({ erro: 'Não deu para ler os lembretes agora.' }, 500); }
+}
+
+async function marcarLembrado(conversaId, env) {
+  if (!ehUuid(conversaId)) return json({ erro: 'Pedido inválido.' }, 400);
+  const rpc = criarTransporte(env);
+  if (!rpc) return json({ erro: 'Banco não configurado.' }, 503);
+  try { return json({ ok: true, ...(await rpc('vendas_marcar_lembrete', { org_slug: ORG, conversa_id: conversaId })) }); }
+  catch (e) { console.error('[painel] marcar lembrete:', e && e.codigo); return json({ erro: 'Não deu para salvar agora.' }, 500); }
 }
 
 /* ---------- o PEDIDO DE MODELOS (orçamento sem IA, PR 2a): confirmação pelo WhatsApp, descartar e arquivar ---------- */
