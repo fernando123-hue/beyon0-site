@@ -518,7 +518,7 @@ try {
   });
   ok(await desenhar(naFilaManual, () => !document.getElementById('o-preparo').hidden), 'espera útil: confirmado, na fila manual e com um modelo na fila, o bloco aparece');
   const preparo = page.locator('#o-preparo');
-  ok(/até sexta, 16\/10, às 15h/.test(await preparo.locator('.orc-preparo__prazo').textContent()), 'espera útil: a data do prazo (24 horas úteis, hora arredondada para cima)');
+  ok(/até sexta, 16\/10, às\s15h/.test(await preparo.locator('.orc-preparo__prazo').textContent()), 'espera útil: a data do prazo (24 horas úteis, hora arredondada para cima)');
   ok(await preparo.locator('.orc-preparo__lista li').count() === 5, 'espera útil: a lista do que separar');
   const waPreparo = preparo.getByRole('link', { name: 'Mandar pelo WhatsApp' });
   ok(await waPreparo.getAttribute('href') === 'https://wa.me/5521977167944?text=' + encodeURIComponent('Pedido ' + codigo + ': vou mandar o material do site.'), 'espera útil: o botão do WhatsApp leva o código do pedido');
@@ -532,8 +532,20 @@ try {
   ok(await semRolagemLateral(page) && await preparo.evaluate(e => e.getBoundingClientRect().right <= innerWidth), 'espera útil: 320 px, nada mais largo que a tela');
   await preparo.evaluate(e => e.scrollIntoView({ block: 'end', behavior: 'instant' }));   /* (no 320 o bloco inteiro não cabe com o título: a foto fecha no botão) */
   await foto(page, '7-preparo-320');
+  await page.setViewportSize({ width: 1440, height: 900 });   /* (M5) o desktop: o bloco ao lado da grade dos cartões */
+  await preparo.evaluate(e => e.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  ok(await semRolagemLateral(page), 'espera útil: desktop sem rolagem lateral');
+  await foto(page, '7-preparo-pc');
   await page.setViewportSize({ width: 390, height: 844 });
   await page.unroute(ESTADO, naFilaManual);
+  /* (M1) a regra de aparecer isolada: ainda na fila manual e com o pedido confirmado, mas com as três prontas o bloco some */
+  const manualTodasProntas = comPedido('confirmado', j => {
+    j.modo_direcoes = 'manual';
+    j.pedido.confirmado_em = new Date(2026, 9, 15, 14, 20).toISOString();
+    j.direcoes = j.direcoes.map(d => ({ ...d, status: 'pronta' }));
+  });
+  ok(await desenhar(manualTodasProntas, () => document.getElementById('o-preparo').hidden && document.getElementById('o-preparo').childElementCount === 0), 'espera útil: na fila manual, mas com as três prontas, o bloco some (a regra, não o modo)');
+  await page.unroute(ESTADO, manualTodasProntas);
   await relerEstado();
   ok(await espera(page, () => document.getElementById('o-preparo').hidden && document.getElementById('o-preparo').childElementCount === 0, 15000), 'espera útil: com as três prontas, o bloco some');
   await page.waitForFunction(() => document.querySelectorAll('.dir .dir__nome').length === 3 && document.getElementById('o-pedido-fim').hidden, null, { timeout: 30000 });

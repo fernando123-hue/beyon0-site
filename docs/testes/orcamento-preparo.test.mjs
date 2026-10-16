@@ -19,10 +19,12 @@ test('prazo: 24 horas úteis pulam o fim de semana', () => {
 });
 
 test('data do prazo: dia da semana, dia/mês e a hora arredondada para cima', () => {
-  assert.equal(P.dataDoPrazo(em(2026, 10, 16, 14, 20)), 'sexta, 16/10, às 15h');
-  assert.equal(P.dataDoPrazo(em(2026, 10, 19, 15)), 'segunda, 19/10, às 15h');
-  assert.equal(P.dataDoPrazo(em(2026, 10, 20, 0)), 'terça, 20/10, às 0h');
-  assert.equal(P.dataDoPrazo(em(2026, 10, 16, 23, 30)), 'sábado, 17/10, às 0h', 'arredondar pode virar o dia');
+  assert.equal(P.dataDoPrazo(em(2026, 10, 16, 14, 20)), 'sexta, 16/10, às 15h');
+  assert.equal(P.dataDoPrazo(em(2026, 10, 19, 15)), 'segunda, 19/10, às 15h');
+  assert.equal(P.dataDoPrazo(em(2026, 10, 20, 0)), 'o fim de segunda, 19/10', 'meia-noite lê-se como o fim do dia anterior, sem "às 0h"');
+  assert.equal(P.dataDoPrazo(em(2026, 10, 16, 23, 30)), 'o fim de sexta, 16/10', 'arredondar pode virar o dia: nunca sai "sábado" nem "às 0h"');
+  assert.equal(P.dataDoPrazo(em(2026, 10, 17, 0)), 'o fim de sexta, 16/10');
+  assert.equal(P.dataDoPrazo(em(2026, 11, 1, 0)), 'o fim de sábado, 31/10', 'vira o mês junto (a conta do dia; a regra de dia útil é do prazoUtil)');
 });
 
 test('mostrar: só confirmado, fila manual e com modelo na fila', () => {
@@ -34,4 +36,5 @@ test('mostrar: só confirmado, fila manual e com modelo na fila', () => {
   assert.equal(P.deveMostrar({ ...base, direcoes: [{ status: 'pronta' }] }), false);
   assert.equal(P.deveMostrar({ ...base, pedido: null }), false);
   assert.equal(P.deveMostrar(null), false);
+  assert.equal(P.deveMostrar({ ...base, pedido: { ...base.pedido, confirmado_em: 'lixo' } }), false, 'data inválida não vira "undefined, NaN/NaN"');
 });

@@ -26,14 +26,21 @@
     }
     return t;
   }
-  /* "sexta, 16/10, às 15h": a hora quebrada sobe para a seguinte (prometer 14h20 soa falso; 15h é um teto) */
+  /* "sexta, 16/10, às 15h": a hora quebrada sobe para a seguinte (prometer 14h20 soa falso; 15h é um teto).
+     Se isso cai na meia-noite, "às 0h" já é o dia seguinte (sábado ou terça, contradizendo "de segunda a sexta"):
+     mostra então o fim do dia anterior, sem hora ("o fim de sexta, 16/10"). O espaço entre "às" e a hora, e entre "de"
+     e o dia, não quebra ( ): no 320 px a hora não fica sozinha na linha de baixo */
   function dataDoPrazo(d) {
     var h = new Date(d.getTime());
     if (h.getMinutes() || h.getSeconds() || h.getMilliseconds()) h = new Date(h.getFullYear(), h.getMonth(), h.getDate(), h.getHours() + 1);
-    return DIAS[h.getDay()] + ', ' + dois(h.getDate()) + '/' + dois(h.getMonth() + 1) + ', às ' + h.getHours() + 'h';
+    if (h.getHours() === 0) {
+      var ontem = new Date(h.getFullYear(), h.getMonth(), h.getDate() - 1);
+      return 'o fim de ' + DIAS[ontem.getDay()] + ', ' + dois(ontem.getDate()) + '/' + dois(ontem.getMonth() + 1);
+    }
+    return DIAS[h.getDay()] + ', ' + dois(h.getDate()) + '/' + dois(h.getMonth() + 1) + ', às ' + h.getHours() + 'h';
   }
   function deveMostrar(E) {
-    return !!(E && E.modo_direcoes === 'manual' && E.pedido && E.pedido.status === 'confirmado' && E.pedido.confirmado_em &&
+    return !!(E && E.modo_direcoes === 'manual' && E.pedido && E.pedido.status === 'confirmado' && E.pedido.confirmado_em && !isNaN(Date.parse(E.pedido.confirmado_em)) &&
       Array.isArray(E.direcoes) && E.direcoes.some(function (d) { return d.status === 'gerando'; }));
   }
 
@@ -51,7 +58,7 @@
     if (!mostrar) return;
     var prazo = el('p', 'orc-preparo__prazo', 'Seus três modelos ficam prontos até ');
     prazo.appendChild(el('strong', null, dataDoPrazo(prazoUtil(new Date(E.pedido.confirmado_em), HORAS_UTEIS))));
-    prazo.appendChild(document.createTextNode('. A gente avisa pelo seu WhatsApp, com um link que abre o pedido em qualquer aparelho.'));
+    prazo.appendChild(document.createTextNode('.'));
     alvo.appendChild(prazo);
     alvo.appendChild(el('h3', 'orc-preparo__titulo', 'Enquanto isso, já separe'));
     var ul = el('ul', 'orc-preparo__lista');
