@@ -18,6 +18,8 @@
      desconto", símbolo grego solto (10 Ω), número de 11 ou 14 dígitos soltos, sem pontuação nem rótulo CPF/CNPJ e sem dígito
      verificador válido (código de barras, lote);
    - um trecho achado sai do texto antes dos tipos seguintes: a chave AIza não vira também telefone.
+   Correção da revisão da Task 7 (docs/testes/varredura-casos.test.mjs): palavra inteira em grego é achada; ponto separado,
+   maiúsculo, com acento ou com emoji depois de "ponto com" também; perfil depois de aspas; .zip; chave de pedaços mistos; "CPF nº".
    ========================================================================== */
 /* por propriedade Unicode, e não por lista de códigos (a lista deixava passar a marca de letra árabe, o separador mongol,
    o preenchimento hangul, as "tags" acima de U+FFFF...): Default_Ignorable_Code_Point (hífen mole, largura zero, seletores
@@ -25,13 +27,17 @@
    âncoras de anotação), Cc (controles C0/C1) e Co (uso privado). O arquivo não traz nenhum desses caracteres escritos. */
 const INVISIVEIS = /[\p{Default_Ignorable_Code_Point}\p{Cf}\p{Cc}\p{Co}]/gu;
 /* o ponto final de outras escritas (。 U+3002, ｡ U+FF61, ． U+FF0E) vira o ponto comum: "golpe。com" é um endereço. O ponto médio
-   (· U+00B7) e o operador (∙ U+2219) também, mas só quando colados a algo: "golpe·com" é endereço, "Clínica · Online" é separador */
-const PONTOS_DISFARCADOS = /[。｡．]|(?<!\s)[·∙]|[·∙](?!\s)/g;
+   (· U+00B7), o operador (∙ U+2219), a bolinha (• U+2022), o operador ponto (⋅ U+22C5), o ponto de hifenização (‧ U+2027) e os
+   pontos médios do japonês (・ U+30FB, ･ U+FF65) também, mas só quando colados a algo: "golpe·com" é endereço, "Clínica · Online"
+   é separador */
+const PONTO_MEDIO = '[·∙•⋅‧・･]';
+const PONTOS_DISFARCADOS = new RegExp('[。｡．]|(?<!\\s)' + PONTO_MEDIO + '|' + PONTO_MEDIO + '(?!\\s)', 'g');
 const normalizar = texto => texto.replace(INVISIVEIS, '').replace(PONTOS_DISFARCADOS, '.').normalize('NFKC').replace(INVISIVEIS, '').replace(PONTOS_DISFARCADOS, '.');
 /* o alfabeto de um site brasileiro de pequeno negócio é o latino: uma letra cirílica ou armênia em qualquer lugar, ou grega
-   colada a uma letra latina ("gоlpe" com o о cirílico, "Clínica Ωmega"), é um disfarce de endereço ou de nome que a lista de
-   TLDs não enxerga. O símbolo grego solto ("10 Ω", ohm) é só texto. A letra estranha é o grupo capturado, quando há */
-const OUTRO_ALFABETO = /[\p{Script=Cyrillic}\p{Script=Armenian}]|\p{Script=Latin}(\p{Script=Greek})|(\p{Script=Greek})\p{Script=Latin}/u;
+   colada a QUALQUER outra letra ("gоlpe" com o о cirílico, "Clínica Ωmega", e a palavra inteira "ΟΡΤΟ", que na tela lê "OPTO"), é
+   um disfarce de endereço ou de nome que a lista de TLDs não enxerga. Só o símbolo grego isolado ("10 Ω", ohm; "π = 3,14") é
+   texto. O primeiro caractere achado é a letra estranha */
+const OUTRO_ALFABETO = /[\p{Script=Cyrillic}\p{Script=Armenian}]|\p{Script=Greek}(?=\p{L})|(?<=\p{L})\p{Script=Greek}/u;
 
 const EMAIL = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i;
 const EMAIL_GLOBAL = new RegExp(EMAIL.source, 'gi');
@@ -47,14 +53,23 @@ function ipv4(texto) {
   return null;
 }
 
-/* extensões de arquivo e de tecnologia que não são TLD: "Feito com Next.js" é texto, não endereço */
-const NAO_TLD = 'js|mjs|ts|jsx|tsx|css|html|json|png|jpg|jpeg|gif|svg|pdf|txt|doc|docx|xls|xlsx|csv|zip';
+/* extensões de arquivo e de tecnologia que não são TLD: "Feito com Next.js" é texto, não endereço. Fica de fora o que também é
+   TLD de verdade (.zip, da Google; .mov também seria, e nunca esteve na lista): "golpe.zip" é endereço. Nenhuma outra daqui é
+   TLD (js, ts, css, png, pdf, doc...) */
+const NAO_TLD = 'js|mjs|ts|jsx|tsx|css|html|json|png|jpg|jpeg|gif|svg|pdf|txt|doc|docx|xls|xlsx|csv';
+/* o TLD não pode continuar em letra nem em dígito ("foto.mp4", "Sr.joão" não são endereço); o \b do JS não enxerga acento */
+const FIM_TLD = '(?![\\p{L}\\p{N}])';
+const SEM_EXTENSAO = alternativas => '(?!(?:' + alternativas + ')' + FIM_TLD + ')';
+/* o nome do domínio, de qualquer alfabeto e com acento ("promoção.pt"), com pelo menos uma letra ("2.5.mm" não é) e que não vem
+   depois de @ ("@clinica.sol" é perfil, e o perfil é o achado dele) */
+const NOME_DE_DOMINIO = '(?<![\\p{L}\\p{N}_])(?<!@[\\w.-]*)(?=[\\p{L}\\p{N}-]*\\p{L})[\\p{L}\\p{N}][\\p{L}\\p{N}-]{1,62}';
 
 /* a corrida longa só é chave se misturar dígitos e letras ("Pediatria/Ortopedia/Cardiologia/..." é texto) */
 function corridaDeChave(texto) {
   for (const [corrida] of texto.matchAll(/[A-Za-z0-9+/=_-]{32,}/g)) {
-    /* frase com hífens ("passo-1-escolha-2-..."): todos os pedaços curtos, é texto e não chave */
-    if (corrida.split('-').every(pedaco => pedaco.length <= 10)) continue;
+    /* frase com hífens ("passo-1-escolha-2-..."): todos os pedaços curtos e cada um só de letras ou só de dígitos, é texto e não
+       chave; "A1B2C-3D4E5-..." (pedaços curtos, mas mistos) é chave de produto */
+    if (corrida.split('-').every(pedaco => pedaco.length <= 10 && /^(?:[a-zà-ú]*|\d*)$/i.test(pedaco))) continue;
     if ((corrida.match(/\d/g) || []).length >= 3 && (corrida.match(/[a-z]/gi) || []).length >= 4) return corrida;
   }
   return null;
@@ -88,10 +103,12 @@ export function cnpjValido(digitos) {
 /* o primeiro trecho que casa com o formato E (tem dígito verificador válido, OU vem com pontuação de documento, OU vem depois do
    rótulo CPF/CNPJ). Sem isso, um documento digitado com um dígito errado ("CNPJ 12.345.678/0001-90") deixava de ser achado; só o
    número solto, sem pontuação e sem rótulo (código de barras, lote), precisa do dígito verificador para valer */
+/* "CPF 123", "CPF: 123", "CPF nº 123", "CPF n° 123", "CPF no 123" (o NFKC já fez de "nº" um "no") */
+const ROTULO_DOCUMENTO = /(?:cpf|cnpj)\W{0,3}(?:n[o°]\.?\s*:?\s*)?$/i;
 const documentoValido = (re, valido) => texto => {
   for (const m of texto.matchAll(re)) {
     const antes = texto.slice(Math.max(0, m.index - 12), m.index);
-    if (valido(m[0].replace(/\D/g, '')) || /[./-]/.test(m[0]) || /(?:cpf|cnpj)\W{0,3}$/i.test(antes)) return m[0];
+    if (valido(m[0].replace(/\D/g, '')) || /[./-]/.test(m[0]) || ROTULO_DOCUMENTO.test(antes)) return m[0];
   }
   return null;
 };
@@ -105,17 +122,22 @@ const PADROES = [
     por(new RegExp('\\b[a-z0-9][a-z0-9-]*\\.(?:' + TLDS + ')\\b', 'i')),
     /* a mesma lista com letra de qualquer alfabeto antes do ponto ("Niterói.com", "ΟΡΤΟ.com"): o \b do JS não enxerga acento */
     por(new RegExp('(?<![\\p{L}\\p{N}-])[\\p{L}\\p{N}][\\p{L}\\p{N}-]*\\.(?:' + TLDS + ')(?![\\p{L}\\p{N}])', 'iu')),
-    /* qualquer domínio "palavra.tld" colado, com o TLD só de letras minúsculas (.pt, .fr, .digital); o TLD minúsculo e não
-       seguido de letra deixa de fora o fim de frase sem espaço ("fim.Começo"); a palavra tem que ter uma letra ("2.5.mm") e não
-       vir depois de @ ("@clinica.sol" é perfil, e o perfil é o achado dele) */
-    por(new RegExp('\\b(?<!@[\\w.-]*)(?=[a-zA-Z0-9-]*[a-zA-Z])[a-zA-Z0-9][a-zA-Z0-9-]{1,62}\\.(?!(?:' + NAO_TLD + ')(?![a-zA-Z]))[a-z]{2,24}(?![a-zA-Z])')),
-    /* ponto com espaço antes ("golpe . com") ou escrito entre sinais ("golpe(dot)com", "golpe[dot]net") */
-    por(new RegExp('\\b[a-z0-9-]{2,}\\s+\\.\\s*(?:' + TLDS + ')\\b', 'i')),
+    /* qualquer domínio "palavra.tld" colado, com o TLD todo em minúsculas ou todo em maiúsculas (.pt, .fr, .digital, .PT) e não
+       seguido de letra nem dígito: "fim.Começo" (maiúscula só na inicial), "Sr.joão" e "foto.mp4" ficam de fora. Extensão de arquivo
+       (js, png, pdf...) nunca é TLD aqui, em minúsculas ou maiúsculas. "Av.paulista", "Seg.sex" e "Cia.ltda" têm a mesma forma de
+       "Golpe.pt" e seguem como alarme aceito */
+    por(new RegExp(NOME_DE_DOMINIO + '\\.' + SEM_EXTENSAO(NAO_TLD) + '[a-z]{2,24}' + FIM_TLD, 'u')),
+    por(new RegExp(NOME_DE_DOMINIO + '\\.' + SEM_EXTENSAO(NAO_TLD.toUpperCase()) + '[A-Z]{2,24}' + FIM_TLD, 'u')),
+    /* ponto com espaço antes ("golpe . pt") ou escrito entre sinais ("golpe(dot)com", "golpe[dot]net"); o TLD segue o mesmo
+       critério acima, e por isso "Pedimos desculpas . Com isso" (maiúscula só na inicial) é texto */
+    por(new RegExp('(?<![\\p{L}\\p{N}])[\\p{L}\\p{N}-]{2,}\\s+\\.\\s*[a-z]{2,24}' + FIM_TLD, 'u')),
+    por(new RegExp('(?<![\\p{L}\\p{N}])[\\p{L}\\p{N}-]{2,}\\s+\\.\\s*[A-Z]{2,24}' + FIM_TLD, 'u')),
     por(/\b[a-z0-9-]+\s*[([]\s*dot\s*[)\]]\s*[a-z]{2,}/i),
-    /* "golpe ponto com", "golpe (ponto) net": o endereço por extenso. Com sinal de um lado ou do outro, sempre; solto, só quando
-       o TLD fecha a frase (fim, pontuação, barra, "barra" ou "ponto br"), para "um ponto com desconto" ser texto */
-    por(/\b[a-z0-9-]+\s*(?:[([]\s*ponto\s*[)\]]?|ponto\s*[)\]])\s*(?:com|net|org|br|app|xyz)\b/i),
-    por(/\b[a-z0-9-]+\s+ponto\s+(?:com|net|org|br|app|xyz)(?=\s*(?:$|[.,;:!?)\]/]|barra\b|ponto\s+br\b))/i)
+    /* "golpe ponto com", "golpe (ponto) pt": o endereço por extenso. Com sinal de um lado ou do outro, qualquer TLD (o parêntese já
+       mostra a intenção); solto, só quando o TLD fecha a frase (fim, qualquer pontuação ou símbolo, "barra" ou "ponto br"), para
+       "um ponto com desconto" e "um ponto com 10% de desconto" serem texto */
+    por(/\b[a-z0-9-]+\s*(?:[([]\s*ponto\s*[)\]]?|ponto\s*[)\]])\s*[a-z]{2,24}(?![a-z])/i),
+    por(/\b[a-z0-9-]+\s+ponto\s+(?:com|net|org|br|app|xyz)(?=\s*(?:$|[^\p{L}\p{N}\s]|barra\b|ponto\s+br\b))/iu)
   ], false],
   ['caminho de arquivo', [
     por(/\b[a-z]:[\\/]/i), por(/(?:^|[\s"'(])~[\\/]/), por(/(?:^|[\s"'(])\/(?:home|users|etc|tmp|var|root)\b/i),
@@ -136,7 +158,7 @@ const PADROES = [
     por(/(?<!\d)[1-9][1-9][\s.-]9[\s.-]\d{4}[\s.-]?\d{4}(?!\d)/) /* 21 9 8765-4321, 21.9.8765.4321, 21-9-8765-4321: o 9 solto sem parênteses */
   ], true],
   /* o contato real entra no site depois, pelo dono, nunca pela fila: nem o perfil, nem o documento, nem a conta */
-  ['perfil de rede social', [por(/(?:^|[\s(])@[a-z0-9._]{3,30}\b/i)], false],
+  ['perfil de rede social', [por(/(?:^|[^\w@.])@[a-z0-9._]{3,30}\b/i)], false],
   /* chave Pix e documento entram depois, pelo dono, nunca pela fila */
   ['documento', [
     documentoValido(/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/g, cpfValido), /* CPF */
@@ -161,12 +183,6 @@ function primeiroCodigo(texto, re) {
   return m ? codigoDe(m[0]) : null;
 }
 
-/* a letra de outro alfabeto: a estranha, e não a latina que está colada a ela */
-function codigoDeLetraEstranha(texto) {
-  const m = texto.match(OUTRO_ALFABETO);
-  return m ? codigoDe(m[1] || m[2] || m[0]) : null;
-}
-
 const trechoDe = (achado, mascarar) => (mascarar ? achado.slice(0, 4) + '…' : achado.slice(0, 40));
 
 /* os achados de uma direção já higienizada: vazio = pode sair (um achado por tipo em cada texto) */
@@ -175,7 +191,7 @@ export function varrer(direcao) {
   for (const { caminho, texto } of textosDe(direcao)) {
     const invisivel = primeiroCodigo(texto, INVISIVEIS);
     if (invisivel) achados.push({ caminho, tipo: 'caractere invisível', trecho: invisivel });
-    const estranha = codigoDeLetraEstranha(texto);
+    const estranha = primeiroCodigo(texto, OUTRO_ALFABETO);
     if (estranha) achados.push({ caminho, tipo: 'letra de outro alfabeto', trecho: estranha });
     const limpo = normalizar(texto);
     const email = limpo.match(EMAIL);

@@ -475,7 +475,7 @@ test('varredura: disfarces de endereço, caminho, chave e telefone são recusado
     const achados = varrer(comTexto(limpa, texto));
     assert.ok(achados.some(a => a.tipo === tipo && a.caminho === 'secoes[1].texto'), tipo + ' em "' + texto + '": ' + JSON.stringify(achados));
   }
-  /* (o CNPJ 12.345.678/0001-90 saiu desta lista: agora é recusado como documento, ver os casos acima) */
+  /* (o CNPJ 12.345.678/0001-90 continua nesta lista: com pontuação é documento mesmo com o dígito verificador errado) */
   const aceitos = ['CEP 22041-001', 'Feito com Next.js', 'Dra. Silva e Dr. Souza, Ltda.', 'Pediatria/Ortopedia/Cardiologia/Dermatologia/Geral',
     'Pedido nº 2024102599', 'De 2020-2024 atendemos 300 famílias', 'Atendimento 24h'];
   for (const texto of aceitos) assert.deepEqual(varrer(comTexto(limpa, texto)), [], 'falso positivo em "' + texto + '"');

@@ -67,3 +67,71 @@ test('documento: CPF e CNPJ de exemplo têm dígito verificador válido, sequên
   assert.ok(!cpfValido('52998224724') && !cpfValido('11111111111') && !cpfValido('1234'));
   assert.ok(!cnpjValido('11222333000182') && !cnpjValido('11111111111111') && !cnpjValido('78912345678901'));
 });
+
+/* ---- correção da revisão da Task 7 (I1 e menores 1 a 11) ---- */
+test('I1: palavra inteira em letras gregas que imitam as latinas é achada (não só a letra grega colada a latina)', () => {
+  for (const t of ['acesse ΟΡΤΟ.pt', 'acesse ΡΟΡ.digital', 'ΟΡΤΟ . com', 'ΟΡΤΟ(dot)com', 'ΟΡΤΟ ponto com.', 'siga @ΟΡΤΟ']) acha(t, 'letra de outro alfabeto');
+  acha('Clínica Ωmega', 'letra de outro alfabeto');
+  acha('Αθήνα', 'letra de outro alfabeto');
+  limpo('Resistores de 10 Ω');
+  limpo('π = 3,14');
+  limpo('Clínica São José · Niterói — 24h');
+});
+test('1: "ponto com" solto seguido de emoji, hífen ou parênteses é achado; "um ponto com desconto" segue texto', () => {
+  for (const t of ['golpe ponto com \u{1F642}', 'golpe ponto com - promo', 'golpe ponto com (link)']) acha(t, 'endereço de site');
+  limpo('Ganhe um ponto com desconto');
+  limpo('um ponto com 10% de desconto');
+});
+test('2: domínio fora da lista com ponto separado ou disfarçado é achado, como golpe(dot)pt', () => {
+  for (const t of ['golpe(dot)pt', 'golpe . pt', 'golpe .pt', 'golpe (ponto) pt', 'golpe [ponto] digital']) acha(t, 'endereço de site');
+});
+test('3: extensão em maiúscula é achada', () => {
+  for (const t of ['GOLPE.PT', 'golpe.PT', 'GOLPE . COM', 'acesse GOLPE.DIGITAL']) acha(t, 'endereço de site');
+  limpo('Abra o ARQUIVO.PDF e a FOTO.PNG');
+  limpo('Leia o README.TXT');
+});
+test('4: nome com acento antes do ponto é achado', () => {
+  for (const t of ['promoção.pt', 'niterói.digital', 'veja São-José.fr']) acha(t, 'endereço de site');
+  acha('fale com @clinica.sol', 'perfil de rede social');
+  limpo('Medida 2.5.mm');
+});
+test('5: outros pontos médios colados viram ponto; com espaço dos dois lados são só separador', () => {
+  for (const t of ['golpe•com', 'golpe⋅com', 'golpe‧com', 'golpe・com', 'golpe･com']) acha(t, 'endereço de site');
+  limpo('Café • Almoço ⋅ Jantar');
+  limpo('Clínica ・ Online');
+});
+test('6: falsos alarmes que dá para tirar sem abrir buraco; os que não dão ficam como aceitos com alarme', () => {
+  for (const t of ['foto.mp4', 'Sr.joão', 'Pedimos desculpas . Com isso', 'fim . Me ligue']) limpo(t);
+  /* aceitos com alarme: a abreviação com ponto colado é idêntica a "Golpe.pt"; só uma lista de TLDs reais separaria, e ela envelhece */
+  for (const t of ['Av.paulista 100', 'Seg.sex 8h', 'Cia.ltda']) acha(t, 'endereço de site');
+});
+test('7: chave com pedaços curtos e mistos é achada; frase com hífens (letras ou dígitos) segue texto', () => {
+  acha('A1B2C-3D4E5-F6G7H-8I9J0-K1L2M-N3O4P', 'chave');
+  limpo('passo-1-escolha-2-confirme-3-pague-4-receba-5');
+  limpo('Atendimento-personalizado-para-clinicas-e-consultorios');
+});
+test('8: faixa de preço encadeada não é telefone (guarda a regra de fixoSemDdd)', () => {
+  limpo('Planos 1000-2500-3500');
+  limpo('Planos de R$ 2500-3500 por mês');
+  acha('ligue 2133-4455', 'telefone');
+});
+test('9: perfil depois de aspas ou dois-pontos é achado', () => {
+  for (const t of ['Siga "@golpe.pt"', 'Siga:@golpe.pt', 'Siga (@golpe_oficial)']) acha(t, 'perfil de rede social');
+  limpo('Fale com a equipe');
+});
+test('10: .zip é TLD de verdade e é achado; extensões de arquivo seguem texto', () => {
+  acha('baixe golpe.zip', 'endereço de site');
+  limpo('Feito com Next.js e arquivo.pdf');
+});
+test('11: rótulo CPF/CNPJ com "nº", "n°" ou "no" ainda marca o documento', () => {
+  for (const t of ['CPF nº 12345678900', 'CPF n° 12345678900', 'CPF no 12345678900', 'CPF nº: 12345678900', 'CNPJ nº 12345678000190']) acha(t, 'documento');
+  limpo('Lote nº 12345678901');
+});
+test('regex sem backtracking catastrófico: 300 caracteres adversários (o tamanho máximo de um texto higienizado)', () => {
+  const entradas = ['a-'.repeat(150), 'a.'.repeat(150), 'A1-'.repeat(100), ' . '.repeat(100), 'ponto '.repeat(50), '9'.repeat(300), 'ΟΡ'.repeat(150), 'a@'.repeat(150), 'ç.'.repeat(150)];
+  for (const entrada of entradas) {
+    const inicio = performance.now();
+    varrer({ t: entrada });
+    assert.ok(performance.now() - inicio < 1000, 'varredura lenta demais para ' + entrada.slice(0, 12) + '… (' + entrada.length + ')');
+  }
+});
