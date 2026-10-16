@@ -1,8 +1,7 @@
 /* ==========================================================================
-   A CARGA dos cards (2026-10-04). Uma peça só, usada de dois jeitos:
-   - CELULAR (a pilha, js/anima.js): a rolagem comanda — cada card carrega
-     enquanto é revelado no monte que se abre;
-   - DESKTOP com mouse (este arquivo): o CURSOR comanda — de volta, a pedido
+   A CARGA dos cards (2026-10-04). Só no DESKTOP com mouse (a pilha do celular
+   deixou de carregar em 2026-10-16: virou o fichário com chegada, js/anima.js):
+   - o CURSOR comanda — de volta, a pedido
      do dono, a função da V1 (js/field.js, 81a787a): o card acende conforme o
      cursor se aproxima. Aqui: dentro de PERTO px a barra começa a encher
      (mais perto, mais carga) e um ARO nítido aparece em volta; com o cursor
@@ -26,16 +25,13 @@
    letras fiquem acesas"):
    - nos cards de uma ESTAÇÃO viva (desktop): a ONDA de luz, letra por letra —
      cada uma acende e dá um pulinho (no máximo uma a cada LETRAS.cada s);
-   - nos demais (e em todos no celular, onde não há estação): ACENDER — a
+   - nos demais: ACENDER — a
      linha de luz que atravessa o card no 100% acende as letras POR ONDE PASSA
      (um pico de luz e a letra assenta acesa), todas as linhas juntas, como
      uma frente; elas ficam ACESAS (.is-acesas) — também depois de o card
      descarregar (dono, 2026-10-05: "eu quero que as letras fiquem acesas"). A vez de cada letra (--dx) vem da posição
      dela no card e da curva da linha (crítica: em ordem de leitura, a metade
      acesa durava ~2,6 s, descasada da linha, e parecia texto em negrito).
-   CELULAR (dono, 2026-10-05: "transição mais suave, um pouco mais lenta, mais
-   perceptível"): a carga da pilha CORRE ATRÁS da rolagem (seguir) em vez de
-   saltar com ela — até um deslizar rápido mostra a barra enchendo.
    SOBRECARGA (js/estacao.js, com o mini conectado ao AI Core médio): o card
    fica preso em 100% com a moldura neon acesa (parada), uma luz circulando
    pela borda, a barra em "MAX" e a onda de letras percorrendo o GRUPO card a
@@ -79,15 +75,11 @@
      por palavra são ~6 de cada vez. O passo de 15 ms (antes caía a 10,8 nos cards de 139 letras) deixa ~25
      letras animando ao mesmo tempo em vez de 35: o custo por quadro é proporcional a esse número */
   var LETRAS = { cada: 3.5, passo: 15, teto: 2600, dura: 0.38, folga: 0.45, lote: 80, primeira: 0.7 };   /* primeira: s até a 1ª onda da fila (a ignição dos 4 cards assenta antes) */
-  /* seguir a rolagem (celular): /s proporcional à distância, com piso e teto (enche inteiro em ~0,9 s, sem a cauda
-     longa de uma exponencial pura) */
-  var SEGUE = { k: 4, min: 0.35, max: 2.2 };
   /* cheio entra em 99,5% e só sai abaixo de 90%: um recuo mínimo do dedo não apaga e reacende tudo */
   var CHEIO = { entra: 0.995, sai: 0.9 };
-  /* a linha que atravessa o card no 100% (css/cartoes.css, carga-varre): s no desktop e no celular; a curva dela;
+  /* a linha que atravessa o card no 100% (css/cartoes.css, carga-varre): s; a curva dela;
      quanto antes da passagem a animação da letra começa (o pico, 6% de 1,2 s, cai em cima da linha) */
-  var VARRE = { desktop: 0.7, celular: 1.15, curva: [0.3, 0, 0.2, 1], pico: 0.072 };
-  var estreito = window.matchMedia('(max-width: 720px)');
+  var VARRE = { dura: 0.7, curva: [0.3, 0, 0.2, 1], pico: 0.072 };
   /* a transição até a sobrecarga: s de ignição e de esfriar; teto do piso da pressão e de onde os cantos tremem */
   var IGNICAO = 0.9, ESFRIA = 0.6, PRESSAO = { teto: 0.82, acende: 0.6 };
   var CIRCULA = { vel: 170 };   /* px/s da luz que percorre a borda (um traço só, dando a volta) */
@@ -96,12 +88,7 @@
   /* ---------- a peça ---------- */
   function montar(card, op) {
     var c = card._carga;
-    if (c && op && op.doador) c.doador = op.doador;
-    if (c) {
-      /* já montada (pelo desktop, numa janela que encolheu): o fio da pilha, se pedido agora */
-      if (op && op.fio && !c.fio) { c.fio = document.createElement('i'); c.fio.className = 'carga-fio'; c.fio.setAttribute('aria-hidden', 'true'); card.appendChild(c.fio); }
-      return c;
-    }
+    if (c) return c;
     var raiz = document.createElement('i'); raiz.className = 'carga'; raiz.setAttribute('aria-hidden', 'true');
     var trilho = document.createElement('i'); trilho.className = 'carga__trilho';
     var tubo = document.createElement('i'); tubo.className = 'carga__tubo';
@@ -111,8 +98,6 @@
     tubo.appendChild(brilho); tubo.appendChild(ponta); trilho.appendChild(tubo);
     raiz.appendChild(trilho); raiz.appendChild(pct);
     card.appendChild(raiz);
-    var fio = null;
-    if (op && op.fio) { fio = document.createElement('i'); fio.className = 'carga-fio'; fio.setAttribute('aria-hidden', 'true'); card.appendChild(fio); }
     var varre = document.createElement('i'); varre.className = 'carga-varre'; varre.setAttribute('aria-hidden', 'true'); card.appendChild(varre);
     var camada = function (classe, n, tag) {
       var el = document.createElement('i'); el.className = classe; el.setAttribute('aria-hidden', 'true');
@@ -123,7 +108,7 @@
     var bracos = camada('carga-cantos', 8), halo = camada('carga-halo', 0);
     camada('carga-nos', 4);
     /* base: a carga pedida (cursor ou pilha); piso: o mínimo imposto pela estação (pressão, ignição, esfriar) */
-    c = card._carga = { doador: op && op.doador, card: card, tubo: tubo, pct: pct, txt: pct.firstChild, fio: fio, p: -1, num: 0, cheio: false, bracos: bracos.children, halo: halo, base: 0, piso: 0, rampa: null, pediu: false };
+    c = card._carga = { card: card, tubo: tubo, pct: pct, txt: pct.firstChild, p: -1, num: 0, cheio: false, bracos: bracos.children, halo: halo, base: 0, piso: 0, rampa: null, pediu: false };
     card.classList.add('tem-carga');
     return c;
   }
@@ -143,9 +128,6 @@
     var cheio = c.cheio ? p >= CHEIO.sai : p >= CHEIO.entra;
     var carregando = p > 0.004 && !cheio;
     if (carregando !== card.classList.contains('is-carregando')) card.classList.toggle('is-carregando', carregando);
-    /* (pilha) a energia desce do card da frente enquanto ESTE carrega — a carga mostrada, não a rolagem crua:
-       num deslizar rápido o fio parava antes de a barra chegar (crítica) */
-    if (c.doador && carregando !== c.doador.classList.contains('is-doando')) c.doador.classList.toggle('is-doando', carregando);
     if (cheio !== c.cheio) {
       c.cheio = cheio;
       card.classList.toggle('is-carregado', cheio);
@@ -266,7 +248,7 @@
   }
   /* --dx de cada letra: quando a linha passa por ela (lido uma vez por largura do card; a medida da página invalida) */
   function passagem(c) {
-    var card = c.card, W = card.offsetWidth, T = estreito.matches ? VARRE.celular : VARRE.desktop;
+    var card = c.card, W = card.offsetWidth, T = VARRE.dura;
     if (!W || (c.dxW === W && c.dxT === T) || !c.split || !c.split.chars.length) return;
     c.dxW = W; c.dxT = T;
     var x0 = card.getBoundingClientRect().left, letras = c.split.chars, xs = [], i;
@@ -362,33 +344,8 @@
     c.rampa = { de: c.p < 0 ? 0 : c.p, para: para, t: 0, dura: dura, fim: fim };
     if (rampas.indexOf(c) < 0) rampas.push(c);
   }
-  /* SEGUIR (a pilha do celular, js/anima.js): o alvo vem da rolagem; a carga mostrada corre atrás dele */
-  var seguindo = [];
-  function seguir(card, alvo, ja) {
-    var c = card._carga || montar(card);
-    alvo = alvo < 0 ? 0 : alvo > 1 ? 1 : alvo;
-    c.alvo = alvo;
-    if (c.mostra === undefined) c.mostra = c.p < 0 ? 0 : c.p;
-    if (ja || B.reduced || reduz.matches) {
-      c.mostra = alvo;
-      var i = seguindo.indexOf(c); if (i >= 0) seguindo.splice(i, 1);
-      definir(card, alvo);
-      return;
-    }
-    if (seguindo.indexOf(c) < 0) seguindo.push(c);
-  }
-  function correr(dt) {
-    for (var i = seguindo.length - 1; i >= 0; i--) {
-      var c = seguindo[i], d = c.alvo - c.mostra, passo = Math.min(SEGUE.max, Math.max(SEGUE.min, Math.abs(d) * SEGUE.k)) * dt;
-      if (Math.abs(d) <= passo) { c.mostra = c.alvo; seguindo.splice(i, 1); }
-      else c.mostra += d > 0 ? passo : -passo;
-      try { definir(c.card, c.mostra); }
-      catch (e) { if (window.console && console.warn) console.warn('[beyon] carga-seguir:', e); }
-    }
-  }
   /* (sempre no laço; sem rampa, sai na primeira linha: tirar do laço no meio do quadro pularia o vizinho) */
   B.add('carga-rampa', function (S) {
-    if (seguindo.length) correr(Math.min(0.05, S.dt / 1000));
     if (!rampas.length) return;
     var dt = Math.min(0.05, S.dt / 1000);
     for (var i = rampas.length - 1; i >= 0; i--) {
@@ -408,7 +365,7 @@
      traço na ponta dela; as quatro andam juntas (transform em % da própria faixa: compositor) e cada lado
      começa defasado pelo trecho do perímetro que vem antes dele — o traço passa de um lado ao outro pelos
      cantos como se fosse um só. Montada na 1ª ignição do card (enfeite: a rede ignora, js/rede.js) */
-  /* fora da tela a luz para (o card cheio segue cheio depois de passar; no Hub do celular eram 16 traços
+  /* fora da tela a luz para (o card cheio segue cheio depois de passar; no Hub eram 16 traços
      girando fora da vista e os quadros lentos rolando subiram de 11 para 16, medido) */
   var fora = 'IntersectionObserver' in window ? new IntersectionObserver(function (es) {
     for (var i = 0; i < es.length; i++) es[i].target.classList.toggle('is-fora', !es[i].isIntersecting);
@@ -463,12 +420,12 @@
     varrer(card);
     enfileirar(card);   /* (a onda de letras: na vez dele, na fila do grupo) */
   }
-  B.carga = { montar: montar, definir: definir, seguir: seguir, sobrecarga: sobrecarga, pressao: pressao, preparar: preparar };
+  B.carga = { montar: montar, definir: definir, sobrecarga: sobrecarga, pressao: pressao, preparar: preparar };
 
   /* ---------- desktop: o cursor ---------- */
   var desktop = window.matchMedia('(min-width: 721px) and (hover: hover) and (pointer: fine)');
-  /* aparelho sem mouse nunca usa o cursor; com mouse, a LARGURA decide a cada quadro (até 720 px quem
-     comanda é a rolagem da pilha, js/anima.js: os dois nunca disputam o mesmo card) */
+  /* aparelho sem mouse nunca usa o cursor; com mouse, a LARGURA decide a cada quadro (até 720 px não há carga: a
+     pilha do celular é o fichário com chegada, js/anima.js) */
   if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches || B.reduced) return;
   var lista = [], ponteiro = { x: -1e4, y: -1e4, ativo: false }, H = window.innerHeight, largo = desktop.matches;
   window.addEventListener('resize', function () { H = window.innerHeight; }, { passive: true });

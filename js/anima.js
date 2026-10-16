@@ -657,11 +657,12 @@
           /* (até 720 px o aceso dos cards da pilha é da chegada, pilhaChegadas: este bloco não roda de novo ao girar o
              celular de 844 para 390, então a largura é lida na hora de cada troca, e os dois não disputam o .is-foco) */
           var estreito = window.matchMedia('(max-width: 720px)');
+          /* (girando de volta para 844 o refresh do ScrollTrigger reacende o card do meio: docs/pecas/pilha-celular.mjs) */
           var itens = gsap.utils.toArray('.servico, .laudo__row, .celula, .passo, .cenario');
           itens.forEach(function (el) {
-            var daPilha = el.parentElement && el.parentElement.classList.contains('pilha');
+            var ehPilha = !!(el.parentElement && el.parentElement.classList.contains('pilha'));
             ST.create({ trigger: el, start: 'top 62%', end: 'bottom 38%',
-              onToggle: function (st) { if (!(daPilha && estreito.matches)) el.classList.toggle('is-foco', st.isActive); } });
+              onToggle: function (st) { if (!(ehPilha && estreito.matches)) el.classList.toggle('is-foco', st.isActive); } });
           });
           return function () { itens.forEach(function (el) { el.classList.remove('is-foco'); }); };
         });

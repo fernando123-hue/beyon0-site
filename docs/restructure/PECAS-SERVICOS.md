@@ -300,6 +300,28 @@ entrada + demo + arraste, 3 rodadas, antes = HEAD servido por rota): tarefas lon
   de 320 a 1440 px. Quadros em 390 e 1440 conferidos a olho (o tempo no canto não colide nem com a demonstração em
   andamento).
 
+**Passagem 2026-10-16 (noite, 8ª) — pilha do celular B e Planta (achado 4, J2–J5), decisões do dono aplicadas:**
+- Decisões (01 Empresa/Decisões.md, 16/10): aplicar achado 4 e J2–J5 ("Sim aplique todas as sugestões"); a pilha do
+  celular devia MELHORAR (não voltar à publicada: "tendo tanto o atual quanto o do publicado como dados"); entre três
+  opções em teste (`b3df92f`, `?pilha=a|b|c`) ele escolheu a **B + letras acesas**. Uma troca direta pelo fichário da
+  produção chegou a ser feita e foi desfeita antes de commit (patch fora do repo).
+- Achado do teste do dono ("A e B iguais, C sem brilho"): não era disparo, era sinal fraco — o `.is-foco` só trocava o
+  número de cor e a borda de 10 % para 18 %. Corrigido em `ebd34b3` (borda inteira ciano 60 %).
+- Commits: `acf9d1b` pilha B definitiva (sem parâmetro; sai a pilha antiga com carga/deslize e o gatilho do ouro
+  `carga:cheio`; 721–860 px seguem acendendo pelo meio; A/B do desktop 0 diferenças); `e6a9eba` Planta (achado 4: sem
+  12ch em uma coluna; J2: demonstração desmontada + reimpressão, `cortarDemo`; J3 cota sublinhada; J4 riscos a 45°;
+  J5: palco 1:1,16 no celular fora da digitação, botão/marca maiores — 390: celular 37→42 % do cartão, botão 6,6→9,1 px,
+  foto 57→66 px; tentativa de encurtar o celular para 700 descartada: foto 13–17 px); `d1cb6fd` ajustes da revisão
+  (blur espera 300 ms antes de o palco crescer).
+- Testes novos em `docs/pecas/`: `pilha-celular.mjs`, `legivel.mjs`, `demo-desmontada.mjs`, `digitando.mjs` (todos
+  vistos vermelhos antes). Unidade 394/394, acessibilidade 24 OK, varrer/cortes/checar/colisao/clique verdes.
+- Revisões por outro agente, todas APROVAR COM AJUSTES, ajustes feitos: `b3df92f`, `e6a9eba` (em `d1cb6fd`) e `acf9d1b`
+  (no commit desta passagem: transição de opacidade do título/texto do coberto, CSS/JS mortos da carga no celular —
+  fio, doador, seguir —; o "reacender ao girar para 844" já acontecia pelo refresh, ficou só o teste).
+- **Próximo:** (2) atualizar o corpo do #44 (pilha nova, Planta, provas acima) e o
+  `verificar` com a CPU livre; (3) dono vê a prévia no celular; (4) trazer a `main`, tirar do rascunho, mesclar;
+  (5) DEPOIS, decisão do dono: reformular o visual dos cartões em geral — mostrar 2–3 direções antes (PR próprio).
+
 **Passagem 2026-10-16 (noite, 7ª) — revisões publicadas, corpo do #44 com a evidência, `verificar` só com ruído:**
 - **`verificar` (código de `d702588`)**, duas rodadas com o processador em 100% (processos do sistema; o fork do Git
   Bash falhava a cada poucos comandos): nas duas, todos os 22 alvos sem preso, sem rolagem lateral, WhatsApp, campo,
