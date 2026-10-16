@@ -300,6 +300,30 @@ entrada + demo + arraste, 3 rodadas, antes = HEAD servido por rota): tarefas lon
   de 320 a 1440 px. Quadros em 390 e 1440 conferidos a olho (o tempo no canto não colide nem com a demonstração em
   andamento).
 
+**Passagem 2026-10-16 (noite, 2ª) — corte no celular/tablet e falas de teste, commit `5df81f5`:**
+- O dono viu a prévia no celular: no celular e no tablet o exemplo parecia bugado (cortado no pé da moldura;
+  medido 215 px e 400 px além) e as falas davam a entender que o exemplo é o site que a pessoa recebe. Registrado
+  em `01 Empresa/Decisões.md` (16/10). Ele escolheu os textos da **opção A** (de 3): rótulo "Teste ao vivo · o
+  mesmo site em cada tela", "Teste com o seu negócio", nota "É só um teste: o seu site terá a sua cara...", botão
+  fixo "Quero o meu site". Não respondeu sobre J2–J5 (seguem em aberto, sem urgência).
+- Feito em `5df81f5`: tablet 760–899 em duas colunas, foto na proporção do desenho, recursos numa linha no pé; até
+  759 uma coluna, a foto ocupa o resto, sem recursos; desenho com `meet` e fora do fluxo; respiro do hero no
+  computador −12 px; falas da opção A; título de nome longo 38 px no tablet. Neste commit de passagem:
+  `docs/pecas/varrer-planta.mjs` (varre a régua 360–1440 × 4 tipos × nome curto/longo e acusa o que passa do pé).
+- Verificado: varredura sem nada passar do pé; `checar.mjs` sem rolagem lateral/erros 320–1440; `csp.test` 8/8;
+  acessibilidade 23 OK; fotos 390/620/768/1280 conferidas e enviadas ao dono (cartão inteiro, celular, tablet).
+- **Próximo passo exato:** (1) revisão do `5df81f5` por agente diferente (code-reviewer; foi lançada e parada pela
+  passagem; olhar: cascata 899/759/599 × `.pl-titulo.is-longo`, foto com largura 0 em algum ponto, FLIP com
+  recursos ocultos, tempo da luz em `imprimir` com conteúdo que não chega ao pé, sobra do `queroTexto`);
+  (2) `node docs/verificar.mjs` com o processador livre (estava em 100% e foi parado). **Armadilha nova:** o
+  `verificar.mjs` agora procura o headless `chromium_headless_shell-1243` (playwright atualizado) e falha; passar
+  `CHROMIUM=$LOCALAPPDATA/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-win64/chrome-headless-shell.exe`
+  e `BASE=http://127.0.0.1:8897` (servidor: `node docs/servidor.mjs . 8897` ou a entrada `pecas-servicos` do painel);
+  (3) push e prévia da Vercel para o dono ver no celular; (4) PR.
+- Visto e não mexido: sob a régua, no meio da demonstração, "sua tela" apareceu sobreposto a "← sua tela: 1 px"
+  numa foto (provavelmente um quadro da escrita caractere a caractere; conferir se repete).
+- Lição: texto com crases dentro de `node -e "..."` no Bash vira comando; escrever o bloco num arquivo antes.
+
 **Retomado em 2026-10-16 (noite):** `origin/main` (5f11339, PR #43) mesclada na branch sem conflito; suíte de unidade 394/394 verde. Falta: resposta do dono sobre J2–J5, `verificar` com o processador livre (estava em 100%), revisão, PR.
 
 **Retomado em 2026-10-16 (tarde), commit `b15d7b4`:** revisão de código das correções do crítico (agente
