@@ -300,6 +300,16 @@ entrada + demo + arraste, 3 rodadas, antes = HEAD servido por rota): tarefas lon
   de 320 a 1440 px. Quadros em 390 e 1440 conferidos a olho (o tempo no canto não colide nem com a demonstração em
   andamento).
 
+**Retomado em 2026-10-16 (tarde), commit `b15d7b4`:** revisão de código das correções do crítico (agente
+diferente do autor): APROVAR COM AJUSTES, sem crítico/alto. Feito: no movimento reduzido a moldura pousa antes de
+`provar()` medir. Medido antes de mexer (script de amostras a cada 25 ms, 320–1440 px, com e sem movimento
+reduzido): o tempo NÃO encosta na cota em nenhum quadro; só o comentário foi corrigido. No tablet/computador ele
+passa sobre a borda direita da moldura (caso 3, de propósito). Verificado: acessibilidade 23 OK, `csp.test` sem
+falha, `checar.mjs` sem rolagem lateral/erros 320–1440, fotos 390 conferidas. `verificar` falhou só por tempo em
+páginas sem a Planta, com o processador em 100% (outras sessões): **rodar de novo com a máquina livre antes do PR.**
+Prévia: https://beyon0-site-dd0qfd537-beyond0.vercel.app. **Próximo:** passos 3 e 4 abaixo (dono vê no celular e
+decide J2–J5; depois PR).
+
 **Interrompido pela 2ª passagem automática (2026-10-16):** a revisão de código das correções do crítico (o tempo no
 canto, o rótulo "4 colunas", o "até 2,5 s") foi lançada e parada antes de responder.
 
