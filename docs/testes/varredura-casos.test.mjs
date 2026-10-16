@@ -101,9 +101,12 @@ test('5: outros pontos médios colados viram ponto; com espaço dos dois lados s
   limpo('Clínica ・ Online');
 });
 test('6: falsos alarmes que dá para tirar sem abrir buraco; os que não dão ficam como aceitos com alarme', () => {
-  for (const t of ['foto.mp4', 'Sr.joão', 'Pedimos desculpas . Com isso', 'fim . Me ligue']) limpo(t);
-  /* aceitos com alarme: a abreviação com ponto colado é idêntica a "Golpe.pt"; só uma lista de TLDs reais separaria, e ela envelhece */
-  for (const t of ['Av.paulista 100', 'Seg.sex 8h', 'Cia.ltda']) acha(t, 'endereço de site');
+  for (const t of ['foto.mp4', 'Sr.joão']) limpo(t);
+  /* aceitos com alarme: a abreviação com ponto colado é idêntica a "Golpe.pt"; só uma lista de TLDs reais separaria, e ela envelhece.
+     "Pedimos desculpas . Com isso" e "fim . Me ligue" têm a mesma forma de "golpe . Com" (TLD da lista só com a inicial maiúscula,
+     depois de espaço e ponto): limpá-los abria o buraco, e na dúvida entre achar e limpar a regra é achar */
+  for (const t of ['Av.paulista 100', 'Seg.sex 8h', 'Cia.ltda', 'Pedimos desculpas . Com isso', 'fim . Me ligue']) acha(t, 'endereço de site');
+  for (const t of ['golpe . Com', 'acesse golpe .Com agora', 'Golpe . Br', 'golpe\u2009. Com']) acha(t, 'endereço de site');
 });
 test('7: chave com pedaços curtos e mistos é achada; frase com hífens (letras ou dígitos) segue texto', () => {
   acha('A1B2C-3D4E5-F6G7H-8I9J0-K1L2M-N3O4P', 'chave');
@@ -127,8 +130,37 @@ test('11: rótulo CPF/CNPJ com "nº", "n°" ou "no" ainda marca o documento', ()
   for (const t of ['CPF nº 12345678900', 'CPF n° 12345678900', 'CPF no 12345678900', 'CPF nº: 12345678900', 'CNPJ nº 12345678000190']) acha(t, 'documento');
   limpo('Lote nº 12345678901');
 });
+/* ---- 2ª correção da Task 7 (I1 e menores 1 a 6 da revisão) ---- */
+test('fix2 I1: TLD da lista só com a inicial maiúscula, depois de espaço e ponto, é achado', () => {
+  for (const t of ['golpe . Com', 'acesse golpe .Com agora', 'Golpe . Br', 'golpe . Net', 'golpe\u2009. Com']) acha(t, 'endereço de site');
+});
+test('fix2 1: "(ponto de venda)" e afins são texto de loja; com TLD só vale a lista quando o sinal está de um lado só', () => {
+  for (const t of ['Loja física (ponto de venda)', 'Retirada no local (ponto de coleta)', 'Estamos no ponto) de ônibus']) limpo(t);
+  for (const t of ['golpe (ponto) pt', 'golpe [ponto] digital', 'golpe (ponto) net', 'golpe (ponto) com', 'golpe (ponto com', 'golpe ponto) com', 'golpe(dot)pt']) acha(t, 'endereço de site');
+  /* aceito com alarme: dos dois lados do parêntese, qualquer palavra curta é TLD */
+  acha('Nosso (ponto) de encontro', 'endereço de site');
+});
+test('fix2 2: "pontocom" colado é achado; "a bolha pontocom" fica como aceito com alarme', () => {
+  for (const t of ['acesse golpepontocom', 'golpe pontocom.', 'golpe pontobr']) acha(t, 'endereço de site');
+  acha('a bolha pontocom', 'endereço de site');
+});
+test('fix2 3: mais pontos médios de outras escritas colados viram ponto; com espaço são separador', () => {
+  for (const t of ['golpe\u1427com', 'golpe\uA78Fcom', 'golpe\u2E31com', 'golpe\u2E33com', 'golpe\u16EBcom', 'golpe\u0701com']) acha(t, 'endereço de site');
+  limpo('Café \u2E31 Almoço');
+  limpo('Clínica \u16EB Online');
+});
+test('fix2 5: letra grega só no fim de palavra latina e frase com hífens e maiúsculas (mutações sobreviventes da revisão)', () => {
+  acha('acesse golp\u0395', 'letra de outro alfabeto');   /* Épsilon grego depois de letra latina */
+  acha('TOYOT\u0391', 'letra de outro alfabeto');         /* Alfa grego depois de letra latina */
+  limpo('Passo-1-Escolha-2-Confirme-3-Pague-4-Receba-5');
+});
+test('fix2 6: domínio com TLD curto da lista de golpe, em qualquer caixa, é achado; abreviação e perfil seguem como estavam', () => {
+  for (const t of ['Golpe.Pt', 'golpe.Pt', 'golpe.pT', 'GoLpE.pT', 'Golpe.Digital', 'golpe.Bet', 'Golpe.Fr agora']) acha(t, 'endereço de site');
+  for (const t of ['Dr.Silva', 'fim.Começo', 'Fim.Ok', 'Av. Paulista']) limpo(t);
+  assert.deepEqual(tipos('Siga "@golpe.pt"'), ['perfil de rede social']);
+});
 test('regex sem backtracking catastrófico: 300 caracteres adversários (o tamanho máximo de um texto higienizado)', () => {
-  const entradas = ['a-'.repeat(150), 'a.'.repeat(150), 'A1-'.repeat(100), ' . '.repeat(100), 'ponto '.repeat(50), '9'.repeat(300), 'ΟΡ'.repeat(150), 'a@'.repeat(150), 'ç.'.repeat(150)];
+  const entradas = ['a-'.repeat(150), 'a.'.repeat(150), 'A1-'.repeat(100), ' . '.repeat(100), 'ponto '.repeat(50), '9'.repeat(300), 'ΟΡ'.repeat(150), 'a@'.repeat(150), 'ç.'.repeat(150), '(ponto '.repeat(43), 'a .'.repeat(100), 'ponto) '.repeat(43), 'a pontocom'.repeat(30)];
   for (const entrada of entradas) {
     const inicio = performance.now();
     varrer({ t: entrada });

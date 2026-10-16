@@ -20,6 +20,11 @@
    - um trecho achado sai do texto antes dos tipos seguintes: a chave AIza não vira também telefone.
    Correção da revisão da Task 7 (docs/testes/varredura-casos.test.mjs): palavra inteira em grego é achada; ponto separado,
    maiúsculo, com acento ou com emoji depois de "ponto com" também; perfil depois de aspas; .zip; chave de pedaços mistos; "CPF nº".
+   2ª correção da Task 7: TLD da lista só com a inicial maiúscula depois de espaço e ponto ("golpe . Com") volta a ser achado; "pontocom"
+   colado; mais pontos médios (ᐧ ꞏ ⸱ ⸳ ᛫ ܁); TLDs curtos de golpe em qualquer caixa ("Golpe.Pt", "golpe.pT"); "(ponto de venda)" é texto.
+   Alarmes ACEITOS (na dúvida entre achar e limpar, achar): "Av.paulista", "Seg.sex", "Cia.ltda", "Pedimos desculpas . Com isso",
+   "fim . Me ligue", "Nosso (ponto) de encontro", "a bolha pontocom" e "Corte •barba •tintura" (bolinha colada de um lado só).
+   Perda ACEITA: domínio de TLD fora da lista de golpe com inicial maiúscula e sem espaço ("Golpe.Sh"), que seria igual a "Dr.Silva".
    ========================================================================== */
 /* por propriedade Unicode, e não por lista de códigos (a lista deixava passar a marca de letra árabe, o separador mongol,
    o preenchimento hangul, as "tags" acima de U+FFFF...): Default_Ignorable_Code_Point (hífen mole, largura zero, seletores
@@ -28,9 +33,9 @@
 const INVISIVEIS = /[\p{Default_Ignorable_Code_Point}\p{Cf}\p{Cc}\p{Co}]/gu;
 /* o ponto final de outras escritas (。 U+3002, ｡ U+FF61, ． U+FF0E) vira o ponto comum: "golpe。com" é um endereço. O ponto médio
    (· U+00B7), o operador (∙ U+2219), a bolinha (• U+2022), o operador ponto (⋅ U+22C5), o ponto de hifenização (‧ U+2027) e os
-   pontos médios do japonês (・ U+30FB, ･ U+FF65) também, mas só quando colados a algo: "golpe·com" é endereço, "Clínica · Online"
+   pontos médios do japonês (・ U+30FB, ･ U+FF65) e o ponto de sílabas canadenses (ᐧ), de transcrição sinológica (ꞏ), de separador de palavras (⸱ ⸳), rúnico (᛫) e siríaco (܁) também, mas só quando colados a algo: "golpe·com" é endereço, "Clínica · Online"
    é separador */
-const PONTO_MEDIO = '[·∙•⋅‧・･]';
+const PONTO_MEDIO = '[·∙•⋅‧・･ᐧꞏ⸱⸳᛫܁]';
 const PONTOS_DISFARCADOS = new RegExp('[。｡．]|(?<!\\s)' + PONTO_MEDIO + '|' + PONTO_MEDIO + '(?!\\s)', 'g');
 const normalizar = texto => texto.replace(INVISIVEIS, '').replace(PONTOS_DISFARCADOS, '.').normalize('NFKC').replace(INVISIVEIS, '').replace(PONTOS_DISFARCADOS, '.');
 /* o alfabeto de um site brasileiro de pequeno negócio é o latino: uma letra cirílica ou armênia em qualquer lugar, ou grega
@@ -42,6 +47,7 @@ const OUTRO_ALFABETO = /[\p{Script=Cyrillic}\p{Script=Armenian}]|\p{Script=Greek
 const EMAIL = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i;
 const EMAIL_GLOBAL = new RegExp(EMAIL.source, 'gi');
 const TLDS = 'com\\.br|com|net|org|io|app|dev|site|br|xyz|co|info|store|shop|online|ai|tv|me|ly|link|biz|top|club';
+const TLDS_DE_GOLPE = 'pt|digital|bet|vip|live|click|icu|lat|cc|gg|uk|fr|ru|cn';
 /* parece ano - ano (2020-2024), não telefone fixo sem DDD */
 const DOIS_ANOS = /^(19|20)\d\d-(19|20)\d\d$/;
 
@@ -128,15 +134,23 @@ const PADROES = [
        "Golpe.pt" e seguem como alarme aceito */
     por(new RegExp(NOME_DE_DOMINIO + '\\.' + SEM_EXTENSAO(NAO_TLD) + '[a-z]{2,24}' + FIM_TLD, 'u')),
     por(new RegExp(NOME_DE_DOMINIO + '\\.' + SEM_EXTENSAO(NAO_TLD.toUpperCase()) + '[A-Z]{2,24}' + FIM_TLD, 'u')),
+    /* e os TLDs mais usados em golpe fora da lista, em qualquer caixa ("Golpe.Pt", "golpe.pT"); fechar todos por formato alarmaria "Dr.Silva"
+       e "fim.Começo". Não vão para TLDS: a linha do TLDS não respeita o @ e "@golpe.pt" deixaria de ser perfil */
+    por(new RegExp(NOME_DE_DOMINIO + '\\.(?:' + TLDS_DE_GOLPE + ')' + FIM_TLD, 'iu')),
     /* ponto com espaço antes ("golpe . pt") ou escrito entre sinais ("golpe(dot)com", "golpe[dot]net"); o TLD segue o mesmo
        critério acima, e por isso "Pedimos desculpas . Com isso" (maiúscula só na inicial) é texto */
     por(new RegExp('(?<![\\p{L}\\p{N}])[\\p{L}\\p{N}-]{2,}\\s+\\.\\s*[a-z]{2,24}' + FIM_TLD, 'u')),
     por(new RegExp('(?<![\\p{L}\\p{N}])[\\p{L}\\p{N}-]{2,}\\s+\\.\\s*[A-Z]{2,24}' + FIM_TLD, 'u')),
+    /* e a lista de TLDs em qualquer caixa ("golpe . Com", "Golpe . Br"): "Pedimos desculpas . Com isso" tem a mesma forma, e na dúvida é achado */
+    por(new RegExp('(?<![\\p{L}\\p{N}])[\\p{L}\\p{N}-]{2,}\\s+\\.\\s*(?:' + TLDS + ')' + FIM_TLD, 'iu')),
     por(/\b[a-z0-9-]+\s*[([]\s*dot\s*[)\]]\s*[a-z]{2,}/i),
-    /* "golpe ponto com", "golpe (ponto) pt": o endereço por extenso. Com sinal de um lado ou do outro, qualquer TLD (o parêntese já
-       mostra a intenção); solto, só quando o TLD fecha a frase (fim, qualquer pontuação ou símbolo, "barra" ou "ponto br"), para
-       "um ponto com desconto" e "um ponto com 10% de desconto" serem texto */
-    por(/\b[a-z0-9-]+\s*(?:[([]\s*ponto\s*[)\]]?|ponto\s*[)\]])\s*[a-z]{2,24}(?![a-z])/i),
+    /* "golpe ponto com", "golpe (ponto) pt": o endereço por extenso. Com sinal dos DOIS lados, qualquer TLD; com sinal de um lado só, a
+       lista curta (senão "(ponto de venda)", "(ponto de coleta)" e "ponto) de ônibus" alarmam); solto, só quando o TLD fecha a frase
+       (fim, qualquer pontuação ou símbolo, "barra" ou "ponto br"), para "um ponto com desconto" e "um ponto com 10% de desconto" serem
+       texto. Colado ("golpepontocom", "golpe pontobr") vale a mesma lista curta, e "a bolha pontocom" é alarme aceito */
+    por(/\b[a-z0-9-]+\s*[([]\s*ponto\s*[)\]]\s*[a-z]{2,24}(?![a-z])/i),
+    por(/\b[a-z0-9-]+\s*(?:[([]\s*ponto|ponto\s*[)\]])\s*(?:com|net|org|br|app|xyz)(?![a-z])/i),
+    por(/[\p{L}\p{N}-]\s*ponto(?:com|net|org|br|app|xyz)(?![\p{L}\p{N}])/iu),
     por(/\b[a-z0-9-]+\s+ponto\s+(?:com|net|org|br|app|xyz)(?=\s*(?:$|[^\p{L}\p{N}\s]|barra\b|ponto\s+br\b))/iu)
   ], false],
   ['caminho de arquivo', [
