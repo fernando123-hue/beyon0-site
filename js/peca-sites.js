@@ -80,7 +80,10 @@
   function num(v, casas) { return B.num ? B.num(v, casas) : v.toFixed(casas).replace('.', ','); }
   /* o container do CSS mede o miolo: a borda da moldura (1 px de tela) fica de fora; sem descontar, entre 600–603,
      760–763 e 900–903 o JS dizia uma faixa e o CSS mostrava outra, e o pulo do layout saía sem deslize (revisão) */
-  function miolo(w) { return w - 2 * (parseFloat(moldura.style.borderWidth) || 0); }
+  /* a borda que o navegador usou (ele arredonda a pedida para pixel físico); lida só quando muda, em espessuras() */
+  var borda = parseFloat(getComputedStyle(moldura).borderLeftWidth) || 0;
+  var faixaAplicada = -1, disposicaoAplicada = -1;
+  function miolo(w) { return w - 2 * borda; }
   function faixa(w) { var m = miolo(w); return m < 600 ? 0 : m < 900 ? 1 : 2; }
   /* o layout do site de exemplo tem um corte a mais que a faixa (760: duas colunas viram uma); o deslize segue o
      layout, a faixa segue o aria, o is-celular e as paradas */
@@ -120,6 +123,7 @@
     moldura.style.borderWidth = fio;
     moldura.style.setProperty('--fio', fio);
     luz.style.height = fio; luzV.style.width = fio;
+    borda = parseFloat(getComputedStyle(moldura).borderLeftWidth) || 0;
   }
   function medir() { return [].map.call(flips, function (el) { return el.getBoundingClientRect(); }); }
   function deslizar(antes) {
@@ -138,15 +142,16 @@
   function aplicar(w, animar, anunciar) {
     w = Math.round(Math.max(MIN, Math.min(MAX, w)));
     if (w === largura && !anunciar) return;
-    var cruzou = faixa(w) !== faixa(largura);
-    var mudou = disposicao(w) !== disposicao(largura);
-    var antes = mudou && animar && !reduzido() ? medir() : null;
+    var antes = disposicao(w) !== disposicaoAplicada && animar && !reduzido() ? medir() : null;
     largura = w;
     moldura.style.width = w + 'px';
     moldura.style.height = altura(w) + 'px';
-    if (cruzou || anunciar) moldura.classList.toggle('is-celular', faixa(w) === 0);
     encaixar();
-    if (cruzou || anunciar) espessuras();
+    /* a borda nova (da escala nova) antes de decidir a faixa: classe, aria e paradas leem a mesma conta */
+    if (faixa(w) !== faixaAplicada || anunciar) espessuras();
+    var fx = faixa(w), cruzou = fx !== faixaAplicada;
+    if (cruzou || anunciar) moldura.classList.toggle('is-celular', fx === 0);
+    faixaAplicada = fx; disposicaoAplicada = disposicao(w);
     if (antes) deslizar(antes);
     var x = posicao(w);
     cursor.style.transform = 'translateX(' + x.toFixed(1) + 'px)';
@@ -159,7 +164,7 @@
     slider.setAttribute('aria-valuenow', String(w));
     if (cruzou || anunciar) {
       slider.setAttribute('aria-valuetext', nomeDaFaixa(w) + ', ' + w + ' pixels' + (sua ? ', a largura da sua tela' : ''));
-      [].forEach.call(paradas, function (p) { p.setAttribute('aria-pressed', String(+p.getAttribute('data-parada') === PARADA_DA_FAIXA[faixa(w)])); });
+      [].forEach.call(paradas, function (p) { p.setAttribute('aria-pressed', String(+p.getAttribute('data-parada') === PARADA_DA_FAIXA[fx])); });
     }
   }
 
