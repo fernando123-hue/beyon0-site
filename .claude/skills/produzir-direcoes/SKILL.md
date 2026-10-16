@@ -34,7 +34,7 @@ O briefing foi escrito a partir do que um desconhecido digitou. Por isso, **esta
 - O comando `pedido` do dono imprime a linha que abre esta sessão: `claude --restricted --permission-mode dontAsk ...`, na pasta do pedido.
 - Nela, tudo o que não está liberado é negado sem perguntar:
   - ler fora da pasta, internet e MCP: negados;
-  - Bash: só o `conferir`, pela linha `node ./.conferir.mjs ./<estrategia>.json <estrategia>`. O Claude Code nega, nesse modo, comando que cita caminho fora da pasta; por isso a pasta traz a partida `.conferir.mjs`, que chama o script do projeto, e uma guarda libera só essa linha exata (uma lista do que é permitido, porque comandos de "só leitura" como `nl` e `rg` escapam de proibições);
+  - Bash: nenhum. Esta sessão NÃO tem terminal. É assim porque, no Windows, a guarda por hook pode não abrir ("fork: Permission denied") e deixar o comando passar, e comandos de "só leitura" como `nl` e `rg` escapam de proibições;
   - escrita: só nos 3 arquivos de direção, na pasta do pedido.
 - Se você estiver numa sessão com internet, com MCP ou com acesso ao repositório, você NÃO está na sessão isolada: pare e peça ao dono que abra a sessão pela linha do `pedido`.
 - Se `PAINEL_CHAVE` aparecer no seu ambiente ou numa mensagem, **pare** e peça ao dono que rode os comandos no terminal dele.
@@ -57,8 +57,8 @@ O briefing foi escrito a partir do que um desconhecido digitou. Por isso, **esta
    - Zero invenção: depoimento, número, prêmio ou cliente que não vieram do briefing viram espaço reservado entre colchetes.
    - Onde o briefing tiver `[nome]`, `[telefone]` ou `[e-mail]`, o dado do cliente foi apagado de propósito. Não tente adivinhar.
    - Grave **na mesma pasta do `pedido.json`**: `conversao.json`, `autoridade.json` e `experiencia.json`. Os nomes têm de ser exatamente esses.
-5. **Confira cada arquivo** rodando o `conferir` com a linha exata das instruções desta sessão (bloco "Nesta sessão isolada"). É o mesmo filtro do servidor e não precisa de chave.
-   - Se vier recusada, corrija e confira de novo.
+5. **Releia cada arquivo** e avise o dono que terminou. Esta sessão não tem terminal, então não confere por comando: o dono, se quiser olhar antes de entregar, roda no terminal dele `node "<repo>/scripts/direcoes.mjs" conferir "<pasta do pedido>/<estrategia>.json" <estrategia>` (o mesmo filtro e a mesma varredura do servidor), e o `entregar-pedido` confere tudo de qualquer jeito.
+   - Se o dono devolver uma recusa, corrija o arquivo.
    - Se o filtro corrigir o contraste, repense a paleta.
 6. **Mostre ao dono** o nome do conceito, o resumo e a paleta de cada uma das 3. Se ele quiser ver uma prévia, é ele quem a abre, fora desta sessão.
 7. Com o "pode entregar" dele, diga para ele rodar `entregar-pedido` no terminal dele. O `entregar-pedido` varre os textos (URL, caminho, chave, e-mail, telefone, caractere invisível), mostra tudo ao dono e só entrega depois de ele digitar o código `ENTREGAR-XXXX` mostrado na tela. Depois ele abre o painel, em "Direções na fila", toca em **"Avisar no WhatsApp"** e depois em **"Já avisei"**, que conclui o pedido e o tira da fila.
@@ -71,7 +71,7 @@ As pastas de pedidos esquecidos são apagadas pelo DONO, no terminal dele, com `
 
 - Ter a chave do painel nesta sessão ou rodar comandos que a usam.
 - Mandar ou colar o nome, o telefone ou o e-mail do cliente.
-- Rodar outro comando além do `conferir` (na forma exata das instruções desta sessão) durante a produção, ou ler arquivo fora da pasta do pedido.
-- Entregar sem passar por `conferir` e sem o "pode entregar" do dono.
+- Tentar rodar comando (esta sessão não tem terminal), ou ler arquivo fora da pasta do pedido.
+- Entregar sem o "pode entregar" do dono (o `entregar-pedido` confere filtro e varredura antes).
 - Inventar fato sobre o negócio do cliente.
 - Ligar ou desligar `BZ_DIRECOES`, mexer em produção ou em segredos: isso é com o dono.

@@ -579,7 +579,7 @@ test('confirmação: só a resposta exata ao código sorteado vale; vazio, palav
 
 /* PR 2b-1 (spec §4): a sessão que lê o briefing roda numa lista do que é PERMITIDO: sem rede, sem MCP, Bash só para o
    conferir, escrita só na pasta do pedido, leitura fora da pasta recusada */
-test('sessão isolada: settings em dontAsk, só o conferir no Bash, sem rede e sem ler fora da pasta; o comando usa --restricted', async () => {
+test('sessão isolada: settings em dontAsk, SEM Bash, sem rede e sem ler fora da pasta; o comando usa --restricted', async () => {
   const { configSessao, caminhoClaude, comandoSessao } = await import('../../scripts/sessao-isolada.mjs');
   assert.equal(caminhoClaude('C:\\Vault - Fernando\\Beyon Zero\\x'), '//c/Vault - Fernando/Beyon Zero/x');
   const c = configSessao({ repo: 'C:\\Vault - Fernando\\Beyon Zero\\03 Projetos\\site' });
@@ -588,15 +588,15 @@ test('sessão isolada: settings em dontAsk, só o conferir no Bash, sem rede e s
   assert.equal(c.permissions.disableBypassPermissionsMode, 'disable');
   /* revisão de segurança: NÃO é Edit(./**). A sessão gravava ./scripts/direcoes.mjs na pasta do pedido e o dono, de dentro
      dela, rodava "node scripts/direcoes.mjs entregar-pedido" (caminho relativo) com a chave: executava o arquivo plantado */
-  assert.deepEqual(c.permissions.allow, ['Edit(./conversao.json)', 'Edit(./autoridade.json)', 'Edit(./experiencia.json)', 'Bash(node ./.conferir.mjs *)'], 'nada além de gravar as 3 direções e conferir pela partida');
-  /* ensaio real: o Claude Code NEGA, no dontAsk, comando que cita caminho fora da pasta de trabalho (o do script do
-     repositório), com regra ou sem. Por isso o conferir da sessão é a partida ./.conferir.mjs, que importa o script por URL;
-     a guarda (hook PreToolUse) é a lista do que é permitido, porque "só leitura" como nl e rg escapa de proibições */
-  assert.deepEqual(c.hooks, { PreToolUse: [{ matcher: 'Bash', hooks: [{ type: 'command', command: 'node "C:/Vault - Fernando/Beyon Zero/03 Projetos/site/scripts/guarda-sessao.mjs" || exit 2' }] }] });
-  assert.ok(c.hooks.PreToolUse[0].hooks[0].command.endsWith(' || exit 2'), 'guarda que falha (script sumiu, node não achado) tem de BLOQUEAR: só a saída 2 bloqueia');
-  for (const r of ['WebFetch', 'WebSearch', 'mcp__*', 'Edit(./.sessao.json)', 'Edit(./.conferir.mjs)', 'Edit(./.instrucoes.md)', 'Edit(./pedido.json)', 'Edit(./scripts/**)','Read(//c/Vault - Fernando/Beyon Zero/03 Projetos/site/**)', 'Bash(cat *)', 'Bash(curl *)', 'Bash(node -e *)'])
+  assert.deepEqual(c.permissions.allow, ['Edit(./conversao.json)', 'Edit(./autoridade.json)', 'Edit(./experiencia.json)'], 'só gravar as 3 direções: nada de Bash');
+  /* ensaio real: a sessão fica SEM Bash. Nesta máquina o Windows às vezes nem abre o processo do hook da guarda ("fork:
+     Permission denied", código 254), o '|| exit 2' não roda e o comando passa; e comandos de "só leitura" (nl, rg) passam
+     pelas regras mesmo no dontAsk. Uma guarda que depende de abrir um processo não é fronteira: sem Bash, sem hook */
+  assert.equal(c.hooks, undefined, 'sem hook de guarda');
+  assert.ok(!c.permissions.allow.some(r => /Bash/.test(r)), 'nenhum Bash liberado');
+  for (const r of ['WebFetch', 'WebSearch', 'mcp__*', 'Bash', 'Edit(./.sessao.json)', 'Edit(./.instrucoes.md)', 'Edit(./pedido.json)', 'Edit(./scripts/**)', 'Read(//c/Vault - Fernando/Beyon Zero/03 Projetos/site/**)', 'Read(~/.claude/**)', 'Read(~/.ssh/**)', 'Read(~/.config/**)'])
     assert.ok(c.permissions.deny.includes(r), 'deny sem ' + r);
-  assert.ok(!c.permissions.allow.some(r => /fila|pedido|entregar|limpar/.test(r)), 'os comandos com a chave do painel nunca ficam liberados');
+  assert.ok(!c.permissions.deny.includes('Edit(./.conferir.mjs)') && !c.permissions.deny.some(r => /^Bash\(/.test(r)), 'sem as listas de Bash: a ferramenta inteira é negada');
   const cmd = comandoSessao({ pasta: 'C:\\Users\\x\\BeyonZero-direcoes\\1234abcd', settings: 'C:\\Users\\x\\BeyonZero-direcoes\\1234abcd\\.sessao.json', instrucoes: 'C:\\Users\\x\\BeyonZero-direcoes\\1234abcd\\.instrucoes.md' });
   assert.ok(!cmd.includes('Set-Location'), 'Set-Location deixaria o PowerShell do dono dentro da pasta do pedido');
   /* a ordem importa: entra na pasta; guarda a chave e o endereço e tira os dois do ambiente ANTES do claude; ao sair (mesmo com
@@ -609,13 +609,14 @@ test('sessão isolada: settings em dontAsk, só o conferir no Bash, sem rede e s
   let pos = -1;
   for (const parte of ordem) { const i = cmd.indexOf(parte, pos + 1); assert.ok(i > pos, 'fora de ordem ou ausente: ' + parte + ' em ' + cmd); pos = i; }
   assert.ok(cmd.endsWith(' }'), 'o finally fecha a linha');
-  for (const parte of ['--restricted', '--permission-mode dontAsk', '--strict-mcp-config', "--tools 'Read,Edit,Write,Bash'", "--disallowedTools 'WebFetch' 'WebSearch' 'mcp__*'", "--settings 'C:\\Users\\x\\BeyonZero-direcoes\\1234abcd\\.sessao.json'", "--append-system-prompt-file 'C:\\Users\\x\\BeyonZero-direcoes\\1234abcd\\.instrucoes.md'"])
+  for (const parte of ['--restricted', '--permission-mode dontAsk', '--strict-mcp-config', "--tools 'Read,Edit,Write'", "--disallowedTools 'WebFetch' 'WebSearch' 'mcp__*' 'Bash'", "--settings 'C:\\Users\\x\\BeyonZero-direcoes\\1234abcd\\.sessao.json'", "--append-system-prompt-file 'C:\\Users\\x\\BeyonZero-direcoes\\1234abcd\\.instrucoes.md'"])
     assert.ok(cmd.includes(parte), 'comando sem ' + parte + ': ' + cmd);
+  assert.ok(!/--tools '[^']*Bash/.test(cmd), 'Bash não está nas ferramentas: ' + cmd);
 });
 
 /* revisão da Tarefa 2: a instrução que a sessão lê tem de bater com o que o allow libera, senão ela erra o caminho do
    conferir e fica sem conseguir conferir (o dontAsk nega a forma relativa) */
-test('sessão isolada: as instruções trazem a linha EXATA do conferir, que casa com o allow; o deny cobre a configuração do Claude Code; o prompt é ASCII', async () => {
+test('sessão isolada: as instruções não têm comando (a sessão não tem terminal); o deny cobre a configuração do Claude Code; o prompt é ASCII', async () => {
   const { configSessao, instrucoesSessao, comandoSessao } = await import('../../scripts/sessao-isolada.mjs');
   const repo = 'C:\\Vault - Fernando\\Beyon Zero\\03 Projetos\\site';
   const c = configSessao({ repo });
@@ -623,17 +624,13 @@ test('sessão isolada: as instruções trazem a linha EXATA do conferir, que cas
   assert.ok(texto.startsWith('# SKILL\ncorpo da skill\n'), 'o texto da SKILL vem primeiro');
   assert.ok(texto.includes('## Nesta sessão isolada'));
   assert.ok(texto.includes('`./pedido.json`') && texto.includes('`./conversao.json`, `./autoridade.json` e `./experiencia.json`'));
-  const linha = 'node ./.conferir.mjs ./<estrategia>.json <estrategia>';
-  assert.ok(texto.includes('`' + linha + '`'), 'a linha exata, pela partida da pasta');
-  /* e a guarda aceita a linha das instruções, para as 3 estratégias */
-  const { decidirGuarda } = await import('../../scripts/guarda-sessao.mjs');
-  for (const e of ['conversao', 'autoridade', 'experiencia'])
-    assert.equal(decidirGuarda({ tool_name: 'Bash', tool_input: { command: linha.replace(/<estrategia>/g, e) } }).codigo, 0, 'a guarda barra a linha das instruções para ' + e);
-  /* a regra do allow vira um prefixo (Bash(<x> *) -> <x>) e a linha do texto, trocada a estratégia, tem de começar por ele */
-  const regra = c.permissions.allow.find(r => r.startsWith('Bash('));
-  const prefixo = regra.slice('Bash('.length, -' *)'.length);
-  for (const e of ['conversao', 'autoridade', 'experiencia'])
-    assert.ok(linha.replace(/<estrategia>/g, e).startsWith(prefixo + ' '), 'a linha do texto não casa com o allow para ' + e);
+  /* sem terminal: o bloco diz o que fazer e o que NÃO há, e não traz comando nenhum */
+  const bloco = texto.slice(texto.indexOf('## Nesta sessão isolada'));
+  assert.ok(bloco.includes('seguindo `instrucoes.sistema` e `instrucoes.esquema`'));
+  assert.ok(bloco.includes('NÃO tem terminal nem internet') && bloco.includes('não lê nada fora desta pasta'));
+  assert.ok(bloco.includes('avise o dono: ele confere e entrega pelo terminal dele (filtro, varredura, leitura e código sorteado)'));
+  assert.ok(!bloco.includes('node ') && !bloco.includes('conferir'), 'nenhum comando no bloco: ' + bloco);
+  assert.deepEqual(c.permissions.allow.filter(r => !r.startsWith('Edit(./')), [], 'o allow só tem os Edit dos 3 JSON');
   for (const r of ['Edit(./.claude/**)', 'Edit(./CLAUDE.md)', 'Edit(./CLAUDE.local.md)', 'Edit(./.mcp.json)'])
     assert.ok(c.permissions.deny.includes(r), 'deny sem ' + r);
   const cmd = comandoSessao({ pasta: 'C:\\p', settings: 'C:\\p\\.sessao.json', instrucoes: 'C:\\p\\.instrucoes.md' });
@@ -678,20 +675,19 @@ test('prepararPastaSessao: grava settings e instruções, apaga configuração p
     const dir = path.join(base, 'pedido');
     fs.mkdirSync(path.join(dir, '.claude'), { recursive: true });
     fs.writeFileSync(path.join(dir, '.claude', 'settings.json'), '{"hooks":{}}');
-    for (const n of ['CLAUDE.md', 'CLAUDE.local.md', '.mcp.json']) fs.writeFileSync(path.join(dir, n), 'plantado');
+    for (const n of ['CLAUDE.md', 'CLAUDE.local.md', '.mcp.json', '.conferir.mjs']) fs.writeFileSync(path.join(dir, n), 'plantado');
     fs.writeFileSync(path.join(dir, 'pedido.json'), '{}');
     const r = prepararPastaSessao({ dir, repo });
     assert.equal(r.settings, path.join(dir, '.sessao.json'));
     assert.equal(r.instrucoes, path.join(dir, '.instrucoes.md'));
-    for (const n of ['.claude', 'CLAUDE.md', 'CLAUDE.local.md', '.mcp.json']) assert.ok(!fs.existsSync(path.join(dir, n)), n + ' devia ter sido apagado');
+    for (const n of ['.claude', 'CLAUDE.md', 'CLAUDE.local.md', '.mcp.json', '.conferir.mjs']) assert.ok(!fs.existsSync(path.join(dir, n)), n + ' devia ter sido apagado');
     assert.ok(fs.existsSync(path.join(dir, 'pedido.json')), 'o pedido.json fica');
     assert.equal(JSON.parse(fs.readFileSync(r.settings, 'utf8')).permissions.defaultMode, 'dontAsk');
     const texto = fs.readFileSync(r.instrucoes, 'utf8');
     assert.ok(texto.startsWith('# SKILL de teste'));
-    assert.ok(texto.includes('node ./.conferir.mjs ./<estrategia>.json <estrategia>'), 'a linha exata do conferir');
-    const { partidaConferir } = await import('../../scripts/sessao-isolada.mjs');
-    assert.equal(r.partida, path.join(dir, '.conferir.mjs'));
-    assert.equal(fs.readFileSync(r.partida, 'utf8'), partidaConferir(repo), 'a partida é a gerada pelo repositório, com conteúdo fixo');
+    assert.ok(!texto.includes('node '), 'sem comando nas instruções');
+    assert.ok(!fs.existsSync(path.join(dir, '.conferir.mjs')), 'a partida do conferir não existe mais (e a antiga foi apagada)');
+    assert.equal(r.partida, undefined);
     /* sem a SKILL: erro claro e NADA gravado nem apagado */
     const dir2 = path.join(base, 'pedido2');
     fs.mkdirSync(dir2);
@@ -774,8 +770,12 @@ test('entregar: a pasta do pedido com arquivo fora da lista (um scripts/direcoes
     const dirs = ['conversao', 'autoridade', 'experiencia'].map((estrategia, i) => ({ id: 'aaaaaaaa-0000-4000-8000-00000000000' + (i + 1), estrategia, status: 'gerando' }));
     fs.writeFileSync(path.join(pasta, 'pedido.json'), JSON.stringify({ direcoes: dirs }));
     for (const e of ['conversao', 'autoridade', 'experiencia']) fs.writeFileSync(path.join(pasta, e + '.json'), JSON.stringify(direcao()));
-    for (const n of ['.sessao.json', '.instrucoes.md', '.conferir.mjs']) fs.writeFileSync(path.join(pasta, n), 'x');
+    for (const n of ['.sessao.json', '.instrucoes.md']) fs.writeFileSync(path.join(pasta, n), 'x');
     assert.equal(planejarEntrega(pasta).length, 3, 'só os arquivos do pedido: segue');
+    /* a partida do conferir saiu: se sobrou uma (pasta de antes), a entrega a trata como arquivo estranho */
+    fs.writeFileSync(path.join(pasta, '.conferir.mjs'), 'x');
+    assert.throws(() => planejarEntrega(pasta), /\(\.conferir\.mjs\)/);
+    fs.rmSync(path.join(pasta, '.conferir.mjs'));
     fs.mkdirSync(path.join(pasta, 'scripts'));
     fs.writeFileSync(path.join(pasta, 'scripts', 'direcoes.mjs'), 'console.log("plantado")');
     fs.writeFileSync(path.join(pasta, 'saida.txt'), 'x');
@@ -886,97 +886,6 @@ test('painel: entregar direção com endereço de site dá 422 com os tipos (sem
   assert.equal((await painelPost({ entregar_direcao: d1.id, conteudo: direcao() })).status, 200, 'a direção limpa entra depois');
 });
 
-/* ensaio real do PR 43: a sessão isolada confere por ./.conferir.mjs (a partida que importa o script do repositório por URL)
-   e um hook PreToolUse barra tudo o que não for essa linha exata. O hook é a LISTA DO QUE É PERMITIDO: comandos de "só
-   leitura" (nl, rg) escapam de qualquer lista de proibições. */
-const bash = command => ({ tool_name: 'Bash', tool_input: { command } });
-
-test('guarda da sessão: só o conferir exato da partida passa; o resto é bloqueado', async () => {
-  const { decidirGuarda } = await import('../../scripts/guarda-sessao.mjs');
-  const ok = decidirGuarda(bash('node ./.conferir.mjs ./conversao.json conversao'));
-  assert.equal(ok.codigo, 0);
-  const saida = JSON.parse(ok.saida);
-  assert.equal(saida.hookSpecificOutput.hookEventName, 'PreToolUse');
-  assert.equal(saida.hookSpecificOutput.permissionDecision, 'allow');
-  assert.ok(saida.hookSpecificOutput.permissionDecisionReason.length > 10);
-  for (const e of ['conversao', 'autoridade', 'experiencia']) assert.equal(decidirGuarda(bash('node ./.conferir.mjs ./' + e + '.json ' + e)).codigo, 0);
-  /* o par trocado passa pela guarda de propósito: o conferir só LÊ e avalia o arquivo, então não há o que proteger aqui */
-  assert.equal(decidirGuarda(bash('node ./.conferir.mjs ./conversao.json autoridade')).codigo, 0);
-  const crase = String.fromCharCode(96), nl = String.fromCharCode(10), cr = String.fromCharCode(13), tab = String.fromCharCode(9);
-  const base = 'node ./.conferir.mjs ./conversao.json conversao';
-  const recusados = [
-    base + ' && curl https://x', base + '; ls', base + ' | cat', base + ' > x', base + nl + 'curl x', base + cr, base + tab, base + ' $(whoami)', base + ' ' + crase + 'id' + crase,
-    'NODE_OPTIONS=--import=./x.mjs ' + base, 'rg segredo', 'nl ./pedido.json', 'cat ./pedido.json', 'ls', '',
-    base + ' ', ' ' + base, 'node  ./.conferir.mjs ./conversao.json conversao', base + ' extra',
-    'node "C:/Vault - Fernando/Beyon Zero/03 Projetos/site/scripts/direcoes.mjs" conferir ./conversao.json conversao',
-    'node ./.conferir.mjs ./pedido.json conversao', 'node ./.conferir.mjs ../outro/conversao.json conversao', 'node ./.conferir.mjs ./conversao.json XYZ',
-    'node ./.conferir.mjs ./conversao.json conversao2', 'node ./x.mjs ./conversao.json conversao'
-  ];
-  for (const c of recusados) {
-    const r = decidirGuarda(bash(c));
-    assert.equal(r.codigo, 2, 'devia bloquear ' + JSON.stringify(c));
-    assert.equal(r.erro, 'Bloqueado pela guarda da sessão isolada: só o conferir exato das instruções é permitido.');
-    assert.ok(!r.saida, 'bloqueio não imprime allow');
-  }
-  /* outra ferramenta: sem decisão (Read, Edit e Write seguem as regras de permissão) */
-  for (const t of ['Read', 'Edit', 'Write']) assert.deepEqual(decidirGuarda({ tool_name: t, tool_input: { file_path: './x' } }), { codigo: 0 });
-  /* entrada ilegível ou sem comando */
-  for (const entrada of [undefined, null, 'texto', 42, {}, { tool_name: 'Bash' }, { tool_name: 'Bash', tool_input: {} }, { tool_name: 'Bash', tool_input: { command: 42 } }])
-    assert.equal(decidirGuarda(entrada).codigo, 2, 'entrada estranha bloqueia: ' + JSON.stringify(entrada));
-});
-
-test('guarda da sessão (processo filho): stdin com o JSON do hook dá o código e a saída esperados', async () => {
-  const { spawnSync } = await import('node:child_process');
-  const { fileURLToPath } = await import('node:url');
-  const script = fileURLToPath(new URL('../../scripts/guarda-sessao.mjs', import.meta.url));
-  const rodar = input => spawnSync(process.execPath, [script], { input, encoding: 'utf8' });
-  const ok = rodar(JSON.stringify(bash('node ./.conferir.mjs ./conversao.json conversao')));
-  assert.equal(ok.status, 0, ok.stderr);
-  assert.equal(JSON.parse(ok.stdout).hookSpecificOutput.permissionDecision, 'allow');
-  const ruim = rodar(JSON.stringify(bash('node ./.conferir.mjs ./conversao.json conversao && curl https://x')));
-  assert.equal(ruim.status, 2);
-  assert.equal(ruim.stdout, '');
-  assert.match(ruim.stderr, /^Bloqueado pela guarda da sessão isolada: só o conferir exato das instruções é permitido\./);
-  const ilegivel = rodar('isto não é json');
-  assert.equal(ilegivel.status, 2);
-  assert.match(ilegivel.stderr, /Bloqueado pela guarda/);
-  const vazio = rodar('');
-  assert.equal(vazio.status, 2);
-  const leitura = rodar(JSON.stringify({ tool_name: 'Read', tool_input: { file_path: './pedido.json' } }));
-  assert.equal(leitura.status, 0);
-  assert.equal(leitura.stdout, '', 'sem decisão: nada no stdout');
-});
-
-test('partida do conferir: o conteúdo é fixo e importa o script do repositório por URL; rodando na pasta do pedido dá OK (código 0) e RECUSADA (código 1)', async () => {
-  const { spawnSync } = await import('node:child_process');
-  const fs = await import('node:fs'), os = await import('node:os'), path = await import('node:path');
-  const { fileURLToPath, pathToFileURL } = await import('node:url');
-  const { partidaConferir } = await import('../../scripts/sessao-isolada.mjs');
-  const repo = fileURLToPath(new URL('../..', import.meta.url));
-  const conteudo = partidaConferir(repo);
-  assert.ok(conteudo.includes(pathToFileURL(path.join(repo, 'scripts', 'direcoes.mjs')).href), 'a URL file:/// do scripts/direcoes.mjs');
-  assert.ok(conteudo.includes('executarConferir(arquivo, estrategia)') && conteudo.includes('process.argv.slice(2)'));
-  const home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'bz-partida-')));
-  try {
-    const pedido = path.join(home, 'BeyonZero-direcoes', '1234abcd');
-    fs.mkdirSync(pedido, { recursive: true });
-    fs.writeFileSync(path.join(pedido, '.conferir.mjs'), conteudo);
-    fs.writeFileSync(path.join(pedido, 'conversao.json'), JSON.stringify(direcao()));
-    const env = { ...process.env, HOME: home, USERPROFILE: home };
-    const rodar = () => spawnSync(process.execPath, ['./.conferir.mjs', './conversao.json', 'conversao'], { cwd: pedido, env, encoding: 'utf8' });
-    const ok = rodar();
-    assert.equal(ok.status, 0, ok.stdout + ok.stderr);
-    assert.match(ok.stdout, /^OK/);
-    fs.writeFileSync(path.join(pedido, 'conversao.json'), '{ quebrado');
-    const ruim = rodar();
-    assert.equal(ruim.status, 1);
-    assert.equal(ruim.stdout.trim(), 'RECUSADA: o arquivo não é um JSON de direção válido.');
-    const fora = spawnSync(process.execPath, ['./.conferir.mjs', '../conversao.json', 'conversao'], { cwd: pedido, env, encoding: 'utf8' });
-    assert.equal(fora.status, 1);
-    assert.match(fora.stdout, /^RECUSADA: Só confiro/);
-  } finally { fs.rmSync(home, { recursive: true, force: true }); }
-});
-
 test('executarConferir: a mesma lógica do comando, devolvendo { ok, linha } sem repetir o conteúdo do arquivo', async () => {
   const { executarConferir } = await import('../../scripts/direcoes.mjs');
   const fs = await import('node:fs'), os = await import('node:os'), path = await import('node:path');
@@ -999,25 +908,4 @@ test('executarConferir: a mesma lógica do comando, devolvendo { ok, linha } sem
     assert.equal(fora.ok, false);
     assert.equal(fora.linha, 'RECUSADA: Só confiro conversao.json, autoridade.json ou experiencia.json dentro da pasta de um pedido.');
   } finally { fs.rmSync(raiz, { recursive: true, force: true }); }
-});
-
-/* 3ª rodada: a URL da partida entra no código gerado como literal JSON; um repositório com aspa simples no caminho
-   (O'Brien) não pode quebrar o arquivo */
-test('partidaConferir: caminho do repositório com aspa simples gera JavaScript válido com a URL certa', async () => {
-  const { spawnSync } = await import('node:child_process');
-  const fs = await import('node:fs'), os = await import('node:os'), path = await import('node:path');
-  const { pathToFileURL } = await import('node:url');
-  const { partidaConferir } = await import('../../scripts/sessao-isolada.mjs');
-  const repo = path.join(os.tmpdir(), "O'Brien", 'site');
-  const conteudo = partidaConferir(repo);
-  const url = pathToFileURL(path.join(repo, 'scripts', 'direcoes.mjs')).href;
-  assert.ok(url.includes("O'Brien"), 'o caso de teste tem mesmo a aspa na URL: ' + url);
-  assert.ok(conteudo.includes(JSON.stringify(url)), 'a URL certa, como literal JSON');
-  const pasta = fs.mkdtempSync(path.join(os.tmpdir(), 'bz-sintaxe-'));
-  try {
-    const arquivo = path.join(pasta, 'partida.mjs');
-    fs.writeFileSync(arquivo, conteudo);
-    const r = spawnSync(process.execPath, ['--check', arquivo], { encoding: 'utf8' });
-    assert.equal(r.status, 0, 'sintaxe inválida: ' + r.stderr);
-  } finally { fs.rmSync(pasta, { recursive: true, force: true }); }
 });
