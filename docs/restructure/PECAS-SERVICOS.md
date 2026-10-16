@@ -300,6 +300,25 @@ entrada + demo + arraste, 3 rodadas, antes = HEAD servido por rota): tarefas lon
   de 320 a 1440 px. Quadros em 390 e 1440 conferidos a olho (o tempo no canto não colide nem com a demonstração em
   andamento).
 
+**Passagem 2026-10-16 (noite, 7ª) — revisões publicadas, corpo do #44 com a evidência, `verificar` só com ruído:**
+- **`verificar` (código de `d702588`)**, duas rodadas com o processador em 100% (processos do sistema; o fork do Git
+  Bash falhava a cada poucos comandos): nas duas, todos os 22 alvos sem preso, sem rolagem lateral, WhatsApp, campo,
+  console, travessias e medições OK. Só LCP falhou, e em alvos diferentes por rodada (1ª: `automacao` 41 s; 2ª:
+  `sites` 21 s, `resumo` 4,4 s, `autom-320` 7,7 s), todos verdes na outra; Automação e resumo não mudam na branch.
+  **Falta uma rodada limpa com a máquina livre antes de mesclar.**
+- **Revisão curta do `d702588`** (agente `code-reviewer`): APROVAR, sem achado de correção. BAIXO feito em `8538462`:
+  gesto `arrastar` em `interromper.mjs` (o ramo `dx > 8` não tinha teste) — vermelho sem o `largarDeslize()` desse ramo
+  (`parou em 1380`), verde 5/5; cabeçalho diz o limite dos ponteiros sintéticos. BAIXOS não feitos: caminho fixo do
+  Chromium (os 13 scripts de `docs/pecas/` usam o mesmo) e a checagem da pergunta só por `!hidden`.
+- **Publicado no #44:** revisão curta do `2a34d4d` (#issuecomment-6223428748), revisão do `d702588`
+  (#issuecomment-6223430811); corpo editado com links das três revisões, os três vermelhos (clique 705→630,
+  Plantão 0/4→4/4, arrasto 1380→verde), `clique.mjs`/`interromper.mjs`, acessibilidade 24 e o `verificar` acima.
+  Prévia da branch: https://beyon0-site-git-pecas-servicos-beyond0.vercel.app.
+- **Próximo passo exato:** (1) ler o CI do head `8538462` (`mcp__ccd_pr__get_status`; o portão de evidência deve
+  passar agora); (2) `verificar` limpo quando a CPU baixar (medir antes com `Get-CimInstance Win32_Processor`) e
+  atualizar a linha de Regressão do corpo; (3) dono vê a prévia no celular, decide achado 4 e J2–J5; (4) trazer a
+  `main` (5f11339, 0 à frente), tirar do rascunho, mesclar.
+
 **Passagem 2026-10-16 (noite, 6ª) — provas do `2a34d4d` feitas, revisão curta feita, Plantão corrigido:**
 - **Clique (MÉDIO) provado:** `docs/pecas/clique.mjs` com o código de antes (`3cf763c`, servido de uma worktree
   temporária na 8896): `FALHA clique de 80 ms: parou em 705 (clicado ≈ 630)`; com `2a34d4d`: 630/630/630 nos 3.
