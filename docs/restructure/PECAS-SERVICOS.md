@@ -300,6 +300,37 @@ entrada + demo + arraste, 3 rodadas, antes = HEAD servido por rota): tarefas lon
   de 320 a 1440 px. Quadros em 390 e 1440 conferidos a olho (o tempo no canto não colide nem com a demonstração em
   andamento).
 
+**Passagem 2026-10-16 (noite, 6ª) — provas do `2a34d4d` feitas, revisão curta feita, Plantão corrigido:**
+- **Clique (MÉDIO) provado:** `docs/pecas/clique.mjs` com o código de antes (`3cf763c`, servido de uma worktree
+  temporária na 8896): `FALHA clique de 80 ms: parou em 705 (clicado ≈ 630)`; com `2a34d4d`: 630/630/630 nos 3.
+  (A prévia antiga da Vercel não serve de vermelho: não mostra `.planta__slider` ao headless.)
+- Com `2a34d4d`: unidade 394/394; acessibilidade 24 OK; CI do #44 9 verdes, 1 falha = só o portão de evidência.
+- **Revisão curta do `2a34d4d`** (agente `code-reviewer`, NÃO publicada ainda no #44): APROVAR COM AJUSTES. ALTO e
+  MÉDIO resolvidos, sem regressão em pointercancel/clique duplo/teclado. Ajustes: rodar `clique.mjs` (feito acima);
+  BAIXO Plantão (abaixo, corrigido); BAIXO regex do nome com invisíveis crus (corrigido: escapes + U+061C);
+  BAIXO opcionais não feitos: `clique.mjs` lê MIN/MAX fixos 360/1440; `acessibilidade.mjs:44` não confere o valor
+  depois do `mouse.up()`.
+- **Plantão corrigido** (commit desta passagem): mexer na régua no meio do deslize de entrada matava a 1ª pergunta
+  (o `cancelAnimationFrame` pulava o `fim`), e rolar a página com o dedo por cima da régua travava o deslize no meio.
+  Agora `largarDeslize()` cancela e roda o `fim`; no toque só larga quando o dedo arrasta (>8 px na horizontal) ou
+  toca. Teste novo `docs/pecas/interromper.mjs` (relógio da página fixo em 10:00; gesto disparado de dentro da página
+  quando a régua passa de 700 — pelo Playwright chegava tarde com a CPU ocupada). **Visto vermelho** em `335a53c`:
+  mouse/teclado/toque "pergunta NÃO chegou", rolar "parou em 710"; **verde** 4/4 (rolar vai a 1380). Depois da
+  correção: `csp.test` OK, `clique.mjs` OK, acessibilidade 24 OK. **`verificar` NÃO rodou** (parado pela passagem).
+- **Próximo passo exato:** (1) `verificar` com a máquina livre (servidor e teste no MESMO comando, ver CLAUDE.md);
+  (2) publicar a revisão curta como comentário no #44 (texto: resumo acima + veredito) e editar o corpo
+  (`gh pr edit 44 --body-file`): em "Revisão técnica" os links da revisão da branch
+  (#issuecomment-6222579435) e da revisão curta; em "Teste visto vermelho" o clique (705→630) e o Plantão
+  (interromper 0/4→4/4); em "Regressão" 394/394, acessibilidade 24, verificar; em "Verificação comportamental"
+  `interromper.mjs` e `clique.mjs`; (3) ler o CI (`mcp__ccd_pr__get_status`) — o portão deve passar; (4) revisão
+  curta do commit do Plantão por outro agente (diff pequeno: `js/peca-atendente.js`, `js/peca-sites.js:445`,
+  `docs/pecas/interromper.mjs`); (5) dono vê a prévia nova no celular, decide achado 4 e J2–J5; (6) trazer a
+  `main` (estava em `5f11339`, 0 à frente), tirar do rascunho e mesclar.
+- Armadilhas: fork do Git Bash falha (`errno 13`) com a CPU carregada e quando um comando tem `&&` antes de `&`
+  (o `&` joga a cadeia inteira para o fundo) — pôr o servidor em linha própria; a página nasce na HORA REAL de quem
+  vê (perto das 16h o valor 982 não é deslize); `scrollIntoView` no celular é suave por padrão — usar
+  `behavior: 'instant'`; servidor de rodada anterior pode ficar na 8897 (conferir com `netstat` antes).
+
 **Passagem 2026-10-16 (noite, 5ª) — revisão da branch publicada, correções em `2a34d4d`:**
 - Revisão técnica da branch inteira (agente `code-reviewer`), APROVAR COM AJUSTES, publicada:
   https://github.com/fernando123-hue/beyon0-site/pull/44#issuecomment-6222579435 (o link AINDA NÃO está no corpo
