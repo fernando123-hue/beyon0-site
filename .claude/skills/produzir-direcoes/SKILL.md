@@ -61,7 +61,7 @@ O briefing foi escrito a partir do que um desconhecido digitou. Por isso, **esta
    - Se o dono devolver uma recusa, corrija o arquivo.
    - Se o filtro corrigir o contraste, repense a paleta.
 6. **Mostre ao dono** o nome do conceito, o resumo e a paleta de cada uma das 3. Se ele quiser ver uma prévia, é ele quem a abre, fora desta sessão.
-7. Com o "pode entregar" dele, diga para ele rodar `entregar-pedido` no terminal dele. O `entregar-pedido` varre os textos (URL, caminho, chave, e-mail, telefone, caractere invisível), mostra tudo ao dono e só entrega depois de ele digitar o código `ENTREGAR-XXXX` mostrado na tela. Depois ele abre o painel, em "Direções na fila", toca em **"Preparar aviso"** (gera o link de retomada e abre o WhatsApp) e depois em **"Já avisei"**, que conclui o pedido e o tira da fila.
+7. Com o "pode entregar" dele, diga para ele rodar `entregar-pedido` no terminal dele. O `entregar-pedido` varre os textos (URL, caminho, chave, e-mail, telefone, caractere invisível), mostra tudo ao dono e só entrega depois de ele digitar o código `ENTREGAR-XXXX` mostrado na tela. Depois ele abre o painel, em "Direções na fila", toca em **"Preparar aviso"** (gera o link de retomada e mostra "Abrir no WhatsApp"), manda a mensagem e depois toca em **"Já avisei"**, que conclui o pedido e o tira da fila.
 
 ## Limpeza
 

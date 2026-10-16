@@ -177,7 +177,7 @@ test('aviso: erro de rede (rejeição sem status) fala português, não a mensag
 
 test('aviso: o link já mandado não some sem aviso: a ajuda da fila e a dos lembretes dizem para não preparar de novo', () => {
   const html = ler('painel.html');
-  assert.match(html, /Já mandou o link\? Não prepare de novo: o novo invalida o que o cliente recebeu; toque em "Já avisei"\./);
+  assert.match(html, /Já mandou o link\? Não prepare de novo: o novo invalida o que o cliente recebeu\./);
   assert.match(html, /Já mandou o link\? Não prepare de novo: o novo invalida o que o cliente recebeu; toque em "Já lembrei"\./);
   assert.match(FONTE, /Link pronto \(vale 7 dias e abre uma vez\)\. Preparar de novo invalida este\./);
 });

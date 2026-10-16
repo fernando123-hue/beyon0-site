@@ -67,7 +67,7 @@ Enquanto não há verba para a API, as três direções não são geradas pelo m
 - **Painel, seção "Direções na fila"** (`js/painel-fila.js`):
   - mostra cada pedido confirmado com o código `BZ-XXXXX` (para achar a conversa no WhatsApp), há quanto tempo chegou e quantas das 3 estão prontas; no teto de 10, o alarme da fila;
   - o pedido fica destacado quando passa de 20 horas;
-  - com as 3 prontas, aparece **"Preparar aviso"**, que gera o link de retomada e abre o WhatsApp do dono com a mensagem pronta; o link abre o pedido em qualquer aparelho, vale 7 dias e abre uma vez (preparar de novo invalida o anterior). Sem telefone, depois do "Preparar aviso" aparece "Abrir o e-mail";
+  - com as 3 prontas, aparece **"Preparar aviso"**, que gera o link de retomada e mostra "Abrir no WhatsApp" (abre o WhatsApp do dono com a mensagem pronta); o link abre o pedido em qualquer aparelho, vale 7 dias e abre uma vez (preparar de novo invalida o anterior). Sem telefone, depois do "Preparar aviso" aparece "Abrir o e-mail";
   - depois de mandar, **"Já avisei"**, que conclui o pedido e o tira da fila;
   - **"Arquivar"** (resolvido por fora) e **"Descartar"** (encerra e para a geração), cada um com um segundo toque.
 - **Comando `scripts/direcoes.mjs` e skill `produzir-direcoes`** (`.claude/skills/produzir-direcoes/SKILL.md`). A chave **nunca** fica na sessão do Claude Code que lê o briefing, porque o briefing é texto de visitante (revisão de segurança):
