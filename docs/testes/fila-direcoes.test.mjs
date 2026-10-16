@@ -642,13 +642,17 @@ test('sessão isolada: as instruções não têm comando (a sessão não tem ter
 test('conferir: arquivoDeDirecao só aceita conversao/autoridade/experiencia.json dentro da pasta de um pedido', async () => {
   const { arquivoDeDirecao } = await import('../../scripts/direcoes.mjs');
   const fs = await import('node:fs'), os = await import('node:os'), path = await import('node:path');
-  const raiz = path.resolve(os.tmpdir(), 'bz-raiz-conferir');
-  const ok = path.join(raiz, '1234abcd', 'conversao.json');
+  /* o conferir segue o caminho REAL (Tarefa 6 do PR 2b-2): os arquivos têm de existir, numa pasta de verdade */
+  const base = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'bz-raiz-conferir-')));
+  const raiz = path.join(base, 'raiz');
+  const existe = p => { fs.mkdirSync(path.dirname(p), { recursive: true }); if (!fs.existsSync(p)) fs.writeFileSync(p, '{}'); return p; };
+  const ok = existe(path.join(raiz, '1234abcd', 'conversao.json'));
+  existe(path.join(raiz, '1234abcd', 'experiencia.json'));
   assert.equal(arquivoDeDirecao(ok, raiz), ok);
   assert.equal(arquivoDeDirecao(path.join(raiz, '1234abcd', '.', 'experiencia.json'), raiz), path.join(raiz, '1234abcd', 'experiencia.json'));
   const MSG = 'Só confiro conversao.json, autoridade.json ou experiencia.json dentro da pasta de um pedido.';
   for (const ruim of [
-    path.join(os.tmpdir(), 'conversao.json'),
+    path.join(base, 'conversao.json'),
     path.join(raiz, '1234abcd', '..', '..', 'conversao.json'),
     path.join(raiz, '1234abcd', '..', 'conversao.json'),
     path.join(raiz, '1234abcd', 'pedido.json'),
@@ -659,7 +663,11 @@ test('conferir: arquivoDeDirecao só aceita conversao/autoridade/experiencia.jso
     path.join(raiz, '1234abcdef', 'conversao.json'),
     path.join(raiz + '-outra', '1234abcd', 'conversao.json'),
     'C:\\Windows\\win.ini', 'conversao.json'
-  ]) assert.throws(() => arquivoDeDirecao(ruim, raiz), e => e.message === MSG, 'devia recusar ' + ruim);
+  ]) {
+    if (ruim.startsWith(base + path.sep)) existe(path.resolve(ruim)); /* recusa pela regra, não por não existir */
+    assert.throws(() => arquivoDeDirecao(ruim, raiz), e => e.message === MSG, 'devia recusar ' + ruim);
+  }
+  fs.rmSync(base, { recursive: true, force: true });
 });
 
 /* revisão da Tarefa 2: a pasta do pedido é a pasta de trabalho da sessão, e o Claude Code carrega dali configuração,
@@ -714,7 +722,7 @@ test('prepararPastaSessao: recusa se a pasta-mãe tem configuração do Claude C
     fs.mkdirSync(path.join(mae, '.claude'));
     fs.writeFileSync(path.join(dir, 'CLAUDE.md'), 'plantado no pedido');
     assert.throws(() => prepararPastaSessao({ dir, repo }),
-      e => e.message === 'A pasta ' + mae + ' tem CLAUDE.md, .claude: apague (ou mova) antes, porque a sessão isolada leria essas instruções.');
+      e => e.message === 'A sessão isolada leria estas instruções de pastas acima: ' + path.join(mae, 'CLAUDE.md') + ', ' + path.join(mae, '.claude') + '. Apague (ou mova) antes.');
     assert.deepEqual(fs.readdirSync(dir), ['CLAUDE.md'], 'nada gravado e nada apagado na pasta do pedido');
     assert.equal(fs.readFileSync(path.join(dir, 'CLAUDE.md'), 'utf8'), 'plantado no pedido');
     assert.deepEqual(fs.readdirSync(mae).sort(), ['.claude', '1234abcd', 'CLAUDE.md']);
