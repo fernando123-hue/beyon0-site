@@ -300,6 +300,23 @@ entrada + demo + arraste, 3 rodadas, antes = HEAD servido por rota): tarefas lon
   de 320 a 1440 px. Quadros em 390 e 1440 conferidos a olho (o tempo no canto não colide nem com a demonstração em
   andamento).
 
+**Passagem 2026-10-16 (noite, 4ª) — PR #44 aberto (rascunho), head `5073de8`:**
+- PR https://github.com/fernando123-hue/beyon0-site/pull/44 (rascunho, vinculado à sessão "Logo da Beyon Zero").
+  Corpo já com toda a evidência de nível 2; CI ao abrir: 4 passando, 1 pendente, 0 falha.
+- A revisão da branch inteira foi lançada e **parada pela passagem antes de responder**.
+- **Próximo passo exato:** (1) relançar a revisão técnica da branch inteira (agente `code-reviewer`, só leitura,
+  `git diff origin/main...HEAD`; olhar guards/vazamento de listeners-observers-rAF fora da tela, nome digitado só como
+  texto e codificado em sessionStorage/URL/WhatsApp, CSP, slider acessível + movimento reduzido, trabalho por quadro
+  no celular, NENHUM blur, integração com `mini.js`/`pagina.js`, código morto entre as 3 peças; saída por linha
+  `arquivo:linha — SEVERIDADE — problema — correção` + veredito); (2) publicar o texto como comentário no #44
+  (`gh pr comment 44 --body-file …`) e pôr o link em "Revisão técnica" do corpo (`gh pr edit 44 --body-file …`);
+  corrigir crítico/alto; (3) `verificar` com a máquina livre (ver armadilha do CHROMIUM 1228 acima) e atualizar
+  "Regressão" no corpo; (4) ler o CI um por um (`mcp__ccd_pr__get_status`); (5) dono vê a prévia no celular, decide o
+  achado 4 (título 12ch em 600–759) e J2–J5; (6) só então tirar do rascunho e mesclar (trazer a `main` antes).
+- Decisões em aberto do dono: achado 4; J2–J5 (sem urgência).
+- Armadilha: fork do Git Bash falha muito com a CPU em 100%; um comando por chamada, saída em arquivo.
+- Skills: `processo-qualidade` (PR), `revisao-ui` se o dono pedir o achado 4.
+
 **Retomado em 2026-10-16 (noite, 3ª) — revisão do `5df81f5` feita, commits `bd5e886` e `18f2d37` (pushed):**
 - Revisão do `5df81f5` (code-reviewer): APROVAR COM AJUSTES. Achado MÉDIO: o deslize (FLIP) não seguia o corte
   novo de 760. Corrigido com `disposicao()` (600/760/900). Medindo, apareceu a causa de fundo (o "defeito antigo"
