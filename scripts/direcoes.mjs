@@ -333,7 +333,7 @@ const COMANDOS = {
       pendentes = r.pendentes;
       console.log('Entregue: ' + e.estrategia + (r.ajustes.length ? ' (o filtro corrigiu: ' + r.ajustes.join(', ') + ')' : ''));
     }
-    if (pendentes === 0) { fs.rmSync(pasta, { recursive: true, force: true }); console.log('As 3 prontas. Pasta do pedido apagada. Avise o cliente pelo painel ("Avisar no WhatsApp").'); }
+    if (pendentes === 0) { fs.rmSync(pasta, { recursive: true, force: true }); console.log('As 3 prontas. Pasta do pedido apagada. Avise o cliente pelo painel ("Preparar aviso").'); }
     else console.log('Ainda há direção na fila deste pedido.');
   },
   limpar(dias) {

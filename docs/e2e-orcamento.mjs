@@ -550,6 +550,11 @@ try {
   ok(/^Oi, Ana! Aqui é da Beyon Zero\. Passando para lembrar/.test(msgLembrete) && CODIGO_NO_TEXTO.test(msgLembrete) && msgLembrete.match(CODIGO_NO_TEXTO)[1] !== codigoDoLink, 'lembretes: a mensagem chama pelo primeiro nome e leva um link NOVO (não o do aviso)');
   ok(!(await painel2.evaluate(() => JSON.stringify({ l: Object.entries(localStorage), s: Object.entries(sessionStorage) }) + location.href + document.cookie)).includes(msgLembrete.match(CODIGO_NO_TEXTO)[1]) && !falaDoPainel.some(l => l.includes(msgLembrete.match(CODIGO_NO_TEXTO)[1])), 'lembretes: o código do link novo também fica fora do endereço, do armazenamento e do console');
   await foto(painel2, '5f-painel-lembrete-pronto-cel');
+  /* (M5 da correção da Task 5) o mesmo cartão, já com o link pronto, no desktop: não pode ficar esticado nem cortado */
+  await painel2.setViewportSize({ width: 1280, height: 900 });
+  await cartaoLembrete.scrollIntoViewIfNeeded();
+  await foto(painel2, '5h-lembrete-pc');
+  await painel2.setViewportSize({ width: 390, height: 844 });
   const feitoLembrete = cartaoLembrete.getByRole('button', { name: /Já lembrei/ });
   const respMarca = painel2.waitForResponse(r => r.request().method() === 'POST' && /lembrado/.test(r.request().postData() || ''), { timeout: 15000 });
   lembrado = true;   /* (a releitura que vem logo depois do "Já lembrei" já deve achar a lista vazia) */

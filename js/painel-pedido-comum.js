@@ -17,6 +17,7 @@
   };
   var TEM_LETRA_OU_NUMERO = /[A-Za-z0-9]/;   /* (só pontos ou traços não são um perfil: nada de "../" no caminho) */
   var ARMADO_MS = 4000;
+  var CODIGO_RETOMADA = /^[A-Za-z0-9_-]{32}$/;   /* o servidor devolve 32 caracteres; qualquer outra coisa não vira link */
 
   /* o usuário só vira link se passa no formato do servidor; qualquer outra coisa fica de fora */
   function usuarioValido(rede, u) {
@@ -127,13 +128,14 @@
       P.pedir('', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ link_retomada: o.conversaId }) })
         .then(function (r) { return r.json(); })
         .then(function (r) {
+          if (!r || typeof r.codigo !== 'string' || !CODIGO_RETOMADA.test(r.codigo)) { estado.textContent = 'Não deu para gerar o link agora.'; preparar.disabled = false; return; }
           var texto = oi(contato.nome) + ' ' + o.texto(location.origin + '/orcamento#retomar=' + r.codigo);
           var a = botaoDeContato(o, digitos, email, texto, quem);
           caixa.replaceChild(a, preparar);
-          estado.textContent = 'Link pronto (vale 7 dias e abre uma vez). Preparar de novo, depois de atualizar a lista, invalida este.';
+          estado.textContent = 'Link pronto (vale 7 dias e abre uma vez). Preparar de novo invalida este.';
           a.focus();
         })
-        .catch(function (e) { if (P.recusada(e)) return; estado.textContent = e.message; preparar.disabled = false; });
+        .catch(function (e) { if (P.recusada(e)) return; estado.textContent = e.status ? e.message : 'Sem conexão com o servidor. Tente de novo.'; preparar.disabled = false; });
     });
     caixa.appendChild(preparar);
     caixa.appendChild(estado);

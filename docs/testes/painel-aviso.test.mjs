@@ -151,3 +151,37 @@ test('fila e lembretes usam o aviso com link: sem a mensagem antiga "no mesmo na
     assert.ok(!/innerHTML|insertAdjacentHTML|document\.write|console\.|\.style\b|localStorage|sessionStorage/.test(fonte.replace(/\/\*[\s\S]*?\*\//g, '')), nome + ': só textContent, sem console nem armazenamento');
   }
 });
+
+test('aviso: resposta 200 sem código válido não vira link com "undefined": diz que não deu e libera o botão', async () => {
+  for (const corpo of [{}, { codigo: null }, { codigo: 'curto' }, { codigo: CODIGO + 'x' }, { codigo: 'AbCdEfGhIjKlMnOpQrStUvWxYz01234!' }, { codigo: 12345678901234567890123456789012 }]) {
+    const { C } = montar(ok(corpo));
+    const caixa = aviso(C, { nome: 'Ana', telefone: '5521991234567' });
+    const preparar = achar(caixa, n => n.tag === 'button');
+    preparar.clicar();
+    await esperar();
+    assert.equal(achar(caixa, n => n.tag === 'a'), null, JSON.stringify(corpo) + ': sem link, sem botão do WhatsApp');
+    assert.equal(achar(caixa, n => n.attrs.role === 'status').textContent, 'Não deu para gerar o link agora.', JSON.stringify(corpo));
+    assert.equal(preparar.disabled, false, JSON.stringify(corpo) + ': o botão volta para tentar de novo');
+  }
+});
+
+test('aviso: erro de rede (rejeição sem status) fala português, não a mensagem crua do navegador', async () => {
+  const { C } = montar(() => Promise.reject(new TypeError('Failed to fetch')));
+  const caixa = aviso(C, { nome: 'Ana', telefone: '5521991234567' });
+  const preparar = achar(caixa, n => n.tag === 'button');
+  preparar.clicar();
+  await esperar();
+  assert.equal(achar(caixa, n => n.attrs.role === 'status').textContent, 'Sem conexão com o servidor. Tente de novo.');
+  assert.equal(preparar.disabled, false);
+});
+
+test('aviso: o link já mandado não some sem aviso: a ajuda da fila e a dos lembretes dizem para não preparar de novo', () => {
+  const html = ler('painel.html');
+  assert.match(html, /Já mandou o link\? Não prepare de novo: o novo invalida o que o cliente recebeu; toque em "Já avisei"\./);
+  assert.match(html, /Já mandou o link\? Não prepare de novo: o novo invalida o que o cliente recebeu; toque em "Já lembrei"\./);
+  assert.match(FONTE, /Link pronto \(vale 7 dias e abre uma vez\)\. Preparar de novo invalida este\./);
+});
+
+test('lembretes: não recarrega quando a fila muda (isso apagaria um "Abrir no WhatsApp" preparado e não usado)', () => {
+  assert.ok(!/pedidos-mudaram/.test(ler('js/painel-lembretes.js')));
+});

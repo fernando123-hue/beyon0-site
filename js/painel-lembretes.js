@@ -58,6 +58,5 @@
 
   document.addEventListener('bz-painel:entrou', function () { carregar(); });
   document.addEventListener('bz-painel:saiu', esvaziar);
-  document.addEventListener('bz-painel:pedidos-mudaram', function () { carregar(); });
   $('lembretes-atualizar').addEventListener('click', function () { carregar(); });
 })();
