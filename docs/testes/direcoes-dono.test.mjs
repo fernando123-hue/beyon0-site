@@ -154,6 +154,19 @@ test('conferir e entrega: hard link para um arquivo de FORA da pasta do pedido �
   assert.equal(planejarEntrega(pasta).length, 1, 'arquivo comum: segue');
 });
 
+test('entrega: a pasta do pedido sendo uma junção para outro lugar RECUSA antes de ler qualquer arquivo', () => {
+  const raiz = tmp();
+  const outra = path.join(raiz, 'outra');
+  fs.mkdirSync(outra);
+  const id = '11111111-1111-4111-8111-111111111111';
+  fs.writeFileSync(path.join(outra, 'pedido.json'), JSON.stringify({ direcoes: [{ id, estrategia: 'conversao', status: 'gerando' }] }));
+  fs.writeFileSync(path.join(outra, 'conversao.json'), JSON.stringify(VALIDA()));
+  assert.equal(planejarEntrega(outra).length, 1, 'a pasta de verdade, com o mesmo conteúdo, segue');
+  const pasta = path.join(raiz, 'aaaaaaaa');
+  ligar(outra, pasta);
+  assert.throws(() => planejarEntrega(pasta), /link ou junção/, 'pela junção, nada sai');
+});
+
 test('entregar: o dono recusa (ou o filtro recusa) e NENHUM POST sai', async () => {
   const raiz = tmp();
   const pasta = path.join(raiz, 'aaaaaaaa');

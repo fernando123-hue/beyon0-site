@@ -238,6 +238,8 @@ export function conferir(conteudo, estrategia) {
    escreve; revisões de segurança e técnica) — id de fora do pedido recusa tudo; o que já foi entregue não sai de novo
    (retoma depois de uma queda no meio) */
 export function planejarEntrega(pasta, servidor) {
+  /* a própria pasta não pode ser link nem junção: os arquivos abaixo são comparados com ela, então leriam de fora */
+  pastaReal(pasta);
   /* a pasta é onde a sessão escreve: qualquer coisa fora desta lista (um scripts/ plantado, por exemplo) e nada sai */
   const estranhos = fs.readdirSync(pasta).filter(n => !ARQUIVOS_DO_PEDIDO.includes(n)).sort();
   if (estranhos.length) throw new Error('A pasta do pedido tem arquivos que não deviam estar lá (' + estranhos.join(', ') + '): nada sai. Apague a pasta e rode "pedido" de novo.');
