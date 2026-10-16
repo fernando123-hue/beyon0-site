@@ -139,6 +139,14 @@ html.orc-retomando .orc-lead, html.orc-retomando .orc-etapas, html.orc-retomando
 
 /* as direções: cartões com a miniatura viva */
 .orc-dirs { list-style: none; margin: 0; padding: 0; display: grid; gap: 1rem; }
+/* a espera útil (js/orcamento-preparo.js): o mesmo vão e as mesmas cores dos cartões .dir; só traço nítido, sem sombra */
+.orc-preparo { border: 1px solid var(--line); border-radius: var(--raio); background: var(--s1); padding: 1rem; margin-bottom: 1rem; display: flex; flex-direction: column; gap: .8rem; max-width: 60ch; overflow-wrap: anywhere; }
+.orc-preparo__prazo { font-size: var(--fs-b); color: var(--t2); line-height: 1.55; }
+.orc-preparo__prazo strong { color: var(--t1); font-weight: 600; }
+.orc-preparo__titulo { font-size: 1.25rem; font-weight: 400; }
+.orc-preparo__lista { margin: 0; padding-left: 1.2rem; display: flex; flex-direction: column; gap: .35rem; font-size: var(--fs-b); color: var(--t2); line-height: 1.5; }
+.orc-preparo__lista li::marker { color: var(--ac); }
+.orc-preparo .btn { min-height: 44px; align-self: flex-start; }
 .dir { border: 1px solid var(--line); border-radius: var(--raio); background: var(--s1); overflow: hidden; display: flex; flex-direction: column; }
 .dir.is-escolhida { border-color: var(--ac); }
 .dir__mini { position: relative; height: 300px; overflow: hidden; border-bottom: 1px solid var(--line); background: var(--s2); cursor: pointer; }

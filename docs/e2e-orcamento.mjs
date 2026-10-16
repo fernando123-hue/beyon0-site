@@ -509,7 +509,33 @@ try {
     ok(await page.getByRole('button', { name: 'Gerar de novo' }).count() === 0, status + ' com a geração parada: nenhum "Gerar de novo" (o servidor recusaria)');
     await page.unroute(ESTADO, rota);
   }
+  /* (PR 2b-2) a espera útil: o servidor local gera os modelos na hora (modo "api"), então o estado de uma fila manual
+     com o pedido confirmado e um modelo ainda na fila vem de uma resposta alterada. Com as três prontas o bloco some */
+  const naFilaManual = comPedido('confirmado', j => {
+    j.modo_direcoes = 'manual';
+    j.pedido.confirmado_em = new Date(2026, 9, 15, 14, 20).toISOString();   /* quinta 15/10, 14h20 no fuso do aparelho */
+    j.direcoes = j.direcoes.map((d, i) => i === 0 ? { ...d, status: 'gerando', conteudo: null } : d);
+  });
+  ok(await desenhar(naFilaManual, () => !document.getElementById('o-preparo').hidden), 'espera útil: confirmado, na fila manual e com um modelo na fila, o bloco aparece');
+  const preparo = page.locator('#o-preparo');
+  ok(/até sexta, 16\/10, às 15h/.test(await preparo.locator('.orc-preparo__prazo').textContent()), 'espera útil: a data do prazo (24 horas úteis, hora arredondada para cima)');
+  ok(await preparo.locator('.orc-preparo__lista li').count() === 5, 'espera útil: a lista do que separar');
+  const waPreparo = preparo.getByRole('link', { name: 'Mandar pelo WhatsApp' });
+  ok(await waPreparo.getAttribute('href') === 'https://wa.me/5521977167944?text=' + encodeURIComponent('Pedido ' + codigo + ': vou mandar o material do site.'), 'espera útil: o botão do WhatsApp leva o código do pedido');
+  ok(Math.round((await waPreparo.boundingBox()).height) >= 44, 'espera útil: o botão tem 44 px de altura ou mais');
+  ok(/em até 24 horas úteis/.test(await page.textContent('#o-dir-lead')) && !/neste mesmo navegador/.test(await page.textContent('#o-dir-lead')), 'espera útil: o texto da seção não manda voltar "neste mesmo navegador"');
+  ok(!/neste navegador/.test(await page.locator('.dir').first().textContent()), 'espera útil: o cartão na fila também não');
+  ok(await semRolagemLateral(page), 'espera útil: celular sem rolagem lateral');
+  await page.locator('#o-direcoes').scrollIntoViewIfNeeded();
+  await foto(page, '7-preparo-cel');
+  await page.setViewportSize({ width: 320, height: 700 });
+  ok(await semRolagemLateral(page) && await preparo.evaluate(e => e.getBoundingClientRect().right <= innerWidth), 'espera útil: 320 px, nada mais largo que a tela');
+  await preparo.evaluate(e => e.scrollIntoView({ block: 'end', behavior: 'instant' }));   /* (no 320 o bloco inteiro não cabe com o título: a foto fecha no botão) */
+  await foto(page, '7-preparo-320');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.unroute(ESTADO, naFilaManual);
   await relerEstado();
+  ok(await espera(page, () => document.getElementById('o-preparo').hidden && document.getElementById('o-preparo').childElementCount === 0, 15000), 'espera útil: com as três prontas, o bloco some');
   await page.waitForFunction(() => document.querySelectorAll('.dir .dir__nome').length === 3 && document.getElementById('o-pedido-fim').hidden, null, { timeout: 30000 });
 
   /* o visor */

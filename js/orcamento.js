@@ -416,7 +416,7 @@
      vai pelo WhatsApp; a página não pede a geração nem fica consultando: confere de novo quando a pessoa volta */
   var manual = function () { return !!E && E.modo_direcoes === 'manual'; };
   var TEXTOS_MANUAL = {
-    direcoes: 'Mesmo briefing, três estratégias. Ficam prontas em até 24 horas úteis e avisamos pelo seu WhatsApp; é só voltar a esta página, neste mesmo navegador, para abrir, comparar e escolher.',
+    direcoes: 'Mesmo briefing, três estratégias. Ficam prontas em até 24 horas úteis e avisamos pelo seu WhatsApp, com um link que abre o pedido em qualquer aparelho.',
     prontas: 'Mesmo briefing, três estratégias. Abra cada uma, compare e escolha a que mais tem a cara do seu negócio.'
   };
   /* (PR 2a) descartado pelo dono: o pedido acabou e o servidor recusa escolher, ajustar e seguir (api/_vendas/fluxo.mjs) */
@@ -465,7 +465,7 @@
       var f = el('div', 'dir__progresso');
       f.appendChild(el('p', '', 'Na fila: a direção de ' + (NOMES[d.estrategia] || '').toLowerCase() + ' fica pronta em até 24 horas úteis.'));
       mini.appendChild(f);
-      corpo.appendChild(el('p', 'dir__resumo', 'Avisamos pelo seu WhatsApp. O progresso fica salvo neste navegador.'));
+      corpo.appendChild(el('p', 'dir__resumo', 'Avisamos pelo seu WhatsApp, com o link do seu pedido.'));
       var conf = botao('btn btn--sm', 'Conferir agora', function () { conferir(conf); });   /* (sem consulta automática: a pessoa confere quando quiser) */
       conf.setAttribute('data-conferir', '');
       corpo.appendChild(conf);
@@ -665,6 +665,7 @@
       devolverFocoNaLista(ul, foco);
     }
     if (manual()) $('o-dir-lead').textContent = E.direcoes.some(function (d) { return d.status === 'gerando'; }) || !temDirecoes ? TEXTOS_MANUAL.direcoes : TEXTOS_MANUAL.prontas;
+    if (window.BZPreparo) window.BZPreparo.atualizar(E);   /* a espera útil: o prazo e o que separar (js/orcamento-preparo.js); sem o módulo, o resto da tela segue */
     var emGeracao = manual() ? [] : E.direcoes.filter(function (d) { return d.status === 'gerando'; });   /* (fila manual: nada a pedir) */
     relogioDosCartoes(emGeracao.length > 0);
     emGeracao.forEach(function (d) { pedirDirecao(d.id); });
