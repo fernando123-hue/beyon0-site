@@ -25,6 +25,7 @@ import { criarTransporte } from './_vendas/transporte.mjs';
 import { ehUuid } from './_valida-app.mjs';
 import { ORG } from './_vendas/org.mjs';
 import { higienizar } from './_vendas/direcao.mjs';
+import { varrer } from './_vendas/varredura.mjs';
 import { ipDe } from './_freio.mjs';
 import { PEDIDOS } from './_vendas/pedido.mjs';
 
@@ -139,7 +140,7 @@ async function filaDirecoes(env) {
     const fila = r && Array.isArray(r.itens) ? r.itens : [];
     const total = r && Number.isInteger(r.total) ? r.total : fila.length;
     /* (PR 2a: só confirmados, sem corte; o alarme diz quando a fila chegou ao teto e o orçamento oferece o WhatsApp) */
-    return json({ fila, total, truncada: total > fila.length, alarme: total >= PEDIDOS.fila_confirmados });
+    return json({ fila, total, alarme: total >= PEDIDOS.fila_confirmados });
   }
   catch (e) { console.error('[painel] fila de direções:', e && e.codigo); return json({ erro: 'Não deu para ler a fila agora.' }, 500); }
 }
@@ -155,6 +156,10 @@ async function entregarDirecao(bruto, env) {
     if (d.status !== 'gerando') return json({ erro: 'Esta direção não está na fila (status: ' + d.status + ').' }, 409);
     const h = higienizar(bruto.conteudo, d.estrategia);
     if (h.erro) return json({ erro: 'Direção recusada pelo filtro: ' + h.erro + '.' }, 422);
+    /* defesa em profundidade: a mesma varredura do entregar-pedido do dono, agora no servidor (endereço, caminho, chave,
+       e-mail, telefone, invisível...). O erro diz só os tipos, nunca os trechos */
+    const achados = varrer(h.direcao);
+    if (achados.length) return json({ erro: 'A direção tem conteúdo que não pode ir ao cliente: ' + [...new Set(achados.map(a => a.tipo))].join(', ') + '.' }, 422);
     const r = await rpc('vendas_concluir_direcao', { direcao_id: d.id, conteudo: h.direcao, modelo: 'claude-code (dono)' });
     if (r && r.ignorado) return json({ erro: 'Esta direção não está mais na fila.' }, 409);
     return json({ ok: true, direcao_id: d.id, estrategia: d.estrategia, ajustes: h.ajustes, pendentes: r ? r.pendentes : null });

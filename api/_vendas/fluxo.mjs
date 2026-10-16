@@ -62,6 +62,8 @@ export function traduzirErro(e) {
     if (e.codigo === '55000') return new Recusa(409, 'Esta etapa ainda não está disponível.');
     if (e.codigo === '23514') return new Recusa(409, 'Limite atingido para esta conversa.');
     if (e.codigo === '22023') return new Recusa(400, 'Dados inválidos.');
+    /* (PR2a-22P02) texto que não converte (uuid, número) no banco: entrada inválida, não erro interno */
+    if (e.codigo === '22P02') return new Recusa(400, 'Dados inválidos.');
     if (e.codigo === '55P03') return new Recusa(409, 'Ainda estou respondendo à mensagem anterior. Um instante.');
     if (e.codigo === '40001') return new Recusa(409, 'A proposta mudou enquanto eu preparava isso (outra aba?). Confira e tente de novo.');
   }

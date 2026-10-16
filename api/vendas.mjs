@@ -10,7 +10,7 @@
    a sessão), erro interno genérico (detalhe só no log, sem dado pessoal).
    ========================================================================== */
 import { criarFluxo, traduzirErro } from './_vendas/fluxo.mjs';
-import { criarTransporte } from './_vendas/transporte.mjs';
+import { criarTransporte, ErroBanco } from './_vendas/transporte.mjs';
 import { criarVisitantes } from './_vendas/visitante.mjs';
 import { configPagamentos, configPublica } from './_pagamentos/config.mjs';
 import { criarServicoPagamentos } from './_pagamentos/servico.mjs';
@@ -94,6 +94,9 @@ export async function atender(request, env, metodo, deps) {
     const r = traduzirErro(e);
     /* a falha passageira (IA, Auth, banco lento) também fica no log, com o motivo técnico (a pessoa só lê a frase) */
     if (r && r.status >= 500 && e !== r) log('erro', { request_id: requestId, acao, evento: 'falha recuperável', erro: e && e.message ? e.message.slice(0, 120) : 'erro' });
+    /* o 22P02 (texto que o banco não converte em uuid ou número) é 400 para a pessoa, mas é sinal de bug ou de sondagem:
+       fica no log, com o código e a ação e SEM a mensagem do banco (ela cita o valor que o visitante mandou) */
+    if (e instanceof ErroBanco && e.codigo === '22P02') console.error(JSON.stringify({ origem: 'vendas', nivel: 'aviso', evento: 'parâmetro malformado no banco (22P02)', request_id: requestId, acao, codigo: '22P02' }));
     if (r) return responder({ erro: r.message, ...(r.extra || {}) }, r.status);
     log('erro', { request_id: requestId, acao, codigo: e && e.codigo ? e.codigo : null, erro: e && e.message ? e.message.slice(0, 120) : 'erro' });
     return responder({ erro: 'Erro interno.', pedido: requestId }, 500);   /* (o código do pedido: a pessoa cita, a equipe acha no log) */

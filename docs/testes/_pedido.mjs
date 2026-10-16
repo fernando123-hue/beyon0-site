@@ -5,8 +5,11 @@ import { PEDIDOS } from '../../api/_vendas/pedido.mjs';
 
 export const LIMITES_DE_TESTE = Object.freeze({ ...PEDIDOS, fila_confirmados: 1000, por_ip_dia: 1000, por_ip48_dia: 1000 });
 let seq = 0;
-/* um WhatsApp novo a cada chamada (o freio por telefone vale nos testes também) */
-export const telefoneDeTeste = () => '(21) 9' + String(1000 + (++seq % 9000)) + '-' + String(1000 + Math.floor(seq / 9000) % 9000);
+/* um WhatsApp novo a cada chamada, de uma sequência só para todo o arquivo de teste (o freio por telefone vale nos
+   testes também; PR2a-testes-nomes: antes eram três geradores) */
+const proximo = () => String(10000000 + (++seq));
+export const telefoneDeTeste = () => { const n = proximo(); return '(21) 9' + n.slice(0, 4) + '-' + n.slice(4); };
+export const telefoneE164DeTeste = () => '+55219' + proximo();
 
 export async function detalhesEConfirmar(chamar, rpc, conversaId, extra = {}) {
   const r = await chamar('POST', 'detalhes', { conversa_id: conversaId, negocio: 'Clínica Teste', vende: 'Consultas e exames', telefone: telefoneDeTeste(), nome: 'Rita', aceite: true, ...extra });

@@ -7,12 +7,13 @@ import assert from 'node:assert/strict';
 import { randomUUID, createHash } from 'node:crypto';
 import fs from 'node:fs';
 import { novoBanco, como, erroDe } from './_banco.mjs';
+import { telefoneE164DeTeste } from './_pedido.mjs';
 
 const ORG = '99999999-0000-4000-8000-000000000099';
 const REGRAS = 'dddddddd-0000-4000-8000-0000000000d0';
 const NAO_ACHOU = 'P0002', ETAPA = '55000', REGRA = '23514', INVALIDO = '22023', SEM_PERMISSAO = '42501';
 const TODAS = ['descoberta', 'estimativa', 'contato', 'gerando', 'direcoes', 'escolhida', 'alteracoes', 'escopo', 'aguardando_pagamento', 'em_producao', 'encerrada'];
-let db, seq = 0;
+let db;
 
 /* o backend chama cada passo como service_role, passando o visitante tirado do token conferido */
 const rpc = (nome, p) => como(db, 'service_role', q => q(`select app.${nome}($1::jsonb) as r`, [JSON.stringify(p)])).then(x => x.rows[0].r);
@@ -38,9 +39,8 @@ async function comPacote() {
   return base;
 }
 /* os detalhes como o servidor manda: o telefone já em E.164 e o hash feito lá */
-const telefoneNovo = () => '+55219' + String(80000000 + (++seq));
 function detalhes(base, extra = {}) {
-  const telefone = extra.telefone || telefoneNovo();
+  const telefone = extra.telefone || telefoneE164DeTeste();
   return rpc('vendas_registrar_detalhes', { ...base, telefone, telefone_hash: hex('tel|' + telefone), nome: 'Ana', aceite: true,
     briefing: { negocio: { nome: 'Clínica Sol', descricao: 'Consultas e exames' } }, redes: {}, suspeito: false,
     chave_ip: null, max_por_ip: 3, max_por_telefone_dia: 2, teto_fila: 1000, horas: 72, ...extra });
@@ -112,7 +112,7 @@ test('detalhes: os mínimos (nome do negócio, o que vende, WhatsApp) e o tamanh
 });
 
 test('freio por telefone: 1 pedido aberto e 2 por dia (recusado: nada gravado)', async () => {
-  const telefone = telefoneNovo();
+  const telefone = telefoneE164DeTeste();
   const a = await comPacote();
   assert.equal((await detalhes(a, { telefone })).ok, true);
   const b = await comPacote();
@@ -139,7 +139,7 @@ test('freio por IP: o 4º pedido do mesmo IP no dia é recusado, com o evento fr
 /* (revisão final do PR 2a, M2) o banco não pode responder a quem sonda se um número já pediu orçamento: toda tentativa
    gasta a cota do IP (contado ANTES dos testes de telefone) e a mesma conversa tenta no máximo 3 vezes, contadas no banco */
 test('detalhes: a mesma conversa tenta no máximo 3 vezes; a 4ª é recusada mesmo com um número novo, sem gravar o pedido', async () => {
-  const telefone = telefoneNovo();
+  const telefone = telefoneE164DeTeste();
   assert.equal((await detalhes(await comPacote(), { telefone })).ok, true);
   const b = await comPacote();
   for (let i = 1; i <= 3; i++) assert.deepEqual(await detalhes(b, { telefone }), { ok: false, motivo: 'telefone_aberto' }, 'tentativa ' + i);
@@ -150,7 +150,7 @@ test('detalhes: a mesma conversa tenta no máximo 3 vezes; a 4ª é recusada mes
 
 test('detalhes: a recusa por telefone gasta a cota do IP (as sondas param no freio do IP como qualquer pedido)', async () => {
   const chave_ip = hex('ip-sonda-' + Date.now());
-  const telefone = telefoneNovo();
+  const telefone = telefoneE164DeTeste();
   assert.equal((await detalhes(await comPacote(), { telefone })).ok, true);
   for (let i = 1; i <= 3; i++) assert.deepEqual(await detalhes(await comPacote(), { telefone, chave_ip }), { ok: false, motivo: 'telefone_aberto' }, 'sonda ' + i);
   assert.deepEqual(await detalhes(await comPacote(), { chave_ip }), { ok: false, motivo: 'freio_ip' }, 'as três sondas gastaram a cota do dia');
@@ -297,7 +297,7 @@ test('gerar antes da confirmação: recusado; sem pedido (o caminho antigo do co
 });
 
 test('conclusão automática: as três direções falham → o pedido sai da fila, do teto e libera o telefone', async () => {
-  const telefone = telefoneNovo();
+  const telefone = telefoneE164DeTeste();
   const p = await pedidoAguardando({ telefone });
   await confirmar(p.conversa_id);
   assert.equal((await um('select privado.pedido_na_fila(pd) f from app.pedidos pd where conversa_id = $1', [p.conversa_id])).f, true);
@@ -318,7 +318,7 @@ test('conclusão automática: o cliente escolhe um modelo antes do "Já avisei" 
 });
 
 test('"Já avisei" conclui o pedido: o número pode pedir de novo', async () => {
-  const telefone = telefoneNovo();
+  const telefone = telefoneE164DeTeste();
   const p = await pedidoAguardando({ telefone });
   await confirmar(p.conversa_id);
   await concluirDirecoes(p.conversa_id);
@@ -578,4 +578,34 @@ test('promoção: o cabeçalho da migration e o plano citam o MESMO texto das DU
     assert.ok(plano.includes('`' + consulta + '`'), 'linha PR2a da Task 9: ' + nome);
     assert.ok(pendencias.includes('`' + consulta + '`'), 'linha PR2a de docs/revisoes/pr1-pendencias.md: ' + nome);
   }
+});
+
+/* PR 2b-1, pendências PR2a-teto-pacotes, PR2a-ordem-trava, PR2a-dono-leitura e PR2a-testes-borda */
+test('estimativa (o caminho do consultor): o mesmo teto de 30 pacotes por conversa das respostas', async () => {
+  const b = await comPacote();   /* (já gravou 1) */
+  for (let i = 0; i < 29; i++) await rpc('vendas_registrar_estimativa', { ...b, regras_id: REGRAS, fatores: { formato: 'institucional' }, valor_total: 3950, sinal: 1975, prazo_dias: 9 });
+  assert.equal((await erroDe(rpc('vendas_registrar_estimativa', { ...b, regras_id: REGRAS, fatores: { formato: 'institucional' }, valor_total: 3950, sinal: 1975, prazo_dias: 9 })))?.codigo, REGRA, 'a 31ª é recusada');
+});
+
+test('trava das direções em ordem fixa (sem espera circular) e a consulta leve do dono sem trava', async () => {
+  const fonte = async nome => (await um("select prosrc from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'app' and p.proname = $1", [nome])).prosrc;
+  assert.match(await fonte('vendas_mudar_pedido'), /order by d\.id\s+for update of d/i, 'PR2a-ordem-trava');
+  /* a ordem importa: as direções (por id) travam ANTES da conversa; o contrário reabre a espera circular com vendas_concluir_direcao */
+  const mudar = await fonte('vendas_mudar_pedido');
+  assert.ok(mudar.indexOf('for update of d') !== -1 && mudar.indexOf('for update of d') < mudar.indexOf('conversa_da_org('), 'as direções travam antes da conversa');
+  const dono = await fonte('vendas_conversa_dono');
+  assert.doesNotMatch(dono, /for update|conversa_do\(/i, 'PR2a-dono-leitura: a leitura não trava a conversa');
+  const b = await comPacote();
+  assert.equal((await rpc('vendas_conversa_dono', { ...b, etapas: ['estimativa'] })).etapa, 'estimativa', 'continua funcionando');
+  assert.equal((await erroDe(rpc('vendas_conversa_dono', { ...b, visitante_id: randomUUID(), etapas: ['estimativa'] })))?.codigo, NAO_ACHOU, 'outro visitante');
+  assert.equal((await erroDe(rpc('vendas_conversa_dono', { ...b, etapas: ['contato'] })))?.codigo, ETAPA, 'etapa fora da lista');
+});
+
+test('bordas das funções do PR 2a (PR2a-testes-borda): outro visitante ou organização → P0002 (respostas, mudar_pedido, marcar_avisado); entrada inválida → 22023', async () => {
+  const b = await comPacote();
+  assert.equal((await erroDe(rpc('vendas_registrar_respostas', { ...b, visitante_id: randomUUID(), briefing: {}, confianca: 0 })))?.codigo, NAO_ACHOU);
+  assert.equal((await erroDe(rpc('vendas_conversa_dono', { ...b, etapas: { estimativa: true } })))?.codigo, INVALIDO, 'etapas que não são lista');
+  assert.equal((await erroDe(rpc('vendas_mudar_pedido', { org_slug: 'outra', conversa_id: b.conversa_id, acao: 'arquivar' })))?.codigo, NAO_ACHOU);
+  /* o "Já avisei" de outra organização não acha a conversa: P0002, e nada é avisado (não devolve { avisadas: 0 }) */
+  assert.equal((await erroDe(rpc('vendas_marcar_avisado', { org_slug: 'outra', conversa_id: b.conversa_id })))?.codigo, NAO_ACHOU, 'marcar_avisado de outra organização');
 });
