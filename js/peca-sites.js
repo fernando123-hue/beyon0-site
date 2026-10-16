@@ -219,7 +219,13 @@
 
   var arrastando = false, desmontada = false, pendente = null, pedido = 0, ultimoX = 0, esquerda = 0, x0 = 0;
   function xNa(ev) { return ev.clientX - esquerda; }
-  function tocou() { if (!mexeu) { mexeu = true; parar(); emDemo = false; raiz.classList.add('is-mexida'); } }
+  /* a demonstração cortada no meio (a pessoa mexeu, ou o cartão saiu da tela) deixava o site desmontado: volta impresso
+     na hora, sem luz (o gesto da pessoa, se houver, decide o que vem depois) */
+  function cortarDemo() {
+    if (emDemo && desmontada) { raiz.classList.remove('is-tracando'); raiz.classList.add('is-impressa'); desmontada = false; }
+    emDemo = false;
+  }
+  function tocou() { if (!mexeu) { mexeu = true; parar(); cortarDemo(); raiz.classList.add('is-mexida'); } }
   function desmontar() {
     if (reduzido() || desmontada) return;
     desmontada = true;
@@ -299,8 +305,12 @@
     function ajustar() {
       if (feito) return; feito = true;
       if (vv) vv.removeEventListener('resize', ajustar);
-      var alto = vv ? vv.height : window.innerHeight, baixo = campo.getBoundingClientRect().bottom;
-      if (baixo > alto - 8) window.scrollBy({ top: baixo - (alto - 8), behavior: 'auto' });
+      var alto = vv ? vv.height : window.innerHeight, r = campo.getBoundingClientRect();
+      if (r.bottom > alto - 8) { window.scrollBy({ top: r.bottom - (alto - 8), behavior: 'auto' }); return; }
+      /* o palco encolhe ao digitar (css: no celular ele é mais alto fora daí) e o campo sobe junto: se ficou por baixo
+         do palco grudado, desce até logo abaixo dele */
+      var sob = palco.getBoundingClientRect().bottom + 8;
+      if (r.top < sob) window.scrollBy({ top: r.top - sob, behavior: 'auto' });
     }
     if (vv) vv.addEventListener('resize', ajustar);
     setTimeout(ajustar, 600);   /* (sem teclado virtual, ou se o resize não vier) */
@@ -353,10 +363,18 @@
   function demonstrar() {
     if (reduzido() || lento()) { aplicar(telaNaRegua(), false, true); return; }
     var fim = telaNaRegua();
-    function pousar() { emDemo = false; aplicar(fim, false, true); }
+    /* a demonstração anda DESMONTADA, como o arraste (texto cinza, a grade das colunas): impresso, no meio de um
+       deslize a foto passava por cima do título um instante (J2 da crítica; dono, 16/10). Pousou, a luz imprime de novo */
+    function pousar() {
+      emDemo = false; aplicar(fim, false, true);
+      if (!desmontada) return;
+      raiz.classList.remove('is-tracando'); desmontada = false;
+      imprimir(REIMPRIME_MS);
+    }
     emDemo = true;
     depois(ENTRADA_MS + 400, function () {
       if (mexeu) { emDemo = false; return; }
+      desmontar();
       irPara(768, 600, 'io', function () {
         depois(450, function () {
           irPara(390, 600, 'io', function () {
@@ -492,6 +510,6 @@
     visivel = es[0].isIntersecting;
     if (visivel && !entrou) { window.addEventListener('scroll', talvezEntrar, { passive: true }); talvezEntrar(); }
     else if (!visivel) window.removeEventListener('scroll', talvezEntrar);   /* passou rápido: nada escuta a rolagem fora da tela */
-    if (!visivel && emDemo) { parar(); emDemo = false; aplicar(telaNaRegua(), false, true); }
+    if (!visivel && emDemo) { parar(); cortarDemo(); aplicar(telaNaRegua(), false, true); }
   }, { threshold: 0.6 }).observe(palco);
 })();

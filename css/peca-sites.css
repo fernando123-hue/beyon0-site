@@ -45,6 +45,10 @@
    tarefas de 58–107 ms na impressão). O palco não tem escala, então a camada não congela nitidez */
 .planta__palco { position: relative; aspect-ratio: 1 / 1.02; overflow: hidden; contain: layout paint; will-change: transform; }
 @media (min-width: 721px) { .planta__palco { aspect-ratio: 16 / 11; } }
+/* celular: o palco um pouco mais alto, para o celular de exemplo crescer inteiro (com o palco quadrado ele ocupava 33–41 %
+   do cartão e as letras ficavam com 6–8 px na tela: J5 da crítica; dono, 16/10). Digitando, volta ao quadrado: grudado no
+   topo, o palco alto empurraria o campo do nome para baixo do teclado */
+@media (max-width: 720px) { .planta:not(.is-digitando) .planta__palco { aspect-ratio: 1 / 1.16; } }
 /* no celular, com o campo do nome em foco, o palco gruda no topo: o exemplo fica à vista acima do teclado
    enquanto a pessoa digita (sem isso, o teclado escondia o site em que o nome dela aparece) */
 .planta.is-digitando .planta__palco { position: sticky; top: calc(var(--nav-h) + 4px); z-index: 3; background: var(--mod-fundo-opaco); }
@@ -137,6 +141,7 @@
 @container planta (max-width: 759px) {
   .pl-hero { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: stretch; padding: 16px 0 0; gap: 28px; }
   .pl-par .pl-barra:nth-child(3) { display: none; }
+  .pl-titulo { max-width: none; }   /* (em uma coluna, os 12ch deixavam o título em 4 linhas e a foto numa faixa baixa: achado 4) */
   .pl-foto { flex: 1; height: auto; min-height: 0; aspect-ratio: auto; }
   .pl-recursos { display: none; }
 }
@@ -146,10 +151,12 @@
   .pl-nav { height: 76px; gap: 20px; }
   .pl-cta { display: none; }
   .pl-menu { margin-left: auto; }
-  .pl-marca { font-size: 30px; white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 1.1; }
+  /* (letras um pouco maiores que as de um site de verdade: o exemplo é visto em miniatura; a 390 o botão tinha 6,6 px na
+     tela, J5) */
+  .pl-marca { font-size: 32px; white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 1.1; }
   .pl-titulo { font-size: 46px; }
   .pl-acoes { flex-direction: column; align-items: stretch; gap: 18px; }
-  .pl-btn { height: 70px; }
+  .pl-btn { height: 70px; font-size: 24px; letter-spacing: .02em; }
 }
 
 /* ---------- a impressão: planta (só traço) até a luz passar ---------- */
@@ -212,7 +219,10 @@
 .planta__medida { position: absolute; left: 50%; top: 0; width: 0; height: 9px; pointer-events: none; z-index: 1; }
 .planta__medida-linha { position: absolute; left: 0; top: 4px; width: 100px; height: 1px; background: var(--line-hi); transform-origin: left; }
 .planta__medida-ponta { position: absolute; left: 0; top: 0; width: 1px; height: 9px; background: var(--t3); }
-.planta__medida-num { position: absolute; left: 0; top: -2px; transform: translateX(-50%); font-family: var(--mono); font-size: var(--fs-rotulo); font-weight: 500; line-height: 13px; letter-spacing: var(--tr-dado); font-variant-numeric: tabular-nums; color: var(--t3); white-space: nowrap; }
+/* o risco a 45° na ponta (o da cota de arquitetura): sem ele a cota parecia uma segunda régua (J4) */
+.planta__medida-ponta::after { content: ""; position: absolute; left: -3px; top: 4px; width: 7px; height: 1px; background: var(--t2); transform: rotate(-45deg); }
+.planta__medida-num { position: absolute; left: 0; top: -2px; transform: translateX(-50%); font-family: var(--mono); font-size: var(--fs-rotulo); font-weight: 500; line-height: 13px; letter-spacing: var(--tr-dado); font-variant-numeric: tabular-nums; color: var(--t3); white-space: nowrap;
+  text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; }   /* sublinhado: a convenção de "fora de escala" (a moldura é miniatura, J3) */
 /* o tempo da página viaja pendurado na luz e pousa no pé da moldura: a impressão é a prova de velocidade */
 .planta__tempo { position: absolute; left: 0; top: 0; z-index: 5; pointer-events: none; font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-dado); color: var(--ac); white-space: nowrap; }
 .planta__tempo span { display: block; padding: 2px 6px; background: var(--bg); border: 1px solid rgb(var(--ac-rgb) / .5); border-radius: var(--raio-s); }
