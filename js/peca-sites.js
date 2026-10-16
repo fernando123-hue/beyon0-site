@@ -382,11 +382,14 @@
     else if (abaixo) tempo.animate([{ transform: 'translateY(' + y0 + 'px)', opacity: 0 }, pousa], { duration: 300, delay: ms, easing: 'cubic-bezier(.16, 1, .3, 1)', fill: 'both' });
     else tempo.animate([{ transform: 'translateY(' + y0 + 'px)' }, { transform: pousa.transform }], { duration: ms, easing: 'linear', fill: 'forwards' });
     setTimeout(function () { prova.hidden = false; }, reduzido() ? 0 : ms);
-    /* a cota pousada sai junto com a primeira mudança de tamanho (ela mediria a moldura de antes) */
+    /* o tempo pousado sai por relógio, 1,2 s depois da luz (ele mede a moldura da entrada; medido de 320 a 1440 px:
+       no celular ele não encosta na cota durante a demonstração) */
     setTimeout(function () { tempo.hidden = true; }, ms + 1200);
   }
   function entrar() {
     if (lento() && !reduzido()) { aplicar(telaNaRegua(), false, true); imprimir(ENTRADA_MS); provar(ENTRADA_MS); return; }   /* (a largura antes da luz) */
+    /* movimento reduzido: a demonstração só pousa na tela de quem vê; pousa ANTES da prova, que mede a moldura */
+    if (reduzido()) { imprimir(ENTRADA_MS); demonstrar(); provar(ENTRADA_MS); return; }
     imprimir(ENTRADA_MS); provar(ENTRADA_MS); demonstrar();
   }
 
