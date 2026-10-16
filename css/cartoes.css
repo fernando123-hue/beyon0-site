@@ -433,6 +433,19 @@ html.menos-movimento .estacao-cruza { display: none !important; }
 }
 /* (zoom de 400 %, viewport mais baixo que um card: o monte cobriria os títulos; fica em fluxo) */
 @media (max-width: 720px) and (max-height: 560px) { .pilha > :not(.estacao-vao) { position: static; } }
+/* ---- AS OPÇÕES EM TESTE (dono, 2026-10-16: no celular a pilha atual é "um amontoado de efeitos", a publicada
+   "é bem mais confortável"; quer uma melhor, usando as duas como dados). ?pilha=a|b|c (js/ancoras.js); nenhuma tem
+   carga nem deslize (js/anima.js), e o card anda colado no dedo. A: o FICHÁRIO da publicada — preso pelo TOPO,
+   14 px abaixo do anterior, o de baixo sobe por cima; nada se move sozinho. B: o fichário + a CHEGADA — o card
+   que assenta no degrau acende (.is-foco) e o coberto apaga o texto. C: a LISTA — sem empilhar; o card no meio da
+   tela acende (.is-foco, como os outros cards do celular). Sem sombra nem desfoque. ---- */
+@media (max-width: 720px) {
+  html:is(.pilha-a, .pilha-b) .pilha > :not(.estacao-vao) { top: calc(var(--nav-h) + 12px + var(--k) * 14px); bottom: auto; z-index: calc(1 + var(--k)); }
+  html:is(.pilha-a, .pilha-b) .pilha > :focus-within { z-index: 20; }
+  html.pilha-b .pilha > :not(.estacao-vao) > * { transition: opacity .35s var(--ease); }
+  html.pilha-b .pilha > .is-coberto > * { opacity: .25; }
+  html.pilha-c .pilha > :not(.estacao-vao) { position: static; }
+}
 /* ---- O DESLIZAR (dono, 2026-10-05: "o próprio deslizar mais suave, um pouco
    mais lento, mais perceptível"). Por cima do sticky (que segue igual): o card
    da frente se SOLTA da linha devagar (~0,56× o dedo) e acelera até 1× enquanto

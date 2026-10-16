@@ -552,6 +552,50 @@
     }
   }
   function de(tabela, el, padrao) { for (var k in tabela) if (el.matches(k)) return tabela[k]; return padrao; }
+  /* opção B da pilha do celular (?pilha=b): no fichário (css/cartoes.css), o card que chega ao degrau dele acende
+     (.is-foco) e o de baixo, coberto, apaga o texto (.is-coberto). Só classes, uma vez por passagem; os gatilhos medem
+     a PILHA (o card segurado pelo sticky mediria errado): o card k chega quando o topo da pilha está no degrau dele
+     menos a distância natural do card ao topo da pilha */
+  function pilhaChegadas() {
+    var gatilhos = [], medidores = [], pintores = [], marcados = [];
+    [].forEach.call(document.querySelectorAll('.pilha'), function (pilha) {
+      var cards = [].filter.call(pilha.children, function (c) { return !c.classList.contains('estacao-vao'); });
+      var nat = [];
+      var medir = function () {
+        var vao = parseFloat(getComputedStyle(pilha).rowGap) || 0, soma = 0;
+        for (var k = 0; k < cards.length; k++) { nat[k] = soma; soma += cards[k].offsetHeight + vao; }
+      };
+      medir();
+      ST.addEventListener('refreshInit', medir);
+      medidores.push(medir);
+      var daPilha = [];
+      /* aceso, só o de cima (o último que chegou): os de baixo ficam cobertos, texto e realce apagados. Recalculado
+         inteiro a cada troca: num salto de rolagem a ordem dos gatilhos não importa */
+      var pintar = function () {
+        var topo = -1;
+        for (var k = 0; k < cards.length; k++) if (daPilha[k] && daPilha[k].isActive) topo = k;
+        for (var j = 0; j < cards.length; j++) {
+          cards[j].classList.toggle('is-foco', j === topo);
+          cards[j].classList.toggle('is-coberto', j < topo);
+        }
+      };
+      cards.forEach(function (card, k) {
+        marcados.push(card);
+        var chega = function () { return 'top ' + Math.round((parseFloat(getComputedStyle(card).top) || 0) - nat[k]) + 'px'; };
+        daPilha[k] = ST.create({ trigger: pilha, start: chega, end: 'bottom top', invalidateOnRefresh: true, onToggle: pintar });
+        gatilhos.push(daPilha[k]);
+      });
+      pintar();
+      ST.addEventListener('refresh', pintar);
+      pintores.push(pintar);
+    });
+    return function () {
+      gatilhos.forEach(function (g) { g.kill(); });
+      medidores.forEach(function (m) { ST.removeEventListener('refreshInit', m); });
+      pintores.forEach(function (p) { ST.removeEventListener('refresh', p); });
+      marcados.forEach(function (c) { c.classList.remove('is-foco', 'is-coberto'); });
+    };
+  }
   function revelar(el, imediato) {
     marcar(el);
     if (el.matches(SEM_TWEEN)) return;
@@ -617,6 +661,9 @@
            segurado mediria errado). Só a barra anda por quadro (scaleX). */
         mm.add('(max-width: 720px) and (prefers-reduced-motion: no-preference)', function () {
           if (!ST || html.classList.contains('menos-movimento')) return;
+          /* opções em teste (?pilha=a|b|c, js/ancoras.js): sem carga nem deslize; só a B tem gatilhos */
+          var opcao = /\bpilha-([abc])\b/.exec(html.className);
+          if (opcao) return opcao[1] === 'b' ? pilhaChegadas() : undefined;
           var cartas = [], medidores = [], faixas = [];
           /* o DESLIZAR (dono, 2026-10-05: "o próprio deslizar mais suave, um pouco mais lento, mais perceptível"):
              o card da frente se solta da linha devagar (~0,56× o dedo) e acelera até 1× enquanto revela o de baixo;
@@ -730,7 +777,7 @@
         mm.add('(max-width: 860px) and (prefers-reduced-motion: no-preference)', function () {
           if (!ST || html.classList.contains('menos-movimento')) return;
           /* (os cards da pilha, até 720 px, ficam segurados pelo sticky: o gatilho por posição mediria errado) */
-          var naPilha = window.matchMedia('(max-width: 720px)').matches;
+          var naPilha = window.matchMedia('(max-width: 720px)').matches && !html.classList.contains('pilha-c');   /* (a C não empilha) */
           gsap.utils.toArray('.servico, .laudo__row, .celula, .passo, .cenario').forEach(function (el) {
             if (naPilha && el.parentElement && el.parentElement.classList.contains('pilha')) return;
             ST.create({ trigger: el, start: 'top 62%', end: 'bottom 38%', toggleClass: { targets: el, className: 'is-foco' } });

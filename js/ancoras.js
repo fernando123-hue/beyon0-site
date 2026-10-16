@@ -25,6 +25,10 @@
      celular (medido; já existia na V4.9). Rede: se o pagina.js não montar o
      menu até o load, a classe sai e os links voltam a aparecer em linha. */
   html.classList.add('tem-menu');
+  /* a pilha do celular em teste (dono, 2026-10-16: a atual é "um amontoado de efeitos"): ?pilha=a|b|c liga uma
+     das opções antes de pintar (css/cartoes.css, js/anima.js); sem nada, a atual */
+  var opcaoPilha = /[?&]pilha=([abc])\b/.exec(location.search);
+  if (opcaoPilha) html.classList.add('pilha-' + opcaoPilha[1]);
   window.addEventListener('load', function () {
     var botao = document.querySelector('.nav__toggle');
     if (!botao || botao.hidden) html.classList.remove('tem-menu');
