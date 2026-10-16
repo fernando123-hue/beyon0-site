@@ -300,6 +300,8 @@ entrada + demo + arraste, 3 rodadas, antes = HEAD servido por rota): tarefas lon
   de 320 a 1440 px. Quadros em 390 e 1440 conferidos a olho (o tempo no canto não colide nem com a demonstração em
   andamento).
 
+**Retomado em 2026-10-16 (noite):** `origin/main` (5f11339, PR #43) mesclada na branch sem conflito; suíte de unidade 394/394 verde. Falta: resposta do dono sobre J2–J5, `verificar` com o processador livre (estava em 100%), revisão, PR.
+
 **Retomado em 2026-10-16 (tarde), commit `b15d7b4`:** revisão de código das correções do crítico (agente
 diferente do autor): APROVAR COM AJUSTES, sem crítico/alto. Feito: no movimento reduzido a moldura pousa antes de
 `provar()` medir. Medido antes de mexer (script de amostras a cada 25 ms, 320–1440 px, com e sem movimento
