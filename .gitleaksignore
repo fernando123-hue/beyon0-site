@@ -7,7 +7,9 @@
 9bd01810d7705d4bc9fb740032d7edf0d0f800fa:docs/testes/auditoria-p1.test.mjs:generic-api-key:91
 9bd01810d7705d4bc9fb740032d7edf0d0f800fa:docs/testes/auditoria-p1.test.mjs:generic-api-key:108
 #
-# 2026-10-16, PR #43 (commit ed85949): 'sk_live_abcdefghij' é ENTRADA do teste "varredura: disfarces de endereço,
+# 2026-10-16, PR #43 (commit ed85949): a chave da linha 462 (prefixo de chave da Stripe + as letras a–j) é ENTRADA do teste "varredura: disfarces de endereço,
 # caminho, chave e telefone" (prova que direção com cara de chave é recusada); não é chave da Stripe. A regra
 # stripe-access-token leu o literal. O valor tem que continuar com essa forma, senão o teste deixa de provar a recusa.
 ed85949ffe5f5efc1344af61d79c5eb2e3b06919:docs/testes/fila-direcoes.test.mjs:stripe-access-token:462
+# O 1º texto deste comentário (commit 8b84077) repetia o literal e foi lido de novo; saiu no commit seguinte.
+8b840772d069e0c707dccc3d2a821689e66e4c1f:.gitleaksignore:stripe-access-token:10
