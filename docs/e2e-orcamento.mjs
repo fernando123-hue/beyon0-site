@@ -346,28 +346,65 @@ try {
   ok(await novo.p.evaluate(() => ['o-perguntas', 'o-direcoes'].every(id => document.getElementById(id).hidden)), 'retomada: antes do toque, nem as perguntas nem os modelos aparecem');
   ok(await novo.p.evaluate(() => document.activeElement.id) === 'o-ret-abrir', 'retomada: o foco fica em "Abrir o meu pedido"');
   /* a página de trás não diz que a pessoa está no começo: sem etapas, sem o texto de abertura, sem a mesa com o cartão do preço */
-  const escondidos = p => p.evaluate(() => ['o-etapas', 'o-est-vazio', 'o-conversar'].every(id => !document.getElementById(id).getClientRects().length)
-    && !document.querySelector('.orc-lead').getClientRects().length && !document.querySelector('.orc-mesa').getClientRects().length);
+  /* (o cartão do preço vazio mora dentro de .orc-mesa, que já entra na conta; o botão da conversa só nasce visível
+     com o consultor ligado: sem CONSULTOR=1 ele já é hidden e a checagem não diria nada) */
+  const escondidos = p => p.evaluate(consultor => ['o-etapas', ...(consultor ? ['o-conversar'] : [])].every(id => !document.getElementById(id).getClientRects().length)
+    && !document.querySelector('.orc-lead').getClientRects().length && !document.querySelector('.orc-mesa').getClientRects().length, CONSULTOR);
   ok(await escondidos(novo.p), 'retomada: enquanto o link espera o toque, as etapas, o preço vazio e a conversa ficam escondidos');
   ok(Math.round((await novo.p.locator('#o-ret-abrir').boundingBox()).height) >= 44, 'retomada: o botão tem 44 px de altura ou mais');
   ok(await semRolagemLateral(novo.p), 'retomada no celular: sem rolagem lateral');
+  /* (I1) a página de trás não aparece nem no 1º quadro: o script da retomada é o 16º de 17 scripts defer, e num
+     celular lento a 1ª pintura mostrava as etapas e o cartão vazio antes de ele rodar. A classe vem do js/ancoras.js
+     (head, síncrono). Aqui o script é atrasado 4 s e a página é medida ANTES de ele rodar; a passagem de páginas
+     também vale (o hash do link não é âncora: a chegada não pode ser trocada) */
+  const lenta = await novo.c.newPage();
+  await lenta.addInitScript(() => {
+    try { sessionStorage.setItem('bz-passagem', String(Date.now())); } catch (e) { /* sem armazenamento */ }
+    /* (o <html> ainda não existe neste ponto: observa o documento) */
+    window.__classes = new Set();
+    new MutationObserver(() => document.documentElement.classList.forEach(c => window.__classes.add(c))).observe(document, { subtree: true, attributes: true, attributeFilter: ['class'] });
+  });
+  await lenta.route('**/js/orcamento-retomada.js', async r => { await new Promise(f => setTimeout(f, 4000)); await r.continue(); });
+  await lenta.goto(BASE + '/orcamento#retomar=' + link1.codigo, { waitUntil: 'commit', timeout: 90000 });
+  /* (mede com as folhas de estilo já aplicadas: é o que a 1ª pintura espera; o script, não) */
+  await lenta.waitForFunction(() => document.getElementById('o-etapas') && document.querySelector('.orc-mesa') && document.querySelector('.orc-lead')
+    && [...document.querySelectorAll('link[rel=stylesheet]')].every(l => l.sheet), null, { timeout: 30000 });
+  const antes = await lenta.evaluate(() => ({
+    scriptRodou: !!window.BZRetomada,
+    caixas: ['#o-etapas', '.orc-mesa', '.orc-lead'].map(q => Math.round(document.querySelector(q).getBoundingClientRect().height)),
+    classes: [...window.__classes] }));
+  ok(!antes.scriptRodou, 'retomada, 1º quadro: a medida foi feita ANTES de o script da retomada rodar (a premissa do teste)');
+  ok(antes.caixas.every(h => h === 0), 'retomada, 1º quadro: antes de o script rodar, as etapas, a mesa e o texto de abertura não têm caixa (' + antes.caixas.join('/') + ' px)');
+  ok(await espera(lenta, () => !document.getElementById('o-retomada').hidden, 30000), 'retomada, 1º quadro: depois do atraso, a tela "Abrir o seu pedido" aparece');
+  const classes = await lenta.evaluate(() => [...window.__classes]);
+  ok(classes.includes('passagem-chega') && !classes.includes('passagem-ancora'), 'retomada: chegando pela passagem, o hash do link não vira âncora (sem a classe passagem-ancora)');
+  await lenta.close();
+  /* rede de segurança: o script da retomada nunca chega; no load a classe sai e a página não fica só com o título */
+  const bloqueada = await novo.c.newPage();
+  await bloqueada.route('**/js/orcamento-retomada.js', r => r.abort());
+  await bloqueada.goto(BASE + '/orcamento#retomar=' + link1.codigo, { waitUntil: 'load', timeout: 90000 });
+  ok(await espera(bloqueada, () => !document.documentElement.classList.contains('orc-retomando') && document.getElementById('o-etapas').getBoundingClientRect().height > 0 && !document.getElementById('o-perguntas').hidden, 15000),
+    'retomada, script bloqueado: no load a classe sai e a página aparece (etapas e perguntas), em vez de ficar só com o título');
+  await bloqueada.close();
   /* link cortado: avisa, sem botão de abrir; sem pedido neste aparelho, a saída é o WhatsApp (com o foco nele) */
   const cortada = await novo.c.newPage();
+  await cortada.setViewportSize({ width: 320, height: 400 });
   await cortada.goto(BASE + '/orcamento#retomar=curto', { waitUntil: 'load', timeout: 90000 });
   ok(await espera(cortada, () => !document.getElementById('o-retomada').hidden && /incompleto/.test(document.getElementById('o-ret-estado').textContent)), 'link cortado: a tela avisa que o link chegou incompleto');
   ok(await cortada.locator('#o-ret-abrir').isHidden() && await cortada.locator('#o-ret-salvo').isHidden() && await cortada.locator('#o-ret-wa').isVisible(), 'link cortado, sem pedido neste aparelho: só o WhatsApp (sem abrir, sem "pedido salvo")');
   ok(await cortada.evaluate(() => document.activeElement.id) === 'o-ret-wa', 'link cortado: o foco vai para o WhatsApp');
+  ok(await espera(cortada, () => { const r = document.getElementById('o-ret-wa').getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; }), 'link cortado a 320x400 (a 480 o botão já cabia; a 400 só cabe se a página rolar): o botão do WhatsApp está dentro da tela');
   ok(await escondidos(cortada), 'link cortado: as etapas e a mesa continuam escondidas (não há pedido para mostrar)');
   await cortada.close();
   /* erros simulados na troca do código (a rota devolve a resposta; o link não é gasto), num celular baixo: o botão cabe na tela */
   const erra = await novo.c.newPage();
-  await erra.setViewportSize({ width: 375, height: 667 });
+  await erra.setViewportSize({ width: 320, height: 400 });
   let respostaForcada = null;
   await erra.route(u => u.searchParams.get('acao') === 'retomar', r => r.fulfill({ status: respostaForcada.status, contentType: 'application/json', body: JSON.stringify(respostaForcada.corpo) }));
   await erra.goto(BASE + '/orcamento#retomar=' + link1.codigo, { waitUntil: 'load', timeout: 90000 });
   await erra.waitForSelector('#o-retomada:not([hidden])');
-  const naTela = await erra.evaluate(() => { const r = document.getElementById('o-ret-abrir').getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; });
-  ok(naTela, 'retomada a 375x667: o botão "Abrir o meu pedido" está dentro da tela');
+  const naTela = await espera(erra, () => { const r = document.getElementById('o-ret-abrir').getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; });
+  ok(naTela, 'retomada a 320x400 (celular baixo: a 480 o botão já cabia sem rolar, medido; a 400 só cabe se a página rolar até a seção): o botão "Abrir o meu pedido" está dentro da tela');
   respostaForcada = { status: 500, corpo: { erro: 'Erro interno.', pedido: 'abcdef12-3456' } };
   await erra.click('#o-ret-abrir');
   ok(await espera(erra, () => /Código do erro: abcdef12\./.test(document.getElementById('o-ret-estado').textContent)), 'retomada: erro 500 mostra a frase da página, com o código do erro');

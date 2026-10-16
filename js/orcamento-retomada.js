@@ -6,8 +6,11 @@
    depois de um toque da pessoa ("Abrir o meu pedido"), por dois motivos: a prévia do link no WhatsApp e os leitores
    de link não gastam o uso único, e quem abre entende que o pedido passa para este aparelho.
    Enquanto o link espera, a página de trás (etapas, preço vazio, conversa) fica escondida pela classe orc-retomando
-   no <html> (css/orcamento.css): ela diria à pessoa que está no começo, e o pedido dela já existe.
-   Sem estado próprio além do código: a página (js/orcamento.js) chama mostrar() e continua quando dá certo.
+   no <html> (css/orcamento.css): ela diria à pessoa que está no começo, e o pedido dela já existe. Quem põe a classe
+   no 1º quadro é o js/ancoras.js (head, mesmo prefixo '#retomar=', e é ele que a tira no load se este script não vier);
+   aqui ela é posta de novo (sem efeito, é idempotente) e tirada quando o pedido abre.
+   Estado próprio, só três coisas: o código (some no primeiro uso), `abriu` e `focado` (o foco vai ao título uma vez).
+   A página (js/orcamento.js) chama mostrar() e continua quando dá certo.
    ========================================================================== */
 (function () {
   'use strict';
@@ -64,7 +67,7 @@
   /* ajuda = { mensagemDe, rolarAte } de js/orcamento.js: a frase de erro da página e a rolagem que espera a passagem */
   function mostrar(continuar, ajuda) {
     var bloco = $('o-retomada'), botao = $('o-ret-abrir'), salvo = $('o-ret-salvo');
-    var mensagemDe = (ajuda && ajuda.mensagemDe) || function (e) { return (e && e.message) || 'Não deu para abrir agora. Tente de novo.'; };
+    var mensagemDe = ajuda.mensagemDe;
     bloco.hidden = false;
     $('o-ret-wa').href = whatsapp('Oi! O link do meu pedido não abriu. Pode me mandar um novo?');
     salvo.addEventListener('click', function () { seguir(continuar); });
@@ -76,7 +79,10 @@
       var temPedido = !!(window.BZOrcamento && window.BZOrcamento.temSessao());
       salvo.hidden = !temPedido;
       (temPedido ? salvo : $('o-ret-wa')).focus({ preventScroll: true });
+      aVista(temPedido ? salvo : $('o-ret-wa'));
     }
+    /* celular baixo: o botão (ou o último da fila) fica abaixo da dobra? rola até a seção, esperando a passagem como as outras etapas */
+    function aVista(botaoDeBaixo) { if (botaoDeBaixo.getBoundingClientRect().bottom > window.innerHeight) ajuda.rolarAte(bloco); }
 
     if (!codigo) { semSaida('Este link chegou incompleto. Peça um novo à Beyon Zero pelo WhatsApp.'); return; }
     botao.addEventListener('click', async function () {
@@ -95,8 +101,7 @@
       seguir(continuar);
     });
     botao.focus({ preventScroll: true });
-    /* celular baixo: a seção aparece abaixo da dobra? rola até ela (esperando a passagem, como as outras etapas) */
-    if (ajuda && ajuda.rolarAte && botao.getBoundingClientRect().bottom > window.innerHeight) ajuda.rolarAte(bloco);
+    aVista(botao);
   }
 
   window.BZRetomada = { pendente: function () { return codigo !== null; }, mostrar: mostrar, focar: focar };
