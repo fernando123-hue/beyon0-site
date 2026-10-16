@@ -91,17 +91,20 @@
 .pl-menu { display: none; flex-direction: column; gap: 9px; margin-left: auto; }
 .pl-menu i { display: block; width: 36px; height: 3px; border-radius: 2px; background: var(--t2); }
 
-.pl-hero { display: grid; grid-template-columns: 1fr 1.02fr; gap: 56px; align-items: center; padding: 36px 0 44px; }
-.pl-texto { display: flex; flex-direction: column; gap: 20px; }
+/* no computador o site inteiro cabe na moldura (os recursos saíam cortados no meio da palavra entre 960 e 1440 px:
+   lia como defeito); o título acompanha a largura (cqi) até 62 px. Tablet e celular mostram só a primeira tela,
+   como um aparelho de verdade */
+.pl-hero { display: grid; grid-template-columns: 1fr 1.02fr; gap: 56px; align-items: center; padding: 24px 0 32px; }
+.pl-texto { display: flex; flex-direction: column; gap: 18px; }
 .pl-kicker { width: 120px; height: 10px; border-radius: 5px; background: rgb(var(--ac-rgb) / .55); }
-.pl-titulo { font-size: 62px; font-weight: 300; line-height: 1.04; letter-spacing: -.03em; max-width: 12ch; overflow-wrap: anywhere; }
+.pl-titulo { font-size: min(62px, 4.9cqi); font-weight: 300; line-height: 1.04; letter-spacing: -.03em; max-width: 12ch; overflow-wrap: anywhere; }
 .pl-titulo b { font-weight: 300; color: var(--ac); }
 .pl-par { display: flex; flex-direction: column; gap: 12px; }
 .pl-par .pl-barra:nth-child(1) { width: 92%; } .pl-par .pl-barra:nth-child(2) { width: 84%; } .pl-par .pl-barra:nth-child(3) { width: 56%; }
 .pl-acoes { display: flex; align-items: center; gap: 28px; margin-top: 12px; }
 .pl-btn { display: inline-flex; align-items: center; justify-content: center; height: 64px; padding: 0 40px; border-radius: 32px; background: var(--ac); color: var(--ac-tinta); font-family: var(--mono); font-size: 20px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
 .pl-acoes .pl-barra { width: 110px; }
-.pl-foto { height: 400px; border-radius: 18px; border: 2px solid var(--line); overflow: hidden; background: #0A0D0F; }
+.pl-foto { height: 380px; border-radius: 18px; border: 2px solid var(--line); overflow: hidden; background: #0A0D0F; }
 .pl-foto svg { display: block; width: 100%; height: 100%; }
 
 .pl-recursos { list-style: none; margin: 0; padding: 32px 0 0; display: grid; grid-template-columns: repeat(4, 1fr); border-top: 2px solid var(--line); }
@@ -174,12 +177,14 @@
 .planta.is-tracando .pl::after { opacity: 1; }
 /* a tinta molhada (a do H1): a palavra carimba em ciano e seca para a cor dela, no mesmo atraso do carimbo; a
    transição de duração 0 segura a cor de planta até lá (na cascata, a transição vence a animação) */
-.pl-seca { animation: pl-seca .5s var(--ease); }
+/* a tinta fica molhada um instante antes de secar (com a curva de saída ela sumia nos primeiros 100 ms e a marca do
+   topo quase não mostrava a tinta — crítica, rodada 4) */
+.pl-seca { animation: pl-seca .9s linear; }
 .pl-titulo b.pl-seca { animation-name: pl-seca-destaque; }
-@keyframes pl-seca { from { color: var(--ac); } }
-@keyframes pl-seca-destaque { from { color: var(--ac-2); } }
+@keyframes pl-seca { 0%, 40% { color: var(--ac); animation-timing-function: cubic-bezier(.4, 0, .2, 1); } }
+@keyframes pl-seca-destaque { 0%, 40% { color: var(--ac-2); animation-timing-function: cubic-bezier(.4, 0, .2, 1); } }
 /* nome longo: o título desce um degrau para os recursos não saírem da moldura */
-.pl-titulo.is-longo { font-size: 50px; }
+.pl-titulo.is-longo { font-size: min(50px, 4.1cqi); }
 @container planta (max-width: 599px) { .pl-titulo.is-longo { font-size: 40px; } }
 /* a luz que imprime: desce (entrada e soltar a régua) e atravessa (o nome) */
 .planta__luz, .planta__luz-v { position: absolute; background: var(--ac); opacity: 0; pointer-events: none; z-index: 4; }
@@ -189,6 +194,14 @@
 .planta.is-assinando .planta__luz-v { animation: planta-atravessa 450ms linear forwards; }
 @keyframes planta-desce { 0% { opacity: 0; transform: translateY(0); } 6% { opacity: 1; } 88% { opacity: 1; } 100% { opacity: 0; transform: translateY(var(--luz-fim, 800px)); } }
 @keyframes planta-atravessa { 0% { opacity: 0; transform: translateX(0); } 10% { opacity: 1; } 85% { opacity: 1; } 100% { opacity: 0; transform: translateX(var(--luz-fim-x, 1280px)); } }
+/* a COTA da moldura (rodada 5): parada, a peça lia "um navegador"; com a linha de cota embaixo (o vocabulário da
+   cota do H1: fio de 1 px, riscos de 9 px nas pontas, medida em mono) ela lê planta. Acompanha a largura só por
+   transform (os dois trechos da linha esticam por scaleX, as pontas andam por translateX); a medida fica no vão
+   entre os trechos (um fundo opaco atrás dela não casava com o cartão translúcido) */
+.planta__medida { position: absolute; left: 50%; top: 0; width: 0; height: 9px; pointer-events: none; z-index: 1; }
+.planta__medida-linha { position: absolute; left: 0; top: 4px; width: 100px; height: 1px; background: var(--line-hi); transform-origin: left; }
+.planta__medida-ponta { position: absolute; left: 0; top: 0; width: 1px; height: 9px; background: var(--t3); }
+.planta__medida-num { position: absolute; left: 0; top: -2px; transform: translateX(-50%); font-family: var(--mono); font-size: var(--fs-rotulo); font-weight: 500; line-height: 13px; letter-spacing: var(--tr-dado); font-variant-numeric: tabular-nums; color: var(--t3); white-space: nowrap; }
 /* o tempo da página viaja pendurado na luz e pousa no pé da moldura: a impressão é a prova de velocidade */
 .planta__tempo { position: absolute; left: 0; top: 0; z-index: 5; pointer-events: none; font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-dado); color: var(--ac); white-space: nowrap; }
 .planta__tempo span { display: block; padding: 2px 6px; background: var(--bg); border: 1px solid rgb(var(--ac-rgb) / .5); border-radius: var(--raio-s); }
@@ -245,6 +258,7 @@
 .planta__marca { display: none; position: absolute; top: 14px; height: 9px; border-left: 1px solid var(--t2); }
 
 /* ---------- a prova e o próximo passo ---------- */
-.servico .planta__prova { display: flex; align-items: center; gap: .5rem; margin: 0; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-dado); line-height: 1.5; color: var(--t3); }
-.planta__prova[hidden] { display: none; }
+/* (max-width: o 44ch dos parágrafos do primeiro cartão, medido em mono, quebrava a prova em três linhas curtas) */
+.servico p.planta__prova { max-width: none; display: flex; align-items: center; gap: .5rem; margin: 0; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-dado); line-height: 1.5; color: var(--t3); }
+.servico p.planta__prova[hidden] { display: none; }
 .planta__prova svg { flex: none; width: 14px; height: 14px; color: var(--ac); }

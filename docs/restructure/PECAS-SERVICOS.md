@@ -248,3 +248,39 @@ quem quer que seja" e escolheu a opção "Universal primeiro" (registrado em `01
 
 **Próximo passo (pedido do dono):** continuar aprimorando SÓ a Planta (Sites), com os pendentes da lista acima,
 seguindo o "universal primeiro". O Despacho e o Plantão estão aprovados: não mexer sem pedido.
+
+### Rodada 5 da Planta (2026-10-16) — ESTADO ATUAL, ler primeiro
+
+**Feito (commit desta rodada, branch `pecas-servicos`):**
+- **Computador cabe inteiro:** os recursos do site de exemplo saíam cortados no meio da palavra entre 960 e 1440 px
+  (7 a 72 px fora da moldura). Título `min(62px, 4.9cqi)`, hero mais justo, foto 380 px. Medido: todos os nichos e
+  nomes, de 920 a 1440 px, com folga ≥ 8 px. Tablet e celular continuam mostrando só a primeira tela (realista).
+- **Tinta do nome (pendente 2):** `.pl-seca` segura o ciano 40% de 0,9 s antes de secar; a marca do topo agora mostra.
+- **Cota da moldura (pendente 3):** `.planta__medida`, dois trechos de 1 px (scaleX) com a medida no vão e riscos de
+  9 px nas pontas (translateX), 10 px abaixo do pé da moldura; a moldura sobe `COTA_RESERVA/2` (28 px reservados).
+  Tudo em `encaixar()`, só transform. O número saiu do cursor da régua (duas vezes a 40 px era ruído): o cursor só diz
+  "sua tela".
+- **Prova:** `.servico p.planta__prova { max-width: none }` (o 44ch de `cartoes.css`, medido em mono, espremia a
+  frase em 3 linhas); o `[hidden]` subiu junto para continuar vencendo.
+- **LCP pendurado na luz (pendente 1):** visto pela primeira vez numa captura (1,3–1,7 s a 390 px): legível, chip opaco.
+- Scripts de `docs/pecas/` aceitam `OUT=<pasta>` no ambiente.
+
+**Verificado:** `verificar` OK (1ª rodada teve LCP de 11 s em `automacao`, página sem a Planta; 2ª rodada toda OK),
+acessibilidade 23 OK, `csp.test.mjs` OK, sem rolagem lateral de 320 a 1440 px. A/B celular médio (GPU + CPU 4×, 390 px,
+entrada + demo + arraste, 3 rodadas, antes = HEAD servido por rota): tarefas longas mediana 5 × 3; quadros > 33 ms 38 × 40
+(ruído).
+
+**Interrompido pela passagem automática:** a revisão de código (agente code-reviewer) e o crítico visual (júri +
+celular, rodada 5) foram lançados e parados antes de responder. **Próximo passo exato:**
+1. subir `node docs/servidor.mjs . 8897`, gerar quadros (`OUT=<scratchpad>/ node docs/pecas/quadros.mjs 390` e `1440`,
+   `node docs/pecas/checar.mjs c`);
+2. rodar de novo a revisão de código do diff da rodada 5 (`git show` do commit) e o crítico visual com esses PNG;
+3. corrigir o que apontarem, atualizar esta seção e as notas da tabela (rodada 5).
+
+**Ainda pendentes:** 4 (selo "para {nome}" nos outros cartões: mexe no Despacho/Plantão, aprovados → só com pedido do
+dono); 5 (teclado num celular de verdade); 6 (exceção medida). Defeito antigo visto, não corrigido: a borda da moldura
+(1/escala px) entra na largura do container, então entre 600–606 e 900–906 px o JS diz uma faixa e o CSS mostra a
+outra; o ímã quase nunca para ali. Correção possível: borda num `::after` sobreposto. PRs nível 3 seguem pendentes.
+
+**Armadilha do ambiente:** no Git Bash, encadear vários `node` com pipe às vezes dá `fork: Permission denied`; rodar
+um comando por chamada e mandar saída para arquivo.

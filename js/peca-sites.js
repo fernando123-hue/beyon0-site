@@ -29,6 +29,7 @@
   var palco = $('.planta__palco'), moldura = $('.planta__moldura'), pl = $('.pl');
   var luz = $('.planta__luz'), luzV = $('.planta__luz-v');
   var tempo = $('.planta__tempo'), tempoTexto = $('[data-planta-tempo]');
+  var cotaMoldura = $('.planta__medida'), cotaLinhas = raiz.querySelectorAll('.planta__medida-linha'), cotaPontas = raiz.querySelectorAll('.planta__medida-ponta'), cotaNum = $('[data-planta-medida]');
   var regua = $('.planta__regua'), slider = $('.planta__slider'), cursor = $('.planta__cursor'), cota = $('.planta__cota'), voce = $('.planta__voce');
   var campo = $('[data-planta-campo]'), url = $('[data-planta-url]'), titulo = $('[data-planta-titulo]');
   var cta = $('[data-planta-cta]'), botao = $('[data-planta-btn]');
@@ -46,6 +47,7 @@
   var MIN = 360, MAX = 1440;
   var PARADA_DA_FAIXA = [390, 768, 1280];
   var ENTRADA_MS = 1000, REIMPRIME_MS = 600;   /* a luz desce em linha reta; o bloco carimba quando ela passa pela borda de baixo dele */
+  var COTA_RESERVA = 28, COTA_VAO = 8;   /* px de tela embaixo da moldura para a linha de cota; folga em volta da medida */
   var NOME_PADRAO = 'Seu negócio', URL_PADRAO = 'seunegocio.com.br', NOME_LONGO = 14;
   /* o site de exemplo por tipo de negócio. {n} = o nome digitado (ou "Seu negócio"). É texto de um site de
      EXEMPLO do cliente: nada de promessa da Beyon Zero aqui dentro (crítica, rodada 2) */
@@ -67,7 +69,7 @@
   var nicho = 'padrao', nome = '';
   /* medidas do palco e da régua, lidas só quando o tamanho muda (ler a cada passo, logo depois de escrever a
      largura da moldura, forçava layout no meio do quadro) */
-  var medida = { pw: 0, ph: 0, rw: 0 };
+  var medida = { pw: 0, ph: 0, rw: 0, letra: 0 };
 
   function escrever(el, s) {
     if (!el) return;
@@ -90,8 +92,17 @@
   /* ---------- 1. encaixe ---------- */
   function encaixar() {
     if (!medida.pw || !medida.ph) return;
-    escala = Math.min(medida.pw / largura, medida.ph / altura(largura)) * 0.94;
-    moldura.style.transform = 'translate(-50%, -50%) scale(' + escala.toFixed(4) + ')';
+    escala = Math.min(medida.pw / largura, (medida.ph - COTA_RESERVA) / altura(largura)) * 0.94;
+    moldura.style.transform = 'translate(-50%, calc(-50% - ' + COTA_RESERVA / 2 + 'px)) scale(' + escala.toFixed(4) + ')';
+    /* a cota acompanha a moldura: 12 px abaixo do pé dela, da largura dela */
+    var sw = largura * escala, pe = (medida.ph - COTA_RESERVA + altura(largura) * escala) / 2;
+    cotaMoldura.style.transform = 'translateY(' + (pe + 10).toFixed(1) + 'px)';
+    /* o vão da medida: a fonte é mono, então a largura sai da contagem de letras ("390 px", "1280 px") */
+    var vao = medida.letra * (String(largura).length + 3) / 2 + COTA_VAO, trecho = (Math.max(0, sw / 2 - vao) / 100).toFixed(4);
+    cotaLinhas[0].style.transform = 'translateX(' + (-sw / 2).toFixed(1) + 'px) scaleX(' + trecho + ')';
+    cotaLinhas[1].style.transform = 'translateX(' + vao.toFixed(1) + 'px) scaleX(' + trecho + ')';
+    cotaPontas[0].style.transform = 'translateX(' + (-sw / 2).toFixed(1) + 'px)';
+    cotaPontas[1].style.transform = 'translateX(' + (sw / 2 - 1).toFixed(1) + 'px)';
   }
   /* espessuras que dependem da escala: 1 px de tela exato (mais que isso suaviza a linha em duas fileiras de
      pixel); só quando a faixa ou a tela muda, nunca a cada passo */
@@ -132,7 +143,9 @@
     var sua = telaCabe() && Math.abs(w - tela()) <= 4;   /* "sua tela" só quando é verdade */
     regua.classList.toggle('is-sua', sua);
     regua.classList.toggle('is-cota-esquerda', x > medida.rw - 110);
-    escrever(cota, w + ' px' + (sua ? ' · sua tela' : ''));
+    /* a medida fica na cota do desenho (o número duas vezes, a 40 px, era ruído); o cursor só diz "sua tela" */
+    escrever(cotaNum, w + ' px');
+    escrever(cota, sua ? 'sua tela' : '');
     slider.setAttribute('aria-valuenow', String(w));
     if (cruzou || anunciar) {
       slider.setAttribute('aria-valuetext', nomeDaFaixa(w) + ', ' + w + ' pixels' + (sua ? ', a largura da sua tela' : ''));
@@ -144,7 +157,7 @@
   function posicao(w) { return (w - MIN) / (MAX - MIN) * medida.rw; }
   function valorEm(x) { return MIN + x / (medida.rw || 1) * (MAX - MIN); }
   function marcar() {
-    medida = { pw: palco.clientWidth, ph: palco.clientHeight, rw: slider.clientWidth };
+    medida = { pw: palco.clientWidth, ph: palco.clientHeight, rw: slider.clientWidth, letra: cotaNum.offsetWidth / (cotaNum.textContent.length || 1) };
     larguraDaTela = Math.round(window.innerWidth);
     if (window.getComputedStyle(regua).display !== 'grid') {
       [].forEach.call(paradas, function (p) { p.style.left = posicao(+p.getAttribute('data-parada')).toFixed(1) + 'px'; });

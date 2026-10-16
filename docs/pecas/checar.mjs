@@ -2,7 +2,7 @@
 import { createRequire } from 'node:module';
 const require = createRequire('C:/Vault - Fernando/Beyon Zero/03 Projetos/site/package.json');
 const { chromium } = require('playwright');
-const OUT = 'C:/Users/Irineu/AppData/Local/Temp/claude/C--Vault---Fernando-Beyon-Zero/64db34b9-531c-4aa9-b52a-864d8fa9471a/scratchpad/';
+const OUT = process.env.OUT || 'C:/Users/Irineu/AppData/Local/Temp/claude/C--Vault---Fernando-Beyon-Zero/64db34b9-531c-4aa9-b52a-864d8fa9471a/scratchpad/';
 const ROT = process.argv[2] || 'c';
 const b = await chromium.launch({ executablePath: `${process.env.LOCALAPPDATA}/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-win64/chrome-headless-shell.exe` });
 for (const w of [320, 360, 390, 768, 1440]) {
