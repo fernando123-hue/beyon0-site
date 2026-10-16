@@ -13,7 +13,7 @@
       pé da moldura. Depois, uma vez, a moldura passa por tablet e celular e pousa na tela de quem vê.
    4. Nome e tipo de negócio viram marca, título, botões, recursos e endereço do site de exemplo; ao parar
       de digitar, a luz atravessa e a tinta do nome seca. Nada sai da página: o nome só vai ao orçamento
-      (sessionStorage) se a pessoa clicar em "Quero este site", e ao WhatsApp numa mensagem que ela vê e
+      (sessionStorage) se a pessoa clicar em "Quero o meu site", e ao WhatsApp numa mensagem que ela vê e
       decide enviar.
    Texto trocado sempre pelo nó de texto (nodeValue): um nó novo acionaria o MutationObserver da rede
    (js/rede.js), que remede a página inteira. Movimento reduzido: tudo pronto e parado, e funcionando.
@@ -33,7 +33,7 @@
   var regua = $('.planta__regua'), slider = $('.planta__slider'), cursor = $('.planta__cursor'), cota = $('.planta__cota'), voce = $('.planta__voce');
   var campo = $('[data-planta-campo]'), url = $('[data-planta-url]'), titulo = $('[data-planta-titulo]');
   var cta = $('[data-planta-cta]'), botao = $('[data-planta-btn]');
-  var quero = cartao.querySelector('[data-planta-quero]'), queroTexto = quero && quero.querySelector('.peca-quero__texto');
+  var quero = cartao.querySelector('[data-planta-quero]');   /* (o texto é fixo, 'Quero o meu site': o exemplo é um teste, não o site que a pessoa recebe — dono, 2026-10-16) */
   var wa = cartao.querySelector('[data-planta-wa]');
   var prova = $('.planta__prova'), provaTexto = $('[data-planta-prova]');
   var nomes = raiz.querySelectorAll('[data-planta-nome]');
@@ -408,7 +408,6 @@
     escrever(url, endereco(nome));
     escrever(cta, cfg.cta);
     escrever(botao, cfg.btn);
-    if (queroTexto) escrever(queroTexto, nome ? 'Quero este site para ' + nome : 'Quero um site assim');
     /* o atendente de IA (js/peca-atendente.js) passa a falar com este nome e este tipo de negócio */
     document.dispatchEvent(new CustomEvent('bz:negocio', { detail: { nome: nome, nicho: nicho } }));
   }

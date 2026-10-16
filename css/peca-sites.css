@@ -91,10 +91,10 @@
 .pl-menu { display: none; flex-direction: column; gap: 9px; margin-left: auto; }
 .pl-menu i { display: block; width: 36px; height: 3px; border-radius: 2px; background: var(--t2); }
 
-/* no computador o site inteiro cabe na moldura (os recursos saíam cortados no meio da palavra entre 960 e 1440 px:
-   lia como defeito); o título acompanha a largura (cqi) até 62 px. Tablet e celular mostram só a primeira tela,
-   como um aparelho de verdade */
-.pl-hero { display: grid; grid-template-columns: 1fr 1.02fr; gap: 56px; align-items: center; padding: 24px 0 32px; }
+/* o site inteiro cabe na moldura nas três telas (os recursos saíam cortados no meio da palavra entre 960 e 1440 px,
+   e no tablet e no celular a "primeira tela de aparelho de verdade" cortava a foto ao meio: o dono, 2026-10-16, viu
+   como site bugado). O computador mostra tudo; o tablet aperta em duas colunas; o celular fica com o essencial */
+.pl-hero { display: grid; grid-template-columns: 1fr 1.02fr; gap: 56px; align-items: center; padding: 24px 0 20px; }   /* (o título de Serviços, em 4 linhas, passava 3 px do pé com 32) */
 .pl-texto { display: flex; flex-direction: column; gap: 18px; }
 .pl-kicker { width: 120px; height: 10px; border-radius: 5px; background: rgb(var(--ac-rgb) / .55); }
 .pl-titulo { font-size: 62px; font-weight: 300; line-height: 1.04; letter-spacing: -.03em; max-width: 12ch; overflow-wrap: anywhere; }
@@ -104,8 +104,10 @@
 .pl-acoes { display: flex; align-items: center; gap: 28px; margin-top: 12px; }
 .pl-btn { display: inline-flex; align-items: center; justify-content: center; height: 64px; padding: 0 40px; border-radius: 32px; background: var(--ac); color: var(--ac-tinta); font-family: var(--mono); font-size: 20px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
 .pl-acoes .pl-barra { width: 110px; }
-.pl-foto { height: 380px; border-radius: 18px; border: 2px solid var(--line); overflow: hidden; background: #0A0D0F; }
-.pl-foto svg { display: block; width: 100%; height: 100%; }
+.pl-foto { position: relative; height: 380px; border-radius: 18px; border: 2px solid var(--line); overflow: hidden; background: #0A0D0F; }
+/* o desenho não dá altura à caixa (no celular a foto ocupa só o que sobra até o pé; com o svg no fluxo ela
+   passava do pé) */
+.pl-foto svg { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
 
 .pl-recursos { list-style: none; margin: 0; padding: 32px 0 0; display: grid; grid-template-columns: repeat(4, 1fr); border-top: 2px solid var(--line); }
 .pl-recursos li { display: flex; flex-direction: column; gap: 14px; padding: 0 28px; border-left: 2px solid var(--line); }
@@ -114,36 +116,40 @@
 .pl-rot { font-size: 22px; font-weight: 500; color: var(--t1); white-space: nowrap; }
 .pl-recursos .pl-barra { width: 70%; opacity: .7; }
 
-/* tablet: os links viram menu, o hero empilha, os recursos em duas colunas */
+/* tablet: os links viram menu, o hero aperta em duas colunas (a foto acompanha a altura do texto), os recursos
+   numa linha só, sem a barra de texto (medido: empilhado, o site passava 400 px do pé da moldura) */
 @container planta (max-width: 899px) {
-  .pl { padding: 56px 48px 0; }
+  .pl { padding: 56px 48px 48px; }
   .pl-links { display: none; }
   .pl-cta { margin-left: auto; }
   .pl-menu { display: flex; margin-left: 0; }
-  .pl-hero { grid-template-columns: 1fr; gap: 36px; padding-top: 24px; }
-  .pl-titulo { font-size: 58px; max-width: 14ch; }
-  .pl-foto { height: 300px; }
-  .pl-recursos { grid-template-columns: repeat(2, 1fr); row-gap: 28px; }
-  .pl-recursos li:nth-child(3) { border-left: 0; padding-left: 0; }
+  .pl-hero { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 40px; padding: 32px 0 40px; }
+  .pl-titulo { font-size: 48px; }
+  .pl-acoes .pl-barra { display: none; }
+  .pl-foto { height: auto; aspect-ratio: 520 / 380; }   /* a proporção do desenho: a fachada inteira, sem corte dos lados */
+  .pl-recursos { margin-top: auto; }   /* o que sobra de altura fica entre o hero e os recursos, que pousam no pé */
+  .pl-recursos li { padding: 0 16px; }
+  .pl-recursos .pl-barra { display: none; }
+  .pl-rot { font-size: 20px; }
 }
-/* celular: uma coluna, botão inteiro, recursos em ícones */
+/* até 759: uma coluna e a foto ocupando o que sobra até o pé, inteira; os recursos ficam para quem rola (não
+   cabiam sem cortar a foto; em duas colunas, de 600 a 759, o título virava 5 linhas e passava 80 px do pé) */
+@container planta (max-width: 759px) {
+  .pl-hero { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: stretch; padding: 16px 0 0; gap: 28px; }
+  .pl-par .pl-barra:nth-child(3) { display: none; }
+  .pl-foto { flex: 1; height: auto; min-height: 0; aspect-ratio: auto; }
+  .pl-recursos { display: none; }
+}
+/* celular: botão inteiro, marca em até duas linhas, espaço para a câmera */
 @container planta (max-width: 599px) {
-  .pl { padding: 72px 32px 0; }
+  .pl { padding: 72px 32px 32px; }
   .pl-nav { height: 76px; gap: 20px; }
   .pl-cta { display: none; }
   .pl-menu { margin-left: auto; }
   .pl-marca { font-size: 30px; white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 1.1; }
-  .pl-hero { padding: 16px 0 32px; gap: 28px; }
-  .pl-titulo { font-size: 48px; }
+  .pl-titulo { font-size: 46px; }
   .pl-acoes { flex-direction: column; align-items: stretch; gap: 18px; }
-  .pl-acoes .pl-barra { align-self: center; }
   .pl-btn { height: 70px; }
-  .pl-foto { height: 240px; }
-  .pl-recursos { grid-template-columns: repeat(3, 1fr); }
-  .pl-recursos li { padding: 0 12px; align-items: center; text-align: center; }
-  .pl-recursos li:nth-child(3) { border-left: 2px solid var(--line); padding-left: 12px; }
-  .pl-recursos li:nth-child(4) { display: none; }
-  .pl-rot { font-size: 20px; white-space: normal; }
 }
 
 /* ---------- a impressão: planta (só traço) até a luz passar ---------- */
@@ -189,8 +195,9 @@
 .pl-titulo.is-longo { font-size: 50px; }
 /* no computador o título acompanha a largura (cqi) para o site caber inteiro na moldura; só aqui: no tablet o cqi
    do nome longo vencia os 58px e o título caía para ~25px (revisão, rodada 5) */
-@container planta (min-width: 900px) { .pl-titulo { font-size: min(62px, 4.9cqi); } .pl-titulo.is-longo { font-size: min(50px, 4.1cqi); } }
-@container planta (max-width: 599px) { .pl-titulo.is-longo { font-size: 40px; } }
+@container planta (min-width: 900px) { .pl-titulo { font-size: min(62px, 4.9cqi); } .pl-titulo.is-longo { font-size: min(46px, 3.8cqi); } }
+@container planta (max-width: 899px) { .pl-titulo.is-longo { font-size: 38px; } }   /* tablet: meia coluna */
+@container planta (max-width: 759px) { .pl-titulo.is-longo { font-size: 40px; } }   /* uma coluna */
 /* a luz que imprime: desce (entrada e soltar a régua) e atravessa (o nome) */
 .planta__luz, .planta__luz-v { position: absolute; background: var(--ac); opacity: 0; pointer-events: none; z-index: 4; }
 .planta__luz { left: 0; right: 0; top: 0; height: 3px; }

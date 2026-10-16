@@ -159,7 +159,7 @@ test('logo: as páginas usam a logo em SVG, sem estilo nem cor embutidos e com o
 
 /* A PLANTA (2026-10-14, a peça do cartão de Sites: docs/restructure/PECAS-SERVICOS.md). O visitante digita o
    nome do negócio dele: o nome entra na página só como texto (nada de innerHTML), nunca sai pela rede nem pela
-   URL, e só vai ao orçamento (sessionStorage, nesta aba) se a pessoa clicar em "Quero este site". A peça segue a
+   URL, e só vai ao orçamento (sessionStorage, nesta aba) se a pessoa clicar em "Quero o meu site". A peça segue a
    CSP (nenhum style="" no HTML) e funciona sem mouse: a régua é um slider com valor falado e as paradas são botões. */
 /* O DESPACHO e O PLANTÃO (as peças de Automação e do Atendente): nenhum estilo embutido, texto só como texto,
    nada sai pela rede nem pela URL, o que vai a outra página só no clique de um botão de ação, e controles de
@@ -196,5 +196,5 @@ test('peça de Sites: o nome não sai da página, a CSP vale e a régua é acess
   assert.ok(!/fetch\(|XMLHttpRequest|sendBeacon|navigator\.sendBeacon|location\s*=|location\.href\s*=|history\.(push|replace)State/.test(js), 'js/peca-sites.js: o nome não pode sair pela rede nem pela URL');
   const usos = js.match(/sessionStorage\.setItem/g) || [];
   const noClique = (js.match(/quero\.addEventListener\('click'[\s\S]*?\n  \}\);/) || [''])[0];
-  assert.ok(usos.length > 0 && (noClique.match(/sessionStorage\.setItem/g) || []).length === usos.length, 'js/peca-sites.js: o nome só pode ir para o sessionStorage no clique de "Quero este site"');
+  assert.ok(usos.length > 0 && (noClique.match(/sessionStorage\.setItem/g) || []).length === usos.length, 'js/peca-sites.js: o nome só pode ir para o sessionStorage no clique de "Quero o meu site"');
 });
