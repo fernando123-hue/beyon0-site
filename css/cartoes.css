@@ -443,8 +443,12 @@ html.menos-movimento .estacao-cruza { display: none !important; }
   html:is(.pilha-a, .pilha-b) .pilha > :not(.estacao-vao) { top: calc(var(--nav-h) + 12px + var(--k) * 14px); bottom: auto; z-index: calc(1 + var(--k)); }
   html:is(.pilha-a, .pilha-b) .pilha > :focus-within { z-index: 20; }
   html.pilha-b .pilha > :not(.estacao-vao) > * { transition: opacity .35s var(--ease); }
-  html.pilha-b .pilha > .is-coberto > * { opacity: .25; }
+  html.pilha-b .pilha > .is-coberto > * { opacity: .45; }   /* (a faixa de 14 px do coberto segue legível) */
   html.pilha-c .pilha > :not(.estacao-vao) { position: static; }
+  /* o aceso de B e C se vê: a borda inteira em ciano, traço nítido (o .is-foco de sempre só mudava o número de cor
+     e a borda de 10 % para 18 %: o dono, no celular, achou a B igual à A e a C sem brilho nenhum) */
+  html:is(.pilha-b, .pilha-c) .pilha > :not(.estacao-vao) { transition: border-color .3s var(--ease); }
+  html:is(.pilha-b, .pilha-c) .pilha > .is-foco { border-color: rgb(var(--ac-rgb) / .6); }
 }
 /* ---- O DESLIZAR (dono, 2026-10-05: "o próprio deslizar mais suave, um pouco
    mais lento, mais perceptível"). Por cima do sticky (que segue igual): o card

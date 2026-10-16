@@ -17,13 +17,17 @@ const falha = (msg) => { problemas++; console.log('FALHA ' + msg); };
 const casos = [];
 for (const opcao of ['a', 'b', 'c']) for (const pagina of ['/', '/sites', '/automacao']) casos.push({ opcao, pagina, largura: 390 });
 casos.push({ opcao: 'b', pagina: '/', largura: 1440 }, { opcao: 'c', pagina: '/sites', largura: 1440 });
-for (const { opcao, pagina, largura } of casos) {
+/* sem opção: a atual, igual a antes; B depois de girar o celular (844 → 390); B guardada ao navegar para Sites */
+casos.push({ opcao: 'atual', pagina: '/', largura: 390 }, { opcao: 'b', pagina: '/', largura: 390, girar: true }, { opcao: 'b', pagina: '/sites', largura: 390, navegar: true });
+for (const { opcao, pagina, largura, girar, navegar } of casos) {
   const celular = largura < 721;
-  const ctx = await b.newContext({ viewport: { width: largura, height: celular ? 844 : 900 }, isMobile: celular, hasTouch: celular });
+  const ctx = await b.newContext({ viewport: girar ? { width: 844, height: 390 } : { width: largura, height: celular ? 844 : 900 }, isMobile: celular, hasTouch: celular });
   const p = await ctx.newPage();
   const erros = []; p.on('pageerror', (e) => erros.push(e.message));
-  await p.goto(`${BASE}${pagina}?pilha=${opcao}`, { waitUntil: 'load', timeout: 240000 });
+  if (navegar) { await p.goto(`${BASE}/?pilha=${opcao}`, { waitUntil: 'load', timeout: 240000 }); await p.goto(BASE + pagina, { waitUntil: 'load', timeout: 240000 }); }
+  else await p.goto(`${BASE}${pagina}?pilha=${opcao}`, { waitUntil: 'load', timeout: 240000 });
   await p.waitForTimeout(2000);
+  if (girar) { await p.setViewportSize({ width: 390, height: 844 }); await p.waitForTimeout(1500); }
   const grupos = await p.evaluate(() => document.querySelectorAll('.pilha').length);
   for (let g = 0; g < grupos; g++) {
     const r = await p.evaluate(async ({ g, DEGRAU, FOLGA }) => {
@@ -31,14 +35,22 @@ for (const { opcao, pagina, largura } of casos) {
       const pilha = document.querySelectorAll('.pilha')[g];
       const cards = [].filter.call(pilha.children, (c) => !c.classList.contains('estacao-vao'));
       const nav = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--nav-h')) || 64;
-      const estilo = cards.map((c, k) => { const s = getComputedStyle(c); return { k, pos: s.position, top: s.top, esperado: nav + FOLGA + k * DEGRAU }; });
+      const estilo = cards.map((c, k) => { const s = getComputedStyle(c); return { k, pos: s.position, top: s.top, bottom: s.bottom, esperado: nav + FOLGA + k * DEGRAU }; });
       const topo = pilha.getBoundingClientRect().top + scrollY, fim = topo + pilha.offsetHeight;
       const anim = [];
       let noDegrau = 0, focoNoDegrau = 0, cobertos = 0, focos = 0, doisAcesos = 0;
+      const acesoErrado = [];
       for (let y = topo - innerHeight; y <= fim; y += 120) {
         window.scrollTo({ top: y, behavior: 'instant' });
         await quadro(); await new Promise((ok) => setTimeout(ok, 60));
         if (cards.filter((c) => c.classList.contains('is-foco')).length > 1) doisAcesos++;
+        /* com algum card no degrau, o aceso é o de cima: o último que assentou */
+        let cima = -1;
+        cards.forEach((c, k) => { if (Math.abs(c.getBoundingClientRect().top - (nav + FOLGA + k * DEGRAU)) < 1.5) cima = k; });
+        const aceso = cards.findIndex((c) => c.classList.contains('is-foco'));
+        /* (o grupo indo embora: os de cima sobem antes do 1º sair do degrau; aí o aceso segue o último que assentou) */
+        const saindo = cards.some((c, k) => c.getBoundingClientRect().top < nav + FOLGA + k * DEGRAU - 1.5);
+        if (!saindo && cima >= 0 && aceso !== cima) acesoErrado.push(`y=${Math.round(y)}: no degrau o ${cima + 1}, aceso ${aceso + 1}`);
         cards.forEach((c, k) => {
           const t = c.getBoundingClientRect().top;
           if (Math.abs(t - (nav + FOLGA + k * DEGRAU)) < 1.5) { noDegrau++; if (c.classList.contains('is-foco')) focoNoDegrau++; }
@@ -54,20 +66,26 @@ for (const { opcao, pagina, largura } of casos) {
       window.scrollTo({ top: topo - innerHeight - 200, behavior: 'instant' });
       await quadro(); await new Promise((ok) => setTimeout(ok, 120));
       const sobra = cards.filter((c) => c.classList.contains('is-coberto') || c.classList.contains('is-foco')).length;
-      return { estilo, noDegrau, focoNoDegrau, cobertos, focos, doisAcesos, anim, sobra,
+      return { estilo, noDegrau, focoNoDegrau, cobertos, focos, doisAcesos, acesoErrado, anim, sobra, classe: document.documentElement.className.match(/pilha-[a-z]+/g) || [],
         carga: pilha.querySelectorAll('.carga, .carga-fio, .carga__pct, .tem-carga').length, sai: pilha.querySelectorAll('.pilha-sai').length };
     }, { g, DEGRAU, FOLGA });
-    const nome = `?pilha=${opcao} ${pagina} ${largura} pilha ${g + 1}`;
+    const nome = `?pilha=${opcao}${girar ? ' (girado)' : ''}${navegar ? ' (navegando)' : ''} ${pagina} ${largura} pilha ${g + 1}`;
     const antes = problemas;
     if (!celular) {
       r.estilo.forEach((e) => { if (e.pos === 'sticky') falha(`${nome}: card ${e.k + 1} sticky no desktop`); });
       if (r.cobertos) falha(`${nome}: is-coberto no desktop`);
+    } else if (opcao === 'atual') {
+      /* sem opção: a pilha de antes, intacta (presa pelo pé, com a carga) */
+      r.estilo.forEach((e) => { if (e.pos !== 'sticky' || e.bottom === 'auto') falha(`${nome}: card ${e.k + 1} mudou (${e.pos}, bottom ${e.bottom})`); });
+      if (!r.carga) falha(`${nome}: a carga sumiu da pilha atual`);
+      if (r.classe.length) falha(`${nome}: classe de opção no html sem opção (${r.classe})`);
     } else {
       if (r.carga) falha(`${nome}: carga no celular (${r.carga} peças)`);
       if (r.sai || r.anim.length) falha(`${nome}: deslize ligado à rolagem (${r.anim.slice(0, 2).join(', ') || r.sai + ' cards'})`);
       if (opcao === 'c') {
         r.estilo.forEach((e) => { if (e.pos === 'sticky') falha(`${nome}: card ${e.k + 1} sticky na lista`); });
         if (!r.focos) falha(`${nome}: nenhum card acendeu no meio da tela`);
+        if (r.doisAcesos) falha(`${nome}: ${r.doisAcesos} quadro(s) com mais de um card aceso`);
       } else {
         r.estilo.forEach((e) => {
           if (e.pos !== 'sticky') falha(`${nome}: card ${e.k + 1} não é sticky (${e.pos})`);
@@ -78,6 +96,8 @@ for (const { opcao, pagina, largura } of casos) {
           if (!r.focoNoDegrau) falha(`${nome}: card no degrau não acendeu`);
           if (!r.cobertos) falha(`${nome}: nenhum card coberto apagou`);
           if (r.doisAcesos) falha(`${nome}: ${r.doisAcesos} quadro(s) com mais de um card aceso`);
+          r.acesoErrado.slice(0, 2).forEach((a) => falha(`${nome}: aceso errado, ${a}`));
+          if (!r.classe.includes('pilha-b')) falha(`${nome}: a opção não chegou ao html (${r.classe})`);
           if (r.sobra) falha(`${nome}: ${r.sobra} card(s) ainda aceso(s)/coberto(s) depois de subir`);
         } else if (r.cobertos) falha(`${nome}: is-coberto fora da B`);
       }

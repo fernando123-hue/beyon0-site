@@ -581,7 +581,8 @@
       };
       cards.forEach(function (card, k) {
         marcados.push(card);
-        var chega = function () { return 'top ' + Math.round((parseFloat(getComputedStyle(card).top) || 0) - nat[k]) + 'px'; };
+        /* (fora do sticky, no zoom de 400 %, não há degrau: o gatilho nunca dispara) */
+        var chega = function () { var s = getComputedStyle(card); return s.position === 'sticky' ? 'top ' + Math.round((parseFloat(s.top) || 0) - nat[k]) + 'px' : 'top -999999px'; };
         daPilha[k] = ST.create({ trigger: pilha, start: chega, end: 'bottom top', invalidateOnRefresh: true, onToggle: pintar });
         gatilhos.push(daPilha[k]);
       });
@@ -777,10 +778,16 @@
         mm.add('(max-width: 860px) and (prefers-reduced-motion: no-preference)', function () {
           if (!ST || html.classList.contains('menos-movimento')) return;
           /* (os cards da pilha, até 720 px, ficam segurados pelo sticky: o gatilho por posição mediria errado) */
-          var naPilha = window.matchMedia('(max-width: 720px)').matches && !html.classList.contains('pilha-c');   /* (a C não empilha) */
+          /* (a C não empilha; na B o aceso da pilha é de pilhaChegadas, em qualquer largura: este bloco não roda de novo ao
+             girar o celular de 844 para 390, e os dois disputariam o .is-foco) */
+          var naPilha = (window.matchMedia('(max-width: 720px)').matches && !html.classList.contains('pilha-c')) || html.classList.contains('pilha-b');
           gsap.utils.toArray('.servico, .laudo__row, .celula, .passo, .cenario').forEach(function (el) {
-            if (naPilha && el.parentElement && el.parentElement.classList.contains('pilha')) return;
-            ST.create({ trigger: el, start: 'top 62%', end: 'bottom 38%', toggleClass: { targets: el, className: 'is-foco' } });
+            var daPilha = el.parentElement && el.parentElement.classList.contains('pilha');
+            if (naPilha && daPilha) return;
+            /* na lista da C acende UM card: o que cruza a linha do meio da tela (com a faixa de 62 % a 38 %, dois cards
+               altos ficavam acesos juntos) */
+            var meio = daPilha && html.classList.contains('pilha-c');
+            ST.create({ trigger: el, start: meio ? 'top 50%' : 'top 62%', end: meio ? 'bottom 50%' : 'bottom 38%', toggleClass: { targets: el, className: 'is-foco' } });
           });
         });
         mm.add('(min-width: 861px) and (prefers-reduced-motion: no-preference)', function () {
