@@ -35,18 +35,20 @@
   [].forEach.call(raiz.querySelectorAll('[data-volta]'), function (p) { voltas[p.getAttribute('data-volta')] = { el: p, pts: [] }; });
   var ENTRADAS = ['whatsapp', 'email', 'site'], SAIDAS = ['sistema', 'financeiro', 'planilha', 'equipe'];
   var VELOCIDADE = 0.4, PENSA_MS = 360, ARRANQUE_MS = 120, RESPIRO_MS = 200;
-  /* rotinas de EXEMPLO de uma entidade (a nota da peça diz isso). Cada pedido: o canal, o que o agente faz,
+  /* rotinas de EXEMPLO de um negócio (a nota da peça diz isso). Cada pedido: o canal, o que o agente faz,
      duas saídas em leque, quem fica livre e o resultado */
   var ROTAS = {
-    boleto: { rotulo: '2ª via do boleto', canal: ['whatsapp', 'Pedido chegou pelo WhatsApp'], agente: ['conferindo CPF…', 'Associado identificado pelo CPF'],
-      saidas: [['financeiro', 'Boleto do mês gerado nas finanças'], ['planilha', 'Envio registrado na planilha']], livre: ['equipe'], fim: 'Respondido na conversa, sem ninguém da equipe parar.' },
-    filiacao: { rotulo: 'nova filiação', canal: ['site', 'Ficha de filiação enviada pelo site'], agente: ['conferindo documentos…', 'Documentos conferidos'],
-      saidas: [['sistema', 'Cadastro criado no sistema'], ['equipe', 'Diretoria avisada para aprovar']], livre: [], fim: 'Pronto para aprovar, com tudo conferido.' },
-    cadastro: { rotulo: 'atualização de cadastro', canal: ['email', 'Pedido de atualização por e-mail'], agente: ['lendo a mensagem…', 'Dados novos lidos da mensagem'],
+    /* universal primeiro (dono, 2026-10-15: "menos especifica porém precisa, pra quem quer que seja"): pedidos
+       que todo negócio tem, ditos como exemplo */
+    orcamento: { rotulo: 'o pedido de orçamento', canal: ['site', 'Pedido de orçamento chegou pelo site'], agente: ['lendo o pedido…', 'Pedido entendido e classificado'],
+      saidas: [['sistema', 'Orçamento montado com a sua tabela'], ['equipe', 'Vendedor avisado, com o resumo']], livre: [], fim: 'Orçamento enviado na hora, com o vendedor já por dentro.' },
+    cobranca: { rotulo: 'a cobrança e a 2ª via', canal: ['whatsapp', 'Cliente pediu a 2ª via pelo WhatsApp'], agente: ['conferindo o cadastro…', 'Cliente identificado no cadastro'],
+      saidas: [['financeiro', 'Boleto gerado nas finanças'], ['planilha', 'Envio registrado na planilha']], livre: ['equipe'], fim: 'Respondido na conversa, sem ninguém da equipe parar.' },
+    cadastro: { rotulo: 'o cadastro de cliente', canal: ['email', 'Dados novos chegaram por e-mail'], agente: ['lendo a mensagem…', 'Dados conferidos'],
       saidas: [['sistema', 'Cadastro atualizado no sistema'], ['planilha', 'Alteração registrada na planilha']], livre: ['equipe'], fim: 'Confirmação respondida por e-mail.' },
     /* (era "falar com uma pessoa", que é o que o cartão do Atendente vende: cada cartão vende uma coisa) */
-    relatorio: { rotulo: 'o relatório do mês', canal: ['email', 'Diretoria pediu o relatório do mês'], agente: ['juntando os números…', 'Números do mês conferidos'],
-      saidas: [['planilha', 'Planilha do mês fechada'], ['equipe', 'Relatório entregue à diretoria']], livre: [], fim: 'Relatório pronto sem ninguém montar planilha.' }
+    relatorio: { rotulo: 'o relatório do mês', canal: ['email', 'Pediram o relatório do mês por e-mail'], agente: ['juntando os números…', 'Números do mês conferidos'],
+      saidas: [['planilha', 'Planilha do mês fechada'], ['equipe', 'Relatório entregue a quem pediu']], livre: [], fim: 'Relatório pronto sem ninguém montar planilha.' }
   };
   var mq = window.matchMedia('(prefers-reduced-motion: reduce)');
   function reduzido() { return mq.matches || html.classList.contains('menos-movimento'); }
@@ -206,7 +208,7 @@
   });
   if (wa) wa.addEventListener('click', function () {
     if (!B.linkWA) return;
-    wa.href = B.linkWA(escolhido ? 'quero automatizar a ' + ROTAS[escolhido].rotulo + ' na minha entidade' : 'quero entender o que dá para automatizar na minha entidade');
+    wa.href = B.linkWA(escolhido ? 'quero automatizar ' + ROTAS[escolhido].rotulo + ' no meu negócio' : 'quero entender o que dá para automatizar no meu negócio');
   });
 
   /* ---------- liga ---------- */
@@ -218,7 +220,7 @@
   var visivel = false, entrou = false, parada = 0;
   function talvezEntrar() {
     clearTimeout(parada);
-    parada = setTimeout(function () { if (visivel && !entrou) { entrou = true; window.removeEventListener('scroll', talvezEntrar); rodar('boleto'); } }, 150);
+    parada = setTimeout(function () { if (visivel && !entrou) { entrou = true; window.removeEventListener('scroll', talvezEntrar); rodar('cobranca'); } }, 150);
   }
   new IntersectionObserver(function (es) {
     visivel = es[0].isIntersecting;

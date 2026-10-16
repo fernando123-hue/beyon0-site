@@ -49,12 +49,15 @@
   var NOME_PADRAO = 'Seu negócio', URL_PADRAO = 'seunegocio.com.br', NOME_LONGO = 14;
   /* o site de exemplo por tipo de negócio. {n} = o nome digitado (ou "Seu negócio"). É texto de um site de
      EXEMPLO do cliente: nada de promessa da Beyon Zero aqui dentro (crítica, rodada 2) */
+  /* "universal primeiro" (dono, 2026-10-15: "menos especifica porém precisa, pra quem quer que seja"): abre
+     falando com qualquer negócio; os tipos são opcionais e amplos. O nome vem no começo (sem "da"/"do", que
+     erraria o gênero de muitos nomes) */
   var NICHOS = {
-    padrao: { t: ['Atendimento que começa no ', 'primeiro clique', '.'], comNome: ['', '{n}', ': atendimento que começa no primeiro clique.'], cta: 'Agendar', btn: 'Começar', rec: ['Serviços', 'Depoimentos', 'Como chegar', 'WhatsApp'] },
-    clinica: { t: ['Sua consulta na ', '{n}', ', marcada sem esperar.'], cta: 'Agendar consulta', btn: 'Agendar no WhatsApp', rec: ['Convênios', 'Agenda online', 'Como chegar', 'WhatsApp'] },
-    escritorio: { t: ['', '{n}', ': a resposta certa para o seu caso.'], cta: 'Falar com especialista', btn: 'Falar agora', rec: ['Áreas de atuação', 'Equipe', 'Artigos', 'WhatsApp'] },
-    loja: { t: ['O melhor da ', '{n}', ', a um clique.'], cta: 'Ver produtos', btn: 'Ver catálogo', rec: ['Catálogo', 'Entrega', 'Trocas', 'WhatsApp'] },
-    entidade: { t: ['Associe-se à ', '{n}', ' sem sair de casa.'], cta: 'Associe-se', btn: 'Quero me associar', rec: ['Benefícios', 'Convênios', 'Notícias', 'Associe-se'] }
+    padrao: { t: ['Seu cliente te encontra, entende e ', 'chama em 1 minuto', '.'], comNome: ['', '{n}', ': o cliente encontra, entende e chama em 1 minuto.'], cta: 'Fale com a gente', btn: 'Chamar no WhatsApp', rec: ['Serviços', 'Depoimentos', 'Como chegar', 'WhatsApp'] },
+    servicos: { t: ['', '{n}', ': o serviço certo, com orçamento na hora.'], cta: 'Pedir orçamento', btn: 'Pedir orçamento', rec: ['Serviços', 'Como funciona', 'Depoimentos', 'WhatsApp'] },
+    comercio: { t: ['', '{n}', ': o que você procura, a um clique.'], cta: 'Ver produtos', btn: 'Ver catálogo', rec: ['Catálogo', 'Entrega', 'Trocas', 'WhatsApp'] },
+    saude: { t: ['', '{n}', ': sua consulta marcada sem esperar.'], cta: 'Agendar', btn: 'Agendar no WhatsApp', rec: ['Convênios', 'Agenda online', 'Como chegar', 'WhatsApp'] },
+    organizacao: { t: ['', '{n}', ': associe-se sem sair de casa.'], cta: 'Associe-se', btn: 'Quero me associar', rec: ['Benefícios', 'Convênios', 'Notícias', 'Associe-se'] }
   };
   var mq = window.matchMedia('(prefers-reduced-motion: reduce)');
   var grosso = window.matchMedia('(pointer: coarse)');
@@ -417,7 +420,7 @@
   /* no WhatsApp, a mensagem com o nome aparece pronta e a pessoa decide se envia */
   if (wa) wa.addEventListener('click', function () {
     if (!B.linkWA) return;
-    var tipo = { clinica: 'uma clínica', escritorio: 'um escritório', loja: 'uma loja', entidade: 'uma entidade' }[nicho];
+    var tipo = { servicos: 'serviços', comercio: 'comércio', saude: 'saúde', organizacao: 'uma organização' }[nicho];
     wa.href = B.linkWA('quero um site para ' + (nome || 'o meu negócio') + (tipo ? ' (' + tipo + ')' : ''));
   });
 

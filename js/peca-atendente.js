@@ -34,15 +34,18 @@
   var EXPEDIENTE = [8 * 60, 18 * 60];   /* exemplo (a nota da peça diz isso) */
   /* as perguntas por tipo de negócio e as respostas: [antes, dado reservado, depois] */
   var PERGUNTAS = {
-    padrao: [['preco', 'Quanto custa?'], ['amanha', 'Vocês abrem amanhã?'], ['local', 'Onde fica?']],
-    clinica: [['consulta', 'Quanto custa a consulta?'], ['horario', 'Tem horário amanhã?'], ['convenio', 'Aceita meu convênio?']],
-    escritorio: [['honorario', 'Quanto vocês cobram?'], ['caso', 'Atendem o meu caso?'], ['semana', 'Tem horário essa semana?']],
-    loja: [['estoque', 'Tem esse em estoque?'], ['entrega', 'Entregam no meu bairro?'], ['aberto', 'Até que horas abrem?']],
-    entidade: [['associar', 'Como me associo?'], ['mensalidade', 'Quanto é a mensalidade?'], ['boleto', 'Preciso da 2ª via do boleto']]
+    /* universal primeiro (dono, 2026-10-15); os tipos amplos vêm da Planta (evento bz:negocio) */
+    padrao: [['preco', 'Quanto custa?'], ['amanha', 'Tem horário amanhã?'], ['local', 'Onde fica?']],
+    servicos: [['preco', 'Quanto custa?'], ['prazo', 'Qual é o prazo?'], ['regiao', 'Atendem a minha região?']],
+    comercio: [['estoque', 'Tem em estoque?'], ['entrega', 'Entregam no meu bairro?'], ['aberto', 'Até que horas abrem?']],
+    saude: [['consulta', 'Quanto custa a consulta?'], ['horario', 'Tem horário amanhã?'], ['convenio', 'Aceita meu convênio?']],
+    organizacao: [['associar', 'Como me associo?'], ['mensalidade', 'Quanto é a mensalidade?'], ['boleto', 'Preciso da 2ª via do boleto']]
   };
   var RESPOSTAS = {
     preco: ['O valor é ', '[o da sua tabela]', '. Quer que eu já veja um horário para você?'],
-    amanha: ['Abrimos amanhã ', '[no seu horário]', '. Posso deixar seu atendimento marcado?'],
+    amanha: ['Amanhã temos ', '[os horários livres da sua agenda]', '. Qual fica melhor?'],
+    prazo: ['O prazo é ', '[o seu prazo de entrega]', '. Quer que eu já faça um orçamento?'],
+    regiao: ['Atendemos ', '[as regiões que você atende]', '. Qual é o seu bairro?'],
     local: ['Ficamos em ', '[seu endereço]', '. Te mando a localização aqui mesmo?'],
     consulta: ['A consulta sai por ', '[o valor da sua tabela]', '. Quer que eu reserve um horário?'],
     horario: ['Amanhã tenho ', '[os horários livres da sua agenda]', '. Qual fica melhor?'],
@@ -57,7 +60,7 @@
     mensalidade: ['A mensalidade é ', '[o valor da sua tabela]', '. Quer saber dos benefícios?'],
     boleto: ['Claro! Me passa o seu CPF que eu ', '[gero a 2ª via no seu sistema]', '.']
   };
-  var ASSUNTO = { preco: 'quer saber o preço', amanha: 'quer atendimento amanhã', local: 'quer o endereço', consulta: 'quer saber o valor da consulta',
+  var ASSUNTO = { preco: 'quer saber o preço', amanha: 'quer horário amanhã', prazo: 'quer saber o prazo', regiao: 'quer saber se vocês atendem a região dele', local: 'quer o endereço', consulta: 'quer saber o valor da consulta',
     horario: 'quer horário amanhã', convenio: 'quer saber do convênio', honorario: 'quer saber quanto custa', caso: 'quer saber se vocês atendem o caso',
     semana: 'quer horário esta semana', estoque: 'quer saber do estoque', entrega: 'quer saber da entrega', aberto: 'quer saber o horário',
     associar: 'quer se associar', mensalidade: 'quer saber da mensalidade', boleto: 'precisa da 2ª via do boleto' };

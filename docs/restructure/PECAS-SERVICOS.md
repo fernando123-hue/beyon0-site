@@ -217,3 +217,34 @@ Ao medir, ponha `sessionStorage bz-ouro=1`, para a ignição do ouro não entrar
 - trazer a `main` (memória `atualizar-com-main-antes-de-mesclar`);
 - abrir o PR com as revisões técnica e de segurança;
 - o dono promove na Vercel.
+
+### Atualização (2026-10-15, antes do /clear)
+
+**"Universal primeiro" aplicado nas três.** O dono pediu uma abordagem "menos especifica porém precisa, pra
+quem quer que seja" e escolheu a opção "Universal primeiro" (registrado em `01 Empresa/Decisões.md`).
+
+- **Planta:**
+  - abre com o título "Seu cliente te encontra, entende e chama em 1 minuto.";
+  - os tipos, opcionais, passaram a ser Serviços · Comércio · Saúde · Organização (chaves `servicos`,
+    `comercio`, `saude`, `organizacao`);
+  - o exemplo de nome é "Studio Aurora".
+- **Despacho:**
+  - pedidos: Pedido de orçamento · Cobrança / 2ª via · Cadastro de cliente · Relatório do mês (chaves
+    `orcamento`, `cobranca`, `cadastro`, `relatorio`);
+  - a entrada roda `cobranca`;
+  - o WhatsApp fala em "no meu negócio".
+- **Plantão:**
+  - o padrão é Quanto custa? · Tem horário amanhã? · Onde fica? · Quero falar com uma pessoa;
+  - as perguntas acompanham os tipos novos da Planta.
+
+**Verificado:** `csp.test.mjs` passa; sem rolagem lateral de 320 a 1440 px no pior caso.
+**Não refeito depois desta troca:** a suíte completa, a acessibilidade e os críticos. Rodar ao retomar.
+
+**Scripts de verificação** copiados para `docs/pecas/`:
+- `checar.mjs`, `quadros.mjs`, `plantao.mjs`, `medir-pecas.mjs`, `rastro.mjs`, `camadas.mjs`, `perfil-pecas.mjs`
+  e `entrada.mjs`;
+- os caminhos de saída (`OUT`) apontam para o scratchpad da sessão antiga: trocar ao usar;
+- eles usam o Playwright de `03 Projetos/site/node_modules` e o servidor local na porta 8897.
+
+**Próximo passo (pedido do dono):** continuar aprimorando SÓ a Planta (Sites), com os pendentes da lista acima,
+seguindo o "universal primeiro". O Despacho e o Plantão estão aprovados: não mexer sem pedido.
