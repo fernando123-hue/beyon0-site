@@ -309,6 +309,16 @@ falha, `checar.mjs` sem rolagem lateral/erros 320–1440, fotos 390 conferidas. 
 páginas sem a Planta, com o processador em 100% (outras sessões): **rodar de novo com a máquina livre antes do PR.**
 Prévia: https://beyon0-site-dd0qfd537-beyond0.vercel.app. **Próximo:** passos 3 e 4 abaixo (dono vê no celular e
 decide J2–J5; depois PR).
+- **Decisão em aberto (perguntada ao dono em 16/10, sem resposta antes do clear):** quais das sugestões J2, J3, J4 e
+  J5 aplicar ("nenhuma" vale). Com a resposta: aplicar, re-rodar `verificar` com a máquina livre, `checar.mjs`,
+  revisão por agente diferente, trazer a `main` (o #43 pode ter entrado), abrir o PR.
+- **Ferramentas:** `docs/pecas/colisao.mjs [reduzido]` mede, a cada 25 ms, se o tempo encosta na cota ou na moldura
+  (320–1440 px; servidor na 8897). Prévia local pelo painel: entrada `pecas-servicos` (porta 8897) no
+  `.claude/launch.json` da raiz do Vault.
+- **Armadilhas:** o painel do navegador em segundo plano não dispara a entrada da Planta nem registra LCP (medir no
+  headless); a 1ª página de cada navegador headless tem LCP enorme (70 s) e esconde a prova — não é defeito;
+  `verificar` com o processador em 100% falha em lugares diferentes a cada rodada.
+- **Skills sugeridas:** `processo-qualidade` (antes do PR), `revisao-ui` (se aplicar J2–J5).
 
 **Interrompido pela 2ª passagem automática (2026-10-16):** a revisão de código das correções do crítico (o tempo no
 canto, o rótulo "4 colunas", o "até 2,5 s") foi lançada e parada antes de responder.
