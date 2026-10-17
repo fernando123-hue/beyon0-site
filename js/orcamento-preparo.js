@@ -12,6 +12,10 @@
   var DIAS = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
   var SEPARAR = ['Fotos do seu negócio e do que você faz', 'A logo, se tiver', 'A lista de serviços ou produtos, com os preços',
     'O horário de atendimento', 'O endereço, se você atende no local'];
+  /* O TEXTO DO PRAZO VENCIDO (I1) é do dono: ele confirma a frase depois. Se o prazo já passou (feriado, atraso), a data não
+     pode seguir como promessa; troca só essa frase e o resto do bloco continua. A data vai entre as duas partes (em negrito) */
+  var PRAZO_VENCIDO = ['O prazo era ', '. Os seus modelos ainda estão em produção; avisamos pelo seu WhatsApp assim que ficarem prontos.'];
+  var PRAZO_NORMAL = ['Seus três modelos ficam prontos até ', '.'];
   var dois = function (n) { return String(n).padStart(2, '0'); };
 
   /* soma horas contando só de segunda a sexta, no fuso do aparelho (o Brasil não tem horário de verão desde 2019) */
@@ -29,15 +33,26 @@
   /* "sexta, 16/10, às 15h": a hora quebrada sobe para a seguinte (prometer 14h20 soa falso; 15h é um teto).
      Se isso cai na meia-noite, "às 0h" já é o dia seguinte (sábado ou terça, contradizendo "de segunda a sexta"):
      mostra então o fim do dia anterior, sem hora ("o fim de sexta, 16/10"). O espaço entre "às" e a hora, e entre "de"
-     e o dia, não quebra ( ): no 320 px a hora não fica sozinha na linha de baixo */
-  function dataDoPrazo(d) {
+     e o dia, não quebra (\u00a0): no 320 px a hora não fica sozinha na linha de baixo */
+  function paraCima(d) {
     var h = new Date(d.getTime());
     if (h.getMinutes() || h.getSeconds() || h.getMilliseconds()) h = new Date(h.getFullYear(), h.getMonth(), h.getDate(), h.getHours() + 1);
+    return h;
+  }
+  function dataDoPrazo(d) {
+    var h = paraCima(d);
     if (h.getHours() === 0) {
       var ontem = new Date(h.getFullYear(), h.getMonth(), h.getDate() - 1);
-      return 'o fim de ' + DIAS[ontem.getDay()] + ', ' + dois(ontem.getDate()) + '/' + dois(ontem.getMonth() + 1);
+      return 'o fim de\u00a0' + DIAS[ontem.getDay()] + ', ' + dois(ontem.getDate()) + '/' + dois(ontem.getMonth() + 1);
     }
-    return DIAS[h.getDay()] + ', ' + dois(h.getDate()) + '/' + dois(h.getMonth() + 1) + ', às ' + h.getHours() + 'h';
+    return DIAS[h.getDay()] + ', ' + dois(h.getDate()) + '/' + dois(h.getMonth() + 1) + ', às\u00a0' + h.getHours() + 'h';
+  }
+  /* as duas partes da frase do prazo, com a data no meio; "agora" é injetável só para o teste */
+  function partesDoPrazo(confirmadoEm, agora) {
+    var prazo = prazoUtil(new Date(confirmadoEm), HORAS_UTEIS);
+    var vencido = (agora == null ? Date.now() : new Date(agora).getTime()) > paraCima(prazo).getTime();   /* vence quando passa a hora que a tela prometeu, não a exata */
+    var m = vencido ? PRAZO_VENCIDO : PRAZO_NORMAL;
+    return [m[0], dataDoPrazo(prazo), m[1]];
   }
   function deveMostrar(E) {
     return !!(E && E.modo_direcoes === 'manual' && E.pedido && E.pedido.status === 'confirmado' && E.pedido.confirmado_em && !isNaN(Date.parse(E.pedido.confirmado_em)) &&
@@ -50,15 +65,16 @@
     var alvo = document.getElementById('o-preparo');
     if (!alvo) return;
     var mostrar = deveMostrar(E);
-    var chave = mostrar ? E.pedido.confirmado_em + '|' + E.pedido.codigo : '';
+    var partes = mostrar ? partesDoPrazo(E.pedido.confirmado_em) : null;
+    var chave = mostrar ? E.pedido.confirmado_em + '|' + E.pedido.codigo + '|' + partes[0] : '';
     if (chave === visto) return;
     visto = chave;
     alvo.textContent = '';
     alvo.hidden = !mostrar;
     if (!mostrar) return;
-    var prazo = el('p', 'orc-preparo__prazo', 'Seus três modelos ficam prontos até ');
-    prazo.appendChild(el('strong', null, dataDoPrazo(prazoUtil(new Date(E.pedido.confirmado_em), HORAS_UTEIS))));
-    prazo.appendChild(document.createTextNode('.'));
+    var prazo = el('p', 'orc-preparo__prazo', partes[0]);
+    prazo.appendChild(el('strong', null, partes[1]));
+    prazo.appendChild(document.createTextNode(partes[2]));
     alvo.appendChild(prazo);
     alvo.appendChild(el('h3', 'orc-preparo__titulo', 'Enquanto isso, já separe'));
     var ul = el('ul', 'orc-preparo__lista');
@@ -71,5 +87,5 @@
     alvo.appendChild(wa);
   }
 
-  window.BZPreparo = { atualizar: atualizar, prazoUtil: prazoUtil, dataDoPrazo: dataDoPrazo, deveMostrar: deveMostrar };
+  window.BZPreparo = { atualizar: atualizar, prazoUtil: prazoUtil, partesDoPrazo: partesDoPrazo, dataDoPrazo: dataDoPrazo, deveMostrar: deveMostrar };
 })();

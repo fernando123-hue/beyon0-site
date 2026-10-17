@@ -24,7 +24,11 @@ test('data do prazo: dia da semana, dia/mês e a hora arredondada para cima', ()
   assert.equal(P.dataDoPrazo(em(2026, 10, 20, 0)), 'o fim de segunda, 19/10', 'meia-noite lê-se como o fim do dia anterior, sem "às 0h"');
   assert.equal(P.dataDoPrazo(em(2026, 10, 16, 23, 30)), 'o fim de sexta, 16/10', 'arredondar pode virar o dia: nunca sai "sábado" nem "às 0h"');
   assert.equal(P.dataDoPrazo(em(2026, 10, 17, 0)), 'o fim de sexta, 16/10');
-  assert.equal(P.dataDoPrazo(em(2026, 11, 1, 0)), 'o fim de sábado, 31/10', 'vira o mês junto (a conta do dia; a regra de dia útil é do prazoUtil)');
+  /* viradas de mês e de ano pelo caminho real (prazoUtil + dataDoPrazo), só com dias úteis */
+  const ate = (inicio) => P.dataDoPrazo(P.prazoUtil(inicio, 24));
+  assert.equal(ate(em(2026, 10, 30, 18)), 'segunda, 02/11, às 18h', 'sexta 30/10 vira o mês: segunda 02/11');
+  assert.equal(ate(em(2026, 12, 31, 10)), 'sexta, 01/01, às 10h', 'quinta 31/12 vira o ano: sexta 01/01');
+  assert.equal(P.dataDoPrazo(em(2027, 1, 1, 0)), 'o fim de quinta, 31/12', 'meia-noite de 1/1 lê-se como o fim de 31/12');
 });
 
 test('mostrar: só confirmado, fila manual e com modelo na fila', () => {
@@ -37,4 +41,16 @@ test('mostrar: só confirmado, fila manual e com modelo na fila', () => {
   assert.equal(P.deveMostrar({ ...base, pedido: null }), false);
   assert.equal(P.deveMostrar(null), false);
   assert.equal(P.deveMostrar({ ...base, pedido: { ...base.pedido, confirmado_em: 'lixo' } }), false, 'data inválida não vira "undefined, NaN/NaN"');
+});
+
+test('prazo vencido: a data some da promessa e entra o aviso honesto (I1)', () => {
+  const confirmado = em(2026, 10, 15, 14, 20);   /* quinta 14h20: prazo sexta 16/10 às 15h */
+  const E = { modo_direcoes: 'manual', pedido: { status: 'confirmado', confirmado_em: confirmado.toISOString(), codigo: 'BZ-K7M3Q' }, direcoes: [{ status: 'gerando' }] };
+  const dentro = P.partesDoPrazo(E.pedido.confirmado_em, em(2026, 10, 16, 9));
+  assert.equal(dentro.join(''), 'Seus três modelos ficam prontos até sexta, 16/10, às 15h.');
+  assert.equal(P.partesDoPrazo(E.pedido.confirmado_em, em(2026, 10, 16, 15)).join(''), dentro.join(''), 'no instante exato do prazo ainda vale');
+  const vencido = P.partesDoPrazo(E.pedido.confirmado_em, em(2026, 10, 19, 10));   /* segunda: depois de um fim de semana */
+  assert.equal(vencido.join(''), 'O prazo era sexta, 16/10, às 15h. Os seus modelos ainda estão em produção; avisamos pelo seu WhatsApp assim que ficarem prontos.');
+  assert.equal(vencido[1], 'sexta, 16/10, às 15h', 'a data fica no meio (vai em negrito na tela)');
+  assert.equal(P.deveMostrar(E), true, 'a lista "já separe" e o WhatsApp continuam: o bloco segue visível');
 });
