@@ -742,10 +742,11 @@ try {
   ok(erros.length === 0, 'sem erro de console' + (erros.length ? ': ' + erros.slice(0, 3).join(' | ') : ''));
   await ctx.close();
 
-  /* com o consultor, a conversa soma chamadas ao fluxo principal e, desde a retomada e a espera útil (PR 2b-2), o
-     diagnóstico levava 429 do freio geral (90 por minuto por IP, api/vendas.mjs) no 1º pedido. Como no 1440 abaixo,
-     o freio fica como está e quem espera a janela esvaziar é o teste */
-  if (CONSULTOR) await new Promise(r => setTimeout(r, 61e3));
+  /* desde a retomada e a espera útil (PR 2b-2), o fluxo principal soma perto de 90 chamadas no último minuto e o
+     diagnóstico levava 429 do freio geral (90 por minuto por IP, api/vendas.mjs): sempre com o consultor, às vezes sem
+     ele, conforme a velocidade da máquina. Como no 1440 abaixo, o freio fica como está e quem espera a janela esvaziar
+     é o teste */
+  await new Promise(r => setTimeout(r, 61e3));
 
   /* o pacote que pede conversa (estimativa nula com diagnóstico, como passar do limite automático): forçado aqui pela
      resposta do servidor, porque a tabela de teste não chega ao limite pelos botões da tela */
