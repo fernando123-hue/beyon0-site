@@ -127,6 +127,32 @@ test('pedido: pasta do pedido (ou a raiz) sendo junção recusa; pedido.json pla
   assert.equal(fs.statSync(path.join(dir, 'pedido.json')).nlink, 1);
 });
 
+test('pedido: junção quebrada, em laço ou arquivo no lugar da pasta dá erro em português claro (nada de ENOENT/ELOOP cru)', () => {
+  const base = tmp();
+  const MENSAGEM = /Não deu para criar a pasta .*nada foi gravado/;
+  /* junção para uma pasta que foi apagada */
+  const sumido = path.join(base, 'sumido');
+  fs.mkdirSync(sumido);
+  const quebrada = path.join(base, 'quebrada');
+  ligar(sumido, quebrada);
+  fs.rmSync(sumido, { recursive: true });
+  assert.throws(() => gravarPedido(path.join(quebrada, 'abcd1234'), '{}'), MENSAGEM, 'a raiz é uma junção quebrada');
+  /* duas junções que apontam uma para a outra */
+  const a = path.join(base, 'laco-a'), b = path.join(base, 'laco-b'), x = path.join(base, 'laco-x');
+  fs.mkdirSync(x);
+  ligar(x, a);
+  ligar(a, b);
+  fs.rmSync(a, { recursive: true, force: true });
+  fs.rmSync(x, { recursive: true });
+  ligar(b, a);
+  assert.throws(() => gravarPedido(path.join(a, 'abcd1234'), '{}'), MENSAGEM, 'a raiz é um laço de junções');
+  /* um arquivo no lugar da pasta do pedido */
+  const raiz = path.join(base, 'raiz');
+  fs.mkdirSync(raiz);
+  fs.writeFileSync(path.join(raiz, 'abcd1234'), 'arquivo');
+  assert.throws(() => gravarPedido(path.join(raiz, 'abcd1234'), '{}'), MENSAGEM, 'a pasta do pedido é um arquivo');
+});
+
 test('pastaReal: pasta comum devolve o caminho real; inexistente recusa', () => {
   const base = tmp();
   assert.equal(pastaReal(base), base);

@@ -101,21 +101,24 @@ function gravarNovo(arquivo, texto) {
   return arquivo;
 }
 
+/* cria a pasta (e as de cima) com erro em português: uma junção quebrada ou em laço, ou um arquivo no lugar da pasta, saía como
+   ENOENT, ELOOP ou EEXIST em inglês, sem dizer o que fazer */
+function criarPasta(dir) {
+  try { fs.mkdirSync(dir, { recursive: true, mode: 0o700 }); } catch {
+    throw new Error('Não deu para criar a pasta ' + dir + ' (é um link ou junção quebrada, ou já existe um arquivo com esse nome?): nada foi gravado. Apague o que está lá e rode de novo.');
+  }
+}
+
 /* o comando "pedido": cria a pasta do pedido (e a raiz) e grava o pedido.json; devolve o caminho dele. A raiz e a pasta
    não podem ser link nem junção (cai tudo no destino) */
 export function gravarPedido(dir, texto) {
-  fs.mkdirSync(path.dirname(dir), { recursive: true, mode: 0o700 });
+  criarPasta(path.dirname(dir));
   pastaReal(path.dirname(dir));
-  fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+  criarPasta(dir);
   pastaReal(dir);
   return gravarNovo(path.join(dir, 'pedido.json'), texto);
 }
 
-/* prepara a pasta onde a sessão isolada vai trabalhar: o Claude Code carrega dali configuração, memória e MCP, então o
-   que estiver plantado é apagado; settings e instruções são gravados por último, depois de checar a SKILL de origem.
-   As pastas ACIMA até a raiz do disco não se apagam daqui: o Claude Code também lê o CLAUDE.md e o .claude de todas elas,
-   então, se existirem lá, o preparo recusa (antes de tocar em qualquer coisa) e pede ao dono que os tire.
-   No Windows o modo 0o600 não vale: a proteção real é a pasta ficar fora do repositório, no perfil do dono */
 /* o Claude Code lê o CLAUDE.md (e o CLAUDE.local.md) de TODAS as pastas acima da de trabalho, até a raiz do disco; a
    .claude acima conta também, menos a da casa do usuário (ali é a configuração dele) */
 export function configsAcima(dir, casa = os.homedir()) {
@@ -126,6 +129,11 @@ export function configsAcima(dir, casa = os.homedir()) {
     if (path.dirname(p) === p) return achados;
   }
 }
+/* prepara a pasta onde a sessão isolada vai trabalhar: o Claude Code carrega dali configuração, memória e MCP, então o
+   que estiver plantado é apagado; settings e instruções são gravados por último, depois de checar a SKILL de origem.
+   As pastas ACIMA até a raiz do disco não se apagam daqui: o Claude Code também lê o CLAUDE.md e o .claude de todas elas,
+   então, se existirem lá, o preparo recusa (antes de tocar em qualquer coisa) e pede ao dono que os tire.
+   No Windows o modo 0o600 não vale: a proteção real é a pasta ficar fora do repositório, no perfil do dono */
 export function prepararPastaSessao({ dir, repo, casa = os.homedir() }) {
   const origem = path.join(repo, '.claude', 'skills', 'produzir-direcoes', 'SKILL.md');
   if (!fs.existsSync(origem)) throw new Error('Falta a SKILL ' + origem + ': não dá para montar as instruções da sessão isolada.');
