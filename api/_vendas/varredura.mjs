@@ -3,32 +3,50 @@
    de site (nome, títulos, itens): nela não cabe endereço de site, caminho de arquivo, chave, e-mail nem telefone. Se
    um aparecer, é vazamento (o modelo copiou algo da máquina) ou injeção (o briefing veio de um desconhecido), e nada
    sai. O contato do cliente entra no site depois, pelo dono, nunca por aqui.
-   Cada tipo é uma lista de detectores; um detector devolve o trecho achado ou null. A varredura olha uma cópia
-   normalizada do texto (largura total vira normal, caracteres invisíveis somem), e o e-mail sai do texto antes dos
-   outros tipos, para o domínio dele não virar um segundo achado. Mas o invisível em si é um achado: um texto que traz
-   controle de direção ou hífen mole não tem motivo de ser, e apagá-lo antes de olhar deixava passar o que o dono lê
-   diferente do que a varredura lê ("gro.eplog" invertido aparece na tela como "golpe.org").
    O arquivo mora aqui (api/_vendas) porque o SERVIDOR também varre na entrega de uma direção (api/painel.mjs): defesa em
    profundidade, caso a varredura local do dono seja pulada. scripts/varredura.mjs só reexporta este.
-   Pendência PR2b1-varredura-fp (testes em docs/testes/varredura-casos.test.mjs), sempre a favor de o dono ler menos falso
-   alarme sem deixar passar contato:
-   - fecha: domínio com TLD fora da lista (golpe.pt, promo.digital), 9 solto sem parênteses (21 9 8765-4321), ponto disfarçado
-     (golpe . com, golpe(dot)com, golpe[dot]net, golpe·com) e "ponto com" solto só quando o TLD fecha a frase;
-   - deixa de alarmar: IPv4 com octeto acima de 255, faixa de preço (R$ 2500-3500), frase longa com hífens, "um ponto com
-     desconto", símbolo grego solto (10 Ω), número de 11 ou 14 dígitos soltos, sem pontuação nem rótulo CPF/CNPJ e sem dígito
-     verificador válido (código de barras, lote);
-   - um trecho achado sai do texto antes dos tipos seguintes: a chave AIza não vira também telefone.
-   Correção da revisão da Task 7 (docs/testes/varredura-casos.test.mjs): palavra inteira em grego é achada; ponto separado,
-   maiúsculo, com acento ou com emoji depois de "ponto com" também; perfil depois de aspas; .zip; chave de pedaços mistos; "CPF nº".
-   2ª correção da Task 7: TLD da lista só com a inicial maiúscula depois de espaço e ponto ("golpe . Com") volta a ser achado; "pontocom"
-   colado; mais pontos médios (ᐧ ꞏ ⸱ ⸳ ᛫ ܁); TLDs curtos de golpe em qualquer caixa ("Golpe.Pt", "golpe.pT"); "(ponto de venda)" é texto.
-   Alarmes ACEITOS (na dúvida entre achar e limpar, achar): "Av.paulista", "Seg.sex", "Cia.ltda", "Pedimos desculpas . Com isso",
-   "fim . Me ligue", "Nosso (ponto) de encontro", "a bolha pontocom" e "Corte •barba •tintura" (bolinha colada de um lado só).
-   3ª correção: "ponto" com sinal de um lado só vale para TLDS e TLDS_DE_GOLPE ("golpe (ponto pt", "golpe ponto) me"); CPF com ponto
-   no lugar do hífen ("CPF 529.982.247.25") com dígito válido ou rótulo. Alarmes aceitos daí: "Atendimento (ponto online e físico)",
-   "Quiosque (ponto top)"; e, da lista de golpe com ponto colado, "Salão.Vip", "Fit.Live aulas", "Promoção . Me peça".
-   Perda ACEITA: domínio de TLD fora da lista de golpe com inicial maiúscula e sem espaço ("Golpe.Sh"), que seria igual a "Dr.Silva";
-   e "golpe (ponto sh" / "golpe ponto) zip" (TLD fora das duas listas com sinal de um lado só).
+
+   COMO FUNCIONA. Cada tipo é uma lista de detectores; um detector devolve o trecho achado ou null. A varredura olha uma cópia
+   normalizada do texto (largura total vira normal, pontos de outras escritas viram ponto). O e-mail sai do texto antes dos outros
+   tipos, e todo trecho achado também sai, para não virar um segundo achado (a chave AIza não vira telefone). O caractere invisível
+   (controle de direção, hífen mole) é achado por si: apagá-lo antes de olhar deixava passar "gro.eplog", que a tela mostra como
+   "golpe.org". Regra de desempate: na dúvida entre achar e limpar, achar. O dono lê o alarme e decide.
+
+   O QUE ACHA (testes: docs/testes/varredura-casos.test.mjs e fila-direcoes.test.mjs)
+   - endereço de site: esquema (https://, hxxp://), www., wa.me, IPv4 de verdade (octetos até 255), "palavra.tld" com TLD da lista
+     (TLDS), da lista de golpe (TLDS_DE_GOLPE, em qualquer caixa) ou qualquer TLD todo em minúsculas ou todo em maiúsculas que não
+     seja extensão de arquivo; nome de qualquer alfabeto e com acento ("Niterói.com"); .zip. Ponto disfarçado: "golpe . com",
+     "golpe(dot)com", "golpe[dot]net", pontos médios colados ("golpe·com"), "pontocom" colado e o ponto por extenso ("golpe ponto com",
+     "golpe (ponto) pt"; com sinal de um lado só vale a lista de TLDs e a de golpe; solto, só quando o TLD fecha a frase).
+   - e-mail, caminho de arquivo, chave (prefixos conhecidos, UUID, hexadecimal longo, corrida longa que mistura dígitos e letras), telefone
+     (celular e fixo com ou sem DDD, com o 9 solto, 0800), perfil de rede social e conta bancária.
+   - documento: CPF e CNPJ com dígito verificador válido, ou com pontuação, ou depois do rótulo CPF/CNPJ; CPF com ponto no lugar do
+     hífen com dígito válido ou rótulo.
+   - letra de outro alfabeto: cirílico ou armênio em qualquer lugar, grego colado a outra letra (palavra inteira em grego também).
+   - caractere invisível, de controle ou de uso privado.
+
+   O QUE NÃO ACHA (texto de loja)
+   - IPv4 com octeto acima de 255, faixa de preço (R$ 2500-3500), frase longa com hífens, extensão de arquivo e de tecnologia
+     (foto.mp4, Next.js), "Sr.joão", "um ponto com desconto", "(ponto de venda)", símbolo grego solto (10 Ω), pontos médios com espaço
+     dos dois lados (separador "Clínica · Online"), número de 11 ou 14 dígitos solto sem pontuação, sem rótulo e sem dígito
+     verificador válido (código de barras, lote).
+
+   ALARMES ACEITOS (a varredura acha, o dono lê e libera)
+   - abreviação com ponto colado, de mesma forma que "Golpe.pt": "Av.paulista", "Seg.sex", "Cia.ltda", "Salão.Vip", "Fit.Live aulas";
+   - ponto solto com TLD da lista: "Pedimos desculpas . Com isso", "fim . Me ligue", "Promoção . Me peça";
+   - "(ponto" seguido de palavra que também é TLD (co-working, tv, vip, live, shop, digital, online, top): "Atendimento (ponto online
+     e físico)", "Quiosque (ponto top)", "Espaço (ponto co-working)", e "Nosso (ponto) de encontro" (sinal dos dois lados);
+   - "a bolha pontocom" e "Corte •barba •tintura" (bolinha colada de um lado só);
+   - número no formato de CPF com pontos ("Nota fiscal 529.982.247.25") alarma com qualquer rótulo (ou sem rótulo nenhum) se o dígito
+     verificador bater por acaso (~1% dos números dessa forma).
+
+   PERDAS ACEITAS (a varredura NÃO acha)
+   - domínio de TLD fora das duas listas, com inicial maiúscula e sem espaço ("Golpe.Sh"): seria igual a "Dr.Silva";
+   - "golpe (ponto sh" e "golpe ponto) zip": TLD fora das duas listas com sinal de um lado só.
+
+   TEMPO. As regex de endereço são quadráticas em sequências como "a-a-a-…" (cada hífen reinicia a busca); não há nada exponencial.
+   O teste mede 700 caracteres (o teto de uma seção em direcao.mjs) e uma direção inteira no tamanho máximo, com limites de 1 s por
+   campo e 3 s por direção (o medido é ~40 ms e ~0,5 s). Não acrescente regex com repetição aninhada nem lookbehind de tamanho variável.
    ========================================================================== */
 /* por propriedade Unicode, e não por lista de códigos (a lista deixava passar a marca de letra árabe, o separador mongol,
    o preenchimento hangul, as "tags" acima de U+FFFF...): Default_Ignorable_Code_Point (hífen mole, largura zero, seletores
@@ -37,7 +55,8 @@
 const INVISIVEIS = /[\p{Default_Ignorable_Code_Point}\p{Cf}\p{Cc}\p{Co}]/gu;
 /* o ponto final de outras escritas (。 U+3002, ｡ U+FF61, ． U+FF0E) vira o ponto comum: "golpe。com" é um endereço. O ponto médio
    (· U+00B7), o operador (∙ U+2219), a bolinha (• U+2022), o operador ponto (⋅ U+22C5), o ponto de hifenização (‧ U+2027) e os
-   pontos médios do japonês (・ U+30FB, ･ U+FF65) e o ponto de sílabas canadenses (ᐧ), de transcrição sinológica (ꞏ), de separador de palavras (⸱ ⸳), rúnico (᛫) e siríaco (܁) também, mas só quando colados a algo: "golpe·com" é endereço, "Clínica · Online"
+   pontos médios do japonês (・ U+30FB, ･ U+FF65) e o ponto de sílabas canadenses (ᐧ), de transcrição sinológica (ꞏ), de separador
+   de palavras (⸱ ⸳), rúnico (᛫) e siríaco (܁) também, mas só quando colados a algo: "golpe·com" é endereço, "Clínica · Online"
    é separador */
 const PONTO_MEDIO = '[·∙•⋅‧・･ᐧꞏ⸱⸳᛫܁]';
 const PONTOS_DISFARCADOS = new RegExp('[。｡．]|(?<!\\s)' + PONTO_MEDIO + '|' + PONTO_MEDIO + '(?!\\s)', 'g');
