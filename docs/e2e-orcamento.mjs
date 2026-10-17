@@ -607,7 +607,9 @@ try {
   });
   ok(await desenhar(naFilaManual, () => !document.getElementById('o-preparo').hidden), 'espera útil: confirmado, na fila manual e com um modelo na fila, o bloco aparece');
   const preparo = page.locator('#o-preparo');
-  ok(/até sexta, 16\/10, às\s15h/.test(await preparo.locator('.orc-preparo__prazo').textContent()), 'espera útil: a data do prazo (24 horas úteis, hora arredondada para cima)');
+  /* (a data é fixa e já passou: a tela troca a promessa pelo "O prazo era", que guarda a mesma conta; a frase do prazo
+     ainda por vir fica nos testes de orcamento-preparo, que controlam o relógio) */
+  ok(/O prazo era sexta, 16\/10, às\s15h\. Os seus modelos ainda estão em produção/.test(await preparo.locator('.orc-preparo__prazo').textContent()), 'espera útil: a data do prazo (24 horas úteis, hora arredondada para cima), vencida');
   ok(await preparo.locator('.orc-preparo__lista li').count() === 5, 'espera útil: a lista do que separar');
   const waPreparo = preparo.getByRole('link', { name: 'Mandar pelo WhatsApp' });
   ok(await waPreparo.getAttribute('href') === 'https://wa.me/5521977167944?text=' + encodeURIComponent('Pedido ' + codigo + ': vou mandar o material do site.'), 'espera útil: o botão do WhatsApp leva o código do pedido');
@@ -739,6 +741,11 @@ try {
   ok(true, 'Pix confirmado pelo aviso assinado + consulta: projeto liberado');
   ok(erros.length === 0, 'sem erro de console' + (erros.length ? ': ' + erros.slice(0, 3).join(' | ') : ''));
   await ctx.close();
+
+  /* com o consultor, a conversa soma chamadas ao fluxo principal e, desde a retomada e a espera útil (PR 2b-2), o
+     diagnóstico levava 429 do freio geral (90 por minuto por IP, api/vendas.mjs) no 1º pedido. Como no 1440 abaixo,
+     o freio fica como está e quem espera a janela esvaziar é o teste */
+  if (CONSULTOR) await new Promise(r => setTimeout(r, 61e3));
 
   /* o pacote que pede conversa (estimativa nula com diagnóstico, como passar do limite automático): forçado aqui pela
      resposta do servidor, porque a tabela de teste não chega ao limite pelos botões da tela */
