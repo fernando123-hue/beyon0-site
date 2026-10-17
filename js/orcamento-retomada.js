@@ -14,7 +14,7 @@
    ========================================================================== */
 (function () {
   'use strict';
-  var PREFIXO = '#retomar=';
+  var PREFIXO = '#retomar=';   /* o mesmo de js/ancoras.js (o 1º quadro): se mudar aqui, mude lá */
   var CODIGO = /^[A-Za-z0-9_-]{32}$/;
   var ESCONDE = 'orc-retomando';
   var TEL = window.BEYON_TEL || '5521977167944';   /* (reserva consciente, como em js/orcamento-detalhes.js: grep 5521977167944) */

@@ -405,7 +405,7 @@ try {
     window.__classes = new Set();
     new MutationObserver(() => document.documentElement.classList.forEach(c => window.__classes.add(c))).observe(document, { subtree: true, attributes: true, attributeFilter: ['class'] });
   });
-  await lenta.route('**/js/orcamento-retomada.js', async r => { await new Promise(f => setTimeout(f, 4000)); await r.continue(); });
+  await lenta.route('**/js/orcamento-retomada.js', async r => { await new Promise(f => setTimeout(f, 7000)); await r.continue(); });   /* (7 s: com a CPU cheia, 4 s davam vermelho falso) */
   await lenta.goto(BASE + '/orcamento#retomar=' + link1.codigo, { waitUntil: 'commit', timeout: 90000 });
   /* (mede com as folhas de estilo já aplicadas: é o que a 1ª pintura espera; o script, não) */
   await lenta.waitForFunction(() => document.getElementById('o-etapas') && document.querySelector('.orc-mesa') && document.querySelector('.orc-lead')
