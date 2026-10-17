@@ -1,0 +1,87 @@
+{
+  "nome_conceito": "Clareza que agenda",
+  "resumo": "Direção focada em levar o paciente a agendar.",
+  "identidade": {
+    "paleta": {
+      "fundo": "#FFFFFF",
+      "superficie": "#F4F6F8",
+      "texto": "#111111",
+      "texto_suave": "#4A4F55",
+      "destaque": "#0B6E6E",
+      "destaque_texto": "#FFFFFF"
+    },
+    "tipografia": {
+      "titulos": "sans_geometrica",
+      "texto": "sans_humanista"
+    },
+    "estilo": {
+      "cantos": "suaves",
+      "densidade": "equilibrada",
+      "tema": "claro"
+    }
+  },
+  "navegacao": {
+    "marca": "Clínica Exemplo",
+    "itens": [
+      "Tratamentos",
+      "Equipe",
+      "Contato"
+    ],
+    "cta": "Agendar"
+  },
+  "secoes": [
+    {
+      "tipo": "hero",
+      "variante": "split",
+      "rotulo": "Niterói",
+      "titulo": "Fisioterapia que cabe na sua rotina",
+      "subtitulo": "Agende online em minutos.",
+      "texto": "",
+      "itens": [],
+      "cta": "Agendar avaliação"
+    },
+    {
+      "tipo": "servicos",
+      "variante": "cartoes",
+      "rotulo": "",
+      "titulo": "Tratamentos",
+      "subtitulo": "",
+      "texto": "",
+      "itens": [
+        {
+          "titulo": "Coluna",
+          "texto": "Alívio da dor nas costas."
+        }
+      ],
+      "cta": ""
+    },
+    {
+      "tipo": "depoimentos",
+      "variante": "faixa",
+      "rotulo": "",
+      "titulo": "Pacientes",
+      "subtitulo": "",
+      "texto": "",
+      "itens": [
+        {
+          "titulo": "[Nome do paciente]",
+          "texto": "[Depoimento real]"
+        }
+      ],
+      "cta": ""
+    },
+    {
+      "tipo": "contato",
+      "variante": "centro",
+      "rotulo": "",
+      "titulo": "Fale com a clínica",
+      "subtitulo": "",
+      "texto": "Estamos no centro de Niterói.",
+      "itens": [],
+      "cta": "Agendar"
+    }
+  ],
+  "rodape": {
+    "texto": "Clínica Exemplo · Niterói"
+  }
+}

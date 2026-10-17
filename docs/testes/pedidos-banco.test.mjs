@@ -179,12 +179,12 @@ test('fila global: o teto conta pela regra da fila (pedido_na_fila); aguardando 
   assert.equal((await detalhes(await comPacote(), { teto_fila: teto })).ok, true, 'concluído: saiu da fila e do teto');
 });
 
-test('estado: traz o pedido (código, situação, prazo) e quantos estão na fila; aguardando vencido aparece como expirado', async () => {
+test('estado: traz o pedido (código, situação, prazo, data da confirmação) e quantos estão na fila; aguardando vencido aparece como expirado', async () => {
   const b = await comPacote();
   assert.equal((await rpc('vendas_estado', b)).pedido, null, 'sem detalhes: sem pedido');
   const r = await detalhes(b);
   const e = await rpc('vendas_estado', b);
-  assert.deepEqual(Object.keys(e.pedido).sort(), ['codigo', 'expira_em', 'status']);
+  assert.deepEqual(Object.keys(e.pedido).sort(), ['codigo', 'confirmado_em', 'expira_em', 'status']);
   assert.equal(e.pedido.codigo, r.codigo);
   assert.equal(e.pedido.status, 'aguardando');
   assert.equal(e.fila_confirmados, await naFila(), 'a mesma regra da fila');

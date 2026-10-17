@@ -59,11 +59,20 @@
       <!-- a FILA MANUAL das direções (js/painel-fila.js): aparece com a lista vinda de ?fila=direcoes -->
       <section class="pn__bloco" aria-labelledby="t-fila" id="bloco-fila" hidden>
         <h2 id="t-fila" tabindex="-1">Fila de trabalho (pedidos confirmados)</h2>
-        <p class="pn__ajuda">Só pedidos confirmados pelo WhatsApp, por prioridade: primeiro os prontos para avisar, depois os que faltam produzir (prazo prometido: até 24 horas úteis). Produza no Claude Code; com as três prontas, avise o cliente e toque em "Já avisei". "Arquivar" tira da lista o que foi resolvido por fora; "Descartar" encerra o pedido e para o que faltava fazer.</p>
+        <p class="pn__ajuda">Só pedidos confirmados pelo WhatsApp, por prioridade: primeiro os prontos para avisar, depois os que faltam produzir (prazo: até 24 horas úteis). Produza no Claude Code; com as três prontas, toque em "Preparar aviso", depois em "Abrir no WhatsApp", avise o cliente e toque em "Já avisei". Já mandou o link? Não prepare de novo: o novo invalida o que o cliente recebeu. "Arquivar" tira da lista o que foi resolvido por fora; "Descartar" encerra o pedido e para o que faltava fazer.</p>
         <p class="pn__alerta pn__alerta--urgente" id="fila-alarme" hidden>A fila chegou ao teto: o orçamento está oferecendo o WhatsApp no lugar dos detalhes até algum pedido sair da fila.</p>
         <button class="pn__btn pn__btn--fino" type="button" id="fila-atualizar">Atualizar a fila</button>
         <p class="pn__estado" id="fila-estado" role="status"></p>
         <div id="fila"></div>
+      </section>
+
+      <!-- os LEMBRETES (js/painel-lembretes.js, PR 2b-2): avisados há 2 dias ou mais, ainda sem escolha; vêm de ?fila=lembretes -->
+      <section class="pn__bloco" aria-labelledby="t-lembretes" id="bloco-lembretes" hidden>
+        <h2 id="t-lembretes" tabindex="-1">Lembretes (2 dias depois do aviso)</h2>
+        <p class="pn__ajuda">Quem foi avisado há 2 dias ou mais e ainda não escolheu um modelo. O lembrete leva um link novo, que abre o pedido em qualquer aparelho. Já mandou o link? Não prepare de novo: o novo invalida o que o cliente recebeu; toque em "Já lembrei".</p>
+        <button class="pn__btn pn__btn--fino" type="button" id="lembretes-atualizar">Atualizar os lembretes</button>
+        <p class="pn__estado" id="lembretes-estado" role="status"></p>
+        <div id="lembretes"></div>
       </section>
 
       <!-- a SAÚDE do sistema (api/rotinas.mjs): alertas abertos e quando a rotina diária rodou -->
@@ -124,5 +133,6 @@
   <script src="js/painel-pedido-comum.js" defer></script>
   <script src="js/painel-fila.js" defer></script>
   <script src="js/painel-pedidos.js" defer></script>
+  <script src="js/painel-lembretes.js" defer></script>
 </body>
 </html>

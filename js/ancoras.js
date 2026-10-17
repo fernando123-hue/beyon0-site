@@ -13,6 +13,11 @@
       âncoras vem de `data-ancoras` no próprio <script>; o destino, de
       `data-destino` — nunca da URL (sem open redirect).
 
+   3. Link do aviso do pedido (`/orcamento#retomar=<código>`): a página de trás (etapas, preço vazio, conversa) já nasce
+      escondida, no 1º quadro. Quem esconde é a classe `orc-retomando` (css/orcamento.css); o js/orcamento-retomada.js
+      é um dos últimos scripts `defer` e, num celular lento, a 1ª pintura aparecia antes dele, com "01 Perguntas" e o
+      cartão vazio, e depois tudo pulava. Só vale com esse hash: nas outras páginas e links nada muda.
+
    A CSP é `script-src 'self'`: por isso é um arquivo, não um script inline.
    ========================================================================== */
 (function () {
@@ -29,6 +34,14 @@
     var botao = document.querySelector('.nav__toggle');
     if (!botao || botao.hidden) html.classList.remove('tem-menu');
   });
+  /* (3) o mesmo prefixo de js/orcamento-retomada.js (PREFIXO): se mudar lá, mude aqui */
+  var retomando = location.hash.indexOf('#retomar=') === 0;
+  if (retomando) {
+    html.classList.add('orc-retomando');
+    /* rede: se o js/orcamento-retomada.js nunca chegar (rede, bloqueio), a classe sai no load; sem isso a página
+       ficaria só com o título, porque o bloco "Abrir o seu pedido" nasce hidden e só ele o script mostra */
+    window.addEventListener('load', function () { if (!window.BZRetomada) html.classList.remove('orc-retomando'); });
+  }
   try {
     if (localStorage.getItem('bz-menos-movimento') === '1') html.classList.add('menos-movimento');
   } catch (e) { /* armazenamento bloqueado: segue o padrão do sistema */ }
@@ -48,7 +61,7 @@
       var aqui = location.pathname.replace(/\/index\.html$/, '/').replace(/\.html$/, '').replace(/(.)\/$/, '$1') || '/';
       var chegadas = { '/': 'inicio', '/sites': 'sites', '/automacao': 'automacao', '/orcamento': 'orcamento' };
       if (Object.prototype.hasOwnProperty.call(chegadas, aqui)) html.classList.add('chega-' + chegadas[aqui]);
-      if (location.hash) html.classList.add('passagem-ancora');   /* nasce rolada até a âncora: só aparece, sem escala */
+      if (location.hash && !retomando) html.classList.add('passagem-ancora');   /* nasce rolada até a âncora: só aparece, sem escala */
     }
   } catch (e) { /* sem armazenamento: chega sem painel */ }
 

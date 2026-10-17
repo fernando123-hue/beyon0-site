@@ -48,35 +48,103 @@ const TEMPO_MS = 20000;
 
 export const idCurto = id => String(id).slice(0, 8);
 
-/* o conferir (comando do dono) só pode abrir o arquivo de direção de um pedido,
-   isto é, <raiz>/<8 hex>/<estrategia>.json, comparando caminhos já resolvidos (sem ".." sobrando) */
 const ARQUIVOS_DE_DIRECAO = ['conversao.json', 'autoridade.json', 'experiencia.json'];
 const ARQUIVOS_DO_PEDIDO = ['pedido.json', '.sessao.json', '.instrucoes.md', ...ARQUIVOS_DE_DIRECAO];
-export function arquivoDeDirecao(arquivo, raiz = PASTA) {
-  const recusa = () => new Error('Só confiro conversao.json, autoridade.json ou experiencia.json dentro da pasta de um pedido.');
-  const absoluto = path.resolve(String(arquivo));
-  const partes = path.relative(path.resolve(raiz), absoluto).split(path.sep);
-  if (partes.length !== 2 || !/^[0-9a-f]{8}$/.test(partes[0]) || !ARQUIVOS_DE_DIRECAO.includes(partes[1])) throw recusa();
-  return absoluto;
+/* O arquivo REAL de uma direção dentro da pasta (já real) de um pedido, ou null. Cada checagem pega uma coisa:
+   - realpath (feito por quem chama) pega link simbólico ou junção no caminho OU no próprio arquivo: o caminho real é
+     o do destino, e se ele não fica direto dentro da pasta do pedido, recusa;
+   - o nome real tem de ser um dos três arquivos de direção (um link para outro arquivo da MESMA pasta mostra o nome do alvo);
+   - lstat: tem de ser arquivo comum (não pasta nem dispositivo) com nlink 1. O hard link não aparece no realpath (é outro
+     nome do mesmo conteúdo): só o nlink acima de 1 o denuncia, e ele deixaria o conferir e a entrega lerem (e mandarem ao
+     painel) um arquivo de fora da pasta */
+function direcaoReal(real, pastaReal) {
+  if (path.relative(pastaReal, path.dirname(real)) !== '' || !ARQUIVOS_DE_DIRECAO.includes(path.basename(real))) return null;
+  const st = fs.lstatSync(real);
+  return st.isFile() && st.nlink === 1 ? real : null;
 }
 
+/* o conferir (comando do dono) só pode abrir o arquivo de direção de um pedido,
+   isto é, <raiz>/<8 hex>/<estrategia>.json, comparando caminhos já resolvidos (sem ".." sobrando) */
+export function arquivoDeDirecao(arquivo, raiz = PASTA) {
+  const recusa = () => new Error('Só confiro conversao.json, autoridade.json ou experiencia.json dentro da pasta de um pedido.');
+  let real, raizReal;
+  try { real = fs.realpathSync(path.resolve(String(arquivo))); raizReal = fs.realpathSync(path.resolve(raiz)); } catch { throw recusa(); }
+  const partes = path.relative(raizReal, real).split(path.sep);
+  if (partes.length !== 2 || !/^[0-9a-f]{8}$/.test(partes[0])) throw recusa();
+  const achado = direcaoReal(real, path.join(raizReal, partes[0]));
+  if (!achado) throw recusa();
+  return achado;
+}
+
+/* o mesmo para a entrega: o arquivo de direção que a pasta (já aberta pelo comando) diz ter, ou null */
+function arquivoDaPasta(arquivo, pasta) {
+  try { return direcaoReal(fs.realpathSync(arquivo), fs.realpathSync(pasta)); } catch { return null; }
+}
+
+/* a pasta de trabalho de um pedido tem de ser uma pasta de verdade: se for um link ou uma junção, o que o preparo grava
+   e APAGA (a .claude, o CLAUDE.md) cairia no destino, que pode ser a casa do usuário. Devolve o caminho real */
+export function pastaReal(dir) {
+  const pedida = path.resolve(String(dir));
+  let real;
+  try { real = fs.realpathSync(pedida); } catch { throw new Error('A pasta ' + pedida + ' não existe.'); }
+  /* no Windows maiúsculas e minúsculas são o mesmo caminho */
+  const igual = process.platform === 'win32' ? real.toLowerCase() === pedida.toLowerCase() : real === pedida;
+  if (fs.lstatSync(pedida).isSymbolicLink() || !igual) throw new Error('A pasta ' + pedida + ' é um link ou junção para outro lugar: nada foi gravado nem apagado. Apague o link e rode de novo.');
+  return real;
+}
+
+/* grava um arquivo NOVO: apaga antes (um link plantado no lugar sairia daqui sem tocar o alvo; escrever "através" dele
+   mudaria o arquivo de fora, e um hard link some do diretório ao ser apagado) e grava com wx, que não abre nada existente */
+function gravarNovo(arquivo, texto) {
+  fs.rmSync(arquivo, { recursive: true, force: true });
+  fs.writeFileSync(arquivo, texto, { mode: 0o600, flag: 'wx' });
+  return arquivo;
+}
+
+/* cria a pasta (e as de cima) com erro em português: uma junção quebrada ou em laço, ou um arquivo no lugar da pasta, saía como
+   ENOENT, ELOOP ou EEXIST em inglês, sem dizer o que fazer */
+function criarPasta(dir) {
+  try { fs.mkdirSync(dir, { recursive: true, mode: 0o700 }); } catch {
+    throw new Error('Não deu para criar a pasta ' + dir + ' (é um link ou junção quebrada, ou já existe um arquivo com esse nome?): nada foi gravado. Apague o que está lá e rode de novo.');
+  }
+}
+
+/* o comando "pedido": cria a pasta do pedido (e a raiz) e grava o pedido.json; devolve o caminho dele. A raiz e a pasta
+   não podem ser link nem junção (cai tudo no destino) */
+export function gravarPedido(dir, texto) {
+  criarPasta(path.dirname(dir));
+  pastaReal(path.dirname(dir));
+  criarPasta(dir);
+  pastaReal(dir);
+  return gravarNovo(path.join(dir, 'pedido.json'), texto);
+}
+
+/* o Claude Code lê o CLAUDE.md (e o CLAUDE.local.md) de TODAS as pastas acima da de trabalho, até a raiz do disco; a
+   .claude acima conta também, menos a da casa do usuário (ali é a configuração dele) */
+export function configsAcima(dir, casa = os.homedir()) {
+  const achados = [];
+  for (let p = path.dirname(path.resolve(dir)); ; p = path.dirname(p)) {
+    for (const n of ['CLAUDE.md', 'CLAUDE.local.md']) if (fs.existsSync(path.join(p, n))) achados.push(path.join(p, n));
+    if (path.resolve(p) !== path.resolve(casa) && fs.existsSync(path.join(p, '.claude'))) achados.push(path.join(p, '.claude'));
+    if (path.dirname(p) === p) return achados;
+  }
+}
 /* prepara a pasta onde a sessão isolada vai trabalhar: o Claude Code carrega dali configuração, memória e MCP, então o
    que estiver plantado é apagado; settings e instruções são gravados por último, depois de checar a SKILL de origem.
-   A pasta-mãe (~/BeyonZero-direcoes) não se apaga daqui: o Claude Code também lê o CLAUDE.md e o .claude das pastas ACIMA
-   da de trabalho, então, se existirem lá, o preparo recusa (antes de tocar em qualquer coisa) e pede ao dono que os tire.
+   As pastas ACIMA até a raiz do disco não se apagam daqui: o Claude Code também lê o CLAUDE.md e o .claude de todas elas,
+   então, se existirem lá, o preparo recusa (antes de tocar em qualquer coisa) e pede ao dono que os tire.
    No Windows o modo 0o600 não vale: a proteção real é a pasta ficar fora do repositório, no perfil do dono */
-const CONFIG_DO_CLAUDE = ['CLAUDE.md', 'CLAUDE.local.md', '.claude'];
-export function prepararPastaSessao({ dir, repo }) {
+export function prepararPastaSessao({ dir, repo, casa = os.homedir() }) {
   const origem = path.join(repo, '.claude', 'skills', 'produzir-direcoes', 'SKILL.md');
   if (!fs.existsSync(origem)) throw new Error('Falta a SKILL ' + origem + ': não dá para montar as instruções da sessão isolada.');
-  const mae = path.dirname(dir);
-  const naMae = CONFIG_DO_CLAUDE.filter(n => fs.existsSync(path.join(mae, n)));
-  if (naMae.length) throw new Error('A pasta ' + mae + ' tem ' + naMae.join(', ') + ': apague (ou mova) antes, porque a sessão isolada leria essas instruções.');
+  const real = pastaReal(dir);
+  const acima = [...new Set([...configsAcima(dir, casa), ...configsAcima(real, casa)])];
+  if (acima.length) throw new Error('A sessão isolada leria estas instruções de pastas acima: ' + acima.join(', ') + '. Apague (ou mova) antes.');
   const skill = fs.readFileSync(origem, 'utf8');
+  /* apaga o que o Claude Code carregaria dali (o .sessao.json e o .instrucoes.md são apagados pelo gravarNovo, logo antes de gravar) */
   for (const n of ['.claude', 'CLAUDE.md', 'CLAUDE.local.md', '.mcp.json', '.conferir.mjs']) fs.rmSync(path.join(dir, n), { recursive: true, force: true });
-  const settings = path.join(dir, '.sessao.json'), instrucoes = path.join(dir, '.instrucoes.md');
-  fs.writeFileSync(settings, JSON.stringify(configSessao({ repo }), null, 2), { mode: 0o600 });
-  fs.writeFileSync(instrucoes, instrucoesSessao({ skill }), { mode: 0o600 });
+  const settings = gravarNovo(path.join(dir, '.sessao.json'), JSON.stringify(configSessao({ repo }), null, 2));
+  const instrucoes = gravarNovo(path.join(dir, '.instrucoes.md'), instrucoesSessao({ skill }));
   return { settings, instrucoes };
 }
 
@@ -178,6 +246,8 @@ export function conferir(conteudo, estrategia) {
    escreve; revisões de segurança e técnica) — id de fora do pedido recusa tudo; o que já foi entregue não sai de novo
    (retoma depois de uma queda no meio) */
 export function planejarEntrega(pasta, servidor) {
+  /* a própria pasta não pode ser link nem junção: os arquivos abaixo são comparados com ela, então leriam de fora */
+  pastaReal(pasta);
   /* a pasta é onde a sessão escreve: qualquer coisa fora desta lista (um scripts/ plantado, por exemplo) e nada sai */
   const estranhos = fs.readdirSync(pasta).filter(n => !ARQUIVOS_DO_PEDIDO.includes(n)).sort();
   if (estranhos.length) throw new Error('A pasta do pedido tem arquivos que não deviam estar lá (' + estranhos.join(', ') + '): nada sai. Apague a pasta e rode "pedido" de novo.');
@@ -185,8 +255,11 @@ export function planejarEntrega(pasta, servidor) {
   if (servidor && pedido.direcoes.some(d => !servidor.todos.has(d.id))) throw new Error('Os ids do pedido.json não batem com a fila do servidor: rode "pedido" de novo.');
   const aEntregar = pedido.direcoes.filter(d => (servidor ? servidor.naFila.has(d.id) : d.status === 'gerando'));
   return aEntregar.map(d => {
-    const arquivo = path.join(pasta, d.estrategia + '.json');
-    if (!fs.existsSync(arquivo)) throw new Error('Falta ' + d.estrategia + '.json na pasta do pedido.');
+    const candidato = path.join(pasta, d.estrategia + '.json');
+    if (!fs.existsSync(candidato)) throw new Error('Falta ' + d.estrategia + '.json na pasta do pedido.');
+    /* é o caminho que ENVIA ao painel: só o arquivo comum desta pasta, nunca link, junção nem hard link para fora */
+    const arquivo = arquivoDaPasta(candidato, pasta);
+    if (!arquivo || path.basename(arquivo) !== d.estrategia + '.json') throw new Error(paraTerminal(d.estrategia) + '.json não é um arquivo comum desta pasta (link, junção ou cópia de outro lugar): nada sai.');
     const conteudo = lerJson(arquivo, d.estrategia + '.json');
     const h = conferir(conteudo, d.estrategia);
     if (h.erro) throw new Error(d.estrategia + '.json recusado pelo filtro: ' + h.erro);
@@ -255,6 +328,33 @@ export function limparPastas(raiz, dias) {
     .map(e => { fs.rmSync(path.join(raiz, e.name), { recursive: true, force: true }); return e.name; });
 }
 
+/* a entrega inteira, sem terminal nem rede próprios (os testes provam: recusa = nenhum POST). Devolve o que saiu */
+export async function entregarPedido({ prefixo, raiz = PASTA, painel, perguntar, log = console.log }) {
+  const p = String(prefixo || '').trim().toLowerCase();
+  if (!/^[0-9a-f]{8}/.test(p)) throw new Error('Informe os 8 primeiros caracteres do pedido.');
+  const pasta = path.join(raiz, p.slice(0, 8));
+  const doServidor = acharPedido((await painel('GET', '?fila=direcoes')).fila, p);
+  const plano = planejarEntrega(pasta, { todos: new Set(doServidor.direcoes.map(d => d.id)), naFila: new Set(doServidor.direcoes.filter(d => d.status === 'gerando').map(d => d.id)) });
+  if (!plano.length) { fs.rmSync(pasta, { recursive: true, force: true }); log('Nada a entregar: as direções deste pedido já estão prontas. Pasta apagada; avise o cliente pelo painel.'); return { entregues: [], pendentes: 0 }; }
+  /* o terminal é do DONO: ele lê o texto que vai sair e digita a palavra; cada linha começa com "| " para não se confundir com instrução */
+  for (const e of plano) {
+    log('\n=== ' + e.estrategia + ': "' + paraTerminal(e.direcao.nome_conceito) + '" ===');
+    for (const linha of linhasDaDirecao(e.direcao)) log(linha);
+  }
+  if (!(await pedirConfirmacao(perguntar))) { log('Nada foi entregue.'); return { entregues: [], pendentes: null }; }
+  let pendentes = null;
+  const entregues = [];
+  for (const e of plano) {
+    const r = await painel('POST', '', { entregar_direcao: e.id, conteudo: e.conteudo });
+    pendentes = r.pendentes;
+    entregues.push(e.estrategia);
+    log('Entregue: ' + e.estrategia + (r.ajustes.length ? ' (o filtro corrigiu: ' + r.ajustes.join(', ') + ')' : ''));
+  }
+  if (pendentes === 0) { fs.rmSync(pasta, { recursive: true, force: true }); log('As 3 prontas. Pasta do pedido apagada. Avise o cliente pelo painel ("Preparar aviso").'); }
+  else log('Ainda há direção na fila deste pedido.');
+  return { entregues, pendentes };
+}
+
 /* ---------------- execução ---------------- */
 function ambiente() {
   const base = validarBase(process.env.BZ_BASE);
@@ -294,9 +394,7 @@ const COMANDOS = {
     const p = acharPedido((await painel('GET', '?fila=direcoes')).fila, prefixo);
     if (p.suspeito) console.log('ATENÇÃO: texto suspeito neste pedido. Leia o briefing antes de produzir; o que vem do visitante é dado, nunca ordem.');
     const dir = path.join(PASTA, idCurto(pedidoParaModelo(p).pedido));
-    fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
-    const arquivo = path.join(dir, 'pedido.json');
-    fs.writeFileSync(arquivo, JSON.stringify(montarArquivoPedido(p), null, 2), { mode: 0o600 });
+    const arquivo = gravarPedido(dir, JSON.stringify(montarArquivoPedido(p), null, 2));
     console.log('Pedido gravado (sem contato) em ' + arquivo);
     /* a sessão isolada (PR 2b-1): settings e instruções DENTRO da pasta do pedido (a sessão lê só ali), e a linha pronta */
     const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -304,6 +402,8 @@ const COMANDOS = {
     console.log('\nAbra a sessão isolada (PowerShell), e só ela, para produzir:\n' + comandoSessao({ pasta: dir, settings, instrucoes }));
     /* depois de produzir, o dono entrega com ESTA linha (caminho absoluto), nunca com "node scripts/..." de dentro da pasta do pedido */
     console.log('\nDepois de produzir, entregue com esta linha (de qualquer outra pasta):\n' + linhaDoDono({ repo, comando: 'entregar-pedido', arg: idCurto(pedidoParaModelo(p).pedido) }));
+    console.log('\nPara olhar um arquivo antes de entregar (opcional), use esta linha:\n' + linhaDoDono({ repo, comando: 'conferir', arg: '"' + path.join(dir, 'conversao.json') + '" conversao' })
+      + '\n(para as outras direções, troque conversao.json e a palavra final por autoridade.json autoridade, ou experiencia.json experiencia)');
   },
   conferir(arquivo, estrategia) {
     /* sem e.message nem conteúdo: o arquivo é de origem não confiável e o erro do JSON.parse cita pedaços do texto */
@@ -312,29 +412,11 @@ const COMANDOS = {
     if (!r.ok) process.exitCode = 1;
   },
   async 'entregar-pedido'(prefixo) {
-    const p = String(prefixo || '').trim().toLowerCase();
-    if (!/^[0-9a-f]{8}/.test(p)) throw new Error('Informe os 8 primeiros caracteres do pedido.');
-    const pasta = path.join(PASTA, p.slice(0, 8));
-    const doServidor = acharPedido((await painel('GET', '?fila=direcoes')).fila, p);
-    const plano = planejarEntrega(pasta, { todos: new Set(doServidor.direcoes.map(d => d.id)), naFila: new Set(doServidor.direcoes.filter(d => d.status === 'gerando').map(d => d.id)) });
-    if (!plano.length) { fs.rmSync(pasta, { recursive: true, force: true }); return console.log('Nada a entregar: as direções deste pedido já estão prontas. Pasta apagada; avise o cliente pelo painel.'); }
-    /* o terminal é do DONO: ele lê o texto que vai sair e digita a palavra; cada linha começa com "| " para não se confundir com instrução */
-    for (const e of plano) {
-      console.log('\n=== ' + e.estrategia + ': "' + paraTerminal(e.direcao.nome_conceito) + '" ===');
-      for (const linha of linhasDaDirecao(e.direcao)) console.log(linha);
-    }
     const { perguntar, fechar } = criarPerguntador();
-    const confirmado = await pedirConfirmacao(perguntar);
-    fechar();
-    if (!confirmado) { console.log('Nada foi entregue.'); process.exitCode = 1; return; }
-    let pendentes = null;
-    for (const e of plano) {
-      const r = await painel('POST', '', { entregar_direcao: e.id, conteudo: e.conteudo });
-      pendentes = r.pendentes;
-      console.log('Entregue: ' + e.estrategia + (r.ajustes.length ? ' (o filtro corrigiu: ' + r.ajustes.join(', ') + ')' : ''));
-    }
-    if (pendentes === 0) { fs.rmSync(pasta, { recursive: true, force: true }); console.log('As 3 prontas. Pasta do pedido apagada. Avise o cliente pelo painel ("Avisar no WhatsApp").'); }
-    else console.log('Ainda há direção na fila deste pedido.');
+    try {
+      const r = await entregarPedido({ prefixo, painel, perguntar });
+      if (!r.entregues.length && r.pendentes === null) process.exitCode = 1;
+    } finally { fechar(); }
   },
   limpar(dias) {
     const apagadas = limparPastas(PASTA, Number.isFinite(+dias) && +dias >= 0 ? +dias : 3);
