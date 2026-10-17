@@ -159,6 +159,17 @@ test('fix2 6: domínio com TLD curto da lista de golpe, em qualquer caixa, é ac
   for (const t of ['Dr.Silva', 'fim.Começo', 'Fim.Ok', 'Av. Paulista']) limpo(t);
   assert.deepEqual(tipos('Siga "@golpe.pt"'), ['perfil de rede social']);
 });
+test('fix3 I1: "ponto" por extenso com sinal de um lado só vale para todo TLD da lista e da lista de golpe', () => {
+  for (const t of ['golpe (ponto pt', 'golpe ponto) me', 'golpe (ponto online', 'golpe(pontodigital', 'golpe [ponto io']) acha(t, 'endereço de site');
+  for (const t of ['Loja física (ponto de venda)', 'Retirada no local (ponto de coleta)', 'Estamos no ponto) de ônibus']) limpo(t);
+  /* aceitos com alarme: "(ponto" seguido de palavra que também é TLD */
+  for (const t of ['Atendimento (ponto online e físico)', 'Quiosque (ponto top)']) acha(t, 'endereço de site');
+});
+test('fix3 I2: CPF com ponto no lugar do hífen é documento com dígito válido ou rótulo; lote com pontos segue texto', () => {
+  for (const t of ['CPF 529.982.247.25', '529.982.247.25', 'CPF: 529.982.247.24']) acha(t, 'documento');
+  limpo('Lote 123.456.789.01');
+  acha('IP 192.168.100.10', 'endereço de site');
+});
 test('regex sem backtracking catastrófico: 300 caracteres adversários (o tamanho máximo de um texto higienizado)', () => {
   const entradas = ['a-'.repeat(150), 'a.'.repeat(150), 'A1-'.repeat(100), ' . '.repeat(100), 'ponto '.repeat(50), '9'.repeat(300), 'ΟΡ'.repeat(150), 'a@'.repeat(150), 'ç.'.repeat(150), '(ponto '.repeat(43), 'a .'.repeat(100), 'ponto) '.repeat(43), 'a pontocom'.repeat(30)];
   for (const entrada of entradas) {

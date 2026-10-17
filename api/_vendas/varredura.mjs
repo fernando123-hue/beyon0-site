@@ -24,7 +24,11 @@
    colado; mais pontos médios (ᐧ ꞏ ⸱ ⸳ ᛫ ܁); TLDs curtos de golpe em qualquer caixa ("Golpe.Pt", "golpe.pT"); "(ponto de venda)" é texto.
    Alarmes ACEITOS (na dúvida entre achar e limpar, achar): "Av.paulista", "Seg.sex", "Cia.ltda", "Pedimos desculpas . Com isso",
    "fim . Me ligue", "Nosso (ponto) de encontro", "a bolha pontocom" e "Corte •barba •tintura" (bolinha colada de um lado só).
-   Perda ACEITA: domínio de TLD fora da lista de golpe com inicial maiúscula e sem espaço ("Golpe.Sh"), que seria igual a "Dr.Silva".
+   3ª correção: "ponto" com sinal de um lado só vale para TLDS e TLDS_DE_GOLPE ("golpe (ponto pt", "golpe ponto) me"); CPF com ponto
+   no lugar do hífen ("CPF 529.982.247.25") com dígito válido ou rótulo. Alarmes aceitos daí: "Atendimento (ponto online e físico)",
+   "Quiosque (ponto top)"; e, da lista de golpe com ponto colado, "Salão.Vip", "Fit.Live aulas", "Promoção . Me peça".
+   Perda ACEITA: domínio de TLD fora da lista de golpe com inicial maiúscula e sem espaço ("Golpe.Sh"), que seria igual a "Dr.Silva";
+   e "golpe (ponto sh" / "golpe ponto) zip" (TLD fora das duas listas com sinal de um lado só).
    ========================================================================== */
 /* por propriedade Unicode, e não por lista de códigos (a lista deixava passar a marca de letra árabe, o separador mongol,
    o preenchimento hangul, as "tags" acima de U+FFFF...): Default_Ignorable_Code_Point (hífen mole, largura zero, seletores
@@ -144,12 +148,12 @@ const PADROES = [
     /* e a lista de TLDs em qualquer caixa ("golpe . Com", "Golpe . Br"): "Pedimos desculpas . Com isso" tem a mesma forma, e na dúvida é achado */
     por(new RegExp('(?<![\\p{L}\\p{N}])[\\p{L}\\p{N}-]{2,}\\s+\\.\\s*(?:' + TLDS + ')' + FIM_TLD, 'iu')),
     por(/\b[a-z0-9-]+\s*[([]\s*dot\s*[)\]]\s*[a-z]{2,}/i),
-    /* "golpe ponto com", "golpe (ponto) pt": o endereço por extenso. Com sinal dos DOIS lados, qualquer TLD; com sinal de um lado só, a
-       lista curta (senão "(ponto de venda)", "(ponto de coleta)" e "ponto) de ônibus" alarmam); solto, só quando o TLD fecha a frase
+    /* "golpe ponto com", "golpe (ponto) pt": o endereço por extenso. Com sinal dos DOIS lados, qualquer TLD; com sinal de um lado só, as
+       listas TLDS e TLDS_DE_GOLPE (senão "(ponto de venda)", "(ponto de coleta)" e "ponto) de ônibus" alarmam); solto, só quando o TLD fecha a frase
        (fim, qualquer pontuação ou símbolo, "barra" ou "ponto br"), para "um ponto com desconto" e "um ponto com 10% de desconto" serem
        texto. Colado ("golpepontocom", "golpe pontobr") vale a mesma lista curta, e "a bolha pontocom" é alarme aceito */
     por(/\b[a-z0-9-]+\s*[([]\s*ponto\s*[)\]]\s*[a-z]{2,24}(?![a-z])/i),
-    por(/\b[a-z0-9-]+\s*(?:[([]\s*ponto|ponto\s*[)\]])\s*(?:com|net|org|br|app|xyz)(?![a-z])/i),
+    por(new RegExp('\\b[a-z0-9-]+\\s*(?:[([]\\s*ponto|ponto\\s*[)\\]])\\s*(?:' + TLDS + '|' + TLDS_DE_GOLPE + ')(?![a-z])', 'i')),
     por(/[\p{L}\p{N}-]\s*ponto(?:com|net|org|br|app|xyz)(?![\p{L}\p{N}])/iu),
     por(/\b[a-z0-9-]+\s+ponto\s+(?:com|net|org|br|app|xyz)(?=\s*(?:$|[^\p{L}\p{N}\s]|barra\b|ponto\s+br\b))/iu)
   ], false],
@@ -176,6 +180,13 @@ const PADROES = [
   /* chave Pix e documento entram depois, pelo dono, nunca pela fila */
   ['documento', [
     documentoValido(/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/g, cpfValido), /* CPF */
+    /* CPF com ponto no lugar do hífen (529.982.247.25): só com dígito válido ou rótulo, senão "Lote 123.456.789.01" alarma */
+    texto => {
+      for (const m of texto.matchAll(/\b\d{3}\.\d{3}\.\d{3}\.\d{2}\b/g)) {
+        if (cpfValido(m[0].replace(/\D/g, '')) || ROTULO_DOCUMENTO.test(texto.slice(Math.max(0, m.index - 12), m.index))) return m[0];
+      }
+      return null;
+    },
     documentoValido(/\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/g, cnpjValido) /* CNPJ */
   ], true],
   ['conta bancária', [por(/\bag(?:ência|encia|\.)?\s*:?\s*\d{3,5}\b[^.]{0,20}\bc(?:onta|\/c|c)\.?\s*:?\s*\d{4,}/i)], false]
