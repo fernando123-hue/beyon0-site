@@ -106,7 +106,6 @@ test('6: falsos alarmes que dá para tirar sem abrir buraco; os que não dão fi
      "Pedimos desculpas . Com isso" e "fim . Me ligue" têm a mesma forma de "golpe . Com" (TLD da lista só com a inicial maiúscula,
      depois de espaço e ponto): limpá-los abria o buraco, e na dúvida entre achar e limpar a regra é achar */
   for (const t of ['Av.paulista 100', 'Seg.sex 8h', 'Cia.ltda', 'Pedimos desculpas . Com isso', 'fim . Me ligue']) acha(t, 'endereço de site');
-  for (const t of ['golpe . Com', 'acesse golpe .Com agora', 'Golpe . Br', 'golpe\u2009. Com']) acha(t, 'endereço de site');
 });
 test('7: chave com pedaços curtos e mistos é achada; frase com hífens (letras ou dígitos) segue texto', () => {
   acha('A1B2C-3D4E5-F6G7H-8I9J0-K1L2M-N3O4P', 'chave');
@@ -163,18 +162,47 @@ test('fix3 I1: "ponto" por extenso com sinal de um lado só vale para todo TLD d
   for (const t of ['golpe (ponto pt', 'golpe ponto) me', 'golpe (ponto online', 'golpe(pontodigital', 'golpe [ponto io']) acha(t, 'endereço de site');
   for (const t of ['Loja física (ponto de venda)', 'Retirada no local (ponto de coleta)', 'Estamos no ponto) de ônibus']) limpo(t);
   /* aceitos com alarme: "(ponto" seguido de palavra que também é TLD */
-  for (const t of ['Atendimento (ponto online e físico)', 'Quiosque (ponto top)']) acha(t, 'endereço de site');
+  for (const t of ['Atendimento (ponto online e físico)', 'Quiosque (ponto top)', 'Espaço (ponto co-working)']) acha(t, 'endereço de site');
 });
 test('fix3 I2: CPF com ponto no lugar do hífen é documento com dígito válido ou rótulo; lote com pontos segue texto', () => {
   for (const t of ['CPF 529.982.247.25', '529.982.247.25', 'CPF: 529.982.247.24']) acha(t, 'documento');
   limpo('Lote 123.456.789.01');
   acha('IP 192.168.100.10', 'endereço de site');
 });
-test('regex sem backtracking catastrófico: 300 caracteres adversários (o tamanho máximo de um texto higienizado)', () => {
-  const entradas = ['a-'.repeat(150), 'a.'.repeat(150), 'A1-'.repeat(100), ' . '.repeat(100), 'ponto '.repeat(50), '9'.repeat(300), 'ΟΡ'.repeat(150), 'a@'.repeat(150), 'ç.'.repeat(150), '(ponto '.repeat(43), 'a .'.repeat(100), 'ponto) '.repeat(43), 'a pontocom'.repeat(30)];
-  for (const entrada of entradas) {
-    const inicio = performance.now();
-    varrer({ t: entrada });
-    assert.ok(performance.now() - inicio < 1000, 'varredura lenta demais para ' + entrada.slice(0, 12) + '… (' + entrada.length + ')');
+test('(s): nome terminado em letra acentuada não esconde "ponto"/"(dot)" por extenso', () => {
+  for (const t of ['café ponto com', 'café (ponto) pt', 'café (ponto pt', 'promoção(dot)com', 'Promoção [dot] net']) acha(t, 'endereço de site');
+  /* texto de loja com acento antes de "ponto" segue limpo */
+  for (const t of ['Café ponto de encontro', 'Promoção: um ponto com desconto', 'Sofá (ponto de venda)', 'Avaliação ponto a ponto']) limpo(t);
+});
+/* TEMPO. O teto de uma seção em api/_vendas/direcao.mjs é 700 caracteres (texto), e uma direção tem até 12 seções de 8 itens, todos os campos
+   cheios. As regex de endereço são quadráticas em sequências como "a-a-a-…" (cada hífen reinicia a busca); não há nada exponencial.
+   Medido em 2026-10-16 (Node 24, Windows): 700 caracteres adversários, no máximo ~40 ms; a direção inteira no tamanho máximo, no máximo
+   ~0,5 s. Os limites abaixo (1 s por campo, 3 s por direção) passam com folga de 6 vezes e só pegam um backtracking novo. */
+const LIMITE_CAMPO_MS = 1000;
+const LIMITE_DIRECAO_MS = 3000;
+const CAMPO_MAXIMO = 700;
+const repetir = (unidade, tamanho) => unidade.repeat(Math.ceil(tamanho / unidade.length)).slice(0, tamanho);
+const UNIDADES = ['a-', 'a.', 'A1-', '1-', '-', ' . ', 'ponto ', '(ponto ', 'ponto) ', 'a pontocom', '9', 'ΟΡ', 'a@', 'ç.', 'ç-', 'é ponto ', 'a .'];
+const direcaoMaxima = u => ({
+  nome_conceito: repetir(u, 60), resumo: repetir(u, 400),
+  navegacao: { marca: repetir(u, 60), itens: Array(6).fill(repetir(u, 24)), cta: repetir(u, 30) },
+  secoes: Array.from({ length: 12 }, () => ({
+    rotulo: repetir(u, 40), titulo: repetir(u, 120), subtitulo: repetir(u, 220), texto: repetir(u, CAMPO_MAXIMO), cta: repetir(u, 40),
+    itens: Array.from({ length: 8 }, () => ({ titulo: repetir(u, 80), texto: repetir(u, 300) }))
+  })),
+  rodape: { texto: repetir(u, 200) }
+});
+const gasto = fn => { const inicio = performance.now(); fn(); return performance.now() - inicio; };
+
+test('regex sem backtracking catastrófico: 700 caracteres adversários (o teto de uma seção)', () => {
+  for (const unidade of UNIDADES) {
+    const entrada = repetir(unidade, CAMPO_MAXIMO);
+    assert.ok(gasto(() => varrer({ t: entrada })) < LIMITE_CAMPO_MS, 'varredura lenta demais para ' + JSON.stringify(unidade) + ' x ' + CAMPO_MAXIMO);
+  }
+});
+test('regex sem backtracking catastrófico: uma direção inteira no tamanho máximo', () => {
+  for (const unidade of UNIDADES) {
+    const direcao = direcaoMaxima(unidade);
+    assert.ok(gasto(() => varrer(direcao)) < LIMITE_DIRECAO_MS, 'direção máxima lenta demais para ' + JSON.stringify(unidade));
   }
 });

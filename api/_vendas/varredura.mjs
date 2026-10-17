@@ -147,15 +147,15 @@ const PADROES = [
     por(new RegExp('(?<![\\p{L}\\p{N}])[\\p{L}\\p{N}-]{2,}\\s+\\.\\s*[A-Z]{2,24}' + FIM_TLD, 'u')),
     /* e a lista de TLDs em qualquer caixa ("golpe . Com", "Golpe . Br"): "Pedimos desculpas . Com isso" tem a mesma forma, e na dúvida é achado */
     por(new RegExp('(?<![\\p{L}\\p{N}])[\\p{L}\\p{N}-]{2,}\\s+\\.\\s*(?:' + TLDS + ')' + FIM_TLD, 'iu')),
-    por(/\b[a-z0-9-]+\s*[([]\s*dot\s*[)\]]\s*[a-z]{2,}/i),
+    por(/(?<![\p{L}\p{N}-])[\p{L}\p{N}-]+\s*[([]\s*dot\s*[)\]]\s*[a-z]{2,}/iu),
     /* "golpe ponto com", "golpe (ponto) pt": o endereço por extenso. Com sinal dos DOIS lados, qualquer TLD; com sinal de um lado só, as
        listas TLDS e TLDS_DE_GOLPE (senão "(ponto de venda)", "(ponto de coleta)" e "ponto) de ônibus" alarmam); solto, só quando o TLD fecha a frase
        (fim, qualquer pontuação ou símbolo, "barra" ou "ponto br"), para "um ponto com desconto" e "um ponto com 10% de desconto" serem
        texto. Colado ("golpepontocom", "golpe pontobr") vale a mesma lista curta, e "a bolha pontocom" é alarme aceito */
-    por(/\b[a-z0-9-]+\s*[([]\s*ponto\s*[)\]]\s*[a-z]{2,24}(?![a-z])/i),
-    por(new RegExp('\\b[a-z0-9-]+\\s*(?:[([]\\s*ponto|ponto\\s*[)\\]])\\s*(?:' + TLDS + '|' + TLDS_DE_GOLPE + ')(?![a-z])', 'i')),
+    por(/(?<![\p{L}\p{N}-])[\p{L}\p{N}-]+\s*[([]\s*ponto\s*[)\]]\s*[a-z]{2,24}(?![a-z])/iu),
+    por(new RegExp('(?<![\\p{L}\\p{N}-])[\\p{L}\\p{N}-]+\\s*(?:[([]\\s*ponto|ponto\\s*[)\\]])\\s*(?:' + TLDS + '|' + TLDS_DE_GOLPE + ')(?![a-z])', 'iu')),
     por(/[\p{L}\p{N}-]\s*ponto(?:com|net|org|br|app|xyz)(?![\p{L}\p{N}])/iu),
-    por(/\b[a-z0-9-]+\s+ponto\s+(?:com|net|org|br|app|xyz)(?=\s*(?:$|[^\p{L}\p{N}\s]|barra\b|ponto\s+br\b))/iu)
+    por(/(?<![\p{L}\p{N}-])[\p{L}\p{N}-]+\s+ponto\s+(?:com|net|org|br|app|xyz)(?=\s*(?:$|[^\p{L}\p{N}\s]|barra\b|ponto\s+br\b))/iu)
   ], false],
   ['caminho de arquivo', [
     por(/\b[a-z]:[\\/]/i), por(/(?:^|[\s"'(])~[\\/]/), por(/(?:^|[\s"'(])\/(?:home|users|etc|tmp|var|root)\b/i),
