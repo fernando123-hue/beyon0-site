@@ -85,7 +85,7 @@ begin
   end if;
   update app.retomadas set usada_em = now() where id = r.id;
   update app.conversas set visitante_id = v_vid, ultima_atividade = now() where id = c.id;
-  -- (a escolha guarda quem escolheu; com o visitante antigo apagado pela rotina, a cascata levaria a escolha junto)
+  -- (a escolha guarda quem escolheu; se o visitante antigo for apagado um dia (limpeza de anônimos, pedido da LGPD), a cascata levaria a escolha junto)
   update app.escolhas set visitante_id = v_vid where conversa_id = c.id;
   perform privado.evento(c.org_id, c.id, 'retomada_usada');
   return jsonb_build_object('ok', true, 'conversa_id', c.id);

@@ -7,7 +7,7 @@
    (PR 2a: o contato vem pelos detalhes; a ação "contato" saiu, porque passava por cima dos freios do pedido)
    Fronteira: freio por IP, JSON obrigatório (um formulário de outro site não
    chega aqui), corpo limitado, token do visitante em cada ação (exceto criar
-   a sessão), erro interno genérico (detalhe só no log, sem dado pessoal).
+   ou retomar a sessão), erro interno genérico (detalhe só no log, sem dado pessoal).
    ========================================================================== */
 import { criarFluxo, traduzirErro } from './_vendas/fluxo.mjs';
 import { criarTransporte, ErroBanco } from './_vendas/transporte.mjs';
