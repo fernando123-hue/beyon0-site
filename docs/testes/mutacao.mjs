@@ -53,7 +53,22 @@ export const SABOTAGENS = [
   /* ---- o freio que vive no JS: gerar só com o pedido confirmado, com a frase de cada situação (o banco também recusa,
      com a frase genérica da etapa: o teste da frase "ainda não foi confirmado pelo WhatsApp" é o que pega) ---- */
   { nome: 'gerar sem o pedido confirmado pelo WhatsApp (freio do JS)', fonte: 'api/_vendas/fluxo.mjs', testes: ['docs/testes/fluxo-api.test.mjs'],
-    de: 'if (semConfirmacao) throw semConfirmacao;', para: 'if (false) throw semConfirmacao;' }
+    de: 'if (semConfirmacao) throw semConfirmacao;', para: 'if (false) throw semConfirmacao;' },
+  /* ---- os ajustes sem IA (PR 3a): o teto, a versão final sem o desfeito e o dono fora da etapa ---- */
+  { nome: 'opção pronta sem o teto de 30 ajustes', arquivo: '20261017120000_pr3a_ajustes.sql', testes: ['docs/testes/ajustes-banco.test.mjs'],
+    de: "if (select count(*) from app.alteracoes a where a.conversa_id = c.id and a.origem = 'opcao') >= 30 then", para: 'if false then' },
+  { nome: 'a versão final conta o ajuste desfeito', arquivo: '20261017120000_pr3a_ajustes.sql', testes: ['docs/testes/ajustes-banco.test.mjs'],
+    de: "where a.conversa_id = v_conversa and a.status = 'aplicada'", para: "where a.conversa_id = v_conversa and a.status in ('aplicada', 'desfeita')" },
+  { nome: 'o dono resolve ajuste de conversa que passou da etapa de ajustes', arquivo: '20261017120000_pr3a_ajustes.sql', testes: ['docs/testes/ajustes-banco.test.mjs'],
+    de: "perform privado.exigir_etapa(c, array['escolhida', 'alteracoes']);   -- (o dono: só na etapa de ajustes)", para: '-- (sabotado)' },
+  { nome: 'opção pronta aceita estimativa (muda o preço)', arquivo: '20261017120000_pr3a_ajustes.sql', testes: ['docs/testes/ajustes-banco.test.mjs'],
+    de: "if p ? 'estimativa' or jsonb_typeof(p -> 'resultado') is distinct from 'object' then", para: "if jsonb_typeof(p -> 'resultado') is distinct from 'object' then" },
+  { nome: 'pedido livre sem o teto de 3', arquivo: '20261017120000_pr3a_ajustes.sql', testes: ['docs/testes/ajustes-banco.test.mjs'],
+    de: 'if v_feitos >= 3 then', para: 'if false then' },
+  { nome: 'pedido livre sem o teto de 300 caracteres', arquivo: '20261017120000_pr3a_ajustes.sql', testes: ['docs/testes/ajustes-banco.test.mjs'],
+    de: 'char_length(v_texto) not between 1 and 300', para: 'char_length(v_texto) not between 1 and 3000' },
+  { nome: 'a trava de direções sem o filtro do visitante', arquivo: '20261017120000_pr3a_ajustes.sql', testes: ['docs/testes/ajustes-banco.test.mjs'],
+    de: 'where d.conversa_id = p_conversa and cv.visitante_id = p_visitante', para: 'where d.conversa_id = p_conversa' }
 ];
 
 /* os sinais em que o arquivo sabotado volta ao original antes de sair: Ctrl+C, o kill comum, o terminal que fecha
