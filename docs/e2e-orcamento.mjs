@@ -710,6 +710,11 @@ try {
     await foto(page, '4b-duvida-no-sinal-cel');
   } else ok(await page.locator('#o-pagamento [data-perguntar]').isHidden(), 'sem consultor: a tela do sinal não oferece "Pergunte ao consultor"');
 
+  /* (PR 3a) com os ajustes antes do resumo, o fluxo chega aqui com perto de 90 chamadas no último minuto e, no CI (rápido),
+     o recarregar do Pix levava 429 do freio geral (90 por minuto por IP, api/vendas.mjs; visto no diário do CI do #46).
+     Como nos dois pontos abaixo, o freio fica como está e quem espera a janela esvaziar é o teste */
+  await new Promise(r => setTimeout(r, 61e3));
+
   /* pagamento: dados do pagador, cartão recusado, depois Pix (QR) e a confirmação SÓ pelo aviso do provedor */
   await page.click('#o-pag-enviar');
   ok((await page.textContent('#o-pag-erro')).includes('nome'), 'pagador sem dados: recusado com motivo');
