@@ -13,6 +13,7 @@ import { Recusa } from './recusa.mjs';
 import { ErroBanco } from './transporte.mjs';
 import { ehUuid } from '../_valida-app.mjs';
 import { aplicar } from './alteracoes.mjs';
+import { MAX_SECOES } from './direcao.mjs';
 import { validarOpcao, rotuloDaOpcao, fraseDaRecusa, fraseDoErro } from './opcoes.mjs';
 import { limparMensagem, redigir } from './seguranca.mjs';
 
@@ -28,6 +29,7 @@ export const FRASES = Object.freeze({
   fechados: 'Os ajustes desta proposta já foram fechados.',
   modeloIndisponivel: 'Esse modelo não está disponível para este ajuste.',
   secaoDeFora: 'Essa seção não existe nos outros modelos.',
+  secoesNoMaximo: 'O site já tem o máximo de seções. Tire uma antes.',
   limiteAjustes: 'Você chegou ao limite de 30 ajustes neste pedido. Para mudar mais, fale com a Beyon Zero pelo WhatsApp.',
   versaoMudou: 'Sua versão mudou enquanto você ajustava (outra aba ou a Beyon Zero). Confira e tente de novo.',
   nadaADesfazer: 'Não há ajuste para desfazer.',
@@ -72,7 +74,11 @@ export function criarAcoesDosAjustes({ banco, visitante, estado, exigirNaoDescar
       if (m.operacao.startsWith('usar_') && !outras.some(d => d.numero === m.direcao)) throw new Recusa(422, FRASES.modeloIndisponivel);
       if (m.operacao === 'adicionar_secao' && !outras.some(d => (d.conteudo.secoes || []).some(s => s.tipo === m.secao))) throw new Recusa(422, FRASES.secaoDeFora);
       /* (só os OUTROS modelos prontos entram em aplicar(): é deles que vêm cores, fontes e seções) */
-      const a = aplicar({ base: est.versao_final || escolhida.conteudo, mudancas: [m], direcoes: outras });
+      const base = est.versao_final || escolhida.conteudo;
+      /* o modelo tem no máximo MAX_SECOES: a higienização cortaria a seção nova calada e o contrato diria que ela entrou */
+      const secoes = base.secoes || [];
+      if (m.operacao === 'adicionar_secao' && secoes.length >= MAX_SECOES && !secoes.some(s => s.tipo === m.secao)) throw new Recusa(422, FRASES.secoesNoMaximo);
+      const a = aplicar({ base, mudancas: [m], direcoes: outras });
       if (a.erro) throw new Recusa(422, fraseDoErro(a.erro));
       if (!a.resultado[0].aplicada) throw new Recusa(422, fraseDaRecusa(a.resultado[0].motivo));
       const rotulo = rotuloDaOpcao(m);
@@ -120,6 +126,8 @@ export function criarAcoesDosAjustes({ banco, visitante, estado, exigirNaoDescar
         return { alteracao_id: r.alteracao_id, restantes: r.restantes };
       } catch (e) {
         if (e instanceof ErroBanco && e.codigo === '23514') throw new Recusa(409, FRASES.limiteLivres, { whatsapp: true });
+        /* o dono arquivou o pedido (ou a conversa passou da etapa) entre a leitura e a gravação: segue pelo WhatsApp */
+        if (e instanceof ErroBanco && e.codigo === '55000') throw new Recusa(409, FRASES.livreFora, { whatsapp: true });
         throw e;
       }
     }

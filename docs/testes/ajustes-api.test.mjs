@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { montarLocal } from '../banco-local.mjs';
 import { criarCenario, BASE } from './_ajustes.mjs';
 import { PROIBIDAS } from './_opcoes-proibidas.mjs';
+import { MAX_SECOES } from '../../api/_vendas/direcao.mjs';
 
 let local, cen;
 before(async () => { local = await montarLocal({ base: BASE }); cen = criarCenario(local); });
@@ -81,6 +82,25 @@ test('ajustar: cores, fontes e seção só vêm de modelo PRONTO da geração at
   /* e o que continua pronto segue funcionando */
   assert.equal((await n.chamar('POST', 'ajustar', { conversa_id: c, opcao: { operacao: 'usar_tipografia_de', direcao: 2 } })).status, 200);
   assert.equal(cen.contas.ia, 0);
+});
+
+test('ajustar: com 12 seções (o máximo) acrescentar outra é 422 com frase fixa, nada se grava e nenhum ajuste é gasto; tirar uma abre a vaga', async () => {
+  const { n, c } = await cen.ateEscolher();
+  /* o modelo 1 com 12 seções, sem "faq" nem "equipe" (que só os outros modelos têm) */
+  const tipos = ['hero', 'servicos', 'depoimentos', 'contato', 'sobre', 'diferenciais', 'processo', 'numeros', 'galeria', 'cta', 'destaque', 'localizacao'];
+  assert.equal(tipos.length, MAX_SECOES, 'o teste monta o máximo do servidor');
+  const atual = (await local.db.query('select conteudo from app.direcoes where conversa_id = $1 and numero = 1', [c])).rows[0].conteudo;
+  const cheio = { ...atual, secoes: tipos.map(tipo => ({ tipo, variante: 'lista', rotulo: '', titulo: 'Seção ' + tipo, subtitulo: '', texto: '', itens: [], cta: '' })) };
+  await local.db.query('update app.direcoes set conteudo = $1::jsonb where conversa_id = $2 and numero = 1', [JSON.stringify(cheio), c]);
+  const r = await n.chamar('POST', 'ajustar', { conversa_id: c, opcao: { operacao: 'adicionar_secao', secao: 'faq' } });
+  assert.equal(r.status, 422, JSON.stringify(r.corpo));
+  assert.equal(r.corpo.erro, 'O site já tem o máximo de seções. Tire uma antes.');
+  assert.deepEqual(await ajustesNoBanco(c), [], 'nada gravado: o contrato não fala de uma seção que não existe');
+  assert.equal((await n.chamar('POST', 'ajustar', { conversa_id: c, opcao: { operacao: 'remover_secao', secao: 'localizacao' } })).status, 200);
+  assert.equal((await n.chamar('POST', 'ajustar', { conversa_id: c, opcao: { operacao: 'adicionar_secao', secao: 'faq' } })).status, 200);
+  const e = await cen.estado(n, c);
+  assert.equal(e.versao_final.secoes.length, MAX_SECOES);
+  assert.ok(e.versao_final.secoes.some(s => s.tipo === 'faq'), 'a seção entrou');
 });
 
 test('ajustar: se a versão mudou entre a leitura e a gravação (outra aba, ou o "feito" do dono), 409 e nada se perde', async () => {
@@ -267,6 +287,21 @@ test('pedido arquivado (resolvido por fora): o pedido livre vai para o WhatsApp;
   assert.equal(r.corpo.whatsapp, true);
   assert.deepEqual(await ajustesNoBanco(c), [], 'nada ficou "aguardando" para sempre');
   assert.equal((await n.chamar('POST', 'ajustar', { conversa_id: c, opcao: PALETA_2 })).status, 200);
+});
+
+test('pedido livre: o dono arquivou entre a leitura e a gravação (55000 do banco) e a pessoa recebe a frase do WhatsApp, não a genérica de etapa', async () => {
+  let antesDeGravar = null;
+  const banco = async (nome, p) => {
+    if (nome === 'vendas_pedido_livre' && antesDeGravar) { const f = antesDeGravar; antesDeGravar = null; await f(); }
+    return local.rpc(nome, p);
+  };
+  const { n, c } = await cen.ateEscolher({ banco });
+  antesDeGravar = () => cen.painelPost({ arquivar_pedido: c });
+  const r = await n.chamar('POST', 'pedido-livre', { conversa_id: c, texto: 'Quero o mapa' });
+  assert.equal(r.status, 409, JSON.stringify(r.corpo));
+  assert.equal(r.corpo.erro, 'Este pedido segue com a Beyon Zero pelo WhatsApp: escreva por lá o que quer mudar.');
+  assert.equal(r.corpo.whatsapp, true);
+  assert.deepEqual(await ajustesNoBanco(c), [], 'nada ficou "aguardando"');
 });
 
 test('a ação antiga "alterar" (o ajuste pela IA) não existe mais: 404 antes de qualquer coisa', async () => {

@@ -71,7 +71,12 @@ export const SABOTAGENS = [
     de: 'where d.conversa_id = p_conversa and cv.visitante_id = p_visitante', para: 'where d.conversa_id = p_conversa' },
   /* ---- a lista fechada das opções prontas vive no JS ---- */
   { nome: 'opção pronta aceita campo a mais (valor livre)', fonte: 'api/_vendas/opcoes.mjs', testes: ['docs/testes/opcoes.test.mjs'],
-    de: 'if (chaves.length !== permitidas.length || !chaves.every(k => permitidas.includes(k))) return null;', para: '' }
+    de: 'if (chaves.length !== permitidas.length || !chaves.every(k => permitidas.includes(k))) return null;', para: '' },
+  /* ---- a correção final do PR 3a ---- */
+  { nome: 'a fila de pedidos livres sem o corte de 50', arquivo: '20261017120000_pr3a_ajustes.sql', testes: ['docs/testes/ajustes-banco.test.mjs'],
+    de: 'order by f.created_at, f.id limit 50', para: 'order by f.created_at, f.id limit 5000' },
+  { nome: 'acrescentar seção com o modelo já no máximo (a seção some calada)', fonte: 'api/_vendas/fluxo-ajustes.mjs', testes: ['docs/testes/ajustes-api.test.mjs'],
+    de: "m.operacao === 'adicionar_secao' && secoes.length >= MAX_SECOES &&", para: "m.operacao === 'adicionar_secao' && false &&" }
 ];
 
 /* os sinais em que o arquivo sabotado volta ao original antes de sair: Ctrl+C, o kill comum, o terminal que fecha
