@@ -90,8 +90,24 @@ export const SABOTAGENS = [
     de: "perform privado.exigir_etapa(c, array['descoberta', 'estimativa', 'contato']);", para: "perform privado.exigir_etapa(c, array['descoberta', 'estimativa', 'contato', 'direcoes', 'escolhida', 'alteracoes']);" },
   /* a lista positiva do JS abre de uma vez a lista de ferramentas, a recusa do agente e o que o turno grava; sobra o banco (55000) */
   { nome: 'estimar aceito depois da escolha (a lista do JS: ferramentas, agente e turno)', fonte: 'api/_vendas/consultor.mjs', testes: ['docs/testes/auditoria-correcoes.test.mjs', 'docs/testes/consultor.test.mjs'],
-    de: "export const ETAPAS_COM_PRECO = ['descoberta', 'estimativa', 'contato'];", para: "export const ETAPAS_COM_PRECO = ['descoberta', 'estimativa', 'contato', 'direcoes', 'escolhida', 'alteracoes'];" }
+    de: "export const ETAPAS_COM_PRECO = ['descoberta', 'estimativa', 'contato'];", para: "export const ETAPAS_COM_PRECO = ['descoberta', 'estimativa', 'contato', 'direcoes', 'escolhida', 'alteracoes'];" },
+  /* ---- a correção final: o pedido confirmado fecha o preço também na etapa "contato"; o registro da geração é um só ---- */
+  { nome: 'estimativa aceita com o pedido já confirmado (o banco)', arquivo: '20261020120000_auditoria_correcoes.sql', testes: ['docs/testes/auditoria-correcoes.test.mjs'],
+    de: "if exists (select 1 from app.pedidos pd where pd.conversa_id = c.id and pd.status = 'confirmado') then\n    raise exception 'pacote fechado", para: "if false then\n    raise exception 'pacote fechado" },
+  { nome: 'pedido confirmado não fecha o preço no JS (ferramentas, agente e turno)', fonte: 'api/_vendas/consultor.mjs', testes: ['docs/testes/auditoria-correcoes.test.mjs', 'docs/testes/consultor.test.mjs'],
+    de: "ETAPAS_COM_PRECO.includes(etapa) && statusDoPedido !== 'confirmado';", para: 'ETAPAS_COM_PRECO.includes(etapa);' },
+  { nome: 'a geração grava o registro por conta própria (a falha libera a reserva na hora)', fonte: 'api/_vendas/fluxo.mjs', testes: ['docs/testes/teto-dia.test.mjs'],
+    de: "          throw e;\n        }\n      });   /* (o registro da chamada é gravado UMA vez, no finally de comReserva, antes de a reserva sair) */",
+    para: "          throw e;\n        } finally {\n          await gravarChamadas(corpo.conversa_id, vid);\n        }\n      });" }
 ];
+
+/* as sabotagens que a rodada vai fazer: todas, ou só as do filtro (parte do nome, sem diferenciar maiúsculas). Filtro que não
+   casa nenhuma devolve o erro: "0 de 0 sabotagens pegas" não prova nada */
+export function escolherSabotagens(sabotagens, filtro = '') {
+  const f = String(filtro).toLowerCase();
+  const escolhidas = sabotagens.filter(s => s.nome.toLowerCase().includes(f));
+  return { sabotagens: escolhidas, erro: f && !escolhidas.length ? 'o filtro "' + filtro + '" não casa com nenhuma sabotagem (nada foi testado)' : null };
+}
 
 /* os sinais em que o arquivo sabotado volta ao original antes de sair: Ctrl+C, o kill comum, o terminal que fecha
    (SIGHUP) e o Ctrl+Break do Windows (SIGBREAK) */
@@ -129,9 +145,12 @@ function rodar() {
   process.on('exit', restaurar);
   for (const sinal of SINAIS_DE_SAIDA) if (os.constants.signals[sinal] !== undefined) process.on(sinal, () => { restaurar(); process.exit(130); });
 
-  /* BZ_MUTACAO_FILTRO: roda só as sabotagens cujo nome contém o texto (para conferir uma sabotagem nova sem rodar todas) */
-  const filtro = (process.env.BZ_MUTACAO_FILTRO || '').toLowerCase();
-  const rodadas = SABOTAGENS.filter(s => s.nome.toLowerCase().includes(filtro));
+  /* BZ_MUTACAO_FILTRO: roda só as sabotagens cujo nome contém o texto (para conferir uma sabotagem nova sem rodar todas).
+     Filtro que não casa nenhuma é ERRO, não "0 de 0" com sucesso (uma variável esquecida no ambiente parece rodada completa) */
+  const filtro = process.env.BZ_MUTACAO_FILTRO || '';
+  const { sabotagens: rodadas, erro } = escolherSabotagens(SABOTAGENS, filtro);
+  if (filtro) console.log('FILTRO ATIVO: "' + filtro + '" escolheu ' + rodadas.length + ' de ' + SABOTAGENS.length + ' sabotagens');
+  if (erro) { console.log('ERRO: ' + erro); process.exitCode = 1; return; }
   let pegas = 0;
   for (const s of rodadas) {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bz-mutacao-'));
