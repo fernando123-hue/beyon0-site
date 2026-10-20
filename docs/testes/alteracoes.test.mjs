@@ -48,7 +48,7 @@ test('o que não cabe é recusado com motivo; cor ilegível é corrigida; opera�
   assert.equal(r.escopo.length, 1);
 });
 
-/* (revisão de segurança do lote 1) o nome de um adicional e o nome da operação vêm do modelo: no contrato e na tela, só o
+/* (revisão de segurança do lote 1) o nome de um adicional e o nome da operação vêm do modelo: no contrato e no que fica gravado, só o
    que é da tabela de preços e da lista fechada */
 test('adicional fora da tabela não entra no contrato; operação desconhecida vira "outro"', async () => {
   const direcoes = await tresDirecoes();

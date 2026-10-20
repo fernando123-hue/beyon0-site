@@ -2,8 +2,10 @@
    CAMADA DE IA — configuração (um lugar só; docs/fase2/01-ARQUITETURA.md).
    Decisão do dono (2026-10-06): Claude Opus 5.5 com esforço alto na geração
    das 3 direções ("tão boas que se vendam sozinhas"). MODO ECONÔMICO (dono,
-   2026-10-08, até haver dinheiro para a API): a conversa e a interpretação
-   dos ajustes no Claude Haiku 5.5 (~20× mais barato que o Sonnet 5.5).
+   2026-10-08, até haver dinheiro para a API): a conversa e a extração do
+   briefing no Claude Haiku 5.5 (~20× mais barato que o Sonnet 5.5). Os
+   ajustes do modelo escolhido (PR 3a) não chamam IA: opções prontas e pedido
+   escrito para o dono (api/_vendas/fluxo-ajustes.mjs).
    Preços oficiais por milhão de tokens (cache de 2026-10-06 da referência da
    API), usados só para MEDIR o custo de cada conversa e aplicar os tetos —
    não para cobrar ninguém.

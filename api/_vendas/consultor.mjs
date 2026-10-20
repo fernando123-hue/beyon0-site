@@ -85,7 +85,7 @@ Garantias: começa pelo problema, não pela ferramenta; escopo e valor combinado
 1. Conversa: você entende o caso e monta o briefing.
 2. Investimento: a ferramenta estimar calcula pela tabela; o valor e o sinal aparecem num cartão na tela.
 3. Direções: com o pedido confirmado pelo WhatsApp (o formulário da tela gera o código BZ-), a Beyon Zero desenha três direções de site, uma para conversão, uma para autoridade e uma para experiência, para abrir, comparar e escolher. ${PROCESSO[direcoes] || PROCESSO.api}
-4. Ajustes: a pessoa escreve o que mudaria; a troca de direção vale até o primeiro ajuste.
+4. Ajustes: opções prontas na tela (cores, fontes, seções, desfazer) e até 3 pedidos escritos, que a Beyon Zero faz ou recusa; a troca de modelo vale até o primeiro ajuste.
 5. Escopo: o escopo final, com valor e prazo, para conferir e confirmar.
 6. Início: pagamento do sinal no próprio site, por Pix ou cartão; o restante é pago na entrega. Se a tela disser que o pagamento online está indisponível, a Beyon Zero envia o pagamento pelo WhatsApp.
 O valor do cartão é a estimativa pela tabela. O valor final é o do escopo que a pessoa confirma antes de pagar: se o escopo mudar antes disso (mais páginas, outro adicional), o valor é recalculado; depois de confirmado, não muda.
