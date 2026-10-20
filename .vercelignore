@@ -3,6 +3,13 @@ node_modules/
 # segredos locais nunca vão no deploy (o deploy vem do git, mas um "vercel deploy" local enviaria a pasta)
 .env*
 
+# cópias do banco: o roteiro de backup (docs/fundacao/02-OPERACAO.md §5) grava dados em texto aberto (dump, o .sql
+# da restauração e o .7z que guarda os dois); um "vercel deploy" local enviaria a pasta inteira. Por extensão, sem a
+# linha literal "restauracao.sql" (linha sem curinga exige redirect no vercel.json; o *.sql já a cobre)
+*.sql
+*.dump
+*.7z
+
 # o banco: migrations e configuração do Supabase não são página do site
 supabase/
 .claude/

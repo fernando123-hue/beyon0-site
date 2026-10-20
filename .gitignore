@@ -20,6 +20,7 @@ Thumbs.db
 supabase/.temp/
 supabase/.branches/
 *.dump
+*.7z
 restauracao.sql
 
 # assets grandes NÃO referenciados (0 refs) — ficam no disco, fora do repo/deploy

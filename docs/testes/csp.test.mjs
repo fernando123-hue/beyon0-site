@@ -88,6 +88,21 @@ test('deploy: nada do repositório que não é página nem asset fica no ar (reg
   assert.deepEqual(semRegra, [], 'no .vercelignore e sem regra no vercel.json: ' + semRegra.join(', '));
 });
 
+/* (auditoria run-1, pista 6) o roteiro de backup grava dados em texto aberto (dump, restauracao.sql, o .7z que guarda os
+   dois). Um "vercel deploy" feito pela CLI envia a pasta do projeto, não o git: o .vercelignore tem de tirar esses
+   arquivos, por padrão de extensão (nada que o site serve termina assim). Sem a linha literal "restauracao.sql": linha sem
+   curinga exige redirect no vercel.json (teste acima) e o "*.sql" já a cobre. O .gitignore também não os deixa entrar. */
+test('deploy: o .vercelignore tira do deploy os segredos locais e as cópias do banco (.env*, *.sql, *.dump, *.7z)', () => {
+  for (const padrao of ['.env*', '*.sql', '*.dump', '*.7z']) {
+    assert.ok(LINHAS_IGNORE.includes(padrao), padrao + ' fora do .vercelignore (um "vercel deploy" local enviaria)');
+  }
+  const linhasGit = readFileSync(new URL('.gitignore', RAIZ), 'utf8').split('\n').map(l => l.trim());
+  for (const padrao of ['*.dump', '*.7z']) assert.ok(linhasGit.includes(padrao), padrao + ' fora do .gitignore');
+  /* nada que o site serve termina assim */
+  const servidos = VERSIONADOS.filter(f => ehPublico(f.includes('/') ? f.split('/')[0] + '/' : f) && /\.(sql|dump|7z)$/.test(f));
+  assert.deepEqual(servidos, [], 'arquivo servido pelo site com extensão de cópia do banco: ' + servidos.join(', '));
+});
+
 /* (revisão técnica do lote 1) o outro lado: nenhum redirect tira do ar um arquivo público versionado, e nenhuma regra fixa
    aponta para um arquivo que não existe (regra morta esconde erro de digitação na regra que importa) */
 test('deploy: todo arquivo público versionado continua no ar; regra fixa só para arquivo que existe', () => {
