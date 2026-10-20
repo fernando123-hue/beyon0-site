@@ -8,7 +8,8 @@
    ========================================================================== */
 (function () {
   'use strict';
-  var LIMITE_OPCOES = 30, LIMITE_LIVRES = 3, LIVRE_MAX = 300;
+  /* (MAX_SECOES = o de api/_vendas/direcao.mjs; docs/testes/orcamento-ajustes.test.mjs prende os dois) */
+  var LIMITE_OPCOES = 30, LIMITE_LIVRES = 3, LIVRE_MAX = 300, MAX_SECOES = 12;
   var NOMES = { hero: 'Abertura', servicos: 'Serviços', sobre: 'Sobre', diferenciais: 'Diferenciais', processo: 'Como funciona', depoimentos: 'Depoimentos',
     numeros: 'Números', galeria: 'Galeria', faq: 'Perguntas frequentes', cta: 'Chamada para contato', contato: 'Contato', equipe: 'Equipe',
     destaque: 'Destaque', localizacao: 'Localização' };
@@ -29,6 +30,10 @@
     /* (os ajustes antigos, do tempo da IA: o texto que a própria pessoa escreveu) */
     return { classe: a.status === 'aplicada' ? 'is-ok' : 'is-nao', texto: (a.status === 'aplicada' ? 'Feito: ' : 'Não aplicado: ') + a.pedido };
   }
+
+  /* Só rede caída (0), tempo esgotado (0) ou erro do servidor (5xx) podem ter gravado antes de falhar; 400, 404, 409, 422 e 429
+     o servidor recusou antes de gravar (o mesmo critério de "repetivel" de js/orcamento.js) */
+  function talvezGravou(e) { return !!e && (e.status === 0 || e.status >= 500); }
 
   /* O limite de 30: com pedidos escritos sobrando, a saída é escrever; sem eles, só o WhatsApp (nunca manda escrever o que não dá) */
   function textoDoLimite(livresRestantes) {
@@ -68,13 +73,16 @@
     var ja = Object.create(null);
     atual.forEach(function (s) { ja[s.tipo] = true; });
     var adicionar = [];
-    outras.forEach(function (d) {
-      (d.conteudo.secoes || []).forEach(function (s) {
-        if (ja[s.tipo] || !tem(NOMES, s.tipo)) return;
-        ja[s.tipo] = true;
-        adicionar.push({ rotulo: 'Adicionar ' + minusculo(nome(s.tipo)), opcao: { operacao: 'adicionar_secao', secao: s.tipo } });
+    /* (com o máximo de seções não se acrescenta nenhuma: o servidor recusaria, e a seção nem caberia no modelo) */
+    if (atual.length < MAX_SECOES) {
+      outras.forEach(function (d) {
+        (d.conteudo.secoes || []).forEach(function (s) {
+          if (ja[s.tipo] || !tem(NOMES, s.tipo)) return;
+          ja[s.tipo] = true;
+          adicionar.push({ rotulo: 'Adicionar ' + minusculo(nome(s.tipo)), opcao: { operacao: 'adicionar_secao', secao: s.tipo } });
+        });
       });
-    });
+    }
     /* subir só da 3ª em diante (a 2ª já está logo abaixo da abertura); tirar só com mais de três (o site precisa de três) */
     var secoes = atual.map(function (s, i) {
       var item = { tipo: s.tipo, nome: nome(s.tipo), fixa: s.tipo === 'hero' };
@@ -95,6 +103,9 @@
       /* (o banco decide: o último aplicado tem de ser uma opção pronta; o "feito" do dono não se desfaz) */
       desfazer: E.conversa.etapa === 'alteracoes' && E.pode_desfazer === true,
       livresRestantes: Math.max(0, LIMITE_LIVRES - contar('livre')),
+      /* o pedido escrito só vale com o pedido confirmado (arquivado, ou uma conversa antiga sem pedido: todo envio daria 409);
+         no lugar do formulário vai a frase fixa com o WhatsApp */
+      livreFora: !E.pedido || E.pedido.status !== 'confirmado',
       lista: alts.map(linhaDaLista).filter(Boolean)
     };
   }
@@ -147,8 +158,10 @@
         var antes = contagem(E, tipo), r = null, relido = false;
         try { r = await chamada(); }
         catch (e) {
+          /* a tela segue o servidor; mas só uma falha que pode ter gravado (rede, tempo, 5xx) é conferida pela contagem: com
+             400, 409, 422 ou 429 nada foi gravado, e outra aba que ajustou no mesmo segundo viraria um "Feito" falso aqui */
           await o.recarregar().catch(function () {});
-          if (contagem(E, tipo) <= antes) { o.falhou(e, null); return; }
+          if (!talvezGravou(e) || contagem(E, tipo) <= antes) { o.falhou(e, null); return; }
           relido = true;
         }
         if (!relido) await o.recarregar().catch(function () {});
@@ -224,16 +237,20 @@
         versao.appendChild(v);
       }
       m.lista.forEach(function (l) { lista.appendChild(el('li', l.classe, l.texto)); });
-      if (m.limite) alvo.appendChild(el('p', 'orc-aj__limite', textoDoLimite(m.livresRestantes)));
+      var podeEscrever = !m.livreFora && m.livresRestantes > 0;
+      if (m.limite) alvo.appendChild(el('p', 'orc-aj__limite', textoDoLimite(podeEscrever ? m.livresRestantes : 0)));
       else {
         if (m.cores.length) alvo.appendChild(grupo('Cores e fontes', m.cores.concat(m.fontes)));
         alvo.appendChild(grupoDasSecoes(m));
         if (m.adicionar.length) alvo.appendChild(grupo('Acrescentar uma seção dos outros modelos', m.adicionar));
       }
-      $('o-livre-campos').hidden = m.livresRestantes === 0;
-      $('o-livre-conta').textContent = textoDaConta(m.livresRestantes);
+      var fora = $('o-livre-fora');
+      fora.hidden = !m.livreFora;
+      livre.hidden = m.livreFora || m.livresRestantes === 0;
+      $('o-livre-conta').hidden = m.livreFora;
+      $('o-livre-conta').textContent = m.livreFora ? '' : textoDaConta(m.livresRestantes);
       if (emDesfazer && desfazer.hidden) $('o-aj-titulo').focus({ preventScroll: true });
-      else if (emLivre && livre.hidden) $('o-livre-conta').focus({ preventScroll: true });
+      else if (emLivre && livre.hidden) (m.livreFora ? fora : $('o-livre-conta')).focus({ preventScroll: true });
       else if (foco) devolverFoco(foco);
     }
     return {
@@ -249,5 +266,6 @@
     };
   }
 
-  window.BZAjustes = { criar: criar, opcoesDe: opcoesDe, textoDaConta: textoDaConta, textoDoLimite: textoDoLimite, contagem: contagem, frase: frase };
+  window.BZAjustes = { criar: criar, opcoesDe: opcoesDe, textoDaConta: textoDaConta, textoDoLimite: textoDoLimite, contagem: contagem, frase: frase,
+    talvezGravou: talvezGravou, MAX_SECOES: MAX_SECOES };
 })();

@@ -335,11 +335,12 @@
       <form class="orc-livre" id="o-livre-form" novalidate>
         <div class="orc-livre__campos" id="o-livre-campos">
           <label for="o-livre-texto">Quer outra mudança? Escreva aqui</label>
-          <p class="orc-nota" id="o-livre-aviso">Não escreva CPF, telefone ou dados de outras pessoas.</p>
+          <p class="orc-nota" id="o-livre-aviso">Não escreva seu nome, telefone, e-mail, CPF nem dados de outras pessoas.</p>
           <textarea id="o-livre-texto" rows="3" maxlength="300" aria-describedby="o-livre-aviso o-livre-conta"></textarea>
           <button class="btn" type="submit" data-acao>Enviar pedido</button>
           <p class="orc-nota">Seu pedido entra junto; não atrasa o início.</p>
         </div>
+        <p class="orc-nota" id="o-livre-fora" tabindex="-1" hidden>Este pedido segue com a Beyon Zero <a data-wa="quero pedir uma mudança no meu orçamento" href="https://wa.me/5521977167944">pelo WhatsApp</a>: escreva por lá o que quer mudar.</p>
         <p class="orc-nota" id="o-livre-conta" tabindex="-1"></p>
         <p class="orc-nota orc-livre__resposta" id="o-livre-resposta" role="status"></p>
         <p class="orc-erro" id="o-livre-erro" role="alert"></p>

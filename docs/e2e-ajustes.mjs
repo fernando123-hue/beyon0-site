@@ -7,6 +7,9 @@ export async function passoDosAjustes(page, { ok, espera, foto, semRolagemLatera
   ok(await cores1.isVisible(), 'ajustes: as cores dos outros modelos (o 1, com o 2 escolhido)');
   ok(Math.round((await cores1.boundingBox()).height) >= 44, 'ajustes: botão com 44 px de altura ou mais');
   ok(await aj.getByText('Seu pedido entra junto; não atrasa o início.').isVisible(), 'pedido livre: a frase de que não atrasa o início');
+  ok(await aj.getByText('Não escreva seu nome, telefone, e-mail, CPF nem dados de outras pessoas.').isVisible(), 'pedido livre: o aviso manda não escrever nome nem contato');
+  ok(await page.evaluate(() => ['o-livre-resposta', 'o-livre-erro'].every(id => getComputedStyle(document.getElementById(id)).display !== 'none')), 'pedido livre: as regiões vivas (resposta e erro) ficam na árvore de acessibilidade, vazias e sem display:none');
+  ok(await page.evaluate(() => document.getElementById('o-livre-fora').hidden), 'pedido livre: com o pedido confirmado, o formulário vale (a frase do WhatsApp fica escondida)');
   await aj.scrollIntoViewIfNeeded();
   await foto(page, '8-ajustes-topo');
   await cores1.click();

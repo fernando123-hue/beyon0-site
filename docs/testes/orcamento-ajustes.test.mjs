@@ -48,6 +48,29 @@ test('acrescentar: só seções que existem nos outros modelos e ainda não est�
   assert.deepEqual(comFaq.adicionar.map(a => a.opcao.secao), ['servicos', 'equipe']);
 });
 
+test('acrescentar: com 12 seções (o máximo do servidor) a tela não oferece "Adicionar"; com 11 oferece', async () => {
+  const { MAX_SECOES } = await import('../../api/_vendas/direcao.mjs');
+  assert.equal(A.MAX_SECOES, MAX_SECOES, 'a tela e o servidor falam do mesmo máximo');
+  const doze = ['hero', 'servicos', 'depoimentos', 'contato', 'sobre', 'diferenciais', 'processo', 'numeros', 'galeria', 'cta', 'destaque', 'localizacao'];
+  assert.equal(doze.length, MAX_SECOES);
+  assert.deepEqual(A.opcoesDe(estado({ versao_final: { secoes: sec(doze) } })).adicionar, [], 'cheio: nada a acrescentar');
+  assert.ok(A.opcoesDe(estado({ versao_final: { secoes: sec(doze.slice(0, 11)) } })).adicionar.length > 0, 'com vaga, oferece');
+});
+
+test('pedido livre: o formulário só vale com o pedido confirmado (arquivado ou sem pedido, o servidor recusaria)', () => {
+  assert.equal(A.opcoesDe(estado({ pedido: { status: 'confirmado' } })).livreFora, false);
+  assert.equal(A.opcoesDe(estado({ pedido: { status: 'arquivado' } })).livreFora, true);
+  assert.equal(A.opcoesDe(estado({ pedido: { status: 'descartado' } })).livreFora, true);
+  assert.equal(A.opcoesDe(estado()).livreFora, true, 'conversa sem pedido');
+});
+
+test('erro de uma ação: só rede caída, tempo esgotado ou erro do servidor podem ter gravado (reler e contar); 400, 409, 422 e 429 não', () => {
+  for (const status of [0, 500, 502, 503]) assert.equal(A.talvezGravou({ status }), true, String(status));
+  for (const status of [400, 404, 409, 422, 429]) assert.equal(A.talvezGravou({ status }), false, String(status));
+  assert.equal(A.talvezGravou(null), false);
+  assert.equal(A.talvezGravou(new Error('sem status')), false);
+});
+
 test('aviso, desfazer e lista: o 1º ajuste pergunta antes; desfazer só quando o banco diz que dá; cada ajuste com a sua frase', () => {
   assert.equal(A.opcoesDe(estado()).confirmar, true, 'na etapa "escolhida", o 1º ajuste pergunta antes');
   assert.equal(A.opcoesDe(estado()).desfazer, false);
@@ -110,6 +133,13 @@ test('o aviso do limite de 30 só manda escrever o pedido se ainda há pedidos e
   assert.doesNotMatch(A.textoDoLimite(0), /escreva/);
   assert.match(A.textoDoLimite(0), /WhatsApp/);
   assert.match(A.textoDoLimite(0), /30/);
+});
+
+test('o aviso do pedido escrito manda não escrever nome nem contato, e há um lugar para o WhatsApp quando o formulário não vale', () => {
+  const html = fs.readFileSync(new URL('../../orcamento.html', import.meta.url), 'utf8');
+  const aviso = (html.match(/id="o-livre-aviso">([^<]*)</) || [])[1] || '';
+  for (const palavra of ['nome', 'telefone', 'e-mail', 'CPF']) assert.ok(aviso.includes(palavra), 'o aviso não cita ' + palavra + ': ' + aviso);
+  assert.match(html, /id="o-livre-fora"[^>]*hidden[\s\S]*?data-wa="[^"]+"[\s\S]*?<\/p>/, 'a frase do WhatsApp no lugar do formulário');
 });
 
 test('a palavra é "modelo": nenhum texto da tela diz "direção"', () => {

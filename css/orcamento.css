@@ -188,16 +188,18 @@ html.orc-retomando .orc-lead, html.orc-retomando .orc-etapas, html.orc-retomando
   border: 1px solid var(--line); border-radius: var(--raio-s); background: var(--s1); overflow-wrap: anywhere; }
 .orc-aj__nome { font-size: 1rem; color: var(--t1); }
 .orc-aj__fixa { font-size: 1rem; color: var(--t3); }
-.orc-livre { display: flex; flex-direction: column; gap: .6rem; margin: 1.2rem 0; max-width: 60ch; }
-.orc-livre__campos { display: flex; flex-direction: column; gap: .6rem; }
+/* (sem "gap": as regiões vivas #o-livre-resposta e #o-livre-erro ficam SEMPRE na árvore de acessibilidade, vazias e sem altura,
+   para o leitor de tela anunciar o que entrar nelas; com gap cada uma vazia ainda abriria um vão. O vão vem da margem de quem tem texto) */
+.orc-livre { display: flex; flex-direction: column; margin: 1.2rem 0; max-width: 60ch; }
+.orc-livre > :not(:empty):not(:first-child), .orc-livre .orc-livre__campos > :not(:first-child) { margin-top: .6rem; }
+.orc-livre__campos { display: flex; flex-direction: column; }
 .orc-livre label { font-size: 1rem; color: var(--t1); }
 .orc-livre textarea { width: 100%; min-height: 96px; padding: .8rem .9rem; border: 1px solid var(--stroke); border-radius: var(--raio-s);
   background: var(--bg); color: var(--t1); font: inherit; font-size: 1rem; line-height: 1.45; resize: vertical; }
 .orc-livre textarea:focus-visible { outline: 2px solid var(--ac); outline-offset: 1px; border-color: var(--ac); }
 .orc-livre .orc-nota { margin-top: 0; font-size: 1rem; color: var(--t2); }
 .orc-livre .btn { min-height: 48px; align-self: flex-start; }
-.orc-livre .orc-erro { font-size: 1rem; }
-.orc-livre .orc-erro:empty, .orc-livre__resposta:empty { display: none; }
+.orc-livre .orc-erro { font-size: 1rem; min-height: 0; }
 .orc-livre .orc-nota:focus { outline: none; }   /* (o foco do teclado pousa na conta quando o campo some: sem anel, como os títulos) */
 .orc-dialogo { margin: auto; max-width: min(92vw, 420px); padding: 1.2rem; border: 1px solid var(--line-hi); border-radius: var(--raio); background: var(--s1); color: var(--t1); }
 .orc-dialogo::backdrop { background: rgb(0 0 0 / .72); }   /* (escurece sem desfoque: regra do dono) */
