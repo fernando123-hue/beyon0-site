@@ -337,10 +337,11 @@
           <label for="o-livre-texto">Quer outra mudança? Escreva aqui</label>
           <p class="orc-nota" id="o-livre-aviso">Não escreva CPF, telefone ou dados de outras pessoas.</p>
           <textarea id="o-livre-texto" rows="3" maxlength="300" aria-describedby="o-livre-aviso o-livre-conta"></textarea>
-          <button class="btn" type="submit">Enviar pedido</button>
+          <button class="btn" type="submit" data-acao>Enviar pedido</button>
           <p class="orc-nota">Seu pedido entra junto; não atrasa o início.</p>
         </div>
-        <p class="orc-nota" id="o-livre-conta"></p>
+        <p class="orc-nota" id="o-livre-conta" tabindex="-1"></p>
+        <p class="orc-nota orc-livre__resposta" id="o-livre-resposta" role="status"></p>
         <p class="orc-erro" id="o-livre-erro" role="alert"></p>
       </form>
       <dialog class="orc-dialogo" id="o-aj-aviso" aria-labelledby="o-aj-aviso-titulo">

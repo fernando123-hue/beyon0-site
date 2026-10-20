@@ -83,6 +83,35 @@ test('conta dos pedidos escritos e teto de 30', () => {
   assert.equal(A.opcoesDe(estado({ conversa: { etapa: 'alteracoes' }, alteracoes: trinta.slice(1) })).limite, false);
 });
 
+test('chamada que falhou mas entrou (tempo esgotado, rede caiu): a contagem do estado reconhece e a frase sai do estado', () => {
+  const antes = estado({ conversa: { etapa: 'alteracoes' }, alteracoes: [
+    { origem: 'opcao', status: 'aplicada', pedido: 'Cores do modelo 1' }, { origem: 'livre', status: 'na_fila', pedido: 'a' }] });
+  assert.equal(A.contagem(antes, 'ajustar'), 1);
+  assert.equal(A.contagem(antes, 'livre'), 1);
+  assert.equal(A.contagem(antes, 'desfazer'), 0);
+  const nova = { origem: 'opcao', status: 'aplicada', pedido: 'Sobre depois de serviços' };
+  const depois = { ...antes, alteracoes: [...antes.alteracoes, nova] };
+  assert.equal(A.contagem(depois, 'ajustar'), 2, 'entrou uma opção pronta');
+  assert.equal(A.contagem(depois, 'livre'), 1, 'o pedido livre não mudou');
+  assert.equal(A.frase(depois, 'ajustar', null), 'Feito: Sobre depois de serviços.');
+  assert.equal(A.frase(depois, 'ajustar', { rotulo: 'Cores do modelo 3' }), 'Feito: Cores do modelo 3.', 'com resposta do servidor, vale o rótulo dela');
+  const livre = { ...antes, alteracoes: [...antes.alteracoes, { origem: 'livre', status: 'na_fila', pedido: 'b' }] };
+  assert.equal(A.contagem(livre, 'livre'), 2);
+  assert.equal(A.frase(livre, 'livre', null), 'Pedido enviado. Você pode fazer mais 1 pedido.');
+  assert.equal(A.frase(livre, 'livre', { restantes: 1 }), 'Pedido enviado. Você pode fazer mais 1 pedido.');
+  const desfeito = { ...antes, alteracoes: [{ ...antes.alteracoes[0], status: 'desfeita' }, antes.alteracoes[1]] };
+  assert.equal(A.contagem(desfeito, 'desfazer'), 1, 'desfazer: mais uma desfeita');
+  assert.equal(A.contagem(null, 'ajustar'), 0, 'sem estado, zero');
+  assert.equal(A.frase(desfeito, 'desfazer', null), 'Desfeito: a versão anterior voltou.');
+});
+
+test('o aviso do limite de 30 só manda escrever o pedido se ainda há pedidos escritos', () => {
+  assert.match(A.textoDoLimite(2), /escreva o seu pedido/);
+  assert.doesNotMatch(A.textoDoLimite(0), /escreva/);
+  assert.match(A.textoDoLimite(0), /WhatsApp/);
+  assert.match(A.textoDoLimite(0), /30/);
+});
+
 test('a palavra é "modelo": nenhum texto da tela diz "direção"', () => {
   const textos = (fonte.match(/'[^'\n]*'/g) || []).filter(s => /dire[cç][aã]o/i.test(s));
   assert.deepEqual(textos, []);

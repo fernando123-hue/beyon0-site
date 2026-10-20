@@ -30,6 +30,33 @@
     return { classe: a.status === 'aplicada' ? 'is-ok' : 'is-nao', texto: (a.status === 'aplicada' ? 'Feito: ' : 'Não aplicado: ') + a.pedido };
   }
 
+  /* O limite de 30: com pedidos escritos sobrando, a saída é escrever; sem eles, só o WhatsApp (nunca manda escrever o que não dá) */
+  function textoDoLimite(livresRestantes) {
+    return 'Você chegou ao limite de 30 ajustes neste pedido. Para mudar mais, ' + (livresRestantes > 0 ? 'escreva o seu pedido abaixo ou ' : '') + 'fale com a Beyon Zero pelo WhatsApp.';
+  }
+
+  /* Quantas alterações cada ação já deixou no estado. Uma chamada que dá erro de rede ou de tempo pode ter entrado no servidor:
+     a tela relê o estado e compara com a contagem de ANTES; se subiu, a ação valeu (repetir gastaria um dos 3 pedidos
+     escritos e um dos 30 ajustes, auditoria 2026-10-09, F2). "desfazer" conta as desfeitas */
+  function contagem(E, tipo) {
+    var alts = (E && E.alteracoes) || [];
+    return alts.filter(function (a) {
+      if (tipo === 'livre') return a.origem === 'livre';
+      return a.origem === 'opcao' && (tipo !== 'desfazer' || a.status === 'desfeita');
+    }).length;
+  }
+  /* a frase de uma ação que deu certo; sem a resposta do servidor (r nulo), sai do estado já relido */
+  function frase(E, tipo, r) {
+    if (tipo === 'desfazer') return 'Desfeito: a versão anterior voltou.';
+    if (tipo === 'livre') {
+      var m = opcoesDe(E);
+      return 'Pedido enviado. ' + textoDaConta(r ? r.restantes : (m ? m.livresRestantes : 0));
+    }
+    if (r) return 'Feito: ' + r.rotulo + '.';
+    var opcoes = ((E && E.alteracoes) || []).filter(function (a) { return a.origem === 'opcao'; });
+    return opcoes.length ? 'Feito: ' + opcoes[opcoes.length - 1].pedido + '.' : 'Feito.';
+  }
+
   function opcoesDe(E) {
     if (!E || !E.conversa || !E.escolha) return null;
     var prontas = (E.direcoes || []).filter(function (d) { return d.status === 'pronta' && d.conteudo; });
@@ -85,7 +112,11 @@
       b.addEventListener('click', function () { if (b.getAttribute('aria-disabled') !== 'true') aoClicar(b); });
       return b;
     }
-    function responder(t) { $('o-aj-resposta').textContent = t; }
+    /* a frase de resultado: a do pedido escrito fica perto do formulário (quem está lá embaixo não vê a de cima) */
+    function responder(t, tipo) {
+      $('o-aj-resposta').textContent = tipo === 'livre' ? '' : t;
+      $('o-livre-resposta').textContent = tipo === 'livre' ? t : '';
+    }
 
     /* o 1º ajuste (opção pronta ou pedido livre) trava a troca de modelo, no servidor também: pergunta antes, na página */
     function depoisDoAviso(origem, fazer) {
@@ -106,33 +137,42 @@
     $('o-aj-aviso-nao').addEventListener('click', function () { fecharAviso(false); });
     aviso.addEventListener('cancel', function (ev) { ev.preventDefault(); fecharAviso(false); });   /* (Esc = Voltar) */
 
-    /* uma ação por vez; a tela segue o servidor depois, dê certo ou não (sem "Tentar de novo": repetir aplicaria duas vezes) */
-    function executar(chamada, feito) {
+    /* uma ação por vez; a tela segue o servidor depois, dê certo ou não (sem "Tentar de novo": repetir aplicaria duas vezes).
+       Se a chamada falhou mas o servidor já tinha gravado (a rede caiu na volta), a releitura mostra a contagem maior: vale
+       como feito, sem aviso de erro (F2) */
+    function executar(tipo, chamada, aoConcluir) {
       return o.umaAcao(async function () {
+        o.limparAviso();
         responder('');
-        var r;
+        var antes = contagem(E, tipo), r = null, relido = false;
         try { r = await chamada(); }
-        catch (e) { await o.recarregar().catch(function () {}); o.falhou(e, null); return; }
-        await o.recarregar().catch(function () {});
-        responder(feito(r));
+        catch (e) {
+          await o.recarregar().catch(function () {});
+          if (contagem(E, tipo) <= antes) { o.falhou(e, null); return; }
+          relido = true;
+        }
+        if (!relido) await o.recarregar().catch(function () {});
+        if (aoConcluir) aoConcluir();
+        responder(frase(E, tipo, r), tipo);
       });
     }
     function ajustar(opcao, origem) {
       depoisDoAviso(origem, function () {
-        executar(function () { return o.API.ajustar(opcao); }, function (r) { return 'Feito: ' + r.rotulo + '.'; });
+        executar('ajustar', function () { return o.API.ajustar(opcao); });
       });
     }
     $('o-aj-desfazer').addEventListener('click', function () {
       if (this.getAttribute('aria-disabled') === 'true') return;
-      executar(function () { return o.API.desfazer(); }, function () { return 'Desfeito: a versão anterior voltou.'; });
+      executar('desfazer', function () { return o.API.desfazer(); });
     });
     $('o-livre-form').addEventListener('submit', function (ev) {
       ev.preventDefault();
       var campo = $('o-livre-texto'), erro = $('o-livre-erro'), texto = campo.value.trim();
+      if (ev.submitter && ev.submitter.getAttribute('aria-disabled') === 'true') return;   /* (uma ação por vez) */
       if (!texto) { erro.textContent = 'Escreva o que você quer mudar.'; campo.focus(); return; }
       erro.textContent = '';
       depoisDoAviso(ev.submitter || campo, function () {
-        executar(function () { return o.API.pedidoLivre(texto.slice(0, LIVRE_MAX)); }, function (r) { campo.value = ''; return 'Pedido enviado. ' + textoDaConta(r.restantes); });
+        executar('livre', function () { return o.API.pedidoLivre(texto.slice(0, LIVRE_MAX)); }, function () { campo.value = ''; });
       });
     });
 
@@ -169,8 +209,10 @@
     }
     function desenhar() {
       var m = opcoesDe(E), alvo = $('o-aj-opcoes'), lista = $('o-mudancas'), versao = $('o-versao');
-      var ativo = document.activeElement;
+      var ativo = document.activeElement, desfazer = $('o-aj-desfazer'), livre = $('o-livre-campos');
       var foco = ativo && ativo.tagName === 'BUTTON' && (alvo.contains(ativo) || versao.contains(ativo)) ? (ativo.getAttribute('aria-label') || ativo.textContent) : null;
+      /* o foco estava num controle que vai sumir (Desfazer sem nada para desfazer; o formulário no 3º pedido): vai para perto dele */
+      var emDesfazer = ativo === desfazer, emLivre = livre.contains(ativo);
       alvo.textContent = ''; lista.textContent = ''; versao.textContent = '';
       $('o-aj-desfazer').hidden = !(m && m.desfazer);
       if (!m) return;
@@ -182,7 +224,7 @@
         versao.appendChild(v);
       }
       m.lista.forEach(function (l) { lista.appendChild(el('li', l.classe, l.texto)); });
-      if (m.limite) alvo.appendChild(el('p', 'orc-aj__limite', 'Você chegou ao limite de 30 ajustes neste pedido. Para mudar mais, escreva o seu pedido abaixo ou fale com a Beyon Zero pelo WhatsApp.'));
+      if (m.limite) alvo.appendChild(el('p', 'orc-aj__limite', textoDoLimite(m.livresRestantes)));
       else {
         if (m.cores.length) alvo.appendChild(grupo('Cores e fontes', m.cores.concat(m.fontes)));
         alvo.appendChild(grupoDasSecoes(m));
@@ -190,7 +232,9 @@
       }
       $('o-livre-campos').hidden = m.livresRestantes === 0;
       $('o-livre-conta').textContent = textoDaConta(m.livresRestantes);
-      if (foco) devolverFoco(foco);
+      if (emDesfazer && desfazer.hidden) $('o-aj-titulo').focus({ preventScroll: true });
+      else if (emLivre && livre.hidden) $('o-livre-conta').focus({ preventScroll: true });
+      else if (foco) devolverFoco(foco);
     }
     return {
       /* redesenha só quando o que aparece mudou (a leitura do estado chega várias vezes) */
@@ -205,5 +249,5 @@
     };
   }
 
-  window.BZAjustes = { criar: criar, opcoesDe: opcoesDe, textoDaConta: textoDaConta };
+  window.BZAjustes = { criar: criar, opcoesDe: opcoesDe, textoDaConta: textoDaConta, textoDoLimite: textoDoLimite, contagem: contagem, frase: frase };
 })();

@@ -183,7 +183,6 @@ html.orc-retomando .orc-lead, html.orc-retomando .orc-etapas, html.orc-retomando
 .orc-aj .btn, .orc-aj__desfazer, .orc-versao .btn, .orc-livre .btn, .orc-dialogo .btn { font-family: var(--sans); font-size: var(--fs-b); text-transform: none; letter-spacing: normal; }
 .orc-aj__limite { font-size: 1rem; color: var(--t2); }
 .orc-aj__desfazer { margin-bottom: 1rem; }
-.orc-aj__desfazer[hidden], .orc-livre__campos[hidden] { display: none; }   /* (o display das regras acima venceria o atributo hidden) */
 .orc-aj__secoes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .5rem; }
 .orc-aj__secao { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; padding: .6rem .8rem;
   border: 1px solid var(--line); border-radius: var(--raio-s); background: var(--s1); overflow-wrap: anywhere; }
@@ -197,7 +196,9 @@ html.orc-retomando .orc-lead, html.orc-retomando .orc-etapas, html.orc-retomando
 .orc-livre textarea:focus-visible { outline: 2px solid var(--ac); outline-offset: 1px; border-color: var(--ac); }
 .orc-livre .orc-nota { margin-top: 0; font-size: 1rem; color: var(--t2); }
 .orc-livre .btn { min-height: 48px; align-self: flex-start; }
-.orc-livre .orc-erro:empty { display: none; }
+.orc-livre .orc-erro { font-size: 1rem; }
+.orc-livre .orc-erro:empty, .orc-livre__resposta:empty { display: none; }
+.orc-livre .orc-nota:focus { outline: none; }   /* (o foco do teclado pousa na conta quando o campo some: sem anel, como os títulos) */
 .orc-dialogo { margin: auto; max-width: min(92vw, 420px); padding: 1.2rem; border: 1px solid var(--line-hi); border-radius: var(--raio); background: var(--s1); color: var(--t1); }
 .orc-dialogo::backdrop { background: rgb(0 0 0 / .72); }   /* (escurece sem desfoque: regra do dono) */
 .orc-dialogo h3 { font-size: 1.1rem; font-weight: 400; margin-bottom: 1rem; }

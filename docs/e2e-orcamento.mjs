@@ -69,7 +69,7 @@ try {
   const erros = [];
   let falhaForcada = false;   /* (o 400 ou 503 que o próprio teste força numa conta ou nos detalhes não é erro da página) */
   let perdeuOPedido = false;   /* (PR 2b-2: depois que outro aparelho abre o pedido pelo link, a aba de antes leva 404 ao reler o estado, e isso é o esperado) */
-  page.on('console', m => { if (m.type() === 'error' && !(falhaForcada && /status of (400|503)/.test(m.text())) && !(perdeuOPedido && /status of 404/.test(m.text()))) erros.push(m.text()); });
+  page.on('console', m => { if (m.type() === 'error' && !(falhaForcada && /status of (400|503)|ERR_TIMED_OUT/.test(m.text())) && !(perdeuOPedido && /status of 404/.test(m.text()))) erros.push(m.text()); });
   page.on('pageerror', e => erros.push(String(e)));
   page.on('dialog', d => { erros.push('diálogo inesperado: ' + d.message()); d.dismiss(); });
 
@@ -662,7 +662,7 @@ try {
   await page.waitForSelector('#o-ajustes:not([hidden])');
   ok(await page.locator('.dir.is-escolhida .dir__estrategia').textContent().then(t => t.startsWith('02')), 'direção 2 escolhida');
 
-  await passoDosAjustes(page, { ok, espera, foto, semRolagemLateral });
+  await passoDosAjustes(page, { ok, espera, foto, semRolagemLateral, forcar: v => { falhaForcada = v; } });
 
   /* sair e voltar */
   await page.reload({ waitUntil: 'load' });

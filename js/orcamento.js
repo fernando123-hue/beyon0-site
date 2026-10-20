@@ -165,7 +165,7 @@
   }
   /* Recomeçar: esquece a sessão (nenhuma outra aba a grava de volta) e limpa os dados digitados antes de
      recarregar, para o navegador não os restaurar num aparelho compartilhado */
-  var CAMPOS_PESSOAIS = ['o-texto', 'o-livre-texto','o-nome', 'o-tel', 'o-d-negocio', 'o-d-vende', 'o-d-publico', 'o-d-diferencial', 'o-d-instagram',
+  var CAMPOS_PESSOAIS = ['o-texto', 'o-livre-texto', 'o-nome', 'o-tel', 'o-d-negocio', 'o-d-vende', 'o-d-publico', 'o-d-diferencial', 'o-d-instagram',
     'o-d-facebook', 'o-d-tiktok', 'o-d-youtube', 'o-d-linkedin', 'o-d-admira', 'o-pag-nome', 'o-pag-sobrenome', 'o-pag-email', 'o-pag-doc', 'o-titular', 'o-pix-codigo'];
   function recomecar() {
     API.esquecer();
@@ -523,7 +523,7 @@
   });
 
   /* ---------- ajustes: opções prontas, desfazer e o pedido livre (js/orcamento-ajustes.js, PR 3a; sem IA) ---------- */
-  var ajustes = window.BZAjustes.criar({ API: API, recarregar: recarregar, falhou: falhou, umaAcao: umaAcao, abrirVersao: function () { visor.abrir('final'); } });
+  var ajustes = window.BZAjustes.criar({ API: API, recarregar: recarregar, falhou: falhou, limparAviso: limparAviso, umaAcao: umaAcao, abrirVersao: function () { visor.abrir('final'); } });
   function fecharEscopo() {
     return umaAcao(async function () {
       limparAviso();
