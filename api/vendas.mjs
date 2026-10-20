@@ -3,7 +3,7 @@
    passo do fluxo, em api/_vendas/fluxo.mjs).
      GET  estado, pagamento, pagamento-config, sessao-config, catalogo
      POST sessao, retomar, renovar, mensagem, gerar, gerar-direcao, escolher,
-          alterar, escopo, confirmar, pagar, simular, confirmar-pacote, detalhes
+          alterar, ajustar, desfazer, pedido-livre, escopo, confirmar, pagar, simular, confirmar-pacote, detalhes
    (PR 2a: o contato vem pelos detalhes; a ação "contato" saiu, porque passava por cima dos freios do pedido)
    Fronteira: freio por IP, JSON obrigatório (um formulário de outro site não
    chega aqui), corpo limitado, token do visitante em cada ação (exceto criar
@@ -22,7 +22,8 @@ import { configTurnstile, verificarHumano } from './_vendas/turnstile.mjs';
 const ACOES = {
   GET: { estado: 'estado', pagamento: 'pagamento', 'pagamento-config': 'pagamentoConfig', 'sessao-config': 'sessaoConfig', catalogo: 'catalogo' },
   POST: { sessao: 'sessao', retomar: 'retomar', renovar: 'renovar', mensagem: 'mensagem', gerar: 'gerar', 'gerar-direcao': 'gerarDirecao',
-    escolher: 'escolher', alterar: 'alterar', escopo: 'escopo', confirmar: 'confirmar', pagar: 'pagar',
+    escolher: 'escolher', alterar: 'alterar',
+    ajustar: 'ajustar', desfazer: 'desfazer', 'pedido-livre': 'pedidoLivre', escopo: 'escopo', confirmar: 'confirmar', pagar: 'pagar',
     simular: 'simular', 'confirmar-pacote': 'confirmarPacote', detalhes: 'detalhes' }
 };
 const PRECISA_IA = new Set(['mensagem', 'gerarDirecao', 'alterar']);

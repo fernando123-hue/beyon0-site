@@ -5,7 +5,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { validarOpcao, rotuloDaOpcao, fraseDaRecusa, fraseDoErro, OPERACOES } from '../../api/_vendas/opcoes.mjs';
-import { montarEscopo, linhaDosPedidosLivres } from '../../api/_vendas/escopo.mjs';
+import { montarEscopo, linhaDosPedidosLivres, NOME_SECAO } from '../../api/_vendas/escopo.mjs';
+import { TIPOS_SECAO } from '../../api/_vendas/direcao.mjs';
 import { estimar } from '../../api/_vendas/precos.mjs';
 import { PROIBIDAS } from './_opcoes-proibidas.mjs';
 
@@ -35,6 +36,8 @@ test('rótulo: montado só com nomes da lista e com "modelo" (nunca "direção")
   assert.equal(r({ operacao: 'remover_secao', secao: 'equipe' }), 'Sem a seção equipe');
   assert.equal(r({ operacao: 'adicionar_secao', secao: 'cta' }), 'Com a seção chamada para contato');
   for (const op of OPERACOES) assert.ok(!/dire[cç][aã]o/i.test(rotuloDaOpcao({ operacao: op, direcao: 1, secao: 'faq', referencia: 'hero' })), op);
+  /* todo tipo de seção da lista tem nome próprio no rótulo (nunca o genérico "seção") */
+  for (const t of TIPOS_SECAO) assert.ok(Object.hasOwn(NOME_SECAO, t), t);
 });
 
 test('recusa e erro de aplicar(): sempre uma frase fixa para a tela', () => {

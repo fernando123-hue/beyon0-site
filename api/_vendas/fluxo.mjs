@@ -30,6 +30,7 @@ import { Recusa } from './recusa.mjs';
 import { regrasAtivas, esquecerRegras } from './regras-ativas.mjs';
 import { criarAcoesDoPedido } from './fluxo-pedido.mjs';
 import { criarAcoesDaRetomada } from './fluxo-retomada.mjs';
+import { criarAcoesDosAjustes } from './fluxo-ajustes.mjs';
 import { PEDIDOS } from './pedido.mjs';
 
 import { ORG } from './org.mjs';
@@ -276,6 +277,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
   return {
     ...acoesDoPedido,
     ...criarAcoesDaRetomada({ banco, visitantes }),
+    ...criarAcoesDosAjustes({ banco, visitante, estado, exigirNaoDescartado }),
 
     /* começar: cria o visitante anônimo e a conversa, com a origem da visita (das métricas, sem dado pessoal) */
     async sessao({ corpo }) {
@@ -509,7 +511,9 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       const apagado = !Object.keys(est.conversa.briefing || {}).length || (est.alteracoes || []).some(a => a.pedido === '[apagado]');
       exigir(!apagado, 409, 'Este orçamento ficou parado por muito tempo e parte do que você contou foi apagada pelo nosso prazo de privacidade. Comece um novo orçamento ou fale com a Beyon Zero pelo WhatsApp.');
       const aplicadas = est.alteracoes.filter(a => a.status === 'aplicada').flatMap(a => (a.mudancas || []).filter(m => m.aplicada));
-      const { titulo, escopo } = montarEscopo({ estimativa: est.estimativa.detalhes, direcao, alteracoesAplicadas: aplicadas, briefing: est.conversa.briefing });
+      /* (PR 3a) dos pedidos livres o resumo recebe só a situação (o texto da pessoa fica fora do contrato: spec §7) */
+      const pedidosLivres = est.alteracoes.filter(a => a.origem === 'livre').map(a => ({ status: a.status }));
+      const { titulo, escopo } = montarEscopo({ estimativa: est.estimativa.detalhes, direcao, alteracoesAplicadas: aplicadas, briefing: est.conversa.briefing, pedidosLivres });
       const r = await banco('vendas_apresentar_escopo', { conversa_id: corpo.conversa_id, visitante_id: vid, titulo, escopo, estimativa_id: est.estimativa.id });
       return { ...r, titulo, escopo };
     },

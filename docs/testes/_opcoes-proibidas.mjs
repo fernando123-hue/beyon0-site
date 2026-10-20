@@ -9,5 +9,9 @@ export const PROIBIDAS = Object.freeze([
   { operacao: 'usar_paleta_de' }, { operacao: 'mover_antes_de', secao: 'faq' }, { operacao: 'mover_antes_de', secao: 'faq', referencia: 'faq' },
   { operacao: 'mover_depois_de', secao: 'faq', referencia: 'blog' }, { operacao: 'remover_secao', secao: 'constructor' },
   { operacao: 'adicionar_secao', secao: '__proto__' }, { operacao: 'adicionar_secao', secao: 'faq', referencia: 'hero' },
-  { operacao: 'constructor' }, { operacao: 'toString' }, null, 'usar_paleta_de', [], {}
+  { operacao: 'constructor' }, { operacao: 'toString' }, null, 'usar_paleta_de', [], {},
+  /* "__proto__" como chave PRÓPRIA (computada no objeto, e criada pelo JSON.parse; o JSON.stringify do teste a mantém, como o
+     corpo de uma requisição real): é uma chave a mais, então a opção é recusada */
+  { operacao: 'usar_paleta_de', direcao: 2, ['__proto__']: { valor: '#000000' } },
+  JSON.parse('{"operacao":"usar_paleta_de","__proto__":{"direcao":2}}')
 ]);
