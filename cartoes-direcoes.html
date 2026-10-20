@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Beyon Zero — cartões: três direções (prévia interna)</title>
+  <!-- prévia interna para o dono escolher a direção do visual dos cartões (2026-10-17); não entra na busca nem no menu.
+       Sai do site quando a direção escolhida for implementada (docs/restructure/CARTOES-DIRECOES.md) -->
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="theme-color" content="#000000" />
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+  <link rel="stylesheet" href="css/tokens.css" />
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/cartoes.css" />
+  <link rel="stylesheet" href="css/cartoes-direcoes.css" />
+</head>
+<body class="dv">
+  <header class="dv-topo">
+    <p class="dv-rotulo">Prévia interna · cartões</p>
+    <h1 class="dv-titulo">Três direções para os cartões</h1>
+    <p class="dv-texto">Os mesmos cartões do site, com o texto de verdade. Troque a direção na barra de baixo e compare na mesma posição. O cartão marcado “aceso” mostra como fica o da frente na pilha do celular.</p>
+    <div class="dv-notas">
+      <p class="dv-nota dv-nota--hoje"><b>Hoje.</b> Como está no site, parado (sem o movimento da página): borda com luz de canto, aresta acesa no topo, marcas de canto em L, número com traço.</p>
+      <p class="dv-nota dv-nota--a"><b>A · Placa.</b> Cada cartão vira uma peça da placa: um canto cortado em 45°, como os fios do fundo. Uma linha só, que acende no canto cortado. O número vira etiqueta.</p>
+      <p class="dv-nota dv-nota--b"><b>B · Editorial.</b> Menos enfeite, mais letra. Um traço no topo e um número grande e apagado no canto. O título manda.</p>
+      <p class="dv-nota dv-nota--c"><b>C · Linha viva.</b> Uma linha só, com a luz andando por ela. Parada, a luz descansa no canto; no cartão aceso, ela dá a volta.</p>
+    </div>
+  </header>
+
+  <main class="dv-amostra">
+    <!-- (no celular a faixa não existe no site: some abaixo de 620 px, css/base.css) -->
+    <section class="dv-grupo dv-grupo--largo" aria-label="Faixa do hero">
+      <p class="dv-rotulo">Faixa do hero · Início · só no computador</p>
+      <div class="hero__rail">
+        <a href="/sites"><span class="dv-luz" aria-hidden="true"><i></i></span><span class="hero__rail-k"><b>01</b> Sites</span><span class="hero__rail-v">Em até 10 dias do sinal e do material</span></a>
+        <a href="/automacao"><span class="dv-luz" aria-hidden="true"><i></i></span><span class="hero__rail-k"><b>03</b> Automação &amp; IA</span><span class="hero__rail-v">Para entidades, com diagnóstico grátis</span></a>
+      </div>
+    </section>
+
+    <section class="dv-grupo" aria-label="Laudo">
+      <p class="dv-rotulo">Onde o cliente se perde · Início</p>
+      <div class="laudo">
+        <article class="laudo__row dv-aceso">
+          <span class="dv-luz" aria-hidden="true"><i></i></span>
+          <span class="laudo__n" aria-hidden="true">01</span>
+          <h3>Mensagem sem resposta não reclama.</h3>
+          <p>Ela só vai para o próximo da lista. O atendente de IA responde preço, horário e dúvidas assim que a mensagem chega, até de madrugada.</p>
+          <span class="dv-marca" aria-hidden="true">aceso</span>
+        </article>
+        <article class="laudo__row">
+          <span class="dv-luz" aria-hidden="true"><i></i></span>
+          <span class="laudo__n" aria-hidden="true">02</span>
+          <h3>Faça o teste hoje, às 21h.</h3>
+          <p>Mande “quanto custa?” para o WhatsApp da sua empresa e conte quanto tempo leva. Se demorar, dá para testar o atendente 10&nbsp;dias de graça.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="dv-grupo" aria-label="Níveis do atendente">
+      <p class="dv-rotulo">Atendente no WhatsApp · Automação</p>
+      <div class="servicos">
+        <article class="painel painel--tinta servico">
+          <span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span>
+          <span class="dv-luz" aria-hidden="true"><i></i></span><!-- (depois dos cantos: eles se posicionam por :nth-child) -->
+          <span class="servico__n" aria-hidden="true">01</span>
+          <h3>Essencial</h3>
+          <p>Tira dúvidas pela sua base de conhecimento, entende áudio e passa para uma pessoa quando precisa. Até 500 conversas por mês.</p>
+          <span class="servico__para">R$&nbsp;590 por mês, mais R$&nbsp;1.500 de implantação.</span>
+        </article>
+        <article class="painel painel--tinta servico dv-aceso">
+          <span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span>
+          <span class="dv-luz" aria-hidden="true"><i></i></span><!-- (depois dos cantos: eles se posicionam por :nth-child) -->
+          <span class="servico__n" aria-hidden="true">02</span>
+          <h3>Profissional</h3>
+          <p>Tudo do Essencial, e ainda marca na agenda, retoma quem parou de responder e organiza os contatos na planilha ou no CRM. Até 1.000 conversas por mês.</p>
+          <span class="servico__para">R$&nbsp;990 por mês, mais R$&nbsp;2.500 de implantação.</span>
+          <span class="dv-marca" aria-hidden="true">aceso</span>
+        </article>
+      </div>
+    </section>
+
+    <section class="dv-grupo" aria-label="Capacidades">
+      <p class="dv-rotulo">Capacidades · Automação</p>
+      <div class="malha">
+        <a class="celula" href="/automacao#capacidades">
+          <span class="dv-luz" aria-hidden="true"><i></i></span>
+          <span class="celula__n" aria-hidden="true">01</span>
+          <h3>Agentes que executam</h3>
+          <p>Recebe uma tarefa, cumpre com as ferramentas certas e chama a equipe só quando precisa de uma decisão. Um assistente que tira o repetitivo de quem atende.</p>
+          <span class="celula__link">Conversar <span aria-hidden="true" data-seta="direita">→</span></span>
+        </a>
+        <a class="celula" href="/automacao#capacidades">
+          <span class="dv-luz" aria-hidden="true"><i></i></span>
+          <span class="celula__n" aria-hidden="true">02</span>
+          <h3>Atendimento que escala</h3>
+          <p>Absorve o volume repetitivo, classifica o que chega e passa pra uma pessoa só o que precisa de uma.</p>
+          <span class="celula__link">Conversar <span aria-hidden="true" data-seta="direita">→</span></span>
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <!-- a escolha fica no próprio CSS (:has no rádio marcado): nenhum script, nada guardado. Os rádios moram na barra
+       fixa: no topo do body, o foco do teclado rolava a página para cima a cada troca -->
+  <div class="dv-barra" role="radiogroup" aria-label="Escolher a direção dos cartões">
+    <input class="dv-radio" type="radio" name="direcao" id="dir-hoje" checked />
+    <label class="dv-opcao" for="dir-hoje"><b aria-hidden="true">·</b> Hoje</label>
+    <input class="dv-radio" type="radio" name="direcao" id="dir-a" />
+    <label class="dv-opcao" for="dir-a"><b>A</b> Placa</label>
+    <input class="dv-radio" type="radio" name="direcao" id="dir-b" />
+    <label class="dv-opcao" for="dir-b"><b>B</b> Editorial</label>
+    <input class="dv-radio" type="radio" name="direcao" id="dir-c" />
+    <label class="dv-opcao" for="dir-c"><b>C</b> Linha viva</label>
+  </div>
+</body>
+</html>

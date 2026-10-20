@@ -1,0 +1,158 @@
+/* ==========================================================================
+   PRÉVIA INTERNA — três direções para o visual dos cartões (2026-10-17).
+   Só serve a cartoes-direcoes.html. Os cartões são os de css/cartoes.css; cada
+   direção os redesenha por cima, escolhida pelo rádio marcado (:has), sem JS.
+   Diagnóstico e o que cada direção preserva: docs/restructure/CARTOES-DIRECOES.md.
+
+   Comum às três: sai o empilhamento de sinais de hoje (quatro tiras de luz de
+   canto, aresta de cima, marcas em L, traço do número). Cada direção fica com
+   UMA ideia. Sem desfoque e sem linhas paralelas empilhadas (uma linha por borda).
+   ========================================================================== */
+
+/* ---------- a página da prévia ---------- */
+.dv { background: var(--bg); color: var(--t1); padding: 0 var(--pad) calc(120px + env(safe-area-inset-bottom)); }
+.dv-radio { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.dv-topo { max-width: 760px; margin: 0 auto; padding: 40px 0 8px; display: grid; gap: 12px; }
+.dv-rotulo { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); }
+.dv-titulo { font-size: var(--fs-h2-lateral); font-weight: 300; letter-spacing: -.025em; line-height: 1.1; }
+.dv-texto { color: var(--t2); font-size: var(--fs-m); line-height: 1.6; }
+/* as quatro notas na mesma célula: a altura é a da maior, e a página não sobe nem desce ao trocar (revisão) */
+.dv-notas { display: grid; }
+.dv-nota { grid-area: 1 / 1; visibility: hidden; color: var(--t1); font-size: var(--fs-m); line-height: 1.6; border-left: 1px solid rgb(var(--ac-rgb) / .6); padding: 2px 0 2px 14px; }
+.dv-nota b { font-weight: 500; }
+.dv:has(#dir-hoje:checked) .dv-nota--hoje, .dv:has(#dir-a:checked) .dv-nota--a,
+.dv:has(#dir-b:checked) .dv-nota--b, .dv:has(#dir-c:checked) .dv-nota--c { visibility: visible; }
+
+.dv-amostra { max-width: var(--maxw); margin: 0 auto; display: grid; gap: 48px; padding-top: 24px; }
+.dv-grupo { display: grid; gap: 14px; }
+@media (max-width: 620px) { .dv-grupo--largo { display: none; } }
+.dv-luz { display: none; }
+/* trocar de direção é instantâneo (a transição da cor de fundo misturava uma direção com a outra no meio) */
+.dv-amostra :is(.painel, .celula, .laudo__row, .hero__rail > a) { transition: none; }
+/* (no fluxo, no fim do cartão: em 320 px, posta no canto, cobria a última linha) */
+.dv-marca { justify-self: end; align-self: flex-end; margin-top: 4px; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); pointer-events: none; }
+
+/* a barra de escolha: opaca (sem vidro fosco), no alcance do polegar */
+.dv-barra {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px;
+  padding: 8px max(8px, var(--pad)) calc(8px + env(safe-area-inset-bottom));
+  background: var(--bg); border-top: 1px solid var(--line-2);
+}
+.dv-opcao {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 52px; padding: 4px 6px; text-align: center;
+  font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-ctrl); text-transform: uppercase; line-height: 1.3;
+  color: var(--t2); border: 1px solid var(--line); border-radius: var(--raio); cursor: pointer;
+}
+.dv-opcao b { font-size: 1.0625rem; font-weight: 500; letter-spacing: 0; line-height: 1; }
+@media (max-width: 379px) { .dv-opcao { font-size: .625rem; letter-spacing: 0; } }   /* ("EDITORIAL" vazava da coluna em 320 px) */
+.dv:has(#dir-hoje:checked) [for="dir-hoje"], .dv:has(#dir-a:checked) [for="dir-a"],
+.dv:has(#dir-b:checked) [for="dir-b"], .dv:has(#dir-c:checked) [for="dir-c"] { color: var(--t1); border-color: rgb(var(--ac-rgb) / .6); }
+/* o foco do teclado na OPÇÃO focada (o rádio fica escondido) */
+.dv:has(#dir-hoje:focus-visible) [for="dir-hoje"], .dv:has(#dir-a:focus-visible) [for="dir-a"],
+.dv:has(#dir-b:focus-visible) [for="dir-b"], .dv:has(#dir-c:focus-visible) [for="dir-c"] { outline: 2px solid var(--ac); outline-offset: 2px; }
+
+/* ---------- Hoje: o cartão aceso como na pilha B do celular (borda ciano 60 %, letras acesas) ---------- */
+.dv:has(#dir-hoje:checked) .dv-aceso { border-color: rgb(var(--ac-rgb) / .6); }
+.dv:has(#dir-hoje:checked) .dv-aceso::before { opacity: 1; }
+.dv-aceso h3 { color: var(--letra-acesa-t); }
+.dv-aceso p { color: var(--letra-acesa-p); }
+
+/* ---------- comum a A, B e C: um sinal só por cartão ---------- */
+.dv:is(:has(#dir-a:checked), :has(#dir-b:checked), :has(#dir-c:checked)) .dv-amostra {
+  & :is(.painel, .celula, .laudo__row, .hero__rail > a) { background-image: none; box-shadow: none; }
+  & :is(.painel, .celula, .laudo__row, .hero__rail > a)::before { display: none; }
+  & .painel__canto, & .servico__n::after { display: none; }
+}
+
+/* ---------- A · PLACA: a peça da placa, canto cortado em 45° como os fios do campo ---------- */
+/* a linha é o fundo do cartão e a superfície é o ::before recortado 1 px para dentro: a borda segue o chanfro
+   (o clip-path cortaria uma borda comum justo na diagonal) */
+.dv:has(#dir-a:checked) .dv-amostra {
+  --chanfro: 16px;
+  & :is(.painel, .celula, .laudo__row, .hero__rail > a) {
+    --a-linha: var(--line-2);
+    --a-canto: rgb(var(--tinta-rgb, var(--ac-rgb)) / .8);
+    border: 0; border-radius: 0; isolation: isolate;
+    background: var(--a-linha);
+    clip-path: polygon(0 0, calc(100% - var(--chanfro)) 0, 100% var(--chanfro), 100% 100%, 0 100%);
+  }
+  & .hero__rail > a { --chanfro: 11px; }
+  & :is(.painel, .celula, .laudo__row, .hero__rail > a)::before {
+    display: block; content: ""; position: absolute; inset: 1px; height: auto; opacity: 1; z-index: -1;
+    transform: none; animation: none; transition: none;   /* (no site, motion.css anima este ::before: a superfície sumiria) */
+    background: var(--mod-fundo-opaco);
+    /* 2 − √2 ≈ .586: o recuo que deixa a diagonal com 1 px, como os lados */
+    clip-path: polygon(0 0, calc(100% - var(--chanfro) + .586px) 0, 100% calc(var(--chanfro) - .586px), 100% 100%, 0 100%);
+  }
+  /* o clip-path corta o contorno de foco de fora: o foco vem por dentro */
+  & :is(.painel, .celula, .laudo__row, .hero__rail > a):focus-visible { outline-offset: -4px; }
+  /* a diagonal do chanfro: o único trecho aceso */
+  & :is(.painel, .celula, .laudo__row, .hero__rail > a)::after {
+    content: ""; position: absolute; top: 0; right: 0; left: auto; bottom: auto; width: var(--chanfro); height: var(--chanfro);
+    transform: none; opacity: 1; animation: none; pointer-events: none;
+    background: linear-gradient(to top right, transparent calc(50% - .8px), var(--a-canto) calc(50% - .8px) calc(50% + .8px), transparent calc(50% + .8px));
+  }
+  /* o número vira etiqueta serigrafada na placa */
+  & :is(.servico__n, .celula__n, .laudo__n) {
+    justify-self: start; align-self: flex-start; width: max-content; padding: 3px 7px;
+    background: var(--s2); color: var(--t2); border-radius: 2px;
+  }
+  /* (com o :is do cartão, senão a regra de cima vence pela especificidade do "> a") */
+  & :is(.painel, .celula, .laudo__row, .hero__rail > a).dv-aceso { --a-linha: rgb(var(--ac-rgb) / .6); --a-canto: var(--ac-2); }
+  & .dv-aceso :is(.servico__n, .celula__n, .laudo__n) { background: rgb(var(--ac-rgb) / .14); color: var(--ac-2); }
+  @media (hover: hover) {
+    & :is(.painel, .celula, .laudo__row, .hero__rail > a):hover:not(.dv-aceso) { --a-linha: rgb(var(--ac-rgb) / .35); --a-canto: var(--ac); }
+  }
+}
+
+/* ---------- B · EDITORIAL: a letra manda; um traço no topo e o número grande e apagado ---------- */
+.dv:has(#dir-b:checked) .dv-amostra {
+  & :is(.painel, .celula, .laudo__row, .hero__rail > a) {
+    --b-topo: rgb(var(--prata-rgb) / .38);
+    border-radius: 2px; border-color: var(--line); border-top: 2px solid var(--b-topo);
+    background-color: var(--s1);
+  }
+  & :is(.painel, .celula, .laudo__row) { padding-top: calc(var(--mod-pad) + 10px); }
+  & :is(.servico__n, .celula__n, .laudo__n) {
+    position: absolute; top: 12px; right: 16px; margin: 0;
+    font-family: var(--sans); font-weight: 200; font-size: clamp(2.75rem, 2.2rem + 1.6vw, 3.75rem);
+    letter-spacing: -.04em; line-height: 1; text-transform: none; color: rgb(var(--prata-rgb) / .2);
+  }
+  & :is(.painel, .celula, .laudo__row) h3 { padding-right: 72px; font-size: calc(var(--h3-linha) * 1.1); line-height: 1.12; }
+  & .servico h3 { font-size: clamp(1.5rem, 1.2rem + 1.2vw, 2.1rem); }
+  & :is(.painel, .celula, .laudo__row, .hero__rail > a).dv-aceso { --b-topo: var(--ac); }
+  & .dv-aceso :is(.servico__n, .celula__n, .laudo__n) { color: rgb(var(--ac-rgb) / .5); }
+  @media (hover: hover) {
+    & :is(.painel, .celula, .laudo__row, .hero__rail > a):hover:not(.dv-aceso) { --b-topo: rgb(var(--ac-rgb) / .8); background-color: var(--s2); }
+  }
+  /* no laudo largo o número saiu do grid: o título e o texto ficam com as duas colunas (senão o h3 caía na de 3,5 rem) */
+  @media (min-width: 821px) {
+    & .laudo__row { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); }
+    & .laudo__row p { grid-column: 2; }
+    & .laudo__row .dv-marca { grid-column: 2; }
+  }
+}
+
+/* ---------- C · LINHA VIVA: uma linha só, a luz anda por ela ---------- */
+/* o traço de luz segue a própria borda (offset-path), girando nas curvas. Parado, descansa no canto de cima; no
+   aceso (e no hover) dá a volta. ATENÇÃO (revisão): offset-distance anima na thread principal, não no compositor;
+   serve à prévia, mas a implementação precisa de outra técnica ou de medida (regra 1 do CLAUDE.md).
+   O .dv-luz recorta pela curva do cartão: o traço reto, na tangente de um canto, riscaria o fundo por fora */
+.dv:has(#dir-c:checked) .dv-amostra {
+  --c-raio: 10px;
+  & :is(.painel, .celula, .laudo__row, .hero__rail > a) { border-color: var(--line-2); border-radius: var(--c-raio); background-color: var(--s1); }
+  & .dv-luz { display: block; position: absolute; inset: -1px; border-radius: var(--c-raio); overflow: hidden; pointer-events: none; z-index: 1; }
+  & .dv-luz > i {
+    position: absolute; left: 0; top: 0; width: 64px; height: 1px;
+    background: linear-gradient(90deg, rgb(var(--tinta-rgb, var(--ac-rgb)) / 0), rgb(var(--tinta-rgb, var(--ac-rgb))) 72%, var(--ac-2));
+    offset-path: inset(.5px round var(--c-raio)); offset-rotate: auto; offset-distance: 5%;
+  }
+  & :is(.painel, .celula, .laudo__row, .hero__rail > a).dv-aceso { border-color: rgb(var(--ac-rgb) / .35); }
+  & .dv-aceso .dv-luz > i { width: 88px; animation: dv-volta 4.8s linear infinite; }
+  @media (hover: hover) {
+    & :is(.painel, .celula, .laudo__row, .hero__rail > a):hover .dv-luz > i { animation: dv-volta 4.8s linear infinite; }
+  }
+}
+@keyframes dv-volta { from { offset-distance: 5%; } to { offset-distance: 105%; } }
+@media (prefers-reduced-motion: reduce) { .dv-luz > i { animation: none !important; } }
