@@ -186,14 +186,18 @@ export const ETAPAS_SO_DUVIDAS = ['escopo', 'aguardando_pagamento'];
    (o banco recusa o resto: 55000). Mexer aqui pede mexer lá, e o contrário */
 export const ETAPAS_COM_PRECO = ['descoberta', 'estimativa', 'contato'];
 export const FERRAMENTAS_DE_PRECO = ['estimar', 'pedir_contato'];
-/* sem etapa informada (as descrições e os testes que olham a lista inteira), o preço está aberto */
-export const precoAberto = etapa => etapa === undefined || ETAPAS_COM_PRECO.includes(etapa);
+/* o preço está aberto só na etapa da lista (sem etapa, ou etapa nova, fecha) E com o pedido ainda não confirmado: se as três
+   direções falham, a conversa volta a "contato" com o pedido já confirmado (privado.parar_geracao), e aí o pacote segue
+   fechado (= vendas_registrar_estimativa, que recusa com pedido confirmado) */
+export const precoAberto = (etapa, statusDoPedido) => ETAPAS_COM_PRECO.includes(etapa) && statusDoPedido !== 'confirmado';
 
-/* as ferramentas da etapa; o esquema de 'estimar' nasce dos adicionais da tabela ATIVA (o modelo só escolhe o que existe) */
-export function ferramentas(regras, { etapa } = {}) {
-  if (ETAPAS_SO_DUVIDAS.includes(etapa)) return [];
+/* as ferramentas da etapa; o esquema de 'estimar' nasce dos adicionais da tabela ATIVA (o modelo só escolhe o que existe).
+   Sem etapa informada (as descrições e os testes que olham a lista inteira) vem a lista toda */
+export function ferramentas(regras, { etapa, pedidoStatus } = {}) {
   const todas = todasAsFerramentas(regras);
-  return precoAberto(etapa) ? todas : todas.filter(f => !FERRAMENTAS_DE_PRECO.includes(f.name));
+  if (etapa === undefined) return todas;
+  if (ETAPAS_SO_DUVIDAS.includes(etapa)) return [];
+  return precoAberto(etapa, pedidoStatus) ? todas : todas.filter(f => !FERRAMENTAS_DE_PRECO.includes(f.name));
 }
 
 function todasAsFerramentas(regras) {

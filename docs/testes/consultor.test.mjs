@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { montarSistema, proximoPasso, ferramentas, IDENTIDADE, ETAPAS_COM_PRECO } from '../../api/_vendas/consultor.mjs';
+import { montarSistema, proximoPasso, ferramentas, IDENTIDADE, ETAPAS_COM_PRECO, precoAberto } from '../../api/_vendas/consultor.mjs';
 import { executarTurno } from '../../api/_vendas/agente.mjs';
 import { comArea } from './_area-v2.mjs';
 
@@ -338,6 +338,18 @@ test('conversa aberta até o pagamento: no escopo e no sinal o consultor só tir
      pede o contato de novo (= app.vendas_registrar_estimativa); fica o briefing, a ideia de IA e o diagnóstico */
   for (const etapa of ['gerando', 'direcoes', 'escolhida', 'alteracoes'])
     assert.deepEqual(ferramentas(REGRAS, { etapa }).map(f => f.name), ['atualizar_briefing', 'sugerir_solucao_ia', 'encaminhar_diagnostico'], etapa);
+  /* lista positiva: sem etapa (ou etapa desconhecida) o preço fecha; e o pedido já confirmado fecha mesmo na etapa "contato"
+     (as três direções falharam e a conversa voltou: auditoria run-1, revisão final de segurança #2) */
+  assert.equal(precoAberto(undefined), false);
+  assert.equal(precoAberto(null), false);
+  assert.equal(precoAberto('etapa-nova'), false);
+  assert.equal(precoAberto('contato'), true);
+  assert.equal(precoAberto('contato', 'aguardando'), true);
+  assert.equal(precoAberto('contato', 'confirmado'), false);
+  assert.equal(precoAberto('estimativa', 'confirmado'), false);
+  assert.deepEqual(ferramentas(REGRAS, { etapa: 'contato', pedidoStatus: 'confirmado' }).map(f => f.name), ['atualizar_briefing', 'sugerir_solucao_ia', 'encaminhar_diagnostico']);
+  assert.equal(ferramentas(REGRAS, { etapa: 'contato', pedidoStatus: 'aguardando' }).length, 5);
+  assert.equal(ferramentas(REGRAS).length, 5, 'sem etapa (as descrições e os testes que olham a lista inteira) vem a lista toda');
   const esc = proximoPasso({ etapa: 'escopo', briefing: {}, estimativa: null });
   /* os nomes que o modelo cita são os da tela: se a tela renomear, este teste quebra (re-revisão do 990a87e) */
   const tela = fs.readFileSync(new URL('../../orcamento.html', import.meta.url), 'utf8');

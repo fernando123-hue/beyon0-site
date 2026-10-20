@@ -249,7 +249,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
   async function turno(vid, conversaId, est, regras, msg) {
     let r;
     try {
-      r = await executarTurno({ ia, direcoes: modo, regras: regras.regras, conversa: { etapa: est.conversa.etapa, briefing: est.conversa.briefing, mensagens: est.mensagens, estimativa: est.estimativa }, mensagem: msg });
+      r = await executarTurno({ ia, direcoes: modo, regras: regras.regras, conversa: { etapa: est.conversa.etapa, pedido_status: est.pedido?.status, briefing: est.conversa.briefing, mensagens: est.mensagens, estimativa: est.estimativa }, mensagem: msg });
     } catch (e) {
       await somarCusto(conversaId, vid, e && e.custo_usd);   /* (as rodadas pagas antes da falha, de qualquer tipo de erro) */
       if (e instanceof ErroIA) await banco('vendas_registrar_evento', { conversa_id: conversaId, visitante_id: vid, tipo: 'ia_falhou', dados: { motivo: e.motivo } }).catch(() => {});
@@ -261,9 +261,10 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     await banco('vendas_registrar_turno', { conversa_id: conversaId, visitante_id: vid, mensagem_visitante: redigir(msg), mensagem_agente: r.resposta,
       ...(soDuvidas ? {} : { briefing: r.briefing, confianca: r.confianca }), custo_usd: r.custo_usd })
       .catch(async e => { await somarCusto(conversaId, vid, r.custo_usd); throw e; });
-    /* a estimativa e o formulário só até a confirmação do pedido (ETAPAS_COM_PRECO): o agente já não os devolve depois,
-       e o banco recusa a estimativa (55000); esta é a camada do meio, para a etapa que o turno leu no começo */
-    const comPreco = precoAberto(est.conversa.etapa);
+    /* a estimativa e o formulário só até a confirmação do pedido (ETAPAS_COM_PRECO, e pedido ainda não confirmado: a
+       conversa volta a "contato" com o pedido confirmado se as três direções falham): o agente já não os devolve depois,
+       e o banco recusa a estimativa (55000); esta é a camada do meio, para o estado que o turno leu no começo */
+    const comPreco = precoAberto(est.conversa.etapa, est.pedido?.status);
     let estimativa = null;
     if (r.estimativa && !soDuvidas && comPreco) {
       await banco('vendas_registrar_estimativa', { conversa_id: conversaId, visitante_id: vid, regras_id: regras.id, fatores: r.estimativa.fatores,

@@ -45,7 +45,10 @@ end $$;
 -- registro das chamadas (app.ia_chamadas, só acréscimo) desde a meia-noite de São Paulo, escrita UMA vez aqui e usada
 -- pela leitura rápida (vendas_custo_dia) e pela reserva (vendas_reservar_custo). O índice já existe
 -- (ia_chamadas_org, org_id + created_at); o servidor grava o registro de uma chamada antes de liberar a sua reserva
--- (api/_vendas/fluxo.mjs, comReserva), então o gasto nunca fica fora da conta entre as duas.
+-- (api/_vendas/fluxo.mjs, comReserva), então, com o banco de pé, o gasto não fica fora da conta entre as duas. Se a
+-- gravação do registro falhar, a reserva NÃO é liberada e segura o valor até vencer (10 minutos); depois disso aquela
+-- chamada deixa de contar no dia (sub-conta pequena: precisa de falha do banco no meio de uma requisição que funcionou, e o
+-- limite de gasto no console da Anthropic é o freio final).
 create or replace function privado.gasto_ia_dia(p_org uuid) returns numeric
 language sql stable security definer set search_path = '' as $$
   select coalesce(sum(c.custo_usd), 0)
@@ -106,12 +109,18 @@ end $$;
 -- estimativa, saía com outro valor. Agora só descoberta, estimativa e contato (= ETAPAS_COM_PRECO em
 -- api/_vendas/consultor.mjs; um teste confere que as duas listas são iguais); o resto (teto de 30 pacotes, só a tabela
 -- ATIVA) fica como estava em 20261015120000_pr2b_ajustes.sql.
+-- "contato" nem sempre é ANTES da confirmação: se as três direções falham, a conversa volta de "gerando" para "contato"
+-- (privado.parar_geracao, 20261013120100_pedidos_dono.sql) com o pedido já "confirmado", e gerar de novo segue permitido. Aí o
+-- pacote continua fechado: com pedido confirmado na conversa a função recusa (55000), qualquer que seja a etapa.
 create or replace function app.vendas_registrar_estimativa(p jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare c app.conversas; v_regras app.regras_comerciais; v_id uuid;
 begin
   c := privado.conversa_do((p ->> 'conversa_id')::uuid, (p ->> 'visitante_id')::uuid);
   perform privado.exigir_etapa(c, array['descoberta', 'estimativa', 'contato']);
+  if exists (select 1 from app.pedidos pd where pd.conversa_id = c.id and pd.status = 'confirmado') then
+    raise exception 'pacote fechado: o pedido já foi confirmado' using errcode = '55000';
+  end if;
   if (select count(*) from app.estimativas e where e.conversa_id = c.id) >= 30 then
     raise exception 'limite de pacotes desta conversa' using errcode = '23514';
   end if;

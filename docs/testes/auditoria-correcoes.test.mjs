@@ -10,7 +10,7 @@ import { criarFluxo } from '../../api/_vendas/fluxo.mjs';
 import { chaveDoIp48 } from '../../api/_vendas/ip.mjs';
 import { executarTurno } from '../../api/_vendas/agente.mjs';
 import { ETAPAS_COM_PRECO } from '../../api/_vendas/consultor.mjs';
-import { LIMITES_DE_TESTE } from './_pedido.mjs';
+import { LIMITES_DE_TESTE, telefoneDeTeste } from './_pedido.mjs';
 import { criarCenario } from './_ajustes.mjs';
 
 const BASE = 'http://127.0.0.1:8899';
@@ -35,6 +35,7 @@ function porIp(ip, textos = ['Tenho uma padaria e quero um site']) {
   };
 }
 const seg = n => n.toString(16);
+const RESP = { ramo: 'saude', cidade: 'Niterói', objetivos: ['agendamentos'], site_atual: 'instagram', material: 'tenho' };
 const visitanteDeConversa = async c => (await local.db.query('select visitante_id from app.conversas where id = $1', [c])).rows[0].visitante_id;
 
 /* ---------- Task 2 (pista 1): o limite diário do consultor também por /48 ---------- */
@@ -96,8 +97,23 @@ test('banco: estimativa só até o contato (descoberta, estimativa, contato); em
     await assert.rejects(gravar(), e => e.codigo === '55000', etapa + ': o pacote já foi fechado');
   }
   assert.equal(await estimativasDe(c), antes, 'nenhuma estimativa nova');
+  /* "contato" nem sempre é antes da confirmação: se as três direções falham, a conversa volta a "contato" com o pedido
+     CONFIRMADO (privado.parar_geracao / pedidos_dono.sql); aí o pacote continua fechado */
   await cenario.forcarEtapa(c, 'contato');
-  assert.ok((await gravar()).estimativa_id, 'no contato (o pedido ainda espera o WhatsApp) o preço ainda pode mudar');
+  await assert.rejects(gravar(), e => e.codigo === '55000', 'contato com o pedido já confirmado: o pacote está fechado');
+  assert.equal(await estimativasDe(c), antes, 'nenhuma estimativa nova');
+});
+
+test('banco: no contato com o pedido ainda aguardando a confirmação, o preço ainda pode mudar', async () => {
+  const n = cenario.navegador(), c = await n.iniciar();
+  const s = await n.chamar('POST', 'simular', { conversa_id: c, respostas: RESP });
+  assert.equal((await n.chamar('POST', 'confirmar-pacote', { conversa_id: c, respostas: RESP, versao: s.corpo.versao })).status, 200);
+  assert.equal((await n.chamar('POST', 'detalhes', { conversa_id: c, negocio: 'Clínica Exemplo', vende: 'Fisioterapia', telefone: telefoneDeTeste(), nome: 'Ana Souza', aceite: true })).status, 200);
+  const vid = await visitanteDeConversa(c);
+  assert.equal((await local.db.query('select etapa from app.conversas where id = $1', [c])).rows[0].etapa, 'contato');
+  assert.equal((await local.db.query('select status from app.pedidos where conversa_id = $1', [c])).rows[0].status, 'aguardando');
+  const r = await local.rpc('vendas_registrar_estimativa', { conversa_id: c, visitante_id: vid, regras_id: await regrasAtivasId(), fatores: { formato: 'institucional' }, valor_total: 3950, sinal: 1975, prazo_dias: 9 });
+  assert.ok(r.estimativa_id);
 });
 
 test('as etapas com preço do JS (ETAPAS_COM_PRECO) são as mesmas do banco (vendas_registrar_estimativa)', async () => {
@@ -109,7 +125,7 @@ test('as etapas com preço do JS (ETAPAS_COM_PRECO) são as mesmas do banco (ven
 
 test('agente: estimar e pedir_contato depois da confirmação do pedido são recusados com motivo próprio, sem estimativa; até o contato seguem valendo', async () => {
   const regras = (await local.rpc('vendas_regras_ativas', { org_slug: 'beyon-zero' })).regras;
-  const turno = async etapa => {
+  const turno = async (etapa, pedidoStatus) => {
     const vistos = [];
     let rodada = 0;
     const ia = { mensagem: async p => {
@@ -117,7 +133,7 @@ test('agente: estimar e pedir_contato depois da confirmação do pedido são rec
       const chamadas = [{ id: 't1', nome: 'estimar', entrada: { formato: 'institucional' } }, { id: 't2', nome: 'pedir_contato', entrada: {} }];
       return { texto: '', chamadas, conteudo: chamadas.map(x => ({ type: 'tool_use', id: x.id, name: x.nome, input: x.entrada })), parada: 'ferramenta', custo_usd: 0 };
     } };
-    const conversa = { etapa, briefing: { negocio: { segmento: 'saúde' }, objetivos: ['agendamentos'], projeto: { formato: 'institucional' } }, mensagens: [],
+    const conversa = { etapa, pedido_status: pedidoStatus, briefing: { negocio: { segmento: 'saúde' }, objetivos: ['agendamentos'], projeto: { formato: 'institucional' } }, mensagens: [],
       estimativa: { prazo_dias: 8, detalhes: { itens: [] } } };
     const r = await executarTurno({ ia, regras, conversa, mensagem: 'Achei caro, dá para começar menor?' });
     return { r, vistos };
@@ -128,9 +144,24 @@ test('agente: estimar e pedir_contato depois da confirmação do pedido são rec
     assert.equal(r.pedir_contato, false, etapa);
     assert.deepEqual(vistos.map(v => v.motivo), ['o pacote já foi fechado', 'o pacote já foi fechado'], etapa);
   }
-  const { r } = await turno('contato');
-  assert.ok(r.estimativa, 'no contato o modelo ainda recalcula (o pedido espera a confirmação pelo WhatsApp)');
+  /* as três direções falharam: a conversa voltou a "contato" com o pedido já CONFIRMADO; o pacote segue fechado */
+  const fechado = await turno('contato', 'confirmado');
+  assert.equal(fechado.r.estimativa, null, 'contato com o pedido confirmado');
+  assert.equal(fechado.r.pedir_contato, false);
+  assert.deepEqual(fechado.vistos.map(v => v.motivo), ['o pacote já foi fechado', 'o pacote já foi fechado']);
+  const { r } = await turno('contato', 'aguardando');
+  assert.ok(r.estimativa, 'no contato, com o pedido esperando a confirmação pelo WhatsApp, o modelo ainda recalcula');
   assert.equal(r.pedir_contato, true);
+});
+
+test('consultor: a conversa volta a "contato" com o pedido confirmado (três direções falharam): "achei caro" não gera estimativa nova', async () => {
+  const { n, c } = await cenario.ateEscolher({ ia: criarSimulada() });
+  await cenario.forcarEtapa(c, 'contato');
+  const antes = await estimativasDe(c);
+  const r = await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Achei caro, dá para começar menor?' });
+  assert.equal(r.status, 200, JSON.stringify(r.corpo));
+  assert.equal(r.corpo.estimativa, null, 'nenhum cartão de preço novo na tela');
+  assert.equal(await estimativasDe(c), antes, 'nenhuma estimativa nova no banco');
 });
 
 test('consultor: depois da escolha, "achei caro" não gera estimativa nova e o escopo sai da estimativa de antes', async () => {

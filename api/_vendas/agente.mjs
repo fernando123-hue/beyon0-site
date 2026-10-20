@@ -70,7 +70,7 @@ export async function executarTurno({ ia, regras, conversa, mensagem, direcoes }
   /* o estado vai num 2º bloco do prompt de sistema (sem cache), não como mensagem: a API só aceita user/assistant em messages */
   const contexto = estadoParaModelo({ briefing, estimativa: conversa.estimativa, etapa: conversa.etapa, regras });
   /* escopo e sinal: só dúvidas. O modelo recebe só as ferramentas da etapa, e o código recusa outra que ele invente */
-  const tools = ferramentas(regras, { etapa: conversa.etapa });
+  const tools = ferramentas(regras, { etapa: conversa.etapa, pedidoStatus: conversa.pedido_status });
   const permitidas = new Set(tools.map(t => t.name));
   const sistema = montarSistema(regras, { direcoes: direcoes || modoDirecoes() });   /* (o fluxo passa o mesmo modo que usa) */
   let texto = '';
@@ -90,7 +90,7 @@ export async function executarTurno({ ia, regras, conversa, mensagem, direcoes }
       /* (auditoria run-1, pista 4) depois da confirmação do pedido o pacote está fechado: o preço e o formulário não voltam.
          A lista de ferramentas já não os entrega; esta recusa, com motivo próprio, vale mesmo que alguém mexa em ferramentas()
          ou que o modelo insista. No escopo e no sinal segue a frase de só dúvidas, abaixo */
-      if (FERRAMENTAS_DE_PRECO.includes(ch.nome) && !soDuvidas && !precoAberto(conversa.etapa)) {
+      if (FERRAMENTAS_DE_PRECO.includes(ch.nome) && !soDuvidas && !precoAberto(conversa.etapa, conversa.pedido_status)) {
         saida = { ok: false, motivo: 'o pacote já foi fechado' };
       } else if (!permitidas.has(ch.nome)) {
         saida = { ok: false, motivo: ETAPAS_SO_DUVIDAS.includes(conversa.etapa) ? 'nesta etapa, só responder dúvidas' : 'ferramenta inexistente' };
