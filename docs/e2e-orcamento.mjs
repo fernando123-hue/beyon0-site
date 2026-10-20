@@ -3,7 +3,7 @@
    servidor local (docs/servidor.mjs: banco PGlite, IA simulada, gateway
    simulado). Celular primeiro (390px), depois 320px e desktop.
    Cobre: as perguntas → preço (motivo, vizinho, "Quer ajustar?" ao vivo) →
-   conta que falha não muda o que se grava → pacote gravado → detalhes → código e confirmação pelo WhatsApp (o dono confirma no painel) → 3 modelos → visor (abrir,
+   conta que falha não muda o que se grava → pacote gravado → detalhes → código e confirmação pelo WhatsApp (o dono confirma no painel) → 3 modelos → abrir o pedido em outro aparelho pelo link do aviso → visor (abrir,
    trocar, aparelho, Escape devolve o foco) → escolha → ajuste → retomada
    depois de recarregar → escopo (exige a confirmação) → pagamento simulado
    → projeto em produção. À parte: o pacote que pede conversa (sem valor) e
@@ -12,6 +12,9 @@
    Uso: servidor local com PAINEL_CHAVE (32+) e BZ_SEM_CONSULTOR=1, depois PAINEL_CHAVE=<a mesma>
    BASE=http://127.0.0.1:8899 CHROMIUM=... node docs/e2e-orcamento.mjs
    (CONSULTOR=1 com o servidor local SEM BZ_SEM_CONSULTOR)
+   FREIO LOCAL: cada rodada cria 4 sessões no freio do servidor local (8 por 10 min por IP, api/vendas.mjs, freioSessao),
+   3 delas no passo de abrir o pedido pelo link. Uma 3ª rodada seguida em menos de 10 min no mesmo servidor estoura (429):
+   espere ou reinicie o servidor.
    ========================================================================== */
 import { chromium } from 'playwright';
 import { mkdir } from 'node:fs/promises';
@@ -64,7 +67,8 @@ try {
   anotar(page, 'principal');
   const erros = [];
   let falhaForcada = false;   /* (o 400 ou 503 que o próprio teste força numa conta ou nos detalhes não é erro da página) */
-  page.on('console', m => { if (m.type() === 'error' && !(falhaForcada && /status of (400|503)/.test(m.text()))) erros.push(m.text()); });
+  let perdeuOPedido = false;   /* (PR 2b-2: depois que outro aparelho abre o pedido pelo link, a aba de antes leva 404 ao reler o estado, e isso é o esperado) */
+  page.on('console', m => { if (m.type() === 'error' && !(falhaForcada && /status of (400|503)/.test(m.text())) && !(perdeuOPedido && /status of 404/.test(m.text()))) erros.push(m.text()); });
   page.on('pageerror', e => erros.push(String(e)));
   page.on('dialog', d => { erros.push('diálogo inesperado: ' + d.message()); d.dismiss(); });
 
@@ -312,6 +316,257 @@ try {
   ok(await semRolagemLateral(page), 'celular com direções: sem rolagem lateral');
   await page.locator('#o-direcoes').scrollIntoViewIfNeeded();
   await foto(page, '2-direcoes-cel');
+  /* (PR 2b-2) abrir o pedido pelo link do aviso, num aparelho novo. O dono gera o link no painel; o código chega no
+     fragmento, sai da barra na hora e só é gasto no toque. O aparelho antigo perde o acesso (e volta por outro link,
+     para o resto do teste seguir nele) */
+  const conversaId = await page.evaluate(() => JSON.parse(localStorage.getItem('bz-orcamento')).conversa_id);
+  const linkDoPainel = async () => {
+    const r = await fetch(BASE + '/api/painel', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + PAINEL_CHAVE }, body: JSON.stringify({ link_retomada: conversaId }) });
+    return { status: r.status, ...(await r.json().catch(() => ({}))) };
+  };
+  const CODIGO_LINK = /^[A-Za-z0-9_-]{32}$/;
+  const aparelhoNovo = async rotulo => {
+    const c = await nav.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    const p = await c.newPage();
+    anotar(p, rotulo);
+    const toques = [];   /* (as chamadas de retomada: nenhuma antes do toque) */
+    p.on('request', r => { if (r.url().includes('acao=retomar')) toques.push(r.url()); });
+    p.on('console', m => { if (m.type() === 'error' && !/status of (410)/.test(m.text())) erros.push(rotulo + ': ' + m.text()); });
+    p.on('pageerror', e => erros.push(rotulo + ': ' + String(e)));
+    return { c, p, toques };
+  };
+  /* (PR 2b-2) o dono prepara o aviso NO PAINEL, no celular: nada vai ao servidor antes do toque; o toque gera o link e
+     troca o botão por "Abrir no WhatsApp" com a mensagem pronta. O código é segredo de uso único: só no endereço desse
+     botão, nunca na barra, no console nem no armazenamento do navegador */
+  const painel2 = await ctx.newPage();
+  const falaDoPainel = [];
+  painel2.on('console', m => falaDoPainel.push(m.text()));
+  painel2.on('pageerror', e => erros.push('painel: ' + String(e)));
+  await painel2.goto(BASE + '/painel', { waitUntil: 'load' });
+  await painel2.fill('#chave', PAINEL_CHAVE);
+  await painel2.click('#entrar button[type=submit]');
+  const avisoNaFila = painel2.locator('#fila .pn__fila', { hasText: codigo });
+  await avisoNaFila.waitFor({ timeout: 15000 });
+  const ehLink = req => req.method() === 'POST' && new URL(req.url()).pathname === '/api/painel' && /link_retomada/.test(req.postData() || '');
+  let linksPedidos = 0;
+  painel2.on('request', req => { if (ehLink(req)) linksPedidos++; });
+  const preparar = avisoNaFila.getByRole('button', { name: /Preparar aviso/ });
+  ok(await preparar.count() === 1 && await avisoNaFila.getByRole('link', { name: /WhatsApp/ }).count() === 0, 'painel: com as três prontas, a fila oferece "Preparar aviso" (ainda sem o botão do WhatsApp)');
+  ok(Math.round((await preparar.boundingBox()).height) >= 44, 'painel: "Preparar aviso" tem 44 px de altura ou mais');
+  ok(linksPedidos === 0, 'painel: antes do toque, nenhum link de retomada é pedido ao servidor');
+  await painel2.locator('#bloco-fila').scrollIntoViewIfNeeded();
+  await foto(painel2, '5c-painel-preparar-cel');
+  const veioLink = painel2.waitForRequest(ehLink, { timeout: 15000 });
+  await preparar.click();
+  await veioLink;
+  const abrirZap = avisoNaFila.getByRole('link', { name: /Abrir no WhatsApp/ });
+  await abrirZap.waitFor({ timeout: 15000 });
+  const hrefZap = await abrirZap.getAttribute('href');
+  const mensagemZap = decodeURIComponent((hrefZap.split('?text=')[1] || ''));
+  const CODIGO_NO_TEXTO = /\/orcamento#retomar=([A-Za-z0-9_-]{32})$/;
+  ok(linksPedidos === 1 && hrefZap.startsWith('https://wa.me/55' + TELEFONE.replace(/\D/g, '') + '?text='), 'painel: um toque pede um link só e o botão abre o WhatsApp do cliente (wa.me só com dígitos)');
+  ok(CODIGO_NO_TEXTO.test(mensagemZap) && hrefZap.includes('%23retomar%3D') && /^Oi! Aqui é da Beyon Zero\. Os três modelos do seu site ficaram prontos/.test(mensagemZap), 'painel: a mensagem leva o link de retomada (32 caracteres, # codificado) e fala em modelos prontos');
+  ok(!/mesmo navegador/.test(mensagemZap), 'painel: a mensagem não manda mais voltar "no mesmo navegador"');
+  ok(await abrirZap.getAttribute('target') === '_blank' && /noopener/.test(await abrirZap.getAttribute('rel')), 'painel: o WhatsApp abre em outra aba, sem passar a página de origem');
+  ok(await painel2.evaluate(() => document.activeElement.textContent) === 'Abrir no WhatsApp', 'painel: o foco vai para o botão que acabou de aparecer');
+  ok(await avisoNaFila.getByRole('button', { name: /Preparar aviso/ }).count() === 0, 'painel: "Preparar aviso" sai de cena (o mesmo link não é preparado duas vezes sem querer)');
+  const codigoDoLink = mensagemZap.match(CODIGO_NO_TEXTO)[1];
+  const guardado = await painel2.evaluate(() => JSON.stringify({ l: Object.entries(localStorage), s: Object.entries(sessionStorage) }) + location.href + document.cookie);
+  ok(!guardado.includes(codigoDoLink) && !falaDoPainel.some(l => l.includes(codigoDoLink)), 'painel: o código do link não está no endereço, no armazenamento, nos cookies nem no console');
+  ok(await semRolagemLateral(painel2), 'painel com o aviso pronto, no celular: sem rolagem lateral');
+  await avisoNaFila.scrollIntoViewIfNeeded();
+  await foto(painel2, '5d-painel-aviso-pronto-cel');
+  const link1 = { status: 200, codigo: codigoDoLink };
+  perdeuOPedido = true;
+  ok(link1.status === 200 && CODIGO_LINK.test(link1.codigo || ''), 'retomada: o painel gera o código do link (32 caracteres, só letras, números, - e _)');
+  const novo = await aparelhoNovo('aparelho-novo');
+  await novo.p.goto(BASE + '/orcamento#retomar=' + link1.codigo, { waitUntil: 'load', timeout: 90000 });
+  ok(await espera(novo.p, () => !document.getElementById('o-retomada').hidden), 'retomada: o link abre a tela "Abrir o seu pedido"');
+  ok(await novo.p.evaluate(() => location.hash === '' && !location.href.includes('retomar')), 'retomada: o código sai da barra de endereço na hora');
+  ok(await novo.p.evaluate(() => localStorage.getItem('bz-orcamento') === null) && novo.toques.length === 0, 'retomada: sem o toque, o link não é gasto e nenhuma sessão é criada');
+  ok(await novo.p.evaluate(() => ['o-perguntas', 'o-direcoes'].every(id => document.getElementById(id).hidden)), 'retomada: antes do toque, nem as perguntas nem os modelos aparecem');
+  ok(await novo.p.evaluate(() => document.activeElement.id) === 'o-ret-abrir', 'retomada: o foco fica em "Abrir o meu pedido"');
+  /* a página de trás não diz que a pessoa está no começo: sem etapas, sem o texto de abertura, sem a mesa com o cartão do preço */
+  /* (o cartão do preço vazio mora dentro de .orc-mesa, que já entra na conta; o botão da conversa só nasce visível
+     com o consultor ligado: sem CONSULTOR=1 ele já é hidden e a checagem não diria nada) */
+  const escondidos = p => p.evaluate(consultor => ['o-etapas', ...(consultor ? ['o-conversar'] : [])].every(id => !document.getElementById(id).getClientRects().length)
+    && !document.querySelector('.orc-lead').getClientRects().length && !document.querySelector('.orc-mesa').getClientRects().length, CONSULTOR);
+  ok(await escondidos(novo.p), 'retomada: enquanto o link espera o toque, as etapas, o preço vazio e a conversa ficam escondidos');
+  ok(Math.round((await novo.p.locator('#o-ret-abrir').boundingBox()).height) >= 44, 'retomada: o botão tem 44 px de altura ou mais');
+  ok(await semRolagemLateral(novo.p), 'retomada no celular: sem rolagem lateral');
+  /* (I1) a página de trás não aparece nem no 1º quadro: o script da retomada é o 16º de 17 scripts defer, e num
+     celular lento a 1ª pintura mostrava as etapas e o cartão vazio antes de ele rodar. A classe vem do js/ancoras.js
+     (head, síncrono). Aqui o script é atrasado 4 s e a página é medida ANTES de ele rodar; a passagem de páginas
+     também vale (o hash do link não é âncora: a chegada não pode ser trocada) */
+  const lenta = await novo.c.newPage();
+  await lenta.addInitScript(() => {
+    try { sessionStorage.setItem('bz-passagem', String(Date.now())); } catch (e) { /* sem armazenamento */ }
+    /* (o <html> ainda não existe neste ponto: observa o documento) */
+    window.__classes = new Set();
+    new MutationObserver(() => document.documentElement.classList.forEach(c => window.__classes.add(c))).observe(document, { subtree: true, attributes: true, attributeFilter: ['class'] });
+  });
+  await lenta.route('**/js/orcamento-retomada.js', async r => { await new Promise(f => setTimeout(f, 7000)); await r.continue(); });   /* (7 s: com a CPU cheia, 4 s davam vermelho falso) */
+  await lenta.goto(BASE + '/orcamento#retomar=' + link1.codigo, { waitUntil: 'commit', timeout: 90000 });
+  /* (mede com as folhas de estilo já aplicadas: é o que a 1ª pintura espera; o script, não) */
+  await lenta.waitForFunction(() => document.getElementById('o-etapas') && document.querySelector('.orc-mesa') && document.querySelector('.orc-lead')
+    && [...document.querySelectorAll('link[rel=stylesheet]')].every(l => l.sheet), null, { timeout: 30000 });
+  const antes = await lenta.evaluate(() => ({
+    scriptRodou: !!window.BZRetomada,
+    caixas: ['#o-etapas', '.orc-mesa', '.orc-lead'].map(q => Math.round(document.querySelector(q).getBoundingClientRect().height)),
+    classes: [...window.__classes] }));
+  ok(!antes.scriptRodou, 'retomada, 1º quadro: a medida foi feita ANTES de o script da retomada rodar (a premissa do teste)');
+  ok(antes.caixas.every(h => h === 0), 'retomada, 1º quadro: antes de o script rodar, as etapas, a mesa e o texto de abertura não têm caixa (' + antes.caixas.join('/') + ' px)');
+  ok(await espera(lenta, () => !document.getElementById('o-retomada').hidden, 30000), 'retomada, 1º quadro: depois do atraso, a tela "Abrir o seu pedido" aparece');
+  const classes = await lenta.evaluate(() => [...window.__classes]);
+  ok(classes.includes('passagem-chega') && !classes.includes('passagem-ancora'), 'retomada: chegando pela passagem, o hash do link não vira âncora (sem a classe passagem-ancora)');
+  await lenta.close();
+  /* rede de segurança: o script da retomada nunca chega; no load a classe sai e a página não fica só com o título */
+  const bloqueada = await novo.c.newPage();
+  await bloqueada.route('**/js/orcamento-retomada.js', r => r.abort());
+  await bloqueada.goto(BASE + '/orcamento#retomar=' + link1.codigo, { waitUntil: 'load', timeout: 90000 });
+  ok(await espera(bloqueada, () => !document.documentElement.classList.contains('orc-retomando') && document.getElementById('o-etapas').getBoundingClientRect().height > 0 && !document.getElementById('o-perguntas').hidden, 15000),
+    'retomada, script bloqueado: no load a classe sai e a página aparece (etapas e perguntas), em vez de ficar só com o título');
+  await bloqueada.close();
+  /* link cortado: avisa, sem botão de abrir; sem pedido neste aparelho, a saída é o WhatsApp (com o foco nele) */
+  const cortada = await novo.c.newPage();
+  await cortada.setViewportSize({ width: 320, height: 400 });
+  await cortada.goto(BASE + '/orcamento#retomar=curto', { waitUntil: 'load', timeout: 90000 });
+  ok(await espera(cortada, () => !document.getElementById('o-retomada').hidden && /incompleto/.test(document.getElementById('o-ret-estado').textContent)), 'link cortado: a tela avisa que o link chegou incompleto');
+  ok(await cortada.locator('#o-ret-abrir').isHidden() && await cortada.locator('#o-ret-salvo').isHidden() && await cortada.locator('#o-ret-wa').isVisible(), 'link cortado, sem pedido neste aparelho: só o WhatsApp (sem abrir, sem "pedido salvo")');
+  ok(await cortada.evaluate(() => document.activeElement.id) === 'o-ret-wa', 'link cortado: o foco vai para o WhatsApp');
+  ok(await espera(cortada, () => { const r = document.getElementById('o-ret-wa').getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; }), 'link cortado a 320x400 (a 480 o botão já cabia; a 400 só cabe se a página rolar): o botão do WhatsApp está dentro da tela');
+  ok(await escondidos(cortada), 'link cortado: as etapas e a mesa continuam escondidas (não há pedido para mostrar)');
+  await cortada.close();
+  /* erros simulados na troca do código (a rota devolve a resposta; o link não é gasto), num celular baixo: o botão cabe na tela */
+  const erra = await novo.c.newPage();
+  await erra.setViewportSize({ width: 320, height: 400 });
+  let respostaForcada = null;
+  await erra.route(u => u.searchParams.get('acao') === 'retomar', r => r.fulfill({ status: respostaForcada.status, contentType: 'application/json', body: JSON.stringify(respostaForcada.corpo) }));
+  await erra.goto(BASE + '/orcamento#retomar=' + link1.codigo, { waitUntil: 'load', timeout: 90000 });
+  await erra.waitForSelector('#o-retomada:not([hidden])');
+  const naTela = await espera(erra, () => { const r = document.getElementById('o-ret-abrir').getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; });
+  ok(naTela, 'retomada a 320x400 (celular baixo: a 480 o botão já cabia sem rolar, medido; a 400 só cabe se a página rolar até a seção): o botão "Abrir o meu pedido" está dentro da tela');
+  respostaForcada = { status: 500, corpo: { erro: 'Erro interno.', pedido: 'abcdef12-3456' } };
+  await erra.click('#o-ret-abrir');
+  ok(await espera(erra, () => /Código do erro: abcdef12\./.test(document.getElementById('o-ret-estado').textContent)), 'retomada: erro 500 mostra a frase da página, com o código do erro');
+  ok(!/Erro interno/.test(await erra.textContent('#o-ret-estado')) && /WhatsApp/.test(await erra.textContent('#o-ret-estado')), 'retomada: erro 500 nunca mostra "Erro interno." cru e aponta o WhatsApp');
+  ok(await erra.locator('#o-ret-wa').isVisible() && await erra.locator('#o-ret-abrir').isVisible() && await erra.locator('#o-ret-abrir').getAttribute('aria-disabled') === null, 'retomada: erro 500 deixa tentar de novo e oferece o WhatsApp');
+  ok(await escondidos(erra), 'retomada: depois de um erro, as etapas e a mesa seguem escondidas');
+  respostaForcada = { status: 403, corpo: { erro: 'Não foi possível confirmar que você não é um robô. Recarregue a página e tente de novo.' } };
+  await erra.click('#o-ret-abrir');
+  ok(await espera(erra, () => /Toque de novo em/.test(document.getElementById('o-ret-estado').textContent)), 'retomada: o anti-robô recusado manda tocar de novo, e não recarregar (recarregar perderia o link)');
+  ok(!/Recarregue/.test(await erra.textContent('#o-ret-estado')), 'retomada: a frase do anti-robô não pede para recarregar');
+  await erra.close();
+  const aSecao = p => p.evaluate(() => document.getElementById('o-retomada').scrollIntoView({ block: 'center' }));
+  await aSecao(novo.p);
+  await foto(novo.p, '6-retomada-cel');
+  await novo.p.setViewportSize({ width: 320, height: 640 });
+  ok(await semRolagemLateral(novo.p), 'retomada a 320 px: sem rolagem lateral');
+  await aSecao(novo.p);
+  await foto(novo.p, '6-retomada-320');
+  await novo.p.setViewportSize({ width: 390, height: 844 });
+  await novo.p.click('#o-ret-abrir');
+  ok(await espera(novo.p, () => document.querySelectorAll('#o-direcoes:not([hidden]) .dir .dir__nome').length === 3, 30000), 'retomada: ao toque, o pedido abre neste aparelho, com os três modelos');
+  ok(await novo.p.locator('#o-retomada').isHidden(), 'retomada: a tela do link some depois de abrir');
+  ok(await novo.p.locator('#o-etapas').isVisible() && await novo.p.locator('.orc-mesa').isVisible(), 'retomada: depois de abrir, as etapas e a mesa voltam');
+  ok(await espera(novo.p, () => document.activeElement.tagName === 'H2' && !!document.activeElement.closest('#o-direcoes'), 5000), 'retomada: depois de abrir, o foco vai para o título da etapa em que o pedido parou');
+  ok(novo.toques.length === 1, 'retomada: uma única chamada de retomada, no toque');
+  await foto(novo.p, '6-retomada-aberta-cel');
+
+  /* o aparelho de antes perdeu o acesso: a página começa limpa ou avisa, e não mostra o pedido */
+  const velho = await ctx.newPage();
+  await velho.goto(BASE + '/orcamento', { waitUntil: 'load', timeout: 90000 });
+  ok(await espera(velho, () => !document.getElementById('o-perguntas').hidden || !document.getElementById('o-aviso').hidden), 'retomada: no aparelho de antes, a página começa limpa ou avisa que a sessão terminou');
+  ok(await velho.locator('.dir .dir__nome').count() === 0, 'retomada: o aparelho de antes não mostra mais os modelos desse pedido');
+  await velho.close();
+
+  /* o mesmo link outra vez: uso único */
+  const outra = await novo.c.newPage();
+  await outra.goto(BASE + '/orcamento#retomar=' + link1.codigo, { waitUntil: 'load', timeout: 90000 });
+  await outra.waitForSelector('#o-retomada:not([hidden])');
+  await outra.click('#o-ret-abrir');
+  ok(await espera(outra, () => /já foi usado/.test(document.getElementById('o-ret-estado').textContent)), 'retomada: o mesmo link outra vez diz que já foi usado');
+  ok(await outra.locator('#o-ret-wa').isVisible() && (await outra.getAttribute('#o-ret-wa', 'href')).startsWith('https://wa.me/5521977167944?text='), 'retomada: com o botão do WhatsApp para pedir um link novo');
+  ok(await outra.locator('#o-ret-abrir').isHidden(), 'retomada: e sem o botão de abrir, que não adiantaria');
+  ok(await outra.locator('#o-ret-salvo').isVisible() && await outra.evaluate(() => document.activeElement.id) === 'o-ret-salvo', 'retomada: neste aparelho já há o pedido, então oferece "Ver o pedido salvo" e o foco vai para ele');
+  ok(await escondidos(outra), 'link usado: as etapas e a mesa seguem escondidas até a pessoa escolher');
+  ok(await semRolagemLateral(outra), 'link usado no celular: sem rolagem lateral');
+  ok(Math.round((await outra.locator('#o-ret-wa').boundingBox()).height) >= 44, 'link usado: o botão do WhatsApp tem 44 px de altura ou mais');
+  await aSecao(outra);
+  await foto(outra, '6-retomada-usado-cel');
+  await outra.click('#o-ret-salvo');
+  ok(await espera(outra, () => document.querySelectorAll('#o-direcoes:not([hidden]) .dir .dir__nome').length === 3 && document.getElementById('o-retomada').hidden, 30000), 'retomada: "Ver o pedido salvo" leva ao pedido, com os três modelos');
+  ok(await outra.locator('#o-etapas').isVisible() && await outra.locator('.orc-mesa').isVisible(), 'retomada: e a página de trás volta (etapas e mesa)');
+  ok(await espera(outra, () => document.activeElement.tagName === 'H2' && !!document.activeElement.closest('#o-direcoes'), 5000), 'retomada: o foco vai para o título da etapa');
+  /* o link cortado no aparelho que já tem o pedido: mesmo caminho */
+  const cortada2 = await novo.c.newPage();
+  await cortada2.goto(BASE + '/orcamento#retomar=curto', { waitUntil: 'load', timeout: 90000 });
+  ok(await espera(cortada2, () => !document.getElementById('o-ret-salvo').hidden && document.activeElement.id === 'o-ret-salvo'), 'link cortado, com pedido neste aparelho: oferece "Ver o pedido salvo", com o foco nele');
+  await cortada2.click('#o-ret-salvo');
+  ok(await espera(cortada2, () => document.querySelectorAll('#o-direcoes:not([hidden]) .dir .dir__nome').length === 3, 30000), 'link cortado: "Ver o pedido salvo" abre o pedido');
+  await cortada2.close();
+  await novo.c.close();
+
+  /* o pedido volta ao aparelho de antes por um link novo, e o resto do teste segue nele */
+  const link2 = await linkDoPainel();
+  ok(link2.status === 200 && CODIGO_LINK.test(link2.codigo || '') && link2.codigo !== link1.codigo, 'retomada: o painel gera outro link, com outro código');
+  const volta = await ctx.newPage();
+  await volta.goto(BASE + '/orcamento#retomar=' + link2.codigo, { waitUntil: 'load', timeout: 90000 });
+  await volta.waitForSelector('#o-retomada:not([hidden])');
+  await volta.click('#o-ret-abrir');
+  ok(await espera(volta, () => document.querySelectorAll('#o-direcoes:not([hidden]) .dir .dir__nome').length === 3, 30000), 'retomada: de volta ao aparelho de antes, com os três modelos (uma conversa "esquecida" por lá também abre)');
+  await volta.close();
+  await page.reload({ waitUntil: 'load' });
+  await page.waitForFunction(() => document.querySelectorAll('.dir .dir__nome').length === 3, null, { timeout: 60000 });
+  perdeuOPedido = false;
+  /* (PR 2b-2) os LEMBRETES no painel. Sem pedido avisado há 2 dias no banco local (o relógio do banco não anda), a
+     lista real vem vazia; depois a resposta de ?fila=lembretes é forjada com este pedido, mas o resto é de verdade: o
+     "Preparar lembrete" gera um link novo no servidor e o "Já lembrei" grava no banco. Só então a lista forjada esvazia */
+  let lembrado = false;
+  await painel2.locator('#bloco-lembretes').scrollIntoViewIfNeeded();
+  ok(await painel2.locator('#bloco-lembretes').isVisible() && /Nenhum lembrete/.test(await painel2.textContent('#lembretes-estado')), 'lembretes: sem ninguém avisado há 2 dias, a seção diz que não há lembrete');
+  const contatoDoPedido = { nome: 'Ana Souza', telefone: '+55' + TELEFONE.replace(/\D/g, ''), email: null };
+  const forjarLembretes = async route => {
+    if (route.request().method() !== 'GET') { await route.continue(); return; }
+    const itens = lembrado ? [] : [{ conversa_id: conversaId, codigo, avisado_em: new Date(Date.now() - 3 * 864e5).toISOString(), contato: contatoDoPedido }];
+    await route.fulfill({ json: { lembretes: itens, total: itens.length } });
+  };
+  await painel2.route(/\/api\/painel\?fila=lembretes/, forjarLembretes);
+  await painel2.click('#lembretes-atualizar');
+  const cartaoLembrete = painel2.locator('#lembretes .pn__fila', { hasText: codigo });
+  await cartaoLembrete.waitFor({ timeout: 15000 });
+  ok(/1 lembrete para mandar/.test(await painel2.textContent('#lembretes-estado')), 'lembretes: o pedido avisado há 3 dias aparece na lista, com a contagem');
+  ok((await cartaoLembrete.textContent()).includes('Ana Souza') && (await cartaoLembrete.textContent()).includes(TELEFONE.replace(/\D/g, '').slice(-4)), 'lembretes: o cartão mostra o nome e o WhatsApp para conferir');
+  const prepararLembrete = cartaoLembrete.getByRole('button', { name: /Preparar lembrete/ });
+  ok(await prepararLembrete.count() === 1 && Math.round((await prepararLembrete.boundingBox()).height) >= 44, 'lembretes: "Preparar lembrete" com 44 px ou mais');
+  await painel2.locator('#bloco-lembretes').scrollIntoViewIfNeeded();
+  await foto(painel2, '5e-painel-lembretes-cel');
+  const veioLink2 = painel2.waitForRequest(ehLink, { timeout: 15000 });
+  await prepararLembrete.click();
+  await veioLink2;
+  const zapLembrete = cartaoLembrete.getByRole('link', { name: /Abrir no WhatsApp/ });
+  await zapLembrete.waitFor({ timeout: 15000 });
+  const msgLembrete = decodeURIComponent(((await zapLembrete.getAttribute('href')).split('?text=')[1] || ''));
+  ok(/^Oi, Ana! Aqui é da Beyon Zero\. Passando para lembrar/.test(msgLembrete) && CODIGO_NO_TEXTO.test(msgLembrete) && msgLembrete.match(CODIGO_NO_TEXTO)[1] !== codigoDoLink, 'lembretes: a mensagem chama pelo primeiro nome e leva um link NOVO (não o do aviso)');
+  ok(!(await painel2.evaluate(() => JSON.stringify({ l: Object.entries(localStorage), s: Object.entries(sessionStorage) }) + location.href + document.cookie)).includes(msgLembrete.match(CODIGO_NO_TEXTO)[1]) && !falaDoPainel.some(l => l.includes(msgLembrete.match(CODIGO_NO_TEXTO)[1])), 'lembretes: o código do link novo também fica fora do endereço, do armazenamento e do console');
+  await foto(painel2, '5f-painel-lembrete-pronto-cel');
+  /* (M5 da correção da Task 5) o mesmo cartão, já com o link pronto, no desktop: não pode ficar esticado nem cortado */
+  await painel2.setViewportSize({ width: 1280, height: 900 });
+  await cartaoLembrete.scrollIntoViewIfNeeded();
+  await foto(painel2, '5h-lembrete-pc');
+  await painel2.setViewportSize({ width: 390, height: 844 });
+  const feitoLembrete = cartaoLembrete.getByRole('button', { name: /Já lembrei/ });
+  const respMarca = painel2.waitForResponse(r => r.request().method() === 'POST' && /lembrado/.test(r.request().postData() || ''), { timeout: 15000 });
+  lembrado = true;   /* (a releitura que vem logo depois do "Já lembrei" já deve achar a lista vazia) */
+  await feitoLembrete.click();
+  ok((await (await respMarca).json()).lembrados === 1, 'lembretes: "Já lembrei" grava no banco (lembrados: 1)');
+  ok(await espera(painel2, () => document.querySelectorAll('#lembretes .pn__fila').length === 0 && /Lembrete marcado\. Nenhum lembrete/.test(document.getElementById('lembretes-estado').textContent)), 'lembretes: o pedido sai da lista e o aviso diz que foi marcado');
+  ok(await painel2.evaluate(() => document.activeElement.id) === 't-lembretes', 'lembretes: o foco volta ao título da seção');
+  await painel2.unroute(/\/api\/painel\?fila=lembretes/, forjarLembretes);
+  await painel2.setViewportSize({ width: 1280, height: 900 });
+  await painel2.locator('#bloco-lembretes').scrollIntoViewIfNeeded();
+  await foto(painel2, '5g-painel-lembretes-desktop');
+  await painel2.close();
   /* (revisão final do PR 2a, M1) a tela não contradiz o servidor depois de descartar ou arquivar. O estado vem do
      servidor com o pedido mudado; cada checagem roda com a rota ainda ativa (nenhuma releitura traz o estado real).
      A releitura é a da própria página ("bz:detalhes-enviados" relê o estado), e não um reload: um reload faz cinco
@@ -343,7 +598,47 @@ try {
     ok(await page.getByRole('button', { name: 'Gerar de novo' }).count() === 0, status + ' com a geração parada: nenhum "Gerar de novo" (o servidor recusaria)');
     await page.unroute(ESTADO, rota);
   }
+  /* (PR 2b-2) a espera útil: o servidor local gera os modelos na hora (modo "api"), então o estado de uma fila manual
+     com o pedido confirmado e um modelo ainda na fila vem de uma resposta alterada. Com as três prontas o bloco some */
+  const naFilaManual = comPedido('confirmado', j => {
+    j.modo_direcoes = 'manual';
+    j.pedido.confirmado_em = new Date(2026, 9, 15, 14, 20).toISOString();   /* quinta 15/10, 14h20 no fuso do aparelho */
+    j.direcoes = j.direcoes.map((d, i) => i === 0 ? { ...d, status: 'gerando', conteudo: null } : d);
+  });
+  ok(await desenhar(naFilaManual, () => !document.getElementById('o-preparo').hidden), 'espera útil: confirmado, na fila manual e com um modelo na fila, o bloco aparece');
+  const preparo = page.locator('#o-preparo');
+  /* (a data é fixa e já passou: a tela troca a promessa pelo "O prazo era", que guarda a mesma conta; a frase do prazo
+     ainda por vir fica nos testes de orcamento-preparo, que controlam o relógio) */
+  ok(/O prazo era sexta, 16\/10, às\s15h\. Os seus modelos ainda estão em produção/.test(await preparo.locator('.orc-preparo__prazo').textContent()), 'espera útil: a data do prazo (24 horas úteis, hora arredondada para cima), vencida');
+  ok(await preparo.locator('.orc-preparo__lista li').count() === 5, 'espera útil: a lista do que separar');
+  const waPreparo = preparo.getByRole('link', { name: 'Mandar pelo WhatsApp' });
+  ok(await waPreparo.getAttribute('href') === 'https://wa.me/5521977167944?text=' + encodeURIComponent('Pedido ' + codigo + ': vou mandar o material do site.'), 'espera útil: o botão do WhatsApp leva o código do pedido');
+  ok(Math.round((await waPreparo.boundingBox()).height) >= 44, 'espera útil: o botão tem 44 px de altura ou mais');
+  ok(/em até 24 horas úteis/.test(await page.textContent('#o-dir-lead')) && !/neste mesmo navegador/.test(await page.textContent('#o-dir-lead')), 'espera útil: o texto da seção não manda voltar "neste mesmo navegador"');
+  ok(!/neste navegador/.test(await page.locator('.dir').first().textContent()), 'espera útil: o cartão na fila também não');
+  ok(await semRolagemLateral(page), 'espera útil: celular sem rolagem lateral');
+  await page.locator('#o-direcoes').scrollIntoViewIfNeeded();
+  await foto(page, '7-preparo-cel');
+  await page.setViewportSize({ width: 320, height: 700 });
+  ok(await semRolagemLateral(page) && await preparo.evaluate(e => e.getBoundingClientRect().right <= innerWidth), 'espera útil: 320 px, nada mais largo que a tela');
+  await preparo.evaluate(e => e.scrollIntoView({ block: 'end', behavior: 'instant' }));   /* (no 320 o bloco inteiro não cabe com o título: a foto fecha no botão) */
+  await foto(page, '7-preparo-320');
+  await page.setViewportSize({ width: 1440, height: 900 });   /* (M5) o desktop: o bloco ao lado da grade dos cartões */
+  await preparo.evaluate(e => e.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  ok(await semRolagemLateral(page), 'espera útil: desktop sem rolagem lateral');
+  await foto(page, '7-preparo-pc');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.unroute(ESTADO, naFilaManual);
+  /* (M1) a regra de aparecer isolada: ainda na fila manual e com o pedido confirmado, mas com as três prontas o bloco some */
+  const manualTodasProntas = comPedido('confirmado', j => {
+    j.modo_direcoes = 'manual';
+    j.pedido.confirmado_em = new Date(2026, 9, 15, 14, 20).toISOString();
+    j.direcoes = j.direcoes.map(d => ({ ...d, status: 'pronta' }));
+  });
+  ok(await desenhar(manualTodasProntas, () => document.getElementById('o-preparo').hidden && document.getElementById('o-preparo').childElementCount === 0), 'espera útil: na fila manual, mas com as três prontas, o bloco some (a regra, não o modo)');
+  await page.unroute(ESTADO, manualTodasProntas);
   await relerEstado();
+  ok(await espera(page, () => document.getElementById('o-preparo').hidden && document.getElementById('o-preparo').childElementCount === 0, 15000), 'espera útil: com as três prontas, o bloco some');
   await page.waitForFunction(() => document.querySelectorAll('.dir .dir__nome').length === 3 && document.getElementById('o-pedido-fim').hidden, null, { timeout: 30000 });
 
   /* o visor */
@@ -446,6 +741,12 @@ try {
   ok(true, 'Pix confirmado pelo aviso assinado + consulta: projeto liberado');
   ok(erros.length === 0, 'sem erro de console' + (erros.length ? ': ' + erros.slice(0, 3).join(' | ') : ''));
   await ctx.close();
+
+  /* desde a retomada e a espera útil (PR 2b-2), o fluxo principal soma perto de 90 chamadas no último minuto e o
+     diagnóstico levava 429 do freio geral (90 por minuto por IP, api/vendas.mjs): sempre com o consultor, às vezes sem
+     ele, conforme a velocidade da máquina. Como no 1440 abaixo, o freio fica como está e quem espera a janela esvaziar
+     é o teste */
+  await new Promise(r => setTimeout(r, 61e3));
 
   /* o pacote que pede conversa (estimativa nula com diagnóstico, como passar do limite automático): forçado aqui pela
      resposta do servidor, porque a tabela de teste não chega ao limite pelos botões da tela */

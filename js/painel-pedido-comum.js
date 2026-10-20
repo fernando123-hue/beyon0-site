@@ -1,6 +1,6 @@
 /* ==========================================================================
    PAINEL › o que os cartões de pedido têm em comum (js/painel-pedidos.js e js/painel-fila.js; PR 2a): o selo de
-   texto suspeito, o WhatsApp formatado, os links das redes do cliente e as ações do dono. Os links são montados
+   texto suspeito, o WhatsApp formatado, os links das redes do cliente, as ações do dono e o aviso com o link de retomada. Os links são montados
    AQUI, num domínio fixo, só a partir do usuário que passa no MESMO formato do servidor (api/_vendas/pedido.mjs,
    REDES). Tudo que veio do visitante entra por textContent.
    ========================================================================== */
@@ -17,6 +17,7 @@
   };
   var TEM_LETRA_OU_NUMERO = /[A-Za-z0-9]/;   /* (só pontos ou traços não são um perfil: nada de "../" no caminho) */
   var ARMADO_MS = 4000;
+  var CODIGO_RETOMADA = /^[A-Za-z0-9_-]{32}$/;   /* o servidor devolve 32 caracteres; qualquer outra coisa não vira link */
 
   /* o usuário só vira link se passa no formato do servidor; qualquer outra coisa fica de fora */
   function usuarioValido(rede, u) {
@@ -84,5 +85,62 @@
     return b;
   }
 
-  window.BZPainelPedido = { telefone: telefone, selo: selo, redes: redes, negocio: negocio, agir: agir, botaoDuplo: botaoDuplo };
+  /* (PR 2b-2) o aviso leva o LINK DE RETOMADA: o código só existe depois do toque ("Preparar"), sai do servidor uma
+     vez e vale 7 dias, um por vez (preparar de novo invalida o anterior não usado). Primeiro o link, depois o botão
+     que abre o WhatsApp: abrir uma aba depois de esperar a resposta seria barrado pelo navegador. O código fica só
+     neste link (href do botão): não vai para console, para o armazenamento do navegador nem para a lista */
+  var NOME_OK = /^[\p{L}'-]{1,20}$/u;
+  var EMAIL_OK = /^[A-Za-z0-9._+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+  var TELEFONE_MIN_DIGITOS = 10;
+  function primeiroNome(n) { var p = String(n || '').trim().split(/\s+/)[0] || ''; return NOME_OK.test(p) ? p : ''; }
+  function oi(nome) { return primeiroNome(nome) ? 'Oi, ' + primeiroNome(nome) + '!' : 'Oi!'; }
+  /* o botão que abre a conversa: WhatsApp (só dígitos no endereço) ou, sem telefone, o e-mail */
+  function botaoDeContato(o, digitos, email, texto, quem) {
+    var a = el('a', 'pn__btn');
+    if (digitos) {
+      a.href = 'https://wa.me/' + digitos + '?text=' + encodeURIComponent(texto);
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.textContent = 'Abrir no WhatsApp';
+      a.setAttribute('aria-label', 'Abrir no WhatsApp: ' + o.rotulo + ' para ' + quem + ' (abre em nova aba)');
+    } else {
+      a.href = 'mailto:' + email + '?subject=' + encodeURIComponent(o.assunto) + '&body=' + encodeURIComponent(texto);
+      a.textContent = 'Abrir o e-mail';
+      a.setAttribute('aria-label', 'Abrir o e-mail: ' + o.rotulo + ' para ' + quem);
+    }
+    return a;
+  }
+  function avisoComLink(o) {
+    var caixa = el('div', 'pn__aviso');
+    var contato = o.contato || {}, email = contato.email;
+    var digitos = String(contato.telefone || '').replace(/\D/g, '');
+    if (digitos.length < TELEFONE_MIN_DIGITOS) digitos = '';
+    var quem = contato.nome || 'o cliente';
+    if (!digitos && !(email && EMAIL_OK.test(email))) { caixa.appendChild(el('p', 'pn__fila-meta', 'Sem contato para avisar (apagado pela retenção?).')); return caixa; }
+    var preparar = el('button', 'pn__btn', 'Preparar ' + o.rotulo);
+    preparar.type = 'button';
+    preparar.setAttribute('aria-label', 'Preparar ' + o.rotulo + ' para ' + quem);
+    var estado = el('p', 'pn__fila-meta');
+    estado.setAttribute('role', 'status');
+    preparar.addEventListener('click', function () {
+      preparar.disabled = true;
+      estado.textContent = 'Gerando o link…';
+      P.pedir('', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ link_retomada: o.conversaId }) })
+        .then(function (r) { return r.json(); })
+        .then(function (r) {
+          if (!r || typeof r.codigo !== 'string' || !CODIGO_RETOMADA.test(r.codigo)) { estado.textContent = 'Não deu para gerar o link agora.'; preparar.disabled = false; return; }
+          var texto = oi(contato.nome) + ' ' + o.texto(location.origin + '/orcamento#retomar=' + r.codigo);
+          var a = botaoDeContato(o, digitos, email, texto, quem);
+          caixa.replaceChild(a, preparar);
+          estado.textContent = 'Link pronto (vale 7 dias e abre uma vez). Preparar de novo invalida este.';
+          a.focus();
+        })
+        .catch(function (e) { if (P.recusada(e)) return; estado.textContent = e.status ? e.message : 'Sem conexão com o servidor. Tente de novo.'; preparar.disabled = false; });
+    });
+    caixa.appendChild(preparar);
+    caixa.appendChild(estado);
+    return caixa;
+  }
+
+  window.BZPainelPedido = { telefone: telefone, selo: selo, redes: redes, negocio: negocio, agir: agir, botaoDuplo: botaoDuplo, avisoComLink: avisoComLink };
 })();

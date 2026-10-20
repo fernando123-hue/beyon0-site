@@ -29,6 +29,7 @@ import { limparAtualizacao } from './briefing.mjs';
 import { Recusa } from './recusa.mjs';
 import { regrasAtivas, esquecerRegras } from './regras-ativas.mjs';
 import { criarAcoesDoPedido } from './fluxo-pedido.mjs';
+import { criarAcoesDaRetomada } from './fluxo-retomada.mjs';
 import { PEDIDOS } from './pedido.mjs';
 
 import { ORG } from './org.mjs';
@@ -274,6 +275,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
 
   return {
     ...acoesDoPedido,
+    ...criarAcoesDaRetomada({ banco, visitantes }),
 
     /* começar: cria o visitante anônimo e a conversa, com a origem da visita (das métricas, sem dado pessoal) */
     async sessao({ corpo }) {

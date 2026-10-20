@@ -127,19 +127,20 @@
     if (!criando) criando = criarSessao().finally(function () { criando = null; });
     return criando;
   }
-  async function criarSessao() {
-    var corpo = origem();
-    /* anti-robô (js/orcamento-turnstile.js): sem chave configurada, não há token e o servidor não exige */
-    if (window.BZTurnstile) {
-      var t;
-      try { t = await window.BZTurnstile.token(); }
-      catch (e) {
-        if (e && e.tipo === 'carga') throw new Falha(503, { erro: 'A verificação de segurança não carregou. Tente de novo em instantes ou fale com a Beyon Zero pelo WhatsApp.', whatsapp: true });
-        throw new Falha(403, { erro: 'Não foi possível confirmar que você não é um robô. Recarregue a página e tente de novo.' });
-      }
-      if (t) corpo = Object.assign({}, corpo, { turnstile: t });
+  /* anti-robô (js/orcamento-turnstile.js): o token entra no corpo de quem cria um visitante (sessão nova ou retomada).
+     Sem chave configurada, não há token e o servidor não exige */
+  async function comAntiRobo(corpo) {
+    if (!window.BZTurnstile) return corpo;
+    var t;
+    try { t = await window.BZTurnstile.token(); }
+    catch (e) {
+      if (e && e.tipo === 'carga') throw new Falha(503, { erro: 'A verificação de segurança não carregou. Tente de novo em instantes ou fale com a Beyon Zero pelo WhatsApp.', whatsapp: true });
+      throw new Falha(403, { erro: 'Não foi possível confirmar que você não é um robô. Recarregue a página e tente de novo.' });
     }
-    var s = await http('POST', 'sessao', corpo);
+    return t ? Object.assign({}, corpo, { turnstile: t }) : corpo;
+  }
+  async function criarSessao() {
+    var s = await http('POST', 'sessao', await comAntiRobo(origem()));
     gravar({ token: s.token, refresh: s.refresh, expira_em: s.expira_em, conversa_id: s.conversa_id });
     return sessao;
   }
@@ -154,6 +155,14 @@
     /* o código do pedido: os 8 primeiros caracteres da conversa (o mesmo id curto do painel) */
     codigo: function () { return sessao && sessao.conversa_id ? String(sessao.conversa_id).slice(0, 8) : null; },
     codigoPerdido: function () { return codigoPerdido; },
+    /* o LINK DE RETOMADA (PR 2b-2): troca o código do aviso por uma sessão deste aparelho para o pedido. A conversa
+       pode ser uma que este aparelho mandou recomeçar: o link é uma volta pedida, então ela deixa de ser "esquecida" */
+    retomar: async function (codigo) {
+      var s = await http('POST', 'retomar', await comAntiRobo({ codigo: codigo }), undefined, undefined, ESTADO_MS);
+      try { if (localStorage.getItem(ESQUECIDA) === s.conversa_id) localStorage.removeItem(ESQUECIDA); } catch (e) { /* sem armazenamento */ }
+      perdida = false; codigoPerdido = null;
+      gravar({ token: s.token, refresh: s.refresh, expira_em: s.expira_em, conversa_id: s.conversa_id });
+    },
     /* Recomeçar: apaga a sessão e marca a conversa como esquecida (outra aba aberta não a grava de volta) */
     esquecer: function () {
       try { if (sessao && sessao.conversa_id) localStorage.setItem(ESQUECIDA, sessao.conversa_id); } catch (e) { /* sem armazenamento */ }
