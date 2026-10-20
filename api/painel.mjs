@@ -250,7 +250,7 @@ const AJUSTE_FORA = 'Este ajuste não está mais na fila: já foi resolvido, o p
 function erroDoAjuste(e, rotulo) {
   if (e && e.codigo === 'P0002') return json({ erro: 'Ajuste não encontrado.' }, 404);
   if (e && e.codigo === '55000') return json({ erro: 'A conversa já passou da etapa de ajustes (ou o pedido não está confirmado): nada foi gravado.' }, 409);
-  if (e && e.codigo === '40001') return json({ erro: 'O cliente mudou a versão depois que você baixou. Rode "ajustes" de novo e refaça sobre a versão nova.' }, 409);
+  if (e && e.codigo === '40001') return json({ erro: 'O cliente mudou a versão depois que você baixou. Apague a pasta do ajuste e rode "ajustes" de novo para refazer sobre a versão nova.' }, 409);
   console.error('[painel] ' + rotulo + ':', e && e.codigo);
   return json({ erro: 'Não deu para salvar agora.' }, 500);
 }

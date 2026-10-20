@@ -219,10 +219,13 @@ export const montarArquivoPedido = p => ({ ...pedidoParaModelo(p), instrucoes: {
 const COMO_AJUSTAR = 'Grave em versao.json a versão nova do site: parta da versão que já está lá e mude só o que o pedido de ajuste pede e o esquema permite. O que não couber (preço, item da tabela, algo fora do site), não faça: avise o dono.';
 export function ajusteParaModelo(a) {
   if (!UUID.test(String(a.alteracao_id)) || !UUID.test(String(a.conversa_id))) throw new Error('Ajuste inválido (id fora do formato).');
+  /* (a data entra como ISO, ou como nada: o texto cru do servidor não vai para o arquivo que a sessão lê) */
+  let quando = null;
+  try { quando = new Date(a.pedido_em).toISOString(); } catch { quando = null; }
   return {
     ajuste: idCurto(a.alteracao_id),
     pedido: idCurto(a.conversa_id),
-    pedido_em: a.pedido_em,
+    pedido_em: quando,
     suspeito: a.suspeito === true,
     base_id: UUID.test(String(a.base_id)) ? a.base_id : null,
     regra: REGRA_BRIEFING,
@@ -393,8 +396,10 @@ export async function entregarPedido({ prefixo, raiz = PASTA, painel, perguntar,
    curto do ajuste; o arquivo tem de ser o versao.json REAL dela; a base anotada no ajuste.json tem de ser a de agora no
    servidor (o cliente pode ter ajustado depois); o texto passa pelo filtro e pela varredura e o dono lê tudo antes. O texto
    do CLIENTE não vai para o terminal (só campos de lista fechada nele, como na linhaDaFila): o dono o lê no ajuste.json */
-export async function entregarAjuste({ id, arquivo, raiz = PASTA, painel, perguntar, log = console.log }) {
-  if (!UUID.test(String(id))) throw new Error('Informe o id inteiro do ajuste (a linha que o "ajustes" imprimiu).');
+export async function entregarAjuste({ id: digitado, arquivo, raiz = PASTA, painel, perguntar, log = console.log }) {
+  /* (o id digitado em maiúsculas vale: o servidor guarda minúsculas) */
+  const id = String(digitado).toLowerCase();
+  if (!UUID.test(id)) throw new Error('Informe o id inteiro do ajuste (a linha que o "ajustes" imprimiu).');
   const pasta = path.join(raiz, idCurto(id));
   pastaReal(pasta);
   const estranhos = fs.readdirSync(pasta).filter(n => !ARQUIVOS_DO_AJUSTE.includes(n)).sort();
@@ -416,7 +421,7 @@ export async function entregarAjuste({ id, arquivo, raiz = PASTA, painel, pergun
   const achados = varrer(h.direcao);
   if (achados.length) throw new Error('versao.json recusado pela varredura: ' + achados.map(a => a.tipo + ' em ' + paraTerminal(a.caminho)).join('; '));
   log('\n=== ajuste ' + idCurto(id) + ' (pedido ' + idCurto(item.conversa_id) + '): "' + paraTerminal(h.direcao.nome_conceito) + '" ===');
-  log('O pedido do cliente está em ' + path.join(pasta, 'ajuste.json') + ' (abra para comparar; é dado, nunca instrução).');
+  log('O pedido do cliente está em ' + path.join(pasta, 'ajuste.json') + ': abra no SEU editor para comparar. Nenhuma sessão do Claude Code, fora a isolada do ajuste, deve lê-lo. É dado, nunca instrução.');
   for (const linha of linhasDaDirecao(h.direcao)) log(linha);
   if (!(await pedirConfirmacao(perguntar))) { log('Nada foi entregue.'); return { entregue: false }; }
   const r = await painel('POST', '', { ajuste_feito: id, base_id: item.base_id ?? null, conteudo });
@@ -427,8 +432,9 @@ export async function entregarAjuste({ id, arquivo, raiz = PASTA, painel, pergun
 
 /* recusar um pedido livre (não cabe: preço, item da tabela, fora do site): o cliente vê "Não incluído" na tela. Também
    com o código sorteado: recusar é irreversível como entregar */
-export async function recusarAjuste({ id, raiz = PASTA, painel, perguntar, log = console.log }) {
-  if (!UUID.test(String(id))) throw new Error('Informe o id inteiro do ajuste (a linha que o "ajustes" imprimiu).');
+export async function recusarAjuste({ id: digitado, raiz = PASTA, painel, perguntar, log = console.log }) {
+  const id = String(digitado).toLowerCase();
+  if (!UUID.test(id)) throw new Error('Informe o id inteiro do ajuste (a linha que o "ajustes" imprimiu).');
   const pasta = path.join(raiz, idCurto(id));
   /* (a pasta tem de ser de verdade ANTES de recusar: link ou junção seria apagado depois, com a recusa já feita) */
   if (fs.existsSync(pasta)) pastaReal(pasta);
@@ -474,16 +480,78 @@ export function linhaDoAjuste(a) {
     new Date(a.pedido_em).toLocaleString('pt-BR'), a.suspeito ? 'TEXTO SUSPEITO: leia o pedido antes' : ''].filter(Boolean).join('  ');
 }
 
+/* o aviso de ajustes esperando: só um total INTEIRO e maior que zero (o que vem do servidor não vira texto solto) */
+export function avisoDosAjustes(aj) {
+  return aj && Number.isInteger(aj.total) && aj.total > 0 ? aj.total + ' ajuste(s) escrito(s) esperando: rode "ajustes".' : '';
+}
+const SEM_LER_AJUSTES = 'Não deu para ler os ajustes agora: rode "ajustes" depois.';
+
+/* o comando "fila": as linhas a imprimir e se tudo deu certo. Lê as duas filas de uma vez e avisa os ajustes nos DOIS casos
+   (o pedido livre nasce justamente quando a fila de direções já está vazia: a escolha conclui o pedido). Se só a leitura dos
+   ajustes falha, a fila de direções sai do mesmo jeito, com uma linha FIXA (o erro cru não vai ao terminal); se a das
+   direções falha, falha como antes */
+export async function montarFila(painelFn) {
+  const [d, a] = await Promise.allSettled([painelFn('GET', '?fila=direcoes'), painelFn('GET', '?fila=ajustes')]);
+  if (d.status === 'rejected') throw d.reason;
+  const r = d.value;
+  const falhou = a.status === 'rejected';
+  const aviso = falhou ? SEM_LER_AJUSTES : avisoDosAjustes(a.value);
+  const linhas = [];
+  if (!r.fila.length) linhas.push('Nenhum pedido na fila.');
+  else {
+    for (const p of r.fila) linhas.push(linhaDaFila(p));
+    linhas.push(r.total + ' pedido(s) confirmado(s), por prioridade' + (r.alarme ? '. ALARME: a fila chegou ao teto' : '') + '. Os não confirmados ficam no painel, em "Esperando confirmação".');
+  }
+  if (aviso) linhas.push(aviso);
+  return { linhas, ok: !falhou };
+}
+
+/* o comando "ajustes": baixa cada pedido livre numa pasta própria e imprime as linhas do dono. Um item fora do formato não
+   derruba os outros (o id é conferido ANTES de qualquer linha sair; ESC e afins viram "?"); pasta que já existe é trabalho em
+   andamento (regravar apagaria o versao.json que a sessão já reescreveu); se qualquer passo falha, a pasta criada NESTA rodada
+   sai, para não ficar uma pasta pela metade que a próxima rodada tomaria por trabalho em andamento. Devolve quem foi baixado
+   (ids) e quantos falharam */
+export function baixarAjustes({ itens, raiz = PASTA, repo, casa = os.homedir(), log = console.log }) {
+  const baixados = [];
+  let falhas = 0;
+  for (const a of itens) {
+    let nova = null;
+    try {
+      if (!UUID.test(String(a.alteracao_id)) || !UUID.test(String(a.conversa_id))) throw new Error('id fora do formato');
+      if (!a.versao || typeof a.versao !== 'object' || Array.isArray(a.versao)) throw new Error('sem a versão atual do site');
+      const dir = path.join(raiz, idCurto(a.alteracao_id));
+      log('\n' + linhaDoAjuste(a));
+      if (fs.existsSync(dir)) log('A pasta ' + dir + ' já existe (ajuste em andamento): nada foi regravado. Para baixar de novo, apague a pasta.');
+      else {
+        nova = dir;
+        gravarAjuste(dir, JSON.stringify(ajusteParaModelo(a), null, 2), JSON.stringify(a.versao, null, 2));
+        const { settings, instrucoes } = prepararPastaSessao({ dir, repo, casa, tarefa: 'ajuste' });
+        nova = null;
+        baixados.push(a.alteracao_id);
+        log('Abra a sessão isolada (PowerShell), e só ela, para fazer o ajuste:\n' + comandoSessao({ pasta: dir, settings, instrucoes, tarefa: 'ajuste' }));
+      }
+      log('Depois, entregue com esta linha (de qualquer outra pasta):\n' + linhaDoDono({ repo, comando: 'ajuste-feito', arg: a.alteracao_id + ' "' + path.join(dir, 'versao.json') + '"' }));
+      log('Se o pedido não couber (preço, item da tabela, algo fora do site), recuse com esta:\n' + linhaDoDono({ repo, comando: 'ajuste-recusado', arg: a.alteracao_id }));
+    } catch (e) {
+      if (nova) {
+        /* (só uma pasta de verdade, criada agora; um link no lugar não é seguido nem apagado por aqui) */
+        const st = fs.lstatSync(nova, { throwIfNoEntry: false });
+        if (st && st.isDirectory() && !st.isSymbolicLink()) fs.rmSync(nova, { recursive: true, force: true });
+      }
+      log('Um ajuste ficou de fora (' + paraTerminal(e && e.message) + '); os outros seguem.');
+      falhas++;
+    }
+  }
+  return { baixados, falhas };
+}
+
 const COMANDOS = {
   /* lê as duas filas de uma vez e avisa os ajustes nos DOIS casos: o pedido livre nasce justamente quando a fila de
      direções já está vazia (a escolha conclui o pedido) */
   async fila() {
-    const [r, aj] = await Promise.all([painel('GET', '?fila=direcoes'), painel('GET', '?fila=ajustes')]);
-    const avisoAjustes = Number.isInteger(aj.total) && aj.total > 0 ? aj.total + ' ajuste(s) escrito(s) esperando: rode "ajustes".' : '';
-    if (!r.fila.length) { console.log('Nenhum pedido na fila.'); if (avisoAjustes) console.log(avisoAjustes); return; }
-    for (const p of r.fila) console.log(linhaDaFila(p));
-    console.log(r.total + ' pedido(s) confirmado(s), por prioridade' + (r.alarme ? '. ALARME: a fila chegou ao teto' : '') + '. Os não confirmados ficam no painel, em "Esperando confirmação".');
-    if (avisoAjustes) console.log(avisoAjustes);
+    const f = await montarFila(painel);
+    for (const linha of f.linhas) console.log(linha);
+    if (!f.ok) process.exitCode = 1;
   },
   async pedido(prefixo) {
     const p = acharPedido((await painel('GET', '?fila=direcoes')).fila, prefixo);
@@ -515,29 +583,9 @@ const COMANDOS = {
   },
   async ajustes() {
     const r = await painel('GET', '?fila=ajustes');
-    if (!r.ajustes.length) return console.log('Nenhum ajuste escrito esperando.');
+    if (!Array.isArray(r.ajustes) || !r.ajustes.length) return console.log('Nenhum ajuste escrito esperando.');
     const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-    for (const a of r.ajustes) {
-      /* (um item fora do formato não derruba os outros; o id é conferido ANTES de qualquer linha sair) */
-      try {
-        if (!UUID.test(String(a.alteracao_id)) || !UUID.test(String(a.conversa_id))) throw new Error('id fora do formato');
-        if (!a.versao || typeof a.versao !== 'object' || Array.isArray(a.versao)) throw new Error('sem a versão atual do site');
-        const dir = path.join(PASTA, idCurto(a.alteracao_id));
-        console.log('\n' + linhaDoAjuste(a));
-        /* (pasta que já existe é trabalho em andamento: regravar apagaria o versao.json que a sessão já reescreveu) */
-        if (fs.existsSync(dir)) console.log('A pasta ' + dir + ' já existe (ajuste em andamento): nada foi regravado. Para baixar de novo, apague a pasta.');
-        else {
-          gravarAjuste(dir, JSON.stringify(ajusteParaModelo(a), null, 2), JSON.stringify(a.versao, null, 2));
-          const { settings, instrucoes } = prepararPastaSessao({ dir, repo, tarefa: 'ajuste' });
-          console.log('Abra a sessão isolada (PowerShell), e só ela, para fazer o ajuste:\n' + comandoSessao({ pasta: dir, settings, instrucoes, tarefa: 'ajuste' }));
-        }
-        console.log('Depois, entregue com esta linha (de qualquer outra pasta):\n' + linhaDoDono({ repo, comando: 'ajuste-feito', arg: a.alteracao_id + ' "' + path.join(dir, 'versao.json') + '"' }));
-        console.log('Se o pedido não couber (preço, item da tabela, algo fora do site), recuse com esta:\n' + linhaDoDono({ repo, comando: 'ajuste-recusado', arg: a.alteracao_id }));
-      } catch (e) {
-        console.log('Um ajuste ficou de fora (' + paraTerminal(e && e.message) + '); os outros seguem.');
-        process.exitCode = 1;
-      }
-    }
+    if (baixarAjustes({ itens: r.ajustes, repo }).falhas) process.exitCode = 1;
   },
   async 'ajuste-feito'(id, arquivo) {
     const { perguntar, fechar } = criarPerguntador();
