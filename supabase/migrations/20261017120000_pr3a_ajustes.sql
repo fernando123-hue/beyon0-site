@@ -245,3 +245,91 @@ begin
   end loop;
 end $$;
 revoke all on function privado.travar_direcoes(uuid, uuid) from public, anon, authenticated, service_role;
+
+-- ==========================================================================
+-- A ORDEM ÚNICA DE TRAVAS (docs/revisoes/pr1-pendencias.md, PR2b-avisado e PR2b1-escolher-trava): toda função que trava
+-- as direções de uma conversa e a própria conversa faz na MESMA ordem, as direções por id e DEPOIS a conversa. Inserir uma
+-- escolha ou uma proposta trava a direção apontada pela chave estrangeira, então a trava das direções vem antes do
+-- conversa_do (que trava a conversa com FOR UPDATE). Já seguiam: vendas_mudar_pedido (20261015120000) e
+-- vendas_concluir_direcao (uma direção, depois a conversa). As funções novas do bloco de cima já nascem assim.
+-- ==========================================================================
+
+-- a escolha (troca a de 20261008120000_auditoria_p0.sql; o resto é igual)
+create or replace function app.vendas_escolher(p jsonb) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare c app.conversas; d app.direcoes;
+begin
+  perform privado.travar_direcoes((p ->> 'conversa_id')::uuid, (p ->> 'visitante_id')::uuid);
+  c := privado.conversa_do((p ->> 'conversa_id')::uuid, (p ->> 'visitante_id')::uuid);
+  -- trocar de direção só ANTES do 1º ajuste: os ajustes são sobre a direção escolhida (senão o escopo descreve outra)
+  perform privado.exigir_etapa(c, array['direcoes', 'escolhida']);
+  select * into d from app.direcoes
+  where id = (p ->> 'direcao_id')::uuid and conversa_id = c.id and status = 'pronta'
+    and geracao = (select max(x.geracao) from app.direcoes x where x.conversa_id = c.id);
+  if not found then raise exception 'direção não encontrada' using errcode = 'P0002'; end if;
+  insert into app.escolhas (org_id, conversa_id, direcao_id, visitante_id, lead_id, geracao)
+  values (c.org_id, c.id, d.id, c.visitante_id, c.lead_id, d.geracao);
+  update app.conversas set etapa = 'escolhida', ultima_atividade = now() where id = c.id;
+  perform privado.evento(c.org_id, c.id, 'direcao_escolhida', jsonb_build_object('numero', d.numero, 'estrategia', d.estrategia, 'geracao', d.geracao));
+  return jsonb_build_object('direcao_id', d.id);
+end $$;
+
+-- "Já avisei" (troca a de 20261013120100_pedidos_dono.sql): as direções travadas por id ANTES do update
+create or replace function app.vendas_marcar_avisado(p jsonb) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare c app.conversas; v_n integer;
+begin
+  select cv.* into c from app.conversas cv join app.organizacoes o on o.id = cv.org_id
+   where cv.id = (p ->> 'conversa_id')::uuid and o.slug = p ->> 'org_slug';
+  if not found then raise exception 'conversa não encontrada' using errcode = 'P0002'; end if;
+  perform 1 from app.direcoes d where d.conversa_id = c.id order by d.id for update;
+  update app.direcoes set avisada_em = now()
+   where conversa_id = c.id and status = 'pronta' and avisada_em is null
+     and geracao = (select max(x.geracao) from app.direcoes x where x.conversa_id = c.id);
+  get diagnostics v_n = row_count;
+  -- (só conclui se nada ficou em "gerando": avisar as prontas não tira do dono o que ainda falta fazer)
+  if v_n > 0 and not exists (select 1 from app.direcoes where conversa_id = c.id and status = 'gerando') then
+    update app.pedidos set concluido_em = now() where conversa_id = c.id and status = 'confirmado' and concluido_em is null;
+  end if;
+  return jsonb_build_object('avisadas', v_n);
+end $$;
+
+-- o resumo (troca a de 20261007120100_vendas_funcoes.sql; a proposta aponta a direção escolhida pela chave estrangeira)
+create or replace function app.vendas_apresentar_escopo(p jsonb) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare c app.conversas; e app.estimativas; v_escolhida uuid; v_versao integer; v_id uuid; v_sinal_pct integer;
+begin
+  perform privado.travar_direcoes((p ->> 'conversa_id')::uuid, (p ->> 'visitante_id')::uuid);
+  c := privado.conversa_do((p ->> 'conversa_id')::uuid, (p ->> 'visitante_id')::uuid);
+  perform privado.exigir_etapa(c, array['escolhida', 'alteracoes', 'escopo']);
+  select * into e from app.estimativas where conversa_id = c.id order by created_at desc limit 1;
+  if not found then raise exception 'sem estimativa' using errcode = '55000'; end if;
+  -- o texto do escopo foi montado com UMA estimativa: se outra entrou no meio, o texto e o preço não batem
+  if p ? 'estimativa_id' and e.id is distinct from (p ->> 'estimativa_id')::uuid then
+    raise exception 'a estimativa mudou; monte o escopo de novo' using errcode = '40001';
+  end if;
+  select direcao_id into v_escolhida from app.escolhas where conversa_id = c.id order by created_at desc limit 1;
+  v_sinal_pct := case when e.valor_total > 0 then round(e.sinal / e.valor_total * 100) else 0 end;
+  -- a versão anterior apresentada é substituída (o histórico fica)
+  update app.propostas set status = 'substituida' where conversa_id = c.id and status = 'enviada';
+  select coalesce(max(versao), 0) + 1 into v_versao from app.propostas where org_id = c.org_id and lead_id = c.lead_id and projeto_id is null;
+  insert into app.propostas (org_id, lead_id, conversa_id, direcao_id, versao, titulo, escopo, valor_total, moeda, validade,
+                             status, enviada_em, sinal_percentual, prazo_dias)
+  values (c.org_id, c.lead_id, c.id, v_escolhida, v_versao, left(coalesce(p ->> 'titulo', 'Site'), 160), p ->> 'escopo', e.valor_total, 'BRL',
+          (current_date + coalesce((p ->> 'validade_dias')::integer, 7)), 'rascunho', null, v_sinal_pct, e.prazo_dias)
+  returning id into v_id;
+  update app.propostas set status = 'enviada', enviada_em = now() where id = v_id;
+  update app.conversas set etapa = 'escopo', ultima_atividade = now() where id = c.id;
+  perform privado.evento(c.org_id, c.id, 'escopo_apresentado', jsonb_build_object('valor_total', e.valor_total, 'versao', v_versao));
+  return jsonb_build_object('proposta_id', v_id, 'valor_total', e.valor_total, 'sinal_percentual', v_sinal_pct, 'prazo_dias', e.prazo_dias);
+end $$;
+
+-- (create or replace mantém as concessões; repetidas para a migration se explicar sozinha)
+do $$
+declare f text;
+begin
+  foreach f in array array['vendas_escolher', 'vendas_marcar_avisado', 'vendas_apresentar_escopo'] loop
+    execute format('revoke all on function app.%I(jsonb) from public, anon, authenticated', f);
+    execute format('grant execute on function app.%I(jsonb) to service_role', f);
+  end loop;
+end $$;

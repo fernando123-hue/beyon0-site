@@ -158,6 +158,14 @@ test('dono: a fila traz só pedido confirmado na etapa de ajustes, com o texto, 
   item = (await lista()).find(i => i.alteracao_id === l1.alteracao_id);
   assert.equal(item.base_id, a1.alteracao_id);
   assert.deepEqual(item.versao, VERSAO(1));
+  /* isolamento entre organizações (enquanto o pedido está na fila): a fila de outra organização não o enxerga (guarda
+     a.org_id = v_org); slug que não existe é P0002 */
+  const daOrg = await rpc('vendas_pedidos_livres', { org_slug: 'beyon-zero' });
+  assert.ok(daOrg.total >= 1, 'a organização do pedido o vê');
+  const deOutra = await rpc('vendas_pedidos_livres', { org_slug: 'outra' });
+  assert.equal(deOutra.total, 0, 'outra organização: fila vazia');
+  assert.deepEqual(deOutra.itens, []);
+  assert.equal(await codigoDe(rpc('vendas_pedidos_livres', { org_slug: 'nao-existe' })), 'P0002', 'organização desconhecida');
   await rpc('vendas_mudar_pedido', { org_slug: 'beyon-zero', conversa_id: b.conversa_id, acao: 'arquivar' });
   assert.ok(!(await lista()).some(i => i.conversa_id === b.conversa_id), 'pedido arquivado sai da fila de ajustes');
 });
@@ -202,4 +210,34 @@ test('anon e authenticated não executam as funções novas', async () => {
       assert.equal(await codigoDe(como(db, papel, q => q(`select app.${f}('{}'::jsonb)`))), '42501', papel + ' ' + f);
     }
   }
+});
+
+/* (PR2b-avisado, PR2b1-escolher-trava) a ORDEM ÚNICA de travas: as direções por id, depois a conversa. O PGlite tem uma
+   conexão só e a corrida não se reproduz aqui: prova-se a ordem no texto de cada função (falha se alguém inverter) e que
+   elas continuam funcionando */
+const fonteDe = async (esquema, nome) => (await um('select p.prosrc from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = $1 and p.proname = $2', [esquema, nome])).prosrc;
+const vemAntes = (texto, a, b) => texto.indexOf(a) >= 0 && texto.indexOf(b) >= 0 && texto.indexOf(a) < texto.indexOf(b);
+
+test('ordem de travas: em toda função que trava direção e conversa, as direções vêm antes', async () => {
+  for (const f of ['vendas_escolher', 'vendas_registrar_alteracao', 'vendas_pedido_livre', 'vendas_apresentar_escopo'])
+    assert.ok(vemAntes(await fonteDe('app', f), 'privado.travar_direcoes', 'privado.conversa_do'), f);
+  for (const f of ['vendas_mudar_pedido', 'vendas_resolver_pedido_livre'])
+    assert.ok(vemAntes(await fonteDe('app', f), 'order by d.id for update', 'privado.conversa_da_org'), f);
+  assert.ok(vemAntes(await fonteDe('app', 'vendas_marcar_avisado'), 'order by d.id for update', 'update app.direcoes set avisada_em'), 'vendas_marcar_avisado');
+  const trava = await fonteDe('privado', 'travar_direcoes');
+  assert.match(trava, /cv\.visitante_id = p_visitante/, 'só as direções da conversa do próprio visitante');
+  assert.match(trava, /order by d\.id for update of d/);
+});
+
+test('ordem de travas: escolher, avisar e o resumo continuam funcionando; escolher pela conversa de outro visitante é P0002', async () => {
+  const b = await pedidoPronto();
+  await comDirecoesProntas(b);
+  const d = await um('select id from app.direcoes where conversa_id = $1 and numero = 2', [b.conversa_id]);
+  assert.equal(await codigoDe(rpc('vendas_escolher', { conversa_id: b.conversa_id, visitante_id: randomUUID(), direcao_id: d.id })), 'P0002');
+  assert.deepEqual(await rpc('vendas_marcar_avisado', { org_slug: 'beyon-zero', conversa_id: b.conversa_id }), { avisadas: 3 });
+  assert.deepEqual(await rpc('vendas_escolher', { ...dele(b), direcao_id: d.id }), { direcao_id: d.id });
+  const est = await um('select id from app.estimativas where conversa_id = $1 order by created_at desc limit 1', [b.conversa_id]);
+  const r = await rpc('vendas_apresentar_escopo', { ...dele(b), titulo: 'Site', escopo: 'Resumo', estimativa_id: est.id });
+  assert.ok(r.proposta_id, JSON.stringify(r));
+  assert.equal((await estado(b)).conversa.etapa, 'escopo');
 });

@@ -26,10 +26,10 @@ const MOTIVOS = {
 };
 
 /* a recusa de um motivo do banco; motivo que este servidor não conhece (migration à frente do código) vira o 409 de
-   "só uma vez", com log, para não sumir (PR2a-motivo-log) */
-export function recusaDoMotivo(r) {
+   "só uma vez", com log, para não sumir (PR2a-motivo-log). O log leva o request_id do pedido (PR2b1-motivo-request) */
+export function recusaDoMotivo(r, requestId) {
   const motivo = String(r && r.motivo);
-  if (!Object.hasOwn(MOTIVOS, motivo)) console.error(JSON.stringify({ origem: 'vendas', nivel: 'erro', evento: 'detalhes: motivo desconhecido', motivo: motivo.slice(0, 40) }));
+  if (!Object.hasOwn(MOTIVOS, motivo)) console.error(JSON.stringify({ origem: 'vendas', nivel: 'erro', request_id: requestId || null, evento: 'detalhes: motivo desconhecido', motivo: motivo.slice(0, 40) }));
   const m = Object.hasOwn(MOTIVOS, motivo) ? MOTIVOS[motivo] : MOTIVOS.ja_enviado;
   return new Recusa(m.status, m.texto, m.extra);
 }
@@ -68,7 +68,7 @@ export function criarAcoesDoPedido({ banco, visitante, segredoFreio, limites = P
         if (e instanceof ErroBanco && e.codigo === '55000') throw new Recusa(409, FORA_DA_ETAPA);
         throw e;
       }
-      if (!r || r.ok !== true) throw recusaDoMotivo(r);
+      if (!r || r.ok !== true) throw recusaDoMotivo(r, requestId);
       return { codigo: r.codigo, expira_em: r.expira_em };
     }
   };
