@@ -139,6 +139,9 @@ test('privacidade: cobre o primeiro contato, a busca na web com a Anthropic, o P
     'se o celular do negócio aparece nela', 'o endereço da logo', 'uma nota de 0 a 100', 'o CNPJ e a natureza jurídica',
     'todos os telefones do cadastro (fixos também)', 'atividade da empresa', 'enquanto a Beyon Zero fizer esse tipo de contato', 'execução de contrato (artigo 7º, inciso V']) assert.ok(priv.includes(trecho), 'privacidade sem: ' + trecho);
   assert.match(priv, /Anthropic \([^)]*faz uma busca na web[^)]*\)/, 'a Anthropic e a busca na web em "Com quem os dados são tratados"');
+  /* o pedido de ajuste escrito (PR 3a) vai para a ferramenta de IA que a Beyon Zero usa para fazer o ajuste: a política diz */
+  assert.match(priv, /Anthropic \([^)]*os pedidos de ajuste que você escreve depois de escolher o modelo[^)]*ferramenta de inteligência artificial da Anthropic[^)]*telefone, e-mail e documento tirados automaticamente[^)]*\)/,
+    'o pedido de ajuste escrito vai à Anthropic, redigido');
   const retencao = 'enquanto durar a relação e, depois, pelo prazo legal de guarda de comprovantes';
   assert.equal(priv.split(retencao).length - 1, 1, 'a guarda do Pix direto, sem número de anos');
   assert.ok(priv.includes('Depoimento e portfólio: o seu consentimento (artigo 7º, inciso I)'), 'a base legal do depoimento e do portfólio');
