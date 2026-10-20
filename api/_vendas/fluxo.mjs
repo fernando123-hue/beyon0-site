@@ -226,7 +226,9 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     }
     try { return await fn(); }
     finally {
-      const registrado = await gravarChamadas(conversaId, vid);   /* (o de mensagem(), depois, já encontra a lista vazia) */
+      /* (os dois chamadores, mensagem() e gerarDirecao(), deixam o registro só para cá: um gravarChamadas deles esvaziaria a
+         lista e a falha do banco passaria despercebida, liberando a reserva na hora) */
+      const registrado = await gravarChamadas(conversaId, vid);
       if (reserva && registrado) await banco('vendas_liberar_reserva', { reserva_id: reserva, conversa_id: conversaId, visitante_id: vid })
         .catch(e => console.error(JSON.stringify({ origem: 'vendas', nivel: 'erro', request_id: requestId || null, evento: 'reserva não liberada (vence sozinha)', codigo: e && e.codigo })));
     }
@@ -396,7 +398,6 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       try {
         return await comReserva(corpo.conversa_id, vid, 'conversa', () => turno(vid, corpo.conversa_id, est, regras, msg));
       } finally {
-        await gravarChamadas(corpo.conversa_id, vid);
         await banco('vendas_liberar_ia', { conversa_id: corpo.conversa_id, visitante_id: vid }).catch(() => {});
       }
     },
@@ -449,10 +450,8 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
           await banco('vendas_concluir_direcao', { direcao_id: p.direcao_id, erro: 'não foi possível gerar (' + motivo + ')' });
           if (e instanceof ErroIA) return { status: 'falhou', mensagem: RECUPERACAO };
           throw e;
-        } finally {
-          await gravarChamadas(corpo.conversa_id, vid);
         }
-      });
+      });   /* (o registro da chamada é gravado UMA vez, no finally de comReserva, antes de a reserva sair) */
     },
 
     async escolher({ request, corpo }) {

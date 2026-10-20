@@ -10,7 +10,7 @@ import { montarLocal } from '../banco-local.mjs';
 import { atender } from '../../api/vendas.mjs';
 import { criarSimulada } from '../../api/_ia/simulado.mjs';
 import { TETOS } from '../../api/_ia/config.mjs';
-import { LIMITES_DE_TESTE } from './_pedido.mjs';
+import { LIMITES_DE_TESTE, detalhesEConfirmar } from './_pedido.mjs';
 
 const BASE = 'http://127.0.0.1:8899';
 const RESP = { ramo: 'saude', cidade: 'Niterói', objetivos: ['agendamentos'], site_atual: 'instagram', material: 'tenho' };
@@ -102,6 +102,25 @@ test('teto do dia: se o registro da chamada não grava, a reserva NÃO é libera
   const r = await nav.chamar('POST', 'mensagem', { conversa_id: c, texto: TEXTO });
   assert.equal(r.status, 200, 'a falha do registro não derruba a conversa: ' + JSON.stringify(r.corpo));
   assert.equal((await q('select count(*)::int n from privado.reservas_ia where conversa_id = $1', [c])).rows[0].n, 1, 'a reserva fica, em vez de zerar a conta na hora');
+  await q('delete from privado.reservas_ia where conversa_id = $1', [c]);
+});
+
+/* a geração (Opus, a chamada mais cara) tinha um segundo gravarChamadas, de dentro, que esvaziava a lista e ignorava a falha;
+   o de comReserva achava a lista vazia e liberava a reserva na hora (revisões finais da auditoria run-1) */
+test('teto do dia: na geração de direção, se o registro da chamada não grava, a reserva também NÃO é liberada', async () => {
+  const nav = navegador({ ...deps, banco: async (nome, p) => {
+    if (nome === 'vendas_registrar_ia') throw Object.assign(new Error('x'), { codigo: '57014' });
+    return deps.banco(nome, p);
+  } });
+  const c = await nav.iniciar();
+  const versao = (await nav.chamar('POST', 'simular', { conversa_id: c, respostas: RESP })).corpo.versao;
+  assert.equal((await nav.chamar('POST', 'confirmar-pacote', { conversa_id: c, respostas: RESP, versao })).status, 200);
+  await detalhesEConfirmar(nav.chamar, local.rpc, c);
+  const g = await nav.chamar('POST', 'gerar', { conversa_id: c });
+  assert.equal(g.corpo.direcoes.length, 3);
+  const r = await nav.chamar('POST', 'gerar-direcao', { conversa_id: c, direcao_id: g.corpo.direcoes[0].id });
+  assert.equal(r.corpo.status, 'pronta', 'a falha do registro não derruba a geração: ' + JSON.stringify(r.corpo));
+  assert.equal((await q('select count(*)::int n from privado.reservas_ia where conversa_id = $1', [c])).rows[0].n, 1, 'a reserva da geração fica até vencer');
   await q('delete from privado.reservas_ia where conversa_id = $1', [c]);
 });
 
