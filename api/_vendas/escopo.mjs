@@ -8,7 +8,7 @@
 const brl = v => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const ROTULO = { conversao: 'Conversão', autoridade: 'Autoridade', experiencia: 'Experiência' };
 /* o nome que o cliente lê (o tipo técnico fica só nos dados) */
-const NOME_SECAO = { hero: 'abertura', servicos: 'serviços', sobre: 'sobre', diferenciais: 'diferenciais', processo: 'como funciona', depoimentos: 'depoimentos', numeros: 'números', galeria: 'galeria', faq: 'perguntas frequentes', cta: 'chamada para contato', contato: 'contato', equipe: 'equipe', destaque: 'destaque', localizacao: 'localização' };
+export const NOME_SECAO = { hero: 'abertura', servicos: 'serviços', sobre: 'sobre', diferenciais: 'diferenciais', processo: 'como funciona', depoimentos: 'depoimentos', numeros: 'números', galeria: 'galeria', faq: 'perguntas frequentes', cta: 'chamada para contato', contato: 'contato', equipe: 'equipe', destaque: 'destaque', localizacao: 'localização' };
 
 const NOME_OP = { usar_paleta_de: 'cores da direção', usar_tipografia_de: 'fontes da direção', cor: 'cor', tipografia: 'fontes', tema: 'tema',
   mover_antes_de: 'seção movida', mover_depois_de: 'seção movida', remover_secao: 'seção removida', adicionar_secao: 'seção adicionada',
@@ -24,7 +24,7 @@ export function nomesDosItens(estimativa) {
   const itens = [...(estimativa?.itens || []), ...(estimativa?.fase_seguinte?.itens || [])];
   return new Map(itens.filter(i => i && typeof i.chave === 'string' && typeof i.nome === 'string').map(i => [i.chave, i.nome]));
 }
-/* (também a frase do ajuste para o visitante: alteracoes.mjs → paraVisitante) */
+/* (também a frase de um ajuste antigo no resumo; o rótulo das opções prontas é de opcoes.mjs) */
 export function linhaAlteracao(a, adicionais = new Map()) {
   const partes = [daTabela(NOME_OP, a.operacao) || 'ajuste'];
   if (a.operacao === 'usar_paleta_de' || a.operacao === 'usar_tipografia_de') { if (Number.isInteger(a.direcao)) partes[0] += ' ' + a.direcao; }
@@ -36,7 +36,20 @@ export function linhaAlteracao(a, adicionais = new Map()) {
   return partes.join(': ');
 }
 
-export function montarEscopo({ estimativa, direcao, alteracoesAplicadas, briefing }) {
+/* (PR 3a) os pedidos livres no resumo: só uma linha FIXA do código, com as contas. O texto da pessoa nunca entra no
+   contrato (spec §7, "pedido livre fora do contrato"): a proposta fica imutável depois de enviada, a retenção não a limpa
+   e a privacidade promete apagar os pedidos de ajuste em 2 meses. O texto de cada pedido aparece só na tela */
+export function linhaDosPedidosLivres(pedidosLivres) {
+  const conta = s => (pedidosLivres || []).filter(p => p && p.status === s).length;
+  const feitos = conta('aplicada'), fora = conta('na_fila') + conta('recusada');
+  if (!feitos && !fora) return null;
+  const partes = [];
+  if (feitos) partes.push(feitos + (feitos === 1 ? ' feito' : ' feitos') + ' pela Beyon Zero');
+  if (fora) partes.push(fora + (fora === 1 ? ' não incluído neste valor (aguardando ou recusado)' : ' não incluídos neste valor (aguardando ou recusados)'));
+  return '- Pedidos escritos: ' + partes.join(', ') + '.';
+}
+
+export function montarEscopo({ estimativa, direcao, alteracoesAplicadas, briefing, pedidosLivres = [] }) {
   const nome = briefing?.negocio?.nome || briefing?.negocio?.segmento || 'seu negócio';
   const titulo = (estimativa.formato?.nome || 'Site') + ' — ' + nome;
   const linhas = [];
@@ -50,6 +63,8 @@ export function montarEscopo({ estimativa, direcao, alteracoesAplicadas, briefin
     /* só campos de lista fechada: o texto livre do modelo (descricao) nunca entra no contrato */
     for (const a of aplicadas) linhas.push('- ' + linhaAlteracao(a, adicionais));
   }
+  const pedidosEscritos = linhaDosPedidosLivres(pedidosLivres);
+  if (pedidosEscritos) linhas.push('', 'PEDIDOS ESCRITOS', pedidosEscritos);
   linhas.push('', 'ESCOPO');
   linhas.push('- ' + estimativa.formato.nome + ' com até ' + Math.max(estimativa.formato.paginas_incluidas, estimativa.fatores?.paginas || 0) + ' página(s).');
   for (const i of estimativa.itens || []) if (i.chave !== 'pagina_extra') linhas.push('- ' + i.nome + (i.qtd > 1 ? ' (' + i.qtd + ')' : '') + '.');

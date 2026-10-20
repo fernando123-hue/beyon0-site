@@ -4,10 +4,10 @@
    na prévia/desenvolvimento dela, e com BZ_LOCAL=1 ou BZ_IA=simulada). Determinístico: palavras-chave → as mesmas chamadas de
    ferramenta e o mesmo formato de resposta do modelo real, para o fluxo
    inteiro ser exercitado sem custo. Não é o agente: é um dublê dele.
-   A geração das direções tem o seu dublê em simulado-geracao.mjs.
+   A geração das direções tem o seu dublê em simulado-geracao.mjs (o da tradução de ajustes saiu com o ajuste pela IA, PR 3a).
    ========================================================================== */
 import { pareceInjecao } from '../_vendas/seguranca.mjs';
-import { gerarSimulado, extrairSimulado } from './simulado-geracao.mjs';
+import { gerarSimulado } from './simulado-geracao.mjs';
 
 const SEGMENTOS = [[/odonto|dentist/i, 'odontologia'], [/cl[ií]nica|consult[óo]rio|m[ée]dic/i, 'saúde'], [/advoca|advogad|escrit[óo]rio jur/i, 'advocacia'],
   [/restaurante|lanchonete|pizzaria|caf[ée]/i, 'alimentação'], [/academia|personal|pilates/i, 'fitness'], [/contab/i, 'contabilidade'],
@@ -86,7 +86,7 @@ function conversa({ mensagens, contexto }) {
   return resposta('', chamadas);
 }
 
-export function criarSimulada({ geracao = gerarSimulado, extracao = extrairSimulado } = {}) {
+export function criarSimulada({ geracao = gerarSimulado, extracao = null } = {}) {
   return {
     nome: 'simulada',
     async mensagem(pedido) {

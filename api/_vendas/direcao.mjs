@@ -57,6 +57,9 @@ const legivelSobre = fundo => (contraste('#111111', fundo) >= contraste('#FFFFFF
 const t = (v, max) => (typeof v === 'string' ? v.replace(/[\u0000-\u001f<>]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max) : '');
 const LOREM = /lorem ipsum|dolor sit amet/i;
 
+/* o teto de seções de um modelo: o higienizar corta aqui; ajustar confere antes de acrescentar (fluxo-ajustes.mjs) */
+export const MAX_SECOES = 12;
+
 export function higienizar(bruta, estrategia) {
   if (!bruta || typeof bruta !== 'object') return { erro: 'direção vazia' };
   const d = bruta;
@@ -74,7 +77,7 @@ export function higienizar(bruta, estrategia) {
   if (contraste(paleta.destaque_texto, paleta.destaque) < 4.5) { paleta.destaque_texto = legivelSobre(paleta.destaque); ajustes.push('destaque_texto'); }
 
   const tip = d.identidade?.tipografia || {}, est = d.identidade?.estilo || {};
-  const secoes = (Array.isArray(d.secoes) ? d.secoes : []).filter(x => x && TIPOS_SECAO.includes(x.tipo)).slice(0, 12).map(x => ({
+  const secoes = (Array.isArray(d.secoes) ? d.secoes : []).filter(x => x && TIPOS_SECAO.includes(x.tipo)).slice(0, MAX_SECOES).map(x => ({
     tipo: x.tipo,
     variante: VARIANTES.includes(x.variante) ? x.variante : 'centro',
     rotulo: t(x.rotulo, 40), titulo: t(x.titulo, 120), subtitulo: t(x.subtitulo, 220), texto: t(x.texto, 700),

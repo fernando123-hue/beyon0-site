@@ -337,3 +337,24 @@ test('detalhes: motivo desconhecido do banco vira o 409 de "só uma vez" com log
     assert.equal(logs.length, 0, 'motivo conhecido não loga');
   } finally { console.error = original; }
 });
+
+/* PR2b1-motivo-request: o log do motivo desconhecido leva o request_id (filtra-se o caso no painel da Vercel) */
+test('detalhes: o log do motivo desconhecido leva o request_id do pedido', async () => {
+  const { recusaDoMotivo, criarAcoesDoPedido } = await import('../../api/_vendas/fluxo-pedido.mjs');
+  const logs = [], original = console.error;
+  console.error = (...a) => logs.push(a.join(' '));
+  try {
+    recusaDoMotivo({ ok: false, motivo: 'motivo_novo' }, 'req-123');
+    assert.equal(JSON.parse(logs[0]).request_id, 'req-123');
+    logs.length = 0;
+    recusaDoMotivo({ ok: false, motivo: 'motivo_novo' });
+    assert.equal(JSON.parse(logs[0]).request_id, null, 'sem o pedido, null (o campo existe para filtrar)');
+    logs.length = 0;
+    const acoes = criarAcoesDoPedido({ banco: async () => ({ ok: false, motivo: 'motivo_de_amanha' }), visitante: async () => '11111111-1111-4111-8111-111111111111',
+      segredoFreio: 's'.repeat(32), requestId: 'req-do-pedido' });
+    const pedido = new Request('http://127.0.0.1:8899/api/vendas?acao=detalhes', { method: 'POST', headers: { 'x-forwarded-for': '203.0.113.250' } });
+    await assert.rejects(acoes.detalhes({ request: pedido, corpo: { conversa_id: '22222222-2222-4222-8222-222222222222', negocio: 'Clínica Sol', vende: 'Consultas', telefone: '(21) 98765-0000', aceite: true } }),
+      e => e.status === 409);
+    assert.equal(JSON.parse(logs.find(l => l.includes('motivo_de_amanha'))).request_id, 'req-do-pedido');
+  } finally { console.error = original; }
+});

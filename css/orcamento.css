@@ -167,6 +167,43 @@ html.orc-retomando .orc-lead, html.orc-retomando .orc-etapas, html.orc-retomando
 .orc-mudancas li.is-nao::before { content: "—"; color: var(--t3); }
 .orc-seguir { margin-top: 1.4rem; }
 .orc-aj-resposta:not(:empty) { margin: 0 0 1rem; color: var(--t1); padding-left: .8rem; border-left: 1px solid var(--line-hi); }
+/* os ajustes sem IA (PR 3a, js/orcamento-ajustes.js): grupos de botões que quebram linha no celular; texto de 16px;
+   nada mais largo que a tela; sem sombra nem desfoque */
+.orc-mudancas { font-size: 1rem; }
+.orc-mudancas li.is-fila::before { content: "…"; color: var(--t2); }
+.orc-mudancas li.is-desfeita { text-decoration: line-through; text-decoration-color: var(--t3); }
+.orc-aj { display: flex; flex-direction: column; gap: 1.2rem; margin-bottom: 1rem; max-width: 60ch; }
+.orc-aj:empty { display: none; }
+.orc-aj__grupo { display: flex; flex-direction: column; gap: .6rem; }
+.orc-aj__titulo { font-size: 1.1rem; font-weight: 400; }
+.orc-aj__botoes { display: flex; flex-wrap: wrap; gap: .5rem; }
+.orc-aj .btn, .orc-aj__desfazer { min-height: 44px; font-size: 1rem; }
+/* os botões dos ajustes falam como gente (o .btn de css/base.css é mono e caixa alta): Sora, frase normal, 16px, como os
+   das perguntas e dos detalhes (as duas regras parecidas mais abaixo neste arquivo) */
+.orc-aj .btn, .orc-aj__desfazer, .orc-versao .btn, .orc-livre .btn, .orc-dialogo .btn { font-family: var(--sans); font-size: var(--fs-b); text-transform: none; letter-spacing: normal; }
+.orc-aj__limite { font-size: 1rem; color: var(--t2); }
+.orc-aj__desfazer { margin-bottom: 1rem; }
+.orc-aj__secoes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .5rem; }
+.orc-aj__secao { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; padding: .6rem .8rem;
+  border: 1px solid var(--line); border-radius: var(--raio-s); background: var(--s1); overflow-wrap: anywhere; }
+.orc-aj__nome { font-size: 1rem; color: var(--t1); }
+.orc-aj__fixa { font-size: 1rem; color: var(--t3); }
+/* (sem "gap": as regiões vivas #o-livre-resposta e #o-livre-erro ficam SEMPRE na árvore de acessibilidade, vazias e sem altura,
+   para o leitor de tela anunciar o que entrar nelas; com gap cada uma vazia ainda abriria um vão. O vão vem da margem de quem tem texto) */
+.orc-livre { display: flex; flex-direction: column; margin: 1.2rem 0; max-width: 60ch; }
+.orc-livre > :not(:empty):not(:first-child), .orc-livre .orc-livre__campos > :not(:first-child) { margin-top: .6rem; }
+.orc-livre__campos { display: flex; flex-direction: column; }
+.orc-livre label { font-size: 1rem; color: var(--t1); }
+.orc-livre textarea { width: 100%; min-height: 96px; padding: .8rem .9rem; border: 1px solid var(--stroke); border-radius: var(--raio-s);
+  background: var(--bg); color: var(--t1); font: inherit; font-size: 1rem; line-height: 1.45; resize: vertical; }
+.orc-livre textarea:focus-visible { outline: 2px solid var(--ac); outline-offset: 1px; border-color: var(--ac); }
+.orc-livre .orc-nota { margin-top: 0; font-size: 1rem; color: var(--t2); }
+.orc-livre .btn { min-height: 48px; align-self: flex-start; }
+.orc-livre .orc-erro { font-size: 1rem; min-height: 0; }
+.orc-livre .orc-nota:focus { outline: none; }   /* (o foco do teclado pousa na conta quando o campo some: sem anel, como os títulos) */
+.orc-dialogo { margin: auto; max-width: min(92vw, 420px); padding: 1.2rem; border: 1px solid var(--line-hi); border-radius: var(--raio); background: var(--s1); color: var(--t1); }
+.orc-dialogo::backdrop { background: rgb(0 0 0 / .72); }   /* (escurece sem desfoque: regra do dono) */
+.orc-dialogo h3 { font-size: 1.1rem; font-weight: 400; margin-bottom: 1rem; }
 .dir__selo { display: inline-flex; align-items: center; min-height: 42px; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--ac); }
 .orc-det { margin-top: 1.2rem; }
 .orc-det summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-size: var(--fs-s); color: var(--t2); }

@@ -17,7 +17,7 @@ Branch `rebuild-v2`. Nada foi para produção: a `main` (o site no ar) segue `81
   - teto de 10 dias, dividindo o excedente numa fase seguinte por prioridade;
   - o que não tem preço automático vai para diagnóstico.
 - **Camada de IA** trocável (`api/_ia`):
-  - Haiku 5.5 na conversa e na extração (modo econômico, 2026-10-08; antes Sonnet 5.5); Opus 5.5 com esforço alto na geração;
+  - Haiku 5.5 na conversa e na extração do briefing (modo econômico, 2026-10-08; antes Sonnet 5.5); Opus 5.5 com esforço alto na geração; os ajustes do modelo escolhido não usam IA (PR 3a);
   - reserva automática do servidor;
   - cache do prompt de sistema;
   - saída em JSON Schema;
@@ -30,7 +30,7 @@ Branch `rebuild-v2`. Nada foi para produção: a `main` (o site no ar) segue `81
   - HTML removido;
   - "lorem ipsum" recusado;
   - prova social sem dado vira espaço reservado.
-- **Alterações** em linguagem natural viram operações de uma lista fechada, e o código as aplica. Escopo novo passa pelo motor de preço.
+- **Ajustes sem IA** (PR 3a): o cliente escolhe opções prontas de uma lista fechada (cores e fontes de outro modelo, mover, tirar ou acrescentar seção, desfazer), e o código as aplica; até 3 pedidos escritos vão para a fila do dono, que faz ou recusa. Nenhum ajuste muda o preço; mudança de preço por ajuste fica para o PR 3b.
 - **Escopo final** montado pelo código, com confirmação explícita e a marcação de início dentro dos 7 dias do CDC.
 - **Pagamento.** Cobrança do sinal com o valor tirado da proposta aceita. O webhook confere a assinatura, consulta o gateway e confirma no banco, de forma idempotente e com o valor conferido. O sinal pago cria o cliente e o projeto. **Substituído pelo módulo de pagamentos com Mercado Pago** (`docs/pagamentos/01-ARQUITETURA-E-OPERACAO.md`).
 - **API** (`/api/vendas`, `/api/pagamentos`): freio por IP, JSON obrigatório, corpo limitado, token do visitante, erros sem dado pessoal. Tetos de custo por conversa e por dia, e de turnos e de gerações.

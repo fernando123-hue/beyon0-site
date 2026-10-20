@@ -108,16 +108,13 @@ Migrations `20261007120000` a `…120200`.
 
 ## Incremento 5: alterações e escopo final
 
-- **Interpretação** (`api/_vendas/alteracoes.mjs`). O Haiku 5.5 (modo econômico; antes, Sonnet 5.5), com esforço baixo e saída em JSON Schema, só traduz o pedido em operações de uma lista fechada:
-  - paleta ou tipografia de outra direção;
-  - cor;
-  - tema;
-  - mover, remover ou adicionar seção;
-  - trocar texto;
-  - escopo (adicional ou páginas);
-  - não suportado, sempre com o motivo.
-- **Quem aplica é o código.** Depois, a direção passa de novo pela higienização (o contraste é corrigido).
-- **Mudança de escopo volta ao motor de preço.** Nenhum preço muda por pedido escrito.
+- **Sem IA nos ajustes** (PR 3a, spec `docs/specs/2026-10-11-orcamento-sem-ia.md` §4; antes, o Haiku interpretava o pedido escrito). Três ações em `api/_vendas/fluxo-ajustes.mjs`, nenhuma chama modelo:
+  - `ajustar`: UMA opção pronta de uma lista fechada (`api/_vendas/opcoes.mjs`): paleta ou tipografia de OUTRO modelo pronto da geração atual; subir, descer, tirar ou acrescentar (de outro modelo) uma seção. Máximo de 12 seções por modelo (`MAX_SECOES`, `api/_vendas/direcao.mjs`); no máximo 30 ajustes por pedido, contando os desfeitos;
+  - `desfazer`: volta o último ajuste de opção pronta (o trabalho do dono não se desfaz por aqui);
+  - `pedido-livre`: até 3 pedidos escritos, de 1 a 300 caracteres, redigidos (telefone, e-mail, documento) e numa linha só, que vão para a fila do dono (`?fila=ajustes`, comandos `ajustes`, `ajuste-feito` e `ajuste-recusado`; ver `02-OPERACAO.md`). Não atrasam o início.
+  A ação antiga `alterar` saiu (404).
+- **Quem aplica é o código** (`aplicar`, em `api/_vendas/alteracoes.mjs`). A versão passa de novo pela higienização (o contraste é corrigido) e é gravada com a base lida (`base_id`): se outro ajuste entrou no meio, o banco recusa (40001).
+- **Nenhuma opção muda o preço.** Mudança de preço a partir de ajuste é do PR 3b; o resumo só CONTA os pedidos escritos (feitos, e não incluídos neste valor), sem o texto deles.
 - **Escopo final** (`api/_vendas/escopo.mjs`). É montado pelo código, sem IA, a partir da estimativa gravada e da direção final. Traz a direção escolhida, as alterações, o escopo, a fase seguinte, o investimento com o sinal e o prazo.
 
 ## Incremento 6: a API e o pagamento

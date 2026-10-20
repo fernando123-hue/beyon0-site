@@ -323,18 +323,35 @@
       <ol class="orc-dirs" id="o-dirs"></ol>
     </section>
 
-    <!-- AJUSTES -->
+    <!-- AJUSTES SEM IA (PR 3a, js/orcamento-ajustes.js): opções prontas, desfazer e o pedido livre (até 3, fila do dono) -->
     <section class="orc-bloco" id="o-ajustes" aria-labelledby="o-aj-titulo" hidden>
-      <h2 id="o-aj-titulo">Ajuste do seu jeito</h2>
-      <p class="orc-bloco__lead">Escreva o que mudaria (a troca de direção vale até o primeiro ajuste). Exemplos: “quero a cor da primeira”, “coloque os depoimentos antes dos serviços”, “quero mais uma página”.</p>
+      <h2 id="o-aj-titulo" tabindex="-1">Ajuste do seu jeito</h2>
+      <p class="orc-bloco__lead">Toque no que quer mudar no seu modelo. Cada ajuste aparece na sua versão e pode ser desfeito.</p>
       <div class="orc-versao" id="o-versao"></div>
-      <p class="orc-aj-resposta" id="o-aj-resposta" aria-live="polite"></p>
+      <p class="orc-aj-resposta" id="o-aj-resposta" role="status"></p>
+      <div class="orc-aj" id="o-aj-opcoes"></div>
+      <button class="btn btn--sm orc-aj__desfazer" type="button" id="o-aj-desfazer" data-acao hidden>Desfazer o último ajuste</button>
       <ul class="orc-mudancas" id="o-mudancas"></ul>
-      <form class="orc-envio" id="o-aj-form" novalidate>
-        <label class="sr-only" for="o-aj-texto">O que você mudaria?</label>
-        <textarea id="o-aj-texto" rows="3" maxlength="2000" placeholder="O que você mudaria?"></textarea>
-        <button class="btn" type="submit">Aplicar</button>
+      <form class="orc-livre" id="o-livre-form" novalidate>
+        <div class="orc-livre__campos" id="o-livre-campos">
+          <label for="o-livre-texto">Quer outra mudança? Escreva aqui</label>
+          <p class="orc-nota" id="o-livre-aviso">Não escreva seu nome, telefone, e-mail, CPF nem dados de outras pessoas.</p>
+          <textarea id="o-livre-texto" rows="3" maxlength="300" aria-describedby="o-livre-aviso o-livre-conta"></textarea>
+          <button class="btn" type="submit" data-acao>Enviar pedido</button>
+          <p class="orc-nota">Seu pedido entra junto; não atrasa o início.</p>
+        </div>
+        <p class="orc-nota" id="o-livre-fora" tabindex="-1" hidden>Este pedido segue com a Beyon Zero <a data-wa="quero pedir uma mudança no meu orçamento" href="https://wa.me/5521977167944">pelo WhatsApp</a>: escreva por lá o que quer mudar.</p>
+        <p class="orc-nota" id="o-livre-conta" tabindex="-1"></p>
+        <p class="orc-nota orc-livre__resposta" id="o-livre-resposta" role="status"></p>
+        <p class="orc-erro" id="o-livre-erro" role="alert"></p>
       </form>
+      <dialog class="orc-dialogo" id="o-aj-aviso" aria-labelledby="o-aj-aviso-titulo">
+        <h3 id="o-aj-aviso-titulo">Depois disso, não dá para trocar de modelo. Continuar?</h3>
+        <div class="orc-aviso__acoes">
+          <button class="btn btn--primary" type="button" id="o-aj-aviso-sim">Continuar</button>
+          <button class="btn btn--ghost" type="button" id="o-aj-aviso-nao">Voltar</button>
+        </div>
+      </dialog>
       <button class="btn btn--primary orc-seguir" type="button" id="o-fechar-escopo" data-acao>Está bom assim: ver o resumo</button>
     </section>
 
@@ -519,6 +536,7 @@
   <script src="js/orcamento-espera.js" defer></script>
   <script src="js/orcamento-retomada.js" defer></script>
   <script src="js/orcamento-preparo.js" defer></script>
+  <script src="js/orcamento-ajustes.js" defer></script>
   <script src="js/orcamento.js" defer></script>
 </body>
 </html>

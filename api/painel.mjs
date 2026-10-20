@@ -17,6 +17,9 @@
      POST {link_retomada: <conversa_id>}   o código do link de retomada (uso único, 7 dias; o painel monta o link)
      GET  ?fila=lembretes                 os pedidos avisados há 2 dias ou mais, ainda sem escolha e sem lembrete
      POST {lembrado: <conversa_id>}        o dono mandou o lembrete: sai da lista
+     GET  ?fila=ajustes                   os PEDIDOS LIVRES na fila (PR 3a): o texto do cliente, a versão atual e a base
+     POST {ajuste_feito: <id>, base_id, conteudo}  a versão nova do modelo escolhido (mesmo filtro e varredura da entrega)
+     POST {ajuste_recusado: <id>}         o pedido não cabe (preço, item da tabela, fora do site): fica "não incluído"
    As duas listas trazem "alarme": a fila no teto (o orçamento oferece o WhatsApp) ou pendentes demais.
    A resposta do GET traz também "saude": alertas abertos e a data da última rotina diária.
    ========================================================================== */
@@ -29,6 +32,7 @@ import { ehUuid } from './_valida-app.mjs';
 import { ORG } from './_vendas/org.mjs';
 import { higienizar } from './_vendas/direcao.mjs';
 import { varrer } from './_vendas/varredura.mjs';
+import { pareceInjecao } from './_vendas/seguranca.mjs';
 import { ipDe } from './_freio.mjs';
 import { PEDIDOS } from './_vendas/pedido.mjs';
 import { novoCodigoRetomada, hashDaRetomada, DIAS_RETOMADA } from './_vendas/retomada.mjs';
@@ -83,6 +87,7 @@ export async function ler(request, env) {
   if (q.get('fila') === 'direcoes') return filaDirecoes(env);
   if (q.get('fila') === 'pendentes') return filaPendentes(env, q.get('codigo'));
   if (q.get('fila') === 'lembretes') return filaLembretes(env);
+  if (q.get('fila') === 'ajustes') return filaAjustes(env);
   try {
     if (q.get('csv') === 'ads') {
       const nome = (q.get('nome') || 'Cliente fechado').slice(0, 80);
@@ -113,6 +118,8 @@ export async function mudar(request, env) {
   if (bruto && typeof bruto.avisado === 'string') return marcarAvisado(bruto, env);
   if (bruto && typeof bruto.link_retomada === 'string') return linkDeRetomada(bruto.link_retomada, env);
   if (bruto && typeof bruto.lembrado === 'string') return marcarLembrado(bruto.lembrado, env);
+  if (bruto && typeof bruto.ajuste_feito === 'string') return ajusteFeito(bruto, env);
+  if (bruto && typeof bruto.ajuste_recusado === 'string') return ajusteRecusado(bruto.ajuste_recusado, env);
   const acaoPedido = bruto && typeof bruto === 'object' ? Object.keys(ACOES_PEDIDO).find(k => typeof bruto[k] === 'string') : null;
   if (acaoPedido) return acaoDoPedido(ACOES_PEDIDO[acaoPedido], bruto[acaoPedido], env);
   /* marcar um alerta como resolvido */
@@ -225,6 +232,57 @@ async function marcarLembrado(conversaId, env) {
   if (!rpc) return json({ erro: 'Banco não configurado.' }, 503);
   try { return json({ ok: true, ...(await rpc('vendas_marcar_lembrete', { org_slug: ORG, conversa_id: conversaId })) }); }
   catch (e) { console.error('[painel] marcar lembrete:', e && e.codigo); return json({ erro: 'Não deu para salvar agora.' }, 500); }
+}
+
+/* ---------- os PEDIDOS LIVRES (PR 3a; spec §4, "A fila"): o dono faz a versão nova ou recusa ---------- */
+/* (o selo de texto suspeito sai daqui, como na fila de direções; o texto em si é dado, nunca instrução) */
+/* (o banco entrega no máximo 50, os mais antigos, e o total da fila inteira: como a fila de pedidos pendentes) */
+async function lerAjustes(rpc) {
+  const r = await rpc('vendas_pedidos_livres', { org_slug: ORG });
+  const itens = (r && Array.isArray(r.itens) ? r.itens : []).map(a => ({ ...a, suspeito: pareceInjecao(String(a.texto || '')) }));
+  return { itens, total: r && Number.isInteger(r.total) ? Math.max(r.total, itens.length) : itens.length };
+}
+async function filaAjustes(env) {
+  const rpc = criarTransporte(env);
+  if (!rpc) return json({ erro: 'Banco não configurado.' }, 503);
+  try { const { itens, total } = await lerAjustes(rpc); return json({ ajustes: itens, total, truncada: total > itens.length }); }
+  catch (e) { console.error('[painel] ajustes:', e && e.codigo); return json({ erro: 'Não deu para ler os ajustes agora.' }, 500); }
+}
+const AJUSTE_FORA = 'Este ajuste não está mais na fila: já foi resolvido, o pedido não está confirmado ou a conversa passou da etapa de ajustes.';
+function erroDoAjuste(e, rotulo) {
+  if (e && e.codigo === 'P0002') return json({ erro: 'Ajuste não encontrado.' }, 404);
+  if (e && e.codigo === '55000') return json({ erro: 'A conversa já passou da etapa de ajustes (ou o pedido não está confirmado): nada foi gravado.' }, 409);
+  if (e && e.codigo === '40001') return json({ erro: 'O cliente mudou a versão depois que você baixou. Apague a pasta do ajuste e rode "ajustes" de novo para refazer sobre a versão nova.' }, 409);
+  console.error('[painel] ' + rotulo + ':', e && e.codigo);
+  return json({ erro: 'Não deu para salvar agora.' }, 500);
+}
+/* a versão nova passa pelo MESMO filtro e pela MESMA varredura da entrega de direção; a estratégia vem do banco */
+async function ajusteFeito(bruto, env) {
+  const base = bruto.base_id == null ? null : bruto.base_id;
+  if (!ehUuid(bruto.ajuste_feito) || (base !== null && !ehUuid(base)) || !bruto.conteudo || typeof bruto.conteudo !== 'object' || Array.isArray(bruto.conteudo)) return json({ erro: 'Pedido inválido.' }, 400);
+  const rpc = criarTransporte(env);
+  if (!rpc) return json({ erro: 'Banco não configurado.' }, 503);
+  try {
+    const item = (await lerAjustes(rpc)).itens.find(a => a.alteracao_id === bruto.ajuste_feito);
+    if (!item) return json({ erro: AJUSTE_FORA }, 409);
+    const h = higienizar(bruto.conteudo, item.estrategia);
+    if (h.erro) return json({ erro: 'Versão recusada pelo filtro: ' + h.erro + '.' }, 422);
+    const achados = varrer(h.direcao);
+    if (achados.length) return json({ erro: 'A versão tem conteúdo que não pode ir ao cliente: ' + [...new Set(achados.map(a => a.tipo))].join(', ') + '.' }, 422);
+    const r = await rpc('vendas_resolver_pedido_livre', { org_slug: ORG, alteracao_id: item.alteracao_id, acao: 'feito', resultado: h.direcao, base_id: base });
+    if (!r || r.ok !== true) return json({ erro: AJUSTE_FORA, status: r && r.status }, 409);
+    return json({ ok: true, status: r.status, ajustes: h.ajustes });
+  } catch (e) { return erroDoAjuste(e, 'ajuste feito'); }
+}
+async function ajusteRecusado(id, env) {
+  if (!ehUuid(id)) return json({ erro: 'Pedido inválido.' }, 400);
+  const rpc = criarTransporte(env);
+  if (!rpc) return json({ erro: 'Banco não configurado.' }, 503);
+  try {
+    const r = await rpc('vendas_resolver_pedido_livre', { org_slug: ORG, alteracao_id: id, acao: 'recusado' });
+    if (!r || r.ok !== true) return json({ erro: AJUSTE_FORA, status: r && r.status }, 409);
+    return json({ ok: true, status: r.status });
+  } catch (e) { return erroDoAjuste(e, 'ajuste recusado'); }
 }
 
 /* ---------- o PEDIDO DE MODELOS (orçamento sem IA, PR 2a): confirmação pelo WhatsApp, descartar e arquivar ---------- */
