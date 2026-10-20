@@ -157,7 +157,7 @@
 @media (min-width: 861px) { .hero__rail { gap: clamp(14px, 1.4vw, 20px); } }
 
 /* ---------- 2. SERVIÇOS ---------- */
-.servicos { display: grid; grid-template-columns: 1fr; gap: var(--vao); }
+.servicos { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--vao); }   /* (minmax: um conteúdo largo dentro de um cartão nunca alarga a página — o nome longo no botão da peça abria rolagem lateral) */
 .servicos > :nth-child(1), .servicos > :nth-child(2) { --tinta-rgb: var(--ac-rgb); }
 .servicos > :nth-child(3) { --tinta-rgb: var(--prata-rgb); }
 .servico { display: flex; flex-direction: column; gap: .6rem; padding: var(--mod-pad); }
@@ -170,6 +170,36 @@
 .servico__formatos { display: none; }
 @media (min-width: 721px) { .servicos { grid-template-columns: repeat(3, minmax(0, 1fr)); } .servico { min-height: 300px; } }
 @media (min-width: 721px) and (max-width: 980px) { .servicos--quatro { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* O CARTÃO COM PEÇA (2026-10-14, docs/restructure/PECAS-SERVICOS.md): a peça interativa (css/peca-*.css) mora no
+   cartão, então o cartão deixa de ser um <a> inteiro (link dentro de controle não vale) e vira <article> com o
+   link esticado por baixo; a peça fica por cima (z-index 2) e continua interativa.
+   Celular: título e preço antes da peça (a ordem do HTML); do tablet para cima a peça abre o cartão. */
+/* o próximo passo de cada peça ("Quero o meu site", "Quero o diagnóstico…") */
+.peca-quero {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: .6rem; min-height: 48px; padding: 0 1.1rem;
+  border: 1px solid rgb(var(--ac-rgb) / .6); border-radius: var(--raio-s); color: var(--ac);
+  font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-ctrl); text-transform: uppercase; text-decoration: none;
+  transition: background-color var(--t-micro) var(--ease-micro), border-color var(--t-micro) var(--ease-micro);
+}
+.peca-quero:hover { background: rgb(var(--ac-rgb) / .08); border-color: var(--ac); }
+.peca-quero:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
+.peca-quero [data-seta] { transition: transform var(--t-micro) var(--ease-micro); }
+.peca-quero:hover [data-seta] { transform: translateX(4px); }
+@media (max-width: 420px) { .peca-quero { align-self: stretch; justify-content: space-between; } }
+.peca-quero--cheio { background: var(--ac); border-color: var(--ac); color: var(--ac-tinta); font-family: var(--sans); font-size: .9375rem; font-weight: 500; letter-spacing: 0; text-transform: none; max-width: 100%; min-width: 0; overflow: hidden; }
+.peca-quero--cheio:hover { background: var(--ac-2); border-color: var(--ac-2); }
+.peca-quero__texto { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.peca-wa { color: var(--t2); font-size: var(--fs-s); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line-2); }
+.peca-wa:hover { color: var(--t1); text-decoration-color: currentColor; }
+/* a ordem é a do HTML em todas as larguras: título, preço, a peça, o texto, as ações (crítica, rodada 2: com a peça
+   antes do título, o botão de conversão vinha antes de a pessoa saber o que era e quanto custava) */
+.servico--peca > h3, .servicos > .servico--peca:first-child h3 { margin-top: 0; }
+.servico__acoes { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1.2rem; margin-top: .4rem; }
+.servico__acoes > :not(.servico__link) { position: relative; z-index: 2; }   /* (acima do link esticado do cartão) */
+.servicos .servico__acoes .servico__link { margin: 0 0 0 auto; padding: 0; }
+.servico--peca .servico__link::before { content: ""; position: absolute; inset: 0; z-index: 1; }
+.servico--peca .servico__link { position: static; }
+.servico--peca .servico__link::after { display: none; }
 /* Automação: o fecho do atendente (o botão do teste e a letra miúda, que diz o que é pago e por quem) */
 .atendente__fecho { display: flex; flex-direction: column; align-items: flex-start; gap: 1rem; margin-top: clamp(24px, 4vw, 40px); }
 .atendente__nota { max-width: 62ch; font-size: var(--fs-s); line-height: 1.55; color: var(--t2); }
@@ -378,55 +408,31 @@ html.menos-movimento .qa::details-content { transition: none; }
 html.menos-movimento .estacao-cruza { display: none !important; }
 
 
-/* ---- A PILHA (celular, até 720 px; pedido do dono, 2026-10-04, escolhido
-   entre duas opções: "o monte que se abre"). Você chega a um MONTE (o 1º
-   card na frente, os outros atrás, com as bordas de baixo em degraus de
-   8 px); descendo, a página NÃO para: o card da frente sobe com ela e o de
-   trás fica parado, sendo revelado, até chegar ao lugar dele e seguir; aí o
-   próximo é revelado, e assim por diante. Subindo, cada card volta a se
-   esconder atrás do anterior até virar monte de novo.
-   É CSS puro: `position: sticky` pelo BAIXO. Enquanto o lugar natural de um
-   card está abaixo da linha (acima da barra fixa do celular), ele fica
-   segurado nela; o contêiner não o deixa subir além do topo do grupo, então
-   antes da hora ele fica atrás do 1º (o monte). O navegador move tudo junto
-   com a rolagem, no compositor: nada atrasa em relação ao dedo (a versão
-   com JS e a página parada parecia "travada", disse o dono). Os da frente
-   ficam por cima (z-index decrescente); fundo opaco. ---- */
+/* ---- A PILHA (celular, até 720 px): o FICHÁRIO COM CHEGADA (dono, 2026-10-16, escolhida entre três opções:
+   "vamos com a B, só quero que as letras acendam também"). Ela troca o monte que se abria pelo pé, com carga e
+   deslize — "um amontoado de efeitos", sem fluidez — pelo conforto da publicada: cada card, ao chegar ao topo,
+   fica preso logo abaixo do menu, 14 px abaixo do anterior; o seguinte sobe por cima, colado no dedo, e deixa à
+   mostra só a faixa de cima de cada um. Um sinal só: o card que assenta no degrau ACENDE (borda inteira em ciano,
+   número ciano, letras acesas — as da carga, js/carga.js) e o de baixo, coberto, apaga (js/anima.js,
+   pilhaChegadas: só classes, uma vez por passagem). Traço nítido, sem sombra nem desfoque. ---- */
 @media (max-width: 720px) {
-  .pilha { --pilha-linha: calc(96px + env(safe-area-inset-bottom, 0px)); }
-  .pilha > :not(.estacao-vao) { --k: 0; position: sticky; bottom: calc(var(--pilha-linha) - var(--k) * 8px); z-index: calc(10 - var(--k)); background-color: var(--mod-fundo-opaco); }
+  .pilha > :not(.estacao-vao) { --k: 0; position: sticky; top: calc(var(--nav-h) + 12px + var(--k) * 14px); z-index: calc(1 + var(--k)); background-color: var(--mod-fundo-opaco); transition: border-color .3s var(--ease); }
   .pilha > :nth-child(2) { --k: 1; }
   .pilha > :nth-child(3) { --k: 2; }
   .pilha > :nth-child(4) { --k: 3; }
   /* o card com foco de teclado vem para a frente: o foco nunca fica escondido */
   .pilha > :focus-within { z-index: 20; }
+  .pilha > .is-foco { border-color: rgb(var(--ac-rgb) / .6); }
+  .pilha > :not(.estacao-vao) :is(h3, p) { transition: color .3s var(--ease), opacity .35s var(--ease); }   /* (sem a opacidade aqui, a regra de baixo perdia: o título e o texto do coberto apagavam de uma vez) */
+  .pilha > .is-foco h3 { color: var(--letra-acesa-t); }
+  .pilha > .is-foco p { color: var(--letra-acesa-p); }
+  .pilha > :not(.estacao-vao) > * { transition: opacity .35s var(--ease); }
+  .pilha > .is-coberto > * { opacity: .45; }   /* (a faixa de 14 px do coberto segue legível) */
 }
-/* (zoom de 400 %, viewport mais baixo que um card: o monte cobriria os títulos; fica em fluxo) */
+/* (zoom de 400 %, viewport mais baixo que um card: o fichário cobriria os títulos; fica em fluxo) */
 @media (max-width: 720px) and (max-height: 560px) { .pilha > :not(.estacao-vao) { position: static; } }
-/* ---- O DESLIZAR (dono, 2026-10-05: "o próprio deslizar mais suave, um pouco
-   mais lento, mais perceptível"). Por cima do sticky (que segue igual): o card
-   da frente se SOLTA da linha devagar (~0,56× o dedo) e acelera até 1× enquanto
-   revela o de baixo; depois ALCANÇA de leve (pico ~1,3×). Animação ligada à
-   rolagem da página (animation-timeline): roda no compositor, colada no dedo,
-   e a página nunca para. As faixas (px) vêm de js/anima.js. Só translate (sem
-   escala: encolher a camada deixaria texto e borda borrados). Sem suporte, em
-   movimento reduzido ou com ?pilha=antes: o sticky puro. A revelação ocupa
-   43,5% da faixa (1 : 1,3 com o alcance), daí o quadro-chave do pico. ---- */
-@supports (animation-timeline: scroll()) {
-  @media (max-width: 720px) and (prefers-reduced-motion: no-preference) {
-    html.js:not(.menos-movimento):not(.pilha-antes) .pilha > .pilha-sai {
-      animation: pilha-sai linear both; animation-timeline: scroll(root); animation-range: var(--pa) var(--pb);
-    }
-  }
-}
-@keyframes pilha-sai {
-  0% { translate: 0 0; animation-timing-function: cubic-bezier(.25, .46, .6, 1); }
-  43.5% { translate: 0 var(--atraso); animation-timing-function: cubic-bezier(.37, 0, .63, 1); }
-  100% { translate: 0 0; }
-}
 
-/* ---- A CARGA (js/carga.js): no celular a pilha carrega com a rolagem; no
-   desktop com mouse o card carrega conforme o cursor se aproxima (e um ARO
+/* ---- A CARGA (js/carga.js): no desktop com mouse o card carrega conforme o cursor se aproxima (e um ARO
    nítido aparece). A barra é um TUBO NEON em traço nítido — nada desfocado
    (o dono proíbe): núcleo branco com bordas ciano em degraus duros, duas
    linhas finas de cada lado, a PONTA acesa na frente, um REFLEXO que corre
@@ -476,20 +482,6 @@ html.menos-movimento .estacao-cruza { display: none !important; }
   @keyframes carga-varre-a { 0% { opacity: 0; transform: translateX(0); } 10% { opacity: .9; } 85% { opacity: .5; } 100% { opacity: 0; transform: translateX(100%); } }
   @keyframes carga-varre-b { 0% { opacity: 0; transform: translateX(0); } 10% { opacity: .9; } 85% { opacity: .5; } 100% { opacity: 0; transform: translateX(100%); } }
 }
-/* (celular) o clarão da barra e a linha que atravessa o card no 100% mais lentos: mais perceptíveis (dono, 2026-10-05) */
-@media (max-width: 720px) and (prefers-reduced-motion: no-preference) {
-  .is-carregado .carga__trilho::after { animation-duration: 1.1s; }
-  .is-varre-a > .carga-varre::before, .is-varre-b > .carga-varre::before { animation-duration: 1.15s; }
-}
-/* (celular, pilha) a energia descendo da base do card da frente para o que aparece embaixo dele */
-@media (max-width: 720px) and (prefers-reduced-motion: no-preference) {
-  html.js:not(.menos-movimento) .pilha .carga-fio { display: block; position: absolute; left: 9px; top: calc(100% + 3px); width: 2px; height: 34px; overflow: hidden; pointer-events: none; }
-  .pilha > :last-child > .carga-fio { display: none; }
-  .carga-fio::before { content: ""; position: absolute; left: 0; top: -15px; width: 2px; height: calc(100% + 30px); background: repeating-linear-gradient(180deg, var(--ac-2) 0 6px, transparent 6px 15px); opacity: 0; transition: opacity .4s var(--ease); }
-  .is-doando > .carga-fio::before { opacity: 1; animation: carga-desce .6s linear infinite; }
-  @keyframes carga-desce { from { transform: translateY(0); } to { transform: translateY(15px); } }
-}
-
 /* ---- O VISUAL DA CARGA (js/carga.js; escolha do dono, 2026-10-04: "uma
    junção da B e da D"): cantos de mira em neon que crescem e fecham a
    moldura; a borda neon acende quando ela fecha; pontos de luz correm nos

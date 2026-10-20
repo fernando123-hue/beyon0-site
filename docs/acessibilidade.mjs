@@ -32,6 +32,20 @@ for (const rota of ['/index.html', '/sites.html', '/automacao.html']) {
   ok((await escondidos(page)) === 0, rota + ' reduzido: nenhum conteúdo escondido');
   ok(await page.evaluate(() => [...document.querySelectorAll('.aura, .carta, .orbita__ponto, .orbita__anel--2')].every(e => getComputedStyle(e).animationName === 'none')), rota + ' reduzido: nenhum loop de CSS rodando');
   ok(await page.evaluate(() => window.BEYON && window.BEYON.reduced === true), rota + ' reduzido: núcleo em modo reduzido');
+  if (await page.$('.planta__slider')) {
+    /* a régua da Planta arrasta com movimento reduzido: o mouse pega o cursor onde ele está (sem o salto do clique) e anda 200 px */
+    const slider = page.locator('.planta__slider');
+    await slider.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(400);
+    const c = await page.locator('.planta__cursor').boundingBox();
+    const antes = await slider.getAttribute('aria-valuenow');
+    await page.mouse.move(c.x + c.width / 2, c.y + c.height / 2);
+    await page.mouse.down();
+    for (let i = 1; i <= 10; i++) { await page.mouse.move(c.x + c.width / 2 - 20 * i, c.y + c.height / 2); await page.waitForTimeout(30); }
+    const durante = await slider.getAttribute('aria-valuenow');
+    await page.mouse.up();
+    ok(durante !== antes, rota + ' reduzido: arrastar a régua da Planta muda a largura (' + antes + ' → ' + durante + ')');
+  }
   await ctx.close();
 
   /* 3. teclado */
