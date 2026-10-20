@@ -3,8 +3,9 @@
    passo do fluxo, em api/_vendas/fluxo.mjs).
      GET  estado, pagamento, pagamento-config, sessao-config, catalogo
      POST sessao, retomar, renovar, mensagem, gerar, gerar-direcao, escolher,
-          alterar, ajustar, desfazer, pedido-livre, escopo, confirmar, pagar, simular, confirmar-pacote, detalhes
+          ajustar, desfazer, pedido-livre, escopo, confirmar, pagar, simular, confirmar-pacote, detalhes
    (PR 2a: o contato vem pelos detalhes; a ação "contato" saiu, porque passava por cima dos freios do pedido)
+   (PR 3a: o ajuste pela IA, "alterar", saiu; os ajustes são opções prontas e o pedido livre vai para a fila do dono)
    Fronteira: freio por IP, JSON obrigatório (um formulário de outro site não
    chega aqui), corpo limitado, token do visitante em cada ação (exceto criar
    ou retomar a sessão), erro interno genérico (detalhe só no log, sem dado pessoal).
@@ -22,11 +23,11 @@ import { configTurnstile, verificarHumano } from './_vendas/turnstile.mjs';
 const ACOES = {
   GET: { estado: 'estado', pagamento: 'pagamento', 'pagamento-config': 'pagamentoConfig', 'sessao-config': 'sessaoConfig', catalogo: 'catalogo' },
   POST: { sessao: 'sessao', retomar: 'retomar', renovar: 'renovar', mensagem: 'mensagem', gerar: 'gerar', 'gerar-direcao': 'gerarDirecao',
-    escolher: 'escolher', alterar: 'alterar',
+    escolher: 'escolher',
     ajustar: 'ajustar', desfazer: 'desfazer', 'pedido-livre': 'pedidoLivre', escopo: 'escopo', confirmar: 'confirmar', pagar: 'pagar',
     simular: 'simular', 'confirmar-pacote': 'confirmarPacote', detalhes: 'detalhes' }
 };
-const PRECISA_IA = new Set(['mensagem', 'gerarDirecao', 'alterar']);
+const PRECISA_IA = new Set(['mensagem', 'gerarDirecao']);
 const LIMITE_BYTES = 16384;
 export const freioGeral = criarFreio({ max: 90, janelaMs: 60e3 });
 export const freioSessao = criarFreio({ max: 8, janelaMs: 10 * 60e3 });   /* criar visitante anônimo: poucos por IP */

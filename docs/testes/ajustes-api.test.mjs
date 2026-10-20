@@ -268,3 +268,13 @@ test('pedido arquivado (resolvido por fora): o pedido livre vai para o WhatsApp;
   assert.deepEqual(await ajustesNoBanco(c), [], 'nada ficou "aguardando" para sempre');
   assert.equal((await n.chamar('POST', 'ajustar', { conversa_id: c, opcao: PALETA_2 })).status, 200);
 });
+
+test('a ação antiga "alterar" (o ajuste pela IA) não existe mais: 404 antes de qualquer coisa', async () => {
+  const { n, c } = await cen.ateEscolher();
+  const antes = cen.contas.banco;
+  const r = await n.chamar('POST', 'alterar', { conversa_id: c, pedido: 'quero a cor da primeira' });
+  assert.equal(r.status, 404, JSON.stringify(r.corpo));
+  assert.equal(r.corpo.erro, 'Ação inválida.');
+  assert.equal(cen.contas.banco, antes, 'nem tocou no banco');
+  assert.equal(cen.contas.ia, 0, 'nem chamou a IA');
+});

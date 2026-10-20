@@ -116,7 +116,7 @@ test('P1 rotina: etapa que falha vira alerta urgente e as outras seguem (envio d
   assert.ok(r.saude.alertas.some(a => a.tipo === 'rotina_falhou' && a.nivel === 'urgente'), JSON.stringify(r.saude.alertas));
 });
 
-test('P1 ledger: o caminho do ajuste também registra a chamada (papel extracao)', async () => {
+test('P1 ledger: a geração registra a chamada (papel geracao); o ajuste por opção pronta não chama modelo nenhum', async () => {
   const deps = { banco: local.rpc, visitantes: local.auth, ia: criarSimulada(), direcoes: 'api', segredoFreio: 's'.repeat(32), limitesPedido: LIMITES_DE_TESTE };
   const n = await navegar(deps);
   const s = await n('POST', 'sessao', {});
@@ -128,9 +128,9 @@ test('P1 ledger: o caminho do ajuste também registra a chamada (papel extracao)
   for (const d of g.corpo.direcoes) await n('POST', 'gerar-direcao', { conversa_id: c, direcao_id: d.id });
   assert.ok((await local.db.query(`select 1 from app.ia_chamadas where conversa_id = $1 and papel = 'geracao'`, [c])).rows.length, 'a geração registrou');
   await n('POST', 'escolher', { conversa_id: c, direcao_id: g.corpo.direcoes[0].id });
-  const a = await n('POST', 'alterar', { conversa_id: c, pedido: 'quero os depoimentos antes dos serviços' });
-  assert.equal(a.status, 200);
-  assert.ok((await local.db.query(`select 1 from app.ia_chamadas where request_id = $1 and papel = 'extracao'`, [a.id])).rows.length, 'o ajuste registrou');
+  const a = await n('POST', 'ajustar', { conversa_id: c, opcao: { operacao: 'mover_antes_de', secao: 'depoimentos', referencia: 'servicos' } });
+  assert.equal(a.status, 200, JSON.stringify(a.corpo));
+  assert.equal((await local.db.query(`select count(*)::int n from app.ia_chamadas where conversa_id = $1 and papel = 'extracao'`, [c])).rows[0].n, 0, 'o ajuste não chamou modelo');
 });
 
 test('P1 dinheiro por extenso também sai do texto do agente', () => {

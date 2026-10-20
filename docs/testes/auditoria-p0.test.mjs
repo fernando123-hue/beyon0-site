@@ -13,7 +13,6 @@ import { criarFluxo } from '../../api/_vendas/fluxo.mjs';
 import { executarTurno } from '../../api/_vendas/agente.mjs';
 import { chaveDoIp } from '../../api/_vendas/ip.mjs';
 import { ErroIA } from '../../api/_ia/provedor.mjs';
-import { TIPOS_SECAO } from '../../api/_vendas/direcao.mjs';
 import { executar as rotinas } from '../../api/rotinas.mjs';
 import { LIMITES_DE_TESTE, detalhesEConfirmar } from './_pedido.mjs';
 /* segredo do cron nos testes: 40 caracteres de baixa entropia (uma string "aleatória" vira falso positivo no gitleaks) */
@@ -51,25 +50,12 @@ async function ateDirecoes(n) {
 const conversa = async c => (await local.db.query('select etapa, custo_ia_usd::float custo, contato_aceite_em from app.conversas where id = $1', [c])).rows[0];
 const alteracoes = async c => (await local.db.query('select count(*)::int n from app.alteracoes where conversa_id = $1', [c])).rows[0].n;
 
-/* uma IA que traduz o pedido de ajuste para operações fixas (o resto segue o simulado) e conta as chamadas */
-function iaDeAjuste(mudancas, custo = 0.01) {
-  const base = criarSimulada();
-  const ia = { ...base, chamadas: 0, mensagem: async p => {
-    if (p.papel === 'extracao' && String(p.mensagens?.[0]?.content || '').startsWith('DIREÇÕES:')) {
-      ia.chamadas++;
-      return { json: { mudancas, resposta: 'ok' }, parada: 'fim', custo_usd: custo, modelo: 'claude-haiku-5-5' };
-    }
-    return base.mensagem(p);
-  } };
-  return ia;
-}
-
 /* ---------- 1. troca de direção depois do 1º ajuste: o contrato descrevia A e a proposta gravava B ---------- */
 test('P0 troca de direção: depois de um ajuste não há nova geração (nem escolha de outra)', async () => {
   const n = navegador();
   const { c, dirs } = await ateDirecoes(n);
   assert.equal((await n.chamar('POST', 'escolher', { conversa_id: c, direcao_id: dirs[0].id })).status, 200);
-  assert.equal((await n.chamar('POST', 'alterar', { conversa_id: c, pedido: 'quero os depoimentos antes dos serviços' })).status, 200);
+  assert.equal((await n.chamar('POST', 'ajustar', { conversa_id: c, opcao: { operacao: 'mover_antes_de', secao: 'depoimentos', referencia: 'servicos' } })).status, 200);
   const g = await n.chamar('POST', 'gerar', { conversa_id: c });
   assert.equal(g.status, 409, 'gerar de novo depois do ajuste abria a troca de direção: ' + JSON.stringify(g.corpo));
   assert.equal((await conversa(c)).etapa, 'alteracoes');
@@ -84,43 +70,7 @@ test('P0 troca de direção: só vale escolher uma direção da geração ATUAL'
   assert.equal(velha.status, 404, 'direção da geração anterior não pode ser escolhida: ' + JSON.stringify(velha.corpo));
 });
 
-/* ---------- 2. ajuste que o motor de preço recusa entrava no contrato sem entrar no preço ---------- */
-test('P0 ajuste fora do preço: motor recusa → nada aplicado, 422, e o custo da IA é somado', async () => {
-  const ia = iaDeAjuste([{ tipo: 'escopo', operacao: 'paginas', valor: '99' }]);
-  const n = navegador({ ...deps, ia });
-  const { c, dirs } = await ateDirecoes(n);
-  await n.chamar('POST', 'escolher', { conversa_id: c, direcao_id: dirs[0].id });
-  const antes = await conversa(c);
-  const r = await n.chamar('POST', 'alterar', { conversa_id: c, pedido: 'quero 99 páginas' });
-  assert.equal(r.status, 422, JSON.stringify(r.corpo));
-  assert.equal(await alteracoes(c), 0, 'nenhuma alteração gravada como aplicada');
-  assert.ok((await conversa(c)).custo > antes.custo, 'a chamada ao modelo foi paga: o custo entra no teto');
-});
-
 /* ---------- 3. custo de IA que escapava do teto ---------- */
-test('P0 custo: ajuste que falha na validação (422) soma o custo da chamada', async () => {
-  const ia = iaDeAjuste(TIPOS_SECAO.filter(s => s !== 'hero').map(s => ({ tipo: 'estrutura', operacao: 'remover_secao', secao: s })));
-  const n = navegador({ ...deps, ia });
-  const { c, dirs } = await ateDirecoes(n);
-  await n.chamar('POST', 'escolher', { conversa_id: c, direcao_id: dirs[0].id });
-  const antes = await conversa(c);
-  const r = await n.chamar('POST', 'alterar', { conversa_id: c, pedido: 'tira tudo' });
-  assert.equal(r.status, 422, JSON.stringify(r.corpo));
-  assert.equal(ia.chamadas, 1);
-  assert.ok((await conversa(c)).custo > antes.custo, 'custo da chamada que falhou entrou na conta');
-});
-
-test('P0 custo: ajuste fora da etapa não chama o modelo', async () => {
-  const ia = iaDeAjuste([{ tipo: 'visual', operacao: 'tema', valor: 'claro' }]);
-  const n = navegador({ ...deps, ia });
-  const { c, dirs } = await ateDirecoes(n);
-  await n.chamar('POST', 'escolher', { conversa_id: c, direcao_id: dirs[0].id });
-  await local.db.exec(`begin; set local bz.transicao_livre = 'on'; update app.conversas set etapa = 'escopo' where id = '${c}'; commit;`);
-  const r = await n.chamar('POST', 'alterar', { conversa_id: c, pedido: 'quero tema claro' });
-  assert.equal(r.status, 409, JSON.stringify(r.corpo));
-  assert.equal(ia.chamadas, 0, 'nenhum gasto numa etapa que não aceita ajuste');
-});
-
 test('P0 custo: modelo fora da tabela de preços conta como o mais caro, nunca zero', () => {
   const uso = { entrada: 1e6, saida: 1e6 };
   const maisCaro = Math.max(...Object.keys(PRECO_POR_MILHAO).map(m => custoUsd(m, uso)));
@@ -199,20 +149,6 @@ test('P0 freio: a mesma conversa conta uma vez só; sem segredo ou servidor loca
 });
 
 /* ---------- 7. custo em falhas que ainda escapavam (revisão técnica) ---------- */
-test('P0 custo: o modelo que recusa traduzir o ajuste também é pago (503 e custo somado)', async () => {
-  const base = criarSimulada();
-  const recusa = { ...base, mensagem: async p => String(p.mensagens?.[0]?.content || '').startsWith('DIREÇÕES:')
-    ? { texto: '', json: null, chamadas: [], conteudo: [], parada: 'recusa', modelo: 'claude-haiku-5-5', uso: {}, custo_usd: 0.03 }
-    : base.mensagem(p) };
-  const n = navegador();
-  const { c, dirs } = await ateDirecoes(n);
-  await n.chamar('POST', 'escolher', { conversa_id: c, direcao_id: dirs[0].id });
-  const antes = (await conversa(c)).custo;
-  const r = await n.chamar('POST', 'alterar', { conversa_id: c, pedido: 'quero tema claro' }, { deps: { ...deps, ia: recusa } });
-  assert.equal(r.status, 503);
-  assert.ok(Math.abs((await conversa(c)).custo - antes - 0.03) < 1e-9);
-});
-
 test('P0 custo: falha numa rodada do agente leva o custo das rodadas anteriores', async () => {
   let rodada = 0;
   const ia = { mensagem: async () => {
@@ -226,20 +162,16 @@ test('P0 custo: falha numa rodada do agente leva o custo das rodadas anteriores'
     e => e instanceof ErroIA && Math.abs(e.custo_usd - 0.06) < 1e-9);
 });
 
-/* ---------- 8. corrida "alterar" × "escolher": o ajuste montado sobre A não grava se B foi escolhida no meio ---------- */
-test('P0 troca de direção: escolher outra enquanto o modelo traduz o ajuste não deixa o ajuste gravar na outra', async () => {
-  const base = criarSimulada();
-  let troca;
-  const lenta = { ...base, mensagem: async p => {
-    if (String(p.mensagens?.[0]?.content || '').startsWith('DIREÇÕES:')) { await troca(); return { json: { mudancas: [{ tipo: 'visual', operacao: 'tema', valor: 'claro' }], resposta: 'ok' }, parada: 'fim', custo_usd: 0, modelo: 'claude-haiku-5-5' }; }
-    return base.mensagem(p);
-  } };
+/* ---------- 8. corrida "ajuste" × "escolher": o ajuste montado sobre A não grava se B foi escolhida no meio. Desde o PR 3a
+   o ajuste não espera modelo, mas a regra fica no banco (vendas_registrar_alteracao confere a direção que o servidor leu) ---------- */
+test('P0 troca de direção: ajuste montado sobre uma direção não grava se outra foi escolhida no meio (40001)', async () => {
   const n = navegador();
   const { c, dirs } = await ateDirecoes(n);
   await n.chamar('POST', 'escolher', { conversa_id: c, direcao_id: dirs[0].id });
-  troca = async () => assert.equal((await n.chamar('POST', 'escolher', { conversa_id: c, direcao_id: dirs[1].id })).status, 200);
-  const r = await n.chamar('POST', 'alterar', { conversa_id: c, pedido: 'quero tema claro' }, { deps: { ...deps, ia: lenta } });
-  assert.equal(r.status, 409, JSON.stringify(r.corpo));
+  assert.equal((await n.chamar('POST', 'escolher', { conversa_id: c, direcao_id: dirs[1].id })).status, 200);
+  const vid = (await local.db.query('select visitante_id from app.conversas where id = $1', [c])).rows[0].visitante_id;
+  await assert.rejects(local.rpc('vendas_registrar_alteracao', { conversa_id: c, visitante_id: vid, direcao_id: dirs[0].id, pedido: 'Cores do modelo 2',
+    mudancas: [], resultado: { nome_conceito: 'x' }, origem: 'opcao' }), e => e.codigo === '40001');
   assert.equal(await alteracoes(c), 0);
 });
 

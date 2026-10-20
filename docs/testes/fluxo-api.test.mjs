@@ -63,12 +63,10 @@ test('fluxo normal: visitante → conversa → estimativa → contato → 3 dire
   assert.equal(e.conversa.custo_ia_usd, undefined, 'custo é métrica interna');
   const segunda = e.direcoes.find(d => d.numero === 2);
   assert.equal((await n.chamar('POST', 'escolher', { conversa_id: c, direcao_id: segunda.id })).status, 200);
-  const alt = await n.chamar('POST', 'alterar', { conversa_id: c, pedido: 'Gostei da segunda, mas quero a cor da primeira e quero colocar os depoimentos antes dos serviços.' });
-  assert.ok(alt.corpo.resultado.every(r => r.aplicada));
-  /* marcador maior que o dado ("a@b.co" → "[e-mail]"): o pedido redigido passaria de 2.000 e o banco recusaria
-     DEPOIS de pagar o modelo (revisão do PR 6) */
-  const longo = await n.chamar('POST', 'alterar', { conversa_id: c, pedido: 'a@b.co '.repeat(285).trim() });
-  assert.equal(longo.status, 200, 'pedido de 1.994 caracteres com e-mails: ' + JSON.stringify(longo.corpo).slice(0, 200));
+  const cores = await n.chamar('POST', 'ajustar', { conversa_id: c, opcao: { operacao: 'usar_paleta_de', direcao: 1 } });
+  assert.equal(cores.status, 200, JSON.stringify(cores.corpo));
+  const ordem = await n.chamar('POST', 'ajustar', { conversa_id: c, opcao: { operacao: 'mover_antes_de', secao: 'depoimentos', referencia: 'servicos' } });
+  assert.equal(ordem.status, 200, JSON.stringify(ordem.corpo));
   const esc = await n.chamar('POST', 'escopo', { conversa_id: c });
   assert.equal(esc.status, 200);
   assert.equal(Number(esc.corpo.valor_total), 4350);
@@ -265,10 +263,11 @@ test('dados incompletos ou inconsistentes: cada um recusado com motivo, sem 500'
     ['GET', 'toString', undefined, 404],
     ['POST', '__proto__', {}, 404],
     ['POST', 'mensagem', '{quebrado', 400],
-    ['POST', 'alterar', { conversa_id: c, pedido: '' }, 400],      /* não pode virar a string "null" (revisão do PR 1, M1) */
-    ['POST', 'alterar', { conversa_id: c, pedido: 'a'.repeat(2001) }, 400],
-    ['POST', 'alterar', { conversa_id: c }, 400],
-    ['POST', 'alterar', { conversa_id: c, pedido: 123 }, 400],
+    ['POST', 'alterar', { conversa_id: c, pedido: 'Quero a cor da primeira' }, 404],   /* (PR 3a: o ajuste pela IA saiu; ficam as opções prontas) */
+    ['POST', 'ajustar', { conversa_id: c, opcao: { operacao: 'cor', campo: 'destaque', valor: '#000000' } }, 400],
+    ['POST', 'ajustar', { conversa_id: c }, 400],
+    ['POST', 'pedido-livre', { conversa_id: c, texto: '' }, 400],
+    ['POST', 'pedido-livre', { conversa_id: c, texto: 'a'.repeat(301) }, 400],
     ['GET', '', undefined, 404],
     ['POST', 'mensagem', { conversa_id: 'x', texto: 'oi' }, 400],
     ['POST', 'mensagem', { conversa_id: c, texto: '' }, 400],
@@ -334,7 +333,7 @@ async function rastroDa(c) {
   };
 }
 
-test('pedido descartado com as três prontas: gerar, gerar-direcao, escolher, alterar, escopo e pagar dão 409 "encerrado" com o WhatsApp e nada é gravado', async () => {
+test('pedido descartado com as três prontas: gerar, gerar-direcao, escolher, ajustar, desfazer, pedido-livre, escopo e pagar dão 409 "encerrado" com o WhatsApp e nada é gravado', async () => {
   const n = navegador();
   const { c, dirs } = await ateDirecoes(n);
   assert.equal((await rastroDa(c)).etapa, 'direcoes');
@@ -344,7 +343,9 @@ test('pedido descartado com as três prontas: gerar, gerar-direcao, escolher, al
     ['gerar', { conversa_id: c }],
     ['gerar-direcao', { conversa_id: c, direcao_id: dirs[0].id }],
     ['escolher', { conversa_id: c, direcao_id: dirs[1].id }],
-    ['alterar', { conversa_id: c, pedido: 'Quero a cor da primeira' }],
+    ['ajustar', { conversa_id: c, opcao: { operacao: 'usar_paleta_de', direcao: 1 } }],
+    ['desfazer', { conversa_id: c }],
+    ['pedido-livre', { conversa_id: c, texto: 'Quero o mapa no rodapé' }],
     ['escopo', { conversa_id: c }],
     ['pagar', { conversa_id: c, metodo: 'pix', pagador: PAGADOR }]
   ]) {
@@ -798,7 +799,7 @@ test('trocar de direção só antes do 1º ajuste (os ajustes são da direção 
   const { c, dirs } = await ateDirecoes(n);
   assert.equal((await n.chamar('POST', 'escolher', { conversa_id: c, direcao_id: dirs[1].id })).status, 200);
   assert.equal((await n.chamar('POST', 'escolher', { conversa_id: c, direcao_id: dirs[2].id })).status, 200, 'antes de ajustar pode trocar');
-  await n.chamar('POST', 'alterar', { conversa_id: c, pedido: 'quero os depoimentos antes dos serviços' });
+  assert.equal((await n.chamar('POST', 'ajustar', { conversa_id: c, opcao: { operacao: 'mover_antes_de', secao: 'depoimentos', referencia: 'servicos' } })).status, 200);
   assert.equal((await n.chamar('POST', 'escolher', { conversa_id: c, direcao_id: dirs[0].id })).status, 409);
 });
 
