@@ -185,9 +185,10 @@ Restaurar deixa o projeto fora do ar durante o processo.
 - Instale o cliente do PostgreSQL 17 (só o `pg_dump` e o `psql`).
 - A connection string está em **Connect › Session pooler**. É um segredo: ela não vai para o repositório nem para a Vercel.
 
-- Grave o dump e o `restauracao.sql` **fora da pasta do projeto** (por exemplo, `%USERPROFILE%\BeyonZero-backup\`): um `vercel deploy` feito pela CLI envia a pasta inteira, e um arquivo ali dentro iria junto (auditoria de segurança, 20/10/2026). O `.vercelignore` e o `.gitignore` também barram `*.dump`, `*.sql` e `*.7z`, mas a pasta de fora é a garantia.
+- Grave o dump e o `restauracao.sql` **fora da pasta do projeto** (por exemplo, `%USERPROFILE%\BeyonZero-backup\`): um `vercel deploy` feito pela CLI envia a pasta inteira, e um arquivo ali dentro iria junto (auditoria de segurança, 20/10/2026). O `.vercelignore` e o `.gitignore` também barram `*.dump`, `*.sql` e `*.7z`, mas a pasta de fora é a garantia. Os comandos abaixo são para o **Git Bash** (onde `$USERPROFILE` funciona; no PowerShell é `$env:USERPROFILE`, e no CMD, `%USERPROFILE%`). O `pg_dump --file` não cria a pasta: crie antes.
 
 ```bash
+mkdir -p "$USERPROFILE/BeyonZero-backup"
 pg_dump "CONNECTION_STRING" --schema=app --schema=metricas --format=custom --file="$USERPROFILE/BeyonZero-backup/beyon-zero-AAAA-MM-DD.dump"
 ```
 
