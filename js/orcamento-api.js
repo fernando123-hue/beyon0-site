@@ -11,7 +11,7 @@
   'use strict';
   var CHAVE = 'bz-orcamento';
   var MARGEM_S = 60;   /* renova o token um minuto antes de vencer */
-  var MENSAGEM_MS = 90e3;   /* tempo limite de um turno com a IA (mensagem e ajuste; auditoria 2026-10-09, F2): sem ele, a rede caída deixava a página esperando para sempre */
+  var MENSAGEM_MS = 90e3;   /* tempo limite de um turno com a IA (a conversa; auditoria 2026-10-09, F2): sem ele, a rede caída deixava a página esperando para sempre */
   var ESTADO_MS = 15e3;     /* a leitura do estado: curta, para a releitura depois de uma falha não pendurar a tela */
   var ESQUECIDA = 'bz-orcamento-esquecida';   /* a conversa que a pessoa mandou recomeçar: nenhuma aba a grava de novo */
 
@@ -178,7 +178,10 @@
     gerar: function () { return chamar('POST', 'gerar', comConversa()); },
     gerarDirecao: function (id) { return chamar('POST', 'gerar-direcao', comConversa({ direcao_id: id })); },
     escolher: function (id) { return chamar('POST', 'escolher', comConversa({ direcao_id: id })); },
-    alterar: function (pedido) { return chamar('POST', 'alterar', comConversa({ pedido: pedido }), undefined, MENSAGEM_MS); },
+    /* (PR 3a) os ajustes sem IA: uma opção pronta por vez, desfazer o último e o pedido livre (até 3, vai para a fila do dono) */
+    ajustar: function (opcao) { return chamar('POST', 'ajustar', comConversa({ opcao: opcao }), undefined, ESTADO_MS); },
+    desfazer: function () { return chamar('POST', 'desfazer', comConversa(), undefined, ESTADO_MS); },
+    pedidoLivre: function (texto) { return chamar('POST', 'pedido-livre', comConversa({ texto: texto }), undefined, ESTADO_MS); },
     escopo: function () { return chamar('POST', 'escopo', comConversa()); },
     confirmar: function (propostaId, inicioImediato) { return chamar('POST', 'confirmar', comConversa({ proposta_id: propostaId, confirmo: true, inicio_imediato: inicioImediato })); },
     /* o valor NUNCA vai daqui: o servidor tira da proposta aceita */

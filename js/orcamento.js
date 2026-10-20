@@ -14,7 +14,7 @@
   var API = window.BZOrcamento, PV = window.BZPrevia;
   var $ = function (id) { return document.getElementById(id); };
   /* um script não chegou (rede, bloqueador): sem isso a página ficava morta sem dizer nada (auditoria 2026-10-09, F19) */
-  if (!API || !PV || !window.BZVisor || !window.BZPerguntas || !window.BZDetalhes || !window.BZEspera) { semScripts(); return; }
+  if (!API || !PV || !window.BZVisor || !window.BZPerguntas || !window.BZDetalhes || !window.BZEspera || !window.BZAjustes) { semScripts(); return; }
   function semScripts() {
     var aviso = $('o-aviso');
     if (!aviso) return;
@@ -165,7 +165,7 @@
   }
   /* Recomeçar: esquece a sessão (nenhuma outra aba a grava de volta) e limpa os dados digitados antes de
      recarregar, para o navegador não os restaurar num aparelho compartilhado */
-  var CAMPOS_PESSOAIS = ['o-texto', 'o-aj-texto', 'o-nome', 'o-tel', 'o-d-negocio', 'o-d-vende', 'o-d-publico', 'o-d-diferencial', 'o-d-instagram',
+  var CAMPOS_PESSOAIS = ['o-texto', 'o-livre-texto','o-nome', 'o-tel', 'o-d-negocio', 'o-d-vende', 'o-d-publico', 'o-d-diferencial', 'o-d-instagram',
     'o-d-facebook', 'o-d-tiktok', 'o-d-youtube', 'o-d-linkedin', 'o-d-admira', 'o-pag-nome', 'o-pag-sobrenome', 'o-pag-email', 'o-pag-doc', 'o-titular', 'o-pix-codigo'];
   function recomecar() {
     API.esquecer();
@@ -522,55 +522,8 @@
     aoEscolher: escolher
   });
 
-  /* ---------- ajustes ---------- */
-  $('o-aj-form').addEventListener('submit', async function (ev) {
-    ev.preventDefault();
-    var form = this, pedido = $('o-aj-texto').value.trim();
-    if (!pedido || form.getAttribute('aria-busy') === 'true') return;
-    form.setAttribute('aria-busy', 'true');
-    limparAviso();
-    $('o-aj-resposta').textContent = 'Aplicando…';
-    var antes = E ? E.alteracoes.length : 0;
-    try {
-      var r = await API.alterar(pedido.slice(0, 2000));
-      $('o-aj-texto').value = '';
-      $('o-aj-resposta').textContent = r.resposta || '';
-      if (r.estimativa) investimento(r.estimativa, true);
-      if (r.diagnostico) mostrar('o-diagnostico', true);
-      await recarregar().catch(function () {});
-    } catch (e) {
-      $('o-aj-resposta').textContent = '';
-      /* (F2) a rede caiu com o ajuste em andamento: ele pode ter entrado. Relê antes de oferecer de novo, com o
-         formulário ainda ocupado (a releitura tem limite de 15 s): um segundo ajuste igual não sai no meio */
-      try { await recarregar(); } catch (x) { /* sem conexão */ }
-      if (E && E.alteracoes.length > antes) { $('o-aj-texto').value = ''; return; }
-      falhou(e, repetivel(e) ? function () { reajustar(antes); } : null);
-    }
-    finally { form.removeAttribute('aria-busy'); }
-  });
-  async function reajustar(antes) {
-    try { await recarregar(); } catch (x) { /* o envio diz se a rede voltou */ }
-    if (E && E.alteracoes.length > antes) { $('o-aj-texto').value = ''; return; }
-    submeter($('o-aj-form'), $('o-aj-form').querySelector('[type="submit"]'));
-  }
-  var OPERACOES = { usar_paleta_de: 'Cores de outra direção', usar_tipografia_de: 'Fontes de outra direção', cor: 'Cor trocada', tipografia: 'Fontes trocadas', tema: 'Tema claro/escuro', mover_antes_de: 'Seção movida', mover_depois_de: 'Seção movida', remover_secao: 'Seção removida', adicionar_secao: 'Seção adicionada', trocar_texto: 'Texto trocado', trocar_cta_menu: 'Botão do menu trocado', adicional: 'Item adicionado ao escopo', paginas: 'Número de páginas', outro: 'Pedido' };
-  function mudancas() {
-    if (!mudou('mudancas', [E.alteracoes, !!E.versao_final])) return;
-    var ul = $('o-mudancas');
-    ul.textContent = '';
-    E.alteracoes.forEach(function (a) {
-      (a.mudancas || []).forEach(function (m) {
-        ul.appendChild(el('li', m.aplicada ? 'is-ok' : 'is-nao', (OPERACOES[m.operacao] || m.operacao) + (m.aplicada ? '' : ': ' + (m.motivo || 'não foi possível'))));
-      });
-    });
-    var v = $('o-versao');
-    v.textContent = '';
-    if (E.versao_final) {
-      var b = botao('btn btn--sm', 'Abrir a sua versão', function () { visor.abrir('final'); });
-      b.setAttribute('data-abrir', 'final');
-      v.appendChild(b);
-    }
-  }
+  /* ---------- ajustes: opções prontas, desfazer e o pedido livre (js/orcamento-ajustes.js, PR 3a; sem IA) ---------- */
+  var ajustes = window.BZAjustes.criar({ API: API, recarregar: recarregar, falhou: falhou, umaAcao: umaAcao, abrirVersao: function () { visor.abrir('final'); } });
   function fecharEscopo() {
     return umaAcao(async function () {
       limparAviso();
@@ -716,7 +669,7 @@
     window.BZDetalhes.atualizar(E);   /* os detalhes, a confirmação pelo WhatsApp ou o pedido encerrado (js/orcamento-detalhes.js) */
     direcoes();
     mostrar('o-ajustes', (et === 'escolhida' || et === 'alteracoes') && !descartado());
-    mudancas();
+    ajustes.atualizar(E);
     var temProposta = !!(E.proposta && et === 'escopo');
     mostrar('o-escopo', temProposta);
     if (temProposta && mudou('escopo', E.proposta.escopo)) $('o-esc-texto').textContent = E.proposta.escopo;

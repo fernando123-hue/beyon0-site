@@ -4,7 +4,7 @@
    simulado). Celular primeiro (390px), depois 320px e desktop.
    Cobre: as perguntas → preço (motivo, vizinho, "Quer ajustar?" ao vivo) →
    conta que falha não muda o que se grava → pacote gravado → detalhes → código e confirmação pelo WhatsApp (o dono confirma no painel) → 3 modelos → abrir o pedido em outro aparelho pelo link do aviso → visor (abrir,
-   trocar, aparelho, Escape devolve o foco) → escolha → ajuste → retomada
+   trocar, aparelho, Escape devolve o foco) → escolha → ajustes (opção pronta, desfazer, pedido livre) → retomada
    depois de recarregar → escopo (exige a confirmação) → pagamento simulado
    → projeto em produção. À parte: o pacote que pede conversa (sem valor) e
    a landing de até 3 páginas. Com CONSULTOR=1, também a conversa: texto com HTML
@@ -19,6 +19,7 @@
 import { chromium } from 'playwright';
 import { mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
+import { passoDosAjustes } from './e2e-ajustes.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8899';
 /* só servidor local: contra um site de verdade este teste cria conversa, chama a IA paga e cria pedido de pagamento */
@@ -661,12 +662,7 @@ try {
   await page.waitForSelector('#o-ajustes:not([hidden])');
   ok(await page.locator('.dir.is-escolhida .dir__estrategia').textContent().then(t => t.startsWith('02')), 'direção 2 escolhida');
 
-  await page.fill('#o-aj-texto', 'Quero a cor da primeira e os depoimentos antes dos serviços');
-  await page.click('#o-aj-form button[type=submit]');
-  await page.waitForSelector('#o-mudancas li', { timeout: 30000 });
-  ok(await page.locator('#o-mudancas li.is-ok').count() >= 1, 'ajuste aplicado e listado');
-  await page.waitForFunction(() => !document.querySelector('.dir .btn--primary'));
-  ok(true, 'depois do ajuste não há mais troca de direção');
+  await passoDosAjustes(page, { ok, espera, foto, semRolagemLateral });
 
   /* sair e voltar */
   await page.reload({ waitUntil: 'load' });
@@ -680,6 +676,8 @@ try {
   await page.waitForSelector('#o-escopo:not([hidden])');
   ok((await page.textContent('#o-esc-titulo')).trim() === 'Resumo do que será feito', 'o título é "Resumo do que será feito"');
   ok((await page.textContent('#o-esc-texto')).includes('INVESTIMENTO'), 'resumo com investimento');
+  const resumo = await page.textContent('#o-esc-texto');
+  ok(resumo.includes('- Pedidos escritos: 1 não incluído neste valor (aguardando ou recusado).') && !resumo.includes('Quero o mapa'), 'resumo: o pedido escrito só conta, sem o texto da pessoa (fora do contrato)');
   ok(!(await page.textContent('#o-esc-texto')).includes('hero'), 'escopo sem nome técnico de seção');
   if (CONSULTOR) {
     /* no escopo a conversa também fica aberta para dúvidas, com o lembrete do cartão na caixa (revisões do PR 34) */
