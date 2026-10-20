@@ -236,14 +236,16 @@ async function marcarLembrado(conversaId, env) {
 
 /* ---------- os PEDIDOS LIVRES (PR 3a; spec §4, "A fila"): o dono faz a versão nova ou recusa ---------- */
 /* (o selo de texto suspeito sai daqui, como na fila de direções; o texto em si é dado, nunca instrução) */
+/* (o banco entrega no máximo 50, os mais antigos, e o total da fila inteira: como a fila de pedidos pendentes) */
 async function lerAjustes(rpc) {
   const r = await rpc('vendas_pedidos_livres', { org_slug: ORG });
-  return (r && Array.isArray(r.itens) ? r.itens : []).map(a => ({ ...a, suspeito: pareceInjecao(String(a.texto || '')) }));
+  const itens = (r && Array.isArray(r.itens) ? r.itens : []).map(a => ({ ...a, suspeito: pareceInjecao(String(a.texto || '')) }));
+  return { itens, total: r && Number.isInteger(r.total) ? Math.max(r.total, itens.length) : itens.length };
 }
 async function filaAjustes(env) {
   const rpc = criarTransporte(env);
   if (!rpc) return json({ erro: 'Banco não configurado.' }, 503);
-  try { const ajustes = await lerAjustes(rpc); return json({ ajustes, total: ajustes.length }); }
+  try { const { itens, total } = await lerAjustes(rpc); return json({ ajustes: itens, total, truncada: total > itens.length }); }
   catch (e) { console.error('[painel] ajustes:', e && e.codigo); return json({ erro: 'Não deu para ler os ajustes agora.' }, 500); }
 }
 const AJUSTE_FORA = 'Este ajuste não está mais na fila: já foi resolvido, o pedido não está confirmado ou a conversa passou da etapa de ajustes.';
@@ -261,7 +263,7 @@ async function ajusteFeito(bruto, env) {
   const rpc = criarTransporte(env);
   if (!rpc) return json({ erro: 'Banco não configurado.' }, 503);
   try {
-    const item = (await lerAjustes(rpc)).find(a => a.alteracao_id === bruto.ajuste_feito);
+    const item = (await lerAjustes(rpc)).itens.find(a => a.alteracao_id === bruto.ajuste_feito);
     if (!item) return json({ erro: AJUSTE_FORA }, 409);
     const h = higienizar(bruto.conteudo, item.estrategia);
     if (h.erro) return json({ erro: 'Versão recusada pelo filtro: ' + h.erro + '.' }, 422);

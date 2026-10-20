@@ -170,6 +170,25 @@ test('dono: a fila traz só pedido confirmado na etapa de ajustes, com o texto, 
   assert.ok(!(await lista()).some(i => i.conversa_id === b.conversa_id), 'pedido arquivado sai da fila de ajustes');
 });
 
+test('dono: a fila traz no máximo 50 (os mais antigos primeiro) e o total é o da fila inteira', async () => {
+  const b = await escolhido();
+  const primeiro = await livre(b, 'Pedido mais antigo');
+  /* 51 a mais direto na tabela (pelo fluxo seriam 51 conversas); saem no fim */
+  await db.query(`insert into app.alteracoes (org_id, conversa_id, direcao_id, pedido, mudancas, status, origem)
+    select org_id, conversa_id, direcao_id, 'extra ' || g, '[]', 'na_fila', 'livre' from app.alteracoes, generate_series(1, 51) g where id = $1`, [primeiro.alteracao_id]);
+  try {
+    const r = await rpc('vendas_pedidos_livres', { org_slug: 'beyon-zero' });
+    assert.equal(r.itens.length, 50, 'a página é de 50');
+    assert.ok(r.total >= 52, 'o total conta a fila inteira: ' + r.total);
+    const meu = r.itens.find(i => i.alteracao_id === primeiro.alteracao_id);
+    assert.ok(meu, 'o mais antigo está na página (a fila anda de frente para trás)');
+    assert.equal(meu.versao.nome_conceito, 'Modelo 1', 'cada item leva a versão atual');
+    assert.ok(!r.itens[0].texto.startsWith('extra '), 'os acrescentados depois vêm por último');
+    assert.ok(r.itens.at(-1).texto.startsWith('extra '), 'e o corte cai neles');
+  } finally { await db.query("delete from app.alteracoes where pedido like 'extra %'"); }
+  assert.ok((await rpc('vendas_pedidos_livres', { org_slug: 'beyon-zero' })).total < 50, 'sem os extras, o total volta ao normal');
+});
+
 test('dono: "feito" com a base certa aplica e vale pela data de aplicação; base velha é 40001; "recusado" recusa; resolver de novo, ok:false', async () => {
   const b = await escolhido();
   const l1 = await livre(b), l2 = await livre(b, 'Quero o horário no topo');

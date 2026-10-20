@@ -149,24 +149,36 @@ begin
 end $$;
 
 -- ---------- a fila de pedidos livres do dono: só confirmados, só na etapa de ajustes, com a versão atual e a base ----------
+-- (os 50 mais antigos e o total da fila inteira, como vendas_pedidos_pendentes: cada item leva a versão inteira do site, e uma fila
+--  grande passaria do limite de resposta; o dono resolve estes e pede de novo)
 create function app.vendas_pedidos_livres(p jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
-declare v_org uuid; v_itens jsonb;
+declare v_org uuid; v_itens jsonb; v_total integer;
 begin
   select id into v_org from app.organizacoes where slug = p ->> 'org_slug';
   if not found then raise exception 'organização não encontrada' using errcode = 'P0002'; end if;
-  select coalesce(jsonb_agg(jsonb_build_object(
-           'alteracao_id', a.id, 'conversa_id', c.id, 'codigo', pd.codigo, 'pedido_em', a.created_at, 'texto', a.pedido,
-           'estrategia', d.estrategia, 'base_id', ult.id, 'versao', coalesce(ult.resultado, d.conteudo)) order by a.created_at), '[]'::jsonb)
-    into v_itens
-    from app.alteracoes a
-    join app.conversas c on c.id = a.conversa_id
-    join app.pedidos pd on pd.conversa_id = c.id and pd.status = 'confirmado'
-    join app.direcoes d on d.id = a.direcao_id
-    left join lateral (select x.id, x.resultado from app.alteracoes x where x.conversa_id = c.id and x.status = 'aplicada'
-                        order by x.aplicada_em desc nulls last, x.created_at desc limit 1) ult on true
-   where a.org_id = v_org and a.origem = 'livre' and a.status = 'na_fila' and c.etapa in ('escolhida', 'alteracoes');
-  return jsonb_build_object('itens', v_itens, 'total', jsonb_array_length(v_itens));
+  with fila as (
+    select a.id, a.created_at
+      from app.alteracoes a
+      join app.conversas c on c.id = a.conversa_id
+      join app.pedidos pd on pd.conversa_id = c.id and pd.status = 'confirmado'
+     where a.org_id = v_org and a.origem = 'livre' and a.status = 'na_fila' and c.etapa in ('escolhida', 'alteracoes')
+  ), pagina as (
+    select f.id, f.created_at from fila f order by f.created_at, f.id limit 50
+  )
+  select (select coalesce(jsonb_agg(jsonb_build_object(
+                   'alteracao_id', a.id, 'conversa_id', c.id, 'codigo', pd.codigo, 'pedido_em', a.created_at, 'texto', a.pedido,
+                   'estrategia', d.estrategia, 'base_id', ult.id, 'versao', coalesce(ult.resultado, d.conteudo)) order by pg.created_at, pg.id), '[]'::jsonb)
+            from pagina pg
+            join app.alteracoes a on a.id = pg.id
+            join app.conversas c on c.id = a.conversa_id
+            join app.pedidos pd on pd.conversa_id = c.id and pd.status = 'confirmado'
+            join app.direcoes d on d.id = a.direcao_id
+            left join lateral (select x.id, x.resultado from app.alteracoes x where x.conversa_id = c.id and x.status = 'aplicada'
+                                order by x.aplicada_em desc nulls last, x.created_at desc limit 1) ult on true),
+         (select count(*)::integer from fila)
+    into v_itens, v_total;
+  return jsonb_build_object('itens', v_itens, 'total', v_total);
 end $$;
 
 -- ---------- o dono resolve um pedido livre: "feito" (a versão nova) ou "recusado" ----------

@@ -333,8 +333,8 @@ export function avaliarArquivo(conteudo, estrategia) {
    confirmação automática por pipe ou eco, não contra um programa que lê a tela; a defesa real é que a sessão que lê o
    briefing não tem a chave do painel nem o comando. */
 const ALFABETO_CODIGO = 'ACDEFGHJKMNPQRTUVWXY34679';
-export function codigoAleatorio() {
-  let codigo = 'ENTREGAR-';
+export function codigoAleatorio(prefixo = 'ENTREGAR-') {
+  let codigo = prefixo;
   for (let i = 0; i < 4; i++) codigo += ALFABETO_CODIGO[randomInt(ALFABETO_CODIGO.length)];
   return codigo;
 }
@@ -425,6 +425,8 @@ export async function entregarAjuste({ id: digitado, arquivo, raiz = PASTA, pain
   for (const linha of linhasDaDirecao(h.direcao)) log(linha);
   if (!(await pedirConfirmacao(perguntar))) { log('Nada foi entregue.'); return { entregue: false }; }
   const r = await painel('POST', '', { ajuste_feito: id, base_id: item.base_id ?? null, conteudo });
+  /* (a pasta pode ter virado link ou junção durante a espera do POST: confere de novo antes de apagar, como a recusa faz) */
+  pastaReal(pasta);
   fs.rmSync(pasta, { recursive: true, force: true });
   log('Entregue' + (r.ajustes && r.ajustes.length ? ' (o filtro corrigiu: ' + r.ajustes.map(x => paraTerminal(x, 120)).join(', ') + ')' : '') + '. Pasta do ajuste apagada. O cliente vê a versão nova ao abrir o pedido.');
   return { entregue: true };
@@ -439,7 +441,8 @@ export async function recusarAjuste({ id: digitado, raiz = PASTA, painel, pergun
   /* (a pasta tem de ser de verdade ANTES de recusar: link ou junção seria apagado depois, com a recusa já feita) */
   if (fs.existsSync(pasta)) pastaReal(pasta);
   log('Recusar o ajuste ' + idCurto(id) + ': o cliente vê "Não incluído" e não há volta.');
-  if (!(await pedirConfirmacao(perguntar, codigoAleatorio, 'recusar'))) { log('Nada foi recusado.'); return { recusado: false }; }
+  /* (o código diz RECUSAR: quem digita sabe que o que faz não tem volta; o de ENTREGAR não vale aqui) */
+  if (!(await pedirConfirmacao(perguntar, () => codigoAleatorio('RECUSAR-'), 'recusar'))) { log('Nada foi recusado.'); return { recusado: false }; }
   await painel('POST', '', { ajuste_recusado: id });
   if (fs.existsSync(pasta)) { pastaReal(pasta); fs.rmSync(pasta, { recursive: true, force: true }); }
   log('Recusado: o cliente vê "Não incluído". Se o pedido muda o preço, explique pelo WhatsApp.');
@@ -484,7 +487,12 @@ export function linhaDoAjuste(a) {
 export function avisoDosAjustes(aj) {
   return aj && Number.isInteger(aj.total) && aj.total > 0 ? aj.total + ' ajuste(s) escrito(s) esperando: rode "ajustes".' : '';
 }
-const SEM_LER_AJUSTES = 'Não deu para ler os ajustes agora: rode "ajustes" depois.';
+/* a fila de ajustes vem em páginas de 50 (os mais antigos): se há mais, o dono é avisado de que o resto vem depois de resolver estes */
+export function avisoDeFilaCortada(aj) {
+  if (!aj || !Array.isArray(aj.ajustes) || !Number.isInteger(aj.total) || aj.total <= aj.ajustes.length) return '';
+  return 'Mostrando os ' + aj.ajustes.length + ' mais antigos de ' + aj.total + ' ajustes esperando: resolva estes e rode "ajustes" de novo para ver os outros.';
+}
+const SEM_LER_AJUSTES ='Não deu para ler os ajustes agora: rode "ajustes" depois.';
 
 /* o comando "fila": as linhas a imprimir e se tudo deu certo. Lê as duas filas de uma vez e avisa os ajustes nos DOIS casos
    (o pedido livre nasce justamente quando a fila de direções já está vazia: a escolha conclui o pedido). Se só a leitura dos
@@ -586,6 +594,8 @@ const COMANDOS = {
     if (!Array.isArray(r.ajustes) || !r.ajustes.length) return console.log('Nenhum ajuste escrito esperando.');
     const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
     if (baixarAjustes({ itens: r.ajustes, repo }).falhas) process.exitCode = 1;
+    const mais = avisoDeFilaCortada(r);
+    if (mais) console.log('\n' + mais);
   },
   async 'ajuste-feito'(id, arquivo) {
     const { perguntar, fechar } = criarPerguntador();

@@ -11,7 +11,7 @@ import { montarLocal } from '../banco-local.mjs';
 import { ler } from '../../api/painel.mjs';
 import { REGRA_BRIEFING } from '../../api/_vendas/gerador.mjs';
 import { criarCenario, modelo, BASE, ENV } from './_ajustes.mjs';
-import { ajusteParaModelo, linhaDoAjuste, entregarAjuste, recusarAjuste, gravarAjuste, baixarAjustes, avisoDosAjustes, montarFila } from '../../scripts/direcoes.mjs';
+import { ajusteParaModelo, linhaDoAjuste, entregarAjuste, recusarAjuste, gravarAjuste, baixarAjustes, avisoDosAjustes, avisoDeFilaCortada, montarFila } from '../../scripts/direcoes.mjs';
 import { configSessao, instrucoesSessao, comandoSessao } from '../../scripts/sessao-isolada.mjs';
 
 let local, cen;
@@ -36,6 +36,25 @@ test('painel: a fila de ajustes traz o pedido livre com a versão atual, a base 
   assert.equal(item.versao.nome_conceito, 'Clareza que agenda');
   const semChave = await ler(new Request(BASE + '/api/painel?fila=ajustes', { headers: { 'x-forwarded-for': '192.0.2.81' } }), ENV);
   assert.equal(semChave.status, 401);
+});
+
+test('painel: a fila de ajustes traz no máximo 50 (os mais antigos) e o total verdadeiro; o comando avisa quando há mais', async () => {
+  const a = await comLivre('Primeiro da fila');
+  /* 51 pedidos a mais direto no banco (pelo fluxo seriam 51 conversas); saem no fim do teste */
+  await local.db.query(`insert into app.alteracoes (org_id, conversa_id, direcao_id, pedido, mudancas, status, origem)
+    select org_id, conversa_id, direcao_id, 'extra ' || g, '[]', 'na_fila', 'livre' from app.alteracoes, generate_series(1, 51) g where id = $1`, [a.id]);
+  try {
+    const r = (await cen.painelGet('?fila=ajustes')).corpo;
+    assert.equal(r.ajustes.length, 50, 'a página é de 50');
+    assert.ok(r.total >= 52, 'o total é o da fila inteira: ' + r.total);
+    assert.equal(r.truncada, true);
+    const aviso = avisoDeFilaCortada(r);
+    assert.ok(aviso.includes('50') && aviso.includes(String(r.total)), aviso);
+    assert.equal(avisoDosAjustes(r), r.total + ' ajuste(s) escrito(s) esperando: rode "ajustes".');
+  } finally { await local.db.query("delete from app.alteracoes where pedido like 'extra %'"); }
+  assert.equal(avisoDeFilaCortada({ ajustes: [1, 2], total: 2 }), '', 'cabendo tudo, nenhum aviso');
+  assert.equal(avisoDeFilaCortada({ ajustes: [], total: '9' }), '', 'só total inteiro');
+  assert.equal(avisoDeFilaCortada(undefined), '');
 });
 
 test('painel: o ajuste feito passa pelo filtro e pela varredura, vira a versão do cliente e sai da fila; base velha é 409', async () => {
@@ -158,7 +177,7 @@ test('comando ajustes (baixarAjustes): um item ruim não derruba os outros, nada
   const { repo, raiz } = cenarioBaixar();
   const itens = [
     itemBom({ alteracao_id: '\x1b]0;pwn\x07-aaaa-4aaa-8aaa-aaaaaaaaaaaa', texto: 'SEGREDO-DO-CLIENTE' }),
-    itemBom({ alteracao_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', versao: undefined }),
+    itemBom({ alteracao_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', versao: 'texto' }),   /* (presente, mas não é um objeto: prova a conferência de tipo, não só a falta) */
     itemBom()
   ];
   const linhas = [];
@@ -172,6 +191,7 @@ test('comando ajustes (baixarAjustes): um item ruim não derruba os outros, nada
   const saida = linhas.join('\n');
   assert.ok(!/[\x00-\x09\x0b-\x1f\x7f]/.test(saida), 'nenhum controle (ESC, BEL) no terminal');
   assert.ok(!saida.includes('SEGREDO'), 'nenhum texto do cliente no terminal');
+  assert.ok(!saida.includes('pwn'), 'o id fora do formato é recusado ANTES de qualquer linha com ele sair');
   assert.equal((saida.match(/Um ajuste ficou de fora/g) || []).length, 2);
   assert.ok(saida.includes('ajuste-feito') && saida.includes('ajuste-recusado'));
   /* pasta que já existe é trabalho em andamento: nada é regravado */
@@ -275,6 +295,40 @@ test('comando do dono: ajuste-feito recusa hard link no lugar do versao.json, ar
   assert.equal(posts.length, 0, 'nenhuma recusa fez POST');
 });
 
+/* a pasta do ajuste muda no meio da entrega (durante o POST): a entrega confere a pasta DE NOVO antes de apagar (como a recusa) */
+async function entregaComPastaTrocada(trocar) {
+  const raiz = fs.mkdtempSync(path.join(os.tmpdir(), 'bz-ajuste-troca-'));
+  const id = '88888888-8888-4888-8888-888888888888';
+  const dir = path.join(raiz, '88888888');
+  const item = { alteracao_id: id, conversa_id: '44444444-4444-4444-8444-444444444444', codigo: 'BZ-K7M3Q', pedido_em: '2026-10-17T12:00:00Z', texto: 'Quero o mapa', estrategia: 'conversao', base_id: null, suspeito: false };
+  gravarAjuste(dir, JSON.stringify(ajusteParaModelo(item)), JSON.stringify(modelo(1)));
+  const alvo = path.join(raiz, 'alvo-importante');
+  fs.mkdirSync(alvo);
+  fs.writeFileSync(path.join(alvo, 'precioso.txt'), 'nao apagar');
+  const painel = async metodo => {
+    if (metodo === 'POST') { trocar({ dir, alvo }); return { ok: true, status: 'aplicada', ajustes: [] }; }
+    return { ajustes: [item] };
+  };
+  const entrega = entregarAjuste({ id, arquivo: path.join(dir, 'versao.json'), raiz, painel, perguntar: async t => t.match(/ENTREGAR-[A-Z0-9]{4}/)[0], log: () => {} });
+  return { entrega, alvo };
+}
+
+test('comando do dono: se a pasta sumiu enquanto o POST ia, a entrega acusa em vez de apagar às cegas', async () => {
+  const { entrega } = await entregaComPastaTrocada(({ dir }) => fs.rmSync(dir, { recursive: true, force: true }));
+  await assert.rejects(entrega, /não existe/);
+});
+
+/* (a junção não pede permissão de administrador no Windows, mas alguns ambientes a recusam: aí este teste não roda) */
+const podeJuncao = (() => {
+  const t = fs.mkdtempSync(path.join(os.tmpdir(), 'bz-juncao-prova-'));
+  try { fs.mkdirSync(path.join(t, 'a')); fs.symlinkSync(path.join(t, 'a'), path.join(t, 'b'), 'junction'); return true; } catch { return false; }
+})();
+test('comando do dono: se a pasta virou uma junção enquanto o POST ia, a entrega não apaga nada nem o destino', { skip: !podeJuncao && 'este ambiente não cria junção nem link' }, async () => {
+  const { entrega, alvo } = await entregaComPastaTrocada(({ dir, alvo: destino }) => { fs.rmSync(dir, { recursive: true, force: true }); fs.symlinkSync(destino, dir, 'junction'); });
+  await assert.rejects(entrega, /link ou junção/);
+  assert.equal(fs.readFileSync(path.join(alvo, 'precioso.txt'), 'utf8'), 'nao apagar', 'o destino da junção ficou intacto');
+});
+
 test('comando do dono: ajuste-recusado pede o código sorteado (errado: nenhum POST), faz um POST e apaga a pasta; a sessão isolada do ajuste só escreve versao.json', async () => {
   const raiz = fs.mkdtempSync(path.join(os.tmpdir(), 'bz-recusa-'));
   const id = 'abcdef12-6666-4666-8666-666666666666';
@@ -283,16 +337,21 @@ test('comando do dono: ajuste-recusado pede o código sorteado (errado: nenhum P
   const painel = async (metodo, consulta, corpo) => { posts.push(corpo); return { ok: true, status: 'recusada' }; };
   let pergunta = '';
   assert.deepEqual(await recusarAjuste({ id, raiz, painel, perguntar: async texto => { pergunta = texto; return 'ERRADO'; }, log: () => {} }), { recusado: false });
-  assert.match(pergunta, /Para recusar, digite ENTREGAR-/);
+  assert.match(pergunta, /Para recusar, digite RECUSAR-[A-Z0-9]{4}/, 'recusar é irreversível: o código diz RECUSAR, nunca ENTREGAR');
+  assert.doesNotMatch(pergunta, /ENTREGAR/);
   assert.equal(posts.length, 0, 'código errado: nada saiu');
   assert.ok(fs.existsSync(path.join(raiz, 'abcdef12')), 'e a pasta fica');
-  assert.deepEqual(await recusarAjuste({ id, raiz, painel, perguntar: async texto => texto.match(/ENTREGAR-[A-Z0-9]{4}/)[0], log: () => {} }), { recusado: true });
+  assert.deepEqual(await recusarAjuste({ id, raiz, painel, perguntar: async texto => texto.match(/RECUSAR-[A-Z0-9]{4}/)[0], log: () => {} }), { recusado: true });
   assert.deepEqual(posts, [{ ajuste_recusado: id }]);
   assert.equal(fs.existsSync(path.join(raiz, 'abcdef12')), false);
   /* o id digitado em maiúsculas vale (o servidor guarda minúsculas) */
   posts.length = 0;
-  assert.deepEqual(await recusarAjuste({ id: id.toUpperCase(), raiz, painel, perguntar: async texto => texto.match(/ENTREGAR-[A-Z0-9]{4}/)[0], log: () => {} }), { recusado: true });
+  assert.deepEqual(await recusarAjuste({ id: id.toUpperCase(), raiz, painel, perguntar: async texto => texto.match(/RECUSAR-[A-Z0-9]{4}/)[0], log: () => {} }), { recusado: true });
   assert.deepEqual(posts, [{ ajuste_recusado: id }]);
+  /* o código de ENTREGAR não vale para recusar (digitar o da outra pergunta não recusa nada) */
+  posts.length = 0;
+  assert.deepEqual(await recusarAjuste({ id, raiz, painel, perguntar: async () => 'ENTREGAR-ACDE', log: () => {} }), { recusado: false });
+  assert.equal(posts.length, 0);
   const repo = 'C:\\Vault - Fernando\\Beyon Zero\\03 Projetos\\site';
   const c = configSessao({ repo, tarefa: 'ajuste' });
   assert.deepEqual(c.permissions.allow, ['Edit(./versao.json)']);
