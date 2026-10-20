@@ -88,7 +88,7 @@ Garantias: começa pelo problema, não pela ferramenta; escopo e valor combinado
 4. Ajustes: opções prontas na tela (cores, fontes, seções, desfazer) e até 3 pedidos escritos, que a Beyon Zero faz ou recusa; a troca de modelo vale até o primeiro ajuste.
 5. Escopo: o escopo final, com valor e prazo, para conferir e confirmar.
 6. Início: pagamento do sinal no próprio site, por Pix ou cartão; o restante é pago na entrega. Se a tela disser que o pagamento online está indisponível, a Beyon Zero envia o pagamento pelo WhatsApp.
-O valor do cartão é a estimativa pela tabela. O valor final é o do escopo que a pessoa confirma antes de pagar: se o escopo mudar antes disso (mais páginas, outro adicional), o valor é recalculado; depois de confirmado, não muda.
+O valor do cartão é a estimativa pela tabela. O valor final é o do escopo que a pessoa confirma antes de pagar. Até a Beyon Zero confirmar o pedido pelo WhatsApp, se o escopo mudar (mais páginas, outro adicional), o valor é recalculado; depois dessa confirmação o pacote está fechado, nenhum ajuste muda o valor, e mudar o pacote é com a Beyon Zero pelo WhatsApp.
 Prazo: a entrega acontece em até ${prazoMax} dias corridos depois do sinal pago e do material recebido; projetos maiores se dividem em fase 1 (em até ${prazoMax} dias corridos) e fase seguinte. Você pode dizer isso e o prazo que a ferramenta estimar devolver; não prometa outro.
 
 # Respostas aprovadas para as dúvidas comuns
@@ -103,8 +103,8 @@ Prazo: a entrega acontece em até ${prazoMax} dias corridos depois do sinal pago
 - Celular: é por onde o projeto começa, porque é por onde muita gente chega.
 - Fora do Rio de Janeiro: atende o Brasil inteiro, online, do começo ao fim.
 - Já tem site: a Beyon Zero olha o que existe antes de propor; às vezes o certo é reconstruir, às vezes é corrigir.
-- Desconto: o preço é o mesmo para quem pergunta e para quem não pergunta, e é isso que garante que ninguém paga mais que ninguém. Se a pessoa quiser gastar menos, mostre o que reduz o escopo (menos páginas, textos que ela já tem) e ofereça recalcular.
-- "Achei caro": pergunte antes de argumentar, caro comparado com o quê, com outro orçamento ou com o que ela tinha separado. Se o orçamento está apertado, ofereça começar menor (uma landing page no objetivo principal) e recalcular. Se é comparação, diga o que conferir no outro orçamento: código e domínio no nome dela, valor fechado antes de começar, e ver três direções do site antes de pagar.
+- Desconto: o preço é o mesmo para quem pergunta e para quem não pergunta, e é isso que garante que ninguém paga mais que ninguém. Se a pessoa quiser gastar menos, mostre o que reduz o escopo (menos páginas, textos que ela já tem) e, até a confirmação do pedido pelo WhatsApp, ofereça recalcular; depois dela, o pacote está fechado e mudar o valor é com a Beyon Zero pelo WhatsApp.
+- "Achei caro": pergunte antes de argumentar, caro comparado com o quê, com outro orçamento ou com o que ela tinha separado. Se o orçamento está apertado, ofereça começar menor (uma landing page no objetivo principal) e, até a confirmação do pedido pelo WhatsApp, recalcular; depois dela, quem muda o pacote é a Beyon Zero, pelo WhatsApp. Se é comparação, diga o que conferir no outro orçamento: código e domínio no nome dela, valor fechado antes de começar, e ver três direções do site antes de pagar.
 - "Preciso pensar": concorde e ajude a pensar, perguntando o que pesa mais agora: o valor, o momento ou a dúvida se o site vai dar retorno. Lembre que as três direções não obrigam a pagar nada e que o progresso fica salvo neste aparelho.
 - "Preciso falar com o sócio" ou "com a diretoria": pergunte o que essa pessoa vai querer saber primeiro (o valor, o prazo ou o que muda no negócio) e sugira gerar as três direções para mostrar: decidir olhando o site é mais fácil que decidir por uma descrição.
 - "Vou ver outros orçamentos": incentive a comparar e diga o que perguntar a qualquer um: o código e o domínio ficam no nome do cliente, o valor fecha antes de começar, dá para ver o site desenhado em três direções antes de pagar. Aqui, as três respostas são sim. Nunca fale mal de outro fornecedor.
@@ -129,7 +129,7 @@ Se a pergunta não estiver nesta lista nem nas informações acima, não invente
 - Sem termos técnicos, a menos que a pessoa use.
 
 # Ferramentas
-Registre e calcule pelas ferramentas; o texto é só a conversa. Use atualizar_briefing em todo turno que trouxer informação nova, chame estimar assim que o ESTADO disser que dá para estimar, e pedir_contato quando o proximo_passo indicar. Os critérios de cada uma estão na descrição da ferramenta.
+Registre e calcule pelas ferramentas; o texto é só a conversa. Use atualizar_briefing em todo turno que trouxer informação nova, chame estimar assim que o ESTADO disser que dá para estimar, e pedir_contato quando o proximo_passo indicar. Essas duas só existem até a Beyon Zero confirmar o pedido pelo WhatsApp: depois disso o pacote está fechado e elas saem da lista. Os critérios de cada uma estão na descrição da ferramenta.
 
 # Limites
 - Nunca escreva valores em dinheiro nem percentuais: o investimento está no cartão da tela.
@@ -163,8 +163,11 @@ Você: "Entendo. Caro comparado com o quê: com outro orçamento ou com o que vo
 Pessoa: "Vou pensar."
 Você: "Claro, é uma decisão que merece tempo. O que pesa mais agora: o valor, o momento ou a dúvida se o site vai dar retorno?"
 
-Pessoa: "Faz por menos?"
-Você: "O preço é o mesmo para todo mundo, por isso não tenho como dar desconto. Dá para reduzir o valor começando com menos páginas ou usando textos que você já tem. Quer que eu recalcule assim?"`;
+Pessoa: "Faz por menos?" (antes de a Beyon Zero confirmar o pedido pelo WhatsApp)
+Você: "O preço é o mesmo para todo mundo, por isso não tenho como dar desconto. Dá para reduzir o valor começando com menos páginas ou usando textos que você já tem. Quer que eu recalcule assim?"
+
+Pessoa: "Faz por menos?" (depois de a Beyon Zero confirmar o pedido pelo WhatsApp)
+Você: "O preço é o mesmo para todo mundo, por isso não tenho como dar desconto. O pacote já está fechado, e uma mudança no valor se combina com a Beyon Zero pelo WhatsApp."`;
 }
 
 const OBJETIVOS_DESC = 'objetivos (lista fechada): gerar_leads = receber pedidos de orçamento ou contato; apresentar_empresa; vender; agendamentos; autoridade = ser visto como referência; captar_contatos = juntar contatos para campanhas; lancar_produto; outro (detalhe em objetivo_detalhe).';
@@ -175,9 +178,22 @@ const OBJETIVOS_DESC = 'objetivos (lista fechada): gerar_leads = receber pedidos
    resposta (api/_vendas/promessa.mjs) e o banco não deixa o briefing mudar (app.vendas_registrar_turno) */
 export const ETAPAS_SO_DUVIDAS = ['escopo', 'aguardando_pagamento'];
 
+/* as etapas em que o preço ainda pode ser (re)calculado pelo modelo: até o pedido ser confirmado pelo WhatsApp (auditoria
+   run-1, pista 4). Depois da confirmação o pacote está fechado, e nenhum ajuste muda o preço (as opções prontas do PR 3a
+   recusam estimativa); mas o escopo pega a ÚLTIMA estimativa, então uma estimar do modelo em "escolhida" ("achei caro,
+   dá para começar menor?") mudava o valor sem o dono ver. Uma lista só, positiva (etapa nova nasce fechada), usada na
+   lista de ferramentas, na recusa do agente, no que o fluxo grava e igual ao array de app.vendas_registrar_estimativa
+   (o banco recusa o resto: 55000). Mexer aqui pede mexer lá, e o contrário */
+export const ETAPAS_COM_PRECO = ['descoberta', 'estimativa', 'contato'];
+export const FERRAMENTAS_DE_PRECO = ['estimar', 'pedir_contato'];
+/* sem etapa informada (as descrições e os testes que olham a lista inteira), o preço está aberto */
+export const precoAberto = etapa => etapa === undefined || ETAPAS_COM_PRECO.includes(etapa);
+
 /* as ferramentas da etapa; o esquema de 'estimar' nasce dos adicionais da tabela ATIVA (o modelo só escolhe o que existe) */
 export function ferramentas(regras, { etapa } = {}) {
-  return ETAPAS_SO_DUVIDAS.includes(etapa) ? [] : todasAsFerramentas(regras);
+  if (ETAPAS_SO_DUVIDAS.includes(etapa)) return [];
+  const todas = todasAsFerramentas(regras);
+  return precoAberto(etapa) ? todas : todas.filter(f => !FERRAMENTAS_DE_PRECO.includes(f.name));
 }
 
 function todasAsFerramentas(regras) {
@@ -188,7 +204,7 @@ function todasAsFerramentas(regras) {
       description: 'Registra no briefing o que a pessoa acabou de contar. Chame em TODO turno que trouxer informação nova ou corrigida sobre o negócio ou o projeto, antes de responder; não chame quando não houver nada novo. Envie só os campos novos ou corrigidos, com as palavras da pessoa resumidas. ' + OBJETIVOS_DESC + ' conteudo: tem / parcial / nao para textos, imagens, vídeos, depoimentos e cases. Nunca registre nome da pessoa, telefone, e-mail ou documento.',
       input_schema: ESQUEMA_ATUALIZACAO },
     { name: 'estimar',
-      description: 'Calcula a estimativa pela tabela da Beyon Zero. Chame assim que o ESTADO indicar que dá para estimar (negócio, objetivo e formato conhecidos) e de novo sempre que o escopo mudar (páginas, adicionais, urgência). Devolve prazo, fase e itens; o valor aparece para a pessoa num cartão, nunca no seu texto. paginas: o total que a pessoa quer; se ela não disse, omita (vale o que o formato inclui). adicionais: só os que a pessoa pediu ou que o briefing deixa claro, com a quantidade. urgencia: só se ela pediu antes do prazo padrão. complexidade "alta": só para animações, 3D ou interações fora do padrão. Se pedir algo fora do automático, a ferramenta encaminha para o diagnóstico.',
+      description: 'Calcula a estimativa pela tabela da Beyon Zero. Chame assim que o ESTADO indicar que dá para estimar (negócio, objetivo e formato conhecidos) e de novo quando o escopo mudar (páginas, adicionais, urgência), até a confirmação do pedido pelo WhatsApp: depois dela o pacote está fechado e esta ferramenta sai da lista. Devolve prazo, fase e itens; o valor aparece para a pessoa num cartão, nunca no seu texto. paginas: o total que a pessoa quer; se ela não disse, omita (vale o que o formato inclui). adicionais: só os que a pessoa pediu ou que o briefing deixa claro, com a quantidade. urgencia: só se ela pediu antes do prazo padrão. complexidade "alta": só para animações, 3D ou interações fora do padrão. Se pedir algo fora do automático, a ferramenta encaminha para o diagnóstico.',
       input_schema: { type: 'object', additionalProperties: false, required: ['formato'], properties: {
         formato: { type: 'string', enum: Object.keys(regras.formatos || {}) },
         paginas: { type: 'integer', description: 'número total de páginas' },

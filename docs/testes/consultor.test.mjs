@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { montarSistema, proximoPasso, ferramentas, IDENTIDADE } from '../../api/_vendas/consultor.mjs';
+import { montarSistema, proximoPasso, ferramentas, IDENTIDADE, ETAPAS_COM_PRECO } from '../../api/_vendas/consultor.mjs';
 import { executarTurno } from '../../api/_vendas/agente.mjs';
 import { comArea } from './_area-v2.mjs';
 
@@ -331,8 +331,13 @@ test('conversa aberta até o pagamento: no escopo e no sinal o consultor só tir
      "não tem valor automático" ao lado do valor confirmado (revisão técnica do PR 34, M1) */
   for (const etapa of ['escopo', 'aguardando_pagamento'])
     assert.deepEqual(ferramentas(REGRAS, { etapa }), [], etapa);
-  for (const etapa of ['descoberta', 'estimativa', 'contato', 'alteracoes'])
+  for (const etapa of ['descoberta', 'estimativa', 'contato'])
     assert.equal(ferramentas(REGRAS, { etapa }).length, 5, etapa);
+  assert.deepEqual(ETAPAS_COM_PRECO, ['descoberta', 'estimativa', 'contato'], 'a lista positiva, num lugar só (= app.vendas_registrar_estimativa)');
+  /* (auditoria run-1, pista 4) depois da confirmação do pedido o pacote está fechado: o modelo não recalcula o preço nem
+     pede o contato de novo (= app.vendas_registrar_estimativa); fica o briefing, a ideia de IA e o diagnóstico */
+  for (const etapa of ['gerando', 'direcoes', 'escolhida', 'alteracoes'])
+    assert.deepEqual(ferramentas(REGRAS, { etapa }).map(f => f.name), ['atualizar_briefing', 'sugerir_solucao_ia', 'encaminhar_diagnostico'], etapa);
   const esc = proximoPasso({ etapa: 'escopo', briefing: {}, estimativa: null });
   /* os nomes que o modelo cita são os da tela: se a tela renomear, este teste quebra (re-revisão do 990a87e) */
   const tela = fs.readFileSync(new URL('../../orcamento.html', import.meta.url), 'utf8');

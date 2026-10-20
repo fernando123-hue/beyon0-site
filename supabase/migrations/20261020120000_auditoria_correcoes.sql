@@ -99,11 +99,39 @@ begin
   return jsonb_build_object('ok', true, 'reserva_id', v_id);
 end $$;
 
+-- ---------- 3. o preço não é recalculado depois da escolha (pista 4) ----------
+-- vendas_registrar_estimativa aceitava a estimativa também em direções, escolhida e alterações. Depois da confirmação
+-- do pedido pelo WhatsApp o pacote está fechado e nenhum ajuste muda o preço (as opções prontas recusam estimativa),
+-- mas o modelo ainda podia chamar "estimar" ("achei caro, dá para começar menor?") e o escopo, que pega a ÚLTIMA
+-- estimativa, saía com outro valor. Agora só descoberta, estimativa e contato (= ETAPAS_COM_PRECO em
+-- api/_vendas/consultor.mjs; um teste confere que as duas listas são iguais); o resto (teto de 30 pacotes, só a tabela
+-- ATIVA) fica como estava em 20261015120000_pr2b_ajustes.sql.
+create or replace function app.vendas_registrar_estimativa(p jsonb) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare c app.conversas; v_regras app.regras_comerciais; v_id uuid;
+begin
+  c := privado.conversa_do((p ->> 'conversa_id')::uuid, (p ->> 'visitante_id')::uuid);
+  perform privado.exigir_etapa(c, array['descoberta', 'estimativa', 'contato']);
+  if (select count(*) from app.estimativas e where e.conversa_id = c.id) >= 30 then
+    raise exception 'limite de pacotes desta conversa' using errcode = '23514';
+  end if;
+  -- só a tabela ATIVA, aprovada pelo dono, gera estimativa para visitante
+  select * into v_regras from app.regras_comerciais where id = (p ->> 'regras_id')::uuid and org_id = c.org_id and status = 'ativa';
+  if not found then raise exception 'regras comerciais ativas não encontradas' using errcode = '55000'; end if;
+  insert into app.estimativas (org_id, conversa_id, regras_id, fatores, valor_total, sinal, prazo_dias, fase, detalhes)
+  values (c.org_id, c.id, v_regras.id, p -> 'fatores', (p ->> 'valor_total')::numeric, (p ->> 'sinal')::numeric,
+          (p ->> 'prazo_dias')::integer, coalesce(p ->> 'fase', 'unica'), coalesce(p -> 'detalhes', '{}'))
+  returning id into v_id;
+  if c.etapa = 'descoberta' then update app.conversas set etapa = 'estimativa', ultima_atividade = now() where id = c.id; end if;
+  perform privado.evento(c.org_id, c.id, 'estimativa_mostrada', jsonb_build_object('valor_total', (p ->> 'valor_total')::numeric, 'fase', coalesce(p ->> 'fase', 'unica')));
+  return jsonb_build_object('estimativa_id', v_id);
+end $$;
+
 -- (create or replace mantém as concessões; repetidas aqui para a migration se explicar sozinha)
 do $$
 declare f text;
 begin
-  foreach f in array array['vendas_reservar_ia', 'vendas_custo_dia', 'vendas_reservar_custo'] loop
+  foreach f in array array['vendas_reservar_ia', 'vendas_custo_dia', 'vendas_reservar_custo', 'vendas_registrar_estimativa'] loop
     execute format('revoke all on function app.%I(jsonb) from public, anon, authenticated', f);
     execute format('grant execute on function app.%I(jsonb) to service_role', f);
   end loop;

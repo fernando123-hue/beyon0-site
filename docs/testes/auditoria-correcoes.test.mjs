@@ -8,14 +8,18 @@ import { criarSimulada } from '../../api/_ia/simulado.mjs';
 import { TETOS } from '../../api/_ia/config.mjs';
 import { criarFluxo } from '../../api/_vendas/fluxo.mjs';
 import { chaveDoIp48 } from '../../api/_vendas/ip.mjs';
+import { executarTurno } from '../../api/_vendas/agente.mjs';
+import { ETAPAS_COM_PRECO } from '../../api/_vendas/consultor.mjs';
 import { LIMITES_DE_TESTE } from './_pedido.mjs';
+import { criarCenario } from './_ajustes.mjs';
 
 const BASE = 'http://127.0.0.1:8899';
 const SEGREDO = 'segredo-de-teste';
-let local, deps;
+let local, deps, cenario;
 before(async () => {
   local = await montarLocal({ base: BASE });
   deps = { banco: local.rpc, visitantes: local.auth, ia: criarSimulada(), direcoes: 'api', segredoFreio: SEGREDO, limitesPedido: LIMITES_DE_TESTE };
+  cenario = criarCenario(local);
 });
 
 /* o fluxo direto (sem o freio em memória da API): o que se testa aqui é o freio do BANCO. Uma conversa nova por chamada */
@@ -31,6 +35,7 @@ function porIp(ip, textos = ['Tenho uma padaria e quero um site']) {
   };
 }
 const seg = n => n.toString(16);
+const visitanteDeConversa = async c => (await local.db.query('select visitante_id from app.conversas where id = $1', [c])).rows[0].visitante_id;
 
 /* ---------- Task 2 (pista 1): o limite diário do consultor também por /48 ---------- */
 /* a casa ou a empresa com IPv6 recebe um /48 inteiro (65.536 redes /64) e troca de /64 à vontade; só o /64 contava, e o
@@ -71,4 +76,73 @@ test('consultor: chave do /48 mal formada, ou sem o teto, é recusada (22023) em
   const base = { conversa_id: s.conversa, visitante_id: vid, max_turnos: TETOS.turnos_por_conversa, teto_usd: TETOS.conversa_usd, segundos: 120 };
   await assert.rejects(local.rpc('vendas_reservar_ia', { ...base, chave_ip48: 'ABC', max_por_ip48: TETOS.conversas_por_ip48_dia }), e => e.codigo === '22023');
   await assert.rejects(local.rpc('vendas_reservar_ia', { ...base, chave_ip48: 'a'.repeat(64) }), e => e.codigo === '22023', 'chave sem o teto');
+});
+
+/* ---------- Task 4 (pista 4): o consultor não recalcula o preço depois da escolha ---------- */
+/* depois da escolha dos modelos nenhum ajuste muda o preço (as opções prontas, PR 3a, recusam estimativa); mas o modelo ainda
+   podia chamar `estimar` em "escolhida"/"alteracoes" ("achei caro, dá para começar menor?") e gravar uma estimativa nova, e o
+   escopo (que pega a ÚLTIMA estimativa) saía com outro valor, sem o dono ver. Camadas: a lista de ferramentas da etapa
+   (consultor.test.mjs), a recusa do agente, o filtro do turno e o banco; um teste por camada onde ela se alcança sozinha */
+const regrasAtivasId = async () => (await local.db.query(`select id from app.regras_comerciais where status = 'ativa' limit 1`)).rows[0].id;
+const estimativasDe = async c => (await local.db.query('select count(*)::int n from app.estimativas where conversa_id = $1', [c])).rows[0].n;
+
+test('banco: estimativa só até o contato (descoberta, estimativa, contato); em direções, escolhida e alterações é 55000', async () => {
+  const { c } = await cenario.ateEscolher();
+  const vid = await visitanteDeConversa(c), regras_id = await regrasAtivasId();
+  const gravar = () => local.rpc('vendas_registrar_estimativa', { conversa_id: c, visitante_id: vid, regras_id, fatores: { formato: 'institucional' }, valor_total: 3950, sinal: 1975, prazo_dias: 9 });
+  const antes = await estimativasDe(c);
+  for (const etapa of ['direcoes', 'escolhida', 'alteracoes']) {
+    await cenario.forcarEtapa(c, etapa);
+    await assert.rejects(gravar(), e => e.codigo === '55000', etapa + ': o pacote já foi fechado');
+  }
+  assert.equal(await estimativasDe(c), antes, 'nenhuma estimativa nova');
+  await cenario.forcarEtapa(c, 'contato');
+  assert.ok((await gravar()).estimativa_id, 'no contato (o pedido ainda espera o WhatsApp) o preço ainda pode mudar');
+});
+
+test('as etapas com preço do JS (ETAPAS_COM_PRECO) são as mesmas do banco (vendas_registrar_estimativa)', async () => {
+  const fonte = (await local.db.query(`select p.prosrc from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'app' and p.proname = 'vendas_registrar_estimativa'`)).rows[0].prosrc;
+  const lista = /exigir_etapa\(c, array\[([^\]]+)\]\)/.exec(fonte);
+  assert.ok(lista, 'a função confere a etapa');
+  assert.deepEqual(lista[1].split(',').map(s => s.trim().replace(/'/g, '')), ETAPAS_COM_PRECO);
+});
+
+test('agente: estimar e pedir_contato depois da confirmação do pedido são recusados com motivo próprio, sem estimativa; até o contato seguem valendo', async () => {
+  const regras = (await local.rpc('vendas_regras_ativas', { org_slug: 'beyon-zero' })).regras;
+  const turno = async etapa => {
+    const vistos = [];
+    let rodada = 0;
+    const ia = { mensagem: async p => {
+      if (rodada++ > 0) { vistos.push(...p.mensagens.at(-1).content.map(r => JSON.parse(r.content))); return { texto: 'Certo.', chamadas: [], conteudo: [], parada: 'fim', custo_usd: 0 }; }
+      const chamadas = [{ id: 't1', nome: 'estimar', entrada: { formato: 'institucional' } }, { id: 't2', nome: 'pedir_contato', entrada: {} }];
+      return { texto: '', chamadas, conteudo: chamadas.map(x => ({ type: 'tool_use', id: x.id, name: x.nome, input: x.entrada })), parada: 'ferramenta', custo_usd: 0 };
+    } };
+    const conversa = { etapa, briefing: { negocio: { segmento: 'saúde' }, objetivos: ['agendamentos'], projeto: { formato: 'institucional' } }, mensagens: [],
+      estimativa: { prazo_dias: 8, detalhes: { itens: [] } } };
+    const r = await executarTurno({ ia, regras, conversa, mensagem: 'Achei caro, dá para começar menor?' });
+    return { r, vistos };
+  };
+  for (const etapa of ['direcoes', 'escolhida', 'alteracoes']) {
+    const { r, vistos } = await turno(etapa);
+    assert.equal(r.estimativa, null, etapa);
+    assert.equal(r.pedir_contato, false, etapa);
+    assert.deepEqual(vistos.map(v => v.motivo), ['o pacote já foi fechado', 'o pacote já foi fechado'], etapa);
+  }
+  const { r } = await turno('contato');
+  assert.ok(r.estimativa, 'no contato o modelo ainda recalcula (o pedido espera a confirmação pelo WhatsApp)');
+  assert.equal(r.pedir_contato, true);
+});
+
+test('consultor: depois da escolha, "achei caro" não gera estimativa nova e o escopo sai da estimativa de antes', async () => {
+  const { n, c } = await cenario.ateEscolher({ ia: criarSimulada() });
+  const antes = await estimativasDe(c);
+  const ultimoValor = async () => Number((await local.db.query('select valor_total from app.estimativas where conversa_id = $1 order by created_at desc limit 1', [c])).rows[0].valor_total);
+  const valor = await ultimoValor();
+  const r = await n.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Achei caro, dá para começar menor?' });
+  assert.equal(r.status, 200, JSON.stringify(r.corpo));
+  assert.equal(r.corpo.estimativa, null, 'nenhum cartão de preço novo na tela');
+  assert.equal(await estimativasDe(c), antes, 'nenhuma estimativa nova no banco');
+  const esc = await n.chamar('POST', 'escopo', { conversa_id: c });
+  assert.equal(esc.status, 200, JSON.stringify(esc.corpo));
+  assert.equal(Number(esc.corpo.valor_total), valor, 'o escopo traz o valor da estimativa de antes');
 });

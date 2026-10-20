@@ -13,7 +13,7 @@
    objeções, histórico): CEREBRO abaixo — hoje vazio, de propósito.
    ========================================================================== */
 import { limparAtualizacao, limparTexto, mesclar, avaliar, prontoParaEstimar } from './briefing.mjs';
-import { IDENTIDADE, montarSistema, ferramentas, proximoPasso, ETAPAS_SO_DUVIDAS } from './consultor.mjs';
+import { IDENTIDADE, montarSistema, ferramentas, proximoPasso, ETAPAS_SO_DUVIDAS, FERRAMENTAS_DE_PRECO, precoAberto } from './consultor.mjs';
 import { modoDirecoes } from '../_ia/config.mjs';
 import { estimar } from './precos.mjs';
 import { redigir, semPrecoNoTexto } from './seguranca.mjs';
@@ -87,7 +87,12 @@ export async function executarTurno({ ia, regras, conversa, mensagem, direcoes }
     const resultados = [];
     for (const ch of r.chamadas) {
       let saida;
-      if (!permitidas.has(ch.nome)) {
+      /* (auditoria run-1, pista 4) depois da confirmação do pedido o pacote está fechado: o preço e o formulário não voltam.
+         A lista de ferramentas já não os entrega; esta recusa, com motivo próprio, vale mesmo que alguém mexa em ferramentas()
+         ou que o modelo insista. No escopo e no sinal segue a frase de só dúvidas, abaixo */
+      if (FERRAMENTAS_DE_PRECO.includes(ch.nome) && !soDuvidas && !precoAberto(conversa.etapa)) {
+        saida = { ok: false, motivo: 'o pacote já foi fechado' };
+      } else if (!permitidas.has(ch.nome)) {
         saida = { ok: false, motivo: ETAPAS_SO_DUVIDAS.includes(conversa.etapa) ? 'nesta etapa, só responder dúvidas' : 'ferramenta inexistente' };
       } else if (ch.nome === 'atualizar_briefing') {
         briefing = mesclar(briefing, limparAtualizacao(ch.entrada));

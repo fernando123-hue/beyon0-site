@@ -21,7 +21,7 @@ import { ErroPagamento } from '../_pagamentos/servico.mjs';
 import { criarFreio, ipDe } from '../_freio.mjs';
 import { chaveDoIp, chaveDoIp48 } from './ip.mjs';
 import { AuthIndisponivel } from '../_supabase.mjs';
-import { ETAPAS_SO_DUVIDAS } from './consultor.mjs';
+import { ETAPAS_SO_DUVIDAS, precoAberto } from './consultor.mjs';
 import { classificar } from '../_classificador/index.mjs';
 import { catalogoPublico, respostasParaBriefing, nomeDeTela, landingMaxExtras } from './catalogo.mjs';
 import { limparAtualizacao } from './briefing.mjs';
@@ -259,13 +259,16 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     await banco('vendas_registrar_turno', { conversa_id: conversaId, visitante_id: vid, mensagem_visitante: redigir(msg), mensagem_agente: r.resposta,
       ...(soDuvidas ? {} : { briefing: r.briefing, confianca: r.confianca }), custo_usd: r.custo_usd })
       .catch(async e => { await somarCusto(conversaId, vid, r.custo_usd); throw e; });
+    /* a estimativa e o formulário só até a confirmação do pedido (ETAPAS_COM_PRECO): o agente já não os devolve depois,
+       e o banco recusa a estimativa (55000); esta é a camada do meio, para a etapa que o turno leu no começo */
+    const comPreco = precoAberto(est.conversa.etapa);
     let estimativa = null;
-    if (r.estimativa && !soDuvidas) {
+    if (r.estimativa && !soDuvidas && comPreco) {
       await banco('vendas_registrar_estimativa', { conversa_id: conversaId, visitante_id: vid, regras_id: regras.id, fatores: r.estimativa.fatores,
         valor_total: r.estimativa.valor_total, sinal: r.estimativa.sinal, prazo_dias: r.estimativa.prazo_dias, fase: r.estimativa.fase, detalhes: r.estimativa });
       estimativa = cartao(r.estimativa);
     }
-    return { resposta: r.resposta, estimativa, pedir_contato: !soDuvidas && r.pedir_contato, diagnostico: r.diagnostico, sugestoes_ia: r.sugestoes_ia, confianca: r.confianca };
+    return { resposta: r.resposta, estimativa, pedir_contato: !soDuvidas && comPreco && r.pedir_contato, diagnostico: r.diagnostico, sugestoes_ia: r.sugestoes_ia, confianca: r.confianca };
   }
 
   /* respostas + escolhas → recomendação e estimativa pelo motor, contra a tabela ATIVA (nada grava aqui) */

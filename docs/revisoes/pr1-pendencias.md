@@ -188,7 +188,7 @@ no painel, "Pagar sem medo" (§5) e D5 ficam para o PR 3b.
 | PR3a-origem-ia | sem `origem`, `vendas_registrar_alteracao` assume `'ia'` (sem teto de 30, aceita `estimativa`): porta antiga aberta de propósito para o código velho funcionar enquanto a migration chega antes. Só `service_role`; nenhum código do PR usa (segurança #1) | depois da promoção, uma migration curta que recuse origem `'ia'` e a chave `estimativa` (22023) |
 | PR3a-resumo-base | o resumo (`vendas_apresentar_escopo`) não fica preso à versão lida: o "feito" do dono entre a leitura e a gravação deixa o contrato descrevendo a versão anterior (segurança #2) | mandar o `ajuste_atual` como `base_id` do escopo e recusar com 40001 se mudou |
 | PR3a-desfazer-descartado | `vendas_desfazer_alteracao` não confere "descartado" no banco (a API barra com `exigirNaoDescartado`); camada extra opcional (segurança #8) | só se quiser defesa em profundidade |
-| PR3a-consultor-preco | a pista 4 da auditoria (o consultor recalcula preço depois da escolha, pelo `estimar` em escolhida/alterações) NÃO é corrigida pelo PR 3a, que só melhora um pouco (sai o `alterar`) | PR 3b |
+| ~~PR3a-consultor-preco~~ | ~~a pista 4 da auditoria (o consultor recalcula preço depois da escolha, pelo `estimar` em escolhida/alterações) NÃO é corrigida pelo PR 3a, que só melhora um pouco (sai o `alterar`)~~ | **feito no PR de correções da auditoria** (`ETAPAS_COM_PRECO` em `api/_vendas/consultor.mjs`: a lista de ferramentas, a recusa do agente e o que o turno grava só deixam `estimar` e `pedir_contato` até o pedido ser confirmado pelo WhatsApp; `app.vendas_registrar_estimativa` recusa o resto, 55000; o prompt diz "até a confirmação do pedido pelo WhatsApp") |
 
 ## Depois / quando acontecer
 

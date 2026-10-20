@@ -81,7 +81,12 @@ export const SABOTAGENS = [
   { nome: 'consultor sem o freio do /48 do IPv6', arquivo: '20261020120000_auditoria_correcoes.sql', testes: ['docs/testes/auditoria-correcoes.test.mjs'],
     de: 'if v_chave48 is not null then\n      if not privado.contar_ip', para: 'if false then\n      if not privado.contar_ip' },
   { nome: 'teto do dia soma a vida inteira das conversas tocadas hoje', arquivo: '20261020120000_auditoria_correcoes.sql', testes: ['docs/testes/teto-dia.test.mjs'],
-    de: "select coalesce(sum(c.custo_usd), 0)\n  from app.ia_chamadas c\n  where c.org_id = p_org\n    and c.created_at >=", para: "select coalesce(sum(c.custo_ia_usd), 0)\n  from app.conversas c\n  where c.org_id = p_org\n    and c.ultima_atividade >=" }
+    de: "select coalesce(sum(c.custo_usd), 0)\n  from app.ia_chamadas c\n  where c.org_id = p_org\n    and c.created_at >=", para: "select coalesce(sum(c.custo_ia_usd), 0)\n  from app.conversas c\n  where c.org_id = p_org\n    and c.ultima_atividade >=" },
+  { nome: 'estimativa aceita depois da escolha (o banco)', arquivo: '20261020120000_auditoria_correcoes.sql', testes: ['docs/testes/auditoria-correcoes.test.mjs'],
+    de: "perform privado.exigir_etapa(c, array['descoberta', 'estimativa', 'contato']);", para: "perform privado.exigir_etapa(c, array['descoberta', 'estimativa', 'contato', 'direcoes', 'escolhida', 'alteracoes']);" },
+  /* a lista positiva do JS abre de uma vez a lista de ferramentas, a recusa do agente e o que o turno grava; sobra o banco (55000) */
+  { nome: 'estimar aceito depois da escolha (a lista do JS: ferramentas, agente e turno)', fonte: 'api/_vendas/consultor.mjs', testes: ['docs/testes/auditoria-correcoes.test.mjs', 'docs/testes/consultor.test.mjs'],
+    de: "export const ETAPAS_COM_PRECO = ['descoberta', 'estimativa', 'contato'];", para: "export const ETAPAS_COM_PRECO = ['descoberta', 'estimativa', 'contato', 'direcoes', 'escolhida', 'alteracoes'];" }
 ];
 
 /* os sinais em que o arquivo sabotado volta ao original antes de sair: Ctrl+C, o kill comum, o terminal que fecha
