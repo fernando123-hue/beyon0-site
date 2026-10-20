@@ -76,7 +76,10 @@ export const SABOTAGENS = [
   { nome: 'a fila de pedidos livres sem o corte de 50', arquivo: '20261017120000_pr3a_ajustes.sql', testes: ['docs/testes/ajustes-banco.test.mjs'],
     de: 'order by f.created_at, f.id limit 50', para: 'order by f.created_at, f.id limit 5000' },
   { nome: 'acrescentar seção com o modelo já no máximo (a seção some calada)', fonte: 'api/_vendas/fluxo-ajustes.mjs', testes: ['docs/testes/ajustes-api.test.mjs'],
-    de: "m.operacao === 'adicionar_secao' && secoes.length >= MAX_SECOES &&", para: "m.operacao === 'adicionar_secao' && false &&" }
+    de: "m.operacao === 'adicionar_secao' && secoes.length >= MAX_SECOES &&", para: "m.operacao === 'adicionar_secao' && false &&" },
+  /* ---- as correções da auditoria de segurança (run-1, 20/10): a migration 20261020120000 ---- */
+  { nome: 'consultor sem o freio do /48 do IPv6', arquivo: '20261020120000_auditoria_correcoes.sql', testes: ['docs/testes/auditoria-correcoes.test.mjs'],
+    de: 'if v_chave48 is not null then\n      if not privado.contar_ip', para: 'if false then\n      if not privado.contar_ip' }
 ];
 
 /* os sinais em que o arquivo sabotado volta ao original antes de sair: Ctrl+C, o kill comum, o terminal que fecha
@@ -115,8 +118,11 @@ function rodar() {
   process.on('exit', restaurar);
   for (const sinal of SINAIS_DE_SAIDA) if (os.constants.signals[sinal] !== undefined) process.on(sinal, () => { restaurar(); process.exit(130); });
 
+  /* BZ_MUTACAO_FILTRO: roda só as sabotagens cujo nome contém o texto (para conferir uma sabotagem nova sem rodar todas) */
+  const filtro = (process.env.BZ_MUTACAO_FILTRO || '').toLowerCase();
+  const rodadas = SABOTAGENS.filter(s => s.nome.toLowerCase().includes(filtro));
   let pegas = 0;
-  for (const s of SABOTAGENS) {
+  for (const s of rodadas) {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bz-mutacao-'));
     for (const f of fs.readdirSync(ORIGEM)) fs.copyFileSync(path.join(ORIGEM, f), path.join(dir, f));
     const alvo = path.join(s.fonte ? RAIZ : dir, s.fonte || s.arquivo);
@@ -140,8 +146,8 @@ function rodar() {
     console.log((pegou ? 'PEGOU ' : 'ESCAPOU') + '  ' + s.nome + (pegou ? '  ← ' + [...new Set(falhas)].slice(0, 2).join(' | ').replace(/\s*\(\d+(\.\d+)?ms\)/g, '') : ''));
     fs.rmSync(dir, { recursive: true, force: true });
   }
-  console.log(pegas + ' de ' + SABOTAGENS.length + ' sabotagens pegas pelos testes');
-  if (pegas < SABOTAGENS.length) process.exitCode = 1;
+  console.log(pegas + ' de ' + rodadas.length + ' sabotagens pegas pelos testes');
+  if (pegas < rodadas.length) process.exitCode = 1;
 }
 
 /* só roda chamado direto (node docs/testes/mutacao.mjs); importado pelo teste, nada é sabotado */

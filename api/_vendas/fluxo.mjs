@@ -19,7 +19,7 @@ import { ErroIA } from '../_ia/provedor.mjs';
 import { ErroBanco } from './transporte.mjs';
 import { ErroPagamento } from '../_pagamentos/servico.mjs';
 import { criarFreio, ipDe } from '../_freio.mjs';
-import { chaveDoIp } from './ip.mjs';
+import { chaveDoIp, chaveDoIp48 } from './ip.mjs';
 import { AuthIndisponivel } from '../_supabase.mjs';
 import { ETAPAS_SO_DUVIDAS } from './consultor.mjs';
 import { classificar } from '../_classificador/index.mjs';
@@ -42,6 +42,7 @@ const CONVERSA_ABERTA = ['descoberta', 'estimativa', 'contato', 'direcoes', 'esc
 /* a trava de "uma resposta de IA por vez" dura o pior caso que cabe na função (300 s na Vercel) */
 const TRAVA_IA_S = 300;
 const RESERVA_S = 600;   /* a reserva de custo vence sozinha se a função cair no meio (a geração cabe em 300 s) */
+const USO_IP48_IA = 'ia48';   /* o "uso" da chave /48 do consultor em privado.freio_ip (o do pedido é 'pedido48': contadores separados) */
 const LIMITE_CONVERSA = 'Chegamos ao limite desta conversa por aqui. Continue com a Beyon Zero pelo WhatsApp: o seu briefing já está salvo.';
 const LIMITE_DIA = 'O consultor está com muita procura agora. Seu briefing está salvo; tente de novo mais tarde ou fale pelo WhatsApp.';
 
@@ -180,10 +181,15 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     await banco('vendas_somar_custo', { conversa_id: conversaId, visitante_id: vid, custo_usd: custo })
       .catch(e => console.error('[vendas] custo não somado:', e && e.codigo));
   }
-  /* a trava de "uma resposta de IA por vez", que na 1ª vez da conversa também conta o IP do dia (só um HMAC chega ao banco) */
+  /* a trava de "uma resposta de IA por vez", que na 1ª vez da conversa também conta o IP do dia (só um HMAC chega ao banco).
+     O IPv6 conta pelo /64 e também pelo /48 (auditoria run-1, pista 1: a casa ou a empresa recebe um /48 inteiro e trocava
+     de /64 à vontade). O /48 tem o seu próprio "uso" (ia48), para não dividir o contador de privado.freio_ip com o pedido
+     (pedido48); as duas chaves saem do MESMO instante, para não caírem em dias diferentes na virada da meia-noite */
   async function reservarIa(conversaId, vid, request) {
+    const ip = request ? ipDe(request) : null, agora = new Date();
     const r = await banco('vendas_reservar_ia', { conversa_id: conversaId, visitante_id: vid, max_turnos: TETOS.turnos_por_conversa, teto_usd: TETOS.conversa_usd,
-      segundos: TRAVA_IA_S, chave_ip: request ? chaveDoIp(ipDe(request), segredoFreio) : null, max_por_ip: TETOS.conversas_por_ip_dia });
+      segundos: TRAVA_IA_S, chave_ip: request ? chaveDoIp(ip, segredoFreio, agora) : null, max_por_ip: TETOS.conversas_por_ip_dia,
+      chave_ip48: request ? chaveDoIp48(ip, segredoFreio, agora, USO_IP48_IA) : null, max_por_ip48: TETOS.conversas_por_ip48_dia });
     if (r && r.ok === false && r.freio_ip) throw new Recusa(429, 'Muitas conversas deste endereço hoje. Fale com a Beyon Zero pelo WhatsApp: a gente continua por lá.', { whatsapp: true });
   }
   /* RESERVA um valor REALISTA da chamada (RESERVA_USD em api/_ia/config.mjs) no teto antes de chamar o modelo

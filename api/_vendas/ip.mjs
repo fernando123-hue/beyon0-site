@@ -3,7 +3,8 @@
    O banco nunca recebe o IP: recebe HMAC-SHA256(segredo do servidor, dia|ip).
    Sem o segredo (variável de ambiente), o banco não volta ao IP; o dia entra
    na conta, então chaves de dias diferentes não se ligam. IPv6 conta pelo
-   prefixo /64 (a casa inteira tem um /64 e troca o resto à vontade).
+   prefixo /64 (a casa inteira tem um /64 e troca o resto à vontade) e, no consultor e nos pedidos, também pelo /48
+   (a casa ou a empresa costuma receber um /48 inteiro: chaveDoIp48).
    Sem segredo, sem IP válido ou servidor local: sem chave (o freio não conta).
    ========================================================================== */
 import { createHmac } from 'node:crypto';
@@ -43,8 +44,8 @@ export function normalizarIp(ip) {
   return g.slice(0, 4).map(hex).join(':') + '::';
 }
 
-/* uso: um prefixo que separa os freios que dividem a tabela privado.freio_ip (ex.: 'pedido' para os detalhes, PR 2a).
-   Sem uso, a chave é a mesma de antes (o freio das conversas com IA não muda) */
+/* uso: um prefixo que separa os freios que dividem a tabela privado.freio_ip (ex.: 'pedido' para os detalhes, PR 2a;
+   'ia48' para o /48 do consultor, auditoria run-1). Sem uso, a chave é a mesma de antes (o /64 do consultor não muda) */
 export function chaveDoIp(ip, segredo, agora = new Date(), uso = '') {
   const n = normalDe(ip, segredo);
   if (!n) return null;
