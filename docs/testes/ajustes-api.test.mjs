@@ -63,7 +63,9 @@ test('ajustar: a opção que não cabe não grava (422 com frase fixa)', async (
 
 test('ajustar: cores, fontes e seção só vêm de modelo PRONTO da geração atual e que não é o escolhido (o servidor confere, não só a forma)', async () => {
   const { n, c } = await cen.ateEscolher();
-  /* o modelo 3 não ficou pronto (falhou): dele não saem cores, fontes nem a seção "Equipe" (que só ele tem) */
+  /* o modelo 3 não ficou pronto (falhou): dele não saem cores, fontes nem a seção "Equipe" (que só ele tem).
+     (Esta conferência é da API; o banco, por si, só confere que o modelo escolhido é o mesmo da gravação: o teste prova
+     o comportamento de ponta a ponta) */
   await local.db.query("update app.direcoes set status = 'falhou' where conversa_id = $1 and numero = 3", [c]);
   for (const [opcao, frase] of [
     [{ operacao: 'usar_paleta_de', direcao: 3 }, /^Esse modelo não está disponível para este ajuste\.$/],
@@ -171,11 +173,13 @@ test('pedido livre: até 3, curto, redigido, numa linha, na fila e sem IA; o 4º
   const r = await n.chamar('POST', 'pedido-livre', { conversa_id: c, texto: 'Quero o mapa da clínica\n\nno rodapé, meu e-mail é ana@exemplo.com' });
   assert.equal(r.status, 200, JSON.stringify(r.corpo));
   assert.equal(r.corpo.restantes, 2);
+  assert.deepEqual(Object.keys(r.corpo).sort(), ['alteracao_id', 'restantes']);
   const linha = (await local.db.query('select pedido, status, origem, mudancas from app.alteracoes where id = $1', [r.corpo.alteracao_id])).rows[0];
   assert.deepEqual(linha, { pedido: 'Quero o mapa da clínica no rodapé, meu e-mail é [e-mail]', status: 'na_fila', origem: 'livre', mudancas: [] });
   assert.equal((await cen.estado(n, c)).conversa.etapa, 'alteracoes', 'o pedido livre também trava a troca de modelo');
   assert.equal((await n.chamar('POST', 'pedido-livre', { conversa_id: c, texto: 'Segundo pedido' })).corpo.restantes, 1);
   assert.equal((await n.chamar('POST', 'pedido-livre', { conversa_id: c, texto: 'Terceiro pedido' })).corpo.restantes, 0);
+  /* (o banco também recusa o 4º com 23514: o teste prova o comportamento, não só a camada da API) */
   const quarto = await n.chamar('POST', 'pedido-livre', { conversa_id: c, texto: 'Quarto pedido' });
   assert.equal(quarto.status, 409);
   assert.equal(quarto.corpo.erro, 'Você já fez os 3 pedidos escritos deste orçamento. Para mais, fale com a Beyon Zero pelo WhatsApp.');
@@ -193,14 +197,48 @@ test('pedido livre: caractere de controle (tabulação, DEL, C1) vira espaço; n
   assert.equal((await local.db.query('select pedido from app.alteracoes where id = $1', [r.corpo.alteracao_id])).rows[0].pedido, 'Quero o mapa no rodapé');
 });
 
+test('pedido livre: dado pessoal separado por DEL, C1 ou linhas em branco também é redigido (normaliza antes e depois de redigir)', async () => {
+  const { n, c } = await cen.ateEscolher();
+  const casos = [
+    ['Meu CPF é 123\x7f456\x7f789\x7f09, obrigado', /\[documento\]/, /123|789/],
+    ['Ligue para 21\n\n98765-4321 amanhã', /\[telefone\]/, /98765|4321/]
+  ];
+  for (const [texto, esperado, proibido] of casos) {
+    const r = await n.chamar('POST', 'pedido-livre', { conversa_id: c, texto });
+    assert.equal(r.status, 200, JSON.stringify(r.corpo));
+    const gravado = (await local.db.query('select pedido from app.alteracoes where id = $1', [r.corpo.alteracao_id])).rows[0].pedido;
+    assert.match(gravado, esperado, gravado);
+    assert.doesNotMatch(gravado, proibido, gravado);
+  }
+});
+
+test('pedido livre: caracteres invisíveis (formato, uso privado, substituto solto) saem na entrada; só eles = texto vazio', async () => {
+  const { n, c } = await cen.ateEscolher();
+  const etiqueta = String.fromCodePoint(0xe0041, 0xe0042);   /* "tag characters" (U+E0000 a E007F), que não aparecem na tela */
+  const invisiveis = String.fromCharCode(0x206a, 0x061c, 0x180e, 0xfff9, 0xe000);
+  const solto = String.fromCharCode(0xd800);   /* substituto sem par */
+  const r = await n.chamar('POST', 'pedido-livre', { conversa_id: c, texto: 'Quero' + etiqueta + ' o' + invisiveis + ' mapa' + solto });
+  assert.equal(r.status, 200, JSON.stringify(r.corpo));
+  assert.equal((await local.db.query('select pedido from app.alteracoes where id = $1', [r.corpo.alteracao_id])).rows[0].pedido, 'Quero o mapa');
+  for (const texto of [etiqueta, invisiveis, solto, etiqueta + ' ' + invisiveis]) {
+    const v = await n.chamar('POST', 'pedido-livre', { conversa_id: c, texto });
+    assert.equal(v.status, 400, JSON.stringify(v.corpo));
+    assert.equal(v.corpo.erro, 'Escreva o pedido em até 300 caracteres.');
+  }
+});
+
 test('etapas: as três ações recusadas uma a uma fora das etapas de ajuste, sem gravar nada; conversa de outro visitante é 404', async () => {
   const { n, c } = await cen.ateEscolher();
   const ACOES = [['ajustar', { conversa_id: c, opcao: PALETA_2 }], ['desfazer', { conversa_id: c }], ['pedido-livre', { conversa_id: c, texto: 'Quero o mapa' }]];
-  for (const etapa of ['descoberta', 'estimativa', 'contato', 'gerando', 'direcoes', 'escopo', 'aguardando_pagamento', 'em_producao', 'encerrada']) {
+  const ANTES_DA_ESCOLHA = ['descoberta', 'estimativa', 'contato', 'gerando', 'direcoes'];
+  for (const etapa of [...ANTES_DA_ESCOLHA, 'escopo', 'aguardando_pagamento', 'em_producao', 'encerrada']) {
     await cen.forcarEtapa(c, etapa);
+    /* antes da escolha a frase é "escolha um modelo"; depois do resumo, "ajustes fechados" (cada etapa, a sua frase) */
+    const frase = ANTES_DA_ESCOLHA.includes(etapa) ? 'Escolha um modelo antes.' : 'Os ajustes desta proposta já foram fechados.';
     for (const [acao, corpo] of ACOES) {
       const r = await n.chamar('POST', acao, corpo);
       assert.equal(r.status, 409, etapa + ' ' + acao + ': ' + JSON.stringify(r.corpo));
+      assert.equal(r.corpo.erro, frase, etapa + ' ' + acao);
     }
   }
   assert.deepEqual(await ajustesNoBanco(c), [], 'nada gravado em nenhuma etapa');

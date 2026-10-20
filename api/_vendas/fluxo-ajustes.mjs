@@ -40,6 +40,9 @@ export const FRASES = Object.freeze({
 const soCom = (corpo, chaves) => !!corpo && typeof corpo === 'object' && !Array.isArray(corpo) && Object.keys(corpo).every(k => chaves.includes(k));
 /* caracteres de controle (inclusive DEL e os C1) e separadores de linha viram espaço: o pedido entra numa linha só */
 const CONTROLE_OU_ESPACO = /[\x00-\x20\x7f-\xa0\s]+/g;
+const umaLinha = s => s.replace(CONTROLE_OU_ESPACO, ' ').trim();
+/* (o substituto solto sai pelo \p{Cs} ANTES do toWellFormed, que o trocaria por U+FFFD, um caractere visível) */
+const semInvisiveis = s => s.replace(/[\p{Cf}\p{Co}\p{Cs}]/gu, '').toWellFormed();
 
 export function criarAcoesDosAjustes({ banco, visitante, estado, exigirNaoDescartado }) {
   function exigirEtapa(etapa) {
@@ -102,8 +105,11 @@ export function criarAcoesDosAjustes({ banco, visitante, estado, exigirNaoDescar
     async pedidoLivre({ request, corpo }) {
       if (!soCom(corpo, ['conversa_id', 'texto']) || !ehUuid(corpo.conversa_id)) throw new Recusa(400, FRASES.conversaInvalida);
       const limpo = limparMensagem(corpo.texto);
-      /* redigido ANTES de medir ("a@b.co" vira "[e-mail]", que é maior) e numa linha só, como entra no resumo */
-      const texto = limpo ? redigir(limpo).replace(CONTROLE_OU_ESPACO, ' ').trim() : '';
+      /* redigido ANTES de medir ("a@b.co" vira "[e-mail]", que é maior) e numa linha só, como entra no resumo. A linha única
+         vem ANTES de redigir também (um CPF partido por DEL ou por linhas em branco só é reconhecido depois de juntado) e
+         DEPOIS (o que o redator devolve entra no banco já sem controle). Antes de tudo, saem os invisíveis: formato (Cf,
+         inclusive as "tag characters"), uso privado (Co) e substituto solto (Cs, que o JSON deixa passar) */
+      const texto = limpo ? umaLinha(redigir(umaLinha(semInvisiveis(limpo)))) : '';
       if (!texto || texto.length > PEDIDO_LIVRE_MAX) throw new Recusa(400, FRASES.livreTamanho);
       const { vid, est } = await noPontoDeAjustar(request, corpo.conversa_id);
       /* (arquivado ou sem pedido: a fila do dono só tem confirmados, e o pedido ficaria "aguardando" para sempre) */
