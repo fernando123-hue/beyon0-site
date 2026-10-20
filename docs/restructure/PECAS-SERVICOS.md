@@ -300,6 +300,23 @@ entrada + demo + arraste, 3 rodadas, antes = HEAD servido por rota): tarefas lon
   de 320 a 1440 px. Quadros em 390 e 1440 conferidos a olho (o tempo no canto não colide nem com a demonstração em
   andamento).
 
+**Passagem 2026-10-20 (10ª) — #44 MESCLADO; direção C escolhida; o dono escolhe o número do cartão:**
+- Feito: PR #44 mesclado (`f6cf7da` = `main`; SHA para promover comentado; corpo com a pendência da pilha 2: o card
+  acende ~24 px antes de assentar porque algo acima da pilha cresce depois da medição do ScrollTrigger — PR próprio
+  depois). Direções A/B/C mostradas (`d7039a9`); o dono escolheu a **C** e pediu um número "menos genérico" (Decisões.md,
+  20/10). Prévia do número na branch `cartoes-direcoes` (`7879625`, com a `main` trazida):
+  https://beyon0-site-git-cartoes-direcoes-beyond0.vercel.app/cartoes-direcoes — Atual / 1 Contagem ("01 / 03") /
+  2 Grande (Sora 300) / 3 Na linha (número na borda, a luz sai dele). Contorno vazado descartado (vira "tubo").
+- **Próximo passo exato:** registrar a escolha do número em Decisões.md; implementar C + número em `css/cartoes.css`
+  (e o HTML que precisar) em PR próprio a partir da `main`, celular primeiro. A luz da C na prévia usa `offset-distance`
+  (thread principal): no site, outra técnica (traço por `transform`, como a `.energia-volta`) ou medida. Cuidados da
+  implementação em `docs/restructure/CARTOES-DIRECOES.md`. Tirar a página de prévia ao implementar. Revisão por outro
+  agente, verificar/acessibilidade/pilha-celular, checks um a um, mesclar pelo processo.
+- Ambiente: Git Bash quebrado; comandos pelo vigia deste worktree (`.superpowers/sh/COMO-RODAR.md`; a aba "vigia
+  site-logo (não fechar)" não pode ser fechada). `gh` pela credencial do git (`gh-com-git.ps1`). Headless shell do
+  Playwright sumiu: Chrome instalado via `.superpowers/sh/com-chrome.mjs`. Dono: não pedir permissão (Decisões.md, 20/10); não abrir
+  abas de terminal nem gravar fora de `C:\Vault - Fernando\Beyon Zero`.
+
 **Passagem 2026-10-16 (noite, 9ª) — #44 com tudo e provado; próximo: dono no celular, mesclar; depois o visual dos cartões:**
 - Feito desde a 8ª: revisão do `acf9d1b` com ajustes em `0357fd7` (transição do coberto, carga morta do celular fora;
   carga do desktop conferida com mouse: enche a 100 % e acende as letras); corpo do #44 reescrito com a pilha B, a
