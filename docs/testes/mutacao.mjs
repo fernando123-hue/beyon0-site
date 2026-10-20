@@ -55,14 +55,18 @@ export const SABOTAGENS = [
   { nome: 'gerar sem o pedido confirmado pelo WhatsApp (freio do JS)', fonte: 'api/_vendas/fluxo.mjs', testes: ['docs/testes/fluxo-api.test.mjs'],
     de: 'if (semConfirmacao) throw semConfirmacao;', para: 'if (false) throw semConfirmacao;' },
   /* ---- os ajustes sem IA (PR 3a): o teto, a versão final sem o desfeito e o dono fora da etapa ---- */
-  { nome: 'opção pronta sem o teto de 30 ajustes', arquivo: '20261017120000_pr3a_ajustes.sql', testes: ['docs/testes/ajustes-banco.test.mjs'],
+  /* (a função vendas_registrar_alteracao vive na migration MAIS NOVA que a redefine, a da auditoria; as duas sabotagens
+     seguintes e a "origem ia" miram nela: sabotar a do PR 3a não teria efeito) */
+  { nome: 'opção pronta sem o teto de 30 ajustes', arquivo: '20261020120000_auditoria_correcoes.sql', testes: ['docs/testes/ajustes-banco.test.mjs'],
     de: "if (select count(*) from app.alteracoes a where a.conversa_id = c.id and a.origem = 'opcao') >= 30 then", para: 'if false then' },
   { nome: 'a versão final conta o ajuste desfeito', arquivo: '20261017120000_pr3a_ajustes.sql', testes: ['docs/testes/ajustes-banco.test.mjs'],
     de: "where a.conversa_id = v_conversa and a.status = 'aplicada'", para: "where a.conversa_id = v_conversa and a.status in ('aplicada', 'desfeita')" },
   { nome: 'o dono resolve ajuste de conversa que passou da etapa de ajustes', arquivo: '20261017120000_pr3a_ajustes.sql', testes: ['docs/testes/ajustes-banco.test.mjs'],
     de: "perform privado.exigir_etapa(c, array['escolhida', 'alteracoes']);   -- (o dono: só na etapa de ajustes)", para: '-- (sabotado)' },
-  { nome: 'opção pronta aceita estimativa (muda o preço)', arquivo: '20261017120000_pr3a_ajustes.sql', testes: ['docs/testes/ajustes-banco.test.mjs'],
+  { nome: 'opção pronta aceita estimativa (muda o preço)', arquivo: '20261020120000_auditoria_correcoes.sql', testes: ['docs/testes/ajustes-banco.test.mjs'],
     de: "if p ? 'estimativa' or jsonb_typeof(p -> 'resultado') is distinct from 'object' then", para: "if jsonb_typeof(p -> 'resultado') is distinct from 'object' then" },
+  { nome: "ajuste aceita origem 'ia' ou sem origem (a porta antiga)", arquivo: '20261020120000_auditoria_correcoes.sql', testes: ['docs/testes/ajustes-banco.test.mjs'],
+    de: "if v_origem is distinct from 'opcao' then raise exception 'origem inválida'", para: "if false then raise exception 'origem inválida'" },
   { nome: 'pedido livre sem o teto de 3', arquivo: '20261017120000_pr3a_ajustes.sql', testes: ['docs/testes/ajustes-banco.test.mjs'],
     de: 'if v_feitos >= 3 then', para: 'if false then' },
   { nome: 'pedido livre sem o teto de 300 caracteres', arquivo: '20261017120000_pr3a_ajustes.sql', testes: ['docs/testes/ajustes-banco.test.mjs'],

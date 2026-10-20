@@ -127,11 +127,60 @@ begin
   return jsonb_build_object('estimativa_id', v_id);
 end $$;
 
+-- ---------- 4. fecha a porta antiga do ajuste pela IA (segurança #1 do PR 3a) ----------
+-- Em 20261017120000_pr3a_ajustes.sql, vendas_registrar_alteracao SEM "origem" assumia 'ia': sem o teto de 30 por conversa
+-- e aceitando a chave "estimativa" (que muda o preço). Era uma porta aberta de propósito, para o código velho (o ajuste
+-- pelo modelo) funcionar enquanto a migration chegava antes do código. Com a produção ainda sem API (/api/vendas → 404
+-- em 20/10) não há código antigo a proteger, e o único chamador (api/_vendas/fluxo-ajustes.mjs) manda sempre 'opcao'.
+-- Agora só a opção pronta grava por aqui (o pedido livre tem a função dele): origem diferente de 'opcao' (inclusive a
+-- falta dela) = 22023; as regras da opção valem sempre (sem preço, com a versão aplicada, montada sobre a versão de agora,
+-- teto de 30); e a função deixa de chamar vendas_registrar_estimativa (nada mais dependia disso). A ordem de travas é a
+-- mesma (direções por id, depois a conversa). Um código antigo que ainda mande o ajuste pelo modelo recebe 400 no ajuste:
+-- falha fechada, não brecha.
+create or replace function app.vendas_registrar_alteracao(p jsonb) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare c app.conversas; v_escolhida uuid; v_id uuid; v_atual uuid; v_origem text := p ->> 'origem';
+begin
+  if v_origem is distinct from 'opcao' then raise exception 'origem inválida' using errcode = '22023'; end if;
+  -- a ordem única de travas: as direções (por id) antes da conversa (o ajuste trava a direção pela chave estrangeira)
+  perform privado.travar_direcoes((p ->> 'conversa_id')::uuid, (p ->> 'visitante_id')::uuid);
+  c := privado.conversa_do((p ->> 'conversa_id')::uuid, (p ->> 'visitante_id')::uuid);
+  perform privado.exigir_etapa(c, array['escolhida', 'alteracoes']);
+  select direcao_id into v_escolhida from app.escolhas where conversa_id = c.id order by created_at desc limit 1;
+  -- o ajuste foi montado sobre a direção que o servidor leu: se outra foi escolhida no meio, recusa
+  if p ? 'direcao_id' and (p ->> 'direcao_id')::uuid is distinct from v_escolhida then
+    raise exception 'a direção escolhida mudou durante o ajuste' using errcode = '40001';
+  end if;
+  -- a opção pronta nunca muda o preço, sempre traz a versão aplicada, foi montada sobre a versão de agora e tem teto de 30
+  -- por conversa
+  if p ? 'estimativa' or jsonb_typeof(p -> 'resultado') is distinct from 'object' then
+    raise exception 'opção pronta: sem preço e com a versão aplicada' using errcode = '22023';
+  end if;
+  -- a base: o ajuste aplicado mais recente que o servidor leu (null = nenhum). Outro aplicado no meio (outra aba, ou o
+  -- "feito" do dono) seria apagado da versão final por esta gravação: recusa, como no resolver do dono
+  select x.id into v_atual from app.alteracoes x where x.conversa_id = c.id and x.status = 'aplicada'
+   order by x.aplicada_em desc nulls last, x.created_at desc limit 1;
+  if v_atual is distinct from nullif(p ->> 'base_id', '')::uuid then
+    raise exception 'a versão mudou durante o ajuste' using errcode = '40001';
+  end if;
+  if (select count(*) from app.alteracoes a where a.conversa_id = c.id and a.origem = 'opcao') >= 30 then
+    raise exception 'limite de ajustes desta conversa' using errcode = '23514';
+  end if;
+  insert into app.alteracoes (org_id, conversa_id, direcao_id, pedido, mudancas, status, resultado, origem, aplicada_em)
+  values (c.org_id, c.id, v_escolhida, p ->> 'pedido', coalesce(p -> 'mudancas', '[]'), 'aplicada', p -> 'resultado', 'opcao',
+          clock_timestamp())   -- (a hora de agora, não a do início da transação)
+  returning id into v_id;
+  update app.conversas set etapa = 'alteracoes', ultima_atividade = now() where id = c.id;
+  perform privado.evento(c.org_id, c.id, 'alteracao_pedida', jsonb_build_object('mudancas', jsonb_array_length(coalesce(p -> 'mudancas', '[]')),
+    'status', 'aplicada', 'origem', 'opcao'));
+  return jsonb_build_object('alteracao_id', v_id, 'status', 'aplicada');
+end $$;
+
 -- (create or replace mantém as concessões; repetidas aqui para a migration se explicar sozinha)
 do $$
 declare f text;
 begin
-  foreach f in array array['vendas_reservar_ia', 'vendas_custo_dia', 'vendas_reservar_custo', 'vendas_registrar_estimativa'] loop
+  foreach f in array array['vendas_reservar_ia', 'vendas_custo_dia', 'vendas_reservar_custo', 'vendas_registrar_estimativa', 'vendas_registrar_alteracao'] loop
     execute format('revoke all on function app.%I(jsonb) from public, anon, authenticated', f);
     execute format('grant execute on function app.%I(jsonb) to service_role', f);
   end loop;
