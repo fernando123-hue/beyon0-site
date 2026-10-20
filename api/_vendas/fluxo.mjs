@@ -155,10 +155,14 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       throw e;
     }
   } };
+  /* true: nada a gravar ou gravado; false: o banco falhou (o registro daquelas chamadas se perde; quem chama decide o que fazer) */
   async function gravarChamadas(conversaId, vid) {
-    if (!chamadas.length) return;
-    await banco('vendas_registrar_ia', { conversa_id: conversaId, visitante_id: vid, request_id: requestId || null, chamadas: chamadas.splice(0) })
-      .catch(e => console.error(JSON.stringify({ origem: 'vendas', nivel: 'erro', request_id: requestId || null, evento: 'registro de IA não gravado', codigo: e && e.codigo })));
+    if (!chamadas.length) return true;
+    return banco('vendas_registrar_ia', { conversa_id: conversaId, visitante_id: vid, request_id: requestId || null, chamadas: chamadas.splice(0) })
+      .then(() => true, e => {
+        console.error(JSON.stringify({ origem: 'vendas', nivel: 'erro', request_id: requestId || null, evento: 'registro de IA não gravado', codigo: e && e.codigo }));
+        return false;
+      });
   }
   async function visitante(request) {
     const id = await visitantes.quem(request);
@@ -196,7 +200,12 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
      (app.vendas_reservar_custo, numa transação que trava a organização): chamadas em paralelo não passam mais todas pela
      mesma leitura. Começa só se (gasto + reservas) está abaixo do teto da conversa e do dia; o estouro fica no que as
      chamadas já em voo gastarem além das suas reservas (o freio de última instância é o limite de gasto no console da
-     Anthropic). A reserva sai no fim, depois de somar o custo real. Erro do banco na reserva FECHA (503, sem chamar o
+     Anthropic). A reserva sai no fim, depois de somar o custo real E de gravar o registro da chamada (app.ia_chamadas):
+     o teto do dia lê esse registro (auditoria run-1, pista 2), então liberar a reserva antes dele deixaria o gasto fora
+     da conta nos dois lugares por um instante. Se a gravação do registro falhar, a reserva NÃO é liberada: ela vence
+     sozinha em RESERVA_S, e a falha não zera a conta na hora. O que sobra aberto: com o registro perdido, o gasto daquela
+     chamada deixa de contar no dia quando a reserva vence (sub-contagem pequena; o limite de gasto no console da
+     Anthropic é o freio final). Erro do banco na reserva FECHA (503, sem chamar o
      modelo); só a função ainda inexistente (migration a aplicar) segue sem reserva, com log */
   async function comReserva(conversaId, vid, papel, fn) {
     const valor = reservaUsd(papel);
@@ -217,7 +226,8 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     }
     try { return await fn(); }
     finally {
-      if (reserva) await banco('vendas_liberar_reserva', { reserva_id: reserva, conversa_id: conversaId, visitante_id: vid })
+      const registrado = await gravarChamadas(conversaId, vid);   /* (o de mensagem(), depois, já encontra a lista vazia) */
+      if (reserva && registrado) await banco('vendas_liberar_reserva', { reserva_id: reserva, conversa_id: conversaId, visitante_id: vid })
         .catch(e => console.error(JSON.stringify({ origem: 'vendas', nivel: 'erro', request_id: requestId || null, evento: 'reserva não liberada (vence sozinha)', codigo: e && e.codigo })));
     }
   }

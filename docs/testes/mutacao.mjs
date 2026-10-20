@@ -79,7 +79,9 @@ export const SABOTAGENS = [
     de: "m.operacao === 'adicionar_secao' && secoes.length >= MAX_SECOES &&", para: "m.operacao === 'adicionar_secao' && false &&" },
   /* ---- as correções da auditoria de segurança (run-1, 20/10): a migration 20261020120000 ---- */
   { nome: 'consultor sem o freio do /48 do IPv6', arquivo: '20261020120000_auditoria_correcoes.sql', testes: ['docs/testes/auditoria-correcoes.test.mjs'],
-    de: 'if v_chave48 is not null then\n      if not privado.contar_ip', para: 'if false then\n      if not privado.contar_ip' }
+    de: 'if v_chave48 is not null then\n      if not privado.contar_ip', para: 'if false then\n      if not privado.contar_ip' },
+  { nome: 'teto do dia soma a vida inteira das conversas tocadas hoje', arquivo: '20261020120000_auditoria_correcoes.sql', testes: ['docs/testes/teto-dia.test.mjs'],
+    de: "select coalesce(sum(c.custo_usd), 0)\n  from app.ia_chamadas c\n  where c.org_id = p_org\n    and c.created_at >=", para: "select coalesce(sum(c.custo_ia_usd), 0)\n  from app.conversas c\n  where c.org_id = p_org\n    and c.ultima_atividade >=" }
 ];
 
 /* os sinais em que o arquivo sabotado volta ao original antes de sair: Ctrl+C, o kill comum, o terminal que fecha

@@ -224,7 +224,8 @@ no painel, "Pagar sem medo" (§5) e D5 ficam para o PR 3b.
   geração por outro pedido → `em_andamento` pela consulta sem trava `app.vendas_direcao_em_andamento` (migration
   `20261008120800`); antes, o repedido de 60 s do navegador, ou alguém martelando, enfileirava a trava (503 para outros
   visitantes) e segurava reservas no teto do dia. Reserva sem `reserva_id` na resposta agora fecha (503).
-  **Aceitos:** a soma do gasto do dia roda sob a trava (índice `conversas_org_atividade`; medir com o volume real);
+  **Aceitos:** a soma do gasto do dia roda sob a trava (desde a auditoria run-1 ela lê `app.ia_chamadas` pelo índice
+  `ia_chamadas_org (org_id, created_at desc)`; medir com o volume real);
   `privado.conversa_do` trava a conversa antes do `lock_timeout` (só espera sem limite quem martela a própria
   conversa); a função de reserva ausente (42883) segue sem reserva por desenho — as migrations `120700` e `120800`
   entram no banco ANTES do código que as usa.
