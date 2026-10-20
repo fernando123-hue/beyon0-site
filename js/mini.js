@@ -177,17 +177,29 @@
   }
 
   /* ---------- o passeio e a sugestão ---------- */
+  /* as peças interativas dos serviços (docs/restructure/PECAS-SERVICOS.md) são zona proibida: um núcleo com
+     aro pousado num circuito ou numa conversa lia como parte da peça — a mistura com o AI Core que o dono
+     proibiu (crítica do júri e de motion, 2026-10-15) */
+  var PECAS = '.planta__palco, .despacho__placa, .plantao__tela';
+  function sobrePeca(x, y) {
+    var ps = document.querySelectorAll(PECAS);
+    for (var i = 0; i < ps.length; i++) {
+      var r = ps[i].getBoundingClientRect();
+      if (x > r.left - 30 && x < r.right + 30 && y > r.top - 30 && y < r.bottom + 30) return true;
+    }
+    return false;
+  }
   function escolherDestino(W, H, d) {
     /* corre até onde o dedo tocou (antes de tudo: é a pessoa chamando) */
     if (toque && relogioMini - toque.t < 1.2) { var tq = toque; toque = null; return { x: tq.x, py: rolagem + tq.y, toque: true }; }
     /* o repertório (js/mini-vida.js): contornar, brincar, espiar, guiar, ler junto... */
     var vida = B.miniVida && B.miniVida.escolher(W, H);
-    if (vida) { vida.t0 = relogioMini; return vida; }
+    if (vida && !(vida.x != null && vida.py != null && sobrePeca(vida.x, vida.py - rolagem)) && !(vida.item && vida.item.el && vida.item.el.closest && vida.item.el.closest('.servico--peca'))) { vida.t0 = relogioMini; return vida; }
     /* a sugestão: uma opção, com a rolagem parada e longe da última */
     if (relogioMini - sugestao.ultima > SUGESTAO.cada && paradoHa > SUGESTAO.parado && Math.random() < SUGESTAO.chance) {
       var op = B.rede.elementoAoAcaso(mini.x, mini.y, SUGESTAO.longe[0], SUGESTAO.longe[1], function (it) {
         /* o topo dele visível e longe da barra (a mira não pode sair cortada sob o menu) */
-        return it.el.matches(SUGERIVEIS) && (celular || it.w < W * 0.8) && it.y - 14 > B.rede.topo() + 8 && it.y < H - 160;
+        return it.el.matches(SUGERIVEIS) && !it.el.matches('.servico--peca') && (celular || it.w < W * 0.8) && it.y - 14 > B.rede.topo() + 8 && it.y < H - 160;
       });
       if (op) {
         sugestao.ultima = relogioMini;
@@ -204,13 +216,13 @@
     if (es && B.estacoes.podeTurbinar(es) && Math.random() < 0.35) return paraEstacao(es);
     var sorte = Math.random();
     if (sorte < 0.35) {
-      var a = B.rede.elementoAoAcaso(mini.x, mini.y, 150, 600, function (it) { return it.el.matches('.painel, .cenario, .celula, .qa, .spec__item, .prova__item'); });
+      var a = B.rede.elementoAoAcaso(mini.x, mini.y, 150, 600, function (it) { return it.el.matches('.painel, .cenario, .celula, .qa, .spec__item, .prova__item') && !it.el.matches('.servico--peca'); });
       if (a) return { item: a, canto: true, ox: a.x + a.w / 2 > mini.x ? -1 : 1 };
     }
     if (sorte < 0.7) return { x: Math.max(26, coluna(W).esq - 40), py: rolagem + Math.min(H - PE, Math.max(TOPO, d.y + acaso(-120, 120))) };
     for (var k = 0; k < 12; k++) {
       var px = acaso(60, W - 60), py = acaso(TOPO, H - PE);
-      if (!B.rede.sobreTexto(px, py, 30, 30)) return { x: px, py: rolagem + py };
+      if (!B.rede.sobreTexto(px, py, 30, 30) && !sobrePeca(px, py)) return { x: px, py: rolagem + py };
     }
     return null;
   }
@@ -221,7 +233,7 @@
     for (var k = 0; k < 16; k++) {
       var y = acaso(TOPO + 20, H - PE - 20), x = acaso(40, W - 60), livre = true;
       for (var sx = x; sx < trilho && livre; sx += 18) if (B.rede.sobreTexto(sx, y, 14, 18)) livre = false;
-      if (livre) return { x: x, py: rolagem + y, vh: true };
+      if (livre && !sobrePeca(x, y)) return { x: x, py: rolagem + y, vh: true };
     }
     return null;
   }
