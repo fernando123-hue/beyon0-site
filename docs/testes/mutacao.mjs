@@ -68,7 +68,10 @@ export const SABOTAGENS = [
   { nome: 'pedido livre sem o teto de 300 caracteres', arquivo: '20261017120000_pr3a_ajustes.sql', testes: ['docs/testes/ajustes-banco.test.mjs'],
     de: 'char_length(v_texto) not between 1 and 300', para: 'char_length(v_texto) not between 1 and 3000' },
   { nome: 'a trava de direções sem o filtro do visitante', arquivo: '20261017120000_pr3a_ajustes.sql', testes: ['docs/testes/ajustes-banco.test.mjs'],
-    de: 'where d.conversa_id = p_conversa and cv.visitante_id = p_visitante', para: 'where d.conversa_id = p_conversa' }
+    de: 'where d.conversa_id = p_conversa and cv.visitante_id = p_visitante', para: 'where d.conversa_id = p_conversa' },
+  /* ---- a lista fechada das opções prontas vive no JS ---- */
+  { nome: 'opção pronta aceita campo a mais (valor livre)', fonte: 'api/_vendas/opcoes.mjs', testes: ['docs/testes/opcoes.test.mjs'],
+    de: 'if (chaves.length !== permitidas.length || !chaves.every(k => permitidas.includes(k))) return null;', para: '' }
 ];
 
 /* os sinais em que o arquivo sabotado volta ao original antes de sair: Ctrl+C, o kill comum, o terminal que fecha
