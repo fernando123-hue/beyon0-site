@@ -45,3 +45,14 @@ test('a página não tem mais o 50 de reserva e lê o percentual pelo BZPix', ()
   assert.ok(html.indexOf('js/orcamento-pix.js') > 0 && html.indexOf('js/orcamento-pix.js') < html.indexOf('js/orcamento-pagamento.js'), 'o módulo carrega antes da tela de pagamento');
   assert.ok(!/\b\d{1,3}\s?%/.test(html.replace(/<!--[\s\S]*?-->/g, '')), 'nenhum percentual escrito à mão no HTML do orçamento');
 });
+
+/* revisão do 3b-1, BAIXO-3: sem a entrada conhecida, o recibo não desenha "0%" nem um restante igual ao total */
+test('o recibo só recebe os valores quando a entrada é conhecida', () => {
+  const pr = { id: 'p1', valor_total: '3000', sinal_percentual: 40, prazo_dias: 10 };
+  assert.deepEqual(P.dadosDoRecibo(pr, 1200), { id: 'p1', total: 3000, sinal: 1200, prazo: 10 });
+  assert.equal(P.dadosDoRecibo(pr, null), null, 'sem a entrada: sem valores (só o selo e o título)');
+  assert.equal(P.dadosDoRecibo(pr, undefined), null);
+  assert.equal(P.dadosDoRecibo(null, 1200), null);
+  const pagina = fs.readFileSync(new URL('../../js/orcamento.js', import.meta.url), 'utf8');
+  assert.ok(pagina.includes('PIX.dadosDoRecibo('), 'js/orcamento.js monta o recibo pelo BZPix');
+});

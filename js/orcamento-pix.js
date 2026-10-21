@@ -7,8 +7,9 @@
      É a mesma falha fechada do banco (pagamentos_iniciar_tentativa, 23514).
    • O QR Code fica em "Pagar por outro aparelho": fechado no celular, aberto a
      partir de 768 px (no computador, o QR é o caminho natural).
+   • O recibo só recebe valores quando a entrada é conhecida (sem ela, só o selo e o título).
    Uso: window.BZPix.percentuais(proposta), .valorDaEntrada(proposta),
-        .linhaDoValor(valor, pct, dinheiro), .qrAbertoEm(largura)
+        .linhaDoValor(valor, pct, dinheiro), .qrAbertoEm(largura), .dadosDoRecibo(proposta, entrada)
    ========================================================================== */
 (function () {
   'use strict';
@@ -29,5 +30,9 @@
     return dinheiro(valor) + (pct ? ' · ' + pct + '% do total, por Pix' : ', por Pix');
   }
   function qrAbertoEm(larguraPx) { return Number(larguraPx) >= QR_ABERTO_DESDE_PX; }
-  window.BZPix = { percentuais: percentuais, valorDaEntrada: valorDaEntrada, linhaDoValor: linhaDoValor, qrAbertoEm: qrAbertoEm };
+  function dadosDoRecibo(pr, entrada) {
+    if (!pr || entrada == null) return null;
+    return { id: pr.id, total: Number(pr.valor_total), sinal: entrada, prazo: pr.prazo_dias };
+  }
+  window.BZPix = { percentuais: percentuais, valorDaEntrada: valorDaEntrada, linhaDoValor: linhaDoValor, qrAbertoEm: qrAbertoEm, dadosDoRecibo: dadosDoRecibo };
 })();

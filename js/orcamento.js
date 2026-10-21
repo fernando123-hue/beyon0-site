@@ -692,7 +692,8 @@
     if (pronto) {
       vigia.parar(); if (telaPagamento) telaPagamento.parar();
       var pr = E.proposta;
-      if (recibo) recibo.desenhar(pr ? { id: pr.id, total: Number(pr.valor_total), sinal: valorDoSinal(pr), prazo: pr.prazo_dias } : null, chegou);
+      /* (revisão do 3b-1) sem a entrada conhecida, o recibo não mostra valores (nada de "0%"): só o selo e o título */
+      if (recibo) recibo.desenhar(pr && PIX ? PIX.dadosDoRecibo(pr, valorDoSinal(pr)) : null, chegou);
     }
     visor.atualizar();
   }
