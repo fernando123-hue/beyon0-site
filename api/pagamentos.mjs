@@ -22,7 +22,7 @@ import { verificarAssinatura } from './_pagamentos/assinatura.mjs';
 import { ErroProvedor } from './_pagamentos/mercadopago.mjs';
 import { criarFreio, ipDe } from './_freio.mjs';
 
-const LIMITE_BYTES = 65536;
+export const LIMITE_BYTES = 65536;
 const ID_ORDER = /^ORD[0-9A-Za-z]{10,60}$/;
 const freio = criarFreio({ max: 120, janelaMs: 60e3 });
 const json = (dados, status = 200) => new Response(JSON.stringify(dados), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' } });

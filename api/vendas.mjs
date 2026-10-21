@@ -22,7 +22,7 @@ import { criarFreio, ipDe } from './_freio.mjs';
 import { randomUUID } from 'node:crypto';
 import { configTurnstile, verificarHumano } from './_vendas/turnstile.mjs';
 
-const ACOES = {
+export const ACOES = {
   GET: { estado: 'estado', pagamento: 'pagamento', 'pagamento-config': 'pagamentoConfig', 'sessao-config': 'sessaoConfig', catalogo: 'catalogo' },
   POST: { sessao: 'sessao', retomar: 'retomar', renovar: 'renovar', mensagem: 'mensagem', gerar: 'gerar', 'gerar-direcao': 'gerarDirecao',
     escolher: 'escolher',
@@ -30,7 +30,7 @@ const ACOES = {
     simular: 'simular', 'confirmar-pacote': 'confirmarPacote', detalhes: 'detalhes' }
 };
 const PRECISA_IA = new Set(['mensagem', 'gerarDirecao']);
-const LIMITE_BYTES = 16384;
+export const LIMITE_BYTES = 16384;
 export const freioGeral = criarFreio({ max: 90, janelaMs: 60e3 });
 export const freioSessao = criarFreio({ max: 8, janelaMs: 10 * 60e3 });   /* criar visitante anônimo: poucos por IP */
 

@@ -38,7 +38,7 @@ import { PEDIDOS } from './_vendas/pedido.mjs';
 import { novoCodigoRetomada, hashDaRetomada, DIAS_RETOMADA } from './_vendas/retomada.mjs';
 
 const CHAVE_MINIMA = 32;
-const CORPO_MAX = 200000;          /* caracteres do POST do painel */
+export const CORPO_MAX = 200000;          /* caracteres do POST do painel */
 const PERIODOS = [7, 30, 90, 365];
 const JANELA_ADS_DIAS = 90;         /* o Google Ads só aceita conversão até 90 dias depois do clique */
 const TENTATIVAS = { max: 10, janelaMs: 15 * 60e3 };
@@ -287,6 +287,14 @@ async function ajusteRecusado(id, env) {
 
 /* ---------- o PEDIDO DE MODELOS (orçamento sem IA, PR 2a): confirmação pelo WhatsApp, descartar e arquivar ---------- */
 const ACOES_PEDIDO = { confirmar_whatsapp: 'confirmar', descartar_pedido: 'descartar', arquivar_pedido: 'arquivar' };
+/* o que `ler` (GET: ?fila=…, ?csv=ads ou o resumo) e `mudar` (POST: a chave do corpo) despacham: a bancada de CPU (M1) e o
+   limite por rota do Worker conferem esta lista contra o código. `excluir` e `mudar_contato` são os dois POST sem chave
+   própria no despacho de `mudar` (apagar contato; status/valor/nota por `codigo`) */
+export const ACOES_PAINEL = Object.freeze({
+  GET: ['resumo', 'csv-ads', 'fila-direcoes', 'fila-pendentes', 'fila-lembretes', 'fila-ajustes'],
+  POST: ['entregar_direcao', 'avisado', 'link_retomada', 'lembrado', 'ajuste_feito', 'ajuste_recusado', 'resolver_alerta', 'excluir', 'mudar_contato',
+    ...Object.keys(ACOES_PEDIDO)]
+});
 const CODIGO_PEDIDO = /^BZ-[ACDEFGHJKMNPQRTUVWXY34679]{5}$/;
 /* o código como o dono digitar ("bz-k7m3q", "K7M3Q", "BZK7M3Q"): normaliza ou null */
 export function codigoDaBusca(v) {
