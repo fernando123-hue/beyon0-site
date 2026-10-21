@@ -43,6 +43,19 @@ Branch `pr3b1` (= `pr3b-desenho` + merge de `cf-pr-a`, PR #49). Base: `ecea062`.
   novo citei pela data e pelo título, sem número de linha. Os testes da Task 5 que citam ":22" no comentário: também por título.
 - Suíte: 573 testes, 573 passam.
 
+## Task 4: a tela lê a entrada da proposta (BZPix)
+
+- Vermelho visto: `orcamento-pix.test.mjs` → `ENOENT … js/orcamento-pix.js` (4 testes caídos antes do módulo).
+- Verde: orcamento-pix + csp 13 de 13; suíte 577 testes, 577 passam.
+- E2E (servidor padrão, sem consultor, porta 8891): 246 OK, nenhuma FALHA. As 3 linhas novas OK ("sem percentual: não cobra",
+  "nenhum percentual inventado", "a entrada de 40%"). **Chamadas a /api/vendas no trecho "sem percentual": 6** (2 recargas),
+  e o 61 s de espera depois dele; nenhum 429.
+- Vermelho do E2E: não foi visto contra o código antigo (o unitário já cobre o 50; o E2E só confirma a tela). A condição de
+  `if (arguments.length > 1)` é conferida na Task 5 (E2E da configuração que falha).
+- O `pagamento()` do código real era diferente do texto "antes" do plano (já não tinha `#o-pag-indisponivel` no `pagamento()`;
+  o aviso vem de `tela.mostrar` quando `!c.ativo`): troquei as linhas pelas do plano, que também escondem o formulário.
+- Arquivos do repositório estão em CRLF no disco (autocrlf): as edições preservam o fim de linha.
+
 ## Andamento
 
-próxima tarefa: 4
+próxima tarefa: 5

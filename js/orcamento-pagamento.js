@@ -46,7 +46,7 @@
   var toque = function () { return !!(window.matchMedia && matchMedia('(pointer: coarse)').matches); };
 
   function criar(o) {
-    var trocando = false, cfg = null, valor = 0, metodo = 'pix', espera = null, mp = null, campos = null, cartaoInfo = null, enviando = false, ultimoEstado = '';
+    var trocando = false, cfg = null, valor = 0, pct = null, metodo = 'pix', espera = null, mp = null, campos = null, cartaoInfo = null, enviando = false, ultimoEstado = '';
 
     /* ---------- configuração pública (Public Key e ambiente) ----------
        Só o sucesso fica guardado: uma falha passageira não deixa o pagamento "indisponível" até recarregar (F4) */
@@ -318,8 +318,11 @@
 
     var tela = {
       /* chamado pela página quando a etapa é "aguardando pagamento" */
-      async mostrar(valorSinal) {
+      async mostrar(valorSinal, pctEntrada) {
         valor = Number(valorSinal) || 0;
+        /* (vem da proposta, por js/orcamento-pix.js). Só troca quando vem: configDeNovo() (:58) e a volta à aba (:284)
+           chamam tela.mostrar(valor) com um argumento só, e o percentual sumia da linha do Pix */
+        if (arguments.length > 1) pct = Number.isInteger(pctEntrada) ? pctEntrada : null;
         var c = await configurar();
         mostrar('o-pag-indisponivel', !c.ativo);
         mostrar('o-pag-form', c.ativo);

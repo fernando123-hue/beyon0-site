@@ -28,10 +28,38 @@ async function cartaoDesligado(page, ok, forcar) {
   ok(status === 400, 'só Pix: o servidor recusa o cartão antes do banco (status ' + status + ')');
 }
 
+/* (PR 3b-1) proposta sem percentual: a resposta do estado é trocada só neste trecho; a tela não cobra nem inventa um número */
+async function semPercentual(page, ok, espera) {
+  const eEstado = url => url.searchParams.get('acao') === 'estado';
+  await page.route(eEstado, async rota => {
+    const real = await rota.fetch();
+    const corpo = await real.json();
+    if (corpo && corpo.proposta) corpo.proposta = { ...corpo.proposta, sinal_percentual: null };
+    await rota.fulfill({ response: real, json: corpo });
+  });
+  await page.reload({ waitUntil: 'load' });
+  ok(await espera(page, () => !document.getElementById('o-pag-indisponivel').hidden && document.getElementById('o-pag-form').hidden, 15000),
+    'proposta sem percentual: a tela não cobra (sem formulário, com o aviso)');
+  ok(!/d+s?%/.test(await page.textContent('#o-pag-lead')), 'proposta sem percentual: nenhum percentual inventado no texto');
+  await page.unroute(eEstado);
+  await page.reload({ waitUntil: 'load' });
+  await page.waitForSelector('#o-pag-form:not([hidden])', { timeout: 15000 });
+}
+
 export async function passoDoPix(page, { ok, espera, foto, semRolagemLateral, forcar = () => {} }) {
   const cfg = await page.evaluate(() => window.BZOrcamento.pagamentoConfig());
   const comCartao = Array.isArray(cfg.metodos) && cfg.metodos.includes('cartao');
   console.log('[e2e-pix] formas de pagamento do servidor: ' + JSON.stringify(cfg.metodos));
+  /* (freio de 90 chamadas por minuto por IP, api/vendas.mjs) o "sem percentual" recarrega 2 vezes: conta as chamadas
+     do trecho e espera a janela esvaziar antes do resto, como as outras esperas deste E2E (docs/e2e-orcamento.mjs, antes do pagamento) */
+  let chamadas = 0;
+  const contar = req => { if (new URL(req.url()).pathname === '/api/vendas') chamadas++; };
+  page.on('request', contar);
+  await semPercentual(page, ok, espera);
+  console.log('[e2e-pix] chamadas a /api/vendas no "sem percentual": ' + chamadas);
+  page.off('request', contar);
+  await new Promise(r => setTimeout(r, 61e3));
+  ok(/a entrada de 40%: /.test(await page.textContent('#o-pag-lead')), 'entrada: o percentual vem da proposta (o servidor local usa o rascunho, a 40)');
   await page.click('#o-pag-enviar');
   ok((await page.textContent('#o-pag-erro')).includes('nome'), 'pagador sem dados: recusado com motivo');
   await page.fill('#o-pag-nome', PAGADOR.nome); await page.fill('#o-pag-sobrenome', PAGADOR.sobrenome);
