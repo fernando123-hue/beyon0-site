@@ -11,9 +11,8 @@
 import { executarTurno } from './agente.mjs';
 import { estimar, LANDING_GRANDE, CHAVE as CHAVE_EXTRA } from './precos.mjs';
 import { gerarDirecao } from './gerador.mjs';
-import { interpretar, aplicar, fatoresComEscopo, paraVisitante } from './alteracoes.mjs';
-import { montarEscopo, nomesDosItens } from './escopo.mjs';
-import { limparMensagem, pareceInjecao, redigir, MSG_MAX } from './seguranca.mjs';
+import { montarEscopo } from './escopo.mjs';
+import { limparMensagem, pareceInjecao, redigir } from './seguranca.mjs';
 import { ehUuid } from '../_valida-app.mjs';
 import { TETOS, reservaUsd, modoDirecoes } from '../_ia/config.mjs';
 import { ErroIA } from '../_ia/provedor.mjs';
@@ -30,6 +29,7 @@ import { Recusa } from './recusa.mjs';
 import { regrasAtivas, esquecerRegras } from './regras-ativas.mjs';
 import { criarAcoesDoPedido } from './fluxo-pedido.mjs';
 import { criarAcoesDaRetomada } from './fluxo-retomada.mjs';
+import { criarAcoesDosAjustes } from './fluxo-ajustes.mjs';
 import { PEDIDOS } from './pedido.mjs';
 
 import { ORG } from './org.mjs';
@@ -39,8 +39,6 @@ const ORIGENS = ['anuncio', 'busca', 'social', 'mensagem', 'email', 'referencia'
 /* etapas em que a conversa com o agente ainda vale: até o sinal, e no escopo e no sinal só para dúvidas (ETAPAS_SO_DUVIDAS);
    depois do sinal pago, o fluxo segue pelos blocos da página */
 const CONVERSA_ABERTA = ['descoberta', 'estimativa', 'contato', 'direcoes', 'escolhida', 'alteracoes', ...ETAPAS_SO_DUVIDAS];
-/* etapas que aceitam ajuste (= app.vendas_registrar_alteracao): conferidas ANTES de chamar o modelo */
-const AJUSTE_ABERTO = ['escolhida', 'alteracoes'];
 /* a trava de "uma resposta de IA por vez" dura o pior caso que cabe na função (300 s na Vercel) */
 const TRAVA_IA_S = 300;
 const RESERVA_S = 600;   /* a reserva de custo vence sozinha se a função cair no meio (a geração cabe em 300 s) */
@@ -97,7 +95,7 @@ const CONFIANCA_FORMULARIO = 0.4;   /* fixa: o formulário dá o começo do brie
 const TABELA_EM_ATUALIZACAO = 'A tabela de valores está em atualização. Fale com a Beyon Zero pelo WhatsApp.';
 
 /* (PR 2a, revisão final M1) a situação do pedido nas ações do visitante. Regra do dono: "Descartar encerra o pedido e
-   para o que faltava fazer": descartado, NENHUMA ação seguinte passa (gerar, gerar-direcao, escolher, alterar, escopo,
+   para o que faltava fazer": descartado, NENHUMA ação seguinte passa (gerar, gerar-direcao, escolher, ajustar, desfazer, pedido-livre, escopo,
    pagar). Arquivado (resolvido por fora) não bloqueia; só não gera de novo, como todo pedido que não está confirmado */
 const PEDIDO_ENCERRADO = 'Este pedido foi encerrado. Fale com a Beyon Zero pelo WhatsApp.';
 const NAO_GERA = {
@@ -276,6 +274,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
   return {
     ...acoesDoPedido,
     ...criarAcoesDaRetomada({ banco, visitantes }),
+    ...criarAcoesDosAjustes({ banco, visitante, estado, exigirNaoDescartado }),
 
     /* começar: cria o visitante anônimo e a conversa, com a origem da visita (das métricas, sem dado pessoal) */
     async sessao({ corpo }) {
@@ -444,57 +443,6 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       return banco('vendas_escolher', { conversa_id: corpo.conversa_id, visitante_id: vid, direcao_id: corpo.direcao_id });
     },
 
-    /* alteração: o modelo traduz, o código aplica; escopo novo passa pelo motor de preço */
-    async alterar({ request, corpo }) {
-      const vid = await visitante(request);
-      exigir(ehUuid(corpo?.conversa_id), 400, 'Conversa inválida.');
-      const limpo = limparMensagem(corpo?.pedido);
-      exigir(limpo, 400, 'Descreva a alteração em até 2.000 caracteres.');   /* (antes de redigir: redigir(null) vira "null") */
-      /* (o modelo e o banco recebem o texto redigido; o marcador pode ser maior que o dado — "a@b.co" vira
-         "[e-mail]" — e o banco aceita até MSG_MAX no pedido) */
-      const pedido = redigir(limpo).slice(0, MSG_MAX);
-      const est = await estado(vid, corpo.conversa_id);
-      exigirNaoDescartado(est);   /* (antes de pagar o modelo) */
-      exigir(est.escolha, 409, 'Escolha uma direção antes.');
-      exigir(AJUSTE_ABERTO.includes(est.conversa.etapa), 409, 'Os ajustes desta proposta já foram fechados.');   /* (antes de pagar o modelo) */
-      await dentroDoCusto(est);
-      const direcoes = est.direcoes.filter(d => d.status === 'pronta');
-      const escolhida = direcoes.find(d => d.id === est.escolha.direcao_id);
-      exigir(escolhida, 409, 'Escolha uma direção antes.');
-      const base = est.versao_final || escolhida.conteudo;
-      await reservarIa(corpo.conversa_id, vid, request);
-      const t = await comReserva(corpo.conversa_id, vid, 'extracao', async () => {
-        let r;
-        try { r = await interpretar({ ia, pedido, direcoes, escolhida: escolhida.numero }); }
-        catch (e) { await somarCusto(corpo.conversa_id, vid, e && e.custo_usd); throw e; }
-        finally {
-          await banco('vendas_liberar_ia', { conversa_id: corpo.conversa_id, visitante_id: vid }).catch(() => {});
-          await gravarChamadas(corpo.conversa_id, vid);
-        }
-        /* a chamada ao modelo já foi paga: o custo entra no teto agora, dê certo ou não o que vem depois */
-        await somarCusto(corpo.conversa_id, vid, r.custo_usd);
-        return r;
-      });
-      const a = aplicar({ base, mudancas: t.mudancas, direcoes });
-      exigir(!a.erro, 422, 'Não consegui aplicar essa alteração. Pode descrever de outro jeito?');
-      let estimativa = null, novaEstimativa;
-      if (a.escopo.length) {
-        const regras = await regrasAtivas(banco);
-        exigir(regras, 503, 'A tabela de valores está em atualização.');
-        const e = estimar(fatoresComEscopo(est.estimativa?.fatores, a.escopo), regras.regras);
-        if (e.encaminhar_diagnostico) return { resposta: 'Esse pedido muda o projeto além do que a estimativa automática cobre. Vamos ver isso no diagnóstico pelo WhatsApp.', diagnostico: true, resultado: paraVisitante(a.resultado).resultado };
-        /* o motor recusou o novo escopo: o ajuste NÃO entra (senão o contrato teria um item sem preço) */
-        exigir(!e.erros, 422, 'Esse pedido muda o escopo de um jeito que a estimativa automática não cobre. Pode descrever de outro jeito, ou falamos pelo WhatsApp?');
-        novaEstimativa = { regras_id: regras.id, fatores: e.fatores, valor_total: e.valor_total, sinal: e.sinal, prazo_dias: e.prazo_dias, fase: e.fase, detalhes: e };
-        estimativa = cartao(e);
-      }
-      /* ajuste + estimativa nova numa transação só; o banco recusa se a escolha mudou enquanto o modelo traduzia */
-      await banco('vendas_registrar_alteracao', { conversa_id: corpo.conversa_id, visitante_id: vid, direcao_id: escolhida.id, pedido, mudancas: a.resultado, resultado: a.direcao,
-        ...(novaEstimativa ? { estimativa: novaEstimativa } : {}) });
-      /* (a frase é do código, nunca do modelo: auditoria 2026-10-09; o nome do adicional, o da tabela de preços) */
-      return { ...paraVisitante(a.resultado, novaEstimativa ? nomesDosItens(novaEstimativa.detalhes) : undefined), estimativa };
-    },
-
     /* o escopo final (montado pelo código; o preço é o da última estimativa, conferido pelo banco) */
     async escopo({ request, corpo }) {
       const vid = await visitante(request);
@@ -509,7 +457,9 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       const apagado = !Object.keys(est.conversa.briefing || {}).length || (est.alteracoes || []).some(a => a.pedido === '[apagado]');
       exigir(!apagado, 409, 'Este orçamento ficou parado por muito tempo e parte do que você contou foi apagada pelo nosso prazo de privacidade. Comece um novo orçamento ou fale com a Beyon Zero pelo WhatsApp.');
       const aplicadas = est.alteracoes.filter(a => a.status === 'aplicada').flatMap(a => (a.mudancas || []).filter(m => m.aplicada));
-      const { titulo, escopo } = montarEscopo({ estimativa: est.estimativa.detalhes, direcao, alteracoesAplicadas: aplicadas, briefing: est.conversa.briefing });
+      /* (PR 3a) dos pedidos livres o resumo recebe só a situação (o texto da pessoa fica fora do contrato: spec §7) */
+      const pedidosLivres = est.alteracoes.filter(a => a.origem === 'livre').map(a => ({ status: a.status }));
+      const { titulo, escopo } = montarEscopo({ estimativa: est.estimativa.detalhes, direcao, alteracoesAplicadas: aplicadas, briefing: est.conversa.briefing, pedidosLivres });
       const r = await banco('vendas_apresentar_escopo', { conversa_id: corpo.conversa_id, visitante_id: vid, titulo, escopo, estimativa_id: est.estimativa.id });
       return { ...r, titulo, escopo };
     },

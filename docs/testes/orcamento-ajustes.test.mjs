@@ -1,0 +1,148 @@
+/* A TELA DOS AJUSTES (PR 3a; spec §4): o que cada estado oferece, sem DOM. O módulo é JS de navegador (IIFE): roda aqui com
+   um window de mentira e sem document (ele não toca no DOM ao carregar; só criar() toca). */
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+
+const fonte = fs.readFileSync(new URL('../../js/orcamento-ajustes.js', import.meta.url), 'utf8');
+const janela = {};
+new Function('window', fonte)(janela);
+const A = janela.BZAjustes;
+const sec = tipos => tipos.map(tipo => ({ tipo }));
+const dir = (id, numero, tipos) => ({ id, numero, status: 'pronta', conteudo: { secoes: sec(tipos) } });
+/* o modelo 2 escolhido; o 1 tem "Perguntas frequentes", o 3 tem "Equipe" */
+const estado = (extra = {}) => ({ conversa: { etapa: 'escolhida' }, escolha: { direcao_id: 'b' },
+  direcoes: [dir('a', 1, ['hero', 'servicos', 'faq', 'contato']), dir('b', 2, ['hero', 'sobre', 'servicos', 'depoimentos', 'contato']), dir('c', 3, ['hero', 'equipe', 'servicos'])],
+  alteracoes: [], versao_final: null, ...extra });
+
+test('opções: as cores e as fontes dos OUTROS modelos prontos, nunca do escolhido', () => {
+  const m = A.opcoesDe(estado());
+  assert.deepEqual(m.cores.map(c => c.rotulo), ['Usar as cores do modelo 1', 'Usar as cores do modelo 3']);
+  assert.deepEqual(m.cores[0].opcao, { operacao: 'usar_paleta_de', direcao: 1 });
+  assert.deepEqual(m.fontes.map(c => [c.rotulo, c.opcao]), [['Usar as fontes do modelo 1', { operacao: 'usar_tipografia_de', direcao: 1 }], ['Usar as fontes do modelo 3', { operacao: 'usar_tipografia_de', direcao: 3 }]]);
+  const semO3 = A.opcoesDe(estado({ direcoes: estado().direcoes.map(d => (d.id === 'c' ? { ...d, status: 'falhou' } : d)) }));
+  assert.deepEqual(semO3.cores.map(c => c.opcao.direcao), [1], 'só os prontos');
+  assert.equal(A.opcoesDe(estado({ escolha: null })), null, 'sem escolha, nada');
+});
+
+test('seções: a abertura fica; subir a partir da 3ª, descer até a penúltima, tirar só com mais de três; a versão ajustada manda', () => {
+  const s = A.opcoesDe(estado()).secoes;
+  assert.deepEqual(s.map(x => x.nome), ['Abertura', 'Sobre', 'Serviços', 'Depoimentos', 'Contato']);
+  assert.equal(s[0].fixa, true);
+  assert.ok(!s[0].subir && !s[0].descer && !s[0].tirar, 'a abertura não mexe');
+  assert.equal(s[1].subir, undefined, 'a 2ª não sobe acima da abertura');
+  assert.deepEqual(s[2].subir, { operacao: 'mover_antes_de', secao: 'servicos', referencia: 'sobre' });
+  assert.deepEqual(s[2].descer, { operacao: 'mover_depois_de', secao: 'servicos', referencia: 'depoimentos' });
+  assert.equal(s[4].descer, undefined, 'a última não desce');
+  assert.deepEqual(s[4].tirar, { operacao: 'remover_secao', secao: 'contato' });
+  const curta = A.opcoesDe(estado({ versao_final: { secoes: sec(['hero', 'servicos', 'contato']) } })).secoes;
+  assert.deepEqual(curta.map(x => x.tipo), ['hero', 'servicos', 'contato'], 'a versão ajustada, não o modelo original');
+  assert.ok(curta.every(x => !x.tirar), 'com três seções nada sai (o servidor recusaria)');
+});
+
+test('acrescentar: só seções que existem nos outros modelos e ainda não estão no seu, sem repetir', () => {
+  const m = A.opcoesDe(estado());
+  assert.deepEqual(m.adicionar.map(a => a.rotulo), ['Adicionar perguntas frequentes', 'Adicionar equipe']);
+  assert.deepEqual(m.adicionar[0].opcao, { operacao: 'adicionar_secao', secao: 'faq' });
+  const comFaq = A.opcoesDe(estado({ versao_final: { secoes: sec(['hero', 'faq', 'sobre', 'contato']) } }));
+  assert.deepEqual(comFaq.adicionar.map(a => a.opcao.secao), ['servicos', 'equipe']);
+});
+
+test('acrescentar: com 12 seções (o máximo do servidor) a tela não oferece "Adicionar"; com 11 oferece', async () => {
+  const { MAX_SECOES } = await import('../../api/_vendas/direcao.mjs');
+  assert.equal(A.MAX_SECOES, MAX_SECOES, 'a tela e o servidor falam do mesmo máximo');
+  const doze = ['hero', 'servicos', 'depoimentos', 'contato', 'sobre', 'diferenciais', 'processo', 'numeros', 'galeria', 'cta', 'destaque', 'localizacao'];
+  assert.equal(doze.length, MAX_SECOES);
+  assert.deepEqual(A.opcoesDe(estado({ versao_final: { secoes: sec(doze) } })).adicionar, [], 'cheio: nada a acrescentar');
+  assert.ok(A.opcoesDe(estado({ versao_final: { secoes: sec(doze.slice(0, 11)) } })).adicionar.length > 0, 'com vaga, oferece');
+});
+
+test('pedido livre: o formulário só vale com o pedido confirmado (arquivado ou sem pedido, o servidor recusaria)', () => {
+  assert.equal(A.opcoesDe(estado({ pedido: { status: 'confirmado' } })).livreFora, false);
+  assert.equal(A.opcoesDe(estado({ pedido: { status: 'arquivado' } })).livreFora, true);
+  assert.equal(A.opcoesDe(estado({ pedido: { status: 'descartado' } })).livreFora, true);
+  assert.equal(A.opcoesDe(estado()).livreFora, true, 'conversa sem pedido');
+});
+
+test('erro de uma ação: só rede caída, tempo esgotado ou erro do servidor podem ter gravado (reler e contar); 400, 409, 422 e 429 não', () => {
+  for (const status of [0, 500, 502, 503]) assert.equal(A.talvezGravou({ status }), true, String(status));
+  for (const status of [400, 404, 409, 422, 429]) assert.equal(A.talvezGravou({ status }), false, String(status));
+  assert.equal(A.talvezGravou(null), false);
+  assert.equal(A.talvezGravou(new Error('sem status')), false);
+});
+
+test('aviso, desfazer e lista: o 1º ajuste pergunta antes; desfazer só quando o banco diz que dá; cada ajuste com a sua frase', () => {
+  assert.equal(A.opcoesDe(estado()).confirmar, true, 'na etapa "escolhida", o 1º ajuste pergunta antes');
+  assert.equal(A.opcoesDe(estado()).desfazer, false);
+  const alts = [
+    { origem: 'opcao', status: 'desfeita', pedido: 'Cores do modelo 1' },
+    { origem: 'opcao', status: 'aplicada', pedido: 'Serviços depois de depoimentos' },
+    { origem: 'livre', status: 'na_fila', pedido: 'Quero o mapa' },
+    { origem: 'livre', status: 'aplicada', pedido: 'Horário no topo' },
+    { origem: 'livre', status: 'recusada', pedido: 'Um aplicativo' },
+    { origem: 'ia', status: 'aplicada', pedido: 'quero tema claro' }];
+  const m = A.opcoesDe(estado({ conversa: { etapa: 'alteracoes' }, alteracoes: alts, pode_desfazer: true }));
+  assert.equal(m.confirmar, false);
+  assert.equal(m.desfazer, true);
+  assert.deepEqual(m.lista, [
+    { classe: 'is-nao is-desfeita', texto: 'Desfeito: Cores do modelo 1' },
+    { classe: 'is-ok', texto: 'Serviços depois de depoimentos' },
+    { classe: 'is-fila', texto: 'Aguardando: Quero o mapa' },
+    { classe: 'is-ok', texto: 'Feito pela Beyon Zero: Horário no topo' },
+    { classe: 'is-nao', texto: 'Não incluído: Um aplicativo' },
+    { classe: 'is-ok', texto: 'Feito: quero tema claro' }]);
+  assert.equal(m.livresRestantes, 0);
+  assert.equal(A.opcoesDe(estado({ conversa: { etapa: 'alteracoes' }, alteracoes: alts, pode_desfazer: false })).desfazer, false, 'o último aplicado é do dono: o banco diz que não');
+  assert.equal(A.opcoesDe(estado({ conversa: { etapa: 'escolhida' }, alteracoes: [], pode_desfazer: true })).desfazer, false, 'fora da etapa de ajustes, não');
+});
+
+test('conta dos pedidos escritos e teto de 30', () => {
+  assert.equal(A.textoDaConta(3), 'Você pode fazer mais 3 pedidos.');
+  assert.equal(A.textoDaConta(1), 'Você pode fazer mais 1 pedido.');
+  assert.equal(A.textoDaConta(0), 'Você já fez os 3 pedidos escritos deste orçamento.');
+  assert.equal(A.opcoesDe(estado()).livresRestantes, 3);
+  const trinta = Array.from({ length: 30 }, () => ({ origem: 'opcao', status: 'desfeita', pedido: 'x' }));
+  assert.equal(A.opcoesDe(estado({ conversa: { etapa: 'alteracoes' }, alteracoes: trinta })).limite, true);
+  assert.equal(A.opcoesDe(estado({ conversa: { etapa: 'alteracoes' }, alteracoes: trinta.slice(1) })).limite, false);
+});
+
+test('chamada que falhou mas entrou (tempo esgotado, rede caiu): a contagem do estado reconhece e a frase sai do estado', () => {
+  const antes = estado({ conversa: { etapa: 'alteracoes' }, alteracoes: [
+    { origem: 'opcao', status: 'aplicada', pedido: 'Cores do modelo 1' }, { origem: 'livre', status: 'na_fila', pedido: 'a' }] });
+  assert.equal(A.contagem(antes, 'ajustar'), 1);
+  assert.equal(A.contagem(antes, 'livre'), 1);
+  assert.equal(A.contagem(antes, 'desfazer'), 0);
+  const nova = { origem: 'opcao', status: 'aplicada', pedido: 'Sobre depois de serviços' };
+  const depois = { ...antes, alteracoes: [...antes.alteracoes, nova] };
+  assert.equal(A.contagem(depois, 'ajustar'), 2, 'entrou uma opção pronta');
+  assert.equal(A.contagem(depois, 'livre'), 1, 'o pedido livre não mudou');
+  assert.equal(A.frase(depois, 'ajustar', null), 'Feito: Sobre depois de serviços.');
+  assert.equal(A.frase(depois, 'ajustar', { rotulo: 'Cores do modelo 3' }), 'Feito: Cores do modelo 3.', 'com resposta do servidor, vale o rótulo dela');
+  const livre = { ...antes, alteracoes: [...antes.alteracoes, { origem: 'livre', status: 'na_fila', pedido: 'b' }] };
+  assert.equal(A.contagem(livre, 'livre'), 2);
+  assert.equal(A.frase(livre, 'livre', null), 'Pedido enviado. Você pode fazer mais 1 pedido.');
+  assert.equal(A.frase(livre, 'livre', { restantes: 1 }), 'Pedido enviado. Você pode fazer mais 1 pedido.');
+  const desfeito = { ...antes, alteracoes: [{ ...antes.alteracoes[0], status: 'desfeita' }, antes.alteracoes[1]] };
+  assert.equal(A.contagem(desfeito, 'desfazer'), 1, 'desfazer: mais uma desfeita');
+  assert.equal(A.contagem(null, 'ajustar'), 0, 'sem estado, zero');
+  assert.equal(A.frase(desfeito, 'desfazer', null), 'Desfeito: a versão anterior voltou.');
+});
+
+test('o aviso do limite de 30 só manda escrever o pedido se ainda há pedidos escritos', () => {
+  assert.match(A.textoDoLimite(2), /escreva o seu pedido/);
+  assert.doesNotMatch(A.textoDoLimite(0), /escreva/);
+  assert.match(A.textoDoLimite(0), /WhatsApp/);
+  assert.match(A.textoDoLimite(0), /30/);
+});
+
+test('o aviso do pedido escrito manda não escrever nome nem contato, e há um lugar para o WhatsApp quando o formulário não vale', () => {
+  const html = fs.readFileSync(new URL('../../orcamento.html', import.meta.url), 'utf8');
+  const aviso = (html.match(/id="o-livre-aviso">([^<]*)</) || [])[1] || '';
+  for (const palavra of ['nome', 'telefone', 'e-mail', 'CPF']) assert.ok(aviso.includes(palavra), 'o aviso não cita ' + palavra + ': ' + aviso);
+  assert.match(html, /id="o-livre-fora"[^>]*hidden[\s\S]*?data-wa="[^"]+"[\s\S]*?<\/p>/, 'a frase do WhatsApp no lugar do formulário');
+});
+
+test('a palavra é "modelo": nenhum texto da tela diz "direção"', () => {
+  const textos = (fonte.match(/'[^'\n]*'/g) || []).filter(s => /dire[cç][aã]o/i.test(s));
+  assert.deepEqual(textos, []);
+});

@@ -4,7 +4,7 @@
    simulado). Celular primeiro (390px), depois 320px e desktop.
    Cobre: as perguntas → preço (motivo, vizinho, "Quer ajustar?" ao vivo) →
    conta que falha não muda o que se grava → pacote gravado → detalhes → código e confirmação pelo WhatsApp (o dono confirma no painel) → 3 modelos → abrir o pedido em outro aparelho pelo link do aviso → visor (abrir,
-   trocar, aparelho, Escape devolve o foco) → escolha → ajuste → retomada
+   trocar, aparelho, Escape devolve o foco) → escolha → ajustes (opção pronta, desfazer, pedido livre) → retomada
    depois de recarregar → escopo (exige a confirmação) → pagamento simulado
    → projeto em produção. À parte: o pacote que pede conversa (sem valor) e
    a landing de até 3 páginas. Com CONSULTOR=1, também a conversa: texto com HTML
@@ -19,6 +19,7 @@
 import { chromium } from 'playwright';
 import { mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
+import { passoDosAjustes } from './e2e-ajustes.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8899';
 /* só servidor local: contra um site de verdade este teste cria conversa, chama a IA paga e cria pedido de pagamento */
@@ -68,7 +69,7 @@ try {
   const erros = [];
   let falhaForcada = false;   /* (o 400 ou 503 que o próprio teste força numa conta ou nos detalhes não é erro da página) */
   let perdeuOPedido = false;   /* (PR 2b-2: depois que outro aparelho abre o pedido pelo link, a aba de antes leva 404 ao reler o estado, e isso é o esperado) */
-  page.on('console', m => { if (m.type() === 'error' && !(falhaForcada && /status of (400|503)/.test(m.text())) && !(perdeuOPedido && /status of 404/.test(m.text()))) erros.push(m.text()); });
+  page.on('console', m => { if (m.type() === 'error' && !(falhaForcada && /status of (400|503)|ERR_TIMED_OUT/.test(m.text())) && !(perdeuOPedido && /status of 404/.test(m.text()))) erros.push(m.text()); });
   page.on('pageerror', e => erros.push(String(e)));
   page.on('dialog', d => { erros.push('diálogo inesperado: ' + d.message()); d.dismiss(); });
 
@@ -661,12 +662,7 @@ try {
   await page.waitForSelector('#o-ajustes:not([hidden])');
   ok(await page.locator('.dir.is-escolhida .dir__estrategia').textContent().then(t => t.startsWith('02')), 'direção 2 escolhida');
 
-  await page.fill('#o-aj-texto', 'Quero a cor da primeira e os depoimentos antes dos serviços');
-  await page.click('#o-aj-form button[type=submit]');
-  await page.waitForSelector('#o-mudancas li', { timeout: 30000 });
-  ok(await page.locator('#o-mudancas li.is-ok').count() >= 1, 'ajuste aplicado e listado');
-  await page.waitForFunction(() => !document.querySelector('.dir .btn--primary'));
-  ok(true, 'depois do ajuste não há mais troca de direção');
+  await passoDosAjustes(page, { ok, espera, foto, semRolagemLateral, forcar: v => { falhaForcada = v; } });
 
   /* sair e voltar */
   await page.reload({ waitUntil: 'load' });
@@ -680,6 +676,8 @@ try {
   await page.waitForSelector('#o-escopo:not([hidden])');
   ok((await page.textContent('#o-esc-titulo')).trim() === 'Resumo do que será feito', 'o título é "Resumo do que será feito"');
   ok((await page.textContent('#o-esc-texto')).includes('INVESTIMENTO'), 'resumo com investimento');
+  const resumo = await page.textContent('#o-esc-texto');
+  ok(resumo.includes('- Pedidos escritos: 1 não incluído neste valor (aguardando ou recusado).') && !resumo.includes('Quero o mapa'), 'resumo: o pedido escrito só conta, sem o texto da pessoa (fora do contrato)');
   ok(!(await page.textContent('#o-esc-texto')).includes('hero'), 'escopo sem nome técnico de seção');
   if (CONSULTOR) {
     /* no escopo a conversa também fica aberta para dúvidas, com o lembrete do cartão na caixa (revisões do PR 34) */
@@ -711,6 +709,11 @@ try {
     await page.waitForTimeout(800);   /* (a caixa da conversa rola com suavidade até a resposta) */
     await foto(page, '4b-duvida-no-sinal-cel');
   } else ok(await page.locator('#o-pagamento [data-perguntar]').isHidden(), 'sem consultor: a tela do sinal não oferece "Pergunte ao consultor"');
+
+  /* (PR 3a) com os ajustes antes do resumo, o fluxo chega aqui com perto de 90 chamadas no último minuto e, no CI (rápido),
+     o recarregar do Pix levava 429 do freio geral (90 por minuto por IP, api/vendas.mjs; visto no diário do CI do #46).
+     Como nos dois pontos abaixo, o freio fica como está e quem espera a janela esvaziar é o teste */
+  await new Promise(r => setTimeout(r, 61e3));
 
   /* pagamento: dados do pagador, cartão recusado, depois Pix (QR) e a confirmação SÓ pelo aviso do provedor */
   await page.click('#o-pag-enviar');
