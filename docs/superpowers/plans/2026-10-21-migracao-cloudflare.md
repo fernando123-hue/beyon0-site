@@ -774,8 +774,9 @@ test('todo env.X lido em api/ está no .env.example ou na lista de chaves só lo
 - Modify: `api/_pagamentos/config.mjs` (`configPagamentos`, `configPublica`), `api/_pagamentos/servico.mjs:158-160`,
   `orcamento.html:381`, `:427`, `js/orcamento-pagamento.js` (`configurar`, `escolherMetodo`, `:310`),
   `docs/e2e-orcamento.mjs` (encolhe), `docs/testes/mutacao.mjs`, `api/_vendas/consultor.mjs:90`, `:250`,
+  `api/_vendas/promessa.mjs:27`, `api/_pagamentos/estados.mjs:59`, `docs/testes/consultor.test.mjs`,
   `privacidade.html:37` (só se citar cartão)
-- Create: `docs/e2e-pix.mjs`
+- Create: `docs/e2e-pix.mjs`, `docs/testes/so-pix-textos.test.mjs`
 - Test: `docs/testes/pagamentos.test.mjs`
 
 **Interfaces:**
@@ -851,10 +852,81 @@ ponto 1, adotado como está.)
   (o grupo de rádio de uma opção só some inteiro: spec do 3b §4) e `escolherMetodo(m)` começa com
   `if (m === 'cartao' && $('o-pag-metodos').hidden) m = 'pix';`. O `[hidden]` de `css/tokens.css:145` já tem `!important`.
 - [ ] **Step 5: E2E em arquivo próprio** — o trecho do pagamento sai de `docs/e2e-orcamento.mjs` (`:717-744`) para
-  `docs/e2e-pix.mjs` (`passoDoPix(page, { ok, espera, foto, semRolagemLateral })`, como no plano do 3b-1, Task 1 Step 7),
-  que lê `pagamentoConfig().metodos` e roda o caminho com cartão (servidor padrão) ou o "só Pix" (`MP_METODOS=pix`):
-  sem `#o-pag-metodos`, sem "Prefiro pagar com cartão", e `BZOrcamento.pagar('cartao', …)` com cartão VÁLIDO → 400.
-  `docs/e2e-orcamento.mjs` só encolhe.
+  `docs/e2e-pix.mjs`, que lê `pagamentoConfig().metodos` e roda o caminho com cartão (servidor padrão) ou o "só Pix"
+  (`MP_METODOS=pix`): sem `#o-pag-metodos`, sem "Prefiro pagar com cartão", e `BZOrcamento.pagar('cartao', …)` com
+  cartão VÁLIDO → 400. O texto vem do **Anexo A** do plano do 3b-1
+  (`site-pr3b/docs/superpowers/plans/2026-10-21-pr3b1-so-pix.md`, commit `6f359fb`), **copiado aqui** porque o PR A
+  mescla antes e não pode depender de um plano de outra branch. O cartão do "só Pix" é VÁLIDO (`local-APRO-…`), para o
+  400 vir da guarda do `MP_METODOS` e não da validação do cartão. Crie `docs/e2e-pix.mjs`:
+
+```js
+/* O PIX no E2E do orçamento (A7 do PR A da Cloudflare; o PR 3b-1 acrescenta a ele). Fica fora de docs/e2e-orcamento.mjs, que já passou do teto de 800 linhas
+   (pendência PR2b2-M3): o trecho do pagamento saiu de lá para cá. Recebe a página na tela da entrada (#o-pagamento
+   visível), no celular (390 px), e a deixa com a entrada paga (#o-pronto visível).
+   O servidor diz se o cartão vale (MP_METODOS, decisão do dono de 21/10): com os dois (o padrão do servidor local), o
+   cartão é recusado e depois vem o Pix, como antes; só com o Pix (servidor local subido com MP_METODOS=pix), a tela
+   não tem seletor nem cartão, e o servidor recusa o cartão com 400. */
+const PAGADOR = { nome: 'Ana', sobrenome: 'Souza', email: 'ana@exemplo.com', documento: '529.982.247-25' };
+
+async function cartaoRecusado(page, ok) {
+  ok(await page.locator('#o-pag-metodos').isVisible(), 'cartão ligado (servidor local padrão): o seletor aparece');
+  await page.click('[data-metodo="cartao"]');
+  ok(await page.locator('#o-pag-local').isVisible(), 'modo local: nomes de teste no lugar dos campos do Mercado Pago');
+  await page.fill('#o-titular', 'FUND');
+  await page.click('#o-pag-enviar');
+  await page.waitForFunction(() => /limite/.test(document.getElementById('o-pag-status').textContent), null, { timeout: 15000 });
+  ok(true, 'cartão recusado: motivo em português, nada liberado');
+  ok(await page.locator('#o-pronto').isHidden(), 'recusa não libera');
+  await page.click('[data-metodo="pix"]');
+}
+
+async function cartaoDesligado(page, ok) {
+  ok(await page.locator('#o-pag-metodos').isHidden(), 'só Pix: sem o seletor de forma de pagamento');
+  const status = await page.evaluate(p => window.BZOrcamento.pagar('cartao', p, { token: 'local-APRO-abc12345', meio: 'visa', tipo: 'credit_card', parcelas: 1 })
+    .then(() => 0, e => e.status), PAGADOR);
+  ok(status === 400, 'só Pix: o servidor recusa o cartão antes do banco (status ' + status + ')');
+}
+
+export async function passoDoPix(page, { ok, espera, foto, semRolagemLateral }) {
+  const cfg = await page.evaluate(() => window.BZOrcamento.pagamentoConfig());
+  const comCartao = Array.isArray(cfg.metodos) && cfg.metodos.includes('cartao');
+  console.log('[e2e-pix] formas de pagamento do servidor: ' + JSON.stringify(cfg.metodos));
+  await page.click('#o-pag-enviar');
+  ok((await page.textContent('#o-pag-erro')).includes('nome'), 'pagador sem dados: recusado com motivo');
+  await page.fill('#o-pag-nome', PAGADOR.nome); await page.fill('#o-pag-sobrenome', PAGADOR.sobrenome);
+  await page.fill('#o-pag-email', PAGADOR.email); await page.fill('#o-pag-doc', PAGADOR.documento);
+  if (comCartao) await cartaoRecusado(page, ok); else await cartaoDesligado(page, ok);
+  await page.click('#o-pag-enviar');
+  await page.waitForSelector('#o-pix:not([hidden])', { timeout: 15000 });
+  if (!comCartao) ok(await page.locator('#o-pix-trocar').isHidden(), 'só Pix: sem "Prefiro pagar com cartão"');
+  ok((await page.inputValue('#o-pix-codigo')).startsWith('000201'), 'Pix copia e cola');
+  ok(await page.locator('#o-pix-qr').isVisible(), 'QR do Pix');
+  ok(await semRolagemLateral(page), 'celular no Pix: sem rolagem lateral');
+  await page.locator('#o-pix').scrollIntoViewIfNeeded();
+  await foto(page, comCartao ? '4-pix-cel' : '4-pix-so-pix-cel');
+  await page.reload({ waitUntil: 'load' });
+  await page.waitForSelector('#o-pix:not([hidden])', { timeout: 15000 });
+  ok(true, 'recarregar: o mesmo Pix volta (nenhuma cobrança nova)');
+  ok(await page.locator('#o-pronto').isHidden(), 'voltar para a página não confirma nada sozinho');
+  await page.click('#o-pix-simular');
+  await page.waitForSelector('#o-pronto:not([hidden])', { timeout: 20000 });
+  ok(true, 'Pix confirmado pelo aviso assinado + consulta: projeto liberado');
+}
+```
+
+  (`espera` ainda não é usado aqui; o 3b-1 o usa nas tarefas dele.)
+
+  Em `docs/e2e-orcamento.mjs`: acrescente `import { passoDoPix } from './e2e-pix.mjs';` junto do import de
+  `./e2e-ajustes.mjs`; e troque o trecho que começa em
+  `/* pagamento: dados do pagador, cartão recusado, depois Pix (QR) e a confirmação SÓ pelo aviso do provedor */` e
+  termina em `ok(true, 'Pix confirmado pelo aviso assinado + consulta: projeto liberado');` (hoje `:718-744`) por:
+
+  ```js
+    /* pagamento: dados do pagador, o cartão (quando o servidor o liga) e o Pix; a confirmação SÓ pelo aviso do provedor (docs/e2e-pix.mjs) */
+    await passoDoPix(page, { ok, espera, foto, semRolagemLateral });
+  ```
+
+  Confira com `wc -l docs/e2e-orcamento.mjs`: o arquivo encolhe (era 905).
 - Sabotagem nova em `docs/testes/mutacao.mjs`: `{ nome: 'cartão aceito com só Pix (o servidor)', fonte: 'api/_pagamentos/servico.mjs', testes: ['docs/testes/pagamentos.test.mjs'], de: "if (!(cfg.metodos || ['pix']).includes(metodo)) throw", para: "if (false) throw" }`.
 - **Dono único:** a A7 é só deste PR A. O PR 3b-1 não a implementa: consome `configPublica(cfg).metodos`,
   `#o-pag-metodos` e `docs/e2e-pix.mjs` (spec do 3b, §4: `site-pr3b/docs/specs/2026-10-21-pr3b-vender-sozinho.md` l.257-261).
@@ -862,10 +934,69 @@ ponto 1, adotado como está.)
   **A A7 é a fonte do "só Pix" e o PR 3b-1 depende dela:** o 3b-1 só confere se a A7 está na `main` (Task 1 do plano
   dele) e para se não estiver; não cria `metodosDe` nem mexe em `config.mjs` ou em `servico.iniciar`. Por isso o PR A
   deve mesclar antes do 3b-1.
-- [ ] **Step 5b: o consultor não oferece cartão** (mesma revisão, MÉDIO-3; com a A7 no PR A, fica aqui): hoje
-  `api/_vendas/consultor.mjs:90` e `:250` dizem "por Pix ou cartão". Teste vermelho em `docs/testes/consultor.test.mjs`:
-  com `metodos: ['pix']`, o prompt montado não fala em pagar com cartão; com `['pix', 'cartao']`, fala. Implementação:
-  o texto sai de `cfg.metodos` (a lista chega ao consultor pelo fluxo, como o resto da configuração de pagamento).
+- [ ] **Step 5b: o servidor não oferece cartão quando ele está desligado** (mesma revisão, MÉDIO-3; com a A7 no PR A,
+  fica aqui). As frases de hoje que falam em pagar com cartão a quem só tem Pix:
+  - `api/_vendas/consultor.mjs:90` ("pagamento do sinal no próprio site, por Pix ou cartão") e `:250` ("cobra o sinal
+    por Pix ou cartão"): o texto sai de `cfg.metodos` (a lista chega ao consultor pelo fluxo, como o resto da
+    configuração de pagamento): com `['pix']`, "por Pix"; com os dois, "por Pix ou cartão";
+  - `api/_vendas/promessa.mjs:27` (`RESPOSTAS_PAGAMENTO.meio`, resposta fixa do consultor: "por Pix ou cartão"): vira
+    texto neutro, sem citar a forma: `'O pagamento é só pelo bloco aqui na tela. Se ele não funcionar, a Beyon Zero envia o pagamento pelo WhatsApp.'`;
+  - `api/_pagamentos/servico.mjs:159` (`'Escolha Pix ou cartão.'`, método fora da lista): vira
+    `'Escolha a forma de pagamento que aparece na tela.'`.
+  Ficam de fora, **com o motivo no teste**: as recusas específicas de cartão de `api/_pagamentos/estados.mjs:46-55` e
+  as validações de `servico.mjs:58-60` e `:69` (só acontecem num pagamento com cartão, que a guarda da A7 recusa antes)
+  e `servico.mjs:142` (só ao trocar do Pix para o cartão, idem). A recusa genérica de `estados.mjs:59` ("use outro
+  cartão ou o Pix") vale para qualquer método: vira `'O pagamento não foi aprovado. Tente de novo; se não der, fale com a Beyon Zero pelo WhatsApp.'`.
+
+  **Teste vermelho** (`docs/testes/so-pix-textos.test.mjs`, novo, no script `testar`):
+
+```js
+/* SÓ PIX: nenhum texto do servidor oferece cartão a quem só tem Pix (A7, Step 5b). npm run testar */
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { RESPOSTAS_PAGAMENTO } from '../../api/_vendas/promessa.mjs';
+import { mensagemRecusa } from '../../api/_pagamentos/estados.mjs';
+import { criarServicoPagamentos } from '../../api/_pagamentos/servico.mjs';
+
+const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const OFERTA = /Pix ou (o )?cart[aã]o|cart[aã]o ou (o )?Pix|tente o cart[aã]o|outro cart[aã]o/i;
+/* só no caminho do cartão (a guarda da A7 recusa o cartão antes de chegar aqui) */
+const SO_NO_CAMINHO_DO_CARTAO = [
+  { arquivo: 'api/_pagamentos/estados.mjs', trecho: 'rejected_by_issuer' },
+  { arquivo: 'api/_pagamentos/estados.mjs', trecho: 'card_disabled' },
+  { arquivo: 'api/_pagamentos/estados.mjs', trecho: 'max_attempts_exceeded' },
+  { arquivo: 'api/_pagamentos/servico.mjs', trecho: 'Não consegui cancelar o Pix gerado antes' }
+];
+const arquivosDe = d => fs.readdirSync(d, { withFileTypes: true }).flatMap(e => e.isDirectory() ? arquivosDe(path.join(d, e.name)) : e.name.endsWith('.mjs') ? [path.join(d, e.name)] : []);
+
+test('nenhuma frase do servidor oferece cartão fora do caminho do cartão', () => {
+  const achados = [];
+  for (const arq of arquivosDe(path.join(RAIZ, 'api'))) {
+    const rel = path.relative(RAIZ, arq).split(path.sep).join('/');
+    fs.readFileSync(arq, 'utf8').split('\n').forEach((linha, i) => {
+      if (/^\s*(\/\/|\/\*|\*)/.test(linha) || !OFERTA.test(linha)) return;
+      if (SO_NO_CAMINHO_DO_CARTAO.some(p => p.arquivo === rel && linha.includes(p.trecho))) return;
+      if (rel === 'api/_vendas/consultor.mjs' && /metodos/.test(linha)) return;   /* (o texto que depende da lista) */
+      achados.push(rel + ':' + (i + 1));
+    });
+  }
+  assert.deepEqual(achados, []);
+});
+test('respostas fixas e mensagens genéricas sem cartão', async () => {
+  assert.doesNotMatch(RESPOSTAS_PAGAMENTO.meio, /cart[aã]o/i);
+  assert.doesNotMatch(mensagemRecusa('qualquer_coisa'), /cart[aã]o/i);
+  const s = criarServicoPagamentos({ banco: async () => ({}), cfg: { ativo: true, metodos: ['pix'] }, provedor: { nome: 'mercadopago' } });
+  await assert.rejects(s.iniciar({ conversa_id: 'c', visitante_id: 'v', metodo: 'boleto' }), e => e.status === 400 && !/cart[aã]o/i.test(e.message));
+});
+```
+
+  E em `docs/testes/consultor.test.mjs`: com `metodos: ['pix']`, o prompt montado (base e etapa
+  `aguardando_pagamento`) não casa com `OFERTA`; com `['pix', 'cartao']`, casa. Vermelho hoje em
+  `consultor.mjs:90`, `:250`, `promessa.mjs:27`, `servico.mjs:159` e `estados.mjs:59`. Teste antigo que conferir o
+  texto velho dessas frases passa a conferir o novo (a regra não muda).
 - [ ] **Step 6:** `npm run testar`; servidor local + `npm run e2e:orcamento` (com e sem consultor) → PASS;
   `npm run verificar` e `npm run acessibilidade` → PASS; olhar o `-cel` da tela de pagamento. Texto:
   `condicoes.html:60` já fala só de Pix; `privacidade.html:37` não cita cartão (conferido em 21/10).
