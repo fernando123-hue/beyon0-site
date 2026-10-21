@@ -53,7 +53,7 @@ const AINDA_NAO = [
   [/passo \d de 4/i, 'com o 3b-2 (os passos antes de pagar)'],
   [/sai do ar/i, 'com o 3b-3: a regra vale (D4, 21/10) e a frase entra com a tela do restante'],
   [/prazo fica parado/i, 'com o 3b-3: a regra vale (D4, 21/10) e a frase entra com a tela da lista de ajustes'],
-  [/conta como aprovada|aprovad\w* (sozinh|automatic)/i, 'NUNCA (D5, 21/10): sem resposta o projeto para; nada é aprovado sozinho'],
+  [/(conta|vale) como aprovad|considerad\w* (como )?aprovad|aprova(d\w*|ção)? (sozinh|automátic|automatic)|sem resposta[^.]{0,40}aprovad/i, 'NUNCA (D5, 21/10): sem resposta o projeto para; nada é aprovado sozinho'],
   [/quantos precisar|sem limite de ajustes/i, 'NUNCA (D2, 21/10): são 2 listas de ajuste'],
   [/Pôr na minha agenda/i, 'com a D1 (a tela do pedido) e o 3b-2'],
 ];
@@ -120,4 +120,12 @@ test('o status do pagamento e a validade do Pix são frase em Sora de 16 px (reg
   assert.ok(/font-family:\s*var\(--sans\)/.test(status) && /font-size:\s*var\(--fs-b\)/.test(status) && !/--mono/.test(status), status);
   const nota = regra(css, '.pix .orc-nota');
   assert.ok(/font-size:\s*var\(--fs-b\)/.test(nota), nota);
+});
+
+/* revisão do 3b-1, BAIXO-2: o guarda da D5 (prévia sem resposta nunca é aprovada sozinha) pega as variações da frase */
+test('o guarda da D5 pega as variações de "aprovada sozinha"', () => {
+  const d5 = AINDA_NAO.find(([, quando]) => /D5/.test(quando))[0];
+  for (const frase of ['A prévia conta como aprovada', 'considerada aprovada se você não responder', 'vale como aprovada', 'aprova sozinho', 'aprovação automática', 'aprovada automaticamente', 'sem resposta em 5 dias, a prévia fica aprovada'])
+    assert.ok(d5.test(frase), 'o guarda da D5 não pegou: ' + frase);
+  assert.ok(!d5.test('Você aprova a prévia quando quiser'), 'não pode barrar a frase normal');
 });
