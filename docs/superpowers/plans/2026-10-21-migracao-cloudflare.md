@@ -772,8 +772,10 @@ test('todo env.X lido em api/ está no .env.example ou na lista de chaves só lo
 
 **Files:**
 - Modify: `api/_pagamentos/config.mjs` (`configPagamentos`, `configPublica`), `api/_pagamentos/servico.mjs:158-160`,
-  `orcamento.html:383`, `:427`, `js/orcamento-pagamento.js` (`configurar`, `:310`), `docs/e2e-orcamento.mjs`,
+  `orcamento.html:381`, `:427`, `js/orcamento-pagamento.js` (`configurar`, `escolherMetodo`, `:310`),
+  `docs/e2e-orcamento.mjs` (encolhe), `docs/testes/mutacao.mjs`, `api/_vendas/consultor.mjs:90`, `:250`,
   `privacidade.html:37` (só se citar cartão)
+- Create: `docs/e2e-pix.mjs`
 - Test: `docs/testes/pagamentos.test.mjs`
 
 **Interfaces:**
@@ -792,10 +794,19 @@ test('só Pix fora do local: MP_METODOS ausente ou inválido = só Pix; o cartã
     assert.deepEqual(configPagamentos({ ...cf, MP_METODOS: 'pix,boleto' }).metodos, ['pix'], 'inválido: só Pix');
     assert.deepEqual(configPagamentos({ ...cf, MP_METODOS: 'pix,cartao' }).metodos, ['pix', 'cartao']);
     assert.deepEqual(configPublica(configPagamentos(cf)).metodos, ['pix'], 'o navegador fica sabendo');
+    /* cartão e pagador VÁLIDOS (revisão do plano do 3b-1, ALTO-1): com `cartao: {}` ou `pagador: {}` o iniciar de hoje
+       já recusa em validarCartao/validarPagador antes do banco, e o teste passaria sem a guarda (a sabotagem sobreviveria) */
+    const CARTAO = { token: 'local-APRO-abc12345', meio: 'visa', tipo: 'credit_card', parcelas: 1 };
     let chamadas = 0;
-    const servico = criarServicoPagamentos({ banco: async () => { chamadas++; return {}; }, cfg: configPagamentos(cf), provedor: { nome: 'mercadopago' } });
-    await assert.rejects(servico.iniciar({ conversa_id: 'c', visitante_id: 'v', metodo: 'cartao', pagador: {}, cartao: {} }), e => e.status === 400);
+    const banco = async () => { chamadas++; return {}; };
+    const servico = criarServicoPagamentos({ banco, cfg: configPagamentos(cf), provedor: { nome: 'mercadopago' } });
+    await assert.rejects(servico.iniciar({ conversa_id: 'c', visitante_id: 'v', metodo: 'cartao', pagador: PAGADOR, cartao: CARTAO }),
+      e => e.status === 400 && /não está disponível/.test(e.message));
     assert.equal(chamadas, 0, 'nenhuma chamada ao banco');
+    /* controle: com o cartão ligado, o MESMO pedido chega ao banco (prova que a recusa acima é da guarda nova) */
+    const comCartao = criarServicoPagamentos({ banco, cfg: configPagamentos({ ...cf, MP_METODOS: 'pix,cartao' }), provedor: { nome: 'mercadopago' } });
+    await comCartao.iniciar({ conversa_id: 'c', visitante_id: 'v', metodo: 'cartao', pagador: PAGADOR, cartao: CARTAO }).catch(() => {});
+    assert.ok(chamadas >= 1, 'com cartão ligado, o pedido chega ao banco');
   } finally { globalThis.__BZ_LOCAL = salvo; }
 });
 test('local (simulado) continua com cartão: o E2E não perde a regressão; MP_METODOS=pix vale também no local', () => {
@@ -804,9 +815,11 @@ test('local (simulado) continua com cartão: o E2E não perde a regressão; MP_M
 });
 ```
 
-  (importar `configPublica` e `criarServicoPagamentos` se ainda não estiverem; o 2º teste roda com o
-  `globalThis.__BZ_LOCAL` que o `before` do arquivo já monta.)
-- [ ] **Step 2:** `node --test docs/testes/pagamentos.test.mjs` → FAIL (`metodos` undefined; o cartão chega ao banco).
+  (importar `configPublica` e `criarServicoPagamentos` se ainda não estiverem; `PAGADOR` já existe em
+  `docs/testes/pagamentos.test.mjs:23`; o 2º teste roda com o `globalThis.__BZ_LOCAL` que o `before` do arquivo já
+  monta.)
+- [ ] **Step 2:** `node --test docs/testes/pagamentos.test.mjs` → FAIL (`metodos` undefined; e o `assert.rejects`
+  com a mensagem "não está disponível" falha porque hoje o cartão válido passa da validação e chega ao banco).
 - [ ] **Step 3: implementação** — em `api/_pagamentos/config.mjs`:
 
 ```js
@@ -824,33 +837,35 @@ export function metodosDe(env, amb) {
   `configPagamentos`: no retorno simulado, `metodos: metodosDe(env, 'local')` (lista válida vale, ausente = os dois:
   assim o caso "só Pix" do E2E local funciona com `MP_METODOS=pix`); no retorno ativo, `metodos: metodosDe(env, amb)`.
   A chave é **`MP_METODOS`** e só ela (o PR 3b já a adotou, `site-pr3b/docs/specs/…pr3b-vender-sozinho.md`
-  l.245-249; nenhuma outra chave de cartão é criada); a A7 fica neste PR A e o 3b-1 só consome
-  `configPublica(cfg).metodos`. Quem mesclar depois rebaseia.
+  l.245-249; nenhuma outra chave de cartão é criada). **A A7 é a fonte do "só Pix"** (ver "Dono único" no fim
+  desta tarefa).
   `configPublica`: `return { ativo: true, ambiente: cfg.ambiente, publicKey: cfg.publicKey, parcelasMax: 12, metodos: cfg.metodos || ['pix'] };`
   Em `servico.iniciar`, logo depois da 1ª linha (`:159`):
   `if (!(cfg.metodos || ['pix']).includes(metodo)) throw new ErroPagamento(400, 'Esta forma de pagamento não está disponível.');`
-- [ ] **Step 4: a tela** — `orcamento.html:383`: o botão `data-metodo="cartao"` ganha `hidden`; `:427`
-  (`#o-pix-trocar`) ganha `hidden`. Em `js/orcamento-pagamento.js`, `configurar()`:
+(Steps 4 e 5 e o "Dono único" abaixo: texto da revisão do plano do 3b-1, `.superpowers/sdd/pr3b1-plano-revisao.md`
+ponto 1, adotado como está.)
 
-```js
-    async function configurar() {
-      if (cfg) return cfg;
-      try { cfg = await o.API.pagamentoConfig(); } catch (e) { return { ativo: false, falhou: true }; }
-      /* só Pix por padrão: o cartão só aparece se o servidor disser que vale (config que não carrega = sem cartão) */
-      var comCartao = !!(cfg && cfg.metodos && cfg.metodos.indexOf('cartao') >= 0);
-      document.querySelector('[data-metodo="cartao"]').hidden = !comCartao;
-      $('o-pix-trocar').hidden = !comCartao;
-      return cfg;
-    }
-```
+- [ ] **Step 4: a tela** — `orcamento.html:381`: o grupo vira `<div class="pag-metodos" id="o-pag-metodos" role="radiogroup" aria-label="Forma de pagamento" hidden>`
+  (nasce escondido: só Pix por padrão, e configuração que não carrega não mostra cartão); `:427` (`#o-pix-trocar`) ganha
+  `hidden`. Em `js/orcamento-pagamento.js`, `configurar()` faz `mostrar('o-pag-metodos', comCartao); mostrar('o-pix-trocar', comCartao);`
+  (o grupo de rádio de uma opção só some inteiro: spec do 3b §4) e `escolherMetodo(m)` começa com
+  `if (m === 'cartao' && $('o-pag-metodos').hidden) m = 'pix';`. O `[hidden]` de `css/tokens.css:145` já tem `!important`.
+- [ ] **Step 5: E2E em arquivo próprio** — o trecho do pagamento sai de `docs/e2e-orcamento.mjs` (`:717-744`) para
+  `docs/e2e-pix.mjs` (`passoDoPix(page, { ok, espera, foto, semRolagemLateral })`, como no plano do 3b-1, Task 1 Step 7),
+  que lê `pagamentoConfig().metodos` e roda o caminho com cartão (servidor padrão) ou o "só Pix" (`MP_METODOS=pix`):
+  sem `#o-pag-metodos`, sem "Prefiro pagar com cartão", e `BZOrcamento.pagar('cartao', …)` com cartão VÁLIDO → 400.
+  `docs/e2e-orcamento.mjs` só encolhe.
+- Sabotagem nova em `docs/testes/mutacao.mjs`: `{ nome: 'cartão aceito com só Pix (o servidor)', fonte: 'api/_pagamentos/servico.mjs', testes: ['docs/testes/pagamentos.test.mjs'], de: "if (!(cfg.metodos || ['pix']).includes(metodo)) throw", para: "if (false) throw" }`.
+- **Dono único:** a A7 é só deste PR A. O PR 3b-1 não a implementa: consome `configPublica(cfg).metodos`,
+  `#o-pag-metodos` e `docs/e2e-pix.mjs` (spec do 3b, §4: `site-pr3b/docs/specs/2026-10-21-pr3b-vender-sozinho.md` l.257-261).
 
-  Conferir que `.pag-metodo[hidden]` e `#o-pix-trocar[hidden]` somem de fato (as classes podem ter `display`
-  próprio): se não, acrescentar `.pag-metodo[hidden], .btn[hidden] { display: none; }` em `css/orcamento.css`, como
-  o `.visor[hidden]` (`css/orcamento.css:346`). As setas do grupo de rádio (`:83`) não podem focar o botão escondido:
-  `escolherMetodo` ignora método escondido.
-- [ ] **Step 5: E2E** — em `docs/e2e-orcamento.mjs`, caso novo "só Pix": servidor local com `MP_METODOS=pix` →
-  sem botão de cartão visível, sem "Prefiro pagar com cartão"; `POST /api/vendas?acao=pagar` com `metodo: 'cartao'`
-  → 400. Os 30 usos de cartão existentes seguem (local = os dois).
+  **A A7 é a fonte do "só Pix" e o PR 3b-1 depende dela:** o 3b-1 só confere se a A7 está na `main` (Task 1 do plano
+  dele) e para se não estiver; não cria `metodosDe` nem mexe em `config.mjs` ou em `servico.iniciar`. Por isso o PR A
+  deve mesclar antes do 3b-1.
+- [ ] **Step 5b: o consultor não oferece cartão** (mesma revisão, MÉDIO-3; com a A7 no PR A, fica aqui): hoje
+  `api/_vendas/consultor.mjs:90` e `:250` dizem "por Pix ou cartão". Teste vermelho em `docs/testes/consultor.test.mjs`:
+  com `metodos: ['pix']`, o prompt montado não fala em pagar com cartão; com `['pix', 'cartao']`, fala. Implementação:
+  o texto sai de `cfg.metodos` (a lista chega ao consultor pelo fluxo, como o resto da configuração de pagamento).
 - [ ] **Step 6:** `npm run testar`; servidor local + `npm run e2e:orcamento` (com e sem consultor) → PASS;
   `npm run verificar` e `npm run acessibilidade` → PASS; olhar o `-cel` da tela de pagamento. Texto:
   `condicoes.html:60` já fala só de Pix; `privacidade.html:37` não cita cartão (conferido em 21/10).
