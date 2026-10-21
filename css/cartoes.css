@@ -118,9 +118,7 @@
 @keyframes apaga-a { from { opacity: 1; } to { opacity: 0; } }
 @keyframes apaga-b { from { opacity: 1; } to { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .energia-volta { display: none; } }
-.is-energia::before, .is-onda::before { opacity: 1; }
 .is-sugerido.is-sugerido, .hero__rail > a.is-sugerido { border-color: var(--line-hi); }
-.is-sugerido::before, .hero__rail > a.is-sugerido::before { opacity: 1; }
 /* o sublinhado só no link do pé (o cartão-âncora inteiro ficava sublinhado) */
 .is-sugerido .servico__link, .is-sugerido .celula__link { color: var(--ac); }
 .is-sugerido .servico__link::after, .is-sugerido .celula__link::after { transform: none; }
@@ -343,7 +341,7 @@ html.menos-movimento .qa::details-content { transition: none; }
   .estacao-vao__nucleo { width: 110px; height: 110px; border: 1px solid rgb(var(--ac-rgb) / .3); border-radius: 50%; display: grid; place-items: center; transition: opacity var(--t) var(--ease); }
   .estacao-vao__nucleo::after { content: ""; width: 12px; height: 12px; border-radius: 50%; background: var(--t1); box-shadow: 0 0 0 4px rgb(var(--ac-2-rgb) / .55); }
   .estacao-vao.is-viva .estacao-vao__nucleo { opacity: 0; }
-  /* as linhas do laudo de Garantias empilham (número, título, texto) na coluna mais estreita */
+  /* as linhas do laudo de Garantias empilham (título, texto; o número fica na linha) na coluna mais estreita */
   .tem-estacao > .laudo__row, .secao--manifesto .tem-estacao > .laudo__row { grid-template-columns: 1fr; row-gap: .6rem; }
   .tem-estacao > .laudo__row p { grid-column: auto; grid-row: auto; }
   .secao--manifesto .tem-estacao > .laudo__row h3 { font-size: clamp(1.7rem, 2.3vw, 2.2rem); }
@@ -410,7 +408,9 @@ html.menos-movimento .estacao-cruza { display: none !important; }
   .pilha > .is-foco h3 { color: var(--letra-acesa-t); }
   .pilha > .is-foco p { color: var(--letra-acesa-p); }
   .pilha > :not(.estacao-vao) > * { transition: opacity .35s var(--ease); }
-  .pilha > .is-coberto > * { opacity: .45; }   /* (a faixa de 14 px do coberto segue legível) */
+  .pilha > .is-coberto > :not(.servico__n, .celula__n, .laudo__n) { opacity: .45; }   /* (a faixa de 14 px do coberto segue legível) */
+  /* (o número fica na linha com fundo opaco: a 45 % o fio da borda o riscava; apaga só a cor — revisão) */
+  .pilha > .is-coberto > :is(.servico__n, .celula__n, .laudo__n) { color: var(--t3); }
 }
 /* (zoom de 400 %, viewport mais baixo que um card: o fichário cobriria os títulos; fica em fluxo) */
 @media (max-width: 720px) and (max-height: 560px) { .pilha > :not(.estacao-vao) { position: static; } }
@@ -419,14 +419,14 @@ html.menos-movimento .estacao-cruza { display: none !important; }
    decola e dá a volta na borda, sem parar enquanto ele estiver aceso. A mesma construção da luz que circula da carga
    (abaixo): quatro lados recortados, cada um com uma faixa do tamanho do PERÍMETRO e o traço na ponta dela, todas
    andando juntas por transform (compositor); o JS só mede o cartão quando o tamanho muda. Recortada pela curva do
-   canto. Fora do aceso fica parada e invisível. No desktop com mouse quem dá a volta é a carga. ---- */
+   canto. Só existe no cartão que gira (.lv-ativa: um por vez, o que acendeu por último): a cada acendimento ela
+   recomeça da ponta da luz pousada, que some no mesmo quadro (sem esmaecer: senão o cartão ficava sem luz e a cabeça
+   já tinha andado — revisão), e fora dele não há faixa nem animação. No desktop com mouse quem dá a volta é a carga. ---- */
 .linha-viva { display: none; }
 /* (fora do desktop com mouse: lá a volta é da carga, a luz que circula no cartão cheio. Navegador sem "not (...)" na
    media query ignora o bloco e fica só com a luz pousada) */
 @media (prefers-reduced-motion: no-preference) and (not ((min-width: 721px) and (hover: hover) and (pointer: fine))) {
-  html.js:not(.menos-movimento) .tem-linha > .linha-viva { display: block; position: absolute; inset: -1px; z-index: 1; overflow: hidden; border-radius: calc(var(--mod-raio) + 1px); pointer-events: none; opacity: 0; transition: opacity .25s var(--ease); }
-  /* (.lv-ativa: o aceso que gira — um só por vez, o que acendeu por último, js/linha-viva.js) */
-  html.js:not(.menos-movimento) .tem-linha.lv-ativa > .linha-viva { opacity: 1; }
+  html.js:not(.menos-movimento) .tem-linha.lv-ativa > .linha-viva { display: block; position: absolute; inset: -1px; z-index: 1; overflow: hidden; border-radius: calc(var(--mod-raio) + 1px); pointer-events: none; }
   html.js:not(.menos-movimento) .tem-linha.lv-ativa { background-image: none; }   /* (a luz pousada é a que decolou) */
   .linha-viva > b { position: absolute; overflow: hidden; }
   .linha-viva > b:nth-child(odd) { left: 0; right: 0; height: 1px; }
@@ -435,10 +435,11 @@ html.menos-movimento .estacao-cruza { display: none !important; }
   .linha-viva > b:nth-child(2) { right: 0; }
   .linha-viva > b:nth-child(3) { bottom: 0; transform: scaleX(-1); }
   .linha-viva > b:nth-child(4) { left: 0; transform: scaleY(-1); }
-  .linha-viva > b > i { position: absolute; display: block; animation-timing-function: linear; animation-iteration-count: infinite; animation-play-state: paused; }
-  .linha-viva > b:nth-child(odd) > i { top: 0; height: 100%; right: 100%; animation-name: circula-x; background: linear-gradient(90deg, transparent calc(100% - 128px), rgb(var(--tinta-rgb, var(--ac-rgb))) calc(100% - 40px), var(--ac-2) calc(100% - 12px), var(--t1)); }
-  .linha-viva > b:nth-child(even) > i { left: 0; width: 100%; bottom: 100%; animation-name: circula-y; background: linear-gradient(180deg, transparent calc(100% - 128px), rgb(var(--tinta-rgb, var(--ac-rgb))) calc(100% - 40px), var(--ac-2) calc(100% - 12px), var(--t1)); }
-  .tem-linha.lv-ativa > .linha-viva > b > i { animation-play-state: running; }
+  .linha-viva > b > i { position: absolute; display: block; animation-timing-function: linear; animation-iteration-count: infinite; }
+  .linha-viva > b:nth-child(odd) > i { top: 0; height: 100%; right: 100%; background: linear-gradient(90deg, transparent calc(100% - 128px), rgb(var(--tinta-rgb, var(--ac-rgb))) calc(100% - 40px), var(--ac-2) calc(100% - 12px), var(--t1)); }
+  .linha-viva > b:nth-child(even) > i { left: 0; width: 100%; bottom: 100%; background: linear-gradient(180deg, transparent calc(100% - 128px), rgb(var(--tinta-rgb, var(--ac-rgb))) calc(100% - 40px), var(--ac-2) calc(100% - 12px), var(--t1)); }
+  .tem-linha.lv-ativa > .linha-viva > b:nth-child(odd) > i { animation-name: circula-x; }
+  .tem-linha.lv-ativa > .linha-viva > b:nth-child(even) > i { animation-name: circula-y; }
 }
 /* (a luz pousada sai quando a da carga dá a volta: uma luz só por vez) */
 .tem-carga:is(.is-carregado, .is-ignicao, .is-sobrecarga) { background-image: none; }
@@ -481,7 +482,6 @@ html.menos-movimento .estacao-cruza { display: none !important; }
   @keyframes carga-clarao { 0% { opacity: 0; } 12% { opacity: 1; } 100% { opacity: 0; } }   /* (entra em fade: nada aparece cheio num quadro só) */
   .is-carregado .carga__pct { color: var(--t1); }
   .is-carregado .carga__ponta { opacity: 0; }
-  .tem-carga.is-carregado::before { opacity: 1; }
   /* (não vence os destaques ciano da estação, do turbo e da sugestão: revisão) */
   .tem-carga.is-carregado:not(.is-alimentado):not(.is-energia):not(.is-sugerido):not(.is-sobrecarga):not(.is-ignicao) { border-color: var(--line-2); }
   .tem-carga.is-carregado .laudo__n, .tem-carga.is-carregado .servico__n, .tem-carga.is-carregado .celula__n { color: var(--ac-3); }

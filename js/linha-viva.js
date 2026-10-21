@@ -24,7 +24,8 @@
   /* (desktop com mouse: a volta é da carga; o CSS também esconde esta lá, se a janela estreitar depois) */
   if (window.matchMedia('(min-width: 721px) and (hover: hover) and (pointer: fine)').matches) return;
 
-  var CARDS = '.painel:not(:where(.console, .instrumento)), .celula, .laudo__row, .spec__item, .cenario';
+  /* (os que o anima.js acende: .servico é .painel; o .spec__item nunca acende, então não monta — revisão) */
+  var CARDS = '.painel:not(:where(.console, .instrumento)), .celula, .laudo__row, .cenario';
   var VEL = 260;   /* px/s da luz na borda (a da carga anda a 170: esta é o efeito principal no celular) */
 
   /* onde a volta começa: na ponta da luz pousada (--luz-x + --luz-w do CSS), para ela decolar de onde estava */

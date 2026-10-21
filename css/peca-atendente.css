@@ -83,13 +83,12 @@
 @media (pointer: coarse) { .plantao__sugestao { min-height: 44px; } }
 
 /* ---------- a madrugada: SÓ A CONVERSA FICA ACESA ----------
-   Fora do expediente, o "escritório" apaga em volta (o trecho do expediente na régua, a equipe no topo, a aresta
-   do cartão), em sequência, por opacidade; a conversa continua acesa e ganha a borda "de plantão". Ao virar a
+   Fora do expediente, o "escritório" apaga em volta (o trecho do expediente na régua, a equipe no topo; a aresta
+   do cartão, que também apagava, saiu com a direção C dos cartões em 2026-10-20), em sequência, por opacidade; a conversa continua acesa e ganha a borda "de plantão". Ao virar a
    noite, uma luz de 1 px atravessa o topo da conversa (a assinatura do site: a luz passa e imprime). */
 .plantao.is-noite .plantao__expediente { opacity: .3; }
 .plantao.is-noite .plantao__equipe { opacity: .55; }
 .plantao.is-noite .plantao__tela { border-color: rgb(var(--ac-3-rgb) / .8); }
-.servico--peca:has(.plantao.is-noite)::before { opacity: .25; transition: opacity .4s var(--ease) .16s; }
 .plantao__topo::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px; background: var(--ac); transform: scaleX(0); transform-origin: left; opacity: 0; pointer-events: none; }
 .plantao.is-virou .plantao__topo::after { animation: pt-vira .6s var(--ease); }
 @keyframes pt-vira { 0% { transform: scaleX(0); opacity: 1; } 75% { transform: scaleX(1); opacity: 1; } 100% { transform: scaleX(1); opacity: 0; } }
