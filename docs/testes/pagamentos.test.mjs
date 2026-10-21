@@ -357,6 +357,8 @@ test('reconciliação: pago sem aviso é aplicado; order desconhecida da conta �
   const mp = criarMercadoPago({ token: local.mp.token, fetch: local.mp.fetch });
   await mp.criarOrdem({ chave: 'bz-fora-do-site-000001', referencia: 'fora-do-site', valor: 50, pagador: { email: 'test@testuser.com', nome: 'APRO', sobrenome: 'X', documentoTipo: 'CPF', documento: '52998224725' }, metodo: 'pix' });
   desvio += 3 * 60e3;
+  /* com os valores PADRÃO (teto de 45 subpedidos, 1 página, janela curta): o simulador já tem dezenas de orders de testes anteriores
+     e a order nova e desconhecida tem de ser achada mesmo assim, porque a varredura olha as MAIS NOVAS primeiro (revisão do PR A, MÉDIO-1) */
   const r = await receber(new Request(BASE + '/api/pagamentos?acao=reconciliar', { method: 'POST', headers: { authorization: 'Bearer ' + local.mp.cronSecret } }), {}, { banco: local.rpc, cfg, servico });
   assert.equal(r.status, 200);
   const resumo = await r.json();
@@ -424,4 +426,76 @@ test('teste de cartões pela API: logo depois de uma recusa, espera; o Pix segue
   assert.equal(de_novo.status, 429);
   assert.match(de_novo.corpo.erro, /Espere/);
   assert.equal((await n.chamar('POST', 'pagar', { conversa_id: c, metodo: 'pix', pagador: PAGADOR }, { deps: d })).corpo.tentativa.status, 'aguardando');
+});
+
+test('só Pix fora do local: MP_METODOS ausente ou inválido = só Pix; o cartão é recusado antes do banco', async () => {
+  const base = { MP_ACCESS_TOKEN: 'APP_USR-1234567890123456-abc-123456', MP_PUBLIC_KEY: 'APP_USR-pub-1234567890123456', MP_WEBHOOK_SEGREDO: 'segredo-muito-longo-123', MP_USER_ID: '123456' };
+  const salvo = globalThis.__BZ_LOCAL; globalThis.__BZ_LOCAL = undefined;
+  try {
+    const cf = { ...base, BZ_PLATAFORMA: 'cloudflare', MP_AMBIENTE: 'producao' };
+    assert.deepEqual(configPagamentos(cf).metodos, ['pix'], 'ausente: só Pix');
+    assert.deepEqual(configPagamentos({ ...cf, MP_METODOS: 'pix,boleto' }).metodos, ['pix'], 'inválido: só Pix');
+    assert.deepEqual(configPagamentos({ ...cf, MP_METODOS: 'pix,cartao' }).metodos, ['pix', 'cartao']);
+    assert.deepEqual(configPublica(configPagamentos(cf)).metodos, ['pix'], 'o navegador fica sabendo');
+    /* cartão e pagador VÁLIDOS (revisão do plano do 3b-1, ALTO-1): com `cartao: {}` ou `pagador: {}` o iniciar de hoje
+       já recusa em validarCartao/validarPagador antes do banco, e o teste passaria sem a guarda (a sabotagem sobreviveria) */
+    const CARTAO = { token: 'local-APRO-abc12345', meio: 'visa', tipo: 'credit_card', parcelas: 1 };
+    let chamadas = 0;
+    const banco = async () => { chamadas++; return {}; };
+    const servico = criarServicoPagamentos({ banco, cfg: configPagamentos(cf), provedor: { nome: 'mercadopago' } });
+    await assert.rejects(servico.iniciar({ conversa_id: 'c', visitante_id: 'v', metodo: 'cartao', pagador: PAGADOR, cartao: CARTAO }),
+      e => e.status === 400 && /não está disponível/.test(e.message));
+    assert.equal(chamadas, 0, 'nenhuma chamada ao banco');
+    /* controle: com o cartão ligado, o MESMO pedido chega ao banco (prova que a recusa acima é da guarda nova) */
+    const comCartao = criarServicoPagamentos({ banco, cfg: configPagamentos({ ...cf, MP_METODOS: 'pix,cartao' }), provedor: { nome: 'mercadopago' } });
+    await comCartao.iniciar({ conversa_id: 'c', visitante_id: 'v', metodo: 'cartao', pagador: PAGADOR, cartao: CARTAO }).catch(() => {});
+    assert.ok(chamadas >= 1, 'com cartão ligado, o pedido chega ao banco');
+  } finally { globalThis.__BZ_LOCAL = salvo; }
+});
+test('local (simulado) continua com cartão: o E2E não perde a regressão; MP_METODOS=pix vale também no local', () => {
+  assert.ok(configPagamentos({}).metodos.includes('cartao'));
+  assert.deepEqual(configPagamentos({ MP_METODOS: 'pix' }).metodos, ['pix']);
+});
+
+test('reconciliação nunca passa de 45 subpedidos; o resto fica para o próximo cron, com aviso no log', async () => {
+  let pedidos = 0;
+  const nomes = [];
+  const conta = fn => async (...a) => { pedidos++; if (typeof a[0] === 'string') nomes.push(a[0]); return fn(...a); };
+  const pendentes = Array.from({ length: 50 }, (_, i) => ({ tentativa_id: 't' + i, provedor_order_id: 'ORD' + String(i).padStart(4, '0'), status: 'pendente', criado_em: new Date(0).toISOString() }));
+  const orders = Array.from({ length: 50 }, (_, i) => ({ id: 'REC' + String(i).padStart(4, '0') }));
+  const banco = conta(async nome => nome === 'pagamentos_para_reconciliar' ? pendentes : nome === 'pagamentos_atencao' ? { total: 0 } : {});
+  const provedor = { nome: 'mercadopago', consultarOrdem: conta(async id => ({ id, status: 'processed', transactions: { payments: [] } })), buscarRecentes: conta(async () => orders) };
+  const cfg = { ativo: true, contaEsperada: '123456', metodos: ['pix'] };
+  const r = await criarServicoPagamentos({ banco, cfg, provedor }).reconciliar({ limite: 50, varrerPaginas: 3 });
+  assert.ok(pedidos <= 45, 'subpedidos: ' + pedidos);
+  assert.equal(r.parcial, true);
+  /* a reserva: mesmo cortada, a reconciliação conta o que pede uma pessoa e registra a própria execução (BAIXO-5 da revisão) */
+  assert.ok(nomes.includes('pagamentos_atencao'), 'pagamentos_atencao rodou');
+  assert.ok(nomes.includes('pagamentos_registrar_ocorrencia'), 'a ocorrência payment.reconciled foi gravada');
+});
+
+/* MÉDIO-2 da revisão do PR A: o orçamento acaba no registro do erro do provedor da varredura. A reconciliação NÃO pode cair (500):
+   para, marca parcial e ainda grava o resumo com a reserva */
+test('reconciliação: o orçamento acaba ao gravar o erro do provedor na varredura: não cai, vira parcial e grava o resumo', async () => {
+  const nomes = [];
+  const banco = async nome => { nomes.push(nome); return nome === 'pagamentos_para_reconciliar' ? [] : nome === 'pagamentos_atencao' ? { total: 0 } : {}; };
+  const provedor = { nome: 'mercadopago', consultarOrdem: async () => ({}), buscarRecentes: async () => { throw new ErroProvedor('indisponivel', 503, 'fora do ar'); } };
+  const cfg = { ativo: true, contaEsperada: '123456', metodos: ['pix'] };
+  const r = await criarServicoPagamentos({ banco, cfg, provedor }).reconciliar({ orcamento: 4 });
+  assert.equal(r.parcial, true);
+  assert.ok(nomes.includes('pagamentos_atencao') && nomes.includes('pagamentos_registrar_ocorrencia'), 'o fim rodou com a reserva: ' + nomes.join(','));
+});
+
+test('reconciliação: página da varredura cheia = parcial (há mais orders que a janela olhou); order cancelada ou expirada não gasta subpedido', async () => {
+  const consultadas = [];
+  const banco = async nome => nome === 'pagamentos_para_reconciliar' ? [] : nome === 'pagamentos_atencao' ? { total: 0 } : {};
+  const pagina = [
+    ...Array.from({ length: 5 }, (_, i) => ({ id: 'NOVA' + i, status: 'created' })),
+    ...Array.from({ length: 45 }, (_, i) => ({ id: 'VELHA' + i, status: i % 2 ? 'expired' : 'canceled' }))
+  ];
+  const provedor = { nome: 'mercadopago', consultarOrdem: async id => { consultadas.push(id); return { id, status: 'created', transactions: { payments: [] } }; }, buscarRecentes: async () => pagina };
+  const cfg = { ativo: true, contaEsperada: '123456', metodos: ['pix'] };
+  const r = await criarServicoPagamentos({ banco, cfg, provedor }).reconciliar({});
+  assert.equal(r.parcial, true, 'a página veio cheia (50): pode haver mais');
+  assert.deepEqual(consultadas, ['NOVA0', 'NOVA1', 'NOVA2', 'NOVA3', 'NOVA4'], 'só as que podem ter dinheiro foram consultadas');
 });

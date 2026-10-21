@@ -96,6 +96,7 @@ test('telefone: o hash usa o segredo do servidor; sem segredo, conta no servidor
   assert.equal(chaveDoTelefone('+5521999990000', undefined, { BZ_LOCAL: '1', VERCEL: '1' }), null, 'na Vercel nem BZ_LOCAL abre');
   assert.equal(chaveDoTelefone('+5521999990000', undefined, { VERCEL: '1', VERCEL_ENV: 'production' }), null, 'produção sem segredo: fecha');
   assert.equal(chaveDoTelefone('+5521999990000', '', { VERCEL_ENV: 'preview' }), null);
+  assert.equal(chaveDoTelefone('+5521999990000', undefined), null, 'sem env: fecha (não lê process.env)');
 });
 
 test('chave do IP: com "uso" próprio, o freio dos pedidos não soma com o da IA; sem uso, a mesma chave de antes', () => {

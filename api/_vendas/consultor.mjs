@@ -55,7 +55,10 @@ function blocoMultiplicadores(regras) {
   return out;
 }
 
-export function montarSistema(regras, { direcoes = 'api' } = {}) {
+/* a forma de pagamento que o consultor pode citar (A7, só Pix): sai da lista de métodos do servidor; sem a lista, só Pix */
+const formasDePagamento = (metodos = ['pix']) => (Array.isArray(metodos) && metodos.includes('cartao') ? 'Pix ou cartão' : 'Pix');
+
+export function montarSistema(regras, { direcoes = 'api', metodos } = {}) {
   const { automaticos, fora } = blocoAdicionais(regras);
   const mult = blocoMultiplicadores(regras);
   const prazoMax = Number.isInteger(regras.prazo_max_dias) ? regras.prazo_max_dias : 10;
@@ -87,7 +90,7 @@ Garantias: começa pelo problema, não pela ferramenta; escopo e valor combinado
 3. Direções: com o pedido confirmado pelo WhatsApp (o formulário da tela gera o código BZ-), a Beyon Zero desenha três direções de site, uma para conversão, uma para autoridade e uma para experiência, para abrir, comparar e escolher. ${PROCESSO[direcoes] || PROCESSO.api}
 4. Ajustes: opções prontas na tela (cores, fontes, seções, desfazer) e até 3 pedidos escritos, que a Beyon Zero faz ou recusa; a troca de modelo vale até o primeiro ajuste.
 5. Escopo: o escopo final, com valor e prazo, para conferir e confirmar.
-6. Início: pagamento do sinal no próprio site, por Pix ou cartão; o restante é pago na entrega. Se a tela disser que o pagamento online está indisponível, a Beyon Zero envia o pagamento pelo WhatsApp.
+6. Início: pagamento do sinal no próprio site, por ${formasDePagamento(metodos)}; o restante é pago na entrega. Se a tela disser que o pagamento online está indisponível, a Beyon Zero envia o pagamento pelo WhatsApp.
 O valor do cartão é a estimativa pela tabela. O valor final é o do escopo que a pessoa confirma antes de pagar. Até a Beyon Zero confirmar o pedido pelo WhatsApp, se o escopo mudar (mais páginas, outro adicional), o valor é recalculado; depois dessa confirmação o pacote está fechado, nenhum ajuste muda o valor, e mudar o pacote é com a Beyon Zero pelo WhatsApp.
 Prazo: a entrega acontece em até ${prazoMax} dias corridos depois do sinal pago e do material recebido; projetos maiores se dividem em fase 1 (em até ${prazoMax} dias corridos) e fase seguinte. Você pode dizer isso e o prazo que a ferramenta estimar devolver; não prometa outro.
 
@@ -241,13 +244,13 @@ const LOJA = 'loja', AREA = 'area_restrita';
 /* o que fazer agora, pela ordem do funil (texto para o modelo; o código decide, o modelo executa).
    Na tela, o formulário de contato aparece sozinho quando há estimativa e ainda não há contato (js/orcamento.js);
    pedir_contato só leva a pessoa até ele. Na etapa 'contato' o pedido JÁ existe e espera a confirmação pelo WhatsApp (vendas_registrar_detalhes, PR 2a) */
-export function proximoPasso({ etapa, briefing, estimativa, regras = null }) {
+export function proximoPasso({ etapa, briefing, estimativa, regras = null, metodos }) {
   /* sem a tabela, vale a v2; com ela, a loja só é vendável se a tabela ativa a traz */
   const temLoja = !regras || !!regras.formatos?.loja_plataforma;
   const areaNaConversa = !!regras?.adicionais?.[AREA]?.fora_do_automatico;
   const b = briefing || {};
   if (etapa === 'escopo') return 'A pessoa está conferindo o bloco "Resumo do que será feito" na tela, com o valor e o prazo. Responda a dúvida em poucas frases, com o que está nas suas instruções, e indique o botão "Confirmar o escopo", sem pressa. Os ajustes já foram fechados: se ela quiser mudar algo no escopo, diga que é pelo WhatsApp da Beyon Zero (o link está no bloco do escopo); você não muda escopo, valor nem prazo. Sobre o que está ou não incluído, não afirme de memória: peça para a pessoa conferir no bloco "Resumo do que será feito"; se não estiver escrito lá, a Beyon Zero confirma pelo WhatsApp. Não chame estimar nem pedir_contato.';
-  if (etapa === 'aguardando_pagamento') return 'O escopo foi confirmado e a pessoa está no bloco "Para começar", que cobra o sinal por Pix ou cartão; o restante é pago na entrega. Responda a dúvida em poucas frases, com o que está nas suas instruções, e indique esse bloco. Nunca diga que o pagamento foi recebido ou confirmado: a própria tela mostra quando ele cai. Se o pagamento online falhar ou a pessoa preferir, a Beyon Zero envia o pagamento pelo WhatsApp. Sobre o que está ou não incluído, não afirme de memória: peça para a pessoa conferir no bloco "Resumo do que será feito" (em "Ver o escopo confirmado", no bloco "Para começar"); se não estiver escrito lá, a Beyon Zero confirma pelo WhatsApp. Não chame estimar nem pedir_contato.';
+  if (etapa === 'aguardando_pagamento') return 'O escopo foi confirmado e a pessoa está no bloco "Para começar", que cobra o sinal por ' + formasDePagamento(metodos) + '; o restante é pago na entrega. Responda a dúvida em poucas frases, com o que está nas suas instruções, e indique esse bloco. Nunca diga que o pagamento foi recebido ou confirmado: a própria tela mostra quando ele cai. Se o pagamento online falhar ou a pessoa preferir, a Beyon Zero envia o pagamento pelo WhatsApp. Sobre o que está ou não incluído, não afirme de memória: peça para a pessoa conferir no bloco "Resumo do que será feito" (em "Ver o escopo confirmado", no bloco "Para começar"); se não estiver escrito lá, a Beyon Zero confirma pelo WhatsApp. Não chame estimar nem pedir_contato.';
   if (ETAPAS_DA_TELA.includes(etapa)) return 'O orçamento já segue pelos blocos da tela (etapa ' + etapa + '). Responda dúvidas em poucas frases e indique o próximo bloco na tela; não chame estimar nem pedir_contato.';
   if (etapa === 'contato') {
     const { confianca: c, faltam: f } = avaliar(b);

@@ -14,6 +14,7 @@
    ?acao=simular      — SÓ no servidor local: "paga" o Pix no simulador e manda o aviso assinado.
    ========================================================================== */
 import { conferirCron } from './_cron.mjs';
+import { ambienteDe } from './_ambiente.mjs';
 import { criarTransporte } from './_vendas/transporte.mjs';
 import { configPagamentos } from './_pagamentos/config.mjs';
 import { criarServicoPagamentos } from './_pagamentos/servico.mjs';
@@ -21,7 +22,7 @@ import { verificarAssinatura } from './_pagamentos/assinatura.mjs';
 import { ErroProvedor } from './_pagamentos/mercadopago.mjs';
 import { criarFreio, ipDe } from './_freio.mjs';
 
-const LIMITE_BYTES = 65536;
+export const LIMITE_BYTES = 65536;
 const ID_ORDER = /^ORD[0-9A-Za-z]{10,60}$/;
 const freio = criarFreio({ max: 120, janelaMs: 60e3 });
 const json = (dados, status = 200) => new Response(JSON.stringify(dados), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' } });
@@ -96,7 +97,7 @@ async function reconciliar(request, cfg, servico) {
 /* só o servidor local: o simulador "paga" o Pix (ou conclui o 3DS) e o aviso assinado passa pelo MESMO caminho do real */
 async function simular(request, cfg, env, deps) {
   const local = globalThis.__BZ_LOCAL;
-  if (cfg.ambiente !== 'simulado' || !local || !local.mp || env.VERCEL || env.VERCEL_ENV) return json({ erro: 'Não encontrado.' }, 404);
+  if (cfg.ambiente !== 'simulado' || !local || !local.mp || ambienteDe(env) !== 'local') return json({ erro: 'Não encontrado.' }, 404);
   if (request.method !== 'POST') return json({ erro: 'Método não permitido.' }, 405);
   let p;
   try { p = JSON.parse(await request.text()); } catch { return json({ erro: 'JSON inválido.' }, 400); }

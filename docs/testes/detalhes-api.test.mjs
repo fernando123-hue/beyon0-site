@@ -10,6 +10,7 @@ import { PEDIDOS } from '../../api/_vendas/pedido.mjs';
 import { Recusa } from '../../api/_vendas/recusa.mjs';
 import { traduzirErro, Recusa as RecusaDoFluxo } from '../../api/_vendas/fluxo.mjs';
 import { criarSimulada } from '../../api/_ia/simulado.mjs';
+import { criarAcoesDoPedido } from '../../api/_vendas/fluxo-pedido.mjs';
 import { LIMITES_DE_TESTE, telefoneDeTeste } from './_pedido.mjs';
 
 const BASE = 'http://127.0.0.1:8899';
@@ -121,32 +122,43 @@ test('fila global cheia: a tela sabe antes (estado) e os detalhes recebem 503 co
 });
 
 test('produção sem o segredo do freio: os detalhes fecham com 503 e o WhatsApp (nada gravado)', async () => {
-  const antes = process.env.VERCEL_ENV;
-  process.env.VERCEL_ENV = 'production';
-  try {
-    const n = navegador(undefined, { segredoFreio: undefined }), c = await comPacote(n);
+  /* a produção vem pelo env do pedido (o código não lê mais process.env: api/_ambiente.mjs) */
+  const PRODUCAO = { VERCEL_ENV: 'production' };
+  {
+    const n = navegador(undefined, { segredoFreio: undefined, env: PRODUCAO }), c = await comPacote(n);
     const r = await n.chamar('POST', 'detalhes', { conversa_id: c, ...DETALHES() });
     assert.equal(r.status, 503, JSON.stringify(r.corpo));
     assert.equal(r.corpo.whatsapp, true);
     assert.equal(await um('select 1 from app.pedidos where conversa_id = $1', [c]), undefined);
-  } finally { if (antes === undefined) delete process.env.VERCEL_ENV; else process.env.VERCEL_ENV = antes; }
+  }
 });
 
 /* (revisão final do PR 2a, M3a) sem uma chave de IP (cabeçalho ausente ou que não é IP) o freio do IP sumiria em silêncio:
    em produção os detalhes fecham, como sem o segredo do telefone; no servidor local, seguem sem o freio do IP */
 test('produção com o segredo, mas sem IP que dê chave: os detalhes fecham com 503 e o WhatsApp (nada gravado); no local, seguem', async () => {
-  const antes = process.env.VERCEL_ENV;
-  process.env.VERCEL_ENV = 'production';
-  try {
-    const n = navegador('desconhecido'), c = await comPacote(n);
+  const PRODUCAO = { VERCEL_ENV: 'production' };
+  {
+    const n = navegador('desconhecido', { env: PRODUCAO }), c = await comPacote(n);
     const r = await n.chamar('POST', 'detalhes', { conversa_id: c, ...DETALHES() });
     assert.equal(r.status, 503, JSON.stringify(r.corpo));
     assert.equal(r.corpo.whatsapp, true);
     assert.equal(await um('select 1 from app.pedidos where conversa_id = $1', [c]), undefined);
     assert.deepEqual(await um('select etapa, tentativas_detalhes from app.conversas where id = $1', [c]), { etapa: 'estimativa', tentativas_detalhes: 0 }, 'nem a tentativa foi ao banco');
-  } finally { if (antes === undefined) delete process.env.VERCEL_ENV; else process.env.VERCEL_ENV = antes; }
+  }
   const m = navegador('desconhecido'), d = await comPacote(m);
   assert.equal((await m.chamar('POST', 'detalhes', { conversa_id: d, ...DETALHES() })).status, 200, 'fora da Vercel: pula o freio do IP');
+});
+
+/* (A6 da migração para a Cloudflare) sem o ambiente do pedido, as travas fecham: com o segredo presente mas sem cabeçalho de IP,
+   o detalhes recusa (503 + WhatsApp) e o banco nem é chamado. Prova a sabotagem "detalhes sem ambiente abrem a trava do IP" */
+test('criarAcoesDoPedido SEM env, com o segredo e sem cabeçalho de IP: detalhes lança Recusa 503 e o banco não é chamado', async () => {
+  let chamadas = 0;
+  const banco = async () => { chamadas++; return {}; };
+  const acoes = criarAcoesDoPedido({ banco, visitante: async () => '11111111-1111-4111-8111-111111111111', segredoFreio: 's'.repeat(32) });
+  const request = new Request(BASE + '/api/vendas?acao=detalhes', { method: 'POST' });   /* (nenhum x-forwarded-for: ipDe devolve "local") */
+  await assert.rejects(acoes.detalhes({ request, corpo: { conversa_id: '22222222-2222-4222-8222-222222222222', ...DETALHES() } }),
+    e => e instanceof Recusa && e.status === 503 && e.extra?.whatsapp === true);
+  assert.equal(chamadas, 0, 'o banco não foi chamado');
 });
 
 /* (revisão final do PR 2a, M3c) o IPv6 de uma casa ou empresa costuma ser um /48 inteiro: trocar de /64 não escapa */

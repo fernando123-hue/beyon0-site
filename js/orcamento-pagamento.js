@@ -61,11 +61,17 @@
     }
     async function configurar() {
       if (cfg) return cfg;
-      try { cfg = await o.API.pagamentoConfig(); return cfg; } catch (e) { return { ativo: false, falhou: true }; }
+      try { cfg = await o.API.pagamentoConfig(); } catch (e) { return { ativo: false, falhou: true }; }
+      /* só Pix por padrão (decisão do dono, 21/10): o seletor e "Prefiro pagar com cartão" nascem escondidos e só aparecem
+         se o servidor diz que o cartão existe (config.metodos); configuração que não carrega não mostra cartão */
+      var comCartao = Array.isArray(cfg.metodos) && cfg.metodos.indexOf('cartao') >= 0;
+      mostrar('o-pag-metodos', comCartao); mostrar('o-pix-trocar', comCartao);
+      return cfg;
     }
 
     /* ---------- escolha do meio ---------- */
     function escolherMetodo(m) {
+      if (m === 'cartao' && $('o-pag-metodos').hidden) m = 'pix';
       metodo = m;
       /* grupo de rádio com roving tabindex (A16): só o marcado entra no Tab; as setas trocam */
       [].forEach.call(document.querySelectorAll('[data-metodo]'), function (b) { var sim = b.getAttribute('data-metodo') === m; b.setAttribute('aria-checked', String(sim)); b.tabIndex = sim ? 0 : -1; });

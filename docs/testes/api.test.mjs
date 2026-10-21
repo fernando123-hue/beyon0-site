@@ -11,6 +11,7 @@ import { chaveDoIp } from '../../api/_vendas/ip.mjs';
 import { isIP } from 'node:net';
 import { atender } from '../../api/vendas.mjs';
 import { criarVisitantes } from '../../api/_vendas/visitante.mjs';
+import { executar as rotinas } from '../../api/rotinas.mjs';
 
 const ENV = { SUPABASE_URL: 'https://falso.supabase.co', SUPABASE_CHAVE_PUBLICA: 'sb_publishable_teste', SUPABASE_CHAVE_SECRETA: 'sb_secret_NUNCA_NO_USUARIO' };
 const O1 = '11111111-0000-4000-8000-000000000001', O2 = '22222222-0000-4000-8000-000000000002';
@@ -298,4 +299,81 @@ test('visitante: na conferência do token, só a falha de rede é 503; erro de c
   assert.ok(logs.some(l => l.includes('bug no código')), 'o erro de código fica no log');
   simulacao.signup = () => { throw new RangeError('bug no login'); };
   assert.equal((await vendas('POST', 'sessao', { corpo: {} })).status, 500, 'o mesmo no login anônimo');
+});
+
+/* A8, passo 4 (migração para a Cloudflare, plano grátis: 50 subpedidos por invocação): a rotina diária conta cada chamada ao
+   banco, às métricas e ao ntfy e PARA no orçamento; a etapa que ficou sem orçamento vira alerta (a falha que o
+   rotinas_conferir recebe), nunca silêncio. O orçamento aqui é pequeno de propósito (5, com 3 guardados para o fim): são
+   mais etapas do que cabem. Com o orçamento de verdade (45) a rotina de hoje cabe inteira (testes em auditoria-p0/p1) */
+test('rotina diária: nunca passa do orçamento de subpedidos; a etapa sem orçamento vira alerta e o resumo diz parcial', async () => {
+  let chamadas = 0;
+  const conta = fn => async (...a) => { chamadas++; return fn(...a); };
+  const vistos = [], falhasVistas = [];
+  const banco = conta(async (nome, args) => {
+    vistos.push(nome);
+    if (nome === 'rotinas_conferir') { falhasVistas.push(args.falha); return { alertas: [{ nivel: 'aviso', tipo: 'rotina', mensagem: 'a rotina falhou' }], avisar: true }; }
+    return {};
+  });
+  const metricas = { ligado: true, apagarAntigos: conta(async () => {}) };
+  const enviarAlerta = conta(async () => {});
+  const env = { CRON_SECRET: 'c'.repeat(40), ALERTA_NTFY_TOPICO: 'a'.repeat(24) };
+  const r = await rotinas(new Request('http://x/api/rotinas?acao=diaria', { headers: { authorization: 'Bearer ' + env.CRON_SECRET } }), env, { banco, metricas, enviarAlerta, orcamento: 5 });
+  assert.equal(r.status, 200);
+  const corpo = await r.json();
+  assert.ok(chamadas <= 5, 'subpedidos: ' + chamadas);
+  assert.equal(corpo.parcial, true);
+  assert.equal(corpo.ok, false, 'uma etapa ficou sem orçamento: não é "ok"');
+  assert.ok(vistos.includes('rotinas_conferir'), 'a conferência da saúde roda sempre (usa a reserva)');
+  assert.match(falhasVistas[0] || '', /sem orçamento/, 'a etapa que não coube chega ao rotinas_conferir como falha (alerta)');
+});
+
+/* A10 (migração para a Cloudflare): sem isto o Supabase Auth vê o IP da Cloudflare em todo login anônimo e o limite por IP
+   dele (30 por hora por IP) viraria um balde compartilhado por todos os visitantes */
+test('Auth: criar e renovar levam o IP do visitante (Sb-Forwarded-For) com a chave secreta', async () => {
+  const vistos = [];
+  const salvo = globalThis.fetch;
+  globalThis.fetch = async (url, op) => { vistos.push({ url: String(url), h: op.headers }); return new Response(JSON.stringify({ access_token: 'a', refresh_token: 'r', expires_at: 1, user: { id: 'u' } }), { status: 200 }); };
+  try {
+    /* (fora do local: o servidor local confia no x-forwarded-for do cliente e nunca manda a chave secreta nem o IP ao Auth) */
+    const env = { VERCEL: '1', VERCEL_ENV: 'production', SUPABASE_URL: 'https://x.supabase.co', SUPABASE_CHAVE_PUBLICA: 'sb_publishable_x', SUPABASE_CHAVE_SECRETA: 'sb_secret_y' };
+    const v = criarVisitantes(env, { ip: '203.0.113.7' });
+    await v.criar(); await v.renovar('abc');
+    assert.equal(vistos.length, 2);
+    for (const c of vistos) { assert.equal(c.h['sb-forwarded-for'], '203.0.113.7'); assert.equal(c.h.apikey, 'sb_secret_y'); }
+    vistos.length = 0;
+    await criarVisitantes(env, {}).criar();
+    assert.equal(vistos[0].h['sb-forwarded-for'], undefined, 'sem IP: sem o cabeçalho, chave publicável');
+    assert.equal(vistos[0].h.apikey, 'sb_publishable_x');
+    vistos.length = 0;
+    await criarVisitantes(env, { ip: '2001:db8:a:b::1' }).criar();
+    assert.equal(vistos[0].h['sb-forwarded-for'], '2001:db8:a:b::', 'IPv6 pelo /64, como nos freios do site');
+    vistos.length = 0;
+    await criarVisitantes(env, { ip: 'lixo' }).criar();
+    assert.equal(vistos[0].h['sb-forwarded-for'], undefined, 'IP que não é IP: sem o cabeçalho');
+    assert.equal(vistos[0].h.apikey, 'sb_publishable_x', 'e sem a chave secreta');
+    vistos.length = 0;
+    const { VERCEL, VERCEL_ENV, ...local } = env;
+    await criarVisitantes(local, { ip: '203.0.113.7' }).criar();
+    assert.equal(vistos[0].h['sb-forwarded-for'], undefined, 'servidor local: nunca o IP do cliente (confia no x-forwarded-for) nem a chave secreta');
+    assert.equal(vistos[0].h.apikey, 'sb_publishable_x');
+    vistos.length = 0;
+    await criarVisitantes({ ...env, SUPABASE_CHAVE_SECRETA: undefined }, { ip: '203.0.113.7' }).criar();
+    assert.equal(vistos[0].h['sb-forwarded-for'], undefined, 'sem a chave secreta nunca há o cabeçalho (a doc só o aceita com ela)');
+    assert.equal(vistos[0].h.apikey, 'sb_publishable_x');
+  } finally { globalThis.fetch = salvo; }
+});
+
+/* BAIXO-3 da revisão do PR A: o IP chega ao Auth pelo caminho de verdade (atender sem deps), não só por criarVisitantes direto */
+test('atender sem deps: o IP do pedido (x-vercel-forwarded-for) vai ao login anônimo do Auth como Sb-Forwarded-For', async () => {
+  const vistos = [];
+  const salvo = globalThis.fetch;
+  globalThis.fetch = async (url, op) => { vistos.push({ url: String(url), h: op.headers }); return new Response(JSON.stringify({ access_token: 'a', refresh_token: 'r', expires_at: 1, user: { id: 'u' } }), { status: 200, headers: { 'content-type': 'application/json' } }); };
+  try {
+    const env = { VERCEL: '1', VERCEL_ENV: 'preview', SUPABASE_URL: 'https://x.supabase.co', SUPABASE_CHAVE_PUBLICA: 'sb_publishable_x', SUPABASE_CHAVE_SECRETA: 'sb_secret_y' };
+    await atender(new Request('http://x/api/vendas?acao=sessao', { method: 'POST', body: '{}', headers: { 'content-type': 'application/json', 'x-vercel-forwarded-for': '203.0.113.9' } }), env, 'POST').catch(() => {});
+    const signup = vistos.find(c => c.url.endsWith('/auth/v1/signup'));
+    assert.ok(signup, 'o login anônimo foi chamado');
+    assert.equal(signup.h['sb-forwarded-for'], '203.0.113.9');
+    assert.equal(signup.h.apikey, 'sb_secret_y');
+  } finally { globalThis.fetch = salvo; }
 });

@@ -10,6 +10,7 @@
      número (o número do contato vai para app.leads, como sempre). Na Vercel sem segredo: null (fecha).
    ========================================================================== */
 import { createHmac } from 'node:crypto';
+import { ambienteDe } from '../_ambiente.mjs';
 import { normalizarTelefone } from '../_valida-app.mjs';
 import { redigir } from './seguranca.mjs';
 import { limparAtualizacao } from './briefing.mjs';
@@ -45,14 +46,11 @@ const TEXTOS = {
 const SEM_SEGREDO = 'beyon-zero-local-sem-segredo';   /* (só servidor local e testes) */
 const TRIAGEM = { cfg: { jev: false, prazoMs: 0 } };   /* (a triagem dos detalhes é sempre das regras) */
 
-/* na Vercel (produção ou prévia): os freios do pedido não podem sumir em silêncio */
-export const naVercel = (env = process.env) => !!(env.VERCEL || env.VERCEL_ENV);
-
-/* sem o segredo do freio, só o servidor local declarado (BZ_LOCAL=1, fora da Vercel) usa o sal fixo; em qualquer outro
-   ambiente devolve null e o pedido segue sem hash do telefone (como na Vercel) */
-export function chaveDoTelefone(e164, segredo, env = process.env) {
+/* sem o segredo do freio, só o servidor local declarado (BZ_LOCAL=1, fora da produção e das prévias) usa o sal fixo; em
+   qualquer outro ambiente (ou sem o env) devolve null e o pedido segue sem hash do telefone */
+export function chaveDoTelefone(e164, segredo, env = {}) {
   if (!segredo) {
-    const local = env.BZ_LOCAL === '1' && !naVercel(env);
+    const local = env.BZ_LOCAL === '1' && ambienteDe(env) === 'local';
     if (!local) return null;
   }
   return createHmac('sha256', segredo || SEM_SEGREDO).update('telefone|' + e164).digest('hex');
