@@ -111,6 +111,18 @@ Branch `pr3b1` (= `pr3b-desenho` + merge de `cf-pr-a`, PR #49). Base: `ecea062`.
   0 FALHA), sem as linhas da Task 9. Ainda falta: E2E nas 3 rodadas da Task 10 (padrão, `MP_METODOS=pix`, com consultor),
   `verificar`, `acessibilidade` e abrir os PNG `4-pix-cel`, `4-pix-320`, `4-pix-so-pix-cel`, `4-pix-so-pix-320`.
 
+## Task 10: o que cabe sem navegador (modo leve)
+
+- Suíte inteira: 585 testes, 585 passam (linha de base 569). Mutação: 39 de 39 pegas (linha de base 38; a nova é "entrada sem
+  percentual cobra assim mesmo"; a da A7, "cartão aceito com só Pix (o servidor)", continua pegando).
+- Nível de risco (`nivel-de-risco.mjs origin/main HEAD`): 3 (sensível). Evidência exigida: Especificação, Visto rodando,
+  Regressão, Verificação comportamental, Teste visto vermelho, Revisão técnica, Revisão de segurança.
+- `docs/revisoes/pr1-pendencias.md`: "Antes da 1ª promoção" ganhou a migration `20261022120000_pr3b1_entrada.sql` e a tabela ativa a 40.
+- **Verificação de tela pendente: rodar com o PC livre** (ver Task 9). Também pendentes: revisão técnica e de segurança por agente
+  diferente, PR (sem push aqui), `git merge origin/main` quando a A7 (PR #49) entrar, e conferir a A7 na main.
+- Pendências do dono: aplicar a migration no Supabase real; aplicar a tabela ativa com `sinal_percentual: 40`; texto do PR
+  ("mesclar não é ir ao ar", D6, D4, não promover na Vercel) está no plano, Task 10, Step 6.
+
 ## Andamento
 
-próxima tarefa: 10 (só o que não abre navegador)
+próxima tarefa: nenhuma pendente em código. Falta só a verificação de tela (PC livre), as revisões e o PR.
