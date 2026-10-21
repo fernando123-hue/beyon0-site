@@ -68,3 +68,9 @@ test('nenhuma frase de parte que ainda não existe (3b-2, 3b-3), de dado do dono
   const tudo = texto(HTML) + '\n' + JS.map(semComentarioJs).join('\n');
   for (const [re, quando] of AINDA_NAO) assert.ok(!re.test(tudo), 'frase barrada (' + quando + '): ' + re);
 });
+
+test('perguntas: "Quantos ajustes?" com as 2 listas da D2 (Decisões.md, 21/10)', () => {
+  assert.ok(perguntas().includes('Quantos ajustes?'), perguntas().join(' | '));
+  assert.ok(texto(antes()).includes('Duas listas de ajuste na prévia. Uma lista é um conjunto de pedidos mandado de uma vez. O que passar das duas listas é orçado à parte, como página ou item novo.'), texto(antes()));
+  assert.ok(!/quantos precisar/i.test(texto(antes())), 'a decisão de 11/10 ("sem limite") foi revista em 21/10 (D2)');
+});

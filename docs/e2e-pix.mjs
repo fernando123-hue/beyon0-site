@@ -68,6 +68,7 @@ export async function passoDoPix(page, { ok, espera, foto, semRolagemLateral, fo
   ok(await perguntasAntes.getByText('Até 7 dias depois de aceitar', { exact: false }).isVisible(), 'perguntas: "Posso desistir?" abre a resposta');
   ok(parseFloat(await perguntasAntes.locator('.orc-antes__resposta').first().evaluate(p => getComputedStyle(p).fontSize)) >= 16, 'perguntas: resposta com 16 px ou mais');
   await desistir.click();
+  ok(await perguntasAntes.locator('summary', { hasText: 'Quantos ajustes?' }).isVisible(), 'perguntas: "Quantos ajustes?"');
   await page.click('#o-pagamento a[href="#o-antes"]');
   ok(await espera(page, () => { const r = document.getElementById('o-antes').getBoundingClientRect(); return r.top >= 0 && r.top < innerHeight; }), 'o atalho "Perguntas antes de pagar" leva às perguntas');
   await page.click('#o-pag-enviar');
