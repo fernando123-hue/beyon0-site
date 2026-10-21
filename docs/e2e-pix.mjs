@@ -62,6 +62,15 @@ export async function passoDoPix(page, { ok, espera, foto, semRolagemLateral, fo
   ok(/a entrada de 40%: /.test(await page.textContent('#o-pag-lead')), 'entrada: o percentual vem da proposta (o servidor local usa o rascunho, a 40)');
   const perguntasAntes = page.locator('#o-antes');
   ok(await perguntasAntes.isVisible(), 'perguntas antes de pagar: na tela da entrada');
+  /* D3 (a): nenhum WhatsApp preso na tela (fixed/sticky) nos passos do pedido. O menu do site (nav) é do site todo e fica fora */
+  const fixos = await page.evaluate(() => [...document.querySelectorAll('a[href*="wa.me"]')].filter(a => {
+    if (!a.getClientRects().length || a.closest('nav')) return false;
+    for (let e = a; e; e = e.parentElement) { const p = getComputedStyle(e).position; if (p === 'fixed' || p === 'sticky') return true; }
+    return false;
+  }).length);
+  ok(fixos === 0, 'D3 (a): nenhum botão fixo de WhatsApp na tela da entrada (' + fixos + ')');
+  ok(await page.locator('#o-pag-problema a').isVisible(), 'D3 (a): "Problema com o pagamento?" com o WhatsApp à mão');
+  ok(await perguntasAntes.locator('.orc-nota a').isVisible(), 'D3 (a): "Outra dúvida?" com o WhatsApp');   /* (o link do "Para desistir" tem o mesmo nome: por isso o .orc-nota) */
   const desistir = perguntasAntes.locator('summary', { hasText: 'Posso desistir?' });
   ok(Math.round((await desistir.boundingBox()).height) >= 44, 'perguntas: cada pergunta com 44 px ou mais');
   await desistir.click();

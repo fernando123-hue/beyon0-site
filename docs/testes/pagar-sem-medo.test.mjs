@@ -74,3 +74,16 @@ test('perguntas: "Quantos ajustes?" com as 2 listas da D2 (Decisões.md, 21/10)'
   assert.ok(texto(antes()).includes('Duas listas de ajuste na prévia. Uma lista é um conjunto de pedidos mandado de uma vez. O que passar das duas listas é orçado à parte, como página ou item novo.'), texto(antes()));
   assert.ok(!/quantos precisar/i.test(texto(antes())), 'a decisão de 11/10 ("sem limite") foi revista em 21/10 (D2)');
 });
+
+test('WhatsApp (D3, resposta do dono em 21/10): só em "Outra dúvida?", "Para desistir" e "Problema com o pagamento"', () => {
+  const pag = entre(HTML, 'id="o-pagamento"', 'id="o-antes"');
+  const links = h => [...h.matchAll(/<a\b[^>]*href="https:\/\/wa\.me\/[^"]*"[^>]*>[\s\S]*?<\/a>/g)].map(m => m[0]);
+  assert.match(texto(antes()), /Para desistir, fale com a Beyon Zero pelo WhatsApp\./);
+  assert.match(texto(antes()), /Outra dúvida\? Fale com a Beyon Zero pelo WhatsApp\./);
+  assert.match(texto(pag), /Problema com o pagamento\? Fale com a Beyon Zero pelo WhatsApp\./);
+  assert.equal(links(antes()).length, 2, 'nas perguntas: desistir e outra dúvida, nada mais');
+  for (const a of [...links(antes()), ...links(pag)]) {
+    assert.ok(/\sdata-wa="[^"]+"/.test(a), 'o assunto vai pelo data-wa (js/pagina.js monta o link): ' + a);
+    assert.ok(!/\?text=/.test(a), 'nada escrito à mão no href: ' + a);
+  }
+});

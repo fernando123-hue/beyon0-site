@@ -89,6 +89,17 @@ Branch `pr3b1` (= `pr3b-desenho` + merge de `cf-pr-a`, PR #49). Base: `ecea062`.
   16 px e o atalho).
 - No `AINDA_NAO` o motivo de "Nota fiscal" cita só "Decisões.md" (sem o número de linha, que andou).
 
+## Task 7: "Quantos ajustes?" (D2)
+
+- Vermelho visto: `perguntas: "Quantos ajustes?" com as 2 listas da D2` falhou (a pergunta não existia); verde 5/5 depois.
+- O E2E da pergunta (`isVisible` do summary) foi rodado junto com o da Task 8 (um E2E só, 271 OK, 0 FALHA), não separado.
+
+## Task 8: WhatsApp só onde precisa (D3)
+
+- Vermelho visto: `WhatsApp (D3…)` falhou antes do HTML; verde (pagar-sem-medo + csp 15/15).
+- E2E padrão (porta 8891): 271 OK, 0 FALHA, incluindo "nenhum botão fixo de WhatsApp (0)" (a barra do celular não entra: é `nav`),
+  "Problema com o pagamento?" e "Outra dúvida?"; sem rolagem lateral a 320 px com o `orc-sem-quebra` no link.
+
 ## Andamento
 
-próxima tarefa: 7
+próxima tarefa: 9
