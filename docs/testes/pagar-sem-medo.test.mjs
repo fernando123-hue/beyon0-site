@@ -107,3 +107,17 @@ test('D4 (21/10): a regra do prazo é a mesma no contrato, no consultor, em /con
   assert.ok(texto(antes()).includes('O prazo está no resumo do seu pedido, em dias corridos, contados do pagamento da entrada e do envio do seu material. Se o material não chegar em 30 dias, o site sai com as imagens do modelo.'), texto(antes()));
   assert.ok(texto(antes()).includes('Se a Beyon Zero não entregar no prazo combinado, você recebe a entrada inteira de volta, mesmo depois dos 7 dias.'), texto(antes()));
 });
+
+/* revisão do 3b-1, MÉDIO-2 e BAIXO-5: o texto que acalma e informa é frase em Sora de 16 px, não o rótulo mono de 14 px */
+const regra = (css, seletor) => {
+  const i = css.indexOf('\n' + seletor + ' {');
+  assert.ok(i >= 0, 'regra não encontrada: ' + seletor);
+  return css.slice(i, css.indexOf('}', i));
+};
+test('o status do pagamento e a validade do Pix são frase em Sora de 16 px (regra do CLAUDE.md: mono só em rótulo e dado)', () => {
+  const css = ler('css/orcamento.css');
+  const status = regra(css, '.orc-pag-status');
+  assert.ok(/font-family:\s*var\(--sans\)/.test(status) && /font-size:\s*var\(--fs-b\)/.test(status) && !/--mono/.test(status), status);
+  const nota = regra(css, '.pix .orc-nota');
+  assert.ok(/font-size:\s*var\(--fs-b\)/.test(nota), nota);
+});

@@ -104,6 +104,9 @@ export async function passoDoPix(page, { ok, espera, foto, semRolagemLateral, fo
   ok(/Sora/.test(estilo.fonte) && estilo.caixa === 'none' && estilo.tamanho >= 16, 'Pix: botão em Sora, frase normal, 16 px ou mais (' + estilo.fonte.split(',')[0] + ', ' + estilo.caixa + ', ' + estilo.tamanho + ' px)');
   ok(await page.locator('.pix__passos li').count() === 3, 'Pix: os 3 passos no app do banco');
   ok(await espera(page, () => document.getElementById('o-pag-status').textContent === 'Esperando o pagamento. Esta tela muda sozinha quando ele cair.'), 'Pix: o status diz que a tela muda sozinha');
+  const statusPx = await page.locator('#o-pag-status').evaluate(p => { const s = getComputedStyle(p); return { tamanho: parseFloat(s.fontSize), fonte: s.fontFamily }; });
+  ok(statusPx.tamanho >= 16 && /Sora/.test(statusPx.fonte), 'Pix: o status em Sora, 16 px ou mais (' + statusPx.tamanho + ' px)');
+  ok(parseFloat(await page.locator('#o-pix-expira').evaluate(p => getComputedStyle(p).fontSize)) >= 16, 'Pix: a validade do Pix com 16 px ou mais');
   ok(!(await page.$eval('#o-pix-outro', d => d.open)) && await page.locator('#o-pix-qr').isHidden(), 'celular: o QR fica fechado em "Pagar por outro aparelho"');
   const outro = page.locator('#o-pix-outro summary');
   ok(Math.round((await outro.boundingBox()).height) >= 44, '"Pagar por outro aparelho": 44 px ou mais');

@@ -217,7 +217,8 @@ html.orc-retomando .orc-lead, html.orc-retomando .orc-etapas, html.orc-retomando
 
 .orc-escopo { white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--mono); font-size: var(--fs-s); line-height: 1.7; color: var(--t1); background: var(--s1); border: 1px solid var(--line); border-radius: var(--raio); padding: 1rem; max-height: 60vh; overflow-y: auto; margin-bottom: 1rem; }
 .orc-escopo:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
-.orc-pag-status { margin-top: 1rem; min-height: 1.5em; font-family: var(--mono); font-size: var(--fs-s); color: var(--t2); }
+/* (revisão do 3b-1) o status é frase que acalma, não rótulo: Sora, 16 px, claro */
+.orc-pag-status { margin-top: 1rem; min-height: 1.5em; font-family: var(--sans); font-size: var(--fs-b); line-height: 1.5; color: var(--t1); }
 .orc-pag-status a { color: var(--t1); text-decoration: underline; text-decoration-color: var(--line-hi); text-underline-offset: 4px; }
 
 /* ---------- O RECIBO do sinal pago (js/orcamento-recibo.js; referência: docs/design/referencias-2026-10-07-recibo.md).
@@ -429,6 +430,7 @@ html.menos-movimento .orc-log { scroll-behavior: auto; }
 /* botões que falam como gente: Sora, frase normal, 16 px, 44 px ou mais (o .btn de base.css é mono e caixa alta) */
 .pix .btn { align-self: stretch; min-height: 44px; font-family: var(--sans); font-size: var(--fs-b); text-transform: none; letter-spacing: normal; }
 .pix__passos { margin: 0; padding-left: 1.4em; display: grid; gap: .35rem; font-size: var(--fs-b); line-height: 1.5; color: var(--t1); }
+.pix .orc-nota { margin-top: 0; font-size: var(--fs-b); color: var(--t2); }   /* (a validade do Pix: informação que a pessoa precisa) */
 .pix__outro { max-width: 560px; }
 .pix__outro summary { font-size: var(--fs-b); color: var(--t1); }
 .pix__qr { display: block; width: 220px; height: 220px; margin: .8rem auto 0; padding: 10px; background: #FFFFFF; border-radius: var(--raio-s); image-rendering: pixelated; }
