@@ -1,6 +1,6 @@
 # Notas do PR A (Cloudflare) — execução
 
-próxima tarefa: nenhuma (verificação final do PR A: mutação completa, E2E, verificar, acessibilidade)
+próxima tarefa: nenhuma (PR A completo e verificado; falta só a revisão por outro agente e o /code-review)
 
 Linha de base (antes de mexer): `testar` = 544 testes, 0 falhas; `testar:mutacao` = 34 de 34 sabotagens pegas.
 
@@ -32,3 +32,13 @@ Linha de base (antes de mexer): `testar` = 544 testes, 0 falhas; `testar:mutacao
 - A9 para o revisor: o CSV do Ads (`?csv=ads`, 90 dias) também usa `listar('contatos', …)` e agora é cortado em 2.000 contatos, SEM aviso (a resposta é um CSV). Para o lançamento está longe disso; se o dono precisar, a M1 mede um teto maior só para o CSV. Também: `docs/e2e-orcamento.mjs` exercita o painel (abre, confirma pedido) e roda no fim do PR A.
 - A10 vermelho: `api.test.mjs` → `AssertionError … actual: undefined` (nenhum `sb-forwarded-for` nas chamadas de `criar`/`renovar`). Verde: suíte 566/566. Casos a mais no teste (além do plano): IPv6 → `2001:db8:a:b::` e `ip: 'lixo'` → sem cabeçalho e chave publicável (o plano os pede em texto), e "sem `SUPABASE_CHAVE_SECRETA` nunca há o cabeçalho". `criarVisitantes(env, { ip })` em `api/vendas.mjs` usa o `ip` já calculado na linha 54 (`ipDe(request)`, que hoje lê `x-vercel-forwarded-for` e, sem ele, `x-forwarded-for`).
 - A10 para o revisor de segurança (obrigatório pelo plano; eu sou o autor): (1) no PR A, ainda na Vercel, a chave secreta do Supabase passa a ir também ao `/auth/v1/signup` e `/token` em produção na Vercel (só quando o IP é válido); (2) o IP sai de `ipDe`, que cai no `x-forwarded-for` do cliente quando falta o da Vercel: um cliente só consegue forjar o IP para o limite de IP do Auth dele, nunca para a segurança do site; (3) se o "IP Address Forwarding" não estiver ligado no Supabase, o cabeçalho é ignorado (nada muda).
+
+## Verificação final do PR A (21/10, no commit 7c2d60b)
+- `testar`: 544 → 566 testes, 0 falhas. `testar:mutacao`: 34 → 38 sabotagens, todas "PEGOU" (as 4 novas: Cloudflare vista como local, detalhes sem ambiente, prévia com erro de digitação, cartão aceito com só Pix).
+- E2E do orçamento (servidor local, porta 8897/8898): sem consultor 243 OK, com consultor 249 OK, saída 0; só Pix (`MP_METODOS=pix`, rodada anterior à A8) 242 OK. `verificar` e `acessibilidade`: "Tudo certo.".
+- Não rodei `/code-review` nem a revisão de segurança da A10 (exigem outro agente). Nada foi empurrado, nenhum PR aberto.
+
+## Pendências do DONO (nenhuma é deste PR; ficam para depois do merge)
+- P6/P10: ligar "IP Address Forwarding" no Supabase (staging e produção). Sem isso o `Sb-Forwarded-For` da A10 é ignorado e o limite de login anônimo continua compartilhado.
+- Promover (ou não) o PR A na Vercel: decisão dele já tomada ("o PR A não é promovido na Vercel").
+- `settings.json`/guarda (P2): este PR não toca `.github/`, `cloudflare/`, `wrangler.jsonc`; só `package.json` (script `testar`), então o guarda do § 5.5 não pediria confirmação.
