@@ -40,7 +40,7 @@ test('o QR Code: fechado no celular, aberto a partir de 768 px', () => {
 test('a página não tem mais o 50 de reserva e lê o percentual pelo BZPix', () => {
   const pagina = fs.readFileSync(new URL('../../js/orcamento.js', import.meta.url), 'utf8');
   assert.ok(!/sinal_percentual\s*==\s*null\s*\?\s*50/.test(pagina), 'js/orcamento.js ainda cai para 50 quando falta o percentual');
-  assert.ok(/var PIX = window.BZPix || null;/.test(pagina) && pagina.includes('PIX.percentuais') && pagina.includes('PIX.valorDaEntrada'), 'js/orcamento.js lê o percentual pelo BZPix, com guarda (sem o módulo, não cobra)');
+  assert.ok(pagina.includes('var PIX = window.BZPix || null;') && pagina.includes('PIX.percentuais') && pagina.includes('PIX.valorDaEntrada'), 'js/orcamento.js lê o percentual pelo BZPix, com guarda (sem o módulo, não cobra)');
   const html = fs.readFileSync(new URL('../../orcamento.html', import.meta.url), 'utf8');
   assert.ok(html.indexOf('js/orcamento-pix.js') > 0 && html.indexOf('js/orcamento-pix.js') < html.indexOf('js/orcamento-pagamento.js'), 'o módulo carrega antes da tela de pagamento');
   assert.ok(!/\b\d{1,3}\s?%/.test(html.replace(/<!--[\s\S]*?-->/g, '')), 'nenhum percentual escrito à mão no HTML do orçamento');
