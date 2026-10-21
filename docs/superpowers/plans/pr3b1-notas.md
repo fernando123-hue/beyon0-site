@@ -123,6 +123,22 @@ Branch `pr3b1` (= `pr3b-desenho` + merge de `cf-pr-a`, PR #49). Base: `ecea062`.
 - Pendências do dono: aplicar a migration no Supabase real; aplicar a tabela ativa com `sinal_percentual: 40`; texto do PR
   ("mesclar não é ir ao ar", D6, D4, não promover na Vercel) está no plano, Task 10, Step 6.
 
+## Correções da revisão (`pr3b1-revisao.md`, aprovado com ressalvas), modo leve
+
+- MÉDIO-2: `.orc-pag-status` em Sora 16 px `--t1`; `.pix .orc-nota` (validade do Pix) 16 px `--t2` (BAIXO-5, só o `.pix`; as notas de
+  WhatsApp ficam em 14 px). Teste de CSS visto vermelho. Linhas de E2E (status e validade a 16 px) escritas, NÃO rodadas.
+- BAIXO-1: regex vazia trocada por `includes`; visto vermelho tirando o `|| null` do `orcamento.js`.
+- BAIXO-2: guarda da D5 ampliado (conta/vale como aprovada, considerada aprovada, aprova sozinho, aprovação automática, "sem
+  resposta … aprovada"); a regex sugerida pela revisão não pegava "considerada aprovada" (sem "como"), ajustei; teste das variações visto vermelho.
+- BAIXO-3: `BZPix.dadosDoRecibo(pr, entrada)` devolve `null` sem entrada; o recibo só desenha título e selo. Visto vermelho.
+- BAIXO-4: `/condicoes` agora diz "2 listas de ajuste. Uma lista é um conjunto de pedidos mandado de uma vez." (mesma regra, mesma
+  palavra da tela). Consultor com a resposta da D2 fica para o 3b-3.
+- BAIXO-6: "›" com `aria-hidden` e `, depois` só para leitor de tela. Visto vermelho.
+- MÉDIO-3 (não é deste PR): o escopo confirmado (`escopo.mjs:77`) precisa trazer as regras da D4 antes de ir ao ar; anotado
+  também na spec, na seção do 3b-3.
+- MÉDIO-1 segue pendente: verificação de tela com o PC livre, junto com a Task 10 (E2E nas 3 rodadas, `verificar`,
+  `acessibilidade`, os 4 PNG).
+
 ## Andamento
 
 próxima tarefa: nenhuma pendente em código. Falta só a verificação de tela (PC livre), as revisões e o PR.

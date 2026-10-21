@@ -724,7 +724,12 @@ fiscal no orçamento, os dados do vendedor no rodapé.
    passos antes de pagar, a privacidade.
 3. **PR 3b-3 — prévia, no ar e o restante:** passos `previa` a `concluida`, o saldo, os comandos que faltam, os
    avisos da D1, as regras da D4 (prazo parado, 10 dias sem o restante), a prévia que para sem resposta (D5), o E2E
-   inteiro.
+   inteiro. **Antes de ir ao ar (revisão do 3b-1, MÉDIO-3):** o escopo confirmado (`api/_vendas/escopo.mjs:77`, o texto que a
+   pessoa marca em "Li e confirmo") precisa trazer as quatro regras da D4 (30 dias sem material, prazo parado nos
+   ajustes, 10 dias sem o restante, devolução no atraso). Hoje só o prazo "do sinal pago e do material recebido" está nele;
+   o resto está só na pergunta "Quando fica pronto?" da tela. Estender o teste de coerência
+   (`docs/testes/pagar-sem-medo.test.mjs`) para conferir as quatro regras nos quatro lugares (contrato, consultor,
+   `/condicoes`, tela). Sem isso, a Beyon aplicaria uma regra que o cliente não confirmou.
 
 **(R2) Mesclar não é ir ao ar.** Cada PR pode ser mesclado na `main` sozinho (o só Pix, pré-requisito do grátis da
 Cloudflare, vem da A7 do PR A). Ir ao ar **para cliente real** só com 3b-1 + 3b-2 + 3b-3 juntos, já na Cloudflare (a Vercel Hobby não
