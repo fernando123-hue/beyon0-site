@@ -89,14 +89,6 @@ html.js .laudo.is-in .laudo__row:nth-child(1)::after, html.js .laudo.is-in .laud
 html.js .laudo.is-in .laudo__row:nth-child(2)::after, html.js .laudo.is-in .laudo__row:nth-child(2) .laudo__n { transition-delay: .2s; }
 html.js .laudo.is-in .laudo__row:nth-child(3)::after, html.js .laudo.is-in .laudo__row:nth-child(3) .laudo__n { transition-delay: .3s; }
 html.js .laudo.is-in .laudo__row:nth-child(4)::after, html.js .laudo.is-in .laudo__row:nth-child(4) .laudo__n { transition-delay: .4s; }
-/* malha: as células acendem em sequência, uma vez */
-@keyframes acender { 0% { opacity: 0; } 35% { opacity: .7; } 100% { opacity: 0; } }
-html.js .malha.is-in .celula::before { animation: acender 1.2s var(--ease) both; }
-html.js .malha.is-in .celula:nth-child(2)::before { animation-delay: .12s; }
-html.js .malha.is-in .celula:nth-child(3)::before { animation-delay: .24s; }
-html.js .malha.is-in .celula:nth-child(4)::before { animation-delay: .36s; }
-html.js .malha.is-in .celula:nth-child(5)::before { animation-delay: .48s; }
-html.js .malha.is-in .celula:nth-child(6)::before { animation-delay: .6s; }
 /* fluxo: os estados chegam em ordem; o final pousa */
 html.js .fluxo li { opacity: 0; transform: translateX(-6px); }
 html.js .cenarios.is-in .fluxo li { opacity: 1; transform: none; transition: opacity .5s var(--ease), transform .5s var(--ease); }
@@ -114,13 +106,9 @@ html.js .spec.is-in .spec__item:nth-child(5) h3::before { transition-delay: .24s
 html.js .spec.is-in .spec__item:nth-child(6) h3::before { transition-delay: .3s; }
 
 /* ---- celular: o item no meio da tela está em foco (anima.js: .is-foco) ---- */
-.is-foco .servico__n, .is-foco .laudo__n, .is-foco .celula__n, .is-foco .passo__n { color: var(--ac-3); }
-.laudo__row.is-foco::before { transform: none; }
-.laudo__row.is-foco::after { background: linear-gradient(90deg, var(--ac), var(--line-2) 55%); }
-@media (max-width: 620px) {
-  .servico.painel--tinta::before { display: block; transform: scaleX(0); transform-origin: left; transition: transform .6s var(--ease); }
-  .servico.is-foco::before { transform: scaleX(1); }
-}
+/* (nos cartões o número acende em ciano claro, a cor da luz que dá a volta: css/cartoes.css; a aresta de cima que
+   crescia no foco saiu com a direção C, 2026-10-20) */
+.is-foco .passo__n { color: var(--ac-3); }
 
 /* ---- MOVIMENTO REDUZIDO: nada escondido, nada em loop ---- */
 @media (prefers-reduced-motion: reduce) {
