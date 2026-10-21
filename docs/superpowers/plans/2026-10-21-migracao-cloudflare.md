@@ -99,7 +99,7 @@ Mercado Pago (Orders/Pix), Turnstile.
 
 | # | Achado (resumo) | Confere no código? | Como o plano resolve | Onde |
 |---|---|---|---|---|
-| **A1** | A barreira tem 2 caminhos fora do guarda: (1) o token do Workers Builds roda o código de **toda** branch empurrada e pode `wrangler deploy` produção; (2) um workflow do GitHub Actions empurrado numa branch pode declarar `contents: write` e dar `git push` em `producao` | Sim. Doc do Builds (21/10): "Preview Builds" rodam em toda branch que não é a de produção; o token padrão tem *Workers Scripts: Edit* na conta; não há filtro de branch, só liga/desliga. Workflows hoje: `contents: read` (`ci.yml:14-15`, `processo.yml:11-12`), mas o YAML de uma branch pode pedir mais | **Caminho 1 fechado por desenho**: prévias numa **2ª conta Cloudflare** (grátis), com o seu próprio Builds e token; na conta de produção, "Enable Preview Builds" **desligado** e branch de produção `producao`. O código de uma branch qualquer só roda com o token da conta das prévias, que não alcança a produção. **Caminho 2: limite escrito, não fechado de graça** (2ª revisão, ALTO-3). O "Workflow permissions = Read" (P1) só muda o padrão (o YAML pode pedir `contents: write`); o B8 roda no CI **depois** do push; a varredura de texto do guarda pega erro e instrução óbvia, não quem quer contornar. A trava que pega o vetor real (o agente enganado) é a **confirmação do dono** (regra "ask" do Claude Code) para o agente escrever em `.github/workflows/**`, `cloudflare/**`, `wrangler.jsonc`, `package*.json`, mais **negar** `gh api` de escrita (P2, aprovação do dono). A única trava técnica completa é ruleset na `producao`, que em repositório privado exige **GitHub Pro (US$ 4/mês)**: opção (c) da Decisão 1, com o risco que sobra sem ela escrito | § 4 D1, § 5.3, § 5.5, B6, B8, § 7 P1–P2 |
+| **A1** | A barreira tem 2 caminhos fora do guarda: (1) o token do Workers Builds roda o código de **toda** branch empurrada e pode `wrangler deploy` produção; (2) um workflow do GitHub Actions empurrado numa branch pode declarar `contents: write` e dar `git push` em `producao` | Sim. Doc do Builds (21/10): "Preview Builds" rodam em toda branch que não é a de produção; o token padrão tem *Workers Scripts: Edit* na conta; não há filtro de branch, só liga/desliga. Workflows hoje: `contents: read` (`ci.yml:14-15`, `processo.yml:11-12`), mas o YAML de uma branch pode pedir mais | **Caminho 1 fechado por desenho**: prévias numa **2ª conta Cloudflare** (grátis), com o seu próprio Builds e token; na conta de produção, "Enable Preview Builds" **desligado** e branch de produção `producao`. O código de uma branch qualquer só roda com o token da conta das prévias, que não alcança a produção. **Caminho 2: limite escrito, não fechado de graça** (2ª revisão, ALTO-3). O "Workflow permissions = Read" (P1) só muda o padrão (o YAML pode pedir `contents: write`); o B8 roda no CI **depois** do push; a varredura de texto do guarda pega erro e instrução óbvia, não quem quer contornar. A trava que pega o vetor real (o agente enganado) é a **confirmação do dono no `git push`**: o guarda pede o "sim" dele sempre que algum arquivo mudado em relação à `origin/main` for workflow, `cloudflare/`, `wrangler.jsonc` ou `package*.json` (cobre escrita por qualquer meio, inclusive pelo terminal); a regra "ask" de Edit/Write é só o 1º aviso; mais **negar** `gh api` de escrita (P2, aplicado pelo dono). A única trava técnica completa é ruleset na `producao`, que em repositório privado exige **GitHub Pro (US$ 4/mês)**: opção (c) da Decisão 1, com o risco que sobra sem ela escrito | § 4 D1, § 5.3, § 5.5, B6, B8, § 7 P1–P2 |
 | **A2** | "Fechado por padrão" vaza: 4 chamadas sem `env` caem em `process.env`, onde o `BZ_PLATAFORMA` posto numa cópia do `env` não existe | Sim: `api/_vendas/fluxo-pedido.mjs:57` `naVercel()` (a trava "sem chave do IP fecha" **abre**); `:50` `chaveDoTelefone(d.telefone, segredoFreio)` (sem segredo cai no `env = process.env` de `api/_vendas/pedido.mjs:53`); `api/_vendas/fluxo.mjs:142` `modoDirecoes()` (o `api/vendas.mjs:95` nunca passa `direcoes`); `api/_vendas/agente.mjs:75` `modoDirecoes()`. A 5ª chamada sem argumento, `configClassificador()` (`api/_classificador/index.mjs:26`), só lê `BZ_JEV` e não decide ambiente: inofensiva | `ambienteDe` reconhece a Cloudflare pelo **runtime** (`globalThis.navigator?.userAgent === 'Cloudflare-Workers'`, valor fixo do workerd, flag `global_navigator`), então até a leitura por `process.env` vê "Cloudflare". O `BZ_PLATAFORMA` existe só para os testes em Node simularem. E as 4 chamadas passam a receber o ambiente explicitamente; a falta dele **fecha** (`'manual'`, 503). Teste estático novo falha se alguma função de ambiente for chamada sem argumento em `api/`. A mutação (A6) sabota "chamada sem env" | A1, A2, A6 |
 | **A3** | Plano grátis: rotas que não cabem em 10 ms, e a medição antiga não as pegaria | **Medido agora** (§ 3): a varredura de uma direção **típica** (8 seções, 27 KB) gasta **~10 ms quente e 40–50 ms na 1ª chamada** no Node deste PC; a entrega (`entregar_direcao`, `ajuste_feito`) é o caminho de venda do lançamento (`BZ_DIRECOES=manual`). Reconciliação: com 50 pendentes, 1 + 2×50 subpedidos > 50 (`api/_pagamentos/servico.mjs:228-259`, `limite = 50`, `varrerPaginas = 3`). Painel GET: `listar` pagina até 50 × 2 tabelas (`api/_banco.mjs:16-17`, `:43-52`) | (1) **Bancada de CPU e subpedidos no Node** (tarefa M1) com dados do tamanho real, `process.cpuUsage` e limiar fixo; (2) **medida na prévia** (tarefa M2) lendo CPU por invocação no Workers Logs; (3) código que vale em qualquer plano: orçamento de subpedidos por execução na reconciliação e na rotina diária (A8) e teto de **CPU** no painel (A9), sem falha calada; (4) a bancada enumera as ações de `/api/vendas` e do painel (inclusive as do PR 3b) e falha se faltar caso; (5) **um critério só** para a M2 (§ 3.3), escrito antes de medir; (6) a entrega de direção vai para a **Decisão do dono 2** com 3 caminhos (US$ 5; varredura em pedaços + aquecimento; só a varredura do PC dele) | § 3.3, § 4 D2, A8, A9, M1, M2 |
 | **A4** | O Supabase vê todos os visitantes com **um** IP, o mesmo de todo cliente de Workers (`2a06:98c0:3600::103`): o limite por IP do login anônimo vira um balde do mundo | Sim. Doc de cabeçalhos (21/10): subpedido de Worker para outra zona da Cloudflare chega com esse `CF-Connecting-IP` fixo. `api/_vendas/visitante.mjs:42` faz `/auth/v1/signup` do servidor, com a chave pública; limite padrão: 30/h por IP no anônimo e 150/5 min no `/token` (renovação, `:52`) — doc do Supabase lida em 21/10 | **`Sb-Forwarded-For`**, documentado oficialmente pelo Supabase (Authentication › Rate Limits › IP Address Forwarding; desligado por padrão em projeto novo; **só com chave secreta**, nunca a publicável). Tarefa A10: nas chamadas ao Auth de **criar** e **renovar**, o servidor manda `apikey` = chave secreta e `sb-forwarded-for` = o IP já validado pela entrada do Worker. O valor enviado é o do `normalizarIp` (IPv4 exato; IPv6 pelo **prefixo /64**, a casa inteira conta como um, intencional). Dono liga a opção no staging e na produção. **Ensaio que prova o limite, não só o log** (M2): anônimo baixado para 3/h no staging, a 4ª sessão do mesmo celular recebe 429 e outra rede recebe 200. **Limite escrito:** a doc não diz se a opção existe no plano grátis do Supabase; se não existir, o dono escolhe no P6 entre atrasar o corte pelo plano B (visitante criado no navegador: spec própria, ~2–3 dias com revisão) ou ir ao ar com o balde compartilhado e monitorar os 429 do Auth (R7) | A10, M2, § 7 P6, R7 |
@@ -199,7 +199,7 @@ empurrada numa branch pode pedir permissão de escrita e empurrar para `producao
 | Opção | Como funciona | O que fecha | O que sobra | Custo |
 |---|---|---|---|---|
 | (a) Uma conta só | prévias e produção na mesma conta, mesma chave do Builds | nada | os dois caminhos abertos: um texto malicioso lido pelo agente vira uma branch que publica | nenhum |
-| **(b) Duas contas + confirmação do dono (recomendada)** | conta atual = **produção** (zona, Worker `beyon-zero-site`, Builds só da `producao`, prévias desligadas). Conta nova de **outro usuário** = **prévias** (Worker `beyon-zero-site-previa`, Builds da `main` e de toda branch, segredos de teste, Access). No Claude Code do dono: o agente só escreve em workflows, `cloudflare/`, `wrangler.jsonc` e `package*.json` com a **confirmação** dele, e não pode usar `gh api` de escrita (P2) | caminho 1 inteiro; caminho 2 para o agente enganado (ele não cria o workflow sem o "sim" do dono) | um workflow malicioso que chegue ao repositório por outro meio (outra pessoa, outra ferramenta, ou o dono aprovar sem ler) empurra para `producao` e publica. Hoje só o dono e o agente escrevem no repositório | grátis; ~15 min; o Zero Trust da conta de prévias **pede cartão** (sem cobrança) |
+| **(b) Duas contas + confirmação do dono (recomendada)** | conta atual = **produção** (zona, Worker `beyon-zero-site`, Builds só da `producao`, prévias desligadas). Conta nova de **outro usuário** = **prévias** (Worker `beyon-zero-site-previa`, Builds da `main` e de toda branch, segredos de teste, Access). No guarda do dono: nenhum `git push` do agente que mude workflows, `cloudflare/`, `wrangler.jsonc` ou `package*.json` sai sem o **"sim"** dele, e o agente não pode usar `gh api` de escrita (P2) | caminho 1 inteiro; caminho 2 para o agente enganado (ele não cria o workflow sem o "sim" do dono) | um workflow malicioso que chegue ao repositório por outro meio (outra pessoa, outra ferramenta, ou o dono aprovar sem ler) empurra para `producao` e publica. Hoje só o dono e o agente escrevem no repositório | grátis; ~15 min; o Zero Trust da conta de prévias **pede cartão** (sem cobrança) |
 | (c) (b) + **GitHub Pro, US$ 4/mês** | ruleset na branch `producao`: só o dono atualiza, só por PR | caminho 2 também: o workflow (que roda como "github-actions") não consegue empurrar | o agente usa o login do dono no GitHub: contra ele continua valendo o guarda (nega push e merge em `producao`) | US$ 4/mês |
 
 Descartada da 1ª versão: produção por `versions upload` com "Deploy" no painel. **Não fecha** nenhum caminho: o Build
@@ -225,8 +225,9 @@ direção), as opções:
 (c) gastam mais tempo ou tiram uma proteção para economizar US$ 5. Até a M2, o plano segue grátis. Pesa também a cota:
 no grátis, **nenhuma regra protege os 100 mil pedidos/dia** (M3, § 7.1); esgotada, o orçamento e o aviso de pagamento
 param até 21 h. **O pago não é "sem limite":** passa a cobrar o excesso (pedidos além de 10 milhões/mês, CPU além do
-incluído); um ataque passa a custar pouco dinheiro em vez de derrubar. Por isso a produção paga ganha
-`"limits": { "cpu_ms": 100 }` (teto por pedido; tarefa C2b).
+incluído, cobrados por milhão); um ataque passa a custar pouco dinheiro em vez de derrubar, mas **o Workers Paid não
+tem teto de gasto**. O `"limits": { "cpu_ms": 100 }` da produção paga (tarefa C2b) limita o trabalho de **cada**
+pedido, não o total da conta.
 
 ### Decisão do dono 3 — O endereço antigo `beyon0-site.vercel.app`
 
@@ -312,8 +313,8 @@ api/_vendas/visitante.mjs:35-55 (A10); docs/servidor.mjs:52-66 (B5); scripts/dir
 - **O limite que fica (escrito para o dono):** código que chegue à `producao` publica (o Build command e o deploy
   rodam o que está no repositório, com a chave de produção). A porta prevista é o merge do dono. A outra porta é um
   workflow do GitHub empurrado numa branch: o YAML pode pedir `contents: write` (o padrão "Read" do P1 não é teto;
-  doc do `GITHUB_TOKEN`) e empurrar para `producao`. Contra o agente enganado, a trava é a confirmação do dono para
-  escrever em workflows e nos arquivos que o Builds executa (§ 5.5); o B8 e a varredura do guarda pegam erro e
+  doc do `GITHUB_TOKEN`) e empurrar para `producao`. Contra o agente enganado, a trava é a confirmação do dono no
+  `git push` de mudanças em workflows e nos arquivos que o Builds executa (§ 5.5, item 1); o B8 e a varredura do guarda pegam erro e
   instrução óbvia, não quem quer contornar. Só a Decisão 1 (c) (GitHub Pro, ruleset na `producao`) fecha essa porta
   para qualquer origem.
 
@@ -336,12 +337,19 @@ api/_vendas/visitante.mjs:35-55 (A10); docs/servidor.mjs:52-66 (B5); scripts/dir
 ### 5.5 O guarda e as permissões do Claude Code (configuração do DONO; tarefa P2, só com a aprovação dele)
 
 O agente **não** edita `~/.claude/settings.json`, hooks nem `~/.claude/guarda/`. O texto abaixo é o pedido que vai ao
-dono no P2; ele aprova e aplica (ou autoriza uma sessão a aplicar).
+dono no P2; **quem aplica é o dono, ele mesmo** (o agente só entrega o texto).
 
-**Pedir confirmação ao dono** (regra `ask` em `permissions` do Claude Code) antes de o agente escrever em:
-`.github/workflows/**`, `cloudflare/**`, `wrangler.jsonc`, `package.json`, `package-lock.json`. Motivo: o Builds de
-produção executa o que está neles, e um workflow pode empurrar para `producao`. Essas mudanças são raras; cada uma
-vira um "posso?" na tela do dono, que é a trava contra o agente enganado.
+Os caminhos sensíveis: `.github/workflows/**`, `cloudflare/**`, `wrangler.jsonc`, `package.json`,
+`package-lock.json`. Motivo: o Builds de produção executa o que está neles, e um workflow pode empurrar para
+`producao`. Essas mudanças são raras.
+
+1. **Confirmação no `git push`** (a trava que cobre qualquer forma de escrita): antes de todo `git push` do agente, o
+   guarda lista os arquivos mudados entre `origin/main` e o que vai ser empurrado (`git diff --name-only
+   origin/main...<ref empurrada>`); se algum casar com os caminhos sensíveis, pede o "sim" do dono (ou nega até ele
+   aprovar). Falhou a listagem, nega.
+2. **Regra `ask`** em `permissions` do Claude Code para Edit/Write nesses caminhos: é só o **1º aviso**. Ela vale
+   para as ferramentas de edição, não para escrita pelo terminal (`echo >`, `cp`, `sed -i`, `git apply`,
+   `node -e`), que passa sem pedir; por isso a trava de verdade é o item 1.
 
 Negar ao agente, além do que já nega:
 - `wrangler deploy` sem `--dry-run`, `wrangler versions deploy|upload`, `wrangler rollback`, `wrangler triggers
@@ -357,7 +365,7 @@ Negar ao agente, além do que já nega:
 - **antes de todo `git push`**: rodar a cópia do guarda de `scripts/processo/anti-publicacao.mjs` (o dono copia o
   arquivo do PR B para `~/.claude/guarda/anti-publicacao.mjs`) sobre a árvore a empurrar; achado = nega. É varredura
   de texto: pega erro e instrução óbvia (`wrangler deploy`, `:producao`), não quem quer contornar (`"prod"+"ucao"`,
-  base64); por isso a regra `ask` acima é a trava principal;
+  base64); por isso a confirmação no `git push` (item 1 acima) é que segura o agente enganado;
 - ler `.dev.vars*`, `.wrangler/` e `~/.claude/segredos/`.
 
 Repetir os principais em `permissions.deny` do `~/.claude/settings.json`. As regras da Vercel ficam até o PR D.
@@ -414,14 +422,14 @@ segredos-base das Previews são copiados para cada prévia **na criação** (mud
 | # | Quando | Passo |
 |---|---|---|
 | P1 | já | GitHub → repositório → Settings → Actions → General → **Workflow permissions = Read repository contents** (muda só o padrão; não é trava, § 5.3) |
-| P2 | antes de ligar qualquer Builds | **aprovar e aplicar** no Claude Code dele as regras do § 5.5: `ask` para workflows/`cloudflare/`/`wrangler.jsonc`/`package*.json`, `deny` de `gh api` de escrita, as regras do guarda e a cópia do `anti-publicacao.mjs` do PR B. O agente prepara o texto; não edita `settings.json`, hooks nem o guarda |
+| P2 | antes de ligar qualquer Builds | **aprovar e aplicar** no Claude Code dele as regras do § 5.5: **confirmação no `git push`** quando algum arquivo mudado em relação à `origin/main` for workflow, `cloudflare/`, `wrangler.jsonc` ou `package*.json`; `ask` de Edit/Write nesses caminhos (1º aviso); `deny` de `gh api` de escrita; as regras do guarda e a cópia do `anti-publicacao.mjs` do PR B. O agente prepara o texto; não edita `settings.json`, hooks nem o guarda |
 | P2b | se escolher a Decisão 1 (c) | GitHub Pro (US$ 4/mês) → Settings → Rules → Rulesets → branch `producao`: só o dono, só por PR, sem push direto, sem apagar |
 | P3 | depois do merge do PR B | criar a **conta das prévias** com **outro usuário** (outro login; ex.: o e-mail dele com `+previa`), nunca uma 2ª conta sob o mesmo login (Decisão 1 b); 2 etapas ligadas nos dois usuários; ativar o Zero Trust Free (**pede cartão, sem cobrança**); anotar o subdomínio `workers.dev` dela (vira a constante `SUB_PREVIAS`, C3/B9) |
 | P4 | idem | conta das prévias: Workers Builds ligado ao repositório; branch de produção `main`; Deploy command `npx wrangler deploy --env previa`; Preview Builds ligado; Preview command `npx wrangler preview --env previa`; Build command `node cloudflare/montar-publico.mjs` |
 | P5 | idem | conta das prévias: segredos de teste (§ 6, coluna Prévias) em **dois lugares**: no Worker `beyon-zero-site-previa` (vale para o staging da `main`) **e** nos segredos-base das Previews (Settings → Previews; copiados para cada prévia nova na criação). Access no Worker com **All traffic** + service token (§ 5.4) |
 | P6 | idem | **Supabase staging** (`beyon-zero-staging`, São Paulo, grátis): `npx supabase@2 db push` (34 migrations); esquemas expostos `app` e `metricas` (nunca `privado`); cadastro aberto **desligado**; login anônimo **ligado**; Authentication › Rate Limits › **IP Address Forwarding ligado** (A10). **Se a opção não aparecer no plano grátis:** o dono escolhe entre (1) atrasar o corte pelo plano B do R7 (~2–3 dias) ou (2) ir ao ar com o balde compartilhado e o agente monitorar os 429 do Auth no log (R7). Não é uma 4ª decisão de arquitetura: é a contingência do A4 |
 | P7 | idem | **Mercado Pago, modo teste**: credenciais de teste nos segredos; webhook de teste em `https://beyon-zero-site-previa.<SUB_PREVIAS>.workers.dev/api/pagamentos` |
-| P8 | staging no ar | ensaios com o agente (Task M2): uma prévia de branch abre com `BZ_AMBIENTE=previa` (log de uma chamada; sem isso tudo fecha como produção, ALTO-2 da 2ª revisão); critério de CPU do § 3.3; A4 com o limite do anônimo em 3/h; formato real da URL de prévia (para o C3); Access/Bypass; cota do Workers Logs; `_headers` desanexando CSP; **Decisão do dono 2** com a tabela da M2 |
+| P8 | staging no ar | ensaios com o agente (Task M2): uma prévia de branch abre com `BZ_AMBIENTE=previa` (log de uma chamada; sem isso tudo fecha como produção, ALTO-2 da 2ª revisão); critério de CPU do § 3.3; A4 com o limite do anônimo em 3/h; **a regra de 10 pedidos / 10 s em `/api/*` (o staging no `workers.dev` não tem regra de zona: contar no Workers Logs os pedidos do IP do dono em cada janela de 10 s; nenhuma janela pode passar de 10) não trava o painel do dono (abrir, trocar de fila, entregar) nem uma rodada inteira do `scripts/direcoes.mjs`**: zero 429; se houver, tarefa C3b (§ 7.1); formato real da URL de prévia (para o C3); Access/Bypass; cota do Workers Logs; `_headers` desanexando CSP; **Decisão do dono 2** com a tabela da M2 |
 | P9 | idem | conta de produção: Workers Builds ligado ao repositório; branch de produção **`producao`**; **Enable Preview Builds desligado**; Build command `node cloudflare/montar-publico.mjs`; Deploy command `npx wrangler deploy`. Criar a branch `producao` a partir da `main` no GitHub (nasce sem domínio e sem segredos: tudo fecha) |
 | P10 | antes do PR C ir ao ar | **Supabase produção** (`beyon-zero`): igual ao P6, mais `docs/fundacao/02-OPERACAO.md` § 4.3 **itens 1–3 e 5** (o item 4, "desligar o login anônimo", está **superado** pela Fase 2: login anônimo LIGADO, cadastro aberto desligado); § 4.4 conferido; tabela de preços `ativa` (`docs/fase2/02-OPERACAO.md` § 1.2, `npm run validar:regras`); Site URL `https://beyonzero.com.br`, Redirect URLs só `https://beyonzero.com.br/**`; só um dos dois (`pg_cron` de retenção ou `/api/rotinas`) |
 | P11 | idem | **Mercado Pago produção**: URL do site `https://beyonzero.com.br`; webhook `https://beyonzero.com.br/api/pagamentos` (sem `www`), evento Order; assinatura em `MP_WEBHOOK_SEGREDO` |
@@ -448,7 +456,7 @@ diária toca o banco todo dia; o prazo atual da pausa é conferido na doc do Sup
 | Bot Fight Mode | **desligado** | no Free não abre exceção e pode barrar o webhook do MP |
 | Pseudo IPv4 | desligado | IPv6 real no `cf-connecting-ip` |
 | Cache | nenhuma regra "Cache Everything" | HTML e `/api` nunca em cache |
-| Regra de limite (Free: 1 regra, só caminho, por IP, janela de 10 s) | **todo** `/api/*` (o operador de "começa com"/curinga que o editor do Free oferecer; nome fora da tabela também gasta cota) → **10 pedidos / 10 s** → Block 10 s. Conta: 10 a cada 10 s = 86.400/dia por IP, **abaixo** dos 100.000 (para esgotar a cota são precisos ao menos 2 IPs; com 20/10 s, um IP sozinho gastava 172.800). O P8 confere contra os pedidos por visita medidos na M2 (o orçamento faz 1 pedido a cada 60 s; uma página, poucos `/api/evento`) e só sobe o valor se uma visita normal passar de 10 em 10 s, nunca acima de 11 | `/api/pagamentos` dentro: o aviso do MP vem de poucos IPs e em baixo volume no lançamento; se levar 429, o MP reenvia. **Limite escrito: no grátis nenhuma regra protege a cota**; dois IPs a esgotam e tudo em `/api/*` responde 429 até 21 h (Decisão 2) |
+| Regra de limite (Free: 1 regra, só caminho, por IP, janela de 10 s) | **todo** `/api/*` (o operador de "começa com"/curinga que o editor do Free oferecer; nome fora da tabela também gasta cota) → **10 pedidos / 10 s** → Block 10 s. Conta: 10 a cada 10 s = 86.400/dia por IP, **abaixo** dos 100.000 (para esgotar a cota são precisos ao menos 2 IPs; com 20/10 s, um IP sozinho gastava 172.800). O P8 confere contra os pedidos por visita medidos na M2 (o orçamento faz 1 pedido a cada 60 s; uma página, poucos `/api/evento`) e só sobe o valor se uma visita normal passar de 10 em 10 s, nunca acima de 11. **O painel e o `scripts/direcoes.mjs` do dono também passam por ela** (o painel abre ~5 consultas de uma vez: resumo e as filas de `js/painel*.js`; o script chama `/api/painel` em sequência, `scripts/direcoes.mjs:461`). **Sem exceção para `/api/painel`**: o `/api/painel` aceita pedido de qualquer IP (a chave é conferida no Worker, e o 401 também gasta cota), então tirá-lo da regra reabriria a cota para um IP só. Se o P8 mostrar 429 no painel ou no script, quem se ajusta é o cliente: o script espera ≥ 1,1 s entre chamadas e o painel faz as consultas da abertura uma depois da outra (tarefa C3b) | `/api/pagamentos` dentro: o aviso do MP vem de poucos IPs e em baixo volume no lançamento; se levar 429, o MP reenvia. **Limite escrito: no grátis nenhuma regra protege a cota**; dois IPs a esgotam e tudo em `/api/*` responde 429 até 21 h (Decisão 2) |
 | `workers.dev` da produção | **desligado** (`workers_dev: false`, C2) | passaria por fora desta regra |
 
 ---
@@ -1568,7 +1576,7 @@ contents: read`)
   montam os termos por partes (`'wrangler' + ' deploy'`, `':pro' + 'ducao'`) para não precisarem de exceção. E o
   repositório real passa limpo. Comentário no topo do verificador: "varredura de texto: pega erro e instrução óbvia,
   não quem quer contornar (`'prod' + 'ucao'`, base64); a trava contra o agente enganado é a confirmação do dono
-  (§ 5.5 do plano)".
+  no `git push` (§ 5.5 do plano, item 1)".
 - [ ] **Step 2:** FAIL. **Step 3:** implementação com uma lista de expressões e a lista de exceções acima; lê
   `git ls-files` (ou a lista recebida). **Step 4:** PASS.
 - [ ] **Step 5:** `niveis.json`: regra nível 3 para `^(wrangler\.jsonc|_headers)$` e `^cloudflare/` ("deploy e
@@ -1690,6 +1698,17 @@ const HOSTS = [/^beyonzero\.com\.br$/, new RegExp('^(?:[a-z0-9-]+-)?beyon-zero-s
   endereço real da 1ª prévia, anotado na M2.)
 - [ ] **Step 4:** PASS. **Step 5:** commit.
 
+#### Task C3b: painel e script dentro da regra de 10 / 10 s (só se o P8 achar janela acima de 10)
+
+**Files:** Modify: `scripts/direcoes.mjs:461` (função que chama `/api/painel`), `js/painel.js` (abertura);
+Test: `docs/testes/fila-direcoes.test.mjs`, `docs/testes/painel-aviso.test.mjs`
+
+- [ ] Teste vermelho: com um `fetch` falso que anota o horário de cada chamada, uma rodada inteira do script (fila,
+  3 entregas, conferência) nunca faz mais de 10 chamadas em 10 s (espera ≥ 1,1 s entre chamadas; constante
+  `INTERVALO_MIN_MS = 1100`); a abertura do painel faz as consultas uma depois da outra (cada uma espera a anterior).
+- [ ] Implementação mínima; PASS; servidor local + abrir o painel e ver que nada mudou para o dono além de ~1 s a
+  mais na abertura; commit `fix: painel e script de direcoes abaixo da regra de limite`.
+
 #### Task C4: textos
 
 **Files:** Modify: `privacidade.html` (hospedagem: "Cloudflare" no lugar de "Vercel"), `condicoes.html` (se citar)
@@ -1738,7 +1757,7 @@ de hoje), `docs/testes/csp.test.mjs` (sem paridade com o `vercel.json`), `script
 | # | Risco | Situação | O que fazer |
 |---|---|---|---|
 | R1 | Entrega de direção acima de 10 ms de CPU | **medido** no Node (§ 3.1) | M2 confirma; Decisão do dono 2 |
-| R2 | Cota de 100 mil pedidos/dia como ponto de derrubada barato: **no grátis nenhuma regra a protege**; com 10/10 s por IP (§ 7.1) são precisos 2 IPs. Quando acaba, `/api/*` responde 429 (ou erro 1027) até 21 h de Brasília, inclusive o webhook do MP | real no grátis | o MP reenvia o aviso por um tempo; a reconciliação de 3 em 3 h recupera **se o cron rodar** (a doc não diz se o cron roda com a cota esgotada); Decisão 2 (a) troca a derrubada por custo pequeno, com teto `cpu_ms` (C2b) |
+| R2 | Cota de 100 mil pedidos/dia como ponto de derrubada barato: **no grátis nenhuma regra a protege**; com 10/10 s por IP (§ 7.1) são precisos 2 IPs. Quando acaba, `/api/*` responde 429 (ou erro 1027) até 21 h de Brasília, inclusive o webhook do MP | real no grátis | o MP reenvia o aviso por um tempo; a reconciliação de 3 em 3 h recupera **se o cron rodar** (a doc não diz se o cron roda com a cota esgotada); Decisão 2 (a) troca a derrubada por custo (pequeno, cobrado por milhão de pedidos a mais), **sem teto de gasto** no Workers Paid; o `cpu_ms` do C2b limita cada pedido, não o total |
 | R3 | Geração longa pela API (até 240 s) cancelada se o visitante fechar a aba | só com `BZ_DIRECOES=api` (lançamento é `manual`) | ensaio com chave real antes de ligar a API; PR próprio se travar |
 | R4 | O limite residual da barreira: um workflow que chegue ao repositório (por outra pessoa, outra ferramenta ou aprovação sem leitura) pode pedir `contents: write` e empurrar para `producao` | escrito (§ 5.3) | contra o agente enganado: a confirmação do dono (§ 5.5, P2). Para qualquer origem: só a Decisão 1 (c), GitHub Pro com ruleset. A antiga ideia de `versions upload` **não** fecha (o Build command roda com a chave de produção) |
 | R5 | Repositório privado grátis sem proteção de branch (ruleset exige GitHub pago) | real | o mesmo do R4; nunca trocar a branch de produção para `main` sem decisão escrita |
@@ -1833,4 +1852,14 @@ Revisão: `.superpowers/sdd/cloudflare-plano-revisao-2.md` (veredito "aprovar co
 | BAIXO-10 CGNAT | M2 anota os 429 do Auth; o dono ajusta o limite | M2 |
 | BAIXO-11 cron com a cota esgotada | "se o cron rodar" | R2, § 2.2 M3 |
 | Item 6: chave do "só Pix" | **`MP_METODOS`**, a mesma que o 3b adotou; A7 fica neste PR A | A7, R13 |
+
+### 12.1 Rodada 3 (conferência do `3e18d94`)
+
+| Achado | O que mudou | Onde |
+|---|---|---|
+| BAIXO-R3a "ou autoriza uma sessão a aplicar" | tirado: quem aplica é o dono, ele mesmo; o agente só entrega o texto | § 5.5 |
+| MÉDIO-R3a a regra `ask` não pega escrita pelo terminal | a trava passa a ser a **confirmação do dono no `git push`** quando algum arquivo mudado em relação à `origin/main` for workflow, `cloudflare/`, `wrangler.jsonc` ou `package*.json`; o `ask` de Edit/Write fica só como 1º aviso | § 2.1 A1, § 4 D1, § 5.3, § 5.5, P2, B8 |
+| BAIXO-R3b "teto que eu configuro" | o Workers Paid não tem teto de gasto; o `cpu_ms` limita cada pedido, não o total | § 4 D2, R2, resumo |
+| BAIXO-R3c regra 10/10 s e o dono | P8 confere que o painel e o `scripts/direcoes.mjs` não passam de 10 em 10 s; **sem exceção** para `/api/painel` (reabriria a cota para um IP só); se passar, o cliente se ajusta (tarefa C3b) | § 7.1, P8, C3b |
+| BAIXO-R3d tamanho do resumo | mantido (aceito pelo coordenador) | resumo |
 
