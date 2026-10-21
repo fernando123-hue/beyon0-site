@@ -34,8 +34,23 @@
    ~2 h; DNSSEC estava desligado). A zona está no plano grátis, com os 3 registros do Registro.br mantidos (MX nulo,
    SPF `-all`, DMARC `p=reject`) e a sincronização de robôs desligada.
 
+4. **Decisão do dono 1 (§ 4), respondida em 21/10: (b) DUAS contas grátis, sem GitHub Pro.** Produção e prévias em
+   contas separadas (a de prévias com o e-mail dele + "+previa"; o Zero Trust pede cartão, sem cobrança). O P2b
+   (GitHub Pro) NÃO se aplica; o limite residual do § 5.3 fica como está escrito.
+5. **Decisão do dono 2 (§ 4), respondida em 21/10: fica no GRÁTIS; nenhuma assinatura paga (Cloudflare, GitHub ou
+   outra) antes da PRIMEIRA VENDA concluída.** Se a medida M2 mostrar que a entrega de direções não cabe: o agente faz
+   a opção **(b)** (entrega em pedaços) e, se ainda não couber, volta ao dono com a **(c)** (conferência só no PC dele).
+   A opção (a) (Workers Paid, US$ 5/mês) fica para depois da 1ª venda; o cartão que o Zero Trust pede, sem cobrança,
+   não é assinatura.
+6. **Decisão do dono 3 (§ 4), respondida em 21/10: APAGAR `beyon0-site.vercel.app` logo**, sem os 90 dias de
+   redirecionamento, **mas só depois de a captação trocar os links** das mensagens, demonstrações e
+   `captacao/config/oferta.json` para `beyonzero.com.br`. O P17 passa a ser só "apagar" e espera esse aviso.
+7. **Sem e-mail `@beyonzero.com.br` por agora** (21/10, "Agora não"): o MX nulo, o SPF `-all` e o DMARC
+   `p=reject` continuam como estão (§ 7.1).
+
 Também já decidido (`01 Empresa/Decisões.md`, 20–21/10), **não reabrir**: migrar ANTES de ir ao ar; a Vercel **não
-será promovida** (a produção de lá fica como está até ser apagada); grátis primeiro, US$ 5/mês só se não couber.
+será promovida** (a produção de lá fica como está até ser apagada); grátis primeiro, US$ 5/mês só depois da 1ª venda
+(item 5).
 
 ---
 
@@ -84,7 +99,7 @@ Mercado Pago (Orders/Pix), Turnstile.
 
 | Antes | Agora | Por quê |
 |---|---|---|
-| "Workers Paid obrigatório" | grátis, medido; Decisão do dono 2 com a medida em mãos | decisão do dono 1; medida do § 3 |
+| "Workers Paid obrigatório" | grátis, medido; se não couber: (b) em pedaços e depois (c); nada pago antes da 1ª venda (Decisão do dono 2, respondida) | decisão do dono 1; medida do § 3 |
 | "decidir cartão (R1)" | só Pix, tarefa A7 com teste | decisão do dono 2 |
 | "trocar os servidores DNS" (§ 8 antigo, passos 1–4) | feito; só conferir | decisão do dono 3 |
 | `BZ_PLATAFORMA` posto pelo código numa cópia do `env` | Cloudflare reconhecida pelo **runtime**; `BZ_PLATAFORMA` só simula nos testes | revisão A2 |
@@ -181,14 +196,20 @@ Cloudflare têm outra CPU: o número exato vem da M2, mas **a ordem de grandeza 
 | **M2 (staging, decide)** | toda ação do visitante, painel GET, webhook, crons | em **20 chamadas espaçadas** (frias e quentes), **nenhum** 1102/`exceededCpu`, **p99 de CPU no Workers Logs ≤ 7 ms** e ≤ 45 subpedidos |
 | **M2 (staging, decide)** | `entregar_direcao`, `ajuste_feito` (só o dono, raras) | em **5 entregas frias** (≥ 15 min entre elas, direção típica do § 3.1): **qualquer** 1102 = não cabe |
 
-Qualquer rota fora do critério da M2 → a tabela vai ao dono como **Decisão 2**. A M2 anota também os pedidos
+Qualquer rota fora do critério da M2 → o agente aplica a **Decisão 2 já respondida** (grátis; (b) entrega em pedaços
+e, se ainda não couber, volta ao dono com a (c)), levando a tabela junto. A M2 anota também os pedidos
 `/api/*` por visita ao orçamento (para a regra de limite, § 7.1).
 
 ---
 
-## 4. Decisões do dono que este plano pede (no máximo 3)
+## 4. Decisões do dono que este plano pediu (as 3 foram respondidas em 21/10)
 
-### Decisão do dono 1 — Como a barreira "só o dono publica" fica na Cloudflare
+> **Respondidas em 21/10 (`01 Empresa/Decisões.md`):** Decisão 1 = **(b)**, duas contas grátis, sem GitHub Pro;
+> Decisão 2 = **grátis, nada pago antes da 1ª venda** (se a entrega não couber: (b) e, se ainda não couber, volta ao
+> dono com a (c)); Decisão 3 = **apagar logo**, depois de a captação trocar os links. As tabelas e recomendações
+> abaixo ficam como registro do que foi perguntado; o que vale é esta nota e o topo do plano.
+
+### Decisão do dono 1 — Como a barreira "só o dono publica" fica na Cloudflare (RESPONDIDA: (b))
 
 | Opção | Como funciona | O que fecha | Custo para o dono |
 |---|---|---|---|
@@ -210,7 +231,7 @@ gastar nada, coerente com "investimento mínimo até o primeiro cliente". O risc
 enquanto só o dono e o agente mexem no repositório. A (c) vale a pena quando entrar outra pessoa no repositório ou no
 1º cliente; não é obrigatória.
 
-### Decisão do dono 2 — Plano grátis com a entrega de direção que não cabe (decidir depois da M2)
+### Decisão do dono 2 — Plano grátis com a entrega de direção que não cabe (RESPONDIDA: grátis; (b), depois (c); a (a) só depois da 1ª venda)
 
 A M2 mede tudo no staging com o critério do § 3.3. Se alguma rota ficar fora (o esperado, pelo § 3.1, é a entrega de
 direção), as opções:
@@ -229,7 +250,7 @@ incluído, cobrados por milhão); um ataque passa a custar pouco dinheiro em vez
 tem teto de gasto**. O `"limits": { "cpu_ms": 100 }` da produção paga (tarefa C2b) limita o trabalho de **cada**
 pedido, não o total da conta.
 
-### Decisão do dono 3 — O endereço antigo `beyon0-site.vercel.app`
+### Decisão do dono 3 — O endereço antigo `beyon0-site.vercel.app` (RESPONDIDA: apagar logo, depois de a captação trocar os links)
 
 Ele está nas mensagens da captação, em `captacao/config/oferta.json` e no rodapé dos sites de demonstração já
 publicados.
@@ -239,6 +260,10 @@ publicados.
 | (a) Deixar a Vercel como está até a captação trocar os links, depois apagar | quem clicar num link antigo depois de apagar vê erro |
 | **(b) Trocar por um redirecionamento 301 para `beyonzero.com.br` por 90 dias, depois apagar (recomendada)** | links antigos continuam funcionando; é um deploy estático de redirecionamento (não é o site novo, não vende nada, não é "promover" o código novo na Vercel), feito pelo dono |
 | (c) Apagar logo depois do corte | mais simples; links antigos quebram no mesmo dia |
+
+**Resposta do dono (21/10): "Apague, substitua logo"**, sem os 90 dias de redirecionamento. É a (c), com uma condição
+dita no registro: a captação troca antes os links das mensagens e demonstrações para `beyonzero.com.br`. Por isso o
+plano NÃO cria o deploy estático de redirecionamento; o P17 só apaga, e só depois de a captação avisar que trocou.
 
 **Recomendação: (b), por 90 dias** (30–60 dias é pouco para sites de demonstração que o cliente pode reabrir meses
 depois).
@@ -315,7 +340,8 @@ api/_vendas/visitante.mjs:35-55 (A10); docs/servidor.mjs:52-66 (B5); scripts/dir
   workflow do GitHub empurrado numa branch: o YAML pode pedir `contents: write` (o padrão "Read" do P1 não é teto;
   doc do `GITHUB_TOKEN`) e empurrar para `producao`. Contra o agente enganado, a trava é a confirmação do dono no
   `git push` de mudanças em workflows e nos arquivos que o Builds executa (§ 5.5, item 1); o B8 e a varredura do guarda pegam erro e
-  instrução óbvia, não quem quer contornar. Só a Decisão 1 (c) (GitHub Pro, ruleset na `producao`) fecha essa porta
+  instrução óbvia, não quem quer contornar. Só a Decisão 1 (c) (GitHub Pro, ruleset na `producao`; **não escolhida em
+21/10**, o dono ficou na (b) sem assinatura) fecharia essa porta
   para qualquer origem.
 
 ### 5.4 Access nas prévias (conta das prévias)
@@ -423,7 +449,7 @@ segredos-base das Previews são copiados para cada prévia **na criação** (mud
 |---|---|---|
 | P1 | já | GitHub → repositório → Settings → Actions → General → **Workflow permissions = Read repository contents** (muda só o padrão; não é trava, § 5.3) |
 | P2 | antes de ligar qualquer Builds | **aprovar e aplicar** no Claude Code dele as regras do § 5.5: **confirmação no `git push`** quando algum arquivo mudado em relação à `origin/main` for workflow, `cloudflare/`, `wrangler.jsonc` ou `package*.json`; `ask` de Edit/Write nesses caminhos (1º aviso); `deny` de `gh api` de escrita; as regras do guarda e a cópia do `anti-publicacao.mjs` do PR B. O agente prepara o texto; não edita `settings.json`, hooks nem o guarda |
-| P2b | se escolher a Decisão 1 (c) | GitHub Pro (US$ 4/mês) → Settings → Rules → Rulesets → branch `producao`: só o dono, só por PR, sem push direto, sem apagar |
+| P2b | **NÃO se aplica (Decisão 1 = (b), 21/10)** | (era: GitHub Pro, US$ 4/mês → ruleset na branch `producao`.) Sem assinatura antes da 1ª venda; revisitar depois dela ou quando entrar outra pessoa no repositório |
 | P3 | depois do merge do PR B | criar a **conta das prévias** com **outro usuário** (outro login; ex.: o e-mail dele com `+previa`), nunca uma 2ª conta sob o mesmo login (Decisão 1 b); 2 etapas ligadas nos dois usuários; ativar o Zero Trust Free (**pede cartão, sem cobrança**); anotar o subdomínio `workers.dev` dela (vira a constante `SUB_PREVIAS`, C3/B9) |
 | P4 | idem | conta das prévias: Workers Builds ligado ao repositório; branch de produção `main`; Deploy command `npx wrangler deploy --env previa`; Preview Builds ligado; Preview command `npx wrangler preview --env previa`; Build command `node cloudflare/montar-publico.mjs` |
 | P5 | idem | conta das prévias: segredos de teste (§ 6, coluna Prévias) em **dois lugares**: no Worker `beyon-zero-site-previa` (vale para o staging da `main`) **e** nos segredos-base das Previews (Settings → Previews; copiados para cada prévia nova na criação). Access no Worker com **All traffic** + service token (§ 5.4) |
@@ -438,7 +464,7 @@ segredos-base das Previews são copiados para cada prévia **na criação** (mud
 | P14 | idem | zona (§ 7.1) |
 | P15 | promoção | Merge do PR "Promover para produção" |
 | P16 | +1 dia | nada (o agente confere as rotinas no log) |
-| P17 | Decisão 3 | redirecionamento da Vercel e, no fim, apagar o projeto, o acesso do app da Vercel ao GitHub e `vercel logout` |
+| P17 | **só depois do corte conferido (P15–P16) e de a captação avisar que trocou os links para `beyonzero.com.br`** (Decisão 3, 21/10) | **apagar logo** o projeto `beyon0-site` da Vercel (sem redirecionamento de 90 dias), o acesso do app da Vercel ao GitHub e `vercel logout`. Antes, o agente confere que nenhum link antigo sobrou na captação (`captacao/config/oferta.json`, mensagens, rodapé dos sites de demonstração publicados) |
 
 Antes do 1º pagamento real: a lista de `docs/pagamentos/01-ARQUITETURA-E-OPERACAO.md` § 11 (R$ 1 pago e estornado,
 aviso real aceito, `MP_USER_ID` conferido, reconciliação no log). O Supabase grátis pausa projeto parado: a rotina
@@ -448,7 +474,7 @@ diária toca o banco todo dia; o prazo atual da pausa é conferido na doc do Sup
 
 | Ajuste | Valor | Por quê |
 |---|---|---|
-| Conferir | zona "Active"; registros MX nulo, SPF `-all`, DMARC `p=reject` mantidos | decisão do dono 3 |
+| Conferir | zona "Active"; registros MX nulo, SPF `-all`, DMARC `p=reject` mantidos (sem e-mail no domínio por agora, 21/10) | decisão do dono 3; "Agora não" ao e-mail |
 | `www` | DNS `AAAA www 100::` **com proxy** + Redirect Rule `www.beyonzero.com.br/*` → `https://beyonzero.com.br/${1}`, 301, mantendo a query | o Worker não vê o `www` |
 | SSL/TLS | Full (strict); Always Use HTTPS | padrão certo |
 | HSTS | ligar **no fim** (depois da 1ª semana), 6 meses, sem preload | ligar cedo prende erro de certificado |
@@ -1773,13 +1799,15 @@ agente lê os logs. Então a M2.
   preciso.
 - [ ] Ensaios curtos: `curl -sI` de `/orcamento` (uma CSP só), Bypass do Access em `/api/pagamentos`, cota do
   Workers Logs.
-- [ ] A tabela vai para `docs/evidencias/2026-10-cpu-rotas.md` e para o dono como **Decisão 2** (se alguma rota
-  ficar fora do critério).
-- [ ] Se o dono escolher (b) na Decisão 2: plano próprio para a varredura em pedaços (fora deste). Se (c): tarefa
-  própria nível 3 tirando o `varrer` de `api/painel.mjs:175` e `:270` **só** na Cloudflare de produção, com a
-  decisão citada no comentário e teste. Se (a): o dono assina o Workers Paid na conta de **produção** antes do P15.
+- [ ] A tabela vai para `docs/evidencias/2026-10-cpu-rotas.md`; se alguma rota ficar fora do critério, ela vai ao
+  dono junto com o caminho da **Decisão 2** (já respondida: grátis; (b), depois (c)).
+- [ ] **Decisão 2 (21/10): nada pago antes da 1ª venda.** Rota que não cabe: o agente faz a **(b)**, plano próprio
+  para a varredura em pedaços (fora deste). Se a (b) ainda não couber, o agente **volta ao dono** com a **(c)**
+  (conferência só no PC dele): tarefa própria nível 3 tirando o `varrer` de `api/painel.mjs:175` e `:270` **só** na
+  Cloudflare de produção, com a decisão citada no comentário e teste; **só com o "sim" dele**. A (a) (Workers Paid na
+  conta de produção) **não** é pré-requisito do P15: só depois da 1ª venda concluída.
 
-### PR C — domínio e corte (depois da M2 e da Decisão 2)
+### PR C — domínio e corte (depois da M2; a Decisão 2 já está respondida: grátis)
 
 O domínio entra num módulo de teste só: `docs/testes/dominio.mjs` com
 `export const DOMINIO = 'https://beyonzero.com.br';`. Os testes que hoje fixam `beyon0-site.vercel.app` passam a
@@ -1811,7 +1839,7 @@ Arquivos com o endereço antigo (busca de 21/10): `index.html` (11, inclui os da
 - [ ] **Ensaio depois do PR C entrar na `main`:** o build do staging na conta das prévias passa, e o domínio
   `beyonzero.com.br` continua só no Worker de produção (painel da conta de produção → Domains).
 
-#### Task C2b: teto de CPU na produção paga (só se a Decisão 2 for (a))
+#### Task C2b: teto de CPU na produção paga (**NÃO ENTRA no corte**: a Decisão 2 de 21/10 ficou no grátis; só se, depois da 1ª venda, o dono assinar o Workers Paid)
 
 **Files:** Modify: `wrangler.jsonc`; Test: `docs/testes/worker.test.mjs`
 
@@ -1894,7 +1922,13 @@ de hoje), `docs/testes/csp.test.mjs` (sem paridade com o `vercel.json`), `script
 
 - [ ] **Step 1: teste vermelho**: "nenhuma menção a `VERCEL`/`x-vercel`/`vercel.app` em `api/`, `cloudflare/`,
   `scripts/`". **Step 2:** FAIL. **Step 3:** apagar. **Step 4:** PASS + suíte inteira. **Step 5:** commit.
-- O dono tira as regras da Vercel do guarda e faz o P17 (Decisão 3).
+- **Links antigos (Decisão 3, 21/10):** antes do P17, a captação confirma que trocou todos os links
+  `beyon0-site.vercel.app` por `beyonzero.com.br` (`captacao/config/oferta.json`, as mensagens e o rodapé dos sites de
+  demonstração já publicados). O agente confere com `grep` no repositório da captação e olhando os sites publicados;
+  sem essa conferência o P17 espera. **Não há redirecionamento de 90 dias nem deploy estático de redirecionamento.**
+- O P17 (apagar o projeto da Vercel, sem esperar os 90 dias) vem logo depois dessa conferência e do corte conferido
+  (P15–P16); não precisa esperar as 1–2 semanas deste PR, que só limpa código. O dono tira as regras da Vercel do
+  guarda depois do P17.
 
 ---
 
@@ -1902,12 +1936,12 @@ de hoje), `docs/testes/csp.test.mjs` (sem paridade com o `vercel.json`), `script
 
 | # | Risco | Situação | O que fazer |
 |---|---|---|---|
-| R1 | Entrega de direção acima de 10 ms de CPU | **medido** no Node (§ 3.1) | M2 confirma; Decisão do dono 2 |
-| R2 | Cota de 100 mil pedidos/dia como ponto de derrubada barato: **no grátis nenhuma regra a protege**; com 10/10 s por IP (§ 7.1) são precisos 2 IPs. Quando acaba, `/api/*` responde 429 (ou erro 1027) até 21 h de Brasília, inclusive o webhook do MP | real no grátis | o MP reenvia o aviso por um tempo; a reconciliação de 3 em 3 h recupera **se o cron rodar** (a doc não diz se o cron roda com a cota esgotada); Decisão 2 (a) troca a derrubada por custo (pequeno, cobrado por milhão de pedidos a mais), **sem teto de gasto** no Workers Paid; o `cpu_ms` do C2b limita cada pedido, não o total |
+| R1 | Entrega de direção acima de 10 ms de CPU | **medido** no Node (§ 3.1) | M2 confirma; Decisão do dono 2 respondida: grátis, (b) e depois (c) |
+| R2 | Cota de 100 mil pedidos/dia como ponto de derrubada barato: **no grátis nenhuma regra a protege**; com 10/10 s por IP (§ 7.1) são precisos 2 IPs. Quando acaba, `/api/*` responde 429 (ou erro 1027) até 21 h de Brasília, inclusive o webhook do MP | real no grátis | o MP reenvia o aviso por um tempo; a reconciliação de 3 em 3 h recupera **se o cron rodar** (a doc não diz se o cron roda com a cota esgotada); a Decisão 2 (a) trocaria a derrubada por custo (pequeno, cobrado por milhão de pedidos a mais), **sem teto de gasto** no Workers Paid, mas o dono ficou no grátis até a 1ª venda (21/10): **o risco fica aceito até lá**; o `cpu_ms` do C2b (parado) limitaria cada pedido, não o total |
 | R3 | Geração longa pela API (até 240 s) cancelada se o visitante fechar a aba | só com `BZ_DIRECOES=api` (lançamento é `manual`) | ensaio com chave real antes de ligar a API; PR próprio se travar |
 | R4 | O limite residual da barreira: um workflow que chegue ao repositório (por outra pessoa, outra ferramenta ou aprovação sem leitura) pode pedir `contents: write` e empurrar para `producao` | escrito (§ 5.3) | contra o agente enganado: a confirmação do dono (§ 5.5, P2). Para qualquer origem: só a Decisão 1 (c), GitHub Pro com ruleset. A antiga ideia de `versions upload` **não** fecha (o Build command roda com a chave de produção) |
 | R5 | Repositório privado grátis sem proteção de branch (ruleset exige GitHub pago) | real | o mesmo do R4; nunca trocar a branch de produção para `main` sem decisão escrita |
-| R6 | Links antigos `beyon0-site.vercel.app` | real | Decisão do dono 3 |
+| R6 | Links antigos `beyon0-site.vercel.app` | real | Decisão do dono 3 (21/10): apagar logo, sem redirecionamento; só depois de a captação trocar os links (P17) |
 | **R7** | **`Sb-Forwarded-For` indisponível no plano grátis do Supabase** (a doc não diz o plano) | **incerto** | conferir no P6 (a opção aparece em Authentication › Rate Limits?). Se não aparecer, o dono escolhe (P6): **(1) atrasar o corte** pelo plano B: criar o visitante anônimo **no navegador** (o IP real chega ao Supabase; o Turnstile continua na frente; muda a CSP do `/orcamento` para `connect-src` do Supabase, o desenho da sessão e a segurança): spec própria, estimativa **2–3 dias** com revisões; ou **(2) ir ao ar com o balde compartilhado** por um período, com o agente lendo os 429 do Auth no log a cada dia e o plano B em paralelo. Também incerto: se a chave secreta **isenta** do limite (a doc não diz); o ensaio de 3/h da M2 responde |
 | R8 | Diferenças do workerd não vistas no Node (`fetch` que falha com outro erro que `TypeError`; o `visitante.mjs:25` trata só `TypeError` como "rede") | coberto pela fumaça e pelo staging | B7 + o orçamento inteiro no staging |
 | R9 | Webhook de teste barrado pelo Access no staging | depende do ensaio (§ 5.4) | se não der Bypass por caminho no `workers.dev`, a reconciliação do staging cobre |
@@ -1917,22 +1951,24 @@ de hoje), `docs/testes/csp.test.mjs` (sem paridade com o `vercel.json`), `script
 | R13 | O PR 3b ("vender sozinho") traz envio de material com fotos (até 10 MB cada) | a spec (`site-pr3b/docs/specs/2026-10-21-pr3b-vender-sozinho.md`) já assume o grátis ("rotas leves; arquivo nunca passa pelo Worker"); **não cria rota**: põe **ações** novas em `/api/vendas` e no painel, e chamadas ao Storage na rotina diária; muda a CSP do `/orcamento` (`connect-src` do Storage, `img-src blob:`) | a M1 enumera `ACOES` e `ACOES_PAINEL` e falha sem caso de medida; a rotina diária tem orçamento de subpedidos (A8); a CSP nova entra no bloco `/orcamento` do `_headers` e, enquanto o `vercel.json` existir, nos dois juntos (teste de paridade do B4); a chave do cartão é a mesma `MP_METODOS` |
 | R14 | A 1ª chamada fria num isolado novo pesa (regex compiladas na hora) em **toda** rota com varredura ou `redigir` | medido só na entrega | a M1/M2 medem a 1ª chamada de cada rota |
 
-**Perguntas ao dono que não são decisão de arquitetura:** vai ter e-mail `@beyonzero.com.br`? (só acrescenta
-registros MX/SPF; hoje a zona diz "sem e-mail"). A conta Cloudflare de produção tem verificação em duas etapas? (o
+**Perguntas ao dono que não são decisão de arquitetura:** ~~vai ter e-mail `@beyonzero.com.br`?~~ respondida em
+21/10: **não, por agora** (o MX nulo, o SPF `-all` e o DMARC `p=reject` continuam; a zona segue "sem e-mail"). A conta
+Cloudflare de produção tem verificação em duas etapas? (o
 agente não confirmou.)
 
 ## 10. Ordem no tempo
 
 | Quando | Agente | Dono |
 |---|---|---|
-| Agora | nova revisão deste plano (agente diferente); depois PR A | P1; responder as Decisões 1 e 3 |
+| Agora | nova revisão deste plano (agente diferente); depois PR A | P1 (as Decisões 1, 2 e 3 já foram respondidas em 21/10) |
 | Depois do PR A | M1; PR B | P2 (guarda) |
 | Depois do PR B | guiar e conferir pelo navegador do dono | P3–P8 (conta das prévias, Supabase staging, MP teste) |
-| P8 | M2 + ensaios | Decisão 2 |
+| P8 | M2 + ensaios | (a Decisão 2 já está respondida; se uma rota não couber, o agente volta ao dono só com a (c)) |
 | Staging aprovado | PR C | P9–P14 |
 | Promoção | conferir produção, ler logs | P15 |
 | +1 dia | conferir as rotinas | — |
-| +1–2 semanas | PR D | P17 (Decisão 3) |
+| +1–2 semanas | PR D | — |
+| Corte conferido **e** captação com os links trocados | conferir que nenhum link antigo sobrou | P17 (apagar a Vercel logo, Decisão 3) |
 
 ## 11. Fontes (lidas em 21/10/2026)
 
