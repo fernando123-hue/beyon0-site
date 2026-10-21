@@ -1,9 +1,10 @@
 # PR 3b — o site vende sozinho (desenho, 2026-10-21, revisão 2)
 
 Desenho do PR 3b da sequência de `2026-10-11-orcamento-sem-ia.md` (§5 "Pagar sem medo" e "Entrega", item 3), refeito
-pelas decisões do dono de 20 e 21/10 em `../../../../01 Empresa/Decisões.md`. **Ainda não aprovado**: o resumo para o
-dono está em `.superpowers/sdd/pr3b-resumo-dono.md`, com as decisões que faltam (§11). Nada aqui é implementado antes
-do "sim" dele. Onde falta dado do dono, o texto fica `[…]` e não é publicado (spec de 11/10, §10).
+pelas decisões do dono de 20 e 21/10 em `../../../../01 Empresa/Decisões.md`. **As seis decisões que faltavam (D1 a
+D6, §11) foram respondidas pelo dono em 21/10** (linhas "3b D1" a "3b D6" de `Decisões.md`; o resumo para o dono,
+`.superpowers/sdd/pr3b-resumo-dono.md`, leva a marca de respondido). O que ainda é do dono e não veio: os dados que
+faltam (§11, no fim). Onde falta dado do dono, o texto fica `[…]` e não é publicado (spec de 11/10, §10).
 
 **Revisão 2 (mesmo dia).** Duas revisões independentes, ambas "aprovar com correções": a do site
 (`.superpowers/sdd/pr3b-desenho-revisao.md`) e a da captação (`captacao/docs/parte6/revisao-pr3b.md`, `e69ac14`). O
@@ -25,22 +26,26 @@ pago até a produção. Este PR fecha o caminho: entrada → material → prévi
 
 | # | Decisão (data, linha de `Decisões.md`) | O que muda aqui |
 |---|---|---|
-| 1 | O site vende sozinho; o dono só entra na ENTREGA (20/10, :25) | material, prévia, ajustes e restante acontecem na página. **(R2)** Continuam os dois toques do dono que já existem ou dependem da D1: marcar a confirmação do pedido pelo WhatsApp (como hoje, spec de 11/10 §3) e, se a D1 for (a), mandar avisos prontos |
+| 1 | O site vende sozinho; o dono só entra na ENTREGA (20/10, :25) | material, prévia, ajustes e restante acontecem na página. **(R2)** Continuam os dois toques do dono que já existem ou dependem da D1: marcar a confirmação do pedido pelo WhatsApp (como hoje, spec de 11/10 §3) e mandar os avisos prontos nos 2 momentos da D1 (prévia pronta, site no ar; resposta de 21/10) |
 | 2 | Material (textos, fotos, logo) enviado DENTRO do site, e o site entrega direto para a produção pelo Claude (20/10, :25) | formulário de material com envio de arquivos; pacote no formato da captação (§6) |
-| 3 | Passo 4: site no ar → cliente paga o restante, 60% (20/10, :25, "1 D - Sim") | entrada de 40%; tela do restante (§5). **(R2)** Só o 40/60 foi estendido ao orçamento; as outras regras do lançamento não (D4) |
+| 3 | Passo 4: site no ar → cliente paga o restante, 60% (20/10, :25, "1 D - Sim") | entrada de 40%; tela do restante (§5). **(R2)** O 40/60 foi estendido ao orçamento em 20/10; as outras regras do lançamento valem também desde 21/10 (D4, linha 10 desta tabela) |
 | 4 | Lançar SÓ com Pix, sem cartão (21/10, :14) | o cartão sai pela tarefa A7 do plano da Cloudflare (`MP_METODOS`), §4 |
 | 5 | Nome no Pix: "Fernando Ferreira Dos Santos"; outros bancos podem abreviar (21/10, :22) | frase fixa antes do código Pix (§4) |
 | 6 | Cloudflare Workers no plano GRÁTIS, 10 ms de CPU por pedido (21/10, :14) | rotas leves; arquivo nunca passa pelo Worker (§7, §9) |
 | 7 | Formulário de material pedido pela captação, parte 6 (`captacao/docs/parte6/para-o-site.md` §3) | mesmos campos, limites e formato de troca versão 1, mais o `pedido.json` que a captação pediu (§6) |
-| 8 | Ajustes "sem limite, dentro do que foi combinado no resumo" (11/10, :112 e :115) | **(R2)** é o que vale hoje para o orçamento; `rodadas_max` nulo = sem limite; muda só se o dono escolher na D2 |
+| 8 | ~~Ajustes "sem limite, dentro do que foi combinado no resumo" (11/10, :112 e :115)~~ **revista em 21/10 (D2): 2 listas de ajuste** | `rodadas_max` = 2 (o número da captação); o que passar das 2 listas é orçado à parte. Página ou item novo continua orçado à parte (11/10) |
 | 9 | Celular primeiro, sem blur, sem dado inventado (regras do projeto) | telas desenhadas em 390 px (§3); preço, prazo e textos de dono em `[…]` |
+| 10 | **D4 (21/10, "Sim, as mesmas")**: as regras do lançamento valem também para o orçamento, e aparecem na tela | prazo contado da entrada paga e do envio do material, parado enquanto se espera a lista de ajustes; 30 dias sem material, o site sai com as imagens do modelo; 10 dias sem o restante, o site sai do ar; atraso da Beyon devolve a entrada. A frase de prazo do contrato (`escopo.mjs:77`) e a do consultor (`consultor.mjs:92,96`) ficam |
+| 11 | **D6 (21/10)**: o orçamento segue a tabela normal e não conta as 10 vagas do lançamento | a captação passa a aceitar os valores da proposta (§6, §13) |
+| 12 | **D1, D5, D3 (21/10)** | tela + o dono avisa nos 2 momentos; prévia sem resposta nunca é aprovada sozinha, o projeto para; sem botão fixo de WhatsApp (§11) |
 
-**(R2) O que NÃO está decidido para o orçamento.** As regras de `/condicoes` (prazo contado da entrada e do material;
-"se o material não chegar em 30 dias, o site sai com as imagens do modelo"; restante não pago em 10 dias → o site sai
-do ar; "se eu não entregar no prazo combinado, devolvo a entrada inteira"; 2 rodadas) são da **oferta de lançamento**
-(`condicoes.html`: "O orçamento automático do site segue a tabela normal de preços"; Decisões.md :49, :55, :91). Para o
-orçamento elas viram a decisão D4 (§11). Até o "sim", o desenho guarda o lugar delas (estados, rotinas e alertas
-existem, desligados por ajuste) e as frases ficam `[…]`, fora da tela.
+**O que o dono decidiu em 21/10 sobre as regras do lançamento (D4).** As regras de `/condicoes` (prazo contado da
+entrada e do material; "se o material não chegar em 30 dias, o site sai com as imagens do modelo"; restante não pago
+em 10 dias → o site sai do ar; "se eu não entregar no prazo combinado, devolvo a entrada inteira"; 2 listas de
+ajuste) eram da **oferta de lançamento** (`condicoes.html`; Decisões.md :49, :55, :91). Em 21/10 ele respondeu que
+**valem as mesmas para o orçamento e que elas aparecem na tela** (D4, §11; ajustes: D2, 2 listas). O desenho deixa de
+guardar o lugar delas desligado: estados, alertas e frases entram com a parte que as cumpre (§13), e a data da tela é
+o compromisso "pronto até" (§2.1).
 
 Fatos técnicos que valem nos dois casos: desistência em 7 dias devolve a entrada inteira (CDC art. 49, é lei); a
 produção regrava toda imagem como WebP sem metadados (`captacao/entrega/imagens.mjs`).
@@ -84,7 +89,7 @@ dias para pedido nunca importado, 1.500 caracteres na lista de ajustes.
      "Mandar para mim" usa o compartilhamento do próprio aparelho (`navigator.share`) ou "Copiar"; **nunca** um
      `wa.me/?text=` ou outro `href` com o código (ele iria na query de um endereço de terceiro e nos registros dele).
   2. **"Continuar no computador"**, a pedido do cliente: o link de retomada do PR 2b-2 (uso único, 7 dias).
-  3. **Todo aviso da D1 (a) leva um link de retomada novo** (o do PR 2b-2: uso único, 7 dias), gerado pelo painel (que
+  3. **Todo aviso da D1 (os 2 momentos, resposta de 21/10) leva um link de retomada novo** (o do PR 2b-2: uso único, 7 dias), gerado pelo painel (que
      já gera: `api/painel.mjs`; hoje recusa depois do resumo). Não é o link do pedido: se a mensagem vazar, vale pouco
      e uma vez, e o link fixo que o cliente guardou continua valendo. O painel mostra a mensagem com "Copiar" e abre a
      conversa só com o número (`wa.me/<número>`, sem `?text=`); o dono cola. A retomada passa a valer em
@@ -104,32 +109,36 @@ da conversa (`privado.transicoes_conversa`, `20261008120100`).
 **`app.entregas`** (uma por proposta paga; criada por `pagamentos_aplicar` no mesmo passo que cria o projeto):
 `id`, `org_id`, `conversa_id` (único), `proposta_id` (único), `projeto_id`, `passo`, `prazo_dias` (copiado da
 proposta), `prazo` (jsonb: as datas que contam, §2.1), `entrega_ate` (data prevista, calculada no servidor),
-`rodadas_usadas`, `rodadas_max` (**(R2)** nulo = sem limite, o que vale hoje; um número só se a D2 mudar, e o mesmo
-da captação, `max_rodadas` em `captacao/config/entrega.json`), `previa_url`, `previa_em`, `site_url`, `no_ar_em`,
+`rodadas_usadas`, `rodadas_max` (**2**, decisão D2 de 21/10: 2 listas; é o mesmo número da captação, `max_rodadas` em
+`captacao/config/entrega.json`; nulo = sem limite fica só como valor que o banco aceita, sem uso no orçamento),
+`previa_url`, `previa_em`, `site_url`, `no_ar_em`,
 `created_at`, `updated_at`.
 
 | De → para | Quem | Quando |
 |---|---|---|
 | (nada) → `material` | `pagamentos_aplicar` (sinal pago) | a entrada caiu |
 | `material` → `producao` | `vendas_material_enviar` | o cliente enviou o material (mínimo: WhatsApp dos botões + caixa de autorização) |
-| `material` → `producao` | painel, `material_dispensar` | **(R2) só com a D4 (a)**: 30 dias sem material, sai com as imagens do modelo; exige o número dos botões já salvo no rascunho (bate com a captação) |
+| `material` → `producao` | painel, `material_dispensar` | **D4 (21/10)**: 30 dias sem material, sai com as imagens do modelo; exige o número dos botões já salvo no rascunho (bate com a captação) |
 | `producao` → `previa`, `ajustes` → `previa` | painel, `previa` (com o endereço) | a produção publicou uma versão de prévia |
-| `previa` → `ajustes` | `vendas_previa_ajustes` | o cliente mandou a lista (conta 1 rodada; recusa acima de `rodadas_max` quando ele não é nulo) |
+| `previa` → `ajustes` | `vendas_previa_ajustes` | o cliente mandou a lista (conta 1 rodada; recusa a 3ª lista: acima de `rodadas_max` = 2, D2) |
 | `previa` → `aprovada` | `vendas_previa_aprovar` | o cliente aprovou |
-| `previa` → `aprovada` | rotina diária, `previa_sem_resposta` | **(R2) só com a D5 (a)**: sem resposta até o dia `[M]` |
+| `previa` → `aprovada` | **ninguém além do cliente** | **D5 (21/10): não existe aprovação automática.** Sem resposta, o projeto PARA na prévia até o cliente responder; nenhuma rotina, prazo ou `previa_sem_resposta` aprova por ele |
 | `aprovada` → `no_ar` | painel, `no_ar` (com o endereço e o código sorteado) | **o dono publicou**: abre o Pix do restante |
-| `no_ar` → `suspensa` | painel, `suspender` | **(R2) só com a D4 (a)**: 10 dias sem o restante; o site sai do ar (o dono tira, pela captação) |
+| `no_ar` → `suspensa` | painel, `suspender` | **D4 (21/10)**: 10 dias sem o restante; o site sai do ar (o dono tira, pela captação) |
 | `no_ar` ou `suspensa` → `concluida` | `pagamentos_aplicar` (saldo pago) | o restante caiu; conversa `em_producao → encerrada`; projeto `entregue` |
-| qualquer um, menos `concluida` → `encerrada` | painel, `encerrar` (motivo de lista fechada) | desistência, ou fim por regra que o dono aprovar (D4, D5) |
+| qualquer um, menos `concluida` → `encerrada` | painel, `encerrar` (motivo de lista fechada) | desistência, atraso da Beyon com a devolução da entrada (D4), ou outro fim que o dono decidir à mão; **nunca por silêncio do cliente na prévia (D5)** |
 
-- As regras que dependem de D4 e D5 ficam atrás de ajustes versionados (`BZ_REGRAS_ENTREGA`, padrão: nenhuma); o
-  teste confere que, desligadas, nenhuma transição automática acontece e nenhuma frase delas aparece na tela.
+- **D4 e D5 (21/10): sem ajuste que desliga regra** (o `BZ_REGRAS_ENTREGA` do desenho anterior sai). As ações da D4
+  (`material_dispensar`, `suspender`, a devolução no atraso) são do painel, com alerta da rotina diária quando o prazo
+  vence; **nenhuma transição automática de `previa`** (D5). O teste confere que, em `previa`, o passo só sai por ação
+  do cliente (`vendas_previa_ajustes`, `vendas_previa_aprovar`) ou pelo `encerrar` do painel, por mais dias que passem.
 - Ordem de travas, a mesma do PR 3a, estendida: direções por id → conversa → **entrega** → material e arquivos.
 - Códigos de erro, os mesmos: P0002, 55000 (passo), 22023 (dado), 23514 (limite), 40001 (corrida: `passo_base` ou
   `rodada_base` que não bate com o que está gravado), 42501.
 - Eventos novos no funil: `material_salvo` (só a 1ª vez), `material_arquivo`, `material_recusado`,
   `material_enviado`, `material_importado`, `material_limpo`, `previa_pronta`, `previa_ajustes`, `previa_aprovada`,
-  `site_no_ar`, `restante_iniciado`, `restante_pago`, `entrega_suspensa`, `entrega_encerrada`, `prazo_vencido`.
+  `site_no_ar`, `restante_iniciado`, `restante_pago`, `entrega_suspensa`, `entrega_encerrada`, `prazo_vencido`
+  (sem `previa_sem_resposta`: D5).
   Nenhum leva texto do cliente.
 
 **`app.materiais`** (um por entrega): `dados` (jsonb, a lista fechada da captação, §6), `autorizacao` (texto exato da
@@ -156,17 +165,18 @@ chamada só.
 
 A captação calcula `prazo.entregar_ate` com regras que o site não tinha: o prazo só corre com o número dos botões
 autorizado (`numero_em`) e a entrada paga; para enquanto espera a lista de ajustes (por rodada); e conta os dias no
-fuso `America/Campo_Grande` (-04:00). Duas contas diferentes dariam um dia de diferença perto da meia-noite. **(R2,
-rodada 2)** Essas regras (inclusive a pausa) são do lançamento: para o orçamento, a conta interna segue a da captação
-só para a previsão bater com a produção; nenhuma delas aparece na tela como compromisso antes da D4 (a). Por isso:
+fuso `America/Campo_Grande` (-04:00). Duas contas diferentes dariam um dia de diferença perto da meia-noite. **(D4,
+21/10)** Essas regras (inclusive a pausa) são do lançamento e o dono disse que valem também para o orçamento: a conta
+do site é a da captação, e a tela mostra a regra e a data como compromisso. Por isso:
 - o site usa a **mesma regra**, com os **mesmos casos de teste** (uma cópia fixa dos casos da captação, com teste de
   igualdade, como o `CPF_CNPJ`), e guarda em `entregas.prazo` as datas que contam (`entrada_em`, `numero_em`, pausas);
 - a tela diz "previsão" até a produção confirmar; quando o painel recebe `previa` (ou um `prazo` da rotina), a data
   da captação passa a ser a mostrada;
 - `enviado_em` e as datas do pacote vão em -04:00, o fuso da captação.
-- **Só com a D4 (a)** a data vira compromisso na tela ("pronto até"); sem ela, "previsão".
-- A rotina diária avisa no painel quando `entrega_ate` passa sem prévia (`prazo_vencido`): com a D4 (a), atraso vira
-  devolução da entrada.
+- **Pela D4**, a data é compromisso na tela ("pronto até"); "previsão" fica só para o tempo entre o envio do material e
+  a primeira data confirmada pela produção.
+- A rotina diária avisa no painel quando `entrega_ate` passa sem prévia (`prazo_vencido`); pela D4, atraso da Beyon
+  vira devolução da entrada.
 
 ## 3. As telas (celular primeiro, 390 px)
 
@@ -242,15 +252,17 @@ Depois de enviar: "Recebido. Previsão do seu site: [data]. Você vê a prévia 
 **Passo 3, prévia.** "Sua prévia está pronta" e "Ver a prévia" (abre em outra aba, `rel="noopener noreferrer"`, link
 montado pelo código a partir do endereço conferido no servidor). Dois caminhos:
 - "Está bom: aprovar" → `<dialog>` "Depois de aprovar, o próximo passo é pôr o site no ar." → aprovado.
-- "Quero ajustes" → um campo só, "Escreva tudo de uma vez" (com `rodadas_max` definido, acrescenta "esta é a rodada
-  1 de [N]"), até 1.500 caracteres, com o aviso de dados pessoais. A frase "Enquanto espero a sua lista de ajustes, o
-  prazo fica parado" **só entra com a D4 (a)** (a pausa é regra do lançamento, §2.1; rodada 2). Depois de mandar:
-  "Recebido. A nova prévia aparece aqui."
-- Com a D5 (a), uma linha a mais: "Se não tivermos resposta até [data], a prévia conta como aprovada." (`[…]` até lá).
+- "Quero ajustes" → um campo só, "Escreva tudo de uma vez", com "esta é a lista 1 de 2" (ou "2 de 2"; D2: 2 listas, o
+  que passar disso é orçado à parte, e na 2ª lista a tela avisa que é a última), até 1.500 caracteres, com o aviso de
+  dados pessoais. A frase "Enquanto espero a sua lista de ajustes, o prazo fica parado" **entra** (D4: a pausa é regra
+  do lançamento, §2.1). Depois de mandar: "Recebido. A nova prévia aparece aqui."
+- **Sem resposta, o projeto para (D5).** A tela não diz "conta como aprovada" nem põe data de aprovação automática:
+  diz só "Seu site só segue depois da sua resposta." O pedido fica na prévia até o cliente aprovar, mandar a lista
+  ou desistir. Lembrete ao cliente não foi decidido e não existe.
 
 **Passo 4, no ar e o restante.** "Seu site está no ar: [endereço]" e "Abrir o site"; logo abaixo, o Pix do restante,
 no mesmo componente da entrada (§4). A frase "Se o restante não for pago em até 10 dias depois de o site ir ao ar, o
-site sai do ar até o pagamento" só aparece com a D4 (a). Pago: recibo final com as duas partes ✓ e "Pedido concluído".
+site sai do ar até o pagamento" aparece (D4). Pago: recibo final com as duas partes ✓ e "Pedido concluído".
 
 ## 4. Só Pix e "pagar sem medo" (o que sobra do 3b original)
 
@@ -290,9 +302,9 @@ de `configPublica(cfg).metodos` para desenhar a tela sem o seletor. O código do
 | Pergunta | Resposta (texto) | Quando entra |
 |---|---|---|
 | Quando pago o restante? | "Quando o site estiver no ar: os outros [100 − pct]%, por Pix, nesta mesma página." | com o 3b-3 |
-| Posso desistir? | "Até 7 dias depois de aceitar (confirmar o resumo), por qualquer motivo, você recebe a entrada de volta (Código de Defesa do Consumidor, art. 49). Depois dos 7 dias, a entrada fica com a Beyon Zero." (decisão de 11/10, Decisões.md :112, já vale para o orçamento; rodada 2) + a devolução se a Beyon atrasar: `[…]` (D4) | 3b-1 (os 7 dias e a entrada que fica); a devolução no atraso com a D4 |
-| Quando fica pronto? | "Em até [prazo_dias] dias, contados [regra da D4]." | com a D4 |
-| Quantos ajustes? | "Quantos precisar, dentro do que está no resumo" (decisão de 11/10) ou o número da D2 | 3b-1 |
+| Posso desistir? | "Até 7 dias depois de aceitar (confirmar o resumo), por qualquer motivo, você recebe a entrada de volta (Código de Defesa do Consumidor, art. 49). Depois dos 7 dias, a entrada fica com a Beyon Zero." (decisão de 11/10, Decisões.md :112, já vale para o orçamento; rodada 2) + "Se a Beyon Zero não entregar no prazo combinado, você recebe a entrada inteira de volta, mesmo depois dos 7 dias." (D4, 21/10) | 3b-1 (os 7 dias, a entrada que fica e a devolução no atraso) |
+| Quando fica pronto? | "O prazo está no resumo do seu pedido, em dias corridos, contados do pagamento da entrada e do envio do seu material. Se o material não chegar em 30 dias, o site sai com as imagens do modelo." (D4, 21/10; texto de `/condicoes`) | 3b-1 |
+| Quantos ajustes? | "Duas listas de ajuste na prévia. O que passar disso é orçado à parte." (D2, 21/10; revê a decisão de 11/10) | 3b-1 |
 | O que eu recebo? | o site no ar no seu endereço; domínio e hospedagem: `[…]` (DADO DO DONO, spec de 11/10 §10.2) | com o dado |
 | Nota fiscal? | `[…]` (hoje opera no CPF; a frase de `/condicoes` vale só para o lançamento até o dono dizer) | com o dado |
 | Como mando fotos e textos? | "Aqui mesmo, depois da entrada. Não precisa mandar nada pelo WhatsApp." | com o 3b-2 |
@@ -321,8 +333,9 @@ o valor-reserva do servidor (`coalesce(pr.sinal_percentual, 50)` em `20261007130
   entrega `concluida`, conversa `encerrada` (transição nova), projeto `entregue`, evento `restante_pago`. Se a
   entrega estava `suspensa`, o painel mostra "religar o site" (quem religa é a produção, na captação).
 - Estorno ou contestação do saldo: as regras de hoje (fail closed, alerta no painel); a entrega não volta sozinha.
-- **Com a D4 (a)**, a rotina diária marca no painel quem está há 10 dias em `no_ar` sem o saldo ("suspender") e os 2
-  lembretes em 10 dias da regra da captação (os mesmos dias que ela usar), pelo canal da D1.
+- **Pela D4**, a rotina diária marca no painel quem está há 10 dias em `no_ar` sem o saldo ("suspender") e os 2
+  lembretes em 10 dias da regra da captação (os mesmos dias que ela usar). Pela D1, o cliente vê os lembretes só na
+  tela (o dono não manda lembrete; ele só avisa nos 2 momentos "prévia pronta" e "site no ar").
 - **(R2) Desistência em dois lugares.** O estorno no Mercado Pago e o `encerrar` são do painel do site; `desistiu` e
   `devolucao` são da captação. Até a rotina fazer a ponte, o passo a passo do dono (no `scripts/entregas.mjs encerrar`)
   lembra das duas marcações.
@@ -380,7 +393,8 @@ ao salvar e o pacote inteiro ao enviar, com as mesmas funções; a captação va
 **(R2) Preço e vagas: duas fontes hoje (I2 da captação).** A captação grava os valores do lançamento
 (`config/oferta.json`) e `registrarEntrada` recusa valor diferente; ela também conta as 10 vagas só com os clientes
 dela. Uma venda do orçamento por outro valor, ou depois de 10 vagas vendidas, seria recusada na importação **depois**
-de o cliente pagar. É a decisão D6 (§11): uma fonte só. Até ela, o 3b não vai ao ar para cliente real.
+de o cliente pagar. **D6 (21/10): o orçamento segue a tabela normal e não conta as 10 vagas**; a captação passa a
+aceitar os valores da proposta (pedido separado, §13). O 3b não vai ao ar para cliente real antes de ela aceitar.
 
 **Quem leva o pacote até a produção.** A produção roda na máquina do dono (Claude Code), como a captação. O site não
 "empurra" nada para o PC; o PC busca:
@@ -399,7 +413,8 @@ de o cliente pagar. É a decisão D6 (§11): uma fonte só. Até ela, o 3b não 
   <pasta>` (lê `pedido.json` e `formulario.json`, cria o cliente, grava aceite e entrada, importa o material;
   idempotente pelo código BZ) e o laço agendado `baixar` → `importar-site` → `importado` → `montar` → `checklist` →
   `enviar-versao` → revisão por outro agente → `previa`. Ela começa depois que este desenho fixar o `pedido.json` e o
-  dono decidir a D6. Depende também da `PAINEL_CHAVE` no PC (no Infisical, com o sim do dono, nunca no repositório).
+  dono decidir a D6 (decidida em 21/10: tabela normal; falta só a captação aceitar os valores). Depende também da
+  `PAINEL_CHAVE` no PC (no Infisical, com o sim do dono, nunca no repositório).
 - **(R2) Até a rotina existir, o passo é manual:** por pedido, o dono roda `baixar`, a importação na captação (com os
   dados do `pedido.json`), `importado` e, quando a versão estiver boa, `previa`; a revisão da prévia é dele. O
   `listar` mostra para cada pedido o próximo comando, pronto para copiar.
@@ -604,51 +619,38 @@ Na lista de terceiros: "Supabase (banco de dados das métricas e do orçamento, 
 quem contrata**)" e, na Anthropic, "o material do site de quem contrata, que o agente que monta o site lê". A seção
 "Se você contratou um site" é a da captação (`para-o-site.md` §2), publicada junto.
 
-## 11. Decisões do dono (da mais urgente para a menos urgente)
+## 11. Decisões do dono (respondidas em 21/10)
 
-Cada uma diz o que vale hoje e o que fica se ele não responder. Nenhuma bloqueia o código; bloqueiam textos e o
-"ir ao ar para cliente real".
+As seis foram respondidas pelo dono em 21/10 (`Decisões.md`, linhas "3b D1" a "3b D6"; as perguntas e as opções
+originais estão no resumo `.superpowers/sdd/pr3b-resumo-dono.md`). Abaixo, a resposta e o que ela muda no desenho.
 
-- **D6. Uma fonte só para preço e vagas (I2 da captação).** Hoje: `/condicoes` diz que o orçamento segue a tabela
-  normal, e a captação só aceita os valores e as 10 vagas do lançamento. (a) O orçamento continua com a tabela
-  normal; a captação aceita os valores da proposta para cliente vindo do site, e essas vendas não contam as 10 vagas
-  do lançamento; (b) o site vende só pelos valores do lançamento e confere as vagas antes do Pix. **Recomendação:
-  (a)**, porque é o que `/condicoes` já diz e não muda o preço que o cliente viu. Mudança de código na captação.
-  **Sem resposta:** o 3b não vai ao ar para cliente real (o risco é cobrar e a produção recusar depois).
-- **D4. As regras do lançamento valem para o orçamento? (A1)** Hoje: não estão decididas para o orçamento. Quais são:
-  prazo contado da entrada e do material, parado enquanto se espera a lista de ajustes; 30 dias sem material → sai
-  com as imagens do modelo; 10 dias sem o restante → o site sai do ar; se a Beyon atrasar, devolve a entrada. (a) Sim,
-  as mesmas; (b) regras próprias (o dono diz quais). **Recomendação: (a)**: uma regra para todos, a mesma esteira, e
-  inclui a proteção do cliente (devolução no atraso). **Sem resposta:** essas frases não aparecem na tela, as rotinas
-  ficam desligadas (§2) e a data é só "previsão"; o 3b não vai ao ar para cliente real sem a regra de prazo. ("Depois
-  dos 7 dias, a entrada fica" não entra aqui: já é decisão de 11/10 para o orçamento, Decisões.md :112; rodada 2.)
-- **D1. Quem avisa o cliente** (prévia pronta, site no ar, lembretes). (a) O dono toca "avisar" no painel: o painel
-  mostra a mensagem pronta com um link de retomada novo (uso único, 7 dias; §1, item 3) e "Copiar", e abre a conversa
-  só com o número, sem o texto na URL; o dono cola e envia. É **uma exceção pequena à regra de 20/10**: ele manda o aviso,
-  não conversa (estimativa: uns 3 toques por cliente); (b) e-mail automático: exige pedir o e-mail de novo (o
-  formulário de hoje não pede), um serviço de envio, mexer no DNS do `beyonzero.com.br` (que hoje recusa e-mail de
-  propósito) e mais uma empresa na privacidade; (d) **só a tela**: a data prevista com "Pôr na minha agenda" (arquivo
-  de calendário feito no aparelho) e o link do pedido guardado pelo cliente (§1). A antiga (c) "só a página, sem link
-  guardado" sai: no iPhone o cliente perderia o pedido. **Recomendação: (d) sempre e (a) só para "prévia pronta" e
-  "site no ar"**, porque são os dois momentos em que, sem aviso, o pedido para; os lembretes ficam na tela.
-  **Sem resposta:** fica (d) (nenhum contato antes da entrega, como diz a regra de 20/10).
-- **D5. Prévia sem resposta (C3).** Hoje: sem regra; o pedido pode ficar parado para sempre com a entrada paga e o
-  restante nunca cobrado. (a) Lembrete no dia `[N]`; sem resposta até o dia `[M]`, a prévia conta como aprovada e o
-  site vai ao ar (o restante passa a valer); (b) fica parado até o cliente responder; (c) encerra como desistência
-  depois de `[M]` dias. **Recomendação: (a)**, com a frase na tela desde a prévia, porque o cliente sabe o que vai
-  acontecer e o trabalho feito não fica sem pagamento. Os dias são do dono (sugestão do agente, só para começar a
-  conversa: 5 e 15). **Sem resposta:** fica (b), com alerta diário no painel.
-- **D2. Ajustes na prévia (A2).** Hoje vale a decisão de 11/10: ajustes sem limite, dentro do que foi combinado no
-  resumo. Pergunta: manter, ou mudar para 2 listas (como na oferta de lançamento)? Se mantiver: cada lista ainda vai de
-  uma vez e o prazo para enquanto ela não chega; o risco é o pedido não terminar nunca (a D5 ajuda). Se mudar: o prazo
-  fica previsível; ajuste além das 2 listas é orçado à parte. **Recomendação: mudar para 2**, porque a esteira da
-  captação já trabalha com 2 (`max_rodadas`) e o cliente do orçamento já ajustou o modelo antes de pagar (PR 3a).
-  **Sem resposta:** fica como está (sem limite); nesse caso a captação precisa aceitar sem limite para cliente do site.
-- **D3. O botão fixo de WhatsApp** que a spec de 11/10 (§5) previa em todas as etapas (era recomendação da análise,
-  não decisão do dono). (a) Tirar: WhatsApp só em "Outra dúvida?" no fim das perguntas antes de pagar, em "Para
-  desistir" e em "Problema com o pagamento"; (b) manter o botão fixo. **Recomendação: (a)**, porque o botão fixo
-  convida a conversa que a decisão de 20/10 quer evitar, e as dúvidas comuns já têm resposta escrita. **Sem
-  resposta:** fica (a), porque o botão fixo ainda não existe.
+- **D6. Preço e vagas (I2 da captação).** **Resposta: o orçamento segue a TABELA NORMAL e não conta as 10 vagas do
+  lançamento** (como `/condicoes` já diz); a captação passa a aceitar os valores da proposta para cliente vindo do
+  site. Muda: mudança de código na captação (pedido separado, §13). O 3b não vai ao ar para cliente real antes de ela
+  aceitar (o risco é cobrar e a produção recusar depois).
+- **D4. Regras do lançamento no orçamento (A1).** **Resposta: valem as mesmas, e aparecem na tela.** São: prazo contado
+  da entrada paga e do envio do material, parado enquanto se espera a lista de ajustes; 30 dias sem material, o site
+  sai com as imagens do modelo; 10 dias sem o restante, o site sai do ar; se a Beyon atrasar, devolve a entrada
+  inteira. Muda: as frases entram na tela (as de prazo e devolução já no 3b-1; as de material e restante com o 3b-2 e
+  o 3b-3); a data vira compromisso ("pronto até", §2.1); `material_dispensar`, `suspender` e a devolução no atraso são
+  ações do painel (§2); a frase de prazo do contrato (`escopo.mjs:77`) e a do consultor (`consultor.mjs:92,96`)
+  FICAM. ("Depois dos 7 dias, a entrada fica" não é D4: é a decisão de 11/10, Decisões.md :112.)
+- **D1. Quem avisa o cliente.** **Resposta: a tela mostra sempre o andamento, e o dono avisa nos 2 momentos (prévia
+  pronta e site no ar)**, com a mensagem pronta do painel e o link de uso único (§1, item 3; o painel abre a conversa
+  só com o número, sem o texto na URL; o dono cola e envia). É a exceção pequena à regra de 20/10 (estimativa: uns 3
+  toques por cliente). A tela traz a data prevista com "Pôr na minha agenda" (arquivo de calendário feito no aparelho)
+  e o link do pedido guardado pelo cliente (§1). Lembretes ficam só na tela; e-mail automático fica fora.
+- **D5. Prévia sem resposta (C3).** **Resposta: nunca é aprovada sozinha; o projeto PARA até o cliente responder.**
+  Muda: não existe transição automática de `previa` (§2), nem prazo de aprovação automática, nem a frase "conta como
+  aprovada" (§3). Lembrete automático ao cliente não foi decidido. Consequência (apontada pelo agente): um
+  pedido com a entrada paga pode ficar parado na prévia sem limite de tempo e o restante não é cobrado. (Proposta do
+  agente, sem decisão do dono: o painel mostrar ao dono, só em lista, os pedidos parados na prévia, sem mensagem ao
+  cliente.)
+- **D2. Ajustes na prévia (A2).** **Resposta: 2 listas de ajuste; o que passar disso é orçado à parte.** Revê a
+  decisão de 11/10 ("sem limite") para o orçamento. Muda: `rodadas_max` = 2, o mesmo número da captação
+  (`max_rodadas`); a captação não precisa aceitar rodadas sem limite; a pergunta "Quantos ajustes?" responde 2 listas.
+- **D3. O botão fixo de WhatsApp.** **Resposta: não; WhatsApp só em "Outra dúvida?", em "Para desistir" e em "Problema
+  com o pagamento".** Muda: nada de botão fixo nas etapas (3b-1).
 
 **Tarefas que só o dono faz:**
 1. Aprovar o texto da privacidade (§10), inclusive os prazos de guarda e a troca do "90 dias".
@@ -680,9 +682,10 @@ fiscal no orçamento, os dados do vendedor no rodapé.
 - `scripts/entregas.mjs` (o lado do dono, §6).
 
 **Testes** (`node:test`, PGlite com as migrations reais, como o resto):
-- banco: cada transição permitida e cada uma recusada; passo exigido em cada função; transições de D4/D5 desligadas
-  por padrão; cotas (21ª foto, 31ª reserva, 151 MB, teto do balde pelo tamanho real); `conferir` fora de `reservado`
-  recusado; corrida (`passo_base`, `rodada_base`); `rodadas_max` nulo sem limite e com número; saldo só em
+- banco: cada transição permitida e cada uma recusada; passo exigido em cada função; **`previa` nunca sai por rotina
+  nem por passar o tempo (D5)**: só por ação do cliente ou pelo `encerrar` do painel; cotas (21ª foto, 31ª reserva,
+  151 MB, teto do balde pelo tamanho real); `conferir` fora de `reservado` recusado; corrida (`passo_base`,
+  `rodada_base`); `rodadas_max` = 2 (a 3ª lista é recusada, D2); saldo só em
   `no_ar`/`suspensa` e com o valor exato `total − sinal`; proposta sem percentual não cobra; saldo pago conclui e
   encerra; limpeza nos prazos da §10 e só depois de `importado`; ordem de travas; link do pedido continua valendo depois de usado e só morre em "Gerar um link novo", "Sair deste
   aparelho" ou no fim; reserva com 1 h sobrevive à reconciliação e com 25 h some; nenhum `href` com o código do link
@@ -690,8 +693,9 @@ fiscal no orçamento, os dados do vendedor no rodapé.
 - API: sessão de outro visitante recusada em toda ação; corpo acima de 16 KB recusado; cartão recusado com
   `MP_METODOS` ausente (o teste é o da A7); endereço de prévia fora da `URL_PREVIA` ou de outro projeto recusado;
   nenhum log com link assinado;
-- tela: percentuais vindos da proposta (uma a 40 e uma a 50); nenhuma frase de D4/D5 ou de partes que ainda não
-  existem; a frase "rodada 1 de [N]" só com `rodadas_max`;
+- tela: percentuais vindos da proposta (uma a 40 e uma a 50); nenhuma frase de parte que ainda não existe, nem
+  "conta como aprovada" (D5), nem "quantos precisar" (D2); as frases da D4 (prazo, 30 dias, 10 dias, devolução) só
+  na parte que as cumpre; "esta é a lista 1 de 2";
 - material: o pacote passa no `lerFormulario` da captação (cópia fixa de um envio de exemplo); lista vazia nunca sai
   como `[]`; campo fora da lista nunca sai; CPF/CNPJ recusado; depoimentos e `fotos_com_pessoas` só com "sim";
   `pedido.json` com todos os campos que o `novo --origem site` exige; mapa de ramos;
@@ -712,19 +716,22 @@ fiscal no orçamento, os dados do vendedor no rodapé.
 **Três PRs, nesta ordem** (cada um com revisão técnica e de segurança por agentes diferentes do autor,
 `docs/PROCESSO.md`):
 1. **PR 3b-1 — Pix e pagar sem medo:** a tela do Pix na ordem nova com o nome do banco, as perguntas antes de pagar
-   (só as que já são verdade, §4), os percentuais da proposta e a falha fechada no lugar do 50, o rascunho a 40, D3.
+   (só as que já são verdade, §4, inclusive "Quando fica pronto?", "Quantos ajustes?" e a devolução no atraso, D4 e
+   D2), os percentuais da proposta e a falha fechada no lugar do 50, o rascunho a 40, D3.
    Usa o `MP_METODOS` da A7 do plano da Cloudflare.
 2. **PR 3b-2 — o material:** entrega no banco (passos `material` e `producao`), o acompanhamento, os links do pedido,
    o formulário, o envio de arquivos, limpeza e reconciliação, `scripts/entregas.mjs listar|baixar|importado`, os
    passos antes de pagar, a privacidade.
 3. **PR 3b-3 — prévia, no ar e o restante:** passos `previa` a `concluida`, o saldo, os comandos que faltam, os
-   avisos da D1, as regras de D4/D5 atrás do ajuste, o E2E inteiro.
+   avisos da D1, as regras da D4 (prazo parado, 10 dias sem o restante), a prévia que para sem resposta (D5), o E2E
+   inteiro.
 
 **(R2) Mesclar não é ir ao ar.** Cada PR pode ser mesclado na `main` sozinho (o só Pix, pré-requisito do grátis da
 Cloudflare, vem da A7 do PR A). Ir ao ar **para cliente real** só com 3b-1 + 3b-2 + 3b-3 juntos, já na Cloudflare (a Vercel Hobby não
-permite uso comercial, Decisões.md :19), com D6 e D4 respondidas e o caminho do material até a produção funcionando
-(a rotina da captação, ou o passo manual aceito pelo dono). O 3b-2 no ar sem o 3b-3 deixaria o cliente sem como
-aprovar e pagar o restante.
+permite uso comercial, Decisões.md :19), com a captação já aceitando os valores da tabela normal (D6, respondida em
+21/10) e o caminho do material até a produção funcionando (a rotina da captação, ou o passo manual aceito pelo dono).
+A D4 está respondida e as regras dela estão na tela. O 3b-2 no ar sem o 3b-3 deixaria o cliente sem como aprovar e
+pagar o restante.
 
 **O que depende do plano da Cloudflare** (`docs/superpowers/plans/2026-10-21-migracao-cloudflare.md`, em reescrita
 por outra sessão; este desenho não o altera):
@@ -737,23 +744,25 @@ por outra sessão; este desenho não o altera):
 - os testes reais do Storage (`Range`, `apikey`) que ficaram `[conferir no plano]` (§7).
 
 **O que depende da captação** (pedido separado, aceito por ela na revisão, §5 dela): `importar-site`, a rotina
-agendada, aceitar valores da proposta (D6 a) e, se a D2 ficar sem limite, aceitar rodadas sem limite para cliente do
-site; e, no futuro, uma versão 2 do formato com o campo `sobre`.
+agendada, aceitar valores da proposta sem contar as 10 vagas (D6, 21/10); com a D2 em 2 listas, ela não precisa
+aceitar rodadas sem limite; e, no futuro, uma versão 2 do formato com o campo `sobre`.
 
 **Fora deste PR:**
-- e-mail automático (só se a D1 for "b");
+- e-mail automático (a D1 de 21/10 não o escolheu; o domínio segue sem e-mail, Decisões.md de 21/10);
 - cartão, parcelamento no cartão e nota fiscal;
-- uma tela de entregas no painel (neste PR o dono usa o comando, como no 3a); só os avisos da D1 (a) entram na tela,
+- uma tela de entregas no painel (neste PR o dono usa o comando, como no 3a); só os avisos da D1 (os 2 momentos) entram na tela,
   na lista de lembretes que o painel já tem;
 - produção de loja e sob medida (sem esteira na captação: "produção manual");
 - a revisão de linguagem de todo o site (PR 4).
 
 ## 14. Riscos
 
-- **Cobrar e a produção recusar depois** (D6, saúde, formato sem esteira): o 3b não vai ao ar para cliente real sem
-  a D6; saúde e formatos sem esteira geram alerta no painel e passam a produção manual.
+- **Cobrar e a produção recusar depois** (D6, saúde, formato sem esteira): o 3b não vai ao ar para cliente real
+  antes de a captação aceitar os valores da tabela normal (D6); saúde e formatos sem esteira geram alerta no painel e
+  passam a produção manual.
 - **Cliente perde o pedido no iPhone:** três caminhos de volta (§1) e o E2E de armazenamento apagado.
-- **Pedido parado para sempre** (prévia sem resposta, ajustes sem limite): D5 e D2.
+- **Pedido parado na prévia sem limite de tempo** (D5: nada é aprovado sozinho; o restante só é cobrado depois da
+  aprovação): consequência da D5, apontada pelo agente; os ajustes têm teto de 2 listas (D2).
 - **Cota grátis do Supabase:** teto pelo tamanho real, alarme em 70%, saída da nuvem 7 dias depois da importação.
 - **Passo manual até a rotina da captação:** o dono roda alguns comandos por pedido (o `listar` mostra o próximo).
 - **Duas contas de prazo:** uma regra só, casos de teste em comum (§2.1).
@@ -762,7 +771,7 @@ site; e, no futuro, uma versão 2 do formato com o campo `sobre`.
 
 | Achado | Origem | Onde foi tratado |
 |---|---|---|
-| A1 regras do lançamento tratadas como "em vigor" | site | "O que NÃO está decidido"; D4 (§11); regras atrás de ajuste (§2); telas (§3, §4) |
+| A1 regras do lançamento tratadas como "em vigor" | site | D4 respondida em 21/10: valem e aparecem (§11, §2, §3, §4) |
 | A2 D2 enviesada | site | decisão 8 da tabela inicial; `rodadas_max` nulo (§2); D2 reescrita com o que vale hoje (§11) |
 | A3 D1 (a) é contato do dono | site | D1 diz "exceção pequena"; nova (d) só a tela; e-mail exige pedir de novo (§11) |
 | A4 sessão apagada no iPhone | site | três caminhos de volta (§1); `app.links_pedido` (§2); E2E (§12); (c) retirada (§11) |
@@ -780,7 +789,7 @@ site; e, no futuro, uma versão 2 do formato com o campo `sobre`.
 | `[conferir]` `Range` e validade do link | site | `Range` com teste real no plano; link 2 h sem uso único (§7) |
 | C1 40% escrito à mão e 50 de reserva | site | §3 e §4 (percentuais da proposta, falha fechada, rascunho a 40); testes (§12) |
 | C2 duas chaves para "só Pix" | site | `MP_METODOS` da A7 (§4, §13) |
-| C3 prévia sem resposta | site | D5 (§11); transição atrás de ajuste (§2); tela (§3) |
+| C3 prévia sem resposta | site | D5 respondida em 21/10: o projeto para, sem transição automática (§11, §2, §3) |
 | C4 prazo vencido sem alerta | site | `prazo_vencido` (§2, §2.1) |
 | C5 o que vai ao ar junto | site | §13 |
 | Dados: limites são escolha do agente; "3 toques" | site | parágrafo "Números deste desenho…" (início); "estimativa" na D1 |
@@ -794,9 +803,9 @@ site; e, no futuro, uma versão 2 do formato com o campo `sobre`.
 | `max_rodadas` | captação | `rodadas_max` = o mesmo número (§2); D2 (§11) |
 | `textos.json`/`sobre` | captação | tirado do v1; versão 2 futura (§2, §13) |
 | Desistência em dois lugares | captação | §5 |
-| `material_dispensar` | captação | mantido, atrás da D4 (§2) |
+| `material_dispensar` | captação | mantido; D4 respondida em 21/10, vale (§2) |
 | R2-1 link do pedido trocava a cada uso | site, rodada 2 | link fixo durante o pedido; troca só em "Gerar um link novo" ou "Sair deste aparelho" (§1, §2 `app.links_pedido`, §8); teste (§12) |
 | R2-2 reconciliação apagava envio em andamento | site, rodada 2 | poupa `reservado` com menos de 24 h; lista pelo banco (§7, §10); teste 1 h × 25 h (§12) |
-| R2-3 pausa do prazo e "entrada fica" | site, rodada 2 | pausa só com a D4 (a) (§2.1, §3, D4); "depois dos 7 dias, a entrada fica" saiu da D4 e vai no 3b-1 (§4, decisão de 11/10) |
+| R2-3 pausa do prazo e "entrada fica" | site, rodada 2 | pausa do prazo vale pela D4 de 21/10 (§2.1, §3); "depois dos 7 dias, a entrada fica" saiu da D4 e vai no 3b-1 (§4, decisão de 11/10) |
 | R2-4 código do link em `wa.me/?text=`; qual link no aviso | site, rodada 2 | "Mandar para mim" por `navigator.share` ou "Copiar" (§1, §3); aviso da D1 (a) com retomada de uso único e 7 dias, colado pelo dono, sem `?text=` (§1, D1); teste (§12) |
 | R2-5 resumo esconde a produção manual por formato | site, rodada 2 | linha no resumo (loja, sob medida e saúde = produção manual); §6, §14 já diziam |
