@@ -286,12 +286,14 @@
   });
   $('baixarCsv').addEventListener('click', function () {
     var nome = $('nomeConversao').value.trim() || 'Cliente fechado';
-    pedir('?csv=ads&nome=' + encodeURIComponent(nome)).then(function (r) { return r.blob(); }).then(function (b) {
+    var cortado = false;
+    pedir('?csv=ads&nome=' + encodeURIComponent(nome)).then(function (r) { cortado = r.headers.get('x-bz-cortado') === '1'; return r.blob(); }).then(function (b) {
       var a = el('a');
       a.href = URL.createObjectURL(b);
       a.download = 'conversoes-google-ads.csv';
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+      if (cortado) $('estado').textContent = 'Atenção: o CSV tem só os 2.000 contatos mais recentes dos últimos 90 dias; os mais antigos ficaram de fora.';
     }).catch(function (e) { $('estado').textContent = e.message; });
   });
   try { $('naoContar').checked = localStorage.getItem('bz-nao-contar') !== '0'; } catch (e) { /* padrão: marcado */ }

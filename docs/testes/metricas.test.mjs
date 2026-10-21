@@ -172,5 +172,9 @@ test('painel: tabelas cheias são lidas em no máximo 2 páginas cada, o resumo 
     const corpo = await r.json();
     assert.ok(vistos.length <= 5, 'subpedidos: ' + vistos.length);
     assert.equal(corpo.aviso, 'período grande demais; mostrando os mais recentes');
+    /* o CSV do Ads (baixado, sem lugar para texto) avisa por cabeçalho e o painel mostra (BAIXO-4 da revisão) */
+    const csv = await ler(painel('?csv=ads&nome=Cliente'), ENV_REAL);
+    assert.equal(csv.status, 200);
+    assert.equal(csv.headers.get('x-bz-cortado'), '1');
   } finally { globalThis.fetch = salvo; }
 });

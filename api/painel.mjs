@@ -92,7 +92,8 @@ export async function ler(request, env) {
     if (q.get('csv') === 'ads') {
       const nome = (q.get('nome') || 'Cliente fechado').slice(0, 80);
       const contatos = await db.listar('contatos', 'quando', diasAtras(JANELA_ADS_DIAS));
-      return new Response(csvGoogleAds(contatos, nome), { headers: { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': 'attachment; filename="conversoes-google-ads.csv"', 'cache-control': 'no-store' } });
+      /* (A9: `listar` lê no máximo 2 páginas por tabela; o CSV não tem onde dizer isso, então o aviso vai por cabeçalho e o painel mostra) */
+      return new Response(csvGoogleAds(contatos, nome), { headers: { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': 'attachment; filename="conversoes-google-ads.csv"', 'cache-control': 'no-store', ...(contatos.cortado ? { 'x-bz-cortado': '1' } : {}) } });
     }
     const dias = PERIODOS.includes(+q.get('dias')) ? +q.get('dias') : 30;
     /* (abrir o painel não apaga mais nada: a retenção de ~13 meses roda na rotina diária, api/rotinas.mjs) */

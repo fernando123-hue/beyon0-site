@@ -334,7 +334,8 @@ test('Auth: criar e renovar levam o IP do visitante (Sb-Forwarded-For) com a cha
   const salvo = globalThis.fetch;
   globalThis.fetch = async (url, op) => { vistos.push({ url: String(url), h: op.headers }); return new Response(JSON.stringify({ access_token: 'a', refresh_token: 'r', expires_at: 1, user: { id: 'u' } }), { status: 200 }); };
   try {
-    const env = { SUPABASE_URL: 'https://x.supabase.co', SUPABASE_CHAVE_PUBLICA: 'sb_publishable_x', SUPABASE_CHAVE_SECRETA: 'sb_secret_y' };
+    /* (fora do local: o servidor local confia no x-forwarded-for do cliente e nunca manda a chave secreta nem o IP ao Auth) */
+    const env = { VERCEL: '1', VERCEL_ENV: 'production', SUPABASE_URL: 'https://x.supabase.co', SUPABASE_CHAVE_PUBLICA: 'sb_publishable_x', SUPABASE_CHAVE_SECRETA: 'sb_secret_y' };
     const v = criarVisitantes(env, { ip: '203.0.113.7' });
     await v.criar(); await v.renovar('abc');
     assert.equal(vistos.length, 2);
@@ -351,8 +352,28 @@ test('Auth: criar e renovar levam o IP do visitante (Sb-Forwarded-For) com a cha
     assert.equal(vistos[0].h['sb-forwarded-for'], undefined, 'IP que não é IP: sem o cabeçalho');
     assert.equal(vistos[0].h.apikey, 'sb_publishable_x', 'e sem a chave secreta');
     vistos.length = 0;
+    const { VERCEL, VERCEL_ENV, ...local } = env;
+    await criarVisitantes(local, { ip: '203.0.113.7' }).criar();
+    assert.equal(vistos[0].h['sb-forwarded-for'], undefined, 'servidor local: nunca o IP do cliente (confia no x-forwarded-for) nem a chave secreta');
+    assert.equal(vistos[0].h.apikey, 'sb_publishable_x');
+    vistos.length = 0;
     await criarVisitantes({ ...env, SUPABASE_CHAVE_SECRETA: undefined }, { ip: '203.0.113.7' }).criar();
     assert.equal(vistos[0].h['sb-forwarded-for'], undefined, 'sem a chave secreta nunca há o cabeçalho (a doc só o aceita com ela)');
     assert.equal(vistos[0].h.apikey, 'sb_publishable_x');
+  } finally { globalThis.fetch = salvo; }
+});
+
+/* BAIXO-3 da revisão do PR A: o IP chega ao Auth pelo caminho de verdade (atender sem deps), não só por criarVisitantes direto */
+test('atender sem deps: o IP do pedido (x-vercel-forwarded-for) vai ao login anônimo do Auth como Sb-Forwarded-For', async () => {
+  const vistos = [];
+  const salvo = globalThis.fetch;
+  globalThis.fetch = async (url, op) => { vistos.push({ url: String(url), h: op.headers }); return new Response(JSON.stringify({ access_token: 'a', refresh_token: 'r', expires_at: 1, user: { id: 'u' } }), { status: 200, headers: { 'content-type': 'application/json' } }); };
+  try {
+    const env = { VERCEL: '1', VERCEL_ENV: 'preview', SUPABASE_URL: 'https://x.supabase.co', SUPABASE_CHAVE_PUBLICA: 'sb_publishable_x', SUPABASE_CHAVE_SECRETA: 'sb_secret_y' };
+    await atender(new Request('http://x/api/vendas?acao=sessao', { method: 'POST', body: '{}', headers: { 'content-type': 'application/json', 'x-vercel-forwarded-for': '203.0.113.9' } }), env, 'POST').catch(() => {});
+    const signup = vistos.find(c => c.url.endsWith('/auth/v1/signup'));
+    assert.ok(signup, 'o login anônimo foi chamado');
+    assert.equal(signup.h['sb-forwarded-for'], '203.0.113.9');
+    assert.equal(signup.h.apikey, 'sb_secret_y');
   } finally { globalThis.fetch = salvo; }
 });
