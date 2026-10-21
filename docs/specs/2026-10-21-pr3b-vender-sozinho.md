@@ -720,8 +720,8 @@ fiscal no orçamento, os dados do vendedor no rodapé.
 3. **PR 3b-3 — prévia, no ar e o restante:** passos `previa` a `concluida`, o saldo, os comandos que faltam, os
    avisos da D1, as regras de D4/D5 atrás do ajuste, o E2E inteiro.
 
-**(R2) Mesclar não é ir ao ar.** Cada PR pode ser mesclado na `main` sozinho (o 3b-1 é pré-requisito do grátis da
-Cloudflare). Ir ao ar **para cliente real** só com 3b-1 + 3b-2 + 3b-3 juntos, já na Cloudflare (a Vercel Hobby não
+**(R2) Mesclar não é ir ao ar.** Cada PR pode ser mesclado na `main` sozinho (o só Pix, pré-requisito do grátis da
+Cloudflare, vem da A7 do PR A). Ir ao ar **para cliente real** só com 3b-1 + 3b-2 + 3b-3 juntos, já na Cloudflare (a Vercel Hobby não
 permite uso comercial, Decisões.md :19), com D6 e D4 respondidas e o caminho do material até a produção funcionando
 (a rotina da captação, ou o passo manual aceito pelo dono). O 3b-2 no ar sem o 3b-3 deixaria o cliente sem como
 aprovar e pagar o restante.
