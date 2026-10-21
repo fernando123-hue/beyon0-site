@@ -3,9 +3,10 @@
    opções coladas umas às outras; sempre um bom espaçamento e boa conexão
    entre eles"). Celular primeiro.
 
-   Cada cartão é um MÓDULO separado: borda fina, grafite quase opaco (o
-   campo do reator passa por trás e não atravessa o texto), aresta de cima
-   que acende no foco. O vão entre módulos é generoso e o mesmo na casa
+   Cada cartão é um MÓDULO separado: uma linha só, com a luz andando por ela,
+   e o número na própria linha (direção C, 2026-10-20: "o módulo", abaixo),
+   grafite quase opaco (o campo do reator passa por trás e não atravessa o
+   texto). O vão entre módulos é generoso e o mesmo na casa
    inteira (--vao; listas curtas, --vao-lista). A CONEXÃO é desenhada pelo
    campo (js/rede.js): um barramento de 1 px atravessa cada vão com um nó no
    meio, de PCB (reto ou com chanfro de 45°), e acende com a onda do reator
@@ -22,76 +23,60 @@
   --mod-pad-s: clamp(16px, 3.6vw, 22px);
   --mod-fundo: rgb(11 12 13 / .9);
   --mod-fundo-opaco: rgb(11 12 13);
+  --mod-raio: 10px;   /* o canto dos módulos (direção C, 2026-10-20); o resto do site segue com --raio */
 }
 @media (max-width: 359px) { :root { --vao: 20px; } }
 
-/* ---------- o módulo ---------- */
+/* ---------- o módulo: A LINHA VIVA (direção C, escolha do dono entre três, 2026-10-20) ----------
+   Uma linha só por cartão, com a luz andando por ela (dono, 06/10: "uma linha, com a energia circulando"). Sai o
+   empilhamento de sinais do mesmo peso — quatro tiras de luz de canto, aresta de cima, marcas de canto em L, traço
+   do número (a versão anterior está em f6cf7da; as três direções em d7039a9). Em repouso a LUZ POUSA na linha de
+   cima, logo depois do número: um traço nítido pintado no fundo do próprio cartão, por baixo do fio da borda (sem
+   pseudo-elemento: o motion.css anima os ::before na entrada). No cartão aceso (o da frente na pilha do celular, o do
+   meio da tela no tablet) ela DÁ A VOLTA (js/linha-viva.js, abaixo); no desktop com mouse quem dá a volta é a carga
+   (".carga-circula"). Sem JS, ou com movimento reduzido, a luz fica pousada. Sem desfoque. */
 .painel:not(:where(.console, .instrumento)), .celula, .laudo__row, .qa, .spec__item,
 .hero__rail > a, .hero__rail > div:not(.hero__rail-aresta) {
+  --luz-x: 16px;   /* onde a luz pousa (nos cartões com número, depois dele) */
+  --luz-w: 124px;
   position: relative;
-  border: 1px solid var(--line); border-radius: var(--raio);
-  background: var(--mod-fundo);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / .05);
+  border: 1px solid var(--line-2); border-radius: var(--mod-raio);
+  background-color: var(--mod-fundo);
+  background-image: linear-gradient(90deg, rgb(var(--tinta-rgb, var(--ac-rgb)) / 0), rgb(var(--tinta-rgb, var(--ac-rgb))) 40%, var(--ac-2) 82%, var(--t1));
+  background-size: var(--luz-w) 1px; background-position: var(--luz-x) 0; background-origin: border-box; background-repeat: no-repeat;
   color: var(--t1);
   transition: border-color var(--t) var(--ease), background-color var(--t) var(--ease);
 }
-/* a aresta de cima: acesa na tinta do módulo (os de tinta sempre; os outros no foco) */
+:is(.painel, .celula, .laudo__row):has(> :is(.servico__n, .celula__n, .laudo__n)) { --luz-x: 60px; }
+/* (a aresta de cima e as marcas em L saíram: um sinal só. O ::before fica escondido; o ::after segue sendo a
+   varredura de entrada do painel, motion.css) */
 .painel:not(:where(.console, .instrumento))::before, .celula::before, .laudo__row::before, .qa::before, .spec__item::before,
-.hero__rail > a::before, .hero__rail > div:not(.hero__rail-aresta)::before {
-  /* começa e termina depois da curva do canto (um traço de 1 px não segue o arredondado) */
-  content: ""; position: absolute; left: calc(var(--raio) - 1px); right: calc(var(--raio) - 1px); top: -1px; height: 1px;
-  background: linear-gradient(90deg, rgb(var(--tinta-rgb, var(--ac-rgb)) / .85), rgb(var(--tinta-rgb, var(--ac-rgb)) / 0) 72%);
-  opacity: 0; transition: opacity var(--t) var(--ease); pointer-events: none;
-}
-.painel--tinta::before { opacity: 1; }
-/* A BORDA COM LUZ DE CANTO (dono, 2026-10-05: a borda chapada "ficou meio seca"; referência: o shine border
-   da Magic UI, só a ideia da cor que se junta nos cantos). Em repouso a luz entra por um canto, na tinta do
-   módulo, e corre pelos dois lados até sumir; o canto oposto devolve um reflexo em prata. Quatro tiras de
-   1 px no fundo, por baixo do fio cinza da borda (que segue igual e recebe as cores dos estados): nítidas,
-   paradas, sem pseudo-elemento (o ::before é a aresta do foco, o ::after a varredura) e sem desfoque.
-   Começam depois da curva do canto, como a aresta. (As variantes ?borda=b e ?borda=antes saíram em 2026-10-06:
-   ficou esta; a B — quatro cantos alternando tinta e prata — está no commit 9072482.) */
-.painel:not(:where(.console, .instrumento)), .celula, .laudo__row, .qa, .spec__item,
-.hero__rail > a, .hero__rail > div:not(.hero__rail-aresta) {
-  --luz: rgb(var(--tinta-rgb, var(--ac-rgb)));
-  --luz-0: rgb(var(--tinta-rgb, var(--ac-rgb)) / 0);
-  --reflexo: rgb(var(--prata-rgb) / .7);
-  --reflexo-0: rgb(var(--prata-rgb) / 0);
-  --tira-x: calc(100% - var(--raio) * 2) 1px;
-  --tira-y: 1px calc(100% - var(--raio) * 2);
-  background-image:
-    linear-gradient(90deg, var(--luz), var(--luz-0) 60%),
-    linear-gradient(180deg, var(--luz), var(--luz-0) 75%),
-    linear-gradient(270deg, var(--reflexo), var(--reflexo-0) 40%),
-    linear-gradient(0deg, var(--reflexo), var(--reflexo-0) 55%);
-  background-size: var(--tira-x), var(--tira-y), var(--tira-x), var(--tira-y);
-  background-position: var(--raio) 0, 0 var(--raio), var(--raio) 100%, 100% var(--raio);
-  background-origin: border-box; background-repeat: no-repeat;
-}
+.hero__rail > a::before, .hero__rail > div:not(.hero__rail-aresta)::before { display: none; }
+.painel__canto { display: none; }
 @media (hover: hover) {
-  .painel:not(:where(.console, .instrumento)):hover, .celula:hover, .laudo__row:hover, .qa:hover, .spec__item:hover, .hero__rail > a:hover { border-color: var(--line-2); background-color: rgb(16 18 19 / .94); }
-  .painel:not(:where(.console, .instrumento)):hover::before, .celula:hover::before, .laudo__row:hover::before, .qa:hover::before, .spec__item:hover::before, .hero__rail > a:hover::before { opacity: 1; }
+  .painel:not(:where(.console, .instrumento)):hover, .celula:hover, .laudo__row:hover, .qa:hover, .spec__item:hover, .hero__rail > a:hover { border-color: rgb(var(--ac-rgb) / .3); background-color: rgb(16 18 19 / .94); }
 }
-.painel:not(:where(.console, .instrumento)):focus-within::before, .celula:focus-visible::before, .qa[open]::before, .is-foco::before { opacity: 1; }
-.painel:not(:where(.console, .instrumento)):focus-within, .celula:focus-visible, .is-foco { border-color: var(--line-2); }
+.painel:not(:where(.console, .instrumento)):focus-within, .celula:focus-visible, .is-foco { border-color: rgb(var(--ac-rgb) / .45); }
+.is-onda.is-onda { border-color: var(--line-hi); }   /* (o surto de uma estação acendia a aresta, que saiu) */
 @media (hover: none) {
   .painel:not(:where(.console, .instrumento)):active, .celula:active, .qa summary:active { border-color: var(--line-hi); transition-duration: var(--t-micro); }
 }
-/* marcas de canto em L: visor, não borda */
-.painel__canto { position: absolute; width: 8px; height: 8px; border: 1px solid rgb(var(--ac-rgb) / .85); opacity: 0; transform: scale(.6); transition: transform .38s var(--ease), opacity .12s linear; pointer-events: none; z-index: 1; }
-.painel__canto:nth-child(1) { left: 7px; top: 7px; border-right: 0; border-bottom: 0; transform-origin: top left; transform: translate(-4px, -4px) scale(.6); }
-.painel__canto:nth-child(2) { right: 7px; top: 7px; border-left: 0; border-bottom: 0; transform-origin: top right; transform: translate(4px, -4px) scale(.6); transition-delay: .04s; }
-.painel__canto:nth-child(3) { left: 7px; bottom: 7px; border-right: 0; border-top: 0; transform-origin: bottom left; transform: translate(-4px, 4px) scale(.6); transition-delay: .08s; }
-.painel__canto:nth-child(4) { right: 7px; bottom: 7px; border-left: 0; border-top: 0; transform-origin: bottom right; transform: translate(4px, 4px) scale(.6); transition-delay: .12s; }
-.painel:hover .painel__canto, .painel:focus-within .painel__canto, .painel.is-foco .painel__canto { opacity: 1; transform: none; }
 
-/* rótulos de índice: uma gramática só (mono, caixa alta, --t3; âmbar no foco) */
+/* rótulos de índice: uma gramática só (mono, caixa alta) */
 .servico__n, .celula__n, .laudo__n, .cenario__label {
   font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase;
   line-height: 1.4; color: var(--t3); transition: color var(--t-micro) var(--ease-micro);
 }
+/* O NÚMERO NA LINHA (dono, 2026-10-20, a opção 3: "um pouquinho maior e que seus efeitos sejam mais perceptivos"):
+   entra na borda de cima como uma etiqueta no fio, e a luz pousa logo depois dele. O fundo opaco da etiqueta corta
+   a linha sem caixa à vista. Centrado na linha por top (o motion.css anima o transform do número na entrada) */
+.servico__n, .celula__n, .laudo__n {
+  position: absolute; z-index: 2; left: 18px; top: calc(-.6em - .5px); margin: 0; padding: 0 7px;
+  font-size: .8125rem; letter-spacing: .12em; line-height: 1.2; color: var(--t2);
+  background: var(--mod-fundo-opaco); border-radius: 2px;
+}
 .painel:hover .servico__n, .celula:hover .celula__n, .laudo__row:hover .laudo__n,
-.is-foco .servico__n, .is-foco .celula__n, .is-foco .laudo__n { color: var(--ac-3); }
+.is-foco .servico__n, .is-foco .celula__n, .is-foco .laudo__n { color: var(--ac-2); }
 .cenario__label b { color: var(--ac-3); font-weight: 500; }
 /* o link no pé do módulo */
 .servico__link, .celula__link {
@@ -116,10 +101,10 @@
    elemento a cada turbo era DOM a mais no quadro da ignição) */
 .energia-volta { position: absolute; inset: -1px; pointer-events: none; opacity: 0; }
 .energia-volta > b { position: absolute; background: var(--ac-2); transform: scaleX(0); animation-duration: .18s; animation-timing-function: cubic-bezier(.45, 0, .55, 1); animation-fill-mode: both; }
-.energia-volta > b:nth-child(1) { left: var(--raio); right: var(--raio); top: 0; height: 1.5px; transform-origin: left; }
-.energia-volta > b:nth-child(2) { top: var(--raio); bottom: var(--raio); right: 0; width: 1.5px; transform-origin: top; transform: scaleY(0); animation-delay: .17s; }
-.energia-volta > b:nth-child(3) { left: var(--raio); right: var(--raio); bottom: 0; height: 1.5px; transform-origin: right; animation-delay: .34s; }
-.energia-volta > b:nth-child(4) { top: var(--raio); bottom: var(--raio); left: 0; width: 1.5px; transform-origin: bottom; transform: scaleY(0); animation-delay: .51s; }
+.energia-volta > b:nth-child(1) { left: var(--mod-raio); right: var(--mod-raio); top: 0; height: 1.5px; transform-origin: left; }
+.energia-volta > b:nth-child(2) { top: var(--mod-raio); bottom: var(--mod-raio); right: 0; width: 1.5px; transform-origin: top; transform: scaleY(0); animation-delay: .17s; }
+.energia-volta > b:nth-child(3) { left: var(--mod-raio); right: var(--mod-raio); bottom: 0; height: 1.5px; transform-origin: right; animation-delay: .34s; }
+.energia-volta > b:nth-child(4) { top: var(--mod-raio); bottom: var(--mod-raio); left: 0; width: 1.5px; transform-origin: bottom; transform: scaleY(0); animation-delay: .51s; }
 .is-volta-a > .energia-volta { animation: apaga-a .45s linear .75s both; }
 .is-volta-b > .energia-volta { animation: apaga-b .45s linear .75s both; }
 .is-volta-a > .energia-volta > b:nth-child(odd) { animation-name: lado-x-a; }
@@ -133,9 +118,7 @@
 @keyframes apaga-a { from { opacity: 1; } to { opacity: 0; } }
 @keyframes apaga-b { from { opacity: 1; } to { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .energia-volta { display: none; } }
-.is-energia::before, .is-onda::before { opacity: 1; }
 .is-sugerido.is-sugerido, .hero__rail > a.is-sugerido { border-color: var(--line-hi); }
-.is-sugerido::before, .hero__rail > a.is-sugerido::before { opacity: 1; }
 /* o sublinhado só no link do pé (o cartão-âncora inteiro ficava sublinhado) */
 .is-sugerido .servico__link, .is-sugerido .celula__link { color: var(--ac); }
 .is-sugerido .servico__link::after, .is-sugerido .celula__link::after { transform: none; }
@@ -161,9 +144,6 @@
 .servicos > :nth-child(1), .servicos > :nth-child(2) { --tinta-rgb: var(--ac-rgb); }
 .servicos > :nth-child(3) { --tinta-rgb: var(--prata-rgb); }
 .servico { display: flex; flex-direction: column; gap: .6rem; padding: var(--mod-pad); }
-.servico__n { display: flex; align-items: center; gap: .6rem; margin-bottom: .3rem; }
-.servico__n::after { content: ""; width: 40px; height: 1px; background: var(--line-2); transform: scaleX(.5); transform-origin: left; transition: transform var(--t) var(--ease), background-color var(--t) var(--ease); }
-.servico:hover .servico__n::after, .servico.is-foco .servico__n::after { transform: scaleX(1); background-color: var(--ac-3); }
 .servico h3 { font-size: clamp(1.375rem, 1.1rem + 1vw, var(--h3-cartao)); font-weight: 400; letter-spacing: -.025em; line-height: 1.1; }
 .servico p { color: var(--t2); font-size: var(--fs-m); line-height: 1.6; }
 .servico__para { font-size: var(--fs-s); line-height: 1.5; color: var(--t3); }
@@ -230,12 +210,13 @@
 .laudo__row h3 { font-size: var(--h3-linha); line-height: 1.15; }
 .laudo__row p { color: var(--t2); font-size: var(--fs-m); max-width: 52ch; }
 @media (min-width: 821px) {
-  .laudo__row { grid-template-columns: 3.5rem minmax(0, 5fr) minmax(0, 7fr); column-gap: clamp(16px, 2.4vw, 36px); align-items: first baseline; padding: clamp(1.4rem, 2.2vw, 2rem) var(--mod-pad); }
-  .laudo__row p { grid-column: 3; grid-row: 1; }
+  /* (o número está na linha, fora do grid: título e texto ficam com as duas colunas) */
+  .laudo__row { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); column-gap: clamp(16px, 2.4vw, 36px); align-items: first baseline; padding: clamp(1.4rem, 2.2vw, 2rem) var(--mod-pad); }
+  .laudo__row p { grid-column: 2; grid-row: 1; }
 }
 /* Hub: o MANIFESTO (título grande, texto no eixo dos leads) */
 @media (min-width: 981px) {
-  .secao--manifesto .laudo__row { grid-template-columns: 4rem minmax(0, 5fr) minmax(0, 6fr); padding: clamp(1.6rem, 2.4vw, 2.4rem) clamp(24px, 2.6vw, 40px); }
+  .secao--manifesto .laudo__row { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); padding: clamp(1.6rem, 2.4vw, 2.4rem) clamp(24px, 2.6vw, 40px); }
   .secao--manifesto .laudo__n { color: var(--ac-3); }
   .secao--manifesto .laudo__row h3 { font-size: var(--fs-h2-lateral); font-weight: 300; letter-spacing: -.03em; line-height: 1.08; }
 }
@@ -332,10 +313,10 @@ html.menos-movimento .qa::details-content { transition: none; }
   .section--faq .faq-list { max-width: none; }
   .section--faq .qa summary { font-size: 1.1875rem; }
   .secao--fixa .section__head .lead { max-width: 30ch; margin-top: 1.25rem; }
-  /* as dores ao lado do título: índice em Sora 200 grande, título e texto empilhados */
-  .secao--fixa .laudo__row { grid-template-columns: clamp(3rem, 4vw, 4rem) minmax(0, 1fr); column-gap: clamp(16px, 2vw, 28px); row-gap: .4rem; align-items: baseline; }
-  .secao--fixa .laudo__row p { grid-column: 2; grid-row: auto; }
-  .secao--fixa .laudo__n { grid-row: 1; align-self: baseline; font-family: var(--sans); font-weight: 200; font-size: clamp(1.75rem, 1rem + 1.2vw, 2.25rem); line-height: 1; letter-spacing: -.03em; text-transform: none; }
+  /* as dores ao lado do título: título e texto empilhados (o índice, que era Sora 200 grande numa coluna, foi para a
+     linha do cartão como nos outros: direção C, 2026-10-20) */
+  .secao--fixa .laudo__row { grid-template-columns: minmax(0, 1fr); row-gap: .4rem; align-items: baseline; }
+  .secao--fixa .laudo__row p { grid-column: 1; grid-row: auto; }
 }
 
 /* ---------- a ESTAÇÃO no centro do grupo (desktop; js/estacao.js) ----------
@@ -360,7 +341,7 @@ html.menos-movimento .qa::details-content { transition: none; }
   .estacao-vao__nucleo { width: 110px; height: 110px; border: 1px solid rgb(var(--ac-rgb) / .3); border-radius: 50%; display: grid; place-items: center; transition: opacity var(--t) var(--ease); }
   .estacao-vao__nucleo::after { content: ""; width: 12px; height: 12px; border-radius: 50%; background: var(--t1); box-shadow: 0 0 0 4px rgb(var(--ac-2-rgb) / .55); }
   .estacao-vao.is-viva .estacao-vao__nucleo { opacity: 0; }
-  /* as linhas do laudo de Garantias empilham (número, título, texto) na coluna mais estreita */
+  /* as linhas do laudo de Garantias empilham (título, texto; o número fica na linha) na coluna mais estreita */
   .tem-estacao > .laudo__row, .secao--manifesto .tem-estacao > .laudo__row { grid-template-columns: 1fr; row-gap: .6rem; }
   .tem-estacao > .laudo__row p { grid-column: auto; grid-row: auto; }
   .secao--manifesto .tem-estacao > .laudo__row h3 { font-size: clamp(1.7rem, 2.3vw, 2.2rem); }
@@ -427,10 +408,41 @@ html.menos-movimento .estacao-cruza { display: none !important; }
   .pilha > .is-foco h3 { color: var(--letra-acesa-t); }
   .pilha > .is-foco p { color: var(--letra-acesa-p); }
   .pilha > :not(.estacao-vao) > * { transition: opacity .35s var(--ease); }
-  .pilha > .is-coberto > * { opacity: .45; }   /* (a faixa de 14 px do coberto segue legível) */
+  .pilha > .is-coberto > :not(.servico__n, .celula__n, .laudo__n) { opacity: .45; }   /* (a faixa de 14 px do coberto segue legível) */
+  /* (o número fica na linha com fundo opaco: a 45 % o fio da borda o riscava; apaga só a cor — revisão) */
+  .pilha > .is-coberto > :is(.servico__n, .celula__n, .laudo__n) { color: var(--t3); }
 }
 /* (zoom de 400 %, viewport mais baixo que um card: o fichário cobriria os títulos; fica em fluxo) */
 @media (max-width: 720px) and (max-height: 560px) { .pilha > :not(.estacao-vao) { position: static; } }
+
+/* ---- A VOLTA DA LUZ (js/linha-viva.js; direção C, 2026-10-20): no cartão aceso a luz que pousava depois do número
+   decola e dá a volta na borda, sem parar enquanto ele estiver aceso. A mesma construção da luz que circula da carga
+   (abaixo): quatro lados recortados, cada um com uma faixa do tamanho do PERÍMETRO e o traço na ponta dela, todas
+   andando juntas por transform (compositor); o JS só mede o cartão quando o tamanho muda. Recortada pela curva do
+   canto. Só existe no cartão que gira (.lv-ativa: um por vez, o que acendeu por último): a cada acendimento ela
+   recomeça da ponta da luz pousada, que some no mesmo quadro (sem esmaecer: senão o cartão ficava sem luz e a cabeça
+   já tinha andado — revisão), e fora dele não há faixa nem animação. No desktop com mouse quem dá a volta é a carga. ---- */
+.linha-viva { display: none; }
+/* (fora do desktop com mouse: lá a volta é da carga, a luz que circula no cartão cheio. Navegador sem "not (...)" na
+   media query ignora o bloco e fica só com a luz pousada) */
+@media (prefers-reduced-motion: no-preference) and (not ((min-width: 721px) and (hover: hover) and (pointer: fine))) {
+  html.js:not(.menos-movimento) .tem-linha.lv-ativa > .linha-viva { display: block; position: absolute; inset: -1px; z-index: 1; overflow: hidden; border-radius: calc(var(--mod-raio) + 1px); pointer-events: none; }
+  html.js:not(.menos-movimento) .tem-linha.lv-ativa { background-image: none; }   /* (a luz pousada é a que decolou) */
+  .linha-viva > b { position: absolute; overflow: hidden; }
+  .linha-viva > b:nth-child(odd) { left: 0; right: 0; height: 1px; }
+  .linha-viva > b:nth-child(even) { top: 0; bottom: 0; width: 1px; }
+  .linha-viva > b:nth-child(1) { top: 0; }
+  .linha-viva > b:nth-child(2) { right: 0; }
+  .linha-viva > b:nth-child(3) { bottom: 0; transform: scaleX(-1); }
+  .linha-viva > b:nth-child(4) { left: 0; transform: scaleY(-1); }
+  .linha-viva > b > i { position: absolute; display: block; animation-timing-function: linear; animation-iteration-count: infinite; }
+  .linha-viva > b:nth-child(odd) > i { top: 0; height: 100%; right: 100%; background: linear-gradient(90deg, transparent calc(100% - 128px), rgb(var(--tinta-rgb, var(--ac-rgb))) calc(100% - 40px), var(--ac-2) calc(100% - 12px), var(--t1)); }
+  .linha-viva > b:nth-child(even) > i { left: 0; width: 100%; bottom: 100%; background: linear-gradient(180deg, transparent calc(100% - 128px), rgb(var(--tinta-rgb, var(--ac-rgb))) calc(100% - 40px), var(--ac-2) calc(100% - 12px), var(--t1)); }
+  .tem-linha.lv-ativa > .linha-viva > b:nth-child(odd) > i { animation-name: circula-x; }
+  .tem-linha.lv-ativa > .linha-viva > b:nth-child(even) > i { animation-name: circula-y; }
+}
+/* (a luz pousada sai quando a da carga dá a volta: uma luz só por vez) */
+.tem-carga:is(.is-carregado, .is-ignicao, .is-sobrecarga) { background-image: none; }
 
 /* ---- A CARGA (js/carga.js): no desktop com mouse o card carrega conforme o cursor se aproxima (e um ARO
    nítido aparece). A barra é um TUBO NEON em traço nítido — nada desfocado
@@ -470,7 +482,6 @@ html.menos-movimento .estacao-cruza { display: none !important; }
   @keyframes carga-clarao { 0% { opacity: 0; } 12% { opacity: 1; } 100% { opacity: 0; } }   /* (entra em fade: nada aparece cheio num quadro só) */
   .is-carregado .carga__pct { color: var(--t1); }
   .is-carregado .carga__ponta { opacity: 0; }
-  .tem-carga.is-carregado::before { opacity: 1; }
   /* (não vence os destaques ciano da estação, do turbo e da sugestão: revisão) */
   .tem-carga.is-carregado:not(.is-alimentado):not(.is-energia):not(.is-sugerido):not(.is-sobrecarga):not(.is-ignicao) { border-color: var(--line-2); }
   .tem-carga.is-carregado .laudo__n, .tem-carga.is-carregado .servico__n, .tem-carga.is-carregado .celula__n { color: var(--ac-3); }
@@ -516,9 +527,9 @@ html.menos-movimento .estacao-cruza { display: none !important; }
      unidades de contêiner (cqw), que não vão para o compositor: ~12 mil recálculos de estilo numa rolagem. */
   .carga-nos > b { position: absolute; opacity: 0; }
   .carga-nos > b::before { content: ""; position: absolute; background: var(--ac-2); }
-  .carga-nos > b:nth-child(1), .carga-nos > b:nth-child(3) { left: var(--raio); right: var(--raio); height: 1.5px; transform: translateX(-100%); }
+  .carga-nos > b:nth-child(1), .carga-nos > b:nth-child(3) { left: var(--mod-raio); right: var(--mod-raio); height: 1.5px; transform: translateX(-100%); }
   .carga-nos > b:nth-child(1) { top: 0; } .carga-nos > b:nth-child(3) { bottom: 0; }
-  .carga-nos > b:nth-child(2), .carga-nos > b:nth-child(4) { top: var(--raio); bottom: var(--raio); width: 1.5px; transform: translateY(-100%); }
+  .carga-nos > b:nth-child(2), .carga-nos > b:nth-child(4) { top: var(--mod-raio); bottom: var(--mod-raio); width: 1.5px; transform: translateY(-100%); }
   .carga-nos > b:nth-child(2) { right: 0; } .carga-nos > b:nth-child(4) { left: 0; }
   .carga-nos > b:nth-child(odd)::before { top: 0; right: 0; width: 18px; height: 100%; }
   .carga-nos > b:nth-child(even)::before { left: 0; bottom: 0; height: 18px; width: 100%; }

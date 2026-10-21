@@ -697,6 +697,26 @@
         });
       } catch (e) { /* profundidade é acréscimo, não conteúdo */ }
       if (ST) ST.refresh();
+      /* a página cresce DEPOIS da medição: o AI Core acende e o console do hero ganha a linha "núcleo aceso" (+24 px
+         no Hub, js/nucleo/boot.js), uma faixa assenta (+11 px). Os gatilhos ficavam adiantados — na pilha do celular o
+         card acendia ~24 px antes de assentar (medido em 2026-10-20 no Chrome; pendência do PR #44). Mudou a altura do
+         documento: mede de novo depois que ela para de mudar e fora da rolagem (no meio dela, o palco preso do desktop
+         dava solavanco). Janela redimensionada não conta: o ScrollTrigger já mede sozinho (revisão) */
+      if (ST && 'ResizeObserver' in window) {
+        var alturaMedida = document.documentElement.scrollHeight, janela = window.innerWidth + 'x' + window.innerHeight, remedir = 0;
+        var medirDeNovo = function () {
+          if (ST.isScrolling && ST.isScrolling()) { remedir = setTimeout(medirDeNovo, 250); return; }
+          try { ST.refresh(); } catch (e) { if (window.console && console.warn) console.warn('[beyon] remedir:', e); }
+          alturaMedida = document.documentElement.scrollHeight;
+        };
+        new ResizeObserver(function () {
+          var h = document.documentElement.scrollHeight, j = window.innerWidth + 'x' + window.innerHeight;
+          if (Math.abs(h - alturaMedida) < 1) return;
+          if (j !== janela) { janela = j; alturaMedida = h; return; }
+          clearTimeout(remedir);
+          remedir = setTimeout(medirDeNovo, 200);
+        }).observe(document.body);
+      }
       restaurarRolagem();
     }
   }
