@@ -390,7 +390,7 @@
           </div>
           <label for="o-pag-email">E-mail <span class="orc-opcional">(obrigatório)</span></label>
           <input id="o-pag-email" type="email" autocomplete="email" maxlength="254" required />
-          <label for="o-pag-doc">CPF ou CNPJ <span class="orc-opcional">(obrigatório)</span></label>
+          <label for="o-pag-doc">CPF ou CNPJ <span class="orc-opcional">(obrigatório: o Mercado Pago pede para emitir o Pix; não fica guardado no site)</span></label>
           <input id="o-pag-doc" inputmode="numeric" autocomplete="off" maxlength="18" required />
         </fieldset>
         <fieldset class="pag-grupo" id="o-pag-cartao" hidden>
@@ -415,17 +415,23 @@
         <button class="btn btn--primary" type="submit" id="o-pag-enviar"></button>
       </form>
 
+      <!-- O PIX (PR 3b-1, spec 2026-10-21 §4): valor e percentual da proposta → o nome que aparece no banco (decisão do
+           dono de 21/10, Decisões.md, "Nome que aparece no Pix") → copiar → os passos no app do banco. O QR fica em
+           "Pagar por outro aparelho", logo depois do status: fechado no celular, aberto a partir de 768 px (js/orcamento-pix.js) -->
       <div class="pix" id="o-pix" hidden>
-        <img class="pix__qr" id="o-pix-qr" alt="QR Code do Pix" width="220" height="220" hidden />
-        <div class="pix__lado">
-          <p class="orc-rotulo">Pix copia e cola</p>
-          <label class="sr-only" for="o-pix-codigo">Código Pix copia e cola</label>
-          <textarea id="o-pix-codigo" class="pix__codigo" rows="3" readonly></textarea>
-          <button class="btn btn--sm" type="button" id="o-pix-copiar">Copiar o código</button>
-          <p class="orc-nota" id="o-pix-expira"></p>
-          <button class="btn btn--sm btn--ghost" type="button" id="o-pix-simular" hidden>Simular o pagamento (modo local)</button>
-          <button class="btn btn--sm btn--ghost" type="button" id="o-pix-trocar" hidden>Prefiro pagar com cartão</button>
-        </div>
+        <p class="pix__valor" id="o-pix-valor"></p>
+        <p class="pix__nome">No seu banco vai aparecer:<br /><b>Fernando Ferreira Dos Santos</b><br /><span class="pix__abrev">(alguns bancos mostram o nome abreviado)</span></p>
+        <button class="btn btn--primary pix__copiar" type="button" id="o-pix-copiar">Copiar o código Pix</button>
+        <label class="sr-only" for="o-pix-codigo">Código Pix copia e cola</label>
+        <textarea id="o-pix-codigo" class="pix__codigo" rows="4" readonly></textarea>
+        <p class="orc-nota" id="o-pix-expira"></p>
+        <ol class="pix__passos">
+          <li>Abra o app do seu banco</li>
+          <li>Pix › Pix copia e cola</li>
+          <li>Cole o código e confirme</li>
+        </ol>
+        <button class="btn btn--sm btn--ghost" type="button" id="o-pix-simular" hidden>Simular o pagamento (modo local)</button>
+        <button class="btn btn--sm btn--ghost" type="button" id="o-pix-trocar" hidden>Prefiro pagar com cartão</button>
       </div>
 
       <div class="orc-aviso pag-desafio" id="o-desafio" hidden>
@@ -437,6 +443,10 @@
       </div>
 
       <p class="orc-pag-status" id="o-pag-status" role="status" aria-live="polite"></p>
+      <details class="orc-det pix__outro" id="o-pix-outro" hidden>
+        <summary>Pagar por outro aparelho (QR Code)</summary>
+        <img class="pix__qr" id="o-pix-qr" alt="QR Code do Pix" width="220" height="220" hidden />
+      </details>
       <details class="orc-det">
         <summary>Ver o escopo confirmado</summary>
         <div class="orc-escopo" id="o-pag-escopo"></div>

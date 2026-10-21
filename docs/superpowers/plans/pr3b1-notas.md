@@ -56,6 +56,30 @@ Branch `pr3b1` (= `pr3b-desenho` + merge de `cf-pr-a`, PR #49). Base: `ecea062`.
   o aviso vem de `tela.mostrar` quando `!c.ativo`): troquei as linhas pelas do plano, que também escondem o formulário.
 - Arquivos do repositório estão em CRLF no disco (autocrlf): as edições preservam o fim de linha.
 
+## Task 5: a tela do Pix na ordem nova
+
+- Vermelho visto: `pagar-sem-medo.test.mjs`, os 2 testes caídos (o nome não estava na tela; `o-pix-valor@-1`). E2E antes
+  de mexer na tela: `FALHA exceção: page.textContent: Timeout 30000ms exceeded … waiting for locator('#o-pix-valor')`.
+  Vermelho da configuração que falha: sem o `if (arguments.length > 1)`, `FALHA configuração que falhou e voltou
+  (configDeNovo): o percentual continua na linha do Pix`; restaurado.
+- Verde: E2E servidor padrão sem consultor, 261 OK, 0 FALHA; E2E com `MP_METODOS=pix`, 260 OK, 0 FALHA; suíte 579/579.
+- PNG abertos e vistos: `4-pix-cel`, `4-pix-so-pix-cel`, `4-pix-so-pix-320` (valor e nome legíveis, botão inteiro, nada
+  saindo da tela; o QR aparece aberto porque o E2E já apertou Enter no "Pagar por outro aparelho" antes da foto).
+- Desvios do plano (menores, o plano divergia do código real):
+  1. `dinheiro()` da página usa `minimumFractionDigits: 0` ("R$ 1.840", sem ",00"): a regex do E2E do valor passou a
+     `/^R\$\s?[\d.]+(,\d{2})? · 40% do total, por Pix$/`.
+  2. O erro de rede que o E2E provoca na configuração (`route.abort`) aparece no console como `net::ERR_FAILED`: o filtro de
+     `falhaForcada` em `docs/e2e-orcamento.mjs` (linha do `page.on('console'…)`) ganhou `|ERR_FAILED`. Mexe em uma linha
+     além da chamada do `passoDoPix`.
+  3. A `textarea` do código ficou com `rows="4"` (era 3): a 320 px o código do E2E ocupava 4 linhas e a última ficava cortada.
+  4. A asserção "nenhum percentual inventado" da Task 4 estava com a regex errada no arquivo (`d+s?%`, passava à toa, por um
+     erro meu ao gravar a barra invertida); corrigida para `/\d+\s?%/` e o E2E continua verde. As outras regexes foram
+     conferidas.
+  5. Comentários do teste e do HTML citam a decisão do nome do Pix pelo título em Decisões.md, não pelo número de linha (":22"
+     já não é a linha).
+- Revisor: o texto do status ("Esperando o pagamento…") continua no estilo mono pequeno de `.orc-pag-status` (é o de antes;
+  a Task 5 não manda mudar). Vale olhar se o dono quer esse texto em 16 px.
+
 ## Andamento
 
-próxima tarefa: 5
+próxima tarefa: 6

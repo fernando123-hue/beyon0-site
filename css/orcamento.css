@@ -418,15 +418,24 @@ html.menos-movimento .orc-log { scroll-behavior: auto; }
 .pag-local { border-left: 2px solid rgb(var(--ouro-rgb)); padding-left: .7rem; }
 .pag .btn[type="submit"] { width: 100%; margin-top: .8rem; }
 
-.pix { display: grid; gap: 1rem; margin-top: 1.2rem; padding: 1rem; border: 1px solid var(--line-2); border-radius: var(--raio); background: var(--s1); max-width: 560px; }
-.pix__qr { width: 220px; height: 220px; padding: 10px; background: #FFFFFF; border-radius: var(--raio-s); justify-self: center; image-rendering: pixelated; }
-.pix__lado { display: flex; flex-direction: column; gap: .6rem; min-width: 0; }
+/* ---------- O PIX (PR 3b-1, spec 2026-10-21 §4): uma coluna desde 390 px; o QR fica em "Pagar por outro aparelho" ---------- */
+.pix { display: flex; flex-direction: column; gap: .8rem; margin-top: 1.2rem; padding: 1rem; border: 1px solid var(--line-2); border-radius: var(--raio); background: var(--s1); max-width: 560px; min-width: 0; }
+/* o valor a pagar é o texto que mais importa na tela: Sora, 16 px, claro (não o rótulo mono pequeno, MÉDIO-8 da revisão) */
+.pix__valor { font-size: var(--fs-b); font-weight: 600; line-height: 1.4; color: var(--t1); }
+.pix__nome { font-size: var(--fs-b); line-height: 1.5; color: var(--t1); }
+.pix__nome b { font-weight: 600; }
+.pix__abrev { color: var(--t2); }
 .pix__codigo { width: 100%; padding: .7rem .8rem; border: 1px solid var(--stroke); border-radius: var(--raio-s); background: var(--bg); color: var(--t1); font-family: var(--mono); font-size: var(--fs-ctrl); line-height: 1.5; resize: none; overflow-wrap: anywhere; }
-.pix .btn { align-self: flex-start; }
+/* botões que falam como gente: Sora, frase normal, 16 px, 44 px ou mais (o .btn de base.css é mono e caixa alta) */
+.pix .btn { align-self: stretch; min-height: 44px; font-family: var(--sans); font-size: var(--fs-b); text-transform: none; letter-spacing: normal; }
+.pix__passos { margin: 0; padding-left: 1.4em; display: grid; gap: .35rem; font-size: var(--fs-b); line-height: 1.5; color: var(--t1); }
+.pix__outro { max-width: 560px; }
+.pix__outro summary { font-size: var(--fs-b); color: var(--t1); }
+.pix__qr { display: block; width: 220px; height: 220px; margin: .8rem auto 0; padding: 10px; background: #FFFFFF; border-radius: var(--raio-s); image-rendering: pixelated; }
 .pag-desafio { max-width: 560px; }
 
 @media (min-width: 640px) {
-  .pix { grid-template-columns: auto 1fr; align-items: start; }
+  .pix .btn { align-self: flex-start; }
 }
 
 /* ---------- AS PERGUNTAS (orçamento sem IA, spec 2026-10-11 §2): botões grandes, celular primeiro; texto que importa
