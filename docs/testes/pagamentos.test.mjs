@@ -357,7 +357,10 @@ test('reconciliação: pago sem aviso é aplicado; order desconhecida da conta �
   const mp = criarMercadoPago({ token: local.mp.token, fetch: local.mp.fetch });
   await mp.criarOrdem({ chave: 'bz-fora-do-site-000001', referencia: 'fora-do-site', valor: 50, pagador: { email: 'test@testuser.com', nome: 'APRO', sobrenome: 'X', documentoTipo: 'CPF', documento: '52998224725' }, metodo: 'pix' });
   desvio += 3 * 60e3;
-  const r = await receber(new Request(BASE + '/api/pagamentos?acao=reconciliar', { method: 'POST', headers: { authorization: 'Bearer ' + local.mp.cronSecret } }), {}, { banco: local.rpc, cfg, servico });
+  /* este teste é do que a reconciliação FAZ (aplica o pago, aponta a order desconhecida): sem o teto de subpedidos, que cortaria a
+     varredura nas muitas orders que os testes anteriores deixaram no simulador. O teto tem teste próprio (45 subpedidos, mais abaixo) */
+  const servicoSemTeto = { ...servico, reconciliar: args => servico.reconciliar({ ...args, orcamento: 1e6, varrerPaginas: 3 }) };
+  const r = await receber(new Request(BASE + '/api/pagamentos?acao=reconciliar', { method: 'POST', headers: { authorization: 'Bearer ' + local.mp.cronSecret } }), {}, { banco: local.rpc, cfg, servico: servicoSemTeto });
   assert.equal(r.status, 200);
   const resumo = await r.json();
   assert.ok(resumo.aplicadas >= 1 && resumo.desconhecidas >= 1, JSON.stringify(resumo));
@@ -453,4 +456,17 @@ test('só Pix fora do local: MP_METODOS ausente ou inválido = só Pix; o cartã
 test('local (simulado) continua com cartão: o E2E não perde a regressão; MP_METODOS=pix vale também no local', () => {
   assert.ok(configPagamentos({}).metodos.includes('cartao'));
   assert.deepEqual(configPagamentos({ MP_METODOS: 'pix' }).metodos, ['pix']);
+});
+
+test('reconciliação nunca passa de 45 subpedidos; o resto fica para o próximo cron, com aviso no log', async () => {
+  let pedidos = 0;
+  const conta = fn => async (...a) => { pedidos++; return fn(...a); };
+  const pendentes = Array.from({ length: 50 }, (_, i) => ({ tentativa_id: 't' + i, provedor_order_id: 'ORD' + String(i).padStart(4, '0'), status: 'pendente', criado_em: new Date(0).toISOString() }));
+  const orders = Array.from({ length: 50 }, (_, i) => ({ id: 'REC' + String(i).padStart(4, '0') }));
+  const banco = conta(async nome => nome === 'pagamentos_para_reconciliar' ? pendentes : nome === 'pagamentos_atencao' ? { total: 0 } : {});
+  const provedor = { nome: 'mercadopago', consultarOrdem: conta(async id => ({ id, status: 'processed', transactions: { payments: [] } })), buscarRecentes: conta(async () => orders) };
+  const cfg = { ativo: true, contaEsperada: '123456', metodos: ['pix'] };
+  const r = await criarServicoPagamentos({ banco, cfg, provedor }).reconciliar({ limite: 50, varrerPaginas: 3 });
+  assert.ok(pedidos <= 45, 'subpedidos: ' + pedidos);
+  assert.equal(r.parcial, true);
 });

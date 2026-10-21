@@ -11,6 +11,7 @@ import { chaveDoIp } from '../../api/_vendas/ip.mjs';
 import { isIP } from 'node:net';
 import { atender } from '../../api/vendas.mjs';
 import { criarVisitantes } from '../../api/_vendas/visitante.mjs';
+import { executar as rotinas } from '../../api/rotinas.mjs';
 
 const ENV = { SUPABASE_URL: 'https://falso.supabase.co', SUPABASE_CHAVE_PUBLICA: 'sb_publishable_teste', SUPABASE_CHAVE_SECRETA: 'sb_secret_NUNCA_NO_USUARIO' };
 const O1 = '11111111-0000-4000-8000-000000000001', O2 = '22222222-0000-4000-8000-000000000002';
@@ -298,4 +299,30 @@ test('visitante: na conferência do token, só a falha de rede é 503; erro de c
   assert.ok(logs.some(l => l.includes('bug no código')), 'o erro de código fica no log');
   simulacao.signup = () => { throw new RangeError('bug no login'); };
   assert.equal((await vendas('POST', 'sessao', { corpo: {} })).status, 500, 'o mesmo no login anônimo');
+});
+
+/* A8, passo 4 (migração para a Cloudflare, plano grátis: 50 subpedidos por invocação): a rotina diária conta cada chamada ao
+   banco, às métricas e ao ntfy e PARA no orçamento; a etapa que ficou sem orçamento vira alerta (a falha que o
+   rotinas_conferir recebe), nunca silêncio. O orçamento aqui é pequeno de propósito (5, com 3 guardados para o fim): são
+   mais etapas do que cabem. Com o orçamento de verdade (45) a rotina de hoje cabe inteira (testes em auditoria-p0/p1) */
+test('rotina diária: nunca passa do orçamento de subpedidos; a etapa sem orçamento vira alerta e o resumo diz parcial', async () => {
+  let chamadas = 0;
+  const conta = fn => async (...a) => { chamadas++; return fn(...a); };
+  const vistos = [], falhasVistas = [];
+  const banco = conta(async (nome, args) => {
+    vistos.push(nome);
+    if (nome === 'rotinas_conferir') { falhasVistas.push(args.falha); return { alertas: [{ nivel: 'aviso', tipo: 'rotina', mensagem: 'a rotina falhou' }], avisar: true }; }
+    return {};
+  });
+  const metricas = { ligado: true, apagarAntigos: conta(async () => {}) };
+  const enviarAlerta = conta(async () => {});
+  const env = { CRON_SECRET: 'c'.repeat(40), ALERTA_NTFY_TOPICO: 'a'.repeat(24) };
+  const r = await rotinas(new Request('http://x/api/rotinas?acao=diaria', { headers: { authorization: 'Bearer ' + env.CRON_SECRET } }), env, { banco, metricas, enviarAlerta, orcamento: 5 });
+  assert.equal(r.status, 200);
+  const corpo = await r.json();
+  assert.ok(chamadas <= 5, 'subpedidos: ' + chamadas);
+  assert.equal(corpo.parcial, true);
+  assert.equal(corpo.ok, false, 'uma etapa ficou sem orçamento: não é "ok"');
+  assert.ok(vistos.includes('rotinas_conferir'), 'a conferência da saúde roda sempre (usa a reserva)');
+  assert.match(falhasVistas[0] || '', /sem orçamento/, 'a etapa que não coube chega ao rotinas_conferir como falha (alerta)');
 });

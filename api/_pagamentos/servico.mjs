@@ -13,6 +13,7 @@
    ========================================================================== */
 import { criarMercadoPago, retratoDe, ErroProvedor } from './mercadopago.mjs';
 import { ATIVOS } from './estados.mjs';
+import { orcamentoDe, SemOrcamento, ORCAMENTO_SUBPEDIDOS } from '../_orcamento.mjs';
 
 /* fins SEM dinheiro: só depois deles uma nova tentativa pode começar (aprovada, duplicada, estornada etc. mostram o estado) */
 const LIVRES = new Set(['recusada', 'cancelada', 'expirada']);
@@ -28,6 +29,7 @@ const CRIACAO_ABANDONADA_S = 5 * 60;   /* e, sem achar em 5 min, dá a tentativa
 const CONSULTA_MIN_S = 10;             /* a página pede atualização; o provedor é consultado no máximo a cada 10 s */
 const BUSCA_FALHANDO_S = 30 * 60;      /* a busca pela referência falha há 30 min: encerra (uma aprovação tardia ainda é aplicada) */
 const PARALELO = 5;                    /* consultas simultâneas na reconciliação */
+const RESERVA_FINAL = 2;               /* subpedidos guardados para o fim da reconciliação (pagamentos_atencao e a ocorrência) */
 export const ORG = 'beyon-zero';
 
 /* ---------- validação do que vem do navegador (nada aqui decide valor) ---------- */
@@ -73,13 +75,14 @@ function traduzirLimite(e) {
   throw e;
 }
 
-export function criarServicoPagamentos({ banco, cfg, provedor, agora = () => Date.now() }) {
-  if (!cfg || !cfg.ativo) throw new Error('pagamentos desligados');
-  const mp = provedor || criarMercadoPago({ token: cfg.token, base: cfg.base, fetch: cfg.fetch || globalThis.fetch });
+/* o miolo que fala com o banco e com o provedor (aplicar o retrato de uma order, atualizar uma tentativa). É função própria
+   para a reconciliação criar, a CADA execução, um núcleo com banco e provedor CONTADOS (orçamento de subpedidos da
+   Cloudflare, api/_orcamento.mjs); o serviço normal usa um núcleo com o banco e o provedor sem contagem */
+function criarNucleo({ banco, mp, cfg, agora }) {
   const PROV = mp.nome;
   const idade = iso => (agora() - new Date(iso).getTime()) / 1000;
   const ocorrencia = (evento, tentativa_id, provedor_ref, detalhe, origem) =>
-    banco('pagamentos_registrar_ocorrencia', { evento, tentativa_id, provedor: PROV, provedor_ref, origem, detalhe }).catch(e => console.error('[pagamentos] auditoria falhou:', e && e.codigo));
+    banco('pagamentos_registrar_ocorrencia', { evento, tentativa_id, provedor: PROV, provedor_ref, origem, detalhe }).catch(e => { if (e instanceof SemOrcamento) throw e; console.error('[pagamentos] auditoria falhou:', e && e.codigo); });
   const erroDoProvedor = (e, tentativa_id, ref, origem) => ocorrencia('payment.provider_error', tentativa_id, ref, { tipo: e.tipo, status: e.status, codigo: e.codigo }, origem);
 
   /* aplica o retrato de uma order (a única porta para mudar o estado financeiro) */
@@ -117,6 +120,14 @@ export function criarServicoPagamentos({ banco, cfg, provedor, agora = () => Dat
       return { erro_provedor: e.tipo };
     }
   }
+
+  return { PROV, idade, ocorrencia, erroDoProvedor, aplicar, atualizar };
+}
+
+export function criarServicoPagamentos({ banco, cfg, provedor, agora = () => Date.now() }) {
+  if (!cfg || !cfg.ativo) throw new Error('pagamentos desligados');
+  const mp = provedor || criarMercadoPago({ token: cfg.token, base: cfg.base, fetch: cfg.fetch || globalThis.fetch });
+  const { PROV, idade, ocorrencia, erroDoProvedor, aplicar, atualizar } = criarNucleo({ banco, mp, cfg, agora });
 
   /* decide o que fazer com a tentativa ativa antes de começar outra */
   async function resolverAtiva(ctx, t, metodoNovo) {
@@ -226,38 +237,60 @@ export function criarServicoPagamentos({ banco, cfg, provedor, agora = () => Dat
     },
 
     /* reconciliação: confere no provedor o que está aberto e o que foi pago há pouco (estorno/contestação),
-       e varre as orders recentes da conta atrás de pagamento que o banco não conhece */
-    async reconciliar({ limite = 50, varrerDias = 3, varrerPaginas = 3 } = {}) {
-      const resumo = { conferidas: 0, aplicadas: 0, erros: 0, desconhecidas: 0 };
+       e varre as orders recentes da conta atrás de pagamento que o banco não conhece.
+       ORÇAMENTO (Cloudflare grátis: 50 subpedidos por invocação): cada chamada ao banco e ao provedor é contada POR
+       EXECUÇÃO e a rotina para em `orcamento` (45, menos 2 guardados para o fim). O que não coube fica para o próximo
+       cron (3 em 3 h): a lista vem na ordem da migration (order by coalesce(consultada_em, created_at): as conferidas há
+       mais tempo primeiro, então o que ficou de fora passa à frente na vez seguinte). Resumo: `parcial` e `subpedidos` */
+    async reconciliar({ limite = 15, varrerDias = 3, varrerPaginas = 1, orcamento = ORCAMENTO_SUBPEDIDOS } = {}) {
+      const resumo = { conferidas: 0, aplicadas: 0, erros: 0, desconhecidas: 0, parcial: false, subpedidos: 0 };
+      const gasto = orcamentoDe(orcamento, RESERVA_FINAL);
+      const bancoContado = gasto.contar(banco);
+      const mpContado = { ...mp, consultarOrdem: gasto.contar(mp.consultarOrdem), buscarRecentes: gasto.contar(mp.buscarRecentes),
+        buscarPorReferencia: gasto.contar(mp.buscarPorReferencia) };
+      const nucleo = criarNucleo({ banco: bancoContado, mp: mpContado, cfg, agora });
+      let parou = false;
       const contar = r => { if (r && r.aplicado) resumo.aplicadas++; if (r && r.ignorado === 'order desconhecida') resumo.desconhecidas++; if (r && r.erro_provedor) resumo.erros++; };
-      /* um item com erro (banco, provedor, dado ruim) não derruba os outros */
+      /* um item com erro (banco, provedor, dado ruim) não derruba os outros; o fim do orçamento NÃO é erro: o laço para */
       const umPorVez = async (lista, fazer) => {
         let i = 0;
         await Promise.all(Array.from({ length: Math.min(PARALELO, lista.length) }, async () => {
-          while (i < lista.length) {
+          while (i < lista.length && !parou) {
             const item = lista[i++];
             try { contar(await fazer(item)); }
-            catch (e) { resumo.erros++; console.error('[pagamentos] reconciliação, item:', e instanceof ErroProvedor ? 'provedor ' + e.tipo : (e && e.codigo) || 'erro'); }
+            catch (e) {
+              if (e instanceof SemOrcamento) { parou = true; return; }
+              resumo.erros++; console.error('[pagamentos] reconciliação, item:', e instanceof ErroProvedor ? 'provedor ' + e.tipo : (e && e.codigo) || 'erro');
+            }
           }
         }));
       };
-      const lista = await banco('pagamentos_para_reconciliar', { provedor: PROV, limite, idade_min_s: 120 });
+      const lista = await bancoContado('pagamentos_para_reconciliar', { provedor: PROV, limite, idade_min_s: 120 });
       resumo.conferidas = lista.length;
-      await umPorVez(lista, t => atualizar(t, 'reconciliacao'));
-      if (varrerDias > 0) {
+      await umPorVez(lista, t => nucleo.atualizar(t, 'reconciliacao'));
+      if (varrerDias > 0 && !parou) {
         const desde = agora() - varrerDias * 86400e3;
-        for (let pagina = 1; pagina <= varrerPaginas; pagina++) {
+        for (let pagina = 1; pagina <= varrerPaginas && !parou; pagina++) {
           let orders;
-          try { orders = await mp.buscarRecentes(desde, agora(), pagina); }
-          catch (e) { if (!(e instanceof ErroProvedor)) throw e; resumo.erros++; await erroDoProvedor(e, null, null, 'reconciliacao'); break; }
+          try { orders = await mpContado.buscarRecentes(desde, agora(), pagina); }
+          catch (e) {
+            if (e instanceof SemOrcamento) { parou = true; break; }
+            if (!(e instanceof ErroProvedor)) throw e;
+            resumo.erros++; await nucleo.erroDoProvedor(e, null, null, 'reconciliacao'); break;
+          }
           /* a listagem pode vir resumida: cada order é consultada inteira antes de aplicar */
-          await umPorVez(orders.filter(o => o && /^[A-Za-z0-9_-]{4,64}$/.test(String(o.id || ''))), async o => aplicar(await mp.consultarOrdem(String(o.id)), 'reconciliacao'));
+          await umPorVez(orders.filter(o => o && /^[A-Za-z0-9_-]{4,64}$/.test(String(o.id || ''))), async o => nucleo.aplicar(await mpContado.consultarOrdem(String(o.id)), 'reconciliacao'));
           if (orders.length < 50) break;
         }
       }
-      try { resumo.atencao = (await banco('pagamentos_atencao', { horas: 25 })).total; } catch { resumo.atencao = null; }
+      /* o fim (a contagem de ocorrências a olhar e o registro da própria reconciliação) usa a reserva */
+      const bancoFinal = gasto.contarReservado(banco);
+      try { resumo.atencao = (await bancoFinal('pagamentos_atencao', { horas: 25 })).total; } catch { resumo.atencao = null; }
+      resumo.parcial = parou;
+      resumo.subpedidos = gasto.gastos() + 1;   /* (+1: a ocorrência logo abaixo) */
+      if (parou) console.warn(JSON.stringify({ origem: 'pagamentos', nivel: 'aviso', evento: 'reconciliação parcial', subpedidos: resumo.subpedidos }));
       if (resumo.atencao) console.error('[pagamentos] ATENÇÃO: ' + resumo.atencao + ' ocorrência(s) financeira(s) pedem uma pessoa (app.pagamentos_auditoria; ver 01-ARQUITETURA-E-OPERACAO §7)');
-      await ocorrencia('payment.reconciled', null, null, resumo, 'reconciliacao');
+      await criarNucleo({ banco: bancoFinal, mp, cfg, agora }).ocorrencia('payment.reconciled', null, null, resumo, 'reconciliacao');
       return resumo;
     },
 
