@@ -231,7 +231,7 @@
       entrou(true);
       mostrar(r, soNumeros === true);
       if (!soNumeros) document.dispatchEvent(new CustomEvent('bz-painel:entrou'));
-      $('estado').textContent = 'Atualizado às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + '.';
+      $('estado').textContent = 'Atualizado às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + '.' + (r.aviso ? ' Atenção: ' + r.aviso + '.' : '');   /* (A9: o servidor leu só as páginas mais recentes de cada tabela) */
     }).catch(function (e) {
       if (recusada(e)) return;
       /* a chave não foi recusada, só as métricas falharam: o painel abre com o erro na linha das métricas e a fila

@@ -98,7 +98,8 @@ export async function ler(request, env) {
     /* (abrir o painel não apaga mais nada: a retenção de ~13 meses roda na rotina diária, api/rotinas.mjs) */
     const desde = diasAtras(dias);
     const [paginas, contatos, saude] = await Promise.all([db.listar('paginas', 'inicio', desde), db.listar('contatos', 'quando', desde), saudeDoSistema(env)]);
-    return json({ ...resumir(paginas, contatos, { dias }), saude });
+    const aviso = paginas.cortado || contatos.cortado ? { aviso: 'período grande demais; mostrando os mais recentes' } : {};   /* (A9: o teto de páginas por tabela, api/_banco.mjs) */
+    return json({ ...resumir(paginas, contatos, { dias }), saude, ...aviso });
   } catch (e) {
     console.error('[metricas] painel:', e.message);
     return json({ erro: 'Não deu para ler o banco agora. Tente de novo em instantes.' }, 500);

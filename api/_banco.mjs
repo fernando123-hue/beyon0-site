@@ -15,7 +15,10 @@ import { TEMPO_MAXIMO_MS } from './_supabase.mjs';
 import { ambienteDe } from './_ambiente.mjs';
 
 const PAGINA_REST = 1000;   /* o PostgREST devolve no máximo 1000 linhas por vez */
-const TETO_LINHAS = 50000;  /* o painel nunca puxa mais que isso (proteção de memória) */
+/* o teto do painel é pela CPU (10 ms por pedido no plano grátis da Cloudflare), não pelos 50 subpedidos: 20 páginas × 1.000 linhas
+   × 2 tabelas seriam 40 mil linhas de JSON.parse e resumo num pedido só. Começa em 2 páginas por tabela (2.000 linhas, 4 mil no
+   total: o tráfego do lançamento cabe com sobra) e só sobe se a bancada de CPU (M1) medir que um número maior passa no critério. */
+export const MAX_PAGINAS_POR_TABELA = 2;
 
 function supabase(url, chave) {
   const base = url.replace(/\/+$/, '') + '/rest/v1/';
@@ -41,16 +44,19 @@ function supabase(url, chave) {
       await pedir('contatos?on_conflict=codigo', { method: 'POST', headers: cab({ prefer: 'resolution=ignore-duplicates,return=minimal' }), body: JSON.stringify(contato) }, 'gravar contato');
       if (contato.gclid) await pedir('contatos?codigo=eq.' + contato.codigo + '&gclid=is.null', { method: 'PATCH', headers: cab({ prefer: 'return=minimal' }), body: JSON.stringify({ gclid: contato.gclid }) }, 'gclid');
     },
-    async listar(tabela, campoData, desde) {
+    async listar(tabela, campoData, desde, { maxPaginas = MAX_PAGINAS_POR_TABELA } = {}) {
       const linhas = [];   /* (do mais novo para trás: se passar do teto, o que fica de fora é o mais velho) */
-      for (let de = 0; de < TETO_LINHAS; de += PAGINA_REST) {
+      let cortado = false;
+      for (let pagina = 0; pagina < maxPaginas; pagina++) {
+        const de = pagina * PAGINA_REST;
         const r = await pedir(tabela + '?select=*&' + campoData + '=gte.' + encodeURIComponent(desde) + '&order=' + campoData + '.desc',
           { headers: cab({ 'range-unit': 'items', range: de + '-' + (de + PAGINA_REST - 1) }) }, 'listar ' + tabela);
         const lote = await r.json();
         linhas.push(...lote);
         if (lote.length < PAGINA_REST) break;
+        if (pagina === maxPaginas - 1) cortado = true;   /* (a última página veio cheia: pode haver mais) */
       }
-      return linhas.reverse();
+      return Object.assign(linhas.reverse(), { cortado });
     },
     async mudarContato(codigo, mudanca) {
       const r = await pedir('contatos?codigo=eq.' + codigo, { method: 'PATCH', headers: cab({ prefer: 'return=representation' }), body: JSON.stringify(mudanca) }, 'mudar contato');

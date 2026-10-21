@@ -1,6 +1,6 @@
 # Notas do PR A (Cloudflare) — execução
 
-próxima tarefa: A9
+próxima tarefa: A10
 
 Linha de base (antes de mexer): `testar` = 544 testes, 0 falhas; `testar:mutacao` = 34 de 34 sabotagens pegas.
 
@@ -28,3 +28,5 @@ Linha de base (antes de mexer): `testar` = 544 testes, 0 falhas; `testar:mutacao
 - A8 desvio (rotina diária): o plano pede "60 etapas simuladas → nunca passa de 45", mas a rotina de hoje só tem 6 chamadas. Dei ao `executar` um `deps.orcamento` (padrão 45; 3 guardados para `rotinas_conferir`, o ntfy e `rotinas_avisado`) e o teste usa orçamento 5: nunca passa de 5, `parcial: true`, `ok: false`, a etapa sem orçamento chega ao `rotinas_conferir` como falha "(sem orçamento de subpedidos)" (alerta) e a conferência roda sempre. A resposta da rotina ganhou o campo `parcial`.
 - A8 desvio (teste antigo): `pagamentos.test.mjs` "reconciliação: pago sem aviso…" dependia de a varredura cobrir TODAS as orders que os testes anteriores deixaram no simulador (a order paga só é achada pela varredura porque o relógio do teste anda, o `now()` do banco não). Com o teto de 45 a varredura é cortada. O teste chama a rota com um serviço cujo `reconciliar` passa `orcamento: 1e6, varrerPaginas: 3` (é um teste do que a reconciliação FAZ; o teto tem teste próprio). Regra não afrouxada.
 - A8 para o revisor: (1) `apagarAntigos` do `_banco.mjs` faz 2 fetch por chamada e conta 1 (a folga de 5 + 3 reservados cobre); (2) a varredura de `buscarRecentes` re-consulta orders que o banco já conhece (2 subpedidos cada) e com `varrerPaginas = 1` + teto olha só as primeiras da lista a cada 3 h: uma order desconhecida fora dessa janela só seria achada se aparecesse na 1ª página; vale a medida na M1.
+- A9 vermelho: `metricas.test.mjs` → `MAX_PAGINAS_POR_TABELA` `actual: undefined` (e, sem o teto, o `listar` leria até 50 páginas com o fetch falso que devolve sempre 1.000 linhas). Verde: suíte 565/565. `listar(tabela, campoData, desde, { maxPaginas })` devolve `Object.assign(linhas.reverse(), { cortado })`; `cortado` fica `true` quando a última página permitida veio cheia (pode haver mais, ou ter exatamente 2.000: avisa por precaução). `TETO_LINHAS` (50.000) deixou de existir. O painel devolve `aviso: 'período grande demais; mostrando os mais recentes'` e `js/painel.js` mostra o aviso na linha de estado ("Atualizado às HH:MM. Atenção: …"), sem mexer no layout.
+- A9 para o revisor: o CSV do Ads (`?csv=ads`, 90 dias) também usa `listar('contatos', …)` e agora é cortado em 2.000 contatos, SEM aviso (a resposta é um CSV). Para o lançamento está longe disso; se o dono precisar, a M1 mede um teto maior só para o CSV. Também: `docs/e2e-orcamento.mjs` exercita o painel (abre, confirma pedido) e roda no fim do PR A.
