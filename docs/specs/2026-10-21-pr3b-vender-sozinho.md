@@ -76,11 +76,19 @@ dias para pedido nunca importado, 1.500 caracteres na lista de ajustes.
   1. **"Guarde o link do seu pedido"**, logo depois da entrada paga, com o porquê em palavra simples ("Se o celular
      apagar os dados do site, é por este link que você volta ao pedido. Mande para você mesmo no WhatsApp ou salve
      nos favoritos."). É um **link do pedido**: vale até o pedido terminar (mais 30 dias), o código vai no `#`, o
-     banco guarda só o hash, e cada uso troca o código (o link usado para de valer, a página mostra e guarda o novo,
-     e o aparelho anterior perde o acesso). Revisão de segurança própria no 3b-2.
+     banco guarda só o hash. **(R2, rodada 2) O link é fixo durante o pedido: usar não o troca** (se trocasse, o link
+     salvo no WhatsApp morreria no primeiro uso, e o código novo ficaria só no armazenamento que o iPhone apaga). Ele
+     só muda em dois casos: o cliente toca "Gerar um link novo" (o anterior para de valer e a página pede para
+     guardar o novo) ou "Sair deste aparelho" (invalida o link e a sessão). Abrir pelo link leva o pedido para o
+     aparelho que abriu; o anterior perde o acesso, como na retomada. Revisão de segurança própria no 3b-2.
+     "Mandar para mim" usa o compartilhamento do próprio aparelho (`navigator.share`) ou "Copiar"; **nunca** um
+     `wa.me/?text=` ou outro `href` com o código (ele iria na query de um endereço de terceiro e nos registros dele).
   2. **"Continuar no computador"**, a pedido do cliente: o link de retomada do PR 2b-2 (uso único, 7 dias).
-  3. **Todo aviso da D1 leva um link de retomada novo**, gerado pelo painel (que já gera: `api/painel.mjs`; hoje
-     recusa depois do resumo). A retomada passa a valer em `em_producao` (`privado.etapa_retomavel`).
+  3. **Todo aviso da D1 (a) leva um link de retomada novo** (o do PR 2b-2: uso único, 7 dias), gerado pelo painel (que
+     já gera: `api/painel.mjs`; hoje recusa depois do resumo). Não é o link do pedido: se a mensagem vazar, vale pouco
+     e uma vez, e o link fixo que o cliente guardou continua valendo. O painel mostra a mensagem com "Copiar" e abre a
+     conversa só com o número (`wa.me/<número>`, sem `?text=`); o dono cola. A retomada passa a valer em
+     `em_producao` (`privado.etapa_retomavel`).
 - **O dono.** Fica fora dos passos 1 a 3, menos os dois toques do item 1 da tabela acima. No passo 4 ele publica (a
   "entrega" da decisão de 20/10) e registra o endereço do site. **(R2)** Até a captação ganhar a rotina automática
   (§6), o dono também roda à mão, por pedido, os comandos que levam o material à produção e marcam a prévia.
@@ -136,8 +144,9 @@ servidor, `<entrega_id>/<uuid>`; nunca o nome do arquivo do cliente), `tipo_decl
 **`app.entrega_ajustes`**: `entrega_id`, `rodada`, `texto` (1 a 1.500 caracteres, depois de `limparMensagem` e
 `redigir`), `status` (`na_fila` | `feito`), datas. Fica fora do resumo (o contrato), como o pedido livre do PR 3a.
 
-**`app.links_pedido`** **(R2)**: o "link do pedido" do §1 (hash do código, conversa, `valido_ate`, `usado_em`,
-`trocado_por`), separado da retomada de 7 dias para não mudar as regras dela.
+**`app.links_pedido`** **(R2)**: o "link do pedido" do §1 (hash do código, conversa, `valido_ate`, `ultimo_uso_em`,
+`revogado_em`, `motivo_revogacao`: `novo_a_pedido` | `sair_do_aparelho` | `fim_do_pedido`), um vivo por conversa,
+separado da retomada de 7 dias para não mudar as regras dela. Usar não revoga (rodada 2).
 
 O `vendas_estado` ganha `entrega` (passo, datas, rodadas, endereços conferidos, percentuais da proposta, resumo do
 material: campos preenchidos e arquivos `{ id, papel, ordem, tamanho_real, status }`), para a tela abrir com uma
@@ -147,7 +156,9 @@ chamada só.
 
 A captação calcula `prazo.entregar_ate` com regras que o site não tinha: o prazo só corre com o número dos botões
 autorizado (`numero_em`) e a entrada paga; para enquanto espera a lista de ajustes (por rodada); e conta os dias no
-fuso `America/Campo_Grande` (-04:00). Duas contas diferentes dariam um dia de diferença perto da meia-noite. Por isso:
+fuso `America/Campo_Grande` (-04:00). Duas contas diferentes dariam um dia de diferença perto da meia-noite. **(R2,
+rodada 2)** Essas regras (inclusive a pausa) são do lançamento: para o orçamento, a conta interna segue a da captação
+só para a previsão bater com a produção; nenhuma delas aparece na tela como compromisso antes da D4 (a). Por isso:
 - o site usa a **mesma regra**, com os **mesmos casos de teste** (uma cópia fixa dos casos da captação, com teste de
   igualdade, como o `CPF_CNPJ`), e guarda em `entregas.prazo` as datas que contam (`entrada_em`, `numero_em`, pausas);
 - a tela diz "previsão" até a produção confirmar; quando o painel recebe `previa` (ou um `prazo` da rotina), a data
@@ -168,7 +179,7 @@ escrito à mão: "40%" e "60%" na tela vêm da proposta (`sinal_percentual` e `1
 linha com a régua de 1 px do site: feito (✓), agora (só o rótulo em ciano, que é dado) ou depois. Embaixo do passo,
 uma frase com data quando houver ("Previsão: 6 de novembro"; a data vem do servidor, §2.1). O passo da vez abre
 abaixo. Logo depois da entrada, o cartão "Guarde o link do seu pedido" (§1) fica no topo até o cliente tocar
-"Copiar" ou "Mandar para mim".
+"Copiar" ou "Mandar para mim" (compartilhamento do aparelho, nunca `wa.me/?text=`, §1).
 
 ```
 ┌─ 390 px ─────────────────────────────┐
@@ -233,7 +244,8 @@ montado pelo código a partir do endereço conferido no servidor). Dois caminhos
 - "Está bom: aprovar" → `<dialog>` "Depois de aprovar, o próximo passo é pôr o site no ar." → aprovado.
 - "Quero ajustes" → um campo só, "Escreva tudo de uma vez" (com `rodadas_max` definido, acrescenta "esta é a rodada
   1 de [N]"), até 1.500 caracteres, com o aviso de dados pessoais. A frase "Enquanto espero a sua lista de ajustes, o
-  prazo fica parado" entra porque o prazo para de fato (§2.1). Depois de mandar: "Recebido. A nova prévia aparece aqui."
+  prazo fica parado" **só entra com a D4 (a)** (a pausa é regra do lançamento, §2.1; rodada 2). Depois de mandar:
+  "Recebido. A nova prévia aparece aqui."
 - Com a D5 (a), uma linha a mais: "Se não tivermos resposta até [data], a prévia conta como aprovada." (`[…]` até lá).
 
 **Passo 4, no ar e o restante.** "Seu site está no ar: [endereço]" e "Abrir o site"; logo abaixo, o Pix do restante,
@@ -278,7 +290,7 @@ de `configPublica(cfg).metodos` para desenhar a tela sem o seletor. O código do
 | Pergunta | Resposta (texto) | Quando entra |
 |---|---|---|
 | Quando pago o restante? | "Quando o site estiver no ar: os outros [100 − pct]%, por Pix, nesta mesma página." | com o 3b-3 |
-| Posso desistir? | "Até 7 dias depois de aceitar (confirmar o resumo), por qualquer motivo, você recebe a entrada de volta (Código de Defesa do Consumidor, art. 49)." + o que vale depois: `[…]` (D4) | 3b-1 (a parte da lei); o resto com a D4 |
+| Posso desistir? | "Até 7 dias depois de aceitar (confirmar o resumo), por qualquer motivo, você recebe a entrada de volta (Código de Defesa do Consumidor, art. 49). Depois dos 7 dias, a entrada fica com a Beyon Zero." (decisão de 11/10, Decisões.md :112, já vale para o orçamento; rodada 2) + a devolução se a Beyon atrasar: `[…]` (D4) | 3b-1 (os 7 dias e a entrada que fica); a devolução no atraso com a D4 |
 | Quando fica pronto? | "Em até [prazo_dias] dias, contados [regra da D4]." | com a D4 |
 | Quantos ajustes? | "Quantos precisar, dentro do que está no resumo" (decisão de 11/10) ou o número da D2 | 3b-1 |
 | O que eu recebo? | o site no ar no seu endereço; domínio e hospedagem: `[…]` (DADO DO DONO, spec de 11/10 §10.2) | com o dado |
@@ -441,8 +453,11 @@ crescer, o R2 entra trocando um arquivo só (`api/_material/armazem.mjs`: `linkD
   `upsert: false` só impede sobrescrever um objeto que existe). Depois de `recusado` ou `removido`, o mesmo link
   poderia gravar de novo no mesmo caminho. Fechado em três pontos: `material-conferir` só aceita linha em
   `reservado`; o teto do balde conta o tamanho real dos objetos (`storage.objects`, `metadata->>'size'`), mais as
-  reservas abertas pelo limite do papel, e não só os conferidos; e a rotina diária **reconcilia**: apaga todo objeto
-  do balde sem linha `conferido` correspondente. O abuso, de todo jeito, exige ter pago a entrada.
+  reservas abertas pelo limite do papel, e não só os conferidos; e a rotina diária **reconcilia**: apaga o objeto
+  sem linha, com linha `recusado` ou `removido`, ou com linha `reservado` há mais de 24 h. **(R2, rodada 2)** Reserva
+  com menos de 24 h é poupada (um envio em andamento às 06:41 não some). A lista dos objetos vem do banco
+  (`storage.objects` do balde, 1 chamada), não da listagem paginada do Storage. O abuso, de todo jeito, exige ter
+  pago a entrada.
 - Reserva não conferida em 24 h some (a rotina diária apaga a linha e o objeto).
 - `material-remover` (antes de enviar) apaga o objeto e marca `removido`.
 - Os nomes dos arquivos no aparelho do cliente nunca vão ao servidor; os nomes do pacote (`logo.png`, `foto-01.jpg`)
@@ -520,8 +535,10 @@ bloco próprio dessa página no `_headers`), não a geral: `connect-src` ganha s
 (`https://<projeto>.supabase.co/storage/v1/object/upload/sign/`), e `img-src` ganha `blob:` para as miniaturas feitas
 no aparelho. Nada de `style=""`.
 
-**Link do pedido (§1).** Revisão de segurança própria no 3b-2: validade longa, por isso troca a cada uso, guarda só
-o hash, tem freio de tentativas como a retomada, e "Sair deste aparelho" invalida tudo.
+**Link do pedido (§1).** Revisão de segurança própria no 3b-2. Validade longa e fixo durante o pedido (rodada 2):
+por isso 192 bits sorteados como a retomada, só o hash no banco, freio de tentativas como a retomada, um vivo por
+conversa, troca só a pedido ("Gerar um link novo") ou em "Sair deste aparelho" (que invalida o link e a sessão), fim
+automático 30 dias depois do pedido, e nenhum `href` da página com o código (teste).
 
 **Injeção no Claude.** Material e ajustes são texto de cliente: vão para a produção dentro da moldura de DADO, nunca
 como instrução; o selo de `pareceInjecao` aparece no `listar`; a saída passa pela `varredura` (PR 2 e 3a).
@@ -557,7 +574,7 @@ privacidade.
 | O quê | Onde | Até quando |
 |---|---|---|
 | Fotos e logo | balde `material` (Supabase) | apagados 7 dias depois de **importados** pela produção (a importação da captação passou); se nunca importados, 30 dias depois do fim do pedido; desistência: na rotina do dia seguinte |
-| Reserva de envio não conferida, objeto sem linha conferida | balde e banco | 24 h / na reconciliação diária |
+| Reserva de envio não conferida; objeto sem linha, recusado ou removido | balde e banco | 24 h / na reconciliação diária (reserva com menos de 24 h é poupada) |
 | Campos do material | banco (`app.materiais`) | os mesmos 7 dias depois da importação (sobra só "enviado em", sem conteúdo); se nunca importados, 30 dias depois do fim |
 | Prova da autorização (texto exato, versão, data e o que ela cobre: "logo", "fotos", "contatos"…), endereços da prévia e do site, datas dos passos | banco | com os registros do pedido e dos pagamentos: 5 anos depois do último pagamento ou devolução (a regra da captação, `para-o-site.md` §2) |
 | Lista de ajustes da prévia | banco | 30 dias depois da última atividade (como o texto de conversa na captação) |
@@ -599,13 +616,15 @@ Cada uma diz o que vale hoje e o que fica se ele não responder. Nenhuma bloquei
   (a)**, porque é o que `/condicoes` já diz e não muda o preço que o cliente viu. Mudança de código na captação.
   **Sem resposta:** o 3b não vai ao ar para cliente real (o risco é cobrar e a produção recusar depois).
 - **D4. As regras do lançamento valem para o orçamento? (A1)** Hoje: não estão decididas para o orçamento. Quais são:
-  prazo contado da entrada e do material; 30 dias sem material → sai com as imagens do modelo; 10 dias sem o restante
-  → o site sai do ar; se a Beyon atrasar, devolve a entrada; depois dos 7 dias, a entrada fica. (a) Sim, as mesmas;
-  (b) regras próprias (o dono diz quais). **Recomendação: (a)**: uma regra para todos, a mesma esteira, e inclui a
-  proteção do cliente (devolução no atraso). **Sem resposta:** essas frases não aparecem na tela, as rotinas ficam
-  desligadas (§2) e a data é só "previsão"; o 3b não vai ao ar para cliente real sem as regras de desistência e prazo.
-- **D1. Quem avisa o cliente** (prévia pronta, site no ar, lembretes). (a) O dono toca "avisar" no painel e o WhatsApp
-  abre com a mensagem pronta e um link novo do pedido. É **uma exceção pequena à regra de 20/10**: ele manda o aviso,
+  prazo contado da entrada e do material, parado enquanto se espera a lista de ajustes; 30 dias sem material → sai
+  com as imagens do modelo; 10 dias sem o restante → o site sai do ar; se a Beyon atrasar, devolve a entrada. (a) Sim,
+  as mesmas; (b) regras próprias (o dono diz quais). **Recomendação: (a)**: uma regra para todos, a mesma esteira, e
+  inclui a proteção do cliente (devolução no atraso). **Sem resposta:** essas frases não aparecem na tela, as rotinas
+  ficam desligadas (§2) e a data é só "previsão"; o 3b não vai ao ar para cliente real sem a regra de prazo. ("Depois
+  dos 7 dias, a entrada fica" não entra aqui: já é decisão de 11/10 para o orçamento, Decisões.md :112; rodada 2.)
+- **D1. Quem avisa o cliente** (prévia pronta, site no ar, lembretes). (a) O dono toca "avisar" no painel: o painel
+  mostra a mensagem pronta com um link de retomada novo (uso único, 7 dias; §1, item 3) e "Copiar", e abre a conversa
+  só com o número, sem o texto na URL; o dono cola e envia. É **uma exceção pequena à regra de 20/10**: ele manda o aviso,
   não conversa (estimativa: uns 3 toques por cliente); (b) e-mail automático: exige pedir o e-mail de novo (o
   formulário de hoje não pede), um serviço de envio, mexer no DNS do `beyonzero.com.br` (que hoje recusa e-mail de
   propósito) e mais uma empresa na privacidade; (d) **só a tela**: a data prevista com "Pôr na minha agenda" (arquivo
@@ -665,7 +684,9 @@ fiscal no orçamento, os dados do vendedor no rodapé.
   por padrão; cotas (21ª foto, 31ª reserva, 151 MB, teto do balde pelo tamanho real); `conferir` fora de `reservado`
   recusado; corrida (`passo_base`, `rodada_base`); `rodadas_max` nulo sem limite e com número; saldo só em
   `no_ar`/`suspensa` e com o valor exato `total − sinal`; proposta sem percentual não cobra; saldo pago conclui e
-  encerra; limpeza nos prazos da §10 e só depois de `importado`; ordem de travas; link do pedido troca a cada uso;
+  encerra; limpeza nos prazos da §10 e só depois de `importado`; ordem de travas; link do pedido continua valendo depois de usado e só morre em "Gerar um link novo", "Sair deste
+  aparelho" ou no fim; reserva com 1 h sobrevive à reconciliação e com 25 h some; nenhum `href` com o código do link
+  (nem `wa.me/?text=`), na página e no painel;
 - API: sessão de outro visitante recusada em toda ação; corpo acima de 16 KB recusado; cartão recusado com
   `MP_METODOS` ausente (o teste é o da A7); endereço de prévia fora da `URL_PREVIA` ou de outro projeto recusado;
   nenhum log com link assinado;
@@ -774,3 +795,8 @@ site; e, no futuro, uma versão 2 do formato com o campo `sobre`.
 | `textos.json`/`sobre` | captação | tirado do v1; versão 2 futura (§2, §13) |
 | Desistência em dois lugares | captação | §5 |
 | `material_dispensar` | captação | mantido, atrás da D4 (§2) |
+| R2-1 link do pedido trocava a cada uso | site, rodada 2 | link fixo durante o pedido; troca só em "Gerar um link novo" ou "Sair deste aparelho" (§1, §2 `app.links_pedido`, §8); teste (§12) |
+| R2-2 reconciliação apagava envio em andamento | site, rodada 2 | poupa `reservado` com menos de 24 h; lista pelo banco (§7, §10); teste 1 h × 25 h (§12) |
+| R2-3 pausa do prazo e "entrada fica" | site, rodada 2 | pausa só com a D4 (a) (§2.1, §3, D4); "depois dos 7 dias, a entrada fica" saiu da D4 e vai no 3b-1 (§4, decisão de 11/10) |
+| R2-4 código do link em `wa.me/?text=`; qual link no aviso | site, rodada 2 | "Mandar para mim" por `navigator.share` ou "Copiar" (§1, §3); aviso da D1 (a) com retomada de uso único e 7 dias, colado pelo dono, sem `?text=` (§1, D1); teste (§12) |
+| R2-5 resumo esconde a produção manual por formato | site, rodada 2 | linha no resumo (loja, sob medida e saúde = produção manual); §6, §14 já diziam |
