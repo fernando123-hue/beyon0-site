@@ -587,10 +587,10 @@
   /* um cartão ou uma opção que entre na página depois (conteúdo novo, script)
      é medido na próxima parada: entra no campo, no barramento e na onda */
   var ioCentro = null;   /* (celular) o observador do centro da tela; os cartões novos entram nele também */
-  /* só o traço do turbo (js/estacao.js) ou a luz que circula na borda (js/carga.js) entrou ou saiu: não é conteúdo novo */
+  /* só o traço do turbo (js/estacao.js) ou a luz que circula na borda (js/carga.js, js/linha-viva.js) entrou ou saiu: não é conteúdo novo */
   function soEnfeite(m) {
     var nos = [].concat([].slice.call(m.addedNodes), [].slice.call(m.removedNodes));
-    for (var k = 0; k < nos.length; k++) if (!(nos[k].nodeType === 1 && (nos[k].classList.contains('energia-volta') || nos[k].classList.contains('carga-circula')))) return false;
+    for (var k = 0; k < nos.length; k++) if (!(nos[k].nodeType === 1 && (nos[k].classList.contains('energia-volta') || nos[k].classList.contains('carga-circula') || nos[k].classList.contains('linha-viva')))) return false;
     return true;
   }
   if ('MutationObserver' in window) new MutationObserver(function (ms) {

@@ -60,8 +60,29 @@ no Safari do iPhone.
 - B: o número sai do grid; no laudo largo (≥ 821 px) o título e o texto ficam com as duas colunas.
 - "Hoje" na prévia aparece parado, sem o movimento da página.
 
-## Próximo passo
+## Escolhas do dono (20/10, `01 Empresa/Decisões.md`)
 
-O dono escolhe no celular (pode ser uma, uma mistura, ou nenhuma). Registrar a resposta em `01 Empresa/Decisões.md` na
-hora. Depois: implementar a escolhida em `css/cartoes.css` (PR próprio, celular primeiro, revisão e verificar) e tirar
-a página de prévia do site.
+1. **Direção C** ("Gostei da opção C, mas também quero uma melhoria no número do card, acabou ficando um pouco
+   genérico"). Como o pedido do número era aberto, a prévia mostrou o atual e três opções (`7879625`): 1 Contagem
+   ("01 / 03"), 2 Grande (Sora 300) e 3 Na linha. Um número vazado em contorno ficou de fora: vira duas linhas
+   paralelas por traço, o "tubo" proibido.
+2. **Número: a opção 3, na linha**, "um pouquinho maior e que seus efeitos sejam mais perceptivos".
+
+## O que foi implementado (branch `cartoes-c`)
+
+- **Módulo** (`css/cartoes.css`, "o módulo: A LINHA VIVA"): uma linha só (`--line-2`), canto de 10 px (`--mod-raio`).
+  Saíram as quatro tiras de luz de canto, a aresta de cima (o `::before` fica escondido), as marcas em L (o HTML segue
+  com os spans, escondidos) e o traço do número. A sombra interna de 1 px no topo também saiu (era uma 2ª linha).
+- **Número na linha**: `.servico__n`, `.celula__n`, `.laudo__n` ficam na borda de cima, 13 px (era 11), como etiqueta
+  com fundo opaco; acendem em `--ac-2` no hover e no aceso. Os grids do laudo perderam a coluna do número (inclusive
+  o índice grande em Sora 200 das dores do Início, que passou para a linha como os outros).
+- **Luz pousada**: um traço de 124 px pintado no FUNDO do cartão (não em pseudo-elemento: o `motion.css` anima os
+  `::before` na entrada), logo depois do número, mais forte que na prévia (pico no branco). Sai quando outra luz dá a
+  volta (o aceso, a carga cheia no desktop).
+- **A volta** (`js/linha-viva.js`): no cartão aceso do celular e do tablet a luz decola de onde pousava e dá a volta,
+  a 260 px/s, na construção da luz que circula da carga (quatro lados recortados, faixa do tamanho do perímetro,
+  só `transform`; o JS mede só quando o tamanho muda). Pausada fora do aceso. No desktop com mouse não é montada: a
+  carga aprovada (04/10, "B e D") segue dando a volta lá. Sem JS ou com movimento reduzido, a luz fica pousada.
+- **Teste**: `docs/pecas/linha-viva.mjs` (número na linha, luz pousada, volta só no aceso e com 4 faixas, nada no
+  reduzido nem no desktop, sem rolagem lateral, sem sinais antigos).
+- A página de prévia (`cartoes-direcoes.html` e o CSS dela) saiu do site.
