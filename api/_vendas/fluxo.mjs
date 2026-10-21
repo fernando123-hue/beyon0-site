@@ -249,7 +249,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
   async function turno(vid, conversaId, est, regras, msg) {
     let r;
     try {
-      r = await executarTurno({ ia, direcoes: modo, regras: regras.regras, conversa: { etapa: est.conversa.etapa, pedido_status: est.pedido?.status, briefing: est.conversa.briefing, mensagens: est.mensagens, estimativa: est.estimativa }, mensagem: msg });
+      r = await executarTurno({ ia, direcoes: modo, metodos: pagamentos?.metodos, regras: regras.regras, conversa: { etapa: est.conversa.etapa, pedido_status: est.pedido?.status, briefing: est.conversa.briefing, mensagens: est.mensagens, estimativa: est.estimativa }, mensagem: msg });
     } catch (e) {
       await somarCusto(conversaId, vid, e && e.custo_usd);   /* (as rodadas pagas antes da falha, de qualquer tipo de erro) */
       if (e instanceof ErroIA) await banco('vendas_registrar_evento', { conversa_id: conversaId, visitante_id: vid, tipo: 'ia_falhou', dados: { motivo: e.motivo } }).catch(() => {});

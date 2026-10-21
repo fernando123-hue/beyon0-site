@@ -56,5 +56,5 @@ const RECUSA = {
   '3ds_challenge_expired': 'A confirmação com o banco expirou. Tente de novo.'
 };
 export function mensagemRecusa(detalhe) {
-  return RECUSA[detalhe] || 'O pagamento não foi aprovado. Tente de novo, use outro cartão ou o Pix.';
+  return RECUSA[detalhe] || 'O pagamento não foi aprovado. Tente de novo; se não der, fale com a Beyon Zero pelo WhatsApp.';
 }

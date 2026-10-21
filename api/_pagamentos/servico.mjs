@@ -153,10 +153,12 @@ export function criarServicoPagamentos({ banco, cfg, provedor, agora = () => Dat
 
   return {
     nome: PROV,
+    metodos: cfg.metodos || ['pix'],   /* (o consultor só cita as formas que existem: api/_vendas/consultor.mjs) */
 
     /* começa (ou retoma) o pagamento do sinal. O valor vem da proposta aceita, no banco */
     async iniciar({ conversa_id, visitante_id, metodo, pagador, cartao }) {
-      if (!['pix', 'cartao'].includes(metodo)) throw new ErroPagamento(400, 'Escolha Pix ou cartão.');
+      if (!['pix', 'cartao'].includes(metodo)) throw new ErroPagamento(400, 'Escolha a forma de pagamento que aparece na tela.');
+      if (!(cfg.metodos || ['pix']).includes(metodo)) throw new ErroPagamento(400, 'Esta forma de pagamento não está disponível.');
       const vp = validarPagador(pagador);
       if (vp.erro) throw new ErroPagamento(400, vp.erro);
       let vc = null;

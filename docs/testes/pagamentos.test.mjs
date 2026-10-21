@@ -425,3 +425,32 @@ test('teste de cartões pela API: logo depois de uma recusa, espera; o Pix segue
   assert.match(de_novo.corpo.erro, /Espere/);
   assert.equal((await n.chamar('POST', 'pagar', { conversa_id: c, metodo: 'pix', pagador: PAGADOR }, { deps: d })).corpo.tentativa.status, 'aguardando');
 });
+
+test('só Pix fora do local: MP_METODOS ausente ou inválido = só Pix; o cartão é recusado antes do banco', async () => {
+  const base = { MP_ACCESS_TOKEN: 'APP_USR-1234567890123456-abc-123456', MP_PUBLIC_KEY: 'APP_USR-pub-1234567890123456', MP_WEBHOOK_SEGREDO: 'segredo-muito-longo-123', MP_USER_ID: '123456' };
+  const salvo = globalThis.__BZ_LOCAL; globalThis.__BZ_LOCAL = undefined;
+  try {
+    const cf = { ...base, BZ_PLATAFORMA: 'cloudflare', MP_AMBIENTE: 'producao' };
+    assert.deepEqual(configPagamentos(cf).metodos, ['pix'], 'ausente: só Pix');
+    assert.deepEqual(configPagamentos({ ...cf, MP_METODOS: 'pix,boleto' }).metodos, ['pix'], 'inválido: só Pix');
+    assert.deepEqual(configPagamentos({ ...cf, MP_METODOS: 'pix,cartao' }).metodos, ['pix', 'cartao']);
+    assert.deepEqual(configPublica(configPagamentos(cf)).metodos, ['pix'], 'o navegador fica sabendo');
+    /* cartão e pagador VÁLIDOS (revisão do plano do 3b-1, ALTO-1): com `cartao: {}` ou `pagador: {}` o iniciar de hoje
+       já recusa em validarCartao/validarPagador antes do banco, e o teste passaria sem a guarda (a sabotagem sobreviveria) */
+    const CARTAO = { token: 'local-APRO-abc12345', meio: 'visa', tipo: 'credit_card', parcelas: 1 };
+    let chamadas = 0;
+    const banco = async () => { chamadas++; return {}; };
+    const servico = criarServicoPagamentos({ banco, cfg: configPagamentos(cf), provedor: { nome: 'mercadopago' } });
+    await assert.rejects(servico.iniciar({ conversa_id: 'c', visitante_id: 'v', metodo: 'cartao', pagador: PAGADOR, cartao: CARTAO }),
+      e => e.status === 400 && /não está disponível/.test(e.message));
+    assert.equal(chamadas, 0, 'nenhuma chamada ao banco');
+    /* controle: com o cartão ligado, o MESMO pedido chega ao banco (prova que a recusa acima é da guarda nova) */
+    const comCartao = criarServicoPagamentos({ banco, cfg: configPagamentos({ ...cf, MP_METODOS: 'pix,cartao' }), provedor: { nome: 'mercadopago' } });
+    await comCartao.iniciar({ conversa_id: 'c', visitante_id: 'v', metodo: 'cartao', pagador: PAGADOR, cartao: CARTAO }).catch(() => {});
+    assert.ok(chamadas >= 1, 'com cartão ligado, o pedido chega ao banco');
+  } finally { globalThis.__BZ_LOCAL = salvo; }
+});
+test('local (simulado) continua com cartão: o E2E não perde a regressão; MP_METODOS=pix vale também no local', () => {
+  assert.ok(configPagamentos({}).metodos.includes('cartao'));
+  assert.deepEqual(configPagamentos({ MP_METODOS: 'pix' }).metodos, ['pix']);
+});

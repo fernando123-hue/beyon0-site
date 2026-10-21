@@ -357,7 +357,7 @@ test('conversa aberta até o pagamento: no escopo e no sinal o consultor só tir
   assert.match(esc, /Resumo do que será feito/);
   assert.match(esc, /Confirmar o escopo/);
   assert.match(esc, /WhatsApp/, 'mudança de escopo agora é pelo WhatsApp: os ajustes fecharam');
-  const pag = proximoPasso({ etapa: 'aguardando_pagamento', briefing: {}, estimativa: null });
+  const pag = proximoPasso({ etapa: 'aguardando_pagamento', briefing: {}, estimativa: null, metodos: ['pix', 'cartao'] });   /* (os dois métodos: a frase "Pix ou cartão"; só Pix tem teste próprio, no fim do arquivo) */
   assert.match(pag, /Pix ou cartão/);
   assert.match(pag, /nunca diga que o pagamento/i);
   for (const p of [esc, pag]) {
@@ -365,4 +365,28 @@ test('conversa aberta até o pagamento: no escopo e no sinal o consultor só tir
     /* o que está ou não incluído é do escopo, não da memória do modelo (revisões do PR 34: técnica B3, segurança M3) */
     assert.match(p, /incluído[^.]*não afirme[^.]*Resumo do que será feito/i);
   }
+});
+
+/* SÓ PIX (A7, Step 5b): o que o modelo diz da forma de pagamento sai da lista de métodos do servidor (cfg.metodos) */
+const OFERTA_CARTAO = /Pix ou (o )?cart[aã]o|cart[aã]o ou (o )?Pix|tente o cart[aã]o|outro cart[aã]o/i;
+test('só Pix: as instruções e o próximo passo do pagamento não oferecem cartão; com os dois métodos, oferecem', () => {
+  const soPix = { metodos: ['pix'] }, os2 = { metodos: ['pix', 'cartao'] };
+  assert.doesNotMatch(montarSistema(REGRAS, soPix), OFERTA_CARTAO);
+  assert.doesNotMatch(proximoPasso({ etapa: 'aguardando_pagamento', briefing: {}, estimativa: null, ...soPix }), OFERTA_CARTAO);
+  assert.match(montarSistema(REGRAS, os2), /Pix ou cartão/);
+  assert.match(proximoPasso({ etapa: 'aguardando_pagamento', briefing: {}, estimativa: null, ...os2 }), /Pix ou cartão/);
+  /* sem a lista (fechado por padrão): só Pix */
+  assert.doesNotMatch(montarSistema(REGRAS), OFERTA_CARTAO);
+  assert.doesNotMatch(proximoPasso({ etapa: 'aguardando_pagamento', briefing: {}, estimativa: null }), OFERTA_CARTAO);
+  assert.match(montarSistema(REGRAS, soPix), /por Pix;/, 'diz que o sinal é por Pix');
+});
+test('só Pix: o turno leva a lista de métodos do fluxo ao prompt', async () => {
+  const recebidos = [];
+  const ia = { mensagem: async p => { recebidos.push(p); return { texto: 'ok', chamadas: [], conteudo: [], parada: 'fim', custo_usd: 0 }; } };
+  const conversa = { etapa: 'aguardando_pagamento', briefing: {}, mensagens: [], estimativa: null };
+  await executarTurno({ ia, direcoes: 'api', regras: REGRAS, conversa, mensagem: 'e agora?', metodos: ['pix', 'cartao'] });
+  assert.match(recebidos[0].sistema, /Pix ou cartão/);
+  await executarTurno({ ia, direcoes: 'api', regras: REGRAS, conversa, mensagem: 'e agora?', metodos: ['pix'] });
+  assert.doesNotMatch(recebidos[1].sistema, OFERTA_CARTAO);
+  assert.doesNotMatch(recebidos[1].contexto, OFERTA_CARTAO);
 });
