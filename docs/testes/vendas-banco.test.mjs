@@ -30,13 +30,13 @@ before(async () => {
 });
 
 /* leva uma conversa nova até a etapa pedida; devolve os ids */
-async function conversaAte(visitante, ate) {
+async function conversaAte(visitante, ate, { sinal = 1500 } = {}) {
   const ids = {};
   ids.conversa = (await rpc('vendas_iniciar', { org_slug: 'beyon-zero', visitante_id: visitante, origem_meio: 'anuncio', origem_fonte: 'google', campanha: 'sites-rj', codigo_visita: null })).conversa_id;
   const base = { conversa_id: ids.conversa, visitante_id: visitante };
   if (ate === 'iniciada') return ids;
   await rpc('vendas_registrar_turno', { ...base, mensagem_visitante: 'Tenho uma clínica odontológica e só tenho Instagram', mensagem_agente: 'Entendi. Qual é o principal objetivo do site?', briefing: { negocio: { nome: 'Clínica Sorriso', segmento: 'odontologia' }, projeto: { formato: 'institucional' } }, confianca: 0.75, custo_usd: 0.01 });
-  ids.estimativa = (await rpc('vendas_registrar_estimativa', { ...base, regras_id: REGRAS, fatores: { formato: 'institucional', paginas: 5 }, valor_total: 3000, sinal: 1500, prazo_dias: 10 })).estimativa_id;
+  ids.estimativa = (await rpc('vendas_registrar_estimativa', { ...base, regras_id: REGRAS, fatores: { formato: 'institucional', paginas: 5 }, valor_total: 3000, sinal, prazo_dias: 10 })).estimativa_id;
   if (ate === 'estimativa') return ids;
   ids.lead = (await rpc('vendas_informar_contato', { ...base, nome: 'Dra. Ana', telefone: '+5521999990000', aceite: true })).lead_id;
   await pedidoConfirmado(db, ids.conversa);   /* (PR 2a: as direções só nascem com o pedido confirmado pelo dono) */
@@ -101,6 +101,36 @@ test('preço: o escopo usa a ÚLTIMA ESTIMATIVA, nunca o valor enviado na chamad
 /* (o PGlite tem uma conexão só e põe as transações em fila: aqui se prova o resultado de dois pedidos seguidos. No Postgres
    real, a corrida de verdade é barrada pelo FOR UPDATE na conversa e pelos índices únicos (uma geração por número, uma
    cobrança viva por parcela), que valem mesmo se duas transações chegarem juntas.) */
+/* ======================= a entrada (PR 3b-1, spec 2026-10-21 §4) ======================= */
+test('entrada: a cobrança sai do percentual da proposta, a 40 ou a 50, nunca de um número de reserva', async () => {
+  for (const [sinal, pct] of [[1200, 40], [1500, 50]]) {
+    const ids = await conversaAte(V1, 'confirmada', { sinal });
+    const pr = (await db.query('select sinal_percentual from app.propostas where id = $1', [ids.proposta])).rows[0];
+    assert.equal(pr.sinal_percentual, pct, 'a proposta guarda o percentual da estimativa');
+    const cob = await rpc('pagamentos_iniciar_tentativa', { conversa_id: ids.conversa, visitante_id: V1, metodo: 'pix', provedor: 'mercadopago' });
+    assert.equal(Number(cob.valor), sinal, pct + '%: a cobrança é ' + sinal);
+  }
+});
+
+test('entrada: proposta sem percentual (nulo ou 0) NÃO cobra — falha fechada (23514) e nenhuma cobrança criada', async () => {
+  for (const pct of [null, 0]) {
+    const ids = await conversaAte(V1, 'confirmada');
+    /* (só no teste: a proposta aceita é imutável pelo gatilho proposta_imutavel; desliga SÓ ele, pelo nome, como em
+       docs/testes/auditoria-p1.test.mjs:168; a réplica desligaria todos os gatilhos da sessão, inclusive a auditoria) */
+    await db.exec('alter table app.propostas disable trigger proposta_imutavel');
+    try { await db.query('update app.propostas set sinal_percentual = $1 where id = $2', [pct, ids.proposta]); }
+    finally { await db.exec('alter table app.propostas enable trigger proposta_imutavel'); }
+    const e = await erroDe(como(db, 'service_role', q => q('select app.pagamentos_iniciar_tentativa($1::jsonb)',
+      [JSON.stringify({ conversa_id: ids.conversa, visitante_id: V1, metodo: 'pix', provedor: 'mercadopago' })])));
+    assert.equal(e && e.codigo, REGRA, String(pct) + ': recusado com 23514 (' + (e && e.msg) + ')');
+    /* a MENSAGEM prova a guarda nova: com 0, o banco de hoje já recusa com 23514, mas pela restrição check (valor > 0)
+       de app.pagamentos (20261007130000_pagamentos.sql:68), não pela falha fechada */
+    assert.match(e.msg, /sem percentual de entrada/, String(pct) + ': recusado pela falha fechada, não por outra regra');
+    const n = (await db.query('select count(*)::int n from app.pagamentos where proposta_id = $1', [ids.proposta])).rows[0].n;
+    assert.equal(n, 0, String(pct) + ': nenhuma cobrança criada');
+  }
+});
+
 test('concorrência: dois pedidos de geração e duas cobranças ao mesmo tempo dão uma geração e uma cobrança', async () => {
   const ids = await conversaAte(V2, 'contato');
   const base = { conversa_id: ids.conversa, visitante_id: V2 };

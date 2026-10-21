@@ -499,3 +499,15 @@ test('reconciliação: página da varredura cheia = parcial (há mais orders que
   assert.equal(r.parcial, true, 'a página veio cheia (50): pode haver mais');
   assert.deepEqual(consultadas, ['NOVA0', 'NOVA1', 'NOVA2', 'NOVA3', 'NOVA4'], 'só as que podem ter dinheiro foram consultadas');
 });
+
+test('entrada sem percentual (PR 3b-1): o 23514 do banco vira 409 com o WhatsApp, e nada vai ao Mercado Pago', async () => {
+  let ordens = 0;
+  const banco = async nome => {
+    if (nome !== 'pagamentos_iniciar_tentativa') return {};
+    const e = new Error('proposta sem percentual de entrada'); e.codigo = '23514'; throw e;
+  };
+  const s = criarServicoPagamentos({ banco, cfg: configPagamentos({}), provedor: { nome: 'mercadopago', criarOrdem: async () => { ordens++; return {}; } } });
+  await assert.rejects(s.iniciar({ conversa_id: 'c', visitante_id: 'v', metodo: 'pix', pagador: PAGADOR }),
+    e => e.status === 409 && /valor da entrada/.test(e.message) && e.extra && e.extra.whatsapp === true);
+  assert.equal(ordens, 0, 'nenhuma ordem criada no provedor');
+});

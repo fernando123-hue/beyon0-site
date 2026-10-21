@@ -108,7 +108,10 @@ export const SABOTAGENS = [
     de: "String(e.BZ_AMBIENTE || '').trim() === 'previa'", para: "/previa/i.test(String(e.BZ_AMBIENTE || ''))" },
   /* ---- só Pix no lançamento (A7): o servidor recusa o cartão antes do banco ---- */
   { nome: 'cartão aceito com só Pix (o servidor)', fonte: 'api/_pagamentos/servico.mjs', testes: ['docs/testes/pagamentos.test.mjs'],
-    de: "if (!(cfg.metodos || ['pix']).includes(metodo)) throw", para: "if (false) throw" }
+    de: "if (!(cfg.metodos || ['pix']).includes(metodo)) throw", para: "if (false) throw" },
+  /* ---- a entrada (PR 3b-1): sem o percentual da proposta, nada é cobrado (a falha fechada no lugar do 50) ---- */
+  { nome: 'entrada sem percentual cobra assim mesmo', arquivo: '20261022120000_pr3b1_entrada.sql', testes: ['docs/testes/vendas-banco.test.mjs'],
+    de: "if pr.sinal_percentual is null or pr.sinal_percentual < 1 then\n    raise exception 'proposta sem percentual de entrada'", para: "if false then\n    raise exception 'proposta sem percentual de entrada'" }
 ];
 
 /* as sabotagens que a rodada vai fazer: todas, ou só as do filtro (parte do nome, sem diferenciar maiúsculas). Filtro que não
