@@ -25,7 +25,7 @@ test('o nome no Pix (decisão do dono de 21/10, Decisões.md, "Nome que aparece 
 
 test('o Pix na ordem nova: valor, nome, copiar, os 3 passos; o QR só em "Pagar por outro aparelho"', () => {
   const pix = entre(HTML, 'id="o-pix"', 'id="o-desafio"');
-  const marcas = ['id="o-pix-valor"', 'Fernando Ferreira Dos Santos', 'id="o-pix-copiar"', 'Abra o app do seu banco', 'Pix › Pix copia e cola', 'Cole o código e confirme'];
+  const marcas = ['id="o-pix-valor"', 'Fernando Ferreira Dos Santos', 'id="o-pix-copiar"', 'Abra o app do seu banco', 'Pix <span aria-hidden="true">›</span>', 'Cole o código e confirme'];
   const pos = marcas.map(m => pix.indexOf(m));
   assert.ok(pos.every((p, i) => p > 0 && (i === 0 || p > pos[i - 1])), 'ordem: ' + marcas.map((m, i) => m + '@' + pos[i]).join(', '));
   assert.ok(!pix.includes('id="o-pix-qr"'), 'o QR saiu do bloco do código');
@@ -135,4 +135,12 @@ test('D2: o orçamento e /condicoes dizem "listas de ajuste", não "rodadas"', (
   const cond = texto(ler('condicoes.html'));
   assert.ok(cond.includes('2 listas de ajuste. Uma lista é um conjunto de pedidos mandado de uma vez.'), cond.slice(cond.indexOf('ajuste') - 40, cond.indexOf('ajuste') + 120));
   assert.ok(!/rodadas? de ajuste/i.test(cond + ' ' + texto(HTML)), 'a palavra "rodada" saiu dos dois textos');
+});
+
+/* revisão do 3b-1, BAIXO-6: o "›" é enfeite; o leitor de tela lê "Pix, depois Pix copia e cola" */
+test('os passos do Pix: o "›" fica escondido do leitor de tela', () => {
+  const passos = entre(HTML, 'class="pix__passos"', '</ol>');
+  assert.ok(/<span aria-hidden="true">›<\/span>/.test(passos), passos);
+  assert.ok(!passos.replace(/<span aria-hidden="true">›<\/span>/g, '').includes('›'), 'nenhum › solto');
+  assert.ok(/<span class="sr-only">, depois<\/span>/.test(passos), 'o leitor de tela ouve o "depois"');
 });
