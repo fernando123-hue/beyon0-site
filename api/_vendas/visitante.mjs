@@ -10,8 +10,20 @@
    Exige, no painel do Supabase: Authentication › "Allow anonymous sign-ins"
    ligado (o cadastro com e-mail continua desligado) — docs/fase2/02-OPERACAO.md.
    Local e testes: globalThis.__BZ_LOCAL.auth (tokens HS256 de desenvolvimento).
+   O IP DO VISITANTE NO AUTH (migração para a Cloudflare, A10): atrás de um proxy o Supabase Auth vê o IP do proxy, e o limite
+   dele por IP (login anônimo: 30 por hora por IP) viraria um balde compartilhado por todos os visitantes. Com
+   SUPABASE_CHAVE_SECRETA e um IP válido, criar() e renovar() chamam o Auth com a chave SECRETA e o cabeçalho
+   Sb-Forwarded-For (a doc do Supabase só aceita o cabeçalho com a chave secreta; o "IP Address Forwarding" precisa estar
+   ligado no projeto, senão o Supabase ignora o cabeçalho e o comportamento é o de hoje).
+   • O IP vem do rotear do Worker (validado, montado do zero, nunca copiado de cabeçalho do cliente) e passa por
+     normalizarIp: IPv6 vai pelo prefixo /64 (2001:db8:a:b::1 → 2001:db8:a:b::), a casa inteira conta como um visitante,
+     como nos freios do site. É intencional; o log do Auth mostra o prefixo, não o IP do celular.
+   • Sem a chave secreta ou sem um IP válido: como antes (chave publicável, sem o cabeçalho).
+   • NUNCA aponte o servidor local (que confia no x-forwarded-for) para o Supabase de staging com a chave secreta.
+   • quem() segue com a chave publicável: é o /user com o token do próprio visitante.
    ========================================================================== */
 import { configUsuario, tokenDe, usuarioDoToken, TEMPO_MAXIMO_MS, AuthIndisponivel } from '../_supabase.mjs';
+import { normalizarIp } from './ip.mjs';
 
 const SEM_LOGIN = 'Não consegui abrir o atendimento agora. Tente de novo em instantes.';
 const LOGIN_DESLIGADO = 'O orçamento está indisponível agora. Fale com a Beyon Zero pelo WhatsApp.';
@@ -32,10 +44,11 @@ async function chamarAuth(url, opcoes, paraVisitante) {
   }
 }
 
-export function criarVisitantes(env = process.env) {
+export function criarVisitantes(env = process.env, { ip } = {}) {
   const cfg = configUsuario(env);
   if (cfg) {
-    const cab = { apikey: cfg.publica, 'content-type': 'application/json' };
+    const ipAuth = env.SUPABASE_CHAVE_SECRETA ? normalizarIp(String(ip || '')) : null;
+    const cab = ipAuth ? { apikey: env.SUPABASE_CHAVE_SECRETA, 'sb-forwarded-for': ipAuth, 'content-type': 'application/json' } : { apikey: cfg.publica, 'content-type': 'application/json' };
     const sessao = s => (s && s.access_token && s.user?.id ? { token: s.access_token, refresh: s.refresh_token, expira_em: s.expires_at || null, visitante_id: s.user.id } : null);
     return {
       async criar() {

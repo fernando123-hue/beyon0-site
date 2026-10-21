@@ -326,3 +326,33 @@ test('rotina diária: nunca passa do orçamento de subpedidos; a etapa sem orça
   assert.ok(vistos.includes('rotinas_conferir'), 'a conferência da saúde roda sempre (usa a reserva)');
   assert.match(falhasVistas[0] || '', /sem orçamento/, 'a etapa que não coube chega ao rotinas_conferir como falha (alerta)');
 });
+
+/* A10 (migração para a Cloudflare): sem isto o Supabase Auth vê o IP da Cloudflare em todo login anônimo e o limite por IP
+   dele (30 por hora por IP) viraria um balde compartilhado por todos os visitantes */
+test('Auth: criar e renovar levam o IP do visitante (Sb-Forwarded-For) com a chave secreta', async () => {
+  const vistos = [];
+  const salvo = globalThis.fetch;
+  globalThis.fetch = async (url, op) => { vistos.push({ url: String(url), h: op.headers }); return new Response(JSON.stringify({ access_token: 'a', refresh_token: 'r', expires_at: 1, user: { id: 'u' } }), { status: 200 }); };
+  try {
+    const env = { SUPABASE_URL: 'https://x.supabase.co', SUPABASE_CHAVE_PUBLICA: 'sb_publishable_x', SUPABASE_CHAVE_SECRETA: 'sb_secret_y' };
+    const v = criarVisitantes(env, { ip: '203.0.113.7' });
+    await v.criar(); await v.renovar('abc');
+    assert.equal(vistos.length, 2);
+    for (const c of vistos) { assert.equal(c.h['sb-forwarded-for'], '203.0.113.7'); assert.equal(c.h.apikey, 'sb_secret_y'); }
+    vistos.length = 0;
+    await criarVisitantes(env, {}).criar();
+    assert.equal(vistos[0].h['sb-forwarded-for'], undefined, 'sem IP: sem o cabeçalho, chave publicável');
+    assert.equal(vistos[0].h.apikey, 'sb_publishable_x');
+    vistos.length = 0;
+    await criarVisitantes(env, { ip: '2001:db8:a:b::1' }).criar();
+    assert.equal(vistos[0].h['sb-forwarded-for'], '2001:db8:a:b::', 'IPv6 pelo /64, como nos freios do site');
+    vistos.length = 0;
+    await criarVisitantes(env, { ip: 'lixo' }).criar();
+    assert.equal(vistos[0].h['sb-forwarded-for'], undefined, 'IP que não é IP: sem o cabeçalho');
+    assert.equal(vistos[0].h.apikey, 'sb_publishable_x', 'e sem a chave secreta');
+    vistos.length = 0;
+    await criarVisitantes({ ...env, SUPABASE_CHAVE_SECRETA: undefined }, { ip: '203.0.113.7' }).criar();
+    assert.equal(vistos[0].h['sb-forwarded-for'], undefined, 'sem a chave secreta nunca há o cabeçalho (a doc só o aceita com ela)');
+    assert.equal(vistos[0].h.apikey, 'sb_publishable_x');
+  } finally { globalThis.fetch = salvo; }
+});
