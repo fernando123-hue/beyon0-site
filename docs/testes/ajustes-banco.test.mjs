@@ -70,7 +70,7 @@ const resolver = (id, extra) => rpc('vendas_resolver_pedido_livre', { org_slug: 
 const ETAPAS_FORA = ['descoberta', 'estimativa', 'contato', 'gerando', 'direcoes', 'escopo', 'aguardando_pagamento', 'em_producao', 'encerrada'];
 const lista = async () => (await rpc('vendas_pedidos_livres', { org_slug: 'beyon-zero' })).itens;
 
-test('opção pronta: grava com a origem e a data da aplicação; sem a versão, com preço ou com outra origem, 22023; sem origem é a IA (o código da promoção anterior)', async () => {
+test('opção pronta: grava com a origem e a data da aplicação; sem a versão, com preço ou com outra origem, 22023; sem origem ou com origem "ia" também (a porta antiga fechou: auditoria run-1)', async () => {
   const b = await escolhido();
   const r = await opcao(b);
   assert.equal(r.status, 'aplicada');
@@ -83,8 +83,17 @@ test('opção pronta: grava com a origem e a data da aplicação; sem a versão,
   assert.equal(await codigoDe(opcao(b, 2, { origem: 'qualquer' })), '22023');
   assert.equal((await estado(b)).ajuste_atual, r.alteracao_id, 'o estado diz qual é a base de agora');
   assert.equal(await codigoDe(opcao(b, 2, { base_id: null })), '40001', 'opção montada sobre uma versão velha (outra aba, ou o dono no meio)');
-  const antiga = await rpc('vendas_registrar_alteracao', { ...dele(b), direcao_id: b.direcao_id, pedido: 'quero tema claro', mudancas: [], resultado: VERSAO(3) });
-  assert.equal((await um('select origem from app.alteracoes where id = $1', [antiga.alteracao_id])).origem, 'ia');
+  /* a porta antiga (o código da promoção anterior): sem origem valia 'ia', sem o teto de 30 e aceitando estimativa. Com a
+     produção sem API não há código antigo a proteger, e o modelo chegava ao preço por aqui. Agora só a opção pronta grava */
+  const antiga = { ...dele(b), direcao_id: b.direcao_id, pedido: 'quero tema claro', mudancas: [], resultado: VERSAO(3) };
+  const estimativaDeIa = { regras_id: REGRAS, fatores: {}, valor_total: 1, sinal: 1, prazo_dias: 1 };
+  const estimativas = async () => (await um('select count(*)::int n from app.estimativas where conversa_id = $1', [b.conversa_id])).n;
+  const antes = await estimativas();
+  assert.equal(await codigoDe(rpc('vendas_registrar_alteracao', antiga)), '22023', 'sem origem');
+  assert.equal(await codigoDe(rpc('vendas_registrar_alteracao', { ...antiga, origem: 'ia' })), '22023', "origem 'ia'");
+  assert.equal(await codigoDe(rpc('vendas_registrar_alteracao', { ...antiga, origem: 'ia', estimativa: estimativaDeIa })), '22023', "origem 'ia' com estimativa");
+  assert.equal(await estimativas(), antes, 'nenhuma estimativa nova');
+  assert.equal((await um("select count(*)::int n from app.alteracoes where conversa_id = $1 and origem <> 'opcao'", [b.conversa_id])).n, 0, 'nada gravado por outra origem');
   const e = await estado(b);
   assert.deepEqual(Object.keys(e.alteracoes[0]).sort(), ['created_at', 'id', 'mudancas', 'origem', 'pedido', 'status']);
 });

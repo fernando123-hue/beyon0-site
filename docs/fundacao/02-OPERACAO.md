@@ -185,8 +185,11 @@ Restaurar deixa o projeto fora do ar durante o processo.
 - Instale o cliente do PostgreSQL 17 (só o `pg_dump` e o `psql`).
 - A connection string está em **Connect › Session pooler**. É um segredo: ela não vai para o repositório nem para a Vercel.
 
+- Grave o dump e o `restauracao.sql` **fora da pasta do projeto** (por exemplo, `%USERPROFILE%\BeyonZero-backup\`): um `vercel deploy` feito pela CLI envia a pasta inteira, e um arquivo ali dentro iria junto (auditoria de segurança, 20/10/2026). O `.vercelignore` e o `.gitignore` também barram `*.dump`, `*.sql` e `*.7z`, mas a pasta de fora é a garantia. Os comandos abaixo são para o **Git Bash** (onde `$USERPROFILE` funciona; no PowerShell é `$env:USERPROFILE`, e no CMD, `%USERPROFILE%`). O `pg_dump --file` não cria a pasta: crie antes.
+
 ```bash
-pg_dump "CONNECTION_STRING" --schema=app --schema=metricas --format=custom --file=beyon-zero-AAAA-MM-DD.dump
+mkdir -p "$USERPROFILE/BeyonZero-backup"
+pg_dump "CONNECTION_STRING" --schema=app --schema=metricas --format=custom --file="$USERPROFILE/BeyonZero-backup/beyon-zero-AAAA-MM-DD.dump"
 ```
 
 - Guarde o arquivo **criptografado** (por exemplo, 7-Zip com AES-256 e senha no gerenciador de senhas), fora do computador do dia a dia.
@@ -198,13 +201,13 @@ pg_dump "CONNECTION_STRING" --schema=app --schema=metricas --format=custom --fil
 - **Pela cópia manual:** num projeto vazio com as migrations aplicadas, gere o SQL dos dados e rode-o com o **modo restauração** ligado, numa transação só. Sem esse modo, os gatilhos trocariam as datas e a autoria originais pela hora da restauração e criariam auditoria falsa. O modo só vale sem usuário logado, então nenhuma requisição da API consegue ligá-lo.
 
 ```bash
-pg_restore --data-only --no-owner -f restauracao.sql beyon-zero-AAAA-MM-DD.dump
+pg_restore --data-only --no-owner -f "$USERPROFILE/BeyonZero-backup/restauracao.sql" "$USERPROFILE/BeyonZero-backup/beyon-zero-AAAA-MM-DD.dump"
 ```
 ```bash
-psql "CONNECTION_STRING_DO_DESTINO" --single-transaction -v ON_ERROR_STOP=1 -c "set local bz.restaurando = on" -f restauracao.sql
+psql "CONNECTION_STRING_DO_DESTINO" --single-transaction -v ON_ERROR_STOP=1 -c "set local bz.restaurando = on" -f "$USERPROFILE/BeyonZero-backup/restauracao.sql"
 ```
 
-`set local` dentro de uma transação só: o modo não vaza para outra sessão pelo pooler. Com o modo ligado, o gatilho de auditoria fica desligado, então **anote a restauração fora do banco** (data, arquivo, quem fez). Apague o `restauracao.sql` depois: ele tem os dados em texto aberto. O `.gitignore` já ignora `*.dump` e `restauracao.sql`.
+`set local` dentro de uma transação só: o modo não vaza para outra sessão pelo pooler. Com o modo ligado, o gatilho de auditoria fica desligado, então **anote a restauração fora do banco** (data, arquivo, quem fez). **Apague o `restauracao.sql` logo depois do uso**: ele tem os dados em texto aberto. O `.gitignore` ignora `*.dump`, `*.7z` e `restauracao.sql`, e o `.vercelignore` tira `*.dump`, `*.sql` e `*.7z` do deploy feito pela CLI.
 
 **Como validar a restauração (uma vez por mês, no staging):**
 

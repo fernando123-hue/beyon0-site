@@ -48,7 +48,7 @@ async function conversaAte(visitante, ate) {
   if (ate === 'direcoes') return ids;
   await rpc('vendas_escolher', { ...base, direcao_id: ids.direcoes[1] });
   if (ate === 'escolhida') return ids;
-  await rpc('vendas_registrar_alteracao', { ...base, pedido: 'quero a cor da primeira', mudancas: [{ tipo: 'visual', instrucao: 'usar paleta da direção 1' }], resultado: { secoes: [], paleta: { cor: 'x' } } });
+  await rpc('vendas_registrar_alteracao', { ...base, pedido: 'quero a cor da primeira', mudancas: [{ tipo: 'visual', instrucao: 'usar paleta da direção 1' }], resultado: { secoes: [], paleta: { cor: 'x' } }, origem: 'opcao', base_id: null });
   ids.proposta = (await rpc('vendas_apresentar_escopo', { ...base, titulo: 'Site institucional — Clínica Sorriso', escopo: 'Site institucional de 5 páginas', valor_total: 1 })).proposta_id;
   if (ate === 'escopo') return ids;
   await rpc('vendas_confirmar_escopo', { ...base, proposta_id: ids.proposta, confirmo: true, inicio_imediato: true });

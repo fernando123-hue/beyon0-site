@@ -54,7 +54,13 @@ export const TETOS = {
   geracoes_por_conversa: 3,   // = app.vendas_iniciar_geracao (max_geracoes)
   /* conversas que USAM a IA, por IP por dia, contadas no banco (o teto do dia é global: sem isto, um IP o esgotava).
      8 × conversa_usd = US$ 12 < dia_usd: um IP sozinho não derruba o agente para todos */
-  conversas_por_ip_dia: 8
+  conversas_por_ip_dia: 8,
+  /* o mesmo teto, agora também por /48 do IPv6 (auditoria run-1, pista 1): a casa ou a empresa recebe um /48 inteiro
+     (65.536 redes /64) e trocava de /64 à vontade, fugindo do teto acima. Maior que o do /64 (mais de um aparelho por
+     casa), mas ainda abaixo do dia: 16 × conversa_usd (1,5) = US$ 24 < dia_usd (25), no limite; quem subir a
+     conversa_usd é avisado por docs/testes/auditoria-correcoes.test.mjs. Estreita, não resolve: quem tem vários IPv4
+     segue de fora (Firewall da Vercel na criação da sessão e limite de gasto na Anthropic, com o dono) */
+  conversas_por_ip48_dia: 16
 };
 
 /* o mais caro da tabela, por item: um modelo fora da tabela (o servidor da Anthropic pode responder com outro)

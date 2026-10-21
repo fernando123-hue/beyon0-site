@@ -19,9 +19,9 @@ import { ErroIA } from '../_ia/provedor.mjs';
 import { ErroBanco } from './transporte.mjs';
 import { ErroPagamento } from '../_pagamentos/servico.mjs';
 import { criarFreio, ipDe } from '../_freio.mjs';
-import { chaveDoIp } from './ip.mjs';
+import { chaveDoIp, chaveDoIp48 } from './ip.mjs';
 import { AuthIndisponivel } from '../_supabase.mjs';
-import { ETAPAS_SO_DUVIDAS } from './consultor.mjs';
+import { ETAPAS_SO_DUVIDAS, precoAberto } from './consultor.mjs';
 import { classificar } from '../_classificador/index.mjs';
 import { catalogoPublico, respostasParaBriefing, nomeDeTela, landingMaxExtras } from './catalogo.mjs';
 import { limparAtualizacao } from './briefing.mjs';
@@ -42,6 +42,7 @@ const CONVERSA_ABERTA = ['descoberta', 'estimativa', 'contato', 'direcoes', 'esc
 /* a trava de "uma resposta de IA por vez" dura o pior caso que cabe na função (300 s na Vercel) */
 const TRAVA_IA_S = 300;
 const RESERVA_S = 600;   /* a reserva de custo vence sozinha se a função cair no meio (a geração cabe em 300 s) */
+const USO_IP48_IA = 'ia48';   /* o "uso" da chave /48 do consultor em privado.freio_ip (o do pedido é 'pedido48': contadores separados) */
 const LIMITE_CONVERSA = 'Chegamos ao limite desta conversa por aqui. Continue com a Beyon Zero pelo WhatsApp: o seu briefing já está salvo.';
 const LIMITE_DIA = 'O consultor está com muita procura agora. Seu briefing está salvo; tente de novo mais tarde ou fale pelo WhatsApp.';
 
@@ -154,10 +155,14 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       throw e;
     }
   } };
+  /* true: nada a gravar ou gravado; false: o banco falhou (o registro daquelas chamadas se perde; quem chama decide o que fazer) */
   async function gravarChamadas(conversaId, vid) {
-    if (!chamadas.length) return;
-    await banco('vendas_registrar_ia', { conversa_id: conversaId, visitante_id: vid, request_id: requestId || null, chamadas: chamadas.splice(0) })
-      .catch(e => console.error(JSON.stringify({ origem: 'vendas', nivel: 'erro', request_id: requestId || null, evento: 'registro de IA não gravado', codigo: e && e.codigo })));
+    if (!chamadas.length) return true;
+    return banco('vendas_registrar_ia', { conversa_id: conversaId, visitante_id: vid, request_id: requestId || null, chamadas: chamadas.splice(0) })
+      .then(() => true, e => {
+        console.error(JSON.stringify({ origem: 'vendas', nivel: 'erro', request_id: requestId || null, evento: 'registro de IA não gravado', codigo: e && e.codigo }));
+        return false;
+      });
   }
   async function visitante(request) {
     const id = await visitantes.quem(request);
@@ -180,17 +185,27 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     await banco('vendas_somar_custo', { conversa_id: conversaId, visitante_id: vid, custo_usd: custo })
       .catch(e => console.error('[vendas] custo não somado:', e && e.codigo));
   }
-  /* a trava de "uma resposta de IA por vez", que na 1ª vez da conversa também conta o IP do dia (só um HMAC chega ao banco) */
+  /* a trava de "uma resposta de IA por vez", que na 1ª vez da conversa também conta o IP do dia (só um HMAC chega ao banco).
+     O IPv6 conta pelo /64 e também pelo /48 (auditoria run-1, pista 1: a casa ou a empresa recebe um /48 inteiro e trocava
+     de /64 à vontade). O /48 tem o seu próprio "uso" (ia48), para não dividir o contador de privado.freio_ip com o pedido
+     (pedido48); as duas chaves saem do MESMO instante, para não caírem em dias diferentes na virada da meia-noite */
   async function reservarIa(conversaId, vid, request) {
+    const ip = request ? ipDe(request) : null, agora = new Date();
     const r = await banco('vendas_reservar_ia', { conversa_id: conversaId, visitante_id: vid, max_turnos: TETOS.turnos_por_conversa, teto_usd: TETOS.conversa_usd,
-      segundos: TRAVA_IA_S, chave_ip: request ? chaveDoIp(ipDe(request), segredoFreio) : null, max_por_ip: TETOS.conversas_por_ip_dia });
+      segundos: TRAVA_IA_S, chave_ip: request ? chaveDoIp(ip, segredoFreio, agora) : null, max_por_ip: TETOS.conversas_por_ip_dia,
+      chave_ip48: request ? chaveDoIp48(ip, segredoFreio, agora, USO_IP48_IA) : null, max_por_ip48: TETOS.conversas_por_ip48_dia });
     if (r && r.ok === false && r.freio_ip) throw new Recusa(429, 'Muitas conversas deste endereço hoje. Fale com a Beyon Zero pelo WhatsApp: a gente continua por lá.', { whatsapp: true });
   }
   /* RESERVA um valor REALISTA da chamada (RESERVA_USD em api/_ia/config.mjs) no teto antes de chamar o modelo
      (app.vendas_reservar_custo, numa transação que trava a organização): chamadas em paralelo não passam mais todas pela
      mesma leitura. Começa só se (gasto + reservas) está abaixo do teto da conversa e do dia; o estouro fica no que as
      chamadas já em voo gastarem além das suas reservas (o freio de última instância é o limite de gasto no console da
-     Anthropic). A reserva sai no fim, depois de somar o custo real. Erro do banco na reserva FECHA (503, sem chamar o
+     Anthropic). A reserva sai no fim, depois de somar o custo real E de gravar o registro da chamada (app.ia_chamadas):
+     o teto do dia lê esse registro (auditoria run-1, pista 2), então liberar a reserva antes dele deixaria o gasto fora
+     da conta nos dois lugares por um instante. Se a gravação do registro falhar, a reserva NÃO é liberada: ela vence
+     sozinha em RESERVA_S, e a falha não zera a conta na hora. O que sobra aberto: com o registro perdido, o gasto daquela
+     chamada deixa de contar no dia quando a reserva vence (sub-contagem pequena; o limite de gasto no console da
+     Anthropic é o freio final). Erro do banco na reserva FECHA (503, sem chamar o
      modelo); só a função ainda inexistente (migration a aplicar) segue sem reserva, com log */
   async function comReserva(conversaId, vid, papel, fn) {
     const valor = reservaUsd(papel);
@@ -211,7 +226,10 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     }
     try { return await fn(); }
     finally {
-      if (reserva) await banco('vendas_liberar_reserva', { reserva_id: reserva, conversa_id: conversaId, visitante_id: vid })
+      /* (os dois chamadores, mensagem() e gerarDirecao(), deixam o registro só para cá: um gravarChamadas deles esvaziaria a
+         lista e a falha do banco passaria despercebida, liberando a reserva na hora) */
+      const registrado = await gravarChamadas(conversaId, vid);
+      if (reserva && registrado) await banco('vendas_liberar_reserva', { reserva_id: reserva, conversa_id: conversaId, visitante_id: vid })
         .catch(e => console.error(JSON.stringify({ origem: 'vendas', nivel: 'erro', request_id: requestId || null, evento: 'reserva não liberada (vence sozinha)', codigo: e && e.codigo })));
     }
   }
@@ -231,7 +249,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
   async function turno(vid, conversaId, est, regras, msg) {
     let r;
     try {
-      r = await executarTurno({ ia, direcoes: modo, regras: regras.regras, conversa: { etapa: est.conversa.etapa, briefing: est.conversa.briefing, mensagens: est.mensagens, estimativa: est.estimativa }, mensagem: msg });
+      r = await executarTurno({ ia, direcoes: modo, regras: regras.regras, conversa: { etapa: est.conversa.etapa, pedido_status: est.pedido?.status, briefing: est.conversa.briefing, mensagens: est.mensagens, estimativa: est.estimativa }, mensagem: msg });
     } catch (e) {
       await somarCusto(conversaId, vid, e && e.custo_usd);   /* (as rodadas pagas antes da falha, de qualquer tipo de erro) */
       if (e instanceof ErroIA) await banco('vendas_registrar_evento', { conversa_id: conversaId, visitante_id: vid, tipo: 'ia_falhou', dados: { motivo: e.motivo } }).catch(() => {});
@@ -243,13 +261,17 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     await banco('vendas_registrar_turno', { conversa_id: conversaId, visitante_id: vid, mensagem_visitante: redigir(msg), mensagem_agente: r.resposta,
       ...(soDuvidas ? {} : { briefing: r.briefing, confianca: r.confianca }), custo_usd: r.custo_usd })
       .catch(async e => { await somarCusto(conversaId, vid, r.custo_usd); throw e; });
+    /* a estimativa e o formulário só até a confirmação do pedido (ETAPAS_COM_PRECO, e pedido ainda não confirmado: a
+       conversa volta a "contato" com o pedido confirmado se as três direções falham): o agente já não os devolve depois,
+       e o banco recusa a estimativa (55000); esta é a camada do meio, para o estado que o turno leu no começo */
+    const comPreco = precoAberto(est.conversa.etapa, est.pedido?.status);
     let estimativa = null;
-    if (r.estimativa && !soDuvidas) {
+    if (r.estimativa && !soDuvidas && comPreco) {
       await banco('vendas_registrar_estimativa', { conversa_id: conversaId, visitante_id: vid, regras_id: regras.id, fatores: r.estimativa.fatores,
         valor_total: r.estimativa.valor_total, sinal: r.estimativa.sinal, prazo_dias: r.estimativa.prazo_dias, fase: r.estimativa.fase, detalhes: r.estimativa });
       estimativa = cartao(r.estimativa);
     }
-    return { resposta: r.resposta, estimativa, pedir_contato: !soDuvidas && r.pedir_contato, diagnostico: r.diagnostico, sugestoes_ia: r.sugestoes_ia, confianca: r.confianca };
+    return { resposta: r.resposta, estimativa, pedir_contato: !soDuvidas && comPreco && r.pedir_contato, diagnostico: r.diagnostico, sugestoes_ia: r.sugestoes_ia, confianca: r.confianca };
   }
 
   /* respostas + escolhas → recomendação e estimativa pelo motor, contra a tabela ATIVA (nada grava aqui) */
@@ -377,7 +399,6 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       try {
         return await comReserva(corpo.conversa_id, vid, 'conversa', () => turno(vid, corpo.conversa_id, est, regras, msg));
       } finally {
-        await gravarChamadas(corpo.conversa_id, vid);
         await banco('vendas_liberar_ia', { conversa_id: corpo.conversa_id, visitante_id: vid }).catch(() => {});
       }
     },
@@ -430,10 +451,8 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
           await banco('vendas_concluir_direcao', { direcao_id: p.direcao_id, erro: 'não foi possível gerar (' + motivo + ')' });
           if (e instanceof ErroIA) return { status: 'falhou', mensagem: RECUPERACAO };
           throw e;
-        } finally {
-          await gravarChamadas(corpo.conversa_id, vid);
         }
-      });
+      });   /* (o registro da chamada é gravado UMA vez, no finally de comReserva, antes de a reserva sair) */
     },
 
     async escolher({ request, corpo }) {

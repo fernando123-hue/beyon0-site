@@ -55,14 +55,18 @@ export const SABOTAGENS = [
   { nome: 'gerar sem o pedido confirmado pelo WhatsApp (freio do JS)', fonte: 'api/_vendas/fluxo.mjs', testes: ['docs/testes/fluxo-api.test.mjs'],
     de: 'if (semConfirmacao) throw semConfirmacao;', para: 'if (false) throw semConfirmacao;' },
   /* ---- os ajustes sem IA (PR 3a): o teto, a versão final sem o desfeito e o dono fora da etapa ---- */
-  { nome: 'opção pronta sem o teto de 30 ajustes', arquivo: '20261017120000_pr3a_ajustes.sql', testes: ['docs/testes/ajustes-banco.test.mjs'],
+  /* (a função vendas_registrar_alteracao vive na migration MAIS NOVA que a redefine, a da auditoria; as duas sabotagens
+     seguintes e a "origem ia" miram nela: sabotar a do PR 3a não teria efeito) */
+  { nome: 'opção pronta sem o teto de 30 ajustes', arquivo: '20261020120000_auditoria_correcoes.sql', testes: ['docs/testes/ajustes-banco.test.mjs'],
     de: "if (select count(*) from app.alteracoes a where a.conversa_id = c.id and a.origem = 'opcao') >= 30 then", para: 'if false then' },
   { nome: 'a versão final conta o ajuste desfeito', arquivo: '20261017120000_pr3a_ajustes.sql', testes: ['docs/testes/ajustes-banco.test.mjs'],
     de: "where a.conversa_id = v_conversa and a.status = 'aplicada'", para: "where a.conversa_id = v_conversa and a.status in ('aplicada', 'desfeita')" },
   { nome: 'o dono resolve ajuste de conversa que passou da etapa de ajustes', arquivo: '20261017120000_pr3a_ajustes.sql', testes: ['docs/testes/ajustes-banco.test.mjs'],
     de: "perform privado.exigir_etapa(c, array['escolhida', 'alteracoes']);   -- (o dono: só na etapa de ajustes)", para: '-- (sabotado)' },
-  { nome: 'opção pronta aceita estimativa (muda o preço)', arquivo: '20261017120000_pr3a_ajustes.sql', testes: ['docs/testes/ajustes-banco.test.mjs'],
+  { nome: 'opção pronta aceita estimativa (muda o preço)', arquivo: '20261020120000_auditoria_correcoes.sql', testes: ['docs/testes/ajustes-banco.test.mjs'],
     de: "if p ? 'estimativa' or jsonb_typeof(p -> 'resultado') is distinct from 'object' then", para: "if jsonb_typeof(p -> 'resultado') is distinct from 'object' then" },
+  { nome: "ajuste aceita origem 'ia' ou sem origem (a porta antiga)", arquivo: '20261020120000_auditoria_correcoes.sql', testes: ['docs/testes/ajustes-banco.test.mjs'],
+    de: "if v_origem is distinct from 'opcao' then raise exception 'origem inválida'", para: "if false then raise exception 'origem inválida'" },
   { nome: 'pedido livre sem o teto de 3', arquivo: '20261017120000_pr3a_ajustes.sql', testes: ['docs/testes/ajustes-banco.test.mjs'],
     de: 'if v_feitos >= 3 then', para: 'if false then' },
   { nome: 'pedido livre sem o teto de 300 caracteres', arquivo: '20261017120000_pr3a_ajustes.sql', testes: ['docs/testes/ajustes-banco.test.mjs'],
@@ -76,8 +80,34 @@ export const SABOTAGENS = [
   { nome: 'a fila de pedidos livres sem o corte de 50', arquivo: '20261017120000_pr3a_ajustes.sql', testes: ['docs/testes/ajustes-banco.test.mjs'],
     de: 'order by f.created_at, f.id limit 50', para: 'order by f.created_at, f.id limit 5000' },
   { nome: 'acrescentar seção com o modelo já no máximo (a seção some calada)', fonte: 'api/_vendas/fluxo-ajustes.mjs', testes: ['docs/testes/ajustes-api.test.mjs'],
-    de: "m.operacao === 'adicionar_secao' && secoes.length >= MAX_SECOES &&", para: "m.operacao === 'adicionar_secao' && false &&" }
+    de: "m.operacao === 'adicionar_secao' && secoes.length >= MAX_SECOES &&", para: "m.operacao === 'adicionar_secao' && false &&" },
+  /* ---- as correções da auditoria de segurança (run-1, 20/10): a migration 20261020120000 ---- */
+  { nome: 'consultor sem o freio do /48 do IPv6', arquivo: '20261020120000_auditoria_correcoes.sql', testes: ['docs/testes/auditoria-correcoes.test.mjs'],
+    de: 'if v_chave48 is not null then\n      if not privado.contar_ip', para: 'if false then\n      if not privado.contar_ip' },
+  { nome: 'teto do dia soma a vida inteira das conversas tocadas hoje', arquivo: '20261020120000_auditoria_correcoes.sql', testes: ['docs/testes/teto-dia.test.mjs'],
+    de: "select coalesce(sum(c.custo_usd), 0)\n  from app.ia_chamadas c\n  where c.org_id = p_org\n    and c.created_at >=", para: "select coalesce(sum(c.custo_ia_usd), 0)\n  from app.conversas c\n  where c.org_id = p_org\n    and c.ultima_atividade >=" },
+  { nome: 'estimativa aceita depois da escolha (o banco)', arquivo: '20261020120000_auditoria_correcoes.sql', testes: ['docs/testes/auditoria-correcoes.test.mjs'],
+    de: "perform privado.exigir_etapa(c, array['descoberta', 'estimativa', 'contato']);", para: "perform privado.exigir_etapa(c, array['descoberta', 'estimativa', 'contato', 'direcoes', 'escolhida', 'alteracoes']);" },
+  /* a lista positiva do JS abre de uma vez a lista de ferramentas, a recusa do agente e o que o turno grava; sobra o banco (55000) */
+  { nome: 'estimar aceito depois da escolha (a lista do JS: ferramentas, agente e turno)', fonte: 'api/_vendas/consultor.mjs', testes: ['docs/testes/auditoria-correcoes.test.mjs', 'docs/testes/consultor.test.mjs'],
+    de: "export const ETAPAS_COM_PRECO = ['descoberta', 'estimativa', 'contato'];", para: "export const ETAPAS_COM_PRECO = ['descoberta', 'estimativa', 'contato', 'direcoes', 'escolhida', 'alteracoes'];" },
+  /* ---- a correção final: o pedido confirmado fecha o preço também na etapa "contato"; o registro da geração é um só ---- */
+  { nome: 'estimativa aceita com o pedido já confirmado (o banco)', arquivo: '20261020120000_auditoria_correcoes.sql', testes: ['docs/testes/auditoria-correcoes.test.mjs'],
+    de: "if exists (select 1 from app.pedidos pd where pd.conversa_id = c.id and pd.status = 'confirmado') then\n    raise exception 'pacote fechado", para: "if false then\n    raise exception 'pacote fechado" },
+  { nome: 'pedido confirmado não fecha o preço no JS (ferramentas, agente e turno)', fonte: 'api/_vendas/consultor.mjs', testes: ['docs/testes/auditoria-correcoes.test.mjs', 'docs/testes/consultor.test.mjs'],
+    de: "ETAPAS_COM_PRECO.includes(etapa) && statusDoPedido !== 'confirmado';", para: 'ETAPAS_COM_PRECO.includes(etapa);' },
+  { nome: 'a geração grava o registro por conta própria (a falha libera a reserva na hora)', fonte: 'api/_vendas/fluxo.mjs', testes: ['docs/testes/teto-dia.test.mjs'],
+    de: "          throw e;\n        }\n      });   /* (o registro da chamada é gravado UMA vez, no finally de comReserva, antes de a reserva sair) */",
+    para: "          throw e;\n        } finally {\n          await gravarChamadas(corpo.conversa_id, vid);\n        }\n      });" }
 ];
+
+/* as sabotagens que a rodada vai fazer: todas, ou só as do filtro (parte do nome, sem diferenciar maiúsculas). Filtro que não
+   casa nenhuma devolve o erro: "0 de 0 sabotagens pegas" não prova nada */
+export function escolherSabotagens(sabotagens, filtro = '') {
+  const f = String(filtro).toLowerCase();
+  const escolhidas = sabotagens.filter(s => s.nome.toLowerCase().includes(f));
+  return { sabotagens: escolhidas, erro: f && !escolhidas.length ? 'o filtro "' + filtro + '" não casa com nenhuma sabotagem (nada foi testado)' : null };
+}
 
 /* os sinais em que o arquivo sabotado volta ao original antes de sair: Ctrl+C, o kill comum, o terminal que fecha
    (SIGHUP) e o Ctrl+Break do Windows (SIGBREAK) */
@@ -115,8 +145,14 @@ function rodar() {
   process.on('exit', restaurar);
   for (const sinal of SINAIS_DE_SAIDA) if (os.constants.signals[sinal] !== undefined) process.on(sinal, () => { restaurar(); process.exit(130); });
 
+  /* BZ_MUTACAO_FILTRO: roda só as sabotagens cujo nome contém o texto (para conferir uma sabotagem nova sem rodar todas).
+     Filtro que não casa nenhuma é ERRO, não "0 de 0" com sucesso (uma variável esquecida no ambiente parece rodada completa) */
+  const filtro = process.env.BZ_MUTACAO_FILTRO || '';
+  const { sabotagens: rodadas, erro } = escolherSabotagens(SABOTAGENS, filtro);
+  if (filtro) console.log('FILTRO ATIVO: "' + filtro + '" escolheu ' + rodadas.length + ' de ' + SABOTAGENS.length + ' sabotagens');
+  if (erro) { console.log('ERRO: ' + erro); process.exitCode = 1; return; }
   let pegas = 0;
-  for (const s of SABOTAGENS) {
+  for (const s of rodadas) {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bz-mutacao-'));
     for (const f of fs.readdirSync(ORIGEM)) fs.copyFileSync(path.join(ORIGEM, f), path.join(dir, f));
     const alvo = path.join(s.fonte ? RAIZ : dir, s.fonte || s.arquivo);
@@ -140,8 +176,8 @@ function rodar() {
     console.log((pegou ? 'PEGOU ' : 'ESCAPOU') + '  ' + s.nome + (pegou ? '  ← ' + [...new Set(falhas)].slice(0, 2).join(' | ').replace(/\s*\(\d+(\.\d+)?ms\)/g, '') : ''));
     fs.rmSync(dir, { recursive: true, force: true });
   }
-  console.log(pegas + ' de ' + SABOTAGENS.length + ' sabotagens pegas pelos testes');
-  if (pegas < SABOTAGENS.length) process.exitCode = 1;
+  console.log(pegas + ' de ' + rodadas.length + ' sabotagens pegas pelos testes');
+  if (pegas < rodadas.length) process.exitCode = 1;
 }
 
 /* só roda chamado direto (node docs/testes/mutacao.mjs); importado pelo teste, nada é sabotado */

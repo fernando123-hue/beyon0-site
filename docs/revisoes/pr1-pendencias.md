@@ -38,7 +38,12 @@ com credenciais reais**, salvo onde diz outra coisa.
 3. Migrations aplicadas no banco de produção antes de promover, entre elas a do PR 2b-2: aplicar `20261016120000_pr2b2_retomada.sql`
    (link de retomada do aviso; sem ela o painel não consegue montar o link nem a página abri-lo), e a do PR 3a: aplicar
    `20261017120000_pr3a_ajustes.sql` (ajustes sem IA; sem ela, ajustar, desfazer e o pedido livre dão erro e o estado não
-   traz a origem dos ajustes). Ela ainda não foi aplicada em lugar nenhum; qualquer correção entra nela mesma.
+   traz a origem dos ajustes). Ela ainda não foi aplicada em lugar nenhum. **Depois dela**, aplicar
+   `20261020120000_auditoria_correcoes.sql` (correções da auditoria de segurança run-1: freio do consultor também por /48,
+   teto do dia pelo gasto registrado, sem recálculo de preço depois da escolha, fim da porta antiga do ajuste; o nome com
+   data a põe depois da do PR 3a, e ela é reaplicável). Código e migration: o código novo (`origem` sempre enviada,
+   `ETAPAS_COM_PRECO`) funciona com a migration ainda não aplicada; a migration aplicada recusa (400, falha fechada) um
+   código antigo que mande o ajuste sem `origem`, e esse código não está no ar (a produção ainda é a versão sem API).
 4. O PR traz "SHA para promover"; promover exatamente esse.
 4b. Anthropic: limite de gasto MENSAL no console (o freio de última instância do custo; a reserva no banco é realista,
     não o pior caso — revisão de segurança do PR 15). Com as primeiras chamadas reais, trocar `RESERVA_USD`
@@ -185,12 +190,20 @@ no painel, "Pagar sem medo" (§5) e D5 ficam para o PR 3b.
 | PR3a-pedido-em | `pedidoParaModelo` grava `pedido_em` como vem do servidor (já existia; o valor vem do banco) | aceito |
 | PR3a-pagina-antiga | uma página em cache que chame a ação `alterar` (o ajuste pela IA, que saiu) recebe 404 "Ação inválida." | aceito; a API e o JS são publicados juntos |
 | PR3a-botoes-mono | "Está bom assim: ver o resumo", "Abrir prévia" e "Escolher esta" continuam em mono e caixa alta (`orcamento.html`, `js/orcamento.js`) | dono decide, olhando as fotos `8-ajustes-*`; visual já aprovado antes do PR |
-| PR3a-origem-ia | sem `origem`, `vendas_registrar_alteracao` assume `'ia'` (sem teto de 30, aceita `estimativa`): porta antiga aberta de propósito para o código velho funcionar enquanto a migration chega antes. Só `service_role`; nenhum código do PR usa (segurança #1) | depois da promoção, uma migration curta que recuse origem `'ia'` e a chave `estimativa` (22023) |
+| ~~PR3a-origem-ia~~ | ~~sem `origem`, `vendas_registrar_alteracao` assume `'ia'` (sem teto de 30, aceita `estimativa`): porta antiga aberta de propósito para o código velho funcionar enquanto a migration chega antes. Só `service_role`; nenhum código do PR usa (segurança #1)~~ | **feito no PR de correções da auditoria** (`20261020120000_auditoria_correcoes.sql`: só a origem `'opcao'` grava; sem origem ou `'ia'` é 22023; a função deixou de chamar `vendas_registrar_estimativa`. A produção ainda é a versão sem API, então não havia código antigo a proteger) |
 | PR3a-resumo-base | o resumo (`vendas_apresentar_escopo`) não fica preso à versão lida: o "feito" do dono entre a leitura e a gravação deixa o contrato descrevendo a versão anterior (segurança #2) | mandar o `ajuste_atual` como `base_id` do escopo e recusar com 40001 se mudou |
 | PR3a-desfazer-descartado | `vendas_desfazer_alteracao` não confere "descartado" no banco (a API barra com `exigirNaoDescartado`); camada extra opcional (segurança #8) | só se quiser defesa em profundidade |
-| PR3a-consultor-preco | a pista 4 da auditoria (o consultor recalcula preço depois da escolha, pelo `estimar` em escolhida/alterações) NÃO é corrigida pelo PR 3a, que só melhora um pouco (sai o `alterar`) | PR 3b |
+| ~~PR3a-consultor-preco~~ | ~~a pista 4 da auditoria (o consultor recalcula preço depois da escolha, pelo `estimar` em escolhida/alterações) NÃO é corrigida pelo PR 3a, que só melhora um pouco (sai o `alterar`)~~ | **feito no PR de correções da auditoria** (`ETAPAS_COM_PRECO` em `api/_vendas/consultor.mjs`: a lista de ferramentas, a recusa do agente e o que o turno grava só deixam `estimar` e `pedir_contato` até o pedido ser confirmado pelo WhatsApp; `app.vendas_registrar_estimativa` recusa o resto, e também a conversa com pedido já confirmado mesmo em `contato` (as três direções falham e a conversa volta para lá), 55000; `precoAberto(etapa, statusDoPedido)` fecha igual no JS; o prompt diz "até a confirmação do pedido pelo WhatsApp") |
 
 ## Depois / quando acontecer
+
+- **Auditoria de segurança run-1 (20/10/2026)** — `06 Operação/Auditoria de segurança/run-1/NEEDS-VALIDATION.md`
+  (as 9 pistas). **Feitas no PR de correções da auditoria:** pista 1 (o freio diário do consultor também por /48; fica
+  de fora quem tem vários IPv4: Firewall da Vercel na criação da sessão e limite de gasto na Anthropic, com o dono),
+  pista 2 (o teto do dia lê o gasto registrado de hoje, `app.ia_chamadas`), pista 4 (o consultor não recalcula o preço
+  depois da escolha) e pista 6 (`*.sql`, `*.dump` e `*.7z` no `.vercelignore`; o backup é gravado fora da pasta do
+  projeto), mais a PR3a-origem-ia. **Seguem abertas:** pistas 3 (disjuntor da IA), 5 (`POST /api/evento` sem limite
+  global), 7 e 8 (retenção e exclusão a pedido, LGPD) e 9 (as cópias de segurança e a exclusão).
 
 - **Renomeação "Experiência digital"** (dono, 2026-10-09):
   - Ao ATIVAR a tabela de preços no banco, use o nome "Experiência digital" no formato `sob_medida` e não inclua o adicional `dominio_email`; o rascunho `docs/fase2/regras-rascunho-v1.json` já está assim.
@@ -224,7 +237,8 @@ no painel, "Pagar sem medo" (§5) e D5 ficam para o PR 3b.
   geração por outro pedido → `em_andamento` pela consulta sem trava `app.vendas_direcao_em_andamento` (migration
   `20261008120800`); antes, o repedido de 60 s do navegador, ou alguém martelando, enfileirava a trava (503 para outros
   visitantes) e segurava reservas no teto do dia. Reserva sem `reserva_id` na resposta agora fecha (503).
-  **Aceitos:** a soma do gasto do dia roda sob a trava (índice `conversas_org_atividade`; medir com o volume real);
+  **Aceitos:** a soma do gasto do dia roda sob a trava (desde a auditoria run-1 ela lê `app.ia_chamadas` pelo índice
+  `ia_chamadas_org (org_id, created_at desc)`; medir com o volume real);
   `privado.conversa_do` trava a conversa antes do `lock_timeout` (só espera sem limite quem martela a própria
   conversa); a função de reserva ausente (42883) segue sem reserva por desenho — as migrations `120700` e `120800`
   entram no banco ANTES do código que as usa.

@@ -548,22 +548,16 @@ test('reserva de custo no banco: soma o gasto e as reservas em aberto; vencida n
   await q('delete from privado.reservas_ia where conversa_id = $1', [s.conversa_id]);
 });
 
-test('tetos: custo da conversa e taxa por IP', async () => {
+test('tetos: custo da conversa e taxa por IP (o teto do dia: teto-dia.test.mjs)', async () => {
   const n = navegador();
   const s = await n.iniciar();
   await local.db.query('update app.conversas set custo_ia_usd = 99 where id = $1', [s.conversa_id]);
   const r = await n.chamar('POST', 'mensagem', { conversa_id: s.conversa_id, texto: 'oi' });
   assert.equal(r.status, 429);
   assert.equal(r.corpo.whatsapp, true, 'oferece o WhatsApp');
-  await local.db.query('update app.conversas set custo_ia_usd = 0 where id = $1', [s.conversa_id]);   /* (senão o teto do DIA trava os testes seguintes) */
-  /* teto do dia (todas as conversas de hoje): outra conversa gastou demais, esta também para, sem chamar o modelo */
-  const outra = navegador();
-  const so = await outra.iniciar();
-  await local.db.query('update app.conversas set custo_ia_usd = 30 where id = $1', [s.conversa_id]);
-  const d = await outra.chamar('POST', 'mensagem', { conversa_id: so.conversa_id, texto: 'oi' });
-  assert.equal(d.status, 503);
-  assert.equal(d.corpo.whatsapp, true);
   await local.db.query('update app.conversas set custo_ia_usd = 0 where id = $1', [s.conversa_id]);
+  /* (o teto do DIA lê o registro das chamadas de hoje, não o custo da conversa: o caso dele está em teto-dia.test.mjs,
+     com banco próprio, porque o registro só aceita inserção e travaria os testes seguintes deste arquivo) */
   const ip = '203.0.113.250';
   for (let i = 0; i < 91; i++) freioGeral(ip);
   assert.equal(freioGeral(ip), true);
