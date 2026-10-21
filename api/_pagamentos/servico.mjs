@@ -29,6 +29,8 @@ const CRIACAO_ABANDONADA_S = 5 * 60;   /* e, sem achar em 5 min, dá a tentativa
 const CONSULTA_MIN_S = 10;             /* a página pede atualização; o provedor é consultado no máximo a cada 10 s */
 const BUSCA_FALHANDO_S = 30 * 60;      /* a busca pela referência falha há 30 min: encerra (uma aprovação tardia ainda é aplicada) */
 const PARALELO = 5;                    /* consultas simultâneas na reconciliação */
+const VARREDURA_DIAS = 0.5;            /* a janela da varredura: 12 h, 4× o intervalo do cron (3 h); o que passou disso a lista de tentativas já cobre */
+const SEM_DINHEIRO = new Set(['canceled', 'expired', 'failed']);   /* (estados da listagem em que a order não tem dinheiro a conferir) */
 const RESERVA_FINAL = 2;               /* subpedidos guardados para o fim da reconciliação (pagamentos_atencao e a ocorrência) */
 export const ORG = 'beyon-zero';
 
@@ -242,14 +244,14 @@ export function criarServicoPagamentos({ banco, cfg, provedor, agora = () => Dat
        EXECUÇÃO e a rotina para em `orcamento` (45, menos 2 guardados para o fim). O que não coube fica para o próximo
        cron (3 em 3 h): a lista vem na ordem da migration (order by coalesce(consultada_em, created_at): as conferidas há
        mais tempo primeiro, então o que ficou de fora passa à frente na vez seguinte). Resumo: `parcial` e `subpedidos` */
-    async reconciliar({ limite = 15, varrerDias = 3, varrerPaginas = 1, orcamento = ORCAMENTO_SUBPEDIDOS } = {}) {
+    async reconciliar({ limite = 15, varrerDias = VARREDURA_DIAS, varrerPaginas = 1, orcamento = ORCAMENTO_SUBPEDIDOS } = {}) {
       const resumo = { conferidas: 0, aplicadas: 0, erros: 0, desconhecidas: 0, parcial: false, subpedidos: 0 };
       const gasto = orcamentoDe(orcamento, RESERVA_FINAL);
       const bancoContado = gasto.contar(banco);
       const mpContado = { ...mp, consultarOrdem: gasto.contar(mp.consultarOrdem), buscarRecentes: gasto.contar(mp.buscarRecentes),
         buscarPorReferencia: gasto.contar(mp.buscarPorReferencia) };
       const nucleo = criarNucleo({ banco: bancoContado, mp: mpContado, cfg, agora });
-      let parou = false;
+      let parou = false, paginaCheia = false;
       const contar = r => { if (r && r.aplicado) resumo.aplicadas++; if (r && r.ignorado === 'order desconhecida') resumo.desconhecidas++; if (r && r.erro_provedor) resumo.erros++; };
       /* um item com erro (banco, provedor, dado ruim) não derruba os outros; o fim do orçamento NÃO é erro: o laço para */
       const umPorVez = async (lista, fazer) => {
@@ -276,19 +278,24 @@ export function criarServicoPagamentos({ banco, cfg, provedor, agora = () => Dat
           catch (e) {
             if (e instanceof SemOrcamento) { parou = true; break; }
             if (!(e instanceof ErroProvedor)) throw e;
-            resumo.erros++; await nucleo.erroDoProvedor(e, null, null, 'reconciliacao'); break;
+            resumo.erros++;
+            try { await nucleo.erroDoProvedor(e, null, null, 'reconciliacao'); }
+            catch (e2) { if (e2 instanceof SemOrcamento) parou = true; else throw e2; }   /* (acabou ao gravar o erro: para, não cai) */
+            break;
           }
           /* a listagem pode vir resumida: cada order é consultada inteira antes de aplicar */
-          await umPorVez(orders.filter(o => o && /^[A-Za-z0-9_-]{4,64}$/.test(String(o.id || ''))), async o => nucleo.aplicar(await mpContado.consultarOrdem(String(o.id)), 'reconciliacao'));
+          /* (order cancelada, expirada ou que falhou não tem dinheiro: não gasta subpedido) */
+          await umPorVez(orders.filter(o => o && /^[A-Za-z0-9_-]{4,64}$/.test(String(o.id || '')) && !SEM_DINHEIRO.has(o.status)), async o => nucleo.aplicar(await mpContado.consultarOrdem(String(o.id)), 'reconciliacao'));
           if (orders.length < 50) break;
+          if (pagina === varrerPaginas) paginaCheia = true;   /* (a última página permitida veio cheia: há mais orders do que a janela olhou) */
         }
       }
       /* o fim (a contagem de ocorrências a olhar e o registro da própria reconciliação) usa a reserva */
       const bancoFinal = gasto.contarReservado(banco);
       try { resumo.atencao = (await bancoFinal('pagamentos_atencao', { horas: 25 })).total; } catch { resumo.atencao = null; }
-      resumo.parcial = parou;
+      resumo.parcial = parou || paginaCheia;
       resumo.subpedidos = gasto.gastos() + 1;   /* (+1: a ocorrência logo abaixo) */
-      if (parou) console.warn(JSON.stringify({ origem: 'pagamentos', nivel: 'aviso', evento: 'reconciliação parcial', subpedidos: resumo.subpedidos }));
+      if (resumo.parcial) console.warn(JSON.stringify({ origem: 'pagamentos', nivel: 'aviso', evento: 'reconciliação parcial', subpedidos: resumo.subpedidos }));
       if (resumo.atencao) console.error('[pagamentos] ATENÇÃO: ' + resumo.atencao + ' ocorrência(s) financeira(s) pedem uma pessoa (app.pagamentos_auditoria; ver 01-ARQUITETURA-E-OPERACAO §7)');
       await criarNucleo({ banco: bancoFinal, mp, cfg, agora }).ocorrencia('payment.reconciled', null, null, resumo, 'reconciliacao');
       return resumo;
