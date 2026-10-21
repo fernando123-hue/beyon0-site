@@ -61,8 +61,10 @@ Mercado Pago (Orders/Pix), Turnstile.
   nunca tem token da Cloudflare (nem de produção nem de prévia) e nunca cola segredo.
 - Fechado por padrão: na Cloudflare, ambiente ausente/errado = `producao` (o mais restritivo); nada de simulador,
   banco em memória, `BZ_LOCAL` ou chave de teste fora do `local`.
-- `compatibility_date` `"2026-10-21"`, `compatibility_flags: ["nodejs_compat"]` (traz `process.env` preenchido com
-  vars e segredos, `nodejs_compat_populate_process_env`, data ≥ 2025-04-01, e `navigator.userAgent`, `global_navigator`).
+- `compatibility_date` `"2026-10-21"`, `compatibility_flags: ["nodejs_compat"]`. O `nodejs_compat` traz o
+  `process.env` preenchido com vars e segredos (`nodejs_compat_populate_process_env`, data ≥ 2025-04-01); o
+  `navigator.userAgent === 'Cloudflare-Workers'` vem da **data** (`global_navigator`, padrão desde 2022), não do
+  `nodejs_compat`.
 - Limites do plano grátis (lidos em 21/10, https://developers.cloudflare.com/workers/platform/limits/): **10 ms de
   CPU** por pedido e por cron; **50 subpedidos** por invocação; **100.000 pedidos/dia** (zera 00:00 UTC = 21 h de
   Brasília); 5 crons por conta; 1 s de inicialização; 128 MB de memória; corpo até 100 MB (plano da zona). Estouro
@@ -97,10 +99,10 @@ Mercado Pago (Orders/Pix), Turnstile.
 
 | # | Achado (resumo) | Confere no código? | Como o plano resolve | Onde |
 |---|---|---|---|---|
-| **A1** | A barreira tem 2 caminhos fora do guarda: (1) o token do Workers Builds roda o código de **toda** branch empurrada e pode `wrangler deploy` produção; (2) um workflow do GitHub Actions empurrado numa branch pode declarar `contents: write` e dar `git push` em `producao` | Sim. Doc do Builds (21/10): "Preview Builds" rodam em toda branch que não é a de produção; o token padrão tem *Workers Scripts: Edit* na conta; não há filtro de branch, só liga/desliga. Workflows hoje: `contents: read` (`ci.yml:14-15`, `processo.yml:11-12`), mas o YAML de uma branch pode pedir mais | **Caminho 1 fechado por desenho**: prévias numa **2ª conta Cloudflare** (grátis), com o seu próprio Builds e token; na conta de produção, "Enable Preview Builds" **desligado** e branch de produção `producao`. O código de uma branch qualquer só roda com o token da conta das prévias, que não alcança a produção. **Caminho 2 com 3 travas**: GitHub "Workflow permissions = Read"; teste B8 (nenhum workflow com `contents: write`, nenhum arquivo com `wrangler deploy`/`versions deploy`/`:producao` fora da lista); o guarda roda a **sua própria cópia** desse teste antes de todo `git push` do agente. O que sobra (código malicioso numa branch, empurrado por outra pessoa que não o agente) fica escrito como limite aceito, e a opção (c) da Decisão 1 fecha também esse | § 4 D1, § 5.3, B6, B8, § 7 |
+| **A1** | A barreira tem 2 caminhos fora do guarda: (1) o token do Workers Builds roda o código de **toda** branch empurrada e pode `wrangler deploy` produção; (2) um workflow do GitHub Actions empurrado numa branch pode declarar `contents: write` e dar `git push` em `producao` | Sim. Doc do Builds (21/10): "Preview Builds" rodam em toda branch que não é a de produção; o token padrão tem *Workers Scripts: Edit* na conta; não há filtro de branch, só liga/desliga. Workflows hoje: `contents: read` (`ci.yml:14-15`, `processo.yml:11-12`), mas o YAML de uma branch pode pedir mais | **Caminho 1 fechado por desenho**: prévias numa **2ª conta Cloudflare** (grátis), com o seu próprio Builds e token; na conta de produção, "Enable Preview Builds" **desligado** e branch de produção `producao`. O código de uma branch qualquer só roda com o token da conta das prévias, que não alcança a produção. **Caminho 2: limite escrito, não fechado de graça** (2ª revisão, ALTO-3). O "Workflow permissions = Read" (P1) só muda o padrão (o YAML pode pedir `contents: write`); o B8 roda no CI **depois** do push; a varredura de texto do guarda pega erro e instrução óbvia, não quem quer contornar. A trava que pega o vetor real (o agente enganado) é a **confirmação do dono** (regra "ask" do Claude Code) para o agente escrever em `.github/workflows/**`, `cloudflare/**`, `wrangler.jsonc`, `package*.json`, mais **negar** `gh api` de escrita (P2, aprovação do dono). A única trava técnica completa é ruleset na `producao`, que em repositório privado exige **GitHub Pro (US$ 4/mês)**: opção (c) da Decisão 1, com o risco que sobra sem ela escrito | § 4 D1, § 5.3, § 5.5, B6, B8, § 7 P1–P2 |
 | **A2** | "Fechado por padrão" vaza: 4 chamadas sem `env` caem em `process.env`, onde o `BZ_PLATAFORMA` posto numa cópia do `env` não existe | Sim: `api/_vendas/fluxo-pedido.mjs:57` `naVercel()` (a trava "sem chave do IP fecha" **abre**); `:50` `chaveDoTelefone(d.telefone, segredoFreio)` (sem segredo cai no `env = process.env` de `api/_vendas/pedido.mjs:53`); `api/_vendas/fluxo.mjs:142` `modoDirecoes()` (o `api/vendas.mjs:95` nunca passa `direcoes`); `api/_vendas/agente.mjs:75` `modoDirecoes()`. A 5ª chamada sem argumento, `configClassificador()` (`api/_classificador/index.mjs:26`), só lê `BZ_JEV` e não decide ambiente: inofensiva | `ambienteDe` reconhece a Cloudflare pelo **runtime** (`globalThis.navigator?.userAgent === 'Cloudflare-Workers'`, valor fixo do workerd, flag `global_navigator`), então até a leitura por `process.env` vê "Cloudflare". O `BZ_PLATAFORMA` existe só para os testes em Node simularem. E as 4 chamadas passam a receber o ambiente explicitamente; a falta dele **fecha** (`'manual'`, 503). Teste estático novo falha se alguma função de ambiente for chamada sem argumento em `api/`. A mutação (A6) sabota "chamada sem env" | A1, A2, A6 |
-| **A3** | Plano grátis: rotas que não cabem em 10 ms, e a medição antiga não as pegaria | **Medido agora** (§ 3): a varredura de uma direção **típica** (8 seções, 27 KB) gasta **~10 ms quente e 40–50 ms na 1ª chamada** no Node deste PC; a entrega (`entregar_direcao`, `ajuste_feito`) é o caminho de venda do lançamento (`BZ_DIRECOES=manual`). Reconciliação: com 50 pendentes, 1 + 2×50 subpedidos > 50 (`api/_pagamentos/servico.mjs:228-259`, `limite = 50`, `varrerPaginas = 3`). Painel GET: `listar` pagina até 50 × 2 tabelas (`api/_banco.mjs:16-17`, `:43-52`) | (1) **Bancada de CPU e subpedidos no Node** (tarefa M1) com dados do tamanho real, `process.cpuUsage` e limiar fixo; (2) **medida na prévia** (tarefa M2) lendo CPU por invocação no Workers Logs; (3) código que vale em qualquer plano: orçamento de subpedidos na reconciliação (A8) e no painel (A9), sem falha calada; (4) a entrega de direção vai para a **Decisão do dono 2** com 3 caminhos (US$ 5; varredura em pedaços + aquecimento; só a varredura do PC dele) | § 3, § 4 D2, A8, A9, M1, M2 |
-| **A4** | O Supabase vê todos os visitantes com **um** IP, o mesmo de todo cliente de Workers (`2a06:98c0:3600::103`): o limite por IP do login anônimo vira um balde do mundo | Sim. Doc de cabeçalhos (21/10): subpedido de Worker para outra zona da Cloudflare chega com esse `CF-Connecting-IP` fixo. `api/_vendas/visitante.mjs:42` faz `/auth/v1/signup` do servidor, com a chave pública; limite padrão: 30/h por IP no anônimo e 150/5 min no `/token` (renovação, `:52`) — doc do Supabase lida em 21/10 | **`Sb-Forwarded-For`**, documentado oficialmente pelo Supabase (Authentication › Rate Limits › IP Address Forwarding; desligado por padrão em projeto novo; **só com chave secreta**, nunca a publicável). Tarefa A10: nas chamadas ao Auth de **criar** e **renovar**, o servidor manda `apikey` = chave secreta e `sb-forwarded-for` = o IP já validado pela entrada do Worker. Dono liga a opção no staging e na produção. Ensaio obrigatório na prévia (o log do Auth mostra o IP do visitante, não o da Cloudflare) **antes** do corte. Se a opção não existir no plano grátis do Supabase: plano B no § 9 (R7) | A10, M2, § 7 |
+| **A3** | Plano grátis: rotas que não cabem em 10 ms, e a medição antiga não as pegaria | **Medido agora** (§ 3): a varredura de uma direção **típica** (8 seções, 27 KB) gasta **~10 ms quente e 40–50 ms na 1ª chamada** no Node deste PC; a entrega (`entregar_direcao`, `ajuste_feito`) é o caminho de venda do lançamento (`BZ_DIRECOES=manual`). Reconciliação: com 50 pendentes, 1 + 2×50 subpedidos > 50 (`api/_pagamentos/servico.mjs:228-259`, `limite = 50`, `varrerPaginas = 3`). Painel GET: `listar` pagina até 50 × 2 tabelas (`api/_banco.mjs:16-17`, `:43-52`) | (1) **Bancada de CPU e subpedidos no Node** (tarefa M1) com dados do tamanho real, `process.cpuUsage` e limiar fixo; (2) **medida na prévia** (tarefa M2) lendo CPU por invocação no Workers Logs; (3) código que vale em qualquer plano: orçamento de subpedidos por execução na reconciliação e na rotina diária (A8) e teto de **CPU** no painel (A9), sem falha calada; (4) a bancada enumera as ações de `/api/vendas` e do painel (inclusive as do PR 3b) e falha se faltar caso; (5) **um critério só** para a M2 (§ 3.3), escrito antes de medir; (6) a entrega de direção vai para a **Decisão do dono 2** com 3 caminhos (US$ 5; varredura em pedaços + aquecimento; só a varredura do PC dele) | § 3.3, § 4 D2, A8, A9, M1, M2 |
+| **A4** | O Supabase vê todos os visitantes com **um** IP, o mesmo de todo cliente de Workers (`2a06:98c0:3600::103`): o limite por IP do login anônimo vira um balde do mundo | Sim. Doc de cabeçalhos (21/10): subpedido de Worker para outra zona da Cloudflare chega com esse `CF-Connecting-IP` fixo. `api/_vendas/visitante.mjs:42` faz `/auth/v1/signup` do servidor, com a chave pública; limite padrão: 30/h por IP no anônimo e 150/5 min no `/token` (renovação, `:52`) — doc do Supabase lida em 21/10 | **`Sb-Forwarded-For`**, documentado oficialmente pelo Supabase (Authentication › Rate Limits › IP Address Forwarding; desligado por padrão em projeto novo; **só com chave secreta**, nunca a publicável). Tarefa A10: nas chamadas ao Auth de **criar** e **renovar**, o servidor manda `apikey` = chave secreta e `sb-forwarded-for` = o IP já validado pela entrada do Worker. O valor enviado é o do `normalizarIp` (IPv4 exato; IPv6 pelo **prefixo /64**, a casa inteira conta como um, intencional). Dono liga a opção no staging e na produção. **Ensaio que prova o limite, não só o log** (M2): anônimo baixado para 3/h no staging, a 4ª sessão do mesmo celular recebe 429 e outra rede recebe 200. **Limite escrito:** a doc não diz se a opção existe no plano grátis do Supabase; se não existir, o dono escolhe no P6 entre atrasar o corte pelo plano B (visitante criado no navegador: spec própria, ~2–3 dias com revisão) ou ir ao ar com o balde compartilhado e monitorar os 429 do Auth (R7) | A10, M2, § 7 P6, R7 |
 
 ### 2.2 MÉDIO
 
@@ -108,16 +110,17 @@ Mercado Pago (Orders/Pix), Turnstile.
 |---|---|---|---|---|
 | M1 | Limite fixo de 64 KiB no Worker quebra o painel | Sim: painel aceita 200.000 caracteres (`api/painel.mjs:41`, `:115`); em UTF-8 isso passa de 64 KiB | Limite **por rota** em bytes = 3 × o limite do handler (em unidades de texto do JS; 1 unidade ≤ 3 bytes em UTF-8); os limites dos handlers passam a ser exportados e o teste B1 confere "Worker ≥ 3 × handler" para cada rota. O `rotear` lê o corpo uma vez e entrega ao handler um `Request` **novo** com esse corpo | B1 |
 | M2 | Lista de permissão esquece `painel.css`, `privacidade.css`, `resumo.css` (raiz) | Sim (`ls` da raiz, 21/10) | Oráculo: `git ls-files` − regras do `.vercelignore` − o que não é página (`api/`, `package*.json`, `vercel.json`…) **==** saída do `montar-publico`, nos dois sentidos. Depois do PR D, a lista congelada vira o teste. Fumaça: `/_headers` e `/publico/x` → 404 | B3, B7 |
-| M3 | 100 mil pedidos/dia: um IP sozinho esgota a cota; o `workers.dev` passa por fora da regra da zona | Sim: 40/10 s = 345.600/dia de um IP; doc de assets: pedido de `run_worker_first` recebe 429 quando a cota acaba | `workers_dev: false` **obrigatório** na produção (teste no JSONC, C2); regra de limite recalibrada pelo uso medido na prévia (M2); o risco (cota como ponto de derrubada barato; webhook do MP recebe 429 e a reconciliação recupera depois) entra na **Decisão do dono 2** | C2, M2, § 4 D2 |
+| M3 | 100 mil pedidos/dia: um IP sozinho esgota a cota; o `workers.dev` passa por fora da regra da zona | Sim: 40/10 s = 345.600/dia de um IP; doc de assets: pedido de `run_worker_first` recebe 429 quando a cota acaba | `workers_dev: false` **obrigatório** na produção (teste no JSONC, B6/C2). **Limite escrito, sem rodeio:** no grátis nenhuma regra protege a cota; a regra da zona fica em **10 pedidos / 10 s** por IP (= 86.400/dia, abaixo dos 100 mil: um IP sozinho não esgota, precisa de dois), conferida contra os pedidos por visita medidos na M2; o webhook do MP recebe 429 com a cota esgotada e a reconciliação recupera **se o cron rodar**. Pesa a favor da (a) na **Decisão do dono 2** | B6, C2, M2, § 7.1, § 4 D2 |
 | M4 | A decisão do IP depende de `request.cf` sobreviver até o handler | Sim: os handlers chamam `ipDe` de novo (`api/vendas.mjs:52`, `api/painel.mjs:58`, `api/_vendas/fluxo-pedido.mjs:53`, `api/_cron.mjs:32`…) | O `rotear` **reescreve** os cabeçalhos: apaga `x-forwarded-for` e `x-vercel-forwarded-for` e põe `x-forwarded-for` = `cf-connecting-ip` validado; na Cloudflare sem IP válido → 403. O `ipDe` (`api/_freio.mjs:29-33`) não muda. Cron interno não passa pelo `rotear` (e só usa IP com segredo errado, `api/_cron.mjs:32`). Fumaça: XFF forjado não muda a chave do freio | B1, B7 |
 | M5 | "Só Pix" sem tarefa, arquivo nem teste | Sim: tela `orcamento.html:383`, `:396`, `:427`; `js/orcamento-pagamento.js:69-84`, `:202`; API `api/_pagamentos/servico.mjs:159`, `:163`; `configPublica` (`api/_pagamentos/config.mjs:56-58`) não diz os métodos; banco aceita `('pix','cartao')` (não precisa migration) | Tarefa A7: `MP_METODOS` versionado (`"pix"`), `configPagamentos` → `metodos` (fora do `local`, ausente/inválido = `['pix']`), `configPublica` expõe, `iniciar` recusa cartão **antes** de validar e de tocar o banco, tela nasce sem cartão. Local (`simulado`) segue com cartão para o E2E | A7 |
 | M6 | O texto do plano e o resumo contradizem as decisões; o § 4.3 item 4 de `02-OPERACAO.md` manda desligar o login anônimo | Sim (`docs/fundacao/02-OPERACAO.md:122-124`; "seis migrations", hoje são 34) | Este plano e o resumo foram reescritos com as decisões; § 7 diz "itens 1–3 e 5; o 4 está superado"; C5 corrige o `02-OPERACAO.md`; A0 atualiza `03-STATUS.md` já no PR A | A0, C5, § 7 |
 | M7 | `scripts/direcoes.mjs` aceitar `*.workers.dev` com subdomínio livre manda a `PAINEL_CHAVE` a terceiros | Sim: `validarBase` (`scripts/direcoes.mjs:167-173`) com `HOSTS` em `:46` | Subdomínio `workers.dev` da conta das prévias **fixo numa constante**; padrões ancorados; teste com `x-beyon-zero-site.evil.workers.dev` e `…workers.dev.evil.com` recusados | C3 |
-| M8 | O Access nas prévias barra o próprio agente (verificação, medição, script de direções) | Sim | **Service token** do Access, só da conta das prévias (dados de teste), criado pelo dono; os scripts mandam `CF-Access-Client-Id/Secret` quando as variáveis existem. Bypass de `/api/pagamentos` só no hostname **fixo** do staging (a `main`), ensaiado | B9, § 5.4 |
+| M8 | O Access nas prévias barra o próprio agente (verificação, medição, script de direções) | Sim | **Service token** do Access, só da conta das prévias (dados de teste), criado pelo dono; os scripts mandam `CF-Access-Client-Id/Secret` quando as variáveis existem. Escopo do Access: **Worker `beyon-zero-site-previa` → "All traffic"** (cobre o staging fixo, que é deploy e não "Preview", e as prévias). O Zero Trust exige ativação e **pede cartão mesmo no Free** (sem cobrança): dito no P3/P5 e no resumo. Bypass de `/api/pagamentos` só no hostname **fixo** do staging, ensaiado; se não der, a reconciliação do staging cobre | B9, § 5.4, P3, P5 |
 | M9 | O servidor local e o E2E não passam pela tabela de rotas do Worker | Sim: `docs/servidor.mjs:52-66` chama `mod[req.method]` direto | O servidor local passa a chamar o **mesmo** `rotear` (com `process.env`), então o E2E do orçamento atravessa a mesma porta da produção | B5 |
 
-**Contagem:** ALTO 4/4 resolvidos (A1 com um limite residual escrito e uma opção que o fecha, Decisão 1). MÉDIO 9/9
-resolvidos, nenhum descartado.
+**Contagem (depois da 2ª revisão):** ALTO: A2 resolvido; A1, A3, A4 resolvidos **com limite escrito** (A1: o
+caminho 2 só fecha de vez com GitHub Pro, Decisão 1 (c); A3: a entrega de direção depende da Decisão 2; A4: a opção do
+Supabase pode não existir no grátis, R7). MÉDIO: 9/9 resolvidos, M3 e M8 com limite escrito; nenhum descartado.
 
 ### 2.3 BAIXO (todos absorvidos)
 
@@ -168,8 +171,18 @@ Cloudflare têm outra CPU: o número exato vem da M2, mas **a ordem de grandeza 
 
 ### 3.3 Limiar para "cabe"
 
-p99 quente ≤ 5 ms **e** 1ª chamada ≤ 8 ms **e** ≤ 45 subpedidos (folga de 2× na CPU e de 5 subpedidos). Fora disso:
-a rota entra na tabela que vai ao dono (Decisão 2).
+**Um critério só, escrito antes de medir** (2ª revisão, MÉDIO-4). No grátis, pedido acima de 10 ms é **cortado**
+(1102 / `exceededCpu`) ou passa pela tolerância a estouro ocasional: o sinal na Cloudflare é "teve 1102?", não
+"quantos ms deu".
+
+| Onde | Rota | "Cabe" quando |
+|---|---|---|
+| M1 (Node, triagem) | toda ação | p99 quente ≤ 5 ms **e** 1ª chamada ≤ 8 ms **e** ≤ 45 subpedidos. Fora disso: rota "em risco", medida com mais cuidado na M2 |
+| **M2 (staging, decide)** | toda ação do visitante, painel GET, webhook, crons | em **20 chamadas espaçadas** (frias e quentes), **nenhum** 1102/`exceededCpu`, **p99 de CPU no Workers Logs ≤ 7 ms** e ≤ 45 subpedidos |
+| **M2 (staging, decide)** | `entregar_direcao`, `ajuste_feito` (só o dono, raras) | em **5 entregas frias** (≥ 15 min entre elas, direção típica do § 3.1): **qualquer** 1102 = não cabe |
+
+Qualquer rota fora do critério da M2 → a tabela vai ao dono como **Decisão 2**. A M2 anota também os pedidos
+`/api/*` por visita ao orçamento (para a regra de limite, § 7.1).
 
 ---
 
@@ -179,18 +192,28 @@ a rota entra na tabela que vai ao dono (Decisão 2).
 
 | Opção | Como funciona | O que fecha | Custo para o dono |
 |---|---|---|---|
-| (a) Uma conta só | prévias de toda branch e produção na mesma conta, mesmo token do Builds | nada do A1 caminho 1: código de qualquer branch empurrada roda com um token que publica produção | nenhum |
-| **(b) Duas contas (recomendada)** | conta atual = **produção** (zona `beyonzero.com.br`, Worker `beyon-zero-site`, Builds só da branch `producao`, "Enable Preview Builds" desligado). Conta nova grátis = **prévias** (Worker `beyon-zero-site-previa`, Builds da `main` + prévias de toda branch, segredos de teste, Access) | caminho 1 inteiro. Caminho 2 com 3 travas (§ 2.1) | criar uma 2ª conta Cloudflare (e-mail com `+previa`, 2 etapas ligada), uns 15 min a mais na configuração |
-| (c) (b) + produção "sobe sem publicar" | na conta de produção, o deploy vira `npx wrangler versions upload`; o dono clica **Deploy** na versão, no painel | os dois caminhos | promover vira 2 cliques em 2 lugares (merge no GitHub + Deploy na Cloudflare); mudança de cron passa a ser manual |
+Dois caminhos levam código ao ar sem o dono (§ 2.1 A1): **caminho 1**, o programa que monta as prévias (Workers
+Builds) roda o código de toda branch com uma chave que publica; **caminho 2**, uma automação do GitHub (workflow)
+empurrada numa branch pode pedir permissão de escrita e empurrar para `producao`.
 
-**Recomendação: (b).** Fecha o caminho que existe de verdade hoje (o agente empurra branches o dia todo; com uma conta
-só, um texto malicioso lido pelo agente bastaria para uma branch publicar produção). O caminho 2 exige um workflow
-malicioso empurrado, e é exatamente o que as 3 travas olham. A (c) é mais forte, mas troca o "um clique no celular"
-por dois passos em dois painéis.
+| Opção | Como funciona | O que fecha | O que sobra | Custo |
+|---|---|---|---|---|
+| (a) Uma conta só | prévias e produção na mesma conta, mesma chave do Builds | nada | os dois caminhos abertos: um texto malicioso lido pelo agente vira uma branch que publica | nenhum |
+| **(b) Duas contas + confirmação do dono (recomendada)** | conta atual = **produção** (zona, Worker `beyon-zero-site`, Builds só da `producao`, prévias desligadas). Conta nova de **outro usuário** = **prévias** (Worker `beyon-zero-site-previa`, Builds da `main` e de toda branch, segredos de teste, Access). No Claude Code do dono: o agente só escreve em workflows, `cloudflare/`, `wrangler.jsonc` e `package*.json` com a **confirmação** dele, e não pode usar `gh api` de escrita (P2) | caminho 1 inteiro; caminho 2 para o agente enganado (ele não cria o workflow sem o "sim" do dono) | um workflow malicioso que chegue ao repositório por outro meio (outra pessoa, outra ferramenta, ou o dono aprovar sem ler) empurra para `producao` e publica. Hoje só o dono e o agente escrevem no repositório | grátis; ~15 min; o Zero Trust da conta de prévias **pede cartão** (sem cobrança) |
+| (c) (b) + **GitHub Pro, US$ 4/mês** | ruleset na branch `producao`: só o dono atualiza, só por PR | caminho 2 também: o workflow (que roda como "github-actions") não consegue empurrar | o agente usa o login do dono no GitHub: contra ele continua valendo o guarda (nega push e merge em `producao`) | US$ 4/mês |
+
+Descartada da 1ª versão: produção por `versions upload` com "Deploy" no painel. **Não fecha** nenhum caminho: o Build
+command roda no Builds de produção com a chave que pode `versions deploy`.
+
+**Recomendação: (b) agora.** Fecha o caminho que existe de verdade hoje (o agente empurra branches o dia todo) sem
+gastar nada, coerente com "investimento mínimo até o primeiro cliente". O risco que fica é escrito acima e é pequeno
+enquanto só o dono e o agente mexem no repositório. A (c) vale a pena quando entrar outra pessoa no repositório ou no
+1º cliente; não é obrigatória.
 
 ### Decisão do dono 2 — Plano grátis com a entrega de direção que não cabe (decidir depois da M2)
 
-A M2 mede tudo na prévia. Se a medida confirmar o § 3.1 (entrega acima de 10 ms), as opções:
+A M2 mede tudo no staging com o critério do § 3.3. Se alguma rota ficar fora (o esperado, pelo § 3.1, é a entrega de
+direção), as opções:
 
 | Opção | O que é | Prós | Contras |
 |---|---|---|---|
@@ -199,7 +222,11 @@ A M2 mede tudo na prévia. Se a medida confirmar o § 3.1 (entrega acima de 10 m
 | (c) Grátis, sem a 2ª varredura no servidor | o servidor fica só com o `higienizar` (~0,5 ms); a varredura roda só no seu PC (`scripts/direcoes.mjs:303`, `:326`, `:421` já rodam) | grátis, zero código novo | perde a defesa em profundidade (se o script do PC for adulterado ou tiver bug, conteúdo indevido chega ao cliente): é decisão de segurança |
 
 **Recomendação: (a), se a M2 confirmar.** É o que a sua regra já diz ("US$ 5 só se não couber"), e as opções (b) e
-(c) gastam mais tempo ou tiram uma proteção para economizar US$ 5. Até a M2, o plano segue grátis.
+(c) gastam mais tempo ou tiram uma proteção para economizar US$ 5. Até a M2, o plano segue grátis. Pesa também a cota:
+no grátis, **nenhuma regra protege os 100 mil pedidos/dia** (M3, § 7.1); esgotada, o orçamento e o aviso de pagamento
+param até 21 h. **O pago não é "sem limite":** passa a cobrar o excesso (pedidos além de 10 milhões/mês, CPU além do
+incluído); um ataque passa a custar pouco dinheiro em vez de derrubar. Por isso a produção paga ganha
+`"limits": { "cpu_ms": 100 }` (teto por pedido; tarefa C2b).
 
 ### Decisão do dono 3 — O endereço antigo `beyon0-site.vercel.app`
 
@@ -209,7 +236,7 @@ publicados.
 | Opção | O que acontece |
 |---|---|
 | (a) Deixar a Vercel como está até a captação trocar os links, depois apagar | quem clicar num link antigo depois de apagar vê erro |
-| **(b) Trocar por um redirecionamento 301 para `beyonzero.com.br` por 90 dias, depois apagar (recomendada)** | links antigos continuam funcionando; é um deploy estático de redirecionamento (não é o site novo, não vende nada), feito pelo dono |
+| **(b) Trocar por um redirecionamento 301 para `beyonzero.com.br` por 90 dias, depois apagar (recomendada)** | links antigos continuam funcionando; é um deploy estático de redirecionamento (não é o site novo, não vende nada, não é "promover" o código novo na Vercel), feito pelo dono |
 | (c) Apagar logo depois do corte | mais simples; links antigos quebram no mesmo dia |
 
 **Recomendação: (b), por 90 dias** (30–60 dias é pouco para sites de demonstração que o cliente pode reabrir meses
@@ -273,7 +300,7 @@ api/_vendas/visitante.mjs:35-55 (A10); docs/servidor.mjs:52-66 (B5); scripts/dir
 | Conta | Worker | Branch → o que acontece | Segredos | Quem configura |
 |---|---|---|---|---|
 | **Produção** (a conta atual, dona da zona) | `beyon-zero-site` | `producao` → `npx wrangler deploy` (config do topo). Nenhuma outra branch constrói | os 15 de produção | dono |
-| **Prévias** (conta nova, grátis) | `beyon-zero-site-previa` | `main` → `npx wrangler deploy --env previa` (staging fixo, com crons); outra branch → `npx wrangler preview --env previa` | os de teste (Supabase staging, MP teste, Turnstile teste) | dono |
+| **Prévias** (conta nova, grátis, de **outro usuário**: o Builds só aceita token de usuário, e um token de usuário com acesso às duas contas alcançaria a produção) | `beyon-zero-site-previa` | `main` → `npx wrangler deploy --env previa` (staging fixo, com crons); outra branch → `npx wrangler preview --env previa` | os de teste (Supabase staging, MP teste, Turnstile teste) | dono |
 
 - **Promover** (substitui o "Promote" da Vercel): 1) o agente mescla na `main` pelo processo de sempre; 2) confere o
   staging; 3) abre o PR **"Promover para produção: `<sha>`"** de `main` para `producao`, pedindo **"Create a merge
@@ -282,15 +309,21 @@ api/_vendas/visitante.mjs:35-55 (A10); docs/servidor.mjs:52-66 (B5); scripts/dir
 - **Voltar atrás:** conta de produção → Workers & Pages → `beyon-zero-site` → Deployments → ⋯ → Rollback (dono).
 - **Limites do Builds no grátis:** 1 build por vez por conta, 3.000 min/mês; 100 prévias por Worker (as mais velhas
   são apagadas sozinhas). Com duas contas, uma fila de prévias não atrasa a promoção.
-- **O limite que fica (escrito para o dono):** código malicioso que chegue à `producao` publica; a única porta é o
-  merge do dono. Um workflow malicioso empurrado por alguém de fora do processo ainda poderia empurrar para
-  `producao` se o GitHub deixar elevar a permissão no YAML; as 3 travas (§ 2.1 A1) pegam o agente; a opção (c) da
-  Decisão 1 fecha o resto.
+- **O limite que fica (escrito para o dono):** código que chegue à `producao` publica (o Build command e o deploy
+  rodam o que está no repositório, com a chave de produção). A porta prevista é o merge do dono. A outra porta é um
+  workflow do GitHub empurrado numa branch: o YAML pode pedir `contents: write` (o padrão "Read" do P1 não é teto;
+  doc do `GITHUB_TOKEN`) e empurrar para `producao`. Contra o agente enganado, a trava é a confirmação do dono para
+  escrever em workflows e nos arquivos que o Builds executa (§ 5.5); o B8 e a varredura do guarda pegam erro e
+  instrução óbvia, não quem quer contornar. Só a Decisão 1 (c) (GitHub Pro, ruleset na `producao`) fecha essa porta
+  para qualquer origem.
 
 ### 5.4 Access nas prévias (conta das prévias)
 
-- O dono liga o Access para o `workers.dev` e as Preview URLs do `beyon-zero-site-previa` (login por código no
-  e-mail dele). As URLs são públicas por padrão (doc das Previews): sem isso, qualquer um abre o staging.
+- Antes: ativar o **Zero Trust** na conta das prévias (plano Free, até 50 pessoas). A criação da organização **pede
+  uma forma de pagamento mesmo no Free**, sem cobrança (doc "Create a Zero Trust organization"): avisar o dono antes.
+- O dono liga o Access no Worker: `beyon-zero-site-previa` → aba Access → "Protect this Worker behind Access" →
+  **All traffic** (cobre o staging fixo da `main`, que é um *deploy* e não uma "Preview", e as Preview URLs; a opção
+  "Previews only" deixaria o staging público). Login por código no e-mail dele. As URLs são públicas por padrão.
 - **Service token** "agente-previas" (Zero Trust → Access → Service Auth), política "Service Auth" na mesma
   aplicação. Vale só para as prévias (dados de teste); validade 1 ano. Fica no gerenciador de senhas do dono e num
   arquivo local que a fila do vigia lê (`%USERPROFILE%\.claude\segredos\access-previas.env`, com
@@ -300,7 +333,15 @@ api/_vendas/visitante.mjs:35-55 (A10); docs/servidor.mjs:52-66 (B5); scripts/dir
   hostname **fixo** do staging. Se o Access não aceitar caminho no `workers.dev` (ensaio do P8), o aviso de teste
   fica sem chegar e a reconciliação de 3 em 3 h do staging confere o pagamento (é o mesmo código).
 
-### 5.5 O guarda (`~/.claude/guarda/`, aplicado pelo DONO; o agente nunca altera o próprio guarda)
+### 5.5 O guarda e as permissões do Claude Code (configuração do DONO; tarefa P2, só com a aprovação dele)
+
+O agente **não** edita `~/.claude/settings.json`, hooks nem `~/.claude/guarda/`. O texto abaixo é o pedido que vai ao
+dono no P2; ele aprova e aplica (ou autoriza uma sessão a aplicar).
+
+**Pedir confirmação ao dono** (regra `ask` em `permissions` do Claude Code) antes de o agente escrever em:
+`.github/workflows/**`, `cloudflare/**`, `wrangler.jsonc`, `package.json`, `package-lock.json`. Motivo: o Builds de
+produção executa o que está neles, e um workflow pode empurrar para `producao`. Essas mudanças são raras; cada uma
+vira um "posso?" na tela do dono, que é a trava contra o agente enganado.
 
 Negar ao agente, além do que já nega:
 - `wrangler deploy` sem `--dry-run`, `wrangler versions deploy|upload`, `wrangler rollback`, `wrangler triggers
@@ -310,10 +351,13 @@ Negar ao agente, além do que já nega:
 - `wrangler` com `CLOUDFLARE_API_TOKEN` definido fora de `captacao/` (o token da captação é *Pages: Edit* +
   *Analytics: Read* e **nunca** ganha *Workers Scripts*);
 - `git push` com destino `producao` (inclusive refspec `X:producao`), `--all`, `--mirror`; `gh pr merge` de PR com
-  base `producao` (consulta `gh pr view <n> --json baseRefName`; falhou a consulta, nega); `gh api` que crie ref,
-  merge ou commit em `producao`;
+  base `producao` (consulta `gh pr view <n> --json baseRefName`; falhou a consulta, nega);
+- **`gh api` de escrita** (`-X`/`--method` PUT, POST, PATCH ou DELETE, ou `-f`/`-F`/`--input` sem `--method GET`) em
+  `/contents`, `/git/`, `/merges`, `/pulls/*/merge`, em **qualquer** branch: criaria commit sem `git push`;
 - **antes de todo `git push`**: rodar a cópia do guarda de `scripts/processo/anti-publicacao.mjs` (o dono copia o
-  arquivo do PR B para `~/.claude/guarda/anti-publicacao.mjs`) sobre a árvore a empurrar; achado = nega;
+  arquivo do PR B para `~/.claude/guarda/anti-publicacao.mjs`) sobre a árvore a empurrar; achado = nega. É varredura
+  de texto: pega erro e instrução óbvia (`wrangler deploy`, `:producao`), não quem quer contornar (`"prod"+"ucao"`,
+  base64); por isso a regra `ask` acima é a trava principal;
 - ler `.dev.vars*`, `.wrangler/` e `~/.claude/segredos/`.
 
 Repetir os principais em `permissions.deny` do `~/.claude/settings.json`. As regras da Vercel ficam até o PR D.
@@ -369,14 +413,15 @@ segredos-base das Previews são copiados para cada prévia **na criação** (mud
 
 | # | Quando | Passo |
 |---|---|---|
-| P1 | já | GitHub → repositório → Settings → Actions → General → **Workflow permissions = Read repository contents** |
-| P2 | antes de ligar qualquer Builds | aplicar as regras do guarda do § 5.5 (com a cópia do `anti-publicacao.mjs` do PR B) |
-| P3 | depois do merge do PR B | criar a **conta das prévias** (Decisão 1 b); 2 etapas ligadas nas duas contas; anotar o subdomínio `workers.dev` dela (vira a constante `SUB_PREVIAS`, C3/B9) |
+| P1 | já | GitHub → repositório → Settings → Actions → General → **Workflow permissions = Read repository contents** (muda só o padrão; não é trava, § 5.3) |
+| P2 | antes de ligar qualquer Builds | **aprovar e aplicar** no Claude Code dele as regras do § 5.5: `ask` para workflows/`cloudflare/`/`wrangler.jsonc`/`package*.json`, `deny` de `gh api` de escrita, as regras do guarda e a cópia do `anti-publicacao.mjs` do PR B. O agente prepara o texto; não edita `settings.json`, hooks nem o guarda |
+| P2b | se escolher a Decisão 1 (c) | GitHub Pro (US$ 4/mês) → Settings → Rules → Rulesets → branch `producao`: só o dono, só por PR, sem push direto, sem apagar |
+| P3 | depois do merge do PR B | criar a **conta das prévias** com **outro usuário** (outro login; ex.: o e-mail dele com `+previa`), nunca uma 2ª conta sob o mesmo login (Decisão 1 b); 2 etapas ligadas nos dois usuários; ativar o Zero Trust Free (**pede cartão, sem cobrança**); anotar o subdomínio `workers.dev` dela (vira a constante `SUB_PREVIAS`, C3/B9) |
 | P4 | idem | conta das prévias: Workers Builds ligado ao repositório; branch de produção `main`; Deploy command `npx wrangler deploy --env previa`; Preview Builds ligado; Preview command `npx wrangler preview --env previa`; Build command `node cloudflare/montar-publico.mjs` |
-| P5 | idem | conta das prévias: segredos de teste (§ 6, coluna Prévias) no Worker **e** nos segredos-base das Previews; Access + service token (§ 5.4) |
-| P6 | idem | **Supabase staging** (`beyon-zero-staging`, São Paulo, grátis): `npx supabase@2 db push` (34 migrations); esquemas expostos `app` e `metricas` (nunca `privado`); cadastro aberto **desligado**; login anônimo **ligado**; Authentication › Rate Limits › **IP Address Forwarding ligado** (A10) |
+| P5 | idem | conta das prévias: segredos de teste (§ 6, coluna Prévias) em **dois lugares**: no Worker `beyon-zero-site-previa` (vale para o staging da `main`) **e** nos segredos-base das Previews (Settings → Previews; copiados para cada prévia nova na criação). Access no Worker com **All traffic** + service token (§ 5.4) |
+| P6 | idem | **Supabase staging** (`beyon-zero-staging`, São Paulo, grátis): `npx supabase@2 db push` (34 migrations); esquemas expostos `app` e `metricas` (nunca `privado`); cadastro aberto **desligado**; login anônimo **ligado**; Authentication › Rate Limits › **IP Address Forwarding ligado** (A10). **Se a opção não aparecer no plano grátis:** o dono escolhe entre (1) atrasar o corte pelo plano B do R7 (~2–3 dias) ou (2) ir ao ar com o balde compartilhado e o agente monitorar os 429 do Auth no log (R7). Não é uma 4ª decisão de arquitetura: é a contingência do A4 |
 | P7 | idem | **Mercado Pago, modo teste**: credenciais de teste nos segredos; webhook de teste em `https://beyon-zero-site-previa.<SUB_PREVIAS>.workers.dev/api/pagamentos` |
-| P8 | staging no ar | ensaios com o agente: M2 (CPU), A4 (IP no log do Auth), Access/Bypass, cota do Workers Logs, `_headers` desanexando CSP; **Decisão do dono 2** com a tabela da M2 |
+| P8 | staging no ar | ensaios com o agente (Task M2): uma prévia de branch abre com `BZ_AMBIENTE=previa` (log de uma chamada; sem isso tudo fecha como produção, ALTO-2 da 2ª revisão); critério de CPU do § 3.3; A4 com o limite do anônimo em 3/h; formato real da URL de prévia (para o C3); Access/Bypass; cota do Workers Logs; `_headers` desanexando CSP; **Decisão do dono 2** com a tabela da M2 |
 | P9 | idem | conta de produção: Workers Builds ligado ao repositório; branch de produção **`producao`**; **Enable Preview Builds desligado**; Build command `node cloudflare/montar-publico.mjs`; Deploy command `npx wrangler deploy`. Criar a branch `producao` a partir da `main` no GitHub (nasce sem domínio e sem segredos: tudo fecha) |
 | P10 | antes do PR C ir ao ar | **Supabase produção** (`beyon-zero`): igual ao P6, mais `docs/fundacao/02-OPERACAO.md` § 4.3 **itens 1–3 e 5** (o item 4, "desligar o login anônimo", está **superado** pela Fase 2: login anônimo LIGADO, cadastro aberto desligado); § 4.4 conferido; tabela de preços `ativa` (`docs/fase2/02-OPERACAO.md` § 1.2, `npm run validar:regras`); Site URL `https://beyonzero.com.br`, Redirect URLs só `https://beyonzero.com.br/**`; só um dos dois (`pg_cron` de retenção ou `/api/rotinas`) |
 | P11 | idem | **Mercado Pago produção**: URL do site `https://beyonzero.com.br`; webhook `https://beyonzero.com.br/api/pagamentos` (sem `www`), evento Order; assinatura em `MP_WEBHOOK_SEGREDO` |
@@ -403,7 +448,7 @@ diária toca o banco todo dia; o prazo atual da pausa é conferido na doc do Sup
 | Bot Fight Mode | **desligado** | no Free não abre exceção e pode barrar o webhook do MP |
 | Pseudo IPv4 | desligado | IPv6 real no `cf-connecting-ip` |
 | Cache | nenhuma regra "Cache Everything" | HTML e `/api` nunca em cache |
-| Regra de limite (Free: 1 regra, por IP, 10 s) | `http.request.uri.path in {"/api/vendas" "/api/evento" "/api/leads"}` → **20 pedidos / 10 s** → Block 10 s; valor final pelo uso medido no P8 (o orçamento faz 1 pedido a cada 60 s; uma página faz poucos `/api/evento`) | muralha por IP; `/api/pagamentos` fora (o MP reenvia em rajada). **Não protege a cota diária** de um ataque com vários IPs (Decisão 2) |
+| Regra de limite (Free: 1 regra, só caminho, por IP, janela de 10 s) | **todo** `/api/*` (o operador de "começa com"/curinga que o editor do Free oferecer; nome fora da tabela também gasta cota) → **10 pedidos / 10 s** → Block 10 s. Conta: 10 a cada 10 s = 86.400/dia por IP, **abaixo** dos 100.000 (para esgotar a cota são precisos ao menos 2 IPs; com 20/10 s, um IP sozinho gastava 172.800). O P8 confere contra os pedidos por visita medidos na M2 (o orçamento faz 1 pedido a cada 60 s; uma página, poucos `/api/evento`) e só sobe o valor se uma visita normal passar de 10 em 10 s, nunca acima de 11 | `/api/pagamentos` dentro: o aviso do MP vem de poucos IPs e em baixo volume no lançamento; se levar 429, o MP reenvia. **Limite escrito: no grátis nenhuma regra protege a cota**; dois IPs a esgotam e tudo em `/api/*` responde 429 até 21 h (Decisão 2) |
 | `workers.dev` da produção | **desligado** (`workers_dev: false`, C2) | passaria por fora desta regra |
 
 ---
@@ -476,6 +521,7 @@ test('simulação nos testes em Node: BZ_PLATAFORMA=cloudflare vale como o runti
   assert.equal(ambienteDe({ BZ_PLATAFORMA: 'cloudflare' }), 'producao');
   assert.equal(ambienteDe({ BZ_PLATAFORMA: 'cloudflare', BZ_AMBIENTE: 'previa' }), 'previa');
   assert.equal(ambienteDe({ BZ_PLATAFORMA: 'cloudflare', BZ_LOCAL: '1' }), 'producao');
+  assert.equal(ambienteDe({ VERCEL: '1', BZ_PLATAFORMA: 'cloudflare', BZ_AMBIENTE: 'previa' }), 'producao', 'na Vercel a simulação não vale');
 });
 test('Vercel até o PR D: production (ou sem VERCEL_ENV) é produção; preview/development é prévia', () => {
   assert.equal(ambienteDe({ VERCEL: '1' }), 'producao');
@@ -507,8 +553,12 @@ test('nada disso: local (servidor local e testes)', () => {
 const USER_AGENT_CLOUDFLARE = 'Cloudflare-Workers';
 
 const objeto = env => (env && typeof env === 'object' ? env : {});
-export const naCloudflare = env => globalThis.navigator?.userAgent === USER_AGENT_CLOUDFLARE || objeto(env).BZ_PLATAFORMA === 'cloudflare';
 const naVercel = e => !!(e.VERCEL || e.VERCEL_ENV);
+/* (a simulação por BZ_PLATAFORMA nunca vale na Vercel: lá ela viraria "previa" numa produção) */
+export const naCloudflare = env => {
+  const e = objeto(env);
+  return globalThis.navigator?.userAgent === USER_AGENT_CLOUDFLARE || (e.BZ_PLATAFORMA === 'cloudflare' && !naVercel(e));
+};
 
 export function ambienteDe(env) {
   const e = objeto(env);
@@ -681,6 +731,12 @@ test('todo env.X lido em api/ está no .env.example ou na lista de chaves só lo
 
 - [ ] **Step 1:** `export const LIMITE_BYTES = …` nos três primeiros; em `painel.mjs`, `export const CORPO_MAX = 200000;`.
   Os valores **não mudam** (16384, 65536, 8192, 200000; evento 4096). Nenhum teste novo aqui: o B1 os usa.
+  Também para a bancada (M1, 2ª revisão MÉDIO-5): `export const ACOES` em `api/vendas.mjs:23` (só o `export`) e, em
+  `api/painel.mjs`, `export const ACOES_PAINEL = Object.freeze({ GET: ['resumo', 'csv-ads', 'fila-direcoes',
+  'fila-pendentes', 'fila-lembretes', 'fila-ajustes'], POST: ['entregar_direcao', 'avisado', 'link_retomada',
+  'lembrado', 'ajuste_feito', 'ajuste_recusado', 'resolver_alerta', ...Object.keys(ACOES_PEDIDO)] })` — a lista do
+  que `ler`/`mudar` despacham hoje (`api/painel.mjs:94-127`; conferir as chaves que vierem depois da `:127` e
+  acrescentá-las). O teste da M1 confere a lista contra o código.
 - [ ] **Step 2:** `npm run testar` → PASS. **Step 3:** commit.
 
 #### Task A6: mutação do ambiente
@@ -734,8 +790,9 @@ test('só Pix fora do local: MP_METODOS ausente ou inválido = só Pix; o cartã
     assert.equal(chamadas, 0, 'nenhuma chamada ao banco');
   } finally { globalThis.__BZ_LOCAL = salvo; }
 });
-test('local (simulado) continua com cartão: o E2E não perde a regressão', () => {
+test('local (simulado) continua com cartão: o E2E não perde a regressão; MP_METODOS=pix vale também no local', () => {
   assert.ok(configPagamentos({}).metodos.includes('cartao'));
+  assert.deepEqual(configPagamentos({ MP_METODOS: 'pix' }).metodos, ['pix']);
 });
 ```
 
@@ -756,7 +813,11 @@ export function metodosDe(env, amb) {
 }
 ```
 
-  `configPagamentos`: no retorno simulado, `metodos: [...METODOS]`; no retorno ativo, `metodos: metodosDe(env, amb)`.
+  `configPagamentos`: no retorno simulado, `metodos: metodosDe(env, 'local')` (lista válida vale, ausente = os dois:
+  assim o caso "só Pix" do E2E local funciona com `MP_METODOS=pix`); no retorno ativo, `metodos: metodosDe(env, amb)`.
+  A chave é **`MP_METODOS`** e só ela (o PR 3b já a adotou, `site-pr3b/docs/specs/…pr3b-vender-sozinho.md`
+  l.245-249; nenhuma outra chave de cartão é criada); a A7 fica neste PR A e o 3b-1 só consome
+  `configPublica(cfg).metodos`. Quem mesclar depois rebaseia.
   `configPublica`: `return { ativo: true, ambiente: cfg.ambiente, publicKey: cfg.publicKey, parcelasMax: 12, metodos: cfg.metodos || ['pix'] };`
   Em `servico.iniciar`, logo depois da 1ª linha (`:159`):
   `if (!(cfg.metodos || ['pix']).includes(metodo)) throw new ErroPagamento(400, 'Esta forma de pagamento não está disponível.');`
@@ -814,25 +875,54 @@ test('reconciliação nunca passa de 45 subpedidos; o resto fica para o próximo
 ```
 
 - [ ] **Step 2:** FAIL (≈ 1 + 100 + 3 + 100 + 2 chamadas).
-- [ ] **Step 3:** no `reconciliar`: contador `gastos` incrementado num embrulho `const chamar = fn => async (...a) => { if (gastos >= orcamento) throw new SemOrcamento(); gastos++; return fn(...a); };`
-  aplicado a `banco` e aos métodos do `mp` usados ali; reservar 2 para o fim (`pagamentos_atencao` e a ocorrência);
-  `SemOrcamento` não conta como erro: para o laço, marca `resumo.parcial = true` e loga
-  `{ origem: 'pagamentos', nivel: 'aviso', evento: 'reconciliação parcial', subpedidos }`. A lista vem das mais
-  antigas (o banco já ordena; conferir na migration de `pagamentos_para_reconciliar` e anotar no comentário).
-  Padrões novos: `limite = 15`, `varrerPaginas = 1`, `orcamento = 45`. Com cron de 3 em 3 h, 15 por vez = 120/dia.
-- [ ] **Step 4:** PASS + `npm run testar`. **Step 5:** commit `fix: reconciliacao com orcamento de subpedidos, parcial avisa no log`.
+- [ ] **Step 3:** como implementar (2ª revisão, BAIXO-7): `atualizar` e `aplicar` usam o `banco`/`mp` do
+  **fechamento** de `criarServicoPagamentos`, então um embrulho só dentro do `reconciliar` não conta essas chamadas.
+  Extrair as funções internas para `criarNucleo({ banco, mp, cfg, agora })` (devolve `aplicar`, `atualizar`,
+  `ocorrencia`, `erroDoProvedor`); o serviço usa um núcleo com o `banco`/`mp` normais; o `reconciliar` cria **a cada
+  execução** um núcleo com versões contadas:
 
-#### Task A9: painel GET dentro do orçamento
+```js
+class SemOrcamento extends Error {}
+/* contador POR EXECUÇÃO (nunca no módulo: o isolado atende pedidos ao mesmo tempo) */
+function orcamentoDe(limite) {
+  let gastos = 0;
+  const contar = fn => async (...a) => { if (gastos >= limite) throw new SemOrcamento(); gastos++; return fn(...a); };
+  return { contar, gastos: () => gastos };
+}
+```
+
+  `banco` contado = `contar(banco)`; `mp` contado = `{ ...mp, consultarOrdem: contar(mp.consultarOrdem), buscarRecentes:
+  contar(mp.buscarRecentes) }`. Reservar 2 para o fim (`pagamentos_atencao` e a ocorrência, com o `banco` sem contar).
+  O `umPorVez` **relança** `SemOrcamento` (não conta como erro) e o laço para; `resumo.parcial = true`; log
+  `{ origem: 'pagamentos', nivel: 'aviso', evento: 'reconciliação parcial', subpedidos }`. A lista vem das mais antigas
+  (conferir a ordem na migration de `pagamentos_para_reconciliar` e anotar no comentário). Padrões novos:
+  `limite = 15`, `varrerPaginas = 1`, `orcamento = 45` (15 a cada 3 h = 120/dia).
+- [ ] **Step 4: a rotina diária com o mesmo orçamento** (2ª revisão, MÉDIO-5: o PR 3b soma chamadas ao Storage
+  nela). Teste vermelho em `docs/testes/api.test.mjs`: `executar` com `deps.banco` e `deps.metricas` falsos que contam,
+  e um `fetch` falso (ntfy) que conta, com 60 etapas simuladas → nunca passa de 45 e o resumo diz `parcial: true`.
+  Implementação: `api/rotinas.mjs:40-…` usa o mesmo `orcamentoDe(45)` (mover para `api/_orcamento.mjs`, exportado, e
+  importar nos dois); etapa que ficou sem orçamento vira **alerta** (como as falhas de hoje), nunca silêncio.
+- [ ] **Step 5:** PASS + `npm run testar`. **Step 6:** commit `fix: reconciliacao e rotina diaria com orcamento de subpedidos por execucao`.
+
+#### Task A9: painel GET dentro do orçamento de CPU (não só de subpedidos)
 
 **Files:** Modify: `api/_banco.mjs:16-17`, `:43-52`, `api/painel.mjs:100-101`; Test: `docs/testes/metricas.test.mjs`
 
+Decisão do autor (2ª revisão, MÉDIO-6): o teto é pela **CPU**, não pelos 50 subpedidos. 20 páginas × 1.000 linhas ×
+2 tabelas = 40 mil linhas de `JSON.parse` + `resumir` num pedido, o que passa de 10 ms com folga. O teto começa em
+**2 páginas por tabela** (2.000 linhas, 4 mil no total: o tráfego do lançamento cabe com sobra) e só sobe se a M1
+medir que um número maior passa no critério de triagem do § 3.3. O resumo agregado no banco (uma RPC por período,
+migration nova) fica como trabalho próprio **se** o dono precisar ver períodos longos com muito tráfego; a rota é só
+do dono e não bloqueia o lançamento.
+
 - [ ] **Step 1: teste vermelho** — `listar` com `fetch` falso que devolve sempre 1.000 linhas: no máximo
-  `MAX_PAGINAS_POR_TABELA = 20` chamadas por tabela e o resultado diz `cortado: true`; o `ler` do painel com duas
-  tabelas cheias faz ≤ 41 subpedidos e devolve `aviso: 'período grande demais; mostrando os mais recentes'`.
-- [ ] **Step 2:** FAIL. **Step 3:** `listar(tabela, campoData, desde, { maxPaginas = 20 } = {})` devolve
-  `Object.assign(linhas.reverse(), { cortado })`; o painel passa o `aviso` quando alguma veio cortada. (A CPU de
-  `JSON.parse` + `resumir` de 20 mil linhas é medida na M1; se passar do limiar, entra na Decisão 2.)
-- [ ] **Step 4:** PASS. **Step 5:** commit.
+  `MAX_PAGINAS_POR_TABELA` (exportado, `2`) chamadas por tabela e o resultado diz `cortado: true`; o `ler` do painel com
+  duas tabelas cheias faz ≤ 5 subpedidos e devolve `aviso: 'período grande demais; mostrando os mais recentes'`.
+- [ ] **Step 2:** FAIL. **Step 3:** `listar(tabela, campoData, desde, { maxPaginas = MAX_PAGINAS_POR_TABELA } = {})`
+  devolve `Object.assign(linhas.reverse(), { cortado })`; o painel passa o `aviso` quando alguma veio cortada e a
+  tela mostra o aviso (texto simples, sem mudar o layout).
+- [ ] **Step 4:** PASS. A M1 mede o `GET /api/painel` com 2, 5 e 10 páginas por tabela e o número que passa vira o
+  valor da constante (PR próprio, com a tabela da M1 citada). **Step 5:** commit.
 
 #### Task A10: o IP real do visitante chega ao Supabase Auth (`Sb-Forwarded-For`)
 
@@ -863,13 +953,20 @@ test('Auth: criar e renovar levam o IP do visitante (Sb-Forwarded-For) com a cha
 });
 ```
 
-- [ ] **Step 2:** FAIL. **Step 3:** em `criarVisitantes`, `const comIp = cfg && env.SUPABASE_CHAVE_SECRETA && typeof ip === 'string' && /^[0-9a-f:.]{2,45}$/i.test(ip);`
-  `const cab = comIp ? { apikey: env.SUPABASE_CHAVE_SECRETA, 'sb-forwarded-for': ip, 'content-type': 'application/json' } : { apikey: cfg.publica, 'content-type': 'application/json' };`
+- [ ] **Step 2:** FAIL. **Step 3:** em `criarVisitantes` (importar `normalizarIp` de `'./ip.mjs'`):
+  `const ipAuth = cfg && env.SUPABASE_CHAVE_SECRETA ? normalizarIp(String(ip || '')) : null;`
+  `const cab = ipAuth ? { apikey: env.SUPABASE_CHAVE_SECRETA, 'sb-forwarded-for': ipAuth, 'content-type': 'application/json' } : { apikey: cfg.publica, 'content-type': 'application/json' };`
+  **IPv6 vai pelo prefixo /64** (`api/_vendas/ip.mjs:34-43`: `2001:db8:a:b::1` → `2001:db8:a:b::`): a casa inteira
+  conta como um visitante, como nos freios do site. É intencional; o log do Auth mostra o prefixo, não o IP do
+  celular. Caso a mais no teste: `ip: '2001:db8:a:b::1'` → `sb-forwarded-for: '2001:db8:a:b::'`; `ip: 'lixo'` → sem
+  cabeçalho, chave publicável.
   (o `quem()` continua com a chave publicável: o `/user` com o token do visitante). Em `api/vendas.mjs:75`:
   `visitantes: criarVisitantes(env, { ip: ipDe(request) })` (o `ip` já foi calculado na `:52`; reaproveitar a variável).
   Comentário no topo do `visitante.mjs`: por que a chave secreta vai ao Auth (a doc do Supabase só aceita o
-  `Sb-Forwarded-For` com chave secreta; o IP vem do `rotear`, validado; sem a opção ligada no projeto, o Supabase
-  ignora o cabeçalho e o comportamento é o de hoje).
+  `Sb-Forwarded-For` com chave secreta; o IP vem do `rotear`, validado, montado do zero e nunca copiado de cabeçalho
+  do cliente; o /64 do IPv6 é intencional; sem a opção ligada no projeto, o Supabase ignora o cabeçalho e o
+  comportamento é o de hoje; o servidor local confia no `x-forwarded-for`, então **nunca** apontar o servidor local
+  para o Supabase staging com a chave secreta).
 - [ ] **Step 4:** PASS + `npm run testar`. **Revisão de segurança obrigatória** (chave secreta numa chamada nova).
 - [ ] **Step 5:** commit `feat: IP do visitante no Supabase Auth (Sb-Forwarded-For)`.
 
@@ -904,11 +1001,17 @@ globalThis.fetch = async (url, op) => { subpedidos++; return respostaGravada(Str
 ```
 
   No Windows, `process.cpuUsage` tem degraus de ~15,6 ms: o medidor repete a chamada em lote (`vezes` chamadas por
-  leitura) e divide, e roda também no Linux do CI (job manual) para a tabela final. Rotas: `vendas` (sessao,
-  mensagem com consultor simulado, escopo, ajustar, detalhes, pagar Pix, estado), `pagamentos` (webhook assinado,
-  reconciliar com 15 pendentes), `rotinas` (diária), `painel` (GET 30 e 365 dias com 1 mil, 10 mil e 20 mil linhas;
-  `entregar_direcao` com a direção típica do § 3.1 e com a máxima de `varredura-casos.test.mjs`; `ajuste_feito`),
-  `evento`, `leads`. Entradas: a pior que os validadores aceitam **e** uma típica.
+  leitura) e divide, e roda também no Linux do CI (job manual) para a tabela final.
+  **Os casos vêm do código, não de uma lista à mão** (2ª revisão, MÉDIO-5): o medidor importa `ACOES` de
+  `api/vendas.mjs` e `ACOES_PAINEL` de `api/painel.mjs` (A5) e tem um objeto `CASOS` com uma entrada por ação; se
+  alguma ação não tiver caso, **sai com erro** listando-a (assim as ações novas do PR 3b em `/api/vendas` e no painel,
+  `site-pr3b/docs/specs/2026-10-21-pr3b-vender-sozinho.md` §9, entram obrigatoriamente). Um teste em
+  `docs/testes/worker.test.mjs` importa os dois e confere que `ACOES_PAINEL` cobre toda chave `typeof bruto.<x> ===
+  'string'` e todo `q.get('fila') === '<x>'` do `api/painel.mjs` (varredura do texto do arquivo). Além das ações:
+  `pagamentos` (webhook assinado, reconciliar com 15 pendentes), `rotinas` (diária, com as etapas do 3b se já
+  mescladas), `painel` GET com 2, 5 e 10 páginas por tabela (A9), `entregar_direcao` com a direção típica do § 3.1 e
+  com a máxima de `varredura-casos.test.mjs`, `ajuste_feito`, `evento`, `leads`. Entradas: a pior que os validadores
+  aceitam **e** uma típica.
 - [ ] **Step 3:** `node docs/cpu-rotas.mjs` → tabela. Esperado (pelo § 3.1): `entregar_direcao` e `ajuste_feito`
   **não cabem**; o resto, a conferir.
 - [ ] **Step 4:** a tabela vai para `docs/evidencias/2026-10-cpu-rotas.md` no PR, com a máquina e o Node.
@@ -1355,11 +1458,13 @@ test('wrangler.jsonc: produção fechada, prévia declarada, nada de segredo, na
   assert.equal(c.assets.directory, 'publico'); assert.deepEqual(c.assets.run_worker_first, ['/api/*']); assert.equal(c.assets.not_found_handling, '404-page');
   assert.equal(c.vars.BZ_AMBIENTE, 'producao'); assert.equal(c.vars.MP_AMBIENTE, 'producao'); assert.equal(c.vars.MP_METODOS, 'pix');
   assert.equal(c.env.previa.vars.BZ_AMBIENTE, 'previa'); assert.equal(c.env.previa.vars.MP_AMBIENTE, 'teste'); assert.equal(c.env.previa.vars.MP_METODOS, 'pix');
-  for (const vars of [c.vars, c.env.previa.vars, c.previews?.vars || {}, c.env.previa.previews?.vars || {}]) for (const s of SEGREDOS) assert.ok(!(s in vars), s + ' em vars');
+  assert.deepEqual(c.env.previa.previews.vars, c.env.previa.vars, 'as prévias de branch não herdam vars: os mesmos do staging (ALTO-2)');
+  for (const vars of [c.vars, c.env.previa.vars, c.previews?.vars || {}, c.env.previa.previews.vars]) for (const s of SEGREDOS) assert.ok(!(s in vars), s + ' em vars');
   assert.equal(c.workers_dev, false, 'produção sem workers.dev (revisão M3)');
   assert.equal(c.build, undefined, 'sem build: o Builds não honra e ele rodaria código no deploy');
   assert.equal(c.account_id, undefined, 'a conta vem do token do Builds de cada conta');
-  assert.equal(c.routes, undefined, 'o domínio é do PR C'); assert.equal(c.env.previa.routes, undefined);
+  assert.equal(c.routes, undefined, 'o domínio é do PR C'); assert.equal(c.env.previa.route, undefined);
+  assert.deepEqual(c.env.previa.routes, [], 'routes é herdável: o staging nunca pega o domínio de produção (ALTO-1)');
   assert.equal(c.observability.enabled, true); assert.equal(c.observability.traces.enabled, true);
   const pkg = JSON.parse(fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
   for (const s of ['preinstall', 'install', 'postinstall', 'prepare', 'prepublish', 'prepack']) assert.equal(pkg.scripts[s], undefined, s);
@@ -1387,24 +1492,35 @@ test('wrangler.jsonc: produção fechada, prévia declarada, nada de segredo, na
   "env": {
     // conta das PRÉVIAS: main = staging fixo (deploy --env previa); outras branches = preview --env previa
     "previa": {
+      // routes é HERDÁVEL: sem esta linha, depois do PR C o staging tentaria prender beyonzero.com.br (2ª revisão, ALTO-1)
+      "routes": [],
       "workers_dev": true,
       "preview_urls": true,
       "triggers": { "crons": ["23 */3 * * *", "41 6 * * *"] },
-      "vars": { "BZ_AMBIENTE": "previa", "MP_AMBIENTE": "teste", "MP_METODOS": "pix", "BZ_DIRECOES": "manual", "MP_3DS": "", "METRICAS_HOSTS": "", "BZ_IA": "simulada" }
+      "vars": { "BZ_AMBIENTE": "previa", "MP_AMBIENTE": "teste", "MP_METODOS": "pix", "BZ_DIRECOES": "manual", "MP_3DS": "", "METRICAS_HOSTS": "", "BZ_IA": "simulada" },
+      // as prévias de branch NÃO herdam vars: sem este bloco elas rodariam como produção (2ª revisão, ALTO-2)
+      "previews": {
+        "vars": { "BZ_AMBIENTE": "previa", "MP_AMBIENTE": "teste", "MP_METODOS": "pix", "BZ_DIRECOES": "manual", "MP_3DS": "", "METRICAS_HOSTS": "", "BZ_IA": "simulada" }
+      }
     }
   }
 }
 ```
 
-  Conferir **no `node_modules/wrangler/config-schema.json` instalado** (não de memória): se `assets` e
-  `observability` são herdados pelo `env.previa` (senão repetir dentro dele); se `preview_urls` é o nome atual; se
-  `previews` é aceito dentro de `env.previa` (se for, repetir os `vars` lá; se não, as prévias herdam os do
-  ambiente — o ensaio do P8 confirma lendo `BZ_AMBIENTE` no log de uma prévia). `package.json`: `"wrangler":
+  Conferido pela 2ª revisão no schema do 4.136.3 e na doc (21/10): `previews` é aceito dentro de um ambiente
+  (`env.<nome>.previews`, com `--env` em todo comando de prévia); as prévias **não** herdam `vars` (vão em
+  `previews.vars`); `assets`, `observability`, `triggers`, `workers_dev`, `preview_urls` e **`routes`** são herdados
+  pelo ambiente; `preview_urls` existe (topo `false`: sem URLs de versão com os segredos de produção; `env.previa`
+  `true`: necessário para as Preview URLs das branches). Mesmo assim, conferir de novo no
+  `node_modules/wrangler/config-schema.json` instalado. **Versão do Wrangler:** 4.136.3 (22/09) é a da captação;
+  antes do PR B, ler o changelog das Previews até a mais nova com ≥ 2 semanas (ex.: 4.147.0, 02/10) e trocar se
+  houver correção de Previews, conferindo o schema dela. `package.json`: `"wrangler":
   "4.136.3"` em `devDependencies`; scripts `"cf:montar": "node cloudflare/montar-publico.mjs"`, `"cf:fumaca": "node
   docs/worker-fumaca.mjs"`, `"cpu:rotas": "node docs/cpu-rotas.mjs"`; descrição sem "Vercel". `npm install` para
   atualizar o lock (é dependência de desenvolvimento; o Builds instala pelo lock).
 - [ ] **Step 4:** PASS + `npx wrangler deploy --dry-run --outdir .wrangler/saida` (empacota sem publicar; o guarda
-  permite) e `npx wrangler deploy --dry-run --env previa --outdir .wrangler/saida-previa`.
+  permite) e `npx wrangler deploy --dry-run --env previa --outdir .wrangler/saida-previa`; na saída do 2º, conferir
+  que **não** há rota nem domínio personalizado (nem depois do C2).
 - [ ] **Step 5:** commit `feat: wrangler.jsonc com producao fechada e ambiente previa`.
 
 #### Task B7: fumaça no runtime de verdade (workerd, só no CI)
@@ -1412,6 +1528,10 @@ test('wrangler.jsonc: produção fechada, prévia declarada, nada de segredo, na
 **Files:** Create: `docs/worker-fumaca.mjs`; Modify: `.github/workflows/ci.yml` (job novo "Worker", `permissions:
 contents: read`)
 
+- [ ] **Step 0 (pasta limpa):** o `wrangler dev` lê `.dev.vars` e `.env` da pasta. A fumaça copia para uma pasta
+  temporária só `publico/` (saída do `montar-publico`), `cloudflare/`, `api/`, `wrangler.jsonc`, `package.json`,
+  `package-lock.json` e `node_modules/` (junção/symlink) e roda **lá** (ou usa a opção que o `wrangler dev --help`
+  do 4.136.3 mostrar para não ler `.env`). No CI não há `.env`, mas a regra é a mesma.
 - [ ] **Step 1:** o script: `node cloudflare/montar-publico.mjs`; `npx wrangler deploy --dry-run --outdir
   .wrangler/saida` (anota o tamanho do pacote); `npx wrangler check startup` (perfil da inicialização; falha se
   passar de 400 ms, folga para o 1 s); `npx wrangler dev --local --port 8787` **sem segredos** (= produção sem
@@ -1420,8 +1540,10 @@ contents: read`)
   `/publico/index.html`, `/wrangler.jsonc`, `/api/_freio` → 404; `GET /api/vendas?acao=sessao-config` com
   `cf-connecting-ip: 203.0.113.7` → JSON com `turnstile: null` e `consultor: false`; POST de 70 KB em
   `/api/vendas` → 413; dois POST `/api/evento` com o mesmo `cf-connecting-ip` e `x-forwarded-for` diferentes caem na
-  mesma chave do freio (o 2º lote de 60 pedidos responde 429 igual); `/cdn-cgi/handler/scheduled?cron=41+6+*+*+*`
-  (conferir o caminho atual na doc de Cron Triggers do Wrangler instalado) gera o log "rotina desligada".
+  mesma chave do freio (o 2º lote de 60 pedidos responde 429 igual); o cron `41 6 * * *` disparado à mão gera o log
+  "rotina desligada". Caminho do disparo: `/cdn-cgi/local/scheduled?cron=…` no Wrangler ≥ 4.139.0 (Local Explorer,
+  doc de Cron Triggers de 21/10); `/cdn-cgi/handler/scheduled?cron=…` com `wrangler dev --test-scheduled` nas
+  versões anteriores (o 4.136.3). O script tenta os dois e falha se nenhum responder.
   O `wrangler dev` local põe `cf-connecting-ip`? Se não puser, a fumaça manda o cabeçalho e o caso do 403 fica no B1.
 - [ ] **Step 2:** rodar local uma vez (`node docs/worker-fumaca.mjs`) e ver passar; ver **falhar** trocando o
   `run_worker_first` por `[]` (o `/api/_freio` vira 404 do asset, mas o `sessao-config` deixa de responder JSON).
@@ -1440,9 +1562,13 @@ contents: read`)
   um `.github/workflows/x.yml` com `contents: write` (ou `permissions: write-all`); qualquer arquivo versionado com
   `wrangler deploy` sem `--dry-run`, `versions deploy`, `versions upload`, `rollback`, `secret put`, `secret bulk`,
   `triggers deploy`, `:producao` ou `refs/heads/producao`; `package.json` com `preinstall`/`install`/`postinstall`/
-  `prepare`; `wrangler.jsonc` com `build`. Fora da lista: este próprio arquivo, `docs/superpowers/plans/**`,
-  `docs/PROCESSO.md` e `docs/testes/anti-publicacao.test.mjs` (que **citam** os termos). E o repositório real
-  passa limpo.
+  `prepare`; `wrangler.jsonc` com `build`. **Exceções só de arquivos `.md`, um a um, nunca pasta** (2ª revisão,
+  ALTO-3): `docs/superpowers/plans/2026-10-21-migracao-cloudflare.md`, `docs/PROCESSO.md`, `CLAUDE.md`. Um `.mjs`
+  ou `.yml` posto dentro de `docs/superpowers/plans/` **é** achado (caso de teste). O próprio verificador e o teste
+  montam os termos por partes (`'wrangler' + ' deploy'`, `':pro' + 'ducao'`) para não precisarem de exceção. E o
+  repositório real passa limpo. Comentário no topo do verificador: "varredura de texto: pega erro e instrução óbvia,
+  não quem quer contornar (`'prod' + 'ucao'`, base64); a trava contra o agente enganado é a confirmação do dono
+  (§ 5.5 do plano)".
 - [ ] **Step 2:** FAIL. **Step 3:** implementação com uma lista de expressões e a lista de exceções acima; lê
   `git ls-files` (ou a lista recebida). **Step 4:** PASS.
 - [ ] **Step 5:** `niveis.json`: regra nível 3 para `^(wrangler\.jsonc|_headers)$` e `^cloudflare/` ("deploy e
@@ -1469,18 +1595,32 @@ agente lê os logs. Então a M2.
 
 ### Task M2 — medida no staging (P8, com o dono; antes do PR C)
 
-- [ ] `BASE=https://beyon-zero-site-previa.<SUB_PREVIAS>.workers.dev node docs/cpu-rotas.mjs --remoto` (com o
-  service token): o mesmo roteiro da M1, contra o staging, 20 vezes cada rota, espaçado para pegar isolado frio e
-  quente; uma `entregar_direcao` com a direção típica do § 3.1 pelo `scripts/direcoes.mjs` com um pedido de teste.
+- [ ] **Antes de medir: as prévias estão como prévia?** Abrir uma prévia de branch e uma chamada ao staging da
+  `main`; no log de cada uma, `BZ_AMBIENTE=previa` (o `sessao-config` com a chave de site de teste do Turnstile e o
+  pagamento ativo em teste). Se alguma vier como produção (tudo fechado), o `env.previa.previews.vars` não pegou:
+  parar e corrigir o B6 antes de medir.
+- [ ] **Formato real da URL de prévia:** copiar o endereço da 1ª prévia criada e conferir contra a expressão do C3
+  (`<prévia>-beyon-zero-site-previa.<SUB_PREVIAS>.workers.dev`); se for outro, o C3 usa o formato visto.
+- [ ] **A medida, com o critério do § 3.3 escrito antes:** `BASE=https://beyon-zero-site-previa.<SUB_PREVIAS>.workers.dev
+  node docs/cpu-rotas.mjs --remoto` (com o service token): toda ação do visitante, painel GET, webhook e crons, **20
+  chamadas espaçadas** (frias e quentes); e **5 entregas frias** de direção típica (§ 3.1), com ≥ 15 min entre elas,
+  pelo `scripts/direcoes.mjs` com pedidos de teste.
 - [ ] No painel da conta das prévias: Workers & Pages → `beyon-zero-site-previa` → Observability → filtrar por
-  caminho; anotar p50/p99/máximo de **CPU time** por rota e qualquer `exceededCpu` (erro 1102). Anotar o número de
-  pedidos `/api/*` que uma visita ao orçamento gasta (para a regra de limite e para a conta da cota diária).
-- [ ] Ensaio do A4: criar 3 sessões do orçamento; no Supabase staging → Logs → Auth, o IP do `signup` tem de ser o
-  do celular do dono, **não** `2a06:98c0:3600::103`. Se for o da Cloudflare: conferir a opção do P6; se ela não
-  existir no plano grátis, plano B do R7 (§ 9).
+  caminho; anotar p50/p99/máximo de **CPU time** por rota e **todo** `exceededCpu` (erro 1102). Aplicar o critério:
+  visitante/painel/webhook/crons cabem com zero 1102, p99 ≤ 7 ms e ≤ 45 subpedidos; entrega cabe só com zero 1102
+  nas 5. Anotar os pedidos `/api/*` por visita ao orçamento (regra de limite, § 7.1).
+- [ ] **Ensaio do A4 que prova o limite, não só o log:** no Supabase staging, baixar "anonymous sign-ins" para
+  **3 por hora**; abrir **4 sessões** do orçamento no celular do dono pela mesma rede → a 4ª recebe 429 do Auth (o site
+  mostra "indisponível" e o WhatsApp); de **outra rede** (o 4G do celular) → 200. No Logs → Auth, o IP do `signup` é o
+  do celular (IPv4 exato ou o **prefixo /64** do IPv6, A10), **não** `2a06:98c0:3600::103`. Depois, voltar o limite ao
+  valor padrão. Se o IP for o da Cloudflare: conferir a opção do P6; se ela não existir no grátis, a contingência do P6
+  (plano B ou ir com o balde compartilhado e monitorar, R7). Anotar quantos 429 do Auth aparecem nos testes: IPv4 de
+  operadora (CGNAT) junta muitos celulares num IP só e 30/h pode barrar gente de verdade; o dono ajusta o limite se
+  preciso.
 - [ ] Ensaios curtos: `curl -sI` de `/orcamento` (uma CSP só), Bypass do Access em `/api/pagamentos`, cota do
   Workers Logs.
-- [ ] A tabela vai para `docs/evidencias/2026-10-cpu-rotas.md` e para o dono como **Decisão 2**.
+- [ ] A tabela vai para `docs/evidencias/2026-10-cpu-rotas.md` e para o dono como **Decisão 2** (se alguma rota
+  ficar fora do critério).
 - [ ] Se o dono escolher (b) na Decisão 2: plano próprio para a varredura em pedaços (fora deste). Se (c): tarefa
   própria nível 3 tirando o `varrer` de `api/painel.mjs:175` e `:270` **só** na Cloudflare de produção, com a
   decisão citada no comentário e teste. Se (a): o dono assina o Workers Paid na conta de **produção** antes do P15.
@@ -1509,9 +1649,21 @@ Arquivos com o endereço antigo (busca de 21/10): `index.html` (11, inclui os da
 
 - [ ] **Step 1: teste vermelho**: `routes` == `[{ pattern: "beyonzero.com.br", custom_domain: true }]` (sem `www`:
   o `www` é da Redirect Rule da zona); `workers_dev === false` e `preview_urls === false` no topo;
-  `env.previa.routes` ausente; `METRICAS_HOSTS` vazio.
-- [ ] **Step 2:** FAIL. **Step 3:** acrescentar `"routes": [{ "pattern": "beyonzero.com.br", "custom_domain": true }]`.
-  **Step 4:** PASS. **Step 5:** commit.
+  `assert.deepEqual(c.env.previa.routes, [])` (continua vazio com o domínio no topo: `routes` é herdável, ALTO-1);
+  `METRICAS_HOSTS` vazio.
+- [ ] **Step 2:** FAIL. **Step 3:** acrescentar `"routes": [{ "pattern": "beyonzero.com.br", "custom_domain": true }]`
+  no topo (o `env.previa.routes: []` do B6 fica). **Step 4:** PASS; `npx wrangler deploy --dry-run --env previa`
+  sem rota nem domínio na saída. **Step 5:** commit.
+- [ ] **Ensaio depois do PR C entrar na `main`:** o build do staging na conta das prévias passa, e o domínio
+  `beyonzero.com.br` continua só no Worker de produção (painel da conta de produção → Domains).
+
+#### Task C2b: teto de CPU na produção paga (só se a Decisão 2 for (a))
+
+**Files:** Modify: `wrangler.jsonc`; Test: `docs/testes/worker.test.mjs`
+
+- [ ] Teste vermelho: se `c.limits` existir no topo, `c.limits.cpu_ms === 100`, e `env.previa` sem `limits` (a conta
+  das prévias é grátis; lá vale o limite do plano). Implementação: `"limits": { "cpu_ms": 100 }` no topo. Por quê: no
+  pago, o excesso vira conta; o teto por pedido segura um ataque que force CPU (o padrão do pago é 30 s). PASS; commit.
 
 #### Task C3: `scripts/direcoes.mjs` aceita só os nossos endereços
 
@@ -1533,7 +1685,9 @@ const HOSTS = [/^beyonzero\.com\.br$/, new RegExp('^(?:[a-z0-9-]+-)?beyon-zero-s
   /^beyon0-site\.vercel\.app$/, /^beyon0-site-[a-z0-9-]+-beyond0\.vercel\.app$/];   /* (os da Vercel saem no PR D) */
 ```
 
-  (O valor de `SUB_PREVIAS` só existe depois do P3; o PR C não abre sem ele. Não é segredo: aparece na URL.)
+  (O valor de `SUB_PREVIAS` só existe depois do P3; o PR C não abre sem ele. Não é segredo: aparece na URL. O
+  formato `<prévia>-<worker>.<sub>.workers.dev` **não** está confirmado na doc das Previews: a expressão segue o
+  endereço real da 1ª prévia, anotado na M2.)
 - [ ] **Step 4:** PASS. **Step 5:** commit.
 
 #### Task C4: textos
@@ -1546,7 +1700,7 @@ const HOSTS = [/^beyonzero\.com\.br$/, new RegExp('^(?:[a-z0-9-]+-)?beyon-zero-s
 #### Task C5: documentos
 
 **Files:** Modify: `docs/PROCESSO.md` (barreira nova: duas contas, promoção por PR com merge commit, rollback, o
-limite residual escrito), `CLAUDE.md` regra 6 (a `main` não publica; produção só pela `producao` na conta de
+limite residual escrito como no § 5.3, a regra de confirmação do dono do § 5.5 e, se escolhido, o ruleset do P2b), `CLAUDE.md` regra 6 (a `main` não publica; produção só pela `producao` na conta de
 produção; o guarda nega o resto), `docs/fundacao/02-OPERACAO.md` (§ 3; § 4.3 item 4 marcado "superado pela Fase 2:
 login anônimo LIGADO"; "seis migrations" → "as migrations de `supabase/migrations`"; IP Address Forwarding no
 Auth), `docs/fase2/02-OPERACAO.md` § 1.3–1.4, `docs/pagamentos/01-ARQUITETURA-E-OPERACAO.md` § 9–10 (webhook e
@@ -1584,18 +1738,18 @@ de hoje), `docs/testes/csp.test.mjs` (sem paridade com o `vercel.json`), `script
 | # | Risco | Situação | O que fazer |
 |---|---|---|---|
 | R1 | Entrega de direção acima de 10 ms de CPU | **medido** no Node (§ 3.1) | M2 confirma; Decisão do dono 2 |
-| R2 | Cota de 100 mil pedidos/dia como ponto de derrubada barato (vários IPs passam pela regra da zona); quando acaba, `/api/*` responde 429 até 21 h de Brasília, inclusive o webhook do MP | real no grátis | regra recalibrada (§ 7.1); o MP reenvia e a reconciliação de 3 em 3 h recupera; Decisão 2 (a) acaba com a cota |
+| R2 | Cota de 100 mil pedidos/dia como ponto de derrubada barato: **no grátis nenhuma regra a protege**; com 10/10 s por IP (§ 7.1) são precisos 2 IPs. Quando acaba, `/api/*` responde 429 (ou erro 1027) até 21 h de Brasília, inclusive o webhook do MP | real no grátis | o MP reenvia o aviso por um tempo; a reconciliação de 3 em 3 h recupera **se o cron rodar** (a doc não diz se o cron roda com a cota esgotada); Decisão 2 (a) troca a derrubada por custo pequeno, com teto `cpu_ms` (C2b) |
 | R3 | Geração longa pela API (até 240 s) cancelada se o visitante fechar a aba | só com `BZ_DIRECOES=api` (lançamento é `manual`) | ensaio com chave real antes de ligar a API; PR próprio se travar |
-| R4 | O limite residual da barreira (código malicioso empurrado por terceiro com workflow que eleva permissão) | escrito (§ 5.3) | Decisão 1 (c) fecha |
-| R5 | Repositório privado grátis sem proteção de branch | real | as travas do § 2.1 A1; nunca trocar a branch de produção para `main` sem decisão escrita |
+| R4 | O limite residual da barreira: um workflow que chegue ao repositório (por outra pessoa, outra ferramenta ou aprovação sem leitura) pode pedir `contents: write` e empurrar para `producao` | escrito (§ 5.3) | contra o agente enganado: a confirmação do dono (§ 5.5, P2). Para qualquer origem: só a Decisão 1 (c), GitHub Pro com ruleset. A antiga ideia de `versions upload` **não** fecha (o Build command roda com a chave de produção) |
+| R5 | Repositório privado grátis sem proteção de branch (ruleset exige GitHub pago) | real | o mesmo do R4; nunca trocar a branch de produção para `main` sem decisão escrita |
 | R6 | Links antigos `beyon0-site.vercel.app` | real | Decisão do dono 3 |
-| **R7** | **`Sb-Forwarded-For` indisponível no plano grátis do Supabase** (a doc não diz o plano) | **incerto** | conferir no P6 (a opção aparece em Authentication › Rate Limits?). Plano B: criar o visitante anônimo **no navegador** (o IP real chega ao Supabase; o Turnstile continua na frente; muda a CSP do `/orcamento` para `connect-src` do Supabase e o desenho da sessão): spec própria antes do corte, revisão de segurança |
+| **R7** | **`Sb-Forwarded-For` indisponível no plano grátis do Supabase** (a doc não diz o plano) | **incerto** | conferir no P6 (a opção aparece em Authentication › Rate Limits?). Se não aparecer, o dono escolhe (P6): **(1) atrasar o corte** pelo plano B: criar o visitante anônimo **no navegador** (o IP real chega ao Supabase; o Turnstile continua na frente; muda a CSP do `/orcamento` para `connect-src` do Supabase, o desenho da sessão e a segurança): spec própria, estimativa **2–3 dias** com revisões; ou **(2) ir ao ar com o balde compartilhado** por um período, com o agente lendo os 429 do Auth no log a cada dia e o plano B em paralelo. Também incerto: se a chave secreta **isenta** do limite (a doc não diz); o ensaio de 3/h da M2 responde |
 | R8 | Diferenças do workerd não vistas no Node (`fetch` que falha com outro erro que `TypeError`; o `visitante.mjs:25` trata só `TypeError` como "rede") | coberto pela fumaça e pelo staging | B7 + o orçamento inteiro no staging |
 | R9 | Webhook de teste barrado pelo Access no staging | depende do ensaio (§ 5.4) | se não der Bypass por caminho no `workers.dev`, a reconciliação do staging cobre |
-| R10 | `previews` dentro de `env.previa`, herança de `assets`/`observability`, nome `preview_urls`, caminho do cron no `wrangler dev` | **incerto** (conferir no schema do Wrangler 4.136.3 instalado) | B6 e B7 conferem no arquivo instalado, não de memória |
+| R10 | `previews` dentro de `env.previa`, herança, `preview_urls`, caminho do cron no `wrangler dev` | **conferido pela 2ª revisão** (schema 4.136.3 e doc): `previews` aceito no ambiente; `vars` não herdados (daí o `previews.vars`); `routes` herdado (daí o `routes: []`); `preview_urls` existe; cron em `/cdn-cgi/local/scheduled` (≥ 4.139.0) ou `/cdn-cgi/handler/scheduled` (antes) | B6 e B7 conferem de novo no arquivo instalado |
 | R11 | Alerta por frase (a doc de pagamentos manda criar no Observability da Vercel) | o Workers Logs não alerta por frase | o ntfy da rotina diária; conferir que a reconciliação parcial (A8) também vira alerta |
 | R12 | Política de privacidade cita a Vercel | real | C4, revisão jurídica |
-| R13 | O PR 3b ("vender sozinho", outro agente, mesmo checkout) traz envio de material com fotos (até 10 MB cada) | a spec (`docs/specs/2026-10-21-pr3b-vender-sozinho.md`, linhas 25 e 29, ainda em escrita) já assume o grátis: "rotas leves; arquivo nunca passa pelo Worker" | o teste "todo `api/<nome>.mjs` tem rota" (B1) obriga rota nova a entrar na tabela com limite próprio; a M1/M2 medem as rotas novas se o 3b mesclar antes do corte |
+| R13 | O PR 3b ("vender sozinho") traz envio de material com fotos (até 10 MB cada) | a spec (`site-pr3b/docs/specs/2026-10-21-pr3b-vender-sozinho.md`) já assume o grátis ("rotas leves; arquivo nunca passa pelo Worker"); **não cria rota**: põe **ações** novas em `/api/vendas` e no painel, e chamadas ao Storage na rotina diária; muda a CSP do `/orcamento` (`connect-src` do Storage, `img-src blob:`) | a M1 enumera `ACOES` e `ACOES_PAINEL` e falha sem caso de medida; a rotina diária tem orçamento de subpedidos (A8); a CSP nova entra no bloco `/orcamento` do `_headers` e, enquanto o `vercel.json` existir, nos dois juntos (teste de paridade do B4); a chave do cartão é a mesma `MP_METODOS` |
 | R14 | A 1ª chamada fria num isolado novo pesa (regex compiladas na hora) em **toda** rota com varredura ou `redigir` | medido só na entrega | a M1/M2 medem a 1ª chamada de cada rota |
 
 **Perguntas ao dono que não são decisão de arquitetura:** vai ter e-mail `@beyonzero.com.br`? (só acrescenta
@@ -1639,4 +1793,44 @@ agente não confirmou.)
   https://developers.cloudflare.com/waf/rate-limiting-rules/ · Cron Triggers
   https://developers.cloudflare.com/workers/configuration/cron-triggers/ · migração Vercel → Workers
   https://developers.cloudflare.com/workers/static-assets/migration-guides/vercel-to-workers/
+- Lidas pela 2ª revisão (21/10) e usadas aqui: Previews, configuração (não herdam `vars`; `previews.vars`)
+  https://developers.cloudflare.com/workers/previews/configuration/ · Previews × ambientes (`env.<nome>.previews`,
+  `--env`) https://developers.cloudflare.com/workers/previews/compare-workflows/ · configuração do Wrangler
+  ("Inheritable keys", inclusive `routes`) https://developers.cloudflare.com/workers/wrangler/configuration/ · schema
+  do 4.136.3 https://unpkg.com/wrangler@4.136.3/config-schema.json · Zero Trust Free pede forma de pagamento
+  https://developers.cloudflare.com/learning-paths/secure-internet-traffic/initial-setup/create-zero-trust-org/ ·
+  permissões do `GITHUB_TOKEN` (o YAML ajusta; o padrão do repositório não é teto)
+  https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/controlling-permissions-for-github_token
+
+---
+
+## 12. Achados da 2ª revisão → onde foram tratados
+
+Revisão: `.superpowers/sdd/cloudflare-plano-revisao-2.md` (veredito "aprovar com correções").
+
+| Achado | O que mudou | Onde |
+|---|---|---|
+| Parciais da 1ª revisão: A1, A3, A4, M3, M8 | cada um passou a "resolvido com limite escrito" (A1: caminho 2 só fecha com GitHub Pro; A3: entrega depende da Decisão 2; A4: opção do Supabase pode não existir no grátis; M3: no grátis nenhuma regra protege a cota; M8: Access "All traffic" + cartão do Zero Trust) | § 2.1, § 2.2, contagem |
+| **ALTO-1** `env.previa` herda `routes` | `"routes": []` no `env.previa`; teste `deepEqual(c.env.previa.routes, [])` no B6 e no C2; `--dry-run --env previa` sem rota; ensaio depois do PR C | B6, C2 |
+| **ALTO-2** prévias sem `vars` rodam como produção | `env.previa.previews.vars` igual ao `env.previa.vars`, com teste de igualdade e sem segredo; P5 com os segredos nos dois lugares; P8/M2 conferem `BZ_AMBIENTE=previa` numa prévia antes de medir | B6, P5, P8, M2 |
+| **ALTO-3** caminho 2 aberto em todas as opções | Decisão 1 reescrita: (a) uma conta, (b) duas contas + confirmação do dono (recomendada, grátis), (c) (b) + GitHub Pro US$ 4/mês (opcional, não obrigatório); `versions upload` descartado (não fecha); regra `ask` e `deny` de `gh api` de escrita como **pedido ao dono** (P2), sem o agente tocar em `settings.json`, hooks ou guarda; B8 com exceções só de `.md` um a um; texto do resumo do revisor adotado | § 4 D1, § 5.3, § 5.5, P2, P2b, B8, R4, R5 |
+| MÉDIO-1 Access e Zero Trust | Access no Worker com "All traffic"; Zero Trust pede cartão no Free (sem cobrança); conta das prévias de **outro usuário** | § 5.3, § 5.4, P3, P5, resumo |
+| MÉDIO-2 `Sb-Forwarded-For` | ensaio com o anônimo em 3/h (4ª sessão = 429; outra rede = 200); `normalizarIp` e /64 documentado na A10; contingência do P6 com estimativa (plano B 2–3 dias ou balde compartilhado com monitoração) | A10, M2, P6, R7, resumo |
+| MÉDIO-3 um IP esgota a cota | regra em todo `/api/*`, 10/10 s (86.400/dia por IP); texto "no grátis nenhuma regra protege a cota"; pesa na Decisão 2 | § 7.1, § 2.2 M3, D2, R2, resumo |
+| MÉDIO-4 critério da M2 | um critério só, escrito antes de medir (zero 1102 + p99 ≤ 7 ms em 20 chamadas; entrega: zero 1102 em 5 frias) | § 3.3, M2, D2 |
+| MÉDIO-5 ações do 3b fora da bancada | `ACOES`/`ACOES_PAINEL` exportadas (A5); a M1 falha sem caso para cada ação; teste confere a lista do painel contra o código; rotina diária com orçamento de subpedidos | A5, M1, A8 Step 4, R13 |
+| MÉDIO-6 A9 resolve subpedidos, não CPU | teto pela CPU: 2 páginas por tabela de início, sobe só com a M1; RPC agregada como trabalho próprio se precisar | A9 |
+| MÉDIO-7 resumo promete demais | resumo reescrito: D1 com o texto do revisor, Supabase pode não ter a opção (com o plano B), cartão do Zero Trust, cota | resumo |
+| BAIXO-1 E2E "só Pix" no local | simulado usa `metodosDe(env, 'local')`; teste novo | A7 |
+| BAIXO-2 `BZ_PLATAFORMA` na Vercel | ignorado quando `naVercel`; caso de teste | A1 |
+| BAIXO-3 origem do `navigator.userAgent` | vem da data (`global_navigator`) | Global Constraints |
+| BAIXO-4 `wrangler dev` lê `.env` | fumaça em pasta limpa | B7 Step 0 |
+| BAIXO-5 caminho do cron no `wrangler dev` | os dois caminhos citados; o script tenta os dois | B7, R10 |
+| BAIXO-6 versão do Wrangler | ler o changelog das Previews e considerar uma ≥ 2 semanas (ex.: 4.147.0) | B6 |
+| BAIXO-7 orçamento da A8 | núcleo por execução, contador nunca no módulo, `SemOrcamento` relançado | A8 Step 3 |
+| BAIXO-8 pago não é "sem limite" | `limits.cpu_ms: 100` na produção paga; frase na D2 e no resumo | D2, C2b |
+| BAIXO-9 formato da URL de prévia | copiado da 1ª prévia real na M2 antes de fixar no C3 | M2, C3 |
+| BAIXO-10 CGNAT | M2 anota os 429 do Auth; o dono ajusta o limite | M2 |
+| BAIXO-11 cron com a cota esgotada | "se o cron rodar" | R2, § 2.2 M3 |
+| Item 6: chave do "só Pix" | **`MP_METODOS`**, a mesma que o 3b adotou; A7 fica neste PR A | A7, R13 |
 
