@@ -10,6 +10,7 @@ import { PEDIDOS } from '../../api/_vendas/pedido.mjs';
 import { Recusa } from '../../api/_vendas/recusa.mjs';
 import { traduzirErro, Recusa as RecusaDoFluxo } from '../../api/_vendas/fluxo.mjs';
 import { criarSimulada } from '../../api/_ia/simulado.mjs';
+import { criarAcoesDoPedido } from '../../api/_vendas/fluxo-pedido.mjs';
 import { LIMITES_DE_TESTE, telefoneDeTeste } from './_pedido.mjs';
 
 const BASE = 'http://127.0.0.1:8899';
@@ -146,6 +147,18 @@ test('produção com o segredo, mas sem IP que dê chave: os detalhes fecham com
   }
   const m = navegador('desconhecido'), d = await comPacote(m);
   assert.equal((await m.chamar('POST', 'detalhes', { conversa_id: d, ...DETALHES() })).status, 200, 'fora da Vercel: pula o freio do IP');
+});
+
+/* (A6 da migração para a Cloudflare) sem o ambiente do pedido, as travas fecham: com o segredo presente mas sem cabeçalho de IP,
+   o detalhes recusa (503 + WhatsApp) e o banco nem é chamado. Prova a sabotagem "detalhes sem ambiente abrem a trava do IP" */
+test('criarAcoesDoPedido SEM env, com o segredo e sem cabeçalho de IP: detalhes lança Recusa 503 e o banco não é chamado', async () => {
+  let chamadas = 0;
+  const banco = async () => { chamadas++; return {}; };
+  const acoes = criarAcoesDoPedido({ banco, visitante: async () => '11111111-1111-4111-8111-111111111111', segredoFreio: 's'.repeat(32) });
+  const request = new Request(BASE + '/api/vendas?acao=detalhes', { method: 'POST' });   /* (nenhum x-forwarded-for: ipDe devolve "local") */
+  await assert.rejects(acoes.detalhes({ request, corpo: { conversa_id: '22222222-2222-4222-8222-222222222222', ...DETALHES() } }),
+    e => e instanceof Recusa && e.status === 503 && e.extra?.whatsapp === true);
+  assert.equal(chamadas, 0, 'o banco não foi chamado');
 });
 
 /* (revisão final do PR 2a, M3c) o IPv6 de uma casa ou empresa costuma ser um /48 inteiro: trocar de /64 não escapa */

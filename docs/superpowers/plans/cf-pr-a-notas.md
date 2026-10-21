@@ -1,6 +1,6 @@
 # Notas do PR A (Cloudflare) — execução
 
-próxima tarefa: A6
+próxima tarefa: A7
 
 Linha de base (antes de mexer): `testar` = 544 testes, 0 falhas; `testar:mutacao` = 34 de 34 sabotagens pegas.
 
@@ -15,3 +15,5 @@ Linha de base (antes de mexer): `testar` = 544 testes, 0 falhas; `testar:mutacao
 - A3 vermelho: `node --test docs/testes/ambiente.test.mjs` → `AssertionError … + 'BZ_DIRECOES', + 'TURNSTILE_SECRET', + 'TURNSTILE_SITE_KEY'` (o `BZ_AMBIENTE` e o `MP_METODOS` não aparecem porque nenhum código os lê como `env.X` ainda: o primeiro é lido como `e.BZ_AMBIENTE` em `_ambiente.mjs`, o segundo entra na A7; o `.env.example` já os traz, como o plano manda). `.env.example` não foi barrado pelo guarda.
 - A4: refatoração sem teste novo (como o plano manda); `pagamentos.test` + `api.test` 33/33 e suíte 555/555.
 - A5: sem teste novo (como o plano manda). Os valores não mudaram (vendas 16384, pagamentos 65536, leads 8192, painel 200000). `ACOES_PAINEL` ficou DEPOIS de `ACOES_PEDIDO` (const; antes seria TDZ). No código real o GET do painel se despacha por `?fila=direcoes|pendentes|lembretes|ajustes`, `?csv=ads` ou o resumo (nomes normalizados na lista, como o plano escreveu) e o POST tem 2 caminhos sem chave própria depois de `:127`: `excluir` (`{excluir:true,codigo}`) e a mudança de contato (`validarMudanca`: `codigo`+`status|valor|nota`), que acrescentei como `excluir` e `mudar_contato`. Suíte 555/555.
+- A6 vermelho: com as 3 sabotagens no `mutacao.mjs` e SEM o caso novo em `detalhes-api.test.mjs`: `ESCAPOU  detalhes sem ambiente abrem a trava do IP` (0 de 1); as outras duas "PEGOU". Com o caso (`criarAcoesDoPedido` sem `env`, segredo presente, sem IP → `Recusa` 503 + WhatsApp, banco não chamado): "PEGOU". Mutação completa: ver contagem no relatório.
+- A6 desvio: a 1ª sabotagem do plano tem `para: ''`. Isso derrubou `docs/testes/mutacao.test.mjs` ("na partida, recusa rodar…"): com `para` vazio, `texto.includes('')` é sempre verdadeiro e o teste da partida vê "já sabotado" (o arquivo `api/_ambiente.mjs` tem 2 sabotagens e o teste reescreve o mesmo arquivo com o `de` da última). Troquei por `para: "false || "` (mesmo efeito: o runtime é ignorado e sobra a simulação por `BZ_PLATAFORMA`). Mutação completa antes da troca: 37 de 37; depois da troca, conferi a sabotagem com o filtro: "PEGOU".

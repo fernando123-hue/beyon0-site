@@ -98,7 +98,14 @@ export const SABOTAGENS = [
     de: "ETAPAS_COM_PRECO.includes(etapa) && statusDoPedido !== 'confirmado';", para: 'ETAPAS_COM_PRECO.includes(etapa);' },
   { nome: 'a geração grava o registro por conta própria (a falha libera a reserva na hora)', fonte: 'api/_vendas/fluxo.mjs', testes: ['docs/testes/teto-dia.test.mjs'],
     de: "          throw e;\n        }\n      });   /* (o registro da chamada é gravado UMA vez, no finally de comReserva, antes de a reserva sair) */",
-    para: "          throw e;\n        } finally {\n          await gravarChamadas(corpo.conversa_id, vid);\n        }\n      });" }
+    para: "          throw e;\n        } finally {\n          await gravarChamadas(corpo.conversa_id, vid);\n        }\n      });" },
+  /* ---- o ambiente (migração para a Cloudflare, A1/A2): a Cloudflare nunca pode parecer "local" ---- */
+  { nome: 'Cloudflare vista como local (runtime ignorado)', fonte: 'api/_ambiente.mjs', testes: ['docs/testes/ambiente.test.mjs'],
+    de: "globalThis.navigator?.userAgent === USER_AGENT_CLOUDFLARE || ", para: "false || " },   /* ('para' vazio faria o teste da partida ver "já sabotado" em qualquer texto) */
+  { nome: 'detalhes sem ambiente abrem a trava do IP', fonte: 'api/_vendas/fluxo-pedido.mjs', testes: ['docs/testes/detalhes-api.test.mjs'],
+    de: "const local = !!env && ambienteDe(env) === 'local';", para: "const local = !env || ambienteDe(env) === 'local';" },
+  { nome: 'prévia declarada com erro de digitação vira prévia', fonte: 'api/_ambiente.mjs', testes: ['docs/testes/ambiente.test.mjs'],
+    de: "String(e.BZ_AMBIENTE || '').trim() === 'previa'", para: "/previa/i.test(String(e.BZ_AMBIENTE || ''))" }
 ];
 
 /* as sabotagens que a rodada vai fazer: todas, ou só as do filtro (parte do nome, sem diferenciar maiúsculas). Filtro que não
