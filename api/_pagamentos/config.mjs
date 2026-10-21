@@ -17,11 +17,11 @@
    Nenhum valor secreto sai deste módulo para log ou resposta.
    ========================================================================== */
 import { segredoDoCron } from '../_cron.mjs';
-
-const NA_VERCEL = env => !!(env.VERCEL || env.VERCEL_ENV);
+import { ambienteDe } from '../_ambiente.mjs';
 
 export function configPagamentos(env = process.env) {
-  const local = globalThis.__BZ_LOCAL && !NA_VERCEL(env);
+  const amb = ambienteDe(env);
+  const local = globalThis.__BZ_LOCAL && amb === 'local';
   if (local && !env.MP_ACCESS_TOKEN && globalThis.__BZ_LOCAL.mp) {
     const s = globalThis.__BZ_LOCAL.mp;
     return { ativo: true, ambiente: 'simulado', provedor: 'mercadopago', token: s.token, publicKey: 'simulado', segredoWebhook: s.segredo,
@@ -31,12 +31,12 @@ export function configPagamentos(env = process.env) {
   const ambiente = env.MP_AMBIENTE;
   if (!ambiente) return desligado('MP_AMBIENTE não definido');
   if (!['teste', 'producao'].includes(ambiente)) return desligado('MP_AMBIENTE inválido');
-  if (NA_VERCEL(env)) {
-    const prod = env.VERCEL_ENV === 'production';
-    if (prod && ambiente !== 'producao') return desligado('produção da Vercel exige MP_AMBIENTE=producao');
-    if (!prod && ambiente !== 'teste') return desligado('prévia/desenvolvimento exige MP_AMBIENTE=teste');
+  if (amb !== 'local') {
+    const prod = amb === 'producao';
+    if (prod && ambiente !== 'producao') return desligado('produção exige MP_AMBIENTE=producao');
+    if (!prod && ambiente !== 'teste') return desligado('prévia exige MP_AMBIENTE=teste');
   } else if (ambiente === 'producao') {
-    return desligado('credencial de produção fora da Vercel de produção');
+    return desligado('credencial de produção fora da produção');
   }
   const token = env.MP_ACCESS_TOKEN, publicKey = env.MP_PUBLIC_KEY, segredo = env.MP_WEBHOOK_SEGREDO;
   if (!token || !/^[A-Za-z0-9_-]{20,200}$/.test(token)) return desligado('MP_ACCESS_TOKEN ausente ou malformado');

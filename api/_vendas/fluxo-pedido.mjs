@@ -7,7 +7,8 @@
    ========================================================================== */
 import { Recusa } from './recusa.mjs';
 import { ErroBanco } from './transporte.mjs';
-import { validarDetalhes, chaveDoTelefone, naVercel, PEDIDOS } from './pedido.mjs';
+import { validarDetalhes, chaveDoTelefone, PEDIDOS } from './pedido.mjs';
+import { ambienteDe } from '../_ambiente.mjs';
 import { chaveDoIp, chaveDoIp48 } from './ip.mjs';
 import { ipDe } from '../_freio.mjs';
 import { ehUuid } from '../_valida-app.mjs';
@@ -34,7 +35,8 @@ export function recusaDoMotivo(r, requestId) {
   return new Recusa(m.status, m.texto, m.extra);
 }
 
-export function criarAcoesDoPedido({ banco, visitante, segredoFreio, limites = PEDIDOS, requestId }) {
+export function criarAcoesDoPedido({ banco, visitante, segredoFreio, env, limites = PEDIDOS, requestId }) {
+  const local = !!env && ambienteDe(env) === 'local';   /* sem o ambiente: fecha */
   /* um freio do pedido faltando: nada é gravado, a pessoa recebe o WhatsApp e o log diz qual */
   function indisponivel(evento) {
     console.error(JSON.stringify({ origem: 'vendas', nivel: 'erro', request_id: requestId || null, evento }));
@@ -47,14 +49,14 @@ export function criarAcoesDoPedido({ banco, visitante, segredoFreio, limites = P
       const v = await validarDetalhes(corpo);
       if (v.erros) throw new Recusa(400, v.erros[0]);
       const d = v.dados;
-      const telefoneHash = chaveDoTelefone(d.telefone, segredoFreio);
+      const telefoneHash = chaveDoTelefone(d.telefone, segredoFreio, env || {});
       /* (na Vercel sem FREIO_SEGREDO nem SUPABASE_CHAVE_SECRETA: sem freio por telefone, nada é gravado) */
       if (!telefoneHash) indisponivel('detalhes sem o segredo do freio');
       const ip = ipDe(request), agora = new Date();
       const chaveIp = chaveDoIp(ip, segredoFreio, agora, 'pedido');
       /* (revisão final, M3a) na Vercel, sem a chave do IP (cabeçalho ausente ou que não é IP) o freio do IP sumiria em
          silêncio: fecha como sem o segredo. No servidor local (BZ_LOCAL, fora da Vercel) segue sem esse freio */
-      if (!chaveIp && naVercel()) indisponivel('detalhes sem a chave do IP');
+      if (!chaveIp && !local) indisponivel('detalhes sem a chave do IP');
       let r;
       try {
         r = await banco('vendas_registrar_detalhes', {

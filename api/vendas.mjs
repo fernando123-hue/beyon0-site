@@ -16,6 +16,8 @@ import { criarVisitantes } from './_vendas/visitante.mjs';
 import { configPagamentos, configPublica } from './_pagamentos/config.mjs';
 import { criarServicoPagamentos } from './_pagamentos/servico.mjs';
 import { criarIA } from './_ia/provedor.mjs';
+import { modoDirecoes } from './_ia/config.mjs';
+import { ambienteDe } from './_ambiente.mjs';
 import { criarFreio, ipDe } from './_freio.mjs';
 import { randomUUID } from 'node:crypto';
 import { configTurnstile, verificarHumano } from './_vendas/turnstile.mjs';
@@ -68,7 +70,7 @@ export async function atender(request, env, metodo, deps) {
   /* consultor: se há IA para a conversa (a tela sem IA mostra só o formulário do orçamento). BZ_SEM_CONSULTOR=1 só
      no servidor local (docs/servidor.mjs, BZ_LOCAL) e nunca na Vercel: o E2E testa a tela sem consultor com a IA
      simulada ainda ligada para gerar os modelos */
-  const semConsultorLocal = env.BZ_LOCAL === '1' && env.BZ_SEM_CONSULTOR === '1' && !(env.VERCEL || env.VERCEL_ENV);
+  const semConsultorLocal = env.BZ_LOCAL === '1' && env.BZ_SEM_CONSULTOR === '1' && ambienteDe(env) === 'local';
   if (acao === 'sessaoConfig') return responder({ turnstile: cfgTurnstile.siteKey, consultor: semConsultorLocal ? false : deps ? !!deps.ia : !!(await criarIA(env)) });
 
   /* segredoFreio: o HMAC do IP no freio diário (api/_vendas/ip.mjs); um segredo próprio, ou o do servidor do Supabase */
@@ -92,7 +94,7 @@ export async function atender(request, env, metodo, deps) {
   }
 
   try {
-    return responder(await criarFluxo({ ...d, requestId })[acao]({ request, query, corpo }));
+    return responder(await criarFluxo({ ...d, env: d.env || env, direcoes: d.direcoes || modoDirecoes(env), requestId })[acao]({ request, query, corpo }));
   } catch (e) {
     const r = traduzirErro(e);
     /* a falha passageira (IA, Auth, banco lento) também fica no log, com o motivo técnico (a pessoa só lê a frase) */

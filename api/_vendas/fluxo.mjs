@@ -14,7 +14,7 @@ import { gerarDirecao } from './gerador.mjs';
 import { montarEscopo } from './escopo.mjs';
 import { limparMensagem, pareceInjecao, redigir } from './seguranca.mjs';
 import { ehUuid } from '../_valida-app.mjs';
-import { TETOS, reservaUsd, modoDirecoes } from '../_ia/config.mjs';
+import { TETOS, reservaUsd } from '../_ia/config.mjs';
 import { ErroIA } from '../_ia/provedor.mjs';
 import { ErroBanco } from './transporte.mjs';
 import { ErroPagamento } from '../_pagamentos/servico.mjs';
@@ -136,10 +136,10 @@ function landingGrandeDemais(formato, adicionais, tabela) {
 const publicaRec = rec => ({ formato: rec.formato, alternativa: rec.alternativa, fale_comigo: rec.fale_comigo, sugestoes: rec.sugestoes,
   motivo: rec.motivo, assumido: rec.assumido });
 
-export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoFreio, requestId, direcoes, limitesPedido = PEDIDOS }) {
+export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoFreio, requestId, direcoes, env, limitesPedido = PEDIDOS }) {
   /* as direções: geradas pela API na hora, ou na FILA MANUAL (o dono produz no Claude Code, em até 24 horas úteis;
      decisão do dono 2026-10-08). Os testes passam o modo; o site lê BZ_DIRECOES */
-  const modo = direcoes === 'manual' || direcoes === 'api' ? direcoes : modoDirecoes();
+  const modo = direcoes === 'manual' || direcoes === 'api' ? direcoes : 'manual';
   /* o REGISTRO das chamadas de IA (app.ia_chamadas): cada chamada ao modelo vira uma linha — papel, modelo,
      tokens, custo, ferramentas pedidas, tempo, erro — sem o texto de ninguém; gravado no fim da ação, dê certo ou não */
   const chamadas = [];
@@ -291,7 +291,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
   }
 
   /* os detalhes e o pedido (PR 2a): api/_vendas/fluxo-pedido.mjs */
-  const acoesDoPedido = criarAcoesDoPedido({ banco, visitante, segredoFreio, limites: limitesPedido, requestId });
+  const acoesDoPedido = criarAcoesDoPedido({ banco, visitante, segredoFreio, env, limites: limitesPedido, requestId });
 
   return {
     ...acoesDoPedido,

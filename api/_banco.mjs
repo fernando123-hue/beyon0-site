@@ -12,6 +12,7 @@
    Esquema das tabelas: supabase/migrations/20261006120100_metricas.sql.
    ========================================================================== */
 import { TEMPO_MAXIMO_MS } from './_supabase.mjs';
+import { ambienteDe } from './_ambiente.mjs';
 
 const PAGINA_REST = 1000;   /* o PostgREST devolve no máximo 1000 linhas por vez */
 const TETO_LINHAS = 50000;  /* o painel nunca puxa mais que isso (proteção de memória) */
@@ -98,6 +99,6 @@ const desligado = { ligado: false };
 
 export function banco(env = process.env) {
   if (env.SUPABASE_URL && env.SUPABASE_CHAVE_SECRETA) return supabase(env.SUPABASE_URL, env.SUPABASE_CHAVE_SECRETA);
-  if (env.BZ_LOCAL === '1' && !env.VERCEL) return local;   /* (na Vercel, nunca: sem Supabase fica desligado) */
+  if (env.BZ_LOCAL === '1' && ambienteDe(env) === 'local') return local;   /* (fora do local, nunca: sem Supabase fica desligado) */
   return desligado;
 }

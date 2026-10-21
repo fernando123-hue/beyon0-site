@@ -121,30 +121,29 @@ test('fila global cheia: a tela sabe antes (estado) e os detalhes recebem 503 co
 });
 
 test('produção sem o segredo do freio: os detalhes fecham com 503 e o WhatsApp (nada gravado)', async () => {
-  const antes = process.env.VERCEL_ENV;
-  process.env.VERCEL_ENV = 'production';
-  try {
-    const n = navegador(undefined, { segredoFreio: undefined }), c = await comPacote(n);
+  /* a produção vem pelo env do pedido (o código não lê mais process.env: api/_ambiente.mjs) */
+  const PRODUCAO = { VERCEL_ENV: 'production' };
+  {
+    const n = navegador(undefined, { segredoFreio: undefined, env: PRODUCAO }), c = await comPacote(n);
     const r = await n.chamar('POST', 'detalhes', { conversa_id: c, ...DETALHES() });
     assert.equal(r.status, 503, JSON.stringify(r.corpo));
     assert.equal(r.corpo.whatsapp, true);
     assert.equal(await um('select 1 from app.pedidos where conversa_id = $1', [c]), undefined);
-  } finally { if (antes === undefined) delete process.env.VERCEL_ENV; else process.env.VERCEL_ENV = antes; }
+  }
 });
 
 /* (revisão final do PR 2a, M3a) sem uma chave de IP (cabeçalho ausente ou que não é IP) o freio do IP sumiria em silêncio:
    em produção os detalhes fecham, como sem o segredo do telefone; no servidor local, seguem sem o freio do IP */
 test('produção com o segredo, mas sem IP que dê chave: os detalhes fecham com 503 e o WhatsApp (nada gravado); no local, seguem', async () => {
-  const antes = process.env.VERCEL_ENV;
-  process.env.VERCEL_ENV = 'production';
-  try {
-    const n = navegador('desconhecido'), c = await comPacote(n);
+  const PRODUCAO = { VERCEL_ENV: 'production' };
+  {
+    const n = navegador('desconhecido', { env: PRODUCAO }), c = await comPacote(n);
     const r = await n.chamar('POST', 'detalhes', { conversa_id: c, ...DETALHES() });
     assert.equal(r.status, 503, JSON.stringify(r.corpo));
     assert.equal(r.corpo.whatsapp, true);
     assert.equal(await um('select 1 from app.pedidos where conversa_id = $1', [c]), undefined);
     assert.deepEqual(await um('select etapa, tentativas_detalhes from app.conversas where id = $1', [c]), { etapa: 'estimativa', tentativas_detalhes: 0 }, 'nem a tentativa foi ao banco');
-  } finally { if (antes === undefined) delete process.env.VERCEL_ENV; else process.env.VERCEL_ENV = antes; }
+  }
   const m = navegador('desconhecido'), d = await comPacote(m);
   assert.equal((await m.chamar('POST', 'detalhes', { conversa_id: d, ...DETALHES() })).status, 200, 'fora da Vercel: pula o freio do IP');
 });

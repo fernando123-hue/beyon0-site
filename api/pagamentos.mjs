@@ -14,6 +14,7 @@
    ?acao=simular      — SÓ no servidor local: "paga" o Pix no simulador e manda o aviso assinado.
    ========================================================================== */
 import { conferirCron } from './_cron.mjs';
+import { ambienteDe } from './_ambiente.mjs';
 import { criarTransporte } from './_vendas/transporte.mjs';
 import { configPagamentos } from './_pagamentos/config.mjs';
 import { criarServicoPagamentos } from './_pagamentos/servico.mjs';
@@ -96,7 +97,7 @@ async function reconciliar(request, cfg, servico) {
 /* só o servidor local: o simulador "paga" o Pix (ou conclui o 3DS) e o aviso assinado passa pelo MESMO caminho do real */
 async function simular(request, cfg, env, deps) {
   const local = globalThis.__BZ_LOCAL;
-  if (cfg.ambiente !== 'simulado' || !local || !local.mp || env.VERCEL || env.VERCEL_ENV) return json({ erro: 'Não encontrado.' }, 404);
+  if (cfg.ambiente !== 'simulado' || !local || !local.mp || ambienteDe(env) !== 'local') return json({ erro: 'Não encontrado.' }, 404);
   if (request.method !== 'POST') return json({ erro: 'Método não permitido.' }, 405);
   let p;
   try { p = JSON.parse(await request.text()); } catch { return json({ erro: 'JSON inválido.' }, 400); }

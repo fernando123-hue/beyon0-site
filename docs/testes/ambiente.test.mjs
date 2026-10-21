@@ -47,3 +47,60 @@ test('nada disso: local (servidor local e testes)', () => {
   assert.equal(ambienteDe(undefined), 'local');
   assert.equal(foraDoLocal({}), false);
 });
+
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { configTurnstile } from '../../api/_vendas/turnstile.mjs';
+import { configPagamentos } from '../../api/_pagamentos/config.mjs';
+import { criarIA } from '../../api/_ia/provedor.mjs';
+import { modoDirecoes } from '../../api/_ia/config.mjs';
+import { banco } from '../../api/_banco.mjs';
+import { chaveDoTelefone } from '../../api/_vendas/pedido.mjs';
+
+const CF = { BZ_PLATAFORMA: 'cloudflare' };
+const MP = { MP_ACCESS_TOKEN: 'APP_USR-1234567890123456-abc-123456', MP_PUBLIC_KEY: 'APP_USR-pub-1234567890123456', MP_WEBHOOK_SEGREDO: 'segredo-muito-longo-123', MP_USER_ID: '123456' };
+
+test('Cloudflare produção: Turnstile obrigatório e sem chave de teste', () => {
+  assert.equal(configTurnstile({ ...CF }).exigido, true, 'sem chaves: fecha');
+  assert.equal(configTurnstile({ ...CF, TURNSTILE_SITE_KEY: '1x00000000000000000000AA', TURNSTILE_SECRET: '1x0000000000000000000000000000000AA' }).siteKey, null, 'chave de teste na produção: fecha');
+  assert.equal(configTurnstile({ ...CF, BZ_AMBIENTE: 'previa' }).exigido, false, 'prévia sem chaves: como a prévia da Vercel');
+});
+test('Cloudflare: pagamento produção só com MP_AMBIENTE=producao; prévia só teste; simulador nunca', () => {
+  const salvo = globalThis.__BZ_LOCAL; globalThis.__BZ_LOCAL = { mp: { token: 't', segredo: 's', userId: '1', fetch: null, cronSecret: null } };
+  try {
+    assert.equal(configPagamentos({ ...CF, ...MP }).ambiente === 'simulado', false, 'simulador fora do local: nunca');
+    assert.equal(configPagamentos({ ...CF, ...MP, MP_AMBIENTE: 'producao' }).ativo, true);
+    assert.equal(configPagamentos({ ...CF, ...MP, MP_AMBIENTE: 'teste' }).ativo, false);
+    assert.equal(configPagamentos({ ...CF, ...MP, BZ_AMBIENTE: 'previa', MP_AMBIENTE: 'producao' }).ativo, false);
+    assert.equal(configPagamentos({ ...CF, ...MP, BZ_AMBIENTE: 'previa', MP_AMBIENTE: 'teste' }).ativo, true);
+  } finally { globalThis.__BZ_LOCAL = salvo; }
+});
+test('Cloudflare: IA simulada nunca em produção; direções sem chave = manual; banco em memória nunca', async () => {
+  assert.equal(await criarIA({ ...CF, BZ_IA: 'simulada', BZ_LOCAL: '1' }), null);
+  assert.equal(modoDirecoes({ ...CF, BZ_LOCAL: '1' }), 'manual');
+  assert.equal(banco({ ...CF, BZ_LOCAL: '1' }).ligado, false);
+  assert.equal(chaveDoTelefone('+5521999990000', undefined, { ...CF, BZ_LOCAL: '1' }), null);
+});
+test('o runtime da Cloudflare vale até para quem lê process.env (o objeto vazio)', () => {
+  comoCloudflare(() => {
+    assert.equal(modoDirecoes({ BZ_LOCAL: '1' }), 'manual');
+    assert.equal(banco({ BZ_LOCAL: '1' }).ligado, false);
+  });
+});
+
+/* nenhuma função de ambiente é chamada SEM o ambiente em api/ (a chamada sem argumento cairia em process.env) */
+const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const DE_AMBIENTE = ['ambienteDe', 'foraDoLocal', 'naCloudflare', 'modoDirecoes', 'banco', 'criarIA', 'configPagamentos', 'criarVisitantes',
+  'criarTransporte', 'configUsuario', 'configTurnstile', 'criarAnthropic', 'origemPermitida'];
+const arquivosDe = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(d => d.isDirectory() ? arquivosDe(path.join(dir, d.name)) : d.name.endsWith('.mjs') ? [path.join(dir, d.name)] : []);
+test('nenhuma chamada sem ambiente em api/ (revisão do plano, A2)', () => {
+  const achados = [];
+  for (const arq of arquivosDe(path.join(RAIZ, 'api'))) {
+    const texto = fs.readFileSync(arq, 'utf8');
+    for (const nome of DE_AMBIENTE) if (new RegExp('(?<![\\w.])' + nome + '\\(\\s*\\)').test(texto)) achados.push(path.relative(RAIZ, arq) + ': ' + nome + '()');
+    if (/chaveDoTelefone\([^(),]+,[^(),]+\)/.test(texto)) achados.push(path.relative(RAIZ, arq) + ': chaveDoTelefone com 2 argumentos');
+    if (/\bnaVercel\(\s*\)/.test(texto)) achados.push(path.relative(RAIZ, arq) + ': naVercel()');
+  }
+  assert.deepEqual(achados, []);
+});

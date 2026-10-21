@@ -14,7 +14,6 @@
    ========================================================================== */
 import { limparAtualizacao, limparTexto, mesclar, avaliar, prontoParaEstimar } from './briefing.mjs';
 import { IDENTIDADE, montarSistema, ferramentas, proximoPasso, ETAPAS_SO_DUVIDAS, FERRAMENTAS_DE_PRECO, precoAberto } from './consultor.mjs';
-import { modoDirecoes } from '../_ia/config.mjs';
 import { estimar } from './precos.mjs';
 import { redigir, semPrecoNoTexto } from './seguranca.mjs';
 import { semPromessaDePagamento, motivoDaPergunta, RESPOSTAS_PAGAMENTO } from './promessa.mjs';
@@ -72,7 +71,7 @@ export async function executarTurno({ ia, regras, conversa, mensagem, direcoes }
   /* escopo e sinal: só dúvidas. O modelo recebe só as ferramentas da etapa, e o código recusa outra que ele invente */
   const tools = ferramentas(regras, { etapa: conversa.etapa, pedidoStatus: conversa.pedido_status });
   const permitidas = new Set(tools.map(t => t.name));
-  const sistema = montarSistema(regras, { direcoes: direcoes || modoDirecoes() });   /* (o fluxo passa o mesmo modo que usa) */
+  const sistema = montarSistema(regras, { direcoes: direcoes || 'manual' });   /* (o fluxo passa o mesmo modo que usa) */
   let texto = '';
 
   for (let i = 0; i < MAX_ITERACOES; i++) {
