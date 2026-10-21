@@ -685,6 +685,7 @@
     if (temProposta && mudou('escopo', E.proposta.escopo)) $('o-esc-texto').textContent = E.proposta.escopo;
     if (et === 'aguardando_pagamento' && $('o-pagamento').hidden) delete assinaturas.pagamento;   /* (reapareceu: a tela de pagamento confere de novo, inclusive a configuração) */
     mostrar('o-pagamento', et === 'aguardando_pagamento');
+    mostrar('o-antes', temProposta || et === 'aguardando_pagamento');   /* (PR 3b-1) as perguntas antes de pagar: no resumo e na entrada */
     if (et === 'aguardando_pagamento') { viuAguardando = true; pagamento(); }
     var pronto = et === 'em_producao', chegou = pronto && $('o-pronto').hidden && viuAguardando;
     mostrar('o-pronto', pronto);

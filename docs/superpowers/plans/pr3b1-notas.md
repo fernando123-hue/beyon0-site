@@ -80,6 +80,15 @@ Branch `pr3b1` (= `pr3b-desenho` + merge de `cf-pr-a`, PR #49). Base: `ecea062`.
 - Revisor: o texto do status ("Esperando o pagamento…") continua no estilo mono pequeno de `.orc-pag-status` (é o de antes;
   a Task 5 não manda mudar). Vale olhar se o dono quer esse texto em 16 px.
 
+## Task 6: perguntas antes de pagar + teste-guarda
+
+- Vermelho visto: `pagar-sem-medo.test.mjs`, "perguntas antes de pagar": `trecho não encontrado: id="o-antes" → </section>`.
+  Guarda visto vermelho colando `<p>Quantos precisar</p>` no `orcamento.html`: `frase barrada (NUNCA (D2, 21/10): são 2 listas
+  de ajuste): /quantos precisar|sem limite de ajustes/i`; tirado.
+- Verde: pagar-sem-medo + csp 13/13. E2E padrão (porta 8890): 267 OK, 0 FALHA (as perguntas no resumo, na entrada, 44 px,
+  16 px e o atalho).
+- No `AINDA_NAO` o motivo de "Nota fiscal" cita só "Decisões.md" (sem o número de linha, que andou).
+
 ## Andamento
 
-próxima tarefa: 6
+próxima tarefa: 7

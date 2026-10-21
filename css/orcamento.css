@@ -438,6 +438,12 @@ html.menos-movimento .orc-log { scroll-behavior: auto; }
   .pix .btn { align-self: flex-start; }
 }
 
+/* ---------- PERGUNTAS ANTES DE PAGAR (PR 3b-1): <details> separados pela régua de 1 px, texto de 16 px ---------- */
+.orc-antes__item { margin-top: 0; border-top: 1px solid var(--line-2); }
+.orc-antes__item:last-of-type { border-bottom: 1px solid var(--line-2); }
+.orc-antes__item summary { font-size: var(--fs-b); color: var(--t1); }
+.orc-antes__resposta { padding: 0 0 1rem 1.2em; font-size: var(--fs-b); line-height: 1.55; color: var(--t2); }
+
 /* ---------- AS PERGUNTAS (orçamento sem IA, spec 2026-10-11 §2): botões grandes, celular primeiro; texto que importa
    com 16px ou mais; botões em frase normal (não caixa alta). Sem desfoque e sem animação nova ---------- */
 .orc-perguntas, .orc-ajustar { scroll-margin-top: calc(var(--nav-h) + 1rem); }

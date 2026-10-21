@@ -35,3 +35,36 @@ test('o Pix na ordem nova: valor, nome, copiar, os 3 passos; o QR só em "Pagar 
   assert.ok(HTML.indexOf('id="o-pag-status"') < HTML.indexOf('id="o-pix-outro"'), 'o status ("Esperando o pagamento") vem antes do QR');
   assert.ok(texto(entre(HTML, 'for="o-pag-doc"', '</label>')).includes('o Mercado Pago pede para emitir o Pix'), 'o porquê do CPF junto do campo');
 });
+
+const JS = fs.readdirSync(new URL('../../js/', import.meta.url)).filter(f => /^orcamento.*\.js$/.test(f)).map(f => ler('js/' + f));
+const semComentarioJs = s => s.replace(/\/\*[\s\S]*?\*\//g, '');
+const antes = () => entre(HTML, 'id="o-antes"', '</section>');
+const perguntas = () => [...antes().matchAll(/<summary>([\s\S]*?)<\/summary>/g)].map(m => texto(m[1]));
+/* as perguntas do 3b-1 (spec §4, coluna "Quando entra" = 3b-1). "Quantos ajustes?" (D2) é da Task 7 e "Quando fica pronto?" (D4) da Task 9 */
+const PERMITIDAS = ['Posso desistir?', 'Quando fica pronto?', 'Quantos ajustes?'];
+/* frases barradas: as que só entram com a parte delas (3b-2, 3b-3) ou com dado do dono, e as que o dono revisou e nunca entram (D2, D5) */
+const AINDA_NAO = [
+  [/Quando pago o restante/i, 'com o 3b-3'],
+  [/Como mando fotos/i, 'com o 3b-2'],
+  [/precisa mandar nada pelo WhatsApp/i, 'com o 3b-2'],
+  [/O que eu recebo/i, 'com o dado do dono (domínio e hospedagem)'],
+  [/Nota fiscal/i, 'quando a spec trouxer (há decisão de 11/10, Decisões.md: sem nota por enquanto; a spec §4 deixa a pergunta para depois)'],
+  [/Guarde o link do seu pedido/i, 'com o 3b-2'],
+  [/passo \d de 4/i, 'com o 3b-2 (os passos antes de pagar)'],
+  [/sai do ar/i, 'com o 3b-3: a regra vale (D4, 21/10) e a frase entra com a tela do restante'],
+  [/prazo fica parado/i, 'com o 3b-3: a regra vale (D4, 21/10) e a frase entra com a tela da lista de ajustes'],
+  [/conta como aprovada|aprovad\w* (sozinh|automatic)/i, 'NUNCA (D5, 21/10): sem resposta o projeto para; nada é aprovado sozinho'],
+  [/quantos precisar|sem limite de ajustes/i, 'NUNCA (D2, 21/10): são 2 listas de ajuste'],
+  [/Pôr na minha agenda/i, 'com a D1 (a tela do pedido) e o 3b-2'],
+];
+
+test('perguntas antes de pagar: "Posso desistir?" com a lei e a decisão de 11/10 (Decisões.md); nenhuma fora da lista do 3b-1', () => {
+  assert.ok(perguntas().includes('Posso desistir?'), perguntas().join(' | '));
+  assert.ok(texto(antes()).includes('Até 7 dias depois de aceitar (confirmar o resumo), por qualquer motivo, você recebe a entrada de volta (Código de Defesa do Consumidor, art. 49). Depois dos 7 dias, a entrada fica com a Beyon Zero.'), texto(antes()));
+  for (const p of perguntas()) assert.ok(PERMITIDAS.includes(p), 'pergunta que não é do 3b-1: ' + p);
+});
+
+test('nenhuma frase de parte que ainda não existe (3b-2, 3b-3), de dado do dono ou de decisão revista (D2, D5) aparece na página', () => {
+  const tudo = texto(HTML) + '\n' + JS.map(semComentarioJs).join('\n');
+  for (const [re, quando] of AINDA_NAO) assert.ok(!re.test(tudo), 'frase barrada (' + quando + '): ' + re);
+});

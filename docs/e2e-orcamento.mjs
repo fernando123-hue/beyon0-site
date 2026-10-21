@@ -688,6 +688,7 @@ try {
   } else ok(await page.locator('#o-escopo [data-perguntar]').isHidden(), 'sem consultor: o resumo não oferece "Pergunte ao consultor"');
   await page.click('#o-esc-form button[type=submit]');
   ok((await page.textContent('#o-esc-erro')).length > 0, 'escopo sem confirmação: recusado');
+  ok(await page.locator('#o-antes').isVisible(), 'perguntas antes de pagar: também no resumo');
   await page.check('#o-confirmo');
   await page.click('#o-esc-form button[type=submit]');
   await page.waitForSelector('#o-pagamento:not([hidden])');

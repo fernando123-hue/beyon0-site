@@ -60,6 +60,16 @@ export async function passoDoPix(page, { ok, espera, foto, semRolagemLateral, fo
   page.off('request', contar);
   await new Promise(r => setTimeout(r, 61e3));
   ok(/a entrada de 40%: /.test(await page.textContent('#o-pag-lead')), 'entrada: o percentual vem da proposta (o servidor local usa o rascunho, a 40)');
+  const perguntasAntes = page.locator('#o-antes');
+  ok(await perguntasAntes.isVisible(), 'perguntas antes de pagar: na tela da entrada');
+  const desistir = perguntasAntes.locator('summary', { hasText: 'Posso desistir?' });
+  ok(Math.round((await desistir.boundingBox()).height) >= 44, 'perguntas: cada pergunta com 44 px ou mais');
+  await desistir.click();
+  ok(await perguntasAntes.getByText('Até 7 dias depois de aceitar', { exact: false }).isVisible(), 'perguntas: "Posso desistir?" abre a resposta');
+  ok(parseFloat(await perguntasAntes.locator('.orc-antes__resposta').first().evaluate(p => getComputedStyle(p).fontSize)) >= 16, 'perguntas: resposta com 16 px ou mais');
+  await desistir.click();
+  await page.click('#o-pagamento a[href="#o-antes"]');
+  ok(await espera(page, () => { const r = document.getElementById('o-antes').getBoundingClientRect(); return r.top >= 0 && r.top < innerHeight; }), 'o atalho "Perguntas antes de pagar" leva às perguntas');
   await page.click('#o-pag-enviar');
   ok((await page.textContent('#o-pag-erro')).includes('nome'), 'pagador sem dados: recusado com motivo');
   await page.fill('#o-pag-nome', PAGADOR.nome); await page.fill('#o-pag-sobrenome', PAGADOR.sobrenome);
