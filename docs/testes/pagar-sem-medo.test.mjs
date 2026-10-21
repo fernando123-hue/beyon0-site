@@ -87,3 +87,23 @@ test('WhatsApp (D3, resposta do dono em 21/10): só em "Outra dúvida?", "Para d
     assert.ok(!/\?text=/.test(a), 'nada escrito à mão no href: ' + a);
   }
 });
+
+/* (Task 9) o texto que o cliente lê e que vem do SERVIDOR: o contrato (escopo.mjs), o que o consultor recebe para dizer
+   (consultor.mjs) e as respostas fixas dele (promessa.mjs). Sem comentários: só o que pode chegar à tela */
+const SERVIDOR = ['api/_vendas/escopo.mjs', 'api/_vendas/consultor.mjs', 'api/_vendas/promessa.mjs'].map(ler);
+
+test('o texto do servidor (contrato, consultor, respostas fixas) também não traz frase barrada', () => {
+  const tudo = SERVIDOR.map(semComentarioJs).join('\n');
+  for (const [re, quando] of AINDA_NAO) assert.ok(!re.test(tudo), 'frase barrada (' + quando + '): ' + re);
+});
+
+test('D4 (21/10): a regra do prazo é a mesma no contrato, no consultor, em /condicoes e em "Quando fica pronto?"', () => {
+  const [escopo, consultor] = SERVIDOR.slice(0, 2).map(semComentarioJs);
+  assert.match(escopo, /contados do sinal pago e do material recebido/);
+  assert.match(consultor, /depois do sinal pago e do material recebido/);
+  assert.match(consultor, /contados do sinal pago e do material recebido/);
+  assert.match(texto(ler('condicoes.html')), /contados do pagamento da entrada e do envio do seu material/);
+  assert.ok(perguntas().includes('Quando fica pronto?'), perguntas().join(' | '));
+  assert.ok(texto(antes()).includes('O prazo está no resumo do seu pedido, em dias corridos, contados do pagamento da entrada e do envio do seu material. Se o material não chegar em 30 dias, o site sai com as imagens do modelo.'), texto(antes()));
+  assert.ok(texto(antes()).includes('Se a Beyon Zero não entregar no prazo combinado, você recebe a entrada inteira de volta, mesmo depois dos 7 dias.'), texto(antes()));
+});

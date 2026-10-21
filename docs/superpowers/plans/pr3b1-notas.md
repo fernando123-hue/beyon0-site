@@ -100,6 +100,17 @@ Branch `pr3b1` (= `pr3b-desenho` + merge de `cf-pr-a`, PR #49). Base: `ecea062`.
 - E2E padrão (porta 8891): 271 OK, 0 FALHA, incluindo "nenhum botão fixo de WhatsApp (0)" (a barra do celular não entra: é `nav`),
   "Problema com o pagamento?" e "Outra dúvida?"; sem rolagem lateral a 320 px com o `orc-sem-quebra` no link.
 
+## Task 9: regras do lançamento (D4) na tela
+
+- Vermelho visto: `D4 (21/10): a regra do prazo é a mesma…` falhou em `Posso desistir? | Quantos ajustes?` (sem "Quando fica
+  pronto?"); as 4 asserções de coerência do servidor/`/condicoes` já passavam e o guarda do servidor passou de saída.
+- Verde: pagar-sem-medo + alteracoes + consultor + agente + csp, 66/66. `escopo.mjs`, `consultor.mjs` e `alteracoes.test.mjs` intocados.
+- **Verificação de tela pendente: rodar com o PC livre.** Por ordem do coordenador ("modo leve", dono jogando), a partir daqui
+  não rodei E2E, `verificar`, `acessibilidade` nem `olhar`. As 3 linhas de E2E da Task 9 ("Quando fica pronto?" e o escopo com a
+  regra do prazo) foram escritas e passam em `node --check`, mas NÃO foram rodadas. Último E2E verde: o da Task 8 (271 OK,
+  0 FALHA), sem as linhas da Task 9. Ainda falta: E2E nas 3 rodadas da Task 10 (padrão, `MP_METODOS=pix`, com consultor),
+  `verificar`, `acessibilidade` e abrir os PNG `4-pix-cel`, `4-pix-320`, `4-pix-so-pix-cel`, `4-pix-so-pix-320`.
+
 ## Andamento
 
-próxima tarefa: 9
+próxima tarefa: 10 (só o que não abre navegador)

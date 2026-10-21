@@ -77,6 +77,11 @@ export async function passoDoPix(page, { ok, espera, foto, semRolagemLateral, fo
   ok(await perguntasAntes.getByText('Até 7 dias depois de aceitar', { exact: false }).isVisible(), 'perguntas: "Posso desistir?" abre a resposta');
   ok(parseFloat(await perguntasAntes.locator('.orc-antes__resposta').first().evaluate(p => getComputedStyle(p).fontSize)) >= 16, 'perguntas: resposta com 16 px ou mais');
   await desistir.click();
+  const pronto = perguntasAntes.locator('summary', { hasText: 'Quando fica pronto?' });
+  await pronto.click();
+  ok(await perguntasAntes.getByText('contados do pagamento da entrada e do envio do seu material', { exact: false }).isVisible(), 'D4: "Quando fica pronto?" diz de quando o prazo conta');
+  await pronto.click();
+  ok(/contados do sinal pago e do material recebido/.test(await page.textContent('#o-pag-escopo')), 'D4: o escopo confirmado conta o prazo do sinal pago e do material recebido (a mesma regra)');
   ok(await perguntasAntes.locator('summary', { hasText: 'Quantos ajustes?' }).isVisible(), 'perguntas: "Quantos ajustes?"');
   await page.click('#o-pagamento a[href="#o-antes"]');
   ok(await espera(page, () => { const r = document.getElementById('o-antes').getBoundingClientRect(); return r.top >= 0 && r.top < innerHeight; }), 'o atalho "Perguntas antes de pagar" leva às perguntas');
