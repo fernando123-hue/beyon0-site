@@ -27,6 +27,22 @@ Branch `pr3b1` (= `pr3b-desenho` + merge de `cf-pr-a`, PR #49). Base: `ecea062`.
 - A mutação não roda com `servico.mjs` sujo (ele é "fonte" de outra sabotagem): rodada depois do commit (ver abaixo).
 - **Dono:** aplicar `supabase/migrations/20261022120000_pr3b1_entrada.sql` no Supabase real (só o arquivo e os testes PGlite aqui).
 
+- Mutação depois do commit da Task 2: 39 de 39 pegas (a nova, "entrada sem percentual cobra assim mesmo", pegou).
+
+## Task 3: rascunho a 40%
+
+- Vermelho visto: `precos.test.mjs`, "rascunho: a entrada é 40%": `50 !== 40`.
+- Números trocados (todos com a conta): `alteracoes.test.mjs:69` ('40% para começar', '2.400,00'); `precos.test.mjs` 46 (900 → 720),
+  48 (3000 → 2400), 127 (2400 → 1920); `fluxo-api.test.mjs:76` (2175 → 1740, "40%"); `pagamentos.test.mjs` comentário :33,
+  :150 e :314 (2175 → 1740).
+- **Um oitavo ponto que o plano não listava:** `precos.test.mjs:67`, `assert.equal(e.sinal, e.valor_total / 2)` (falhou com
+  `2700 !== 3375`); agora usa a conta do motor com `REGRAS.sinal_percentual` (sem 50 ou 40 à mão).
+- `docs/fase2/REGRAS-RASCUNHO.md`: "Sinal: 50%" e a pergunta ao dono passaram a 40%.
+- **Citação de linha de Decisões.md:** o arquivo ganhou linhas (as de 3b D1-D6 e outras), então ":25" e ":22" do plano estão
+  velhas (a decisão de 40% está hoje na linha 41, "O site vende sozinho", "1 D - Sim"; o nome do Pix na 38). No JSON e no teste
+  novo citei pela data e pelo título, sem número de linha. Os testes da Task 5 que citam ":22" no comentário: também por título.
+- Suíte: 573 testes, 573 passam.
+
 ## Andamento
 
-próxima tarefa: 3
+próxima tarefa: 4
