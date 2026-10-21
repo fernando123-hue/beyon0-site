@@ -129,3 +129,10 @@ test('o guarda da D5 pega as variações de "aprovada sozinha"', () => {
     assert.ok(d5.test(frase), 'o guarda da D5 não pegou: ' + frase);
   assert.ok(!d5.test('Você aprova a prévia quando quiser'), 'não pode barrar a frase normal');
 });
+
+/* revisão do 3b-1, BAIXO-4: a mesma palavra nas duas páginas (D2: 2 listas de ajuste); a regra não muda */
+test('D2: o orçamento e /condicoes dizem "listas de ajuste", não "rodadas"', () => {
+  const cond = texto(ler('condicoes.html'));
+  assert.ok(cond.includes('2 listas de ajuste. Uma lista é um conjunto de pedidos mandado de uma vez.'), cond.slice(cond.indexOf('ajuste') - 40, cond.indexOf('ajuste') + 120));
+  assert.ok(!/rodadas? de ajuste/i.test(cond + ' ' + texto(HTML)), 'a palavra "rodada" saiu dos dois textos');
+});
