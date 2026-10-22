@@ -1,0 +1,16 @@
+[
+  ["https://www.instagram.com/exemplo", true],
+  ["HTTPS://www.facebook.com/exemplo", true],
+  ["http://exemplo.com", false],
+  ["https://localhost/a", false],
+  ["https://app.localhost/a", false],
+  ["https://127.0.0.1/a", false],
+  ["https://2130706433/", false],
+  ["https://[::1]/", false],
+  ["https://exemplo/", false],
+  ["https://usuario:senha@exemplo.com/", false],
+  ["https://exemplo.com:8443/", false],
+  ["https://exemplo.com/a b", false],
+  ["javascript:alert(1)", false],
+  ["não é link", false]
+]

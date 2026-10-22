@@ -1,0 +1,17 @@
+{
+  "versao": 1,
+  "enviado_em": "2026-10-22T09:00:00-04:00",
+  "autorizacao": { "texto": "Autorizo a Beyon Zero a usar este material (logo, fotos, contatos e textos) para fazer o meu site.", "marcada": true },
+  "dados": {
+    "whatsapp": "+5567999990001",
+    "servicos": [{ "nome": "Instalação de tomada", "descricao": "Com garantia de 90 dias" }, { "nome": "Revisão elétrica" }],
+    "horario": [{ "dias": "Seg a sex", "horas": "8h às 18h" }],
+    "bairros": ["Centro", "Jardim Veraneio"],
+    "provas": ["orçamento por escrito"],
+    "cor": "#1a7f5a",
+    "emails": ["contato@exemplo.com.br"],
+    "redes": ["https://www.instagram.com/exemplo"],
+    "fotos_com_pessoas": true
+  },
+  "arquivos": ["logo.png", "foto-01.jpg", "foto-02.webp"]
+}
