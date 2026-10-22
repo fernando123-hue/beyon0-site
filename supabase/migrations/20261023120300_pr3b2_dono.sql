@@ -87,3 +87,82 @@ begin
     execute format('grant execute on function app.%I(jsonb) to service_role', f);
   end loop;
 end $$;
+
+-- ---------- A ROTINA DIÁRIA: limpeza e reconciliação do armazém (spec §7, §9, §10) ----------
+-- o pedido acabou há tempo suficiente para o material sair? Nunca importado: 30 dias depois de concluído; no dia seguinte se foi
+-- encerrado OU se o SINAL foi estornado (a desistência em 7 dias é lei, CDC art. 49; M3 da revisão do plano). Confira que
+-- app.pagamentos tem `updated_at` (20261007130000_pagamentos.sql); se não tiver, use a data do estorno da auditoria.
+create function privado.material_vencido_pelo_fim(e app.entregas) returns boolean
+language sql stable security definer set search_path = '' as $$
+  select coalesce(
+    (e.passo = 'concluida' and e.updated_at < now() - interval '30 days')
+    or (e.passo = 'encerrada' and e.updated_at < now() - interval '1 day')
+    or exists (select 1 from app.pagamentos pg where pg.proposta_id = e.proposta_id and pg.parcela = 'sinal'
+                 and pg.status = 'estornado' and pg.updated_at < now() - interval '1 day'), false);
+$$;
+revoke all on function privado.material_vencido_pelo_fim(app.entregas) from public, anon, authenticated, service_role;
+
+-- A lista dos objetos vem DAQUI (storage.objects, uma consulta), nunca da listagem paginada do Storage.
+create function app.rotinas_material_pendencias(p jsonb) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare v_lim integer := least(greatest(coalesce((p ->> 'limite')::integer, 100), 1), 200); v_caminhos text[]; v_bytes bigint;
+begin
+  select coalesce(array_agg(u.caminho), '{}') into v_caminhos from (
+    select distinct t.caminho from (
+      -- (a) objeto sem linha
+      select o.name as caminho from storage.objects o
+       where o.bucket_id = 'material' and not exists (select 1 from app.material_arquivos a where a.caminho = o.name)
+      union all
+      -- (b) linha recusada ou removida cujo objeto ainda existe (o link de 2 h poderia ter gravado de novo)
+      select o.name from storage.objects o join app.material_arquivos a on a.caminho = o.name
+       where o.bucket_id = 'material' and a.status in ('recusado', 'removido')
+      union all
+      -- (c) reserva não conferida há mais de 24 h (com menos de 24 h é POUPADA: um envio em andamento não some)
+      select a.caminho from app.material_arquivos a where a.status = 'reservado' and a.created_at < now() - interval '24 hours'
+      union all
+      -- (d) 7 dias depois de importado pela produção
+      select a.caminho from app.material_arquivos a join app.materiais m on m.entrega_id = a.entrega_id
+       where a.status in ('conferido', 'reservado') and m.status = 'importado' and m.importado_em < now() - interval '7 days'
+      union all
+      -- (e) nunca importado: 30 dias depois do fim do pedido; encerrado (desistência e afins), no dia seguinte
+      select a.caminho from app.material_arquivos a join app.entregas e on e.id = a.entrega_id join app.materiais m on m.entrega_id = e.id
+       where a.status in ('conferido', 'reservado') and m.status in ('rascunho', 'enviado')
+         and privado.material_vencido_pelo_fim(e)
+    ) t order by t.caminho limit v_lim
+  ) u;
+  v_bytes := privado.bytes_no_balde();
+  return jsonb_build_object('caminhos', to_jsonb(v_caminhos), 'balde_bytes', v_bytes, 'balde_pct', round(v_bytes * 100.0 / 838860800)::integer, 'alarme', v_bytes >= 0.7 * 838860800);
+end $$;
+
+-- depois de o armazém apagar os objetos: marca as linhas, deixa o material "limpo" (os campos saem; a prova da autorização
+-- fica) e apaga os links do pedido vencidos há mais de 30 dias
+create function app.rotinas_material_baixar(p jsonb) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare v_caminhos text[]; v_n integer; r record; v_limpos integer := 0;
+begin
+  select coalesce(array_agg(x), '{}') into v_caminhos from jsonb_array_elements_text(coalesce(p -> 'caminhos', '[]'::jsonb)) x;
+  update app.material_arquivos set status = 'removido', removido_em = now(), motivo = coalesce(motivo, 'limpeza')
+   where caminho = any (v_caminhos) and status in ('reservado', 'conferido', 'recusado');
+  get diagnostics v_n = row_count;
+  for r in
+    select m.id, e.conversa_id, e.org_id from app.materiais m join app.entregas e on e.id = m.entrega_id
+     where (  (m.status = 'importado' and m.importado_em < now() - interval '7 days')
+           or (m.status in ('rascunho', 'enviado') and privado.material_vencido_pelo_fim(e)))
+       and not exists (select 1 from app.material_arquivos a where a.entrega_id = m.entrega_id and a.status in ('reservado', 'conferido'))
+  loop
+    update app.materiais set status = 'limpo', limpo_em = now(), dados = '{}', negocio = '{}', updated_at = now() where id = r.id;
+    perform privado.evento(r.org_id, r.conversa_id, 'material_limpo');
+    v_limpos := v_limpos + 1;
+  end loop;
+  delete from app.links_pedido where valido_ate < now() - interval '30 days' or revogado_em < now() - interval '30 days';
+  return jsonb_build_object('baixados', v_n, 'limpos', v_limpos);
+end $$;
+
+do $$
+declare f text;
+begin
+  foreach f in array array['rotinas_material_pendencias', 'rotinas_material_baixar'] loop
+    execute format('revoke all on function app.%I(jsonb) from public, anon, authenticated', f);
+    execute format('grant execute on function app.%I(jsonb) to service_role', f);
+  end loop;
+end $$;

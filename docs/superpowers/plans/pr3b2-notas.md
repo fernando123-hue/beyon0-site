@@ -119,6 +119,16 @@ suíte e mutação rodam uma vez no fim; nada de E2E, `verificar`, `acessibilida
 - Nenhum teste fora do arquivo novo lista `ACOES_PAINEL` (só `api/painel.mjs` e o Worker da Cloudflare, que o conferem no plano deles).
 - **Dono:** aplicar `supabase/migrations/20261023120300_pr3b2_dono.sql` (a Task 11 acrescenta funções no mesmo arquivo). Antes (B8): `select count(*) from app.conversas c where c.etapa = 'em_producao' and not exists (select 1 from app.entregas e where e.conversa_id = c.id);`
 
+## Task 11: rotina diária, limpeza e reconciliação
+
+- Vermelho visto: `Cannot find module '.../api/_material/limpeza.mjs'`. Verde: limpeza 8/8; api + auditoria-p0 + auditoria-p1 + entrega-painel verdes; `fila-direcoes` 45/45
+  (rodando junto com outros arquivos no PC ocupado ele estourou o tempo uma vez; sozinho passa).
+- Desvios (o teste decide):
+  1. `updated_at` de `app.pagamentos` é carimbado pelo banco (`privado.carimbar`) e volta para agora; o teste do estorno "há 2 dias" usa a licença `bz.restaurando = 'on'` numa transação
+     (só vale em conexão SQL sem usuário). Em produção o `updated_at` do estorno é o instante em que o estorno entrou, que é o que a regra quer.
+  2. `limpos` do teste M3 é `>= 1`: os outros testes do arquivo deixam pedidos vencidos no mesmo banco e a rotina os limpa também.
+- Subpedidos da rotina na conta: 5 no total (log `subpedidos`), bem abaixo de 45.
+
 ## Andamento
 
-próxima tarefa: 11
+próxima tarefa: 12

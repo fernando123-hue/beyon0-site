@@ -7,6 +7,7 @@
         60 dias, o contato dele em 12 meses, e o texto da conversa de quem pagou em 30 dias (menos contestação)
      2. retenção das métricas (~13 meses; antes era feita ao ABRIR o painel)
      2b. o pedido de modelos (PR 2a): vence quem não confirmou pelo WhatsApp em 72 h e apaga o hash do telefone e as redes no prazo
+     2c. (PR 3b-2) a limpeza e a reconciliação do armazém do material (reserva vencida, objeto sem linha, importado há 7 dias)
      3. a SAÚDE: app.rotinas_conferir grava a execução e os alertas do dia
         (pagamento que pede uma pessoa, teto de IA, IA falhando, freio por IP,
         rotina que falhou) e o dono recebe o resumo no celular pelo ntfy.sh
@@ -17,6 +18,8 @@
    coube vira alerta (como as falhas), nunca silêncio, e o resumo diz `parcial: true`.
    Uso: GET /api/rotinas?acao=diaria  com  Authorization: Bearer <CRON_SECRET>
    ========================================================================== */
+import { limparMaterial } from './_material/limpeza.mjs';
+import { criarArmazem } from './_material/armazem.mjs';
 import { conferirCron, segredoDoCron } from './_cron.mjs';
 import { criarTransporte } from './_vendas/transporte.mjs';
 import { banco as bancoMetricas } from './_banco.mjs';
@@ -65,6 +68,15 @@ export async function executar(request, env, deps = {}) {
   let pedidos = null;
   try { pedidos = await banco('vendas_expirar_pedidos', {}); }
   catch (e) { falhou('pedidos', e); }
+  /* (PR 3b-2) a limpeza e a reconciliação do armazém: 3 subpedidos (2 ao banco, 1 remoção em lote), dentro do orçamento da rotina */
+  let material = null;
+  const armazem = deps.armazem !== undefined ? deps.armazem : criarArmazem(env);
+  if (armazem) {
+    try {
+      material = await limparMaterial({ banco, armazem: { remover: gasto.contar(cs => armazem.remover(cs)) } });
+      if (material.alarme) falhas.push('alarme: o balde de material está em ' + material.balde_pct + '% do teto');
+    } catch (e) { falhou('material', e); }
+  }
   const metricas = deps.metricas || bancoMetricas(env);
   if (metricas && metricas.ligado) {
     try { await gasto.contar(iso => metricas.apagarAntigos(iso))(new Date(Date.now() - RETENCAO_METRICAS_DIAS * 864e5).toISOString()); }
@@ -88,7 +100,7 @@ export async function executar(request, env, deps = {}) {
       await bancoFinal('rotinas_avisado', {});
     } catch (e) { log({ nivel: 'erro', evento: 'alerta não enviado', erro: e && e.message ? e.message.slice(0, 80) : 'erro' }); }
   }
-  log({ nivel: falhas.length ? 'erro' : 'info', evento: 'diária', retencao, pedidos, alertas: saude.alertas.map(a => a.tipo), falhas, parcial, subpedidos: gasto.gastos() });
+  log({ nivel: falhas.length ? 'erro' : 'info', evento: 'diária', retencao, pedidos, alertas: saude.alertas.map(a => a.tipo), material, falhas, parcial, subpedidos: gasto.gastos() });
   if (parcial) log({ nivel: 'aviso', evento: 'rotina parcial', subpedidos: gasto.gastos() });
-  return json({ ok: !falhas.length, parcial, retencao, pedidos, saude });
+  return json({ ok: !falhas.length, parcial, retencao, pedidos, material, saude });
 }
