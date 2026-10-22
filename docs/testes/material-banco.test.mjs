@@ -197,3 +197,12 @@ test('o estado devolve o material salvo e a lista de arquivos (sem caminho), e o
   assert.deepEqual(est.entrega.material.arquivos.map(a => [a.id, a.papel, a.status]), [[r.arquivo_id, 'foto', 'reservado']]);
   assert.ok(!JSON.stringify(est.entrega).includes(r.caminho), 'o caminho do balde nunca vai ao navegador');
 });
+
+test('M2 (revisão): o freio de salvamento é de 600 por hora (preencher a tela digitando devagar não o atinge); o 601º é recusado', async () => {
+  const c = await nova();
+  for (let i = 0; i < 600; i++) {
+    const r = await rpc('vendas_material_salvar', { ...c.b, dados: { cor: i % 2 ? '#1a7f5a' : '#7a3e0b' } });
+    if (!r.ok) assert.fail('salvamento ' + (i + 1) + ' recusado: ' + JSON.stringify(r));
+  }
+  assert.deepEqual(await rpc('vendas_material_salvar', { ...c.b, dados: { cor: '#1a7f5a' } }), { ok: false, motivo: 'freio' });
+});

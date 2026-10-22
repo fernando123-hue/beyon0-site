@@ -69,3 +69,34 @@ test('as regras de CSS do material: botões de 44 px e texto de 16 px nos contro
   assert.match(css, /\.orc-arq__tirar[^{]*\{[^}]*min-(width|height):\s*44px/);
   assert.ok(!/font-size:\s*(1[0-5]px|\.[0-8]\d*rem)/.test(css.slice(css.indexOf('.orc-mat'))), 'texto que importa com 16 px ou mais no material');
 });
+
+test('M2 (revisão): 429 no salvamento espera 11 s e repete até 5 vezes; só a 429 repete; salvar o que não mudou não gasta o freio', async () => {
+  let n = 0; const esperas = [];
+  assert.equal(await M.repetirNo429(async () => { if (++n <= 3) throw Object.assign(new Error('x'), { status: 429 }); return 'ok'; }, { esperar: async ms => { esperas.push(ms); } }), 'ok');
+  assert.deepEqual(esperas, [11000, 11000, 11000]);
+  await assert.rejects(M.repetirNo429(async () => { throw Object.assign(new Error('x'), { status: 429 }); }, { esperar: async () => {}, vezes: 2 }), e => e.status === 429, 'depois da última tentativa vira erro');
+  let k = 0;
+  await assert.rejects(M.repetirNo429(async () => { k++; throw Object.assign(new Error('x'), { status: 400 }); }, { esperar: async () => {} }), e => e.status === 400);
+  assert.equal(k, 1, 'outro erro não repete');
+  assert.equal(M.mudouDe(['Centro'], ['Centro']), false); assert.equal(M.mudouDe(undefined, null), false); assert.equal(M.mudouDe('a', 'b'), true); assert.equal(M.mudouDe(undefined, 'a'), true);
+  const codigo = semComentario(FONTE);
+  assert.ok(/mudouDe\(/.test(codigo.slice(codigo.indexOf('async function salvar'), codigo.indexOf('function guardarLocal'))), 'salvar compara com o que o servidor já tem antes de pedir');
+});
+
+test('M3 (revisão): "Enviar" primeiro esvazia a fila de salvamentos (o que está agendado sai na hora e o que está em andamento termina)', async () => {
+  const fila = M.criarFilaDeSalvamento(), feitos = [];
+  fila.agendar('a', async () => { feitos.push('a1'); return true; }, 20);
+  fila.agendar('a', async () => { feitos.push('a2'); return true; }, 20);   /* o mesmo campo: só o último valor vale */
+  fila.agendar('b', async () => { await new Promise(r => setTimeout(r, 30)); feitos.push('b'); return true; }, 60000);
+  assert.equal(fila.pendentes(), 2);
+  assert.equal(await fila.esvaziar(), true);
+  assert.deepEqual(feitos.sort(), ['a2', 'b']);
+  assert.equal(fila.pendentes(), 0);
+  fila.agendar('c', async () => false, 60000);
+  assert.equal(await fila.esvaziar(), false, 'um salvamento que falhou impede o envio');
+  fila.agendar('d', async () => { throw new Error('rede'); }, 60000);
+  assert.equal(await fila.esvaziar(), false);
+  const agora = semComentario(FONTE);
+  const enviar = agora.slice(agora.indexOf('async function enviar()'), agora.indexOf('function somenteLeitura'));
+  assert.ok(enviar.indexOf('esvaziar()') > 0 && enviar.indexOf('esvaziar()') < enviar.indexOf('materialEnviar()'), 'enviar espera os salvamentos antes de enviar');
+});

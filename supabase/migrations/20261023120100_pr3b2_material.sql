@@ -34,7 +34,7 @@ begin
   if jsonb_typeof(v_dados) <> 'object' or jsonb_typeof(coalesce(p -> 'negocio', '{}'::jsonb)) <> 'object' or jsonb_typeof(coalesce(p -> 'autorizacao', '{}'::jsonb)) <> 'object' then
     raise exception 'material: parâmetros inválidos' using errcode = '22023';
   end if;
-  if not privado.freio_hora('mat|salvar|' || e.conversa_id, 120) then return jsonb_build_object('ok', false, 'motivo', 'freio'); end if;
+  if not privado.freio_hora('mat|salvar|' || e.conversa_id, 600) then return jsonb_build_object('ok', false, 'motivo', 'freio'); end if;
   if coalesce((p ->> 'usar_numero_do_pedido')::boolean, false) then
     select regexp_replace(coalesce(l.telefone, ''), '\D', '', 'g') into v_tel
       from app.conversas cv join app.leads l on l.id = cv.lead_id where cv.id = e.conversa_id;

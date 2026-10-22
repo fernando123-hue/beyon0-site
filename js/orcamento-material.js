@@ -11,7 +11,7 @@
   var ESQ = window.BZMaterialEsquema;
   var $ = function (id) { return document.getElementById(id); };
   var el = function (tag, cls, txt) { var e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
-  var SALVAR_MS = 700, ESPERA_FREIO_MS = 11000;
+  var SALVAR_MS = 1200, ESPERA_FREIO_MS = 11000, TENTATIVAS_FREIO = 5;
   var AVISO_DADOS = 'Não escreva CPF, CNPJ nem dados de outras pessoas.';
   var T = function (k, rotulo, min, max, opcional) { return { k: k, rotulo: rotulo, min: min, max: max, opcional: !!opcional }; };
 
@@ -66,27 +66,70 @@
     return saida.length ? saida : null;
   }
 
+  /* M2 (revisão): o freio do servidor (429) não derruba o salvamento: espera 11 s e repete (até 5 vezes), com o valor guardado na própria chamada.
+     Só a 429 repete; qualquer outro erro sobe como está. */
+  async function repetirNo429(fazer, o) {
+    var esperar = (o && o.esperar) || function (ms) { return new Promise(function (ok) { setTimeout(ok, ms); }); };
+    var vezes = (o && o.vezes) || TENTATIVAS_FREIO;
+    for (var t = 0; ; t++) {
+      try { return await fazer(); }
+      catch (e) {
+        if (!e || e.status !== 429 || t >= vezes) throw e;
+        if (o && o.aoEsperar) o.aoEsperar();
+        await esperar(ESPERA_FREIO_MS);
+      }
+    }
+  }
+  /* o campo mudou em relação ao que o servidor já tem? (salvar o mesmo valor de novo só gasta o freio) */
+  var chaveDe = function (v) { return JSON.stringify(v === undefined ? null : v); };
+  function mudouDe(atual, novo) { return chaveDe(atual) !== chaveDe(novo); }
+  /* M3 (revisão): os salvamentos agendados (um por campo; o último valor vale) e os em andamento. "Enviar" chama esvaziar():
+     o que está agendado sai na hora, e a promessa só resolve quando tudo terminou (true = tudo salvo) */
+  function criarFilaDeSalvamento() {
+    var agendados = {}, andando = new Set();
+    function executar(fazer) {
+      var p = Promise.resolve().then(fazer).then(function (r) { return r !== false; }, function () { return false; });
+      andando.add(p); p.then(function () { andando.delete(p); });
+      return p;
+    }
+    return {
+      agendar: function (campo, fazer, ms) {
+        if (agendados[campo]) clearTimeout(agendados[campo].t);
+        agendados[campo] = { fazer: fazer, t: setTimeout(function () { delete agendados[campo]; executar(fazer); }, ms) };
+      },
+      agora: function (campo, fazer) {
+        if (agendados[campo]) { clearTimeout(agendados[campo].t); delete agendados[campo]; }
+        return executar(fazer);
+      },
+      pendentes: function () { return Object.keys(agendados).length; },
+      esvaziar: function () {
+        Object.keys(agendados).forEach(function (campo) { var a = agendados[campo]; clearTimeout(a.t); delete agendados[campo]; executar(a.fazer); });
+        return Promise.all(Array.from(andando)).then(function (r) { return r.every(Boolean); });
+      }
+    };
+  }
+
   /* ---------- a tela ---------- */
   var estado = null;   /* { id, motor, atual: { dados, negocio, autorizacao }, entrega } */
-  var timers = {};
+  var fila = criarFilaDeSalvamento();
 
   function status() { var s = el('span', 'orc-mat__salvo'); s.setAttribute('role', 'status'); s.setAttribute('aria-live', 'polite'); return s; }
   async function salvar(campo, valor, saida, extra) {
     if (valor === false) { saida.classList.add('is-erro'); saida.textContent = 'Confira esse campo.'; return false; }
+    if (!extra && valor !== undefined && !mudouDe(valorAtualDe(campo), valor)) { saida.classList.remove('is-erro'); saida.textContent = 'Salvo'; return true; }   /* nada mudou: não gasta o freio */
     saida.classList.remove('is-erro'); saida.textContent = 'Salvando…';
     try {
-      try { await window.BZOrcamento.materialSalvar(campo, valor === undefined ? undefined : valor, extra); }
-      catch (e1) {   /* M6: o freio do servidor (429): espera e repete UMA vez, sem a pessoa tocar em nada */
-        if (!e1 || e1.status !== 429) throw e1;
-        saida.textContent = 'Aguardando um instante…';
-        await new Promise(function (ok) { setTimeout(ok, ESPERA_FREIO_MS); });
-        await window.BZOrcamento.materialSalvar(campo, valor === undefined ? undefined : valor, extra);
-      }
+      await repetirNo429(function () { return window.BZOrcamento.materialSalvar(campo, valor === undefined ? undefined : valor, extra); },
+        { aoEsperar: function () { saida.textContent = 'Aguardando um instante…'; } });   /* M2: espera e repete, sem a pessoa tocar em nada */
       saida.textContent = 'Salvo';
       guardarLocal(campo, valor);
       atualizarEnvio();
       return true;
     } catch (e) { saida.classList.add('is-erro'); saida.textContent = (e && e.message) || 'Não foi possível salvar agora.'; return false; }
+  }
+  function valorAtualDe(campo) {
+    var p = campo.indexOf('.') > 0 ? campo.split('.') : ['dados', campo];
+    return estado && estado.atual[p[0]] ? estado.atual[p[0]][p[1]] : undefined;
   }
   function guardarLocal(campo, valor) {
     var p = campo.indexOf('.') > 0 ? campo.split('.') : ['dados', campo];
@@ -94,10 +137,10 @@
     if (valor === null) delete estado.atual[p[0]][p[1]]; else if (valor !== undefined) estado.atual[p[0]][p[1]] = valor;
   }
   function depois(campo, ler, saida) {
-    saida.textContent = ''; clearTimeout(timers[campo]);
-    timers[campo] = setTimeout(function () { salvar(campo, ler(), saida); }, SALVAR_MS);
+    saida.textContent = '';
+    fila.agendar(campo, function () { return salvar(campo, ler(), saida); }, SALVAR_MS);
   }
-  function aoSair(campo, ler, saida) { clearTimeout(timers[campo]); salvar(campo, ler(), saida); }
+  function aoSair(campo, ler, saida) { fila.agora(campo, function () { return salvar(campo, ler(), saida); }); }
 
   function campoBase(def) {
     var sec = el('div', 'orc-mat__campo'), id = 'o-mat-' + def.campo.replace(/\./g, '-');
@@ -304,7 +347,12 @@
     var env = $('o-mat-enviar'), erro = $('o-mat-erro');
     if (env.getAttribute('aria-disabled') === 'true') { var f = $('o-mat-falta'); f.setAttribute('tabindex', '-1'); f.focus(); return; }   /* desligado: o foco vai ao que falta */
     env.setAttribute('aria-disabled', 'true'); erro.classList.remove('is-erro'); erro.textContent = 'Enviando…';
-    try { await window.BZOrcamento.materialEnviar(); erro.textContent = ''; estado.id = null; await estado.recarregar(); $('o-mat-titulo').focus(); }
+    try {
+      /* M3 (revisão): o último campo digitado ainda pode estar agendado ou salvando: ele sai e termina ANTES de enviar */
+      if (!(await fila.esvaziar())) { erro.classList.add('is-erro'); erro.textContent = 'Um campo não foi salvo. Confira o aviso ao lado dele e toque em Enviar de novo.'; atualizarEnvio(); return; }
+      atualizarEnvio();
+      if (env.getAttribute('aria-disabled') === 'true') { erro.textContent = ''; return; }   /* o que acabou de ser salvo mudou o "Falta:" */
+      await window.BZOrcamento.materialEnviar(); erro.textContent = ''; estado.id = null; await estado.recarregar(); $('o-mat-titulo').focus(); }
     catch (e) {
       erro.classList.add('is-erro'); erro.textContent = (e && e.message) || 'Não foi possível enviar agora.';
       atualizarEnvio();
@@ -366,5 +414,5 @@
     estado.motor.hidratar(e.material.arquivos);
   }
 
-  window.BZMaterial = { atualizar: atualizar, blocos: BLOCOS, formatarTelefone: formatarTelefone, lerLista: lerLista, lerObjetos: lerObjetos };
+  window.BZMaterial = { atualizar: atualizar, blocos: BLOCOS, formatarTelefone: formatarTelefone, lerLista: lerLista, lerObjetos: lerObjetos, repetirNo429: repetirNo429, mudouDe: mudouDe, criarFilaDeSalvamento: criarFilaDeSalvamento };
 })();
