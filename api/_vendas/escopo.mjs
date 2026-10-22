@@ -77,9 +77,9 @@ export function montarEscopo({ estimativa, direcao, alteracoesAplicadas, briefin
   linhas.push('PRAZO: até ' + estimativa.prazo_dias + ' dias úteis, contados do sinal pago e do material recebido. Sábado, domingo e feriado nacional não contam. Enquanto espero a sua lista de ajustes, o prazo fica parado.');   /* (úteis: decisão do dono de 21/10, que revê a de 09/10; o prazo parado é a D4 de 21/10) */
   /* (PR 3b-3a, MÉDIO-3 do 3b-1) as outras regras da D4 que a Beyon vai aplicar: o cliente as confirma aqui, em "Li e confirmo". O texto é o de /condicoes, literal da captação (decisão do dono de 22/10; o teste de coerência confere) */
   linhas.push('MATERIAL: Nada vai ao ar sem o seu material e a sua autorização: enquanto ele não chegar, eu aviso que estou aguardando e o projeto fica parado.');
-  linhas.push('AJUSTES: 2 listas de ajuste na prévia. O que passar das duas listas é orçado à parte.');
-  linhas.push('RESTANTE: o restante é pago por Pix quando o site estiver no ar. Se o restante não for pago em 3 dias depois do meu aviso de que o site está no ar, ele sai do ar até o pagamento. Antes disso eu lembro duas vezes, no segundo e no terceiro dia.');
-  linhas.push('ATRASO: se a Beyon Zero não entregar no prazo combinado, a entrada é devolvida inteira, mesmo depois dos 7 dias.');
+  linhas.push('AJUSTES: 2 listas de ajuste na prévia (uma lista é o conjunto de pedidos que você manda de uma vez). O que passar das duas listas é orçado à parte.');
+  linhas.push('RESTANTE: você paga o restante por Pix quando o site estiver no ar. Se o restante não for pago em 3 dias depois do meu aviso de que o site está no ar, ele sai do ar até o pagamento. Antes disso eu lembro duas vezes, no segundo e no terceiro dia.');
+  linhas.push('ATRASO: se eu não entregar no prazo combinado, devolvo a entrada inteira, mesmo depois dos 7 dias.');
   linhas.push('', 'Os textos, imagens e dados de prova social marcados como espaço reservado nas prévias são preenchidos com o material real do cliente.');
   return { titulo: titulo.slice(0, 160), escopo: linhas.join('\n').slice(0, 20000) };
 }
