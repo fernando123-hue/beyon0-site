@@ -33,6 +33,7 @@ test('paridade com a Vercel: a saída == o que a Vercel serve hoje, nos dois sen
   const destino = fs.mkdtempSync(path.join(os.tmpdir(), 'publico-'));
   const saida = montarPublico({ raiz: RAIZ, destino, arquivos: versionados }).sort();
   assert.deepEqual(saida.filter(a => a !== '_headers'), esperado.filter(a => a !== '_headers'));
+  assert.ok(saida.includes('_headers'), '_headers sobe com os assets');
   for (const a of ['painel.css', 'privacidade.css', 'resumo.css', '404.html', 'favicon.ico']) assert.ok(saida.includes(a), a);
 });
 test('nunca sobe: código, docs, banco, segredo, configuração', () => {
