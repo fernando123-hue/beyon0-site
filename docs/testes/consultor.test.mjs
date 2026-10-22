@@ -171,7 +171,7 @@ test('avaliador: as regras gerais reprovam o que o consultor nunca pode dizer, e
   assert.ok(falhas('Qual o seu contato?').includes('não pede contato no texto'));
   for (const d of ['Fica em mil e quinhentos.', 'Sai por 1500.', 'Uns 3k no total.', 'Fica 3.200 no total.']) assert.ok(falhas(d).includes('sem dinheiro no texto'), d);
   assert.deepEqual(falhas('A entrega é em até 10 dias depois do sinal.'), [], 'prazo em dias pode');
-  assert.deepEqual(falhas('Até 10 dias corridos, contados do sinal pago e do material recebido.'), [], 'dias corridos (decisão do dono) também pode');
+  assert.deepEqual(falhas('Até 10 dias úteis, contados do sinal pago e do material recebido.'), [], 'dias úteis (decisão do dono de 21/10) também pode');
 });
 
 test('avaliador: as expectativas dos roteiros não reprovam a recusa certa', async () => {

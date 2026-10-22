@@ -81,6 +81,17 @@ export function criarVisitantes(env = process.env, { ip } = {}) {
           throw new AuthIndisponivel('auth sem resposta: ' + e.message);
         }
         return u ? u.id : null;
+      },
+      /* "Sair deste aparelho" (PR 3b-2, M1): o logout GLOBAL do próprio visitante (sem chave de admin). O Auth apaga as sessões e os
+         refresh tokens dele; como quem() confere o token no /auth/v1/user a cada ação, o aparelho antigo cai em 401 na hora.
+         401/403 = a sessão já estava invalidada (ok). Falha de rede ou 5xx sobe como AuthIndisponivel (503 recuperável) e a tela tenta de novo. */
+      async sair(request) {
+        const t = tokenDe(request);
+        if (!t) return false;
+        const r = await chamarAuth(cfg.url + '/auth/v1/logout?scope=global', { method: 'POST', headers: { apikey: cfg.publica, authorization: 'Bearer ' + t } }, SEM_LOGIN);
+        if (r.status === 401 || r.status === 403) return true;
+        if (!r.ok) throw new AuthIndisponivel('logout: HTTP ' + r.status);
+        return true;
       }
     };
   }

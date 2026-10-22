@@ -3,7 +3,9 @@
    passo do fluxo, em api/_vendas/fluxo.mjs).
      GET  estado, pagamento, pagamento-config, sessao-config, catalogo
      POST sessao, retomar, renovar, mensagem, gerar, gerar-direcao, escolher,
-          ajustar, desfazer, pedido-livre, escopo, confirmar, pagar, simular, confirmar-pacote, detalhes
+          ajustar, desfazer, pedido-livre, escopo, confirmar, pagar, simular, confirmar-pacote, detalhes,
+          material-salvar, material-reservar, material-conferir, material-remover, material-enviar (PR 3b-2: o material da entrega;
+          só com BZ_ENTREGA=ligada), link-pedido, sair-do-aparelho, outro-aparelho, abrir-pedido (PR 3b-2: o link do pedido)
    (PR 2a: o contato vem pelos detalhes; a ação "contato" saiu, porque passava por cima dos freios do pedido)
    (PR 3a: o ajuste pela IA, "alterar", saiu; os ajustes são opções prontas e o pedido livre vai para a fila do dono)
    Fronteira: freio por IP, JSON obrigatório (um formulário de outro site não
@@ -20,6 +22,7 @@ import { modoDirecoes } from './_ia/config.mjs';
 import { ambienteDe } from './_ambiente.mjs';
 import { criarFreio, ipDe } from './_freio.mjs';
 import { randomUUID } from 'node:crypto';
+import { criarArmazem } from './_material/armazem.mjs';
 import { configTurnstile, verificarHumano } from './_vendas/turnstile.mjs';
 
 export const ACOES = {
@@ -27,7 +30,10 @@ export const ACOES = {
   POST: { sessao: 'sessao', retomar: 'retomar', renovar: 'renovar', mensagem: 'mensagem', gerar: 'gerar', 'gerar-direcao': 'gerarDirecao',
     escolher: 'escolher',
     ajustar: 'ajustar', desfazer: 'desfazer', 'pedido-livre': 'pedidoLivre', escopo: 'escopo', confirmar: 'confirmar', pagar: 'pagar',
-    simular: 'simular', 'confirmar-pacote': 'confirmarPacote', detalhes: 'detalhes' }
+    simular: 'simular', 'confirmar-pacote': 'confirmarPacote', detalhes: 'detalhes',
+    'material-salvar': 'materialSalvar', 'material-reservar': 'materialReservar', 'material-conferir': 'materialConferir',
+    'material-remover': 'materialRemover', 'material-enviar': 'materialEnviar',
+    'link-pedido': 'linkPedido', 'sair-do-aparelho': 'sairDoAparelho', 'outro-aparelho': 'outroAparelho', 'abrir-pedido': 'abrirPedido' }
 };
 const PRECISA_IA = new Set(['mensagem', 'gerarDirecao']);
 export const LIMITE_BYTES = 16384;
@@ -52,7 +58,7 @@ export async function atender(request, env, metodo, deps) {
   const acao = Object.hasOwn(ACOES, metodo) && Object.hasOwn(ACOES[metodo], nome) ? ACOES[metodo][nome] : null;   /* (não "constructor", "__proto__"…) */
   if (!acao) return responder({ erro: 'Ação inválida.' }, 404);
   const ip = ipDe(request);
-  const criaSessao = acao === 'sessao' || acao === 'retomar';   /* (a retomada também cria um visitante anônimo e testa códigos: mesma cota) */
+  const criaSessao = acao === 'sessao' || acao === 'retomar' || acao === 'abrirPedido';   /* (a retomada também cria um visitante anônimo e testa códigos: mesma cota) */
   if (freioGeral(ip) || (criaSessao && freioSessao(ip))) return responder({ erro: 'Muitas requisições. Espere um minuto.' }, 429);
 
   let corpo = null;
@@ -74,7 +80,7 @@ export async function atender(request, env, metodo, deps) {
   if (acao === 'sessaoConfig') return responder({ turnstile: cfgTurnstile.siteKey, consultor: semConsultorLocal ? false : deps ? !!deps.ia : !!(await criarIA(env)) });
 
   /* segredoFreio: o HMAC do IP no freio diário (api/_vendas/ip.mjs); um segredo próprio, ou o do servidor do Supabase */
-  const d = deps || { banco: criarTransporte(env), visitantes: criarVisitantes(env, { ip }), ia: await criarIA(env), segredoFreio: env.FREIO_SEGREDO || env.SUPABASE_CHAVE_SECRETA };
+  const d = deps || { banco: criarTransporte(env), visitantes: criarVisitantes(env, { ip }), ia: await criarIA(env), segredoFreio: env.FREIO_SEGREDO || env.SUPABASE_CHAVE_SECRETA, armazem: criarArmazem(env) };
   if (!deps && d.banco) {
     const cfg = configPagamentos(env);
     if (cfg.ativo) d.pagamentos = criarServicoPagamentos({ banco: d.banco, cfg });

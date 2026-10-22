@@ -1,0 +1,9 @@
+[
+  { "nome": "png", "hex": "89504e470d0a1a0a0000000d49484452", "captacao": "png", "site": "png" },
+  { "nome": "jpeg", "hex": "ffd8ffe000104a46494600010100000100", "captacao": "jpg", "site": "jpg" },
+  { "nome": "webp", "hex": "52494646240000005745425056503820", "captacao": "webp", "site": "webp" },
+  { "nome": "svg (2048 bytes na captação; o Worker só vê 16)", "hex": "3c737667207868746d6c3d22687474703a", "captacao": "svg", "site": null },
+  { "nome": "html com extensão .jpg", "hex": "3c68746d6c3e3c626f64793e68656c6c", "captacao": null, "site": null },
+  { "nome": "RIFF que não é WebP (WAVE)", "hex": "52494646240000005741564566666d20", "captacao": null, "site": null },
+  { "nome": "curto demais", "hex": "ffd8", "captacao": null, "site": null }
+]

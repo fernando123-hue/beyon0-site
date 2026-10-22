@@ -57,6 +57,20 @@ test('CSP do /orcamento: sem origem que a página não usa (Google), com Mercado
   for (const origem of ['https://secure-fields.mercadopago.com', 'https://challenges.cloudflare.com']) assert.ok(d['frame-src'].includes(origem), origem);
 });
 
+test('CSP do /orcamento (PR 3b-2): o envio direto só para o caminho de envio assinado do Supabase, e blob: só nas imagens; nenhuma outra página muda', () => {
+  const d = diretivas(cspDoHeader('/orcamento'));
+  const supabase = d['connect-src'].split(' ').filter(x => /supabase/.test(x));
+  assert.deepEqual(supabase, ['https://*.supabase.co/storage/v1/object/upload/sign/'],
+    'connect-src: SÓ o caminho de envio assinado (troque o curinga pelo endereço do projeto quando o dono disser)');
+  assert.ok(d['img-src'].split(' ').includes('blob:'), 'img-src: blob: para as miniaturas feitas no aparelho');
+  for (const dir of ['script-src', 'style-src', 'default-src', 'frame-src', 'font-src']) assert.ok(!/blob:|supabase/.test(d[dir]), dir + ' não ganha blob: nem Supabase');
+  assert.ok(!/'unsafe-inline'|'unsafe-eval'/.test(cspDoHeader('/orcamento')), 'nada de inline nem eval');
+  for (const caminho of ['/', '/sites', '/automacao', '/painel', '/privacidade']) {
+    const csp = cspDoHeader(caminho);
+    assert.ok(csp && !/supabase|blob:/.test(csp), caminho + ': a CSP geral não mudou');
+  }
+});
+
 /* (auditoria 2026-10-09, segurança 1) o .vercelignore pode não valer num deploy feito pelo Git: o que é do repositório
    e não é página nem asset tem de ter uma regra no vercel.json que o tire do ar (o mesmo padrão de /docs e /supabase:
    redirect para a página inicial). A lista vem do próprio git: um arquivo ou pasta novo na raiz sem regra falha aqui. */

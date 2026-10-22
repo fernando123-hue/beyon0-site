@@ -13,3 +13,14 @@
 ed85949ffe5f5efc1344af61d79c5eb2e3b06919:docs/testes/fila-direcoes.test.mjs:stripe-access-token:462
 # O 1º texto deste comentário (commit 8b84077) repetia o literal e foi lido de novo; saiu no commit seguinte.
 8b840772d069e0c707dccc3d2a821689e66e4c1f:.gitleaksignore:stripe-access-token:10
+#
+# 2026-10-22, PR #53 (3b-2, commits 0aab408 e 907595e): valores FALSOS de teste lidos pela regra generic-api-key:
+# a chave secreta do Supabase do ENV de teste (prefixo de chave + texto que diz que é de teste) e o token da URL
+# assinada falsa que o armazém simulado devolve. Só existem nos testes de docs/testes/armazem.test.mjs e no plano
+# que os copiou; nunca foram chave real. Precisam ter forma de chave para o teste provar a troca de caminho por URL.
+0aab4087aa8c7eb875248cf573077c038fa9ec49:docs/testes/armazem.test.mjs:generic-api-key:13
+0aab4087aa8c7eb875248cf573077c038fa9ec49:docs/testes/armazem.test.mjs:generic-api-key:89
+0aab4087aa8c7eb875248cf573077c038fa9ec49:docs/testes/armazem.test.mjs:generic-api-key:92
+907595ef7ad509954789b719f463847ffb0f5880:docs/superpowers/plans/2026-10-21-pr3b2-material.md:generic-api-key:2116
+907595ef7ad509954789b719f463847ffb0f5880:docs/superpowers/plans/2026-10-21-pr3b2-material.md:generic-api-key:2192
+907595ef7ad509954789b719f463847ffb0f5880:docs/superpowers/plans/2026-10-21-pr3b2-material.md:generic-api-key:2195

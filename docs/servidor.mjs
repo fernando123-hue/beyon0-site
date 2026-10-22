@@ -33,6 +33,7 @@ const TIPOS = {
 /* /api/* como na Vercel: o arquivo api/<nome>.mjs exporta GET/POST(Request) e devolve um Response.
    Aqui o banco é o de memória (BZ_LOCAL=1, api/_banco.mjs); a chave do painel vem de PAINEL_CHAVE. */
 process.env.BZ_LOCAL = '1';
+process.env.BZ_ENTREGA = 'ligada';   /* (só no servidor local: o interruptor da entrega, api/_material/interruptor.mjs) */
 delete process.env.SUPABASE_URL;    /* (teste local nunca grava no banco de produção) */
 delete process.env.SUPABASE_CHAVE_SECRETA;
 delete process.env.SUPABASE_CHAVE_PUBLICA;
@@ -65,10 +66,25 @@ async function api(req, res, caminho) {
   res.end(Buffer.from(await resposta.arrayBuffer()));
 }
 
+/* o armazém de mentira do ambiente local (api/_material/armazem-local.mjs): o PUT do navegador no link assinado e a
+   leitura do painel. Só existe aqui (docs/ não vai para o deploy). */
+async function armazemLocal(req, res) {
+  const arm = globalThis.__BZ_LOCAL && globalThis.__BZ_LOCAL.armazem;
+  if (!arm) { res.writeHead(404); return res.end(); }
+  const url = new URL(req.url, 'http://x');
+  const partes = [];
+  for await (const p of req) partes.push(p);
+  const r = req.method === 'PUT' ? arm.gravarPorUrl(url.pathname + url.search, Buffer.concat(partes), req.headers['content-type'] || '')
+    : req.method === 'GET' ? arm.lerPorUrl(url.pathname) : { status: 405 };
+  res.writeHead(r.status, { 'content-type': r.tipo || 'application/json', 'cache-control': 'no-store' });
+  res.end(r.bytes ? Buffer.from(r.bytes) : JSON.stringify({ status: r.status }));
+}
+
 const hostDe = req => req.headers.host || req.headers[':authority'];
 async function atender(req, res) {
   try {
     if (!HOSTS.has(hostDe(req))) { res.writeHead(421); return res.end(); }
+    if (req.url.startsWith('/_armazem-local/')) return await armazemLocal(req, res);
     if (req.url.startsWith('/api/')) return await api(req, res, new URL(req.url, 'http://x').pathname);
     let caminho = decodeURIComponent(new URL(req.url, 'http://x').pathname);
     if (caminho.endsWith('/')) caminho += 'index.html';

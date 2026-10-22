@@ -31,6 +31,9 @@ import { criarAcoesDoPedido } from './fluxo-pedido.mjs';
 import { criarAcoesDaRetomada } from './fluxo-retomada.mjs';
 import { criarAcoesDosAjustes } from './fluxo-ajustes.mjs';
 import { PEDIDOS } from './pedido.mjs';
+import { criarAcoesDoMaterial } from './fluxo-material.mjs';
+import { criarAcoesDoLink } from './fluxo-link.mjs';
+import { entregaLigada } from '../_material/interruptor.mjs';
 
 import { ORG } from './org.mjs';
 export { ORG };
@@ -136,7 +139,7 @@ function landingGrandeDemais(formato, adicionais, tabela) {
 const publicaRec = rec => ({ formato: rec.formato, alternativa: rec.alternativa, fale_comigo: rec.fale_comigo, sugestoes: rec.sugestoes,
   motivo: rec.motivo, assumido: rec.assumido });
 
-export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoFreio, requestId, direcoes, env, limitesPedido = PEDIDOS }) {
+export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoFreio, requestId, direcoes, env, limitesPedido = PEDIDOS, armazem }) {
   /* as direções: geradas pela API na hora, ou na FILA MANUAL (o dono produz no Claude Code, em até 24 horas úteis;
      decisão do dono 2026-10-08). Os testes passam o modo; o site lê BZ_DIRECOES */
   const modo = direcoes === 'manual' || direcoes === 'api' ? direcoes : 'manual';
@@ -297,6 +300,8 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     ...acoesDoPedido,
     ...criarAcoesDaRetomada({ banco, visitantes }),
     ...criarAcoesDosAjustes({ banco, visitante, estado, exigirNaoDescartado }),
+    ...criarAcoesDoMaterial({ banco, visitante, estado, armazem, segredoFreio, requestId, env }),
+    ...criarAcoesDoLink({ banco, visitante, visitantes, segredoFreio, env }),
 
     /* começar: cria o visitante anônimo e a conversa, com a origem da visita (das métricas, sem dado pessoal) */
     async sessao({ corpo }) {
@@ -324,7 +329,9 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       const { fila_confirmados: naFila, ...e } = await estado(vid, query.get('conversa'));
       delete e.conversa.custo_ia_usd;   /* (métrica interna) */
       /* (PR 2a) a tela oferece o WhatsApp ANTES dos detalhes quando a fila do dono está cheia; o número em si é interno */
-      return { ...e, fila_cheia: Number(naFila) >= limitesPedido.fila_confirmados, modo_direcoes: modo };   /* (a tela troca "alguns minutos" por "até 24 horas úteis") */
+      /* (PR 3b-2, M5) a entrega só aparece com o interruptor ligado; desligado, a tela mostra a saída pelo WhatsApp */
+      if (!entregaLigada(env)) delete e.entrega;
+      return { ...e, fila_cheia: Number(naFila) >= limitesPedido.fila_confirmados, modo_direcoes: modo, entrega_ligada: entregaLigada(env) };   /* (a tela troca "alguns minutos" por "até 24 horas úteis") */
     },
 
     /* o catálogo público da tabela ativa (o "Quer ajustar?"): só com a sessão e a conversa deste visitante, antes do contato */

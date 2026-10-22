@@ -13,7 +13,7 @@
       âncoras vem de `data-ancoras` no próprio <script>; o destino, de
       `data-destino` — nunca da URL (sem open redirect).
 
-   3. Link do aviso do pedido (`/orcamento#retomar=<código>`): a página de trás (etapas, preço vazio, conversa) já nasce
+   3. Link do aviso do pedido (`/orcamento#retomar=<código>`) ou o link do pedido (`/orcamento#pedido=<código>`, PR 3b-2): a página de trás (etapas, preço vazio, conversa) já nasce
       escondida, no 1º quadro. Quem esconde é a classe `orc-retomando` (css/orcamento.css); o js/orcamento-retomada.js
       é um dos últimos scripts `defer` e, num celular lento, a 1ª pintura aparecia antes dele, com "01 Perguntas" e o
       cartão vazio, e depois tudo pulava. Só vale com esse hash: nas outras páginas e links nada muda.
@@ -35,7 +35,7 @@
     if (!botao || botao.hidden) html.classList.remove('tem-menu');
   });
   /* (3) o mesmo prefixo de js/orcamento-retomada.js (PREFIXO): se mudar lá, mude aqui */
-  var retomando = location.hash.indexOf('#retomar=') === 0;
+  var retomando = /^#(retomar|pedido)=/.test(location.hash);
   if (retomando) {
     html.classList.add('orc-retomando');
     /* rede: se o js/orcamento-retomada.js nunca chegar (rede, bloqueio), a classe sai no load; sem isso a página

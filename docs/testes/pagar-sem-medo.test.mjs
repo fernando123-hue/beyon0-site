@@ -40,28 +40,23 @@ const JS = fs.readdirSync(new URL('../../js/', import.meta.url)).filter(f => /^o
 const semComentarioJs = s => s.replace(/\/\*[\s\S]*?\*\//g, '');
 const antes = () => entre(HTML, 'id="o-antes"', '</section>');
 const perguntas = () => [...antes().matchAll(/<summary>([\s\S]*?)<\/summary>/g)].map(m => texto(m[1]));
-/* as perguntas do 3b-1 (spec §4, coluna "Quando entra" = 3b-1). "Quantos ajustes?" (D2) é da Task 7 e "Quando fica pronto?" (D4) da Task 9 */
-const PERMITIDAS = ['Posso desistir?', 'Quando fica pronto?', 'Quantos ajustes?'];
+/* as perguntas do 3b-1 e do 3b-2 (spec §4, coluna "Quando entra"). "Como mando fotos e textos?" é do 3b-2; "Quantos ajustes?" (D2) é da Task 7 e "Quando fica pronto?" (D4) da Task 9 */
+const PERMITIDAS = ['Posso desistir?', 'Quando fica pronto?', 'Quantos ajustes?', 'Como mando fotos e textos?'];
 /* frases barradas: as que só entram com a parte delas (3b-2, 3b-3) ou com dado do dono, e as que o dono revisou e nunca entram (D2, D5) */
 const AINDA_NAO = [
   [/Quando pago o restante/i, 'com o 3b-3'],
-  [/Como mando fotos/i, 'com o 3b-2'],
-  [/precisa mandar nada pelo WhatsApp/i, 'com o 3b-2'],
   [/O que eu recebo/i, 'com o dado do dono (domínio e hospedagem)'],
   [/Nota fiscal/i, 'quando a spec trouxer (há decisão de 11/10, Decisões.md: sem nota por enquanto; a spec §4 deixa a pergunta para depois)'],
-  [/Guarde o link do seu pedido/i, 'com o 3b-2'],
-  [/passo \d de 4/i, 'com o 3b-2 (os passos antes de pagar)'],
   [/sai do ar/i, 'com o 3b-3: a regra vale (D4, 21/10) e a frase entra com a tela do restante'],
   [/prazo fica parado/i, 'com o 3b-3: a regra vale (D4, 21/10) e a frase entra com a tela da lista de ajustes'],
   [/(conta|vale) como aprovad|considerad\w* (como )?aprovad|aprova(d\w*|ção)? (sozinh|automátic|automatic)|sem resposta[^.]{0,40}aprovad/i, 'NUNCA (D5, 21/10): sem resposta o projeto para; nada é aprovado sozinho'],
   [/quantos precisar|sem limite de ajustes/i, 'NUNCA (D2, 21/10): são 2 listas de ajuste'],
-  [/Pôr na minha agenda/i, 'com a D1 (a tela do pedido) e o 3b-2'],
 ];
 
-test('perguntas antes de pagar: "Posso desistir?" com a lei e a decisão de 11/10 (Decisões.md); nenhuma fora da lista do 3b-1', () => {
+test('perguntas antes de pagar: "Posso desistir?" com a lei e a decisão de 11/10 (Decisões.md); nenhuma fora da lista do 3b-1 e do 3b-2', () => {
   assert.ok(perguntas().includes('Posso desistir?'), perguntas().join(' | '));
   assert.ok(texto(antes()).includes('Até 7 dias depois de aceitar (confirmar o resumo), por qualquer motivo, você recebe a entrada de volta (Código de Defesa do Consumidor, art. 49). Depois dos 7 dias, a entrada fica com a Beyon Zero.'), texto(antes()));
-  for (const p of perguntas()) assert.ok(PERMITIDAS.includes(p), 'pergunta que não é do 3b-1: ' + p);
+  for (const p of perguntas()) assert.ok(PERMITIDAS.includes(p), 'pergunta que não é do 3b-1 nem do 3b-2: ' + p);
 });
 
 test('nenhuma frase de parte que ainda não existe (3b-2, 3b-3), de dado do dono ou de decisão revista (D2, D5) aparece na página', () => {
@@ -104,7 +99,7 @@ test('D4 (21/10): a regra do prazo é a mesma no contrato, no consultor, em /con
   assert.match(consultor, /contados do sinal pago e do material recebido/);
   assert.match(texto(ler('condicoes.html')), /contados do pagamento da entrada e do envio do seu material/);
   assert.ok(perguntas().includes('Quando fica pronto?'), perguntas().join(' | '));
-  assert.ok(texto(antes()).includes('O prazo está no resumo do seu pedido, em dias corridos, contados do pagamento da entrada e do envio do seu material. Se o material não chegar em 30 dias, o site sai com as imagens do modelo.'), texto(antes()));
+  assert.ok(texto(antes()).includes('O prazo está no resumo do seu pedido, em dias úteis, contados do pagamento da entrada e do envio do seu material. Sábado, domingo e feriado nacional não contam. Se o material não chegar em 30 dias, o site sai com as imagens do modelo.'), texto(antes()));
   assert.ok(texto(antes()).includes('Se a Beyon Zero não entregar no prazo combinado, você recebe a entrada inteira de volta, mesmo depois dos 7 dias.'), texto(antes()));
 });
 
@@ -143,4 +138,24 @@ test('os passos do Pix: o "›" fica escondido do leitor de tela', () => {
   assert.ok(/<span aria-hidden="true">›<\/span>/.test(passos), passos);
   assert.ok(!passos.replace(/<span aria-hidden="true">›<\/span>/g, '').includes('›'), 'nenhum › solto');
   assert.ok(/<span class="sr-only">, depois<\/span>/.test(passos), 'o leitor de tela ouve o "depois"');
+});
+
+test('"Como mando fotos e textos?" (3b-2): aqui mesmo, depois da entrada, sem WhatsApp; entra no atalho', () => {
+  assert.ok(perguntas().includes('Como mando fotos e textos?'), perguntas().join(' | '));
+  assert.ok(texto(antes()).includes('Aqui mesmo, depois da entrada. Não precisa mandar nada pelo WhatsApp.'), texto(antes()));
+  assert.ok(texto(entre(HTML, 'href="#o-antes"', '</p>')).includes('como mando fotos e textos?'), 'o atalho acima do botão lista a pergunta nova');
+});
+
+test('os passos antes de pagar (3b-2, spec §4): 4 passos acima do Pix, sem data, com a entrada e o restante tirados da proposta', () => {
+  const passos = entre(HTML, 'id="o-antes-passos"', '</div>');
+  assert.ok(texto(passos).includes('Passo 1 de 4 · Entrada'));
+  for (const frase of ['Entrada por Pix', 'Você manda o seu material, aqui mesmo', 'Prévia do site, para aprovar', 'Site no ar e o restante']) assert.ok(texto(passos).includes(frase), frase);
+  assert.ok(!/\d+\s?%|R\$\s?\d/.test(passos), 'nenhum percentual nem valor escrito à mão: eles vêm da proposta (js/orcamento-entrega.js)');
+  assert.ok(!/\b\d{1,2}\/\d{1,2}\b|\bde (janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\b/.test(texto(passos)), 'sem data antes de pagar');
+  assert.ok(HTML.indexOf('id="o-antes-passos"') < HTML.indexOf('id="o-pix"'), 'a lista vem acima do Pix');
+  assert.ok(HTML.indexOf('id="o-antes-passos"') > HTML.indexOf('id="o-pagamento"'), 'dentro da tela da entrada');
+});
+
+test('as frases do 3b-3 continuam barradas (restante, prazo parado, sai do ar, aprovada sozinha) e nenhuma pergunta nova entrou', () => {
+  for (const alvo of ['Quando pago o restante', 'prazo fica parado', 'sai do ar']) assert.ok(AINDA_NAO.some(([re]) => re.test(alvo)), alvo + ' ainda barrada');
 });
