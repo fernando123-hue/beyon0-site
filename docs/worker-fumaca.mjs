@@ -6,9 +6,9 @@
    ar (publico/, cloudflare/, api/, wrangler.jsonc, package*.json) e usa o node_modules daqui por junção. Sem segredo
    nenhum, o Worker é a produção sem chaves: tudo tem de fechar.
    DATA DE COMPATIBILIDADE: o workerd que vem dentro de cada versão do Wrangler só aceita datas até a dele (o 4.136.3
-   aceita até 2026-09-28; o wrangler.jsonc pede 2026-10-21, que a Cloudflare de verdade aceita). Se o workerd local
-   recusar, a fumaça repete com a data máxima que ele disse aceitar (só aqui, no ensaio local; o arquivo não muda) e
-   avisa. Subir a versão do Wrangler (decisão do dono) faz esse caminho deixar de ser usado.
+   aceita até 2026-09-28, a data do wrangler.jsonc). A fumaça testa SEMPRE a configuração real: se o workerd recusar a
+   data, é falha (nada de repetir com outra data, que testaria um Worker diferente do que vai ao ar). Ao subir a versão
+   do Wrangler, a data do arquivo pode subir junto.
    ========================================================================== */
 import fs from 'node:fs';
 import os from 'node:os';
@@ -22,7 +22,6 @@ const WRANGLER = path.join(RAIZ, 'node_modules', 'wrangler', 'bin', 'wrangler.js
 const IP_DE_TESTE = '203.0.113.7';
 const LIMITE_STARTUP_MS = 400;
 const PEDIDOS_DO_FREIO = 60;
-const DATA_RECUSADA = /newest date supported by this server binary is "(\d{4}-\d{2}-\d{2})"/;
 const CRONS = [{ cron: '41 6 * * *', esperado: /rotina desligada/ }];
 const falhas = [];
 const ok = (nome) => console.log('  ok     ' + nome);
@@ -71,11 +70,9 @@ function empacotar(pasta) {
 }
 
 /* "Active" do perfil de inicialização = CPU gasta ao subir o Worker (o "Profile window" inclui espera) */
-function inicializacao(pasta, dataLocal) {
+function inicializacao(pasta) {
   console.log('inicialização (wrangler check startup)');
-  const args = ['check', 'startup', '--outfile', '.wrangler/startup.cpuprofile'];
-  if (dataLocal) args.push('--args=--compatibility-date=' + dataLocal);
-  const r = wrangler(args, pasta);
+  const r = wrangler(['check', 'startup', '--outfile', '.wrangler/startup.cpuprofile'], pasta);
   const texto = (r.stdout || '') + (r.stderr || '');
   if (r.status !== 0 && pedeLogin(r) && !process.env.CI) { console.log('  PULADO: o Wrangler pediu login (só no CI)'); return; }
   confere('check startup roda', r.status === 0, texto.slice(-400));
@@ -95,30 +92,22 @@ async function esperarPronto(base, filho, getLog) {
   throw new Error('wrangler dev não ficou pronto em 90 s:\n' + getLog().slice(-800));
 }
 
-/* sobe o wrangler dev; se o workerd recusar a data, repete com a data máxima que ele aceita (ver o topo) */
+/* sobe o wrangler dev com a configuração real do wrangler.jsonc (data recusada pelo workerd = erro aqui) */
 async function subirDev(pasta) {
-  let dataLocal = null;
-  for (let tentativa = 0; tentativa < 2; tentativa++) {
-    const porta = await portaLivre();
-    const base = 'http://127.0.0.1:' + porta;
-    const estado = { log: '' };
-    const args = [WRANGLER, 'dev', '--local', '--port', String(porta), '--ip', '127.0.0.1', '--test-scheduled'];
-    if (dataLocal) args.push('--compatibility-date', dataLocal);
-    const filho = spawn(process.execPath, args, { cwd: pasta, env: { ...ambiente, CI: '1' } });
-    filho.stdout.on('data', d => { estado.log += d; });
-    filho.stderr.on('data', d => { estado.log += d; });
-    try {
-      await esperarPronto(base, filho, () => estado.log);
-      return { filho, base, estado, dataLocal };
-    } catch (e) {
-      filho.kill();
-      const recusa = DATA_RECUSADA.exec(estado.log);
-      if (!recusa || dataLocal) throw e;
-      dataLocal = recusa[1];
-      console.log('  AVISO  o workerd deste Wrangler só aceita compatibility_date até ' + dataLocal + ' (o arquivo pede mais); ensaio local com ' + dataLocal);
-    }
+  const porta = await portaLivre();
+  const base = 'http://127.0.0.1:' + porta;
+  const estado = { log: '' };
+  const args = [WRANGLER, 'dev', '--local', '--port', String(porta), '--ip', '127.0.0.1', '--test-scheduled'];
+  const filho = spawn(process.execPath, args, { cwd: pasta, env: { ...ambiente, CI: '1' } });
+  filho.stdout.on('data', d => { estado.log += d; });
+  filho.stderr.on('data', d => { estado.log += d; });
+  try {
+    await esperarPronto(base, filho, () => estado.log);
+    return { filho, base, estado };
+  } catch (e) {
+    filho.kill();
+    throw e;
   }
-  throw new Error('wrangler dev não subiu');
 }
 
 async function disparar(base, cron) {
@@ -161,7 +150,7 @@ async function noWorker(dev) {
     const via = await disparar(base, cron);
     confere('cron ' + cron + ' disparável à mão', !!via, 'nenhum caminho de disparo respondeu');
     if (!via) continue;
-    await dormir(1500);
+    for (let i = 0; i < 20 && !esperado.test(estado.log); i++) await dormir(500);   /* (até 10 s: a máquina carregada atrasa o log) */
     confere('cron ' + cron + ' loga ' + esperado, esperado.test(estado.log), estado.log.slice(-300));
   }
 }
@@ -175,7 +164,7 @@ try {
   await noWorker(dev);
   dev.filho.kill();
   await dormir(1000);
-  inicializacao(pasta, dev.dataLocal);
+  inicializacao(pasta);
 } catch (e) {
   falha('execução', e.message);
 } finally {

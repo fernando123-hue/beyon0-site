@@ -153,7 +153,7 @@ test('os crons do wrangler.jsonc (produção e prévia) == as chaves da AGENDA',
 });
 test('wrangler.jsonc: produção fechada, prévia declarada, nada de segredo, nada que rode código no build', () => {
   const c = lerWrangler();
-  assert.ok(c.compatibility_flags.includes('nodejs_compat')); assert.equal(c.compatibility_date, '2026-10-21');
+  assert.ok(c.compatibility_flags.includes('nodejs_compat')); assert.equal(c.compatibility_date, '2026-09-28', 'a data que o workerd do Wrangler fixado (4.136.3) aceita: o ensaio local == o que vai ao ar');
   assert.equal(c.assets.directory, 'publico'); assert.deepEqual(c.assets.run_worker_first, ['/api/*']); assert.equal(c.assets.not_found_handling, '404-page');
   assert.equal(c.assets.html_handling, 'auto-trailing-slash');
   assert.equal(c.vars.BZ_AMBIENTE, 'producao'); assert.equal(c.vars.MP_AMBIENTE, 'producao'); assert.equal(c.vars.MP_METODOS, 'pix');
@@ -171,6 +171,12 @@ test('wrangler.jsonc: produção fechada, prévia declarada, nada de segredo, na
   const pkg = JSON.parse(fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
   for (const s of ['preinstall', 'install', 'postinstall', 'prepare', 'prepublish', 'prepack']) assert.equal(pkg.scripts[s], undefined, s);
   assert.equal(pkg.devDependencies.wrangler, '4.136.3', 'versão exata');
+});
+test('a fumaça testa a configuração real: sem troca automática da data de compatibilidade (revisão MÉDIO-1)', () => {
+  const fumaca = fs.readFileSync(new URL('../../docs/worker-fumaca.mjs', import.meta.url), 'utf8');
+  assert.doesNotMatch(fumaca, /DATA_RECUSADA|--compatibility-date|dataLocal/, 'data recusada pelo workerd tem de falhar, não repetir com outra data');
+  const wr = fs.readFileSync(new URL('../../wrangler.jsonc', import.meta.url), 'utf8');
+  assert.match(wr, /"compatibility_date": "2026-09-28"/);
 });
 test('package.json: scripts da Cloudflare e descrição sem Vercel; o lock fixa o wrangler', () => {
   const pkg = JSON.parse(fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
