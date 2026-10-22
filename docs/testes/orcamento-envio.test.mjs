@@ -162,3 +162,20 @@ test('a logo vai como está (sem reduzir); a foto passa pela redução', async (
   motor.adicionar([arq('f.jpg', 'image/jpeg', MB)], 'foto'); await esperar({ motor });
   assert.deepEqual(visto, ['logo', 'foto'], 'a função de redução é chamada com o papel; ela decide não mexer na logo');
 });
+
+test('M1 (revisão): PUT que responde 409 (já gravado antes: a resposta se perdeu) segue para a conferência, sem reservar nem reduzir de novo', async () => {
+  let n = 0;
+  const { motor, log } = montar({ enviar: async () => { if (++n === 1) throw Object.assign(new Error('O envio não terminou. Toque em "Tentar de novo".'), { status: 409 }); } });
+  motor.adicionar([arq('a.jpg', 'image/jpeg', MB)], 'foto'); await esperar({ motor });
+  assert.equal(motor.itens()[0].estado, 'enviado', 'o objeto já estava lá: a conferência decide');
+  assert.deepEqual(log.map(l => l[0]), ['reduzir', 'reservar', 'put', 'conferir']);
+  /* o Supabase também pode responder 400 com "Duplicate" / statusCode 409 no corpo */
+  const d = montar({ enviar: async () => { throw Object.assign(new Error('x'), { status: 400, corpo: '{"statusCode":"409","error":"Duplicate","message":"The resource already exists"}' }); } });
+  d.motor.adicionar([arq('b.jpg', 'image/jpeg', MB)], 'foto'); await esperar({ motor: d.motor });
+  assert.equal(d.motor.itens()[0].estado, 'enviado');
+  /* já gravado mas a conferência recusa (objeto de outro tamanho): erro na linha, como sempre */
+  const r = montar({ enviar: async () => { throw Object.assign(new Error('x'), { status: 409 }); }, conferir: async () => { throw erroHttp(422, 'O arquivo que chegou não é o que você escolheu. Tente de novo.'); } });
+  r.motor.adicionar([arq('c.jpg', 'image/jpeg', MB)], 'foto'); await esperar({ motor: r.motor });
+  assert.equal(r.motor.itens()[0].estado, 'erro');
+  assert.equal(V.jaGravado(409), true); assert.equal(V.jaGravado(400, 'Duplicate'), true); assert.equal(V.jaGravado(400, 'outro erro'), false); assert.equal(V.jaGravado(500, 'Duplicate'), false);
+});

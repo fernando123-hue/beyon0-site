@@ -56,6 +56,11 @@
       return blob && blob.size < arq.size ? { blob: blob, tipo: 'image/jpeg' } : original;
     } catch (e) { if (bmp && bmp.close) bmp.close(); return original; }
   }
+  /* M1 (revisão): o objeto já está no armazém (o PUT anterior gravou e a resposta se perdeu): o upsert desligado responde 409,
+     ou 400 com "Duplicate" / "already exists" no corpo. Não é falha: a conferência decide se o objeto serve */
+  function jaGravado(status, corpo) {
+    return status === 409 || (status === 400 && /duplicate|already exists|"statusCode"s*:s*"?409/i.test(String(corpo || '')));
+  }
   /* o PUT no link assinado (XHR: o fetch não mostra o progresso do envio). O armazém não precisa de chave nem do nome do arquivo */
   function enviarPut(url, corpo, tipo, aoProgresso) {
     return new Promise(function (ok, falha) {
@@ -63,7 +68,7 @@
       x.open('PUT', url);
       x.setRequestHeader('content-type', tipo);
       x.upload.onprogress = function (ev) { if (ev.lengthComputable) aoProgresso(ev.loaded / ev.total); };
-      x.onload = function () { if (x.status >= 200 && x.status < 300) ok(); else { var er = new Error(FRASES.envio); er.status = x.status; falha(er); } };
+      x.onload = function () { if (x.status >= 200 && x.status < 300) ok(); else { var er = new Error(FRASES.envio); er.status = x.status; er.corpo = String(x.responseText || '').slice(0, 300); falha(er); } };
       x.onerror = x.ontimeout = function () { falha(new Error(FRASES.rede)); };
       x.timeout = 120000;
       x.send(corpo);
@@ -108,7 +113,8 @@
         }
         if (!it.subiu) {
           it.estado = 'enviando'; mudou();
-          await comEspera(function () { return subir(it.url, it.blob, it.tipoFinal, function (f) { it.progresso = f; mudou(); }); });
+          try { await comEspera(function () { return subir(it.url, it.blob, it.tipoFinal, function (f) { it.progresso = f; mudou(); }); }); }
+          catch (ep) { if (!jaGravado(ep && ep.status, ep && ep.corpo)) throw ep; }   /* M1: já gravado antes */
           it.subiu = true;
         }
         it.estado = 'conferindo'; mudou();
@@ -165,5 +171,5 @@
     return { adicionar: adicionar, remover: remover, tentarDeNovo: tentarDeNovo, hidratar: hidratar, itens: function () { return itens.slice(); }, resumo: resumo };
   }
 
-  window.BZEnvio = { criar: criar, problemaDaEscolha: problemaDaEscolha, problemaDoTamanho: problemaDoTamanho, precisaReduzir: precisaReduzir, escalaFinal: escalaFinal, mb: mb, FRASES: FRASES };
+  window.BZEnvio = { criar: criar, problemaDaEscolha: problemaDaEscolha, problemaDoTamanho: problemaDoTamanho, precisaReduzir: precisaReduzir, escalaFinal: escalaFinal, jaGravado: jaGravado, mb: mb, FRASES: FRASES };
 })();
