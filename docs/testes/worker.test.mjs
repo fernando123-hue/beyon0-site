@@ -65,3 +65,31 @@ test('todo api/<nome>.mjs sem _ tem rota (endpoint novo esquecido falha)', () =>
   const nomes = fs.readdirSync(new URL('../../api/', import.meta.url)).filter(n => /^[a-z]+\.mjs$/.test(n)).map(n => n.slice(0, -4)).sort();
   assert.deepEqual(Object.keys(ROTAS).sort(), nomes);
 });
+
+/* ---- B2: a agenda (crons) ---- */
+import { agendar, AGENDA } from '../../cloudflare/agenda.mjs';
+import { parse as lerJsonc } from '../../cloudflare/jsonc.mjs';
+test('crons: reconciliar de 3 em 3 h e a diária, com o CRON_SECRET, pelas MESMAS funções', async () => {
+  const vistos = [];
+  const falsa = nome => async (req, env) => { vistos.push({ nome, url: req.url, auth: req.headers.get('authorization'), env }); return new Response('{}'); };
+  const env = { CRON_SECRET: 'c'.repeat(40) };
+  await agendar('23 */3 * * *', env, { pagamentos: falsa('pagamentos'), rotinas: falsa('rotinas') });
+  await agendar('41 6 * * *', env, { pagamentos: falsa('pagamentos'), rotinas: falsa('rotinas') });
+  assert.deepEqual(vistos.map(v => [v.nome, new URL(v.url).search, v.auth]), [
+    ['pagamentos', '?acao=reconciliar', 'Bearer ' + 'c'.repeat(40)], ['rotinas', '?acao=diaria', 'Bearer ' + 'c'.repeat(40)]]);
+});
+test('cron desconhecido ou segredo curto: não chama nada e loga erro', async () => {
+  let chamou = false;
+  const f = async () => { chamou = true; return new Response('{}'); };
+  await agendar('0 0 * * *', { CRON_SECRET: 'c'.repeat(40) }, { pagamentos: f, rotinas: f });
+  await agendar('41 6 * * *', { CRON_SECRET: 'curto' }, { pagamentos: f, rotinas: f });
+  assert.equal(chamou, false);
+});
+test('a AGENDA tem só as duas rotinas (o wrangler.jsonc é conferido no teste do B6)', () => {
+  assert.deepEqual(Object.keys(AGENDA).sort(), ['23 */3 * * *', '41 6 * * *']);
+});
+test('jsonc: tira comentários e vírgulas finais, mas não mexe em texto de string', () => {
+  const c = lerJsonc('{\n // linha\n "a": "http://x.com/*nao*/ // fica", /* bloco */ "b": [1, 2,],\n "c": {"d": 1,},\n}\n');
+  assert.deepEqual(c, { a: 'http://x.com/*nao*/ // fica', b: [1, 2], c: { d: 1 } });
+  assert.deepEqual(lerJsonc('{"s": "aspas \\" // dentro"}'), { s: 'aspas " // dentro' });
+});
