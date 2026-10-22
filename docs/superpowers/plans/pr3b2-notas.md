@@ -42,6 +42,14 @@ suíte e mutação rodam uma vez no fim; nada de E2E, `verificar`, `acessibilida
 - **Fora deste PR (avisar o coordenador):** `index.html` (197, 275), `sites.html` (63, 122, 267) e `condicoes.html` ainda dizem "10 dias corridos"
   para a entrega; `automacao.html:321` (teste de 10 dias do atendente) fica corrido. PR de texto próprio, com `condicoes_versao` nova.
 
+## Task 4: pacote versão 1
+
+- Vermelho visto: `Cannot find module '.../api/_material/pacote.mjs'`. Verde: pacote 11/11 (+ captacao-igual 6/6: o `formulario.json` do site passa na `lerFormulario` dela).
+- Desvio (resposta 6 da captação): `montarPedido` com segmento "saúde" LANÇA "cliente de saúde: produção manual" (a captação recusa `saude: true`);
+  o plano gerava `saude: true`. Os outros ramos vão com `saude: false` explícito. O PEDIDO de teste passou a "serviços".
+- Resposta 2 (`numero_em` = `enviado_em`, sem data futura ou anterior à entrada) e 7 (`aceite.em` = hora real do clique) entram na Task 8 (servidor).
+- A captação ainda não tem leitor de `pedido.json` (`importar-site` não existe): a igualdade do pedido fica só pelo contrato (§4/§6).
+
 ## Andamento
 
-próxima tarefa: 4
+próxima tarefa: 4b (feriados nacionais), depois 5

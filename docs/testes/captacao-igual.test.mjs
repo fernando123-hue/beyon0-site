@@ -75,3 +75,15 @@ test('captação: o prazo em dias úteis dá a mesma data e o mesmo vencimento (
     assert.equal(vencidoNosso(c.prazo, { prazoDias: c.prazo_dias, feriados }, new Date(c.agora)), vencidoDeles(cliente(c), entrega, new Date(c.agora)), c.nome);
   }
 });
+
+test('captação: o formulario.json que o site monta passa na lerFormulario', opcoes, async () => {
+  const { lerFormulario } = await importar('entrega/material.mjs');
+  const { montarFormulario } = await import('../../api/_material/pacote.mjs');
+  const ex = fixture('formulario-exemplo.json');
+  const arquivos = [{ papel: 'logo', ordem: 1, tipo_real: 'png' }, { papel: 'foto', ordem: 1, tipo_real: 'jpg' }, { papel: 'foto', ordem: 2, tipo_real: 'webp' }];
+  const { fotos_com_pessoas: _, ...dados } = ex.dados;
+  const f = montarFormulario({ material: { dados, autorizacao: { marcada: true, texto: ex.autorizacao.texto, fotos_com_pessoas: 'sim' }, enviado_em: '2026-10-22T13:00:00Z' }, arquivos });
+  const lido = lerFormulario(f);
+  assert.deepEqual(lido.arquivos, ['logo.png', 'foto-01.jpg', 'foto-02.webp']);
+  assert.equal(lido.autorizacao.resposta, 'marcada');
+});
