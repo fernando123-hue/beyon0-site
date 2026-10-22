@@ -157,12 +157,23 @@
     codigoPerdido: function () { return codigoPerdido; },
     /* o LINK DE RETOMADA (PR 2b-2): troca o código do aviso por uma sessão deste aparelho para o pedido. A conversa
        pode ser uma que este aparelho mandou recomeçar: o link é uma volta pedida, então ela deixa de ser "esquecida" */
-    retomar: async function (codigo) {
-      var s = await http('POST', 'retomar', await comAntiRobo({ codigo: codigo }), undefined, undefined, ESTADO_MS);
+    retomar: async function (codigo, acao) {
+      var s = await http('POST', acao || 'retomar', await comAntiRobo({ codigo: codigo }), undefined, undefined, ESTADO_MS);
+      /* (PR 3b-2, M4) quem abriu PELO link do pedido já o tem: este aparelho o guardou */
+      if (acao === 'abrir-pedido') { try { localStorage.setItem('bz-link-guardado', s.conversa_id); } catch (e) { /* sem armazenamento: o cartão apenas aparece */ } }
       try { if (localStorage.getItem(ESQUECIDA) === s.conversa_id) localStorage.removeItem(ESQUECIDA); } catch (e) { /* sem armazenamento */ }
       perdida = false; codigoPerdido = null;
       gravar({ token: s.token, refresh: s.refresh, expira_em: s.expira_em, conversa_id: s.conversa_id });
     },
+    /* (PR 3b-2) o link do pedido, a volta ao pedido e o material. O código do link só aparece na resposta da CRIAÇÃO */
+    linkPedido: function (novo) { return chamar('POST', 'link-pedido', comConversa(novo ? { novo: true } : {}), undefined, ESTADO_MS); },
+    sairDoAparelho: function () { return chamar('POST', 'sair-do-aparelho', comConversa(), undefined, ESTADO_MS); },
+    outroAparelho: function () { return chamar('POST', 'outro-aparelho', comConversa(), undefined, ESTADO_MS); },
+    materialSalvar: function (campo, valor, extra) { return chamar('POST', 'material-salvar', comConversa(Object.assign({ campo: campo, valor: valor }, extra || {})), undefined, ESTADO_MS); },
+    materialReservar: function (papel, tipo, tamanho) { return chamar('POST', 'material-reservar', comConversa({ papel: papel, tipo: tipo, tamanho: tamanho }), undefined, ESTADO_MS); },
+    materialConferir: function (id) { return chamar('POST', 'material-conferir', comConversa({ arquivo_id: id }), undefined, ESTADO_MS); },
+    materialRemover: function (id) { return chamar('POST', 'material-remover', comConversa({ arquivo_id: id }), undefined, ESTADO_MS); },
+    materialEnviar: function () { return chamar('POST', 'material-enviar', comConversa(), undefined, ESTADO_MS); },
     /* Recomeçar: apaga a sessão e marca a conversa como esquecida (outra aba aberta não a grava de volta) */
     esquecer: function () {
       try { if (sessao && sessao.conversa_id) localStorage.setItem(ESQUECIDA, sessao.conversa_id); } catch (e) { /* sem armazenamento */ }

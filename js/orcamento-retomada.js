@@ -14,14 +14,16 @@
    ========================================================================== */
 (function () {
   'use strict';
-  var PREFIXO = '#retomar=';   /* o mesmo de js/ancoras.js (o 1º quadro): se mudar aqui, mude lá */
+  var PREFIXOS = { '#retomar=': 'retomar', '#pedido=': 'abrir-pedido' };   /* os mesmos de js/ancoras.js (o 1º quadro): se mudar aqui, mude lá */
   var CODIGO = /^[A-Za-z0-9_-]{32}$/;
   var ESCONDE = 'orc-retomando';
   var TEL = window.BEYON_TEL || '5521977167944';   /* (reserva consciente, como em js/orcamento-detalhes.js: grep 5521977167944) */
   var $ = function (id) { return document.getElementById(id); };
 
-  var chegou = (location.hash || '').indexOf(PREFIXO) === 0;
-  var codigo = chegou ? location.hash.slice(PREFIXO.length) : null;
+  var prefixo = Object.keys(PREFIXOS).filter(function (p) { return (location.hash || '').indexOf(p) === 0; })[0] || null;
+  var acao = prefixo ? PREFIXOS[prefixo] : null;
+  var chegou = !!prefixo;
+  var codigo = chegou ? location.hash.slice(prefixo.length) : null;
   if (chegou) {
     document.documentElement.classList.add(ESCONDE);
     try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* navegador antigo: o código fica na barra até sair */ }
@@ -90,7 +92,7 @@
       botao.setAttribute('aria-disabled', 'true');
       falhar('Abrindo o seu pedido…', false);
       try {
-        await window.BZOrcamento.retomar(codigo);
+        await window.BZOrcamento.retomar(codigo, acao);
       } catch (e) {
         botao.removeAttribute('aria-disabled');
         if (e && e.status === 410) { semSaida(e.message); return; }

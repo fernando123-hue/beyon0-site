@@ -143,6 +143,15 @@ suíte e mutação rodam uma vez no fim; nada de E2E, `verificar`, `acessibilida
 - Não há `_headers` da Cloudflare neste ramo (o PR B ainda não existe): as mesmas duas trocas ficam para ele (nas pendências, Task 20).
 - **Dono (obrigatório antes de ir ao ar):** dizer o endereço `https://<projeto>.supabase.co` para trocar o curinga `*.supabase.co`.
 
+## Task 14: a tela "Seu pedido"
+
+- Vermelho visto: `ENOENT … js/orcamento-material.js` (o teste lê os arquivos das Tasks 15 e 16) e o HTML sem `#o-pedido`. Verde: orcamento-entrega + csp + pagar-sem-medo + so-pix-textos + orcamento-pix 40/40;
+  consultor, faq-identico, orcamento-ajustes, prazo-uteis-textos, orcamento-preparo verdes.
+- Desvio de ordem: o teste da Task 14 exige que `js/orcamento-envio.js` e `js/orcamento-material.js` existam e que o HTML os carregue na ordem. Deixei os dois como arquivos de uma linha
+  de comentário ("lugar reservado") neste commit; as Tasks 15 e 16 os substituem.
+- `AINDA_NAO` perdeu "Guarde o link do seu pedido" e "Pôr na minha agenda" (as outras ficam). O recibo agora diz "Entrada recebida. O próximo passo é mandar o material…".
+- **Verificação de tela PENDENTE (Task 19, PC livre):** olhar `#o-pedido` a 390 e 320 px, o cartão do link, o `details` "Voltar ao pedido depois" e a lista dos 4 passos; E2E da volta pelo `#pedido=`.
+
 ## Andamento
 
-próxima tarefa: 14
+próxima tarefa: 15

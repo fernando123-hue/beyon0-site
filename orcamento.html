@@ -35,6 +35,7 @@
   <link rel="stylesheet" href="css/tokens.css" />
   <link rel="stylesheet" href="css/base.css" />
   <link rel="stylesheet" href="css/orcamento.css" />
+  <link rel="stylesheet" href="css/orcamento-entrega.css" />
   <link rel="stylesheet" href="css/previa.css" />
   <link rel="stylesheet" href="css/passagem.css" />
   <link rel="stylesheet" href="css/passagem-destinos.css" />
@@ -496,7 +497,7 @@
         </div>
         <p class="recibo__rotulo"><i class="recibo__led" aria-hidden="true"></i>Sinal pago</p>
         <h2 class="recibo__titulo" id="o-pronto-titulo" tabindex="-1">Pagamento confirmado.</h2>
-        <p class="recibo__lead">Seu projeto está liberado para começar. A Beyon Zero fala com você pelo contato informado para os próximos passos.</p>
+        <p class="recibo__lead">Entrada recebida. O próximo passo é mandar o material do seu site, aqui mesmo, logo abaixo.</p>
         <p class="recibo__codigo">Código do pagamento <b id="o-rec-codigo-v"></b></p>
         <div class="recibo__partes" id="o-rec-partes">
           <div class="recibo__parte recibo__parte--pago">
@@ -517,6 +518,45 @@
         </div>
         <p class="recibo__total" id="o-rec-total"><span id="o-rec-total-v"></span> <span id="o-rec-total-prazo"></span></p>
       </div>
+      <!-- SEU PEDIDO (PR 3b-2, js/orcamento-entrega.js): os 4 passos com a data do servidor, o link do pedido e a agenda -->
+      <div class="orc-pedido" id="o-pedido" hidden>
+        <p class="orc-pedido__rotulo">Seu pedido · <span id="o-ped-codigo"></span></p>
+        <ol class="orc-passos" id="o-ped-passos">
+          <li class="orc-passo"><span class="orc-passo__n" aria-hidden="true"></span><span class="orc-passo__nome"></span><span class="orc-passo__estado"></span><span class="orc-passo__nota"></span></li>
+          <li class="orc-passo"><span class="orc-passo__n" aria-hidden="true"></span><span class="orc-passo__nome"></span><span class="orc-passo__estado"></span><span class="orc-passo__nota"></span></li>
+          <li class="orc-passo"><span class="orc-passo__n" aria-hidden="true"></span><span class="orc-passo__nome"></span><span class="orc-passo__estado"></span><span class="orc-passo__nota"></span></li>
+          <li class="orc-passo"><span class="orc-passo__n" aria-hidden="true"></span><span class="orc-passo__nome"></span><span class="orc-passo__estado"></span><span class="orc-passo__nota"></span></li>
+        </ol>
+        <p class="orc-nota" id="o-ped-agenda" hidden><button type="button" class="orc-ligacao" id="o-agenda">Pôr na minha agenda</button></p>
+        <!-- O LINK DO PEDIDO (spec §1): fica no topo até a pessoa copiar ou mandar para si. NENHUM <a> aqui: o código vai num campo de leitura, nunca num href -->
+        <section class="orc-link" id="o-link" aria-labelledby="o-link-titulo" hidden>
+          <h3 class="orc-link__titulo" id="o-link-titulo">Guarde o link do seu pedido</h3>
+          <p class="orc-link__texto" id="o-link-texto">Se o celular apagar os dados do site, é por este link que você volta ao pedido. Mande para você mesmo no WhatsApp ou salve nos favoritos.</p>
+          <label class="sr-only" for="o-link-campo">Link do seu pedido</label>
+          <input class="orc-link__campo" id="o-link-campo" type="text" readonly spellcheck="false" autocomplete="off" />
+          <div class="orc-link__acoes" id="o-link-acoes">
+            <button type="button" class="btn btn--primary" id="o-link-copiar">Copiar o link</button>
+            <button type="button" class="btn btn--ghost" id="o-link-enviar" hidden>Mandar para mim</button>
+          </div>
+          <div class="orc-link__acoes"><button type="button" class="btn btn--primary" id="o-link-gerar" hidden>Gerar o link e guardar</button></div>
+        </section>
+        <details class="orc-det" id="o-link-mais">
+          <summary>Voltar ao pedido depois</summary>
+          <div class="orc-link__mais">
+            <button type="button" class="btn btn--ghost" id="o-link-novo">Gerar um link novo</button>
+            <button type="button" class="btn btn--ghost" id="o-link-outro">Continuar no computador</button>
+            <button type="button" class="btn btn--ghost" id="o-link-sair">Sair deste aparelho</button>
+          </div>
+          <label class="sr-only" for="o-link-outro-campo">Link para o computador</label>
+          <input class="orc-link__campo" id="o-link-outro-campo" type="text" readonly spellcheck="false" autocomplete="off" hidden />
+        </details>
+        <p class="orc-pag-status" id="o-link-aviso" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+    <!-- O MATERIAL (PR 3b-2, js/orcamento-material.js): os 6 blocos, ou o que foi enviado -->
+    <section class="orc-bloco orc-material" id="o-material" aria-labelledby="o-mat-titulo" hidden>
+      <h2 id="o-mat-titulo" tabindex="-1">Seu material</h2>
+      <div id="o-mat-corpo"></div>
     </section>
   </main>
 
@@ -573,6 +613,10 @@
   <script src="js/orcamento-retomada.js" defer></script>
   <script src="js/orcamento-preparo.js" defer></script>
   <script src="js/orcamento-ajustes.js" defer></script>
+  <script src="js/orcamento-material-esquema.js" defer></script>
+  <script src="js/orcamento-envio.js" defer></script>
+  <script src="js/orcamento-material.js" defer></script>
+  <script src="js/orcamento-entrega.js" defer></script>
   <script src="js/orcamento.js" defer></script>
 </body>
 </html>

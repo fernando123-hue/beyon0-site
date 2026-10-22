@@ -49,13 +49,11 @@ const AINDA_NAO = [
   [/precisa mandar nada pelo WhatsApp/i, 'com o 3b-2'],
   [/O que eu recebo/i, 'com o dado do dono (domínio e hospedagem)'],
   [/Nota fiscal/i, 'quando a spec trouxer (há decisão de 11/10, Decisões.md: sem nota por enquanto; a spec §4 deixa a pergunta para depois)'],
-  [/Guarde o link do seu pedido/i, 'com o 3b-2'],
   [/passo \d de 4/i, 'com o 3b-2 (os passos antes de pagar)'],
   [/sai do ar/i, 'com o 3b-3: a regra vale (D4, 21/10) e a frase entra com a tela do restante'],
   [/prazo fica parado/i, 'com o 3b-3: a regra vale (D4, 21/10) e a frase entra com a tela da lista de ajustes'],
   [/(conta|vale) como aprovad|considerad\w* (como )?aprovad|aprova(d\w*|ção)? (sozinh|automátic|automatic)|sem resposta[^.]{0,40}aprovad/i, 'NUNCA (D5, 21/10): sem resposta o projeto para; nada é aprovado sozinho'],
   [/quantos precisar|sem limite de ajustes/i, 'NUNCA (D2, 21/10): são 2 listas de ajuste'],
-  [/Pôr na minha agenda/i, 'com a D1 (a tela do pedido) e o 3b-2'],
 ];
 
 test('perguntas antes de pagar: "Posso desistir?" com a lei e a decisão de 11/10 (Decisões.md); nenhuma fora da lista do 3b-1', () => {
