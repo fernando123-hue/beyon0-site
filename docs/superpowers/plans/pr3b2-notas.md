@@ -109,6 +109,16 @@ suíte e mutação rodam uma vez no fim; nada de E2E, `verificar`, `acessibilida
   **Aviso para a Cloudflare:** se o Worker um dia validar o JWT sem o `/auth/v1/user`, a revogação deixa de ser imediata. A conferência real é a linha 8 do `conferir-armazem` (dono).
 - **Dono:** aplicar `supabase/migrations/20261023120200_pr3b2_link_pedido.sql`.
 
+## Task 10: o lado do dono no painel
+
+- Vermelho visto: 6 de 8 caídos sem a migration/painel (`function ... does not exist`). Verde: entrega-painel 8/8; ajustes-dono + painel-aviso + api 46/46.
+- Desvios (o teste decide):
+  1. O cenário da 3a é um cliente de SAÚDE e o `montarPedido` agora recusa saúde (resposta 6 da captação): os testes de pacote trocam o segmento por "serviços" (`naoSaude`) e um teste novo
+     confere o 422 "produção manual" para saúde.
+  2. `pedido.whatsapp` é o telefone de contato do cadastro (o da lead), não o WhatsApp dos botões do material; o teste confere o formato.
+- Nenhum teste fora do arquivo novo lista `ACOES_PAINEL` (só `api/painel.mjs` e o Worker da Cloudflare, que o conferem no plano deles).
+- **Dono:** aplicar `supabase/migrations/20261023120300_pr3b2_dono.sql` (a Task 11 acrescenta funções no mesmo arquivo). Antes (B8): `select count(*) from app.conversas c where c.etapa = 'em_producao' and not exists (select 1 from app.entregas e where e.conversa_id = c.id);`
+
 ## Andamento
 
-próxima tarefa: 10
+próxima tarefa: 11

@@ -20,6 +20,9 @@
      GET  ?fila=ajustes                   os PEDIDOS LIVRES na fila (PR 3a): o texto do cliente, a versão atual e a base
      POST {ajuste_feito: <id>, base_id, conteudo}  a versão nova do modelo escolhido (mesmo filtro e varredura da entrega)
      POST {ajuste_recusado: <id>}         o pedido não cabe (preço, item da tabela, fora do site): fica "não incluído"
+     GET  ?fila=entregas                  as ENTREGAS (PR 3b-2): passo, material, prazo, dias desde a entrada, alertas
+     GET  ?material=<BZ-código>           o pacote versão 1 (pedido.json, formulario.json) e os links de leitura de 60 s; NÃO marca nada
+     POST {importado: <BZ-código>, cliente: <c-xxxxxx>}  a importação da captação passou: marca importado (começa a guarda de 7 dias)
    As duas listas trazem "alarme": a fila no teto (o orçamento oferece o WhatsApp) ou pendentes demais.
    A resposta do GET traz também "saude": alertas abertos e a data da última rotina diária.
    ========================================================================== */
@@ -36,6 +39,8 @@ import { pareceInjecao } from './_vendas/seguranca.mjs';
 import { ipDe } from './_freio.mjs';
 import { PEDIDOS } from './_vendas/pedido.mjs';
 import { novoCodigoRetomada, hashDaRetomada, DIAS_RETOMADA } from './_vendas/retomada.mjs';
+import { montarPedido, montarFormulario, nomesDosArquivos } from './_material/pacote.mjs';
+import { criarArmazem } from './_material/armazem.mjs';
 
 const CHAVE_MINIMA = 32;
 export const CORPO_MAX = 200000;          /* caracteres do POST do painel */
@@ -88,6 +93,8 @@ export async function ler(request, env) {
   if (q.get('fila') === 'pendentes') return filaPendentes(env, q.get('codigo'));
   if (q.get('fila') === 'lembretes') return filaLembretes(env);
   if (q.get('fila') === 'ajustes') return filaAjustes(env);
+  if (q.get('fila') === 'entregas') return filaEntregas(env);
+  if (q.get('material') !== null) return materialParaBaixar(env, q.get('material'));
   try {
     if (q.get('csv') === 'ads') {
       const nome = (q.get('nome') || 'Cliente fechado').slice(0, 80);
@@ -122,6 +129,7 @@ export async function mudar(request, env) {
   if (bruto && typeof bruto.lembrado === 'string') return marcarLembrado(bruto.lembrado, env);
   if (bruto && typeof bruto.ajuste_feito === 'string') return ajusteFeito(bruto, env);
   if (bruto && typeof bruto.ajuste_recusado === 'string') return ajusteRecusado(bruto.ajuste_recusado, env);
+  if (bruto && typeof bruto.importado === 'string') return materialImportado(bruto, env);
   const acaoPedido = bruto && typeof bruto === 'object' ? Object.keys(ACOES_PEDIDO).find(k => typeof bruto[k] === 'string') : null;
   if (acaoPedido) return acaoDoPedido(ACOES_PEDIDO[acaoPedido], bruto[acaoPedido], env);
   /* marcar um alerta como resolvido */
@@ -293,8 +301,8 @@ const ACOES_PEDIDO = { confirmar_whatsapp: 'confirmar', descartar_pedido: 'desca
    limite por rota do Worker conferem esta lista contra o código. `excluir` e `mudar_contato` são os dois POST sem chave
    própria no despacho de `mudar` (apagar contato; status/valor/nota por `codigo`) */
 export const ACOES_PAINEL = Object.freeze({
-  GET: ['resumo', 'csv-ads', 'fila-direcoes', 'fila-pendentes', 'fila-lembretes', 'fila-ajustes'],
-  POST: ['entregar_direcao', 'avisado', 'link_retomada', 'lembrado', 'ajuste_feito', 'ajuste_recusado', 'resolver_alerta', 'excluir', 'mudar_contato',
+  GET: ['resumo', 'csv-ads', 'fila-direcoes', 'fila-pendentes', 'fila-lembretes', 'fila-ajustes', 'fila-entregas', 'material'],
+  POST: ['entregar_direcao', 'avisado', 'link_retomada', 'lembrado', 'ajuste_feito', 'ajuste_recusado', 'resolver_alerta', 'excluir', 'mudar_contato', 'importado',
     ...Object.keys(ACOES_PEDIDO)]
 });
 const CODIGO_PEDIDO = /^BZ-[ACDEFGHJKMNPQRTUVWXY34679]{5}$/;
@@ -336,6 +344,69 @@ async function acaoDoPedido(acao, conversaId, env) {
     if (e && e.codigo === 'P0002') return json({ erro: 'Pedido não encontrado.' }, 404);
     if (e && (e.codigo === '55000' || e.codigo === '23514')) return json({ erro: 'Este pedido não pode mudar agora (etapa ou situação).' }, 409);
     console.error('[painel] pedido:', acao, e && e.codigo);
+    return json({ erro: 'Não deu para salvar agora.' }, 500);
+  }
+}
+
+/* ---------- A ENTREGA (PR 3b-2): a lista, o pacote para baixar e o "importado" ---------- */
+async function filaEntregas(env) {
+  const rpc = criarTransporte(env);
+  if (!rpc) return json({ erro: 'Banco não configurado.' }, 503);
+  try {
+    const r = await rpc('vendas_entregas_lista', { org_slug: ORG });
+    const itens = r && Array.isArray(r.itens) ? r.itens : [];
+    return json({ entregas: itens, total: itens.length });
+  } catch (e) { console.error('[painel] entregas:', e && e.codigo); return json({ erro: 'Não deu para ler as entregas agora.' }, 500); }
+}
+
+/* o pacote versão 1 (spec §6): pedido.json e formulario.json montados aqui, os links de leitura de 60 s (UM pedido ao armazém
+   para todos). NÃO marca nada: "baixado" não existe; "importado" é o comando seguinte, depois de a captação importar */
+async function materialParaBaixar(env, busca) {
+  const codigo = codigoDaBusca(busca);
+  if (!codigo) return json({ erro: 'Código inválido: são 5 letras ou números depois de "BZ-".' }, 400);
+  const rpc = criarTransporte(env);
+  if (!rpc) return json({ erro: 'Banco não configurado.' }, 503);
+  let r;
+  try { r = await rpc('vendas_material_para_baixar', { org_slug: ORG, codigo }); }
+  catch (e) {
+    if (e && e.codigo === 'P0002') return json({ erro: 'Pedido não encontrado.' }, 404);
+    if (e && e.codigo === '55000') return json({ erro: 'O cliente ainda não enviou o material.' }, 409);
+    console.error('[painel] material:', e && e.codigo);
+    return json({ erro: 'Não deu para ler o material agora.' }, 500);
+  }
+  let pedido, formulario;
+  try {
+    const cidade = (r.material.negocio && r.material.negocio.cidade) || r.negocio.cidade;
+    pedido = montarPedido({ codigo, negocio: { ...r.negocio, cidade, uf: r.material.negocio && r.material.negocio.uf }, proposta: r.proposta,
+      entradaPagaEm: r.entrada_paga_em, whatsappContato: r.whatsapp_contato });
+    formulario = montarFormulario({ material: r.material, arquivos: r.arquivos });
+  } catch (e) { return json({ erro: e.message }, 422); }   /* (o que falta, ou "produção manual": o dono resolve com o cliente) */
+  const armazem = criarArmazem(env);
+  if (!armazem) return json({ erro: 'Armazém não configurado.' }, 503);
+  const nomes = nomesDosArquivos(r.arquivos);
+  let links;
+  try { links = await armazem.linksDeLeitura(nomes.map(a => a.caminho), 60); }
+  catch (e) { console.error('[painel] links de leitura:', e && e.name); return json({ erro: 'Não deu para assinar os arquivos agora.' }, 502); }
+  const arquivos = nomes.map(a => ({ nome: a.nome, papel: a.papel, tipo_real: a.tipo_real, tamanho: Number(a.tamanho_real), url: links[a.caminho] || null }));
+  if (arquivos.some(a => !a.url)) return json({ erro: 'Um arquivo do pedido sumiu do armazém: ' + arquivos.filter(a => !a.url).map(a => a.nome).join(', ') }, 502);
+  /* B7 (spec §8, "Injeção no Claude"): o selo de texto suspeito POR CAMPO; o agente da produção lê o material como DADO, nunca como instrução */
+  const suspeitos = Object.entries(r.material.dados || {}).filter(([, v]) => pareceInjecao(typeof v === 'string' ? v : JSON.stringify(v))).map(([k]) => k);
+  return json({ pedido, formulario, arquivos, suspeitos });
+}
+
+async function materialImportado(bruto, env) {
+  const codigo = codigoDaBusca(bruto.importado);
+  if (!codigo || !/^c-[abcdefghjkmnpqrstuvwxyz23456789]{6}$/.test(String(bruto.cliente))) return json({ erro: 'Pedido inválido: o código BZ-… e o id do cliente da captação (c-xxxxxx).' }, 400);
+  const rpc = criarTransporte(env);
+  if (!rpc) return json({ erro: 'Banco não configurado.' }, 503);
+  try {
+    const r = await rpc('vendas_material_importado', { org_slug: ORG, codigo, cliente: bruto.cliente });
+    if (!r || r.ok !== true) return json({ erro: 'Este pedido já foi importado como outro cliente da captação.' }, 409);
+    return json({ ok: true, ...(r.ja ? { ja: true } : {}) });
+  } catch (e) {
+    if (e && e.codigo === 'P0002') return json({ erro: 'Pedido não encontrado.' }, 404);
+    if (e && e.codigo === '55000') return json({ erro: 'O cliente ainda não enviou o material.' }, 409);
+    console.error('[painel] importado:', e && e.codigo);
     return json({ erro: 'Não deu para salvar agora.' }, 500);
   }
 }

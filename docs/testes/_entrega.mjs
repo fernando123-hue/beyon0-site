@@ -62,3 +62,27 @@ export async function ateEntregaCriada(cen, local, extra = {}) {
   if (!nasceu) throw new Error('a entrega não nasceu: ' + JSON.stringify((await cen.estado(n, c)).conversa));
   return { n, c };
 }
+
+const PNG = Buffer.concat([Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex'), Buffer.alloc(100, 7)]);
+const JPG = Buffer.concat([Buffer.from('ffd8ffe000104a46494600010100000100', 'hex'), Buffer.alloc(100, 7)]);
+export const BYTES_DE_TESTE = { png: PNG, jpg: JPG };
+
+/* o cliente envia o material de verdade pela API: campos, caixa, 1 logo e N fotos (o navegador envia ao armazém local) */
+export async function enviarMaterial(local, n, c, { uf = 'RJ', fotos = 2, provas = ['orçamento por escrito'] } = {}) {
+  const salvar = (campo, valor) => n.chamar('POST', 'material-salvar', { conversa_id: c, campo, valor });
+  await salvar('whatsapp', '+5521999990001');
+  if (uf) await salvar('negocio.uf', uf);
+  await salvar('provas', provas);
+  await salvar('autorizacao.marcada', true);
+  const subir = async (papel, tipo, bytes) => {
+    const r = await n.chamar('POST', 'material-reservar', { conversa_id: c, papel, tipo, tamanho: bytes.length });
+    local.armazem.gravarPorUrl(r.corpo.url_envio.replace(BASE, ''), bytes, tipo);
+    const k = await n.chamar('POST', 'material-conferir', { conversa_id: c, arquivo_id: r.corpo.arquivo_id });
+    if (k.status !== 200) throw new Error('conferir: ' + JSON.stringify(k.corpo));
+  };
+  await subir('logo', 'image/png', PNG);
+  for (let i = 0; i < fotos; i++) await subir('foto', 'image/jpeg', JPG);
+  const e = await n.chamar('POST', 'material-enviar', { conversa_id: c });
+  if (e.status !== 200) throw new Error('enviar: ' + JSON.stringify(e.corpo));
+  return e.corpo;
+}
