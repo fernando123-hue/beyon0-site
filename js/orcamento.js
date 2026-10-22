@@ -550,24 +550,34 @@
   var telaPagamento = window.BZPagamentoTela ? window.BZPagamentoTela.criar({ API: API, dinheiro: dinheiro, aoPagar: function () { recarregar().catch(function () {}); } }) : null;
   var recibo = window.BZRecibo ? window.BZRecibo.criar({ API: API, dinheiro: dinheiro }) : null;
   var viuAguardando = false;   /* a etapa "aguardando pagamento" foi vista nesta tela: a confirmação chega ao vivo e o recibo anima */
-  function sinalPct(pr) { return pr.sinal_percentual == null ? 50 : Number(pr.sinal_percentual); }   /* (o servidor usa 50 quando falta: app.vendas_*) */
   function dias(n) { return n + (Number(n) === 1 ? ' dia corrido' : ' dias corridos'); }   /* (corridos: decisão do dono, 2026-10-09; é o que o escopo diz) */
-  /* o sinal: o registro PAGO quando houver; senão o último criado; sem nenhum, o combinado na proposta */
+  /* (PR 3b-1) as contas da entrada (js/orcamento-pix.js). Sem o módulo (não carregou), o mesmo caminho fechado de uma
+     proposta sem percentual: a tela não cobra, e o resto da página segue (como as guardas de telaPagamento e recibo) */
+  var PIX = window.BZPix || null;
+  /* a entrada: o registro PAGO quando houver; senão o último criado; sem nenhum, a da proposta (sem o percentual na
+     proposta, null, e a tela não cobra) */
   function valorDoSinal(pr) {
     var sinais = E.pagamentos.filter(function (p) { return p.parcela === 'sinal'; });
     var pagos = sinais.filter(function (p) { return p.status === 'pago'; });
     var ultimo = pagos[pagos.length - 1] || sinais[sinais.length - 1];
-    return ultimo ? Number(ultimo.valor) : Math.round(Number(pr.valor_total) * sinalPct(pr)) / 100;
+    return ultimo ? Number(ultimo.valor) : (PIX ? PIX.valorDaEntrada(pr) : null);
   }
   function pagamento() {
     var pr = E.proposta;
     if (!pr) return;
-    var sinal = valorDoSinal(pr);
-    if (mudou('pagamento', [pr, sinal])) {
-      $('o-pag-lead').textContent = 'Escopo confirmado: ' + dinheiro(pr.valor_total) + ' em até ' + dias(pr.prazo_dias) + '. Para começar, o sinal de ' + sinalPct(pr) + '%: ' + dinheiro(sinal) + '. O restante na entrega.';
-      $('o-pag-escopo').textContent = pr.escopo || '';
-      if (telaPagamento) telaPagamento.mostrar(sinal);
+    var pct = PIX ? PIX.percentuais(pr) : null, sinal = valorDoSinal(pr);
+    if (!mudou('pagamento', [pr, sinal])) return;
+    $('o-pag-escopo').textContent = pr.escopo || '';
+    var lead = 'Escopo confirmado: ' + dinheiro(pr.valor_total) + ' em até ' + dias(pr.prazo_dias) + '.';
+    /* falha fechada (PR 3b-1): sem o percentual da proposta, a tela não cobra nem chuta um número (o banco também recusa) */
+    if (!pct || sinal == null) {
+      $('o-pag-lead').textContent = lead;
+      mostrar('o-pag-form', false);
+      mostrar('o-pag-indisponivel', true);
+      return;
     }
+    $('o-pag-lead').textContent = lead + ' Para começar, a entrada de ' + pct.entrada + '%: ' + dinheiro(sinal) + '. O restante na entrega.';
+    if (telaPagamento) telaPagamento.mostrar(sinal, pct.entrada);
   }
 
   /* ---------- o estado manda na tela ---------- */
@@ -675,13 +685,15 @@
     if (temProposta && mudou('escopo', E.proposta.escopo)) $('o-esc-texto').textContent = E.proposta.escopo;
     if (et === 'aguardando_pagamento' && $('o-pagamento').hidden) delete assinaturas.pagamento;   /* (reapareceu: a tela de pagamento confere de novo, inclusive a configuração) */
     mostrar('o-pagamento', et === 'aguardando_pagamento');
+    mostrar('o-antes', temProposta || et === 'aguardando_pagamento');   /* (PR 3b-1) as perguntas antes de pagar: no resumo e na entrada */
     if (et === 'aguardando_pagamento') { viuAguardando = true; pagamento(); }
     var pronto = et === 'em_producao', chegou = pronto && $('o-pronto').hidden && viuAguardando;
     mostrar('o-pronto', pronto);
     if (pronto) {
       vigia.parar(); if (telaPagamento) telaPagamento.parar();
       var pr = E.proposta;
-      if (recibo) recibo.desenhar(pr ? { id: pr.id, total: Number(pr.valor_total), sinal: valorDoSinal(pr), prazo: pr.prazo_dias } : null, chegou);
+      /* (revisão do 3b-1) sem a entrada conhecida, o recibo não mostra valores (nada de "0%"): só o selo e o título */
+      if (recibo) recibo.desenhar(pr && PIX ? PIX.dadosDoRecibo(pr, valorDoSinal(pr)) : null, chegou);
     }
     visor.atualizar();
   }

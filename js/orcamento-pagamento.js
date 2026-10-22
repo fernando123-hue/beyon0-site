@@ -46,7 +46,7 @@
   var toque = function () { return !!(window.matchMedia && matchMedia('(pointer: coarse)').matches); };
 
   function criar(o) {
-    var trocando = false, cfg = null, valor = 0, metodo = 'pix', espera = null, mp = null, campos = null, cartaoInfo = null, enviando = false, ultimoEstado = '';
+    var trocando = false, cfg = null, valor = 0, pct = null, qrDecidido = false, metodo = 'pix', espera = null, mp = null, campos = null, cartaoInfo = null, enviando = false, ultimoEstado = '';
 
     /* ---------- configuração pública (Public Key e ambiente) ----------
        Só o sucesso fica guardado: uma falha passageira não deixa o pagamento "indisponível" até recarregar (F4) */
@@ -230,15 +230,21 @@
       return 'expira em ' + m + (m === 1 ? ' minuto' : ' minutos');
     }
     function desenharPix(t) {
+      var PIX = window.BZPix;   /* (sem o módulo, a linha sem percentual e o QR fechado: nada quebra) */
+      $('o-pix-valor').textContent = PIX ? PIX.linhaDoValor(valor, pct, o.dinheiro) : o.dinheiro(valor) + ', por Pix';
       var img = $('o-pix-qr');
-      if (t.pix_qr_base64 && /^[A-Za-z0-9+/=]+$/.test(t.pix_qr_base64)) { img.src = 'data:image/png;base64,' + t.pix_qr_base64; img.hidden = false; }
-      else img.hidden = true;
+      var temQr = !!(t.pix_qr_base64 && /^[A-Za-z0-9+/=]+$/.test(t.pix_qr_base64));
+      if (temQr) img.src = 'data:image/png;base64,' + t.pix_qr_base64;
+      img.hidden = !temQr;
+      mostrar('o-pix-outro', temQr);
+      /* fechado no celular, aberto no computador; decidido uma vez por carga (a consulta de 5 s não fecha o que a pessoa abriu) */
+      if (temQr && !qrDecidido) { qrDecidido = true; $('o-pix-outro').open = !!(PIX && PIX.qrAbertoEm(document.documentElement.clientWidth)); }
       $('o-pix-codigo').value = t.pix_qr || '';
       $('o-pix-expira').textContent = t.expira_em ? minutosAte(t.expira_em) : '';
       mostrar('o-pix-simular', cfg && cfg.ambiente === 'simulado');
     }
     /* uma troca de tela (consulta de fundo) escondeu o que tinha o foco: ele vai para o que apareceu, nunca para o body (A3) */
-    function focoDentro() { var a = document.activeElement; return !!a && ($('o-pag-form').contains(a) || $('o-pix').contains(a) || $('o-desafio').contains(a)); }
+    function focoDentro() { var a = document.activeElement; return !!a && ($('o-pag-form').contains(a) || $('o-pix').contains(a) || $('o-pix-outro').contains(a) || $('o-desafio').contains(a)); }
     function devolverFoco(estava) {
       var a = document.activeElement;
       if (!estava || (a && a !== document.body && a.offsetParent !== null)) return;
@@ -253,7 +259,7 @@
       devolverFoco(estava);
     }
     function desenharEstado(e) {
-      if (!e || !e.pagamento) { mostrar('o-pix', false); mostrar('o-desafio', false); mostrar('o-pag-form', true); return; }
+      if (!e || !e.pagamento) { mostrar('o-pix', false); mostrar('o-pix-outro', false); mostrar('o-desafio', false); mostrar('o-pag-form', true); return; }
       var t = e.tentativa;
       var chave = JSON.stringify([e.pagamento.status, t && t.status, t && t.id, t && t.expira_em]);
       if (e.pagamento.status === 'pago') { pararEspera(); $('o-pag-status').textContent = 'Pagamento confirmado pelo Mercado Pago.'; if (chave !== ultimoEstado) { ultimoEstado = chave; o.aoPagar(); } return; }
@@ -263,11 +269,11 @@
       mostrar('o-desafio', !!(t && t.status === 'requer_acao' && t.desafio_url));
       var pixAberto = !!(t && t.status === 'aguardando' && t.metodo === 'pix');
       mostrar('o-pag-form', !ativo || (pixAberto && trocando));   /* com Pix aberto, o formulário só volta se a pessoa quiser o cartão */
-      if (t && t.status === 'aguardando' && t.metodo === 'pix') desenharPix(t);
+      if (pixAberto) desenharPix(t); else mostrar('o-pix-outro', false);
       if (t && t.status === 'requer_acao' && t.desafio_url) $('o-desafio-link').href = t.desafio_url;
       var st = $('o-pag-status');
       if (!t) st.textContent = '';
-      else if (t.status === 'aguardando') st.textContent = 'Aguardando o pagamento do Pix. Esta tela atualiza sozinha quando o Mercado Pago confirmar.';
+      else if (t.status === 'aguardando') st.textContent = 'Esperando o pagamento. Esta tela muda sozinha quando ele cair.';
       else if (t.status === 'processando' || t.status === 'criada') st.textContent = 'O Mercado Pago está analisando o pagamento. Esta tela atualiza sozinha.';
       else if (t.status === 'requer_acao') st.textContent = 'Falta a confirmação no seu banco.';
       else if (t.status === 'recusada') st.textContent = MENSAGENS[t.detalhe] || 'O pagamento não foi aprovado. Tente de novo, use outro cartão ou o Pix.';
@@ -303,7 +309,7 @@
         b.textContent = toque() ? 'Toque e segure para copiar' : 'Selecionado: copie com Ctrl+C';
       }
       st.textContent = aviso;
-      setTimeout(function () { b.textContent = 'Copiar o código'; if (st.textContent === aviso) st.textContent = antes; }, 2500);
+      setTimeout(function () { b.textContent = 'Copiar o código Pix'; if (st.textContent === aviso) st.textContent = antes; }, 2500);
     });
     /* modo local: o simulador "paga" o Pix (ou conclui o 3DS) e o aviso assinado passa pelo caminho real */
     async function simularLocal(acao) {
@@ -318,8 +324,11 @@
 
     var tela = {
       /* chamado pela página quando a etapa é "aguardando pagamento" */
-      async mostrar(valorSinal) {
+      async mostrar(valorSinal, pctEntrada) {
         valor = Number(valorSinal) || 0;
+        /* (vem da proposta, por js/orcamento-pix.js). Só troca quando vem: configDeNovo() (:58) e a volta à aba (:284)
+           chamam tela.mostrar(valor) com um argumento só, e o percentual sumia da linha do Pix */
+        if (arguments.length > 1) pct = Number.isInteger(pctEntrada) ? pctEntrada : null;
         var c = await configurar();
         mostrar('o-pag-indisponivel', !c.ativo);
         mostrar('o-pag-form', c.ativo);

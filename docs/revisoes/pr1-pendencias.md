@@ -44,6 +44,9 @@ com credenciais reais**, salvo onde diz outra coisa.
    data a põe depois da do PR 3a, e ela é reaplicável). Código e migration: o código novo (`origem` sempre enviada,
    `ETAPAS_COM_PRECO`) funciona com a migration ainda não aplicada; a migration aplicada recusa (400, falha fechada) um
    código antigo que mande o ajuste sem `origem`, e esse código não está no ar (a produção ainda é a versão sem API).
+   **Depois dela**, aplicar `20261022120000_pr3b1_entrada.sql` (PR 3b-1: a entrada sem percentual na proposta não cobra;
+   sem ela, o banco ainda cai para 50 enquanto a tela já recusa). Aplicar também, no Supabase real, a tabela ATIVA com
+   `sinal_percentual: 40` (`node docs/validar-regras.mjs <arquivo>` e o caminho de sempre): este PR só mudou o rascunho.
 4. O PR traz "SHA para promover"; promover exatamente esse.
 4b. Anthropic: limite de gasto MENSAL no console (o freio de última instância do custo; a reserva no banco é realista,
     não o pior caso — revisão de segurança do PR 15). Com as primeiras chamadas reais, trocar `RESERVA_USD`

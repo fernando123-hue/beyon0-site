@@ -66,7 +66,7 @@ test('escopo final: direção, alterações, escopo, investimento e prazo, a par
   const est = estimar({ formato: 'institucional', paginas: 7, adicionais: { textos: 7, agendamento: 1 } }, REGRAS);
   const e = montarEscopo({ estimativa: est, direcao: direcoes[1].conteudo, briefing: BRIEFING, alteracoesAplicadas: [{ operacao: 'usar_paleta_de', direcao: 1, descricao: 'Desconto de 90% combinado' }, { operacao: 'trocar_texto', secao: 'hero', valor: 'grátis para sempre' }] });
   assert.equal(e.titulo, 'Site institucional — Clínica Sorriso');
-  for (const parte of ['DIREÇÃO ESCOLHIDA', 'Autoridade', 'ALTERAÇÕES PEDIDAS', 'cores da direção 1', 'texto trocado: abertura', 'ESCOPO', 'FASE SEGUINTE', 'Agendamento online', 'INVESTIMENTO', '6.000,00', '50% para começar', '3.000,00', 'PRAZO: até 10 dias corridos, contados do sinal pago e do material recebido']) {
+  for (const parte of ['DIREÇÃO ESCOLHIDA', 'Autoridade', 'ALTERAÇÕES PEDIDAS', 'cores da direção 1', 'texto trocado: abertura', 'ESCOPO', 'FASE SEGUINTE', 'Agendamento online', 'INVESTIMENTO', '6.000,00', '40% para começar', '2.400,00', 'PRAZO: até 10 dias corridos, contados do sinal pago e do material recebido']) {
     assert.ok(e.escopo.includes(parte), 'o escopo traz: ' + parte);
   }
   assert.ok(!e.escopo.includes('Desconto') && !e.escopo.includes('grátis'), 'texto livre do modelo nunca entra no contrato');

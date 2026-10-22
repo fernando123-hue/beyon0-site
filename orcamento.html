@@ -374,6 +374,7 @@
     <section class="orc-bloco" id="o-pagamento" aria-labelledby="o-pag-titulo" hidden>
       <h2 id="o-pag-titulo">Para começar</h2>
       <p class="orc-bloco__lead" id="o-pag-lead"></p>
+      <p class="orc-nota"><a href="#o-antes">Perguntas antes de pagar</a>: posso desistir? quando fica pronto? quantos ajustes?</p>
       <p class="orc-nota orc-perguntar" hidden>Alguma dúvida antes de pagar? <a href="#o-texto" data-perguntar>Pergunte ao consultor</a>. Ele tira dúvidas, mas não confirma pagamento nem muda o valor: quem mostra que o pagamento entrou é esta tela.</p>
       <p class="orc-aviso" id="o-pag-indisponivel" hidden>O pagamento online está indisponível agora. A Beyon Zero envia o pagamento pelo <a data-wa="quero pagar o sinal do meu projeto" href="https://wa.me/5521977167944">WhatsApp</a>.</p>
 
@@ -390,7 +391,7 @@
           </div>
           <label for="o-pag-email">E-mail <span class="orc-opcional">(obrigatório)</span></label>
           <input id="o-pag-email" type="email" autocomplete="email" maxlength="254" required />
-          <label for="o-pag-doc">CPF ou CNPJ <span class="orc-opcional">(obrigatório)</span></label>
+          <label for="o-pag-doc">CPF ou CNPJ <span class="orc-opcional">(obrigatório: o Mercado Pago pede para emitir o Pix; não fica guardado no site)</span></label>
           <input id="o-pag-doc" inputmode="numeric" autocomplete="off" maxlength="18" required />
         </fieldset>
         <fieldset class="pag-grupo" id="o-pag-cartao" hidden>
@@ -415,17 +416,23 @@
         <button class="btn btn--primary" type="submit" id="o-pag-enviar"></button>
       </form>
 
+      <!-- O PIX (PR 3b-1, spec 2026-10-21 §4): valor e percentual da proposta → o nome que aparece no banco (decisão do
+           dono de 21/10, Decisões.md, "Nome que aparece no Pix") → copiar → os passos no app do banco. O QR fica em
+           "Pagar por outro aparelho", logo depois do status: fechado no celular, aberto a partir de 768 px (js/orcamento-pix.js) -->
       <div class="pix" id="o-pix" hidden>
-        <img class="pix__qr" id="o-pix-qr" alt="QR Code do Pix" width="220" height="220" hidden />
-        <div class="pix__lado">
-          <p class="orc-rotulo">Pix copia e cola</p>
-          <label class="sr-only" for="o-pix-codigo">Código Pix copia e cola</label>
-          <textarea id="o-pix-codigo" class="pix__codigo" rows="3" readonly></textarea>
-          <button class="btn btn--sm" type="button" id="o-pix-copiar">Copiar o código</button>
-          <p class="orc-nota" id="o-pix-expira"></p>
-          <button class="btn btn--sm btn--ghost" type="button" id="o-pix-simular" hidden>Simular o pagamento (modo local)</button>
-          <button class="btn btn--sm btn--ghost" type="button" id="o-pix-trocar" hidden>Prefiro pagar com cartão</button>
-        </div>
+        <p class="pix__valor" id="o-pix-valor"></p>
+        <p class="pix__nome">No seu banco vai aparecer:<br /><b>Fernando Ferreira Dos Santos</b><br /><span class="pix__abrev">(alguns bancos mostram o nome abreviado)</span></p>
+        <button class="btn btn--primary pix__copiar" type="button" id="o-pix-copiar">Copiar o código Pix</button>
+        <label class="sr-only" for="o-pix-codigo">Código Pix copia e cola</label>
+        <textarea id="o-pix-codigo" class="pix__codigo" rows="4" readonly></textarea>
+        <p class="orc-nota" id="o-pix-expira"></p>
+        <ol class="pix__passos">
+          <li>Abra o app do seu banco</li>
+          <li>Pix <span aria-hidden="true">›</span><span class="sr-only">, depois</span> Pix copia e cola</li>
+          <li>Cole o código e confirme</li>
+        </ol>
+        <button class="btn btn--sm btn--ghost" type="button" id="o-pix-simular" hidden>Simular o pagamento (modo local)</button>
+        <button class="btn btn--sm btn--ghost" type="button" id="o-pix-trocar" hidden>Prefiro pagar com cartão</button>
       </div>
 
       <div class="orc-aviso pag-desafio" id="o-desafio" hidden>
@@ -437,11 +444,39 @@
       </div>
 
       <p class="orc-pag-status" id="o-pag-status" role="status" aria-live="polite"></p>
+      <details class="orc-det pix__outro" id="o-pix-outro" hidden>
+        <summary>Pagar por outro aparelho (QR Code)</summary>
+        <img class="pix__qr" id="o-pix-qr" alt="QR Code do Pix" width="220" height="220" hidden />
+      </details>
+      <p class="orc-nota" id="o-pag-problema">Problema com o pagamento? <a data-wa="tive um problema com o pagamento do meu pedido" href="https://wa.me/5521977167944">Fale com a Beyon Zero pelo WhatsApp</a>.</p>
       <details class="orc-det">
         <summary>Ver o escopo confirmado</summary>
         <div class="orc-escopo" id="o-pag-escopo"></div>
       </details>
       <p class="orc-nota">O pagamento é processado pelo Mercado Pago e só é dado como confirmado depois que o servidor da Beyon Zero consulta o Mercado Pago. Voltar para esta página não confirma nada sozinho.</p>
+    </section>
+
+    <!-- PERGUNTAS ANTES DE PAGAR (PR 3b-1, spec 2026-10-21 §4): fixas, sem IA, no resumo e na entrada. Só as que já são
+         verdade hoje; as outras entram com a parte delas (3b-2, 3b-3) ou com o dado do dono. "Quantos ajustes?" (Task 7) e
+         "Quando fica pronto?" (Task 9) são as duas respostas das decisões D2 e D4, de 21/10.
+         docs/testes/pagar-sem-medo.test.mjs confere que nenhuma entra antes -->
+    <section class="orc-bloco orc-antes" id="o-antes" aria-labelledby="o-antes-titulo" hidden>
+      <h2 id="o-antes-titulo">Perguntas antes de pagar</h2>
+      <details class="orc-det orc-antes__item">
+        <summary>Posso desistir?</summary>
+        <p class="orc-antes__resposta">Até 7 dias depois de aceitar (confirmar o resumo), por qualquer motivo, você recebe a entrada de volta (Código de Defesa do Consumidor, art. 49). Depois dos 7 dias, a entrada fica com a Beyon Zero. Se a Beyon Zero não entregar no prazo combinado, você recebe a entrada inteira de volta, mesmo depois dos 7 dias. Para desistir, <a data-wa="quero desistir do meu pedido" href="https://wa.me/5521977167944">fale com a Beyon Zero pelo WhatsApp</a>.</p>
+      </details>
+      <!-- D4 (21/10): as regras do lançamento valem para o orçamento; este texto é o de /condicoes (o teste de coerência confere) -->
+      <details class="orc-det orc-antes__item">
+        <summary>Quando fica pronto?</summary>
+        <p class="orc-antes__resposta">O prazo está no resumo do seu pedido, em dias corridos, contados do pagamento da entrada e do envio do seu material. Se o material não chegar em 30 dias, o site sai com as imagens do modelo.</p>
+      </details>
+      <!-- D2 (21/10): 2 listas de ajuste; o que passar disso é orçado à parte (revê a decisão de 11/10, Decisões.md) -->
+      <details class="orc-det orc-antes__item">
+        <summary>Quantos ajustes?</summary>
+        <p class="orc-antes__resposta">Duas listas de ajuste na prévia. Uma lista é um conjunto de pedidos mandado de uma vez. O que passar das duas listas é orçado à parte, como página ou item novo.</p>
+      </details>
+      <p class="orc-nota">Outra dúvida? <a class="orc-sem-quebra" data-wa="tenho uma dúvida antes de pagar" href="https://wa.me/5521977167944">Fale com a Beyon Zero pelo WhatsApp</a>.</p>
     </section>
 
     <!-- O RECIBO do sinal pago (js/orcamento-recibo.js): as duas partes do valor se encaixam num recibo só -->
@@ -529,6 +564,7 @@
   <script src="js/orcamento-turnstile.js" defer></script>
   <script src="js/orcamento-api.js" defer></script>
   <script src="js/orcamento-visor.js" defer></script>
+  <script src="js/orcamento-pix.js" defer></script>
   <script src="js/orcamento-pagamento.js" defer></script>
   <script src="js/orcamento-recibo.js" defer></script>
   <script src="js/orcamento-perguntas.js" defer></script>

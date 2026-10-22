@@ -73,7 +73,7 @@ test('fluxo normal: visitante → conversa → estimativa → contato → 3 dire
   assert.ok(esc.corpo.escopo.includes('ALTERAÇÕES PEDIDAS') && esc.corpo.escopo.includes('INVESTIMENTO'));
   assert.equal((await n.chamar('POST', 'confirmar', { conversa_id: c, proposta_id: esc.corpo.proposta_id, confirmo: true, inicio_imediato: true })).status, 200);
   const pg = await n.chamar('POST', 'pagar', { conversa_id: c, valor: 1, metodo: 'pix', pagador: PAGADOR });
-  assert.equal(Number(pg.corpo.pagamento.valor), 2175, 'o sinal vem da proposta (50%), não do corpo');
+  assert.equal(Number(pg.corpo.pagamento.valor), 1740, 'o sinal vem da proposta (40%), não do corpo');
   assert.equal(pg.corpo.tentativa.status, 'aguardando', 'o Pix gerado');
   const wh = await receber(new Request(BASE + '/api/pagamentos?acao=simular', { method: 'POST', body: JSON.stringify({ tentativa_id: pg.corpo.tentativa.id }), headers: { 'content-type': 'application/json' } }), {}, { banco: local.rpc });
   assert.equal(wh.status, 200);

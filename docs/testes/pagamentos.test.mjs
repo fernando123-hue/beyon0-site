@@ -30,7 +30,7 @@ before(async () => {
   deps = { banco: local.rpc, visitantes: local.auth, ia: criarSimulada(), direcoes: 'api', segredoFreio: 's'.repeat(32), limitesPedido: LIMITES_DE_TESTE, pagamentos: servico };
 });
 
-/* ---------- um visitante até a cobrança (sinal de R$ 2.175: institucional 3900 + agendamento 450, 50%) ---------- */
+/* ---------- um visitante até a cobrança (sinal de R$ 1.740: institucional 3900 + agendamento 450, 40%) ---------- */
 function navegador(d = deps) {
   const meuIp = '198.51.100.' + (++ip % 250);
   let token = null;
@@ -147,7 +147,7 @@ test('Pix: QR gerado; pedir de novo devolve o MESMO; pago só pelo aviso + consu
   assert.equal(r1.status, 200, JSON.stringify(r1.corpo));
   assert.equal(r1.corpo.tentativa.status, 'aguardando');
   assert.ok(r1.corpo.tentativa.pix_qr && r1.corpo.tentativa.pix_qr_base64);
-  assert.equal(Number(r1.corpo.pagamento.valor), 2175);
+  assert.equal(Number(r1.corpo.pagamento.valor), 1740);
   const r2 = await pagarPix(n, c);
   assert.equal(r2.corpo.tentativa.id, r1.corpo.tentativa.id, 'o mesmo Pix, nenhuma order nova');
   assert.equal(sim.chamadas.filter(x => x.metodo === 'POST' && x.caminho === '/v1/orders').length >= 1, true);
@@ -311,7 +311,7 @@ test('ataques financeiros: valor, conta, referência e moeda adulterados no prov
     const { n, c } = await ateCobranca();
     await pagarPix(n, c, { valor: 1, amount: '1.00', pagamento: { valor: 1 } });
     const t = await tentativaDe(c);
-    assert.equal(Number(t.valor), 2175, 'o valor veio da proposta, não do corpo');
+    assert.equal(Number(t.valor), 1740, 'o valor veio da proposta, não do corpo');
     sim.pagarPix(t.provedor_order_id);
     sim.editar(t.provedor_order_id, adulterar);
     assert.equal((await aviso(t.provedor_order_id)).status, 200);
@@ -498,4 +498,16 @@ test('reconciliação: página da varredura cheia = parcial (há mais orders que
   const r = await criarServicoPagamentos({ banco, cfg, provedor }).reconciliar({});
   assert.equal(r.parcial, true, 'a página veio cheia (50): pode haver mais');
   assert.deepEqual(consultadas, ['NOVA0', 'NOVA1', 'NOVA2', 'NOVA3', 'NOVA4'], 'só as que podem ter dinheiro foram consultadas');
+});
+
+test('entrada sem percentual (PR 3b-1): o 23514 do banco vira 409 com o WhatsApp, e nada vai ao Mercado Pago', async () => {
+  let ordens = 0;
+  const banco = async nome => {
+    if (nome !== 'pagamentos_iniciar_tentativa') return {};
+    const e = new Error('proposta sem percentual de entrada'); e.codigo = '23514'; throw e;
+  };
+  const s = criarServicoPagamentos({ banco, cfg: configPagamentos({}), provedor: { nome: 'mercadopago', criarOrdem: async () => { ordens++; return {}; } } });
+  await assert.rejects(s.iniciar({ conversa_id: 'c', visitante_id: 'v', metodo: 'pix', pagador: PAGADOR }),
+    e => e.status === 409 && /valor da entrada/.test(e.message) && e.extra && e.extra.whatsapp === true);
+  assert.equal(ordens, 0, 'nenhuma ordem criada no provedor');
 });

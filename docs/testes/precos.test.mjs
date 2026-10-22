@@ -43,9 +43,9 @@ test('tabela de 2026-10-14: landing 1.800, institucional 3.900, textos 350, áre
 
 test('casos de referência (os números do REGRAS-RASCUNHO.md)', () => {
   const l = estimar({ formato: 'landing_page' }, REGRAS);
-  assert.deepEqual([l.valor_total, l.sinal, l.prazo_dias, l.fase], [1800, 900, 5, 'unica']);
+  assert.deepEqual([l.valor_total, l.sinal, l.prazo_dias, l.fase], [1800, 720, 5, 'unica']);
   const i = estimar({ formato: 'institucional', paginas: 7, adicionais: { textos: 7, agendamento: 1 } }, REGRAS);
-  assert.deepEqual([i.valor_total, i.sinal, i.prazo_dias, i.fase], [6000, 3000, 10, 'fase1']);
+  assert.deepEqual([i.valor_total, i.sinal, i.prazo_dias, i.fase], [6000, 2400, 10, 'fase1']);
   assert.deepEqual(i.itens.map(x => x.chave + 'x' + x.qtd), ['pagina_extrax2', 'textosx4'], 'páginas antes dos textos, até o teto');
   assert.deepEqual(i.fase_seguinte.itens.map(x => x.chave + 'x' + x.qtd), ['textosx3', 'agendamentox1']);
   assert.equal(i.fase_seguinte.valor_estimado, 1500);   /* 3 textos × 350 + agendamento 450 */
@@ -64,7 +64,7 @@ test('nunca passa do teto de prazo, nunca fica abaixo do piso', () => {
       if (e.erros) { assert.ok(formato === 'landing_page' && paginas > 3, formato + ' ' + paginas + ': ' + e.erros); continue; }   /* (landing até 3 páginas) */
       assert.ok(e.prazo_dias <= REGRAS.prazo_max_dias, formato + ' ' + paginas + ' páginas: ' + e.prazo_dias + ' dias');
       assert.ok(e.valor_total >= REGRAS.formatos[formato].piso);
-      assert.equal(e.sinal, e.valor_total / 2);
+      assert.equal(e.sinal, Math.round(e.valor_total * REGRAS.sinal_percentual) / 100);   /* (o percentual da tabela, a mesma conta do motor; era total / 2 com o rascunho a 50%) */
     }
   }
   /* base abaixo do piso é tabela incoerente: recusada, em vez de calcular um preço que ninguém aprovou */
@@ -124,7 +124,7 @@ test('tabela com adicional nulo ou que não é objeto: recusada com erro, não e
 /* ---------- tabela v2 (2026-10-09): loja em plataforma, área restrita, dependências, fase seguinte, limite do projeto ---------- */
 test('loja em plataforma: base de R$ 4.800, adicionais de loja até o teto de 10 dias', () => {
   const l = estimar({ formato: 'loja_plataforma' }, REGRAS);
-  assert.deepEqual([l.valor_total, l.sinal, l.prazo_dias, l.fase], [4800, 2400, 8, 'unica']);
+  assert.deepEqual([l.valor_total, l.sinal, l.prazo_dias, l.fase], [4800, 1920, 8, 'unica']);
   const m = estimar({ formato: 'loja_plataforma', adicionais: { produtos_lote_25: 2, frete_transportadora: 1 } }, REGRAS);
   assert.deepEqual([m.valor_total, m.prazo_dias, m.fase], [5900, 10, 'unica'], '4800 + 2×300 + 500, 8 + 1 + 1 dias');
 });
@@ -199,4 +199,9 @@ test('fase seguinte longa diz em quantas fases de até 10 dias ela se divide', a
   const { montarEscopo } = await import('../../api/_vendas/escopo.mjs');
   const e = montarEscopo({ estimativa: r, direcao: { nome: 'Autoridade', secoes: [], paginas: [] }, briefing: { negocio: { descricao: 'x' } }, alteracoesAplicadas: [] });
   assert.ok(e.escopo.includes('prazo estimado de 21 dias corridos, em 3 fases de até 10 dias corridos cada'), 'o contrato não lê 21 dias como uma entrega só');
+});
+
+test('rascunho: a entrada é 40% (decisão do dono de 20/10, Decisões.md, "O site vende sozinho", 1 D; PR 3b-1). A tabela ativa o dono aplica', () => {
+  assert.equal(REGRAS.sinal_percentual, 40);
+  assert.match(REGRAS._status, /40%/, 'o _status diz de onde veio o 40');
 });
