@@ -134,3 +134,7 @@ test('B6 (revisão): pedido encerrado não vira "passo 2 agora"; B5: a falha pas
   assert.ok(/falhasLink\s*>=\s*3/.test(js), 'o link é tentado de novo (até 3 vezes) nas leituras seguintes do estado');
   assert.ok(!/pedindo = tentou = true/.test(js), 'uma falha passageira não esconde o cartão até recarregar');
 });
+
+test('copiar o link: se a área de transferência moderna recusar, cai para o copiar antigo (Task 19: o E2E headless não tem a permissão)', () => {
+  assert.match(semComentario(FONTE), /writeText\(texto\)\.catch\(legado\)/);
+});

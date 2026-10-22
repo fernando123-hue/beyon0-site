@@ -720,7 +720,7 @@ try {
 
   /* pagamento: dados do pagador, o cartão (quando o servidor o liga) e o Pix; a confirmação SÓ pelo aviso do provedor (docs/e2e-pix.mjs) */
   await passoDoPix(page, { ok, espera, foto, semRolagemLateral, forcar: v => { falhaForcada = v; } });
-  await passoDaEntrega(page, { ok, espera, foto, semRolagemLateral });
+  await passoDaEntrega(page, { ok, espera, foto, semRolagemLateral, perdeu: () => { perdeuOPedido = true; } });
   ok(erros.length === 0, 'sem erro de console' + (erros.length ? ': ' + erros.slice(0, 3).join(' | ') : ''));
   await ctx.close();
 

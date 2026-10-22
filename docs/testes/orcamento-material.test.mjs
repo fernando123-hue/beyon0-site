@@ -121,3 +121,9 @@ test('B1 (revisão): o "Falta:" diz para tirar o arquivo que não terminou (verm
   assert.deepEqual(M.partesDoFalta([{ bloco: 4, texto: 'o estado do negócio' }], { emAndamento: true, presos: 0 }), ['o estado do negócio (4)', 'esperar os arquivos terminarem de enviar']);
   assert.deepEqual(M.partesDoFalta([], { emAndamento: false, presos: 2 }), ['tirar o arquivo que não terminou (marcado em vermelho)']);
 });
+
+test('rodada 2 (Task 19): as miniaturas são decodificadas UMA POR VEZ (o Safari não decodifica 20 de uma vez)', () => {
+  const js = semComentario(FONTE);
+  assert.ok(/cadeiaDeMiniaturas\s*=\s*cadeiaDeMiniaturas\.then\(/.test(js), 'cada miniatura entra no fim da cadeia');
+  assert.ok(/async function fazerMiniatura/.test(js) && /miniaturaDe\(/.test(js));
+});

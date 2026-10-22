@@ -96,9 +96,11 @@
         li.children[3].textContent = p.nota;
       });
     }
+    /* a área de transferência moderna; se o navegador a recusa (sem permissão, página sem foco), cai para o copiar antigo com o campo selecionado */
     function copiar(texto, campo) {
-      if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(texto);
-      return new Promise(function (ok, no) { campo.focus(); campo.select(); try { document.execCommand('copy') ? ok() : no(new Error('copy')); } catch (e) { no(e); } });
+      var legado = function () { return new Promise(function (ok, no) { campo.focus(); campo.select(); try { document.execCommand('copy') ? ok() : no(new Error('copy')); } catch (e) { no(e); } }); };
+      if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(texto).catch(legado);
+      return legado();
     }
     function mostrarCartao() {
       var modo = modoDoCartao({ codigo: codigo, guardado: guardado, linkPedido: jaTem });

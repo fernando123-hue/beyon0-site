@@ -297,9 +297,15 @@
   }
   var minis = {};   /* id → URL do blob pequeno (null = já tentou e não deu) */
   var linhas = {};  /* id → { li, chave, estadoEl, bar } */
+  /* uma por vez (rodada 2, Safari): 20 fotos escolhidas juntas não decodificam 20 imagens ao mesmo tempo */
+  var cadeiaDeMiniaturas = Promise.resolve();
   async function fazerMiniatura(it, img) {
     if (!it.arquivo || minis[it.id] !== undefined || typeof createImageBitmap !== 'function') return;
     minis[it.id] = null;   /* já tentou: não repete a cada atualização */
+    cadeiaDeMiniaturas = cadeiaDeMiniaturas.then(function () { return miniaturaDe(it, img); });
+  }
+  async function miniaturaDe(it, img) {
+    if (!linhas[it.id]) return;   /* a linha saiu enquanto esperava a vez */
     var bmp = null;
     try {
       bmp = await createImageBitmap(it.arquivo, { resizeWidth: 96, resizeQuality: 'low' });

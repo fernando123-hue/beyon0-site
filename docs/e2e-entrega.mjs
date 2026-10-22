@@ -14,12 +14,26 @@ async function imagem(page, tipo, cor) {
   }, [tipo, cor]);
   return Buffer.from(bytes);
 }
+/* uma foto grande de verdade (4000x3000), desenhada no navegador: passa dos 2560 px, então o motor a reduz antes de enviar */
+async function imagemGrande(page, cor) {
+  const bytes = await page.evaluate(async c => {
+    const cv = document.createElement('canvas'); cv.width = 4000; cv.height = 3000;
+    const g = cv.getContext('2d'), grad = g.createLinearGradient(0, 0, 4000, 3000); grad.addColorStop(0, c); grad.addColorStop(1, '#fff');
+    g.fillStyle = grad; g.fillRect(0, 0, 4000, 3000);
+    for (let i = 0; i < 300; i++) { g.fillStyle = 'rgba(' + (i * 7 % 255) + ',' + (i * 13 % 255) + ',' + (i * 29 % 255) + ',.5)'; g.fillRect((i * 97) % 3900, (i * 61) % 2900, 120, 90); }
+    const blob = await new Promise(r => cv.toBlob(r, 'image/jpeg', 0.7));
+    return Array.from(new Uint8Array(await blob.arrayBuffer()));
+  }, cor);
+  return Buffer.from(bytes);
+}
 const passosDe = page => page.$$eval('#o-ped-passos .orc-passo', l => l.map(x => x.className.replace('orc-passo ', '')));
 
-export async function passoDaEntrega(page, { ok, espera, foto, semRolagemLateral }) {
+export async function passoDaEntrega(page, { ok, espera, foto, semRolagemLateral, perdeu = () => {} }) {
   const browser = page.context().browser();
   const origem = new URL(page.url()).origin;
-  const novoAparelho = async () => { const c = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true }); return { c, p: await c.newPage() }; };
+  /* cada aparelho com o seu IP (o servidor local confia no x-forwarded-for): o freio de criação de sessão é de 8 por 10 minutos POR IP, e o resto do E2E já gasta o da página principal */
+  let seqIp = 0;
+  const novoAparelho = async () => { const c = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, extraHTTPHeaders: { 'x-forwarded-for': '198.51.100.' + (++seqIp) } }); return { c, p: await c.newPage() }; };
   console.log('[e2e-entrega] esperando a janela do freio por IP esvaziar (61 s)');
   await new Promise(r => setTimeout(r, FREIO_MS));
 
@@ -75,6 +89,29 @@ export async function passoDaEntrega(page, { ok, espera, foto, semRolagemLateral
   ok(await espera(page, () => document.querySelectorAll('#o-arq-logo .is-enviado, #o-arq-fotos .is-enviado').length === 3, 40000), 'material: 1 logo e 2 fotos enviadas direto ao armazém e conferidas');
   ok(await page.$$eval('#o-material .orc-arq__mini img', l => l.length === 3), 'material: as miniaturas saem do arquivo no aparelho (blob:, sem erro de CSP)');
   ok((await page.textContent('#o-arq-contador')).trim() === '2 de 20', 'material: "2 de 20" fotos');
+  /* 3b. 20 fotos grandes (4000x3000, acima dos 2560 px: o aparelho reduz antes de enviar): o limite, as miniaturas pequenas (nada de decodificar a foto inteira
+     20 vezes), o foco que não se perde enquanto outras fotos sobem, e o "×" que tira o arquivo */
+  const grandes = [];
+  for (let i = 0; i < 18; i++) grandes.push({ name: 'IMG_' + (3000 + i) + '.jpg', mimeType: 'image/jpeg', buffer: await imagemGrande(page, 'hsl(' + (i * 20) + ' 60% 40%)') });
+  await page.locator('#o-arq-fotos li:first-child .orc-arq__tirar').focus();
+  const marcaFoco = () => page.evaluate(() => { const a = document.activeElement; return a && a.classList.contains('orc-arq__tirar') && a === document.querySelector('#o-arq-fotos li:first-child .orc-arq__tirar'); });
+  let perdeuFoco = false;
+  const vigia = setInterval(async () => { try { if (!(await marcaFoco())) perdeuFoco = true; } catch { /* a página está mudando */ } }, 150);
+  await page.locator('#o-mat-corpo input[type=file][multiple]').setInputFiles(grandes);
+  const vinte = await espera(page, () => document.querySelectorAll('#o-arq-fotos .is-enviado').length === 20, 180000);
+  clearInterval(vigia);
+  ok(vinte, 'material: 20 fotos de 4000x3000 enviadas, reduzidas no aparelho, uma por vez');
+  ok(!perdeuFoco, 'material: o foco do teclado ficou no "×" da 1ª foto enquanto as outras subiam (a lista não é refeita a cada progresso)');
+  ok((await page.textContent('#o-arq-contador')).trim() === '20 de 20', 'material: "20 de 20" fotos');
+  const minis = await page.$$eval('#o-arq-fotos .orc-arq__mini img', l => l.map(i => ({ w: i.naturalWidth, src: i.src })));
+  ok(minis.length === 20 && minis.every(m => m.w > 0 && m.w <= 96), 'material: 20 miniaturas decodificadas já pequenas (no máximo 96 px de lado), não a foto inteira (' + minis.map(m => m.w).join(',') + ')');
+  /* (o tamanho do blob não se lê aqui: a CSP não deixa a página fazer fetch de blob:, o que é o certo) */
+  console.log('[e2e-entrega] memória JS depois das 20 fotos: ' + Math.round((await page.evaluate(() => (performance.memory || {}).usedJSHeapSize || 0)) / 1048576) + ' MB');
+  await page.locator('#o-mat-corpo input[type=file][multiple]').setInputFiles({ name: 'a-21.jpg', mimeType: 'image/jpeg', buffer: f1 });
+  ok(await espera(page, () => /limite de 20 fotos/.test(document.getElementById('o-arq-fotos').textContent), 8000), 'material: a 21ª foto é recusada na linha, em palavra simples');
+  await page.click('#o-arq-fotos .is-erro .orc-arq__tirar');
+  for (let i = 0; i < 18; i++) { await page.locator('#o-arq-fotos li:last-child .orc-arq__tirar').click(); await page.waitForFunction(n => document.querySelectorAll('#o-arq-fotos li').length === n, 19 - i, { timeout: 15000 }); }
+  ok(await espera(page, () => document.querySelectorAll('#o-arq-fotos .is-enviado').length === 2 && document.getElementById('o-arq-contador').textContent.trim() === '2 de 20', 15000), 'material: tirar as 18 fotos devolve a lista a 2 de 20 e apaga os objetos do armazém');
   await page.locator('#o-mat-corpo input[type=file][multiple]').setInputFiles({ name: 'desenho.svg', mimeType: 'image/svg+xml', buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>') });
   ok(await espera(page, () => /Use JPG, PNG ou WebP/.test(document.getElementById('o-arq-fotos').textContent), 8000), 'material: SVG recusado na linha do arquivo, em palavra simples');
   await page.click('#o-arq-fotos .is-erro .orc-arq__tirar');
@@ -114,10 +151,11 @@ export async function passoDaEntrega(page, { ok, espera, foto, semRolagemLateral
   console.log('[e2e-entrega] esperando a janela do freio por IP esvaziar (61 s)');
   await new Promise(r => setTimeout(r, FREIO_MS));
   const erros = [];
+  perdeu();   /* daqui em diante a aba principal perde o pedido (outro aparelho o abre pelo link): o 404 ao reler o estado é o esperado */
   await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
   await page.goto('about:blank');
   await page.goto(origem + '/orcamento#pedido=' + codigo, { waitUntil: 'load' });
-  page.on('console', m => { if (m.type() === 'error') erros.push(m.text()); });
+  page.on('console', m => { if (m.type() === 'error' && !/status of 404/.test(m.text())) erros.push(m.text()); });
   await page.waitForSelector('#o-retomada:not([hidden])', { timeout: 20000 });
   ok(!page.url().includes('pedido='), 'volta pelo link: o código saiu da barra de endereço');
   ok(await page.locator('#o-ret-abrir').isVisible(), 'volta pelo link: "Abrir o meu pedido" (um toque da pessoa)');
@@ -161,18 +199,19 @@ export async function passoDaEntrega(page, { ok, espera, foto, semRolagemLateral
   await e2.p.goto(retomada, { waitUntil: 'load' });
   await e2.p.waitForSelector('#o-ret-abrir', { timeout: 20000 }); await e2.p.click('#o-ret-abrir');
   ok(await espera(e2.p, () => /já foi usado|venceu|não vale/.test(document.getElementById('o-ret-estado').textContent), 15000), 'continuar no computador: uso único (a 2ª vez não abre)');
-  for (const x of [d, e2]) await x.c.close();
+  await e2.c.close();   /* (o aparelho d fica aberto: o pedido agora é DELE, então é ele quem sai no passo 9) */
 
   /* 9. sair deste aparelho: o link guardado deixa de valer, o aparelho esquece o pedido e a sessão morre no servidor (logout global; provado na Task 9) */
-  await b.p.click('#o-link-sair');
-  ok(/peça um link novo à Beyon Zero/.test(await b.p.textContent('#o-link-aviso')), 'sair deste aparelho: o aviso diz como voltar (pedir um link novo), sem link de WhatsApp (D3)');
-  await b.p.click('#o-link-sair');
-  await b.p.waitForSelector('#o-perguntas:not([hidden])', { timeout: 30000 });
-  ok(await b.p.evaluate(() => localStorage.getItem('bz-orcamento')) === null, 'sair deste aparelho: a sessão foi esquecida');
+  await d.p.click('#o-link-mais summary');
+  await d.p.click('#o-link-sair');
+  ok(/peça um link novo à Beyon Zero/.test(await d.p.textContent('#o-link-aviso')), 'sair deste aparelho: o aviso diz como voltar (pedir um link novo), sem link de WhatsApp (D3)');
+  await d.p.click('#o-link-sair');
+  await d.p.waitForSelector('#o-perguntas:not([hidden])', { timeout: 30000 });
+  ok(await d.p.evaluate(() => localStorage.getItem('bz-orcamento')) === null, 'sair deste aparelho: a sessão foi esquecida');
   const f = await novoAparelho();
   await f.p.goto(origem + '/orcamento#pedido=' + codigo, { waitUntil: 'load' });
   await f.p.waitForSelector('#o-ret-abrir', { timeout: 20000 }); await f.p.click('#o-ret-abrir');
   ok(await espera(f.p, () => /não vale mais|usado|venceu/.test(document.getElementById('o-ret-estado').textContent), 15000), 'sair deste aparelho: o link guardado deixou de valer');
-  for (const x of [b, f]) await x.c.close();
+  for (const x of [b, d, f]) await x.c.close();
   ok(erros.length === 0, 'volta pelo link: sem erro de console' + (erros.length ? ': ' + erros.slice(0, 3).join(' | ') : ''));
 }
