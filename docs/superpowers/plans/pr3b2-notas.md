@@ -203,6 +203,16 @@ suíte e mutação rodam uma vez no fim; nada de E2E, `verificar`, `acessibilida
 - Pendências do dono em `docs/revisoes/pr1-pendencias.md`, item 4c.
 - Não feito, por ordem: E2E, `verificar`, `acessibilidade`, `olhar`, push, PR, merge, aplicar migration/balde.
 
+## Correções da revisão (`pr3b2-revisao.md`, aprovar com correções)
+
+- Merge de `origin/main` (`df24808`: 3b-1 + PR #52) sem conflito; `index.html` e `sites.html` não foram tocados.
+- A1 interruptor desligado: passos antes de pagar, FAQ de fotos e atalho nascem escondidos e só aparecem com `entrega_ligada === true`. A2: UF obrigatória em `ESQ.faltas` (bloco 4).
+- M1 PUT 409/400 "Duplicate" segue para a conferência. M2 freio de salvar 120 -> 600/h, 429 espera 11 s e repete até 5x, campo igual ao do servidor não é enviado. M3 `Enviar` esvazia a fila de salvamentos antes (e não envia se algum falhou).
+- M4 miniatura de 96 px (`createImageBitmap` com `resizeWidth`), URL revogada, lista reconciliada (progresso só troca texto e barra; foco preservado). M5 coluna `fim_em`: depois de `encerrar_links_do_pedido` o uso não renova.
+- B3 (auditoria no teste), B1, B2, B5, B6, B7, B9, B13. Ficam como estão: B4, B8, B10, B11, B12, B14. M6 (CSP com o endereço exato) e M7 (`condicoes_versao`) seguem como pendência do dono/coordenador.
+- Migrations editadas no lugar (ainda não aplicadas em lugar nenhum): `…120000_entrega` (coluna `fim_em`, comentário), `…120100_material` (600), `…120200_link_pedido` (renovação).
+- Suíte: 775 testes, 774 passam, 1 pulado (o de prazos da privacidade, que espera o PR da página), 0 falham. Mutação: 59 de 59 (eram 56; +A2, +PUT 409, +M5).
+
 ## Andamento
 
-próxima tarefa: nenhuma pendente em código. Faltam: Task 19 executar (PC livre), revisões técnica e de segurança por outro agente, merge de origin/main (sem conflito), PR
+próxima tarefa: nenhuma pendente em código. Faltam: Task 19 (tela, PC livre)
