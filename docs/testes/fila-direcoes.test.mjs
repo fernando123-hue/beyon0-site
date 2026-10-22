@@ -6,6 +6,7 @@
      geração automática (higienizar) e marca "avisado"; sem a chave, nada.  npm run testar */
 import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { montarLocal } from '../banco-local.mjs';
 import { atender } from '../../api/vendas.mjs';
 import { ler, mudar } from '../../api/painel.mjs';
@@ -205,12 +206,31 @@ test('comando local: o pedido para o modelo NUNCA leva nome, telefone ou e-mail 
   assert.ok(arquivo.instrucoes.sistema.length > 500 && arquivo.instrucoes.esquema.properties.secoes, 'as instruções da geração automática');
 });
 
-test('comando local (revisão de segurança): a chave só vai para o site certo, por https', async () => {
+test('comando local (revisão de segurança + M4): a chave só vai para o host EXATO certo, por https', async () => {
   const { validarBase } = await import('../../scripts/direcoes.mjs');
-  for (const ok of ['https://beyon0-site.vercel.app', 'https://beyon0-site-git-fila-beyond0.vercel.app/', 'http://127.0.0.1:8897', 'http://localhost:8899'])
-    assert.doesNotThrow(() => validarBase(ok), ok);
-  for (const ruim of ['http://beyon0-site.vercel.app', 'https://beyon0-site.vercel.app.evil.com', 'https://evil.com', 'https://beyon0-site.vercel.app@evil.com', 'ftp://127.0.0.1', '', 'beyon0-site.vercel.app'])
-    assert.throws(() => validarBase(ruim), /BZ_BASE/, ruim);
+  const SUB = 'irineu';   /* subdomínio de TESTE: o verdadeiro é o SUB_CONTA, que só o dono informa (P3) */
+  for (const ok of ['https://beyonzero.com.br', 'https://beyonzero.com.br/', 'https://beyon-zero-site-previa.irineu.workers.dev', 'https://beyon0-site.vercel.app', 'http://127.0.0.1:8897', 'http://localhost:8899'])
+    assert.doesNotThrow(() => validarBase(ok, SUB), ok);
+  assert.equal(validarBase('https://beyonzero.com.br/x?y=1', SUB), 'https://beyonzero.com.br');
+  for (const ruim of ['http://beyonzero.com.br', 'https://beyonzero.com.br.evil.com', 'https://www.beyonzero.com.br', 'https://beyon-zero-site-previa.outra.workers.dev',
+    'https://x-beyon-zero-site-previa.irineu.workers.dev', 'https://beyon-zero-site.irineu.workers.dev', 'https://beyon-zero-site-previa.irineu.workers.dev.evil.com',
+    'https://usuario:senha@beyonzero.com.br', 'https://beyonzero.com.br:8443', 'https://beyon-zero-site-previa.irineu.workers.dev:8443',
+    'https://beyon0-site.vercel.app.evil.com', 'https://beyon0-site-x-beyond0.vercel.app', 'https://beyon0-site-git-fila-beyond0.vercel.app', 'http://beyon0-site.vercel.app',
+    'https://beyon0-site.vercel.app@evil.com', 'https://evil.com', 'ftp://127.0.0.1', '', 'beyonzero.com.br'])
+    assert.throws(() => validarBase(ruim, SUB), /BZ_BASE/, ruim);
+  assert.throws(() => validarBase('https://beyon-zero-site-previa.irineu.workers.dev', null), /BZ_BASE/, 'SUB_CONTA nulo: o staging fica fechado para a chave do painel');
+});
+
+test('comando local (M4): hosts permitidos são nomes exatos; o host da Vercel só existe enquanto existir o vercel.json', async () => {
+  const { hostsPermitidos, HOSTS_VERCEL, HOST_SITE } = await import('../../scripts/direcoes.mjs');
+  const { SUB_CONTA } = await import('../../docs/acesso.mjs');
+  assert.deepEqual(hostsPermitidos('irineu'), [HOST_SITE, 'beyon-zero-site-previa.irineu.workers.dev', ...HOSTS_VERCEL]);
+  assert.deepEqual(hostsPermitidos(null), [HOST_SITE, ...HOSTS_VERCEL], 'sem SUB_CONTA, nenhum staging');
+  for (const h of hostsPermitidos('irineu')) assert.match(h, /^[a-z0-9.-]+$/, 'só nome exato, nunca expressão: ' + h);
+  assert.ok(!hostsPermitidos('irineu').some(h => /-beyond0\.vercel\.app$/.test(h)), 'as prévias da Vercel saíram');
+  const temVercelJson = fs.existsSync(new URL('../../vercel.json', import.meta.url));
+  if (!temVercelJson) assert.ok(!hostsPermitidos(SUB_CONTA).some(h => h.endsWith('.vercel.app')), 'sem vercel.json (PR D), nenhum host vercel.app: o nome liberado na Vercel não recebe a chave');
+  assert.ok(HOSTS_VERCEL.every(h => h.endsWith('.vercel.app')));
 });
 
 test('comando local (revisão de segurança): o briefing para o modelo vai sem o nome, o telefone e o e-mail do cliente, mesmo escritos dentro dele', async () => {
