@@ -173,6 +173,19 @@ suíte e mutação rodam uma vez no fim; nada de E2E, `verificar`, `acessibilida
 - `AINDA_NAO` perdeu `Como mando fotos` e `precisa mandar nada pelo WhatsApp`; continuam barradas as do 3b-3 e as da D2/D5.
 - **Verificação de tela PENDENTE (Task 19):** os passos acima do Pix a 390/320 px e o atalho de perguntas.
 
+## Task 18: privacidade (PR separado, só preparado)
+
+- Branch `pr3b2-privacidade` criada com `git branch` a partir de `origin/main` (`fde6d6f`, já com o PR #49 e o #50) e commitada SEM trocar a branch atual
+  (plumbing do git: índice temporário, `write-tree`, `commit-tree`, `update-ref`). Commit `004cc73`: só `privacidade.html`, `docs/testes/privacidade-material.test.mjs` e uma linha no `testar`. Sem push.
+- Vermelho visto: o teste novo falhou 4 de 4 contra a página sem o texto. Verde: privacidade-material 4/4 + `condicoes.test.mjs` 20/20 (rodados numa cópia exportada da branch, fora desta worktree).
+- **Dois desvios do plano, por causa de testes que já existem na `main`:**
+  1. `condicoes.test.mjs` proíbe "N anos" na página (o prazo legal de guarda de comprovantes "não leva número de anos" até o dono confirmar). O "5 anos" do plano e do Anexo B virou
+     "ficam pelo prazo legal de guarda de comprovantes, contado do último pagamento ou devolução". Se o dono confirmar 5 anos, troca-se a frase e o guarda juntos. O corpo do PR (Anexo B do plano) ainda diz 5 anos: ajustar na hora de abrir.
+  2. O trecho novo da Anthropic usava parênteses ("(textos, contatos e fotos)") dentro do parêntese da Anthropic e quebrava a regex de `condicoes.test.mjs`; virou "o material do site: textos, contatos e fotos, que o agente que monta o site lê".
+- No PR do código: `privacidade-prazos.test.mjs` (o item 1 passa, o 2 pula enquanto a página não tem o item, o 3 ficou verde com as pendências) e a seção `4c` em `docs/revisoes/pr1-pendencias.md`
+  (migrations, balde, conferir-armazem, PR da privacidade, CSP com o endereço exato, `BZ_ENTREGA`, captação, verificação de tela pendente).
+- **Dono:** o clique de mesclar o PR da privacidade é o "sim". O PR não foi publicado (sem push). Registrar a resposta em `Decisões.md` se ele responder no chat.
+
 ## Andamento
 
-próxima tarefa: 18 (só preparar o conteúdo na branch pr3b2-privacidade); depois 20 (suíte, mutação, pendências); 19 fica pendente
+próxima tarefa: 20 (suíte inteira, mutação, nível de risco); 19 fica pendente (PC livre)
