@@ -10,6 +10,7 @@
    API), usados só para MEDIR o custo de cada conversa e aplicar os tetos —
    não para cobrar ninguém.
    ========================================================================== */
+import { ambienteDe } from '../_ambiente.mjs';
 export const PAPEIS = {
   conversa: { modelo: 'claude-haiku-5-5', esforco: 'medium', max_tokens: 4000, timeout_ms: 45000 },
   extracao: { modelo: 'claude-haiku-5-5', esforco: 'low', max_tokens: 3000, timeout_ms: 45000 },
@@ -27,9 +28,8 @@ export const TENTATIVAS_PADRAO = 2;
 export const modoDirecoes = (env = process.env) => {
   if (String(env.BZ_DIRECOES || '').trim().toLowerCase() === 'manual') return 'manual';
   if (env.ANTHROPIC_API_KEY) return 'api';
-  const producaoVercel = !!(env.VERCEL || env.VERCEL_ENV) && !['preview', 'development'].includes(env.VERCEL_ENV);
   const simulada = env.BZ_LOCAL === '1' || env.BZ_IA === 'simulada';
-  return simulada && !producaoVercel ? 'api' : 'manual';
+  return simulada && ambienteDe(env) !== 'producao' ? 'api' : 'manual';
 };
 
 /* US$ por milhão de tokens: entrada, saída, leitura de cache, escrita de cache (~1,25× a entrada). `longo`: a tabela que

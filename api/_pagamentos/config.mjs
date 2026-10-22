@@ -7,6 +7,7 @@
      MP_WEBHOOK_SEGREDO     SECRETO: a "assinatura secreta" do webhook no painel
      MP_USER_ID             a conta Mercado Pago da Beyon Zero (obrigatório em produção)
      MP_3DS                 desligado (padrão) | on_fraud_risk
+     MP_METODOS             pix (padrão fora do local) | pix,cartao  (só Pix no lançamento; valor inválido = só Pix)
      CRON_SECRET            SECRETO: autoriza a reconciliação agendada
    Travas:
    • na Vercel, produção exige MP_AMBIENTE=producao; preview e development exigem
@@ -17,26 +18,37 @@
    Nenhum valor secreto sai deste módulo para log ou resposta.
    ========================================================================== */
 import { segredoDoCron } from '../_cron.mjs';
+import { ambienteDe } from '../_ambiente.mjs';
 
-const NA_VERCEL = env => !!(env.VERCEL || env.VERCEL_ENV);
+const METODOS = ['pix', 'cartao'];
+/* só Pix no lançamento (decisão do dono, 21/10): fora do local, MP_METODOS ausente ou com qualquer valor fora da
+   lista = só Pix (fechado por padrão). Local (simulado) = os dois, para o E2E */
+export function metodosDe(env, amb) {
+  const lista = String(env.MP_METODOS || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+  const valida = lista.length > 0 && lista.includes('pix') && lista.every(m => METODOS.includes(m));
+  if (valida) return METODOS.filter(m => lista.includes(m));
+  return amb === 'local' ? [...METODOS] : ['pix'];
+}
 
 export function configPagamentos(env = process.env) {
-  const local = globalThis.__BZ_LOCAL && !NA_VERCEL(env);
+  const amb = ambienteDe(env);
+  const local = globalThis.__BZ_LOCAL && amb === 'local';
   if (local && !env.MP_ACCESS_TOKEN && globalThis.__BZ_LOCAL.mp) {
     const s = globalThis.__BZ_LOCAL.mp;
     return { ativo: true, ambiente: 'simulado', provedor: 'mercadopago', token: s.token, publicKey: 'simulado', segredoWebhook: s.segredo,
-      contaEsperada: s.userId, tresDS: null, pixExpiracao: 'PT1H', base: 'https://api.mercadopago.com', fetch: s.fetch, cronSecret: s.cronSecret };
+      contaEsperada: s.userId, tresDS: null, pixExpiracao: 'PT1H', base: 'https://api.mercadopago.com', fetch: s.fetch, cronSecret: s.cronSecret,
+      metodos: metodosDe(env, 'local') };
   }
   const desligado = motivo => ({ ativo: false, motivo });
   const ambiente = env.MP_AMBIENTE;
   if (!ambiente) return desligado('MP_AMBIENTE não definido');
   if (!['teste', 'producao'].includes(ambiente)) return desligado('MP_AMBIENTE inválido');
-  if (NA_VERCEL(env)) {
-    const prod = env.VERCEL_ENV === 'production';
-    if (prod && ambiente !== 'producao') return desligado('produção da Vercel exige MP_AMBIENTE=producao');
-    if (!prod && ambiente !== 'teste') return desligado('prévia/desenvolvimento exige MP_AMBIENTE=teste');
+  if (amb !== 'local') {
+    const prod = amb === 'producao';
+    if (prod && ambiente !== 'producao') return desligado('produção exige MP_AMBIENTE=producao');
+    if (!prod && ambiente !== 'teste') return desligado('prévia exige MP_AMBIENTE=teste');
   } else if (ambiente === 'producao') {
-    return desligado('credencial de produção fora da Vercel de produção');
+    return desligado('credencial de produção fora da produção');
   }
   const token = env.MP_ACCESS_TOKEN, publicKey = env.MP_PUBLIC_KEY, segredo = env.MP_WEBHOOK_SEGREDO;
   if (!token || !/^[A-Za-z0-9_-]{20,200}$/.test(token)) return desligado('MP_ACCESS_TOKEN ausente ou malformado');
@@ -49,11 +61,11 @@ export function configPagamentos(env = process.env) {
   if (sufixo && sufixo[1] !== contaEsperada) return desligado('MP_ACCESS_TOKEN não é da conta MP_USER_ID');
   const tresDS = env.MP_3DS === 'on_fraud_risk' ? 'on_fraud_risk' : null;
   return { ativo: true, ambiente, provedor: 'mercadopago', token, publicKey, segredoWebhook: segredo, contaEsperada, tresDS,
-    pixExpiracao: 'PT1H', base: 'https://api.mercadopago.com', fetch: null, cronSecret: segredoDoCron(env) };
+    pixExpiracao: 'PT1H', base: 'https://api.mercadopago.com', fetch: null, cronSecret: segredoDoCron(env), metodos: metodosDe(env, amb) };
 }
 
 /* o que pode ir ao navegador */
 export function configPublica(cfg) {
   if (!cfg.ativo) return { ativo: false };
-  return { ativo: true, ambiente: cfg.ambiente, publicKey: cfg.publicKey, parcelasMax: 12 };
+  return { ativo: true, ambiente: cfg.ambiente, publicKey: cfg.publicKey, parcelasMax: 12, metodos: cfg.metodos || ['pix'] };
 }

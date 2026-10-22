@@ -11,6 +11,7 @@
      conta, então o agendador de verdade (outros IPs) não é afetado.
    ========================================================================== */
 import { timingSafeEqual } from 'node:crypto';
+import { Buffer } from 'node:buffer';   /* (explícito: o Buffer global só existe com nodejs_compat; o import não depende disso) */
 import { criarFreio, ipDe } from './_freio.mjs';
 
 const MINIMO = 32;

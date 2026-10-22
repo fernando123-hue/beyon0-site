@@ -1,6 +1,6 @@
 # Fase 1 — Status (2026-10-06)
 
-A fase parou aqui, como pedido. **Infisical e Cloudflare não foram iniciados.**
+A fase parou aqui, como pedido. **Infisical e Cloudflare não foram iniciados** (Cloudflare: em andamento desde 21/10).
 
 ## Status
 
@@ -65,8 +65,8 @@ A fase parou aqui, como pedido. **Infisical e Cloudflare não foram iniciados.**
 
 ## Ordem das fases combinada com o dono
 
-1. **Infisical:** a próxima, aguardando autorização.
-2. **Cloudflare:** só quando o site estiver 100% pronto (dono, 2026-10-06). Nada é configurado antes disso.
+1. **Cloudflare antes de ir ao ar** (decisão do dono 21/10, `01 Empresa/Decisões.md`): plano grátis medido, só Pix, domínio `beyonzero.com.br`; plano em `docs/superpowers/plans/2026-10-21-migracao-cloudflare.md`.
+2. **Infisical:** opção futura.
 
 O que já se sabe que vai mudar quando a Cloudflare entrar (para não ser surpresa):
 

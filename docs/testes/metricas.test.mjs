@@ -142,3 +142,39 @@ test('painel: tentativas de chave errada contam o IPv6 pelo prefixo /64', async 
   assert.equal((await ler(errada(99), ENV)).status, 429, 'a 11ª, de outro fim do mesmo /64: freada');
   assert.equal((await ler(painel('?dias=7', { headers: { authorization: 'Bearer errada', 'x-forwarded-for': '2001:db8:77:2::1' } }), ENV)).status, 401, 'outro /64 não é afetado');
 });
+
+/* A9 (migração para a Cloudflare): o painel GET respeita o orçamento de CPU e de subpedidos. Uma tabela cheia (1.000 linhas por
+   página) não é lida até o fim: no máximo MAX_PAGINAS_POR_TABELA páginas por tabela, e o resultado diz que foi cortado. */
+test('painel: tabelas cheias são lidas em no máximo 2 páginas cada, o resumo avisa o corte e faz no máximo 5 subpedidos', async () => {
+  const { banco, MAX_PAGINAS_POR_TABELA } = await import('../../api/_banco.mjs');
+  assert.equal(MAX_PAGINAS_POR_TABELA, 2);
+  const ENV_REAL = { PAINEL_CHAVE: CHAVE, SUPABASE_URL: 'https://falso.supabase.co', SUPABASE_CHAVE_SECRETA: 'sb_secret_teste' };
+  const salvo = globalThis.fetch;
+  const vistos = [];
+  const linha = (i, campo) => ({ id: 'pv-' + i, visita: 'vi-' + i, codigo: 'K' + String(i).padStart(4, '0'), pagina: '/sites', [campo]: new Date(AGORA - i * 1000).toISOString(), entrada: true,
+    fonte: 'direto', meio: 'direto', campanha: null, termo: null, rolagem: 10, status: 'clicou' });
+  globalThis.fetch = async url => {
+    const u = String(url);
+    vistos.push(u);
+    const tabela = /\/rest\/v1\/(paginas|contatos)\?/.exec(u);
+    if (!tabela) return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });   /* (a saúde, uma RPC) */
+    const campo = tabela[1] === 'paginas' ? 'inicio' : 'quando';
+    return new Response(JSON.stringify(Array.from({ length: 1000 }, (_, i) => linha(i, campo))), { status: 200, headers: { 'content-type': 'application/json' } });
+  };
+  try {
+    const lidas = await banco(ENV_REAL).listar('paginas', 'inicio', new Date(AGORA - 864e5).toISOString());
+    assert.equal(vistos.filter(u => u.includes('/paginas?')).length, MAX_PAGINAS_POR_TABELA, 'no máximo 2 páginas da tabela');
+    assert.equal(lidas.length, 2000);
+    assert.equal(lidas.cortado, true);
+    vistos.length = 0;
+    const r = await ler(painel('?dias=30'), ENV_REAL);
+    assert.equal(r.status, 200);
+    const corpo = await r.json();
+    assert.ok(vistos.length <= 5, 'subpedidos: ' + vistos.length);
+    assert.equal(corpo.aviso, 'período grande demais; mostrando os mais recentes');
+    /* o CSV do Ads (baixado, sem lugar para texto) avisa por cabeçalho e o painel mostra (BAIXO-4 da revisão) */
+    const csv = await ler(painel('?csv=ads&nome=Cliente'), ENV_REAL);
+    assert.equal(csv.status, 200);
+    assert.equal(csv.headers.get('x-bz-cortado'), '1');
+  } finally { globalThis.fetch = salvo; }
+});

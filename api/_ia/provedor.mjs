@@ -20,6 +20,7 @@
      anthropic.mjs  Claude pela API (SDK oficial), com ANTHROPIC_API_KEY
      simulado.mjs   respostas determinísticas, para testes e o servidor local
    ========================================================================== */
+import { ambienteDe } from '../_ambiente.mjs';
 export class ErroIA extends Error {
   /* custo_usd: o que já foi pago antes da falha (recusa, formato, resposta cortada, rodadas anteriores): o fluxo soma no teto */
   constructor(motivo, mensagem, custo_usd = 0) { super(mensagem || motivo); this.motivo = motivo; this.custo_usd = custo_usd; }
@@ -34,8 +35,7 @@ export async function criarIA(env = process.env) {
   /* nunca o simulador na produção da Vercel: proposta inventada para cliente de verdade. Fechado por padrão: na
      Vercel só a prévia e o desenvolvimento aceitam o simulador. Sem chave, o consultor fica desligado (vendas.mjs
      responde 503 com o WhatsApp) */
-  const naVercel = !!(env.VERCEL || env.VERCEL_ENV);
-  if (naVercel && !['preview', 'development'].includes(env.VERCEL_ENV)) return null;
+  if (ambienteDe(env) === 'producao') return null;
   if (env.BZ_LOCAL === '1' || env.BZ_IA === 'simulada') {
     const { criarSimulada } = await import('./simulado.mjs');
     return criarSimulada();
