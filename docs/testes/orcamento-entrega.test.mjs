@@ -123,3 +123,14 @@ test('A1 (revisão): com a entrega desligada a página não promete o material "
   /* a frase do FAQ e a do passo 2 continuam no HTML (o guarda de frases confere o texto), só escondidas */
   assert.ok(HTML.includes('Aqui mesmo, depois da entrada. Não precisa mandar nada pelo WhatsApp.'));
 });
+
+test('B6 (revisão): pedido encerrado não vira "passo 2 agora"; B5: a falha passageira do link é tentada de novo; B7: uma declaração por linha', () => {
+  const m = { status: 'enviado', enviado_em: '2026-10-23T02:00:00+00:00' };
+  const enc = B.passos({ passo: 'encerrada', entrega_ate: null, material: m }, null);
+  assert.ok(!enc.some(p => p.estado === 'agora'), 'nenhum passo "agora" num pedido encerrado');
+  assert.equal(B.passos({ passo: 'material', material }, null)[1].estado, 'agora', 'e o passo do material segue como antes');
+  const js = semComentario(FONTE);
+  assert.ok(!/\}[ \t]+async function/.test(js), 'duas declarações na mesma linha');
+  assert.ok(/falhasLink\s*>=\s*3/.test(js), 'o link é tentado de novo (até 3 vezes) nas leituras seguintes do estado');
+  assert.ok(!/pedindo = tentou = true/.test(js), 'uma falha passageira não esconde o cartão até recarregar');
+});

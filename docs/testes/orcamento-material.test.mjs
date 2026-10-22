@@ -115,3 +115,9 @@ test('M4 (revisão): a linha do arquivo só é refeita quando muda de forma (o p
   assert.ok(js.includes('resizeWidth') && js.includes('revokeObjectURL'), 'miniatura reduzida na decodificação e URL revogada quando a linha sai');
   assert.ok(!/logo\.textContent = ''|fotos\.textContent = ''/.test(js), 'a lista não é apagada e refeita a cada progresso');
 });
+
+test('B1 (revisão): o "Falta:" diz para tirar o arquivo que não terminou (vermelho), com o número do bloco dos campos que faltam', () => {
+  assert.deepEqual(M.partesDoFalta([], { emAndamento: false, presos: 0 }), []);
+  assert.deepEqual(M.partesDoFalta([{ bloco: 4, texto: 'o estado do negócio' }], { emAndamento: true, presos: 0 }), ['o estado do negócio (4)', 'esperar os arquivos terminarem de enviar']);
+  assert.deepEqual(M.partesDoFalta([], { emAndamento: false, presos: 2 }), ['tirar o arquivo que não terminou (marcado em vermelho)']);
+});

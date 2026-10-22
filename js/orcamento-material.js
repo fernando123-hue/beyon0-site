@@ -381,12 +381,17 @@
     var erro = el('p', 'orc-mat__salvo'); erro.id = 'o-mat-erro'; erro.setAttribute('role', 'status'); corpo.appendChild(erro);
     corpo.appendChild(el('p', 'orc-mat__dica', 'O que você não mandar fica como no modelo. Depois de enviar, mudanças entram na lista de ajustes da prévia.'));
   }
+  /* o que impede o envio, em frase: os campos que faltam (com o número do bloco), arquivo em andamento e arquivo preso em vermelho (B1 da revisão) */
+  function partesDoFalta(f, resumo) {
+    var partes = f.map(function (x) { return x.texto + ' (' + x.bloco + ')'; });
+    if (resumo.emAndamento) partes.push('esperar os arquivos terminarem de enviar');
+    if (resumo.presos > 0) partes.push('tirar o arquivo que não terminou (marcado em vermelho)');
+    return partes;
+  }
   function atualizarEnvio() {
     var env = $('o-mat-enviar'), falta = $('o-mat-falta');
     if (!env || !estado) return;
-    var f = ESQ.faltas(estado.atual), andando = estado.motor.resumo().emAndamento;
-    var partes = f.map(function (x) { return x.texto + ' (' + x.bloco + ')'; });
-    if (andando) partes.push('esperar os arquivos terminarem de enviar');
+    var partes = partesDoFalta(ESQ.faltas(estado.atual), estado.motor.resumo());
     falta.textContent = partes.length ? 'Falta: ' + partes.join(' e ') + '.' : '';
     env.setAttribute('aria-disabled', partes.length ? 'true' : 'false');
   }
@@ -461,5 +466,5 @@
     estado.motor.hidratar(e.material.arquivos);
   }
 
-  window.BZMaterial = { atualizar: atualizar, blocos: BLOCOS, formatarTelefone: formatarTelefone, lerLista: lerLista, lerObjetos: lerObjetos, repetirNo429: repetirNo429, chaveDaLinha: chaveDaLinha, textoDoEstado: textoDoEstado, mudouDe: mudouDe, criarFilaDeSalvamento: criarFilaDeSalvamento };
+  window.BZMaterial = { atualizar: atualizar, blocos: BLOCOS, formatarTelefone: formatarTelefone, lerLista: lerLista, lerObjetos: lerObjetos, repetirNo429: repetirNo429, partesDoFalta: partesDoFalta, chaveDaLinha: chaveDaLinha, textoDoEstado: textoDoEstado, mudouDe: mudouDe, criarFilaDeSalvamento: criarFilaDeSalvamento };
 })();

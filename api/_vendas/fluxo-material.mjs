@@ -46,7 +46,7 @@ export const FRASES = Object.freeze({
 });
 
 const soCom = (corpo, chaves) => !!corpo && typeof corpo === 'object' && !Array.isArray(corpo) && Object.keys(corpo).every(k => chaves.includes(k));
-const LIVRES = new Set(['servicos', 'provas', 'depoimentos', 'horario', 'bairros', 'endereco']);   /* (o endereço também passa por limparMensagem + redigir: B13) */
+const LIVRES = new Set(['servicos', 'provas', 'depoimentos', 'horario', 'bairros', 'endereco', 'negocio.cidade']);   /* (o endereço também passa por limparMensagem + redigir: B13) */
 /* texto livre: limparMensagem + redigir em cada string (telefone, e-mail e documento viram marcadores) */
 function limpar(v) {
   if (typeof v === 'string') { const l = limparMensagem(v); return l ? redigir(l).trim() : ''; }
@@ -72,7 +72,7 @@ export function criarAcoesDoMaterial({ banco, visitante, estado, armazem, segred
       case 'logo': return new Recusa(409, FRASES.limiteLogo);
       case 'reservas': return new Recusa(409, FRASES.limiteReservas, { whatsapp: true });
       case 'pedido': return new Recusa(409, FRASES.limitePedido);
-      case 'balde': return new Recusa(503, FRASES.balde, { recuperavel: true });
+      case 'balde': return new Recusa(503, FRASES.balde, { recuperavel: true, tentarDepois: true });   /* (o navegador não fica repetindo: esperar segundos não esvazia o balde) */
       case 'freio': return new Recusa(429, FRASES.freio);
       case 'numero': return new Recusa(422, FRASES.numero);
       case 'faltam_campos': return new Recusa(409, FRASES.faltam);

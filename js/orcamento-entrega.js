@@ -45,7 +45,7 @@
   var PROMESSAS = ['o-antes-passos', 'o-faq-fotos', 'o-atalho-fotos'];
 
   function passos(e, valores) {
-    var atual = INDICE[e.passo] || 2, v = valores || {};
+    var atual = Object.prototype.hasOwnProperty.call(INDICE, e.passo) ? INDICE[e.passo] : 2, v = valores || {};   /* (encerrada = 0: nenhum passo "agora") */
     var enviado = e.material && e.material.enviado_em ? dataPorExtenso(diaDoInstante(e.material.enviado_em)) : '';
     var previsao = e.entrega_ate ? dataPorExtenso(e.entrega_ate) : '';
     var notas = ['',
@@ -72,7 +72,7 @@
 
   function criar(o) {
     var API = o.API, dinheiro = o.dinheiro;
-    var codigo = null, pedindo = false, tentou = false, guardado = false, confirmando = null, jaTem = false, conversaId = null, marcaLida = false;
+    var falhasLink = 0, codigo = null, pedindo = false, tentou = false, guardado = false, confirmando = null, jaTem = false, conversaId = null, marcaLida = false;
     var anunciar = function (t) { $('o-link-aviso').textContent = t; };
     /* "este aparelho já guardou o link" (M4): só a id da conversa no localStorage; sem armazenamento, o cartão aparece (no pior caso, a pessoa gera outro) */
     function lerMarca() { try { return localStorage.getItem(CHAVE_GUARDADO) === conversaId; } catch (e) { return false; } }
@@ -112,10 +112,12 @@
         $('o-link-campo').value = linkDoPedido(location.origin, codigo);
         $('o-link-enviar').hidden = typeof navigator.share !== 'function';
       }
-    }    async function garantirLink(E) {
-      if (E.entrega.link_pedido || pedindo || tentou) return;   /* já existe: o código em claro não volta */
-      pedindo = tentou = true;
-      try { var r = await API.linkPedido(false); if (r.criado) codigo = r.codigo; } catch (e) { /* sem link agora: o cartão não aparece; as outras ações seguem */ } finally { pedindo = false; }
+    }
+    /* B5 (revisão): uma falha passageira não esconde o cartão até recarregar: a próxima leitura do estado tenta de novo (até 3 vezes) */
+    async function garantirLink(E) {
+      if (E.entrega.link_pedido || pedindo || tentou || falhasLink >= 3) return;   /* já existe: o código em claro não volta */
+      pedindo = true;
+      try { var r = await API.linkPedido(false); tentou = true; if (r.criado) codigo = r.codigo; } catch (e) { falhasLink++; /* sem link agora: o cartão não aparece; as outras ações seguem */ } finally { pedindo = false; }
       mostrarCartao();
     }
     function agenda(e, E) {

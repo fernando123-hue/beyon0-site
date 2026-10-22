@@ -19,7 +19,7 @@
     abandonado: 'Este envio não terminou. Tire e escolha de novo.'
   };
   var EM_ANDAMENTO = { fila: 1, reduzindo: 1, reservando: 1, enviando: 1, conferindo: 1 };
-  var ESPERA_FREIO_MS = 11000, ESPERAS_MAX = 3;      /* a regra do servidor é de 10 pedidos em 10 s: 11 s libera */
+  var ESPERA_FREIO_MS = 11000, ESPERAS_MAX = 3;      /* o freio geral do servidor é por minuto (90 por IP): 11 s dão uma folga curta; os por hora (reservar 40, conferir 60) não passam com esperar */
   var LINK_VALE_MS = 110 * 60 * 1000;                /* o link assinado vale 2 h; com 10 min de folga */
   var REFAZ_RESERVA = { 403: 1, 410: 1, 422: 1 };    /* o que obriga a reservar de novo */
   var mb = function (n) { return Math.round(n / (1024 * 1024) * 10) / 10; };
@@ -80,11 +80,16 @@
     var esperar = o.esperar || function (ms) { return new Promise(function (ok) { setTimeout(ok, ms); }); }, agora = o.agora || Date.now;
     var itens = [], rodando = false, seq = 0;
     var mudou = function () { aoMudar(itens.slice()); };
-    /* o freio do servidor (429/503): espera e repete o MESMO passo, sem a pessoa tocar em nada (M6) */
+    /* o freio do servidor (429/503): espera e repete o MESMO passo, sem a pessoa tocar em nada (M6). Recusa de regra que manda
+       "tentar depois" (balde cheio: dados.tentarDepois) não repete: esperar 33 s não muda nada (B9 da revisão) */
     async function comEspera(passo) {
       for (var t = 0; ; t++) {
         try { return await passo(); }
-        catch (e) { if (!(e && (e.status === 429 || e.status === 503)) || t >= ESPERAS_MAX) throw e; await esperar(ESPERA_FREIO_MS); }
+        catch (e) {
+          var repetivel = e && (e.status === 429 || e.status === 503) && !(e.dados && e.dados.tentarDepois);
+          if (!repetivel || t >= ESPERAS_MAX) throw e;
+          await esperar(ESPERA_FREIO_MS);
+        }
       }
     }
 
@@ -156,6 +161,8 @@
     function hidratar(arquivos) {
       (arquivos || []).forEach(function (a) {
         if (itens.some(function (i) { return i.arquivoId === a.id; })) return;
+        /* B2 (revisão): a reserva que ESTE aparelho está fazendo agora ainda não tem arquivoId aqui: não a tome por abandonada */
+        if (a.status === 'reservado' && itens.some(function (i) { return i.estado === 'reservando'; })) return;
         var ok = a.status === 'conferido';
         itens.push({ id: 's' + a.id, papel: a.papel, nome: a.papel === 'logo' ? 'Logo' : 'Foto', tamanho: a.tamanho, arquivo: null, estado: ok ? 'enviado' : 'erro', progresso: ok ? 1 : 0, erro: ok ? null : FRASES.abandonado, arquivoId: a.id });
       });
@@ -165,7 +172,9 @@
       return {
         logo: itens.some(function (i) { return i.papel === 'logo' && i.estado !== 'erro'; }),
         fotos: itens.filter(function (i) { return i.papel === 'foto' && i.estado === 'enviado'; }).length,
-        emAndamento: itens.some(function (i) { return EM_ANDAMENTO[i.estado]; })
+        emAndamento: itens.some(function (i) { return EM_ANDAMENTO[i.estado]; }),
+        /* B1 (revisão): linha em erro que ainda tem reserva no servidor: o Enviar recusa até ela ser tirada ou refeita */
+        presos: itens.filter(function (i) { return i.estado === 'erro' && i.arquivoId; }).length
       };
     }
     return { adicionar: adicionar, remover: remover, tentarDeNovo: tentarDeNovo, hidratar: hidratar, itens: function () { return itens.slice(); }, resumo: resumo };

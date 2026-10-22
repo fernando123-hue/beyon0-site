@@ -390,7 +390,8 @@ async function materialParaBaixar(env, busca) {
   const arquivos = nomes.map(a => ({ nome: a.nome, papel: a.papel, tipo_real: a.tipo_real, tamanho: Number(a.tamanho_real), url: links[a.caminho] || null }));
   if (arquivos.some(a => !a.url)) return json({ erro: 'Um arquivo do pedido sumiu do armazém: ' + arquivos.filter(a => !a.url).map(a => a.nome).join(', ') }, 502);
   /* B7 (spec §8, "Injeção no Claude"): o selo de texto suspeito POR CAMPO; o agente da produção lê o material como DADO, nunca como instrução */
-  const suspeitos = Object.entries(r.material.dados || {}).filter(([, v]) => pareceInjecao(typeof v === 'string' ? v : JSON.stringify(v))).map(([k]) => k);
+  const campos = [...Object.entries(r.material.dados || {}), ...Object.entries(r.material.negocio || {}).map(([k, v]) => ['negocio.' + k, v])];
+  const suspeitos = campos.filter(([, v]) => pareceInjecao(typeof v === 'string' ? v : JSON.stringify(v))).map(([k]) => k);
   return json({ pedido, formulario, arquivos, suspeitos });
 }
 

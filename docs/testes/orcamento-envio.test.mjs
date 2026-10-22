@@ -62,7 +62,7 @@ test('o caminho de um arquivo: reservar → enviar → conferir, um por vez, na 
   assert.deepEqual(log.map(l => l[0]).filter(x => x !== 'reduzir'), ['reservar', 'put', 'conferir', 'reservar', 'put', 'conferir'], 'o segundo só começa depois do primeiro');
   assert.deepEqual(motor.itens().map(i => i.estado), ['enviado', 'enviado']);
   assert.deepEqual(log.filter(l => l[0] === 'reservar').map(l => [l[1], l[2], l[3]]), [['foto', 'image/jpeg', MB], ['foto', 'image/jpeg', 2 * MB]], 'o tamanho declarado é o do arquivo que vai mesmo');
-  assert.deepEqual(motor.resumo(), { logo: false, fotos: 2, emAndamento: false });
+  assert.deepEqual(motor.resumo(), { logo: false, fotos: 2, emAndamento: false, presos: 0 });
 });
 
 test('o nome do arquivo do aparelho nunca vai ao servidor (nem na reserva, nem no envio)', async () => {
@@ -150,7 +150,7 @@ test('hidratar: o que o servidor já tem (outra aba, volta ao pedido) vira linha
   const { motor } = montar();
   motor.hidratar([{ id: 'a1', papel: 'logo', tamanho: 4000, status: 'conferido' }, { id: 'a2', papel: 'foto', tamanho: 9000, status: 'conferido' }, { id: 'a3', papel: 'foto', tamanho: 5, status: 'reservado' }]);
   assert.deepEqual(motor.itens().map(i => [i.papel, i.estado, i.arquivo || null]), [['logo', 'enviado', null], ['foto', 'enviado', null], ['foto', 'erro', null]]);
-  assert.deepEqual(motor.resumo(), { logo: true, fotos: 1, emAndamento: false });
+  assert.deepEqual(motor.resumo(), { logo: true, fotos: 1, emAndamento: false, presos: 1 });
   motor.hidratar([{ id: 'a1', papel: 'logo', tamanho: 4000, status: 'conferido' }]);
   assert.equal(motor.itens().filter(i => i.arquivoId === 'a1').length, 1, 'hidratar duas vezes não duplica');
 });
@@ -178,4 +178,33 @@ test('M1 (revisão): PUT que responde 409 (já gravado antes: a resposta se perd
   r.motor.adicionar([arq('c.jpg', 'image/jpeg', MB)], 'foto'); await esperar({ motor: r.motor });
   assert.equal(r.motor.itens()[0].estado, 'erro');
   assert.equal(V.jaGravado(409), true); assert.equal(V.jaGravado(400, 'Duplicate'), true); assert.equal(V.jaGravado(400, 'outro erro'), false); assert.equal(V.jaGravado(500, 'Duplicate'), false);
+});
+
+test('B1 (revisão): o resumo conta os arquivos presos (com reserva no servidor e em erro), que travam o Enviar até serem tirados', async () => {
+  const { motor } = montar();
+  motor.hidratar([{ id: 'a3', papel: 'foto', tamanho: 5, status: 'reservado' }, { id: 'a4', papel: 'foto', tamanho: 5, status: 'conferido' }]);
+  assert.equal(motor.resumo().presos, 1, 'a reserva abandonada vinda do servidor');
+  motor.remover('sa3');
+  assert.equal(motor.resumo().presos, 0);
+  const r = montar(); r.motor.adicionar([arq('a.svg', 'image/svg+xml', 10)], 'foto');
+  assert.equal(r.motor.itens()[0].estado, 'erro'); assert.equal(r.motor.resumo().presos, 0, 'erro local sem reserva não trava nada');
+});
+
+test('B2 (revisão): enquanto uma reserva está sendo feita aqui, a hidratação não a toma por abandonada', async () => {
+  let solta;
+  const { motor } = montar({ reservar: () => new Promise(ok => { solta = () => ok({ arquivo_id: 'x9', url_envio: 'http://x/up' }); }) });
+  motor.adicionar([arq('a.jpg', 'image/jpeg', MB)], 'foto');
+  for (let i = 0; i < 20 && motor.itens()[0].estado !== 'reservando'; i++) await new Promise(r => setTimeout(r, 1));
+  assert.equal(motor.itens()[0].estado, 'reservando');
+  motor.hidratar([{ id: 'x9', papel: 'foto', tamanho: MB, status: 'reservado' }]);
+  assert.equal(motor.itens().length, 1, 'nenhuma linha "abandonada" duplicada');
+  solta(); await esperar({ motor });
+  assert.equal(motor.itens()[0].estado, 'enviado');
+});
+
+test('B9 (revisão): a recusa "tente amanhã" (balde cheio) não espera 33 s repetindo; o freio comum (429) continua repetindo', async () => {
+  const a = montar({ reservar: async () => { throw Object.assign(new Error('Recebemos muitos arquivos agora. Tente de novo amanhã.'), { status: 503, dados: { recuperavel: true, tentarDepois: true } }); } });
+  a.motor.adicionar([arq('a.jpg', 'image/jpeg', MB)], 'foto'); await esperar({ motor: a.motor });
+  assert.equal(a.motor.itens()[0].estado, 'erro'); assert.deepEqual(a.esperas, [], 'nenhuma espera');
+  assert.match(a.motor.itens()[0].erro, /amanhã/);
 });

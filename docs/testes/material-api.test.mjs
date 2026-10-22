@@ -181,3 +181,20 @@ test('nenhuma ação do material chama a IA', async () => {
   await n.chamar('POST', 'material-salvar', { conversa_id: c, campo: 'cor', valor: '#1a7f5a' });
   assert.equal(cen.contas.ia, antes);
 });
+
+test('B13 (revisão): a cidade do material passa pela redação como o texto livre, e o painel marca a cidade com cara de instrução', async () => {
+  const { n, c } = await ateEntregaCriada(cen, local);
+  const salvar = (campo, valor) => n.chamar('POST', 'material-salvar', { conversa_id: c, campo, valor });
+  assert.equal((await salvar('negocio.cidade', 'Niterói ligue (21) 99999-0001')).status, 200);
+  assert.ok(!/99999-0001/.test((await material(n, c)).negocio.cidade), 'telefone vira marcador também na cidade');
+});
+
+test('B9 (revisão, servidor): o balde cheio responde 503 com tentarDepois (o navegador não fica repetindo)', async () => {
+  const { n, c } = await ateEntregaCriada(cen, local);
+  await local.db.query("insert into storage.objects (bucket_id, name, metadata) values ('material', 'cheio/um', $1)", [JSON.stringify({ size: 800 * 1024 * 1024 })]);
+  try {
+    const r = await n.chamar('POST', 'material-reservar', { conversa_id: c, papel: 'foto', tipo: 'image/jpeg', tamanho: 1000 });
+    assert.equal(r.status, 503); assert.equal(r.corpo.recuperavel, true); assert.equal(r.corpo.tentarDepois, true);
+    assert.match(r.corpo.erro, /amanhã/);
+  } finally { await local.db.query("delete from storage.objects where name = 'cheio/um'"); }
+});
