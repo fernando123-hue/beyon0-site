@@ -147,6 +147,10 @@ export const SABOTAGENS = [
   /* ---- as respostas da captação e a decisão dos feriados (21/10) ---- */
   { nome: 'o uso do link renova a validade mesmo depois do fim do pedido (M5 da revisão)', arquivo: '20261023120200_pr3b2_link_pedido.sql', testes: ['docs/testes/link-pedido-banco.test.mjs'],
     de: "case when l.fim_em is null and c.etapa = 'em_producao' then", para: "case when true then" },
+  { nome: 'a UF deixa de ser obrigatória no envio (A2 da revisão: o pacote não monta)', fonte: 'js/orcamento-material-esquema.js', testes: ['docs/testes/material-esquema.test.mjs'],
+    de: "if (UFS.indexOf(m && m.negocio && m.negocio.uf) < 0) f.push(", para: "if (false) f.push(" },
+  { nome: 'PUT 409 volta a travar o arquivo (M1 da revisão)', fonte: 'js/orcamento-envio.js', testes: ['docs/testes/orcamento-envio.test.mjs'],
+    de: "return status === 409 || (status === 400 &&", para: "return (status === 400 &&" },
   { nome: 'Finados conta como dia útil (feriado nacional fora da lista)', fonte: 'api/_material/prazo.mjs', testes: ['docs/testes/prazo.test.mjs', 'docs/testes/captacao-igual.test.mjs'],
     de: "'10-12', '11-02', '11-15'", para: "'10-12', '11-15'" },
   { nome: 'cliente de saúde sai no pacote (a captação recusa)', fonte: 'api/_material/pacote.mjs', testes: ['docs/testes/pacote.test.mjs'],
