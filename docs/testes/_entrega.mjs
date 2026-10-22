@@ -2,6 +2,10 @@
    cobrança → pagamentos_aplicar), que é o que dispara o gatilho da entrega. Não é arquivo de teste. */
 import { randomUUID } from 'node:crypto';
 import { como, pedidoConfirmado } from './_banco.mjs';
+import { criarServicoPagamentos } from '../../api/_pagamentos/servico.mjs';
+import { configPagamentos } from '../../api/_pagamentos/config.mjs';
+import { receber } from '../../api/pagamentos.mjs';
+import { BASE } from './_ajustes.mjs';
 
 export const ORG = '99999999-0000-4000-8000-000000000099';
 const REGRAS = 'dddddddd-0000-4000-8000-0000000000d0';
@@ -40,4 +44,21 @@ export async function conversaComEntradaPaga(db, { total = 3000, sinal = 1200, p
     pagamento: { id: 'PAY' + order.slice(-6), amount: v, paid_amount: v, status: 'processed', status_detail: 'accredited', metodo_id: 'pix', metodo_tipo: 'bank_transfer', parcelas: null },
     estado: 'aprovada' } });
   return { ...b, proposta, aplicado };
+}
+
+const PAGADOR = { nome: 'Ana', sobrenome: 'Souza', email: 'ana@exemplo.com', documento: '52998224725' };
+
+/* pelo cenário da 3a (o modelo 1 escolhido): escopo → confirmar → Pix simulado pago. Devolve o navegador `n` e a conversa `c`.
+   `extra` entra nas dependências do navegador (o armazém, um armazém quebrado, etc.) */
+export async function ateEntregaCriada(cen, local, extra = {}) {
+  const pagamentos = criarServicoPagamentos({ banco: local.rpc, cfg: configPagamentos({}) });
+  const { n, c } = await cen.ateEscolher({ pagamentos, armazem: local.armazem, env: { BZ_ENTREGA: 'ligada' }, ...extra });   /* (o interruptor ligado; { env: {} } testa o desligado) */
+  const esc = await n.chamar('POST', 'escopo', { conversa_id: c });
+  await n.chamar('POST', 'confirmar', { conversa_id: c, proposta_id: esc.corpo.proposta_id, confirmo: true, inicio_imediato: true });
+  const pg = await n.chamar('POST', 'pagar', { conversa_id: c, metodo: 'pix', pagador: PAGADOR });
+  await receber(new Request(BASE + '/api/pagamentos?acao=simular', { method: 'POST', body: JSON.stringify({ tentativa_id: pg.corpo.tentativa.id }), headers: { 'content-type': 'application/json' } }), {}, { banco: local.rpc });
+  /* (confere no banco: com o interruptor desligado o estado não traz a entrega, mas ela nasce do mesmo jeito) */
+  const nasceu = (await local.db.query('select 1 from app.entregas where conversa_id = $1', [c])).rows.length;
+  if (!nasceu) throw new Error('a entrega não nasceu: ' + JSON.stringify((await cen.estado(n, c)).conversa));
+  return { n, c };
 }

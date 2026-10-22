@@ -84,6 +84,19 @@ suíte e mutação rodam uma vez no fim; nada de E2E, `verificar`, `acessibilida
 - **Dono:** (1) rodar `supabase/storage/material.sql` no SQL Editor; (2) rodar `scripts/conferir-armazem.mjs` com as chaves só naquela janela; (3) a conferência à mão do
   teto do balde (`select privado.bytes_no_balde()` antes e depois de subir um arquivo, Step 6 do plano).
 
+## Task 8: ações do material em /api/vendas + interruptor
+
+- Vermelho visto: módulo `fluxo-material.mjs` ausente (`Cannot find module`, o `fluxo.mjs` já o importava). Verde: material-api + interruptor 16/16;
+  fluxo-api + ajustes-api + csp 60/60; detalhes-api, retomada-api, api, formulario-api verdes.
+- Desvios do plano (o teste decide):
+  1. `ateEntregaCriada` conferia a entrega pelo estado; com o interruptor desligado o estado não a traz. Passou a conferir no banco.
+  2. Teste "outro visitante": o `cen.navegador()` sem `env` caía no interruptor desligado (503 em vez de 404); passou `{ env: { BZ_ENTREGA: 'ligada' }, armazem }`.
+  3. `salvar('whatsapp', '21999990001')` dava 422 (11 dígitos colados batem no `CPF_CNPJ`); o teste usa `'21 99999-0001'` (400).
+  4. O teste do interruptor listava `link-pedido`, `sair-do-aparelho`, `outro-aparelho`, `abrir-pedido`, que só existem na Task 9; deixei só as `material-*` e a Task 9 acrescenta as outras (comentário no teste).
+- Resposta 2 da captação (`numero_em` = `enviado_em`, sem data futura nem anterior à entrada): no servidor `numero_em` é o `agora` do próprio Worker (nunca vem do cliente) e `iniciarPrazo`
+  usa o mais tarde dos dois, então nunca é futuro nem anterior à entrada. `formulario.enviado_em` (`materiais.enviado_em`) recebe o mesmo `agora`.
+- `.env.example` ganhou `BZ_ENTREGA=` (sem valor); `docs/servidor.mjs` liga por conta própria.
+
 ## Andamento
 
-próxima tarefa: 8
+próxima tarefa: 9
