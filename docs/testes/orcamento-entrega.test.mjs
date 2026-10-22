@@ -111,3 +111,15 @@ test('o recibo não diz mais que a Beyon Zero fala com o cliente (D1: o site ven
   assert.ok(!/A Beyon Zero fala com você pelo contato informado/.test(HTML));
   assert.ok(/Entrada recebida\. O próximo passo é mandar o material do seu site, aqui mesmo, logo abaixo\./.test(HTML));
 });
+
+test('A1 (revisão): com a entrega desligada a página não promete o material "aqui mesmo" antes do pagamento', () => {
+  /* a promessa nasce escondida e só o servidor ligado (entrega_ligada === true) a mostra: o padrão do merge é desligado */
+  const tag = id => (HTML.match(new RegExp('<[a-z]+[^>]*id="' + id + '"[^>]*>')) || [''])[0];
+  for (const id of ['o-antes-passos', 'o-faq-fotos', 'o-atalho-fotos']) assert.match(tag(id), /\shidden[\s>]/, id + ' nasce escondido');
+  assert.equal(B.promessasVisiveis({ entrega_ligada: true }), true);
+  for (const E of [{ entrega_ligada: false }, {}, null, { entrega_ligada: 'ligada' }]) assert.equal(B.promessasVisiveis(E), false, JSON.stringify(E));
+  const js = semComentario(FONTE);
+  assert.ok(/promessasVisiveis\(E\)/.test(js) && ['o-antes-passos', 'o-faq-fotos', 'o-atalho-fotos'].every(id => js.includes("'" + id + "'")), 'atualizar liga e desliga os três pelo estado');
+  /* a frase do FAQ e a do passo 2 continuam no HTML (o guarda de frases confere o texto), só escondidas */
+  assert.ok(HTML.includes('Aqui mesmo, depois da entrada. Não precisa mandar nada pelo WhatsApp.'));
+});

@@ -40,6 +40,10 @@
     return o.linkPedido ? 'gerar' : 'nenhum';
   }
 
+  /* A1 (revisão): o material "aqui mesmo" só é prometido antes do pagamento quando o servidor diz que a entrega está ligada */
+  function promessasVisiveis(E) { return !!E && E.entrega_ligada === true; }
+  var PROMESSAS = ['o-antes-passos', 'o-faq-fotos', 'o-atalho-fotos'];
+
   function passos(e, valores) {
     var atual = INDICE[e.passo] || 2, v = valores || {};
     var enviado = e.material && e.material.enviado_em ? dataPorExtenso(diaDoInstante(e.material.enviado_em)) : '';
@@ -180,6 +184,7 @@
     function atualizar(E) {
       var e = E.entrega, pronto = !!e && E.conversa.etapa === 'em_producao';
       preencherAntes(E);
+      PROMESSAS.forEach(function (id) { var el = $(id); if (el) el.hidden = !promessasVisiveis(E); });
       /* M5: o interruptor do servidor está desligado: nada de "Seu pedido" nem de material; o recibo diz o que acontece */
       var lead = document.querySelector('#o-recibo .recibo__lead');
       if (lead && !lead.dataset.padrao) lead.dataset.padrao = lead.textContent;
@@ -213,5 +218,5 @@
   }
 
   window.BZEntrega = { criar: criar, passos: passos, dataPorExtenso: dataPorExtenso, diaDoInstante: diaDoInstante, arquivoCalendario: arquivoCalendario, linkDoPedido: linkDoPedido,
-    modoDoCartao: modoDoCartao, FRASE_DESLIGADA: FRASE_DESLIGADA };
+    modoDoCartao: modoDoCartao, promessasVisiveis: promessasVisiveis, FRASE_DESLIGADA: FRASE_DESLIGADA };
 })();
