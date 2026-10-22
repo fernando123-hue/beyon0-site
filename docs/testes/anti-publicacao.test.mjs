@@ -47,7 +47,7 @@ test('package.json com preinstall, install, postinstall ou prepare é achado; se
 });
 test('wrangler.jsonc com "build" é achado (o Builds não o honra e ele rodaria código no deploy); sem ele passa', () => {
   assert.ok(pegou({ 'wrangler.jsonc': '{ "build": { "command": "x" } }' }, 'wrangler.jsonc'));
-  assert.deepEqual(achados({ 'wrangler.jsonc': '{ // "build": só comentário\n "name": "a", "vars": { "texto": "// \\"build\\": { fica" } }' }), []);
+  assert.deepEqual(achados({ 'wrangler.jsonc': '{ // "build": só comentário\n "name": "a", "workers_dev": false, "preview_urls": false, "vars": { "texto": "// \\"build\\": { fica" } }' }), []);
 });
 test('exceções: só os três .md, um a um; um .mjs ou .yml na pasta dos planos é achado', () => {
   const texto = `use ${W} deploy e main:${PRODUCAO}\n`;
@@ -56,6 +56,78 @@ test('exceções: só os três .md, um a um; um .mjs ou .yml na pasta dos planos
   for (const ruim of ['docs/superpowers/plans/x.mjs', 'docs/superpowers/plans/x.yml', 'docs/superpowers/plans/outro.md', 'docs/outro.md', 'README.md'])
     assert.ok(pegou({ [ruim]: texto }, ruim), ruim);
 });
+/* ---- revisão do PR B, ALTO-2: as formas comuns de publicar que a primeira versão deixava passar ---- */
+const GIT = 'gi' + 't';
+const PUSH = GIT + ' pu' + 'sh';
+test('Wrangler com versão no meio, opção antes do comando, --dry-run=false ou outros subcomandos que publicam: achado', () => {
+  const ruins = [`npx ${W}@4.136.3 deploy`, `npx ${W}@latest deploy`, `npx ${W}@4 delete`, `npx ${W} --env previa deploy`, `npx ${W} deploy --dry-run=false`,
+    `npx ${W} deploy --dry-run false`, `npx ${W} deploy --no-dry-run`, `npx ${W} delete`, `${W} delete --name x`, `npx ${W} preview`, `${W} publish`, `${W} pages deploy publico`,
+    `${W}@4.136.3 versions upload --env previa`, `npx ${W} versions secret put X`, `${W} secret delete X`, `npx ${W}@4 rollback`, `npx ${W}@4 triggers deploy`,
+    `npx ${W} deploy --dry-run && npx ${W} delete`, `node node_modules/${W}/bin/${W}.js deploy`];
+  for (const r of ruins) assert.ok(pegou({ 'scripts/x.sh': 'echo ok\n' + r + '\n' }, 'scripts/x.sh'), r);
+});
+test('Wrangler em lista de argumentos (spawn, execFile): achado', () => {
+  const ruins = [`spawnSync('npx', ['${W}', 'deploy'])`, `spawn("npx", ["${W}","delete"])`, `execFileSync('npx', ['${W}', 'versions', 'upload'])`,
+    `run(['${W}', 'secret', 'put', 'X'])`, `cp.spawn('npx',['${W}','preview'])`, `spawnSync('npx', ['${W}', 'triggers', 'deploy'])`, `spawnSync('npx', ['${W}@4.136.3', 'deploy'])`];
+  for (const r of ruins) assert.ok(pegou({ 'scripts/x.mjs': r + '\n' }, 'scripts/x.mjs'), r);
+  assert.deepEqual(achados({ 'scripts/x.mjs': `spawnSync('npx', ['${W}', 'deploy', '--dry-run'])\nspawnSync('npx', ['${W}', 'dev', '--local'])\n` }), []);
+});
+test('o push com a branch de produção em qualquer posição, todas as branches ou espelho: achado; push de outra branch passa', () => {
+  const ruins = [`${PUSH} origin ${PRODUCAO}`, `${PUSH} -f origin ${PRODUCAO}`, `${PUSH} origin HEAD:${PRODUCAO}`, `${PUSH} origin main:refs/heads/${PRODUCAO}`,
+    `${PUSH} ${PRODUCAO}`, `${PUSH} --force-with-lease origin +${PRODUCAO}`, `${PUSH} --all`, `${PUSH} --mirror origin`, `${PUSH} origin --all`,
+    `run(['${GIT}', 'push', 'origin', '${PRODUCAO}'])`];
+  for (const r of ruins) assert.ok(pegou({ 'scripts/x.sh': r + '\n' }, 'scripts/x.sh'), r);
+  for (const b of [`${PUSH} -u origin cf-pr-b`, `${PUSH} origin main`, `${PUSH}`, `${GIT} pull origin ${PRODUCAO}`, `${GIT} log ${PRODUCAO}`])
+    assert.deepEqual(achados({ 'scripts/x.sh': b + '\n' }), [], b);
+});
+const WF = '.github/workflows/x.yml';
+const CABECALHO_WF = 'name: x\non: push\npermissions:\n  contents: read\njobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n';
+test('workflow: a action oficial do Wrangler, o token e a conta da Cloudflare, qualquer escopo de escrita ou sem permissions no topo: achado', () => {
+  const ruins = {
+    'a action do Wrangler': CABECALHO_WF + `      - uses: cloudflare/${W}-action@v3\n`,
+    'outra action da Cloudflare': CABECALHO_WF + '      - uses: cloudflare/pages-action@v1\n',
+    'CLOUDFLARE_API_TOKEN': CABECALHO_WF + '      - run: echo\n        env:\n          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}\n',
+    'CLOUDFLARE_ACCOUNT_ID': CABECALHO_WF + '        env:\n          CLOUDFLARE_ACCOUNT_ID: abc\n',
+    'actions: write': CABECALHO_WF.replace('contents: read', 'contents: read\n  actions: write'),
+    'pull-requests: write': CABECALHO_WF.replace('contents: read', 'pull-requests: write'),
+    'id-token: write': CABECALHO_WF.replace('contents: read', 'id-token: write'),
+    'escrita em linha': CABECALHO_WF.replace('permissions:\n  contents: read', 'permissions: { contents: write }'),
+    'escrita no job': CABECALHO_WF.replace('    runs-on: ubuntu-latest', '    runs-on: ubuntu-latest\n    permissions:\n      issues: write'),
+    'sem permissions no topo (herda o padrão do repositório)': CABECALHO_WF.replace('permissions:\n  contents: read\n', '')
+  };
+  for (const [nome, texto] of Object.entries(ruins)) assert.ok(pegou({ [WF]: texto }, WF), nome);
+  for (const ok of [CABECALHO_WF + '      - run: npm test\n', CABECALHO_WF.replace('permissions:\n  contents: read', 'permissions: {}'),
+    CABECALHO_WF.replace('contents: read', 'contents: read\n  id-token: none')])
+    assert.deepEqual(achados({ [WF]: ok }), [], ok);
+  assert.deepEqual(achados({ 'scripts/nao-e-workflow.txt': 'CLOUDFLARE_API_TOKEN\n' }), [], 'as regras de workflow valem só para .github/workflows');
+});
+const WRANGLER_BOM = JSON.stringify({ name: 'beyon-zero-site', main: 'cloudflare/worker.mjs', workers_dev: false, preview_urls: false,
+  env: { previa: { routes: [], workers_dev: true, preview_urls: true, vars: { A: '1' }, previews: { vars: { A: '1' } } } } }, null, 2);
+const comMudanca = fn => { const c = JSON.parse(WRANGLER_BOM); fn(c); return JSON.stringify(c, null, 2); };
+test('wrangler.jsonc: a estrutura que aponta o deploy da main para a produção é achado (trava 2 do plano); a boa passa', () => {
+  assert.deepEqual(achados({ 'wrangler.jsonc': WRANGLER_BOM }), []);
+  const ruins = {
+    'env.previa.name': c => { c.env.previa.name = 'beyon-zero-site'; },
+    'env.previa.build': c => { c.env.previa.build = { command: 'x' }; },
+    'build no topo': c => { c.build = { command: 'x' }; },
+    'build fundo': c => { c.env.previa.previews.build = { command: 'x' }; },
+    'env.previa.route': c => { c.env.previa.route = 'beyonzero.com.br/*'; },
+    'env.previa.routes de produção': c => { c.env.previa.routes = ['beyonzero.com.br/*']; },
+    'env.previa.routes com domínio': c => { c.env.previa.routes = [{ pattern: 'beyonzero.com.br', custom_domain: true }]; },
+    'env.previa.account_id': c => { c.env.previa.account_id = 'abc'; },
+    'outro env com name': c => { c.env.teste = { name: 'x' }; },
+    'account_id no topo': c => { c.account_id = 'abc'; },
+    'workers_dev true no topo': c => { c.workers_dev = true; },
+    'workers_dev ausente no topo': c => { delete c.workers_dev; },
+    'preview_urls true no topo': c => { c.preview_urls = true; },
+    'preview_urls ausente no topo': c => { delete c.preview_urls; },
+    'routes no topo (é do PR C)': c => { c.routes = ['beyonzero.com.br/*']; },
+    'route no topo': c => { c.route = 'beyonzero.com.br/*'; }
+  };
+  for (const [nome, fn] of Object.entries(ruins)) assert.ok(pegou({ 'wrangler.jsonc': comMudanca(fn) }, 'wrangler.jsonc'), nome);
+  assert.deepEqual(achados({ 'wrangler.jsonc': comMudanca(c => { c.env.previa.routes = []; }) }), [], 'routes vazio no env é o que fecha a herança');
+});
+
 test('o repositório real passa limpo (git ls-files)', () => {
   const arquivos = execFileSync('git', ['ls-files', '-z'], { cwd: RAIZ, encoding: 'utf8' }).split('\0').filter(Boolean);
   assert.deepEqual(conferirAntiPublicacao(RAIZ, arquivos), []);
