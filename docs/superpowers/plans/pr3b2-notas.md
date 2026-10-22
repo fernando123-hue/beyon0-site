@@ -177,7 +177,7 @@ suíte e mutação rodam uma vez no fim; nada de E2E, `verificar`, `acessibilida
 
 - Branch `pr3b2-privacidade` criada com `git branch` a partir de `origin/main` (`fde6d6f`, já com o PR #49 e o #50) e commitada SEM trocar a branch atual
   (plumbing do git: índice temporário, `write-tree`, `commit-tree`, `update-ref`). Commit `004cc73`: só `privacidade.html`, `docs/testes/privacidade-material.test.mjs` e uma linha no `testar`. Sem push.
-- Vermelho visto: o teste novo falhou 4 de 4 contra a página sem o texto. Verde: privacidade-material 4/4 + `condicoes.test.mjs` 20/20 (rodados numa cópia exportada da branch, fora desta worktree).
+- Vermelho visto: o teste novo falhou 4 de 4 contra a página sem o texto. Verde: privacidade-material + `condicoes.test.mjs`, 20 testes no total, 0 falhas (rodados numa cópia exportada da branch, fora desta worktree).
 - **Dois desvios do plano, por causa de testes que já existem na `main`:**
   1. `condicoes.test.mjs` proíbe "N anos" na página (o prazo legal de guarda de comprovantes "não leva número de anos" até o dono confirmar). O "5 anos" do plano e do Anexo B virou
      "ficam pelo prazo legal de guarda de comprovantes, contado do último pagamento ou devolução". Se o dono confirmar 5 anos, troca-se a frase e o guarda juntos. O corpo do PR (Anexo B do plano) ainda diz 5 anos: ajustar na hora de abrir.
@@ -194,6 +194,15 @@ suíte e mutação rodam uma vez no fim; nada de E2E, `verificar`, `acessibilida
 - Riscos conhecidos do E2E não rodado: depende dos ids `#o-ret-abrir`, `#o-ret-estado`, `#o-retomada` (existem no HTML), do `espera` e `foto` do E2E atual, e de 61 s de espera do freio de IP por trecho; o `e2e-orcamento.mjs` já passava de 800 linhas antes.
 - Linha de aparelho real (dono): foto HEIC do iPhone no seletor, "Mandar para mim" e "Pôr na minha agenda".
 
+## Task 20: suíte, mutação, nível de risco, pendências
+
+- Suíte inteira (`testar`, `--test-concurrency=2`): **760 testes, 760 passam** (linha de base do 3b-1: 585). A primeira passada deu 759/760: `banco.test.mjs` contava 26 tabelas em `app`; as 4 da entrega fazem 30 (corrigido e comentado, commit próprio).
+- Mutação: **56 de 56 pegas** (eram 39 no 3b-1; as 15 do plano + 2 minhas: Finados fora da lista de feriados nacionais e cliente de saúde saindo no pacote). Todos os `de` das sabotagens batem uma vez só no código real.
+- Nível de risco (`nivel-de-risco.mjs origin/main HEAD`): 3 (sensível). Exige: Especificação, Visto rodando (PENDENTE, Task 19), Regressão, Verificação comportamental, Teste visto vermelho, Revisão técnica e de segurança (PENDENTES, agente diferente).
+- Todo arquivo `.test.mjs` novo está no `testar` (conferido por script). `git merge-tree` com `origin/main` (`fde6d6f`): sem conflitos.
+- Pendências do dono em `docs/revisoes/pr1-pendencias.md`, item 4c.
+- Não feito, por ordem: E2E, `verificar`, `acessibilidade`, `olhar`, push, PR, merge, aplicar migration/balde.
+
 ## Andamento
 
-próxima tarefa: 20 (suíte inteira, mutação, nível de risco); 19 só escrita, execução pendente
+próxima tarefa: nenhuma pendente em código. Faltam: Task 19 executar (PC livre), revisões técnica e de segurança por outro agente, merge de origin/main (sem conflito), PR

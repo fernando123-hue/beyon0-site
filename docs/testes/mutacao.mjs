@@ -111,7 +111,44 @@ export const SABOTAGENS = [
     de: "if (!(cfg.metodos || ['pix']).includes(metodo)) throw", para: "if (false) throw" },
   /* ---- a entrada (PR 3b-1): sem o percentual da proposta, nada é cobrado (a falha fechada no lugar do 50) ---- */
   { nome: 'entrada sem percentual cobra assim mesmo', arquivo: '20261022120000_pr3b1_entrada.sql', testes: ['docs/testes/vendas-banco.test.mjs'],
-    de: "if pr.sinal_percentual is null or pr.sinal_percentual < 1 then\n    raise exception 'proposta sem percentual de entrada'", para: "if false then\n    raise exception 'proposta sem percentual de entrada'" }
+    de: "if pr.sinal_percentual is null or pr.sinal_percentual < 1 then\n    raise exception 'proposta sem percentual de entrada'", para: "if false then\n    raise exception 'proposta sem percentual de entrada'" },
+  /* ---- a entrega e o material (PR 3b-2) ---- */
+  { nome: 'conferir aceita linha fora de "reservado"', arquivo: '20261023120100_pr3b2_material.sql', testes: ['docs/testes/material-banco.test.mjs'],
+    de: "if a.status <> 'reservado' then return jsonb_build_object('ok', false, 'motivo', 'estado', 'status', a.status); end if;", para: "if false then return jsonb_build_object('ok', false, 'motivo', 'estado', 'status', a.status); end if;" },
+  { nome: 'tamanho menor que o declarado é aceito na conferência', arquivo: '20261023120100_pr3b2_material.sql', testes: ['docs/testes/material-banco.test.mjs'],
+    de: "(p ->> 'tamanho_real')::bigint <> a.tamanho_declarado", para: "(p ->> 'tamanho_real')::bigint > a.tamanho_declarado" },
+  { nome: 'enviar aceita sem a caixa de autorização', arquivo: '20261023120100_pr3b2_material.sql', testes: ['docs/testes/material-banco.test.mjs'],
+    de: "or coalesce(m.autorizacao ->> 'marcada', '') <> 'true' then", para: "then" },
+  { nome: 'o teto do balde ignora as reservas abertas', arquivo: '20261023120100_pr3b2_material.sql', testes: ['docs/testes/material-banco.test.mjs'],
+    de: "from app.material_arquivos where status = 'reservado';", para: "from app.material_arquivos where status = 'conferido';" },
+  { nome: 'esquecer o dono da sessão na trava da entrega', arquivo: '20261023120000_pr3b2_entrega.sql', testes: ['docs/testes/material-banco.test.mjs', 'docs/testes/link-pedido-banco.test.mjs'],
+    de: "c := privado.conversa_do(p_conversa, p_visitante);   -- trava 1 (de outro visitante: P0002)", para: "select * into c from app.conversas where id = p_conversa for update;" },
+  { nome: 'a reconciliação apaga a reserva recente (menos de 24 h)', arquivo: '20261023120300_pr3b2_dono.sql', testes: ['docs/testes/limpeza.test.mjs'],
+    de: "where a.status = 'reservado' and a.created_at < now() - interval '24 hours'", para: "where a.status = 'reservado' and a.created_at < now()" },
+  { nome: 'o link do pedido é revogado no primeiro uso', arquivo: '20261023120200_pr3b2_link_pedido.sql', testes: ['docs/testes/link-pedido-banco.test.mjs'],
+    de: "update app.links_pedido set ultimo_uso_em = now(), valido_ate = greatest(valido_ate, now() + interval '120 days') where id = l.id;", para: "update app.links_pedido set ultimo_uso_em = now(), revogado_em = now(), motivo_revogacao = 'fim_do_pedido' where id = l.id;" },
+  { nome: 'a conferência de bytes pulada (o servidor confia no tipo declarado)', fonte: 'api/_vendas/fluxo-material.mjs', testes: ['docs/testes/material-api.test.mjs'],
+    de: "tipo_real: tipoPorBytes(ini.bytes)", para: "tipo_real: a.tipo_declarado === 'image/png' ? 'png' : a.tipo_declarado === 'image/jpeg' ? 'jpg' : 'webp'" },
+  { nome: 'o prazo conta os dias em UTC (não no fuso da captação)', fonte: 'api/_material/prazo.mjs', testes: ['docs/testes/prazo.test.mjs'],
+    de: "new Intl.DateTimeFormat('en-CA', { timeZone: fuso, year: 'numeric'", para: "new Intl.DateTimeFormat('en-CA', { timeZone: 'UTC', year: 'numeric'" },
+  { nome: '"baixar" marca importado (antes de a captação importar)', fonte: 'scripts/entregas-lib.mjs', testes: ['docs/testes/entregas-dono.test.mjs'],
+    de: "  return { pasta, arquivos: lidos.map(l => l.nome), suspeitos: Array.isArray(pac.suspeitos) ? pac.suspeitos : [], comandos: [", para: "  await marcarImportado({ base, chave, buscar, codigo, cliente: 'c-aaaaab' });\n  return { pasta, arquivos: lidos.map(l => l.nome), suspeitos: Array.isArray(pac.suspeitos) ? pac.suspeitos : [], comandos: [" },
+  { nome: '"Mandar para mim" por wa.me com o código', fonte: 'js/orcamento-entrega.js', testes: ['docs/testes/orcamento-entrega.test.mjs'],
+    de: "await navigator.share({ title: 'Meu pedido na Beyon Zero', url: $('o-link-campo').value });", para: "window.open('https://wa.me/?text=' + encodeURIComponent($('o-link-campo').value));" },
+  /* ---- as correções da revisão do plano ---- */
+  { nome: 'o sinal estornado ainda conta como pago (M3: o cliente que desistiu segue enviando e abrindo links)', arquivo: '20261023120000_pr3b2_entrega.sql', testes: ['docs/testes/material-banco.test.mjs', 'docs/testes/link-pedido-banco.test.mjs'],
+    de: "where proposta_id = p_proposta and parcela = 'sinal' and status = 'pago');", para: "where proposta_id = p_proposta and parcela = 'sinal' and status in ('pago', 'estornado'));" },
+  { nome: '"Sair deste aparelho" só esquece no navegador (logout local, M1)', fonte: 'api/_vendas/visitante.mjs', testes: ['docs/testes/link-pedido-api.test.mjs'],
+    de: "/auth/v1/logout?scope=global', { method: 'POST', headers: { apikey: cfg.publica", para: "/auth/v1/logout?scope=local', { method: 'POST', headers: { apikey: cfg.publica" },
+  { nome: 'o interruptor da entrega sempre ligado (M5)', fonte: 'api/_material/interruptor.mjs', testes: ['docs/testes/interruptor.test.mjs'],
+    de: ".trim() === 'ligada'", para: ".trim() !== 'desligada'" },
+  { nome: 'sábado conta como dia útil (a regra da captação)', fonte: 'api/_material/prazo.mjs', testes: ['docs/testes/prazo.test.mjs', 'docs/testes/captacao-igual.test.mjs'],
+    de: "return semana !== 0 && semana !== 6 && !feriados.has(d);", para: "return semana !== 0 && !feriados.has(d);" },
+  /* ---- as respostas da captação e a decisão dos feriados (21/10) ---- */
+  { nome: 'Finados conta como dia útil (feriado nacional fora da lista)', fonte: 'api/_material/prazo.mjs', testes: ['docs/testes/prazo.test.mjs', 'docs/testes/captacao-igual.test.mjs'],
+    de: "'10-12', '11-02', '11-15'", para: "'10-12', '11-15'" },
+  { nome: 'cliente de saúde sai no pacote (a captação recusa)', fonte: 'api/_material/pacote.mjs', testes: ['docs/testes/pacote.test.mjs'],
+    de: "  if (saude) throw new Error(", para: "  if (false) throw new Error(" }
 ];
 
 /* as sabotagens que a rodada vai fazer: todas, ou só as do filtro (parte do nome, sem diferenciar maiúsculas). Filtro que não
