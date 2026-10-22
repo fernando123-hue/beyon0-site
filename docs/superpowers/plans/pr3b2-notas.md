@@ -129,6 +129,14 @@ suíte e mutação rodam uma vez no fim; nada de E2E, `verificar`, `acessibilida
   2. `limpos` do teste M3 é `>= 1`: os outros testes do arquivo deixam pedidos vencidos no mesmo banco e a rotina os limpa também.
 - Subpedidos da rotina na conta: 5 no total (log `subpedidos`), bem abaixo de 45.
 
+## Task 12: scripts/entregas.mjs (o dono, no PC)
+
+- Vermelho visto: `Cannot find module '.../scripts/entregas-lib.mjs'`. Verde: entregas-dono 7/7; direcoes-dono verde (16/16 no total com ele); `node --check` nos três scripts.
+- Desvio: o teste do plano olhava `r.comandos[0]` esperando `importado BZ-… c-`, mas o código põe a importação da captação em `[0]` e o `importado` (com `<id … c-xxxxxx>`) em `[1]`;
+  o teste passou a conferir os dois comandos na ordem (primeiro importar, só depois marcar).
+- Cópia dos percorredores de imagem conferida a olho contra `captacao/entrega/imagens.mjs` linhas 19-65: iguais. Atenção para o revisor: a captação regrava toda imagem como WebP (cabeçalho do arquivo dela);
+  `estruturaCompleta` só confere a estrutura do arquivo original, como o plano manda.
+
 ## Andamento
 
-próxima tarefa: 12
+próxima tarefa: 13
