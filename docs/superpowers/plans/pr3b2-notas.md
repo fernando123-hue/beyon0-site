@@ -158,6 +158,14 @@ suíte e mutação rodam uma vez no fim; nada de E2E, `verificar`, `acessibilida
 - Desvio: o teste "remover" esperava o id de mentira `id1`, mas o log já tem a linha `reduzir` antes da reserva, então o id é `id2`; corrigi a expectativa (comentada no teste).
 - A redução por canvas (`reduzirNoAparelho`) e o PUT por XHR (`enviarPut`) NÃO foram exercitados num navegador (modo leve): só as versões injetadas nos testes. Conferir na Task 19, com foto grande de celular real e o armazém real.
 
+## Task 16: formulário do material (6 blocos) e "Enviar"
+
+- Vermelho visto: `Cannot read properties of undefined (reading 'blocos')` com o arquivo de uma linha (6 de 6 caídos). Verde: orcamento-material + entrega + envio + pagar-sem-medo + csp 52/52; `node --check` ok.
+- Desvios: (1) o teste M6 esperava `status === 429` no texto, o código usa `e1.status !== 429` (mesma regra, escrita ao contrário); o teste confere `status !== 429`.
+  (2) `passo \d de 4` saiu do `AINDA_NAO` (o bloco 2 da tela diz "Passo 2 de 4"), como o plano manda.
+- Telas do material (salvar sozinho a 700 ms, "Falta:", barra de envio, miniaturas, `progress`) NÃO foram vistas num navegador (modo leve). **Verificação de tela PENDENTE (Task 19)**: 390 e 320 px, teclado, leitor,
+  o `accept` dos arquivos no iPhone (HEIC), foto grande de celular real, envio ao armazém real (CORS).
+
 ## Andamento
 
-próxima tarefa: 16
+próxima tarefa: 17

@@ -22,3 +22,37 @@
 .orc-link__campo:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
 .orc-link__acoes, .orc-link__mais { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .9rem; }
 .orc-link__mais { margin-top: .4rem; }
+
+/* O MATERIAL (PR 3b-2): seis blocos curtos, módulos separados por vão (como os cartões do site); controles de 44 px; texto de 16 px.
+   Sem desfoque nem sombra. Celular primeiro (390 px); nada mais largo que a tela. */
+.orc-material { margin-top: var(--sp-1); }
+.orc-mat__bloco { margin-top: 1.4rem; padding: 1rem; border: 1px solid var(--line-2); border-radius: var(--raio); background: var(--s1); }
+.orc-mat__titulo { font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-ctrl); text-transform: uppercase; color: var(--t2); margin-bottom: .8rem; }
+.orc-mat__campo, .orc-mat__lista, .orc-mat__radios { margin: 0 0 1.1rem; padding: 0; border: 0; min-width: 0; }
+.orc-mat__campo label, .orc-mat__lista legend, .orc-mat__radios legend { display: block; font-size: var(--fs-b); color: var(--t1); margin-bottom: .4rem; padding: 0; }
+.orc-mat__dica { font-size: var(--fs-b); line-height: 1.5; color: var(--t2); margin: .3rem 0 .6rem; }
+.orc-mat__campo input, .orc-mat__campo select, .orc-mat__linha input { width: 100%; box-sizing: border-box; min-height: 44px; padding: .6rem .8rem; font: inherit; font-size: var(--fs-b); color: var(--t1); background: var(--bg); border: 1px solid var(--stroke); border-radius: var(--raio); }
+.orc-mat__campo input[type="color"] { width: 5rem; padding: .2rem; }
+.orc-mat__campo input:focus-visible, .orc-mat__campo select:focus-visible, .orc-mat__linha input:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
+.orc-mat__linha { display: flex; gap: .5rem; align-items: center; margin-bottom: .5rem; }
+.orc-mat__linha--obj { flex-wrap: wrap; }
+.orc-mat__linha--obj input { flex: 1 1 100%; }
+.orc-mat__caixa { display: flex; align-items: center; gap: .7rem; min-height: 44px; font-size: var(--fs-b); color: var(--t1); cursor: pointer; }
+.orc-mat__caixa input { width: 1.4rem; height: 1.4rem; min-height: 0; flex: 0 0 auto; accent-color: var(--ac); }
+.orc-mat__salvo { display: inline-block; min-height: 1.5em; margin-left: .2rem; font-size: var(--fs-b); color: var(--t2); }
+.orc-mat__salvo.is-erro, .orc-mat__falta, .orc-arq__item.is-erro .orc-arq__estado { color: var(--t1); }
+.orc-mat__falta { min-height: 1.5em; margin: .8rem 0 .6rem; font-size: var(--fs-b); color: var(--t1); }
+.orc-mat__acoes { display: flex; flex-wrap: wrap; gap: .6rem; margin: .4rem 0; }
+.orc-mat__resumo { list-style: none; margin: .8rem 0 0; padding: 0; font-size: var(--fs-b); color: var(--t2); }
+.orc-arq { list-style: none; margin: .6rem 0 1rem; padding: 0; }
+.orc-arq__item { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto auto; gap: .6rem; align-items: center; padding: .5rem 0; border-top: 1px solid var(--line); }
+.orc-arq__mini { width: 48px; height: 48px; border: 1px solid var(--line-2); border-radius: var(--raio); overflow: hidden; background: var(--bg); }
+.orc-arq__mini img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.orc-arq__info { display: flex; flex-direction: column; min-width: 0; font-size: var(--fs-b); }
+.orc-arq__nome { color: var(--t1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.orc-arq__estado { color: var(--t2); overflow-wrap: anywhere; }
+.orc-arq progress { width: 100%; height: .5rem; accent-color: var(--ac); }
+.orc-arq__tirar { min-width: 44px; min-height: 44px; font: inherit; font-size: 1.4rem; line-height: 1; color: var(--t1); background: none; border: 1px solid var(--stroke); border-radius: var(--raio); cursor: pointer; }
+.orc-arq__tirar:disabled { opacity: .45; cursor: default; }
+.orc-arq__tirar:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
+@media (max-width: 380px) { .orc-arq__item { grid-template-columns: 48px minmax(0, 1fr) auto; } .orc-arq__item .btn { grid-column: 2 / -1; } }
