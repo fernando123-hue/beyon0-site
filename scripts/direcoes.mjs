@@ -36,6 +36,7 @@ import { higienizar, ESTRATEGIAS, ESQUEMA_DIRECAO } from '../api/_vendas/direcao
 import { SISTEMA_GERACAO, REGRA_BRIEFING, briefingDelimitado } from '../api/_vendas/gerador.mjs';
 import { redigir } from '../api/_vendas/seguranca.mjs';
 import { configSessao, comandoSessao, instrucoesSessao, linhaDoDono } from './sessao-isolada.mjs';
+import { cabecalhosDeAcesso } from '../docs/acesso.mjs';
 import { FORMATOS } from '../api/_vendas/precos.mjs';
 import { varrer, textosDe } from './varredura.mjs';
 
@@ -459,7 +460,7 @@ function ambiente() {
 async function painel(metodo, consulta, corpo) {
   const { base, chave } = ambiente();
   const r = await fetch(base + '/api/painel' + consulta, { method: metodo, redirect: 'error', signal: AbortSignal.timeout(TEMPO_MS),
-    headers: { authorization: 'Bearer ' + chave, 'content-type': 'application/json' }, body: corpo ? JSON.stringify(corpo) : undefined });
+    headers: { authorization: 'Bearer ' + chave, 'content-type': 'application/json', ...cabecalhosDeAcesso(process.env, base) }, body: corpo ? JSON.stringify(corpo) : undefined });   /* (B9: staging atras do Access; so vai para o host do staging) */
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(j.erro || 'HTTP ' + r.status);
   return j;

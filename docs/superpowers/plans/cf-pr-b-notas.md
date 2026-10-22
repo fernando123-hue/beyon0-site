@@ -113,3 +113,20 @@ e fazer o guarda rodá-lo (`node ~/.claude/guarda/anti-publicacao.mjs <pasta da 
 mais a confirmação do dono no push de mudanças em workflows, `cloudflare/`, `wrangler.jsonc` e `package*.json` (§ 5.5 do plano).
 Nada em `~/.claude/` foi tocado.
 próxima tarefa: B9
+
+## B9: os scripts alcançam o staging atrás do Access (só o que roda sem rede)
+Vermelho: `ERR_MODULE_NOT_FOUND ... docs\acesso.mjs imported from ...\docs\testes\worker.test.mjs`; depois, para o Playwright,
+`SyntaxError: The requested module '../../docs/acesso.mjs' does not provide an export named 'autorizarContexto'`.
+Verde: 4 testes novos (cabeçalhos só com as duas variáveis e BASE de prévia; `{}` para produção, domínio, local, host
+parecido, `http:`, usuário/senha na URL; só uma variável; rota por origem no Playwright). `worker.test.mjs` = 22 testes.
+Desvio de segurança: o plano diz que o Playwright usa `extraHTTPHeaders`; isso mandaria o token do Access também aos
+terceiros que a página chama (Turnstile, Mercado Pago, Google). Em vez disso `autorizarContexto(ctx, BASE)` registra
+`ctx.route(<origem do staging>/**)` e só ali soma os 2 cabeçalhos. Ligado em `docs/verificar.mjs` (2 contextos) e
+`docs/acessibilidade.mjs` (4); `scripts/direcoes.mjs` soma os cabeçalhos ao pedido do painel (só vão se BZ_BASE for o staging).
+O token é lido de `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET` (o dono os põe no arquivo local do vigia, P3/§ 5.4).
+NÃO FEITO: `docs/cpu-rotas.mjs` (a bancada da M1) NÃO existe nesta base (a M1 não foi mesclada); quando entrar, basta
+chamar `cabecalhosDeAcesso(process.env, BASE)` nos `fetch` dele (`--remoto`). O `validarBase` de `scripts/direcoes.mjs`
+ainda só aceita o site antigo e o servidor local: aceitar o endereço do staging é a C3 (não é B).
+NÃO FEITO e depende do dono (staging no ar): P3–P8, a M2, o ensaio de Access/Bypass, a CSP única no `curl -sI`, a regra de
+10 pedidos/10 s, o A4 no Supabase staging, o formato real da URL de prévia (a expressão `HOST_DE_PREVIA` de `docs/acesso.mjs`
+assume `[<prévia>-]beyon-zero-site-previa.<SUB_CONTA>.workers.dev`: conferir na M2).

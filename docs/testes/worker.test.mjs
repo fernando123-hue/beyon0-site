@@ -181,3 +181,44 @@ test('package.json: scripts da Cloudflare e descrição sem Vercel; o lock fixa 
   const lock = JSON.parse(fs.readFileSync(new URL('../../package-lock.json', import.meta.url), 'utf8'));
   assert.equal(lock.packages['node_modules/wrangler'].version, '4.136.3');
 });
+
+/* ---- B9: os scripts alcançam o staging atrás do Access (service token só para o staging/prévia) ---- */
+import { cabecalhosDeAcesso, ehHostDePrevia } from '../../docs/acesso.mjs';
+const TOKEN = { CF_ACCESS_CLIENT_ID: 'id-123.access', CF_ACCESS_CLIENT_SECRET: 'segredo-de-teste' };
+const DOIS = { 'CF-Access-Client-Id': 'id-123.access', 'CF-Access-Client-Secret': 'segredo-de-teste' };
+test('acesso: com as duas variáveis e o BASE do staging/prévia, os 2 cabeçalhos', () => {
+  for (const base of ['https://beyon-zero-site-previa.irineu.workers.dev', 'https://minha-branch-beyon-zero-site-previa.irineu.workers.dev', 'https://a1b2c3d4-beyon-zero-site-previa.sub-conta.workers.dev/orcamento'])
+    assert.deepEqual(cabecalhosDeAcesso({ ...TOKEN, BASE: base }), DOIS, base);
+  assert.deepEqual(cabecalhosDeAcesso(TOKEN, 'https://beyon-zero-site-previa.irineu.workers.dev'), DOIS, 'BASE também pode vir como argumento');
+});
+test('acesso: produção, domínio próprio, servidor local, host parecido ou http: nada (o token nunca sai para outro host)', () => {
+  for (const base of ['https://beyonzero.com.br', 'https://www.beyonzero.com.br', 'http://127.0.0.1:8899', 'http://localhost:8899', 'https://beyon-zero-site.irineu.workers.dev',
+    'http://beyon-zero-site-previa.irineu.workers.dev', 'https://beyon-zero-site-previa.irineu.workers.dev.evil.com', 'https://beyon-zero-site-previa.evil.com',
+    'https://evil.com/beyon-zero-site-previa.irineu.workers.dev', 'https://beyon-zero-site-previa.irineu.workers.dev@evil.com', 'https://usuario:senha@beyon-zero-site-previa.irineu.workers.dev',
+    'https://xbeyon-zero-site-previa.irineu.workers.dev.', 'lixo', '', undefined])
+    assert.deepEqual(cabecalhosDeAcesso({ ...TOKEN, BASE: base }), {}, String(base));
+  assert.equal(ehHostDePrevia('https://beyon-zero-site-previa.irineu.workers.dev'), true);
+});
+test('acesso: com só uma das variáveis (ou vazia), nada', () => {
+  const base = 'https://beyon-zero-site-previa.irineu.workers.dev';
+  assert.deepEqual(cabecalhosDeAcesso({ CF_ACCESS_CLIENT_ID: 'id', BASE: base }), {});
+  assert.deepEqual(cabecalhosDeAcesso({ CF_ACCESS_CLIENT_SECRET: 's', BASE: base }), {});
+  assert.deepEqual(cabecalhosDeAcesso({ ...TOKEN, CF_ACCESS_CLIENT_SECRET: '  ', BASE: base }), {});
+  assert.deepEqual(cabecalhosDeAcesso({ BASE: base }), {});
+});
+
+import { autorizarContexto } from '../../docs/acesso.mjs';
+test('acesso no Playwright: o token vai só nos pedidos do próprio staging (rota por origem), nunca em extraHTTPHeaders', async () => {
+  const BASE = 'https://beyon-zero-site-previa.irineu.workers.dev';
+  const registrado = [];
+  const ctx = { route: async (padrao, fn) => { registrado.push({ padrao, fn }); } };
+  assert.equal(await autorizarContexto(ctx, BASE, TOKEN), true);
+  assert.equal(registrado.length, 1);
+  assert.equal(registrado[0].padrao, BASE + '/**', 'só a origem do staging: terceiros (Turnstile, Mercado Pago, Google) não recebem o token');
+  let continuado = null;
+  await registrado[0].fn({ request: () => ({ headers: () => ({ accept: 'text/html' }) }), continue: async op => { continuado = op; } });
+  assert.deepEqual(continuado.headers, { accept: 'text/html', ...DOIS });
+  const sem = { route: async () => { throw new Error('não podia registrar'); } };
+  assert.equal(await autorizarContexto(sem, 'https://beyonzero.com.br', TOKEN), false);
+  assert.equal(await autorizarContexto(sem, BASE, { CF_ACCESS_CLIENT_ID: 'só o id' }), false);
+});
