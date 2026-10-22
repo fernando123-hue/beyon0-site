@@ -141,9 +141,12 @@ test('remover apaga o objeto do armazém e a linha some da lista', async () => {
 test('enviar: sem WhatsApp e sem a caixa, 409 com a lista do que falta; com tudo, o passo muda e a data prevista volta', async () => {
   const { n, c } = await ateEntregaCriada(cen, local);
   const vazio = await n.chamar('POST', 'material-enviar', { conversa_id: c });
-  assert.equal(vazio.status, 409); assert.deepEqual(vazio.corpo.faltas, [{ bloco: 2, texto: 'o WhatsApp dos botões' }, { bloco: 6, texto: 'marcar a autorização' }]);
+  assert.equal(vazio.status, 409); assert.deepEqual(vazio.corpo.faltas, [{ bloco: 2, texto: 'o WhatsApp dos botões' }, { bloco: 4, texto: 'o estado do negócio' }, { bloco: 6, texto: 'marcar a autorização' }]);
   await n.chamar('POST', 'material-salvar', { conversa_id: c, campo: 'whatsapp', valor: '+5521999990001' });
   await n.chamar('POST', 'material-salvar', { conversa_id: c, campo: 'autorizacao.marcada', valor: true });
+  const semUf = await n.chamar('POST', 'material-enviar', { conversa_id: c });
+  assert.equal(semUf.status, 409); assert.deepEqual(semUf.corpo.faltas, [{ bloco: 4, texto: 'o estado do negócio' }], 'A2: só falta o estado, e o envio não passa sem ele');
+  await n.chamar('POST', 'material-salvar', { conversa_id: c, campo: 'negocio.uf', valor: 'RJ' });
   const f = await foto(n, c);
   assert.match((await n.chamar('POST', 'material-enviar', { conversa_id: c })).corpo.erro, /terminarem/, 'com arquivo ainda em envio, espera');
   subir(f.url_envio, JPG, 'image/jpeg');

@@ -84,8 +84,11 @@ test('prepararPatch: cada campo vai para o lugar dele; null limpa; o texto da au
 });
 
 test('faltas: o que ainda impede o envio, com o número do bloco da tela', () => {
-  assert.deepEqual(ESQ.faltas({ dados: {}, autorizacao: {} }), [{ bloco: 2, texto: 'o WhatsApp dos botões' }, { bloco: 6, texto: 'marcar a autorização' }]);
-  assert.deepEqual(ESQ.faltas({ dados: { whatsapp: '+5567999990001' }, autorizacao: { marcada: true } }), []);
+  assert.deepEqual(ESQ.faltas({ dados: {}, autorizacao: {} }), [{ bloco: 2, texto: 'o WhatsApp dos botões' }, { bloco: 4, texto: 'o estado do negócio' }, { bloco: 6, texto: 'marcar a autorização' }]);
+  assert.deepEqual(ESQ.faltas({ dados: { whatsapp: '+5567999990001' }, negocio: { uf: 'MS' }, autorizacao: { marcada: true } }), []);
+  /* A2 (revisão): sem a UF o pacote não monta (montarPedido recusa), então ela é obrigatória como o WhatsApp */
+  assert.deepEqual(ESQ.faltas({ dados: { whatsapp: '+5567999990001' }, negocio: {}, autorizacao: { marcada: true } }), [{ bloco: 4, texto: 'o estado do negócio' }]);
+  assert.deepEqual(ESQ.faltas({ dados: { whatsapp: '+5567999990001' }, negocio: { uf: 'XX' }, autorizacao: { marcada: true } }), [{ bloco: 4, texto: 'o estado do negócio' }], 'UF que não existe não vale');
 });
 
 test('a conferência de bytes: PNG, JPEG e WebP passam; SVG, HTML e tamanho curto não', () => {

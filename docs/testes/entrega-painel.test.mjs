@@ -43,9 +43,10 @@ test('material antes do envio: 409 "ainda não enviou"; código inválido 400; c
   assert.equal((await cen.painelGet('?material=BZ-33333')).status, 404);
 });
 
-test('material: sem a UF o pacote não sai e diz o que falta (422); com tudo, sai o pacote v1 com links de 60 s e NADA é marcado', async () => {
+test('material: se a UF faltar mesmo assim (dado antigo), o pacote não sai e diz o que falta (422); com tudo, sai o pacote v1 com links de 60 s e NADA é marcado', async () => {
   const { n, c } = await ateEntregaCriada(cen, local);
-  await enviarMaterial(local, n, c, { uf: null, fotos: 1 });
+  await enviarMaterial(local, n, c, { fotos: 1 });   /* (A2: a tela e o servidor já exigem a UF; aqui ela some do banco à mão) */
+  await local.db.query("update app.materiais m set negocio = negocio - 'uf' from app.entregas e where e.id = m.entrega_id and e.conversa_id = $1", [c]);
   await naoSaude(c);
   const codigo = await codigoDe(n, c);
   const sem = await cen.painelGet('?material=' + codigo);

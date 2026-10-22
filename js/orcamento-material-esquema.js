@@ -129,6 +129,8 @@
   function faltas(m) {
     var f = [], dados = (m && m.dados) || {}, aut = (m && m.autorizacao) || {};
     if (!dados.whatsapp) f.push({ bloco: 2, texto: 'o WhatsApp dos botões' });
+    /* (revisão A2) sem a UF o pacote do pedido não monta e o material já enviado não pode ser mexido: ela é obrigatória como o WhatsApp */
+    if (UFS.indexOf(m && m.negocio && m.negocio.uf) < 0) f.push({ bloco: 4, texto: 'o estado do negócio' });
     if (aut.marcada !== true) f.push({ bloco: 6, texto: 'marcar a autorização' });
     return f;
   }
