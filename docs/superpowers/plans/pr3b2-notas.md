@@ -166,6 +166,13 @@ suíte e mutação rodam uma vez no fim; nada de E2E, `verificar`, `acessibilida
 - Telas do material (salvar sozinho a 700 ms, "Falta:", barra de envio, miniaturas, `progress`) NÃO foram vistas num navegador (modo leve). **Verificação de tela PENDENTE (Task 19)**: 390 e 320 px, teclado, leitor,
   o `accept` dos arquivos no iPhone (HEIC), foto grande de celular real, envio ao armazém real (CORS).
 
+## Task 17: pergunta "Como mando fotos e textos?" e passos antes de pagar
+
+- Vermelho visto: os 2 testes novos de `pagar-sem-medo` falharam antes do HTML. Verde: pagar-sem-medo, orcamento-entrega, so-pix-textos, consultor, condicoes, csp, prazo-uteis-textos 83/83.
+- Guarda visto vermelho colando `<p>Quando pago o restante?</p>`: `frase barrada (com o 3b-3)`; tirado.
+- `AINDA_NAO` perdeu `Como mando fotos` e `precisa mandar nada pelo WhatsApp`; continuam barradas as do 3b-3 e as da D2/D5.
+- **Verificação de tela PENDENTE (Task 19):** os passos acima do Pix a 390/320 px e o atalho de perguntas.
+
 ## Andamento
 
-próxima tarefa: 17
+próxima tarefa: 18 (só preparar o conteúdo na branch pr3b2-privacidade); depois 20 (suíte, mutação, pendências); 19 fica pendente

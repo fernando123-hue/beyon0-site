@@ -375,7 +375,7 @@
     <section class="orc-bloco" id="o-pagamento" aria-labelledby="o-pag-titulo" hidden>
       <h2 id="o-pag-titulo">Para começar</h2>
       <p class="orc-bloco__lead" id="o-pag-lead"></p>
-      <p class="orc-nota"><a href="#o-antes">Perguntas antes de pagar</a>: posso desistir? quando fica pronto? quantos ajustes?</p>
+      <p class="orc-nota"><a href="#o-antes">Perguntas antes de pagar</a>: posso desistir? quando fica pronto? quantos ajustes? como mando fotos e textos?</p>
       <p class="orc-nota orc-perguntar" hidden>Alguma dúvida antes de pagar? <a href="#o-texto" data-perguntar>Pergunte ao consultor</a>. Ele tira dúvidas, mas não confirma pagamento nem muda o valor: quem mostra que o pagamento entrou é esta tela.</p>
       <p class="orc-aviso" id="o-pag-indisponivel" hidden>O pagamento online está indisponível agora. A Beyon Zero envia o pagamento pelo <a data-wa="quero pagar o sinal do meu projeto" href="https://wa.me/5521977167944">WhatsApp</a>.</p>
 
@@ -416,6 +416,17 @@
         <p class="orc-erro" id="o-pag-erro" role="alert"></p>
         <button class="btn btn--primary" type="submit" id="o-pag-enviar"></button>
       </form>
+
+      <!-- OS PASSOS antes de pagar (PR 3b-2, spec §4): sem data; a entrada e o restante vêm da proposta (js/orcamento-entrega.js) -->
+      <div class="orc-antes-passos" id="o-antes-passos">
+        <p class="orc-pedido__rotulo">Passo 1 de 4 · Entrada</p>
+        <ol class="orc-passos orc-passos--curta">
+          <li class="orc-passo"><span class="orc-passo__n" aria-hidden="true">1</span><span class="orc-passo__nome">Entrada por Pix <span id="o-ap-entrada"></span></span></li>
+          <li class="orc-passo"><span class="orc-passo__n" aria-hidden="true">2</span><span class="orc-passo__nome">Você manda o seu material, aqui mesmo</span></li>
+          <li class="orc-passo"><span class="orc-passo__n" aria-hidden="true">3</span><span class="orc-passo__nome">Prévia do site, para aprovar</span></li>
+          <li class="orc-passo"><span class="orc-passo__n" aria-hidden="true">4</span><span class="orc-passo__nome">Site no ar e o restante <span id="o-ap-resto"></span></span></li>
+        </ol>
+      </div>
 
       <!-- O PIX (PR 3b-1, spec 2026-10-21 §4): valor e percentual da proposta → o nome que aparece no banco (decisão do
            dono de 21/10, Decisões.md, "Nome que aparece no Pix") → copiar → os passos no app do banco. O QR fica em
@@ -476,6 +487,11 @@
       <details class="orc-det orc-antes__item">
         <summary>Quantos ajustes?</summary>
         <p class="orc-antes__resposta">Duas listas de ajuste na prévia. Uma lista é um conjunto de pedidos mandado de uma vez. O que passar das duas listas é orçado à parte, como página ou item novo.</p>
+      </details>
+      <!-- 3b-2: onde o cliente manda o material (a tela de depois da entrada existe) -->
+      <details class="orc-det orc-antes__item">
+        <summary>Como mando fotos e textos?</summary>
+        <p class="orc-antes__resposta">Aqui mesmo, depois da entrada. Não precisa mandar nada pelo WhatsApp.</p>
       </details>
       <p class="orc-nota">Outra dúvida? <a class="orc-sem-quebra" data-wa="tenho uma dúvida antes de pagar" href="https://wa.me/5521977167944">Fale com a Beyon Zero pelo WhatsApp</a>.</p>
     </section>

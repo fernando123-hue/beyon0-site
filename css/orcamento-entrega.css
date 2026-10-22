@@ -56,3 +56,6 @@
 .orc-arq__tirar:disabled { opacity: .45; cursor: default; }
 .orc-arq__tirar:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
 @media (max-width: 380px) { .orc-arq__item { grid-template-columns: 48px minmax(0, 1fr) auto; } .orc-arq__item .btn { grid-column: 2 / -1; } }
+
+.orc-passos--curta .orc-passo { grid-template-columns: 2rem minmax(0, 1fr); padding: .6rem 0; }
+.orc-antes-passos { margin: 1rem 0 1.2rem; }
