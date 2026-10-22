@@ -162,7 +162,7 @@ test('wrangler.jsonc: produção fechada, prévia declarada, nada de segredo, na
   for (const vars of [c.vars, c.env.previa.vars, c.previews?.vars || {}, c.env.previa.previews.vars]) for (const s of SEGREDOS) assert.ok(!(s in vars), s + ' em vars');
   assert.equal(c.workers_dev, false, 'produção sem workers.dev (revisão M3)');
   assert.equal(c.build, undefined, 'sem build: o Builds não honra e ele rodaria código no deploy');
-  assert.equal(c.account_id, undefined, 'a conta vem do token do Builds de cada conta');
+  assert.equal(c.account_id, undefined, 'uma conta, dois Workers: a conta vem do token do Builds');
   assert.equal(c.name, 'beyon-zero-site');
   assert.equal(c.env.previa.name, undefined, 'uma conta só: um name no env.previa apontaria o deploy da main para a produção (§ 5.3, trava 2)');
   assert.equal(c.routes, undefined, 'o domínio é do PR C'); assert.equal(c.env.previa.route, undefined);
@@ -182,7 +182,7 @@ test('package.json: scripts da Cloudflare e descrição sem Vercel; o lock fixa 
   const pkg = JSON.parse(fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
   assert.equal(pkg.scripts['cf:montar'], 'node cloudflare/montar-publico.mjs');
   assert.equal(pkg.scripts['cf:fumaca'], 'node docs/worker-fumaca.mjs');
-  assert.equal(pkg.scripts['cpu:rotas'], 'node docs/cpu-rotas.mjs');
+  assert.equal(pkg.scripts['cpu:rotas'], undefined, 'o docs/cpu-rotas.mjs é da M1 e não está nesta base: o script volta com a M1');
   assert.doesNotMatch(pkg.description, /vercel/i);
   const lock = JSON.parse(fs.readFileSync(new URL('../../package-lock.json', import.meta.url), 'utf8'));
   assert.equal(lock.packages['node_modules/wrangler'].version, '4.136.3');
@@ -238,12 +238,42 @@ test('acesso no Playwright: o token vai só nos pedidos do próprio staging (rot
   assert.equal(await autorizarContexto(ctx, BASE, TOKEN, SUB), true);
   assert.equal(registrado.length, 1);
   assert.equal(registrado[0].padrao, BASE + '/**', 'só a origem do staging: terceiros (Turnstile, Mercado Pago, Google) não recebem o token');
-  let continuado = null;
-  await registrado[0].fn({ request: () => ({ headers: () => ({ accept: 'text/html' }) }), continue: async op => { continuado = op; } });
-  assert.deepEqual(continuado.headers, { accept: 'text/html', ...DOIS });
+  /* BAIXO-5: nada de route.continue (ele segue o redirecionamento com o token, mesmo para outra origem): busca SEM seguir
+     redirecionamento e entrega a resposta; o navegador segue sozinho, e o pedido seguinte só leva o token se for da origem */
+  let buscado = null; let entregue = null; const resposta = { status: () => 307 };
+  await registrado[0].fn({ request: () => ({ headers: () => ({ accept: 'text/html' }) }),
+    fetch: async op => { buscado = op; return resposta; }, fulfill: async op => { entregue = op; },
+    continue: async () => { throw new Error('continue segue o redirecionamento com o token'); } });
+  assert.deepEqual(buscado.headers, { accept: 'text/html', ...DOIS });
+  assert.equal(buscado.maxRedirects, 0, 'não segue redirecionamento (o login do Access fica em outro host)');
+  assert.equal(entregue.response, resposta);
   const sem = { route: async () => { throw new Error('não podia registrar'); } };
   assert.equal(await autorizarContexto(sem, 'https://beyonzero.com.br', TOKEN, SUB), false);
   assert.equal(await autorizarContexto(sem, 'https://beyon-zero-site-previa.atacante.workers.dev', TOKEN, SUB), false, 'outra conta');
   assert.equal(await autorizarContexto(sem, BASE, TOKEN, null), false, 'SUB_CONTA nulo: fechado')
   assert.equal(await autorizarContexto(sem, BASE, { CF_ACCESS_CLIENT_ID: 'só o id' }, SUB), false);
+});
+
+/* ---- revisão do PR B, BAIXOs de código ---- */
+test('corpo cortado no meio pelo cliente: 500 genérico com x-request-id (a leitura está dentro do try), nunca uma rejeição crua (BAIXO-1)', async () => {
+  const cortado = new Request('https://x/api/eco', { method: 'POST', duplex: 'half',
+    body: new ReadableStream({ start(c) { c.enqueue(new Uint8Array(10)); c.error(new Error('cliente cortou')); } }) });
+  const r = await rotear(cortado, {});
+  assert.equal(r.status, 500); assert.ok(r.headers.get('x-request-id'));
+  assert.deepEqual(Object.keys(await r.json()).sort(), ['erro', 'pedido']);
+});
+test('Cloudflare: todo x-vercel-*, x-real-ip, true-client-ip e forwarded do cliente somem antes do handler (BAIXO-2)', async () => {
+  const lista = criarRoteador({ cab: { limite: 10, GET: async r => Response.json([...r.headers.keys()].sort()) } });
+  const r = await lista(pedido('/api/cab', { headers: { 'cf-connecting-ip': '203.0.113.7', 'x-vercel-forwarded-for': '5.6.7.8', 'x-vercel-ip-country': 'US', 'x-vercel-id': 'a',
+    'x-real-ip': '9.9.9.9', 'true-client-ip': '8.8.8.8', forwarded: 'for=7.7.7.7', 'x-forwarded-for': '1.2.3.4', 'user-agent': 'ua' } }), CF);
+  const nomes = await r.json();
+  assert.ok(!nomes.some(n => /^x-vercel-|^x-real-ip$|^true-client-ip$|^forwarded$/.test(n)), nomes.join(','));
+  assert.ok(nomes.includes('user-agent') && nomes.includes('x-forwarded-for') && nomes.includes('cf-connecting-ip'), 'o resto passa');
+});
+test('package.json: todo script que roda um arquivo node aponta para um arquivo que existe (BAIXO-6)', () => {
+  const pkg = JSON.parse(fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
+  for (const [nome, cmd] of Object.entries(pkg.scripts)) {
+    const m = /^node\s+(?:--\S+\s+)*([^\s-][^\s]*)/.exec(cmd);
+    if (m && /\.mjs$/.test(m[1])) assert.ok(fs.existsSync(new URL('../../' + m[1], import.meta.url)), nome + ' → ' + m[1] + ' não existe');
+  }
 });

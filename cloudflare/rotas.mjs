@@ -50,12 +50,14 @@ async function lerLimitado(request, limite) {
 }
 
 /* na Cloudflare: só o cf-connecting-ip (a borda sobrescreve o que o cliente mandar); o x-forwarded-for do cliente
-   (a Cloudflare ACRESCENTA a ele, o 1º item é do atacante) e o x-vercel-* somem */
+   (a Cloudflare ACRESCENTA a ele, o 1º item é do atacante) e todo cabeçalho de IP que só outra plataforma garante
+   (todo x-vercel-*, x-real-ip, true-client-ip, forwarded) somem: código futuro não pode confiar num valor forjado */
+const CABECALHOS_DE_IP_ALHEIOS = /^(?:x-vercel-.*|x-real-ip|true-client-ip|forwarded)$/;
 function cabecalhosDeIp(request, env) {
   const h = new Headers(request.headers);
   if (!naCloudflare(env)) return h;
   const ip = (h.get('cf-connecting-ip') || '').trim();
-  h.delete('x-vercel-forwarded-for');
+  for (const nome of [...h.keys()]) if (CABECALHOS_DE_IP_ALHEIOS.test(nome)) h.delete(nome);
   h.delete('x-forwarded-for');
   if (!ip || !normalizarIp(ip)) return null;
   h.set('x-forwarded-for', ip);
@@ -77,17 +79,17 @@ export function criarRoteador(rotas = ROTAS) {
     if (!rota) return json({ erro: 'Não encontrado.' }, 404);
     const fn = METODOS.includes(request.method) && Object.hasOwn(rota, request.method) ? rota[request.method] : null;
     if (!fn) return json({ erro: 'Método não permitido.' }, 405, { allow: METODOS.filter(x => Object.hasOwn(rota, x)).join(', ') });
-    const headers = cabecalhosDeIp(request, env);
-    if (!headers) return json({ erro: 'Proibido.' }, 403);
-    let corpo;
-    if (request.method === 'POST') {
-      if (Number(request.headers.get('content-length') || 0) > rota.limite) return json({ erro: 'Corpo grande demais.' }, 413);
-      corpo = await lerLimitado(request, rota.limite);
-      if (corpo === null) return json({ erro: 'Corpo grande demais.' }, 413);
-    }
-    /* um Request NOVO: o corpo já foi lido; o handler lê o dele normalmente */
-    const novo = new Request(url, { method: request.method, headers, body: corpo && corpo.byteLength ? corpo : undefined });
-    try {
+    try {   /* (a leitura do corpo também: se o cliente cortar no meio, sai o 500 com request_id, não a falha crua do runtime) */
+      const headers = cabecalhosDeIp(request, env);
+      if (!headers) return json({ erro: 'Proibido.' }, 403);
+      let corpo;
+      if (request.method === 'POST') {
+        if (Number(request.headers.get('content-length') || 0) > rota.limite) return json({ erro: 'Corpo grande demais.' }, 413);
+        corpo = await lerLimitado(request, rota.limite);
+        if (corpo === null) return json({ erro: 'Corpo grande demais.' }, 413);
+      }
+      /* um Request NOVO: o corpo já foi lido; o handler lê o dele normalmente */
+      const novo = new Request(url, { method: request.method, headers, body: corpo && corpo.byteLength ? corpo : undefined });
       return comCabecalhosDaApi(await fn(novo, env));
     } catch (e) {
       const id = randomUUID();

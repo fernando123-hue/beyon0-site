@@ -41,10 +41,16 @@ export function cabecalhosDeAcesso(env = process.env, base = env.BASE || env.BZ_
 }
 
 /* Playwright: instala os cabeçalhos SÓ nos pedidos da origem do staging (rota por origem). Nunca extraHTTPHeaders, que
-   mandaria o token também a terceiros que a página chama (Turnstile, Mercado Pago, Google). Devolve se instalou. */
+   mandaria o token também a terceiros que a página chama (Turnstile, Mercado Pago, Google). Nunca route.continue, que
+   segue o redirecionamento COM o token (o staging redireciona para o login do Access, em outro host quando o token
+   expira): busca sem seguir e entrega a resposta; o navegador segue sozinho e o pedido seguinte só leva o token se for
+   da própria origem. Devolve se instalou. */
 export async function autorizarContexto(ctx, base, env = process.env, sub = SUB_CONTA) {
   const cabecalhos = cabecalhosDeAcesso(env, base, sub);
   if (Object.keys(cabecalhos).length === 0) return false;
-  await ctx.route(new URL(base).origin + '/**', route => route.continue({ headers: { ...route.request().headers(), ...cabecalhos } }));
+  await ctx.route(new URL(base).origin + '/**', async route => {
+    const resposta = await route.fetch({ headers: { ...route.request().headers(), ...cabecalhos }, maxRedirects: 0 });
+    await route.fulfill({ response: resposta });
+  });
   return true;
 }

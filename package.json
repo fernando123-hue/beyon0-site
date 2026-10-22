@@ -21,8 +21,7 @@
     "e2e:turnstile": "node docs/e2e-turnstile.mjs",
     "validar:regras": "node docs/validar-regras.mjs",
     "cf:montar": "node cloudflare/montar-publico.mjs",
-    "cf:fumaca": "node docs/worker-fumaca.mjs",
-    "cpu:rotas": "node docs/cpu-rotas.mjs"
+    "cf:fumaca": "node docs/worker-fumaca.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.131.0"

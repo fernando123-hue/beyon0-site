@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  // produção (Worker beyon-zero-site, branch producao). A conta vem do token do Builds: nunca account_id aqui.
+  // produção (Worker beyon-zero-site, branch producao). Uma conta, dois Workers: a conta vem do token do Builds, nunca account_id aqui.
   "name": "beyon-zero-site",
   "main": "cloudflare/worker.mjs",
   "compatibility_date": "2026-09-28",
@@ -18,7 +18,7 @@
   "vars": { "BZ_AMBIENTE": "producao", "MP_AMBIENTE": "producao", "MP_METODOS": "pix", "BZ_DIRECOES": "manual", "MP_3DS": "", "METRICAS_HOSTS": "" },
   "observability": { "enabled": true, "logs": { "enabled": true, "head_sampling_rate": 1 }, "traces": { "enabled": true } },
   "env": {
-    // conta das PRÉVIAS: main = staging fixo (deploy --env previa); outras branches = preview --env previa
+    // o Worker das PRÉVIAS (mesma conta): main = staging fixo (publicado com --env previa); outras branches = versões de prévia, também com --env previa
     "previa": {
       // routes é HERDÁVEL: sem esta linha, depois do PR C o staging tentaria prender beyonzero.com.br (2ª revisão, ALTO-1)
       "routes": [],
