@@ -28,6 +28,10 @@ test('o gatilho nunca derruba o pagamento: com a criação quebrada o sinal fica
   assert.equal(c.aplicado.aplicado, 'aprovada', 'o pagamento passou');
   assert.equal((await um("select p.status from app.pagamentos p join app.propostas pr on pr.id = p.proposta_id where pr.id = $1 and p.parcela = 'sinal'", [c.proposta])).status, 'pago');
   assert.equal((await um('select count(*)::int n from app.entregas where conversa_id = $1', [c.conversa_id])).n, 0, 'sem entrega ainda');
+  /* B3 (revisão): o erro também fica na trilha de auditoria, que é onde o dono o vê (pagamentos_atencao) */
+  const aud = await um("select a.evento, a.origem, a.detalhe from app.pagamentos_auditoria a join app.pagamentos p on p.id = a.pagamento_id where p.proposta_id = $1 and a.evento = 'project.error'", [c.proposta]);
+  assert.ok(aud, 'project.error gravado em pagamentos_auditoria');
+  assert.match(aud.detalhe.motivo, /entrega não criada/);
   const est = await rpc('vendas_estado', { conversa_id: c.conversa_id, visitante_id: c.visitante_id });
   assert.equal(est.entrega.passo, 'material', 'a leitura do estado criou a entrega');
   await rpc('vendas_estado', { conversa_id: c.conversa_id, visitante_id: c.visitante_id });

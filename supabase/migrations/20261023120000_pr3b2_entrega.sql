@@ -157,7 +157,7 @@ begin
     -- (o pagamento NUNCA falha por causa da entrega: app.vendas_estado conserta, privado.garantir_entrega)
     raise warning 'entrega não criada para a proposta %: %', new.proposta_id, sqlerrm;
     -- o erro também vai para a trilha de auditoria, onde o dono o vê (como o project.error de pagamentos_aplicar); a assinatura
-    -- é a de privado.auditar_pagamento em 20261007130000_pagamentos.sql: confira os argumentos. Falhar aqui também não derruba nada
+    -- é a de privado.auditar_pagamento em 20261007130000_pagamentos.sql (11 argumentos, conferidos e cobertos pelo teste da entrega). Falhar aqui também não derruba nada
     begin
       perform privado.auditar_pagamento(new.org_id, new.id, null, 'project.error', 'sistema', null, 'operacao', null, null,
         jsonb_build_object('motivo', 'entrega não criada: ' || left(sqlerrm, 120), 'codigo', sqlstate), null);
