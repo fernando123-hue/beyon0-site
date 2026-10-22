@@ -21,6 +21,7 @@ import { mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { passoDosAjustes } from './e2e-ajustes.mjs';
 import { passoDoPix } from './e2e-pix.mjs';
+import { passoDaEntrega } from './e2e-entrega.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8899';
 /* só servidor local: contra um site de verdade este teste cria conversa, chama a IA paga e cria pedido de pagamento */
@@ -719,6 +720,7 @@ try {
 
   /* pagamento: dados do pagador, o cartão (quando o servidor o liga) e o Pix; a confirmação SÓ pelo aviso do provedor (docs/e2e-pix.mjs) */
   await passoDoPix(page, { ok, espera, foto, semRolagemLateral, forcar: v => { falhaForcada = v; } });
+  await passoDaEntrega(page, { ok, espera, foto, semRolagemLateral });
   ok(erros.length === 0, 'sem erro de console' + (erros.length ? ': ' + erros.slice(0, 3).join(' | ') : ''));
   await ctx.close();
 

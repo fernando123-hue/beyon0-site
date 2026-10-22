@@ -186,6 +186,14 @@ suíte e mutação rodam uma vez no fim; nada de E2E, `verificar`, `acessibilida
   (migrations, balde, conferir-armazem, PR da privacidade, CSP com o endereço exato, `BZ_ENTREGA`, captação, verificação de tela pendente).
 - **Dono:** o clique de mesclar o PR da privacidade é o "sim". O PR não foi publicado (sem push). Registrar a resposta em `Decisões.md` se ele responder no chat.
 
+## Task 19: E2E da entrega e verificação de tela (PENDENTE, PC livre)
+
+- ESCRITO e só com `node --check`: `docs/e2e-entrega.mjs` (plano, Step 1) e a chamada `await passoDaEntrega(...)` em `docs/e2e-orcamento.mjs`, depois do `passoDoPix`. **NÃO foi rodado** (modo leve).
+- Falta fazer com o PC livre: as 3 rodadas do E2E (padrão, `MP_METODOS=pix`, com consultor) + uma com `BZ_ENTREGA=` vazio (o recibo mostra a frase da entrega desligada), `verificar`, `acessibilidade`, `olhar`
+  e abrir os PNG `5-pedido-cel`, `5a-material-cel`, `5b-material-320`, `5c-enviado-cel` (e os `4-pix-*` do 3b-1).
+- Riscos conhecidos do E2E não rodado: depende dos ids `#o-ret-abrir`, `#o-ret-estado`, `#o-retomada` (existem no HTML), do `espera` e `foto` do E2E atual, e de 61 s de espera do freio de IP por trecho; o `e2e-orcamento.mjs` já passava de 800 linhas antes.
+- Linha de aparelho real (dono): foto HEIC do iPhone no seletor, "Mandar para mim" e "Pôr na minha agenda".
+
 ## Andamento
 
-próxima tarefa: 20 (suíte inteira, mutação, nível de risco); 19 fica pendente (PC livre)
+próxima tarefa: 20 (suíte inteira, mutação, nível de risco); 19 só escrita, execução pendente
