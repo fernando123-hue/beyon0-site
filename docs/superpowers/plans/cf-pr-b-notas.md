@@ -96,3 +96,20 @@ fumaça fica vermelha (1 falha: o log do cron). O `[]` do plano não chega a pro
 vale como prova de que a fumaça pega o desvio, por outro caminho.
 Pendência de CI: confirmar no 1º run do job que `wrangler check startup` não pede login/token no runner (aqui não pediu).
 próxima tarefa: B8
+
+## B8: trava anti-publicação e níveis
+Vermelho 1: `ERR_MODULE_NOT_FOUND ... scripts\processo\anti-publicacao.mjs imported from ...\docs\testes\anti-publicacao.test.mjs`.
+Vermelho 2 (níveis, antes da regra nova): `níveis: wrangler.jsonc, _headers, cloudflare/ ... actual: 2, expected: 3`
+(`cloudflare/*.mjs` caía na regra "comportamento da página", nível 2).
+Verde: 8 testes (workflow com escrita; comandos de publicação, versão e segredo; `package.json` com script de instalação;
+`wrangler.jsonc` com `build`; exceções só dos 3 `.md`; um `.mjs`/`.yml` em `docs/superpowers/plans/` é achado; o repositório
+real passa limpo; níveis). Os termos proibidos são montados por partes no verificador e no teste.
+O verificador é AUTÔNOMO (sem import do repositório, leitor de JSONC embutido) porque o dono o copia para o guarda.
+A própria trava acusou, na primeira rodada, a minha nota da B6 (que citava o comando de deploy por extenso): corrigi o texto.
+Exceção a lembrar: as notas deste PR (`cf-pr-b-notas.md`) NÃO são exceção; não escrever esses comandos por extenso aqui.
+Ensaio: `node scripts/processo/anti-publicacao.mjs` no repositório = "limpo", saída 0.
+P2 (do dono, NÃO feito por mim): copiar `scripts/processo/anti-publicacao.mjs` do PR B para `~/.claude/guarda/anti-publicacao.mjs`
+e fazer o guarda rodá-lo (`node ~/.claude/guarda/anti-publicacao.mjs <pasta da árvore a empurrar>`) antes de todo `git push`,
+mais a confirmação do dono no push de mudanças em workflows, `cloudflare/`, `wrangler.jsonc` e `package*.json` (§ 5.5 do plano).
+Nada em `~/.claude/` foi tocado.
+próxima tarefa: B9
