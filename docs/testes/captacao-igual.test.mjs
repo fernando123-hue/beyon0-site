@@ -59,3 +59,19 @@ test('captação: tipoPorBytes lado a lado (PNG, JPEG e WebP iguais; SVG o Worke
     if (c.captacao !== 'svg') assert.equal(tipoPorBytes(Uint8Array.from(b)), deles(b), c.nome + ': iguais');
   }
 });
+
+test('captação: o prazo em dias úteis dá a mesma data e o mesmo vencimento (clientes/prazos.mjs, para-o-site.md §6)', opcoes, async () => {
+  const { calcularEntregarAte: deles, prazoVencido: vencidoDeles } = await importar('clientes/prazos.mjs');
+  const { calcularEntregarAte: nosso, prazoVencido: vencidoNosso } = await import('../../api/_material/prazo.mjs');
+  const lerConfig = n => JSON.parse(fs.readFileSync(path.join(PASTA, 'config', n), 'utf8'));
+  const entrega = { ...lerConfig('entrega.json'), feriados: lerConfig('feriados.json') };
+  const C = fixture('prazo-casos.json');
+  const feriados = new Set(C.feriados_nacionais);   /* (a lista dela tem também os móveis e os de Campo Grande: nenhum cai nestas datas) */
+  const cliente = c => ({ estado: 'em_producao', prazo: { dias: c.prazo_dias, contagem: 'uteis', pausas: [], novas_datas: [], entregar_ate: null, ...c.prazo } });
+  for (const c of C.calcular) {
+    assert.equal(nosso(c.prazo, { prazoDias: c.prazo_dias, feriados }, new Date(c.agora)), deles(cliente(c), entrega, new Date(c.agora)), c.nome);
+  }
+  for (const c of C.vencido) {
+    assert.equal(vencidoNosso(c.prazo, { prazoDias: c.prazo_dias, feriados }, new Date(c.agora)), vencidoDeles(cliente(c), entrega, new Date(c.agora)), c.nome);
+  }
+});
