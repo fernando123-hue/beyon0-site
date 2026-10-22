@@ -34,6 +34,14 @@ suíte e mutação rodam uma vez no fim; nada de E2E, `verificar`, `acessibilida
 - O teste de igualdade `captacao-igual` agora roda de verdade contra `clientes/prazos.mjs` (data e vencimento): igual em todos os casos.
 - Verde: prazo 8/8; captacao-igual 5/5.
 
+## Task 3A: textos do prazo em dias úteis
+
+- Vermelho visto: 4 de 4 testes novos falharam antes dos textos. Verde: os 8 arquivos da tarefa, 104 testes, 0 falhas.
+- Trocados: escopo (73, 77), consultor (95, 99; a 81 do atendente segue corrida), agente (103), `js/orcamento.js`, recibo, `orcamento.html`
+  e as frases nos 5 testes antigos. Os números de linha do plano batiam.
+- **Fora deste PR (avisar o coordenador):** `index.html` (197, 275), `sites.html` (63, 122, 267) e `condicoes.html` ainda dizem "10 dias corridos"
+  para a entrega; `automacao.html:321` (teste de 10 dias do atendente) fica corrido. PR de texto próprio, com `condicoes_versao` nova.
+
 ## Andamento
 
-próxima tarefa: 3A
+próxima tarefa: 4

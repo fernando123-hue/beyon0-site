@@ -550,7 +550,7 @@
   var telaPagamento = window.BZPagamentoTela ? window.BZPagamentoTela.criar({ API: API, dinheiro: dinheiro, aoPagar: function () { recarregar().catch(function () {}); } }) : null;
   var recibo = window.BZRecibo ? window.BZRecibo.criar({ API: API, dinheiro: dinheiro }) : null;
   var viuAguardando = false;   /* a etapa "aguardando pagamento" foi vista nesta tela: a confirmação chega ao vivo e o recibo anima */
-  function dias(n) { return n + (Number(n) === 1 ? ' dia corrido' : ' dias corridos'); }   /* (corridos: decisão do dono, 2026-10-09; é o que o escopo diz) */
+  function dias(n) { return n + (Number(n) === 1 ? ' dia útil' : ' dias úteis'); }   /* (úteis: decisão do dono de 21/10; é o que o escopo diz) */
   /* (PR 3b-1) as contas da entrada (js/orcamento-pix.js). Sem o módulo (não carregou), o mesmo caminho fechado de uma
      proposta sem percentual: a tela não cobra, e o resto da página segue (como as guardas de telaPagamento e recibo) */
   var PIX = window.BZPix || null;
