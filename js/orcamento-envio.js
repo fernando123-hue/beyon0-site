@@ -59,7 +59,7 @@
   /* M1 (revisão): o objeto já está no armazém (o PUT anterior gravou e a resposta se perdeu): o upsert desligado responde 409,
      ou 400 com "Duplicate" / "already exists" no corpo. Não é falha: a conferência decide se o objeto serve */
   function jaGravado(status, corpo) {
-    return status === 409 || (status === 400 && /duplicate|already exists|"statusCode"s*:s*"?409/i.test(String(corpo || '')));
+    return status === 409 || (status === 400 && /duplicate|already exists|"statusCode"\s*:\s*"?409/i.test(String(corpo || '')));
   }
   /* o PUT no link assinado (XHR: o fetch não mostra o progresso do envio). O armazém não precisa de chave nem do nome do arquivo */
   function enviarPut(url, corpo, tipo, aoProgresso) {

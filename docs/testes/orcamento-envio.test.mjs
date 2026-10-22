@@ -177,7 +177,7 @@ test('M1 (revisão): PUT que responde 409 (já gravado antes: a resposta se perd
   const r = montar({ enviar: async () => { throw Object.assign(new Error('x'), { status: 409 }); }, conferir: async () => { throw erroHttp(422, 'O arquivo que chegou não é o que você escolheu. Tente de novo.'); } });
   r.motor.adicionar([arq('c.jpg', 'image/jpeg', MB)], 'foto'); await esperar({ motor: r.motor });
   assert.equal(r.motor.itens()[0].estado, 'erro');
-  assert.equal(V.jaGravado(409), true); assert.equal(V.jaGravado(400, 'Duplicate'), true); assert.equal(V.jaGravado(400, 'outro erro'), false); assert.equal(V.jaGravado(500, 'Duplicate'), false);
+  assert.equal(V.jaGravado(400, '{"statusCode" : "409", "error": "x"}'), true, 'statusCode 409 no corpo, com espaços, sem a palavra Duplicate'); assert.equal(V.jaGravado(400, '{"statusCode":409}'), true); assert.equal(V.jaGravado(400, 'statusCodes 409x ss'), false, 'o texto solto "s" não vale'); assert.equal(V.jaGravado(409), true); assert.equal(V.jaGravado(400, 'Duplicate'), true); assert.equal(V.jaGravado(400, 'outro erro'), false); assert.equal(V.jaGravado(500, 'Duplicate'), false);
 });
 
 test('B1 (revisão): o resumo conta os arquivos presos (com reserva no servidor e em erro), que travam o Enviar até serem tirados', async () => {
