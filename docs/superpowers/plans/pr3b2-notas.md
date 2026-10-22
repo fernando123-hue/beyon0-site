@@ -50,6 +50,15 @@ suíte e mutação rodam uma vez no fim; nada de E2E, `verificar`, `acessibilida
 - Resposta 2 (`numero_em` = `enviado_em`, sem data futura ou anterior à entrada) e 7 (`aceite.em` = hora real do clique) entram na Task 8 (servidor).
 - A captação ainda não tem leitor de `pedido.json` (`importar-site` não existe): a igualdade do pedido fica só pelo contrato (§4/§6).
 
+## Task 3 (complemento): feriados = SÓ OS NACIONAIS (decisão do dono, 21/10)
+
+- `FERIADOS` em `prazo.mjs` deixou de ser vazio: responde `.has(dia)` para qualquer ano com os 9 nacionais de data fixa (01-01, 04-21, 05-01, 09-07,
+  10-12, 11-02, 11-15, 11-20, 12-25) mais a Sexta-feira Santa (nacional por lei, calculada pela Páscoa). Carnaval e Corpus Christi (ponto facultativo)
+  e Campo Grande (26/08, 11/10) NÃO contam. Dúvida para o coordenador: se o dono não quer a Sexta-feira Santa, é tirar uma linha.
+- A captação hoje conta também móveis e Campo Grande: ela precisa se alinhar (os casos de teste não são afetados; só usam nacionais).
+- Frase ao cliente "Sábado, domingo e feriado nacional não contam." entrou no contrato (escopo), no consultor e na resposta de "Quando fica pronto?".
+- Testes: prazo 8/8 e captacao-igual 6/6 contra o código dela; 118 testes dos arquivos de prazo/texto, 0 falhas.
+
 ## Andamento
 
-próxima tarefa: 4b (feriados nacionais), depois 5
+próxima tarefa: 5

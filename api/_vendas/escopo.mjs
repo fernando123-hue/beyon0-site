@@ -74,7 +74,7 @@ export function montarEscopo({ estimativa, direcao, alteracoesAplicadas, briefin
     for (const i of estimativa.fase_seguinte.itens) linhas.push('- ' + i.nome + (i.qtd > 1 ? ' (' + i.qtd + ')' : '') + '.');
   }
   linhas.push('', 'INVESTIMENTO: ' + brl(estimativa.valor_total) + ' — ' + estimativa.sinal_percentual + '% para começar (' + brl(estimativa.sinal) + ') e o restante na entrega.');
-  linhas.push('PRAZO: até ' + estimativa.prazo_dias + ' dias úteis, contados do sinal pago e do material recebido.');   /* (úteis: decisão do dono de 21/10, que revê a de 09/10) */
+  linhas.push('PRAZO: até ' + estimativa.prazo_dias + ' dias úteis, contados do sinal pago e do material recebido. Sábado, domingo e feriado nacional não contam.');   /* (úteis: decisão do dono de 21/10, que revê a de 09/10) */
   linhas.push('', 'Os textos, imagens e dados de prova social marcados como espaço reservado nas prévias são preenchidos com o material real do cliente.');
   return { titulo: titulo.slice(0, 160), escopo: linhas.join('\n').slice(0, 20000) };
 }

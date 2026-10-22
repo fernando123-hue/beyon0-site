@@ -4,12 +4,34 @@
    entrada paga e o número dos botões enviado (o mais tarde dos dois); para enquanto se espera a lista de ajustes (os dias úteis
    da pausa, do dia seguinte ao início até o fim, inclusive, são somados, como dias úteis); uma nova data combinada substitui a base e só as pausas DEPOIS dela somam.
    Vale o prazo da proposta aceita (prazoDias), não os 10 fixos da captação (o pedido.json leva o mesmo número).
-   FERIADOS nasce vazio: QUAIS feriados contam é decisão do dono (a captação hoje conta os nacionais, os móveis e os de Campo Grande,
-   com a lista ainda não conferida); a lista entra aqui, com teste, quando ele disser. Os casos de teste usam só os nacionais.
+   FERIADOS = só os nacionais (decisão do dono de 21/10; a captação conta também móveis e os de Campo Grande, e vai alinhar). Texto ao cliente:
+   "Sábado, domingo e feriado nacional não contam."
    docs/testes/fixtures/captacao/prazo-casos.json tem os casos (os da captação, para-o-site.md §6, e os do site).
    ========================================================================== */
 export const FUSO = 'America/Campo_Grande';
-export const FERIADOS = new Set();
+
+/* Os feriados que não contam: SÓ OS NACIONAIS (decisão do dono, 21/10: nenhum estadual ou municipal). Os nove de data fixa mais a
+   Sexta-feira Santa (nacional por lei, data móvel). Carnaval e Corpus Christi são ponto facultativo, não feriado: contam como dia útil.
+   FERIADOS responde `.has('AAAA-MM-DD')` para qualquer ano; quem quiser outra lista passa um Set no parâmetro `feriados`. */
+export const NACIONAIS_FIXOS = Object.freeze(['01-01', '04-21', '05-01', '09-07', '10-12', '11-02', '11-15', '11-20', '12-25']);
+function sextaSanta(ano) {   /* Páscoa pelo algoritmo de Meeus/Jones/Butcher; a Sexta-feira Santa é 2 dias antes */
+  const a = ano % 19, b = Math.floor(ano / 100), c = ano % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const mes = Math.floor((h + l - 7 * m + 114) / 31), diaDoMes = ((h + l - 7 * m + 114) % 31) + 1;
+  return new Date(Date.UTC(ano, mes - 1, diaDoMes - 2)).toISOString().slice(0, 10);
+}
+export function feriadosNacionais(ano) {
+  return new Set([...NACIONAIS_FIXOS.map(mmdd => ano + '-' + mmdd), sextaSanta(ano)]);
+}
+const POR_ANO = new Map();
+export const FERIADOS = Object.freeze({
+  has(diaIso) {
+    const ano = Number(String(diaIso).slice(0, 4));
+    if (!POR_ANO.has(ano)) POR_ANO.set(ano, feriadosNacionais(ano));
+    return POR_ANO.get(ano).has(diaIso);
+  }
+});
 const DIA_MS = 86400000;
 const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
 

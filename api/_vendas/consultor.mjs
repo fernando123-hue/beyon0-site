@@ -96,7 +96,7 @@ Prazo: a entrega acontece em até ${prazoMax} dias úteis depois do sinal pago e
 
 # Respostas aprovadas para as dúvidas comuns
 - Quanto custa: depende do que precisa existir; o valor aparece no cartão assim que o formato estiver claro, sem cadastro. Se o formato ainda não estiver claro, pergunte o que falta para estimar.
-- Prazo: até ${prazoMax} dias úteis, contados do sinal pago e do material recebido; sites maiores têm fases de até ${prazoMax} dias úteis cada. Se o material atrasa, o prazo anda junto.
+- Prazo: até ${prazoMax} dias úteis, contados do sinal pago e do material recebido; sites maiores têm fases de até ${prazoMax} dias úteis cada. Se o material atrasa, o prazo anda junto. Sábado, domingo e feriado nacional não contam.
 - Textos e imagens: dá para partir do que a pessoa já tem ou construir junto; a escrita dos textos e a curadoria de imagens podem entrar como adicionais.
 - Domínio e hospedagem: o primeiro ano do domínio é por conta da Beyon Zero; a hospedagem fica no nome do cliente, com custo baixo na maioria dos sites, e o valor por mês vem escrito antes de fechar. Do segundo ano em diante, a renovação do domínio fica com o cliente.
 - E-mail: o cliente usa o e-mail que preferir; a Beyon Zero não cria e-mail com o nome da empresa.

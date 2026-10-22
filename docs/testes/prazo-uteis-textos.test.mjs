@@ -22,11 +22,12 @@ test('nenhum prazo de ENTREGA diz "dias corridos" nas telas e textos do orçamen
 
 test('o contrato diz "dias úteis, contados do sinal pago e do material recebido" (a mesma regra do consultor e da tela)', () => {
   const e = semComentario(ler('api/_vendas/escopo.mjs'));
-  assert.match(e, /' dias úteis, contados do sinal pago e do material recebido\.'/);
+  assert.match(e, /' dias úteis, contados do sinal pago e do material recebido\. Sábado, domingo e feriado nacional não contam\.'/);
   assert.match(e, /dias úteis' \+ \(estimativa\.fase_seguinte\.fases > 1/, 'a fase seguinte também');
   const c = semComentario(ler('api/_vendas/consultor.mjs'));
   assert.match(c, /dias úteis depois do sinal pago e do material recebido/);
   assert.match(c, /dias úteis, contados do sinal pago e do material recebido/);
+  assert.match(c, /Sábado, domingo e feriado nacional não contam\./, 'o consultor diz quais dias não contam');
 });
 
 test('o recibo, o resumo e o agente escrevem "dia útil" / "dias úteis"', () => {
@@ -37,5 +38,5 @@ test('o recibo, o resumo e o agente escrevem "dia útil" / "dias úteis"', () =>
 
 test('"Quando fica pronto?": dias úteis, e as outras regras do lançamento (30 dias sem material) intactas', () => {
   const h = semComentario(ler('orcamento.html')).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
-  assert.ok(h.includes('O prazo está no resumo do seu pedido, em dias úteis, contados do pagamento da entrada e do envio do seu material. Se o material não chegar em 30 dias, o site sai com as imagens do modelo.'), h.slice(h.indexOf('O prazo está'), h.indexOf('O prazo está') + 240));
+  assert.ok(h.includes('O prazo está no resumo do seu pedido, em dias úteis, contados do pagamento da entrada e do envio do seu material. Sábado, domingo e feriado nacional não contam. Se o material não chegar em 30 dias, o site sai com as imagens do modelo.'), h.slice(h.indexOf('O prazo está'), h.indexOf('O prazo está') + 240));
 });
