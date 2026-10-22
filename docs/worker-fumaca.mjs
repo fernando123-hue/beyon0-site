@@ -131,6 +131,20 @@ async function noWorker(dev) {
   confere('/orcamento com UMA CSP', (csp.match(/default-src/g) || []).length === 1 && !/google/i.test(csp), csp.slice(0, 160));
   const html = await get('/orcamento.html');
   confere('/orcamento.html redireciona (307) para /orcamento', html.status === 307 && /\/orcamento$/.test(html.headers.get('location') || ''), html.status + ' ' + html.headers.get('location'));
+  /* revisão MÉDIO-3: o mesmo código de assets da Cloudflare, provado no workerd (não só no leitor local do _headers) */
+  const painel = await get('/painel');
+  const cspPainel = painel.headers.get('content-security-policy') || '';
+  confere('/painel 200 com UMA CSP, sem Google', painel.status === 200 && (cspPainel.match(/default-src/g) || []).length === 1 && !/google/i.test(cspPainel), painel.status + ' ' + cspPainel.slice(0, 160));
+  confere('/painel com x-robots-tag noindex', /noindex/.test(painel.headers.get('x-robots-tag') || ''), String(painel.headers.get('x-robots-tag')));
+  confere('/painel com cache-control no-store (um valor só)', painel.headers.get('cache-control') === 'no-store', String(painel.headers.get('cache-control')));
+  const fonte = await get('/assets/fonts/sora-latin.woff2');
+  confere('fonte com UM cache-control (sem soma com o padrão dos assets)', fonte.status === 200 && fonte.headers.get('cache-control') === 'public, max-age=31536000, immutable', fonte.status + ' ' + fonte.headers.get('cache-control'));
+  const codificado = await get('/orcament%6F');
+  const cspCodificado = codificado.headers.get('content-security-policy') || '';
+  const redireciona = codificado.status >= 300 && codificado.status < 400 && /\/orcamento$/.test(codificado.headers.get('location') || '');
+  const comCspDoOrcamento = codificado.status === 200 && (cspCodificado.match(/default-src/g) || []).length === 1 && !/google/i.test(cspCodificado);
+  confere('/orcament%6F redireciona para /orcamento ou sai com a CSP do orçamento (nunca a geral, que libera o Google)', redireciona || comCspDoOrcamento,
+    codificado.status + ' ' + codificado.headers.get('location') + ' ' + cspCodificado.slice(0, 100));
   for (const c of ['/docs/PROCESSO.md', '/_headers', '/publico/index.html', '/wrangler.jsonc', '/api/_freio', '/package.json', '/api/vendas.mjs'])
     confere(c + ' → 404', (await get(c)).status === 404);
   const cf = { 'cf-connecting-ip': IP_DE_TESTE };
