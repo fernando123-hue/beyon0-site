@@ -17,7 +17,7 @@ import { configUsuario, tokenDe, usuarioDoToken, comoUsuario } from './_supabase
 import { ehUuid, validarNovoLead, STATUS_LEAD } from './_valida-app.mjs';
 import { criarFreio, ipDe } from './_freio.mjs';
 
-const LIMITE_BYTES = 8192;
+export const LIMITE_BYTES = 8192;
 /* 120 pedidos por minuto por IP: uso humano do painel fica muito abaixo */
 export const freado = criarFreio({ max: 120, janelaMs: 60e3 });
 const LISTA = { padrao: 50, max: 100 };

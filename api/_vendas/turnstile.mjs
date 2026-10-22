@@ -19,6 +19,7 @@
    segredo 1x0000000000000000000000000000000AA sempre passam.
    ========================================================================== */
 import { randomUUID } from 'node:crypto';
+import { ambienteDe } from '../_ambiente.mjs';
 
 const SITEVERIFY = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
 const TOKEN_MAX = 2048;
@@ -32,8 +33,7 @@ const ERRO_NOSSO = new Set(['missing-input-secret', 'invalid-input-secret', 'int
 export function configTurnstile(env = {}) {
   const siteKey = String(env.TURNSTILE_SITE_KEY || '').trim() || null, segredo = String(env.TURNSTILE_SECRET || '').trim() || null;
   const fechado = motivo => ({ exigido: true, siteKey: null, segredo: null, motivo });
-  const naVercel = !!(env.VERCEL || env.VERCEL_ENV);
-  const producao = naVercel && !['preview', 'development'].includes(env.VERCEL_ENV);
+  const producao = ambienteDe(env) === 'producao';
   if (!!siteKey !== !!segredo) return fechado('só uma das chaves do Turnstile está configurada');   /* (meia configuração: em qualquer ambiente) */
   if (siteKey && segredo) {
     if (producao && SEGREDO_DE_TESTE.test(segredo)) return fechado('segredo de teste da Cloudflare na produção');

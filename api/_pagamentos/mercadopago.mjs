@@ -98,10 +98,11 @@ export function criarMercadoPago({ token, base = 'https://api.mercadopago.com', 
       return lista.filter(o => o && o.external_reference === referencia);
     },
 
-    /* as orders da conta numa janela (a varredura da reconciliação), 50 por página */
+    /* as orders da conta numa janela (a varredura da reconciliação), 50 por página, das MAIS NOVAS para as mais velhas: com
+       o teto de subpedidos a varredura só olha o começo da lista, e o que pode estar sem dono é o que acabou de ser criado */
     async buscarRecentes(desde, ate, pagina = 1) {
       const q = new URLSearchParams({ begin_date: new Date(desde).toISOString(), end_date: new Date(ate).toISOString(), type: 'online',
-        page: String(pagina), page_size: '50', sort_by: 'created_date', sort_order: 'asc' });
+        page: String(pagina), page_size: '50', sort_by: 'created_date', sort_order: 'desc' });
       const d = (await req('GET', '/v1/orders?' + q)).dados;
       return Array.isArray(d.data) ? d.data : [];
     },

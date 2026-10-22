@@ -24,7 +24,7 @@
 export const RESPOSTAS_PAGAMENTO = {
   pagamento: 'Quem mostra que o pagamento entrou é a própria tela: assim que o Mercado Pago confirma, o bloco muda sozinho. Se algo parecer errado, fale com a Beyon Zero pelo WhatsApp.',
   condicao: 'O valor e o sinal são os do escopo confirmado, iguais para todos, e eu não mudo condições por aqui. Para qualquer ajuste, fale com a Beyon Zero pelo WhatsApp.',
-  meio: 'O pagamento é só pelo bloco aqui na tela, por Pix ou cartão. Se ele não funcionar, a Beyon Zero envia o pagamento pelo WhatsApp.'
+  meio: 'O pagamento é só pelo bloco aqui na tela. Se ele não funcionar, a Beyon Zero envia o pagamento pelo WhatsApp.'
 };
 
 /* ---------- normalização ---------- */

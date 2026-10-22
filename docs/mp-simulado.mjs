@@ -112,6 +112,7 @@ export function criarMpSimulado({ token, userId = '1234567890', segredo, sandbox
       const desde = Date.parse(u.searchParams.get('begin_date')), ate = Date.parse(u.searchParams.get('end_date'));
       const ref = u.searchParams.get('external_reference');
       const todas = [...orders.values()].filter(o => { const t = Date.parse(o.created_date); return t >= desde && t <= ate && (!ref || o.external_reference === ref); });
+      if (u.searchParams.get('sort_order') === 'desc') todas.reverse();   /* (as orders entram na ordem de criação: desc = as mais novas primeiro) */
       const pagina = Number(u.searchParams.get('page') || 1), tam = Number(u.searchParams.get('page_size') || 20);
       const fatia = todas.slice((pagina - 1) * tam, pagina * tam);
       return json(200, { data: structuredClone(fatia), paging: { total: String(todas.length), total_pages: String(Math.ceil(todas.length / tam)), offset: String((pagina - 1) * tam), limit: String(tam) } });
