@@ -38,3 +38,16 @@ guardando o `vercel.json` até o PR D); (2) `/painel` usa `X-Robots-Tag: noindex
 Ensaio do P8 (não dá para fazer aqui): confirmar na prévia que `! Content-Security-Policy` + novo valor dá UMA CSP em
 `/orcamento` e `/painel` (`curl -sI`) e que o `Cache-Control` das fontes/vendor não vira soma com o padrão dos assets.
 próxima tarefa: B5
+
+## B5: servidor local pela mesma porta
+Vermelho (servidor antigo, sem roteador): `AssertionError: The "string" argument must be of type string. Received type object (null)`
+em `assert.match(r404.headers.get('content-type'), /json/)` (o 404 antigo vinha vazio, sem JSON).
+Verde: 1 teste novo (sobe `docs/servidor.mjs` numa porta livre; 404 JSON em `/api/_freio`, 405 no PUT, 413 do roteador
+com 70 KB em `/api/vendas`, 150 KB em `/api/painel` chega ao handler; cabeçalhos de `/`, `/orcamento`, `/painel` == `_headers`).
+Desvios: (1) o teste do painel dá ao servidor filho uma `PAINEL_CHAVE` de teste: sem ela o painel responde 503
+("desligado"), não 401; (2) o servidor passa a importar o `rotas.mjs` por `import()` tardio (depois de preparar o
+ambiente local); (3) os cabeçalhos das páginas normalizam `/x.html` e `/index.html` para `/x` e `/`, como o
+`html_handling` da Cloudflare.
+NÃO FEITO, fica para o agendamento (proibido agora: outro agente roda E2E e Chrome): Step 4 do plano, `npm run
+e2e:orcamento` com e sem consultor contra o servidor local (agora o E2E atravessa o `rotear`).
+próxima tarefa: B6

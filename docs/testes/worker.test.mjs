@@ -93,3 +93,51 @@ test('jsonc: tira comentários e vírgulas finais, mas não mexe em texto de str
   assert.deepEqual(c, { a: 'http://x.com/*nao*/ // fica', b: [1, 2], c: { d: 1 } });
   assert.deepEqual(lerJsonc('{"s": "aspas \\" // dentro"}'), { s: 'aspas " // dentro' });
 });
+
+/* ---- B5: o servidor local passa pela mesma porta (rotear) e usa o _headers ---- */
+import { spawn } from 'node:child_process';
+import net from 'node:net';
+import { fileURLToPath } from 'node:url';
+import { lerHeaders, cabecalhosPara } from '../../cloudflare/cabecalhos.mjs';
+
+const RAIZ_REPO = fileURLToPath(new URL('../..', import.meta.url));
+const portaLivre = () => new Promise((resolve, reject) => {
+  const s = net.createServer();
+  s.listen(0, '127.0.0.1', () => { const { port } = s.address(); s.close(() => resolve(port)); });
+  s.on('error', reject);
+});
+async function comServidorLocal(fn) {
+  const porta = await portaLivre();
+  let saida = '';
+  const filho = spawn(process.execPath, ['docs/servidor.mjs', '.', String(porta)], { cwd: RAIZ_REPO, env: { ...process.env, BZ_LOCAL: '1', PAINEL_CHAVE: 'p'.repeat(40) } });
+  filho.stdout.on('data', d => { saida += d; });
+  filho.stderr.on('data', d => { saida += d; });
+  const base = 'http://127.0.0.1:' + porta;
+  try {
+    const fim = Date.now() + 60000;
+    for (;;) {
+      if (filho.exitCode !== null) throw new Error('servidor local saiu cedo: ' + saida.slice(-500));
+      if (Date.now() > fim) throw new Error('servidor local não subiu em 60 s: ' + saida.slice(-500));
+      try { await fetch(base + '/robots.txt', { signal: AbortSignal.timeout(2000) }); break; } catch { await new Promise(r => setTimeout(r, 300)); }
+    }
+    await fn(base);
+  } finally { filho.kill(); }
+}
+
+test('servidor local: /api passa pelo roteador (404, 405, 413 por rota) e as páginas levam os cabeçalhos do _headers', async () => {
+  await comServidorLocal(async base => {
+    const r404 = await fetch(base + '/api/_freio');
+    assert.equal(r404.status, 404); assert.match(r404.headers.get('content-type'), /json/);
+    assert.equal((await fetch(base + '/api/vendas', { method: 'PUT', body: 'x' })).status, 405);
+    const grande = await fetch(base + '/api/vendas', { method: 'POST', body: 'x'.repeat(70 * 1024) });
+    assert.equal(grande.status, 413); assert.deepEqual(await grande.json(), { erro: 'Corpo grande demais.' });
+    const painelGrande = await fetch(base + '/api/painel', { method: 'POST', body: 'x'.repeat(150 * 1024) });
+    assert.equal(painelGrande.status, 401, 'o limite do painel é maior: chega ao handler, que pede a chave');
+    const regras = lerHeaders(fs.readFileSync(new URL('../../_headers', import.meta.url), 'utf8'));
+    for (const [rota, arquivo] of [['/', '/'], ['/orcamento', '/orcamento'], ['/painel', '/painel']]) {
+      const r = await fetch(base + arquivo);
+      assert.equal(r.status, 200, rota);
+      for (const [nome, valor] of cabecalhosPara(regras, rota)) assert.equal(r.headers.get(nome), valor, rota + ' ' + nome);
+    }
+  });
+});
