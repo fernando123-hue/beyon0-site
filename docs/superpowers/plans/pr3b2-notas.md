@@ -97,6 +97,18 @@ suíte e mutação rodam uma vez no fim; nada de E2E, `verificar`, `acessibilida
   usa o mais tarde dos dois, então nunca é futuro nem anterior à entrada. `formulario.enviado_em` (`materiais.enviado_em`) recebe o mesmo `agora`.
 - `.env.example` ganhou `BZ_ENTREGA=` (sem valor); `docs/servidor.mjs` liga por conta própria.
 
+## Task 9: link do pedido, outro aparelho, sair deste aparelho
+
+- Vermelho visto: `function app.vendas_link_pedido_criar(jsonb) does not exist` (10 de 10). Verde: link-pedido-banco 10/10, link-pedido-api 10/10; interruptor + material-api + retomada-api + fluxo-api + ajustes-api + retomada-banco 79/79.
+- Desvios do plano (o teste decide):
+  1. O bloco M1 do plano termina colado numa crase quebrada ("``` `api/vendas.mjs`:"); a chave de fechamento do último teste faltava no trecho e foi recolocada.
+  2. `cen.navegador()` sem `env` cai no interruptor desligado (503): no arquivo de teste criei `novoNav()` com `{ env: { BZ_ENTREGA: 'ligada' }, armazem }`.
+  3. `antes.iniciar()` devolve o id da conversa, não um objeto: `{ conversa_id: cc }` (o plano usava `cc.conversa_id`).
+  4. `docs/testes/interruptor.test.mjs` passou a cobrir também `link-pedido`, `sair-do-aparelho`, `outro-aparelho` e `abrir-pedido` (o que a Task 8 deixou em aberto).
+- "Sair deste aparelho" chama `POST {SUPABASE_URL}/auth/v1/logout?scope=global` com o token do próprio visitante (`visitantes.sair`); o auth local imita (`revogados`).
+  **Aviso para a Cloudflare:** se o Worker um dia validar o JWT sem o `/auth/v1/user`, a revogação deixa de ser imediata. A conferência real é a linha 8 do `conferir-armazem` (dono).
+- **Dono:** aplicar `supabase/migrations/20261023120200_pr3b2_link_pedido.sql`.
+
 ## Andamento
 
-próxima tarefa: 9
+próxima tarefa: 10

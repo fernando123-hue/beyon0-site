@@ -29,6 +29,7 @@ export async function montarLocal({ base = 'http://127.0.0.1:8899', regras = tru
   }
   const segredo = randomBytes(32);
   const refreshes = new Map();
+  const revogados = new Set();   /* os visitantes que fizeram "Sair deste aparelho" (o logout global do Supabase, imitado) */
   const assinar = carga => { const cab = b64({ alg: 'HS256', typ: 'JWT' }), corpo = b64(carga); return cab + '.' + corpo + '.' + createHmac('sha256', segredo).update(cab + '.' + corpo).digest('base64url'); };
   const sessao = id => {
     const exp = Math.floor(Date.now() / 1000) + 3600, refresh = randomBytes(24).toString('base64url');
@@ -41,7 +42,15 @@ export async function montarLocal({ base = 'http://127.0.0.1:8899', regras = tru
       .catch(e => { throw new ErroBanco(e.code, e.message); }),   /* (o mesmo erro do transporte de produção) */
     auth: {
       async criar() { const id = randomUUID(); await db.query('insert into auth.users (id) values ($1)', [id]); return sessao(id); },
-      async renovar(refresh) { const id = refreshes.get(refresh); if (!id) return null; refreshes.delete(refresh); return sessao(id); },
+      async renovar(refresh) { const id = refreshes.get(refresh); if (!id || revogados.has(id)) return null; refreshes.delete(refresh); return sessao(id); },
+      async sair(request) {
+        const t = tokenDe(request);
+        if (!t) return false;
+        const id = JSON.parse(Buffer.from(t.split('.')[1], 'base64url').toString()).sub;
+        revogados.add(id);
+        for (const [r, v] of refreshes) if (v === id) refreshes.delete(r);
+        return true;
+      },
       async quem(request) {
         const t = tokenDe(request);
         if (!t) return null;
@@ -52,7 +61,7 @@ export async function montarLocal({ base = 'http://127.0.0.1:8899', regras = tru
         let carga;
         try { carga = JSON.parse(Buffer.from(corpo, 'base64url').toString()); } catch { return null; }
         if (!carga || typeof carga.exp !== 'number' || carga.exp * 1000 <= Date.now()) return null;   /* vencido: como o Supabase */
-        return carga.sub;
+        return revogados.has(carga.sub) ? null : carga.sub;
       }
     },
     base

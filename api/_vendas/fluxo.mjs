@@ -32,6 +32,7 @@ import { criarAcoesDaRetomada } from './fluxo-retomada.mjs';
 import { criarAcoesDosAjustes } from './fluxo-ajustes.mjs';
 import { PEDIDOS } from './pedido.mjs';
 import { criarAcoesDoMaterial } from './fluxo-material.mjs';
+import { criarAcoesDoLink } from './fluxo-link.mjs';
 import { entregaLigada } from '../_material/interruptor.mjs';
 
 import { ORG } from './org.mjs';
@@ -300,6 +301,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     ...criarAcoesDaRetomada({ banco, visitantes }),
     ...criarAcoesDosAjustes({ banco, visitante, estado, exigirNaoDescartado }),
     ...criarAcoesDoMaterial({ banco, visitante, estado, armazem, segredoFreio, requestId, env }),
+    ...criarAcoesDoLink({ banco, visitante, visitantes, segredoFreio, env }),
 
     /* começar: cria o visitante anônimo e a conversa, com a origem da visita (das métricas, sem dado pessoal) */
     async sessao({ corpo }) {

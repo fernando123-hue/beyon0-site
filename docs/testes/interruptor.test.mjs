@@ -26,11 +26,11 @@ test('nenhum arquivo de deploy liga a entrega; o servidor local liga por conta p
 
 test('desligada: as ações novas dão 503 com a saída pelo WhatsApp, e o estado não traz a entrega', async () => {
   const { n, c } = await ateEntregaCriada(cen, local, { env: {} });
-  for (const acao of ['material-salvar', 'material-reservar', 'material-conferir', 'material-remover', 'material-enviar' /* (Task 9 acrescenta link-pedido, sair-do-aparelho e outro-aparelho) */]) {
+  for (const acao of ['material-salvar', 'material-reservar', 'material-conferir', 'material-remover', 'material-enviar', 'link-pedido', 'sair-do-aparelho', 'outro-aparelho']) {
     const r = await n.chamar('POST', acao, { conversa_id: c });
     assert.equal(r.status, 503, acao); assert.equal(r.corpo.erro, FRASE_DESLIGADA); assert.equal(r.corpo.whatsapp, true);
   }
-  /* (Task 9: abrir-pedido também) */
+  assert.equal((await cen.navegador().chamar('POST', 'abrir-pedido', { codigo: 'a'.repeat(32) })).status, 503);
   const e = await cen.estado(n, c);
   assert.equal(e.entrega, undefined); assert.equal(e.entrega_ligada, false);
 });
