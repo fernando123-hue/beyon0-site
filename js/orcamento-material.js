@@ -284,30 +284,77 @@
     var ulFotos = el('ul', 'orc-arq'); ulFotos.id = 'o-arq-fotos'; corpo.appendChild(ulFotos);
     corpo.appendChild(radios('autorizacao.fotos_com_pessoas', 'As pessoas que aparecem nas fotos autorizaram?', [['sim', 'Sim'], ['nao_tem', 'Não tem pessoa'], ['nao_sei', 'Não sei']], estado.atual.autorizacao.fotos_com_pessoas));
   }
-  var minis = {};
+  /* M4 (revisão): a lista é reconciliada, não refeita. Cada linha guarda a sua "chave" (forma: estado, erro e papel); o progresso só troca o
+     texto e a barra, então o foco do teclado e do leitor de tela fica onde está. A miniatura é um canvas de 96 px decodificado já reduzido
+     (createImageBitmap com resizeWidth), nunca a foto original inteira; a URL é revogada quando a linha sai da lista. */
+  var mb = function (n) { return Math.round(n / (1024 * 1024) * 10) / 10; };
+  function chaveDaLinha(it) { return it.estado + '|' + (it.erro || '') + '|' + it.papel; }
+  function textoDoEstado(it) {
+    var tam = mb(it.tamanho) + ' MB';
+    if (it.estado === 'erro') return it.erro || 'Não foi possível enviar.';
+    if (it.estado === 'enviado') return tam + ' · enviada';
+    return tam + ' · ' + (it.estado === 'enviando' ? 'enviando ' + Math.round(it.progresso * 100) + '%' : 'preparando…');
+  }
+  var minis = {};   /* id → URL do blob pequeno (null = já tentou e não deu) */
+  var linhas = {};  /* id → { li, chave, estadoEl, bar } */
+  async function fazerMiniatura(it, img) {
+    if (!it.arquivo || minis[it.id] !== undefined || typeof createImageBitmap !== 'function') return;
+    minis[it.id] = null;   /* já tentou: não repete a cada atualização */
+    var bmp = null;
+    try {
+      bmp = await createImageBitmap(it.arquivo, { resizeWidth: 96, resizeQuality: 'low' });
+      var c = document.createElement('canvas'); c.width = 96; c.height = 96;
+      var lado = Math.min(bmp.width, bmp.height);
+      c.getContext('2d').drawImage(bmp, (bmp.width - lado) / 2, (bmp.height - lado) / 2, lado, lado, 0, 0, 96, 96);
+      bmp.close(); bmp = null;
+      var blob = await new Promise(function (ok) { c.toBlob(ok, 'image/jpeg', 0.7); });
+      if (!blob || !linhas[it.id]) return;   /* a linha já saiu */
+      minis[it.id] = URL.createObjectURL(blob);
+      img.src = minis[it.id];
+    } catch (e) { if (bmp && bmp.close) bmp.close(); /* sem miniatura: a caixa fica vazia */ }
+  }
+  function criarLinha(it) {
+    var li = el('li', 'orc-arq__item is-' + it.estado), mini = el('span', 'orc-arq__mini'), img = el('img');
+    img.alt = ''; img.width = 48; img.height = 48;
+    if (minis[it.id]) img.src = minis[it.id]; else if (it.arquivo) fazerMiniatura(it, img);
+    if (it.arquivo) mini.appendChild(img);
+    li.appendChild(mini);
+    var info = el('span', 'orc-arq__info'), estadoEl = el('span', 'orc-arq__estado', textoDoEstado(it)), bar = null;
+    info.appendChild(el('span', 'orc-arq__nome', it.nome)); info.appendChild(estadoEl);
+    if (it.estado === 'enviando') { bar = el('progress'); bar.max = 1; bar.value = it.progresso; bar.setAttribute('aria-label', 'Envio de ' + it.nome); info.appendChild(bar); }
+    li.appendChild(info);
+    if (it.estado === 'erro' && it.arquivo) { var nv = el('button', 'btn btn--ghost', 'Tentar de novo'); nv.type = 'button'; nv.addEventListener('click', function () { estado.motor.tentarDeNovo(it.id); }); li.appendChild(nv); }
+    var x = el('button', 'orc-arq__tirar', '×'); x.type = 'button'; x.setAttribute('aria-label', 'Tirar ' + it.nome);
+    x.disabled = it.estado !== 'enviado' && it.estado !== 'erro';
+    x.addEventListener('click', function () { estado.motor.remover(it.id); });
+    li.appendChild(x);
+    return { li: li, chave: chaveDaLinha(it), estadoEl: estadoEl, bar: bar };
+  }
   function desenharArquivos(itens) {
     var logo = $('o-arq-logo'), fotos = $('o-arq-fotos');
     if (!logo || !fotos) return;
-    logo.textContent = ''; fotos.textContent = '';
-    var n = 0;
+    var n = 0, vivos = {}, indice = { logo: 0, foto: 0 };
     itens.forEach(function (it) {
-      var li = el('li', 'orc-arq__item is-' + it.estado), mini = el('span', 'orc-arq__mini');
-      if (it.arquivo && !minis[it.id]) { try { minis[it.id] = URL.createObjectURL(it.arquivo); } catch (e) { /* sem miniatura */ } }
-      if (minis[it.id]) { var im = el('img'); im.alt = ''; im.width = 48; im.height = 48; im.src = minis[it.id]; mini.appendChild(im); }
-      li.appendChild(mini);
-      var info = el('span', 'orc-arq__info');
-      info.appendChild(el('span', 'orc-arq__nome', it.nome));
-      var tam = window.BZEnvio.mb(it.tamanho) + ' MB';
-      info.appendChild(el('span', 'orc-arq__estado', it.estado === 'enviado' ? tam + ' · enviada' : it.estado === 'erro' ? (it.erro || 'Não foi possível enviar.') : tam + ' · ' + (it.estado === 'enviando' ? 'enviando ' + Math.round(it.progresso * 100) + '%' : 'preparando…')));
-      if (it.estado === 'enviando') { var bar = el('progress'); bar.max = 1; bar.value = it.progresso; bar.setAttribute('aria-label', 'Envio de ' + it.nome); info.appendChild(bar); }
-      li.appendChild(info);
-      if (it.estado === 'erro' && it.arquivo) { var nv = el('button', 'btn btn--ghost', 'Tentar de novo'); nv.type = 'button'; nv.addEventListener('click', function () { estado.motor.tentarDeNovo(it.id); }); li.appendChild(nv); }
-      var x = el('button', 'orc-arq__tirar', '×'); x.type = 'button'; x.setAttribute('aria-label', 'Tirar ' + it.nome);
-      x.disabled = it.estado !== 'enviado' && it.estado !== 'erro';
-      x.addEventListener('click', function () { estado.motor.remover(it.id); });
-      li.appendChild(x);
-      (it.papel === 'logo' ? logo : fotos).appendChild(li);
+      vivos[it.id] = true;
+      var r = linhas[it.id], dono = it.papel === 'logo' ? logo : fotos;
+      if (!r || r.chave !== chaveDaLinha(it)) {
+        var nova = criarLinha(it), tinhaFoco = r && r.li.contains(document.activeElement);
+        if (r) r.li.replaceWith(nova.li);
+        r = linhas[it.id] = nova;
+        if (tinhaFoco) { var alvo = nova.li.querySelector('button:not(:disabled)'); if (alvo) alvo.focus(); }
+      } else {   /* mesma forma: só o texto e a barra */
+        r.estadoEl.textContent = textoDoEstado(it);
+        if (r.bar) r.bar.value = it.progresso;
+      }
+      var pos = indice[it.papel]++;
+      if (dono.children[pos] !== r.li) dono.insertBefore(r.li, dono.children[pos] || null);
       if (it.papel === 'foto' && it.estado !== 'erro') n++;
+    });
+    Object.keys(linhas).forEach(function (id) {   /* linhas que saíram: some o item e a URL da miniatura é revogada */
+      if (vivos[id]) return;
+      linhas[id].li.remove(); delete linhas[id];
+      if (minis[id]) { try { URL.revokeObjectURL(minis[id]); } catch (e) { /* já revogada */ } }
+      delete minis[id];
     });
     $('o-arq-contador').textContent = n + ' de 20';
     atualizarEnvio();
@@ -414,5 +461,5 @@
     estado.motor.hidratar(e.material.arquivos);
   }
 
-  window.BZMaterial = { atualizar: atualizar, blocos: BLOCOS, formatarTelefone: formatarTelefone, lerLista: lerLista, lerObjetos: lerObjetos, repetirNo429: repetirNo429, mudouDe: mudouDe, criarFilaDeSalvamento: criarFilaDeSalvamento };
+  window.BZMaterial = { atualizar: atualizar, blocos: BLOCOS, formatarTelefone: formatarTelefone, lerLista: lerLista, lerObjetos: lerObjetos, repetirNo429: repetirNo429, chaveDaLinha: chaveDaLinha, textoDoEstado: textoDoEstado, mudouDe: mudouDe, criarFilaDeSalvamento: criarFilaDeSalvamento };
 })();

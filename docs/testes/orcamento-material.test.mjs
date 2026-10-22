@@ -100,3 +100,18 @@ test('M3 (revisão): "Enviar" primeiro esvazia a fila de salvamentos (o que est�
   const enviar = agora.slice(agora.indexOf('async function enviar()'), agora.indexOf('function somenteLeitura'));
   assert.ok(enviar.indexOf('esvaziar()') > 0 && enviar.indexOf('esvaziar()') < enviar.indexOf('materialEnviar()'), 'enviar espera os salvamentos antes de enviar');
 });
+
+test('M4 (revisão): a linha do arquivo só é refeita quando muda de forma (o progresso só troca o texto e a barra: o foco fica); miniatura pequena; URL revogada', () => {
+  const it = { id: 'l1', papel: 'foto', estado: 'enviando', progresso: 0.2, erro: null, tamanho: 2 * 1024 * 1024 };
+  assert.equal(M.chaveDaLinha(it), M.chaveDaLinha({ ...it, progresso: 0.9 }), 'o progresso não muda a forma da linha');
+  assert.notEqual(M.chaveDaLinha(it), M.chaveDaLinha({ ...it, estado: 'erro', erro: 'x' }));
+  assert.notEqual(M.chaveDaLinha(it), M.chaveDaLinha({ ...it, estado: 'enviado' }));
+  assert.equal(M.textoDoEstado({ ...it, progresso: 0.4 }), '2 MB · enviando 40%');
+  assert.equal(M.textoDoEstado({ ...it, estado: 'enviado' }), '2 MB · enviada');
+  assert.equal(M.textoDoEstado({ ...it, estado: 'fila' }), '2 MB · preparando…');
+  assert.equal(M.textoDoEstado({ ...it, estado: 'erro', erro: 'Sem conexão.' }), 'Sem conexão.');
+  const js = semComentario(FONTE);
+  assert.ok(!/createObjectURL\(it\.arquivo\)/.test(js), 'a miniatura não vem do arquivo original inteiro (decodificar 20 fotos de 12 MP derruba o Safari)');
+  assert.ok(js.includes('resizeWidth') && js.includes('revokeObjectURL'), 'miniatura reduzida na decodificação e URL revogada quando a linha sai');
+  assert.ok(!/logo\.textContent = ''|fotos\.textContent = ''/.test(js), 'a lista não é apagada e refeita a cada progresso');
+});
