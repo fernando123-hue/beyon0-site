@@ -288,9 +288,15 @@
      texto e a barra, então o foco do teclado e do leitor de tela fica onde está. A miniatura é um canvas de 96 px decodificado já reduzido
      (createImageBitmap com resizeWidth), nunca a foto original inteira; a URL é revogada quando a linha sai da lista. */
   var mb = function (n) { return Math.round(n / (1024 * 1024) * 10) / 10; };
+  var tamanhoPorExtenso = function (n) { return n < 1024 * 1024 ? Math.max(1, Math.round(n / 1024)) + ' KB' : mb(n) + ' MB'; };   /* (nunca "0 MB") */
+  /* a cidade que o cliente já deu no pedido (vem em conversa.briefing no estado); só um ponto de partida, o campo é dele */
+  function cidadeDoPedido(E) {
+    var b = (E && E.conversa && E.conversa.briefing) || (E && E.briefing) || {};
+    return (b.negocio && b.negocio.cidade) || '';
+  }
   function chaveDaLinha(it) { return it.estado + '|' + (it.erro || '') + '|' + it.papel; }
   function textoDoEstado(it) {
-    var tam = mb(it.tamanho) + ' MB';
+    var tam = tamanhoPorExtenso(it.tamanho);
     if (it.estado === 'erro') return it.erro || 'Não foi possível enviar.';
     if (it.estado === 'enviado') return tam + ' · enviada';
     return tam + ' · ' + (it.estado === 'enviando' ? 'enviando ' + Math.round(it.progresso * 100) + '%' : 'preparando…');
@@ -464,7 +470,7 @@
       else if (b.tipo === 'envio') envio(sec);
       else b.campos.forEach(function (c) {
         var nome = c.campo.indexOf('negocio.') === 0 ? e.material.negocio[c.campo.slice(8)] : e.material.dados[c.campo];
-        if (c.campo === 'negocio.cidade' && !nome && E.briefing && E.briefing.negocio) nome = E.briefing.negocio.cidade;
+        if (c.campo === 'negocio.cidade' && !nome) nome = cidadeDoPedido(E);
         sec.appendChild(c.tipo === 'lista' ? lista(c, nome) : c.tipo === 'objetos' ? objetos(c, nome) : c.tipo === 'endereco' ? endereco(c, nome) : simples(c, nome));
       });
       corpo.appendChild(sec);
@@ -472,5 +478,5 @@
     estado.motor.hidratar(e.material.arquivos);
   }
 
-  window.BZMaterial = { atualizar: atualizar, blocos: BLOCOS, formatarTelefone: formatarTelefone, lerLista: lerLista, lerObjetos: lerObjetos, repetirNo429: repetirNo429, partesDoFalta: partesDoFalta, chaveDaLinha: chaveDaLinha, textoDoEstado: textoDoEstado, mudouDe: mudouDe, criarFilaDeSalvamento: criarFilaDeSalvamento };
+  window.BZMaterial = { atualizar: atualizar, blocos: BLOCOS, formatarTelefone: formatarTelefone, lerLista: lerLista, lerObjetos: lerObjetos, repetirNo429: repetirNo429, cidadeDoPedido: cidadeDoPedido, partesDoFalta: partesDoFalta, chaveDaLinha: chaveDaLinha, textoDoEstado: textoDoEstado, mudouDe: mudouDe, criarFilaDeSalvamento: criarFilaDeSalvamento };
 })();

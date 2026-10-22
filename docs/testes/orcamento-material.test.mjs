@@ -127,3 +127,14 @@ test('rodada 2 (Task 19): as miniaturas são decodificadas UMA POR VEZ (o Safari
   assert.ok(/cadeiaDeMiniaturas\s*=\s*cadeiaDeMiniaturas\.then\(/.test(js), 'cada miniatura entra no fim da cadeia');
   assert.ok(/async function fazerMiniatura/.test(js) && /miniaturaDe\(/.test(js));
 });
+
+test('Task 19 (tela): a caixa de marcar fica em linha com o texto e 44 px (o CSS de .orc-mat__campo label não a vira bloco); a cidade vem do pedido; tamanho pequeno em KB', () => {
+  const css = ler('css/orcamento-entrega.css');
+  assert.match(css, /\.orc-mat__campo \.orc-mat__caixa[^{]*\{[^}]*display:\s*flex/);
+  assert.equal(M.cidadeDoPedido({ conversa: { briefing: { negocio: { cidade: 'Niterói' } } } }), 'Niterói');
+  assert.equal(M.cidadeDoPedido({ briefing: { negocio: { cidade: 'Niterói' } } }), 'Niterói');
+  assert.equal(M.cidadeDoPedido({ conversa: {} }), '');
+  assert.equal(M.textoDoEstado({ id: 'a', papel: 'foto', estado: 'enviado', tamanho: 500 * 1024 }), '500 KB · enviada');
+  assert.equal(M.textoDoEstado({ id: 'a', papel: 'foto', estado: 'enviado', tamanho: 60 }), '1 KB · enviada', 'nunca "0 MB"');
+  assert.equal(M.textoDoEstado({ id: 'a', papel: 'foto', estado: 'enviado', tamanho: 1.5 * 1024 * 1024 }), '1.5 MB · enviada');
+});

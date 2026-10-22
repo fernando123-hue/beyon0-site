@@ -38,6 +38,7 @@
 .orc-mat__linha--obj { flex-wrap: wrap; }
 .orc-mat__linha--obj input { flex: 1 1 100%; }
 .orc-mat__caixa { display: flex; align-items: center; gap: .7rem; min-height: 44px; font-size: var(--fs-b); color: var(--t1); cursor: pointer; }
+.orc-mat__campo .orc-mat__caixa { display: flex; margin-bottom: 0; }   /* (sem isto, ".orc-mat__campo label" a vira bloco: o quadrinho cola no texto) */
 .orc-mat__caixa input { width: 1.4rem; height: 1.4rem; min-height: 0; flex: 0 0 auto; accent-color: var(--ac); }
 .orc-mat__salvo { display: inline-block; min-height: 1.5em; margin-left: .2rem; font-size: var(--fs-b); color: var(--t2); }
 .orc-mat__salvo.is-erro, .orc-mat__falta, .orc-arq__item.is-erro .orc-arq__estado { color: var(--t1); }

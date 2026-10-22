@@ -44,6 +44,7 @@ export async function passoDaEntrega(page, { ok, espera, foto, semRolagemLateral
   ok(/O prazo começa quando você enviar\./.test(await page.textContent('#o-ped-passos')), 'Seu pedido: "O prazo começa quando você enviar."');
   ok(!/A Beyon Zero fala com você/.test(await page.textContent('#o-pronto')), 'o recibo não manda esperar contato do dono (D1)');
   ok(await semRolagemLateral(page), 'celular em Seu pedido: sem rolagem lateral');
+  await page.evaluate(() => document.getElementById('o-pedido').scrollIntoView({ block: 'start', behavior: 'instant' }));
   await foto(page, '5-pedido-cel');
 
   /* 2. o link do pedido: num campo de leitura, nunca num href */
@@ -103,6 +104,8 @@ export async function passoDaEntrega(page, { ok, espera, foto, semRolagemLateral
   ok(vinte, 'material: 20 fotos de 4000x3000 enviadas, reduzidas no aparelho, uma por vez');
   ok(!perdeuFoco, 'material: o foco do teclado ficou no "×" da 1ª foto enquanto as outras subiam (a lista não é refeita a cada progresso)');
   ok((await page.textContent('#o-arq-contador')).trim() === '20 de 20', 'material: "20 de 20" fotos');
+  await page.evaluate(() => document.getElementById('o-arq-fotos').scrollIntoView({ block: 'start', behavior: 'instant' }));
+  await foto(page, '5a0-fotos20-cel');
   const minis = await page.$$eval('#o-arq-fotos .orc-arq__mini img', l => l.map(i => ({ w: i.naturalWidth, src: i.src })));
   ok(minis.length === 20 && minis.every(m => m.w > 0 && m.w <= 96), 'material: 20 miniaturas decodificadas já pequenas (no máximo 96 px de lado), não a foto inteira (' + minis.map(m => m.w).join(',') + ')');
   /* (o tamanho do blob não se lê aqui: a CSP não deixa a página fazer fetch de blob:, o que é o certo) */
@@ -129,10 +132,18 @@ export async function passoDaEntrega(page, { ok, espera, foto, semRolagemLateral
   ok(medidas.miudos === 0, 'material: campos com 16 px ou mais (o iPhone não dá zoom)');
   ok(medidas.borrado === 0, 'Seu pedido e material: nenhum desfoque nem sombra difusa');
   ok(await semRolagemLateral(page), 'celular no material: sem rolagem lateral');
+  /* uma foto de cada bloco do material, no celular (para OLHAR: o formulário é comprido) */
+  const nBlocos = await page.$$eval('#o-mat-corpo .orc-mat__bloco', l => l.length);
+  for (let i = 0; i < nBlocos; i++) { await page.evaluate(k => document.querySelectorAll('#o-mat-corpo .orc-mat__bloco')[k].scrollIntoView({ block: 'start', behavior: 'instant' }), i); await foto(page, '5a' + (i + 1) + '-material-cel'); }
   await page.locator('#o-material').scrollIntoViewIfNeeded();
   await foto(page, '5a-material-cel');
   await page.setViewportSize({ width: 320, height: 700 });
   ok(await semRolagemLateral(page), '320 px no material: sem rolagem lateral');
+  await page.evaluate(() => document.querySelectorAll('#o-mat-corpo .orc-mat__bloco')[0].scrollIntoView({ block: 'start', behavior: 'instant' }));
+  await foto(page, '5b1-material-320');
+  await page.evaluate(() => document.querySelectorAll('#o-mat-corpo .orc-mat__bloco')[2].scrollIntoView({ block: 'start', behavior: 'instant' }));
+  await foto(page, '5b3-material-320');
+  await page.locator('#o-material').scrollIntoViewIfNeeded();
   await foto(page, '5b-material-320');
   await page.setViewportSize({ width: 390, height: 844 });
 
