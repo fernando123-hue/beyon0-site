@@ -130,3 +130,118 @@ ainda só aceita o site antigo e o servidor local: aceitar o endereço do stagin
 NÃO FEITO e depende do dono (staging no ar): P3–P8, a M2, o ensaio de Access/Bypass, a CSP única no `curl -sI`, a regra de
 10 pedidos/10 s, o A4 no Supabase staging, o formato real da URL de prévia (a expressão `HOST_DE_PREVIA` de `docs/acesso.mjs`
 assume `[<prévia>-]beyon-zero-site-previa.<SUB_CONTA>.workers.dev`: conferir na M2).
+
+---
+
+# Correções da revisão do PR B (22/10/2026): vermelho visto, verde, pendências
+
+Revisão: "APROVAR COM CORREÇÕES" (agente diferente do autor, nível 3). Um commit por correção; o vermelho de cada uma foi
+visto antes do verde. (Escrito sem os comandos por extenso: estas notas passam pela trava anti-publicação.)
+Avisos da ferramenta: nos scripts de edição, barra invertida dupla em heredoc do Bash vira simples (os scripts com regex
+foram escritos pela ferramenta Write); e o `worker.test.mjs` estava com fim de linha CRLF na árvore (os scripts de edição
+normalizam para LF; o Git guarda LF).
+
+## ALTO-1: o token do Access só vai ao staging da conta do dono (`docs/acesso.mjs`)
+Vermelho: `SyntaxError: The requested module '../../docs/acesso.mjs' does not provide an export named 'SUB_CONTA'`.
+Verde: 24 testes em `worker.test.mjs`. A constante `SUB_CONTA` (exportada, `null` até o dono informar, P3) monta o host
+`beyon-zero-site-previa.<SUB_CONTA>.workers.dev`; a prévia de branch é `<branch>-` + esse host. Comparação EXATA de nome
+(não mais expressão). Com `SUB_CONTA = null` (ou subdomínio inválido) o token não vai a host nenhum. As funções ganharam um
+parâmetro `sub` (padrão `SUB_CONTA`) para os testes usarem um subdomínio de teste (`irineu`). Testes novos: outra conta
+(`atacante`, `irineu2`, `xirineu`, o `sub-conta` que o teste antigo aceitava) devolve `{}`; a conta certa devolve os 2
+cabeçalhos; `null` e subdomínios inválidos devolvem `{}`; porta recusada.
+Commit f390677.
+
+## ALTO-2: a trava anti-publicação (`scripts/processo/anti-publicacao.mjs`)
+Vermelhos (5 testes novos, um por grupo de formas): o deploy com @versão no meio não era achado; o deploy em lista de
+argumentos (spawn de npx com a lista do Wrangler) não era achado; o push da branch de produção no fim da linha não era
+achado; a action oficial do Wrangler num workflow não era achada; `env.previa.name` no `wrangler.jsonc` não era achado.
+Verde: 13 testes em `anti-publicacao.test.mjs`. Formas cobertas (um teste por forma, com os casos que DEVEM passar ao
+lado, como o dry-run ligado, o push de outra branch e o workflow só de leitura): Wrangler com `@versão`, opção antes do
+subcomando, `--dry-run=false` / `--dry-run false` / `--no-dry-run`, `delete`, `preview`, `publish`, `pages deploy`,
+`versions deploy|upload|secret`, `secret put|bulk|delete`, `rollback`, `triggers deploy`, o `wrangler.js` do
+node_modules, dois comandos na mesma linha (`&&`, `;`, `|`), lista de argumentos (inclusive quebrada em várias linhas);
+push da branch de produção em qualquer posição, todas as branches, espelho, em lista de argumentos; workflow com
+`wrangler-action`, qualquer `uses: cloudflare/`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, qualquer
+`<escopo>: write` (também em linha e no job), `write-all` e SEM `permissions:` no topo; `wrangler.jsonc` com `build` em
+qualquer lugar, `workers_dev` / `preview_urls` diferentes de `false` no topo, `routes` / `route` / `account_id` no topo, e
+`name` / `route` / `account_id` / `routes` não vazio dentro de `env.*`. A varredura no repositório continua "limpo" (o
+teste do repositório real e o comando da trava). Continua autônoma (sem import) para o P2.
+Atenção para o PR C: quando o domínio entrar, o `routes` do topo passa a existir e a trava (regra do topo) acusa; ajustar a
+regra no mesmo PR, de propósito.
+Commit 5008aa5.
+
+## MÉDIO-1: data de compatibilidade
+Mantido o Wrangler 4.136.3 (fixado pelo dono, workerd 1.20260921.1); `compatibility_date` do `wrangler.jsonc` baixou para
+`2026-09-28`. A troca automática de data saiu da fumaça (`DATA_RECUSADA`, `--compatibility-date`, `dataLocal`): data
+recusada pelo workerd agora é falha. Vermelho: `AssertionError: a data que o workerd do Wrangler fixado (4.136.3) aceita...`
+e `AssertionError: data recusada pelo workerd tem de falhar, não repetir com outra data`. Verde: 25 testes.
+Achado de passagem: na primeira rodada da fumaça sem o atalho, o log do cron não apareceu em 1,5 s (a máquina estava
+carregada, 4 min de rodada); a espera virou tentativas de 0,5 s por até 10 s.
+Commit 99be57b. Subir o Wrangler fica para um PR próprio, a partir de ~03/11 (14 dias depois da versão escolhida).
+
+## MÉDIO-3: a fumaça prova no workerd o que antes só o leitor local provava
+Acrescentado à fumaça: `/painel` com UMA CSP e sem Google, `x-robots-tag` com `noindex`, `cache-control: no-store`; fonte
+real (`/assets/fonts/sora-latin.woff2`) com UM `Cache-Control` (`public, max-age=31536000, immutable`, sem soma com o padrão
+dos assets); `/orcament%6F` redireciona para `/orcamento` ou sai com a CSP do orçamento (nunca a geral).
+Vermelho (sabotando o `_headers` na pasta de trabalho por alguns segundos, só para a fumaça copiar; depois restaurado, o
+`git diff` do `_headers` ficou vazio): `FALHOU /painel 200 com UMA CSP, sem Google` e
+`FALHOU fonte com UM cache-control` (veio `public, max-age=60`). Verde: ver "Resultado final" abaixo.
+Commit 8c74bd6.
+
+## M4: hosts do `scripts/direcoes.mjs`
+Vermelho: `Got unwanted exception: https://beyonzero.com.br` e `TypeError: hostsPermitidos is not a function`.
+Agora lista de NOMES EXATOS: `beyonzero.com.br`, o staging montado com o `SUB_CONTA` (nada enquanto `null`) e
+`beyon0-site.vercel.app` SÓ enquanto existir o `vercel.json` (o teste liga os dois: se o `vercel.json` não existe,
+nenhum host `vercel.app` na lista; o PR D, que apaga o `vercel.json`, fica vermelho até o host sair). Prévias de branch
+(da Cloudflare e da Vercel) saíram, e a expressão `beyon0-site-*-beyond0.vercel.app` também. Porta e usuário/senha na
+URL são recusados. Funções exportadas: `hostsPermitidos(sub)`, `validarBase(valor, sub)`. Os testes de aceitar e recusar
+do relatório estão em `fila-direcoes.test.mjs`. A nota antiga da B9 ("aceitar o staging é a C3, não é B") está superada:
+aceitar o staging agora é este commit (a chave só vai quando o dono informar o `SUB_CONTA`).
+Commit 75bb73a.
+
+## BAIXOs de código (um commit só, 2112246)
+Vermelhos: `Error: cliente cortou` (a rejeição saía crua do roteador); a lista de cabeçalhos entregue ao handler ainda
+tinha `x-vercel-id`, `x-vercel-ip-country`, `x-real-ip`, `true-client-ip` e `forwarded`; `Error: continue segue o
+redirecionamento com o token` (o teste novo do Playwright exige busca sem seguir redirecionamento); `cpu:rotas →
+docs/cpu-rotas.mjs não existe`. Verde: 28 testes em `worker.test.mjs`.
+- BAIXO-1: corpo e cabeçalhos de IP dentro do `try` do roteador (500 genérico com `x-request-id`).
+- BAIXO-2: na Cloudflare, apaga todo `x-vercel-*`, `x-real-ip`, `true-client-ip`, `forwarded`.
+- BAIXO-5: `autorizarContexto` usa busca com `maxRedirects: 0` + entrega da resposta, em vez de `route.continue`.
+  Conferido num Chromium real (servidor local A redireciona para o servidor B): A recebeu o token, B não.
+- BAIXO-3: comentários do `wrangler.jsonc` e a mensagem do teste falam de "uma conta, dois Workers".
+- BAIXO-6: saiu o script `cpu:rotas` do `package.json` (o arquivo é da M1 e não existe nesta base; volta com a M1) e um
+  teste novo confere que todo script com arquivo node aponta para arquivo que existe.
+- BAIXO-4 (`npm audit` de desenvolvimento): SÓ REGISTRADO. 4 avisos altos, todos transitivos do Wrangler (`undici` 7.0.0
+  a 7.29.0 e o `miniflare`/`wrangler` que dependem dele; a correção do `npm audit` pede o Wrangler 4.152.0). Rever na
+  troca de versão do Wrangler (PR próprio, ~03/11).
+
+## O que NÃO foi feito, de propósito
+- M6 (`blob:` e Supabase no `_headers`): fica para quando o 3b-2 entrar na `main`. Regra: quem mesclar por segundo
+  sincroniza o `_headers` com a string do `vercel.json`, sem mudar um caractere; trocar o curinga `*.supabase.co` pelo host
+  exato quando o dono informar o projeto, nos três lugares num commit só.
+- MÉDIO-2 (HSTS): é da zona. Pendência do dono antes do PR C (ligar o domínio): SSL/TLS, Edge Certificates, HSTS, mais
+  "Always Use HTTPS"; ou o cabeçalho no `/*` do `_headers` com exceção explícita no teste de paridade.
+
+## Pendências do dono (atualizadas)
+1. P1: GitHub, Settings, Actions, General, Workflow permissions = Read repository contents.
+2. P2: aprovar a confirmação no push e o `deny` de escrita do `gh api`; copiar `anti-publicacao.mjs` (já corrigido) para
+   `~/.claude/guarda/` SÓ depois de este PR ser mesclado.
+3. P3: anotar o subdomínio `workers.dev` da conta e escrevê-lo na constante `SUB_CONTA` de `docs/acesso.mjs` (hoje `null`).
+   Até lá o staging fica fechado para o token do Access e para a chave do painel. Token do Builds com o mínimo
+   (Workers Scripts: Edit + Account Settings: Read).
+4. Builds (P9): Worker de produção com branch `producao` e "Enable Preview Builds" desligado. Worker `beyon-zero-site-previa`:
+   a `main` publica com o ambiente de prévia (`--env previa`); as outras branches usam o comando de prévia do Builds. O
+   comando padrão dele (o de enviar versão, SEM `--env`) mandaria versões para o Worker de PRODUÇÃO: no painel do Builds,
+   o comando de prévia precisa levar `--env previa`.
+5. Access no `beyon-zero-site-previa`: "All traffic"; service token "agente-previas" com política Service Auth; Bypass só em
+   `/api/pagamentos` do host fixo do staging.
+6. P8 (staging no ar): `curl -sI` em `/orcamento`, `/painel` (uma CSP) e nas fontes (um `Cache-Control`; a fumaça já prova no
+   workerd, mas o ensaio no staging real fecha); formato real da URL de prévia (confere o `SUB_CONTA` e a forma
+   `<branch>-beyon-zero-site-previa`); a regra de 10 pedidos em 10 s; o A4.
+7. Data de compatibilidade: confirmar a recomendação (Wrangler 4.136.3 com 2026-09-28). Subir o Wrangler num PR próprio
+   depois de ~03/11 (resolve também o `npm audit` de desenvolvimento).
+8. Antes do PR C (domínio): HSTS na zona (MÉDIO-2) e ajustar a regra de `routes` do topo na trava anti-publicação.
+9. M6: informar o endereço exato do projeto Supabase de produção.
+10. PR D (apagar o projeto da Vercel): o teste do M4 obriga tirar `beyon0-site.vercel.app` do `direcoes.mjs` no mesmo PR.
+    Não apagar o projeto antes do PR D estar mesclado.
+11. Rever o R4a depois da 1ª venda: 2ª conta ou GitHub Pro (ruleset na `producao`).
