@@ -76,6 +76,14 @@ suíte e mutação rodam uma vez no fim; nada de E2E, `verificar`, `acessibilida
   (E.164 válido, mas não brasileiro, então `usar_numero_do_pedido` responde `motivo: 'numero'`).
 - **Dono:** aplicar `supabase/migrations/20261023120100_pr3b2_material.sql`.
 
+## Task 7: armazém (Supabase Storage) e balde
+
+- Vermelho visto: `Cannot find module '.../api/_material/armazem.mjs'`. Verde: armazem 11/11 (inclui o roteiro do `conferir-armazem` contra o armazém local).
+- `node --check` em `scripts/conferir-armazem.mjs`, `docs/servidor.mjs`, `docs/banco-local.mjs`: ok. O PUT do armazém local em `docs/servidor.mjs` não foi
+  exercitado (nada de servidor no modo leve); a função só reaproveita `gravarPorUrl`/`lerPorUrl`, cobertas no teste.
+- **Dono:** (1) rodar `supabase/storage/material.sql` no SQL Editor; (2) rodar `scripts/conferir-armazem.mjs` com as chaves só naquela janela; (3) a conferência à mão do
+  teto do balde (`select privado.bytes_no_balde()` antes e depois de subir um arquivo, Step 6 do plano).
+
 ## Andamento
 
-próxima tarefa: 7
+próxima tarefa: 8

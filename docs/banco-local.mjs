@@ -15,6 +15,7 @@ import { novoBanco, como } from './testes/_banco.mjs';
 import { tokenDe } from '../api/_supabase.mjs';
 import { ErroBanco } from '../api/_vendas/transporte.mjs';
 import { criarMpSimulado } from './mp-simulado.mjs';
+import { criarArmazemLocal } from '../api/_material/armazem-local.mjs';
 
 const b64 = o => Buffer.from(JSON.stringify(o)).toString('base64url');
 
@@ -60,6 +61,7 @@ export async function montarLocal({ base = 'http://127.0.0.1:8899', regras = tru
   const mpToken = 'APP_USR-local-' + randomBytes(12).toString('hex'), mpSegredo = randomBytes(32).toString('hex');
   const sim = criarMpSimulado({ token: mpToken, segredo: mpSegredo, userId: '1234567890' });
   local.mp = { token: mpToken, segredo: mpSegredo, userId: '1234567890', fetch: sim.fetch, sim, cronSecret: randomBytes(24).toString('hex') };
+  local.armazem = criarArmazemLocal({ base });   /* (o armazém de mentira dos arquivos do material: em memória) */
   globalThis.__BZ_LOCAL = local;
   return local;
 }
