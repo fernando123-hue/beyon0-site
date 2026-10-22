@@ -70,9 +70,29 @@ não troquei por uma mais nova: o dono mandou fixar 4.136.3). O schema instalado
 Dry-run (sem login, sem publicar): `wrangler deploy --dry-run --outdir .wrangler/saida` e `... --env previa --outdir
 .wrangler/saida-previa` passam; Total Upload 1047,69 KiB / gzip 211,55 KiB; a prévia sai como Worker
 `beyon-zero-site-previa`, vars de prévia, sem rota nem domínio. Aviso do Wrangler no deploy do topo: "Multiple environments
-... no target environment" (só aviso; o Deploy command do P9 pode virar `npx wrangler deploy --env=""` se o dono preferir
+... no target environment" (só aviso; o Deploy command do P9 pode levar `--env=""` (topo explícito) se o dono preferir
 silenciar; é decisão do P9, não mexi).
 Observações: (1) o `npm install` avisa "4 high severity vulnerabilities" nas dependências transitivas do Wrangler (devDependency;
 o CI audita só `--omit=dev`); (2) o script `cpu:rotas` aponta para `docs/cpu-rotas.mjs`, que é da M1 e NÃO está na base
 deste PR (a M1 não foi mesclada na `origin/main`): o script existe no `package.json` como manda o plano e falha até a M1 entrar.
 próxima tarefa: B7
+
+## B7: fumaça no workerd (rodada local feita; o job "Worker" roda no CI)
+`docs/worker-fumaca.mjs` + job `worker` no `ci.yml` (`permissions: contents: read`, `npm ci --ignore-scripts`, `npm run cf:fumaca`).
+Local (Windows, sem login e sem publicar): TUDO passa: dry-run de produção e de prévia (prévia sem rota nem domínio),
+`/orcamento` 200 com UMA CSP, `/orcamento.html` 307, `/docs/PROCESSO.md`, `/_headers`, `/publico/index.html`,
+`/wrangler.jsonc`, `/api/_freio` 404, `sessao-config` fechado, POST de 70 KB 413, o freio por `cf-connecting-ip` (2º lote
+com outro `x-forwarded-for` dá 429), o cron `41 6 * * *` disparado à mão loga "rotina desligada" (caminho
+`/cdn-cgi/handler/scheduled` no 4.136.3), `check startup` ativo 79,4 ms (janela 358 ms) contra o limite de 400 ms.
+ACHADO IMPORTANTE: o workerd embutido no Wrangler 4.136.3 só aceita `compatibility_date` até 2026-09-28; o `wrangler.jsonc`
+pede 2026-10-21 (o plano manda). A produção real aceita a data; só o ensaio LOCAL (`wrangler dev --local` e `check startup`)
+falha com "This Worker requires compatibility date ... newest ... 2026-09-28". Adaptação mínima: a fumaça repete com a data
+máxima que o workerd diz aceitar (`--compatibility-date` só na linha de comando; o arquivo não muda) e imprime AVISO.
+Decisão que fica para o dono/revisor: subir o Wrangler para uma versão cujo workerd aceite 2026-10-21 (o plano já previa
+rever a versão antes do PR B; a 4.151.3 aparece como disponível), o que faria o desvio deixar de ser usado. Não troquei,
+porque o dono mandou fixar 4.136.3.
+Vermelho (Step 2): com `run_worker_first: []` o dry-run é recusado pelo Wrangler (3 falhas); com `run_worker_first: false` a
+fumaça fica vermelha (1 falha: o log do cron). O `[]` do plano não chega a produzir o "sessao-config sem JSON" descrito;
+vale como prova de que a fumaça pega o desvio, por outro caminho.
+Pendência de CI: confirmar no 1º run do job que `wrangler check startup` não pede login/token no runner (aqui não pediu).
+próxima tarefa: B8
