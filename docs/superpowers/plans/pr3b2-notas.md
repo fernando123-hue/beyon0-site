@@ -137,6 +137,12 @@ suíte e mutação rodam uma vez no fim; nada de E2E, `verificar`, `acessibilida
 - Cópia dos percorredores de imagem conferida a olho contra `captacao/entrega/imagens.mjs` linhas 19-65: iguais. Atenção para o revisor: a captação regrava toda imagem como WebP (cabeçalho do arquivo dela);
   `estruturaCompleta` só confere a estrutura do arquivo original, como o plano manda.
 
+## Task 13: CSP de /orcamento
+
+- Vermelho visto: o teste novo falhou antes da troca. Verde: csp + ambiente 21/21 (a `<meta>` de `orcamento.html` e o header de `vercel.json` iguais; as outras páginas intactas).
+- Não há `_headers` da Cloudflare neste ramo (o PR B ainda não existe): as mesmas duas trocas ficam para ele (nas pendências, Task 20).
+- **Dono (obrigatório antes de ir ao ar):** dizer o endereço `https://<projeto>.supabase.co` para trocar o curinga `*.supabase.co`.
+
 ## Andamento
 
-próxima tarefa: 13
+próxima tarefa: 14
