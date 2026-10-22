@@ -126,7 +126,7 @@ export const SABOTAGENS = [
   { nome: 'a reconciliação apaga a reserva recente (menos de 24 h)', arquivo: '20261023120300_pr3b2_dono.sql', testes: ['docs/testes/limpeza.test.mjs'],
     de: "where a.status = 'reservado' and a.created_at < now() - interval '24 hours'", para: "where a.status = 'reservado' and a.created_at < now()" },
   { nome: 'o link do pedido é revogado no primeiro uso', arquivo: '20261023120200_pr3b2_link_pedido.sql', testes: ['docs/testes/link-pedido-banco.test.mjs'],
-    de: "update app.links_pedido set ultimo_uso_em = now(), valido_ate = greatest(valido_ate, now() + interval '120 days') where id = l.id;", para: "update app.links_pedido set ultimo_uso_em = now(), revogado_em = now(), motivo_revogacao = 'fim_do_pedido' where id = l.id;" },
+    de: "update app.links_pedido set ultimo_uso_em = now(), valido_ate = case when l.fim_em is null and c.etapa = 'em_producao' then greatest(valido_ate, now() + interval '120 days') else valido_ate end where id = l.id;", para: "update app.links_pedido set ultimo_uso_em = now(), revogado_em = now(), motivo_revogacao = 'fim_do_pedido' where id = l.id;" },
   { nome: 'a conferência de bytes pulada (o servidor confia no tipo declarado)', fonte: 'api/_vendas/fluxo-material.mjs', testes: ['docs/testes/material-api.test.mjs'],
     de: "tipo_real: tipoPorBytes(ini.bytes)", para: "tipo_real: a.tipo_declarado === 'image/png' ? 'png' : a.tipo_declarado === 'image/jpeg' ? 'jpg' : 'webp'" },
   { nome: 'o prazo conta os dias em UTC (não no fuso da captação)', fonte: 'api/_material/prazo.mjs', testes: ['docs/testes/prazo.test.mjs'],
@@ -145,6 +145,8 @@ export const SABOTAGENS = [
   { nome: 'sábado conta como dia útil (a regra da captação)', fonte: 'api/_material/prazo.mjs', testes: ['docs/testes/prazo.test.mjs', 'docs/testes/captacao-igual.test.mjs'],
     de: "return semana !== 0 && semana !== 6 && !feriados.has(d);", para: "return semana !== 0 && !feriados.has(d);" },
   /* ---- as respostas da captação e a decisão dos feriados (21/10) ---- */
+  { nome: 'o uso do link renova a validade mesmo depois do fim do pedido (M5 da revisão)', arquivo: '20261023120200_pr3b2_link_pedido.sql', testes: ['docs/testes/link-pedido-banco.test.mjs'],
+    de: "case when l.fim_em is null and c.etapa = 'em_producao' then", para: "case when true then" },
   { nome: 'Finados conta como dia útil (feriado nacional fora da lista)', fonte: 'api/_material/prazo.mjs', testes: ['docs/testes/prazo.test.mjs', 'docs/testes/captacao-igual.test.mjs'],
     de: "'10-12', '11-02', '11-15'", para: "'10-12', '11-15'" },
   { nome: 'cliente de saúde sai no pacote (a captação recusa)', fonte: 'api/_material/pacote.mjs', testes: ['docs/testes/pacote.test.mjs'],

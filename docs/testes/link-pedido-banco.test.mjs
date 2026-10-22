@@ -126,3 +126,17 @@ test('encerrar_links_do_pedido (para a 3b-3): o link passa a valer só mais N di
   const linha = await um('select valido_ate from app.links_pedido where conversa_id = $1', [c.conversa_id]);
   assert.ok(linha.valido_ate < new Date(Date.now() + 31 * 864e5) && linha.valido_ate > new Date(Date.now() + 29 * 864e5));
 });
+
+test('M5 (revisão): depois de encerrar_links_do_pedido o uso NÃO renova a validade (o fim de 30 dias vale mesmo com o link usado)', async () => {
+  const c = await conversaComEntradaPaga(db);
+  await criar(c, 'FIM1');
+  await db.query('select privado.encerrar_links_do_pedido($1, 30)', [c.conversa_id]);
+  const antes = (await um('select valido_ate, fim_em from app.links_pedido where conversa_id = $1', [c.conversa_id]));
+  assert.ok(antes.fim_em, 'a marca de fim fica registrada');
+  for (let i = 0; i < 2; i++) assert.equal((await usar('FIM1')).r.ok, true, 'ainda abre (leitura) dentro dos 30 dias');
+  const depois = (await um('select valido_ate from app.links_pedido where conversa_id = $1', [c.conversa_id])).valido_ate;
+  assert.equal(depois.getTime(), antes.valido_ate.getTime(), 'usar não estende o prazo do fim');
+  assert.ok(depois < new Date(Date.now() + 31 * 864e5), 'continua em ~30 dias, não em 120');
+  await db.query("update app.links_pedido set valido_ate = now() - interval '1 minute' where conversa_id = $1", [c.conversa_id]);
+  assert.equal((await usar('FIM1')).r.ok, false, 'passados os 30 dias o link morre');
+});

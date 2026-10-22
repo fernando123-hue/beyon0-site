@@ -53,7 +53,8 @@ begin
     return jsonb_build_object('ok', false);
   end if;
   -- NÃO revoga: o link é fixo. Cada uso RENOVA a validade (janela deslizante): a D5 deixa o pedido parado na prévia sem prazo
-  update app.links_pedido set ultimo_uso_em = now(), valido_ate = greatest(valido_ate, now() + interval '120 days') where id = l.id;
+  -- (revisão M5) só renova enquanto o pedido NÃO acabou: depois de encerrar_links_do_pedido o fim de 30 dias vale, mesmo com o link usado
+  update app.links_pedido set ultimo_uso_em = now(), valido_ate = case when l.fim_em is null and c.etapa = 'em_producao' then greatest(valido_ate, now() + interval '120 days') else valido_ate end where id = l.id;
   update app.conversas set visitante_id = v_vid, ultima_atividade = now() where id = c.id;
   update app.escolhas set visitante_id = v_vid where conversa_id = c.id;   -- (a escolha guarda quem escolheu; ver a retomada, 20261016120000)
   perform privado.evento(c.org_id, c.id, 'link_pedido_usado');
@@ -96,7 +97,7 @@ end $$;
 -- a 3b-3 chama ao concluir ou encerrar o pedido: o link passa a valer só mais p_dias
 create function privado.encerrar_links_do_pedido(p_conversa uuid, p_dias integer) returns void
 language sql security definer set search_path = '' as $$
-  update app.links_pedido set valido_ate = least(valido_ate, now() + make_interval(days => p_dias)) where conversa_id = p_conversa and revogado_em is null;
+  update app.links_pedido set valido_ate = least(valido_ate, now() + make_interval(days => p_dias)), fim_em = coalesce(fim_em, now()) where conversa_id = p_conversa and revogado_em is null;
 $$;
 revoke all on function privado.encerrar_links_do_pedido(uuid, integer) from public, anon, authenticated, service_role;
 

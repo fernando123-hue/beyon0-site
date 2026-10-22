@@ -84,6 +84,7 @@ create table app.links_pedido (
   valido_ate        timestamptz not null,
   ultimo_uso_em     timestamptz,
   revogado_em       timestamptz,
+  fim_em            timestamptz,   -- o pedido acabou (privado.encerrar_links_do_pedido): daqui em diante o uso não renova mais a validade
   motivo_revogacao  text check (motivo_revogacao in ('novo_a_pedido', 'sair_do_aparelho', 'fim_do_pedido')),
   created_at        timestamptz not null default now(),
   foreign key (org_id, conversa_id) references app.conversas (org_id, id) on delete cascade,
