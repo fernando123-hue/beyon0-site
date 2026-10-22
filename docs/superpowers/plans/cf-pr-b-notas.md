@@ -18,3 +18,11 @@ Vermelho 2 (com `agendar` vazio): `✖ crons: reconciliar de 3 em 3 h e a diári
 Verde: 14 testes em `worker.test.mjs`.
 Desvio: o 3º teste do plano (crons do `wrangler.jsonc` == chaves da AGENDA) vai junto da B6, que cria o arquivo
 (o plano já dizia "depois do B6"); assim nenhum commit fica vermelho. próxima tarefa: B3
+
+## B3: assets por lista de permissão
+Vermelho: `ERR_MODULE_NOT_FOUND ... cloudflare\montar-publico.mjs imported from ...\docs\testes\publico.test.mjs`.
+Verde: paridade com a Vercel nos dois sentidos (93 arquivos em `publico/`) e a lista de "nunca sobe".
+Desvios: (1) o `assert` de que `_headers` está na saída foi para a B4 (o arquivo só nasce lá);
+(2) os 3 testes "deploy:" do `csp.test.mjs` NÃO foram reescritos: a Vercel continua no ar até o PR D e eles ainda
+protegem o `vercel.json`; a garantia equivalente da Cloudflare é a paridade deste teste e os testes da B4.
+próxima tarefa: B4

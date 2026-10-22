@@ -30,3 +30,8 @@ assets/introdução.mp4
 # capturas e medidas de verificação (geradas; não entram no deploy)
 docs/olhar*/
 docs/medida-*.json
+
+# Cloudflare (Worker): a saída do montar-publico, o estado local do Wrangler e as variáveis locais nunca entram no Git
+publico/
+.wrangler/
+.dev.vars*
