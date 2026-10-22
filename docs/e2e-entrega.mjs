@@ -28,7 +28,7 @@ async function imagemGrande(page, cor) {
 }
 const passosDe = page => page.$$eval('#o-ped-passos .orc-passo', l => l.map(x => x.className.replace('orc-passo ', '')));
 
-export async function passoDaEntrega(page, { ok, espera, foto, semRolagemLateral, perdeu = () => {} }) {
+export async function passoDaEntrega(page, { ok, espera, foto, semRolagemLateral, perdeu = () => {}, forcar = () => {} }) {
   const browser = page.context().browser();
   const origem = new URL(page.url()).origin;
   /* cada aparelho com o seu IP (o servidor local confia no x-forwarded-for): o freio de criação de sessão é de 8 por 10 minutos POR IP, e o resto do E2E já gasta o da página principal */
@@ -90,6 +90,29 @@ export async function passoDaEntrega(page, { ok, espera, foto, semRolagemLateral
   ok(await espera(page, () => document.querySelectorAll('#o-arq-logo .is-enviado, #o-arq-fotos .is-enviado').length === 3, 40000), 'material: 1 logo e 2 fotos enviadas direto ao armazém e conferidas');
   ok(await page.$$eval('#o-material .orc-arq__mini img', l => l.length === 3), 'material: as miniaturas saem do arquivo no aparelho (blob:, sem erro de CSP)');
   ok((await page.textContent('#o-arq-contador')).trim() === '2 de 20', 'material: "2 de 20" fotos');
+  /* 3a. a barra de progresso e o "Tentar de novo" de verdade: o armazém lento e depois fora do ar (a rede cai no meio do envio) */
+  let armazem = 'normal';
+  await page.route('**/_armazem-local/**', async r => {
+    if (r.request().method() !== 'PUT') return r.continue();
+    if (armazem === 'cai') return r.abort('failed');   /* (net::ERR_FAILED: o E2E já o conhece como a falha que ele mesmo provoca, via forcar) */
+    if (armazem === 'lento') await new Promise(x => setTimeout(x, 1500));
+    return r.continue();
+  });
+  const entrada = () => page.locator('#o-mat-corpo input[type=file][multiple]');
+  armazem = 'lento';
+  await entrada().setInputFiles({ name: 'lenta.jpg', mimeType: 'image/jpeg', buffer: await imagem(page, 'image/jpeg', '#223344') });
+  ok(await espera(page, () => !!document.querySelector('#o-arq-fotos progress[aria-label^="Envio de"]'), 8000), 'material: a barra de progresso aparece enquanto o arquivo sobe (armazém lento)');
+  ok(await espera(page, () => document.querySelectorAll('#o-arq-fotos .is-enviado').length === 3, 20000), 'material: o arquivo lento termina e a barra some');
+  armazem = 'cai'; forcar(true);
+  await entrada().setInputFiles({ name: 'cai.jpg', mimeType: 'image/jpeg', buffer: await imagem(page, 'image/jpeg', '#443322') });
+  ok(await espera(page, () => /Sem conexão/.test(document.querySelector('#o-arq-fotos .is-erro .orc-arq__estado')?.textContent || ''), 15000), 'material: a rede caiu no envio: erro em palavra simples na linha do arquivo');
+  ok(await page.locator('#o-arq-fotos .is-erro button:has-text("Tentar de novo")').isVisible(), 'material: a linha com erro oferece "Tentar de novo"');
+  ok(/Falta:.*tirar o arquivo que não terminou/.test(await page.textContent('#o-mat-falta')) && await page.getAttribute('#o-mat-enviar', 'aria-disabled') === 'true', 'material: com um arquivo preso em erro o "Falta:" manda tirá-lo e o Enviar fica desligado');
+  armazem = 'normal'; forcar(false);
+  await page.click('#o-arq-fotos .is-erro button:has-text("Tentar de novo")');
+  ok(await espera(page, () => document.querySelectorAll('#o-arq-fotos .is-enviado').length === 4 && !document.querySelector('#o-arq-fotos .is-erro'), 20000), '"Tentar de novo" refaz só o envio e o arquivo chega (mesma reserva)');
+  for (let i = 0; i < 2; i++) { await page.locator('#o-arq-fotos li:last-child .orc-arq__tirar').click(); await page.waitForFunction(n => document.querySelectorAll('#o-arq-fotos li').length === n, 3 - i, { timeout: 15000 }); }
+  await page.unroute('**/_armazem-local/**');
   /* 3b. 20 fotos grandes (4000x3000, acima dos 2560 px: o aparelho reduz antes de enviar): o limite, as miniaturas pequenas (nada de decodificar a foto inteira
      20 vezes), o foco que não se perde enquanto outras fotos sobem, e o "×" que tira o arquivo */
   const grandes = [];
