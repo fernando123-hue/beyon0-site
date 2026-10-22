@@ -68,6 +68,14 @@ suíte e mutação rodam uma vez no fim; nada de E2E, `verificar`, `acessibilida
 - **Dono:** aplicar `supabase/migrations/20261023120000_pr3b2_entrega.sql` no Supabase real (aqui só arquivo e PGlite).
 - Rodo os testes de banco com `--test-concurrency=1` (modo leve).
 
+## Task 6: banco II, o material
+
+- Vermelho visto: `function app.vendas_material_salvar(jsonb) does not exist` (15 de 15 caídos).
+- Verde: material-banco 15/15 (primeira passada: 14/15).
+- Desvio: o teste "sem número" usava `telefone: '123'`, que o `check` de `app.leads.telefone` (E.164, 8 a 15 dígitos) recusa já ao inserir; virou `'+12345678'`
+  (E.164 válido, mas não brasileiro, então `usar_numero_do_pedido` responde `motivo: 'numero'`).
+- **Dono:** aplicar `supabase/migrations/20261023120100_pr3b2_material.sql`.
+
 ## Andamento
 
-próxima tarefa: 6
+próxima tarefa: 7
