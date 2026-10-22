@@ -59,6 +59,15 @@ suíte e mutação rodam uma vez no fim; nada de E2E, `verificar`, `acessibilida
 - Frase ao cliente "Sábado, domingo e feriado nacional não contam." entrou no contrato (escopo), no consultor e na resposta de "Quando fica pronto?".
 - Testes: prazo 8/8 e captacao-igual 6/6 contra o código dela; 118 testes dos arquivos de prazo/texto, 0 falhas.
 
+## Task 5: banco I, a entrega
+
+- Vermelho visto: `error: relation "app.entregas" does not exist` (7 de 7 caídos).
+- Verde: entrega-banco 7/7; pagamentos-banco + retomada-banco + vendas-banco 29/29.
+- Desvio: no teste do gatilho, `select status from app.pagamentos p join app.propostas pr` era ambíguo (as duas têm `status`); virou `p.status`.
+- `etapa_retomavel` só ganhou `'em_producao'`; nenhum teste antigo de retomada precisou mudar.
+- **Dono:** aplicar `supabase/migrations/20261023120000_pr3b2_entrega.sql` no Supabase real (aqui só arquivo e PGlite).
+- Rodo os testes de banco com `--test-concurrency=1` (modo leve).
+
 ## Andamento
 
-próxima tarefa: 5
+próxima tarefa: 6
