@@ -141,3 +141,43 @@ test('servidor local: /api passa pelo roteador (404, 405, 413 por rota) e as pá
     }
   });
 });
+
+/* ---- B6: wrangler.jsonc e package.json ---- */
+const SEGREDOS = ['SUPABASE_URL', 'SUPABASE_CHAVE_PUBLICA', 'SUPABASE_CHAVE_SECRETA', 'PAINEL_CHAVE', 'ANTHROPIC_API_KEY', 'MP_ACCESS_TOKEN', 'MP_PUBLIC_KEY',
+  'MP_WEBHOOK_SEGREDO', 'MP_USER_ID', 'CRON_SECRET', 'FREIO_SEGREDO', 'ALERTA_NTFY_TOPICO', 'ALERTA_NTFY_TOKEN', 'TURNSTILE_SITE_KEY', 'TURNSTILE_SECRET'];
+const lerWrangler = () => lerJsonc(fs.readFileSync(new URL('../../wrangler.jsonc', import.meta.url), 'utf8'));
+test('os crons do wrangler.jsonc (produção e prévia) == as chaves da AGENDA', () => {
+  const cfg = lerWrangler();
+  assert.deepEqual([...cfg.triggers.crons].sort(), Object.keys(AGENDA).sort());
+  assert.deepEqual([...cfg.env.previa.triggers.crons].sort(), Object.keys(AGENDA).sort());
+});
+test('wrangler.jsonc: produção fechada, prévia declarada, nada de segredo, nada que rode código no build', () => {
+  const c = lerWrangler();
+  assert.ok(c.compatibility_flags.includes('nodejs_compat')); assert.equal(c.compatibility_date, '2026-10-21');
+  assert.equal(c.assets.directory, 'publico'); assert.deepEqual(c.assets.run_worker_first, ['/api/*']); assert.equal(c.assets.not_found_handling, '404-page');
+  assert.equal(c.assets.html_handling, 'auto-trailing-slash');
+  assert.equal(c.vars.BZ_AMBIENTE, 'producao'); assert.equal(c.vars.MP_AMBIENTE, 'producao'); assert.equal(c.vars.MP_METODOS, 'pix');
+  assert.equal(c.env.previa.vars.BZ_AMBIENTE, 'previa'); assert.equal(c.env.previa.vars.MP_AMBIENTE, 'teste'); assert.equal(c.env.previa.vars.MP_METODOS, 'pix');
+  assert.deepEqual(c.env.previa.previews.vars, c.env.previa.vars, 'as prévias de branch não herdam vars: os mesmos do staging (ALTO-2)');
+  for (const vars of [c.vars, c.env.previa.vars, c.previews?.vars || {}, c.env.previa.previews.vars]) for (const s of SEGREDOS) assert.ok(!(s in vars), s + ' em vars');
+  assert.equal(c.workers_dev, false, 'produção sem workers.dev (revisão M3)');
+  assert.equal(c.build, undefined, 'sem build: o Builds não honra e ele rodaria código no deploy');
+  assert.equal(c.account_id, undefined, 'a conta vem do token do Builds de cada conta');
+  assert.equal(c.name, 'beyon-zero-site');
+  assert.equal(c.env.previa.name, undefined, 'uma conta só: um name no env.previa apontaria o deploy da main para a produção (§ 5.3, trava 2)');
+  assert.equal(c.routes, undefined, 'o domínio é do PR C'); assert.equal(c.env.previa.route, undefined);
+  assert.deepEqual(c.env.previa.routes, [], 'routes é herdável: o staging nunca pega o domínio de produção (ALTO-1)');
+  assert.equal(c.observability.enabled, true); assert.equal(c.observability.traces.enabled, true);
+  const pkg = JSON.parse(fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
+  for (const s of ['preinstall', 'install', 'postinstall', 'prepare', 'prepublish', 'prepack']) assert.equal(pkg.scripts[s], undefined, s);
+  assert.equal(pkg.devDependencies.wrangler, '4.136.3', 'versão exata');
+});
+test('package.json: scripts da Cloudflare e descrição sem Vercel; o lock fixa o wrangler', () => {
+  const pkg = JSON.parse(fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
+  assert.equal(pkg.scripts['cf:montar'], 'node cloudflare/montar-publico.mjs');
+  assert.equal(pkg.scripts['cf:fumaca'], 'node docs/worker-fumaca.mjs');
+  assert.equal(pkg.scripts['cpu:rotas'], 'node docs/cpu-rotas.mjs');
+  assert.doesNotMatch(pkg.description, /vercel/i);
+  const lock = JSON.parse(fs.readFileSync(new URL('../../package-lock.json', import.meta.url), 'utf8'));
+  assert.equal(lock.packages['node_modules/wrangler'].version, '4.136.3');
+});

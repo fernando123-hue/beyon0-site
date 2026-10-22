@@ -60,3 +60,19 @@ pasta nova `cloudflare/` (e depois `_headers`, `wrangler.jsonc`) não tinha regr
 três entradas novas o mesmo tratamento das outras: linhas no `.vercelignore` e 3 `redirects` no `vercel.json`
 (`/cloudflare/:caminho*`, `/wrangler.jsonc`, `/_headers`). No PR D, junto do `vercel.json`, isso some.
 Lição: eu só rodava os arquivos de teste novos a cada tarefa; a partir daqui `npm run testar` inteiro (via pasta isolada) a cada commit.
+
+## B6: `wrangler.jsonc` e `package.json`
+Vermelho: `Error: ENOENT: no such file or directory, open '...\wrangler.jsonc'` nos 3 testes novos (crons, produção
+fechada/prévia declarada, scripts e lock).
+Verde: `worker.test.mjs` com 18 testes. `npm install wrangler@4.136.3 --save-dev --save-exact --ignore-scripts` (versão do plano;
+não troquei por uma mais nova: o dono mandou fixar 4.136.3). O schema instalado (`config-schema.json` 4.136.3) tem
+`previews` e `preview_urls` em `RawEnvironment`.
+Dry-run (sem login, sem publicar): `wrangler deploy --dry-run --outdir .wrangler/saida` e `... --env previa --outdir
+.wrangler/saida-previa` passam; Total Upload 1047,69 KiB / gzip 211,55 KiB; a prévia sai como Worker
+`beyon-zero-site-previa`, vars de prévia, sem rota nem domínio. Aviso do Wrangler no deploy do topo: "Multiple environments
+... no target environment" (só aviso; o Deploy command do P9 pode virar `npx wrangler deploy --env=""` se o dono preferir
+silenciar; é decisão do P9, não mexi).
+Observações: (1) o `npm install` avisa "4 high severity vulnerabilities" nas dependências transitivas do Wrangler (devDependency;
+o CI audita só `--omit=dev`); (2) o script `cpu:rotas` aponta para `docs/cpu-rotas.mjs`, que é da M1 e NÃO está na base
+deste PR (a M1 não foi mesclada na `origin/main`): o script existe no `package.json` como manda o plano e falha até a M1 entrar.
+próxima tarefa: B7

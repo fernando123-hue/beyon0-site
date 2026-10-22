@@ -2,10 +2,11 @@
   "name": "beyon0-site",
   "version": "1.0.0",
   "private": true,
-  "description": "Site Beyon Zero — HTML/CSS/JS puro, sem build. GSAP vendorado em vendor/gsap. Backend: funções da Vercel em api/. Banco: Supabase (supabase/migrations). Sem dependência de runtime instalada por aqui.",
+  "description": "Site Beyon Zero — HTML/CSS/JS puro, sem build. GSAP vendorado em vendor/gsap. Backend: funções em api/, servidas por um Worker da Cloudflare (cloudflare/, wrangler.jsonc). Banco: Supabase (supabase/migrations). Sem dependência de runtime instalada por aqui.",
   "devDependencies": {
     "@electric-sql/pglite": "0.5.8",
-    "playwright": "^1.63.0"
+    "playwright": "^1.63.0",
+    "wrangler": "4.136.3"
   },
   "scripts": {
     "servir": "node docs/servidor.mjs . 8899",
@@ -18,7 +19,10 @@
     "testar:mutacao": "node docs/testes/mutacao.mjs",
     "e2e:orcamento": "node docs/e2e-orcamento.mjs",
     "e2e:turnstile": "node docs/e2e-turnstile.mjs",
-    "validar:regras": "node docs/validar-regras.mjs"
+    "validar:regras": "node docs/validar-regras.mjs",
+    "cf:montar": "node cloudflare/montar-publico.mjs",
+    "cf:fumaca": "node docs/worker-fumaca.mjs",
+    "cpu:rotas": "node docs/cpu-rotas.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.131.0"
