@@ -202,7 +202,7 @@
             <dl class="orc-est__dados">
               <div><dt>Prazo</dt><dd id="o-est-prazo"></dd></div>
               <div><dt>Para começar</dt><dd id="o-est-sinal"></dd></div>
-              <div><dt>Na entrega</dt><dd id="o-est-resto"></dd></div>
+              <div><dt>Quando o site estiver no ar</dt><dd id="o-est-resto"></dd></div>
             </dl>
             <p class="orc-est__assumido" id="o-est-assumido" hidden></p>
             <ul class="orc-est__itens" id="o-est-itens"></ul>
@@ -375,7 +375,7 @@
     <section class="orc-bloco" id="o-pagamento" aria-labelledby="o-pag-titulo" hidden>
       <h2 id="o-pag-titulo">Para começar</h2>
       <p class="orc-bloco__lead" id="o-pag-lead"></p>
-      <p class="orc-nota"><a href="#o-antes">Perguntas antes de pagar</a>: posso desistir? quando fica pronto? quantos ajustes?<span id="o-atalho-fotos" hidden> como mando fotos e textos?</span></p>
+      <p class="orc-nota"><a href="#o-antes">Perguntas antes de pagar</a>: posso desistir? quando fica pronto? quantos ajustes?<span id="o-atalho-fotos" hidden> como mando fotos e textos?</span><span id="o-atalho-restante" hidden> quando pago o restante?</span></p>
       <p class="orc-nota orc-perguntar" hidden>Alguma dúvida antes de pagar? <a href="#o-texto" data-perguntar>Pergunte ao consultor</a>. Ele tira dúvidas, mas não confirma pagamento nem muda o valor: quem mostra que o pagamento entrou é esta tela.</p>
       <p class="orc-aviso" id="o-pag-indisponivel" hidden>O pagamento online está indisponível agora. A Beyon Zero envia o pagamento pelo <a data-wa="quero pagar o sinal do meu projeto" href="https://wa.me/5521977167944">WhatsApp</a>.</p>
 
@@ -481,7 +481,7 @@
       <!-- D4 (21/10): as regras do lançamento valem para o orçamento; este texto é o de /condicoes (o teste de coerência confere) -->
       <details class="orc-det orc-antes__item">
         <summary>Quando fica pronto?</summary>
-        <p class="orc-antes__resposta">O prazo está no resumo do seu pedido, em dias úteis, contados do pagamento da entrada e do envio do seu material. Sábado, domingo e feriado nacional não contam. Se o material não chegar em 30 dias, o site sai com as imagens do modelo.</p>
+        <p class="orc-antes__resposta">O prazo está no resumo do seu pedido, em dias úteis, contados do pagamento da entrada e do envio do seu material. Sábado, domingo e feriado nacional não contam. Enquanto espero a sua lista de ajustes, o prazo fica parado. Nada vai ao ar sem o seu material e a sua autorização: enquanto ele não chegar, eu aviso que estou aguardando e o projeto fica parado.</p>
       </details>
       <!-- D2 (21/10): 2 listas de ajuste; o que passar disso é orçado à parte (revê a decisão de 11/10, Decisões.md) -->
       <details class="orc-det orc-antes__item">
@@ -489,6 +489,11 @@
         <p class="orc-antes__resposta">Duas listas de ajuste na prévia. Uma lista é um conjunto de pedidos mandado de uma vez. O que passar das duas listas é orçado à parte, como página ou item novo.</p>
       </details>
       <!-- 3b-2: onde o cliente manda o material (a tela de depois da entrada existe) -->
+      <!-- 22/10: o restante (D4; a porcentagem vem da proposta, js/orcamento-entrega.js). Promete a tela do restante: nasce escondido, como as outras promessas da entrega -->
+      <details class="orc-det orc-antes__item" id="o-faq-restante" hidden>
+        <summary>Quando pago o restante?</summary>
+        <p class="orc-antes__resposta">Quando o site estiver no ar: os outros <span id="o-ap-resto-pct"></span>% do total, por Pix, nesta mesma página. Se o restante não for pago em 3 dias depois do meu aviso de que o site está no ar, ele sai do ar até o pagamento. Antes disso eu lembro duas vezes, no segundo e no terceiro dia.</p>
+      </details>
       <details class="orc-det orc-antes__item" id="o-faq-fotos" hidden>
         <summary>Como mando fotos e textos?</summary>
         <p class="orc-antes__resposta">Aqui mesmo, depois da entrada. Não precisa mandar nada pelo WhatsApp.</p>
@@ -525,7 +530,7 @@
           </div>
           <div class="recibo__parte recibo__parte--entrega" id="o-rec-entrega">
             <i class="recibo__luz" aria-hidden="true"><b></b></i>
-            <p class="recibo__parte-rot"><span aria-hidden="true">↓</span> Na entrega</p>
+            <p class="recibo__parte-rot"><span aria-hidden="true">↓</span> Quando o site estiver no ar</p>
             <div class="recibo__linha">
               <span class="recibo__chip recibo__chip--resto" id="o-rec-pct-resto"></span>
               <div class="recibo__dados"><p class="recibo__valor" id="o-rec-resto"></p><p class="recibo__meio" id="o-rec-prazo"></p></div>
