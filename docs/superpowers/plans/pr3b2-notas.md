@@ -213,6 +213,15 @@ suíte e mutação rodam uma vez no fim; nada de E2E, `verificar`, `acessibilida
 - Migrations editadas no lugar (ainda não aplicadas em lugar nenhum): `…120000_entrega` (coluna `fim_em`, comentário), `…120100_material` (600), `…120200_link_pedido` (renovação).
 - Suíte: 775 testes, 774 passam, 1 pulado (o de prazos da privacidade, que espera o PR da página), 0 falham. Mutação: 59 de 59 (eram 56; +A2, +PUT 409, +M5).
 
+## Task 19 rodada de verdade (22/10, modo normal)
+
+- E2E: padrão 334 OK, só Pix 333 OK, com consultor 340 OK, 0 FALHA nas três. `acessibilidade` ok. `olhar` sem erros (hub-cel, sites-cel, hub-320 abertos: sem regressão). `verificar`: 1ª passada falhou só em LCP (hub-3d-cel) e `passagem-palco`/`passagem-destinos`, 2ª só no LCP de `automacao` (CPU a ~70% por causa do Explorer), 3ª "Tudo certo".
+- Primeira vez do material no navegador: logo + fotos sobem direto ao armazém, SVG recusado na linha, 20 fotos de 4000x3000 (reduzidas no aparelho, uma por vez), 21ª recusada, miniaturas de 96 px, foco do teclado no "×" da 1ª foto preservado durante os envios (vigiado a cada 150 ms), barra de progresso com armazém lento, rede que cai no envio (erro "Sem conexão", "Falta:" manda tirar o arquivo preso, "Tentar de novo" refaz), volta pelo link com o armazenamento apagado, link fixo em 2 aparelhos, "Gerar um link novo", "Continuar no computador" (uso único), "Sair deste aparelho". Memória JS depois das 20 fotos: 10 MB.
+- Achados e correções vistos no navegador: (1) o E2E mandava 4 aparelhos pelo mesmo IP e estourava o freio de criação de sessão (8 por 10 min): cada aparelho agora tem o seu `x-forwarded-for`; (2) quem tem o pedido depois de "continuar no computador" é o aparelho novo, então é ele que sai (o roteiro errava); (3) 404 esperado da aba que perdeu o pedido; (4) copiar o link falhava no headless: `copiar` agora cai para o `execCommand` se a área de transferência recusa; (5) pelos PNG: a caixa de marcar colava no texto (o CSS de `.orc-mat__campo label` a virava bloco), a cidade do pedido não vinha preenchida (`conversa.briefing`, não `briefing`) e arquivo pequeno aparecia "0 MB" (agora KB).
+- Rodada 2: o regex de `jaGravado` (`s*` no lugar de `\s*`) corrigido com teste; miniaturas decodificadas uma por vez (cadeia). Com 20 fotos de 12 MP o heap JS ficou em 10 MB e todas as miniaturas saíram com 96 px; Safari real não foi medido.
+- B8 (foto de 108 MP ou PNG com transparência virando fundo preto) NÃO foi resolvido: o headless só testou 4000x3000. `createImageBitmap(arq)` segue decodificando inteira para reduzir. Fica para o aparelho real.
+- Suíte: 778 testes, 777 passam, 1 pulado, 0 falham.
+
 ## Andamento
 
-próxima tarefa: nenhuma pendente em código. Faltam: Task 19 (tela, PC livre)
+próxima tarefa: nenhuma pendente em código
