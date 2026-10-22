@@ -152,6 +152,12 @@ suíte e mutação rodam uma vez no fim; nada de E2E, `verificar`, `acessibilida
 - `AINDA_NAO` perdeu "Guarde o link do seu pedido" e "Pôr na minha agenda" (as outras ficam). O recibo agora diz "Entrada recebida. O próximo passo é mandar o material…".
 - **Verificação de tela PENDENTE (Task 19, PC livre):** olhar `#o-pedido` a 390 e 320 px, o cartão do link, o `details` "Voltar ao pedido depois" e a lista dos 4 passos; E2E da volta pelo `#pedido=`.
 
+## Task 15: motor de envio
+
+- Vermelho visto: com o arquivo de uma linha ("lugar reservado"), 13 de 13 testes caídos (`Cannot read properties of undefined (reading 'problemaDaEscolha')`). Verde: orcamento-envio 13/13.
+- Desvio: o teste "remover" esperava o id de mentira `id1`, mas o log já tem a linha `reduzir` antes da reserva, então o id é `id2`; corrigi a expectativa (comentada no teste).
+- A redução por canvas (`reduzirNoAparelho`) e o PUT por XHR (`enviarPut`) NÃO foram exercitados num navegador (modo leve): só as versões injetadas nos testes. Conferir na Task 19, com foto grande de celular real e o armazém real.
+
 ## Andamento
 
-próxima tarefa: 15
+próxima tarefa: 16
