@@ -51,3 +51,12 @@ ambiente local); (3) os cabeçalhos das páginas normalizam `/x.html` e `/index.
 NÃO FEITO, fica para o agendamento (proibido agora: outro agente roda E2E e Chrome): Step 4 do plano, `npm run
 e2e:orcamento` com e sem consultor contra o servidor local (agora o E2E atravessa o `rotear`).
 próxima tarefa: B6
+
+## Correção achada pela suíte inteira (rodada isolada dos commits B1/B2)
+`csp.test.mjs` ("deploy: nada do repositório que não é página nem asset fica no ar") ficou vermelho a partir da B1: a
+pasta nova `cloudflare/` (e depois `_headers`, `wrangler.jsonc`) não tinha regra no `vercel.json` nem linha no
+`.vercelignore`, ou seja, a prévia da Vercel passaria a servir o código do Worker. Em vez de reescrever os 3 testes
+"deploy:" (a Vercel segue no ar até o PR D e eles continuam guardando o `vercel.json`), a correção coerente foi dar às
+três entradas novas o mesmo tratamento das outras: linhas no `.vercelignore` e 3 `redirects` no `vercel.json`
+(`/cloudflare/:caminho*`, `/wrangler.jsonc`, `/_headers`). No PR D, junto do `vercel.json`, isso some.
+Lição: eu só rodava os arquivos de teste novos a cada tarefa; a partir daqui `npm run testar` inteiro (via pasta isolada) a cada commit.
