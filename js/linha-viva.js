@@ -14,7 +14,7 @@
    (ResizeObserver); acender e apagar é classe do anima.js e CSS. No desktop
    com mouse (dono, 2026-10-23: igual ao celular) o cartão aceso é o do meio da
    tela, escolhido aqui por IntersectionObserver (sem .is-foco: o anima.js só
-   acende até 860 px); quando o mouse carrega um cartão a carga dá a volta e esta
+   acende até 860 px); quando o mouse enche um cartão a carga dá a volta e esta
    cede (uma luz só por vez). Sem JS, sem ResizeObserver ou com movimento
    reduzido: a luz fica pousada.
    ========================================================================== */
@@ -25,7 +25,8 @@
   if (!('ResizeObserver' in window)) return;
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   var desk = window.matchMedia('(min-width: 721px) and (hover: hover) and (pointer: fine)');
-  var CARGA = '.is-carregando, .is-carregado, .is-ignicao, .is-sobrecarga, .is-esfria';
+  /* (só a carga cheia dá a volta; no meio da carga o cartão mostra a barra, e qualquer cartão perto do cursor carrega um pouco: cedendo aí a luz quase nunca giraria) */
+  var CARGA = '.is-carregado, .is-ignicao, .is-sobrecarga, .is-esfria';
 
   /* (os que o anima.js acende: .servico é .painel; o .spec__item nunca acende, então não monta — revisão) */
   var CARDS = '.painel:not(:where(.console, .instrumento)), .celula, .laudo__row, .cenario';

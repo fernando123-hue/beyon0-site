@@ -149,6 +149,8 @@
 .servico__para { font-size: var(--fs-s); line-height: 1.5; color: var(--t3); }
 .servico__formatos { display: none; }
 @media (min-width: 721px) { .servicos { grid-template-columns: repeat(3, minmax(0, 1fr)); } .servico { min-height: 300px; } }
+/* a peça sozinha numa página (2026-10-23): um cartão só, na largura que ela foi desenhada */
+@media (min-width: 721px) { .servicos--solo { grid-template-columns: minmax(0, 640px); } }
 @media (min-width: 721px) and (max-width: 980px) { .servicos--quatro { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 /* O CARTÃO COM PEÇA (2026-10-14, docs/restructure/PECAS-SERVICOS.md): a peça interativa (css/peca-*.css) mora no
    cartão, então o cartão deixa de ser um <a> inteiro (link dentro de controle não vale) e vira <article> com o
@@ -202,6 +204,13 @@
   .servicos--quatro > *, .servicos--quatro > :first-child { grid-column: span 3; }
   .servicos--pilha > :first-child h3 { margin-top: 0; font-size: var(--h3-cartao); }
   .servicos--pilha > :first-child .servico__link, .servicos--pilha .servico__link { margin-top: auto; }
+  /* Hub: com as peças nas páginas dos serviços (2026-10-23) os três cartões são iguais, lado a lado */
+  .servicos--tres { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: auto; }
+  .servicos--tres > *, .servicos--tres > :first-child { grid-column: auto; grid-row: auto; }
+  .servicos--solo { grid-template-columns: minmax(0, 640px); grid-template-rows: auto; }
+  .servicos--solo > *, .servicos--solo > :first-child { grid-column: auto; grid-row: auto; }
+  .servicos--tres > :first-child h3 { margin-top: 0; font-size: var(--h3-cartao); }
+  .servicos--tres > :first-child .servico__link, .servicos--tres .servico__link { margin-top: auto; }
 }
 
 /* ---------- 3. LAUDO (garantias, dores): um módulo por linha ---------- */
