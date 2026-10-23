@@ -194,11 +194,11 @@ test('logo: as páginas usam a logo em SVG, sem estilo nem cor embutidos e com o
    nada sai pela rede nem pela URL, o que vai a outra página só no clique de um botão de ação, e controles de
    verdade (botões; a régua de horas é um slider com valor falado). */
 test('peças de Automação e do Atendente: CSP, nada sai da página e controles acessíveis', () => {
-  const html = readFileSync(new URL('index.html', RAIZ), 'utf8');
+  const html = readFileSync(new URL('automacao.html', RAIZ), 'utf8');
   for (const [marca, js] of [['data-despacho', 'js/peca-automacao.js'], ['data-plantao', 'js/peca-atendente.js']]) {
     const peca = (html.match(new RegExp('<div class="[a-z]+" ' + marca + '[\\s\\S]*?<\\/article>')) || [])[0];
-    assert.ok(peca, 'index.html: o cartão sem a peça ' + marca);
-    assert.ok(!/style="/.test(peca), 'index.html: estilo embutido na peça ' + marca + ' (a CSP bloqueia)');
+    assert.ok(peca, 'automacao.html: o cartão sem a peça ' + marca);
+    assert.ok(!/style="/.test(peca), 'automacao.html: estilo embutido na peça ' + marca + ' (a CSP bloqueia)');
     assert.ok(/<button type="button"/.test(peca), 'a peça ' + marca + ' precisa de botões de verdade');
     const codigo = readFileSync(new URL(js, RAIZ), 'utf8');
     assert.ok(!/innerHTML|outerHTML|insertAdjacentHTML|document\.write/.test(codigo), js + ': texto só como texto');
@@ -212,11 +212,11 @@ test('peças de Automação e do Atendente: CSP, nada sai da página e controles
 });
 
 test('peça de Sites: o nome não sai da página, a CSP vale e a régua é acessível', () => {
-  const html = readFileSync(new URL('index.html', RAIZ), 'utf8');
+  const html = readFileSync(new URL('sites.html', RAIZ), 'utf8');
   const peca = (html.match(/<div class="planta" data-planta[\s\S]*?<\/article>/) || [])[0];
-  assert.ok(peca, 'index.html: o cartão de Sites sem a peça');
-  assert.ok(!/style="/.test(peca), 'index.html: estilo embutido na peça (a CSP bloqueia)');
-  assert.ok(!/<style|\sstyle="|\son[a-z]+=/.test(html), 'index.html: <style>, style="" ou handler inline (a CSP bloqueia)');
+  assert.ok(peca, 'sites.html: o cartão de Sites sem a peça');
+  assert.ok(!/style="/.test(peca), 'sites.html: estilo embutido na peça (a CSP bloqueia)');
+  assert.ok(!/<style|\sstyle="|\son[a-z]+=/.test(html), 'sites.html: <style>, style="" ou handler inline (a CSP bloqueia)');
   const slider = (peca.match(/<div class="planta__slider"[^>]*>/) || [''])[0];
   for (const a of ['role="slider"', 'tabindex="0"', 'aria-label=', 'aria-valuemin=', 'aria-valuemax=', 'aria-valuenow=', 'aria-valuetext=']) assert.ok(slider.includes(a), 'régua sem ' + a);
   assert.equal((peca.match(/<button type="button" class="planta__parada"/g) || []).length, 3, 'as três paradas da régua têm de ser botões');

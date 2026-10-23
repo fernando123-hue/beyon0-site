@@ -1,4 +1,42 @@
-<!DOCTYPE html>
+<!DOCTYPE html        <div class="servicos servicos--pilha reveal">
+          <article class="painel painel--tinta servico servico--peca">
+            <span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span>
+            <div class="despacho" data-despacho role="group" aria-label="Demonstração: o caminho de um pedido numa rotina automatizada">  
+              <span class="despacho__guia" id="despacho-guia">Toque num pedido e veja o caminho</span>  
+              <div class="despacho__pedidos" role="group" aria-labelledby="despacho-guia">  
+                <button type="button" class="despacho__pedido" data-pedido="orcamento" aria-pressed="false">Pedido de orçamento</button><button type="button" class="despacho__pedido" data-pedido="cobranca" aria-pressed="false">Cobrança / 2ª via</button><button type="button" class="despacho__pedido" data-pedido="cadastro" aria-pressed="false">Cadastro de cliente</button><button type="button" class="despacho__pedido" data-pedido="relatorio" aria-pressed="false">Relatório do mês</button>  
+              </div>  
+              <div class="despacho__placa" aria-hidden="true">  
+                <svg class="despacho__trilhas" focusable="false">  
+                  <path class="dp-trilha" data-trilha="whatsapp"/><path class="dp-trilha" data-trilha="email"/><path class="dp-trilha" data-trilha="site"/>  
+                  <path class="dp-trilha dp-volta" data-volta="whatsapp"/><path class="dp-trilha dp-volta" data-volta="email"/><path class="dp-trilha dp-volta" data-volta="site"/>  
+                  <path class="dp-trilha" data-trilha="sistema"/><path class="dp-trilha" data-trilha="financeiro"/><path class="dp-trilha" data-trilha="planilha"/><path class="dp-trilha" data-trilha="equipe"/>  
+                </svg>  
+                <i class="dp-pacote"></i><i class="dp-pacote"></i><i class="dp-pacote"></i><i class="dp-pacote"></i>  
+                <div class="despacho__linha">  
+                  <span class="dp-no" data-no="whatsapp"><b class="dp-n"> </b><svg viewBox="0 0 24 24" focusable="false"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 19.2z"/></svg><span>WhatsApp</span></span>  
+                  <span class="dp-no" data-no="email"><b class="dp-n"> </b><svg viewBox="0 0 24 24" focusable="false"><path d="M3 6h18v12H3zM3 7l9 6 9-6"/></svg><span>E-mail</span></span>  
+                  <span class="dp-no" data-no="site"><b class="dp-n"> </b><svg viewBox="0 0 24 24" focusable="false"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg><span>Site</span></span>  
+                </div>  
+                <div class="despacho__centro"><span class="dp-no dp-agente" data-no="agente"><b class="dp-n"> </b><span class="dp-agente__nome">Agente</span><span class="dp-agente__verbo" data-verbo>pronto</span></span></div>  
+                <div class="despacho__linha">  
+                  <span class="dp-no" data-no="sistema"><b class="dp-n"> </b><svg viewBox="0 0 24 24" focusable="false"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg><span>Sistema</span></span>  
+                  <span class="dp-no" data-no="financeiro"><b class="dp-n"> </b><svg viewBox="0 0 24 24" focusable="false"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6"/></svg><span>Finanças</span></span>  
+                  <span class="dp-no" data-no="planilha"><b class="dp-n"> </b><svg viewBox="0 0 24 24" focusable="false"><path d="M3 4h18v16H3zM3 9h18M3 14h18M9 4v16"/></svg><span>Planilha</span></span>  
+                  <span class="dp-no" data-no="equipe"><b class="dp-n"> </b><svg viewBox="0 0 24 24" focusable="false"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg><span>Equipe</span></span>  
+                </div>  
+              </div>  
+              <ol class="despacho__registro" role="list"><li> </li><li> </li><li> </li><li> </li></ol>  
+              <p class="despacho__fim"><span class="despacho__ok" aria-hidden="true"></span><span data-despacho-fim> </span></p>  
+              <p class="despacho__nota">Exemplo de rotina. Cada negócio tem as suas: o diagnóstico grátis mostra quais valem automatizar.</p>  
+            </div>  
+                      <div class="servico__acoes">
+              <a class="peca-quero peca-quero--cheio" href="#contato" data-despacho-quero><span class="peca-quero__texto">Quero o diagnóstico grátis</span> <span aria-hidden="true" data-seta="direita">→</span></a>
+              <a class="peca-wa" href="https://wa.me/5521977167944" data-wa="quero entender o que dá para automatizar no meu negócio" data-despacho-wa>ou peça pelo WhatsApp</a>
+            </div>
+          </article>
+        </div>
+  >
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
@@ -292,6 +330,41 @@
         <p class="kicker"><b aria-hidden="true">03</b> Atendente no WhatsApp</p>
         <h2 id="atendente-titulo">Seu WhatsApp respondendo assim que a mensagem chega, até de madrugada.</h2>
         <p class="lead">Um atendente de IA treinado com as informações da sua entidade ou empresa. Teste 10&nbsp;dias grátis no seu número; depois, implantação e mensalidade.</p>
+      </div>
+      <div class="servicos servicos--pilha reveal">
+        <article class="painel painel--tinta servico servico--peca">
+          <span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span>
+          <div class="plantao" data-plantao role="group" aria-label="Demonstração: o atendente respondendo no WhatsApp, a qualquer hora">
+            <p class="plantao__manchete"><span data-plantao-manchete> </span> <button type="button" class="plantao__madrugada" data-plantao-madrugada>E às 3 da manhã? <span aria-hidden="true" data-seta="direita">→</span></button></p>
+            <div class="plantao__relogio">
+              <div class="plantao__slider" role="slider" tabindex="0" aria-label="Hora da conversa" aria-valuemin="0" aria-valuemax="1439" aria-valuenow="600" aria-valuetext="10:00, equipe no horário">
+                <span class="plantao__trilho"></span><span class="plantao__expediente"></span>
+                <span class="plantao__cursor"><span class="plantao__hora" data-plantao-hora>10:00</span></span>
+              </div>
+              <div class="plantao__escala" aria-hidden="true"><span>0h</span><span>6h</span><span>12h</span><span>18h</span><span>24h</span></div>
+            </div>
+            <div class="plantao__tela">
+              <div class="plantao__topo">
+                <span class="plantao__avatar" aria-hidden="true" data-plantao-inicial>S</span>
+                <span class="plantao__quem"><b data-plantao-nome>Seu negócio</b><span><span data-plantao-estado>atendente virtual</span> · <span class="plantao__equipe" data-plantao-equipe>equipe no horário</span></span></span>
+              </div>
+              <ol class="plantao__conversa" role="list">
+                <li class="pt-msg pt-msg--ia" data-msg="ola"><span class="pt-txt">Olá! Sou o atendente virtual. Posso ajudar com preço, horário ou o que precisar.</span><span class="pt-hora">10:00</span></li>
+                <li class="pt-msg pt-msg--cliente" data-msg="pergunta" hidden><span class="pt-txt"> </span><span class="pt-hora">10:00</span></li>
+                <li class="pt-msg pt-msg--ia" data-msg="resposta" hidden><span class="pt-txt"><span> </span><span class="pt-reservado"> </span><span> </span></span><span class="pt-hora">10:00</span></li>
+                <li class="pt-msg pt-msg--sistema" data-msg="resumo" hidden><span class="pt-txt"> </span></li>
+              </ol>
+              <div class="plantao__sugestoes" role="group" aria-label="Pergunte como um cliente">
+                <button type="button" class="plantao__sugestao" data-pergunta="0"> </button><button type="button" class="plantao__sugestao" data-pergunta="1"> </button><button type="button" class="plantao__sugestao" data-pergunta="2"> </button><button type="button" class="plantao__sugestao" data-pergunta="pessoa">Quero falar com uma pessoa</button>
+              </div>
+            </div>
+            <p class="plantao__resposta-sr sr-only"> </p>
+            <p class="plantao__nota">Exemplo de conversa. <span class="pt-reservado">[Entre colchetes]</span> entra o dado do seu negócio, que você passa na implantação; o expediente das 8h às 18h também é exemplo.</p>
+          </div>
+                    <div class="servico__acoes">
+            <a class="peca-quero peca-quero--cheio" data-wa="quero testar o atendente de IA no WhatsApp por 10 dias grátis" href="https://wa.me/5521977167944" data-plantao-quero><span class="peca-quero__texto">Testar 10 dias grátis</span> <span aria-hidden="true" data-seta="direita">→</span><span class="sr-only"> (abre o WhatsApp)</span></a>
+          </div>
+        </article>
       </div>
       <div class="servicos servicos--pilha reveal">
         <article data-rotulo="Tira dúvidas na hora" class="painel painel--tinta servico" aria-labelledby="nivel-1-t">
