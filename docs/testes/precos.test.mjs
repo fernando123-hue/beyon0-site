@@ -198,7 +198,7 @@ test('fase seguinte longa diz em quantas fases de até 10 dias ela se divide', a
   assert.deepEqual([r.fase_seguinte.prazo_dias, r.fase_seguinte.fases, r.fase_seguinte.prazo_max_fase], [21, 3, 10]);
   const { montarEscopo } = await import('../../api/_vendas/escopo.mjs');
   const e = montarEscopo({ estimativa: r, direcao: { nome: 'Autoridade', secoes: [], paginas: [] }, briefing: { negocio: { descricao: 'x' } }, alteracoesAplicadas: [] });
-  assert.ok(e.escopo.includes('prazo estimado de 21 dias corridos, em 3 fases de até 10 dias corridos cada'), 'o contrato não lê 21 dias como uma entrega só');
+  assert.ok(e.escopo.includes('prazo estimado de 21 dias úteis, em 3 fases de até 10 dias úteis cada'), 'o contrato não lê 21 dias como uma entrega só');
 });
 
 test('rascunho: a entrada é 40% (decisão do dono de 20/10, Decisões.md, "O site vende sozinho", 1 D; PR 3b-1). A tabela ativa o dono aplica', () => {

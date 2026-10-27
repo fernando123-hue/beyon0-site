@@ -1,0 +1,35 @@
+{
+  "origem": "Casos de captacao/testes/clientes/prazos.test.mjs e fechamento.test.mjs (para-o-site.md §6, 21/10/2026), mais os do site (UTC x Campo Grande, esperas sobre fim de semana). Todos contam so os feriados NACIONAIS abaixo: valem com qualquer resposta do dono sobre os outros feriados.",
+  "feriados_nacionais": ["2026-11-02", "2026-11-15", "2026-11-20", "2026-12-25", "2027-01-01"],
+  "calcular": [
+    { "nome": "(captacao) 7 uteis a partir de domingo 25/10: Finados (02/11) nao conta", "prazo_dias": 7, "prazo": { "conta_desde": "2026-10-25T10:00:00-04:00" }, "agora": "2026-10-25T10:00:00-04:00", "esperado": "2026-11-04" },
+    { "nome": "(captacao) espera de 27/10 10h a 29/10 15h: 2 uteis parados (28 e 29)", "prazo_dias": 7, "prazo": { "conta_desde": "2026-10-25T10:00:00-04:00", "pausas": [{ "desde": "2026-10-27T10:00:00-04:00", "ate": "2026-10-29T15:00:00-04:00" }] }, "agora": "2026-10-30T10:00:00-04:00", "esperado": "2026-11-06" },
+    { "nome": "(captacao) espera de sexta 30/10 a segunda 02/11 (Finados): nenhum util parado", "prazo_dias": 7, "prazo": { "conta_desde": "2026-10-25T10:00:00-04:00", "pausas": [{ "desde": "2026-10-30T10:00:00-04:00", "ate": "2026-11-02T10:00:00-04:00" }] }, "agora": "2026-11-03T10:00:00-04:00", "esperado": "2026-11-04" },
+    { "nome": "(captacao) nova data 10/11 combinada em 01/11, espera de sexta 06/11 a segunda 09/11: 1 util parado", "prazo_dias": 10, "prazo": { "conta_desde": "2026-10-25T10:00:00-04:00", "novas_datas": [{ "data": "2026-11-10", "combinada_em": "2026-11-01T09:00:00-04:00" }], "pausas": [{ "desde": "2026-11-06T10:00:00-04:00", "ate": "2026-11-09T10:00:00-04:00" }] }, "agora": "2026-11-09T12:00:00-04:00", "esperado": "2026-11-11" },
+    { "nome": "(captacao) 5 uteis a partir de 30/12/2026: 01/01 nao conta", "prazo_dias": 5, "prazo": { "conta_desde": "2026-12-30T10:00:00-04:00" }, "agora": "2026-12-30T10:00:00-04:00", "esperado": "2027-01-07" },
+    { "nome": "(captacao) 10 uteis a partir de terca 20/10", "prazo_dias": 10, "prazo": { "conta_desde": "2026-10-20T10:00:00-04:00" }, "agora": "2026-10-20T10:00:00-04:00", "esperado": "2026-11-04" },
+    { "nome": "(captacao) 10 uteis a partir de sexta 23/10", "prazo_dias": 10, "prazo": { "conta_desde": "2026-10-23T10:00:00-04:00" }, "agora": "2026-10-23T10:00:00-04:00", "esperado": "2026-11-09" },
+    { "nome": "(captacao) 10 uteis a partir de 19/11: 20/11 nao conta", "prazo_dias": 10, "prazo": { "conta_desde": "2026-11-19T10:00:00-04:00" }, "agora": "2026-11-19T10:00:00-04:00", "esperado": "2026-12-04" },
+    { "nome": "5 uteis a partir de uma quinta", "prazo_dias": 5, "prazo": { "conta_desde": "2026-10-22T10:00:00-04:00" }, "agora": "2026-10-22T10:00:00-04:00", "esperado": "2026-10-29" },
+    { "nome": "sem conta_desde: sem data", "prazo_dias": 5, "prazo": {}, "agora": "2026-10-22T10:00:00-04:00", "esperado": null },
+    { "nome": "(site) 21:00 de quinta em Campo Grande ja e sexta em UTC: uma conta em UTC daria 2026-10-30", "prazo_dias": 5, "prazo": { "conta_desde": "2026-10-23T01:00:00Z" }, "agora": "2026-10-23T12:00:00Z", "esperado": "2026-10-29" },
+    { "nome": "(site) espera 26/10 a 28/10 soma 2 uteis (27 e 28): 29/10 + 2 = 03/11 (02/11 e feriado)", "prazo_dias": 5, "prazo": { "conta_desde": "2026-10-22T10:00:00-04:00", "pausas": [{ "desde": "2026-10-26T10:00:00-04:00", "ate": "2026-10-28T15:00:00-04:00" }] }, "agora": "2026-10-30T10:00:00-04:00", "esperado": "2026-11-03" },
+    { "nome": "(site) espera aberta conta ate hoje (27 a 30/10 = 4 uteis)", "prazo_dias": 5, "prazo": { "conta_desde": "2026-10-22T10:00:00-04:00", "pausas": [{ "desde": "2026-10-26T10:00:00-04:00", "ate": null }] }, "agora": "2026-10-30T10:00:00-04:00", "esperado": "2026-11-05" },
+    { "nome": "(site) espera de sabado a domingo nao soma nada", "prazo_dias": 5, "prazo": { "conta_desde": "2026-10-22T10:00:00-04:00", "pausas": [{ "desde": "2026-10-24T10:00:00-04:00", "ate": "2026-10-25T10:00:00-04:00" }] }, "agora": "2026-10-30T10:00:00-04:00", "esperado": "2026-10-29" },
+    { "nome": "(site) espera de sabado a segunda soma a segunda (o dia em que acaba conta): 1 util", "prazo_dias": 5, "prazo": { "conta_desde": "2026-10-22T10:00:00-04:00", "pausas": [{ "desde": "2026-10-24T10:00:00-04:00", "ate": "2026-10-26T10:00:00-04:00" }] }, "agora": "2026-10-30T10:00:00-04:00", "esperado": "2026-10-30" },
+    { "nome": "(site) nova data combinada substitui a base; so as esperas depois dela somam (4 e 5/11 = 2 uteis)", "prazo_dias": 5, "prazo": { "conta_desde": "2026-10-22T10:00:00-04:00", "novas_datas": [{ "data": "2026-11-10", "combinada_em": "2026-11-01T09:00:00-04:00" }], "pausas": [{ "desde": "2026-10-27T10:00:00-04:00", "ate": "2026-10-29T15:00:00-04:00" }, { "desde": "2026-11-03T10:00:00-04:00", "ate": "2026-11-05T10:00:00-04:00" }] }, "agora": "2026-11-06T10:00:00-04:00", "esperado": "2026-11-12" }
+  ],
+  "vencido": [
+    { "nome": "no ultimo dia ainda nao", "prazo_dias": 5, "prazo": { "conta_desde": "2026-10-22T10:00:00-04:00" }, "agora": "2026-10-29T23:00:00-04:00", "esperado": false },
+    { "nome": "no dia util seguinte sim", "prazo_dias": 5, "prazo": { "conta_desde": "2026-10-22T10:00:00-04:00" }, "agora": "2026-10-30T00:30:00-04:00", "esperado": true },
+    { "nome": "(captacao) 7 uteis de 25/10: 04/11 ainda nao, 05/11 sim", "prazo_dias": 7, "prazo": { "conta_desde": "2026-10-25T10:00:00-04:00" }, "agora": "2026-11-04T23:00:00-04:00", "esperado": false },
+    { "nome": "(captacao) 7 uteis de 25/10: 05/11 sim", "prazo_dias": 7, "prazo": { "conta_desde": "2026-10-25T10:00:00-04:00" }, "agora": "2026-11-05T00:30:00-04:00", "esperado": true },
+    { "nome": "parado (espera aberta), nunca", "prazo_dias": 5, "prazo": { "conta_desde": "2026-10-22T10:00:00-04:00", "pausas": [{ "desde": "2026-10-27T10:00:00-04:00", "ate": null }] }, "agora": "2026-11-20T10:00:00-04:00", "esperado": false }
+  ],
+  "iniciar": [
+    { "nome": "o prazo comeca no mais tarde entre a entrada e o material (sabado); 10 uteis com Finados", "prazo_dias": 10, "entrada_em": "2026-10-22T09:00:00-04:00", "numero_em": "2026-10-24T18:00:00-04:00", "conta_desde": "2026-10-24T18:00:00-04:00", "entregar_ate": "2026-11-09" },
+    { "nome": "ao contrario, o mesmo", "prazo_dias": 10, "entrada_em": "2026-10-24T18:00:00-04:00", "numero_em": "2026-10-22T09:00:00-04:00", "conta_desde": "2026-10-24T18:00:00-04:00", "entregar_ate": "2026-11-09" },
+    { "nome": "so a entrada: o prazo nao comeca", "prazo_dias": 10, "entrada_em": "2026-10-22T09:00:00-04:00", "numero_em": null, "conta_desde": null, "entregar_ate": null },
+    { "nome": "so o material: o prazo nao comeca", "prazo_dias": 10, "entrada_em": null, "numero_em": "2026-10-24T18:00:00-04:00", "conta_desde": null, "entregar_ate": null }
+  ]
+}

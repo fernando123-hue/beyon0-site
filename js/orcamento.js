@@ -549,8 +549,10 @@
   /* ---------- pagamento do sinal (js/orcamento-pagamento.js: Pix e cartão no próprio site) ---------- */
   var telaPagamento = window.BZPagamentoTela ? window.BZPagamentoTela.criar({ API: API, dinheiro: dinheiro, aoPagar: function () { recarregar().catch(function () {}); } }) : null;
   var recibo = window.BZRecibo ? window.BZRecibo.criar({ API: API, dinheiro: dinheiro }) : null;
+  var entrega = window.BZEntrega ? window.BZEntrega.criar({ API: API, dinheiro: dinheiro }) : null;   /* (PR 3b-2: Seu pedido e o material) */
+  window.BZMaterialRecarregar = recarregar;
   var viuAguardando = false;   /* a etapa "aguardando pagamento" foi vista nesta tela: a confirmação chega ao vivo e o recibo anima */
-  function dias(n) { return n + (Number(n) === 1 ? ' dia corrido' : ' dias corridos'); }   /* (corridos: decisão do dono, 2026-10-09; é o que o escopo diz) */
+  function dias(n) { return n + (Number(n) === 1 ? ' dia útil' : ' dias úteis'); }   /* (úteis: decisão do dono de 21/10; é o que o escopo diz) */
   /* (PR 3b-1) as contas da entrada (js/orcamento-pix.js). Sem o módulo (não carregou), o mesmo caminho fechado de uma
      proposta sem percentual: a tela não cobra, e o resto da página segue (como as guardas de telaPagamento e recibo) */
   var PIX = window.BZPix || null;
@@ -695,6 +697,7 @@
       /* (revisão do 3b-1) sem a entrada conhecida, o recibo não mostra valores (nada de "0%"): só o selo e o título */
       if (recibo) recibo.desenhar(pr && PIX ? PIX.dadosDoRecibo(pr, valorDoSinal(pr)) : null, chegou);
     }
+    if (entrega) entrega.atualizar(E);   /* (vale em toda etapa: ela mesma esconde o que não é da etapa) */
     visor.atualizar();
   }
   /* uma leitura por vez; resposta de uma leitura mais velha que a última desenhada é descartada */

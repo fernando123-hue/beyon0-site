@@ -31,6 +31,11 @@ const SUPABASE_FALSO = `
       (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub')
     )::uuid
   $$;
+  create schema storage;
+  create table storage.objects (
+    id uuid primary key default gen_random_uuid(), bucket_id text not null, name text not null,
+    metadata jsonb not null default '{}', created_at timestamptz not null default now(), unique (bucket_id, name)
+  );
   grant usage on schema auth to anon, authenticated, service_role;
   grant execute on function auth.uid() to anon, authenticated, service_role;
 `;

@@ -84,7 +84,7 @@ test('o estimado não chega ao modelo: ele recebe prazo e itens, nunca o valor',
   assert.equal(r.estimativa.valor_total, 4250);
   const visto = ia.recebidos[1].mensagens.at(-1).content[0].content;
   assert.ok(!visto.includes('4250') && !visto.includes('2125'), 'o modelo não viu o valor: ' + visto);
-  assert.ok(visto.includes('dias corridos'), 'o prazo chega escrito como o escopo diz: ' + visto);
+  assert.ok(visto.includes('dias úteis'), 'o prazo chega escrito como o escopo diz: ' + visto);
 });
 
 test('escopo e sinal: o que o consultor nunca diz sai por código, não só pelo prompt (revisões do PR 34: segurança M1 nas rodadas 1 e 2, técnica B na rodada 2)', async () => {
@@ -126,11 +126,11 @@ test('escopo e sinal: o que o consultor nunca diz sai por código, não só pelo
   for (const [motivo, ditos] of Object.entries(casos))
     for (const dito of ditos) assert.equal(await resposta(dito), RESPOSTAS_PAGAMENTO[motivo], motivo + ': ' + JSON.stringify(dito));
   /* respostas comuns passam inteiras */
-  for (const dito of ['O sinal pode ser no Pix ou no cartão, aqui na tela, e o restante é pago na entrega.', 'O prazo de 10 dias corridos conta do sinal pago e do material recebido.',
-    'O prazo conta 10 dias corridos a partir do sinal pago e do material recebido.', 'Depois de confirmar o escopo, o sinal é pago por Pix ou cartão.',
+  for (const dito of ['O sinal pode ser no Pix ou no cartão, aqui na tela, e o restante é pago na entrega.', 'O prazo de 10 dias úteis conta do sinal pago e do material recebido.',
+    'O prazo conta 10 dias úteis a partir do sinal pago e do material recebido.', 'Depois de confirmar o escopo, o sinal é pago por Pix ou cartão.',
     'A própria tela mostra quando o pagamento cai.', 'O pagamento só é confirmado pela tela, quando o Mercado Pago avisa.', 'O pagamento é processado pelo Mercado Pago.',
     'O domínio entra no escopo; confira no bloco Escopo final.', 'Uma agência faria diferente; aqui você vê três direções antes de pagar.',
-    'Se o cartão não for aprovado, tente o Pix.', 'O restante é pago na entrega.', 'A entrega acontece em até 10 dias corridos.',
+    'Se o cartão não for aprovado, tente o Pix.', 'O restante é pago na entrega.', 'A entrega acontece em até 10 dias úteis.',
     /* (revisão técnica do PR 34, rodada 3: frases que o próprio consultor vai usar no escopo e no sinal) */
     'O escopo já foi confirmado; agora falta só o sinal, por Pix ou cartão.', 'O escopo está confirmado. Para começar, é só pagar o sinal aqui na tela.',
     'Assim que recebemos o sinal e o material, a gente começa o trabalho.', 'Depois do sinal, o projeto entra em produção e o prazo começa a contar.',

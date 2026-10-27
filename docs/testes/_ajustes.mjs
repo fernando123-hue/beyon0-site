@@ -42,7 +42,7 @@ export function criarCenario(local) {
         headers: { 'x-forwarded-for': ip, ...(corpo !== undefined ? { 'content-type': 'application/json' } : {}), ...(token ? { authorization: 'Bearer ' + token } : {}) } }), {}, metodo, deps);
       return { status: r.status, corpo: await r.json() };
     };
-    return { chamar, async iniciar() { const r = await chamar('POST', 'sessao', {}); token = r.corpo.token; return r.corpo.conversa_id; } };
+    return { chamar, adotar(sessao) { token = sessao.token; }, async iniciar() { const r = await chamar('POST', 'sessao', {}); token = r.corpo.token; return r.corpo.conversa_id; } };
   }
   const comChave = (opcoes = {}) => ({ ...opcoes, headers: { authorization: 'Bearer ' + CHAVE, 'x-forwarded-for': '192.0.2.9', ...(opcoes.headers || {}) } });
   const painelGet = async q => { const r = await ler(new Request(BASE + '/api/painel' + q, comChave()), ENV); return { status: r.status, corpo: await r.json() }; };

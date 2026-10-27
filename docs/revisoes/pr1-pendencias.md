@@ -51,6 +51,25 @@ com credenciais reais**, salvo onde diz outra coisa.
 4b. Anthropic: limite de gasto MENSAL no console (o freio de última instância do custo; a reserva no banco é realista,
     não o pior caso — revisão de segurança do PR 15). Com as primeiras chamadas reais, trocar `RESERVA_USD`
     (`api/_ia/config.mjs`) pelo p95 de `app.ia_chamadas` por papel e decidir uma margem no teto do dia.
+4c. **PR 3b-2 (o cliente manda o material na página): nada disto liga sozinho; o envio nasce DESLIGADO (`BZ_ENTREGA`).** Mesclar não é ir ao ar: só vai ao ar
+    junto com o 3b-1 e o 3b-3, já na Cloudflare. Antes de ligar, em ordem:
+    - aplicar no banco real as quatro migrations do 3b-2, nesta ordem: `20261023120000_pr3b2_entrega.sql`, `20261023120100_pr3b2_material.sql`,
+      `20261023120200_pr3b2_link_pedido.sql`, `20261023120300_pr3b2_dono.sql`; **antes** da última, conferir os pedidos pagos sem entrega
+      (`select count(*) from app.conversas c where c.etapa = 'em_producao' and not exists (select 1 from app.entregas e where e.conversa_id = c.id);`):
+      a lista do painel cria a entrega de todos e eles apareceriam como "30 dias sem material";
+    - rodar `supabase/storage/material.sql` no SQL Editor (cria o balde privado `material`);
+    - rodar `node scripts/conferir-armazem.mjs` (chaves só naquela janela) e colar o resultado, inclusive as linhas 5b/5c e a 8 (logout global), e a conferência
+      à mão do teto do balde (`select privado.bytes_no_balde();` antes e depois de subir um arquivo);
+    - **privacidade do 3b-2:** o PR pequeno `pr3b2-privacidade` (só `privacidade.html`) tem de estar mesclado pelo dono antes de ligar `BZ_ENTREGA=ligada`; o clique dele é o "sim"
+      ao texto. Depois dele, o `href` da caixa de autorização passa a `#material` (o teste `privacidade-prazos.test.mjs` cobra);
+    - **CSP do `/orcamento` com o endereço exato do projeto Supabase** (`vercel.json`, a `<meta>` de `orcamento.html` e o `_headers` da Cloudflare, que leva as mesmas duas trocas
+      do Task 13): hoje vale o curinga `https://*.supabase.co/storage/v1/object/upload/sign/`; **obrigatório trocar antes de ligar**, não opcional;
+    - o interruptor `BZ_ENTREGA=ligada` (variável do Worker): só depois do PR da privacidade e do 3b-3;
+    - a captação: contar o prazo a partir do `enviado_em` do `formulario.json`, em dias úteis (só feriados nacionais mais Sexta-feira Santa, decisão do dono de 21/10), recusar `prazo.dias` fora de 5 a 10,
+      valores em reais inteiros e cliente de saúde (o site manda "produção manual"); e a rotina de importação dela, ou o passo manual `scripts/entregas.mjs` aceito;
+    - `PAINEL_CHAVE` no terminal do dono para o `scripts/entregas.mjs`; a tabela ativa com `sinal_percentual: 40` já vem do 3b-1.
+    - **verificação de tela do 3b-2 (Task 19) não foi feita no modo leve**: E2E da entrega, `verificar`, `acessibilidade` e abrir os PNG (390 e 320 px) com o PC livre.
+    - fora do 3b-2, texto público: `index.html` e `sites.html` ainda dizem "10 dias corridos" para a entrega; ficam para um PR de textos com `condicoes_versao` nova.
 5. Depois: `npm run verificar` com `BASE` de produção; site e `/orcamento` no celular sem digitar mensagem (nunca
    o `e2e:orcamento`).
 6. Rollback e migrations: na 1ª promoção, voltar atrás leva a `8103c99`, que não tem `api/` nem `supabase/`
