@@ -103,6 +103,7 @@ test('workflow: a action oficial do Wrangler, o token e a conta da Cloudflare, q
 });
 const WRANGLER_BOM = JSON.stringify({ name: 'beyon-zero-site', main: 'cloudflare/worker.mjs', workers_dev: false, preview_urls: false,
   env: { previa: { routes: [], workers_dev: true, preview_urls: true, vars: { A: '1' }, previews: { vars: { A: '1' } } } } }, null, 2);
+const DOMINIO_DE_PRODUCAO = { pattern: 'beyonzero.com.br', custom_domain: true };   /* o único routes do topo que o PR C permite */
 const comMudanca = fn => { const c = JSON.parse(WRANGLER_BOM); fn(c); return JSON.stringify(c, null, 2); };
 test('wrangler.jsonc: a estrutura que aponta o deploy da main para a produção é achado (trava 2 do plano); a boa passa', () => {
   assert.deepEqual(achados({ 'wrangler.jsonc': WRANGLER_BOM }), []);
@@ -121,11 +122,24 @@ test('wrangler.jsonc: a estrutura que aponta o deploy da main para a produção 
     'workers_dev ausente no topo': c => { delete c.workers_dev; },
     'preview_urls true no topo': c => { c.preview_urls = true; },
     'preview_urls ausente no topo': c => { delete c.preview_urls; },
-    'routes no topo (é do PR C)': c => { c.routes = ['beyonzero.com.br/*']; },
-    'route no topo': c => { c.route = 'beyonzero.com.br/*'; }
+    'routes no topo com curinga': c => { c.routes = ['beyonzero.com.br/*']; },
+    'routes no topo, outro domínio': c => { c.routes = [{ pattern: 'outro.com.br', custom_domain: true }]; },
+    'routes no topo, www': c => { c.routes = [{ pattern: 'www.beyonzero.com.br', custom_domain: true }]; },
+    'routes no topo, sem custom_domain': c => { c.routes = [{ pattern: 'beyonzero.com.br' }]; },
+    'routes no topo, custom_domain falso': c => { c.routes = [{ pattern: 'beyonzero.com.br', custom_domain: false }]; },
+    'routes no topo, com zone_name': c => { c.routes = [{ pattern: 'beyonzero.com.br', custom_domain: true, zone_name: 'outra.com' }]; },
+    'routes no topo, duas rotas': c => { c.routes = [DOMINIO_DE_PRODUCAO, { pattern: 'outro.com.br', custom_domain: true }]; },
+    'routes no topo, texto': c => { c.routes = 'beyonzero.com.br'; },
+    'routes no topo, vazio': c => { c.routes = []; },
+    'route no topo': c => { c.route = 'beyonzero.com.br/*'; },
+    'route no topo, o domínio certo': c => { c.route = { pattern: 'beyonzero.com.br', custom_domain: true }; }
   };
   for (const [nome, fn] of Object.entries(ruins)) assert.ok(pegou({ 'wrangler.jsonc': comMudanca(fn) }, 'wrangler.jsonc'), nome);
   assert.deepEqual(achados({ 'wrangler.jsonc': comMudanca(c => { c.env.previa.routes = []; }) }), [], 'routes vazio no env é o que fecha a herança');
+  assert.deepEqual(achados({ 'wrangler.jsonc': comMudanca(c => { c.routes = [DOMINIO_DE_PRODUCAO]; }) }), [], 'PR C: o domínio de produção, e só ele, no topo');
+  assert.ok(pegou({ 'wrangler.jsonc': comMudanca(c => { c.routes = [DOMINIO_DE_PRODUCAO]; c.env.previa.routes = [DOMINIO_DE_PRODUCAO]; }) }, 'wrangler.jsonc'), 'o domínio no topo não liberta o env.previa');
+  assert.ok(pegou({ 'wrangler.jsonc': comMudanca(c => { c.routes = [DOMINIO_DE_PRODUCAO]; delete c.env.previa.routes; }) }, 'wrangler.jsonc'), 'com o domínio no topo, env sem routes: [] herdaria o domínio');
+  assert.ok(pegou({ 'wrangler.jsonc': comMudanca(c => { c.routes = [DOMINIO_DE_PRODUCAO]; c.env.teste = { workers_dev: true }; }) }, 'wrangler.jsonc'), 'qualquer outro env também precisa de routes: []');
 });
 
 /* ---- recheque de 26/10: a trava normaliza o texto antes de casar (continuação de linha, &, aspas, .cmd, maiúsculas, git com opções) ---- */
