@@ -23,6 +23,7 @@
    chega a uma âncora só aparecendo.
    ========================================================================== */
 import { chromium } from 'playwright';
+import { autorizarContexto } from './acesso.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8080';
 const EXEC = process.env.CHROMIUM || undefined;
@@ -66,6 +67,7 @@ let falhou = false, primeiro = true;
 
 for (const [rota, nome, opcoes, { semNucleo = false, reduzirNoBoot = false, exige3d = false } = {}] of ALVOS) {
   const ctx = await navegador.newContext(opcoes);
+  await autorizarContexto(ctx, BASE);   /* staging atras do Access: o token so vai nos pedidos do proprio staging (docs/acesso.mjs) */
   const page = await ctx.newPage();
   const erros = [];
   page.on('pageerror', e => erros.push('pageerror: ' + e.message));
@@ -150,6 +152,7 @@ const estadoPassagem = page => page.evaluate(() => {
 const inteira = s => s.opacidade === '1' && s.escala === 'none' && s.classes === '—';
 async function cenario(nome, opcoes, roteiro) {
   const ctx = await navegador.newContext(opcoes);
+  await autorizarContexto(ctx, BASE);   /* staging atras do Access: o token so vai nos pedidos do proprio staging (docs/acesso.mjs) */
   const page = await ctx.newPage();
   const erros = [];
   page.on('pageerror', e => erros.push('pageerror: ' + e.message));

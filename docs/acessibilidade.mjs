@@ -8,6 +8,7 @@
    Uso: BASE=... CHROMIUM=... node docs/acessibilidade.mjs
    ========================================================================== */
 import { chromium } from 'playwright';
+import { autorizarContexto } from './acesso.mjs';
 const BASE = process.env.BASE || 'http://127.0.0.1:8080';
 const EXEC = process.env.CHROMIUM || undefined;
 const nav = await chromium.launch({ executablePath: EXEC, args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
@@ -18,6 +19,7 @@ const escondidos = page => page.evaluate(() => [...document.querySelectorAll('h1
 for (const rota of ['/index.html', '/sites.html', '/automacao.html']) {
   /* 1. sem JS */
   let ctx = await nav.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } });
+  await autorizarContexto(ctx, BASE);
   let page = await ctx.newPage();
   await page.goto(BASE + rota, { waitUntil: 'load', timeout: 90000 });
   ok((await escondidos(page)) === 0, rota + ' sem JS: nenhum conteúdo escondido');
@@ -26,6 +28,7 @@ for (const rota of ['/index.html', '/sites.html', '/automacao.html']) {
 
   /* 2. movimento reduzido */
   ctx = await nav.newContext({ reducedMotion: 'reduce', viewport: { width: 1440, height: 900 } });
+  await autorizarContexto(ctx, BASE);
   page = await ctx.newPage();
   await page.goto(BASE + rota, { waitUntil: 'load', timeout: 90000 });
   await page.waitForTimeout(800);
@@ -50,6 +53,7 @@ for (const rota of ['/index.html', '/sites.html', '/automacao.html']) {
 
   /* 3. teclado */
   ctx = await nav.newContext({ viewport: { width: 1440, height: 900 } });
+  await autorizarContexto(ctx, BASE);
   page = await ctx.newPage();
   await page.goto(BASE + rota, { waitUntil: 'load', timeout: 90000 });
   await page.waitForTimeout(2500);
@@ -70,6 +74,7 @@ for (const rota of ['/index.html', '/sites.html', '/automacao.html']) {
 
 /* 3b. menu do celular por teclado */
 const ctxCel = await nav.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+await autorizarContexto(ctxCel, BASE);
 const cel = await ctxCel.newPage();
 await cel.goto(BASE + '/index.html', { waitUntil: 'load' });
 await cel.waitForTimeout(2000);

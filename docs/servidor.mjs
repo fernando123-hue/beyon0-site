@@ -3,25 +3,19 @@ import http from 'node:http';
 import http2 from 'node:http2';
 import { readFile, stat } from 'node:fs/promises';
 import { join, extname, resolve, relative, isAbsolute } from 'node:path';
-import { pathToFileURL } from 'node:url';
 import { gzipSync } from 'node:zlib';
+import { lerHeaders, cabecalhosPara } from '../cloudflare/cabecalhos.mjs';
 
 const RAIZ = resolve(process.argv[2] || process.cwd());
 const PORTA = +(process.argv[3] || 8899);
 const COMPRIMIR = process.env.COMPRIMIR === '1';
 const COMPRIMIVEL = /^(text\/|application\/(json|xml)|image\/svg)/;
-/* paridade com o deploy: os headers do vercel.json (CSP como header, nosniff,
-   frame-ancestors…) valem também aqui, para o verificador medir o mesmo site */
-let HEADERS = [];
-try { HEADERS = JSON.parse(await readFile(join(RAIZ, 'vercel.json'), 'utf8')).headers || []; } catch { /* sem vercel.json */ }
-const cabecalhos = caminho => {
-  const h = {};
-  for (const regra of HEADERS) {
-    const re = new RegExp('^' + regra.source.replace(/\(\.\*\)/g, '(.*)') + '$');
-    if (re.test(caminho)) for (const { key, value } of regra.headers) h[key.toLowerCase()] = value;
-  }
-  return h;
-};
+/* paridade com o deploy: os cabeçalhos das páginas vêm do _headers (a fonte única, a mesma que a Cloudflare aplica),
+   lido pelo mesmo leitor dos testes (cloudflare/cabecalhos.mjs): CSP como header, nosniff, frame-ancestors… */
+let REGRAS_HEADERS = [];
+try { REGRAS_HEADERS = lerHeaders(await readFile(join(RAIZ, '_headers'), 'utf8')); } catch { /* sem _headers */ }
+/* o caminho que o _headers conhece: /orcamento.html e /index.html valem como /orcamento e / (html_handling da Cloudflare) */
+const cabecalhos = caminho => Object.fromEntries(cabecalhosPara(REGRAS_HEADERS, caminho.replace(/\/index\.html$/, '/').replace(/(.)\.html$/, '$1')));
 const TIPOS = {
   '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
@@ -50,18 +44,18 @@ try {
   await montarLocal({ base: 'http://127.0.0.1:' + PORTA });
 } catch (e) { console.warn('[servidor] agente de vendas local indisponível (rode npm install):', e.message); }
 const HOSTS = new Set(['127.0.0.1:' + PORTA, 'localhost:' + PORTA]);
-async function api(req, res, caminho) {
-  const nome = caminho.slice(5).replace(/\/$/, '');
-  if (!/^[a-z]+$/.test(nome)) { res.writeHead(404); return res.end(); }
-  const mod = await import(pathToFileURL(join(RAIZ, 'api', nome + '.mjs')).href);
-  const fn = mod[req.method];
-  if (!fn) { res.writeHead(405); return res.end(); }
+/* (B5) /api/* passa pela MESMA porta do Worker, cloudflare/rotas.mjs → rotear: nome só da tabela, método da tabela,
+   corpo limitado por rota, erro genérico e cabeçalhos da API. O ambiente aqui é o local (BZ_LOCAL=1, sem Cloudflare):
+   o IP é o do cabeçalho que o cliente mandar, como antes. O módulo entra por import() DEPOIS de o ambiente local
+   acima estar pronto (os handlers leem process.env na hora de atender). */
+async function api(req, res) {
+  const { rotear } = await import('../cloudflare/rotas.mjs');
   const partes = [];
   for await (const p of req) partes.push(p);
   const corpo = Buffer.concat(partes);
   const cabecas = Object.fromEntries(Object.entries(req.headers).filter(([k]) => !k.startsWith(':')));   /* (HTTP/2: sem os pseudo-cabeçalhos) */
   const pedido = new Request('http://' + hostDe(req) + req.url, { method: req.method, headers: cabecas, body: corpo.length ? corpo : undefined });
-  const resposta = await fn(pedido);
+  const resposta = await rotear(pedido, process.env);
   res.writeHead(resposta.status, Object.fromEntries(resposta.headers));
   res.end(Buffer.from(await resposta.arrayBuffer()));
 }
@@ -85,7 +79,7 @@ async function atender(req, res) {
   try {
     if (!HOSTS.has(hostDe(req))) { res.writeHead(421); return res.end(); }
     if (req.url.startsWith('/_armazem-local/')) return await armazemLocal(req, res);
-    if (req.url.startsWith('/api/')) return await api(req, res, new URL(req.url, 'http://x').pathname);
+    if (req.url.startsWith('/api/')) return await api(req, res);
     let caminho = decodeURIComponent(new URL(req.url, 'http://x').pathname);
     if (caminho.endsWith('/')) caminho += 'index.html';
     const arquivo = resolve(join(RAIZ, caminho));
