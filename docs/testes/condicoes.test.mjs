@@ -23,6 +23,15 @@ test('condições: nenhum marcador do texto aprovado sobrou na parte visível da
   assert.ok(!/\[[^\]]*(?:nome|número|endereço)[^\]]*\]/i.test(texto), 'campo [entre colchetes] sem preencher à vista');
 });
 
+/* PR C, C4: com o site na Cloudflare, a política de privacidade não pode citar a hospedagem antiga. Texto marcado para a
+   revisão jurídica que já é pendência do dono (cobre a privacidade inteira). */
+test('privacidade (C4): a hospedagem do site é a Cloudflare, em nenhum lugar a Vercel', () => {
+  assert.doesNotMatch(priv, /Vercel/i, 'a Vercel deixa de hospedar o site');
+  assert.match(priv, /A hospedagem \(Cloudflare\) registra dados técnicos de acesso, como endereço IP, para segurança e funcionamento\./);
+  assert.match(priv, /Cloudflare \(a hospedagem e a entrega deste site, que recebe o endereço IP e dados técnicos do navegador ao abrir cada página, como todo servidor de internet; /);
+  assert.equal((priv.match(/, Cloudflare \(/g) || []).length, 1, 'a Cloudflare entra uma vez só na lista de terceiros, com todos os papéis');
+});
+
 test('condições: vigência até 31/12/2026 ou o 10º cliente', () => {
   assert.match(texto, /Valem até 31\/12\/2026, ou até fechar o 10º cliente, o que vier primeiro\./);
 });
