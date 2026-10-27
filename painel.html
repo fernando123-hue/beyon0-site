@@ -59,7 +59,7 @@
       <!-- a FILA MANUAL das direções (js/painel-fila.js): aparece com a lista vinda de ?fila=direcoes -->
       <section class="pn__bloco" aria-labelledby="t-fila" id="bloco-fila" hidden>
         <h2 id="t-fila" tabindex="-1">Fila de trabalho (pedidos confirmados)</h2>
-        <p class="pn__ajuda">Só pedidos confirmados pelo WhatsApp, por prioridade: primeiro os prontos para avisar, depois os que faltam produzir (prazo: até 24 horas úteis). Produza no Claude Code; com as três prontas, toque em "Preparar aviso", depois em "Abrir no WhatsApp", avise o cliente e toque em "Já avisei". Já mandou o link? Não prepare de novo: o novo invalida o que o cliente recebeu. "Arquivar" tira da lista o que foi resolvido por fora; "Descartar" encerra o pedido e para o que faltava fazer.</p>
+        <p class="pn__ajuda">Só pedidos confirmados pelo WhatsApp, por prioridade: primeiro os prontos para avisar, depois os que faltam produzir (prazo: até 24 horas úteis). Produza no Claude Code; com as três prontas, toque em "Preparar aviso", depois em "Copiar a mensagem" e em "Abrir a conversa no WhatsApp", cole e envie, e toque em "Já avisei". Já mandou o link? Não prepare de novo: o novo invalida o que o cliente recebeu. "Arquivar" tira da lista o que foi resolvido por fora; "Descartar" encerra o pedido e para o que faltava fazer.</p>
         <p class="pn__alerta pn__alerta--urgente" id="fila-alarme" hidden>A fila chegou ao teto: o orçamento está oferecendo o WhatsApp no lugar dos detalhes até algum pedido sair da fila.</p>
         <button class="pn__btn pn__btn--fino" type="button" id="fila-atualizar">Atualizar a fila</button>
         <p class="pn__estado" id="fila-estado" role="status"></p>
@@ -73,6 +73,15 @@
         <button class="pn__btn pn__btn--fino" type="button" id="lembretes-atualizar">Atualizar os lembretes</button>
         <p class="pn__estado" id="lembretes-estado" role="status"></p>
         <div id="lembretes"></div>
+      </section>
+
+      <!-- os AVISOS (js/painel-entregas.js, PR 3b-3c): prévia pronta, site no ar, material parado, aviso antes de apagar o material e os 2 lembretes do restante; vêm de ?fila=avisos -->
+      <section class="pn__bloco" aria-labelledby="t-avisos" id="bloco-avisos" hidden>
+        <h2 id="t-avisos" tabindex="-1">Avisos para mandar (prévia, site no ar, material e restante)</h2>
+        <p class="pn__ajuda">Cada aviso tem a mensagem pronta e um link novo para o cliente. Toque em "Preparar", copie a mensagem, abra a conversa, cole e envie; depois toque em "Já avisei". Já mandou o link? Não prepare de novo: o novo invalida o que o cliente recebeu.</p>
+        <button class="pn__btn pn__btn--fino" type="button" id="avisos-atualizar">Atualizar os avisos</button>
+        <p class="pn__estado" id="avisos-estado" role="status"></p>
+        <div id="avisos"></div>
       </section>
 
       <!-- a SAÚDE do sistema (api/rotinas.mjs): alertas abertos e quando a rotina diária rodou -->
@@ -134,5 +143,6 @@
   <script src="js/painel-fila.js" defer></script>
   <script src="js/painel-pedidos.js" defer></script>
   <script src="js/painel-lembretes.js" defer></script>
+  <script src="js/painel-entregas.js" defer></script>
 </body>
 </html>
