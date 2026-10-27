@@ -15,7 +15,7 @@ import { ehUuid } from '../_valida-app.mjs';
 import { aplicar } from './alteracoes.mjs';
 import { MAX_SECOES } from './direcao.mjs';
 import { validarOpcao, rotuloDaOpcao, fraseDaRecusa, fraseDoErro } from './opcoes.mjs';
-import { limparMensagem, redigir } from './seguranca.mjs';
+import { limparMensagem, redigir, semInvisiveis } from './seguranca.mjs';
 
 /* = app.vendas_registrar_alteracao e app.vendas_pedido_livre */
 export const AJUSTE_ABERTO = ['escolhida', 'alteracoes'];
@@ -43,8 +43,6 @@ const soCom = (corpo, chaves) => !!corpo && typeof corpo === 'object' && !Array.
 /* caracteres de controle (inclusive DEL e os C1) e separadores de linha viram espaço: o pedido entra numa linha só */
 const CONTROLE_OU_ESPACO = /[\x00-\x20\x7f-\xa0\s]+/g;
 const umaLinha = s => s.replace(CONTROLE_OU_ESPACO, ' ').trim();
-/* (o substituto solto sai pelo \p{Cs} ANTES do toWellFormed, que o trocaria por U+FFFD, um caractere visível) */
-const semInvisiveis = s => s.replace(/[\p{Cf}\p{Co}\p{Cs}]/gu, '').toWellFormed();
 
 export function criarAcoesDosAjustes({ banco, visitante, estado, exigirNaoDescartado }) {
   function exigirEtapa(etapa) {

@@ -87,3 +87,20 @@ test('captação: o formulario.json que o site monta passa na lerFormulario', op
   assert.deepEqual(lido.arquivos, ['logo.png', 'foto-01.jpg', 'foto-02.webp']);
   assert.equal(lido.autorizacao.resposta, 'marcada');
 });
+
+test('captação: URL_PREVIA e os limites de dias que não mudaram são os dela (config/entrega.json)', opcoes, async () => {
+  const esq = await importar('clientes/esquema.mjs');
+  const { URL_PREVIA } = await import('../../api/_entrega/enderecos.mjs');
+  const { LIMITES } = await import('../../api/_entrega/alarmes.mjs');
+  assert.equal(URL_PREVIA.source, esq.URL_PREVIA.source);
+  const cfg = JSON.parse(fs.readFileSync(path.join(PASTA, 'config', 'entrega.json'), 'utf8'));
+  assert.deepEqual([LIMITES.material_dias, LIMITES.max_rodadas], [cfg.material_dias, cfg.max_rodadas]);
+});
+
+/* 22/10: o dono mudou o restante (3 dias do aviso "no ar", lembretes no 2º e no 3º dia). A captação já aplicou (config/entrega.json: restante_fora_do_ar_dias 3, lembretes_restante [2, 3]): o `todo` do plano foi tirado */
+test('captação: o restante em 3 dias e os lembretes do 2º e do 3º dia são os dela (config/entrega.json)', opcoes, async () => {
+  const { LIMITES } = await import('../../api/_entrega/alarmes.mjs');
+  const cfg = JSON.parse(fs.readFileSync(path.join(PASTA, 'config', 'entrega.json'), 'utf8'));
+  assert.equal(LIMITES.restante_dias, cfg.restante_fora_do_ar_dias);
+  assert.deepEqual(LIMITES.lembretes_restante, cfg.lembretes_restante);
+});

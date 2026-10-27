@@ -10,5 +10,5 @@ export async function limparMaterial({ banco, armazem, lote = 100 }) {
   const caminhos = (Array.isArray(pend && pend.caminhos) ? pend.caminhos : []).filter(c => typeof c === 'string' && CAMINHO.test(c));
   if (caminhos.length) await armazem.remover(caminhos);
   const r = await banco('rotinas_material_baixar', { caminhos });
-  return { removidos: caminhos.length, limpos: r.limpos, balde_pct: pend.balde_pct, alarme: pend.alarme === true, resto: caminhos.length >= lote };
+  return { removidos: caminhos.length, limpos: r.limpos, parados: r.parados || 0, balde_pct: pend.balde_pct, alarme: pend.alarme === true, resto: caminhos.length >= lote };
 }

@@ -9,7 +9,6 @@ import os from 'node:os';
 import path from 'node:path';
 import { listar, baixar, marcarImportado, proximoComando, alertasDe } from '../../scripts/entregas-lib.mjs';
 import { estruturaCompleta } from '../../scripts/imagem-estrutura.mjs';
-import { diaNoFuso } from '../../api/_material/prazo.mjs';
 
 const CHAVE = 'k'.repeat(40);
 const BASE = 'http://127.0.0.1:8899';
@@ -102,12 +101,15 @@ test('listar: o próximo comando pronto e os alertas (30 dias sem material, praz
   const item = (o) => ({ codigo: 'BZ-K7M3Q', passo: 'material', material_status: 'rascunho', dias_desde_entrada: 3, arquivos: 0, entrega_ate: null, tem_whatsapp: false, ...o });
   assert.equal(proximoComando(item({}), '/repo'), null, 'esperando o cliente enviar');
   assert.match(proximoComando(item({ passo: 'producao', material_status: 'enviado' }), '/repo'), /entregas\.mjs" baixar BZ-K7M3Q --destino/);
-  assert.equal(proximoComando(item({ passo: 'producao', material_status: 'importado', cliente_captacao: 'c-k7m3qa' }), '/repo'), null, 'já importado: a prévia é do 3b-3');
-  assert.deepEqual(alertasDe(item({ dias_desde_entrada: 31 })), ['30 dias sem o material: decidir com a captação o que fazer (D4)']);
+  assert.match(proximoComando(item({ passo: 'producao', material_status: 'importado', cliente_captacao: 'c-k7m3qa' }), '/repo'), /previa BZ-K7M3Q <endereço da prévia>/, 'já importado: o próximo é a prévia (3b-3)');
+  assert.equal(proximoComando(item({ passo: 'producao', material_status: 'importado' }), '/repo'), null, 'importado mas sem o id da captação: nada a sugerir');
+  const trinta = alertasDe(item({ dias_desde_entrada: 31 }));
+  assert.equal(trinta.length, 1); assert.match(trinta[0], /^30 dias sem o material e sem autorização: nada é publicado/);
   assert.deepEqual(alertasDe(item({ dias_desde_entrada: 29 })), []);
-  assert.ok(alertasDe(item({ passo: 'producao', material_status: 'enviado', entrega_ate: '2000-01-01' }))[0].startsWith('prazo vencido'));
-  assert.ok(alertasDe(item({ passo: 'producao', material_status: 'importado', entrega_ate: '2000-01-01' }))[0].startsWith('prazo vencido'), 'M9: depois do importado o alerta continua');
-  assert.deepEqual(alertasDe(item({ passo: 'producao', material_status: 'enviado', entrega_ate: diaNoFuso(new Date()) })), [], 'no próprio dia combinado ainda não venceu (dia de Campo Grande)');
+  const antigo = { prazo_dias: 5, entrega_ate: '2000-01-08', prazo: { conta_desde: '2000-01-01T12:00:00-04:00', pausas: [] } };
+  assert.ok(alertasDe(item({ passo: 'producao', material_status: 'enviado', ...antigo }))[0].startsWith('prazo vencido'));
+  assert.ok(alertasDe(item({ passo: 'producao', material_status: 'importado', ...antigo }))[0].startsWith('prazo vencido'), 'M9: depois do importado o alerta continua');
+  assert.deepEqual(alertasDe(item({ passo: 'producao', material_status: 'enviado', entrega_ate: '2000-01-08' })), [], 'sem o prazo e os dias do prazo, nenhum vencimento é inventado');
   const buscar = async () => Response.json({ entregas: [item({ passo: 'producao', material_status: 'enviado', arquivos: 3 })], total: 1 });
   const linhas = await listar({ base: BASE, chave: CHAVE, buscar, raiz: '/repo' });
   assert.ok(linhas.join('\n').includes('BZ-K7M3Q') && linhas.join('\n').includes('baixar BZ-K7M3Q'));

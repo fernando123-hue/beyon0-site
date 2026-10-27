@@ -23,6 +23,16 @@
      GET  ?fila=entregas                  as ENTREGAS (PR 3b-2): passo, material, prazo, dias desde a entrada, alertas
      GET  ?material=<BZ-código>           o pacote versão 1 (pedido.json, formulario.json) e os links de leitura de 60 s; NÃO marca nada
      POST {importado: <BZ-código>, cliente: <c-xxxxxx>}  a importação da captação passou: marca importado (começa a guarda de 7 dias)
+   A ENTREGA PELO DONO (PR 3b-3; api/_entrega/painel-entrega.mjs). Só aqui, só com a chave: nada disso é alcançável pelo cliente nem pela rotina:
+     POST {previa: <BZ-código>, url}          publica a prévia (https://vN.bz-<cliente>.pages.dev, do projeto desta entrega); abre a pausa do prazo
+     POST {no_ar: <BZ-código>, url}           põe o site no ar, SÓ depois de o cliente aprovar (D5); com o prazo vencido, 409 com o caminho da devolução
+     POST {suspender: <BZ-código>}            suspende o site (3 dias depois do aviso "no ar"; 22/10)
+     POST {encerrar: <BZ-código>, motivo}     motivo de lista fechada: desistencia, atraso, producao_manual, outro (nunca silêncio nem falta de material)
+     POST {material_dispensar: <BZ-código>}   dia 30, só com o número AUTORIZADO: segue sem o resto do material
+     POST {aviso_feito: <BZ-código>, momento} previa | no_ar | material_parado | material_apagar | restante_lembrete_1 | restante_lembrete_2
+     POST {religado: <BZ-código>}             o site foi religado depois do pagamento do restante
+     GET  ?fila=avisos                        os avisos da D1 pendentes, com o contato para o painel montar a mensagem
+     GET  ?ajustes-previa=<BZ-código>         a lista de ajustes da prévia como DADO (selo de texto suspeito; o contato do site à parte)
    As duas listas trazem "alarme": a fila no teto (o orçamento oferece o WhatsApp) ou pendentes demais.
    A resposta do GET traz também "saude": alertas abertos e a data da última rotina diária.
    ========================================================================== */
@@ -41,6 +51,7 @@ import { PEDIDOS } from './_vendas/pedido.mjs';
 import { novoCodigoRetomada, hashDaRetomada, DIAS_RETOMADA } from './_vendas/retomada.mjs';
 import { montarPedido, montarFormulario, nomesDosArquivos } from './_material/pacote.mjs';
 import { criarArmazem } from './_material/armazem.mjs';
+import { criarAcoesDoDono } from './_entrega/painel-entrega.mjs';
 
 const CHAVE_MINIMA = 32;
 export const CORPO_MAX = 200000;          /* caracteres do POST do painel */
@@ -95,6 +106,8 @@ export async function ler(request, env) {
   if (q.get('fila') === 'ajustes') return filaAjustes(env);
   if (q.get('fila') === 'entregas') return filaEntregas(env);
   if (q.get('material') !== null) return materialParaBaixar(env, q.get('material'));
+  if (q.get('fila') === 'avisos') return criarAcoesDoDono(env).avisos();
+  if (q.get('ajustes-previa') !== null) { const cod = codigoDaBusca(q.get('ajustes-previa')); return cod ? criarAcoesDoDono(env).ajustes(cod) : json({ erro: 'Código inválido: são 5 letras ou números depois de "BZ-".' }, 400); }
   try {
     if (q.get('csv') === 'ads') {
       const nome = (q.get('nome') || 'Cliente fechado').slice(0, 80);
@@ -130,6 +143,9 @@ export async function mudar(request, env) {
   if (bruto && typeof bruto.ajuste_feito === 'string') return ajusteFeito(bruto, env);
   if (bruto && typeof bruto.ajuste_recusado === 'string') return ajusteRecusado(bruto.ajuste_recusado, env);
   if (bruto && typeof bruto.importado === 'string') return materialImportado(bruto, env);
+  /* (PR 3b-3) a entrega: prévia, no ar, suspender, encerrar, dispensar o material, avisos da D1, religado */
+  const chave = bruto && typeof bruto === 'object' ? Object.keys(ACOES_ENTREGA).find(k => typeof bruto[k] === 'string') : null;
+  if (chave) { const cod = codigoDaBusca(bruto[chave]); return cod ? criarAcoesDoDono(env)[ACOES_ENTREGA[chave]](cod, bruto) : json({ erro: 'Código inválido: são 5 letras ou números depois de "BZ-".' }, 400); }
   const acaoPedido = bruto && typeof bruto === 'object' ? Object.keys(ACOES_PEDIDO).find(k => typeof bruto[k] === 'string') : null;
   if (acaoPedido) return acaoDoPedido(ACOES_PEDIDO[acaoPedido], bruto[acaoPedido], env);
   /* marcar um alerta como resolvido */
@@ -296,14 +312,15 @@ async function ajusteRecusado(id, env) {
 }
 
 /* ---------- o PEDIDO DE MODELOS (orçamento sem IA, PR 2a): confirmação pelo WhatsApp, descartar e arquivar ---------- */
+const ACOES_ENTREGA = { previa: 'previaPublicar', no_ar: 'noAr', suspender: 'suspender', encerrar: 'encerrar', material_dispensar: 'dispensar', aviso_feito: 'avisoFeito', religado: 'religado' };
 const ACOES_PEDIDO = { confirmar_whatsapp: 'confirmar', descartar_pedido: 'descartar', arquivar_pedido: 'arquivar' };
 /* o que `ler` (GET: ?fila=…, ?csv=ads ou o resumo) e `mudar` (POST: a chave do corpo) despacham: a bancada de CPU (M1) e o
    limite por rota do Worker conferem esta lista contra o código. `excluir` e `mudar_contato` são os dois POST sem chave
    própria no despacho de `mudar` (apagar contato; status/valor/nota por `codigo`) */
 export const ACOES_PAINEL = Object.freeze({
-  GET: ['resumo', 'csv-ads', 'fila-direcoes', 'fila-pendentes', 'fila-lembretes', 'fila-ajustes', 'fila-entregas', 'material'],
+  GET: ['resumo', 'csv-ads', 'fila-direcoes', 'fila-pendentes', 'fila-lembretes', 'fila-ajustes', 'fila-entregas', 'material', 'fila-avisos', 'ajustes-previa'],
   POST: ['entregar_direcao', 'avisado', 'link_retomada', 'lembrado', 'ajuste_feito', 'ajuste_recusado', 'resolver_alerta', 'excluir', 'mudar_contato', 'importado',
-    ...Object.keys(ACOES_PEDIDO)]
+    ...Object.keys(ACOES_ENTREGA), ...Object.keys(ACOES_PEDIDO)]
 });
 const CODIGO_PEDIDO = /^BZ-[ACDEFGHJKMNPQRTUVWXY34679]{5}$/;
 /* o código como o dono digitar ("bz-k7m3q", "K7M3Q", "BZK7M3Q"): normaliza ou null */

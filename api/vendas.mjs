@@ -5,7 +5,8 @@
      POST sessao, retomar, renovar, mensagem, gerar, gerar-direcao, escolher,
           ajustar, desfazer, pedido-livre, escopo, confirmar, pagar, simular, confirmar-pacote, detalhes,
           material-salvar, material-reservar, material-conferir, material-remover, material-enviar (PR 3b-2: o material da entrega;
-          só com BZ_ENTREGA=ligada), link-pedido, sair-do-aparelho, outro-aparelho, abrir-pedido (PR 3b-2: o link do pedido)
+          só com BZ_ENTREGA=ligada), link-pedido, sair-do-aparelho, outro-aparelho, abrir-pedido (PR 3b-2: o link do pedido),
+          previa-ajustes, previa-aprovar (PR 3b-3: a lista de ajustes e a aprovação da prévia; só com BZ_ENTREGA=ligada)
    (PR 2a: o contato vem pelos detalhes; a ação "contato" saiu, porque passava por cima dos freios do pedido)
    (PR 3a: o ajuste pela IA, "alterar", saiu; os ajustes são opções prontas e o pedido livre vai para a fila do dono)
    Fronteira: freio por IP, JSON obrigatório (um formulário de outro site não
@@ -33,7 +34,8 @@ export const ACOES = {
     simular: 'simular', 'confirmar-pacote': 'confirmarPacote', detalhes: 'detalhes',
     'material-salvar': 'materialSalvar', 'material-reservar': 'materialReservar', 'material-conferir': 'materialConferir',
     'material-remover': 'materialRemover', 'material-enviar': 'materialEnviar',
-    'link-pedido': 'linkPedido', 'sair-do-aparelho': 'sairDoAparelho', 'outro-aparelho': 'outroAparelho', 'abrir-pedido': 'abrirPedido' }
+    'link-pedido': 'linkPedido', 'sair-do-aparelho': 'sairDoAparelho', 'outro-aparelho': 'outroAparelho', 'abrir-pedido': 'abrirPedido',
+    'previa-ajustes': 'previaAjustes', 'previa-aprovar': 'previaAprovar' }
 };
 const PRECISA_IA = new Set(['mensagem', 'gerarDirecao']);
 export const LIMITE_BYTES = 16384;
