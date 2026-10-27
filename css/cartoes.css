@@ -33,8 +33,8 @@
    do número (a versão anterior está em f6cf7da; as três direções em d7039a9). Em repouso a LUZ POUSA na linha de
    cima, logo depois do número: um traço nítido pintado no fundo do próprio cartão, por baixo do fio da borda (sem
    pseudo-elemento: o motion.css anima os ::before na entrada). No cartão aceso (o da frente na pilha do celular, o do
-   meio da tela no tablet) ela DÁ A VOLTA (js/linha-viva.js, abaixo); no desktop com mouse quem dá a volta é a carga
-   (".carga-circula"). Sem JS, ou com movimento reduzido, a luz fica pousada. Sem desfoque. */
+   meio da tela no tablet) ela DÁ A VOLTA (js/linha-viva.js, abaixo); no desktop com mouse também (o do meio da tela, 2026-10-23); se o mouse carrega outro cartão, quem dá a volta é a carga
+   (".carga-circula") e esta cede. Sem JS, ou com movimento reduzido, a luz fica pousada. Sem desfoque. */
 .painel:not(:where(.console, .instrumento)), .celula, .laudo__row, .qa, .spec__item,
 .hero__rail > a, .hero__rail > div:not(.hero__rail-aresta) {
   --luz-x: 16px;   /* onde a luz pousa (nos cartões com número, depois dele) */
@@ -149,6 +149,8 @@
 .servico__para { font-size: var(--fs-s); line-height: 1.5; color: var(--t3); }
 .servico__formatos { display: none; }
 @media (min-width: 721px) { .servicos { grid-template-columns: repeat(3, minmax(0, 1fr)); } .servico { min-height: 300px; } }
+/* a peça sozinha numa página (2026-10-23): um cartão só, na largura que ela foi desenhada */
+@media (min-width: 721px) { .servicos--solo { grid-template-columns: minmax(0, 640px); } }
 @media (min-width: 721px) and (max-width: 980px) { .servicos--quatro { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 /* O CARTÃO COM PEÇA (2026-10-14, docs/restructure/PECAS-SERVICOS.md): a peça interativa (css/peca-*.css) mora no
    cartão, então o cartão deixa de ser um <a> inteiro (link dentro de controle não vale) e vira <article> com o
@@ -202,6 +204,13 @@
   .servicos--quatro > *, .servicos--quatro > :first-child { grid-column: span 3; }
   .servicos--pilha > :first-child h3 { margin-top: 0; font-size: var(--h3-cartao); }
   .servicos--pilha > :first-child .servico__link, .servicos--pilha .servico__link { margin-top: auto; }
+  /* Hub: com as peças nas páginas dos serviços (2026-10-23) os três cartões são iguais, lado a lado */
+  .servicos--tres { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: auto; }
+  .servicos--tres > *, .servicos--tres > :first-child { grid-column: auto; grid-row: auto; }
+  .servicos--solo { grid-template-columns: minmax(0, 640px); grid-template-rows: auto; }
+  .servicos--solo > *, .servicos--solo > :first-child { grid-column: auto; grid-row: auto; }
+  .servicos--tres > :first-child h3 { margin-top: 0; font-size: var(--h3-cartao); }
+  .servicos--tres > :first-child .servico__link, .servicos--tres .servico__link { margin-top: auto; }
 }
 
 /* ---------- 3. LAUDO (garantias, dores): um módulo por linha ---------- */
@@ -263,7 +272,8 @@
 
 /* ---------- 6. PERGUNTAS: cada pergunta é um módulo ---------- */
 .faq-list { display: grid; grid-template-columns: 1fr; gap: var(--vao-lista); max-width: 720px; border: 0; }
-.qa { overflow: hidden; }
+/* (sem overflow: a volta da luz corre sobre a borda, 1 px para fora do preenchimento; a altura que anima é recortada pelo ::details-content) */
+.qa { overflow: visible; }
 .qa summary {
   list-style: none; cursor: pointer;
   display: flex; align-items: center; justify-content: space-between; gap: 1.25rem;
@@ -421,12 +431,12 @@ html.menos-movimento .estacao-cruza { display: none !important; }
    andando juntas por transform (compositor); o JS só mede o cartão quando o tamanho muda. Recortada pela curva do
    canto. Só existe no cartão que gira (.lv-ativa: um por vez, o que acendeu por último): a cada acendimento ela
    recomeça da ponta da luz pousada, que some no mesmo quadro (sem esmaecer: senão o cartão ficava sem luz e a cabeça
-   já tinha andado — revisão), e fora dele não há faixa nem animação. No desktop com mouse quem dá a volta é a carga. ---- */
+   já tinha andado — revisão), e fora dele não há faixa nem animação. No desktop com mouse cede à carga. ---- */
 .linha-viva { display: none; }
-/* (fora do desktop com mouse: lá a volta é da carga, a luz que circula no cartão cheio. Navegador sem "not (...)" na
-   media query ignora o bloco e fica só com a luz pousada) */
-@media (prefers-reduced-motion: no-preference) and (not ((min-width: 721px) and (hover: hover) and (pointer: fine))) {
-  html.js:not(.menos-movimento) .tem-linha.lv-ativa > .linha-viva { display: block; position: absolute; inset: -1px; z-index: 1; overflow: hidden; border-radius: calc(var(--mod-raio) + 1px); pointer-events: none; }
+/* (em todo aparelho: no desktop com mouse o cartão aceso é o do meio da tela, 2026-10-23; a carga do mouse tem
+   prioridade, a luz do aceso cede: js/linha-viva.js) */
+@media (prefers-reduced-motion: no-preference) {
+  html.js:not(.menos-movimento) :is(.tem-linha.lv-ativa > .linha-viva, .tem-linha.lv-ativa > summary > .linha-viva) { display: block; position: absolute; inset: -1px; z-index: 1; overflow: hidden; border-radius: calc(var(--mod-raio) + 1px); pointer-events: none; }
   html.js:not(.menos-movimento) .tem-linha.lv-ativa { background-image: none; }   /* (a luz pousada é a que decolou) */
   .linha-viva > b { position: absolute; overflow: hidden; }
   .linha-viva > b:nth-child(odd) { left: 0; right: 0; height: 1px; }
@@ -438,8 +448,8 @@ html.menos-movimento .estacao-cruza { display: none !important; }
   .linha-viva > b > i { position: absolute; display: block; animation-timing-function: linear; animation-iteration-count: infinite; }
   .linha-viva > b:nth-child(odd) > i { top: 0; height: 100%; right: 100%; background: linear-gradient(90deg, transparent calc(100% - 128px), rgb(var(--tinta-rgb, var(--ac-rgb))) calc(100% - 40px), var(--ac-2) calc(100% - 12px), var(--t1)); }
   .linha-viva > b:nth-child(even) > i { left: 0; width: 100%; bottom: 100%; background: linear-gradient(180deg, transparent calc(100% - 128px), rgb(var(--tinta-rgb, var(--ac-rgb))) calc(100% - 40px), var(--ac-2) calc(100% - 12px), var(--t1)); }
-  .tem-linha.lv-ativa > .linha-viva > b:nth-child(odd) > i { animation-name: circula-x; }
-  .tem-linha.lv-ativa > .linha-viva > b:nth-child(even) > i { animation-name: circula-y; }
+  :is(.tem-linha.lv-ativa > .linha-viva, .tem-linha.lv-ativa > summary > .linha-viva) > b:nth-child(odd) > i { animation-name: circula-x; }
+  :is(.tem-linha.lv-ativa > .linha-viva, .tem-linha.lv-ativa > summary > .linha-viva) > b:nth-child(even) > i { animation-name: circula-y; }
 }
 /* (a luz pousada sai quando a da carga dá a volta: uma luz só por vez) */
 .tem-carga:is(.is-carregado, .is-ignicao, .is-sobrecarga) { background-image: none; }

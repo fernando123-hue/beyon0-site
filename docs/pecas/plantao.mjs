@@ -8,7 +8,7 @@ for (const W of (process.argv[2] || '390,1440').split(',').map(Number)) {
   const a = await b.newPage({ viewport: { width: W, height: W < 600 ? 844 : 900 }, deviceScaleFactor: W < 600 ? 2 : 1 });
   await a.addInitScript(() => { try { sessionStorage.setItem('bz-ouro', '1'); } catch (e) {} });
   const erros = []; a.on('pageerror', (e) => erros.push(e.message)); a.on('console', (m) => m.type() === 'error' && erros.push(m.text()));
-  await a.goto('http://127.0.0.1:8897/', { waitUntil: 'domcontentloaded', timeout: 90000 });
+  await a.goto('http://127.0.0.1:8897/automacao', { waitUntil: 'domcontentloaded', timeout: 90000 });
   await a.waitForTimeout(3000);
   const recorte = async () => a.evaluate(() => { const r = document.querySelector('.plantao').getBoundingClientRect(); return { x: Math.max(0, r.left - 16), y: Math.max(0, r.top - 16), width: Math.min(innerWidth - Math.max(0, r.left - 16), r.width + 32), height: Math.min(innerHeight, r.height + 32) }; });
   const foco = () => a.evaluate(() => { const t = document.querySelector('.plantao'); scrollTo({ top: t.getBoundingClientRect().top + scrollY - (innerWidth < 600 ? 80 : 100), behavior: 'instant' }); });
@@ -25,7 +25,7 @@ for (const W of (process.argv[2] || '390,1440').split(',').map(Number)) {
   await a.waitForTimeout(1400);
   await a.screenshot({ path: `${OUT}p-${W}-madrugada.png`, clip: await recorte() });
   // o nome vem da Planta
-  await a.evaluate(() => { document.querySelector('[data-nicho=saude]').click(); const c = document.querySelector('[data-planta-campo]'); c.value = 'Clínica Sorriso'; c.dispatchEvent(new Event('input')); });
+  await a.evaluate(() => document.dispatchEvent(new CustomEvent('bz:negocio', { detail: { nome: 'Clínica Sorriso', nicho: 'saude' } })));
   await foco();
   await a.waitForTimeout(300);
   await a.evaluate(() => document.querySelector('[data-pergunta="2"]').click());

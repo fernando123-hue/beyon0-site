@@ -9,7 +9,7 @@ for (const w of [320, 360, 390, 768, 1440]) {
   const a = await b.newPage({ viewport: { width: w, height: w < 600 ? 844 : 900 }, deviceScaleFactor: w < 600 ? 2 : 1 });
   await a.addInitScript(() => { try { sessionStorage.setItem('bz-ouro', '1'); } catch (e) {} });
   const erros = []; a.on('pageerror', (e) => erros.push(e.message)); a.on('console', (m) => m.type() === 'error' && erros.push(m.text()));
-  await a.goto('http://127.0.0.1:8897/', { waitUntil: 'domcontentloaded', timeout: 90000 });
+  await a.goto('http://127.0.0.1:8897/sites', { waitUntil: 'domcontentloaded', timeout: 90000 });
   await a.waitForTimeout(2500);
   const larguras = [];
   const medir = async (rot) => larguras.push(rot + ':' + await a.evaluate(() => document.documentElement.scrollWidth));
@@ -30,6 +30,8 @@ for (const w of [320, 360, 390, 768, 1440]) {
     await a.waitForTimeout(300);
     await a.screenshot({ path: `${OUT}${ROT}-${w}-planta-nome.png` });
   }
+  await a.goto('http://127.0.0.1:8897/automacao', { waitUntil: 'domcontentloaded', timeout: 90000 });
+  await a.waitForTimeout(2500);
   // o Despacho: entra (roda o boleto), depois cada pedido
   await a.evaluate(() => { const p = document.querySelector('.despacho__placa'); scrollTo({ top: p.getBoundingClientRect().top + scrollY - 200, behavior: 'instant' }); });
   await a.waitForTimeout(4500);

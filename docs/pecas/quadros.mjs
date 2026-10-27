@@ -9,7 +9,7 @@ const b = await chromium.launch({ executablePath: `${process.env.LOCALAPPDATA}/m
 const a = await b.newPage({ viewport: { width: W, height: W < 600 ? 844 : 900 }, deviceScaleFactor: W < 600 ? 2 : 1 });
 await a.addInitScript(() => { try { sessionStorage.setItem('bz-ouro', '1'); } catch (e) {} });
 const erros = []; a.on('pageerror', (e) => erros.push(e.message)); a.on('console', (m) => m.type() === 'error' && erros.push(m.text()));
-await a.goto('http://127.0.0.1:8897/', { waitUntil: 'domcontentloaded', timeout: 90000 });
+await a.goto('http://127.0.0.1:8897/sites', { waitUntil: 'domcontentloaded', timeout: 90000 });
 await a.waitForTimeout(3000);
 const recorte = async (sel, pad = 24) => a.evaluate(([s, p]) => { const r = document.querySelector(s).getBoundingClientRect(); return { x: Math.max(0, r.left - p), y: Math.max(0, r.top - p), width: Math.min(innerWidth, r.width + 2 * p), height: Math.min(innerHeight, r.height + 2 * p) }; }, [sel, pad]);
 async function serie(cena, sel, tempos, acao) {
@@ -37,10 +37,13 @@ await serie('reimprime', '.planta__palco', [250, 500, 800]);
 await a.evaluate(() => { document.querySelector('[data-nicho=saude]').click(); const c = document.querySelector('[data-planta-campo]'); c.value = 'Clínica Sorriso'; c.dispatchEvent(new Event('input')); });
 await a.evaluate(() => { const p = document.querySelector('.planta__palco'); scrollTo({ top: p.getBoundingClientRect().top + scrollY - (innerWidth < 600 ? 120 : 200), behavior: 'instant' }); });
 await serie('nome', '.planta__palco', [520, 650, 800, 1100]);
+const planta = await a.evaluate(() => ({ cls: document.querySelector('[data-planta]').className, prova: document.querySelector('[data-planta-prova]').textContent }));
+await a.goto('http://127.0.0.1:8897/automacao', { waitUntil: 'domcontentloaded', timeout: 90000 });
+await a.waitForTimeout(3000);
 // 4. o Despacho: o boleto da entrada (leque e retorno) e depois "falar com uma pessoa"
 await a.evaluate(() => { const p = document.querySelector('.despacho__placa'); scrollTo({ top: p.getBoundingClientRect().top + scrollY - (innerWidth < 600 ? 160 : 240), behavior: 'instant' }); });
 await serie('despacho', '.despacho', [250, 600, 1000, 1350, 1700, 2100, 2700]);
 await serie('pessoa', '.despacho', [300, 900, 1500, 2700], () => a.evaluate(() => document.querySelector('[data-pedido=relatorio]').click()));
-const m = await a.evaluate(() => ({ scroll: document.documentElement.scrollWidth, planta: document.querySelector('[data-planta]').className, prova: document.querySelector('[data-planta-prova]').textContent, fim: document.querySelector('[data-despacho-fim]').textContent }));
+const m = await a.evaluate(() => ({ scroll: document.documentElement.scrollWidth, planta: planta.cls, prova: planta.prova, fim: document.querySelector('[data-despacho-fim]').textContent }));
 console.log(W, JSON.stringify(m), erros.length ? 'ERROS: ' + erros.join(' | ') : 'sem erros');
 await b.close();

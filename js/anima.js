@@ -640,7 +640,11 @@
       try {
         mm = gsap.matchMedia();
         mm.add('(min-width: 981px) and (prefers-reduced-motion: no-preference)', function () { return palco(); });
-        mm.add('(prefers-reduced-motion: no-preference)', function () {
+        /* a rota (o ponto que anda pela rolagem) fica no celular e na tela estreita, onde os passos empilham (até 820 px,
+           o mesmo corte do CSS dos passos). No desktop (dono, 2026-10-23) a linha corre UMA vez, da esquerda para a
+           direita, e acende os quatro círculos em sequência: é o trilho de CSS (motion.css, .passos.is-in), que não
+           depende de rolar; depois fica tudo aceso e parado */
+        mm.add('(max-width: 820px) and (prefers-reduced-motion: no-preference)', function () {
           var desfazer = [].map.call(document.querySelectorAll('.passos'), rota).filter(Boolean);
           return function () { desfazer.forEach(function (f) { f(); }); };
         });

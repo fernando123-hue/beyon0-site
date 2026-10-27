@@ -5,16 +5,19 @@ const { chromium } = require('playwright');
 const b = await chromium.launch({ executablePath: `${process.env.LOCALAPPDATA}/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-win64/chrome-headless-shell.exe`, args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'] });
 const a = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
 await a.addInitScript(() => { try { sessionStorage.setItem('bz-ouro', '1'); } catch (e) {} });
-await a.goto('http://127.0.0.1:8897/', { waitUntil: 'domcontentloaded', timeout: 120000 });
+await a.goto('http://127.0.0.1:8897/sites', { waitUntil: 'domcontentloaded', timeout: 120000 });
 await a.waitForTimeout(5000);
+let atual = '/sites';
+const IR = async (pag) => { if (pag === atual) return; atual = pag; await a.goto('http://127.0.0.1:8897' + pag, { waitUntil: 'domcontentloaded', timeout: 120000 }); await a.waitForTimeout(5000); };
 const cdp = await a.context().newCDPSession(a);
 await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
 await cdp.send('Profiler.enable'); await cdp.send('Profiler.setSamplingInterval', { interval: 500 });
-for (const [nome, sel, acao] of [
-  ['planta', '.planta__palco', () => a.evaluate(() => { document.querySelector('[data-nicho=clinica]').click(); const c = document.querySelector('[data-planta-campo]'); c.value = 'Clínica Sorriso'; c.dispatchEvent(new Event('input')); })],
-  ['despacho', '.despacho__placa', () => a.evaluate(() => document.querySelector('[data-pedido=relatorio]').click())],
-  ['plantao', '.plantao__tela', () => a.evaluate(() => document.querySelector('[data-pergunta=pessoa]').click())]
+for (const [nome, sel, acao, pag] of [
+  ['planta', '.planta__palco', () => a.evaluate(() => { document.querySelector('[data-nicho=clinica]').click(); const c = document.querySelector('[data-planta-campo]'); c.value = 'Clínica Sorriso'; c.dispatchEvent(new Event('input')); }), '/sites'],
+  ['despacho', '.despacho__placa', () => a.evaluate(() => document.querySelector('[data-pedido=relatorio]').click()), '/automacao'],
+  ['plantao', '.plantao__tela', () => a.evaluate(() => document.querySelector('[data-pergunta=pessoa]').click()), '/automacao']
 ]) {
+  await IR(pag);
   await cdp.send('Profiler.start');
   await a.evaluate((s) => { const el = document.querySelector(s); scrollTo({ top: el.getBoundingClientRect().top + scrollY - 160, behavior: 'instant' }); }, sel);
   await a.waitForTimeout(6500); await acao(); await a.waitForTimeout(3500);
