@@ -29,7 +29,7 @@
   var CARGA = '.is-carregado, .is-ignicao, .is-sobrecarga, .is-esfria';
 
   /* (os que o anima.js acende: .servico é .painel; o .spec__item nunca acende, então não monta — revisão) */
-  var CARDS = '.painel:not(:where(.console, .instrumento)), .celula, .laudo__row, .cenario';
+  var CARDS = '.painel:not(:where(.console, .instrumento)), .celula, .laudo__row, .cenario, .qa';
   var VEL = 260;   /* px/s da luz na borda (a da carga anda a 170: esta é o efeito principal no celular) */
 
   /* onde a volta começa: na ponta da luz pousada (--luz-x + --luz-w do CSS), para ela decolar de onde estava */
@@ -55,13 +55,21 @@
     }
   }
 
+  function medir(card, W, H) {
+    try { dimensionar(card, W, H); }
+    catch (err) { if (window.console && console.warn) console.warn('[beyon] linha-viva:', err); }
+  }
   var obs = new ResizeObserver(function (es) {
     for (var i = 0; i < es.length; i++) {
-      var e = es[i], caixa = e.borderBoxSize && e.borderBoxSize[0];
+      var e = es[i], card = e.target, caixa = e.borderBoxSize && e.borderBoxSize[0];
       /* (a caixa da borda: a volta corre por fora do conteúdo, inset −1 px) */
-      var W = caixa ? caixa.inlineSize : e.target.offsetWidth, H = caixa ? caixa.blockSize : e.target.offsetHeight;
-      try { dimensionar(e.target, W, H); }
-      catch (err) { if (window.console && console.warn) console.warn('[beyon] linha-viva:', err); }
+      var W = caixa ? caixa.inlineSize : card.offsetWidth, H = caixa ? caixa.blockSize : card.offsetHeight;
+      var lv = card._linhaViva;
+      /* a primeira medida é na hora; as seguintes esperam o tamanho assentar (a pergunta que abre cresce por 0,4 s, e a cada
+         quadro mexer na fase faria a luz pular) */
+      if (!lv || !lv.tam) { medir(card, W, H); continue; }
+      clearTimeout(lv.espera);
+      lv.espera = setTimeout(medir.bind(null, card, W, H), 120);
     }
   });
 
@@ -70,15 +78,20 @@
      aceso com a luz pousada. Quem acende é o anima.js (.is-foco); aqui só se observa a classe */
   var montados = [], ativa = null, noMeio = [];
   /* desktop com mouse: gira o cartão do meio da tela, a não ser que o mouse esteja carregando algum */
-  function escolherMeio() {
+  function maisPerto(serve) {
     var alvo = null, melhor = Infinity;
     if (!montados.some(function (c) { return c.matches(CARGA); })) {
       var cx = window.innerWidth / 2, cy = window.innerHeight / 2;
       noMeio.forEach(function (c) {
+        if (serve && !serve(c)) return;
         var r = c.getBoundingClientRect(), dx = (r.left + r.right) / 2 - cx, dy = (r.top + r.bottom) / 2 - cy, d = dx * dx + dy * dy;
         if (d < melhor) { melhor = d; alvo = c; }
       });
     }
+    return alvo;
+  }
+  function escolherMeio() {
+    var alvo = maisPerto();
     if (alvo === ativa) return;
     if (ativa) ativa.classList.remove('lv-ativa');
     ativa = alvo;
@@ -89,6 +102,9 @@
     var alvo = novo && novo.classList.contains('is-foco') ? novo : null;
     if (!alvo && ativa && ativa.classList.contains('is-foco')) return;
     for (var i = montados.length - 1; !alvo && i >= 0; i--) if (montados[i].classList.contains('is-foco')) alvo = montados[i];
+    /* as perguntas são baixas e ficam juntas: o anima.js acenderia várias de uma vez (borda e tudo), então não as acende;
+       quem não tem aceso gira a pergunta do meio da tela, como no desktop */
+    if (!alvo) alvo = maisPerto(function (c) { return c.classList.contains('qa'); });
     if (alvo === ativa) return;
     if (ativa) ativa.classList.remove('lv-ativa');
     ativa = alvo;
@@ -109,12 +125,13 @@
       if (es[i].isIntersecting && k < 0) noMeio.push(es[i].target);
       else if (!es[i].isIntersecting && k >= 0) noMeio.splice(k, 1);
     }
-    if (desk.matches) escolherMeio();
+    reavaliar();
   }, { rootMargin: '-38% 0px -38% 0px' }) : null;
   var espera = 0;
+  function reavaliar() { if (desk.matches) escolherMeio(); else escolher(null); }
   window.addEventListener('scroll', function () {
-    if (!desk.matches || espera) return;
-    espera = setTimeout(function () { espera = 0; escolherMeio(); }, 140);
+    if (espera) return;
+    espera = setTimeout(function () { espera = 0; reavaliar(); }, 140);
   }, { passive: true });
   if (desk.addEventListener) desk.addEventListener('change', function () { escolher(null); });
 
@@ -124,8 +141,11 @@
     el.className = 'linha-viva';
     el.setAttribute('aria-hidden', 'true');
     for (var k = 0; k < 4; k++) { var lado = document.createElement('b'); lado.appendChild(document.createElement('i')); el.appendChild(lado); }
-    card.appendChild(el);
-    card._linhaViva = { el: el, tam: '' };
+    /* (a pergunta é um <details>: o que não é o <summary> some quando ela fecha, então a volta mora DENTRO do summary, que
+       fica sempre à mostra; como o summary não é posicionado, a faixa se mede pelo .qa, que é) */
+    var casa = card.localName === 'details' && card.querySelector(':scope > summary') || card;
+    casa.appendChild(el);
+    card._linhaViva = { el: el, tam: '', espera: 0 };
     card._lvAceso = card.classList.contains('is-foco');
     card.classList.add('tem-linha');
     montados.push(card);
