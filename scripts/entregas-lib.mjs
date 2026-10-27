@@ -79,7 +79,7 @@ export function alertasDe(it, agora = new Date()) {
         + (it.passo === 'aprovada' ? '. Com o prazo vencido o site NÃO vai ao ar: registre a devolução antes (a captação recusa publicar)' : ''));
     }
   }
-  if (it.passo === 'previa') a.push('esperando o cliente há ' + (it.dias_na_previa == null ? '?' : it.dias_na_previa) + ' dia(s): o projeto para até ele responder (D5). Nada a fazer; não aprova nem encerra por silêncio');
+  if (it.passo === 'previa') a.push('esperando o cliente há ' + (it.dias_na_previa == null ? '?' : paraTerminal(it.dias_na_previa, 10)) + ' dia(s): o projeto para até ele responder (D5). Nada a fazer; não aprova nem encerra por silêncio');
   if (it.aviso_previa_pendente) a.push('avisar o cliente: prévia pronta (painel, Avisos, com o link de uso único)');
   if (it.aviso_no_ar_pendente) a.push('avisar o cliente: site no ar (painel, Avisos, com o link de uso único). Os 3 dias do restante só começam a contar quando você registrar este aviso');
   /* (22/10) o restante vale 3 dias do REGISTRO do aviso "no ar" (o dia do aviso é o dia 0): lembretes no 2º e no 3º dia; à 00:00 depois do 3º dia o site sai do ar */

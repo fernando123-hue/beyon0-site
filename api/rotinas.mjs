@@ -82,7 +82,11 @@ export async function executar(request, env, deps = {}) {
   }
   /* (PR 3b-3) os alarmes de prazo da entrega: 1 subpedido (a lista e a retenção da lista de ajustes), a conta de dias úteis é do JS. D5: nada aqui muda o passo */
   let entregas = null;
-  try { entregas = contarAlarmes((await banco('rotinas_entregas', {})).itens, new Date()); }
+  try {
+    entregas = contarAlarmes((await banco('rotinas_entregas', {})).itens, new Date());
+    /* um pedido com data ou dias que não se leem não pode sumir calado: vira falha da rotina (alerta rotina_falhou, só a contagem, sem dado pessoal) */
+    if (entregas.ilegiveis > 0) falhas.push(entregas.ilegiveis + ' entrega(s) com prazo ilegível (veja "entregas.mjs listar")');
+  }
   catch (e) { falhou('entregas', e); }
   const metricas = deps.metricas || bancoMetricas(env);
   if (metricas && metricas.ligado) {

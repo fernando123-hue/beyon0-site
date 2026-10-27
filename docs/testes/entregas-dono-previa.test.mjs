@@ -357,3 +357,10 @@ test('listar passa os campos que vêm do servidor por paraTerminal (código, pas
   const linhas = (await listar({ ...comum(f), raiz: RAIZ })).join('\n');
   assert.ok(!/[\u001b‮]/.test(linhas), JSON.stringify(linhas));
 });
+
+test('alertasDe: dias_na_previa (campo do servidor) também passa por paraTerminal', () => {
+  const SUJO = 'x\u001b[2Jy\u202ez';
+  const texto = alertasDe({ codigo: COD, passo: 'previa', dias_na_previa: SUJO }, new Date()).join('\n');
+  assert.match(texto, /esperando o cliente há /);
+  assert.ok(!/[\u001b\u202e]/.test(texto), JSON.stringify(texto));
+});

@@ -148,3 +148,19 @@ test('M1: ninguém (anon, authenticated, service_role) lê ou escreve a tabela d
   const t = await um("select relrowsecurity, (select count(*)::int from pg_policies where schemaname = 'app' and tablename = 'entrega_contato_autorizacoes') politicas from pg_class where oid = 'app.entrega_contato_autorizacoes'::regclass");
   assert.equal(t.relrowsecurity, true); assert.equal(t.politicas, 0);
 });
+
+test('B1: um item torto da lista de entregas NÃO some calado: a rotina registra falha (alerta rotina_falhou, sem dado pessoal) e os demais alarmes do dia saem', async () => {
+  await db.exec('delete from app.alertas; delete from app.rotinas_execucoes');
+  const torto = { passo: 'producao', prazo_dias: 1e12, prazo: { conta_desde: diasAtras(20), pausas: [] }, entrada_em: null };
+  const vencido = { passo: 'producao', prazo_dias: 5, prazo: { conta_desde: diasAtras(30), pausas: [] }, entrada_em: null };
+  const banco = (nome, args) => (nome === 'rotinas_entregas' ? { itens: [torto, vencido], ajustes_apagados: 0 } : rpc(nome, args));
+  const r = await executar(new Request('http://x/api/rotinas?acao=diaria', { headers: { authorization: 'Bearer ' + CRON, 'x-forwarded-for': '203.0.113.9' } }),
+    { CRON_SECRET: CRON }, { banco, armazem: { remover: async () => {} }, metricas: null });
+  assert.equal(r.status, 200);
+  const por = Object.fromEntries((await alertas()).map(a => [a.tipo, a]));
+  assert.ok(por.rotina_falhou, 'o item torto virou alerta de rotina falhou');
+  assert.match(por.rotina_falhou.mensagem, /1 entrega\(s\) com prazo ilegível/);
+  assert.ok(!/BZ-|@|\d{8}/.test(por.rotina_falhou.mensagem), 'sem dado pessoal: ' + por.rotina_falhou.mensagem);
+  assert.match(por.prazo_vencido.mensagem, /^1 entrega\(s\) com o prazo vencido/, 'o outro item continua contado');
+  await db.exec('delete from app.alertas; delete from app.rotinas_execucoes');
+});

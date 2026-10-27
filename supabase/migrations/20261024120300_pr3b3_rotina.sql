@@ -30,16 +30,18 @@ create function app.rotinas_entregas(p jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare v_apagados integer; v_itens jsonb;
 begin
-  -- a prova da autorização do contato do site é copiada ANTES do apagamento, para as mesmas listas que o DELETE abaixo vai levar
-  insert into app.entrega_contato_autorizacoes (org_id, entrega_id, rodada, contato_whatsapp, contato_email, contato_autorizado_em, contato_autorizacao_versao)
-    select a.org_id, a.entrega_id, a.rodada, a.contato_whatsapp, a.contato_email, a.contato_autorizado_em, a.contato_autorizacao_versao
-      from app.entrega_ajustes a join app.entregas e on e.id = a.entrega_id
-     where e.updated_at < now() - interval '30 days' and (a.status = 'feito' or e.passo in ('concluida', 'encerrada'))
-       and (a.contato_whatsapp is not null or a.contato_email is not null)
-    on conflict (entrega_id, rodada) do nothing;
-  delete from app.entrega_ajustes a using app.entregas e
-   where e.id = a.entrega_id and e.updated_at < now() - interval '30 days' and (a.status = 'feito' or e.passo in ('concluida', 'encerrada'));
-  get diagnostics v_apagados = row_count;
+  -- a prova da autorização do contato do site é copiada na MESMA instrução do apagamento (atômica): o que o DELETE leva, e tem contato, vai para a prova (o que já foi copiado não duplica)
+  with apagadas as (
+    delete from app.entrega_ajustes a using app.entregas e
+     where e.id = a.entrega_id and e.updated_at < now() - interval '30 days' and (a.status = 'feito' or e.passo in ('concluida', 'encerrada'))
+    returning a.org_id, a.entrega_id, a.rodada, a.contato_whatsapp, a.contato_email, a.contato_autorizado_em, a.contato_autorizacao_versao),
+  prova as (
+    insert into app.entrega_contato_autorizacoes (org_id, entrega_id, rodada, contato_whatsapp, contato_email, contato_autorizado_em, contato_autorizacao_versao)
+      select org_id, entrega_id, rodada, contato_whatsapp, contato_email, contato_autorizado_em, contato_autorizacao_versao
+        from apagadas where contato_whatsapp is not null or contato_email is not null
+      on conflict (entrega_id, rodada) do nothing
+      returning 1)
+  select count(*)::integer into v_apagados from apagadas;
   select coalesce(jsonb_agg(jsonb_build_object('passo', e.passo, 'prazo', e.prazo, 'prazo_dias', e.prazo_dias,
            'entrada_em', e.prazo ->> 'entrada_em', 'no_ar_em', e.no_ar_em, 'aviso_material_em', e.aviso_material_em, 'aviso_no_ar_feito_em', e.aviso_no_ar_feito_em,
            'apagar_material_devido', privado.material_apagar_devido(e))), '[]'::jsonb) into v_itens

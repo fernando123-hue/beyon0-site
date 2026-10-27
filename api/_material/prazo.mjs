@@ -87,10 +87,10 @@ export function iniciarPrazo({ entrada_em: entrada, numero_em: numero }) {
   return { conta_desde: maisTarde(entrada, numero) };
 }
 
-/* Os limites (B1, revisão de segurança): o prazo_dias do banco é inteiro de 1 a 60 (check do banco); os dias úteis parados SOMADOS têm teto (~1 ano de pausas: acima disso o pedido
-   é caso para a pessoa olhar, não para um laço). Fora disso, RangeError com mensagem clara (o erro que os chamadores já tratam) e imediato. */
+/* Os limites (B1, revisão de segurança): o prazo_dias do banco é inteiro de 1 a 60 (check do banco); os dias úteis parados SOMADOS têm teto (acima disso o pedido
+   é caso para a pessoa olhar, não para um laço; atingir o teto é RangeError, nunca uma data limite errada). Fora disso, RangeError com mensagem clara (o erro que os chamadores já tratam) e imediato. */
 export const PRAZO_DIAS_MAX = 60;
-export const PARADOS_DIAS_UTEIS_MAX = 260;
+export const PARADOS_DIAS_UTEIS_MAX = 3650;   /* ~14 anos de dias úteis parados: a prévia parada não tem tempo-limite (D5), então o teto só barra o absurdo; ao atingi-lo é erro, não data torta */
 const DATA_ISO = /^\d{4}-\d{2}-\d{2}$/;
 const instante = (quando, nome) => { if (!Number.isFinite(ms(quando))) throw new RangeError(nome + ' ilegível no prazo'); return quando; };
 const listaDe = x => (Array.isArray(x) ? x : []);
@@ -103,7 +103,7 @@ export function calcularEntregarAte(prazo, { prazoDias, fuso = FUSO, feriados = 
   const ultima = novas.length ? novas[novas.length - 1] : null;
   let base;
   if (ultima) {
-    if (!DATA_ISO.test(String(ultima.data))) throw new RangeError('data combinada ilegível no prazo');
+    if (!ultima || typeof ultima !== 'object' || !DATA_ISO.test(String(ultima.data))) throw new RangeError('data combinada ilegível no prazo');
     instante(ultima.combinada_em, 'combinada_em');
     base = ultima.data;
   } else {
@@ -117,7 +117,7 @@ export function calcularEntregarAte(prazo, { prazoDias, fuso = FUSO, feriados = 
     if (!p || !(ms(p.desde) >= contarDe)) continue;   /* (antes da data combinada, ou data ilegível sem número: não soma) */
     if (p.ate !== null && p.ate !== undefined) instante(p.ate, 'fim da pausa');
     parados += diasUteisEntre(diaNoFuso(p.desde, fuso), p.ate ? diaNoFuso(p.ate, fuso) : hoje, feriados, PARADOS_DIAS_UTEIS_MAX - parados);
-    if (parados >= PARADOS_DIAS_UTEIS_MAX) break;
+    if (parados >= PARADOS_DIAS_UTEIS_MAX) throw new RangeError('dias parados acima do teto (' + PARADOS_DIAS_UTEIS_MAX + ' dias úteis)');
   }
   return somarDiasUteis(base, parados, feriados);
 }

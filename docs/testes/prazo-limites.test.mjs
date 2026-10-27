@@ -7,7 +7,7 @@ import { contarAlarmes } from '../../api/_entrega/alarmes.mjs';
 
 const AGORA = new Date('2026-10-22T10:00:00-04:00');
 const BASE = { conta_desde: '2026-10-01T12:00:00-04:00', pausas: [] };
-const rapido = (f, ms = 50) => { const t = performance.now(); try { return f(); } finally { assert.ok(performance.now() - t < ms, 'respondeu em menos de ' + ms + ' ms'); } };
+const rapido = (f, ms = 200) => { const t = performance.now(); try { return f(); } finally { assert.ok(performance.now() - t < ms, 'respondeu em menos de ' + ms + ' ms'); } };
 
 test('prazo_dias fora de um inteiro de 1 a 60 é erro claro e imediato (1e12 não vira um laço de bilhões)', () => {
   assert.equal(PRAZO_DIAS_MAX, 60);
@@ -21,17 +21,18 @@ test('prazo_dias fora de um inteiro de 1 a 60 é erro claro e imediato (1e12 nã
 });
 
 test('o total de dias úteis parados tem teto: pausas de séculos respondem em milissegundos e o teto é uma constante nomeada', () => {
-  assert.ok(Number.isInteger(PARADOS_DIAS_UTEIS_MAX) && PARADOS_DIAS_UTEIS_MAX >= 60 && PARADOS_DIAS_UTEIS_MAX <= 1000);
+  assert.ok(Number.isInteger(PARADOS_DIAS_UTEIS_MAX) && PARADOS_DIAS_UTEIS_MAX >= 3650 && PARADOS_DIAS_UTEIS_MAX <= 20000, 'o teto cobre ~14 anos de dias úteis parados (D5: a prévia parada não tem tempo-limite)');
   const aberta = { ...BASE, pausas: [{ desde: '2026-10-02T12:00:00-04:00', ate: null }] };
   const longa = { ...BASE, pausas: [{ desde: '2026-10-02T12:00:00-04:00', ate: '9999-12-31T12:00:00-04:00' }] };
   const muitas = { ...BASE, pausas: Array.from({ length: 5000 }, (_, i) => ({ desde: '2026-10-02T12:00:00-04:00', ate: '2026-12-02T12:00:00-04:00' })) };
   const longeNoPassado = { ...BASE, conta_desde: '1000-01-01T12:00:00-04:00', pausas: [{ desde: '1000-01-02T12:00:00-04:00', ate: null }] };
-  const teto = rapido(() => calcularEntregarAte(longa, { prazoDias: 5 }, AGORA));
-  assert.ok(teto && /^\d{4}-\d{2}-\d{2}$/.test(teto));
-  const comMuitas = rapido(() => calcularEntregarAte(muitas, { prazoDias: 5 }, AGORA));
-  assert.equal(comMuitas, teto, 'somar muitas pausas também para no teto (o mesmo resultado do teto)');
-  rapido(() => calcularEntregarAte(aberta, { prazoDias: 5 }, new Date('9999-01-01T00:00:00Z')));
-  rapido(() => calcularEntregarAte(longeNoPassado, { prazoDias: 5 }, AGORA));
+  /* ao atingir o teto NÃO se devolve uma data torta (o teto antigo, de 260, dava data limite errada): é erro claro, que cai no aviso "data que não dá para ler" */
+  const estoura = f => assert.throws(() => rapido(f), { name: 'RangeError', message: /teto/ });
+  estoura(() => calcularEntregarAte(longa, { prazoDias: 5 }, AGORA));
+  estoura(() => calcularEntregarAte(muitas, { prazoDias: 5 }, AGORA));
+  estoura(() => calcularEntregarAte(aberta, { prazoDias: 5 }, new Date('9999-01-01T00:00:00Z')));
+  estoura(() => calcularEntregarAte(longeNoPassado, { prazoDias: 5 }, AGORA));
+  estoura(() => prazoVencido(longa, { prazoDias: 5 }, AGORA));
   /* abaixo do teto a conta continua exata (o caso da captação em prazo-pausa.test.mjs segue verde) */
   const duas = { conta_desde: '2026-10-25T12:00:00-04:00', pausas: [{ desde: '2026-10-27T10:00:00-04:00', ate: '2026-10-29T15:00:00-04:00' }] };
   assert.equal(calcularEntregarAte(duas, { prazoDias: 7 }, new Date('2026-11-02T12:00:00-04:00')), '2026-11-06');
@@ -55,5 +56,19 @@ test('contarAlarmes: um item torto vira "ilegiveis" e NÃO derruba os alarmes do
   ];
   const r = rapido(() => contarAlarmes(itens, AGORA));
   assert.deepEqual(r, { prazo_vencido: 1, material_30: 1, restante_vencido: 0, material_apagar: 0, ilegiveis: 4 });
+  /* só o dado torto vira "ilegível": um erro de programação (TypeError) NÃO some calado, sobe */
+  const bug = { passo: 'producao', prazo_dias: 5, prazo: { get conta_desde() { throw new TypeError('bug de programação'); } } };
+  assert.throws(() => contarAlarmes([bug], AGORA), TypeError);
   assert.deepEqual(contarAlarmes([], AGORA), { prazo_vencido: 0, material_30: 0, restante_vencido: 0, material_apagar: 0, ilegiveis: 0 });
+});
+
+test('D5: a prévia parada por mais de um ano NÃO vira "prazo vencido" por engano e a data limite conta TODOS os dias úteis parados (o teto antigo de 260 errava os dois)', () => {
+  const pausa = { ...BASE, pausas: [{ desde: '2026-10-02T12:00:00-04:00', ate: '2027-11-06T12:00:00-04:00' }] };   // ~400 dias corridos, ~290 dias úteis, já fechada
+  const fim = new Date('2027-11-06T13:00:00-04:00');
+  const ate = rapido(() => calcularEntregarAte(pausa, { prazoDias: 5 }, fim));
+  assert.ok(ate >= '2027-11-06', 'a data limite andou todos os dias úteis da pausa: ' + ate);
+  assert.equal(prazoVencido(pausa, { prazoDias: 5 }, fim), false, 'no dia em que o cliente respondeu o prazo NÃO está vencido');
+  const aberta = { ...BASE, pausas: [{ desde: '2026-10-02T12:00:00-04:00', ate: null }] };
+  assert.ok(calcularEntregarAte(aberta, { prazoDias: 5 }, fim) >= '2027-11-06', 'pausa aberta há 400 dias: a data limite anda com ela');
+  assert.equal(prazoVencido(aberta, { prazoDias: 5 }, fim), false);
 });
