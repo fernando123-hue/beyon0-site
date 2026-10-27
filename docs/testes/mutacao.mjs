@@ -231,7 +231,29 @@ export const SABOTAGENS = [
   { nome: 'dispensar sem exigir a UF', arquivo: '20261024120100_pr3b3_previa.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
     de: "or coalesce(m.negocio ->> 'uf', '') = '' then", para: 'then' },
   { nome: 'o aviso de material parado fora do passo material volta a dizer "ja"', arquivo: '20261024120100_pr3b3_previa.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
-    de: "if e.passo <> 'material' then return jsonb_build_object('ok', false, 'motivo', 'estado'); end if;", para: "if e.passo <> 'material' then return jsonb_build_object('ok', false, 'motivo', 'ja'); end if;" }
+    de: "if e.passo <> 'material' then return jsonb_build_object('ok', false, 'motivo', 'estado'); end if;", para: "if e.passo <> 'material' then return jsonb_build_object('ok', false, 'motivo', 'ja'); end if;" },
+  /* ---- o restante (PR 3b-3) ---- */
+  { nome: 'o restante abre fora do ar (qualquer passo da entrega)', arquivo: '20261024120200_pr3b3_restante.sql', testes: ['docs/testes/restante-banco.test.mjs'],
+    de: "if not found or e.passo not in ('no_ar', 'suspensa') then", para: 'if not found then' },
+  { nome: 'o restante cobra um valor que não é o saldo (usa o total)', arquivo: '20261024120200_pr3b3_restante.sql', testes: ['docs/testes/restante-banco.test.mjs'],
+    de: 'v_valor := pr.valor_total - v_sinal;', para: 'v_valor := pr.valor_total;' },
+  { nome: 'o restante pago não conclui a entrega', arquivo: '20261024120200_pr3b3_restante.sql', testes: ['docs/testes/restante-banco.test.mjs'],
+    de: "update app.entregas set passo = 'concluida'", para: "update app.entregas set passo = passo" },
+  { nome: 'o restante aceita cartão no banco (B3)', arquivo: '20261024120200_pr3b3_restante.sql', testes: ['docs/testes/restante-banco.test.mjs'],
+    de: "if v_parcela = 'saldo' and p ->> 'metodo' <> 'pix' then", para: 'if false then' },
+  { nome: 'o estado do pagamento nunca olha o saldo', arquivo: '20261024120200_pr3b3_restante.sql', testes: ['docs/testes/restante-banco.test.mjs'],
+    de: "then 'saldo' else 'sinal' end;", para: "then 'sinal' else 'sinal' end;" },
+  { nome: 'o gatilho do saldo deixa o erro derrubar o pagamento', arquivo: '20261024120200_pr3b3_restante.sql', testes: ['docs/testes/restante-banco.test.mjs'],
+    de: "exception when others then\n    raise warning 'entrega não concluída", para: "exception when no_data_found then\n    raise warning 'entrega não concluída" },
+  { nome: 'a leitura do estado deixa o erro da conclusão derrubar a tela', arquivo: '20261024120200_pr3b3_restante.sql', testes: ['docs/testes/restante-banco.test.mjs'],
+    de: "exception when others then\n      raise warning 'conclusão pendente", para: "exception when no_data_found then\n      raise warning 'conclusão pendente" },
+  { nome: 'a conclusão refeita a cada contestação revertida (evento duplicado)', arquivo: '20261024120200_pr3b3_restante.sql', testes: ['docs/testes/restante-banco.test.mjs'],
+    de: "if e.passo not in ('no_ar', 'suspensa') then return false; end if;", para: 'null;' },
+  { nome: 'o restante pago com a entrega encerrada passa sem avisar a equipe', arquivo: '20261024120200_pr3b3_restante.sql', testes: ['docs/testes/restante-banco.test.mjs'],
+    de: "and not exists (select 1 from app.entregas where proposta_id = new.proposta_id and passo = 'concluida') then", para: 'and false then' },
+  { nome: 'a tela conta os dias do aviso do ar em horas de relógio em vez da data de Campo Grande', arquivo: '20261024120100_pr3b3_previa.sql', testes: ['docs/testes/restante-banco.test.mjs'],
+    de: "\n                 else (now() at time zone 'America/Campo_Grande')::date - (e.aviso_no_ar_feito_em at time zone 'America/Campo_Grande')::date end;",
+    para: "\n                 else floor(extract(epoch from (now() - e.aviso_no_ar_feito_em)) / 86400)::integer end;" },
 ];
 
 /* as sabotagens que a rodada vai fazer: todas, ou só as do filtro (parte do nome, sem diferenciar maiúsculas). Filtro que não
