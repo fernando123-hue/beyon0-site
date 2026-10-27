@@ -8,6 +8,10 @@ import { criarCenario, BASE } from './_ajustes.mjs';
 import { ateEntregaCriada } from './_entrega.mjs';
 import { entregaLigada, FRASE_DESLIGADA } from '../../api/_material/interruptor.mjs';
 
+/* as ações POST de /api/vendas que já existiam antes da entrega e as que a entrega trouxe (estas ficam atrás do interruptor) */
+const ANTIGAS = ['sessao', 'retomar', 'renovar', 'mensagem', 'gerar', 'gerar-direcao', 'escolher', 'ajustar', 'desfazer', 'pedido-livre', 'escopo', 'confirmar', 'pagar', 'simular', 'confirmar-pacote', 'detalhes'];
+const DA_ENTREGA = ['material-salvar', 'material-reservar', 'material-conferir', 'material-remover', 'material-enviar', 'link-pedido', 'sair-do-aparelho', 'outro-aparelho', 'abrir-pedido', 'previa-ajustes', 'previa-aprovar'];
+
 let local, cen;
 before(async () => { local = await montarLocal({ base: BASE }); cen = criarCenario(local); });
 const ler = f => fs.readFileSync(new URL('../../' + f, import.meta.url), 'utf8');
@@ -26,7 +30,7 @@ test('nenhum arquivo de deploy liga a entrega; o servidor local liga por conta p
 
 test('desligada: as ações novas dão 503 com a saída pelo WhatsApp, e o estado não traz a entrega', async () => {
   const { n, c } = await ateEntregaCriada(cen, local, { env: {} });
-  for (const acao of ['material-salvar', 'material-reservar', 'material-conferir', 'material-remover', 'material-enviar', 'link-pedido', 'sair-do-aparelho', 'outro-aparelho', 'previa-ajustes', 'previa-aprovar']) {
+  for (const acao of DA_ENTREGA.filter(a => a !== 'abrir-pedido')) {   /* (a lista inteira da entrega: o teste do fim do arquivo a fecha) */
     const r = await n.chamar('POST', acao, { conversa_id: c });
     assert.equal(r.status, 503, acao); assert.equal(r.corpo.erro, FRASE_DESLIGADA); assert.equal(r.corpo.whatsapp, true);
   }
@@ -42,4 +46,11 @@ test('ligada: o estado traz a entrega e entrega_ligada true', async () => {
   const { n, c } = await ateEntregaCriada(cen, local);
   const e = await cen.estado(n, c);
   assert.equal(e.entrega_ligada, true); assert.equal(e.entrega.passo, 'material');
+});
+
+test('toda ação POST de /api/vendas é antiga ou está na lista da entrega (e cada uma da lista dá 503 com a entrega desligada, no teste acima): nenhuma ação nova nasce fora do interruptor', async () => {
+  const { ACOES } = await import('../../api/vendas.mjs');
+  const novas = Object.keys(ACOES.POST).filter(a => !ANTIGAS.includes(a)).sort();
+  assert.deepEqual(novas, [...DA_ENTREGA].sort(), 'uma ação nova entrou em ACOES.POST: ponha-a atrás do interruptor e em DA_ENTREGA (ou, se é anterior à entrega, em ANTIGAS)');
+  assert.equal(new Set([...ANTIGAS, ...DA_ENTREGA]).size, ANTIGAS.length + DA_ENTREGA.length, 'uma ação não pode estar nas duas listas');
 });
