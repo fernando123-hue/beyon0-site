@@ -39,3 +39,8 @@ assets/README.txt
 js/nucleo/lab.js
 vendor/three/entrada.js
 vendor/three/README.md
+
+# Cloudflare (Worker): codigo e configuracao do Worker, nao sao pagina do site (a saida servida la e a de montar-publico)
+cloudflare/
+wrangler.jsonc
+_headers
