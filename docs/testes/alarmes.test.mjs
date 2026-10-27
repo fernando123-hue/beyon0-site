@@ -32,3 +32,11 @@ test('conta cada alarme uma vez; a prévia parada (D5), a pausa aberta, o materi
   assert.deepEqual(contarAlarmes(itens, AGORA), { prazo_vencido: 3, material_30: 1, restante_vencido: 1 });
   assert.deepEqual(contarAlarmes([], AGORA), { prazo_vencido: 0, material_30: 0, restante_vencido: 0 });
 });
+
+test('sem prazo_dias (inteiro) o prazo não vence: item com o prazo preenchido e os dias ausentes, nulos ou em texto não conta como vencido', () => {
+  const velho = prazo('2025-01-01T12:00:00-04:00');
+  for (const dias of [undefined, null, '5', 5.5, NaN]) {
+    assert.equal(contarAlarmes([{ passo: 'producao', prazo: velho, prazo_dias: dias }], AGORA).prazo_vencido, 0, 'prazo_dias = ' + String(dias));
+  }
+  assert.equal(contarAlarmes([{ passo: 'producao', prazo: velho, prazo_dias: 5 }], AGORA).prazo_vencido, 1, 'com os dias, o mesmo item vence');
+});

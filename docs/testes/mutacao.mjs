@@ -305,6 +305,13 @@ export const SABOTAGENS = [
     de: "if (info.passo !== 'aprovada') {", para: 'if (false) {' },
   { nome: 'dispensar o material sem conferir o número autorizado, no JS (painel do dono)', fonte: 'api/_entrega/painel-entrega.mjs', testes: ['docs/testes/previa-painel.test.mjs'],
     de: 'const falta = ESQ.faltas(info.material);', para: 'const falta = [];' },
+  /* ---- a rotina diária (Task 9): a lista de ajustes, o prazo sem dias, o passo (D5) ---- */
+  { nome: 'a rotina diária apaga a lista de ajustes que ainda está na fila', arquivo: '20261024120300_pr3b3_rotina.sql', testes: ['docs/testes/rotina-entregas.test.mjs'],
+    de: "and (a.status = 'feito' or e.passo in ('concluida', 'encerrada'))", para: 'and true' },
+  { nome: 'o alarme de prazo vencido conta item sem os dias do prazo (prazo_dias ausente)', fonte: 'api/_entrega/alarmes.mjs', testes: ['docs/testes/alarmes.test.mjs'],
+    de: 'Number.isInteger(it.prazo_dias) && ', para: '' },
+  { nome: 'a rotina diária encerra o pedido parado (muda o passo, D5), dentro da função que lista as entregas', arquivo: '20261024120300_pr3b3_rotina.sql', testes: ['docs/testes/previa-esquema.test.mjs'],
+    de: "  return jsonb_build_object('itens', v_itens, 'ajustes_apagados', v_apagados);", para: "  update app.entregas set passo = 'encerrada' where passo = 'material' and updated_at < now() - interval '400 days';\n  return jsonb_build_object('itens', v_itens, 'ajustes_apagados', v_apagados);" },
 ];
 
 /* as sabotagens que a rodada vai fazer: todas, ou só as do filtro (parte do nome, sem diferenciar maiúsculas). Filtro que não

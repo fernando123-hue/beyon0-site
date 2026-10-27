@@ -50,10 +50,76 @@ test('D5: a prévia só tem 3 saídas (a lista do cliente, a aprovação do clie
   assert.deepEqual(quem, { ajustes: 'vendas_previa_ajustes', aprovada: 'vendas_previa_aprovar', encerrada: 'vendas_encerrar' });
 });
 
-test('D5: nenhuma função de rotina (rotinas_*) muda o passo da entrega', async () => {
-  const funcoes = (await db.query("select p.proname, pg_get_functiondef(p.oid) def from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'app' and p.proname like 'rotinas%'")).rows;
-  assert.ok(funcoes.length >= 4, 'as funções de rotina existem (' + funcoes.length + ')');
-  for (const f of funcoes) assert.ok(!/update\s+app\.entregas[^;]*\bpasso\b/i.test(f.def), f.proname + ' não pode mudar o passo');
+/* A D5 no CÓDIGO das funções: "muda o passo" = um update de app.entregas cujo SET (e só ele: o where não conta) atribui a coluna passo. Parênteses internos
+   (subconsultas com "where passo = ...") não contam; "set (passo, x) = (...)" conta. */
+function mudaPasso(def) {
+  const re = /update\s+app\.entregas\b(?:\s+(?:as\s+)?(?!set\b)\w+)?\s+set\b/gi;
+  for (let m; (m = re.exec(def));) {
+    let prof = 0, i = re.lastIndex;
+    const ini = i;
+    for (; i < def.length; i++) {
+      const c = def[i];
+      if (c === '(') prof++;
+      else if (c === ')') prof--;
+      else if (c === ';' && prof <= 0) break;
+      else if (prof === 0 && /\s/.test(def[i - 1] || ' ') && /^(where|from|returning)\b/i.test(def.slice(i, i + 9))) break;
+    }
+    const set = def.slice(ini, i);
+    if (/^\s*\([^)]*\bpasso\b/i.test(set)) return true;
+    let plano = set;
+    for (let ant = ''; ant !== plano;) { ant = plano; plano = plano.replace(/\([^()]*\)/g, ' '); }
+    if (/(^|[\s,])passo\s*=(?!=)/i.test(plano)) return true;
+  }
+  return false;
+}
+/* as funções de rotina e tudo o que elas chamam (app.* e privado.*), transitivamente */
+async function funcoesDaRotina(db) {
+  const todas = (await db.query("select n.nspname esq, p.proname, pg_get_functiondef(p.oid) def from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname in ('app', 'privado') and p.prokind = 'f'")).rows;
+  const chave = f => f.esq + '.' + f.proname;
+  const porNome = new Map();
+  for (const f of todas) porNome.set(chave(f), [...(porNome.get(chave(f)) || []), f]);
+  const fila = todas.filter(f => f.esq === 'app' && (f.proname.startsWith('rotinas') || ['vendas_reter', 'vendas_expirar_pedidos'].includes(f.proname)));
+  const vistas = new Map();
+  while (fila.length) {
+    const f = fila.pop();
+    const k = chave(f) + '#' + f.def.length;
+    if (vistas.has(k)) continue;
+    vistas.set(k, f);
+    for (const c of f.def.matchAll(/\b(app|privado)\.([a-z_0-9]+)\s*\(/g)) fila.push(...(porNome.get(c[1] + '.' + c[2]) || []));
+  }
+  return [...vistas.values()];
+}
+
+test('D5: o detector de "muda o passo" lê só o SET (o where de outra coluna é inocente; a função e a subconsulta também contam)', () => {
+  assert.equal(mudaPasso("update app.entregas set passo = 'encerrada' where id = 1;"), true);
+  assert.equal(mudaPasso("update app.entregas e set updated_at = now(), passo = 'encerrada' from app.pedidos p where p.id = e.id;"), true);
+  assert.equal(mudaPasso("update app.entregas set aviso_material_em = (select max(x) from t where passo = 'a'), passo = 'b' where id = 1"), true);
+  assert.equal(mudaPasso("update app.entregas set (passo, updated_at) = ('encerrada', now()) where id = 1"), true);
+  assert.equal(mudaPasso("update app.entregas as e set\n  passo\n = 'a' where true"), true);
+  assert.equal(mudaPasso("update app.entregas set aviso_material_em = now() where passo = 'material' and id = 1;"), false, 'where passo = ... não muda o passo');
+  assert.equal(mudaPasso("update app.entregas set material_apagado_em = (select now() from app.materiais where passo = 'x') where passo in ('material');"), false, 'subconsulta com passo não muda o passo');
+  assert.equal(mudaPasso("update app.entregas set updated_at = now() returning passo"), false);
+  assert.equal(mudaPasso("update app.materiais set status = 'x'; select passo from app.entregas"), false);
+});
+
+test('D5: nenhuma função de rotina (rotinas_*), nem as que o Worker chama, nem as que elas chamam (app.* e privado.*), muda o passo da entrega', async () => {
+  const funcoes = await funcoesDaRotina(db);
+  const nomes = funcoes.map(f => f.proname);
+  assert.ok(funcoes.filter(f => f.proname.startsWith('rotinas')).length >= 4, 'as funções de rotina existem (' + nomes.join(', ') + ')');
+  for (const alvo of ['rotinas_entregas', 'rotinas_conferir', 'rotinas_material_baixar', 'vendas_reter', 'vendas_expirar_pedidos']) assert.ok(nomes.includes(alvo), alvo + ' está na lista que se confere');
+  for (const f of funcoes) assert.ok(!mudaPasso(f.def), f.esq + '.' + f.proname + ' não pode mudar o passo');
+});
+
+test('D5, sabotagem: uma rotina que muda o passo (direto ou por uma função privado.* que ela chama) é pega', async () => {
+  try {
+    await db.exec(`create function privado.sabotada_passo() returns void language sql as $$ update app.entregas set passo = 'encerrada' where passo = 'material'; $$;
+      create function app.rotinas_sabotada(p jsonb) returns jsonb language plpgsql as $$ begin perform privado.sabotada_passo(); return '{}'; end $$;`);
+    const quebradas = (await funcoesDaRotina(db)).filter(f => mudaPasso(f.def)).map(f => f.esq + '.' + f.proname);
+    assert.deepEqual(quebradas, ['privado.sabotada_passo'], 'a rotina sabotada chama a função que muda o passo');
+  } finally {
+    await db.exec('drop function if exists app.rotinas_sabotada(jsonb); drop function if exists privado.sabotada_passo();');
+  }
+  assert.deepEqual((await funcoesDaRotina(db)).filter(f => mudaPasso(f.def)), [], 'sem a sabotagem, nenhuma função de rotina muda o passo');
 });
 
 test('a conversa em produção pode encerrar (a conclusão do restante e o encerrar do painel); encerrada não volta', async () => {
@@ -86,8 +152,12 @@ test('a lista de ajustes: uma por rodada, de 1 a 1.500 caracteres (ou só o cont
   assert.equal((await erroDe(inserir(2, ''))).codigo, '23514', 'sem texto e sem contato do site, não é uma lista');
   assert.equal((await erroDe(inserir(2, 'x'.repeat(1501)))).codigo, '23514');
   await inserir(2, 'x'.repeat(1500));
-  const lido = await erroDe(como(db, 'service_role', q => q('select * from app.entrega_ajustes')));
-  assert.equal(lido && lido.codigo, '42501', 'service_role não lê a tabela por fora das funções');
+  for (const papel of ['anon', 'authenticated', 'service_role']) {
+    const lido = await erroDe(como(db, papel, q => q('select * from app.entrega_ajustes')));
+    assert.equal(lido && lido.codigo, '42501', papel + ' não lê a tabela por fora das funções');
+    const escrito = await erroDe(como(db, papel, q => q("insert into app.entrega_ajustes (org_id, entrega_id, rodada, texto) values (gen_random_uuid(), gen_random_uuid(), 1, 'x')")));
+    assert.equal(escrito && escrito.codigo, '42501', papel + ' não escreve na tabela por fora das funções');
+  }
 });
 
 test('M3 (22/10): o WhatsApp e o e-mail do site têm colunas PRÓPRIAS, com o formato da tela e do servidor, e só existem com a autorização de uso no site', async () => {

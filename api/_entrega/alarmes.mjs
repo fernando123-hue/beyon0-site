@@ -16,7 +16,7 @@ export function contarAlarmes(itens, agora = new Date()) {
   const r = { prazo_vencido: 0, material_30: 0, restante_vencido: 0 };
   for (const it of itens || []) {
     if (it.passo === 'material') { if (it.entrada_em && !it.aviso_material_em && diasCorridosDesde(it.entrada_em, agora) >= LIMITES.material_dias) r.material_30++; }
-    else if (it.passo === 'producao' || it.passo === 'ajustes' || it.passo === 'aprovada') { if (prazoVencido(it.prazo, { prazoDias: it.prazo_dias }, agora)) r.prazo_vencido++; }
+    else if (it.passo === 'producao' || it.passo === 'ajustes' || it.passo === 'aprovada') { if (Number.isInteger(it.prazo_dias) && prazoVencido(it.prazo, { prazoDias: it.prazo_dias }, agora)) r.prazo_vencido++; }
     else if (it.passo === 'no_ar') { if (it.aviso_no_ar_feito_em && diasCorridosDesde(it.aviso_no_ar_feito_em, agora) > LIMITES.restante_dias) r.restante_vencido++; }
   }
   return r;
