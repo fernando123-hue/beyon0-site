@@ -255,7 +255,7 @@ begin
   if abs(extract(epoch from (now() - v_agora))) > 300 then raise exception 'dispensar: relógio fora da janela' using errcode = '22023'; end if;
   e := privado.entrega_do_dono(p, array['material']);
   if e.updated_at is distinct from (p ->> 'versao')::timestamptz then raise exception 'a entrega mudou' using errcode = '40001'; end if;
-  v_dias := (now() at time zone 'America/Campo_Grande')::date - ((e.prazo ->> 'entrada_em')::timestamptz at time zone 'America/Campo_Grande')::date;
+  v_dias := coalesce((now() at time zone 'America/Campo_Grande')::date - ((e.prazo ->> 'entrada_em')::timestamptz at time zone 'America/Campo_Grande')::date, 0);   -- (entrada_em ausente conta como dia 0: a trava dos 30 dias falha FECHADA)
   if v_dias < 30 then return jsonb_build_object('ok', false, 'motivo', 'cedo', 'dias', v_dias); end if;
   select * into m from app.materiais where entrega_id = e.id for update;
   if m.status <> 'rascunho' then return jsonb_build_object('ok', false, 'motivo', 'estado'); end if;
@@ -288,10 +288,11 @@ begin
   elsif v_momento = 'no_ar' then
     update app.entregas set aviso_no_ar_desde = null, aviso_no_ar_feito_em = case when e.passo = 'no_ar' then coalesce(aviso_no_ar_feito_em, now()) else aviso_no_ar_feito_em end where id = e.id;
   elsif v_momento = 'material_parado' then
-    if e.passo <> 'material' or e.aviso_material_em is not null then return jsonb_build_object('ok', false, 'motivo', 'ja'); end if;
+    if e.passo <> 'material' then return jsonb_build_object('ok', false, 'motivo', 'estado'); end if;
+    if e.aviso_material_em is not null then return jsonb_build_object('ok', false, 'motivo', 'ja'); end if;
     -- (A1) a captação só deixa o aviso a partir do dia 30 depois da entrada (clientes/producao.mjs:118): sem esta trava o aviso podia sair no dia 1 e
     -- o pedido passar por "parado" sem ter esperado. Mesma conta de dias da vendas_material_dispensar.
-    v_dias := (now() at time zone 'America/Campo_Grande')::date - ((e.prazo ->> 'entrada_em')::timestamptz at time zone 'America/Campo_Grande')::date;
+    v_dias := coalesce((now() at time zone 'America/Campo_Grande')::date - ((e.prazo ->> 'entrada_em')::timestamptz at time zone 'America/Campo_Grande')::date, 0);   -- (idem: sem entrada_em não passa do dia 30)
     if v_dias < 30 then return jsonb_build_object('ok', false, 'dias', v_dias, 'motivo', 'cedo'); end if;
     -- com o número AUTORIZADO (WhatsApp + caixa + UF) o caminho é dispensar o material, não o aviso de material parado
     select * into m from app.materiais where entrega_id = e.id;

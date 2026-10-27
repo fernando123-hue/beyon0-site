@@ -15,6 +15,9 @@ const comVersao = async (nome, c, extra = {}) => dono(nome, c, { versao: await v
 const PRAZO = { numero_em: '2026-10-21T13:00:00-04:00', conta_desde: '2026-10-21T13:00:00-04:00', pausas: [{ desde: '2026-10-22T09:00:00-04:00', ate: null }] };
 const passoDe = async c => (await um('select passo from app.entregas where conversa_id = $1', [c.conversa_id])).passo;
 const diasAtras = n => new Date(Date.now() - n * 864e5).toISOString();
+/* o instante em Campo Grande: o início do dia de HOJE menos `dias` dias, mais `hora` (HH:MM). Calculado no banco, com o mesmo relógio e o mesmo fuso que as funções usam */
+const cg = async (dias, hora) => new Date(1000 * Number((await um("select extract(epoch from (date_trunc('day', now() at time zone 'America/Campo_Grande') - make_interval(days => $1::int) + $2::interval) at time zone 'America/Campo_Grande') as t", [dias, hora])).t)).toISOString();
+const prazoEm = iso => ({ entrada_em: iso, numero_em: iso, conta_desde: iso, pausas: [] });
 const prazoDe = n => ({ entrada_em: diasAtras(n), numero_em: diasAtras(n), conta_desde: diasAtras(n), pausas: [] });   /* a entrada paga há n dias */
 
 test('publicar a prévia: producao → previa, com o endereço do PROJETO desta entrega, a pausa aberta e o aviso da D1 pendente', async () => {
@@ -80,8 +83,10 @@ test('suspender (D4, 22/10): só depois do 3º dia do aviso "no ar" (4 dias corr
   assert.equal((await erroDe(dono('vendas_suspender', previa))).codigo, '55000');
 });
 
-test('encerrar: motivo da lista fechada (nunca "sem resposta", D5); encerra a conversa, cancela o projeto e limita o link do pedido', async () => {
+test('encerrar: motivo da lista fechada (nunca "sem resposta", D5); encerra a conversa, cancela o projeto e limita o link do pedido a 30 dias', async () => {
   const c = await entregaEm(db, 'previa');
+  const ent = await um('select org_id, proposta_id from app.entregas where conversa_id = $1', [c.conversa_id]);
+  await db.query("insert into app.links_pedido (org_id, conversa_id, codigo_hash, valido_ate) values ($1, $2, repeat('a', 64), now() + interval '120 days')", [ent.org_id, c.conversa_id]);
   for (const ruim of ['sem_resposta', 'silencio', 'previa_parada', 'sem_material', '', null]) {
     assert.equal((await erroDe(dono('vendas_encerrar', c, { motivo: ruim }))).codigo, '22023', String(ruim));
   }
@@ -90,6 +95,9 @@ test('encerrar: motivo da lista fechada (nunca "sem resposta", D5); encerra a co
   const e = await um('select passo, encerrada_motivo, encerrada_em from app.entregas where conversa_id = $1', [c.conversa_id]);
   assert.deepEqual([e.passo, e.encerrada_motivo], ['encerrada', 'desistencia']); assert.ok(e.encerrada_em);
   assert.equal((await um('select etapa from app.conversas where id = $1', [c.conversa_id])).etapa, 'encerrada');
+  assert.equal((await um('select p.status from app.projetos p join app.propostas pr on pr.projeto_id = p.id where pr.id = $1', [ent.proposta_id])).status, 'cancelado', 'o projeto foi cancelado');
+  const l = await um("select valido_ate < now() + interval '31 days' as curto, fim_em is not null as fim from app.links_pedido where conversa_id = $1", [c.conversa_id]);
+  assert.deepEqual([l.curto, l.fim], [true, true], 'o link do pedido passa a valer só mais 30 dias');
   assert.equal((await erroDe(dono('vendas_encerrar', c, { motivo: 'outro' }))).codigo, '55000', 'não encerra de novo');
 });
 
@@ -156,6 +164,7 @@ test('A1 (+ 22/10): o aviso de material parado só vale a partir do dia 30 depoi
   assert.equal((await um('select religar_pendente r from app.entregas where conversa_id = $1', [c.conversa_id])).r, false);
   const ainda = await entregaEm(db, 'no_ar');
   assert.equal((await erroDe(dono('vendas_religado', ainda))).codigo, '55000');
+  assert.deepEqual(await dono('vendas_aviso_feito', ainda, { momento: 'material_parado' }), { ok: false, motivo: 'estado' }, 'fora do passo material a recusa é de estado, não "já avisado"');
 });
 
 test('22/10: o aviso "no ar" registrado dá a data de partida dos 3 dias; os 2 lembretes só valem no 2º e no 3º dia, uma vez cada; a lista de avisos mostra o que está devido', async () => {
@@ -228,4 +237,100 @@ test('as funções do dono são só do servidor: anon e authenticated não execu
   }
   const t = await um("select has_function_privilege('service_role', 'privado.entrega_do_dono(jsonb, text[])', 'execute') as srv, has_function_privilege('authenticated', 'privado.entrega_do_dono(jsonb, text[])', 'execute') as auth");
   assert.deepEqual([t.srv, t.auth], [false, false]);
+});
+
+/* ---------- o dinheiro: o Pix do restante em andamento trava o encerrar e o suspender ---------- */
+const VIVAS = ['criada', 'processando', 'aguardando', 'requer_acao'];
+const novaTentativa = (pagamento, org, status) => db.query('delete from app.tentativas_pagamento where pagamento_id = $1', [pagamento]).then(() =>
+  db.query("insert into app.tentativas_pagamento (org_id, pagamento_id, provedor, metodo, valor, chave_idempotencia, status) values ($1, $2, 'mercadopago', 'pix', 1800, $3, $4)", [org, pagamento, 'chave-saldo-' + pagamento + '-' + status, status]));
+async function semearSaldo(c, statusTentativa) {
+  const e = await um('select org_id, proposta_id from app.entregas where conversa_id = $1', [c.conversa_id]);
+  const pg = await um("insert into app.pagamentos (org_id, proposta_id, parcela, valor, gateway) values ($1, $2, 'saldo', 1800, 'mercadopago') returning id", [e.org_id, e.proposta_id]);
+  await novaTentativa(pg.id, e.org_id, statusTentativa);
+  return { pagamento: pg.id, org: e.org_id };
+}
+const saldoDe = async c => (await um("select pg.status from app.pagamentos pg join app.entregas e on e.proposta_id = pg.proposta_id where e.conversa_id = $1 and pg.parcela = 'saldo'", [c.conversa_id])).status;
+
+test('encerrar e suspender recusam com o Pix do restante em andamento (qualquer tentativa viva); sem tentativa viva passam, e o encerrar cancela o saldo pendente', async () => {
+  const p = await entregaEm(db, 'previa');
+  const sp = await semearSaldo(p, 'criada');
+  for (const st of VIVAS) {
+    await novaTentativa(sp.pagamento, sp.org, st);
+    assert.deepEqual(await dono('vendas_encerrar', p, { motivo: 'desistencia' }), { ok: false, motivo: 'pagamento_em_andamento' }, 'encerrar com a tentativa ' + st);
+  }
+  assert.equal(await passoDe(p), 'previa', 'a recusa não mexeu no passo');
+  assert.equal(await saldoDe(p), 'pendente', 'nem no saldo');
+  const n = await entregaEm(db, 'no_ar');
+  await forcarEntrega(db, n, { aviso_no_ar_feito_em: diasAtras(4) });
+  const sn = await semearSaldo(n, 'aguardando');
+  for (const st of VIVAS) {
+    await novaTentativa(sn.pagamento, sn.org, st);
+    assert.deepEqual(await dono('vendas_suspender', n), { ok: false, motivo: 'pagamento_em_andamento' }, 'suspender com a tentativa ' + st);
+  }
+  assert.equal(await passoDe(n), 'no_ar', 'o cliente pode estar pagando: o site continua no ar');
+  await novaTentativa(sn.pagamento, sn.org, 'expirada');
+  assert.deepEqual(await dono('vendas_suspender', n), { ok: true, lembretes: 0 }, 'a tentativa expirou: pode suspender');
+  await novaTentativa(sp.pagamento, sp.org, 'expirada');
+  assert.deepEqual(await dono('vendas_encerrar', p, { motivo: 'desistencia' }), { ok: true });
+  assert.equal(await saldoDe(p), 'cancelado', 'encerrar cancela a cobrança do restante que ainda estava pendente');
+});
+
+/* ---------- a conta é por DATA de Campo Grande (dias corridos, o dia do evento é o dia 0), não por tempo corrido ---------- */
+test('suspender conta a DATA de Campo Grande: 23:59 do dia 4 já vale (menos de 4 dias de relógio); 00:00 e 23:59 do dia 3, não', async () => {
+  const c = await entregaEm(db, 'no_ar');
+  for (const [d, h] of [[3, '00:00'], [3, '23:59'], [2, '23:59']]) {
+    await forcarEntrega(db, c, { aviso_no_ar_feito_em: await cg(d, h) });
+    const r = await dono('vendas_suspender', c);
+    assert.deepEqual([r.ok, r.motivo, r.dias], [false, 'cedo', d], 'aviso às ' + h + ' do dia -' + d);
+  }
+  await forcarEntrega(db, c, { aviso_no_ar_feito_em: await cg(4, '23:59') });   /* a 00:00 depois do 3º dia já passou, mesmo com menos de 96 h de relógio */
+  assert.deepEqual(await dono('vendas_suspender', c), { ok: true, lembretes: 0 });
+});
+
+test('os lembretes do restante contam a DATA de Campo Grande: o 1º vale no dia 2 (23:59 do dia -2 já), o 2º no dia 3; um dia antes não', async () => {
+  const c = await entregaEm(db, 'no_ar');
+  const aviso = momento => dono('vendas_aviso_feito', c, { momento });
+  const devidos = async () => (await rpc('vendas_avisos_lista', { org_slug: 'beyon-zero' })).itens.filter(i => i.conversa_id === c.conversa_id).map(i => i.momento);
+  await forcarEntrega(db, c, { aviso_no_ar_feito_em: await cg(1, '23:59') });
+  assert.deepEqual(await aviso('restante_lembrete_1'), { ok: false, motivo: 'cedo', dias: 1 });
+  assert.deepEqual(await devidos(), []);
+  await forcarEntrega(db, c, { aviso_no_ar_feito_em: await cg(2, '23:59') });
+  assert.deepEqual(await devidos(), ['restante_lembrete_1'], 'dia 2 por data (menos de 48 h de relógio)');
+  assert.deepEqual(await aviso('restante_lembrete_1'), { ok: true });
+  assert.deepEqual(await aviso('restante_lembrete_2'), { ok: false, motivo: 'cedo', dias: 2 });
+  await forcarEntrega(db, c, { aviso_no_ar_feito_em: await cg(3, '23:59') });
+  assert.deepEqual(await devidos(), ['restante_lembrete_2'], 'dia 3 por data (menos de 72 h de relógio)');
+  assert.deepEqual(await aviso('restante_lembrete_2'), { ok: true });
+});
+
+test('o dia 30 do dispensar e do material parado é a DATA de Campo Grande: dia 29 (00:00 ou 23:59) não, 23:59 do dia 30 sim; sem entrada_em a trava fecha', async () => {
+  const c = await entregaEm(db, 'material');
+  const agora = new Date().toISOString();
+  const dispensar = () => comVersao('vendas_material_dispensar', c, { prazo: { numero_em: agora, conta_desde: agora, pausas: [] }, entrega_ate: '2026-12-10' });
+  for (const [d, h] of [[29, '00:00'], [29, '23:59']]) {
+    await forcarEntrega(db, c, { prazo: JSON.stringify(prazoEm(await cg(d, h))) });
+    assert.deepEqual(await dispensar(), { ok: false, motivo: 'cedo', dias: 29 }, 'entrada às ' + h + ' do dia -' + d);
+  }
+  await forcarEntrega(db, c, { prazo: JSON.stringify({ numero_em: agora, conta_desde: agora, pausas: [] }) });
+  assert.deepEqual(await dispensar(), { ok: false, motivo: 'cedo', dias: 0 }, 'sem entrada_em não se pula a trava dos 30 dias');
+  await forcarEntrega(db, c, { prazo: JSON.stringify(prazoEm(await cg(30, '23:59'))) });
+  await db.query("update app.materiais m set dados = '{}' from app.entregas e where e.id = m.entrega_id and e.conversa_id = $1", [c.conversa_id]);
+  assert.equal((await dispensar()).motivo, 'sem_numero', 'sem o WhatsApp salvo');
+  await db.query("update app.materiais m set dados = '{\"whatsapp\":\"+5521999990001\"}' from app.entregas e where e.id = m.entrega_id and e.conversa_id = $1", [c.conversa_id]);
+  assert.deepEqual(await dispensar(), { ok: true }, 'dia 30 por data (menos de 30 dias de relógio)');
+
+  const m = await entregaEm(db, 'material');
+  await db.query("update app.materiais mt set autorizacao = '{}' from app.entregas e where e.id = mt.entrega_id and e.conversa_id = $1", [m.conversa_id]);
+  const parado = () => dono('vendas_aviso_feito', m, { momento: 'material_parado' });
+  const naFila = async () => (await rpc('vendas_avisos_lista', { org_slug: 'beyon-zero' })).itens.filter(i => i.conversa_id === m.conversa_id).map(i => i.momento);
+  for (const h of ['00:00', '23:59']) {
+    await forcarEntrega(db, m, { prazo: JSON.stringify(prazoEm(await cg(29, h))) });
+    assert.deepEqual(await parado(), { ok: false, motivo: 'cedo', dias: 29 }, 'aviso de material parado, entrada às ' + h + ' do dia -29');
+    assert.deepEqual(await naFila(), []);
+  }
+  await forcarEntrega(db, m, { prazo: JSON.stringify({ numero_em: agora, conta_desde: agora, pausas: [] }) });
+  assert.deepEqual(await parado(), { ok: false, motivo: 'cedo', dias: 0 }, 'sem entrada_em também não');
+  await forcarEntrega(db, m, { prazo: JSON.stringify(prazoEm(await cg(30, '23:59'))) });
+  assert.deepEqual(await naFila(), ['material_parado'], 'dia 30 por data');
+  assert.deepEqual(await parado(), { ok: true });
 });
