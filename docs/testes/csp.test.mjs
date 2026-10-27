@@ -57,6 +57,20 @@ test('CSP do /orcamento: sem origem que a página não usa (Google), com Mercado
   for (const origem of ['https://secure-fields.mercadopago.com', 'https://challenges.cloudflare.com']) assert.ok(d['frame-src'].includes(origem), origem);
 });
 
+test('CSP do /orcamento (PR 3b-2): o envio direto só para o caminho de envio assinado do Supabase, e blob: só nas imagens; nenhuma outra página muda', () => {
+  const d = diretivas(cspDoHeader('/orcamento'));
+  const supabase = d['connect-src'].split(' ').filter(x => /supabase/.test(x));
+  assert.deepEqual(supabase, ['https://*.supabase.co/storage/v1/object/upload/sign/'],
+    'connect-src: SÓ o caminho de envio assinado (troque o curinga pelo endereço do projeto quando o dono disser)');
+  assert.ok(d['img-src'].split(' ').includes('blob:'), 'img-src: blob: para as miniaturas feitas no aparelho');
+  for (const dir of ['script-src', 'style-src', 'default-src', 'frame-src', 'font-src']) assert.ok(!/blob:|supabase/.test(d[dir]), dir + ' não ganha blob: nem Supabase');
+  assert.ok(!/'unsafe-inline'|'unsafe-eval'/.test(cspDoHeader('/orcamento')), 'nada de inline nem eval');
+  for (const caminho of ['/', '/sites', '/automacao', '/painel', '/privacidade']) {
+    const csp = cspDoHeader(caminho);
+    assert.ok(csp && !/supabase|blob:/.test(csp), caminho + ': a CSP geral não mudou');
+  }
+});
+
 /* (auditoria 2026-10-09, segurança 1) o .vercelignore pode não valer num deploy feito pelo Git: o que é do repositório
    e não é página nem asset tem de ter uma regra no vercel.json que o tire do ar (o mesmo padrão de /docs e /supabase:
    redirect para a página inicial). A lista vem do próprio git: um arquivo ou pasta novo na raiz sem regra falha aqui. */
@@ -180,11 +194,11 @@ test('logo: as páginas usam a logo em SVG, sem estilo nem cor embutidos e com o
    nada sai pela rede nem pela URL, o que vai a outra página só no clique de um botão de ação, e controles de
    verdade (botões; a régua de horas é um slider com valor falado). */
 test('peças de Automação e do Atendente: CSP, nada sai da página e controles acessíveis', () => {
-  const html = readFileSync(new URL('index.html', RAIZ), 'utf8');
+  const html = readFileSync(new URL('automacao.html', RAIZ), 'utf8');
   for (const [marca, js] of [['data-despacho', 'js/peca-automacao.js'], ['data-plantao', 'js/peca-atendente.js']]) {
     const peca = (html.match(new RegExp('<div class="[a-z]+" ' + marca + '[\\s\\S]*?<\\/article>')) || [])[0];
-    assert.ok(peca, 'index.html: o cartão sem a peça ' + marca);
-    assert.ok(!/style="/.test(peca), 'index.html: estilo embutido na peça ' + marca + ' (a CSP bloqueia)');
+    assert.ok(peca, 'automacao.html: o cartão sem a peça ' + marca);
+    assert.ok(!/style="/.test(peca), 'automacao.html: estilo embutido na peça ' + marca + ' (a CSP bloqueia)');
     assert.ok(/<button type="button"/.test(peca), 'a peça ' + marca + ' precisa de botões de verdade');
     const codigo = readFileSync(new URL(js, RAIZ), 'utf8');
     assert.ok(!/innerHTML|outerHTML|insertAdjacentHTML|document\.write/.test(codigo), js + ': texto só como texto');
@@ -197,12 +211,21 @@ test('peças de Automação e do Atendente: CSP, nada sai da página e controles
   for (const a of ['role="slider"', 'tabindex="0"', 'aria-label=', 'aria-valuemin=', 'aria-valuemax=', 'aria-valuenow=', 'aria-valuetext=']) assert.ok(plantao.includes(a), 'régua de horas sem ' + a);
 });
 
+/* (revisão design-1023) as peças saíram da inicial: o que a CSP bloqueia (<style>, style="", handler inline) continua valendo para
+   as três páginas, não só para a que guarda a peça */
+test('CSP: nenhuma das três páginas tem <style>, style="" ou handler inline', () => {
+  for (const arquivo of ['index.html', 'sites.html', 'automacao.html']) {
+    const html = readFileSync(new URL(arquivo, RAIZ), 'utf8');
+    assert.ok(!/<style|\sstyle="|\son[a-z]+=/.test(html), arquivo + ': <style>, style="" ou handler inline (a CSP bloqueia)');
+  }
+});
+
 test('peça de Sites: o nome não sai da página, a CSP vale e a régua é acessível', () => {
-  const html = readFileSync(new URL('index.html', RAIZ), 'utf8');
+  const html = readFileSync(new URL('sites.html', RAIZ), 'utf8');
   const peca = (html.match(/<div class="planta" data-planta[\s\S]*?<\/article>/) || [])[0];
-  assert.ok(peca, 'index.html: o cartão de Sites sem a peça');
-  assert.ok(!/style="/.test(peca), 'index.html: estilo embutido na peça (a CSP bloqueia)');
-  assert.ok(!/<style|\sstyle="|\son[a-z]+=/.test(html), 'index.html: <style>, style="" ou handler inline (a CSP bloqueia)');
+  assert.ok(peca, 'sites.html: o cartão de Sites sem a peça');
+  assert.ok(!/style="/.test(peca), 'sites.html: estilo embutido na peça (a CSP bloqueia)');
+  assert.ok(!/<style|\sstyle="|\son[a-z]+=/.test(html), 'sites.html: <style>, style="" ou handler inline (a CSP bloqueia)');
   const slider = (peca.match(/<div class="planta__slider"[^>]*>/) || [''])[0];
   for (const a of ['role="slider"', 'tabindex="0"', 'aria-label=', 'aria-valuemin=', 'aria-valuemax=', 'aria-valuenow=', 'aria-valuetext=']) assert.ok(slider.includes(a), 'régua sem ' + a);
   assert.equal((peca.match(/<button type="button" class="planta__parada"/g) || []).length, 3, 'as três paradas da régua têm de ser botões');
@@ -210,7 +233,20 @@ test('peça de Sites: o nome não sai da página, a CSP vale e a régua é acess
   const js = readFileSync(new URL('js/peca-sites.js', RAIZ), 'utf8');
   assert.ok(!/innerHTML|outerHTML|insertAdjacentHTML|document\.write/.test(js), 'js/peca-sites.js: o nome tem de entrar como texto');
   assert.ok(!/fetch\(|XMLHttpRequest|sendBeacon|navigator\.sendBeacon|location\s*=|location\.href\s*=|history\.(push|replace)State/.test(js), 'js/peca-sites.js: o nome não pode sair pela rede nem pela URL');
-  const usos = js.match(/sessionStorage\.setItem/g) || [];
+  /* (a chave 'bz-negocio' é a travessia para a peça do atendente, em outra página desta mesma aba; as do orçamento só no clique) */
+  const usos = js.match(/sessionStorage\.setItem\('bz-planta-[a-z]+'/g) || [];
   const noClique = (js.match(/quero\.addEventListener\('click'[\s\S]*?\n  \}\);/) || [''])[0];
-  assert.ok(usos.length > 0 && (noClique.match(/sessionStorage\.setItem/g) || []).length === usos.length, 'js/peca-sites.js: o nome só pode ir para o sessionStorage no clique de "Quero o meu site"');
+  assert.ok(usos.length > 0 && (noClique.match(/sessionStorage\.setItem\('bz-planta-[a-z]+'/g) || []).length === usos.length, 'js/peca-sites.js: o nome do orçamento só pode ir para o sessionStorage no clique de "Quero o meu site"');
+});
+
+/* (design-1023) a Planta (/sites) e o Plantão (/automacao) ficaram em páginas diferentes: o nome atravessa pela aba
+   (sessionStorage, chave curta própria, só o nome, limitado, sempre em try/catch), nunca por servidor nem URL */
+test('o nome da Planta atravessa para o Plantão pela aba, sem servidor nem URL', () => {
+  const sites = readFileSync(new URL('js/peca-sites.js', RAIZ), 'utf8');
+  const atend = readFileSync(new URL('js/peca-atendente.js', RAIZ), 'utf8');
+  assert.ok(/try \{[^}]*sessionStorage\.setItem\('bz-negocio', nome\)[^}]*\} catch/.test(sites), 'js/peca-sites.js: guardar só o nome em bz-negocio, dentro de try/catch, ao emitir bz:negocio');
+  assert.ok(!/localStorage/.test(sites + atend), 'o nome não pode ficar além da aba (localStorage)');
+  assert.ok(/try \{[^}]*sessionStorage\.getItem\('bz-negocio'\)[^}]*\} catch/.test(atend), 'js/peca-atendente.js: ler bz-negocio dentro de try/catch');
+  assert.ok(/\.slice\(0, 28\)/.test((atend.match(/getItem\('bz-negocio'\)[\s\S]{0,400}/) || [''])[0]), 'js/peca-atendente.js: o nome lido tem o mesmo limite de 28');
+  assert.ok(!/setItem/.test(atend), 'js/peca-atendente.js: só lê, quem guarda é a Planta');
 });

@@ -36,14 +36,21 @@ import { higienizar, ESTRATEGIAS, ESQUEMA_DIRECAO } from '../api/_vendas/direcao
 import { SISTEMA_GERACAO, REGRA_BRIEFING, briefingDelimitado } from '../api/_vendas/gerador.mjs';
 import { redigir } from '../api/_vendas/seguranca.mjs';
 import { configSessao, comandoSessao, instrucoesSessao, linhaDoDono } from './sessao-isolada.mjs';
+import { cabecalhosDeAcesso, hostDoStaging, SUB_CONTA } from '../docs/acesso.mjs';
 import { FORMATOS } from '../api/_vendas/precos.mjs';
 import { varrer, textosDe } from './varredura.mjs';
 
 export const PASTA = path.join(os.homedir(), 'BeyonZero-direcoes');
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-/* para onde a chave do painel pode ir: o site (e as prévias da Vercel) por https; o servidor local por http */
-/* AO TROCAR DE DOMÍNIO (o .com.br próprio): acrescentar o host aqui e no teste de validarBase */
-const HOSTS = [/^beyon0-site\.vercel\.app$/, /^beyon0-site-[a-z0-9-]+-beyond0\.vercel\.app$/];
+/* para onde a chave do painel pode ir: NOMES EXATOS de host por https (nunca expressão); o servidor local por http.
+   - o site de produção;
+   - o staging fixo da Cloudflare, montado com o SUB_CONTA da conta do dono (nada enquanto ele for null);
+   - o site antigo da Vercel, SÓ enquanto existir o vercel.json (o teste liga os dois: o PR D, que apaga o vercel.json,
+     fica vermelho até este host sair daqui, e o nome liberado na Vercel nunca recebe a chave).
+   As prévias de branch (de qualquer plataforma) NÃO recebem a chave: rodam código ainda não revisado. */
+export const HOST_SITE = 'beyonzero.com.br';
+export const HOSTS_VERCEL = ['beyon0-site.vercel.app'];
+export const hostsPermitidos = (sub = SUB_CONTA) => [HOST_SITE, hostDoStaging(sub), ...HOSTS_VERCEL].filter(Boolean);
 /* partes do nome que não identificam ninguém (ficam no briefing: "Moda dos anos 80") */
 const NAO_E_NOME = new Set(['dos', 'das', 'del', 'van', 'von']);
 const LOCAIS = ['127.0.0.1', 'localhost'];
@@ -164,11 +171,11 @@ export function prepararPastaSessao({ dir, repo, casa = os.homedir(), tarefa = '
   return { settings, instrucoes };
 }
 
-export function validarBase(valor) {
+export function validarBase(valor, sub = SUB_CONTA) {
   let u;
-  try { u = new URL(String(valor || '')); } catch { throw new Error('BZ_BASE inválido: use o endereço do site, ex.: https://beyon0-site.vercel.app'); }
+  try { u = new URL(String(valor || '')); } catch { throw new Error('BZ_BASE inválido: use o endereço do site, ex.: https://beyonzero.com.br'); }
   const local = LOCAIS.includes(u.hostname) && u.protocol === 'http:';
-  const site = u.protocol === 'https:' && HOSTS.some(h => h.test(u.hostname));
+  const site = u.protocol === 'https:' && !u.port && hostsPermitidos(sub).includes(u.hostname);
   if (u.username || u.password || !(local || site)) throw new Error('BZ_BASE não é o site da Beyon Zero (https) nem o servidor local: a chave do painel não sai daqui.');
   return u.origin;
 }
@@ -459,7 +466,7 @@ function ambiente() {
 async function painel(metodo, consulta, corpo) {
   const { base, chave } = ambiente();
   const r = await fetch(base + '/api/painel' + consulta, { method: metodo, redirect: 'error', signal: AbortSignal.timeout(TEMPO_MS),
-    headers: { authorization: 'Bearer ' + chave, 'content-type': 'application/json' }, body: corpo ? JSON.stringify(corpo) : undefined });
+    headers: { authorization: 'Bearer ' + chave, 'content-type': 'application/json', ...cabecalhosDeAcesso(process.env, base) }, body: corpo ? JSON.stringify(corpo) : undefined });   /* (B9: staging atras do Access; so vai para o host do staging) */
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(j.erro || 'HTTP ' + r.status);
   return j;

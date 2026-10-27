@@ -10,7 +10,7 @@ async function rodada(semPeca) {
   const a = await b.newPage({ viewport: { width: W, height: W < 600 ? 844 : 900 }, deviceScaleFactor: W < 600 ? 2 : 1 });
   await a.addInitScript(() => { try { sessionStorage.setItem('bz-ouro', '1'); } catch (e) {} });
   if (semPeca) await a.route('**/js/peca-sites.js', (r) => r.abort());
-  await a.goto('http://127.0.0.1:8897/', { waitUntil: 'domcontentloaded', timeout: 90000 });
+  await a.goto('http://127.0.0.1:8897/sites', { waitUntil: 'domcontentloaded', timeout: 90000 });
   await a.waitForTimeout(4000);
   await a.evaluate(() => {
     window.__lt = []; new PerformanceObserver((l) => l.getEntries().forEach((e) => __lt.push(Math.round(e.duration)))).observe({ type: 'longtask' });

@@ -60,7 +60,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' https://challenges.cloudflare.com https://sdk.mercadopago.com; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self' https://api.mercadopago.com https://secure-fields.mercadopago.com; frame-src https://challenges.cloudflare.com https://secure-fields.mercadopago.com; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests"
+          "value": "default-src 'self'; script-src 'self' https://challenges.cloudflare.com https://sdk.mercadopago.com; style-src 'self'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self' https://api.mercadopago.com https://secure-fields.mercadopago.com https://*.supabase.co/storage/v1/object/upload/sign/; frame-src https://challenges.cloudflare.com https://secure-fields.mercadopago.com; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests"
         },
         {
           "key": "X-Content-Type-Options",
@@ -260,6 +260,21 @@
     },
     {
       "source": "/vendor/three/README.md",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/cloudflare/:caminho*",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/wrangler.jsonc",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/_headers",
       "destination": "/",
       "permanent": false
     }

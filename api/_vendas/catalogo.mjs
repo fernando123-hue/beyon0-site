@@ -67,7 +67,7 @@ export function catalogoPublico(regras, { formato, ramo }) {
 }
 
 const OBJETIVO_BRIEFING = { pedidos_whatsapp: 'gerar_leads', agendamentos: 'agendamentos', vender_online: 'vender', apresentar: 'apresentar_empresa', campanha: 'lancar_produto' };
-const NOME_RAMO = { servicos: 'serviços', saude: 'saúde', beleza: 'beleza', alimentacao: 'alimentação', comercio: 'comércio', educacao: 'educação', associacao: 'associação', outro: 'outro' };
+export const NOME_RAMO = { servicos: 'serviços', saude: 'saúde', beleza: 'beleza', alimentacao: 'alimentação', comercio: 'comércio', educacao: 'educação', associacao: 'associação', outro: 'outro' };
 const POSSE = { tenho: 'tem', parte: 'parcial', nao: 'nao' };
 
 /* as respostas viram o começo do briefing (o mesmo formato que o consultor monta), para a fila de modelos */

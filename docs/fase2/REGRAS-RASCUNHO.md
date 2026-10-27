@@ -24,7 +24,7 @@ Os adicionais seguem a mesma lógica: um valor por unidade, um prazo por unidade
 - **Urgência:** multiplica o valor por 1,3 e o prazo por 0,6.
 - **Complexidade alta:** multiplica o valor por 1,25.
 - **Limite automático:** R$ 15.000 por fase e R$ 60.000 por projeto (fase 1 + fase seguinte). Acima disso, o caso vai para o diagnóstico. A fase seguinte tem valor e prazo estimados.
-- **Sinal:** 50%.
+- **Sinal (entrada):** 40%; o restante, 60%, com o site no ar. Decisão do dono de 20/10 (Decisões.md, "O site vende sozinho", 1 D - Sim). A tabela ATIVA de produção o dono aplica pelo caminho de sempre.
 - **Descontos:** nenhum autorizado. O agente não dá desconto.
 
 ## Exemplos calculados pelo motor (`npm run testar`, em precos.test.mjs)
@@ -43,7 +43,7 @@ No institucional com 7 páginas, a fase 1 traz as 2 páginas extras e os textos 
 ## O que o dono decide
 
 1. Os valores e prazos de cada linha.
-2. Se o sinal fica em 50%.
+2. ~~Se o sinal fica em 50%.~~ Decidido em 20/10: 40%.
 3. O limite automático.
 4. Se haverá algum desconto autorizado, por exemplo para pagamento à vista.
 

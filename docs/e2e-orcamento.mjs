@@ -21,6 +21,7 @@ import { mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { passoDosAjustes } from './e2e-ajustes.mjs';
 import { passoDoPix } from './e2e-pix.mjs';
+import { passoDaEntrega } from './e2e-entrega.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8899';
 /* só servidor local: contra um site de verdade este teste cria conversa, chama a IA paga e cria pedido de pagamento */
@@ -70,7 +71,7 @@ try {
   const erros = [];
   let falhaForcada = false;   /* (o 400 ou 503 que o próprio teste força numa conta ou nos detalhes não é erro da página) */
   let perdeuOPedido = false;   /* (PR 2b-2: depois que outro aparelho abre o pedido pelo link, a aba de antes leva 404 ao reler o estado, e isso é o esperado) */
-  page.on('console', m => { if (m.type() === 'error' && !(falhaForcada && /status of (400|503)|ERR_TIMED_OUT/.test(m.text())) && !(perdeuOPedido && /status of 404/.test(m.text()))) erros.push(m.text()); });
+  page.on('console', m => { if (m.type() === 'error' && !(falhaForcada && /status of (400|503)|ERR_TIMED_OUT|ERR_FAILED/.test(m.text())) && !(perdeuOPedido && /status of 404/.test(m.text()))) erros.push(m.text()); });
   page.on('pageerror', e => erros.push(String(e)));
   page.on('dialog', d => { erros.push('diálogo inesperado: ' + d.message()); d.dismiss(); });
 
@@ -688,6 +689,7 @@ try {
   } else ok(await page.locator('#o-escopo [data-perguntar]').isHidden(), 'sem consultor: o resumo não oferece "Pergunte ao consultor"');
   await page.click('#o-esc-form button[type=submit]');
   ok((await page.textContent('#o-esc-erro')).length > 0, 'escopo sem confirmação: recusado');
+  ok(await page.locator('#o-antes').isVisible(), 'perguntas antes de pagar: também no resumo');
   await page.check('#o-confirmo');
   await page.click('#o-esc-form button[type=submit]');
   await page.waitForSelector('#o-pagamento:not([hidden])');
@@ -718,6 +720,7 @@ try {
 
   /* pagamento: dados do pagador, o cartão (quando o servidor o liga) e o Pix; a confirmação SÓ pelo aviso do provedor (docs/e2e-pix.mjs) */
   await passoDoPix(page, { ok, espera, foto, semRolagemLateral, forcar: v => { falhaForcada = v; } });
+  await passoDaEntrega(page, { ok, espera, foto, semRolagemLateral, perdeu: () => { perdeuOPedido = true; }, forcar: v => { falhaForcada = v; } });
   ok(erros.length === 0, 'sem erro de console' + (erros.length ? ': ' + erros.slice(0, 3).join(' | ') : ''));
   await ctx.close();
 
