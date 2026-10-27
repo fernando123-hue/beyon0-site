@@ -274,3 +274,36 @@ test('CLI: ajustes grava a pasta, avisa do texto suspeito e do contato do site; 
   assert.match(fora, /ATENÇÃO/); assert.match(fora, /contato-do-site\.json/); assert.ok(!/Trocar a cor/.test(fora), 'o texto do cliente fica no arquivo, na moldura');
   assert.equal(await t.rodar(['ajustes', COD]), 1); assert.match(t.erro.join(' '), /--destino/);
 });
+
+test('no-ar: o dono VÊ o pedido e o endereço (BZ-… -> https://…) antes de digitar o código; o endereço sai limpo de sequência de controle', async () => {
+  const saida = [];
+  let visto = null;
+  await colocarNoAr({ ...comum(falso()), codigo: COD, url: 'https://clinicasol.com.br/', saida: t => saida.push(t), gerar: () => 'NO-AR-AB3D',
+    perguntar: async () => { visto = saida.join('\n'); return 'NO-AR-AB3D'; } });
+  assert.match(visto, new RegExp(COD + ' -> https://clinicasol\\.com\\.br/'), 'impresso ANTES de perguntar o código');
+  const sujo = [];
+  await colocarNoAr({ ...comum(falso()), codigo: COD, url: 'https://clinicasol.com.br/\u001b[2Jx', saida: t => sujo.push(t), gerar: () => 'NO-AR-AB3D', perguntar: async () => 'NO-AR-AB3D' });
+  assert.ok(sujo.length && !/\u001b/.test(sujo.join('')), 'o endereço passa por paraTerminal');
+  const t = terminal({}, { resposta: 'NO-AR-ZZZZ' });
+  assert.equal(await t.rodar(['no-ar', COD, 'https://clinicasol.com.br']), 1);
+  assert.match(t.saida.join('\n'), new RegExp(COD + ' -> https://clinicasol\\.com\\.br'), 'no comando também: aparece mesmo quando o dono erra o código');
+});
+
+test('o que o servidor devolve em texto (aviso, lembrete, marcada_em, rodada) chega ao terminal do dono sem sequência de controle', async () => {
+  const SUJO = 'ok\u001b[2Jsumiu‮x';
+  const limpo = m => assert.ok(!/[\u001b‮]/.test(m), JSON.stringify(m));
+  limpo(await suspender({ ...comum(falso({ padrao: { corpo: { aviso: SUJO } } })), codigo: COD }));
+  limpo(await encerrar({ ...comum(falso({ padrao: { corpo: { lembrete: SUJO } } })), codigo: COD, motivo: 'outro' }));
+  limpo(await dispensar({ ...comum(falso({ padrao: { corpo: { marcada_em: SUJO } } })), codigo: COD }));
+  const destino = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'bz-aj-')), 'x');
+  const ruim = { rodada: SUJO, status: 'na_fila', texto: 'Trocar a cor.', contato: { whatsapp: '+55lixo', email: null, autorizado_em: '2026-10-22T12:00:00Z', autorizacao_versao: '2026-10-22' } };
+  await assert.rejects(baixarAjustes({ ...comum(falso({ padrao: { corpo: { passo: 'ajustes', ajustes: [ruim] } } })), codigo: COD, destino }), e => /Contato do site inválido/.test(e.message) && !/[\u001b‮]/.test(e.message));
+});
+
+test('um valor torto no prazo (TypeError, não só RangeError) vira o aviso de data ilegível e não derruba o listar', async () => {
+  const torto = base({ passo: 'producao', prazo_dias: 5, prazo: { conta_desde: '2026-10-01T12:00:00-04:00', pausas: [], novas_datas: [{ data: { toString: 1 }, combinada_em: 1 }] } });
+  const a = alertasDe(torto, HOJE);
+  assert.equal(a.length, 1); assert.match(a[0], /prazo.*não dá para ler/i);
+  const linhas = (await listar({ ...comum(falso({ padrao: { corpo: { entregas: [torto] } } })), raiz: RAIZ })).join('\n');
+  assert.match(linhas, /não dá para ler/);
+});

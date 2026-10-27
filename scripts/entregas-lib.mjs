@@ -56,8 +56,8 @@ const acao = (buscar, origem, chave, corpo) => painel(buscar, origem, chave, '/a
 
 export function alertasDe(it, agora = new Date()) {
   const a = [];
-  const dias = it.dias_desde_entrada;
-  if (it.passo === 'material' && dias >= 30) {
+  const diasDeEntrada = it.dias_desde_entrada;
+  if (it.passo === 'material' && diasDeEntrada >= 30) {
     const autorizado = it.tem_whatsapp && it.autorizacao_marcada && it.tem_uf;
     if (autorizado) a.push('30 dias sem material, com a autorização EXPRESSA do cliente (caixa marcada, número e UF): pode dispensar (o pedido segue com as imagens do modelo e o site só vai ao ar depois de o cliente aprovar a prévia, D5). Na captação, importe o material dispensado SEM --completo (o dia 30 dela marca "sem_material" sozinho até ela aplicar as regras de 22/10)');
     else if (!it.aviso_material_em) a.push('30 dias sem o material e sem autorização: nada é publicado. Mande o aviso de que você está aguardando o material e de que o projeto fica parado, e registre (aviso ' + it.codigo + ' material-parado)');
@@ -72,7 +72,7 @@ export function alertasDe(it, agora = new Date()) {
   /* (M1) o prazo corre até PUBLICAR, como na captação: aprovada também conta. Sem prazo_dias inteiro não se inventa vencimento; data torta vira aviso, não exceção */
   if ((it.passo === 'producao' || it.passo === 'ajustes' || it.passo === 'aprovada') && it.prazo && Number.isInteger(it.prazo_dias)) {
     let vencido = false, legivel = prazoLegivel(it.prazo);
-    if (legivel) { try { vencido = prazoVencido(it.prazo, { prazoDias: it.prazo_dias }, agora); } catch (e) { if (!(e instanceof RangeError)) throw e; legivel = false; } }
+    if (legivel) { try { vencido = prazoVencido(it.prazo, { prazoDias: it.prazo_dias }, agora); } catch (e) { if (!(e instanceof RangeError || e instanceof TypeError)) throw e; legivel = false; } }
     if (!legivel) a.push('o prazo desta entrega tem uma data que não dá para ler: confira no banco antes de publicar a prévia ou o site');
     else if (vencido) {
       a.push('prazo vencido (era até ' + it.entrega_ate + '): a regra da D4 devolve a entrada se a Beyon atrasar (estorno no Mercado Pago; depois "encerrar ' + it.codigo + ' atraso" e a devolução na captação)'
@@ -173,26 +173,27 @@ export async function publicarPrevia({ base, chave, buscar = fetch, codigo, url 
   return 'Prévia registrada. O cliente a vê na página dele; o aviso de "prévia pronta" está no painel (Avisos).';
 }
 /* pôr o site no ar abre a cobrança do restante: pede o código sorteado (NO-AR-XXXX), como o ENTREGAR-XXXX das direções */
-export async function colocarNoAr({ base, chave, buscar = fetch, codigo, url, perguntar, gerar = () => codigoAleatorio('NO-AR-') }) {
+export async function colocarNoAr({ base, chave, buscar = fetch, codigo, url, perguntar, gerar = () => codigoAleatorio('NO-AR-'), saida = console.log }) {
   const { origem } = ambiente(base, chave); validarCodigo(codigo);
   if (!/^https:\/\//.test(String(url))) throw new Error('Diga o endereço do site (https://…).');
+  saida(codigo + ' -> ' + paraTerminal(url, 300));   /* o dono lê o pedido e o endereço ANTES de digitar o código (o texto "acima" da pergunta) */
   if (!(await pedirConfirmacao(perguntar, gerar, 'pôr o site no ar e abrir a cobrança do restante'))) throw new Error('Não confirmado: nada foi feito.');
   await acao(buscar, origem, chave, { no_ar: codigo, url });
   return 'No ar. O aviso de "site no ar" está no painel (Avisos); o cliente já vê o Pix do restante na página dele.';
 }
-export async function suspender({ base, chave, buscar = fetch, codigo }) { const { origem } = ambiente(base, chave); validarCodigo(codigo); const r = await acao(buscar, origem, chave, { suspender: codigo }); return (r && r.aviso) || 'Suspenso no site. Tire o site do ar pela captação (suspender).'; }
+export async function suspender({ base, chave, buscar = fetch, codigo }) { const { origem } = ambiente(base, chave); validarCodigo(codigo); const r = await acao(buscar, origem, chave, { suspender: codigo }); return (r && r.aviso && paraTerminal(r.aviso, 400)) || 'Suspenso no site. Tire o site do ar pela captação (suspender).'; }
 export async function encerrar({ base, chave, buscar = fetch, codigo, motivo }) {
   const { origem } = ambiente(base, chave); validarCodigo(codigo);
   if (!MOTIVOS.includes(motivo)) throw new Error('Motivo fora da lista: ' + MOTIVOS.join(', ') + '. Não existe encerrar por silêncio do cliente (D5).');
   const r = await acao(buscar, origem, chave, { encerrar: codigo, motivo });
-  return 'Encerrado. ' + ((r && r.lembrete) || '');
+  return 'Encerrado. ' + ((r && r.lembrete && paraTerminal(r.lembrete, 600)) || '');
 }
 export async function dispensar({ base, chave, buscar = fetch, codigo }) {
   const { origem } = ambiente(base, chave); validarCodigo(codigo);
   const r = await acao(buscar, origem, chave, { material_dispensar: codigo });
   /* na captação: SEM --completo (o dia 30 dela marca "sem_material" sozinho); e a data REAL da marcação da caixa vai à vista, porque o `enviado_em` do formulário é o de hoje (B5) */
   return 'Material dispensado (com a autorização expressa do cliente): o pedido segue para a produção com as imagens do modelo, e o site só vai ao ar depois de ele aprovar a prévia. Na captação, importe SEM --completo.'
-    + (r && r.marcada_em ? ' A caixa de autorização foi marcada em ' + r.marcada_em + ' (o formulário leva a data de hoje: anote a da marcação ao importar).' : '');
+    + (r && r.marcada_em ? ' A caixa de autorização foi marcada em ' + paraTerminal(r.marcada_em, 60) + ' (o formulário leva a data de hoje: anote a da marcação ao importar).' : '');
 }
 export async function registrarAviso({ base, chave, buscar = fetch, codigo, momento }) {
   const { origem } = ambiente(base, chave); validarCodigo(codigo);
@@ -215,7 +216,7 @@ export async function baixarAjustes({ base, chave, buscar = fetch, codigo, desti
   const contatos = lista.filter(a => a.contato && (a.contato.whatsapp || a.contato.email)).map(a => {
     const c = ESQ.contatoDoSite(a.contato.whatsapp, a.contato.email);
     if (!c.ok || c.whatsapp !== (a.contato.whatsapp || null) || c.email !== (a.contato.email || null) || !a.contato.autorizado_em || !a.contato.autorizacao_versao) {
-      throw new Error('Contato do site inválido ou sem a autorização registrada (lista ' + a.rodada + '): não gravei nada. Confira no banco.');
+      throw new Error('Contato do site inválido ou sem a autorização registrada (lista ' + paraTerminal(a.rodada, 20) + '): não gravei nada. Confira no banco.');
     }
     return { rodada: a.rodada, whatsapp: c.whatsapp, email: c.email, autorizado_em: a.contato.autorizado_em, autorizacao_versao: a.contato.autorizacao_versao };
   });

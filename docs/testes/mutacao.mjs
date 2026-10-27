@@ -357,6 +357,12 @@ export const SABOTAGENS = [
   /* ---- o comando do dono (Task 10): o que só vive no JS do terminal ---- */
   { nome: "o \"no ar\" sem pedir o código sorteado (terminal do dono)", fonte: "scripts/entregas-lib.mjs", testes: ['docs/testes/entregas-dono-previa.test.mjs'],
     de: "  if (!(await pedirConfirmacao(perguntar, gerar, 'pôr o site no ar e abrir a cobrança do restante'))) throw new Error('Não confirmado: nada foi feito.');\n", para: "  /* (confirmação removida) */\n" },
+  { nome: "o \"no ar\" não mostra o pedido e o endereço antes do código (terminal do dono)", fonte: "scripts/entregas-lib.mjs", testes: ['docs/testes/entregas-dono-previa.test.mjs'],
+    de: "  saida(codigo + ' -> ' + paraTerminal(url, 300));", para: "  /* (impressão removida) */" },
+  { nome: "o aviso da suspensão chega ao terminal sem limpar a sequência de controle", fonte: "scripts/entregas-lib.mjs", testes: ['docs/testes/entregas-dono-previa.test.mjs'],
+    de: "return (r && r.aviso && paraTerminal(r.aviso, 400)) ||", para: "return (r && r.aviso) ||" },
+  { nome: "um valor torto no prazo (TypeError) derruba o listar", fonte: "scripts/entregas-lib.mjs", testes: ['docs/testes/entregas-dono-previa.test.mjs'],
+    de: "e instanceof RangeError || e instanceof TypeError", para: "e instanceof RangeError" },
   { nome: "o encerrar aceita \"sem resposta\" e \"sem material\" (terminal do dono)", fonte: "scripts/entregas-lib.mjs", testes: ['docs/testes/entregas-dono-previa.test.mjs'],
     de: "const MOTIVOS = ['desistencia', 'atraso', 'producao_manual', 'outro'];", para: "const MOTIVOS = ['desistencia', 'atraso', 'producao_manual', 'outro', 'sem_resposta', 'sem_material'];" },
   { nome: "o contato do site vai para a pasta sem a autorização registrada (terminal do dono)", fonte: "scripts/entregas-lib.mjs", testes: ['docs/testes/entregas-dono-previa.test.mjs'],

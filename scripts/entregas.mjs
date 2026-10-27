@@ -55,7 +55,7 @@ export async function executar(argv, { env = process.env, buscar = fetch, raiz =
       if (r.contatos) saida('O cliente pediu para trocar o telefone ou o e-mail do site: veja contato-do-site.json (dado já conferido, com a autorização registrada). Só se aplica com ela.');
     } else if (comando === 'no-ar') {
       const p = novoPerguntador();
-      try { saida(await colocarNoAr({ ...comum, codigo: args[0], url: args[1], perguntar: p.perguntar })); } finally { p.fechar(); }
+      try { saida(await colocarNoAr({ ...comum, codigo: args[0], url: args[1], perguntar: p.perguntar, saida })); } finally { p.fechar(); }
     } else if (comando === 'suspender') saida(await suspender({ ...comum, codigo: args[0] }));
     else if (comando === 'encerrar') saida(await encerrar({ ...comum, codigo: args[0], motivo: args[1] }));
     else if (comando === 'dispensar') saida(await dispensar({ ...comum, codigo: args[0] }));
