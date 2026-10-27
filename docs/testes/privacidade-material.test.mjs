@@ -32,6 +32,7 @@ test('a lista de terceiros cita o material (Supabase guarda os arquivos; a Anthr
   assert.ok(PAG.includes('o material do site: textos, contatos e fotos, que o agente que monta o site lê'));
 });
 
+/* só o TEXTO da página: o apagamento depois de 6 meses ainda não existe no código do site (pendência em docs/revisoes/pr1-pendencias.md) */
 test('projeto parado (decisão do dono de 22/10): mantém a vaga, o material some depois de 6 meses parado, com aviso antes; sem número de anos', () => {
   for (const frase of ['continua reservado para você', '6 meses', 'avisamos você antes']) assert.ok(ITEM.includes(frase), frase);
   assert.ok(ITEM.includes('esperando o seu material ou a sua autorização'));
