@@ -3,7 +3,7 @@
    ensaio. Não publica nada: `wrangler deploy --dry-run` só empacota e `wrangler dev --local` roda aqui.
      node docs/worker-fumaca.mjs
    O Wrangler lê .dev.vars e .env da pasta onde roda: por isso a fumaça copia para uma pasta temporária SÓ o que vai ao
-   ar (publico/, cloudflare/, api/, wrangler.jsonc, package*.json) e usa o node_modules daqui por junção. Sem segredo
+   ar (publico/, cloudflare/, api/, js/orcamento-material-esquema.js (o esquema que a API importa), wrangler.jsonc, package*.json) e usa o node_modules daqui por junção. Sem segredo
    nenhum, o Worker é a produção sem chaves: tudo tem de fechar.
    DATA DE COMPATIBILIDADE: o workerd que vem dentro de cada versão do Wrangler só aceita datas até a dele (o 4.136.3
    aceita até 2026-09-28, a data do wrangler.jsonc). A fumaça testa SEMPRE a configuração real: se o workerd recusar a
@@ -46,7 +46,7 @@ function montarPasta() {
   const montar = spawnSync(process.execPath, [path.join(RAIZ, 'cloudflare', 'montar-publico.mjs')], { cwd: RAIZ, encoding: 'utf8' });
   if (montar.status !== 0) throw new Error('montar-publico falhou: ' + montar.stderr);
   const pasta = fs.mkdtempSync(path.join(os.tmpdir(), 'bz-fumaca-'));
-  for (const item of ['publico', 'cloudflare', 'api', 'wrangler.jsonc', 'package.json', 'package-lock.json']) fs.cpSync(path.join(RAIZ, item), path.join(pasta, item), { recursive: true });
+  for (const item of ['publico', 'cloudflare', 'api', 'js/orcamento-material-esquema.js', 'wrangler.jsonc', 'package.json', 'package-lock.json']) fs.cpSync(path.join(RAIZ, item), path.join(pasta, item), { recursive: true });
   fs.symlinkSync(path.join(RAIZ, 'node_modules'), path.join(pasta, 'node_modules'), 'junction');
   return pasta;
 }
