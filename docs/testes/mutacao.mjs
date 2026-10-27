@@ -278,7 +278,7 @@ export const SABOTAGENS = [
   { nome: 'o pagar do restante ignora o interruptor desligado', fonte: 'api/_vendas/fluxo.mjs', testes: ['docs/testes/previa-api.test.mjs'],
     de: "  if (!entregaLigada(env)) throw new Recusa(503, FRASE_DESLIGADA, { whatsapp: true });\n  if (passo === 'concluida')", para: "  if (passo === 'concluida')" },
   { nome: 'a entrega encerrada passa por "site no ar" no pagar do restante', fonte: 'api/_vendas/fluxo.mjs', testes: ['docs/testes/previa-api.test.mjs'],
-    de: "  if (passo === 'encerrada') throw new Recusa(409, PEDIDO_ENCERRADO, { whatsapp: true });\n", para: "" },
+    de: "  if (passo === 'encerrada') throw new Recusa(409, PEDIDO_ENCERRADO, { whatsapp: true });\n", para: "  /* sem a frase do pedido encerrado */\n" },
 ];
 
 /* as sabotagens que a rodada vai fazer: todas, ou só as do filtro (parte do nome, sem diferenciar maiúsculas). Filtro que não
