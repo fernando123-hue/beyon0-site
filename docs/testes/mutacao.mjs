@@ -352,6 +352,13 @@ export const SABOTAGENS = [
     de: "then return jsonb_build_object('ok', false, 'motivo', 'ja'); end if;\n    if e.aviso_material_em is null then", para: "then null; end if;\n    if e.aviso_material_em is null then" },
   { nome: 'o aviso prévio do apagamento sai sem o aviso de material parado', arquivo: '20261024120300_pr3b3_rotina.sql', testes: ['docs/testes/material-parado.test.mjs'],
     de: "if e.aviso_material_em is null then return jsonb_build_object('ok', false, 'motivo', 'sem_aviso'); end if;", para: "null;" },
+  /* ---- B3 (fix wave 2): encerrar e dispensar do terminal pedem o código digitado ---- */
+  { nome: 'encerrar do terminal dispara sem pedir o código digitado (B3)', fonte: 'scripts/entregas-lib.mjs', testes: ['docs/testes/entregas-dono-previa.test.mjs'],
+    de: "if (!(await pedirConfirmacao(perguntar, gerar, 'encerrar o pedido'))) throw", para: 'if (false) throw' },
+  { nome: 'dispensar do terminal dispara sem pedir o código digitado (B3)', fonte: 'scripts/entregas-lib.mjs', testes: ['docs/testes/entregas-dono-previa.test.mjs'],
+    de: "if (!(await pedirConfirmacao(perguntar, gerar, 'dispensar o material e seguir para a produção'))) throw", para: 'if (false) throw' },
+  { nome: 'o listar do terminal imprime o que vem do servidor sem limpar (B3)', fonte: 'scripts/entregas-lib.mjs', testes: ['docs/testes/entregas-dono-previa.test.mjs'],
+    de: "const t = (v, max = 40) => paraTerminal(v, max);", para: 'const t = (v, max = 40) => String(v);' },
   /* ---- B5 (fix wave 2): o prazo que chega do servidor só mescla chaves fechadas ---- */
   { nome: 'publicar a prévia mescla o prazo inteiro que chega (B5)', arquivo: '20261024120100_pr3b3_previa.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
     de: "previa_em = v_agora, prazo = prazo || (select coalesce(jsonb_object_agg(k, v), '{}'::jsonb) from jsonb_each(p -> 'prazo') as t(k, v) where k in ('conta_desde', 'pausas')),", para: "previa_em = v_agora, prazo = prazo || (p -> 'prazo')," },
