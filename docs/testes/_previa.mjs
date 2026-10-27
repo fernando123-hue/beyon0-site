@@ -37,3 +37,7 @@ export async function entregaEm(db, passo = 'producao', { prazo = 8, ...resto } 
   });
   return c;
 }
+
+/* o código do pedido (BZ-…) e a versão da entrega (updated_at com os microssegundos, no MESMO texto que o banco entrega à tela dentro do jsonb: nunca passa por Date) */
+export const codigoDe = async (db, c) => (await db.query('select codigo from app.pedidos where conversa_id = $1', [c.conversa_id])).rows[0].codigo;
+export const versaoDe = async (db, c) => (await db.query("select (to_jsonb(updated_at) #>> '{}') as v from app.entregas where conversa_id = $1", [c.conversa_id])).rows[0].v;

@@ -173,7 +173,11 @@ export const SABOTAGENS = [
   { nome: 'o encerrar por "sem_material" volta à lista fechada', arquivo: '20261024120000_pr3b3_esquema.sql', testes: ['docs/testes/previa-esquema.test.mjs'],
     de: "('desistencia', 'atraso', 'producao_manual', 'outro')),   -- lista fechada", para: "('desistencia', 'atraso', 'sem_material', 'producao_manual', 'outro')),   -- lista fechada" },
   { nome: 'o contato do site é aceito sem a autorização de uso', arquivo: '20261024120000_pr3b3_esquema.sql', testes: ['docs/testes/previa-esquema.test.mjs'],
-    de: '(contato_autorizado_em is not null and contato_autorizacao_versao is not null)', para: 'true' }
+    de: '(contato_autorizado_em is not null and contato_autorizacao_versao is not null)', para: 'true' },
+
+  /* ---- M3 (22/10): o telefone e o e-mail do site só existem com a autorização de uso ---- */
+  { nome: 'a função aceita o contato do site sem a versão da autorização', arquivo: '20261024120100_pr3b3_previa.sql', testes: ['docs/testes/previa-banco.test.mjs'],
+    de: "or ((v_whats is not null or v_email is not null) and (v_versao is null or char_length(v_versao) > 20)) then", para: 'or false then' }
 ];
 
 /* as sabotagens que a rodada vai fazer: todas, ou só as do filtro (parte do nome, sem diferenciar maiúsculas). Filtro que não
