@@ -96,7 +96,7 @@ begin
 
   insert into app.rotinas_execucoes (dia, rotina, ok, resultado)
   values (v_dia, 'diaria', v_falhou is null, jsonb_build_object('atencao', v_atencao, 'custo_dia', v_custo, 'falhas_ia', v_falhas, 'freios', v_freios,
-                                                                'entregas', jsonb_build_object('prazo_vencido', v_prazo, 'material_30', v_mat, 'restante_vencido', v_resto, 'material_apagar', v_apagar)))
+                                                                'entregas', case when jsonb_typeof(p -> 'entregas') = 'object' then jsonb_build_object('prazo_vencido', v_prazo, 'material_30', v_mat, 'restante_vencido', v_resto, 'material_apagar', v_apagar) end))
   on conflict (dia, rotina) do update set ok = excluded.ok, resultado = excluded.resultado, updated_at = now()
   returning avisado into v_avisado;
 
@@ -179,11 +179,34 @@ create function privado.material_apagavel(e app.entregas) returns boolean
 language sql stable security definer set search_path = '' as $$
   select coalesce(e.passo = 'material' and e.aviso_material_em is not null and e.aviso_apagar_material_em is not null
     and not exists (select 1 from app.materiais m where m.entrega_id = e.id and privado.material_autorizado(m))
+    and exists (select 1 from app.materiais m where m.entrega_id = e.id and m.status = 'rascunho')
     and e.aviso_apagar_material_em >= privado.material_parado_desde(e)
     and ((privado.material_parado_desde(e) at time zone 'America/Campo_Grande')::date + interval '6 months')::date <= (now() at time zone 'America/Campo_Grande')::date
     and (e.aviso_apagar_material_em at time zone 'America/Campo_Grande')::date + 30 <= (now() at time zone 'America/Campo_Grande')::date, false);
 $$;
 revoke all on function privado.material_apagavel(app.entregas) from public, anon, authenticated, service_role;
+
+-- apaga os campos do material de UMA entrega parada, SOB TRAVA e reconferindo (a rotina escolhe as entregas num select sem trava; o cliente pode voltar e salvar entre a escolha
+-- e o apagamento, e o que ele acabou de digitar não pode sumir). A ordem das travas é a global: conversa -> entrega -> material (a mesma de vendas_material_salvar).
+-- Devolve true só se apagou. Os arquivos já foram baixados pela rotina (o armazém é apagado antes); com arquivo vivo, não apaga.
+create function privado.material_apagar_agora(p_entrega uuid) returns boolean
+language plpgsql security definer set search_path = '' as $$
+declare e app.entregas;
+begin
+  perform 1 from app.conversas c join app.entregas x on x.conversa_id = c.id where x.id = p_entrega for update of c;
+  select * into e from app.entregas where id = p_entrega for update;
+  if not found then return false; end if;
+  perform 1 from app.materiais where entrega_id = e.id for update;
+  if not privado.material_apagavel(e)
+     or exists (select 1 from app.material_arquivos a where a.entrega_id = e.id and a.status in ('reservado', 'conferido')) then
+    return false;
+  end if;
+  update app.materiais set dados = '{}', negocio = '{}', updated_at = now() where entrega_id = e.id and status = 'rascunho';
+  update app.entregas set material_apagado_em = now() where id = e.id;
+  perform privado.evento(e.org_id, e.conversa_id, 'material_apagado');
+  return true;
+end $$;
+revoke all on function privado.material_apagar_agora(uuid) from public, anon, authenticated, service_role;
 
 -- ---------- a limpeza: o caso (f), projeto parado (a 3b-2 com mais um caso) ----------
 create or replace function app.rotinas_material_pendencias(p jsonb) returns jsonb
@@ -241,15 +264,13 @@ begin
   end loop;
   -- (f) o projeto parado: com os arquivos já baixados, os campos saem (a prova da autorização fica); o material continua um rascunho, o passo continua "material" e
   -- a contagem recomeça (updated_at), de modo que a rotina de amanhã não repete nem apaga o que o cliente mandar quando voltar
+  -- (a escolha é sem trava; privado.material_apagar_agora trava e reconfere cada uma)
   for r in
-    select e.id, e.conversa_id, e.org_id from app.entregas e
+    select e.id from app.entregas e
      where privado.material_apagavel(e)
        and not exists (select 1 from app.material_arquivos a where a.entrega_id = e.id and a.status in ('reservado', 'conferido'))
   loop
-    update app.materiais set dados = '{}', negocio = '{}', updated_at = now() where entrega_id = r.id;
-    update app.entregas set material_apagado_em = now() where id = r.id;
-    perform privado.evento(r.org_id, r.conversa_id, 'material_apagado');
-    v_parados := v_parados + 1;
+    if privado.material_apagar_agora(r.id) then v_parados := v_parados + 1; end if;
   end loop;
   delete from app.links_pedido where valido_ate < now() - interval '30 days' or revogado_em < now() - interval '30 days';
   return jsonb_build_object('baixados', v_n, 'limpos', v_limpos, 'parados', v_parados);
@@ -276,7 +297,7 @@ begin
     if v_dias < 30 then return jsonb_build_object('ok', false, 'dias', v_dias, 'motivo', 'cedo'); end if;
     -- com o número AUTORIZADO (WhatsApp + caixa + UF) o caminho é dispensar o material, não o aviso de material parado
     select * into m from app.materiais where entrega_id = e.id;
-    if coalesce(m.dados ->> 'whatsapp', '') <> '' and coalesce(m.autorizacao ->> 'marcada', '') = 'true' and coalesce(m.negocio ->> 'uf', '') <> '' then
+    if privado.material_autorizado(m) then
       return jsonb_build_object('ok', false, 'motivo', 'dispensar');
     end if;
     update app.entregas set aviso_material_em = now() where id = e.id;
@@ -323,7 +344,7 @@ begin
     select e.conversa_id, 'material_parado', (e.prazo ->> 'entrada_em')::timestamptz + interval '30 days' from app.entregas e join app.materiais m on m.entrega_id = e.id
      where e.org_id = v_org and e.passo = 'material' and e.aviso_material_em is null
        and (now() at time zone 'America/Campo_Grande')::date - ((e.prazo ->> 'entrada_em')::timestamptz at time zone 'America/Campo_Grande')::date >= 30
-       and not (coalesce(m.dados ->> 'whatsapp', '') <> '' and coalesce(m.autorizacao ->> 'marcada', '') = 'true' and coalesce(m.negocio ->> 'uf', '') <> '')
+       and not privado.material_autorizado(m)
     union all   -- (22/10) o aviso prévio do apagamento do material: o projeto parado completou 5 meses (privado.material_apagar_devido)
     select e.conversa_id, 'material_apagar', ((privado.material_parado_desde(e) at time zone 'America/Campo_Grande')::date + interval '5 months') at time zone 'America/Campo_Grande' from app.entregas e
      where e.org_id = v_org and privado.material_apagar_devido(e)

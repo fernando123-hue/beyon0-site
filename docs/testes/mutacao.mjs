@@ -337,6 +337,16 @@ export const SABOTAGENS = [
     de: "if e.aviso_material_em is null then return jsonb_build_object('ok', false, 'motivo', 'sem_aviso'); end if;", para: "null;" },
   { nome: 'o alarme de apagar o material conta pedido que o banco não deve', fonte: 'api/_entrega/alarmes.mjs', testes: ['docs/testes/alarmes.test.mjs'],
     de: "if (it.apagar_material_devido === true) r.material_apagar++;", para: "r.material_apagar++;" },
+  /* ---- revisão da Task 9: a corrida do apagamento e a guarda do aviso prévio ---- */
+  { nome: 'o apagamento do material parado não reconfere sob trava (apaga o que o cliente acabou de salvar)', arquivo: '20261024120300_pr3b3_rotina.sql', testes: ['docs/testes/material-parado.test.mjs'],
+    de: "  if not privado.material_apagavel(e)\n     or exists (", para: "  if false\n     or exists (" },
+  { nome: 'o aviso prévio anterior à mexida do cliente passa a valer (a guarda do aviso some)', arquivo: '20261024120300_pr3b3_rotina.sql', testes: ['docs/testes/material-parado.test.mjs'],
+    de: "    and e.aviso_apagar_material_em >= privado.material_parado_desde(e)\n    and ((", para: "    and true\n    and ((" },
+  { nome: 'o material que não é rascunho também é apagado pelo caminho do projeto parado', arquivo: '20261024120300_pr3b3_rotina.sql', testes: ['docs/testes/material-parado.test.mjs'],
+    de: "    and exists (select 1 from app.materiais m where m.entrega_id = e.id and m.status = 'rascunho')\n", para: "" },
+  { nome: 'o histórico do dia grava zeros quando as entregas não foram lidas', arquivo: '20261024120300_pr3b3_rotina.sql', testes: ['docs/testes/rotina-entregas.test.mjs'],
+    de: "case when jsonb_typeof(p -> 'entregas') = 'object' then jsonb_build_object('prazo_vencido', v_prazo, 'material_30', v_mat, 'restante_vencido', v_resto, 'material_apagar', v_apagar) end))",
+    para: "jsonb_build_object('prazo_vencido', v_prazo, 'material_30', v_mat, 'restante_vencido', v_resto, 'material_apagar', v_apagar)))" },
 ];
 
 /* as sabotagens que a rodada vai fazer: todas, ou só as do filtro (parte do nome, sem diferenciar maiúsculas). Filtro que não

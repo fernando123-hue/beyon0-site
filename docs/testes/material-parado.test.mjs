@@ -249,3 +249,49 @@ test('sem material nenhum (o cliente nunca mandou nada) não há alarme nem avis
   const e = await linha(vazio);
   assert.deepEqual([e.passo, e.material_apagado_em], ['material', null]);
 });
+
+test('a corrida: o cliente que volta e salva depois que o pedido foi escolhido para apagar NÃO tem o que digitou apagado (a trava e a reconferência são feitas no apagamento)', async () => {
+  await zerar();
+  const p = await parada({ desde: await quando(SEIS_MESES, '12:00'), apagar: await quando({ dias: 35 }, '12:00') });
+  /* a rotina escolheu esta entrega (ela era apagável)... */
+  assert.equal((await um('select privado.material_apagavel(e) ok from app.entregas e where e.id = $1', [p.entrega])).ok, true);
+  /* ...e antes de apagar o cliente salvou um campo (o que torna o estado NÃO apagável) */
+  await db.query("update app.materiais set dados = '{\"slogan\":\"Acabei de digitar\"}', updated_at = now() where entrega_id = $1", [p.entrega]);
+  const r = await um('select privado.material_apagar_agora($1) ok', [p.entrega]);
+  assert.equal(r.ok, false, 'a reconferência sob trava recusa');
+  assert.deepEqual((await um('select dados from app.materiais where entrega_id = $1', [p.entrega])).dados, { slogan: 'Acabei de digitar' }, 'nada foi zerado');
+  const e = await linha(p);
+  assert.equal(e.material_apagado_em, null);
+  assert.equal((await um("select count(*)::int n from app.eventos_funil where conversa_id = $1 and tipo = 'material_apagado'", [p.conversa_id])).n, 0);
+  /* e, com o estado ainda apagável, o mesmo passo apaga (prova que o recusar acima foi pela reconferência) */
+  const q = await parada({ desde: await quando(SEIS_MESES, '12:00'), apagar: await quando({ dias: 35 }, '12:00') });
+  await db.query("update app.material_arquivos set status = 'removido' where entrega_id = $1", [q.entrega]);
+  assert.equal((await um('select privado.material_apagar_agora($1) ok', [q.entrega])).ok, true);
+  assert.deepEqual((await um('select dados from app.materiais where entrega_id = $1', [q.entrega])).dados, {});
+  assert.equal((await um('select privado.material_apagar_agora($1) ok', [q.entrega])).ok, false, 'de novo: a contagem recomeçou, nada a fazer');
+  assert.equal((await um('select privado.material_apagar_agora($1) ok', ['00000000-0000-4000-8000-00000000dead'])).ok, false, 'entrega que não existe');
+});
+
+test('o aviso prévio anterior à última mexida do cliente não vale, mesmo com a mexida há mais de 6 meses (isola a guarda do aviso); sem o aviso de material parado nada vale; material fora de rascunho nunca é apagado', async () => {
+  await zerar();
+  const apagavelAgora = async p => (await um('select privado.material_apagavel(e) ok from app.entregas e where e.id = $1', [p.entrega])).ok;
+  /* o cliente mexeu há 6 meses e 10 dias; o aviso prévio é de 7 meses atrás (ANTES da mexida): o aviso não vale, mesmo com 6 meses e 30 dias passados */
+  const velho = await parada({ desde: await quando({ meses: 8 }, '12:00'), apagar: await quando({ meses: 7 }, '12:00') });
+  await db.query("update app.materiais set updated_at = $2 where entrega_id = $1", [velho.entrega, await quando({ meses: 6, dias: 10 }, '12:00')]);
+  assert.equal(await apagavelAgora(velho), false, 'aviso anterior à mexida');
+  assert.equal(await apagavel(velho.arq), false);
+  assert.deepEqual(await naFila(velho), ['material_apagar'], 'o dono deve o aviso de novo');
+  /* a prova de que é a guarda que decide: o mesmo caso com o aviso DEPOIS da mexida é apagável */
+  await db.query("update app.entregas set aviso_apagar_material_em = $2 where id = $1", [velho.entrega, await quando({ dias: 40 }, '12:00')]);
+  assert.equal(await apagavelAgora(velho), true);
+  /* sem o aviso de material parado, o aviso prévio sozinho não faz nada */
+  const sem = await parada({ desde: await quando({ meses: 8 }, '12:00'), apagar: await quando({ dias: 40 }, '12:00') });
+  await db.query('update app.entregas set aviso_material_em = null where id = $1', [sem.entrega]);
+  assert.equal(await apagavelAgora(sem), false);
+  /* material que não é mais rascunho (enviado/importado) não é apagado por este caminho, mesmo com o passo ainda "material" (estado incoerente) */
+  const incoerente = await parada({ desde: await quando({ meses: 8 }, '12:00'), apagar: await quando({ dias: 40 }, '12:00') });
+  assert.equal(await apagavelAgora(incoerente), true);
+  await db.query("update app.materiais set status = 'enviado' where entrega_id = $1", [incoerente.entrega]);
+  assert.equal(await apagavelAgora(incoerente), false);
+  assert.equal(await apagavel(incoerente.arq), false);
+});

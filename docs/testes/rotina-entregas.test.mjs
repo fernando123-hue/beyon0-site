@@ -75,7 +75,7 @@ test('a lista de ajustes: "feito" some 30 dias depois da última atividade; a qu
   assert.equal(await resta(cc), 0, 'pedido encerrado: some');
 });
 
-test('a rotina cabe no orçamento (não fica "parcial"), não ganha cron novo, e nenhuma função de rotina mexe no passo', async () => {
+test('a rotina cabe no orçamento (não fica "parcial") e não ganha cron novo', async () => {
   const r = await (await rodar()).json();
   assert.equal(r.parcial, false);
   /* B8: os agendamentos vivem em vercel.json (Vercel) e, depois da migração, em wrangler.jsonc (Cloudflare): cada arquivo que existir mantém os dois de hoje e nenhum novo */
@@ -99,4 +99,16 @@ test('só o backend (service_role) executa as funções da rotina: anon e authen
   }
   const ok = await como(db, 'service_role', q => q("select app.rotinas_entregas('{}'::jsonb) r"));
   assert.ok(Array.isArray(ok.rows[0].r.itens), 'service_role executa');
+});
+
+test('se rotinas_entregas falhar, o histórico do dia guarda entregas = null (não zeros que parecem "tudo em dia") e o alerta rotina_falhou sai', async () => {
+  await db.exec('delete from app.alertas; delete from app.rotinas_execucoes');
+  const banco = (nome, args) => { if (nome === 'rotinas_entregas') throw new Error('banco caiu'); return rpc(nome, args); };
+  const r = await executar(new Request('http://x/api/rotinas?acao=diaria', { headers: { authorization: 'Bearer ' + CRON, 'x-forwarded-for': '203.0.113.9' } }),
+    { CRON_SECRET: CRON }, { banco, armazem: { remover: async () => {} }, metricas: null });
+  assert.equal(r.status, 200);
+  const x = await um("select resultado, jsonb_typeof(resultado -> 'entregas') tipo from app.rotinas_execucoes where rotina = 'diaria'");
+  assert.equal(x.tipo, 'null', 'entregas = null no histórico: ' + JSON.stringify(x.resultado));
+  assert.ok((await alertas()).some(a => a.tipo === 'rotina_falhou'));
+  await db.exec('delete from app.alertas; delete from app.rotinas_execucoes');
 });
