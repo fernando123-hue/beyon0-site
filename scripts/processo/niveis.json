@@ -7,6 +7,7 @@
     { "nivel": 3, "padrao": "^api/", "motivo": "servidor: vendas, IA, pagamentos, leads, rotinas" },
     { "nivel": 3, "padrao": "^supabase/", "motivo": "banco: migrations, RLS, funções" },
     { "nivel": 3, "padrao": "^(vercel\\.json|\\.vercelignore|\\.gitignore|\\.env\\.example)$", "motivo": "CSP, cron, deploy, o que entra no Git e no ar, variáveis" },
+    { "nivel": 3, "padrao": "^(wrangler\\.jsonc|_headers)$|^cloudflare/", "motivo": "deploy e cabeçalhos da Cloudflare" },
     { "nivel": 3, "padrao": "^package(-lock)?\\.json$", "motivo": "dependências" },
     { "nivel": 3, "padrao": "^vendor/", "motivo": "código de terceiros embutido" },
     { "nivel": 3, "padrao": "^js/(orcamento|lead-form|medicao|tel)[^/]*\\.js$|(^|/)(form|formulario|contato|whatsapp|analytics|pixel)[^/]*\\.js$", "motivo": "dado do visitante, pagamento ou envio para fora" },
