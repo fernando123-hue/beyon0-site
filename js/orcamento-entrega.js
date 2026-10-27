@@ -42,7 +42,7 @@
 
   /* A1 (revisão): o material "aqui mesmo" só é prometido antes do pagamento quando o servidor diz que a entrega está ligada */
   function promessasVisiveis(E) { return !!E && E.entrega_ligada === true; }
-  var PROMESSAS = ['o-antes-passos', 'o-faq-fotos', 'o-atalho-fotos'];
+  var PROMESSAS = ['o-antes-passos', 'o-faq-fotos', 'o-atalho-fotos', 'o-faq-restante', 'o-atalho-restante'];
 
   function passos(e, valores) {
     var atual = Object.prototype.hasOwnProperty.call(INDICE, e.passo) ? INDICE[e.passo] : 2, v = valores || {};   /* (encerrada = 0: nenhum passo "agora") */
@@ -189,6 +189,9 @@
       var e = E.entrega, pronto = !!e && E.conversa.etapa === 'em_producao';
       preencherAntes(E);
       PROMESSAS.forEach(function (id) { var el = $(id); if (el) el.hidden = !promessasVisiveis(E); });
+      /* a pergunta do restante só aparece com a porcentagem da proposta (nunca "os outros % do total") */
+      var pct = $('o-ap-resto-pct');
+      if (pct && !pct.textContent) ['o-faq-restante', 'o-atalho-restante'].forEach(function (id) { var el = $(id); if (el) el.hidden = true; });
       /* M5: o interruptor do servidor está desligado: nada de "Seu pedido" nem de material; o recibo diz o que acontece */
       var lead = document.querySelector('#o-recibo .recibo__lead');
       if (lead && !lead.dataset.padrao) lead.dataset.padrao = lead.textContent;
@@ -216,6 +219,8 @@
       if (!ent || !resto) return;
       var v = Pix && E.proposta ? Pix.valorDaEntrada(E.proposta) : null;
       ent.textContent = p && v != null ? '(' + p.entrada + '%: ' + dinheiro(v) + ')' : '';
+      var restoPct = $('o-ap-resto-pct');
+      if (restoPct) restoPct.textContent = p ? String(p.restante) : '';
       resto.textContent = p && v != null ? '(' + p.restante + '%: ' + dinheiro(Math.round((Number(E.proposta.valor_total) - v) * 100) / 100) + ')' : '';
     }
     return { atualizar: atualizar };

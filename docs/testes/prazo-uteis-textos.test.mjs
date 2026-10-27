@@ -1,6 +1,6 @@
 /* O PRAZO DE ENTREGA É EM DIAS ÚTEIS no que o orçamento diz (decisão do dono de 21/10, que revê a de 09/10): contrato, consultor,
-   recibo, resumo e a pergunta "Quando fica pronto?". Prazo que não é de entrega (desistência 7 dias, 30 dias sem material, 10 dias
-   sem o restante, teste de 10 dias do atendente) segue em dias corridos.  node --test */
+   recibo, resumo e a pergunta "Quando fica pronto?". Prazo que não é de entrega (desistência 7 dias, 3 dias sem o restante,
+   teste de 10 dias do atendente) segue em dias corridos.  node --test */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -22,7 +22,7 @@ test('nenhum prazo de ENTREGA diz "dias corridos" nas telas e textos do orçamen
 
 test('o contrato diz "dias úteis, contados do sinal pago e do material recebido" (a mesma regra do consultor e da tela)', () => {
   const e = semComentario(ler('api/_vendas/escopo.mjs'));
-  assert.match(e, /' dias úteis, contados do sinal pago e do material recebido\. Sábado, domingo e feriado nacional não contam\.'/);
+  assert.match(e, /' dias úteis, contados do sinal pago e do material recebido\. Sábado, domingo e feriado nacional não contam\./);
   assert.match(e, /dias úteis' \+ \(estimativa\.fase_seguinte\.fases > 1/, 'a fase seguinte também');
   const c = semComentario(ler('api/_vendas/consultor.mjs'));
   assert.match(c, /dias úteis depois do sinal pago e do material recebido/);
@@ -36,7 +36,7 @@ test('o recibo, o resumo e o agente escrevem "dia útil" / "dias úteis"', () =>
   assert.match(ler('api/_vendas/agente.mjs'), /' dia útil' : ' dias úteis'/);
 });
 
-test('"Quando fica pronto?": dias úteis, e as outras regras do lançamento (30 dias sem material) intactas', () => {
+test('"Quando fica pronto?": dias úteis, e a regra do material parado (22/10, sem prazo de 30 dias) no lugar da antiga', () => {
   const h = semComentario(ler('orcamento.html')).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
-  assert.ok(h.includes('O prazo está no resumo do seu pedido, em dias úteis, contados do pagamento da entrada e do envio do seu material. Sábado, domingo e feriado nacional não contam. Se o material não chegar em 30 dias, o site sai com as imagens do modelo.'), h.slice(h.indexOf('O prazo está'), h.indexOf('O prazo está') + 240));
+  assert.ok(h.includes('O prazo está no resumo do seu pedido, em dias úteis, contados do pagamento da entrada e do envio do seu material. Sábado, domingo e feriado nacional não contam. Enquanto espero a sua lista de ajustes, o prazo fica parado. Nada vai ao ar sem o seu material e a sua autorização: enquanto ele não chegar, eu aviso que estou aguardando e o projeto fica parado.'), h.slice(h.indexOf('O prazo está'), h.indexOf('O prazo está') + 240));
 });

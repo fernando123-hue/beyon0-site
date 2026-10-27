@@ -154,7 +154,18 @@ export const SABOTAGENS = [
   { nome: 'Finados conta como dia útil (feriado nacional fora da lista)', fonte: 'api/_material/prazo.mjs', testes: ['docs/testes/prazo.test.mjs', 'docs/testes/captacao-igual.test.mjs'],
     de: "'10-12', '11-02', '11-15'", para: "'10-12', '11-15'" },
   { nome: 'cliente de saúde sai no pacote (a captação recusa)', fonte: 'api/_material/pacote.mjs', testes: ['docs/testes/pacote.test.mjs'],
-    de: "  if (saude) throw new Error(", para: "  if (false) throw new Error(" }
+    de: "  if (saude) throw new Error(", para: "  if (false) throw new Error(" },
+  /* ---- 3b-3a: os textos da D4 que o cliente confirma (api/_vendas/escopo.mjs) ---- */
+  { nome: 'contrato volta a dizer "o restante na entrega" (D4)', fonte: 'api/_vendas/escopo.mjs', testes: ['docs/testes/textos-d4.test.mjs'],
+    de: "') e o restante quando o site estiver no ar.');", para: "') e o restante na entrega.');" },
+  { nome: 'contrato diz 10 dias para o restante em vez de 3 (D4, 22/10)', fonte: 'api/_vendas/escopo.mjs', testes: ['docs/testes/textos-d4.test.mjs'],
+    de: "Se o restante não for pago em 3 dias depois do meu aviso", para: "Se o restante não for pago em 10 dias depois do meu aviso" },
+  { nome: 'contrato volta a prometer as imagens do modelo com 30 dias sem material (D4 revista, 22/10)', fonte: 'api/_vendas/escopo.mjs', testes: ['docs/testes/textos-d4.test.mjs'],
+    de: "'MATERIAL: Nada vai ao ar sem o seu material e a sua autorização:", para: "'MATERIAL: Se o material não chegar em 30 dias, o site sai com as imagens do modelo. Nada vai ao ar sem o seu material e a sua autorização:" },
+  { nome: '/condicoes perde a frase do prazo parado enquanto espera a lista de ajustes (D4, captação 8fb5208)', fonte: 'condicoes.html', testes: ['docs/testes/textos-d4.test.mjs'],
+    de: ' Enquanto espero a sua lista de ajustes, o prazo também fica parado.', para: '' },
+  { nome: 'consultor volta a dizer que o restante é pago na entrega (D4)', fonte: 'api/_vendas/consultor.mjs', testes: ['docs/testes/textos-d4.test.mjs'],
+    de: 'o restante é pago por Pix quando o site estiver no ar. Se a tela', para: 'o restante é pago por Pix na entrega. Se a tela' }
 ];
 
 /* as sabotagens que a rodada vai fazer: todas, ou só as do filtro (parte do nome, sem diferenciar maiúsculas). Filtro que não

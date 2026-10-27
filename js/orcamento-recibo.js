@@ -2,7 +2,7 @@
    O RECIBO do sinal pago (#o-pronto na página /orcamento).
    Referência do dono (2026-10-07): o cartão "Currency Transfer" do Kokonut UI,
    refeito com a identidade da Beyon Zero (docs/design/referencias-2026-10-07-recibo.md).
-   As duas partes do valor (o sinal pago agora e o restante na entrega) chegam
+   As duas partes do valor (o sinal pago agora e o restante quando o site estiver no ar) chegam
    separadas e se encaixam num recibo só; a luz passa na junção.
    • Só anima quando o pagamento acaba de ser confirmado NESTA tela; quem volta
      depois vê o recibo pronto, parado. Movimento reduzido: parado (css).
