@@ -14,7 +14,7 @@
    4. Nome e tipo de negócio viram marca, título, botões, recursos e endereço do site de exemplo; ao parar
       de digitar, a luz atravessa e a tinta do nome seca. Nada sai da página: o nome só vai ao orçamento
       (sessionStorage) se a pessoa clicar em "Quero o meu site", e ao WhatsApp numa mensagem que ela vê e
-      decide enviar.
+      decide enviar. Também fica em sessionStorage ('bz-negocio', só o nome) para o atendente de /automacao.
    Texto trocado sempre pelo nó de texto (nodeValue): um nó novo acionaria o MutationObserver da rede
    (js/rede.js), que remede a página inteira. Movimento reduzido: tudo pronto e parado, e funcionando.
    ========================================================================== */
@@ -466,6 +466,8 @@
   campo.addEventListener('input', function () {
     nome = campo.value.replace(/[\u0000-\u001F\u007F-\u009F\u00AD\u061C\u200B\u200E\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/g, '').replace(/\s+/g, ' ').trim().slice(0, 28);   /* sem controle nem inversão de direção (U+202E) no exemplo e no WhatsApp; o ZWJ dos emojis fica */
     textos();
+    /* o atendente (/automacao, outra página desta aba) lê o nome daqui; só ao digitar, para a carga da página não apagar o que ficou */
+    try { if (nome) sessionStorage.setItem('bz-negocio', nome); else sessionStorage.removeItem('bz-negocio'); } catch (e) { /* sem armazenamento: o atendente fica com o nome de exemplo */ }
     clearTimeout(esperaNome);
     esperaNome = setTimeout(assinar, 500);
   });

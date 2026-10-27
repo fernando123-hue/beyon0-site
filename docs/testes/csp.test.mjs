@@ -233,7 +233,20 @@ test('peça de Sites: o nome não sai da página, a CSP vale e a régua é acess
   const js = readFileSync(new URL('js/peca-sites.js', RAIZ), 'utf8');
   assert.ok(!/innerHTML|outerHTML|insertAdjacentHTML|document\.write/.test(js), 'js/peca-sites.js: o nome tem de entrar como texto');
   assert.ok(!/fetch\(|XMLHttpRequest|sendBeacon|navigator\.sendBeacon|location\s*=|location\.href\s*=|history\.(push|replace)State/.test(js), 'js/peca-sites.js: o nome não pode sair pela rede nem pela URL');
-  const usos = js.match(/sessionStorage\.setItem/g) || [];
+  /* (a chave 'bz-negocio' é a travessia para a peça do atendente, em outra página desta mesma aba; as do orçamento só no clique) */
+  const usos = js.match(/sessionStorage\.setItem\('bz-planta-[a-z]+'/g) || [];
   const noClique = (js.match(/quero\.addEventListener\('click'[\s\S]*?\n  \}\);/) || [''])[0];
-  assert.ok(usos.length > 0 && (noClique.match(/sessionStorage\.setItem/g) || []).length === usos.length, 'js/peca-sites.js: o nome só pode ir para o sessionStorage no clique de "Quero o meu site"');
+  assert.ok(usos.length > 0 && (noClique.match(/sessionStorage\.setItem\('bz-planta-[a-z]+'/g) || []).length === usos.length, 'js/peca-sites.js: o nome do orçamento só pode ir para o sessionStorage no clique de "Quero o meu site"');
+});
+
+/* (design-1023) a Planta (/sites) e o Plantão (/automacao) ficaram em páginas diferentes: o nome atravessa pela aba
+   (sessionStorage, chave curta própria, só o nome, limitado, sempre em try/catch), nunca por servidor nem URL */
+test('o nome da Planta atravessa para o Plantão pela aba, sem servidor nem URL', () => {
+  const sites = readFileSync(new URL('js/peca-sites.js', RAIZ), 'utf8');
+  const atend = readFileSync(new URL('js/peca-atendente.js', RAIZ), 'utf8');
+  assert.ok(/try \{[^}]*sessionStorage\.setItem\('bz-negocio', nome\)[^}]*\} catch/.test(sites), 'js/peca-sites.js: guardar só o nome em bz-negocio, dentro de try/catch, ao emitir bz:negocio');
+  assert.ok(!/localStorage/.test(sites + atend), 'o nome não pode ficar além da aba (localStorage)');
+  assert.ok(/try \{[^}]*sessionStorage\.getItem\('bz-negocio'\)[^}]*\} catch/.test(atend), 'js/peca-atendente.js: ler bz-negocio dentro de try/catch');
+  assert.ok(/\.slice\(0, 28\)/.test((atend.match(/getItem\('bz-negocio'\)[\s\S]{0,400}/) || [''])[0]), 'js/peca-atendente.js: o nome lido tem o mesmo limite de 28');
+  assert.ok(!/setItem/.test(atend), 'js/peca-atendente.js: só lê, quem guarda é a Planta');
 });

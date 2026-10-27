@@ -8,7 +8,10 @@
       "Quero falar com uma pessoa": no expediente, chama a pessoa certa; fora dele, deixa o resumo para a
       equipe — e a mensagem de sistema mostra o resumo (o assunto da última pergunta).
    3. O negócio: se a pessoa pôs o nome e o tipo na peça de Sites (evento "bz:negocio", js/peca-sites.js),
-      o atendente aparece com esse nome e as perguntas são as do tipo dela.
+      o atendente aparece com esse nome e as perguntas são as do tipo dela. A peça de Sites mora em /sites e esta
+      em /automacao: o NOME atravessa pela aba (sessionStorage 'bz-negocio', só o nome, até 28 caracteres, lido e
+      escrito em try/catch; nada vai a servidor nem à URL) e vale como se o evento tivesse chegado ao carregar.
+      Só o nome atravessa: o tipo do negócio vale na mesma página (o evento) e não é guardado.
    4. A entrada: com a peça bem visível e a rolagem parada, a primeira pergunta acontece uma vez.
    Texto trocado sempre pelo nó de texto (nodeValue); os balões já estão no HTML (nó novo aciona o
    MutationObserver da rede, js/rede.js, que remede a página inteira). Movimento reduzido: a resposta vem
@@ -250,6 +253,8 @@
 
   /* ---------- liga ---------- */
   raiz.classList.add('is-viva');
+  /* o nome digitado na Planta (/sites) chega aqui pela aba (sessionStorage, só o nome), como se o evento tivesse vindo agora */
+  try { var guardado = sessionStorage.getItem('bz-negocio'); if (guardado) nome = String(guardado).replace(/[ --­؜​‎‏‪-‮⁠-⁯﻿]/g, '').trim().slice(0, 28); } catch (e) { /* sem armazenamento: nome de exemplo */ }
   var agora = new Date();
   minuto = agora.getHours() * 60 + agora.getMinutes();   /* a hora de verdade de quem está vendo */
   negocio();
