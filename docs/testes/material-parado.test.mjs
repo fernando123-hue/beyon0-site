@@ -253,6 +253,8 @@ test('sem material nenhum (o cliente nunca mandou nada) não há alarme nem avis
 test('a corrida: o cliente que volta e salva depois que o pedido foi escolhido para apagar NÃO tem o que digitou apagado (a trava e a reconferência são feitas no apagamento)', async () => {
   await zerar();
   const p = await parada({ desde: await quando(SEIS_MESES, '12:00'), apagar: await quando({ dias: 35 }, '12:00') });
+  /* os arquivos já foram baixados (a rotina apaga o armazém ANTES): sem isto o helper recusaria por causa dos arquivos vivos, não pela reconferência */
+  await db.query("update app.material_arquivos set status = 'removido' where entrega_id = $1", [p.entrega]);
   /* a rotina escolheu esta entrega (ela era apagável)... */
   assert.equal((await um('select privado.material_apagavel(e) ok from app.entregas e where e.id = $1', [p.entrega])).ok, true);
   /* ...e antes de apagar o cliente salvou um campo (o que torna o estado NÃO apagável) */
