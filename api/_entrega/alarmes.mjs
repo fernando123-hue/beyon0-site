@@ -28,7 +28,7 @@ function contarUm(it, agora, r) {
       if (it.entrada_em && !it.aviso_material_em && diasCorridosDesde(it.entrada_em, agora) >= LIMITES.material_dias) r.material_30++;
       if (it.apagar_material_devido === true) r.material_apagar++;   /* o banco decide (as datas de Campo Grande, o que há para apagar, a autorização): aqui só se conta */
     }
-    else if (it.passo === 'producao' || it.passo === 'ajustes' || it.passo === 'aprovada') { if (Number.isInteger(it.prazo_dias) && prazoVencido(it.prazo, { prazoDias: it.prazo_dias }, agora)) r.prazo_vencido++; }
+    else if (it.passo === 'producao' || it.passo === 'ajustes' || it.passo === 'aprovada') { if (prazoVencido(it.prazo, { prazoDias: it.prazo_dias }, agora)) r.prazo_vencido++; }
     else if (it.passo === 'no_ar') { if (it.aviso_no_ar_feito_em && diasCorridosDesde(it.aviso_no_ar_feito_em, agora) > LIMITES.restante_dias) r.restante_vencido++; }
   }
 }
