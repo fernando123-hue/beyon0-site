@@ -578,7 +578,7 @@
       mostrar('o-pag-indisponivel', true);
       return;
     }
-    $('o-pag-lead').textContent = lead + ' Para começar, a entrada de ' + pct.entrada + '%: ' + dinheiro(sinal) + '. O restante na entrega.';
+    $('o-pag-lead').textContent = lead + ' Para começar, a entrada de ' + pct.entrada + '%: ' + dinheiro(sinal) + '. O restante quando o site estiver no ar.';
     if (telaPagamento) telaPagamento.mostrar(sinal, pct.entrada);
   }
 
