@@ -43,9 +43,9 @@ const doSupabaseOuLocal = (url, origem) => {
   try { const u = new URL(url); return (u.protocol === 'https:' && /\.supabase\.co$/.test(u.hostname)) || u.origin === origem; } catch { return false; }
 };
 
-const dias = d => (d == null ? '' : d + ' d');
+const dias = d => (d == null ? '' : paraTerminal(d, 10) + ' d');
 /* o dia (de Campo Grande) de um instante, para mostrar ao dono; o que não se lê aparece como veio */
-const diaDe = v => { try { return diaNoFuso(v); } catch { return String(v); } };
+const diaDe = v => { try { return diaNoFuso(v); } catch { return paraTerminal(v, 40); } };
 const instanteOk = v => typeof v === 'string' && Number.isFinite(Date.parse(v));
 const prazoLegivel = p => !!p && typeof p === 'object' && instanteOk(p.conta_desde) && (p.pausas === undefined || (Array.isArray(p.pausas) && p.pausas.every(x => x && instanteOk(x.desde) && (x.ate === null || instanteOk(x.ate)))));
 const MOTIVOS = ['desistencia', 'atraso', 'producao_manual', 'outro'];   /* = api/_entrega/painel-entrega.mjs (lista fechada; nunca "sem resposta": D5, e desde 22/10 nunca "sem_material") */
@@ -117,11 +117,13 @@ export async function listar({ base, chave, buscar = fetch, raiz = process.cwd()
   if (!itens.length) return ['Nenhuma entrega em andamento.'];
   const linhas = [];
   for (const it of itens) {
-    const lista = it.rodadas && it.passo !== 'material' && it.passo !== 'producao' ? '  listas ' + it.rodadas.usadas + ' de ' + (it.rodadas.max || '∞') : '';
+    const lista = it.rodadas && it.passo !== 'material' && it.passo !== 'producao' ? '  listas ' + paraTerminal(it.rodadas.usadas, 10) + ' de ' + (it.rodadas.max ? paraTerminal(it.rodadas.max, 10) : '∞') : '';
     const apagar = (it.aviso_apagar_material_em ? '  aviso do apagamento em ' + diaDe(it.aviso_apagar_material_em) : '') + (it.material_apagado_em ? '  material APAGADO em ' + diaDe(it.material_apagado_em) : '');
-    linhas.push(`${it.codigo}  ${it.passo.padEnd(9)} material: ${it.material_status}${it.arquivos ? ' (' + it.arquivos + ' arquivos)' : ''}  entrada há ${dias(it.dias_desde_entrada)}${it.entrega_ate ? '  previsão ' + it.entrega_ate : ''}${lista}${apagar}${it.cliente_captacao ? '  captação ' + it.cliente_captacao : ''}`);
-    for (const al of alertasDe(it, new Date())) linhas.push('    ALERTA: ' + al);
-    const cmd = proximoComando(it, raiz);
+    const t = (v, max = 40) => paraTerminal(v, max);   /* (B-notas) o servidor é dado, não comando: nada de sequência de controle no terminal do dono */
+    const s = { ...it, codigo: t(it.codigo, 20), passo: t(it.passo, 20), material_status: t(it.material_status, 20), entrega_ate: it.entrega_ate ? t(it.entrega_ate, 20) : it.entrega_ate, cliente_captacao: it.cliente_captacao ? t(it.cliente_captacao, 20) : it.cliente_captacao };
+    linhas.push(`${s.codigo}  ${s.passo.padEnd(9)} material: ${s.material_status}${it.arquivos ? ' (' + t(it.arquivos, 10) + ' arquivos)' : ''}  entrada há ${dias(it.dias_desde_entrada)}${s.entrega_ate ? '  previsão ' + s.entrega_ate : ''}${lista}${apagar}${s.cliente_captacao ? '  captação ' + s.cliente_captacao : ''}`);
+    for (const al of alertasDe(s, new Date())) linhas.push('    ALERTA: ' + al);
+    const cmd = proximoComando(s, raiz);
     if (cmd) linhas.push('    próximo: ' + cmd);
   }
   return linhas;
@@ -182,14 +184,20 @@ export async function colocarNoAr({ base, chave, buscar = fetch, codigo, url, pe
   return 'No ar. O aviso de "site no ar" está no painel (Avisos); o cliente já vê o Pix do restante na página dele.';
 }
 export async function suspender({ base, chave, buscar = fetch, codigo }) { const { origem } = ambiente(base, chave); validarCodigo(codigo); const r = await acao(buscar, origem, chave, { suspender: codigo }); return (r && r.aviso && paraTerminal(r.aviso, 400)) || 'Suspenso no site. Tire o site do ar pela captação (suspender).'; }
-export async function encerrar({ base, chave, buscar = fetch, codigo, motivo }) {
+/* (B3) encerrar e dispensar não têm volta para o cliente: como o no-ar, o dono lê o pedido e a ação ANTES e digita o código sorteado (ENCERRAR-XXXX / DISPENSAR-XXXX). Resposta errada,
+   vazia ou terminal fechado = nenhuma chamada ao servidor. O passo ATUAL do pedido não é consultado (seria uma chamada antes da confirmação): mostra-se a mudança de passo que a ação faz. */
+export async function encerrar({ base, chave, buscar = fetch, codigo, motivo, perguntar, gerar = () => codigoAleatorio('ENCERRAR-'), saida = console.log }) {
   const { origem } = ambiente(base, chave); validarCodigo(codigo);
   if (!MOTIVOS.includes(motivo)) throw new Error('Motivo fora da lista: ' + MOTIVOS.join(', ') + '. Não existe encerrar por silêncio do cliente (D5).');
+  saida(codigo + ' -> encerrar, motivo ' + motivo + ': o pedido vai para o passo "encerrada" e não volta.');
+  if (!(await pedirConfirmacao(perguntar, gerar, 'encerrar o pedido'))) throw new Error('Não confirmado: nada foi feito.');
   const r = await acao(buscar, origem, chave, { encerrar: codigo, motivo });
   return 'Encerrado. ' + ((r && r.lembrete && paraTerminal(r.lembrete, 600)) || '');
 }
-export async function dispensar({ base, chave, buscar = fetch, codigo }) {
+export async function dispensar({ base, chave, buscar = fetch, codigo, perguntar, gerar = () => codigoAleatorio('DISPENSAR-'), saida = console.log }) {
   const { origem } = ambiente(base, chave); validarCodigo(codigo);
+  saida(codigo + ' -> dispensar o material (só com a autorização expressa do cliente): o pedido passa do passo "material" para "producao" com as imagens do modelo.');
+  if (!(await pedirConfirmacao(perguntar, gerar, 'dispensar o material e seguir para a produção'))) throw new Error('Não confirmado: nada foi feito.');
   const r = await acao(buscar, origem, chave, { material_dispensar: codigo });
   /* na captação: SEM --completo (o dia 30 dela marca "sem_material" sozinho); e a data REAL da marcação da caixa vai à vista, porque o `enviado_em` do formulário é o de hoje (B5) */
   return 'Material dispensado (com a autorização expressa do cliente): o pedido segue para a produção com as imagens do modelo, e o site só vai ao ar depois de ele aprovar a prévia. Na captação, importe SEM --completo.'

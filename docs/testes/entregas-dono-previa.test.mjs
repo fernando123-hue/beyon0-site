@@ -21,6 +21,8 @@ function falso(respostas = {}) {   /* respostas.padrao = { corpo, ok, status }: 
   return { buscar, chamadas };
 }
 const comum = f => ({ base: BASE, chave: CHAVE, buscar: f.buscar });
+/* o dono que digita o código sorteado certo (gerar fixo para o teste) */
+const sim = codigo => ({ perguntar: async () => codigo, gerar: () => codigo, saida: () => {} });
 
 test('previa: POST {previa, url} com a chave; código ou endereço fora do padrão nem vão à rede', async () => {
   const f = falso();
@@ -51,13 +53,13 @@ test('encerrar: o motivo é da lista fechada e é conferido ANTES da rede ("sem 
   const f = falso();
   for (const ruim of ['sem_resposta', 'silencio', 'sem_material', '', undefined]) await assert.rejects(encerrar({ ...comum(f), codigo: COD, motivo: ruim }), /motivo/i, String(ruim));
   assert.equal(f.chamadas.length, 0);
-  for (const bom of ['desistencia', 'atraso', 'producao_manual', 'outro']) await encerrar({ ...comum(f), codigo: COD, motivo: bom });
+  for (const bom of ['desistencia', 'atraso', 'producao_manual', 'outro']) await encerrar({ ...comum(f), codigo: COD, motivo: bom, ...sim('ENCERRAR-AB3D') });
   assert.deepEqual(f.chamadas.map(c => c.corpo.motivo), ['desistencia', 'atraso', 'producao_manual', 'outro']);
 });
 
 test('suspender, dispensar, aviso e religado: cada um é um POST com a chave certa', async () => {
   const f = falso();
-  await suspender({ ...comum(f), codigo: COD }); await dispensar({ ...comum(f), codigo: COD });
+  await suspender({ ...comum(f), codigo: COD }); await dispensar({ ...comum(f), codigo: COD, ...sim('DISPENSAR-AB3D') });
   for (const m of ['material-parado', 'no-ar', 'lembrete-1', 'lembrete-2']) await registrarAviso({ ...comum(f), codigo: COD, momento: m });
   await religado({ ...comum(f), codigo: COD });
   assert.deepEqual(f.chamadas.map(c => c.corpo), [{ suspender: COD }, { material_dispensar: COD }, { aviso_feito: COD, momento: 'material_parado' }, { aviso_feito: COD, momento: 'no_ar' },
@@ -68,7 +70,7 @@ test('suspender, dispensar, aviso e religado: cada um é um POST com a chave cer
 
 test('dispensar: lembra de importar SEM --completo e mostra a data real da marcação da autorização (B5)', async () => {
   const f = falso({ padrao: { corpo: { ok: true, marcada_em: '2026-09-30T12:00:00-04:00' } } });
-  const msg = await dispensar({ ...comum(f), codigo: COD });
+  const msg = await dispensar({ ...comum(f), codigo: COD, ...sim('DISPENSAR-AB3D') });
   assert.match(msg, /SEM --completo/); assert.match(msg, /2026-09-30/);
 });
 
@@ -227,18 +229,18 @@ test('ajustes: o selo de texto suspeito vale também quando o servidor não o tr
 });
 
 /* ---------- o CLI (executar): sem processo, sem rede, sem stack trace ---------- */
-function terminal(respostas, { env = { BZ_BASE: BASE, PAINEL_CHAVE: CHAVE }, resposta = '' } = {}) {
+function terminal(respostas, { env = { BZ_BASE: BASE, PAINEL_CHAVE: CHAVE }, resposta = '', gerar } = {}) {
   const f = falso(respostas), saida = [], erro = [];
   const deps = { env, buscar: f.buscar, raiz: RAIZ, saida: t => saida.push(t), erro: t => erro.push(t),
-    criarPerguntador: () => ({ perguntar: async () => resposta, fechar() {} }) };
+    criarPerguntador: () => ({ perguntar: async () => resposta, fechar() {} }), ...(gerar ? { gerar } : {}) };
   return { f, saida, erro, rodar: argv => executar(argv, deps) };
 }
 
 test('CLI: a recusa do painel aparece como uma frase, saída 1, sem stack trace e sem a chave; a chave nunca vai em URL, corpo ou argumento', async () => {
-  const t = terminal({ padrao: { ok: false, status: 409, corpo: { erro: 'A entrega mudou enquanto você agia. Rode de novo.' } } });
+  const t = terminal({ padrao: { ok: false, status: 409, corpo: { erro: 'A entrega mudou enquanto você agia. Rode de novo.' } } }, { resposta: 'ENCERRAR-AB3D', gerar: () => 'ENCERRAR-AB3D' });
   assert.equal(await t.rodar(['encerrar', COD, 'desistencia']), 1);
   assert.deepEqual(t.erro, ['ERRO: A entrega mudou enquanto você agia. Rode de novo.']);
-  assert.ok(!/\n\s+at |Error:|\.mjs:\d/.test(t.erro.join('\n')) && !t.erro.join('').includes(CHAVE) && !t.saida.length);
+  assert.ok(!/\n\s+at |Error:|\.mjs:\d/.test(t.erro.join('\n')) && !t.erro.join('').includes(CHAVE));
   assert.ok(t.f.chamadas.every(c => !c.url.includes(CHAVE) && !JSON.stringify(c.corpo).includes(CHAVE)), 'a chave só vai no cabeçalho');
 });
 
@@ -256,7 +258,7 @@ test('CLI: cada comando chama a lib certa (previa, no-ar com o código sorteado,
   const t = terminal({}, { resposta: 'NO-AR-ZZZZ' });
   assert.equal(await t.rodar(['no-ar', COD, 'https://clinicasol.com.br']), 1, 'resposta errada ao código sorteado: não publica');
   assert.equal(t.f.chamadas.length, 0);
-  const u = terminal({});
+  const u = terminal({}, { resposta: 'DISPENSAR-AB3D', gerar: () => 'DISPENSAR-AB3D' });
   assert.equal(await u.rodar(['previa', COD, 'https://v1.bz-c-k7m3qa.pages.dev']), 0);
   assert.equal(await u.rodar(['aviso', COD, 'material-apagar']), 0);
   assert.equal(await u.rodar(['religado', COD]), 0);
@@ -293,8 +295,8 @@ test('o que o servidor devolve em texto (aviso, lembrete, marcada_em, rodada) ch
   const SUJO = 'ok\u001b[2Jsumiu‮x';
   const limpo = m => assert.ok(!/[\u001b‮]/.test(m), JSON.stringify(m));
   limpo(await suspender({ ...comum(falso({ padrao: { corpo: { aviso: SUJO } } })), codigo: COD }));
-  limpo(await encerrar({ ...comum(falso({ padrao: { corpo: { lembrete: SUJO } } })), codigo: COD, motivo: 'outro' }));
-  limpo(await dispensar({ ...comum(falso({ padrao: { corpo: { marcada_em: SUJO } } })), codigo: COD }));
+  limpo(await encerrar({ ...comum(falso({ padrao: { corpo: { lembrete: SUJO } } })), codigo: COD, motivo: 'outro', ...sim('ENCERRAR-AB3D') }));
+  limpo(await dispensar({ ...comum(falso({ padrao: { corpo: { marcada_em: SUJO } } })), codigo: COD, ...sim('DISPENSAR-AB3D') }));
   const destino = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'bz-aj-')), 'x');
   const ruim = { rodada: SUJO, status: 'na_fila', texto: 'Trocar a cor.', contato: { whatsapp: '+55lixo', email: null, autorizado_em: '2026-10-22T12:00:00Z', autorizacao_versao: '2026-10-22' } };
   await assert.rejects(baixarAjustes({ ...comum(falso({ padrao: { corpo: { passo: 'ajustes', ajustes: [ruim] } } })), codigo: COD, destino }), e => /Contato do site inválido/.test(e.message) && !/[\u001b‮]/.test(e.message));
@@ -306,4 +308,52 @@ test('um valor torto no prazo (TypeError, não só RangeError) vira o aviso de d
   assert.equal(a.length, 1); assert.match(a[0], /prazo.*não dá para ler/i);
   const linhas = (await listar({ ...comum(falso({ padrao: { corpo: { entregas: [torto] } } })), raiz: RAIZ })).join('\n');
   assert.match(linhas, /não dá para ler/);
+});
+
+/* B3 (revisão de segurança, fix wave 2): encerrar e dispensar são irreversíveis para o cliente; como o no-ar, mostram o pedido e pedem o código sorteado digitado (ENCERRAR-XXXX / DISPENSAR-XXXX).
+   Resposta errada, vazia ou terminal fechado = zero chamadas ao servidor. (O passo ATUAL do pedido exigiria uma chamada ao servidor antes da confirmação: o que se mostra é o código, a ação e a mudança de passo que ela faz.) */
+test('B3: encerrar e dispensar mostram o pedido ANTES de perguntar e só seguem com a resposta EXATA ao código sorteado; errada, vazia ou stdin fechado = zero chamadas', async () => {
+  const casos = [
+    ['encerrar', 'ENCERRAR-AB3D', (f, extra) => encerrar({ ...comum(f), codigo: COD, motivo: 'atraso', ...extra }), /BZ-K7M3Q.*encerrar.*atraso.*encerrada/s],
+    ['dispensar', 'DISPENSAR-AB3D', (f, extra) => dispensar({ ...comum(f), codigo: COD, ...extra }), /BZ-K7M3Q.*dispensar.*material.*producao/s]
+  ];
+  for (const [nome, codigo, rodar, quadro] of casos) {
+    for (const resposta of ['', nome.toUpperCase(), nome.toUpperCase() + '-ZZZZ', codigo.toLowerCase(), 'NO-AR-AB3D', 'ENTREGAR-AB3D', undefined]) {
+      const f = falso();
+      await assert.rejects(rodar(f, { perguntar: async () => resposta, gerar: () => codigo, saida: () => {} }), /Não confirmado/, nome + ': ' + String(resposta));
+      assert.equal(f.chamadas.length, 0, nome + ' sem confirmação: nenhuma chamada (' + String(resposta) + ')');
+    }
+    const fechado = falso();
+    await assert.rejects(rodar(fechado, { perguntar: async () => { throw new Error('stdin fechou'); }, gerar: () => codigo, saida: () => {} }), /Não confirmado/);
+    assert.equal(fechado.chamadas.length, 0, nome + ': terminal fechado');
+    const semPerguntador = falso();
+    await assert.rejects(rodar(semPerguntador, { saida: () => {} }), /Não confirmado/, nome + ': quem chama sem perguntador também não passa');
+    assert.equal(semPerguntador.chamadas.length, 0);
+    const visto = []; let antes = null;
+    const ok = falso();
+    await rodar(ok, { perguntar: async () => { antes = visto.join('\n'); return codigo; }, gerar: () => codigo, saida: t => visto.push(t) });
+    assert.match(antes, quadro, nome + ': o pedido aparece ANTES da pergunta');
+    assert.equal(ok.chamadas.length, 1, nome + ': confirmado, uma chamada');
+  }
+  const g = falso();
+  await assert.rejects(encerrar({ ...comum(g), codigo: COD, motivo: 'sem_resposta', ...sim('ENCERRAR-AB3D') }), /motivo/i, 'o motivo fora da lista cai ANTES da pergunta');
+  assert.equal(g.chamadas.length, 0);
+});
+
+test('B3: no CLI, encerrar e dispensar com resposta errada saem com 1, "Não confirmado" e zero chamadas; com o código certo seguem', async () => {
+  for (const [cmd, args, codigo] of [['encerrar', [COD, 'atraso'], 'ENCERRAR-AB3D'], ['dispensar', [COD], 'DISPENSAR-AB3D']]) {
+    const errado = terminal({}, { resposta: 'qualquer coisa', gerar: () => codigo });
+    assert.equal(await errado.rodar([cmd, ...args]), 1, cmd);
+    assert.match(errado.erro.join(' '), /Não confirmado/); assert.equal(errado.f.chamadas.length, 0, cmd + ': zero chamadas');
+    const certo = terminal({}, { resposta: codigo, gerar: () => codigo });
+    assert.equal(await certo.rodar([cmd, ...args]), 0, cmd); assert.equal(certo.f.chamadas.length, 1);
+  }
+});
+
+test('listar passa os campos que vêm do servidor por paraTerminal (código, passo, material, previsão, captação, dias)', async () => {
+  const SUJO = 'x\u001b[2Jy‮z';
+  const f = falso({ padrao: { corpo: { entregas: [{ codigo: 'BZ-K7M3Q' + SUJO, passo: 'material' + SUJO, material_status: 'rascunho' + SUJO, arquivos: SUJO, dias_desde_entrada: SUJO, entrega_ate: SUJO, cliente_captacao: SUJO,
+    rodadas: { usadas: SUJO, max: SUJO }, aviso_apagar_material_em: SUJO, material_apagado_em: SUJO }] } } });
+  const linhas = (await listar({ ...comum(f), raiz: RAIZ })).join('\n');
+  assert.ok(!/[\u001b‮]/.test(linhas), JSON.stringify(linhas));
 });

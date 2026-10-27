@@ -34,7 +34,7 @@ const USO = 'Uso: listar | baixar BZ-XXXXX --destino <pasta> | importado BZ-XXXX
 const doFlag = (args, flag) => { const i = args.indexOf(flag); return i >= 0 ? args[i + 1] : ''; };
 
 /* roda UM comando e devolve o código de saída (0 certo, 1 recusa ou erro, 2 uso). Tudo que o dono vê passa por `saida` e `erro`; o erro é só a frase, nunca a pilha */
-export async function executar(argv, { env = process.env, buscar = fetch, raiz = process.cwd(), saida = console.log, erro = console.error, criarPerguntador: novoPerguntador = criarPerguntador } = {}) {
+export async function executar(argv, { env = process.env, buscar = fetch, raiz = process.cwd(), saida = console.log, erro = console.error, criarPerguntador: novoPerguntador = criarPerguntador, gerar } = {}) {
   const [comando, ...args] = argv;
   const base = env.BZ_BASE, chave = env.PAINEL_CHAVE;
   const comum = { base, chave, buscar };
@@ -55,10 +55,12 @@ export async function executar(argv, { env = process.env, buscar = fetch, raiz =
       if (r.contatos) saida('O cliente pediu para trocar o telefone ou o e-mail do site: veja contato-do-site.json (dado já conferido, com a autorização registrada). Só se aplica com ela.');
     } else if (comando === 'no-ar') {
       const p = novoPerguntador();
-      try { saida(await colocarNoAr({ ...comum, codigo: args[0], url: args[1], perguntar: p.perguntar, saida })); } finally { p.fechar(); }
+      try { saida(await colocarNoAr({ ...comum, codigo: args[0], url: args[1], perguntar: p.perguntar, saida, ...(gerar ? { gerar } : {}) })); } finally { p.fechar(); }
     } else if (comando === 'suspender') saida(await suspender({ ...comum, codigo: args[0] }));
-    else if (comando === 'encerrar') saida(await encerrar({ ...comum, codigo: args[0], motivo: args[1] }));
-    else if (comando === 'dispensar') saida(await dispensar({ ...comum, codigo: args[0] }));
+    else if (comando === 'encerrar' || comando === 'dispensar') {
+      const p = novoPerguntador();
+      try { saida(await (comando === 'encerrar' ? encerrar : dispensar)({ ...comum, codigo: args[0], motivo: args[1], perguntar: p.perguntar, saida, ...(gerar ? { gerar } : {}) })); } finally { p.fechar(); }
+    }
     else if (comando === 'aviso') saida(await registrarAviso({ ...comum, codigo: args[0], momento: args[1] }));
     else if (comando === 'religado') saida(await religado({ ...comum, codigo: args[0] }));
     else { erro(USO); return 2; }
