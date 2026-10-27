@@ -117,6 +117,7 @@ function exigirNaoDescartado(est) {
 /* (PR 3b-3) o que se cobra com a conversa em produção é o RESTANTE: só com o interruptor ligado, só com o site no ar, só por Pix. A decisão é pela entrega (passo) e pela etapa
    da conversa, nunca por "existe entrega" (uma entrega encerrada não é entrada paga nem site no ar). O VALOR e a parcela são do banco (pagamentos_iniciar_tentativa), nunca do
    corpo; aqui só a frase certa antes dele. Fora dessas etapas nada muda: a entrada segue o caminho de sempre */
+const RESTANTE_TRAVADO = 'Não foi possível abrir o pagamento do restante agora. A Beyon Zero confere o seu pedido e resolve com você pelo WhatsApp.';
 function exigirRestanteAberto(est, corpo, env) {
   const etapa = est.conversa.etapa, passo = est.entrega && est.entrega.passo;
   if (etapa !== 'em_producao' && !(etapa === 'encerrada' && passo)) return;
@@ -524,7 +525,14 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       exigirNaoDescartado(est);
       exigirRestanteAberto(est, corpo, env);
       if (!est.conversa.tem_contato) throw new Recusa(409, 'Antes de pagar, precisamos do seu contato de novo: fale com a Beyon Zero pelo WhatsApp citando o código do pedido.', { whatsapp: true });
-      return pagamentos.iniciar({ conversa_id: corpo.conversa_id, visitante_id: vid, metodo: corpo?.metodo, pagador: corpo?.pagador, cartao: corpo?.cartao });
+      try {
+        return await pagamentos.iniciar({ conversa_id: corpo.conversa_id, visitante_id: vid, metodo: corpo?.metodo, pagador: corpo?.pagador, cartao: corpo?.cartao });
+      } catch (e) {
+        /* o restante, recusado pelo banco (55000: a entrada estornada ou contestada, o pagamento já feito, em verificação…). Decide o CÓDIGO, nunca a mensagem: no transporte de
+           produção ela é só "rpc nome: HTTP status". A equipe resolve; a pessoa lê uma frase e sai pelo WhatsApp */
+        if (est.conversa.etapa === 'em_producao' && e instanceof ErroBanco && e.codigo === '55000') throw new Recusa(409, RESTANTE_TRAVADO, { whatsapp: true });
+        throw e;
+      }
     },
 
     /* o estado do pagamento (a página consulta enquanto espera; o provedor é consultado no máximo a cada 10 s) */

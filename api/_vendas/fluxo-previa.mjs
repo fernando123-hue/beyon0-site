@@ -34,7 +34,7 @@ const tipoOpcional = (v, tipo) => v === undefined || v === null || typeof v === 
 const CONTROLES = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/g;
 const limparLista = s => semInvisiveis(s.replace(CONTROLES, '')).trim();
 /* linhas em branco entre os dígitos escondiam um CPF ou telefone da redação (o pedido livre junta tudo numa linha): aqui as quebras duplas viram uma, e a lista segue em linhas */
-const unirQuebras = s => s.replace(/[ \t]*\n\s*/g, '\n');
+const unirQuebras = s => s.replace(/\s*\n\s*/g, '\n');   /* (o \s* de antes pega também o \r do fim de linha do Windows) */
 const cortar = (s, max) => [...s].slice(0, max).join('');   /* (por caractere inteiro, não no meio de um par de substitutos) */
 
 export function criarAcoesDaPrevia({ banco, visitante, estado, env }) {

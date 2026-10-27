@@ -10,6 +10,9 @@ import { ACOES } from '../../api/vendas.mjs';
 import { receber } from '../../api/pagamentos.mjs';
 import { FRASE_DESLIGADA } from '../../api/_material/interruptor.mjs';
 import ESQ from '../../js/orcamento-material-esquema.js';
+import { ErroBanco } from '../../api/_vendas/transporte.mjs';
+import { criarServicoPagamentos } from '../../api/_pagamentos/servico.mjs';
+import { configPagamentos } from '../../api/_pagamentos/config.mjs';
 
 let local, cen;
 before(async () => { local = await montarLocal({ base: BASE }); cen = criarCenario(local); });
@@ -31,6 +34,10 @@ const estornarEntrada = c => local.db.query("update app.pagamentos set status = 
 const bancoCom = (nome, { antes, devolve } = {}) => async (fn, p) => {
   if (fn === nome) { if (antes) await antes(p); if (devolve) return devolve; }
   return local.rpc(fn, p);
+};
+/* o transporte de PRODUÇÃO (PostgREST): o erro chega com o código do banco e a mensagem só diz 'rpc nome: HTTP 400', sem o texto da exceção. Quem decide pela mensagem funciona no PGlite e quebra lá */
+const semMensagem = banco => async (nome, p) => {
+  try { return await banco(nome, p); } catch (e) { throw e instanceof ErroBanco ? new ErroBanco(e.codigo, 'rpc ' + nome + ': HTTP 400') : e; }
 };
 /* a frase que a pessoa lê nunca é a mensagem crua do banco */
 const semCru = corpo => assert.ok(!/55000|40001|22023|P0002|exception|passo atual|sinal não está|parâmetros|relógio|rpc /i.test(JSON.stringify(corpo)), JSON.stringify(corpo));
@@ -109,10 +116,11 @@ test('I1: caracteres de formato (tag characters U+E0000, zero-width, direção) 
 
 test('M1: quebras de linha em branco entre os dígitos não escondem CPF nem telefone da redação (a lista continua com as suas linhas)', async () => {
   const { n, c } = await noPasso({}, 'previa');
-  const r = await n.chamar('POST', 'previa-ajustes', { conversa_id: c, rodada_base: 0, texto: 'Trocar a foto.\n\nMeu número: 123.456.789\n\n09 e 21\n\n999990001\n\nObrigado' });
+  const r = await n.chamar('POST', 'previa-ajustes', { conversa_id: c, rodada_base: 0, texto: 'Trocar a foto.\n\nMeu número: 123.456.789\n\n09 e 21\n\n999990001\r\n\r\nCPF 111.444.777\r\n\r\n35\r\n\r\nObrigado' });
   assert.equal(r.status, 200, JSON.stringify(r.corpo));
   const gravado = (await ajustesDe(c))[0].texto;
-  assert.ok(!/123\.456\.789|999990001/.test(gravado), gravado);
+  assert.ok(!/123\.456\.789|999990001|111\.444\.777/.test(gravado), gravado);
+  assert.ok(!/\r|\n\n/.test(gravado), 'nem \\r\\n nem linha em branco sobra: ' + JSON.stringify(gravado));
   assert.match(gravado, /\[documento\]/); assert.match(gravado, /\[telefone\]/);
   assert.match(gravado, /Trocar a foto\.\n.*\nObrigado$/s, 'as linhas continuam (sem as quebras em branco duplas)');
 });
@@ -245,10 +253,12 @@ test('o restante com a entrega ENCERRADA (desistência) não abre: a frase é a 
   assert.equal(s.status, 200, JSON.stringify(s.corpo)); assert.equal(s.corpo.pagamento.parcela, 'saldo');
 });
 
-test('o restante com a entrada estornada não abre e a pessoa lê uma frase (não a mensagem do banco)', async () => {
-  const { n, c } = await noPasso({}, 'no_ar');
+test('o restante com a entrada estornada não abre e a pessoa lê uma frase com a saída pelo WhatsApp, decidido pelo CÓDIGO do banco (a mensagem de produção não traz o texto da exceção)', async () => {
+  const pagamentos = criarServicoPagamentos({ banco: semMensagem(local.rpc), cfg: configPagamentos({}) });
+  const { n, c } = await noPasso({ pagamentos }, 'no_ar');
   await estornarEntrada(c);
   const r = await n.chamar('POST', 'pagar', { conversa_id: c, metodo: 'pix', pagador: PAGADOR });
   assert.equal(r.status, 409); assert.equal(typeof r.corpo.erro, 'string'); semCru(r.corpo);
   assert.equal(r.corpo.whatsapp, true, 'quem já pagou a entrada sai com o caminho do WhatsApp');
+  assert.ok(!/Esta etapa ainda não está disponível/.test(r.corpo.erro), 'não é o 409 genérico');
 });

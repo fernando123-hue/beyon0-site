@@ -280,14 +280,16 @@ export const SABOTAGENS = [
   { nome: 'a entrega encerrada passa por "site no ar" no pagar do restante', fonte: 'api/_vendas/fluxo.mjs', testes: ['docs/testes/previa-api.test.mjs'],
     de: "  if (passo === 'encerrada') throw new Recusa(409, PEDIDO_ENCERRADO, { whatsapp: true });\n", para: "  /* sem a frase do pedido encerrado */\n" },
   /* ---- correção da revisão da Task 7: texto escondido, linhas em branco, saídas pelo WhatsApp ---- */
-  { nome: 'o texto livre deixa passar caracteres de formato (tag characters escondem instrução)', fonte: 'api/_vendas/seguranca.mjs', testes: ['docs/testes/previa-api.test.mjs'],
+  { nome: 'o texto livre deixa passar caracteres de formato (tag characters escondem instrução)', fonte: 'api/_vendas/seguranca.mjs', testes: ['docs/testes/previa-api.test.mjs', 'docs/testes/ajustes-api.test.mjs'],
     de: "String(s).replace(/[\\p{Cf}\\p{Co}\\p{Cs}]/gu, '')", para: "String(s).replace(/[\\p{Co}\\p{Cs}]/gu, '')" },
   { nome: 'a lista de ajustes deixa as linhas em branco esconderem CPF e telefone da redação', fonte: 'api/_vendas/fluxo-previa.mjs', testes: ['docs/testes/previa-api.test.mjs'],
     de: "redigir(unirQuebras(limpo))", para: "redigir(limpo)" },
   { nome: 'o passo errado da prévia perde a saída pelo WhatsApp', fonte: 'api/_vendas/fluxo-previa.mjs', testes: ['docs/testes/previa-api.test.mjs'],
     de: "if (!e || e.passo !== 'previa') throw new Recusa(409, FRASES.passo, { whatsapp: true });", para: "if (!e || e.passo !== 'previa') throw new Recusa(409, FRASES.passo);" },
-  { nome: 'a entrada estornada no pagar do restante perde a saída pelo WhatsApp', fonte: 'api/_pagamentos/servico.mjs', testes: ['docs/testes/previa-api.test.mjs'],
-    de: "/entrada não está paga/.test(m)) throw new ErroPagamento(409, 'Há um problema com a entrada deste pedido. A Beyon Zero resolve com você pelo WhatsApp.', { whatsapp: true });", para: "/entrada não está paga/.test(m)) throw new ErroPagamento(409, 'Há um problema com a entrada deste pedido. A Beyon Zero resolve com você pelo WhatsApp.');" },
+  { nome: 'o pagar do restante decide a recusa do banco pela mensagem (em produção ela não traz o texto) e não pelo código', fonte: 'api/_vendas/fluxo.mjs', testes: ['docs/testes/previa-api.test.mjs'],
+    de: "e.codigo === '55000') throw new Recusa(409, RESTANTE_TRAVADO, { whatsapp: true });", para: "e.codigo === '55000' && /entrada não está paga/.test(e.message)) throw new Recusa(409, RESTANTE_TRAVADO, { whatsapp: true });" },
+  { nome: 'a lista de ajustes deixa o fim de linha do Windows esconder CPF e telefone da redação', fonte: 'api/_vendas/fluxo-previa.mjs', testes: ['docs/testes/previa-api.test.mjs'],
+    de: "s.replace(/\\s*\\n\\s*/g, '\\n')", para: "s.replace(/[ \\t]*\\n\\s*/g, '\\n')" },
 ];
 
 /* as sabotagens que a rodada vai fazer: todas, ou só as do filtro (parte do nome, sem diferenciar maiúsculas). Filtro que não
