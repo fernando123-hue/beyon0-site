@@ -334,3 +334,27 @@ test('o dia 30 do dispensar e do material parado é a DATA de Campo Grande: dia 
   assert.deepEqual(await naFila(), ['material_parado'], 'dia 30 por data');
   assert.deepEqual(await parado(), { ok: true });
 });
+
+/* B5 (revisão de segurança, fix wave 2): publicar e dispensar juntavam o `prazo` INTEIRO que chega; agora só as chaves fechadas (publicar: conta_desde e pausas; dispensar: numero_em e conta_desde).
+   A entrada do pedido (entrada_em) e qualquer chave estranha não entram, mesmo vindo do backend. */
+test('B5: publicar só mescla conta_desde e pausas; dispensar só mescla numero_em e conta_desde (entrada_em e chave estranha são ignoradas)', async () => {
+  const intruso = { entrada_em: '1999-01-01T00:00:00Z', chave_solta: 'x', novas_datas: [{ data: '1999-01-01' }] };
+  const p = await entregaEm(db, 'producao');
+  const entradaP = (await um('select prazo ->> \'entrada_em\' e from app.entregas where conversa_id = $1', [p.conversa_id])).e;
+  assert.deepEqual(await comVersao('vendas_previa_publicar', p, { url: PREVIA, prazo: { ...PRAZO, ...intruso } }), { ok: true });
+  const ep = await um('select prazo from app.entregas where conversa_id = $1', [p.conversa_id]);
+  assert.deepEqual(ep.prazo.pausas, PRAZO.pausas, 'publicar: as pausas entram'); assert.equal(ep.prazo.conta_desde, PRAZO.conta_desde, 'publicar: a conta entra');
+  assert.equal(ep.prazo.entrada_em, entradaP, 'publicar: a entrada do pedido não é reescrita');
+  for (const k of ['chave_solta', 'novas_datas']) assert.ok(!(k in ep.prazo), 'publicar: ' + k + ' fica de fora');
+
+  const d = await entregaEm(db, 'material');
+  await forcarEntrega(db, d, { prazo: JSON.stringify(prazoDe(31)) });
+  const entradaD = (await um('select prazo ->> \'entrada_em\' e from app.entregas where conversa_id = $1', [d.conversa_id])).e;
+  const agora = new Date().toISOString();
+  assert.deepEqual(await comVersao('vendas_material_dispensar', d, { prazo: { numero_em: agora, conta_desde: agora, pausas: [{ desde: agora, ate: null }], ...intruso }, entrega_ate: '2026-12-10' }), { ok: true });
+  const ed = await um('select prazo from app.entregas where conversa_id = $1', [d.conversa_id]);
+  assert.equal(ed.prazo.numero_em, agora, 'dispensar: o dia do número entra'); assert.equal(ed.prazo.conta_desde, agora, 'dispensar: a conta entra');
+  assert.equal(ed.prazo.entrada_em, entradaD, 'dispensar: a entrada do pedido não é reescrita');
+  for (const k of ['chave_solta', 'novas_datas']) assert.ok(!(k in ed.prazo), 'dispensar: ' + k + ' fica de fora');
+  assert.equal(ed.prazo.pausas.length, 0, 'dispensar: a pausa que veio de fora não entra (a produção começa sem pausa)');
+});

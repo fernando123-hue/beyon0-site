@@ -176,7 +176,7 @@ begin
   -- a rede de baixo: o endereço é do PROJETO desta entrega (o JS já conferiu com a mensagem certa)
   if v_url !~ ('^https://v[0-9]{1,2}\.bz-' || e.cliente_captacao || '\.pages\.dev/?$') then return jsonb_build_object('ok', false, 'motivo', 'endereco'); end if;
   update app.entrega_ajustes set status = 'feito', feito_em = v_agora where entrega_id = e.id and status = 'na_fila';
-  update app.entregas set passo = 'previa', previa_url = v_url, previa_em = v_agora, prazo = prazo || (p -> 'prazo'),
+  update app.entregas set passo = 'previa', previa_url = v_url, previa_em = v_agora, prazo = prazo || (select coalesce(jsonb_object_agg(k, v), '{}'::jsonb) from jsonb_each(p -> 'prazo') as t(k, v) where k in ('conta_desde', 'pausas')),
          aviso_previa_desde = v_agora, updated_at = now() where id = e.id;
   perform privado.evento(e.org_id, e.conversa_id, 'previa_pronta');
   return jsonb_build_object('ok', true);
@@ -268,7 +268,7 @@ begin
   with n as (select id, row_number() over (partition by papel order by ordem, created_at) as r from app.material_arquivos where entrega_id = e.id and status = 'conferido')
   update app.material_arquivos a set ordem = n.r from n where a.id = n.id;
   update app.materiais set status = 'enviado', enviado_em = v_agora, dispensado_em = v_agora, updated_at = now() where id = m.id;
-  update app.entregas set passo = 'producao', prazo = prazo || (p -> 'prazo'), entrega_ate = (p ->> 'entrega_ate')::date, updated_at = now() where id = e.id;
+  update app.entregas set passo = 'producao', prazo = prazo || (select coalesce(jsonb_object_agg(k, v), '{}'::jsonb) from jsonb_each(p -> 'prazo') as t(k, v) where k in ('numero_em', 'conta_desde')), entrega_ate = (p ->> 'entrega_ate')::date, updated_at = now() where id = e.id;
   perform privado.evento(e.org_id, e.conversa_id, 'material_dispensado');
   return jsonb_build_object('ok', true);
 end $$;

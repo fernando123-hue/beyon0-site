@@ -325,8 +325,8 @@ export const SABOTAGENS = [
     de: 'try { contarUm(it, agora, r); } catch (e) { if (!(e instanceof RangeError || e instanceof TypeError)) throw e; r.ilegiveis++; }', para: 'contarUm(it, agora, r);' },
   { nome: 'o prazo aceita prazo_dias fora de 1 a 60 (B1)', fonte: 'api/_material/prazo.mjs', testes: ['docs/testes/prazo-limites.test.mjs'],
     de: "if (!Number.isInteger(prazoDias) || prazoDias < 1 || prazoDias > PRAZO_DIAS_MAX) throw", para: 'if (false) throw' },
-  { nome: 'os dias parados somados não têm teto (B1)', fonte: 'api/_material/prazo.mjs', testes: ['docs/testes/prazo-limites.test.mjs'],
-    de: 'feriados, PARADOS_DIAS_UTEIS_MAX - parados);', para: 'feriados);' },
+  { nome: 'o teto dos dias parados vale por pausa e não pela soma (B1)', fonte: 'api/_material/prazo.mjs', testes: ['docs/testes/prazo-limites.test.mjs'],
+    de: 'feriados, PARADOS_DIAS_UTEIS_MAX - parados);', para: 'feriados, PARADOS_DIAS_UTEIS_MAX);' },
   { nome: 'a rotina diária encerra o pedido parado (muda o passo, D5), dentro da função que lista as entregas', arquivo: '20261024120300_pr3b3_rotina.sql', testes: ['docs/testes/previa-esquema.test.mjs'],
     de: "  return jsonb_build_object('itens', v_itens, 'ajustes_apagados', v_apagados);", para: "  update app.entregas set passo = 'encerrada' where passo = 'material' and updated_at < now() - interval '400 days';\n  return jsonb_build_object('itens', v_itens, 'ajustes_apagados', v_apagados);" },
   /* ---- o material do projeto parado (decisão do dono de 22/10): 6 meses parado + aviso prévio + 30 dias; nunca com autorização completa; o cliente que volta recomeça ---- */
@@ -352,6 +352,11 @@ export const SABOTAGENS = [
     de: "then return jsonb_build_object('ok', false, 'motivo', 'ja'); end if;\n    if e.aviso_material_em is null then", para: "then null; end if;\n    if e.aviso_material_em is null then" },
   { nome: 'o aviso prévio do apagamento sai sem o aviso de material parado', arquivo: '20261024120300_pr3b3_rotina.sql', testes: ['docs/testes/material-parado.test.mjs'],
     de: "if e.aviso_material_em is null then return jsonb_build_object('ok', false, 'motivo', 'sem_aviso'); end if;", para: "null;" },
+  /* ---- B5 (fix wave 2): o prazo que chega do servidor só mescla chaves fechadas ---- */
+  { nome: 'publicar a prévia mescla o prazo inteiro que chega (B5)', arquivo: '20261024120100_pr3b3_previa.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
+    de: "previa_em = v_agora, prazo = prazo || (select coalesce(jsonb_object_agg(k, v), '{}'::jsonb) from jsonb_each(p -> 'prazo') as t(k, v) where k in ('conta_desde', 'pausas')),", para: "previa_em = v_agora, prazo = prazo || (p -> 'prazo')," },
+  { nome: 'dispensar o material mescla o prazo inteiro que chega (B5)', arquivo: '20261024120100_pr3b3_previa.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
+    de: "set passo = 'producao', prazo = prazo || (select coalesce(jsonb_object_agg(k, v), '{}'::jsonb) from jsonb_each(p -> 'prazo') as t(k, v) where k in ('numero_em', 'conta_desde')),", para: "set passo = 'producao', prazo = prazo || (p -> 'prazo')," },
   { nome: 'o alarme de apagar o material conta pedido que o banco não deve', fonte: 'api/_entrega/alarmes.mjs', testes: ['docs/testes/alarmes.test.mjs'],
     de: "if (it.apagar_material_devido === true) r.material_apagar++;", para: "r.material_apagar++;" },
   /* ---- revisão da Task 9: a corrida do apagamento e a guarda do aviso prévio ---- */
