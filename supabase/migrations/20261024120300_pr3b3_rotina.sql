@@ -6,12 +6,37 @@ alter table app.alertas drop constraint alertas_tipo_check;
 alter table app.alertas add constraint alertas_tipo_check check (tipo in (
   'pagamento_atencao', 'teto_ia', 'ia_falhando', 'freio_ip', 'rotina_falhou', 'prazo_vencido', 'material_30_dias', 'restante_3_dias', 'material_apagar'));
 
+-- M1 (revisão de segurança): a PROVA de que o cliente autorizou o contato dele no site (quando, com qual versão do texto) NÃO morre com a lista de ajustes. A rotina copia para cá
+-- ANTES de apagar a lista (uma linha por entrega e rodada; idempotente). Como a prova de materiais.autorizacao: RLS ligada, sem política, sem acesso nem do service_role (só a função security definer escreve).
+-- Sem chave estrangeira para a entrega de propósito: a prova sobrevive ao que a gerou.
+create table app.entrega_contato_autorizacoes (
+  id         uuid primary key default gen_random_uuid(),
+  org_id     uuid not null references app.organizacoes (id) on delete cascade,
+  entrega_id uuid not null,
+  rodada     integer not null check (rodada between 1 and 10),
+  contato_whatsapp text,
+  contato_email    text,
+  contato_autorizado_em      timestamptz not null,
+  contato_autorizacao_versao text not null,
+  copiado_em timestamptz not null default now(),
+  unique (entrega_id, rodada)
+);
+alter table app.entrega_contato_autorizacoes enable row level security;   -- (sem política)
+revoke all on app.entrega_contato_autorizacoes from public, anon, authenticated, service_role;
+
 -- o que o JS conta (a regra de dias úteis e a pausa são do JS, uma regra só) + a retenção da lista de ajustes (spec §10: 30 dias depois da última atividade).
 -- A lista que ainda está NA FILA nunca é apagada por idade (a produção deve a nova prévia); a de um pedido encerrado ou concluído, sim.
 create function app.rotinas_entregas(p jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare v_apagados integer; v_itens jsonb;
 begin
+  -- a prova da autorização do contato do site é copiada ANTES do apagamento, para as mesmas listas que o DELETE abaixo vai levar
+  insert into app.entrega_contato_autorizacoes (org_id, entrega_id, rodada, contato_whatsapp, contato_email, contato_autorizado_em, contato_autorizacao_versao)
+    select a.org_id, a.entrega_id, a.rodada, a.contato_whatsapp, a.contato_email, a.contato_autorizado_em, a.contato_autorizacao_versao
+      from app.entrega_ajustes a join app.entregas e on e.id = a.entrega_id
+     where e.updated_at < now() - interval '30 days' and (a.status = 'feito' or e.passo in ('concluida', 'encerrada'))
+       and (a.contato_whatsapp is not null or a.contato_email is not null)
+    on conflict (entrega_id, rodada) do nothing;
   delete from app.entrega_ajustes a using app.entregas e
    where e.id = a.entrega_id and e.updated_at < now() - interval '30 days' and (a.status = 'feito' or e.passo in ('concluida', 'encerrada'));
   get diagnostics v_apagados = row_count;

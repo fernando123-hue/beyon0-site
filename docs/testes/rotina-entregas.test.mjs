@@ -112,3 +112,39 @@ test('se rotinas_entregas falhar, o histórico do dia guarda entregas = null (n�
   assert.ok((await alertas()).some(a => a.tipo === 'rotina_falhou'));
   await db.exec('delete from app.alertas; delete from app.rotinas_execucoes');
 });
+
+/* M1 (revisão de segurança, fix wave 2): a lista de ajustes some com a retenção, mas a PROVA de que o cliente autorizou o contato no site (quando, com qual versão do texto)
+   é cópia à parte (app.entrega_contato_autorizacoes), feita ANTES do DELETE, uma vez por (entrega, rodada); ninguém lê a tabela pelo banco (nem service_role) */
+test('M1: a lista com contato autorizado é apagada pela rotina e a PROVA da autorização fica; a sem contato não gera prova; rodar duas vezes não duplica', async () => {
+  const com = await entregaEm(db, 'ajustes');
+  const sem = await entregaEm(db, 'ajustes');
+  const e1 = await um('select id, org_id from app.entregas where conversa_id = $1', [com.conversa_id]);
+  const e2 = await um('select id, org_id from app.entregas where conversa_id = $1', [sem.conversa_id]);
+  const autorizadoEm = '2026-09-01T12:00:00.000Z';
+  await db.query(`insert into app.entrega_ajustes (org_id, entrega_id, rodada, texto, contato_whatsapp, contato_email, contato_autorizado_em, contato_autorizacao_versao, status)
+    values ($1, $2, 1, 'Trocar a foto.', '+5511987654321', 'a@b.com.br', $3, 'v2', 'feito')`, [e1.org_id, e1.id, autorizadoEm]);
+  await db.query("insert into app.entrega_ajustes (org_id, entrega_id, rodada, texto, status) values ($1, $2, 1, 'Só texto.', 'feito')", [e2.org_id, e2.id]);
+  await db.query("update app.entregas set updated_at = now() - interval '40 days' where id in ($1, $2)", [e1.id, e2.id]);
+  await rpc('rotinas_entregas', {});
+  await rpc('rotinas_entregas', {});   // idempotente
+  const resta = id => um('select count(*)::int n from app.entrega_ajustes where entrega_id = $1', [id]).then(x => x.n);
+  assert.equal(await resta(e1.id), 0, 'a lista foi apagada');
+  const provas = (await db.query('select * from app.entrega_contato_autorizacoes where entrega_id = $1', [e1.id])).rows;
+  assert.equal(provas.length, 1, 'uma prova só, mesmo com a rotina rodando duas vezes');
+  assert.equal(provas[0].rodada, 1); assert.equal(provas[0].org_id, e1.org_id);
+  assert.equal(provas[0].contato_whatsapp, '+5511987654321'); assert.equal(provas[0].contato_email, 'a@b.com.br');
+  assert.equal(new Date(provas[0].contato_autorizado_em).toISOString(), autorizadoEm); assert.equal(provas[0].contato_autorizacao_versao, 'v2');
+  assert.ok(provas[0].copiado_em, 'quando a cópia foi feita');
+  assert.equal((await um('select count(*)::int n from app.entrega_contato_autorizacoes where entrega_id = $1', [e2.id])).n, 0, 'lista sem contato: nada a provar');
+});
+
+test('M1: ninguém (anon, authenticated, service_role) lê ou escreve a tabela da prova; RLS ligada e sem política', async () => {
+  for (const papel of ['anon', 'authenticated', 'service_role']) {
+    const lido = await erroDe(como(db, papel, q => q('select * from app.entrega_contato_autorizacoes')));
+    assert.ok(lido && ['42501', '3F000'].includes(lido.codigo), papel + ' não lê: ' + (lido && lido.codigo));
+    const escrito = await erroDe(como(db, papel, q => q('delete from app.entrega_contato_autorizacoes')));
+    assert.ok(escrito && ['42501', '3F000'].includes(escrito.codigo), papel + ' não apaga: ' + (escrito && escrito.codigo));
+  }
+  const t = await um("select relrowsecurity, (select count(*)::int from pg_policies where schemaname = 'app' and tablename = 'entrega_contato_autorizacoes') politicas from pg_class where oid = 'app.entrega_contato_autorizacoes'::regclass");
+  assert.equal(t.relrowsecurity, true); assert.equal(t.politicas, 0);
+});
