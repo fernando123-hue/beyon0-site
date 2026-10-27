@@ -29,7 +29,7 @@
     },
     restante_lembrete_1: {
       titulo: 'Lembrete do restante (2º dia)', rotulo: 'lembrete do restante', assunto: 'Lembrete do restante do seu site',
-      texto: function (link) { return QUEM + 'Passando para lembrar do restante do seu site, que já está no ar. Você paga por Pix por este link. Ele' + LINK_UNICO + link + '\nSem o pagamento, o site sai do ar à meia-noite, no fim do 3º dia depois do meu aviso.'; }
+      texto: function (link) { return QUEM + 'Passando para lembrar do restante do seu site, que já está no ar. Você paga por Pix por este link. Ele' + LINK_UNICO + link + '\nSem o pagamento, o site sai do ar à meia-noite, no fim do 3º dia depois do meu aviso. Se você já pagou, pode ignorar esta mensagem.'; }
     },
     restante_lembrete_2: {
       titulo: 'Último lembrete do restante (3º dia)', rotulo: 'último lembrete do restante', assunto: 'Último lembrete do restante do seu site',

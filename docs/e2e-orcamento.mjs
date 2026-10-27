@@ -339,8 +339,8 @@ try {
     return { c, p, toques };
   };
   /* (PR 2b-2) o dono prepara o aviso NO PAINEL, no celular: nada vai ao servidor antes do toque; o toque gera o link e
-     troca o botão por "Abrir no WhatsApp" com a mensagem pronta. O código é segredo de uso único: só no endereço desse
-     botão, nunca na barra, no console nem no armazenamento do navegador */
+     mostra a mensagem pronta numa caixa só de leitura (com "Copiar a mensagem") e o botão "Abrir a conversa no WhatsApp", que
+     abre SÓ com o número (3b-3c: sem ?text=). O código é segredo de uso único: só no texto da caixa, nunca num endereço, na barra, no console nem no armazenamento do navegador */
   const painel2 = await ctx.newPage();
   const falaDoPainel = [];
   painel2.on('console', m => falaDoPainel.push(m.text()));
@@ -362,16 +362,18 @@ try {
   const veioLink = painel2.waitForRequest(ehLink, { timeout: 15000 });
   await preparar.click();
   await veioLink;
-  const abrirZap = avisoNaFila.getByRole('link', { name: /Abrir no WhatsApp/ });
+  const abrirZap = avisoNaFila.getByRole('link', { name: /Abrir a conversa no WhatsApp/ });
   await abrirZap.waitFor({ timeout: 15000 });
   const hrefZap = await abrirZap.getAttribute('href');
-  const mensagemZap = decodeURIComponent((hrefZap.split('?text=')[1] || ''));
+  const caixaZap = avisoNaFila.getByRole('textbox', { name: /Mensagem pronta/ });
+  const mensagemZap = await caixaZap.inputValue();
   const CODIGO_NO_TEXTO = /\/orcamento#retomar=([A-Za-z0-9_-]{32})$/;
-  ok(linksPedidos === 1 && hrefZap.startsWith('https://wa.me/55' + TELEFONE.replace(/\D/g, '') + '?text='), 'painel: um toque pede um link só e o botão abre o WhatsApp do cliente (wa.me só com dígitos)');
-  ok(CODIGO_NO_TEXTO.test(mensagemZap) && hrefZap.includes('%23retomar%3D') && /^Oi! Aqui é da Beyon Zero\. Os três modelos do seu site ficaram prontos/.test(mensagemZap), 'painel: a mensagem leva o link de retomada (32 caracteres, # codificado) e fala em modelos prontos');
+  ok(linksPedidos === 1 && hrefZap === 'https://wa.me/55' + TELEFONE.replace(/\D/g, ''), 'painel: um toque pede um link só e o botão abre o WhatsApp do cliente só com o número (sem ?text=, sem nada depois dos dígitos)');
+  ok(CODIGO_NO_TEXTO.test(mensagemZap) && /^Oi! Aqui é da Beyon Zero\. Os três modelos do seu site ficaram prontos/.test(mensagemZap), 'painel: a mensagem (na caixa de leitura) leva o link de retomada (32 caracteres) e fala em modelos prontos');
+  ok(await caixaZap.evaluate(c => c.readOnly) && await avisoNaFila.getByRole('button', { name: /Copiar a mensagem/ }).count() === 1, 'painel: a caixa é só de leitura e há o botão "Copiar a mensagem"');
   ok(!/mesmo navegador/.test(mensagemZap), 'painel: a mensagem não manda mais voltar "no mesmo navegador"');
   ok(await abrirZap.getAttribute('target') === '_blank' && /noopener/.test(await abrirZap.getAttribute('rel')), 'painel: o WhatsApp abre em outra aba, sem passar a página de origem');
-  ok(await painel2.evaluate(() => document.activeElement.textContent) === 'Abrir no WhatsApp', 'painel: o foco vai para o botão que acabou de aparecer');
+  ok(await painel2.evaluate(() => document.activeElement.tagName === 'TEXTAREA' && /^Mensagem pronta/.test(document.activeElement.getAttribute('aria-label'))), 'painel: o foco vai para a mensagem que acabou de aparecer');
   ok(await avisoNaFila.getByRole('button', { name: /Preparar aviso/ }).count() === 0, 'painel: "Preparar aviso" sai de cena (o mesmo link não é preparado duas vezes sem querer)');
   const codigoDoLink = mensagemZap.match(CODIGO_NO_TEXTO)[1];
   const guardado = await painel2.evaluate(() => JSON.stringify({ l: Object.entries(localStorage), s: Object.entries(sessionStorage) }) + location.href + document.cookie);
@@ -547,9 +549,10 @@ try {
   const veioLink2 = painel2.waitForRequest(ehLink, { timeout: 15000 });
   await prepararLembrete.click();
   await veioLink2;
-  const zapLembrete = cartaoLembrete.getByRole('link', { name: /Abrir no WhatsApp/ });
+  const zapLembrete = cartaoLembrete.getByRole('link', { name: /Abrir a conversa no WhatsApp/ });
   await zapLembrete.waitFor({ timeout: 15000 });
-  const msgLembrete = decodeURIComponent(((await zapLembrete.getAttribute('href')).split('?text=')[1] || ''));
+  ok(/^https:\/\/wa\.me\/\d+$/.test(await zapLembrete.getAttribute('href')), 'lembretes: o WhatsApp também abre só com o número');
+  const msgLembrete = await cartaoLembrete.getByRole('textbox', { name: /Mensagem pronta/ }).inputValue();
   ok(/^Oi, Ana! Aqui é da Beyon Zero\. Passando para lembrar/.test(msgLembrete) && CODIGO_NO_TEXTO.test(msgLembrete) && msgLembrete.match(CODIGO_NO_TEXTO)[1] !== codigoDoLink, 'lembretes: a mensagem chama pelo primeiro nome e leva um link NOVO (não o do aviso)');
   ok(!(await painel2.evaluate(() => JSON.stringify({ l: Object.entries(localStorage), s: Object.entries(sessionStorage) }) + location.href + document.cookie)).includes(msgLembrete.match(CODIGO_NO_TEXTO)[1]) && !falaDoPainel.some(l => l.includes(msgLembrete.match(CODIGO_NO_TEXTO)[1])), 'lembretes: o código do link novo também fica fora do endereço, do armazenamento e do console');
   await foto(painel2, '5f-painel-lembrete-pronto-cel');

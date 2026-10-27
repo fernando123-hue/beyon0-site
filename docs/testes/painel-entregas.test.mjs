@@ -4,6 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import vm from 'node:vm';
 import { MOMENTOS_DE_AVISO } from '../../api/_entrega/painel-entrega.mjs';
 
 const ler = f => fs.readFileSync(new URL('../../' + f, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
@@ -92,4 +93,125 @@ test('acessibilidade do aviso: caixa só de leitura com aria-label, "Copiar a me
   const s = semComentario(COMUM);
   assert.match(s, /msg\.readOnly = true/); assert.match(s, /msg\.setAttribute\('aria-label', 'Mensagem pronta: '/);
   assert.match(s, /'Copiar a mensagem'/); assert.match(s, /estado\.setAttribute\('role', 'status'\)/);
+});
+
+/* ---- o módulo de verdade, com um DOM de mentira mínimo (cartão, leitura da fila, "Já avisei") ---- */
+function no(tag, classe, texto) {
+  let filhos = [], texto_ = texto === undefined || texto === null ? '' : String(texto);
+  const n = {
+    tag, className: classe || '', attrs: {}, ouvintes: {}, disabled: false, hidden: false, focado: false,
+    get children() { return filhos; }, get childNodes() { return filhos; },
+    get textContent() { return texto_; }, set textContent(v) { texto_ = String(v); filhos = []; },
+    appendChild(f) { filhos.push(f); return f; }, replaceChild(novo, velho) { filhos[filhos.indexOf(velho)] = novo; return velho; },
+    setAttribute(k, v) { n.attrs[k] = String(v); }, addEventListener(t, f) { (n.ouvintes[t] = n.ouvintes[t] || []).push(f); },
+    focus() { n.focado = true; }, clicar() { (n.ouvintes.click || []).forEach(f => f()); }
+  };
+  return n;
+}
+const achar = (raiz, pred) => { if (pred(raiz)) return raiz; for (const f of raiz.children) { const r = achar(f, pred); if (r) return r; } return null; };
+const esperar = () => new Promise(r => setTimeout(r, 5));
+const ITEM = (momento, i) => ({ conversa_id: '1111111' + i + '-1111-4111-8111-111111111111', codigo: 'BZ-0000' + i, momento, desde: '2026-10-20T12:00:00Z', contato: { nome: 'Ana ' + i, telefone: '+55679912345' + i + '0', email: null } });
+
+function montarPainel({ itens, aoPostar }) {
+  const ids = {}, ouvintes = {}, chamadas = [];
+  for (const id of ['avisos', 'avisos-estado', 'bloco-avisos', 't-avisos', 'avisos-atualizar']) ids[id] = no('x');
+  ids['bloco-avisos'].hidden = true;
+  const P = {
+    el: no, data: d => 'dia ' + String(d).slice(0, 10), recusada: e => !!(e && e.status === 401),
+    pedir(caminho, opcoes) {
+      const corpo = opcoes && opcoes.body ? JSON.parse(opcoes.body) : null;
+      chamadas.push({ caminho, metodo: opcoes && opcoes.method, corpo });
+      if (caminho === '?fila=avisos') return Promise.resolve({ json: () => Promise.resolve({ itens: P.itens, total: P.itens.length }) });
+      return aoPostar(corpo);
+    },
+    itens
+  };
+  const janela = { BZPainel: P };
+  const doc = { getElementById: id => ids[id], addEventListener: (t, f) => { ouvintes[t] = f; } };
+  const contexto = vm.createContext({ window: janela, document: doc, location: { origin: 'https://x.test' }, navigator: {}, setTimeout, clearTimeout });
+  vm.runInContext(COMUM, contexto); vm.runInContext(FONTE, contexto);
+  return { ids, ouvintes, chamadas, P };
+}
+const ok = corpo => () => Promise.resolve({ json: () => Promise.resolve(corpo) });
+const MOMENTOS = ['previa', 'no_ar', 'material_parado', 'material_apagar', 'restante_lembrete_1', 'restante_lembrete_2'];
+
+test('o painel de verdade: um cartão por momento, momento desconhecido ignorado sem quebrar, e a contagem diz só o que foi desenhado', async () => {
+  const itens = [...MOMENTOS.map(ITEM), ITEM('momento_que_ninguem_conhece', 9)];
+  const { ids, ouvintes } = montarPainel({ itens, aoPostar: ok({ ok: true }) });
+  ouvintes['bz-painel:entrou']();
+  await esperar();
+  assert.equal(ids['bloco-avisos'].hidden, false, 'o bloco aparece');
+  assert.equal(ids.avisos.children.length, 6, 'seis cartões, o desconhecido fica de fora');
+  assert.equal(ids['avisos-estado'].textContent, '6 avisos para mandar.');
+  const titulos = ids.avisos.children.map(c => achar(c, n => / desde dia/.test(n.textContent)).textContent.split(' desde ')[0]);
+  assert.deepEqual(titulos, MOMENTOS.map(m => T[m].titulo), 'cada cartão usa o título do seu momento');
+  for (const c of ids.avisos.children) {
+    assert.ok(achar(c, n => n.tag === 'button' && /^Preparar /.test(n.textContent)), 'tem "Preparar"');
+    assert.ok(achar(c, n => n.tag === 'button' && n.textContent === 'Já avisei'), 'tem "Já avisei"');
+  }
+  assert.ok(achar(ids.avisos.children[0], n => n.textContent === 'WhatsApp +55 67 99123-4500'), 'o telefone vem como o banco manda e aparece formatado');
+});
+
+test('o painel de verdade: fila vazia diz que não há aviso; um item só diz "1 aviso"', async () => {
+  const vazio = montarPainel({ itens: [], aoPostar: ok({}) });
+  vazio.ouvintes['bz-painel:entrou'](); await esperar();
+  assert.equal(vazio.ids['avisos-estado'].textContent, 'Nenhum aviso para mandar hoje.');
+  assert.equal(vazio.ids.avisos.children.length, 0);
+  const um = montarPainel({ itens: [ITEM('previa', 1)], aoPostar: ok({}) });
+  um.ouvintes['bz-painel:entrou'](); await esperar();
+  assert.equal(um.ids['avisos-estado'].textContent, '1 aviso para mandar.');
+});
+
+test('o painel de verdade: "Já avisei" manda {aviso_feito: código, momento}, e "Aviso marcado." só aparece com resposta ok (o foco volta ao título)', async () => {
+  const itens = MOMENTOS.map(ITEM);
+  const { ids, ouvintes, chamadas, P } = montarPainel({ itens, aoPostar: ok({ ok: true }) });
+  ouvintes['bz-painel:entrou'](); await esperar();
+  const quarto = ids.avisos.children[3];   /* material_apagar */
+  P.itens = itens.filter(i => i.momento !== 'material_apagar');   /* (depois de marcar, o servidor já não lista o aviso) */
+  achar(quarto, n => n.tag === 'button' && n.textContent === 'Já avisei').clicar();
+  await esperar();
+  const post = chamadas.filter(c => c.metodo === 'POST');
+  assert.deepEqual(post, [{ caminho: '', metodo: 'POST', corpo: { aviso_feito: 'BZ-00003', momento: 'material_apagar' } }]);
+  assert.match(ids['avisos-estado'].textContent, /^Aviso marcado\. 5 avisos para mandar\.$/);
+  assert.equal(ids['t-avisos'].focado, true, 'o foco volta ao título do bloco');
+  assert.equal(ids.avisos.children.length, 5, 'a lista foi lida de novo');
+});
+
+test('o painel de verdade: se o POST falha, mostra a mensagem do servidor, não diz "Aviso marcado." e libera o botão para tentar de novo', async () => {
+  const itens = [ITEM('no_ar', 2)];
+  const falha = () => Promise.reject(Object.assign(new Error('Este aviso não é mais devido.'), { status: 409 }));
+  const { ids, ouvintes, chamadas } = montarPainel({ itens, aoPostar: falha });
+  ouvintes['bz-painel:entrou'](); await esperar();
+  const feito = achar(ids.avisos.children[0], n => n.tag === 'button' && n.textContent === 'Já avisei');
+  feito.clicar();
+  assert.equal(feito.disabled, true, 'um toque só enquanto espera');
+  await esperar();
+  assert.equal(ids['avisos-estado'].textContent, 'Este aviso não é mais devido.');
+  assert.ok(!/Aviso marcado/.test(ids['avisos-estado'].textContent));
+  assert.equal(feito.disabled, false, 'o botão volta');
+  assert.equal(chamadas.filter(c => c.caminho === '?fila=avisos').length, 1, 'não recarregou a lista como se tivesse dado certo');
+  assert.equal(ids['t-avisos'].focado, false);
+});
+
+test('o painel de verdade: sair do painel esvazia o bloco (nome, telefone e links dos clientes não ficam na página)', async () => {
+  const { ids, ouvintes } = montarPainel({ itens: [ITEM('previa', 1)], aoPostar: ok({}) });
+  ouvintes['bz-painel:entrou'](); await esperar();
+  assert.equal(ids.avisos.children.length, 1);
+  ouvintes['bz-painel:saiu']();
+  assert.equal(ids.avisos.children.length, 0); assert.equal(ids['avisos-estado'].textContent, ''); assert.equal(ids['bloco-avisos'].hidden, true);
+});
+
+test('o painel de verdade: "Preparar" pede o link de retomada da conversa do aviso e a mensagem do momento chega pronta, com o link e sem endereço de terceiro', async () => {
+  const itens = MOMENTOS.map(ITEM);
+  const codigo = 'AbCdEfGhIjKlMnOpQrStUvWxYz012345';
+  const { ids, ouvintes, chamadas } = montarPainel({ itens, aoPostar: ok({ codigo }) });
+  ouvintes['bz-painel:entrou'](); await esperar();
+  const cartao = ids.avisos.children[3];   /* material_apagar */
+  achar(cartao, n => n.tag === 'button' && /^Preparar /.test(n.textContent)).clicar();
+  await esperar();
+  assert.deepEqual(chamadas.filter(c => c.metodo === 'POST').map(c => c.corpo), [{ link_retomada: itens[3].conversa_id }], 'o link é da conversa deste aviso');
+  const msg = achar(cartao, n => n.tag === 'textarea');
+  assert.ok(msg.value.startsWith('Oi, Ana! Aqui é o Fernando, da Beyon Zero.'));
+  assert.ok(msg.value.includes('https://x.test/orcamento#retomar=' + codigo) && /vou apagar/.test(msg.value));
+  assert.equal(achar(cartao, n => n.tag === 'a').href, 'https://wa.me/5567991234530');
 });

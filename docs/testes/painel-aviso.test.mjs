@@ -211,6 +211,6 @@ test('aviso: o link já mandado não some sem aviso: a ajuda da fila e a dos lem
   assert.match(FONTE, /Link pronto \(vale 7 dias e abre uma vez\)\. Preparar de novo invalida este\./);
 });
 
-test('lembretes: não recarrega quando a fila muda (isso apagaria um "Abrir no WhatsApp" preparado e não usado)', () => {
+test('lembretes: não recarrega quando a fila muda (isso apagaria uma mensagem pronta (e o botão da conversa) preparada e não usado)', () => {
   assert.ok(!/pedidos-mudaram/.test(ler('js/painel-lembretes.js')));
 });
