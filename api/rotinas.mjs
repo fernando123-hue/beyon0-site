@@ -8,6 +8,8 @@
      2. retenção das métricas (~13 meses; antes era feita ao ABRIR o painel)
      2b. o pedido de modelos (PR 2a): vence quem não confirmou pelo WhatsApp em 72 h e apaga o hash do telefone e as redes no prazo
      2c. (PR 3b-2) a limpeza e a reconciliação do armazém do material (reserva vencida, objeto sem linha, importado há 7 dias)
+     2d. (PR 3b-3) os alarmes de prazo da entrega (prazo vencido, 30 dias sem material, 3 dias do restante) e a retenção da lista de ajustes: 1 subpedido.
+         D5: nada aqui muda o passo de uma entrega; o pedido parado esperando o material nunca é encerrado
      3. a SAÚDE: app.rotinas_conferir grava a execução e os alertas do dia
         (pagamento que pede uma pessoa, teto de IA, IA falhando, freio por IP,
         rotina que falhou) e o dono recebe o resumo no celular pelo ntfy.sh
@@ -19,6 +21,7 @@
    Uso: GET /api/rotinas?acao=diaria  com  Authorization: Bearer <CRON_SECRET>
    ========================================================================== */
 import { limparMaterial } from './_material/limpeza.mjs';
+import { contarAlarmes } from './_entrega/alarmes.mjs';
 import { criarArmazem } from './_material/armazem.mjs';
 import { conferirCron, segredoDoCron } from './_cron.mjs';
 import { criarTransporte } from './_vendas/transporte.mjs';
@@ -77,6 +80,14 @@ export async function executar(request, env, deps = {}) {
       if (material.alarme) falhas.push('alarme: o balde de material está em ' + material.balde_pct + '% do teto');
     } catch (e) { falhou('material', e); }
   }
+  /* (PR 3b-3) os alarmes de prazo da entrega: 1 subpedido (a lista e a retenção da lista de ajustes), a conta de dias úteis é do JS. D5: nada aqui muda o passo */
+  let entregas = null;
+  try {
+    entregas = contarAlarmes((await banco('rotinas_entregas', {})).itens, new Date());
+    /* um pedido com data ou dias que não se leem não pode sumir calado: vira falha da rotina (alerta rotina_falhou, só a contagem, sem dado pessoal) */
+    if (entregas.ilegiveis > 0) falhas.push(entregas.ilegiveis + ' entrega(s) com prazo ilegível (veja "entregas.mjs listar")');
+  }
+  catch (e) { falhou('entregas', e); }
   const metricas = deps.metricas || bancoMetricas(env);
   if (metricas && metricas.ligado) {
     try { await gasto.contar(iso => metricas.apagarAntigos(iso))(new Date(Date.now() - RETENCAO_METRICAS_DIAS * 864e5).toISOString()); }
@@ -85,7 +96,7 @@ export async function executar(request, env, deps = {}) {
 
   let saude;
   const bancoFinal = gasto.contarReservado(bancoBase);
-  try { saude = await bancoFinal('rotinas_conferir', { org_slug: ORG, teto_dia_usd: TETOS.dia_usd, falha: falhas.join('; ') || null }); }
+  try { saude = await bancoFinal('rotinas_conferir', { org_slug: ORG, teto_dia_usd: TETOS.dia_usd, falha: falhas.join('; ') || null, entregas }); }
   catch (e) {
     log({ nivel: 'erro', evento: 'saúde não conferida', codigo: e && e.codigo });
     return json({ erro: 'Erro interno.' }, 500);
@@ -100,7 +111,7 @@ export async function executar(request, env, deps = {}) {
       await bancoFinal('rotinas_avisado', {});
     } catch (e) { log({ nivel: 'erro', evento: 'alerta não enviado', erro: e && e.message ? e.message.slice(0, 80) : 'erro' }); }
   }
-  log({ nivel: falhas.length ? 'erro' : 'info', evento: 'diária', retencao, pedidos, alertas: saude.alertas.map(a => a.tipo), material, falhas, parcial, subpedidos: gasto.gastos() });
+  log({ nivel: falhas.length ? 'erro' : 'info', evento: 'diária', retencao, pedidos, alertas: saude.alertas.map(a => a.tipo), material, entregas, falhas, parcial, subpedidos: gasto.gastos() });
   if (parcial) log({ nivel: 'aviso', evento: 'rotina parcial', subpedidos: gasto.gastos() });
   return json({ ok: !falhas.length, parcial, retencao, pedidos, material, saude });
 }

@@ -134,3 +134,8 @@ export function limparMensagem(v) {
   const s = v.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '').trim();
   return s && s.length <= MSG_MAX ? s : null;
 }
+
+/* texto livre que vai a uma pessoa ou a uma fila: saem os caracteres de formato (Cf, inclusive as "tag characters" U+E0000 a U+E007F, que escondem texto a olho nu,
+   e os controles de direção), o uso privado (Co, onde o redator guarda os marcadores de guarda) e o substituto solto (Cs, que o JSON deixa passar). O substituto solto sai
+   ANTES do toWellFormed, que o trocaria por U+FFFD, um caractere visível. Uma só definição para o pedido livre (fluxo-ajustes.mjs) e a lista de ajustes da prévia (fluxo-previa.mjs) */
+export const semInvisiveis = s => String(s).replace(/[\p{Cf}\p{Co}\p{Cs}]/gu, '').toWellFormed();

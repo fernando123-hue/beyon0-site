@@ -51,7 +51,7 @@ test('o importado: com 6 dias ainda fica; com 8 dias os arquivos saem e o materi
   assert.equal(m.autorizacao.marcada, true, 'a prova da autorização fica (5 anos)');
   assert.ok(m.limpo_em && m.enviado_em !== undefined);
   assert.equal((await um("select count(*)::int n from app.eventos_funil where conversa_id = $1 and tipo = 'material_limpo'", [e.conversa_id])).n, 1);
-  assert.deepEqual((await rpc('rotinas_material_baixar', { caminhos: [] })), { baixados: 0, limpos: 0 }, 'idempotente');
+  assert.deepEqual((await rpc('rotinas_material_baixar', { caminhos: [] })), { baixados: 0, limpos: 0, parados: 0 }, 'idempotente');
 });
 
 test('pedido nunca importado: 30 dias depois de concluído; encerrado, no dia seguinte', async () => {
