@@ -57,7 +57,10 @@ test('o estado olha a parcela certa: antes do ar, a entrada; no ar, o restante (
 test('o restante pago conclui: entrega "concluida", conversa "encerrada", projeto "entregue", evento, link do pedido limitado; suspensa pede religação', async () => {
   const c = await entregaEm(db, 'no_ar');
   const x = await iniciarRestante(db, c);
+  await db.query("insert into app.links_pedido (org_id, conversa_id, codigo_hash, valido_ate) values ((select org_id from app.conversas where id = $1), $1, repeat('a', 64), now() + interval '120 days')", [c.conversa_id]);
   assert.equal((await aprovarRestante(db, x)).aplicado, 'aprovada');
+  const l = await um("select valido_ate < now() + interval '31 days' as curto, fim_em is not null as fim from app.links_pedido where conversa_id = $1", [c.conversa_id]);
+  assert.deepEqual([l.curto, l.fim], [true, true], 'o link do pedido passa a valer só mais 30 dias');
   const e = await um('select passo, concluida_em, religar_pendente from app.entregas where conversa_id = $1', [c.conversa_id]);
   assert.equal(e.passo, 'concluida'); assert.ok(e.concluida_em); assert.equal(e.religar_pendente, false);
   assert.equal((await um('select etapa from app.conversas where id = $1', [c.conversa_id])).etapa, 'encerrada');
@@ -200,4 +203,38 @@ test('uma conclusão que falha SEMPRE não derruba nem o pagamento nem a leitura
   } finally { await db.exec('alter table app.entregas drop constraint tmp_sem_conclusao'); }
   assert.equal((await rpc('vendas_estado', base(c))).entrega.passo, 'concluida');
   assert.equal(await eventos(c, 'restante_pago'), 1);
+});
+
+/* ---- correção da revisão da Task 6: sem a entrada PAGA o restante não abre (fecha fail closed, como privado.sinal_pago); projeto fora de produção; proposta ---- */
+test('entrada estornada ou contestada: o restante NÃO abre (55000) e nenhum saldo é criado (a equipe resolve)', async () => {
+  for (const status of ['estornado', 'contestado']) {
+    const c = await entregaEm(db, 'no_ar');
+    await db.query("update app.pagamentos set status = $2 where proposta_id = $1 and parcela = 'sinal'", [c.proposta, status]);
+    assert.equal((await erroDe(iniciar(c))).codigo, '55000', status);
+    assert.equal((await um("select count(*)::int n from app.pagamentos where proposta_id = $1 and parcela = 'saldo'", [c.proposta])).n, 0, 'nada foi criado: ' + status);
+  }
+});
+
+test('o restante pago com o projeto fora de produção (pausado): a entrega conclui, o projeto não muda e o caso vai para a auditoria', async () => {
+  const c = await entregaEm(db, 'no_ar');
+  const x = await iniciarRestante(db, c);
+  await db.query("update app.projetos set status = 'pausado' where id = (select projeto_id from app.propostas where id = $1)", [c.proposta]);
+  assert.equal((await aprovarRestante(db, x)).aplicado, 'aprovada');
+  assert.equal((await um('select passo from app.entregas where conversa_id = $1', [c.conversa_id])).passo, 'concluida');
+  assert.equal((await um('select pj.status from app.projetos pj join app.propostas pr on pr.projeto_id = pj.id where pr.id = $1', [c.proposta])).status, 'pausado');
+  const aud = await um("select a.detalhe from app.pagamentos_auditoria a join app.pagamentos p on p.id = a.pagamento_id where p.proposta_id = $1 and p.parcela = 'saldo' and a.evento = 'project.error'", [c.proposta]);
+  assert.match(aud.detalhe.motivo, /projeto fora de produção/);
+});
+
+test('o restante só cobra a proposta da entrega: com outra proposta aceita mais nova na conversa, 55000 e nenhum saldo é criado', async () => {
+  const c = await entregaEm(db, 'no_ar');
+  await db.query('create temp table _p as select * from app.propostas where id = $1', [c.proposta]);
+  await db.exec('update _p set id = gen_random_uuid(), versao = versao + 1; insert into app.propostas select * from _p; drop table _p;');
+  /* a proposta nova também tem a entrada paga: sem a conferência da proposta da entrega, o restante abriria para ela */
+  const nova = (await um('select id from app.propostas where conversa_id = (select conversa_id from app.entregas where proposta_id = $1) and id <> $1', [c.proposta])).id;
+  await db.query("create temp table _g as select * from app.pagamentos where proposta_id = $1 and parcela = 'sinal'", [c.proposta]);
+  await db.query('update _g set id = gen_random_uuid(), proposta_id = $1, gateway_ref = null', [nova]);
+  await db.exec('insert into app.pagamentos select * from _g; drop table _g;');
+  assert.equal((await erroDe(iniciar(c))).codigo, '55000');
+  assert.equal((await um("select count(*)::int n from app.pagamentos where parcela = 'saldo' and proposta_id in (select id from app.propostas where conversa_id = (select conversa_id from app.entregas where proposta_id = $1))", [c.proposta])).n, 0);
 });

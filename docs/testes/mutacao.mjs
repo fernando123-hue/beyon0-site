@@ -254,6 +254,14 @@ export const SABOTAGENS = [
   { nome: 'a tela conta os dias do aviso do ar em horas de relógio em vez da data de Campo Grande', arquivo: '20261024120100_pr3b3_previa.sql', testes: ['docs/testes/restante-banco.test.mjs'],
     de: "\n                 else (now() at time zone 'America/Campo_Grande')::date - (e.aviso_no_ar_feito_em at time zone 'America/Campo_Grande')::date end;",
     para: "\n                 else floor(extract(epoch from (now() - e.aviso_no_ar_feito_em)) / 86400)::integer end;" },
+  { nome: 'o restante abre com a entrada estornada ou contestada', arquivo: '20261024120200_pr3b3_restante.sql', testes: ['docs/testes/restante-banco.test.mjs'],
+    de: 'if not privado.sinal_pago(pr.id) then raise exception', para: 'if false then raise exception' },
+  { nome: 'o restante pago não limita o link do pedido', arquivo: '20261024120200_pr3b3_restante.sql', testes: ['docs/testes/restante-banco.test.mjs'],
+    de: 'perform privado.encerrar_links_do_pedido(e.conversa_id, 30);', para: 'null;' },
+  { nome: 'o restante cobra com a entrega de outra proposta', arquivo: '20261024120200_pr3b3_restante.sql', testes: ['docs/testes/restante-banco.test.mjs'],
+    de: 'if e.proposta_id <> pr.id then raise exception', para: 'if false then raise exception' },
+  { nome: 'o restante pago com o projeto pausado passa sem avisar a equipe', arquivo: '20261024120200_pr3b3_restante.sql', testes: ['docs/testes/restante-banco.test.mjs'],
+    de: "if not found and not exists (select 1 from app.projetos where id = v_projeto and status = 'entregue') then", para: 'if false then' },
 ];
 
 /* as sabotagens que a rodada vai fazer: todas, ou só as do filtro (parte do nome, sem diferenciar maiúsculas). Filtro que não

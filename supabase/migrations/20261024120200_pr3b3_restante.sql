@@ -1,6 +1,6 @@
 -- ==========================================================================
 -- PR 3b-3 (spec §5): O RESTANTE. A parcela quem decide é o BANCO (nunca o navegador): com a conversa em aguardando_pagamento, a entrada; com a conversa em
--- em_producao e a entrega em no_ar ou suspensa, o saldo = valor_total − entrada (a diferença exata fecha o total); em qualquer outro caso, 55000.
+-- em_producao e a entrega em no_ar ou suspensa, o saldo = valor_total − entrada PAGA (a diferença exata fecha o total); em qualquer outro caso, 55000. Entrada estornada ou contestada: 55000 (a equipe resolve).
 -- O saldo pago conclui a entrega por GATILHO (sem reescrever pagamentos_aplicar, decisão A do plano): o pagamento nunca falha por causa da entrega, o erro vai
 -- para a auditoria e a leitura do estado conserta (privado.concluir_pendente). Estorno ou contestação do saldo: as regras de hoje; a entrega concluída não volta.
 -- Ordem de travas: conversa → entrega → pagamento → tentativa. Aplicar DEPOIS de 20261024120100_pr3b3_previa.sql.
@@ -32,8 +32,12 @@ begin
     if not found or e.passo not in ('no_ar', 'suspensa') then
       raise exception 'o restante só abre com o site no ar' using errcode = '55000';
     end if;
-    -- a entrada que ficou registrada (paga, contestada ou estornada): o restante é o que falta para o total, sempre
-    select valor into v_sinal from app.pagamentos where proposta_id = pr.id and parcela = 'sinal' and status in ('pago', 'contestado', 'estornado') order by pago_em nulls last, created_at limit 1;
+    -- a entrega é a DESTA proposta (a aceita mais nova): senão a conclusão do saldo não a acharia
+    if e.proposta_id <> pr.id then raise exception 'a entrega não é da proposta aceita mais recente: a equipe resolve' using errcode = '55000'; end if;
+    -- (desvio do plano, revisão da Task 6) sem a entrada PAGA o restante não abre, como as outras ações da entrega (privado.sinal_pago): com a entrada
+    -- estornada ou contestada, cobrar total − entrada entregaria o site recebendo menos que o combinado e nada avisaria a equipe
+    if not privado.sinal_pago(pr.id) then raise exception 'a entrada não está paga (estornada ou contestada): a equipe resolve' using errcode = '55000'; end if;
+    select valor into v_sinal from app.pagamentos where proposta_id = pr.id and parcela = 'sinal' and status = 'pago';   -- uma só linha paga (índice pagamentos_parcela_viva)
     if v_sinal is null then raise exception 'sem a entrada registrada' using errcode = '23514'; end if;
     v_valor := pr.valor_total - v_sinal;
     if v_valor <= 0 then raise exception 'restante inválido' using errcode = '23514'; end if;
@@ -110,10 +114,12 @@ grant execute on function app.pagamentos_estado(jsonb) to service_role;
 -- ---------- a conclusão: o saldo pago fecha o pedido ----------
 create function privado.concluir_entrega(p_proposta uuid) returns boolean
 language plpgsql security definer set search_path = '' as $$
-declare v_conversa uuid; e app.entregas; v_projeto uuid;
+declare v_conversa uuid; e app.entregas; v_projeto uuid; pg app.pagamentos;
 begin
   select conversa_id into v_conversa from app.entregas where proposta_id = p_proposta;
   if not found then return false; end if;
+  -- NÃO RETIRAR a trava da conversa: chamada pelo gatilho dentro de pagamentos_aplicar, esta função já chega com conversa → pagamento → tentativa travados e
+  -- só então pega a entrega (a ordem de iniciar_tentativa é conversa → entrega → pagamento). Sem ciclo porque TODA função que toca a entrega toma a conversa primeiro.
   perform 1 from app.conversas where id = v_conversa for update;   -- trava 1: conversa
   select * into e from app.entregas where proposta_id = p_proposta for update;   -- trava 2: entrega
   if e.passo not in ('no_ar', 'suspensa') then return false; end if;
@@ -122,6 +128,12 @@ begin
   update app.conversas set etapa = 'encerrada', ultima_atividade = now() where id = e.conversa_id and etapa = 'em_producao';
   select projeto_id into v_projeto from app.propostas where id = p_proposta;
   update app.projetos set status = 'entregue', entregue_em = (now() at time zone 'America/Campo_Grande')::date where id = v_projeto and status in ('pronto_para_producao', 'em_producao', 'em_revisao');
+  if not found and not exists (select 1 from app.projetos where id = v_projeto and status = 'entregue') then
+    -- projeto pausado (estorno da entrada), cancelado ou sem projeto: a entrega conclui, o projeto não muda e uma pessoa decide
+    select * into pg from app.pagamentos where proposta_id = p_proposta and parcela = 'saldo' and status = 'pago';
+    perform privado.auditar_pagamento(pg.org_id, pg.id, null, 'project.error', 'sistema', null, 'operacao', null, null,
+      jsonb_build_object('motivo', 'restante pago com o projeto fora de produção (' || coalesce((select status from app.projetos where id = v_projeto), 'sem projeto') || ')'), null);
+  end if;
   perform privado.encerrar_links_do_pedido(e.conversa_id, 30);   -- o link continua abrindo o recibo final por mais 30 dias
   perform privado.evento(e.org_id, e.conversa_id, 'restante_pago');
   return true;
