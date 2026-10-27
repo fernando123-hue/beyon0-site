@@ -21,7 +21,7 @@ for (const gesto of ['mouse', 'teclado', 'toque', 'arrastar', 'rolar']) {
   });
   const p = await ctx.newPage();
   const erros = []; p.on('pageerror', (e) => erros.push(e.message));
-  await p.goto(BASE + '/', { waitUntil: 'domcontentloaded', timeout: 240000 });
+  await p.goto(BASE + '/automacao', { waitUntil: 'domcontentloaded', timeout: 240000 });
   await p.waitForTimeout(2500);
   await p.evaluate((gesto) => {
     const s = document.querySelector('.plantao__slider');

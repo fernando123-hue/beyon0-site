@@ -5,7 +5,7 @@ const { chromium } = require('playwright');
 const b = await chromium.launch({ executablePath: `${process.env.LOCALAPPDATA}/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-win64/chrome-headless-shell.exe` });
 const a = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1 });
 await a.addInitScript(() => { try { sessionStorage.setItem('bz-ouro', '1'); } catch (e) {} });
-await a.goto('http://127.0.0.1:8897/', { waitUntil: 'domcontentloaded', timeout: 240000 });
+await a.goto('http://127.0.0.1:8897/sites', { waitUntil: 'domcontentloaded', timeout: 240000 });
 await a.waitForTimeout(2500);
 await a.evaluate(() => { const p = document.querySelector('.planta__palco'); scrollTo({ top: p.getBoundingClientRect().top + scrollY - 140, behavior: 'instant' }); });
 await a.waitForTimeout(7000);
