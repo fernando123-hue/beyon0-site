@@ -49,14 +49,16 @@ import { DOMINIO, HOST_DO_DOMINIO } from './dominio.mjs';
 const saidaTexto = () => {
   const destino = fs.mkdtempSync(path.join(os.tmpdir(), 'publico-dom-'));
   const arquivos = montarPublico({ raiz: RAIZ, destino, arquivos: versionados }).filter(a => /\.(html|xml|txt|css|js|mjs|json)$|^_headers$/.test(a));
-  return arquivos.map(a => ({ a, t: fs.readFileSync(path.join(destino, a), 'utf8') }));
+  const lidos = arquivos.map(a => ({ a, t: fs.readFileSync(path.join(destino, a), 'utf8') }));
+  fs.rmSync(destino, { recursive: true, force: true });
+  return lidos;
 };
 const PAGINAS = { 'index.html': '/', 'sites.html': '/sites', 'automacao.html': '/automacao', 'resumo.html': '/resumo', 'orcamento.html': '/orcamento', 'condicoes.html': '/condicoes', 'privacidade.html': '/privacidade' };
 const lerRaiz = a => fs.readFileSync(path.join(RAIZ, a), 'utf8');
 const urlsDe = t => t.match(/https?:\/\/[^\s"'<>)]+/g) || [];
 
 test('domínio único (C1): nenhum vercel.app em nenhum arquivo que sobe como asset', () => {
-  const com = saidaTexto().filter(({ t }) => /vercel\.app/i.test(t)).map(({ a }) => a);
+  const com = saidaTexto().filter(({ t }) => /vercel\.app|beyon0-site/i.test(t)).map(({ a }) => a);
   assert.deepEqual(com, [], 'ainda com o endereço antigo');
 });
 test('domínio único (C1): canonical, og:url, og:image e twitter:image de cada página são do DOMINIO e batem com o caminho da página', () => {

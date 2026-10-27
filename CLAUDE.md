@@ -123,9 +123,11 @@ refresh); âncoras usam só `scroll-padding-top`.
    e, com tudo verde e revisado, **mescla ele mesmo na `main`** (dono, 2026-10-07: "desde que você sempre siga o
    processo de verificação e revisão, você pode mexer na main"). Promover é do dono: o agente abre o PR "Promover para
    produção: `<sha>`" (`main` → `producao`, merge commit) e **só o dono clica Merge**. O guarda (`~/.claude/guarda/`)
-   nega push na `main` e na `producao`, o merge sem processo (`--admin`) e `wrangler deploy` sem `--dry-run`. Push que
-   mude `.github/workflows/**`, `cloudflare/**`, `wrangler.jsonc` ou `package*.json` pede o "sim" do dono. (A Vercel é
-   legado até o PR D; nada novo vai para lá.)
+   hoje nega push na `main`, o merge sem processo (`--admin`) e `vercel`. **As travas novas da Cloudflare (negar push na
+   `producao`, `wrangler deploy` sem `--dry-run`, `wrangler versions/secret/login`, e o "sim" do dono no push que mude
+   `.github/workflows/**`, `cloudflare/**`, `wrangler.jsonc` ou `package*.json`) só existem depois que o dono aplicar o
+   P2 do plano (§ 5.5): até lá o agente as cumpre por regra, sem mecanismo que o impeça.** (A Vercel é legado até o
+   PR D; nada novo vai para lá.)
 7. **CSP sem inline.** `style-src 'self'`: nenhum `style=""` no HTML, nenhum
    `<style>`; só classes. `el.style.x` via JS continua permitido.
 8. **Mono só onde há rótulo, índice, dado ou controle.** Copy em Sora; títulos em Sora 300.

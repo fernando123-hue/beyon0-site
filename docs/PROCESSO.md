@@ -61,8 +61,9 @@ desta seção).
 
 1. O agente trabalha numa branch (uma por tarefa) e faz push: o Builds do Worker de prévias gera uma **prévia** com
    os segredos de teste. **Push que mude** `.github/workflows/**`, `cloudflare/**`, `wrangler.jsonc` ou `package*.json`
-   pede o "sim" do dono (regra de confirmação do plano § 5.5, item 1; ver "O risco que fica"): são os arquivos que o
-   build executa ou que decidem para onde o deploy vai.
+   deve pedir o "sim" do dono (regra de confirmação do plano § 5.5, item 1; **vale só depois que o dono aplicar o P2**,
+   até lá é regra de conduta, sem mecanismo; ver "O risco que fica"): são os arquivos que o build executa ou que
+   decidem para onde o deploy vai.
 2. Abre um PR para a `main` com a evidência; o CI e o Processo rodam. Os checks são lidos um a um.
 3. **O agente** mescla o PR (`gh pr merge`, nunca `--admin`) só depois de: todos os checks lidos e verdes,
    revisão técnica (e de segurança, no nível 3) por agente diferente do autor publicadas no PR, achados
@@ -101,7 +102,8 @@ nesses arquivos publica produção. Só um ruleset na `producao` (GitHub Pro) ou
 agente enganado, a trava é a mesma confirmação no push.
 
 O que impede o agente de pular isso (mecanismo, não texto): o guarda do Claude Code (`~/.claude/guarda/`, configuração
-do dono, passo P2 do plano) nega push direto na `main`, na `producao` ou forçado, merge com `--admin`/`--auto`,
+do dono). **Hoje** ele nega push direto na `main`, merge com `--admin`/`--auto` e `vercel`. **Depois do passo P2 do plano
+(§ 5.5), que só o dono aplica e ainda não foi aplicado**, passa a negar também push direto na `main`, na `producao` ou forçado, merge com `--admin`/`--auto`,
 `gh pr merge` de PR com base `producao`, `wrangler deploy` sem `--dry-run`, `wrangler versions`/`secret`/`login`,
 `gh workflow run` nos projetos da Beyon, `gh api` de escrita em `/contents`, `/git/` e `/merges`, `supabase db push` e
 a leitura de `.env`/`.dev.vars`; e as regras `permissions.deny` do `~/.claude/settings.json` repetem os principais. O
