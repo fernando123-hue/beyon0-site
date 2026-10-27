@@ -7,6 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
+import { DOMINIO, HOST_DO_DOMINIO } from './dominio.mjs';
 
 const RAIZ = new URL('../../', import.meta.url);
 const ler = arquivo => readFileSync(new URL(arquivo, RAIZ), 'utf8');
@@ -66,12 +67,14 @@ test('condições: os R$ 800 são sempre "por site de uma página", inclusive na
   assert.ok((html.match(/por site de uma página/g) || []).length >= 5, 'meta, OG, Twitter, painel de valores e texto');
 });
 
-test('condições: meta, canonical e OG apontam para /condicoes no domínio vigente (decisão do dono, 2026-10-14)', () => {
-  for (const re of [/rel="canonical" href="https:\/\/beyon0-site\.vercel\.app\/condicoes"/, /property="og:url" content="https:\/\/beyon0-site\.vercel\.app\/condicoes"/,
-    /property="og:title"/, /property="og:image" content="https:\/\/beyon0-site\.vercel\.app\/assets\/og-cover\.jpg"/, /name="description"/, /<h1>Condições do lançamento<\/h1>/]) {
+test('condições: meta, canonical e OG apontam para /condicoes no domínio vigente (decisão do dono, 2026-10-14; domínio próprio em 2026-10-21)', () => {
+  const esc = t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  for (const re of [new RegExp('rel="canonical" href="' + esc(DOMINIO + '/condicoes') + '"'), new RegExp('property="og:url" content="' + esc(DOMINIO + '/condicoes') + '"'),
+    /property="og:title"/, new RegExp('property="og:image" content="' + esc(DOMINIO + '/assets/og-cover.jpg') + '"'), /name="description"/, /<h1>Condições do lançamento<\/h1>/]) {
     assert.match(html, re);
   }
-  assert.ok(!/https?:\/\/(?!beyon0-site\.vercel\.app|wa\.me|www\.w3\.org)/.test(visivel.replace(/http-equiv[^>]*>/, '')), 'domínio ou link externo fora do combinado');
+  const externos = [...visivel.replace(/http-equiv[^>]*>/, '').matchAll(/https?:\/\/([^\/\s"'<>]+)/g)].map(m => m[1]).filter(h => h !== HOST_DO_DOMINIO && h !== 'wa.me' && h !== 'www.w3.org');
+  assert.deepEqual(externos, [], 'domínio ou link externo fora do combinado');
 });
 
 /* a oferta vence em 31/12/2026 ou no 10º cliente: a página é só para quem recebe o link (decisão do coordenador, 2026-10-14) */

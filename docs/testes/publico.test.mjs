@@ -42,3 +42,55 @@ test('nunca sobe: código, docs, banco, segredo, configuração', () => {
     'backup.sql', 'x.dump', 'x.7z', 'js/nucleo/lab.js', 'vendor/three/entrada.js', 'vendor/three/README.md', 'assets/README.txt', 'publico/x.html', 'node_modules/x.js'])
     assert.equal(ehPublico(a), false, a);
 });
+
+/* ---- PR C, C1: domínio único. O endereço antigo (Vercel) não pode sobrar em nada que sobe como asset; canonical, og,
+   dados estruturados, sitemap e robots usam o DOMINIO de docs/testes/dominio.mjs ---- */
+import { DOMINIO, HOST_DO_DOMINIO } from './dominio.mjs';
+const saidaTexto = () => {
+  const destino = fs.mkdtempSync(path.join(os.tmpdir(), 'publico-dom-'));
+  const arquivos = montarPublico({ raiz: RAIZ, destino, arquivos: versionados }).filter(a => /\.(html|xml|txt|css|js|mjs|json)$|^_headers$/.test(a));
+  return arquivos.map(a => ({ a, t: fs.readFileSync(path.join(destino, a), 'utf8') }));
+};
+const PAGINAS = { 'index.html': '/', 'sites.html': '/sites', 'automacao.html': '/automacao', 'resumo.html': '/resumo', 'orcamento.html': '/orcamento', 'condicoes.html': '/condicoes', 'privacidade.html': '/privacidade' };
+const lerRaiz = a => fs.readFileSync(path.join(RAIZ, a), 'utf8');
+const urlsDe = t => t.match(/https?:\/\/[^\s"'<>)]+/g) || [];
+
+test('domínio único (C1): nenhum vercel.app em nenhum arquivo que sobe como asset', () => {
+  const com = saidaTexto().filter(({ t }) => /vercel\.app/i.test(t)).map(({ a }) => a);
+  assert.deepEqual(com, [], 'ainda com o endereço antigo');
+});
+test('domínio único (C1): canonical, og:url, og:image e twitter:image de cada página são do DOMINIO e batem com o caminho da página', () => {
+  for (const [arq, caminho] of Object.entries(PAGINAS)) {
+    const h = lerRaiz(arq);
+    assert.ok(h.includes(`<link rel="canonical" href="${DOMINIO}${caminho}" />`), arq + ': canonical');
+    const ogUrl = h.match(/property="og:url" content="([^"]+)"/);
+    if (ogUrl) assert.equal(ogUrl[1], DOMINIO + caminho, arq + ': og:url');
+    for (const m of h.matchAll(/(?:property="og:image"|name="twitter:image") content="([^"]+)"/g)) assert.equal(m[1], DOMINIO + '/assets/og-cover.jpg', arq + ': imagem social');
+    for (const u of h.match(/<(?:link rel="canonical"|meta property="og:[a-z:]+"|meta name="twitter:[a-z:]+")[^>]*>/g) || [])
+      for (const e of urlsDe(u)) assert.ok(e.startsWith(DOMINIO + '/'), arq + ': ' + e);
+  }
+});
+test('domínio único (C1): os dados estruturados (JSON-LD) só apontam para o DOMINIO', () => {
+  let blocos = 0; let total = 0;
+  for (const arq of Object.keys(PAGINAS)) {
+    for (const m of lerRaiz(arq).matchAll(/<script type="application\/ld\+json">([^]*?)<\/script>/g)) {
+      blocos += 1;
+      const dados = JSON.parse(m[1]);
+      const urls = []; const anda = (v, chave) => { if (chave === '@context') return; if (typeof v === 'string') { if (/^https?:\/\//.test(v)) urls.push(v); } else if (v && typeof v === 'object') Object.entries(v).forEach(([k, x]) => anda(x, k)); };
+      anda(dados);
+      total += urls.length;
+      for (const u of urls) assert.ok(u === DOMINIO + '/' || u.startsWith(DOMINIO + '/'), arq + ': ' + u);
+    }
+  }
+  assert.ok(total >= 15, 'endereços conferidos: ' + total);
+  assert.ok(blocos >= 6, 'index (2), sites (2) e automacao (2): ' + blocos);
+});
+test('domínio único (C1): sitemap.xml e robots.txt', () => {
+  const locs = [...lerRaiz('sitemap.xml').matchAll(/<loc>([^<]+)<\/loc>/g)].map(m => m[1]);
+  assert.deepEqual(locs, [DOMINIO + '/', DOMINIO + '/sites', DOMINIO + '/automacao', DOMINIO + '/orcamento', DOMINIO + '/privacidade']);
+  assert.match(lerRaiz('robots.txt'), new RegExp('^Sitemap: ' + DOMINIO.replace(/[.]/g, '[.]') + '/sitemap[.]xml$', 'm'));
+});
+test('domínio único (C1): o endereço que a página de resumo imprime é o do DOMINIO', () => {
+  const impresso = lerRaiz('resumo.html').match(/<p class="r-impresso">([^<]*)<\/p>/);
+  assert.ok(impresso && impresso[1].includes(HOST_DO_DOMINIO), 'resumo impresso: ' + (impresso && impresso[1]));
+});

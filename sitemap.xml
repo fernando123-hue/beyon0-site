@@ -3,23 +3,23 @@
      Atualize junto quando a página mudar; o Google ignora lastmod que não bate com mudança real. -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://beyon0-site.vercel.app/</loc>
+    <loc>https://beyonzero.com.br/</loc>
     <lastmod>2026-10-09</lastmod>
   </url>
   <url>
-    <loc>https://beyon0-site.vercel.app/sites</loc>
+    <loc>https://beyonzero.com.br/sites</loc>
     <lastmod>2026-10-09</lastmod>
   </url>
   <url>
-    <loc>https://beyon0-site.vercel.app/automacao</loc>
+    <loc>https://beyonzero.com.br/automacao</loc>
     <lastmod>2026-10-09</lastmod>
   </url>
   <url>
-    <loc>https://beyon0-site.vercel.app/orcamento</loc>
+    <loc>https://beyonzero.com.br/orcamento</loc>
     <lastmod>2026-10-09</lastmod>
   </url>
   <url>
-    <loc>https://beyon0-site.vercel.app/privacidade</loc>
+    <loc>https://beyonzero.com.br/privacidade</loc>
     <lastmod>2026-10-09</lastmod>
   </url>
 </urlset>

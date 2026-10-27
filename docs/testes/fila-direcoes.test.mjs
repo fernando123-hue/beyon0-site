@@ -208,15 +208,16 @@ test('comando local: o pedido para o modelo NUNCA leva nome, telefone ou e-mail 
 
 test('comando local (revisão de segurança + M4): a chave só vai para o host EXATO certo, por https', async () => {
   const { validarBase } = await import('../../scripts/direcoes.mjs');
+  const { DOMINIO } = await import('./dominio.mjs');
   const SUB = 'irineu';   /* subdomínio de TESTE: o verdadeiro é o SUB_CONTA, que só o dono informa (P3) */
-  for (const ok of ['https://beyonzero.com.br', 'https://beyonzero.com.br/', 'https://beyon-zero-site-previa.irineu.workers.dev', 'https://beyon0-site.vercel.app', 'http://127.0.0.1:8897', 'http://localhost:8899'])
+  for (const ok of [DOMINIO, DOMINIO + '/', 'https://beyon-zero-site-previa.irineu.workers.dev', 'https://beyon0-site.vercel.app', 'http://127.0.0.1:8897', 'http://localhost:8899'])
     assert.doesNotThrow(() => validarBase(ok, SUB), ok);
-  assert.equal(validarBase('https://beyonzero.com.br/x?y=1', SUB), 'https://beyonzero.com.br');
-  for (const ruim of ['http://beyonzero.com.br', 'https://beyonzero.com.br.evil.com', 'https://www.beyonzero.com.br', 'https://beyon-zero-site-previa.outra.workers.dev',
+  assert.equal(validarBase(DOMINIO + '/x?y=1', SUB), DOMINIO);
+  for (const ruim of [DOMINIO.replace('https:', 'http:'), DOMINIO + '.evil.com', DOMINIO.replace('//', '//www.'), 'https://beyon-zero-site-previa.outra.workers.dev',
     'https://x-beyon-zero-site-previa.irineu.workers.dev', 'https://beyon-zero-site.irineu.workers.dev', 'https://beyon-zero-site-previa.irineu.workers.dev.evil.com',
-    'https://usuario:senha@beyonzero.com.br', 'https://beyonzero.com.br:8443', 'https://beyon-zero-site-previa.irineu.workers.dev:8443',
+    'https://usuario:senha@' + new URL(DOMINIO).host, DOMINIO + ':8443', 'https://beyon-zero-site-previa.irineu.workers.dev:8443',
     'https://beyon0-site.vercel.app.evil.com', 'https://beyon0-site-x-beyond0.vercel.app', 'https://beyon0-site-git-fila-beyond0.vercel.app', 'http://beyon0-site.vercel.app',
-    'https://beyon0-site.vercel.app@evil.com', 'https://evil.com', 'ftp://127.0.0.1', '', 'beyonzero.com.br'])
+    'https://beyon0-site.vercel.app@evil.com', 'https://evil.com', 'ftp://127.0.0.1', '', new URL(DOMINIO).host])
     assert.throws(() => validarBase(ruim, SUB), /BZ_BASE/, ruim);
   assert.throws(() => validarBase('https://beyon-zero-site-previa.irineu.workers.dev', null), /BZ_BASE/, 'SUB_CONTA nulo: o staging fica fechado para a chave do painel');
 });
@@ -224,6 +225,8 @@ test('comando local (revisão de segurança + M4): a chave só vai para o host E
 test('comando local (M4): hosts permitidos são nomes exatos; o host da Vercel só existe enquanto existir o vercel.json', async () => {
   const { hostsPermitidos, HOSTS_VERCEL, HOST_SITE } = await import('../../scripts/direcoes.mjs');
   const { SUB_CONTA } = await import('../../docs/acesso.mjs');
+  const { HOST_DO_DOMINIO } = await import('./dominio.mjs');
+  assert.equal(HOST_SITE, HOST_DO_DOMINIO, 'o host da chave do painel é o domínio único (C1)');
   assert.deepEqual(hostsPermitidos('irineu'), [HOST_SITE, 'beyon-zero-site-previa.irineu.workers.dev', ...HOSTS_VERCEL]);
   assert.deepEqual(hostsPermitidos(null), [HOST_SITE, ...HOSTS_VERCEL], 'sem SUB_CONTA, nenhum staging');
   for (const h of hostsPermitidos('irineu')) assert.match(h, /^[a-z0-9.-]+$/, 'só nome exato, nunca expressão: ' + h);
