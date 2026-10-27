@@ -177,7 +177,24 @@ export const SABOTAGENS = [
 
   /* ---- M3 (22/10): o telefone e o e-mail do site só existem com a autorização de uso ---- */
   { nome: 'a função aceita o contato do site sem a versão da autorização', arquivo: '20261024120100_pr3b3_previa.sql', testes: ['docs/testes/previa-banco.test.mjs'],
-    de: "or ((v_whats is not null or v_email is not null) and (v_versao is null or char_length(v_versao) > 20)) then", para: 'or false then' }
+    de: "or ((v_whats is not null or v_email is not null) and (v_versao is null or char_length(v_versao) > 20)) then", para: 'or false then' },
+  /* ---- A1 (revisão de 22/10): o aviso de material parado só vale a partir do dia 30 ---- */
+  { nome: 'o aviso de material parado sai antes do dia 30', arquivo: '20261024120100_pr3b3_previa.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
+    de: "if v_dias < 30 then return jsonb_build_object('ok', false, 'dias', v_dias, 'motivo', 'cedo'); end if;", para: 'null;' },
+  /* ---- 22/10: o restante em 3 dias, nada de encerrar por falta de material, o aviso "no ar" é a data de partida ---- */
+  { nome: 'o site sai do ar antes do fim do 3º dia do aviso', arquivo: '20261024120100_pr3b3_previa.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
+    de: "if v_dias < 4 then return jsonb_build_object('ok', false, 'motivo', 'cedo', 'dias', v_dias); end if;", para: 'null;' },
+  { nome: 'o encerrar volta a aceitar "sem_material" (encerrar por sumiço do cliente)', arquivo: '20261024120100_pr3b3_previa.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
+    de: "v_motivo not in ('desistencia', 'atraso', 'producao_manual', 'outro')", para: "v_motivo not in ('desistencia', 'atraso', 'sem_material', 'producao_manual', 'outro')" },
+  { nome: 'o aviso "no ar" registrado de novo adia o prazo do cliente', arquivo: '20261024120100_pr3b3_previa.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
+    de: 'coalesce(aviso_no_ar_feito_em, now())', para: 'now()' },
+  /* ---- a autorização expressa: o dono não dispensa o material sem a caixa marcada (previa → no_ar sem aprovação é barrada DUAS vezes, na função e na tabela de transições; a tabela tem a sua sabotagem em previa-esquema) ---- */
+  { nome: 'dispensar o material sem a caixa de autorização marcada', arquivo: '20261024120100_pr3b3_previa.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
+    de: "or coalesce(m.autorizacao ->> 'marcada', '') <> 'true' or", para: 'or' },
+  { nome: 'o aviso de material parado sai mesmo com o número autorizado (o caminho é dispensar)', arquivo: '20261024120100_pr3b3_previa.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
+    de: "return jsonb_build_object('ok', false, 'motivo', 'dispensar');", para: 'null;' },
+  { nome: 'as ações do dono ficam abertas ao usuário logado', arquivo: '20261024120100_pr3b3_previa.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
+    acrescentar: '\ngrant execute on function app.vendas_encerrar(jsonb) to authenticated;\n' }
 ];
 
 /* as sabotagens que a rodada vai fazer: todas, ou só as do filtro (parte do nome, sem diferenciar maiúsculas). Filtro que não
