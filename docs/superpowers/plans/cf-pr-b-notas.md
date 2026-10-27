@@ -245,3 +245,41 @@ docs/cpu-rotas.mjs não existe`. Verde: 28 testes em `worker.test.mjs`.
 10. PR D (apagar o projeto da Vercel): o teste do M4 obriga tirar `beyon0-site.vercel.app` do `direcoes.mjs` no mesmo PR.
     Não apagar o projeto antes do PR D estar mesclado.
 11. Rever o R4a depois da 1ª venda: 2ª conta ou GitHub Pro (ruleset na `producao`).
+
+---
+
+# Fechamento: merge da main (36a790f, com o 3b-2) e números finais
+
+Merge `origin/main` na `cf-pr-b` (1ddb451). Dois conflitos, os dois de texto:
+- `package.json`: a lista do `testar`. Resolvi com a lista da main inteira mais os 4 testes da Cloudflare
+  (`worker`, `publico`, `cabecalhos`, `anti-publicacao`). Os outros 18 arquivos novos da main (material, prazo, link do
+  pedido, entrega, armazém etc.) entram sozinhos.
+- `docs/servidor.mjs`: mantive a rota `/_armazem-local/` da main e a `api(req, res)` pelo roteador do Worker (sem o terceiro
+  argumento `pathname` que a main passava, porque o roteador já lê a URL do pedido).
+- `vercel.json` e `.env.example` mesclaram sozinhos. (Os 4 testes novos entram na lista; antes eram 629 ok e 39/39.)
+
+## M6 feito (2b59795)
+O `/orcamento` do `_headers` agora tem `img-src 'self' data: blob:` e o `connect-src` com
+`https://*.supabase.co/storage/v1/object/upload/sign/`, a mesma string do `vercel.json`. `cabecalhos.test.mjs` (paridade
+com o `vercel.json` e `<meta>` == `_headers`): 7 de 7. Troca do curinga pelo host exato do Supabase: quando o dono informar,
+nos três lugares (`vercel.json`, `_headers`, `<meta>` de `orcamento.html`) num commit só.
+
+## Achado do merge: a fumaça do Worker
+A main nova faz `api/_material/pacote.mjs` e `api/_vendas/fluxo-material.mjs` importarem `js/orcamento-material-esquema.js`
+(fora de `api/`). A cópia temporária da fumaça não levava esse arquivo e o empacotamento falhava ("Could not resolve", as 3
+etapas dry-run/execução vermelhas). No repositório real o caminho resolve; o erro era só da cópia. Corrigi: a fumaça copia
+`js/orcamento-material-esquema.js`. Cuidado no futuro: todo arquivo de fora de `api/` que a API importar tem de entrar nessa
+cópia (e o Worker o empacota; o deploy parte da raiz do repositório, então não há problema lá).
+
+## Números finais (Node 24.18, Windows)
+- Suíte inteira (`testar` do `package.json`, `node --test`): 829 testes, 828 ok, 0 falha, 1 pulado (antes: 629 ok na base velha).
+- Mutação (`node docs/testes/mutacao.mjs`): 59 de 59 sabotagens pegas (antes: 39 de 39).
+- Fumaça local do Worker (`cf:fumaca`, workerd 4.136.3, sem login e sem publicar): "fumaça ok"; inicialização ativa 215 ms
+  (janela 516 ms; limite 400 ms; a máquina estava carregada pela mutação rodando ao lado).
+- Varredura anti-publicação no repositório: limpa (o teste "o repositório real passa limpo" está na suíte).
+
+## Pendências do dono (resumo final)
+P1 (permissões do Actions), P2 (guarda local copia a trava depois do merge), P3 (`SUB_CONTA` em `docs/acesso.mjs`, hoje
+`null`), P4–P8 (Builds, Access, ensaios no staging), HSTS na zona antes do PR C, host exato do Supabase (M6), subir o Wrangler
+depois de ~03/11. Builds: o comando de prévia do Builds do Worker `beyon-zero-site-previa` precisa levar `--env previa`; sem
+isso as versões iriam para o Worker de produção. Detalhes na lista "Pendências do dono (atualizadas)" acima.
