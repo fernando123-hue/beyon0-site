@@ -29,7 +29,7 @@
      POST {suspender: <BZ-código>}            suspende o site (3 dias depois do aviso "no ar"; 22/10)
      POST {encerrar: <BZ-código>, motivo}     motivo de lista fechada: desistencia, atraso, producao_manual, outro (nunca silêncio nem falta de material)
      POST {material_dispensar: <BZ-código>}   dia 30, só com o número AUTORIZADO: segue sem o resto do material
-     POST {aviso_feito: <BZ-código>, momento} previa | no_ar | material_parado | restante_lembrete_1 | restante_lembrete_2
+     POST {aviso_feito: <BZ-código>, momento} previa | no_ar | material_parado | material_apagar | restante_lembrete_1 | restante_lembrete_2
      POST {religado: <BZ-código>}             o site foi religado depois do pagamento do restante
      GET  ?fila=avisos                        os avisos da D1 pendentes, com o contato para o painel montar a mensagem
      GET  ?ajustes-previa=<BZ-código>         a lista de ajustes da prévia como DADO (selo de texto suspeito; o contato do site à parte)

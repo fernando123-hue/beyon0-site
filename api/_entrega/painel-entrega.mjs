@@ -13,7 +13,7 @@ import { LIMITES } from './alarmes.mjs';
 import ESQ from '../../js/orcamento-material-esquema.js';
 
 export const MOTIVOS_DE_ENCERRAR = Object.freeze(['desistencia', 'atraso', 'producao_manual', 'outro']);   /* lista fechada: nunca "sem resposta" (D5) e, desde 22/10, nunca "sem_material" */
-export const MOMENTOS_DE_AVISO = Object.freeze(['previa', 'no_ar', 'material_parado', 'restante_lembrete_1', 'restante_lembrete_2']);
+export const MOMENTOS_DE_AVISO = Object.freeze(['previa', 'no_ar', 'material_parado', 'material_apagar', 'restante_lembrete_1', 'restante_lembrete_2']);
 const json = (dados, status = 200) => new Response(JSON.stringify(dados), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
 const FALHA = () => json({ erro: 'Banco não configurado.' }, 503);   /* (uma resposta nova a cada uso: o corpo de uma Response só se lê uma vez) */
 
@@ -60,6 +60,16 @@ const fraseDoDia30 = dias => 'Ainda não: só depois de ' + LIMITES.material_dia
 const fraseCedo = (momento, dias) => momento === 'restante_lembrete_1' ? 'Ainda não: o lembrete do 2º dia só vale a partir do 2º dia depois do aviso do site no ar (hoje são ' + dias + ').'
   : momento === 'restante_lembrete_2' ? 'Ainda não: o último lembrete é do 3º dia depois do aviso do site no ar (hoje são ' + dias + ').'
   : 'O aviso de material parado é a partir do dia ' + LIMITES.material_dias + ' depois da entrada (captação: o aviso só vale depois desse dia; hoje são ' + dias + ').';
+
+/* o aviso prévio do apagamento do material (22/10, projeto parado há 5 meses): as recusas do banco com a frase certa (as de material parado falariam da entrada) */
+const FRASES_APAGAR = Object.freeze({
+  estado: 'O aviso prévio do apagamento só existe enquanto o projeto espera o material (passo "material").',
+  sem_aviso: 'Registre antes o aviso de material parado (aviso BZ-… material-parado): o tempo de "parado" só começa nele.',
+  nada: 'O cliente não mandou nada que possa ser apagado: não há o que avisar.',
+  cedo: 'Ainda não: o aviso prévio é devido quando o projeto completa 5 meses parado (datas de Campo Grande), ou já foi dado depois da última mexida do cliente.',
+  dispensar: 'O número já está autorizado: o caminho é dispensar o material (dispensar BZ-…), não apagá-lo.',
+  ja: 'O aviso prévio do apagamento já foi registrado.'
+});
 
 /* M1 (a regra única da captação, clientes/entrega.mjs:162 e :232): o prazo corre até PUBLICAR. Com ele vencido, nem a prévia nem o site saem: antes disso, a devolução por atraso */
 const instanteOk = v => typeof v === 'string' && Number.isFinite(Date.parse(v));
@@ -168,7 +178,7 @@ export function criarAcoesDoDono(env) {
       try {
         const r = await rpc('vendas_aviso_feito', { ...base(codigo), momento: bruto.momento });
         if (r && r.ok) return json({ ok: true });
-        return recusar(r, { cedo: fraseCedo(bruto.momento, r && r.dias), estado: 'O aviso de material parado só existe enquanto o cliente ainda não enviou o material (passo "material").' });
+        return recusar(r, bruto.momento === 'material_apagar' ? FRASES_APAGAR : { cedo: fraseCedo(bruto.momento, r && r.dias), estado: 'O aviso de material parado só existe enquanto o cliente ainda não enviou o material (passo "material").' });
       } catch (e) { return erroDoBanco(e, 'aviso'); }
     },
 

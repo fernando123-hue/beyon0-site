@@ -367,3 +367,25 @@ test('m5: o dia 30 das frases vem do LIMITES.material_dias, não de texto escrit
   const fonte = fs.readFileSync(new URL('../../api/_entrega/painel-entrega.mjs', import.meta.url), 'utf8');
   assert.ok(!/\b30 dias\b/.test(fonte) && !/dia 30\b/.test(fonte), 'nenhum "30" escrito nas frases do módulo');
 });
+
+test('22/10: o aviso prévio do apagamento do material pelo painel (material_apagar): cada recusa do banco tem a sua frase (nada de "dia 30"), e registrado uma vez', async () => {
+  const m = await ateEntregaCriada(cen, local);
+  const cm = await codigoDe(m.n, m.c);
+  const apagar = () => cen.painelPost({ aviso_feito: cm, momento: 'material_apagar' });
+  const sem = await apagar();
+  assert.equal(sem.status, 409); assert.match(sem.corpo.erro, /aviso de material parado/, 'o aviso de material parado vem antes');
+  await local.db.query(`update app.entregas set prazo = jsonb_set(prazo, '{entrada_em}', to_jsonb(to_char((now() - interval '31 days') at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'))) where conversa_id = $1`, [m.c]);
+  assert.equal((await cen.painelPost({ aviso_feito: cm, momento: 'material_parado' })).status, 200);
+  const nada = await apagar();
+  assert.equal(nada.status, 409); assert.match(nada.corpo.erro, /nada que possa ser apagado/);
+  assert.equal((await m.n.chamar('POST', 'material-salvar', { conversa_id: m.c, campo: 'whatsapp', valor: '+5521999990001' })).status, 200);
+  const cedo = await apagar();
+  assert.equal(cedo.status, 409); assert.match(cedo.corpo.erro, /5 meses/); assert.ok(!/dia 30/.test(cedo.corpo.erro));
+  await local.db.query(`update app.entregas set aviso_material_em = now() - interval '5 months 2 days' where conversa_id = $1`, [m.c]);
+  await local.db.query("update app.materiais set updated_at = now() - interval '5 months 3 days' where entrega_id = (select id from app.entregas where conversa_id = $1)", [m.c]);
+  assert.equal((await apagar()).status, 200, 'aos 5 meses o aviso prévio sai');
+  const ja = await apagar();
+  assert.equal(ja.status, 409); assert.match(ja.corpo.erro, /já foi registrado/);
+  assert.equal(await passo(m.c), 'material', 'o passo não muda');
+  assert.equal((await cen.painelPost({ aviso_feito: cm, momento: 'inventado' })).status, 400);
+});

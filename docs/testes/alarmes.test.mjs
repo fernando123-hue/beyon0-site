@@ -27,10 +27,13 @@ test('conta cada alarme uma vez; a prévia parada (D5), a pausa aberta, o materi
     { passo: 'aprovada', prazo_dias: 10, prazo: prazo('2026-10-21T12:00:00-04:00') },                                          // aprovada dentro do prazo
     { passo: 'no_ar', no_ar_em: '2026-10-10T15:00:00-04:00', aviso_no_ar_feito_em: '2026-10-17T15:00:00-04:00' },              // 5 dias desde o aviso "no ar": passou da 00:00 depois do 3º dia: conta
     { passo: 'no_ar', no_ar_em: '2026-10-10T15:00:00-04:00', aviso_no_ar_feito_em: '2026-10-19T15:00:00-04:00' },              // 3 dias: ainda é o 3º dia (o site sai à 00:00 do dia seguinte): não conta
+    { passo: 'material', entrada_em: '2026-01-01T12:00:00-04:00', aviso_material_em: '2026-03-01T12:00:00-04:00', apagar_material_devido: true },   // 22/10: parado há 5 meses, o aviso de que o material será apagado ainda não foi registrado (a conta de datas é do banco): conta, e só ele
+    { passo: 'material', entrada_em: '2026-01-01T12:00:00-04:00', aviso_material_em: '2026-03-01T12:00:00-04:00', apagar_material_devido: false },   // o banco disse que não é devido (aviso já registrado, autorizado, sem material): não conta
+    { passo: 'producao', apagar_material_devido: true },   // fora do passo material nunca conta
     { passo: 'no_ar', no_ar_em: '2026-09-01T15:00:00-04:00' }                                                                   // no ar há 50 dias, mas o aviso "no ar" não foi registrado: a contagem não começou (o listar cobra o aviso)
   ];
-  assert.deepEqual(contarAlarmes(itens, AGORA), { prazo_vencido: 3, material_30: 1, restante_vencido: 1 });
-  assert.deepEqual(contarAlarmes([], AGORA), { prazo_vencido: 0, material_30: 0, restante_vencido: 0 });
+  assert.deepEqual(contarAlarmes(itens, AGORA), { prazo_vencido: 3, material_30: 1, restante_vencido: 1, material_apagar: 1 });
+  assert.deepEqual(contarAlarmes([], AGORA), { prazo_vencido: 0, material_30: 0, restante_vencido: 0, material_apagar: 0 });
 });
 
 test('sem prazo_dias (inteiro) o prazo não vence: item com o prazo preenchido e os dias ausentes, nulos ou em texto não conta como vencido', () => {
