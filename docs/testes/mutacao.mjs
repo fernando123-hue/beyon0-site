@@ -178,6 +178,13 @@ export const SABOTAGENS = [
   /* ---- M3 (22/10): o telefone e o e-mail do site só existem com a autorização de uso ---- */
   { nome: 'a função aceita o contato do site sem a versão da autorização', arquivo: '20261024120100_pr3b3_previa.sql', testes: ['docs/testes/previa-banco.test.mjs'],
     de: "or ((v_whats is not null or v_email is not null) and (v_versao is null or char_length(v_versao) > 20)) then", para: 'or false then' },
+  /* ---- a aprovação e o prazo do cliente (fix wave final): a corrida e a chave estranha ---- */
+  { nome: 'aprovar sem conferir a versão que a tela viu', arquivo: '20261024120100_pr3b3_previa.sql', testes: ['docs/testes/previa-banco.test.mjs'],
+    de: "if e.updated_at is distinct from v_versao_vista then raise exception 'a prévia mudou' using errcode = '40001'; end if;", para: '' },
+  { nome: 'a lista de ajustes aceita qualquer chave do prazo do servidor', arquivo: '20261024120100_pr3b3_previa.sql', testes: ['docs/testes/previa-banco.test.mjs'],
+    de: "rodadas_usadas = rodadas_usadas + 1, prazo = prazo || jsonb_strip_nulls(jsonb_build_object('conta_desde', p -> 'prazo' -> 'conta_desde', 'pausas', p -> 'prazo' -> 'pausas')),", para: "rodadas_usadas = rodadas_usadas + 1, prazo = prazo || (p -> 'prazo')," },
+  { nome: 'aprovar aceita qualquer chave do prazo do servidor', arquivo: '20261024120100_pr3b3_previa.sql', testes: ['docs/testes/previa-banco.test.mjs'],
+    de: "aprovada_em = v_agora, prazo = prazo || jsonb_strip_nulls(jsonb_build_object('conta_desde', p -> 'prazo' -> 'conta_desde', 'pausas', p -> 'prazo' -> 'pausas')),", para: "aprovada_em = v_agora, prazo = prazo || (p -> 'prazo')," },
   /* ---- A1 (revisão de 22/10): o aviso de material parado só vale a partir do dia 30 ---- */
   { nome: 'o aviso de material parado sai antes do dia 30', arquivo: '20261024120100_pr3b3_previa.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
     de: "if v_dias < 30 then return jsonb_build_object('ok', false, 'dias', v_dias, 'motivo', 'cedo'); end if;", para: 'null;' },

@@ -19,6 +19,10 @@ async function lista(c, extra = {}) {
     agora: new Date().toISOString(), prazo: PRAZO, entrega_ate: '2026-11-09', ...extra });
 }
 
+async function aprovarCom(c, extra = {}) {
+  return rpc('vendas_previa_aprovar', { ...base(c), versao: await versaoDe(db, c), agora: new Date().toISOString(), prazo: PRAZO, ...extra });
+}
+
 test('o estado traz o que a tela precisa: versão em texto, importada, rodadas 0 de 2, a prévia e o site; nunca o texto da lista', async () => {
   const c = await entregaEm(db, 'previa');
   const est = (await rpc('vendas_estado', base(c))).entrega;
@@ -117,7 +121,7 @@ test('só o dono da sessão (P0002) e só com o sinal pago (55000 se estornado)'
 
 test('aprovar: só o cliente, só em "previa"; vira "aprovada" com a pausa fechada; a 2ª vez e a produção não aprovam', async () => {
   const c = await entregaEm(db, 'previa');
-  const aprovar = async extra => rpc('vendas_previa_aprovar', { ...base(c), versao: await versaoDe(db, c), agora: new Date().toISOString(), prazo: PRAZO, ...extra });
+  const aprovar = extra => aprovarCom(c, extra);
   assert.deepEqual(await aprovar(), { ok: true });
   const e = await um('select passo, aprovada_em, prazo from app.entregas where conversa_id = $1', [c.conversa_id]);
   assert.equal(e.passo, 'aprovada'); assert.ok(e.aprovada_em); assert.deepEqual(e.prazo.pausas, PRAZO.pausas);
@@ -134,4 +138,41 @@ test('D5: nenhum tempo aprova: com a prévia parada há 400 dias a entrega conti
   const r = await rpc('vendas_estado', base(c));   // (ler o estado, a lista de entregas e a retomada nunca mudam o passo)
   assert.equal(r.entrega.passo, 'previa');
   assert.equal((await um('select passo from app.entregas where conversa_id = $1', [c.conversa_id])).passo, 'previa');
+});
+
+test('aprovar, corrida e dado ruim: versão velha 40001; outro visitante P0002; sinal estornado 55000; entrada inválida 22023, e nada muda', async () => {
+  const c = await entregaEm(db, 'previa');
+  assert.equal((await erroDe(aprovarCom(c, { versao: '2020-01-01 00:00:00+00' }))).codigo, '40001', 'a prévia mudou desde que a tela a viu');
+  for (const ruim of [{ prazo: null }, { prazo: 'x' }, { agora: '' }, { versao: '' }, { agora: '2020-01-01T00:00:00Z' }, { agora: 'ontem' }, { versao: 'nunca' }, { conversa_id: 'nao-e-uuid' }, { visitante_id: 'nao-e-uuid' }]) {
+    assert.equal((await erroDe(aprovarCom(c, ruim))).codigo, '22023', JSON.stringify(ruim));
+  }
+  const outro = randomUUID(); await db.query('insert into auth.users (id) values ($1)', [outro]);
+  assert.equal((await erroDe(aprovarCom(c, { visitante_id: outro }))).codigo, 'P0002', 'só o dono da sessão aprova');
+  assert.equal((await um('select passo from app.entregas where conversa_id = $1', [c.conversa_id])).passo, 'previa', 'nenhuma recusa mexeu na entrega');
+  await db.query("update app.pagamentos set status = 'estornado' where parcela = 'sinal' and proposta_id = $1", [c.proposta]);
+  assert.equal((await erroDe(aprovarCom(c))).codigo, '55000', 'quem recebeu a entrada de volta não aprova');
+});
+
+test('o desvio de cast é só de dado ruim: data impossível (2026-02-31), data ou instante ilegíveis e id que não é uuid dão 22023 na lista de ajustes', async () => {
+  const c = await entregaEm(db, 'previa');
+  for (const ruim of [{ entrega_ate: '2026-02-31' }, { entrega_ate: '2026-13-01' }, { agora: 'ontem' }, { versao: 'nunca' }, { conversa_id: 'nao-e-uuid' }, { visitante_id: 'nao-e-uuid' }]) {
+    assert.equal((await erroDe(lista(c, ruim))).codigo, '22023', JSON.stringify(ruim));
+  }
+  assert.equal((await um('select rodadas_usadas n from app.entregas where conversa_id = $1', [c.conversa_id])).n, 0);
+});
+
+test('o prazo do servidor só mescla conta_desde e pausas: nenhuma outra chave entra (nem troca a entrada do pedido) na lista nem na aprovação', async () => {
+  const intruso = { ...PRAZO, entrada_em: '1999-01-01T00:00:00Z', numero_em: '1999-01-02T00:00:00Z', pausa_solta: 'x' };
+  const conferir = async (c, rotulo) => {
+    const e = await um('select prazo from app.entregas where conversa_id = $1', [c.conversa_id]);
+    assert.deepEqual(e.prazo.pausas, PRAZO.pausas, rotulo + ': as pausas entram');
+    assert.equal(e.prazo.conta_desde, PRAZO.conta_desde, rotulo + ': a conta entra');
+    assert.ok(!('pausa_solta' in e.prazo), rotulo + ': chave estranha fica de fora');
+    assert.notEqual(e.prazo.entrada_em, intruso.entrada_em, rotulo + ': a entrada do pedido não é reescrita');
+    assert.notEqual(e.prazo.numero_em, intruso.numero_em, rotulo + ': o dia do número não é reescrito');
+  };
+  const a = await entregaEm(db, 'previa');
+  assert.equal((await lista(a, { prazo: intruso })).ok, true); await conferir(a, 'lista');
+  const b = await entregaEm(db, 'previa');
+  assert.deepEqual(await aprovarCom(b, { prazo: intruso }), { ok: true }); await conferir(b, 'aprovar');
 });

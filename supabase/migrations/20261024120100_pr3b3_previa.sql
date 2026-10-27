@@ -48,12 +48,13 @@ end $$;
 -- SEÇÃO 2. As ações do cliente na prévia: a lista de ajustes e aprovar
 -- ==========================================================================
 
+-- (O prazo que chega do servidor só mescla `conta_desde` e `pausas`: a entrada do pedido e o dia do número já estão gravados e nenhuma outra chave entra.)
 -- ---------- a lista de ajustes: previa → ajustes (conta 1 rodada; a 3ª é recusada, D2) ----------
 -- O texto livre já chega REDIGIDO pelo servidor. O WhatsApp/telefone e o e-mail DO SITE (M3, 22/10) chegam em campos próprios, já normalizados, e só valem com a
 -- autorização de uso no site (a mesma do material): o banco confere o formato de novo (a mesma regra da tela e do servidor) e grava a data da autorização.
 create function app.vendas_previa_ajustes(p jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
-declare e app.entregas; v_texto text := btrim(coalesce(p ->> 'texto', '')); v_agora timestamptz; v_versao_vista timestamptz; v_ate date; v_conversa uuid; v_visitante uuid;
+declare e app.entregas; v_texto text := btrim(coalesce(p ->> 'texto', '')); v_agora timestamptz; v_versao_vista timestamptz; v_ate date; v_conversa uuid; v_visitante uuid; v_rodada_base integer;
         v_whats text := nullif(btrim(coalesce(p ->> 'whatsapp', '')), ''); v_email text := nullif(btrim(coalesce(p ->> 'email', '')), '');
         v_versao text := nullif(btrim(coalesce(p ->> 'autorizacao_versao', '')), '');
 begin
@@ -72,20 +73,20 @@ begin
   -- datas e ids malformados (ex.: 2026-02-31) são dado ruim, não erro de conversão
   begin
     v_agora := (p ->> 'agora')::timestamptz; v_versao_vista := (p ->> 'versao')::timestamptz; v_ate := (p ->> 'entrega_ate')::date;
-    v_conversa := (p ->> 'conversa_id')::uuid; v_visitante := (p ->> 'visitante_id')::uuid;
-  exception when others then
+    v_conversa := (p ->> 'conversa_id')::uuid; v_visitante := (p ->> 'visitante_id')::uuid; v_rodada_base := (p ->> 'rodada_base')::integer;
+  exception when invalid_text_representation or invalid_datetime_format or datetime_field_overflow or numeric_value_out_of_range then
     raise exception 'previa: parâmetros inválidos' using errcode = '22023';
   end;
   if abs(extract(epoch from (now() - v_agora))) > 300 then raise exception 'previa: relógio fora da janela' using errcode = '22023'; end if;
   e := privado.entrega_trava(v_conversa, v_visitante, array['previa']);
-  if e.updated_at is distinct from v_versao_vista or e.rodadas_usadas <> (p ->> 'rodada_base')::integer then
+  if e.updated_at is distinct from v_versao_vista or e.rodadas_usadas <> v_rodada_base then
     raise exception 'a prévia mudou enquanto você escrevia' using errcode = '40001';
   end if;
   if e.rodadas_max is not null and e.rodadas_usadas >= e.rodadas_max then return jsonb_build_object('ok', false, 'motivo', 'rodadas'); end if;
   insert into app.entrega_ajustes (org_id, entrega_id, rodada, texto, contato_whatsapp, contato_email, contato_autorizado_em, contato_autorizacao_versao)
   values (e.org_id, e.id, e.rodadas_usadas + 1, v_texto, v_whats, v_email,
           case when v_whats is not null or v_email is not null then v_agora end, case when v_whats is not null or v_email is not null then v_versao end);
-  update app.entregas set passo = 'ajustes', rodadas_usadas = rodadas_usadas + 1, prazo = prazo || (p -> 'prazo'),
+  update app.entregas set passo = 'ajustes', rodadas_usadas = rodadas_usadas + 1, prazo = prazo || jsonb_strip_nulls(jsonb_build_object('conta_desde', p -> 'prazo' -> 'conta_desde', 'pausas', p -> 'prazo' -> 'pausas')),
          entrega_ate = v_ate, updated_at = now() where id = e.id;
   perform privado.evento(e.org_id, e.conversa_id, 'previa_ajustes', jsonb_build_object('rodada', e.rodadas_usadas + 1));
   return jsonb_build_object('ok', true, 'rodada', e.rodadas_usadas + 1);
@@ -102,13 +103,13 @@ begin
   begin
     v_agora := (p ->> 'agora')::timestamptz; v_versao_vista := (p ->> 'versao')::timestamptz;
     v_conversa := (p ->> 'conversa_id')::uuid; v_visitante := (p ->> 'visitante_id')::uuid;
-  exception when others then
+  exception when invalid_text_representation or invalid_datetime_format or datetime_field_overflow or numeric_value_out_of_range then
     raise exception 'previa: parâmetros inválidos' using errcode = '22023';
   end;
   if abs(extract(epoch from (now() - v_agora))) > 300 then raise exception 'previa: relógio fora da janela' using errcode = '22023'; end if;
   e := privado.entrega_trava(v_conversa, v_visitante, array['previa']);
   if e.updated_at is distinct from v_versao_vista then raise exception 'a prévia mudou' using errcode = '40001'; end if;
-  update app.entregas set passo = 'aprovada', aprovada_em = v_agora, prazo = prazo || (p -> 'prazo'), updated_at = now() where id = e.id;
+  update app.entregas set passo = 'aprovada', aprovada_em = v_agora, prazo = prazo || jsonb_strip_nulls(jsonb_build_object('conta_desde', p -> 'prazo' -> 'conta_desde', 'pausas', p -> 'prazo' -> 'pausas')), updated_at = now() where id = e.id;
   perform privado.evento(e.org_id, e.conversa_id, 'previa_aprovada');
   return jsonb_build_object('ok', true);
 end $$;
