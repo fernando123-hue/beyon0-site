@@ -385,7 +385,7 @@
     var sa = status();
     c.addEventListener('change', function () { salvar('autorizacao.marcada', c.checked, sa); });
     corpo.appendChild(cx); corpo.appendChild(sa);
-    a.setAttribute('href', '/privacidade#orcamento'); a.setAttribute('target', '_blank'); a.setAttribute('rel', 'noopener noreferrer');
+    a.setAttribute('href', '/privacidade#material'); a.setAttribute('target', '_blank'); a.setAttribute('rel', 'noopener noreferrer');
     var pa = el('p', 'orc-mat__dica'); pa.appendChild(a); corpo.appendChild(pa);
     var falta = el('p', 'orc-mat__falta'); falta.id = 'o-mat-falta'; falta.setAttribute('role', 'status'); falta.setAttribute('aria-live', 'polite'); corpo.appendChild(falta);
     var env = el('button', 'btn btn--primary', 'Enviar o material'); env.type = 'button'; env.id = 'o-mat-enviar';

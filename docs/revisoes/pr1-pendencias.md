@@ -60,8 +60,13 @@ com credenciais reais**, salvo onde diz outra coisa.
     - rodar `supabase/storage/material.sql` no SQL Editor (cria o balde privado `material`);
     - rodar `node scripts/conferir-armazem.mjs` (chaves só naquela janela) e colar o resultado, inclusive as linhas 5b/5c e a 8 (logout global), e a conferência
       à mão do teto do balde (`select privado.bytes_no_balde();` antes e depois de subir um arquivo);
-    - **privacidade do 3b-2:** o PR pequeno `pr3b2-privacidade` (só `privacidade.html`) tem de estar mesclado pelo dono antes de ligar `BZ_ENTREGA=ligada`; o clique dele é o "sim"
-      ao texto. Depois dele, o `href` da caixa de autorização passa a `#material` (o teste `privacidade-prazos.test.mjs` cobra);
+    - **privacidade do 3b-2:** o PR pequeno `pr3b2-privacidade` (`privacidade.html`, o `href` da caixa de autorização e o teste) tem de estar mesclado pelo dono antes de ligar `BZ_ENTREGA=ligada`; o clique dele é o "sim"
+      ao texto. Depois dele (já feito aqui), o `href` da caixa de autorização passa a `#material` (o teste `privacidade-prazos.test.mjs` cobra).
+      A página já promete, e o código do site ainda NÃO cumpre (revisão do PR; antes de ligar `BZ_ENTREGA`, ou no mais tardar antes de o primeiro cliente completar 6 meses parado):
+      (a) **material de projeto parado apagado depois de 6 meses parado, com aviso antes** (decisão do dono de 22/10): falta uma 6ª condição em `rotinas_material_pendencias`/`rotinas_material_baixar` (material em `rascunho`/`enviado`, etapa `material`, contado do aviso de "aguardando"; a captação conta assim e só apaga a cópia local dela);
+      (b) **o link do pedido deixa de valer 30 dias depois do fim do pedido:** hoje vale 120 dias renovados a cada uso e `privado.encerrar_links_do_pedido` não tem chamador; o 3b-3 encurta;
+      (c) **as fotos perdem a localização:** a página já diz só a verdade de hoje (o aparelho reduz as fotos grandes e nisso perdem a localização; foto pequena e logo vão como estão); para prometer "todas", `js/orcamento-envio.js` tem de redesenhar sempre (e recusar a foto se o redesenho falhar), em PR próprio;
+      (d) **"a lista de ajustes fica até 30 dias depois da última atividade" e "os registros do pedido, depois do prazo legal, ficam só como números, sem nome":** conferir no 3b-3 que `entrega_ajustes` segue os 30 dias e que existe rotina que anonimiza pedidos e pagamentos depois do prazo de guarda;
     - **CSP do `/orcamento` com o endereço exato do projeto Supabase** (`vercel.json`, a `<meta>` de `orcamento.html` e o `_headers` da Cloudflare, que leva as mesmas duas trocas
       do Task 13): hoje vale o curinga `https://*.supabase.co/storage/v1/object/upload/sign/`; **obrigatório trocar antes de ligar**, não opcional;
     - o interruptor `BZ_ENTREGA=ligada` (variável do Worker): só depois do PR da privacidade e do 3b-3;
