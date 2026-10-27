@@ -33,7 +33,8 @@ import { criarAcoesDosAjustes } from './fluxo-ajustes.mjs';
 import { PEDIDOS } from './pedido.mjs';
 import { criarAcoesDoMaterial } from './fluxo-material.mjs';
 import { criarAcoesDoLink } from './fluxo-link.mjs';
-import { entregaLigada } from '../_material/interruptor.mjs';
+import { criarAcoesDaPrevia } from './fluxo-previa.mjs';
+import { entregaLigada, FRASE_DESLIGADA } from '../_material/interruptor.mjs';
 
 import { ORG } from './org.mjs';
 export { ORG };
@@ -113,6 +114,19 @@ const SEM_CONFIRMACAO = ['O pedido ainda não foi confirmado pelo WhatsApp.', un
 function exigirNaoDescartado(est) {
   if (est.pedido && est.pedido.status === 'descartado') throw new Recusa(409, PEDIDO_ENCERRADO, { whatsapp: true });
 }
+/* (PR 3b-3) o que se cobra com a conversa em produção é o RESTANTE: só com o interruptor ligado, só com o site no ar, só por Pix. A decisão é pela entrega (passo) e pela etapa
+   da conversa, nunca por "existe entrega" (uma entrega encerrada não é entrada paga nem site no ar). O VALOR e a parcela são do banco (pagamentos_iniciar_tentativa), nunca do
+   corpo; aqui só a frase certa antes dele. Fora dessas etapas nada muda: a entrada segue o caminho de sempre */
+function exigirRestanteAberto(est, corpo, env) {
+  const etapa = est.conversa.etapa, passo = est.entrega && est.entrega.passo;
+  if (etapa !== 'em_producao' && !(etapa === 'encerrada' && passo)) return;
+  if (!entregaLigada(env)) throw new Recusa(503, FRASE_DESLIGADA, { whatsapp: true });
+  if (passo === 'concluida') throw new Recusa(409, 'O restante deste pedido já foi pago.');
+  if (passo === 'encerrada') throw new Recusa(409, PEDIDO_ENCERRADO, { whatsapp: true });
+  if (passo !== 'no_ar' && passo !== 'suspensa') throw new Recusa(409, 'O restante abre quando o site estiver no ar.');
+  if (corpo?.metodo !== 'pix') throw new Recusa(400, 'O restante é pago por Pix.');
+}
+
 /* null: o pedido está confirmado e pode gerar; senão, a recusa com a frase da situação */
 function recusaDoGerar(pedido) {
   const status = pedido && pedido.status;
@@ -302,6 +316,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     ...criarAcoesDosAjustes({ banco, visitante, estado, exigirNaoDescartado }),
     ...criarAcoesDoMaterial({ banco, visitante, estado, armazem, segredoFreio, requestId, env }),
     ...criarAcoesDoLink({ banco, visitante, visitantes, segredoFreio, env }),
+    ...criarAcoesDaPrevia({ banco, visitante, estado, env }),
 
     /* começar: cria o visitante anônimo e a conversa, com a origem da visita (das métricas, sem dado pessoal) */
     async sessao({ corpo }) {
@@ -507,6 +522,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       /* sem contato (ou com o contato anonimizado pela retenção de 12 meses), o cliente nasceria sem nome nem telefone */
       const est = await estado(vid, corpo.conversa_id);
       exigirNaoDescartado(est);
+      exigirRestanteAberto(est, corpo, env);
       if (!est.conversa.tem_contato) throw new Recusa(409, 'Antes de pagar, precisamos do seu contato de novo: fale com a Beyon Zero pelo WhatsApp citando o código do pedido.', { whatsapp: true });
       return pagamentos.iniciar({ conversa_id: corpo.conversa_id, visitante_id: vid, metodo: corpo?.metodo, pagador: corpo?.pagador, cartao: corpo?.cartao });
     },

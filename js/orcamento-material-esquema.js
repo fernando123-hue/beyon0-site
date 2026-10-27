@@ -140,9 +140,34 @@
     var completo = (d.length === 12 || d.length === 13) && d.slice(0, 2) === '55' ? d : d.length === 10 || d.length === 11 ? '55' + d : null;
     return completo ? '+' + completo : null;
   }
+  /* (M3, 22/10) o telefone/WhatsApp e o e-mail DO SITE, em campos próprios da lista de ajustes: UMA regra para a tela, o servidor e o banco (a do check de app.entrega_ajustes; as listas de
+     docs/testes/_contato.mjs provam). O que a pessoa digita é normalizado (máscara, +55, maiúsculas, espaços das pontas) e só o formato conferido se guarda. Os dois campos são opcionais;
+     a autorização de uso (AUTORIZACAO) é à parte e obrigatória quando algum deles vem. */
+  var WHATSAPP_SITE = /^\+55[1-9][1-9](9[0-9]{8}|[2-8][0-9]{7})$/;   /* DDD + celular (9 e mais 8 dígitos) ou fixo (8 dígitos começando em 2 a 8) */
+  var EMAIL_SITE = /^[a-z0-9_%+-]+(\.[a-z0-9_%+-]+)*@([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}$/;   /* minúsculas; sem '..' nem ponto nas pontas da parte local */
+  var CONTATO_MAX = Object.freeze({ whatsapp: 30, email: 120, email_local: 64 });
+  function emailDoSiteValido(v) {
+    return typeof v === 'string' && v.length <= CONTATO_MAX.email && v.split('@')[0].length <= CONTATO_MAX.email_local && EMAIL_SITE.test(v);
+  }
+  function contatoDoSite(whatsapp, email) {
+    var w = whatsapp == null ? '' : String(whatsapp).trim(), m = email == null ? '' : String(email).trim();
+    var r = { ok: true, whatsapp: null, email: null };
+    if (w) {
+      var n = w.length <= CONTATO_MAX.whatsapp && /^\+?[0-9\s().-]+$/.test(w) ? telefoneE164(w) : null;
+      if (!n || !WHATSAPP_SITE.test(n)) return { ok: false, erro: 'whatsapp' };
+      r.whatsapp = n;
+    }
+    if (m) {
+      var minusculo = m.toLowerCase();
+      if (!emailDoSiteValido(minusculo)) return { ok: false, erro: 'email' };
+      r.email = minusculo;
+    }
+    return r;
+  }
   function tipoDoMime(mime) { return mime === 'image/png' ? 'png' : mime === 'image/jpeg' ? 'jpg' : mime === 'image/webp' ? 'webp' : null; }
 
   return { LIMITES: LIMITES, AUTORIZACAO: AUTORIZACAO, UFS: UFS, RESPOSTAS_FOTOS: RESPOSTAS_FOTOS, ALFABETO_ID: ALFABETO_ID, ID_CLIENTE: ID_CLIENTE,
     CPF_CNPJ: CPF_CNPJ, CAMPOS_SALVOS: CAMPOS_SALVOS, CAMPOS_DO_PACOTE: Object.freeze(CAMPOS_DO_PACOTE), problemaDoLink: problemaDoLink,
-    validarCampo: validarCampo, validarDados: validarDados, prepararPatch: prepararPatch, faltas: faltas, tipoDoMime: tipoDoMime, telefoneE164: telefoneE164 };
+    validarCampo: validarCampo, validarDados: validarDados, prepararPatch: prepararPatch, faltas: faltas, tipoDoMime: tipoDoMime, telefoneE164: telefoneE164,
+    WHATSAPP_SITE: WHATSAPP_SITE, EMAIL_SITE: EMAIL_SITE, CONTATO_MAX: CONTATO_MAX, contatoDoSite: contatoDoSite, emailDoSiteValido: emailDoSiteValido };
 });

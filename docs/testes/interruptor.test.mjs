@@ -26,13 +26,16 @@ test('nenhum arquivo de deploy liga a entrega; o servidor local liga por conta p
 
 test('desligada: as ações novas dão 503 com a saída pelo WhatsApp, e o estado não traz a entrega', async () => {
   const { n, c } = await ateEntregaCriada(cen, local, { env: {} });
-  for (const acao of ['material-salvar', 'material-reservar', 'material-conferir', 'material-remover', 'material-enviar', 'link-pedido', 'sair-do-aparelho', 'outro-aparelho']) {
+  for (const acao of ['material-salvar', 'material-reservar', 'material-conferir', 'material-remover', 'material-enviar', 'link-pedido', 'sair-do-aparelho', 'outro-aparelho', 'previa-ajustes', 'previa-aprovar']) {
     const r = await n.chamar('POST', acao, { conversa_id: c });
     assert.equal(r.status, 503, acao); assert.equal(r.corpo.erro, FRASE_DESLIGADA); assert.equal(r.corpo.whatsapp, true);
   }
   assert.equal((await cen.navegador().chamar('POST', 'abrir-pedido', { codigo: 'a'.repeat(32) })).status, 503);
   const e = await cen.estado(n, c);
   assert.equal(e.entrega, undefined); assert.equal(e.entrega_ligada, false);
+  /* o restante: a conversa em produção, com a entrega desligada, não cobra nada (o pagar dá 503 antes de qualquer valor) */
+  const pg = await n.chamar('POST', 'pagar', { conversa_id: c, metodo: 'pix', pagador: { nome: 'Ana', sobrenome: 'Souza', email: 'ana@exemplo.com', documento: '52998224725' } });
+  assert.equal(pg.status, 503); assert.equal(pg.corpo.erro, FRASE_DESLIGADA); assert.equal(pg.corpo.whatsapp, true);
 });
 
 test('ligada: o estado traz a entrega e entrega_ligada true', async () => {

@@ -262,6 +262,23 @@ export const SABOTAGENS = [
     de: 'if e.proposta_id <> pr.id then raise exception', para: 'if false then raise exception' },
   { nome: 'o restante pago com o projeto pausado passa sem avisar a equipe', arquivo: '20261024120200_pr3b3_restante.sql', testes: ['docs/testes/restante-banco.test.mjs'],
     de: "if not found and not exists (select 1 from app.projetos where id = v_projeto and status = 'entregue') then", para: 'if false then' },
+  /* ---- 3b-3 Task 7: a API do cliente (prévia e restante) ---- */
+  { nome: 'a API aceita o telefone ou o e-mail do site sem a autorização de uso', fonte: 'api/_vendas/fluxo-previa.mjs', testes: ['docs/testes/previa-api.test.mjs'],
+    de: "if (temContato && corpo.autorizo !== true) throw new Recusa(422, FRASES.autorizacao);", para: '/* sem a trava */' },
+  { nome: 'a API mede o limite de 1.500 DEPOIS de redigir (quem digita 1.500 com e-mail leva 422)', fonte: 'api/_vendas/fluxo-previa.mjs', testes: ['docs/testes/previa-api.test.mjs'],
+    de: 'if (limpo.length > MAX_LISTA) throw', para: 'if (redigir(limpo).length > MAX_LISTA) throw' },
+  { nome: 'a API grava o texto da lista sem redigir (telefone e e-mail passam)', fonte: 'api/_vendas/fluxo-previa.mjs', testes: ['docs/testes/previa-api.test.mjs'],
+    de: 'const texto = cortar(redigir(limpo).trim(), MAX_LISTA).trim();', para: 'const texto = cortar(limpo, MAX_LISTA).trim();' },
+  { nome: 'aprovar ignora a recusa { ok: false } do banco e responde 200', fonte: 'api/_vendas/fluxo-previa.mjs', testes: ['docs/testes/previa-api.test.mjs'],
+    de: "      if (!r || r.ok !== true) throw new Recusa(409, FRASES.passo, { whatsapp: true });\n      return { ok: true };", para: "      return { ok: true };" },
+  { nome: 'o pagar abre o restante antes do site no ar', fonte: 'api/_vendas/fluxo.mjs', testes: ['docs/testes/previa-api.test.mjs'],
+    de: "if (passo !== 'no_ar' && passo !== 'suspensa') throw new Recusa(409, 'O restante abre quando o site estiver no ar.');", para: "if (false) throw new Recusa(409, 'O restante abre quando o site estiver no ar.');" },
+  { nome: 'o pagar do restante aceita cartão', fonte: 'api/_vendas/fluxo.mjs', testes: ['docs/testes/previa-api.test.mjs'],
+    de: "if (corpo?.metodo !== 'pix') throw new Recusa(400, 'O restante é pago por Pix.');", para: '/* sem a trava do Pix */' },
+  { nome: 'o pagar do restante ignora o interruptor desligado', fonte: 'api/_vendas/fluxo.mjs', testes: ['docs/testes/previa-api.test.mjs'],
+    de: "  if (!entregaLigada(env)) throw new Recusa(503, FRASE_DESLIGADA, { whatsapp: true });\n  if (passo === 'concluida')", para: "  if (passo === 'concluida')" },
+  { nome: 'a entrega encerrada passa por "site no ar" no pagar do restante', fonte: 'api/_vendas/fluxo.mjs', testes: ['docs/testes/previa-api.test.mjs'],
+    de: "  if (passo === 'encerrada') throw new Recusa(409, PEDIDO_ENCERRADO, { whatsapp: true });\n", para: "" },
 ];
 
 /* as sabotagens que a rodada vai fazer: todas, ou só as do filtro (parte do nome, sem diferenciar maiúsculas). Filtro que não
