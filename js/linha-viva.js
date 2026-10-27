@@ -77,21 +77,23 @@
      enquanto o grupo seguinte acende o do meio da tela). Gira só o que acendeu por último (.lv-ativa); o outro fica
      aceso com a luz pousada. Quem acende é o anima.js (.is-foco); aqui só se observa a classe */
   var montados = [], ativa = null, noMeio = [];
-  /* desktop com mouse: gira o cartão do meio da tela, a não ser que o mouse esteja carregando algum */
-  function maisPerto(serve) {
+  /* desktop com mouse: gira o cartão do meio da tela, a não ser que algum cartão esteja carregando (qualquer um com a
+     luz da carga, também o .spec__item, que o linha-viva não monta: uma luz só por vez). guardado: usa a posição que o
+     IntersectionObserver anotou, sem ler layout logo depois de a carga mexer em classe */
+  function maisPerto(serve, guardado) {
     var alvo = null, melhor = Infinity;
-    if (!montados.some(function (c) { return c.matches(CARGA); })) {
+    if (!document.querySelector('.tem-carga:is(' + CARGA + ')')) {
       var cx = window.innerWidth / 2, cy = window.innerHeight / 2;
       noMeio.forEach(function (c) {
         if (serve && !serve(c)) return;
-        var r = c.getBoundingClientRect(), dx = (r.left + r.right) / 2 - cx, dy = (r.top + r.bottom) / 2 - cy, d = dx * dx + dy * dy;
+        var r = guardado && c._lvRect || c.getBoundingClientRect(), dx = (r.left + r.right) / 2 - cx, dy = (r.top + r.bottom) / 2 - cy, d = dx * dx + dy * dy;
         if (d < melhor) { melhor = d; alvo = c; }
       });
     }
     return alvo;
   }
-  function escolherMeio() {
-    var alvo = maisPerto();
+  function escolherMeio(guardado) {
+    var alvo = maisPerto(null, guardado);
     if (alvo === ativa) return;
     if (ativa) ativa.classList.remove('lv-ativa');
     ativa = alvo;
@@ -113,8 +115,10 @@
   var classes = new MutationObserver(function (ms) {
     for (var i = 0; i < ms.length; i++) {
       var c = ms[i].target, aceso = c.classList.contains('is-foco');
-      if (desk.matches) { escolherMeio(); return; }
-      if (aceso !== !!c._lvAceso) { c._lvAceso = aceso; escolher(aceso ? c : null); }
+      var mudou = aceso !== !!c._lvAceso;
+      c._lvAceso = aceso;   /* (também no desktop: ao estreitar a janela o primeiro is-foco não pode ser tomado por já visto) */
+      if (desk.matches) { escolherMeio(true); return; }
+      if (mudou) escolher(aceso ? c : null);
     }
   });
 
@@ -122,6 +126,7 @@
   var meio = 'IntersectionObserver' in window ? new IntersectionObserver(function (es) {
     for (var i = 0; i < es.length; i++) {
       var k = noMeio.indexOf(es[i].target);
+      es[i].target._lvRect = es[i].boundingClientRect;
       if (es[i].isIntersecting && k < 0) noMeio.push(es[i].target);
       else if (!es[i].isIntersecting && k >= 0) noMeio.splice(k, 1);
     }

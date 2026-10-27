@@ -211,6 +211,15 @@ test('peças de Automação e do Atendente: CSP, nada sai da página e controles
   for (const a of ['role="slider"', 'tabindex="0"', 'aria-label=', 'aria-valuemin=', 'aria-valuemax=', 'aria-valuenow=', 'aria-valuetext=']) assert.ok(plantao.includes(a), 'régua de horas sem ' + a);
 });
 
+/* (revisão design-1023) as peças saíram da inicial: o que a CSP bloqueia (<style>, style="", handler inline) continua valendo para
+   as três páginas, não só para a que guarda a peça */
+test('CSP: nenhuma das três páginas tem <style>, style="" ou handler inline', () => {
+  for (const arquivo of ['index.html', 'sites.html', 'automacao.html']) {
+    const html = readFileSync(new URL(arquivo, RAIZ), 'utf8');
+    assert.ok(!/<style|\sstyle="|\son[a-z]+=/.test(html), arquivo + ': <style>, style="" ou handler inline (a CSP bloqueia)');
+  }
+});
+
 test('peça de Sites: o nome não sai da página, a CSP vale e a régua é acessível', () => {
   const html = readFileSync(new URL('sites.html', RAIZ), 'utf8');
   const peca = (html.match(/<div class="planta" data-planta[\s\S]*?<\/article>/) || [])[0];
