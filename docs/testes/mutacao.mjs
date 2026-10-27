@@ -290,6 +290,21 @@ export const SABOTAGENS = [
     de: "e.codigo === '55000') throw new Recusa(409, RESTANTE_TRAVADO, { whatsapp: true });", para: "e.codigo === '55000' && /entrada não está paga/.test(e.message)) throw new Recusa(409, RESTANTE_TRAVADO, { whatsapp: true });" },
   { nome: 'a lista de ajustes deixa o fim de linha do Windows esconder CPF e telefone da redação', fonte: 'api/_vendas/fluxo-previa.mjs', testes: ['docs/testes/previa-api.test.mjs'],
     de: "s.replace(/\\s*\\n\\s*/g, '\\n')", para: "s.replace(/[ \\t]*\\n\\s*/g, '\\n')" },
+  /* ---- a API do dono (PR 3b-3b, Task 8): o que SÓ o JS protege, ou onde o JS dá a frase certa ao dono ---- */
+  { nome: 'o prazo vencido deixa publicar a prévia (painel do dono)', fonte: 'api/_entrega/painel-entrega.mjs', testes: ['docs/testes/previa-painel.test.mjs'],
+    de: "const atrasoPrevia = barrarPeloPrazo(info, t.agora, 'mostrar a prévia'); if (atrasoPrevia) return atrasoPrevia;", para: '/* (sabotado: a prévia sai com o prazo vencido) */' },
+  { nome: 'o prazo vencido deixa pôr o site no ar (painel do dono)', fonte: 'api/_entrega/painel-entrega.mjs', testes: ['docs/testes/previa-painel.test.mjs'],
+    de: "const atrasoSite = barrarPeloPrazo(info, t.agora, 'publicar o site'); if (atrasoSite) return atrasoSite;", para: '/* (sabotado: o site sai com o prazo vencido) */' },
+  { nome: 'o dispensar devolve a data de agora no lugar da marcação real da caixa (painel do dono)', fonte: 'api/_entrega/painel-entrega.mjs', testes: ['docs/testes/previa-painel.test.mjs'],
+    de: "marcada_em: (info.material && info.material.autorizacao && info.material.autorizacao.marcada_em) || null", para: 'marcada_em: t.iso' },
+  { nome: 'o prazo com data ilegível passa por legível (painel do dono)', fonte: 'api/_entrega/painel-entrega.mjs', testes: ['docs/testes/previa-painel.test.mjs'],
+    de: 'function prazoLegivel(prazo) {\n', para: 'function prazoLegivel(prazo) {\n  return true;\n' },
+  { nome: 'a lista de ajustes perde o selo de texto suspeito (painel do dono)', fonte: 'api/_entrega/painel-entrega.mjs', testes: ['docs/testes/previa-painel.test.mjs'],
+    de: "suspeito: pareceInjecao(String(a.texto || ''))", para: 'suspeito: false' },
+  { nome: 'pôr no ar sem a aprovação do cliente, no JS (painel do dono)', fonte: 'api/_entrega/painel-entrega.mjs', testes: ['docs/testes/previa-painel.test.mjs'],
+    de: "if (info.passo !== 'aprovada') {", para: 'if (false) {' },
+  { nome: 'dispensar o material sem conferir o número autorizado, no JS (painel do dono)', fonte: 'api/_entrega/painel-entrega.mjs', testes: ['docs/testes/previa-painel.test.mjs'],
+    de: 'const falta = ESQ.faltas(info.material);', para: 'const falta = [];' },
 ];
 
 /* as sabotagens que a rodada vai fazer: todas, ou só as do filtro (parte do nome, sem diferenciar maiúsculas). Filtro que não

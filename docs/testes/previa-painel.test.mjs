@@ -8,7 +8,7 @@ import { montarLocal } from '../banco-local.mjs';
 import { criarCenario, BASE } from './_ajustes.mjs';
 import { ateEntregaCriada, enviarMaterial } from './_entrega.mjs';
 import { CLIENTE, PREVIA, SITE } from './_previa.mjs';
-import { ACOES_PAINEL, mudar } from '../../api/painel.mjs';
+import { ACOES_PAINEL, mudar, ler } from '../../api/painel.mjs';
 import { receber } from '../../api/pagamentos.mjs';
 
 let local, cen;
@@ -203,7 +203,7 @@ test('(a) toda recusa do banco vira 409 com frase em português, nunca 500 nem o
   }
   assert.equal(await passo(p.c), 'no_ar', 'a recusa não mexeu no passo');
   const fora = await cen.painelPost({ aviso_feito: p.codigo, momento: 'material_parado' });
-  assert.equal(fora.status, 409); assert.match(fora.corpo.erro, /material/); assert.doesNotMatch(fora.corpo.erro, /^estado$/);
+  assert.equal(fora.status, 409); assert.match(fora.corpo.erro, /material/); assert.doesNotMatch(fora.corpo.erro, /(estado|fora_do_ar|sem_aviso)/);
   const q = await emProducao();
   const foraDoAr = await cen.painelPost({ aviso_feito: q.codigo, momento: 'restante_lembrete_1' });
   assert.equal(foraDoAr.status, 409); assert.match(foraDoAr.corpo.erro, /no ar/);
@@ -299,4 +299,71 @@ test('código fora do padrão ou inexistente: 400 e 404 com frase; momento ou mo
   assert.equal((await cen.painelPost({ aviso_feito: 'BZ-ACDEF', momento: 7 })).status, 400);
   assert.equal((await cen.painelPost({ encerrar: 'BZ-ACDEF', motivo: { a: 1 } })).status, 400);
   assert.equal((await cen.painelGet('?ajustes-previa=BZ-ACDEF')).status, 404);
+});
+
+/* ---------- a correção da revisão da Task 8 ---------- */
+async function comRpc(embrulho, fn) {   /* troca o transporte do banco por um que o teste controla, e devolve o original no fim */
+  const alvo = globalThis.__BZ_LOCAL; const original = alvo.rpc;
+  alvo.rpc = embrulho(original);
+  try { return await fn(); } finally { alvo.rpc = original; }
+}
+
+test('sem a chave do painel, 401 nas 7 ações de POST e nos 2 GET (IPs diferentes: o freio é de 10 por IP)', async () => {
+  const env = { BZ_LOCAL: '1', PAINEL_CHAVE: 'k'.repeat(40) };
+  const ip = i => ({ 'x-forwarded-for': '192.0.2.' + (150 + i) });
+  const posts = [{ previa: 'BZ-33333', url: PREVIA }, { no_ar: 'BZ-33333', url: SITE }, { suspender: 'BZ-33333' }, { encerrar: 'BZ-33333', motivo: 'outro' },
+    { material_dispensar: 'BZ-33333' }, { aviso_feito: 'BZ-33333', momento: 'previa' }, { religado: 'BZ-33333' }];
+  for (const [i, corpo] of posts.entries()) assert.equal((await mudar(new Request(BASE + '/api/painel', { method: 'POST', body: JSON.stringify(corpo), headers: ip(i) }), env)).status, 401, Object.keys(corpo)[0]);
+  for (const [i, q] of ['?fila=avisos', '?ajustes-previa=BZ-33333'].entries()) assert.equal((await ler(new Request(BASE + '/api/painel' + q, { headers: ip(20 + i) }), env)).status, 401, q);
+});
+
+test('I1: a frase do prazo vencido não promete caminho que o site não tem: hoje é a devolução; seguir exige registrar a nova data antes (pendência)', async () => {
+  const { c, codigo } = await emProducao();
+  await local.db.query("update app.entregas set prazo = jsonb_set(jsonb_set(prazo, '{conta_desde}', '\"2020-01-06T12:00:00-04:00\"'), '{pausas}', '[]') where conversa_id = $1", [c]);
+  const r = await publicar(codigo);
+  assert.equal(r.status, 409);
+  assert.match(r.corpo.erro, /devolução por atraso/i);
+  assert.match(r.corpo.erro, /o site ainda não recebe a nova data/i);
+  assert.match(r.corpo.erro, /registrar a nova data antes de publicar/i);
+  assert.doesNotMatch(r.corpo.erro, /a nova data é da captação/i, 'a frase antiga prometia um caminho que não existe');
+});
+
+test('m2: "ainda não importado" (produção, sem o id do cliente): 422 com o comando que resolve, nada gravado', async () => {
+  const { c, codigo } = await emProducao();
+  await local.db.query('update app.entregas set cliente_captacao = null where conversa_id = $1', [c]);
+  const r = await publicar(codigo);
+  assert.equal(r.status, 422); assert.match(r.corpo.erro, /importado BZ-… c-xxxxxx/);
+  assert.equal(await passo(c), 'producao');
+});
+
+test('m3: 22023 do banco (relógio fora da janela, data fora do padrão) nas ações de prazo vira 409 "confira o relógio", não "Pedido inválido" 400', async () => {
+  const { n, c, codigo } = await emProducao();
+  const falha22023 = nomes => original => (nome, p) => nomes.includes(nome) ? Promise.reject(Object.assign(new Error('x'), { codigo: '22023' })) : original(nome, p);
+  const r = await comRpc(falha22023(['vendas_previa_publicar']), () => publicar(codigo));
+  assert.equal(r.status, 409); assert.match(r.corpo.erro, /relógio/i); assert.equal(await passo(c), 'producao');
+  assert.equal((await publicar(codigo)).status, 200);
+  assert.equal((await n.chamar('POST', 'previa-aprovar', { conversa_id: c })).status, 200);
+  const ar = await comRpc(falha22023(['vendas_no_ar']), () => cen.painelPost({ no_ar: codigo, url: SITE }));
+  assert.equal(ar.status, 409); assert.match(ar.corpo.erro, /relógio/i);
+  const m = await ateEntregaCriada(cen, local);
+  await entradaHaDias(m.c, 31); await autorizar(m);
+  const d = await comRpc(falha22023(['vendas_material_dispensar']), async () => cen.painelPost({ material_dispensar: await codigoDe(m.n, m.c) }));
+  assert.equal(d.status, 409); assert.match(d.corpo.erro, /relógio/i);
+});
+
+test('m4: a conta do prazo dentro do try: uma data torta em novas_datas (que o prazoLegivel não vê) vira 409 com a frase, nunca exceção', async () => {
+  const { c, codigo } = await emProducao();
+  const tortaNovas = original => async (nome, p) => {
+    const r = await original(nome, p);
+    return nome === 'vendas_entrega_info' ? { ...r, prazo: { ...r.prazo, novas_datas: [{ data: 'xx', combinada_em: '2020-01-01T12:00:00-04:00' }], pausas: [{ desde: '2020-01-06T12:00:00-04:00', ate: '2020-01-10T12:00:00-04:00' }] } } : r;   /* (a data nova torta + uma pausa fechada: a conta soma dias sobre 'xx' e o Intl lança) */
+  };
+  const r = await comRpc(tortaNovas, () => publicar(codigo));
+  assert.equal(r.status, 409); assert.match(r.corpo.erro, /prazo/i);
+  assert.equal(await passo(c), 'producao');
+});
+
+test('m5: o dia 30 das frases vem do LIMITES.material_dias, não de texto escrito à mão', async () => {
+  const fs = await import('node:fs');
+  const fonte = fs.readFileSync(new URL('../../api/_entrega/painel-entrega.mjs', import.meta.url), 'utf8');
+  assert.ok(!/\b30 dias\b/.test(fonte) && !/dia 30\b/.test(fonte), 'nenhum "30" escrito nas frases do módulo');
 });

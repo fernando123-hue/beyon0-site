@@ -26,10 +26,12 @@ async function lerInfo(rpc, codigo) {
   }
 }
 /* o banco devolveu 55000 (passo), 40001 (a entrega mudou no meio) ou outro erro */
-function erroDoBanco(e, rotulo) {
+function erroDoBanco(e, rotulo, { prazo = false } = {}) {
   if (e && e.codigo === '55000') return json({ erro: 'O passo da entrega mudou: confira com "listar" e tente de novo.' }, 409);
   if (e && e.codigo === '40001') return json({ erro: 'A entrega mudou enquanto você agia. Rode de novo.' }, 409);
   if (e && e.codigo === 'P0002') return json({ erro: 'Pedido não encontrado.' }, 404);
+  /* nas ações de prazo o 22023 é o relógio fora da janela (5 min) ou a data fora do padrão: não é erro de quem digitou */
+  if (e && e.codigo === '22023' && prazo) return json({ erro: 'O banco recusou a hora desta ação (o relógio do servidor está fora da janela de 5 minutos do banco, ou a data do prazo não bate): confira o relógio e tente de novo.' }, 409);
   if (e && e.codigo === '22023') return json({ erro: 'Pedido inválido.' }, 400);
   console.error('[painel] ' + rotulo + ':', e && e.codigo);
   return json({ erro: 'Não deu para salvar agora.' }, 500);
@@ -53,10 +55,11 @@ function recusar(r, frases = {}) {
   const motivo = r && r.motivo;
   return json({ erro: frases[motivo] || MOTIVO_RECUSA[motivo] || RECUSA_GENERICA }, motivo === 'endereco' ? 422 : 409);
 }
-/* "ainda cedo" por momento: o aviso de material parado é do dia 30 depois da entrada; os lembretes, do 2º e do 3º dia depois do aviso "no ar" */
+/* "ainda cedo" por momento: o aviso de material parado é do limite de LIMITES.material_dias depois da entrada; os lembretes, do 2º e do 3º dia depois do aviso "no ar" */
+const fraseDoDia30 = dias => 'Ainda não: só depois de ' + LIMITES.material_dias + ' dias da entrada (hoje são ' + dias + ').';
 const fraseCedo = (momento, dias) => momento === 'restante_lembrete_1' ? 'Ainda não: o lembrete do 2º dia só vale a partir do 2º dia depois do aviso do site no ar (hoje são ' + dias + ').'
   : momento === 'restante_lembrete_2' ? 'Ainda não: o último lembrete é do 3º dia depois do aviso do site no ar (hoje são ' + dias + ').'
-  : 'O aviso de material parado é a partir do dia 30 depois da entrada (captação: o aviso só vale depois do dia 30; hoje são ' + dias + ').';
+  : 'O aviso de material parado é a partir do dia ' + LIMITES.material_dias + ' depois da entrada (captação: o aviso só vale depois desse dia; hoje são ' + dias + ').';
 
 /* M1 (a regra única da captação, clientes/entrega.mjs:162 e :232): o prazo corre até PUBLICAR. Com ele vencido, nem a prévia nem o site saem: antes disso, a devolução por atraso */
 const instanteOk = v => typeof v === 'string' && Number.isFinite(Date.parse(v));
@@ -67,8 +70,15 @@ function prazoLegivel(prazo) {
   return (prazo.pausas || []).every(p => p && instanteOk(p.desde) && (p.ate === null || instanteOk(p.ate)));
 }
 const PRAZO_TORTO = () => json({ erro: 'O prazo desta entrega tem uma data que não dá para ler: confira o prazo na lista de entregas antes de publicar.' }, 409);
-const atrasado = (info, agora) => prazoVencido(info.prazo, { prazoDias: info.prazo_dias }, agora);
-const fraseDoAtraso = (info, oQue) => 'O prazo combinado (' + info.entrega_ate + ') venceu: ' + oQue + ' agora esconderia o atraso. O caminho é a devolução por atraso (D4: a entrada volta, mesmo depois dos 7 dias): estorne no Mercado Pago, rode "encerrar BZ-… atraso" e registre a devolução na captação. Se o cliente quiser seguir, a nova data é da captação.';
+/* a conta do prazo (Intl) lança RangeError com data torta que o prazoLegivel não vê (ex.: novas_datas): vira 409 com a frase, nunca exceção.
+   Devolve a resposta que barra, ou null se pode seguir */
+function barrarPeloPrazo(info, agora, oQue) {
+  try {
+    if (!prazoLegivel(info.prazo)) return PRAZO_TORTO();
+    return prazoVencido(info.prazo, { prazoDias: info.prazo_dias }, agora) ? json({ erro: fraseDoAtraso(info, oQue) }, 409) : null;
+  } catch (e) { if (e instanceof RangeError) return PRAZO_TORTO(); throw e; }
+}
+const fraseDoAtraso = (info, oQue) => 'O prazo combinado (' + info.entrega_ate + ') venceu: ' + oQue + ' agora esconderia o atraso. O caminho é a devolução por atraso (D4: a entrada volta, mesmo depois dos 7 dias): estorne no Mercado Pago, rode "encerrar BZ-… atraso" e registre a devolução na captação. Se o cliente quiser seguir: o site ainda não recebe a nova data (é pendência), e é preciso registrar a nova data antes de publicar.';
 
 export function criarAcoesDoDono(env) {
   const rpc = criarTransporte(env);
@@ -82,13 +92,12 @@ export function criarAcoesDoDono(env) {
       if (!['producao', 'ajustes'].includes(info.passo)) return json({ erro: 'A entrega está em "' + info.passo + '": só se publica prévia quando ela está em produção ou em ajustes.' }, 409);
       const problema = problemaDaPrevia(bruto.url, info.cliente_captacao);
       if (problema) return json({ erro: problema }, 422);
-      if (!prazoLegivel(info.prazo)) return PRAZO_TORTO();
       const t = agoraDe();
-      if (atrasado(info, t.agora)) return json({ erro: fraseDoAtraso(info, 'mostrar a prévia') }, 409);   /* (M1) o prazo atual, ANTES de abrir a pausa */
+      const atrasoPrevia = barrarPeloPrazo(info, t.agora, 'mostrar a prévia'); if (atrasoPrevia) return atrasoPrevia;   /* (M1) o prazo atual, ANTES de abrir a pausa */
       try {
         const r = await rpc('vendas_previa_publicar', { ...base(codigo), url: new URL(bruto.url).origin, agora: t.iso, versao: info.versao, prazo: abrirPausa(info.prazo, t.fuso) });
         return r && r.ok ? json({ ok: true }) : recusar(r);
-      } catch (e) { return erroDoBanco(e, 'prévia'); }
+      } catch (e) { return erroDoBanco(e, 'prévia', { prazo: true }); }
     },
 
     async noAr(codigo, bruto) {
@@ -101,13 +110,12 @@ export function criarAcoesDoDono(env) {
       }
       const problema = problemaDoSite(bruto.url);
       if (problema) return json({ erro: problema }, 422);
-      if (!prazoLegivel(info.prazo)) return PRAZO_TORTO();
       const t = agoraDe();
-      if (atrasado(info, t.agora)) return json({ erro: fraseDoAtraso(info, 'publicar o site') }, 409);   /* (M1) a pausa fechou quando o cliente aprovou: o prazo voltou a correr */
+      const atrasoSite = barrarPeloPrazo(info, t.agora, 'publicar o site'); if (atrasoSite) return atrasoSite;   /* (M1) a pausa fechou quando o cliente aprovou: o prazo voltou a correr */
       try {
         const r = await rpc('vendas_no_ar', { ...base(codigo), url: origemDoSite(bruto.url), agora: t.iso, versao: info.versao });
         return r && r.ok ? json({ ok: true }) : recusar(r);
-      } catch (e) { return erroDoBanco(e, 'no ar'); }
+      } catch (e) { return erroDoBanco(e, 'no ar', { prazo: true }); }
     },
 
     async suspender(codigo) {
@@ -138,20 +146,20 @@ export function criarAcoesDoDono(env) {
       if (info.passo !== 'material') return json({ erro: 'A entrega está em "' + info.passo + '": só se dispensa o material de quem ainda não o enviou.' }, 409);
       if (!instanteOk(info.entrada_em)) return json({ erro: 'A entrada desta entrega não tem data legível: confira na lista de entregas antes de dispensar o material.' }, 409);
       const dias = diasCorridosDesde(info.entrada_em);
-      if (dias < LIMITES.material_dias) return json({ erro: 'Ainda não: só depois de 30 dias da entrada (hoje são ' + dias + ').' }, 409);
+      if (dias < LIMITES.material_dias) return json({ erro: fraseDoDia30(dias) }, 409);
       const falta = ESQ.faltas(info.material);
       if (falta.length) {
         return json({ erro: 'O número do WhatsApp ainda não está autorizado (falta: ' + falta.map(f => f.texto).join(', ') + '): sem a autorização expressa do cliente nada é publicado (captação, resposta 3). '
           + 'Registre o aviso de material parado (aviso BZ-… material-parado): o projeto fica parado até o cliente mandar o material ou autorizar.' }, 409);
       }
       const t = agoraDe();
-      const prazo = iniciarPrazo({ entrada_em: info.entrada_em, numero_em: t.fuso });
-      const entregaAte = calcularEntregarAte(prazo, { prazoDias: info.prazo_dias }, t.agora);
       try {
+        const prazo = iniciarPrazo({ entrada_em: info.entrada_em, numero_em: t.fuso });
+        const entregaAte = calcularEntregarAte(prazo, { prazoDias: info.prazo_dias }, t.agora);
         const r = await rpc('vendas_material_dispensar', { ...base(codigo), agora: t.iso, versao: info.versao, prazo: { numero_em: t.fuso, conta_desde: prazo.conta_desde }, entrega_ate: entregaAte });
         if (r && r.ok) return json({ ok: true, entrega_ate: entregaAte, marcada_em: (info.material && info.material.autorizacao && info.material.autorizacao.marcada_em) || null });   /* (B5) a data REAL da marcação da caixa; o formulário leva a de hoje */
-        return recusar(r, { cedo: 'Ainda não: só depois de 30 dias da entrada (hoje são ' + (r && r.dias) + ').' });
-      } catch (e) { return erroDoBanco(e, 'dispensar'); }
+        return recusar(r, { cedo: fraseDoDia30(r && r.dias) });
+      } catch (e) { return e instanceof RangeError ? PRAZO_TORTO() : erroDoBanco(e, 'dispensar', { prazo: true }); }
     },
 
     async avisoFeito(codigo, bruto) {

@@ -12,7 +12,7 @@ export const URL_PREVIA = new RegExp('^https://v\\d{1,2}\\.bz-c-[' + ESQ.ALFABET
 export function problemaDaPrevia(url, clienteCaptacao) {
   if (typeof url !== 'string' || url.length > 120) return 'endereço inválido';
   if (!URL_PREVIA.test(url)) return 'o endereço não é de uma prévia (https://vN.bz-c-xxxxxx.pages.dev)';
-  if (!ESQ.ID_CLIENTE.test(String(clienteCaptacao))) return 'o pedido ainda não foi importado na captação (falta o id do cliente)';
+  if (!ESQ.ID_CLIENTE.test(String(clienteCaptacao))) return 'o pedido ainda não foi importado na captação (falta o id do cliente): rode "importado BZ-… c-xxxxxx" antes';
   if (new URL(url).hostname.split('.')[1] !== 'bz-' + clienteCaptacao) return 'a prévia é de outro projeto';
   return null;
 }
