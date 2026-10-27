@@ -23,11 +23,13 @@ const TELA = texto(ler('orcamento.html')) + '\n' + fs.readdirSync(new URL('../..
 
 /* as frases LITERAIS da captação (1ª pessoa do dono): /condicoes as traz exatamente assim */
 const MATERIAL_1A = 'Nada vai ao ar sem o seu material e a sua autorização: enquanto ele não chegar, eu aviso que estou aguardando e o projeto fica parado.';
+/* captação 8fb5208 (26/10): a frase vem logo depois da do material, no mesmo parágrafo, com "também" */
+const AJUSTES_1A = "Enquanto espero a sua lista de ajustes, o prazo também fica parado.";
 const RESTANTE_1A = 'Se o restante não for pago em 3 dias depois do meu aviso de que o site está no ar, ele sai do ar até o pagamento. Antes disso eu lembro duas vezes, no segundo e no terceiro dia.';
 
 /* cada regra: um predicado por lugar (a mesma ideia, na voz do lugar: 1ª pessoa no contrato, em /condicoes e na tela; 3ª pessoa no consultor) */
 const REGRAS_D4 = [
-  ['prazo parado enquanto se espera a lista de ajustes', t => /(espero a sua|o cliente não manda a) lista de ajustes, o prazo fica parado/.test(t)],
+  ['prazo parado enquanto se espera a lista de ajustes', t => /(espero a sua|o cliente não manda a) lista de ajustes, o prazo (também )?fica parado./.test(t)],
   ['material: nada vai ao ar sem material e autorização; a Beyon avisa que aguarda e o projeto fica parado (22/10)', t => /Nada vai ao ar sem (o seu material e a sua autorização|o material e a autorização do cliente): enquanto ele não chegar, (eu aviso que estou|a Beyon Zero avisa que está) aguardando e o projeto fica parado\./.test(t)],
   ['restante: 3 dias depois do aviso de que o site está no ar ele sai do ar até o pagamento; dois lembretes antes (22/10)', t => /Se o restante não for pago em 3 dias depois d(o meu|o) aviso de que o site está no ar, ele sai do ar até o pagamento\. Antes disso (eu lembro|a Beyon Zero lembra) duas vezes, no segundo e no terceiro dia\./.test(t)],
   ['atraso da Beyon devolve a entrada inteira, mesmo depois dos 7 dias', t => /entrada (é devolvida )?inteira( de volta)?,? mesmo depois dos 7 dias|devolvo a entrada inteira, mesmo depois dos 7 dias/.test(t)]
@@ -44,7 +46,8 @@ for (const [nome, ok] of REGRAS_D4) {
 test('22/10: /condicoes traz os trechos da captação LITERAIS, o do material em "Prazo" e o do restante em "Pagamento", depois do institucional', () => {
   const html = ler('condicoes.html');
   const secao = nome => { const i = html.indexOf('<h2>' + nome + '</h2>'); assert.ok(i >= 0, nome); return texto(html.slice(i + 1, html.indexOf('<h2>', i + 1))); };
-  assert.ok(secao('Prazo').includes(MATERIAL_1A), 'Prazo: ' + secao('Prazo'));
+  assert.ok(secao('Prazo').includes(MATERIAL_1A + ' ' + AJUSTES_1A), 'Prazo (o prazo parado logo depois do material parado): ' + secao('Prazo'));
+  assert.equal(secao('Prazo').split('lista de ajustes, o prazo').length, 2, 'a frase do prazo parado aparece uma vez só em Prazo');
   const pagamento = secao('Pagamento');
   assert.ok(pagamento.includes(RESTANTE_1A), 'Pagamento: ' + pagamento);
   assert.ok(pagamento.indexOf('No institucional:') < pagamento.indexOf(RESTANTE_1A), 'o trecho do restante vem depois do institucional');
