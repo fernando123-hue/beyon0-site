@@ -14,6 +14,8 @@
        workers_dev e preview_urls diferentes de false, routes, route ou account_id; dentro de env.*, name, route,
        account_id ou routes que não seja a lista vazia. (Quando o PR C ligar o domínio, o routes do topo passa a existir:
        ajustar esta regra naquele PR.)
+   O texto é normalizado antes de casar (minúsculas, linha continuada juntada, aspas e .cmd/.exe tirados, comandos separados
+   por & && | || ;). É defesa em profundidade, não a proteção principal (CI sem token, Builds com --env previa, produção sem rota).
    LIMITE: varredura de texto. Pega erro e instrução óbvia, não quem quer contornar ('prod' + 'ucao', base64). A trava
    contra o agente enganado é a confirmação do dono no push (§ 5.5 do plano, item 1).
    Autônomo de propósito (sem import do repositório): o dono copia ESTE arquivo para ~/.claude/guarda/ (tarefa P2) e o
@@ -37,18 +39,29 @@ const EXCECOES_MD = new Set(['docs/superpowers/plans/2026-10-21-migracao-cloudfl
 /* subcomandos do Wrangler que publicam, apagam, criam prévia ou mexem em versão, segredo e gatilho */
 const SUBCOMANDO = 'deploy|delete|rollback|preview|publish|versions\\s+(?:deploy|upload|secret)|secret\\s+(?:put|bulk|delete)|triggers\\s+deploy';
 const SUBCOMANDO_EM_LISTA = 'deploy|delete|rollback|preview|publish|versions|secret|triggers';
-/* o Wrangler (ou o wrangler.js do node_modules), com ou sem @versão; DEPOIS, na mesma parte da linha, opções e o subcomando */
-const COMANDO_WRANGLER = new RegExp(W + '(?:\\.[cm]?js)?(?:@[^\\s\'"]+)?\\s(?:[^\\n]*?\\s)?(' + SUBCOMANDO + ')\\b', 'g');
-/* em lista de argumentos (pode quebrar linha): 'wrangler', opções..., 'subcomando'; mais o resto da lista, até o ] */
-const LISTA_WRANGLER = new RegExp('[\'"]' + W + '(?:@[^\'"]*)?[\'"]\\s*,\\s*(?:[\'"][^\'"]*[\'"]\\s*,\\s*)*?[\'"](' + SUBCOMANDO_EM_LISTA + ')[\'"]([^\\]]*)', 'g');
-const LISTA_GIT = new RegExp('[\'"]' + G + '[\'"]\\s*,\\s*[\'"]push[\'"]([^\\]]*)', 'g');
-const PUSH_NA_LINHA = new RegExp(G + '\\s+push\\b(.*)');
+/* Tudo é casado sobre texto NORMALIZADO (normalizar): minúsculas e linha continuada (\ do shell, ^ do cmd, crase do
+   PowerShell) juntada à seguinte. Na linha de shell as aspas somem e ela é dividida em comandos por & && | || ; (cada um
+   é conferido sozinho). Em lista de argumentos (pode quebrar linha) a aspa é ', " ou crase. */
+const Q = '[\'"`]';
+const NAO_Q = '[^\'"`]';
+const EXT = '(?:\\.(?:[cm]?js|cmd|exe|ps1|bat))?';   /* wrangler.js, wrangler.cmd, wrangler.exe... */
+/* o Wrangler, com ou sem extensão e @versão; DEPOIS, no mesmo comando, opções e o subcomando */
+/* (entre o nome e o subcomando só cabem opções, com um valor opcional, e grupos de comandos conhecidos: "o Wrangler no deploy", em prosa, não casa) */
+const GRUPOS = 'pages|project|deployment|kv|namespace|key|d1|r2|bucket|queues|vectorize|hyperdrive|database|worker|workers';
+const COMANDO_WRANGLER = new RegExp(W + EXT + '(?:@\\S+)?\\s+(?:(?:-\\S+(?:\\s+[^\\s-]\\S*)?|(?:' + GRUPOS + '))\\s+)*(' + SUBCOMANDO + ')\\b', 'g');
+/* em lista de argumentos: 'wrangler', opções..., 'subcomando'; mais o resto da lista, até o ] */
+const LISTA_WRANGLER = new RegExp(Q + W + EXT + '(?:@' + NAO_Q + '*)?' + Q + '\\s*,\\s*(?:' + Q + NAO_Q + '*' + Q + '\\s*,\\s*)*?' + Q + '(' + SUBCOMANDO_EM_LISTA + ')' + Q + '([^\\]]*)', 'g');
+const LISTA_GIT = new RegExp(Q + G + '(?:\\.exe)?' + Q + '\\s*,\\s*' + Q + 'push' + Q + '([^\\]]*)', 'g');
+/* git, com opções antes do subcomando (-C pasta, -c chave=valor, --no-pager...), e o resto do comando */
+const PUSH_NA_LINHA = new RegExp('(?<![\\w.-])' + G + '(?:\\.exe)?(?:\\s+(?:-[a-z]\\s+\\S+|--?[\\w-]+(?:=\\S+)?))*\\s+push\\b(.*)');
 const PUSH_RUIM = new RegExp('\\b' + PROD + '\\b|--all\\b|--mirror\\b');
 /* o --dry-run ligado dispensa SÓ o deploy; --dry-run=false, --dry-run false e --no-dry-run não o dispensam */
 const dryRunLigado = s => /--dry-run(?:=true)?(?![\w=-])/.test(s) && !/--dry-run\s+false\b|--dry-run=false\b|--no-dry-run\b/.test(s);
-const dryRunEmLista = s => /['"]--dry-run(?:=true)?['"]/.test(s) && !/['"]--dry-run=false['"]|['"]--no-dry-run['"]|['"]--dry-run['"]\s*,\s*['"]false['"]/.test(s);
-/* os comandos de uma linha de shell ou de JS: separados por && || ; | (cada parte é conferida sozinha) */
-const partesDaLinha = linha => linha.split(/&&|\|\||[;|]/);
+const dryRunEmLista = s => new RegExp(Q + '--dry-run(?:=true)?' + Q).test(s)
+  && !new RegExp(Q + '--dry-run=false' + Q + '|' + Q + '--no-dry-run' + Q + '|' + Q + '--dry-run' + Q + '\\s*,\\s*' + Q + 'false' + Q).test(s);
+const normalizar = texto => texto.toLowerCase().replace(/\\[ \t]*\r?\n|\^[ \t]*\r?\n|[ \t]`[ \t]*\r?\n/g, ' ');
+/* os comandos de uma linha de shell ou de JS: separados por & && | || ; (aspas tiradas) */
+const partesDaLinha = linha => linha.replace(/["'`]/g, '').split(/&|\|+|;/);
 
 const PADROES_TEXTO = [
   { motivo: 'a branch de produção como destino (:' + PROD + ')', re: new RegExp(':' + PROD + '\\b') },
@@ -65,8 +78,9 @@ const PADROES_WORKFLOW = [
 const SCRIPTS_DE_INSTALACAO = ['preinstall', 'install', 'postinstall', 'prepare'];
 
 /* motivos de comando que publica, achados no texto de qualquer arquivo versionado */
-function motivosDeComando(texto) {
+function motivosDeComando(textoOriginal) {
   const motivos = new Set();
+  const texto = normalizar(textoOriginal);
   for (const linha of texto.split(/\r?\n/)) {
     for (const parte of partesDaLinha(linha)) {
       for (const m of parte.matchAll(COMANDO_WRANGLER)) {
@@ -85,7 +99,7 @@ function motivosDeComando(texto) {
   return [...motivos];
 }
 
-/* JSONC → objeto, só para ler o wrangler.jsonc (cópia mínima de cloudflare/jsonc.mjs, para este arquivo ser autônomo) */
+/* JSONC → objeto, só para ler o wrangler.jsonc/.json (cópia mínima de cloudflare/jsonc.mjs, para este arquivo ser autônomo) */
 function lerJsonc(texto) {
   let sem = '';
   for (let i = 0; i < texto.length;) {
@@ -153,10 +167,11 @@ export function conferirAntiPublicacao(raiz, arquivos) {
         for (const s of SCRIPTS_DE_INSTALACAO) if (Object.hasOwn(scripts, s)) acha(norm, 'script de instalação "' + s + '" (o Builds o executa)');
       } catch { acha(norm, 'package.json ilegível'); }
     }
-    if (/(^|\/)wrangler\.jsonc$/.test(norm)) {
+    if (/(^|\/)wrangler\.jsonc?$/i.test(norm)) {   /* (o Wrangler lê o .json antes do .jsonc: os dois seguem a mesma regra) */
       try { for (const motivo of motivosDoWrangler(lerJsonc(texto))) acha(norm, motivo); }
-      catch { acha(norm, 'wrangler.jsonc ilegível'); }
+      catch { acha(norm, 'wrangler.json(c) ilegível'); }
     }
+    if (/(^|\/)wrangler\.toml$/i.test(norm)) acha(norm, 'wrangler.toml não é lido por esta trava: use o wrangler.jsonc');
   }
   return achados;
 }

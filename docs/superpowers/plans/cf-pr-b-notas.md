@@ -283,3 +283,5 @@ P1 (permissões do Actions), P2 (guarda local copia a trava depois do merge), P3
 `null`), P4–P8 (Builds, Access, ensaios no staging), HSTS na zona antes do PR C, host exato do Supabase (M6), subir o Wrangler
 depois de ~03/11. Builds: o comando de prévia do Builds do Worker `beyon-zero-site-previa` precisa levar `--env previa`; sem
 isso as versões iriam para o Worker de produção. Detalhes na lista "Pendências do dono (atualizadas)" acima.
+
+A trava `scripts/processo/anti-publicacao.mjs` e defesa em profundidade por texto (normaliza e casa, mas nao pega tudo); a protecao principal sao CI sem token, Builds com `--env previa` e producao sem rota.
