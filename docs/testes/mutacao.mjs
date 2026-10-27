@@ -163,7 +163,9 @@ export const SABOTAGENS = [
   { nome: 'contrato volta a prometer as imagens do modelo com 30 dias sem material (D4 revista, 22/10)', fonte: 'api/_vendas/escopo.mjs', testes: ['docs/testes/textos-d4.test.mjs'],
     de: "'MATERIAL: Nada vai ao ar sem o seu material e a sua autorização:", para: "'MATERIAL: Se o material não chegar em 30 dias, o site sai com as imagens do modelo. Nada vai ao ar sem o seu material e a sua autorização:" },
   { nome: '/condicoes perde a frase do prazo parado enquanto espera a lista de ajustes (D4, captação 8fb5208)', fonte: 'condicoes.html', testes: ['docs/testes/textos-d4.test.mjs'],
-    de: ' Enquanto espero a sua lista de ajustes, o prazo também fica parado.', para: '' }
+    de: ' Enquanto espero a sua lista de ajustes, o prazo também fica parado.', para: '' },
+  { nome: 'consultor volta a dizer que o restante é pago na entrega (D4)', fonte: 'api/_vendas/consultor.mjs', testes: ['docs/testes/textos-d4.test.mjs'],
+    de: 'o restante é pago por Pix quando o site estiver no ar. Se a tela', para: 'o restante é pago por Pix na entrega. Se a tela' }
 ];
 
 /* as sabotagens que a rodada vai fazer: todas, ou só as do filtro (parte do nome, sem diferenciar maiúsculas). Filtro que não

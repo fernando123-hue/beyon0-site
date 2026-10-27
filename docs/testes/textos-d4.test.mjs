@@ -32,6 +32,7 @@ const REGRAS_D4 = [
   ['prazo parado enquanto se espera a lista de ajustes', t => /(espero a sua|o cliente não manda a) lista de ajustes, o prazo (também )?fica parado./.test(t)],
   ['material: nada vai ao ar sem material e autorização; a Beyon avisa que aguarda e o projeto fica parado (22/10)', t => /Nada vai ao ar sem (o seu material e a sua autorização|o material e a autorização do cliente): enquanto ele não chegar, (eu aviso que estou|a Beyon Zero avisa que está) aguardando e o projeto fica parado\./.test(t)],
   ['restante: 3 dias depois do aviso de que o site está no ar ele sai do ar até o pagamento; dois lembretes antes (22/10)', t => /Se o restante não for pago em 3 dias depois d(o meu|o) aviso de que o site está no ar, ele sai do ar até o pagamento\. Antes disso (eu lembro|a Beyon Zero lembra) duas vezes, no segundo e no terceiro dia\./.test(t)],
+  ['2 listas de ajuste', t => /(2|[Dd]uas) listas de ajuste/.test(t)],
   ['atraso da Beyon devolve a entrada inteira, mesmo depois dos 7 dias', t => /entrada (é devolvida )?inteira( de volta)?,? mesmo depois dos 7 dias|devolvo a entrada inteira, mesmo depois dos 7 dias/.test(t)]
 ];
 for (const [nome, ok] of REGRAS_D4) {
@@ -59,15 +60,18 @@ test('o contrato diz que o restante é pago quando o site estiver no ar (não "n
   assert.doesNotMatch(CONTRATO, /restante na entrega/);
   assert.match(CONTRATO, /PRAZO: até 7 dias úteis, contados do sinal pago e do material recebido\. Sábado, domingo e feriado nacional não contam\./);
   assert.match(CONTRATO, /2 listas de ajuste/);
+  /* o consultor diz a mesma coisa (revisão do PR: reintroduzir "na entrega" lá não falhava nada) */
+  assert.match(CONSULTOR, /o restante é pago por Pix quando o site estiver no ar/);
+  assert.doesNotMatch(CONSULTOR, /restante[^.]{0,30}na entrega|pagar só na entrega/i);
 });
 
 test('22/10: as promessas antigas saíram dos quatro lugares ("imagens do modelo", "10 dias" do restante, os 30 dias do material) e nenhum texto fala de encerrar por falta de material', () => {
   for (const [nome, t] of [['contrato', CONTRATO], ['consultor', CONSULTOR], ['condições', CONDICOES], ['tela', TELA]]) {
-    assert.ok(!/imagens do modelo/i.test(t), nome + ' ainda promete as imagens do modelo');
+    assert.ok(!/(imagens|fotos) do modelo/i.test(t), nome + ' ainda promete as imagens do modelo');
     assert.ok(!/em até 10 dias depois de o site ir ao ar|restante[^.]{0,60}\b10 dias/i.test(t), nome + ' ainda diz 10 dias para o restante');
     assert.ok(!/material[^.]{0,60}\b30 dias|\b30 dias[^.]{0,60}material/i.test(t), nome + ' ainda diz os 30 dias do material');
-    assert.ok(!/(encerr|cancel)\w*[^.]{0,60}(sem|falta d\w*) (o )?material|sem_material/i.test(t), nome + ' fala de encerrar por falta de material');
-    assert.ok(!/(apag|exclu|delet)\w*[^.]{0,60}(6 meses|seis meses)/i.test(t), nome + ' promete o apagamento do material parado (isso é do PR da privacidade)');
+    assert.ok(!/(encerr|cancel)\w*[^.;{}]{0,80}material|material[^.;{}]{0,80}(encerr|cancel)|sem_material/i.test(t), nome + ' fala de encerrar por falta de material');
+    assert.ok(!/(apag|exclu|delet)\w*[^.;{}]{0,80}(6 meses|seis meses)|(6 meses|seis meses)[^.;{}]{0,80}(apag|exclu|delet)/i.test(t), nome + ' promete o apagamento do material parado (isso é do PR da privacidade)');
   }
 });
 
