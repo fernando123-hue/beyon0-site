@@ -40,16 +40,16 @@ espera (5 s) ──GET /api/vendas?acao=pagamento──▶ estado; se a última 
 | Nome | Tipo | Onde pode existir | Para quê |
 |---|---|---|---|
 | `MP_PUBLIC_KEY` | **pública** | servidor e navegador (vai na página) | cifrar o cartão nos campos seguros e listar meios de pagamento |
-| `MP_ACCESS_TOKEN` | **SECRETA** | só servidor (Vercel, depois Infisical) | criar, consultar, cancelar e reembolsar orders |
+| `MP_ACCESS_TOKEN` | **SECRETA** | só servidor (segredo do Worker na Cloudflare) | criar, consultar, cancelar e reembolsar orders |
 | `MP_WEBHOOK_SEGREDO` | **SECRETA** | só servidor | conferir a assinatura dos avisos |
-| `CRON_SECRET` | **SECRETA** | só servidor e o Cron da Vercel | autorizar a reconciliação |
+| `CRON_SECRET` | **SECRETA** | só servidor e as rotinas agendadas | autorizar a reconciliação |
 | `MP_USER_ID` | identificador | só servidor | conferir que a order é da conta da Beyon Zero e que o token é dessa conta (obrigatório sempre) |
 | `MP_AMBIENTE` | configuração | só servidor | `teste` ou `producao`, declarado (os tokens de teste e de produção têm o mesmo prefixo) |
 | `MP_3DS` | configuração | só servidor | `desligado` (padrão) ou `on_fraud_risk` |
 
 **Travas:**
-- Produção na Vercel exige `MP_AMBIENTE=producao`. Prévia e desenvolvimento exigem `teste`.
-- Credencial de produção fora da Vercel de produção desliga o pagamento.
+- Produção (Worker `beyon-zero-site`) exige `MP_AMBIENTE=producao`. Prévia e desenvolvimento exigem `teste`.
+- Credencial de produção fora do Worker de produção desliga o pagamento.
 - Faltou qualquer item: pagamento **desligado** (o site oferece o WhatsApp), nunca meio-ligado.
 - O Access Token só vai no cabeçalho `Authorization`. Nunca vai em URL, log, resposta, banco ou auditoria (há testes para isso).
 
@@ -187,32 +187,32 @@ select * from app.pagamentos_auditoria
 where evento in ('payment.mismatch','payment.divergence','payment.duplicate','payment.unknown_status','payment.chargeback','project.paused')
 order by id desc limit 50;
 ```
-- **Logs da Vercel:** `[pagamentos] aviso recusado: <motivo>`, `[pagamentos] falha ao processar aviso: provedor <tipo>|banco <código>`, `[pagamentos] desligado: <motivo>`. Sem token, CPF ou cartão.
+- **Logs do Worker (Workers Logs):** `[pagamentos] aviso recusado: <motivo>`, `[pagamentos] falha ao processar aviso: provedor <tipo>|banco <código>`, `[pagamentos] desligado: <motivo>`. Sem token, CPF ou cartão.
 - **No painel do Mercado Pago:** a order aparece com a `external_reference` igual ao id da tentativa.
 
 ## 8. Incidentes
 | Situação | O que fazer |
 |---|---|
-| **O webhook parou** (nada de `payment.webhook.received`) | A página continua consultando o MP a cada 10 s e o cron reconcilia uma vez por dia. Confira a URL e o evento no painel do MP e o segredo na Vercel. Para reconciliar na hora: `curl -X POST -H "Authorization: Bearer $CRON_SECRET" https://<domínio>/api/pagamentos?acao=reconciliar`. |
+| **O webhook parou** (nada de `payment.webhook.received`) | A página continua consultando o MP a cada 10 s e o cron reconcilia uma vez por dia. Confira a URL e o evento no painel do MP e o segredo do webhook no Worker. Para reconciliar na hora: `curl -X POST -H "Authorization: Bearer $CRON_SECRET" https://<domínio>/api/pagamentos?acao=reconciliar`. |
 | **API do MP fora** | Nenhum estado muda (fail closed). Os avisos voltam 500 e o MP reenvia. As tentativas ficam abertas, e a reconciliação resolve quando o MP voltar. Status: status.mercadopago.com. |
 | **Pagamento inconsistente** (`payment.mismatch` ou `divergence`) | Nada foi liberado. Compare a order no painel do MP com a tentativa (valor, conta, referência). Se o dinheiro entrou certo e a regra errou, corrija a regra e reconcilie. Nunca marque "pago" à mão. |
-| **Credencial comprometida** | Renove no painel do MP (Suas integrações › Credenciais › Renovar): o par antigo morre na hora. Atualize a Vercel e publique. Renove também o segredo do webhook ("Reset") e o `CRON_SECRET`. Revise a auditoria do período. |
+| **Credencial comprometida** | Renove no painel do MP (Suas integrações › Credenciais › Renovar): o par antigo morre na hora. Atualize o segredo no Worker e publique. Renove também o segredo do webhook ("Reset") e o `CRON_SECRET`. Revise a auditoria do período. |
 | **Pagamento em dobro** (`payment.duplicate`) | O projeto não foi liberado duas vezes. Reembolse a order **duplicada** pelo painel do MP (ou pelo serviço, `servico.reembolsar`). A reconciliação registra o estorno. |
 | **Estorno ou contestação** | O projeto foi pausado sozinho. Fale com o cliente e decida no painel. Contestação revertida a favor da Beyon Zero não volta sozinha (as fontes oficiais se contradizem): a equipe confere no painel e reativa o projeto. |
 | **Tentativa `divergente`** | Nada foi liberado, e o visitante vê "em verificação". Compare no painel do MP. Se o dinheiro entrou certo, reembolse e combine com o cliente; nunca marque "pago" à mão. |
 | **"Cartão pausado"** (muitas recusas em 1 hora) | Provável teste de cartões. Veja na trilha as recusas da hora. A pausa sai sozinha quando a janela de 1 hora passa. Se continuar, troque a Public Key e avalie o Cloudflare (Turnstile). |
 | **`project.error`** | O pagamento está pago, mas o projeto não foi criado. Crie o projeto à mão a partir da proposta e veja o motivo no detalhe do evento. |
-| **Alerta** | A reconciliação diária escreve `[pagamentos] ATENÇÃO: N ocorrência(s)…` no log da Vercel quando há divergência, duplicidade, estorno, contestação ou erro de projeto nas últimas 25 h. Configure um alerta de log (Vercel › Observability) para essa frase. Ainda não há e-mail ou WhatsApp automático (pendência). |
+| **Alerta** | A reconciliação diária escreve `[pagamentos] ATENÇÃO: N ocorrência(s)…` no Workers Logs quando há divergência, duplicidade, estorno, contestação ou erro de projeto nas últimas 25 h. Configure um alerta de log (Cloudflare › Workers › Observability) para essa frase. Ainda não há e-mail ou WhatsApp automático (pendência). |
 | **"Pago" no MP para uma tentativa cancelada aqui** | Vira `aprovada`: o dinheiro é real. Se o pagamento já estava pago, vira `duplicada`. |
 
 ## 9. Configurar o TESTE (antes de qualquer pagamento real)
 1. **Painel do Mercado Pago** (conta da Beyon Zero): Suas integrações › Criar aplicação, com Checkout Transparente / Orders. As credenciais de TESTE vêm prontas.
-2. **Vercel, ambiente Preview:**
+2. **Worker de prévias (`beyon-zero-site-previa`; segredos do Worker e segredos-base das Previews):**
    - `MP_AMBIENTE=teste`;
    - `MP_ACCESS_TOKEN` e `MP_PUBLIC_KEY` de teste;
    - `MP_USER_ID`, a conta de teste;
    - `CRON_SECRET` com 32 ou mais caracteres aleatórios.
-3. **Webhook, modo teste:** URL da prévia + `/api/pagamentos`, evento "Order". Copie a assinatura secreta para `MP_WEBHOOK_SEGREDO` (Preview).
+3. **Webhook, modo teste:** `https://beyon-zero-site-previa.<subdomínio workers.dev da conta>.workers.dev/api/pagamentos`, evento "Order" (o Access do staging precisa de Bypass só neste caminho; se o ensaio não der, a reconciliação cobre: plano da migração, § 5.4). Copie a assinatura secreta para `MP_WEBHOOK_SEGREDO` (prévias).
 4. **Supabase de teste**, com as migrations aplicadas (`supabase db push`).
 5. **Rodar e conferir:**
    - **cartão:** cartões de teste, com os titulares `APRO`, `OTHE`, `CONT` e `FUND`;
@@ -223,10 +223,10 @@ order by id desc limit 50;
 
 ## 10. Configurar a PRODUÇÃO
 1. Painel do MP: ativar as credenciais de produção (ramo de atividade, URL do site, termos).
-2. Vercel, ambiente Production: as mesmas variáveis com os valores de **produção** e `MP_AMBIENTE=producao`. `MP_USER_ID` é obrigatório.
-3. Webhook, modo produção: URL do domínio de produção + `/api/pagamentos`, e o segredo de produção.
+2. Worker de produção `beyon-zero-site`: as mesmas variáveis, como segredos, com os valores de **produção**; `MP_AMBIENTE=producao` já vem do `wrangler.jsonc`. `MP_USER_ID` é obrigatório. **No lançamento só Pix** (`MP_METODOS=pix` no `wrangler.jsonc`: o cartão some da tela e a API recusa).
+3. Webhook, modo produção: `https://beyonzero.com.br/api/pagamentos` (sem `www`, que só redireciona), evento "Order", e o segredo de produção.
 4. HTTPS no domínio (exigência do MP).
-5. Plano Vercel Pro (o Hobby proíbe uso comercial). O cron diário já está em `vercel.json`.
+5. Plano: o grátis da Cloudflare (decisão do dono, 2026-10-21). As rotinas agendadas estão em `triggers.crons` do `wrangler.jsonc`; o que elas fazem está em `cloudflare/agenda.mjs`.
 
 ## 11. Checklist antes de aceitar o primeiro pagamento real
 - [ ] Todos os passos de TESTE da seção 9 feitos, com evidência (prints ou auditoria).
@@ -234,7 +234,7 @@ order by id desc limit 50;
 - [ ] O retrato real de uma order aprovada passou pela conferência: `paid_amount` presente, `country_code=BRA`, `user_id` = `MP_USER_ID`.
 - [ ] Cartão com parcelas: o valor pago com juros (≥ valor) foi aceito.
 - [ ] CSP medida com a Public Key real, sem violação nova.
-- [ ] Credenciais de produção só no ambiente Production da Vercel (conferir que Preview tem as de teste).
+- [ ] Credenciais de produção só no Worker de produção (conferir que o de prévias tem as de teste).
 - [ ] `MP_USER_ID` de produção conferido no painel.
 - [ ] Segredos fora do Git (`git log -p | grep APP_USR` vazio) e, quando autorizado, no Infisical.
 - [ ] Reconciliação rodando (log do cron) e reconciliação manual testada.

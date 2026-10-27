@@ -50,47 +50,71 @@ Detalhes no `CLAUDE.md`.
 
 ## Como se publica (a barreira)
 
-1. O agente trabalha numa branch (`rebuild-v2` ou uma branch por tarefa) e faz push: a Vercel gera uma **prévia**.
+Desde a migração para a Cloudflare (PR C; plano em `docs/superpowers/plans/2026-10-21-migracao-cloudflare.md`, § 5.3):
+**uma conta Cloudflare, dois Workers**. A Vercel não será promovida: o que sobrou dela é legado até o PR D (ver o fim
+desta seção).
+
+| Papel | Worker | Branch → o que acontece | Segredos |
+|---|---|---|---|
+| Produção | `beyon-zero-site` (`beyonzero.com.br`) | só a branch **`producao`** constrói e publica; nenhuma outra | os de produção (dono) |
+| Prévias e staging | `beyon-zero-site-previa` (`workers.dev`, atrás do Access) | `main` → staging fixo; outra branch → prévia | os de teste |
+
+1. O agente trabalha numa branch (uma por tarefa) e faz push: o Builds do Worker de prévias gera uma **prévia** com
+   os segredos de teste. **Push que mude** `.github/workflows/**`, `cloudflare/**`, `wrangler.jsonc` ou `package*.json`
+   pede o "sim" do dono (regra de confirmação do plano § 5.5, item 1; ver "O risco que fica"): são os arquivos que o
+   build executa ou que decidem para onde o deploy vai.
 2. Abre um PR para a `main` com a evidência; o CI e o Processo rodam. Os checks são lidos um a um.
 3. **O agente** mescla o PR (`gh pr merge`, nunca `--admin`) só depois de: todos os checks lidos e verdes,
    revisão técnica (e de segurança, no nível 3) por agente diferente do autor publicadas no PR, achados
-   críticos/altos corrigidos. Qualquer check vermelho ou achado sem destino: não mescla. A `main` **não publica
-   sozinha**: `vercel.json → git.deploymentEnabled.main = false`. (Dono, 2026-10-07: "desde que você sempre siga
-   o processo de verificação e revisão, você pode mexer na main"; antes, quem mesclava era ele.)
-4. **O dono** promove para produção no painel da Vercel. Como a `main` não é construída, o que se promove é a
-   **prévia do último commit da branch do PR**. Ao mesclar, **o agente** escreve no PR "SHA para promover: `<sha>`"
-   depois de conferir que `git diff origin/main <sha>` sai vazio; se não sair vazio, escreve "não promover" e o
-   motivo, e a saída é um PR novo a partir da `main` (um commit vazio, `git commit --allow-empty`, basta para o
-   GitHub aceitar o PR); a Vercel gera a prévia certa no push e o SHA para promover passa a ser o dela. O dono só
-   confere o SHA no painel: Deployments → a prévia desse SHA → ⋯ → "Promote to Production".
-   Segundo a doc oficial da Vercel ("Promoting Deployments", lida em 2026-10-07; **ainda não ensaiado aqui**),
-   promover uma prévia a reconstrói do zero com as variáveis de Produção ("You cannot use your preview environment
-   variables in a production deployment"): banco, Mercado Pago e IA passam a ser os de produção.
-   Antes da 1ª promoção: o ensaio e as DUAS listas de `docs/revisoes/pr1-pendencias.md` ("Antes da 1ª promoção" e
-   "Antes de ligar credenciais reais / promover").
-   Logo depois de promover: o agente roda `npm run verificar` com `BASE` de produção (só abre as páginas do site,
-   não o `/orcamento`); o dono abre o site e o `/orcamento` no celular **sem digitar mensagem** (a 1ª mensagem cria
-   conversa e chama a IA paga). **`npm run e2e:orcamento` nunca roda contra produção** (cria conversa, chama a IA
-   paga e cria pedido de pagamento real); o próprio script recusa `BASE` que não seja local.
-   Voltar atrás: "Instant Rollback". Não reconstrói e **não desfaz migration**. Voltar para uma versão sem a API
-   (como a `8103c99`) tira do ar o `/orcamento`, o aviso do Mercado Pago e as rotinas: um Pix pago nesse intervalo
-   só é aplicado depois de promover de novo e a reconciliação rodar. Com clientes pagando, voltar só para uma versão
-   que já tenha a API.
-   Existe outro caminho (a `main` construir como produção "Staged", sem domínio, e o dono clicar em "Promote"), mas
-   ele exige tirar a trava do `vercel.json` e desligar "Auto-assign Custom Production Domains" ANTES; na ordem
-   errada, o merge iria ao ar sozinho. **Não usar sem decisão escrita do dono e revisão própria.**
+   críticos/altos corrigidos. Qualquer check vermelho ou achado sem destino: não mescla. **A `main` não publica
+   produção**: ela só atualiza o staging. (Dono, 2026-10-07: "desde que você sempre siga o processo de verificação e
+   revisão, você pode mexer na main".)
+4. **O dono** promove para produção, e só ele: o agente confere o staging, abre o PR **"Promover para produção:
+   `<sha>`"** de `main` para `producao`, pedindo **"Create a merge commit"** (nunca squash nem rebase), e o dono abre
+   no celular e clica **Merge**. Em seguida o agente confere a produção e que `git diff origin/main origin/producao`
+   sai vazio. A conferência de produção: `BASE=https://beyonzero.com.br npm run verificar` (só abre as páginas, não o
+   `/orcamento`); `https://www.beyonzero.com.br/sites?x=1` responde 301 para `https://beyonzero.com.br/sites?x=1`;
+   `/docs/PROCESSO.md`, `/api/_freio`, `/.env`, `/CLAUDE.md`, `/wrangler.jsonc` e `/_headers` respondem 404; o
+   `workers.dev` da produção não responde (desligado). O dono abre o site e o `/orcamento` no celular **sem digitar
+   mensagem** (a 1ª mensagem cria conversa e chama a IA paga). **`npm run e2e:orcamento` nunca roda contra produção**
+   (cria conversa, chama a IA paga e cria pedido de pagamento real); o próprio script recusa `BASE` que não seja local.
+   **Ainda não ensaiado aqui** (passos P15 e seguintes do plano): o primeiro corte é o ensaio.
+   Com a fila de prévias cheia, o build da promoção espera (1 build por vez por conta no plano grátis): promover com a
+   fila vazia.
+   Voltar atrás: Workers & Pages → `beyon-zero-site` → Deployments → ⋯ → Rollback (dono). Não reconstrói e **não
+   desfaz migration**. Voltar para uma versão sem a API tira do ar o `/orcamento`, o aviso do Mercado Pago e as
+   rotinas: um Pix pago nesse intervalo só é aplicado depois de publicar de novo e a reconciliação rodar. Com
+   clientes pagando, voltar só para uma versão que já tenha a API.
 5. Migration de banco: **antes** do passo 4, pelo dono, no roteiro de `docs/fundacao/02-OPERACAO.md`
    (o código novo nunca vai ao ar antes da migration que ele usa).
 
-O que impede o agente de pular isso (mecanismo, não texto): o guarda do Claude Code (`~/.claude/guarda/`)
-nega `vercel --prod`/`promote`/`rollback`, push direto na `main` ou forçado, merge com `--admin`/`--auto`,
-`gh workflow run` nos projetos da Beyon, `supabase db push` e a leitura de `.env`; e as regras `permissions.deny`
-do `~/.claude/settings.json` repetem os principais. O agente nunca altera o próprio guarda.
+**O risco que fica (dito como é; decisão do dono, 2026-10-21, uma conta só até a 1ª venda).** O Builds do Worker de
+prévias roda o código de **toda** branch empurrada (`npm ci`, o Build command, o `wrangler` lendo o `wrangler.jsonc`)
+com um token que vale para a conta inteira, inclusive o Worker de produção. Uma branch maliciosa nesses arquivos
+publicaria produção sem merge. Travas que compensam, da mais forte à mais fraca: a confirmação do dono no `git push`
+desses arquivos (item 1); o `env.previa` sem `name` próprio e com `routes: []` (o teste de `wrangler.jsonc` prende) e
+o `package.json` sem scripts de instalação; a varredura de `scripts/processo/anti-publicacao.mjs` (pega erro e
+instrução óbvia, não contorno); o token do Builds com o mínimo; Actions só leitura. O que sobra: um push que não passe
+pela confirmação (outra pessoa, outra ferramenta, o dono aprovar sem ler, defeito no guarda) com código malicioso
+nesses arquivos publica produção. Só um ruleset na `producao` (GitHub Pro) ou uma 2ª conta fecham de vez; ficam para
+**depois da 1ª venda**, junto da assinatura paga. O workflow do GitHub empurrado numa branch é a outra porta: contra o
+agente enganado, a trava é a mesma confirmação no push.
+
+O que impede o agente de pular isso (mecanismo, não texto): o guarda do Claude Code (`~/.claude/guarda/`, configuração
+do dono, passo P2 do plano) nega push direto na `main`, na `producao` ou forçado, merge com `--admin`/`--auto`,
+`gh pr merge` de PR com base `producao`, `wrangler deploy` sem `--dry-run`, `wrangler versions`/`secret`/`login`,
+`gh workflow run` nos projetos da Beyon, `gh api` de escrita em `/contents`, `/git/` e `/merges`, `supabase db push` e
+a leitura de `.env`/`.dev.vars`; e as regras `permissions.deny` do `~/.claude/settings.json` repetem os principais. O
+agente nunca altera o próprio guarda. O agente também nunca tem token da Cloudflare.
+
+**Legado até o PR D:** `vercel.json`, `.vercelignore` e as regras da Vercel no guarda continuam no repositório só até
+o PR D (com a produção da Cloudflare conferida); o projeto da Vercel é apagado depois que a captação trocar os links
+para `beyonzero.com.br`. Nada novo é promovido na Vercel.
 
 ## Sempre pedir o dono
 
-Apagar dado, trocar segredo, publicar ao vivo (promover na Vercel), migration no banco real, decisão de negócio,
-e mexer em `git.deploymentEnabled` ou em qualquer ajuste de domínio/produção da Vercel.
+Apagar dado, trocar segredo, publicar ao vivo (o Merge do PR "Promover para produção" na `producao`), migration no banco
+real, decisão de negócio, e mexer em qualquer ajuste de domínio, zona ou produção da Cloudflare (e da Vercel, enquanto ela existir).
 
 ## Limites (ditos como são)
 

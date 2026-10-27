@@ -116,11 +116,16 @@ refresh); âncoras usam só `scroll-padding-top`.
    segurança em `js/pagina.js`; `npm run acessibilidade` confere.
 5. **Medir, não deduzir.** A/B na mesma sessão. O projeto já piorou o site três
    vezes otimizando por palpite.
-6. **Produção é do dono; a `main` é do processo.** Desde 2026-10-07 a `main` não publica sozinha
-   (`vercel.json → git.deploymentEnabled`): o agente trabalha em branch, abre PR com a evidência de `docs/PROCESSO.md`,
-   lê os checks um a um e, com tudo verde e revisado, **mescla ele mesmo** (dono, 2026-10-07: "desde que você sempre
-   siga o processo de verificação e revisão, você pode mexer na main"). Promover na Vercel continua do dono. O guarda
-   (`~/.claude/guarda/`) nega push direto na `main`, `gh pr merge --admin`, `vercel --prod`.
+6. **Produção é do dono; a `main` é do processo.** A `main` não publica produção: ela só atualiza o staging (Worker de
+   prévias, `beyon-zero-site-previa`). Produção é o Worker `beyon-zero-site` (`beyonzero.com.br`), que só constrói a
+   branch `producao`, na mesma conta Cloudflare (uma conta, dois Workers; risco aceito até a 1ª venda, ver
+   `docs/PROCESSO.md`). O agente trabalha em branch, abre PR com a evidência de `docs/PROCESSO.md`, lê os checks um a um
+   e, com tudo verde e revisado, **mescla ele mesmo na `main`** (dono, 2026-10-07: "desde que você sempre siga o
+   processo de verificação e revisão, você pode mexer na main"). Promover é do dono: o agente abre o PR "Promover para
+   produção: `<sha>`" (`main` → `producao`, merge commit) e **só o dono clica Merge**. O guarda (`~/.claude/guarda/`)
+   nega push na `main` e na `producao`, o merge sem processo (`--admin`) e `wrangler deploy` sem `--dry-run`. Push que
+   mude `.github/workflows/**`, `cloudflare/**`, `wrangler.jsonc` ou `package*.json` pede o "sim" do dono. (A Vercel é
+   legado até o PR D; nada novo vai para lá.)
 7. **CSP sem inline.** `style-src 'self'`: nenhum `style=""` no HTML, nenhum
    `<style>`; só classes. `el.style.x` via JS continua permitido.
 8. **Mono só onde há rótulo, índice, dado ou controle.** Copy em Sora; títulos em Sora 300.
