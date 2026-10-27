@@ -32,8 +32,8 @@ test('conta cada alarme uma vez; a prévia parada (D5), a pausa aberta, o materi
     { passo: 'producao', apagar_material_devido: true },   // fora do passo material nunca conta
     { passo: 'no_ar', no_ar_em: '2026-09-01T15:00:00-04:00' }                                                                   // no ar há 50 dias, mas o aviso "no ar" não foi registrado: a contagem não começou (o listar cobra o aviso)
   ];
-  assert.deepEqual(contarAlarmes(itens, AGORA), { prazo_vencido: 3, material_30: 1, restante_vencido: 1, material_apagar: 1 });
-  assert.deepEqual(contarAlarmes([], AGORA), { prazo_vencido: 0, material_30: 0, restante_vencido: 0, material_apagar: 0 });
+  assert.deepEqual(contarAlarmes(itens, AGORA), { prazo_vencido: 3, material_30: 1, restante_vencido: 1, material_apagar: 1, ilegiveis: 0 });
+  assert.deepEqual(contarAlarmes([], AGORA), { prazo_vencido: 0, material_30: 0, restante_vencido: 0, material_apagar: 0, ilegiveis: 0 });
 });
 
 test('sem prazo_dias (inteiro) o prazo não vence: item com o prazo preenchido e os dias ausentes, nulos ou em texto não conta como vencido', () => {
