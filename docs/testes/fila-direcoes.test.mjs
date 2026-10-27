@@ -222,6 +222,28 @@ test('comando local (revisão de segurança + M4): a chave só vai para o host E
   assert.throws(() => validarBase('https://beyon-zero-site-previa.irineu.workers.dev', null), /BZ_BASE/, 'SUB_CONTA nulo: o staging fica fechado para a chave do painel');
 });
 
+/* C3: fechado por padrão, com o SUB_CONTA REAL do repositório (sem passar o sub de teste). Enquanto o dono não preenche o P3
+   (docs/acesso.mjs), nenhum *.workers.dev recebe a chave do painel; depois de preenchido, só o staging fixo da conta dele.
+   (O plano pedia também as prévias de branch; ficam de fora de propósito: rodam código ainda não revisado, ver o comentário
+   de HOST_SITE em scripts/direcoes.mjs e a decisão da revisão do PR B.) */
+test('comando local (C3): com o SUB_CONTA real, nenhum workers.dev recebe a chave enquanto o P3 não for preenchido; depois, só o staging fixo', async () => {
+  const { validarBase, hostsPermitidos } = await import('../../scripts/direcoes.mjs');
+  const { SUB_CONTA, hostDoStaging } = await import('../../docs/acesso.mjs');
+  const candidatos = ['https://beyon-zero-site-previa.irineu.workers.dev', 'https://minha-branch-beyon-zero-site-previa.irineu.workers.dev',
+    'https://beyon-zero-site.irineu.workers.dev', 'https://beyon-zero-site-previa.workers.dev', 'https://workers.dev'];
+  if (SUB_CONTA === null) {
+    assert.deepEqual(hostsPermitidos().filter(h => h.endsWith('workers.dev')), [], 'SUB_CONTA nulo: nenhum host workers.dev na lista');
+    for (const c of candidatos) assert.throws(() => validarBase(c), /BZ_BASE/, c);
+  } else {
+    assert.deepEqual(hostsPermitidos().filter(h => h.endsWith('workers.dev')), [hostDoStaging(SUB_CONTA)], 'preenchido: só o staging fixo');
+    assert.doesNotThrow(() => validarBase('https://' + hostDoStaging(SUB_CONTA)));
+    for (const c of candidatos.slice(1)) assert.throws(() => validarBase(c), /BZ_BASE/, c);
+  }
+  /* subdomínio inválido (vazio, maiúscula, ponto, espaço, tipo errado) equivale a nulo: fechado */
+  for (const ruim of ['', 'Irineu', 'a.b', 'a b', '-a', 'a-', 'x/y', 5, {}, false])
+    assert.throws(() => validarBase('https://beyon-zero-site-previa.irineu.workers.dev', ruim), /BZ_BASE/, 'sub ' + JSON.stringify(ruim));
+  assert.equal(validarBase('https://beyon-zero-site-previa.irineu.workers.dev', 'irineu'), 'https://beyon-zero-site-previa.irineu.workers.dev', 'com o sub certo abre');
+});
 test('comando local (M4): hosts permitidos são nomes exatos; o host da Vercel só existe enquanto existir o vercel.json', async () => {
   const { hostsPermitidos, HOSTS_VERCEL, HOST_SITE } = await import('../../scripts/direcoes.mjs');
   const { SUB_CONTA } = await import('../../docs/acesso.mjs');
