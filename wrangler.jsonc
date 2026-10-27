@@ -5,6 +5,8 @@
   "main": "cloudflare/worker.mjs",
   "compatibility_date": "2026-09-28",
   "compatibility_flags": ["nodejs_compat"],
+  // o domínio é SÓ da produção (Custom Domain: a Cloudflare cria o DNS e o certificado). Sem www: o www é da Redirect Rule da zona (plano § 7.1)
+  "routes": [{ "pattern": "beyonzero.com.br", "custom_domain": true }],
   "workers_dev": false,
   "preview_urls": false,
   "assets": {
