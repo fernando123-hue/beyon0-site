@@ -105,6 +105,22 @@ export function prazoVencido(prazo, { prazoDias, fuso = FUSO, feriados = FERIADO
   return Boolean(ate) && diaNoFuso(agora, fuso) > ate;
 }
 
+/* a PAUSA do prazo (spec §2.1, D4): abre quando a prévia sai e fecha quando o cliente responde (lista ou aprovação). Nunca mexe no objeto
+   recebido; as duas são idempotentes. `calcularEntregarAte` soma os dias úteis parados e `prazoVencido` é falso com uma pausa aberta. */
+export function abrirPausa(prazo, desde) {
+  const pausas = Array.isArray(prazo && prazo.pausas) ? prazo.pausas : [];
+  if (pausas.some(p => p.ate === null)) return { ...prazo, pausas };
+  return { ...prazo, pausas: [...pausas, { desde, ate: null }] };
+}
+export function fecharPausa(prazo, ate) {
+  const pausas = (Array.isArray(prazo && prazo.pausas) ? prazo.pausas : []).map(p => (p.ate === null ? { ...p, ate } : p));
+  return { ...prazo, pausas };
+}
+/* dias CORRIDOS entre o dia de `de` e o dia de `agora` no fuso da captação: 30 sem material, 3 do restante (contados do aviso "no ar", 22/10), 7 de desistência (não são prazo de entrega) */
+export function diasCorridosDesde(de, agora = new Date(), fuso = FUSO) {
+  return Math.round((dia(diaNoFuso(agora, fuso)) - dia(diaNoFuso(de, fuso))) / DIA_MS);
+}
+
 /* "5 de novembro": o dia vem pronto do servidor; o fuso do aparelho não entra */
 export function dataPorExtenso(diaIso) {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(diaIso || ''));
