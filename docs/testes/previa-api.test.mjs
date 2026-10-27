@@ -197,7 +197,8 @@ test('o restante: só com o site no ar (409 antes), só por Pix (400 com cartão
   const antes = await n.chamar('POST', 'pagar', { conversa_id: c, metodo: 'pix', pagador: PAGADOR });
   assert.equal(antes.status, 409); assert.match(antes.corpo.erro, /site estiver no ar/);
   await forcarEntrega(local.db, { conversa_id: c }, { passo: 'no_ar', site_url: SITE, no_ar_em: agora() });
-  assert.equal((await n.chamar('POST', 'pagar', { conversa_id: c, metodo: 'cartao', pagador: PAGADOR })).status, 400, 'o restante é só Pix');
+  const cartao = await n.chamar('POST', 'pagar', { conversa_id: c, metodo: 'cartao', pagador: PAGADOR });
+  assert.equal(cartao.status, 400, 'o restante é só Pix'); assert.match(cartao.corpo.erro, /Pix/, 'a frase é a do servidor (o banco também recusa, mas com "Dados inválidos")');
   /* a parcela e o valor são do banco: o que o navegador mandar a mais não conta */
   const pg = await n.chamar('POST', 'pagar', { conversa_id: c, metodo: 'pix', pagador: PAGADOR, parcela: 'sinal', valor: 1 });
   assert.equal(pg.status, 200, JSON.stringify(pg.corpo));
