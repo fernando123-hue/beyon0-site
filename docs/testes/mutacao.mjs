@@ -165,7 +165,15 @@ export const SABOTAGENS = [
   { nome: '/condicoes perde a frase do prazo parado enquanto espera a lista de ajustes (D4, captação 8fb5208)', fonte: 'condicoes.html', testes: ['docs/testes/textos-d4.test.mjs'],
     de: ' Enquanto espero a sua lista de ajustes, o prazo também fica parado.', para: '' },
   { nome: 'consultor volta a dizer que o restante é pago na entrega (D4)', fonte: 'api/_vendas/consultor.mjs', testes: ['docs/testes/textos-d4.test.mjs'],
-    de: 'o restante é pago por Pix quando o site estiver no ar. Se a tela', para: 'o restante é pago por Pix na entrega. Se a tela' }
+    de: 'o restante é pago por Pix quando o site estiver no ar. Se a tela', para: 'o restante é pago por Pix na entrega. Se a tela' },
+  /* ---- D5 (21/10): a prévia nunca é aprovada nem passa sozinha ---- */
+  { nome: 'a prévia ganha uma saída de rotina (aprova sozinha)', arquivo: '20261024120000_pr3b3_esquema.sql', testes: ['docs/testes/previa-esquema.test.mjs'],
+    acrescentar: "\ninsert into privado.transicoes_entrega (de, para, quem) values ('previa', 'no_ar', 'rotinas_diaria');\n" },
+  /* ---- 22/10: nada de encerrar por falta de material; o contato do site só com a autorização de uso ---- */
+  { nome: 'o encerrar por "sem_material" volta à lista fechada', arquivo: '20261024120000_pr3b3_esquema.sql', testes: ['docs/testes/previa-esquema.test.mjs'],
+    de: "('desistencia', 'atraso', 'producao_manual', 'outro')),   -- lista fechada", para: "('desistencia', 'atraso', 'sem_material', 'producao_manual', 'outro')),   -- lista fechada" },
+  { nome: 'o contato do site é aceito sem a autorização de uso', arquivo: '20261024120000_pr3b3_esquema.sql', testes: ['docs/testes/previa-esquema.test.mjs'],
+    de: '(contato_autorizado_em is not null and contato_autorizacao_versao is not null)', para: 'true' }
 ];
 
 /* as sabotagens que a rodada vai fazer: todas, ou só as do filtro (parte do nome, sem diferenciar maiúsculas). Filtro que não
