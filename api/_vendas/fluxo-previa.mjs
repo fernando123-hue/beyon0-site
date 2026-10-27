@@ -11,7 +11,7 @@
 import { Recusa } from './recusa.mjs';
 import { ErroBanco } from './transporte.mjs';
 import { ehUuid } from '../_valida-app.mjs';
-import { redigir } from './seguranca.mjs';
+import { redigir, semInvisiveis } from './seguranca.mjs';
 import ESQ from '../../js/orcamento-material-esquema.js';
 import { fecharPausa, calcularEntregarAte, isoNoFuso } from '../_material/prazo.mjs';
 import { entregaLigada, FRASE_DESLIGADA } from '../_material/interruptor.mjs';
@@ -19,7 +19,7 @@ import { entregaLigada, FRASE_DESLIGADA } from '../_material/interruptor.mjs';
 export const MAX_LISTA = 1500;
 export const FRASES = Object.freeze({
   conversaInvalida: 'Conversa inválida.',
-  cpf: 'Não escreva CPF nem CNPJ aqui.',
+  cpf: 'Não escreva CPF, CNPJ nem números soltos de 11 ou 14 dígitos aqui. Telefone e e-mail do site vão nos campos próprios.',
   texto: 'Escreva a lista de ajustes (de 1 a 1.500 caracteres).',
   passo: 'Esta etapa não está disponível agora. Se precisar, fale com a Beyon Zero pelo WhatsApp.',
   mudou: 'A prévia mudou enquanto você escrevia (outra aba?). Confira e tente de novo.',
@@ -30,9 +30,11 @@ export const FRASES = Object.freeze({
 });
 const soCom = (corpo, chaves) => !!corpo && typeof corpo === 'object' && !Array.isArray(corpo) && Object.keys(corpo).every(k => chaves.includes(k));
 const tipoOpcional = (v, tipo) => v === undefined || v === null || typeof v === tipo;
-/* o que o banco não guarda ou que o redator confundiria: controles (menos tabulação e quebras de linha), uso privado (onde o redator põe os marcadores de guarda) e substituto solto */
+/* controles (menos tabulação e quebras de linha) e, por semInvisiveis (a mesma do pedido livre), os caracteres de formato, o uso privado e o substituto solto */
 const CONTROLES = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/g;
-const limparLista = s => s.replace(CONTROLES, '').replace(/[\p{Co}\p{Cs}]/gu, '').trim();
+const limparLista = s => semInvisiveis(s.replace(CONTROLES, '')).trim();
+/* linhas em branco entre os dígitos escondiam um CPF ou telefone da redação (o pedido livre junta tudo numa linha): aqui as quebras duplas viram uma, e a lista segue em linhas */
+const unirQuebras = s => s.replace(/[ \t]*\n\s*/g, '\n');
 const cortar = (s, max) => [...s].slice(0, max).join('');   /* (por caractere inteiro, não no meio de um par de substitutos) */
 
 export function criarAcoesDaPrevia({ banco, visitante, estado, env }) {
@@ -48,7 +50,7 @@ export function criarAcoesDaPrevia({ banco, visitante, estado, env }) {
   async function entregaNaPrevia(request, conversaId) {
     const vid = await visitante(request);
     const e = (await estado(vid, conversaId)).entrega;
-    if (!e || e.passo !== 'previa') throw new Recusa(409, FRASES.passo);
+    if (!e || e.passo !== 'previa') throw new Recusa(409, FRASES.passo, { whatsapp: true });   /* (a frase manda falar pelo WhatsApp: a saída vai junto, como no 55000 do banco) */
     const agora = new Date();
     const prazo = fecharPausa(e.prazo, isoNoFuso(agora));
     return { vid, e, agora, prazo, entregaAte: calcularEntregarAte(prazo, { prazoDias: e.prazo_dias }, agora) || e.entrega_ate };
@@ -70,7 +72,7 @@ export function criarAcoesDaPrevia({ banco, visitante, estado, env }) {
          nunca vira "só o contato" em silêncio */
       const limpo = limparLista(corpo.texto);
       if (limpo.length > MAX_LISTA) throw new Recusa(422, FRASES.texto);
-      const texto = cortar(redigir(limpo).trim(), MAX_LISTA).trim();
+      const texto = cortar(redigir(unirQuebras(limpo)).trim(), MAX_LISTA).trim();
       if (!texto && !temContato) throw new Recusa(422, FRASES.texto);   /* uma lista tem texto, contato do site, ou os dois */
       const { vid, e, agora, prazo, entregaAte } = await entregaNaPrevia(request, corpo.conversa_id);
       if (e.rodadas.max != null && e.rodadas.usadas >= e.rodadas.max) throw new Recusa(409, FRASES.rodadas, { whatsapp: true });
@@ -88,7 +90,7 @@ export function criarAcoesDaPrevia({ banco, visitante, estado, env }) {
       return { ok: true };
     }
   };
-  /* o interruptor: desligado, nenhuma ação passa (503 com a saída pelo WhatsApp), nem lê o corpo */
+  /* o interruptor: desligado, nenhuma ação passa (503 com a saída pelo WhatsApp), sem tocar no estado nem no banco (o corpo já foi lido por atender, mas não é usado) */
   return Object.fromEntries(Object.entries(acoes).map(([nome, f]) => [nome, async a => {
     if (!entregaLigada(env)) throw new Recusa(503, FRASE_DESLIGADA, { whatsapp: true });
     return f(a);

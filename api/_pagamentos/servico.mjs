@@ -76,6 +76,8 @@ function traduzirLimite(e) {
   if (e && e.codigo === '55000' && /verificação/.test(m)) throw new ErroPagamento(409, 'Seu pagamento está em verificação. A Beyon Zero fala com você em breve.', { whatsapp: true });
   /* (PR 3b-1) proposta sem o percentual da entrada: o banco não cobra (falha fechada); a pessoa fala com a Beyon Zero */
   if (e && e.codigo === '23514' && /sem percentual de entrada/.test(m)) throw new ErroPagamento(409, 'Este pedido está sem o valor da entrada. Fale com a Beyon Zero pelo WhatsApp.', { whatsapp: true });
+  /* (PR 3b-3, restante) a entrada estornada ou contestada: o banco não abre o restante e a equipe resolve; quem já pagou a entrada sai com o caminho do WhatsApp */
+  if (e && e.codigo === '55000' && /entrada não está paga/.test(m)) throw new ErroPagamento(409, 'Há um problema com a entrada deste pedido. A Beyon Zero resolve com você pelo WhatsApp.', { whatsapp: true });
   throw e;
 }
 
