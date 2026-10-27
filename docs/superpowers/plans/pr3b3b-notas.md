@@ -148,6 +148,6 @@ Veredito do revisor (opus): **pode mesclar**, sem Crítico nem Alto. Relatório:
 
 Suíte: 1034 testes, 1034 passam, 0 falham, 0 pulados (linha de base da main: 850; o 3b-3b soma 184), no HEAD com a main mesclada (38f7fa2).
 
-Mutação: 174 de 174 sabotagens pegas pelos testes (as do 3b-3b: ~60; 13 foram reapontadas para as definições que valem no banco final, commit 1bc0e8c).
+Mutação: 174 de 174 sabotagens pegas pelos testes (13 foram reapontadas para as definições que valem no banco final, commit 1bc0e8c).
 
 Nível de risco: 3 (sensível), como no 3b-2. Migrations: nenhuma aplicada em banco real (só PGlite). Não feito, por ordem: push, PR, merge, aplicar as 5 migrations.
