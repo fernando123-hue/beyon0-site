@@ -28,6 +28,14 @@ test('nenhum arquivo de deploy liga a entrega; o servidor local liga por conta p
   assert.match(ler('docs/servidor.mjs'), /process\.env\.BZ_ENTREGA = 'ligada'/);
 });
 
+test('no servidor local, BZ_ENTREGA_LOCAL=desligada é o único jeito de desligar a entrega (a rodada do E2E com o interruptor desligado)', () => {
+  const s = ler('docs/servidor.mjs');
+  assert.match(s, /^if \(process\.env\.BZ_ENTREGA_LOCAL !== 'desligada'\) process\.env\.BZ_ENTREGA = 'ligada';/m, 'a única linha que liga, e só quando BZ_ENTREGA_LOCAL não é "desligada"');
+  const usos = s.split(/\r?\n/).filter(l => /BZ_ENTREGA\b(?!_LOCAL)/.test(l.replace(/\/\*.*?\*\//g, '')));
+  assert.equal(usos.length, 1, 'nenhuma outra linha do servidor local liga, desliga ou apaga BZ_ENTREGA: ' + usos.join(' | '));
+  assert.ok(!/BZ_ENTREGA_LOCAL/.test(ler('vercel.json') + ler('package.json')), 'o atalho do servidor local não entra em arquivo de deploy');
+});
+
 test('desligada: as ações novas dão 503 com a saída pelo WhatsApp, e o estado não traz a entrega', async () => {
   const { n, c } = await ateEntregaCriada(cen, local, { env: {} });
   for (const acao of DA_ENTREGA.filter(a => a !== 'abrir-pedido')) {   /* (a lista inteira da entrega: o teste do fim do arquivo a fecha) */

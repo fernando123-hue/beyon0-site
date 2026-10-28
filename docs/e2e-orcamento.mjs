@@ -12,6 +12,7 @@
    Uso: servidor local com PAINEL_CHAVE (32+) e BZ_SEM_CONSULTOR=1, depois PAINEL_CHAVE=<a mesma>
    BASE=http://127.0.0.1:8899 CHROMIUM=... node docs/e2e-orcamento.mjs
    (CONSULTOR=1 com o servidor local SEM BZ_SEM_CONSULTOR)
+   (BZ_ENTREGA_LOCAL=desligada nos DOIS, servidor e cliente: a rodada sem a entrega, só a frase do recibo; PR 3b-3c: docs/e2e-previa.mjs cuida da prévia, do ar e do restante)
    FREIO LOCAL: cada rodada cria 4 sessões no freio do servidor local (8 por 10 min por IP, api/vendas.mjs, freioSessao),
    3 delas no passo de abrir o pedido pelo link. Uma 3ª rodada seguida em menos de 10 min no mesmo servidor estoura (429):
    espere ou reinicie o servidor.
@@ -22,6 +23,7 @@ import { fileURLToPath } from 'node:url';
 import { passoDosAjustes } from './e2e-ajustes.mjs';
 import { passoDoPix } from './e2e-pix.mjs';
 import { passoDaEntrega } from './e2e-entrega.mjs';
+import { passoDaPrevia, passoSemEntrega } from './e2e-previa.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8899';
 /* só servidor local: contra um site de verdade este teste cria conversa, chama a IA paga e cria pedido de pagamento */
@@ -47,6 +49,7 @@ let falhou = false;
 /* CONSULTOR=1: o servidor local com a IA simulada mostrando o consultor (sem BZ_SEM_CONSULTOR); as checagens da
    conversa só valem aí. Sem ele, o caminho é só o das perguntas (rodar o servidor com BZ_SEM_CONSULTOR=1) */
 const CONSULTOR = process.env.CONSULTOR === '1';
+const ENTREGA_DESLIGADA = process.env.BZ_ENTREGA_LOCAL === 'desligada';   /* o mesmo valor com que o servidor local foi subido (docs/servidor.mjs) */
 const ok = (cond, msg) => { console.log((cond ? 'OK   ' : 'FALHA') + ' ' + msg); if (!cond) falhou = true; };
 const semRolagemLateral = page => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
 /* espera uma condição na página sem derrubar o resto do teste: devolve se ela chegou a valer */
@@ -309,7 +312,7 @@ try {
   const naFila = painel.locator('#fila .pn__fila', { hasText: codigo });
   await naFila.waitFor({ timeout: 15000 });
   ok(await naFila.isVisible(), 'painel: confirmado, o pedido passa para a fila de trabalho');
-  ok(await painel.locator('#pendentes .pn__fila', { hasText: codigo }).count() === 0, 'painel: e sai de "Esperando confirmação"');
+  ok(await painel.locator('#pendentes .pn__fila', { hasText: codigo }).waitFor({ state: 'detached', timeout: 10000 }).then(() => true, () => false), 'painel: e sai de "Esperando confirmação"');   /* (a lista de pendentes se redesenha um instante depois da fila: espera sair, em vez de contar uma vez só) */
   await foto(painel, '5b-painel-fila-cel');
   await painel.close();
   await page.reload({ waitUntil: 'load' });
@@ -339,8 +342,8 @@ try {
     return { c, p, toques };
   };
   /* (PR 2b-2) o dono prepara o aviso NO PAINEL, no celular: nada vai ao servidor antes do toque; o toque gera o link e
-     troca o botão por "Abrir no WhatsApp" com a mensagem pronta. O código é segredo de uso único: só no endereço desse
-     botão, nunca na barra, no console nem no armazenamento do navegador */
+     mostra a mensagem pronta numa caixa só de leitura (com "Copiar a mensagem") e o botão "Abrir a conversa no WhatsApp", que
+     abre SÓ com o número (3b-3c: sem ?text=). O código é segredo de uso único: só no texto da caixa, nunca num endereço, na barra, no console nem no armazenamento do navegador */
   const painel2 = await ctx.newPage();
   const falaDoPainel = [];
   painel2.on('console', m => falaDoPainel.push(m.text()));
@@ -362,16 +365,18 @@ try {
   const veioLink = painel2.waitForRequest(ehLink, { timeout: 15000 });
   await preparar.click();
   await veioLink;
-  const abrirZap = avisoNaFila.getByRole('link', { name: /Abrir no WhatsApp/ });
+  const abrirZap = avisoNaFila.getByRole('link', { name: /Abrir a conversa no WhatsApp/ });
   await abrirZap.waitFor({ timeout: 15000 });
   const hrefZap = await abrirZap.getAttribute('href');
-  const mensagemZap = decodeURIComponent((hrefZap.split('?text=')[1] || ''));
+  const caixaZap = avisoNaFila.getByRole('textbox', { name: /Mensagem pronta/ });
+  const mensagemZap = await caixaZap.inputValue();
   const CODIGO_NO_TEXTO = /\/orcamento#retomar=([A-Za-z0-9_-]{32})$/;
-  ok(linksPedidos === 1 && hrefZap.startsWith('https://wa.me/55' + TELEFONE.replace(/\D/g, '') + '?text='), 'painel: um toque pede um link só e o botão abre o WhatsApp do cliente (wa.me só com dígitos)');
-  ok(CODIGO_NO_TEXTO.test(mensagemZap) && hrefZap.includes('%23retomar%3D') && /^Oi! Aqui é da Beyon Zero\. Os três modelos do seu site ficaram prontos/.test(mensagemZap), 'painel: a mensagem leva o link de retomada (32 caracteres, # codificado) e fala em modelos prontos');
+  ok(linksPedidos === 1 && hrefZap === 'https://wa.me/55' + TELEFONE.replace(/\D/g, ''), 'painel: um toque pede um link só e o botão abre o WhatsApp do cliente só com o número (sem ?text=, sem nada depois dos dígitos)');
+  ok(CODIGO_NO_TEXTO.test(mensagemZap) && /^Oi! Aqui é o Fernando, da Beyon Zero\. Os três modelos do seu site ficaram prontos/.test(mensagemZap), 'painel: a mensagem (na caixa de leitura) leva o link de retomada (32 caracteres) e fala em modelos prontos');
+  ok(await caixaZap.evaluate(c => c.readOnly) && await avisoNaFila.getByRole('button', { name: /Copiar a mensagem/ }).count() === 1, 'painel: a caixa é só de leitura e há o botão "Copiar a mensagem"');
   ok(!/mesmo navegador/.test(mensagemZap), 'painel: a mensagem não manda mais voltar "no mesmo navegador"');
   ok(await abrirZap.getAttribute('target') === '_blank' && /noopener/.test(await abrirZap.getAttribute('rel')), 'painel: o WhatsApp abre em outra aba, sem passar a página de origem');
-  ok(await painel2.evaluate(() => document.activeElement.textContent) === 'Abrir no WhatsApp', 'painel: o foco vai para o botão que acabou de aparecer');
+  ok(await painel2.evaluate(() => document.activeElement.tagName === 'TEXTAREA' && /^Mensagem pronta/.test(document.activeElement.getAttribute('aria-label'))), 'painel: o foco vai para a mensagem que acabou de aparecer');
   ok(await avisoNaFila.getByRole('button', { name: /Preparar aviso/ }).count() === 0, 'painel: "Preparar aviso" sai de cena (o mesmo link não é preparado duas vezes sem querer)');
   const codigoDoLink = mensagemZap.match(CODIGO_NO_TEXTO)[1];
   const guardado = await painel2.evaluate(() => JSON.stringify({ l: Object.entries(localStorage), s: Object.entries(sessionStorage) }) + location.href + document.cookie);
@@ -547,10 +552,11 @@ try {
   const veioLink2 = painel2.waitForRequest(ehLink, { timeout: 15000 });
   await prepararLembrete.click();
   await veioLink2;
-  const zapLembrete = cartaoLembrete.getByRole('link', { name: /Abrir no WhatsApp/ });
+  const zapLembrete = cartaoLembrete.getByRole('link', { name: /Abrir a conversa no WhatsApp/ });
   await zapLembrete.waitFor({ timeout: 15000 });
-  const msgLembrete = decodeURIComponent(((await zapLembrete.getAttribute('href')).split('?text=')[1] || ''));
-  ok(/^Oi, Ana! Aqui é da Beyon Zero\. Passando para lembrar/.test(msgLembrete) && CODIGO_NO_TEXTO.test(msgLembrete) && msgLembrete.match(CODIGO_NO_TEXTO)[1] !== codigoDoLink, 'lembretes: a mensagem chama pelo primeiro nome e leva um link NOVO (não o do aviso)');
+  ok(/^https:\/\/wa\.me\/\d+$/.test(await zapLembrete.getAttribute('href')), 'lembretes: o WhatsApp também abre só com o número');
+  const msgLembrete = await cartaoLembrete.getByRole('textbox', { name: /Mensagem pronta/ }).inputValue();
+  ok(/^Oi, Ana! Aqui é o Fernando, da Beyon Zero\. Passando para lembrar/.test(msgLembrete) && CODIGO_NO_TEXTO.test(msgLembrete) && msgLembrete.match(CODIGO_NO_TEXTO)[1] !== codigoDoLink, 'lembretes: a mensagem chama pelo primeiro nome e leva um link NOVO (não o do aviso)');
   ok(!(await painel2.evaluate(() => JSON.stringify({ l: Object.entries(localStorage), s: Object.entries(sessionStorage) }) + location.href + document.cookie)).includes(msgLembrete.match(CODIGO_NO_TEXTO)[1]) && !falaDoPainel.some(l => l.includes(msgLembrete.match(CODIGO_NO_TEXTO)[1])), 'lembretes: o código do link novo também fica fora do endereço, do armazenamento e do console');
   await foto(painel2, '5f-painel-lembrete-pronto-cel');
   /* (M5 da correção da Task 5) o mesmo cartão, já com o link pronto, no desktop: não pode ficar esticado nem cortado */
@@ -720,7 +726,12 @@ try {
 
   /* pagamento: dados do pagador, o cartão (quando o servidor o liga) e o Pix; a confirmação SÓ pelo aviso do provedor (docs/e2e-pix.mjs) */
   await passoDoPix(page, { ok, espera, foto, semRolagemLateral, forcar: v => { falhaForcada = v; } });
-  await passoDaEntrega(page, { ok, espera, foto, semRolagemLateral, perdeu: () => { perdeuOPedido = true; }, forcar: v => { falhaForcada = v; } });
+  /* BZ_ENTREGA_LOCAL=desligada (o servidor local sem a entrega): só a frase do recibo; a entrega e a prévia precisam do interruptor ligado */
+  if (ENTREGA_DESLIGADA) await passoSemEntrega(page, { ok, semRolagemLateral });
+  else {
+    await passoDaEntrega(page, { ok, espera, foto, semRolagemLateral, perdeu: () => { perdeuOPedido = true; }, forcar: v => { falhaForcada = v; } });
+    await passoDaPrevia(page, { ok, espera, foto, semRolagemLateral, chave: PAINEL_CHAVE, conversaId });
+  }
   ok(erros.length === 0, 'sem erro de console' + (erros.length ? ': ' + erros.slice(0, 3).join(' | ') : ''));
   await ctx.close();
 
@@ -830,7 +841,7 @@ try {
     const c = await nav.newContext({ viewport: { width: w, height: h } });
     const p = await c.newPage();
     anotar(p, w + 'px');
-    await p.goto(BASE + '/orcamento', { waitUntil: 'load' });
+    await p.goto(BASE + '/orcamento', { waitUntil: 'load', timeout: 90000 });
     ok(await semRolagemLateral(p), w + 'px: sem rolagem lateral');
     await foto(p, nome);
     await p.waitForSelector('#o-perguntas:not([hidden])');
@@ -859,7 +870,7 @@ try {
   /* sem JS: a página avisa e oferece o WhatsApp */
   const sj = await nav.newContext({ javaScriptEnabled: false });
   const ps = await sj.newPage();
-  await ps.goto(BASE + '/orcamento', { waitUntil: 'load' });
+  await ps.goto(BASE + '/orcamento', { waitUntil: 'load', timeout: 90000 });
   ok(await ps.locator('.orc-aviso--semjs').isVisible(), 'sem JS: aviso com o WhatsApp visível');
   ok(await ps.locator('.orc-mesa').isHidden(), 'sem JS: a conversa (que não funcionaria) some');
   await sj.close();

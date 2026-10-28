@@ -88,27 +88,51 @@
   /* (PR 2b-2) o aviso leva o LINK DE RETOMADA: o código só existe depois do toque ("Preparar"), sai do servidor uma
      vez e vale 7 dias, um por vez (preparar de novo invalida o anterior não usado). Primeiro o link, depois o botão
      que abre o WhatsApp: abrir uma aba depois de esperar a resposta seria barrado pelo navegador. O código fica só
-     neste link (href do botão): não vai para console, para o armazenamento do navegador nem para a lista */
+     na caixa de leitura com a mensagem pronta (o dono copia e cola): nunca num href, nem num ?text= do wa.me, e não
+     vai para console, para o armazenamento do navegador nem para a lista */
   var NOME_OK = /^[\p{L}'-]{1,20}$/u;
   var EMAIL_OK = /^[A-Za-z0-9._+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
   var TELEFONE_MIN_DIGITOS = 10;
+  var AVISO_LINHAS = 12;   /* (altura da caixa da mensagem pronta; o texto maior rola dentro dela) */
   function primeiroNome(n) { var p = String(n || '').trim().split(/\s+/)[0] || ''; return NOME_OK.test(p) ? p : ''; }
   function oi(nome) { return primeiroNome(nome) ? 'Oi, ' + primeiroNome(nome) + '!' : 'Oi!'; }
-  /* o botão que abre a conversa: WhatsApp (só dígitos no endereço) ou, sem telefone, o e-mail */
+  /* o aviso pronto (Task 11, 3b-3c; spec §1 item 3 e R2-4): a mensagem numa caixa só de leitura com "Copiar a mensagem", e o botão que abre a conversa SEM o texto.
+     O link de retomada é segredo de uso único e nunca vai num href (um wa.me/?text= o passaria a terceiros e aos registros deles): o dono cola. */
+  function copiarMensagem(msg, estado) {
+    var feito = function () { estado.textContent = 'Mensagem copiada. Cole na conversa e envie.'; };
+    var falhou = function () {
+      msg.focus();
+      try { msg.setSelectionRange(0, msg.value.length); } catch (e) { msg.select(); }
+      estado.textContent = 'Selecionei a mensagem: copie com o dedo (ou Ctrl+C).';
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(msg.value).then(feito, falhou); else falhou();
+  }
   function botaoDeContato(o, digitos, email, texto, quem) {
-    var a = el('a', 'pn__btn');
+    var caixa = el('div', 'pn__aviso-pronto');
+    var msg = el('textarea', 'pn__aviso-texto');
+    msg.readOnly = true; msg.rows = AVISO_LINHAS; msg.value = texto;
+    msg.setAttribute('aria-label', 'Mensagem pronta: ' + o.rotulo + ' para ' + quem);
+    var copiar = el('button', 'pn__btn', 'Copiar a mensagem');
+    copiar.type = 'button';
+    var estado = el('p', 'pn__fila-meta');
+    estado.setAttribute('role', 'status');
+    copiar.addEventListener('click', function () { copiarMensagem(msg, estado); });
+    var a = el('a', 'pn__btn pn__btn--fino');
     if (digitos) {
-      a.href = 'https://wa.me/' + digitos + '?text=' + encodeURIComponent(texto);
+      a.href = 'https://wa.me/' + digitos;
       a.target = '_blank';
       a.rel = 'noopener noreferrer';
-      a.textContent = 'Abrir no WhatsApp';
-      a.setAttribute('aria-label', 'Abrir no WhatsApp: ' + o.rotulo + ' para ' + quem + ' (abre em nova aba)');
+      a.textContent = 'Abrir a conversa no WhatsApp';
+      a.setAttribute('aria-label', 'Abrir a conversa no WhatsApp com ' + quem + ' (abre em nova aba; cole a mensagem copiada)');
     } else {
-      a.href = 'mailto:' + email + '?subject=' + encodeURIComponent(o.assunto) + '&body=' + encodeURIComponent(texto);
+      a.href = 'mailto:' + email;
       a.textContent = 'Abrir o e-mail';
-      a.setAttribute('aria-label', 'Abrir o e-mail: ' + o.rotulo + ' para ' + quem);
+      a.setAttribute('aria-label', 'Abrir o e-mail para ' + quem + ' (cole a mensagem copiada)');
     }
-    return a;
+    caixa.appendChild(msg); caixa.appendChild(copiar); caixa.appendChild(a);
+    if (!digitos) caixa.appendChild(el('p', 'pn__fila-meta', 'Assunto do e-mail: ' + o.assunto));   /* (o e-mail abre sem assunto nem corpo: o dono cola os dois) */
+    caixa.appendChild(estado);
+    return { caixa: caixa, msg: msg };
   }
   function avisoComLink(o) {
     var caixa = el('div', 'pn__aviso');
@@ -130,10 +154,10 @@
         .then(function (r) {
           if (!r || typeof r.codigo !== 'string' || !CODIGO_RETOMADA.test(r.codigo)) { estado.textContent = 'Não deu para gerar o link agora.'; preparar.disabled = false; return; }
           var texto = oi(contato.nome) + ' ' + o.texto(location.origin + '/orcamento#retomar=' + r.codigo);
-          var a = botaoDeContato(o, digitos, email, texto, quem);
-          caixa.replaceChild(a, preparar);
+          var pronto = botaoDeContato(o, digitos, email, texto, quem);
+          caixa.replaceChild(pronto.caixa, preparar);
           estado.textContent = 'Link pronto (vale 7 dias e abre uma vez). Preparar de novo invalida este.';
-          a.focus();
+          pronto.msg.focus();
         })
         .catch(function (e) { if (P.recusada(e)) return; estado.textContent = e.status ? e.message : 'Sem conexão com o servidor. Tente de novo.'; preparar.disabled = false; });
     });

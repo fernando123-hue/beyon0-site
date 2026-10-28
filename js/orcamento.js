@@ -549,7 +549,7 @@
   /* ---------- pagamento do sinal (js/orcamento-pagamento.js: Pix e cartão no próprio site) ---------- */
   var telaPagamento = window.BZPagamentoTela ? window.BZPagamentoTela.criar({ API: API, dinheiro: dinheiro, aoPagar: function () { recarregar().catch(function () {}); } }) : null;
   var recibo = window.BZRecibo ? window.BZRecibo.criar({ API: API, dinheiro: dinheiro }) : null;
-  var entrega = window.BZEntrega ? window.BZEntrega.criar({ API: API, dinheiro: dinheiro }) : null;   /* (PR 3b-2: Seu pedido e o material) */
+  var entrega = window.BZEntrega ? window.BZEntrega.criar({ API: API, dinheiro: dinheiro, telaPagamento: telaPagamento }) : null;   /* (PR 3b-2: Seu pedido e o material) */
   window.BZMaterialRecarregar = recarregar;
   var viuAguardando = false;   /* a etapa "aguardando pagamento" foi vista nesta tela: a confirmação chega ao vivo e o recibo anima */
   function dias(n) { return n + (Number(n) === 1 ? ' dia útil' : ' dias úteis'); }   /* (úteis: decisão do dono de 21/10; é o que o escopo diz) */
@@ -570,6 +570,7 @@
     var pct = PIX ? PIX.percentuais(pr) : null, sinal = valorDoSinal(pr);
     if (!mudou('pagamento', [pr, sinal])) return;
     $('o-pag-escopo').textContent = pr.escopo || '';
+    $('o-pag-titulo').textContent = 'Para começar';   /* (o restante, js/orcamento-restante.js, troca o título: a entrada o devolve) */
     var lead = 'Escopo confirmado: ' + dinheiro(pr.valor_total) + ' em até ' + dias(pr.prazo_dias) + '.';
     /* falha fechada (PR 3b-1): sem o percentual da proposta, a tela não cobra nem chuta um número (o banco também recusa) */
     if (!pct || sinal == null) {
@@ -579,19 +580,22 @@
       return;
     }
     $('o-pag-lead').textContent = lead + ' Para começar, a entrada de ' + pct.entrada + '%: ' + dinheiro(sinal) + '. O restante quando o site estiver no ar.';
-    if (telaPagamento) telaPagamento.mostrar(sinal, pct.entrada);
+    if (telaPagamento) telaPagamento.mostrar(sinal, pct.entrada, {});   /* ({}: solta o "só Pix" que o restante tenha pedido) */
   }
 
   /* ---------- o estado manda na tela ---------- */
   function passoAtual() {
     var et = E.conversa.etapa;
-    if (et === 'aguardando_pagamento' || et === 'em_producao') return 'pagamento';
+    if (et === 'aguardando_pagamento' || et === 'em_producao' || (et === 'encerrada' && E.entrega)) return 'pagamento';   /* (a barra do topo não volta atrás depois do pedido concluído ou encerrado) */
     if (et === 'escopo') return 'escopo';
     if (et === 'escolhida' || et === 'alteracoes') return 'ajustes';
     if (et === 'gerando' || et === 'direcoes' || E.conversa.tem_contato) return 'direcoes';
     if (E.estimativa) return 'estimativa';
     return 'conversa';
   }
+  /* (3b-3c) as duas decisões do passo 4 moram em js/orcamento-restante.js (puras, testadas): o restante está aberto? e onde cai quem volta ao pedido? */
+  function restanteAberto() { return !!window.BZRestante && window.BZRestante.restanteAberto(E); }
+  function alvoDoPagamento() { return window.BZRestante ? window.BZRestante.alvoDaRetomada(E) : E.conversa.etapa === 'em_producao' ? 'o-pronto' : 'o-pagamento'; }
   function etapas() {
     var atual = E ? passoAtual() : 'conversa', passou = true;
     if (precoNaTela && atual === 'conversa') atual = 'estimativa';   /* (o preço das perguntas já está na tela, ainda sem gravar) */
@@ -692,7 +696,7 @@
     var pronto = et === 'em_producao', chegou = pronto && $('o-pronto').hidden && viuAguardando;
     mostrar('o-pronto', pronto);
     if (pronto) {
-      vigia.parar(); if (telaPagamento) telaPagamento.parar();
+      vigia.parar(); if (telaPagamento && !restanteAberto()) telaPagamento.parar();   /* (com o restante a pagar, o Pix é o mesmo e segue esperando) */
       var pr = E.proposta;
       /* (revisão do 3b-1) sem a entrada conhecida, o recibo não mostra valores (nada de "0%"): só o selo e o título */
       if (recibo) recibo.desenhar(pr && PIX ? PIX.dadosDoRecibo(pr, valorDoSinal(pr)) : null, chegou);
@@ -739,7 +743,7 @@
     if (!API.temSessao()) { iniciarPerguntas(); return; }   /* (primeira visita: as perguntas; a sessão nasce no "Ver o preço") */
     try {
       await recarregar();   /* (o render desenha a conversa salva) */
-      var BLOCOS = { direcoes: 'o-direcoes', ajustes: 'o-ajustes', escopo: 'o-escopo', pagamento: E.conversa.etapa === 'em_producao' ? 'o-pronto' : 'o-pagamento' };
+      var BLOCOS = { direcoes: 'o-direcoes', ajustes: 'o-ajustes', escopo: 'o-escopo', pagamento: alvoDoPagamento() };
       var alvo = BLOCOS[passoAtual()];
       if (alvo && !$(alvo).hidden) { rolarAte($(alvo)); if (window.BZRetomada) window.BZRetomada.focar($(alvo)); }   /* quem volta cai na etapa em que parou */
     } catch (e) {

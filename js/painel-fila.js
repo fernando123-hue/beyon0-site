@@ -43,7 +43,7 @@
 
   function botaoAviso(p) {
     return C.avisoComLink({ conversaId: p.conversa_id, contato: p.contato || {}, rotulo: 'aviso', assunto: 'Os modelos do seu site estão prontos',
-      texto: function (link) { return 'Aqui é da Beyon Zero. Os três modelos do seu site ficaram prontos. Abra este link para ver, comparar e escolher (vale por 7 dias e abre em qualquer aparelho): ' + link; } });
+      texto: function (link) { return 'Aqui é o Fernando, da Beyon Zero. Os três modelos do seu site ficaram prontos. Abra este link para ver, comparar e escolher (vale por 7 dias e abre em qualquer aparelho): ' + link; } });
   }
 
   function acoesDe(p, prontas) {

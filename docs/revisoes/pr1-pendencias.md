@@ -75,6 +75,31 @@ com credenciais reais**, salvo onde diz outra coisa.
     - `PAINEL_CHAVE` no terminal do dono para o `scripts/entregas.mjs`; a tabela ativa com `sinal_percentual: 40` já vem do 3b-1.
     - **verificação de tela do 3b-2 (Task 19) não foi feita no modo leve**: E2E da entrega, `verificar`, `acessibilidade` e abrir os PNG (390 e 320 px) com o PC livre.
     - fora do 3b-2, texto público: `index.html` e `sites.html` ainda dizem "10 dias corridos" para a entrega; ficam para um PR de textos com `condicoes_versao` nova.
+4d. **PR 3b-3 (prévia, ajustes, aprovar, site no ar, restante e concluído): nada disto liga sozinho; `BZ_ENTREGA` segue DESLIGADO.** **Mesclar não é ir ao ar:** o clique no
+    merge não promove nada, não aplica migration e não liga o interruptor. Só liga junto com o 3b-1 e o 3b-2, já na Cloudflare, e **só com `node scripts/antes-de-ligar.mjs`
+    sem nenhuma linha FALTA** (ele sai com código 1 se houver; cada CONFIRMAR é do dono ver com os próprios olhos). Não ligue com FALTA. Em ordem:
+    - aplicar no banco real as **10 migrations do 3b**, nesta ordem (a lista está em `scripts/antes-de-ligar.mjs` e um teste a confere com a pasta):
+      `20261022120000_pr3b1_entrada.sql`; as quatro do 3b-2 (`20261023120000_pr3b2_entrega.sql`, `…120100_pr3b2_material.sql`, `…120200_pr3b2_link_pedido.sql`, `…120300_pr3b2_dono.sql`);
+      e as cinco do 3b-3 (`20261024120000_pr3b3_esquema.sql`, `…120100_pr3b3_previa.sql`, `…120200_pr3b3_restante.sql`, `…120300_pr3b3_rotina.sql`, `…120400_pr3b3_lista.sql`);
+    - **dizer o endereço do projeto Supabase** (`https://<projeto>.supabase.co`, não é segredo) e trocar o curinga `https://*.supabase.co/…` pelo endereço exato na CSP de `/orcamento`, nos
+      três lugares (`vercel.json`, `<meta>` de `orcamento.html` e `_headers`); o `blob:` no `img-src` já está. Hoje o verificador mostra FALTA nos três: é o aviso virando teste. O endereço tem de estar no `connect-src`, igual nos três lugares. A mesma troca
+      exige atualizar o `deepEqual` do teste "CSP do /orcamento (PR 3b-2)" em `docs/testes/csp.test.mjs` (linhas 62-64), que hoje espera o curinga;
+    - **a Cloudflare já está na main** (`_headers`, `wrangler.jsonc`, `HOST_SITE` na lista de `scripts/direcoes.mjs`): falta dizer o subdomínio `workers.dev` da sua conta (`SUB_CONTA` em
+      `docs/acesso.mjs`, hoje `null`, o staging fica fechado) para o ensaio usar o staging com `BZ_BASE`; e, quando o projeto da Vercel for apagado, tirar `beyon0-site.vercel.app` de `HOSTS_VERCEL`
+      (o teste fica vermelho no PR que apaga o `vercel.json`);
+    - **a captação** (a pasta ao lado): `condicoes_versao` 2026-10-22, `restante_fora_do_ar_dias` 3 e `lembretes_restante` [2, 3] **já estão no `config/entrega.json`** (o verificador confere os três).
+      Falta o que só o código dela prova: material parado sem publicar e sem encerrar (nada de `sem_material`), o site sai do ar à 00:00 depois do 3º dia, `importar-site` (ou o passo manual que você
+      aceitar, usando o `enviado_em` do cliente como início do prazo), os valores da tabela normal e feriados só nacionais; e ela ler o `contato-do-site.json` que vem com a lista de ajustes;
+    - mesclar o PR da privacidade do 3b-2 (já está nesta base e o teste dela passa), `supabase/storage/material.sql` e `node scripts/conferir-armazem.mjs` (itens do 4c, ainda valem);
+    - a tabela ativa com `sinal_percentual: 40` (`npm run validar:regras`) e `PAINEL_CHAVE` + `BZ_BASE` na janela do seu terminal (nunca em arquivo);
+    - revisar pela voz humana os textos novos de 22/10 (contrato, `/condicoes`, tela, consultor e as mensagens prontas do painel), antes de promover a `/condicoes`;
+    - **rodar o ensaio completo** (Mercado Pago e Supabase de TESTE, uma entrada e um restante de teste), abrir os PNG a 390 e 320 px e, no aparelho real, foto HEIC do iPhone, "Mandar para mim",
+      "Pôr na minha agenda" e um Pix de verdade de R$ 1 no seu banco; só então `BZ_ENTREGA=ligada` nas variáveis do Worker;
+    - **o que o agente concluiu no 3b-3b e você confirma** (`docs/superpowers/plans/pr3b3b-notas.md`, seção 1; registrar em `01 Empresa/Decisões.md`): (1) entrada estornada ou contestada não abre o
+      restante; (2) "parado" recomeça a contar se o cliente mexer no material; (3) você avisa 30 dias antes de apagar o material parado há 6 meses, e sem o seu aviso nada é apagado;
+      (4) quem deu a autorização completa nunca é apagado nem avisado (e a `/privacidade` precisa dizer isso); (5) a prova da autorização do contato do site mora em tabela própria.
+      Ainda sem decisão: o beco do prazo vencido (aprovar no último dia e publicar no dia seguinte hoje só tem o caminho da devolução por atraso; não existe "nova data").
+    - **do 3b-3c, para o dono confirmar** (`docs/superpowers/plans/pr3b3c-notas.md`, desvios 12 a 14 e "Correções finais"): (1) as mensagens do painel dizem que o site sai do ar "à meia-noite, no fim do 3º dia" (a regra de 22/10); a tela do cliente não promete horário; (2) **o aviso "site no ar" de uma entrega `suspensa` merece destaque: a fila de avisos não mostra o passo, e a mensagem "O seu site está no ar!" seria errada, então confira o pedido antes de mandar**; (3) `previa-aprovar` na API passou a exigir `rodada_base` (B1); (4) o verificador `antes-de-ligar` agora recusa `connect-src` fora da lista, `unsafe-inline`/`unsafe-eval`/`*` no script e no estilo, e `BZ_ENTREGA` em workflow ou no Worker; (5) risco no CI: a mutação leva ~62 min neste PC e o `ci.yml` tem `timeout-minutes: 45`.
 5. Depois: `npm run verificar` com `BASE` de produção; site e `/orcamento` no celular sem digitar mensagem (nunca
    o `e2e:orcamento`).
 6. Rollback e migrations: na 1ª promoção, voltar atrás leva a `8103c99`, que não tem `api/` nem `supabase/`

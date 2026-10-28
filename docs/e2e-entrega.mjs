@@ -26,7 +26,7 @@ async function imagemGrande(page, cor) {
   }, cor);
   return Buffer.from(bytes);
 }
-const passosDe = page => page.$$eval('#o-ped-passos .orc-passo', l => l.map(x => x.className.replace('orc-passo ', '')));
+export const passosDe = page => page.$$eval('#o-ped-passos .orc-passo', l => l.map(x => x.className.replace('orc-passo ', '')));
 
 export async function passoDaEntrega(page, { ok, espera, foto, semRolagemLateral, perdeu = () => {}, forcar = () => {} }) {
   const browser = page.context().browser();

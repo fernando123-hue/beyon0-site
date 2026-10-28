@@ -105,6 +105,10 @@ body { font-size: 1rem; line-height: 1.55; background: var(--bg); color: var(--t
 /* o aviso com o link (PR 2b-2): o botão e, embaixo, o estado ("Gerando o link…", "Link pronto…"); o estado usa a largura toda do cartão */
 .pn__aviso { display: flex; flex-direction: column; align-items: flex-start; gap: .35rem; flex: 1 1 100%; }
 .pn__aviso > p { margin: 0; }
+/* a mensagem pronta (Task 11, 3b-3c): caixa só de leitura, na largura do cartão, sem sombra nem desfoque; o texto longo rola dentro dela */
+.pn__aviso-pronto { display: flex; flex-direction: column; align-items: stretch; gap: .75rem; width: 100%; min-width: 0; }
+.pn__aviso-pronto > p { margin: 0; }
+.pn__aviso-texto { width: 100%; box-sizing: border-box; max-width: 100%; padding: .75rem .9rem; background: var(--s1); color: var(--t1); border: 1px solid var(--stroke); border-radius: var(--raio-s); font-family: var(--sans); font-size: 1rem; line-height: 1.5; resize: none; }
 
 /* o pedido de modelos (PR 2a): o código é dado (mono); o selo avisa sem gritar; links das redes com alvo de toque de 44px.
    Texto que o dono precisa ler (número, selo, rótulo da busca, botões) com 16px; botões em frase normal. */
@@ -119,9 +123,9 @@ body { font-size: 1rem; line-height: 1.55; background: var(--bg); color: var(--t
 .pn__busca input::placeholder { text-transform: none; }
 .pn__fila-acoes .pn__btn, .pn__busca .pn__btn, #pendentes-atualizar { font-family: var(--sans); font-size: 1rem; letter-spacing: 0; text-transform: none; }
 .pn__fila-acoes .pn__btn { text-align: center; }
-#bloco-pendentes .pn__ajuda, #bloco-fila .pn__ajuda, #bloco-lembretes .pn__ajuda { font-size: 1rem; }
-#bloco-pendentes .pn__estado, #bloco-fila .pn__estado, #bloco-lembretes .pn__estado { font-family: var(--sans); font-size: 1rem; color: var(--t2); }
-#fila-atualizar, #lembretes-atualizar { font-family: var(--sans); font-size: 1rem; letter-spacing: 0; text-transform: none; }
+#bloco-pendentes .pn__ajuda, #bloco-fila .pn__ajuda, #bloco-lembretes .pn__ajuda, #bloco-avisos .pn__ajuda { font-size: 1rem; }
+#bloco-pendentes .pn__estado, #bloco-fila .pn__estado, #bloco-lembretes .pn__estado, #bloco-avisos .pn__estado { font-family: var(--sans); font-size: 1rem; color: var(--t2); }
+#fila-atualizar, #lembretes-atualizar, #avisos-atualizar { font-family: var(--sans); font-size: 1rem; letter-spacing: 0; text-transform: none; }
 /* na fila e nos pendentes, o que o dono lê para decidir vai em Sora de 16px; o mono fica só no código, no id e no comando */
 .pn__fila .pn__fila-meta { font-family: var(--sans); font-size: 1rem; letter-spacing: 0; color: var(--t2); }
 .pn__fila-id { font-family: var(--mono); font-size: 1rem; color: var(--t3); }

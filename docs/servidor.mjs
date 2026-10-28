@@ -27,7 +27,7 @@ const TIPOS = {
 /* /api/* como na Vercel: o arquivo api/<nome>.mjs exporta GET/POST(Request) e devolve um Response.
    Aqui o banco é o de memória (BZ_LOCAL=1, api/_banco.mjs); a chave do painel vem de PAINEL_CHAVE. */
 process.env.BZ_LOCAL = '1';
-process.env.BZ_ENTREGA = 'ligada';   /* (só no servidor local: o interruptor da entrega, api/_material/interruptor.mjs) */
+if (process.env.BZ_ENTREGA_LOCAL !== 'desligada') process.env.BZ_ENTREGA = 'ligada';   /* (só no servidor local: o interruptor da entrega, api/_material/interruptor.mjs; BZ_ENTREGA_LOCAL=desligada é a rodada do E2E sem a entrega) */
 delete process.env.SUPABASE_URL;    /* (teste local nunca grava no banco de produção) */
 delete process.env.SUPABASE_CHAVE_SECRETA;
 delete process.env.SUPABASE_CHAVE_PUBLICA;

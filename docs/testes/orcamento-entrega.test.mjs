@@ -138,3 +138,37 @@ test('B6 (revisão): pedido encerrado não vira "passo 2 agora"; B5: a falha pas
 test('copiar o link: se a área de transferência moderna recusar, cai para o copiar antigo (Task 19: o E2E headless não tem a permissão)', () => {
   assert.match(semComentario(FONTE), /writeText\(texto\)\.catch\(legado\)/);
 });
+
+test('as notas dos passos 3 e 4 por passo da entrega (3b-3c): "Previsão", nunca "Pronto até" (M2), com a entrega importada ou não', () => {
+  const m = { status: 'enviado', enviado_em: '2026-10-23T02:00:00+00:00' };
+  const nota = (passo, extra = {}, i = 2) => B.passos({ passo, entrega_ate: '2026-11-05', material: m, ...extra }, null)[i].nota;
+  assert.equal(nota('previa'), 'Esperando a sua resposta.', 'a seção da prévia já diz o resto: a nota do passo é curta');
+  assert.equal(nota('ajustes'), 'Lista recebida. Previsão: 5 de novembro.');
+  assert.equal(nota('ajustes', { entrega_ate: null }), 'Lista recebida.');
+  assert.equal(nota('aprovada'), 'Prévia aprovada.'); assert.equal(nota('aprovada', {}, 3), 'O próximo passo é pôr o site no ar.');
+  assert.equal(nota('no_ar', {}, 3), 'Seu site está no ar. Falta o restante.');
+  assert.equal(nota('suspensa', {}, 3), 'O restante não foi pago em 3 dias: o site saiu do ar até o pagamento.', 'sem o limite do servidor, o padrão de 3 dias');
+  assert.equal(nota('suspensa', { site: { limite_dias: 5 } }, 3), 'O restante não foi pago em 5 dias: o site saiu do ar até o pagamento.', 'o número é o do servidor (site.limite_dias), como na seção do passo 4');
+  assert.equal(nota('suspensa', { site: { limite_dias: 0 } }, 3), 'O restante não foi pago em 3 dias: o site saiu do ar até o pagamento.', 'limite inválido volta ao padrão');
+  assert.equal(nota('concluida', {}, 3), 'Pago. Pedido concluído.');
+  for (const importada of [true, false]) for (const passo of ['producao', 'previa', 'ajustes', 'aprovada', 'no_ar', 'suspensa', 'concluida']) {
+    const todas = B.passos({ passo, importada, entrega_ate: '2026-11-05', material: m }, null).map(p => p.nota).join(' | ');
+    assert.doesNotMatch(todas, /Pronto até/, passo + ' importada=' + importada);
+  }
+  assert.doesNotMatch(semComentario(FONTE), /Pronto até/, 'só "Previsão" até existir o importar-site da captação');
+});
+
+test('I1: o recibo de cima só promete o material enquanto o material é o próximo passo; da prévia em diante diz só "Entrada recebida."', () => {
+  const PADRAO = 'Entrada recebida. O próximo passo é mandar o material do seu site, aqui mesmo, logo abaixo.';
+  assert.ok(HTML.includes(PADRAO), 'a frase protegida segue no HTML');
+  for (const passo of ['material', 'producao']) assert.equal(B.leadDoRecibo(passo, PADRAO), PADRAO, passo + ': o próximo passo ainda é o material');
+  for (const passo of ['previa', 'ajustes', 'aprovada', 'no_ar', 'suspensa', 'concluida', 'encerrada']) assert.equal(B.leadDoRecibo(passo, PADRAO), 'Entrada recebida.', passo + ': o material já foi');
+  for (const semPasso of [undefined, null, '']) assert.equal(B.leadDoRecibo(semPasso, PADRAO), PADRAO, 'sem entrega: a frase de sempre');
+  assert.match(semComentario(FONTE), /lead\.textContent = leadDoRecibo\(e \? e\.passo : null, lead\.dataset\.padrao\)/, 'o atualizar troca o lead pelo passo da entrega');
+});
+
+test('o orcamento-entrega.js liga a tela da prévia (BZPreviaEntrega; BZPrevia é do desenho das direções) e esconde #o-previa quando a entrega some', () => {
+  const js = semComentario(FONTE);
+  assert.match(js, /window\.BZPreviaEntrega/); assert.doesNotMatch(js, /window\.BZPrevia\b(?!Entrega)/); assert.match(js, /prev\.atualizar\(E\)/);
+  assert.equal((js.match(/\$\('o-previa'\)\.hidden = true/g) || []).length, 2, 'os dois return antecipados (interruptor desligado e sem entrega pronta)');
+});

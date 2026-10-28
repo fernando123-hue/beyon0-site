@@ -1,0 +1,32 @@
+/* A PRÉVIA (PR 3b-3, passo 3). Celular primeiro (390 px); botões e campos de 44 px; texto de 16 px; nada mais largo que a tela.
+   Sem desfoque, sem sombra, sem brilho. O fundo do <dialog> (css/orcamento.css) só escurece. Mono só no rótulo. */
+.orc-previa__rotulo { margin-bottom: .5rem; font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-dado); text-transform: uppercase; color: var(--t3); }
+.orc-previa__acoes { display: flex; flex-direction: column; gap: .75rem; margin: 1rem 0; }
+.orc-previa__acoes .btn { min-height: 44px; width: 100%; justify-content: center; font-family: var(--sans); font-size: var(--fs-b); text-transform: none; letter-spacing: normal; }
+.orc-previa .orc-nota { margin-top: 0; font-size: var(--fs-b); line-height: 1.5; color: var(--t2); }
+.orc-previa .orc-erro { min-height: 0; margin-top: .75rem; font-size: var(--fs-b); line-height: 1.5; }   /* (o tom é o do .orc-erro de orcamento.css) */
+.orc-previa .orc-erro:empty { margin: 0; }   /* (a região role="alert" fica na página, vazia: o leitor anuncia o 1º erro) */
+.orc-previa__form { display: grid; gap: .75rem; margin-top: 1rem; min-width: 0; }
+.orc-previa__form > .orc-erro:empty { margin-bottom: -.75rem; }   /* (dentro do grid, o vão de baixo de um item vazio é desfeito) */
+.orc-previa .orc-previa__form label:not(.orc-check) { margin-top: 0; font-size: var(--fs-b); line-height: 1.4; color: var(--t1); }   /* (vence o .orc-form label de 14 px do orcamento.css) */
+.orc-previa textarea { width: 100%; box-sizing: border-box; min-height: 9rem; padding: .75rem; font-family: var(--sans); font-size: var(--fs-b); line-height: 1.5; color: var(--t1); background: var(--bg); border: 1px solid var(--stroke); border-radius: var(--raio); resize: vertical; }
+.orc-previa__contato { display: grid; gap: .5rem; min-width: 0; margin: 0; padding: .75rem; border: 1px solid var(--line-2); border-radius: var(--raio); }
+.orc-previa__contato legend { padding: 0 .25rem; font-size: var(--fs-b); color: var(--t1); }
+.orc-previa input[type="tel"], .orc-previa input[type="email"] { width: 100%; box-sizing: border-box; min-height: 44px; padding: .5rem .75rem; font-family: var(--sans); font-size: var(--fs-b); color: var(--t1); background: var(--bg); border: 1px solid var(--stroke); border-radius: var(--raio); }
+.orc-previa textarea:focus-visible, .orc-previa input:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
+.orc-previa__aut { display: flex; gap: .75rem; align-items: flex-start; min-height: 44px; }
+.orc-previa .orc-previa__aut input { flex: none; width: 24px; min-height: 0; height: 24px; margin-top: .25rem; padding: 0; accent-color: var(--ac); }   /* (o .orc-form input geral é largo e alto: aqui é só o quadrinho; o alvo de 44 px é o rótulo inteiro) */
+.orc-previa__aut span { min-width: 0; overflow-wrap: anywhere; }
+.orc-dialogo .orc-previa__acoes { margin-bottom: 0; }
+@media (min-width: 640px) { .orc-previa__acoes { flex-direction: row; } .orc-previa__acoes .btn { width: auto; } }
+
+/* O PASSO 4 (PR 3b-3): o site no ar, o Pix do restante, o pedido concluído e o encerrado. Mesmas regras: celular primeiro, texto de 16 px, sem desfoque nem sombra. */
+.orc-noar .orc-nota, .orc-fim .orc-nota { margin-top: 0; font-size: var(--fs-b); line-height: 1.5; color: var(--t2); }
+.orc-noar__endereco { margin: .5rem 0; font-family: var(--mono); font-size: var(--fs-b); line-height: 1.4; color: var(--ac); overflow-wrap: anywhere; }   /* (dado: mono e ciano; quebra em linha no celular) */
+.orc-noar__endereco:empty { display: none; }
+.orc-fim .recibo__partes { margin-top: 1rem; }
+.orc-fim .recibo__valor { font-size: 1.25rem; }
+.orc-fim .recibo__total { font-size: var(--fs-b); }
+/* o Pix do restante é o componente da entrada: o que só serve antes da entrada sai, e o aviso de "indisponível" tem o WhatsApp de cada momento */
+#o-pagamento.is-restante .orc-so-entrada { display: none; }
+#o-pagamento:not(.is-restante) .orc-so-restante { display: none; }

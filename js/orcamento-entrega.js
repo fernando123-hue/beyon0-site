@@ -15,6 +15,8 @@
   var FUSO = 'America/Campo_Grande';
   var INDICE = { material: 2, producao: 3, previa: 3, ajustes: 3, aprovada: 4, no_ar: 4, suspensa: 4, concluida: 5, encerrada: 0 };
   var NOMES = ['Entrada paga', 'Seu material', 'Prévia do site', 'No ar e o restante'];
+  var LIMITE_PADRAO = 3;   /* os dias do restante; o servidor manda o seu em site.limite_dias (como em js/orcamento-restante.js) */
+  var LEAD_DEPOIS_DO_MATERIAL = 'Entrada recebida.';
   var $ = function (id) { return document.getElementById(id); };
 
   /* "5 de novembro": o dia vem pronto do servidor (AAAA-MM-DD); o fuso do aparelho não entra */
@@ -40,6 +42,12 @@
     return o.linkPedido ? 'gerar' : 'nenhum';
   }
 
+  /* I1 (revisão final): o lead do recibo de cima (a frase do HTML, a protegida) fala do próximo passo; "mandar o material, logo abaixo" só vale enquanto o material é o próximo passo.
+     Da prévia em diante o recibo diz só "Entrada recebida."; sem entrega (passo ausente), a frase de sempre */
+  function leadDoRecibo(passo, padrao) {
+    return !passo || passo === 'material' || passo === 'producao' ? padrao : LEAD_DEPOIS_DO_MATERIAL;
+  }
+
   /* A1 (revisão): o material "aqui mesmo" só é prometido antes do pagamento quando o servidor diz que a entrega está ligada */
   function promessasVisiveis(E) { return !!E && E.entrega_ligada === true; }
   var PROMESSAS = ['o-antes-passos', 'o-faq-fotos', 'o-atalho-fotos', 'o-faq-restante', 'o-atalho-restante'];
@@ -48,10 +56,19 @@
     var atual = Object.prototype.hasOwnProperty.call(INDICE, e.passo) ? INDICE[e.passo] : 2, v = valores || {};   /* (encerrada = 0: nenhum passo "agora") */
     var enviado = e.material && e.material.enviado_em ? dataPorExtenso(diaDoInstante(e.material.enviado_em)) : '';
     var previsao = e.entrega_ate ? dataPorExtenso(e.entrega_ate) : '';
+    /* M2: sempre "Previsão", nunca "Pronto até": a data é a do servidor, e a da captação ainda sai depois da que a produção segue (ver o plano da 3b-3, Task 13) */
+    var notaDaPrevia = {
+      producao: previsao ? 'Previsão do seu site: ' + previsao + '. Você vê a prévia aqui mesmo.' : 'Estamos preparando o seu site. Você vê a prévia aqui mesmo.',
+      previa: 'Esperando a sua resposta.',   /* (a seção da prévia, logo abaixo, já diz o resto) */
+      ajustes: 'Lista recebida.' + (previsao ? ' Previsão: ' + previsao + '.' : '')
+    };
+    var limite = Number(e.site && e.site.limite_dias) || LIMITE_PADRAO;
+    var notaDoNoAr = { aprovada: 'O próximo passo é pôr o site no ar.', no_ar: 'Seu site está no ar. Falta o restante.',
+      suspensa: 'O restante não foi pago em ' + limite + ' dias: o site saiu do ar até o pagamento.', concluida: 'Pago. Pedido concluído.' };
     var notas = ['',
       atual === 2 ? 'O prazo começa quando você enviar.' : 'Enviado' + (enviado ? ' em ' + enviado : '') + '.',
-      atual === 3 ? (previsao ? 'Previsão do seu site: ' + previsao + '. Você vê a prévia aqui mesmo.' : 'Estamos preparando o seu site. Você vê a prévia aqui mesmo.') : '',
-      ''];
+      atual === 3 ? (notaDaPrevia[e.passo] || '') : atual > 3 ? 'Prévia aprovada.' : '',
+      notaDoNoAr[e.passo] || ''];
     return NOMES.map(function (nome, i) {
       var n = i + 1;
       return { n: n, nome: nome, estado: n < atual ? 'feito' : n === atual ? 'agora' : 'depois', nota: notas[i],
@@ -72,7 +89,8 @@
 
   function criar(o) {
     var API = o.API, dinheiro = o.dinheiro;
-    var falhasLink = 0, codigo = null, pedindo = false, tentou = false, guardado = false, confirmando = null, jaTem = false, conversaId = null, marcaLida = false;
+    var falhasLink = 0, codigo = null, pedindo = false, tentou = false, guardado = false, confirmando = null, jaTem = false, conversaId = null, marcaLida = false, prev = null;
+    var rest = window.BZRestante ? window.BZRestante.criar({ dinheiro: dinheiro, telaPagamento: o.telaPagamento }) : null;   /* (3b-3c) o passo 4: o site no ar, o Pix do restante, o fim */
     var anunciar = function (t) { $('o-link-aviso').textContent = t; };
     /* "este aparelho já guardou o link" (M4): só a id da conversa no localStorage; sem armazenamento, o cartão aparece (no pior caso, a pessoa gera outro) */
     function lerMarca() { try { return localStorage.getItem(CHAVE_GUARDADO) === conversaId; } catch (e) { return false; } }
@@ -196,12 +214,13 @@
       var lead = document.querySelector('#o-recibo .recibo__lead');
       if (lead && !lead.dataset.padrao) lead.dataset.padrao = lead.textContent;
       if (E.entrega_ligada === false && E.conversa.etapa === 'em_producao') {
-        $('o-pedido').hidden = true; $('o-material').hidden = true;
+        $('o-pedido').hidden = true; $('o-material').hidden = true; $('o-previa').hidden = true; $('o-noar').hidden = true; $('o-fim').hidden = true;
         if (lead) lead.textContent = FRASE_DESLIGADA;
         return;
       }
-      if (lead && lead.dataset.padrao) lead.textContent = lead.dataset.padrao;
-      if (!pronto) { $('o-pedido').hidden = true; $('o-material').hidden = true; return; }
+      if (lead && lead.dataset.padrao) lead.textContent = leadDoRecibo(e ? e.passo : null, lead.dataset.padrao);
+      var terminou = rest ? rest.atualizar(E) : false;   /* (o site no ar e o Pix do restante, ou o pedido concluído/encerrado: ela mesma esconde o que não é da etapa) */
+      if (terminou || !pronto) { $('o-pedido').hidden = true; $('o-material').hidden = true; $('o-previa').hidden = true; return; }
       jaTem = !!e.link_pedido; conversaId = E.conversa.id;
       if (!marcaLida) { marcaLida = true; guardado = lerMarca(); }
       $('o-pedido').hidden = false;
@@ -212,6 +231,8 @@
       garantirLink(E);
       mostrarCartao();
       if (window.BZMaterial) window.BZMaterial.atualizar(E);
+      if (window.BZPreviaEntrega && !prev) prev = window.BZPreviaEntrega.criar({ API: API });   /* (3b-3c) o passo 3: ver, aprovar, mandar a lista de ajustes */
+      if (prev) prev.atualizar(E);
     }
     /* os passos ANTES de pagar (Task 17): a entrada e o restante saem da proposta, nunca de um número escrito à mão */
     function preencherAntes(E) {
@@ -226,6 +247,6 @@
     return { atualizar: atualizar };
   }
 
-  window.BZEntrega = { criar: criar, passos: passos, dataPorExtenso: dataPorExtenso, diaDoInstante: diaDoInstante, arquivoCalendario: arquivoCalendario, linkDoPedido: linkDoPedido,
+  window.BZEntrega = { criar: criar, passos: passos, leadDoRecibo: leadDoRecibo, dataPorExtenso: dataPorExtenso, diaDoInstante: diaDoInstante, arquivoCalendario: arquivoCalendario, linkDoPedido: linkDoPedido,
     modoDoCartao: modoDoCartao, promessasVisiveis: promessasVisiveis, FRASE_DESLIGADA: FRASE_DESLIGADA };
 })();
