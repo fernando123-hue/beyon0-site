@@ -549,7 +549,7 @@
   /* ---------- pagamento do sinal (js/orcamento-pagamento.js: Pix e cartão no próprio site) ---------- */
   var telaPagamento = window.BZPagamentoTela ? window.BZPagamentoTela.criar({ API: API, dinheiro: dinheiro, aoPagar: function () { recarregar().catch(function () {}); } }) : null;
   var recibo = window.BZRecibo ? window.BZRecibo.criar({ API: API, dinheiro: dinheiro }) : null;
-  var entrega = window.BZEntrega ? window.BZEntrega.criar({ API: API, dinheiro: dinheiro }) : null;   /* (PR 3b-2: Seu pedido e o material) */
+  var entrega = window.BZEntrega ? window.BZEntrega.criar({ API: API, dinheiro: dinheiro, telaPagamento: telaPagamento }) : null;   /* (PR 3b-2: Seu pedido e o material) */
   window.BZMaterialRecarregar = recarregar;
   var viuAguardando = false;   /* a etapa "aguardando pagamento" foi vista nesta tela: a confirmação chega ao vivo e o recibo anima */
   function dias(n) { return n + (Number(n) === 1 ? ' dia útil' : ' dias úteis'); }   /* (úteis: decisão do dono de 21/10; é o que o escopo diz) */
@@ -585,13 +585,14 @@
   /* ---------- o estado manda na tela ---------- */
   function passoAtual() {
     var et = E.conversa.etapa;
-    if (et === 'aguardando_pagamento' || et === 'em_producao') return 'pagamento';
+    if (et === 'aguardando_pagamento' || et === 'em_producao' || (et === 'encerrada' && E.entrega)) return 'pagamento';   /* (a barra do topo não volta atrás depois do pedido concluído ou encerrado) */
     if (et === 'escopo') return 'escopo';
     if (et === 'escolhida' || et === 'alteracoes') return 'ajustes';
     if (et === 'gerando' || et === 'direcoes' || E.conversa.tem_contato) return 'direcoes';
     if (E.estimativa) return 'estimativa';
     return 'conversa';
   }
+  function restanteAberto() { return !!E.entrega && (E.entrega.passo === 'no_ar' || E.entrega.passo === 'suspensa'); }
   function etapas() {
     var atual = E ? passoAtual() : 'conversa', passou = true;
     if (precoNaTela && atual === 'conversa') atual = 'estimativa';   /* (o preço das perguntas já está na tela, ainda sem gravar) */
@@ -692,7 +693,7 @@
     var pronto = et === 'em_producao', chegou = pronto && $('o-pronto').hidden && viuAguardando;
     mostrar('o-pronto', pronto);
     if (pronto) {
-      vigia.parar(); if (telaPagamento) telaPagamento.parar();
+      vigia.parar(); if (telaPagamento && !restanteAberto()) telaPagamento.parar();   /* (com o restante a pagar, o Pix é o mesmo e segue esperando) */
       var pr = E.proposta;
       /* (revisão do 3b-1) sem a entrada conhecida, o recibo não mostra valores (nada de "0%"): só o selo e o título */
       if (recibo) recibo.desenhar(pr && PIX ? PIX.dadosDoRecibo(pr, valorDoSinal(pr)) : null, chegou);
@@ -739,7 +740,7 @@
     if (!API.temSessao()) { iniciarPerguntas(); return; }   /* (primeira visita: as perguntas; a sessão nasce no "Ver o preço") */
     try {
       await recarregar();   /* (o render desenha a conversa salva) */
-      var BLOCOS = { direcoes: 'o-direcoes', ajustes: 'o-ajustes', escopo: 'o-escopo', pagamento: E.conversa.etapa === 'em_producao' ? 'o-pronto' : 'o-pagamento' };
+      var BLOCOS = { direcoes: 'o-direcoes', ajustes: 'o-ajustes', escopo: 'o-escopo', pagamento: E.conversa.etapa === 'em_producao' ? 'o-pronto' : E.conversa.etapa === 'encerrada' && E.entrega ? 'o-fim' : 'o-pagamento' };
       var alvo = BLOCOS[passoAtual()];
       if (alvo && !$(alvo).hidden) { rolarAte($(alvo)); if (window.BZRetomada) window.BZRetomada.focar($(alvo)); }   /* quem volta cai na etapa em que parou */
     } catch (e) {

@@ -19,3 +19,14 @@
 .orc-previa__aut span { min-width: 0; overflow-wrap: anywhere; }
 .orc-dialogo .orc-previa__acoes { margin-bottom: 0; }
 @media (min-width: 640px) { .orc-previa__acoes { flex-direction: row; } .orc-previa__acoes .btn { width: auto; } }
+
+/* O PASSO 4 (PR 3b-3): o site no ar, o Pix do restante, o pedido concluído e o encerrado. Mesmas regras: celular primeiro, texto de 16 px, sem desfoque nem sombra. */
+.orc-noar .orc-nota, .orc-fim .orc-nota { margin-top: 0; font-size: var(--fs-b); line-height: 1.5; color: var(--t2); }
+.orc-noar__endereco { margin: .5rem 0; font-family: var(--mono); font-size: var(--fs-b); line-height: 1.4; color: var(--ac); overflow-wrap: anywhere; }   /* (dado: mono e ciano; quebra em linha no celular) */
+.orc-noar__endereco:empty { display: none; }
+.orc-fim .recibo__partes { margin-top: 1rem; }
+.orc-fim .recibo__valor { font-size: 1.25rem; }
+.orc-fim .recibo__total { font-size: var(--fs-b); }
+/* o Pix do restante é o componente da entrada: o que só serve antes da entrada sai, e o aviso de "indisponível" tem o WhatsApp de cada momento */
+#o-pagamento.is-restante .orc-so-entrada { display: none; }
+#o-pagamento:not(.is-restante) .orc-so-restante { display: none; }

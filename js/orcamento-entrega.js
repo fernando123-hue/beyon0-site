@@ -81,6 +81,7 @@
   function criar(o) {
     var API = o.API, dinheiro = o.dinheiro;
     var falhasLink = 0, codigo = null, pedindo = false, tentou = false, guardado = false, confirmando = null, jaTem = false, conversaId = null, marcaLida = false, prev = null;
+    var rest = window.BZRestante ? window.BZRestante.criar({ dinheiro: dinheiro, telaPagamento: o.telaPagamento }) : null;   /* (3b-3c) o passo 4: o site no ar, o Pix do restante, o fim */
     var anunciar = function (t) { $('o-link-aviso').textContent = t; };
     /* "este aparelho já guardou o link" (M4): só a id da conversa no localStorage; sem armazenamento, o cartão aparece (no pior caso, a pessoa gera outro) */
     function lerMarca() { try { return localStorage.getItem(CHAVE_GUARDADO) === conversaId; } catch (e) { return false; } }
@@ -204,12 +205,13 @@
       var lead = document.querySelector('#o-recibo .recibo__lead');
       if (lead && !lead.dataset.padrao) lead.dataset.padrao = lead.textContent;
       if (E.entrega_ligada === false && E.conversa.etapa === 'em_producao') {
-        $('o-pedido').hidden = true; $('o-material').hidden = true; $('o-previa').hidden = true;
+        $('o-pedido').hidden = true; $('o-material').hidden = true; $('o-previa').hidden = true; $('o-noar').hidden = true; $('o-fim').hidden = true;
         if (lead) lead.textContent = FRASE_DESLIGADA;
         return;
       }
       if (lead && lead.dataset.padrao) lead.textContent = lead.dataset.padrao;
-      if (!pronto) { $('o-pedido').hidden = true; $('o-material').hidden = true; $('o-previa').hidden = true; return; }
+      var terminou = rest ? rest.atualizar(E) : false;   /* (o site no ar e o Pix do restante, ou o pedido concluído/encerrado: ela mesma esconde o que não é da etapa) */
+      if (terminou || !pronto) { $('o-pedido').hidden = true; $('o-material').hidden = true; $('o-previa').hidden = true; return; }
       jaTem = !!e.link_pedido; conversaId = E.conversa.id;
       if (!marcaLida) { marcaLida = true; guardado = lerMarca(); }
       $('o-pedido').hidden = false;
