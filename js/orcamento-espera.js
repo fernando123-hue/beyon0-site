@@ -42,7 +42,8 @@
       if (document.hidden || !E || !p.temSessao()) return;
       desistiu = false;
       var esperandoConfirmacao = !!(E.pedido && E.pedido.status === 'aguardando');
-      if (E.conversa.etapa === 'gerando' || E.conversa.etapa === 'aguardando_pagamento' || esperandoConfirmacao) p.recarregar().catch(function () {});
+      /* (3b-3c) em produção, quem volta do WhatsApp com o aviso vê a prévia nova sem recarregar: uma leitura ao voltar, sem relógio */
+      if (E.conversa.etapa === 'gerando' || E.conversa.etapa === 'aguardando_pagamento' || E.conversa.etapa === 'em_producao' || esperandoConfirmacao) p.recarregar().catch(function () {});
     });
     return { esperar: esperar, parar: parar, desistiu: function () { return desistiu; } };
   }

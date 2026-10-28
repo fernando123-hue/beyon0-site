@@ -48,10 +48,18 @@
     var atual = Object.prototype.hasOwnProperty.call(INDICE, e.passo) ? INDICE[e.passo] : 2, v = valores || {};   /* (encerrada = 0: nenhum passo "agora") */
     var enviado = e.material && e.material.enviado_em ? dataPorExtenso(diaDoInstante(e.material.enviado_em)) : '';
     var previsao = e.entrega_ate ? dataPorExtenso(e.entrega_ate) : '';
+    /* M2: sempre "Previsão", nunca "Pronto até": a data é a do servidor, e a da captação ainda sai depois da que a produção segue (ver o plano da 3b-3, Task 13) */
+    var notaDaPrevia = {
+      producao: previsao ? 'Previsão do seu site: ' + previsao + '. Você vê a prévia aqui mesmo.' : 'Estamos preparando o seu site. Você vê a prévia aqui mesmo.',
+      previa: 'Sua prévia está pronta. Seu site só segue depois da sua resposta.',
+      ajustes: 'Recebemos a sua lista. A nova prévia aparece aqui.' + (previsao ? ' Previsão: ' + previsao + '.' : '')
+    };
+    var notaDoNoAr = { aprovada: 'O próximo passo é pôr o site no ar.', no_ar: 'Seu site está no ar. Falta o restante.',
+      suspensa: 'O restante não foi pago em 3 dias: o site saiu do ar até o pagamento.', concluida: 'Pago. Pedido concluído.' };
     var notas = ['',
       atual === 2 ? 'O prazo começa quando você enviar.' : 'Enviado' + (enviado ? ' em ' + enviado : '') + '.',
-      atual === 3 ? (previsao ? 'Previsão do seu site: ' + previsao + '. Você vê a prévia aqui mesmo.' : 'Estamos preparando o seu site. Você vê a prévia aqui mesmo.') : '',
-      ''];
+      atual === 3 ? (notaDaPrevia[e.passo] || '') : atual > 3 ? 'Prévia aprovada.' : '',
+      notaDoNoAr[e.passo] || ''];
     return NOMES.map(function (nome, i) {
       var n = i + 1;
       return { n: n, nome: nome, estado: n < atual ? 'feito' : n === atual ? 'agora' : 'depois', nota: notas[i],
@@ -72,7 +80,7 @@
 
   function criar(o) {
     var API = o.API, dinheiro = o.dinheiro;
-    var falhasLink = 0, codigo = null, pedindo = false, tentou = false, guardado = false, confirmando = null, jaTem = false, conversaId = null, marcaLida = false;
+    var falhasLink = 0, codigo = null, pedindo = false, tentou = false, guardado = false, confirmando = null, jaTem = false, conversaId = null, marcaLida = false, prev = null;
     var anunciar = function (t) { $('o-link-aviso').textContent = t; };
     /* "este aparelho já guardou o link" (M4): só a id da conversa no localStorage; sem armazenamento, o cartão aparece (no pior caso, a pessoa gera outro) */
     function lerMarca() { try { return localStorage.getItem(CHAVE_GUARDADO) === conversaId; } catch (e) { return false; } }
@@ -196,12 +204,12 @@
       var lead = document.querySelector('#o-recibo .recibo__lead');
       if (lead && !lead.dataset.padrao) lead.dataset.padrao = lead.textContent;
       if (E.entrega_ligada === false && E.conversa.etapa === 'em_producao') {
-        $('o-pedido').hidden = true; $('o-material').hidden = true;
+        $('o-pedido').hidden = true; $('o-material').hidden = true; $('o-previa').hidden = true;
         if (lead) lead.textContent = FRASE_DESLIGADA;
         return;
       }
       if (lead && lead.dataset.padrao) lead.textContent = lead.dataset.padrao;
-      if (!pronto) { $('o-pedido').hidden = true; $('o-material').hidden = true; return; }
+      if (!pronto) { $('o-pedido').hidden = true; $('o-material').hidden = true; $('o-previa').hidden = true; return; }
       jaTem = !!e.link_pedido; conversaId = E.conversa.id;
       if (!marcaLida) { marcaLida = true; guardado = lerMarca(); }
       $('o-pedido').hidden = false;
@@ -212,6 +220,8 @@
       garantirLink(E);
       mostrarCartao();
       if (window.BZMaterial) window.BZMaterial.atualizar(E);
+      if (window.BZPrevia && !prev) prev = window.BZPrevia.criar({ API: API });   /* (3b-3c) o passo 3: ver, aprovar, mandar a lista de ajustes */
+      if (prev) prev.atualizar(E);
     }
     /* os passos ANTES de pagar (Task 17): a entrada e o restante saem da proposta, nunca de um número escrito à mão */
     function preencherAntes(E) {

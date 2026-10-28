@@ -138,3 +138,26 @@ test('B6 (revisão): pedido encerrado não vira "passo 2 agora"; B5: a falha pas
 test('copiar o link: se a área de transferência moderna recusar, cai para o copiar antigo (Task 19: o E2E headless não tem a permissão)', () => {
   assert.match(semComentario(FONTE), /writeText\(texto\)\.catch\(legado\)/);
 });
+
+test('as notas dos passos 3 e 4 por passo da entrega (3b-3c): "Previsão", nunca "Pronto até" (M2), com a entrega importada ou não', () => {
+  const m = { status: 'enviado', enviado_em: '2026-10-23T02:00:00+00:00' };
+  const nota = (passo, extra = {}, i = 2) => B.passos({ passo, entrega_ate: '2026-11-05', material: m, ...extra }, null)[i].nota;
+  assert.equal(nota('previa'), 'Sua prévia está pronta. Seu site só segue depois da sua resposta.');
+  assert.equal(nota('ajustes'), 'Recebemos a sua lista. A nova prévia aparece aqui. Previsão: 5 de novembro.');
+  assert.equal(nota('ajustes', { entrega_ate: null }), 'Recebemos a sua lista. A nova prévia aparece aqui.');
+  assert.equal(nota('aprovada'), 'Prévia aprovada.'); assert.equal(nota('aprovada', {}, 3), 'O próximo passo é pôr o site no ar.');
+  assert.equal(nota('no_ar', {}, 3), 'Seu site está no ar. Falta o restante.');
+  assert.equal(nota('suspensa', {}, 3), 'O restante não foi pago em 3 dias: o site saiu do ar até o pagamento.');
+  assert.equal(nota('concluida', {}, 3), 'Pago. Pedido concluído.');
+  for (const importada of [true, false]) for (const passo of ['producao', 'previa', 'ajustes', 'aprovada', 'no_ar', 'suspensa', 'concluida']) {
+    const todas = B.passos({ passo, importada, entrega_ate: '2026-11-05', material: m }, null).map(p => p.nota).join(' | ');
+    assert.doesNotMatch(todas, /Pronto até/, passo + ' importada=' + importada);
+  }
+  assert.doesNotMatch(semComentario(FONTE), /Pronto até/, 'só "Previsão" até existir o importar-site da captação');
+});
+
+test('o orcamento-entrega.js liga a prévia (BZPrevia) e esconde #o-previa e #o-noar quando a entrega some', () => {
+  const js = semComentario(FONTE);
+  assert.match(js, /window\.BZPrevia/); assert.match(js, /prev\.atualizar\(E\)/);
+  assert.equal((js.match(/\$\('o-previa'\)\.hidden = true/g) || []).length, 2, 'os dois return antecipados (interruptor desligado e sem entrega pronta)');
+});

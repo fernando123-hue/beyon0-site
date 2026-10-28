@@ -1,0 +1,21 @@
+/* A PRÉVIA (PR 3b-3, passo 3). Celular primeiro (390 px); botões e campos de 44 px; texto de 16 px; nada mais largo que a tela.
+   Sem desfoque, sem sombra, sem brilho. O fundo do <dialog> (css/orcamento.css) só escurece. Mono só no rótulo. */
+.orc-previa__rotulo { margin-bottom: .5rem; font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-dado); text-transform: uppercase; color: var(--t3); }
+.orc-previa__acoes { display: flex; flex-direction: column; gap: .75rem; margin: 1rem 0; }
+.orc-previa__acoes .btn { min-height: 44px; width: 100%; justify-content: center; font-family: var(--sans); font-size: var(--fs-b); text-transform: none; letter-spacing: normal; }
+.orc-previa .orc-nota, .orc-previa .orc-erro { margin-top: 0; font-size: var(--fs-b); line-height: 1.5; color: var(--t2); }
+.orc-previa .orc-erro { min-height: 0; color: var(--t1); }
+.orc-previa .orc-previa__form .orc-erro { margin-top: .25rem; }
+.orc-previa .orc-erro:empty { display: none; }
+.orc-previa__form { display: grid; gap: .75rem; margin-top: 1rem; min-width: 0; }
+.orc-previa .orc-previa__form label:not(.orc-check) { margin-top: 0; font-size: var(--fs-b); line-height: 1.4; color: var(--t1); }   /* (vence o .orc-form label de 14 px do orcamento.css) */
+.orc-previa textarea { width: 100%; box-sizing: border-box; min-height: 9rem; padding: .75rem; font-family: var(--sans); font-size: var(--fs-b); line-height: 1.5; color: var(--t1); background: var(--bg); border: 1px solid var(--stroke); border-radius: var(--raio); resize: vertical; }
+.orc-previa__contato { display: grid; gap: .5rem; min-width: 0; margin: 0; padding: .75rem; border: 1px solid var(--line-2); border-radius: var(--raio); }
+.orc-previa__contato legend { padding: 0 .25rem; font-size: var(--fs-b); color: var(--t1); }
+.orc-previa input[type="tel"], .orc-previa input[type="email"] { width: 100%; box-sizing: border-box; min-height: 44px; padding: .5rem .75rem; font-family: var(--sans); font-size: var(--fs-b); color: var(--t1); background: var(--bg); border: 1px solid var(--stroke); border-radius: var(--raio); }
+.orc-previa textarea:focus-visible, .orc-previa input:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
+.orc-previa__aut { display: flex; gap: .75rem; align-items: flex-start; min-height: 44px; }
+.orc-previa .orc-previa__aut input { flex: none; width: 24px; min-height: 0; height: 24px; margin-top: .25rem; padding: 0; accent-color: var(--ac); }   /* (o .orc-form input geral é largo e alto: aqui é só o quadrinho; o alvo de 44 px é o rótulo inteiro) */
+.orc-previa__aut span { min-width: 0; overflow-wrap: anywhere; }
+.orc-dialogo .orc-previa__acoes { margin-bottom: 0; }
+@media (min-width: 640px) { .orc-previa__acoes { flex-direction: row; } .orc-previa__acoes .btn { width: auto; } }

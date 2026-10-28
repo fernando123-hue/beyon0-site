@@ -36,6 +36,7 @@
   <link rel="stylesheet" href="css/base.css" />
   <link rel="stylesheet" href="css/orcamento.css" />
   <link rel="stylesheet" href="css/orcamento-entrega.css" />
+  <link rel="stylesheet" href="css/orcamento-previa.css" />
   <link rel="stylesheet" href="css/previa.css" />
   <link rel="stylesheet" href="css/passagem.css" />
   <link rel="stylesheet" href="css/passagem-destinos.css" />
@@ -579,6 +580,50 @@
       <h2 id="o-mat-titulo" tabindex="-1">Seu material</h2>
       <div id="o-mat-corpo"></div>
     </section>
+    <!-- A PRÉVIA (PR 3b-3, js/orcamento-previa.js): passo 3. Aprovar ou mandar até 2 listas de ajuste; sem resposta, o projeto PARA (D5). Nasce escondida: só aparece com a entrega em prévia -->
+    <section class="orc-bloco orc-previa" id="o-previa" aria-labelledby="o-prv-titulo" hidden>
+      <p class="orc-previa__rotulo">Passo 3 de 4 · Sua prévia</p>
+      <h2 id="o-prv-titulo" tabindex="-1"></h2>
+      <p class="orc-bloco__lead" id="o-prv-texto"></p>
+      <div class="orc-previa__acoes" id="o-prv-ver-acoes" hidden><a class="btn btn--primary" id="o-prv-ver" target="_blank" rel="noopener noreferrer" href="#">Ver a prévia<span class="sr-only"> (abre em nova aba)</span></a></div>
+      <div class="orc-previa__acoes" id="o-prv-botoes" hidden>
+        <button class="btn btn--primary" type="button" id="o-prv-aprovar">Está bom: aprovar</button>
+        <button class="btn btn--ghost" type="button" id="o-prv-ajustes">Quero ajustes</button>
+      </div>
+      <p class="orc-nota" id="o-prv-sem-listas" hidden>Você já usou as duas listas de ajuste. O que passar disso é orçado à parte.</p>
+      <p class="orc-erro" id="o-prv-erro" role="alert"></p>
+      <form class="orc-form orc-previa__form" id="o-prv-form" novalidate hidden>
+        <label for="o-prv-lista">Escreva tudo de uma vez</label>
+        <p class="orc-nota" id="o-prv-lista-n"></p>
+        <textarea id="o-prv-lista" rows="7" maxlength="1500" aria-describedby="o-prv-lista-n o-prv-prazo o-prv-aviso o-prv-apaga o-prv-contador"></textarea>
+        <p class="orc-nota" id="o-prv-contador"></p>
+        <p class="orc-nota" id="o-prv-prazo">Enquanto espero a sua lista de ajustes, o prazo fica parado.</p>
+        <p class="orc-nota" id="o-prv-aviso">Não escreva CPF, CNPJ nem dados de outras pessoas.</p>
+        <p class="orc-nota" id="o-prv-apaga">Telefone e e-mail escritos aqui são apagados. Para trocar os do site, use os campos abaixo.</p>
+        <!-- M3 (22/10): o telefone e o e-mail do site em campos PRÓPRIOS, conferidos aqui, no servidor e no banco; a mesma autorização de uso do material -->
+        <fieldset class="orc-previa__contato" id="o-prv-contato">
+          <legend>Trocar o telefone ou o e-mail do site (se quiser)</legend>
+          <p class="orc-nota" id="o-prv-contato-nota">Só se mudaram. Ficam guardados à parte da lista.</p>
+          <label for="o-prv-wa">WhatsApp ou telefone do site</label>
+          <input id="o-prv-wa" type="tel" inputmode="tel" autocomplete="off" maxlength="30" aria-describedby="o-prv-contato-nota o-prv-wa-ex">
+          <p class="orc-nota" id="o-prv-wa-ex">Com DDD. Exemplo: (21) 99999-0001.</p>
+          <label for="o-prv-email">E-mail do site</label>
+          <input id="o-prv-email" type="email" inputmode="email" autocomplete="off" maxlength="120" aria-describedby="o-prv-contato-nota">
+          <label class="orc-previa__aut" for="o-prv-autoriza"><input id="o-prv-autoriza" type="checkbox"><span id="o-prv-autoriza-texto"></span></label>
+        </fieldset>
+        <p class="orc-erro" id="o-prv-erro-form" role="alert"></p>
+        <div class="orc-previa__acoes">
+          <button class="btn btn--primary" type="submit" id="o-prv-enviar">Mandar a lista de ajustes</button>
+          <button class="btn btn--ghost" type="button" id="o-prv-cancelar">Voltar</button>
+        </div>
+      </form>
+      <p class="orc-nota" id="o-prv-duvida" hidden>Outra dúvida? <a data-wa="tenho uma dúvida sobre os ajustes do meu pedido" href="https://wa.me/5521977167944">Fale com a Beyon Zero pelo WhatsApp</a>.</p>
+      <dialog class="orc-dialogo" id="o-prv-dialogo" aria-labelledby="o-prv-dialogo-titulo">
+        <h3 id="o-prv-dialogo-titulo">Aprovar a prévia?</h3>
+        <p>Depois de aprovar, o próximo passo é pôr o site no ar.</p>
+        <div class="orc-previa__acoes"><button class="btn btn--primary" type="button" id="o-prv-confirmar">Aprovar</button><button class="btn btn--ghost" type="button" id="o-prv-voltar">Voltar</button></div>
+      </dialog>
+    </section>
   </main>
 
   <!-- O VISOR das prévias: abrir, navegar e comparar -->
@@ -637,6 +682,7 @@
   <script src="js/orcamento-material-esquema.js" defer></script>
   <script src="js/orcamento-envio.js" defer></script>
   <script src="js/orcamento-material.js" defer></script>
+  <script src="js/orcamento-previa.js" defer></script>
   <script src="js/orcamento-entrega.js" defer></script>
   <script src="js/orcamento.js" defer></script>
 </body>

@@ -174,6 +174,13 @@
     materialConferir: function (id) { return chamar('POST', 'material-conferir', comConversa({ arquivo_id: id }), undefined, ESTADO_MS); },
     materialRemover: function (id) { return chamar('POST', 'material-remover', comConversa({ arquivo_id: id }), undefined, ESTADO_MS); },
     materialEnviar: function () { return chamar('POST', 'material-enviar', comConversa(), undefined, ESTADO_MS); },
+    /* (PR 3b-3) a prévia: a lista de ajustes (a rodada que a tela viu entra no corpo; o servidor confere) e a aprovação */
+    previaAjustes: function (texto, rodadaBase, contato) {   /* (M3, 22/10) `contato` = { whatsapp, email, autorizo } ou null: só vai o que foi preenchido */
+      var corpo = { texto: texto, rodada_base: rodadaBase };
+      if (contato) { if (contato.whatsapp) corpo.whatsapp = contato.whatsapp; if (contato.email) corpo.email = contato.email; corpo.autorizo = contato.autorizo === true; }
+      return chamar('POST', 'previa-ajustes', comConversa(corpo), undefined, ESTADO_MS);
+    },
+    previaAprovar: function () { return chamar('POST', 'previa-aprovar', comConversa(), undefined, ESTADO_MS); },
     /* Recomeçar: apaga a sessão e marca a conversa como esquecida (outra aba aberta não a grava de volta) */
     esquecer: function () {
       try { if (sessao && sessao.conversa_id) localStorage.setItem(ESQUECIDA, sessao.conversa_id); } catch (e) { /* sem armazenamento */ }
