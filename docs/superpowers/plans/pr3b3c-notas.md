@@ -46,7 +46,7 @@ Linha de base da suíte na base: 1034 testes (a do 3b-3b).
 
 - Vermelho: `Error [ERR_MODULE_NOT_FOUND]: Cannot find module '...\scripts\antes-de-ligar.mjs'`. Depois da revisão, 7 de 20 vermelhos antes do código (fonte da CSP que existe e não se deixa ler, o `connect-src` de verdade, os três lugares com o mesmo projeto, espaços em volta de `ligada`, a `BZ_BASE` sem usuário nem senha na frase, o cabeçalho único das conclusões).
 - Verde: `antes-de-ligar` 20/20; com `interruptor`, `csp` e `cabecalhos`: 44/44.
-- O que é: lê só arquivos do repositório (e a captação, se estiver ao lado). Linhas OK, FALTA (um arquivo prova) ou CONFIRMAR (só o dono prova). Sai com código 1 se houver FALTA. Confere: as 10 migrations (e um teste compara a lista com a pasta), a CSP de `/orcamento` com o endereço EXATO do Supabase nos três lugares (`vercel.json`, `<meta>` e `_headers`), os cabeçalhos pelo teste de paridade, a privacidade do 3b-2, a captação (`condicoes_versao`, 3 dias, lembretes 2 e 3), nenhum arquivo de deploy ligando o `BZ_ENTREGA` e a `BZ_BASE`.
+- O que é: lê só arquivos do repositório (e a captação, se estiver ao lado). Linhas OK, FALTA (um arquivo prova) ou CONFIRMAR (só o dono prova). Sai com código 1 se houver FALTA. Confere: as 11 migrations (as 10 do 3b mais a de 28/10; e um teste compara a lista com a pasta), a CSP de `/orcamento` com o endereço EXATO do Supabase nos três lugares (`vercel.json`, `<meta>` e `_headers`), os cabeçalhos pelo teste de paridade, a privacidade do 3b-2, a captação (`condicoes_versao`, 3 dias, lembretes 2 e 3), nenhum arquivo de deploy ligando o `BZ_ENTREGA` e a `BZ_BASE`.
 - Desvios do plano: 10 migrations (não 9); o `_headers` da Cloudflare já existe e o `vercel.json` é opcional; a captação é CONFERIDA, não só pedida; as cinco conclusões do 3b-3b viram CONFIRMAR sob um cabeçalho só.
 - Saída de hoje: FALTA só nas três CSPs com o curinga `https://*.supabase.co/...`. É o esperado.
 
@@ -94,6 +94,7 @@ Veredito da segurança: pode mesclar; nada crítico, alto ou médio. Os achados 
 ## Pendências
 
 - **Aviso `no_ar` de entrega `suspensa` (DESTAQUE: o senhor precisa saber antes de mandar o aviso).** A fila `?fila=avisos` não traz o passo (só conversa, código, momento, desde e contato). Se a entrega estiver `suspensa`, a mensagem "O seu site está no ar!" seria errada, e o dono precisa saber antes de mandar. Para a fila mostrar o passo, é mudança de API/banco.
+  **Corrigido em 28/10** (migration `20261028120000_aviso_no_ar_so_no_ar.sql`, PR `aviso-suspensa`): a fila agora traz o `passo` de cada aviso e o aviso `no_ar` só entra com a entrega em `no_ar` (suspensa, encerrada e concluída não oferecem mais "O seu site está no ar!"); o painel e o terminal (`entregas.mjs listar`) têm uma segunda trava. Pelo fluxo normal o caso nem chegava lá (para suspender é preciso ter registrado o aviso, e registrar tira o pendente), mas a trava não depende mais do caminho. Não há mensagem do dono para a suspensa, então nada é oferecido no lugar.
 - **"WhatsApp sem WhatsApp".** `painel-fila.js`, `painel-lembretes.js` e a lista de pedidos ainda mostram "sem WhatsApp (apagado pela retenção?)" para contato só com e-mail. Pré-existente; só o bloco novo foi acertado.
 - **`P.data` mostra 00:00** nos avisos de material (a hora não existe no dado). Cosmético.
 - **"Seu material" (somente leitura) continua visível depois da produção** (ver I1 acima): decidir se some.
@@ -114,7 +115,7 @@ Veredito da segurança: pode mesclar; nada crítico, alto ou médio. Os achados 
 Resumo (a lista completa e em ordem está no item 4d de `docs/revisoes/pr1-pendencias.md`). Nada disso é feito pelo agente.
 
 1. Rodar `node scripts/antes-de-ligar.mjs` e zerar os FALTA. Hoje só restam as três CSPs de `/orcamento` com o curinga do Supabase: dizer o endereço do projeto (`https://<projeto>.supabase.co`), trocar nos três lugares (`vercel.json`, `<meta>` de `orcamento.html` e `_headers`) e atualizar o `deepEqual` do teste "CSP do /orcamento (PR 3b-2)" em `docs/testes/csp.test.mjs`.
-2. Aplicar no Supabase real as 10 migrations do 3b, em ordem (a das cinco do 3b-3 termina em `20261024120400_pr3b3_lista.sql`). Antes da 4ª do 3b-2, rodar a conferência que o verificador imprime.
+2. Aplicar no Supabase real as 11 migrations do 3b, em ordem (as cinco do 3b-3 terminam em `20261024120400_pr3b3_lista.sql`; a 11ª, de 28/10, é `20261028120000_aviso_no_ar_so_no_ar.sql`). Antes da 4ª do 3b-2, rodar a conferência que o verificador imprime.
 3. Confirmar os desvios do 3b-3b e os do 3b-3c (as duas listas acima) e registrar a decisão em `01 Empresa/Decisões.md`.
 4. Rodar o ensaio completo com Mercado Pago e Supabase de TESTE (uma entrada e um restante de teste), abrir os PNG a 390 e 320 px e, no aparelho real, um Pix de verdade de R$ 1.
 5. Revisar pela voz humana os textos novos: as seis mensagens do painel, a tela da prévia, a do site no ar, o contrato e `/condicoes`.

@@ -53,6 +53,7 @@
   function cartao(a) {
     var t = TEXTOS[a.momento];
     if (!t) return null;   /* (momento que este painel não conhece: não inventa mensagem) */
+    if (a.momento === 'no_ar' && a.passo !== 'no_ar') return null;   /* (o site não está no ar, p. ex. suspensa: "O seu site está no ar!" seria falso. O servidor já filtra; aqui é a segunda trava, e a resposta sem o passo também não oferece) */
     var c = el('div', 'pn__alerta pn__fila');
     var texto = el('div', 'pn__fila-texto');
     texto.appendChild(el('p', 'pn__codigo', a.codigo));

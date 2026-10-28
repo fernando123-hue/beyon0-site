@@ -78,9 +78,10 @@ com credenciais reais**, salvo onde diz outra coisa.
 4d. **PR 3b-3 (prévia, ajustes, aprovar, site no ar, restante e concluído): nada disto liga sozinho; `BZ_ENTREGA` segue DESLIGADO.** **Mesclar não é ir ao ar:** o clique no
     merge não promove nada, não aplica migration e não liga o interruptor. Só liga junto com o 3b-1 e o 3b-2, já na Cloudflare, e **só com `node scripts/antes-de-ligar.mjs`
     sem nenhuma linha FALTA** (ele sai com código 1 se houver; cada CONFIRMAR é do dono ver com os próprios olhos). Não ligue com FALTA. Em ordem:
-    - aplicar no banco real as **10 migrations do 3b**, nesta ordem (a lista está em `scripts/antes-de-ligar.mjs` e um teste a confere com a pasta):
+    - aplicar no banco real as **11 migrations do 3b**, nesta ordem (a lista está em `scripts/antes-de-ligar.mjs` e um teste a confere com a pasta):
       `20261022120000_pr3b1_entrada.sql`; as quatro do 3b-2 (`20261023120000_pr3b2_entrega.sql`, `…120100_pr3b2_material.sql`, `…120200_pr3b2_link_pedido.sql`, `…120300_pr3b2_dono.sql`);
       e as cinco do 3b-3 (`20261024120000_pr3b3_esquema.sql`, `…120100_pr3b3_previa.sql`, `…120200_pr3b3_restante.sql`, `…120300_pr3b3_rotina.sql`, `…120400_pr3b3_lista.sql`);
+      e, por último, a correção de 28/10 do aviso "no ar" (`20261028120000_aviso_no_ar_so_no_ar.sql`);
     - **dizer o endereço do projeto Supabase** (`https://<projeto>.supabase.co`, não é segredo) e trocar o curinga `https://*.supabase.co/…` pelo endereço exato na CSP de `/orcamento`, nos
       três lugares (`vercel.json`, `<meta>` de `orcamento.html` e `_headers`); o `blob:` no `img-src` já está. Hoje o verificador mostra FALTA nos três: é o aviso virando teste. O endereço tem de estar no `connect-src`, igual nos três lugares. A mesma troca
       exige atualizar o `deepEqual` do teste "CSP do /orcamento (PR 3b-2)" em `docs/testes/csp.test.mjs` (linhas 62-64), que hoje espera o curinga;

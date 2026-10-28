@@ -90,7 +90,7 @@ test('o caminho inteiro pelas portas reais: prévia → aviso → lista → nova
   assert.equal((await publicar(codigo)).status, 200);
   /* a D1: o aviso da prévia pronta, com o contato; "já avisei" tira da fila */
   const avisos = (await cen.painelGet('?fila=avisos')).corpo.itens.filter(i => i.codigo === codigo);
-  assert.deepEqual(avisos.map(i => i.momento), ['previa']); assert.equal(typeof avisos[0].contato.nome, 'string', 'o contato vai para o painel montar a mensagem');
+  assert.deepEqual(avisos.map(i => i.momento), ['previa']); assert.equal(avisos[0].passo, 'previa', 'a fila traz o passo da entrega'); assert.equal(typeof avisos[0].contato.nome, 'string', 'o contato vai para o painel montar a mensagem');
   assert.equal((await cen.painelPost({ aviso_feito: codigo, momento: 'previa' })).status, 200);
   assert.deepEqual((await cen.painelGet('?fila=avisos')).corpo.itens.filter(i => i.codigo === codigo), []);
   /* o cliente manda a lista; a produção a lê como DADO, com o selo do texto suspeito */
@@ -108,6 +108,7 @@ test('o caminho inteiro pelas portas reais: prévia → aviso → lista → nova
   assert.equal((await cen.painelPost({ no_ar: codigo, url: 'https://evil.com/caminho?x=1' })).status, 422);
   assert.equal((await cen.painelPost({ no_ar: codigo, url: SITE + '/' })).status, 200);
   assert.deepEqual((await cen.painelGet('?fila=avisos')).corpo.itens.filter(i => i.codigo === codigo).map(i => i.momento), ['no_ar'], 'a prévia aprovada não pede mais aviso');
+  assert.equal((await cen.painelGet('?fila=avisos')).corpo.itens.find(i => i.codigo === codigo).passo, 'no_ar', 'a fila traz o passo da entrega até o painel');
   const ar = (await cen.estado(n, c)).entrega;
   assert.equal(ar.passo, 'no_ar'); assert.equal(ar.site.url, SITE); assert.equal(ar.site.dias_do_aviso, null, 'a contagem dos 3 dias só começa quando o dono registra o aviso "no ar" (22/10)');
   /* o restante: só Pix, valor do banco, a conclusão pelo aviso do Mercado Pago */

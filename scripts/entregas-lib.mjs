@@ -81,7 +81,7 @@ export function alertasDe(it, agora = new Date()) {
   }
   if (it.passo === 'previa') a.push('esperando o cliente há ' + (it.dias_na_previa == null ? '?' : paraTerminal(it.dias_na_previa, 10)) + ' dia(s): o projeto para até ele responder (D5). Nada a fazer; não aprova nem encerra por silêncio');
   if (it.aviso_previa_pendente) a.push('avisar o cliente: prévia pronta (painel, Avisos, com o link de uso único)');
-  if (it.aviso_no_ar_pendente) a.push('avisar o cliente: site no ar (painel, Avisos, com o link de uso único). Os 3 dias do restante só começam a contar quando você registrar este aviso');
+  if (it.aviso_no_ar_pendente && it.passo === 'no_ar') a.push('avisar o cliente: site no ar (painel, Avisos, com o link de uso único). Os 3 dias do restante só começam a contar quando você registrar este aviso');
   /* (22/10) o restante vale 3 dias do REGISTRO do aviso "no ar" (o dia do aviso é o dia 0): lembretes no 2º e no 3º dia; à 00:00 depois do 3º dia o site sai do ar */
   if (it.passo === 'no_ar' && it.dias_do_aviso != null) {
     const d = it.dias_do_aviso, l1 = !!it.lembrete_restante_1_em, l2 = !!it.lembrete_restante_2_em;

@@ -113,7 +113,8 @@ function no(tag, classe, texto) {
 }
 const achar = (raiz, pred) => { if (pred(raiz)) return raiz; for (const f of raiz.children) { const r = achar(f, pred); if (r) return r; } return null; };
 const esperar = () => new Promise(r => setTimeout(r, 5));
-const ITEM = (momento, i) => ({ conversa_id: '1111111' + i + '-1111-4111-8111-111111111111', codigo: 'BZ-0000' + i, momento, desde: '2026-10-20T12:00:00Z', contato: { nome: 'Ana ' + i, telefone: '+55679912345' + i + '0', email: null } });
+const PASSO_DO = { previa: 'previa', no_ar: 'no_ar', material_parado: 'material', material_apagar: 'material', restante_lembrete_1: 'no_ar', restante_lembrete_2: 'no_ar' };   /* (o passo que a fila traz: vendas_avisos_lista, 28/10) */
+const ITEM = (momento, i) => ({ conversa_id: '1111111' + i + '-1111-4111-8111-111111111111', codigo: 'BZ-0000' + i, momento, passo: PASSO_DO[momento], desde: '2026-10-20T12:00:00Z', contato: { nome: 'Ana ' + i, telefone: '+55679912345' + i + '0', email: null } });
 
 function montarPainel({ itens, aoPostar }) {
   const ids = {}, ouvintes = {}, chamadas = [];
@@ -153,6 +154,18 @@ test('o painel de verdade: um cartão por momento, momento desconhecido ignorado
     assert.ok(achar(c, n => n.tag === 'button' && n.textContent === 'Já avisei'), 'tem "Já avisei"');
   }
   assert.ok(achar(ids.avisos.children[0], n => n.textContent === 'WhatsApp +55 67 99123-4500'), 'o telefone vem como o banco manda e aparece formatado');
+});
+
+test('o painel de verdade: o aviso "no ar" de uma entrega que não está no ar (suspensa, encerrada, concluída ou sem o passo) NÃO vira cartão: não se oferece "O seu site está no ar!"', async () => {
+  for (const passo of ['suspensa', 'encerrada', 'concluida', undefined]) {
+    const { ids, ouvintes } = montarPainel({ itens: [{ ...ITEM('no_ar', 5), passo }], aoPostar: ok({}) });
+    ouvintes['bz-painel:entrou'](); await esperar();
+    assert.equal(ids.avisos.children.length, 0, 'passo ' + passo + ': nenhum cartão');
+    assert.equal(ids['avisos-estado'].textContent, 'Nenhum aviso para mandar hoje.');
+  }
+  const certo = montarPainel({ itens: [ITEM('no_ar', 5)], aoPostar: ok({}) });
+  certo.ouvintes['bz-painel:entrou'](); await esperar();
+  assert.equal(certo.ids.avisos.children.length, 1, 'no ar de verdade: o cartão aparece');
 });
 
 test('o painel de verdade: fila vazia diz que não há aviso; um item só diz "1 aviso"', async () => {
