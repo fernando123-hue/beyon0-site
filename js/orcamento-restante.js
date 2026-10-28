@@ -47,15 +47,13 @@
     return resto > 0 ? resto / 100 : null;
   }
 
-  function plural(n, um, varios) { return n + ' ' + (n === 1 ? um : varios); }
   /* o aviso da tela, a partir do aviso "no ar" REGISTRADO pelo dono (dias = dias corridos desde ele, o dia do aviso é 0; nulo = ainda não registrou): sem contagem antes do 2º dia */
   function avisoDoRestante(dias, limite, passo) {
     if (passo === 'suspensa') return 'Seu site saiu do ar porque o restante não foi pago em ' + limite + ' dias. Quando o pagamento cair, a Beyon Zero coloca o site no ar de novo.';
     if (dias == null || dias < LEMBRETES[0]) return '';
     if (dias > limite) return 'O prazo do restante terminou. Pague agora para o site não sair do ar.';
-    if (dias === limite) return 'Hoje é o último dia do prazo do restante. À meia-noite, sem o pagamento, o site sai do ar.';
-    var faltam = limite - dias + 1;   /* contando hoje */
-    return (faltam === 1 ? 'Falta ' : 'Faltam ') + plural(faltam, 'dia', 'dias') + ' para o prazo do restante, contando hoje.';
+    if (dias === limite) return 'Hoje é o último dia do prazo do restante. Depois dele, sem o pagamento, o site sai do ar.';
+    return 'Faltam ' + (limite - dias + 1) + ' dias para o prazo do restante, contando hoje.';   /* (a partir do 2º dia e antes do último, são sempre 2 ou mais) */
   }
 
   /* o recibo final: só com a entrada E o restante pagos, os valores do banco */
@@ -64,11 +62,24 @@
     return pr && e && r ? { total: Number(pr.valor_total), entrada: Number(e.valor), restante: Number(r.valor) } : null;
   }
 
+  /* o restante está aberto: a entrega no ar ou suspensa, a conversa em produção e o interruptor do servidor não desligado (desligado, a página não espera o Pix) */
+  function restanteAberto(E) {
+    var e = E && E.entrega;
+    return !!e && E.entrega_ligada !== false && E.conversa.etapa === 'em_producao' && (e.passo === 'no_ar' || e.passo === 'suspensa');
+  }
+  /* o bloco em que cai quem volta ao pedido pelo link ou pelo aviso (o h2 dele recebe o foco) */
+  function alvoDaRetomada(E) {
+    var etapa = E.conversa.etapa, e = E.entrega;
+    if (etapa === 'em_producao') return restanteAberto(E) ? 'o-noar' : 'o-pronto';
+    if (etapa === 'encerrada' && e) return e.passo === 'concluida' ? 'o-fim-concluido' : 'o-fim-encerrado';
+    return 'o-pagamento';
+  }
+
   function criar(o) {
     var dinheiro = o.dinheiro, tela = o.telaPagamento || null, movido = false, chavePix = null, antes = null;
 
-    function endereco(url, idTexto, idLink) {
-      var href = hrefDoSite(url);
+    function endereco(url, idTexto, idLink, comLink) {
+      var href = comLink === false ? null : hrefDoSite(url);   /* (site fora do ar: o endereço fica só como texto) */
       $(idTexto).textContent = url || '';
       $(idLink).hidden = !href;
       if (href) $(idLink).href = href;
@@ -91,15 +102,14 @@
       if (r && typeof r.catch === 'function') r.catch(nada);
     }
     function noAr(E) {
-      var e = E.entrega, pag = $('o-pagamento');
-      var ativo = !!e && E.conversa.etapa === 'em_producao' && (e.passo === 'no_ar' || e.passo === 'suspensa');
+      var e = E.entrega, pag = $('o-pagamento'), ativo = restanteAberto(E);
       $('o-noar').hidden = !ativo;
       pag.classList.toggle('is-restante', ativo);
       if (!ativo) { chavePix = null; return false; }
       if (!movido) { $('o-noar').after(pag); movido = true; }   /* decisão G: o mesmo componente da entrada, logo depois do "no ar" */
       var s = e.site || {};
       $('o-noar-titulo').textContent = e.passo === 'suspensa' ? 'Seu site saiu do ar' : 'Seu site está no ar';
-      endereco(s.url, 'o-noar-endereco', 'o-noar-abrir');
+      endereco(s.url, 'o-noar-endereco', 'o-noar-abrir', e.passo !== 'suspensa');
       var aviso = avisoDoRestante(s.dias_do_aviso, Number(s.limite_dias) || LIMITE_PADRAO, e.passo);
       $('o-noar-aviso').textContent = aviso; $('o-noar-aviso').hidden = !aviso;
       pedirOPix(E, pag);
@@ -139,5 +149,5 @@
     return { atualizar: atualizar };
   }
 
-  window.BZRestante = { criar: criar, hrefDoSite: hrefDoSite, valorDoRestante: valorDoRestante, avisoDoRestante: avisoDoRestante, dadosDoFim: dadosDoFim, LEMBRETES: LEMBRETES };
+  window.BZRestante = { criar: criar, hrefDoSite: hrefDoSite, valorDoRestante: valorDoRestante, avisoDoRestante: avisoDoRestante, dadosDoFim: dadosDoFim, restanteAberto: restanteAberto, alvoDaRetomada: alvoDaRetomada, LEMBRETES: LEMBRETES };
 })();

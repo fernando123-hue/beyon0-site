@@ -58,7 +58,8 @@ test('o aviso da tela (22/10: 3 dias do aviso "no ar", lembretes do dono no 2º 
   assert.equal(R.avisoDoRestante(undefined, 3, 'no_ar'), '');
   assert.equal(R.avisoDoRestante(0, 3, 'no_ar'), ''); assert.equal(R.avisoDoRestante(1, 3, 'no_ar'), '');
   assert.match(R.avisoDoRestante(2, 3, 'no_ar'), /Faltam 2 dias/);
-  assert.match(R.avisoDoRestante(3, 3, 'no_ar'), /último dia/); assert.match(R.avisoDoRestante(3, 3, 'no_ar'), /meia-noite/);
+  assert.match(R.avisoDoRestante(3, 3, 'no_ar'), /último dia/); assert.doesNotMatch(R.avisoDoRestante(3, 3, 'no_ar'), /meia-noite|\d\s?h\b|horas/, 'o dono suspende na mão: nada de horário de corte automático');
+  for (const limite of [3, 4, 5, 6]) for (let d = 2; d < limite; d++) assert.match(R.avisoDoRestante(d, limite, 'no_ar'), new RegExp('^Faltam ' + (limite - d + 1) + ' dias '), 'nunca "Falta 1 dia": entre o 2º dia e o último são sempre 2 ou mais');
   assert.match(R.avisoDoRestante(4, 3, 'no_ar'), /prazo do restante terminou/); assert.match(R.avisoDoRestante(9, 3, 'no_ar'), /prazo do restante terminou/);
   assert.match(R.avisoDoRestante(12, 3, 'suspensa'), /saiu do ar/); assert.match(R.avisoDoRestante(12, 3, 'suspensa'), /quando o pagamento cair/i);
   assert.match(R.avisoDoRestante(null, 3, 'suspensa'), /saiu do ar/, 'suspensa mostra o aviso mesmo sem a contagem');
@@ -210,7 +211,7 @@ test('criar: o site que saiu do ar (suspensa) ainda cobra o restante: título, a
   const t = montar(); t.rest.atualizar(estado('suspensa', { site: { dias_do_aviso: 5 } }));
   assert.equal(t.E('o-noar-titulo').textContent, 'Seu site saiu do ar'); assert.match(t.E('o-noar-aviso').textContent, /quando o pagamento cair/i);
   assert.equal(t.E('o-pagamento').hidden, false); assert.deepEqual(t.chamadas, [['mostrar', 1800, 60, { metodos: ['pix'] }]]);
-  const u = montar(); u.rest.atualizar(estado('no_ar', { site: { dias_do_aviso: 3 } })); assert.match(u.E('o-noar-aviso').textContent, /meia-noite/);
+  const u = montar(); u.rest.atualizar(estado('no_ar', { site: { dias_do_aviso: 3 } })); assert.match(u.E('o-noar-aviso').textContent, /último dia/);
   u.rest.atualizar(estado('no_ar', { site: { dias_do_aviso: 1 } })); assert.equal(u.E('o-noar-aviso').hidden, true, 'o aviso sai quando a contagem não o justifica');
 });
 
@@ -327,7 +328,52 @@ test('a ligação: a entrega cria o BZRestante com a tela do Pix que o orcamento
 test('a ligação no orcamento.js: a barra de etapas não volta atrás no pedido concluído ou encerrado; quem volta cai no #o-fim; o Pix do restante não é parado a cada leitura', () => {
   const orc = semComentario(ler('js/orcamento.js'));
   assert.match(orc, /et === 'encerrada' && E\.entrega\)\) return 'pagamento'/);
-  assert.match(orc, /E\.conversa\.etapa === 'encerrada' && E\.entrega \? 'o-fim' : 'o-pagamento'/);
+  assert.match(orc, /pagamento: alvoDoPagamento\(\)/);
   assert.match(orc, /telaPagamento && !restanteAberto\(\)\) telaPagamento\.parar\(\)/);
-  assert.match(orc, /function restanteAberto\(\) \{ return !!E\.entrega && \(E\.entrega\.passo === 'no_ar' \|\| E\.entrega\.passo === 'suspensa'\); \}/);
+  assert.match(orc, /function restanteAberto\(\) \{ return !!window\.BZRestante && window\.BZRestante\.restanteAberto\(E\); \}/);
+  assert.match(orc, /window\.BZRestante\.alvoDaRetomada\(E\)/);
+  assert.match(orc, /\$\('o-pag-titulo'\)\.textContent = 'Para começar'/, 'a entrada devolve o título que o restante trocou');
+  assert.match(orc, /telaPagamento\.mostrar\(sinal, pct\.entrada, \{\}\)/, 'e solta o só Pix do restante');
+});
+
+/* ---------- as decisões do passo 4 que o orcamento.js usa: EXECUTADAS (o render e o retomar chamam estas funções) ---------- */
+const comPasso = (passo, extra = {}) => ({ conversa: { etapa: extra.etapa || 'em_producao' }, entrega: extra.semEntrega ? null : { passo }, ...('ligada' in extra ? { entrega_ligada: extra.ligada } : {}) });
+test('restanteAberto (a decisão do render: parar a espera do Pix ou não): material, prévia, aprovada e outros passos PARAM; no ar e suspensa NÃO; interruptor desligado, conversa fora da produção ou sem entrega PARAM', () => {
+  const para = E => !R.restanteAberto(E);   /* orcamento.js: if (telaPagamento && !restanteAberto()) telaPagamento.parar() */
+  for (const passo of ['material', 'producao', 'previa', 'ajustes', 'aprovada']) assert.equal(para(comPasso(passo)), true, passo + ': para');
+  for (const passo of ['no_ar', 'suspensa']) { assert.equal(para(comPasso(passo)), false, passo + ': a espera do Pix segue'); assert.equal(para(comPasso(passo, { ligada: true })), false); }
+  for (const passo of ['no_ar', 'suspensa']) assert.equal(para(comPasso(passo, { ligada: false })), true, passo + ' com o interruptor desligado com a página aberta: para');
+  assert.equal(para(comPasso('no_ar', { etapa: 'encerrada' })), true); assert.equal(para(comPasso('no_ar', { etapa: 'aguardando_pagamento' })), true);
+  assert.equal(para(comPasso('no_ar', { semEntrega: true })), true); assert.equal(R.restanteAberto(null), false); assert.equal(R.restanteAberto({ conversa: { etapa: 'em_producao' } }), false);
+});
+
+test('alvoDaRetomada (quem volta pelo aviso "seu site está no ar" ou pelo link cai no bloco certo; o h2 dele recebe o foco)', () => {
+  assert.equal(R.alvoDaRetomada(comPasso('no_ar')), 'o-noar'); assert.equal(R.alvoDaRetomada(comPasso('suspensa')), 'o-noar');
+  for (const passo of ['material', 'previa', 'aprovada']) assert.equal(R.alvoDaRetomada(comPasso(passo)), 'o-pronto', passo + ': o recibo da entrada e a lista de passos');
+  assert.equal(R.alvoDaRetomada(comPasso('no_ar', { ligada: false })), 'o-pronto', 'interruptor desligado: o recibo com a frase de espera');
+  assert.equal(R.alvoDaRetomada(comPasso('concluida', { etapa: 'encerrada' })), 'o-fim-concluido');
+  assert.equal(R.alvoDaRetomada(comPasso('encerrada', { etapa: 'encerrada' })), 'o-fim-encerrado');
+  assert.equal(R.alvoDaRetomada(comPasso('x', { etapa: 'encerrada', semEntrega: true })), 'o-pagamento');
+  assert.equal(R.alvoDaRetomada({ conversa: { etapa: 'aguardando_pagamento' }, entrega: null }), 'o-pagamento');
+  for (const id of ['o-noar', 'o-pronto', 'o-fim-concluido', 'o-fim-encerrado', 'o-pagamento']) assert.ok(NO_HTML.has(id), id + ' existe no HTML');
+  for (const id of ['o-noar', 'o-fim-concluido', 'o-fim-encerrado']) assert.match(HTML.slice(HTML.indexOf('id="' + id + '"'), HTML.indexOf('id="' + id + '"') + 400), /<h2[^>]*tabindex="-1"/, id + ' tem um h2 que recebe o foco (BZRetomada.focar usa o 1º h2 do bloco)');
+});
+
+test('suspensa: o site está fora do ar, então "Abrir o site" some e o endereço fica só como texto; no ar o botão volta', () => {
+  const t = montar(); t.rest.atualizar(estado('suspensa', { site: { dias_do_aviso: 5 } }));
+  assert.equal(t.E('o-noar-abrir').hidden, true); assert.equal(t.E('o-noar-abrir').href, ''); assert.equal(t.E('o-noar-endereco').textContent, SITE);
+  t.rest.atualizar(estado('no_ar')); assert.equal(t.E('o-noar-abrir').hidden, false); assert.equal(t.E('o-noar-abrir').href, SITE);
+});
+
+test('o restante abre sem o "Pagamento confirmado" da entrada: no ramo sem pagamento o status é limpo (o aria-live não anuncia o da entrada)', async () => {
+  const doc = montarDoc(), win = { BZPix: janela.BZPix }; new Function('window', 'document', PAGAMENTO)(win, doc);
+  let estadoDaApi = { pagamento: { status: 'pago' }, tentativa: null };
+  const API = { pagamentoConfig: async () => CFG(), pagamento: async () => estadoDaApi, pagar: async () => ({}) };
+  let pagou = 0; const tela = win.BZPagamentoTela.criar({ API, dinheiro, aoPagar() { pagou++; } });
+  await tela.mostrar(1200, 40);
+  assert.equal(doc.getElementById('o-pag-status').textContent, 'Pagamento confirmado pelo Mercado Pago.'); assert.equal(pagou, 1);
+  estadoDaApi = { pagamento: null, parcela: 'saldo' };
+  await tela.mostrar(1800, 60, { metodos: ['pix'] });
+  assert.equal(doc.getElementById('o-pag-status').textContent, '', 'o restante começa com o status limpo');
+  assert.equal(doc.getElementById('o-pag-form').hidden, false);
 });

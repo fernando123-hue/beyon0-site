@@ -570,6 +570,7 @@
     var pct = PIX ? PIX.percentuais(pr) : null, sinal = valorDoSinal(pr);
     if (!mudou('pagamento', [pr, sinal])) return;
     $('o-pag-escopo').textContent = pr.escopo || '';
+    $('o-pag-titulo').textContent = 'Para começar';   /* (o restante, js/orcamento-restante.js, troca o título: a entrada o devolve) */
     var lead = 'Escopo confirmado: ' + dinheiro(pr.valor_total) + ' em até ' + dias(pr.prazo_dias) + '.';
     /* falha fechada (PR 3b-1): sem o percentual da proposta, a tela não cobra nem chuta um número (o banco também recusa) */
     if (!pct || sinal == null) {
@@ -579,7 +580,7 @@
       return;
     }
     $('o-pag-lead').textContent = lead + ' Para começar, a entrada de ' + pct.entrada + '%: ' + dinheiro(sinal) + '. O restante quando o site estiver no ar.';
-    if (telaPagamento) telaPagamento.mostrar(sinal, pct.entrada);
+    if (telaPagamento) telaPagamento.mostrar(sinal, pct.entrada, {});   /* ({}: solta o "só Pix" que o restante tenha pedido) */
   }
 
   /* ---------- o estado manda na tela ---------- */
@@ -592,7 +593,9 @@
     if (E.estimativa) return 'estimativa';
     return 'conversa';
   }
-  function restanteAberto() { return !!E.entrega && (E.entrega.passo === 'no_ar' || E.entrega.passo === 'suspensa'); }
+  /* (3b-3c) as duas decisões do passo 4 moram em js/orcamento-restante.js (puras, testadas): o restante está aberto? e onde cai quem volta ao pedido? */
+  function restanteAberto() { return !!window.BZRestante && window.BZRestante.restanteAberto(E); }
+  function alvoDoPagamento() { return window.BZRestante ? window.BZRestante.alvoDaRetomada(E) : E.conversa.etapa === 'em_producao' ? 'o-pronto' : 'o-pagamento'; }
   function etapas() {
     var atual = E ? passoAtual() : 'conversa', passou = true;
     if (precoNaTela && atual === 'conversa') atual = 'estimativa';   /* (o preço das perguntas já está na tela, ainda sem gravar) */
@@ -740,7 +743,7 @@
     if (!API.temSessao()) { iniciarPerguntas(); return; }   /* (primeira visita: as perguntas; a sessão nasce no "Ver o preço") */
     try {
       await recarregar();   /* (o render desenha a conversa salva) */
-      var BLOCOS = { direcoes: 'o-direcoes', ajustes: 'o-ajustes', escopo: 'o-escopo', pagamento: E.conversa.etapa === 'em_producao' ? 'o-pronto' : E.conversa.etapa === 'encerrada' && E.entrega ? 'o-fim' : 'o-pagamento' };
+      var BLOCOS = { direcoes: 'o-direcoes', ajustes: 'o-ajustes', escopo: 'o-escopo', pagamento: alvoDoPagamento() };
       var alvo = BLOCOS[passoAtual()];
       if (alvo && !$(alvo).hidden) { rolarAte($(alvo)); if (window.BZRetomada) window.BZRetomada.focar($(alvo)); }   /* quem volta cai na etapa em que parou */
     } catch (e) {

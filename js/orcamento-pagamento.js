@@ -264,7 +264,7 @@
       devolverFoco(estava);
     }
     function desenharEstado(e) {
-      if (!e || !e.pagamento) { mostrar('o-pix', false); mostrar('o-pix-outro', false); mostrar('o-desafio', false); mostrar('o-pag-form', true); return; }
+      if (!e || !e.pagamento) { $('o-pag-status').textContent = ''; mostrar('o-pix', false); mostrar('o-pix-outro', false); mostrar('o-desafio', false); mostrar('o-pag-form', true); return; }
       var t = e.tentativa;
       var chave = JSON.stringify([e.pagamento.status, t && t.status, t && t.id, t && t.expira_em]);
       if (e.pagamento.status === 'pago') { pararEspera(); $('o-pag-status').textContent = 'Pagamento confirmado pelo Mercado Pago.'; if (chave !== ultimoEstado) { ultimoEstado = chave; o.aoPagar(); } return; }
