@@ -15,6 +15,8 @@
   var FUSO = 'America/Campo_Grande';
   var INDICE = { material: 2, producao: 3, previa: 3, ajustes: 3, aprovada: 4, no_ar: 4, suspensa: 4, concluida: 5, encerrada: 0 };
   var NOMES = ['Entrada paga', 'Seu material', 'Prévia do site', 'No ar e o restante'];
+  var LIMITE_PADRAO = 3;   /* os dias do restante; o servidor manda o seu em site.limite_dias (como em js/orcamento-restante.js) */
+  var LEAD_DEPOIS_DO_MATERIAL = 'Entrada recebida.';
   var $ = function (id) { return document.getElementById(id); };
 
   /* "5 de novembro": o dia vem pronto do servidor (AAAA-MM-DD); o fuso do aparelho não entra */
@@ -40,6 +42,12 @@
     return o.linkPedido ? 'gerar' : 'nenhum';
   }
 
+  /* I1 (revisão final): o lead do recibo de cima (a frase do HTML, a protegida) fala do próximo passo; "mandar o material, logo abaixo" só vale enquanto o material é o próximo passo.
+     Da prévia em diante o recibo diz só "Entrada recebida."; sem entrega (passo ausente), a frase de sempre */
+  function leadDoRecibo(passo, padrao) {
+    return !passo || passo === 'material' || passo === 'producao' ? padrao : LEAD_DEPOIS_DO_MATERIAL;
+  }
+
   /* A1 (revisão): o material "aqui mesmo" só é prometido antes do pagamento quando o servidor diz que a entrega está ligada */
   function promessasVisiveis(E) { return !!E && E.entrega_ligada === true; }
   var PROMESSAS = ['o-antes-passos', 'o-faq-fotos', 'o-atalho-fotos', 'o-faq-restante', 'o-atalho-restante'];
@@ -51,11 +59,12 @@
     /* M2: sempre "Previsão", nunca "Pronto até": a data é a do servidor, e a da captação ainda sai depois da que a produção segue (ver o plano da 3b-3, Task 13) */
     var notaDaPrevia = {
       producao: previsao ? 'Previsão do seu site: ' + previsao + '. Você vê a prévia aqui mesmo.' : 'Estamos preparando o seu site. Você vê a prévia aqui mesmo.',
-      previa: 'Sua prévia está pronta. Seu site só segue depois da sua resposta.',
-      ajustes: 'Recebemos a sua lista. A nova prévia aparece aqui.' + (previsao ? ' Previsão: ' + previsao + '.' : '')
+      previa: 'Esperando a sua resposta.',   /* (a seção da prévia, logo abaixo, já diz o resto) */
+      ajustes: 'Lista recebida.' + (previsao ? ' Previsão: ' + previsao + '.' : '')
     };
+    var limite = Number(e.site && e.site.limite_dias) || LIMITE_PADRAO;
     var notaDoNoAr = { aprovada: 'O próximo passo é pôr o site no ar.', no_ar: 'Seu site está no ar. Falta o restante.',
-      suspensa: 'O restante não foi pago em 3 dias: o site saiu do ar até o pagamento.', concluida: 'Pago. Pedido concluído.' };
+      suspensa: 'O restante não foi pago em ' + limite + ' dias: o site saiu do ar até o pagamento.', concluida: 'Pago. Pedido concluído.' };
     var notas = ['',
       atual === 2 ? 'O prazo começa quando você enviar.' : 'Enviado' + (enviado ? ' em ' + enviado : '') + '.',
       atual === 3 ? (notaDaPrevia[e.passo] || '') : atual > 3 ? 'Prévia aprovada.' : '',
@@ -209,7 +218,7 @@
         if (lead) lead.textContent = FRASE_DESLIGADA;
         return;
       }
-      if (lead && lead.dataset.padrao) lead.textContent = lead.dataset.padrao;
+      if (lead && lead.dataset.padrao) lead.textContent = leadDoRecibo(e ? e.passo : null, lead.dataset.padrao);
       var terminou = rest ? rest.atualizar(E) : false;   /* (o site no ar e o Pix do restante, ou o pedido concluído/encerrado: ela mesma esconde o que não é da etapa) */
       if (terminou || !pronto) { $('o-pedido').hidden = true; $('o-material').hidden = true; $('o-previa').hidden = true; return; }
       jaTem = !!e.link_pedido; conversaId = E.conversa.id;
@@ -238,6 +247,6 @@
     return { atualizar: atualizar };
   }
 
-  window.BZEntrega = { criar: criar, passos: passos, dataPorExtenso: dataPorExtenso, diaDoInstante: diaDoInstante, arquivoCalendario: arquivoCalendario, linkDoPedido: linkDoPedido,
+  window.BZEntrega = { criar: criar, passos: passos, leadDoRecibo: leadDoRecibo, dataPorExtenso: dataPorExtenso, diaDoInstante: diaDoInstante, arquivoCalendario: arquivoCalendario, linkDoPedido: linkDoPedido,
     modoDoCartao: modoDoCartao, promessasVisiveis: promessasVisiveis, FRASE_DESLIGADA: FRASE_DESLIGADA };
 })();
