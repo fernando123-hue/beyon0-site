@@ -32,6 +32,7 @@ test('os 6 textos: o link entra, valem 7 dias e abrem uma vez, sem preço, sem "
     assert.ok(t.split(/\s+/).length <= 70, momento + ': mensagem curta (' + t.split(/\s+/).length + ' palavras)');
   }
   assert.match(T.previa.texto('L'), /aprova ou manda a sua lista de ajustes/);
+  assert.match(T.material_parado.texto('L'), /^Aqui é o Fernando, da Beyon Zero\./);
   assert.match(T.no_ar.texto('L'), /paga o restante por Pix/);
   assert.match(T.no_ar.texto('L'), /3 dias/); assert.match(T.no_ar.texto('L'), /sai do ar à meia-noite/);   /* 22/10: o aviso "no ar" diz o prazo de 3 dias */
   assert.match(T.material_parado.texto('L'), /projeto fica parado/); assert.match(T.material_parado.texto('L'), /Nada vai ao ar sem a sua autorização/);
@@ -42,9 +43,11 @@ test('os 6 textos: o link entra, valem 7 dias e abrem uma vez, sem preço, sem "
 
 test('o aviso prévio do apagamento (material_apagar): diz que o material parado vai ser apagado, quando (30 dias depois da mensagem), como evitar (pelo link) e o que NÃO é apagado', () => {
   const t = T.material_apagar.texto(LINK);
-  assert.match(t, /vou apagar/); assert.match(t, /30 dias depois desta mensagem/);
-  assert.match(t, /logo, fotos e textos/, 'diz o que é o material');
-  assert.match(t, /mandar ou mexer no material pelo link/, 'dá para evitar');
+  assert.match(t, /^Aqui é o Fernando, da Beyon Zero\. Faz meses que o material do seu site está parado\./, 'abre dizendo o que houve, sem pressão');
+  assert.match(t, /Se você mandar ou mexer no material por este link, eu não apago nada\. Se não, eu apago o que você mandou/, 'abre pelo que o cliente pode fazer');
+  assert.match(t, /30 dias depois desta mensagem/);
+  assert.match(t, /\(a logomarca, as fotos e os textos\)/, 'diz o que é o material, com as palavras do cliente');
+  assert.doesNotMatch(t, /logo,/, 'não é "logo" solto (parece advérbio)');
   assert.match(t, /pedido e o pagamento não são apagados/);
   assert.ok(!/projeto (será|vai ser) (apagado|cancelado)|perder o (site|projeto|pedido)|última chance|urgente/i.test(t), 'sem medo nem pressão e sem dizer que o projeto some');
 });
@@ -212,6 +215,14 @@ test('o painel de verdade: "Preparar" pede o link de retomada da conversa do avi
   assert.deepEqual(chamadas.filter(c => c.metodo === 'POST').map(c => c.corpo), [{ link_retomada: itens[3].conversa_id }], 'o link é da conversa deste aviso');
   const msg = achar(cartao, n => n.tag === 'textarea');
   assert.ok(msg.value.startsWith('Oi, Ana! Aqui é o Fernando, da Beyon Zero.'));
-  assert.ok(msg.value.includes('https://x.test/orcamento#retomar=' + codigo) && /vou apagar/.test(msg.value));
+  assert.ok(msg.value.includes('https://x.test/orcamento#retomar=' + codigo) && /eu apago o que você mandou/.test(msg.value));
   assert.equal(achar(cartao, n => n.tag === 'a').href, 'https://wa.me/5567991234530');
+});
+
+test('a voz é uma só no painel: as mensagens da fila de modelos e do lembrete dos modelos também abrem com "Aqui é o Fernando, da Beyon Zero."', () => {
+  for (const f of ['js/painel-fila.js', 'js/painel-lembretes.js', 'js/painel-entregas.js']) {
+    const s = ler(f);
+    assert.doesNotMatch(s, /Aqui é da Beyon Zero/, f + ': a mensagem do dono diz quem é, com o nome dele');
+    assert.match(s, /Aqui é o Fernando, da Beyon Zero\./, f);
+  }
 });

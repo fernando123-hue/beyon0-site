@@ -372,7 +372,7 @@ try {
   const mensagemZap = await caixaZap.inputValue();
   const CODIGO_NO_TEXTO = /\/orcamento#retomar=([A-Za-z0-9_-]{32})$/;
   ok(linksPedidos === 1 && hrefZap === 'https://wa.me/55' + TELEFONE.replace(/\D/g, ''), 'painel: um toque pede um link só e o botão abre o WhatsApp do cliente só com o número (sem ?text=, sem nada depois dos dígitos)');
-  ok(CODIGO_NO_TEXTO.test(mensagemZap) && /^Oi! Aqui é da Beyon Zero\. Os três modelos do seu site ficaram prontos/.test(mensagemZap), 'painel: a mensagem (na caixa de leitura) leva o link de retomada (32 caracteres) e fala em modelos prontos');
+  ok(CODIGO_NO_TEXTO.test(mensagemZap) && /^Oi! Aqui é o Fernando, da Beyon Zero\. Os três modelos do seu site ficaram prontos/.test(mensagemZap), 'painel: a mensagem (na caixa de leitura) leva o link de retomada (32 caracteres) e fala em modelos prontos');
   ok(await caixaZap.evaluate(c => c.readOnly) && await avisoNaFila.getByRole('button', { name: /Copiar a mensagem/ }).count() === 1, 'painel: a caixa é só de leitura e há o botão "Copiar a mensagem"');
   ok(!/mesmo navegador/.test(mensagemZap), 'painel: a mensagem não manda mais voltar "no mesmo navegador"');
   ok(await abrirZap.getAttribute('target') === '_blank' && /noopener/.test(await abrirZap.getAttribute('rel')), 'painel: o WhatsApp abre em outra aba, sem passar a página de origem');
@@ -556,7 +556,7 @@ try {
   await zapLembrete.waitFor({ timeout: 15000 });
   ok(/^https:\/\/wa\.me\/\d+$/.test(await zapLembrete.getAttribute('href')), 'lembretes: o WhatsApp também abre só com o número');
   const msgLembrete = await cartaoLembrete.getByRole('textbox', { name: /Mensagem pronta/ }).inputValue();
-  ok(/^Oi, Ana! Aqui é da Beyon Zero\. Passando para lembrar/.test(msgLembrete) && CODIGO_NO_TEXTO.test(msgLembrete) && msgLembrete.match(CODIGO_NO_TEXTO)[1] !== codigoDoLink, 'lembretes: a mensagem chama pelo primeiro nome e leva um link NOVO (não o do aviso)');
+  ok(/^Oi, Ana! Aqui é o Fernando, da Beyon Zero\. Passando para lembrar/.test(msgLembrete) && CODIGO_NO_TEXTO.test(msgLembrete) && msgLembrete.match(CODIGO_NO_TEXTO)[1] !== codigoDoLink, 'lembretes: a mensagem chama pelo primeiro nome e leva um link NOVO (não o do aviso)');
   ok(!(await painel2.evaluate(() => JSON.stringify({ l: Object.entries(localStorage), s: Object.entries(sessionStorage) }) + location.href + document.cookie)).includes(msgLembrete.match(CODIGO_NO_TEXTO)[1]) && !falaDoPainel.some(l => l.includes(msgLembrete.match(CODIGO_NO_TEXTO)[1])), 'lembretes: o código do link novo também fica fora do endereço, do armazenamento e do console');
   await foto(painel2, '5f-painel-lembrete-pronto-cel');
   /* (M5 da correção da Task 5) o mesmo cartão, já com o link pronto, no desktop: não pode ficar esticado nem cortado */

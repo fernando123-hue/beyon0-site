@@ -25,7 +25,7 @@
     },
     material_apagar: {
       titulo: 'Material parado, aviso antes de apagar', rotulo: 'aviso antes de apagar o material', assunto: 'O material parado do seu site vai ser apagado',
-      texto: function (link) { return QUEM + 'Faz meses que o material do seu site está parado, e eu vou apagar o que você mandou (logo, fotos e textos) 30 dias depois desta mensagem.\nPara não apagar, é só mandar ou mexer no material pelo link. Ele' + LINK_UNICO + link + '\nO seu pedido e o pagamento não são apagados.'; }
+      texto: function (link) { return QUEM + 'Faz meses que o material do seu site está parado.\nSe você mandar ou mexer no material por este link, eu não apago nada. Se não, eu apago o que você mandou (a logomarca, as fotos e os textos) 30 dias depois desta mensagem.\nO link' + LINK_UNICO + link + '\nO pedido e o pagamento não são apagados.'; }
     },
     restante_lembrete_1: {
       titulo: 'Lembrete do restante (2º dia)', rotulo: 'lembrete do restante', assunto: 'Lembrete do restante do seu site',
