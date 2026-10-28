@@ -156,8 +156,8 @@ test('as notas dos passos 3 e 4 por passo da entrega (3b-3c): "Previsão", nunca
   assert.doesNotMatch(semComentario(FONTE), /Pronto até/, 'só "Previsão" até existir o importar-site da captação');
 });
 
-test('o orcamento-entrega.js liga a prévia (BZPrevia) e esconde #o-previa e #o-noar quando a entrega some', () => {
+test('o orcamento-entrega.js liga a tela da prévia (BZPreviaEntrega; BZPrevia é do desenho das direções) e esconde #o-previa quando a entrega some', () => {
   const js = semComentario(FONTE);
-  assert.match(js, /window\.BZPrevia/); assert.match(js, /prev\.atualizar\(E\)/);
+  assert.match(js, /window\.BZPreviaEntrega/); assert.doesNotMatch(js, /window\.BZPrevia\b(?!Entrega)/); assert.match(js, /prev\.atualizar\(E\)/);
   assert.equal((js.match(/\$\('o-previa'\)\.hidden = true/g) || []).length, 2, 'os dois return antecipados (interruptor desligado e sem entrega pronta)');
 });

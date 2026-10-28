@@ -3,11 +3,11 @@
 .orc-previa__rotulo { margin-bottom: .5rem; font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-dado); text-transform: uppercase; color: var(--t3); }
 .orc-previa__acoes { display: flex; flex-direction: column; gap: .75rem; margin: 1rem 0; }
 .orc-previa__acoes .btn { min-height: 44px; width: 100%; justify-content: center; font-family: var(--sans); font-size: var(--fs-b); text-transform: none; letter-spacing: normal; }
-.orc-previa .orc-nota, .orc-previa .orc-erro { margin-top: 0; font-size: var(--fs-b); line-height: 1.5; color: var(--t2); }
-.orc-previa .orc-erro { min-height: 0; color: var(--t1); }
-.orc-previa .orc-previa__form .orc-erro { margin-top: .25rem; }
-.orc-previa .orc-erro:empty { display: none; }
+.orc-previa .orc-nota { margin-top: 0; font-size: var(--fs-b); line-height: 1.5; color: var(--t2); }
+.orc-previa .orc-erro { min-height: 0; margin-top: .75rem; font-size: var(--fs-b); line-height: 1.5; }   /* (o tom é o do .orc-erro de orcamento.css) */
+.orc-previa .orc-erro:empty { margin: 0; }   /* (a região role="alert" fica na página, vazia: o leitor anuncia o 1º erro) */
 .orc-previa__form { display: grid; gap: .75rem; margin-top: 1rem; min-width: 0; }
+.orc-previa__form > .orc-erro:empty { margin-bottom: -.75rem; }   /* (dentro do grid, o vão de baixo de um item vazio é desfeito) */
 .orc-previa .orc-previa__form label:not(.orc-check) { margin-top: 0; font-size: var(--fs-b); line-height: 1.4; color: var(--t1); }   /* (vence o .orc-form label de 14 px do orcamento.css) */
 .orc-previa textarea { width: 100%; box-sizing: border-box; min-height: 9rem; padding: .75rem; font-family: var(--sans); font-size: var(--fs-b); line-height: 1.5; color: var(--t1); background: var(--bg); border: 1px solid var(--stroke); border-radius: var(--raio); resize: vertical; }
 .orc-previa__contato { display: grid; gap: .5rem; min-width: 0; margin: 0; padding: .75rem; border: 1px solid var(--line-2); border-radius: var(--raio); }

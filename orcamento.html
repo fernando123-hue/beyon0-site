@@ -595,20 +595,17 @@
       <form class="orc-form orc-previa__form" id="o-prv-form" novalidate hidden>
         <label for="o-prv-lista">Escreva tudo de uma vez</label>
         <p class="orc-nota" id="o-prv-lista-n"></p>
-        <textarea id="o-prv-lista" rows="7" maxlength="1500" aria-describedby="o-prv-lista-n o-prv-prazo o-prv-aviso o-prv-apaga o-prv-contador"></textarea>
+        <textarea id="o-prv-lista" rows="7" maxlength="1500" aria-describedby="o-prv-lista-n o-prv-prazo o-prv-aviso o-prv-contador"></textarea>
         <p class="orc-nota" id="o-prv-contador"></p>
         <p class="orc-nota" id="o-prv-prazo">Enquanto espero a sua lista de ajustes, o prazo fica parado.</p>
-        <p class="orc-nota" id="o-prv-aviso">Não escreva CPF, CNPJ nem dados de outras pessoas.</p>
-        <p class="orc-nota" id="o-prv-apaga">Telefone e e-mail escritos aqui são apagados. Para trocar os do site, use os campos abaixo.</p>
+        <p class="orc-nota" id="o-prv-aviso">Não escreva CPF, CNPJ nem dados de outras pessoas. Telefone e e-mail escritos aqui são apagados. Para trocar os do site, use os campos abaixo.</p>
         <!-- M3 (22/10): o telefone e o e-mail do site em campos PRÓPRIOS, conferidos aqui, no servidor e no banco; a mesma autorização de uso do material -->
         <fieldset class="orc-previa__contato" id="o-prv-contato">
           <legend>Trocar o telefone ou o e-mail do site (se quiser)</legend>
-          <p class="orc-nota" id="o-prv-contato-nota">Só se mudaram. Ficam guardados à parte da lista.</p>
-          <label for="o-prv-wa">WhatsApp ou telefone do site</label>
-          <input id="o-prv-wa" type="tel" inputmode="tel" autocomplete="off" maxlength="30" aria-describedby="o-prv-contato-nota o-prv-wa-ex">
-          <p class="orc-nota" id="o-prv-wa-ex">Com DDD. Exemplo: (21) 99999-0001.</p>
+          <label for="o-prv-wa">WhatsApp ou telefone do site (com DDD)</label>
+          <input id="o-prv-wa" type="tel" inputmode="tel" autocomplete="off" maxlength="30">
           <label for="o-prv-email">E-mail do site</label>
-          <input id="o-prv-email" type="email" inputmode="email" autocomplete="off" maxlength="120" aria-describedby="o-prv-contato-nota">
+          <input id="o-prv-email" type="email" inputmode="email" autocomplete="off" maxlength="120">
           <label class="orc-previa__aut" for="o-prv-autoriza"><input id="o-prv-autoriza" type="checkbox"><span id="o-prv-autoriza-texto"></span></label>
         </fieldset>
         <p class="orc-erro" id="o-prv-erro-form" role="alert"></p>
@@ -617,7 +614,7 @@
           <button class="btn btn--ghost" type="button" id="o-prv-cancelar">Voltar</button>
         </div>
       </form>
-      <p class="orc-nota" id="o-prv-duvida" hidden>Outra dúvida? <a data-wa="tenho uma dúvida sobre os ajustes do meu pedido" href="https://wa.me/5521977167944">Fale com a Beyon Zero pelo WhatsApp</a>.</p>
+      <p class="orc-nota" id="o-prv-duvida" hidden>Outra dúvida? <a data-wa="tenho uma dúvida sobre os ajustes do meu pedido" href="https://wa.me/5521977167944">Fale com a Beyon Zero pelo WhatsApp</a></p>
       <dialog class="orc-dialogo" id="o-prv-dialogo" aria-labelledby="o-prv-dialogo-titulo">
         <h3 id="o-prv-dialogo-titulo">Aprovar a prévia?</h3>
         <p>Depois de aprovar, o próximo passo é pôr o site no ar.</p>

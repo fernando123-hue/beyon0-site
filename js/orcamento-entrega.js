@@ -220,7 +220,7 @@
       garantirLink(E);
       mostrarCartao();
       if (window.BZMaterial) window.BZMaterial.atualizar(E);
-      if (window.BZPrevia && !prev) prev = window.BZPrevia.criar({ API: API });   /* (3b-3c) o passo 3: ver, aprovar, mandar a lista de ajustes */
+      if (window.BZPreviaEntrega && !prev) prev = window.BZPreviaEntrega.criar({ API: API });   /* (3b-3c) o passo 3: ver, aprovar, mandar a lista de ajustes */
       if (prev) prev.atualizar(E);
     }
     /* os passos ANTES de pagar (Task 17): a entrada e o restante saem da proposta, nunca de um número escrito à mão */
