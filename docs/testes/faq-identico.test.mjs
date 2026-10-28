@@ -55,37 +55,14 @@ test('nenhuma página promete o consultor de IA enquanto o orçamento é sem IA 
   }
 });
 
-/* o preço que o FAQ de sites.html cita sai da tabela: em 2026-10-14 o dono mudou landing e institucional, e nada ligava
-   o texto à tabela (o orçamento mostraria um preço e o FAQ outro) */
-test('sites.html: o FAQ de preço diz as bases da tabela, e a área restrita vai para a conversa', () => {
-  const regras = JSON.parse(readFileSync(new URL('docs/fase2/regras-rascunho-v1.json', RAIZ), 'utf8'));
-  const real = v => 'R$ ' + v.toLocaleString('pt-BR');
-  const faq = [...doJsonLd(readFileSync(new URL('sites.html', RAIZ), 'utf8')).values()].find(r => r.startsWith('A landing page começa em'));
-  assert.ok(faq, 'a resposta de preço sumiu do FAQ de sites.html');
-  const f = regras.formatos;
-  assert.ok(faq.includes('A landing page começa em ' + real(f.landing_page.base) + ', o site institucional em ' + real(f.institucional.base)
-    + ', a loja virtual em ' + real(f.loja_plataforma.base) + ' e a experiência digital em ' + real(f.sob_medida.base) + '.'), faq);
-  assert.equal(regras.adicionais.area_restrita.fora_do_automatico, true);
-  assert.ok(faq.includes('Área restrita com login começa em R$ 4.500 e é orçada numa conversa, com o escopo escrito.'), faq);
-});
-
-/* os cartões de formato também citam preço (revisão do PR #42: sites.html e index.html ficaram com 1.500 e 3.500
-   depois de a tabela mudar). Cada "A partir de R$ X" do cartão sai da base do formato do título dele. */
-test('sites.html e index.html: o preço dos cartões de formato é a base da tabela', () => {
-  const regras = JSON.parse(readFileSync(new URL('docs/fase2/regras-rascunho-v1.json', RAIZ), 'utf8'));
-  const real = v => 'R$ ' + v.toLocaleString('pt-BR');
-  const f = regras.formatos;
-  const base = { 'Site institucional': f.institucional.base, 'Landing page': f.landing_page.base, 'Experiência digital': f.sob_medida.base,
-    'Loja virtual': f.loja_plataforma.base, 'Sites': f.landing_page.base };
-  let vistos = 0;
-  for (const arquivo of ['sites.html', 'index.html']) {
-    const html = readFileSync(new URL(arquivo, RAIZ), 'utf8');
-    for (const [, titulo, para] of html.matchAll(/<h3 id="(?:formato|servico)-\d+-t">([^<]+)<\/h3>[\s\S]*?<span class="servico__para">([^<]*)<\/span>/g)) {
-      const preco = limpar(para).match(/R\$ \d{1,3}(?:\.\d{3})*/);   /* (sem o ponto final da frase) */
-      if (!preco || !(titulo in base)) continue;
-      vistos++;
-      assert.equal(preco[0], real(base[titulo]), arquivo + ': cartão "' + titulo + '"');
-    }
+/* preço só no orçamento/consultor (dono, 2026-10-28: "Os cards não podem mostrar o preço"; "Preços ficam
+   exclusivamente com o consultor e vendedor de IA do site"). Nenhuma página de venda mostra valor em reais: nem cartão,
+   nem plano, nem FAQ (o visível e o JSON-LD). Antes este arquivo conferia os preços do FAQ e dos cartões contra a tabela
+   (2026-10-14, PR #42); com o preço fora das páginas, o texto não pode mais divergir da tabela. */
+test('index, sites e automação: nenhum preço em reais na página (cartões, planos, FAQ)', () => {
+  for (const arquivo of ['index.html', 'sites.html', 'automacao.html']) {
+    const html = readFileSync(new URL(arquivo, RAIZ), 'utf8').replace(/<!--[^]*?-->/g, '');
+    const achado = limpar(html).match(/.{0,60}R\$.{0,40}/);
+    assert.equal(achado, null, arquivo + ': preço na página: ' + (achado && achado[0]));
   }
-  assert.ok(vistos >= 4, 'esperava os cartões de preço de sites.html e o de Sites em index.html: ' + vistos);
 });
