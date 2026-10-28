@@ -12,6 +12,7 @@
    Uso: servidor local com PAINEL_CHAVE (32+) e BZ_SEM_CONSULTOR=1, depois PAINEL_CHAVE=<a mesma>
    BASE=http://127.0.0.1:8899 CHROMIUM=... node docs/e2e-orcamento.mjs
    (CONSULTOR=1 com o servidor local SEM BZ_SEM_CONSULTOR)
+   (BZ_ENTREGA_LOCAL=desligada nos DOIS, servidor e cliente: a rodada sem a entrega, só a frase do recibo; PR 3b-3c: docs/e2e-previa.mjs cuida da prévia, do ar e do restante)
    FREIO LOCAL: cada rodada cria 4 sessões no freio do servidor local (8 por 10 min por IP, api/vendas.mjs, freioSessao),
    3 delas no passo de abrir o pedido pelo link. Uma 3ª rodada seguida em menos de 10 min no mesmo servidor estoura (429):
    espere ou reinicie o servidor.
@@ -22,6 +23,7 @@ import { fileURLToPath } from 'node:url';
 import { passoDosAjustes } from './e2e-ajustes.mjs';
 import { passoDoPix } from './e2e-pix.mjs';
 import { passoDaEntrega } from './e2e-entrega.mjs';
+import { passoDaPrevia, passoSemEntrega } from './e2e-previa.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8899';
 /* só servidor local: contra um site de verdade este teste cria conversa, chama a IA paga e cria pedido de pagamento */
@@ -47,6 +49,7 @@ let falhou = false;
 /* CONSULTOR=1: o servidor local com a IA simulada mostrando o consultor (sem BZ_SEM_CONSULTOR); as checagens da
    conversa só valem aí. Sem ele, o caminho é só o das perguntas (rodar o servidor com BZ_SEM_CONSULTOR=1) */
 const CONSULTOR = process.env.CONSULTOR === '1';
+const ENTREGA_DESLIGADA = process.env.BZ_ENTREGA_LOCAL === 'desligada';   /* o mesmo valor com que o servidor local foi subido (docs/servidor.mjs) */
 const ok = (cond, msg) => { console.log((cond ? 'OK   ' : 'FALHA') + ' ' + msg); if (!cond) falhou = true; };
 const semRolagemLateral = page => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
 /* espera uma condição na página sem derrubar o resto do teste: devolve se ela chegou a valer */
@@ -723,7 +726,12 @@ try {
 
   /* pagamento: dados do pagador, o cartão (quando o servidor o liga) e o Pix; a confirmação SÓ pelo aviso do provedor (docs/e2e-pix.mjs) */
   await passoDoPix(page, { ok, espera, foto, semRolagemLateral, forcar: v => { falhaForcada = v; } });
-  await passoDaEntrega(page, { ok, espera, foto, semRolagemLateral, perdeu: () => { perdeuOPedido = true; }, forcar: v => { falhaForcada = v; } });
+  /* BZ_ENTREGA_LOCAL=desligada (o servidor local sem a entrega): só a frase do recibo; a entrega e a prévia precisam do interruptor ligado */
+  if (ENTREGA_DESLIGADA) await passoSemEntrega(page, { ok, semRolagemLateral });
+  else {
+    await passoDaEntrega(page, { ok, espera, foto, semRolagemLateral, perdeu: () => { perdeuOPedido = true; }, forcar: v => { falhaForcada = v; } });
+    await passoDaPrevia(page, { ok, espera, foto, semRolagemLateral, chave: PAINEL_CHAVE, conversaId });
+  }
   ok(erros.length === 0, 'sem erro de console' + (erros.length ? ': ' + erros.slice(0, 3).join(' | ') : ''));
   await ctx.close();
 
@@ -833,7 +841,7 @@ try {
     const c = await nav.newContext({ viewport: { width: w, height: h } });
     const p = await c.newPage();
     anotar(p, w + 'px');
-    await p.goto(BASE + '/orcamento', { waitUntil: 'load' });
+    await p.goto(BASE + '/orcamento', { waitUntil: 'load', timeout: 90000 });
     ok(await semRolagemLateral(p), w + 'px: sem rolagem lateral');
     await foto(p, nome);
     await p.waitForSelector('#o-perguntas:not([hidden])');
@@ -862,7 +870,7 @@ try {
   /* sem JS: a página avisa e oferece o WhatsApp */
   const sj = await nav.newContext({ javaScriptEnabled: false });
   const ps = await sj.newPage();
-  await ps.goto(BASE + '/orcamento', { waitUntil: 'load' });
+  await ps.goto(BASE + '/orcamento', { waitUntil: 'load', timeout: 90000 });
   ok(await ps.locator('.orc-aviso--semjs').isVisible(), 'sem JS: aviso com o WhatsApp visível');
   ok(await ps.locator('.orc-mesa').isHidden(), 'sem JS: a conversa (que não funcionaria) some');
   await sj.close();
