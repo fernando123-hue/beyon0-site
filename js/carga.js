@@ -133,6 +133,7 @@
       card.classList.toggle('is-carregado', cheio);
       /* cheio, a luz circula pela borda (dono, 2026-10-06: "uma coisa só, com energia circulando") */
       if (cheio && !B.reduced && !reduz.matches) circular(c);
+      if (cheio) B.emit('carga:cheio', card);   /* o sino (js/som.js) */
       /* (na ignição, a linha e as letras ficam para a entrada da sobrecarga, logo em seguida) */
       if (cheio && !(c.rampa && c.pediu)) { varrer(card); if (daEstacao(card)) letras(card); else acender(card, true); }
       /* (acesas ficam: o card que já acendeu não apaga ao descarregar — dono, 2026-10-05: "eu quero que as letras fiquem acesas") */

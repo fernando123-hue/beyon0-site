@@ -84,6 +84,16 @@ p em, li em { font-style: normal; font-weight: 500; color: var(--t1); }
   background: none; border: 0; cursor: pointer; border-radius: var(--raio-s);
   flex-direction: column; align-items: center; justify-content: center; gap: 5px;
 }
+/* o botão de som (js/som.js): ligado, o falante com as ondas; desligado, com um X. Nasce hidden e só o JS mostra
+   (sem Web Audio ele não faria nada); a margem empurra ele e o que vem depois para a direita */
+.nav__som {
+  display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; flex: none; margin-left: auto;
+  background: none; border: 0; cursor: pointer; border-radius: var(--raio-s); color: var(--t2);
+}
+.nav__som[hidden] { display: none; }
+.nav__som:hover { color: var(--t1); }
+.som__icone { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.nav__som[aria-pressed="false"] .som__onda, .nav__som[aria-pressed="true"] .som__corte { display: none; }
 .nav__toggle-bar { width: 20px; height: 1.5px; background: var(--t1); transition: transform var(--t-micro) var(--ease-micro); }
 .nav.is-open .nav__toggle-bar:first-child { transform: translateY(3.25px) rotate(45deg); }
 .nav.is-open .nav__toggle-bar:last-child  { transform: translateY(-3.25px) rotate(-45deg); }
@@ -454,8 +464,9 @@ html.has-gsap .feixe.is-loop ~ .hero__arte .instrumento__led { animation: led-pa
   .footer__legal a, .footer__legal button, .footer__brand > a, .footer__contato a { min-height: 44px; }
   .btn--sm { min-height: 44px; }
 }
-.footer__motion { background: none; border: 0; padding: 0; min-height: 28px; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-ctrl); text-transform: uppercase; color: var(--t3); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
-.footer__motion:hover { color: var(--t1); }
+.footer__motion, .footer__som { background: none; border: 0; padding: 0; min-height: 28px; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-ctrl); text-transform: uppercase; color: var(--t3); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.footer__motion:hover, .footer__som:hover { color: var(--t1); }
+.footer__som[hidden] { display: none; }
 @media (min-width: 721px) { .footer__grid { grid-template-columns: 1.4fr 1fr 1fr; gap: 3rem; } }
 
 /* ---- WHATSAPP flutuante: só no desktop; some enquanto o CTA do hero está na tela ---- */
