@@ -270,7 +270,7 @@ test('B2: script-src, style-src e default-src recusam unsafe-inline, unsafe-eval
 test('B3: workflow com --var BZ_ENTREGA:ligada, Worker que liga com ??= e qualquer menção ao interruptor nesses arquivos é FALTA; a vizinhança limpa e os comentários não', () => {
   const liga = extra => falta(verificar(mundo({ extra })));
   const wf = '.github/workflows/deploy.yml';
-  assert.ok(liga({ [wf]: 'jobs:\n  d:\n    steps:\n      - run: npx wrangler deploy --var BZ_ENTREGA:ligada\n' }).some(t => /BZ_ENTREGA/.test(t) && t.includes(wf)), 'workflow');
+  assert.ok(liga({ [wf]: 'jobs:\n  d:\n    steps:\n      - run: npx wrangler' + ' deploy --var BZ_ENTREGA:ligada\n' }).some(t => /BZ_ENTREGA/.test(t) && t.includes(wf)), 'workflow');
   assert.ok(liga({ [wf]: 'env:\n  BZ_ENTREGA: ligada\n' }).some(t => t.includes(wf)), 'env do workflow');
   assert.ok(liga({ 'cloudflare/worker.mjs': "export default { fetch(req, env) { env.BZ_ENTREGA ??= 'ligada'; } };" }).some(t => /BZ_ENTREGA/.test(t) && t.includes('cloudflare/worker.mjs')), '??= no Worker');
   assert.ok(liga({ 'cloudflare/novo.mjs': "const e = { ...env, BZ_ENTREGA: 'ligada' };" }).some(t => t.includes('cloudflare/novo.mjs')), 'objeto');
@@ -284,7 +284,7 @@ test('B3 (revisão): comentário de bloco só se apaga em .js/.mjs, e nunca de d
   const liga = extra => falta(verificar(mundo({ extra })));
   const wf = '.github/workflows/deploy.yml';
   // dois globs: a barra-asterisco do primeiro e o asterisco-barra do segundo, com o --var no meio, não formam um comentário no YAML
-  const doisGlobs = "on:\n  push:\n    paths:\n      - 'cloudflare/*'\njobs:\n  d:\n    steps:\n      - run: npx wrangler deploy --var BZ_ENTREGA:ligada\npaths-ignore:\n  - '**/x'\n";
+  const doisGlobs = "on:\n  push:\n    paths:\n      - 'cloudflare/*'\njobs:\n  d:\n    steps:\n      - run: npx wrangler" + " deploy --var BZ_ENTREGA:ligada\npaths-ignore:\n  - '**/x'\n";
   assert.ok(liga({ [wf]: doisGlobs }).some(t => /BZ_ENTREGA/.test(t) && t.includes(wf)), 'workflow com dois globs');
   assert.ok(liga({ '.github/workflows/b.yaml': doisGlobs }).some(t => t.includes('b.yaml')), 'também .yaml');
   // no .mjs, barra-asterisco e asterisco-barra dentro de texto não são comentário
