@@ -11,7 +11,9 @@ const ESPERA = 30000;
 const PAGADOR = { nome: 'Ana', sobrenome: 'Souza', email: 'ana@exemplo.com', documento: '52998224725' };
 
 /* o dono, pelo painel, com a PAINEL_CHAVE do servidor local (nunca em arquivo do repositório) */
+const HOSTS_LOCAIS = ['127.0.0.1', 'localhost', '[::1]'];
 export function painelDe(origem, chave) {
+  if (!HOSTS_LOCAIS.includes(new URL(origem).hostname)) throw new Error('painelDe: a chave do painel só vai para o servidor local (127.0.0.1, localhost ou [::1]), não para ' + new URL(origem).origin);
   return async (metodo, caminho, corpo) => {
     const r = await fetch(origem + '/api/painel' + (caminho || ''), { method: metodo, headers: { authorization: 'Bearer ' + chave, 'content-type': 'application/json' }, body: corpo === undefined ? undefined : JSON.stringify(corpo) });
     return { status: r.status, corpo: await r.json().catch(() => ({})) };
@@ -22,16 +24,25 @@ const altura = (page, sel) => page.locator(sel).boundingBox().then(b => (b ? b.h
 const aoTopo = (page, sel) => page.evaluate(s => document.querySelector(s).scrollIntoView({ block: 'start', behavior: 'instant' }), sel);
 const reais = valor => 'R$ ' + new Intl.NumberFormat('pt-BR', { minimumFractionDigits: Number.isInteger(valor) ? 0 : 2, maximumFractionDigits: 2 }).format(valor);   /* como a tela escreve o dinheiro (sem os centavos quando são ,00) */
 const semEspacoEstranho = t => t.replace(/\s/g, ' ');
+/* "escondido" só vale se o id existe UMA vez na página: um id renomeado faria o isHidden() passar sem provar nada */
+export const escondido = async (page, sel) => (await page.locator(sel).count()) === 1 && await page.locator(sel).isHidden();
+const FRASE_AUTORIZACAO = 'Autorizo a Beyon Zero a usar este material';   /* o começo da frase fixa da autorização (a do material): conferida em literal, não só contra a constante do cliente */
+const FRASE_FREIO = /Você já gerou links demais hoje\./;   /* api/_vendas/fluxo-link.mjs: o único 429 esperado */
 
 /* a rodada com a entrega DESLIGADA (BZ_ENTREGA_LOCAL=desligada): só a frase do recibo e nada de Seu pedido, prévia nem site no ar */
 export async function passoSemEntrega(page, { ok, semRolagemLateral }) {
   await page.waitForSelector('#o-pronto:not([hidden])', { timeout: ESPERA });
   ok((await page.textContent('#o-recibo .recibo__lead')).trim() === FRASE_DESLIGADA, 'entrega desligada: o recibo diz a frase "' + FRASE_DESLIGADA + '"');
-  for (const id of ['o-pedido', 'o-material', 'o-previa', 'o-noar', 'o-fim']) ok(await page.locator('#' + id).isHidden(), 'entrega desligada: #' + id + ' não aparece');
+  for (const id of ['o-pedido', 'o-material', 'o-previa', 'o-noar', 'o-fim']) ok(await escondido(page, '#' + id), 'entrega desligada: #' + id + ' existe e não aparece');
   ok(await semRolagemLateral(page), 'entrega desligada: sem rolagem lateral no recibo');
 }
 
-export async function passoDaPrevia(page, { ok, espera, foto, semRolagemLateral, chave, conversaId }) {
+export async function passoDaPrevia(page, args) {
+  const aparelhos = [];
+  try { await rodar(page, args, aparelhos); } finally { for (const a of aparelhos) await a.ctx.close().catch(() => {}); }
+}
+
+async function rodar(page, { ok, espera, foto, semRolagemLateral, chave, conversaId }, aparelhos) {
   const browser = page.context().browser();
   const origem = new URL(page.url()).origin;
   const painel = painelDe(origem, chave);
@@ -43,9 +54,15 @@ export async function passoDaPrevia(page, { ok, espera, foto, semRolagemLateral,
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, extraHTTPHeaders: { 'x-forwarded-for': '203.0.113.' + (++seqIp) } });
     const p = await ctx.newPage();
     const aparelho = { ctx, p, perdeu: false };
+    aparelhos.push(aparelho);
     p.on('console', m => { if (m.type() !== 'error' || /favicon/.test(m.text())) return; if (/status of 429/.test(m.text())) cont429.genericos++; else if (!(aparelho.perdeu && /status of 404/.test(m.text()))) erros.push(m.text()); });
     p.on('pageerror', e => erros.push(String(e)));
-    p.on('response', r => { if (r.status() !== 429) return; const u = new URL(r.url()); if (u.searchParams.get('acao') === 'link-pedido') cont429.links++; else { cont429.outros++; erros.push('429 em ' + r.request().method() + ' ' + u.pathname + u.search); } });   /* (diz QUAL chamada levou o freio) */
+    p.on('response', async r => {
+      if (r.status() !== 429) return;
+      const u = new URL(r.url()), corpo = await r.json().catch(() => ({}));
+      if (u.searchParams.get('acao') === 'link-pedido' && FRASE_FREIO.test(String(corpo.erro || ''))) cont429.links++;   /* só o freio do link, com a frase dele */
+      else { cont429.outros++; erros.push('429 em ' + r.request().method() + ' ' + u.pathname + u.search + ' (' + String(corpo.erro || 'sem frase').slice(0, 60) + ')'); }   /* (diz QUAL chamada levou o freio) */
+    });
     return aparelho;
   };
   const entrarPeloLink = async aparelho => {   /* o dono gera o link de retomada (uso único), o aparelho sem armazenamento o abre e toca "Abrir o meu pedido" */
@@ -57,6 +74,14 @@ export async function passoDaPrevia(page, { ok, espera, foto, semRolagemLateral,
     return r.corpo.codigo;
   };
 
+  /* o link do WhatsApp do site (data-wa) leva só uma frase fixa em ?text=, com o código PÚBLICO do pedido (BZ-…, o mesmo que o cliente lê na tela e que o dono pede): nunca o código de retomada, o id da conversa nem um endereço com #. O que nunca pode existir é href com retomar= ou pedido= */
+  const varrerLinks = async (p, onde, retomada) => {
+    const hrefs = await p.$$eval('a[href]', l => l.map(a => a.getAttribute('href')));
+    const textos = hrefs.filter(h => /[?&]text=/.test(h)).map(h => decodeURIComponent(h.split(/[?&]text=/)[1] || ''));
+    const ruins = hrefs.filter(h => /retomar=|pedido=/.test(h)).concat(textos.filter(x => x.includes(retomada) || x.includes(conversaId) || /retomar=|pedido=|#/.test(x)));
+    ok(ruins.length === 0, onde + ': nenhum link da página leva o código nem dado do pedido (' + hrefs.length + ' links, ' + textos.length + ' com frase fixa em ?text=)' + (ruins.length ? ': ' + ruins.slice(0, 3).join(' | ') : ''));
+  };
+
   const codigo = ((await page.textContent('#o-ped-codigo').catch(() => '')) || '').trim() || ((await painel('GET', '?fila=entregas')).corpo.entregas || [])[0]?.codigo;
   ok(/^BZ-/.test(codigo || ''), 'a prévia: o código do pedido (' + codigo + ')');
 
@@ -65,15 +90,18 @@ export async function passoDaPrevia(page, { ok, espera, foto, semRolagemLateral,
   await entrarPeloLink(A);
   await A.p.waitForSelector('#o-pedido:not([hidden])', { timeout: ESPERA });
   ok(JSON.stringify(await passosDe(A.p)) === JSON.stringify(['is-feito', 'is-feito', 'is-agora', 'is-depois']), 'antes da prévia: o passo 3 é o "agora"');
-  ok(await A.p.locator('#o-previa').isHidden() && await A.p.locator('#o-noar').isHidden(), 'antes da prévia: nem prévia nem site no ar na tela');
+  ok(await escondido(A.p, '#o-previa') && await escondido(A.p, '#o-noar'), 'antes da prévia: nem prévia nem site no ar na tela');
 
   /* 1. o dono importa e publica; D5: ele NÃO põe no ar antes de o cliente aprovar, e a prévia de outro projeto é recusada */
   ok((await painel('POST', '', { importado: codigo, cliente: CLIENTE })).status === 200, 'o dono marca o pedido como importado');
   const cedo = await painel('POST', '', { no_ar: codigo, url: SITE });
-  ok(cedo.status === 409 && /aprov/i.test(cedo.corpo.erro || ''), 'D5: o dono não põe no ar antes de o cliente aprovar (' + cedo.status + ')');
+  ok(cedo.status === 409 && /ainda não aprovou a prévia/.test(cedo.corpo.erro || ''), 'D5: sem prévia nenhuma, o dono não põe no ar (' + cedo.status + ': ' + (cedo.corpo.erro || '') + ')');
   const outro = await painel('POST', '', { previa: codigo, url: 'https://v1.bz-c-zzzzz2.pages.dev' });
-  ok(outro.status === 422, 'a prévia de outro projeto é recusada (' + outro.status + ')');
+  ok(outro.status === 422 && /de outro projeto/.test(outro.corpo.erro || ''), 'a prévia de outro projeto é recusada com o motivo (' + outro.status + ': ' + (outro.corpo.erro || '') + ')');
   ok((await painel('POST', '', { previa: codigo, url: PREVIA })).status === 200, 'o dono publica a prévia');
+  const calado = await painel('POST', '', { no_ar: codigo, url: SITE });   /* D5 de verdade: a prévia está PUBLICADA e o cliente calado */
+  ok(((await painel('GET', '?fila=entregas')).corpo.entregas || []).find(e => e.codigo === codigo)?.passo === 'previa', 'D5: a entrega está em "previa" (publicada, o cliente ainda não respondeu)');
+  ok(calado.status === 409 && /ainda não aprovou a prévia/.test(calado.corpo.erro || ''), 'D5: com a prévia publicada e o cliente calado, o dono também não põe no ar (' + calado.status + ': ' + (calado.corpo.erro || '') + ')');
 
   /* 2. a volta à aba traz a prévia */
   await voltaAba(A.p);
@@ -109,7 +137,8 @@ export async function passoDaPrevia(page, { ok, espera, foto, semRolagemLateral,
   await A.p.fill('#o-prv-wa', '(21) 97716-7944'); await A.p.fill('#o-prv-email', 'contato@clinicasol.com.br'); await A.p.click('#o-prv-enviar');
   ok(/autorização/i.test(await A.p.textContent('#o-prv-erro-form')), 'ajustes: trocar o contato exige a autorização de uso');
   const frase = await A.p.evaluate(() => window.BZMaterialEsquema.AUTORIZACAO.texto);
-  ok((await A.p.textContent('#o-prv-autoriza-texto')).trim() === frase && frase.length > 20, 'ajustes: a frase da autorização é a constante do material, inteira');
+  const fraseNaTela = (await A.p.textContent('#o-prv-autoriza-texto')).trim();
+  ok(fraseNaTela === frase && fraseNaTela.startsWith(FRASE_AUTORIZACAO) && frase.length > 20, 'ajustes: a frase da autorização é a constante do material e começa com "' + FRASE_AUTORIZACAO + '", inteira');
   ok(await A.p.evaluate(() => { const t = document.getElementById('o-prv-autoriza-texto'); return t.scrollWidth <= t.clientWidth + 1 && t.getBoundingClientRect().right <= innerWidth; }), 'ajustes: a frase da autorização cabe inteira na tela');
   ok(await semRolagemLateral(A.p), 'celular na lista de ajustes com os campos: sem rolagem lateral');
   await aoTopo(A.p, '#o-prv-contato');
@@ -138,11 +167,7 @@ export async function passoDaPrevia(page, { ok, espera, foto, semRolagemLateral,
   const codigoDeB = await entrarPeloLink(B);
   await B.p.waitForSelector('#o-previa:not([hidden])', { timeout: ESPERA });
   ok(true, 'D1: o aparelho sem armazenamento caiu na prévia pelo link do aviso');
-  const hrefs = await B.p.$$eval('a[href]', l => l.map(a => a.getAttribute('href')));
-  /* o link do WhatsApp do site (data-wa) leva só uma frase fixa em ?text=, com o código PÚBLICO do pedido (BZ-…, o mesmo que o cliente lê na tela e que o dono pede): nunca o código de retomada, o id da conversa nem um endereço com #. O que nunca pode existir é href com retomar= ou pedido= */
-  const textos = hrefs.filter(h => /[?&]text=/.test(h)).map(h => decodeURIComponent(h.split(/[?&]text=/)[1] || ''));
-  const ruins = hrefs.filter(h => /retomar=|pedido=/.test(h)).concat(textos.filter(x => x.includes(codigoDeB) || x.includes(conversaId) || /retomar=|pedido=|#/.test(x)));
-  ok(ruins.length === 0, 'nenhum link da página leva o código nem dado do pedido (' + hrefs.length + ' links, ' + textos.length + ' com frase fixa em ?text=)' + (ruins.length ? ': ' + ruins.slice(0, 3).join(' | ') : ''));
+  await varrerLinks(B.p, 'na prévia', codigoDeB);
   ok(!B.p.url().includes('retomar='), 'o código de retomada saiu da barra de endereço');
   ok((await painel('POST', '', { aviso_feito: codigo, momento: 'previa' })).status === 200, 'D1: "já avisei" tira da fila');
   ok(!((await painel('GET', '?fila=avisos')).corpo.itens || []).some(i => i.codigo === codigo && i.momento === 'previa'), 'D1: o aviso da prévia saiu da fila');
@@ -151,13 +176,18 @@ export async function passoDaPrevia(page, { ok, espera, foto, semRolagemLateral,
   await B.p.click('#o-prv-aprovar');
   ok(await B.p.evaluate(() => document.getElementById('o-prv-dialogo').open), 'aprovar: o dialog abre');
   ok(/Depois de aprovar, o próximo passo é pôr o site no ar\./.test(await B.p.textContent('#o-prv-dialogo')), 'aprovar: a frase do contrato no dialog');
-  ok(await B.p.evaluate(() => { const s = [getComputedStyle(document.getElementById('o-prv-dialogo'), '::backdrop')]; return s.every(x => !/blur/.test(x.backdropFilter + ' ' + x.filter)); }), 'aprovar: o fundo do dialog escurece sem desfoque');
+  const fundo = await B.p.evaluate(() => {
+    const x = getComputedStyle(document.getElementById('o-prv-dialogo'), '::backdrop');
+    const regras = [...document.styleSheets].flatMap(s => { try { return [...s.cssRules]; } catch { return []; } }).filter(r => r.selectorText && /::backdrop/.test(r.selectorText));
+    return { cor: x.backgroundColor, filtro: x.backdropFilter + ' ' + x.filter, regras: regras.length, comBlur: regras.filter(r => /blur|backdrop-filter|filter/.test(r.cssText)).length };
+  });
+  ok(fundo.regras >= 1 && fundo.comBlur === 0 && !/blur/.test(fundo.filtro) && fundo.cor !== 'rgba(0, 0, 0, 0)' && fundo.cor !== 'transparent', 'aprovar: o fundo do dialog escurece (' + fundo.cor + ', ' + fundo.regras + ' regra de ::backdrop) sem desfoque nenhum');
   await B.p.keyboard.press('Escape');
   ok(await B.p.evaluate(() => !document.getElementById('o-prv-dialogo').open && document.activeElement.id === 'o-prv-aprovar'), 'aprovar: Esc fecha e o foco volta ao botão');
   ok((await painel('GET', '?fila=entregas')).corpo.entregas.find(e => e.codigo === codigo).passo === 'previa', 'aprovar: nada foi aprovado só por abrir e fechar o dialog');
   await B.p.click('#o-prv-aprovar'); await B.p.click('#o-prv-confirmar');
   await B.p.waitForFunction(() => /Prévia aprovada/.test(document.getElementById('o-prv-titulo').textContent), null, { timeout: ESPERA });
-  ok(await B.p.locator('#o-prv-botoes').isHidden(), 'aprovada: os botões de aprovar e de ajustes somem');
+  ok(await escondido(B.p, '#o-prv-botoes'), 'aprovada: os botões de aprovar e de ajustes somem');
   await aoTopo(B.p, '#o-previa');
   await foto(B.p, '6d-aprovada-cel');
 
@@ -166,7 +196,8 @@ export async function passoDaPrevia(page, { ok, espera, foto, semRolagemLateral,
   const avisos = (await painel('GET', '?fila=avisos')).corpo.itens || [];
   ok(avisos.some(i => i.codigo === codigo && i.momento === 'no_ar') && !avisos.some(i => i.codigo === codigo && i.momento === 'previa'), 'D1: o aviso do site no ar está na fila (e o da prévia não)');
   ok((await painel('POST', '', { aviso_feito: codigo, momento: 'no_ar' })).status === 200, 'D1 (22/10): o dono registra o aviso "site no ar": daqui contam os 3 dias do restante');
-  ok((await painel('POST', '', { suspender: codigo })).status === 409, '22/10: o site não sai do ar antes do fim do 3º dia do aviso');
+  const susp = await painel('POST', '', { suspender: codigo });
+  ok(susp.status === 409 && /Ainda não: o aviso do site no ar foi há/.test(susp.corpo.erro || ''), '22/10: o site não sai do ar antes do fim do 3º dia do aviso (' + susp.status + ': ' + (susp.corpo.erro || '') + ')');
   await voltaAba(B.p);
   await B.p.waitForSelector('#o-noar:not([hidden])', { timeout: ESPERA });
   ok(/Seu site está no ar/.test(await B.p.textContent('#o-noar-titulo')), 'no ar: o título');
@@ -174,8 +205,8 @@ export async function passoDaPrevia(page, { ok, espera, foto, semRolagemLateral,
   ok(await B.p.getAttribute('#o-noar-abrir', 'href') === SITE && /noopener/.test(await B.p.getAttribute('#o-noar-abrir', 'rel')) && await B.p.getAttribute('#o-noar-abrir', 'target') === '_blank', 'no ar: "Abrir o site" abre em outra aba, seguro');
   ok(/Se o restante não for pago em 3 dias depois do meu aviso de que o site está no ar, o site sai do ar até o pagamento\./.test(await B.p.textContent('#o-noar')), 'no ar: a frase da D4 (3 dias, 22/10) exata');
   ok(await B.p.evaluate(() => { const n = document.getElementById('o-noar'), p = document.getElementById('o-pagamento'); return !p.hidden && !!(n.compareDocumentPosition(p) & Node.DOCUMENT_POSITION_FOLLOWING); }), 'restante: o Pix vem depois do "no ar" no DOM e está visível');
-  ok(await B.p.locator('#o-previa').isHidden() && await B.p.locator('#o-fim').isHidden(), 'no ar: a prévia e o fim não aparecem');
-  ok(await B.p.isHidden('#o-pag-metodos') && await B.p.isHidden('#o-pix-trocar'), 'restante: só Pix (o seletor de cartão e o "trocar" ficam escondidos)');
+  ok(await escondido(B.p, '#o-previa') && await escondido(B.p, '#o-fim'), 'no ar: a prévia e o fim não aparecem');
+  ok(await escondido(B.p, '#o-pag-metodos') && await escondido(B.p, '#o-pix-trocar'), 'restante: só Pix (o seletor de cartão e o "trocar" ficam escondidos)');
   ok(/Falta o restante/.test(await B.p.textContent('#o-pag-titulo')), 'restante: o título "Falta o restante"');
   const conta = await B.p.evaluate(async () => { const E = await window.BZOrcamento.estado(); const paga = (E.pagamentos || []).find(p => p.parcela === 'sinal' && p.status === 'pago'); return { total: Number(E.proposta.valor_total), entrada: paga ? Number(paga.valor) : null }; });
   const esperado = reais(Math.round((conta.total - conta.entrada) * 100) / 100);
@@ -183,6 +214,7 @@ export async function passoDaPrevia(page, { ok, espera, foto, semRolagemLateral,
   ok(conta.entrada > 0 && botao === 'Gerar o Pix de ' + esperado, 'restante: o botão traz total − entrada (' + reais(conta.total) + ' − ' + reais(conta.entrada) + ' = ' + esperado + '): "' + botao + '"');
   ok(await altura(B.p, '#o-pag-enviar') >= 44 && await altura(B.p, '#o-noar-abrir') >= 44, 'no ar: "Abrir o site" e o botão do Pix têm 44 px ou mais');
   ok(await B.p.evaluate(() => [...document.querySelectorAll('#o-noar, #o-noar *, #o-pagamento, #o-pagamento *')].every(e => { const s = getComputedStyle(e); return !/blur/.test(s.filter + ' ' + s.backdropFilter) && !/\)\s-?[\d.]+px\s-?[\d.]+px\s[1-9]/.test(s.boxShadow); })), 'no ar: nenhum desfoque nem sombra difusa');
+  await varrerLinks(B.p, 'no ar', codigoDeB);
   ok(await semRolagemLateral(B.p), 'celular no ar: sem rolagem lateral');
   await aoTopo(B.p, '#o-noar');
   await foto(B.p, '7-noar-cel');
@@ -198,9 +230,11 @@ export async function passoDaPrevia(page, { ok, espera, foto, semRolagemLateral,
   await B.p.click('#o-pag-enviar');
   await B.p.waitForSelector('#o-pix:not([hidden])', { timeout: ESPERA });
   ok(semEspacoEstranho(await B.p.textContent('#o-pix-valor')).includes(esperado), 'restante: o Pix mostra o mesmo valor (' + esperado + ')');
-  ok(await B.p.isHidden('#o-pix-trocar'), 'restante: no Pix, sem "Prefiro pagar com cartão"');
+  ok(await escondido(B.p, '#o-pix-trocar'), 'restante: no Pix, sem "Prefiro pagar com cartão"');
   await aoTopo(B.p, '#o-pix');
   await foto(B.p, '7c-pix-restante-cel');
+  ok(await escondido(B.p, '#o-fim'), 'restante: antes de pagar o fim continua escondido');
+  ok(((await painel('GET', '?fila=entregas')).corpo.entregas || []).some(e => e.codigo === codigo), 'restante: antes de pagar o pedido ainda está na lista do dono');
   await B.p.click('#o-pix-simular');
   await B.p.waitForSelector('#o-fim:not([hidden])', { timeout: 40000 });
   ok(/Pedido concluído/.test(await B.p.textContent('#o-fim-titulo')), 'fim: "Pedido concluído"');
@@ -208,8 +242,9 @@ export async function passoDaPrevia(page, { ok, espera, foto, semRolagemLateral,
   ok(entradaTxt === reais(conta.entrada) && restanteTxt === esperado && totalTxt === reais(conta.total), 'fim: as duas partes ✓ e o total conferem (' + entradaTxt + ' + ' + restanteTxt + ' = ' + totalTxt + ')');
   ok(/Entrada paga/.test(await B.p.textContent('#o-fim-partes')) && /Restante pago/.test(await B.p.textContent('#o-fim-partes')), 'fim: "Entrada paga" e "Restante pago"');
   ok(await B.p.locator('#o-fim-endereco').textContent() === SITE && await B.p.getAttribute('#o-fim-abrir', 'href') === SITE, 'fim: o endereço e "Abrir o site"');
-  ok(await B.p.isHidden('#o-noar') && await B.p.isHidden('#o-pagamento') && await B.p.isHidden('#o-pedido') && await B.p.isHidden('#o-previa'), 'fim: o ar, o Pix, o pedido e a prévia saem de cena');
+  ok(await escondido(B.p, '#o-noar') && await escondido(B.p, '#o-pagamento') && await escondido(B.p, '#o-pedido') && await escondido(B.p, '#o-previa'), 'fim: o ar, o Pix, o pedido e a prévia saem de cena');
   ok(await B.p.evaluate(() => document.querySelector('#o-etapas [aria-current]').dataset.passo) === 'pagamento', 'fim: a barra de etapas fica no passo "pagamento"');
+  await varrerLinks(B.p, 'no fim', codigoDeB);
   ok(await semRolagemLateral(B.p), 'celular no fim: sem rolagem lateral');
   await aoTopo(B.p, '#o-fim');
   await foto(B.p, '8-fim-cel');
@@ -223,9 +258,8 @@ export async function passoDaPrevia(page, { ok, espera, foto, semRolagemLateral,
   ok(!((await painel('GET', '?fila=entregas')).corpo.entregas || []).some(e => e.codigo === codigo), 'o pedido concluído sai da lista do dono');
   await B.p.reload({ waitUntil: 'load' });
   await B.p.waitForSelector('#o-fim:not([hidden])', { timeout: ESPERA });
-  ok(/Pedido concluído/.test(await B.p.textContent('#o-fim-titulo')) && await B.p.isHidden('#o-pagamento'), 'fim: recarregar a página continua no pedido concluído, sem Pix');
+  ok(/Pedido concluído/.test(await B.p.textContent('#o-fim-titulo')) && await escondido(B.p, '#o-pagamento'), 'fim: recarregar a página continua no pedido concluído, sem Pix');
   if (cont429.genericos > cont429.links + cont429.outros) erros.push('429 no console sem chamada que o explique (' + cont429.genericos + ' avisos, ' + cont429.links + ' do link do pedido, ' + cont429.outros + ' outras)');
   console.log('[e2e-previa] 429 do limite diário do link do pedido, tratados em silêncio pela tela: ' + cont429.links);
   ok(erros.length === 0, 'prévia ao fim: sem erro de console' + (erros.length ? ': ' + erros.slice(0, 3).join(' | ') : ''));
-  await A.ctx.close(); await B.ctx.close();
 }

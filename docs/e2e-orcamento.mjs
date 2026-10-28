@@ -312,7 +312,7 @@ try {
   const naFila = painel.locator('#fila .pn__fila', { hasText: codigo });
   await naFila.waitFor({ timeout: 15000 });
   ok(await naFila.isVisible(), 'painel: confirmado, o pedido passa para a fila de trabalho');
-  ok(await painel.locator('#pendentes .pn__fila', { hasText: codigo }).count() === 0, 'painel: e sai de "Esperando confirmação"');
+  ok(await painel.locator('#pendentes .pn__fila', { hasText: codigo }).waitFor({ state: 'detached', timeout: 10000 }).then(() => true, () => false), 'painel: e sai de "Esperando confirmação"');   /* (a lista de pendentes se redesenha um instante depois da fila: espera sair, em vez de contar uma vez só) */
   await foto(painel, '5b-painel-fila-cel');
   await painel.close();
   await page.reload({ waitUntil: 'load' });
