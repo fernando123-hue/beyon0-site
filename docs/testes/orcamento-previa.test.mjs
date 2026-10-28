@@ -161,7 +161,7 @@ test('o dialog de aprovar: showModal, foco no "Voltar", foco volta ao botão ao 
 /* ---------- o comportamento de criar(), com um DOM de mentira mínimo ---------- */
 const IDS = ['o-previa', 'o-prv-titulo', 'o-prv-texto', 'o-prv-ver-acoes', 'o-prv-ver', 'o-prv-botoes', 'o-prv-aprovar', 'o-prv-ajustes', 'o-prv-sem-listas', 'o-prv-duvida', 'o-prv-form', 'o-prv-lista-n',
   'o-prv-lista', 'o-prv-contador', 'o-prv-contato', 'o-prv-wa', 'o-prv-email', 'o-prv-autoriza', 'o-prv-autoriza-texto', 'o-prv-erro-form', 'o-prv-erro', 'o-prv-enviar', 'o-prv-cancelar', 'o-prv-dialogo',
-  'o-prv-voltar', 'o-prv-confirmar'];
+  'o-prv-voltar', 'o-prv-confirmar', 'o-prv-duvida-lead', 'o-prv-duvida-wa'];
 const falha = (status, mensagem, dados = {}) => Object.assign(new Error(mensagem), { status, dados });
 const estado = (passo = 'previa', rodadas = { usadas: 0, max: 2 }, url = PREVIA) => ({ conversa: { etapa: 'em_producao' }, entrega: { passo, rodadas, previa: { url }, entrega_ate: '2026-11-05' } });
 
@@ -323,6 +323,43 @@ test('B1: aprovar manda a rodada da prévia que está na tela, e uma releitura (
   assert.deepEqual(u.ctx.chamadas, [['aprovar', 1]], 'a tela releu e mostra a v2: manda a rodada da v2');
 });
 
+test('erros sem frase da API: voz de pessoa ("Não consegui mandar/aprovar agora"); a frase que vem da API continua mandando', async () => {
+  const t = montar(); t.P.atualizar(estado());
+  await t.el['o-prv-ajustes'].disparar('click'); preencher(t); t.ctx.falhaDaAcao = falha(0, '');
+  await t.el['o-prv-form'].disparar('submit');
+  assert.equal(t.el['o-prv-erro-form'].textContent, 'Não consegui mandar agora. Tente de novo.');
+  const u = montar(); u.P.atualizar(estado()); await u.el['o-prv-aprovar'].disparar('click'); u.ctx.falhaDaAcao = falha(0, '');
+  await u.el['o-prv-confirmar'].disparar('click');
+  assert.equal(u.el['o-prv-erro'].textContent, 'Não consegui aprovar agora. Tente de novo.');
+  assert.doesNotMatch(semComentario(FONTE), /Não foi possível/, 'nenhum erro genérico de sistema na tela da prévia');
+});
+
+test('rodadas ausente na entrega: a tela não quebra, trata como a 1ª lista e aprova com a rodada 0 (fase() já tolerava)', async () => {
+  const sem = { conversa: { etapa: 'em_producao' }, entrega: { passo: 'previa', previa: { url: PREVIA }, entrega_ate: '2026-11-05' } };
+  const t = montar(); t.P.atualizar(sem);
+  assert.equal(t.el['o-previa'].hidden, false); assert.equal(t.el['o-prv-lista-n'].textContent, 'Esta é a lista 1 de 2.');
+  await t.el['o-prv-aprovar'].disparar('click'); await t.el['o-prv-confirmar'].disparar('click');
+  assert.deepEqual(t.ctx.chamadas, [['aprovar', 0]]);
+});
+
+test('"Outra dúvida?" acompanha a fase: sem endereço que abra diz "Não conseguiu abrir? Fale comigo pelo WhatsApp."; nas outras, a frase de sempre; sempre UM link', () => {
+  const t = montar(); t.P.atualizar(estado('previa', { usadas: 0, max: 2 }, 'https://evil.com'));
+  assert.equal(t.el['o-prv-duvida'].hidden, false);
+  assert.equal(t.el['o-prv-duvida-lead'].textContent, 'Não conseguiu abrir? '); assert.equal(t.el['o-prv-duvida-wa'].textContent, 'Fale comigo pelo WhatsApp');
+  t.P.atualizar(estado('previa', { usadas: 2, max: 2 }));
+  assert.equal(t.el['o-prv-duvida'].hidden, false);
+  assert.equal(t.el['o-prv-duvida-lead'].textContent, 'Outra dúvida? '); assert.equal(t.el['o-prv-duvida-wa'].textContent, 'Fale com a Beyon Zero pelo WhatsApp');
+  assert.match(SECAO, /<span id="o-prv-duvida-lead">Outra dúvida\? <\/span><a id="o-prv-duvida-wa"/, 'o HTML nasce com a frase de sempre');
+  assert.equal([...SECAO.matchAll(/href="https:\/\/wa\.me\//g)].length, 1, 'continua um link de WhatsApp só');
+});
+
+test('1.500 vem de uma constante: o HTML (maxlength), a tela e o servidor concordam, e as frases geradas por JS usam a MAX_LISTA', async () => {
+  const { MAX_LISTA: DOSERVIDOR } = await import('../../api/_vendas/fluxo-previa.mjs');
+  assert.equal(B.MAX_LISTA, DOSERVIDOR); assert.equal(Number(/id="o-prv-lista"[^>]*maxlength="(\d+)"/.exec(HTML)[1]), B.MAX_LISTA);
+  assert.doesNotMatch(semComentario(FONTE), /1\.500/, 'o 1.500 das frases sai de MAX_LISTA, não de texto escrito à mão');
+  assert.equal(B.validarLista('x'.repeat(B.MAX_LISTA + 1), false), 'A lista passou de 1.500 caracteres. Resuma ou tire o que não for essencial.');
+});
+
 test('criar: aprovar chama a API uma vez, fecha o dialog, recarrega e leva o foco ao título; o erro da API aparece fora do formulário e fecha o dialog', async () => {
   const t = montar(); t.P.atualizar(estado());
   await t.el['o-prv-aprovar'].disparar('click');
@@ -398,9 +435,15 @@ test('a API do navegador: previaAjustes manda por POST o corpo que o servidor ac
   assert.equal(pedidos[0].init.headers.authorization, 'Bearer T0KEN');
 });
 
-test('a volta à aba em produção recarrega o estado (a nova prévia aparece sem recarregar a página), com UMA chamada e sem relógio novo', () => {
-  const esp = semComentario(ler('js/orcamento-espera.js'));
-  assert.match(esp, /E\.conversa\.etapa === 'em_producao'/);
-  assert.equal((esp.match(/setInterval\(/g) || []).length, 1, 'continua um relógio só (o da espera do pagamento); a volta à aba não cria outro');
-  assert.ok(esp.indexOf('em_producao') > esp.indexOf("addEventListener('visibilitychange'"), 'a regra está no visibilitychange');
+test('a volta à aba em produção recarrega o estado (a nova prévia aparece sem recarregar a página), com UMA chamada e sem relógio novo (executado com um DOM de mentira)', () => {
+  const ouvintes = {}, doc = { hidden: false, addEventListener(t, f) { ouvintes[t] = f; } };
+  let relogios = 0;
+  const win = {}; new Function('window', 'document', 'setInterval', ler('js/orcamento-espera.js'))(win, doc, () => { relogios++; return 1; });
+  let leituras = 0, E = { conversa: { etapa: 'em_producao' } };
+  win.BZEspera.criar({ recarregar: async () => { leituras++; }, estado: () => E, emVoo: () => false, temSessao: () => true, relogioDosCartoes() {}, avisar() {}, falhou() {}, sessaoTerminou: () => false, avisarSessao() {} });
+  assert.equal(typeof ouvintes.visibilitychange, 'function', 'a espera escuta a volta à aba');
+  ouvintes.visibilitychange(); assert.equal(leituras, 1, 'em produção: uma leitura ao voltar'); assert.equal(relogios, 0, 'e nenhum relógio novo');
+  doc.hidden = true; ouvintes.visibilitychange(); assert.equal(leituras, 1, 'aba escondida: não lê');
+  doc.hidden = false; E = { conversa: { etapa: 'conversa' } }; ouvintes.visibilitychange(); assert.equal(leituras, 1, 'etapa que não espera nada de fora: não lê');
+  E = { conversa: { etapa: 'aguardando_pagamento' } }; ouvintes.visibilitychange(); assert.equal(leituras, 2, 'o pagamento por fora continua lendo');
 });

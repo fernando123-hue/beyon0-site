@@ -9,8 +9,10 @@
 (function () {
   'use strict';
   var MAX_LISTA = 1500;
+  var MAX_TEXTO = String(MAX_LISTA).replace(/\B(?=(\d{3})+(?!\d))/g, '.');   /* "1.500", das frases geradas aqui (o maxlength do HTML é conferido por teste) */
   var MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
-  var FALHA_AJUSTES = 'Não foi possível mandar agora. Tente de novo.', FALHA_APROVAR = 'Não foi possível aprovar agora. Tente de novo.';
+  var FALHA_AJUSTES = 'Não consegui mandar agora. Tente de novo.', FALHA_APROVAR = 'Não consegui aprovar agora. Tente de novo.';
+  var DUVIDA_PADRAO = { lead: 'Outra dúvida? ', link: 'Fale com a Beyon Zero pelo WhatsApp' }, DUVIDA_NAO_ABRIU = { lead: 'Não conseguiu abrir? ', link: 'Fale comigo pelo WhatsApp' };
   var $ = function (id) { return document.getElementById(id); };
   var nada = function () { /* a releitura é de fundo: se falhar, a próxima volta à aba lê de novo */ };
 
@@ -47,7 +49,7 @@
   function validarLista(texto, temContato) {
     var t = String(texto == null ? '' : texto).trim();
     if (!t) return temContato ? null : 'Escreva a lista de ajustes.';
-    if (t.length > MAX_LISTA) return 'A lista passou de 1.500 caracteres. Resuma ou tire o que não for essencial.';
+    if (t.length > MAX_LISTA) return 'A lista passou de ' + MAX_TEXTO + ' caracteres. Resuma ou tire o que não for essencial.';
     var ESQ = window.BZMaterialEsquema;
     if (ESQ && ESQ.CPF_CNPJ.test(t)) return 'Não escreva CPF nem CNPJ aqui.';
     return null;
@@ -66,9 +68,14 @@
   }
 
   function criar(o) {
-    var API = o.API, enviando = false, ultimaFase = '', base = 0, abridor = null, formAberto = false, saidaWa = false, duvidaFixa = false;
+    var API = o.API, enviando = false, ultimaFase = '', base = 0, abridor = null, formAberto = false, saidaWa = false, duvidaFixa = false, naoAbriu = false;
     function recarregar() { return window.BZMaterialRecarregar ? window.BZMaterialRecarregar() : Promise.resolve(); }
-    function atualizarDuvida() { $('o-prv-duvida').hidden = !(duvidaFixa || saidaWa); }
+    /* "Outra dúvida?" é o único WhatsApp da seção; quando a prévia nem abriu, a frase diz isso (um link só, o mesmo) */
+    function atualizarDuvida() {
+      var frase = naoAbriu ? DUVIDA_NAO_ABRIU : DUVIDA_PADRAO;
+      $('o-prv-duvida-lead').textContent = frase.lead; $('o-prv-duvida-wa').textContent = frase.link;
+      $('o-prv-duvida').hidden = !(duvidaFixa || saidaWa);
+    }
     function limparErro() { $('o-prv-erro').textContent = ''; $('o-prv-erro-form').textContent = ''; saidaWa = false; atualizarDuvida(); }
     function mostrarErro(e, padrao, idDoErro) {
       limparErro();
@@ -84,7 +91,7 @@
     function mostrarForm(aberto) { formAberto = aberto; $('o-prv-form').hidden = !aberto; $('o-prv-botoes').hidden = aberto; }
     function limparForm() { $('o-prv-lista').value = ''; $('o-prv-wa').value = ''; $('o-prv-email').value = ''; $('o-prv-autoriza').checked = false; contar(); }
     function fecharDialogo() { var d = $('o-prv-dialogo'); if (d.open) d.close(); }
-    function contar() { $('o-prv-contador').textContent = $('o-prv-lista').value.length + ' de 1.500 caracteres'; }
+    function contar() { $('o-prv-contador').textContent = $('o-prv-lista').value.length + ' de ' + MAX_TEXTO + ' caracteres'; }
 
     function atualizar(E) {
       var f = fase(E.entrega), s = $('o-previa');
@@ -103,10 +110,11 @@
       $('o-prv-botoes').hidden = !responde || formAberto;
       $('o-prv-ajustes').hidden = !(pronta && f.podeAjustes);
       $('o-prv-sem-listas').hidden = !(responde && !f.podeAjustes);
+      naoAbriu = pronta && !f.podeResponder;
       duvidaFixa = pronta && (!f.podeResponder || !f.podeAjustes); atualizarDuvida();   /* sem listas ou sem endereço: o WhatsApp é a saída */
       $('o-prv-form').hidden = !(responde && formAberto);
       if (pronta) {
-        base = E.entrega.rodadas.usadas;
+        base = f.listaN - 1;   /* (as listas já usadas; o fase() tolera a entrega sem rodadas) */
         $('o-prv-lista-n').textContent = f.listaMax == null ? 'Esta é a sua lista.' : 'Esta é a lista ' + f.listaN + ' de ' + f.listaMax + '.' + (f.ultima ? ' É a última: o que passar disso é orçado à parte.' : '');
       }
       if (mudou) { ultimaFase = chave; if (!pronta && document.activeElement === document.body) $('o-prv-titulo').focus(); }
