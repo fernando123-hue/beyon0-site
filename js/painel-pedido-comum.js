@@ -88,7 +88,8 @@
   /* (PR 2b-2) o aviso leva o LINK DE RETOMADA: o código só existe depois do toque ("Preparar"), sai do servidor uma
      vez e vale 7 dias, um por vez (preparar de novo invalida o anterior não usado). Primeiro o link, depois o botão
      que abre o WhatsApp: abrir uma aba depois de esperar a resposta seria barrado pelo navegador. O código fica só
-     neste link (href do botão): não vai para console, para o armazenamento do navegador nem para a lista */
+     na caixa de leitura com a mensagem pronta (o dono copia e cola): nunca num href, nem num ?text= do wa.me, e não
+     vai para console, para o armazenamento do navegador nem para a lista */
   var NOME_OK = /^[\p{L}'-]{1,20}$/u;
   var EMAIL_OK = /^[A-Za-z0-9._+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
   var TELEFONE_MIN_DIGITOS = 10;

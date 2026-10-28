@@ -123,6 +123,7 @@ test('a seção #o-previa: aprovar num <dialog> (nunca confirm), o campo único 
   assert.match(semComentario(FONTE), /AUTORIZACAO\.texto/, 'a frase da autorização é a do material (a mesma constante), não uma escrita à mão');
   assert.match(s, /id="o-prv-ver"[^>]*target="_blank"[^>]*rel="noopener noreferrer"|id="o-prv-ver"[^>]*rel="noopener noreferrer"[^>]*target="_blank"/, 'abre em outra aba, sem referrer');
   assert.match(s, /maxlength="1500"/);
+  assert.match(s, /<textarea id="o-prv-lista"[^>]*autocomplete="off"/, 'Info 3: o navegador não repõe a lista que ainda não foi enviada depois de um F5');
   const wa = [...s.matchAll(/href="https:\/\/wa\.me\/[^"]*"/g)];
   assert.equal(wa.length, 1, 'D3: o único WhatsApp é a "Outra dúvida?"'); assert.ok(!/\?text=/.test(wa[0][0]));
   assert.match(texto(s), /Outra dúvida\? Fale com a Beyon Zero pelo WhatsApp/);
