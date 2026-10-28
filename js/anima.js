@@ -465,7 +465,7 @@
   function tPassagem(px, largura, w, T) { return Math.max(0, Math.min(T, T * (px + w * .5) / (largura + w))); }
   function visiveis(lista) { return [].filter.call(lista, function (el) { return el.offsetParent !== null; }); }
   function contarItem(item, atraso) {
-    var v = item.querySelector('[data-metrica="carga"], [data-metrica="peso"], [data-conta]');
+    var v = item.querySelector('[data-metrica="carga"], [data-metrica="peso"]');   /* os dados de pesquisa (#prova) já nascem escritos: contar de 0 faria 75 virar 0 e voltar */
     if (v) contar(v, .9, atraso || 0);
   }
   function luzMede(prova) {
