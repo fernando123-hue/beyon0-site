@@ -23,13 +23,16 @@ const CONNECT_PERMITIDAS = ["'self'", 'https://api.mercadopago.com', 'https://se
 /* nas diretivas de código e de estilo não passa script ou estilo de qualquer lugar: curinga, esquema solto (https:, data:, blob:...), unsafe-inline e unsafe-eval */
 const DIRETIVAS_DE_CODIGO = ['default-src', 'script-src', 'script-src-elem', 'script-src-attr', 'style-src', 'style-src-elem', 'style-src-attr'];
 const FONTE_ABERTA = /^(\*|[a-z][a-z0-9+.-]*:|'unsafe-(inline|eval|hashes)')$|\*/i;
+/* o script-src também é lista do que é PERMITIDO: o próprio site, o Turnstile da Cloudflare e o SDK do Mercado Pago (as fontes reais de /orcamento) */
+const SCRIPT_PERMITIDAS = ["'self'", "'none'", 'https://challenges.cloudflare.com', 'https://sdk.mercadopago.com'];
+const DIRETIVAS_POR_LISTA = ['script-src', 'script-src-elem'];
 const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
 /* o que o site promete ao cliente sobre o restante (as frases protegidas por textos-d4.test.mjs): 3 dias, um lembrete no 2º e outro no 3º dia */
 const RESTANTE_DIAS = 3;
 const LEMBRETES_RESTANTE = [2, 3];
 const ARQUIVOS_DE_DEPLOY = ['vercel.json', 'package.json', 'wrangler.jsonc', 'wrangler.json', 'wrangler.toml', '.env.example'];
 /* o que também faz deploy ou liga o Worker (B3): nenhum desses arquivos tem motivo para mexer no BZ_ENTREGA; qualquer menção fora de comentário é FALTA */
-const PASTAS_DE_DEPLOY = [['.github/workflows', /\.ya?ml$/i], ['cloudflare', /\.(mjs|js)$/i]];
+const PASTAS_DE_DEPLOY = [['.github/workflows', /\.ya?ml$/i], ['cloudflare', /\.(mjs|js|json|jsonc|toml|ya?ml)$/i]];
 const TESTE_PRIVACIDADE = 'docs/testes/privacidade-material.test.mjs';
 const TESTE_CABECALHOS = 'docs/testes/cabecalhos.test.mjs';
 
@@ -104,9 +107,10 @@ function problemasDoConnect(connect) {
   return problemas;
 }
 
-/* script-src, style-src e default-src: as fontes abertas de cada diretiva presente, como "script-src: 'unsafe-inline'" */
+/* script-src (e -elem): só a lista permitida. style-src, default-src e as outras: nada de fonte aberta. Cada problema sai como "script-src: 'unsafe-inline'" */
 function problemasDasDiretivasDeCodigo(csp) {
-  return DIRETIVAS_DE_CODIGO.flatMap(nome => (diretiva(csp, nome) || []).filter(t => FONTE_ABERTA.test(t)).map(t => nome + ': ' + t));
+  const proibida = (nome, t) => (DIRETIVAS_POR_LISTA.includes(nome) ? !SCRIPT_PERMITIDAS.includes(t.toLowerCase()) : FONTE_ABERTA.test(t));
+  return DIRETIVAS_DE_CODIGO.flatMap(nome => (diretiva(csp, nome) || []).filter(t => proibida(nome, t)).map(t => nome + ': ' + t));
 }
 
 const projetoDoConnect = connect => { const t = connect.find(x => SUPABASE_EXATO.test(x)); return t ? SUPABASE_EXATO.exec(t)[1] : null; };
@@ -119,7 +123,7 @@ function conferirCsp(onde, csp) {
   if (problemas.length) itens.push(item('FALTA', 'CSP de /orcamento em ' + onde + ': o connect-src precisa do endereço EXATO do Supabase e de mais nada dele (' + problemas.join('; ') + ')', 'diga o endereço do projeto (https://<projeto>.supabase.co), troque o curinga nos três lugares e tire a fonte solta'));
   else itens.push(item('OK', 'CSP de /orcamento em ' + onde + ' com o endereço exato do Supabase'));
   const abertas = problemasDasDiretivasDeCodigo(csp);
-  if (abertas.length) itens.push(item('FALTA', 'CSP de /orcamento em ' + onde + ' deixa abrir script ou estilo de qualquer lugar (' + abertas.join('; ') + ')', 'tire a fonte aberta: só o próprio site e as origens que a página usa de verdade'));
+  if (abertas.length) itens.push(item('FALTA', 'CSP de /orcamento em ' + onde + ' tem fonte que não pode estar em script ou estilo (' + abertas.join('; ') + ')', 'tire a fonte: só o próprio site e as origens que a página usa de verdade (Turnstile e SDK do Mercado Pago no script)'));
   if (!(diretiva(csp, 'img-src') || []).includes('blob:')) itens.push(item('FALTA', 'CSP de /orcamento em ' + onde + ' sem blob: no img-src (as miniaturas das fotos)', 'acrescente blob: ao img-src'));
   return { itens, projeto: problemas.length ? null : projetoDoConnect(connect) };
 }
@@ -195,12 +199,49 @@ function itensCaptacao({ ler, captacao }) {
   return itens;
 }
 
-/* comentário de bloco e de linha: só explicam */
-const semComentariosDeCodigo = texto => semComentarios(texto.replace(/\/\*[\s\S]*?\*\//g, ''));
+/* tira os comentários de um .js/.mjs sem se enganar com texto: percorre o código sabendo o que é string ('...', "...", crase), regex literal e comentário.
+   Barra-asterisco dentro de texto não abre comentário. Na dúvida, o trecho FICA (errar para o lado de achar o BZ_ENTREGA, nunca de escondê-lo) */
+const ANTES_DE_REGEX = /[(,=:[!&|?{};+\-*%<>~^]$|(?:^|[^\w$.])(?:return|typeof|case|in|of|delete|void|throw|yield|await)\s*$/;
+function pularTexto(t, i, aspa) {   /* devolve a posição logo depois do texto que começa em t[i] (a aspa); aspa simples ou dupla não atravessa linha */
+  let k = i + 1;
+  while (k < t.length && t[k] !== aspa) { if (t[k] === '\\') k++; else if (t[k] === '\n' && aspa !== '`') return k; k++; }
+  return k + 1;
+}
+function pularRegex(t, i) {   /* devolve a posição logo depois da regex que começa em t[i] ("/"), ou i + 1 se não parecer uma regex (fica como estava) */
+  let k = i + 1, classe = false;
+  while (k < t.length && t[k] !== '\n') {
+    if (t[k] === '\\') k++;
+    else if (t[k] === '[') classe = true;
+    else if (t[k] === ']') classe = false;
+    else if (t[k] === '/' && !classe) return k + 1;
+    k++;
+  }
+  return i + 1;
+}
+function semComentariosDeJs(texto) {
+  let saida = '', i = 0;
+  while (i < texto.length) {
+    const c = texto[i], d = texto[i + 1];
+    let fim = i + 1;
+    if (c === '/' && d === '/') { while (fim < texto.length && texto[fim] !== '\n') fim++; i = fim; continue; }
+    if (c === '/' && d === '*') { const f = texto.indexOf('*/', i + 2); i = f < 0 ? texto.length : f + 2; saida += ' '; continue; }
+    if (c === "'" || c === '"' || c === '`') fim = pularTexto(texto, i, c);
+    else if (c === '/' && (saida.trimEnd() === '' || ANTES_DE_REGEX.test(saida.trimEnd()))) fim = pularRegex(texto, i);
+    saida += texto.slice(i, fim); i = fim;
+  }
+  return saida;
+}
+const semHashDeLinha = texto => semFimDeLinhaDoWindows(texto).split('\n').filter(l => !/^\s*#/.test(l)).join('\n');
+/* cada tipo de arquivo tem o seu jeito de comentar: .js/.mjs com o percurso acima; YAML só com # de linha inteira (um glob "a/*" não abre comentário); os demais, linha inteira de // ou # */
+function semComentariosDoArquivo(nome, texto) {
+  if (/\.m?js$/i.test(nome)) return semComentariosDeJs(texto);
+  if (/\.ya?ml$/i.test(nome)) return semHashDeLinha(texto);
+  return semComentarios(texto);
+}
 /* os arquivos das pastas de deploy (workflows e Worker) que mencionam o BZ_ENTREGA fora de comentário */
 function mencionamOInterruptor({ ler, listar }) {
   return PASTAS_DE_DEPLOY.flatMap(([pasta, tipo]) => listar(pasta).filter(n => tipo.test(n)).map(n => pasta + '/' + n)
-    .filter(f => /BZ_ENTREGA/.test(semComentariosDeCodigo(ler(f)))));
+    .filter(f => /BZ_ENTREGA/.test(semComentariosDoArquivo(f, ler(f)))));
 }
 
 function itensDeploy(mundo) {
@@ -273,7 +314,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const lerEm = pasta => f => fs.readFileSync(path.join(pasta, f), 'utf8');
   const itens = verificar({
     ler: lerEm(raiz), existe: f => fs.existsSync(path.join(raiz, f)),
-    listar: pasta => { try { return fs.readdirSync(path.join(raiz, pasta)); } catch { return []; } },
+    listar: pasta => {   /* todos os arquivos da pasta, subpastas incluídas, como "sub/a.mjs" */
+      const base = path.join(raiz, pasta);
+      try { return fs.readdirSync(base, { recursive: true, withFileTypes: true }).filter(d => d.isFile()).map(d => path.relative(base, path.join(d.parentPath, d.name)).split(path.sep).join('/')); } catch { return []; }
+    },
     rodar: f => spawnSync(process.execPath, ['--test', path.join(raiz, f)], { cwd: raiz, stdio: 'ignore', windowsHide: true }).status,
     captacao: fs.existsSync(path.join(pastaCaptacao, 'config', 'entrega.json')) ? lerEm(pastaCaptacao) : null,
     base: process.env.BZ_BASE || 'https://beyonzero.com.br'

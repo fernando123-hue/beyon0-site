@@ -360,6 +360,18 @@ test('1.500 vem de uma constante: o HTML (maxlength), a tela e o servidor concor
   assert.equal(B.validarLista('x'.repeat(B.MAX_LISTA + 1), false), 'A lista passou de 1.500 caracteres. Resuma ou tire o que não for essencial.');
 });
 
+test('B1 (revisão): se a releitura de fundo traz OUTRA prévia com o dialog de aprovar aberto, o dialog fecha e aprovar manda a rodada nova; a mesma prévia não fecha nada', async () => {
+  const t = montar(); t.P.atualizar(estado('previa', { usadas: 0, max: 2 }));
+  await t.el['o-prv-aprovar'].disparar('click'); assert.equal(t.el['o-prv-dialogo'].open, true);
+  t.P.atualizar(estado('previa', { usadas: 0, max: 2 }));   /* a volta à aba trouxe a MESMA prévia */
+  assert.equal(t.el['o-prv-dialogo'].open, true, 'a mesma prévia: o dialog fica onde está');
+  t.P.atualizar(estado('previa', { usadas: 1, max: 2 }, 'https://v2.bz-c-k7m3qa.pages.dev'));   /* e agora a v2 */
+  assert.equal(t.el['o-prv-dialogo'].open, false, 'outra prévia: a pessoa não confirma sem ter visto');
+  assert.deepEqual(t.ctx.chamadas, [], 'nada foi aprovado por fechar');
+  await t.el['o-prv-aprovar'].disparar('click'); await t.el['o-prv-confirmar'].disparar('click');
+  assert.deepEqual(t.ctx.chamadas, [['aprovar', 1]], 'abrir de novo é uma decisão nova, com a rodada da prévia que está na tela');
+});
+
 test('criar: aprovar chama a API uma vez, fecha o dialog, recarrega e leva o foco ao título; o erro da API aparece fora do formulário e fecha o dialog', async () => {
   const t = montar(); t.P.atualizar(estado());
   await t.el['o-prv-aprovar'].disparar('click');

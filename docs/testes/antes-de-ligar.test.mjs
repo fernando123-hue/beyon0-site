@@ -26,7 +26,7 @@ function mundo({ cspVercel = csp(), cspMeta = csp(), cspHeaders = csp(), vercel 
   const doDono = captacao && { 'config/entrega.json': typeof captacao === 'string' ? captacao : JSON.stringify(captacao) };
   return {
     ler: f => { if (!(f in arquivos)) throw new Error('sem ' + f); return arquivos[f]; }, existe: f => f in arquivos,
-    listar: pasta => Object.keys(arquivos).filter(a => a.startsWith(pasta + '/') && !a.slice(pasta.length + 1).includes('/')).map(a => a.slice(pasta.length + 1)),
+    listar: pasta => Object.keys(arquivos).filter(a => a.startsWith(pasta + '/')).map(a => a.slice(pasta.length + 1)),   /* (como o real: todos os arquivos, inclusive das subpastas) */
     rodar: f => (f in arquivos && !falham.includes(f) ? 0 : 1),
     captacao: doDono && (f => { if (!(f in doDono)) throw new Error('sem ' + f); return doDono[f]; }), base
   };
@@ -277,4 +277,43 @@ test('B3: workflow com --var BZ_ENTREGA:ligada, Worker que liga com ??= e qualqu
   assert.deepEqual(liga({ [wf]: '# BZ_ENTREGA=ligada só pelo dono\njobs: {}\n', 'cloudflare/worker.mjs': '/* BZ_ENTREGA = ligada: nunca aqui */\n// BZ_ENTREGA ligada\nexport default {};' }).filter(t => /BZ_ENTREGA/.test(t)), [], 'comentário não conta');
   assert.match(ok(verificar(mundo({ extra: { [wf]: 'jobs: {}\n', 'cloudflare/worker.mjs': 'export default {};' } }))), /\.github\/workflows/, 'o OK diz que varreu os workflows');
   assert.match(ok(verificar(mundo())), /cloudflare/, 'e o Worker');
+});
+
+/* ---- correções da revisão do B1/B2/B3: comentário só onde existe, subpastas e tipos, script-src por lista ---- */
+test('B3 (revisão): comentário de bloco só se apaga em .js/.mjs, e nunca de dentro de texto; em YAML só vale o # de linha inteira', () => {
+  const liga = extra => falta(verificar(mundo({ extra })));
+  const wf = '.github/workflows/deploy.yml';
+  // dois globs: a barra-asterisco do primeiro e o asterisco-barra do segundo, com o --var no meio, não formam um comentário no YAML
+  const doisGlobs = "on:\n  push:\n    paths:\n      - 'cloudflare/*'\njobs:\n  d:\n    steps:\n      - run: npx wrangler deploy --var BZ_ENTREGA:ligada\npaths-ignore:\n  - '**/x'\n";
+  assert.ok(liga({ [wf]: doisGlobs }).some(t => /BZ_ENTREGA/.test(t) && t.includes(wf)), 'workflow com dois globs');
+  assert.ok(liga({ '.github/workflows/b.yaml': doisGlobs }).some(t => t.includes('b.yaml')), 'também .yaml');
+  // no .mjs, barra-asterisco e asterisco-barra dentro de texto não são comentário
+  const emTexto = "const a = '/api/*';\nenv.BZ_ENTREGA ??= 'ligada';\nconst b = '*/';\nexport default {};";
+  assert.ok(liga({ 'cloudflare/worker.mjs': emTexto }).some(t => t.includes('cloudflare/worker.mjs')), '/* e */ dentro de string');
+  assert.ok(liga({ 'cloudflare/worker.mjs': 'const a = `/*`;\nenv.BZ_ENTREGA = 1;\nconst b = "*/";' }).some(t => t.includes('worker.mjs')), 'crase e aspas');
+  /* comentário de bloco de verdade (inclusive depois de uma regex com aspas) segue valendo */
+  assert.deepEqual(liga({ 'cloudflare/ok.mjs': "const r = /[\"']/;\n/* BZ_ENTREGA = ligada: nunca aqui\n   (em duas linhas) */\nexport default {};" }).filter(t => /BZ_ENTREGA/.test(t)), [], 'comentário real depois de regex');
+  assert.deepEqual(liga({ 'cloudflare/ok2.mjs': "export default {}; // BZ_ENTREGA ligada\n" }).filter(t => /BZ_ENTREGA/.test(t)), [], 'comentário de linha no fim da linha de código');
+  assert.deepEqual(liga({ [wf]: '# BZ_ENTREGA:ligada\njobs: {}\n' }).filter(t => /BZ_ENTREGA/.test(t)), [], 'YAML: # de linha inteira');
+});
+
+test('B3 (revisão): varre as subpastas de cloudflare/ e também .json, .jsonc e .toml', () => {
+  const liga = extra => falta(verificar(mundo({ extra })));
+  for (const f of ['cloudflare/sub/fundo.mjs', 'cloudflare/rotas/a/b/c.js', 'cloudflare/wrangler.jsonc', 'cloudflare/conf.json', 'cloudflare/conf.toml', 'cloudflare/ci.yml']) {
+    assert.ok(liga({ [f]: 'BZ_ENTREGA = "ligada"' }).some(t => t.includes(f)), f);
+  }
+  assert.deepEqual(liga({ 'cloudflare/conf.jsonc': '{\n  // BZ_ENTREGA ligada só pelo dono\n}' }).filter(t => /BZ_ENTREGA/.test(t)), []);
+  assert.deepEqual(liga({ 'cloudflare/LEIA-ME.md': 'BZ_ENTREGA = ligada' }).filter(t => /BZ_ENTREGA/.test(t)), [], 'documentação não conta');
+});
+
+test('B2 (revisão): o script-src também é lista do que é PERMITIDO (o próprio site, Cloudflare Turnstile e o SDK do Mercado Pago)', () => {
+  const ruins = ['https://cdn.exemplo.com', 'https://www.googletagmanager.com', "'sha256-abcdef'", "'nonce-abc'", "'strict-dynamic'", 'https://challenges.cloudflare.com.evil.com'];
+  for (const fonte of ruins) {
+    for (const lugar of ['cspVercel', 'cspMeta', 'cspHeaders']) {
+      const r = verificar(mundo({ [lugar]: cspTotal({ script: "'self' https://challenges.cloudflare.com https://sdk.mercadopago.com " + fonte }) }));
+      assert.ok(falta(r).some(t => /script-src/.test(t) && t.includes(fonte)), lugar + ' deixou passar ' + fonte);
+    }
+  }
+  assert.equal(temFalta(verificar(mundo({ cspMeta: cspTotal({ script: "'self'" }) }))), false, 'só o próprio site passa');
+  assert.equal(temFalta(verificar(mundo({ cspMeta: cspTotal({ script: "'SELF' HTTPS://CHALLENGES.CLOUDFLARE.COM https://sdk.mercadopago.com" }) }))), false, 'caixa alta é a mesma fonte');
 });

@@ -101,7 +101,7 @@
       if (!pronta) { fecharDialogo(); formAberto = false; limparForm(); }   /* outra aba respondeu, ou a seção saiu: nada de dialog aberto nem de lista esquecida no campo */
       if (!ativa) { limparErro(); return; }
       var chave = f.fase + '|' + (E.entrega.rodadas && E.entrega.rodadas.usadas), mudou = chave !== ultimaFase;
-      if (mudou) { formAberto = false; limparErro(); }   /* outra prévia ou outro passo: o formulário aberto e o aviso velho não valem mais */
+      if (mudou) { formAberto = false; fecharDialogo(); limparErro(); }   /* outra prévia ou outro passo: o formulário aberto, o dialog de aprovar (a rodada mudou debaixo dele) e o aviso velho não valem mais */
       $('o-prv-titulo').textContent = f.titulo;
       $('o-prv-texto').textContent = f.texto;
       /* uma leitura de fundo (volta à aba) NÃO fecha a lista que a pessoa está escrevendo nem apaga o aviso: só mudança de prévia ou de passo */
