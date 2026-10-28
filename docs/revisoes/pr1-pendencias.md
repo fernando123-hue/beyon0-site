@@ -82,7 +82,8 @@ com credenciais reais**, salvo onde diz outra coisa.
       `20261022120000_pr3b1_entrada.sql`; as quatro do 3b-2 (`20261023120000_pr3b2_entrega.sql`, `…120100_pr3b2_material.sql`, `…120200_pr3b2_link_pedido.sql`, `…120300_pr3b2_dono.sql`);
       e as cinco do 3b-3 (`20261024120000_pr3b3_esquema.sql`, `…120100_pr3b3_previa.sql`, `…120200_pr3b3_restante.sql`, `…120300_pr3b3_rotina.sql`, `…120400_pr3b3_lista.sql`);
     - **dizer o endereço do projeto Supabase** (`https://<projeto>.supabase.co`, não é segredo) e trocar o curinga `https://*.supabase.co/…` pelo endereço exato na CSP de `/orcamento`, nos
-      três lugares (`vercel.json`, `<meta>` de `orcamento.html` e `_headers`); o `blob:` no `img-src` já está. Hoje o verificador mostra FALTA nos três: é o aviso virando teste;
+      três lugares (`vercel.json`, `<meta>` de `orcamento.html` e `_headers`); o `blob:` no `img-src` já está. Hoje o verificador mostra FALTA nos três: é o aviso virando teste. O endereço tem de estar no `connect-src`, igual nos três lugares. A mesma troca
+      exige atualizar o `deepEqual` do teste "CSP do /orcamento (PR 3b-2)" em `docs/testes/csp.test.mjs` (linhas 62-64), que hoje espera o curinga;
     - **a Cloudflare já está na main** (`_headers`, `wrangler.jsonc`, `HOST_SITE` na lista de `scripts/direcoes.mjs`): falta dizer o subdomínio `workers.dev` da sua conta (`SUB_CONTA` em
       `docs/acesso.mjs`, hoje `null`, o staging fica fechado) para o ensaio usar o staging com `BZ_BASE`; e, quando o projeto da Vercel for apagado, tirar `beyon0-site.vercel.app` de `HOSTS_VERCEL`
       (o teste fica vermelho no PR que apaga o `vercel.json`);

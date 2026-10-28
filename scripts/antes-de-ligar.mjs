@@ -16,8 +16,9 @@ export const MIGRATIONS = [
   '20261023120000_pr3b2_entrega.sql', '20261023120100_pr3b2_material.sql', '20261023120200_pr3b2_link_pedido.sql', '20261023120300_pr3b2_dono.sql',
   '20261024120000_pr3b3_esquema.sql', '20261024120100_pr3b3_previa.sql', '20261024120200_pr3b3_restante.sql', '20261024120300_pr3b3_rotina.sql', '20261024120400_pr3b3_lista.sql'
 ];
-const SUPABASE_EXATO = /https:\/\/[a-z0-9]{20}\.supabase\.co\/storage\/v1\/object\/upload\/sign\//;
-const SUPABASE_CURINGA = /\*\.supabase\.co/;
+/* o endereço do envio assinado, token inteiro; o grupo 1 é o projeto */
+const SUPABASE_EXATO = /^https:\/\/([a-z0-9]{20})\.supabase\.co\/storage\/v1\/object\/upload\/sign\/$/;
+const FONTE_SOLTA = /^(\*|https?:)$/;
 const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
 /* o que o site promete ao cliente sobre o restante (as frases protegidas por textos-d4.test.mjs): 3 dias, um lembrete no 2º e outro no 3º dia */
 const RESTANTE_DIAS = 3;
@@ -32,39 +33,102 @@ const semFimDeLinhaDoWindows = texto => texto.replace(/\r\n?/g, '\n');
 /* a linha inteira de comentário (// do jsonc, # do .env e do toml) não conta: ela só explica */
 const semComentarios = texto => semFimDeLinhaDoWindows(texto).split('\n').filter(l => !/^\s*(\/\/|#)/.test(l)).join('\n');
 
-/* as CSPs de /orcamento que existem nesta base: o header da Vercel, a <meta> da página e o _headers da Cloudflare */
-export function cspsDoOrcamento({ ler, existe }) {
-  const r = [];
-  try {
-    const h = (JSON.parse(ler('vercel.json')).headers || []).find(x => x.source === '/orcamento');
-    const v = h && h.headers.find(k => k.key === 'Content-Security-Policy');
-    if (v) r.push(['vercel.json', v.value]);
-  } catch { /* sem vercel.json (o PR que o apaga) */ }
-  try {
-    const m = /<meta http-equiv="Content-Security-Policy" content="([^"]*)"/.exec(ler('orcamento.html'));
-    if (m) r.push(['orcamento.html (meta)', m[1]]);
-  } catch { /* sem a página */ }
-  if (existe('_headers')) {
-    const bloco = /^\/orcamento[ \t]*\n((?:[ \t]+.*\n?)*)/m.exec(semFimDeLinhaDoWindows(ler('_headers')));
-    const linha = bloco && /^[ \t]+Content-Security-Policy: (.*)$/m.exec(bloco[1]);
-    if (linha) r.push(['_headers (Cloudflare)', linha[1].trim()]);
-  }
-  return r;
-}
-
 function itensMigrations({ existe }) {
   const faltam = MIGRATIONS.filter(m => !existe('supabase/migrations/' + m));
   if (faltam.length) return [item('FALTA', 'migrations do 3b fora desta base: ' + faltam.join(', '), 'mescle o 3b-1, o 3b-2 e o 3b-3 antes')];
   return [item('OK', 'as ' + MIGRATIONS.length + ' migrations do 3b estão no repositório')];
 }
 
+const vazioViraNulo = v => (typeof v === 'string' && v.trim() ? v.trim() : null);
+
+function cspDoVercel(ler) {
+  try {
+    const h = (JSON.parse(ler('vercel.json')).headers || []).find(x => x.source === '/orcamento');
+    const v = h && h.headers.find(k => String(k.key).toLowerCase() === 'content-security-policy');
+    return vazioViraNulo(v && v.value);
+  } catch { return null; }
+}
+
+/* a <meta> de CSP em qualquer ordem dos atributos (http-equiv antes ou depois de content) */
+function cspDaMeta(ler) {
+  try {
+    const tag = (ler('orcamento.html').match(/<meta\b[^>]*>/gi) || []).find(t => /http-equiv\s*=\s*["']Content-Security-Policy["']/i.test(t));
+    const m = tag && /\bcontent\s*=\s*"([^"]*)"/i.exec(tag);
+    return vazioViraNulo(m && m[1]);
+  } catch { return null; }
+}
+
+/* o _headers: a rota /orcamento (com ou sem barra final) e o nome do cabeçalho em qualquer caixa, como o HTTP */
+function cspDoHeaders(ler) {
+  try {
+    const bloco = /^\/orcamento\/?[ \t]*\n((?:[ \t]+.*\n?)*)/m.exec(semFimDeLinhaDoWindows(ler('_headers')));
+    const linha = bloco && /^[ \t]+content-security-policy:(.*)$/im.exec(bloco[1]);
+    return vazioViraNulo(linha && linha[1]);
+  } catch { return null; }
+}
+
+const FONTES_DA_CSP = [
+  ['vercel.json', 'vercel.json', cspDoVercel],
+  ['orcamento.html', 'orcamento.html (meta)', cspDaMeta],
+  ['_headers', '_headers (Cloudflare)', cspDoHeaders]
+];
+
+/* as CSPs de /orcamento: [onde, texto]. Fonte que não existe fica de fora (o vercel.json some no PR que o apaga);
+   fonte que EXISTE e não se deixa ler vem com texto null, e isso é FALTA (nunca ignorada em silêncio) */
+export function cspsDoOrcamento({ ler, existe }) {
+  return FONTES_DA_CSP.filter(([arquivo]) => existe(arquivo)).map(([, onde, lerCsp]) => [onde, lerCsp(ler)]);
+}
+
+/* as fontes de uma diretiva (null se a CSP não tem a diretiva) */
+function diretiva(csp, nome) {
+  const d = csp.split(';').map(x => x.trim()).find(x => x.toLowerCase().split(/\s+/)[0] === nome);
+  return d ? d.split(/\s+/).slice(1) : null;
+}
+
+/* o connect-src de /orcamento tem de ter SÓ o endereço exato do Supabase: nada de curinga, de * solto, de https: ou http: como fonte */
+function problemasDoConnect(connect) {
+  const problemas = [];
+  const exatos = connect.filter(t => SUPABASE_EXATO.test(t));
+  const outras = connect.filter(t => /supabase/i.test(t) && !SUPABASE_EXATO.test(t));
+  if (exatos.length > 1) problemas.push('o endereço aparece mais de uma vez');
+  if (!exatos.length && !outras.length) problemas.push('o endereço do projeto não está no connect-src');
+  if (outras.length) problemas.push('curinga ou endereço que não é o exato: ' + outras.join(' '));
+  const soltas = connect.filter(t => FONTE_SOLTA.test(t));
+  if (soltas.length) problemas.push('fonte solta: ' + soltas.join(' '));
+  return problemas;
+}
+
+const projetoDoConnect = connect => { const t = connect.find(x => SUPABASE_EXATO.test(x)); return t ? SUPABASE_EXATO.exec(t)[1] : null; };
+
+function conferirCsp(onde, csp) {
+  if (csp === null) return { itens: [item('FALTA', 'CSP de /orcamento não encontrada em ' + onde + ' (o arquivo existe, mas o formato não bate com o que o verificador lê)', 'confira se a CSP de /orcamento está nesse arquivo, no formato de sempre')], projeto: null };
+  const itens = [];
+  const connect = diretiva(csp, 'connect-src') || [];
+  const problemas = problemasDoConnect(connect);
+  if (problemas.length) itens.push(item('FALTA', 'CSP de /orcamento em ' + onde + ': o connect-src precisa do endereço EXATO do Supabase e de mais nada dele (' + problemas.join('; ') + ')', 'diga o endereço do projeto (https://<projeto>.supabase.co), troque o curinga nos três lugares e tire a fonte solta'));
+  else itens.push(item('OK', 'CSP de /orcamento em ' + onde + ' com o endereço exato do Supabase'));
+  if (!(diretiva(csp, 'img-src') || []).includes('blob:')) itens.push(item('FALTA', 'CSP de /orcamento em ' + onde + ' sem blob: no img-src (as miniaturas das fotos)', 'acrescente blob: ao img-src'));
+  return { itens, projeto: problemas.length ? null : projetoDoConnect(connect) };
+}
+
+/* os lugares da CSP têm de apontar para o MESMO projeto: três projetos diferentes é um site que manda o material para o balde errado */
+function itemDoMesmoProjeto(porLugar) {
+  const projetos = [...new Set(porLugar.map(([, p]) => p))];
+  if (projetos.length > 1) return item('FALTA', 'a CSP de /orcamento aponta para projetos diferentes do Supabase: ' + porLugar.map(([onde, p]) => onde + ' = ' + p).join(', '), 'os três lugares precisam ter o mesmo endereço');
+  if (porLugar.length > 1) return item('OK', 'os ' + porLugar.length + ' lugares da CSP de /orcamento apontam para o mesmo projeto do Supabase');
+  return null;
+}
+
 function itensCsp({ ler, existe, rodar }) {
   const itens = [];
+  const porLugar = [];
   for (const [onde, csp] of cspsDoOrcamento({ ler, existe })) {
-    if (SUPABASE_CURINGA.test(csp) || !SUPABASE_EXATO.test(csp)) itens.push(item('FALTA', 'CSP de /orcamento em ' + onde + ' sem o endereço EXATO do Supabase (curinga ou ausente)', 'diga o endereço do projeto (https://<projeto>.supabase.co) e troque o curinga nos três lugares'));
-    else itens.push(item('OK', 'CSP de /orcamento em ' + onde + ' com o endereço exato do Supabase'));
-    if (!/img-src[^;]*\bblob:/.test(csp)) itens.push(item('FALTA', 'CSP de /orcamento em ' + onde + ' sem blob: no img-src (as miniaturas das fotos)', 'acrescente blob: ao img-src'));
+    const r = conferirCsp(onde, csp);
+    itens.push(...r.itens);
+    if (r.projeto) porLugar.push([onde, r.projeto]);
   }
+  const mesmo = itemDoMesmoProjeto(porLugar);
+  if (mesmo) itens.push(mesmo);
   if (!existe('_headers')) {
     itens.push(item('CONFIRMAR', 'o _headers da Cloudflare não existe nesta base: confira nele o blob: no img-src e o endereço EXATO do Supabase em /orcamento; o teste docs/testes/cabecalhos.test.mjs deixa vermelho se ele divergir do vercel.json', ''));
   } else if (rodar(TESTE_CABECALHOS) !== 0) {
@@ -119,15 +183,21 @@ function itensCaptacao({ ler, captacao }) {
 }
 
 function itensDeploy({ ler, existe }) {
-  const ligados = ARQUIVOS_DE_DEPLOY.filter(f => existe(f) && /BZ_ENTREGA["']?\s*[=:]\s*["']?ligada/.test(semComentarios(ler(f))));
+  const ligados = ARQUIVOS_DE_DEPLOY.filter(f => existe(f) && /BZ_ENTREGA["']?\s*[=:]\s*["']?\s*ligada(?![\w-])/.test(semComentarios(ler(f))));
   if (!ligados.length) return [item('OK', 'nenhum arquivo de deploy liga o BZ_ENTREGA (' + ARQUIVOS_DE_DEPLOY.filter(existe).join(', ') + ')')];
   return ligados.map(f => item('FALTA', 'BZ_ENTREGA ligada em ' + f, 'o interruptor só liga nas variáveis do Worker, por quem decidiu ligar, nunca em arquivo do repositório'));
 }
 
+/* a BZ_BASE pode trazer usuário:senha ou parâmetro; ao mostrar, só a origem (esquema + host), ou que nem é um endereço */
+function origemParaMostrar(base) {
+  try { const u = new URL(String(base)); return u.origin === 'null' ? u.protocol : u.origin; }
+  catch { return 'um texto que não é um endereço'; }
+}
+
 function itensHosts({ base, existe }) {
   const itens = [];
-  try { validarBase(base); itens.push(item('OK', 'a BZ_BASE do dono (' + base + ') é aceita por scripts/direcoes.mjs')); }
-  catch { itens.push(item('FALTA', 'a BZ_BASE do dono (' + base + ') é recusada por scripts/direcoes.mjs (lista de hosts)', 'use o endereço do site (https://beyonzero.com.br) ou o servidor local')); }
+  try { itens.push(item('OK', 'a BZ_BASE do dono (' + validarBase(base) + ') é aceita por scripts/direcoes.mjs')); }
+  catch { itens.push(item('FALTA', 'a BZ_BASE do dono (' + origemParaMostrar(base) + ') é recusada por scripts/direcoes.mjs (lista de hosts)', 'use o endereço do site (https://beyonzero.com.br) ou o servidor local')); }
   const staging = hostDoStaging();
   itens.push(item('CONFIRMAR', staging
     ? 'o ensaio rodou no staging ' + staging + ', que scripts/direcoes.mjs aceita como BZ_BASE'
@@ -136,6 +206,10 @@ function itensHosts({ base, existe }) {
   else if (HOSTS_VERCEL.length) itens.push(item('CONFIRMAR', 'quando o projeto da Vercel for apagado, ' + HOSTS_VERCEL.join(', ') + ' sai de HOSTS_VERCEL em scripts/direcoes.mjs (o teste fica vermelho no PR que apaga o vercel.json)', ''));
   return itens;
 }
+
+/* conclusão do agente que o dono confirma: as linhas do grupo saem sob UM cabeçalho (ver formatar) */
+const conclusao = (texto, acao = '') => ({ ...item('CONFIRMAR', texto, acao), grupo: 'conclusoes' });
+const CABECALHO_DO_GRUPO = { conclusoes: 'O agente concluiu sozinho no 3b-3b; confirme cada um:' };
 
 /* o que nenhum arquivo prova: banco real, conta, código da captação, ensaio */
 const DO_DONO = [
@@ -147,11 +221,11 @@ const DO_DONO = [
   item('CONFIRMAR', 'o código da captação cumpre o que você decidiu em 22/10: material parado sem publicar e sem encerrar o pedido (nada de sem_material), e o site sai do ar à 00:00 depois dos 3 dias, com os 2 lembretes registrados', 'sem isso o contrato promete o que a captação ainda não faz'),
   item('CONFIRMAR', 'o ensaio completo rodou com Mercado Pago e Supabase de TESTE, sem FALHA, e os PNG a 390 e 320 px foram vistos', ''),
   item('CONFIRMAR', 'o seu PC tem PAINEL_CHAVE e BZ_BASE na janela do terminal (nunca em arquivo)', ''),
-  item('CONFIRMAR', 'o agente concluiu sozinho, confirme: entrada estornada ou contestada não abre o restante (o site recusa e manda o cliente falar com você)', ''),
-  item('CONFIRMAR', 'o agente concluiu sozinho, confirme: "parado" recomeça a contar se o cliente mexer no material', ''),
-  item('CONFIRMAR', 'o agente concluiu sozinho, confirme: você avisa o cliente 30 dias antes de apagar o material parado há 6 meses; sem o seu aviso, nada é apagado', ''),
-  item('CONFIRMAR', 'o agente concluiu sozinho, confirme: quem deu a autorização completa (número, caixa e estado) nunca tem o material apagado nem recebe esse aviso, e a /privacidade precisa dizer isso', ''),
-  item('CONFIRMAR', 'o agente concluiu sozinho, confirme: a prova da autorização do contato do site fica numa tabela própria, sem o nome do cliente, e sobrevive à lista de ajustes', '')
+  conclusao('entrada estornada ou contestada não abre o restante (o site recusa e manda o cliente falar com você)'),
+  conclusao('"parado" recomeça a contar se o cliente mexer no material'),
+  conclusao('você avisa o cliente 30 dias antes de apagar o material parado há 6 meses; sem o seu aviso, nada é apagado'),
+  conclusao('quem deu a autorização completa (número, caixa e estado) nunca tem o material apagado nem avisado; a /privacidade precisa dizer isso'),
+  conclusao('a prova da autorização do contato do site (WhatsApp ou e-mail, data e versão do aceite) fica guardada à parte e sobrevive à lista de ajustes', 'é dado pessoal: decida por quanto tempo essa prova fica guardada')
 ];
 
 export function verificar(mundo) {
@@ -163,6 +237,10 @@ export function verificar(mundo) {
 }
 export const temFalta = itens => itens.some(i => i.estado === 'FALTA');
 
+/* as linhas que o terminal mostra */
+const linhaDoItem = i => i.estado.padEnd(9) + ' ' + i.texto + (i.acao ? '\n          → ' + i.acao : '');
+export const formatar = itens => itens.flatMap((i, k) => (i.grupo && i.grupo !== (itens[k - 1] || {}).grupo ? ['\n' + CABECALHO_DO_GRUPO[i.grupo], linhaDoItem(i)] : [linhaDoItem(i)]));
+
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const raiz = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
   const pastaCaptacao = process.env.BZ_CAPTACAO || path.resolve(raiz, '../captacao');
@@ -173,7 +251,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     captacao: fs.existsSync(path.join(pastaCaptacao, 'config', 'entrega.json')) ? lerEm(pastaCaptacao) : null,
     base: process.env.BZ_BASE || 'https://beyonzero.com.br'
   });
-  for (const i of itens) console.log(i.estado.padEnd(9) + ' ' + i.texto + (i.acao ? '\n          → ' + i.acao : ''));
+  for (const linha of formatar(itens)) console.log(linha);
   console.log(temFalta(itens) ? '\nNÃO LIGUE: há FALTA acima.' : '\nNenhum FALTA. Ligue só depois de confirmar cada CONFIRMAR: BZ_ENTREGA=ligada nas variáveis do Worker.');
   process.exit(temFalta(itens) ? 1 : 0);
 }

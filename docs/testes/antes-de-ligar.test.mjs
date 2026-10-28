@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { verificar, temFalta, cspsDoOrcamento, MIGRATIONS } from '../../scripts/antes-de-ligar.mjs';
+import { verificar, temFalta, cspsDoOrcamento, formatar, MIGRATIONS } from '../../scripts/antes-de-ligar.mjs';
 
 const EXATO = 'https://abcdefghijklmnopqrst.supabase.co/storage/v1/object/upload/sign/';
 const CURINGA = 'https://*.supabase.co/storage/v1/object/upload/sign/';
@@ -20,7 +20,7 @@ function mundo({ cspVercel = csp(), cspMeta = csp(), cspHeaders = csp(), vercel 
     'package.json': '{"scripts":{}}', '.env.example': '# a entrega\nBZ_ENTREGA=\n', ...extra
   };
   if (vercel && !extra['vercel.json']) arquivos['vercel.json'] = JSON.stringify({ headers: [{ source: '/orcamento', headers: [{ key: 'Content-Security-Policy', value: cspVercel }] }] });
-  if (headers) { arquivos._headers = headersCom(cspHeaders); arquivos['docs/testes/cabecalhos.test.mjs'] = '// existe'; }
+  if (headers) { if (!('_headers' in extra)) arquivos._headers = headersCom(cspHeaders); arquivos['docs/testes/cabecalhos.test.mjs'] = '// existe'; }
   for (const m of migrations) arquivos['supabase/migrations/' + m] = '-- ok';
   if (privacidade) arquivos['docs/testes/privacidade-material.test.mjs'] = '// existe';
   const doDono = captacao && { 'config/entrega.json': typeof captacao === 'string' ? captacao : JSON.stringify(captacao) };
@@ -143,4 +143,89 @@ test('o que o dono decidiu no 3b-3b entra como CONFIRMAR curto, uma linha cada; 
   for (const i of r) assert.ok(!/\n/.test(i.texto), 'uma linha só: ' + i.texto.slice(0, 40));
   assert.ok(!r.some(i => /\bA2\b|\bI1\b|DECISÃO/.test(i.texto + ' ' + i.acao)), 'nenhum marcador de decisão pendente (A2, I1 e M3 foram decididas em 22/10)');
   assert.ok(conf.some(t => /captação/.test(t) && /material parado/.test(t) && /sem_material/.test(t)), 'o que só o código da captação prova continua CONFIRMAR');
+});
+
+/* ---- correções da revisão da 15b ---- */
+const cspCom = ({ connect, img = "'self' data: blob:" }) => "default-src 'self'; script-src 'self'; img-src " + img + '; connect-src ' + connect + "; object-src 'none'";
+const ATE_FALTA = (itens, ...palavras) => falta(itens).some(t => palavras.every(p => p.test(t)));
+
+test('fonte da CSP que EXISTE mas não se deixa ler é FALTA, nunca ignorada em silêncio (um teste por fonte)', () => {
+  /* vercel.json torto, e com source diferente */
+  assert.ok(ATE_FALTA(verificar(mundo({ extra: { 'vercel.json': '{ torto' } })), /não encontrada/, /vercel\.json/));
+  assert.ok(ATE_FALTA(verificar(mundo({ extra: { 'vercel.json': JSON.stringify({ headers: [{ source: '/orcamentos', headers: [{ key: 'Content-Security-Policy', value: csp() }] }] }) } })), /não encontrada/, /vercel\.json/));
+  /* <meta> sem CSP, ou com a CSP vazia */
+  assert.ok(ATE_FALTA(verificar(mundo({ extra: { 'orcamento.html': '<meta name="viewport" content="width=device-width">' } })), /não encontrada/, /meta/));
+  /* _headers sem o bloco de /orcamento, com outra rota, ou o bloco sem CSP */
+  assert.ok(ATE_FALTA(verificar(mundo({ extra: { _headers: '/*\n  X-Frame-Options: DENY\n' } })), /não encontrada/, /_headers/));
+  assert.ok(ATE_FALTA(verificar(mundo({ extra: { _headers: '/orcamentos\n  Content-Security-Policy: ' + csp() + '\n' } })), /não encontrada/, /_headers/));
+  assert.ok(ATE_FALTA(verificar(mundo({ extra: { _headers: '/orcamento\n  X-Frame-Options: DENY\n' } })), /não encontrada/, /_headers/));
+  /* fonte que NÃO existe continua sendo ignorada (o vercel.json some no PR que o apaga) */
+  assert.equal(falta(verificar(mundo({ vercel: false }))).some(t => /não encontrada/.test(t)), false);
+});
+
+test('formatos que o navegador e a Cloudflare aceitam continuam passando: <meta> com content antes do http-equiv, /orcamento/ com barra e cabeçalho em minúscula no _headers', () => {
+  const meta = '<meta content="' + csp() + '" http-equiv="Content-Security-Policy">';
+  const comMeta = verificar(mundo({ extra: { 'orcamento.html': meta } }));
+  assert.equal(temFalta(comMeta), false);
+  assert.match(ok(comMeta), /orcamento\.html \(meta\) com o endereço exato/, 'a meta foi LIDA, não ignorada');
+  const h = '/orcamento/\n  ! content-security-policy\n  content-security-policy: ' + csp() + '\n';
+  const comHeaders = verificar(mundo({ extra: { _headers: h } }));
+  assert.equal(temFalta(comHeaders), false);
+  assert.match(ok(comHeaders), /_headers \(Cloudflare\) com o endereço exato/, 'o _headers foi LIDO, não ignorado');
+});
+
+test('o endereço exato tem de estar no connect-src (não basta estar em outra diretiva): sem curinga, sem * solto, sem https: nem http: como fonte', () => {
+  const cenarios = {
+    'só no img-src': cspCom({ connect: "'self' https://api.mercadopago.com", img: "'self' data: blob: " + EXATO }),
+    '* solto': cspCom({ connect: "* 'self' " + EXATO }),
+    'só o *': cspCom({ connect: "* 'self'" }),
+    'https: solto': cspCom({ connect: "'self' https: " + EXATO }),
+    'http: solto': cspCom({ connect: "'self' http: " + EXATO }),
+    'curinga ao lado do exato': cspCom({ connect: "'self' " + EXATO + ' ' + CURINGA }),
+    'sem connect-src': "default-src 'self'; img-src 'self' blob:"
+  };
+  for (const [nome, ruim] of Object.entries(cenarios)) {
+    assert.ok(ATE_FALTA(verificar(mundo({ cspMeta: ruim })), /meta/, /connect-src/), nome);
+  }
+  assert.equal(temFalta(verificar(mundo({ cspMeta: cspCom({ connect: "'self' https://api.mercadopago.com " + EXATO }) }))), false, 'o certo continua passando');
+});
+
+test('os três lugares têm de apontar para o MESMO projeto do Supabase; três projetos diferentes é FALTA', () => {
+  const projeto = ref => 'https://' + ref + '.supabase.co/storage/v1/object/upload/sign/';
+  const r = verificar(mundo({ cspVercel: csp({ supabase: projeto('aaaaaaaaaaaaaaaaaaaa') }), cspMeta: csp({ supabase: projeto('bbbbbbbbbbbbbbbbbbbb') }), cspHeaders: csp({ supabase: projeto('cccccccccccccccccccc') }) }));
+  assert.ok(ATE_FALTA(r, /projetos? (diferentes|distintos)/, /vercel\.json/, /_headers/));
+  assert.ok(ATE_FALTA(verificar(mundo({ cspHeaders: csp({ supabase: projeto('bbbbbbbbbbbbbbbbbbbb') }) })), /projetos? (diferentes|distintos)/), 'um só diferente já é FALTA');
+  assert.equal(temFalta(verificar(mundo({ cspVercel: csp({ supabase: projeto('aaaaaaaaaaaaaaaaaaaa') }), cspMeta: csp({ supabase: projeto('aaaaaaaaaaaaaaaaaaaa') }), cspHeaders: csp({ supabase: projeto('aaaaaaaaaaaaaaaaaaaa') }) }))), false);
+  assert.match(ok(verificar(mundo())), /mesmo projeto/);
+});
+
+test('BZ_ENTREGA com espaços ao redor de "ligada" também liga (o código faz trim): é FALTA', () => {
+  for (const valor of ['{ "vars": { "BZ_ENTREGA": " ligada " } }', '{ "vars": { "BZ_ENTREGA":"ligada" } }', 'BZ_ENTREGA=" ligada"', "BZ_ENTREGA = ' ligada '", 'BZ_ENTREGA= ligada']) {
+    assert.ok(ATE_FALTA(verificar(mundo({ extra: { 'wrangler.toml': valor } })), /BZ_ENTREGA/, /wrangler\.toml/), valor);
+  }
+  assert.equal(falta(verificar(mundo({ extra: { 'wrangler.toml': 'BZ_ENTREGA = "ligadaa"' } }))).some(t => /BZ_ENTREGA/.test(t)), false, 'outro valor que não é "ligada" não liga');
+});
+
+test('a BZ_BASE recusada nunca imprime usuário nem senha: só o endereço (origem), ou que não é um endereço', () => {
+  for (const base of ['https://usuario:segredo123@evil.com', 'https://beyonzero.com.br:senha456@evil.com/caminho?token=abc', 'segredo789 isto nem é endereço']) {
+    const itens = verificar(mundo({ base }));
+    const tudo = itens.map(i => i.texto + ' ' + i.acao).join('\n');
+    assert.ok(falta(itens).some(t => /BZ_BASE/.test(t)), base);
+    assert.doesNotMatch(tudo, /segredo|senha|usuario|token/, base);
+  }
+});
+
+test('o que o agente concluiu sozinho tem UM cabeçalho de grupo (não um prefixo em cada linha), linhas curtas, e a prova do contato diz o que a tabela guarda', () => {
+  const r = verificar(mundo());
+  const grupo = r.filter(i => i.grupo === 'conclusoes');
+  assert.equal(grupo.length, 5);
+  for (const i of r) assert.doesNotMatch(i.texto, /o agente concluiu/i, 'o prefixo mora no cabeçalho do grupo');
+  for (const i of grupo) assert.ok(i.texto.length <= 150, i.texto.length + ': ' + i.texto);
+  const prova = grupo.find(i => /prova/.test(i.texto)).texto;
+  for (const palavra of [/WhatsApp/, /e-mail/, /data/, /versão/]) assert.match(prova, palavra);
+  assert.doesNotMatch(prova, /sem o nome|anônim/i, 'a tabela guarda contato de pessoa: não pode soar anonimizada');
+  const linhas = formatar(r);
+  assert.equal(linhas.filter(l => /o agente concluiu sozinho/i.test(l)).length, 1, 'o cabeçalho sai uma vez só');
+  const iCab = linhas.findIndex(l => /o agente concluiu sozinho/i.test(l));
+  assert.ok(linhas.slice(iCab + 1, iCab + 6).every(l => /^CONFIRMAR/.test(l)), 'as 5 linhas vêm logo depois do cabeçalho');
 });
