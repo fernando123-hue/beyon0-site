@@ -180,7 +180,7 @@ function montar({ comEsquema = true } = {}) {
   const ctx = { chamadas: [], recargas: 0, falhaDaRecarga: null, proximo: null, falhaDaAcao: null, travar: null };
   const API = {
     async previaAjustes(...a) { ctx.chamadas.push(['ajustes', ...a]); if (ctx.travar) await ctx.travar; if (ctx.falhaDaAcao) throw ctx.falhaDaAcao; return { ok: true }; },
-    async previaAprovar() { ctx.chamadas.push(['aprovar']); if (ctx.falhaDaAcao) throw ctx.falhaDaAcao; return { ok: true }; }
+    async previaAprovar(...a) { ctx.chamadas.push(['aprovar', ...a]); if (ctx.falhaDaAcao) throw ctx.falhaDaAcao; return { ok: true }; }
   };
   const win = {};
   if (comEsquema) win.BZMaterialEsquema = ESQ;
@@ -313,13 +313,22 @@ test('criar: "Voltar" do formulário devolve os botões e o foco; aprovar abre o
   assert.equal(t.el['o-prv-dialogo'].open, false); assert.equal(t.foco(), 'o-prv-aprovar'); assert.equal(t.ctx.chamadas.length, 0, 'voltar não aprova nada');
 });
 
+test('B1: aprovar manda a rodada da prévia que está na tela, e uma releitura (volta à aba) troca a rodada junto com a prévia', async () => {
+  const t = montar(); t.P.atualizar(estado('previa', { usadas: 1, max: 2 }));
+  await t.el['o-prv-aprovar'].disparar('click'); await t.el['o-prv-confirmar'].disparar('click');
+  assert.deepEqual(t.ctx.chamadas, [['aprovar', 1]]);
+  const u = montar(); u.P.atualizar(estado('previa', { usadas: 0, max: 2 })); u.P.atualizar(estado('previa', { usadas: 1, max: 2 }));
+  await u.el['o-prv-aprovar'].disparar('click'); await u.el['o-prv-confirmar'].disparar('click');
+  assert.deepEqual(u.ctx.chamadas, [['aprovar', 1]], 'a tela releu e mostra a v2: manda a rodada da v2');
+});
+
 test('criar: aprovar chama a API uma vez, fecha o dialog, recarrega e leva o foco ao título; o erro da API aparece fora do formulário e fecha o dialog', async () => {
   const t = montar(); t.P.atualizar(estado());
   await t.el['o-prv-aprovar'].disparar('click');
   t.ctx.proximo = estado('aprovada');
   const a = t.el['o-prv-confirmar'].disparar('click'), b = t.el['o-prv-confirmar'].disparar('click');
   await Promise.all([a, b]);
-  assert.deepEqual(t.ctx.chamadas, [['aprovar']], 'toque duplo aprova uma vez só');
+  assert.deepEqual(t.ctx.chamadas, [['aprovar', 0]], 'toque duplo aprova uma vez só, dizendo a rodada que a tela viu (B1)');
   assert.equal(t.el['o-prv-dialogo'].open, false); assert.equal(t.ctx.recargas, 1); assert.equal(t.foco(), 'o-prv-titulo');
   assert.equal(t.el['o-prv-titulo'].textContent, 'Prévia aprovada');
   /* erro: 409 do servidor (passo mudou) com a saída pelo WhatsApp */
@@ -370,19 +379,19 @@ function carregarApi() {
   return { API: ctx.window.BZOrcamento, pedidos, CONV };
 }
 
-test('a API do navegador: previaAjustes manda por POST o corpo que o servidor aceita (conversa_id, texto, rodada_base e só o contato preenchido); previaAprovar só a conversa', async () => {
+test('a API do navegador: previaAjustes manda por POST o corpo que o servidor aceita (conversa_id, texto, rodada_base e só o contato preenchido); previaAprovar a conversa e a rodada que a tela viu (B1)', async () => {
   const { API, pedidos, CONV } = carregarApi();
   const ACEITOS = ['conversa_id', 'texto', 'rodada_base', 'whatsapp', 'email', 'autorizo'];   /* = soCom(corpo, [...]) de api/_vendas/fluxo-previa.mjs */
   await API.previaAjustes('Trocar a foto.', 1, null);
   await API.previaAjustes('Trocar a foto.', 0, { whatsapp: '(21) 97716-7944', email: '', autorizo: true });
   await API.previaAjustes('', 0, { whatsapp: '', email: 'contato@clinicasol.com.br', autorizo: true });
-  await API.previaAprovar();
+  await API.previaAprovar(1);
   const corpos = pedidos.map(p => JSON.parse(p.init.body));
   assert.deepEqual(corpos, [
     { conversa_id: CONV, texto: 'Trocar a foto.', rodada_base: 1 },
     { conversa_id: CONV, texto: 'Trocar a foto.', rodada_base: 0, whatsapp: '(21) 97716-7944', autorizo: true },
     { conversa_id: CONV, texto: '', rodada_base: 0, email: 'contato@clinicasol.com.br', autorizo: true },
-    { conversa_id: CONV }]);
+    { conversa_id: CONV, rodada_base: 1 }]);
   for (const c of corpos) for (const k of Object.keys(c)) assert.ok(ACEITOS.includes(k), 'campo que o servidor recusaria: ' + k);
   assert.deepEqual(pedidos.map(p => [p.init.method, p.url]), [['POST', '/api/vendas?acao=previa-ajustes'], ['POST', '/api/vendas?acao=previa-ajustes'], ['POST', '/api/vendas?acao=previa-ajustes'], ['POST', '/api/vendas?acao=previa-aprovar']]);
   assert.equal(pedidos[0].init.headers.authorization, 'Bearer T0KEN');

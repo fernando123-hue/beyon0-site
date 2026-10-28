@@ -4,7 +4,7 @@
      o WhatsApp/telefone e o e-mail DO SITE vão em campos próprios (M3, 22/10), normalizados e conferidos por ESQ.contatoDoSite e só com `autorizo: true` (a mesma autorização
      do material); uma lista pode ter só o contato; CPF/CNPJ é recusado ANTES de redigir; a rodada que a tela viu tem de ser a do banco (40001 → 409); a 3ª lista é recusada (D2).
      O prazo VOLTA A CORRER: o servidor fecha a pausa e calcula a data nova com a regra da captação (api/_material/prazo.mjs) e o banco só guarda.
-   • previa-aprovar: só o cliente aprova (D5); não existe aprovação por tempo, por rotina nem pelo dono.
+   • previa-aprovar: só o cliente aprova (D5), e só a prévia que ele viu (`rodada_base`); não existe aprovação por tempo, por rotina nem pelo dono.
    Atrás do interruptor BZ_ENTREGA. O texto da lista NUNCA volta à tela; nada aqui grava texto do cliente no log.
    Toda recusa do banco que a pessoa pode ler vira frase em português (409/422), nunca a mensagem crua nem 500.
    ========================================================================== */
@@ -83,8 +83,11 @@ export function criarAcoesDaPrevia({ banco, visitante, estado, env }) {
     },
 
     async previaAprovar({ request, corpo }) {
-      if (!soCom(corpo, ['conversa_id']) || !ehUuid(corpo.conversa_id)) throw new Recusa(400, FRASES.conversaInvalida);
+      /* (B1, revisão de segurança) a tela diz QUAL prévia a pessoa viu (`rodada_base`, o mesmo número da lista de ajustes). Sem ela a porta velha ficaria aberta: numa aba antiga
+         o servidor aprovaria a prévia nova, que a pessoa nunca abriu (D5). Faltou ou veio torta: 400; não é a rodada da entrega lida: 409 "a prévia mudou" */
+      if (!soCom(corpo, ['conversa_id', 'rodada_base']) || !ehUuid(corpo.conversa_id) || !Number.isInteger(corpo.rodada_base) || corpo.rodada_base < 0) throw new Recusa(400, FRASES.conversaInvalida);
       const { vid, e, agora, prazo } = await entregaNaPrevia(request, corpo.conversa_id);
+      if (corpo.rodada_base !== e.rodadas.usadas) throw new Recusa(409, FRASES.mudou);
       const r = await chamar('vendas_previa_aprovar', { conversa_id: corpo.conversa_id, visitante_id: vid, versao: e.versao, agora: agora.toISOString(), prazo });
       if (!r || r.ok !== true) throw new Recusa(409, FRASES.passo, { whatsapp: true });
       return { ok: true };

@@ -180,7 +180,8 @@
       if (contato) { if (contato.whatsapp) corpo.whatsapp = contato.whatsapp; if (contato.email) corpo.email = contato.email; corpo.autorizo = contato.autorizo === true; }
       return chamar('POST', 'previa-ajustes', comConversa(corpo), undefined, ESTADO_MS);
     },
-    previaAprovar: function () { return chamar('POST', 'previa-aprovar', comConversa(), undefined, ESTADO_MS); },
+    /* (B1) aprovar diz QUAL prévia a pessoa viu (a mesma `rodada_base` da lista de ajustes): numa aba velha o servidor recusa em vez de aprovar a prévia nova */
+    previaAprovar: function (rodadaBase) { return chamar('POST', 'previa-aprovar', comConversa({ rodada_base: rodadaBase }), undefined, ESTADO_MS); },
     /* Recomeçar: apaga a sessão e marca a conversa como esquecida (outra aba aberta não a grava de volta) */
     esquecer: function () {
       try { if (sessao && sessao.conversa_id) localStorage.setItem(ESQUECIDA, sessao.conversa_id); } catch (e) { /* sem armazenamento */ }

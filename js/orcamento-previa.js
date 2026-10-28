@@ -154,7 +154,7 @@
       if (enviando) return;
       enviando = true; $('o-prv-confirmar').setAttribute('aria-disabled', 'true');
       try {
-        await API.previaAprovar();
+        await API.previaAprovar(base);
       } catch (e) {
         fecharDialogo();
         await falhar(e, FALHA_APROVAR, 'o-prv-erro');

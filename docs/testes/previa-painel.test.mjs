@@ -75,7 +75,7 @@ test('M1: o prazo corre até PUBLICAR (a regra única da captação): com o praz
   assert.equal(await passo(c), 'producao', 'nada foi gravado');
   await porPrazo(original);
   assert.equal((await publicar(codigo)).status, 200);
-  assert.equal((await n.chamar('POST', 'previa-aprovar', { conversa_id: c })).status, 200);   /* o cliente responde: a pausa fecha e o prazo CONTINUA correndo até o ar */
+  assert.equal((await n.chamar('POST', 'previa-aprovar', { conversa_id: c, rodada_base: 0 })).status, 200);   /* o cliente responde: a pausa fecha e o prazo CONTINUA correndo até o ar */
   const aprovado = await prazoAtual();
   await porPrazo({ ...aprovado, conta_desde: '2020-01-06T12:00:00-04:00', pausas: [] });
   const v2 = await cen.painelPost({ no_ar: codigo, url: SITE });
@@ -104,7 +104,7 @@ test('o caminho inteiro pelas portas reais: prévia → aviso → lista → nova
   assert.equal((await cen.painelGet('?ajustes-previa=' + codigo)).corpo.ajustes.length, 0, 'a lista virou "feito"');
   assert.deepEqual((await cen.painelGet('?fila=avisos')).corpo.itens.filter(i => i.codigo === codigo).map(i => i.momento), ['previa'], 'cada prévia nova tem o seu aviso (decisão C do plano)');
   /* o cliente aprova, o dono põe no ar */
-  assert.equal((await n.chamar('POST', 'previa-aprovar', { conversa_id: c })).status, 200);
+  assert.equal((await n.chamar('POST', 'previa-aprovar', { conversa_id: c, rodada_base: 1 })).status, 200);
   assert.equal((await cen.painelPost({ no_ar: codigo, url: 'https://evil.com/caminho?x=1' })).status, 422);
   assert.equal((await cen.painelPost({ no_ar: codigo, url: SITE + '/' })).status, 200);
   assert.deepEqual((await cen.painelGet('?fila=avisos')).corpo.itens.filter(i => i.codigo === codigo).map(i => i.momento), ['no_ar'], 'a prévia aprovada não pede mais aviso');
@@ -152,7 +152,7 @@ test('encerrar (lista fechada, sem "sem_material"), dispensar o material (D4, di
 test('suspender pelo painel (22/10): sem o aviso "no ar" registrado ou antes do fim do 3º dia, 409 com a frase; depois, 200 e a conta dos lembretes', async () => {
   const { n, c, codigo } = await emProducao();
   await publicar(codigo);
-  assert.equal((await n.chamar('POST', 'previa-aprovar', { conversa_id: c })).status, 200);
+  assert.equal((await n.chamar('POST', 'previa-aprovar', { conversa_id: c, rodada_base: 0 })).status, 200);
   assert.equal((await cen.painelPost({ no_ar: codigo, url: SITE })).status, 200);
   const sem = await cen.painelPost({ suspender: codigo });
   assert.equal(sem.status, 409); assert.match(sem.corpo.erro, /aviso/i);
@@ -184,7 +184,7 @@ test('M3 (22/10): a lista de ajustes chega ao dono com o telefone e o e-mail do 
 const noAr = async () => {   /* um pedido no ar, com o aviso "no ar" registrado há 4 dias */
   const p = await emProducao();
   await publicar(p.codigo);
-  assert.equal((await p.n.chamar('POST', 'previa-aprovar', { conversa_id: p.c })).status, 200);
+  assert.equal((await p.n.chamar('POST', 'previa-aprovar', { conversa_id: p.c, rodada_base: 0 })).status, 200);
   assert.equal((await cen.painelPost({ no_ar: p.codigo, url: SITE })).status, 200);
   assert.equal((await cen.painelPost({ aviso_feito: p.codigo, momento: 'no_ar' })).status, 200);
   await local.db.query("update app.entregas set aviso_no_ar_feito_em = now() - interval '4 days' where conversa_id = $1", [p.c]);
@@ -238,7 +238,7 @@ test('(c) prazo guardado com data ilegível: 409 com a frase, nunca 500, e nada 
   }
   await porPrazo(original);
   assert.equal((await publicar(codigo)).status, 200);
-  assert.equal((await n.chamar('POST', 'previa-aprovar', { conversa_id: c })).status, 200);
+  assert.equal((await n.chamar('POST', 'previa-aprovar', { conversa_id: c, rodada_base: 0 })).status, 200);
   const aprovado = (await local.db.query('select prazo from app.entregas where conversa_id = $1', [c])).rows[0].prazo;
   await porPrazo({ ...aprovado, pausas: [{ desde: 'amanhã', ate: 'depois' }] });
   const r = await cen.painelPost({ no_ar: codigo, url: SITE });
@@ -342,7 +342,7 @@ test('m3: 22023 do banco (relógio fora da janela, data fora do padrão) nas aç
   const r = await comRpc(falha22023(['vendas_previa_publicar']), () => publicar(codigo));
   assert.equal(r.status, 409); assert.match(r.corpo.erro, /relógio/i); assert.equal(await passo(c), 'producao');
   assert.equal((await publicar(codigo)).status, 200);
-  assert.equal((await n.chamar('POST', 'previa-aprovar', { conversa_id: c })).status, 200);
+  assert.equal((await n.chamar('POST', 'previa-aprovar', { conversa_id: c, rodada_base: 0 })).status, 200);
   const ar = await comRpc(falha22023(['vendas_no_ar']), () => cen.painelPost({ no_ar: codigo, url: SITE }));
   assert.equal(ar.status, 409); assert.match(ar.corpo.erro, /relógio/i);
   const m = await ateEntregaCriada(cen, local);
