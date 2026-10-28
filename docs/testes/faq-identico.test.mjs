@@ -79,3 +79,17 @@ test('páginas de venda: sem cidade e sem público escolhido (sindicato, federa�
     assert.equal(publico, null, arquivo + ': público escolhido: ' + (publico && publico[0]));
   }
 });
+
+/* os números da Prova são de pesquisas recentes (dono, 2026-10-28: "precisam estar mais recentes... as outras são de
+   2010 e 2011, isso é preocupante"): toda fonte diz o ano, e o ano é 2024 ou depois */
+test('Prova: toda fonte tem ano, e é de 2024 em diante', () => {
+  for (const arquivo of ['index.html', 'sites.html']) {
+    const html = readFileSync(new URL(arquivo, RAIZ), 'utf8');
+    const fontes = [...html.matchAll(/<span class="prova__fonte">([^<]+)<\/span>/g)].map(m => limpar(m[1]));
+    assert.ok(fontes.length >= 3, arquivo + ': esperava as 3 fontes da Prova');
+    for (const f of fontes) {
+      const ano = Number((f.match(/\b(19|20)\d{2}\b/) || [])[0]);
+      assert.ok(ano >= 2024, arquivo + ': fonte velha ou sem ano: ' + f);
+    }
+  }
+});
