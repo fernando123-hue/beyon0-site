@@ -424,11 +424,16 @@
   }
 
   /* ----- depois de enviado: só leitura ----- */
+  /* a Previsão e "Você vê a prévia aqui mesmo." só valem enquanto a prévia ainda vem (material, produção); depois dela, o resto da história está nas seções do passo 3 e do 4 */
+  function leadDoMaterial(status, passo, previsao) {
+    if (status === 'limpo') return 'O seu material já foi para a produção e saiu desta página.';
+    if (passo !== 'material' && passo !== 'producao') return 'Recebido.';
+    return previsao ? 'Recebido. Previsão do seu site: ' + previsao + '. Você vê a prévia aqui mesmo.' : 'Recebido. Você vê a prévia aqui mesmo.';
+  }
   function somenteLeitura(E, e) {
     var corpo = $('o-mat-corpo'); corpo.textContent = '';
     var m = e.material, previsao = window.BZEntrega ? window.BZEntrega.dataPorExtenso(e.entrega_ate) : '';
-    corpo.appendChild(el('p', 'orc-bloco__lead', m.status === 'limpo' ? 'O seu material já foi para a produção e saiu desta página.'
-      : previsao ? 'Recebido. Previsão do seu site: ' + previsao + '. Você vê a prévia aqui mesmo.' : 'Recebido. Você vê a prévia aqui mesmo.'));
+    corpo.appendChild(el('p', 'orc-bloco__lead', leadDoMaterial(m.status, e.passo, previsao)));
     if (m.status === 'limpo') return;
     var d = m.dados || {}, ul = el('ul', 'orc-mat__resumo'), fotos = (m.arquivos || []).filter(function (a) { return a.papel === 'foto'; }).length;
     [['Logo', (m.arquivos || []).some(function (a) { return a.papel === 'logo'; }) ? 'enviada' : 'não enviada'], ['Fotos', String(fotos)],
@@ -478,5 +483,5 @@
     estado.motor.hidratar(e.material.arquivos);
   }
 
-  window.BZMaterial = { atualizar: atualizar, blocos: BLOCOS, formatarTelefone: formatarTelefone, lerLista: lerLista, lerObjetos: lerObjetos, repetirNo429: repetirNo429, cidadeDoPedido: cidadeDoPedido, partesDoFalta: partesDoFalta, chaveDaLinha: chaveDaLinha, textoDoEstado: textoDoEstado, mudouDe: mudouDe, criarFilaDeSalvamento: criarFilaDeSalvamento };
+  window.BZMaterial = { atualizar: atualizar, leadDoMaterial: leadDoMaterial, blocos: BLOCOS, formatarTelefone: formatarTelefone, lerLista: lerLista, lerObjetos: lerObjetos, repetirNo429: repetirNo429, cidadeDoPedido: cidadeDoPedido, partesDoFalta: partesDoFalta, chaveDaLinha: chaveDaLinha, textoDoEstado: textoDoEstado, mudouDe: mudouDe, criarFilaDeSalvamento: criarFilaDeSalvamento };
 })();
