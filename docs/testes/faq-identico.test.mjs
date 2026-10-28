@@ -66,3 +66,16 @@ test('index, sites e automação: nenhum preço em reais na página (cartões, p
     assert.equal(achado, null, arquivo + ': preço na página: ' + (achado && achado[0]));
   }
 });
+
+/* o site não escolhe para quem é o serviço nem diz a cidade (dono, 2026-10-28: "Nós não decidimos para quem é tal
+   serviço"; "tire Rio de Janeiro do site"). A privacidade fica de fora: lá a identificação do controlador é exigência
+   da LGPD. */
+test('páginas de venda: sem cidade e sem público escolhido (sindicato, federação, cooperativa)', () => {
+  for (const arquivo of ['index.html', 'sites.html', 'automacao.html', 'resumo.html', 'orcamento.html', '404.html']) {
+    const html = readFileSync(new URL(arquivo, RAIZ), 'utf8').replace(/<!--[^]*?-->/g, '');
+    const texto = limpar(html);
+    assert.doesNotMatch(texto, /Rio de Janeiro|\bRJ\b/, arquivo + ': cidade na página');
+    const publico = texto.match(/.{0,40}(sindicat|federaç|cooperativ).{0,40}/i);
+    assert.equal(publico, null, arquivo + ': público escolhido: ' + (publico && publico[0]));
+  }
+});
