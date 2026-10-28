@@ -26,6 +26,7 @@ function mundo({ cspVercel = csp(), cspMeta = csp(), cspHeaders = csp(), vercel 
   const doDono = captacao && { 'config/entrega.json': typeof captacao === 'string' ? captacao : JSON.stringify(captacao) };
   return {
     ler: f => { if (!(f in arquivos)) throw new Error('sem ' + f); return arquivos[f]; }, existe: f => f in arquivos,
+    listar: pasta => Object.keys(arquivos).filter(a => a.startsWith(pasta + '/') && !a.slice(pasta.length + 1).includes('/')).map(a => a.slice(pasta.length + 1)),
     rodar: f => (f in arquivos && !falham.includes(f) ? 0 : 1),
     captacao: doDono && (f => { if (!(f in doDono)) throw new Error('sem ' + f); return doDono[f]; }), base
   };
@@ -118,7 +119,8 @@ test('nenhum arquivo de deploy liga o BZ_ENTREGA: se algum ligar, FALTA (jsonc, 
 
 test('o wrangler.jsonc e o .env.example DE VERDADE deste repositório não ligam a entrega', () => {
   const real = f => fs.readFileSync(new URL('../../' + f, import.meta.url), 'utf8');
-  const itens = verificar({ ...mundo(), ler: f => (fs.existsSync(new URL('../../' + f, import.meta.url)) ? real(f) : mundo().ler(f)), existe: f => fs.existsSync(new URL('../../' + f, import.meta.url)) || mundo().existe(f) });
+  const itens = verificar({ ...mundo(), ler: f => (fs.existsSync(new URL('../../' + f, import.meta.url)) ? real(f) : mundo().ler(f)), existe: f => fs.existsSync(new URL('../../' + f, import.meta.url)) || mundo().existe(f),
+    listar: pasta => (fs.existsSync(new URL('../../' + pasta, import.meta.url)) ? fs.readdirSync(new URL('../../' + pasta, import.meta.url)) : []) });   /* (os workflows e o Worker de verdade também são varridos) */
   assert.deepEqual(falta(itens).filter(t => /BZ_ENTREGA/.test(t)), []);
 });
 
@@ -228,4 +230,51 @@ test('o que o agente concluiu sozinho tem UM cabeçalho de grupo (não um prefix
   assert.equal(linhas.filter(l => /o agente concluiu sozinho/i.test(l)).length, 1, 'o cabeçalho sai uma vez só');
   const iCab = linhas.findIndex(l => /o agente concluiu sozinho/i.test(l));
   assert.ok(linhas.slice(iCab + 1, iCab + 6).every(l => /^CONFIRMAR/.test(l)), 'as 5 linhas vêm logo depois do cabeçalho');
+});
+
+/* ---- correções da revisão final de segurança do 3b-3c (B2 e B3) ---- */
+const MP = 'https://api.mercadopago.com https://secure-fields.mercadopago.com';
+const cspTotal = ({ connect = "'self' " + MP + ' ' + EXATO, script = "'self' https://challenges.cloudflare.com https://sdk.mercadopago.com", style = "'self'", padrao = "'self'" } = {}) =>
+  'default-src ' + padrao + '; script-src ' + script + '; style-src ' + style + "; img-src 'self' data: blob:; connect-src " + connect + "; object-src 'none'";
+
+test('B2: o connect-src é lista do que é PERMITIDO: qualquer outra fonte é FALTA e o texto cita a fonte', () => {
+  const ruins = ['https://*', 'wss:', 'ws:', 'data:', 'blob:', '*.exemplo.com', 'https://cdn.exemplo.com', 'https://*.exemplo.com', 'wss://sockets.exemplo.com', 'http://api.mercadopago.com', 'https://api.mercadopago.com.evil.com'];
+  for (const fonte of ruins) {
+    for (const lugar of ['cspVercel', 'cspMeta', 'cspHeaders']) {
+      const r = verificar(mundo({ [lugar]: cspTotal({ connect: "'self' " + MP + ' ' + EXATO + ' ' + fonte }) }));
+      assert.ok(falta(r).some(t => /connect-src/.test(t) && t.includes(fonte)), lugar + ' deixou passar ' + fonte);
+    }
+  }
+  assert.equal(temFalta(verificar(mundo({ cspMeta: cspTotal() }))), false, 'o conjunto legítimo (self, Mercado Pago, Supabase exato) passa');
+  assert.equal(temFalta(verificar(mundo({ cspMeta: cspTotal({ connect: "'self' " + EXATO }) }))), false, 'menos fontes que o conjunto também passa');
+  assert.equal(temFalta(verificar(mundo({ cspMeta: cspTotal({ connect: "'SELF' HTTPS://API.MERCADOPAGO.COM " + EXATO }) }))), false, 'caixa alta é a mesma fonte');
+});
+
+test('B2: script-src, style-src e default-src recusam unsafe-inline, unsafe-eval, * e esquemas soltos (e o que a CSP real precisa continua passando)', () => {
+  const abertas = {
+    'script-src': ["'unsafe-inline'", "'unsafe-eval'", '*', 'https:', 'http:', 'data:', 'blob:', 'https://*.exemplo.com'],
+    'style-src': ["'unsafe-inline'", '*', 'https:', 'data:'],
+    'default-src': ["'unsafe-inline'", "'unsafe-eval'", '*', 'https:', 'data:', 'blob:']
+  };
+  const opcao = { 'script-src': 'script', 'style-src': 'style', 'default-src': 'padrao' };
+  const base = { 'script-src': "'self' https://challenges.cloudflare.com", 'style-src': "'self'", 'default-src': "'self'" };
+  for (const [dir, fontes] of Object.entries(abertas)) {
+    for (const fonte of fontes) {
+      const r = verificar(mundo({ cspHeaders: cspTotal({ [opcao[dir]]: base[dir] + ' ' + fonte }) }));
+      assert.ok(falta(r).some(t => /_headers/.test(t) && t.includes(dir) && t.includes(fonte)), dir + ' deixou passar ' + fonte);
+    }
+  }
+  assert.equal(temFalta(verificar(mundo({ cspVercel: cspTotal(), cspMeta: cspTotal(), cspHeaders: cspTotal() }))), false);
+});
+
+test('B3: workflow com --var BZ_ENTREGA:ligada, Worker que liga com ??= e qualquer menção ao interruptor nesses arquivos é FALTA; a vizinhança limpa e os comentários não', () => {
+  const liga = extra => falta(verificar(mundo({ extra })));
+  const wf = '.github/workflows/deploy.yml';
+  assert.ok(liga({ [wf]: 'jobs:\n  d:\n    steps:\n      - run: npx wrangler deploy --var BZ_ENTREGA:ligada\n' }).some(t => /BZ_ENTREGA/.test(t) && t.includes(wf)), 'workflow');
+  assert.ok(liga({ [wf]: 'env:\n  BZ_ENTREGA: ligada\n' }).some(t => t.includes(wf)), 'env do workflow');
+  assert.ok(liga({ 'cloudflare/worker.mjs': "export default { fetch(req, env) { env.BZ_ENTREGA ??= 'ligada'; } };" }).some(t => /BZ_ENTREGA/.test(t) && t.includes('cloudflare/worker.mjs')), '??= no Worker');
+  assert.ok(liga({ 'cloudflare/novo.mjs': "const e = { ...env, BZ_ENTREGA: 'ligada' };" }).some(t => t.includes('cloudflare/novo.mjs')), 'objeto');
+  assert.deepEqual(liga({ [wf]: '# BZ_ENTREGA=ligada só pelo dono\njobs: {}\n', 'cloudflare/worker.mjs': '/* BZ_ENTREGA = ligada: nunca aqui */\n// BZ_ENTREGA ligada\nexport default {};' }).filter(t => /BZ_ENTREGA/.test(t)), [], 'comentário não conta');
+  assert.match(ok(verificar(mundo({ extra: { [wf]: 'jobs: {}\n', 'cloudflare/worker.mjs': 'export default {};' } }))), /\.github\/workflows/, 'o OK diz que varreu os workflows');
+  assert.match(ok(verificar(mundo())), /cloudflare/, 'e o Worker');
 });

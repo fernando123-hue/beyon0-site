@@ -18,12 +18,18 @@ export const MIGRATIONS = [
 ];
 /* o endereço do envio assinado, token inteiro; o grupo 1 é o projeto */
 const SUPABASE_EXATO = /^https:\/\/([a-z0-9]{20})\.supabase\.co\/storage\/v1\/object\/upload\/sign\/$/;
-const FONTE_SOLTA = /^(\*|https?:)$/;
+/* o connect-src de /orcamento é lista do que é PERMITIDO (B2): qualquer outra fonte é FALTA. As fontes são as de verdade (vercel.json, _headers e a <meta>): o próprio site, o Mercado Pago e o Supabase exato */
+const CONNECT_PERMITIDAS = ["'self'", 'https://api.mercadopago.com', 'https://secure-fields.mercadopago.com'];
+/* nas diretivas de código e de estilo não passa script ou estilo de qualquer lugar: curinga, esquema solto (https:, data:, blob:...), unsafe-inline e unsafe-eval */
+const DIRETIVAS_DE_CODIGO = ['default-src', 'script-src', 'script-src-elem', 'script-src-attr', 'style-src', 'style-src-elem', 'style-src-attr'];
+const FONTE_ABERTA = /^(\*|[a-z][a-z0-9+.-]*:|'unsafe-(inline|eval|hashes)')$|\*/i;
 const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
 /* o que o site promete ao cliente sobre o restante (as frases protegidas por textos-d4.test.mjs): 3 dias, um lembrete no 2º e outro no 3º dia */
 const RESTANTE_DIAS = 3;
 const LEMBRETES_RESTANTE = [2, 3];
 const ARQUIVOS_DE_DEPLOY = ['vercel.json', 'package.json', 'wrangler.jsonc', 'wrangler.json', 'wrangler.toml', '.env.example'];
+/* o que também faz deploy ou liga o Worker (B3): nenhum desses arquivos tem motivo para mexer no BZ_ENTREGA; qualquer menção fora de comentário é FALTA */
+const PASTAS_DE_DEPLOY = [['.github/workflows', /\.ya?ml$/i], ['cloudflare', /\.(mjs|js)$/i]];
 const TESTE_PRIVACIDADE = 'docs/testes/privacidade-material.test.mjs';
 const TESTE_CABECALHOS = 'docs/testes/cabecalhos.test.mjs';
 
@@ -85,7 +91,7 @@ function diretiva(csp, nome) {
   return d ? d.split(/\s+/).slice(1) : null;
 }
 
-/* o connect-src de /orcamento tem de ter SÓ o endereço exato do Supabase: nada de curinga, de * solto, de https: ou http: como fonte */
+/* o connect-src de /orcamento tem de ter SÓ as fontes permitidas e o endereço exato do Supabase: nada de curinga, de * solto, de esquema solto (https:, wss:, data:...) nem de outro site */
 function problemasDoConnect(connect) {
   const problemas = [];
   const exatos = connect.filter(t => SUPABASE_EXATO.test(t));
@@ -93,9 +99,14 @@ function problemasDoConnect(connect) {
   if (exatos.length > 1) problemas.push('o endereço aparece mais de uma vez');
   if (!exatos.length && !outras.length) problemas.push('o endereço do projeto não está no connect-src');
   if (outras.length) problemas.push('curinga ou endereço que não é o exato: ' + outras.join(' '));
-  const soltas = connect.filter(t => FONTE_SOLTA.test(t));
-  if (soltas.length) problemas.push('fonte solta: ' + soltas.join(' '));
+  const fora = connect.filter(t => !SUPABASE_EXATO.test(t) && !/supabase/i.test(t) && !CONNECT_PERMITIDAS.includes(t.toLowerCase()));
+  if (fora.length) problemas.push('fonte que não é da lista permitida (' + CONNECT_PERMITIDAS.join(', ') + '): ' + fora.join(' '));
   return problemas;
+}
+
+/* script-src, style-src e default-src: as fontes abertas de cada diretiva presente, como "script-src: 'unsafe-inline'" */
+function problemasDasDiretivasDeCodigo(csp) {
+  return DIRETIVAS_DE_CODIGO.flatMap(nome => (diretiva(csp, nome) || []).filter(t => FONTE_ABERTA.test(t)).map(t => nome + ': ' + t));
 }
 
 const projetoDoConnect = connect => { const t = connect.find(x => SUPABASE_EXATO.test(x)); return t ? SUPABASE_EXATO.exec(t)[1] : null; };
@@ -107,6 +118,8 @@ function conferirCsp(onde, csp) {
   const problemas = problemasDoConnect(connect);
   if (problemas.length) itens.push(item('FALTA', 'CSP de /orcamento em ' + onde + ': o connect-src precisa do endereço EXATO do Supabase e de mais nada dele (' + problemas.join('; ') + ')', 'diga o endereço do projeto (https://<projeto>.supabase.co), troque o curinga nos três lugares e tire a fonte solta'));
   else itens.push(item('OK', 'CSP de /orcamento em ' + onde + ' com o endereço exato do Supabase'));
+  const abertas = problemasDasDiretivasDeCodigo(csp);
+  if (abertas.length) itens.push(item('FALTA', 'CSP de /orcamento em ' + onde + ' deixa abrir script ou estilo de qualquer lugar (' + abertas.join('; ') + ')', 'tire a fonte aberta: só o próprio site e as origens que a página usa de verdade'));
   if (!(diretiva(csp, 'img-src') || []).includes('blob:')) itens.push(item('FALTA', 'CSP de /orcamento em ' + onde + ' sem blob: no img-src (as miniaturas das fotos)', 'acrescente blob: ao img-src'));
   return { itens, projeto: problemas.length ? null : projetoDoConnect(connect) };
 }
@@ -182,10 +195,23 @@ function itensCaptacao({ ler, captacao }) {
   return itens;
 }
 
-function itensDeploy({ ler, existe }) {
+/* comentário de bloco e de linha: só explicam */
+const semComentariosDeCodigo = texto => semComentarios(texto.replace(/\/\*[\s\S]*?\*\//g, ''));
+/* os arquivos das pastas de deploy (workflows e Worker) que mencionam o BZ_ENTREGA fora de comentário */
+function mencionamOInterruptor({ ler, listar }) {
+  return PASTAS_DE_DEPLOY.flatMap(([pasta, tipo]) => listar(pasta).filter(n => tipo.test(n)).map(n => pasta + '/' + n)
+    .filter(f => /BZ_ENTREGA/.test(semComentariosDeCodigo(ler(f)))));
+}
+
+function itensDeploy(mundo) {
+  const { ler, existe } = mundo;
   const ligados = ARQUIVOS_DE_DEPLOY.filter(f => existe(f) && /BZ_ENTREGA["']?\s*[=:]\s*["']?\s*ligada(?![\w-])/.test(semComentarios(ler(f))));
-  if (!ligados.length) return [item('OK', 'nenhum arquivo de deploy liga o BZ_ENTREGA (' + ARQUIVOS_DE_DEPLOY.filter(existe).join(', ') + ')')];
-  return ligados.map(f => item('FALTA', 'BZ_ENTREGA ligada em ' + f, 'o interruptor só liga nas variáveis do Worker, por quem decidiu ligar, nunca em arquivo do repositório'));
+  const mexem = mencionamOInterruptor(mundo);
+  if (!ligados.length && !mexem.length) return [item('OK', 'nenhum arquivo de deploy liga o BZ_ENTREGA (' + ARQUIVOS_DE_DEPLOY.filter(existe).join(', ') + '; e nenhum workflow de .github/workflows nem arquivo de cloudflare/ o menciona)')];
+  return [
+    ...ligados.map(f => item('FALTA', 'BZ_ENTREGA ligada em ' + f, 'o interruptor só liga nas variáveis do Worker, por quem decidiu ligar, nunca em arquivo do repositório')),
+    ...mexem.map(f => item('FALTA', 'BZ_ENTREGA mencionada em ' + f + ': workflow e Worker não mexem no interruptor (pode ligar a entrega sem o dono)', 'tire a menção; o interruptor só liga nas variáveis do Worker, por quem decidiu ligar'))
+  ];
 }
 
 /* a BZ_BASE pode trazer usuário:senha ou parâmetro; ao mostrar, só a origem (esquema + host), ou que nem é um endereço */
@@ -247,6 +273,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const lerEm = pasta => f => fs.readFileSync(path.join(pasta, f), 'utf8');
   const itens = verificar({
     ler: lerEm(raiz), existe: f => fs.existsSync(path.join(raiz, f)),
+    listar: pasta => { try { return fs.readdirSync(path.join(raiz, pasta)); } catch { return []; } },
     rodar: f => spawnSync(process.execPath, ['--test', path.join(raiz, f)], { cwd: raiz, stdio: 'ignore', windowsHide: true }).status,
     captacao: fs.existsSync(path.join(pastaCaptacao, 'config', 'entrega.json')) ? lerEm(pastaCaptacao) : null,
     base: process.env.BZ_BASE || 'https://beyonzero.com.br'
