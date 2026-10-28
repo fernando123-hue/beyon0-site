@@ -51,7 +51,7 @@
   function avisoDoRestante(dias, limite, passo) {
     if (passo === 'suspensa') return 'Seu site saiu do ar porque o restante não foi pago em ' + limite + ' dias. Quando o pagamento cair, a Beyon Zero coloca o site no ar de novo.';
     if (dias == null || dias < LEMBRETES[0]) return '';
-    if (dias > limite) return 'O prazo do restante terminou. Pague agora para o site não sair do ar.';
+    if (dias > limite) return 'O prazo do restante terminou. O Pix está logo abaixo.';
     if (dias === limite) return 'Hoje é o último dia do prazo do restante. Depois dele, sem o pagamento, o site sai do ar.';
     return 'Faltam ' + (limite - dias + 1) + ' dias para o prazo do restante, contando hoje.';   /* (a partir do 2º dia e antes do último, são sempre 2 ou mais) */
   }
@@ -67,10 +67,15 @@
     var e = E && E.entrega;
     return !!e && E.entrega_ligada !== false && E.conversa.etapa === 'em_producao' && (e.passo === 'no_ar' || e.passo === 'suspensa');
   }
-  /* o bloco em que cai quem volta ao pedido pelo link ou pelo aviso (o h2 dele recebe o foco) */
+  /* a seção da prévia está na tela: os passos previa, ajustes e aprovada, com a conversa em produção e o interruptor do servidor não desligado (a mesma regra de js/orcamento-previa.js + entrega) */
+  function previaAberta(E) {
+    var e = E && E.entrega;
+    return !!e && E.entrega_ligada !== false && E.conversa.etapa === 'em_producao' && (e.passo === 'previa' || e.passo === 'ajustes' || e.passo === 'aprovada');
+  }
+  /* o bloco em que cai quem volta ao pedido pelo link ou pelo aviso (o h2 dele recebe o foco): o aviso "A prévia está pronta" leva à prévia, o "no ar" ao restante */
   function alvoDaRetomada(E) {
     var etapa = E.conversa.etapa, e = E.entrega;
-    if (etapa === 'em_producao') return restanteAberto(E) ? 'o-noar' : 'o-pronto';
+    if (etapa === 'em_producao') return restanteAberto(E) ? 'o-noar' : previaAberta(E) ? 'o-previa' : 'o-pronto';
     if (etapa === 'encerrada' && e) return e.passo === 'concluida' ? 'o-fim-concluido' : 'o-fim-encerrado';
     return 'o-pagamento';
   }

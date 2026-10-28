@@ -60,7 +60,10 @@ test('o aviso da tela (22/10: 3 dias do aviso "no ar", lembretes do dono no 2º 
   assert.match(R.avisoDoRestante(2, 3, 'no_ar'), /Faltam 2 dias/);
   assert.match(R.avisoDoRestante(3, 3, 'no_ar'), /último dia/); assert.doesNotMatch(R.avisoDoRestante(3, 3, 'no_ar'), /meia-noite|\d\s?h\b|horas/, 'o dono suspende na mão: nada de horário de corte automático');
   for (const limite of [3, 4, 5, 6]) for (let d = 2; d < limite; d++) assert.match(R.avisoDoRestante(d, limite, 'no_ar'), new RegExp('^Faltam ' + (limite - d + 1) + ' dias '), 'nunca "Falta 1 dia": entre o 2º dia e o último são sempre 2 ou mais');
-  assert.match(R.avisoDoRestante(4, 3, 'no_ar'), /prazo do restante terminou/); assert.match(R.avisoDoRestante(9, 3, 'no_ar'), /prazo do restante terminou/);
+  for (const dias of [4, 9]) {
+    assert.equal(R.avisoDoRestante(dias, 3, 'no_ar'), 'O prazo do restante terminou. O Pix está logo abaixo.');
+    assert.doesNotMatch(R.avisoDoRestante(dias, 3, 'no_ar'), /pague agora|sair do ar|sai do ar/i, 'sem pressão nem ameaça sem data');
+  }
   assert.match(R.avisoDoRestante(12, 3, 'suspensa'), /saiu do ar/); assert.match(R.avisoDoRestante(12, 3, 'suspensa'), /quando o pagamento cair/i);
   assert.match(R.avisoDoRestante(null, 3, 'suspensa'), /saiu do ar/, 'suspensa mostra o aviso mesmo sem a contagem');
   assert.match(texto(NOAR), /Se o restante não for pago em 3 dias depois do meu aviso de que o site está no ar, o site sai do ar até o pagamento\./);
@@ -349,14 +352,16 @@ test('restanteAberto (a decisão do render: parar a espera do Pix ou não): mate
 
 test('alvoDaRetomada (quem volta pelo aviso "seu site está no ar" ou pelo link cai no bloco certo; o h2 dele recebe o foco)', () => {
   assert.equal(R.alvoDaRetomada(comPasso('no_ar')), 'o-noar'); assert.equal(R.alvoDaRetomada(comPasso('suspensa')), 'o-noar');
-  for (const passo of ['material', 'previa', 'aprovada']) assert.equal(R.alvoDaRetomada(comPasso(passo)), 'o-pronto', passo + ': o recibo da entrada e a lista de passos');
+  for (const passo of ['material', 'producao']) assert.equal(R.alvoDaRetomada(comPasso(passo)), 'o-pronto', passo + ': o recibo da entrada e a lista de passos');
+  for (const passo of ['previa', 'ajustes', 'aprovada']) assert.equal(R.alvoDaRetomada(comPasso(passo)), 'o-previa', passo + ': o aviso "A prévia está pronta" leva à seção da prévia (I4)');
+  for (const passo of ['previa', 'ajustes', 'aprovada']) assert.equal(R.alvoDaRetomada(comPasso(passo, { ligada: false })), 'o-pronto', passo + ' com o interruptor desligado: a seção da prévia está escondida, cai no recibo');
   assert.equal(R.alvoDaRetomada(comPasso('no_ar', { ligada: false })), 'o-pronto', 'interruptor desligado: o recibo com a frase de espera');
   assert.equal(R.alvoDaRetomada(comPasso('concluida', { etapa: 'encerrada' })), 'o-fim-concluido');
   assert.equal(R.alvoDaRetomada(comPasso('encerrada', { etapa: 'encerrada' })), 'o-fim-encerrado');
   assert.equal(R.alvoDaRetomada(comPasso('x', { etapa: 'encerrada', semEntrega: true })), 'o-pagamento');
   assert.equal(R.alvoDaRetomada({ conversa: { etapa: 'aguardando_pagamento' }, entrega: null }), 'o-pagamento');
-  for (const id of ['o-noar', 'o-pronto', 'o-fim-concluido', 'o-fim-encerrado', 'o-pagamento']) assert.ok(NO_HTML.has(id), id + ' existe no HTML');
-  for (const id of ['o-noar', 'o-fim-concluido', 'o-fim-encerrado']) assert.match(HTML.slice(HTML.indexOf('id="' + id + '"'), HTML.indexOf('id="' + id + '"') + 400), /<h2[^>]*tabindex="-1"/, id + ' tem um h2 que recebe o foco (BZRetomada.focar usa o 1º h2 do bloco)');
+  for (const id of ['o-noar', 'o-pronto', 'o-previa', 'o-fim-concluido', 'o-fim-encerrado', 'o-pagamento']) assert.ok(NO_HTML.has(id), id + ' existe no HTML');
+  for (const id of ['o-noar', 'o-previa', 'o-fim-concluido', 'o-fim-encerrado']) assert.match(HTML.slice(HTML.indexOf('id="' + id + '"'), HTML.indexOf('id="' + id + '"') + 400), /<h2[^>]*tabindex="-1"/, id + ' tem um h2 que recebe o foco (BZRetomada.focar usa o 1º h2 do bloco)');
 });
 
 test('suspensa: o site está fora do ar, então "Abrir o site" some e o endereço fica só como texto; no ar o botão volta', () => {

@@ -476,6 +476,8 @@ export const SABOTAGENS = [
     de: "const mexem = mencionamOInterruptor(mundo);", para: "const mexem = [];" },
   { nome: "o recibo de cima continua prometendo o material depois de enviado (3b-3c, I1)", fonte: "js/orcamento-entrega.js", testes: ['docs/testes/orcamento-entrega.test.mjs'],
     de: "return !passo || passo === 'material' || passo === 'producao' ? padrao : LEAD_DEPOIS_DO_MATERIAL;", para: "return padrao;" },
+  { nome: "quem volta pelo aviso \"A prévia está pronta\" cai no recibo e não na seção da prévia (3b-3c, I4)", fonte: "js/orcamento-restante.js", testes: ['docs/testes/orcamento-restante.test.mjs'],
+    de: "return restanteAberto(E) ? 'o-noar' : previaAberta(E) ? 'o-previa' : 'o-pronto';", para: "return restanteAberto(E) ? 'o-noar' : 'o-pronto';" },
   { nome: "o verificador aceita a captação com regras diferentes das do site (3b-3c)", fonte: "scripts/antes-de-ligar.mjs", testes: ['docs/testes/antes-de-ligar.test.mjs'],
     de: "const igual = JSON.stringify(valor) === JSON.stringify(esperado);", para: "const igual = true;" },
   { nome: "o verificador esquece a décima migration (a da lista do painel) (3b-3c)", fonte: "scripts/antes-de-ligar.mjs", testes: ['docs/testes/antes-de-ligar.test.mjs'],
