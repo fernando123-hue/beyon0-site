@@ -489,9 +489,24 @@ export const SABOTAGENS = [
   { nome: "o verificador aceita a captação com regras diferentes das do site (3b-3c)", fonte: "scripts/antes-de-ligar.mjs", testes: ['docs/testes/antes-de-ligar.test.mjs'],
     de: "const igual = JSON.stringify(valor) === JSON.stringify(esperado);", para: "const igual = true;" },
   { nome: "o verificador esquece a décima migration (a da lista do painel) (3b-3c)", fonte: "scripts/antes-de-ligar.mjs", testes: ['docs/testes/antes-de-ligar.test.mjs'],
-    de: ", '20261024120400_pr3b3_lista.sql'\n];", para: "\n];" },
+    de: ", '20261024120400_pr3b3_lista.sql',\n  '20261028120000_aviso_no_ar_so_no_ar.sql'\n];", para: ", /* sem a lista */\n  '20261028120000_aviso_no_ar_so_no_ar.sql'\n];" },
+  { nome: "o verificador esquece a migration do aviso \"no ar\" (a de 28/10)", fonte: "scripts/antes-de-ligar.mjs", testes: ['docs/testes/antes-de-ligar.test.mjs'],
+    de: ",\n  '20261028120000_aviso_no_ar_so_no_ar.sql'\n];", para: "\n];" },
   { nome: "o servidor local liga a entrega mesmo com BZ_ENTREGA_LOCAL=desligada (3b-3c)", fonte: "docs/servidor.mjs", testes: ['docs/testes/interruptor.test.mjs'],
     de: "if (process.env.BZ_ENTREGA_LOCAL !== 'desligada') process.env.BZ_ENTREGA = 'ligada';", para: "process.env.BZ_ENTREGA = 'ligada';" },
+  /* ---- 28/10: o aviso \"no ar\" só vale com o site no ar, e a fila de avisos traz o passo da entrega ---- */
+  { nome: "o aviso \"no ar\" da suspensa volta à fila (oferece \"O seu site está no ar!\" com o site fora do ar)", arquivo: '20261028120000_aviso_no_ar_so_no_ar.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
+    de: "e.aviso_no_ar_desde is not null and e.passo = 'no_ar'", para: "e.aviso_no_ar_desde is not null and e.passo in ('no_ar', 'suspensa')" },
+  { nome: "o aviso \"no ar\" da encerrada e da concluída volta à fila", arquivo: '20261028120000_aviso_no_ar_so_no_ar.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
+    de: "e.aviso_no_ar_desde is not null and e.passo = 'no_ar'", para: "e.aviso_no_ar_desde is not null" },
+  { nome: "a fila de avisos deixa de trazer o passo da entrega", arquivo: '20261028120000_aviso_no_ar_so_no_ar.sql', testes: ['docs/testes/previa-dono-banco.test.mjs', 'docs/testes/previa-painel.test.mjs'],
+    de: "'momento', x.momento, 'passo', x.passo, 'desde'", para: "'momento', x.momento, 'desde'" },
+  { nome: "a fila de avisos abre a função para o anon (privilégio da nova versão)", arquivo: '20261028120000_aviso_no_ar_so_no_ar.sql', testes: ['docs/testes/previa-dono-banco.test.mjs'],
+    acrescentar: '\ngrant execute on function app.vendas_avisos_lista(jsonb) to anon;\n' },
+  { nome: "o painel oferece o aviso \"no ar\" mesmo com a entrega fora do ar (segunda trava)", fonte: "js/painel-entregas.js", testes: ['docs/testes/painel-entregas.test.mjs'],
+    de: "if (a.momento === 'no_ar' && a.passo !== 'no_ar') return null;", para: "/* sem a segunda trava */" },
+  { nome: "o terminal manda avisar o \"site no ar\" com a entrega suspensa", fonte: "scripts/entregas-lib.mjs", testes: ['docs/testes/entregas-dono-previa.test.mjs'],
+    de: "if (it.aviso_no_ar_pendente && it.passo === 'no_ar') a.push(", para: "if (it.aviso_no_ar_pendente) a.push(" },
 ];
 
 /* as sabotagens que a rodada vai fazer: todas, ou só as do filtro (parte do nome, sem diferenciar maiúsculas). Filtro que não
