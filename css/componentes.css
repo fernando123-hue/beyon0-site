@@ -45,6 +45,7 @@
 .prova__val small { font-family: var(--mono); font-size: .2em; font-weight: 400; letter-spacing: var(--tr-dado); color: var(--t3); margin-left: .35em; }
 .prova__item:nth-child(2) .prova__val { color: var(--ac-3); }
 .prova__rot { display: block; font-size: var(--fs-s); max-width: 20ch; text-wrap: balance; color: var(--t2); line-height: 1.45; }
+.prova__fonte { display: block; margin-top: .6em; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); }
 .prova__nota { margin-top: 1.25rem; font-size: var(--fs-s); line-height: 1.55; color: var(--t3); max-width: 58ch; }
 @media (max-width: 820px) { .prova__val { font-size: clamp(3.5rem, 19vw, 5rem); } }
 @media (min-width: 821px) {
