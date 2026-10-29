@@ -411,7 +411,9 @@
       .observe({ type: 'largest-contentful-paint', buffered: true });
   } catch (e) { /* navegador sem LCP: sem prova */ }
   function provar(ms) {
-    if (!lcp || lcp > PROVA_BOA_MS) return;
+    /* (sem o parágrafo da prova não há prova: os números de velocidade saíram do topo, dono 2026-10-28; a peça agora
+       está no hero) */
+    if (!prova || !lcp || lcp > PROVA_BOA_MS) return;
     var s = num(lcp / 1000, 1);
     escrever(provaTexto, 'Esta página abriu em ' + s + ' s no seu aparelho. O Google considera bom até 2,5 s.');
     escrever(tempoTexto, s + ' s');
