@@ -100,7 +100,7 @@ Enquanto não há verba para a API, as três direções não são geradas pelo m
 
 ## 2b. Prazo prometido × real (dono, 2026-10-28)
 
-Sem trava de prazo, o prazo de cada formato (`prazo_dias` da tabela) precisa acompanhar o que a produção entrega. `node "<repo>/scripts/prazo-real.mjs"` (com `BZ_BASE` e `PAINEL_CHAVE` no terminal, só lê) mostra por formato: entregas, média e p75 dos dias úteis reais (do início do relógio ao dia no ar, sem a espera pelos ajustes), % no prazo e a sugestão (prazo da tabela + p75 do atraso, só para cima, com 3 entregas ou mais). A lista do painel não guarda as concluídas: para o histórico inteiro, `--sql` imprime a consulta só de leitura para o SQL Editor, e `--arquivo` lê a exportação. Mudar a tabela é decisão do dono, numa versão nova.
+Sem trava de prazo, o prazo de cada formato (`prazo_dias` da tabela) precisa acompanhar o que a produção entrega. O caminho principal é o histórico inteiro: `node "<repo>/scripts/prazo-real.mjs" --sql` imprime uma consulta só de leitura; cole no SQL Editor do Supabase, exporte o resultado em JSON e rode `node "<repo>/scripts/prazo-real.mjs" --arquivo "<entregas.json>"`. Sai por formato: entregas, média e p75 dos dias úteis reais (do início do relógio ao dia no ar, sem a espera pelos ajustes), % no prazo e a sugestão (prazo da tabela × p75 de real ÷ prometido, arredondado para cima, só para cima, com 3 entregas ou mais). Sem argumento, com `BZ_BASE` e `PAINEL_CHAVE` no terminal, ele lê a lista do painel, que é só uma amostra parcial (as entregas concluídas saem dela) e avisa isso antes da tabela. Mudar a tabela é decisão do dono, numa versão nova.
 
 ## 3. Pagamento (Mercado Pago)
 

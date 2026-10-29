@@ -2,12 +2,13 @@
    PRAZO PROMETIDO × REAL, por formato (dono, 2026-10-28: "se o trabalho não couber em 10 dias úteis, crie uma métrica para
    analisar e aumentar a quantidade de dias desde já"). Quem roda é o DONO, no terminal dele, com BZ_BASE (o site) e
    PAINEL_CHAVE no ambiente (nunca em arquivo nem em argumento), como o scripts/entregas.mjs. SÓ LÊ: um GET na lista do painel.
-     node "<repo>/scripts/prazo-real.mjs"
-         as entregas que estão na lista do painel e já foram ao ar (no ar, suspensas): a lista não guarda as concluídas
-     node "<repo>/scripts/prazo-real.mjs" --sql
+     node "<repo>/scripts/prazo-real.mjs" --sql                         (O CAMINHO PRINCIPAL, 1 de 2)
          imprime uma consulta SÓ DE LEITURA para o SQL Editor do Supabase, com o histórico inteiro (as concluídas também)
-     node "<repo>/scripts/prazo-real.mjs" --arquivo "<entregas.json>"
+     node "<repo>/scripts/prazo-real.mjs" --arquivo "<entregas.json>"   (2 de 2)
          lê a exportação dessa consulta (JSON), sem rede
+     node "<repo>/scripts/prazo-real.mjs"
+         AMOSTRA PARCIAL: só as entregas da lista do painel que já foram ao ar (no ar, suspensas); a lista não guarda as
+         concluídas, e o aviso sai antes da tabela
      --regras "<tabela.json>"   o prazo_dias de cada formato para comparar (padrão: docs/fase2/regras-rascunho-v1.json;
                                  use o JSON da tabela ATIVA se ela for outra)
    A conta e a sugestão estão em scripts/prazo-real-lib.mjs. Mudar o prazo_dias da tabela é decisão do dono, numa versão nova.
@@ -64,9 +65,10 @@ export async function executar(argv, { env = process.env, buscar = fetch, saida 
     const arquivo = doFlag(argv, '--arquivo');
     const itens = arquivo ? itensDoArquivo(arquivo) : await itensDoPainel(env, buscar);
     const r = analisarPrazos(itens.map(deItemDoPainel), { prazosAtuais });
-    const linhas = tabelaDePrazos(r).map(l => paraTerminal(l, 300));   /* (o formato vem do banco: dado, não comando) */
-    if (!arquivo) linhas.push('', 'Só as entregas que ainda estão na lista do painel (no ar ou suspensas). Para o histórico inteiro, com as concluídas: --sql e depois --arquivo.');
-    linhas.push('Sugestão = prazo da tabela + o p75 do atraso (real − prometido), só para cima, com 3 entregas ou mais. Mudar a tabela é decisão sua, numa versão nova.');
+    /* (modo painel: a amostra é só das entregas ainda abertas; o aviso vem ANTES da tabela, para ninguém decidir só por ela) */
+    const aviso = arquivo ? [] : ['ATENÇÃO: amostra parcial. Só as entregas que ainda estão na lista do painel (no ar ou suspensas): as concluídas saem dela, e são justamente as que mais contam. Para decidir, use o histórico inteiro: --sql (consulta só de leitura para o SQL Editor) e depois --arquivo com a exportação.', ''];
+    const linhas = [...aviso, ...tabelaDePrazos(r).map(l => paraTerminal(l, 300))];   /* (o formato vem do banco: dado, não comando) */
+    linhas.push('Sugestão = prazo da tabela × o p75 de real ÷ prometido, arredondado para cima, só para cima, com 3 entregas ou mais. Mudar a tabela é decisão sua, numa versão nova.');
     saida(linhas.join('\n'));
     return 0;
   } catch (e) {

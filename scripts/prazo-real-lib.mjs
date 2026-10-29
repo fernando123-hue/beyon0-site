@@ -8,8 +8,10 @@
      contam; espera de antes do início não conta; espera aberta fecha no dia no ar). A nova data combinada não entra: a
      métrica compara com o prazo da tabela, o que o cliente viu.
    • No prazo: real ≤ prometido (o prazo_dias da proposta, que já soma os adicionais e a urgência).
-   • Sugestão por formato: o prazo da tabela + o percentil 75 do atraso (real − prometido), arredondado para cima. Só
-     aumenta (o atraso negativo mantém), nunca passa de 60 (o banco guarda de 1 a 60) e só com 3 entregas ou mais.
+   • Sugestão por formato: o prazo da tabela × o percentil 75 do atraso RELATIVO (real ÷ prometido), arredondado para
+     cima. Relativo para pôr na mesma escala entregas de tamanhos diferentes (o prometido já soma adicionais e urgência:
+     4 dias de atraso num projeto de 16 não são 4 dias a mais no formato sozinho). Só aumenta (razão até 1 mantém),
+     nunca passa de 60 (o banco guarda de 1 a 60) e só com 3 entregas ou mais.
      Percentil pelo posto mais próximo: o valor na posição ⌈0,75 × n⌉ da lista em ordem.
    ========================================================================== */
 import { FERIADOS, FUSO, diaNoFuso, diasUteisEntre, PRAZO_DIAS_MAX } from '../api/_material/prazo.mjs';
@@ -40,9 +42,10 @@ export function medirEntrega(e, { feriados = FERIADOS, fuso = FUSO } = {}) {
 function sugerir(medidas, atual) {
   if (medidas.length < MINIMO_ENTREGAS) return { sugestao: 'manter', motivo: 'menos de ' + MINIMO_ENTREGAS + ' entregas' };
   if (!Number.isInteger(atual)) return { sugestao: 'manter', motivo: 'formato sem prazo na tabela' };
-  const atraso = Math.ceil(percentil(medidas.map(m => m.atraso), PERCENTIL));
-  const motivo = 'p75 do atraso: ' + atraso + ' dias úteis';
-  return { sugestao: atraso > 0 ? Math.min(PRAZO_DIAS_MAX, atual + atraso) : 'manter', motivo };
+  const razao = percentil(medidas.map(m => m.real / m.prometido), PERCENTIL);
+  const sugerido = Math.min(PRAZO_DIAS_MAX, Math.ceil(atual * razao - 1e-9));   /* (1e-9: 5 × 1,4 dá 7,000…01 em ponto flutuante) */
+  const motivo = 'p75 de real ÷ prometido: ' + String(Math.round(razao * 100) / 100).replace('.', ',');
+  return { sugestao: sugerido > atual ? sugerido : 'manter', motivo };
 }
 
 /* a lista de entregas → por formato: n, média e p75 dos dias reais, % no prazo, prazo atual e sugestão; e quantas ficaram fora */

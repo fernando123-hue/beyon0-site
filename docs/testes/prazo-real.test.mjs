@@ -35,7 +35,7 @@ test('entrega sem início do relógio, sem dia no ar ou sem prazo prometido não
   assert.equal(medirEntrega({ formato: 'landing_page', prazo_dias: 5, inicio: 'ontem', no_ar: '2026-11-16T10:00:00-04:00' }), null);
 });
 
-test('por formato: n, média, p75 dos dias reais, % no prazo e o prazo sugerido (o atual + o p75 do atraso, para cima)', () => {
+test('por formato: n, média, p75 dos dias reais, % no prazo e o prazo sugerido (o atual × o p75 de real ÷ prometido, para cima)', () => {
   const pausa = [{ desde: '2026-11-12T09:00:00-04:00', ate: '2026-11-13T18:00:00-04:00' }];
   const entregas = [
     ent('landing_page', 5, '2026-11-09', '2026-11-16'),          /* real 5, atraso 0 */
@@ -51,11 +51,11 @@ test('por formato: n, média, p75 dos dias reais, % no prazo e o prazo sugerido 
   ];
   const r = analisarPrazos(entregas, { prazosAtuais: { landing_page: 5, institucional: 8, sob_medida: 10 }, ...SEM_FERIADO });
   /* landing: reais [4, 5, 7, 7]: média 5,75 → 5,8; p75 pelo posto mais próximo (o 3º de 4) = 7; no prazo 2 de 4 = 50%.
-     Atrasos [−1, 0, 2, 2]: p75 = 2 → 5 + 2 = 7 */
-  assert.deepEqual(r.formatos.landing_page, { n: 4, media: 5.8, p75: 7, no_prazo_pct: 50, prazo_atual: 5, sugestao: 7, motivo: 'p75 do atraso: 2 dias úteis' });
+     Real ÷ prometido [0,8; 1; 1,4; 1,4]: p75 = 1,4 → 5 × 1,4 = 7 */
+  assert.deepEqual(r.formatos.landing_page, { n: 4, media: 5.8, p75: 7, no_prazo_pct: 50, prazo_atual: 5, sugestao: 7, motivo: 'p75 de real ÷ prometido: 1,4' });
   assert.deepEqual(r.formatos.institucional, { n: 2, media: 10, p75: 12, no_prazo_pct: 50, prazo_atual: 8, sugestao: 'manter', motivo: 'menos de ' + MINIMO_ENTREGAS + ' entregas' });
-  /* experiência: todas no prazo (o atraso é medido contra o prometido de cada uma, que já inclui os adicionais) */
-  assert.deepEqual(r.formatos.sob_medida, { n: 3, media: 10, p75: 11, no_prazo_pct: 100, prazo_atual: 10, sugestao: 'manter', motivo: 'p75 do atraso: 0 dias úteis' });
+  /* experiência: todas no prazo (a razão é contra o prometido de cada uma, que já inclui os adicionais): [0,9; 0,92; 1] → 1 */
+  assert.deepEqual(r.formatos.sob_medida, { n: 3, media: 10, p75: 11, no_prazo_pct: 100, prazo_atual: 10, sugestao: 'manter', motivo: 'p75 de real ÷ prometido: 1' });
   assert.equal(r.ignoradas, 1, 'a entrega sem dia no ar');
   assert.equal(MINIMO_ENTREGAS, 3);
 });
@@ -64,12 +64,24 @@ test('sugestão: nunca abaixo do atual, nunca acima de 60 (o máximo do banco); 
   const tres = (formato, prometido, noAr) => [1, 2, 3].map(() => ent(formato, prometido, '2026-11-09', noAr));
   /* todas adiantadas: o atraso é negativo, mantém (a métrica só aumenta, por decisão do dono) */
   assert.equal(analisarPrazos(tres('landing_page', 5, '2026-11-11'), { prazosAtuais: { landing_page: 5 }, ...SEM_FERIADO }).formatos.landing_page.sugestao, 'manter');
-  /* atraso enorme (seg 09/11 a sex 26/02 são 79 dias úteis, 21 de atraso): 58 + 21 passa de 60 → 60 */
+  /* atraso enorme (seg 09/11 a sex 26/02 são 79 dias úteis contra 58): 58 × 1,36 passa de 60 → 60 */
   const longe = analisarPrazos(tres('institucional', 58, '2027-02-26'), { prazosAtuais: { institucional: 58 }, ...SEM_FERIADO }).formatos.institucional;
   assert.equal(longe.sugestao, 60);
   const fora = analisarPrazos(tres('loja_plataforma', 8, '2026-11-25'), { prazosAtuais: {}, ...SEM_FERIADO }).formatos.loja_plataforma;
   assert.deepEqual([fora.prazo_atual, fora.sugestao, fora.motivo], [null, 'manter', 'formato sem prazo na tabela']);
   assert.deepEqual(analisarPrazos([], { prazosAtuais: { landing_page: 5 } }), { formatos: {}, ignoradas: 0 });
+});
+
+/* revisão de 28/10: o atraso em DIAS somado ao prazo-base misturava entregas de tamanhos diferentes (um projeto de 16 dias
+   prometidos com 4 de atraso empurrava a base de 8 para 12). A razão real ÷ prometido põe todas na mesma escala */
+test('sugestão pelo atraso relativo: entregas de tamanhos diferentes com o mesmo atraso proporcional dão a mesma sugestão', () => {
+  /* 8 → 10 (×1,25), 8 → 10 (×1,25) e 16 → 20 (×1,25): p75 1,25 → 8 × 1,25 = 10 (pelo atraso em dias seria 8 + 4 = 12) */
+  const entregas = [ent('institucional', 8, '2026-11-09', '2026-11-23'), ent('institucional', 8, '2026-11-09', '2026-11-23'), ent('institucional', 16, '2026-11-09', '2026-12-07')];
+  const r = analisarPrazos(entregas, { prazosAtuais: { institucional: 8 }, ...SEM_FERIADO }).formatos.institucional;
+  assert.deepEqual([r.n, r.p75, r.sugestao, r.motivo], [3, 20, 10, 'p75 de real ÷ prometido: 1,25']);
+  /* para cima: 8 × 1,1 = 8,8 → 9 */
+  const pouco = [1, 2, 3].map(() => ent('institucional', 10, '2026-11-09', '2026-11-24'));   /* 11 ÷ 10 = 1,1 */
+  assert.equal(analisarPrazos(pouco, { prazosAtuais: { institucional: 8 }, ...SEM_FERIADO }).formatos.institucional.sugestao, 9);
 });
 
 test('item da lista do painel (fila=entregas) vira entrega: formato do briefing, prazo prometido, início do relógio, no ar e esperas', () => {
@@ -81,7 +93,7 @@ test('item da lista do painel (fila=entregas) vira entrega: formato do briefing,
 });
 
 test('a tabela impressa: uma linha por formato, com a sugestão; sem entregas, diz isso', () => {
-  const r = { formatos: { landing_page: { n: 4, media: 5.8, p75: 7, no_prazo_pct: 50, prazo_atual: 5, sugestao: 7, motivo: 'p75 do atraso: 2 dias úteis' } }, ignoradas: 1 };
+  const r = { formatos: { landing_page: { n: 4, media: 5.8, p75: 7, no_prazo_pct: 50, prazo_atual: 5, sugestao: 7, motivo: 'p75 de real ÷ prometido: 1,4' } }, ignoradas: 1 };
   const linhas = tabelaDePrazos(r);
   assert.ok(linhas.some(l => /landing_page/.test(l) && /\b4\b/.test(l) && /5,8/.test(l) && /50%/.test(l) && /→ 7/.test(l)), linhas.join('\n'));
   assert.ok(linhas.some(l => /1 entrega fora da conta/.test(l)));
@@ -100,9 +112,12 @@ test('comando: lê a lista do painel só com GET, imprime a tabela com o prazo d
   assert.deepEqual(pedidos.map(p => [p[0], p[1], p[2]]), [['http://127.0.0.1:8899/api/painel?fila=entregas', 'GET', undefined]], 'um GET só, sem corpo');
   const texto = saidas.join('\n');
   assert.match(texto, /landing_page/);
-  assert.match(texto, /5 → 7/, 'reais 5, 7, 6 contra 5 prometidos (sem feriado em novembro nesses dias): p75 do atraso 2 → 7');
+  assert.match(texto, /5 → 7/, 'reais 5, 7, 6 contra 5 prometidos (sem feriado em novembro nesses dias): p75 de real ÷ prometido 1,4 → 7');
   assert.match(texto, /1 entrega fora da conta/);
   assert.match(texto, /só as entregas que ainda estão na lista do painel/i, 'avisa que a lista do painel não guarda as concluídas');
+  /* revisão de 28/10: o aviso vem ANTES da tabela (quem lê a tabela primeiro decidiria com a amostra só das abertas) */
+  assert.ok(texto.search(/ATENÇÃO: amostra parcial/) >= 0 && texto.search(/ATENÇÃO: amostra parcial/) < texto.indexOf('landing_page'), 'o aviso antes da tabela: ' + texto);
+  assert.match(texto, /--sql[^\n]*--arquivo/, 'e aponta o caminho do histórico inteiro');
   assert.ok(!texto.includes(chave));
   /* recusa do painel: a frase, sem a chave */
   const ruim = async () => new Response(JSON.stringify({ erro: 'Não autorizado ' + chave }), { status: 401 });
