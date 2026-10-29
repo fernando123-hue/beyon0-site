@@ -211,3 +211,16 @@ test('a rotina diária apaga os recados vencidos (1 subpedido a mais) e a falha 
   assert.match(falhas[0] || '', /recados/);
   assert.ok(vistos.includes('rotinas_conferir'), 'a conferência da saúde roda mesmo assim');
 });
+
+test('fora do local, sem a chave do IP (sem segredo ou cabeçalho que não é IP) o recado fecha com 503 em vez de pular o freio do banco', async () => {
+  const { criarAcoesDoRecado } = await import('../../api/_vendas/fluxo-recado.mjs');
+  let gravou = 0;
+  const banco = async () => { gravou++; return { ok: true }; };
+  const req = () => new Request(BASE + '/api/vendas?acao=recado', { method: 'POST', headers: { 'x-forwarded-for': '203.0.113.250' } });
+  const prod = criarAcoesDoRecado({ banco, visitantes: {}, segredoFreio: null, env: { VERCEL: '1', VERCEL_ENV: 'production' } });
+  await assert.rejects(prod.recado({ request: req(), corpo: { texto: 'oi' } }), e => e.status === 503 && !/WhatsApp/i.test(e.message));
+  assert.equal(gravou, 0);
+  const loc = criarAcoesDoRecado({ banco, visitantes: {}, segredoFreio: null, env: {} });
+  assert.deepEqual(await loc.recado({ request: req(), corpo: { texto: 'oi' } }), { ok: true });
+  assert.equal(gravou, 1);
+});

@@ -319,7 +319,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     ...criarAcoesDoMaterial({ banco, visitante, estado, armazem, segredoFreio, requestId, env }),
     ...criarAcoesDoLink({ banco, visitante, visitantes, segredoFreio, env }),
     ...criarAcoesDaPrevia({ banco, visitante, estado, env }),
-    ...criarAcoesDoRecado({ banco, visitantes, segredoFreio }),
+    ...criarAcoesDoRecado({ banco, visitantes, segredoFreio, env }),
 
     /* começar: cria o visitante anônimo e a conversa, com a origem da visita (das métricas, sem dado pessoal) */
     async sessao({ corpo }) {

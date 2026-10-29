@@ -16,6 +16,7 @@ import { criarFreio, ipDe } from '../_freio.mjs';
 import { chaveDoIp } from './ip.mjs';
 import { tokenDe } from '../_supabase.mjs';
 import { ORG } from './org.mjs';
+import { ambienteDe } from '../_ambiente.mjs';
 import ESQ from '../../js/orcamento-material-esquema.js';
 
 export const MAX_RECADO = 1000;
@@ -27,7 +28,8 @@ export const FRASES = Object.freeze({
   cpf: 'Não escreva CPF nem CNPJ no recado. Se precisar de resposta, deixe só o e-mail no campo próprio.',
   email: 'O e-mail não parece certo. Confira (ex.: nome@empresa.com.br) ou deixe o campo vazio.',
   freio: 'Você já deixou vários recados nesta hora. Tente de novo mais tarde.',
-  cheio: 'Estamos recebendo muitos recados agora. Tente de novo mais tarde.'
+  cheio: 'Estamos recebendo muitos recados agora. Tente de novo mais tarde.',
+  fora: 'O recado está indisponível agora. Tente de novo mais tarde.'
 });
 const CHAVES = ['texto', 'email', 'origem', 'conversa_id', 'turnstile'];
 const USO_IP = 'recado';   /* o "uso" da chave do IP: o contador do recado não divide com o do consultor nem o dos pedidos */
@@ -59,7 +61,8 @@ function emailDoRecado(bruto) {
   return c.email;
 }
 
-export function criarAcoesDoRecado({ banco, visitantes, segredoFreio }) {
+export function criarAcoesDoRecado({ banco, visitantes, segredoFreio, env }) {
+  const local = !!env && ambienteDe(env) === 'local';   /* sem o ambiente: fecha */
   /* o visitante da sessão do orçamento, se houver; qualquer problema (sem token, vencido, Auth fora) = sem ligação */
   async function visitanteSeHouver(request) {
     if (!tokenDe(request)) return null;
@@ -76,9 +79,16 @@ export function criarAcoesDoRecado({ banco, visitantes, segredoFreio }) {
       const origem = ORIGENS_RECADO.includes(corpo.origem) ? corpo.origem : null;
       const ip = ipDe(request);
       if (freioRecado(ip)) throw new Recusa(429, FRASES.freio);
+      const chaveIp = chaveDoIp(ip, segredoFreio, new Date(), USO_IP);
+      /* (revisão de segurança, M2) fora do local, sem a chave do IP (sem segredo ou cabeçalho que não é IP) o freio do banco sumiria em
+         silêncio: fecha, como o pedido. No servidor local segue só com o freio em memória */
+      if (!chaveIp && !local) {
+        console.error(JSON.stringify({ origem: 'vendas', nivel: 'erro', evento: 'recado sem a chave do IP' }));
+        throw new Recusa(503, FRASES.fora);
+      }
       const visitante = corpo.conversa_id ? await visitanteSeHouver(request) : null;
       const r = await banco('vendas_recado_criar', {
-        org_slug: ORG, texto, email, origem, chave_ip: chaveDoIp(ip, segredoFreio, new Date(), USO_IP),
+        org_slug: ORG, texto, email, origem, chave_ip: chaveIp,
         ...(visitante ? { conversa_id: corpo.conversa_id, visitante_id: visitante } : {})
       });
       if (!r || r.ok !== true) throw new Recusa(r && r.motivo === 'cheio' ? 503 : 429, r && r.motivo === 'cheio' ? FRASES.cheio : FRASES.freio);
