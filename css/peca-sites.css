@@ -1,44 +1,102 @@
 /* ==========================================================================
-   A PLANTA — a peça do cartão de Sites (2026-10-14). Pedido do dono: trocar a imagem do serviço por
+   A PLANTA — a peça de Sites (2026-10-14). Pedido do dono: trocar a imagem do serviço por
    "nossos próprios elementos interativos… uma obra de arte que represente a ideia", sem pesar.
    Essência da referência (o mesmo site no computador e no celular, rápido): um site de exemplo
    desenhado como planta, que a luz imprime (a assinatura do site, "a luz passa e imprime").
-   - O visitante põe o NOME do negócio e escolhe o tipo (clínica, escritório, loja, entidade): o site
-     de exemplo vira o dele, e a luz atravessa e imprime o nome.
+   - 2026-10-28: a peça foi para o HERO de /sites, ao lado da frase (dono: "adicione ele ao lado da frase do
+     hero"), e os quatro cartões de formato viraram o seletor de TIPO DE SITE dentro dela (dono: "integrar isso
+     de forma interativa no elemento"): institucional, landing page, experiência digital e loja trocam o site
+     de exemplo inteiro, e a luz imprime o tipo novo.
+   - O visitante põe o NOME do negócio e escolhe o tipo de negócio: o site de exemplo vira o dele, e a luz
+     atravessa e imprime o nome.
    - A RÉGUA (o vocabulário da cota): arrastar de 360 a 1440 px reorganiza o mesmo site ao vivo; tocar
      a régua desmonta o site em planta, soltar imprime de novo. Abaixo de 600 px a moldura vira celular.
-   - A prova: o peso e a primeira tela DESTA página, medidos no aparelho de quem vê.
+   - A prova: quanto ESTA página levou para abrir, medido no aparelho de quem vê.
    - O próximo passo: "Quero o meu site" leva ao orçamento.
    Custo: HTML + SVG + CSS, sem canvas nem imagem. A moldura é desenhada em pixels de tela de verdade e
    encolhida por transform; as faixas do layout são container queries dela. JS (js/peca-sites.js) só
-   acorda com a peça na tela. Sem JS a peça some (o cartão fica inteiro); movimento reduzido: impressa e
-   parada, tudo continua usável. Histórico e críticas: docs/restructure/PECAS-SERVICOS.md.
+   acorda com a peça na tela. Sem JS fica o exemplo impresso e parado (os controles somem); movimento
+   reduzido: impressa e parada, tudo continua usável. Histórico e críticas: docs/restructure/PECAS-SERVICOS.md.
    ========================================================================== */
+
+/* ---------- o lugar no hero ---------- */
+/* celular: logo abaixo do botão do hero (a ordem do HTML). Desktop: a frase à esquerda, centrada na altura da peça,
+   e a peça à direita, inteira na primeira tela. As faixas 1fr de cima e de baixo absorvem a altura da peça (sem
+   elas a grade dividia a sobra entre o título e o texto, e abria um vão entre os dois) */
+.hero__arte--planta { perspective: none; }
+@media (max-width: 860px) { .hero--planta .hero__arte { margin-top: 28px; } }
+@media (min-width: 861px) {
+  .hero--planta { grid-template-rows: 1fr auto auto auto 1fr; grid-template-areas: ". arte" "status arte" "title arte" "main arte" ". arte"; }
+  .hero--planta .hero__arte > .planta-cartao { flex: 1 1 auto; min-width: 0; }
+}
+@media (min-width: 981px) {
+  .hero--planta { grid-template-areas: none; }
+  .hero--planta .hero__status { grid-column: 1 / 8; grid-row: 2; }
+  .hero--planta .hero__title { grid-row: 3; }
+  .hero--planta .hero__main { grid-row: 4; }
+  .hero--planta .hero__arte { grid-row: 1 / -1; }
+}
+
+/* ---------- o cartão ---------- */
+.planta-cartao { display: flex; flex-direction: column; gap: 14px; padding: 16px 18px 18px; container: planta-ui / inline-size; }
+@media (max-width: 400px) { .planta-cartao { padding: 14px 14px 16px; } }
+
 /* .is-viva vem do js/peca-sites.js (não do html.js: o site tira o html.js com movimento reduzido, e a peça
-   tem de funcionar parada nesse caso) */
-.planta { display: none; }
-.planta.is-viva { display: flex; flex-direction: column; gap: .9rem; position: relative; z-index: 2; margin: .3rem 0 .4rem; }
+   tem de funcionar parada nesse caso). Sem JS: só o exemplo, impresso e parado */
+.planta { display: flex; flex-direction: column; gap: 12px; position: relative; z-index: 2; }
+.planta:not(.is-viva) :is(.planta__formatos, .planta__frase, .planta__regua, .planta__controles, .planta__medida) { display: none; }
+.planta:not(.is-viva) .planta__moldura { transform: translate(-50%, -50%) scale(.28); }
+@media (max-width: 720px) { .planta:not(.is-viva) .planta__moldura { transform: translate(-50%, -50%) scale(.19); } }
+
+/* ---------- o tipo de site: quatro abas sobre uma linha só; a escolhida acende a luz embaixo ---------- */
+/* (as quatro numa linha a partir de 380 px de cartão: "Experiência digital" quebra em duas linhas antes de faltar
+   lugar; abaixo disso, 2 × 2) */
+.planta__formatos { display: grid; grid-template-columns: max-content max-content minmax(min-content, 1fr) max-content; column-gap: 14px; border-bottom: 1px solid var(--line-2); }
+.planta__formato {
+  position: relative; display: flex; flex-direction: column; justify-content: flex-start; align-items: flex-start; gap: 4px;
+  min-height: 44px; padding: 2px 0 9px; border: 0; background: none; cursor: pointer;
+  color: var(--t2); font: inherit; font-family: var(--sans); font-size: .8125rem; line-height: 1.2; letter-spacing: -.005em; text-align: left;
+  transition: color var(--t-micro) var(--ease-micro);
+}
+.planta__formato b { font-family: var(--mono); font-size: var(--fs-rotulo); font-weight: 500; letter-spacing: var(--tr-dado); color: var(--t3); transition: color var(--t-micro) var(--ease-micro); }
+/* a luz da aba: um traço de 2 px que se desenha da esquerda (só transform), por cima da linha comum */
+.planta__formato::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--ac); transform: scaleX(0); transform-origin: left; transition: transform .32s var(--ease); }
+.planta__formato:hover { color: var(--t1); }
+.planta__formato[aria-pressed="true"] { color: var(--t1); }
+.planta__formato[aria-pressed="true"] b { color: var(--t1); }
+.planta__formato[aria-pressed="true"]::after { transform: scaleX(1); }
+.planta__formato:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; border-radius: var(--raio-s); }
+/* cartão estreito (celular): 2 × 2, o número ao lado do nome, cada aba com a sua linha (em quatro colunas apertadas
+   "Institucional" encostava em "Landing") */
+@container planta-ui (max-width: 379px) {
+  .planta__formatos { grid-template-columns: repeat(2, minmax(0, 1fr)); border-bottom: 0; }
+  .planta__formato { flex-direction: row; align-items: center; gap: 8px; padding: 6px 0 8px; border-bottom: 1px solid var(--line-2); }
+}
+/* a frase do tipo: duas linhas reservadas (trocar de tipo não sacode a peça) */
+.planta-cartao p.planta__frase { max-width: none; min-height: calc(2 * 1.45em); margin: 0; font-size: var(--fs-s); line-height: 1.45; color: var(--t2); text-wrap: pretty; }
+@container planta-ui (max-width: 309px) { .planta-cartao p.planta__frase { min-height: calc(3 * 1.45em); } }   /* (medido de 320 a 1440: abaixo de 310 px de miolo a frase mais longa vai a 3 linhas) */
 
 /* ---------- os controles: tipo de negócio e nome ---------- */
-.planta__controles { display: flex; flex-direction: column; gap: .55rem; padding-top: .3rem; }
-.planta__agora { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t2); }   /* (ciano em texto só no H1, no h2 da Conversa e em dado — CLAUDE.md, regra 8) */
-/* os quatro numa linha só já a 320 px (o vão encolhe antes de quebrar) */
+.planta__controles { display: flex; flex-direction: column; gap: 8px; }
 .planta__nichos { display: flex; flex-wrap: wrap; gap: .3rem; }
 .planta__nicho {
-  flex: 1 1 auto; min-height: 38px; padding: 0 .5rem; border: 1px solid var(--line-2); border-radius: var(--raio-s);
+  flex: 1 1 auto; min-height: 34px; padding: 0 .5rem; border: 1px solid var(--line-2); border-radius: var(--raio-s);
   background: transparent; color: var(--t2); font: inherit; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: .04em; text-transform: uppercase;
   cursor: pointer; transition: border-color var(--t-micro) var(--ease-micro), color var(--t-micro) var(--ease-micro), background-color var(--t-micro) var(--ease-micro);
 }
-@media (max-width: 379px) { .planta__nichos { display: grid; grid-template-columns: 1fr 1fr; } }   /* abaixo disso, 2 × 2 em vez de um sobrando */
+@container planta-ui (max-width: 339px) { .planta__nichos { display: grid; grid-template-columns: 1fr 1fr; } }   /* (2 × 2 em vez de um sobrando) */
 .planta__nicho:hover { border-color: var(--stroke); color: var(--t1); }
 .planta__nicho[aria-pressed="true"] { border-color: rgb(var(--ac-rgb) / .7); color: var(--ac); background: rgb(var(--ac-rgb) / .06); }
 .planta__nicho:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
 @media (pointer: coarse) { .planta__nicho { min-height: 44px; } }
-.planta__nome { display: flex; flex-direction: column; gap: .4rem; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); }
-.planta__nome input { width: 100%; height: 46px; padding: 0 .9rem; border: 1px solid var(--stroke); border-radius: var(--raio-s); background: rgb(255 255 255 / .02); color: var(--t1); font-family: var(--sans); font-size: 1rem; letter-spacing: 0; text-transform: none; }
+/* o nome numa linha só: o rótulo à esquerda do campo (empilhados em cartão estreito) */
+.planta__nome { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 12px; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); }
+@container planta-ui (max-width: 299px) { .planta__nome { grid-template-columns: minmax(0, 1fr); gap: 6px; } }
+.planta__nome input { width: 100%; height: 40px; padding: 0 .8rem; border: 1px solid var(--stroke); border-radius: var(--raio-s); background: rgb(255 255 255 / .02); color: var(--t1); font-family: var(--sans); font-size: 1rem; letter-spacing: 0; text-transform: none; }
+@media (pointer: coarse) { .planta__nome input { height: 44px; } }
 .planta__nome input::placeholder { color: var(--t3); }
 .planta__nome input:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; border-color: transparent; }
-.servico .planta__nota { font-size: var(--fs-rotulo); line-height: 1.4; color: var(--t3); }
+.planta-cartao .planta__nota { font-size: var(--fs-rotulo); line-height: 1.4; color: var(--t3); }
 
 /* ---------- o palco: tamanho fixo pela largura do cartão; a moldura se encaixa nele ---------- */
 /* camada própria: a impressão e a régua repintam só o palco, não o cartão inteiro (medido: sem a camada,
@@ -120,6 +178,9 @@
 .pl-rot { font-size: 22px; font-weight: 500; color: var(--t1); white-space: nowrap; }
 .pl-recursos .pl-barra { width: 70%; opacity: .7; }
 
+/* as peças dos outros tipos de site (abaixo, por .planta[data-tipo]) ficam fora do institucional */
+.pl-busca, .pl-sacola, .pl-form, .pl-arte, .pl-produtos { display: none; }
+
 /* tablet: os links viram menu, o hero aperta em duas colunas (a foto acompanha a altura do texto), os recursos
    numa linha só, sem a barra de texto (medido: empilhado, o site passava 400 px do pé da moldura) */
 @container planta (max-width: 899px) {
@@ -159,17 +220,112 @@
   .pl-btn { height: 70px; font-size: 24px; letter-spacing: .02em; }
 }
 
+/* ---------- os outros tipos de site (2026-10-28) ----------
+   Cada tipo é fiel ao que ele é, nas três telas:
+   - LANDING PAGE: sem menu, um objetivo só: o título e um formulário curto com um botão grande;
+   - EXPERIÊNCIA DIGITAL: tipografia grande e um desenho que gira (só transform, no compositor);
+   - LOJA VIRTUAL: busca, sacola e a grade de produtos, com o preço em barra cinza. */
+/* landing page */
+.planta[data-tipo="landing_page"] :is(.pl-links, .pl-cta, .pl-menu, .pl-foto, .pl-recursos, .pl-acoes) { display: none; }
+.planta[data-tipo="landing_page"] .pl-hero { flex: 1; min-height: 0; align-content: center; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); padding-bottom: 56px; }
+.planta[data-tipo="landing_page"] .pl-form { display: flex; flex-direction: column; gap: 20px; padding: 40px; border: 2px solid var(--line-2); border-radius: 20px; background: #0A0D0F; }
+.pl-campo { display: flex; align-items: center; height: 68px; padding: 0 24px; border: 2px solid var(--line-2); border-radius: 12px; }
+.pl-campo .pl-barra { width: 38%; }
+.pl-campo + .pl-campo .pl-barra { width: 54%; }
+.pl-btn--form { width: 100%; height: 88px; margin-top: 8px; border-radius: 44px; font-size: 24px; }
+@container planta (max-width: 899px) {
+  .planta[data-tipo="landing_page"] .pl-form { padding: 28px; gap: 16px; }
+  .planta[data-tipo="landing_page"] .pl-btn--form { height: 76px; font-size: 21px; }
+}
+@container planta (max-width: 759px) {
+  .planta[data-tipo="landing_page"] .pl-hero { justify-content: center; padding-bottom: 0; }
+  .planta[data-tipo="landing_page"] .pl-form { flex: none; }
+}
+@container planta (max-width: 599px) {
+  .planta[data-tipo="landing_page"] .pl-form { padding: 24px; }
+  .planta[data-tipo="landing_page"] .pl-campo { height: 76px; }
+  .planta[data-tipo="landing_page"] .pl-btn--form { height: 88px; font-size: 26px; letter-spacing: .02em; }
+  .planta[data-tipo="landing_page"] .pl-titulo.is-longo { font-size: 34px; }   /* (nome longo: o botão do formulário passava do pé a 360) */
+}
+
+/* experiência digital */
+.planta[data-tipo="sob_medida"] :is(.pl-links, .pl-cta, .pl-foto, .pl-recursos) { display: none; }
+.planta[data-tipo="sob_medida"] .pl-menu { display: flex; margin-left: auto; }
+.planta[data-tipo="sob_medida"] .pl-hero { flex: 1; min-height: 0; align-items: stretch; grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); gap: 32px; padding-bottom: 56px; }
+.planta[data-tipo="sob_medida"] .pl-texto { align-self: center; gap: 26px; }
+.planta[data-tipo="sob_medida"] .pl-titulo { max-width: none; font-size: 84px; line-height: .98; letter-spacing: -.045em; }
+.planta[data-tipo="sob_medida"] .pl-par .pl-barra:nth-child(3), .planta[data-tipo="sob_medida"] .pl-acoes .pl-barra { display: none; }
+.planta[data-tipo="sob_medida"] .pl-btn { background: transparent; border: 2px solid var(--ac); color: var(--ac); }
+.planta[data-tipo="sob_medida"] .pl-arte { display: block; position: relative; min-height: 0; }
+.pl-arte svg { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+.pl-giro { position: absolute; inset: 0; display: block; animation: pl-gira 16s linear infinite; }
+.pl-giro--dentro { animation-duration: 11s; animation-direction: reverse; }
+.pl-arco { fill: none; stroke: var(--ac); stroke-width: 2; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.pl-ponto { fill: var(--ac); }
+@keyframes pl-gira { to { transform: rotate(360deg); } }
+.planta.is-fora .pl-giro { animation-play-state: paused; }   /* (fora da tela, o giro para) */
+@container planta (min-width: 900px) { .planta[data-tipo="sob_medida"] .pl-titulo { font-size: min(84px, 6.6cqi); } .planta[data-tipo="sob_medida"] .pl-titulo.is-longo { font-size: min(64px, 5cqi); } }
+@container planta (max-width: 899px) { .planta[data-tipo="sob_medida"] .pl-titulo { font-size: 58px; } .planta[data-tipo="sob_medida"] .pl-titulo.is-longo { font-size: 44px; } }
+@container planta (max-width: 759px) {
+  .planta[data-tipo="sob_medida"] .pl-hero { padding-bottom: 0; gap: 20px; }
+  .planta[data-tipo="sob_medida"] .pl-arte { flex: 1; }
+  .planta[data-tipo="sob_medida"] .pl-par { display: none; }
+}
+@container planta (max-width: 599px) { .planta[data-tipo="sob_medida"] .pl-titulo { font-size: 56px; } .planta[data-tipo="sob_medida"] .pl-titulo.is-longo { font-size: 44px; } }
+
+/* loja virtual */
+.planta[data-tipo="loja_plataforma"] :is(.pl-cta, .pl-foto, .pl-recursos, .pl-par, .pl-acoes) { display: none; }
+.planta[data-tipo="loja_plataforma"] .pl-busca { display: flex; align-items: center; gap: 14px; flex: 0 1 300px; min-width: 0; height: 52px; padding: 0 20px; border: 2px solid var(--line-2); border-radius: 26px; color: var(--t3); }
+.pl-busca svg { flex: none; width: 24px; height: 24px; }
+.pl-busca .pl-barra { width: 52%; }
+.planta[data-tipo="loja_plataforma"] .pl-sacola { display: block; position: relative; flex: none; width: 40px; height: 40px; color: var(--t1); }
+.pl-sacola svg { display: block; width: 100%; height: 100%; }
+.pl-sacola b { position: absolute; right: -12px; top: -8px; min-width: 26px; height: 26px; padding: 0 6px; border-radius: 13px; background: var(--ac); color: var(--ac-tinta); font-family: var(--mono); font-size: 15px; font-weight: 600; line-height: 26px; text-align: center; }
+.planta[data-tipo="loja_plataforma"] .pl-hero { display: block; padding: 16px 0 28px; }
+.planta[data-tipo="loja_plataforma"] .pl-texto { gap: 14px; }
+.planta[data-tipo="loja_plataforma"] .pl-titulo { max-width: 30ch; font-size: 44px; line-height: 1.06; }
+.planta[data-tipo="loja_plataforma"] .pl-produtos { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); gap: 24px; flex: 1; min-height: 0; margin: 0; padding: 0 0 48px; list-style: none; }
+.pl-produtos li { display: flex; flex-direction: column; gap: 14px; min-height: 0; padding: 14px; border: 2px solid var(--line); border-radius: 16px; }
+.pl-produto { position: relative; flex: 1; min-height: 0; border-radius: 10px; background: #0A0D0F; }
+.pl-produto svg { position: absolute; left: 12%; top: 8%; width: 76%; height: 84%; display: block; }
+.pl-produtos li > .pl-barra { width: 78%; height: 12px; border-radius: 6px; }
+.pl-loja-pe { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.pl-preco { display: block; width: 44%; height: 18px; border-radius: 9px; background: rgb(var(--prata-rgb) / .38); }   /* o preço: barra cinza (nada de número inventado) */
+.pl-mais { position: relative; display: block; flex: none; width: 44px; height: 44px; border: 2px solid rgb(var(--ac-rgb) / .7); border-radius: 50%; }
+.pl-mais::before, .pl-mais::after { content: ""; position: absolute; left: 50%; top: 50%; width: 16px; height: 2px; margin: -1px 0 0 -8px; background: var(--ac); }
+.pl-mais::after { transform: rotate(90deg); }
+@container planta (max-width: 899px) {
+  .planta[data-tipo="loja_plataforma"] .pl-busca { margin-left: auto; flex-basis: 220px; }
+  .planta[data-tipo="loja_plataforma"] .pl-titulo { font-size: 40px; }
+  .planta[data-tipo="loja_plataforma"] .pl-produtos { gap: 18px; padding-bottom: 0; }
+  .pl-produtos li { padding: 12px; gap: 12px; }
+}
+@container planta (max-width: 759px) {
+  .planta[data-tipo="loja_plataforma"] .pl-hero { flex: none; }
+  .planta[data-tipo="loja_plataforma"] .pl-produtos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container planta (max-width: 599px) {
+  .planta[data-tipo="loja_plataforma"] .pl-busca { display: none; }
+  .planta[data-tipo="loja_plataforma"] .pl-sacola { margin-left: auto; width: 46px; height: 46px; }
+  .planta[data-tipo="loja_plataforma"] .pl-menu { margin-left: 8px; }
+  .planta[data-tipo="loja_plataforma"] .pl-titulo { font-size: 36px; }
+  .planta[data-tipo="loja_plataforma"] .pl-produtos { gap: 16px; }
+  .pl-preco { height: 20px; }
+  .pl-mais { width: 48px; height: 48px; }
+}
+
 /* ---------- a impressão: planta (só traço) até a luz passar ---------- */
 /* cada bloco CARIMBA no instante em que a luz passa (duração 0, só o atraso, posto pelo JS): o palco repinta
    ~10 vezes por impressão, não a cada quadro (medido: o desbotamento de .45 s dava tarefas de 60–100 ms) */
 .pl-b { transition-property: background-color, color, border-color, box-shadow, opacity; transition-duration: 0s; }
-.planta:not(.is-impressa) .pl-b { background-color: transparent; color: transparent; border-color: rgb(var(--ac-rgb) / .4); box-shadow: inset 0 0 0 var(--fio, 2px) rgb(var(--ac-rgb) / .35); }
+.planta.is-viva:not(.is-impressa) .pl-b { background-color: transparent; color: transparent; border-color: rgb(var(--ac-rgb) / .4); box-shadow: inset 0 0 0 var(--fio, 2px) rgb(var(--ac-rgb) / .35); }
 /* o que está DENTRO de um bloco carimba junto com ele (o atraso vem do bloco: sem isso a fachada e os ícones
    acendiam no primeiro quadro, antes da luz — crítica de motion) */
-.pl-b svg, .pl-titulo b, .pl-titulo span, .pl-vidro { transition-property: opacity, color, fill; transition-duration: 0s; transition-delay: inherit; }
+.pl-b svg, .pl-titulo b, .pl-titulo span, .pl-vidro, .pl-sacola b { transition-property: opacity, color, fill, background-color; transition-duration: 0s; transition-delay: inherit; }
 .pl-foto svg { transition-delay: inherit; }
-.planta:not(.is-impressa) .pl-b svg, .planta:not(.is-impressa) svg.pl-b { opacity: .35; }
-.planta:not(.is-impressa) .pl-titulo b, .planta:not(.is-impressa) .pl-titulo span { color: transparent; }
+.planta.is-viva:not(.is-impressa) .pl-b svg, .planta.is-viva:not(.is-impressa) svg.pl-b { opacity: .35; }
+.planta.is-viva:not(.is-impressa) .pl-titulo b, .planta.is-viva:not(.is-impressa) .pl-titulo span { color: transparent; }
+.planta.is-viva:not(.is-impressa) .pl-sacola b { background-color: transparent; color: transparent; }
 /* desmontado pela mão (régua tocada): o texto fica legível em cinza (é ele que mostra o site se reorganizando)
    e a grade de 12 colunas da planta aparece por trás, com o traço compensado pela escala (1 px de tela) */
 .planta.is-tracando .pl-b, .planta.is-tracando .pl-titulo b, .planta.is-tracando .pl-titulo span { color: var(--t3); }
@@ -201,10 +357,10 @@
 /* nome longo: o título desce um degrau para os recursos não saírem da moldura. No computador o título acompanha a
    largura (cqi) para o site caber inteiro; só aqui: no tablet o cqi do nome longo derrubava o título para ~25px
    (revisão, rodada 5) */
-@container planta (min-width: 900px) { .pl-titulo { font-size: min(62px, 4.9cqi); } .pl-titulo.is-longo { font-size: min(46px, 3.8cqi); } }
+@container planta (min-width: 900px) { .pl-titulo { font-size: min(62px, 4.9cqi); } .pl-titulo.is-longo { font-size: min(46px, 3.8cqi); max-width: 17ch; } }   /* (17ch: com 12ch, um nome de 28 letras levava o título a 6 linhas e os recursos para fora do pé de 1160 a 1440) */
 @container planta (max-width: 899px) { .pl-titulo.is-longo { font-size: 38px; } }   /* tablet: meia coluna */
 @container planta (max-width: 759px) { .pl-titulo.is-longo { font-size: 40px; } }   /* uma coluna */
-/* a luz que imprime: desce (entrada e soltar a régua) e atravessa (o nome) */
+/* a luz que imprime: desce (entrada, soltar a régua, trocar o tipo) e atravessa (o nome) */
 .planta__luz, .planta__luz-v { position: absolute; background: var(--ac); opacity: 0; pointer-events: none; z-index: 4; }
 .planta__luz { left: 0; right: 0; top: 0; height: 3px; }
 .planta__luz-v { top: 0; bottom: 0; left: 0; width: 3px; }
@@ -232,7 +388,7 @@
 .pl-traco--fino { stroke: var(--line-2); }
 .pl-vidro { fill: rgb(var(--ac-rgb) / .1); stroke: rgb(var(--ac-rgb) / .55); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .pl-vidro--acesa { fill: rgb(var(--ac-rgb) / .28); }
-.planta:not(.is-impressa) .pl-vidro { fill: transparent; }
+.planta.is-viva:not(.is-impressa) .pl-vidro { fill: transparent; }
 .planta.is-tracando .pl-vidro { fill: transparent; }
 
 /* ---------- a régua ---------- */
@@ -255,13 +411,15 @@
 .planta__dica { position: absolute; right: 0; top: -20px; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); transition: opacity .3s var(--ease); }
 .planta__regua.is-cota-esquerda .planta__dica, .planta.is-mexida .planta__dica { opacity: 0; }
 .planta__slider:focus-visible .planta__cursor::after { outline: 2px solid var(--ac); outline-offset: 3px; }
-/* as paradas: botões de verdade (leitor de tela no celular não move um slider), com alvo de 44 px */
+/* as paradas: botões de verdade (leitor de tela no celular não move um slider), com alvo de 44 px no dedo */
 .planta__parada {
   position: absolute; top: 22px; min-height: 44px; padding: 14px 8px 0; transform: translateX(-50%);
   border: 0; background: none; cursor: pointer;
   font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); white-space: nowrap;
   transition: color var(--t-micro) var(--ease-micro);
 }
+/* (no mouse a régua aperta: no hero ela divide a altura com o exemplo) */
+@media (pointer: fine) { .planta__regua { height: 56px; } .planta__parada { min-height: 34px; padding-top: 12px; } }
 .planta__parada::before { content: ""; position: absolute; left: 50%; top: 0; height: 8px; border-left: 1px solid var(--t3); }
 .planta__parada[data-parada="390"] { transform: translateX(-12px); }
 .planta__parada[data-parada="390"]::before { left: 12px; }
@@ -278,11 +436,24 @@
 }
 .planta__marca { display: none; position: absolute; top: 14px; height: 9px; border-left: 1px solid var(--t2); }
 
-/* ---------- a prova e o próximo passo ---------- */
-/* (max-width: o 44ch dos parágrafos do primeiro cartão, medido em mono, quebrava a prova em três linhas curtas) */
-.servico p.planta__prova { max-width: none; display: flex; align-items: center; gap: .5rem; margin: 0; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-dado); line-height: 1.5; color: var(--t3); }
-.planta__prova svg { flex: none; width: 14px; height: 14px; color: var(--ac); }
+/* ---------- o próximo passo e a prova, lado a lado ---------- */
+/* a prova aparece depois da entrada: o lugar dela fica guardado (no hero, uma linha que surge empurraria a página) */
+.planta__acoes { display: flex; align-items: center; gap: 10px 16px; position: relative; z-index: 2; }
+.planta__acoes .peca-quero { flex: none; }
+.planta-cartao p.planta__prova { flex: 1 1 0; min-width: 0; max-width: none; display: flex; align-items: flex-start; gap: .5rem; margin: 0; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-dado); line-height: 1.5; color: var(--t3); }
+/* o lugar é guardado pela altura da linha (três linhas de 11 px ao lado do botão; embaixo dele no cartão estreito), não
+   por uma prova invisível; sem JS ela nunca vem: nada reservado */
+.planta-cartao:has(.planta.is-viva) .planta__acoes { min-height: 50px; }
+.planta__prova svg { flex: none; width: 14px; height: 14px; margin-top: 1px; color: var(--ac); }
+@container planta-ui (max-width: 379px) {
+  .planta__acoes { flex-direction: column; align-items: stretch; justify-content: flex-start; }
+  .planta__acoes .peca-quero { justify-content: space-between; }
+  .planta-cartao:has(.planta.is-viva) .planta__acoes { min-height: calc(48px + 10px + 2 * 1.5 * var(--fs-rotulo)); }
+}
+@container planta-ui (max-width: 299px) { .planta-cartao:has(.planta.is-viva) .planta__acoes { min-height: calc(48px + 10px + 3 * 1.5 * var(--fs-rotulo)); } }
 
-/* movimento reduzido: ao cruzar 600 px a moldura, a barra e a câmera trocam de uma vez (o JS já não liga a luz nem o deslize) */
-@media (prefers-reduced-motion: reduce) { .planta__moldura, .planta__barra, .planta__camera { transition: none; } }
-html.menos-movimento :is(.planta__moldura, .planta__barra, .planta__camera) { transition: none; }
+/* movimento reduzido: ao cruzar 600 px a moldura, a barra e a câmera trocam de uma vez (o JS já não liga a luz nem o
+   deslize); o giro da experiência digital fica parado */
+@media (prefers-reduced-motion: reduce) { .planta__moldura, .planta__barra, .planta__camera, .planta__formato::after { transition: none; } .pl-giro { animation: none; } }
+html.menos-movimento :is(.planta__moldura, .planta__barra, .planta__camera), html.menos-movimento .planta__formato::after { transition: none; }
+html.menos-movimento .pl-giro { animation: none; }

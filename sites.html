@@ -112,9 +112,10 @@
   </header>
 
   <main id="conteudo" tabindex="-1">
-    <!-- HERO — a peça é um site de verdade em miniatura, feito de HTML, numa
-         janela de vidro. Num site que vende sites, o mockup É a demonstração. -->
-    <section class="hero hero--longo" id="hero" aria-labelledby="hero-titulo" data-fundo="grade">
+    <!-- HERO — a frase à esquerda e, ao lado, A PLANTA (js/peca-sites.js, css/peca-sites.css): um site de exemplo de
+         verdade, em miniatura, que a pessoa troca de tipo, estica do celular ao computador e põe o nome do negócio dela.
+         Num site que vende sites, o exemplo É a demonstração (dono, 2026-10-28: "adicione ele ao lado da frase do hero"). -->
+    <section class="hero hero--longo hero--planta" id="hero" aria-labelledby="hero-titulo" data-fundo="grade">
       <div class="feixe" aria-hidden="true"><span class="feixe__linha"><span class="feixe__tag"></span></span></div>
       <p class="hero__status"><span class="dot" aria-hidden="true"></span><span>Criação de sites · institucional, landing page e experiência digital</span></p>
         <h1 class="hero__title" id="hero-titulo">Sites que abrem rápido e <em>explicam</em> o seu negócio.</h1>
@@ -126,74 +127,20 @@
         <p class="hero__fine">Orçamento sem cadastro. Prévia antes de pagar.</p>
       </div>
 
-      <div class="hero__arte">
-        <figure class="janela">
-          <div class="janela__barra" aria-hidden="true">
-            <span class="janela__pt"></span><span class="janela__pt"></span><span class="janela__pt"></span>
-            <span class="janela__url">seunegocio.com.br</span>
-          </div>
-          <div class="janela__tela">
-            <div class="mini__topo" aria-hidden="true">
-              <span class="mini__marca">Seu negócio</span>
-              <span class="mini__nav"><span>Início</span><span>Serviços</span><span>Contato</span></span>
+      <div class="hero__arte hero__arte--planta">
+        <article class="painel painel--tinta planta-cartao" id="formatos" aria-labelledby="formatos-titulo">
+          <h2 class="sr-only" id="formatos-titulo">Os quatro tipos de site, num exemplo que você testa</h2>
+          <div class="planta" data-planta data-tipo="institucional" role="group" aria-label="Teste ao vivo: o site de exemplo em cada tipo de site e em cada tela, com o nome do seu negócio">
+            <div class="planta__formatos" role="group" aria-label="Tipo de site do exemplo">
+              <button type="button" class="planta__formato" data-formato="institucional" aria-pressed="true"><b aria-hidden="true">01</b> Institucional</button><button type="button" class="planta__formato" data-formato="landing_page" aria-pressed="false"><b aria-hidden="true">02</b> Landing page</button><button type="button" class="planta__formato" data-formato="sob_medida" aria-pressed="false"><b aria-hidden="true">03</b> Experiência digital</button><button type="button" class="planta__formato" data-formato="loja_plataforma" aria-pressed="false"><b aria-hidden="true">04</b> Loja virtual</button>
             </div>
-            <p class="mini__titulo" aria-hidden="true">Atendimento que começa no <b>primeiro clique</b>.</p>
-            <p class="mini__sub" aria-hidden="true">Sua marca apresentada com o cuidado que ela merece, em qualquer tela.</p>
-            <span class="mini__btn" aria-hidden="true">Começar</span>
-            <ul class="mini__lista" aria-hidden="true"><li>Serviços</li><li>Quem somos</li><li>Fale conosco</li></ul>
-          </div>
-          <p class="adesivo" aria-hidden="true"><span class="adesivo__k">seunegocio.com.br · feito para o celular</span></p>
-          <figcaption class="sr-only">Miniatura ilustrativa de um site, exibida numa janela de navegador.</figcaption>
-        </figure>
-      </div>
-    </section>
-
-    <section class="section" id="formatos" aria-labelledby="formatos-titulo">
-      <div class="section__head reveal">
-        <p class="kicker"><b aria-hidden="true">01</b> Formatos</p>
-        <h2 id="formatos-titulo">Quatro tipos de site, todos com o mesmo cuidado.</h2>
-      </div>
-      <div class="servicos servicos--pilha servicos--quatro pilha reveal">
-        <a data-rotulo="A casa da marca" class="painel painel--tinta servico" href="/orcamento" aria-labelledby="formato-1-t formato-1-l" aria-describedby="formato-1-p">
-          <span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span>
-          <span class="servico__n" aria-hidden="true">01</span>
-          <h3 id="formato-1-t">Site institucional</h3>
-          <p id="formato-1-p">O site completo do seu negócio: quem você é, o que faz e por que confiar em você.</p>
-          <span class="servico__link" id="formato-1-l">Monte seu orçamento <span aria-hidden="true" data-seta="direita">→</span></span>
-        </a>
-        <a data-rotulo="Um objetivo, nenhuma saída" class="painel painel--tinta servico" href="/orcamento" aria-labelledby="formato-2-t formato-2-l" aria-describedby="formato-2-p">
-          <span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span>
-          <span class="servico__n" aria-hidden="true">02</span>
-          <h3 id="formato-2-t">Landing page</h3>
-          <p id="formato-2-p">Uma página só, feita para uma ação: pedir orçamento, se inscrever ou comprar. Boa para anúncio e lançamento.</p>
-          <span class="servico__link" id="formato-2-l">Monte seu orçamento <span aria-hidden="true" data-seta="direita">→</span></span>
-        </a>
-        <a data-rotulo="Uma experiência só sua" class="painel painel--tinta servico" href="/orcamento" aria-labelledby="formato-3-t formato-3-l" aria-describedby="formato-3-p">
-          <span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span>
-          <span class="servico__n" aria-hidden="true">03</span>
-          <h3 id="formato-3-t">Experiência digital</h3>
-          <p id="formato-3-p">Visual e movimento criados só para a sua marca, quando um modelo pronto não basta.</p>
-          <span class="servico__link" id="formato-3-l">Monte seu orçamento <span aria-hidden="true" data-seta="direita">→</span></span>
-        </a>
-        <a data-rotulo="Vender online, com a sua cara" class="painel painel--tinta servico" href="/orcamento" aria-labelledby="formato-4-t formato-4-l" aria-describedby="formato-4-p">
-          <span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span>
-          <span class="servico__n" aria-hidden="true">04</span>
-          <h3 id="formato-4-t">Loja virtual</h3>
-          <p id="formato-4-p">Loja pronta (Nuvemshop ou Shopify) com a sua marca e até 30 produtos cadastrados.</p>
-          <span class="servico__link" id="formato-4-l">Monte seu orçamento <span aria-hidden="true" data-seta="direita">→</span></span>
-        </a>
-      </div>
-      <div class="servicos servicos--solo reveal">
-        <article class="painel painel--tinta servico servico--peca" aria-labelledby="formatos-titulo">
-          <span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span><span class="painel__canto" aria-hidden="true"></span>
-          <div class="planta" data-planta role="group" aria-label="Teste ao vivo: o mesmo site de exemplo no celular, no tablet e no computador, com o nome do seu negócio">
-            <span class="planta__agora" aria-hidden="true">Teste ao vivo · o mesmo site em cada&nbsp;tela</span>
+            <p class="planta__frase" data-planta-frase aria-live="polite">O site completo: quem você é, o que faz e por que confiar em você.</p>
             <div class="planta__palco" aria-hidden="true">
               <div class="planta__moldura">
                 <span class="planta__luz"></span><span class="planta__luz-v"></span><span class="planta__camera"></span>
                 <div class="planta__barra"><i></i><i></i><i></i><span class="planta__url" data-planta-url>seunegocio.com.br</span></div>
                 <div class="pl">
-                  <div class="pl-nav" data-flip><span class="pl-marca pl-b" data-planta-nome data-flip>Seu negócio</span><span class="pl-links" data-flip><i class="pl-b"></i><i class="pl-b"></i><i class="pl-b"></i></span><span class="pl-cta pl-b" data-planta-cta data-flip>Agendar</span><span class="pl-menu" data-flip><i></i><i></i><i></i></span></div>
+                  <div class="pl-nav" data-flip><span class="pl-marca pl-b" data-planta-nome data-flip>Seu negócio</span><span class="pl-links" data-flip><i class="pl-b"></i><i class="pl-b"></i><i class="pl-b"></i></span><span class="pl-busca pl-b" data-flip><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" focusable="false"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg><i class="pl-barra"></i></span><span class="pl-cta pl-b" data-planta-cta data-flip>Agendar</span><span class="pl-sacola pl-b" data-flip><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" focusable="false"><path d="M5 8h14l-1.2 13H6.2zM9 8V6.5a3 3 0 0 1 6 0V8"/></svg><b>2</b></span><span class="pl-menu" data-flip><i></i><i></i><i></i></span></div>
                   <div class="pl-hero">
                     <div class="pl-texto" data-flip>
                       <span class="pl-kicker pl-b"></span>
@@ -213,12 +160,28 @@
                         <path class="pl-traco pl-traco--fino" d="M44 330V262M44 262C24 250 26 214 44 204C62 214 64 250 44 262M500 330V276M500 276C486 266 488 240 500 232C512 240 514 266 500 276"/>
                       </svg>
                     </div>
+                    <div class="pl-form pl-b" data-flip>
+                      <span class="pl-campo pl-b"><i class="pl-barra"></i></span>
+                      <span class="pl-campo pl-b"><i class="pl-barra"></i></span>
+                      <span class="pl-btn pl-btn--form pl-b" data-planta-form>Fale com a gente</span>
+                    </div>
+                    <div class="pl-arte pl-b" data-flip>
+                      <svg class="pl-arte__base" viewBox="0 0 400 400" preserveAspectRatio="xMidYMid meet" focusable="false"><circle class="pl-traco pl-traco--fino" cx="200" cy="200" r="170"/><circle class="pl-traco pl-traco--fino" cx="200" cy="200" r="112"/><path class="pl-traco pl-traco--fino" d="M200 10V70M200 330V390M10 200H70M330 200H390"/><circle class="pl-vidro pl-vidro--acesa" cx="200" cy="200" r="34"/></svg>
+                      <span class="pl-giro pl-giro--fora"><svg viewBox="0 0 400 400" preserveAspectRatio="xMidYMid meet" focusable="false"><path class="pl-arco" d="M200 30A170 170 0 0 1 370 200"/><circle class="pl-ponto" cx="370" cy="200" r="7"/></svg></span>
+                      <span class="pl-giro pl-giro--dentro"><svg viewBox="0 0 400 400" preserveAspectRatio="xMidYMid meet" focusable="false"><path class="pl-arco" d="M200 312A112 112 0 0 1 88 200"/><circle class="pl-ponto" cx="88" cy="200" r="5"/></svg></span>
+                    </div>
                   </div>
                   <ul class="pl-recursos">
                     <li data-flip><svg class="pl-b" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" focusable="false"><path d="M13 2L5 14h6l-1 8 8-12h-6z"/></svg><span class="pl-rot pl-b" data-planta-recurso>Serviços</span><i class="pl-barra pl-b"></i></li>
                     <li data-flip><svg class="pl-b" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" focusable="false"><path d="M12 2l8 3v6c0 5-3.5 9-8 11-4.5-2-8-6-8-11V5z"/></svg><span class="pl-rot pl-b" data-planta-recurso>Depoimentos</span><i class="pl-barra pl-b"></i></li>
                     <li data-flip><svg class="pl-b" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" focusable="false"><path d="M12 3l9 5-9 5-9-5zM3 13l9 5 9-5"/></svg><span class="pl-rot pl-b" data-planta-recurso>Como chegar</span><i class="pl-barra pl-b"></i></li>
                     <li data-flip><svg class="pl-b" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" focusable="false"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span class="pl-rot pl-b" data-planta-recurso>WhatsApp</span><i class="pl-barra pl-b"></i></li>
+                  </ul>
+                  <ul class="pl-produtos">
+                    <li class="pl-b" data-flip><span class="pl-produto pl-b"><svg viewBox="0 0 120 120" preserveAspectRatio="xMidYMid meet" focusable="false"><path class="pl-traco" d="M34 40h44v44a10 10 0 0 1-10 10H44a10 10 0 0 1-10-10zM78 50h6a10 10 0 0 1 0 20h-6"/><path class="pl-traco pl-traco--fino" d="M20 104h80"/></svg></span><i class="pl-barra pl-b"></i><span class="pl-loja-pe"><i class="pl-preco pl-b"></i><i class="pl-mais pl-b"></i></span></li>
+                    <li class="pl-b" data-flip><span class="pl-produto pl-b"><svg viewBox="0 0 120 120" preserveAspectRatio="xMidYMid meet" focusable="false"><path class="pl-traco" d="M40 70h40l-6 34H46zM60 70V40M60 52C48 50 42 40 44 30C56 32 62 42 60 52M60 46C70 42 74 32 72 24C62 26 58 36 60 46"/><path class="pl-traco pl-traco--fino" d="M20 104h80"/></svg></span><i class="pl-barra pl-b"></i><span class="pl-loja-pe"><i class="pl-preco pl-b"></i><i class="pl-mais pl-b"></i></span></li>
+                    <li class="pl-b" data-flip><span class="pl-produto pl-b"><svg viewBox="0 0 120 120" preserveAspectRatio="xMidYMid meet" focusable="false"><path class="pl-traco" d="M50 22h20v12l8 10v52a8 8 0 0 1-8 8H50a8 8 0 0 1-8-8V44l8-10z"/><rect class="pl-vidro" x="48" y="58" width="24" height="26"/><path class="pl-traco pl-traco--fino" d="M20 104h80"/></svg></span><i class="pl-barra pl-b"></i><span class="pl-loja-pe"><i class="pl-preco pl-b"></i><i class="pl-mais pl-b"></i></span></li>
+                    <li class="pl-b" data-flip><span class="pl-produto pl-b"><svg viewBox="0 0 120 120" preserveAspectRatio="xMidYMid meet" focusable="false"><path class="pl-traco" d="M30 50l30-14 30 14v40l-30 14-30-14zM30 50l30 14 30-14M60 64v40"/><path class="pl-traco pl-traco--fino" d="M20 104h80"/></svg></span><i class="pl-barra pl-b"></i><span class="pl-loja-pe"><i class="pl-preco pl-b"></i><i class="pl-mais pl-b"></i></span></li>
                   </ul>
                 </div>
               </div>
@@ -236,18 +199,16 @@
               <button type="button" class="planta__parada" data-parada="390" aria-pressed="false">Celular</button><button type="button" class="planta__parada" data-parada="768" aria-pressed="false">Tablet</button><button type="button" class="planta__parada" data-parada="1280" aria-pressed="true">Computador</button>
             </div>
             <div class="planta__controles">
-              <span class="planta__agora">Teste com o seu negócio</span>
               <div class="planta__nichos" role="group" aria-label="Tipo de negócio do exemplo">
                 <button type="button" class="planta__nicho" data-nicho="servicos" aria-pressed="false">Serviços</button><button type="button" class="planta__nicho" data-nicho="comercio" aria-pressed="false">Comércio</button><button type="button" class="planta__nicho" data-nicho="saude" aria-pressed="false">Saúde</button><button type="button" class="planta__nicho" data-nicho="organizacao" aria-pressed="false">Organização</button>
               </div>
               <label class="planta__nome"><span>Nome do negócio</span><input type="text" maxlength="28" autocomplete="off" autocapitalize="words" enterkeyhint="done" spellcheck="false" placeholder="Ex.: Studio Aurora" aria-describedby="planta-nota" data-planta-campo /></label>
               <span class="planta__nota" id="planta-nota">É só um teste. O nome fica só no seu aparelho.</span>
             </div>
-            <p class="planta__prova" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M13 2L5 14h6l-1 8 8-12h-6z"/></svg><span data-planta-prova></span></p>
           </div>
-                    <div class="servico__acoes">
-            <a class="peca-quero peca-quero--cheio" href="/orcamento" data-planta-quero><span class="peca-quero__texto">Quero o meu site</span> <span aria-hidden="true" data-seta="direita">→</span></a>
-            <a class="peca-wa" href="https://wa.me/5521977167944" data-wa="quero um site para o meu negócio" data-planta-wa>ou peça pelo WhatsApp</a>
+          <div class="planta__acoes">
+            <a class="peca-quero" href="/orcamento" data-planta-quero><span class="peca-quero__texto">Quero o meu site</span> <span aria-hidden="true" data-seta="direita">→</span></a>
+            <p class="planta__prova" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M13 2L5 14h6l-1 8 8-12h-6z"/></svg><span data-planta-prova></span></p>
           </div>
         </article>
       </div>
@@ -256,7 +217,7 @@
     <div class="faixa">
       <section class="section" id="incluso" aria-labelledby="incluso-titulo">
         <div class="section__head reveal">
-          <p class="kicker"><b aria-hidden="true">02</b> Padrão de entrega</p>
+          <p class="kicker"><b aria-hidden="true">01</b> Padrão de entrega</p>
           <h2 id="incluso-titulo">O que todo site leva, sem exceção.</h2>
         </div>
         <div class="spec reveal tem-estacao tem-estacao--3">
@@ -276,7 +237,7 @@
     <div class="faixa faixa--prova">
     <section class="section" id="prova" aria-labelledby="prova-titulo">
       <div class="section__head reveal">
-        <p class="kicker"><b aria-hidden="true">03</b> Prova</p>
+        <p class="kicker"><b aria-hidden="true">02</b> Prova</p>
         <h2 id="prova-titulo">Site rápido vende mais.</h2>
         <p class="lead">Números de pesquisas públicas, com a fonte de cada um.</p>
       </div>
@@ -292,7 +253,7 @@
 
     <section class="section" id="metodo" aria-labelledby="metodo-titulo">
       <div class="section__head reveal">
-        <p class="kicker"><b aria-hidden="true">04</b> Método</p>
+        <p class="kicker"><b aria-hidden="true">03</b> Método</p>
         <h2 id="metodo-titulo">Quatro passos, e você acompanha todos.</h2>
       </div>
       <ol role="list" class="passos passos--4 reveal">
@@ -305,7 +266,7 @@
 
     <section class="section section--faq" id="faq" aria-labelledby="faq-titulo">
       <div class="section__head reveal">
-        <p class="kicker"><b aria-hidden="true">05</b> Perguntas</p>
+        <p class="kicker"><b aria-hidden="true">04</b> Perguntas</p>
         <h2 id="faq-titulo">Dúvidas comuns.</h2>
       </div>
       <!-- texto idêntico ao FAQPage do <head> -->
@@ -325,7 +286,7 @@
     <section class="conversa" id="contato" aria-labelledby="contato-titulo">
       <span class="conversa__regua" aria-hidden="true"></span><span class="varredura" aria-hidden="true"></span>
       <div class="section reveal">
-        <p class="kicker"><b aria-hidden="true">06</b> Conversa</p>
+        <p class="kicker"><b aria-hidden="true">05</b> Conversa</p>
         <h2 id="contato-titulo">Me conte o que seu site precisa <em data-palavras="resolver|mostrar|vender">resolver</em>.</h2>
         <p class="lead">Quatro perguntas e eu desenho três modelos do seu site. Você só paga o sinal se escolher um.</p>
         <div class="cta__acoes">
