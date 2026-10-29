@@ -134,6 +134,9 @@ test('comando: lê a lista do painel só com GET, imprime a tabela com o prazo d
   const s3 = [];
   assert.equal(await executar(['--sql'], { env: {}, buscar: async () => { throw new Error('não chama'); }, saida: s => s3.push(s), erro: () => {} }), 0);
   assert.ok(s3.join('\n').includes(SQL_HISTORICO));
+  /* revisão de segurança do PR #63: a exportação traz dados de cliente (briefing); o dono é avisado antes de salvar */
+  assert.match(s3.join('\n'), /dados de cliente/i, 'avisa que a exportação tem dados de cliente');
+  assert.match(s3.join('\n'), /não (versione|commite|guarde no repositório)/i, 'e que não vai para o repositório');
 });
 
 test('comando --arquivo: lê a exportação do SQL Editor (lista de itens no formato do painel), sem rede', async () => {

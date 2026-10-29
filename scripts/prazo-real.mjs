@@ -59,7 +59,8 @@ async function itensDoPainel(env, buscar) {
 export async function executar(argv, { env = process.env, buscar = fetch, saida = console.log, erro = console.error } = {}) {
   const chave = env.PAINEL_CHAVE || '';
   try {
-    if (argv.includes('--sql')) { saida('Cole no SQL Editor do Supabase (só lê), exporte o resultado em JSON e rode com --arquivo:\n\n' + SQL_HISTORICO); return 0; }
+    if (argv.includes('--sql')) { saida('Cole no SQL Editor do Supabase (só lê), exporte o resultado em JSON e rode com --arquivo.\n'
+      + 'A exportação traz dados de cliente (o briefing de cada conversa): guarde fora do projeto, não versione e apague depois.\n\n' + SQL_HISTORICO); return 0; }
     if (argv.some(a => a.startsWith('--') && !['--arquivo', '--regras'].includes(a))) { erro(USO); return 2; }
     const prazosAtuais = prazosDaTabela(doFlag(argv, '--regras') || REGRAS_PADRAO);
     const arquivo = doFlag(argv, '--arquivo');
