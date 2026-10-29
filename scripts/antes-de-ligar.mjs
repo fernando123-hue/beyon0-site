@@ -285,7 +285,7 @@ const DO_DONO = [
   item('CONFIRMAR', 'o balde "material" existe (supabase/storage/material.sql) e scripts/conferir-armazem.mjs deu OK em todas as linhas, inclusive o logout global', ''),
   item('CONFIRMAR', 'a tabela ativa tem sinal_percentual 40 (npm run validar:regras) e a migration do 3b-1 foi aplicada', ''),
   item('CONFIRMAR', 'a captação aceita os valores da tabela normal e a venda do site (importar-site, ou o passo manual que você aceitou)', ''),
-  item('CONFIRMAR', 'a captação conta só feriados nacionais (mais a Sexta-feira Santa) e o prazo da proposta (5 a 10 dias úteis)', ''),
+  item('CONFIRMAR', 'a captação conta só feriados nacionais (mais a Sexta-feira Santa) e aceita o prazo da proposta de 1 a 60 dias úteis (sem trava de prazo desde 28/10)', 'em 28/10 a captação ainda recusava fora de 5 a 10 (clientes/fechamento.mjs, PRAZO_SITE): proposta acima de 10 dias não entra na esteira até ela mudar'),
   item('CONFIRMAR', 'o código da captação cumpre o que você decidiu em 22/10: material parado sem publicar e sem encerrar o pedido (nada de sem_material), e o site sai do ar à 00:00 depois dos 3 dias, com os 2 lembretes registrados', 'sem isso o contrato promete o que a captação ainda não faz'),
   item('CONFIRMAR', 'o ensaio completo rodou com Mercado Pago e Supabase de TESTE, sem FALHA, e os PNG a 390 e 320 px foram vistos', ''),
   item('CONFIRMAR', 'o seu PC tem PAINEL_CHAVE e BZ_BASE na janela do terminal (nunca em arquivo)', ''),
