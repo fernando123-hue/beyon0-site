@@ -199,12 +199,35 @@ test('a janela: abrir cria um <dialog> modal com o foco no texto; fechar o remov
 test('clicar no fundo da janela fecha; depois de enviado, a janela tem o botão Fechar', async () => {
   const { R, body } = montar({ orcamento: { recado: async () => ({ ok: true }) } });
   const d = R.abrir({});
-  d.emitir('click', { target: d });
+  d.emitir('mousedown', { target: d }); d.emitir('click', { target: d });
   assert.equal(d.aberto, false);
   const d2 = R.abrir({});
   const c = campos(d2); preencher(c, 'Oi'); c.form.emitir('submit'); await tick(); await tick();
   assert.ok(achar(c.feito, n => n.tag === 'button' && n.textContent === 'Fechar'));
   assert.equal(body.children.includes(d2), true);
+});
+
+test('arrastar a seleção do campo até o fundo NÃO fecha (o clique só fecha quando começa e termina no fundo)', () => {
+  const { R } = montar({ orcamento: { recado: async () => ({ ok: true }) } });
+  const d = R.abrir({});
+  const c = campos(d); preencher(c, 'texto comprido que a pessoa selecionou');
+  d.emitir('mousedown', { target: c.texto }); d.emitir('click', { target: d });
+  assert.equal(d.aberto, true);
+  d.emitir('mousedown', { target: d }); d.emitir('click', { target: d });
+  assert.equal(d.aberto, false);
+});
+
+test('fechar sem enviar (Esc, fundo, Fechar) guarda o rascunho: reabrir traz o texto e o e-mail; depois de enviado, nasce limpo', async () => {
+  const { R } = montar({ orcamento: { recado: async () => ({ ok: true }) } });
+  const d = R.abrir({});
+  preencher(campos(d), 'meu recado pela metade', 'eu@empresa.com.br');
+  d.close();
+  const c2 = campos(R.abrir({}));
+  assert.equal(c2.texto.value, 'meu recado pela metade'); assert.equal(c2.email.value, 'eu@empresa.com.br');
+  assert.match(c2.contador.textContent, /^22 \//);
+  c2.form.emitir('submit'); await tick(); await tick();
+  R.fechar ? R.fechar() : achar(c2.feito, n => n.tag === 'button' && n.textContent === 'Fechar').emitir('click');
+  assert.equal(campos(R.abrir({})).texto.value, '');
 });
 
 test('sozinho (fora do orçamento): cria a caixa do Turnstile e manda JSON com o token para /api/vendas?acao=recado', async () => {

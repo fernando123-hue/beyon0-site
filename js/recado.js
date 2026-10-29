@@ -199,6 +199,7 @@
       feito.hidden = false;
       feito.focus();
     }
+    if (opcoes && opcoes.rascunho) { texto.value = opcoes.rascunho.texto; email.value = opcoes.rascunho.email; atualizarContador(); }
     texto.addEventListener('input', function () { atualizarContador(); if (!erro.hidden) limparErro(); });
     email.addEventListener('input', function () { if (!erro.hidden) limparErro(); });
     form.addEventListener('submit', function (ev) {
@@ -213,7 +214,12 @@
         .then(function () { travar(false); texto.value = ''; email.value = ''; atualizarContador(); concluir(comEmail); },
           function (e) { travar(false); mostrarErro(fraseDaFalha(e), null); });
     });
-    return { raiz: raiz, focar: function () { (feito.hidden ? texto : feito).focus(); } };
+    /* o que ficou digitado e não foi enviado (null se nada ou se já foi enviado) */
+    function rascunho() {
+      if (!feito.hidden || (!String(texto.value).trim() && !String(email.value).trim())) return null;
+      return { texto: texto.value, email: email.value };
+    }
+    return { raiz: raiz, focar: function () { (feito.hidden ? texto : feito).focus(); }, rascunho: rascunho };
   }
 
   /* ---------- a janela e a montagem ---------- */
@@ -223,31 +229,37 @@
     l.rel = 'stylesheet'; l.href = '/css/recado.css';
     document.head.appendChild(l);
   }
-  var janela = null, quemAbriu = null;
+  /* (revisão técnica, M1) fechar sem enviar (Esc, fundo, Fechar) guarda o rascunho em memória, só nesta página: reabrir traz o texto de volta */
+  var janela = null, quemAbriu = null, mioloDaJanela = null, rascunhoGuardado = null;
   function fechar() {
     if (!janela) return;
     if (typeof janela.close === 'function') janela.close(); else janela.removeAttribute('open');
   }
   function aoFecharJanela() {
     var alvo = quemAbriu; quemAbriu = null;
-    if (janela && janela.parentNode) janela.parentNode.removeChild(janela);   /* a próxima abertura nasce limpa: o texto que ficou não reaparece */
-    janela = null;
+    rascunhoGuardado = mioloDaJanela ? mioloDaJanela.rascunho() : null;
+    if (janela && janela.parentNode) janela.parentNode.removeChild(janela);
+    janela = null; mioloDaJanela = null;
     if (alvo && typeof alvo.focus === 'function') alvo.focus();
   }
   /* abre a janela do recado. opcoes: { origem, quem } (quem = o elemento que pediu, para devolver o foco ao fechar) */
   function abrir(opcoes) {
     puxarEstilo();
-    if (janela) { fechar(); aoFecharJanela(); }
+    if (janela) { var velha = janela; aoFecharJanela(); if (typeof velha.close === 'function') velha.close(); }
     quemAbriu = (opcoes && opcoes.quem) || document.activeElement || null;
     var d = document.createElement('dialog');
     d.className = 'recado recado--janela';
-    var m = criarMiolo({ origem: opcoes && opcoes.origem, aoFechar: fechar });
+    var m = criarMiolo({ origem: opcoes && opcoes.origem, aoFechar: fechar, rascunho: rascunhoGuardado });
+    rascunhoGuardado = null;
     d.setAttribute('aria-label', T.titulo);
     d.appendChild(m.raiz);
-    d.addEventListener('close', aoFecharJanela);
-    d.addEventListener('click', function (ev) { if (ev.target === d) fechar(); });   /* clicar no fundo fecha */
+    d.addEventListener('close', function () { if (janela === d) aoFecharJanela(); });   /* (o close chega depois: o de uma janela velha não mexe na nova) */
+    /* clicar no fundo fecha, mas só se o clique COMEÇOU no fundo: arrastar a seleção do campo até o fundo não fecha */
+    var apertouNoFundo = false;
+    d.addEventListener('mousedown', function (ev) { apertouNoFundo = ev.target === d; });
+    d.addEventListener('click', function (ev) { if (ev.target === d && apertouNoFundo) fechar(); apertouNoFundo = false; });
     document.body.appendChild(d);
-    janela = d;
+    janela = d; mioloDaJanela = m;
     if (typeof d.showModal === 'function') d.showModal(); else d.setAttribute('open', '');
     m.focar();
     return d;
