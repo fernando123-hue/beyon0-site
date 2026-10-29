@@ -432,7 +432,7 @@ test('instruções: o prazo vem da estimativa; cada formato sozinho pelos dias d
   assert.doesNotMatch(s, /até 10 dias úteis|fases de até|em até \d+ dias úteis depois do sinal/, 'sem o teto fixo antigo');
   assert.match(s, /numa entrega só/);
   assert.match(s, /ferramenta estimar/);
-  for (const regra of ['contado do sinal pago e do material recebido', 'Se o material atrasa, o prazo anda junto', 'Sábado, domingo e feriado nacional não contam', 'Enquanto o cliente não manda a lista de ajustes, o prazo fica parado'])
+  for (const regra of ['dias úteis depois do sinal pago e do material recebido', 'dias úteis, contados do sinal pago e do material recebido', 'Se o material atrasa, o prazo anda junto', 'Sábado, domingo e feriado nacional não contam', 'Enquanto o cliente não manda a lista de ajustes, o prazo fica parado'])
     assert.ok(s.includes(regra), 'continua: ' + regra);
   /* gerado dos dados: outro prazo na tabela, outro texto */
   const outra = JSON.parse(JSON.stringify(REGRAS)); outra.formatos.landing_page.prazo_dias = 7;
