@@ -130,35 +130,49 @@
   }
 
   /* ---------- o fôlego: um ciclo agendado por vez, em fase com o reator ---------- */
+  function periodo() { return (B && B.FOLEGO && B.FOLEGO.periodo) || 7; }
   function respirar() {
     clearTimeout(timerFolego);
-    if (!tocando() || document.hidden) return;
-    var periodo = (B && B.FOLEGO && B.FOLEGO.periodo) || 7, inspira = (B && B.FOLEGO && B.FOLEGO.inspira) || 0.42;
-    var t = ctx.currentTime, tIn = periodo * inspira, tEx = periodo - tIn;
+    if (!ligado || !subiu || document.hidden) return;
+    /* contexto ainda acordando (Safari) ou interrompido (ligação no iPhone): o statechange religa o ciclo */
+    if (ctx.state !== 'running') return;
+    var inspira = (B && B.FOLEGO && B.FOLEGO.inspira) || 0.42;
+    var t = ctx.currentTime, tIn = periodo() * inspira, tEx = periodo() - tIn;
     fundo.filtro.frequency.setTargetAtTime(FUNDO.filtro.inspira, t, tIn / 3);
     fundo.saida.gain.setTargetAtTime(VOL.fundo * FUNDO.folego.inspira, t, tIn / 3);
     fundo.filtro.frequency.setTargetAtTime(FUNDO.filtro.expira, t + tIn, tEx / 3);
     fundo.saida.gain.setTargetAtTime(VOL.fundo * FUNDO.folego.expira, t + tIn, tEx / 3);
-    timerFolego = setTimeout(respirar, periodo * 1000);
+    respirarEmFase();
   }
-  /* o 1º fôlego começa quando o do reator recomeça */
+  /* cada fôlego começa quando o do reator recomeça (recalculado a cada ciclo: timers encadeados derivavam) */
   function respirarEmFase() {
     clearTimeout(timerFolego);
-    var periodo = (B && B.FOLEGO && B.FOLEGO.periodo) || 7;
-    var falta = B && B.relogio ? periodo - (B.relogio() % periodo) : 0;
+    var falta = B && B.relogio ? periodo() - (B.relogio() % periodo()) : periodo();
     timerFolego = setTimeout(respirar, falta * 1000);
+  }
+  /* resume() fora de gesto pode falhar no Safari: sem reclamar, o próximo gesto tenta de novo */
+  function retomar() { if (ctx.state !== 'running') ctx.resume().catch(function () { /* o próximo gesto tenta */ }); }
+  /* segura a rampa onde ela está (sem o salto de volta ao último valor marcado); sem o método, marca o valor de agora */
+  function segurar(t) {
+    if (mestre.gain.cancelAndHoldAtTime) mestre.gain.cancelAndHoldAtTime(t);
+    else { var v = mestre.gain.value; mestre.gain.cancelScheduledValues(t); mestre.gain.setValueAtTime(Math.max(v, PISO), t); }
   }
 
   /* ---------- liga, desliga ---------- */
-  function acordar() {
-    if (!ligado || !temGesto()) return;
-    if (!ctx) montar();
-    if (ctx.state === 'suspended') ctx.resume();
+  function acordar(e) {
+    /* o gesto no próprio botão de som é dele: ligar ou desligar decide o que acontece (antes, o toque para
+       desligar criava o áudio e gastava a subida longa da 1ª página) */
+    if (!ligado || !temGesto() || (e && e.target.closest && e.target.closest('[data-som]'))) return;
+    if (!ctx) {
+      montar();
+      /* acordou (no Safari o contexto novo começa suspenso) ou voltou de uma interrupção: o fôlego recomeça */
+      ctx.addEventListener('statechange', function () { if (ctx.state === 'running' && ligado && subiu) respirarEmFase(); });
+    }
+    retomar();
     if (subiu) return;
     subiu = true;
     var t = ctx.currentTime, dura = primeiraDaVisita() ? SOBE.primeira : SOBE.seguintes;
-    mestre.gain.cancelScheduledValues(t);
-    mestre.gain.setValueAtTime(PISO, t);
+    segurar(t);
     mestre.gain.exponentialRampToValueAtTime(1, t + dura);
     respirarEmFase();
   }
@@ -168,7 +182,7 @@
     clearTimeout(timerFolego);
     if (!ctx) return;
     var t = ctx.currentTime;
-    mestre.gain.cancelScheduledValues(t);
+    segurar(t);
     mestre.gain.setTargetAtTime(PISO, t, DESCE / 4);
     /* em silêncio, o contexto para de vez: não gasta bateria tocando nada */
     setTimeout(function () { if (!ligado && ctx.state === 'running') ctx.suspend(); }, DESCE * 1000 + 100);
@@ -188,7 +202,8 @@
   rotular();
 
   /* ---------- os gestos ---------- */
-  ['pointerdown', 'pointerup', 'keydown'].forEach(function (ev) {
+  /* o iOS antigo só destrava o áudio no touchend/click; onde o pointerup basta, os outros não fazem nada (subiu) */
+  ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'].forEach(function (ev) {
     document.addEventListener(ev, acordar, { capture: true, passive: true });
   });
 
@@ -212,6 +227,6 @@
   document.addEventListener('visibilitychange', function () {
     if (!ctx) return;
     if (document.hidden) { clearTimeout(timerFolego); if (ctx.state === 'running') ctx.suspend(); }
-    else if (ligado && subiu) { ctx.resume(); respirarEmFase(); }
+    else if (ligado && subiu) { retomar(); respirarEmFase(); }
   });
 })();

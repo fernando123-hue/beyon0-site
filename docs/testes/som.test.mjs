@@ -29,8 +29,9 @@ test('som.js: preferência só desliga com "0", sem estilo inline nem innerHTML,
   assert.match(js, /'bz-som'/);
   assert.match(js, /!== '0'/, 'sem nada gravado = ligado');
   assert.doesNotMatch(js, /innerHTML|setAttribute\('style'/);
-  /* o gesto que acorda o áudio: toque (o pointerup é o gesto do dedo; o pointerdown, o do mouse) e tecla */
-  assert.match(js, /\['pointerdown', 'pointerup', 'keydown'\]\.forEach\(function \(ev\) \{\s*document\.addEventListener\(ev, acordar/);
+  /* o gesto que acorda o áudio: toque (o pointerup é o gesto do dedo; o pointerdown, o do mouse; touchend/click,
+     o do iOS antigo) e tecla */
+  assert.match(js, /\['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'\]\.forEach\(function \(ev\) \{\s*document\.addEventListener\(ev, acordar/);
   assert.doesNotMatch(js, /requestAnimationFrame/, 'nada por frame: a respiração é agendada no relógio do áudio');
   assert.match(js, /visibilitychange/, 'aba escondida pausa');
 });
