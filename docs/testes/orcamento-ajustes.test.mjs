@@ -131,7 +131,7 @@ test('chamada que falhou mas entrou (tempo esgotado, rede caiu): a contagem do e
 test('o aviso do limite de 30 só manda escrever o pedido se ainda há pedidos escritos', () => {
   assert.match(A.textoDoLimite(2), /escreva o seu pedido/);
   assert.doesNotMatch(A.textoDoLimite(0), /escreva/);
-  assert.match(A.textoDoLimite(0), /WhatsApp/);
+  assert.match(A.textoDoLimite(0), /recado/);
   assert.match(A.textoDoLimite(0), /30/);
 });
 

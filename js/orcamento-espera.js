@@ -32,7 +32,7 @@
       p.relogioDosCartoes(false);
       try { await p.recarregar(); } catch (e) { /* o aviso abaixo oferece conferir de novo */ }   /* (uma última olhada) */
       var E = p.estado();
-      if (E && E.conversa.etapa === 'gerando') p.avisar('Está demorando mais que o normal. Confira de novo daqui a pouco ou fale com a Beyon Zero pelo WhatsApp.', conferir, 'Conferir agora');
+      if (E && E.conversa.etapa === 'gerando') p.avisar('Está demorando mais que o normal. Confira de novo daqui a pouco ou deixe um recado para a equipe.', conferir, 'Conferir agora');
     }
     function conferir() { desistiu = false; p.recarregar().catch(function (e) { p.falhou(e, conferir); }); }
     /* voltou para a aba (do WhatsApp, do pagamento): olha de novo e retoma a espera se ainda for o caso. (PR 2a) Com o

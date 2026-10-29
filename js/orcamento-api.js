@@ -129,12 +129,13 @@
   }
   /* anti-robô (js/orcamento-turnstile.js): o token entra no corpo de quem cria um visitante (sessão nova ou retomada).
      Sem chave configurada, não há token e o servidor não exige */
-  async function comAntiRobo(corpo) {
+  async function comAntiRobo(corpo, semSaida) {
     if (!window.BZTurnstile) return corpo;
     var t;
     try { t = await window.BZTurnstile.token(); }
     catch (e) {
-      if (e && e.tipo === 'carga') throw new Falha(503, { erro: 'A verificação de segurança não carregou. Tente de novo em instantes ou fale com a Beyon Zero pelo WhatsApp.', whatsapp: true });
+      /* (o recado é a própria saída: sem a verificação ele só pede para tentar de novo, sem apontar para si mesmo) */
+      if (e && e.tipo === 'carga') throw new Falha(503, semSaida ? { erro: 'A verificação de segurança não carregou. Tente de novo em instantes.' } : { erro: 'A verificação de segurança não carregou. Tente de novo em instantes ou deixe um recado para a equipe.', recado: true });
       throw new Falha(403, { erro: 'Não foi possível confirmar que você não é um robô. Recarregue a página e tente de novo.' });
     }
     return t ? Object.assign({}, corpo, { turnstile: t }) : corpo;
@@ -143,6 +144,22 @@
     var s = await http('POST', 'sessao', await comAntiRobo(origem()));
     gravar({ token: s.token, refresh: s.refresh, expira_em: s.expira_em, conversa_id: s.conversa_id });
     return sessao;
+  }
+
+  /* js/recado.js (o único lugar de feedback do site) entra sob demanda: a página do orçamento não precisa linkar o script */
+  var carregandoRecado = null;
+  function carregarRecado() {
+    if (window.BZRecado) return Promise.resolve(window.BZRecado);
+    if (!carregandoRecado) {
+      carregandoRecado = new Promise(function (ok, falha) {
+        var s = document.createElement('script');
+        s.src = '/js/recado.js'; s.async = true;
+        s.onload = function () { if (window.BZRecado) ok(window.BZRecado); else { carregandoRecado = null; falha(new Falha(0, { erro: 'Não consegui abrir o recado agora. Recarregue a página.' })); } };
+        s.onerror = function () { carregandoRecado = null; falha(new Falha(0, { erro: 'Não consegui abrir o recado agora. Recarregue a página.' })); };
+        document.head.appendChild(s);
+      });
+    }
+    return carregandoRecado;
   }
 
   var comConversa = function (corpo) { return Object.assign({ conversa_id: sessao && sessao.conversa_id }, corpo || {}); };
@@ -217,6 +234,12 @@
       await garantirSessao();
       return chamar('GET', 'catalogo', undefined, '&conversa=' + encodeURIComponent(sessao.conversa_id) + '&formato=' + encodeURIComponent(formato || '') + '&ramo=' + encodeURIComponent(ramo || ''), ESTADO_MS);
     },
+    /* o RECADO: leva a conversa só como referência (se houver sessão) e passa pelo anti-robô desta página; o servidor decide o resto */
+    recado: async function (corpo) {
+      var base = Object.assign({}, corpo, sessao && sessao.conversa_id ? { conversa_id: sessao.conversa_id } : {});
+      return chamar('POST', 'recado', await comAntiRobo(base, true), undefined, ESTADO_MS);
+    },
+    abrirRecado: function (opcoes) { return carregarRecado().then(function (R) { return R.abrir(Object.assign({ origem: 'orcamento' }, opcoes)); }); },
     simular: async function (dados) { await garantirSessao(); return chamar('POST', 'simular', comConversa(dados), undefined, ESTADO_MS); },
     confirmarPacote: function (dados) { return chamar('POST', 'confirmar-pacote', comConversa(dados), undefined, ESTADO_MS); }
   };
