@@ -519,7 +519,7 @@ export const SABOTAGENS = [
   { nome: "a retenção do recado passa de 60 para 600 dias", arquivo: '20261029120000_recados.sql', testes: ['docs/testes/recado-banco.test.mjs'],
     de: "coalesce((p ->> 'dias')::integer, 60); v_n integer;", para: "coalesce((p ->> 'dias')::integer, 600); v_n integer;" },
   { nome: "a tabela de recados abre a leitura para o anon", arquivo: '20261029120000_recados.sql', testes: ['docs/testes/recado-banco.test.mjs'],
-    acrescentar: '\ngrant select on app.recados to anon;\n' },
+    acrescentar: '\ngrant usage on schema app to anon;\ngrant select on app.recados to anon;\n' },
   { nome: "o recado aceita CPF no texto", fonte: "api/_vendas/fluxo-recado.mjs", testes: ['docs/testes/recado-api.test.mjs'],
     de: "if (ESQ.CPF_CNPJ.test(limpo)) throw", para: "if (false) throw" },
   { nome: "o recado deixa o telefone escrito no texto passar sem redigir", fonte: "api/_vendas/fluxo-recado.mjs", testes: ['docs/testes/recado-api.test.mjs'],

@@ -102,8 +102,9 @@ test('com a sessão do orçamento o recado leva a conversa só como referência;
 
 test('a sessão do Auth fora do ar não derruba o recado: ele grava sem ligação', async () => {
   await limpar();
+  const sessao = await local.auth.criar();   /* (um token de verdade: o servidor só pergunta ao Auth quando o token tem forma e validade) */
   const quebrado = { ...local.auth, quem: async () => { throw new TypeError('fetch failed'); } };
-  const r = await navegador({ token: 'qualquer', extra: { visitantes: quebrado } })({ texto: 'mesmo assim', conversa_id: '11111111-1111-4111-8111-111111111111' });
+  const r = await navegador({ token: sessao.token, extra: { visitantes: quebrado } })({ texto: 'mesmo assim', conversa_id: '11111111-1111-4111-8111-111111111111' });
   assert.equal(r.status, 200);
   assert.equal((await linhas())[0].conversa_id, null);
 });
