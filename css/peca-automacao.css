@@ -100,3 +100,26 @@
 @media (prefers-reduced-motion: reduce) { .dp-no.is-respondido .dp-n { animation: none; } .despacho__registro li { transition: none; } }
 html.menos-movimento .dp-no.is-respondido .dp-n { animation: none; }
 html.menos-movimento .despacho__registro li { transition: none; }
+
+/* computador largo (dono, 2026-10-28: "ele está muito mal posicionado, espaçamento está mal feito"): o cartão do
+   fluxo ocupava a coluna da esquerda e deixava a direita vazia. Agora ele pega a largura toda, com o diagrama à
+   esquerda e o registro do caminho, o resultado e o botão à direita. O diagrama repete as colunas do cartão (mesmas
+   frações e vão: ele ocupa a caixa inteira do cartão), e o botão cai na coluna da direita do cartão, alinhado */
+@media (min-width: 1081px) {
+  .servicos--solo:has(.despacho) { grid-template-columns: minmax(0, 1fr); }
+  .servico--peca:has(> .despacho), .servico--peca > .despacho.is-viva { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); column-gap: clamp(40px, 4.5vw, 72px); }
+  .servico--peca:has(> .despacho) { display: grid; align-items: start; }
+  .servico--peca > .despacho.is-viva {
+    display: grid; grid-column: 1 / -1; grid-row: 1; row-gap: .8rem;
+    grid-template-areas: "guia ." "pedidos registro" "placa registro" "placa fim" "placa nota";
+    grid-template-rows: auto auto auto auto 1fr;
+  }
+  .despacho.is-viva > .despacho__guia { grid-area: guia; }
+  .despacho.is-viva > .despacho__pedidos { grid-area: pedidos; }
+  .despacho.is-viva > .despacho__placa { grid-area: placa; }
+  .despacho.is-viva > .despacho__registro { grid-area: registro; align-self: start; padding-top: .2rem; }
+  .despacho.is-viva > .despacho__fim { grid-area: fim; }
+  .despacho.is-viva > .despacho__nota { grid-area: nota; }
+  /* o botão divide a faixa com o diagrama, no pé da coluna da direita (numa faixa própria sobrava um vão à esquerda) */
+  .servico--peca:has(> .despacho) > .servico__acoes { grid-column: 2; grid-row: 1; align-self: end; margin-top: 0; padding-bottom: .4rem; }
+}

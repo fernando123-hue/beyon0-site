@@ -31,8 +31,8 @@
    Uma linha só por cartão, com a luz andando por ela (dono, 06/10: "uma linha, com a energia circulando"). Sai o
    empilhamento de sinais do mesmo peso — quatro tiras de luz de canto, aresta de cima, marcas de canto em L, traço
    do número (a versão anterior está em f6cf7da; as três direções em d7039a9). Em repouso a LUZ POUSA na linha de
-   cima, logo depois do número: um traço nítido pintado no fundo do próprio cartão, por baixo do fio da borda (sem
-   pseudo-elemento: o motion.css anima os ::before na entrada). No cartão aceso (o da frente na pilha do celular, o do
+   cima, logo depois do número. SAIU em 2026-10-28 (dono: "Essa linha parada nos cards está feia"): em repouso o
+   cartão fica só com o fio da borda; a luz só aparece andando. No cartão aceso (o da frente na pilha do celular, o do
    meio da tela no tablet) ela DÁ A VOLTA (js/linha-viva.js, abaixo); no desktop com mouse também (o do meio da tela, 2026-10-23); se o mouse carrega outro cartão, quem dá a volta é a carga
    (".carga-circula") e esta cede. Sem JS, ou com movimento reduzido, a luz fica pousada. Sem desfoque. */
 .painel:not(:where(.console, .instrumento)), .celula, .laudo__row, .qa, .spec__item,
@@ -42,8 +42,6 @@
   position: relative;
   border: 1px solid var(--line-2); border-radius: var(--mod-raio);
   background-color: var(--mod-fundo);
-  background-image: linear-gradient(90deg, rgb(var(--tinta-rgb, var(--ac-rgb)) / 0), rgb(var(--tinta-rgb, var(--ac-rgb))) 40%, var(--ac-2) 82%, var(--t1));
-  background-size: var(--luz-w) 1px; background-position: var(--luz-x) 0; background-origin: border-box; background-repeat: no-repeat;
   color: var(--t1);
   transition: border-color var(--t) var(--ease), background-color var(--t) var(--ease);
 }
@@ -439,8 +437,8 @@ html.menos-movimento .estacao-cruza { display: none !important; }
   html.js:not(.menos-movimento) :is(.tem-linha.lv-ativa > .linha-viva, .tem-linha.lv-ativa > summary > .linha-viva) { display: block; position: absolute; inset: -1px; z-index: 1; overflow: hidden; border-radius: calc(var(--mod-raio) + 1px); pointer-events: none; }
   html.js:not(.menos-movimento) .tem-linha.lv-ativa { background-image: none; }   /* (a luz pousada é a que decolou) */
   .linha-viva > b { position: absolute; overflow: hidden; }
-  .linha-viva > b:nth-child(odd) { left: 0; right: 0; height: 1px; }
-  .linha-viva > b:nth-child(even) { top: 0; bottom: 0; width: 1px; }
+  .linha-viva > b:nth-child(odd) { left: 0; right: 0; height: 1.5px; }
+  .linha-viva > b:nth-child(even) { top: 0; bottom: 0; width: 1.5px; }
   .linha-viva > b:nth-child(1) { top: 0; }
   .linha-viva > b:nth-child(2) { right: 0; }
   .linha-viva > b:nth-child(3) { bottom: 0; transform: scaleX(-1); }
@@ -463,7 +461,9 @@ html.menos-movimento .estacao-cruza { display: none !important; }
    Só transform/opacity se movem por quadro. ---- */
 .carga, .carga-fio, .carga-varre { display: none; }
 @media (prefers-reduced-motion: no-preference) {
-  html.js:not(.menos-movimento) .tem-carga > .carga { display: block; position: absolute; left: var(--mod-pad); right: var(--mod-pad); bottom: 6px; height: 13px; pointer-events: none; transition: opacity .35s var(--ease); }
+  /* (a barra com a porcentagem SAIU, dono 2026-10-28: "Tire a barra de carregamento de todos os cards"; os cantos, a borda,
+     a luz e as letras continuam. O js/carga.js segue medindo a carga, que comanda o resto) */
+  html.js:not(.menos-movimento) .tem-carga > .carga { display: none; position: absolute; left: var(--mod-pad); right: var(--mod-pad); bottom: 6px; height: 13px; pointer-events: none; transition: opacity .35s var(--ease); }
   /* em repouso a barra não aparece (zero por toda a página poluía): surge quando começa a carregar */
   .tem-carga:not(.is-carregando):not(.is-carregado) > .carga { opacity: 0; }
   /* o trilho: a linha apagada por onde a carga corre (deixa espaço para a porcentagem) */
@@ -526,7 +526,7 @@ html.menos-movimento .estacao-cruza { display: none !important; }
   .carga-cantos > b:nth-child(7) { bottom: 0; left: 0; transform-origin: left; } .carga-cantos > b:nth-child(8) { bottom: 0; left: 0; transform-origin: bottom; }
   .is-carregado > .carga-cantos > b { background: var(--t1); transition: background .6s var(--ease); }
   /* a borda neon */
-  html.js:not(.menos-movimento) .tem-carga > .carga-halo { display: block; position: absolute; inset: -1px; border: 1px solid var(--ac-2); border-radius: inherit; pointer-events: none; opacity: 0; }   /* um fio só (dono, 2026-10-06: o tubo de três fios parecia bordas diferentes) */
+  html.js:not(.menos-movimento) .tem-carga > .carga-halo { display: block; position: absolute; inset: -1px; border: 1.5px solid var(--ac-2); border-radius: inherit; pointer-events: none; opacity: 0; }   /* um fio só (dono, 2026-10-06: o tubo de três fios parecia bordas diferentes) */
   /* os pontos de luz que correm nos quatro lados (carregando e cheio) */
   html.js:not(.menos-movimento) .tem-carga > .carga-nos { display: block; position: absolute; inset: -1px; pointer-events: none; opacity: 0; transition: opacity .4s var(--ease); }
   .is-carregando > .carga-nos, .is-carregado > .carga-nos { opacity: 1; }
@@ -577,7 +577,7 @@ html.menos-movimento .estacao-cruza { display: none !important; }
   /* ACENDER (cards fora de uma estação; todos no celular): cada letra do título e do texto clareia na sua vez,
      devagar, e fica acesa num branco com um toque do ciano enquanto o card estiver cheio; descarregando,
      todas apagam juntas, mais rápido. Só cor (sem desfoque); os números e os links seguem com a cor deles */
-  html.js:not(.menos-movimento) .tem-carga h3 { --letra-acesa: var(--letra-acesa-t); --letra-pico: var(--ac-2); }
+  html.js:not(.menos-movimento) .tem-carga h3 { --letra-acesa: var(--letra-acesa-t); --letra-pico: var(--ac); }
   html.js:not(.menos-movimento) .tem-carga p { --letra-acesa: var(--letra-acesa-p); --letra-pico: var(--t1); }
   /* (só as letras do próprio título/texto: o número de um rótulo, como o "01" do cenário, segue com a cor dele) */
   html.js:not(.menos-movimento) :is(h3, p) > .carga-palavra > .carga-letra,
@@ -630,22 +630,22 @@ html.menos-movimento .estacao-cruza { display: none !important; }
      traço andar no sentido horário. Só anima na ignição, na sobrecarga e enquanto apaga. */
   html.js:not(.menos-movimento) .tem-carga > .carga-circula { display: block; position: absolute; inset: -1px; pointer-events: none; opacity: 0; transition: opacity .6s var(--ease); }
   .carga-circula > b { position: absolute; overflow: hidden; }
-  .carga-circula > b:nth-child(odd) { left: 0; right: 0; height: 1px; }
-  .carga-circula > b:nth-child(even) { top: 0; bottom: 0; width: 1px; }
+  .carga-circula > b:nth-child(odd) { left: 0; right: 0; height: 1.5px; }
+  .carga-circula > b:nth-child(even) { top: 0; bottom: 0; width: 1.5px; }
   .carga-circula > b:nth-child(1) { top: 0; }
   .carga-circula > b:nth-child(2) { right: 0; }
   .carga-circula > b:nth-child(3) { bottom: 0; transform: scaleX(-1); }
   .carga-circula > b:nth-child(4) { left: 0; transform: scaleY(-1); }
   .carga-circula > b > i { position: absolute; display: block; }
-  .carga-circula > b:nth-child(odd) > i { top: 0; height: 100%; right: 100%; background: linear-gradient(90deg, transparent calc(100% - 110px), rgb(var(--ac-2-rgb) / .85) calc(100% - 14px), var(--t1) calc(100% - 6px)); }
-  .carga-circula > b:nth-child(even) > i { left: 0; width: 100%; bottom: 100%; background: linear-gradient(180deg, transparent calc(100% - 110px), rgb(var(--ac-2-rgb) / .85) calc(100% - 14px), var(--t1) calc(100% - 6px)); }
+  .carga-circula > b:nth-child(odd) > i { top: 0; height: 100%; right: 100%; background: linear-gradient(90deg, transparent calc(100% - 140px), var(--ac) calc(100% - 18px), var(--t1) calc(100% - 6px)); }
+  .carga-circula > b:nth-child(even) > i { left: 0; width: 100%; bottom: 100%; background: linear-gradient(180deg, transparent calc(100% - 140px), var(--ac) calc(100% - 18px), var(--t1) calc(100% - 6px)); }
   html.js:not(.menos-movimento) :is(.is-carregado, .is-ignicao, .is-sobrecarga) > .carga-circula { opacity: 1; }
   :is(.is-carregado, .is-ignicao, .is-sobrecarga, .is-esfria) > .carga-circula > b > i { animation-timing-function: linear; animation-iteration-count: infinite; }
   :is(.is-carregado, .is-ignicao, .is-sobrecarga, .is-esfria) > .carga-circula > b:nth-child(odd) > i { animation-name: circula-x; }
   :is(.is-carregado, .is-ignicao, .is-sobrecarga, .is-esfria) > .carga-circula > b:nth-child(even) > i { animation-name: circula-y; }
   /* CARD CHEIO (dono, 2026-10-06): a mesma moldura da sobrecarga — um fio ciano só, sem a mira dos cantos, e um
      pouco abaixo do máximo — para a luz branca que circula aparecer nele (na moldura toda branca ela sumia) */
-  html.js:not(.menos-movimento) .is-carregado > .carga-halo { opacity: .7 !important; }
+  html.js:not(.menos-movimento) .is-carregado > .carga-halo { opacity: .9 !important; }   /* (neon mais forte, dono 2026-10-28) */
   html.js:not(.menos-movimento) .tem-carga.is-fora > .carga-circula { display: none; }   /* (fora da tela, parada: js/carga.js) */
   html.js:not(.menos-movimento) :is(.is-carregado, .is-sobrecarga) > .carga-cantos > b { opacity: 0; }   /* (a mira fecha a moldura e sai: por cima do fio ela fazia um 2º tom nos cantos) */
   .is-carregado > .carga-halo, .is-carregado > .carga-cantos > b { transition: opacity .5s var(--ease), background .6s var(--ease); }
