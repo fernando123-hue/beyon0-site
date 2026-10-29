@@ -9,8 +9,8 @@
       os blocos deslizam para o lugar novo (FLIP, só transform).
    3. A entrada: com a peça bem visível e a rolagem parada, a luz imprime. Cada bloco CARIMBA quando a
       luz passa pela borda de baixo dele; as palavras carimbam em ciano e secam (a tinta molhada do H1).
-      Pendurado na luz desce o tempo que ESTA página levou para abrir (LCP, medido no aparelho) e pousa no
-      pé da moldura. Depois, uma vez, a moldura passa por tablet e celular e pousa na tela de quem vê.
+      Depois, uma vez, a moldura passa por tablet e celular e pousa na tela de quem vê. (O tempo da página
+      pendurado na luz saiu em 2026-10-28: no hero ele punha número de velocidade no topo.)
    4. Nome e tipo de negócio viram marca, título, botões, recursos e endereço do site de exemplo; ao parar
       de digitar, a luz atravessa e a tinta do nome seca. Nada sai da página: o nome só vai ao orçamento
       (sessionStorage) se a pessoa clicar em "Quero o meu site". Também fica em sessionStorage ('bz-negocio',
@@ -31,7 +31,6 @@
   var $ = function (s) { return raiz.querySelector(s); };
   var palco = $('.planta__palco'), moldura = $('.planta__moldura'), pl = $('.pl');
   var luz = $('.planta__luz'), luzV = $('.planta__luz-v');
-  var tempo = $('.planta__tempo'), tempoTexto = $('[data-planta-tempo]');
   var cotaMoldura = $('.planta__medida'), cotaLinhas = raiz.querySelectorAll('.planta__medida-linha'), cotaPontas = raiz.querySelectorAll('.planta__medida-ponta'), cotaNum = $('[data-planta-medida]');
   var regua = $('.planta__regua'), slider = $('.planta__slider'), cursor = $('.planta__cursor'), cota = $('.planta__cota'), voce = $('.planta__voce');
   var campo = $('[data-planta-campo]'), url = $('[data-planta-url]'), titulo = $('[data-planta-titulo]');
@@ -39,7 +38,6 @@
   var formBtn = $('[data-planta-form]');   /* (o botão grande do formulário da landing page) */
   var frase = $('[data-planta-frase]'), formatoBotoes = raiz.querySelectorAll('[data-formato]');
   var quero = cartao.querySelector('[data-planta-quero]');   /* (o texto é fixo, 'Quero o meu site': o exemplo é um teste, não o site que a pessoa recebe — dono, 2026-10-16) */
-  var prova = cartao.querySelector('.planta__prova'), provaTexto = cartao.querySelector('[data-planta-prova]');   /* (ao lado do botão) */
   var nomes = raiz.querySelectorAll('[data-planta-nome]');
   var recursos = raiz.querySelectorAll('[data-planta-recurso]');
   var paradas = raiz.querySelectorAll('[data-parada]');
@@ -401,49 +399,11 @@
     });
   }
 
-  /* ---------- a prova: quanto ESTA página levou para abrir, neste aparelho ---------- */
-  /* LCP (o maior bloco da primeira tela), o mesmo número que o Google usa; o "bom" dele vai até 2,5 s. Acima
-     disso a prova não aparece (nunca um número inventado nem arredondado a favor) */
-  var PROVA_BOA_MS = 2500, lcp = 0;
-  var COTA_ATE_PE = 23;   /* do pé da moldura ao fim da cota, com folga (10 de vão + 9 da cota + 4) */
-  try {
-    new PerformanceObserver(function (l) { var es = l.getEntries(); if (es.length) lcp = es[es.length - 1].startTime; })
-      .observe({ type: 'largest-contentful-paint', buffered: true });
-  } catch (e) { /* navegador sem LCP: sem prova */ }
-  function provar(ms) {
-    /* (sem o parágrafo da prova não há prova: os números de velocidade saíram do topo, dono 2026-10-28; a peça agora
-       está no hero) */
-    if (!prova || !lcp || lcp > PROVA_BOA_MS) return;
-    var s = num(lcp / 1000, 1);
-    escrever(provaTexto, 'Esta página abriu em ' + s + ' s no seu aparelho. O Google considera bom até 2,5 s.');
-    escrever(tempoTexto, s + ' s');
-    var r = moldura.getBoundingClientRect(), p = palco.getBoundingClientRect();
-    tempo.hidden = false;
-    var cw = tempo.offsetWidth, ch = tempo.offsetHeight, x, y0 = r.top - p.top, y1 = r.bottom - p.top - ch, abaixo = false;
-    /* onde o tempo pousa (crítica da rodada 5: no celular ele caía em cima do botão e da foto do site de exemplo):
-       1. ao lado da moldura, descendo com a luz;
-       2. sem vão ao lado, no canto de baixo do palco, quando a luz chega ao pé (a demonstração vem logo depois:
-          moldura larga é baixa e moldura alta é estreita, então o canto fica livre nas duas);
-       3. sem nenhum dos dois (computador com o palco justo), na borda direita, descendo com a luz: ali passa pela
-          margem vazia do site de exemplo */
-    if (r.right - p.left + 8 + cw <= p.width) x = r.right - p.left + 8;
-    else if (r.bottom - p.top + COTA_ATE_PE + ch <= p.height) { abaixo = true; x = p.width - cw; y1 = p.height - ch; y0 = y1 - 8; }
-    else x = p.width - cw;
-    tempo.style.left = Math.max(0, x).toFixed(0) + 'px';
-    var pousa = { transform: 'translateY(' + y1 + 'px)', opacity: 1 };
-    if (reduzido()) tempo.style.transform = pousa.transform;
-    else if (abaixo) tempo.animate([{ transform: 'translateY(' + y0 + 'px)', opacity: 0 }, pousa], { duration: 300, delay: ms, easing: 'cubic-bezier(.16, 1, .3, 1)', fill: 'both' });
-    else tempo.animate([{ transform: 'translateY(' + y0 + 'px)' }, { transform: pousa.transform }], { duration: ms, easing: 'linear', fill: 'forwards' });
-    setTimeout(function () { prova.hidden = false; }, reduzido() ? 0 : ms);
-    /* o tempo pousado sai por relógio, 1,2 s depois da luz (ele mede a moldura da entrada; medido de 320 a 1440 px:
-       no celular ele não encosta na cota durante a demonstração) */
-    setTimeout(function () { tempo.hidden = true; }, ms + 1200);
-  }
   function entrar() {
-    if (lento() && !reduzido()) { aplicar(telaNaRegua(), false, true); imprimir(ENTRADA_MS); provar(ENTRADA_MS); return; }   /* (a largura antes da luz) */
-    /* movimento reduzido: a demonstração só pousa na tela de quem vê; pousa ANTES da prova, que mede a moldura */
-    if (reduzido()) { imprimir(ENTRADA_MS); demonstrar(); provar(ENTRADA_MS); return; }
-    imprimir(ENTRADA_MS); provar(ENTRADA_MS); demonstrar();
+    if (lento() && !reduzido()) { aplicar(telaNaRegua(), false, true); imprimir(ENTRADA_MS); return; }   /* (a largura antes da luz) */
+    /* movimento reduzido: a demonstração só pousa na tela de quem vê */
+    if (reduzido()) { imprimir(ENTRADA_MS); demonstrar(); return; }
+    imprimir(ENTRADA_MS); demonstrar();
   }
 
   /* ---------- 4. nome e tipo de negócio ---------- */
