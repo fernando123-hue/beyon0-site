@@ -74,7 +74,7 @@
 }
 /* a frase do tipo: duas linhas reservadas (trocar de tipo não sacode a peça) */
 .planta-cartao p.planta__frase { max-width: none; min-height: calc(2 * 1.45em); margin: 0; font-size: var(--fs-s); line-height: 1.45; color: var(--t2); text-wrap: pretty; }
-@container planta-ui (max-width: 299px) { .planta-cartao p.planta__frase { min-height: calc(3 * 1.45em); } }   /* (320 px: as frases mais longas vão a 3 linhas) */
+@container planta-ui (max-width: 309px) { .planta-cartao p.planta__frase { min-height: calc(3 * 1.45em); } }   /* (medido de 320 a 1440: abaixo de 310 px de miolo a frase mais longa vai a 3 linhas) */
 
 /* ---------- os controles: tipo de negócio e nome ---------- */
 .planta__controles { display: flex; flex-direction: column; gap: 8px; }

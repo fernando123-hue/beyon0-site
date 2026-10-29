@@ -519,7 +519,14 @@
     imprimir(REIMPRIME_MS);
   }
   [].forEach.call(formatoBotoes, function (b) {
-    b.addEventListener('click', function () { tocou(); escolherFormato(b.getAttribute('data-formato')); });
+    b.addEventListener('click', function () {
+      /* um clique no meio da demonstração (ou do deslize de acabamento da régua) cortava a moldura numa largura
+         intermediária, e o deslize ainda reimprimia depois desta impressão: para tudo e pousa onde ia pousar */
+      var destino = emDemo ? telaNaRegua() : tween ? alvoDoDeslize : 0;
+      tocou(); parar();
+      if (destino) aplicar(destino, false, true);
+      escolherFormato(b.getAttribute('data-formato'));
+    });
   });
 
   /* ---------- liga ---------- */
@@ -537,8 +544,10 @@
      a entrada espera esse instante, senão a luz imprimiria uma peça que ninguém vê. A arte ainda desliza 24 px depois
      disso: as medidas do palco (a cota em pixel inteiro) são refeitas quando ela para. Sem o aviso (sem GSAP, boot
      que falhou), libera sozinha */
-  var liberada = !raiz.closest('.hero__arte') || reduzido() || !B.on || !html.classList.contains('js');
-  function liberar() { if (liberada) return; liberada = true; talvezEntrar(); }
+  var arteHero = raiz.closest('.hero__arte');
+  /* (o aviso não fica guardado: se a arte já apareceu antes deste script ouvir, libera direto, como js/nucleo/boot.js) */
+  var liberada = !arteHero || reduzido() || !B.on || !html.classList.contains('js') || getComputedStyle(arteHero).opacity !== '0';
+  function liberar() { if (liberada) return; liberada = true; marcar(); talvezEntrar(); }
   if (!liberada) {
     B.on('arte-impressa', function () { setTimeout(liberar, 350); setTimeout(marcar, 1100); });
     setTimeout(liberar, 4000);
