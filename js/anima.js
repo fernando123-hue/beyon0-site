@@ -676,7 +676,9 @@
           var arte = hero.querySelector('.hero__arte'), feixe = hero.querySelector('.feixe');
           /* o AI Core não tem paralaxe: a rede (js/rede.js) prende a constelação
              ao portal dele por posição calculada, sem ler layout por quadro */
-          if (arte && !arte.classList.contains('hero__arte--nucleo')) gsap.to(arte, { yPercent: -12, ease: 'none', scrollTrigger: { trigger: hero, start: 'top top', end: 'bottom top', scrub: .8 } });
+          /* nem a Planta (/sites): é um controle (régua, botões, campo), e um controle que escorrega sob o mouse
+             durante a rolagem erra o alvo; ela também mede a própria posição para a cota cair em pixel inteiro */
+          if (arte && !arte.matches('.hero__arte--nucleo, .hero__arte--planta')) gsap.to(arte, { yPercent: -12, ease: 'none', scrollTrigger: { trigger: hero, start: 'top top', end: 'bottom top', scrub: .8 } });
           if (feixe) gsap.to(feixe, { opacity: 0, ease: 'none', scrollTrigger: { trigger: hero, start: '40% top', end: 'bottom top', scrub: true } });
           /* o CTA da nav é discreto enquanto o do hero está na tela; preenche quando ele sai */
           var acoes = hero.querySelector('.hero__actions'), navEl = document.querySelector('.nav');

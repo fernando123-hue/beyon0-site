@@ -13,8 +13,11 @@
       pé da moldura. Depois, uma vez, a moldura passa por tablet e celular e pousa na tela de quem vê.
    4. Nome e tipo de negócio viram marca, título, botões, recursos e endereço do site de exemplo; ao parar
       de digitar, a luz atravessa e a tinta do nome seca. Nada sai da página: o nome só vai ao orçamento
-      (sessionStorage) se a pessoa clicar em "Quero o meu site", e ao WhatsApp numa mensagem que ela vê e
-      decide enviar. Também fica em sessionStorage ('bz-negocio', só o nome) para o atendente de /automacao.
+      (sessionStorage) se a pessoa clicar em "Quero o meu site". Também fica em sessionStorage ('bz-negocio',
+      só o nome) para o atendente de /automacao. (O link do WhatsApp saiu: dono, 2026-10-28, site sem WhatsApp.)
+   5. O TIPO DE SITE (2026-10-28: a peça foi para o hero e engoliu os quatro cartões de formato): institucional,
+      landing page, experiência digital ou loja. Escolher um troca o site de exemplo inteiro (o CSS lê
+      .planta[data-tipo]) e a luz desce e IMPRIME o tipo novo; a frase do tipo troca junto (aria-live).
    Texto trocado sempre pelo nó de texto (nodeValue): um nó novo acionaria o MutationObserver da rede
    (js/rede.js), que remede a página inteira. Movimento reduzido: tudo pronto e parado, e funcionando.
    ========================================================================== */
@@ -32,17 +35,18 @@
   var cotaMoldura = $('.planta__medida'), cotaLinhas = raiz.querySelectorAll('.planta__medida-linha'), cotaPontas = raiz.querySelectorAll('.planta__medida-ponta'), cotaNum = $('[data-planta-medida]');
   var regua = $('.planta__regua'), slider = $('.planta__slider'), cursor = $('.planta__cursor'), cota = $('.planta__cota'), voce = $('.planta__voce');
   var campo = $('[data-planta-campo]'), url = $('[data-planta-url]'), titulo = $('[data-planta-titulo]');
-  var cta = $('[data-planta-cta]'), botao = $('[data-planta-btn]');
+  var cta = $('[data-planta-cta]'), botoes = raiz.querySelectorAll('[data-planta-btn]');
+  var formBtn = $('[data-planta-form]');   /* (o botão grande do formulário da landing page) */
+  var frase = $('[data-planta-frase]'), formatoBotoes = raiz.querySelectorAll('[data-formato]');
   var quero = cartao.querySelector('[data-planta-quero]');   /* (o texto é fixo, 'Quero o meu site': o exemplo é um teste, não o site que a pessoa recebe — dono, 2026-10-16) */
-  var wa = cartao.querySelector('[data-planta-wa]');
-  var prova = $('.planta__prova'), provaTexto = $('[data-planta-prova]');
+  var prova = cartao.querySelector('.planta__prova'), provaTexto = cartao.querySelector('[data-planta-prova]');   /* (ao lado do botão) */
   var nomes = raiz.querySelectorAll('[data-planta-nome]');
   var recursos = raiz.querySelectorAll('[data-planta-recurso]');
   var paradas = raiz.querySelectorAll('[data-parada]');
   var nichoBotoes = raiz.querySelectorAll('[data-nicho]');
   var flips = moldura.querySelectorAll('[data-flip]');
   var blocos = moldura.querySelectorAll('.pl-b');
-  var palavras = [].slice.call(nomes).concat([cta, botao, titulo.children[0], titulo.children[1], titulo.children[2]].concat([].slice.call(recursos)));
+  var palavras = [].slice.call(nomes).concat([cta, formBtn], [].slice.call(botoes), [titulo.children[0], titulo.children[1], titulo.children[2]], [].slice.call(recursos));
 
   var MIN = 360, MAX = 1440;
   var PARADA_DA_FAIXA = [390, 768, 1280];
@@ -55,18 +59,25 @@
      falando com qualquer negócio; os tipos são opcionais e amplos. O nome vem no começo (sem "da"/"do", que
      erraria o gênero de muitos nomes) */
   var NICHOS = {
-    padrao: { t: ['Seu cliente te encontra, entende e ', 'chama em 1 minuto', '.'], comNome: ['', '{n}', ': o cliente encontra, entende e chama em 1 minuto.'], cta: 'Fale com a gente', btn: 'Chamar no WhatsApp', rec: ['Serviços', 'Depoimentos', 'Como chegar', 'WhatsApp'] },
-    servicos: { t: ['', '{n}', ': o serviço certo, com orçamento na hora.'], cta: 'Pedir orçamento', btn: 'Pedir orçamento', rec: ['Serviços', 'Como funciona', 'Depoimentos', 'WhatsApp'] },
-    comercio: { t: ['', '{n}', ': o que você procura, a um clique.'], cta: 'Ver produtos', btn: 'Ver catálogo', rec: ['Catálogo', 'Entrega', 'Trocas', 'WhatsApp'] },
-    saude: { t: ['', '{n}', ': sua consulta marcada sem esperar.'], cta: 'Agendar', btn: 'Agendar no WhatsApp', rec: ['Convênios', 'Agenda online', 'Como chegar', 'WhatsApp'] },
-    organizacao: { t: ['', '{n}', ': associe-se sem sair de casa.'], cta: 'Associe-se', btn: 'Quero me associar', rec: ['Benefícios', 'Convênios', 'Notícias', 'Associe-se'] }
+    padrao: { t: ['Seu cliente te encontra, entende e ', 'chama em 1 minuto', '.'], comNome: ['', '{n}', ': o cliente encontra, entende e chama em 1 minuto.'], cta: 'Fale com a gente', btn: 'Chamar no WhatsApp', form: 'Fale com a gente', rec: ['Serviços', 'Depoimentos', 'Como chegar', 'WhatsApp'] },
+    servicos: { t: ['', '{n}', ': o serviço certo, com orçamento na hora.'], cta: 'Pedir orçamento', btn: 'Pedir orçamento', form: 'Pedir orçamento', rec: ['Serviços', 'Como funciona', 'Depoimentos', 'WhatsApp'] },
+    comercio: { t: ['', '{n}', ': o que você procura, a um clique.'], cta: 'Ver produtos', btn: 'Ver catálogo', form: 'Receber ofertas', rec: ['Catálogo', 'Entrega', 'Trocas', 'WhatsApp'] },
+    saude: { t: ['', '{n}', ': sua consulta marcada sem esperar.'], cta: 'Agendar', btn: 'Agendar no WhatsApp', form: 'Agendar consulta', rec: ['Convênios', 'Agenda online', 'Como chegar', 'WhatsApp'] },
+    organizacao: { t: ['', '{n}', ': associe-se sem sair de casa.'], cta: 'Associe-se', btn: 'Quero me associar', form: 'Quero me associar', rec: ['Benefícios', 'Convênios', 'Notícias', 'Associe-se'] }
+  };
+  /* o tipo de site: as chaves são as do orçamento (api/_vendas/precos.mjs); a frase é a dos antigos cartões, mais curta */
+  var FORMATOS = {
+    institucional: 'O site completo: quem você é, o que faz e por que confiar em você.',
+    landing_page: 'Uma página só, para uma ação: pedir orçamento, se inscrever ou comprar.',
+    sob_medida: 'Visual e movimento criados só para a sua marca, quando um modelo pronto não basta.',
+    loja_plataforma: 'Loja pronta (Nuvemshop ou Shopify) com a sua marca e até 30 produtos.'
   };
   var mq = window.matchMedia('(prefers-reduced-motion: reduce)');
   var grosso = window.matchMedia('(pointer: coarse)');
   function reduzido() { return mq.matches || html.classList.contains('menos-movimento'); }
 
   var largura = 1280, escala = 1, tween = 0, passos = [], mexeu = false, impressa = false, visivel = false;
-  var nicho = 'padrao', nome = '';
+  var nicho = 'padrao', nome = '', formato = 'institucional';
   /* medidas do palco e da régua, lidas só quando o tamanho muda (ler a cada passo, logo depois de escrever a
      largura da moldura, forçava layout no meio do quadro) */
   var medida = { pw: 0, ph: 0, rw: 0, letra: 0 };
@@ -447,7 +458,8 @@
     [].forEach.call(recursos, function (el, i) { escrever(el, cfg.rec[i]); });
     escrever(url, endereco(nome));
     escrever(cta, cfg.cta);
-    escrever(botao, cfg.btn);
+    escrever(formBtn, cfg.form);
+    [].forEach.call(botoes, function (el) { escrever(el, cfg.btn); });
     /* o atendente de IA (js/peca-atendente.js) passa a falar com este nome e este tipo de negócio */
     document.dispatchEvent(new CustomEvent('bz:negocio', { detail: { nome: nome, nicho: nicho } }));
   }
@@ -488,13 +500,26 @@
     try {
       if (nome) sessionStorage.setItem('bz-planta-nome', nome); else sessionStorage.removeItem('bz-planta-nome');
       if (nicho !== 'padrao') sessionStorage.setItem('bz-planta-nicho', nicho); else sessionStorage.removeItem('bz-planta-nicho');
+      /* (o tipo escolhido, com a chave do orçamento; o /orcamento ainda não lê: fica pronto para quando ler) */
+      sessionStorage.setItem('bz-formato', formato);
     } catch (e) { /* sem armazenamento: o orçamento abre vazio */ }
   });
-  /* no WhatsApp, a mensagem com o nome aparece pronta e a pessoa decide se envia */
-  if (wa) wa.addEventListener('click', function () {
-    if (!B.linkWA) return;
-    var tipo = { servicos: 'serviços', comercio: 'comércio', saude: 'saúde', organizacao: 'uma organização' }[nicho];
-    wa.href = B.linkWA('quero um site para ' + (nome || 'o meu negócio') + (tipo ? ' (' + tipo + ')' : ''));
+
+  /* ---------- 5. o tipo de site ---------- */
+  /* troca o site de exemplo inteiro e a luz imprime o tipo novo (a mesma descida de soltar a régua). Antes da entrada
+     (a peça ainda não impressa) só troca: a entrada já vai imprimir */
+  function escolherFormato(novo) {
+    if (!FORMATOS[novo] || novo === formato) return;
+    formato = novo;
+    raiz.setAttribute('data-tipo', novo);
+    [].forEach.call(formatoBotoes, function (o) { o.setAttribute('aria-pressed', String(o.getAttribute('data-formato') === novo)); });
+    escrever(frase, FORMATOS[novo]);
+    if (!impressa) return;
+    if (desmontada) { raiz.classList.remove('is-tracando'); desmontada = false; }
+    imprimir(REIMPRIME_MS);
+  }
+  [].forEach.call(formatoBotoes, function (b) {
+    b.addEventListener('click', function () { tocou(); escolherFormato(b.getAttribute('data-formato')); });
   });
 
   /* ---------- liga ---------- */
@@ -508,12 +533,23 @@
   /* entra com a peça bem visível e a rolagem parada (a 40% e no meio da rolagem, o gesto da marca acontecia
      fora de vista); se sair da tela no meio da demonstração, ela pousa no fim e para */
   var parada = 0, entrou = false;
+  /* no hero, a arte nasce invisível e aparece quando o feixe do boot passa por ela (js/anima.js avisa 'arte-impressa');
+     a entrada espera esse instante, senão a luz imprimiria uma peça que ninguém vê. A arte ainda desliza 24 px depois
+     disso: as medidas do palco (a cota em pixel inteiro) são refeitas quando ela para. Sem o aviso (sem GSAP, boot
+     que falhou), libera sozinha */
+  var liberada = !raiz.closest('.hero__arte') || reduzido() || !B.on || !html.classList.contains('js');
+  function liberar() { if (liberada) return; liberada = true; talvezEntrar(); }
+  if (!liberada) {
+    B.on('arte-impressa', function () { setTimeout(liberar, 350); setTimeout(marcar, 1100); });
+    setTimeout(liberar, 4000);
+  }
   function talvezEntrar() {
     clearTimeout(parada);
-    parada = setTimeout(function () { if (visivel && !entrou) { entrou = true; window.removeEventListener('scroll', talvezEntrar); entrar(); } }, 150);
+    parada = setTimeout(function () { if (visivel && liberada && !entrou) { entrou = true; window.removeEventListener('scroll', talvezEntrar); entrar(); } }, 150);
   }
   new IntersectionObserver(function (es) {
     visivel = es[0].isIntersecting;
+    raiz.classList.toggle('is-fora', !visivel);   /* (o giro da experiência digital para fora da tela) */
     if (visivel && !entrou) { window.addEventListener('scroll', talvezEntrar, { passive: true }); talvezEntrar(); }
     else if (!visivel) window.removeEventListener('scroll', talvezEntrar);   /* passou rápido: nada escuta a rolagem fora da tela */
     if (!visivel && emDemo) { parar(); cortarDemo(); aplicar(telaNaRegua(), false, true); }
