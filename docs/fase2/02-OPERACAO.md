@@ -98,6 +98,10 @@ Enquanto não há verba para a API, as três direções não são geradas pelo m
   Passou do teto: o modelo não é chamado, e a pessoa recebe o WhatsApp com o briefing salvo. Os valores são chute inicial: medir o custo real das primeiras conversas e ajustar.
 - **Preço do modelo** (`PRECO_POR_MILHAO`): conferir na página de preços da Anthropic antes de ligar. O custo gravado por conversa é calculado com essa tabela.
 
+## 2b. Prazo prometido × real (dono, 2026-10-28)
+
+Sem trava de prazo, o prazo de cada formato (`prazo_dias` da tabela) precisa acompanhar o que a produção entrega. `node "<repo>/scripts/prazo-real.mjs"` (com `BZ_BASE` e `PAINEL_CHAVE` no terminal, só lê) mostra por formato: entregas, média e p75 dos dias úteis reais (do início do relógio ao dia no ar, sem a espera pelos ajustes), % no prazo e a sugestão (prazo da tabela + p75 do atraso, só para cima, com 3 entregas ou mais). A lista do painel não guarda as concluídas: para o histórico inteiro, `--sql` imprime a consulta só de leitura para o SQL Editor, e `--arquivo` lê a exportação. Mudar a tabela é decisão do dono, numa versão nova.
+
 ## 3. Pagamento (Mercado Pago)
 
 Escolhido pelo dono em 2026-10-07: Mercado Pago, Pix e cartão no próprio site. Tudo sobre o pagamento (arquitetura, credenciais, webhook, estados, incidentes, configuração de TESTE e PRODUÇÃO e o checklist do primeiro pagamento real) está em `docs/pagamentos/01-ARQUITETURA-E-OPERACAO.md`. A pesquisa e as decisões estão em `docs/pagamentos/00-PESQUISA-E-PLANO.md`. O gateway simulado da Fase 2 foi removido. Local e testes usam um simulador fiel da Orders API (`docs/mp-simulado.mjs`).
