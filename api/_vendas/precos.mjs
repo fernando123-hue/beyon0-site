@@ -7,7 +7,8 @@
      → nunca abaixo do piso → arredondado → sinal pela regra.
    O PRAZO soma o do formato e o de cada adicional. Ele tem um teto
    (prazo_max_dias; até 2026-10-28 era 10, "até 10 dias, todos os formatos";
-   desde então o rascunho usa 60, o máximo, e o projeto sai numa entrega só).
+   desde então o rascunho usa 60, o máximo, e o projeto sai numa entrega só;
+   só a loja no extremo ainda passa disso: prazoMaximoPossivel, no fim deste arquivo).
    O que não cabe no teto vira FASE SEGUINTE (lista separada, com o próprio
    valor), na ordem de prioridade da tabela: nada é cortado em silêncio, nada
    é prometido além.

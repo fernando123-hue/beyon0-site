@@ -16,6 +16,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validarBase, paraTerminal } from './direcoes.mjs';
+import { cabecalhosDeAcesso } from '../docs/acesso.mjs';
 import { analisarPrazos, deItemDoPainel, tabelaDePrazos } from './prazo-real-lib.mjs';
 
 const TEMPO_MS = 30000;
@@ -47,7 +48,7 @@ function itensDoArquivo(arquivo) {
 async function itensDoPainel(env, buscar) {
   const origem = validarBase(env.BZ_BASE), chave = env.PAINEL_CHAVE || '';
   if (chave.length < 32) throw new Error('Defina PAINEL_CHAVE (a chave do painel) no ambiente do SEU terminal, não em arquivo.');
-  const r = await buscar(origem + '/api/painel?fila=entregas', { method: 'GET', redirect: 'error', headers: { authorization: 'Bearer ' + chave }, signal: AbortSignal.timeout(TEMPO_MS) });
+  const r = await buscar(origem + '/api/painel?fila=entregas', { method: 'GET', redirect: 'error', headers: { authorization: 'Bearer ' + chave, ...cabecalhosDeAcesso(env, origem) },   /* (o staging fica atrás do Access, como em direcoes.mjs) */ signal: AbortSignal.timeout(TEMPO_MS) });
   const corpo = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(corpo && typeof corpo.erro === 'string' ? paraTerminal(corpo.erro.split(chave).join('[chave]'), 400) : 'O painel respondeu ' + r.status + '.');
   return Array.isArray(corpo.entregas) ? corpo.entregas : [];

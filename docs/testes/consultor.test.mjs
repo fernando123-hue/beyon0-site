@@ -445,3 +445,19 @@ test('instruções: o prazo vem da estimativa; cada formato sozinho pelos dias d
   const teto = JSON.parse(JSON.stringify(REGRAS)); teto.prazo_max_dias = 10;
   assert.match(montarSistema(teto), /passar de 10 dias úteis[^.]*fase 1/);
 });
+
+/* revisão do diff de 28/10: sem formato conhecido, o aviso da área não manda estimar (o estimar sem formato volta erro, turno
+   após turno); ele vem junto do passo da descoberta. E a linha da loja não manda a loja do zero para o diagnóstico */
+test('área que não se faz hoje sem formato: avisa e segue a descoberta; a loja do zero não vai ao diagnóstico no prompt', () => {
+  const semFormato = { negocio: { segmento: 'associação' }, objetivos: ['apresentar_empresa'], situacao_atual: 'só Instagram', funcionalidades: ['area_restrita'] };
+  const p = proximoPasso({ etapa: 'descoberta', briefing: semFormato, estimativa: null, regras: REGRAS });
+  assert.match(p, /área restrita[^.]*não faz hoje/);
+  assert.match(p, /Descobrir o formato/);
+  assert.doesNotMatch(p, /(?<!não )chame estimar/);
+  const spin = proximoPasso({ etapa: 'descoberta', briefing: { ...semFormato, situacao_atual: undefined }, estimativa: null, regras: REGRAS });
+  assert.match(spin, /não faz hoje[^]*Antes do formato/);
+  const loja = montarSistema(REGRAS).split('\n').find(l => l.startsWith('- Loja virtual: vender online'));
+  assert.match(loja, /feita do zero[^.]*não faz isso hoje/);
+  assert.doesNotMatch(loja, /diagnóstico/);
+  assert.match(montarSistema(comFora(REGRAS)).split('\n').find(l => l.startsWith('- Loja virtual: vender online')), /diagnóstico/, 'tabela antiga: como antes');
+});
