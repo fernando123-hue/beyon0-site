@@ -423,3 +423,25 @@ test('instruções: o que a Beyon Zero não faz hoje, sem diagnóstico nem Whats
   assert.doesNotMatch(antiga, /A Beyon Zero não faz hoje/);
   assert.match(ferramentas(comFora(REGRAS)).find(f => f.name === 'encaminhar_diagnostico').description, /Área restrita com login/);
 });
+
+/* dono, 2026-10-28: "se o trabalho não couber em 10 dias úteis, crie uma métrica para analisar e aumentar a quantidade de
+   dias desde já". O prazo vem da estimativa (o tamanho do trabalho), não de um teto fixo */
+test('instruções: o prazo vem da estimativa; cada formato sozinho pelos dias da tabela; trabalho maior, prazo maior, numa entrega só', () => {
+  const s = montarSistema(REGRAS);
+  for (const f of Object.values(REGRAS.formatos)) assert.ok(s.includes(f.nome + ', ' + f.prazo_dias + ' dias úteis'), 'os dias de ' + f.nome + ' saem da tabela');
+  assert.doesNotMatch(s, /até 10 dias úteis|fases de até|em até \d+ dias úteis depois do sinal/, 'sem o teto fixo antigo');
+  assert.match(s, /numa entrega só/);
+  assert.match(s, /ferramenta estimar/);
+  for (const regra of ['contado do sinal pago e do material recebido', 'Se o material atrasa, o prazo anda junto', 'Sábado, domingo e feriado nacional não contam', 'Enquanto o cliente não manda a lista de ajustes, o prazo fica parado'])
+    assert.ok(s.includes(regra), 'continua: ' + regra);
+  /* gerado dos dados: outro prazo na tabela, outro texto */
+  const outra = JSON.parse(JSON.stringify(REGRAS)); outra.formatos.landing_page.prazo_dias = 7;
+  assert.ok(montarSistema(outra).includes('Landing page, 7 dias úteis'));
+  /* fase: só quando o motor ainda pode gerar uma (a loja extrema passa de 60 na tabela real) */
+  assert.match(s, /passar de 60 dias úteis[^.]*fase 1/);
+  const semLoja = JSON.parse(JSON.stringify(REGRAS)); delete semLoja.formatos.loja_plataforma;
+  for (const [k, x] of Object.entries(semLoja.adicionais)) if (x.requer?.includes('loja_plataforma')) delete semLoja.adicionais[k];
+  assert.doesNotMatch(montarSistema(semLoja), /fase 1|fase seguinte/, 'sem fase possível, não fala de fase');
+  const teto = JSON.parse(JSON.stringify(REGRAS)); teto.prazo_max_dias = 10;
+  assert.match(montarSistema(teto), /passar de 10 dias úteis[^.]*fase 1/);
+});

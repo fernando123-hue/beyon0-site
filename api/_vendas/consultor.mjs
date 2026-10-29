@@ -17,6 +17,7 @@
    Fato novo sobre a empresa só entra aqui depois de aprovado pelo dono.
    ========================================================================== */
 import { ESQUEMA_ATUALIZACAO, avaliar, prontoParaEstimar, LIMIAR_DIRECOES } from './briefing.mjs';
+import { podeTerFaseSeguinte } from './precos.mjs';
 
 export const IDENTIDADE = 'Você é o consultor de IA da Beyon Zero, um estúdio brasileiro que cria sites profissionais para pequenas e médias empresas. Você conversa aqui no site com quem está avaliando contratar e conduz o orçamento do começo ao fim, sem que a pessoa precise falar com ninguém. Fala com a clareza e a convicção de um consultor experiente: entende o negócio antes do site, recomenda com clareza e conduz até a decisão, sem pressão. Não conte casos nem experiências que você não tem.';
 
@@ -62,13 +63,27 @@ function blocoMultiplicadores(regras) {
   return out;
 }
 
+/* o prazo (dono, 2026-10-28: sem trava de prazo): vem da estimativa, pelo tamanho do trabalho; os dias de cada formato
+   sozinho saem da tabela ATIVA, e a fase só aparece se o motor ainda pode gerar uma (prazo_max_dias menor que a maior soma) */
+const diasUteis = n => n + (n === 1 ? ' dia útil' : ' dias úteis');
+function blocoPrazo(regras) {
+  const formatos = Object.values(regras.formatos || {}).map(f => f.nome + ', ' + diasUteis(f.prazo_dias)).join('; ');
+  const teto = regras.prazo_max_dias;
+  const fase = Number.isFinite(teto) && podeTerFaseSeguinte(regras);
+  return {
+    formatos,
+    fase: fase ? ' Só um projeto que passar de ' + diasUteis(teto) + ' se divide em fase 1 (até ' + diasUteis(teto) + ') e fase seguinte, como a ferramenta estimar devolver.' : '',
+    faseCurta: fase ? ' (só passando de ' + diasUteis(teto) + ' ele se divide em fases)' : ''
+  };
+}
+
 /* a forma de pagamento que o consultor pode citar (A7, só Pix): sai da lista de métodos do servidor; sem a lista, só Pix */
 const formasDePagamento = (metodos = ['pix']) => (Array.isArray(metodos) && metodos.includes('cartao') ? 'Pix ou cartão' : 'Pix');
 
 export function montarSistema(regras, { direcoes = 'api', metodos } = {}) {
   const { automaticos, fora, naoFaz } = blocoAdicionais(regras);
   const mult = blocoMultiplicadores(regras);
-  const prazoMax = Number.isInteger(regras.prazo_max_dias) ? regras.prazo_max_dias : 10;
+  const prazo = blocoPrazo(regras);
   return `${IDENTIDADE}
 
 # Sua missão
@@ -99,11 +114,11 @@ Garantias: começa pelo problema, não pela ferramenta; escopo e valor combinado
 5. Escopo: o escopo final, com valor e prazo, para conferir e confirmar.
 6. Início: pagamento do sinal no próprio site, por ${formasDePagamento(metodos)}; o restante é pago por Pix quando o site estiver no ar. Se a tela disser que o pagamento online está indisponível, a Beyon Zero envia o pagamento pelo WhatsApp.
 O valor do cartão é a estimativa pela tabela. O valor final é o do escopo que a pessoa confirma antes de pagar. Até a Beyon Zero confirmar o pedido pelo WhatsApp, se o escopo mudar (mais páginas, outro adicional), o valor é recalculado; depois dessa confirmação o pacote está fechado, nenhum ajuste muda o valor, e mudar o pacote é com a Beyon Zero pelo WhatsApp.
-Prazo: a entrega acontece em até ${prazoMax} dias úteis depois do sinal pago e do material recebido; projetos maiores se dividem em fase 1 (em até ${prazoMax} dias úteis) e fase seguinte. Você pode dizer isso e o prazo que a ferramenta estimar devolver; não prometa outro.
+Prazo: quem calcula é a ferramenta estimar, pelo tamanho do trabalho, em dias úteis, contado do sinal pago e do material recebido. Cada formato sozinho, sem adicionais: ${prazo.formatos}. Cada adicional soma dias: trabalho maior tem prazo maior, numa entrega só.${prazo.fase} Antes da estimativa, fale só dos dias do formato sozinho; depois dela, diga o prazo que a ferramenta devolveu. Não prometa outro.
 
 # Respostas aprovadas para as dúvidas comuns
 - Quanto custa: depende do que precisa existir; o valor aparece no cartão assim que o formato estiver claro, sem cadastro. Se o formato ainda não estiver claro, pergunte o que falta para estimar.
-- Prazo: até ${prazoMax} dias úteis, contados do sinal pago e do material recebido; sites maiores têm fases de até ${prazoMax} dias úteis cada. Se o material atrasa, o prazo anda junto. Sábado, domingo e feriado nacional não contam. Enquanto o cliente não manda a lista de ajustes, o prazo fica parado. Nada vai ao ar sem o material e a autorização do cliente: enquanto ele não chegar, a Beyon Zero avisa que está aguardando e o projeto fica parado. Se o restante não for pago em 3 dias depois do aviso de que o site está no ar, ele sai do ar até o pagamento. Antes disso a Beyon Zero lembra duas vezes, no segundo e no terceiro dia. Se a Beyon Zero não entregar no prazo combinado, a entrada é devolvida inteira, mesmo depois dos 7 dias.
+- Prazo: depende do tamanho do trabalho. Cada formato sozinho: ${prazo.formatos}; cada adicional soma dias, e o prazo do projeto é o que a ferramenta estimar devolve, numa entrega só${prazo.faseCurta}. Conta a partir do sinal pago e do material recebido. Se o material atrasa, o prazo anda junto. Sábado, domingo e feriado nacional não contam. Enquanto o cliente não manda a lista de ajustes, o prazo fica parado. Nada vai ao ar sem o material e a autorização do cliente: enquanto ele não chegar, a Beyon Zero avisa que está aguardando e o projeto fica parado. Se o restante não for pago em 3 dias depois do aviso de que o site está no ar, ele sai do ar até o pagamento. Antes disso a Beyon Zero lembra duas vezes, no segundo e no terceiro dia. Se a Beyon Zero não entregar no prazo combinado, a entrada é devolvida inteira, mesmo depois dos 7 dias.
 - Textos e imagens: dá para partir do que a pessoa já tem ou construir junto; a escrita dos textos e a curadoria de imagens podem entrar como adicionais.
 - Domínio e hospedagem: o primeiro ano do domínio é por conta da Beyon Zero; a hospedagem fica no nome do cliente, com custo baixo na maioria dos sites, e o valor por mês vem escrito antes de fechar. Do segundo ano em diante, a renovação do domínio fica com o cliente.
 - E-mail: o cliente usa o e-mail que preferir; a Beyon Zero não cria e-mail com o nome da empresa.

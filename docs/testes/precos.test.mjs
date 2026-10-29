@@ -255,3 +255,24 @@ test('rascunho: a entrada é 40% (decisão do dono de 20/10, Decisões.md, "O si
   assert.equal(REGRAS.sinal_percentual, 40);
   assert.match(REGRAS._status, /40%/, 'o _status diz de onde veio o 40');
 });
+
+/* o consultor só fala de fase quando o motor ainda pode gerar uma (prazo_max_dias menor que a maior soma possível) */
+test('prazo máximo possível por formato: a soma de tudo no máximo, a mesma que o motor faz', async () => {
+  const { prazoMaximoPossivel, podeTerFaseSeguinte } = await import('../../api/_vendas/precos.mjs');
+  /* loja: 8 + 55 páginas extras × 0,5 (até 60 páginas) + gerais 3,75 + 0,5 + 1,5 + 1 + 2 + 3 + 3 + 4 + loja 10 + 1 + 1 + 4 + 3 + 2 = 75,25 */
+  assert.equal(prazoMaximoPossivel(REGRAS, 'loja_plataforma'), 75.25);
+  /* experiência: 10 + 56 × 0,5 + 18,75 = 56,75; landing: 5 + 2 páginas × 0,5 (até 3 páginas) + 18,75 = 24,75 */
+  assert.equal(prazoMaximoPossivel(REGRAS, 'sob_medida'), 56.75);
+  assert.equal(prazoMaximoPossivel(REGRAS, 'landing_page'), 24.75);
+  const geral = { textos: 15, imagens: 1, formulario_avancado: 3, agendamento: 1, blog: 1, catalogo: 1, integracao: 3, idioma: 2 };
+  const loja = estimar({ formato: 'loja_plataforma', paginas: 60, adicionais: { ...geral, produtos_lote_25: 20, pagamento_extra: 2, frete_transportadora: 1, integracao_erp: 2, marketplace: 2, migracao_loja: 1 } }, REGRAS);
+  assert.equal(loja.fase, 'fase1', 'o motor confirma: a loja com tudo passa de 60 dias');
+  const sob = estimar({ formato: 'sob_medida', paginas: 60, adicionais: geral }, REGRAS);
+  assert.deepEqual([sob.fase, sob.prazo_dias], ['unica', 57], 'e a experiência com tudo cabe: 56,75 → 57');
+  assert.equal(podeTerFaseSeguinte(REGRAS), true, 'só a loja extrema ainda chega à fase seguinte');
+  const semLoja = copia(); delete semLoja.formatos.loja_plataforma;
+  for (const [k, x] of Object.entries(semLoja.adicionais)) if (x.requer?.includes('loja_plataforma')) delete semLoja.adicionais[k];
+  assert.equal(podeTerFaseSeguinte(semLoja), false, 'sem a loja, nada passa de 60');
+  assert.equal(podeTerFaseSeguinte(MOTOR), true, 'com teto de 10, passa');
+  assert.equal(prazoMaximoPossivel(REGRAS, 'nao_existe'), 0);
+});

@@ -5,9 +5,12 @@
    fatores contra a tabela ATIVA e calculam valor, sinal e prazo.
      base do formato + adicionais (valor × quantidade) → × multiplicadores
      → nunca abaixo do piso → arredondado → sinal pela regra.
-   O PRAZO tem teto (o dono: "até 10 dias, todos os formatos"). O que não cabe
-   no teto vira FASE SEGUINTE (lista separada, com o próprio valor), na ordem
-   de prioridade da tabela: nada é cortado em silêncio, nada é prometido além.
+   O PRAZO soma o do formato e o de cada adicional. Ele tem um teto
+   (prazo_max_dias; até 2026-10-28 era 10, "até 10 dias, todos os formatos";
+   desde então o rascunho usa 60, o máximo, e o projeto sai numa entrega só).
+   O que não cabe no teto vira FASE SEGUINTE (lista separada, com o próprio
+   valor), na ordem de prioridade da tabela: nada é cortado em silêncio, nada
+   é prometido além.
    Itens marcados "fora do automático" (loja, área restrita…) e valores acima
    do limite encaminham para o diagnóstico (conversa com o dono).
    Funções puras: sem banco, sem rede. Testes: docs/testes/precos.test.mjs.
@@ -19,6 +22,7 @@ export const LANDING_GRANDE = 'A landing page vai até 3 páginas. Para 4 ou mai
 /* a loja (tabela v2, 2026-10-09) é OPCIONAL: uma tabela ativa anterior, sem ela, continua válida; se o código subir antes
    da v2 ser ativada, o orçamento segue funcionando com os três formatos (revisão de segurança) */
 const OBRIGATORIOS = ['landing_page', 'institucional', 'sob_medida'];
+export const PAGINAS_MAX = 60;   /* (validarFatores: o total de páginas que o pedido pode ter) */
 export const CHAVE = /^[a-z][a-z0-9_]{1,40}$/;   /* (o fluxo filtra o corpo com esta mesma: um padrão só) */
 const numero = (v, min, max) => typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max;
 
@@ -90,7 +94,7 @@ export function validarFatores(f, regras) {
   const disponiveis = FORMATOS.filter(k => objeto(regras.formatos?.[k]));   /* (só os que a tabela ATIVA traz) */
   if (!disponiveis.includes(f.formato)) erros.push('formato: um de ' + disponiveis.join(', '));
   const paginas = f.paginas === undefined ? null : f.paginas;
-  if (paginas !== null && !(Number.isInteger(paginas) && paginas >= 1 && paginas <= 60)) erros.push('paginas: inteiro de 1 a 60');
+  if (paginas !== null && !(Number.isInteger(paginas) && paginas >= 1 && paginas <= PAGINAS_MAX)) erros.push('paginas: inteiro de 1 a ' + PAGINAS_MAX);
   const adicionais = {};
   for (const [k, q] of Object.entries(f.adicionais || {})) {
     const def = Object.hasOwn(regras.adicionais, k) ? regras.adicionais[k] : null;   /* (constructor, toString…: não são adicionais) */
@@ -186,3 +190,23 @@ export function estimar(fatoresBrutos, regras) {
     fatores: f
   };
 }
+
+/* ---------- o maior prazo que o motor pode somar (o consultor só fala de fase se ela ainda pode existir) ----------
+   Todos os adicionais automáticos que o formato alcança (requer), cada um no máximo, sem urgência. As páginas extras
+   vão até PAGINAS_MAX pelo total de páginas (que passa do max do adicional), e na landing até LANDING_MAX_PAGINAS. */
+export function prazoMaximoPossivel(regras, formato) {
+  const fmt = regras?.formatos?.[formato];
+  if (!objeto(fmt)) return 0;
+  const automaticos = Object.entries(regras.adicionais || {}).filter(([, a]) => objeto(a) && !a.fora_do_automatico);
+  const alcancados = new Set();
+  for (let mudou = true; mudou;) {
+    mudou = false;
+    for (const [k, a] of automaticos) if (!alcancados.has(k) && (!Array.isArray(a.requer) || a.requer.some(r => r === formato || alcancados.has(r)))) { alcancados.add(k); mudou = true; }
+  }
+  const landing = formato === 'landing_page';
+  const qtdMax = (k, a) => k !== 'pagina_extra' ? a.max
+    : landing ? Math.max(0, LANDING_MAX_PAGINAS - fmt.paginas_incluidas) : Math.max(a.max, PAGINAS_MAX - fmt.paginas_incluidas);
+  return automaticos.filter(([k]) => alcancados.has(k)).reduce((soma, [k, a]) => soma + a.prazo_dias * qtdMax(k, a), fmt.prazo_dias);
+}
+
+export const podeTerFaseSeguinte = regras => FORMATOS.some(k => prazoMaximoPossivel(regras, k) > regras.prazo_max_dias + 1e-9);
