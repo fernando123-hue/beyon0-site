@@ -40,7 +40,7 @@ test('o exemplo da especificação: aproveita o que a pessoa disse, monta o brie
   assert.equal(r.briefing.negocio.segmento, 'odontologia');
   assert.ok(r.briefing.objetivos.includes('apresentar_empresa'));
   assert.equal(r.briefing.projeto.formato, 'institucional');
-  assert.equal(r.estimativa.valor_total, 3900, 'o preço vem do motor');
+  assert.equal(r.estimativa.valor_total, 7900, 'o preço vem do motor');
   assert.ok(!/R\$|reais/i.test(r.resposta), 'nenhum valor no texto');
   assert.ok(!/O que a sua empresa faz/i.test(r.resposta), 'não pergunta de novo o que já sabe');
 });
@@ -81,9 +81,9 @@ test('modelo malicioso: ferramenta inexistente vira erro; laço de ferramentas p
 test('o estimado não chega ao modelo: ele recebe prazo e itens, nunca o valor', async () => {
   const ia = roteiro([comFerramentas(chamada('estimar', { formato: 'institucional', paginas: 6 })), fim('Pronto, veja o cartão.')]);
   const r = await executarTurno({ ia, regras: REGRAS, conversa: nova(), mensagem: 'site institucional de 6 páginas' });
-  assert.equal(r.estimativa.valor_total, 4250);
+  assert.equal(r.estimativa.valor_total, 8250);   /* 7900 + 1 página extra × 350; sinal 40% = 3300 */
   const visto = ia.recebidos[1].mensagens.at(-1).content[0].content;
-  assert.ok(!visto.includes('4250') && !visto.includes('2125'), 'o modelo não viu o valor: ' + visto);
+  assert.ok(!visto.includes('8250') && !visto.includes('3300'), 'o modelo não viu o valor: ' + visto);
   assert.ok(visto.includes('dias úteis'), 'o prazo chega escrito como o escopo diz: ' + visto);
 });
 
@@ -269,7 +269,7 @@ test('loja em plataforma pronta tem preço pela tabela (tabela v2)', async () =>
   const r = await executarTurno({ ia: criarSimulada(), regras: REGRAS, conversa: nova(), mensagem: 'Tenho uma loja de roupas e quero vender online com loja virtual, para aumentar as vendas' });
   assert.equal(r.diagnostico, null, 'não vai para o diagnóstico');
   assert.equal(r.estimativa?.formato?.chave, 'loja_plataforma');
-  assert.equal(r.estimativa.valor_total, 4800, 'o preço vem do motor');
+  assert.equal(r.estimativa.valor_total, 8900, 'o preço vem do motor');
 });
 
 test('fora do automático (loja feita do zero) vai para o diagnóstico, sem preço', async () => {
