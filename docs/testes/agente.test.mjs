@@ -135,7 +135,7 @@ test('escopo e sinal: o que o consultor nunca diz sai por código, não só pelo
     /* (revisão técnica do PR 34, rodada 3: frases que o próprio consultor vai usar no escopo e no sinal) */
     'O escopo já foi confirmado; agora falta só o sinal, por Pix ou cartão.', 'O escopo está confirmado. Para começar, é só pagar o sinal aqui na tela.',
     'Assim que recebemos o sinal e o material, a gente começa o trabalho.', 'Depois do sinal, o projeto entra em produção e o prazo começa a contar.',
-    'O código é liberado na entrega, no seu nome.', 'Se o Pix não caiu na tela em alguns minutos, fale com a Beyon Zero pelo WhatsApp.',
+    'O código é liberado na entrega, no seu nome.', 'Se o Pix não caiu na tela em alguns minutos, deixe um recado para a equipe.',
     'Sim, o domínio .com.br está incluído no primeiro ano.', 'Sem o sinal pago, o trabalho não começa.', 'A hospedagem vai direto para o seu nome.',
     'Metade das páginas vai no primeiro prazo, a outra metade na fase seguinte.', 'O certificado de segurança é gratuito e já vem ativo.',
     'Quando o pagamento for confirmado, a tela mostra o projeto em produção.',

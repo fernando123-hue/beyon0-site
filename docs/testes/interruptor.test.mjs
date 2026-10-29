@@ -9,7 +9,7 @@ import { ateEntregaCriada } from './_entrega.mjs';
 import { entregaLigada, FRASE_DESLIGADA } from '../../api/_material/interruptor.mjs';
 
 /* as ações POST de /api/vendas que já existiam antes da entrega e as que a entrega trouxe (estas ficam atrás do interruptor) */
-const ANTIGAS = ['sessao', 'retomar', 'renovar', 'mensagem', 'gerar', 'gerar-direcao', 'escolher', 'ajustar', 'desfazer', 'pedido-livre', 'escopo', 'confirmar', 'pagar', 'simular', 'confirmar-pacote', 'detalhes'];
+const ANTIGAS = ['recado', 'sessao', 'retomar', 'renovar', 'mensagem', 'gerar', 'gerar-direcao', 'escolher', 'ajustar', 'desfazer', 'pedido-livre', 'escopo', 'confirmar', 'pagar', 'simular', 'confirmar-pacote', 'detalhes'];
 const DA_ENTREGA = ['material-salvar', 'material-reservar', 'material-conferir', 'material-remover', 'material-enviar', 'link-pedido', 'sair-do-aparelho', 'outro-aparelho', 'abrir-pedido', 'previa-ajustes', 'previa-aprovar'];
 
 let local, cen;
@@ -40,14 +40,14 @@ test('desligada: as ações novas dão 503 com a saída pelo WhatsApp, e o estad
   const { n, c } = await ateEntregaCriada(cen, local, { env: {} });
   for (const acao of DA_ENTREGA.filter(a => a !== 'abrir-pedido')) {   /* (a lista inteira da entrega: o teste do fim do arquivo a fecha) */
     const r = await n.chamar('POST', acao, { conversa_id: c });
-    assert.equal(r.status, 503, acao); assert.equal(r.corpo.erro, FRASE_DESLIGADA); assert.equal(r.corpo.whatsapp, true);
+    assert.equal(r.status, 503, acao); assert.equal(r.corpo.erro, FRASE_DESLIGADA); assert.equal(r.corpo.recado, true);
   }
   assert.equal((await cen.navegador().chamar('POST', 'abrir-pedido', { codigo: 'a'.repeat(32) })).status, 503);
   const e = await cen.estado(n, c);
   assert.equal(e.entrega, undefined); assert.equal(e.entrega_ligada, false);
   /* o restante: a conversa em produção, com a entrega desligada, não cobra nada (o pagar dá 503 antes de qualquer valor) */
   const pg = await n.chamar('POST', 'pagar', { conversa_id: c, metodo: 'pix', pagador: { nome: 'Ana', sobrenome: 'Souza', email: 'ana@exemplo.com', documento: '52998224725' } });
-  assert.equal(pg.status, 503); assert.equal(pg.corpo.erro, FRASE_DESLIGADA); assert.equal(pg.corpo.whatsapp, true);
+  assert.equal(pg.status, 503); assert.equal(pg.corpo.erro, FRASE_DESLIGADA); assert.equal(pg.corpo.recado, true);
 });
 
 test('ligada: o estado traz a entrega e entrega_ligada true', async () => {

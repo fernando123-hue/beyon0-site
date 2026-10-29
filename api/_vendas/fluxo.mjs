@@ -34,6 +34,7 @@ import { PEDIDOS } from './pedido.mjs';
 import { criarAcoesDoMaterial } from './fluxo-material.mjs';
 import { criarAcoesDoLink } from './fluxo-link.mjs';
 import { criarAcoesDaPrevia } from './fluxo-previa.mjs';
+import { criarAcoesDoRecado } from './fluxo-recado.mjs';
 import { entregaLigada, FRASE_DESLIGADA } from '../_material/interruptor.mjs';
 
 import { ORG } from './org.mjs';
@@ -47,8 +48,8 @@ const CONVERSA_ABERTA = ['descoberta', 'estimativa', 'contato', 'direcoes', 'esc
 const TRAVA_IA_S = 300;
 const RESERVA_S = 600;   /* a reserva de custo vence sozinha se a função cair no meio (a geração cabe em 300 s) */
 const USO_IP48_IA = 'ia48';   /* o "uso" da chave /48 do consultor em privado.freio_ip (o do pedido é 'pedido48': contadores separados) */
-const LIMITE_CONVERSA = 'Chegamos ao limite desta conversa por aqui. Continue com a Beyon Zero pelo WhatsApp: o seu briefing já está salvo.';
-const LIMITE_DIA = 'O consultor está com muita procura agora. Seu briefing está salvo; tente de novo mais tarde ou fale pelo WhatsApp.';
+const LIMITE_CONVERSA = 'Chegamos ao limite desta conversa por aqui. Deixe um recado para a equipe: o seu briefing já está salvo.';
+const LIMITE_DIA = 'O consultor está com muita procura agora. Seu briefing está salvo; tente de novo mais tarde ou deixe um recado.';
 
 /* respostas de erro: o que o visitante vê (sem detalhe interno). A classe mora em recusa.mjs (o fluxo do pedido
    também a usa); daqui ela continua exportada para quem já a importava */
@@ -60,7 +61,7 @@ export function traduzirErro(e) {
   /* tempo máximo de uma chamada ao Supabase esgotado: lentidão passageira, não erro interno */
   if (e && (e.name === 'TimeoutError' || e.name === 'AbortError')) return new Recusa(503, 'O serviço está lento agora. Suas informações foram preservadas; tente de novo em instantes.', { recuperavel: true });
   /* o Auth do Supabase instável (429, 5xx, rede): passageiro, nunca "sessão expirada" nem erro interno (auditoria 2026-10-09) */
-  if (e instanceof AuthIndisponivel) return new Recusa(503, e.paraVisitante || 'O serviço está instável agora. Suas informações foram preservadas; tente de novo em instantes.', e.recuperavel ? { recuperavel: true } : { whatsapp: true });
+  if (e instanceof AuthIndisponivel) return new Recusa(503, e.paraVisitante || 'O serviço está instável agora. Suas informações foram preservadas; tente de novo em instantes.', e.recuperavel ? { recuperavel: true } : { recado: true });
   if (e instanceof ErroBanco) {
     if (e.codigo === 'P0002') return new Recusa(404, 'Não encontrado.');
     if (e.codigo === '55000') return new Recusa(409, 'Esta etapa ainda não está disponível.');
@@ -89,7 +90,7 @@ const CACHE = { cache: true };
 const freioSimular = criarFreio({ max: 60, janelaMs: 60 * 60e3 });
 const freioConfirmar = criarFreio({ max: 20, janelaMs: 60 * 60e3 });
 const freioCatalogo = criarFreio({ max: 60, janelaMs: 60 * 60e3 });
-const PACOTE_FECHADO = 'O pacote já foi fechado. Para mudar, fale com a Beyon Zero pelo WhatsApp.';
+const PACOTE_FECHADO = 'O pacote já foi fechado. Para mudar, deixe um recado para a equipe.';
 const TABELA_MUDOU = 'A tabela de valores mudou enquanto você montava o orçamento. Confira o valor novo.';
 /* o mesmo JSON sem depender da ordem das chaves (o jsonb volta do banco com as chaves na ordem dele) */
 const canonico = v => (Array.isArray(v) ? v.map(canonico)
@@ -97,33 +98,33 @@ const canonico = v => (Array.isArray(v) ? v.map(canonico)
 const mesmoJson = (a, b) => JSON.stringify(canonico(a)) === JSON.stringify(canonico(b));
 const ETAPAS_PACOTE = ['descoberta', 'estimativa'];   /* = app.vendas_registrar_respostas: depois do contato o pacote não muda por aqui */
 const CONFIANCA_FORMULARIO = 0.4;   /* fixa: o formulário dá o começo do briefing; nunca vem do corpo */
-const TABELA_EM_ATUALIZACAO = 'A tabela de valores está em atualização. Fale com a Beyon Zero pelo WhatsApp.';
+const TABELA_EM_ATUALIZACAO = 'A tabela de valores está em atualização. Deixe um recado para a equipe.';
 
 /* (PR 2a, revisão final M1) a situação do pedido nas ações do visitante. Regra do dono: "Descartar encerra o pedido e
    para o que faltava fazer": descartado, NENHUMA ação seguinte passa (gerar, gerar-direcao, escolher, ajustar, desfazer, pedido-livre, escopo,
    pagar). Arquivado (resolvido por fora) não bloqueia; só não gera de novo, como todo pedido que não está confirmado */
-const PEDIDO_ENCERRADO = 'Este pedido foi encerrado. Fale com a Beyon Zero pelo WhatsApp.';
+const PEDIDO_ENCERRADO = 'Este pedido foi encerrado. Deixe um recado para a equipe.';
 const NAO_GERA = {
   aguardando: ['O pedido ainda está aguardando a confirmação pelo WhatsApp.', undefined],
-  expirado: [PEDIDO_ENCERRADO, { whatsapp: true }],
-  descartado: [PEDIDO_ENCERRADO, { whatsapp: true }],
-  arquivado: ['Este pedido segue com a Beyon Zero pelo WhatsApp.', { whatsapp: true }]
+  expirado: [PEDIDO_ENCERRADO, { recado: true }],
+  descartado: [PEDIDO_ENCERRADO, { recado: true }],
+  arquivado: ['Este pedido segue com a equipe da Beyon Zero. Se precisar, deixe um recado.', { recado: true }]
 };
 /* sem pedido (o fluxo antigo, contato direto) ou em situação desconhecida: a frase de sempre */
 const SEM_CONFIRMACAO = ['O pedido ainda não foi confirmado pelo WhatsApp.', undefined];
 function exigirNaoDescartado(est) {
-  if (est.pedido && est.pedido.status === 'descartado') throw new Recusa(409, PEDIDO_ENCERRADO, { whatsapp: true });
+  if (est.pedido && est.pedido.status === 'descartado') throw new Recusa(409, PEDIDO_ENCERRADO, { recado: true });
 }
 /* (PR 3b-3) o que se cobra com a conversa em produção é o RESTANTE: só com o interruptor ligado, só com o site no ar, só por Pix. A decisão é pela entrega (passo) e pela etapa
    da conversa, nunca por "existe entrega" (uma entrega encerrada não é entrada paga nem site no ar). O VALOR e a parcela são do banco (pagamentos_iniciar_tentativa), nunca do
    corpo; aqui só a frase certa antes dele. Fora dessas etapas nada muda: a entrada segue o caminho de sempre */
-const RESTANTE_TRAVADO = 'Não foi possível abrir o pagamento do restante agora. A Beyon Zero confere o seu pedido e resolve com você pelo WhatsApp.';
+const RESTANTE_TRAVADO = 'Não foi possível abrir o pagamento do restante agora. A Beyon Zero confere o seu pedido e resolve com você por e-mail: deixe um recado.';
 function exigirRestanteAberto(est, corpo, env) {
   const etapa = est.conversa.etapa, passo = est.entrega && est.entrega.passo;
   if (etapa !== 'em_producao' && !(etapa === 'encerrada' && passo)) return;
-  if (!entregaLigada(env)) throw new Recusa(503, FRASE_DESLIGADA, { whatsapp: true });
+  if (!entregaLigada(env)) throw new Recusa(503, FRASE_DESLIGADA, { recado: true });
   if (passo === 'concluida') throw new Recusa(409, 'O restante deste pedido já foi pago.');
-  if (passo === 'encerrada') throw new Recusa(409, PEDIDO_ENCERRADO, { whatsapp: true });
+  if (passo === 'encerrada') throw new Recusa(409, PEDIDO_ENCERRADO, { recado: true });
   if (passo !== 'no_ar' && passo !== 'suspensa') throw new Recusa(409, 'O restante abre quando o site estiver no ar.');
   if (corpo?.metodo !== 'pix') throw new Recusa(400, 'O restante é pago por Pix.');
 }
@@ -212,7 +213,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     const r = await banco('vendas_reservar_ia', { conversa_id: conversaId, visitante_id: vid, max_turnos: TETOS.turnos_por_conversa, teto_usd: TETOS.conversa_usd,
       segundos: TRAVA_IA_S, chave_ip: request ? chaveDoIp(ip, segredoFreio, agora) : null, max_por_ip: TETOS.conversas_por_ip_dia,
       chave_ip48: request ? chaveDoIp48(ip, segredoFreio, agora, USO_IP48_IA) : null, max_por_ip48: TETOS.conversas_por_ip48_dia });
-    if (r && r.ok === false && r.freio_ip) throw new Recusa(429, 'Muitas conversas deste endereço hoje. Fale com a Beyon Zero pelo WhatsApp: a gente continua por lá.', { whatsapp: true });
+    if (r && r.ok === false && r.freio_ip) throw new Recusa(429, 'Muitas conversas deste endereço hoje. Deixe um recado para a equipe: a gente responde por e-mail.', { recado: true });
   }
   /* RESERVA um valor REALISTA da chamada (RESERVA_USD em api/_ia/config.mjs) no teto antes de chamar o modelo
      (app.vendas_reservar_custo, numa transação que trava a organização): chamadas em paralelo não passam mais todas pela
@@ -231,7 +232,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     try {
       const r = await banco('vendas_reservar_custo', { conversa_id: conversaId, visitante_id: vid, valor_usd: valor,
         teto_conversa_usd: TETOS.conversa_usd, teto_dia_usd: TETOS.dia_usd, segundos: RESERVA_S });
-      if (r && r.ok === false) throw r.motivo === 'dia' ? new Recusa(503, LIMITE_DIA, { whatsapp: true }) : new Recusa(429, LIMITE_CONVERSA, { whatsapp: true });
+      if (r && r.ok === false) throw r.motivo === 'dia' ? new Recusa(503, LIMITE_DIA, { recado: true }) : new Recusa(429, LIMITE_CONVERSA, { recado: true });
       reserva = r && r.reserva_id;
       if (!reserva) throw Object.assign(new Error('reserva sem id'), { codigo: 'SEM_RESERVA' });   /* (resposta inesperada: fecha) */
     } catch (e) {
@@ -240,7 +241,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
          reserva não se chama o modelo (revisões do PR 15) */
       const semFuncao = e && (e.codigo === '42883' || e.codigo === 'PGRST202');
       console.error(JSON.stringify({ origem: 'vendas', nivel: 'erro', request_id: requestId || null, evento: semFuncao ? 'reserva de custo indisponível (função ausente): segue sem reserva' : 'reserva de custo falhou: não chama o modelo', codigo: e && e.codigo }));
-      if (!semFuncao) throw new Recusa(503, 'O consultor está indisponível agora. Seu briefing está salvo; tente de novo em instantes ou fale pelo WhatsApp.', { whatsapp: true });
+      if (!semFuncao) throw new Recusa(503, 'O consultor está indisponível agora. Seu briefing está salvo; tente de novo em instantes ou deixe um recado.', { recado: true });
     }
     try { return await fn(); }
     finally {
@@ -252,14 +253,14 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     }
   }
   async function dentroDoCusto(est) {
-    if (Number(est.conversa.custo_ia_usd) >= TETOS.conversa_usd) throw new Recusa(429, LIMITE_CONVERSA, { whatsapp: true });
+    if (Number(est.conversa.custo_ia_usd) >= TETOS.conversa_usd) throw new Recusa(429, LIMITE_CONVERSA, { recado: true });
     const dia = await banco('vendas_custo_dia', { org_slug: ORG });
-    if (Number(dia.custo_usd) >= TETOS.dia_usd) throw new Recusa(503, LIMITE_DIA, { whatsapp: true });
-    /* o disjuntor: o provedor de IA falhou nas últimas 5 chamadas (10 min) → não chama, oferece o WhatsApp */
+    if (Number(dia.custo_usd) >= TETOS.dia_usd) throw new Recusa(503, LIMITE_DIA, { recado: true });
+    /* o disjuntor: o provedor de IA falhou nas últimas 5 chamadas (10 min) → não chama, oferece o recado */
     /* (consulta que falha — ex.: migration ainda não aplicada — não derruba o agente: na dúvida, chama; o log avisa) */
     const disjuntor = await banco('vendas_ia_disponivel', { org_slug: ORG })
       .catch(e => { console.error(JSON.stringify({ origem: 'vendas', nivel: 'erro', request_id: requestId || null, evento: 'disjuntor não consultado', codigo: e && e.codigo })); return null; });
-    if (disjuntor && disjuntor.disponivel === false) throw new Recusa(503, 'O consultor está fora do ar por alguns minutos. Seu briefing está salvo; tente de novo daqui a pouco ou fale pelo WhatsApp.', { whatsapp: true });
+    if (disjuntor && disjuntor.disponivel === false) throw new Recusa(503, 'O consultor está fora do ar por alguns minutos. Seu briefing está salvo; tente de novo daqui a pouco ou deixe um recado.', { recado: true });
   }
 
   /* um turno com a trava da IA já reservada. O que se GRAVA é o texto redigido (sem telefone, e-mail,
@@ -318,6 +319,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     ...criarAcoesDoMaterial({ banco, visitante, estado, armazem, segredoFreio, requestId, env }),
     ...criarAcoesDoLink({ banco, visitante, visitantes, segredoFreio, env }),
     ...criarAcoesDaPrevia({ banco, visitante, estado, env }),
+    ...criarAcoesDoRecado({ banco, visitantes, segredoFreio }),
 
     /* começar: cria o visitante anônimo e a conversa, com a origem da visita (das métricas, sem dado pessoal) */
     async sessao({ corpo }) {
@@ -344,8 +346,8 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       exigir(ehUuid(query.get('conversa')), 400, 'Conversa inválida.');
       const { fila_confirmados: naFila, ...e } = await estado(vid, query.get('conversa'));
       delete e.conversa.custo_ia_usd;   /* (métrica interna) */
-      /* (PR 2a) a tela oferece o WhatsApp ANTES dos detalhes quando a fila do dono está cheia; o número em si é interno */
-      /* (PR 3b-2, M5) a entrega só aparece com o interruptor ligado; desligado, a tela mostra a saída pelo WhatsApp */
+      /* (PR 2a) a tela oferece o recado ANTES dos detalhes quando a fila do dono está cheia; o número em si é interno */
+      /* (PR 3b-2, M5) a entrega só aparece com o interruptor ligado; desligado, a tela mostra a saída pelo recado */
       if (!entregaLigada(env)) delete e.entrega;
       return { ...e, fila_cheia: Number(naFila) >= limitesPedido.fila_confirmados, modo_direcoes: modo, entrega_ligada: entregaLigada(env) };   /* (a tela troca "alguns minutos" por "até 24 horas úteis") */
     },
@@ -355,7 +357,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       const vid = await visitante(request);
       exigir(ehUuid(query.get('conversa')), 400, 'Conversa inválida.');
       await donoDaConversa(vid, query.get('conversa'), ETAPAS_PACOTE);   /* (de outro visitante: 404; depois do contato: 409) */
-      exigir(!freioCatalogo(query.get('conversa')), 429, 'Muitas consultas seguidas. Espere um pouco ou fale pelo WhatsApp.');
+      exigir(!freioCatalogo(query.get('conversa')), 429, 'Muitas consultas seguidas. Espere um pouco ou deixe um recado.');
       const regras = await regrasAtivas(banco, CACHE);
       exigir(regras, 503, TABELA_EM_ATUALIZACAO);
       return { versao: regras.id, ...catalogoPublico(regras.regras, { formato: query.get('formato'), ramo: query.get('ramo') }) };
@@ -366,7 +368,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       const vid = await visitante(request);
       exigir(ehUuid(corpo?.conversa_id), 400, 'Conversa inválida.');
       await donoDaConversa(vid, corpo.conversa_id, ETAPAS_PACOTE);   /* (antes do freio: ninguém gasta a cota da conversa de outro) */
-      exigir(!freioSimular(corpo.conversa_id), 429, 'Muitas simulações seguidas. Espere um pouco ou fale pelo WhatsApp.');
+      exigir(!freioSimular(corpo.conversa_id), 429, 'Muitas simulações seguidas. Espere um pouco ou deixe um recado.');
       const { regras, rec, e } = await pacote(corpo, CACHE);
       const recomendacao = publicaRec(rec);
       if (e.encaminhar_diagnostico) return { versao: regras.id, recomendacao, estimativa: null, diagnostico: { itens: e.itens_diagnostico.map(i => nomeDeTela(i.chave, i.nome)) } };
@@ -378,7 +380,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       const vid = await visitante(request);
       exigir(ehUuid(corpo?.conversa_id), 400, 'Conversa inválida.');
       const dono = await donoDaConversa(vid, corpo.conversa_id, ETAPAS_PACOTE);
-      exigir(!freioConfirmar(corpo.conversa_id), 429, 'Muitas tentativas seguidas. Espere um pouco ou fale pelo WhatsApp.');
+      exigir(!freioConfirmar(corpo.conversa_id), 429, 'Muitas tentativas seguidas. Espere um pouco ou deixe um recado.');
       let { regras, rec, e, formato } = await pacote(corpo, CACHE);
       if (corpo?.versao !== regras.id) {
         /* a tabela guardada pode ter até 30 s: antes de dizer que a versão mudou, confere no banco. A leitura sem cache também
@@ -386,7 +388,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
         ({ regras, rec, e, formato } = await pacote(corpo));
         if (corpo?.versao !== regras.id) throw new Recusa(409, TABELA_MUDOU, { versao_nova: regras.id });
       }
-      exigir(!e.encaminhar_diagnostico, 409, 'Esse pacote precisa de uma conversa. Fale com a Beyon Zero pelo WhatsApp.');
+      exigir(!e.encaminhar_diagnostico, 409, 'Esse pacote precisa de uma conversa. Deixe um recado para a equipe.');
       /* o mesmo pacote de novo (duplo toque, outra aba): nada a gravar (PR37-S3) */
       if (dono.estimativa && dono.estimativa.regras_id === regras.id && mesmoJson(dono.estimativa.fatores, e.fatores)) return { estimativa: cartao(e) };
       try {
@@ -413,10 +415,10 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       exigir(msg, 400, 'Escreva uma mensagem de até 2.000 caracteres.');
       const est = await estado(vid, corpo.conversa_id);
       exigir(CONVERSA_ABERTA.includes(est.conversa.etapa), 409, 'Agora o seu orçamento segue pelas etapas abaixo da conversa.');
-      exigir(est.conversa.turnos < TETOS.turnos_por_conversa, 429, 'Esta conversa ficou longa. Continue pelo WhatsApp: seu briefing já está salvo.');
+      exigir(est.conversa.turnos < TETOS.turnos_por_conversa, 429, 'Esta conversa ficou longa. Deixe um recado para a equipe: seu briefing já está salvo.');
       await dentroDoCusto(est);
       const regras = await regrasAtivas(banco);
-      exigir(regras, 503, 'A tabela de valores está em atualização. Seu briefing está salvo; fale com a Beyon Zero pelo WhatsApp.');
+      exigir(regras, 503, 'A tabela de valores está em atualização. Seu briefing está salvo; deixe um recado para a equipe.');
       if (pareceInjecao(msg)) await banco('vendas_registrar_evento', { conversa_id: corpo.conversa_id, visitante_id: vid, tipo: 'tentativa_bloqueada' }).catch(() => {});
       await reservarIa(corpo.conversa_id, vid, request);
       try {
@@ -497,7 +499,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       /* quem volta depois que a retenção de 2 meses apagou o resumo do caso e os pedidos de ajuste (o contato fica 12
          meses): o escopo sairia sem o que foi combinado; melhor recomeçar (revisão técnica do PR 35) */
       const apagado = !Object.keys(est.conversa.briefing || {}).length || (est.alteracoes || []).some(a => a.pedido === '[apagado]');
-      exigir(!apagado, 409, 'Este orçamento ficou parado por muito tempo e parte do que você contou foi apagada pelo nosso prazo de privacidade. Comece um novo orçamento ou fale com a Beyon Zero pelo WhatsApp.');
+      exigir(!apagado, 409, 'Este orçamento ficou parado por muito tempo e parte do que você contou foi apagada pelo nosso prazo de privacidade. Comece um novo orçamento ou deixe um recado para a equipe.');
       const aplicadas = est.alteracoes.filter(a => a.status === 'aplicada').flatMap(a => (a.mudancas || []).filter(m => m.aplicada));
       /* (PR 3a) dos pedidos livres o resumo recebe só a situação (o texto da pessoa fica fora do contrato: spec §7) */
       const pedidosLivres = est.alteracoes.filter(a => a.origem === 'livre').map(a => ({ status: a.status }));
@@ -519,18 +521,18 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     async pagar({ request, corpo }) {
       const vid = await visitante(request);
       exigir(ehUuid(corpo?.conversa_id), 400, 'Conversa inválida.');
-      exigir(pagamentos, 503, 'O pagamento online ainda não está disponível. A Beyon Zero envia o link pelo WhatsApp.');
+      exigir(pagamentos, 503, 'O pagamento online ainda não está disponível. Deixe um recado para a equipe, com o seu e-mail, que ela envia o link.');
       /* sem contato (ou com o contato anonimizado pela retenção de 12 meses), o cliente nasceria sem nome nem telefone */
       const est = await estado(vid, corpo.conversa_id);
       exigirNaoDescartado(est);
       exigirRestanteAberto(est, corpo, env);
-      if (!est.conversa.tem_contato) throw new Recusa(409, 'Antes de pagar, precisamos do seu contato de novo: fale com a Beyon Zero pelo WhatsApp citando o código do pedido.', { whatsapp: true });
+      if (!est.conversa.tem_contato) throw new Recusa(409, 'Antes de pagar, precisamos do seu contato de novo: deixe um recado para a equipe citando o código do pedido.', { recado: true });
       try {
         return await pagamentos.iniciar({ conversa_id: corpo.conversa_id, visitante_id: vid, metodo: corpo?.metodo, pagador: corpo?.pagador, cartao: corpo?.cartao });
       } catch (e) {
         /* o restante, recusado pelo banco (55000: a entrada estornada ou contestada, o pagamento já feito, em verificação…). Decide o CÓDIGO, nunca a mensagem: no transporte de
-           produção ela é só "rpc nome: HTTP status". A equipe resolve; a pessoa lê uma frase e sai pelo WhatsApp */
-        if (est.conversa.etapa === 'em_producao' && e instanceof ErroBanco && e.codigo === '55000') throw new Recusa(409, RESTANTE_TRAVADO, { whatsapp: true });
+           produção ela é só "rpc nome: HTTP status". A equipe resolve; a pessoa lê uma frase e sai pelo recado */
+        if (est.conversa.etapa === 'em_producao' && e instanceof ErroBanco && e.codigo === '55000') throw new Recusa(409, RESTANTE_TRAVADO, { recado: true });
         throw e;
       }
     },

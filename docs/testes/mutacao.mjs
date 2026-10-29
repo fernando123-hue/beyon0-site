@@ -489,9 +489,11 @@ export const SABOTAGENS = [
   { nome: "o verificador aceita a captação com regras diferentes das do site (3b-3c)", fonte: "scripts/antes-de-ligar.mjs", testes: ['docs/testes/antes-de-ligar.test.mjs'],
     de: "const igual = JSON.stringify(valor) === JSON.stringify(esperado);", para: "const igual = true;" },
   { nome: "o verificador esquece a migration da lista do painel, a 10ª (3b-3c)", fonte: "scripts/antes-de-ligar.mjs", testes: ['docs/testes/antes-de-ligar.test.mjs'],
-    de: ", '20261024120400_pr3b3_lista.sql',\n  '20261028120000_aviso_no_ar_so_no_ar.sql'\n];", para: ", /* sem a lista */\n  '20261028120000_aviso_no_ar_so_no_ar.sql'\n];" },
+    de: ", '20261024120400_pr3b3_lista.sql',\n  '20261028120000_aviso_no_ar_so_no_ar.sql'", para: ", /* sem a lista */\n  '20261028120000_aviso_no_ar_so_no_ar.sql'" },
   { nome: "o verificador esquece a migration do aviso \"no ar\" (a de 28/10)", fonte: "scripts/antes-de-ligar.mjs", testes: ['docs/testes/antes-de-ligar.test.mjs'],
-    de: ",\n  '20261028120000_aviso_no_ar_so_no_ar.sql'\n];", para: "\n];" },
+    de: ",\n  '20261028120000_aviso_no_ar_so_no_ar.sql'", para: "" },
+  { nome: "o verificador esquece a migration dos recados (a de 29/10)", fonte: "scripts/antes-de-ligar.mjs", testes: ['docs/testes/antes-de-ligar.test.mjs'],
+    de: ", '20261029120000_recados.sql'", para: "" },
   { nome: "o servidor local liga a entrega mesmo com BZ_ENTREGA_LOCAL=desligada (3b-3c)", fonte: "docs/servidor.mjs", testes: ['docs/testes/interruptor.test.mjs'],
     de: "if (process.env.BZ_ENTREGA_LOCAL !== 'desligada') process.env.BZ_ENTREGA = 'ligada';", para: "process.env.BZ_ENTREGA = 'ligada';" },
   /* ---- 28/10: o aviso \"no ar\" só vale com o site no ar, e a fila de avisos traz o passo da entrega ---- */

@@ -280,7 +280,7 @@ test('visitante: refresh recusado com 403/422 encerra a sessão; login anônimo 
     const r = await vendas('POST', 'sessao', { corpo: {} });
     assert.equal(r.status, 503, s + ': ' + JSON.stringify(r.corpo));
     assert.equal(r.corpo.recuperavel, undefined, s + ': tentar de novo não resolve configuração');
-    assert.equal(r.corpo.whatsapp, true, s + ': a saída é o WhatsApp');
+    assert.equal(r.corpo.recado, true, s + ': a saída é o WhatsApp');
     assert.ok(!/HTTP|supabase|anonymous/i.test(r.corpo.erro), s + ': sem detalhe interno: ' + r.corpo.erro);
   }
   assert.ok(logs.some(l => /login anônimo desligado ou mal configurado.*HTTP 422/.test(l)), 'o log diz o que conferir no Supabase: ' + logs.join('\n'));

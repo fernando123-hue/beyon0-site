@@ -179,8 +179,8 @@ test('teto: 30 ajustes por pedido (aplicados e desfeitos contam); o 31º é 409 
   }
   const r = await n.chamar('POST', 'ajustar', { conversa_id: c, opcao: PALETA_2 });
   assert.equal(r.status, 409, JSON.stringify(r.corpo));
-  assert.equal(r.corpo.erro, 'Você chegou ao limite de 30 ajustes neste pedido. Para mudar mais, fale com a Beyon Zero pelo WhatsApp.');
-  assert.equal(r.corpo.whatsapp, true);
+  assert.equal(r.corpo.erro, 'Você chegou ao limite de 30 ajustes neste pedido. Para mudar mais, deixe um recado para a equipe.');
+  assert.equal(r.corpo.recado, true);
 });
 
 test('pedido livre: até 3, curto, redigido, numa linha, na fila e sem IA; o 4º é 409; o resumo só conta, sem o texto', async () => {
@@ -202,7 +202,7 @@ test('pedido livre: até 3, curto, redigido, numa linha, na fila e sem IA; o 4º
   /* (o banco também recusa o 4º com 23514: o teste prova o comportamento, não só a camada da API) */
   const quarto = await n.chamar('POST', 'pedido-livre', { conversa_id: c, texto: 'Quarto pedido' });
   assert.equal(quarto.status, 409);
-  assert.equal(quarto.corpo.erro, 'Você já fez os 3 pedidos escritos deste orçamento. Para mais, fale com a Beyon Zero pelo WhatsApp.');
+  assert.equal(quarto.corpo.erro, 'Você já fez os 3 pedidos escritos deste orçamento. Para mais, deixe um recado para a equipe.');
   const esc = await n.chamar('POST', 'escopo', { conversa_id: c });
   assert.equal(esc.status, 200, JSON.stringify(esc.corpo));
   assert.ok(esc.corpo.escopo.includes('- Pedidos escritos: 3 não incluídos neste valor (aguardando ou recusados).'), esc.corpo.escopo);
@@ -274,7 +274,7 @@ test('pedido descartado: ajustar, desfazer e pedido-livre dizem "encerrado" com 
     const r = await n.chamar('POST', acao, corpo);
     assert.equal(r.status, 409, acao);
     assert.match(r.corpo.erro, /^Este pedido foi encerrado\./, acao);
-    assert.equal(r.corpo.whatsapp, true, acao);
+    assert.equal(r.corpo.recado, true, acao);
   }
 });
 
@@ -283,8 +283,8 @@ test('pedido arquivado (resolvido por fora): o pedido livre vai para o WhatsApp;
   assert.equal((await cen.painelPost({ arquivar_pedido: c })).status, 200);
   const r = await n.chamar('POST', 'pedido-livre', { conversa_id: c, texto: 'Quero o mapa' });
   assert.equal(r.status, 409, JSON.stringify(r.corpo));
-  assert.equal(r.corpo.erro, 'Este pedido segue com a Beyon Zero pelo WhatsApp: escreva por lá o que quer mudar.');
-  assert.equal(r.corpo.whatsapp, true);
+  assert.equal(r.corpo.erro, 'Este pedido segue com a equipe da Beyon Zero: deixe um recado com o que quer mudar.');
+  assert.equal(r.corpo.recado, true);
   assert.deepEqual(await ajustesNoBanco(c), [], 'nada ficou "aguardando" para sempre');
   assert.equal((await n.chamar('POST', 'ajustar', { conversa_id: c, opcao: PALETA_2 })).status, 200);
 });
@@ -299,8 +299,8 @@ test('pedido livre: o dono arquivou entre a leitura e a gravação (55000 do ban
   antesDeGravar = () => cen.painelPost({ arquivar_pedido: c });
   const r = await n.chamar('POST', 'pedido-livre', { conversa_id: c, texto: 'Quero o mapa' });
   assert.equal(r.status, 409, JSON.stringify(r.corpo));
-  assert.equal(r.corpo.erro, 'Este pedido segue com a Beyon Zero pelo WhatsApp: escreva por lá o que quer mudar.');
-  assert.equal(r.corpo.whatsapp, true);
+  assert.equal(r.corpo.erro, 'Este pedido segue com a equipe da Beyon Zero: deixe um recado com o que quer mudar.');
+  assert.equal(r.corpo.recado, true);
   assert.deepEqual(await ajustesNoBanco(c), [], 'nada ficou "aguardando"');
 });
 

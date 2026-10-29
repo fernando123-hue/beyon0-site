@@ -29,7 +29,7 @@ export const FRASES = Object.freeze({
   logoGrande: 'Logo grande demais (até 5 MB).',
   limiteFotos: 'Você chegou ao limite de 20 fotos.',
   limiteLogo: 'Já há uma logo. Tire a atual para trocar.',
-  limiteReservas: 'Você chegou ao limite de arquivos deste pedido. Se precisar de mais, fale com a Beyon Zero pelo WhatsApp.',
+  limiteReservas: 'Você chegou ao limite de arquivos deste pedido. Se precisar de mais, deixe um recado para a equipe.',
   limitePedido: 'O total das fotos passou de 150 MB. Tire alguma ou mande menores.',
   balde: 'Recebemos muitos arquivos agora. Tente de novo amanhã.',
   freio: 'Muitos envios seguidos. Espere um pouco e tente de novo.',
@@ -70,7 +70,7 @@ export function criarAcoesDoMaterial({ banco, visitante, estado, armazem, segred
       case 'tamanho': return new Recusa(422, papel === 'logo' ? FRASES.logoGrande : FRASES.fotoGrande);
       case 'fotos': return new Recusa(409, FRASES.limiteFotos);
       case 'logo': return new Recusa(409, FRASES.limiteLogo);
-      case 'reservas': return new Recusa(409, FRASES.limiteReservas, { whatsapp: true });
+      case 'reservas': return new Recusa(409, FRASES.limiteReservas, { recado: true });
       case 'pedido': return new Recusa(409, FRASES.limitePedido);
       case 'balde': return new Recusa(503, FRASES.balde, { recuperavel: true, tentarDepois: true });   /* (o navegador não fica repetindo: esperar segundos não esvazia o balde) */
       case 'freio': return new Recusa(429, FRASES.freio);
@@ -188,7 +188,7 @@ export function criarAcoesDoMaterial({ banco, visitante, estado, armazem, segred
   };
   /* o interruptor (M5): desligado, nenhuma ação passa, nem lê o corpo; o estado diz `entrega_ligada: false` */
   return Object.fromEntries(Object.entries(acoes).map(([nome, f]) => [nome, async a => {
-    if (!entregaLigada(env)) throw new Recusa(503, FRASE_DESLIGADA, { whatsapp: true });
+    if (!entregaLigada(env)) throw new Recusa(503, FRASE_DESLIGADA, { recado: true });
     return f(a);
   }]));
 }

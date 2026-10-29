@@ -6,6 +6,7 @@
      1. retenção que a página de privacidade promete (app.vendas_reter): texto das conversas de quem não fechou em
         60 dias, o contato dele em 12 meses, e o texto da conversa de quem pagou em 30 dias (menos contestação)
      2. retenção das métricas (~13 meses; antes era feita ao ABRIR o painel)
+     1b. o recado (o único lugar de feedback do site): apagado 60 dias depois de criado, lido ou não (app.rotinas_recados)
      2b. o pedido de modelos (PR 2a): vence quem não confirmou pelo WhatsApp em 72 h e apaga o hash do telefone e as redes no prazo
      2c. (PR 3b-2) a limpeza e a reconciliação do armazém do material (reserva vencida, objeto sem linha, importado há 7 dias)
      2d. (PR 3b-3) os alarmes de prazo da entrega (prazo vencido, 30 dias sem material, 3 dias do restante) e a retenção da lista de ajustes: 1 subpedido.
@@ -68,6 +69,9 @@ export async function executar(request, env, deps = {}) {
   let retencao = null;
   try { retencao = await banco('vendas_reter', {}); }
   catch (e) { falhou('retenção', e); }
+  let recados = null;   /* o recado vence em 60 dias (app.rotinas_recados): 1 subpedido */
+  try { recados = await banco('rotinas_recados', {}); }
+  catch (e) { falhou('recados', e); }
   let pedidos = null;
   try { pedidos = await banco('vendas_expirar_pedidos', {}); }
   catch (e) { falhou('pedidos', e); }
@@ -111,7 +115,7 @@ export async function executar(request, env, deps = {}) {
       await bancoFinal('rotinas_avisado', {});
     } catch (e) { log({ nivel: 'erro', evento: 'alerta não enviado', erro: e && e.message ? e.message.slice(0, 80) : 'erro' }); }
   }
-  log({ nivel: falhas.length ? 'erro' : 'info', evento: 'diária', retencao, pedidos, alertas: saude.alertas.map(a => a.tipo), material, entregas, falhas, parcial, subpedidos: gasto.gastos() });
+  log({ nivel: falhas.length ? 'erro' : 'info', evento: 'diária', retencao, recados, pedidos, alertas: saude.alertas.map(a => a.tipo), material, entregas, falhas, parcial, subpedidos: gasto.gastos() });
   if (parcial) log({ nivel: 'aviso', evento: 'rotina parcial', subpedidos: gasto.gastos() });
-  return json({ ok: !falhas.length, parcial, retencao, pedidos, material, saude });
+  return json({ ok: !falhas.length, parcial, retencao, recados, pedidos, material, saude });
 }

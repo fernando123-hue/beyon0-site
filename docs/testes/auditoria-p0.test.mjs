@@ -125,7 +125,7 @@ test('P0 freio no banco: conversas que usam a IA por IP por dia têm limite; o I
   for (let i = 0; i < TETOS.conversas_por_ip_dia; i++) assert.equal((await conversar('Tenho uma padaria e quero um site')).status, 200);
   const passou = await conversar('Tenho uma padaria e quero um site');
   assert.equal(passou.status, 429, 'a conversa a mais do mesmo IP no dia não chama o modelo');
-  assert.equal(passou.extra.whatsapp, true);
+  assert.equal(passou.extra.recado, true);
   assert.ok((await local.db.query(`select 1 from app.eventos_funil where conversa_id = $1 and tipo = 'freio_ip'`, [passou.conversa])).rows.length, 'o dono vê o freio no funil');
   assert.equal((await porIp('203.0.113.78')('Tenho uma padaria e quero um site')).status, 200, 'outro IP segue livre');
   const chaves = (await local.db.query('select chave from privado.freio_ip')).rows.map(r => r.chave);
