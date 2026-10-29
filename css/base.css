@@ -354,7 +354,9 @@ html:not(.js) .barra.is-oculta { transform: none; opacity: 1; pointer-events: au
   h1 { font-size: var(--fs-d1); line-height: .9; letter-spacing: -.045em; }
   .hero__title { margin-left: -.055em; }
   .hero__status { margin-left: calc(-1 * (6px + .6rem)); }   /* o ponto pendura na margem */
-  .hero--longo h1 { font-size: var(--fs-d3); line-height: .95; letter-spacing: -.042em; }
+  /* (dono, 2026-10-28: heros com espaço e texto demais; o título longo do Início ia a 5 linhas em 18ch: agora 3-4) */
+  .hero--longo h1 { font-size: clamp(2.75rem, 1rem + 3.3vw, 4rem); line-height: .98; letter-spacing: -.04em; }
+  .hero--longo .hero__title { max-width: 21ch; }
   .hero--longo .hero__arte > .janela, .hero--longo .hero__arte > .instrumento { align-self: center; margin-top: 0; }
   .hero__sub { max-width: 50ch; font-size: clamp(1.0625rem, .95rem + .45vw, 1.25rem); margin-bottom: 1.6rem; }
 }
