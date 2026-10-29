@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import { estimar, validarRegras, validarFatores } from '../../api/_vendas/precos.mjs';
 import { comArea } from './_area-v2.mjs';
 import { comFases } from './_motor-fases.mjs';
+import { comFora } from './_fora-do-automatico.mjs';
 
 const REGRAS = JSON.parse(fs.readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
 const copia = () => JSON.parse(JSON.stringify(REGRAS));
@@ -36,14 +37,21 @@ test('sinal: só porcentagem inteira (a proposta guarda inteiro; fração dava u
 /* decisões do dono de 2026-10-28 (01 Empresa/Decisões.md, "subir todos os preços com base em dados"): landing 2.900,
    institucional 7.900, experiência 19.900, loja 8.900; adicionais sem mudança (textos a R$ 350, de 2026-10-14); área
    restrita continua fora do automático (2026-10-14) */
-test('tabela de 2026-10-28: landing 2.900, institucional 7.900, experiência 19.900, loja 8.900, textos 350, área restrita pela conversa', () => {
+test('tabela de 2026-10-28: landing 2.900, institucional 7.900, experiência 19.900, loja 8.900, textos 350', () => {
   assert.deepEqual([REGRAS.formatos.landing_page.base, REGRAS.formatos.institucional.base, REGRAS.adicionais.textos.valor], [2900, 7900, 350]);
   assert.deepEqual([REGRAS.formatos.loja_plataforma.base, REGRAS.formatos.sob_medida.base], [8900, 19900]);
   assert.deepEqual(Object.values(REGRAS.formatos).map(f => f.piso), [1500, 4500, 9900, 6500], 'pisos de landing, institucional, experiência e loja');
-  const area = estimar({ formato: 'institucional', adicionais: { area_restrita: 1 } }, REGRAS);
-  assert.equal(area.encaminhar_diagnostico, true, 'área restrita vai para a conversa ("a partir de R$ 4.500, com escopo escrito")');
-  assert.equal(area.valor_total, undefined, 'sem valor automático');
-  assert.deepEqual(Object.keys(REGRAS.adicionais).filter(k => k.startsWith('area_')), ['area_restrita'], 'sem dependentes de uma base que não está no automático');
+});
+
+/* dono, 2026-10-28 (Decisões.md): saem da venda a área restrita, o sistema sob medida e a loja em código próprio */
+test('tabela de 2026-10-28: nada fora do automático; área restrita, sistema e loja do zero não existem na tabela', () => {
+  assert.deepEqual(Object.keys(REGRAS.adicionais).filter(k => REGRAS.adicionais[k].fora_do_automatico), [], 'nenhum item fora do automático');
+  assert.deepEqual(Object.keys(REGRAS.adicionais).filter(k => /^area_|sistema|loja_virtual/.test(k)), [], 'nem a área, nem os dependentes dela, nem o sistema, nem a loja do zero');
+  for (const k of ['area_restrita', 'sistema_sob_medida', 'loja_virtual']) {
+    const e = estimar({ formato: 'institucional', adicionais: { [k]: 1 } }, REGRAS);
+    assert.deepEqual([e.erros, e.encaminhar_diagnostico, e.valor_total], [['adicional desconhecido: ' + k], undefined, undefined], k + ': recusado, sem preço e sem diagnóstico');
+  }
+  assert.match(REGRAS._status, /área restrita, o sistema sob medida e a loja em código próprio/);
 });
 
 test('casos de referência (os números do REGRAS-RASCUNHO.md)', () => {
@@ -106,8 +114,9 @@ test('nunca passa do teto de prazo, nunca fica abaixo do piso', () => {
 });
 
 test('fora do automático e valor alto vão para o diagnóstico, sem preço', () => {
-  const loja = estimar({ formato: 'institucional', adicionais: { loja_virtual: 1 } }, REGRAS);
-  assert.equal(loja.encaminhar_diagnostico, true);
+  /* (numa tabela antiga, que ainda traz itens fora do automático: ver _fora-do-automatico.mjs) */
+  const loja = estimar({ formato: 'institucional', adicionais: { loja_virtual: 1 } }, comFora(REGRAS));
+  assert.deepEqual([loja.encaminhar_diagnostico, loja.itens_diagnostico], [true, [{ chave: 'loja_virtual', nome: 'Loja feita do zero, em código próprio' }]]);
   assert.equal(loja.valor_total, undefined, 'nenhum valor inventado');
   const r = copia(); r.limites.valor_max_automatico = 2000;
   assert.equal(estimar({ formato: 'institucional' }, r).encaminhar_diagnostico, true);

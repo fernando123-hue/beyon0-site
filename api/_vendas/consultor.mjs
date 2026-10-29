@@ -32,11 +32,18 @@ function blocoFormatos(regras) {
     `- ${f.nome}${f.paginas_incluidas ? ` (${f.paginas_incluidas === 1 ? '1 página incluída' : f.paginas_incluidas + ' páginas incluídas'})` : ''}: ${(f.inclui || []).join('; ')}.`).join('\n');
 }
 
+/* o que saiu da venda (dono, 2026-10-28, Decisões.md): a área restrita, o sistema sob medida e a loja em código próprio.
+   Vale só para o item que a tabela ATIVA não traz: uma tabela antiga, com o item fora do automático, segue para o diagnóstico */
+const NAO_FAZ = [['area_restrita', 'área restrita com login'], ['sistema_sob_medida', 'sistema ou painel sob medida'], ['loja_virtual', 'loja feita do zero, em código próprio']];
+const naoFazHoje = (regras, chave) => !!regras && !Object.hasOwn(regras.adicionais || {}, chave);
+const DIZ_QUE_NAO_FAZ = 'diga com honestidade, em uma frase, que a Beyon Zero não faz isso hoje, sem prometer conversa nem contato por causa disso';
+
 function blocoAdicionais(regras) {
   const todos = Object.values(regras.adicionais || {});
   const automaticos = todos.filter(a => !a.fora_do_automatico).map(a => a.nome);
   const fora = todos.filter(a => a.fora_do_automatico).map(a => a.nome);
-  return { automaticos, fora };
+  const naoFaz = NAO_FAZ.filter(([k]) => naoFazHoje(regras, k)).map(([, nome]) => nome);
+  return { automaticos, fora, naoFaz };
 }
 
 /* loja e área restrita (tabela v2): só entram nas instruções se a tabela ativa as traz */
@@ -59,7 +66,7 @@ function blocoMultiplicadores(regras) {
 const formasDePagamento = (metodos = ['pix']) => (Array.isArray(metodos) && metodos.includes('cartao') ? 'Pix ou cartão' : 'Pix');
 
 export function montarSistema(regras, { direcoes = 'api', metodos } = {}) {
-  const { automaticos, fora } = blocoAdicionais(regras);
+  const { automaticos, fora, naoFaz } = blocoAdicionais(regras);
   const mult = blocoMultiplicadores(regras);
   const prazoMax = Number.isInteger(regras.prazo_max_dias) ? regras.prazo_max_dias : 10;
   return `${IDENTIDADE}
@@ -78,7 +85,7 @@ Como escolher o formato:
 Se a pessoa não souber, recomende um formato com uma frase de motivo, a partir do objetivo dela.
 
 Adicionais que a tabela cobre (entram na estimativa quando a pessoa precisa): ${automaticos.join('; ')}.
-${mult.length ? lista(mult) + '\n' : ''}Fora da estimativa automática (vão para uma conversa de diagnóstico): ${fora.join('; ')}. Soluções com IA também existem: o atendente de IA no WhatsApp (com teste grátis de 10 dias corridos no número da pessoa; ao fim do teste, só continua se ela confirmar, e então há implantação e mensalidade, com contrato mínimo de 3 meses; os planos e os valores estão na página de Automação) e automações para entidades. Elas não são orçadas aqui: quem quiser, segue pelo WhatsApp com encaminhar_diagnostico.
+${mult.length ? lista(mult) + '\n' : ''}${fora.length ? 'Fora da estimativa automática (vão para uma conversa de diagnóstico): ' + fora.join('; ') + '.\n' : ''}${naoFaz.length ? 'A Beyon Zero não faz hoje: ' + naoFaz.join('; ') + '. Não ofereça. Se a pessoa pedir algo assim, ' + DIZ_QUE_NAO_FAZ + ' (não chame encaminhar_diagnostico por isso), e siga com o site sem esse item, se fizer sentido para ela.\n' : ''}Soluções com IA também existem: o atendente de IA no WhatsApp (com teste grátis de 10 dias corridos no número da pessoa; ao fim do teste, só continua se ela confirmar, e então há implantação e mensalidade, com contrato mínimo de 3 meses; os planos e os valores estão na página de Automação) e automações para entidades. Elas não são orçadas aqui: quem quiser, segue pelo WhatsApp com encaminhar_diagnostico.
 
 O que vem em todo site, sem custo extra: feito primeiro para o celular; carrega rápido; base para aparecer no Google; acessível para quem usa teclado ou leitor de tela; publicado no endereço certo, com o cadeado de segurança ativo. O código, o domínio e os acessos ficam no nome do cliente, e nada depende de uma plataforma que só a Beyon Zero opera. Ao explicar, use palavras simples como essas.
 
@@ -206,6 +213,8 @@ export function ferramentas(regras, { etapa, pedidoStatus } = {}) {
 function todasAsFerramentas(regras) {
   const adicionais = {};
   for (const [k, v] of Object.entries(regras.adicionais || {})) adicionais[k] = { type: 'integer', description: v.nome + (v.fora_do_automatico ? ' (fora do automático: leva ao diagnóstico)' : '') };
+  const fora = Object.values(regras.adicionais || {}).filter(a => a.fora_do_automatico).map(a => a.nome);
+  const naoFaz = NAO_FAZ.filter(([k]) => naoFazHoje(regras, k)).map(([, nome]) => nome);
   return [
     { name: 'atualizar_briefing',
       description: 'Registra no briefing o que a pessoa acabou de contar. Chame em TODO turno que trouxer informação nova ou corrigida sobre o negócio ou o projeto, antes de responder; não chame quando não houver nada novo. Envie só os campos novos ou corrigidos, com as palavras da pessoa resumidas. ' + OBJETIVOS_DESC + ' conteudo: tem / parcial / nao para textos, imagens, vídeos, depoimentos e cases. Nunca registre nome da pessoa, telefone, e-mail ou documento.',
@@ -225,7 +234,7 @@ function todasAsFerramentas(regras) {
       description: 'Registra uma oportunidade clara de solução com IA para este negócio (ex.: atendimento que responde e agenda sozinho, automação de uma tarefa repetida). Use no máximo uma vez por conversa, quando o que a pessoa contou mostrar a oportunidade; explique em uma frase e diga que isso é visto no diagnóstico, sem prometer preço.',
       input_schema: { type: 'object', additionalProperties: false, required: ['ideia', 'motivo'], properties: { ideia: { type: 'string' }, motivo: { type: 'string' } } } },
     { name: 'encaminhar_diagnostico',
-      description: 'Encaminha para uma conversa de diagnóstico com a Beyon Zero pelo WhatsApp. Chame no mesmo turno quando a pessoa pedir para falar com alguém, quando o projeto depender de algo fora da estimativa automática (loja virtual com pagamento, área restrita com login, sistema sob medida) ou quando estimar devolver encaminhar_diagnostico. Não use só porque a pessoa hesitou.',
+      description: 'Encaminha para uma conversa de diagnóstico com a Beyon Zero pelo WhatsApp. Chame no mesmo turno quando a pessoa pedir para falar com alguém, ' + (fora.length ? 'quando o projeto depender de algo fora da estimativa automática (' + fora.join(', ') + ') ' : '') + 'ou quando estimar devolver encaminhar_diagnostico. Não use só porque a pessoa hesitou.' + (naoFaz.length ? ' Não chame porque a pessoa pediu algo que a Beyon Zero não faz hoje: ' + naoFaz.join(', ') + '. Isso se diz com honestidade, sem diagnóstico.' : ''),
       input_schema: { type: 'object', additionalProperties: false, required: ['motivo'], properties: { motivo: { type: 'string' } } } }
   ];
 }
@@ -248,6 +257,7 @@ export function proximoPasso({ etapa, briefing, estimativa, regras = null, metod
   /* sem a tabela, vale a v2; com ela, a loja só é vendável se a tabela ativa a traz */
   const temLoja = !regras || !!regras.formatos?.loja_plataforma;
   const areaNaConversa = !!regras?.adicionais?.[AREA]?.fora_do_automatico;
+  const areaNaoFaz = naoFazHoje(regras, AREA), lojaDoZeroNaoFaz = naoFazHoje(regras, 'loja_virtual');
   const b = briefing || {};
   if (etapa === 'escopo') return 'A pessoa está conferindo o bloco "Resumo do que será feito" na tela, com o valor e o prazo. Responda a dúvida em poucas frases, com o que está nas suas instruções, e indique o botão "Confirmar o escopo", sem pressa. Os ajustes já foram fechados: se ela quiser mudar algo no escopo, diga que é pelo WhatsApp da Beyon Zero (o link está no bloco do escopo); você não muda escopo, valor nem prazo. Sobre o que está ou não incluído, não afirme de memória: peça para a pessoa conferir no bloco "Resumo do que será feito"; se não estiver escrito lá, a Beyon Zero confirma pelo WhatsApp. Não chame estimar nem pedir_contato.';
   if (etapa === 'aguardando_pagamento') return 'O escopo foi confirmado e a pessoa está no bloco "Para começar", que cobra o sinal por ' + formasDePagamento(metodos) + '; o restante é pago por Pix quando o site estiver no ar. Responda a dúvida em poucas frases, com o que está nas suas instruções, e indique esse bloco. Nunca diga que o pagamento foi recebido ou confirmado: a própria tela mostra quando ele cai. Se o pagamento online falhar ou a pessoa preferir, a Beyon Zero envia o pagamento pelo WhatsApp. Sobre o que está ou não incluído, não afirme de memória: peça para a pessoa conferir no bloco "Resumo do que será feito" (em "Ver o escopo confirmado", no bloco "Para começar"); se não estiver escrito lá, a Beyon Zero confirma pelo WhatsApp. Não chame estimar nem pedir_contato.';
@@ -259,7 +269,8 @@ export function proximoPasso({ etapa, briefing, estimativa, regras = null, metod
   }
   /* (a lista do briefing só soma: quem desiste da loja e já foi estimado sem ela segue o funil) */
   if (!estimativa && (b.funcionalidades || []).includes(LOJA) && !temLoja) return 'O projeto pede uma loja virtual, que a tabela atual não estima: chame encaminhar_diagnostico, se ainda não chamou, e explique em uma frase; não chame estimar com a loja. Se a pessoa desistir da loja e quiser só o site, chame estimar sem ela.';
-  if (!estimativa && (b.funcionalidades || []).includes(LOJA) && b.projeto?.formato !== 'loja_plataforma') return 'A pessoa quer vender online. Pergunte se uma loja em plataforma pronta (Nuvemshop ou Shopify), com a cara da marca, resolve: se sim, o formato é loja_plataforma e dá para estimar. Se ela precisa de uma loja feita do zero, em código próprio, chame encaminhar_diagnostico e explique em uma frase; não chame estimar com o adicional loja_virtual. Se a pessoa desistir da loja e quiser só o site, chame estimar sem ela.';
+  if (!estimativa && (b.funcionalidades || []).includes(LOJA) && b.projeto?.formato !== 'loja_plataforma') return 'A pessoa quer vender online. Pergunte se uma loja em plataforma pronta (Nuvemshop ou Shopify), com a cara da marca, resolve: se sim, o formato é loja_plataforma e dá para estimar. Se ela precisa de uma loja feita do zero, em código próprio, ' + (lojaDoZeroNaoFaz ? DIZ_QUE_NAO_FAZ + ', e não chame encaminhar_diagnostico por isso.' : 'chame encaminhar_diagnostico e explique em uma frase; não chame estimar com o adicional loja_virtual.') + ' Se a pessoa desistir da loja e quiser só o site, chame estimar sem ela.';
+  if (!estimativa && (b.funcionalidades || []).includes(AREA) && areaNaoFaz) return 'O projeto pede uma área restrita com login, que a Beyon Zero não faz hoje: ' + DIZ_QUE_NAO_FAZ + ', e não chame encaminhar_diagnostico por isso. Pergunte se o site sem a área resolve; se a pessoa quiser seguir sem ela, chame estimar sem ela.';
   if (!estimativa && (b.funcionalidades || []).includes(AREA) && areaNaConversa) return 'O projeto pede uma área restrita com login, que é orçada numa conversa, com o escopo escrito: chame encaminhar_diagnostico, se ainda não chamou, e explique em uma frase; não chame estimar com a área restrita. Se a pessoa desistir da área e quiser só o site, chame estimar sem ela.';
   const { confianca, faltam } = avaliar(b);
   /* a dor (SPIN): uma pergunta, depois do negócio e do objetivo e antes do formato; registrada em situacao_atual */
@@ -268,7 +279,7 @@ export function proximoPasso({ etapa, briefing, estimativa, regras = null, metod
     const falta = faltam.find(f => ['negocio', 'objetivo', 'formato'].includes(f)) || faltam[0];
     return 'Descobrir ' + NOMES_FALTA[falta] + '. Uma pergunta só, concreta.' + (falta === 'formato' ? ' Se a pessoa não souber, recomende um formato com uma frase de motivo e confirme.' : '');
   }
-  if (!estimativa) return 'Já dá para estimar: chame estimar agora com o formato e o que já se sabe do escopo' + ((b.funcionalidades || []).includes(AREA) && !areaNaConversa ? ' (inclua o adicional area_restrita; os extras dela só se a pessoa pediu)' : '') + '. Recomende o formato em uma frase, com o motivo ligado ao que a pessoa contou (de preferência a situação de hoje), diga que o investimento está no cartão e termine com uma pergunta de confirmação, como "Seguimos por esse caminho?".';
+  if (!estimativa) return 'Já dá para estimar: chame estimar agora com o formato e o que já se sabe do escopo' + ((b.funcionalidades || []).includes(AREA) && !areaNaConversa && !areaNaoFaz ? ' (inclua o adicional area_restrita; os extras dela só se a pessoa pediu)' : '') + '. Recomende o formato em uma frase, com o motivo ligado ao que a pessoa contou (de preferência a situação de hoje), diga que o investimento está no cartão e termine com uma pergunta de confirmação, como "Seguimos por esse caminho?".';
   if (confianca < LIMIAR_DIRECOES) {
     const proximos = faltam.slice(0, 2).map(f => NOMES_FALTA[f]).join(' e ');
     return 'Estimativa já mostrada; o formulário de contato já aparece na tela, abaixo do cartão. Antes de oferecer as direções, complete o briefing: falta ' + proximos + ' (uma pergunta por vez), dando a continuação como certa ("para as direções saírem com a cara do seu negócio: …"). Se a pessoa disser que quer seguir ou fechar, chame pedir_contato já, uma vez (não repita nos turnos seguintes): quem quer comprar não espera pergunta. Se a pessoa levantar uma objeção, trate-a antes, com uma pergunta.';

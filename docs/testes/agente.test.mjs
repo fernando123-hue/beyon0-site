@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import { executarTurno, SISTEMA } from '../../api/_vendas/agente.mjs';
 import { RESPOSTAS_PAGAMENTO } from '../../api/_vendas/promessa.mjs';
 import { criarSimulada } from '../../api/_ia/simulado.mjs';
+import { comFora } from './_fora-do-automatico.mjs';
 import { ErroIA } from '../../api/_ia/provedor.mjs';
 import { redigir, semPrecoNoTexto, pareceInjecao } from '../../api/_vendas/seguranca.mjs';
 
@@ -272,10 +273,18 @@ test('loja em plataforma pronta tem preço pela tabela (tabela v2)', async () =>
   assert.equal(r.estimativa.valor_total, 8900, 'o preço vem do motor');
 });
 
-test('fora do automático (loja feita do zero) vai para o diagnóstico, sem preço', async () => {
-  const r = await executarTurno({ ia: criarSimulada(), regras: REGRAS, conversa: nova(), mensagem: 'Tenho uma loja de roupas e quero um site institucional para vender online com loja virtual feita do zero, em código próprio' });
+test('fora do automático (loja feita do zero) vai para o diagnóstico, sem preço (tabela antiga, com o item)', async () => {
+  const r = await executarTurno({ ia: criarSimulada(), regras: comFora(REGRAS), conversa: nova(), mensagem: 'Tenho uma loja de roupas e quero um site institucional para vender online com loja virtual feita do zero, em código próprio' });
   assert.equal(r.estimativa, null);
   assert.ok(r.diagnostico);
+});
+
+/* dono, 2026-10-28: a loja em código próprio saiu da venda; a tabela real não a tem */
+test('loja feita do zero na tabela de 2026-10-28: diz que não faz hoje, sem preço e sem diagnóstico', async () => {
+  const r = await executarTurno({ ia: criarSimulada(), regras: REGRAS, conversa: nova(), mensagem: 'Tenho uma loja de roupas e quero um site institucional para vender online com loja virtual feita do zero, em código próprio' });
+  assert.deepEqual([r.estimativa, r.diagnostico], [null, null]);
+  assert.match(r.resposta, /não faz[^.]*hoje/i);
+  assert.doesNotMatch(r.resposta, /WhatsApp|diagnóstico/i, 'sem prometer conversa');
 });
 
 test('adaptador Anthropic: o pedido sai no formato da documentação oficial e os erros viram ErroIA', async () => {

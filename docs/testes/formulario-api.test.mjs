@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import { montarLocal } from '../banco-local.mjs';
 import { atender } from '../../api/vendas.mjs';
 import { modoDirecoes } from '../../api/_ia/config.mjs';
+import { comFora } from './_fora-do-automatico.mjs';
 
 let local, deps, ipSeq = 0;
 const BASE = 'http://127.0.0.1:8899';
@@ -43,11 +44,27 @@ test('o navegador não manda preço nem complexidade: valores do corpo são igno
   const dep = await n.chamar('POST', 'simular', { conversa_id: c, respostas: RESP, extras: { frete_transportadora: 1 } });
   assert.equal(dep.status, 400, 'dependente sem o item de que depende: recusado com motivo');
   assert.match(dep.corpo.erro, /loja virtual/i);
-  const fora = await n.chamar('POST', 'simular', { conversa_id: c, respostas: RESP, extras: { sistema_sob_medida: 1 } });
-  assert.equal(fora.status, 200);
-  assert.equal(fora.corpo.estimativa, null);
-  assert.ok(fora.corpo.diagnostico, 'fora do automático: fale comigo, sem preço');
-  assert.ok(!JSON.stringify(fora.corpo).includes('sob medida'), 'o nome de tela do catálogo, não o da tabela');
+  /* 2026-10-28 (dono): o sistema sob medida saiu da venda; a tabela real não o tem */
+  const saiu = await n.chamar('POST', 'simular', { conversa_id: c, respostas: RESP, extras: { sistema_sob_medida: 1 } });
+  assert.equal(saiu.status, 400, JSON.stringify(saiu.corpo));
+  assert.match(saiu.corpo.erro, /adicional desconhecido/);
+});
+
+test('tabela ativa antiga, com item fora do automático: simular devolve o fale comigo, sem preço', async () => {
+  const outro = await montarLocal({ base: BASE }), antes = deps;
+  try {
+    /* (regra aprovada não muda: a antiga entra como versão 2, ativa) */
+    await outro.db.query(`update app.regras_comerciais set status = 'arquivada' where status = 'ativa'`);
+    await outro.db.query(`insert into app.regras_comerciais (org_id, versao, status, regras, fontes, aprovada_em)
+      select org_id, 2, 'ativa', $1::jsonb, 'teste', now() from app.regras_comerciais where versao = 1`, [JSON.stringify(comFora(JSON.parse(fs.readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'))))]);
+    deps = { ...deps, banco: Object.assign((nome, p) => outro.rpc(nome, p), { chaveCache: 'teste-tabela-com-fora' }), visitantes: outro.auth };
+    const n = navegador(), c = await n.iniciar();
+    const fora = await n.chamar('POST', 'simular', { conversa_id: c, respostas: RESP, extras: { sistema_sob_medida: 1 } });
+    assert.equal(fora.status, 200, JSON.stringify(fora.corpo));
+    assert.equal(fora.corpo.estimativa, null);
+    assert.ok(fora.corpo.diagnostico, 'fora do automático: fale comigo, sem preço');
+    assert.ok(!JSON.stringify(fora.corpo).includes('sob medida'), 'o nome de tela do catálogo, não o da tabela');
+  } finally { deps = antes; globalThis.__BZ_LOCAL = local; }
 });
 
 test('confirmar-pacote grava uma vez, com a versão da tabela; versão velha → 409 com a nova; depois do contato → 409', async () => {

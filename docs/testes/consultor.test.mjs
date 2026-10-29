@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import { montarSistema, proximoPasso, ferramentas, IDENTIDADE, ETAPAS_COM_PRECO, precoAberto } from '../../api/_vendas/consultor.mjs';
 import { executarTurno } from '../../api/_vendas/agente.mjs';
 import { comArea } from './_area-v2.mjs';
+import { comFora } from './_fora-do-automatico.mjs';
 
 const REGRAS = JSON.parse(fs.readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
 
@@ -102,11 +103,23 @@ test('próximo passo: o código diz ao modelo o que fazer agora, pela ordem do f
   assert.match(p({ ...loja, projeto: { formato: 'loja_plataforma' } }), /Já dá para estimar/);
   const area = { ...loja, projeto: { formato: 'institucional' }, funcionalidades: ['area_restrita'] };
   assert.match(p(area, { regras: comArea(REGRAS) }), /chame estimar agora[^.]*inclua o adicional area_restrita/);
-  /* tabela de 2026-10-14: a área restrita é orçada numa conversa (revisão do PR #42: o modelo mandava estimar com ela,
-     o motor devolvia o diagnóstico e a estimativa ficava nula, turno após turno) */
-  const fora = p(area, { regras: REGRAS });
+  /* tabela de 2026-10-14 (numa cópia com os itens fora do automático): a área restrita é orçada numa conversa (revisão do
+     PR #42: o modelo mandava estimar com ela, o motor devolvia o diagnóstico e a estimativa ficava nula, turno após turno) */
+  const fora = p(area, { regras: comFora(REGRAS) });
   assert.match(fora, /área restrita[^.]*conversa[^.]*encaminhar_diagnostico/i);
   assert.doesNotMatch(fora, /(?<!não )chame estimar(?! sem ela)|inclua o adicional area_restrita/i, 'não estima com a área restrita');
+  /* tabela de 2026-10-28 (dono: saem da venda a área restrita, o sistema sob medida e a loja do zero): diz que não faz hoje,
+     sem diagnóstico nem WhatsApp, e segue com o site sem ela */
+  const naoFaz = p(area, { regras: REGRAS });
+  assert.match(naoFaz, /área restrita[^.]*não faz hoje/i);
+  assert.doesNotMatch(naoFaz, /(?<!não )chame encaminhar_diagnostico|WhatsApp/i, 'não promete conversa nem WhatsApp');
+  assert.doesNotMatch(naoFaz, /(?<!não )chame estimar(?! sem ela)|inclua o adicional area_restrita/i, 'não estima com a área restrita');
+  assert.match(naoFaz, /chame estimar sem ela/i, 'quem segue sem a área sai do passo');
+  const lojaZero = p(loja, { regras: REGRAS });
+  assert.match(lojaZero, /plataforma pronta/);
+  assert.match(lojaZero, /feita do zero[^.]*não faz isso hoje/);
+  assert.doesNotMatch(lojaZero, /(?<!não )chame encaminhar_diagnostico|WhatsApp|loja_virtual/i, 'sem diagnóstico, sem WhatsApp e sem um adicional que a tabela não tem');
+  assert.match(p(loja, { regras: comFora(REGRAS) }), /feita do zero[^.]*encaminhar_diagnostico/, 'tabela antiga: diagnóstico, como antes');
 });
 
 test('o turno usa o harness: instruções montadas da tabela, estado com o próximo passo', async () => {
@@ -389,4 +402,24 @@ test('só Pix: o turno leva a lista de métodos do fluxo ao prompt', async () =>
   await executarTurno({ ia, direcoes: 'api', regras: REGRAS, conversa, mensagem: 'e agora?', metodos: ['pix'] });
   assert.doesNotMatch(recebidos[1].sistema, OFERTA_CARTAO);
   assert.doesNotMatch(recebidos[1].contexto, OFERTA_CARTAO);
+});
+
+/* dono, 2026-10-28 (Decisões.md): saem da venda a área restrita, o sistema sob medida e a loja em código próprio. O consultor
+   não os oferece; se a pessoa pedir, diz com honestidade que a Beyon Zero não faz isso hoje, sem prometer conversa nem WhatsApp */
+test('instruções: o que a Beyon Zero não faz hoje, sem diagnóstico nem WhatsApp por isso (tabela de 2026-10-28)', () => {
+  const s = montarSistema(REGRAS);
+  const linha = s.split('\n').find(l => l.startsWith('A Beyon Zero não faz hoje'));
+  assert.ok(linha, 'a linha do que não faz');
+  for (const item of ['área restrita com login', 'sistema ou painel sob medida', 'loja feita do zero, em código próprio']) assert.ok(linha.includes(item), item);
+  assert.match(linha, /com honestidade/);
+  assert.doesNotMatch(linha, /(?<!não )chame encaminhar_diagnostico|(?<!sem prometer conversa nem )WhatsApp/, 'não manda para o diagnóstico: ' + linha);
+  assert.doesNotMatch(s, /Fora da estimativa automática/, 'a tabela não tem item fora do automático');
+  const diag = ferramentas(REGRAS).find(f => f.name === 'encaminhar_diagnostico').description;
+  assert.doesNotMatch(diag, /fora da estimativa automática|loja virtual com pagamento/i, 'a ferramenta não manda para o diagnóstico o que saiu da venda: ' + diag);
+  assert.ok(diag.includes('Não chame porque a pessoa pediu algo que a Beyon Zero não faz hoje: área restrita com login, sistema ou painel sob medida, loja feita do zero'), 'e diz para não chamar por isso: ' + diag);
+  /* uma tabela antiga, com os itens fora do automático: como antes (diagnóstico) e sem a linha do que não faz */
+  const antiga = montarSistema(comFora(REGRAS));
+  assert.match(antiga, /Fora da estimativa automática \(vão para uma conversa de diagnóstico\): [^\n]*Área restrita com login/);
+  assert.doesNotMatch(antiga, /A Beyon Zero não faz hoje/);
+  assert.match(ferramentas(comFora(REGRAS)).find(f => f.name === 'encaminhar_diagnostico').description, /Área restrita com login/);
 });
