@@ -28,7 +28,7 @@
   var CAMPOS = ['o-d-negocio', 'o-d-vende', 'o-tel', 'o-nome', 'o-d-publico', 'o-d-diferencial', 'o-d-admira', 'o-d-redes-ok', 'o-aceite']
     .concat(Object.keys(REDES).map(function (k) { return REDES[k]; }));
   var FIM = {
-    expirado: 'Passaram 72 horas sem a confirmação pelo WhatsApp, então o pedido saiu da fila. Faça um orçamento novo ou fale com a Beyon Zero pelo WhatsApp.',
+    expirado: 'Passaram 72 horas sem a confirmação pelo WhatsApp, então o pedido saiu da fila. Faça um orçamento novo ou deixe um recado para a equipe.',
     descartado: 'Este pedido foi encerrado. Se quiser seguir, faça um orçamento novo ou fale com a Beyon Zero pelo WhatsApp.'
   };
   var segmentoVisto = null;
@@ -118,7 +118,7 @@
     } catch (e) {
       if (ganchos.sessaoTerminou(e)) { ganchos.avisarSessao(); return; }
       if (e && e.dados && e.dados.fila_cheia) { $('o-fila-cheia').hidden = false; form.hidden = true; $('o-fila-cheia').focus(); return; }   /* (o foco não se perde com o formulário escondido) */
-      var m = (e && e.message) || 'Não consegui guardar agora. Tente de novo ou fale com a Beyon Zero pelo WhatsApp.';
+      var m = (e && e.message) || 'Não consegui guardar agora. Tente de novo ou deixe um recado para a equipe.';
       marcarErro(e && e.status === 400 ? campoDaMensagem(m) : null, m);
     } finally { form.removeAttribute('aria-busy'); }
   });

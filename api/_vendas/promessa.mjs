@@ -22,9 +22,9 @@
 
 /* cada motivo tem a sua resposta (uma só para tudo parecia conversa travada) */
 export const RESPOSTAS_PAGAMENTO = {
-  pagamento: 'Quem mostra que o pagamento entrou é a própria tela: assim que o Mercado Pago confirma, o bloco muda sozinho. Se algo parecer errado, fale com a Beyon Zero pelo WhatsApp.',
-  condicao: 'O valor e o sinal são os do escopo confirmado, iguais para todos, e eu não mudo condições por aqui. Para qualquer ajuste, fale com a Beyon Zero pelo WhatsApp.',
-  meio: 'O pagamento é só pelo bloco aqui na tela. Se ele não funcionar, a Beyon Zero envia o pagamento pelo WhatsApp.'
+  pagamento: 'Quem mostra que o pagamento entrou é a própria tela: assim que o Mercado Pago confirma, o bloco muda sozinho. Se algo parecer errado, deixe um recado para a equipe.',
+  condicao: 'O valor e o sinal são os do escopo confirmado, iguais para todos, e eu não mudo condições por aqui. Para qualquer ajuste, deixe um recado para a equipe.',
+  meio: 'O pagamento é só pelo bloco aqui na tela. Se ele não funcionar, deixe um recado para a equipe, com o seu e-mail, que ela envia o pagamento.'
 };
 
 /* ---------- normalização ---------- */

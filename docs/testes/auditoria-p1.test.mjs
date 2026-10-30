@@ -162,7 +162,7 @@ test('P1 disjuntor: 5 falhas seguidas da IA em 10 min param as chamadas e oferec
   const antes = chamadas;
   const r = await n('POST', 'mensagem', { conversa_id: s.corpo.conversa_id, texto: 'quero vender online' });
   assert.equal(r.status, 503);
-  assert.equal(r.corpo.whatsapp, true);
+  assert.equal(r.corpo.recado, true);
   assert.equal(chamadas, antes, 'com o disjuntor aberto, o modelo não é chamado');
   /* depois de 10 minutos as falhas saem da janela e a IA volta sozinha (meio aberto) */
   await local.db.exec(`alter table app.ia_chamadas disable trigger ia_chamadas_so_acrescimo;

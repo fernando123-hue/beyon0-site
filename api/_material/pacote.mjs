@@ -7,7 +7,7 @@
    `depoimentos` só com "sim" à pergunta deles; `fotos_com_pessoas: true` só com "Sim" às fotos; nada de CPF/CNPJ.
    ========================================================================== */
 import ESQ from '../../js/orcamento-material-esquema.js';
-import { isoNoFuso } from './prazo.mjs';
+import { isoNoFuso, PRAZO_DIAS_MAX } from './prazo.mjs';
 
 export const VERSAO = 1;
 export const PLANOS = Object.freeze({ landing_page: 'landing', institucional: 'institucional' });
@@ -77,9 +77,10 @@ export function montarPedido({ codigo, negocio, proposta, entradaPagaEm, whatsap
   if (!entradaPagaEm) faltas.push('data da entrada paga');
   if (faltas.length) throw new Error('pedido incompleto, falta: ' + faltas.join(', '));
   if (!Object.hasOwn(PLANOS, proposta.formato)) throw new Error('formato sem esteira na captação (' + proposta.formato + '): produção manual');
-  /* o prazo da proposta aceita (o que o cliente viu), em dias úteis; a captação só aceita de 5 a 10 */
+  /* o prazo da proposta aceita (o que o cliente viu), em dias úteis, de 1 ao máximo do banco (dono, 2026-10-28: sem trava de
+     prazo; até então eram 5 a 10). A captação ainda recusa fora de 5 a 10 (clientes/fechamento.mjs, PRAZO_SITE) até alinhar */
   const dias = proposta.prazo_dias;
-  if (!Number.isInteger(dias) || dias < 5 || dias > 10) throw new Error('prazo da proposta (' + dias + ') fora de 5 a 10 dias úteis: produção manual');
+  if (!Number.isInteger(dias) || dias < 1 || dias > PRAZO_DIAS_MAX) throw new Error('prazo da proposta (' + dias + ') fora de 1 a ' + PRAZO_DIAS_MAX + ' dias úteis: produção manual');
   /* os valores da proposta, em REAIS INTEIROS (preco = entrada + final); a tabela normal, fora das 10 vagas (D6) */
   const preco = Number(proposta.valor_total);
   if (!Number.isInteger(preco)) throw new Error('o total (' + preco + ') não está em reais inteiros: produção manual');

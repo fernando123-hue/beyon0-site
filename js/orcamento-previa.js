@@ -3,8 +3,8 @@
    (um <dialog>, nunca window.confirm) e "Quero ajustes" (um campo só, até 1.500 caracteres, "esta é a lista N de 2"). Sem resposta, o projeto PARA (D5): a tela diz "Seu site só
    segue depois da sua resposta." e NÃO promete aprovação automática, prazo para responder ou lembrete. A parte pura (fase, hrefDaPrevia, validarLista, validarContato) não toca no DOM.
    Tudo que vem do servidor entra por textContent. O texto da lista de ajustes não é guardado em lugar nenhum (só no campo, até ser enviado) e não volta do servidor.
-   Só UM link de WhatsApp na seção ("Outra dúvida?"): aparece quando as duas listas acabaram, quando a prévia não abriu ou quando a API manda a saída pelo WhatsApp
-   (resposta com `whatsapp: true`). O global é BZPreviaEntrega: window.BZPrevia é do desenho das direções (js/previa.js, lido por orcamento.js e pelo visor).
+   Só UM link de saída na seção ("Outra dúvida?", que abre o recado): aparece quando as duas listas acabaram, quando a prévia não abriu ou quando a API manda a saída pelo recado
+   (resposta com `recado: true`). O global é BZPreviaEntrega: window.BZPrevia é do desenho das direções (js/previa.js, lido por orcamento.js e pelo visor).
    ========================================================================== */
 (function () {
   'use strict';
@@ -12,7 +12,7 @@
   var MAX_TEXTO = String(MAX_LISTA).replace(/\B(?=(\d{3})+(?!\d))/g, '.');   /* "1.500", das frases geradas aqui (o maxlength do HTML é conferido por teste) */
   var MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
   var FALHA_AJUSTES = 'Não consegui mandar agora. Tente de novo.', FALHA_APROVAR = 'Não consegui aprovar agora. Tente de novo.';
-  var DUVIDA_PADRAO = { lead: 'Outra dúvida? ', link: 'Fale com a Beyon Zero pelo WhatsApp' }, DUVIDA_NAO_ABRIU = { lead: 'Não conseguiu abrir? ', link: 'Fale comigo pelo WhatsApp' };
+  var DUVIDA_PADRAO = { lead: 'Outra dúvida? ', link: 'Deixe um recado para a equipe' }, DUVIDA_NAO_ABRIU = { lead: 'Não conseguiu abrir? ', link: 'Deixe um recado para a equipe' };
   var $ = function (id) { return document.getElementById(id); };
   var nada = function () { /* a releitura é de fundo: se falhar, a próxima volta à aba lê de novo */ };
 
@@ -68,19 +68,19 @@
   }
 
   function criar(o) {
-    var API = o.API, enviando = false, ultimaFase = '', base = 0, abridor = null, formAberto = false, saidaWa = false, duvidaFixa = false, naoAbriu = false;
+    var API = o.API, enviando = false, ultimaFase = '', base = 0, abridor = null, formAberto = false, saidaRecado = false, duvidaFixa = false, naoAbriu = false;
     function recarregar() { return window.BZMaterialRecarregar ? window.BZMaterialRecarregar() : Promise.resolve(); }
-    /* "Outra dúvida?" é o único WhatsApp da seção; quando a prévia nem abriu, a frase diz isso (um link só, o mesmo) */
+    /* "Outra dúvida?" é a única saída da seção (abre o recado); quando a prévia nem abriu, a frase diz isso (um link só, o mesmo) */
     function atualizarDuvida() {
       var frase = naoAbriu ? DUVIDA_NAO_ABRIU : DUVIDA_PADRAO;
       $('o-prv-duvida-lead').textContent = frase.lead; $('o-prv-duvida-wa').textContent = frase.link;
-      $('o-prv-duvida').hidden = !(duvidaFixa || saidaWa);
+      $('o-prv-duvida').hidden = !(duvidaFixa || saidaRecado);
     }
-    function limparErro() { $('o-prv-erro').textContent = ''; $('o-prv-erro-form').textContent = ''; saidaWa = false; atualizarDuvida(); }
+    function limparErro() { $('o-prv-erro').textContent = ''; $('o-prv-erro-form').textContent = ''; saidaRecado = false; atualizarDuvida(); }
     function mostrarErro(e, padrao, idDoErro) {
       limparErro();
       $(idDoErro).textContent = (e && e.message) || padrao;
-      saidaWa = !!(e && e.dados && e.dados.whatsapp);   /* a API mandou a saída pelo WhatsApp: o único link da seção aparece */
+      saidaRecado = !!(e && e.dados && e.dados.recado);   /* a API mandou a saída pelo recado: o único link da seção aparece */
       atualizarDuvida();
     }
     /* 409 = a prévia ou o passo mudou: lê de novo ANTES e só então mostra a frase, fora do formulário (a releitura o fecha e limpa o aviso velho) */
@@ -111,7 +111,7 @@
       $('o-prv-ajustes').hidden = !(pronta && f.podeAjustes);
       $('o-prv-sem-listas').hidden = !(responde && !f.podeAjustes);
       naoAbriu = pronta && !f.podeResponder;
-      duvidaFixa = pronta && (!f.podeResponder || !f.podeAjustes); atualizarDuvida();   /* sem listas ou sem endereço: o WhatsApp é a saída */
+      duvidaFixa = pronta && (!f.podeResponder || !f.podeAjustes); atualizarDuvida();   /* sem listas ou sem endereço: o recado é a saída */
       $('o-prv-form').hidden = !(responde && formAberto);
       if (pronta) {
         base = f.listaN - 1;   /* (as listas já usadas; o fase() tolera a entrega sem rodadas) */

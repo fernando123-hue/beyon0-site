@@ -1,14 +1,14 @@
 {
-  "_status": "RASCUNHO para o dono aprovar. Valores propostos a partir da pesquisa de mercado (fontes em docs/fase2/REGRAS-RASCUNHO.md). Só a versão ATIVA, aprovada pelo dono, gera preço para visitante. Tabela v2 aprovada pelo dono em 2026-10-09 (\"Aprovo como está\"): loja em plataforma e área restrita entram no automático; limite de R$ 15.000 por fase e R$ 60.000 por projeto. Revisão de 2026-10-14 (dono, pacote do relatório \"Preço premium para pequenos negócios\" e decisões de preço do mesmo dia): landing R$ 1.800 e institucional R$ 3.900 (preço regular, que vale do 11º cliente em diante; o fundador, R$ 800 e R$ 1.900, fica só na página de condições); textos por página R$ 350; área restrita sai do automático (\"a partir de R$ 4.500, com escopo escrito\", pela conversa), com as telas, perfis, cobrança, documentos e importação que dependiam dela. Entrada de 40% (o restante, 60%, com o site no ar): decisão do dono de 2026-10-20 (Decisões.md, linha de 20/10 \"O site vende sozinho\", \"1 D - Sim\"), PR 3b-1; a tabela ATIVA de produção o dono aplica pelo caminho de sempre.",
+  "_status": "RASCUNHO para o dono aprovar. Valores propostos a partir da pesquisa de mercado (fontes em docs/fase2/REGRAS-RASCUNHO.md). Só a versão ATIVA, aprovada pelo dono, gera preço para visitante. Tabela v2 aprovada pelo dono em 2026-10-09 (\"Aprovo como está\"): loja em plataforma e área restrita entram no automático; limite de R$ 15.000 por fase e R$ 60.000 por projeto. Revisão de 2026-10-14 (dono, pacote do relatório \"Preço premium para pequenos negócios\" e decisões de preço do mesmo dia): landing R$ 1.800 e institucional R$ 3.900 (preço regular, que vale do 11º cliente em diante; o fundador, R$ 800 e R$ 1.900, fica só na página de condições); textos por página R$ 350; área restrita sai do automático (\"a partir de R$ 4.500, com escopo escrito\", pela conversa), com as telas, perfis, cobrança, documentos e importação que dependiam dela. Entrada de 40% (o restante, 60%, com o site no ar): decisão do dono de 2026-10-20 (Decisões.md, linha de 20/10 \"O site vende sozinho\", \"1 D - Sim\"), PR 3b-1; a tabela ATIVA de produção o dono aplica pelo caminho de sempre. Revisão de 2026-10-28 (dono: \"subir todos os preços com base em dados\", Decisões.md 28/10; dados em 01 Empresa/Preços - proposta de aumento 2026-10-28.md, no Vault): landing R$ 2.900, institucional R$ 7.900, experiência digital R$ 19.900, loja R$ 8.900 (proporcional, sem dado direto); adicionais sem mudança. Sem limite de valor na venda automática (dono, 28/10: \"o objetivo é ser tudo 100% automático\"): os limites ficam no máximo que o validador aceita; sem trava de prazo (dono, 28/10: \"se o trabalho não couber em 10 dias úteis, crie uma métrica para analisar e aumentar a quantidade de dias desde já\"): prazo_max_dias vai a 60, o máximo do validador e do banco (app.estimativas.prazo_dias aceita de 1 a 60), e assim o projeto sai numa entrega só, com o prazo que a soma do trabalho pedir (só a loja no extremo, com 60 páginas e todos os extras, passa de 60 e ainda gera fase seguinte); os prazo_dias de cada formato ficam até a métrica de prazo prometido x real (scripts/prazo-real.mjs) dizer outra coisa. Também em 28/10 (dono, Decisões.md): saem da venda a área restrita, o sistema sob medida e a loja em código próprio; os três itens fora do automático saem da tabela, e o consultor diz com honestidade que a Beyon Zero não faz isso hoje.",
   "moeda": "BRL",
   "sinal_percentual": 40,
-  "prazo_max_dias": 10,
+  "prazo_max_dias": 60,
   "arredondamento": 10,
   "formatos": {
     "landing_page": {
       "nome": "Landing page",
-      "base": 1800,
-      "piso": 900,
+      "base": 2900,
+      "piso": 1500,
       "prazo_dias": 5,
       "paginas_incluidas": 1,
       "inclui": [
@@ -21,8 +21,8 @@
     },
     "institucional": {
       "nome": "Site institucional",
-      "base": 3900,
-      "piso": 2200,
+      "base": 7900,
+      "piso": 4500,
       "prazo_dias": 8,
       "paginas_incluidas": 5,
       "inclui": [
@@ -35,8 +35,8 @@
     },
     "sob_medida": {
       "nome": "Experiência digital",
-      "base": 8900,
-      "piso": 4500,
+      "base": 19900,
+      "piso": 9900,
       "prazo_dias": 10,
       "paginas_incluidas": 4,
       "inclui": [
@@ -49,8 +49,8 @@
     },
     "loja_plataforma": {
       "nome": "Loja virtual (Nuvemshop ou Shopify)",
-      "base": 4800,
-      "piso": 3500,
+      "base": 8900,
+      "piso": 6500,
       "prazo_dias": 8,
       "paginas_incluidas": 5,
       "inclui": [
@@ -185,18 +185,6 @@
       "requer": [
         "loja_plataforma"
       ]
-    },
-    "loja_virtual": {
-      "nome": "Loja feita do zero, em código próprio",
-      "fora_do_automatico": true
-    },
-    "area_restrita": {
-      "nome": "Área restrita com login",
-      "fora_do_automatico": true
-    },
-    "sistema_sob_medida": {
-      "nome": "Sistema ou painel sob medida",
-      "fora_do_automatico": true
     }
   },
   "multiplicadores": {
@@ -212,7 +200,7 @@
   },
   "descontos_autorizados": [],
   "limites": {
-    "valor_max_automatico": 15000,
-    "valor_max_projeto": 60000
+    "valor_max_automatico": 10000000,
+    "valor_max_projeto": 10000000
   }
 }

@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import { executarTurno, SISTEMA } from '../../api/_vendas/agente.mjs';
 import { RESPOSTAS_PAGAMENTO } from '../../api/_vendas/promessa.mjs';
 import { criarSimulada } from '../../api/_ia/simulado.mjs';
+import { comFora } from './_fora-do-automatico.mjs';
 import { ErroIA } from '../../api/_ia/provedor.mjs';
 import { redigir, semPrecoNoTexto, pareceInjecao } from '../../api/_vendas/seguranca.mjs';
 
@@ -40,7 +41,7 @@ test('o exemplo da especificação: aproveita o que a pessoa disse, monta o brie
   assert.equal(r.briefing.negocio.segmento, 'odontologia');
   assert.ok(r.briefing.objetivos.includes('apresentar_empresa'));
   assert.equal(r.briefing.projeto.formato, 'institucional');
-  assert.equal(r.estimativa.valor_total, 3900, 'o preço vem do motor');
+  assert.equal(r.estimativa.valor_total, 7900, 'o preço vem do motor');
   assert.ok(!/R\$|reais/i.test(r.resposta), 'nenhum valor no texto');
   assert.ok(!/O que a sua empresa faz/i.test(r.resposta), 'não pergunta de novo o que já sabe');
 });
@@ -81,9 +82,9 @@ test('modelo malicioso: ferramenta inexistente vira erro; laço de ferramentas p
 test('o estimado não chega ao modelo: ele recebe prazo e itens, nunca o valor', async () => {
   const ia = roteiro([comFerramentas(chamada('estimar', { formato: 'institucional', paginas: 6 })), fim('Pronto, veja o cartão.')]);
   const r = await executarTurno({ ia, regras: REGRAS, conversa: nova(), mensagem: 'site institucional de 6 páginas' });
-  assert.equal(r.estimativa.valor_total, 4250);
+  assert.equal(r.estimativa.valor_total, 8250);   /* 7900 + 1 página extra × 350; sinal 40% = 3300 */
   const visto = ia.recebidos[1].mensagens.at(-1).content[0].content;
-  assert.ok(!visto.includes('4250') && !visto.includes('2125'), 'o modelo não viu o valor: ' + visto);
+  assert.ok(!visto.includes('8250') && !visto.includes('3300'), 'o modelo não viu o valor: ' + visto);
   assert.ok(visto.includes('dias úteis'), 'o prazo chega escrito como o escopo diz: ' + visto);
 });
 
@@ -134,7 +135,7 @@ test('escopo e sinal: o que o consultor nunca diz sai por código, não só pelo
     /* (revisão técnica do PR 34, rodada 3: frases que o próprio consultor vai usar no escopo e no sinal) */
     'O escopo já foi confirmado; agora falta só o sinal, por Pix ou cartão.', 'O escopo está confirmado. Para começar, é só pagar o sinal aqui na tela.',
     'Assim que recebemos o sinal e o material, a gente começa o trabalho.', 'Depois do sinal, o projeto entra em produção e o prazo começa a contar.',
-    'O código é liberado na entrega, no seu nome.', 'Se o Pix não caiu na tela em alguns minutos, fale com a Beyon Zero pelo WhatsApp.',
+    'O código é liberado na entrega, no seu nome.', 'Se o Pix não caiu na tela em alguns minutos, deixe um recado para a equipe.',
     'Sim, o domínio .com.br está incluído no primeiro ano.', 'Sem o sinal pago, o trabalho não começa.', 'A hospedagem vai direto para o seu nome.',
     'Metade das páginas vai no primeiro prazo, a outra metade na fase seguinte.', 'O certificado de segurança é gratuito e já vem ativo.',
     'Quando o pagamento for confirmado, a tela mostra o projeto em produção.',
@@ -269,13 +270,21 @@ test('loja em plataforma pronta tem preço pela tabela (tabela v2)', async () =>
   const r = await executarTurno({ ia: criarSimulada(), regras: REGRAS, conversa: nova(), mensagem: 'Tenho uma loja de roupas e quero vender online com loja virtual, para aumentar as vendas' });
   assert.equal(r.diagnostico, null, 'não vai para o diagnóstico');
   assert.equal(r.estimativa?.formato?.chave, 'loja_plataforma');
-  assert.equal(r.estimativa.valor_total, 4800, 'o preço vem do motor');
+  assert.equal(r.estimativa.valor_total, 8900, 'o preço vem do motor');
 });
 
-test('fora do automático (loja feita do zero) vai para o diagnóstico, sem preço', async () => {
-  const r = await executarTurno({ ia: criarSimulada(), regras: REGRAS, conversa: nova(), mensagem: 'Tenho uma loja de roupas e quero um site institucional para vender online com loja virtual feita do zero, em código próprio' });
+test('fora do automático (loja feita do zero) vai para o diagnóstico, sem preço (tabela antiga, com o item)', async () => {
+  const r = await executarTurno({ ia: criarSimulada(), regras: comFora(REGRAS), conversa: nova(), mensagem: 'Tenho uma loja de roupas e quero um site institucional para vender online com loja virtual feita do zero, em código próprio' });
   assert.equal(r.estimativa, null);
   assert.ok(r.diagnostico);
+});
+
+/* dono, 2026-10-28: a loja em código próprio saiu da venda; a tabela real não a tem */
+test('loja feita do zero na tabela de 2026-10-28: diz que não faz hoje, sem preço e sem diagnóstico', async () => {
+  const r = await executarTurno({ ia: criarSimulada(), regras: REGRAS, conversa: nova(), mensagem: 'Tenho uma loja de roupas e quero um site institucional para vender online com loja virtual feita do zero, em código próprio' });
+  assert.deepEqual([r.estimativa, r.diagnostico], [null, null]);
+  assert.match(r.resposta, /não faz[^.]*hoje/i);
+  assert.doesNotMatch(r.resposta, /WhatsApp|diagnóstico/i, 'sem prometer conversa');
 });
 
 test('adaptador Anthropic: o pedido sai no formato da documentação oficial e os erros viram ErroIA', async () => {

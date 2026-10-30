@@ -21,9 +21,9 @@ export const FRASES = Object.freeze({
   conversaInvalida: 'Conversa inválida.',
   cpf: 'Não escreva CPF, CNPJ nem números soltos de 11 ou 14 dígitos aqui. Telefone e e-mail do site vão nos campos próprios.',
   texto: 'Escreva a lista de ajustes (de 1 a 1.500 caracteres).',
-  passo: 'Esta etapa não está disponível agora. Se precisar, fale com a Beyon Zero pelo WhatsApp.',
+  passo: 'Esta etapa não está disponível agora. Se precisar, deixe um recado para a equipe.',
   mudou: 'A prévia mudou enquanto você escrevia (outra aba?). Confira e tente de novo.',
-  rodadas: 'As duas listas de ajuste já foram usadas. O que passar disso é orçado à parte: fale com a Beyon Zero pelo WhatsApp.',
+  rodadas: 'As duas listas de ajuste já foram usadas. O que passar disso é orçado à parte: deixe um recado para a equipe.',
   whatsapp: 'O WhatsApp ou telefone do site não parece certo. Use o DDD e o número (ex.: (21) 99999-0001).',
   email: 'O e-mail do site não parece certo. Confira (ex.: contato@seusite.com.br).',
   autorizacao: 'Para trocar o telefone ou o e-mail do site, marque a autorização de uso.'
@@ -41,7 +41,7 @@ export function criarAcoesDaPrevia({ banco, visitante, estado, env }) {
   async function chamar(nome, p) {
     try { return await banco(nome, p); }
     catch (e) {
-      if (e instanceof ErroBanco && e.codigo === '55000') throw new Recusa(409, FRASES.passo, { whatsapp: true });   /* passo errado ou entrada estornada */
+      if (e instanceof ErroBanco && e.codigo === '55000') throw new Recusa(409, FRASES.passo, { recado: true });   /* passo errado ou entrada estornada */
       if (e instanceof ErroBanco && e.codigo === '40001') throw new Recusa(409, FRASES.mudou);
       throw e;
     }
@@ -50,7 +50,7 @@ export function criarAcoesDaPrevia({ banco, visitante, estado, env }) {
   async function entregaNaPrevia(request, conversaId) {
     const vid = await visitante(request);
     const e = (await estado(vid, conversaId)).entrega;
-    if (!e || e.passo !== 'previa') throw new Recusa(409, FRASES.passo, { whatsapp: true });   /* (a frase manda falar pelo WhatsApp: a saída vai junto, como no 55000 do banco) */
+    if (!e || e.passo !== 'previa') throw new Recusa(409, FRASES.passo, { recado: true });   /* (a frase manda deixar um recado: a saída vai junto, como no 55000 do banco) */
     const agora = new Date();
     const prazo = fecharPausa(e.prazo, isoNoFuso(agora));
     return { vid, e, agora, prazo, entregaAte: calcularEntregarAte(prazo, { prazoDias: e.prazo_dias }, agora) || e.entrega_ate };
@@ -75,10 +75,10 @@ export function criarAcoesDaPrevia({ banco, visitante, estado, env }) {
       const texto = cortar(redigir(unirQuebras(limpo)).trim(), MAX_LISTA).trim();
       if (!texto && !temContato) throw new Recusa(422, FRASES.texto);   /* uma lista tem texto, contato do site, ou os dois */
       const { vid, e, agora, prazo, entregaAte } = await entregaNaPrevia(request, corpo.conversa_id);
-      if (e.rodadas.max != null && e.rodadas.usadas >= e.rodadas.max) throw new Recusa(409, FRASES.rodadas, { whatsapp: true });
+      if (e.rodadas.max != null && e.rodadas.usadas >= e.rodadas.max) throw new Recusa(409, FRASES.rodadas, { recado: true });
       const r = await chamar('vendas_previa_ajustes', { conversa_id: corpo.conversa_id, visitante_id: vid, texto, whatsapp: contato.whatsapp, email: contato.email,
         autorizacao_versao: temContato ? ESQ.AUTORIZACAO.versao : null, rodada_base: corpo.rodada_base, versao: e.versao, agora: agora.toISOString(), prazo, entrega_ate: entregaAte });
-      if (!r || r.ok !== true) throw new Recusa(409, r && r.motivo === 'rodadas' ? FRASES.rodadas : FRASES.passo, { whatsapp: true });   /* (motivo que não conheço: a frase geral, nunca o motivo cru) */
+      if (!r || r.ok !== true) throw new Recusa(409, r && r.motivo === 'rodadas' ? FRASES.rodadas : FRASES.passo, { recado: true });   /* (motivo que não conheço: a frase geral, nunca o motivo cru) */
       return { ok: true, rodada: r.rodada, entrega_ate: entregaAte };
     },
 
@@ -89,13 +89,13 @@ export function criarAcoesDaPrevia({ banco, visitante, estado, env }) {
       const { vid, e, agora, prazo } = await entregaNaPrevia(request, corpo.conversa_id);
       if (corpo.rodada_base !== e.rodadas.usadas) throw new Recusa(409, FRASES.mudou);
       const r = await chamar('vendas_previa_aprovar', { conversa_id: corpo.conversa_id, visitante_id: vid, versao: e.versao, agora: agora.toISOString(), prazo });
-      if (!r || r.ok !== true) throw new Recusa(409, FRASES.passo, { whatsapp: true });
+      if (!r || r.ok !== true) throw new Recusa(409, FRASES.passo, { recado: true });
       return { ok: true };
     }
   };
-  /* o interruptor: desligado, nenhuma ação passa (503 com a saída pelo WhatsApp), sem tocar no estado nem no banco (o corpo já foi lido por atender, mas não é usado) */
+  /* o interruptor: desligado, nenhuma ação passa (503 com a saída pelo recado), sem tocar no estado nem no banco (o corpo já foi lido por atender, mas não é usado) */
   return Object.fromEntries(Object.entries(acoes).map(([nome, f]) => [nome, async a => {
-    if (!entregaLigada(env)) throw new Recusa(503, FRASE_DESLIGADA, { whatsapp: true });
+    if (!entregaLigada(env)) throw new Recusa(503, FRASE_DESLIGADA, { recado: true });
     return f(a);
   }]));
 }

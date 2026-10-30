@@ -10,12 +10,12 @@ import { fileURLToPath } from 'node:url';
 import { validarBase, HOSTS_VERCEL } from './direcoes.mjs';
 import { hostDoStaging } from '../docs/acesso.mjs';
 
-/* a ordem de aplicação no Supabase real: 3b-1 (1), 3b-2 (4), 3b-3 (5) e a correção do aviso "no ar" (1, de 28/10). Um teste confere esta lista com a pasta supabase/migrations */
+/* a ordem de aplicação no Supabase real: 3b-1 (1), 3b-2 (4), 3b-3 (5), a correção do aviso "no ar" (1, de 28/10) e os recados (1, de 29/10). Um teste confere esta lista com a pasta supabase/migrations */
 export const MIGRATIONS = [
   '20261022120000_pr3b1_entrada.sql',
   '20261023120000_pr3b2_entrega.sql', '20261023120100_pr3b2_material.sql', '20261023120200_pr3b2_link_pedido.sql', '20261023120300_pr3b2_dono.sql',
   '20261024120000_pr3b3_esquema.sql', '20261024120100_pr3b3_previa.sql', '20261024120200_pr3b3_restante.sql', '20261024120300_pr3b3_rotina.sql', '20261024120400_pr3b3_lista.sql',
-  '20261028120000_aviso_no_ar_so_no_ar.sql'
+  '20261028120000_aviso_no_ar_so_no_ar.sql', '20261029120000_recados.sql'
 ];
 /* o endereço do envio assinado, token inteiro; o grupo 1 é o projeto */
 const SUPABASE_EXATO = /^https:\/\/([a-z0-9]{20})\.supabase\.co\/storage\/v1\/object\/upload\/sign\/$/;
@@ -285,7 +285,7 @@ const DO_DONO = [
   item('CONFIRMAR', 'o balde "material" existe (supabase/storage/material.sql) e scripts/conferir-armazem.mjs deu OK em todas as linhas, inclusive o logout global', ''),
   item('CONFIRMAR', 'a tabela ativa tem sinal_percentual 40 (npm run validar:regras) e a migration do 3b-1 foi aplicada', ''),
   item('CONFIRMAR', 'a captação aceita os valores da tabela normal e a venda do site (importar-site, ou o passo manual que você aceitou)', ''),
-  item('CONFIRMAR', 'a captação conta só feriados nacionais (mais a Sexta-feira Santa) e o prazo da proposta (5 a 10 dias úteis)', ''),
+  item('CONFIRMAR', 'a captação conta só feriados nacionais (mais a Sexta-feira Santa) e aceita o prazo da proposta de 1 a 60 dias úteis (sem trava de prazo desde 28/10)', 'em 28/10 a captação ainda recusava fora de 5 a 10 (clientes/fechamento.mjs, PRAZO_SITE): proposta acima de 10 dias não entra na esteira até ela mudar'),
   item('CONFIRMAR', 'o código da captação cumpre o que você decidiu em 22/10: material parado sem publicar e sem encerrar o pedido (nada de sem_material), e o site sai do ar à 00:00 depois dos 3 dias, com os 2 lembretes registrados', 'sem isso o contrato promete o que a captação ainda não faz'),
   item('CONFIRMAR', 'o ensaio completo rodou com Mercado Pago e Supabase de TESTE, sem FALHA, e os PNG a 390 e 320 px foram vistos', ''),
   item('CONFIRMAR', 'o seu PC tem PAINEL_CHAVE e BZ_BASE na janela do terminal (nunca em arquivo)', ''),

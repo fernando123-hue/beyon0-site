@@ -17,7 +17,6 @@
   var PREFIXOS = { '#retomar=': 'retomar', '#pedido=': 'abrir-pedido' };   /* os mesmos de js/ancoras.js (o 1º quadro): se mudar aqui, mude lá */
   var CODIGO = /^[A-Za-z0-9_-]{32}$/;
   var ESCONDE = 'orc-retomando';
-  var TEL = window.BEYON_TEL || '5521977167944';   /* (reserva consciente, como em js/orcamento-detalhes.js: grep 5521977167944) */
   var $ = function (id) { return document.getElementById(id); };
 
   var prefixo = Object.keys(PREFIXOS).filter(function (p) { return (location.hash || '').indexOf(p) === 0; })[0] || null;
@@ -32,10 +31,9 @@
 
   var abriu = false, focado = false;   /* (o foco só é levado ao título depois de abrir o pedido por aqui, uma vez) */
 
-  function whatsapp(texto) { return 'https://wa.me/' + String(TEL).replace(/\D/g, '') + '?text=' + encodeURIComponent(texto); }
-  function falhar(mensagem, comWhatsApp) {
+  function falhar(mensagem, comRecado) {
     $('o-ret-estado').textContent = mensagem;
-    $('o-ret-wa').hidden = !comWhatsApp;
+    $('o-ret-wa').hidden = !comRecado;
   }
   /* a frase da página (mensagemDe, de js/orcamento.js): nunca "Erro interno." cru. Só o anti-robô muda: a frase do
      servidor manda recarregar, e recarregar perderia o link, que já saiu da barra */
@@ -71,10 +69,13 @@
     var bloco = $('o-retomada'), botao = $('o-ret-abrir'), salvo = $('o-ret-salvo');
     var mensagemDe = ajuda.mensagemDe;
     bloco.hidden = false;
-    $('o-ret-wa').href = whatsapp('Oi! O link do meu pedido não abriu. Pode me mandar um novo?');
+    /* a saída é o recado (o único lugar de feedback do site); o link vira o botão dele */
+    var recado = $('o-ret-wa');
+    recado.href = '#recado'; recado.removeAttribute('target'); recado.removeAttribute('data-wa'); recado.textContent = 'Deixar um recado';
+    recado.addEventListener('click', function (ev) { ev.preventDefault(); if (window.BZOrcamento) window.BZOrcamento.abrirRecado({ quem: recado }).catch(function () {}); });
     salvo.addEventListener('click', function () { seguir(continuar); });
 
-    /* sem como abrir por este link (cortado, usado, vencido): o pedido salvo neste aparelho, se houver, e o WhatsApp */
+    /* sem como abrir por este link (cortado, usado, vencido): o pedido salvo neste aparelho, se houver, e o recado */
     function semSaida(mensagem) {
       botao.hidden = true;
       falhar(mensagem, true);
@@ -86,7 +87,7 @@
     /* celular baixo: o botão (ou o último da fila) fica abaixo da dobra? rola até a seção, esperando a passagem como as outras etapas */
     function aVista(botaoDeBaixo) { if (botaoDeBaixo.getBoundingClientRect().bottom > window.innerHeight) ajuda.rolarAte(bloco); }
 
-    if (!codigo) { semSaida('Este link chegou incompleto. Peça um novo à Beyon Zero pelo WhatsApp.'); return; }
+    if (!codigo) { semSaida('Este link chegou incompleto. Peça um novo deixando um recado para a equipe.'); return; }
     botao.addEventListener('click', async function () {
       if (botao.getAttribute('aria-disabled') === 'true') return;
       botao.setAttribute('aria-disabled', 'true');
@@ -96,8 +97,8 @@
       } catch (e) {
         botao.removeAttribute('aria-disabled');
         if (e && e.status === 410) { semSaida(e.message); return; }
-        /* o WhatsApp acompanha o erro do servidor e o que a própria resposta pede (como no resto da página) */
-        falhar(frase(e, mensagemDe), !!(e && (e.status >= 500 || (e.dados && e.dados.whatsapp))));
+        /* o recado acompanha o erro do servidor e o que a própria resposta pede (como no resto da página) */
+        falhar(frase(e, mensagemDe), !!(e && (e.status >= 500 || (e.dados && e.dados.recado))));
         return;
       }
       seguir(continuar);

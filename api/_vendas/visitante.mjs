@@ -31,7 +31,7 @@ import { normalizarIp } from './ip.mjs';
 import { ambienteDe } from '../_ambiente.mjs';
 
 const SEM_LOGIN = 'Não consegui abrir o atendimento agora. Tente de novo em instantes.';
-const LOGIN_DESLIGADO = 'O orçamento está indisponível agora. Fale com a Beyon Zero pelo WhatsApp.';
+const LOGIN_DESLIGADO = 'O orçamento está indisponível agora. Deixe um recado para a equipe.';
 /* (auditoria 2026-10-09 e revisão técnica do lote 1) só o Supabase RECUSANDO o refresh encerra a sessão (400 token
    inválido, 401, 403, 422 refresh já usado ou revogado); 429, 408 e 5xx são passageiros */
 const RECUSOU_TOKEN = new Set([400, 401, 403, 422]);
@@ -60,7 +60,7 @@ export function criarVisitantes(env = process.env, { ip } = {}) {
         const r = await chamarAuth(cfg.url + '/auth/v1/signup', { method: 'POST', headers: cab, body: JSON.stringify({ data: {} }) }, SEM_LOGIN);
         if (!r.ok && passageiro(r.status)) throw new AuthIndisponivel('login anônimo recusado: HTTP ' + r.status, SEM_LOGIN);
         /* outro 4xx é configuração (ex.: 422 anonymous_provider_disabled): tentar de novo não resolve. A pessoa vai
-           para o WhatsApp e o log diz o que conferir; não é 500 porque o código não errou */
+           para o recado e o log diz o que conferir; não é 500 porque o código não errou */
         if (!r.ok) throw new AuthIndisponivel('login anônimo desligado ou mal configurado no Supabase (Authentication › Allow anonymous sign-ins): HTTP ' + r.status, LOGIN_DESLIGADO, { recuperavel: false });
         return sessao(await r.json());
       },

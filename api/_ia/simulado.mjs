@@ -47,12 +47,16 @@ const resposta = (texto, chamadas = []) => {
   return { texto, json: null, chamadas, conteudo, parada: chamadas.length ? 'ferramenta' : 'fim', modelo: 'simulado', uso: { entrada: 0, saida: 0 }, custo_usd: 0 };
 };
 
-function conversa({ mensagens, contexto }) {
+function conversa({ mensagens, contexto, ferramentas = [] }) {
   const ultima = mensagens[mensagens.length - 1];
   /* 2ª volta: as ferramentas já rodaram; a resposta final depende do que voltou */
   if (ultima.role === 'user' && Array.isArray(ultima.content)) {
     const res = ultima.content.map(r => JSON.parse(r.content));
-    if (res.some(r => r.encaminhar_diagnostico)) return resposta('O que você descreveu pede uma conversa de diagnóstico, porque não tem estimativa automática. Posso te levar para o WhatsApp da Beyon Zero?');
+    if (res.some(r => r.encaminhar_diagnostico)) return resposta('O que você descreveu pede uma conversa de diagnóstico, porque não tem estimativa automática. Quer deixar um recado para a equipe? Ela lê e responde por e-mail.');
+    /* o próximo passo do código diz que a Beyon Zero não faz o que foi pedido (dono, 2026-10-28): a resposta honesta, sem diagnóstico */
+    const naoFaz = res.map(r => r.proximo_passo).find(p => typeof p === 'string' && /não faz (isso )?hoje/.test(p));
+    if (naoFaz && /loja feita do zero/.test(naoFaz)) return resposta('Loja feita do zero, em código próprio, a Beyon Zero não faz hoje. Uma loja em plataforma pronta, como Nuvemshop ou Shopify, com a cara da sua marca, resolve para você?');
+    if (naoFaz && /área restrita/.test(naoFaz)) return resposta('Área restrita com login a Beyon Zero não faz hoje. O site sem essa área resolve para você?');
     if (res.some(r => r.prazo_dias)) return resposta('Pronto: o investimento estimado está no cartão de investimento, com o prazo. Se fizer sentido, eu gero três direções de site para o seu negócio.');
     const conf = res.find(r => r.faltam);
     const falta = conf && conf.faltam[0];
@@ -76,10 +80,13 @@ function conversa({ mensagens, contexto }) {
   if (/^(sim|quero|pode|bora|vamos|gera|gerar)/i.test(texto.trim()) && estado.estimativa_mostrada) chamadas.push({ id: id(), nome: 'pedir_contato', entrada: {} });
   else if (b.projeto?.formato && (b.negocio || atualizacao.negocio) && (b.objetivos || atualizacao.objetivos)) {
     const adicionais = {};
-    if ((b.funcionalidades || []).includes('loja')) adicionais.loja_virtual = 1;
+    /* a loja do zero só existe se a tabela ativa a traz (fora do automático); desde 2026-10-28 (dono) a Beyon Zero não a faz */
+    const lojaNaTabela = !!ferramentas.find(f => f.name === 'estimar')?.input_schema?.properties?.adicionais?.properties?.loja_virtual;
+    const lojaDoZero = (b.funcionalidades || []).includes('loja');
+    if (lojaDoZero && lojaNaTabela) adicionais.loja_virtual = 1;
     if ((b.funcionalidades || []).includes('agendamento')) adicionais.agendamento = 1;
     if ((b.funcionalidades || []).includes('blog')) adicionais.blog = 1;
-    chamadas.push({ id: id(), nome: 'estimar', entrada: { formato: b.projeto.formato, ...(b.projeto.paginas ? { paginas: b.projeto.paginas } : {}), adicionais } });
+    if (!lojaDoZero || lojaNaTabela) chamadas.push({ id: id(), nome: 'estimar', entrada: { formato: b.projeto.formato, ...(b.projeto.paginas ? { paginas: b.projeto.paginas } : {}), adicionais } });
   }
   if (/atendimento|responder (os )?clientes|whats(app)? cheio/i.test(texto)) chamadas.push({ id: id(), nome: 'sugerir_solucao_ia', entrada: { ideia: 'Atendente com IA no WhatsApp', motivo: 'Responder dúvidas comuns e agendar fora do horário' } });
   if (!chamadas.length) return resposta('Entendi. Pode me contar um pouco mais sobre o seu negócio e o que o site precisa fazer?');
