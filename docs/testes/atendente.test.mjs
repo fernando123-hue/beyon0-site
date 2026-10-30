@@ -127,3 +127,16 @@ test('limpeza do #65 (MEDIUM): sem sessionStorage "bz-formato" sem leitor, sem -
   assert.match(inicio, /<ul class="servico__formatos"[\s\S]*?<\/ul>/);
   assert.equal((inicio.match(/<ul class="servico__formatos"[\s\S]*?<\/ul>/)[0].match(/<li>/g) || []).length, 4, 'os 4 formatos de /sites');
 });
+
+test('a página do atendente não promete o valor "no orçamento" (o orçamento só calcula sites) e o botão principal abre o recado', () => {
+  const html = fs.readFileSync(new URL('../../automacao.html', import.meta.url), 'utf8');
+  assert.doesNotMatch(html, /valor aparece no orçamento|O valor sai do orçamento|veja o valor antes de pagar/i);
+  const botoes = html.match(/<button[^>]*class="btn btn--primary[^"]*"[^>]*>/g) || [];
+  assert.ok(botoes.length >= 3 && botoes.every(b => /data-recado-abrir/.test(b)), 'hero, conversa e barra do celular abrem o recado');
+});
+
+test('erros do orçamento não mandam mais falar pelo WhatsApp (a saída é o recado)', () => {
+  for (const f of ['js/orcamento-pagamento.js', 'js/orcamento-detalhes.js']) {
+    assert.doesNotMatch(fs.readFileSync(new URL('../../' + f, import.meta.url), 'utf8'), /fale com a Beyon Zero pelo WhatsApp/, f);
+  }
+});

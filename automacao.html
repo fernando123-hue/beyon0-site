@@ -75,7 +75,7 @@
       {
         "@type": "Question",
         "name": "Quanto custa? Tem mensalidade?",
-        "acceptedAnswer": { "@type": "Answer", "text": "Tem mensalidade, porque o atendente roda na estrutura da Beyon Zero e é ajustado todo mês. O valor aparece no orçamento, antes de você pagar." }
+        "acceptedAnswer": { "@type": "Answer", "text": "Tem mensalidade, porque o atendente roda na estrutura da Beyon Zero e é ajustado todo mês. O valor depende do seu negócio: deixe um recado e ele chega por e-mail, antes de você pagar qualquer coisa." }
       },
       {
         "@type": "Question",
@@ -147,7 +147,7 @@
         <div class="hero__main">
         <p class="hero__sub">Um atendente de IA dentro do seu site tira as dúvidas de quem visita e chama uma pessoa quando precisa.</p>
         <div class="hero__actions">
-          <a data-rotulo="O valor sai do orçamento" class="btn btn--primary" href="/orcamento">Monte seu orçamento <span aria-hidden="true" data-seta="direita">→</span></a>
+          <button type="button" data-rotulo="Resposta por e-mail" class="btn btn--primary" data-recado-abrir data-recado-origem="automacao">Quero o atendente no meu site <span aria-hidden="true" data-seta="direita">→</span></button>
           <a data-rotulo="Passo a passo" class="btn btn--ghost" href="#processo">Ver como funciona <span aria-hidden="true" data-seta="baixo">↓</span></a>
         </div>
       </div>
@@ -293,9 +293,9 @@
           <summary><span class="qa__q">Com o que ele responde?</span><span class="qa__mark" aria-hidden="true"></span></summary>
           <div class="qa__a"><p>Com as informações do seu negócio que você me passa: serviços, horários, as perguntas que os clientes fazem sempre. Ele responde só com isso.</p></div>
         </details>
-        <details data-rotulo="Valor no orçamento" class="qa" name="faq">
+        <details data-rotulo="Valor antes de pagar" class="qa" name="faq">
           <summary><span class="qa__q">Quanto custa? Tem mensalidade?</span><span class="qa__mark" aria-hidden="true"></span></summary>
-          <div class="qa__a"><p>Tem mensalidade, porque o atendente roda na estrutura da Beyon Zero e é ajustado todo mês. O valor aparece no orçamento, antes de você pagar.</p></div>
+          <div class="qa__a"><p>Tem mensalidade, porque o atendente roda na estrutura da Beyon Zero e é ajustado todo mês. O valor depende do seu negócio: deixe um recado e ele chega por e-mail, antes de você pagar qualquer coisa.</p></div>
         </details>
         <details data-rotulo="Site e atendente juntos" class="qa" name="faq">
           <summary><span class="qa__q">E se eu ainda não tenho site?</span><span class="qa__mark" aria-hidden="true"></span></summary>
@@ -317,11 +317,11 @@
       <div class="section reveal">
         <p class="kicker"><b aria-hidden="true">05</b> Conversa</p>
         <h2 id="contato-titulo">Seu cliente pergunta. O seu site <em data-palavras="responde|atende|explica|resolve">responde</em>.</h2>
-        <p class="lead">Monte o seu orçamento e veja o valor antes de pagar.</p>
+        <p class="lead">Conte um pouco do seu negócio. A resposta, com o valor, chega por e-mail antes de você pagar qualquer coisa.</p>
         <div class="cta__acoes">
-          <a data-rotulo="O valor sai do orçamento" class="btn btn--primary btn--lg" href="/orcamento">Monte seu orçamento <span aria-hidden="true" data-seta="direita">→</span></a>
+          <button type="button" data-rotulo="Resposta por e-mail" class="btn btn--primary btn--lg" data-recado-abrir data-recado-origem="automacao">Quero o atendente no meu site <span aria-hidden="true" data-seta="direita">→</span></button>
         </div>
-        <p class="fine cta__alt">Prefere escrever antes? <button type="button" data-recado-abrir data-recado-origem="automacao">Deixe um recado</button></p>
+        <p class="fine cta__alt">Precisa de um site também? <a href="/orcamento">Monte seu orçamento</a></p>
         <p class="cta__resumo"><a data-rotulo="Uma página para mostrar" href="/resumo">Precisa mostrar para alguém antes de decidir? Veja o resumo <span aria-hidden="true" data-seta="direita">→</span></a></p>
         <p class="cta__resumo" hidden><a data-rotulo="Mande para quem decide" data-encaminhar="Achei isso sobre um atendente de IA para o nosso site, dá uma olhada:" href="/resumo">Mandar o resumo pelo WhatsApp <span aria-hidden="true" data-seta="direita">→</span></a></p>
       </div>
@@ -361,7 +361,7 @@
   </footer>
 
   <div class="barra is-oculta" id="barra">
-    <a data-rotulo="O valor sai do orçamento" class="btn btn--primary" href="/orcamento">Monte seu orçamento <span aria-hidden="true" data-seta="direita">→</span></a>
+    <button type="button" data-rotulo="Resposta por e-mail" class="btn btn--primary" data-recado-abrir data-recado-origem="automacao">Quero o atendente no meu site <span aria-hidden="true" data-seta="direita">→</span></button>
   </div>
 
   <script src="vendor/gsap/gsap.min.js" defer></script>

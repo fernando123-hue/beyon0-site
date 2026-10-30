@@ -29,7 +29,7 @@
     .concat(Object.keys(REDES).map(function (k) { return REDES[k]; }));
   var FIM = {
     expirado: 'Passaram 72 horas sem a confirmação pelo WhatsApp, então o pedido saiu da fila. Faça um orçamento novo ou deixe um recado para a equipe.',
-    descartado: 'Este pedido foi encerrado. Se quiser seguir, faça um orçamento novo ou fale com a Beyon Zero pelo WhatsApp.'
+    descartado: 'Este pedido foi encerrado. Se quiser seguir, faça um orçamento novo ou deixe um recado para a equipe.'
   };
   var segmentoVisto = null;
   /* a sessão recusada de vez (401): a página avisa "Sua sessão terminou" e oferece recomeçar, como no contato antigo */
