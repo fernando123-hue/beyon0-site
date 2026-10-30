@@ -47,14 +47,14 @@ Com a verificação de anunciante, o Google mostra o nome verificado de qualquer
 
 1. Crie a propriedade no **Google Analytics 4** e copie o ID da métrica (`G-XXXXXXXXXX`).
 2. No **Google Ads** (modo especialista; BRL; fuso de Brasília — moeda e fuso não mudam depois): Metas › Conversões ›
-   Nova › Site › configurar manualmente › **clique**. Nome: "Contato WhatsApp". Categoria: Contato. **Contagem: Uma.**
+   Nova › Site › configurar manualmente › **clique**. Nome: "Contato (recado)". Categoria: Contato. **Contagem: Uma.**
    Janela: 30 dias. Ação **principal**. Copie o ID (`AW-XXXXXXXXX`) e o **rótulo** (o texto depois da barra em
    `AW-XXXXXXXXX/abcDEF123`).
 3. Em `js/medicao.js`, preencha `ga4`, `ads` e `adsRotuloContato`. Publique.
 4. Teste com o **Tag Assistant** (tagassistant.google.com): abrir a página, aceitar os cookies, clicar num botão de
-   WhatsApp — a conversão "Contato WhatsApp" tem de aparecer.
+   WhatsApp — a conversão "Contato (recado)" tem de aparecer.
 5. No GA4, em Administrador › Definições personalizadas, crie três dimensões de evento: `origem_botao`, `pagina` e
-   `via` (sem isso os relatórios não mostram de qual botão veio o clique). Marque o evento `contato_whatsapp` como evento-chave. Se importar para o Google Ads, deixe como
+   `via` (sem isso os relatórios não mostram de qual botão veio o clique). Marque o evento `contato_recado` como evento-chave (o site não tem WhatsApp da Beyon desde 28/10: o contato é o clique em "Deixar um recado"). Se importar para o Google Ads, deixe como
    **secundária** (a principal é a tag do Ads; senão conta duas vezes).
    O caminho principal do site é o orçamento: o clique em "Monte seu orçamento" chega como o evento
    `orcamento_iniciar` (com `origem_botao`). Marque-o também como evento-chave no GA4, mas **não** como conversão do
@@ -182,7 +182,7 @@ Online. Snippet "Serviços": Site Institucional · Landing Page · Site Sob Medi
 2. Conta Google Ads (especialista, BRL, Brasília); pular a "campanha inteligente".
 3. Faturamento CPF ou CNPJ (bloqueio 3). Pré-pago (Pix/boleto) ajuda a controlar.
 4. Verificação do anunciante já no início (até 5 dias úteis).
-5. Conversão "Contato WhatsApp" + GA4 (seção 2), testadas com o Tag Assistant e um clique real.
+5. Conversão "Contato (recado)" + GA4 (seção 2), testadas com o Tag Assistant e um clique real.
 6. Planejador de palavras-chave: anotar o lance de topo de página de cada grupo.
 7. Campanha, grupos, negativas, anúncios e recursos (seção 3). Esperar aprovação.
 8. **Dias 1–3**: anúncios aprovados? conversão registrando? termos de pesquisa todo dia.

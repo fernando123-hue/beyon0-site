@@ -8,7 +8,7 @@
    CONFIG (o passo a passo está em docs/google-ads/README.md):
      ga4      'G-XXXXXXXXXX'  (GA4 › Administrador › Fluxos de dados)
      ads      'AW-XXXXXXXXX'  (Google Ads › Metas › Conversões › tag)
-     adsRotuloContato  o rótulo da conversão "Contato WhatsApp" (a parte
+     adsRotuloContato  o rótulo da conversão "Contato" (recado; a parte
                        depois da barra em 'AW-XXXXXXXXX/abcDEF123')
    A CSP (vercel.json e o <meta> de cada página) já libera os domínios do
    Google necessários.
@@ -18,9 +18,8 @@
    no aparelho (localStorage) e pode ser revista pelo link "Cookies" do rodapé.
    Aceitar e Recusar têm o mesmo peso visual (sem empurrar o "sim").
 
-   O que é medido: a conversão é o CLIQUE QUE ABRE O WHATSAPP (todo link
-   wa.me) e o envio do formulário de Automação (evento 'contato' do
-   js/lead-form.js). Cada clique leva de qual botão veio e se a visita veio de
+   O que é medido: a conversão de contato é o CLIQUE EM "DEIXAR UM RECADO" (todo
+   [data-recado-abrir]; o site não tem WhatsApp da Beyon, Decisões 28/10). Cada clique leva de qual botão veio e se a visita veio de
    anúncio (js/ancoras.js marca html.via-anuncio a partir do gclid/utm). Os
    dados da conversa (o que a pessoa escreve) nunca passam por aqui.
 
@@ -82,11 +81,9 @@
   function origemDe(a) {
     var marcado = a.closest('[data-origem]');
     if (marcado) return marcado.getAttribute('data-origem');
-    if (a.classList.contains('wa')) return 'icone';
     if (a.closest('.barra')) return 'barra';
     if (a.closest('.nav')) return 'menu';
     if (a.closest('.footer')) return 'rodape';
-    if (a.closest('.lead-modal')) return 'formulario-direto';
     var sec = a.closest('section[id], header[id]');
     return sec ? sec.id : 'pagina';
   }
@@ -97,17 +94,14 @@
     try { document.dispatchEvent(new CustomEvent('bz:contato', { detail: dados })); } catch (e) { /* navegador muito antigo */ }
     if (!ATIVO || escolha() !== 'sim') return;
     carregar();   /* (clique antes do ocioso: carrega agora; o gtag.js processa a fila na ordem: js, config, evento) */
-    /* beacon: no celular a página vai para segundo plano quando o app do WhatsApp abre */
-    if (CONFIG.ga4) gtag('event', 'contato_whatsapp', Object.assign({ transport_type: 'beacon' }, dados));
+    /* beacon: a janela do recado abre na própria página, mas quem sai logo depois não pode perder o evento */
+    if (CONFIG.ga4) gtag('event', 'contato_recado', Object.assign({ transport_type: 'beacon' }, dados));
     if (CONFIG.ads && CONFIG.adsRotuloContato) gtag('event', 'conversion', { send_to: CONFIG.ads + '/' + CONFIG.adsRotuloContato, transport_type: 'beacon' });
   }
-  /* só o link que ABRE UMA CONVERSA conta (wa.me com número): não o botão que abre o formulário (data-lead-gate: a
-     conversão dele é o envio, evento 'contato'), não o "encaminhar o resumo" (wa.me sem número), não o "abrir de
-     novo" da confirmação (a conversa já foi contada) */
+  /* só o botão que ABRE O RECADO conta como contato (o único canal do site). O link para /orcamento tem o seu próprio evento, abaixo */
   document.addEventListener('click', function (e) {
-    var a = e.target && e.target.closest ? e.target.closest('a[href^="https://wa.me/"]') : null;
-    if (!a || !/^https:\/\/wa\.me\/\d/.test(a.href) || a.hasAttribute('data-lead-gate') || a.hasAttribute('data-encaminhar') || a.closest('.lead-modal__pronto, [data-sem-medicao]')) return;
-    registrar(botao(a));
+    var a = e.target && e.target.closest ? e.target.closest('[data-recado-abrir]') : null;
+    if (a) registrar(botao(a));
   }, true);
   if (B.on) B.on('contato', function (d) { registrar((d && d.origem) || 'formulario'); });
 
@@ -165,7 +159,7 @@
     aviso.setAttribute('role', 'region');
     aviso.setAttribute('aria-label', 'Cookies');
     var p = document.createElement('p');
-    p.appendChild(document.createTextNode('Usamos cookies do Google só para medir as visitas e os anúncios. O que você escreve no WhatsApp não passa por aqui. '));
+    p.appendChild(document.createTextNode('Usamos cookies do Google só para medir as visitas e os anúncios. O que você escreve no recado não passa por aqui. '));
     var link = document.createElement('a'); link.href = '/privacidade'; link.textContent = 'Política de privacidade';
     p.appendChild(link);
     var acoes = document.createElement('div'); acoes.className = 'consentimento__acoes';
@@ -180,9 +174,8 @@
       acoes.appendChild(bt);
     });
     aviso.appendChild(p); aviso.appendChild(acoes);
-    /* nasceu com o menu ou o formulário aberto: fica inerte como o resto; js/pagina.js e js/lead-form.js o soltam ao fechar */
-    var cls = document.body.classList;
-    if (cls.contains('is-menu') || cls.contains('is-lead-open')) aviso.inert = true;
+    /* nasceu com o menu ou o formulário aberto: fica inerte como o resto; js/pagina.js o solta ao fechar */
+    if (document.body.classList.contains('is-menu')) aviso.inert = true;
     document.body.insertBefore(aviso, document.body.firstChild);   /* (1º no DOM: quem navega por teclado chega nele antes do resto) */
     if (quemAbriu) aviso.querySelector('button').focus();
   }

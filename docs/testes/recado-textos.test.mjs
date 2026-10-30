@@ -54,10 +54,11 @@ test('o front do orçamento reage a `recado` da API, não a `whatsapp` (e o js/r
   assert.ok(fs.existsSync(new URL('js/recado.js', RAIZ)) && fs.existsSync(new URL('css/recado.css', RAIZ)));
 });
 
-test('o orçamento abre o recado nos links [data-wa] antigos, sem deixar o clique chegar à métrica de WhatsApp, e poupa só a confirmação do dono', () => {
+test('o orçamento abre o recado nos links [data-recado-abrir] (o HTML não tem mais data-wa) e a confirmação do dono continua WhatsApp', () => {
   const c = sem(ler('js/orcamento.js'));
-  assert.match(c, /closest\('a\[data-wa\]'\)/);
-  assert.match(c, /a\.id === 'o-confirmar-wa'/, 'a confirmação do pedido pelo dono (passo 3) continua WhatsApp');
+  assert.match(c, /closest\('a\[data-recado-abrir\]'\)/);
+  assert.ok(!/data-wa/.test(c), 'o orçamento não monta mais link de WhatsApp da Beyon');
+  assert.match(ler('orcamento.html'), /id="o-confirmar-wa"/, 'a confirmação do pedido pelo dono (passo 3) continua WhatsApp');
   assert.match(c, /ev\.preventDefault\(\); ev\.stopPropagation\(\);\s*API\.abrirRecado\(/);
   const api = sem(ler('js/orcamento-api.js'));
   assert.match(api, /recado: async function/); assert.match(api, /abrirRecado: function/);

@@ -462,8 +462,6 @@
     try {
       if (nome) sessionStorage.setItem('bz-planta-nome', nome); else sessionStorage.removeItem('bz-planta-nome');
       if (nicho !== 'padrao') sessionStorage.setItem('bz-planta-nicho', nicho); else sessionStorage.removeItem('bz-planta-nicho');
-      /* (o tipo escolhido, com a chave do orçamento; o /orcamento ainda não lê: fica pronto para quando ler) */
-      sessionStorage.setItem('bz-formato', formato);
     } catch (e) { /* sem armazenamento: o orçamento abre vazio */ }
   });
 
