@@ -140,3 +140,13 @@ test('erros do orçamento não mandam mais falar pelo WhatsApp (a saída é o re
     assert.doesNotMatch(fs.readFileSync(new URL('../../' + f, import.meta.url), 'utf8'), /fale com a Beyon Zero pelo WhatsApp/, f);
   }
 });
+
+test('o e-mail da empresa é o canal escrito (Decreto 7.962): rodapé, orçamento sem JS, condições e privacidade, sem wa.me', () => {
+  const MAILTO = 'href="mailto:contato.beyon.zero@gmail.com"';
+  for (const p of ['index.html', 'sites.html', 'automacao.html']) assert.match(ler(p).match(/<p class="footer__contato">.*<\/p>/)[0], new RegExp(MAILTO), p);
+  assert.match(ler('orcamento.html').match(/<noscript><p class="orc-aviso[\s\S]*?<\/noscript>/)[0], new RegExp(MAILTO), 'orçamento sem JS');
+  for (const p of ['condicoes.html', 'privacidade.html']) {
+    assert.match(ler(p), new RegExp(MAILTO), p);
+    assert.doesNotMatch(ler(p), /wa\.me/, p);
+  }
+});
