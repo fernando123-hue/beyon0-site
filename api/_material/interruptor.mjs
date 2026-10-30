@@ -4,4 +4,4 @@
    e com o PR da privacidade mesclado. O servidor local (docs/servidor.mjs, que não vai ao deploy) liga por conta própria.
    ========================================================================== */
 export const entregaLigada = env => String((env && env.BZ_ENTREGA) || '').trim() === 'ligada';
-export const FRASE_DESLIGADA = 'Recebemos a sua entrada. A Beyon Zero fala com você pelo WhatsApp para o próximo passo.';
+export const FRASE_DESLIGADA = 'Recebemos a sua entrada. A Beyon Zero entra em contato com você para o próximo passo.';

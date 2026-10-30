@@ -138,3 +138,17 @@ test('Task 19 (tela): a caixa de marcar fica em linha com o texto e 44 px (o CSS
   assert.equal(M.textoDoEstado({ id: 'a', papel: 'foto', estado: 'enviado', tamanho: 60 }), '1 KB · enviada', 'nunca "0 MB"');
   assert.equal(M.textoDoEstado({ id: 'a', papel: 'foto', estado: 'enviado', tamanho: 1.5 * 1024 * 1024 }), '1.5 MB · enviada');
 });
+
+test('somente leitura: a Previsão e "Você vê a prévia aqui mesmo." só no material e na produção; depois, só "Recebido." (a história já está nas seções do passo 3 e 4)', () => {
+  const lead = (status, passo, previsao) => M.leadDoMaterial(status, passo, previsao);
+  for (const passo of ['material', 'producao']) {
+    assert.equal(lead('enviado', passo, '11 de novembro'), 'Recebido. Previsão do seu site: 11 de novembro. Você vê a prévia aqui mesmo.', passo);
+    assert.equal(lead('enviado', passo, ''), 'Recebido. Você vê a prévia aqui mesmo.', passo + ' sem data');
+  }
+  for (const passo of ['previa', 'ajustes', 'aprovada', 'no_ar', 'suspensa', 'concluida', 'encerrada']) {
+    assert.equal(lead('enviado', passo, '11 de novembro'), 'Recebido.', passo);
+    assert.equal(lead('enviado', passo, ''), 'Recebido.', passo + ' sem data');
+  }
+  for (const passo of ['producao', 'previa', 'no_ar', 'concluida']) assert.equal(lead('limpo', passo, '11 de novembro'), 'O seu material já foi para a produção e saiu desta página.', 'limpo não muda: ' + passo);
+  assert.match(semComentario(FONTE), /leadDoMaterial\(m\.status, e\.passo, previsao\)/, 'somenteLeitura usa a função com o passo da entrega');
+});

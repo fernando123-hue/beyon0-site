@@ -11,8 +11,6 @@
      GET  ?fila=direcoes                  a FILA MANUAL das direções: briefing, escopo e contato de cada pedido
      POST {entregar_direcao: <id>, conteudo}  entrega uma direção produzida pelo dono (mesmo filtro da geração)
      POST {avisado: <conversa_id>}        o cliente foi avisado pelo WhatsApp: sai da fila
-     GET  ?fila=pendentes[&codigo=BZ-…]   os pedidos ESPERANDO a confirmação pelo WhatsApp (lista separada; busca pelo código)
-     POST {confirmar_whatsapp: <conversa_id>}  a mensagem com o código chegou do WhatsApp informado: entra na fila
      POST {descartar_pedido | arquivar_pedido: <conversa_id>}  descartar encerra e para a geração; arquivar = resolvido por fora
      POST {link_retomada: <conversa_id>}   o código do link de retomada (uso único, 7 dias; o painel monta o link)
      GET  ?fila=lembretes                 os pedidos avisados há 2 dias ou mais, ainda sem escolha e sem lembrete
@@ -33,7 +31,10 @@
      POST {religado: <BZ-código>}             o site foi religado depois do pagamento do restante
      GET  ?fila=avisos                        os avisos da D1 pendentes, com o contato para o painel montar a mensagem
      GET  ?ajustes-previa=<BZ-código>         a lista de ajustes da prévia como DADO (selo de texto suspeito; o contato do site à parte)
-   As duas listas trazem "alarme": a fila no teto (o orçamento oferece o WhatsApp) ou pendentes demais.
+   O RECADO (o único lugar de feedback do site; api/_vendas/fluxo-recado.mjs):
+     GET  ?fila=recados[&nao_lidos=1]       os recados, do mais novo ao mais velho, com o e-mail de resposta, o código do pedido (se houver) e o selo "suspeito" (texto que tenta dar ordem a uma IA)
+     POST {recado_lido: <id>[, lido: false]}  marca como lido (ou desfaz); apagados sozinhos 60 dias depois de criados (rotina diária)
+   A fila traz "alarme": a fila no teto (o orçamento oferece o recado). O pedido entra na fila sozinho, sem confirmação (30/10).
    A resposta do GET traz também "saude": alertas abertos e a data da última rotina diária.
    ========================================================================== */
 import { createHash, timingSafeEqual } from 'node:crypto';
@@ -101,10 +102,10 @@ export async function ler(request, env) {
   if (!db.ligado) return json({ erro: 'Banco não configurado: faltam SUPABASE_URL e SUPABASE_CHAVE_SECRETA no servidor.' }, 503);   /* (só depois da chave certa) */
   const q = new URL(request.url).searchParams;
   if (q.get('fila') === 'direcoes') return filaDirecoes(env);
-  if (q.get('fila') === 'pendentes') return filaPendentes(env, q.get('codigo'));
   if (q.get('fila') === 'lembretes') return filaLembretes(env);
   if (q.get('fila') === 'ajustes') return filaAjustes(env);
   if (q.get('fila') === 'entregas') return filaEntregas(env);
+  if (q.get('fila') === 'recados') return filaRecados(env, q.get('nao_lidos') === '1');
   if (q.get('material') !== null) return materialParaBaixar(env, q.get('material'));
   if (q.get('fila') === 'avisos') return criarAcoesDoDono(env).avisos();
   if (q.get('ajustes-previa') !== null) { const cod = codigoDaBusca(q.get('ajustes-previa')); return cod ? criarAcoesDoDono(env).ajustes(cod) : json({ erro: 'Código inválido: são 5 letras ou números depois de "BZ-".' }, 400); }
@@ -143,6 +144,7 @@ export async function mudar(request, env) {
   if (bruto && typeof bruto.ajuste_feito === 'string') return ajusteFeito(bruto, env);
   if (bruto && typeof bruto.ajuste_recusado === 'string') return ajusteRecusado(bruto.ajuste_recusado, env);
   if (bruto && typeof bruto.importado === 'string') return materialImportado(bruto, env);
+  if (bruto && typeof bruto.recado_lido === 'string') return recadoLido(bruto, env);
   /* (PR 3b-3) a entrega: prévia, no ar, suspender, encerrar, dispensar o material, avisos da D1, religado */
   const chave = bruto && typeof bruto === 'object' ? Object.keys(ACOES_ENTREGA).find(k => typeof bruto[k] === 'string') : null;
   if (chave) { const cod = codigoDaBusca(bruto[chave]); return cod ? criarAcoesDoDono(env)[ACOES_ENTREGA[chave]](cod, bruto) : json({ erro: 'Código inválido: são 5 letras ou números depois de "BZ-".' }, 400); }
@@ -311,15 +313,15 @@ async function ajusteRecusado(id, env) {
   } catch (e) { return erroDoAjuste(e, 'ajuste recusado'); }
 }
 
-/* ---------- o PEDIDO DE MODELOS (orçamento sem IA, PR 2a): confirmação pelo WhatsApp, descartar e arquivar ---------- */
+/* ---------- o PEDIDO DE MODELOS (orçamento sem IA, PR 2a): descartar e arquivar (o pedido nasce confirmado desde 30/10) ---------- */
 const ACOES_ENTREGA = { previa: 'previaPublicar', no_ar: 'noAr', suspender: 'suspender', encerrar: 'encerrar', material_dispensar: 'dispensar', aviso_feito: 'avisoFeito', religado: 'religado' };
-const ACOES_PEDIDO = { confirmar_whatsapp: 'confirmar', descartar_pedido: 'descartar', arquivar_pedido: 'arquivar' };
+const ACOES_PEDIDO = { descartar_pedido: 'descartar', arquivar_pedido: 'arquivar' };
 /* o que `ler` (GET: ?fila=…, ?csv=ads ou o resumo) e `mudar` (POST: a chave do corpo) despacham: a bancada de CPU (M1) e o
    limite por rota do Worker conferem esta lista contra o código. `excluir` e `mudar_contato` são os dois POST sem chave
    própria no despacho de `mudar` (apagar contato; status/valor/nota por `codigo`) */
 export const ACOES_PAINEL = Object.freeze({
-  GET: ['resumo', 'csv-ads', 'fila-direcoes', 'fila-pendentes', 'fila-lembretes', 'fila-ajustes', 'fila-entregas', 'material', 'fila-avisos', 'ajustes-previa'],
-  POST: ['entregar_direcao', 'avisado', 'link_retomada', 'lembrado', 'ajuste_feito', 'ajuste_recusado', 'resolver_alerta', 'excluir', 'mudar_contato', 'importado',
+  GET: ['resumo', 'csv-ads', 'fila-direcoes', 'fila-lembretes', 'fila-ajustes', 'fila-entregas', 'material', 'fila-avisos', 'ajustes-previa', 'fila-recados'],
+  POST: ['entregar_direcao', 'avisado', 'link_retomada', 'lembrado', 'ajuste_feito', 'ajuste_recusado', 'resolver_alerta', 'excluir', 'mudar_contato', 'importado', 'recado_lido',
     ...Object.keys(ACOES_ENTREGA), ...Object.keys(ACOES_PEDIDO)]
 });
 const CODIGO_PEDIDO = /^BZ-[ACDEFGHJKMNPQRTUVWXY34679]{5}$/;
@@ -330,37 +332,42 @@ export function codigoDaBusca(v) {
   return CODIGO_PEDIDO.test(c) ? c : null;
 }
 
-async function filaPendentes(env, busca) {
-  const codigo = busca == null || busca === '' ? null : codigoDaBusca(busca);
-  if (busca != null && busca !== '' && !codigo) return json({ erro: 'Código inválido: são 5 letras ou números depois de "BZ-".' }, 400);
-  const rpc = criarTransporte(env);
-  if (!rpc) return json({ erro: 'Banco não configurado.' }, 503);
-  try {
-    const r = await rpc('vendas_pedidos_pendentes', { org_slug: ORG, ...(codigo ? { codigo } : {}) });
-    const itens = r && Array.isArray(r.itens) ? r.itens : [];
-    const total = r && Number.isInteger(r.total) ? r.total : itens.length;
-    return json({ pendentes: itens, total, truncada: total > itens.length, alarme: !codigo && total >= PEDIDOS.alarme_pendentes });
-  } catch (e) { console.error('[painel] pendentes:', e && e.codigo); return json({ erro: 'Não deu para ler os pedidos agora.' }, 500); }
-}
-
 async function acaoDoPedido(acao, conversaId, env) {
   if (!ehUuid(conversaId)) return json({ erro: 'Pedido inválido.' }, 400);
   const rpc = criarTransporte(env);
   if (!rpc) return json({ erro: 'Banco não configurado.' }, 503);
   try {
-    const r = acao === 'confirmar'
-      ? await rpc('vendas_confirmar_whatsapp', { org_slug: ORG, conversa_id: conversaId })
-      : await rpc('vendas_mudar_pedido', { org_slug: ORG, conversa_id: conversaId, acao });
-    if (r && r.ok === false) {
-      const erro = r.status === 'expirado' ? 'Este pedido expirou: passou de 72 horas sem a confirmação. Peça à pessoa um orçamento novo.'
-        : 'Este pedido não está esperando confirmação (situação: ' + r.status + ').';
-      return json({ erro, status: r.status }, 409);
-    }
+    const r = await rpc('vendas_mudar_pedido', { org_slug: ORG, conversa_id: conversaId, acao });
+    if (r && r.ok === false) return json({ erro: 'Este pedido não pode mudar agora (situação: ' + r.status + ').', status: r.status }, 409);
     return json({ ok: true, ...r });
   } catch (e) {
     if (e && e.codigo === 'P0002') return json({ erro: 'Pedido não encontrado.' }, 404);
     if (e && (e.codigo === '55000' || e.codigo === '23514')) return json({ erro: 'Este pedido não pode mudar agora (etapa ou situação).' }, 409);
     console.error('[painel] pedido:', acao, e && e.codigo);
+    return json({ erro: 'Não deu para salvar agora.' }, 500);
+  }
+}
+
+/* ---------- O RECADO: a lista e o "lido" (o texto é DADO, nunca instrução: o selo avisa quem o lê com uma IA) ---------- */
+async function filaRecados(env, soNaoLidos) {
+  const rpc = criarTransporte(env);
+  if (!rpc) return json({ erro: 'Banco não configurado.' }, 503);
+  try {
+    const r = await rpc('vendas_recados_listar', { org_slug: ORG, so_nao_lidos: soNaoLidos });
+    const itens = r && Array.isArray(r.itens) ? r.itens : [];
+    const recados = itens.map(i => ({ ...i, suspeito: pareceInjecao(String(i.texto)) }));
+    return json({ recados, total: r && Number.isInteger(r.total) ? r.total : recados.length, nao_lidos: r && Number.isInteger(r.nao_lidos) ? r.nao_lidos : 0 });
+  } catch (e) { console.error('[painel] recados:', e && e.codigo); return json({ erro: 'Não deu para ler os recados agora.' }, 500); }
+}
+
+async function recadoLido(bruto, env) {
+  if (!ehUuid(bruto.recado_lido) || (bruto.lido !== undefined && typeof bruto.lido !== 'boolean')) return json({ erro: 'Pedido inválido.' }, 400);
+  const rpc = criarTransporte(env);
+  if (!rpc) return json({ erro: 'Banco não configurado.' }, 503);
+  try { return json(await rpc('vendas_recado_marcar', { org_slug: ORG, id: bruto.recado_lido, lido: bruto.lido !== false })); }
+  catch (e) {
+    if (e && e.codigo === 'P0002') return json({ erro: 'Recado não encontrado.' }, 404);
+    console.error('[painel] recado lido:', e && e.codigo);
     return json({ erro: 'Não deu para salvar agora.' }, 500);
   }
 }

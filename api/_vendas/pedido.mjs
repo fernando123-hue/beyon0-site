@@ -23,7 +23,8 @@ import { textoLimpo } from '../_classificador/contrato.mjs';
    conversa envia os detalhes (revisão final, M2: trocar o telefone para sondar se um número já pediu). por_ip48_dia: o
    teto do IPv6 por /48, além do /64 (revisão final, M3c: uma casa ou empresa costuma ter um /48 inteiro) */
 export const PEDIDOS = Object.freeze({ por_ip_dia: 3, por_telefone_dia: 2, fila_confirmados: 10, horas_para_confirmar: 72, alarme_pendentes: 20,
-  tentativas_por_conversa: 3, por_ip48_dia: 10 });
+  tentativas_por_conversa: 3, por_ip48_dia: 10,
+  pedidos_por_hora: 5 });   /* (30/10) limite GLOBAL por hora: com o pedido entrando direto na fila, ninguém a enche em minutos, nem trocando de IP e de telefone */
 
 /* as redes aceitas: o domínio fixo e o formato do usuário (o MESMO de js/painel-pedido-comum.js) */
 export const REDES = Object.freeze({
@@ -102,7 +103,7 @@ export async function validarDetalhes(corpo) {
     t[campo] = v;
   }
   const telefone = normalizarTelefone(typeof corpo.telefone === 'string' ? corpo.telefone : '');
-  if (!telefone) return { erros: ['Informe o seu WhatsApp com DDD.'] };
+  if (!telefone) return { erros: ['Informe o seu telefone com WhatsApp e DDD.'] };
   const r = redesDoCorpo(corpo);
   if (r.erro) return { erros: [r.erro] };
   if (Object.keys(r.redes).length && corpo.autoriza_redes !== true) return { erros: ['Para usar as suas redes nos modelos, marque a autorização (ou deixe as redes em branco).'] };

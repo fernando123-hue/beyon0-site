@@ -28,7 +28,7 @@
     c.appendChild(texto);
     var acoes = el('div', 'pn__fila-acoes');
     acoes.appendChild(C.avisoComLink({ conversaId: l.conversa_id, contato: l.contato || {}, rotulo: 'lembrete', assunto: 'Seus modelos de site estão esperando',
-      texto: function (link) { return 'Aqui é da Beyon Zero. Passando para lembrar: os três modelos do seu site estão esperando a sua escolha. Este link abre o seu pedido em qualquer aparelho (vale por 7 dias): ' + link; } }));
+      texto: function (link) { return 'Aqui é o Fernando, da Beyon Zero. Passando para lembrar: os três modelos do seu site estão esperando a sua escolha. Este link abre o seu pedido em qualquer aparelho (vale por 7 dias): ' + link; } }));
     var feito = el('button', 'pn__btn pn__btn--fino', 'Já lembrei');
     feito.type = 'button';
     feito.setAttribute('aria-label', 'Já lembrei ' + ((l.contato && l.contato.nome) || 'o cliente'));

@@ -17,7 +17,7 @@
    · nenhum conteúdo preso invisível pelo contrato html.js (opacity 0 ou
      visibility hidden depois de 3,5s — o GSAP tem que ter revelado);
    · rolagem lateral zero; caixas `.cena` fora do fluxo;
-   · todos os links de WhatsApp montados; sem erro de console; fps > 45.
+   · nenhum link de WhatsApp da Beyon (o site não tem: Decisões 28/10) e o local de recado montado; sem erro de console; fps > 45.
    E a PASSAGEM entre páginas (no fim): chega inteira e sem nada preso, volta
    pelo histórico inteira, desiste em 2 s, fecha o menu do celular na hora e
    chega a uma âncora só aparecendo.
@@ -84,17 +84,23 @@ for (const [rota, nome, opcoes, { semNucleo = false, reduzirNoBoot = false, exig
 
   const d = await page.evaluate(() => {
     const B = window.BEYON;
-    const wa = [...document.querySelectorAll('[data-wa]')];
+    const wa = [...document.querySelectorAll('[data-wa], a[href*="wa.me/55"]')];
     const escondido = e => { const cs = getComputedStyle(e); return cs.opacity === '0' || cs.visibility === 'hidden'; };
     return {
       boot: !!B,
       overflowX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-      waProntos: wa.filter(a => (a.getAttribute('href') || '').startsWith('https://wa.me/')).length,
-      waTotal: wa.length,
+      waBeyon: wa.length,
+      recado: document.querySelectorAll('[data-recado-abrir], [data-recado]').length,
+      /* o resumo é uma página isolada, só com o link para o orçamento: não tem recado */
+      isolada: /^\/resumo/.test(location.pathname),
       presos: [...document.querySelectorAll('.hero__title, .display, .hero__sub, .hero__actions')].filter(escondido).length,
       barraOk: !document.getElementById('barra') || innerWidth > 820 || getComputedStyle(document.getElementById('barra')).position === 'fixed'
     };
   });
+  /* o LCP é lido ANTES da rolagem: no navegador de verdade ele para no primeiro toque ou rolagem do visitante, mas a
+     rolagem por script daqui não conta como interação, e um parágrafo do fim da página (pintado só ao rolar) virava o
+     "maior" aos 4-5 s (2026-10-28: Conversa da automação e h2 de Sites, enquanto o LCP real era 0,9 s) */
+  const lcp = Math.round(await page.evaluate(() => window.__lcp));
   /* rola até o fim e volta: nada pode ficar preso invisível no caminho */
   await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
   await page.waitForTimeout(1500);
@@ -102,7 +108,6 @@ for (const [rota, nome, opcoes, { semNucleo = false, reduzirNoBoot = false, exig
   await page.evaluate(() => scrollTo(0, 0));
   await page.waitForTimeout(400);
   const fps = await medirFps(page);
-  const lcp = Math.round(await page.evaluate(() => window.__lcp));
   /* o CAMPO desenha (o fundo nunca pode virar tela preta em silêncio) */
   const campo = await page.evaluate(() => {
     const B = window.BEYON;
@@ -114,7 +119,7 @@ for (const [rota, nome, opcoes, { semNucleo = false, reduzirNoBoot = false, exig
 
   const reais = erros.filter(e => !/ERR_CERT|GPU stall|swiftshader/i.test(e));
   const ok = (semNucleo || d.boot) && d.barraOk && d.overflowX === 0 &&
-    d.waProntos === d.waTotal && reais.length === 0 && d.presos === 0 && d.presosNoFim === 0 && campo !== 0 &&
+    d.waBeyon === 0 && (d.recado > 0 || d.isolada) && reais.length === 0 && d.presos === 0 && d.presosNoFim === 0 && campo !== 0 &&
     (exige3d ? nucleo : (!nucleo && fps > 45)) &&
     /* LCP com orçamento (2,5s é o "bom" do Core Web Vitals); o primeiro alvo da rodada é artefato do headless */
     (primeiro || lcp < 2500);
@@ -127,7 +132,7 @@ for (const [rota, nome, opcoes, { semNucleo = false, reduzirNoBoot = false, exig
     'núcleo=' + (nucleo ? 'sim' : 'não'),
     'lcp=' + String(lcp).padStart(5) + 'ms',
     'rolagemX=' + d.overflowX,
-    'wa=' + d.waProntos + '/' + d.waTotal,
+    'wa=' + d.waBeyon + ' recado=' + d.recado,
     'presos=' + d.presos + '/' + d.presosNoFim,
     'campo=' + (campo < 0 ? '—' : campo > 0 ? 'ok' : 'VAZIO'),
     reais.length ? '\n     erros: ' + reais.join('\n     ') : ''
@@ -321,7 +326,7 @@ await cenario('passagem-destinos', DESKTOP, async page => {
 
 /* ==========================================================================
    A MEDIÇÃO do caminho principal (js/medicao.js): o clique em "Monte seu
-   orçamento" vira 'orcamento_iniciar' (não contato), e o WhatsApp de dentro
+   orçamento" vira 'orcamento_iniciar' (não contato), e o recado de dentro
    do orçamento conta como contato nas métricas próprias, sem Google.
    ========================================================================== */
 await cenario('medicao-orcamento', CELULAR, async page => {
@@ -341,13 +346,12 @@ await cenario('medicao-orcamento', CELULAR, async page => {
   return { ok: r.orc.length === 1 && d.origem_botao && d.origem_botao !== 'pagina' && d.pagina === '/' && r.contato === 0,
     info: `eventos=${r.orc.length} origem=${d.origem_botao} pagina=${d.pagina} contatos=${r.contato}` };
 });
-await cenario('medicao-wa-orc', DESKTOP, async page => {
-  await page.route('https://wa.me/**', rota => rota.abort());
+await cenario('medicao-recado-orc', DESKTOP, async page => {
   await page.goto(BASE + '/orcamento', { waitUntil: 'load' });
   await page.waitForTimeout(1500);
   await page.evaluate(() => { window.__contato = []; document.addEventListener('bz:contato', e => window.__contato.push(e.detail)); });
-  /* (orçamento sem IA: a conversa só aparece com consultor; o WhatsApp de dentro do orçamento à vista é o das perguntas) */
-  await page.locator('#o-perguntas a[href^="https://wa.me/"]').first().click();
+  /* (orçamento sem IA: a conversa só aparece com consultor; o recado de dentro do orçamento à vista é o das perguntas) */
+  await page.locator('#o-perguntas a[data-recado-abrir]').first().click();
   await page.waitForTimeout(300);
   /* o link do menu para o próprio orçamento não é "começar o orçamento" */
   await page.evaluate(() => { window.__orc = 0; window.BEYON.on('medicao:orcamento', () => window.__orc++); window.addEventListener('click', e => e.preventDefault(), true); });

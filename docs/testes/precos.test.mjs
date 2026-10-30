@@ -4,13 +4,17 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { estimar, validarRegras, validarFatores } from '../../api/_vendas/precos.mjs';
 import { comArea } from './_area-v2.mjs';
+import { comFases } from './_motor-fases.mjs';
+import { comFora } from './_fora-do-automatico.mjs';
 
 const REGRAS = JSON.parse(fs.readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
 const copia = () => JSON.parse(JSON.stringify(REGRAS));
+/* a tabela com o teto de 10 dias e os limites antigos (ver _motor-fases.mjs): a lógica de fases e limites do motor */
+const MOTOR = comFases(REGRAS);
 /* o mecanismo de dependentes (requer), prioridade e fase seguinte, com a área restrita automática da v2 (a tabela de
-   2026-10-14 a tirou do automático; ver _area-v2.mjs) */
-const AREA = comArea(REGRAS);
-const copiaArea = () => comArea(REGRAS);
+   2026-10-14 a tirou do automático; ver _area-v2.mjs), sobre o motor com teto */
+const AREA = comArea(MOTOR);
+const copiaArea = () => comArea(MOTOR);
 
 test('a tabela-rascunho é válida, e tabela quebrada é recusada', () => {
   assert.deepEqual(validarRegras(REGRAS), { ok: true });
@@ -30,34 +34,71 @@ test('sinal: só porcentagem inteira (a proposta guarda inteiro; fração dava u
   assert.ok((validarRegras({ ...REGRAS, arredondamento: 3.3 }).erros || []).some(x => /arredondamento/.test(x)), 'arredondamento 3,3: recusado');
 });
 
-/* decisões do dono de 2026-10-14 (01 Empresa/Decisões.md): o preço regular, que vale do 11º cliente em diante (o fundador,
-   R$ 800 e R$ 1.900, fica só na página de condições); textos a R$ 350; área restrita fora do automático */
-test('tabela de 2026-10-14: landing 1.800, institucional 3.900, textos 350, área restrita pela conversa', () => {
-  assert.deepEqual([REGRAS.formatos.landing_page.base, REGRAS.formatos.institucional.base, REGRAS.adicionais.textos.valor], [1800, 3900, 350]);
-  assert.deepEqual([REGRAS.formatos.loja_plataforma.base, REGRAS.formatos.sob_medida.base], [4800, 8900], 'loja e experiência paradas até 3 entregas de cada');
-  const area = estimar({ formato: 'institucional', adicionais: { area_restrita: 1 } }, REGRAS);
-  assert.equal(area.encaminhar_diagnostico, true, 'área restrita vai para a conversa ("a partir de R$ 4.500, com escopo escrito")');
-  assert.equal(area.valor_total, undefined, 'sem valor automático');
-  assert.deepEqual(Object.keys(REGRAS.adicionais).filter(k => k.startsWith('area_')), ['area_restrita'], 'sem dependentes de uma base que não está no automático');
+/* decisões do dono de 2026-10-28 (01 Empresa/Decisões.md, "subir todos os preços com base em dados"): landing 2.900,
+   institucional 7.900, experiência 19.900, loja 8.900; adicionais sem mudança (textos a R$ 350, de 2026-10-14); área
+   restrita continua fora do automático (2026-10-14) */
+test('tabela de 2026-10-28: landing 2.900, institucional 7.900, experiência 19.900, loja 8.900, textos 350', () => {
+  assert.deepEqual([REGRAS.formatos.landing_page.base, REGRAS.formatos.institucional.base, REGRAS.adicionais.textos.valor], [2900, 7900, 350]);
+  assert.deepEqual([REGRAS.formatos.loja_plataforma.base, REGRAS.formatos.sob_medida.base], [8900, 19900]);
+  assert.deepEqual(Object.values(REGRAS.formatos).map(f => f.piso), [1500, 4500, 9900, 6500], 'pisos de landing, institucional, experiência e loja');
+});
+
+/* dono, 2026-10-28 (Decisões.md): saem da venda a área restrita, o sistema sob medida e a loja em código próprio */
+test('tabela de 2026-10-28: nada fora do automático; área restrita, sistema e loja do zero não existem na tabela', () => {
+  assert.deepEqual(Object.keys(REGRAS.adicionais).filter(k => REGRAS.adicionais[k].fora_do_automatico), [], 'nenhum item fora do automático');
+  assert.deepEqual(Object.keys(REGRAS.adicionais).filter(k => /^area_|sistema|loja_virtual/.test(k)), [], 'nem a área, nem os dependentes dela, nem o sistema, nem a loja do zero');
+  for (const k of ['area_restrita', 'sistema_sob_medida', 'loja_virtual']) {
+    const e = estimar({ formato: 'institucional', adicionais: { [k]: 1 } }, REGRAS);
+    assert.deepEqual([e.erros, e.encaminhar_diagnostico, e.valor_total], [['adicional desconhecido: ' + k], undefined, undefined], k + ': recusado, sem preço e sem diagnóstico');
+  }
+  assert.match(REGRAS._status, /área restrita, o sistema sob medida e a loja em código próprio/);
 });
 
 test('casos de referência (os números do REGRAS-RASCUNHO.md)', () => {
   const l = estimar({ formato: 'landing_page' }, REGRAS);
-  assert.deepEqual([l.valor_total, l.sinal, l.prazo_dias, l.fase], [1800, 720, 5, 'unica']);
+  assert.deepEqual([l.valor_total, l.sinal, l.prazo_dias, l.fase], [2900, 1160, 5, 'unica']);
+  /* 7900 + 2 páginas × 350 + 7 textos × 350 + agendamento 450 = 11500; 8 + 2 × 0,5 + 7 × 0,25 + 1 = 11,75 → 12 dias, numa entrega só */
   const i = estimar({ formato: 'institucional', paginas: 7, adicionais: { textos: 7, agendamento: 1 } }, REGRAS);
-  assert.deepEqual([i.valor_total, i.sinal, i.prazo_dias, i.fase], [6000, 2400, 10, 'fase1']);
+  assert.deepEqual([i.valor_total, i.sinal, i.prazo_dias, i.fase, i.fase_seguinte], [11500, 4600, 12, 'unica', null]);
+  assert.deepEqual(i.itens.map(x => x.chave + 'x' + x.qtd), ['pagina_extrax2', 'textosx7', 'agendamentox1']);
+  /* 7900 + 5 páginas × 350 + blog 900 + catálogo 1500 = 12050; 8 + 2,5 + 2 + 3 = 15,5 → 16 dias */
+  const g = estimar({ formato: 'institucional', paginas: 10, adicionais: { blog: 1, catalogo: 1 } }, REGRAS);
+  assert.deepEqual([g.valor_total, g.sinal, g.prazo_dias, g.fase, g.fase_seguinte], [12050, 4820, 16, 'unica', null]);
+  const u = estimar({ formato: 'landing_page', urgencia: true }, REGRAS);
+  assert.deepEqual([u.valor_total, u.prazo_dias], [3770, 3]);   /* 2900 × 1,3; 5 × 0,6 */
+  assert.equal(estimar({ formato: 'sob_medida', complexidade: 'alta' }, REGRAS).valor_total, 24880);   /* 19900 × 1,25 = 24875, arredondado de 10 em 10 */
+});
+
+/* a lógica de fases continua no motor (uma tabela ativa pode ter teto): os mesmos pedidos com o teto de 10 dias */
+test('com teto de 10 dias, o que não cabe vai para a fase seguinte, na ordem de prioridade', () => {
+  const i = estimar({ formato: 'institucional', paginas: 7, adicionais: { textos: 7, agendamento: 1 } }, MOTOR);
+  /* fase 1: 7900 + 2 × 350 + 4 × 350 = 10000; 8 + 1 + 1 = 10 dias */
+  assert.deepEqual([i.valor_total, i.sinal, i.prazo_dias, i.fase], [10000, 4000, 10, 'fase1']);
   assert.deepEqual(i.itens.map(x => x.chave + 'x' + x.qtd), ['pagina_extrax2', 'textosx4'], 'páginas antes dos textos, até o teto');
   assert.deepEqual(i.fase_seguinte.itens.map(x => x.chave + 'x' + x.qtd), ['textosx3', 'agendamentox1']);
   assert.equal(i.fase_seguinte.valor_estimado, 1500);   /* 3 textos × 350 + agendamento 450 */
-  const g = estimar({ formato: 'institucional', paginas: 10, adicionais: { blog: 1, catalogo: 1 } }, REGRAS);
-  assert.deepEqual([g.valor_total, g.prazo_dias, g.fase, g.fase_seguinte.valor_estimado], [5300, 10, 'fase1', 2750]);
-  const u = estimar({ formato: 'landing_page', urgencia: true }, REGRAS);
-  assert.deepEqual([u.valor_total, u.prazo_dias], [2340, 3]);
-  assert.equal(estimar({ formato: 'sob_medida', complexidade: 'alta' }, REGRAS).valor_total, 11130);   /* 8900 × 1,25 = 11125, arredondado de 10 em 10 */
+  const g = estimar({ formato: 'institucional', paginas: 10, adicionais: { blog: 1, catalogo: 1 } }, MOTOR);
+  /* fase 1: 7900 + 4 páginas × 350 = 9300 (8 + 2 dias); seguinte: 1 página 350 + blog 900 + catálogo 1500 = 2750 */
+  assert.deepEqual([g.valor_total, g.prazo_dias, g.fase, g.fase_seguinte.valor_estimado], [9300, 10, 'fase1', 2750]);
+});
+
+/* dono, 2026-10-28: "o objetivo é ser tudo 100% automático" e "se o trabalho não couber em 10 dias úteis, crie uma métrica
+   para analisar e aumentar a quantidade de dias desde já" */
+test('tabela de 2026-10-28: sem trava de prazo nem de valor, o projeto sai numa entrega só', () => {
+  assert.equal(REGRAS.prazo_max_dias, 60, 'o máximo do validador e do banco (app.estimativas.prazo_dias de 1 a 60)');
+  assert.deepEqual([REGRAS.limites.valor_max_automatico, REGRAS.limites.valor_max_projeto], [1e7, 1e7]);
+  assert.match(REGRAS._status, /sem trava de prazo/);
+  /* experiência com 12 páginas, todos os adicionais gerais no máximo e complexidade alta: 19900 + 8 × 350 + 15 × 350 +
+     250 + 3 × 300 + 450 + 900 + 1500 + 3 × 900 + 2 × 800 = 36250, × 1,25 = 45312,5 → 45310; prazo 10 + 4 + 3,75 + 0,5 +
+     1,5 + 1 + 2 + 3 + 3 + 4 = 32,75 → 33 dias */
+  const tudo = { formato: 'sob_medida', paginas: 12, complexidade: 'alta', adicionais: { textos: 15, imagens: 1, formulario_avancado: 3, agendamento: 1, blog: 1, catalogo: 1, integracao: 3, idioma: 2 } };
+  const e = estimar(tudo, REGRAS);
+  assert.deepEqual([e.valor_total, e.sinal, e.prazo_dias, e.fase, e.fase_seguinte], [45310, 18124, 33, 'unica', null]);
+  assert.equal(estimar(tudo, MOTOR).encaminhar_diagnostico, true, 'com os limites antigos (R$ 15.000 por fase) ia para a conversa');
 });
 
 test('nunca passa do teto de prazo, nunca fica abaixo do piso', () => {
-  for (const formato of ['landing_page', 'institucional', 'sob_medida']) {
+  for (const REGRAS of [comFases(copia()), copia()]) for (const formato of ['landing_page', 'institucional', 'sob_medida']) {
     for (const paginas of [1, 5, 12, 30]) {
       const e = estimar({ formato, paginas, adicionais: { blog: 1, idioma: 2, integracao: 3 }, urgencia: paginas > 10, complexidade: 'alta' }, REGRAS);
       if (e.encaminhar_diagnostico) continue;
@@ -73,8 +114,9 @@ test('nunca passa do teto de prazo, nunca fica abaixo do piso', () => {
 });
 
 test('fora do automático e valor alto vão para o diagnóstico, sem preço', () => {
-  const loja = estimar({ formato: 'institucional', adicionais: { loja_virtual: 1 } }, REGRAS);
-  assert.equal(loja.encaminhar_diagnostico, true);
+  /* (numa tabela antiga, que ainda traz itens fora do automático: ver _fora-do-automatico.mjs) */
+  const loja = estimar({ formato: 'institucional', adicionais: { loja_virtual: 1 } }, comFora(REGRAS));
+  assert.deepEqual([loja.encaminhar_diagnostico, loja.itens_diagnostico], [true, [{ chave: 'loja_virtual', nome: 'Loja feita do zero, em código próprio' }]]);
   assert.equal(loja.valor_total, undefined, 'nenhum valor inventado');
   const r = copia(); r.limites.valor_max_automatico = 2000;
   assert.equal(estimar({ formato: 'institucional' }, r).encaminhar_diagnostico, true);
@@ -122,11 +164,16 @@ test('tabela com adicional nulo ou que não é objeto: recusada com erro, não e
 });
 
 /* ---------- tabela v2 (2026-10-09): loja em plataforma, área restrita, dependências, fase seguinte, limite do projeto ---------- */
-test('loja em plataforma: base de R$ 4.800, adicionais de loja até o teto de 10 dias', () => {
+test('loja em plataforma: base de R$ 8.900, adicionais de loja somam valor e dias (até o teto, numa tabela com teto)', () => {
   const l = estimar({ formato: 'loja_plataforma' }, REGRAS);
-  assert.deepEqual([l.valor_total, l.sinal, l.prazo_dias, l.fase], [4800, 1920, 8, 'unica']);
+  assert.deepEqual([l.valor_total, l.sinal, l.prazo_dias, l.fase], [8900, 3560, 8, 'unica']);
   const m = estimar({ formato: 'loja_plataforma', adicionais: { produtos_lote_25: 2, frete_transportadora: 1 } }, REGRAS);
-  assert.deepEqual([m.valor_total, m.prazo_dias, m.fase], [5900, 10, 'unica'], '4800 + 2×300 + 500, 8 + 1 + 1 dias');
+  assert.deepEqual([m.valor_total, m.prazo_dias, m.fase], [10000, 10, 'unica'], '8900 + 2×300 + 500, 8 + 1 + 1 dias');
+  const pedido = { formato: 'loja_plataforma', adicionais: { produtos_lote_25: 2, frete_transportadora: 1, migracao_loja: 1 } };
+  const g = estimar(pedido, REGRAS);
+  assert.deepEqual([g.valor_total, g.prazo_dias, g.fase], [11500, 12, 'unica'], '+ migração 1500 e 2 dias: 12 dias numa entrega só');
+  const t = estimar(pedido, MOTOR);
+  assert.deepEqual([t.valor_total, t.prazo_dias, t.fase, t.fase_seguinte.valor_estimado, t.fase_seguinte.prazo_dias], [10000, 10, 'fase1', 1500, 2], 'com teto de 10, a migração (prioridade 30) vai para a fase seguinte');
 });
 
 test('o que depende de outro item não entra sem ele: o modelo recebe o motivo', () => {
@@ -142,17 +189,20 @@ test('área restrita que não cabe no prazo vai para a fase seguinte, levando ju
   assert.equal(r.fase, 'fase1');
   assert.deepEqual(r.itens, [], 'a importação (meio dia) caberia, mas sem a área ela não existe na fase 1');
   assert.deepEqual(r.fase_seguinte.itens.map(i => i.chave).sort(), ['area_importar_usuarios', 'area_restrita']);
-  assert.deepEqual([r.valor_total, r.fase_seguinte.valor_estimado, r.fase_seguinte.prazo_dias], [3900, 4900, 5], '4500 + 400, 4 + 0,5 dias');
+  assert.deepEqual([r.valor_total, r.fase_seguinte.valor_estimado, r.fase_seguinte.prazo_dias], [7900, 4900, 5], '4500 + 400, 4 + 0,5 dias');
   const cabe = estimar({ formato: 'landing_page', adicionais: { area_restrita: 1, area_tela_extra: 1 } }, AREA);
-  assert.deepEqual([cabe.valor_total, cabe.prazo_dias, cabe.fase], [7000, 10, 'unica'], 'landing 5 + área 4 + tela 1 = 10 dias');
+  assert.deepEqual([cabe.valor_total, cabe.prazo_dias, cabe.fase], [8100, 10, 'unica'], '2900 + 4500 + 700; landing 5 + área 4 + tela 1 = 10 dias');
+  /* sem teto (a tabela de 2026-10-28), a mesma área entra na entrega única: 7900 + 4500 + 400, 8 + 4 + 0,5 = 12,5 → 13 dias */
+  const semTeto = estimar({ formato: 'institucional', adicionais: { area_restrita: 1, area_importar_usuarios: 1 } }, comArea(REGRAS));
+  assert.deepEqual([semTeto.valor_total, semTeto.prazo_dias, semTeto.fase, semTeto.fase_seguinte], [12800, 13, 'unica', null]);
 });
 
 test('limite do projeto: fase 1 + fase seguinte acima de valor_max_projeto vão para o diagnóstico', () => {
-  const r = copiaArea(); r.limites.valor_max_automatico = 5000; r.limites.valor_max_projeto = 8000;   /* (fase 1 de 3900 passa no teto da fase) */
+  const r = copiaArea(); r.limites.valor_max_automatico = 9000; r.limites.valor_max_projeto = 14000;   /* (fase 1 de 7900 passa no teto da fase) */
   const e = estimar({ formato: 'institucional', adicionais: { area_restrita: 1, area_cobranca_recorrente: 1 } }, r);
-  assert.equal(e.encaminhar_diagnostico, true, '3900 + 7000 > 8000');
+  assert.deepEqual([e.encaminhar_diagnostico, e.motivo], [true, 'projeto acima do limite automático'], '7900 + 7000 > 14000');
   assert.equal(e.valor_total, undefined, 'sem valor');
-  assert.equal(estimar({ formato: 'institucional', adicionais: { area_restrita: 1, area_cobranca_recorrente: 1 } }, AREA).fase_seguinte.valor_estimado, 7000, 'na tabela real (R$ 60.000) passa');
+  assert.equal(estimar({ formato: 'institucional', adicionais: { area_restrita: 1, area_cobranca_recorrente: 1 } }, AREA).fase_seguinte.valor_estimado, 7000, 'com o limite antigo de R$ 60.000 passa');
 });
 
 test('tabela com requer inválido é recusada', () => {
@@ -168,7 +218,7 @@ test('tabela anterior, sem a loja, continua válida (o código pode subir antes 
   const r = copia(); delete r.formatos.loja_plataforma;
   for (const [k, x] of Object.entries(r.adicionais)) if (x.requer?.includes('loja_plataforma')) delete r.adicionais[k];
   assert.deepEqual(validarRegras(r), { ok: true });
-  assert.equal(estimar({ formato: 'institucional' }, r).valor_total, 3900, 'os três formatos seguem');
+  assert.equal(estimar({ formato: 'institucional' }, r).valor_total, 7900, 'os três formatos seguem');
   assert.ok(estimar({ formato: 'loja_plataforma' }, r).erros?.some(e => /formato: um de landing_page, institucional, sob_medida$/.test(e)), 'loja só existe se a tabela trouxer');
   const sem = copia(); delete sem.formatos.loja_plataforma;
   assert.ok((validarRegras(sem).erros || []).some(x => /produtos_lote_25\.requer/.test(x)), 'adicional que exige formato ausente é recusado');
@@ -204,4 +254,25 @@ test('fase seguinte longa diz em quantas fases de até 10 dias ela se divide', a
 test('rascunho: a entrada é 40% (decisão do dono de 20/10, Decisões.md, "O site vende sozinho", 1 D; PR 3b-1). A tabela ativa o dono aplica', () => {
   assert.equal(REGRAS.sinal_percentual, 40);
   assert.match(REGRAS._status, /40%/, 'o _status diz de onde veio o 40');
+});
+
+/* o consultor só fala de fase quando o motor ainda pode gerar uma (prazo_max_dias menor que a maior soma possível) */
+test('prazo máximo possível por formato: a soma de tudo no máximo, a mesma que o motor faz', async () => {
+  const { prazoMaximoPossivel, podeTerFaseSeguinte } = await import('../../api/_vendas/precos.mjs');
+  /* loja: 8 + 55 páginas extras × 0,5 (até 60 páginas) + gerais 3,75 + 0,5 + 1,5 + 1 + 2 + 3 + 3 + 4 + loja 10 + 1 + 1 + 4 + 3 + 2 = 75,25 */
+  assert.equal(prazoMaximoPossivel(REGRAS, 'loja_plataforma'), 75.25);
+  /* experiência: 10 + 56 × 0,5 + 18,75 = 56,75; landing: 5 + 2 páginas × 0,5 (até 3 páginas) + 18,75 = 24,75 */
+  assert.equal(prazoMaximoPossivel(REGRAS, 'sob_medida'), 56.75);
+  assert.equal(prazoMaximoPossivel(REGRAS, 'landing_page'), 24.75);
+  const geral = { textos: 15, imagens: 1, formulario_avancado: 3, agendamento: 1, blog: 1, catalogo: 1, integracao: 3, idioma: 2 };
+  const loja = estimar({ formato: 'loja_plataforma', paginas: 60, adicionais: { ...geral, produtos_lote_25: 20, pagamento_extra: 2, frete_transportadora: 1, integracao_erp: 2, marketplace: 2, migracao_loja: 1 } }, REGRAS);
+  assert.equal(loja.fase, 'fase1', 'o motor confirma: a loja com tudo passa de 60 dias');
+  const sob = estimar({ formato: 'sob_medida', paginas: 60, adicionais: geral }, REGRAS);
+  assert.deepEqual([sob.fase, sob.prazo_dias], ['unica', 57], 'e a experiência com tudo cabe: 56,75 → 57');
+  assert.equal(podeTerFaseSeguinte(REGRAS), true, 'só a loja extrema ainda chega à fase seguinte');
+  const semLoja = copia(); delete semLoja.formatos.loja_plataforma;
+  for (const [k, x] of Object.entries(semLoja.adicionais)) if (x.requer?.includes('loja_plataforma')) delete semLoja.adicionais[k];
+  assert.equal(podeTerFaseSeguinte(semLoja), false, 'sem a loja, nada passa de 60');
+  assert.equal(podeTerFaseSeguinte(MOTOR), true, 'com teto de 10, passa');
+  assert.equal(prazoMaximoPossivel(REGRAS, 'nao_existe'), 0);
 });

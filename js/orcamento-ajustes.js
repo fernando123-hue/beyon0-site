@@ -35,9 +35,9 @@
      o servidor recusou antes de gravar (o mesmo critério de "repetivel" de js/orcamento.js) */
   function talvezGravou(e) { return !!e && (e.status === 0 || e.status >= 500); }
 
-  /* O limite de 30: com pedidos escritos sobrando, a saída é escrever; sem eles, só o WhatsApp (nunca manda escrever o que não dá) */
+  /* O limite de 30: com pedidos escritos sobrando, a saída é escrever; sem eles, só o recado (nunca manda escrever o que não dá) */
   function textoDoLimite(livresRestantes) {
-    return 'Você chegou ao limite de 30 ajustes neste pedido. Para mudar mais, ' + (livresRestantes > 0 ? 'escreva o seu pedido abaixo ou ' : '') + 'fale com a Beyon Zero pelo WhatsApp.';
+    return 'Você chegou ao limite de 30 ajustes neste pedido. Para mudar mais, ' + (livresRestantes > 0 ? 'escreva o seu pedido abaixo ou ' : '') + 'deixe um recado para a equipe.';
   }
 
   /* Quantas alterações cada ação já deixou no estado. Uma chamada que dá erro de rede ou de tempo pode ter entrado no servidor:
@@ -104,7 +104,7 @@
       desfazer: E.conversa.etapa === 'alteracoes' && E.pode_desfazer === true,
       livresRestantes: Math.max(0, LIMITE_LIVRES - contar('livre')),
       /* o pedido escrito só vale com o pedido confirmado (arquivado, ou uma conversa antiga sem pedido: todo envio daria 409);
-         no lugar do formulário vai a frase fixa com o WhatsApp */
+         no lugar do formulário vai a frase fixa com o recado */
       livreFora: !E.pedido || E.pedido.status !== 'confirmado',
       lista: alts.map(linhaDaLista).filter(Boolean)
     };

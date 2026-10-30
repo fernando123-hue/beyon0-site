@@ -56,7 +56,7 @@ test('consultor: conversas de /64 diferentes do mesmo /48 esbarram no teto do /4
   }
   const passou = await porIp('2001:db8:4800:ff::1')();
   assert.equal(passou.status, 429, 'a conversa ' + (teto + 1) + ' do mesmo /48 não chama o modelo');
-  assert.equal(passou.extra.whatsapp, true);
+  assert.equal(passou.extra.recado, true);
   const ev = (await local.db.query(`select dados from app.eventos_funil where conversa_id = $1 and tipo = 'freio_ip'`, [passou.conversa])).rows;
   assert.ok(ev.some(e => e.dados.prefixo === 48), 'o dono vê no funil que foi o /48: ' + JSON.stringify(ev));
   assert.equal((await porIp('2001:db8:4801:1::1')()).status, 200, 'outro /48 segue livre');
@@ -104,16 +104,14 @@ test('banco: estimativa só até o contato (descoberta, estimativa, contato); em
   assert.equal(await estimativasDe(c), antes, 'nenhuma estimativa nova');
 });
 
-test('banco: no contato com o pedido ainda aguardando a confirmação, o preço ainda pode mudar', async () => {
+test('banco: com os detalhes enviados o pedido já está confirmado e o preço está fechado', async () => {
   const n = cenario.navegador(), c = await n.iniciar();
   const s = await n.chamar('POST', 'simular', { conversa_id: c, respostas: RESP });
   assert.equal((await n.chamar('POST', 'confirmar-pacote', { conversa_id: c, respostas: RESP, versao: s.corpo.versao })).status, 200);
   assert.equal((await n.chamar('POST', 'detalhes', { conversa_id: c, negocio: 'Clínica Exemplo', vende: 'Fisioterapia', telefone: telefoneDeTeste(), nome: 'Ana Souza', aceite: true })).status, 200);
   const vid = await visitanteDeConversa(c);
-  assert.equal((await local.db.query('select etapa from app.conversas where id = $1', [c])).rows[0].etapa, 'contato');
-  assert.equal((await local.db.query('select status from app.pedidos where conversa_id = $1', [c])).rows[0].status, 'aguardando');
-  const r = await local.rpc('vendas_registrar_estimativa', { conversa_id: c, visitante_id: vid, regras_id: await regrasAtivasId(), fatores: { formato: 'institucional' }, valor_total: 3950, sinal: 1975, prazo_dias: 9 });
-  assert.ok(r.estimativa_id);
+  assert.equal((await local.db.query('select status from app.pedidos where conversa_id = $1', [c])).rows[0].status, 'confirmado');
+  await assert.rejects(local.rpc('vendas_registrar_estimativa', { conversa_id: c, visitante_id: vid, regras_id: await regrasAtivasId(), fatores: { formato: 'institucional' }, valor_total: 3950, sinal: 1975, prazo_dias: 9 }), e => e.codigo === '55000');
 });
 
 test('as etapas com preço do JS (ETAPAS_COM_PRECO) são as mesmas do banco (vendas_registrar_estimativa)', async () => {

@@ -1,5 +1,5 @@
 /* ==========================================================================
-   PÁGINA — o controlador comum (V3): WhatsApp, nav, seção atual, barra do
+   PÁGINA — o controlador comum (V3): nav, seção atual, barra do
    celular, prova medida, interruptor de movimento, redes de segurança.
 
    Lei: o CSS só é tocado em EVENTOS discretos (uma classe, um texto). Nada
@@ -9,21 +9,9 @@
   'use strict';
   var html = document.documentElement;
 
-  /* ---------- WhatsApp: ANTES de depender do núcleo ----------
-     Se js/core.js falhar, os botões de contato continuam levando ao dono. O
-     número de reserva é duplicata consciente de js/tel.js (grep 5521977167944). */
-  var FONE = window.BEYON_TEL || '5521977167944';
-  var PADRAO = document.body.getAttribute('data-wa-padrao') || 'quero entender como a Beyon Zero pode ajudar meu negócio';
-  function linkWA(assunto) {
-    var corpo = (assunto || PADRAO).replace(/\s+$/, '');
-    /* o código da visita (js/metricas.js, só com as métricas próprias ligadas): liga a conversa à origem no painel */
-    var cod = window.BEYON_CODIGO ? ' (código ' + window.BEYON_CODIGO + ')' : '';
-    var abertura = (html.classList.contains('via-anuncio') ? 'Oi! Vi o anúncio da Beyon Zero' : 'Oi! Vim pelo site da Beyon Zero') + cod + ' e ';
-    /* termina em ":" = uma lacuna para a pessoa completar ("Meu negócio: "): sem ponto final, com um espaço */
-    var txt = abertura + corpo + (/:$/.test(corpo) ? ' ' : '.');
-    return 'https://wa.me/' + FONE + '?text=' + encodeURIComponent(txt);
-  }
-  /* "Encaminhar o resumo para a diretoria": abre o WhatsApp SEM número (a pessoa escolhe o grupo), com o link */
+  /* ---------- "Encaminhar o resumo para a diretoria" ----------
+     O site não tem WhatsApp da Beyon (Decisões 28/10). Este link abre o WhatsApp SEM número: a pessoa escolhe com quem
+     compartilhar o endereço do resumo. Não é contato com a Beyon. */
   var encaminhar = document.querySelectorAll('[data-encaminhar]');
   for (var e2 = 0; e2 < encaminhar.length; e2++) {
     encaminhar[e2].href = 'https://wa.me/?text=' + encodeURIComponent(encaminhar[e2].getAttribute('data-encaminhar') + ' ' + location.origin + '/resumo');
@@ -36,26 +24,14 @@
     var oculto = encaminhar[e2].closest('[hidden]');
     if (oculto) oculto.hidden = false;
   }
-  var links = document.querySelectorAll('[data-wa]');
-  for (var i = 0; i < links.length; i++) {
-    links[i].href = linkWA(links[i].getAttribute('data-wa'));
-    links[i].rel = 'noopener noreferrer';
-    links[i].target = '_blank';
-    if (!links[i].hasAttribute('aria-label') && !links[i].querySelector('.sr-only')) {
-      var aviso = document.createElement('span'); aviso.className = 'sr-only'; aviso.textContent = ' (abre em nova aba)'; links[i].appendChild(aviso);
-    }
-  }
-
   var ano = document.getElementById('year');
   if (ano) ano.textContent = new Date().getFullYear();
 
   var aoEscapar = [];
   /* a barra do celular: some com o menu aberto ou com o fim da página na tela */
-  var barra = document.getElementById('barra'), wa = document.querySelector('.wa'), menuAberto = false, fimDaPagina = false, heroCtaVisivel = true, acoesNaTela = false;
+  var barra = document.getElementById('barra'), menuAberto = false, fimDaPagina = false, heroCtaVisivel = true, acoesNaTela = false;
   function mostrarBarra() {
     if (barra) barra.classList.toggle('is-oculta', menuAberto || fimDaPagina || heroCtaVisivel || acoesNaTela);
-    /* na Conversa o CTA grande já está na tela: o flutuante sai, como a barra */
-    if (wa) wa.classList.toggle('is-oculta', heroCtaVisivel || fimDaPagina || acoesNaTela);
   }
 
   /* ---------- nav ---------- */
@@ -71,9 +47,7 @@
   /* com o menu em tela cheia aberto, o resto da página fica inerte: o Tab
      não sai do menu para links invisíveis por trás (revisão da V4.6) */
   function fundoInerte(sim) {
-    /* "Agendar diagnóstico" dentro do menu abre o modal e o menu fecha em seguida: o fundo continua do modal */
-    if (!sim && document.body.classList.contains('is-lead-open')) return;
-    var fundo = document.querySelectorAll('main, footer, .barra, .wa, .skip-link, .consentimento');   /* (o aviso de cookies, js/medicao.js, também fica por trás) */
+    var fundo = document.querySelectorAll('main, footer, .barra, .skip-link, .consentimento');   /* (o aviso de cookies, js/medicao.js, também fica por trás) */
     for (var f = 0; f < fundo.length; f++) { if (sim) fundo[f].setAttribute('inert', ''); else fundo[f].removeAttribute('inert'); }
   }
   if (navEl) {
@@ -136,7 +110,6 @@
     html.classList.remove('js');
     return;
   }
-  B.linkWA = linkWA;
   html.classList.add('tem-medida');   /* com o núcleo há medida: os rótulos de fps/carga aparecem (css/motion.css) */
 
   /* ---------- REDE DE SEGURANÇA DA REVELAÇÃO ----------
@@ -197,13 +170,13 @@
     var fins = document.querySelectorAll('.conversa, body > footer');
     for (var f = 0; f < fins.length; f++) ioBarra.observe(fins[f]);
   }
-  /* as ações de um cartão com peça ("Quero o meu site", "Quero o diagnóstico…", com o WhatsApp ao lado,
-     docs/restructure/PECAS-SERVICOS.md) na tela: a barra e o flutuante saem (eram três chamadas para o
+  /* as ações de um cartão com peça ("Quero o meu site", "Quero o atendente…",
+     docs/restructure/PECAS-SERVICOS.md) na tela: a barra sai (eram chamadas demais para o
      mesmo lugar, e a barra cobria o botão — crítica de celular) */
   /* (a área dos cartões inteira, como uma região só: observando cada bloco de ações, a barra sumia e voltava
      três vezes ao rolar pelos serviços — crítica de celular) */
   var acoes = [].filter.call(document.querySelectorAll('.servicos'), function (s) { return s.querySelector('.servico--peca'); });
-  if ((barra || wa) && acoes.length && 'IntersectionObserver' in window) {
+  if (barra && acoes.length && 'IntersectionObserver' in window) {
     var acoesVistas = [];
     var ioAcoes = new IntersectionObserver(function (ents) {
       for (var a = 0; a < ents.length; a++) {
@@ -215,7 +188,7 @@
     });
     for (var c = 0; c < acoes.length; c++) ioAcoes.observe(acoes[c]);
   }
-  /* enquanto o CTA do hero está na tela, a barra e o WhatsApp flutuante esperam */
+  /* enquanto o CTA do hero está na tela, a barra espera */
   var heroCta = document.querySelector('.hero__actions');
   if (heroCta && 'IntersectionObserver' in window) {
     new IntersectionObserver(function (ents) { heroCtaVisivel = ents[0].isIntersecting; mostrarBarra(); }, { rootMargin: '-64px 0px 0px 0px', threshold: 0 }).observe(heroCta);

@@ -1,8 +1,8 @@
 /* ==========================================================================
    A ESPERA DO ORÇAMENTO (saiu de js/orcamento.js no PR 2a, para o arquivo ficar abaixo de 800 linhas).
    Acompanha o que acontece fora desta aba: a direção feita por outro pedido, o aviso do pagamento ou o dono
-   confirmando o pedido pelo WhatsApp. Aos 15 min ela desiste (F12): para o relógio dos cartões e AVISA, com
-   "Conferir agora" e o WhatsApp; volta a esperar quando a pessoa confere ou volta para a aba. Sem estado da
+   entregando as direções. Aos 15 min ela desiste (F12): para o relógio dos cartões e AVISA, com
+   "Conferir agora" e o recado; volta a esperar quando a pessoa confere ou volta para a aba. Sem estado da
    conversa próprio: recebe da página como ler e redesenhar.
    ========================================================================== */
 (function () {
@@ -32,7 +32,7 @@
       p.relogioDosCartoes(false);
       try { await p.recarregar(); } catch (e) { /* o aviso abaixo oferece conferir de novo */ }   /* (uma última olhada) */
       var E = p.estado();
-      if (E && E.conversa.etapa === 'gerando') p.avisar('Está demorando mais que o normal. Confira de novo daqui a pouco ou fale com a Beyon Zero pelo WhatsApp.', conferir, 'Conferir agora');
+      if (E && E.conversa.etapa === 'gerando') p.avisar('Está demorando mais que o normal. Confira de novo daqui a pouco ou deixe um recado para a equipe.', conferir, 'Conferir agora');
     }
     function conferir() { desistiu = false; p.recarregar().catch(function (e) { p.falhou(e, conferir); }); }
     /* voltou para a aba (do WhatsApp, do pagamento): olha de novo e retoma a espera se ainda for o caso. (PR 2a) Com o
@@ -41,8 +41,8 @@
       var E = p.estado();
       if (document.hidden || !E || !p.temSessao()) return;
       desistiu = false;
-      var esperandoConfirmacao = !!(E.pedido && E.pedido.status === 'aguardando');
-      if (E.conversa.etapa === 'gerando' || E.conversa.etapa === 'aguardando_pagamento' || esperandoConfirmacao) p.recarregar().catch(function () {});
+      /* (3b-3c) em produção, quem volta com o aviso vê a prévia nova sem recarregar: uma leitura ao voltar, sem relógio */
+      if (E.conversa.etapa === 'gerando' || E.conversa.etapa === 'aguardando_pagamento' || E.conversa.etapa === 'em_producao') p.recarregar().catch(function () {});
     });
     return { esperar: esperar, parar: parar, desistiu: function () { return desistiu; } };
   }

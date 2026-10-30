@@ -15,7 +15,7 @@ h3 { font-size: var(--h3-linha); font-weight: 400; line-height: 1.2; letter-spac
 a, button, summary { -webkit-tap-highlight-color: transparent; }
 p { max-width: 62ch; }
 /* sem viúva: a última linha nunca fica com uma palavra só */
-p, .lead, .fine, .hero__sub, .hero__fine, .prova__nota, .servico__para { text-wrap: pretty; }
+p, .lead, .fine, .hero__sub, .hero__fine, .servico__para { text-wrap: pretty; }
 .hero__status, .kicker { max-width: none; }
 h1 em, h2 em { font-style: normal; font-weight: 400; color: var(--ac); }
 h2 em { transition: color .6s var(--ease) .1s; }
@@ -84,6 +84,16 @@ p em, li em { font-style: normal; font-weight: 500; color: var(--t1); }
   background: none; border: 0; cursor: pointer; border-radius: var(--raio-s);
   flex-direction: column; align-items: center; justify-content: center; gap: 5px;
 }
+/* o botão de som (js/som.js): ligado, o falante com as ondas; desligado, com um X. Nasce hidden e só o JS mostra
+   (sem Web Audio ele não faria nada); a margem empurra ele e o que vem depois para a direita */
+.nav__som {
+  display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; flex: none; margin-left: auto;
+  background: none; border: 0; cursor: pointer; border-radius: var(--raio-s); color: var(--t2);
+}
+.nav__som[hidden] { display: none; }
+.nav__som:hover { color: var(--t1); }
+.som__icone { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.nav__som[aria-pressed="false"] .som__onda, .nav__som[aria-pressed="true"] .som__corte { display: none; }
 .nav__toggle-bar { width: 20px; height: 1.5px; background: var(--t1); transition: transform var(--t-micro) var(--ease-micro); }
 .nav.is-open .nav__toggle-bar:first-child { transform: translateY(3.25px) rotate(45deg); }
 .nav.is-open .nav__toggle-bar:last-child  { transform: translateY(-3.25px) rotate(-45deg); }
@@ -231,11 +241,7 @@ html:not(.js) .barra.is-oculta { transform: none; opacity: 1; pointer-events: au
   .barra .btn--primary { background-color: rgb(var(--ac-rgb) / .07); color: var(--ac); border: 0; min-height: 56px; box-shadow: none; }   /* (a doca é a borda: sem a aresta do botão cheio) */
   .barra .btn--primary:hover { background-color: rgb(var(--ac-rgb) / .16); }
   .barra .btn--primary::after { background: linear-gradient(90deg, rgb(var(--ac-rgb) / 0) 0%, rgb(var(--ac-rgb) / .14) 92%, var(--ac) 99%, rgb(var(--ac-rgb) / 0) 100%); }
-  /* o WhatsApp na mesma doca: uma célula quadrada depois de um traço, sem competir com o orçamento */
   .barra { gap: 0; }
-  .barra__wa { display: grid; place-items: center; flex: none; width: 56px; align-self: stretch; color: var(--t2); border-left: 1px solid rgb(var(--ac-rgb) / .38); transition: color var(--t-micro) var(--ease-micro), background-color var(--t-micro) var(--ease-micro); }
-  .barra__wa:hover { color: var(--t1); background-color: rgb(255 255 255 / .04); }
-  .barra__wa:focus-visible { outline-offset: -4px; }
 }
 @media (max-width: 620px) {
   /* a seta do CTA vira célula de ação */
@@ -354,7 +360,9 @@ html:not(.js) .barra.is-oculta { transform: none; opacity: 1; pointer-events: au
   h1 { font-size: var(--fs-d1); line-height: .9; letter-spacing: -.045em; }
   .hero__title { margin-left: -.055em; }
   .hero__status { margin-left: calc(-1 * (6px + .6rem)); }   /* o ponto pendura na margem */
-  .hero--longo h1 { font-size: var(--fs-d3); line-height: .95; letter-spacing: -.042em; }
+  /* (dono, 2026-10-28: heros com espaço e texto demais; o título longo do Início ia a 5 linhas em 18ch: agora 3-4) */
+  .hero--longo h1 { font-size: clamp(2.75rem, 1rem + 3.3vw, 4rem); line-height: .98; letter-spacing: -.04em; }
+  .hero--longo .hero__title { max-width: 21ch; }
   .hero--longo .hero__arte > .janela, .hero--longo .hero__arte > .instrumento { align-self: center; margin-top: 0; }
   .hero__sub { max-width: 50ch; font-size: clamp(1.0625rem, .95rem + .45vw, 1.25rem); margin-bottom: 1.6rem; }
 }
@@ -442,7 +450,7 @@ html.has-gsap .feixe.is-loop ~ .hero__arte .instrumento__led { animation: led-pa
 .footer__copy { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-dado); color: var(--t3); }
 /* o contato no rodapé (quem rola até o fim procurando "como falo com vocês") e os links legais */
 .footer__brand p.footer__contato { font: 400 .95rem/1.5 var(--sans, inherit); letter-spacing: 0; max-width: none; color: var(--t2); margin-top: 1.1rem; }
-.footer__contato a { color: var(--t1); text-decoration: underline; text-underline-offset: 3px; display: inline-flex; align-items: center; min-height: 32px; }
+.footer__contato a, .footer__contato button { font: inherit; background: none; border: 0; padding: 0; cursor: pointer; color: var(--t1); text-decoration: underline; text-underline-offset: 3px; display: inline-flex; align-items: center; min-height: 32px; }
 .footer__legal { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem 1.2rem; }
 .footer__legal a { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-ctrl); text-transform: uppercase; color: var(--t3); text-decoration: underline; text-underline-offset: 3px; display: inline-flex; align-items: center; min-height: 28px; }
 .footer__legal a:hover { color: var(--t1); }
@@ -451,26 +459,13 @@ html.has-gsap .feixe.is-loop ~ .hero__arte .instrumento__led { animation: led-pa
 .footer__cookies:hover { color: var(--t1); }
 /* no dedo, todo alvo do rodapé e o botão pequeno com 44px (WCAG 2.5.8; auditoria 2026-10-09) */
 @media (pointer: coarse) {
-  .footer__legal a, .footer__legal button, .footer__brand > a, .footer__contato a { min-height: 44px; }
+  .footer__legal a, .footer__legal button, .footer__brand > a, .footer__contato a, .footer__contato button { min-height: 44px; }
   .btn--sm { min-height: 44px; }
 }
-.footer__motion { background: none; border: 0; padding: 0; min-height: 28px; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-ctrl); text-transform: uppercase; color: var(--t3); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
-.footer__motion:hover { color: var(--t1); }
+.footer__motion, .footer__som { background: none; border: 0; padding: 0; min-height: 28px; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-ctrl); text-transform: uppercase; color: var(--t3); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.footer__motion:hover, .footer__som:hover { color: var(--t1); }
+.footer__som[hidden] { display: none; }
 @media (min-width: 721px) { .footer__grid { grid-template-columns: 1.4fr 1fr 1fr; gap: 3rem; } }
-
-/* ---- WHATSAPP flutuante: só no desktop; some enquanto o CTA do hero está na tela ---- */
-.wa {
-  display: none; position: fixed; right: 20px; bottom: 20px; z-index: 40;
-  width: 52px; height: 52px; border-radius: var(--raio);
-  place-items: center; color: var(--t1); background: var(--s2); border: 1px solid var(--stroke);
-  transition: border-color var(--t-micro) var(--ease-micro), color var(--t-micro) var(--ease-micro), box-shadow var(--t-micro) var(--ease-micro), opacity var(--t) var(--ease), transform var(--t) var(--ease), visibility 0s linear 0s;
-}
-.wa:hover { border-color: var(--ac); color: var(--ac); }
-/* oculto também para o Tab: só opacity deixava um botão invisível focável. O visibility
-   espera o fade terminar (o 6º atraso), como na .barra.is-oculta (auditoria 2026-10-09) */
-.wa.is-oculta { opacity: 0; transform: translateY(8px); pointer-events: none; visibility: hidden; transition-delay: 0s, 0s, 0s, 0s, 0s, var(--t); }
-html:not(.js) .wa.is-oculta { opacity: 1; transform: none; pointer-events: auto; visibility: visible; }
-@media (min-width: 981px) { .wa { display: grid; } }
 
 /* a nav no eixo da coluna de conteúdo (logo em 184, CTA termina em 1256 a
    1440) e com dois papéis: âncoras desta página em mono; outras páginas em
@@ -565,12 +560,10 @@ html.menos-movimento .doca, html.menos-movimento .doca-mira { display: none; }
 @media (forced-colors: active) {
   .nav__toggle { border: 1px solid ButtonText; }
   .nav__toggle-bar, .qa__mark::before, .qa__mark::after { background: CanvasText; forced-color-adjust: none; }
-  .lead-modal__field :is(input, select, textarea):focus-visible { outline: 2px solid Highlight; outline-offset: 2px; }
 }
 /* alto contraste do Windows (forced-colors): o que era só cor de fundo vira traço do sistema */
 @media (forced-colors: active) {
   .nav__toggle { border: 1px solid ButtonText; }
   .nav__toggle-bar, .qa__mark::before, .qa__mark::after { background: CanvasText; forced-color-adjust: none; }
-  .lead-modal__field :is(input, select, textarea):focus-visible { outline: 2px solid Highlight; outline-offset: 2px; }
 }
 

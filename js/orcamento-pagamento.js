@@ -46,7 +46,7 @@
   var toque = function () { return !!(window.matchMedia && matchMedia('(pointer: coarse)').matches); };
 
   function criar(o) {
-    var trocando = false, cfg = null, valor = 0, pct = null, qrDecidido = false, metodo = 'pix', espera = null, mp = null, campos = null, cartaoInfo = null, enviando = false, ultimoEstado = '';
+    var trocando = false, cfg = null, valor = 0, pct = null, qrDecidido = false, metodo = 'pix', espera = null, mp = null, campos = null, cartaoInfo = null, enviando = false, ultimoEstado = '', permitidos = null;
 
     /* ---------- configuração pública (Public Key e ambiente) ----------
        Só o sucesso fica guardado: uma falha passageira não deixa o pagamento "indisponível" até recarregar (F4) */
@@ -62,11 +62,16 @@
     async function configurar() {
       if (cfg) return cfg;
       try { cfg = await o.API.pagamentoConfig(); } catch (e) { return { ativo: false, falhou: true }; }
-      /* só Pix por padrão (decisão do dono, 21/10): o seletor e "Prefiro pagar com cartão" nascem escondidos e só aparecem
-         se o servidor diz que o cartão existe (config.metodos); configuração que não carrega não mostra cartão */
-      var comCartao = Array.isArray(cfg.metodos) && cfg.metodos.indexOf('cartao') >= 0;
-      mostrar('o-pag-metodos', comCartao); mostrar('o-pix-trocar', comCartao);
+      aplicarMetodos();
       return cfg;
+    }
+    /* só Pix por padrão (decisão do dono, 21/10): o seletor e "Prefiro pagar com cartão" nascem escondidos e só aparecem se o servidor diz que o cartão existe (config.metodos)
+       E a tela que chamou não restringiu os métodos (o restante, PR 3b-3, é só Pix: mostrar(valor, pct, { metodos: ['pix'] })). Configuração que não carrega não mostra cartão.
+       É o ÚNICO lugar que decide isso, e roda antes de qualquer pintura: o seletor nunca aparece para depois ser escondido */
+    function aplicarMetodos() {
+      var comCartao = !!cfg && Array.isArray(cfg.metodos) && cfg.metodos.indexOf('cartao') >= 0 && (!permitidos || permitidos.indexOf('cartao') >= 0);
+      mostrar('o-pag-metodos', comCartao); mostrar('o-pix-trocar', comCartao);
+      if (!comCartao && metodo === 'cartao') escolherMetodo('pix');   /* (quem tinha escolhido cartão na entrada volta ao Pix) */
     }
 
     /* ---------- escolha do meio ---------- */
@@ -216,7 +221,7 @@
         if (e && e.dados && e.dados.aguarde) { $('o-pag-status').textContent = e.message; esperar(); }
         else {
           if (metodo === 'cartao' && e && !e.status && /titular|impresso/i.test(e.message || '')) marcarInvalido('o-titular');
-          erro.textContent = e && e.status === 500 ? 'Não consegui concluir agora.' + (e.dados && typeof e.dados.pedido === 'string' ? ' Código do erro: ' + e.dados.pedido.slice(0, 8) + '.' : '') + ' Tente de novo ou fale com a Beyon Zero pelo WhatsApp.'
+          erro.textContent = e && e.status === 500 ? 'Não consegui concluir agora.' + (e.dados && typeof e.dados.pedido === 'string' ? ' Código do erro: ' + e.dados.pedido.slice(0, 8) + '.' : '') + ' Tente de novo ou deixe um recado para a equipe.'
             : (e && e.message) || 'Não foi possível concluir agora. Tente de novo.';
         }
       } finally { enviando = false; $('o-pag-enviar').removeAttribute('aria-disabled'); $('o-pag-form').removeAttribute('aria-busy'); }
@@ -259,7 +264,7 @@
       devolverFoco(estava);
     }
     function desenharEstado(e) {
-      if (!e || !e.pagamento) { mostrar('o-pix', false); mostrar('o-pix-outro', false); mostrar('o-desafio', false); mostrar('o-pag-form', true); return; }
+      if (!e || !e.pagamento) { $('o-pag-status').textContent = ''; mostrar('o-pix', false); mostrar('o-pix-outro', false); mostrar('o-desafio', false); mostrar('o-pag-form', true); return; }
       var t = e.tentativa;
       var chave = JSON.stringify([e.pagamento.status, t && t.status, t && t.id, t && t.expira_em]);
       if (e.pagamento.status === 'pago') { pararEspera(); $('o-pag-status').textContent = 'Pagamento confirmado pelo Mercado Pago.'; if (chave !== ultimoEstado) { ultimoEstado = chave; o.aoPagar(); } return; }
@@ -324,11 +329,14 @@
 
     var tela = {
       /* chamado pela página quando a etapa é "aguardando pagamento" */
-      async mostrar(valorSinal, pctEntrada) {
+      async mostrar(valorSinal, pctEntrada, opcoes) {
         valor = Number(valorSinal) || 0;
         /* (vem da proposta, por js/orcamento-pix.js). Só troca quando vem: configDeNovo() (:58) e a volta à aba (:284)
            chamam tela.mostrar(valor) com um argumento só, e o percentual sumia da linha do Pix */
         if (arguments.length > 1) pct = Number.isInteger(pctEntrada) ? pctEntrada : null;
+        /* idem para a restrição de métodos (3º parâmetro): as chamadas de um argumento só mantêm a de antes; sem lista válida, solta */
+        if (arguments.length > 2) permitidos = opcoes && Array.isArray(opcoes.metodos) ? opcoes.metodos.slice() : null;
+        if (cfg) aplicarMetodos();
         var c = await configurar();
         mostrar('o-pag-indisponivel', !c.ativo);
         mostrar('o-pag-form', c.ativo);

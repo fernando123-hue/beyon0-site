@@ -160,7 +160,7 @@ test('tipos do corpo: conversa que não é uuid, rodada negativa ou fracionária
     assert.equal((await n.chamar('POST', 'previa-ajustes', { ...base, ...ruim })).status, 400, JSON.stringify(ruim));
   }
   assert.equal((await n.chamar('POST', 'previa-aprovar', { conversa_id: c, extra: 1 })).status, 400);
-  assert.equal((await n.chamar('POST', 'previa-aprovar', { conversa_id: 'x' })).status, 400);
+  assert.equal((await n.chamar('POST', 'previa-aprovar', { conversa_id: 'x', rodada_base: 0 })).status, 400);
   assert.equal(await doBanco(c, 'passo'), 'previa');
 });
 
@@ -171,27 +171,50 @@ test('D2: a 3ª lista é recusada com a frase das duas listas e a saída "Outra 
   assert.equal((await n.chamar('POST', 'previa-ajustes', { conversa_id: c, rodada_base: 1, texto: 'Segunda lista.' })).status, 200);
   await forcarEntrega(local.db, { conversa_id: c }, { passo: 'previa' });
   const terceira = await n.chamar('POST', 'previa-ajustes', { conversa_id: c, rodada_base: 2, texto: 'Terceira lista.' });
-  assert.equal(terceira.status, 409); assert.match(terceira.corpo.erro, /duas listas.*orçado à parte/i); assert.equal(terceira.corpo.whatsapp, true);
+  assert.equal(terceira.status, 409); assert.match(terceira.corpo.erro, /duas listas.*orçado à parte/i); assert.equal(terceira.corpo.recado, true);
 });
 
 test('aprovar: só o cliente, só na prévia; a 2ª vez e o passo errado dão 409; outro visitante 404', async () => {
   const { n, c } = await noPasso({}, 'previa');
   const outro = cen.navegador({ env: { BZ_ENTREGA: 'ligada' } }); await outro.iniciar();
-  assert.equal((await outro.chamar('POST', 'previa-aprovar', { conversa_id: c })).status, 404, 'outro aparelho, outra sessão');
+  assert.equal((await outro.chamar('POST', 'previa-aprovar', { conversa_id: c, rodada_base: 0 })).status, 404, 'outro aparelho, outra sessão');
   assert.equal(await doBanco(c, 'passo'), 'previa', 'nada mudou');
-  assert.equal((await n.chamar('POST', 'previa-aprovar', { conversa_id: c })).status, 200);
+  assert.equal((await n.chamar('POST', 'previa-aprovar', { conversa_id: c, rodada_base: 0 })).status, 200);
   assert.equal(await doBanco(c, 'passo'), 'aprovada');
-  assert.equal((await n.chamar('POST', 'previa-aprovar', { conversa_id: c })).status, 409);
+  assert.equal((await n.chamar('POST', 'previa-aprovar', { conversa_id: c, rodada_base: 0 })).status, 409);
   const { n: n2, c: c2 } = await noPasso({}, 'producao');
-  const fora = await n2.chamar('POST', 'previa-aprovar', { conversa_id: c2 });
-  assert.equal(fora.status, 409); assert.equal(fora.corpo.whatsapp, true, 'a frase manda falar pelo WhatsApp: a saída vem junto');
+  const fora = await n2.chamar('POST', 'previa-aprovar', { conversa_id: c2, rodada_base: 0 });
+  assert.equal(fora.status, 409); assert.equal(fora.corpo.recado, true, 'a frase manda falar pelo WhatsApp: a saída vem junto');
   const foraLista = await n2.chamar('POST', 'previa-ajustes', { conversa_id: c2, rodada_base: 0, texto: 'x' });
-  assert.equal(foraLista.status, 409); assert.equal(foraLista.corpo.whatsapp, true);
+  assert.equal(foraLista.status, 409); assert.equal(foraLista.corpo.recado, true);
+});
+
+test('B1: aprovar diz qual prévia a pessoa viu (rodada_base); aba velha com a v2 já publicada = 409 e a entrega continua em "previa"', async () => {
+  const { n, c } = await noPasso({}, 'previa');
+  /* a aba velha (PC) viu a prévia v1 (rodada_base 0); no celular a pessoa manda a lista e o dono publica a v2 (a entrega volta a "previa" com uma rodada usada) */
+  assert.equal((await n.chamar('POST', 'previa-ajustes', { conversa_id: c, rodada_base: 0, texto: 'Trocar a foto da capa.' })).status, 200);
+  await forcarEntrega(local.db, { conversa_id: c }, { passo: 'previa', previa_url: 'https://v2.bz-' + CLIENTE + '.pages.dev', previa_em: agora() });
+  const velha = await n.chamar('POST', 'previa-aprovar', { conversa_id: c, rodada_base: 0 });
+  assert.equal(velha.status, 409); assert.match(velha.corpo.erro, /mudou/); semCru(velha.corpo);
+  assert.equal(await doBanco(c, 'passo'), 'previa', 'a prévia que a pessoa não viu não foi aprovada');
+  /* o caso feliz: a tela releu e manda a rodada que viu */
+  assert.equal((await n.chamar('POST', 'previa-aprovar', { conversa_id: c, rodada_base: 1 })).status, 200);
+  assert.equal(await doBanco(c, 'passo'), 'aprovada');
+});
+
+test('B1: sem rodada_base (ou torta) a aprovação é recusada com frase: a porta velha não fica aberta', async () => {
+  const { n, c } = await noPasso({}, 'previa');
+  for (const ruim of [{}, { rodada_base: -1 }, { rodada_base: 0.5 }, { rodada_base: '0' }, { rodada_base: null }]) {
+    const r = await n.chamar('POST', 'previa-aprovar', { conversa_id: c, ...ruim });
+    assert.equal(r.status, 400, JSON.stringify(ruim)); assert.equal(typeof r.corpo.erro, 'string');
+  }
+  assert.equal((await n.chamar('POST', 'previa-aprovar', { conversa_id: c, rodada_base: 5 })).status, 409, 'rodada que não é a do banco');
+  assert.equal(await doBanco(c, 'passo'), 'previa', 'nada foi aprovado');
 });
 
 test('as recusas legíveis do banco viram frase em português: a prévia mudou entre a leitura e a gravação (40001) e a entrada estornada (55000), nunca 500 nem mensagem crua', async () => {
   const tocar = p => local.db.query('update app.entregas set updated_at = clock_timestamp() where conversa_id = $1', [p.conversa_id]);
-  for (const [acao, fn, corpo] of [['previa-ajustes', 'vendas_previa_ajustes', { rodada_base: 0, texto: 'Trocar a cor.' }], ['previa-aprovar', 'vendas_previa_aprovar', {}]]) {
+  for (const [acao, fn, corpo] of [['previa-ajustes', 'vendas_previa_ajustes', { rodada_base: 0, texto: 'Trocar a cor.' }], ['previa-aprovar', 'vendas_previa_aprovar', { rodada_base: 0 }]]) {
     const { n, c } = await noPasso({ banco: bancoCom(fn, { antes: tocar }) }, 'previa');
     const corrida = await n.chamar('POST', acao, { conversa_id: c, ...corpo });
     assert.equal(corrida.status, 409, acao); assert.match(corrida.corpo.erro, /mudou/); semCru(corrida.corpo);
@@ -200,13 +223,13 @@ test('as recusas legíveis do banco viram frase em português: a prévia mudou e
     const { n: n2, c: c2 } = await noPasso({}, 'previa');
     await estornarEntrada(c2);
     const estornada = await n2.chamar('POST', acao, { conversa_id: c2, ...corpo });
-    assert.equal(estornada.status, 409, acao); assert.equal(typeof estornada.corpo.erro, 'string'); assert.equal(estornada.corpo.whatsapp, true); semCru(estornada.corpo);
+    assert.equal(estornada.status, 409, acao); assert.equal(typeof estornada.corpo.erro, 'string'); assert.equal(estornada.corpo.recado, true); semCru(estornada.corpo);
     assert.equal(await doBanco(c2, 'passo'), 'previa');
   }
 });
 
 test('um motivo de recusa que o servidor não conhece ({ ok: false, motivo }) vira 409 com frase, nunca 200 nem o motivo cru', async () => {
-  for (const [acao, fn, corpo] of [['previa-ajustes', 'vendas_previa_ajustes', { rodada_base: 0, texto: 'Trocar a cor.' }], ['previa-aprovar', 'vendas_previa_aprovar', {}]]) {
+  for (const [acao, fn, corpo] of [['previa-ajustes', 'vendas_previa_ajustes', { rodada_base: 0, texto: 'Trocar a cor.' }], ['previa-aprovar', 'vendas_previa_aprovar', { rodada_base: 0 }]]) {
     const { n, c } = await noPasso({ banco: bancoCom(fn, { devolve: { ok: false, motivo: 'cedo' } }) }, 'previa');
     const r = await n.chamar('POST', acao, { conversa_id: c, ...corpo });
     assert.equal(r.status, 409, acao); assert.equal(typeof r.corpo.erro, 'string'); assert.ok(!/cedo/.test(r.corpo.erro)); assert.ok(!r.corpo.ok);
@@ -217,7 +240,7 @@ test('interruptor desligado: a lista, a aprovação e o pagamento do restante d�
   const { n, c } = await noPasso({ env: {} }, 'previa');
   for (const acao of ['previa-ajustes', 'previa-aprovar']) {
     const r = await n.chamar('POST', acao, { conversa_id: c, rodada_base: 0, texto: 'x' });
-    assert.equal(r.status, 503, acao); assert.equal(r.corpo.erro, FRASE_DESLIGADA); assert.equal(r.corpo.whatsapp, true);
+    assert.equal(r.status, 503, acao); assert.equal(r.corpo.erro, FRASE_DESLIGADA); assert.equal(r.corpo.recado, true);
   }
   assert.equal(await doBanco(c, 'passo'), 'previa', 'nada foi gravado');
   const { n: n2, c: c2 } = await noPasso({ env: {} }, 'no_ar');
@@ -246,7 +269,7 @@ test('o restante: só com o site no ar (409 antes), só por Pix (400 com cartão
 test('o restante com a entrega ENCERRADA (desistência) não abre: a frase é a do pedido encerrado, nada é cobrado; suspensa cobra como no ar', async () => {
   const { n, c } = await noPasso({}, 'encerrada', { encerrada_em: agora(), encerrada_motivo: 'desistencia' });
   const r = await n.chamar('POST', 'pagar', { conversa_id: c, metodo: 'pix', pagador: PAGADOR });
-  assert.equal(r.status, 409); assert.match(r.corpo.erro, /encerrado/); assert.equal(r.corpo.whatsapp, true); assert.ok(!/site estiver no ar/.test(r.corpo.erro));
+  assert.equal(r.status, 409); assert.match(r.corpo.erro, /encerrado/); assert.equal(r.corpo.recado, true); assert.ok(!/site estiver no ar/.test(r.corpo.erro));
   assert.equal((await local.db.query("select count(*)::int n from app.pagamentos where parcela = 'saldo' and proposta_id = (select proposta_id from app.entregas where conversa_id = $1)", [c])).rows[0].n, 0, 'nada foi cobrado');
   const { n: n2, c: c2 } = await noPasso({}, 'suspensa', { suspensa_em: agora() });
   const s = await n2.chamar('POST', 'pagar', { conversa_id: c2, metodo: 'pix', pagador: PAGADOR });
@@ -259,6 +282,6 @@ test('o restante com a entrada estornada não abre e a pessoa lê uma frase com 
   await estornarEntrada(c);
   const r = await n.chamar('POST', 'pagar', { conversa_id: c, metodo: 'pix', pagador: PAGADOR });
   assert.equal(r.status, 409); assert.equal(typeof r.corpo.erro, 'string'); semCru(r.corpo);
-  assert.equal(r.corpo.whatsapp, true, 'quem já pagou a entrada sai com o caminho do WhatsApp');
+  assert.equal(r.corpo.recado, true, 'quem já pagou a entrada sai com o caminho do WhatsApp');
   assert.ok(!/Esta etapa ainda não está disponível/.test(r.corpo.erro), 'não é o 409 genérico');
 });

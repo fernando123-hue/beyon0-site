@@ -32,25 +32,19 @@
   var CARDS = '.painel:not(:where(.console, .instrumento)), .celula, .laudo__row, .cenario, .qa';
   var VEL = 260;   /* px/s da luz na borda (a da carga anda a 170: esta é o efeito principal no celular) */
 
-  /* onde a volta começa: na ponta da luz pousada (--luz-x + --luz-w do CSS), para ela decolar de onde estava */
-  function partida(card) {
-    var s = getComputedStyle(card);
-    return (parseFloat(s.getPropertyValue('--luz-x')) || 0) + (parseFloat(s.getPropertyValue('--luz-w')) || 0);
-  }
-
   function dimensionar(card, W, H) {
     var lv = card._linhaViva;
     if (!lv || !W || !H) return;
     var tam = Math.round(W) + 'x' + Math.round(H);
     if (lv.tam === tam) return;
     lv.tam = tam;
-    var P = 2 * (W + H), T = P / VEL, x0 = partida(card) % P;
+    var P = 2 * (W + H), T = P / VEL, x0 = 0;   /* (sai da quina de cima: a luz pousada de onde ela decolava saiu em 2026-10-28) */
     var antes = [0, W, W + H, 2 * W + H];
     for (var i = 0; i < 4; i++) {
       var faixa = lv.el.children[i].firstChild;
       faixa.style[i % 2 ? 'height' : 'width'] = P.toFixed(1) + 'px';
       faixa.style.animationDuration = T.toFixed(2) + 's';
-      /* (a fase de cada lado, adiantada de x0: no instante zero a cabeça do traço está na ponta da luz pousada) */
+      /* (a fase de cada lado, adiantada de x0: no instante zero a cabeça do traço está em x0) */
       faixa.style.animationDelay = (-(((P - antes[i] + x0) % P) / P) * T).toFixed(2) + 's';
     }
   }

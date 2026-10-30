@@ -1,20 +1,19 @@
 /* ==========================================================================
    A ESPERA ÚTIL (PR 2b-2; spec docs/specs/2026-10-11-orcamento-sem-ia.md §3): com o pedido confirmado e os modelos
    na fila manual, a pessoa vê QUANDO ficam prontos (24 horas úteis, de segunda a sexta, contadas da confirmação) e
-   o que já pode separar, com o WhatsApp da Beyon Zero. Feriado não entra na conta: a data é um teto honesto e o dono
+   o que já pode separar. Feriado não entra na conta: a data é um teto honesto e o dono
    avisa antes se atrasar. "Quem está desenhando" (nome e foto) é DADO DO DONO (spec §10): fica de fora até ele mandar.
    Nada aqui toca no DOM ao carregar (o teste roda o arquivo sem document).
    ========================================================================== */
 (function () {
   'use strict';
   var HORAS_UTEIS = 24;
-  var TEL = window.BEYON_TEL || '5521977167944';   /* (reserva consciente, como em js/orcamento-detalhes.js: grep 5521977167944) */
   var DIAS = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
   var SEPARAR = ['Fotos do seu negócio e do que você faz', 'A logo, se tiver', 'A lista de serviços ou produtos, com os preços',
     'O horário de atendimento', 'O endereço, se você atende no local'];
   /* O TEXTO DO PRAZO VENCIDO (I1) é do dono: ele confirma a frase depois. Se o prazo já passou (feriado, atraso), a data não
      pode seguir como promessa; troca só essa frase e o resto do bloco continua. A data vai entre as duas partes (em negrito) */
-  var PRAZO_VENCIDO = ['O prazo era ', '. Os seus modelos ainda estão em produção; avisamos pelo seu WhatsApp assim que ficarem prontos.'];
+  var PRAZO_VENCIDO = ['O prazo era ', '. Os seus modelos ainda estão em produção; você pode voltar a esta página neste aparelho quando quiser: o pedido fica salvo aqui.'];
   var PRAZO_NORMAL = ['Seus três modelos ficam prontos até ', '.'];
   var dois = function (n) { return String(n).padStart(2, '0'); };
 
@@ -80,11 +79,6 @@
     var ul = el('ul', 'orc-preparo__lista');
     SEPARAR.forEach(function (t) { ul.appendChild(el('li', null, t)); });
     alvo.appendChild(ul);
-    var wa = el('a', 'btn btn--sm', 'Mandar pelo WhatsApp');
-    wa.href = 'https://wa.me/' + String(TEL).replace(/\D/g, '') + '?text=' + encodeURIComponent('Pedido ' + E.pedido.codigo + ': vou mandar o material do site.');
-    wa.target = '_blank';
-    wa.rel = 'noopener noreferrer';
-    alvo.appendChild(wa);
   }
 
   window.BZPreparo = { atualizar: atualizar, prazoUtil: prazoUtil, partesDoPrazo: partesDoPrazo, dataDoPrazo: dataDoPrazo, deveMostrar: deveMostrar };

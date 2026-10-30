@@ -18,7 +18,7 @@
   function semScripts() {
     var aviso = $('o-aviso');
     if (!aviso) return;
-    $('o-aviso-texto').textContent = 'Parte desta página não carregou. Recarregue para tentar de novo ou continue pelo WhatsApp.';
+    $('o-aviso-texto').textContent = 'Parte desta página não carregou. Recarregue para tentar de novo.';
     $('o-tentar').textContent = 'Recarregar';
     $('o-tentar').addEventListener('click', function () { location.reload(); });
     $('o-form').hidden = true;
@@ -82,7 +82,7 @@
     mostrar('o-est-cheio', false);
     $('o-est-vazio').textContent = SEM_VALOR;
     mostrar('o-est-vazio', true);
-    if (!jaAvisou) anunciar(SEM_VALOR + ' Fale com a Beyon Zero pelo WhatsApp.');
+    if (!jaAvisou) anunciar(SEM_VALOR + ' Deixe um recado para a equipe.');
   }
   /* "Mudar as respostas": a etapa volta para as perguntas (e o cartão vazio, para o texto de antes do preço) */
   document.addEventListener('bz:perguntas', function () {
@@ -95,7 +95,7 @@
     recarregar().then(function () { if (!$('o-contato').hidden) irPara('o-contato'); })
       .catch(function (e) { falhou(e, function () { seguir(); }); });
   });
-  /* os detalhes viraram pedido (PR 2a): a tela segue o servidor e leva a pessoa até a confirmação pelo WhatsApp */
+  /* os detalhes viraram pedido (PR 2a): a tela segue o servidor e leva a pessoa até o código do pedido recebido */
   document.addEventListener('bz:detalhes-enviados', function seguir() {
     recarregar().then(function () { if (!$('o-confirmar').hidden) irPara('o-confirmar'); })
       .catch(function (e) { falhou(e, function () { seguir(); }); });
@@ -148,7 +148,7 @@
        equipe achar o caso no log (F7) */
     if (e && e.status === 500) {
       var cod = e.dados && typeof e.dados.pedido === 'string' ? e.dados.pedido.slice(0, 8) : '';
-      return 'Não consegui concluir agora.' + (cod ? ' Código do erro: ' + cod + '.' : '') + ' Tente de novo em instantes ou fale com a Beyon Zero pelo WhatsApp.';
+      return 'Não consegui concluir agora.' + (cod ? ' Código do erro: ' + cod + '.' : '') + ' Tente de novo em instantes ou deixe um recado para a equipe.';
     }
     return (e && e.message) || RECUPERACAO;
   }
@@ -161,7 +161,7 @@
     vigia.parar();
     if (telaPagamento) telaPagamento.parar();
     var cod = API.codigoPerdido() || codigoMostrado;
-    avisar('Sua sessão terminou. Recomece o orçamento por aqui' + (cod ? ' ou continue pelo WhatsApp citando o código do pedido ' + cod + '.' : ' ou continue pelo WhatsApp.'), recomecar, 'Recomeçar', quieto);
+    avisar('Sua sessão terminou. Recomece o orçamento por aqui' + (cod ? ' ou deixe um recado citando o código do pedido ' + cod + '.' : ' ou deixe um recado para a equipe.'), recomecar, 'Recomeçar', quieto);
   }
   /* Recomeçar: esquece a sessão (nenhuma outra aba a grava de volta) e limpa os dados digitados antes de
      recarregar, para o navegador não os restaurar num aparelho compartilhado */
@@ -176,6 +176,14 @@
   $('o-pedido-recomecar').addEventListener('click', recomecar);   /* (pedido vencido ou encerrado: um orçamento novo) */
   /* outra aba esqueceu a sessão (js/orcamento-api.js): avisa já, quieto, em vez de esperar a próxima ação */
   document.addEventListener('bz-orcamento:perdida', function () { avisarSessao(true); });
+  /* A SAÍDA É O RECADO (decisão do dono, 28/10: o site não tem WhatsApp nem acesso direto). Os links [data-recado-abrir] do HTML abrem o
+     recado POR AQUI (e não pelo js/recado.js solto), para ele levar a conversa e o anti-robô desta página. */
+  document.addEventListener('click', function (ev) {
+    var a = ev.target && ev.target.closest ? ev.target.closest('a[data-recado-abrir]') : null;
+    if (!a) return;
+    ev.preventDefault(); ev.stopPropagation();
+    API.abrirRecado({ quem: a }).catch(function (e) { avisar((e && e.message) || 'Não consegui abrir o recado agora. Recarregue a página.', null, null); });
+  }, true);
   function falhou(e, acao) {
     if (sessaoTerminou(e)) return avisarSessao();
     avisar(mensagemDe(e), acao);
@@ -184,9 +192,7 @@
   /* o formulário de detalhes trata a sessão recusada como o contato antigo tratava (PR 2a) */
   window.BZDetalhes.iniciar({ sessaoTerminou: sessaoTerminou, avisarSessao: avisarSessao });
 
-  /* ---------- o código do pedido e o WhatsApp com ele (F1, F6) ----------
-     Os links [data-wa] são montados por js/pagina.js; aqui só se acrescenta "(pedido XXXXXXXX)" ao assunto, no
-     próprio data-wa (quem remontar os links depois, como js/metricas.js, leva o pedido junto) */
+  /* ---------- o código do pedido (F1, F6) ---------- */
   var codigoMostrado = null;
   function identificar() {
     /* o código do pedido (BZ-XXXXX) depois dos detalhes; antes, o id curto da conversa */
@@ -195,14 +201,6 @@
     codigoMostrado = c;
     $('o-codigo-v').textContent = c;
     mostrar('o-codigo', true);
-    var B = window.BEYON, padrao = document.body.getAttribute('data-wa-padrao') || '';
-    if (!B || typeof B.linkWA !== 'function') return;
-    [].forEach.call(document.querySelectorAll('[data-wa]'), function (a) {
-      if (!a.hasAttribute('data-wa-base')) a.setAttribute('data-wa-base', a.getAttribute('data-wa') || padrao);
-      var assunto = a.getAttribute('data-wa-base') + ' (pedido ' + c + ')';
-      a.setAttribute('data-wa', assunto);
-      a.href = B.linkWA(assunto);
-    });
   }
 
   /* ---------- a conversa ---------- */
@@ -416,7 +414,7 @@
      vai pelo WhatsApp; a página não pede a geração nem fica consultando: confere de novo quando a pessoa volta */
   var manual = function () { return !!E && E.modo_direcoes === 'manual'; };
   var TEXTOS_MANUAL = {
-    direcoes: 'Mesmo briefing, três estratégias. Ficam prontas em até 24 horas úteis e avisamos pelo seu WhatsApp, com um link que abre o pedido em qualquer aparelho.',
+    direcoes: 'Mesmo briefing, três estratégias. Ficam prontas em até 24 horas úteis. O pedido fica salvo neste aparelho: é só voltar a esta página por ele.',
     prontas: 'Mesmo briefing, três estratégias. Abra cada uma, compare e escolha a que mais tem a cara do seu negócio.'
   };
   /* (PR 2a) descartado pelo dono: o pedido acabou e o servidor recusa escolher, ajustar e seguir (api/_vendas/fluxo.mjs) */
@@ -456,7 +454,7 @@
       p.appendChild(el('p', '', 'Esta direção não saiu desta vez.'));
       mini.appendChild(p);
       /* (PR 2a) só com o pedido confirmado: arquivado ou descartado, a geração parou de propósito e o servidor recusaria */
-      if (window.BZDetalhes.pendente(E)) corpo.appendChild(el('p', 'dir__resumo', 'Este pedido segue com a Beyon Zero pelo WhatsApp.'));
+      if (window.BZDetalhes.pendente(E)) corpo.appendChild(el('p', 'dir__resumo', 'Este pedido segue com a equipe da Beyon Zero.'));
       else if (podeGerar()) {
         corpo.appendChild(el('p', 'dir__resumo', 'Você pode gerar as três de novo ou seguir com as que ficaram prontas.'));
         corpo.appendChild(botaoAcao('btn btn--sm', 'Gerar de novo', gerarTodas));
@@ -465,7 +463,7 @@
       var f = el('div', 'dir__progresso');
       f.appendChild(el('p', '', 'Na fila: a direção de ' + (NOMES[d.estrategia] || '').toLowerCase() + ' fica pronta em até 24 horas úteis.'));
       mini.appendChild(f);
-      corpo.appendChild(el('p', 'dir__resumo', 'Avisamos pelo seu WhatsApp, com o link do seu pedido.'));
+      corpo.appendChild(el('p', 'dir__resumo', 'Você pode voltar a esta página neste aparelho quando quiser: o pedido fica salvo aqui.'));
       var conf = botao('btn btn--sm', 'Conferir agora', function () { conferir(conf); });   /* (sem consulta automática: a pessoa confere quando quiser) */
       conf.setAttribute('data-conferir', '');
       corpo.appendChild(conf);
@@ -549,7 +547,7 @@
   /* ---------- pagamento do sinal (js/orcamento-pagamento.js: Pix e cartão no próprio site) ---------- */
   var telaPagamento = window.BZPagamentoTela ? window.BZPagamentoTela.criar({ API: API, dinheiro: dinheiro, aoPagar: function () { recarregar().catch(function () {}); } }) : null;
   var recibo = window.BZRecibo ? window.BZRecibo.criar({ API: API, dinheiro: dinheiro }) : null;
-  var entrega = window.BZEntrega ? window.BZEntrega.criar({ API: API, dinheiro: dinheiro }) : null;   /* (PR 3b-2: Seu pedido e o material) */
+  var entrega = window.BZEntrega ? window.BZEntrega.criar({ API: API, dinheiro: dinheiro, telaPagamento: telaPagamento }) : null;   /* (PR 3b-2: Seu pedido e o material) */
   window.BZMaterialRecarregar = recarregar;
   var viuAguardando = false;   /* a etapa "aguardando pagamento" foi vista nesta tela: a confirmação chega ao vivo e o recibo anima */
   function dias(n) { return n + (Number(n) === 1 ? ' dia útil' : ' dias úteis'); }   /* (úteis: decisão do dono de 21/10; é o que o escopo diz) */
@@ -570,6 +568,7 @@
     var pct = PIX ? PIX.percentuais(pr) : null, sinal = valorDoSinal(pr);
     if (!mudou('pagamento', [pr, sinal])) return;
     $('o-pag-escopo').textContent = pr.escopo || '';
+    $('o-pag-titulo').textContent = 'Para começar';   /* (o restante, js/orcamento-restante.js, troca o título: a entrada o devolve) */
     var lead = 'Escopo confirmado: ' + dinheiro(pr.valor_total) + ' em até ' + dias(pr.prazo_dias) + '.';
     /* falha fechada (PR 3b-1): sem o percentual da proposta, a tela não cobra nem chuta um número (o banco também recusa) */
     if (!pct || sinal == null) {
@@ -579,19 +578,22 @@
       return;
     }
     $('o-pag-lead').textContent = lead + ' Para começar, a entrada de ' + pct.entrada + '%: ' + dinheiro(sinal) + '. O restante quando o site estiver no ar.';
-    if (telaPagamento) telaPagamento.mostrar(sinal, pct.entrada);
+    if (telaPagamento) telaPagamento.mostrar(sinal, pct.entrada, {});   /* ({}: solta o "só Pix" que o restante tenha pedido) */
   }
 
   /* ---------- o estado manda na tela ---------- */
   function passoAtual() {
     var et = E.conversa.etapa;
-    if (et === 'aguardando_pagamento' || et === 'em_producao') return 'pagamento';
+    if (et === 'aguardando_pagamento' || et === 'em_producao' || (et === 'encerrada' && E.entrega)) return 'pagamento';   /* (a barra do topo não volta atrás depois do pedido concluído ou encerrado) */
     if (et === 'escopo') return 'escopo';
     if (et === 'escolhida' || et === 'alteracoes') return 'ajustes';
     if (et === 'gerando' || et === 'direcoes' || E.conversa.tem_contato) return 'direcoes';
     if (E.estimativa) return 'estimativa';
     return 'conversa';
   }
+  /* (3b-3c) as duas decisões do passo 4 moram em js/orcamento-restante.js (puras, testadas): o restante está aberto? e onde cai quem volta ao pedido? */
+  function restanteAberto() { return !!window.BZRestante && window.BZRestante.restanteAberto(E); }
+  function alvoDoPagamento() { return window.BZRestante ? window.BZRestante.alvoDaRetomada(E) : E.conversa.etapa === 'em_producao' ? 'o-pronto' : 'o-pagamento'; }
   function etapas() {
     var atual = E ? passoAtual() : 'conversa', passou = true;
     if (precoNaTela && atual === 'conversa') atual = 'estimativa';   /* (o preço das perguntas já está na tela, ainda sem gravar) */
@@ -616,7 +618,7 @@
   function direcoes() {
     var et = E.conversa.etapa;
     var temDirecoes = E.direcoes.length > 0;
-    /* (PR 2a) com o pedido esperando a confirmação pelo WhatsApp, vencido ou encerrado: nada de "Gerar" (o servidor recusaria) */
+    /* (PR 2a) com o pedido vencido, encerrado ou arquivado: nada de "Gerar" (o servidor recusaria) */
     var pendente = window.BZDetalhes.pendente(E);
     mostrar('o-direcoes', temDirecoes || (E.conversa.tem_contato && et === 'contato' && !pendente));
     var resumo = E.direcoes.map(function (d) { return [d.id, d.status, d.conteudo]; });
@@ -678,7 +680,7 @@
     $('o-texto').placeholder = Object.prototype.hasOwnProperty.call(DICA_DUVIDA, et) ? DICA_DUVIDA[et] : dicaPadrao;
     mostrar('o-conversa-fechada', !aberta);
     if (!aberta) $('o-atalhos').hidden = true;
-    window.BZDetalhes.atualizar(E);   /* os detalhes, a confirmação pelo WhatsApp ou o pedido encerrado (js/orcamento-detalhes.js) */
+    window.BZDetalhes.atualizar(E);   /* os detalhes, o pedido recebido ou o pedido encerrado (js/orcamento-detalhes.js) */
     direcoes();
     mostrar('o-ajustes', (et === 'escolhida' || et === 'alteracoes') && !descartado());
     ajustes.atualizar(E);
@@ -692,7 +694,7 @@
     var pronto = et === 'em_producao', chegou = pronto && $('o-pronto').hidden && viuAguardando;
     mostrar('o-pronto', pronto);
     if (pronto) {
-      vigia.parar(); if (telaPagamento) telaPagamento.parar();
+      vigia.parar(); if (telaPagamento && !restanteAberto()) telaPagamento.parar();   /* (com o restante a pagar, o Pix é o mesmo e segue esperando) */
       var pr = E.proposta;
       /* (revisão do 3b-1) sem a entrada conhecida, o recibo não mostra valores (nada de "0%"): só o selo e o título */
       if (recibo) recibo.desenhar(pr && PIX ? PIX.dadosDoRecibo(pr, valorDoSinal(pr)) : null, chegou);
@@ -739,7 +741,7 @@
     if (!API.temSessao()) { iniciarPerguntas(); return; }   /* (primeira visita: as perguntas; a sessão nasce no "Ver o preço") */
     try {
       await recarregar();   /* (o render desenha a conversa salva) */
-      var BLOCOS = { direcoes: 'o-direcoes', ajustes: 'o-ajustes', escopo: 'o-escopo', pagamento: E.conversa.etapa === 'em_producao' ? 'o-pronto' : 'o-pagamento' };
+      var BLOCOS = { direcoes: 'o-direcoes', ajustes: 'o-ajustes', escopo: 'o-escopo', pagamento: alvoDoPagamento() };
       var alvo = BLOCOS[passoAtual()];
       if (alvo && !$(alvo).hidden) { rolarAte($(alvo)); if (window.BZRetomada) window.BZRetomada.focar($(alvo)); }   /* quem volta cai na etapa em que parou */
     } catch (e) {

@@ -30,13 +30,13 @@ export const FRASES = Object.freeze({
   modeloIndisponivel: 'Esse modelo não está disponível para este ajuste.',
   secaoDeFora: 'Essa seção não existe nos outros modelos.',
   secoesNoMaximo: 'O site já tem o máximo de seções. Tire uma antes.',
-  limiteAjustes: 'Você chegou ao limite de 30 ajustes neste pedido. Para mudar mais, fale com a Beyon Zero pelo WhatsApp.',
+  limiteAjustes: 'Você chegou ao limite de 30 ajustes neste pedido. Para mudar mais, deixe um recado para a equipe.',
   versaoMudou: 'Sua versão mudou enquanto você ajustava (outra aba ou a Beyon Zero). Confira e tente de novo.',
   nadaADesfazer: 'Não há ajuste para desfazer.',
   ultimoDoDono: 'O último ajuste foi da Beyon Zero; escreva um pedido.',
   livreTamanho: 'Escreva o pedido em até 300 caracteres.',
-  limiteLivres: 'Você já fez os 3 pedidos escritos deste orçamento. Para mais, fale com a Beyon Zero pelo WhatsApp.',
-  livreFora: 'Este pedido segue com a Beyon Zero pelo WhatsApp: escreva por lá o que quer mudar.'
+  limiteLivres: 'Você já fez os 3 pedidos escritos deste orçamento. Para mais, deixe um recado para a equipe.',
+  livreFora: 'Este pedido segue com a equipe da Beyon Zero: deixe um recado com o que quer mudar.'
 });
 /* o corpo só com estas chaves (qualquer outra é 400, antes de tocar no banco) */
 const soCom = (corpo, chaves) => !!corpo && typeof corpo === 'object' && !Array.isArray(corpo) && Object.keys(corpo).every(k => chaves.includes(k));
@@ -87,7 +87,7 @@ export function criarAcoesDosAjustes({ banco, visitante, estado, exigirNaoDescar
           pedido: rotulo, mudancas: a.resultado, resultado: a.direcao, origem: 'opcao', base_id: est.ajuste_atual || null });
         return { alteracao_id: r.alteracao_id, rotulo };
       } catch (e) {
-        if (e instanceof ErroBanco && e.codigo === '23514') throw new Recusa(409, FRASES.limiteAjustes, { whatsapp: true });
+        if (e instanceof ErroBanco && e.codigo === '23514') throw new Recusa(409, FRASES.limiteAjustes, { recado: true });
         if (e instanceof ErroBanco && e.codigo === '40001') throw new Recusa(409, FRASES.versaoMudou);
         throw e;
       }
@@ -117,15 +117,15 @@ export function criarAcoesDosAjustes({ banco, visitante, estado, exigirNaoDescar
       if (!texto || texto.length > PEDIDO_LIVRE_MAX) throw new Recusa(400, FRASES.livreTamanho);
       const { vid, est } = await noPontoDeAjustar(request, corpo.conversa_id);
       /* (arquivado ou sem pedido: a fila do dono só tem confirmados, e o pedido ficaria "aguardando" para sempre) */
-      if (!est.pedido || est.pedido.status !== 'confirmado') throw new Recusa(409, FRASES.livreFora, { whatsapp: true });
-      if ((est.alteracoes || []).filter(a => a.origem === 'livre').length >= PEDIDOS_LIVRES_MAX) throw new Recusa(409, FRASES.limiteLivres, { whatsapp: true });
+      if (!est.pedido || est.pedido.status !== 'confirmado') throw new Recusa(409, FRASES.livreFora, { recado: true });
+      if ((est.alteracoes || []).filter(a => a.origem === 'livre').length >= PEDIDOS_LIVRES_MAX) throw new Recusa(409, FRASES.limiteLivres, { recado: true });
       try {
         const r = await banco('vendas_pedido_livre', { conversa_id: corpo.conversa_id, visitante_id: vid, texto });
         return { alteracao_id: r.alteracao_id, restantes: r.restantes };
       } catch (e) {
-        if (e instanceof ErroBanco && e.codigo === '23514') throw new Recusa(409, FRASES.limiteLivres, { whatsapp: true });
-        /* o dono arquivou o pedido (ou a conversa passou da etapa) entre a leitura e a gravação: segue pelo WhatsApp */
-        if (e instanceof ErroBanco && e.codigo === '55000') throw new Recusa(409, FRASES.livreFora, { whatsapp: true });
+        if (e instanceof ErroBanco && e.codigo === '23514') throw new Recusa(409, FRASES.limiteLivres, { recado: true });
+        /* o dono arquivou o pedido (ou a conversa passou da etapa) entre a leitura e a gravação: segue pelo recado */
+        if (e instanceof ErroBanco && e.codigo === '55000') throw new Recusa(409, FRASES.livreFora, { recado: true });
         throw e;
       }
     }

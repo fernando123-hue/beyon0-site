@@ -134,6 +134,9 @@ test('alertas por passo: 30 dias sem material (dispensar com a autorização exp
   const noAr = extra => base({ passo: 'no_ar', ...extra });
   const pendente = alertasDe(noAr({ aviso_no_ar_pendente: true }), HOJE).join(' ');
   assert.match(pendente, /avisar o cliente: site no ar/); assert.match(pendente, /só começam a contar quando você registrar/);
+  const suspensaComAviso = alertasDe(base({ passo: 'suspensa', aviso_no_ar_pendente: true }), HOJE).join(' ');
+  assert.ok(!/site no ar/.test(suspensaComAviso), 'suspensa: o terminal não manda avisar "site no ar": ' + suspensaComAviso);
+  assert.match(suspensaComAviso, /site suspenso/);
   assert.deepEqual(alertasDe(noAr({ dias_do_aviso: 1 }), HOJE), [], 'dia 1: nada');
   assert.match(alertasDe(noAr({ dias_do_aviso: 2 }), HOJE).join(' '), /lembrete do restante \(2º dia\)/);
   assert.match(alertasDe(noAr({ dias_do_aviso: 3, lembrete_restante_1_em: 'x' }), HOJE).join(' '), /último lembrete do restante \(3º dia\)/);

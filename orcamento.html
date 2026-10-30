@@ -36,12 +36,13 @@
   <link rel="stylesheet" href="css/base.css" />
   <link rel="stylesheet" href="css/orcamento.css" />
   <link rel="stylesheet" href="css/orcamento-entrega.css" />
+  <link rel="stylesheet" href="css/orcamento-previa.css" />
   <link rel="stylesheet" href="css/previa.css" />
   <link rel="stylesheet" href="css/passagem.css" />
   <link rel="stylesheet" href="css/passagem-destinos.css" />
   <noscript><link rel="stylesheet" href="css/orcamento-semjs.css" /></noscript>
 </head>
-<body class="orc" data-wa-padrao="quero um orçamento de site">
+<body class="orc">
   <a href="#conteudo" class="skip-link">Pular para o conteúdo</a>
 
   <!-- a passagem entre páginas (js/passagem.js, css/passagem.css) -->
@@ -58,9 +59,8 @@
     <nav class="nav__links" id="nav-links" aria-label="Navegação principal">
       <a href="/">Início</a>
       <a href="/sites">Sites</a>
-      <a href="/automacao">Automação &amp; IA</a>
+      <a href="/automacao">Atendente de IA</a>
       <a href="/orcamento" class="is-current" aria-current="page">Monte seu orçamento</a>
-      <a data-wa href="https://wa.me/5521977167944">WhatsApp</a>
     </nav>
   </header>
 
@@ -68,7 +68,7 @@
     <section class="orc-topo" aria-labelledby="orc-titulo">
       <p class="orc-kicker"><span class="dot" aria-hidden="true"></span>Monte seu orçamento</p>
       <h1 id="orc-titulo">Veja o seu site <em>antes</em> de fechar.</h1>
-      <p class="orc-lead">Quatro perguntas rápidas e você vê o preço na hora, sem cadastro. Depois, se quiser, eu desenho três modelos de site para o seu negócio. Você não paga nada até escolher um deles e confirmar.</p>
+      <p class="orc-lead">Responda umas perguntas rápidas e veja o preço na hora, sem cadastro. Depois eu desenho três modelos e você só paga se escolher um.</p>
       <ol class="orc-etapas" id="o-etapas" aria-label="Etapas">
         <li data-passo="conversa" aria-current="step"><span>01</span>Perguntas</li>
         <li data-passo="estimativa"><span>02</span>Preço</li>
@@ -80,13 +80,13 @@
       <p class="orc-codigo" id="o-codigo" hidden>Código do pedido <b id="o-codigo-v"></b><span class="orc-codigo__nota"> · fica salvo neste navegador; cite-o se falar com a Beyon Zero</span></p>
     </section>
 
-    <noscript><p class="orc-aviso orc-aviso--semjs">Esta página precisa de JavaScript. Fale com a Beyon Zero pelo <a href="https://wa.me/5521977167944">WhatsApp (21)&nbsp;97716-7944</a>.</p></noscript>
+    <noscript><p class="orc-aviso orc-aviso--semjs">Esta página precisa de JavaScript. Ative-o no navegador e recarregue a página, ou escreva para <a href="mailto:contato.beyon.zero@gmail.com">contato.beyon.zero@gmail.com</a>.</p></noscript>
 
     <div class="orc-aviso" id="o-aviso" data-origem="orcamento-erro" role="alert" tabindex="-1" hidden>
       <p id="o-aviso-texto"></p>
       <div class="orc-aviso__acoes">
         <button class="btn btn--sm" type="button" id="o-tentar">Tentar de novo</button>
-        <a class="btn btn--sm btn--ghost" data-wa="quero continuar o meu orçamento" href="https://wa.me/5521977167944">Continuar no WhatsApp</a>
+        <a class="btn btn--sm btn--ghost" href="#recado" data-recado-abrir data-recado-origem="orcamento">Deixar um recado</a>
       </div>
     </div>
 
@@ -97,7 +97,7 @@
       <div class="orc-aviso__acoes">
         <button class="btn btn--primary" type="button" id="o-ret-abrir">Abrir o meu pedido</button>
         <button class="btn btn--sm btn--ghost" type="button" id="o-ret-salvo" hidden>Ver o pedido salvo neste aparelho</button>
-        <a class="btn btn--sm btn--ghost" id="o-ret-wa" target="_blank" rel="noopener noreferrer" hidden>Pedir um link novo no WhatsApp</a>
+        <a class="btn btn--sm btn--ghost" id="o-ret-wa" href="#recado" data-recado-abrir data-recado-origem="orcamento" hidden>Deixar um recado</a>
       </div>
       <p class="orc-ret__estado" id="o-ret-estado" role="status"></p>
     </section>
@@ -156,7 +156,7 @@
         <button type="button" class="btn btn--primary orc-p__seguir" id="o-p-ver-preco">Ver o preço</button>
       </div>
       <p class="orc-erro" id="o-p-erro" role="alert"></p>
-      <p class="orc-nota">Prefere falar com uma pessoa? <a class="orc-sem-quebra" data-wa href="https://wa.me/5521977167944">Chame no WhatsApp</a>.</p>
+      <p class="orc-nota">Prefere escrever antes? <a class="orc-sem-quebra" href="#recado" data-recado-abrir data-recado-origem="orcamento">Deixe um recado</a>.</p>
     </section>
 
     <!-- o anti-robô (js/orcamento-turnstile.js): fora da conversa, porque a sessão nasce no "Ver o preço" e a conversa
@@ -186,7 +186,7 @@
           <button class="btn btn--primary" type="submit" id="o-enviar">Enviar</button>
         </form>
         <p class="orc-nota" id="o-conversa-fechada" hidden>A conversa com o consultor ficou registrada acima. Daqui em diante, o seu orçamento segue pelas etapas abaixo.</p>
-        <p class="orc-nota">Prefere falar com uma pessoa? <a class="orc-sem-quebra" data-wa href="https://wa.me/5521977167944">Chame no WhatsApp</a>.</p>
+        <p class="orc-nota">Prefere escrever antes? <a class="orc-sem-quebra" href="#recado" data-recado-abrir data-recado-origem="orcamento">Deixe um recado</a>.</p>
         <p class="orc-nota">Não escreva senhas nem dados de cartão aqui. <a href="/privacidade#orcamento">Como a conversa é tratada</a>.</p>
       </section>
 
@@ -222,8 +222,8 @@
           <p id="o-sugestao-motivo"></p>
         </div>
         <div class="orc-diagnostico" id="o-diagnostico" hidden>
-          <p>Esse pedido precisa de uma conversa de diagnóstico: ele não tem valor automático na tabela.</p>
-          <a class="btn btn--sm btn--primary" data-wa="quero um diagnóstico para o meu projeto" href="https://wa.me/5521977167944">Conversar no WhatsApp</a>
+          <p>Esse pedido não tem valor automático na tabela. Deixe um recado e a equipe responde por e-mail.</p>
+          <a class="btn btn--sm btn--primary" href="#recado" data-recado-abrir data-recado-origem="orcamento">Deixar um recado</a>
         </div>
         <!-- os controles do preço (js/orcamento-perguntas.js): só enquanto o pacote não foi gravado. Ficam fora do cartão
              cheio para valerem também quando o pacote pede conversa (sem valor), inclusive no 1º preço -->
@@ -251,7 +251,7 @@
     <section class="orc-bloco" id="o-contato" aria-labelledby="o-contato-titulo" hidden>
       <h2 id="o-contato-titulo">Para quem vou desenhar?</h2>
       <p class="orc-bloco__lead" id="o-contato-lead">Conte um pouco do seu negócio. Leva uns 2 minutos, e é com isso que eu desenho três modelos de site: um feito para trazer pedidos, um que passa confiança e um mais moderno e chamativo.</p>
-      <p class="orc-aviso orc-fila-cheia" id="o-fila-cheia" role="status" tabindex="-1" hidden>Muita procura agora: a fila de modelos está cheia. Fale com a Beyon Zero pelo <a data-wa="quero os três modelos do meu site (a fila estava cheia)" href="https://wa.me/5521977167944">WhatsApp</a> e a gente segue por lá.</p>
+      <p class="orc-aviso orc-fila-cheia" id="o-fila-cheia" role="status" tabindex="-1" hidden>Muita procura agora: a fila de modelos está cheia. Deixe um <a href="#recado" data-recado-abrir data-recado-origem="orcamento">recado</a> e a gente responde por e-mail.</p>
       <form class="orc-form" id="o-detalhes-form" novalidate>
         <p class="orc-nota orc-nota--aviso">Não escreva CPF, telefone ou dados de outras pessoas nos campos de texto.</p>
         <label for="o-d-negocio">Nome do negócio <span class="orc-opcional">(obrigatório)</span></label>
@@ -259,7 +259,7 @@
         <label for="o-d-vende">O que você vende <span class="orc-opcional">(obrigatório; toque numa sugestão ou escreva)</span></label>
         <div class="orc-sugestoes" id="o-d-sugestoes" role="group" aria-label="Sugestões para o que você vende"></div>
         <input id="o-d-vende" maxlength="200" autocomplete="off" required />
-        <label for="o-tel">WhatsApp <span class="orc-opcional">(obrigatório: é por ele que você confirma o pedido e eu aviso quando os modelos ficarem prontos)</span></label>
+        <label for="o-tel">Telefone com WhatsApp <span class="orc-opcional">(obrigatório: é o contato do seu pedido)</span></label>
         <input id="o-tel" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="(21) 99999-0000" required />
         <fieldset class="orc-opcionais">
           <legend>Se quiser, conte mais <span class="orc-opcional">(opcional)</span></legend>
@@ -294,25 +294,23 @@
       </form>
     </section>
 
-    <!-- A CONFIRMAÇÃO PELO WHATSAPP (spec §3 e §0): o código grande e a conversa aberta pela própria pessoa. Fora da
-         medição (data-sem-medicao): o Ads só conta pedido confirmado (decisão D6) -->
+    <!-- O PEDIDO RECEBIDO (30/10: sem WhatsApp e sem confirmação; o pedido já entra na fila ao enviar os detalhes). O código fica
+         à vista até as direções ficarem prontas. Fora da medição (data-sem-medicao) -->
     <section class="orc-bloco orc-confirmar" id="o-confirmar" aria-labelledby="o-confirmar-titulo" data-sem-medicao hidden>
-      <h2 id="o-confirmar-titulo">Confirme pelo WhatsApp</h2>
-      <p class="orc-bloco__lead">Mande a mensagem pronta para a Beyon Zero. É assim que eu sei que o número é seu e coloco o seu pedido na fila.</p>
+      <h2 id="o-confirmar-titulo">Pedido recebido</h2>
+      <p class="orc-bloco__lead">O seu pedido já está na fila. Não precisa mandar mensagem nem confirmar nada.</p>
       <p class="orc-rotulo">Código do pedido</p>
       <p class="orc-codigo-grande" id="o-confirmar-codigo"></p>
       <p class="orc-nota">Tire um print desta tela: o código identifica o seu pedido.</p>
-      <a class="btn btn--primary" id="o-confirmar-wa" href="https://wa.me/5521977167944" target="_blank" rel="noopener noreferrer">Confirmar pelo WhatsApp<span class="sr-only"> (abre em nova aba)</span></a>
-      <p class="orc-nota" id="o-confirmar-prazo"></p>
     </section>
 
-    <!-- o pedido saiu da fila (venceu sem confirmação ou foi encerrado): o caminho é um orçamento novo ou o WhatsApp -->
+    <!-- o pedido saiu da fila (venceu sem confirmação ou foi encerrado): o caminho é um orçamento novo ou o recado -->
     <section class="orc-bloco" id="o-pedido-fim" aria-labelledby="o-pedido-fim-titulo" hidden>
       <h2 id="o-pedido-fim-titulo">Este pedido não está mais na fila</h2>
       <p class="orc-bloco__lead" id="o-pedido-fim-texto"></p>
       <div class="orc-aviso__acoes">
         <button class="btn btn--sm" type="button" id="o-pedido-recomecar">Fazer um orçamento novo</button>
-        <a class="btn btn--sm btn--ghost" data-wa="quero retomar o meu pedido de modelos" href="https://wa.me/5521977167944">Falar pelo WhatsApp</a>
+        <a class="btn btn--sm btn--ghost" href="#recado" data-recado-abrir data-recado-origem="orcamento">Deixar um recado</a>
       </div>
     </section>
 
@@ -341,7 +339,7 @@
           <button class="btn" type="submit" data-acao>Enviar pedido</button>
           <p class="orc-nota">Seu pedido entra junto; não atrasa o início.</p>
         </div>
-        <p class="orc-nota" id="o-livre-fora" tabindex="-1" hidden>Este pedido segue com a Beyon Zero <a data-wa="quero pedir uma mudança no meu orçamento" href="https://wa.me/5521977167944">pelo WhatsApp</a>: escreva por lá o que quer mudar.</p>
+        <p class="orc-nota" id="o-livre-fora" tabindex="-1" hidden>Este pedido segue com a Beyon Zero. <a href="#recado" data-recado-abrir data-recado-origem="orcamento">Deixe um recado</a> com o que quer mudar.</p>
         <p class="orc-nota" id="o-livre-conta" tabindex="-1"></p>
         <p class="orc-nota orc-livre__resposta" id="o-livre-resposta" role="status"></p>
         <p class="orc-erro" id="o-livre-erro" role="alert"></p>
@@ -361,7 +359,7 @@
       <h2 id="o-esc-titulo">Resumo do que será feito</h2>
       <p class="orc-bloco__lead">Confira tudo. É isto que será feito, pelo valor e no prazo abaixo.</p>
       <div class="orc-escopo" id="o-esc-texto" tabindex="0" role="region" aria-label="Texto do escopo"></div>
-      <p class="orc-nota">Quer mudar algo antes de confirmar? <a data-wa="quero ajustar o escopo do meu orçamento antes de confirmar" href="https://wa.me/5521977167944">Fale com a Beyon Zero pelo WhatsApp</a>.</p>
+      <p class="orc-nota">Quer mudar algo antes de confirmar? <a href="#recado" data-recado-abrir data-recado-origem="orcamento">Deixe um recado para a equipe</a>.</p>
       <p class="orc-nota orc-perguntar" hidden>Alguma dúvida? <a href="#o-texto" data-perguntar>Pergunte ao consultor</a>, aqui na conversa. Ele tira dúvidas, mas não muda o escopo nem o valor: vale o que está escrito aqui.</p>
       <form class="orc-form" id="o-esc-form" novalidate>
         <label class="orc-check"><input type="checkbox" id="o-confirmo" required /> <span>Li e confirmo este escopo, o valor e o prazo.</span></label>
@@ -375,9 +373,9 @@
     <section class="orc-bloco" id="o-pagamento" aria-labelledby="o-pag-titulo" hidden>
       <h2 id="o-pag-titulo">Para começar</h2>
       <p class="orc-bloco__lead" id="o-pag-lead"></p>
-      <p class="orc-nota"><a href="#o-antes">Perguntas antes de pagar</a>: posso desistir? quando fica pronto? quantos ajustes?<span id="o-atalho-fotos" hidden> como mando fotos e textos?</span><span id="o-atalho-restante" hidden> quando pago o restante?</span></p>
-      <p class="orc-nota orc-perguntar" hidden>Alguma dúvida antes de pagar? <a href="#o-texto" data-perguntar>Pergunte ao consultor</a>. Ele tira dúvidas, mas não confirma pagamento nem muda o valor: quem mostra que o pagamento entrou é esta tela.</p>
-      <p class="orc-aviso" id="o-pag-indisponivel" hidden>O pagamento online está indisponível agora. A Beyon Zero envia o pagamento pelo <a data-wa="quero pagar o sinal do meu projeto" href="https://wa.me/5521977167944">WhatsApp</a>.</p>
+      <p class="orc-nota orc-so-entrada"><a href="#o-antes">Perguntas antes de pagar</a>: posso desistir? quando fica pronto? quantos ajustes?<span id="o-atalho-fotos" hidden> como mando fotos e textos?</span><span id="o-atalho-restante" hidden> quando pago o restante?</span></p>
+      <p class="orc-nota orc-perguntar orc-so-entrada" hidden>Alguma dúvida antes de pagar? <a href="#o-texto" data-perguntar>Pergunte ao consultor</a>. Ele tira dúvidas, mas não confirma pagamento nem muda o valor: quem mostra que o pagamento entrou é esta tela.</p>
+      <p class="orc-aviso" id="o-pag-indisponivel" hidden>O pagamento online está indisponível agora. Deixe um <a class="orc-so-entrada" href="#recado" data-recado-abrir data-recado-origem="orcamento">recado</a><a class="orc-so-restante" href="#recado" data-recado-abrir data-recado-origem="orcamento">recado</a> e a equipe envia o link do pagamento.</p>
 
       <form class="orc-form pag" id="o-pag-form" novalidate>
         <div class="pag-metodos" id="o-pag-metodos" role="radiogroup" aria-label="Forma de pagamento" hidden>
@@ -418,7 +416,7 @@
       </form>
 
       <!-- OS PASSOS antes de pagar (PR 3b-2, spec §4): nascem ESCONDIDOS e o js/orcamento-entrega.js só os mostra com a entrega ligada (o mesmo vale para o atalho e o FAQ de fotos: a página não promete o material "aqui mesmo" com BZ_ENTREGA desligado); sem data; a entrada e o restante vêm da proposta (js/orcamento-entrega.js) -->
-      <div class="orc-antes-passos" id="o-antes-passos" hidden>
+      <div class="orc-antes-passos orc-so-entrada" id="o-antes-passos" hidden>
         <p class="orc-pedido__rotulo">Passo 1 de 4 · Entrada</p>
         <ol class="orc-passos orc-passos--curta">
           <li class="orc-passo"><span class="orc-passo__n" aria-hidden="true">1</span><span class="orc-passo__nome">Entrada por Pix <span id="o-ap-entrada"></span></span></li>
@@ -460,8 +458,8 @@
         <summary>Pagar por outro aparelho (QR Code)</summary>
         <img class="pix__qr" id="o-pix-qr" alt="QR Code do Pix" width="220" height="220" hidden />
       </details>
-      <p class="orc-nota" id="o-pag-problema">Problema com o pagamento? <a data-wa="tive um problema com o pagamento do meu pedido" href="https://wa.me/5521977167944">Fale com a Beyon Zero pelo WhatsApp</a>.</p>
-      <details class="orc-det">
+      <p class="orc-nota" id="o-pag-problema">Problema com o pagamento? <a href="#recado" data-recado-abrir data-recado-origem="orcamento">Deixe um recado para a equipe</a>.</p>
+      <details class="orc-det orc-so-entrada">
         <summary>Ver o escopo confirmado</summary>
         <div class="orc-escopo" id="o-pag-escopo"></div>
       </details>
@@ -476,7 +474,7 @@
       <h2 id="o-antes-titulo">Perguntas antes de pagar</h2>
       <details class="orc-det orc-antes__item">
         <summary>Posso desistir?</summary>
-        <p class="orc-antes__resposta">Até 7 dias depois de aceitar (confirmar o resumo), por qualquer motivo, você recebe a entrada de volta (Código de Defesa do Consumidor, art. 49). Depois dos 7 dias, a entrada fica com a Beyon Zero. Se a Beyon Zero não entregar no prazo combinado, você recebe a entrada inteira de volta, mesmo depois dos 7 dias. Para desistir, <a data-wa="quero desistir do meu pedido" href="https://wa.me/5521977167944">fale com a Beyon Zero pelo WhatsApp</a>.</p>
+        <p class="orc-antes__resposta">Até 7 dias depois de aceitar (confirmar o resumo), por qualquer motivo, você recebe a entrada de volta (Código de Defesa do Consumidor, art. 49). Depois dos 7 dias, a entrada fica com a Beyon Zero. Se a Beyon Zero não entregar no prazo combinado, você recebe a entrada inteira de volta, mesmo depois dos 7 dias. Para desistir, <a href="#recado" data-recado-abrir data-recado-origem="orcamento">deixe um recado para a equipe</a>.</p>
       </details>
       <!-- D4 (21/10): as regras do lançamento valem para o orçamento; este texto é o de /condicoes (o teste de coerência confere) -->
       <details class="orc-det orc-antes__item">
@@ -498,7 +496,7 @@
         <summary>Como mando fotos e textos?</summary>
         <p class="orc-antes__resposta">Aqui mesmo, depois da entrada. Não precisa mandar nada pelo WhatsApp.</p>
       </details>
-      <p class="orc-nota">Outra dúvida? <a class="orc-sem-quebra" data-wa="tenho uma dúvida antes de pagar" href="https://wa.me/5521977167944">Fale com a Beyon Zero pelo WhatsApp</a>.</p>
+      <p class="orc-nota">Outra dúvida? <a class="orc-sem-quebra" href="#recado" data-recado-abrir data-recado-origem="orcamento">Deixe um recado para a equipe</a>.</p>
     </section>
 
     <!-- O RECIBO do sinal pago (js/orcamento-recibo.js): as duas partes do valor se encaixam num recibo só -->
@@ -579,6 +577,76 @@
       <h2 id="o-mat-titulo" tabindex="-1">Seu material</h2>
       <div id="o-mat-corpo"></div>
     </section>
+    <!-- A PRÉVIA (PR 3b-3, js/orcamento-previa.js): passo 3. Aprovar ou mandar até 2 listas de ajuste; sem resposta, o projeto PARA (D5). Nasce escondida: só aparece com a entrega em prévia -->
+    <section class="orc-bloco orc-previa" id="o-previa" aria-labelledby="o-prv-titulo" hidden>
+      <p class="orc-previa__rotulo">Passo 3 de 4 · Sua prévia</p>
+      <h2 id="o-prv-titulo" tabindex="-1"></h2>
+      <p class="orc-bloco__lead" id="o-prv-texto"></p>
+      <div class="orc-previa__acoes" id="o-prv-ver-acoes" hidden><a class="btn btn--primary" id="o-prv-ver" target="_blank" rel="noopener noreferrer" href="#">Ver a prévia<span class="sr-only"> (abre em nova aba)</span></a></div>
+      <div class="orc-previa__acoes" id="o-prv-botoes" hidden>
+        <button class="btn btn--primary" type="button" id="o-prv-aprovar">Está bom: aprovar</button>
+        <button class="btn btn--ghost" type="button" id="o-prv-ajustes">Quero ajustes</button>
+      </div>
+      <p class="orc-nota" id="o-prv-sem-listas" hidden>Você já usou as duas listas de ajuste. O que passar disso é orçado à parte.</p>
+      <p class="orc-erro" id="o-prv-erro" role="alert"></p>
+      <form class="orc-form orc-previa__form" id="o-prv-form" novalidate hidden>
+        <label for="o-prv-lista">Escreva tudo de uma vez</label>
+        <p class="orc-nota" id="o-prv-lista-n"></p>
+        <textarea id="o-prv-lista" rows="7" maxlength="1500" autocomplete="off" aria-describedby="o-prv-lista-n o-prv-prazo o-prv-aviso o-prv-contador"></textarea>
+        <p class="orc-nota" id="o-prv-contador"></p>
+        <p class="orc-nota" id="o-prv-prazo">Enquanto espero a sua lista de ajustes, o prazo fica parado.</p>
+        <p class="orc-nota" id="o-prv-aviso">Não escreva CPF, CNPJ nem dados de outras pessoas. Telefone e e-mail escritos aqui são apagados. Para trocar os do site, use os campos abaixo.</p>
+        <!-- M3 (22/10): o telefone e o e-mail do site em campos PRÓPRIOS, conferidos aqui, no servidor e no banco; a mesma autorização de uso do material -->
+        <fieldset class="orc-previa__contato" id="o-prv-contato">
+          <legend>Trocar o telefone ou o e-mail do site (se quiser)</legend>
+          <label for="o-prv-wa">WhatsApp ou telefone do site (com DDD)</label>
+          <input id="o-prv-wa" type="tel" inputmode="tel" autocomplete="off" maxlength="30">
+          <label for="o-prv-email">E-mail do site</label>
+          <input id="o-prv-email" type="email" inputmode="email" autocomplete="off" maxlength="120">
+          <label class="orc-previa__aut" for="o-prv-autoriza"><input id="o-prv-autoriza" type="checkbox"><span id="o-prv-autoriza-texto"></span></label>
+        </fieldset>
+        <p class="orc-erro" id="o-prv-erro-form" role="alert"></p>
+        <div class="orc-previa__acoes">
+          <button class="btn btn--primary" type="submit" id="o-prv-enviar">Mandar a lista de ajustes</button>
+          <button class="btn btn--ghost" type="button" id="o-prv-cancelar">Voltar</button>
+        </div>
+      </form>
+      <p class="orc-nota" id="o-prv-duvida" hidden><span id="o-prv-duvida-lead">Outra dúvida? </span><a id="o-prv-duvida-wa" href="#recado" data-recado-abrir data-recado-origem="orcamento">Deixe um recado para a equipe</a></p>
+      <dialog class="orc-dialogo" id="o-prv-dialogo" aria-labelledby="o-prv-dialogo-titulo">
+        <h3 id="o-prv-dialogo-titulo">Aprovar a prévia?</h3>
+        <p>Depois de aprovar, o próximo passo é pôr o site no ar.</p>
+        <div class="orc-previa__acoes"><button class="btn btn--primary" type="button" id="o-prv-confirmar">Aprovar</button><button class="btn btn--ghost" type="button" id="o-prv-voltar">Voltar</button></div>
+      </dialog>
+    </section>
+    <!-- O SITE NO AR (PR 3b-3, js/orcamento-restante.js): passo 4. O #o-pagamento (o Pix, o mesmo componente da entrada) muda para logo depois desta seção -->
+    <section class="orc-bloco orc-noar" id="o-noar" aria-labelledby="o-noar-titulo" hidden>
+      <p class="orc-previa__rotulo">Passo 4 de 4 · No ar e o restante</p>
+      <h2 id="o-noar-titulo" tabindex="-1"></h2>
+      <p class="orc-noar__endereco" id="o-noar-endereco"></p>
+      <div class="orc-previa__acoes"><a class="btn btn--primary" id="o-noar-abrir" target="_blank" rel="noopener noreferrer" href="#" hidden>Abrir o site<span class="sr-only"> (abre em nova aba)</span></a></div>
+      <p class="orc-bloco__lead" id="o-noar-aviso" hidden></p>
+      <p class="orc-nota">Se o restante não for pago em 3 dias depois do meu aviso de que o site está no ar, o site sai do ar até o pagamento.</p>
+    </section>
+    <!-- O FIM (PR 3b-3): pedido concluído (as duas partes pagas) ou encerrado -->
+    <section class="orc-bloco orc-fim" id="o-fim" hidden>
+      <div id="o-fim-concluido" role="group" aria-labelledby="o-fim-titulo" hidden>
+        <p class="orc-previa__rotulo">Passo 4 de 4 · Pago</p>
+        <h2 id="o-fim-titulo" tabindex="-1">Pedido concluído</h2>
+        <p class="orc-bloco__lead">Entrada e restante pagos. Obrigado!</p>
+        <div class="recibo__partes" id="o-fim-partes">
+          <div class="recibo__parte recibo__parte--pago"><p class="recibo__parte-rot"><span aria-hidden="true">✓</span> Entrada paga</p><p class="recibo__valor" id="o-fim-entrada"></p></div>
+          <div class="recibo__parte recibo__parte--entrega"><p class="recibo__parte-rot"><span aria-hidden="true">✓</span> Restante pago</p><p class="recibo__valor" id="o-fim-restante"></p></div>
+        </div>
+        <p class="recibo__total">Total <span id="o-fim-total"></span></p>
+        <p class="orc-noar__endereco" id="o-fim-endereco"></p>
+        <div class="orc-previa__acoes"><a class="btn btn--primary" id="o-fim-abrir" target="_blank" rel="noopener noreferrer" href="#" hidden>Abrir o site<span class="sr-only"> (abre em nova aba)</span></a></div>
+        <p class="orc-nota">Qualquer mudança depois que o site for entregue é orçada à parte.</p>
+      </div>
+      <div id="o-fim-encerrado" role="group" aria-labelledby="o-fim-encerrado-titulo" hidden>
+        <h2 id="o-fim-encerrado-titulo" tabindex="-1">Este pedido foi encerrado</h2>
+        <p class="orc-bloco__lead">Outra dúvida? <a href="#recado" data-recado-abrir data-recado-origem="orcamento">Deixe um recado para a equipe</a></p>
+      </div>
+    </section>
   </main>
 
   <!-- O VISOR das prévias: abrir, navegar e comparar -->
@@ -603,7 +671,7 @@
 
   <footer class="footer orc-rodape">
     <div class="footer__base">
-      <p class="footer__copy">© <span id="year">2026</span> Beyon Zero · Rio de Janeiro, RJ.</p>
+      <p class="footer__copy">© <span id="year">2026</span> Beyon Zero.</p>
       <!-- PENDÊNCIA DO DONO (Decreto 7.962/2013, art. 2º): nome completo do vendedor, CPF/CNPJ e endereço físico.
            A linha fica escondida até ele preencher com os dados reais (nada aqui pode ser inventado).
            O PAGAMENTO NÃO VAI A PRODUÇÃO SEM ESTA LINHA PREENCHIDA E VISÍVEL (tirar o hidden). -->
@@ -637,6 +705,8 @@
   <script src="js/orcamento-material-esquema.js" defer></script>
   <script src="js/orcamento-envio.js" defer></script>
   <script src="js/orcamento-material.js" defer></script>
+  <script src="js/orcamento-previa.js" defer></script>
+  <script src="js/orcamento-restante.js" defer></script>
   <script src="js/orcamento-entrega.js" defer></script>
   <script src="js/orcamento.js" defer></script>
 </body>

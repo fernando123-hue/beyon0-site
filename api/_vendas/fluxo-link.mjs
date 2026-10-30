@@ -18,9 +18,9 @@ import { entregaLigada, FRASE_DESLIGADA } from '../_material/interruptor.mjs';
 
 export const FRASES = Object.freeze({
   conversaInvalida: 'Conversa inválida.',
-  invalido: 'Este link não vale mais. Se você gerou um link novo, use o mais recente; se não, fale com a Beyon Zero pelo WhatsApp.',
-  incompleto: 'Link inválido. Confira se ele chegou inteiro ou peça um novo pelo WhatsApp.',
-  freio: 'Você já gerou links demais hoje. Use o que você guardou ou fale com a Beyon Zero pelo WhatsApp.',
+  invalido: 'Este link não vale mais. Se você gerou um link novo, use o mais recente; se não, deixe um recado para a equipe.',
+  incompleto: 'Link inválido. Confira se ele chegou inteiro ou peça um novo deixando um recado para a equipe.',
+  freio: 'Você já gerou links demais hoje. Use o que você guardou ou deixe um recado para a equipe.',
   indisponivel: 'Esta etapa ainda não está disponível.'
 });
 const soCom = (corpo, chaves) => !!corpo && typeof corpo === 'object' && !Array.isArray(corpo) && Object.keys(corpo).every(k => chaves.includes(k));
@@ -32,7 +32,7 @@ export function criarAcoesDoLink({ banco, visitante, visitantes, segredoFreio, e
       const vid = await visitante(request);
       const codigo = novoCodigoLink();
       const r = await banco('vendas_link_pedido_criar', { conversa_id: corpo.conversa_id, visitante_id: vid, codigo_hash: hashDoLink(codigo), forcar: corpo.novo === true });
-      if (!r.ok) throw new Recusa(429, FRASES.freio, { whatsapp: true });
+      if (!r.ok) throw new Recusa(429, FRASES.freio, { recado: true });
       return r.criado ? { criado: true, codigo } : { criado: false };
     },
     async sairDoAparelho({ request, corpo }) {
@@ -47,7 +47,7 @@ export function criarAcoesDoLink({ banco, visitante, visitantes, segredoFreio, e
       const vid = await visitante(request);
       const codigo = novoCodigoRetomada();
       const r = await banco('vendas_retomada_do_cliente', { conversa_id: corpo.conversa_id, visitante_id: vid, codigo_hash: hashDaRetomada(codigo) });
-      if (!r.ok) throw new Recusa(429, FRASES.freio, { whatsapp: true });
+      if (!r.ok) throw new Recusa(429, FRASES.freio, { recado: true });
       return { codigo, expira_em: r.expira_em, dias: DIAS_RETOMADA };
     },
     async abrirPedido({ request, corpo }) {
@@ -56,13 +56,13 @@ export function criarAcoesDoLink({ banco, visitante, visitantes, segredoFreio, e
       const s = await visitantes.criar();
       if (!s) throw new Recusa(503, 'Serviço indisponível. Tente de novo em instantes.');
       const r = await banco('vendas_link_pedido_usar', { org_slug: ORG, codigo_hash: hashDoLink(codigo), visitante_id: s.visitante_id, chave_ip: chaveDoIp(ipDe(request), segredoFreio, new Date(), 'link') });
-      if (!r || r.ok !== true) throw new Recusa(410, FRASES.invalido, { whatsapp: true });
+      if (!r || r.ok !== true) throw new Recusa(410, FRASES.invalido, { recado: true });
       return { token: s.token, refresh: s.refresh, expira_em: s.expira_em, conversa_id: r.conversa_id };
     }
   };
-  /* o interruptor (Task 8): desligado, nenhuma destas ações passa (503 com a saída pelo WhatsApp) */
+  /* o interruptor (Task 8): desligado, nenhuma destas ações passa (503 com a saída pelo recado) */
   return Object.fromEntries(Object.entries(acoes).map(([nome, f]) => [nome, async a => {
-    if (!entregaLigada(env)) throw new Recusa(503, FRASE_DESLIGADA, { whatsapp: true });
+    if (!entregaLigada(env)) throw new Recusa(503, FRASE_DESLIGADA, { recado: true });
     return f(a);
   }]));
 }

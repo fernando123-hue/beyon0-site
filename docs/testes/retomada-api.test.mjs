@@ -38,7 +38,6 @@ async function prontoParaAvisar() {
   const s = await n.chamar('POST', 'simular', { conversa_id: c, respostas: RESP });
   assert.equal((await n.chamar('POST', 'confirmar-pacote', { conversa_id: c, respostas: RESP, versao: s.corpo.versao })).status, 200);
   assert.equal((await n.chamar('POST', 'detalhes', { conversa_id: c, negocio: 'Clínica Exemplo', vende: 'Fisioterapia', telefone: telefoneDeTeste(), nome: 'Ana Souza', aceite: true })).status, 200);
-  assert.equal((await painelPost({ confirmar_whatsapp: c })).status, 200);
   await local.db.exec("set bz.transicao_livre = 'on'");
   await local.db.query("update app.direcoes set status = 'pronta', conteudo = '{}'::jsonb where conversa_id = $1", [c]);
   await local.db.query("update app.conversas set etapa = 'direcoes' where id = $1", [c]);
@@ -72,7 +71,7 @@ test('retomar: o painel pede o link; outro aparelho troca o código por uma sess
   assert.equal((await n.chamar('GET', 'estado', undefined, '&conversa=' + c)).status, 404, 'o antigo perde o acesso');
   const deNovo = await navegador().chamar('POST', 'retomar', { codigo: link.corpo.codigo });
   assert.equal(deNovo.status, 410);
-  assert.equal(deNovo.corpo.whatsapp, true);
+  assert.equal(deNovo.corpo.recado, true);
 });
 
 test('retomar: código fora do formato é 400 sem tocar no banco; desconhecido é 410; o freio de sessão vale', async () => {

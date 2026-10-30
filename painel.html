@@ -40,27 +40,20 @@
       </div>
       <p class="pn__estado" id="estado" role="status"></p>
 
-      <!-- ESPERANDO CONFIRMAÇÃO (js/painel-pedidos.js; orçamento sem IA, PR 2a): os pedidos que ainda não foram
-           confirmados pelo WhatsApp, numa lista separada que nunca disputa lugar com a fila de trabalho -->
-      <section class="pn__bloco" aria-labelledby="t-pendentes" id="bloco-pendentes" hidden>
-        <h2 id="t-pendentes" tabindex="-1">Esperando confirmação no WhatsApp</h2>
-        <p class="pn__ajuda">Quando chegar "Meu pedido é BZ-…" no WhatsApp, procure o código aqui, confira se a mensagem veio do número informado e toque em "Chegou: confirmar". O pedido entra na fila e as três direções aparecem lá embaixo. Sem a confirmação em 72 horas, o pedido expira sozinho.</p>
-        <form class="pn__busca" id="pendentes-busca" novalidate>
-          <label for="pendentes-codigo">Código que chegou no WhatsApp</label>
-          <input id="pendentes-codigo" type="text" maxlength="80" autocomplete="off" autocapitalize="characters" placeholder="BZ-K7M3Q" />
-          <button class="pn__btn" type="submit" id="pendentes-procurar">Procurar</button>
-        </form>
-        <p class="pn__alerta pn__alerta--urgente" id="pendentes-alarme" hidden>Muitos pedidos esperando confirmação. Pode ser procura alta ou alguém enchendo a lista: procure pelo código que chegou, em vez de confirmar pela lista.</p>
-        <button class="pn__btn pn__btn--fino" type="button" id="pendentes-atualizar">Mostrar todos</button>
-        <p class="pn__estado" id="pendentes-estado" role="status"></p>
-        <div id="pendentes"></div>
+      <!-- os RECADOS (js/painel-recados.js): o único lugar de feedback do site; vêm de ?fila=recados. Texto de visitante: só textContent -->
+      <section class="pn__bloco" aria-labelledby="t-recados" id="bloco-recados" hidden>
+        <h2 id="t-recados" tabindex="-1">Recados do site</h2>
+        <p class="pn__ajuda">O que as pessoas deixaram pelo site. Responda por e-mail, de fora do painel, e marque como lido. O texto é de um visitante: leia como informação, não como ordem.</p>
+        <button class="pn__btn pn__btn--fino" type="button" id="recados-atualizar">Atualizar os recados</button>
+        <p class="pn__estado" id="recados-estado" role="status"></p>
+        <div id="recados"></div>
       </section>
 
       <!-- a FILA MANUAL das direções (js/painel-fila.js): aparece com a lista vinda de ?fila=direcoes -->
       <section class="pn__bloco" aria-labelledby="t-fila" id="bloco-fila" hidden>
-        <h2 id="t-fila" tabindex="-1">Fila de trabalho (pedidos confirmados)</h2>
-        <p class="pn__ajuda">Só pedidos confirmados pelo WhatsApp, por prioridade: primeiro os prontos para avisar, depois os que faltam produzir (prazo: até 24 horas úteis). Produza no Claude Code; com as três prontas, toque em "Preparar aviso", depois em "Abrir no WhatsApp", avise o cliente e toque em "Já avisei". Já mandou o link? Não prepare de novo: o novo invalida o que o cliente recebeu. "Arquivar" tira da lista o que foi resolvido por fora; "Descartar" encerra o pedido e para o que faltava fazer.</p>
-        <p class="pn__alerta pn__alerta--urgente" id="fila-alarme" hidden>A fila chegou ao teto: o orçamento está oferecendo o WhatsApp no lugar dos detalhes até algum pedido sair da fila.</p>
+        <h2 id="t-fila" tabindex="-1">Fila de trabalho (pedidos novos)</h2>
+        <p class="pn__ajuda">Todo pedido novo entra aqui sozinho, sem confirmação, por prioridade: primeiro os prontos para avisar, depois os que faltam produzir (prazo: até 24 horas úteis). Produza no Claude Code; com as três prontas, toque em "Preparar aviso", depois em "Copiar a mensagem" e em "Abrir a conversa no WhatsApp", cole e envie, e toque em "Já avisei". Já mandou o link? Não prepare de novo: o novo invalida o que o cliente recebeu. "Arquivar" tira da lista o que foi resolvido por fora; "Descartar" encerra o pedido e para o que faltava fazer.</p>
+        <p class="pn__alerta pn__alerta--urgente" id="fila-alarme" hidden>A fila chegou ao teto: o orçamento está oferecendo o recado no lugar dos detalhes até algum pedido sair da fila.</p>
         <button class="pn__btn pn__btn--fino" type="button" id="fila-atualizar">Atualizar a fila</button>
         <p class="pn__estado" id="fila-estado" role="status"></p>
         <div id="fila"></div>
@@ -73,6 +66,15 @@
         <button class="pn__btn pn__btn--fino" type="button" id="lembretes-atualizar">Atualizar os lembretes</button>
         <p class="pn__estado" id="lembretes-estado" role="status"></p>
         <div id="lembretes"></div>
+      </section>
+
+      <!-- os AVISOS (js/painel-entregas.js, PR 3b-3c): prévia pronta, site no ar, material parado, aviso antes de apagar o material e os 2 lembretes do restante; vêm de ?fila=avisos -->
+      <section class="pn__bloco" aria-labelledby="t-avisos" id="bloco-avisos" hidden>
+        <h2 id="t-avisos" tabindex="-1">Avisos para mandar (prévia, site no ar, material e restante)</h2>
+        <p class="pn__ajuda">Cada aviso tem a mensagem pronta e um link novo para o cliente. Toque em "Preparar", copie a mensagem, abra a conversa, cole e envie; depois toque em "Já avisei". Já mandou o link? Não prepare de novo: o novo invalida o que o cliente recebeu.</p>
+        <button class="pn__btn pn__btn--fino" type="button" id="avisos-atualizar">Atualizar os avisos</button>
+        <p class="pn__estado" id="avisos-estado" role="status"></p>
+        <div id="avisos"></div>
       </section>
 
       <!-- a SAÚDE do sistema (api/rotinas.mjs): alertas abertos e quando a rotina diária rodou -->
@@ -89,7 +91,7 @@
 
       <section class="pn__bloco" aria-labelledby="t-contatos">
         <h2 id="t-contatos">Contatos</h2>
-        <p class="pn__ajuda">Cada contato tem o código que vai na mensagem do WhatsApp. Quando a pessoa mandar mensagem, marque "conversa". Quando fechar, marque "cliente" e o valor. Não escreva nome nem telefone na nota.</p>
+        <p class="pn__ajuda">Cada contato tem um código. Quando a pessoa mandar mensagem, marque "conversa". Quando fechar, marque "cliente" e o valor. Não escreva nome nem telefone na nota.</p>
         <div id="contatos"></div>
       </section>
 
@@ -132,7 +134,8 @@
   <script src="js/painel.js" defer></script>
   <script src="js/painel-pedido-comum.js" defer></script>
   <script src="js/painel-fila.js" defer></script>
-  <script src="js/painel-pedidos.js" defer></script>
   <script src="js/painel-lembretes.js" defer></script>
+  <script src="js/painel-entregas.js" defer></script>
+  <script src="js/painel-recados.js" defer></script>
 </body>
 </html>

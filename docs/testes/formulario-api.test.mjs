@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import { montarLocal } from '../banco-local.mjs';
 import { atender } from '../../api/vendas.mjs';
 import { modoDirecoes } from '../../api/_ia/config.mjs';
+import { comFora } from './_fora-do-automatico.mjs';
 
 let local, deps, ipSeq = 0;
 const BASE = 'http://127.0.0.1:8899';
@@ -28,7 +29,7 @@ test('sem IA: simular recomenda e calcula pelo motor, sem gravar nada', async ()
   const s = await n.chamar('POST', 'simular', { conversa_id: c, respostas: RESP });
   assert.equal(s.status, 200, JSON.stringify(s.corpo));
   assert.equal(s.corpo.recomendacao.formato, 'institucional');
-  assert.equal(s.corpo.estimativa.valor_total, 4350, 'institucional 3900 + agendamento 450, pela tabela');
+  assert.equal(s.corpo.estimativa.valor_total, 8350, 'institucional 7900 + agendamento 450, pela tabela');
   assert.ok(s.corpo.versao);
   assert.equal((await local.db.query('select count(*)::int n from app.estimativas where conversa_id = $1', [c])).rows[0].n, 0, 'simular não grava');
 });
@@ -36,18 +37,34 @@ test('sem IA: simular recomenda e calcula pelo motor, sem gravar nada', async ()
 test('o navegador não manda preço nem complexidade: valores do corpo são ignorados ou recusados', async () => {
   const n = navegador(), c = await n.iniciar();
   const s = await n.chamar('POST', 'simular', { conversa_id: c, respostas: RESP, valor_total: 1, complexidade: 'normal', extras: { agendamento: 1 } });
-  assert.equal(s.corpo.estimativa.valor_total, 4350);
+  assert.equal(s.corpo.estimativa.valor_total, 8350);
   const alta = await n.chamar('POST', 'simular', { conversa_id: c, respostas: RESP, fatores: { complexidade: 'alta' } });
-  assert.equal(alta.corpo.estimativa.valor_total, 4350, 'complexidade nunca vem do corpo');
+  assert.equal(alta.corpo.estimativa.valor_total, 8350, 'complexidade nunca vem do corpo');
   /* (um extra da loja num site institucional; a área restrita, que tinha dependentes, saiu do automático em 2026-10-14) */
   const dep = await n.chamar('POST', 'simular', { conversa_id: c, respostas: RESP, extras: { frete_transportadora: 1 } });
   assert.equal(dep.status, 400, 'dependente sem o item de que depende: recusado com motivo');
   assert.match(dep.corpo.erro, /loja virtual/i);
-  const fora = await n.chamar('POST', 'simular', { conversa_id: c, respostas: RESP, extras: { sistema_sob_medida: 1 } });
-  assert.equal(fora.status, 200);
-  assert.equal(fora.corpo.estimativa, null);
-  assert.ok(fora.corpo.diagnostico, 'fora do automático: fale comigo, sem preço');
-  assert.ok(!JSON.stringify(fora.corpo).includes('sob medida'), 'o nome de tela do catálogo, não o da tabela');
+  /* 2026-10-28 (dono): o sistema sob medida saiu da venda; a tabela real não o tem */
+  const saiu = await n.chamar('POST', 'simular', { conversa_id: c, respostas: RESP, extras: { sistema_sob_medida: 1 } });
+  assert.equal(saiu.status, 400, JSON.stringify(saiu.corpo));
+  assert.match(saiu.corpo.erro, /adicional desconhecido/);
+});
+
+test('tabela ativa antiga, com item fora do automático: simular devolve o fale comigo, sem preço', async () => {
+  const outro = await montarLocal({ base: BASE }), antes = deps;
+  try {
+    /* (regra aprovada não muda: a antiga entra como versão 2, ativa) */
+    await outro.db.query(`update app.regras_comerciais set status = 'arquivada' where status = 'ativa'`);
+    await outro.db.query(`insert into app.regras_comerciais (org_id, versao, status, regras, fontes, aprovada_em)
+      select org_id, 2, 'ativa', $1::jsonb, 'teste', now() from app.regras_comerciais where versao = 1`, [JSON.stringify(comFora(JSON.parse(fs.readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'))))]);
+    deps = { ...deps, banco: Object.assign((nome, p) => outro.rpc(nome, p), { chaveCache: 'teste-tabela-com-fora' }), visitantes: outro.auth };
+    const n = navegador(), c = await n.iniciar();
+    const fora = await n.chamar('POST', 'simular', { conversa_id: c, respostas: RESP, extras: { sistema_sob_medida: 1 } });
+    assert.equal(fora.status, 200, JSON.stringify(fora.corpo));
+    assert.equal(fora.corpo.estimativa, null);
+    assert.ok(fora.corpo.diagnostico, 'fora do automático: fale comigo, sem preço');
+    assert.ok(!JSON.stringify(fora.corpo).includes('sob medida'), 'o nome de tela do catálogo, não o da tabela');
+  } finally { deps = antes; globalThis.__BZ_LOCAL = local; }
 });
 
 test('confirmar-pacote grava uma vez, com a versão da tabela; versão velha → 409 com a nova; depois do contato → 409', async () => {
@@ -58,7 +75,7 @@ test('confirmar-pacote grava uma vez, com a versão da tabela; versão velha →
   assert.equal(velha.corpo.versao_nova, s.corpo.versao);
   const ok = await n.chamar('POST', 'confirmar-pacote', { conversa_id: c, respostas: RESP, versao: s.corpo.versao });
   assert.equal(ok.status, 200, JSON.stringify(ok.corpo));
-  assert.equal(ok.corpo.estimativa.valor_total, 4350);
+  assert.equal(ok.corpo.estimativa.valor_total, 8350);
   const conv = (await local.db.query('select etapa, briefing, turnos from app.conversas where id = $1', [c])).rows[0];
   assert.equal(conv.etapa, 'estimativa');
   assert.equal(conv.briefing.negocio.cidade, 'Goiânia');
@@ -145,11 +162,12 @@ test('extra com dígito na chave (produtos_lote_25) entra no preço', async () =
 
 test('os itens do cartão trazem a chave do extra (a tela casa pela chave, não pelo nome)', async () => {
   const n = navegador(), c = await n.iniciar();
-  /* (institucional 8 + agendamento 1 + blog 2 passa do teto de 10 dias: o blog vai para a fase seguinte) */
+  /* (institucional 8 + agendamento 1 + blog 2 = 11 dias: sem teto de prazo desde 2026-10-28, tudo numa entrega só; a chave
+     dos itens da fase seguinte, numa tabela com teto, está em precos.test.mjs) */
   const s = await n.chamar('POST', 'simular', { conversa_id: c, respostas: RESP, extras: { blog: 1 } });
   assert.equal(s.status, 200, JSON.stringify(s.corpo));
-  assert.deepEqual(s.corpo.estimativa.itens.map(i => i.chave), ['agendamento']);
-  assert.deepEqual(s.corpo.estimativa.fase_seguinte.itens.map(i => i.chave), ['blog']);
+  assert.deepEqual(s.corpo.estimativa.itens.map(i => i.chave), ['agendamento', 'blog']);
+  assert.deepEqual([s.corpo.estimativa.fase_seguinte, s.corpo.estimativa.prazo_dias, s.corpo.estimativa.valor_total], [null, 11, 9250], '7900 + 450 + 900');
 });
 
 test('a confiança gravada é a do servidor, nunca a do corpo', async () => {

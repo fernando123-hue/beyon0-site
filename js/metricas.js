@@ -6,14 +6,14 @@
    O que muda em relação ao Google (js/medicao.js):
    - conta TODA visita, não só quem aceita cookies: não usa cookie, não guarda
      IP, não cria identificador que dure além da aba (sessionStorage);
-   - liga a CONVERSA ao clique: a mensagem pronta do WhatsApp leva um código
-     curto da visita ("código K7Q4M"); no painel (painel.html) o dono marca
-     aquele código como conversa e como cliente, com o valor fechado. Daí sai
-     o custo por cliente real de cada origem, campanha e termo;
+   - guarda um código curto por visita ("K7Q4M") junto do contato (o clique em "Deixar um
+     recado" ou em "Monte seu orçamento"); no painel (painel.html) o dono marca
+     aquele código como conversa e como cliente, com o valor fechado. O site não tem
+     mais WhatsApp da Beyon (Decisões 28/10): o código não vai mais numa mensagem pronta;
    - mede o caminho: seções vistas, até onde rolou, tempo com a aba à mostra,
      qual botão, o formulário (onde quem desiste parou) e se o Ouro aconteceu.
 
-   ENQUANTO CONFIG.ativo FOR false, NADA ACONTECE (nem código na mensagem).
+   ENQUANTO CONFIG.ativo FOR false, NADA ACONTECE.
    Ligar só depois do banco pronto (docs/metricas/README.md).
    O aparelho do dono não conta: o painel grava bz-nao-contar no navegador dele.
    ========================================================================== */
@@ -22,7 +22,6 @@
   var CONFIG = {
     ativo: false,
     endpoint: '/api/evento',
-    codigoNaMensagem: true   /* false: sem o código na mensagem (perde a ligação conversa ↔ origem) */
   };
   if (!CONFIG.ativo || !navigator.sendBeacon || !window.crypto || !crypto.getRandomValues) return;
   try { if (localStorage.getItem('bz-nao-contar') === '1') return; } catch (e) { /* sem armazenamento: conta */ }
@@ -70,18 +69,6 @@
     visita = Object.assign({ id: uid(), codigo: novoCodigo() }, origem());
     entrada = true;
     try { sessionStorage.setItem(CHAVE, JSON.stringify(visita)); } catch (e) { /* sem armazenamento: cada página vira uma visita */ }
-  }
-
-  /* ---------- o código na mensagem do WhatsApp ---------- */
-  if (CONFIG.codigoNaMensagem && typeof B.linkWA === 'function') {
-    window.BEYON_CODIGO = visita.codigo;   /* (js/pagina.js põe na abertura da mensagem) */
-    var links = document.querySelectorAll('[data-wa]');
-    for (var i = 0; i < links.length; i++) links[i].href = B.linkWA(links[i].getAttribute('data-wa'));
-  }
-  var resumoWa = CONFIG.codigoNaMensagem && document.getElementById('resumoWa');
-  if (resumoWa && resumoWa.href.indexOf('text=') > 0) {
-    var partes = resumoWa.href.split('text=');
-    resumoWa.href = partes[0] + 'text=' + encodeURIComponent(decodeURIComponent(partes[1]).replace('da Beyon Zero', 'da Beyon Zero (código ' + visita.codigo + ')'));
   }
 
   /* ---------- o retrato desta página ---------- */

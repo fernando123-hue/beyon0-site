@@ -198,6 +198,30 @@ test('22/10: o aviso "no ar" registrado dá a data de partida dos 3 dias; os 2 l
   assert.deepEqual(await dono('vendas_aviso_feito', prev, { momento: 'restante_lembrete_1' }), { ok: false, motivo: 'fora_do_ar' });
 });
 
+test('28/10: a fila de avisos traz o passo da entrega, e o aviso "no ar" só vale com o site no ar (suspensa, encerrada e concluída não oferecem "O seu site está no ar!")', async () => {
+  const fila = async c => (await rpc('vendas_avisos_lista', { org_slug: 'beyon-zero' })).itens.filter(i => i.conversa_id === c.conversa_id);
+  const c = await entregaEm(db, 'no_ar');
+  await forcarEntrega(db, c, { aviso_no_ar_desde: new Date().toISOString() });
+  const [item] = await fila(c);
+  assert.deepEqual([item.momento, item.passo], ['no_ar', 'no_ar'], 'no ar de verdade: o aviso vale e a fila diz o passo');
+  for (const passo of ['suspensa', 'encerrada', 'concluida']) {
+    await forcarEntrega(db, c, { passo });
+    assert.deepEqual(await fila(c), [], 'passo ' + passo + ' com o aviso pendente: o site NÃO está no ar, a mensagem "no ar" não pode ser oferecida');
+  }
+  await forcarEntrega(db, c, { passo: 'no_ar' });
+  assert.equal((await fila(c)).length, 1, 'de volta ao ar, o aviso pendente volta à fila');
+  const previa = await entregaEm(db, 'previa');
+  await forcarEntrega(db, previa, { aviso_previa_desde: new Date().toISOString() });
+  assert.deepEqual((await fila(previa)).map(i => [i.momento, i.passo]), [['previa', 'previa']]);
+  const parado = await entregaEm(db, 'material');
+  await db.query("update app.materiais mt set autorizacao = '{}' from app.entregas e where e.id = mt.entrega_id and e.conversa_id = $1", [parado.conversa_id]);
+  await forcarEntrega(db, parado, { prazo: JSON.stringify(prazoDe(31)) });
+  assert.deepEqual((await fila(parado)).map(i => [i.momento, i.passo]), [['material_parado', 'material']]);
+  const lembrete = await entregaEm(db, 'no_ar');
+  await forcarEntrega(db, lembrete, { aviso_no_ar_feito_em: diasAtras(2) });
+  assert.deepEqual((await fila(lembrete)).map(i => [i.momento, i.passo]), [['restante_lembrete_1', 'no_ar']]);
+});
+
 test('22/10: o aviso de material parado entra na fila de avisos no dia 30 (só sem número autorizado) e sai quando o dono registra', async () => {
   const m = await entregaEm(db, 'material');
   const na = async c => (await rpc('vendas_avisos_lista', { org_slug: 'beyon-zero' })).itens.filter(i => i.conversa_id === c.conversa_id).map(i => i.momento);

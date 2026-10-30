@@ -40,7 +40,7 @@ test('condições: o vendedor é pendência do dono, escondida como no orçament
   assert.match(html, /<p[^>]*id="vendedor"[^>]*\shidden[^>]*>Vendedor: \[nome completo do responsável\]/, 'linha do vendedor escondida e marcada como pendência');
   assert.match(html, /<!--[^]*?PENDÊNCIA DO DONO[^]*?-->\s*<p[^>]*id="vendedor"/, 'comentário de pendência junto da linha escondida');
   const contato = (semOculto.match(/<h2>Contato<\/h2>([^]*?)<p class="priv__voltar"/) || [])[1] || '';
-  assert.ok(contato.includes('wa.me'), 'o contato por WhatsApp está na seção Contato');
+  assert.ok(contato.includes('mailto:contato.beyon.zero@gmail.com'), 'o contato por e-mail está na seção Contato');
   assert.ok(!/Beyon Zero/.test(limpo(contato)), 'a seção Contato não pode pôr "Beyon Zero" no lugar do nome do vendedor');
   assert.ok(!/Vendedor:/.test(texto), 'a linha do vendedor não pode aparecer enquanto o dono não preencher');
 });
@@ -106,7 +106,7 @@ test('condições: desistência diz os 7 dias (CDC art. 49), a devolução intei
   assert.ok(!/se eu ainda não comecei|se eu já comecei/.test(texto), 'a regra antiga (depende de ter começado) sobrou');
   /* atraso da Beyon Zero devolve a entrada, mesmo depois dos 7 dias (dono, 2026-10-14; CDC arts. 51 e 53) */
   assert.match(texto, /Se eu não entregar no prazo combinado, devolvo a entrada inteira, mesmo depois dos 7 dias\./);
-  assert.match(html, /<a data-wa="[^"]*desistir[^"]*" href="https:\/\/wa\.me\/\d+">WhatsApp da Beyon Zero<\/a>/);
+  assert.match(html, /Para desistir, escreva para <a href="mailto:contato.beyon.zero@gmail.com">/);
   /* (a devolução imediata é só a dos 7 dias: depois deles a entrada não volta, e o texto não pode prometer o contrário) */
   assert.match(texto, /Dentro dos 7 dias, a devolução é imediata, pelo mesmo meio do pagamento \(o Pix\), com o valor corrigido/);
   assert.match(texto, /orçamento automático do site segue a tabela normal/);

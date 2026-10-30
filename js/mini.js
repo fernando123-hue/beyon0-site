@@ -180,7 +180,7 @@
   /* as peças interativas dos serviços (docs/restructure/PECAS-SERVICOS.md) são zona proibida: um núcleo com
      aro pousado num circuito ou numa conversa lia como parte da peça — a mistura com o AI Core que o dono
      proibiu (crítica do júri e de motion, 2026-10-15) */
-  var PECAS = '.planta__palco, .despacho__placa, .plantao__tela';
+  var PECAS = '.planta__palco, .plantao__tela';
   function sobrePeca(x, y) {
     var ps = document.querySelectorAll(PECAS);
     for (var i = 0; i < ps.length; i++) {

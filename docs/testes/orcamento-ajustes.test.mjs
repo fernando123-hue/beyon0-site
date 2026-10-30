@@ -131,15 +131,15 @@ test('chamada que falhou mas entrou (tempo esgotado, rede caiu): a contagem do e
 test('o aviso do limite de 30 só manda escrever o pedido se ainda há pedidos escritos', () => {
   assert.match(A.textoDoLimite(2), /escreva o seu pedido/);
   assert.doesNotMatch(A.textoDoLimite(0), /escreva/);
-  assert.match(A.textoDoLimite(0), /WhatsApp/);
+  assert.match(A.textoDoLimite(0), /recado/);
   assert.match(A.textoDoLimite(0), /30/);
 });
 
-test('o aviso do pedido escrito manda não escrever nome nem contato, e há um lugar para o WhatsApp quando o formulário não vale', () => {
+test('o aviso do pedido escrito manda não escrever nome nem contato, e há um lugar para o recado quando o formulário não vale', () => {
   const html = fs.readFileSync(new URL('../../orcamento.html', import.meta.url), 'utf8');
   const aviso = (html.match(/id="o-livre-aviso">([^<]*)</) || [])[1] || '';
   for (const palavra of ['nome', 'telefone', 'e-mail', 'CPF']) assert.ok(aviso.includes(palavra), 'o aviso não cita ' + palavra + ': ' + aviso);
-  assert.match(html, /id="o-livre-fora"[^>]*hidden[\s\S]*?data-wa="[^"]+"[\s\S]*?<\/p>/, 'a frase do WhatsApp no lugar do formulário');
+  assert.match(html, /id="o-livre-fora"[^>]*hidden[\s\S]*?data-recado-abrir[\s\S]*?<\/p>/, 'a frase do recado no lugar do formulário');
 });
 
 test('a palavra é "modelo": nenhum texto da tela diz "direção"', () => {
