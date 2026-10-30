@@ -83,3 +83,14 @@ test('paridade com o vercel.json: mesmos cabeçalhos em /, /sites, /orcamento, /
   for (const c of ['/', '/sites', '/automacao', '/orcamento', '/painel', '/condicoes', '/privacidade', '/resumo', '/vendor/x.js', '/assets/fonts/x.woff2'])
     assert.deepEqual(Object.fromEntries(cabecalhosPara(REGRAS, c)), doVercel(c), c);
 });
+/* O balão do atendente é um <script> em site de OUTRA origem: com CORP same-origin o navegador o bloqueia (revisão técnica C1).
+   Só esse arquivo é liberado, nunca /js/* nem os outros scripts. */
+test('CORP cross-origin SÓ no arquivo do balão (Worker/_headers e vercel.json), todo o resto continua same-origin', () => {
+  assert.equal(cabecalhosPara(REGRAS, '/js/atendente-balao.js').get('cross-origin-resource-policy'), 'cross-origin');
+  assert.equal(doVercel('/js/atendente-balao.js')['cross-origin-resource-policy'], 'cross-origin');
+  for (const c of ['/js/pagina.js', '/js/atendente-balao.js.map', '/js/atendente-balao-x.js', '/js/nucleo/boot.js', '/', '/orcamento', '/vendor/x.js']) {
+    assert.equal(cabecalhosPara(REGRAS, c).get('cross-origin-resource-policy'), 'same-origin', c);
+    assert.equal(doVercel(c)['cross-origin-resource-policy'], 'same-origin', c);
+  }
+  assert.equal(cabecalhosPara(REGRAS, '/js/atendente-balao.js').get('x-content-type-options'), 'nosniff');
+});
