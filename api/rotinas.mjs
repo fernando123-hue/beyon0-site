@@ -63,6 +63,9 @@ export async function executar(request, env, deps = {}) {
   let recados = null;   /* o recado vence em 60 dias (app.rotinas_recados): 1 subpedido */
   try { recados = await banco('rotinas_recados', {}); }
   catch (e) { falhou('recados', e); }
+  let atendente = null;   /* o atendente do site do cliente: conversas 60 dias (app.rotinas_atendente): 1 subpedido */
+  try { atendente = await banco('rotinas_atendente', {}); }
+  catch (e) { falhou('atendente', e); }
   let pedidos = null;
   try { pedidos = await banco('vendas_expirar_pedidos', {}); }
   catch (e) { falhou('pedidos', e); }
@@ -106,7 +109,7 @@ export async function executar(request, env, deps = {}) {
       await bancoFinal('rotinas_avisado', {});
     } catch (e) { log({ nivel: 'erro', evento: 'alerta não enviado', erro: e && e.message ? e.message.slice(0, 80) : 'erro' }); }
   }
-  log({ nivel: falhas.length ? 'erro' : 'info', evento: 'diária', retencao, recados, pedidos, alertas: saude.alertas.map(a => a.tipo), material, entregas, falhas, parcial, subpedidos: gasto.gastos() });
+  log({ nivel: falhas.length ? 'erro' : 'info', evento: 'diária', retencao, recados, atendente, pedidos, alertas: saude.alertas.map(a => a.tipo), material, entregas, falhas, parcial, subpedidos: gasto.gastos() });
   if (parcial) log({ nivel: 'aviso', evento: 'rotina parcial', subpedidos: gasto.gastos() });
-  return json({ ok: !falhas.length, parcial, retencao, recados, pedidos, material, saude });
+  return json({ ok: !falhas.length, parcial, retencao, recados, atendente, pedidos, material, saude });
 }

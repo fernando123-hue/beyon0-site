@@ -14,6 +14,8 @@ import { ambienteDe } from '../_ambiente.mjs';
 export const PAPEIS = {
   conversa: { modelo: 'claude-haiku-5-5', esforco: 'medium', max_tokens: 4000, timeout_ms: 45000 },
   extracao: { modelo: 'claude-haiku-5-5', esforco: 'low', max_tokens: 3000, timeout_ms: 45000 },
+  /* o atendente do site do cliente: resposta curta, sem pensar muito; o código confere tudo o que sai (api/_atendente/agente.mjs) */
+  atendente: { modelo: 'claude-haiku-5-5', esforco: 'low', max_tokens: 800, timeout_ms: 15000, tentativas: 0 },
   /* (sem nova tentativa automática: 2 × 240 s não cabem nos 300 s da função; a tela oferece "gerar de novo") */
   geracao: { modelo: 'claude-opus-5-5', esforco: 'high', max_tokens: 24000, timeout_ms: 240000, tentativas: 0 }
 };
@@ -76,7 +78,7 @@ const MAIS_CARO = Object.values(PRECO_POR_MILHAO).reduce((m, p) => ({
    ~US$ 0,40 a 0,70 → até ~0,23 cada). Conversa e extração no Haiku 5.5: um turno com o sistema em cache fica na casa
    de US$ 0,001 a 0,005; 0,01 cobre com folga. A MEDIR: com chamadas reais, trocar pelo p95 de app.ia_chamadas por
    papel. O que passar da reserva ainda é somado depois (o estouro fica pequeno) */
-export const RESERVA_USD = { conversa: 0.01, extracao: 0.01, geracao: 0.25 };
+export const RESERVA_USD = { conversa: 0.01, extracao: 0.01, atendente: 0.003, geracao: 0.25 };
 export function reservaUsd(papel) {
   return RESERVA_USD[papel] ?? 0.25;
 }
