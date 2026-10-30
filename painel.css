@@ -97,7 +97,8 @@ body { font-size: 1rem; line-height: 1.55; background: var(--bg); color: var(--t
 
 /* a fila manual das direções (js/painel-fila.js) */
 .pn__fila { align-items: flex-start; }
-.pn__fila-texto { flex: 1 1 280px; }
+.pn__fila-texto { flex: 1 1 280px; min-width: 0; overflow-wrap: anywhere; }   /* (recado de visitante pode vir sem espaço: nunca alarga a página) */
+.pn__recado { white-space: pre-line; }
 .pn__fila-texto > p { margin: 0 0 .25rem; }
 .pn__fila-nome { font-weight: 600; }
 .pn__fila-meta { font-family: var(--mono); font-size: var(--fs-rotulo); color: var(--t3); }

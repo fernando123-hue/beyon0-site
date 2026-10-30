@@ -20,20 +20,28 @@ export async function ntfy(topico, texto, urgente, token, titulo = 'Beyon Zero: 
 
 export const AVISOS = Object.freeze({
   pedido: 'Pedido novo na fila. Detalhes no painel.',
-  recado: 'Recado novo. Leia no painel.'
+  recado: 'Recado novo. Leia no painel.',
+  fila_cheia: 'URGENTE: a fila de pedidos encheu ou o limite por hora foi atingido. Veja o painel.'
 });
 
 /* Avisa o dono com um dos textos FIXOS de AVISOS. Sem tópico: não faz nada. Falha ou demora: só log, nunca erro
    (quem chama pode dar await sem medo). `deps.enviar` troca o envio nos testes */
+const UM_POR_JANELA = { fila_cheia: 10 * 60e3 };   /* (a fila cheia recusa muita gente: um aviso a cada 10 min por instância, não um por recusa) */
+const ultimoAviso = {};
 export async function avisarDono(env, tipo, deps = {}) {
   const topico = topicoDe(env);
   const texto = Object.hasOwn(AVISOS, tipo) ? AVISOS[tipo] : null;
   if (!topico || !texto) return false;
-  const enviar = deps.enviar || ((t, x, u, k) => ntfy(t, x, u, k, 'Beyon Zero', tipo === 'pedido' ? 'package' : 'speech_balloon', ESPERA_MAX_MS));
+  const agora = (deps.agora || Date.now)();
+  if (UM_POR_JANELA[tipo]) {
+    if (ultimoAviso[tipo] !== undefined && agora - ultimoAviso[tipo] < UM_POR_JANELA[tipo]) return false;
+    ultimoAviso[tipo] = agora;
+  }
+  const enviar = deps.enviar || ((t, x, u, k) => ntfy(t, x, u, k, 'Beyon Zero', tipo === 'pedido' ? 'package' : tipo === 'fila_cheia' ? 'rotating_light' : 'speech_balloon', ESPERA_MAX_MS));
   let espera;
   try {
     await Promise.race([
-      Promise.resolve().then(() => enviar(topico, texto, false, tokenDe(env))),
+      Promise.resolve().then(() => enviar(topico, texto, tipo === 'fila_cheia', tokenDe(env))),
       new Promise((_, rej) => { espera = setTimeout(() => rej(new Error('ntfy demorou')), deps.esperaMs ?? ESPERA_MAX_MS); })
     ]);
     return true;

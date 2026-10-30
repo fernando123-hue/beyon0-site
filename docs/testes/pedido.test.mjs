@@ -15,7 +15,7 @@ const SEM_JEV = { cfg: { jev: false, prazoMs: 50 } };
 
 test('os freios do pedido: os números do spec §0, o teto da fila (D1) e o alarme dos pendentes', () => {
   assert.deepEqual({ ...PEDIDOS }, { por_ip_dia: 3, por_telefone_dia: 2, fila_confirmados: 10, horas_para_confirmar: 72, alarme_pendentes: 20,
-    tentativas_por_conversa: 3, por_ip48_dia: 10 });
+    tentativas_por_conversa: 3, por_ip48_dia: 10, pedidos_por_hora: 5 });
 });
 
 /* (revisão final do PR 2a, M3c) quem tem IPv6 costuma ter um /48 inteiro (65.536 redes /64): além do /64, um teto por /48 */

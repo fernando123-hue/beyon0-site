@@ -17,10 +17,12 @@ import { avisarDono } from '../_ntfy.mjs';
 
 const FORA_DA_ETAPA = 'Os detalhes vêm depois do preço e só uma vez. Se precisar mudar algo, deixe um recado para a equipe.';
 /* (a mesma frase para "pedido aberto" e "limite do dia": não diz a ninguém qual dos dois um número tem) */
-const TELEFONE = 'Este WhatsApp já tem um pedido aberto ou chegou ao limite de pedidos de hoje. Confirme o pedido que já existe ou deixe um recado para a equipe.';
+const TELEFONE = 'Este telefone já tem um pedido aberto ou chegou ao limite de pedidos de hoje. Deixe um recado para a equipe.';
 const MOTIVOS = {
   ja_enviado: { status: 409, texto: FORA_DA_ETAPA },
   fila_cheia: { status: 503, texto: 'Muita procura agora: a fila de modelos está cheia. Deixe um recado com o seu e-mail e a gente responde.', extra: { fila_cheia: true, recado: true } },
+  /* (limite global por hora: a mesma saída da fila cheia, sem dizer qual dos dois foi) */
+  limite_hora: { status: 503, texto: 'Muita procura agora: a fila de modelos está cheia. Deixe um recado com o seu e-mail e a gente responde.', extra: { fila_cheia: true, recado: true } },
   telefone_aberto: { status: 409, texto: TELEFONE, extra: { recado: true } },
   telefone_dia: { status: 409, texto: TELEFONE, extra: { recado: true } },
   freio_ip: { status: 429, texto: 'Muitos pedidos deste endereço hoje. Deixe um recado para a equipe: a gente responde por e-mail.', extra: { recado: true } },
@@ -65,14 +67,17 @@ export function criarAcoesDoPedido({ banco, visitante, segredoFreio, env, limite
           conversa_id: corpo.conversa_id, visitante_id: vid, nome: d.nome, telefone: d.telefone, aceite: true,
           briefing: d.briefing, redes: d.redes, suspeito: d.suspeito, telefone_hash: telefoneHash,
           chave_ip: chaveIp, chave_ip48: chaveDoIp48(ip, segredoFreio, agora, 'pedido48'), max_por_ip48: limites.por_ip48_dia,
-          max_por_ip: limites.por_ip_dia, max_por_telefone_dia: limites.por_telefone_dia, max_tentativas: limites.tentativas_por_conversa,
+          max_por_ip: limites.por_ip_dia, max_por_hora: limites.pedidos_por_hora, max_por_telefone_dia: limites.por_telefone_dia, max_tentativas: limites.tentativas_por_conversa,
           teto_fila: limites.fila_confirmados, horas: limites.horas_para_confirmar
         });
       } catch (e) {
         if (e instanceof ErroBanco && e.codigo === '55000') throw new Recusa(409, FORA_DA_ETAPA);
         throw e;
       }
-      if (!r || r.ok !== true) throw recusaDoMotivo(r, requestId);
+      if (!r || r.ok !== true) {
+        if (r && (r.motivo === 'fila_cheia' || r.motivo === 'limite_hora')) await avisar(env, 'fila_cheia');   /* (aviso urgente, sem dado pessoal) */
+        throw recusaDoMotivo(r, requestId);
+      }
       await avisar(env, 'pedido');   /* (o aviso nunca falha nem demora: texto fixo, sem dado do cliente) */
       return { codigo: r.codigo, status: 'confirmado' };
     }

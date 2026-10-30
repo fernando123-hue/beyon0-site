@@ -87,7 +87,7 @@ test('próximo passo: o código diz ao modelo o que fazer agora, pela ordem do f
   assert.match(p(cheio, { estimativa: est }), /pedir_contato/);
   /* (revisão técnica do harness) etapa 'contato' = o contato JÁ chegou; as direções saem pelo botão da tela */
   const contato = proximoPasso({ etapa: 'contato', briefing: cheio, estimativa: est });
-  assert.match(contato, /contato já (foi )?recebido/i);
+  assert.match(contato, /contato foi recebido/i);
   assert.match(contato, /não chame pedir_contato/i);
   /* o formulário aparece sozinho com a estimativa; pedir_contato só leva a pessoa até ele, uma vez */
   assert.match(p(cheio, { estimativa: est }), /uma vez|não repita/i);
@@ -312,18 +312,19 @@ test('vendedor: a dor vem antes do formato, a recomendação vem com o preço, e
   assert.match(proximoPasso({ etapa: 'descoberta', briefing: comFormato, estimativa: null }), /chame estimar agora[^.]*\. Recomende o formato/);
   const est = { prazo_dias: 8, detalhes: { itens: [] } };
   assert.match(proximoPasso({ etapa: 'estimativa', briefing: comFormato, estimativa: est }), /quer seguir ou fechar, chame pedir_contato já, uma vez/);
-  /* quem fechou rápido: no máximo 2 perguntas antes do botão, para as direções não saírem pobres */
-  const contato = proximoPasso({ etapa: 'contato', briefing: comFormato, estimativa: est });
-  assert.match(contato, /no máximo 2 perguntas rápidas sobre [^.]+, para as direções/);
-  assert.match(contato, /não chame pedir_contato/);
+  /* (30/10) as 2 perguntas rápidas saíram: com o pedido entrando na fila ao enviar os detalhes, a geração já começou */
+  assert.doesNotMatch(proximoPasso({ etapa: 'contato', briefing: comFormato, estimativa: est }), /perguntas rápidas/);
 });
 
 test('30/10: na etapa "contato" o pedido já está na fila (código BZ-), sem confirmar nada; os nomes citados são os da tela', () => {
   const est = { prazo_dias: 8, detalhes: { itens: [] } };
   const contato = proximoPasso({ etapa: 'contato', briefing: { negocio: { segmento: 'clínica' } }, estimativa: est });
-  assert.match(contato, /está na fila/);
-  assert.doesNotMatch(contato, /WhatsApp/, 'sem WhatsApp no passo do pedido');
-  assert.match(contato, /código BZ-/);
+  assert.match(contato, /não está andando/);
+  assert.doesNotMatch(contato, /WhatsApp|confirm/i, 'sem WhatsApp nem confirmação no pedido parado');
+  const gerando = proximoPasso({ etapa: 'gerando', briefing: {}, estimativa: est });
+  assert.match(gerando, /acabou de entrar na fila/);
+  assert.match(gerando, /Pedido recebido/);
+  assert.doesNotMatch(gerando, /WhatsApp/);
   assert.match(contato, /não chame pedir_contato/);
   assert.doesNotMatch(contato, /Gerar as três direções/, 'o botão "Gerar" não existe mais nesta etapa');
   const pedir = ferramentas(REGRAS, { etapa: 'estimativa' }).find(f => f.name === 'pedir_contato').description;
@@ -341,7 +342,7 @@ test('30/10: na etapa "contato" o pedido já está na fila (código BZ-), sem co
   const tela = fs.readFileSync(new URL('../../orcamento.html', import.meta.url), 'utf8');
   for (const nome of ['Quero os três modelos', 'Pedido recebido']) assert.ok(tela.includes('>' + nome + '<'), 'a tela tem "' + nome + '"');
   assert.ok(!tela.includes('>Confirmar pelo WhatsApp<'), 'a tela não tem mais o botão "Confirmar pelo WhatsApp"');
-  assert.match(contato, /"Pedido recebido"/);
+
 });
 
 test('conversa aberta até o pagamento: no escopo e no sinal o consultor só tira dúvidas (PROPOSTA de 2026-10-09, §4, 3b)', () => {

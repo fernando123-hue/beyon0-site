@@ -610,3 +610,36 @@ test('bordas das funções do PR 2a (PR2a-testes-borda): outro visitante ou orga
   /* o "Já avisei" de outra organização não acha a conversa: P0002, e nada é avisado (não devolve { avisadas: 0 }) */
   assert.equal((await erroDe(rpc('vendas_marcar_avisado', { org_slug: 'outra', conversa_id: b.conversa_id })))?.codigo, NAO_ACHOU, 'marcar_avisado de outra organização');
 });
+
+/* ---- 30/10: a função pública agora confirma na hora (wrapper), com o limite global por hora e a trava única da fila ---- */
+const automatico = (base, extra = {}) => {
+  const telefone = telefoneE164DeTeste();
+  return rpc('vendas_registrar_detalhes', { ...base, telefone, telefone_hash: hex('tel|' + telefone), nome: 'Ana', aceite: true,
+    briefing: { negocio: { nome: 'Clínica Sol', descricao: 'Consultas e exames' } }, redes: {}, suspeito: false,
+    chave_ip: null, max_por_ip: 100, max_por_telefone_dia: 2, teto_fila: 1000, horas: 72, max_por_hora: 1000, ...extra });
+};
+
+test('confirmação automática: o pedido nasce confirmado, com as três direções, e a conversa vai para "gerando"', async () => {
+  const b = await comPacote();
+  const r = await automatico(b);
+  assert.equal(r.ok, true); assert.equal(r.status, 'confirmado');
+  assert.equal((await db.query('select status from app.pedidos where conversa_id = $1', [b.conversa_id])).rows[0].status, 'confirmado');
+  assert.equal(Number((await db.query('select count(*) n from app.direcoes where conversa_id = $1', [b.conversa_id])).rows[0].n), 3);
+  assert.equal((await db.query('select etapa from app.conversas where id = $1', [b.conversa_id])).rows[0].etapa, 'gerando');
+});
+
+test('limite global por hora (S1): o 6º pedido da hora é recusado com "limite_hora", mesmo com outro telefone e outro IP; nada é gravado', async () => {
+  await db.query("update app.pedidos set created_at = now() - interval '2 hours'");   /* (a conta é da última hora) */
+  for (let i = 0; i < 5; i++) assert.equal((await automatico(await comPacote(), { max_por_hora: 5 })).ok, true, 'pedido ' + (i + 1));
+  const b = await comPacote();
+  const r = await automatico(b, { max_por_hora: 5 });
+  assert.deepEqual(r, { ok: false, motivo: 'limite_hora' });
+  assert.equal(Number((await db.query('select count(*) n from app.pedidos where conversa_id = $1', [b.conversa_id])).rows[0].n), 0);
+  await db.query("update app.pedidos set created_at = now() - interval '2 hours'");
+});
+
+test('fila única (S2): a função pública trava a organização antes de contar o teto e o limite por hora', async () => {
+  const fonte = (await db.query(`select p.prosrc from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'app' and p.proname = 'vendas_registrar_detalhes'`)).rows[0].prosrc;
+  assert.match(fonte, /pg_advisory_xact_lock\(hashtextextended\('pedidos-fila', 0\)\)/);
+  assert.ok(fonte.indexOf('pg_advisory_xact_lock') < fonte.indexOf('vendas_registrar_detalhes_base'), 'a trava vem antes de chamar a base (que conta o teto)');
+});

@@ -13,7 +13,7 @@
     'O horário de atendimento', 'O endereço, se você atende no local'];
   /* O TEXTO DO PRAZO VENCIDO (I1) é do dono: ele confirma a frase depois. Se o prazo já passou (feriado, atraso), a data não
      pode seguir como promessa; troca só essa frase e o resto do bloco continua. A data vai entre as duas partes (em negrito) */
-  var PRAZO_VENCIDO = ['O prazo era ', '. Os seus modelos ainda estão em produção; você pode voltar a esta página quando quiser: o pedido fica salvo.'];
+  var PRAZO_VENCIDO = ['O prazo era ', '. Os seus modelos ainda estão em produção; você pode voltar a esta página neste aparelho quando quiser: o pedido fica salvo aqui.'];
   var PRAZO_NORMAL = ['Seus três modelos ficam prontos até ', '.'];
   var dois = function (n) { return String(n).padStart(2, '0'); };
 

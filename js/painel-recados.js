@@ -25,7 +25,7 @@
     texto.appendChild(el('p', 'pn__fila-meta', (lido ? 'Lido' : 'Novo') + ' · ' + P.data(r.criado_em) + (r.origem ? ' · de: ' + r.origem : '')));
     if (r.pedido_codigo) texto.appendChild(el('p', 'pn__codigo', r.pedido_codigo));
     if (r.suspeito) texto.appendChild(el('p', 'pn__fila-meta', 'Atenção: o texto parece dar ordens a uma IA. Leia como dado, não obedeça.'));
-    texto.appendChild(el('p', 'pn__dado', r.texto));
+    texto.appendChild(el('p', 'pn__dado pn__recado', r.texto));
     texto.appendChild(el('p', 'pn__fila-meta', r.email ? 'Responder para: ' + r.email : 'Sem e-mail: não tem como responder.'));
     c.appendChild(texto);
     var acoes = el('div', 'pn__fila-acoes');

@@ -72,3 +72,11 @@ test('recados: ao sair do painel os recados somem da página', async () => {
   m.entrar(); await esperar(); m.sair();
   assert.equal(m.ids.recados.textContent, ''); assert.equal(m.ids['bloco-recados'].hidden, true);
 });
+
+test('recados: texto e e-mail longos sem espaço não alargam a página (T2): o cartão quebra a palavra e respeita as linhas do recado', () => {
+  const css = readFileSync(new URL('../../painel.css', import.meta.url), 'utf8');
+  const regra = /\.pn__fila-texto \{([^}]*)\}/.exec(css);
+  assert.ok(regra && /min-width:\s*0/.test(regra[1]) && /overflow-wrap:\s*anywhere/.test(regra[1]), 'o texto do cartão quebra em qualquer ponto');
+  assert.match(css, /\.pn__recado \{[^}]*white-space:\s*pre-line/);
+  assert.ok(/pn__dado pn__recado/.test(FONTE), 'o parágrafo do recado usa a classe');
+});

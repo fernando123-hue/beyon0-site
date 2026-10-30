@@ -114,7 +114,7 @@
     msg.setAttribute('aria-label', 'Mensagem pronta: ' + o.rotulo + ' para ' + quem);
     var copiar = el('button', 'pn__btn', 'Copiar a mensagem');
     copiar.type = 'button';
-    var estado = el('p', 'pn__fila-meta');
+    var estado = el('p', 'pn__fila-meta', 'Confira o nome na conversa antes de mandar o link.');   /* (o número não é provado: dono, 30/10; o texto some quando o botão responde) */
     estado.setAttribute('role', 'status');
     copiar.addEventListener('click', function () { copiarMensagem(msg, estado); });
     var a = el('a', 'pn__btn pn__btn--fino');

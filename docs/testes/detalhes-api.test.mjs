@@ -84,7 +84,7 @@ test('freio por telefone: o mesmo WhatsApp com outra escrita, em outra conversa,
   const r = await m.chamar('POST', 'detalhes', { conversa_id: b, ...DETALHES(), telefone: '+55 21 98888 1234' });
   assert.equal(r.status, 409);
   assert.equal(r.corpo.recado, true);
-  assert.match(r.corpo.erro, /WhatsApp/);
+  assert.match(r.corpo.erro, /telefone/);
 });
 
 /* (revisão final do PR 2a, M2) a mesma conversa reenviando os detalhes trocando o telefone (para descobrir se um número já

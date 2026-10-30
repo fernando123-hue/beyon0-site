@@ -50,7 +50,7 @@ test('prazo vencido: a data some da promessa e entra o aviso honesto (I1)', () =
   assert.equal(dentro.join(''), 'Seus três modelos ficam prontos até sexta, 16/10, às 15h.');
   assert.equal(P.partesDoPrazo(E.pedido.confirmado_em, em(2026, 10, 16, 15)).join(''), dentro.join(''), 'no instante exato do prazo ainda vale');
   const vencido = P.partesDoPrazo(E.pedido.confirmado_em, em(2026, 10, 19, 10));   /* segunda: depois de um fim de semana */
-  assert.equal(vencido.join(''), 'O prazo era sexta, 16/10, às 15h. Os seus modelos ainda estão em produção; você pode voltar a esta página quando quiser: o pedido fica salvo.');
+  assert.equal(vencido.join(''), 'O prazo era sexta, 16/10, às 15h. Os seus modelos ainda estão em produção; você pode voltar a esta página neste aparelho quando quiser: o pedido fica salvo aqui.');
   assert.equal(vencido[1], 'sexta, 16/10, às 15h', 'a data fica no meio (vai em negrito na tela)');
   assert.equal(P.deveMostrar(E), true, 'a lista "já separe" e o WhatsApp continuam: o bloco segue visível');
 });
