@@ -25,7 +25,7 @@ export function criarTransporte(env = process.env) {
     const cab = { apikey: chave, 'content-type': 'application/json', 'content-profile': 'app', 'accept-profile': 'app',
       ...(chave.startsWith('eyJ') ? { authorization: 'Bearer ' + chave } : {}) };
     const rpc = async function rpc(nome, p) {
-      if (!/^(vendas|pagamentos|rotinas)_[a-z_]{2,40}$/.test(nome)) throw new ErroBanco('22023', 'função inválida');
+      if (!/^(vendas|pagamentos|rotinas|atendente)_[a-z_]{2,40}$/.test(nome)) throw new ErroBanco('22023', 'função inválida');
       let r;
       try { r = await fetch(base + nome, { method: 'POST', headers: cab, body: JSON.stringify({ p }), signal: AbortSignal.timeout(TEMPO_MAXIMO_MS) }); }
       catch (e) { throw new ErroBanco('08006', 'rpc ' + nome + ': banco indisponível'); }

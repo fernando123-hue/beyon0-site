@@ -63,6 +63,9 @@ export async function executar(request, env, deps = {}) {
   let recados = null;   /* o recado vence em 60 dias (app.rotinas_recados): 1 subpedido */
   try { recados = await banco('rotinas_recados', {}); }
   catch (e) { falhou('recados', e); }
+  let atendente = null;   /* o atendente do site do cliente: conversas 60 dias (app.rotinas_atendente): 1 subpedido */
+  try { atendente = await banco('rotinas_atendente', {}); }
+  catch (e) { falhou('atendente', e); }
   let pedidos = null;
   try { pedidos = await banco('vendas_expirar_pedidos', {}); }
   catch (e) { falhou('pedidos', e); }
