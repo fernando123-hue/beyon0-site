@@ -3,7 +3,7 @@
 -- que se cola no site do CLIENTE da Beyon e responde só com a base daquele negócio. Sem Meta, sem API de WhatsApp, sem CNPJ.
 -- Reaproveita o banco da fundação (plano: "reaproveita Banco"): mesma organização (dona do cliente), mesmo RLS fechado.
 --
--- • ISOLAMENTO é o ponto central: cada tabela leva cliente_id e org_id; toda função recebe o id PÚBLICO do cliente (ou
+-- • ISOLAMENTO é o ponto central: cada tabela leva cliente_id (e org_id, menos as mensagens, que herdam pela FK da conversa); toda função recebe o id PÚBLICO do cliente (ou
 --   o id interno + org no painel) e só toca linhas desse cliente. Conversa de outro cliente, ainda que o uuid seja
 --   adivinhado, é tratada como inexistente (nasce conversa nova; nunca revela que existe).
 -- • Tabelas fechadas, como app.recados: RLS ligado, SEM política, nenhum privilégio; só as funções (service_role).
@@ -61,6 +61,7 @@ create table app.atendente_conversas (
   org_id     uuid not null,
   criado_em  timestamptz not null default now(),
   ultima_em  timestamptz not null default now(),
+  msgs       integer not null default 0,   -- turnos do visitante já aceitos (contados na abertura do turno, com trava)
   unique (cliente_id, id),
   foreign key (org_id, cliente_id) references app.atendente_clientes (org_id, id) on delete cascade
 );
@@ -94,15 +95,23 @@ create table app.atendente_gasto (
   cliente_id uuid not null,
   org_id     uuid not null,
   dia        date not null,
-  usd        numeric(10,4) not null default 0 check (usd >= 0),
+  usd        numeric(10,4) not null default 0 check (usd >= 0),   -- reservado + gasto
+  avisado    boolean not null default false,                     -- o aviso de teto batido (ntfy) já saiu hoje
   primary key (cliente_id, dia),
   foreign key (org_id, cliente_id) references app.atendente_clientes (org_id, id) on delete cascade
+);
+
+-- o gasto do dia de TODOS os clientes somados (teto global do atendente)
+create table app.atendente_gasto_global (
+  dia     date primary key,
+  usd     numeric(10,4) not null default 0 check (usd >= 0),
+  avisado boolean not null default false
 );
 
 do $$
 declare t text;
 begin
-  foreach t in array array['atendente_clientes', 'atendente_dominios', 'atendente_base', 'atendente_conversas', 'atendente_mensagens', 'atendente_contatos', 'atendente_gasto'] loop
+  foreach t in array array['atendente_clientes', 'atendente_dominios', 'atendente_base', 'atendente_conversas', 'atendente_mensagens', 'atendente_contatos', 'atendente_gasto', 'atendente_gasto_global'] loop
     execute format('alter table app.%I enable row level security', t);
     execute format('revoke all on app.%I from public, anon, authenticated, service_role', t);
   end loop;
@@ -125,44 +134,83 @@ begin
                         from app.atendente_base where cliente_id = c.id), '[]'::jsonb));
 end $$;
 
--- abre o turno: confere os tetos, acha ou cria a conversa DESTE cliente e devolve o histórico. Conta o IP na hora.
--- motivo: 'ip' | 'conversa' | 'gasto' (a API responde com honestidade e passa para pessoa)
+-- abre o turno, ATÔMICO. A trava por cliente (advisory, até o fim da transação) serializa quem disputa o mesmo teto; dentro dela o IP, as
+-- mensagens da conversa e o gasto são contados na MESMA operação. O gasto é RESERVADO aqui, ANTES de a IA ser chamada, e acertado em
+-- atendente_turno_gravar com o custo real; reserva perdida (função que caiu) erra para o lado seguro. Dois tetos: o do cliente no dia
+-- (atendente_clientes.teto_dia_usd) e o global de todos os clientes (p.teto_global_usd, que o backend lê de variável de ambiente).
+-- O dia é o de Brasília, como o resto do projeto.
+-- motivo: 'ip' | 'conversa' | 'gasto' | 'global' (a API responde com honestidade e passa para pessoa);
+-- avisar: 'cliente' | 'global', UMA vez por dia, na primeira recusa por gasto (o backend manda o ntfy, sem dado pessoal).
 create function app.atendente_turno_abrir(p jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare
   c app.atendente_clientes;
   v_conv uuid;
+  v_n integer;
   v_max_msgs integer := least(greatest(coalesce((p ->> 'max_msgs')::integer, 30), 1), 200);
   v_max_ip integer := least(greatest(coalesce((p ->> 'max_ip_hora')::integer, 40), 1), 1000);
-  v_n integer := 0;
-  v_gasto numeric := 0;
+  v_reserva numeric := greatest(least(greatest(coalesce((p ->> 'reserva_usd')::numeric, 0), 0), 10), 0.0001);
+  v_teto_global numeric := coalesce((p ->> 'teto_global_usd')::numeric, 1000000);
+  v_dia date := (now() at time zone 'America/Sao_Paulo')::date;
   v_hist jsonb := '[]'::jsonb;
+  v_ok integer;
+  v_aviso integer;
 begin
   select * into c from app.atendente_clientes where publico = p ->> 'publico' and ativo;
   if not found then raise exception 'cliente não encontrado' using errcode = 'P0002'; end if;
+  perform pg_advisory_xact_lock(hashtextextended('atendente|' || c.id::text, 0));
   if coalesce(p ->> 'chave_ip', '') ~ '^[0-9a-f]{64}$' and not privado.freio_hora('atendente|ip|' || c.id || '|' || (p ->> 'chave_ip'), v_max_ip) then
     return jsonb_build_object('ok', false, 'motivo', 'ip');
   end if;
-  select usd into v_gasto from app.atendente_gasto where cliente_id = c.id and dia = (now() at time zone 'UTC')::date;
-  if coalesce(v_gasto, 0) >= c.teto_dia_usd then return jsonb_build_object('ok', false, 'motivo', 'gasto'); end if;
   if coalesce(p ->> 'conversa_id', '') ~ '^[0-9a-f-]{36}$' then
     select id into v_conv from app.atendente_conversas where id = (p ->> 'conversa_id')::uuid and cliente_id = c.id;   -- só se for DESTE cliente
   end if;
+  if v_conv is not null then
+    update app.atendente_conversas set msgs = msgs + 1 where id = v_conv and cliente_id = c.id and msgs < v_max_msgs returning msgs into v_n;
+    if v_n is null then return jsonb_build_object('ok', false, 'motivo', 'conversa', 'conversa_id', v_conv); end if;
+  end if;
+  -- o gasto do cliente: reserva só se couber no teto, na mesma instrução
+  if v_reserva <= c.teto_dia_usd then
+    insert into app.atendente_gasto (cliente_id, org_id, dia, usd) values (c.id, c.org_id, v_dia, v_reserva)
+      on conflict (cliente_id, dia) do update set usd = app.atendente_gasto.usd + excluded.usd
+      where app.atendente_gasto.usd + excluded.usd <= c.teto_dia_usd
+      returning 1 into v_ok;
+  end if;
+  if v_ok is null then
+    if v_conv is not null then update app.atendente_conversas set msgs = msgs - 1 where id = v_conv; end if;
+    insert into app.atendente_gasto (cliente_id, org_id, dia, usd, avisado) values (c.id, c.org_id, v_dia, 0, true)
+      on conflict (cliente_id, dia) do update set avisado = true where not app.atendente_gasto.avisado returning 1 into v_aviso;
+    return jsonb_build_object('ok', false, 'motivo', 'gasto') || case when v_aviso is not null then jsonb_build_object('avisar', 'cliente') else '{}'::jsonb end;
+  end if;
+  -- o teto global, de todos os clientes somados
+  v_ok := null;
+  insert into app.atendente_gasto_global as g (dia, usd) values (v_dia, v_reserva)
+    on conflict (dia) do update set usd = g.usd + excluded.usd where g.usd + excluded.usd <= v_teto_global
+    returning 1 into v_ok;
+  if v_ok is null then
+    update app.atendente_gasto set usd = greatest(usd - v_reserva, 0) where cliente_id = c.id and dia = v_dia;
+    if v_conv is not null then update app.atendente_conversas set msgs = msgs - 1 where id = v_conv; end if;
+    insert into app.atendente_gasto_global as g (dia, usd, avisado) values (v_dia, 0, true)
+      on conflict (dia) do update set avisado = true where not g.avisado returning 1 into v_aviso;
+    return jsonb_build_object('ok', false, 'motivo', 'global') || case when v_aviso is not null then jsonb_build_object('avisar', 'global') else '{}'::jsonb end;
+  end if;
   if v_conv is null then
-    insert into app.atendente_conversas (cliente_id, org_id) values (c.id, c.org_id) returning id into v_conv;
+    insert into app.atendente_conversas (cliente_id, org_id, msgs) values (c.id, c.org_id, 1) returning id into v_conv;
   else
-    select count(*) into v_n from app.atendente_mensagens where conversa_id = v_conv and cliente_id = c.id and papel = 'visitante';
-    if v_n >= v_max_msgs then return jsonb_build_object('ok', false, 'motivo', 'conversa', 'conversa_id', v_conv); end if;
     select coalesce(jsonb_agg(jsonb_build_object('papel', papel, 'texto', texto) order by id), '[]'::jsonb) into v_hist
       from (select * from app.atendente_mensagens where conversa_id = v_conv and cliente_id = c.id order by id desc limit 12) m;
   end if;
-  return jsonb_build_object('ok', true, 'conversa_id', v_conv, 'mensagens', v_n, 'historico', v_hist);
+  return jsonb_build_object('ok', true, 'conversa_id', v_conv, 'historico', v_hist, 'reservado_usd', v_reserva);
 end $$;
 
--- grava o turno (visitante e atendente) e soma o gasto do dia; a conversa tem de ser deste cliente
+-- grava o turno (visitante e atendente) e ACERTA o gasto: soma o custo real e tira o que foi reservado; a conversa tem de ser deste cliente
 create function app.atendente_turno_gravar(p jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
-declare c app.atendente_clientes; v_conv uuid := (p ->> 'conversa_id')::uuid; v_usd numeric := least(greatest(coalesce((p ->> 'custo_usd')::numeric, 0), 0), 100);
+declare
+  c app.atendente_clientes; v_conv uuid := (p ->> 'conversa_id')::uuid;
+  v_usd numeric := least(greatest(coalesce((p ->> 'custo_usd')::numeric, 0), 0), 100);
+  v_res numeric := least(greatest(coalesce((p ->> 'reservado_usd')::numeric, 0), 0), 10);
+  v_dia date := (now() at time zone 'America/Sao_Paulo')::date;
 begin
   select * into c from app.atendente_clientes where publico = p ->> 'publico' and ativo;
   if not found then raise exception 'cliente não encontrado' using errcode = 'P0002'; end if;
@@ -170,24 +218,49 @@ begin
   insert into app.atendente_mensagens (conversa_id, cliente_id, papel, texto) values
     (v_conv, c.id, 'visitante', left(p ->> 'texto_visitante', 4000)), (v_conv, c.id, 'atendente', left(p ->> 'texto_atendente', 4000));
   update app.atendente_conversas set ultima_em = now() where id = v_conv;
-  insert into app.atendente_gasto (cliente_id, org_id, dia, usd) values (c.id, c.org_id, (now() at time zone 'UTC')::date, v_usd)
-    on conflict (cliente_id, dia) do update set usd = app.atendente_gasto.usd + excluded.usd;
+  insert into app.atendente_gasto (cliente_id, org_id, dia, usd) values (c.id, c.org_id, v_dia, greatest(v_usd - v_res, 0))
+    on conflict (cliente_id, dia) do update set usd = greatest(app.atendente_gasto.usd + v_usd - v_res, 0);
+  insert into app.atendente_gasto_global as g (dia, usd) values (v_dia, greatest(v_usd - v_res, 0))
+    on conflict (dia) do update set usd = greatest(g.usd + v_usd - v_res, 0);
   return jsonb_build_object('ok', true);
 end $$;
 
--- contato deixado pelo visitante (nome e telefone); no máximo 3 por conversa
+-- o gasto que a IA fez sem chegar a gravar a conversa (falha antes de gravar): devolve a reserva
+create function app.atendente_turno_desfazer(p jsonb) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare
+  c app.atendente_clientes; v_usd numeric := least(greatest(coalesce((p ->> 'custo_usd')::numeric, 0), 0), 100);
+  v_res numeric := least(greatest(coalesce((p ->> 'reservado_usd')::numeric, 0), 0), 10);
+  v_dia date := (now() at time zone 'America/Sao_Paulo')::date;
+begin
+  select * into c from app.atendente_clientes where publico = p ->> 'publico';
+  if not found then return jsonb_build_object('ok', false); end if;
+  update app.atendente_gasto set usd = greatest(usd + v_usd - v_res, 0) where cliente_id = c.id and dia = v_dia;
+  update app.atendente_gasto_global set usd = greatest(usd + v_usd - v_res, 0) where dia = v_dia;
+  return jsonb_build_object('ok', true);
+end $$;
+
+-- contato deixado pelo visitante (nome e telefone). A conversa é OPCIONAL: quando o teto bate não existe conversa, e o contato é a única saída de
+-- quem não tem WhatsApp. Freios próprios: 5 por hora por IP e por cliente, 200 por dia por cliente, 3 por conversa (com a trava do cliente).
 create function app.atendente_contato_criar(p jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare c app.atendente_clientes; v_conv uuid; v_tel text := regexp_replace(coalesce(p ->> 'telefone', ''), '[^0-9]', '', 'g'); v_nome text := btrim(coalesce(p ->> 'nome', ''));
 begin
   select * into c from app.atendente_clientes where publico = p ->> 'publico' and ativo;
   if not found then raise exception 'cliente não encontrado' using errcode = 'P0002'; end if;
-  if coalesce(p ->> 'conversa_id', '') ~ '^[0-9a-f-]{36}$' then
-    select id into v_conv from app.atendente_conversas where id = (p ->> 'conversa_id')::uuid and cliente_id = c.id;
-  end if;
-  if v_conv is null then raise exception 'conversa não encontrada' using errcode = 'P0002'; end if;
   if char_length(v_nome) not between 1 and 80 or v_tel !~ '^[0-9]{10,15}$' then raise exception 'contato inválido' using errcode = '22023'; end if;
-  if (select count(*) from app.atendente_contatos where conversa_id = v_conv and cliente_id = c.id) >= 3 then return jsonb_build_object('ok', false, 'motivo', 'limite'); end if;
+  perform pg_advisory_xact_lock(hashtextextended('atendente|' || c.id::text, 0));
+  if coalesce(p ->> 'conversa_id', '') <> '' then
+    if p ->> 'conversa_id' ~ '^[0-9a-f-]{36}$' then
+      select id into v_conv from app.atendente_conversas where id = (p ->> 'conversa_id')::uuid and cliente_id = c.id;
+    end if;
+    if v_conv is null then raise exception 'conversa não encontrada' using errcode = 'P0002'; end if;
+    if (select count(*) from app.atendente_contatos where conversa_id = v_conv and cliente_id = c.id) >= 3 then return jsonb_build_object('ok', false, 'motivo', 'limite'); end if;
+  end if;
+  if coalesce(p ->> 'chave_ip', '') ~ '^[0-9a-f]{64}$' and not privado.freio_hora('atendente|contato|' || c.id || '|' || (p ->> 'chave_ip'), 5) then
+    return jsonb_build_object('ok', false, 'motivo', 'ip');
+  end if;
+  if not privado.freio_dia('atendente|contato|dia|' || c.id || '|' || (now() at time zone 'America/Sao_Paulo')::date, 200) then return jsonb_build_object('ok', false, 'motivo', 'cheio'); end if;
   insert into app.atendente_contatos (cliente_id, org_id, conversa_id, nome, telefone) values (c.id, c.org_id, v_conv, v_nome, v_tel);
   return jsonb_build_object('ok', true);
 end $$;
@@ -270,7 +343,7 @@ begin
       from (select * from app.atendente_conversas where cliente_id = c.id order by ultima_em desc limit v_limite) v), '[]'::jsonb),
     'contatos', coalesce((select jsonb_agg(jsonb_build_object('criado_em', criado_em, 'nome', nome, 'telefone', telefone) order by criado_em desc)
       from (select * from app.atendente_contatos where cliente_id = c.id order by criado_em desc limit 100) k), '[]'::jsonb),
-    'gasto_hoje_usd', coalesce((select usd from app.atendente_gasto where cliente_id = c.id and dia = (now() at time zone 'UTC')::date), 0));
+    'gasto_hoje_usd', coalesce((select usd from app.atendente_gasto where cliente_id = c.id and dia = (now() at time zone 'America/Sao_Paulo')::date), 0));
 end $$;
 
 -- retenção (rotina diária): conversas e mensagens 60 dias; contatos e gasto 90; o mínimo aceito é 30
@@ -283,7 +356,7 @@ begin
   get diagnostics v_conv = row_count;
   delete from app.atendente_contatos where criado_em < now() - make_interval(days => v_dias + 30);
   get diagnostics v_cont = row_count;
-  delete from app.atendente_gasto where dia < (now() at time zone 'UTC')::date - (v_dias + 30);
+  delete from app.atendente_gasto where dia < (now() at time zone 'America/Sao_Paulo')::date - (v_dias + 30);
   get diagnostics v_gasto = row_count;
   return jsonb_build_object('conversas', v_conv, 'contatos', v_cont, 'gasto', v_gasto, 'dias', v_dias);
 end $$;
@@ -291,7 +364,7 @@ end $$;
 do $$
 declare f text;
 begin
-  foreach f in array array['atendente_config', 'atendente_turno_abrir', 'atendente_turno_gravar', 'atendente_contato_criar', 'atendente_cliente_salvar',
+  foreach f in array array['atendente_config', 'atendente_turno_abrir', 'atendente_turno_gravar', 'atendente_turno_desfazer', 'atendente_contato_criar', 'atendente_cliente_salvar',
       'atendente_painel_clientes', 'atendente_painel_cliente', 'atendente_painel_conversas', 'rotinas_atendente'] loop
     execute format('revoke all on function app.%I(jsonb) from public, anon, authenticated', f);
     execute format('grant execute on function app.%I(jsonb) to service_role', f);

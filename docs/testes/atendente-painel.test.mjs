@@ -10,7 +10,7 @@ import { ACOES_PAINEL } from '../../api/painel.mjs';
 
 let db, rpc, acoes;
 const lerJ = async r => ({ status: r.status, j: await r.json() });
-const valido = (extra = {}) => ({ nome: 'Padaria Teste', whatsapp: '(21) 99999-0000', dominios: ['Padaria.com.br', 'www.padaria.com.br'],
+const valido = (extra = {}) => ({ nome: 'Padaria Teste', whatsapp: '(21) 99999-0000', privacidade_url: 'https://padaria.com.br/privacidade', dominios: ['Padaria.com.br', 'www.padaria.com.br'],
   cor: '#112233', cor_texto: '#ffffff', teto_dia_usd: 2, ativo: true,
   base: [{ tipo: 'pergunta', pergunta: 'Abre domingo?', resposta: 'Sim, até meio-dia.' }, { tipo: 'preco', item: 'Pão de queijo', valor: '4,50' }], ...extra });
 before(async () => { db = await novoBanco(); rpc = rpcDe(db); await prepararOrg(db); acoes = criarAcoesAtendente(rpc, 'beyon-zero'); });
@@ -26,7 +26,7 @@ test('validarCliente normaliza (domínio minúsculo, só dígitos no número, pr
   assert.deepEqual(v.dados.dominios, ['padaria.com.br', 'www.padaria.com.br']);
   assert.equal(v.dados.whatsapp, '21999990000');
   assert.equal(v.dados.base[1].preco_centavos, 450);
-  const ruins = [{ nome: '' }, { nome: 'x'.repeat(81) }, { dominios: ['*.com'] }, { dominios: ['https://a.com'] }, { dominios: ['a.com/x'] }, { dominios: Array(11).fill('a.com') },
+  const ruins = [{ nome: '' }, { nome: 'x'.repeat(81) }, { privacidade_url: '' }, { whatsapp: '' }, { dominios: ['localhost'] }, { dominios: ['127.0.0.1'] }, { dominios: ['*.com'] }, { dominios: ['https://a.com'] }, { dominios: ['a.com/x'] }, { dominios: Array(11).fill('a.com') },
     { cor: 'red' }, { cor: '#12345' }, { whatsapp: '123' }, { teto_dia_usd: -1 }, { teto_dia_usd: 1000 }, { teto_dia_usd: 'x' },
     { privacidade_url: 'http://a.com/p' }, { privacidade_url: 'javascript:alert(1)' },
     { base: [{ tipo: 'preco', item: 'X', valor: 'barato' }] }, { base: [{ tipo: 'preco', item: 'X', valor: '-5' }] }, { base: [{ tipo: 'pergunta', pergunta: '', resposta: 'a' }] },
@@ -77,4 +77,10 @@ test('a tela do painel não usa innerHTML e o HTML traz os campos que o script l
   const html = fs.readFileSync(new URL('../../painel.html', import.meta.url), 'utf8');
   for (const id of new Set([...js.matchAll(/\$\('([a-z-]+)'\)/g)].map(m => m[1]))) assert.match(html, new RegExp('id="' + id + '"'), id);
   assert.match(html, /js\/painel-atendente\.js/);
+});
+
+test('desligado, o cliente pode salvar sem privacidade e WhatsApp; localhost só vale no ambiente local', () => {
+  assert.equal(validarCliente(valido({ ativo: false, privacidade_url: '', whatsapp: '' })).erro, undefined);
+  assert.equal(validarCliente(valido({ dominios: ['localhost'] }), { local: true }).erro, undefined);
+  assert.ok(validarCliente(valido({ dominios: ['localhost'] }), { local: false }).erro);
 });

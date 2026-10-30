@@ -70,14 +70,6 @@ test('o painel só vê o cliente da própria organização e conversas do client
   assert.equal((await erroDe(rpc('atendente_cliente_salvar', { org_slug: 'outra-org', id: A.id, nome: 'Sequestro' }))).codigo, 'P0002');
 });
 
-test('teto de mensagens por conversa: a partir do limite responde motivo conversa', async () => {
-  const t = await turno(A);
-  for (let i = 0; i < 3; i++) await gravar(A, t.conversa_id);
-  assert.equal((await turno(A, { conversa_id: t.conversa_id, max_msgs: 4 })).ok, true);
-  const r = await turno(A, { conversa_id: t.conversa_id, max_msgs: 3 });
-  assert.deepEqual([r.ok, r.motivo], [false, 'conversa']);
-});
-
 test('teto por IP na hora: passou, motivo ip; outro IP segue', async () => {
   const mesmo = ip();
   for (let i = 0; i < 3; i++) assert.equal((await turno(A, { chave_ip: mesmo, max_ip_hora: 3 })).ok, true);
@@ -127,4 +119,66 @@ test('retenção: conversas velhas (e as mensagens) saem; recente fica; mínimo 
   assert.equal((await um('select count(*)::int n from app.atendente_mensagens where conversa_id = $1', [velha.conversa_id])).n, 0);
   assert.equal((await um('select count(*)::int n from app.atendente_conversas where id = $1', [nova.conversa_id])).n, 1);
   assert.equal((await erroDe(rpc('rotinas_atendente', { dias: 10 }))).codigo, '22023');
+});
+
+test('teto de mensagens por conversa é ATÔMICO: 20 simultâneos sobre a mesma conversa com teto 3 deixam entrar só 3 no total', async () => {
+  const t = await turno(A, { max_msgs: 3 });
+  const rs = await Promise.all(Array.from({ length: 20 }, () => turno(A, { conversa_id: t.conversa_id, max_msgs: 3 })));
+  assert.equal(1 + rs.filter(r => r.ok).length, 3);
+  assert.ok(rs.filter(r => !r.ok).every(r => r.motivo === 'conversa'));
+  assert.equal((await um('select msgs from app.atendente_conversas where id = $1', [t.conversa_id])).msgs, 3);
+});
+
+test('teto de gasto é ATÔMICO: 60 simultâneos, teto de US$ 0,05, reserva de 0,01 deixam passar 5; o aviso sai uma vez', async () => {
+  const E = await salvar({ nome: 'Estreito', dominios: ['estreito.com.br'], teto_dia_usd: 0.05 });
+  const rs = await Promise.all(Array.from({ length: 60 }, () => turno(E, { reserva_usd: 0.01 })));
+  assert.equal(rs.filter(r => r.ok).length, 5);
+  assert.ok(rs.filter(r => !r.ok).every(r => r.motivo === 'gasto'));
+  assert.equal(rs.filter(r => r.avisar === 'cliente').length, 1, 'aviso uma vez só');
+  assert.equal(Number((await um('select usd from app.atendente_gasto where cliente_id = $1', [E.id])).usd), 0.05);
+});
+
+test('o acerto devolve a reserva: custo real menor libera espaço, custo real maior é somado', async () => {
+  const E = await salvar({ nome: 'Acerto', dominios: ['acerto.com.br'], teto_dia_usd: 0.03 });
+  const t = await turno(E, { reserva_usd: 0.01 });
+  await gravar(E, t.conversa_id, { custo_usd: 0.001, reservado_usd: 0.01 });
+  assert.equal(Number((await um('select usd from app.atendente_gasto where cliente_id = $1', [E.id])).usd), 0.001);
+  const t2 = await turno(E, { reserva_usd: 0.01 });
+  await gravar(E, t2.conversa_id, { custo_usd: 0.05, reservado_usd: 0.01 });   /* a resposta saiu mais cara que a reserva */
+  assert.equal(Number((await um('select usd from app.atendente_gasto where cliente_id = $1', [E.id])).usd), 0.051);
+  assert.equal((await turno(E, { reserva_usd: 0.01 })).motivo, 'gasto');
+});
+
+test('teto GLOBAL de todos os clientes: acabou, motivo global, aviso uma vez, e a reserva do cliente é devolvida', async () => {
+  const dia = (await um("select (now() at time zone 'America/Sao_Paulo')::date d")).d;
+  await db.query('delete from app.atendente_gasto_global');
+  const G = await salvar({ nome: 'Global G', dominios: ['g.com.br'], teto_dia_usd: 5 });
+  const H = await salvar({ nome: 'Global H', dominios: ['h.com.br'], teto_dia_usd: 5 });
+  const base = { reserva_usd: 0.01, teto_global_usd: 0.02 };
+  assert.equal((await turno(G, base)).ok, true);
+  assert.equal((await turno(H, base)).ok, true);
+  const r = await turno(G, base), r2 = await turno(H, base);
+  assert.deepEqual([r.ok, r.motivo, r.avisar], [false, 'global', 'global']);
+  assert.deepEqual([r2.ok, r2.motivo, r2.avisar], [false, 'global', undefined]);
+  assert.equal(Number((await um('select usd from app.atendente_gasto where cliente_id = $1', [G.id])).usd), 0.01, 'a reserva recusada não ficou');
+  assert.ok(dia);
+});
+
+test('contato SEM conversa (teto bateu): vale, com freio por IP; com conversa de outro cliente continua P0002', async () => {
+  const chave = ip();
+  const c = { publico: A.publico, chave_ip: chave };
+  assert.equal((await rpc('atendente_contato_criar', { ...c, nome: 'Sem Conversa', telefone: '21999990000' })).ok, true);
+  const l = await um("select conversa_id from app.atendente_contatos where nome = 'Sem Conversa'");
+  assert.equal(l.conversa_id, null);
+  for (let i = 0; i < 4; i++) await rpc('atendente_contato_criar', { ...c, nome: 'X' + i, telefone: '2199999000' + i });
+  assert.deepEqual((await rpc('atendente_contato_criar', { ...c, nome: 'Y', telefone: '21999990009' })).motivo, 'ip');
+  const t = await turno(B);
+  assert.equal((await erroDe(rpc('atendente_contato_criar', { publico: A.publico, conversa_id: t.conversa_id, nome: 'Z', telefone: '21999990000' }))).codigo, 'P0002');
+});
+
+test('o dia do gasto é o de Brasília (não UTC)', async () => {
+  const E = await salvar({ nome: 'Dia', dominios: ['dia.com.br'], teto_dia_usd: 1 });
+  await turno(E, { reserva_usd: 0.01 });
+  const l = await um("select dia = (now() at time zone 'America/Sao_Paulo')::date as certo from app.atendente_gasto where cliente_id = $1", [E.id]);
+  assert.equal(l.certo, true);
 });

@@ -33,7 +33,8 @@ test('acessível: rótulo no botão, role=log com aria-live, Esc fecha, campo co
 });
 test('a etiqueta fixa "Assistente virtual · negócio" e o aviso de conversa guardada com link de privacidade', () => {
   assert.match(codigo, /'Assistente virtual · ' \+ cfg\.nome/);
-  assert.match(codigo, /As conversas ficam guardadas/);
+  assert.match(codigo, /guardada por 60 dias/);
+  assert.match(codigo, /dados de saúde/);
   assert.match(codigo, /Privacidade/);
 });
 test('o texto do visitante e da IA entra por textContent, e as cores só se forem #rrggbb', () => {

@@ -52,7 +52,7 @@
   }
   function mostrarCodigo() {
     var alvo = $('at-codigo');
-    alvo.textContent = editando ? '<script src="' + location.origin + '/js/atendente-balao.js" data-cliente="' + editando.publico + '" defer></script>' : '';
+    alvo.textContent = editando ? '<script src="' + location.origin + '/js/atendente-balao.js" charset="utf-8" data-cliente="' + editando.publico + '" defer></script>' : '';
     $('at-codigo-bloco').hidden = !editando;
   }
 
@@ -61,7 +61,7 @@
     if (b.erro) { $('at-estado').textContent = b.erro; return; }
     var corpo = {
       nome: $('at-nome').value, whatsapp: $('at-whatsapp').value, privacidade_url: $('at-privacidade').value.trim(), saudacao: $('at-saudacao').value,
-      cor: $('at-cor').value, cor_texto: $('at-cor-texto').value, teto_dia_usd: Number($('at-teto').value.replace(',', '.')), ativo: $('at-ativo').checked,
+      cor: $('at-cor').value, cor_texto: $('at-cor-texto').value, teto_dia_usd: $('at-teto').value.trim() === '' ? 1 : Number($('at-teto').value.replace(',', '.')), ativo: $('at-ativo').checked,
       dominios: $('at-dominios').value.split('\n').map(function (d) { return d.trim(); }).filter(Boolean), base: b.base
     };
     if (editando) corpo.id = editando.id;

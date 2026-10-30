@@ -17,12 +17,14 @@ export const ESQUEMA = {
 export const frases = nome => ({
   souIA: `Sou o assistente virtual de ${nome}, uma inteligência artificial. Respondo dúvidas com o que a equipe deixou aqui e, se precisar de uma pessoa, eu te levo até ela.`,
   pessoa: 'Claro. Para falar com a equipe, é só continuar no WhatsApp pelo botão abaixo.',
+  pessoaSemLink: 'Claro. Esse negócio ainda não tem WhatsApp aqui, mas se você deixar seu nome e telefone abaixo, a equipe recebe o seu contato.',
   naoPosso: `Isso eu não posso fazer. Posso ajudar com dúvidas sobre ${nome}, ou chamar a equipe se preferir.`,
   semResposta: 'Essa eu não sei responder com segurança, e prefiro não inventar. Vou te passar para a equipe.',
   falhou: 'Não consegui responder agora. Para não te deixar sem resposta, fale com a equipe.',
   ip: 'Recebi muitas mensagens deste aparelho por agora. Para não te deixar sem resposta, fale direto com a equipe.',
   conversa: 'Chegamos ao limite de mensagens desta conversa por aqui. Para continuar, fale com a equipe.',
-  gasto: 'O atendente virtual está fora do ar por hoje. Fale com a equipe, que responde pessoalmente.'
+  gasto: 'O atendente virtual está fora do ar por hoje. Fale com a equipe, que responde pessoalmente.',
+  global: 'O atendente virtual está fora do ar por hoje. Fale com a equipe, que responde pessoalmente.'
 });
 
 /* o sistema: só regras fixas e o nome do negócio (campo curto, do dono). Nada do visitante, nada da base. */
@@ -45,7 +47,7 @@ export function montarSistema(cliente) {
 /* a base do negócio como DADO, em JSON dentro de delimitadores; qualquer "<" ou ">" dos textos do dono vira aspas angulares */
 export function montarContexto(base) {
   const itens = base.map(b => b.tipo === 'preco'
-    ? { preco: { item: neutralizar(b.item), valor_reais: (b.preco_centavos / 100).toFixed(2).replace('.', ',') } }
+    ? { preco: { item: neutralizar(b.item), valor_reais: (b.preco_centavos / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) } }
     : { pergunta: neutralizar(b.pergunta), resposta: neutralizar(b.resposta) });
   return '<dados_do_negocio>\n' + JSON.stringify(itens) + '\n</dados_do_negocio>';
 }
@@ -67,7 +69,7 @@ export async function responder({ cliente, historico, texto, ia }) {
   let r;
   try { r = await ia.mensagem({ papel: 'atendente', sistema, contexto: montarContexto(cliente.base), mensagens, esquema: ESQUEMA }); }
   catch (e) {
-    return { resposta: f.falhou, passar: true, custo_usd: e instanceof ErroIA ? e.custo_usd || 0 : 0, via: 'falha' };
+    return { resposta: f.falhou, passar: true, custo_usd: e instanceof ErroIA ? e.custo_usd || 0 : 0, via: 'falha', motivo: e instanceof ErroIA ? e.motivo : 'erro' };
   }
   const custo_usd = Number(r && r.custo_usd) || 0;
   const j = r && r.json;

@@ -15,7 +15,7 @@ const CONTROLES = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/;
 const curto = (v, max) => typeof v === 'string' && !CONTROLES.test(v) && [...v.trim()].length >= 1 && [...v.trim()].length <= max;
 
 /* { dados } pronto para o banco, ou { erro } com a frase para o dono */
-export function validarCliente(c) {
+export function validarCliente(c, { local = false } = {}) {
   const falha = erro => ({ erro });
   if (!c || typeof c !== 'object' || Array.isArray(c) || !Object.keys(c).every(k => PERMITIDAS.includes(k))) return falha('Pedido inválido.');
   if (c.id !== undefined && !ehUuid(c.id)) return falha('Cliente inválido.');
@@ -25,6 +25,8 @@ export function validarCliente(c) {
   const priv = c.privacidade_url === undefined || c.privacidade_url === '' || c.privacidade_url === null ? '' : c.privacidade_url;
   if (priv && !(typeof priv === 'string' && /^https:\/\/[^\s<>"]{4,250}$/.test(priv))) return falha('O link de privacidade precisa começar com https://.');
   if (c.saudacao && !curto(c.saudacao, 300)) return falha('A saudação tem até 300 caracteres.');
+  if (c.ativo !== false && !priv) return falha('Com o balão ligado, o link da privacidade do cliente é obrigatório.');
+  if (c.ativo !== false && !digitos) return falha('Com o balão ligado, o WhatsApp do cliente é obrigatório (é para onde a conversa passa).');
   const cor = c.cor ?? '#1a1a1a', corTexto = c.cor_texto ?? '#ffffff';
   if (!COR.test(cor) || !COR.test(corTexto)) return falha('As cores precisam ser no formato #rrggbb.');
   const teto = c.teto_dia_usd ?? 1;
@@ -32,6 +34,7 @@ export function validarCliente(c) {
   if (c.ativo !== undefined && typeof c.ativo !== 'boolean') return falha('Pedido inválido.');
   if (!Array.isArray(c.dominios) || c.dominios.length > LIMITES.dominios) return falha('Informe até ' + LIMITES.dominios + ' domínios.');
   const dominios = [...new Set(c.dominios.map(d => String(d).trim().toLowerCase()))];
+  if (!local && dominios.some(d => d === 'localhost' || d === '127.0.0.1')) return falha('Domínio de teste (localhost) só vale no ambiente local.');
   if (dominios.some(d => !HOST.test(d) || d.includes('..'))) return falha('Domínio inválido. Use só o endereço, como "meusite.com.br" (sem https://, sem barra, sem * e sem porta).');
   if (!Array.isArray(c.base) || c.base.length > LIMITES.base) return falha('A base aceita até ' + LIMITES.base + ' itens.');
   const base = [];
@@ -49,7 +52,7 @@ export function validarCliente(c) {
   return { dados: { ...(c.id ? { id: c.id } : {}), nome: c.nome.trim(), whatsapp: digitos, privacidade_url: priv, saudacao: c.saudacao ? c.saudacao.trim() : '', cor, cor_texto: corTexto, teto_dia_usd: teto, ativo: c.ativo !== false, dominios, base } };
 }
 
-export function criarAcoesAtendente(rpc, org) {
+export function criarAcoesAtendente(rpc, org, { local = false } = {}) {
   const guardar = async (fn, rotulo) => {
     try { return await fn(); }
     catch (e) {
@@ -66,7 +69,7 @@ export function criarAcoesAtendente(rpc, org) {
     cliente: id => idOu400(id) || guardar(async () => json(await rpc('atendente_painel_cliente', { org_slug: org, id })), 'cliente'),
     conversas: id => idOu400(id) || guardar(async () => json(await rpc('atendente_painel_conversas', { org_slug: org, id })), 'conversas'),
     salvar: bruto => {
-      const v = validarCliente(bruto);
+      const v = validarCliente(bruto, { local });
       if (v.erro) return json({ erro: v.erro }, 400);
       return guardar(async () => json(await rpc('atendente_cliente_salvar', { org_slug: org, ...v.dados })), 'salvar');
     }

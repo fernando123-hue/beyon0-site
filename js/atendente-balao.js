@@ -17,9 +17,11 @@
   var api = new URL(tag.src).origin + '/api/atendente?c=' + id;
   var COR = /^#[0-9a-f]{6}$/;
   var MAX = 1000;
+  var AVISO_TEXTO = 'Conversa com uma IA, guardada por 60 dias. Não escreva dados de saúde nem documentos.';
+  function limite(ms) { return typeof AbortSignal !== 'undefined' && AbortSignal.timeout ? AbortSignal.timeout(ms) : undefined; }
 
   var CSS = [
-    ':host{all:initial}',
+    ':host{all:initial!important}',
     '*,*::before,*::after{box-sizing:border-box}',
     '.raiz{position:fixed;right:16px;bottom:16px;z-index:2147483000;font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#1a1a1a}',
     'button,input{font:inherit;color:inherit}',
@@ -43,6 +45,7 @@
     '.acoes{padding:0 12px 8px;display:flex;flex-direction:column;gap:8px}',
     '.acoes[hidden]{display:none}',
     '.btn{display:flex;align-items:center;justify-content:center;min-height:44px;padding:8px 14px;border-radius:8px;border:1px solid #1a1a1a;background:#fff;cursor:pointer;text-decoration:none;text-align:center}',
+    '.btn[hidden]{display:none}',
     '.btn.forte{background:var(--cor);color:var(--cor-texto);border-color:var(--cor)}',
     '.contato{display:flex;flex-direction:column;gap:8px}',
     '.contato[hidden]{display:none}',
@@ -88,7 +91,7 @@
   var raiz = el('div', { classe: 'raiz' });
   var abrir = el('button', { type: 'button', classe: 'abrir', 'aria-label': 'Abrir o atendimento virtual', 'aria-expanded': 'false' }, [icone()]);
   var etiqueta = el('div', { classe: 'etiqueta', texto: 'Assistente virtual' });
-  var aviso = el('div', { classe: 'aviso', texto: 'As conversas ficam guardadas.' });
+  var aviso = el('div', { classe: 'aviso', texto: AVISO_TEXTO });
   var fechar = el('button', { type: 'button', classe: 'fechar', 'aria-label': 'Fechar o atendimento', texto: '×' });
   var painel = el('div', { classe: 'painel', role: 'dialog', 'aria-label': 'Atendimento virtual' }, [
     el('div', { classe: 'topo' }, [el('div', { classe: 'topo-texto' }, [etiqueta, aviso]), fechar])
@@ -112,7 +115,7 @@
   }
   function mostrarTopo() {
     etiqueta.textContent = 'Assistente virtual · ' + cfg.nome;
-    aviso.textContent = 'As conversas ficam guardadas.';
+    aviso.textContent = AVISO_TEXTO;
     if (/^https:\/\//.test(cfg.privacidade_url || '')) {
       aviso.appendChild(document.createTextNode(' '));
       aviso.appendChild(el('a', { href: cfg.privacidade_url, target: '_blank', rel: 'noopener noreferrer', texto: 'Privacidade' }));
@@ -140,8 +143,8 @@
       var dig = tel.value.replace(/\D/g, '');
       if (!nome.value.trim() || dig.length < 10) { estado.textContent = 'Confira o nome e o telefone com DDD.'; return; }
       ok.disabled = true;
-      chamar('contato', { conversa_id: conversa, nome: nome.value.trim(), telefone: tel.value }).then(function () {
-        limparAcoes(); bolha('ia', 'Pronto, deixei seu contato para a equipe. Ela vai te chamar.'); estado.textContent = '';
+      chamar('contato', Object.assign({ nome: nome.value.trim(), telefone: tel.value }, conversa ? { conversa_id: conversa } : {})).then(function () {
+        limparAcoes(); bolha('ia', 'Anotei o seu contato para a equipe.'); estado.textContent = '';
       }).catch(function () { ok.disabled = false; estado.textContent = 'Não consegui enviar o contato agora. Tente de novo.'; });
     });
     acoes.appendChild(abrirContato); acoes.appendChild(caixa);
@@ -149,7 +152,7 @@
   }
 
   function chamar(acao, corpo) {
-    return fetch(api + '&acao=' + acao, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(corpo), credentials: 'omit', referrerPolicy: 'no-referrer' })
+    return fetch(api + '&acao=' + acao, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(corpo), credentials: 'omit', referrerPolicy: 'no-referrer', signal: limite(25000) })
       .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(String(r.status)); return j; }); });
   }
 

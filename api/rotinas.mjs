@@ -109,7 +109,7 @@ export async function executar(request, env, deps = {}) {
       await bancoFinal('rotinas_avisado', {});
     } catch (e) { log({ nivel: 'erro', evento: 'alerta não enviado', erro: e && e.message ? e.message.slice(0, 80) : 'erro' }); }
   }
-  log({ nivel: falhas.length ? 'erro' : 'info', evento: 'diária', retencao, recados, pedidos, alertas: saude.alertas.map(a => a.tipo), material, entregas, falhas, parcial, subpedidos: gasto.gastos() });
+  log({ nivel: falhas.length ? 'erro' : 'info', evento: 'diária', retencao, recados, atendente, pedidos, alertas: saude.alertas.map(a => a.tipo), material, entregas, falhas, parcial, subpedidos: gasto.gastos() });
   if (parcial) log({ nivel: 'aviso', evento: 'rotina parcial', subpedidos: gasto.gastos() });
-  return json({ ok: !falhas.length, parcial, retencao, recados, pedidos, material, saude });
+  return json({ ok: !falhas.length, parcial, retencao, recados, atendente, pedidos, material, saude });
 }

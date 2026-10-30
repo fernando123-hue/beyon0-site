@@ -54,6 +54,7 @@ import { montarPedido, montarFormulario, nomesDosArquivos } from './_material/pa
 import { criarArmazem } from './_material/armazem.mjs';
 import { criarAcoesDoDono } from './_entrega/painel-entrega.mjs';
 import { criarAcoesAtendente } from './_atendente/painel.mjs';
+import { ambienteDe } from './_ambiente.mjs';
 
 const CHAVE_MINIMA = 32;
 export const CORPO_MAX = 200000;          /* caracteres do POST do painel */
@@ -111,7 +112,7 @@ export async function ler(request, env) {
   if (q.get('fila') === 'atendente' || q.get('atendente') !== null || q.get('atendente-conversas') !== null) {
     const rpc = criarTransporte(env);
     if (!rpc) return json({ erro: 'Banco não configurado.' }, 503);
-    const a = criarAcoesAtendente(rpc, ORG);
+    const a = criarAcoesAtendente(rpc, ORG, { local: ambienteDe(env) === 'local' });
     return q.get('atendente') !== null ? a.cliente(q.get('atendente')) : q.get('atendente-conversas') !== null ? a.conversas(q.get('atendente-conversas')) : a.lista();
   }
   if (q.get('material') !== null) return materialParaBaixar(env, q.get('material'));
@@ -155,7 +156,7 @@ export async function mudar(request, env) {
   if (bruto && typeof bruto.recado_lido === 'string') return recadoLido(bruto, env);
   if (bruto && bruto.atendente_salvar && typeof bruto.atendente_salvar === 'object') {
     const rpc = criarTransporte(env);
-    return rpc ? criarAcoesAtendente(rpc, ORG).salvar(bruto.atendente_salvar) : json({ erro: 'Banco não configurado.' }, 503);
+    return rpc ? criarAcoesAtendente(rpc, ORG, { local: ambienteDe(env) === 'local' }).salvar(bruto.atendente_salvar) : json({ erro: 'Banco não configurado.' }, 503);
   }
   /* (PR 3b-3) a entrega: prévia, no ar, suspender, encerrar, dispensar o material, avisos da D1, religado */
   const chave = bruto && typeof bruto === 'object' ? Object.keys(ACOES_ENTREGA).find(k => typeof bruto[k] === 'string') : null;

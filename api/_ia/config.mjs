@@ -15,7 +15,7 @@ export const PAPEIS = {
   conversa: { modelo: 'claude-haiku-5-5', esforco: 'medium', max_tokens: 4000, timeout_ms: 45000 },
   extracao: { modelo: 'claude-haiku-5-5', esforco: 'low', max_tokens: 3000, timeout_ms: 45000 },
   /* o atendente do site do cliente: resposta curta, sem pensar muito; o código confere tudo o que sai (api/_atendente/agente.mjs) */
-  atendente: { modelo: 'claude-haiku-5-5', esforco: 'low', max_tokens: 800, timeout_ms: 25000 },
+  atendente: { modelo: 'claude-haiku-5-5', esforco: 'low', max_tokens: 800, timeout_ms: 15000, tentativas: 0 },
   /* (sem nova tentativa automática: 2 × 240 s não cabem nos 300 s da função; a tela oferece "gerar de novo") */
   geracao: { modelo: 'claude-opus-5-5', esforco: 'high', max_tokens: 24000, timeout_ms: 240000, tentativas: 0 }
 };
