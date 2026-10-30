@@ -78,7 +78,8 @@ export function criarAcoesDoPedido({ banco, visitante, segredoFreio, env, limite
         if (r && (r.motivo === 'fila_cheia' || r.motivo === 'limite_hora')) await avisar(env, 'fila_cheia');   /* (aviso urgente, sem dado pessoal) */
         throw recusaDoMotivo(r, requestId);
       }
-      await avisar(env, 'pedido');   /* (o aviso nunca falha nem demora: texto fixo, sem dado do cliente) */
+      /* (o aviso nunca falha nem demora: texto fixo, sem dado do cliente; a última vaga vira o aviso urgente) */
+      await avisar(env, r.fila_cheia ? 'fila_cheia' : 'pedido');
       return { codigo: r.codigo, status: 'confirmado' };
     }
   };

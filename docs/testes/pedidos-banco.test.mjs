@@ -169,6 +169,19 @@ test('freio por IP (IPv6): além do /64, um teto diário por /48 (10, com chave 
   assert.equal((await erroDe(detalhes(await comPacote(), { chave_ip48: 'ABC' })))?.codigo, INVALIDO, 'chave /48 mal formada: erro, não freio desligado');
 });
 
+test('fila global: o pedido que ocupa a última vaga volta com fila_cheia (é ele que avisa o dono)', async () => {
+  const comConfirmacao = (base, teto) => {
+    const telefone = telefoneE164DeTeste();
+    return db.query('select app.vendas_registrar_detalhes($1::jsonb) as r', [JSON.stringify({ ...base, telefone, telefone_hash: hex('tel|' + telefone), nome: 'Ana', aceite: true,
+      briefing: { negocio: { nome: 'Clínica Sol', descricao: 'Consultas e exames' } }, redes: {}, suspeito: false,
+      chave_ip: null, max_por_ip: 3, max_por_telefone_dia: 2, max_por_hora: 1000, teto_fila: teto, horas: 72 })]).then(x => x.rows[0].r);
+  };
+  const teto = (await naFila()) + 2;
+  assert.equal((await comConfirmacao(await comPacote(), teto)).fila_cheia, false);
+  assert.equal((await comConfirmacao(await comPacote(), teto)).fila_cheia, true);
+  await db.query('update app.pedidos set concluido_em = now() where concluido_em is null');
+});
+
 test('fila global: o teto conta pela regra da fila (pedido_na_fila); aguardando e concluído não ocupam', async () => {
   const a = await comPacote();
   await detalhes(a);

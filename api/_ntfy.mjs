@@ -35,7 +35,6 @@ export async function avisarDono(env, tipo, deps = {}) {
   const agora = (deps.agora || Date.now)();
   if (UM_POR_JANELA[tipo]) {
     if (ultimoAviso[tipo] !== undefined && agora - ultimoAviso[tipo] < UM_POR_JANELA[tipo]) return false;
-    ultimoAviso[tipo] = agora;
   }
   const enviar = deps.enviar || ((t, x, u, k) => ntfy(t, x, u, k, 'Beyon Zero', tipo === 'pedido' ? 'package' : tipo === 'fila_cheia' ? 'rotating_light' : 'speech_balloon', ESPERA_MAX_MS));
   let espera;
@@ -44,6 +43,7 @@ export async function avisarDono(env, tipo, deps = {}) {
       Promise.resolve().then(() => enviar(topico, texto, tipo === 'fila_cheia', tokenDe(env))),
       new Promise((_, rej) => { espera = setTimeout(() => rej(new Error('ntfy demorou')), deps.esperaMs ?? ESPERA_MAX_MS); })
     ]);
+    if (UM_POR_JANELA[tipo]) ultimoAviso[tipo] = agora;   /* (só o aviso entregue gasta a janela) */
     return true;
   } catch (e) {
     console.error(JSON.stringify({ origem: 'ntfy', nivel: 'aviso', evento: 'aviso ao dono não enviado', tipo, erro: e && e.message ? String(e.message).slice(0, 80) : 'erro' }));

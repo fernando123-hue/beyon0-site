@@ -93,3 +93,18 @@ test('pedido: o aviso que falha (ntfy fora do ar) não muda a resposta nem derru
   const r = await silencio(() => pedidoCom({ ok: true, codigo: 'BZ-K7M3Q', status: 'confirmado' }, avisar).detalhes({ request: req, corpo: corpoPedido() }));
   assert.deepEqual(r, { codigo: 'BZ-K7M3Q', status: 'confirmado' });
 });
+
+test('pedido: o que ENCHE a fila avisa "fila_cheia" (com a fila no teto a página esconde o formulário, então quase ninguém chega a ser recusado)', async () => {
+  const tipos = [];
+  const r = await pedidoCom({ ok: true, codigo: 'BZ-K7M3Q', status: 'confirmado', fila_cheia: true }, (e, t) => { tipos.push(t); }).detalhes({ request: req, corpo: corpoPedido() });
+  assert.deepEqual(r, { codigo: 'BZ-K7M3Q', status: 'confirmado' }, 'a resposta ao cliente não muda nem vaza o estado da fila');
+  assert.deepEqual(tipos, ['fila_cheia']);
+});
+
+test('fila cheia: aviso que falhou não gasta a janela de 10 minutos', async () => {
+  const INICIO = 9_000_000_000;
+  await silencio(() => avisarDono(ENV, 'fila_cheia', { enviar: async () => { throw new Error('ntfy HTTP 500'); }, agora: () => INICIO }));
+  const vistos = [];
+  assert.equal(await avisarDono(ENV, 'fila_cheia', { enviar: () => vistos.push(1), agora: () => INICIO + 1000 }), true, 'tenta de novo em seguida');
+  assert.equal(vistos.length, 1);
+});

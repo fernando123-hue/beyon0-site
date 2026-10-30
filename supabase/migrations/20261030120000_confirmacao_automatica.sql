@@ -30,7 +30,10 @@ begin
   perform privado.evento(c.org_id, c.id, 'confirmacao_whatsapp');
   -- confirmado, o pedido entra na fila: as três direções nascem agora (a 1ª geração), como na confirmação do dono
   v_geracao := app.vendas_iniciar_geracao(jsonb_build_object('conversa_id', c.id, 'visitante_id', c.visitante_id, 'max_geracoes', 1));
-  return r || jsonb_build_object('status', 'confirmado', 'geracao', v_geracao -> 'geracao');
+  -- (R1) quem ocupou a última vaga avisa o dono: com a fila no teto a página esconde o formulário, então quase ninguém é recusado
+  return r || jsonb_build_object('status', 'confirmado', 'geracao', v_geracao -> 'geracao',
+    'fila_cheia', (select count(*) from app.pedidos pd where pd.org_id = c.org_id and privado.pedido_na_fila(pd))
+                  >= coalesce((p ->> 'teto_fila')::integer, 10));
 end $$;
 
 revoke all on function app.vendas_registrar_detalhes_base(jsonb) from public, anon, authenticated, service_role;
@@ -44,7 +47,7 @@ do $$
 declare x record;
 begin
   for x in select pd.id, pd.conversa_id, c.visitante_id from app.pedidos pd join app.conversas c on c.id = pd.conversa_id
-            where pd.status = 'aguardando' and pd.expira_em > now() and c.etapa = 'contato' for update of pd loop
+            where pd.status = 'aguardando' and pd.expira_em > now() and c.etapa = 'contato' and c.lead_id is not null for update of pd loop
     update app.pedidos set status = 'confirmado', confirmado_em = now() where id = x.id;
     perform app.vendas_iniciar_geracao(jsonb_build_object('conversa_id', x.conversa_id, 'visitante_id', x.visitante_id, 'max_geracoes', 1));
   end loop;
