@@ -95,6 +95,10 @@ for (const [rota, nome, opcoes, { semNucleo = false, reduzirNoBoot = false, exig
       barraOk: !document.getElementById('barra') || innerWidth > 820 || getComputedStyle(document.getElementById('barra')).position === 'fixed'
     };
   });
+  /* o LCP é lido ANTES da rolagem: no navegador de verdade ele para no primeiro toque ou rolagem do visitante, mas a
+     rolagem por script daqui não conta como interação, e um parágrafo do fim da página (pintado só ao rolar) virava o
+     "maior" aos 4-5 s (2026-10-28: Conversa da automação e h2 de Sites, enquanto o LCP real era 0,9 s) */
+  const lcp = Math.round(await page.evaluate(() => window.__lcp));
   /* rola até o fim e volta: nada pode ficar preso invisível no caminho */
   await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
   await page.waitForTimeout(1500);
@@ -102,7 +106,6 @@ for (const [rota, nome, opcoes, { semNucleo = false, reduzirNoBoot = false, exig
   await page.evaluate(() => scrollTo(0, 0));
   await page.waitForTimeout(400);
   const fps = await medirFps(page);
-  const lcp = Math.round(await page.evaluate(() => window.__lcp));
   /* o CAMPO desenha (o fundo nunca pode virar tela preta em silêncio) */
   const campo = await page.evaluate(() => {
     const B = window.BEYON;

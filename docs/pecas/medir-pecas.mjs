@@ -26,7 +26,7 @@ async function rodada(semPecas) {
       window.__lt = []; window.__po && __po.disconnect();
       window.__po = new PerformanceObserver((l) => l.getEntries().forEach((e) => __lt.push(Math.round(e.duration)))); __po.observe({ type: 'longtask' });
       window.__fr = []; window.__vivo = true; let u = performance.now(); (function f(t) { __fr.push(t - u); u = t; if (__vivo) requestAnimationFrame(f); })(u);
-      const i = { '.planta__palco': 0, '.despacho__placa': 0, '.plantao__tela': 1 }[s]; const el = document.querySelectorAll('article.servico--peca')[i]; scrollTo({ top: el.getBoundingClientRect().top + scrollY - 70, behavior: 'instant' });
+      const i = { '.planta__palco': 0, '.despacho__placa': 0, '.plantao__tela': 1 }[s]; const el = document.querySelectorAll('.planta-cartao, article.servico--peca')[i]; scrollTo({ top: el.getBoundingClientRect().top + scrollY - 70, behavior: 'instant' });
     }, sel);
     await a.waitForTimeout(6500);
     await acao();

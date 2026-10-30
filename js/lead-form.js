@@ -150,7 +150,7 @@
        o assunto SEMPRE começa com verbo. O tipo da lista vai com artigo ("para uma associação"); o digitado
        em "Outro" vai como a pessoa escreveu, sem artigo nem minúsculas (saía "um igreja", "oab") */
     var assunto = 'quero agendar um diagnóstico';
-    if (ehOutro) assunto += '. Tipo de organização: ' + semPonto(campoTipoOutro && campoTipoOutro.value);
+    if (ehOutro) assunto += '. Tipo de negócio: ' + semPonto(campoTipoOutro && campoTipoOutro.value);
     else if (opcaoTipo) assunto += ' para ' + (opcaoTipo.getAttribute('data-artigo') || 'um') + ' ' + opcaoTipo.textContent.toLowerCase();
     if (nome) assunto += '. Sou ' + nome;
     if (desafio) {
