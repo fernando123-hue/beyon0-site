@@ -54,14 +54,13 @@ export function criarCenario(local) {
       await tx.query('update app.conversas set etapa = $1 where id = $2', [etapa, c]);
     });
   }
-  /* perguntas → pacote → detalhes → o dono confirma e entrega os três pelo painel → o cliente escolhe o modelo 1 */
+  /* perguntas → pacote → detalhes (o pedido já nasce confirmado) → o dono entrega os três pelo painel → o cliente escolhe o modelo 1 */
   async function ateEscolher(extra = {}) {
     const n = navegador(extra);
     const c = await n.iniciar();
     const s = await n.chamar('POST', 'simular', { conversa_id: c, respostas: RESP });
     assert.equal((await n.chamar('POST', 'confirmar-pacote', { conversa_id: c, respostas: RESP, versao: s.corpo.versao })).status, 200);
     assert.equal((await n.chamar('POST', 'detalhes', { conversa_id: c, negocio: 'Clínica Exemplo', vende: 'Fisioterapia', telefone: telefoneDeTeste(), nome: 'Ana Souza', aceite: true })).status, 200);
-    assert.equal((await painelPost({ confirmar_whatsapp: c })).status, 200);
     const dirs = (await estado(n, c)).direcoes;
     for (const d of dirs) assert.equal((await painelPost({ entregar_direcao: d.id, conteudo: modelo(d.numero) })).status, 200, 'entrega do modelo ' + d.numero);
     assert.equal((await n.chamar('POST', 'escolher', { conversa_id: c, direcao_id: dirs.find(d => d.numero === 1).id })).status, 200);

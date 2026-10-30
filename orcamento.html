@@ -259,7 +259,7 @@
         <label for="o-d-vende">O que você vende <span class="orc-opcional">(obrigatório; toque numa sugestão ou escreva)</span></label>
         <div class="orc-sugestoes" id="o-d-sugestoes" role="group" aria-label="Sugestões para o que você vende"></div>
         <input id="o-d-vende" maxlength="200" autocomplete="off" required />
-        <label for="o-tel">WhatsApp <span class="orc-opcional">(obrigatório: é por ele que você confirma o pedido e eu aviso quando os modelos ficarem prontos)</span></label>
+        <label for="o-tel">Telefone com WhatsApp <span class="orc-opcional">(obrigatório: é o contato do seu pedido)</span></label>
         <input id="o-tel" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="(21) 99999-0000" required />
         <fieldset class="orc-opcionais">
           <legend>Se quiser, conte mais <span class="orc-opcional">(opcional)</span></legend>
@@ -294,16 +294,14 @@
       </form>
     </section>
 
-    <!-- A CONFIRMAÇÃO PELO WHATSAPP (spec §3 e §0): o código grande e a conversa aberta pela própria pessoa. Fora da
-         medição (data-sem-medicao): o Ads só conta pedido confirmado (decisão D6) -->
+    <!-- O PEDIDO RECEBIDO (30/10: sem WhatsApp e sem confirmação; o pedido já entra na fila ao enviar os detalhes). O código fica
+         à vista até as direções ficarem prontas. Fora da medição (data-sem-medicao) -->
     <section class="orc-bloco orc-confirmar" id="o-confirmar" aria-labelledby="o-confirmar-titulo" data-sem-medicao hidden>
-      <h2 id="o-confirmar-titulo">Confirme pelo WhatsApp</h2>
-      <p class="orc-bloco__lead">Mande a mensagem pronta para a Beyon Zero. É assim que eu sei que o número é seu e coloco o seu pedido na fila.</p>
+      <h2 id="o-confirmar-titulo">Pedido recebido</h2>
+      <p class="orc-bloco__lead">O seu pedido já está na fila. Não precisa mandar mensagem nem confirmar nada.</p>
       <p class="orc-rotulo">Código do pedido</p>
       <p class="orc-codigo-grande" id="o-confirmar-codigo"></p>
       <p class="orc-nota">Tire um print desta tela: o código identifica o seu pedido.</p>
-      <a class="btn btn--primary" id="o-confirmar-wa" href="https://wa.me/5521977167944" target="_blank" rel="noopener noreferrer">Confirmar pelo WhatsApp<span class="sr-only"> (abre em nova aba)</span></a>
-      <p class="orc-nota" id="o-confirmar-prazo"></p>
     </section>
 
     <!-- o pedido saiu da fila (venceu sem confirmação ou foi encerrado): o caminho é um orçamento novo ou o recado -->

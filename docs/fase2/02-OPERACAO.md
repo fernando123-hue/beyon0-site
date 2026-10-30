@@ -42,9 +42,9 @@ Como ligar, ajustar e desligar o agente. A base (migrations, testes, segredos, b
 
 ## 1b. Fila manual das direções (modo econômico, decisão do dono 2026-10-08)
 
-Enquanto não há verba para a API, as três direções não são geradas pelo modelo: o dono as produz no Claude Code e o cliente é avisado pelo WhatsApp. O prazo prometido na tela é de até 24 horas úteis.
+Enquanto não há verba para a API, as três direções não são geradas pelo modelo: o dono as produz no Claude Code e o dono avisa o cliente à mão, pelo WhatsApp dele (o painel monta a mensagem). O prazo prometido na tela é de até 24 horas úteis.
 
-**Desde o PR 2a só entra na fila o pedido confirmado pelo WhatsApp.** A pessoa preenche os detalhes (nome do negócio, o que vende, WhatsApp) e recebe um código **`BZ-XXXXX`**; manda "Meu pedido é BZ-…" para o WhatsApp da Beyon Zero. O dono procura o código no painel, confere que a mensagem veio do número informado e toca em **"Chegou: confirmar"**; só então o pedido entra na fila e as três direções nascem. Isso vale nos dois modos (decisão D2). Os pedidos sem confirmação ficam na lista **"Esperando confirmação no WhatsApp"** do painel (confirmar, descartar ou arquivar), e a rotina diária (`/api/rotinas?acao=diaria`, a mesma da retenção) **expira em 72 horas** o que não foi confirmado. O teto é de **10 pedidos confirmados na fila** (decisão D1): ao chegar nele o painel mostra o alarme e a página oferece o WhatsApp no lugar dos detalhes. A migration é a `20261013120200_fila_confirmados.sql`; as outras duas, `20261013120000_pedidos.sql` e `20261013120100_pedidos_dono.sql`.
+**Desde 30/10 todo pedido entra direto na fila (sem WhatsApp e sem confirmação).** A pessoa preenche os detalhes (nome do negócio, o que vende, telefone) e recebe um código **`BZ-XXXXX`**; o pedido nasce confirmado e as três direções entram na fila na mesma hora. As travas que sobraram: anti-robô, limite por IP, por /48, por telefone e por conversa, o teto de 10 pedidos na fila e o limite global de 5 pedidos por hora (ao passar, a página oferece o recado). O dono recebe um aviso pelo ntfy (`ALERTA_NTFY_TOPICO`): "Pedido novo na fila", "Recado novo" e, urgente, quando a fila enche. Curioso ou pedido sem sentido: **Descartar** no painel antes de produzir. Pedidos que estavam "aguardando" na hora da migration 20261030120000 foram promovidos a confirmados.
 
 **Ao promover o PR 2a** (detalhe e consultas em `docs/revisoes/pr1-pendencias.md`, linha PR2a): aplicar as migrations e o código JUNTOS, nesta ordem: (1) `20261013120000_pedidos.sql` e `20261013120100_pedidos_dono.sql`; (2) rodar as duas consultas de `docs/revisoes/fila-antiga-vazia.sql` (direção na fila antiga sem pedido, e conversa antiga parada em `contato`): **têm que dar 0**; se não der, entregar e avisar esses pedidos pelo jeito antigo ou resolver pelo WhatsApp; (3) aplicar `20261013120200_fila_confirmados.sql`; (4) promover o código e rodar as consultas de novo. As conversas do fluxo antigo não têm linha em `app.pedidos` e somem da fila nova.
 
@@ -54,7 +54,7 @@ Enquanto não há verba para a API, as três direções não são geradas pelo m
 
 **Como o dono atende** (precisa de `PAINEL_CHAVE`):
 - `GET /api/painel?fila=direcoes` lista a fila, só com pedidos confirmados. Cada pedido traz o código `BZ-XXXXX`, a hora do pedido, o contato, o briefing, o escopo (`fatores`), as redes que a pessoa autorizou olhar e as 3 direções com a estratégia de cada uma.
-- `GET /api/painel?fila=pendentes[&codigo=BZ-…]` lista os pedidos esperando confirmação, ou procura um pelo código. `POST /api/painel {confirmar_whatsapp: <conversa_id>}` confirma; `{descartar_pedido: <conversa_id>}` encerra (e para a geração, se já começou); `{arquivar_pedido: <conversa_id>}` tira da fila um pedido resolvido por fora.
+- `POST /api/painel {descartar_pedido: <conversa_id>}` encerra (e para a geração, se já começou); `{arquivar_pedido: <conversa_id>}` tira da fila um pedido resolvido por fora. (Saíram `?fila=pendentes` e `confirmar_whatsapp`.)
 - `POST /api/painel {entregar_direcao: <id>, conteudo: <direção>}` entrega uma direção.
   - O conteúdo segue o `ESQUEMA_DIRECAO` de `api/_vendas/direcao.mjs` e passa pelo mesmo `higienizar` da geração automática.
   - A estratégia vem do banco, nunca do arquivo.
@@ -63,7 +63,7 @@ Enquanto não há verba para a API, as três direções não são geradas pelo m
 - `POST /api/painel {avisado: <conversa_id>}`: depois de mandar a mensagem pelo WhatsApp, o pedido sai da fila (conclui). Se a pessoa escolher um modelo antes do aviso, ou se as três direções falharem, o pedido conclui sozinho.
 
 **No dia a dia:**
-- **Painel, seção "Esperando confirmação no WhatsApp"** (`js/painel-pedidos.js`, antes da fila): a busca pelo código, o alarme de "muitos pedidos esperando" e, em cada pedido, **"Chegou: confirmar"** e **"Descartar"**. O selo "Texto suspeito: leia antes de produzir" marca o pedido cujo texto parece ordem ao modelo (às vezes é falso positivo; leia antes de confirmar).
+- **Painel, seção "Fila de trabalho"**: o selo "Texto suspeito: leia antes de produzir" marca o pedido cujo texto parece ordem ao modelo (às vezes é falso positivo; leia antes de produzir). Não há mais lista de espera nem "Chegou: confirmar".
 - **Painel, seção "Direções na fila"** (`js/painel-fila.js`):
   - mostra cada pedido confirmado com o código `BZ-XXXXX` (para achar a conversa no WhatsApp), há quanto tempo chegou e quantas das 3 estão prontas; no teto de 10, o alarme da fila;
   - o pedido fica destacado quando passa de 20 horas;

@@ -1,8 +1,8 @@
 /* ==========================================================================
    A ESPERA DO ORÇAMENTO (saiu de js/orcamento.js no PR 2a, para o arquivo ficar abaixo de 800 linhas).
    Acompanha o que acontece fora desta aba: a direção feita por outro pedido, o aviso do pagamento ou o dono
-   confirmando o pedido pelo WhatsApp. Aos 15 min ela desiste (F12): para o relógio dos cartões e AVISA, com
-   "Conferir agora" e o WhatsApp; volta a esperar quando a pessoa confere ou volta para a aba. Sem estado da
+   entregando as direções. Aos 15 min ela desiste (F12): para o relógio dos cartões e AVISA, com
+   "Conferir agora" e o recado; volta a esperar quando a pessoa confere ou volta para a aba. Sem estado da
    conversa próprio: recebe da página como ler e redesenhar.
    ========================================================================== */
 (function () {
@@ -41,9 +41,8 @@
       var E = p.estado();
       if (document.hidden || !E || !p.temSessao()) return;
       desistiu = false;
-      var esperandoConfirmacao = !!(E.pedido && E.pedido.status === 'aguardando');
-      /* (3b-3c) em produção, quem volta do WhatsApp com o aviso vê a prévia nova sem recarregar: uma leitura ao voltar, sem relógio */
-      if (E.conversa.etapa === 'gerando' || E.conversa.etapa === 'aguardando_pagamento' || E.conversa.etapa === 'em_producao' || esperandoConfirmacao) p.recarregar().catch(function () {});
+      /* (3b-3c) em produção, quem volta com o aviso vê a prévia nova sem recarregar: uma leitura ao voltar, sem relógio */
+      if (E.conversa.etapa === 'gerando' || E.conversa.etapa === 'aguardando_pagamento' || E.conversa.etapa === 'em_producao') p.recarregar().catch(function () {});
     });
     return { esperar: esperar, parar: parar, desistiu: function () { return desistiu; } };
   }

@@ -32,7 +32,7 @@
   }
   var linkDoPedido = function (origem, codigo) { return origem + '/orcamento#pedido=' + codigo; };
   var CHAVE_GUARDADO = 'bz-link-guardado';
-  var FRASE_DESLIGADA = 'Recebemos a sua entrada. A Beyon Zero fala com você pelo WhatsApp para o próximo passo.';   /* = api/_material/interruptor.mjs */
+  var FRASE_DESLIGADA = 'Recebemos a sua entrada. A Beyon Zero entra em contato com você para o próximo passo.';   /* = api/_material/interruptor.mjs */
   var TEXTO_COPIAR = 'Se o celular apagar os dados do site, é por este link que você volta ao pedido. Mande para você mesmo no WhatsApp ou salve nos favoritos.';
   var TEXTO_GERAR = 'Por segurança, o link só aparece uma vez, e este aparelho não o guardou. Gere um novo e guarde: o anterior deixa de valer.';
   /* o que o cartão do link mostra (M4): copiar o código que está na página; gerar outro se o link existe mas o código se perdeu; nada se já guardou */

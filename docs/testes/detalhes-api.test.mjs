@@ -47,11 +47,11 @@ test('detalhes: grava o pedido e devolve só o código e o prazo; o estado traz 
   const n = navegador(), c = await comPacote(n);
   const r = await n.chamar('POST', 'detalhes', { conversa_id: c, ...DETALHES(), publico: 'famílias do bairro', redes: { instagram: 'https://instagram.com/clinicasol', linkedin: 'linkedin.com/company/clinica-sol' }, autoriza_redes: true });
   assert.equal(r.status, 200, JSON.stringify(r.corpo));
-  assert.deepEqual(Object.keys(r.corpo).sort(), ['codigo', 'expira_em']);
+  assert.deepEqual(Object.keys(r.corpo).sort(), ['codigo', 'status']);
   assert.match(r.corpo.codigo, /^BZ-[ACDEFGHJKMNPQRTUVWXY34679]{5}$/);
   const e = await n.chamar('GET', 'estado', undefined, '&conversa=' + c);
   assert.equal(e.corpo.pedido.codigo, r.corpo.codigo);
-  assert.equal(e.corpo.pedido.status, 'aguardando');
+  assert.equal(e.corpo.pedido.status, 'confirmado', 'o pedido nasce confirmado: sem WhatsApp e sem clique do dono');
   assert.equal(e.corpo.fila_cheia, false);
   assert.ok(!('fila_confirmados' in e.corpo), 'o tamanho da fila é interno');
   assert.equal(e.corpo.conversa.tem_contato, true);
@@ -84,7 +84,7 @@ test('freio por telefone: o mesmo WhatsApp com outra escrita, em outra conversa,
   const r = await m.chamar('POST', 'detalhes', { conversa_id: b, ...DETALHES(), telefone: '+55 21 98888 1234' });
   assert.equal(r.status, 409);
   assert.equal(r.corpo.recado, true);
-  assert.match(r.corpo.erro, /WhatsApp/);
+  assert.match(r.corpo.erro, /telefone/);
 });
 
 /* (revisão final do PR 2a, M2) a mesma conversa reenviando os detalhes trocando o telefone (para descobrir se um número já
@@ -175,11 +175,10 @@ test('freio por IP (IPv6): o 11º pedido do mesmo /48 no dia leva 429, mesmo vin
   assert.equal((await o.chamar('POST', 'detalhes', { conversa_id: co, ...DETALHES() })).status, 200, 'outro /48: livre');
 });
 
-test('modo manual: nada é gerado antes da confirmação; depois dela, uma geração só por conversa', async () => {
+test('modo manual: os detalhes já confirmam o pedido e as três direções entram na fila; uma geração só por conversa', async () => {
   const n = navegador(), c = await comPacote(n);
   await n.chamar('POST', 'detalhes', { conversa_id: c, ...DETALHES() });
-  assert.equal((await n.chamar('POST', 'gerar', { conversa_id: c })).status, 409, 'aguardando a confirmação');
-  assert.equal((await local.rpc('vendas_confirmar_whatsapp', { org_slug: 'beyon-zero', conversa_id: c })).ok, true);
+  assert.equal(Number((await um('select count(*) n from app.direcoes where conversa_id = $1', [c])).n), 3, 'as três nasceram na hora dos detalhes');
   const e = await n.chamar('GET', 'estado', undefined, '&conversa=' + c);
   assert.equal(e.corpo.direcoes.length, 3);
   assert.equal(e.corpo.pedido.status, 'confirmado');
@@ -291,10 +290,10 @@ test('a ação "contato" saiu e gerar exige o pedido confirmado, nos dois modos 
     assert.match(g.corpo.erro, /confirmado/);
     assert.equal(Number((await um('select count(*) n from app.direcoes where conversa_id = $1', [c])).n), 0);
   }
-  /* com a IA ligada: detalhes sem confirmação também não gera (D2) */
+  /* com a IA ligada o pedido também nasce confirmado: as direções já estão registradas, nenhuma 2ª geração */
   const n = navegador(undefined, { direcoes: 'api', ia: criarSimulada() }), c = await comPacote(n);
   assert.equal((await n.chamar('POST', 'detalhes', { conversa_id: c, ...DETALHES() })).status, 200);
-  assert.equal((await n.chamar('POST', 'gerar', { conversa_id: c })).status, 409);
+  assert.equal(Number((await um('select count(*) n from app.direcoes where conversa_id = $1', [c])).n), 3);
 });
 
 /* PR 2b-1, PR2a-22P02: parâmetro malformado que chega ao banco é 400, não 500 */

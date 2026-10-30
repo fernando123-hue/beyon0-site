@@ -40,8 +40,9 @@ async function pedidoPronto() {
   const base = { conversa_id: c, visitante_id: v };
   await rpc('vendas_registrar_estimativa', { ...base, regras_id: REGRAS, fatores: { formato: 'institucional' }, valor_total: 3950, sinal: 1975, prazo_dias: 9 });
   const telefone = telefoneE164DeTeste();
-  const d = await rpc('vendas_registrar_detalhes', { ...base, telefone, telefone_hash: hex('tel|' + telefone), nome: 'Ana Souza', aceite: true,
-    briefing: { negocio: { nome: 'Clínica Sol', descricao: 'Consultas e exames' } }, redes: {}, suspeito: false, chave_ip: null, max_por_ip: 3, max_por_telefone_dia: 2, teto_fila: 1000, horas: 72 });
+  /* (a função BASE, sem a confirmação automática: estes testes confirmam à mão e testam o que vem depois) */
+  const d = (await db.query('select app.vendas_registrar_detalhes_base($1::jsonb) as r', [JSON.stringify({ ...base, telefone, telefone_hash: hex('tel|' + telefone), nome: 'Ana Souza', aceite: true,
+    briefing: { negocio: { nome: 'Clínica Sol', descricao: 'Consultas e exames' } }, redes: {}, suspeito: false, chave_ip: null, max_por_ip: 3, max_por_telefone_dia: 2, teto_fila: 1000, horas: 72 })])).rows[0].r;
   assert.equal(d.ok, true, JSON.stringify(d));
   await rpc('vendas_confirmar_whatsapp', { org_slug: 'beyon-zero', conversa_id: c });
   return { ...base, codigo: d.codigo };

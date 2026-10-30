@@ -95,7 +95,7 @@
     recarregar().then(function () { if (!$('o-contato').hidden) irPara('o-contato'); })
       .catch(function (e) { falhou(e, function () { seguir(); }); });
   });
-  /* os detalhes viraram pedido (PR 2a): a tela segue o servidor e leva a pessoa até a confirmação pelo WhatsApp */
+  /* os detalhes viraram pedido (PR 2a): a tela segue o servidor e leva a pessoa até o código do pedido recebido */
   document.addEventListener('bz:detalhes-enviados', function seguir() {
     recarregar().then(function () { if (!$('o-confirmar').hidden) irPara('o-confirmar'); })
       .catch(function (e) { falhou(e, function () { seguir(); }); });
@@ -177,8 +177,7 @@
   /* outra aba esqueceu a sessão (js/orcamento-api.js): avisa já, quieto, em vez de esperar a próxima ação */
   document.addEventListener('bz-orcamento:perdida', function () { avisarSessao(true); });
   /* A SAÍDA É O RECADO (decisão do dono, 28/10: o site não tem WhatsApp nem acesso direto). Os links [data-recado-abrir] do HTML abrem o
-     recado POR AQUI (e não pelo js/recado.js solto), para ele levar a conversa e o anti-robô desta página. Fica de fora o "Confirmar pelo
-     WhatsApp" do pedido (#o-confirmar-wa), que é a confirmação do dono (passo 3) e não tem [data-recado-abrir]. */
+     recado POR AQUI (e não pelo js/recado.js solto), para ele levar a conversa e o anti-robô desta página. */
   document.addEventListener('click', function (ev) {
     var a = ev.target && ev.target.closest ? ev.target.closest('a[data-recado-abrir]') : null;
     if (!a) return;
@@ -415,7 +414,7 @@
      vai pelo WhatsApp; a página não pede a geração nem fica consultando: confere de novo quando a pessoa volta */
   var manual = function () { return !!E && E.modo_direcoes === 'manual'; };
   var TEXTOS_MANUAL = {
-    direcoes: 'Mesmo briefing, três estratégias. Ficam prontas em até 24 horas úteis e avisamos pelo seu WhatsApp, com um link que abre o pedido em qualquer aparelho.',
+    direcoes: 'Mesmo briefing, três estratégias. Ficam prontas em até 24 horas úteis. O pedido fica salvo neste aparelho: é só voltar a esta página por ele.',
     prontas: 'Mesmo briefing, três estratégias. Abra cada uma, compare e escolha a que mais tem a cara do seu negócio.'
   };
   /* (PR 2a) descartado pelo dono: o pedido acabou e o servidor recusa escolher, ajustar e seguir (api/_vendas/fluxo.mjs) */
@@ -455,7 +454,7 @@
       p.appendChild(el('p', '', 'Esta direção não saiu desta vez.'));
       mini.appendChild(p);
       /* (PR 2a) só com o pedido confirmado: arquivado ou descartado, a geração parou de propósito e o servidor recusaria */
-      if (window.BZDetalhes.pendente(E)) corpo.appendChild(el('p', 'dir__resumo', 'Este pedido segue com a Beyon Zero pelo WhatsApp.'));
+      if (window.BZDetalhes.pendente(E)) corpo.appendChild(el('p', 'dir__resumo', 'Este pedido segue com a equipe da Beyon Zero.'));
       else if (podeGerar()) {
         corpo.appendChild(el('p', 'dir__resumo', 'Você pode gerar as três de novo ou seguir com as que ficaram prontas.'));
         corpo.appendChild(botaoAcao('btn btn--sm', 'Gerar de novo', gerarTodas));
@@ -464,7 +463,7 @@
       var f = el('div', 'dir__progresso');
       f.appendChild(el('p', '', 'Na fila: a direção de ' + (NOMES[d.estrategia] || '').toLowerCase() + ' fica pronta em até 24 horas úteis.'));
       mini.appendChild(f);
-      corpo.appendChild(el('p', 'dir__resumo', 'Avisamos pelo seu WhatsApp, com o link do seu pedido.'));
+      corpo.appendChild(el('p', 'dir__resumo', 'Você pode voltar a esta página neste aparelho quando quiser: o pedido fica salvo aqui.'));
       var conf = botao('btn btn--sm', 'Conferir agora', function () { conferir(conf); });   /* (sem consulta automática: a pessoa confere quando quiser) */
       conf.setAttribute('data-conferir', '');
       corpo.appendChild(conf);
@@ -619,7 +618,7 @@
   function direcoes() {
     var et = E.conversa.etapa;
     var temDirecoes = E.direcoes.length > 0;
-    /* (PR 2a) com o pedido esperando a confirmação pelo WhatsApp, vencido ou encerrado: nada de "Gerar" (o servidor recusaria) */
+    /* (PR 2a) com o pedido vencido, encerrado ou arquivado: nada de "Gerar" (o servidor recusaria) */
     var pendente = window.BZDetalhes.pendente(E);
     mostrar('o-direcoes', temDirecoes || (E.conversa.tem_contato && et === 'contato' && !pendente));
     var resumo = E.direcoes.map(function (d) { return [d.id, d.status, d.conteudo]; });
@@ -681,7 +680,7 @@
     $('o-texto').placeholder = Object.prototype.hasOwnProperty.call(DICA_DUVIDA, et) ? DICA_DUVIDA[et] : dicaPadrao;
     mostrar('o-conversa-fechada', !aberta);
     if (!aberta) $('o-atalhos').hidden = true;
-    window.BZDetalhes.atualizar(E);   /* os detalhes, a confirmação pelo WhatsApp ou o pedido encerrado (js/orcamento-detalhes.js) */
+    window.BZDetalhes.atualizar(E);   /* os detalhes, o pedido recebido ou o pedido encerrado (js/orcamento-detalhes.js) */
     direcoes();
     mostrar('o-ajustes', (et === 'escolhida' || et === 'alteracoes') && !descartado());
     ajustes.atualizar(E);

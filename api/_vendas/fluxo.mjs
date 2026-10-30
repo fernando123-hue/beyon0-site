@@ -105,13 +105,13 @@ const TABELA_EM_ATUALIZACAO = 'A tabela de valores está em atualização. Deixe
    pagar). Arquivado (resolvido por fora) não bloqueia; só não gera de novo, como todo pedido que não está confirmado */
 const PEDIDO_ENCERRADO = 'Este pedido foi encerrado. Deixe um recado para a equipe.';
 const NAO_GERA = {
-  aguardando: ['O pedido ainda está aguardando a confirmação pelo WhatsApp.', undefined],
+  aguardando: ['O pedido ainda não está na fila. Deixe um recado para a equipe.', undefined],
   expirado: [PEDIDO_ENCERRADO, { recado: true }],
   descartado: [PEDIDO_ENCERRADO, { recado: true }],
   arquivado: ['Este pedido segue com a equipe da Beyon Zero. Se precisar, deixe um recado.', { recado: true }]
 };
 /* sem pedido (o fluxo antigo, contato direto) ou em situação desconhecida: a frase de sempre */
-const SEM_CONFIRMACAO = ['O pedido ainda não foi confirmado pelo WhatsApp.', undefined];
+const SEM_CONFIRMACAO = ['O pedido ainda não foi confirmado.', undefined];
 function exigirNaoDescartado(est) {
   if (est.pedido && est.pedido.status === 'descartado') throw new Recusa(409, PEDIDO_ENCERRADO, { recado: true });
 }

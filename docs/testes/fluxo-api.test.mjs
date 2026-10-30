@@ -299,7 +299,7 @@ test('gerar só com o pedido CONFIRMADO: conversa antiga em contato (sem pedido)
   assert.equal(Number((await local.db.query('select count(*) n from app.pedidos where conversa_id = $1', [c])).rows[0].n), 0, 'sem pedido');
   const antiga = await n.chamar('POST', 'gerar', { conversa_id: c });
   assert.equal(antiga.status, 409, 'sem pedido: a API recusa — ' + JSON.stringify(antiga.corpo));
-  assert.match(antiga.corpo.erro, /ainda não foi confirmado pelo WhatsApp/);
+  assert.match(antiga.corpo.erro, /ainda não foi confirmado/);
   assert.equal(Number((await local.db.query('select count(*) n from app.direcoes where conversa_id = $1', [c])).rows[0].n), 0, 'nenhuma direção nasceu');
   /* o pedido esperando a confirmação */
   const n2 = navegador();
@@ -308,9 +308,6 @@ test('gerar só com o pedido CONFIRMADO: conversa antiga em contato (sem pedido)
   await n2.chamar('POST', 'mensagem', { conversa_id: c2, texto: 'sim' });
   const det = await n2.chamar('POST', 'detalhes', { conversa_id: c2, negocio: 'Clínica Sol', vende: 'Consultas', telefone: telefoneDeTeste(), aceite: true });
   assert.equal(det.status, 200, JSON.stringify(det.corpo));
-  const aguardando = await n2.chamar('POST', 'gerar', { conversa_id: c2 });
-  assert.equal(aguardando.status, 409, 'esperando a confirmação: recusado — ' + JSON.stringify(aguardando.corpo));
-  await local.rpc('vendas_confirmar_whatsapp', { org_slug: 'beyon-zero', conversa_id: c2 });
   const confirmado = await n2.chamar('POST', 'gerar', { conversa_id: c2 });
   assert.equal(confirmado.status, 200, 'confirmado: gera — ' + JSON.stringify(confirmado.corpo));
 });
@@ -372,7 +369,7 @@ test('descartado com a geração em andamento (as direções viram "falhou"): ge
   assert.deepEqual(await rastroDa(c), antes);
 });
 
-test('gerar responde uma frase por situação do pedido: aguardando a confirmação, expirado (encerrado) e arquivado (segue pelo WhatsApp)', async () => {
+test('gerar responde uma frase por situação do pedido: arquivado (segue com a equipe)', async () => {
   const ate = async () => {
     const n = navegador();
     const c = (await n.iniciar()).conversa_id;
@@ -381,17 +378,8 @@ test('gerar responde uma frase por situação do pedido: aguardando a confirmaç
     assert.equal((await n.chamar('POST', 'detalhes', { conversa_id: c, negocio: 'Clínica Sol', vende: 'Consultas', telefone: telefoneDeTeste(), aceite: true })).status, 200);
     return { n, c };
   };
-  const a = await ate();
-  const aguardando = await a.n.chamar('POST', 'gerar', { conversa_id: a.c });
-  assert.equal(aguardando.status, 409);
-  assert.match(aguardando.corpo.erro, /aguardando a confirmação pelo WhatsApp/);
-  const v = await ate();
-  await local.db.query("update app.pedidos set expira_em = now() - interval '1 minute' where conversa_id = $1", [v.c]);
-  const expirado = await v.n.chamar('POST', 'gerar', { conversa_id: v.c });
-  assert.equal(expirado.status, 409);
-  assert.match(expirado.corpo.erro, ENCERRADO);
+  /* o pedido nasce confirmado (sem WhatsApp e sem clique do dono): não existe mais "aguardando" nem "expirado" para o visitante */
   const q = await ate();
-  await local.rpc('vendas_confirmar_whatsapp', { org_slug: 'beyon-zero', conversa_id: q.c });
   await mudarPedido(q.c, 'arquivar');
   const arquivado = await q.n.chamar('POST', 'gerar', { conversa_id: q.c });
   assert.equal(arquivado.status, 409);

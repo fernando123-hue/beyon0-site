@@ -87,7 +87,7 @@ test('próximo passo: o código diz ao modelo o que fazer agora, pela ordem do f
   assert.match(p(cheio, { estimativa: est }), /pedir_contato/);
   /* (revisão técnica do harness) etapa 'contato' = o contato JÁ chegou; as direções saem pelo botão da tela */
   const contato = proximoPasso({ etapa: 'contato', briefing: cheio, estimativa: est });
-  assert.match(contato, /contato já (foi )?recebido/i);
+  assert.match(contato, /contato foi recebido/i);
   assert.match(contato, /não chame pedir_contato/i);
   /* o formulário aparece sozinho com a estimativa; pedir_contato só leva a pessoa até ele, uma vez */
   assert.match(p(cheio, { estimativa: est }), /uma vez|não repita/i);
@@ -291,10 +291,13 @@ test('vendedor: o avaliador barra urgência falsa, promessa de resultado e prova
 
 test('vendedor: o prompt traz a persona, as objeções e o que nunca dizer', () => {
   const s = montarSistema(REGRAS);
-  for (const trecho of ['consultor experiente', '"Achei caro"', '"Preciso pensar"', 'sócio', '"Vou ver outros orçamentos"', '"Garante resultado?"', 'portfólio', 'Sem urgência falsa', 'Recomende UMA opção', 'uma vez só', 'ainda não há casos publicados', 'só continua se ela confirmar', 'Não conte casos nem experiências que você não tem'])
+  for (const trecho of ['consultor experiente', '"Achei caro"', '"Preciso pensar"', 'sócio', '"Vou ver outros orçamentos"', '"Garante resultado?"', 'portfólio', 'Sem urgência falsa', 'Recomende UMA opção', 'uma vez só', 'ainda não há casos publicados', 'Não conte casos nem experiências que você não tem'])
     assert.ok(s.includes(trecho), 'falta no prompt: ' + trecho);
-  assert.ok(s.includes('atendente de IA no WhatsApp') && s.includes('teste grátis de 10 dias corridos'), 'o atendente existe e tem caminho');
-  assert.match(s, /Manutenção: nos sites[^\n]*atendente de IA no WhatsApp é diferente: tem mensalidade/, 'manutenção sem contradizer o atendente');
+  /* decisões de 28 a 30/10: o atendente é um chat dentro do site, sem teste grátis, sem preço nas páginas e ainda não está pronto */
+  assert.ok(s.includes('atendente de IA, que é um chat dentro do site') && s.includes('ainda não está pronto: não prometa prazo nem valor'), 'o atendente existe e não promete');
+  assert.doesNotMatch(s, /teste grátis de 10 dias|atendente de IA no WhatsApp/, 'sem teste grátis nem WhatsApp no atendente');
+  assert.match(s, /não fale em teste grátis/);
+  assert.match(s, /Manutenção: nos sites[^\n]*atendente de IA \(um chat dentro do site\) é diferente: tem mensalidade/, 'manutenção sem contradizer o atendente');
 });
 
 test('vendedor: a dor vem antes do formato, a recomendação vem com o preço, e quem quer fechar fecha', () => {
@@ -309,34 +312,37 @@ test('vendedor: a dor vem antes do formato, a recomendação vem com o preço, e
   assert.match(proximoPasso({ etapa: 'descoberta', briefing: comFormato, estimativa: null }), /chame estimar agora[^.]*\. Recomende o formato/);
   const est = { prazo_dias: 8, detalhes: { itens: [] } };
   assert.match(proximoPasso({ etapa: 'estimativa', briefing: comFormato, estimativa: est }), /quer seguir ou fechar, chame pedir_contato já, uma vez/);
-  /* quem fechou rápido: no máximo 2 perguntas antes do botão, para as direções não saírem pobres */
-  const contato = proximoPasso({ etapa: 'contato', briefing: comFormato, estimativa: est });
-  assert.match(contato, /no máximo 2 perguntas rápidas sobre [^.]+, para as direções/);
-  assert.match(contato, /não chame pedir_contato/);
+  /* (30/10) as 2 perguntas rápidas saíram: com o pedido entrando na fila ao enviar os detalhes, a geração já começou */
+  assert.doesNotMatch(proximoPasso({ etapa: 'contato', briefing: comFormato, estimativa: est }), /perguntas rápidas/);
 });
 
-test('PR 2a: na etapa "contato" o pedido espera a confirmação pelo WhatsApp (código BZ-); os modelos só começam depois, e os nomes citados são os da tela', () => {
+test('30/10: na etapa "contato" o pedido já está na fila (código BZ-), sem confirmar nada; os nomes citados são os da tela', () => {
   const est = { prazo_dias: 8, detalhes: { itens: [] } };
   const contato = proximoPasso({ etapa: 'contato', briefing: { negocio: { segmento: 'clínica' } }, estimativa: est });
-  assert.match(contato, /espera a confirmação pelo WhatsApp/);
-  assert.match(contato, /código BZ-/);
-  assert.match(contato, /só começam depois que a Beyon Zero confirma/);
+  assert.match(contato, /não está andando/);
+  assert.doesNotMatch(contato, /WhatsApp|confirm/i, 'sem WhatsApp nem confirmação no pedido parado');
+  const gerando = proximoPasso({ etapa: 'gerando', briefing: {}, estimativa: est });
+  assert.match(gerando, /acabou de entrar na fila/);
+  assert.match(gerando, /Pedido recebido/);
+  assert.doesNotMatch(gerando, /WhatsApp/);
   assert.match(contato, /não chame pedir_contato/);
   assert.doesNotMatch(contato, /Gerar as três direções/, 'o botão "Gerar" não existe mais nesta etapa');
   const pedir = ferramentas(REGRAS, { etapa: 'estimativa' }).find(f => f.name === 'pedir_contato').description;
   assert.doesNotMatch(pedir, /libera as três direções/);
   assert.match(pedir, /Quero os três modelos/);
-  assert.match(pedir, /confirmação pelo WhatsApp/);
+  assert.match(pedir, /entra na fila na hora/);
+  assert.doesNotMatch(pedir, /WhatsApp/);
   for (const modo of ['api', 'manual']) {
     const s = montarSistema(REGRAS, { direcoes: modo });
     assert.doesNotMatch(s, /depois do formulário de contato/, modo);
-    assert.match(s, /confirma[^.]*pelo WhatsApp/, modo + ': a confirmação vem antes dos modelos');
+    assert.match(s, /envia os detalhes do pedido[^.]*entra na fila na hora/, modo + ': o pedido entra na fila ao enviar os detalhes');
+    assert.doesNotMatch(s, /confirma o pedido pelo WhatsApp/, modo);
   }
   /* os nomes que o modelo cita são os da tela: se a tela renomear, este teste quebra */
   const tela = fs.readFileSync(new URL('../../orcamento.html', import.meta.url), 'utf8');
-  for (const nome of ['Quero os três modelos', 'Confirme pelo WhatsApp']) assert.ok(tela.includes('>' + nome + '<'), 'a tela tem "' + nome + '"');
-  assert.ok(tela.includes('>Confirmar pelo WhatsApp<'), 'a tela tem o botão "Confirmar pelo WhatsApp"');
-  assert.match(contato, /"Confirme pelo WhatsApp"/);
+  for (const nome of ['Quero os três modelos', 'Pedido recebido']) assert.ok(tela.includes('>' + nome + '<'), 'a tela tem "' + nome + '"');
+  assert.ok(!tela.includes('>Confirmar pelo WhatsApp<'), 'a tela não tem mais o botão "Confirmar pelo WhatsApp"');
+
 });
 
 test('conversa aberta até o pagamento: no escopo e no sinal o consultor só tira dúvidas (PROPOSTA de 2026-10-09, §4, 3b)', () => {

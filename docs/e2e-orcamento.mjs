@@ -3,7 +3,7 @@
    servidor local (docs/servidor.mjs: banco PGlite, IA simulada, gateway
    simulado). Celular primeiro (390px), depois 320px e desktop.
    Cobre: as perguntas → preço (motivo, vizinho, "Quer ajustar?" ao vivo) →
-   conta que falha não muda o que se grava → pacote gravado → detalhes → código e confirmação pelo WhatsApp (o dono confirma no painel) → 3 modelos → abrir o pedido em outro aparelho pelo link do aviso → visor (abrir,
+   conta que falha não muda o que se grava → pacote gravado → detalhes → código do pedido recebido (entra direto na fila, sem confirmação) → 3 modelos → abrir o pedido em outro aparelho pelo link do aviso → visor (abrir,
    trocar, aparelho, Escape devolve o foco) → escolha → ajustes (opção pronta, desfazer, pedido livre) → retomada
    depois de recarregar → escopo (exige a confirmação) → pagamento simulado
    → projeto em produção. À parte: o pacote que pede conversa (sem valor) e
@@ -244,15 +244,13 @@ try {
   await page.check('#o-d-redes-ok');
   await page.check('#o-aceite');
   await page.click('#o-detalhes-form button[type=submit]');
-  /* a confirmação pelo WhatsApp: o código grande e o link com o texto pronto (o link NÃO é aberto aqui) */
+  /* o pedido recebido (30/10: sem WhatsApp e sem confirmação): o código grande, sem botão de WhatsApp */
   await page.waitForSelector('#o-confirmar:not([hidden])', { timeout: 15000 });
   const codigo = (await page.textContent('#o-confirmar-codigo')).trim();
   ok(/^BZ-[ACDEFGHJKMNPQRTUVWXY34679]{5}$/.test(codigo), 'o código do pedido no formato BZ-XXXXX: ' + codigo);
-  ok(await page.getAttribute('#o-confirmar-wa', 'href') === 'https://wa.me/5521977167944?text=' + encodeURIComponent('Meu pedido é ' + codigo), 'o botão abre o WhatsApp da Beyon Zero com "Meu pedido é ' + codigo + '"');
-  ok(await page.locator('#o-confirmar[data-sem-medicao]').count() === 1, 'confirmar não conta como conversão (só pedido confirmado conta, D6)');
+  ok(await page.locator('#o-confirmar-wa').count() === 0 && await page.locator('#o-confirmar a[href*="wa.me"]').count() === 0, 'o pedido recebido não tem botão de WhatsApp');
+  ok(await page.locator('#o-confirmar[data-sem-medicao]').count() === 1, 'pedido recebido não conta como conversão (D6)');
   ok((await page.textContent('#o-codigo-v')).trim() === codigo, 'o código no topo é o do pedido');
-  ok(/72|expira/i.test(await page.textContent('#o-confirmar-prazo')), 'o prazo de 72 h para confirmar, com data');
-  ok(await page.locator('#o-direcoes').isHidden(), 'sem a confirmação, nenhum modelo começa');
   ok(await semRolagemLateral(page), 'celular na confirmação: sem rolagem lateral');
   await foto(page, '1e-confirmar-cel');
   await page.setViewportSize({ width: 320, height: 700 });
@@ -273,47 +271,22 @@ try {
   /* (o bloco já nasce escondido: "sumir" não prova nada; a prova de que a tela desenhou o estado do servidor é o código do pedido
      no topo, que só vira BZ-XXXXX no render com o pedido, e o render escolhe o bloco e os botões de uma vez) */
   await page.waitForFunction(c => document.getElementById('o-codigo-v').textContent.trim() === c, codigo, { timeout: 15000 });
-  ok(await page.locator('#o-confirmar').isHidden(), 'arquivado: a tela não pede mais a confirmação pelo WhatsApp');
+  ok(await page.locator('#o-confirmar').isHidden(), 'arquivado: a tela não mostra mais o pedido recebido');
   ok(await page.getByRole('button', { name: 'Gerar as três direções' }).count() === 0, 'arquivado, de volta à etapa contato: nenhum "Gerar as três direções" (o servidor recusaria)');
   await page.unroute(ESTADO, comoArquivado);
   await page.reload({ waitUntil: 'load' });
-  await page.waitForSelector('#o-confirmar:not([hidden])', { timeout: 15000 });
-  /* o dono confirma NA TELA DO PAINEL (celular): busca o código que chegou, confere o WhatsApp, o selo e as redes */
+  await page.waitForFunction(c => document.getElementById('o-codigo-v').textContent.trim() === c, codigo, { timeout: 15000 });
+  /* o painel (celular): o pedido já está na fila de trabalho, sem lista de espera nem confirmação */
   const painel = await ctx.newPage();
   await painel.goto(BASE + '/painel', { waitUntil: 'load' });
   await painel.fill('#chave', PAINEL_CHAVE);
   await painel.click('#entrar button[type=submit]');
-  await painel.waitForSelector('#bloco-pendentes:not([hidden])', { timeout: 15000 });
-  await painel.fill('#pendentes-codigo', codigo.slice(3).toLowerCase());   /* (como o dono digitaria: sem "BZ-", minúsculo) */
-  await painel.click('#pendentes-procurar');
-  const cartao = painel.locator('#pendentes .pn__fila', { hasText: codigo });
-  await cartao.waitFor({ timeout: 15000 });
-  await painel.waitForFunction(() => document.querySelectorAll('#pendentes .pn__fila').length === 1, null, { timeout: 15000 }).catch(() => {});   /* (a lista de antes sai quando a busca responde) */
-  ok(await painel.locator('#pendentes .pn__fila').count() === 1, 'painel: a busca pelo código mostra só esse pedido');
-  ok((await cartao.textContent()).includes(TELEFONE.replace(/\D/g, '').slice(-4)), 'painel: o WhatsApp informado aparece para conferir com quem mandou a mensagem');
-  ok(await cartao.locator('.pn__selo').count() === 1, 'painel: o selo de texto suspeito (o diferencial pede para ignorar as instruções)');
-  ok(await cartao.locator('a[href="https://www.instagram.com/clinicateste/"]').count() === 1, 'painel: o link do Instagram montado pelo código, num domínio fixo');
-  ok(await cartao.locator('a[href="https://www.youtube.com/@ClinicaTeste"]').count() === 1, 'painel: as outras redes também (YouTube)');
-  ok(await semRolagemLateral(painel), 'painel no celular: sem rolagem lateral');
-  await foto(painel, '5-painel-pendentes-cel');
-  /* 2 toques (dono, 2026-10-14): confirmar põe o pedido na fila e, com a IA ligada, gasta; o 1º toque só arma */
-  /* (conta as ações mandadas ao servidor, em vez de esperar um tempo fixo: num CI lento, esperar daria falso verde) */
-  const ehAcao = req => req.method() === 'POST' && new URL(req.url()).pathname === '/api/painel';
-  let acoes = 0;
-  painel.on('request', req => { if (ehAcao(req)) acoes++; });
-  const confirmar = cartao.getByRole('button', { name: /confirmar/i });
-  await confirmar.click();
-  ok((await confirmar.textContent()).trim() === 'Toque de novo para confirmar', 'painel: o 1º toque em "Chegou: confirmar" só arma o botão');
-  ok(acoes === 0 && await painel.locator('#pendentes .pn__fila', { hasText: codigo }).count() === 1, 'painel: com 1 toque, nada vai ao servidor e o pedido continua esperando confirmação');
-  const vai = painel.waitForRequest(ehAcao, { timeout: 15000 });
-  await confirmar.click();
-  await vai;
-  ok(acoes === 1, 'painel: o 2º toque manda a confirmação, uma vez');
   const naFila = painel.locator('#fila .pn__fila', { hasText: codigo });
   await naFila.waitFor({ timeout: 15000 });
-  ok(await naFila.isVisible(), 'painel: confirmado, o pedido passa para a fila de trabalho');
-  ok(await painel.locator('#pendentes .pn__fila', { hasText: codigo }).waitFor({ state: 'detached', timeout: 10000 }).then(() => true, () => false), 'painel: e sai de "Esperando confirmação"');   /* (a lista de pendentes se redesenha um instante depois da fila: espera sair, em vez de contar uma vez só) */
-  await foto(painel, '5b-painel-fila-cel');
+  ok(await naFila.isVisible(), 'painel: o pedido novo já está na fila de trabalho, sem confirmar');
+  ok(await painel.locator('#bloco-pendentes').count() === 0, 'painel: a lista "Esperando confirmação" saiu');
+  ok(await semRolagemLateral(painel), 'painel no celular: sem rolagem lateral');
+  await foto(painel, '5-painel-fila-cel');
   await painel.close();
   await page.reload({ waitUntil: 'load' });
   await page.waitForFunction(() => document.querySelectorAll('.dir .dir__nome').length === 3, null, { timeout: 120000 });
@@ -620,9 +593,7 @@ try {
      ainda por vir fica nos testes de orcamento-preparo, que controlam o relógio) */
   ok(/O prazo era sexta, 16\/10, às\s15h\. Os seus modelos ainda estão em produção/.test(await preparo.locator('.orc-preparo__prazo').textContent()), 'espera útil: a data do prazo (24 horas úteis, hora arredondada para cima), vencida');
   ok(await preparo.locator('.orc-preparo__lista li').count() === 5, 'espera útil: a lista do que separar');
-  const waPreparo = preparo.getByRole('link', { name: 'Mandar pelo WhatsApp' });
-  ok(await waPreparo.getAttribute('href') === 'https://wa.me/5521977167944?text=' + encodeURIComponent('Pedido ' + codigo + ': vou mandar o material do site.'), 'espera útil: o botão do WhatsApp leva o código do pedido');
-  ok(Math.round((await waPreparo.boundingBox()).height) >= 44, 'espera útil: o botão tem 44 px de altura ou mais');
+  ok(await preparo.locator('a').count() === 0 && !/WhatsApp/.test(await preparo.textContent()), 'espera útil: sem botão nem menção ao WhatsApp da Beyon Zero');
   ok(/em até 24 horas úteis/.test(await page.textContent('#o-dir-lead')) && !/neste mesmo navegador/.test(await page.textContent('#o-dir-lead')), 'espera útil: o texto da seção não manda voltar "neste mesmo navegador"');
   ok(!/neste navegador/.test(await page.locator('.dir').first().textContent()), 'espera útil: o cartão na fila também não');
   ok(await semRolagemLateral(page), 'espera útil: celular sem rolagem lateral');

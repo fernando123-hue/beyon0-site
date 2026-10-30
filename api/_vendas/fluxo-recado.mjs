@@ -16,6 +16,7 @@ import { criarFreio, ipDe } from '../_freio.mjs';
 import { chaveDoIp } from './ip.mjs';
 import { tokenDe } from '../_supabase.mjs';
 import { ORG } from './org.mjs';
+import { avisarDono } from '../_ntfy.mjs';
 import { ambienteDe } from '../_ambiente.mjs';
 import ESQ from '../../js/orcamento-material-esquema.js';
 
@@ -61,7 +62,7 @@ function emailDoRecado(bruto) {
   return c.email;
 }
 
-export function criarAcoesDoRecado({ banco, visitantes, segredoFreio, env }) {
+export function criarAcoesDoRecado({ banco, visitantes, segredoFreio, env, avisar = avisarDono }) {
   const local = !!env && ambienteDe(env) === 'local';   /* sem o ambiente: fecha */
   /* o visitante da sessão do orçamento, se houver; qualquer problema (sem token, vencido, Auth fora) = sem ligação */
   async function visitanteSeHouver(request) {
@@ -92,6 +93,7 @@ export function criarAcoesDoRecado({ banco, visitantes, segredoFreio, env }) {
         ...(visitante ? { conversa_id: corpo.conversa_id, visitante_id: visitante } : {})
       });
       if (!r || r.ok !== true) throw new Recusa(r && r.motivo === 'cheio' ? 503 : 429, r && r.motivo === 'cheio' ? FRASES.cheio : FRASES.freio);
+      await avisar(env, 'recado');   /* (texto fixo: nunca o conteúdo do recado; falha do aviso não derruba o recado) */
       return { ok: true };
     }
   };
