@@ -1,0 +1,51 @@
+/* ==========================================================================
+   O RECADO (js/recado.js): o único lugar de feedback do site (decisão do dono, 28/10). Um formulário curto: o texto e o e-mail
+   (opcional, para a resposta). Mobile primeiro (desenhado a partir de 390px), contorno de 1px e nenhuma sombra: sem desfoque, sem
+   brilho suave. Os tokens vêm de css/tokens.css; cada var() leva o valor de reserva para o componente funcionar sozinho.
+   Duas formas, o mesmo miolo: inline (<section data-recado>) e janela (<dialog class="recado recado--janela">).
+   ========================================================================== */
+.recado { box-sizing: border-box; width: 100%; max-width: 34rem; color: var(--t1, #F2F4F4); font-family: var(--sans, system-ui, sans-serif); font-size: var(--fs-b, 1rem); line-height: 1.5; }
+.recado *, .recado *::before, .recado *::after { box-sizing: border-box; }
+.recado__miolo { padding: 1.25rem 1rem; border: 1px solid var(--line-2, rgb(205 212 212 / .18)); background: var(--s1, #0B0C0D); }
+.recado__titulo { margin: 0 0 .5rem; font-size: var(--h3-linha, 1.25rem); font-weight: 300; line-height: 1.2; }
+.recado__intro { margin: 0 0 1.25rem; color: var(--t2, #B2B8B8); }
+.recado__campo { display: block; margin: 0 0 1.1rem; }
+.recado__rotulo { display: block; margin: 0 0 .4rem; color: var(--t1, #F2F4F4); font-size: var(--fs-s, .875rem); font-weight: 600; }
+.recado__dica { display: block; margin: .35rem 0 0; color: var(--t3, #858C8C); font-size: var(--fs-s, .875rem); }
+.recado__entrada { display: block; width: 100%; min-height: 3rem; margin: 0; padding: .7rem .8rem; border: 1px solid var(--stroke, #656C6C); border-radius: 0; background: var(--bg, #000); color: var(--t1, #F2F4F4); font: inherit; font-size: 1rem; /* 16px: o iPhone não dá zoom */ line-height: 1.4; }
+.recado__entrada--texto { min-height: 8.5rem; resize: vertical; }
+.recado__entrada::placeholder { color: var(--t3, #858C8C); opacity: 1; }
+.recado__entrada:focus-visible { outline: 2px solid var(--ac, #49E5DD); outline-offset: 2px; border-color: var(--ac, #49E5DD); }
+.recado__entrada[aria-invalid="true"] { border-color: rgb(var(--ouro-rgb, 255 190 60)); }
+.recado__contador { margin: .35rem 0 0; color: var(--t3, #858C8C); font-family: var(--mono, ui-monospace, monospace); font-size: var(--fs-rotulo, .6875rem); letter-spacing: .04em; text-align: right; }
+.recado__contador--cheio { color: rgb(var(--ouro-rgb, 255 190 60)); }
+.recado__aviso { margin: 0 0 1.1rem; color: var(--t3, #858C8C); font-size: var(--fs-s, .875rem); }
+.recado__erro { margin: 0 0 1rem; padding: .75rem .9rem; border: 1px solid var(--line-2, rgb(205 212 212 / .18)); border-left: 2px solid rgb(var(--ouro-rgb, 255 190 60)); background: var(--s2, #141617); color: var(--t1, #F2F4F4); }
+.recado__erro[hidden], .recado__miolo[hidden], .recado__feito[hidden], .recado__antirobo[hidden] { display: none; }
+.recado__antirobo { margin: 0 0 1rem; }
+.recado__acoes { display: flex; flex-direction: column; gap: .6rem; }
+.recado__botao { display: inline-flex; align-items: center; justify-content: center; min-height: 3rem; padding: .7rem 1.25rem; border: 1px solid var(--stroke, #656C6C); border-radius: 0; background: var(--vidro, rgb(190 200 200 / .04)); color: var(--t1, #F2F4F4); font: inherit; font-size: var(--fs-ctrl, .75rem); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; }
+.recado__botao:hover { border-color: var(--t1, #F2F4F4); }
+.recado__botao:focus-visible { outline: 2px solid var(--ac, #49E5DD); outline-offset: 2px; }
+.recado__botao--principal { border-color: var(--ac, #49E5DD); background: var(--ac, #49E5DD); color: var(--ac-tinta, #03201E); }
+.recado__botao--principal:hover { border-color: var(--ac-2, #A6F4EF); background: var(--ac-2, #A6F4EF); }
+.recado__botao[disabled] { cursor: progress; opacity: .6; }
+.recado__feito { padding: 1.25rem 1rem; border: 1px solid var(--line-hi, rgb(73 229 221 / .4)); background: var(--s1, #0B0C0D); }
+.recado__feito:focus { outline: none; }
+.recado__feito:focus-visible { outline: 2px solid var(--ac, #49E5DD); outline-offset: 2px; }
+.recado__feito p { margin: 0 0 1rem; }
+.recado__feito p:last-of-type { color: var(--t2, #B2B8B8); }
+
+/* a janela: <dialog> nativo (foco preso, Esc fecha); o fundo é cor lisa, nunca desfoque */
+dialog.recado--janela { max-width: 34rem; width: calc(100% - 2rem); max-height: calc(100% - 2rem); margin: auto; padding: 0; border: 0; background: transparent; color: inherit; overflow: auto; }
+dialog.recado--janela::backdrop { background: rgb(0 0 0 / .82); }
+dialog.recado--janela:not([open]) { display: none; }
+.recado--janela .recado__miolo, .recado--janela .recado__feito { border-color: var(--stroke, #656C6C); }
+
+@media (min-width: 520px) {
+  .recado__miolo, .recado__feito { padding: 1.75rem 1.75rem; }
+  .recado__acoes { flex-direction: row-reverse; justify-content: flex-start; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .recado__botao { transition: border-color .15s, background-color .15s; }
+}

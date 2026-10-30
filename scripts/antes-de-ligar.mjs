@@ -10,12 +10,12 @@ import { fileURLToPath } from 'node:url';
 import { validarBase, HOSTS_VERCEL } from './direcoes.mjs';
 import { hostDoStaging } from '../docs/acesso.mjs';
 
-/* a ordem de aplicação no Supabase real: 3b-1 (1), 3b-2 (4), 3b-3 (5) e a correção do aviso "no ar" (1, de 28/10). Um teste confere esta lista com a pasta supabase/migrations */
+/* a ordem de aplicação no Supabase real: 3b-1 (1), 3b-2 (4), 3b-3 (5), a correção do aviso "no ar" (1, de 28/10) e os recados (1, de 29/10). Um teste confere esta lista com a pasta supabase/migrations */
 export const MIGRATIONS = [
   '20261022120000_pr3b1_entrada.sql',
   '20261023120000_pr3b2_entrega.sql', '20261023120100_pr3b2_material.sql', '20261023120200_pr3b2_link_pedido.sql', '20261023120300_pr3b2_dono.sql',
   '20261024120000_pr3b3_esquema.sql', '20261024120100_pr3b3_previa.sql', '20261024120200_pr3b3_restante.sql', '20261024120300_pr3b3_rotina.sql', '20261024120400_pr3b3_lista.sql',
-  '20261028120000_aviso_no_ar_so_no_ar.sql'
+  '20261028120000_aviso_no_ar_so_no_ar.sql', '20261029120000_recados.sql'
 ];
 /* o endereço do envio assinado, token inteiro; o grupo 1 é o projeto */
 const SUPABASE_EXATO = /^https:\/\/([a-z0-9]{20})\.supabase\.co\/storage\/v1\/object\/upload\/sign\/$/;

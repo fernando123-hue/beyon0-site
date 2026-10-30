@@ -95,7 +95,7 @@
       $('o-pag-titulo').textContent = 'Falta o restante';
       if (valor == null || !pct || !tela) {   /* falha fechada: sem valor conferido ou sem a tela do Pix, não cobra */
         chavePix = null;
-        $('o-pag-lead').textContent = 'Não consegui conferir o valor do restante agora. O WhatsApp está logo abaixo.';
+        $('o-pag-lead').textContent = 'Não consegui conferir o valor do restante agora. Tente de novo ou deixe um recado para a equipe.';
         $('o-pag-form').hidden = true; $('o-pag-indisponivel').hidden = true;
         return;
       }

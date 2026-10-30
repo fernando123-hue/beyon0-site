@@ -83,7 +83,7 @@ test('freio por telefone: o mesmo WhatsApp com outra escrita, em outra conversa,
   const m = navegador(), b = await comPacote(m);
   const r = await m.chamar('POST', 'detalhes', { conversa_id: b, ...DETALHES(), telefone: '+55 21 98888 1234' });
   assert.equal(r.status, 409);
-  assert.equal(r.corpo.whatsapp, true);
+  assert.equal(r.corpo.recado, true);
   assert.match(r.corpo.erro, /WhatsApp/);
 });
 
@@ -97,7 +97,7 @@ test('detalhes: a 4ª tentativa na mesma conversa leva 429 com o WhatsApp, mesmo
   for (let i = 1; i <= 3; i++) assert.equal((await n.chamar('POST', 'detalhes', { conversa_id: c, ...DETALHES(), telefone: fone })).status, 409, 'tentativa ' + i);
   const r = await n.chamar('POST', 'detalhes', { conversa_id: c, ...DETALHES() });
   assert.equal(r.status, 429, JSON.stringify(r.corpo));
-  assert.equal(r.corpo.whatsapp, true);
+  assert.equal(r.corpo.recado, true);
   assert.doesNotMatch(r.corpo.erro, /aberto|limite de pedidos de hoje/, 'não fala do número');
 });
 
@@ -109,7 +109,7 @@ test('freio por IP: o 4º pedido do mesmo endereço no dia leva 429 (com segredo
   const n = navegador('2001:db8:aa:bb::99'), c = await comPacote(n);
   const r = await n.chamar('POST', 'detalhes', { conversa_id: c, ...DETALHES() });
   assert.equal(r.status, 429, JSON.stringify(r.corpo));
-  assert.equal(r.corpo.whatsapp, true);
+  assert.equal(r.corpo.recado, true);
 });
 
 test('fila global cheia: a tela sabe antes (estado) e os detalhes recebem 503 com o WhatsApp', async () => {
@@ -118,7 +118,7 @@ test('fila global cheia: a tela sabe antes (estado) e os detalhes recebem 503 co
   const r = await n.chamar('POST', 'detalhes', { conversa_id: c, ...DETALHES() });
   assert.equal(r.status, 503);
   assert.equal(r.corpo.fila_cheia, true);
-  assert.equal(r.corpo.whatsapp, true);
+  assert.equal(r.corpo.recado, true);
 });
 
 test('produção sem o segredo do freio: os detalhes fecham com 503 e o WhatsApp (nada gravado)', async () => {
@@ -128,7 +128,7 @@ test('produção sem o segredo do freio: os detalhes fecham com 503 e o WhatsApp
     const n = navegador(undefined, { segredoFreio: undefined, env: PRODUCAO }), c = await comPacote(n);
     const r = await n.chamar('POST', 'detalhes', { conversa_id: c, ...DETALHES() });
     assert.equal(r.status, 503, JSON.stringify(r.corpo));
-    assert.equal(r.corpo.whatsapp, true);
+    assert.equal(r.corpo.recado, true);
     assert.equal(await um('select 1 from app.pedidos where conversa_id = $1', [c]), undefined);
   }
 });
@@ -141,7 +141,7 @@ test('produção com o segredo, mas sem IP que dê chave: os detalhes fecham com
     const n = navegador('desconhecido', { env: PRODUCAO }), c = await comPacote(n);
     const r = await n.chamar('POST', 'detalhes', { conversa_id: c, ...DETALHES() });
     assert.equal(r.status, 503, JSON.stringify(r.corpo));
-    assert.equal(r.corpo.whatsapp, true);
+    assert.equal(r.corpo.recado, true);
     assert.equal(await um('select 1 from app.pedidos where conversa_id = $1', [c]), undefined);
     assert.deepEqual(await um('select etapa, tentativas_detalhes from app.conversas where id = $1', [c]), { etapa: 'estimativa', tentativas_detalhes: 0 }, 'nem a tentativa foi ao banco');
   }
@@ -157,7 +157,7 @@ test('criarAcoesDoPedido SEM env, com o segredo e sem cabeçalho de IP: detalhes
   const acoes = criarAcoesDoPedido({ banco, visitante: async () => '11111111-1111-4111-8111-111111111111', segredoFreio: 's'.repeat(32) });
   const request = new Request(BASE + '/api/vendas?acao=detalhes', { method: 'POST' });   /* (nenhum x-forwarded-for: ipDe devolve "local") */
   await assert.rejects(acoes.detalhes({ request, corpo: { conversa_id: '22222222-2222-4222-8222-222222222222', ...DETALHES() } }),
-    e => e instanceof Recusa && e.status === 503 && e.extra?.whatsapp === true);
+    e => e instanceof Recusa && e.status === 503 && e.extra?.recado === true);
   assert.equal(chamadas, 0, 'o banco não foi chamado');
 });
 
@@ -170,7 +170,7 @@ test('freio por IP (IPv6): o 11º pedido do mesmo /48 no dia leva 429, mesmo vin
   const n = navegador('2001:db8:48:ff::1'), c = await comPacote(n);
   const r = await n.chamar('POST', 'detalhes', { conversa_id: c, ...DETALHES() });
   assert.equal(r.status, 429, JSON.stringify(r.corpo));
-  assert.equal(r.corpo.whatsapp, true);
+  assert.equal(r.corpo.recado, true);
   const o = navegador('2001:db8:49::1'), co = await comPacote(o);
   assert.equal((await o.chamar('POST', 'detalhes', { conversa_id: co, ...DETALHES() })).status, 200, 'outro /48: livre');
 });
@@ -240,7 +240,7 @@ test('a mensagem (conversa com a IA) lê a tabela do banco a cada vez, sem o cac
 /* a Recusa é UMA classe só (api/_vendas/recusa.mjs): se o fluxo tivesse a sua cópia, toda Recusa do pedido
    não seria reconhecida por traduzirErro e viraria 500 */
 test('Recusa compartilhada: traduzirErro reconhece a do pedido e o fluxo não tem classe própria', () => {
-  const r = new Recusa(409, 'x', { whatsapp: true });
+  const r = new Recusa(409, 'x', { recado: true });
   assert.equal(traduzirErro(r), r);
   assert.equal(RecusaDoFluxo, Recusa);
   const fonte = fs.readFileSync(new URL('../../api/_vendas/fluxo.mjs', import.meta.url), 'utf8');

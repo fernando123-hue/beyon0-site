@@ -18,7 +18,7 @@
   function semScripts() {
     var aviso = $('o-aviso');
     if (!aviso) return;
-    $('o-aviso-texto').textContent = 'Parte desta página não carregou. Recarregue para tentar de novo ou continue pelo WhatsApp.';
+    $('o-aviso-texto').textContent = 'Parte desta página não carregou. Recarregue para tentar de novo.';
     $('o-tentar').textContent = 'Recarregar';
     $('o-tentar').addEventListener('click', function () { location.reload(); });
     $('o-form').hidden = true;
@@ -82,7 +82,7 @@
     mostrar('o-est-cheio', false);
     $('o-est-vazio').textContent = SEM_VALOR;
     mostrar('o-est-vazio', true);
-    if (!jaAvisou) anunciar(SEM_VALOR + ' Fale com a Beyon Zero pelo WhatsApp.');
+    if (!jaAvisou) anunciar(SEM_VALOR + ' Deixe um recado para a equipe.');
   }
   /* "Mudar as respostas": a etapa volta para as perguntas (e o cartão vazio, para o texto de antes do preço) */
   document.addEventListener('bz:perguntas', function () {
@@ -148,7 +148,7 @@
        equipe achar o caso no log (F7) */
     if (e && e.status === 500) {
       var cod = e.dados && typeof e.dados.pedido === 'string' ? e.dados.pedido.slice(0, 8) : '';
-      return 'Não consegui concluir agora.' + (cod ? ' Código do erro: ' + cod + '.' : '') + ' Tente de novo em instantes ou fale com a Beyon Zero pelo WhatsApp.';
+      return 'Não consegui concluir agora.' + (cod ? ' Código do erro: ' + cod + '.' : '') + ' Tente de novo em instantes ou deixe um recado para a equipe.';
     }
     return (e && e.message) || RECUPERACAO;
   }
@@ -161,7 +161,7 @@
     vigia.parar();
     if (telaPagamento) telaPagamento.parar();
     var cod = API.codigoPerdido() || codigoMostrado;
-    avisar('Sua sessão terminou. Recomece o orçamento por aqui' + (cod ? ' ou continue pelo WhatsApp citando o código do pedido ' + cod + '.' : ' ou continue pelo WhatsApp.'), recomecar, 'Recomeçar', quieto);
+    avisar('Sua sessão terminou. Recomece o orçamento por aqui' + (cod ? ' ou deixe um recado citando o código do pedido ' + cod + '.' : ' ou deixe um recado para a equipe.'), recomecar, 'Recomeçar', quieto);
   }
   /* Recomeçar: esquece a sessão (nenhuma outra aba a grava de volta) e limpa os dados digitados antes de
      recarregar, para o navegador não os restaurar num aparelho compartilhado */
@@ -176,6 +176,16 @@
   $('o-pedido-recomecar').addEventListener('click', recomecar);   /* (pedido vencido ou encerrado: um orçamento novo) */
   /* outra aba esqueceu a sessão (js/orcamento-api.js): avisa já, quieto, em vez de esperar a próxima ação */
   document.addEventListener('bz-orcamento:perdida', function () { avisarSessao(true); });
+  /* A SAÍDA É O RECADO (decisão do dono, 28/10: o site não tem WhatsApp nem acesso direto). Os links [data-wa] que o HTML ainda traz abrem o
+     recado em vez de abrir o WhatsApp, até as páginas serem trocadas (passo 2). Fica de fora o "Confirmar pelo WhatsApp" do pedido
+     (#o-confirmar-wa), que é a confirmação do dono (passo 3), e quem pedir com data-wa-manter. Não deixa o clique chegar à métrica de
+     WhatsApp (js/metricas.js): um recado não é um contato por WhatsApp. */
+  document.addEventListener('click', function (ev) {
+    var a = ev.target && ev.target.closest ? ev.target.closest('a[data-wa]') : null;
+    if (!a || a.id === 'o-confirmar-wa' || a.hasAttribute('data-wa-manter')) return;
+    ev.preventDefault(); ev.stopPropagation();
+    API.abrirRecado({ quem: a }).catch(function (e) { avisar((e && e.message) || 'Não consegui abrir o recado agora. Recarregue a página.', null, null); });
+  }, true);
   function falhou(e, acao) {
     if (sessaoTerminou(e)) return avisarSessao();
     avisar(mensagemDe(e), acao);

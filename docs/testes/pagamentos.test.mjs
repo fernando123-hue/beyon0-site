@@ -508,6 +508,6 @@ test('entrada sem percentual (PR 3b-1): o 23514 do banco vira 409 com o WhatsApp
   };
   const s = criarServicoPagamentos({ banco, cfg: configPagamentos({}), provedor: { nome: 'mercadopago', criarOrdem: async () => { ordens++; return {}; } } });
   await assert.rejects(s.iniciar({ conversa_id: 'c', visitante_id: 'v', metodo: 'pix', pagador: PAGADOR }),
-    e => e.status === 409 && /valor da entrada/.test(e.message) && e.extra && e.extra.whatsapp === true);
+    e => e.status === 409 && /valor da entrada/.test(e.message) && e.extra && e.extra.recado === true);
   assert.equal(ordens, 0, 'nenhuma ordem criada no provedor');
 });

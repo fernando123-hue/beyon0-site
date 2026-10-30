@@ -13,17 +13,17 @@ import { chaveDoIp, chaveDoIp48 } from './ip.mjs';
 import { ipDe } from '../_freio.mjs';
 import { ehUuid } from '../_valida-app.mjs';
 
-const FORA_DA_ETAPA = 'Os detalhes vêm depois do preço e só uma vez. Se precisar mudar algo, fale com a Beyon Zero pelo WhatsApp.';
+const FORA_DA_ETAPA = 'Os detalhes vêm depois do preço e só uma vez. Se precisar mudar algo, deixe um recado para a equipe.';
 /* (a mesma frase para "pedido aberto" e "limite do dia": não diz a ninguém qual dos dois um número tem) */
-const TELEFONE = 'Este WhatsApp já tem um pedido aberto ou chegou ao limite de pedidos de hoje. Confirme o pedido que já existe ou fale com a Beyon Zero pelo WhatsApp.';
+const TELEFONE = 'Este WhatsApp já tem um pedido aberto ou chegou ao limite de pedidos de hoje. Confirme o pedido que já existe ou deixe um recado para a equipe.';
 const MOTIVOS = {
   ja_enviado: { status: 409, texto: FORA_DA_ETAPA },
-  fila_cheia: { status: 503, texto: 'Muita procura agora: a fila de modelos está cheia. Fale com a Beyon Zero pelo WhatsApp e a gente segue por lá.', extra: { fila_cheia: true, whatsapp: true } },
-  telefone_aberto: { status: 409, texto: TELEFONE, extra: { whatsapp: true } },
-  telefone_dia: { status: 409, texto: TELEFONE, extra: { whatsapp: true } },
-  freio_ip: { status: 429, texto: 'Muitos pedidos deste endereço hoje. Fale com a Beyon Zero pelo WhatsApp: a gente continua por lá.', extra: { whatsapp: true } },
+  fila_cheia: { status: 503, texto: 'Muita procura agora: a fila de modelos está cheia. Deixe um recado com o seu e-mail e a gente responde.', extra: { fila_cheia: true, recado: true } },
+  telefone_aberto: { status: 409, texto: TELEFONE, extra: { recado: true } },
+  telefone_dia: { status: 409, texto: TELEFONE, extra: { recado: true } },
+  freio_ip: { status: 429, texto: 'Muitos pedidos deste endereço hoje. Deixe um recado para a equipe: a gente responde por e-mail.', extra: { recado: true } },
   /* (revisão final, M2) a mesma conversa tentou demais: não diz nada do número */
-  tentativas: { status: 429, texto: 'Muitas tentativas neste pedido. Fale com a Beyon Zero pelo WhatsApp: a gente continua por lá.', extra: { whatsapp: true } }
+  tentativas: { status: 429, texto: 'Muitas tentativas neste pedido. Deixe um recado para a equipe: a gente responde por e-mail.', extra: { recado: true } }
 };
 
 /* a recusa de um motivo do banco; motivo que este servidor não conhece (migration à frente do código) vira o 409 de
@@ -37,10 +37,10 @@ export function recusaDoMotivo(r, requestId) {
 
 export function criarAcoesDoPedido({ banco, visitante, segredoFreio, env, limites = PEDIDOS, requestId }) {
   const local = !!env && ambienteDe(env) === 'local';   /* sem o ambiente: fecha */
-  /* um freio do pedido faltando: nada é gravado, a pessoa recebe o WhatsApp e o log diz qual */
+  /* um freio do pedido faltando: nada é gravado, a pessoa recebe a saída pelo recado e o log diz qual */
   function indisponivel(evento) {
     console.error(JSON.stringify({ origem: 'vendas', nivel: 'erro', request_id: requestId || null, evento }));
-    throw new Recusa(503, 'O pedido de modelos está indisponível agora. Fale com a Beyon Zero pelo WhatsApp.', { whatsapp: true });
+    throw new Recusa(503, 'O pedido de modelos está indisponível agora. Deixe um recado para a equipe.', { recado: true });
   }
   return {
     async detalhes({ request, corpo }) {

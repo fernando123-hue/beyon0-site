@@ -72,7 +72,7 @@ test('retomar: o painel pede o link; outro aparelho troca o código por uma sess
   assert.equal((await n.chamar('GET', 'estado', undefined, '&conversa=' + c)).status, 404, 'o antigo perde o acesso');
   const deNovo = await navegador().chamar('POST', 'retomar', { codigo: link.corpo.codigo });
   assert.equal(deNovo.status, 410);
-  assert.equal(deNovo.corpo.whatsapp, true);
+  assert.equal(deNovo.corpo.recado, true);
 });
 
 test('retomar: código fora do formato é 400 sem tocar no banco; desconhecido é 410; o freio de sessão vale', async () => {

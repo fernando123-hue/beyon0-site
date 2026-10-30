@@ -132,6 +132,6 @@ test('teto do dia: o gasto REAL de hoje (chamadas registradas) no teto trava o d
   const novo = navegador(), c = await novo.iniciar();
   const r = await novo.chamar('POST', 'mensagem', { conversa_id: c, texto: TEXTO });
   assert.equal(r.status, 503, JSON.stringify(r.corpo));
-  assert.equal(r.corpo.whatsapp, true);
+  assert.equal(r.corpo.recado, true);
   assert.deepEqual(await reservar(c), { ok: false, motivo: 'dia' });
 });

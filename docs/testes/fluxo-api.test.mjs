@@ -223,7 +223,7 @@ test('anti-robô (Turnstile): a sessão só nasce com token conferido na Cloudfl
   assert.equal(ultimo.corpo.remoteip, undefined, 'o IP do visitante não vai para a Cloudflare');
   const fora = await chamar('sessao', 'POST', { turnstile: 'token-bom' }, { buscarTurnstile: async () => { throw new Error('rede'); } });
   assert.equal(fora.status, 503, 'Cloudflare fora do ar: indisponível, com WhatsApp');
-  assert.equal(fora.corpo.whatsapp, true);
+  assert.equal(fora.corpo.recado, true);
   const antes = enviados.length;
   const gigante = await chamar('sessao', 'POST', { turnstile: 'x'.repeat(2049) }, { buscarTurnstile: siteverify(true) });
   assert.equal(gigante.status, 403, 'token maior que 2.048: recusado');
@@ -232,7 +232,7 @@ test('anti-robô (Turnstile): a sessão só nasce com token conferido na Cloudfl
   for (const codigo of ['invalid-input-secret', 'missing-input-secret', 'internal-error', 'bad-request']) {
     const r = await chamar('sessao', 'POST', { turnstile: 'token-bom' }, { buscarTurnstile: async () => ({ json: async () => ({ success: false, 'error-codes': [codigo] }) }) });
     assert.equal(r.status, 503, codigo + ': ' + JSON.stringify(r.corpo));
-    assert.equal(r.corpo.whatsapp, true);
+    assert.equal(r.corpo.recado, true);
   }
   const naoJson = await chamar('sessao', 'POST', { turnstile: 'token-bom' }, { buscarTurnstile: async () => ({ json: async () => { throw new SyntaxError('html'); } }) });
   assert.equal(naoJson.status, 503, 'resposta que não é JSON: indisponível');
@@ -318,7 +318,7 @@ test('gerar só com o pedido CONFIRMADO: conversa antiga em contato (sem pedido)
 /* (revisão final do PR 2a, M1) "Descartar encerra o pedido e para o que faltava fazer" (regra do dono): com o pedido
    descartado, o SERVIDOR recusa cada ação seguinte do visitante com a frase do encerramento e o WhatsApp, sem gravar
    nada. Arquivado (resolvido por fora) não bloqueia, mas também não gera de novo; e o "gerar" diz o porquê de cada caso */
-const ENCERRADO = /^Este pedido foi encerrado\. Fale com a Beyon Zero pelo WhatsApp\.$/;
+const ENCERRADO = /^Este pedido foi encerrado. Deixe um recado para a equipe.$/;
 const mudarPedido = (conversa_id, acao) => local.rpc('vendas_mudar_pedido', { org_slug: 'beyon-zero', conversa_id, acao });
 async function rastroDa(c) {
   const n = async sql => Number((await local.db.query(sql, [c])).rows[0].n);
@@ -352,7 +352,7 @@ test('pedido descartado com as três prontas: gerar, gerar-direcao, escolher, aj
     const r = await n.chamar('POST', acao, corpo);
     assert.equal(r.status, 409, acao + ': ' + JSON.stringify(r.corpo));
     assert.match(r.corpo.erro, ENCERRADO, acao);
-    assert.equal(r.corpo.whatsapp, true, acao + ': o WhatsApp à mão');
+    assert.equal(r.corpo.recado, true, acao + ': o WhatsApp à mão');
   }
   assert.deepEqual(await rastroDa(c), antes, 'nada gravado (etapa, direções, escolha, ajuste, chamada de IA, proposta, cobrança)');
 });
@@ -395,8 +395,8 @@ test('gerar responde uma frase por situação do pedido: aguardando a confirmaç
   await mudarPedido(q.c, 'arquivar');
   const arquivado = await q.n.chamar('POST', 'gerar', { conversa_id: q.c });
   assert.equal(arquivado.status, 409);
-  assert.match(arquivado.corpo.erro, /segue com a Beyon Zero pelo WhatsApp/);
-  assert.equal(arquivado.corpo.whatsapp, true);
+  assert.match(arquivado.corpo.erro, /segue com a equipe da Beyon Zero/);
+  assert.equal(arquivado.corpo.recado, true);
 });
 
 test('pedido arquivado (resolvido por fora) com as prontas: a escolha continua valendo', async () => {
@@ -433,7 +433,7 @@ test('teto de custo RESERVADO antes de chamar: as 3 direções em paralelo, com 
   const r = await Promise.all(g.corpo.direcoes.map(d => n.chamar('POST', 'gerar-direcao', { conversa_id: c, direcao_id: d.id })));
   assert.equal(chamadas, 2, 'com US$ 1,20 gastos, só 2 chamam o modelo — status: ' + JSON.stringify(r.map(x => x.status)));
   assert.equal(r.filter(x => x.status === 429).length, 1, 'a 3ª: limite, com WhatsApp');
-  assert.ok(r.filter(x => x.status === 429).every(x => x.corpo.whatsapp === true));
+  assert.ok(r.filter(x => x.status === 429).every(x => x.corpo.recado === true));
   /* a reserva some depois da chamada: nada fica preso */
   const presas = (await local.db.query('select count(*)::int n from privado.reservas_ia where conversa_id = $1', [c])).rows[0].n;
   assert.equal(presas, 0, 'reserva liberada depois da chamada');
@@ -454,7 +454,7 @@ test('reserva de custo: erro do banco fecha (sem chamar o modelo); só a funçã
     const sf = await fechado.iniciar();
     const rf = await fechado.chamar('POST', 'mensagem', { conversa_id: sf.conversa_id, texto: 'Tenho uma clínica e quero um site institucional' });
     assert.equal(rf.status, 503, codigo + ': ' + JSON.stringify(rf.corpo));
-    assert.equal(rf.corpo.whatsapp, true, codigo + ': oferece o WhatsApp');
+    assert.equal(rf.corpo.recado, true, codigo + ': oferece o WhatsApp');
     assert.equal(chamadas, 0, codigo + ': o modelo não é chamado');
   }
   const semFuncao = navegador(comErro('42883'));
@@ -554,7 +554,7 @@ test('tetos: custo da conversa e taxa por IP (o teto do dia: teto-dia.test.mjs)'
   await local.db.query('update app.conversas set custo_ia_usd = 99 where id = $1', [s.conversa_id]);
   const r = await n.chamar('POST', 'mensagem', { conversa_id: s.conversa_id, texto: 'oi' });
   assert.equal(r.status, 429);
-  assert.equal(r.corpo.whatsapp, true, 'oferece o WhatsApp');
+  assert.equal(r.corpo.recado, true, 'oferece o WhatsApp');
   await local.db.query('update app.conversas set custo_ia_usd = 0 where id = $1', [s.conversa_id]);
   /* (o teto do DIA lê o registro das chamadas de hoje, não o custo da conversa: o caso dele está em teto-dia.test.mjs,
      com banco próprio, porque o registro só aceita inserção e travaria os testes seguintes deste arquivo) */
@@ -710,8 +710,8 @@ test('retenção pelo caminho real: o lead que o agente cria ("em_conversa") é 
   assert.equal(e.conversa.tem_contato, false, 'lead anonimizado = sem contato (a tela não oferece o formulário de novo: PR2a-recontato)');
   const pagar = await n.chamar('POST', 'pagar', { conversa_id: c, valor: 1, metodo: 'pix', pagador: PAGADOR });
   assert.equal(pagar.status, 409, 'pagar sem contato: recusado — ' + JSON.stringify(pagar.corpo));
-  assert.match(pagar.corpo.erro, /WhatsApp/, 'recusado pela trava de contato, com o WhatsApp (o contato de novo é com a Beyon Zero)');
-  assert.equal(pagar.corpo.whatsapp, true);
+  assert.match(pagar.corpo.erro, /recado/, 'recusado pela trava de contato, com o recado (o contato de novo é com a Beyon Zero)');
+  assert.equal(pagar.corpo.recado, true);
   /* (PR 2a) o contato de novo entra pela mesma função do banco (o dono, a partir do WhatsApp; ver PR2a-recontato) */
   const vid = (await q('select visitante_id from app.conversas where id = $1', [c])).rows[0].visitante_id;
   await local.rpc('vendas_informar_contato', { conversa_id: c, visitante_id: vid, nome: 'Ana Volta', telefone: '+5521988881111', aceite: true });

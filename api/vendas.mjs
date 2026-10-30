@@ -6,7 +6,8 @@
           ajustar, desfazer, pedido-livre, escopo, confirmar, pagar, simular, confirmar-pacote, detalhes,
           material-salvar, material-reservar, material-conferir, material-remover, material-enviar (PR 3b-2: o material da entrega;
           só com BZ_ENTREGA=ligada), link-pedido, sair-do-aparelho, outro-aparelho, abrir-pedido (PR 3b-2: o link do pedido),
-          previa-ajustes, previa-aprovar (PR 3b-3: a lista de ajustes e a aprovação da prévia; só com BZ_ENTREGA=ligada)
+          previa-ajustes, previa-aprovar (PR 3b-3: a lista de ajustes e a aprovação da prévia; só com BZ_ENTREGA=ligada),
+          recado (o único lugar de feedback do site: sem sessão, com anti-robô e freios; api/_vendas/fluxo-recado.mjs)
    (PR 2a: o contato vem pelos detalhes; a ação "contato" saiu, porque passava por cima dos freios do pedido)
    (PR 3a: o ajuste pela IA, "alterar", saiu; os ajustes são opções prontas e o pedido livre vai para a fila do dono)
    Fronteira: freio por IP, JSON obrigatório (um formulário de outro site não
@@ -35,7 +36,8 @@ export const ACOES = {
     'material-salvar': 'materialSalvar', 'material-reservar': 'materialReservar', 'material-conferir': 'materialConferir',
     'material-remover': 'materialRemover', 'material-enviar': 'materialEnviar',
     'link-pedido': 'linkPedido', 'sair-do-aparelho': 'sairDoAparelho', 'outro-aparelho': 'outroAparelho', 'abrir-pedido': 'abrirPedido',
-    'previa-ajustes': 'previaAjustes', 'previa-aprovar': 'previaAprovar' }
+    'previa-ajustes': 'previaAjustes', 'previa-aprovar': 'previaAprovar',
+    recado: 'recado' }
 };
 const PRECISA_IA = new Set(['mensagem', 'gerarDirecao']);
 export const LIMITE_BYTES = 16384;
@@ -89,14 +91,18 @@ export async function atender(request, env, metodo, deps) {
     else if (cfg.motivo) log('erro', { request_id: requestId, evento: 'pagamentos desligados', motivo: cfg.motivo });
   }
   if (!d.banco || !d.visitantes) { log('erro', { request_id: requestId, evento: 'banco ou autenticação não configurados' }); return responder({ erro: 'Serviço indisponível.' }, 503); }
-  if (PRECISA_IA.has(acao) && !d.ia) { log('erro', { request_id: requestId, evento: 'IA não configurada (ANTHROPIC_API_KEY)' }); return responder({ erro: 'O consultor está indisponível agora. Fale com a Beyon Zero pelo WhatsApp.', whatsapp: true }, 503); }
+  if (PRECISA_IA.has(acao) && !d.ia) { log('erro', { request_id: requestId, evento: 'IA não configurada (ANTHROPIC_API_KEY)' }); return responder({ erro: 'O consultor está indisponível agora. Deixe um recado para a equipe.', recado: true }, 503); }
 
   /* o visitante anônimo (sessão nova ou retomada) só nasce depois do anti-robô */
-  if (criaSessao) {
+  if (criaSessao || acao === 'recado') {   /* (o recado, texto livre e sem sessão, passa pelo mesmo anti-robô) */
     const humano = await verificarHumano(cfgTurnstile, corpo && corpo.turnstile, (deps && deps.buscarTurnstile) || fetch);
     if (!humano.ok) {
       log('erro', { request_id: requestId, evento: 'anti-robô', motivo: humano.motivo, codigos: humano.codigos || null, config: cfgTurnstile.motivo || null });
-      if (humano.motivo === 'nao_configurado' || humano.motivo === 'indisponivel') return responder({ erro: 'O orçamento está indisponível agora. Fale com a Beyon Zero pelo WhatsApp.', whatsapp: true }, 503);
+      if (humano.motivo === 'nao_configurado' || humano.motivo === 'indisponivel') {
+        /* (o recado não aponta para si mesmo: sem a verificação, ele só pede para tentar de novo) */
+        return responder(acao === 'recado' ? { erro: 'Não consegui receber o recado agora. Tente de novo em instantes.' }
+          : { erro: 'O orçamento está indisponível agora. Deixe um recado para a equipe.', recado: true }, 503);
+      }
       return responder({ erro: 'Não foi possível confirmar que você não é um robô. Recarregue a página e tente de novo.' }, 403);
     }
   }

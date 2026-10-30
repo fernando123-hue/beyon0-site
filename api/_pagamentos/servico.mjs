@@ -23,7 +23,7 @@ export class ErroPagamento extends Error {
 }
 
 const AGUARDE = 'Estamos confirmando com o Mercado Pago. Não pague de novo: esta tela atualiza sozinha.';
-const INDISPONIVEL = 'O pagamento online está indisponível agora. Tente em alguns minutos ou fale com a Beyon Zero pelo WhatsApp.';
+const INDISPONIVEL = 'O pagamento online está indisponível agora. Tente em alguns minutos ou deixe um recado para a equipe.';
 const CRIACAO_INCERTA_S = 90;          /* criação sem resposta: depois disso, procura a order pela referência */
 const CRIACAO_ABANDONADA_S = 5 * 60;   /* e, sem achar em 5 min, dá a tentativa por cancelada */
 const CONSULTA_MIN_S = 10;             /* a página pede atualização; o provedor é consultado no máximo a cada 10 s */
@@ -70,12 +70,12 @@ export function validarCartao(c) {
 const PIX_MINUTOS = 60;   /* (igual a cfg.pixExpiracao = PT1H) */
 function traduzirLimite(e) {
   const m = String(e && e.message || '');
-  if (e && e.codigo === '23514' && /cartão pausado/.test(m)) throw new ErroPagamento(503, 'O pagamento com cartão está pausado por segurança. Use o Pix ou fale com a Beyon Zero pelo WhatsApp.', { whatsapp: true });
-  if (e && e.codigo === '23514' && /tentativas esgotadas/.test(m)) throw new ErroPagamento(429, 'Foram muitas tentativas de pagamento. Fale com a Beyon Zero pelo WhatsApp para concluir.', { whatsapp: true });
+  if (e && e.codigo === '23514' && /cartão pausado/.test(m)) throw new ErroPagamento(503, 'O pagamento com cartão está pausado por segurança. Use o Pix ou deixe um recado para a equipe.', { recado: true });
+  if (e && e.codigo === '23514' && /tentativas esgotadas/.test(m)) throw new ErroPagamento(429, 'Foram muitas tentativas de pagamento. Deixe um recado para a equipe para concluir.', { recado: true });
   if (e && e.codigo === '55P03') throw new ErroPagamento(429, 'Espere alguns segundos antes de tentar de novo.');
-  if (e && e.codigo === '55000' && /verificação/.test(m)) throw new ErroPagamento(409, 'Seu pagamento está em verificação. A Beyon Zero fala com você em breve.', { whatsapp: true });
+  if (e && e.codigo === '55000' && /verificação/.test(m)) throw new ErroPagamento(409, 'Seu pagamento está em verificação. A Beyon Zero fala com você em breve.', { recado: true });
   /* (PR 3b-1) proposta sem o percentual da entrada: o banco não cobra (falha fechada); a pessoa fala com a Beyon Zero */
-  if (e && e.codigo === '23514' && /sem percentual de entrada/.test(m)) throw new ErroPagamento(409, 'Este pedido está sem o valor da entrada. Fale com a Beyon Zero pelo WhatsApp.', { whatsapp: true });
+  if (e && e.codigo === '23514' && /sem percentual de entrada/.test(m)) throw new ErroPagamento(409, 'Este pedido está sem o valor da entrada. Deixe um recado para a equipe.', { recado: true });
   throw e;
 }
 
@@ -201,7 +201,7 @@ export function criarServicoPagamentos({ banco, cfg, provedor, agora = () => Dat
           await banco('pagamentos_encerrar_tentativa', { tentativa_id: t.tentativa_id, status: e.tipo === 'invalido' ? 'recusada' : 'cancelada', motivo: (e.codigo || e.tipo).slice(0, 60), origem: 'criacao' });
           if (e.tipo === 'invalido') throw new ErroPagamento(422, 'O Mercado Pago não aceitou estes dados. Confira e tente de novo.');
           if (e.tipo === 'credencial') console.error('[pagamentos] credencial recusada pelo provedor');
-          throw new ErroPagamento(503, INDISPONIVEL, { whatsapp: true });
+          throw new ErroPagamento(503, INDISPONIVEL, { recado: true });
         }
         /* tempo, rede, provedor fora, conflito: NÃO SE SABE se a order existe. A tentativa fica; a consulta e a reconciliação resolvem */
         throw new ErroPagamento(503, AGUARDE, { aguarde: true });
