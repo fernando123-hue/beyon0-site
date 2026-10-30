@@ -148,8 +148,7 @@ export const negaSerIA = t => { const n = norm(t); return NEGA_IA.some(r => r.te
 
 /* o interruptor: FECHADO por padrão para qualquer valor estranho; só vazio ou "ligado" (sem diferenciar maiúscula) liga */
 export function interruptorLigado(v) {
-  const s = String(v ?? '').trim().toLowerCase();
-  return s === '' || s === 'ligado';
+  return String(v ?? '').trim().toLowerCase() === 'ligado';
 }
 
 /* o texto do visitante, sem dado pessoal, ANTES da IA, do banco e do link: redigir() do projeto mais o que ele deixa passar (dois espaços,

@@ -16,7 +16,7 @@ const BASE = [
   { tipo: 'preco', item: 'Implante', preco_centavos: 250000 },
   { tipo: 'preco', item: 'Gel', preco_centavos: 5000 }
 ];
-const env = { BZ_LOCAL: '1' };
+const env = { BZ_LOCAL: '1', ATENDENTE: 'ligado' };
 const prompts = [];
 const iaCom = corpo => ({ nome: 'x', async mensagem(p) { prompts.push(p); return corpo(p); } });
 const resp = (resposta, extra = {}) => ({ texto: '', json: { resposta, passar_para_pessoa: false, ...extra }, chamadas: [], parada: 'fim', modelo: 'x', uso: {}, custo_usd: 0.0004 });
@@ -79,14 +79,16 @@ test('R1: a gravação que falha devolve a reserva (e responde 500 sem dado pess
   assert.equal(Number((await gasto()).reservado), 0);
 });
 
-test('R5: o interruptor fecha por padrão: valor estranho, outra caixa ou "off" fecham; vazio e "ligado" abrem', async () => {
-  for (const v of ['desligado', 'Desligado', 'off', 'OFF', '0', 'nao']) {
+test('R5: o interruptor fecha por padrão: valor estranho, "off", vazio e ausente fecham; só "ligado" abre', async () => {
+  for (const v of ['', 'desligado', 'Desligado', 'off', 'OFF', '0', 'nao']) {
     const r = await chamar({}, { e: { ...env, ATENDENTE: v }, acao: 'config' });
     assert.equal(r.status, 404, v);
   }
-  for (const v of [undefined, '', 'ligado', 'LIGADO']) {
-    const r = await chamar({}, { e: { ...env, ...(v === undefined ? {} : { ATENDENTE: v }) }, acao: 'config' });
-    assert.equal(r.status, 200, String(v));
+  const { ATENDENTE, ...semInterruptor } = env;
+  assert.equal((await chamar({}, { e: semInterruptor, acao: 'config' })).status, 404, 'sem a variável fica desligado');
+  for (const v of ['ligado', 'LIGADO']) {
+    const r = await chamar({}, { e: { ...env, ATENDENTE: v }, acao: 'config' });
+    assert.equal(r.status, 200, v);
   }
 });
 

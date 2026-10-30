@@ -30,7 +30,7 @@ async function conversar(falas) {
   for (const texto of falas) {
     const r = await atender(new Request('https://beyonzero.com.br/api/atendente?c=' + C.publico + '&acao=mensagem', { method: 'POST',
       headers: { 'content-type': 'application/json', origin: SITE, 'x-forwarded-for': ip }, body: JSON.stringify({ texto, ...(conversa_id ? { conversa_id } : {}) }) }),
-      { BZ_LOCAL: '1' }, { banco: rpc, ia, segredoFreio: 'seg', max: { ip_hora: 1000 } });
+      { BZ_LOCAL: '1', ATENDENTE: 'ligado' }, { banco: rpc, ia, segredoFreio: 'seg', max: { ip_hora: 1000 } });
     assert.equal(r.status, 200, texto);
     const j = await r.json(); conversa_id = j.conversa_id; saidas.push(j);
   }

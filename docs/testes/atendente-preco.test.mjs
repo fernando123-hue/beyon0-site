@@ -68,8 +68,8 @@ test('R3: negação de IA, frases novas', () => {
 });
 
 test('R5: o interruptor fecha por padrão: só vazio ou "ligado" (sem diferenciar maiúscula) liga', () => {
-  for (const v of [undefined, '', '  ', 'ligado', 'LIGADO', 'Ligado']) assert.equal(interruptorLigado(v), true, String(v));
-  for (const v of ['desligado', 'Desligado', 'off', 'OFF', 'nao', '0', 'false', 'sim', 'x']) assert.equal(interruptorLigado(v), false, v);
+  for (const v of ['ligado', 'LIGADO', 'Ligado', ' ligado ']) assert.equal(interruptorLigado(v), true, String(v));
+  for (const v of [undefined, '', '  ', 'desligado', 'Desligado', 'off', 'OFF', 'nao', '0', 'false', 'sim', 'x']) assert.equal(interruptorLigado(v), false, String(v));
 });
 
 test('R6: redigirVisitante pega dois espaços, e-mail disfarçado, CEP, RG e telefone sem DDD', () => {

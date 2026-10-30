@@ -5,7 +5,7 @@
      POST contato      { nome, telefone, conversa_id? }  (a conversa é opcional: com o teto batido ela não existe)
      OPTIONS           preflight do navegador
    Fronteira (nível 3 de segurança):
-   • Interruptor: FECHADO por padrão para qualquer valor estranho; só ATENDENTE vazio ou "ligado" (sem diferenciar maiúscula) liga. Fechado = 404,
+   • Interruptor: FECHADO por padrão para qualquer valor estranho; só ATENDENTE="ligado" (sem diferenciar maiúscula) liga; sem a variável, fica desligado até o 1º cliente real. Fechado = 404,
      o balão some sem erro, sem tocar no banco.
    • O cliente vem do id público; id desconhecido = 404 sem CORS. A ORIGEM (cabeçalho Origin) tem de ser igual a um domínio cadastrado
      desse cliente: o CORS devolve exatamente aquela origem, nunca "*". Sem Origin, 403. O Origin só vale no navegador: fora dele qualquer

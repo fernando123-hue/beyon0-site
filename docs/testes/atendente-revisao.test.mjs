@@ -15,7 +15,7 @@ const BASE_A = [
   { tipo: 'preco', item: 'Clareamento', preco_centavos: 120000 },
   { tipo: 'preco', item: 'Implante', preco_centavos: 250000 }
 ];
-const env = { BZ_LOCAL: '1' };
+const env = { BZ_LOCAL: '1', ATENDENTE: 'ligado' };
 const prompts = [];
 const iaCapturada = corpo => ({ nome: 'capturada', async mensagem(p) { prompts.push(p); return corpo(p); } });
 const resp = (resposta, extra = {}) => ({ texto: '', json: { resposta, passar_para_pessoa: false, ...extra }, chamadas: [], parada: 'fim', modelo: 'x', uso: {}, custo_usd: 0.0004 });
