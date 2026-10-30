@@ -5,7 +5,8 @@
      POST contato      { nome, telefone, conversa_id? }  (a conversa é opcional: com o teto batido ela não existe)
      OPTIONS           preflight do navegador
    Fronteira (nível 3 de segurança):
-   • Interruptor: ATENDENTE=desligado fecha TUDO (404, o balão some sem erro, sem tocar no banco).
+   • Interruptor: FECHADO por padrão para qualquer valor estranho; só ATENDENTE vazio ou "ligado" (sem diferenciar maiúscula) liga. Fechado = 404,
+     o balão some sem erro, sem tocar no banco.
    • O cliente vem do id público; id desconhecido = 404 sem CORS. A ORIGEM (cabeçalho Origin) tem de ser igual a um domínio cadastrado
      desse cliente: o CORS devolve exatamente aquela origem, nunca "*". Sem Origin, 403. O Origin só vale no navegador: fora dele qualquer
      um forja, então os tetos (IP por hora, mensagens por conversa, gasto do cliente por dia e gasto global) valem para TODOS, com ou sem
@@ -22,11 +23,10 @@ import { reservaUsd } from './_ia/config.mjs';
 import { ambienteDe } from './_ambiente.mjs';
 import { criarFreio, ipDe } from './_freio.mjs';
 import { chaveDoIp, chaveDoIp48 } from './_vendas/ip.mjs';
-import { redigir } from './_vendas/seguranca.mjs';
 import { avisarDono } from './_ntfy.mjs';
 import { configTurnstile, verificarHumano } from './_vendas/turnstile.mjs';
 import { ehUuid } from './_valida-app.mjs';
-import { origemPermitida, textoDoVisitante, linkWhatsapp } from './_atendente/regras.mjs';
+import { origemPermitida, textoDoVisitante, linkWhatsapp, interruptorLigado, redigirVisitante } from './_atendente/regras.mjs';
 import { responder, frases } from './_atendente/agente.mjs';
 
 export const LIMITE_BYTES = 4096;
@@ -54,7 +54,7 @@ export async function atender(request, env, deps = {}) {
   const acao = query.get('acao') || '';
   const falha = (status, erro, cors = {}) => resposta({ erro }, status, cors, { 'x-request-id': requestId });
   if (!ID_PUBLICO.test(publico)) return falha(404, 'Não encontrado.');
-  if (env.ATENDENTE === 'desligado') return falha(404, 'Não encontrado.');   /* o interruptor: o balão não aparece e ninguém vê erro */
+  if (!interruptorLigado(env.ATENDENTE)) return falha(404, 'Não encontrado.');   /* o interruptor: o balão não aparece e ninguém vê erro */
   const ip = ipDe(request);
   if (freioLeitura(ip)) return falha(429, 'Muitas requisições. Espere um minuto.');
 
@@ -96,7 +96,7 @@ export async function atender(request, env, deps = {}) {
 
   try {
     return acao === 'mensagem' ? await mensagem({ env, deps, banco, cliente, corpo, chaveIp, cors, requestId, falha })
-      : await contato({ banco, cliente, corpo, chaveIp, cors, falha });
+      : await contato({ env, deps, banco, cliente, corpo, chaveIp, cors, falha });
   } catch (e) {
     const codigo = e && (e.codigo || e.code) || null;   /* (ErroBanco.codigo em produção; .code do Postgres no PGlite dos testes) */
     if (codigo === 'P0002' || codigo === '22P02') return falha(404, 'Não encontrado.', cors);
@@ -108,7 +108,7 @@ export async function atender(request, env, deps = {}) {
 
 async function mensagem({ env, deps, banco, cliente, corpo, chaveIp, cors, requestId, falha }) {
   const limpo = textoDoVisitante(corpo.texto);
-  const texto = limpo ? redigir(limpo).trim() : '';   /* telefone, e-mail e CPF viram marcador ANTES da IA, do banco e do link */
+  const texto = limpo ? redigirVisitante(limpo) : '';   /* telefone, e-mail, CPF, RG e CEP viram marcador ANTES da IA e do banco */
   if (!texto) return falha(422, 'Escreva uma mensagem de até 1.000 caracteres.', cors);
   const ia = Object.hasOwn(deps, 'ia') ? deps.ia : await criarIA(env);
   if (!ia) { log('erro', { request_id: requestId, evento: 'IA não configurada' }); return falha(503, 'O atendente está indisponível agora.', cors); }
@@ -126,9 +126,8 @@ async function mensagem({ env, deps, banco, cliente, corpo, chaveIp, cors, reque
     max_msgs: max.msgs, max_ip_hora: max.ip_hora, reserva_usd: reservaUsd('atendente'), teto_global_usd: tetoGlobal });
   const f = frases(cliente.nome);
   const historico = Array.isArray(turno.historico) ? turno.historico : [];
-  const visitanteTextos = [...historico.filter(h => h.papel === 'visitante').map(h => h.texto), texto];
   const comLink = (textoResposta, extra = {}) => {
-    const url = linkWhatsapp(cliente, visitanteTextos);
+    const url = linkWhatsapp(cliente);   /* resumo FIXO: as falas do visitante não vão no link */
     return { resposta: textoResposta, passar_para_pessoa: true, ...(url ? { whatsapp_url: url } : {}), ...extra };
   };
   if (!turno.ok) {
@@ -139,21 +138,35 @@ async function mensagem({ env, deps, banco, cliente, corpo, chaveIp, cors, reque
     return resposta(comLink(f[turno.motivo] || f.falhou, { conversa_id: turno.conversa_id }), 200, cors);   /* o teto bateu: honesto e com a saída para pessoa */
   }
 
-  const r = await responder({ cliente, historico, texto, ia });
+  let r;
+  try { r = await responder({ cliente, historico, texto, ia }); }
+  catch (e) { await devolverReserva(banco, cliente, turno, 0, requestId); throw e; }
   if (r.via === 'falha') log('erro', { request_id: requestId, evento: 'IA falhou no atendente', motivo: r.motivo || null });
-  await banco('atendente_turno_gravar', { publico: cliente.publico, conversa_id: turno.conversa_id, texto_visitante: texto, texto_atendente: r.resposta,
-    custo_usd: r.custo_usd, reservado_usd: turno.reservado_usd });
+  try {
+    await banco('atendente_turno_gravar', { publico: cliente.publico, conversa_id: turno.conversa_id, texto_visitante: texto, texto_atendente: r.resposta,
+      custo_usd: r.custo_usd, reservado_usd: turno.reservado_usd });
+  } catch (e) { await devolverReserva(banco, cliente, turno, r.custo_usd, requestId); throw e; }
   log('info', { request_id: requestId, evento: 'turno', via: r.via, passar: r.passar });   /* (só o caminho da resposta, nunca o texto) */
-  const url = r.passar ? linkWhatsapp(cliente, visitanteTextos) : null;
+  const url = r.passar ? linkWhatsapp(cliente) : null;
   const semLink = r.passar && !url && r.via === 'fixa';   /* "continue no WhatsApp" sem WhatsApp cadastrado seria promessa vazia */
   return resposta({ conversa_id: turno.conversa_id, resposta: semLink ? f.pessoaSemLink : r.resposta, passar_para_pessoa: r.passar, ...(url ? { whatsapp_url: url } : {}) }, 200, cors);
 }
 
-async function contato({ banco, cliente, corpo, chaveIp, cors, falha }) {
+/* a IA ou a gravação falhou: devolve a reserva (e soma o custo que a IA já cobrou). Se nem isto der, a reserva vence sozinha em 60 s. */
+async function devolverReserva(banco, cliente, turno, custo, requestId) {
+  try { await banco('atendente_turno_desfazer', { publico: cliente.publico, reservado_usd: turno.reservado_usd, custo_usd: custo }); }
+  catch (e) { log('erro', { request_id: requestId, evento: 'reserva não devolvida (vence sozinha)', codigo: e && (e.codigo || e.code) || null }); }
+}
+
+async function contato({ env, deps, banco, cliente, corpo, chaveIp, cors, falha }) {
   const nome = typeof corpo.nome === 'string' ? corpo.nome.replace(/[\u0000-\u001f\u007f-\u009f]/g, '').trim() : '';
   const telefone = typeof corpo.telefone === 'string' ? corpo.telefone.replace(/\D/g, '') : '';
   if (!nome || [...nome].length > 80 || !/^\d{10,15}$/.test(telefone)) return falha(422, 'Confira o nome e o telefone com DDD.', cors);
-  const r = await banco('atendente_contato_criar', { publico: cliente.publico, conversa_id: corpo.conversa_id || null, nome, telefone, chave_ip: chaveIp });
-  if (!r || r.ok !== true) return falha(429, 'Você já deixou o contato por aqui. Tente de novo mais tarde.', cors);
+  const r = await banco('atendente_contato_criar', { publico: cliente.publico, conversa_id: corpo.conversa_id || null, nome, telefone, chave_ip: chaveIp, max_dia: (deps.max || {}).contatos_dia });
+  if (r && r.avisar) await (deps.avisar || avisarDono)(env, 'atendente_contatos');   /* uma vez por dia, texto fixo */
+  if (!r || r.ok !== true) {
+    const frase = { cheio: 'Hoje o recebimento de contatos por aqui já lotou. Fale com a equipe pelo WhatsApp ou tente amanhã.', limite: 'Já recebi os seus contatos nesta conversa.' }[r && r.motivo];
+    return falha(429, frase || 'Você já deixou o contato por aqui. Tente de novo mais tarde.', cors);
+  }
   return resposta({ ok: true }, 200, cors);
 }

@@ -135,17 +135,17 @@ test('teto de gasto é ATÔMICO: 60 simultâneos, teto de US$ 0,05, reserva de 0
   assert.equal(rs.filter(r => r.ok).length, 5);
   assert.ok(rs.filter(r => !r.ok).every(r => r.motivo === 'gasto'));
   assert.equal(rs.filter(r => r.avisar === 'cliente').length, 1, 'aviso uma vez só');
-  assert.equal(Number((await um('select usd from app.atendente_gasto where cliente_id = $1', [E.id])).usd), 0.05);
+  assert.equal(Number((await um('select usd + reservado as usd from app.atendente_gasto where cliente_id = $1', [E.id])).usd), 0.05);
 });
 
 test('o acerto devolve a reserva: custo real menor libera espaço, custo real maior é somado', async () => {
   const E = await salvar({ nome: 'Acerto', dominios: ['acerto.com.br'], teto_dia_usd: 0.03 });
   const t = await turno(E, { reserva_usd: 0.01 });
   await gravar(E, t.conversa_id, { custo_usd: 0.001, reservado_usd: 0.01 });
-  assert.equal(Number((await um('select usd from app.atendente_gasto where cliente_id = $1', [E.id])).usd), 0.001);
+  assert.equal(Number((await um('select usd + reservado as usd from app.atendente_gasto where cliente_id = $1', [E.id])).usd), 0.001);
   const t2 = await turno(E, { reserva_usd: 0.01 });
   await gravar(E, t2.conversa_id, { custo_usd: 0.05, reservado_usd: 0.01 });   /* a resposta saiu mais cara que a reserva */
-  assert.equal(Number((await um('select usd from app.atendente_gasto where cliente_id = $1', [E.id])).usd), 0.051);
+  assert.equal(Number((await um('select usd + reservado as usd from app.atendente_gasto where cliente_id = $1', [E.id])).usd), 0.051);
   assert.equal((await turno(E, { reserva_usd: 0.01 })).motivo, 'gasto');
 });
 
@@ -160,7 +160,7 @@ test('teto GLOBAL de todos os clientes: acabou, motivo global, aviso uma vez, e 
   const r = await turno(G, base), r2 = await turno(H, base);
   assert.deepEqual([r.ok, r.motivo, r.avisar], [false, 'global', 'global']);
   assert.deepEqual([r2.ok, r2.motivo, r2.avisar], [false, 'global', undefined]);
-  assert.equal(Number((await um('select usd from app.atendente_gasto where cliente_id = $1', [G.id])).usd), 0.01, 'a reserva recusada não ficou');
+  assert.equal(Number((await um('select usd + reservado as usd from app.atendente_gasto where cliente_id = $1', [G.id])).usd), 0.01, 'a reserva recusada não ficou');
   assert.ok(dia);
 });
 
@@ -181,4 +181,32 @@ test('o dia do gasto é o de Brasília (não UTC)', async () => {
   await turno(E, { reserva_usd: 0.01 });
   const l = await um("select dia = (now() at time zone 'America/Sao_Paulo')::date as certo from app.atendente_gasto where cliente_id = $1", [E.id]);
   assert.equal(l.certo, true);
+});
+
+test('R1: a reserva VENCE em 60 s sozinha: 99 turnos abertos e nunca gravados (execução que caiu) não calam o balão', async () => {
+  const E = await salvar({ nome: 'Vaza', dominios: ['vaza.com.br'], teto_dia_usd: 0.99 });
+  const rs = await Promise.all(Array.from({ length: 99 }, () => turno(E, { reserva_usd: 0.01 })));
+  assert.equal(rs.filter(r => r.ok).length, 99);
+  assert.equal((await turno(E, { reserva_usd: 0.01 })).ok, false, 'dentro dos 60 s a reserva conta (o teto protege de rajada)');
+  await db.query("update app.atendente_gasto set reservado_em = now() - interval '61 seconds' where cliente_id = $1", [E.id]);
+  const depois = await turno(E, { reserva_usd: 0.01 });
+  assert.equal(depois.ok, true, 'vencida, sai da conta sem ninguém chamar nada');
+  assert.equal(Number((await um('select usd + reservado as usd from app.atendente_gasto where cliente_id = $1', [E.id])).usd), 0.01);
+});
+
+test('R1: o desfazer devolve a reserva (e soma o custo real, se a IA chegou a cobrar), no cliente e no global', async () => {
+  const E = await salvar({ nome: 'Desfaz', dominios: ['desfaz.com.br'], teto_dia_usd: 1 });
+  await turno(E, { reserva_usd: 0.01 });
+  await rpc('atendente_turno_desfazer', { publico: E.publico, reservado_usd: 0.01, custo_usd: 0.002 });
+  const l = await um('select usd, reservado from app.atendente_gasto where cliente_id = $1', [E.id]);
+  assert.deepEqual([Number(l.usd), Number(l.reservado)], [0.002, 0]);
+});
+
+test('R4: o dia de contatos encheu: recusa com motivo cheio e o aviso ao dono sai UMA vez', async () => {
+  const E = await salvar({ nome: 'Contatos', dominios: ['contatos.com.br'] });
+  const c = n => rpc('atendente_contato_criar', { publico: E.publico, chave_ip: String(n).padStart(64, 'd'), nome: 'N' + n, telefone: '2199999' + String(1000 + n), max_dia: 3 });
+  for (let i = 1; i <= 3; i++) assert.equal((await c(i)).ok, true);
+  const r = await c(4), r2 = await c(5);
+  assert.deepEqual([r.ok, r.motivo, r.avisar], [false, 'cheio', true]);
+  assert.deepEqual([r2.ok, r2.motivo, r2.avisar], [false, 'cheio', undefined]);
 });

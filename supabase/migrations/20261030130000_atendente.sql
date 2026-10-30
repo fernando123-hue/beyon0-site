@@ -95,7 +95,9 @@ create table app.atendente_gasto (
   cliente_id uuid not null,
   org_id     uuid not null,
   dia        date not null,
-  usd        numeric(10,4) not null default 0 check (usd >= 0),   -- reservado + gasto
+  usd        numeric(10,4) not null default 0 check (usd >= 0),   -- gasto REAL já acertado
+  reservado  numeric(10,4) not null default 0 check (reservado >= 0),   -- reservas de turnos em andamento; vencem em 60 s sozinhas
+  reservado_em timestamptz,
   avisado    boolean not null default false,                     -- o aviso de teto batido (ntfy) já saiu hoje
   primary key (cliente_id, dia),
   foreign key (org_id, cliente_id) references app.atendente_clientes (org_id, id) on delete cascade
@@ -105,6 +107,8 @@ create table app.atendente_gasto (
 create table app.atendente_gasto_global (
   dia     date primary key,
   usd     numeric(10,4) not null default 0 check (usd >= 0),
+  reservado numeric(10,4) not null default 0 check (reservado >= 0),
+  reservado_em timestamptz,
   avisado boolean not null default false
 );
 
@@ -169,11 +173,14 @@ begin
     update app.atendente_conversas set msgs = msgs + 1 where id = v_conv and cliente_id = c.id and msgs < v_max_msgs returning msgs into v_n;
     if v_n is null then return jsonb_build_object('ok', false, 'motivo', 'conversa', 'conversa_id', v_conv); end if;
   end if;
-  -- o gasto do cliente: reserva só se couber no teto, na mesma instrução
+  -- reserva VENCIDA (a IA tem teto de 15 s; aqui 60 s) sai da conta sozinha: uma execução que caiu não deixa dinheiro preso até o fim do dia
+  update app.atendente_gasto set reservado = 0 where cliente_id = c.id and dia = v_dia and reservado > 0 and reservado_em < now() - interval '60 seconds';
+  update app.atendente_gasto_global set reservado = 0 where dia = v_dia and reservado > 0 and reservado_em < now() - interval '60 seconds';
+  -- o gasto do cliente: reserva só se (gasto real + reservas vigentes + esta) couber no teto, na mesma instrução
   if v_reserva <= c.teto_dia_usd then
-    insert into app.atendente_gasto (cliente_id, org_id, dia, usd) values (c.id, c.org_id, v_dia, v_reserva)
-      on conflict (cliente_id, dia) do update set usd = app.atendente_gasto.usd + excluded.usd
-      where app.atendente_gasto.usd + excluded.usd <= c.teto_dia_usd
+    insert into app.atendente_gasto (cliente_id, org_id, dia, usd, reservado, reservado_em) values (c.id, c.org_id, v_dia, 0, v_reserva, now())
+      on conflict (cliente_id, dia) do update set reservado = app.atendente_gasto.reservado + excluded.reservado, reservado_em = now()
+      where app.atendente_gasto.usd + app.atendente_gasto.reservado + excluded.reservado <= c.teto_dia_usd
       returning 1 into v_ok;
   end if;
   if v_ok is null then
@@ -184,11 +191,12 @@ begin
   end if;
   -- o teto global, de todos os clientes somados
   v_ok := null;
-  insert into app.atendente_gasto_global as g (dia, usd) values (v_dia, v_reserva)
-    on conflict (dia) do update set usd = g.usd + excluded.usd where g.usd + excluded.usd <= v_teto_global
+  insert into app.atendente_gasto_global as g (dia, usd, reservado, reservado_em) values (v_dia, 0, v_reserva, now())
+    on conflict (dia) do update set reservado = g.reservado + excluded.reservado, reservado_em = now()
+    where g.usd + g.reservado + excluded.reservado <= v_teto_global
     returning 1 into v_ok;
   if v_ok is null then
-    update app.atendente_gasto set usd = greatest(usd - v_reserva, 0) where cliente_id = c.id and dia = v_dia;
+    update app.atendente_gasto set reservado = greatest(reservado - v_reserva, 0) where cliente_id = c.id and dia = v_dia;
     if v_conv is not null then update app.atendente_conversas set msgs = msgs - 1 where id = v_conv; end if;
     insert into app.atendente_gasto_global as g (dia, usd, avisado) values (v_dia, 0, true)
       on conflict (dia) do update set avisado = true where not g.avisado returning 1 into v_aviso;
@@ -218,14 +226,14 @@ begin
   insert into app.atendente_mensagens (conversa_id, cliente_id, papel, texto) values
     (v_conv, c.id, 'visitante', left(p ->> 'texto_visitante', 4000)), (v_conv, c.id, 'atendente', left(p ->> 'texto_atendente', 4000));
   update app.atendente_conversas set ultima_em = now() where id = v_conv;
-  insert into app.atendente_gasto (cliente_id, org_id, dia, usd) values (c.id, c.org_id, v_dia, greatest(v_usd - v_res, 0))
-    on conflict (cliente_id, dia) do update set usd = greatest(app.atendente_gasto.usd + v_usd - v_res, 0);
-  insert into app.atendente_gasto_global as g (dia, usd) values (v_dia, greatest(v_usd - v_res, 0))
-    on conflict (dia) do update set usd = greatest(g.usd + v_usd - v_res, 0);
+  insert into app.atendente_gasto (cliente_id, org_id, dia, usd) values (c.id, c.org_id, v_dia, v_usd)
+    on conflict (cliente_id, dia) do update set usd = app.atendente_gasto.usd + v_usd, reservado = greatest(app.atendente_gasto.reservado - v_res, 0);
+  insert into app.atendente_gasto_global as g (dia, usd) values (v_dia, v_usd)
+    on conflict (dia) do update set usd = g.usd + v_usd, reservado = greatest(g.reservado - v_res, 0);
   return jsonb_build_object('ok', true);
 end $$;
 
--- o gasto que a IA fez sem chegar a gravar a conversa (falha antes de gravar): devolve a reserva
+-- a IA ou a gravação falhou: devolve a reserva (e soma o custo real, se a IA chegou a cobrar); o backend chama em TODA falha
 create function app.atendente_turno_desfazer(p jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare
@@ -235,8 +243,8 @@ declare
 begin
   select * into c from app.atendente_clientes where publico = p ->> 'publico';
   if not found then return jsonb_build_object('ok', false); end if;
-  update app.atendente_gasto set usd = greatest(usd + v_usd - v_res, 0) where cliente_id = c.id and dia = v_dia;
-  update app.atendente_gasto_global set usd = greatest(usd + v_usd - v_res, 0) where dia = v_dia;
+  update app.atendente_gasto set usd = usd + v_usd, reservado = greatest(reservado - v_res, 0) where cliente_id = c.id and dia = v_dia;
+  update app.atendente_gasto_global set usd = usd + v_usd, reservado = greatest(reservado - v_res, 0) where dia = v_dia;
   return jsonb_build_object('ok', true);
 end $$;
 
@@ -260,7 +268,11 @@ begin
   if coalesce(p ->> 'chave_ip', '') ~ '^[0-9a-f]{64}$' and not privado.freio_hora('atendente|contato|' || c.id || '|' || (p ->> 'chave_ip'), 5) then
     return jsonb_build_object('ok', false, 'motivo', 'ip');
   end if;
-  if not privado.freio_dia('atendente|contato|dia|' || c.id || '|' || (now() at time zone 'America/Sao_Paulo')::date, 200) then return jsonb_build_object('ok', false, 'motivo', 'cheio'); end if;
+  if not privado.freio_dia('atendente|contato|dia|' || c.id || '|' || (now() at time zone 'America/Sao_Paulo')::date, least(greatest(coalesce((p ->> 'max_dia')::integer, 200), 1), 1000)) then
+    -- o dia encheu: o dono é avisado UMA vez (o backend manda o ntfy)
+    return jsonb_build_object('ok', false, 'motivo', 'cheio')
+      || case when privado.freio_dia('atendente|contato|aviso|' || c.id || '|' || (now() at time zone 'America/Sao_Paulo')::date, 1) then jsonb_build_object('avisar', true) else '{}'::jsonb end;
+  end if;
   insert into app.atendente_contatos (cliente_id, org_id, conversa_id, nome, telefone) values (c.id, c.org_id, v_conv, v_nome, v_tel);
   return jsonb_build_object('ok', true);
 end $$;

@@ -11,7 +11,7 @@ const silencio = fn => { const e = console.error; console.error = () => {}; retu
 
 test('ntfy: os textos são fixos e não carregam dado de ninguém', () => {
   for (const t of Object.values(AVISOS)) assert.ok(!/[@\d]|BZ-|\+55/.test(t.replace(/\./g, '')), t);
-  assert.deepEqual(Object.keys(AVISOS).sort(), ['atendente_cliente', 'atendente_global', 'fila_cheia', 'pedido', 'recado']);
+  assert.deepEqual(Object.keys(AVISOS).sort(), ['atendente_cliente', 'atendente_contatos', 'atendente_global', 'fila_cheia', 'pedido', 'recado']);
 });
 
 test('ntfy: sem tópico (ou tópico curto) não chama ninguém', async () => {

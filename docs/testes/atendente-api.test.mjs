@@ -104,8 +104,8 @@ test('fora da base: não inventa, passa para pessoa com link wa.me do número do
   assert.equal(r.j.passar_para_pessoa, true);
   const u = new URL(r.j.whatsapp_url);
   assert.equal(u.origin + u.pathname, 'https://wa.me/5521999990000');
-  assert.match(u.searchParams.get('text'), /Unimed/);
-  assert.ok(u.searchParams.get('text').length < 400);
+  assert.match(u.searchParams.get('text'), /Vim pelo site/);
+  assert.doesNotMatch(u.searchParams.get('text'), /Unimed/, 'o link leva resumo fixo, não as falas do visitante');
 });
 
 test('cliente sem WhatsApp cadastrado: passa para pessoa sem link', async () => {
@@ -175,20 +175,17 @@ test('teto de gasto por cliente por dia: bateu, resposta honesta; o outro client
   assert.equal((await msg('Qual o horário de atendimento?')).j.passar_para_pessoa, false);
 });
 
-test('REGRA DE PREÇO: valor fora da tabela (modelo comprometido) não sai; valor da tabela passa', async () => {
-  const mente = iaCapturada(() => resp('A limpeza sai por R$ 99,90 hoje.'));
-  const r = await pedir({ corpo: { texto: 'quanto é a limpeza?' }, ia: mente });
-  assert.doesNotMatch(r.j.resposta, /99/);
-  assert.equal(r.j.passar_para_pessoa, true);
-  for (const falsa of ['Custa 99 reais.', 'Custa noventa e nove reais.', 'É R$ 1.800,00', 'Sai por R$180,50']) {
+test('REGRA DE PREÇO POR MARCA: valor escrito pela IA não sai; a marca vira o item e o valor da tabela', async () => {
+  for (const falsa of ['A limpeza sai por R$ 99,90 hoje.', 'Custa 99 reais.', 'Custa noventa e nove reais.', 'É R$ 1.800,00', 'Sai por R$180,50', 'A limpeza é R$ 180,00.', 'Limpeza: 180 reais.']) {
     const x = await pedir({ corpo: { texto: 'preço?' }, ia: iaCapturada(() => resp(falsa)) });
     assert.equal(x.j.passar_para_pessoa, true, falsa);
+    assert.doesNotMatch(x.j.resposta, /99|1\.800|180/, falsa);
   }
-  for (const certa of ['A limpeza é R$ 180,00.', 'Limpeza: 180 reais.', 'O clareamento é R$ 1.200.']) {
-    const x = await pedir({ corpo: { texto: 'preço?' }, ia: iaCapturada(() => resp(certa)) });
-    assert.equal(x.j.passar_para_pessoa, false, certa);
-    assert.equal(x.j.resposta, certa);
-  }
+  const ok = await pedir({ corpo: { texto: 'preço?' }, ia: iaCapturada(() => resp('Custa [[preco:p1]].')) });
+  assert.equal(ok.j.passar_para_pessoa, false);
+  assert.equal(ok.j.resposta, 'Custa Limpeza: R$ 180,00.');
+  const desconhecida = await pedir({ corpo: { texto: 'preço?' }, ia: iaCapturada(() => resp('Custa [[preco:p9]].')) });
+  assert.equal(desconhecida.j.passar_para_pessoa, true);
 });
 
 test('o preço da tabela de OUTRO cliente não vale: o de B nunca passa na resposta de A', async () => {

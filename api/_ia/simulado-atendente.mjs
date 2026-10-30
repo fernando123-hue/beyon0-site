@@ -8,7 +8,6 @@ const PARADAS = new Set('qual quais quanto quanta como onde quando que de da do 
 /* sinônimos mínimos (o modelo real entende; o dublê precisa de ajuda): abrem/horas/funciona contam como horário */
 const SINONIMOS = { abrem: 'horario', abre: 'horario', aberto: 'horario', aberta: 'horario', horas: 'horario', funciona: 'horario', funcionam: 'horario', fecham: 'horario', fecha: 'horario' };
 const palavras = s => SEM_ACENTO(s).replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length > 2 && !PARADAS.has(w)).map(w => SINONIMOS[w] || w);
-const BR = c => 'R$ ' + (c / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const ehPreco = t => /\b(quanto|pre[cç]o|valor|custa|custo|sai por|cobram)\b/i.test(t);
 
 function itensDoContexto(contexto) {
@@ -29,12 +28,11 @@ export function atendenteSimulado({ contexto, mensagens }) {
   if (!chaves.length) return saida('Pode me contar um pouco mais sobre o que você precisa?');
   const precos = itens.filter(i => i.preco).map(i => ({ ...i.preco, p: pontos(palavras(i.preco.item), texto) })).sort((a, b) => b.p - a.p);
   if (ehPreco(texto)) {
-    if (precos[0] && precos[0].p > 0) return saida(`${precos[0].item}: R$ ${precos[0].valor_reais}.`);
+    if (precos[0] && precos[0].p > 0) return saida(`[[preco:${precos[0].id}]]`);
     return saida('Esse valor eu não tenho aqui, e prefiro não chutar. Vou te passar para a equipe.', true);
   }
   const qa = itens.filter(i => i.pergunta).map(i => ({ ...i, p: pontos(palavras(i.pergunta + ' ' + i.resposta), texto) })).sort((a, b) => b.p - a.p);
   if (qa[0] && qa[0].p > 0) return saida(qa[0].resposta);
-  if (precos[0] && precos[0].p > 0) return saida(`${precos[0].item}: R$ ${precos[0].valor_reais}.`);
+  if (precos[0] && precos[0].p > 0) return saida(`[[preco:${precos[0].id}]]`);
   return saida('Essa eu não sei responder com segurança, e prefiro não inventar. Vou te passar para a equipe.', true);
 }
-export { BR };

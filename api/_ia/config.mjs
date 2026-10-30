@@ -78,7 +78,7 @@ const MAIS_CARO = Object.values(PRECO_POR_MILHAO).reduce((m, p) => ({
    ~US$ 0,40 a 0,70 → até ~0,23 cada). Conversa e extração no Haiku 5.5: um turno com o sistema em cache fica na casa
    de US$ 0,001 a 0,005; 0,01 cobre com folga. A MEDIR: com chamadas reais, trocar pelo p95 de app.ia_chamadas por
    papel. O que passar da reserva ainda é somado depois (o estouro fica pequeno) */
-export const RESERVA_USD = { conversa: 0.01, extracao: 0.01, atendente: 0.01, geracao: 0.25 };
+export const RESERVA_USD = { conversa: 0.01, extracao: 0.01, atendente: 0.003, geracao: 0.25 };
 export function reservaUsd(papel) {
   return RESERVA_USD[papel] ?? 0.25;
 }

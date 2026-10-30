@@ -33,12 +33,12 @@ before(async () => {
   ia = criarSimulada();
 });
 
-test('A1: 60 pedidos simultâneos com teto de US$ 0,05: a IA é chamada no máximo 5 vezes (o gasto é reservado ANTES de chamar)', async () => {
-  const C = await cli({ teto_dia_usd: 0.05 });
+test('A1: 60 pedidos simultâneos com teto de US$ 0,02 (reserva de 0,003): a IA é chamada no máximo 6 vezes (o gasto é reservado ANTES de chamar)', async () => {
+  const C = await cli({ teto_dia_usd: 0.02 });
   let chamadas = 0;
   const lenta = iaCapturada(async () => { chamadas++; await new Promise(r => setTimeout(r, 15)); return resp('Atendemos de segunda a sexta, das 8h às 18h.'); });
   const rs = await Promise.all(Array.from({ length: 60 }, (_, i) => chamar(C, { texto: 'qual o horário?' }, { ip: '198.51.100.' + (i + 1), deps: { ia: lenta, max: { ip_hora: 1000 } } })));
-  assert.ok(chamadas <= 5, 'a IA foi chamada ' + chamadas + ' vezes');
+  assert.ok(chamadas <= 6, 'a IA foi chamada ' + chamadas + ' vezes');
   assert.equal(rs.filter(r => r.j && r.j.passar_para_pessoa).length, 60 - chamadas);
 });
 
