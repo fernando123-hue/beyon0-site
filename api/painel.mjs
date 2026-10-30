@@ -53,6 +53,7 @@ import { novoCodigoRetomada, hashDaRetomada, DIAS_RETOMADA } from './_vendas/ret
 import { montarPedido, montarFormulario, nomesDosArquivos } from './_material/pacote.mjs';
 import { criarArmazem } from './_material/armazem.mjs';
 import { criarAcoesDoDono } from './_entrega/painel-entrega.mjs';
+import { criarAcoesAtendente } from './_atendente/painel.mjs';
 
 const CHAVE_MINIMA = 32;
 export const CORPO_MAX = 200000;          /* caracteres do POST do painel */
@@ -106,6 +107,13 @@ export async function ler(request, env) {
   if (q.get('fila') === 'ajustes') return filaAjustes(env);
   if (q.get('fila') === 'entregas') return filaEntregas(env);
   if (q.get('fila') === 'recados') return filaRecados(env, q.get('nao_lidos') === '1');
+  /* o atendente do site do cliente (api/_atendente/painel.mjs): lista, um cliente para editar, as conversas dele */
+  if (q.get('fila') === 'atendente' || q.get('atendente') !== null || q.get('atendente-conversas') !== null) {
+    const rpc = criarTransporte(env);
+    if (!rpc) return json({ erro: 'Banco não configurado.' }, 503);
+    const a = criarAcoesAtendente(rpc, ORG);
+    return q.get('atendente') !== null ? a.cliente(q.get('atendente')) : q.get('atendente-conversas') !== null ? a.conversas(q.get('atendente-conversas')) : a.lista();
+  }
   if (q.get('material') !== null) return materialParaBaixar(env, q.get('material'));
   if (q.get('fila') === 'avisos') return criarAcoesDoDono(env).avisos();
   if (q.get('ajustes-previa') !== null) { const cod = codigoDaBusca(q.get('ajustes-previa')); return cod ? criarAcoesDoDono(env).ajustes(cod) : json({ erro: 'Código inválido: são 5 letras ou números depois de "BZ-".' }, 400); }
@@ -145,6 +153,10 @@ export async function mudar(request, env) {
   if (bruto && typeof bruto.ajuste_recusado === 'string') return ajusteRecusado(bruto.ajuste_recusado, env);
   if (bruto && typeof bruto.importado === 'string') return materialImportado(bruto, env);
   if (bruto && typeof bruto.recado_lido === 'string') return recadoLido(bruto, env);
+  if (bruto && bruto.atendente_salvar && typeof bruto.atendente_salvar === 'object') {
+    const rpc = criarTransporte(env);
+    return rpc ? criarAcoesAtendente(rpc, ORG).salvar(bruto.atendente_salvar) : json({ erro: 'Banco não configurado.' }, 503);
+  }
   /* (PR 3b-3) a entrega: prévia, no ar, suspender, encerrar, dispensar o material, avisos da D1, religado */
   const chave = bruto && typeof bruto === 'object' ? Object.keys(ACOES_ENTREGA).find(k => typeof bruto[k] === 'string') : null;
   if (chave) { const cod = codigoDaBusca(bruto[chave]); return cod ? criarAcoesDoDono(env)[ACOES_ENTREGA[chave]](cod, bruto) : json({ erro: 'Código inválido: são 5 letras ou números depois de "BZ-".' }, 400); }
@@ -320,8 +332,8 @@ const ACOES_PEDIDO = { descartar_pedido: 'descartar', arquivar_pedido: 'arquivar
    limite por rota do Worker conferem esta lista contra o código. `excluir` e `mudar_contato` são os dois POST sem chave
    própria no despacho de `mudar` (apagar contato; status/valor/nota por `codigo`) */
 export const ACOES_PAINEL = Object.freeze({
-  GET: ['resumo', 'csv-ads', 'fila-direcoes', 'fila-lembretes', 'fila-ajustes', 'fila-entregas', 'material', 'fila-avisos', 'ajustes-previa', 'fila-recados'],
-  POST: ['entregar_direcao', 'avisado', 'link_retomada', 'lembrado', 'ajuste_feito', 'ajuste_recusado', 'resolver_alerta', 'excluir', 'mudar_contato', 'importado', 'recado_lido',
+  GET: ['resumo', 'csv-ads', 'fila-direcoes', 'fila-lembretes', 'fila-ajustes', 'fila-entregas', 'material', 'fila-avisos', 'ajustes-previa', 'fila-recados', 'fila-atendente', 'atendente', 'atendente-conversas'],
+  POST: ['entregar_direcao', 'avisado', 'link_retomada', 'lembrado', 'ajuste_feito', 'ajuste_recusado', 'resolver_alerta', 'excluir', 'mudar_contato', 'importado', 'recado_lido', 'atendente_salvar',
     ...Object.keys(ACOES_ENTREGA), ...Object.keys(ACOES_PEDIDO)]
 });
 const CODIGO_PEDIDO = /^BZ-[ACDEFGHJKMNPQRTUVWXY34679]{5}$/;

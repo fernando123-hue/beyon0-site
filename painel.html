@@ -49,6 +49,41 @@
         <div id="recados"></div>
       </section>
 
+      <!-- o ATENDENTE do site do cliente (js/painel-atendente.js): clientes, base, domínios, conversas e contatos. Texto de terceiros: só textContent -->
+      <section class="pn__bloco" aria-labelledby="t-atendente" id="atendente" hidden>
+        <h2 id="t-atendente" tabindex="-1">Atendente no site do cliente</h2>
+        <p class="pn__ajuda">Cada cliente tem o seu balão, a sua base e os seus domínios. A IA só responde com o que está aqui; preço só da tabela. As conversas ficam guardadas por 60 dias.</p>
+        <button class="pn__btn pn__btn--fino" type="button" id="at-novo">Novo cliente</button>
+        <button class="pn__btn pn__btn--fino" type="button" id="at-atualizar">Atualizar a lista</button>
+        <p class="pn__estado" id="at-estado" role="status"></p>
+        <div id="at-lista"></div>
+        <div id="at-form" hidden>
+          <h3 id="at-titulo-form">Novo cliente</h3>
+          <div class="pn__campos">
+            <div><label for="at-nome">Nome do negócio</label><input id="at-nome" type="text" maxlength="80" /></div>
+            <div><label for="at-whatsapp">WhatsApp do cliente (com DDI e DDD)</label><input id="at-whatsapp" type="text" inputmode="numeric" maxlength="20" /></div>
+            <div><label for="at-privacidade">Link da privacidade do cliente (https)</label><input id="at-privacidade" type="text" maxlength="250" /></div>
+            <div><label for="at-saudacao">Primeira frase do balão (opcional)</label><input id="at-saudacao" type="text" maxlength="300" /></div>
+            <div><label for="at-cor">Cor do balão</label><input id="at-cor" type="color" value="#1a1a1a" /></div>
+            <div><label for="at-cor-texto">Cor do texto sobre a cor</label><input id="at-cor-texto" type="color" value="#ffffff" /></div>
+            <div><label for="at-teto">Teto de gasto por dia (US$)</label><input id="at-teto" type="text" inputmode="decimal" value="1" /></div>
+            <label class="pn__marcar"><input type="checkbox" id="at-ativo" checked /> Balão ligado</label>
+          </div>
+          <label for="at-dominios">Domínios do site do cliente, um por linha (só o endereço; com e sem www são dois)</label>
+          <textarea id="at-dominios" rows="3"></textarea>
+          <label for="at-perguntas">Perguntas e respostas ("P: ..." e na linha de baixo "R: ..."; uma linha em branco entre elas)</label>
+          <textarea id="at-perguntas" rows="8"></textarea>
+          <label for="at-precos">Tabela de preços (uma por linha: "Serviço | 180,00"); a IA só fala estes valores</label>
+          <textarea id="at-precos" rows="5"></textarea>
+          <button class="pn__btn" type="button" id="at-salvar">Salvar</button>
+          <div id="at-codigo-bloco" hidden>
+            <p class="pn__ajuda">Para colar antes do fim do &lt;body&gt; do site do cliente:</p>
+            <pre><code id="at-codigo"></code></pre>
+          </div>
+        </div>
+        <div id="at-conversas"></div>
+      </section>
+
       <!-- a FILA MANUAL das direções (js/painel-fila.js): aparece com a lista vinda de ?fila=direcoes -->
       <section class="pn__bloco" aria-labelledby="t-fila" id="bloco-fila" hidden>
         <h2 id="t-fila" tabindex="-1">Fila de trabalho (pedidos novos)</h2>
@@ -137,5 +172,6 @@
   <script src="js/painel-lembretes.js" defer></script>
   <script src="js/painel-entregas.js" defer></script>
   <script src="js/painel-recados.js" defer></script>
+  <script src="js/painel-atendente.js" defer></script>
 </body>
 </html>
