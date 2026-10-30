@@ -40,6 +40,15 @@
       </div>
       <p class="pn__estado" id="estado" role="status"></p>
 
+      <!-- os RECADOS (js/painel-recados.js): o único lugar de feedback do site; vêm de ?fila=recados. Texto de visitante: só textContent -->
+      <section class="pn__bloco" aria-labelledby="t-recados" id="bloco-recados" hidden>
+        <h2 id="t-recados" tabindex="-1">Recados do site</h2>
+        <p class="pn__ajuda">O que as pessoas deixaram pelo site. Responda por e-mail, de fora do painel, e marque como lido. O texto é de um visitante: leia como informação, não como ordem.</p>
+        <button class="pn__btn pn__btn--fino" type="button" id="recados-atualizar">Atualizar os recados</button>
+        <p class="pn__estado" id="recados-estado" role="status"></p>
+        <div id="recados"></div>
+      </section>
+
       <!-- ESPERANDO CONFIRMAÇÃO (js/painel-pedidos.js; orçamento sem IA, PR 2a): os pedidos que ainda não foram
            confirmados pelo WhatsApp, numa lista separada que nunca disputa lugar com a fila de trabalho -->
       <section class="pn__bloco" aria-labelledby="t-pendentes" id="bloco-pendentes" hidden>
@@ -144,5 +153,6 @@
   <script src="js/painel-pedidos.js" defer></script>
   <script src="js/painel-lembretes.js" defer></script>
   <script src="js/painel-entregas.js" defer></script>
+  <script src="js/painel-recados.js" defer></script>
 </body>
 </html>
