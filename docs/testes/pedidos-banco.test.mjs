@@ -41,9 +41,10 @@ async function comPacote() {
 /* os detalhes como o servidor manda: o telefone já em E.164 e o hash feito lá */
 function detalhes(base, extra = {}) {
   const telefone = extra.telefone || telefoneE164DeTeste();
-  return rpc('vendas_registrar_detalhes', { ...base, telefone, telefone_hash: hex('tel|' + telefone), nome: 'Ana', aceite: true,
+  /* a função BASE (sem a confirmação automática): o pedido nasce "aguardando", para testar a máquina de estados antiga (aprovação do dono). A confirmação automática tem testes próprios */
+  return db.query('select app.vendas_registrar_detalhes_base($1::jsonb) as r', [JSON.stringify({ ...base, telefone, telefone_hash: hex('tel|' + telefone), nome: 'Ana', aceite: true,
     briefing: { negocio: { nome: 'Clínica Sol', descricao: 'Consultas e exames' } }, redes: {}, suspeito: false,
-    chave_ip: null, max_por_ip: 3, max_por_telefone_dia: 2, teto_fila: 1000, horas: 72, ...extra });
+    chave_ip: null, max_por_ip: 3, max_por_telefone_dia: 2, teto_fila: 1000, horas: 72, ...extra })]).then(x => x.rows[0].r);
 }
 /* montar cenário: mudar a etapa à mão (o gatilho de transições aceita com a licença do dono, numa transação) */
 async function forcarEtapa(conversa, etapa) {

@@ -3,7 +3,8 @@
    A ação "detalhes": confere o visitante, valida o corpo (esquema fechado, redigir em todo texto), faz no
    servidor o HMAC do telefone e a chave do IP (o banco nunca recebe nenhum dos dois em claro para os freios) e
    grava por app.vendas_registrar_detalhes, que aplica os freios numa transação: uma vez por conversa, IP,
-   telefone e o teto da fila do dono. A confirmação pelo WhatsApp é do dono, no painel (api/painel.mjs).
+   telefone e o teto da fila do dono. O pedido nasce confirmado (migration 20261030120000: sem WhatsApp e sem clique do dono) e o dono recebe o aviso
+   "Pedido novo na fila" pelo ntfy (api/_ntfy.mjs).
    ========================================================================== */
 import { Recusa } from './recusa.mjs';
 import { ErroBanco } from './transporte.mjs';
@@ -12,6 +13,7 @@ import { ambienteDe } from '../_ambiente.mjs';
 import { chaveDoIp, chaveDoIp48 } from './ip.mjs';
 import { ipDe } from '../_freio.mjs';
 import { ehUuid } from '../_valida-app.mjs';
+import { avisarDono } from '../_ntfy.mjs';
 
 const FORA_DA_ETAPA = 'Os detalhes vêm depois do preço e só uma vez. Se precisar mudar algo, deixe um recado para a equipe.';
 /* (a mesma frase para "pedido aberto" e "limite do dia": não diz a ninguém qual dos dois um número tem) */
@@ -35,7 +37,7 @@ export function recusaDoMotivo(r, requestId) {
   return new Recusa(m.status, m.texto, m.extra);
 }
 
-export function criarAcoesDoPedido({ banco, visitante, segredoFreio, env, limites = PEDIDOS, requestId }) {
+export function criarAcoesDoPedido({ banco, visitante, segredoFreio, env, limites = PEDIDOS, requestId, avisar = avisarDono }) {
   const local = !!env && ambienteDe(env) === 'local';   /* sem o ambiente: fecha */
   /* um freio do pedido faltando: nada é gravado, a pessoa recebe a saída pelo recado e o log diz qual */
   function indisponivel(evento) {
@@ -71,7 +73,8 @@ export function criarAcoesDoPedido({ banco, visitante, segredoFreio, env, limite
         throw e;
       }
       if (!r || r.ok !== true) throw recusaDoMotivo(r, requestId);
-      return { codigo: r.codigo, expira_em: r.expira_em };
+      await avisar(env, 'pedido');   /* (o aviso nunca falha nem demora: texto fixo, sem dado do cliente) */
+      return { codigo: r.codigo, status: 'confirmado' };
     }
   };
 }

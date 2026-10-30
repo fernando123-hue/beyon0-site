@@ -1,0 +1,52 @@
+/* O aviso no celular do dono (api/_ntfy.mjs): texto fixo sem dado pessoal, sem tópico não chama, falha ou demora do ntfy
+   nunca derruba nem atrasa o pedido ou o recado.  npm run testar */
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { avisarDono, AVISOS, topicoDe } from '../../api/_ntfy.mjs';
+import { criarAcoesDoRecado } from '../../api/_vendas/fluxo-recado.mjs';
+
+const TOPICO = 'abcdefghijklmnopqrstuvwxyz012345';
+const ENV = { ALERTA_NTFY_TOPICO: TOPICO };
+const silencio = fn => { const e = console.error; console.error = () => {}; return fn().finally(() => { console.error = e; }); };
+
+test('ntfy: os textos são fixos e não carregam dado de ninguém', () => {
+  for (const t of Object.values(AVISOS)) assert.ok(!/[@\d]|BZ-|\+55/.test(t.replace(/\./g, '')), t);
+  assert.deepEqual(Object.keys(AVISOS).sort(), ['pedido', 'recado']);
+});
+
+test('ntfy: sem tópico (ou tópico curto) não chama ninguém', async () => {
+  let chamadas = 0;
+  const enviar = () => { chamadas++; };
+  assert.equal(await avisarDono({}, 'pedido', { enviar }), false);
+  assert.equal(await avisarDono({ ALERTA_NTFY_TOPICO: 'curto' }, 'pedido', { enviar }), false);
+  assert.equal(topicoDe({ ALERTA_NTFY_TOPICO: 'curto' }), null);
+  assert.equal(chamadas, 0);
+});
+
+test('ntfy: com tópico manda só o texto fixo; tipo desconhecido não manda', async () => {
+  const vistos = [];
+  assert.equal(await avisarDono(ENV, 'pedido', { enviar: (t, x) => vistos.push([t, x]) }), true);
+  assert.deepEqual(vistos, [[TOPICO, 'Pedido novo na fila. Detalhes no painel.']]);
+  assert.equal(await avisarDono(ENV, 'qualquer', { enviar: () => vistos.push('x') }), false);
+  assert.equal(vistos.length, 1);
+});
+
+test('ntfy: erro do envio vira false e log, nunca exceção; demora é cortada', async () => {
+  await silencio(async () => {
+    assert.equal(await avisarDono(ENV, 'pedido', { enviar: async () => { throw new Error('ntfy HTTP 500'); } }), false);
+    const t0 = Date.now();
+    assert.equal(await avisarDono(ENV, 'recado', { enviar: () => new Promise(() => {}), esperaMs: 50 }), false);
+    assert.ok(Date.now() - t0 < 1000, 'cortou a espera');
+  });
+});
+
+test('recado: grava, avisa com texto fixo (sem o conteúdo) e a falha do aviso não derruba o recado', async () => {
+  const vistos = [];
+  const mk = avisar => criarAcoesDoRecado({ banco: async () => ({ ok: true }), visitantes: () => null, segredoFreio: 'x'.repeat(32), env: { BZ_LOCAL: '1', VERCEL: '' }, avisar });
+  const corpo = { texto: 'Meu telefone é 21 99999-0000, ana@exemplo.com', email: 'ana@exemplo.com', origem: 'orcamento' };
+  const req = { headers: new Headers({ 'x-forwarded-for': '203.0.113.9' }) };
+  const r = await mk((env, tipo) => vistos.push(tipo)).recado({ request: req, corpo });
+  assert.deepEqual(r, { ok: true }); assert.deepEqual(vistos, ['recado']);
+  const r2 = await silencio(() => mk(env => avisarDono(ENV, 'recado', { enviar: async () => { throw new Error('caiu'); } })).recado({ request: req, corpo: { ...corpo, texto: 'Outro recado' } }));
+  assert.deepEqual(r2, { ok: true });
+});

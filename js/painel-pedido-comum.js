@@ -1,5 +1,5 @@
 /* ==========================================================================
-   PAINEL › o que os cartões de pedido têm em comum (js/painel-pedidos.js e js/painel-fila.js; PR 2a): o selo de
+   PAINEL › o que os cartões de pedido têm em comum (js/painel-fila.js; PR 2a): o selo de
    texto suspeito, o WhatsApp formatado, os links das redes do cliente, as ações do dono e o aviso com o link de retomada. Os links são montados
    AQUI, num domínio fixo, só a partir do usuário que passa no MESMO formato do servidor (api/_vendas/pedido.mjs,
    REDES). Tudo que veio do visitante entra por textContent.

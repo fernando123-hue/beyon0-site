@@ -38,7 +38,6 @@ async function prontoParaAvisar() {
   const s = await n.chamar('POST', 'simular', { conversa_id: c, respostas: RESP });
   assert.equal((await n.chamar('POST', 'confirmar-pacote', { conversa_id: c, respostas: RESP, versao: s.corpo.versao })).status, 200);
   assert.equal((await n.chamar('POST', 'detalhes', { conversa_id: c, negocio: 'Clínica Exemplo', vende: 'Fisioterapia', telefone: telefoneDeTeste(), nome: 'Ana Souza', aceite: true })).status, 200);
-  assert.equal((await painelPost({ confirmar_whatsapp: c })).status, 200);
   await local.db.exec("set bz.transicao_livre = 'on'");
   await local.db.query("update app.direcoes set status = 'pronta', conteudo = '{}'::jsonb where conversa_id = $1", [c]);
   await local.db.query("update app.conversas set etapa = 'direcoes' where id = $1", [c]);

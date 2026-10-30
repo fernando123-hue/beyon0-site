@@ -59,15 +59,14 @@ const direcao = (nome = 'Clareza que agenda') => ({
   rodape: { texto: 'Clínica Exemplo · Niterói' }
 });
 
-/* até a fila (PR 2a): perguntas → pacote → detalhes → o dono confirma pelo WhatsApp (no painel) */
+/* até a fila (PR 2a): perguntas → pacote → detalhes (o pedido já nasce confirmado e na fila) */
 const RESP = { ramo: 'saude', cidade: 'Niterói', objetivos: ['agendamentos'], site_atual: 'instagram', material: 'tenho' };
-async function ateAFila(direcoes = 'manual', { confirmar = true, telefone = telefoneDeTeste(), extra = {} } = {}) {
+async function ateAFila(direcoes = 'manual', { telefone = telefoneDeTeste(), extra = {} } = {}) {
   const n = navegador(direcoes);
   const c = await n.iniciar();
   const s = await n.chamar('POST', 'simular', { conversa_id: c, respostas: RESP });
   assert.equal((await n.chamar('POST', 'confirmar-pacote', { conversa_id: c, respostas: RESP, versao: s.corpo.versao })).status, 200);
   const detalhes = await n.chamar('POST', 'detalhes', { conversa_id: c, negocio: 'Clínica Exemplo', vende: 'Fisioterapia e pilates', telefone, nome: 'Ana Souza', aceite: true, ...extra });
-  if (confirmar && detalhes.status === 200) assert.equal((await painelPost({ confirmar_whatsapp: c })).status, 200);
   return { n, c, detalhes };
 }
 
@@ -303,81 +302,27 @@ test('comando local: o briefing do pedido.json vai delimitado como no gerador, c
   assert.ok(Object.keys(arquivo).indexOf('regra') < Object.keys(arquivo).indexOf('briefing'), 'a regra vem antes do briefing no arquivo');
 });
 
-test('pedido não confirmado nunca entra na fila: fica em "pendentes" com código, WhatsApp e redes; confirmar, arquivar e descartar pelo painel', async () => {
-  const a = await ateAFila('manual', { confirmar: false, extra: { redes: { instagram: '@clinicaexemplo', youtube: '@ClinicaExemplo' }, autoriza_redes: true } });
+test('pedido novo entra direto na fila, com código e as três direções (sem confirmação); o dono descarta ou arquiva pelo painel e ele sai; o painel já não confirma nem lista pendentes', async () => {
+  const a = await ateAFila('manual', { extra: { redes: { instagram: '@clinicaexemplo', youtube: '@ClinicaExemplo' }, autoriza_redes: true } });
   assert.equal(a.detalhes.status, 200, JSON.stringify(a.detalhes.corpo));
-  assert.ok(!(await painelGet('?fila=direcoes')).corpo.fila.some(x => x.conversa_id === a.c), 'não confirmado: fora da fila');
-  const p = await painelGet('?fila=pendentes');
-  assert.equal(p.status, 200, JSON.stringify(p.corpo));
-  const item = p.corpo.pendentes.find(x => x.conversa_id === a.c);
-  assert.equal(item.codigo, a.detalhes.corpo.codigo);
-  assert.match(item.contato.telefone, /^\+55219/);
-  assert.deepEqual(item.redes, { instagram: 'clinicaexemplo', youtube: 'ClinicaExemplo' });
-  assert.equal((await painelPost({ confirmar_whatsapp: a.c })).status, 200);
+  assert.equal(a.detalhes.corpo.status, 'confirmado');
   const naFila = (await painelGet('?fila=direcoes')).corpo.fila.find(x => x.conversa_id === a.c);
-  assert.ok(naFila && naFila.codigo === item.codigo && naFila.direcoes.length === 3, 'confirmado: na fila, com as três direções');
-  assert.equal((await painelPost({ confirmar_whatsapp: a.c })).status, 409, 'confirmar de novo');
+  assert.ok(naFila && naFila.codigo === a.detalhes.corpo.codigo && naFila.direcoes.length === 3, 'direto na fila, com as três direções');
+  assert.equal((await painelPost({ confirmar_whatsapp: a.c })).status, 400, 'a ação de confirmar saiu do painel');
+  assert.notEqual((await painelGet('?fila=pendentes')).status, 200, 'a lista de pendentes saiu do painel');
   assert.equal((await painelPost({ arquivar_pedido: a.c })).status, 200);
   assert.ok(!(await painelGet('?fila=direcoes')).corpo.fila.some(x => x.conversa_id === a.c), 'arquivado: sai da fila');
-  const b = await ateAFila('manual', { confirmar: false });
+  const b = await ateAFila('manual');
   assert.equal((await painelPost({ descartar_pedido: b.c })).status, 200);
-  assert.ok(!(await painelGet('?fila=pendentes')).corpo.pendentes.some(x => x.conversa_id === b.c), 'descartado: sai dos pendentes');
-  assert.equal((await b.n.chamar('GET', 'estado', undefined, '&conversa=' + b.c)).corpo.pedido.status, 'descartado', 'a tela do cliente sabe');
+  assert.ok(!(await painelGet('?fila=direcoes')).corpo.fila.some(x => x.conversa_id === b.c), 'descartado: sai da fila');
 });
 
-test('painel: buscar pelo código que chegou no WhatsApp (de qualquer jeito que o dono digitar) e o alarme', async () => {
-  const a = await ateAFila('manual', { confirmar: false });
-  const codigo = a.detalhes.corpo.codigo;
-  for (const busca of [codigo, codigo.toLowerCase(), codigo.slice(3), ' ' + codigo.replace('-', '') + ' ']) {
-    const r = await painelGet('?fila=pendentes&codigo=' + encodeURIComponent(busca));
-    assert.equal(r.status, 200, busca);
-    assert.deepEqual(r.corpo.pendentes.map(x => x.conversa_id), [a.c], busca);
-  }
-  assert.equal((await painelGet('?fila=pendentes&codigo=xyz')).status, 400);
-  const f = await painelGet('?fila=direcoes');
-  assert.equal(f.corpo.alarme, f.corpo.total >= PEDIDOS.fila_confirmados);
-  const p = await painelGet('?fila=pendentes');
-  assert.equal(p.corpo.alarme, p.corpo.total >= PEDIDOS.alarme_pendentes);
-});
-
-test('painel: o alarme LIGA — fila no teto de confirmados e pendentes demais (sem alarme na busca por código)', async () => {
-  const antes = (await painelGet('?fila=direcoes')).corpo.total;
-  for (let k = antes; k < PEDIDOS.fila_confirmados; k++) await ateAFila('manual');
-  const f = await painelGet('?fila=direcoes');
-  assert.ok(f.corpo.total >= PEDIDOS.fila_confirmados, 'fila no teto: ' + f.corpo.total);
-  assert.equal(f.corpo.alarme, true, 'fila no teto: alarme ligado');
-  let ultimo;
-  const pendentesAntes = (await painelGet('?fila=pendentes')).corpo.total;
-  for (let k = pendentesAntes; k < PEDIDOS.alarme_pendentes; k++) ultimo = await ateAFila('manual', { confirmar: false });
-  const p = await painelGet('?fila=pendentes');
-  assert.ok(p.corpo.total >= PEDIDOS.alarme_pendentes, 'pendentes no limite: ' + p.corpo.total);
-  assert.equal(p.corpo.alarme, true, 'pendentes demais: alarme ligado');
-  if (ultimo) assert.equal((await painelGet('?fila=pendentes&codigo=' + ultimo.detalhes.corpo.codigo)).corpo.alarme, false, 'a busca por código não alarma');
-});
-
-test('painel: ações de pedido pedem a chave e um id válido; pedido vencido não confirma (409 com o motivo)', async () => {
-  const a = await ateAFila('manual', { confirmar: false });
-  const semChave = await mudar(new Request(BASE + '/api/painel', { method: 'POST', body: JSON.stringify({ confirmar_whatsapp: a.c }), headers: { 'x-forwarded-for': '192.0.2.79' } }), ENV);
+test('painel: ações de pedido pedem a chave e um id válido', async () => {
+  const a = await ateAFila('manual');
+  const semChave = await mudar(new Request(BASE + '/api/painel', { method: 'POST', body: JSON.stringify({ descartar_pedido: a.c }), headers: { 'x-forwarded-for': '192.0.2.79' } }), ENV);
   assert.equal(semChave.status, 401);
-  assert.equal((await painelPost({ confirmar_whatsapp: 'x' })).status, 400);
   assert.equal((await painelPost({ descartar_pedido: 'x' })).status, 400);
-  assert.equal((await painelPost({ confirmar_whatsapp: '00000000-0000-4000-8000-000000000000' })).status, 404);
-  await local.db.query("update app.pedidos set expira_em = now() - interval '1 minute' where conversa_id = $1", [a.c]);
-  const v = await painelPost({ confirmar_whatsapp: a.c });
-  assert.equal(v.status, 409);
-  assert.match(v.corpo.erro, /expirou/);
-  assert.equal((await painelGet('?fila=pendentes', { headers: { authorization: 'Bearer errada', 'x-forwarded-for': '192.0.2.80' } })).status, 401);
-});
-
-test('rotina diária: vence os pedidos sem confirmação em 72 h (com o evento) e segue com o resto', async () => {
-  const { c } = await ateAFila('manual', { confirmar: false });
-  await local.db.query("update app.pedidos set expira_em = now() - interval '1 minute' where conversa_id = $1", [c]);
-  const CRON = 'c'.repeat(40);
-  const r = await rotinas(new Request(BASE + '/api/rotinas?acao=diaria', { headers: { authorization: 'Bearer ' + CRON, 'x-forwarded-for': '192.0.2.40' } }),
-    { CRON_SECRET: CRON }, { banco: local.rpc, metricas: { ligado: false } });
-  const corpo = await r.json();
-  assert.ok(corpo.pedidos && corpo.pedidos.expirados >= 1, JSON.stringify(corpo));
-  assert.equal((await local.db.query('select status from app.pedidos where conversa_id = $1', [c])).rows[0].status, 'expirado');
+  assert.equal((await painelPost({ descartar_pedido: '00000000-0000-4000-8000-000000000000' })).status, 404);
 });
 
 test('rotina diária: se uma etapa do banco quebra, a outra segue e o resultado diz qual falhou (nas duas ordens)', async () => {

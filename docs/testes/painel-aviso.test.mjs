@@ -166,7 +166,7 @@ test('painel.html: a seção dos lembretes nasce escondida, o script vem depois 
   for (const id of ['t-lembretes', 'lembretes-atualizar', 'lembretes-estado', 'lembretes']) assert.ok(html.includes('id="' + id + '"'), id);
   assert.ok(html.includes('role="status"'));
   const scripts = [...html.matchAll(/<script src="js\/([\w-]+\.js)" defer><\/script>/g)].map(m => m[1]);
-  assert.ok(scripts.indexOf('painel-lembretes.js') > scripts.indexOf('painel-pedidos.js') && scripts.indexOf('painel-pedidos.js') > scripts.indexOf('painel-pedido-comum.js'), scripts.join(', '));
+  assert.ok(scripts.indexOf('painel-lembretes.js') > scripts.indexOf('painel-fila.js') && scripts.indexOf('painel-fila.js') > scripts.indexOf('painel-pedido-comum.js'), scripts.join(', '));
   assert.ok(!/\sstyle=|<style/i.test(html), 'a CSP do painel não aceita estilo inline');
 });
 
