@@ -14,6 +14,7 @@ import { createHmac, randomBytes, randomUUID, timingSafeEqual } from 'node:crypt
 import { novoBanco, como } from './testes/_banco.mjs';
 import { tokenDe } from '../api/_supabase.mjs';
 import { ErroBanco } from '../api/_vendas/transporte.mjs';
+import { semearAtendenteDeTeste } from './atendente-semente.mjs';
 import { criarMpSimulado } from './mp-simulado.mjs';
 import { criarArmazemLocal } from '../api/_material/armazem-local.mjs';
 
@@ -22,6 +23,7 @@ const b64 = o => Buffer.from(JSON.stringify(o)).toString('base64url');
 export async function montarLocal({ base = 'http://127.0.0.1:8899', regras = true } = {}) {
   const db = await novoBanco();
   await db.exec(`insert into app.organizacoes (slug, nome) values ('beyon-zero', 'Beyon Zero')`);
+  await semearAtendenteDeTeste(db);
   if (regras) {
     const r = JSON.parse(fs.readFileSync(new URL('./fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
     await db.query(`insert into app.regras_comerciais (org_id, versao, status, regras, fontes, aprovada_em)

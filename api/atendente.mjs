@@ -1,6 +1,6 @@
 /* ==========================================================================
    /api/atendente?c=<id público do cliente>&acao=… — a API do balão de atendimento que se cola no site do CLIENTE da Beyon.
-     GET  config     nome, saudação, cores e link de privacidade (nada da base, do número ou de tetos)
+     GET/POST config nome, saudação, cores e link de privacidade (nada da base, do número ou de tetos)
      POST mensagem   { texto, conversa_id? }  → { conversa_id, resposta, passar_para_pessoa, whatsapp_url? }
      POST contato    { conversa_id, nome, telefone }
      OPTIONS         preflight do navegador
@@ -27,7 +27,7 @@ export const LIMITE_BYTES = 4096;
 export const TETOS = Object.freeze({ msgs: 30, ip_hora: 40 });   /* mensagens do visitante por conversa; mensagens por IP, por cliente, por hora */
 const ID_PUBLICO = /^at_[0-9a-f]{32}$/;
 const freioMemoria = criarFreio({ max: 60, janelaMs: 60e3 });   /* por instância: segura rajada antes do banco */
-const CHAVES = { mensagem: ['texto', 'conversa_id', 'turnstile'], contato: ['conversa_id', 'nome', 'telefone'] };
+const CHAVES = { config: [], mensagem: ['texto', 'conversa_id', 'turnstile'], contato: ['conversa_id', 'nome', 'telefone'] };
 
 const log = (nivel, dados) => console[nivel === 'erro' ? 'error' : 'log'](JSON.stringify({ origem: 'atendente', nivel, ...dados }));
 const resposta = (dados, status, cors, extra = {}) => new Response(status === 204 ? null : JSON.stringify(dados), {
@@ -63,7 +63,8 @@ export async function atender(request, env, deps = {}) {
   if (metodo === 'OPTIONS') {
     return resposta(null, 204, { ...cors, 'access-control-allow-methods': 'GET, POST, OPTIONS', 'access-control-allow-headers': 'content-type', 'access-control-max-age': '600' });
   }
-  if (metodo === 'GET' && acao === 'config') {
+  /* config também por POST: o navegador não manda Origin num GET do mesmo site, e o POST sempre manda */
+  if (acao === 'config' && (metodo === 'GET' || metodo === 'POST')) {
     return resposta({ nome: cliente.nome, saudacao: cliente.saudacao, cor: cliente.cor, cor_texto: cliente.cor_texto, privacidade_url: cliente.privacidade_url }, 200, cors);
   }
   if (metodo !== 'POST' || !Object.hasOwn(CHAVES, acao)) return falha(404, 'Não encontrado.', cors);
