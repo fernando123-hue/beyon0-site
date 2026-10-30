@@ -262,16 +262,16 @@ test('criar: lista vazia ou contato sem autorização não chamam a API: a frase
   assert.equal(t.ctx.chamadas.length, 0);
 });
 
-test('criar: 422 (e outros erros comuns) aparece no formulário, em textContent, sem recarregar; com a saída pelo WhatsApp só quando a API manda', async () => {
+test('criar: 422 (e outros erros comuns) aparece no formulário, em textContent, sem recarregar; com a saída pelo recado só quando a API manda', async () => {
   const t = montar(); t.P.atualizar(estado()); await t.el['o-prv-ajustes'].disparar('click'); preencher(t);
   t.ctx.falhaDaAcao = falha(422, 'Não escreva CPF, CNPJ nem números soltos de 11 ou 14 dígitos aqui. Telefone e e-mail do site vão nos campos próprios.');
   await t.el['o-prv-form'].disparar('submit');
   assert.match(t.el['o-prv-erro-form'].textContent, /^Não escreva CPF/); assert.equal(t.el['o-prv-erro'].textContent, ''); assert.equal(t.ctx.recargas, 0);
   assert.equal(t.el['o-prv-duvida'].hidden, true); assert.equal(t.el['o-prv-form'].hidden, false, 'o formulário segue aberto com o que a pessoa escreveu');
   assert.equal(t.el['o-prv-lista'].value, 'Trocar a foto da capa.');
-  t.ctx.falhaDaAcao = falha(503, 'Recebemos a sua entrada. A Beyon Zero fala com você pelo WhatsApp para o próximo passo.', { whatsapp: true });
+  t.ctx.falhaDaAcao = falha(503, 'Recebemos a sua entrada. A Beyon Zero fala com você pelo WhatsApp para o próximo passo.', { recado: true });
   await t.el['o-prv-form'].disparar('submit');
-  assert.match(t.el['o-prv-erro-form'].textContent, /Beyon Zero fala com você/); assert.equal(t.el['o-prv-duvida'].hidden, false, 'a API mandou a saída pelo WhatsApp: o único link aparece');
+  assert.match(t.el['o-prv-erro-form'].textContent, /Beyon Zero fala com você/); assert.equal(t.el['o-prv-duvida'].hidden, false, 'a API mandou a saída pelo recado: o único link aparece');
   t.ctx.falhaDaAcao = null; t.ctx.proximo = estado('ajustes', { usadas: 1, max: 2 }); await t.el['o-prv-form'].disparar('submit');
   assert.equal(t.el['o-prv-duvida'].hidden, true, 'depois de mandar, a saída some'); assert.equal(t.el['o-prv-erro-form'].textContent, '');
 });
@@ -286,9 +286,9 @@ test('criar: 409 "a prévia mudou" -> recarrega ANTES e a frase aparece FORA do 
   assert.equal(t.el['o-prv-erro-form'].textContent, ''); assert.equal(t.el['o-prv-form'].hidden, true);
   assert.equal(t.el['o-prv-ver'].href, 'https://v2.bz-c-k7m3qa.pages.dev', 'e a tela já mostra a prévia nova');
   assert.equal(t.el['o-prv-lista-n'].textContent.startsWith('Esta é a lista 2 de 2.'), true);
-  /* 409 com a saída pelo WhatsApp (passo errado) */
+  /* 409 com a saída pelo recado (passo errado) */
   const u = montar(); u.P.atualizar(estado()); await u.el['o-prv-ajustes'].disparar('click'); preencher(u);
-  u.ctx.falhaDaAcao = falha(409, 'As duas listas de ajuste já foram usadas. O que passar disso é orçado à parte: fale com a Beyon Zero pelo WhatsApp.', { whatsapp: true });
+  u.ctx.falhaDaAcao = falha(409, 'As duas listas de ajuste já foram usadas. O que passar disso é orçado à parte: deixe um recado para a equipe.', { recado: true });
   u.ctx.proximo = estado('previa', { usadas: 2, max: 2 }); await u.el['o-prv-form'].disparar('submit');
   assert.match(u.el['o-prv-erro'].textContent, /duas listas/); assert.equal(u.el['o-prv-duvida'].hidden, false);
 });
@@ -342,13 +342,13 @@ test('rodadas ausente na entrega: a tela não quebra, trata como a 1ª lista e a
   assert.deepEqual(t.ctx.chamadas, [['aprovar', 0]]);
 });
 
-test('"Outra dúvida?" acompanha a fase: sem endereço que abra diz "Não conseguiu abrir? Fale comigo pelo WhatsApp."; nas outras, a frase de sempre; sempre UM link', () => {
+test('"Outra dúvida?" acompanha a fase: sem endereço que abra diz "Não conseguiu abrir? Deixe um recado para a equipe."; nas outras, a frase de sempre; sempre UM link', () => {
   const t = montar(); t.P.atualizar(estado('previa', { usadas: 0, max: 2 }, 'https://evil.com'));
   assert.equal(t.el['o-prv-duvida'].hidden, false);
-  assert.equal(t.el['o-prv-duvida-lead'].textContent, 'Não conseguiu abrir? '); assert.equal(t.el['o-prv-duvida-wa'].textContent, 'Fale comigo pelo WhatsApp');
+  assert.equal(t.el['o-prv-duvida-lead'].textContent, 'Não conseguiu abrir? '); assert.equal(t.el['o-prv-duvida-wa'].textContent, 'Deixe um recado para a equipe');
   t.P.atualizar(estado('previa', { usadas: 2, max: 2 }));
   assert.equal(t.el['o-prv-duvida'].hidden, false);
-  assert.equal(t.el['o-prv-duvida-lead'].textContent, 'Outra dúvida? '); assert.equal(t.el['o-prv-duvida-wa'].textContent, 'Fale com a Beyon Zero pelo WhatsApp');
+  assert.equal(t.el['o-prv-duvida-lead'].textContent, 'Outra dúvida? '); assert.equal(t.el['o-prv-duvida-wa'].textContent, 'Deixe um recado para a equipe');
   assert.match(SECAO, /<span id="o-prv-duvida-lead">Outra dúvida\? <\/span><a id="o-prv-duvida-wa"/, 'o HTML nasce com a frase de sempre');
   assert.equal([...SECAO.matchAll(/href="https:\/\/wa\.me\//g)].length, 1, 'continua um link de WhatsApp só');
 });
@@ -381,9 +381,9 @@ test('criar: aprovar chama a API uma vez, fecha o dialog, recarrega e leva o foc
   assert.deepEqual(t.ctx.chamadas, [['aprovar', 0]], 'toque duplo aprova uma vez só, dizendo a rodada que a tela viu (B1)');
   assert.equal(t.el['o-prv-dialogo'].open, false); assert.equal(t.ctx.recargas, 1); assert.equal(t.foco(), 'o-prv-titulo');
   assert.equal(t.el['o-prv-titulo'].textContent, 'Prévia aprovada');
-  /* erro: 409 do servidor (passo mudou) com a saída pelo WhatsApp */
+  /* erro: 409 do servidor (passo mudou) com a saída pelo recado */
   const u = montar(); u.P.atualizar(estado()); await u.el['o-prv-aprovar'].disparar('click');
-  u.ctx.falhaDaAcao = falha(409, 'Esta etapa não está disponível agora. Se precisar, fale com a Beyon Zero pelo WhatsApp.', { whatsapp: true });
+  u.ctx.falhaDaAcao = falha(409, 'Esta etapa não está disponível agora. Se precisar, deixe um recado para a equipe.', { recado: true });
   u.ctx.proximo = estado('previa'); await u.el['o-prv-confirmar'].disparar('click');
   assert.equal(u.el['o-prv-dialogo'].open, false); assert.match(u.el['o-prv-erro'].textContent, /não está disponível/); assert.equal(u.el['o-prv-duvida'].hidden, false);
   assert.equal(u.el['o-prv-confirmar'].atributos['aria-disabled'], undefined);

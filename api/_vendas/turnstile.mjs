@@ -9,7 +9,7 @@
      criar o visitante. Token: até 2.048 caracteres, vale 5 min, uso único.
    • Na produção da Vercel sem as chaves, com o segredo de TESTE da
      Cloudflare, ou em qualquer ambiente com só uma das duas chaves: FECHADO
-     (a sessão é recusada e a página oferece o WhatsApp). Erro de
+     (a sessão é recusada e a página oferece o recado). Erro de
      configuração na Cloudflare (segredo inválido, erro interno) também:
      503, não "robô". Prévia, desenvolvimento e servidor local sem
      chaves: não exige (os testes e o E2E rodam sem Cloudflare).
@@ -27,7 +27,7 @@ const TEMPO_MS = 8000;
 /* segredos de TESTE da Cloudflare (1x… passa sempre, 2x… falha, 3x… já usado): nunca valem na produção */
 const SEGREDO_DE_TESTE = /^[123]x0{20,}/;
 const CHAVE_DE_TESTE = /^[123]x0{18,}/;   /* (1x…AA passa, 2x…AB falha, 3x…FF força o clique, 1x/2x…BB invisível) */
-/* recusa que vem da CONFIGURAÇÃO ou da Cloudflare, não do visitante: 503 com WhatsApp, não "robô" */
+/* recusa que vem da CONFIGURAÇÃO ou da Cloudflare, não do visitante: 503 com a saída pelo recado, não "robô" */
 const ERRO_NOSSO = new Set(['missing-input-secret', 'invalid-input-secret', 'internal-error', 'bad-request']);
 
 export function configTurnstile(env = {}) {

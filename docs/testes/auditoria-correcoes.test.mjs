@@ -56,7 +56,7 @@ test('consultor: conversas de /64 diferentes do mesmo /48 esbarram no teto do /4
   }
   const passou = await porIp('2001:db8:4800:ff::1')();
   assert.equal(passou.status, 429, 'a conversa ' + (teto + 1) + ' do mesmo /48 não chama o modelo');
-  assert.equal(passou.extra.whatsapp, true);
+  assert.equal(passou.extra.recado, true);
   const ev = (await local.db.query(`select dados from app.eventos_funil where conversa_id = $1 and tipo = 'freio_ip'`, [passou.conversa])).rows;
   assert.ok(ev.some(e => e.dados.prefixo === 48), 'o dono vê no funil que foi o /48: ' + JSON.stringify(ev));
   assert.equal((await porIp('2001:db8:4801:1::1')()).status, 200, 'outro /48 segue livre');

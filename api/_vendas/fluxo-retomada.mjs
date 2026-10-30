@@ -9,17 +9,17 @@ import { Recusa } from './recusa.mjs';
 import { ORG } from './org.mjs';
 import { CODIGO_RETOMADA, hashDaRetomada } from './retomada.mjs';
 
-const LINK_INVALIDO = 'Este link já foi usado, venceu ou não vale mais. Peça um novo à Beyon Zero pelo WhatsApp.';
+const LINK_INVALIDO = 'Este link já foi usado, venceu ou não vale mais. Peça um novo deixando um recado para a equipe.';
 
 export function criarAcoesDaRetomada({ banco, visitantes }) {
   return {
     async retomar({ corpo }) {
       const codigo = corpo && corpo.codigo;
-      if (typeof codigo !== 'string' || !CODIGO_RETOMADA.test(codigo)) throw new Recusa(400, 'Link inválido. Confira se ele chegou inteiro ou peça um novo pelo WhatsApp.');
+      if (typeof codigo !== 'string' || !CODIGO_RETOMADA.test(codigo)) throw new Recusa(400, 'Link inválido. Confira se ele chegou inteiro ou peça um novo deixando um recado para a equipe.');
       const s = await visitantes.criar();
       if (!s) throw new Recusa(503, 'Serviço indisponível. Tente de novo em instantes.');
       const r = await banco('vendas_usar_retomada', { org_slug: ORG, codigo_hash: hashDaRetomada(codigo), visitante_id: s.visitante_id });
-      if (!r || r.ok !== true) throw new Recusa(410, LINK_INVALIDO, { whatsapp: true });
+      if (!r || r.ok !== true) throw new Recusa(410, LINK_INVALIDO, { recado: true });
       return { token: s.token, refresh: s.refresh, expira_em: s.expira_em, conversa_id: r.conversa_id };
     }
   };

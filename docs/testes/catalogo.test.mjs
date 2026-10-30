@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import { catalogoPublico, respostasParaBriefing, FRASES } from '../../api/_vendas/catalogo.mjs';
 import { limparAtualizacao } from '../../api/_vendas/briefing.mjs';
 import { comArea } from './_area-v2.mjs';
+import { comFora } from './_fora-do-automatico.mjs';
 
 const REGRAS = JSON.parse(fs.readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
 
@@ -20,20 +21,23 @@ test('extras: os do ramo nos principais; os da loja só com a loja; dependentes 
   const chaves = l => l.map(e => e.chave);
   assert.ok(chaves(saude.extras.principais).includes('agendamento'));
   assert.ok(!chaves(saude.extras.principais).includes('catalogo'));
-  assert.ok(chaves(saude.extras.mais).includes('area_restrita'));
   assert.ok(!chaves([...saude.extras.principais, ...saude.extras.mais]).includes('marketplace'), 'extra da loja fora da loja');
   assert.ok(chaves(catalogoPublico(REGRAS, { formato: 'loja_plataforma', ramo: 'comercio' }).extras.principais).includes('marketplace'));
-  /* área restrita fora do automático desde 2026-10-14 (dono): vira fale comigo, sem valor, e sem os dependentes */
-  const area = saude.extras.mais.find(e => e.chave === 'area_restrita');
+  /* 2026-10-28 (dono): área restrita, sistema e loja do zero saíram da venda; a tabela real não tem "fale comigo" */
+  assert.deepEqual([...saude.extras.principais, ...saude.extras.mais].filter(e => e.fale_comigo).map(e => e.chave), [], 'nenhum fale comigo na tabela real');
+  /* numa tabela antiga (fora do automático desde 2026-10-14): vira fale comigo, sem valor, e sem os dependentes */
+  const antiga = catalogoPublico(comFora(REGRAS), { formato: 'institucional', ramo: 'saude' });
+  assert.ok(chaves(antiga.extras.mais).includes('area_restrita'));
+  const area = antiga.extras.mais.find(e => e.chave === 'area_restrita');
   assert.deepEqual([area.fale_comigo, area.valor], [true, null]);
-  assert.ok(!chaves(saude.extras.mais).some(k => k.startsWith('area_') && k !== 'area_restrita'), 'dependente da área sem a área no automático');
+  assert.ok(!chaves(antiga.extras.mais).some(k => k.startsWith('area_') && k !== 'area_restrita'), 'dependente da área sem a área no automático');
   /* o mecanismo dos dependentes, com a área automática da v2 */
   const v2 = catalogoPublico(comArea(REGRAS), { formato: 'institucional', ramo: 'saude' });
   assert.deepEqual(v2.extras.mais.find(e => e.chave === 'area_documentos').requer, ['area_restrita']);
-  const fora = saude.extras.mais.find(e => e.chave === 'sistema_sob_medida');
+  const fora = antiga.extras.mais.find(e => e.chave === 'sistema_sob_medida');
   assert.equal(fora.fale_comigo, true);
   assert.equal(fora.valor, null);
-  for (const e of [...saude.extras.principais, ...saude.extras.mais]) assert.ok(e.frase && !/sob medida/i.test(e.frase), e.chave);
+  for (const e of [...saude.extras.principais, ...saude.extras.mais, ...antiga.extras.mais]) assert.ok(e.frase && !/sob medida/i.test(e.frase), e.chave);
 });
 
 /* os dois cenários juntos cobrem todos os adicionais da tabela (os da loja só aparecem com a loja) */

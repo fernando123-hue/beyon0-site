@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { nomesDosArquivos, podarDados, montarFormulario, montarPedido, ramoDe, RAMOS, PLANOS, telefoneE164 } from '../../api/_material/pacote.mjs';
 import { NOME_RAMO } from '../../api/_vendas/catalogo.mjs';
+import { PRAZO_DIAS_MAX } from '../../api/_material/prazo.mjs';
 import ESQ from '../../js/orcamento-material-esquema.js';
 
 const EX = JSON.parse(fs.readFileSync(new URL('./fixtures/captacao/formulario-exemplo.json', import.meta.url), 'utf8'));
@@ -87,9 +88,12 @@ test('pedido.json: sem UF, nome ou cidade o pacote não sai e diz o que falta; f
   assert.deepEqual(PLANOS, { landing_page: 'landing', institucional: 'institucional' });
 });
 
-test('prazo: o da proposta aceita, de 5 a 10 dias úteis; fora disso é produção manual', () => {
-  for (const dias of [5, 10]) assert.deepEqual(montarPedido({ ...PEDIDO, proposta: { ...PEDIDO.proposta, prazo_dias: dias } }).prazo, { dias, contagem: 'uteis' });
-  for (const dias of [4, 11, 0.5, null, '8']) assert.throws(() => montarPedido({ ...PEDIDO, proposta: { ...PEDIDO.proposta, prazo_dias: dias } }), /prazo.*produção manual/, String(dias));
+/* dono, 2026-10-28: sem trava de prazo ("100% automático"); o prazo da proposta vai de 1 ao máximo do banco
+   (app.estimativas e app.entregas: prazo_dias de 1 a 60, PRAZO_DIAS_MAX), não mais 5 a 10 */
+test('prazo: o da proposta aceita, de 1 a 60 dias úteis (o máximo do banco); fora disso é produção manual', () => {
+  assert.equal(PRAZO_DIAS_MAX, 60);
+  for (const dias of [1, 4, 5, 10, 11, 12, 33, 60]) assert.deepEqual(montarPedido({ ...PEDIDO, proposta: { ...PEDIDO.proposta, prazo_dias: dias } }).prazo, { dias, contagem: 'uteis' }, String(dias));
+  for (const dias of [0, 61, 0.5, 7.5, null, undefined, '8', -3]) assert.throws(() => montarPedido({ ...PEDIDO, proposta: { ...PEDIDO.proposta, prazo_dias: dias } }), /prazo.*de 1 a 60 dias úteis.*produção manual/, String(dias));
 });
 
 test('valores em reais inteiros: preco = entrada + final; total ou entrada com centavos é produção manual (a captação só aceita inteiros)', () => {
