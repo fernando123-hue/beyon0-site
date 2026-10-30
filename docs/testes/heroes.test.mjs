@@ -20,3 +20,12 @@ test('toda âncora interna das páginas de venda aponta para um id que existe (a
   }
 });
 
+
+test('o atendente é vendido como chat no site (Decisões 28/10): sem teste grátis nem atendente no WhatsApp', () => {
+  for (const p of ['index.html', 'automacao.html']) {
+    const html = semComentarios(ler(p));
+    assert.doesNotMatch(html, /teste grátis|dias grátis/i, p);
+    assert.doesNotMatch(html, /atendente (de IA )?no WhatsApp/i, p);
+    assert.doesNotMatch(html, /a Meta cobra/i, p);
+  }
+});
