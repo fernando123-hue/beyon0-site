@@ -22,7 +22,7 @@ create table app.atendente_clientes (
   criado_em       timestamptz not null default now(),
   nome            text not null check (char_length(nome) between 1 and 80 and nome = btrim(nome)),
   whatsapp        text check (whatsapp is null or whatsapp ~ '^[0-9]{10,15}$'),
-  privacidade_url text check (privacidade_url is null or (privacidade_url ~ '^https://[^\s<>"]{4,300}$')),
+  privacidade_url text check (privacidade_url is null or (privacidade_url ~ '^https://[^\s<>"]{4,250}$')),
   saudacao        text check (saudacao is null or char_length(saudacao) between 1 and 300),
   cor             text not null default '#1a1a1a' check (cor ~ '^#[0-9a-f]{6}$'),
   cor_texto       text not null default '#ffffff' check (cor_texto ~ '^#[0-9a-f]{6}$'),

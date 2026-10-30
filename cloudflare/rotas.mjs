@@ -12,6 +12,7 @@ import * as rotinas from '../api/rotinas.mjs';
 import * as evento from '../api/evento.mjs';
 import * as leads from '../api/leads.mjs';
 import * as painel from '../api/painel.mjs';
+import * as atendente from '../api/atendente.mjs';
 import { LIMITE_BYTES as LIMITE_EVENTO } from '../api/_valida.mjs';
 import { naCloudflare } from '../api/_ambiente.mjs';
 import { normalizarIp } from '../api/_vendas/ip.mjs';
@@ -24,9 +25,11 @@ export const ROTAS = Object.freeze({
   rotinas:    { limite: LIMITE_ROTINAS, GET: rotinas.executar, POST: rotinas.executar },
   evento:     { limite: BYTES_POR_UNIDADE * LIMITE_EVENTO, POST: evento.receber },
   leads:      { limite: BYTES_POR_UNIDADE * leads.LIMITE_BYTES, GET: leads.listar, POST: leads.criar },
-  painel:     { limite: BYTES_POR_UNIDADE * painel.CORPO_MAX, GET: painel.ler, POST: painel.mudar }
+  painel:     { limite: BYTES_POR_UNIDADE * painel.CORPO_MAX, GET: painel.ler, POST: painel.mudar },
+  /* o atendente do site do CLIENTE: OPTIONS só aqui (preflight do navegador); a própria rota confere a origem contra os domínios do cliente */
+  atendente:  { limite: BYTES_POR_UNIDADE * atendente.LIMITE_BYTES, GET: atendente.GET, POST: atendente.POST, OPTIONS: atendente.OPTIONS }
 });
-const METODOS = ['GET', 'POST'];
+const METODOS = ['GET', 'POST', 'OPTIONS'];
 const CABECALHOS_API = { 'x-robots-tag': 'noindex', 'x-content-type-options': 'nosniff' };
 
 const json = (dados, status, extra = {}) => new Response(JSON.stringify(dados), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...CABECALHOS_API, ...extra } });

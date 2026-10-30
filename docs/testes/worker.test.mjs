@@ -7,6 +7,7 @@ import * as vendas from '../../api/vendas.mjs';
 import * as pagamentos from '../../api/pagamentos.mjs';
 import * as leads from '../../api/leads.mjs';
 import * as painel from '../../api/painel.mjs';
+import * as atendente from '../../api/atendente.mjs';
 import { LIMITE_BYTES as LIMITE_EVENTO } from '../../api/_valida.mjs';
 
 const CF = { BZ_PLATAFORMA: 'cloudflare' };
@@ -58,7 +59,7 @@ test('toda resposta da API: noindex, nosniff, no-store se faltar', async () => {
   assert.equal(r.headers.get('cache-control'), 'no-store');
 });
 test('limite do Worker ≥ 3 × o do handler, em toda rota (revisão M1)', () => {
-  const minimo = { vendas: vendas.LIMITE_BYTES, pagamentos: pagamentos.LIMITE_BYTES, evento: LIMITE_EVENTO, leads: leads.LIMITE_BYTES, painel: painel.CORPO_MAX, rotinas: 0 };
+  const minimo = { vendas: vendas.LIMITE_BYTES, pagamentos: pagamentos.LIMITE_BYTES, evento: LIMITE_EVENTO, leads: leads.LIMITE_BYTES, painel: painel.CORPO_MAX, rotinas: 0, atendente: atendente.LIMITE_BYTES };
   for (const [nome, rota] of Object.entries(ROTAS)) assert.ok(rota.limite >= 3 * minimo[nome], nome);
 });
 test('todo api/<nome>.mjs sem _ tem rota (endpoint novo esquecido falha)', () => {
