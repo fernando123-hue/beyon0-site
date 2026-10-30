@@ -12,6 +12,8 @@ function no(tag, classe, texto) {
   const n = { tag, className: classe || '', textContent: texto === undefined || texto === null ? '' : String(texto), children: [], ouvintes: {}, hidden: false, disabled: false,
     appendChild(f) { n.children.push(f); return f; }, addEventListener(t, f) { (n.ouvintes[t] = n.ouvintes[t] || []).push(f); },
     focus() { n.focado = true; }, clicar() { (n.ouvintes.click || []).forEach(f => f()); } };
+  let txt = n.textContent;
+  Object.defineProperty(n, 'textContent', { get: () => txt, set(v) { txt = String(v); if (v === '') n.children.length = 0; } });
   Object.defineProperty(n, 'innerHTML', { set() { throw new Error('innerHTML proibido: texto de visitante é dado'); } });
   return n;
 }
