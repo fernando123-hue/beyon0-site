@@ -46,7 +46,7 @@
   var botoes = [].slice.call(document.querySelectorAll('[data-som]'));
   var ligado = lerPreferencia();
   var ctx = null, mestre = null, fundo = null, ruido = null;
-  var subiu = false, timerFolego = 0, ultimo = { tic: 0, sino: 0 };
+  var subiu = false, semAudio = false, timerFolego = 0, ultimo = { tic: 0, sino: 0 };
 
   function lerPreferencia() { try { return localStorage.getItem(CHAVE) !== '0'; } catch (e) { return true; } }
   function gravar(sim) { try { localStorage.setItem(CHAVE, sim ? '1' : '0'); } catch (e) { /* sem armazenamento: vale só nesta página */ } }
@@ -58,13 +58,24 @@
   function temGesto() { var u = navigator.userActivation; return !u || u.isActive; }
 
   /* ---------- as vozes ---------- */
+  /* o navegador pode recusar o contexto (limite de contextos, áudio bloqueado): desiste uma vez, quieto, e esconde
+     os botões; sem isso o erro voltava ao console a cada gesto e o fôlego quebrava com o fundo pela metade */
   function montar() {
-    ctx = new Ctx();
-    mestre = ctx.createGain();
-    mestre.gain.value = PISO;
-    mestre.connect(ctx.destination);
-    fundo = montarFundo();
-    ruido = montarRuido();
+    try {
+      ctx = new Ctx();
+      mestre = ctx.createGain();
+      mestre.gain.value = PISO;
+      mestre.connect(ctx.destination);
+      fundo = montarFundo();
+      ruido = montarRuido();
+      return true;
+    } catch (e) {
+      if (ctx && ctx.close) ctx.close().catch(function () { /* já fechado */ });
+      ctx = mestre = fundo = ruido = null;
+      semAudio = true;
+      botoes.forEach(function (b) { b.hidden = true; });
+      return false;
+    }
   }
 
   function montarFundo() {
@@ -162,9 +173,9 @@
   function acordar(e) {
     /* o gesto no próprio botão de som é dele: ligar ou desligar decide o que acontece (antes, o toque para
        desligar criava o áudio e gastava a subida longa da 1ª página) */
-    if (!ligado || !temGesto() || (e && e.target.closest && e.target.closest('[data-som]'))) return;
+    if (!ligado || semAudio || !temGesto() || (e && e.target.closest && e.target.closest('[data-som]'))) return;
     if (!ctx) {
-      montar();
+      if (!montar()) return;
       /* acordou (no Safari o contexto novo começa suspenso) ou voltou de uma interrupção: o fôlego recomeça */
       ctx.addEventListener('statechange', function () { if (ctx.state === 'running' && ligado && subiu) respirarEmFase(); });
     }

@@ -44,3 +44,11 @@ test('a privacidade cita a preferência de som guardada no aparelho', () => {
   assert.match(ler('privacidade.html'), /som/i);
   assert.match(ler('privacidade.html'), /se você desligou o som/);
 });
+
+test('som.js: se o áudio falhar ao nascer, desiste quieto (sem erro a cada gesto) e esconde os botões', () => {
+  const js = ler('js/som.js');
+  assert.match(js, /function montar\(\) \{\s*try \{/, 'montar() protegido');
+  assert.match(js, /semAudio = true/, 'marca que não há áudio');
+  assert.match(js, /if \(!ligado \|\| semAudio/, 'acordar() desiste quando não há áudio');
+  assert.match(js, /if \(!montar\(\)\) return;/, 'acordar() não segue com o contexto quebrado');
+});
