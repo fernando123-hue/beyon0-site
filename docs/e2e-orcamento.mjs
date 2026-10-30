@@ -457,8 +457,8 @@ try {
   respostaForcada = { status: 500, corpo: { erro: 'Erro interno.', pedido: 'abcdef12-3456' } };
   await erra.click('#o-ret-abrir');
   ok(await espera(erra, () => /Código do erro: abcdef12\./.test(document.getElementById('o-ret-estado').textContent)), 'retomada: erro 500 mostra a frase da página, com o código do erro');
-  ok(!/Erro interno/.test(await erra.textContent('#o-ret-estado')) && /WhatsApp/.test(await erra.textContent('#o-ret-estado')), 'retomada: erro 500 nunca mostra "Erro interno." cru e aponta o WhatsApp');
-  ok(await erra.locator('#o-ret-wa').isVisible() && await erra.locator('#o-ret-abrir').isVisible() && await erra.locator('#o-ret-abrir').getAttribute('aria-disabled') === null, 'retomada: erro 500 deixa tentar de novo e oferece o WhatsApp');
+  ok(!/Erro interno/.test(await erra.textContent('#o-ret-estado')) && /recado/i.test(await erra.textContent('#o-ret-estado')), 'retomada: erro 500 nunca mostra "Erro interno." cru e aponta o recado');
+  ok(await erra.locator('#o-ret-wa').isVisible() && await erra.locator('#o-ret-abrir').isVisible() && await erra.locator('#o-ret-abrir').getAttribute('aria-disabled') === null, 'retomada: erro 500 deixa tentar de novo e oferece o recado');
   ok(await escondidos(erra), 'retomada: depois de um erro, as etapas e a mesa seguem escondidas');
   respostaForcada = { status: 403, corpo: { erro: 'Não foi possível confirmar que você não é um robô. Recarregue a página e tente de novo.' } };
   await erra.click('#o-ret-abrir');
@@ -494,7 +494,7 @@ try {
   await outra.waitForSelector('#o-retomada:not([hidden])');
   await outra.click('#o-ret-abrir');
   ok(await espera(outra, () => /já foi usado/.test(document.getElementById('o-ret-estado').textContent)), 'retomada: o mesmo link outra vez diz que já foi usado');
-  ok(await outra.locator('#o-ret-wa').isVisible() && (await outra.getAttribute('#o-ret-wa', 'href')).startsWith('https://wa.me/5521977167944?text='), 'retomada: com o botão do WhatsApp para pedir um link novo');
+  ok(await outra.locator('#o-ret-wa').isVisible() && (await outra.getAttribute('#o-ret-wa', 'href')) === '#recado' && /Deixar um recado/.test(await outra.textContent('#o-ret-wa')), 'retomada: com o botão do recado para pedir um link novo (o site não tem mais WhatsApp, #64)');
   ok(await outra.locator('#o-ret-abrir').isHidden(), 'retomada: e sem o botão de abrir, que não adiantaria');
   ok(await outra.locator('#o-ret-salvo').isVisible() && await outra.evaluate(() => document.activeElement.id) === 'o-ret-salvo', 'retomada: neste aparelho já há o pedido, então oferece "Ver o pedido salvo" e o foco vai para ele');
   ok(await escondidos(outra), 'link usado: as etapas e a mesa seguem escondidas até a pessoa escolher');
