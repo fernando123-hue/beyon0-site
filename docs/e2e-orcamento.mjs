@@ -3,7 +3,7 @@
    servidor local (docs/servidor.mjs: banco PGlite, IA simulada, gateway
    simulado). Celular primeiro (390px), depois 320px e desktop.
    Cobre: as perguntas → preço (motivo, vizinho, "Quer ajustar?" ao vivo) →
-   conta que falha não muda o que se grava → pacote gravado → detalhes → código e confirmação pelo WhatsApp (o dono confirma no painel) → 3 modelos → abrir o pedido em outro aparelho pelo link do aviso → visor (abrir,
+   conta que falha não muda o que se grava → pacote gravado → detalhes → código do pedido recebido (entra direto na fila, sem confirmação) → 3 modelos → abrir o pedido em outro aparelho pelo link do aviso → visor (abrir,
    trocar, aparelho, Escape devolve o foco) → escolha → ajustes (opção pronta, desfazer, pedido livre) → retomada
    depois de recarregar → escopo (exige a confirmação) → pagamento simulado
    → projeto em produção. À parte: o pacote que pede conversa (sem valor) e
