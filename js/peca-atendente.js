@@ -3,7 +3,7 @@
    1. A régua de 24 horas começa na hora de VERDADE de quem está vendo (o relógio do aparelho). Arrastar
       (dedo: só com intenção horizontal) ou as setas mudam a hora da conversa; fora do expediente de
       exemplo (8h às 18h) a equipe sai do ar e a tela escurece — e o atendente continua respondendo.
-   2. As perguntas: as respostas rápidas do WhatsApp. A pergunta entra com a hora da régua, o atendente
+   2. As perguntas: as respostas rápidas do chat do site. A pergunta entra com a hora da régua, o atendente
       "digita" e responde no mesmo minuto. O dado do negócio vem como [espaço reservado], nunca inventado.
       "Quero falar com uma pessoa": no expediente, chama a pessoa certa; fora dele, deixa o resumo para a
       equipe — e a mensagem de sistema mostra o resumo (o assunto da última pergunta).
@@ -21,18 +21,15 @@
   'use strict';
   var raiz = document.querySelector('[data-plantao]');
   if (!raiz || !window.IntersectionObserver) return;
-  var B = window.BEYON || {};
   var html = document.documentElement;
-  var cartao = raiz.closest('article') || document;
   var $ = function (s) { return raiz.querySelector(s); };
   var slider = $('.plantao__slider'), cursor = $('.plantao__cursor'), horaRotulo = $('[data-plantao-hora]');
-  var nomeEl = $('[data-plantao-nome]'), inicial = $('[data-plantao-inicial]'), equipe = $('[data-plantao-equipe]');
+  var nomeEl = $('[data-plantao-nome]'), marca = $('[data-plantao-marca]'), inicial = $('[data-plantao-inicial]'), equipe = $('[data-plantao-equipe]');
   var msgs = {};
   [].forEach.call(raiz.querySelectorAll('[data-msg]'), function (m) { msgs[m.getAttribute('data-msg')] = m; });
   var sugestoes = raiz.querySelectorAll('[data-pergunta]');
   var falado = $('.plantao__resposta-sr');
   var manchete = $('[data-plantao-manchete]'), madrugada = $('[data-plantao-madrugada]'), estado = $('[data-plantao-estado]');
-  var quero = cartao.querySelector('[data-plantao-quero]');
 
   var EXPEDIENTE = [8 * 60, 18 * 60];   /* exemplo (a nota da peça diz isso) */
   /* as perguntas por tipo de negócio e as respostas: [antes, dado reservado, depois] */
@@ -175,7 +172,7 @@
       if (depois) depois();
     };
     if (reduzido()) { fim(); return; }
-    /* "digitando…" embaixo do nome, como no WhatsApp (a resposta entra pronta, sem balão de três pontos) */
+    /* "digitando…" embaixo do nome, como nos chats de site (a resposta entra pronta, sem balão de três pontos) */
     raiz.classList.add('is-digitando'); escrever(estado, 'digitando…');
     setTimeout(fim, DIGITANDO_MS);
   }
@@ -234,6 +231,7 @@
   function negocio() {
     var n = nome || 'Seu negócio';
     escrever(nomeEl, n);
+    escrever(marca, n);   /* o nome também no topo da página de exemplo, atrás do chat */
     escrever(inicial, n.charAt(0).toUpperCase());
     PERGUNTAS[nicho].forEach(function (p, i) { escrever(sugestoes[i], p[1]); });
   }
@@ -244,11 +242,6 @@
     if (PERGUNTAS[d.nicho]) nicho = d.nicho;
     negocio();
     if (mudouTipo) { msgs.pergunta.hidden = true; msgs.resposta.hidden = true; msgs.resumo.hidden = true; [].forEach.call(sugestoes, function (o) { o.setAttribute('aria-pressed', 'false'); }); }
-  });
-  /* "Testar 10 dias grátis": a mensagem com o nome aparece pronta no WhatsApp e a pessoa decide se envia */
-  if (quero) quero.addEventListener('click', function () {
-    if (!B.linkWA) return;
-    quero.href = B.linkWA('quero testar o atendente de IA no WhatsApp por 10 dias grátis' + (nome ? ' para ' + nome : ''));
   });
 
   /* ---------- liga ---------- */

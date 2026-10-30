@@ -1,9 +1,12 @@
 /* ==========================================================================
    O PLANTÃO — a peça do cartão do Atendente de IA (2026-10-14; docs/restructure/PECAS-SERVICOS.md).
-   Essência da referência (a conversa no WhatsApp respondida na hora pela IA, e a passagem para uma
-   pessoa): uma conversa no vocabulário do site, com uma RÉGUA DE 24 HORAS em cima, que começa na hora de
-   verdade de quem está vendo. O visitante toca numa pergunta de cliente (as respostas rápidas, como no
-   WhatsApp) e a resposta vem na hora, com o horário da régua. Arrastar até a madrugada apaga o expediente
+   Essência da referência (a conversa respondida na hora pela IA, e a passagem para uma pessoa). Desde
+   2026-10-29 (dono: "deixe claro que é atendente dentro do próprio site"; o atendente é vendido só como chat no
+   site do cliente, Decisões 28/10) a conversa é o CHAT ABERTO NO CANTO de uma página de exemplo, numa janela de
+   navegador (seunegocio.com.br): a página atrás, apagada; o painel do chat por cima; a bolinha do widget embaixo.
+   Nada que lembre WhatsApp (os ✓✓ de lido saíram). Em cima, uma RÉGUA DE 24 HORAS, que começa na hora de
+   verdade de quem está vendo. O visitante toca numa pergunta de cliente (as respostas rápidas do chat)
+   e a resposta vem na hora, com o horário da régua. Arrastar até a madrugada apaga o expediente
    (a equipe sai do ar) e o atendente continua respondendo: é o gesto da peça. "Quero falar com uma
    pessoa" mostra o resumo indo para a equipe. Se a pessoa pôs o nome do negócio na peça de Sites, o
    atendente aparece com esse nome. Dados do negócio entram como [espaço reservado], nunca inventados.
@@ -42,13 +45,13 @@
 .plantao__escala { display: flex; justify-content: space-between; margin-top: 4px; font-family: var(--mono); font-size: 10px; letter-spacing: var(--tr-dado); color: var(--t3); }
 
 /* ---------- a conversa ---------- */
-.plantao__tela { display: flex; flex-direction: column; border: 1px solid var(--line-2); border-radius: var(--raio); background: #070909; overflow: hidden; transition: border-color .4s var(--ease); }
+.plantao__tela { position: relative; z-index: 1; display: flex; flex-direction: column; width: 100%; max-width: 340px; border: 1px solid rgb(var(--ac-rgb) / .35); border-radius: var(--raio); background: #070909; overflow: hidden; transition: border-color .4s var(--ease); }
 .plantao__topo { position: relative; display: flex; align-items: center; gap: .7rem; padding: .7rem .8rem; border-bottom: 1px solid var(--line); }
 .plantao__avatar { flex: none; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--ac-3); font-weight: 600; font-size: .875rem; color: var(--t1); }
 .plantao__quem { display: flex; flex-direction: column; flex: 1; min-width: 0; line-height: 1.3; }
 .plantao__quem b { font-weight: 600; font-size: .9375rem; color: var(--t1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .plantao__quem > span { font-family: var(--mono); font-size: 10px; letter-spacing: var(--tr-dado); color: var(--t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.plantao.is-digitando [data-plantao-estado] { color: var(--ac); }   /* "digitando…" embaixo do nome, como no WhatsApp */
+.plantao.is-digitando [data-plantao-estado] { color: var(--ac); }   /* "digitando…" embaixo do nome, como nos chats de site */
 .plantao__equipe { transition: opacity .4s var(--ease) .08s; }
 /* a altura das quatro mensagens já reservada: o resumo entra sem empurrar as perguntas para baixo do dedo */
 .plantao__conversa { list-style: none; margin: 0; padding: .9rem .8rem; display: flex; flex-direction: column; gap: .5rem; min-height: 21rem; contain: content; }
@@ -58,7 +61,6 @@
 .pt-msg--cliente { align-self: flex-end; background: var(--s2); border: 1px solid var(--line); border-top-right-radius: 2px; }
 .pt-msg--sistema { align-self: center; max-width: 100%; padding: .4rem .7rem; border: 1px dashed var(--line-2); border-radius: var(--raio-s); font-family: var(--mono); font-size: 11px; letter-spacing: var(--tr-dado); color: var(--t2); text-align: center; }
 .pt-hora { position: absolute; right: .55rem; bottom: .3rem; font-family: var(--mono); font-size: 10px; color: var(--t3); }
-.pt-msg--ia .pt-hora::after { content: " ✓✓"; color: var(--ac-3); }
 /* a resposta que acabou de chegar: a aresta de cima acende e corre (a varredura dos painéis do site) */
 .pt-msg--ia::before { content: ""; position: absolute; left: 6px; right: 6px; top: -1px; height: 1px; background: var(--ac); transform: scaleX(0); transform-origin: left; opacity: 0; }
 .pt-msg--ia.is-chegou::before { animation: pt-chega .7s var(--ease); }
@@ -70,7 +72,7 @@
 .pt-msg.is-entrando { animation: pt-entra .22s var(--ease) both; }
 @keyframes pt-entra { from { opacity: 0; transform: translateY(6px); } }
 
-/* as perguntas: as respostas rápidas do WhatsApp, embaixo da conversa (não outra grade de botões) */
+/* as perguntas: as respostas rápidas do chat, embaixo da conversa (não outra grade de botões) */
 .plantao__sugestoes { display: flex; flex-wrap: wrap; gap: .35rem; padding: .7rem .8rem .8rem; border-top: 1px solid var(--line); }
 .plantao__sugestao {
   min-height: 36px; padding: .35rem .75rem; border: 1px solid rgb(var(--ac-rgb) / .4); border-radius: 18px; background: transparent;
@@ -94,3 +96,57 @@
 @keyframes pt-vira { 0% { transform: scaleX(0); opacity: 1; } 75% { transform: scaleX(1); opacity: 1; } 100% { transform: scaleX(1); opacity: 0; } }
 .servico .plantao__nota { margin: 0; font-size: var(--fs-rotulo); line-height: 1.45; color: var(--t3); }
 .plantao__nota .pt-reservado { font-size: 1em; }
+
+/* ---------- DENTRO DO PRÓPRIO SITE (dono, 2026-10-29) ----------
+   A janela de navegador com o endereço; atrás, a página de exemplo (blocos cinza, um título, um botão, como a
+   miniatura de Sites), apagada; por cima, o painel do chat aberto no canto de baixo à direita e, embaixo dele, a
+   bolinha do widget (aberta: um ×). No celular o painel ocupa quase toda a janela, como o widget aberto no celular.
+   Traço nítido só: nenhuma sombra difusa (a --sombra-arte da .janela tem desfoque, por isso a janela é própria). */
+.plantao__janela { display: flex; flex-direction: column; border: 1px solid var(--line-2); border-radius: var(--raio); overflow: hidden;
+  background: linear-gradient(170deg, rgb(var(--grafite-rgb) / .95), rgb(12 13 14 / .95)); }
+.plantao__barra { display: flex; align-items: center; gap: .45rem; padding: .55rem .8rem; border-bottom: 1px solid var(--line); background: rgb(255 255 255 / .03); }
+.plantao__pt { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--line-2); }
+.plantao__pt:first-child { background: var(--ac); }
+.plantao__url { flex: 1; min-width: 0; margin-left: .4rem; padding: .2rem .7rem; border-radius: var(--raio-s); background: rgb(255 255 255 / .05);
+  font-family: var(--mono); font-size: 11px; letter-spacing: var(--tr-dado); color: var(--t2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.plantao__pagina { position: relative; display: flex; flex-direction: column; align-items: flex-end; padding: 2.6rem .6rem .6rem; }
+/* a página do site de exemplo, atrás do chat */
+.plantao__site { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: flex-start; gap: .55rem; padding: .8rem 1rem; opacity: .5; pointer-events: none; }
+.plantao__site i { display: block; }
+.plantao__site-topo { display: flex; align-items: center; gap: .6rem; align-self: stretch; padding-bottom: .7rem; border-bottom: 1px solid var(--line); }
+.plantao__site-topo b { margin-right: auto; font-weight: 600; font-size: .75rem; color: var(--t2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.plantao__site-topo i { flex: none; width: 26px; height: 4px; border-radius: 2px; background: var(--line-2); }
+.plantao__site-titulo { width: 62%; height: 14px; border-radius: 3px; background: rgb(255 255 255 / .16); }
+.plantao__site-titulo:first-of-type { margin-top: 1.4rem; }
+.plantao__site-titulo--curto { width: 40%; }
+.plantao__site-linha { width: 70%; height: 6px; border-radius: 3px; background: var(--line-2); }
+.plantao__site-linha--curta { width: 50%; }
+.plantao__site-botao { width: 88px; height: 24px; margin-top: .4rem; border-radius: var(--raio-s); background: rgb(var(--ac-rgb) / .4); }
+.plantao__site-blocos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .5rem; align-self: stretch; margin-top: 1.2rem; }
+.plantao__site-blocos + .plantao__site-linha { margin-top: 1.2rem; }
+.plantao__site-blocos i { height: 72px; border: 1px solid var(--line); border-radius: var(--raio-s); background: rgb(255 255 255 / .04); }
+/* o "minimizar" do painel do chat (decorativo) */
+.plantao__min { flex: none; width: 12px; height: 2px; border-radius: 1px; background: var(--t3); }
+/* a bolinha do widget, aberta: um × */
+.plantao__bolinha { position: relative; z-index: 1; flex: none; width: 44px; height: 44px; margin-top: .6rem; border-radius: 50%; background: var(--ac); }
+.plantao__bolinha::before, .plantao__bolinha::after { content: ""; position: absolute; left: 50%; top: 50%; width: 16px; height: 2px; margin: -1px 0 0 -8px; border-radius: 1px; background: var(--ac-tinta); transform: rotate(45deg); }
+.plantao__bolinha::after { transform: rotate(-45deg); }
+/* celular: o painel ocupa quase toda a janela; a página aparece só em cima */
+@media (max-width: 560px) {
+  .plantao__tela { max-width: none; }
+  .plantao__min { display: none; }
+  .plantao__quem > span { white-space: normal; }   /* (o estado da equipe inteiro, em duas linhas se preciso) */
+  .plantao__pagina { padding: 2.4rem .45rem .5rem; }
+  .plantao__bolinha { width: 40px; height: 40px; margin-top: .5rem; }
+}
+@media (max-width: 360px) {
+  .plantao__pt { display: none; }
+  .plantao__url { margin-left: 0; text-align: center; }
+  /* o botão inteiro, em duas linhas se preciso (cortado em reticências não dizia o que era) */
+  .servico--peca:has(> .plantao) .peca-quero__texto { white-space: normal; }
+  .servico--peca:has(> .plantao) .peca-quero--cheio { padding-block: .5rem; }
+}
+
+/* o vão em volta da peça (dono, 2026-10-29: "mais destacada" = não ficar colada nos outros cartões), como o do fluxo */
+.servicos--solo:has(.plantao) { margin-block: clamp(32px, 5vw, 64px); }
+.servico--peca:has(> .plantao) { padding-block: clamp(28px, 4vw, 48px); }
