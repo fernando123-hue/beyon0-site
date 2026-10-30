@@ -33,68 +33,92 @@ export function textoDoVisitante(v) {
 /* o que vai ao modelo como DADO: as pontas de tag viram aspas angulares, então nenhum texto fecha ou abre os delimitadores do prompt */
 export const neutralizar = s => String(s).replace(/</g, '‹').replace(/>/g, '›');
 
+/* texto sem acento e em minúsculas: o \b do JavaScript só enxerga letras ASCII (revisão de segurança A3), então toda regra de texto roda aqui.
+   Não muda o tamanho do texto (os índices valem para o original). */
+export const norm = s => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
 const PERGUNTA_IA = [
-  /\b(voc[eê]|vc|isso|esse chat|esse atendimento)\s+(é|e|eh|ser[áa]|seria)\s+(mesmo\s+|realmente\s+)?(um[a]?\s+)?(rob[ôo]|bot|ia|i\.a\.|intelig[êe]ncia artificial|humano|humana|pessoa|gente|m[áa]quina)/i,
-  /\b(estou|to|tô)\s+falando\s+com\s+(um[a]?\s+)?(pessoa|humano|humana|rob[ôo]|bot|ia|m[áa]quina|gente)/i,
-  /\b(é|e)\s+(um[a]?\s+)?(rob[ôo]|bot|ia|intelig[êe]ncia artificial)\s*\?/i
+  /\b(voce|voces|vc|vcs|tu|isso|esse chat|esse atendimento|ai)\s+(e|eh|sao|seria|ser)\s+(mesmo\s+|realmente\s+|de verdade\s+)?(um[a]?\s+|uns\s+)?(robo|robos|bot|bots|chatbot|ia|i\.a\.|inteligencia artificial|humano|humana|humanos|pessoa|pessoas|gente|maquina|real|programa)\b/,
+  /^\s*(e|eh|sao)\s+(um[a]?\s+)?(robo|robos|bot|chatbot|ia|humano|humana|pessoa|real|inteligencia artificial)\s*\??\s*$/,
+  /\b(estou|to)\s+falando\s+com\s+(um[a]?\s+)?(pessoa|humano|humana|robo|bot|ia|maquina|gente|alguem)/,
+  /\btem\s+alguem\s+(ai|ae|de verdade|real)\b/
 ];
-export const perguntaSeEhIA = t => PERGUNTA_IA.some(r => r.test(t));
+export const perguntaSeEhIA = t => { const n = norm(t); return PERGUNTA_IA.some(r => r.test(n)); };
 
+const ALVO_PESSOA = 'atendente|pessoa|humano|humana|alguem|equipe|time|dono|dona|gerente|responsavel|vendedor|vendedora|secretaria|secretario|recepcao|recepcionista|doutor|doutora|dr|dra|medico|medica|dentista|advogado|advogada|funcionario|funcionaria|gente';
 const PEDE_PESSOA = [
-  /\b(quero|preciso|posso|gostaria|queria|pode(ria)?|d[áa]|vou querer|prefiro)\b.{0,30}\b(falar|conversar|passar|chamar|ligar)\b.{0,25}\b(atendente|pessoa|humano|humana|algu[ée]m|equipe|time|dono|dona|gerente|respons[áa]vel|vendedor|vendedora)/i,
-  /\b(atendente|atendimento)\s+(humano|humana|de verdade)\b/i,
-  /\b(me\s+)?(passa|transfere|encaminha)\b.{0,20}\b(atendente|pessoa|humano|equipe|dono)/i
+  new RegExp('\\b(quero|preciso|posso|gostaria|queria|pode|poderia|da|vou querer|prefiro|tem como)\\b.{0,30}\\b(falar|conversar|passar|chamar|ligar)\\b.{0,25}\\b(' + ALVO_PESSOA + ')\\b'),
+  /\b(atendente|atendimento)\s+(humano|humana|de verdade)\b/,
+  new RegExp('\\b(me\\s+)?(passa|transfere|encaminha)\\b.{0,20}\\b(atendente|pessoa|humano|equipe|dono|secretaria|recepcao)')
 ];
-export const pedePessoa = t => PEDE_PESSOA.some(r => r.test(t));
+export const pedePessoa = t => { const n = norm(t); return PEDE_PESSOA.some(r => r.test(n)); };
 
-/* ---------- a conferência da resposta ---------- */
+/* só o que dá ORDEM ao modelo (ignorar regras, revelar o prompt, mudar de papel, ler dado de outro cliente). Pergunta de venda
+   ("desconto à vista", "de graça", "senha do portal", "secretária") NÃO entra: vai ao modelo e a resposta é conferida depois */
+const INSTRUCAO = [
+  /ignor(e|ar|a)\s+(as\s+|suas\s+|todas\s+as\s+)?(instruc|regras|ordens)/,
+  /(mostre|revele|imprima|repita|diga|exiba)\s+(o\s+|seu\s+|suas\s+|as\s+)?(prompt|instrucoes|regras internas|system)/,
+  /voce agora e\b|a partir de agora voce|finja (que )?(voce|ser)\b|aja como (se voce|um|o|a)\s+(admin|administrador|dono|gerente|desenvolvedor|sistema)/,
+  /\b(ignore|disregard|forget|override)\s+(all\s+|any\s+|the\s+|your\s+|my\s+)?(previous\s+|prior\s+|above\s+|earlier\s+|system\s+)?(instructions?|rules|prompts?|guidelines)\b/,
+  /\b(reveal|show|print|repeat|output)\s+(me\s+)?(your\s+|the\s+)?(system\s+prompt|prompt|instructions|hidden\s+rules)\b/,
+  /\b(you are now|pretend (you are|to be)|act as (an?\s+|the\s+)?(admin|owner|manager|developer|system))\b/,
+  /jailbreak|developer mode|system prompt|prompt de sistema/,
+  /(mostre|me de|liste|revele|veja|acesse|me passe).{0,30}(conversas?|dados|mensagens?|base)\s+(de|do|da|dos)\s+outr[oa]s?\s+(cliente|empresa|negocio)/
+];
+export const pareceInstrucaoAoModelo = t => { const n = norm(t); return INSTRUCAO.some(r => r.test(n)); };
 
-const PALAVRAS = 'um|uma|dois|duas|tr[eê]s|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|treze|quatorze|catorze|quinze|dezesseis|dezessete|dezoito|dezenove|vinte|trinta|quarenta|cinquenta|sessenta|setenta|oitenta|noventa|cem|cento|duzentos|trezentos|quatrocentos|quinhentos|seiscentos|setecentos|oitocentos|novecentos|mil|milh[aã]o|milh[oõ]es';
-const POR_EXTENSO = new RegExp('\\b(?:' + PALAVRAS + ')(?:\\s+(?:e\\s+)?(?:' + PALAVRAS + '))*\\s+(?:de\\s+)?reais\\b', 'i');
-const DINHEIRO = /(?:R\$\s?(\d[\d.,]*)|(\d[\d.,]*)\s?(?:reais|real)\b)/gi;
-const PARTE_MIL = /^\d{1,3}(\.\d{3})+$/;
+/* ---------- a conferência da resposta: LISTA DE PERMISSÃO (revisão de segurança A4) ---------- */
 
-/* "1.234,56" → 123456; "180" → 18000; "180,5" → 18050; "1.200" → 120000; "180.50" → 18050. null se não for número */
-export function centavosDe(txt) {
-  let s = String(txt).replace(/[.,]+$/, '');
-  if (!s) return null;
-  if (PARTE_MIL.test(s)) return Number(s.replace(/\./g, '')) * 100;
-  const m = /^(\d{1,3}(?:\.\d{3})*|\d+)(?:[,.](\d{1,2}))?$/.exec(s);
-  if (!m) return null;
-  return Number(m[1].replace(/\./g, '')) * 100 + Number((m[2] || '0').padEnd(2, '0'));
-}
+const NUM = /\d+(?:[.,]\d+)*/g;
+/* "1.200,50" → 1200.5; "180.50" → 180.5; "1.200" → 1200; "100" → 100 */
+export const canon = t => (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(t) ? Number(t.replace(/\./g, '').replace(',', '.')) : Number(t.replace(',', '.')));
+const numerosDe = texto => (String(texto).match(NUM) || []).map(canon);
 
-const valoresEm = texto => {
-  const out = [];
-  for (const m of String(texto).matchAll(DINHEIRO)) out.push(centavosDe(m[1] ?? m[2]));
-  return out;
-};
+/* termos que mudam o que o cliente promete: só passam se o PRÓPRIO dono os escreveu na base */
+const RISCO = [/%|\bpor ?cento\b/, /\bgratis\b|\bgratuit[oa]s?\b|\bde graca\b|\bcortesia\b/, /\bdescont/, /\bmetade\b/, /\bpromoc/, /\bconto\b|\bpila\b|\bpilas\b/, /\bmil\b/, /\d\s*k\b/,
+  /\bdolar|\bbrl\b|\brs\b|\bus\$|\$/, /\d\s*x\b|\bparcel/,
+  /\b(dez|onze|doze|treze|quatorze|catorze|quinze|dezesseis|dezessete|dezoito|dezenove|vinte|trinta|quarenta|cinquenta|sessenta|setenta|oitenta|noventa|cem|cento|duzentos|trezentos|quatrocentos|quinhentos|seiscentos|setecentos|oitocentos|novecentos|milhao|milhoes)\b/,
+  /\b(um|uma|dois|duas|tres|quatro|cinco|seis|sete|oito|nove)\s+(reais|real)\b/];
 
-/* os valores que a resposta PODE citar: a tabela de preços do cliente e o que o próprio dono escreveu na base */
-export function valoresPermitidos(base) {
-  const ok = new Set();
-  for (const b of base) {
-    if (b.tipo === 'preco' && Number.isInteger(b.preco_centavos)) ok.add(b.preco_centavos);
-    for (const v of valoresEm([b.pergunta, b.resposta, b.item].filter(Boolean).join(' '))) if (v !== null) ok.add(v);
+const textoDaBase = base => base.map(b => [b.pergunta, b.resposta, b.item].filter(Boolean).join(' ')).join('\n');
+const palavrasDoItem = item => norm(item).split(/[^a-z0-9]+/).filter(w => w.length >= 4);
+const MONEY = /(?:r\$\s?(\d+(?:[.,]\d+)*)|(\d+(?:[.,]\d+)*)\s?(?:reais|real)\b)/g;
+
+/* { ok } ou { ok:false, motivo }. Barra: termo de risco fora da base; número que não está na base daquele cliente; valor da tabela sem o
+   nome do item antes dele na mesma frase, ou com o nome de OUTRO item. Em dúvida, barra (a resposta cai na fixa com passagem para pessoa). */
+export function conferirResposta(resposta, base) {
+  const original = norm(resposta);
+  const semReal = original.replace(/r\$\s?(?=\d)/g, 'r ');   /* "R$ 180" é o formato normal; "R $ 90", "$90" e "US$" ainda caem no risco */
+  const b = norm(textoDaBase(base));
+  for (const re of RISCO) if (re.test(semReal) && !re.test(b)) return { ok: false, motivo: 'termo fora da base' };
+  const permitidos = new Set([...numerosDe(textoDaBase(base)), ...base.filter(x => x.tipo === 'preco').map(x => x.preco_centavos / 100)]);
+  for (const n of numerosDe(original)) if (!permitidos.has(n)) return { ok: false, motivo: 'número fora da base' };
+  const tabela = base.filter(x => x.tipo === 'preco').map(x => ({ valor: x.preco_centavos / 100, palavras: palavrasDoItem(x.item) }));
+  for (const m of original.matchAll(MONEY)) {
+    const v = canon(m[1] ?? m[2]);
+    const donos = tabela.filter(t => t.valor === v);
+    if (!donos.length) continue;   /* o valor veio de um texto do dono, não da tabela */
+    let melhor = null;   /* o nome de item mais perto ANTES do valor, na mesma frase */
+    for (const t of tabela) {
+      for (const w of t.palavras) {
+        const pos = original.lastIndexOf(w, m.index);
+        if (pos < 0 || /[.!?]\s/.test(original.slice(pos, m.index))) continue;
+        if (!melhor || pos > melhor.pos) melhor = { pos, t };
+      }
+    }
+    if (!melhor || !donos.includes(melhor.t)) return { ok: false, motivo: 'valor sem o item certo' };
   }
-  return ok;
-}
-
-/* { ok } ou { ok:false, motivo }: valor em dinheiro fora da tabela, ou valor que não dá para conferir (por extenso, número estranho) */
-export function conferirPrecos(resposta, base) {
-  if (POR_EXTENSO.test(resposta)) return { ok: false, motivo: 'valor por extenso' };
-  const permitidos = valoresPermitidos(base);
-  for (const v of valoresEm(resposta)) if (v === null || !permitidos.has(v)) return { ok: false, motivo: 'valor fora da tabela' };
   return { ok: true };
 }
 
 const NEGA_IA = [
-  /\b(eu\s+)?sou\s+(uma?\s+)?(pessoa|humano|humana|ser humano|gente de verdade|atendente humano|atendente de verdade)\b/i,
-  /\bn[ãa]o\s+sou\s+(um[a]?\s+)?(rob[ôo]|bot|ia|intelig[êe]ncia artificial|assistente virtual|m[áa]quina)\b/i,
-  /\bmeu\s+nome\s+[ée]\b/i,
-  /\bme\s+chamo\b/i
+  /\b(eu\s+)?sou\s+(uma?\s+)?(pessoa|humano|humana|ser humano|gente|atendente|recepcionista|secretaria|secretario|de carne e osso|real|de verdade)\b/,
+  /\bsou\s+(a|o)\s+(?!assistente|inteligencia|ia\b|atendente virtual|bot|robo)[a-z]{2,}/,
+  /\bnao\s+sou\s+(um[a]?\s+)?(robo|bot|chatbot|ia|inteligencia|assistente virtual|maquina|programa)/,
+  /\b(meu nome e|me chamo|pode me chamar de|aqui e (a|o)|quem fala e|falando e (a|o))\b/,
+  /\bcarne e osso\b|\bi am (a )?human\b/
 ];
-export const negaSerIA = t => NEGA_IA.some(r => r.test(t));
+export const negaSerIA = t => { const n = norm(t); return NEGA_IA.some(r => r.test(n)); };
 
 /* o prompt vazou? alguma linha longa do sistema aparece na resposta */
 export function vazouPrompt(resposta, sistema) {
@@ -112,4 +136,12 @@ export function linkWhatsapp(cliente, visitanteTextos) {
   const ultimas = visitanteTextos.slice(-2).map(t => corte(t, 120)).filter(Boolean);
   const resumo = 'Olá! Vim pelo site e conversei com o assistente virtual.' + (ultimas.length ? ' Minha dúvida: ' + ultimas.join(' / ') : '');
   return 'https://wa.me/' + cliente.whatsapp + '?text=' + encodeURIComponent(corte(resumo, 300));
+}
+
+/* "1.234,56" → 123456; "180" → 18000; "180,5" → 18050; "1.200" → 120000; "180.50" → 18050. null se não for número (o painel converte o preço em reais) */
+export function centavosDe(txt) {
+  const s = String(txt).trim().replace(/[.,]+$/, '');
+  const m = /^(\d{1,3}(?:\.\d{3})+|\d+)(?:[,.](\d{1,2}))?$/.exec(s);
+  if (!m) return null;
+  return Number(m[1].replace(/\./g, '')) * 100 + Number((m[2] || '0').padEnd(2, '0'));
 }

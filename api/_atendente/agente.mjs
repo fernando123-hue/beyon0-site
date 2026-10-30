@@ -3,9 +3,8 @@
    como DADO, delimitados e neutralizados), chama a IA pela camada api/_ia e CONFERE a resposta antes de devolver.
    A IA é só uma sugestão: o código decide o que sai (preço só da tabela, nunca nega ser IA, nada do prompt vaza).
    ========================================================================== */
-import { pareceInjecao } from '../_vendas/seguranca.mjs';
 import { ErroIA } from '../_ia/provedor.mjs';
-import { neutralizar, perguntaSeEhIA, pedePessoa, conferirPrecos, negaSerIA, vazouPrompt } from './regras.mjs';
+import { neutralizar, perguntaSeEhIA, pedePessoa, conferirResposta, pareceInstrucaoAoModelo, negaSerIA, vazouPrompt } from './regras.mjs';
 
 export const RESPOSTA_MAX = 700;
 export const ESQUEMA = {
@@ -58,7 +57,7 @@ export async function responder({ cliente, historico, texto, ia }) {
   const f = frases(cliente.nome);
   if (perguntaSeEhIA(texto)) return { resposta: f.souIA, passar: false, custo_usd: 0, via: 'fixa' };
   if (pedePessoa(texto)) return { resposta: f.pessoa, passar: true, custo_usd: 0, via: 'fixa' };
-  if (pareceInjecao(texto)) return { resposta: f.naoPosso, passar: false, custo_usd: 0, via: 'injecao' };
+  if (pareceInstrucaoAoModelo(texto)) return { resposta: f.naoPosso, passar: false, custo_usd: 0, via: 'injecao' };
 
   const sistema = montarSistema(cliente);
   const mensagens = [
@@ -76,7 +75,7 @@ export async function responder({ cliente, historico, texto, ia }) {
   const resposta = j.resposta.trim();
   if (negaSerIA(resposta)) return { resposta: f.souIA, passar: false, custo_usd, via: 'nega_ia' };
   if (vazouPrompt(resposta, sistema) || /REGRAS FIXAS|<\/?(dados_do_negocio|mensagem_do_visitante)>/.test(resposta)) return { resposta: f.naoPosso, passar: false, custo_usd, via: 'vazou' };
-  if (!conferirPrecos(resposta, cliente.base).ok) return { resposta: f.semResposta, passar: true, custo_usd, via: 'preco' };
+  if (!conferirResposta(resposta, cliente.base).ok) return { resposta: f.semResposta, passar: true, custo_usd, via: 'preco' };
   const cortada = [...resposta].length > RESPOSTA_MAX ? [...resposta].slice(0, RESPOSTA_MAX - 1).join('') + '…' : resposta;
   return { resposta: cortada, passar: j.passar_para_pessoa === true, custo_usd, via: 'ia' };
 }
