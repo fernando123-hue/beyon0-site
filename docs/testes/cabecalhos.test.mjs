@@ -62,7 +62,8 @@ test('/orcamento sem Google; /painel noindex e no-store; o 404 (qualquer caminho
   assert.ok(orc.includes('https://sdk.mercadopago.com') && orc.includes('https://challenges.cloudflare.com'));
   const p = cabecalhosPara(REGRAS, '/painel');
   assert.match(p.get('x-robots-tag'), /noindex/); assert.equal(p.get('cache-control'), 'no-store');
-  assert.equal(cabecalhosPara(REGRAS, '/qualquer-coisa').get('content-security-policy'), cabecalhosPara(REGRAS, '/').get('content-security-policy'));
+  /* (a geral: sem o Turnstile, que só as páginas com recado liberam; /privacidade é uma delas só na regra geral) */
+  assert.equal(cabecalhosPara(REGRAS, '/qualquer-coisa').get('content-security-policy'), cabecalhosPara(REGRAS, '/privacidade').get('content-security-policy'));
 });
 test('formato: ≤ 100 regras e nenhuma linha acima de 2.000 caracteres', () => {
   assert.ok(REGRAS.length <= 100);

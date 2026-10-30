@@ -542,7 +542,7 @@ export const SABOTAGENS = [
     de: "rascunhoGuardado = mioloDaJanela ? mioloDaJanela.rascunho() : null;", para: "rascunhoGuardado = null;" },
   { nome: "o formulário do recado perde o texto quando o envio falha", fonte: "js/recado.js", testes: ['docs/testes/recado-front.test.mjs'],
     de: "function (e) { travar(false); mostrarErro(fraseDaFalha(e), null); }", para: "function (e) { travar(false); texto.value = ''; mostrarErro(fraseDaFalha(e), null); }" },
-  { nome: "o link [data-wa] do orçamento volta a abrir o WhatsApp (o recado não abre)", fonte: "js/orcamento.js", testes: ['docs/testes/recado-textos.test.mjs'],
+  { nome: "o link [data-recado-abrir] do orçamento deixa de abrir o recado (a página navega)", fonte: "js/orcamento.js", testes: ['docs/testes/recado-textos.test.mjs'],
     de: "ev.preventDefault(); ev.stopPropagation();", para: "return;" },
 ];
 

@@ -240,7 +240,7 @@ html.is-ouro-varre :is(.hero__title em, .kicker b, .nav__brand b, .hero__status 
 /* (backwards, não both: preso no fim a animação seguia viva e suprimia as transições da peça por 12 s — o
    resfriamento ficava seco e o hover do botão pulava) */
 .is-brasa:is(.hero__title em, .kicker b, .nav__brand b, .servico__link, .celula__link, .servico__n, .celula__n, .laudo__n, .carga__pct, .footer__motion, .prova__val, .console__v, .instrumento__val, .hero__cota-rot, .rumo-leitura, .nav__links a:not(.btn)) { animation: brasa-texto .95s cubic-bezier(.2, .7, .3, 1) backwards; }
-.is-brasa:is(.hero__actions .btn--primary, .cta__acoes .btn--primary, .lead-modal__submit) { animation: brasa-fundo .95s cubic-bezier(.2, .7, .3, 1) backwards; }
+.is-brasa:is(.hero__actions .btn--primary, .cta__acoes .btn--primary) { animation: brasa-fundo .95s cubic-bezier(.2, .7, .3, 1) backwards; }
 /* (a barra do celular e a nav em espera têm o fundo quase vazio e o texto na cor: o creme deixaria o texto ilegível) */
 .barra .is-brasa.btn--primary, .nav--espera:not(.is-cta) .is-brasa.btn--primary { animation: brasa-texto .95s cubic-bezier(.2, .7, .3, 1) backwards; }
 .is-brasa:is(.btn:not(.btn--primary), .tem-carga) { animation: brasa-borda 1.1s cubic-bezier(.2, .7, .3, 1) backwards; }

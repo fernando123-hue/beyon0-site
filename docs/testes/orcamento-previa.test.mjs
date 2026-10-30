@@ -108,7 +108,7 @@ test('as frases de recusa do contato na tela são as da API (api/_vendas/fluxo-p
   assert.equal(B.validarContato('(21) 97716-7944', '', false), FRASES.autorizacao);
 });
 
-test('a seção #o-previa: aprovar num <dialog> (nunca confirm), o campo único com o aviso, o prazo parado (D4), o link seguro e UM só WhatsApp ("Outra dúvida?")', () => {
+test('a seção #o-previa: aprovar num <dialog> (nunca confirm), o campo único com o aviso, o prazo parado (D4), o link seguro e UM só recado ("Outra dúvida?")', () => {
   const s = SECAO;
   assert.ok(s.length > 500, 'a seção existe');
   assert.match(s, /<dialog class="orc-dialogo" id="o-prv-dialogo"/); assert.ok(!/window\.confirm|\bconfirm\(/.test(semComentario(FONTE)));
@@ -124,9 +124,8 @@ test('a seção #o-previa: aprovar num <dialog> (nunca confirm), o campo único 
   assert.match(s, /id="o-prv-ver"[^>]*target="_blank"[^>]*rel="noopener noreferrer"|id="o-prv-ver"[^>]*rel="noopener noreferrer"[^>]*target="_blank"/, 'abre em outra aba, sem referrer');
   assert.match(s, /maxlength="1500"/);
   assert.match(s, /<textarea id="o-prv-lista"[^>]*autocomplete="off"/, 'Info 3: o navegador não repõe a lista que ainda não foi enviada depois de um F5');
-  const wa = [...s.matchAll(/href="https:\/\/wa\.me\/[^"]*"/g)];
-  assert.equal(wa.length, 1, 'D3: o único WhatsApp é a "Outra dúvida?"'); assert.ok(!/\?text=/.test(wa[0][0]));
-  assert.match(texto(s), /Outra dúvida\? Fale com a Beyon Zero pelo WhatsApp/);
+  assert.equal([...s.matchAll(/data-recado-abrir/g)].length, 1, 'D3: o único canal é a "Outra dúvida?" (o recado)'); assert.ok(!/wa\.me|data-wa/.test(s), 'sem WhatsApp da Beyon');
+  assert.match(texto(s), /Outra dúvida\? Deixe um recado para a equipe/);
   assert.ok(!/\sstyle="|<style/.test(s), 'CSP: nada de estilo embutido');
   assert.doesNotMatch(texto(s), /aprovad[ao]? (sozinh|automátic)|dias? para responder|prazo para (aprovar|responder)/i, 'D5: nenhuma aprovação automática nem prazo para responder');
   for (const id of ['o-prv-erro', 'o-prv-erro-form']) assert.match(s, new RegExp('<p class="orc-erro" id="' + id + '" role="alert"></p>'), id + ': a região de aviso nasce vazia e presente (sem hidden)');
@@ -350,7 +349,7 @@ test('"Outra dúvida?" acompanha a fase: sem endereço que abra diz "Não conseg
   assert.equal(t.el['o-prv-duvida'].hidden, false);
   assert.equal(t.el['o-prv-duvida-lead'].textContent, 'Outra dúvida? '); assert.equal(t.el['o-prv-duvida-wa'].textContent, 'Deixe um recado para a equipe');
   assert.match(SECAO, /<span id="o-prv-duvida-lead">Outra dúvida\? <\/span><a id="o-prv-duvida-wa"/, 'o HTML nasce com a frase de sempre');
-  assert.equal([...SECAO.matchAll(/href="https:\/\/wa\.me\//g)].length, 1, 'continua um link de WhatsApp só');
+  assert.equal([...SECAO.matchAll(/data-recado-abrir/g)].length, 1, 'continua um link de recado só');
 });
 
 test('1.500 vem de uma constante: o HTML (maxlength), a tela e o servidor concordam, e as frases geradas por JS usam a MAX_LISTA', async () => {

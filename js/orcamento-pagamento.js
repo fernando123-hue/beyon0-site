@@ -221,7 +221,7 @@
         if (e && e.dados && e.dados.aguarde) { $('o-pag-status').textContent = e.message; esperar(); }
         else {
           if (metodo === 'cartao' && e && !e.status && /titular|impresso/i.test(e.message || '')) marcarInvalido('o-titular');
-          erro.textContent = e && e.status === 500 ? 'Não consegui concluir agora.' + (e.dados && typeof e.dados.pedido === 'string' ? ' Código do erro: ' + e.dados.pedido.slice(0, 8) + '.' : '') + ' Tente de novo ou fale com a Beyon Zero pelo WhatsApp.'
+          erro.textContent = e && e.status === 500 ? 'Não consegui concluir agora.' + (e.dados && typeof e.dados.pedido === 'string' ? ' Código do erro: ' + e.dados.pedido.slice(0, 8) + '.' : '') + ' Tente de novo ou deixe um recado para a equipe.'
             : (e && e.message) || 'Não foi possível concluir agora. Tente de novo.';
         }
       } finally { enviando = false; $('o-pag-enviar').removeAttribute('aria-disabled'); $('o-pag-form').removeAttribute('aria-busy'); }

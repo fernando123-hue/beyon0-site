@@ -61,9 +61,11 @@ for (const rota of ['/index.html', '/sites.html', '/automacao.html']) {
   for (let i = 0; i < 14; i++) {
     await page.keyboard.press('Tab');
     vistos.push(await page.evaluate(() => {
+      /* o slider das peças (Planta, Plantão) desenha o anel de foco no ponteiro que anda (um filho ou o ::after dele), não na caixa da régua */
+      const temAnel = (e, cs) => cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) > 0;
       const a = document.activeElement; if (!a || a === document.body) return null;
       const cs = getComputedStyle(a); const r = a.getBoundingClientRect();
-      return { tag: a.tagName, txt: (a.textContent || a.getAttribute('aria-label') || '').trim().slice(0, 24), outline: cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) > 0, naTela: r.top >= 0 && r.bottom <= innerHeight };
+      return { tag: a.tagName, txt: (a.textContent || a.getAttribute('aria-label') || '').trim().slice(0, 24), outline: temAnel(a, cs) || (a.getAttribute('role') === 'slider' && [...a.querySelectorAll('*')].some(c => temAnel(c, getComputedStyle(c)) || temAnel(c, getComputedStyle(c, '::after')))), naTela: r.top >= 0 && r.bottom <= innerHeight };
     }));
   }
   const focaveis = vistos.filter(Boolean);

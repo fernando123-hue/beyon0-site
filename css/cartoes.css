@@ -37,15 +37,12 @@
    (".carga-circula") e esta cede. Sem JS, ou com movimento reduzido, a luz fica pousada. Sem desfoque. */
 .painel:not(:where(.console, .instrumento)), .celula, .laudo__row, .qa, .spec__item,
 .hero__rail > a, .hero__rail > div:not(.hero__rail-aresta) {
-  --luz-x: 16px;   /* onde a luz pousa (nos cartões com número, depois dele) */
-  --luz-w: 124px;
   position: relative;
   border: 1px solid var(--line-2); border-radius: var(--mod-raio);
   background-color: var(--mod-fundo);
   color: var(--t1);
   transition: border-color var(--t) var(--ease), background-color var(--t) var(--ease);
 }
-:is(.painel, .celula, .laudo__row):has(> :is(.servico__n, .celula__n, .laudo__n)) { --luz-x: 60px; }
 /* (a aresta de cima e as marcas em L saíram: um sinal só. O ::before fica escondido; o ::after segue sendo a
    varredura de entrada do painel, motion.css) */
 .painel:not(:where(.console, .instrumento))::before, .celula::before, .laudo__row::before, .qa::before, .spec__item::before,
@@ -146,7 +143,7 @@
 .servico p { color: var(--t2); font-size: var(--fs-m); line-height: 1.6; }
 .servico__para { font-size: var(--fs-s); line-height: 1.5; color: var(--t3); }
 .servico__formatos { display: none; }
-@media (min-width: 721px) { .servicos { grid-template-columns: repeat(3, minmax(0, 1fr)); } .servico { min-height: 300px; } }
+@media (min-width: 721px) { .servicos { grid-template-columns: repeat(3, minmax(0, 1fr)); } .servicos--dois { grid-template-columns: repeat(2, minmax(0, 1fr)); } .servico { min-height: 300px; } }
 /* a peça sozinha numa página (2026-10-23): um cartão só, na largura que ela foi desenhada */
 @media (min-width: 721px) { .servicos--solo { grid-template-columns: minmax(0, 640px); } }
 @media (min-width: 721px) and (max-width: 980px) { .servicos--quatro { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
@@ -154,7 +151,7 @@
    cartão, então o cartão deixa de ser um <a> inteiro (link dentro de controle não vale) e vira <article> com o
    link esticado por baixo; a peça fica por cima (z-index 2) e continua interativa.
    Celular: título e preço antes da peça (a ordem do HTML); do tablet para cima a peça abre o cartão. */
-/* o próximo passo de cada peça ("Quero o meu site", "Quero o diagnóstico…") */
+/* o próximo passo de cada peça ("Quero o meu site", "Quero o atendente…") */
 .peca-quero {
   align-self: flex-start; display: inline-flex; align-items: center; gap: .6rem; min-height: 48px; padding: 0 1.1rem;
   border: 1px solid rgb(var(--ac-rgb) / .6); border-radius: var(--raio-s); color: var(--ac);
@@ -169,8 +166,6 @@
 .peca-quero--cheio { background: var(--ac); border-color: var(--ac); color: var(--ac-tinta); font-family: var(--sans); font-size: .9375rem; font-weight: 500; letter-spacing: 0; text-transform: none; max-width: 100%; min-width: 0; overflow: hidden; }
 .peca-quero--cheio:hover { background: var(--ac-2); border-color: var(--ac-2); }
 .peca-quero__texto { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.peca-wa { color: var(--t2); font-size: var(--fs-s); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line-2); }
-.peca-wa:hover { color: var(--t1); text-decoration-color: currentColor; }
 /* a ordem é a do HTML em todas as larguras: título, preço, a peça, o texto, as ações (crítica, rodada 2: com a peça
    antes do título, o botão de conversão vinha antes de a pessoa saber o que era e quanto custava) */
 .servico--peca > h3, .servicos > .servico--peca:first-child h3 { margin-top: 0; }
@@ -199,13 +194,13 @@
   .servicos--quatro > *, .servicos--quatro > :first-child { grid-column: span 3; }
   .servicos--pilha > :first-child h3 { margin-top: 0; font-size: var(--h3-cartao); }
   .servicos--pilha > :first-child .servico__link, .servicos--pilha .servico__link { margin-top: auto; }
-  /* Hub: com as peças nas páginas dos serviços (2026-10-23) os três cartões são iguais, lado a lado */
-  .servicos--tres { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: auto; }
-  .servicos--tres > *, .servicos--tres > :first-child { grid-column: auto; grid-row: auto; }
+  /* Hub: com as peças nas páginas dos serviços (2026-10-23) os cartões são iguais, lado a lado (dois: sites e atendente, 2026-10-30) */
+  .servicos--dois { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: auto; }
+  .servicos--dois > *, .servicos--dois > :first-child { grid-column: auto; grid-row: auto; }
   .servicos--solo { grid-template-columns: minmax(0, 640px); grid-template-rows: auto; }
   .servicos--solo > *, .servicos--solo > :first-child { grid-column: auto; grid-row: auto; }
-  .servicos--tres > :first-child h3 { margin-top: 0; font-size: var(--h3-cartao); }
-  .servicos--tres > :first-child .servico__link, .servicos--tres .servico__link { margin-top: auto; }
+  .servicos--dois > :first-child h3 { margin-top: 0; font-size: var(--h3-cartao); }
+  .servicos--dois > :first-child .servico__link, .servicos--dois .servico__link { margin-top: auto; }
 }
 
 /* ---------- 3. LAUDO (garantias, dores): um módulo por linha ---------- */

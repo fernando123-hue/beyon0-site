@@ -71,7 +71,7 @@
         var T = TOMADAS[t], els = document.querySelectorAll(T.sel);
         for (var i = 0; i < els.length; i++) {
           var el = els[i];
-          if (el.closest('.barra, .nav, .lead-modal, [aria-hidden="true"]')) continue;
+          if (el.closest('.barra, .nav, [aria-hidden="true"]')) continue;
           /* o ponto: duas marcas de registro e as três travas */
           var so = document.createElement('i'); so.className = 'doca' + (ctx.celular ? ' doca--cel' : '');
           for (var k = 0; k < 3; k++) so.appendChild(document.createElement('b'));

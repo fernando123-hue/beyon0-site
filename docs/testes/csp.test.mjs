@@ -190,12 +190,12 @@ test('logo: as páginas usam a logo em SVG, sem estilo nem cor embutidos e com o
    nome do negócio dele: o nome entra na página só como texto (nada de innerHTML), nunca sai pela rede nem pela
    URL, e só vai ao orçamento (sessionStorage, nesta aba) se a pessoa clicar em "Quero o meu site". A peça segue a
    CSP (nenhum style="" no HTML) e funciona sem mouse: a régua é um slider com valor falado e as paradas são botões. */
-/* O DESPACHO e O PLANTÃO (as peças de Automação e do Atendente): nenhum estilo embutido, texto só como texto,
+/* O PLANTÃO (a peça do Atendente; o Despacho, da antiga Automação, saiu em 29/10): nenhum estilo embutido, texto só como texto,
    nada sai pela rede nem pela URL, o que vai a outra página só no clique de um botão de ação, e controles de
    verdade (botões; a régua de horas é um slider com valor falado). */
-test('peças de Automação e do Atendente: CSP, nada sai da página e controles acessíveis', () => {
+test('peça do Atendente: CSP, nada sai da página e controles acessíveis', () => {
   const html = readFileSync(new URL('automacao.html', RAIZ), 'utf8');
-  for (const [marca, js] of [['data-despacho', 'js/peca-automacao.js'], ['data-plantao', 'js/peca-atendente.js']]) {
+  for (const [marca, js] of [['data-plantao', 'js/peca-atendente.js']]) {
     const peca = (html.match(new RegExp('<div class="[a-z]+" ' + marca + '[\\s\\S]*?<\\/article>')) || [])[0];
     assert.ok(peca, 'automacao.html: o cartão sem a peça ' + marca);
     assert.ok(!/style="/.test(peca), 'automacao.html: estilo embutido na peça ' + marca + ' (a CSP bloqueia)');

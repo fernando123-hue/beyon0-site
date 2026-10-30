@@ -176,13 +176,12 @@
   $('o-pedido-recomecar').addEventListener('click', recomecar);   /* (pedido vencido ou encerrado: um orçamento novo) */
   /* outra aba esqueceu a sessão (js/orcamento-api.js): avisa já, quieto, em vez de esperar a próxima ação */
   document.addEventListener('bz-orcamento:perdida', function () { avisarSessao(true); });
-  /* A SAÍDA É O RECADO (decisão do dono, 28/10: o site não tem WhatsApp nem acesso direto). Os links [data-wa] que o HTML ainda traz abrem o
-     recado em vez de abrir o WhatsApp, até as páginas serem trocadas (passo 2). Fica de fora o "Confirmar pelo WhatsApp" do pedido
-     (#o-confirmar-wa), que é a confirmação do dono (passo 3), e quem pedir com data-wa-manter. Não deixa o clique chegar à métrica de
-     WhatsApp (js/metricas.js): um recado não é um contato por WhatsApp. */
+  /* A SAÍDA É O RECADO (decisão do dono, 28/10: o site não tem WhatsApp nem acesso direto). Os links [data-recado-abrir] do HTML abrem o
+     recado POR AQUI (e não pelo js/recado.js solto), para ele levar a conversa e o anti-robô desta página. Fica de fora o "Confirmar pelo
+     WhatsApp" do pedido (#o-confirmar-wa), que é a confirmação do dono (passo 3) e não tem [data-recado-abrir]. */
   document.addEventListener('click', function (ev) {
-    var a = ev.target && ev.target.closest ? ev.target.closest('a[data-wa]') : null;
-    if (!a || a.id === 'o-confirmar-wa' || a.hasAttribute('data-wa-manter')) return;
+    var a = ev.target && ev.target.closest ? ev.target.closest('a[data-recado-abrir]') : null;
+    if (!a) return;
     ev.preventDefault(); ev.stopPropagation();
     API.abrirRecado({ quem: a }).catch(function (e) { avisar((e && e.message) || 'Não consegui abrir o recado agora. Recarregue a página.', null, null); });
   }, true);
@@ -194,9 +193,7 @@
   /* o formulário de detalhes trata a sessão recusada como o contato antigo tratava (PR 2a) */
   window.BZDetalhes.iniciar({ sessaoTerminou: sessaoTerminou, avisarSessao: avisarSessao });
 
-  /* ---------- o código do pedido e o WhatsApp com ele (F1, F6) ----------
-     Os links [data-wa] são montados por js/pagina.js; aqui só se acrescenta "(pedido XXXXXXXX)" ao assunto, no
-     próprio data-wa (quem remontar os links depois, como js/metricas.js, leva o pedido junto) */
+  /* ---------- o código do pedido (F1, F6) ---------- */
   var codigoMostrado = null;
   function identificar() {
     /* o código do pedido (BZ-XXXXX) depois dos detalhes; antes, o id curto da conversa */
@@ -205,14 +202,6 @@
     codigoMostrado = c;
     $('o-codigo-v').textContent = c;
     mostrar('o-codigo', true);
-    var B = window.BEYON, padrao = document.body.getAttribute('data-wa-padrao') || '';
-    if (!B || typeof B.linkWA !== 'function') return;
-    [].forEach.call(document.querySelectorAll('[data-wa]'), function (a) {
-      if (!a.hasAttribute('data-wa-base')) a.setAttribute('data-wa-base', a.getAttribute('data-wa') || padrao);
-      var assunto = a.getAttribute('data-wa-base') + ' (pedido ' + c + ')';
-      a.setAttribute('data-wa', assunto);
-      a.href = B.linkWA(assunto);
-    });
   }
 
   /* ---------- a conversa ---------- */
