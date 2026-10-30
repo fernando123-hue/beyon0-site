@@ -21,7 +21,10 @@ export async function ntfy(topico, texto, urgente, token, titulo = 'Beyon Zero: 
 export const AVISOS = Object.freeze({
   pedido: 'Pedido novo na fila. Detalhes no painel.',
   recado: 'Recado novo. Leia no painel.',
-  fila_cheia: 'URGENTE: a fila de pedidos encheu ou o limite por hora foi atingido. Veja o painel.'
+  fila_cheia: 'URGENTE: a fila de pedidos encheu ou o limite por hora foi atingido. Veja o painel.',
+  atendente_cliente: 'O atendente de um cliente bateu o teto de gasto do dia e passou a mandar as pessoas para a equipe. Veja o painel.',
+  atendente_contatos: 'O atendente de um cliente recebeu o máximo de contatos do dia (pode ser abuso). Veja o painel.',
+  atendente_global: 'URGENTE: o teto de gasto do dia do atendente (todos os clientes) acabou. Veja o painel.'
 });
 
 /* Avisa o dono com um dos textos FIXOS de AVISOS. Sem tópico: não faz nada. Falha ou demora: só log, nunca erro

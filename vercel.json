@@ -229,6 +229,15 @@
       ]
     },
     {
+      "source": "/js/atendente-balao.js",
+      "headers": [
+        {
+          "key": "Cross-Origin-Resource-Policy",
+          "value": "cross-origin"
+        }
+      ]
+    },
+    {
       "source": "/api/(.*)",
       "headers": [
         {

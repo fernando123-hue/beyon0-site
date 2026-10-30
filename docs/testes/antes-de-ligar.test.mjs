@@ -40,7 +40,7 @@ test('tudo pronto nos arquivos: nenhum FALTA; o que não é arquivo vira CONFIRM
   assert.equal(temFalta(r), false, falta(r).join(' | '));
   const conf = confirmar(r);
   for (const palavra of [/aplicadas no Supabase/, /balde/, /tabela ativa/, /valores da tabela normal/, /ensaio/, /material parado/, /3 dias/, /staging/, /beyon0-site\.vercel\.app/]) assert.match(conf, palavra);
-  assert.match(ok(r), /13 migrations/);
+  assert.match(ok(r), /14 migrations/);
 });
 
 test('o curinga do Supabase na CSP (em qualquer um dos três lugares) é FALTA; o endereço exato passa; sem blob: (miniaturas) também é FALTA', () => {
@@ -95,7 +95,7 @@ test('a privacidade do 3b-2 mesclada (o teste dela existe e passa) e as 11 migra
   assert.ok(falta(verificar(mundo({ privacidade: false }))).some(t => /privacidade/.test(t)));
   assert.ok(falta(verificar(mundo({ falham: ['docs/testes/privacidade-material.test.mjs'] }))).some(t => /privacidade/.test(t)));
   assert.ok(falta(verificar(mundo({ migrations: MIGRATIONS.slice(0, 5) }))).some(t => /migrations/.test(t) && /pr3b3_esquema/.test(t) && /pr3b3_lista/.test(t)));
-  assert.equal(MIGRATIONS.length, 13);
+  assert.equal(MIGRATIONS.length, 14);
   assert.deepEqual([...MIGRATIONS].sort(), [...MIGRATIONS], 'a ordem de aplicação é a do nome');
 });
 

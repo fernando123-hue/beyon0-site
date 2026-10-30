@@ -8,6 +8,7 @@
    ========================================================================== */
 import { pareceInjecao } from '../_vendas/seguranca.mjs';
 import { gerarSimulado } from './simulado-geracao.mjs';
+import { atendenteSimulado } from './simulado-atendente.mjs';
 
 const SEGMENTOS = [[/odonto|dentist/i, 'odontologia'], [/cl[ií]nica|consult[óo]rio|m[ée]dic/i, 'saúde'], [/advoca|advogad|escrit[óo]rio jur/i, 'advocacia'],
   [/restaurante|lanchonete|pizzaria|caf[ée]/i, 'alimentação'], [/academia|personal|pilates/i, 'fitness'], [/contab/i, 'contabilidade'],
@@ -98,6 +99,7 @@ export function criarSimulada({ geracao = gerarSimulado, extracao = null } = {})
     nome: 'simulada',
     async mensagem(pedido) {
       if (pedido.papel === 'conversa') return conversa(pedido);
+      if (pedido.papel === 'atendente') return atendenteSimulado(pedido);
       if (pedido.papel === 'geracao' && geracao) return geracao(pedido);
       if (pedido.papel === 'extracao' && extracao) return extracao(pedido);
       throw new Error('simulada: papel sem dublê: ' + pedido.papel);
