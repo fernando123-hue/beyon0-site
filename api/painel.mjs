@@ -313,7 +313,7 @@ async function ajusteRecusado(id, env) {
   } catch (e) { return erroDoAjuste(e, 'ajuste recusado'); }
 }
 
-/* ---------- o PEDIDO DE MODELOS (orçamento sem IA, PR 2a): confirmação pelo WhatsApp, descartar e arquivar ---------- */
+/* ---------- o PEDIDO DE MODELOS (orçamento sem IA, PR 2a): descartar e arquivar (o pedido nasce confirmado desde 30/10) ---------- */
 const ACOES_ENTREGA = { previa: 'previaPublicar', no_ar: 'noAr', suspender: 'suspender', encerrar: 'encerrar', material_dispensar: 'dispensar', aviso_feito: 'avisoFeito', religado: 'religado' };
 const ACOES_PEDIDO = { descartar_pedido: 'descartar', arquivar_pedido: 'arquivar' };
 /* o que `ler` (GET: ?fila=…, ?csv=ads ou o resumo) e `mudar` (POST: a chave do corpo) despacham: a bancada de CPU (M1) e o

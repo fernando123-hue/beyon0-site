@@ -299,7 +299,7 @@ test('gerar só com o pedido CONFIRMADO: conversa antiga em contato (sem pedido)
   assert.equal(Number((await local.db.query('select count(*) n from app.pedidos where conversa_id = $1', [c])).rows[0].n), 0, 'sem pedido');
   const antiga = await n.chamar('POST', 'gerar', { conversa_id: c });
   assert.equal(antiga.status, 409, 'sem pedido: a API recusa — ' + JSON.stringify(antiga.corpo));
-  assert.match(antiga.corpo.erro, /ainda não foi confirmado pelo WhatsApp/);
+  assert.match(antiga.corpo.erro, /ainda não foi confirmado/);
   assert.equal(Number((await local.db.query('select count(*) n from app.direcoes where conversa_id = $1', [c])).rows[0].n), 0, 'nenhuma direção nasceu');
   /* o pedido esperando a confirmação */
   const n2 = navegador();

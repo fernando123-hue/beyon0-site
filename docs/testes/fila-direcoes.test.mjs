@@ -309,7 +309,7 @@ test('pedido novo entra direto na fila, com código e as três direções (sem c
   const naFila = (await painelGet('?fila=direcoes')).corpo.fila.find(x => x.conversa_id === a.c);
   assert.ok(naFila && naFila.codigo === a.detalhes.corpo.codigo && naFila.direcoes.length === 3, 'direto na fila, com as três direções');
   assert.equal((await painelPost({ confirmar_whatsapp: a.c })).status, 400, 'a ação de confirmar saiu do painel');
-  assert.notEqual((await painelGet('?fila=pendentes')).status, 200, 'a lista de pendentes saiu do painel');
+  assert.ok(!('pendentes' in (await painelGet('?fila=pendentes')).corpo), 'a lista de pendentes saiu do painel');
   assert.equal((await painelPost({ arquivar_pedido: a.c })).status, 200);
   assert.ok(!(await painelGet('?fila=direcoes')).corpo.fila.some(x => x.conversa_id === a.c), 'arquivado: sai da fila');
   const b = await ateAFila('manual');

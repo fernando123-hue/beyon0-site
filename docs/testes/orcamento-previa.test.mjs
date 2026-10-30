@@ -268,9 +268,9 @@ test('criar: 422 (e outros erros comuns) aparece no formulário, em textContent,
   assert.match(t.el['o-prv-erro-form'].textContent, /^Não escreva CPF/); assert.equal(t.el['o-prv-erro'].textContent, ''); assert.equal(t.ctx.recargas, 0);
   assert.equal(t.el['o-prv-duvida'].hidden, true); assert.equal(t.el['o-prv-form'].hidden, false, 'o formulário segue aberto com o que a pessoa escreveu');
   assert.equal(t.el['o-prv-lista'].value, 'Trocar a foto da capa.');
-  t.ctx.falhaDaAcao = falha(503, 'Recebemos a sua entrada. A Beyon Zero fala com você pelo WhatsApp para o próximo passo.', { recado: true });
+  t.ctx.falhaDaAcao = falha(503, 'Recebemos a sua entrada. A Beyon Zero entra em contato com você para o próximo passo.', { recado: true });
   await t.el['o-prv-form'].disparar('submit');
-  assert.match(t.el['o-prv-erro-form'].textContent, /Beyon Zero fala com você/); assert.equal(t.el['o-prv-duvida'].hidden, false, 'a API mandou a saída pelo recado: o único link aparece');
+  assert.match(t.el['o-prv-erro-form'].textContent, /Beyon Zero entra em contato com você/); assert.equal(t.el['o-prv-duvida'].hidden, false, 'a API mandou a saída pelo recado: o único link aparece');
   t.ctx.falhaDaAcao = null; t.ctx.proximo = estado('ajustes', { usadas: 1, max: 2 }); await t.el['o-prv-form'].disparar('submit');
   assert.equal(t.el['o-prv-duvida'].hidden, true, 'depois de mandar, a saída some'); assert.equal(t.el['o-prv-erro-form'].textContent, '');
 });

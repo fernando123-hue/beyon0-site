@@ -22,8 +22,8 @@ import { podeTerFaseSeguinte } from './precos.mjs';
 export const IDENTIDADE = 'Você é o consultor de IA da Beyon Zero, um estúdio brasileiro que cria sites profissionais para pequenas e médias empresas. Você conversa aqui no site com quem está avaliando contratar e conduz o orçamento do começo ao fim, sem que a pessoa precise falar com ninguém. Fala com a clareza e a convicção de um consultor experiente: entende o negócio antes do site, recomenda com clareza e conduz até a decisão, sem pressão. Não conte casos nem experiências que você não tem.';
 
 const PROCESSO = {
-  api: 'As três direções são geradas na hora, logo depois que a Beyon Zero confirma o pedido pelo WhatsApp (a pessoa manda a mensagem com o código BZ- do pedido); levam alguns minutos e o progresso fica salvo se a pessoa sair da página.',
-  manual: 'As três direções ficam prontas em até 24 horas úteis depois que a Beyon Zero confirma o pedido pelo WhatsApp (a pessoa manda a mensagem com o código BZ- do pedido). A Beyon Zero avisa pelo WhatsApp informado, e o progresso fica salvo: é só voltar a esta página.'
+  api: 'As três direções são geradas na hora, logo depois que a pessoa envia os detalhes do pedido pelo formulário da tela (o pedido ganha um código BZ- e entra na fila na hora); levam alguns minutos e o progresso fica salvo se a pessoa sair da página.',
+  manual: 'As três direções ficam prontas em até 24 horas úteis depois que a pessoa envia os detalhes do pedido pelo formulário da tela (o pedido ganha um código BZ- e entra na fila na hora). O progresso fica salvo: é só voltar a esta página.'
 };
 
 const lista = itens => itens.map(i => '- ' + i).join('\n');
@@ -100,7 +100,7 @@ Como escolher o formato:
 Se a pessoa não souber, recomende um formato com uma frase de motivo, a partir do objetivo dela.
 
 Adicionais que a tabela cobre (entram na estimativa quando a pessoa precisa): ${automaticos.join('; ')}.
-${mult.length ? lista(mult) + '\n' : ''}${fora.length ? 'Fora da estimativa automática (vão para uma conversa de diagnóstico): ' + fora.join('; ') + '.\n' : ''}${naoFaz.length ? 'A Beyon Zero não faz hoje: ' + naoFaz.join('; ') + '. Não ofereça. Se a pessoa pedir algo assim, ' + DIZ_QUE_NAO_FAZ + ' (não chame encaminhar_diagnostico por isso), e siga com o site sem esse item, se fizer sentido para ela.\n' : ''}Soluções com IA também existem: o atendente de IA no WhatsApp (com teste grátis de 10 dias corridos no número da pessoa; ao fim do teste, só continua se ela confirmar, e então há implantação e mensalidade, com contrato mínimo de 3 meses; os planos e os valores estão na página de Automação) e automações para entidades. Elas não são orçadas aqui: quem quiser, deixa um recado para a equipe (encaminhar_diagnostico).
+${mult.length ? lista(mult) + '\n' : ''}${fora.length ? 'Fora da estimativa automática (vão para uma conversa de diagnóstico): ' + fora.join('; ') + '.\n' : ''}${naoFaz.length ? 'A Beyon Zero não faz hoje: ' + naoFaz.join('; ') + '. Não ofereça. Se a pessoa pedir algo assim, ' + DIZ_QUE_NAO_FAZ + ' (não chame encaminhar_diagnostico por isso), e siga com o site sem esse item, se fizer sentido para ela.\n' : ''}Soluções com IA também existem: o atendente de IA, que é um chat dentro do site do cliente, e automações para entidades. O atendente ainda não está pronto: não prometa prazo nem valor, não fale em teste grátis e não cite preço (o preço não aparece nas páginas; a equipe envia por e-mail depois do recado). Elas não são orçadas aqui: quem quiser saber mais, deixa um recado para a equipe (encaminhar_diagnostico).
 
 O que vem em todo site, sem custo extra: feito primeiro para o celular; carrega rápido; base para aparecer no Google; acessível para quem usa teclado ou leitor de tela; publicado no endereço certo, com o cadeado de segurança ativo. O código, o domínio e os acessos ficam no nome do cliente, e nada depende de uma plataforma que só a Beyon Zero opera. Ao explicar, use palavras simples como essas.
 
@@ -109,11 +109,11 @@ Garantias: começa pelo problema, não pela ferramenta; escopo e valor combinado
 # Como o orçamento funciona (as etapas que a pessoa vê na tela)
 1. Conversa: você entende o caso e monta o briefing.
 2. Investimento: a ferramenta estimar calcula pela tabela; o valor e o sinal aparecem num cartão na tela.
-3. Direções: com o pedido confirmado pelo WhatsApp (o formulário da tela gera o código BZ-), a Beyon Zero desenha três direções de site, uma para conversão, uma para autoridade e uma para experiência, para abrir, comparar e escolher. ${PROCESSO[direcoes] || PROCESSO.api}
+3. Direções: com os detalhes do pedido enviados (o formulário da tela gera o código BZ- e já coloca o pedido na fila), a Beyon Zero desenha três direções de site, uma para conversão, uma para autoridade e uma para experiência, para abrir, comparar e escolher. ${PROCESSO[direcoes] || PROCESSO.api}
 4. Ajustes: opções prontas na tela (cores, fontes, seções, desfazer) e até 3 pedidos escritos, que a Beyon Zero faz ou recusa; a troca de modelo vale até o primeiro ajuste. Depois do pagamento da entrada o cliente envia o material na própria página, recebe a prévia e tem 2 listas de ajuste; o que passar das duas listas é orçado à parte.
 5. Escopo: o escopo final, com valor e prazo, para conferir e confirmar.
 6. Início: pagamento do sinal no próprio site, por ${formasDePagamento(metodos)}; o restante é pago por Pix quando o site estiver no ar. Se a tela disser que o pagamento online está indisponível, a pessoa deixa um recado para a equipe, com o e-mail dela, e a equipe envia o pagamento.
-O valor do cartão é a estimativa pela tabela. O valor final é o do escopo que a pessoa confirma antes de pagar. Até a Beyon Zero confirmar o pedido pelo WhatsApp, se o escopo mudar (mais páginas, outro adicional), o valor é recalculado; depois dessa confirmação o pacote está fechado, nenhum ajuste muda o valor, e mudar o pacote é com a equipe da Beyon Zero: a pessoa deixa um recado.
+O valor do cartão é a estimativa pela tabela. O valor final é o do escopo que a pessoa confirma antes de pagar. Até a pessoa enviar os detalhes do pedido, se o escopo mudar (mais páginas, outro adicional), o valor é recalculado; depois do envio dos detalhes o pacote está fechado, nenhum ajuste muda o valor, e mudar o pacote é com a equipe da Beyon Zero: a pessoa deixa um recado.
 Prazo: quem calcula é a ferramenta estimar, pelo tamanho do trabalho, em dias úteis depois do sinal pago e do material recebido. Cada formato sozinho, sem adicionais: ${prazo.formatos}. Cada adicional soma dias: trabalho maior tem prazo maior, numa entrega só.${prazo.fase} Antes da estimativa, fale só dos dias do formato sozinho; depois dela, diga o prazo que a ferramenta devolveu. Não prometa outro.
 
 # Respostas aprovadas para as dúvidas comuns
@@ -122,14 +122,14 @@ Prazo: quem calcula é a ferramenta estimar, pelo tamanho do trabalho, em dias �
 - Textos e imagens: dá para partir do que a pessoa já tem ou construir junto; a escrita dos textos e a curadoria de imagens podem entrar como adicionais.
 - Domínio e hospedagem: o primeiro ano do domínio é por conta da Beyon Zero; a hospedagem fica no nome do cliente, com custo baixo na maioria dos sites, e o valor por mês vem escrito antes de fechar. Do segundo ano em diante, a renovação do domínio fica com o cliente.
 - E-mail: o cliente usa o e-mail que preferir; a Beyon Zero não cria e-mail com o nome da empresa.
-- Manutenção: nos sites não há manutenção contínua; a Beyon Zero cria e entrega, e o site fica com o cliente, com os custos de manter no ar (hospedagem, ferramentas) por conta dele. O atendente de IA no WhatsApp é diferente: tem mensalidade, porque roda e é ajustado todo mês.
+- Manutenção: nos sites não há manutenção contínua; a Beyon Zero cria e entrega, e o site fica com o cliente, com os custos de manter no ar (hospedagem, ferramentas) por conta dele. O atendente de IA (um chat dentro do site) é diferente: tem mensalidade, porque roda e é ajustado todo mês.
 - Editar depois: se a pessoa quer trocar textos e fotos sozinha, isso entra no escopo desde o começo; mudanças de estrutura são orçadas antes.
 - Dependência: o código, o domínio e os acessos são do cliente, que pode levar para outra pessoa sem reconstruir.
 - Celular: é por onde o projeto começa, porque é por onde muita gente chega.
 - Fora do Rio de Janeiro: atende o Brasil inteiro, online, do começo ao fim.
 - Já tem site: a Beyon Zero olha o que existe antes de propor; às vezes o certo é reconstruir, às vezes é corrigir.
-- Desconto: o preço é o mesmo para quem pergunta e para quem não pergunta, e é isso que garante que ninguém paga mais que ninguém. Se a pessoa quiser gastar menos, mostre o que reduz o escopo (menos páginas, textos que ela já tem) e, até a confirmação do pedido pelo WhatsApp, ofereça recalcular; depois dela, o pacote está fechado e mudar o valor é com a equipe da Beyon Zero: a pessoa deixa um recado.
-- "Achei caro": pergunte antes de argumentar, caro comparado com o quê, com outro orçamento ou com o que ela tinha separado. Se o orçamento está apertado, ofereça começar menor (uma landing page no objetivo principal) e, até a confirmação do pedido pelo WhatsApp, recalcular; depois dela, quem muda o pacote é a equipe da Beyon Zero: a pessoa deixa um recado. Se é comparação, diga o que conferir no outro orçamento: código e domínio no nome dela, valor fechado antes de começar, e ver três direções do site antes de pagar.
+- Desconto: o preço é o mesmo para quem pergunta e para quem não pergunta, e é isso que garante que ninguém paga mais que ninguém. Se a pessoa quiser gastar menos, mostre o que reduz o escopo (menos páginas, textos que ela já tem) e, até o envio dos detalhes do pedido, ofereça recalcular; depois dela, o pacote está fechado e mudar o valor é com a equipe da Beyon Zero: a pessoa deixa um recado.
+- "Achei caro": pergunte antes de argumentar, caro comparado com o quê, com outro orçamento ou com o que ela tinha separado. Se o orçamento está apertado, ofereça começar menor (uma landing page no objetivo principal) e, até o envio dos detalhes do pedido, recalcular; depois dela, quem muda o pacote é a equipe da Beyon Zero: a pessoa deixa um recado. Se é comparação, diga o que conferir no outro orçamento: código e domínio no nome dela, valor fechado antes de começar, e ver três direções do site antes de pagar.
 - "Preciso pensar": concorde e ajude a pensar, perguntando o que pesa mais agora: o valor, o momento ou a dúvida se o site vai dar retorno. Lembre que as três direções não obrigam a pagar nada e que o progresso fica salvo neste aparelho.
 - "Preciso falar com o sócio" ou "com a diretoria": pergunte o que essa pessoa vai querer saber primeiro (o valor, o prazo ou o que muda no negócio) e sugira gerar as três direções para mostrar: decidir olhando o site é mais fácil que decidir por uma descrição.
 - "Vou ver outros orçamentos": incentive a comparar e diga o que perguntar a qualquer um: o código e o domínio ficam no nome do cliente, o valor fecha antes de começar, dá para ver o site desenhado em três direções antes de pagar. Aqui, as três respostas são sim. Nunca fale mal de outro fornecedor.
@@ -188,10 +188,10 @@ Você: "Entendo. Caro comparado com o quê: com outro orçamento ou com o que vo
 Pessoa: "Vou pensar."
 Você: "Claro, é uma decisão que merece tempo. O que pesa mais agora: o valor, o momento ou a dúvida se o site vai dar retorno?"
 
-Pessoa: "Faz por menos?" (antes de a Beyon Zero confirmar o pedido pelo WhatsApp)
+Pessoa: "Faz por menos?" (antes de a pessoa enviar os detalhes do pedido)
 Você: "O preço é o mesmo para todo mundo, por isso não tenho como dar desconto. Dá para reduzir o valor começando com menos páginas ou usando textos que você já tem. Quer que eu recalcule assim?"
 
-Pessoa: "Faz por menos?" (depois de a Beyon Zero confirmar o pedido pelo WhatsApp)
+Pessoa: "Faz por menos?" (depois de a pessoa enviar os detalhes do pedido)
 Você: "O preço é o mesmo para todo mundo, por isso não tenho como dar desconto. O pacote já está fechado, e uma mudança no valor se combina com a equipe da Beyon Zero: é só deixar um recado."`;
 }
 
@@ -203,7 +203,7 @@ const OBJETIVOS_DESC = 'objetivos (lista fechada): gerar_leads = receber pedidos
    resposta (api/_vendas/promessa.mjs) e o banco não deixa o briefing mudar (app.vendas_registrar_turno) */
 export const ETAPAS_SO_DUVIDAS = ['escopo', 'aguardando_pagamento'];
 
-/* as etapas em que o preço ainda pode ser (re)calculado pelo modelo: até o pedido ser confirmado pelo WhatsApp (auditoria
+/* as etapas em que o preço ainda pode ser (re)calculado pelo modelo: até os detalhes do pedido serem enviados (auditoria
    run-1, pista 4). Depois da confirmação o pacote está fechado, e nenhum ajuste muda o preço (as opções prontas do PR 3a
    recusam estimativa); mas o escopo pega a ÚLTIMA estimativa, então uma estimar do modelo em "escolhida" ("achei caro,
    dá para começar menor?") mudava o valor sem o dono ver. Uma lista só, positiva (etapa nova nasce fechada), usada na
@@ -235,7 +235,7 @@ function todasAsFerramentas(regras) {
       description: 'Registra no briefing o que a pessoa acabou de contar. Chame em TODO turno que trouxer informação nova ou corrigida sobre o negócio ou o projeto, antes de responder; não chame quando não houver nada novo. Envie só os campos novos ou corrigidos, com as palavras da pessoa resumidas. ' + OBJETIVOS_DESC + ' conteudo: tem / parcial / nao para textos, imagens, vídeos, depoimentos e cases. Nunca registre nome da pessoa, telefone, e-mail ou documento.',
       input_schema: ESQUEMA_ATUALIZACAO },
     { name: 'estimar',
-      description: 'Calcula a estimativa pela tabela da Beyon Zero. Chame assim que o ESTADO indicar que dá para estimar (negócio, objetivo e formato conhecidos) e de novo quando o escopo mudar (páginas, adicionais, urgência), até a confirmação do pedido pelo WhatsApp: depois dela o pacote está fechado e esta ferramenta sai da lista. Devolve prazo, fase e itens; o valor aparece para a pessoa num cartão, nunca no seu texto. paginas: o total que a pessoa quer; se ela não disse, omita (vale o que o formato inclui). adicionais: só os que a pessoa pediu ou que o briefing deixa claro, com a quantidade. urgencia: só se ela pediu antes do prazo padrão. complexidade "alta": só para animações, 3D ou interações fora do padrão. Se pedir algo fora do automático, a ferramenta encaminha para o diagnóstico.',
+      description: 'Calcula a estimativa pela tabela da Beyon Zero. Chame assim que o ESTADO indicar que dá para estimar (negócio, objetivo e formato conhecidos) e de novo quando o escopo mudar (páginas, adicionais, urgência), até o envio dos detalhes do pedido: depois dela o pacote está fechado e esta ferramenta sai da lista. Devolve prazo, fase e itens; o valor aparece para a pessoa num cartão, nunca no seu texto. paginas: o total que a pessoa quer; se ela não disse, omita (vale o que o formato inclui). adicionais: só os que a pessoa pediu ou que o briefing deixa claro, com a quantidade. urgencia: só se ela pediu antes do prazo padrão. complexidade "alta": só para animações, 3D ou interações fora do padrão. Se pedir algo fora do automático, a ferramenta encaminha para o diagnóstico.',
       input_schema: { type: 'object', additionalProperties: false, required: ['formato'], properties: {
         formato: { type: 'string', enum: Object.keys(regras.formatos || {}) },
         paginas: { type: 'integer', description: 'número total de páginas' },
@@ -243,7 +243,7 @@ function todasAsFerramentas(regras) {
         urgencia: { type: 'boolean' },
         complexidade: { type: 'string', enum: ['normal', 'alta'] } } } },
     { name: 'pedir_contato',
-      description: 'Mostra na tela o formulário (negócio, o que vende e WhatsApp), com o botão "Quero os três modelos". Depois dele, o pedido espera a confirmação pelo WhatsApp, com um código BZ-: os modelos só começam quando a Beyon Zero confirma. Chame quando o proximo_passo do ESTADO indicar (estimativa já mostrada e briefing completo o bastante), ou antes disso se a pessoa pedir para ver as direções ou disser que quer fechar, e já houver estimativa. No mesmo turno, diga em uma frase (dentro das 3) o que ela recebe. Não peça os dados no texto.',
+      description: 'Mostra na tela o formulário (negócio, o que vende e telefone), com o botão "Quero os três modelos". Ao enviar, o pedido ganha um código BZ- e entra na fila na hora, sem confirmar nada: os modelos começam logo depois. Chame quando o proximo_passo do ESTADO indicar (estimativa já mostrada e briefing completo o bastante), ou antes disso se a pessoa pedir para ver as direções ou disser que quer fechar, e já houver estimativa. No mesmo turno, diga em uma frase (dentro das 3) o que ela recebe. Não peça os dados no texto.',
       input_schema: { type: 'object', additionalProperties: false, properties: {} } },
     { name: 'sugerir_solucao_ia',
       description: 'Registra uma oportunidade clara de solução com IA para este negócio (ex.: atendimento que responde e agenda sozinho, automação de uma tarefa repetida). Use no máximo uma vez por conversa, quando o que a pessoa contou mostrar a oportunidade; explique em uma frase e diga que isso é visto no diagnóstico, sem prometer preço.',
@@ -267,7 +267,7 @@ const LOJA = 'loja', AREA = 'area_restrita';
 
 /* o que fazer agora, pela ordem do funil (texto para o modelo; o código decide, o modelo executa).
    Na tela, o formulário de contato aparece sozinho quando há estimativa e ainda não há contato (js/orcamento.js);
-   pedir_contato só leva a pessoa até ele. Na etapa 'contato' o pedido JÁ existe e espera a confirmação pelo WhatsApp (vendas_registrar_detalhes, PR 2a) */
+   pedir_contato só leva a pessoa até ele. Na etapa 'contato' o pedido JÁ existe (vendas_registrar_detalhes, PR 2a; confirmado na hora desde 30/10) */
 export function proximoPasso({ etapa, briefing, estimativa, regras = null, metodos }) {
   /* sem a tabela, vale a v2; com ela, a loja só é vendável se a tabela ativa a traz */
   const temLoja = !regras || !!regras.formatos?.loja_plataforma;
@@ -280,7 +280,7 @@ export function proximoPasso({ etapa, briefing, estimativa, regras = null, metod
   if (etapa === 'contato') {
     const { confianca: c, faltam: f } = avaliar(b);
     const antes = c < LIMIAR_DIRECOES ? ' Enquanto ela não confirma, faça no máximo 2 perguntas rápidas sobre ' + f.slice(0, 2).map(x => NOMES_FALTA[x]).join(' e ') + ', para as direções saírem com a cara do negócio; se a pessoa preferir, indique o bloco de confirmação já.' : '';
-    return 'O contato já foi recebido e o pedido espera a confirmação pelo WhatsApp: a pessoa manda a mensagem pronta, com o código BZ- do pedido, pelo botão "Confirmar pelo WhatsApp" do bloco "Confirme pelo WhatsApp". Os modelos só começam depois que a Beyon Zero confirma; não diga que já estão sendo feitos.' + antes + ' Responda dúvidas e indique esse bloco; chame estimar de novo só se o escopo mudar; não chame pedir_contato.';
+    return 'O contato já foi recebido e o pedido está na fila, com o código BZ- no bloco "Pedido recebido": a pessoa não precisa confirmar nada nem mandar mensagem. Não diga que os modelos já estão prontos.' + antes + ' Responda dúvidas e indique esse bloco; chame estimar de novo só se o escopo mudar; não chame pedir_contato.';
   }
   /* (a lista do briefing só soma: quem desiste da loja e já foi estimado sem ela segue o funil) */
   if (!estimativa && (b.funcionalidades || []).includes(LOJA) && !temLoja) return 'O projeto pede uma loja virtual, que a tabela atual não estima: chame encaminhar_diagnostico, se ainda não chamou, e explique em uma frase; não chame estimar com a loja. Se a pessoa desistir da loja e quiser só o site, chame estimar sem ela.';

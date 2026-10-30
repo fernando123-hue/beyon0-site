@@ -1,9 +1,8 @@
 /* ==========================================================================
-   OS DETALHES E A CONFIRMAÇÃO PELO WHATSAPP (spec docs/specs/2026-10-11-orcamento-sem-ia.md §3 e §0; PR 2a).
-   Depois de "Quero os três modelos": uma tela com o nome do negócio, o que vende (sugestões pelo ramo) e o
-   WhatsApp, mais o que a pessoa quiser contar. O servidor redige, confere e grava o pedido com um código
-   (BZ-K7M3Q); a pessoa confirma escrevendo para o WhatsApp da Beyon Zero com o texto pronto, e o dono marca
-   "confirmado" no painel. O link leva só o número de js/tel.js e o código que o servidor devolveu.
+   OS DETALHES DO PEDIDO (spec docs/specs/2026-10-11-orcamento-sem-ia.md §3 e §0; PR 2a; confirmação automática de 30/10).
+   Depois de "Quero os três modelos": uma tela com o nome do negócio, o que vende (sugestões pelo ramo) e o telefone,
+   mais o que a pessoa quiser contar. O servidor redige, confere e grava o pedido com um código (BZ-K7M3Q) e o confirma
+   na hora: sem WhatsApp e sem clique do dono, o pedido entra direto na fila de produção.
    Nada digitado aqui fica guardado no navegador (decisão D7). Todo texto por textContent.
    ========================================================================== */
 (function () {
@@ -11,7 +10,6 @@
   var API = window.BZOrcamento;
   var $ = function (id) { return document.getElementById(id); };
   if (!API || !$('o-detalhes-form')) return;
-  var TEL = window.BEYON_TEL || '5521977167944';   /* (reserva consciente, como em js/pagina.js: grep 5521977167944) */
   var CODIGO = /^BZ-[ACDEFGHJKMNPQRTUVWXY34679]{5}$/;
   /* sugestões pelo ramo das perguntas (o "segmento" do briefing é o nome de tela do ramo, api/_vendas/catalogo.mjs) */
   var SUGESTOES = {
@@ -28,7 +26,7 @@
   var CAMPOS = ['o-d-negocio', 'o-d-vende', 'o-tel', 'o-nome', 'o-d-publico', 'o-d-diferencial', 'o-d-admira', 'o-d-redes-ok', 'o-aceite']
     .concat(Object.keys(REDES).map(function (k) { return REDES[k]; }));
   var FIM = {
-    expirado: 'Passaram 72 horas sem a confirmação pelo WhatsApp, então o pedido saiu da fila. Faça um orçamento novo ou deixe um recado para a equipe.',
+    expirado: 'Este pedido saiu da fila. Faça um orçamento novo ou deixe um recado para a equipe.',
     descartado: 'Este pedido foi encerrado. Se quiser seguir, faça um orçamento novo ou deixe um recado para a equipe.'
   };
   var segmentoVisto = null;
@@ -88,7 +86,7 @@
   function recusa(d) {
     if (d.negocio.length < 2) return ['o-d-negocio', 'Informe o nome do negócio.'];
     if (d.vende.length < 3) return ['o-d-vende', 'Conte o que você vende (pode tocar numa sugestão).'];
-    if (d.telefone.replace(/\D/g, '').length < 10) return ['o-tel', 'Informe o seu WhatsApp com DDD: é por ele que você confirma o pedido.'];
+    if (d.telefone.replace(/\D/g, '').length < 10) return ['o-tel', 'Informe o seu telefone com DDD: é o contato do seu pedido.'];
     if (Object.keys(d.redes).length && !d.autoriza_redes) return ['o-d-redes-ok', 'Para eu olhar as suas redes, marque a autorização (ou deixe as redes em branco).'];
     if (!d.aceite) return ['o-aceite', 'É preciso concordar com o uso dos dados para receber os modelos.'];
     return null;
@@ -123,12 +121,7 @@
     } finally { form.removeAttribute('aria-busy'); }
   });
 
-  function prazo(iso) {
-    var d = new Date(iso);
-    if (isNaN(d.getTime())) return '';
-    return 'Você tem 72 horas: sem a confirmação até ' + d.toLocaleString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) + ', o pedido expira e sai da fila.';
-  }
-  /* a tela segue o estado do servidor: o formulário (antes do pedido), a confirmação (aguardando) ou o fim */
+  /* a tela segue o estado do servidor: o formulário (antes do pedido), o pedido recebido (já na fila) ou o fim */
   function atualizar(E) {
     var pedido = E && E.pedido;
     var formulario = !!E && !E.conversa.tem_contato && !!E.estimativa && !pedido;
@@ -136,18 +129,15 @@
     $('o-fila-cheia').hidden = !(formulario && E.fila_cheia);
     $('o-detalhes-form').hidden = formulario && !!E.fila_cheia;
     if (formulario) sugestoes((E.conversa.briefing && E.conversa.briefing.negocio && E.conversa.briefing.negocio.segmento) || '');
-    var aguardando = !!pedido && pedido.status === 'aguardando' && CODIGO.test(pedido.codigo);
-    $('o-confirmar').hidden = !aguardando;
-    if (aguardando) {
-      $('o-confirmar-codigo').textContent = pedido.codigo;
-      $('o-confirmar-wa').href = 'https://wa.me/' + String(TEL).replace(/\D/g, '') + '?text=' + encodeURIComponent('Meu pedido é ' + pedido.codigo);
-      $('o-confirmar-prazo').textContent = prazo(pedido.expira_em);
-    }
+    /* o pedido recebido: o código à vista até as direções ficarem prontas */
+    var recebido = !!pedido && pedido.status === 'confirmado' && CODIGO.test(pedido.codigo) && (E.conversa.etapa === 'contato' || E.conversa.etapa === 'gerando');
+    $('o-confirmar').hidden = !recebido;
+    if (recebido) $('o-confirmar-codigo').textContent = pedido.codigo;
     var fim = !!pedido && Object.prototype.hasOwnProperty.call(FIM, pedido.status);
     $('o-pedido-fim').hidden = !fim;
     if (fim) $('o-pedido-fim-texto').textContent = FIM[pedido.status];
   }
-  /* o pedido ainda não pode gerar modelos (esperando a confirmação, vencido ou encerrado) */
+  /* o pedido ainda não pode gerar modelos (vencido, encerrado ou arquivado) */
   function pendente(E) { return !!(E && E.pedido && E.pedido.status !== 'confirmado'); }   /* (arquivado também: a geração parou e a conversa voltou a "contato", o servidor recusaria o "Gerar") */
   function iniciar(g) { if (g && typeof g.sessaoTerminou === 'function' && typeof g.avisarSessao === 'function') ganchos = g; }
 

@@ -7,7 +7,7 @@
         60 dias, o contato dele em 12 meses, e o texto da conversa de quem pagou em 30 dias (menos contestação)
      2. retenção das métricas (~13 meses; antes era feita ao ABRIR o painel)
      1b. o recado (o único lugar de feedback do site): apagado 60 dias depois de criado, lido ou não (app.rotinas_recados)
-     2b. o pedido de modelos (PR 2a): vence quem não confirmou pelo WhatsApp em 72 h e apaga o hash do telefone e as redes no prazo
+     2b. o pedido de modelos (PR 2a): vence o pedido herdado que ficou "aguardando" (desde 30/10 todo pedido nasce confirmado; sem efeito novo) e apaga o hash do telefone e as redes no prazo
      2c. (PR 3b-2) a limpeza e a reconciliação do armazém do material (reserva vencida, objeto sem linha, importado há 7 dias)
      2d. (PR 3b-3) os alarmes de prazo da entrega (prazo vencido, 30 dias sem material, 3 dias do restante) e a retenção da lista de ajustes: 1 subpedido.
          D5: nada aqui muda o passo de uma entrega; o pedido parado esperando o material nunca é encerrado
