@@ -29,7 +29,7 @@
   <link rel="icon" href="/favicon.ico" sizes="48x48" />
   <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.googletagmanager.com https://www.googleadservices.com https://www.google.com; style-src 'self'; font-src 'self'; img-src 'self' data: https://*.google-analytics.com https://*.googletagmanager.com https://*.g.doubleclick.net https://www.google.com https://www.google.com.br https://www.googleadservices.com; connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.g.doubleclick.net https://www.google.com https://www.google.com.br https://www.googleadservices.com https://pagead2.googlesyndication.com; frame-src https://td.doubleclick.net; object-src 'none'; base-uri 'self'; form-action 'none'" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://challenges.cloudflare.com https://www.googletagmanager.com https://www.googleadservices.com https://www.google.com; style-src 'self'; font-src 'self'; img-src 'self' data: https://*.google-analytics.com https://*.googletagmanager.com https://*.g.doubleclick.net https://www.google.com https://www.google.com.br https://www.googleadservices.com; connect-src 'self' https://challenges.cloudflare.com https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.g.doubleclick.net https://www.google.com https://www.google.com.br https://www.googleadservices.com https://pagead2.googlesyndication.com; frame-src https://challenges.cloudflare.com https://td.doubleclick.net; object-src 'none'; base-uri 'self'; form-action 'none'" />
 
   <script type="application/ld+json">
   {
@@ -80,11 +80,12 @@
   <link rel="stylesheet" href="css/componentes.css" />
   <link rel="stylesheet" href="css/cartoes.css" />
   <link rel="stylesheet" href="css/peca-sites.css" />
+  <link rel="stylesheet" href="css/recado.css" />
   <link rel="stylesheet" href="css/motion.css" />
   <link rel="stylesheet" href="css/passagem.css" />
   <link rel="stylesheet" href="css/passagem-destinos.css" />
 </head>
-<body class="pagina-sites" data-wa-padrao="quero um orçamento de site. Meu negócio:">
+<body class="pagina-sites">
   <a href="#conteudo" class="skip-link">Pular para o conteúdo</a>
   <button type="button" class="skip-link skip-link--mov" data-movimento aria-pressed="false" hidden>Reduzir movimento</button>
   <div class="atmosfera" aria-hidden="true"></div>
@@ -106,8 +107,7 @@
       <a href="#metodo">Método</a>
       <a href="#faq">Perguntas</a>
       <span class="nav__sep" aria-hidden="true"></span>
-      <a href="/automacao">Automação &amp; IA</a>
-      <a data-wa href="https://wa.me/5521977167944">WhatsApp</a>
+      <a href="/automacao">Atendente de IA</a>
       <a class="btn btn--sm btn--primary" href="/orcamento">Monte seu orçamento</a>
     </nav>
   </header>
@@ -291,7 +291,7 @@
         <div class="cta__acoes">
           <a data-rotulo="O valor sai da tabela" class="btn btn--primary btn--lg" href="/orcamento">Monte seu orçamento <span aria-hidden="true" data-seta="direita">→</span></a>
         </div>
-        <p class="fine cta__alt">Prefere falar com uma pessoa? <a data-wa href="https://wa.me/5521977167944">Chame no WhatsApp</a></p>
+        <p class="fine cta__alt">Prefere escrever antes? <button type="button" data-recado-abrir data-recado-origem="sites">Deixe um recado</button></p>
       </div>
     </section>
   </main>
@@ -300,8 +300,8 @@
     <div class="footer__grid">
       <div class="footer__brand">
         <a href="/" aria-label="Beyon Zero — início"><svg xmlns="http://www.w3.org/2000/svg" class="marca marca--rodape" aria-hidden="true" focusable="false" viewBox="0 0 940.7 170"><g transform="scale(1.7)"><path class="marca__aro" d="M6.93 41A44 44 0 0 1 93.07 41L84.857 41A36 36 0 0 0 15.143 41ZM6.93 59A44 44 0 0 0 93.07 59L84.857 59A36 36 0 0 1 15.143 59Z"/><path class="marca__lente" d="M56.6 25.369A25.5 25.5 0 0 1 73.859 41L67.861 41A20 20 0 0 0 55.176 30.681ZM26.141 41A25.5 25.5 0 0 1 43.4 25.369L44.824 30.681A20 20 0 0 0 32.139 41ZM43.4 74.631A25.5 25.5 0 0 1 26.141 59L32.139 59A20 20 0 0 0 44.824 69.319ZM73.859 59A25.5 25.5 0 0 1 56.6 74.631L55.176 69.319A20 20 0 0 0 67.861 59Z"/><path class="marca__entrada" d="M14 48.4h26v3.2h-26Z"/><path class="marca__saida" d="M50 47h66v6h-66Z"/><path class="marca__nucleo" d="M39.5 50a10.5 10.5 0 1 0 21 0a10.5 10.5 0 1 0 -21 0Z"/></g><g transform="translate(235.2 21)"><g class="marca__nome"><path transform="translate(0 0)" d="M0 0h13v100h-13ZM0 0h40v12h-40ZM0 41h44v12h-44ZM0 88h44v12h-44ZM40 0A26.5 26.5 0 0 1 40 53L39 41A14.5 14.5 0 0 0 39 12ZM44 41A29.5 29.5 0 0 1 44 100L43 88A17.5 17.5 0 0 0 43 53Z"/><path transform="translate(79.5 0)" d="M69.976 82.75A37.5 37.5 0 1 1 75 64L61.4 64A23.9 23.9 0 1 0 52.321 82.75ZM13.1 58h61.9v12h-61.9Z"/><path transform="translate(157.5 0)" d="M0.574 28L14.426 28L40.926 100L27.074 100ZM53.574 28L67.426 28L32.093 124L18.24 124Z"/><path transform="translate(227.5 0)" d="M0 64a37.5 37.5 0 1 0 75 0a37.5 37.5 0 1 0 -75 0ZM13.6 64a23.9 23.9 0 1 1 47.8 0a23.9 23.9 0 1 1 -47.8 0Z"/><path transform="translate(309.5 0)" d="M0 28h13v72h-13ZM0 59A31 31 0 0 1 62 59L49 59A18 18 0 0 0 13 59ZM49.5 59h12.5v41h-12.5Z"/></g><g class="marca__zero"><path transform="translate(411.5 0)" d="M2 0h66v12h-66ZM0 88h70v12h-70ZM52.226 12L68 12L15.774 88L0 88Z"/><path transform="translate(485.5 0)" d="M69.976 82.75A37.5 37.5 0 1 1 75 64L61.4 64A23.9 23.9 0 1 0 52.321 82.75ZM13.1 58h61.9v12h-61.9Z"/><path transform="translate(568.5 0)" d="M0 28h13v72h-13ZM0 56A28 28 0 0 1 39.833 30.623L34.339 42.405A15 15 0 0 0 13 56Z"/><g transform="translate(618.5 0)"><path class="marca__zero" d="M0.483 58A37.5 37.5 0 0 1 74.517 58L60.635 58A23.9 23.9 0 0 0 14.365 58ZM0.483 70A37.5 37.5 0 0 0 74.517 70L60.635 70A23.9 23.9 0 0 1 14.365 70Z"/><path class="marca__entrada" d="M0 62.5h13.6v3h-13.6Z"/><path class="marca__saida" d="M61.4 62.5h25.6v3h-25.6Z"/></g></g></g></svg></a>
-        <p>Sites, atendente de IA e automação, feitos por uma pessoa só.</p>
-        <p class="footer__contato"><a data-wa href="https://wa.me/5521977167944">WhatsApp (21)&nbsp;97716-7944</a> · atendo todo o Brasil</p>
+        <p>Sites e atendente de IA, feitos por uma pessoa só.</p>
+        <p class="footer__contato"><button type="button" data-recado-abrir data-recado-origem="sites">Deixar um recado</button> · atendo todo o Brasil</p>
       </div>
       <nav class="footer__links" aria-label="Links desta página">
         <p class="footer__links-title">Nesta página</p>
@@ -313,7 +313,7 @@
       <nav class="footer__links" aria-label="Outros serviços">
         <p class="footer__links-title">Beyon Zero</p>
         <a href="/">Início</a>
-        <a href="/automacao">Automação &amp; IA</a>
+        <a href="/automacao">Atendente de IA</a>
       </nav>
     </div>
     <div class="footer__base">
@@ -329,20 +329,15 @@
 
   <div class="barra is-oculta" id="barra">
     <a data-rotulo="O valor sai da tabela" class="btn btn--primary" href="/orcamento">Monte seu orçamento <span aria-hidden="true" data-seta="direita">→</span></a>
-    <a data-wa class="barra__wa" href="https://wa.me/5521977167944" aria-label="Falar no WhatsApp (abre em nova aba)"><svg viewBox="0 0 32 32" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M16.04 3.2c-7.1 0-12.86 5.76-12.86 12.86 0 2.27.6 4.48 1.73 6.43L3.2 28.8l6.5-1.7a12.8 12.8 0 0 0 6.33 1.66h.01c7.1 0 12.86-5.76 12.86-12.86S23.14 3.2 16.04 3.2zm0 23.3h-.01a10.7 10.7 0 0 1-5.44-1.49l-.39-.23-3.86 1.01 1.03-3.76-.25-.4a10.66 10.66 0 0 1-1.63-5.68c0-5.9 4.8-10.7 10.7-10.7 2.86 0 5.54 1.11 7.56 3.13a10.62 10.62 0 0 1 3.13 7.57c0 5.9-4.8 10.7-10.7 10.7zm5.87-8.01c-.32-.16-1.9-.94-2.2-1.05-.3-.11-.51-.16-.72.16-.21.32-.83 1.05-1.02 1.26-.19.21-.37.24-.69.08-.32-.16-1.36-.5-2.59-1.6-.96-.85-1.6-1.91-1.79-2.23-.19-.32-.02-.5.14-.66.14-.14.32-.37.48-.56.16-.19.21-.32.32-.53.11-.21.05-.4-.03-.56-.08-.16-.72-1.74-.99-2.38-.26-.62-.52-.54-.72-.55l-.61-.01c-.21 0-.56.08-.85.4-.29.32-1.11 1.09-1.11 2.66 0 1.57 1.14 3.08 1.3 3.29.16.21 2.24 3.42 5.43 4.8.76.33 1.35.52 1.81.67.76.24 1.45.21 2 .13.61-.09 1.9-.78 2.17-1.53.27-.75.27-1.39.19-1.53-.08-.14-.29-.21-.61-.37z"/></svg></a>
   </div>
-
-  <a data-wa class="wa" href="https://wa.me/5521977167944" aria-label="Falar no WhatsApp (abre em nova aba)">
-    <svg viewBox="0 0 32 32" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M16.04 3.2c-7.1 0-12.86 5.76-12.86 12.86 0 2.27.6 4.48 1.73 6.43L3.2 28.8l6.5-1.7a12.8 12.8 0 0 0 6.33 1.66h.01c7.1 0 12.86-5.76 12.86-12.86S23.14 3.2 16.04 3.2zm0 23.3h-.01a10.7 10.7 0 0 1-5.44-1.49l-.39-.23-3.86 1.01 1.03-3.76-.25-.4a10.66 10.66 0 0 1-1.63-5.68c0-5.9 4.8-10.7 10.7-10.7 2.86 0 5.54 1.11 7.56 3.13a10.62 10.62 0 0 1 3.13 7.57c0 5.9-4.8 10.7-10.7 10.7zm5.87-8.01c-.32-.16-1.9-.94-2.2-1.05-.3-.11-.51-.16-.72.16-.21.32-.83 1.05-1.02 1.26-.19.21-.37.24-.69.08-.32-.16-1.36-.5-2.59-1.6-.96-.85-1.6-1.91-1.79-2.23-.19-.32-.02-.5.14-.66.14-.14.32-.37.48-.56.16-.19.21-.32.32-.53.11-.21.05-.4-.03-.56-.08-.16-.72-1.74-.99-2.38-.26-.62-.52-.54-.72-.55l-.61-.01c-.21 0-.56.08-.85.4-.29.32-1.11 1.09-1.11 2.66 0 1.57 1.14 3.08 1.3 3.29.16.21 2.24 3.42 5.43 4.8.76.33 1.35.52 1.81.67.76.24 1.45.21 2 .13.61-.09 1.9-.78 2.17-1.53.27-.75.27-1.39.19-1.53-.08-.14-.29-.21-.61-.37z"/></svg>
-  </a>
 
   <script src="vendor/gsap/gsap.min.js" defer></script>
   <script src="vendor/gsap/ScrollTrigger.min.js" defer></script>
   <script src="vendor/gsap/SplitText.min.js" defer></script>
-  <script src="js/tel.js" defer></script>
   <script src="js/core.js" defer></script>
   <script src="js/pagina.js" defer></script>
   <script src="js/som.js" defer></script>
+  <script src="js/recado.js" defer></script>
   <script src="js/medicao.js" defer></script>
   <script src="js/metricas.js" defer></script>
   <script src="js/passagem.js" defer></script>

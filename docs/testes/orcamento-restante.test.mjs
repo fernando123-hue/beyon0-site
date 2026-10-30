@@ -80,16 +80,16 @@ test('dadosDoFim: as duas partes ✓ vêm do banco (entrada e restante pagos) e 
   assert.equal(R.dadosDoFim(pr, undefined), null);
 });
 
-test('as seções: #o-noar com "Abrir o site" seguro e a frase do contrato; #o-fim com concluído e encerrado e UM só WhatsApp ("Outra dúvida?"); sem estilo embutido nem desfoque', () => {
+test('as seções: #o-noar com "Abrir o site" seguro e a frase do contrato; #o-fim com concluído e encerrado e UM só recado ("Outra dúvida?"); sem estilo embutido nem desfoque', () => {
   assert.ok(NOAR.length > 300 && FIM.length > 500, 'as duas seções existem');
   assert.match(NOAR, /id="o-noar-abrir"[^>]*target="_blank"[^>]*rel="noopener noreferrer"|id="o-noar-abrir"[^>]*rel="noopener noreferrer"[^>]*target="_blank"/);
   assert.match(FIM, /id="o-fim-abrir"[^>]*target="_blank"[^>]*rel="noopener noreferrer"|id="o-fim-abrir"[^>]*rel="noopener noreferrer"[^>]*target="_blank"/);
   for (const id of ['o-noar', 'o-fim']) assert.match(HTML, new RegExp('<section[^>]*id="' + id + '"[^>]*\\shidden>'), id + ' nasce escondida');
   assert.match(texto(FIM), /Pedido concluído/); assert.match(texto(FIM), /Este pedido foi encerrado/);
   assert.match(texto(FIM), /Qualquer mudança depois que o site for entregue é orçada à parte\./);
-  assert.match(texto(FIM), /Outra dúvida\? Fale com a Beyon Zero pelo WhatsApp/);
-  assert.equal([...FIM.matchAll(/href="https:\/\/wa\.me\/[^"]*"/g)].length, 1, 'D3: um WhatsApp só, o de "Outra dúvida?"');
-  assert.equal([...NOAR.matchAll(/wa\.me/g)].length, 0, 'o WhatsApp do passo 4 é o "Problema com o pagamento?" do próprio componente do Pix');
+  assert.match(texto(FIM), /Outra dúvida\? Deixe um recado para a equipe/);
+  assert.equal([...FIM.matchAll(/data-recado-abrir/g)].length, 1, 'D3: um recado só, o de "Outra dúvida?"');
+  assert.equal([...NOAR.matchAll(/wa\.me|data-recado-abrir/g)].length, 0, 'o canal do passo 4 é o "Problema com o pagamento?" do próprio componente do Pix');
   assert.ok(!/\?text=/.test(NOAR + FIM));
   assert.ok(!/\sstyle="|<style/.test(NOAR + FIM));
   for (const id of ['o-noar-titulo', 'o-noar-endereco', 'o-noar-aviso', 'o-fim-concluido', 'o-fim-titulo', 'o-fim-entrada', 'o-fim-restante', 'o-fim-total', 'o-fim-endereco', 'o-fim-encerrado', 'o-fim-encerrado-titulo'])
@@ -98,7 +98,7 @@ test('as seções: #o-noar com "Abrir o site" seguro e a frase do contrato; #o-f
   assert.doesNotMatch(texto(NOAR + FIM), /aprovad[ao]? (sozinh|automátic)|conta como aprovad|fique à vontade|Prezad|solução/i);
 });
 
-test('o Pix do restante é o mesmo componente da entrada: o #o-pagamento muda de lugar (não se copia); o que só vale antes da entrada ganha a classe que o esconde; o aviso de "indisponível" tem o WhatsApp certo', () => {
+test('o Pix do restante é o mesmo componente da entrada: o #o-pagamento muda de lugar (não se copia); o que só vale antes da entrada ganha a classe que o esconde; o aviso de "indisponível" tem o recado certo', () => {
   const pag = secao('o-pagamento');
   assert.equal((HTML.match(/id="o-pix"/g) || []).length, 1, 'um só componente de Pix na página');
   const js = semComentario(FONTE);
@@ -114,9 +114,9 @@ test('o Pix do restante é o mesmo componente da entrada: o #o-pagamento muda de
   assert.match(tag(/<p class="[^"]*orc-perguntar[^"]*"/), /orc-so-entrada/, 'o "Pergunte ao consultor" aponta para um campo que não está na página em produção');
   assert.match(tag(/<div class="[^"]*orc-antes-passos[^"]*"/), /orc-so-entrada/, 'o "Passo 1 de 4 · Entrada" não vale no restante');
   assert.match(tag(/<details class="[^"]*"[^>]*>\s*<summary>Ver o escopo confirmado/), /orc-so-entrada/, 'o escopo só é preenchido na etapa da entrada');
-  assert.match(pag, /class="orc-so-entrada"[^>]*data-wa="quero pagar o sinal do meu projeto"/); assert.match(pag, /class="orc-so-restante"[^>]*data-wa="quero pagar o restante do meu pedido"/);
+  assert.match(pag, /class="orc-so-entrada"[^>]*data-recado-abrir/); assert.match(pag, /class="orc-so-restante"[^>]*data-recado-abrir/);
   assert.match(CSS, /#o-pagamento\.is-restante \.orc-so-entrada\s*\{\s*display:\s*none/); assert.match(CSS, /#o-pagamento:not\(\.is-restante\) \.orc-so-restante\s*\{\s*display:\s*none/);
-  assert.match(pag, /id="o-pag-problema"/, 'o "Problema com o pagamento?" fica (é o WhatsApp do passo 4)');
+  assert.match(pag, /id="o-pag-problema"/, 'o "Problema com o pagamento?" fica (é o recado do passo 4)');
 });
 
 test('a ordem: o script do passo 4 depois da prévia e antes de orcamento-entrega.js; as seções depois da prévia, dentro do main; o CSS é o da prévia', () => {
