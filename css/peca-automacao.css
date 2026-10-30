@@ -123,3 +123,8 @@ html.menos-movimento .despacho__registro li { transition: none; }
   /* o botão divide a faixa com o diagrama, no pé da coluna da direita (numa faixa própria sobrava um vão à esquerda) */
   .servico--peca:has(> .despacho) > .servico__acoes { grid-column: 2; grid-row: 1; align-self: end; margin-top: 0; padding-bottom: .4rem; }
 }
+
+/* o quadro do fluxo encostava nos cartões de cima (dono, 2026-10-29: "deixe um pouco mais para baixo, pra ficar
+   melhor espaçado"): um vão antes dele e mais respiro em cima e embaixo, por dentro */
+.servicos--solo:has(.despacho) { margin-top: clamp(32px, 5vw, 64px); }
+.servico--peca:has(> .despacho) { padding-block: clamp(28px, 4vw, 48px); }
