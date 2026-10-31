@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /api/
 
-Sitemap: https://beyon0-site.vercel.app/sitemap.xml
+Sitemap: https://beyonzero.com.br/sitemap.xml

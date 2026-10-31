@@ -70,6 +70,7 @@ test('todo api/<nome>.mjs sem _ tem rota (endpoint novo esquecido falha)', () =>
 /* ---- B2: a agenda (crons) ---- */
 import { agendar, AGENDA } from '../../cloudflare/agenda.mjs';
 import { parse as lerJsonc } from '../../cloudflare/jsonc.mjs';
+import { HOST_DO_DOMINIO } from './dominio.mjs';
 test('crons: reconciliar de 3 em 3 h e a diária, com o CRON_SECRET, pelas MESMAS funções', async () => {
   const vistos = [];
   const falsa = nome => async (req, env) => { vistos.push({ nome, url: req.url, auth: req.headers.get('authorization'), env }); return new Response('{}'); };
@@ -166,12 +167,24 @@ test('wrangler.jsonc: produção fechada, prévia declarada, nada de segredo, na
   assert.equal(c.account_id, undefined, 'uma conta, dois Workers: a conta vem do token do Builds');
   assert.equal(c.name, 'beyon-zero-site');
   assert.equal(c.env.previa.name, undefined, 'uma conta só: um name no env.previa apontaria o deploy da main para a produção (§ 5.3, trava 2)');
-  assert.equal(c.routes, undefined, 'o domínio é do PR C'); assert.equal(c.env.previa.route, undefined);
+  assert.deepEqual(c.routes, [{ pattern: HOST_DO_DOMINIO, custom_domain: true }], 'produção: só o domínio, como Custom Domain (sem www: o www é da Redirect Rule da zona, C2)');
+  assert.equal(c.route, undefined, 'só `routes`, nunca as duas formas'); assert.equal(c.env.previa.route, undefined);
+  assert.equal(c.preview_urls, false, 'produção sem URL de prévia');
+  assert.equal(c.vars.METRICAS_HOSTS, '', 'as métricas só aceitam o próprio host'); assert.equal(c.env.previa.vars.METRICAS_HOSTS, '');
   assert.deepEqual(c.env.previa.routes, [], 'routes é herdável: o staging nunca pega o domínio de produção (ALTO-1)');
   assert.equal(c.observability.enabled, true); assert.equal(c.observability.traces.enabled, true);
   const pkg = JSON.parse(fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
   for (const s of ['preinstall', 'install', 'postinstall', 'prepare', 'prepublish', 'prepack']) assert.equal(pkg.scripts[s], undefined, s);
   assert.equal(pkg.devDependencies.wrangler, '4.136.3', 'versão exata');
+});
+test('wrangler.jsonc (C2): o domínio de produção não aparece em lugar nenhum do env.previa (a zona está ao alcance do Worker de prévias)', () => {
+  const c = lerWrangler();
+  assert.deepEqual(c.env.previa.routes, [], 'routes é herdável: [] explícito');
+  assert.doesNotMatch(JSON.stringify(c.env.previa), /beyonzero/i, 'nada do domínio de produção na prévia');
+  assert.equal(c.env.previa.custom_domain, undefined);
+  assert.deepEqual(Object.keys(c).filter(k => /^route/.test(k)), ['routes'], 'uma forma só no topo');
+  assert.equal(c.env.previa.workers_dev, true); assert.equal(c.env.previa.preview_urls, true, 'a prévia usa workers.dev, a produção não');
+  assert.equal((JSON.stringify(c).match(/beyonzero\.com\.br/g) || []).length, 1, 'o domínio aparece uma única vez na configuração (comentários não contam), no topo');
 });
 test('a fumaça testa a configuração real: sem troca automática da data de compatibilidade (revisão MÉDIO-1)', () => {
   const fumaca = fs.readFileSync(new URL('../../docs/worker-fumaca.mjs', import.meta.url), 'utf8');

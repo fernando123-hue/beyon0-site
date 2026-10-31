@@ -10,7 +10,7 @@
 /* O subdomínio workers.dev da conta Cloudflare do dono (pendência P3). ENQUANTO FOR null, o staging fica FECHADO: o
    token do Access (e a chave do painel, scripts/direcoes.mjs) não vão a host nenhum. Só o dono o preenche, com o
    que a Cloudflare mostra em Workers & Pages → "Your subdomain" (letras minúsculas, números e hífen). */
-export const SUB_CONTA = null;
+export const SUB_CONTA = 'contato-beyon-zero';
 
 const NOME_DO_STAGING = 'beyon-zero-site-previa';
 const SUB_VALIDO = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;

@@ -10,7 +10,7 @@ Como ligar, ajustar e desligar o agente. A base (migrations, testes, segredos, b
    - aplicar as migrations novas: `supabase db push` (de `20261007120000` a `20261007120500`);
    - **Authentication › Sign In / Providers › Anonymous sign-ins: ligar.** O visitante do orçamento é um usuário anônimo;
    - **API › Exposed schemas: incluir `app`.** O backend chama `/rest/v1/rpc/vendas_*` com `Content-Profile: app`. Nenhuma função `vendas_*` aceita chamada de `anon` ou `authenticated`: só a chave secreta executa;
-   - **Rate Limits › anonymous sign-ins: subir o limite.** O login anônimo é feito pelo servidor, então TODOS os visitantes chegam ao Supabase com os IPs da Vercel. Com o limite padrão por IP, poucas dezenas de sessões por hora derrubariam o orçamento para todo mundo;
+   - **Rate Limits › anonymous sign-ins: subir o limite.** O login anônimo é feito pelo servidor, então sem o IP repassado, TODOS os visitantes chegariam ao Supabase com os IPs da Cloudflare. Na Cloudflare o Worker manda o IP do visitante (`Sb-Forwarded-For`): ligue **Authentication › Rate Limits › IP Address Forwarding** (o limite volta a ser o de cada visitante; sem a opção, poucas dezenas de sessões por hora derrubariam o orçamento para todo mundo);
    - recomendado pelo próprio Supabase para login anônimo: CAPTCHA (Turnstile) no cadastro. Fica para a etapa do Cloudflare, junto com a decisão de criar a sessão direto do navegador (aí o limite por IP volta a ser o de cada visitante). Até lá, o freio é o do servidor (8 sessões por IP a cada 10 minutos, na memória de cada instância).
 2. **Tabela de preços.** O rascunho `docs/fase2/regras-rascunho-v1.json` precisa da aprovação do dono. **Antes de ativar**, validar
    com a mesma regra do servidor: `npm run validar:regras -- <arquivo.json>` tem de dizer "Tabela válida." (porcentagem
@@ -23,10 +23,10 @@ Como ligar, ajustar e desligar o agente. A base (migrations, testes, segredos, b
    from app.organizacoes where slug = 'beyon-zero';
    ```
    Sem versão ativa, a conversa avisa "tabela em atualização" e oferece o WhatsApp. Uma versão aprovada não muda mais: preço novo é versão nova, e cada estimativa guarda a versão que usou.
-3. **Variáveis na Vercel** (nomes em `.env.example`):
+3. **Variáveis e segredos nos Workers da Cloudflare** (nomes em `.env.example`; produção no `beyon-zero-site`, teste no `beyon-zero-site-previa`; as não secretas, como `BZ_DIRECOES`, `MP_AMBIENTE` e `MP_METODOS`, vêm do `wrangler.jsonc`):
    - `ANTHROPIC_API_KEY`, só no ambiente onde o agente deve funcionar;
    - as do Mercado Pago (`MP_*` e `CRON_SECRET`): ver `docs/pagamentos/01-ARQUITETURA-E-OPERACAO.md` §9 e §10. Sem elas, o pagamento online fica desligado e o site oferece o WhatsApp.
-4. **Plano da Vercel.** O plano Hobby proíbe uso comercial, então o site que vende precisa do Pro. A geração de cada direção roda numa chamada própria, com até 300 s (`vercel.json › functions`).
+4. **Plano da Cloudflare.** O plano grátis cobre o lançamento (decisão do dono, 2026-10-21: nada pago antes da 1ª venda), com limites de CPU e de subpedidos que a medida M2 confere (plano da migração, § 3 e Task M2). A geração de cada direção roda numa chamada própria; a entrega manual (`BZ_DIRECOES=manual`) não depende do limite.
 5. **Retenção** (o que a página de privacidade promete). Agendar no Supabase (pg_cron), uma vez por dia:
    ```sql
    select cron.schedule('bz-retencao', '17 4 * * *', $$ select app.vendas_reter('{}'::jsonb) $$);
@@ -50,7 +50,7 @@ Enquanto não há verba para a API, as três direções não são geradas pelo m
 
 **Ligar, na ordem:**
 1. Aplicar no banco a migration `20261009120000_fila_direcoes.sql`. Ela só acrescenta: a coluna `app.direcoes.avisada_em` e as funções `vendas_fila_direcoes`, `vendas_direcao_info` e `vendas_marcar_avisado`.
-2. Definir `BZ_DIRECOES=manual` na Vercel e publicar. A tela troca "alguns minutos" por "até 24 horas úteis, avisamos pelo seu WhatsApp", o WhatsApp vira obrigatório no contato, e `gerar-direcao` responde `na_fila` sem chamar o modelo. O consultor diz o mesmo, porque `api/_vendas/consultor.mjs` lê `modoDirecoes()`.
+2. Definir `BZ_DIRECOES=manual` (já é o valor do `wrangler.jsonc` nos dois Workers) e publicar. A tela troca "alguns minutos" por "até 24 horas úteis, avisamos pelo seu WhatsApp", o WhatsApp vira obrigatório no contato, e `gerar-direcao` responde `na_fila` sem chamar o modelo. O consultor diz o mesmo, porque `api/_vendas/consultor.mjs` lê `modoDirecoes()`.
 
 **Como o dono atende** (precisa de `PAINEL_CHAVE`):
 - `GET /api/painel?fila=direcoes` lista a fila, só com pedidos confirmados. Cada pedido traz o código `BZ-XXXXX`, a hora do pedido, o contato, o briefing, o escopo (`fatores`), as redes que a pessoa autorizou olhar e as 3 direções com a estratégia de cada uma.
@@ -119,6 +119,6 @@ Antes de ligar com a IA real: rodar um conjunto de conversas de avaliação com 
 
 ## 5. Onde olhar quando algo der errado
 
-- **Logs da função** (Vercel): `[vendas] <ação>: código <SQLSTATE>` e `[pagamentos] aviso recusado: <motivo>`. Sem dado pessoal e sem texto da conversa.
+- **Logs do Worker** (Workers Logs, no painel da Cloudflare): `[vendas] <ação>: código <SQLSTATE>` e `[pagamentos] aviso recusado: <motivo>`. Sem dado pessoal e sem texto da conversa.
 - **Funil** (`app.eventos_funil`): `conversa_iniciada`, `estimativa_mostrada`, `contato_informado`, `direcoes_solicitadas`, `direcoes_prontas`, `direcoes_falharam`, `direcao_escolhida`, `alteracao_pedida`, `ajuste_desfeito`, `pedido_livre`, `pedido_livre_resolvido`, `escopo_apresentado`, `escopo_confirmado`, `pagamento_iniciado`, `pagamento_confirmado`, `ia_falhou`, `tentativa_bloqueada`. É onde se vê em que etapa as pessoas param.
 - **Pagamento** (`app.pagamentos_auditoria`, `app.tentativas_pagamento`): a trilha financeira completa. Consultas prontas em `docs/pagamentos/01-ARQUITETURA-E-OPERACAO.md` §7.
