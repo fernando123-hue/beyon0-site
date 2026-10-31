@@ -268,7 +268,7 @@ function itensHosts({ base, existe }) {
   catch { itens.push(item('FALTA', 'a BZ_BASE do dono (' + origemParaMostrar(base) + ') é recusada por scripts/direcoes.mjs (lista de hosts)', 'use o endereço do site (https://beyonzero.com.br) ou o servidor local')); }
   const staging = hostDoStaging();
   itens.push(item('CONFIRMAR', staging
-    ? 'o ensaio rodou no staging ' + staging + ', que scripts/direcoes.mjs aceita como BZ_BASE'
+    ? 'o ensaio rodou no staging ' + staging + ' (SUB_CONTA em docs/acesso.mjs), que scripts/direcoes.mjs aceita como BZ_BASE'
     : 'o staging está fechado para a chave do painel (SUB_CONTA em docs/acesso.mjs ainda é null): diga o subdomínio workers.dev da sua conta para o ensaio usar o staging com BZ_BASE', ''));
   if (HOSTS_VERCEL.length && !existe('vercel.json')) itens.push(item('FALTA', 'o vercel.json saiu e a lista HOSTS_VERCEL de scripts/direcoes.mjs ainda aceita ' + HOSTS_VERCEL.join(', '), 'tire esses hosts da lista: um nome *.vercel.app liberado pode ser registrado por outra pessoa e receberia a PAINEL_CHAVE'));
   else if (HOSTS_VERCEL.length) itens.push(item('CONFIRMAR', 'quando o projeto da Vercel for apagado, ' + HOSTS_VERCEL.join(', ') + ' sai de HOSTS_VERCEL em scripts/direcoes.mjs (o teste fica vermelho no PR que apaga o vercel.json)', ''));
