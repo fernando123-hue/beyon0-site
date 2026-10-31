@@ -21,10 +21,13 @@ import { redigir, semPrecoNoTexto } from './seguranca.mjs';
 import { semPromessaDePagamento, motivoDaPergunta, RESPOSTAS_PAGAMENTO } from './promessa.mjs';
 import { ErroIA } from '../_ia/provedor.mjs';
 import {
-  ABERTURA_PADRAO, semPromessaDeRecado, nichoRegulado, pedeItemProibido, garantirRegulado, briefingSemProibidos, avisoRegulado, comMarcadores
+  ABERTURA_PADRAO, semPromessaDeRecado, nichoRegulado, pedeItemProibido, garantirRegulado, briefingSemProibidos, avisoRegulado, comMarcadores, marcadorSemValor, semNotacaoInterna
 } from './zero.mjs';
 
 const MAX_ITERACOES = 4;
+/* o modelo escreveu os marcadores de valor sem ter estimado (ou a estimativa falhou): uma volta a mais para ele estimar e escrever de novo,
+   em vez de a pessoa ficar sem número. O aviso é do código, não da pessoa */
+const AVISO_VALOR = '[aviso do código da Beyon Zero, não da pessoa] Sua resposta usa os marcadores de valor, mas não há estimativa válida. Chame estimar com o formato certo e escreva a resposta de novo, com os marcadores, sem comentar este aviso.';
 const HISTORICO = 12;   // mensagens anteriores enviadas ao modelo (o briefing carrega o resto)
 
 /* pontos de integração futuros (spec: "prepare interfaces, não implemente o cérebro") */
@@ -93,7 +96,7 @@ export async function executarTurno({ ia, regras, conversa, mensagem, direcoes, 
   const tools = ferramentas(regras, { etapa: conversa.etapa, pedidoStatus: conversa.pedido_status });
   const permitidas = new Set(tools.map(t => t.name));
   const sistema = montarSistema(regras, { direcoes: direcoes || 'manual', metodos });   /* (o fluxo passa o mesmo modo que usa) */
-  let texto = '';
+  let texto = '', corrigiuValor = false;
 
   for (let i = 0; i < MAX_ITERACOES; i++) {
     /* (falha numa rodada: o erro leva o custo das rodadas anteriores, que já foram pagas) */
@@ -102,7 +105,13 @@ export async function executarTurno({ ia, regras, conversa, mensagem, direcoes, 
     custo += r.custo_usd || 0;
     if (r.parada === 'recusa') throw new ErroIA('recusa', 'o modelo recusou', custo);
     texto = r.texto || texto;
-    if (r.parada !== 'ferramenta' || !r.chamadas.length) break;
+    if (r.parada !== 'ferramenta' || !r.chamadas.length) {
+      const precisaEstimar = !corrigiuValor && !soDuvidas && permitidas.has('estimar') && i < MAX_ITERACOES - 1 && marcadorSemValor(texto, estimativa || conversa.estimativa);
+      if (!precisaEstimar) break;
+      corrigiuValor = true;
+      mensagens.push({ role: 'assistant', content: r.conteudo }, { role: 'user', content: AVISO_VALOR });
+      continue;
+    }
     mensagens.push({ role: 'assistant', content: r.conteudo });
     const resultados = [];
     for (const ch of r.chamadas) {
@@ -140,7 +149,7 @@ export async function executarTurno({ ia, regras, conversa, mensagem, direcoes, 
   }
 
   if (sugestoes.length) briefing = mesclar(briefing, { oportunidades_ia: sugestoes.map(s => s.ideia) });
-  const semPreco = semPrecoNoTexto(texto).trim() || (soDuvidas ? 'Pode repetir a sua dúvida?' : 'Pode me contar um pouco mais sobre o seu negócio?');
+  const semPreco = semPrecoNoTexto(semNotacaoInterna(texto)).trim() || (soDuvidas ? 'Pode repetir a sua dúvida?' : 'Pode me contar um pouco mais sobre o seu negócio?');
   /* (o filtro olha exatamente o que vai para a tela: o corte de 1.500 vem antes) */
   let resposta = soDuvidas ? semPromessaDePagamento(semPreco.slice(0, 1500)) : semPreco;
   /* as travas do Zero (api/_vendas/zero.mjs), nesta ordem, sobre o que vai para a tela:

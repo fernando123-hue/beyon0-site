@@ -217,6 +217,31 @@ function valoresDe(e) {
   if (!Number.isFinite(total) || total <= 0 || !Number.isFinite(sinal) || sinal < 0 || sinal > total) return null;
   return { total, sinal, restante: Math.round((total - sinal) * 100) / 100 };
 }
+/* a resposta traz marcador, mas não há estimativa válida: o agente dá ao modelo mais uma volta para chamar estimar */
+export const marcadorSemValor = (texto, e) => TEM_MARCADOR.test(String(texto ?? '')) && !valoresDe(e);
+
+/* ---------- 4. a anotação interna que vaza ---------- */
+/* o modelo às vezes escreve a chamada de ferramenta ou o botão como texto ("[estimar: ...]", "[Botão DEIXAR UM RECADO apareceu...]"):
+   nada disso é para a tela. Apaga o trecho entre colchetes que abre com o nome de uma ferramenta ou de um elemento da tela,
+   com os colchetes de dentro (os marcadores [[total]]) e a quebra de linha que sobra */
+const ABRE_NOTACAO = /\[\s*(?:estimar|atualizar_briefing|pedir_contato|sugerir_solucao_ia|encaminhar_diagnostico|cart[aã]o|bot[aã]o|formul[aá]rio|ferramenta)\b/giu;
+export function semNotacaoInterna(texto) {
+  let t = String(texto ?? '');
+  for (let guarda = 0; guarda < 20; guarda++) {
+    ABRE_NOTACAO.lastIndex = 0;
+    const m = ABRE_NOTACAO.exec(t);
+    if (!m) break;
+    let fundo = 0, fim = -1;
+    for (let i = m.index; i < t.length; i++) {
+      if (t[i] === '[') fundo++;
+      else if (t[i] === ']' && --fundo === 0) { fim = i + 1; break; }
+    }
+    if (fim < 0) { const quebra = t.indexOf('\n', m.index); fim = quebra < 0 ? t.length : quebra; }   /* (colchete que não fecha: vai até o fim da linha) */
+    t = (t.slice(0, m.index) + t.slice(fim)).replace(/^[ \t]*\n/, '').replace(/\n{3,}/g, '\n\n');
+  }
+  return t.replace(/^\s+/, '');
+}
+
 /* e: a estimativa do motor (ou a linha do banco): valor_total e sinal. Sem estimativa válida, a frase com marcador sai e entra
    "esse valor eu ainda não tenho" com o recado; nunca um número, nunca o marcador cru */
 export function comMarcadores(texto, e) {

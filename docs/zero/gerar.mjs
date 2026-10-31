@@ -66,7 +66,9 @@ ${ferr}
 Por etapa: até o envio dos detalhes do pedido o modelo tem as cinco ferramentas; depois dele perde estimar e pedir_contato; no escopo e no pagamento não tem nenhuma e só tira dúvidas.
 
 ======== 4. O QUE O CÓDIGO FAZ COM A RESPOSTA DO MODELO (a simulação deve aplicar o mesmo) ========
+Antes de tudo: se o modelo terminar a resposta com [[total]], [[sinal]] ou [[restante]] sem ter uma estimativa válida, o código devolve a ele um aviso (uma volta a mais, uma vez) para chamar estimar e escrever de novo. O aviso não é da pessoa e ela não o vê.
 Nesta ordem, sobre o texto que vai para a tela:
+0) Anotação interna escrita como texto, entre colchetes e abrindo com o nome de uma ferramenta ou de um elemento da tela ("[estimar: ...]", "[Botão DEIXAR UM RECADO apareceu...]", "[Cartão: ...]"), é apagada.
 a) Todo valor em reais que o modelo digitar por conta própria ("R$ 1.000", "2 mil reais", "dois mil reais") é apagado.
 b) No escopo e no pagamento, resposta que dê o pagamento como feito, mude condição, cite valor ou mande pagar por outro meio vira uma frase fixa. A pergunta que pede isso nem chega ao modelo.
 c) Frase que diga que deixou, enviou, avisou, anotou ou encaminhou algo a alguém, ou que prometa prazo de resposta, é trocada por: "${RECADO_FIXO}" O botão DEIXAR UM RECADO aparece junto.

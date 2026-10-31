@@ -14,7 +14,7 @@ import { montarSistema, ferramentas, IDENTIDADE } from '../../api/_vendas/consul
 import { PAPEIS, TETOS, custoUsd, RESERVA_USD } from '../../api/_ia/config.mjs';
 import {
   RECADO_FIXO, ABERTURA_PADRAO, ABERTURAS, semPromessaDeRecado, nichoRegulado, pedeItemProibido,
-  garantirRegulado, comMarcadores, briefingSemProibidos, respostaRegulado
+  garantirRegulado, comMarcadores, briefingSemProibidos, respostaRegulado, semNotacaoInterna
 } from '../../api/_vendas/zero.mjs';
 
 const REGRAS = JSON.parse(fs.readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
@@ -323,6 +323,54 @@ test('turno: estimativa que já está no banco (turno seguinte) também alimenta
   const ia = roteiro(fim('O institucional fica [[total]].'));
   const r = await executarTurno({ ia, regras: REGRAS, conversa: nova({ estimativa: doBanco, etapa: 'estimativa' }), mensagem: 'e o total?' });
   assert.equal(r.resposta, 'O institucional fica R$ 7.900.');
+});
+
+/* rodada 1 dos testes simulados (31/10): o valor nunca chegava à pessoa e a anotação interna vazava na tela */
+test('turno: marcador sem estimativa dá ao modelo mais uma volta para estimar, e a pessoa recebe o número', async () => {
+  const ia = roteiro(
+    fim('A landing fica [[total]], com sinal de [[sinal]].'),
+    comFerr({ id: 'e1', nome: 'estimar', entrada: { formato: 'landing_page' } }),
+    fim('Vou te passar de novo: a landing fica [[total]], com sinal de [[sinal]].'));
+  const r = await executarTurno({ ia, regras: REGRAS, conversa: nova({ briefing: { negocio: { segmento: 'loja de roupa' }, objetivos: ['apresentar_empresa'] } }), mensagem: 'quanto fica?' });
+  assert.equal(r.resposta, 'Vou te passar de novo: a landing fica R$ 2.900, com sinal de R$ 1.160.');
+  assert.equal(r.diagnostico, null, 'não oferece o recado quando o valor saiu');
+  assert.ok(r.estimativa);
+  const aviso = ia.recebidos[1].mensagens.at(-1);
+  assert.equal(aviso.role, 'user');
+  assert.match(aviso.content, /não há estimativa válida/);
+  assert.equal(ia.recebidos[1].mensagens.at(-2).role, 'assistant');
+});
+
+test('turno: a volta a mais acontece uma vez só; se o modelo insistir sem estimar, o marcador sai com o recado', async () => {
+  const ia = roteiro(fim('Fica [[total]].'), fim('Fica [[total]] mesmo.'));
+  const r = await executarTurno({ ia, regras: REGRAS, conversa: nova(), mensagem: 'e o preço?' });
+  assert.equal(ia.recebidos.length, 2);
+  assert.doesNotMatch(r.resposta, /\[\[|\d/);
+  assert.match(r.resposta, /DEIXAR UM RECADO/);
+});
+
+test('turno: com estimativa válida, ou depois do escopo, não há volta a mais', async () => {
+  const doBanco = { id: 'e1', prazo_dias: 5, fase: 'unica', valor_total: '2900.00', sinal: '1160.00', fatores: { formato: 'landing_page' }, detalhes: { itens: [] } };
+  const ia = roteiro(fim('Fica [[total]].'));
+  await executarTurno({ ia, regras: REGRAS, conversa: nova({ estimativa: doBanco, etapa: 'estimativa' }), mensagem: 'e o total?' });
+  assert.equal(ia.recebidos.length, 1);
+  const ia2 = roteiro(fim('Fica [[total]].'));
+  await executarTurno({ ia: ia2, regras: REGRAS, conversa: nova({ etapa: 'escopo' }), mensagem: 'e o total?' });
+  assert.equal(ia2.recebidos.length, 1);
+});
+
+test('notação interna: [estimar: ...], [Botão ...] e [Cartão: ...] escritos como texto nunca chegam à tela', async () => {
+  assert.equal(semNotacaoInterna('[estimar: Landing page, total [[total]], sinal [[sinal]]]\n\nPra você ter um ponto de partida: fica [[total]].'), 'Pra você ter um ponto de partida: fica [[total]].');
+  assert.equal(semNotacaoInterna('[Botão DEIXAR UM RECADO apareceu na tela; nada foi enviado]\nTem razão.'), 'Tem razão.');
+  assert.equal(semNotacaoInterna('Oi. [encaminhar_diagnostico: pediu uma pessoa] Fala comigo.'), 'Oi.  Fala comigo.');
+  assert.equal(semNotacaoInterna('[Cartão: Landing page, 5 dias úteis] Fica [[total]].').trim(), 'Fica [[total]].');
+  assert.equal(semNotacaoInterna('[estimar: sem fechar\nSegue a conversa.'), 'Segue a conversa.');
+  const normal = 'A landing [[total]] e o [[sinal]] entram no Pix [no celular].';
+  assert.equal(semNotacaoInterna(normal), normal);
+  const ia = roteiro(fim('[estimar: Landing page, 1 página, total [[total]]]\n\nA landing fica [[total]].'));
+  const doBanco = { id: 'e1', prazo_dias: 5, fase: 'unica', valor_total: '2900.00', sinal: '1160.00', fatores: { formato: 'landing_page' }, detalhes: { itens: [] } };
+  const r = await executarTurno({ ia, regras: REGRAS, conversa: nova({ estimativa: doBanco, etapa: 'estimativa' }), mensagem: 'quanto?' });
+  assert.equal(r.resposta, 'A landing fica R$ 2.900.');
 });
 
 /* ---------- 4. o prompt do Zero ---------- */
