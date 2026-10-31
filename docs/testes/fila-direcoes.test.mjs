@@ -155,10 +155,12 @@ test('controle positivo: no modo da API a geração chama o modelo (o espião en
 
 test('modo manual: a fila não depende dos tetos de gasto da IA (não há gasto de API na fila)', async () => {
   /* revisão técnica: o disjuntor aberto ou o teto da conversa não podem barrar quem acabou de deixar o WhatsApp */
-  /* (acima do teto da conversa, US$ 1,50, e longe do teto do dia, US$ 25, que valeria para os outros testes) */
+  /* (acima do teto da conversa, TETOS.conversa_usd, e longe do teto do dia, TETOS.dia_usd, que valeria para os outros testes) */
+  const { TETOS } = await import('../../api/_ia/config.mjs');
+  const acima = TETOS.conversa_usd + 0.1;
   const { n, c } = await ateAFila();
   const api = await ateAFila('api');
-  await local.db.exec(`update app.conversas set custo_ia_usd = 1.6 where id in ('${c}', '${api.c}')`);
+  await local.db.exec(`update app.conversas set custo_ia_usd = ${acima} where id in ('${c}', '${api.c}')`);
   const g = await n.chamar('POST', 'gerar', { conversa_id: c });
   assert.equal(g.status, 200, JSON.stringify(g.corpo));
   assert.equal((await api.n.chamar('POST', 'gerar', { conversa_id: api.c })).status, 429, 'no modo da API o teto segue valendo');

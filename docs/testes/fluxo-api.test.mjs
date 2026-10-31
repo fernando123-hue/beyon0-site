@@ -413,13 +413,14 @@ test('teto de custo RESERVADO antes de chamar: as 3 direções em paralelo, com 
   chamadas = 0;
   const r0 = await Promise.all(g0.corpo.direcoes.map(d => n.chamar('POST', 'gerar-direcao', { conversa_id: c, direcao_id: d.id })));
   assert.equal(chamadas, 3, 'com US$ 0,60 gastos, as 3 chamam o modelo — status: ' + JSON.stringify(r0.map(x => x.status)));
-  /* perto do teto: US$ 1,20 de 1,50 → 1,20 e 1,45 ainda começam; a 3ª (1,70 comprometidos) não */
-  await local.db.query('update app.conversas set custo_ia_usd = 1.2 where id = $1', [c]);
+  /* perto do teto: US$ 0,30 abaixo dele (1,70 de 2,00, com o teto de TETOS.conversa_usd) → 1,70 e 1,95 ainda começam; a 3ª (2,20 comprometidos) não */
+  const { TETOS } = await import('../../api/_ia/config.mjs');
+  await local.db.query('update app.conversas set custo_ia_usd = $2 where id = $1', [c, TETOS.conversa_usd - 0.3]);
   const g = await n.chamar('POST', 'gerar', { conversa_id: c });
   assert.equal(g.status, 200, JSON.stringify(g.corpo));
   chamadas = 0; picoEmVoo = 0;
   const r = await Promise.all(g.corpo.direcoes.map(d => n.chamar('POST', 'gerar-direcao', { conversa_id: c, direcao_id: d.id })));
-  assert.equal(chamadas, 2, 'com US$ 1,20 gastos, só 2 chamam o modelo — status: ' + JSON.stringify(r.map(x => x.status)));
+  assert.equal(chamadas, 2, 'com US$ 0,30 abaixo do teto, só 2 chamam o modelo — status: ' + JSON.stringify(r.map(x => x.status)));
   assert.equal(r.filter(x => x.status === 429).length, 1, 'a 3ª: limite, com WhatsApp');
   assert.ok(r.filter(x => x.status === 429).every(x => x.corpo.recado === true));
   /* a reserva some depois da chamada: nada fica preso */
