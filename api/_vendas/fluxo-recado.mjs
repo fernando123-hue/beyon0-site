@@ -16,7 +16,7 @@ import { criarFreio, ipDe } from '../_freio.mjs';
 import { chaveDoIp } from './ip.mjs';
 import { tokenDe } from '../_supabase.mjs';
 import { ORG } from './org.mjs';
-import { avisarDono } from '../_ntfy.mjs';
+import { avisarDono } from '../_aviso.mjs';
 import { ambienteDe } from '../_ambiente.mjs';
 import ESQ from '../../js/orcamento-material-esquema.js';
 

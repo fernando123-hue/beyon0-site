@@ -73,7 +73,7 @@ test('P1 ledger: cada chamada ao modelo fica registrada com o id do pedido (suce
   assert.deepEqual(erro, { erro: 'tempo', custo: 0.07 }, 'a falha também fica, com o custo');
 });
 
-/* ---------- alertas: a rotina diária confere a saúde, grava e avisa o dono (ntfy.sh, grátis, sem conta) ---------- */
+/* ---------- alertas: a rotina diária confere a saúde, grava os alertas (sem canal de aviso no celular: nada é enviado) ---------- */
 test('P1 ledger: apagar o visitante (LGPD) apaga a conversa mesmo com chamadas de IA registradas', async () => {
   const c = await conversaNova();
   const vid = (await local.db.query('select visitante_id from app.conversas where id = $1', [c])).rows[0].visitante_id;
@@ -84,34 +84,33 @@ test('P1 ledger: apagar o visitante (LGPD) apaga a conversa mesmo com chamadas d
   await assert.rejects(local.db.query('delete from app.ia_chamadas where conversa_id = $1', [c]), e => /não se altera nem se apaga/.test(e.message));
 });
 
-test('P1 alertas: pagamento que pede uma pessoa e teto de IA perto do fim viram alerta, gravado e enviado uma vez por dia', async () => {
+test('P1 alertas: pagamento que pede uma pessoa e teto de IA perto do fim viram alerta, gravado no banco e no painel, sem enviar nada a ninguém', async () => {
   const org = (await local.db.query(`select id from app.organizacoes where slug = 'beyon-zero'`)).rows[0].id;
   await local.db.query(`insert into app.pagamentos_auditoria (org_id, evento, origem) values ($1, 'payment.divergence', 'operacao')`, [org]);
   const c = await conversaNova();
   const vidC = (await local.db.query('select visitante_id from app.conversas where id = $1', [c])).rows[0].visitante_id;
   await local.rpc('vendas_registrar_ia', { conversa_id: c, visitante_id: vidC, chamadas: [{ papel: 'geracao', parada: 'fim', custo_usd: 21, ms: 9 }] });   /* (o gasto das últimas 24 h vem do registro) */
-  const enviados = [];
-  const env = { CRON_SECRET: SEGREDO_CRON_TESTE, ALERTA_NTFY_TOPICO: 'beyon-alertas-teste-0123456789' };
-  const pedir = () => rotinas(new Request('http://x/api/rotinas?acao=diaria', { headers: { authorization: 'Bearer ' + SEGREDO_CRON_TESTE } }), env,
-    { banco: local.rpc, enviarAlerta: async (topico, texto) => enviados.push({ topico, texto }) });
-  const r = await (await pedir()).json();
+  const env = { CRON_SECRET: SEGREDO_CRON_TESTE };
+  const salvoFetch = globalThis.fetch;
+  const urls = [];
+  globalThis.fetch = async url => { urls.push(String(url)); return new Response('x'); };
+  const pedir = () => rotinas(new Request('http://x/api/rotinas?acao=diaria', { headers: { authorization: 'Bearer ' + SEGREDO_CRON_TESTE } }), env, { banco: local.rpc });
+  let r;
+  try { r = await (await pedir()).json(); await pedir(); } finally { globalThis.fetch = salvoFetch; }
   const tipos = r.saude.alertas.map(a => a.tipo);
   assert.ok(tipos.includes('pagamento_atencao') && tipos.includes('teto_ia'), JSON.stringify(r.saude));
-  assert.equal(enviados.length, 1, 'um aviso só, com o resumo');
-  assert.equal(enviados[0].topico, env.ALERTA_NTFY_TOPICO);
-  assert.match(enviados[0].texto, /pagamento/i);
-  await pedir();
-  assert.equal(enviados.length, 1, 'a mesma rotina no mesmo dia não repete o aviso');
+  assert.deepEqual(urls, [], 'nada é enviado: nenhum fetch (nem para ntfy.sh)');
+  assert.ok(r.saude.alertas.some(a => /pagamento/i.test(a.mensagem)), 'o resumo traz o alerta de pagamento');
   const painel = await local.rpc('rotinas_painel', { org_slug: 'beyon-zero' });
   assert.ok(painel.ultima_rotina, 'o painel sabe quando a rotina rodou (silêncio não parece saúde)');
   assert.ok(painel.alertas.some(a => a.tipo === 'pagamento_atencao'));
 });
 
-test('P1 rotina: etapa que falha vira alerta urgente e as outras seguem (envio do aviso que falha não derruba a rotina)', async () => {
-  const env = { CRON_SECRET: SEGREDO_CRON_TESTE, ALERTA_NTFY_TOPICO: 'beyon-alertas-teste-0123456789' };
+test('P1 rotina: etapa que falha vira alerta urgente e as outras seguem (sem aviso a enviar, a rotina segue)', async () => {
+  const env = { CRON_SECRET: SEGREDO_CRON_TESTE };
   const quebraRetencao = (nome, p) => nome === 'vendas_reter' ? Promise.reject(Object.assign(new Error('x'), { codigo: '08006' })) : local.rpc(nome, p);
   const r = await (await rotinas(new Request('http://x/api/rotinas?acao=diaria', { headers: { authorization: 'Bearer ' + SEGREDO_CRON_TESTE } }), env,
-    { banco: quebraRetencao, enviarAlerta: async () => { throw new Error('ntfy fora'); } })).json();
+    { banco: quebraRetencao })).json();
   assert.equal(r.ok, false);
   assert.ok(r.saude.alertas.some(a => a.tipo === 'rotina_falhou' && a.nivel === 'urgente'), JSON.stringify(r.saude.alertas));
 });

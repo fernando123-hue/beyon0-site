@@ -23,7 +23,7 @@ import { reservaUsd } from './_ia/config.mjs';
 import { ambienteDe } from './_ambiente.mjs';
 import { criarFreio, ipDe } from './_freio.mjs';
 import { chaveDoIp, chaveDoIp48 } from './_vendas/ip.mjs';
-import { avisarDono } from './_ntfy.mjs';
+import { avisarDono } from './_aviso.mjs';
 import { configTurnstile, verificarHumano } from './_vendas/turnstile.mjs';
 import { ehUuid } from './_valida-app.mjs';
 import { origemPermitida, textoDoVisitante, linkWhatsapp, interruptorLigado, redigirVisitante } from './_atendente/regras.mjs';

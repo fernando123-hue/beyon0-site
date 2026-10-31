@@ -3337,7 +3337,7 @@ Servidor reiniciado, com `BZ_SEM_CONSULTOR=1` e `PAINEL_CHAVE`: E2E duas vezes (
 | PR2a-D | decisões aprovadas por omissão (plano `docs/superpowers/plans/2026-10-13-orcamento-sem-ia-pr2a.md`): D1 teto 10; D2 confirmação também com IA; D3 nome opcional e sem e-mail; D4 as cinco redes por 60 dias, escrito em /privacidade; D5 estilo por imagem no PR 3; D6 confirmar fora da conversão do Ads; D7 nada guardado no navegador | dono pode rever |
 | PR2a-recontato | quem volta depois da retenção de 12 meses (contato anonimizado) não informa o contato de novo pela tela: o pagar pede o WhatsApp, e o dono não tem ainda a ação no painel para recolocar o contato | PR 3: uma tela de contato reduzida (só WhatsApp e aceite) ou a ação do dono no painel |
 | PR2a-banco | `vendas_iniciar_geracao` ainda aceita a conversa sem pedido (só a API recusa) | 2b: exigir o pedido confirmado também no banco, depois de conferir que nenhuma conversa antiga em produção depende disso |
-| PR2a-alarme | o alarme da fila e dos pendentes aparece no painel, não no aviso diário do ntfy | se o dono quiser o aviso no celular: um tipo novo em `rotinas_conferir` |
+| PR2a-alarme | o alarme da fila e dos pendentes aparece no painel, não em aviso no celular (ntfy removido em 31/10/2026) | se o dono quiser o aviso no celular (ainda sem canal: app próprio em desenvolvimento): um tipo novo em `rotinas_conferir` |
 | PR2a-selo | o selo de texto suspeito herda os falsos positivos do `pareceInjecao` (PR34-S5: "tem desconto?") | junto do PR34-S5 |
 ```
 
