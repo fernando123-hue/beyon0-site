@@ -259,3 +259,24 @@ export function comMarcadores(texto, e) {
   }
   return { texto: saida.join('').trim(), semEstimativa: true };
 }
+
+/* ---------- 5. o valor que a pessoa pediu e não veio ---------- */
+/* relatório da rodada 3 (31/10): em todo teste a pessoa pediu o valor de 3 a 4 vezes e nunca o viu. Se ela pede o valor (ou diz que
+   não apareceu), há estimativa válida e a resposta que vai para a tela não traz nenhum "R$", o CÓDIGO acrescenta uma linha fixa
+   com os números do motor (os mesmos do cartão). Não depende de o modelo lembrar dos marcadores, e nunca diz onde o valor "está". */
+const PEDE_VALOR = [
+  /\b(?:q(?:uan|n)to\s+(?:e|fica|custa|sai|seria|vai ficar|ficou)|qual\s+(?:e\s+)?o\s+(?:valor|preco|total)|(?:fala|diz|manda|me passa|passa)\s+(?:o\s+)?(?:valor|preco|numero)|valor\s+(?:em\s+)?reais|em\s+reais)\b/,
+  /\bcolchetes?\b|\bnao\s+(?:\w+\s+){0,2}(?:apareceu|aparece|aparecem|vi|vejo|consigo ver)\s+(?:\w+\s+){0,2}(?:valor|preco|numero|nada)\b|\bsem\s+(?:o\s+)?valor\b/
+];
+const OUTRO_ASSUNTO = /\b(?:atendente|chat|automacao|automatizar)\b/;
+export function pedeValor(mensagem) {
+  const t = paraBusca(mensagem);
+  return !!t && !OUTRO_ASSUNTO.test(t) && (String(mensagem).includes("[[") || PEDE_VALOR.some(r => r.test(t)));
+}
+export function garantirValor(texto, { mensagem, estimativa } = {}) {
+  const original = String(texto);
+  const v = valoresDe(estimativa);
+  if (!v || /R\$/.test(original) || !pedeValor(mensagem)) return { texto: original, acrescentou: false };
+  const linha = `Em resumo, o site fica ${dinheiro(v.total)}, com entrada de ${dinheiro(v.sinal)} no Pix e ${dinheiro(v.restante)} quando o site entrar no ar.`;
+  return { texto: (original.trim() ? original.trimEnd() + '\n\n' : '') + linha, acrescentou: true };
+}

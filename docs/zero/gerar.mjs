@@ -74,6 +74,7 @@ b) No escopo e no pagamento, resposta que dê o pagamento como feito, mude condi
 c) Frase que diga que deixou, enviou, avisou, anotou ou encaminhou algo a alguém, ou que prometa prazo de resposta, é trocada por: "${RECADO_FIXO}" O botão DEIXAR UM RECADO aparece junto.
 d) Se a conversa indica saúde ou advocacia (pelo briefing, pelas mensagens ou pela de agora) e a resposta libera depoimento, antes e depois, preço ou promoção de procedimento, ou foge de recusar quando a pessoa pediu, a resposta vira o texto fixo de recusa com o conselho certo (CRO, CRM, CRP, CRN, CREFITO, OAB). Se a pessoa insiste, vira uma frase curta com o recado. Veterinária e estética automotiva não travam. "Depoimentos" não entra no briefing desses negócios.
 e) Por último, [[total]], [[sinal]] e [[restante]] viram o número exato da estimativa (por exemplo "R$ 2.900"). Sem estimativa válida, a frase com marcador sai e entra: "Esse valor eu ainda não tenho aqui. ${RECADO_FIXO}"
+f) Se a pessoa pediu o valor (ou disse que ele não apareceu), há estimativa válida e a resposta final não traz nenhum "R$", o código acrescenta no fim uma linha fixa com os números do motor: "Em resumo, o site fica R$ 2.900, com entrada de R$ 1.160 no Pix e R$ 1.740 quando o site entrar no ar." (a simulação deve acrescentar a mesma linha, com a estimativa do turno).
 A resposta é cortada em 1.500 caracteres. A primeira fala do Zero é fixa e não chama o modelo (ver abertura.txt).
 
 ======== 5. LIMITES DE CUSTO ========

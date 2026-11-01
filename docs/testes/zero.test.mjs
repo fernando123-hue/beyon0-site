@@ -14,7 +14,7 @@ import { montarSistema, ferramentas, IDENTIDADE } from '../../api/_vendas/consul
 import { PAPEIS, TETOS, custoUsd, RESERVA_USD } from '../../api/_ia/config.mjs';
 import {
   RECADO_FIXO, ABERTURA_PADRAO, ABERTURAS, semPromessaDeRecado, nichoRegulado, pedeItemProibido,
-  garantirRegulado, comMarcadores, briefingSemProibidos, respostaRegulado, semNotacaoInterna
+  garantirRegulado, comMarcadores, briefingSemProibidos, respostaRegulado, semNotacaoInterna, pedeValor, garantirValor
 } from '../../api/_vendas/zero.mjs';
 
 const REGRAS = JSON.parse(fs.readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
@@ -371,6 +371,40 @@ test('notação interna: [estimar: ...], [Botão ...] e [Cartão: ...] escritos 
   const doBanco = { id: 'e1', prazo_dias: 5, fase: 'unica', valor_total: '2900.00', sinal: '1160.00', fatores: { formato: 'landing_page' }, detalhes: { itens: [] } };
   const r = await executarTurno({ ia, regras: REGRAS, conversa: nova({ estimativa: doBanco, etapa: 'estimativa' }), mensagem: 'quanto?' });
   assert.equal(r.resposta, 'A landing fica R$ 2.900.');
+});
+
+/* rodada 3 dos testes simulados (31/10): a pessoa pediu o valor 3 a 4 vezes e nunca o viu */
+test('valor pedido: reconhece o pedido do valor e a queixa de que não apareceu, e ignora o resto', () => {
+  for (const m of ['quanto fica?', 'qnto é a landing', 'fala o valor em reais', 'apareceu [[total]] aqui', 'de novo os colchetes', 'não apareceu o valor', 'só fala o valor em número, 1 linha'])
+    assert.ok(pedeValor(m), m);
+  for (const m of ['oi, tudo bem?', 'sou dentista e quero depoimento', 'quanto custa o atendente de IA?', ''])
+    assert.ok(!pedeValor(m), m);
+});
+
+test('valor pedido: sem R$ na resposta e com estimativa válida, o código acrescenta os números do motor', () => {
+  const e = { valor_total: '2900.00', sinal: '1160.00' };
+  const r = garantirValor('Pra oficina, uma página só resolve.', { mensagem: 'só fala o valor', estimativa: e });
+  assert.equal(r.acrescentou, true);
+  assert.equal(r.texto, 'Pra oficina, uma página só resolve.\n\nEm resumo, o site fica R$ 2.900, com entrada de R$ 1.160 no Pix e R$ 1.740 quando o site entrar no ar.');
+  assert.equal(garantirValor('A landing fica R$ 2.900.', { mensagem: 'quanto fica', estimativa: e }).acrescentou, false, 'já tem número');
+  assert.equal(garantirValor('Uma página só.', { mensagem: 'oi', estimativa: e }).acrescentou, false, 'ninguém pediu o valor');
+  assert.equal(garantirValor('Uma página só.', { mensagem: 'quanto fica', estimativa: null }).acrescentou, false, 'sem estimativa não inventa número');
+  assert.equal(garantirValor('Uma página só.', { mensagem: 'quanto custa o atendente?', estimativa: e }).acrescentou, false, 'valor do atendente não é o do site');
+});
+
+test('turno: a pessoa reclama que o valor não apareceu e o modelo responde sem número: a linha do motor sai na tela', async () => {
+  const doBanco = { id: 'e1', prazo_dias: 5, fase: 'unica', valor_total: '2900.00', sinal: '1160.00', fatores: { formato: 'landing_page' }, detalhes: { itens: [] } };
+  const ia = roteiro(fim('O valor não está chegando pra você. Uma página só mostra o que a oficina faz.'));
+  const r = await executarTurno({ ia, regras: REGRAS, conversa: nova({ estimativa: doBanco, etapa: 'estimativa' }), mensagem: 'cartao nenhum apareceu aqui, so fala o valor' });
+  assert.match(r.resposta, /Em resumo, o site fica R\$ 2\.900, com entrada de R\$ 1\.160 no Pix e R\$ 1\.740/);
+  assert.doesNotMatch(r.resposta, /\[\[/);
+});
+
+test('turno: no escopo e no sinal a linha do valor não entra (os filtros de pagamento mandam)', async () => {
+  const doBanco = { id: 'e1', prazo_dias: 5, fase: 'unica', valor_total: '2900.00', sinal: '1160.00', fatores: { formato: 'landing_page' }, detalhes: { itens: [] } };
+  const ia = roteiro(fim('Confira o bloco Resumo do que será feito.'));
+  const r = await executarTurno({ ia, regras: REGRAS, conversa: nova({ estimativa: doBanco, etapa: 'escopo' }), mensagem: 'e o valor, qual é?' });
+  assert.doesNotMatch(r.resposta, /Em resumo/);
 });
 
 /* ---------- 4. o prompt do Zero ---------- */

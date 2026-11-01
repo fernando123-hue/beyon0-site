@@ -21,7 +21,7 @@ import { redigir, semPrecoNoTexto } from './seguranca.mjs';
 import { semPromessaDePagamento, motivoDaPergunta, RESPOSTAS_PAGAMENTO } from './promessa.mjs';
 import { ErroIA } from '../_ia/provedor.mjs';
 import {
-  ABERTURA_PADRAO, semPromessaDeRecado, nichoRegulado, pedeItemProibido, garantirRegulado, briefingSemProibidos, avisoRegulado, comMarcadores, marcadorSemValor, semNotacaoInterna
+  ABERTURA_PADRAO, semPromessaDeRecado, nichoRegulado, pedeItemProibido, garantirRegulado, briefingSemProibidos, avisoRegulado, comMarcadores, marcadorSemValor, semNotacaoInterna, garantirValor
 } from './zero.mjs';
 
 const MAX_ITERACOES = 4;
@@ -168,6 +168,8 @@ export async function executarTurno({ ia, regras, conversa, mensagem, direcoes, 
   const valores = comMarcadores(resposta, estimativa || conversa.estimativa);
   resposta = valores.texto;
   if (valores.semEstimativa && !diagnostico) diagnostico = 'sem_valor';
+  /* (rodada 3) a pessoa pediu o valor e a resposta não o traz: o código acrescenta os números do motor; no escopo e no sinal os filtros próprios mandam */
+  if (!soDuvidas) resposta = garantirValor(resposta, { mensagem, estimativa: estimativa || conversa.estimativa }).texto;
   const { confianca, faltam } = avaliar(briefing);
   return { resposta: resposta.slice(0, 1500), briefing, confianca, faltam, estimativa, pedir_contato: pedirContato, diagnostico, sugestoes_ia: sugestoes, custo_usd: custo, pronto_estimar: prontoParaEstimar(briefing) };
 }
