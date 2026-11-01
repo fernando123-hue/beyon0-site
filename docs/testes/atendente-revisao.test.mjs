@@ -64,7 +64,7 @@ test('técnica A2: teto batido sem conversa: o contato do visitante ainda é ace
   assert.equal((await chamar(C, { nome: 'Outra', telefone: '21988887770' }, { ...o, acao: 'contato' })).status, 429, 'freio por IP no contato');
 });
 
-test('A5: o dono é avisado (ntfy fixo, sem dado pessoal) UMA vez quando o gasto do cliente acaba; a conversa cai na passagem para pessoa', async () => {
+test('A5: o dono é avisado (texto fixo, sem dado pessoal) UMA vez quando o gasto do cliente acaba; a conversa cai na passagem para pessoa', async () => {
   const C = await cli({ teto_dia_usd: 0.0001 });
   const avisos = [];
   const deps = { avisar: async (_env, tipo) => { avisos.push(tipo); return true; } };
@@ -74,7 +74,7 @@ test('A5: o dono é avisado (ntfy fixo, sem dado pessoal) UMA vez quando o gasto
     assert.match(r.j.resposta, /fora do ar/);
   }
   assert.deepEqual(avisos, ['atendente_cliente']);
-  const { AVISOS } = await import('../../api/_ntfy.mjs');
+  const { AVISOS } = await import('../../api/_aviso.mjs');
   assert.doesNotMatch(AVISOS.atendente_cliente + AVISOS.atendente_global, /@|\d{5}|cpf/i);
 });
 

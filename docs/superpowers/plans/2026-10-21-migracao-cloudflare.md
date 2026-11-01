@@ -429,7 +429,7 @@ de trabalho.
 `observability.enabled: true`, `observability.logs.enabled: true`, `head_sampling_rate: 1`,
 `observability.traces.enabled: true` (o topo sozinho não liga traces). Os logs já são JSON de uma linha. Workers Logs
 no grátis tem cota diária e retenção curta: conferir no painel no dia do P8 e anotar aqui. Alerta: o Workers Logs não
-alerta por frase; o alerta do dono continua pelo ntfy na rotina diária (R11).
+alerta por frase; o alerta do dono ficava no ntfy da rotina diária (R11); removido em 31/10/2026: agora só painel, log e banco.
 
 ---
 
@@ -451,8 +451,7 @@ painel que não esteja no `wrangler.jsonc`; segredo não). Valores públicos por
 | 9 | `MP_USER_ID` | conta da Beyon Zero | conta de teste | para pagar |
 | 10 | `CRON_SECRET` | 32+ caracteres | outro (o staging tem cron) | sim |
 | 11 | `FREIO_SEGREDO` | 32+ caracteres | outro | recomendado |
-| 12 | `ALERTA_NTFY_TOPICO` | tópico | vazio | opcional |
-| 13 | `ALERTA_NTFY_TOKEN` | `tk_…` | vazio | opcional |
+| 12-13 | (removidas em 31/10/2026: eram as variáveis do ntfy) | | | |
 | 14 | `TURNSTILE_SITE_KEY` | widget de produção | `1x00000000000000000000AA` (teste oficial) | sim |
 | 15 | `TURNSTILE_SECRET` | widget de produção | segredo de teste oficial | sim |
 
@@ -1105,7 +1104,7 @@ function orcamentoDe(limite) {
   `limite = 15`, `varrerPaginas = 1`, `orcamento = 45` (15 a cada 3 h = 120/dia).
 - [ ] **Step 4: a rotina diária com o mesmo orçamento** (2ª revisão, MÉDIO-5: o PR 3b soma chamadas ao Storage
   nela). Teste vermelho em `docs/testes/api.test.mjs`: `executar` com `deps.banco` e `deps.metricas` falsos que contam,
-  e um `fetch` falso (ntfy) que conta, com 60 etapas simuladas → nunca passa de 45 e o resumo diz `parcial: true`.
+  e um `fetch` falso que conta (o do ntfy foi removido em 31/10/2026), com 60 etapas simuladas → nunca passa de 45 e o resumo diz `parcial: true`.
   Implementação: `api/rotinas.mjs:40-…` usa o mesmo `orcamentoDe(45)` (mover para `api/_orcamento.mjs`, exportado, e
   importar nos dois); etapa que ficou sem orçamento vira **alerta** (como as falhas de hoje), nunca silêncio.
 - [ ] **Step 5:** PASS + `npm run testar`. **Step 6:** commit `fix: reconciliacao e rotina diaria com orcamento de subpedidos por execucao`.
@@ -1657,7 +1656,7 @@ como a doc de `_headers` descreve).
 
 ```js
 const SEGREDOS = ['SUPABASE_URL', 'SUPABASE_CHAVE_PUBLICA', 'SUPABASE_CHAVE_SECRETA', 'PAINEL_CHAVE', 'ANTHROPIC_API_KEY', 'MP_ACCESS_TOKEN', 'MP_PUBLIC_KEY',
-  'MP_WEBHOOK_SEGREDO', 'MP_USER_ID', 'CRON_SECRET', 'FREIO_SEGREDO', 'ALERTA_NTFY_TOPICO', 'ALERTA_NTFY_TOKEN', 'TURNSTILE_SITE_KEY', 'TURNSTILE_SECRET'];
+  'MP_WEBHOOK_SEGREDO', 'MP_USER_ID', 'CRON_SECRET', 'FREIO_SEGREDO', 'TURNSTILE_SITE_KEY', 'TURNSTILE_SECRET'];
 test('wrangler.jsonc: produção fechada, prévia declarada, nada de segredo, nada que rode código no build', () => {
   const c = lerJsonc(fs.readFileSync(new URL('../../wrangler.jsonc', import.meta.url), 'utf8'));
   assert.ok(c.compatibility_flags.includes('nodejs_compat')); assert.equal(c.compatibility_date, '2026-10-21');
@@ -1976,7 +1975,7 @@ de hoje), `docs/testes/csp.test.mjs` (sem paridade com o `vercel.json`), `script
 | R8 | Diferenças do workerd não vistas no Node (`fetch` que falha com outro erro que `TypeError`; o `visitante.mjs:25` trata só `TypeError` como "rede") | coberto pela fumaça e pelo staging | B7 + o orçamento inteiro no staging |
 | R9 | Webhook de teste barrado pelo Access no staging | depende do ensaio (§ 5.4) | se não der Bypass por caminho no `workers.dev`, a reconciliação do staging cobre |
 | R10 | `previews` dentro de `env.previa`, herança, `preview_urls`, caminho do cron no `wrangler dev` | **conferido pela 2ª revisão** (schema 4.136.3 e doc): `previews` aceito no ambiente; `vars` não herdados (daí o `previews.vars`); `routes` herdado (daí o `routes: []`); `preview_urls` existe; cron em `/cdn-cgi/local/scheduled` (≥ 4.139.0) ou `/cdn-cgi/handler/scheduled` (antes) | B6 e B7 conferem de novo no arquivo instalado |
-| R11 | Alerta por frase (a doc de pagamentos manda criar no Observability da Vercel) | o Workers Logs não alerta por frase | o ntfy da rotina diária; conferir que a reconciliação parcial (A8) também vira alerta |
+| R11 | Alerta por frase (a doc de pagamentos manda criar no Observability da Vercel) | o Workers Logs não alerta por frase | (era o ntfy da rotina diária, removido em 31/10/2026; hoje só painel e log); conferir que a reconciliação parcial (A8) também vira alerta |
 | R12 | Política de privacidade cita a Vercel | real | C4, revisão jurídica |
 | R13 | O PR 3b ("vender sozinho") traz envio de material com fotos (até 10 MB cada) | a spec (`site-pr3b/docs/specs/2026-10-21-pr3b-vender-sozinho.md`) já assume o grátis ("rotas leves; arquivo nunca passa pelo Worker"); **não cria rota**: põe **ações** novas em `/api/vendas` e no painel, e chamadas ao Storage na rotina diária; muda a CSP do `/orcamento` (`connect-src` do Storage, `img-src blob:`) | a M1 enumera `ACOES` e `ACOES_PAINEL` e falha sem caso de medida; a rotina diária tem orçamento de subpedidos (A8); a CSP nova entra no bloco `/orcamento` do `_headers` e, enquanto o `vercel.json` existir, nos dois juntos (teste de paridade do B4); a chave do cartão é a mesma `MP_METODOS` |
 | R14 | A 1ª chamada fria num isolado novo pesa (regex compiladas na hora) em **toda** rota com varredura ou `redigir` | medido só na entrega | a M1/M2 medem a 1ª chamada de cada rota |

@@ -7,6 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
+import { DOMINIO, HOST_DO_DOMINIO } from './dominio.mjs';
 
 const RAIZ = new URL('../../', import.meta.url);
 const ler = arquivo => readFileSync(new URL(arquivo, RAIZ), 'utf8');
@@ -20,6 +21,15 @@ const priv = limpo(ler('privacidade.html'));
 test('condições: nenhum marcador do texto aprovado sobrou na parte visível da página', () => {
   assert.deepEqual(texto.match(/\{[a-z_]+\}/g) || [], [], 'marcador {…} sem preencher');
   assert.ok(!/\[[^\]]*(?:nome|número|endereço)[^\]]*\]/i.test(texto), 'campo [entre colchetes] sem preencher à vista');
+});
+
+/* PR C, C4: com o site na Cloudflare, a política de privacidade não pode citar a hospedagem antiga. Texto marcado para a
+   revisão jurídica que já é pendência do dono (cobre a privacidade inteira). */
+test('privacidade (C4): a hospedagem do site é a Cloudflare, em nenhum lugar a Vercel', () => {
+  assert.doesNotMatch(priv, /Vercel/i, 'a Vercel deixa de hospedar o site');
+  assert.match(priv, /A hospedagem \(Cloudflare\) registra dados técnicos de acesso, como endereço IP, para segurança e funcionamento\./);
+  assert.match(priv, /Cloudflare \(a hospedagem e a entrega deste site, que recebe o endereço IP e dados técnicos do navegador ao abrir cada página, como todo servidor de internet; /);
+  assert.equal((priv.match(/, Cloudflare \(/g) || []).length, 1, 'a Cloudflare entra uma vez só na lista de terceiros, com todos os papéis');
 });
 
 test('condições: vigência até 31/12/2026 ou o 10º cliente', () => {
@@ -66,12 +76,14 @@ test('condições: os R$ 800 são sempre "por site de uma página", inclusive na
   assert.ok((html.match(/por site de uma página/g) || []).length >= 5, 'meta, OG, Twitter, painel de valores e texto');
 });
 
-test('condições: meta, canonical e OG apontam para /condicoes no domínio vigente (decisão do dono, 2026-10-14)', () => {
-  for (const re of [/rel="canonical" href="https:\/\/beyon0-site\.vercel\.app\/condicoes"/, /property="og:url" content="https:\/\/beyon0-site\.vercel\.app\/condicoes"/,
-    /property="og:title"/, /property="og:image" content="https:\/\/beyon0-site\.vercel\.app\/assets\/og-cover\.jpg"/, /name="description"/, /<h1>Condições do lançamento<\/h1>/]) {
+test('condições: meta, canonical e OG apontam para /condicoes no domínio vigente (decisão do dono, 2026-10-14; domínio próprio em 2026-10-21)', () => {
+  const esc = t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  for (const re of [new RegExp('rel="canonical" href="' + esc(DOMINIO + '/condicoes') + '"'), new RegExp('property="og:url" content="' + esc(DOMINIO + '/condicoes') + '"'),
+    /property="og:title"/, new RegExp('property="og:image" content="' + esc(DOMINIO + '/assets/og-cover.jpg') + '"'), /name="description"/, /<h1>Condições do lançamento<\/h1>/]) {
     assert.match(html, re);
   }
-  assert.ok(!/https?:\/\/(?!beyon0-site\.vercel\.app|wa\.me|www\.w3\.org)/.test(visivel.replace(/http-equiv[^>]*>/, '')), 'domínio ou link externo fora do combinado');
+  const externos = [...visivel.replace(/http-equiv[^>]*>/, '').matchAll(/https?:\/\/([^\/\s"'<>]+)/g)].map(m => m[1]).filter(h => h !== HOST_DO_DOMINIO && h !== 'wa.me' && h !== 'www.w3.org');
+  assert.deepEqual(externos, [], 'domínio ou link externo fora do combinado');
 });
 
 /* a oferta vence em 31/12/2026 ou no 10º cliente: a página é só para quem recebe o link (decisão do coordenador, 2026-10-14) */

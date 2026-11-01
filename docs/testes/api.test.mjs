@@ -302,9 +302,9 @@ test('visitante: na conferência do token, só a falha de rede é 503; erro de c
 });
 
 /* A8, passo 4 (migração para a Cloudflare, plano grátis: 50 subpedidos por invocação): a rotina diária conta cada chamada ao
-   banco, às métricas e ao ntfy e PARA no orçamento; a etapa que ficou sem orçamento vira alerta (a falha que o
+   banco e às métricas e PARA no orçamento; a etapa que ficou sem orçamento vira alerta (a falha que o
    rotinas_conferir recebe), nunca silêncio. O orçamento aqui é pequeno de propósito (5, com 3 guardados para o fim): são
-   mais etapas do que cabem. Com o orçamento de verdade (45) a rotina de hoje cabe inteira (testes em auditoria-p0/p1) */
+   mais etapas do que cabem (a reserva é de 1: só a conferência; o aviso no celular não existe mais, e este teste vê que nada tenta ntfy.sh). Com o orçamento de verdade (45) a rotina de hoje cabe inteira (testes em auditoria-p0/p1) */
 test('rotina diária: nunca passa do orçamento de subpedidos; a etapa sem orçamento vira alerta e o resumo diz parcial', async () => {
   let chamadas = 0;
   const conta = fn => async (...a) => { chamadas++; return fn(...a); };
@@ -315,10 +315,16 @@ test('rotina diária: nunca passa do orçamento de subpedidos; a etapa sem orça
     return {};
   });
   const metricas = { ligado: true, apagarAntigos: conta(async () => {}) };
-  const enviarAlerta = conta(async () => {});
-  const env = { CRON_SECRET: 'c'.repeat(40), ALERTA_NTFY_TOPICO: 'a'.repeat(24) };
-  const r = await rotinas(new Request('http://x/api/rotinas?acao=diaria', { headers: { authorization: 'Bearer ' + env.CRON_SECRET } }), env, { banco, metricas, enviarAlerta, orcamento: 5 });
+  const env = { CRON_SECRET: 'c'.repeat(40) };
+  const salvoFetch = globalThis.fetch;
+  const urls = [];
+  globalThis.fetch = async url => { urls.push(String(url)); return new Response('x'); };
+  let r;
+  try { r = await rotinas(new Request('http://x/api/rotinas?acao=diaria', { headers: { authorization: 'Bearer ' + env.CRON_SECRET } }), env, { banco, metricas, orcamento: 5 }); }
+  finally { globalThis.fetch = salvoFetch; }
   assert.equal(r.status, 200);
+  assert.deepEqual(urls, [], 'a rotina não faz fetch nenhum (nem para ntfy.sh)');
+  assert.ok(!vistos.includes('rotinas_avisado'), 'sem canal de aviso, nada é marcado como avisado');
   const corpo = await r.json();
   assert.ok(chamadas <= 5, 'subpedidos: ' + chamadas);
   assert.equal(corpo.parcial, true);
