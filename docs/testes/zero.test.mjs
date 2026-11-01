@@ -13,7 +13,7 @@ import { executarTurno } from '../../api/_vendas/agente.mjs';
 import { montarSistema, ferramentas, IDENTIDADE } from '../../api/_vendas/consultor.mjs';
 import { PAPEIS, TETOS, custoUsd, RESERVA_USD } from '../../api/_ia/config.mjs';
 import {
-  RECADO_FIXO, ABERTURA_PADRAO, ABERTURAS, semPromessaDeRecado, nichoRegulado, pedeItemProibido,
+  RECADO_FIXO, ETIQUETA, ABERTURA_PADRAO, ABERTURAS, semPromessaDeRecado, nichoRegulado, pedeItemProibido,
   garantirRegulado, comMarcadores, briefingSemProibidos, respostaRegulado, semNotacaoInterna, pedeValor, garantirValor
 } from '../../api/_vendas/zero.mjs';
 
@@ -490,4 +490,20 @@ test('docs/zero: o prompt efetivo e a abertura gravados são exatamente o que o 
   assert.ok(t.includes('VOCÊ É O ZERO'));
   for (const f of ferramentas(REGRAS)) assert.ok(t.includes(f.name), 'ferramenta no arquivo: ' + f.name);
   assert.match(t, /ESTADO ATUAL/);
+});
+
+test('tela: a página de orçamento mostra o Zero como IA (etiqueta e primeira fala fixa) e não chama mais de "consultor"', () => {
+  const html = fs.readFileSync(new URL('../../orcamento.html', import.meta.url), 'utf8');
+  assert.ok(html.includes(ETIQUETA), 'etiqueta fixa na conversa');
+  assert.ok(html.includes(ABERTURA_PADRAO), 'a primeira fala é a aprovada, a mesma que o modelo recebe como já vista');
+  const visivel = html.replace(/<!--[\s\S]*?-->/g, '');
+  assert.doesNotMatch(visivel, /consultor/i, 'nenhum texto visível chama de consultor');
+});
+
+test('prompt: fatos decididos pelo dono em 01/11 (domínio, hospedagem, nota) e a negociação sem desconto', () => {
+  const s = montarSistema(REGRAS, { direcoes: 'manual', metodos: ['pix'] });
+  for (const trecho of ['fica no nome do cliente', 'hospedado de graça na Cloudflare', 'Nota fiscal: ainda não há', 'negocie sem baixar o valor', 'pagando só o que for pondo'])
+    assert.ok(s.includes(trecho), 'falta no prompt: ' + trecho);
+  assert.doesNotMatch(s, /mensalidade, hospedagem e de quem é/, 'mensalidade e hospedagem saíram da lista do que não se confirma');
+  assert.doesNotMatch(s, /R\$ ?(800|1\.900)/, 'a oferta de lançamento não entra no texto do Zero');
 });
