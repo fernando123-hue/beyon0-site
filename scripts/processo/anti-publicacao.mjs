@@ -11,9 +11,10 @@
        padrão do repositório), com a action da Cloudflare ou com o token e a conta da Cloudflare;
      • package.json com script de instalação (preinstall, install, postinstall, prepare): o Builds o executa;
      • wrangler.jsonc com a estrutura que apontaria o deploy da main para a produção: build em qualquer lugar; no topo,
-       workers_dev e preview_urls diferentes de false, routes, route ou account_id; dentro de env.*, name, route,
-       account_id ou routes que não seja a lista vazia. (Quando o PR C ligar o domínio, o routes do topo passa a existir:
-       ajustar esta regra naquele PR.)
+       workers_dev e preview_urls diferentes de false, route ou account_id, ou routes que não seja EXATAMENTE o domínio
+       de produção como Custom Domain ({ pattern: "beyonzero.com.br", custom_domain: true }, PR C); dentro de env.*,
+       name, route, account_id ou routes que não seja a lista vazia, e, com o domínio no topo, todo env precisa ter
+       routes: [] (senão herda o domínio).
    O texto é normalizado antes de casar (minúsculas, linha continuada juntada, aspas e .cmd/.exe tirados, comandos separados
    por & && | || ;). É defesa em profundidade, não a proteção principal (CI sem token, Builds com --env previa, produção sem rota).
    LIMITE: varredura de texto. Pega erro e instrução óbvia, não quem quer contornar ('prod' + 'ucao', base64). A trava
@@ -122,6 +123,11 @@ function chaveEmQualquerLugar(valor, chave) {
   return Object.hasOwn(valor, chave) || Object.values(valor).some(x => chaveEmQualquerLugar(x, chave));
 }
 
+/* o único routes que o topo do wrangler.jsonc pode ter (PR C): o domínio de produção, como Custom Domain, sem curinga, sem www, sem zona extra */
+const DOMINIO_DE_PRODUCAO = { pattern: 'beyonzero.com.br', custom_domain: true };
+const ehSoODominioDeProducao = r => Array.isArray(r) && r.length === 1 && ehObjeto(r[0]) && Object.keys(r[0]).sort().join() === 'custom_domain,pattern'
+  && r[0].pattern === DOMINIO_DE_PRODUCAO.pattern && r[0].custom_domain === true;
+
 /* a estrutura do wrangler.jsonc que aponta o deploy da main (staging) para a produção, ou deixa a produção aberta */
 function motivosDoWrangler(cfg) {
   const motivos = [];
@@ -129,10 +135,13 @@ function motivosDoWrangler(cfg) {
   if (chaveEmQualquerLugar(cfg, 'build')) motivos.push('"build" no wrangler.jsonc (rodaria código no deploy)');
   if (cfg.workers_dev !== false) motivos.push('workers_dev do topo precisa ser false (produção sem endereço workers.dev)');
   if (cfg.preview_urls !== false) motivos.push('preview_urls do topo precisa ser false');
-  for (const k of ['routes', 'route', 'account_id']) if (Object.hasOwn(cfg, k)) motivos.push('"' + k + '" no topo do wrangler.jsonc (rota e conta não vão no arquivo; o domínio é do PR C)');
+  for (const k of ['route', 'account_id']) if (Object.hasOwn(cfg, k)) motivos.push('"' + k + '" no topo do wrangler.jsonc (rota e conta não vão no arquivo)');
+  const temDominio = Object.hasOwn(cfg, 'routes');
+  if (temDominio && !ehSoODominioDeProducao(cfg.routes)) motivos.push('"routes" no topo do wrangler.jsonc só pode ser o domínio de produção como Custom Domain: ' + JSON.stringify([DOMINIO_DE_PRODUCAO]));
   const envs = ehObjeto(cfg.env) ? cfg.env : {};
   for (const [nome, e] of Object.entries(envs)) {
     if (!ehObjeto(e)) continue;
+    if (temDominio && !(Array.isArray(e.routes) && e.routes.length === 0)) motivos.push('env.' + nome + ' precisa de routes: [] (com o domínio no topo, routes é herdável e o ambiente tomaria o domínio de produção)');
     for (const k of ['name', 'route', 'account_id']) if (Object.hasOwn(e, k)) motivos.push('env.' + nome + '.' + k + ' (apontaria o deploy da main para outro Worker ou conta)');
     if (Object.hasOwn(e, 'routes') && !(Array.isArray(e.routes) && e.routes.length === 0)) motivos.push('env.' + nome + '.routes precisa ser a lista vazia (routes é herdável; o staging nunca pega o domínio)');
   }

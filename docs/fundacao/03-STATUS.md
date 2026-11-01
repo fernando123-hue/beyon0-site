@@ -47,8 +47,8 @@ A fase parou aqui, como pedido. **Infisical e Cloudflare não foram iniciados** 
 1. **As migrations nunca rodaram num Supabase real.** Os testes usam uma imitação fiel do que o RLS precisa. Ela não cobre a troca de papel do PostgREST, as concessões automáticas do Supabase nem o papel `postgres` sem superusuário. Mitigação: a conferência de `02-OPERACAO.md` §4.4 logo depois do primeiro `db push`, de preferência no staging.
 2. **Sem backup no plano grátis do Supabase.** Até o Pro, só a cópia manual semanal (§5).
 3. **O painel de métricas usa uma chave compartilhada.** Não há identidade por pessoa; a chave fica no `sessionStorage`. A fundação para trocá-la por login (Supabase Auth com membros) está pronta, mas a troca não foi feita.
-4. **Plano Hobby da Vercel**: o uso comercial é proibido pelos termos.
-5. **O freio de taxa vale por instância da função.** Sem as regras no firewall da Vercel, um ataque distribuído ainda consome a cota.
+4. **Hospedagem**: a Vercel (plano Hobby, uso comercial proibido) não será promovida; o site vai para a Cloudflare, plano grátis, na migração do PR C (domínio `beyonzero.com.br`). Os limites do grátis são medidos na M2 do plano da migração.
+5. **O freio de taxa vale por instância da função.** A regra de limite da zona na Cloudflare (10 pedidos / 10 s por IP em `/api/*`, 1 regra no plano grátis) cobre as instâncias juntas, mas no grátis nenhuma regra protege a cota diária do Worker: dois IPs a esgotam até as 21 h de Brasília.
 6. **O ID global** de uma tabela deixa confirmar, por erro de duplicidade, que um UUID existe em outra organização. Só funciona com chamada direta ao banco; o impacto é desprezível. Aceito.
 7. **Dono e admin podem apagar uma proposta enviada.** Fica registrado na auditoria. Aceito por simplicidade; dá para bloquear se o dono quiser.
 8. **Índices em `created_by` e `updated_by`** não foram criados. Apagar um usuário varre as tabelas. Irrelevante no volume atual; criar quando crescer.
@@ -58,7 +58,7 @@ A fase parou aqui, como pedido. **Infisical e Cloudflare não foram iniciados** 
 
 1. **Criar os projetos no Supabase:** produção e staging, região São Paulo. Sem isso, o banco não existe.
 2. **Plano do Supabase:** Pro (US$ 25 por mês, backup diário) antes do primeiro cliente real, ou o grátis com cópia manual enquanto só houver métricas.
-3. **Plano da Vercel:** Pro (US$ 20 por mês) ou outra hospedagem, por causa do uso comercial.
+3. **Plano da Vercel:** superado em 2026-10-21 (decisão do dono): hospedagem na Cloudflare, plano grátis; nenhuma assinatura paga antes da 1ª venda.
 4. **Trocar a chave do painel por login** com o Supabase Auth: uma fase própria, pequena.
 5. **Política para apagar proposta enviada:** manter permitido para dono e admin, ou bloquear.
 6. **Revisão jurídica da política de privacidade,** agora que haverá leads com nome, e-mail e telefone no banco.
@@ -68,15 +68,15 @@ A fase parou aqui, como pedido. **Infisical e Cloudflare não foram iniciados** 
 1. **Cloudflare antes de ir ao ar** (decisão do dono 21/10, `01 Empresa/Decisões.md`): plano grátis medido, só Pix, domínio `beyonzero.com.br`; plano em `docs/superpowers/plans/2026-10-21-migracao-cloudflare.md`.
 2. **Infisical:** opção futura.
 
-O que já se sabe que vai mudar quando a Cloudflare entrar (para não ser surpresa):
+O que mudou com a Cloudflare (PR C; o detalhe e os motivos estão em `docs/superpowers/plans/2026-10-21-migracao-cloudflare.md`). Itens ainda por conferir em produção estão marcados:
 
-- **IP do visitante nos freios** (`api/_freio.mjs`, `ipDe`). Hoje vem do `x-vercel-forwarded-for` (o valor que a Vercel garante; o `x-forwarded-for` só quando ele falta). Atrás do proxy da Cloudflare, esse IP vira o da Cloudflare, e todos os visitantes cairiam no mesmo freio. A troca: ler o `cf-connecting-ip` quando a requisição comprovadamente vier da Cloudflare, com teste.
-- **Onde fica a muralha de limite e firewall:** as regras planejadas para o firewall da Vercel (`02-OPERACAO.md` §4.3, passo 7) passam para o WAF e as regras de limite da Cloudflare. A Vercel fica sem duplicar.
-- **Modo do DNS e SSL:** decidir entre o proxy da Cloudflare na frente da Vercel e só o DNS (a Vercel tem rede de borda própria e recomenda cuidado com o proxy na frente). Com proxy, o SSL fica em "Full (strict)", nunca "Flexible".
-- **Cache:** o HTML e o `/api/*` não podem ser guardados em cache. Hoje a Vercel e os cabeçalhos `no-store` da API cuidam disso; as regras da Cloudflare têm de respeitar.
-- **Cabeçalhos de segurança** (CSP e afins, em `vercel.json`) seguem vindo da Vercel. A Cloudflare não pode reescrever nem acrescentar scripts (desligar Rocket Loader, Email Obfuscation e afins, que injetam JS inline e a CSP bloquearia).
+- **IP do visitante nos freios** (`api/_freio.mjs`, `ipDe`). Na Cloudflare o Worker (`cloudflare/rotas.mjs`) apaga os cabeçalhos de IP que o visitante pode forjar e escreve o IP do `cf-connecting-ip`; o `x-vercel-forwarded-for` só vale enquanto a Vercel existir (sai no PR D). No Auth do Supabase, o IP do visitante vai por `Sb-Forwarded-For` (precisa da opção IP Address Forwarding ligada, conferida no ensaio A4 da M2).
+- **Onde fica a muralha de limite e firewall:** a regra de limite da zona (`02-OPERACAO.md` §4.3, passo 7; plano da migração, § 7.1) substitui o firewall da Vercel.
+- **Modo do DNS e SSL:** a zona está na Cloudflare e o domínio é um Custom Domain do Worker de produção (`wrangler.jsonc`); SSL em "Full (strict)", nunca "Flexible" (plano, § 7.1). O `www` é só um redirecionamento da zona. Por conferir no corte.
+- **Cache:** o HTML e o `/api/*` não podem ser guardados em cache. Os cabeçalhos `no-store` da API cuidam disso; a zona não pode ter regra "Cache Everything" (plano, § 7.1).
+- **Cabeçalhos de segurança** (CSP e afins, em `vercel.json`) passam a vir do arquivo `_headers` (servido com os assets; igual ao `vercel.json` enquanto ele existir, o teste `cabecalhos.test.mjs` prende). A zona não pode reescrever nem acrescentar scripts (desligar Rocket Loader, Email Obfuscation e afins, que injetam JS inline e a CSP bloquearia).
 - **HSTS** no domínio próprio (risco R6 da auditoria): ligar em um lugar só.
-- **`METRICAS_HOSTS`** e a checagem de origem do `/api/evento` com o domínio final.
+- **`METRICAS_HOSTS`** continua vazio: o `/api/evento` aceita a origem do próprio host, e o domínio final é o do Custom Domain.
 
 ## Próxima fase: Infisical (aguardando autorização)
 

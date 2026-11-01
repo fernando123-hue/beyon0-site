@@ -14,7 +14,7 @@ apple-touch-icon.png 180x180, ícone da tela inicial do iPhone (o símbolo médi
 og-cover.jpg         imagem de preview em redes sociais (og:image), 1200x630: a logo
                      empilhada no centro (a prévia compacta do WhatsApp corta um quadrado
                      do centro e ela cabe inteira). URL absoluta nas páginas
-                     (https://beyon0-site.vercel.app/assets/og-cover.jpg): se o domínio
+                     (https://beyonzero.com.br/assets/og-cover.jpg): se o domínio
                      mudar, atualizar og:image, twitter:image e <link rel="canonical"> juntos.
 
 A LOGO (2026-10-12, aprovada pelo dono) vem de 03 Projetos/marca/logo/ (o vault, fora do

@@ -68,20 +68,20 @@ Depois de aplicar as migrations num projeto real, rode a conferência da seção
 
 A lista sem valores está em `.env.example`.
 
-| Variável | Ambiente na Vercel | Observação |
+| Variável | Onde fica (Cloudflare, desde o PR C) | Observação |
 |---|---|---|
-| `SUPABASE_URL` | Production, e Preview com o projeto de staging | Endereço do projeto. |
-| `SUPABASE_CHAVE_PUBLICA` | Production e Preview | `sb_publishable_…`. Usada com o JWT do usuário; o RLS vale. |
-| `SUPABASE_CHAVE_SECRETA` | Production, e Preview com a chave de staging | `sb_secret_…`. Ignora o RLS. Só no servidor. |
-| `PAINEL_CHAVE` | Production | Pelo menos 32 caracteres aleatórios. |
-| `METRICAS_HOSTS` | Opcional | Outros domínios aceitos no `/api/evento`. |
+| `SUPABASE_URL` | Produção (Worker `beyon-zero-site`); staging e prévias (Worker `beyon-zero-site-previa`) com o projeto de staging | Endereço do projeto. |
+| `SUPABASE_CHAVE_PUBLICA` | Produção e prévias | `sb_publishable_…`. Usada com o JWT do usuário; o RLS vale. |
+| `SUPABASE_CHAVE_SECRETA` | Produção, e prévias com a chave de staging | `sb_secret_…`. Ignora o RLS. Só no servidor. |
+| `PAINEL_CHAVE` | Produção | Pelo menos 32 caracteres aleatórios. |
+| `METRICAS_HOSTS` | `wrangler.jsonc` (vazio) | Outros domínios aceitos no `/api/evento`. |
 
 Regras:
 
 - **Nenhum segredo no código, no git, no navegador ou no log.** Os testes conferem que a chave secreta nunca vai numa chamada feita em nome do usuário e que o log não leva token nem dado pessoal.
 - **Use as chaves novas** (`sb_publishable_` e `sb_secret_`). As antigas (`anon` e `service_role`, em formato JWT) estão sendo descontinuadas pelo Supabase até o fim de 2026. O código ainda aceita as antigas, por segurança.
-- **Se uma chave vazar:** gere outra no Supabase (API Keys), troque na Vercel, publique de novo e apague a antiga.
-- **O `.env.local`** criado por `vercel env pull` fica só na máquina: o `.gitignore` e o `.vercelignore` o excluem. Pode ser apagado quando não for mais usado.
+- **Se uma chave vazar:** gere outra no Supabase (API Keys), troque no Worker (Workers & Pages › Settings › Variables and Secrets), publique de novo e apague a antiga.
+- **O arquivo local de variáveis** (`.env.local`, ou o `.dev.vars` do Wrangler) fica só na máquina: o `.gitignore` o exclui e o `montar-publico` não o sobe como asset. Pode ser apagado quando não for mais usado.
 
 ## 4. Montar os ambientes
 
@@ -98,12 +98,12 @@ O site local roda com `npm run servir`. As funções de `/api` respondem com um 
 
 1. No Supabase, crie um **segundo projeto**, `beyon-zero-staging`, na região São Paulo (`sa-east-1`). O plano grátis permite dois projetos.
 2. Aplique as migrations nele (seção 4.3).
-3. Na Vercel, ambiente **Preview**: `SUPABASE_URL`, `SUPABASE_CHAVE_PUBLICA` e `SUPABASE_CHAVE_SECRETA` deste projeto.
+3. No Worker `beyon-zero-site-previa` (segredos do Worker **e** os segredos-base das Previews): `SUPABASE_URL`, `SUPABASE_CHAVE_PUBLICA` e `SUPABASE_CHAVE_SECRETA` deste projeto.
 4. **Nunca copie dados de produção para o staging.** Use dados inventados.
 
 ### 4.3 Produção
 
-1. Crie o projeto `beyon-zero` no Supabase, região **São Paulo**. Use uma senha forte de banco e guarde-a no gerenciador de senhas; ela não vai para a Vercel.
+1. Crie o projeto `beyon-zero` no Supabase, região **São Paulo**. Use uma senha forte de banco e guarde-a no gerenciador de senhas; ela não vai para a Cloudflare.
 2. Aplique as migrations pelo Supabase CLI (precisa de Node, não de Docker):
 
    ```bash
@@ -119,9 +119,9 @@ O site local roda com `npm run servir`. As funções de `/api` respondem com um 
    npx supabase@2 db push
    ```
 
-   O `init` só cria `supabase/config.toml` e não mexe nas migrations. O `db push` aplica as seis e registra cada uma no histórico do projeto. Daqui em diante, toda migration nova sobe pelo mesmo comando.
+   O `init` só cria `supabase/config.toml` e não mexe nas migrations. O `db push` aplica as migrations de `supabase/migrations` e registra cada uma no histórico do projeto. Daqui em diante, toda migration nova sobe pelo mesmo comando.
 3. Em **Settings › Data API › Exposed schemas**, acrescente `app` e `metricas`. O `privado` **nunca** entra nessa lista.
-4. Em **Authentication › Sign In / Providers**, **desligue o cadastro aberto** ("Allow new users to sign up") e o **login anônimo**. Nesta fase só entra quem o dono convidar. Mesmo que alguém se cadastrasse, sem ser membro de uma organização não veria nada, mas falaria direto com a API; desligar diminui a superfície.
+4. **Superado pela Fase 2 (login anônimo LIGADO, cadastro aberto desligado; `docs/fase2/02-OPERACAO.md`).** Em **Authentication › Sign In / Providers**, mantenha o **cadastro aberto desligado** ("Allow new users to sign up") e o **login anônimo ligado** (o orçamento abre a sessão do visitante). Em **Authentication › Rate Limits**, ligue **IP Address Forwarding**: o Worker repassa o IP do visitante e, sem a opção, todos dividem o limite do IP da Cloudflare. O texto original desta etapa, "só entra quem o dono convidar", valia antes do orçamento. Mesmo que alguém se cadastrasse, sem ser membro de uma organização não veria nada, mas falaria direto com a API; desligar diminui a superfície.
 5. Crie a organização e o primeiro dono, no **SQL Editor**, como `postgres`:
    - convide o seu e-mail em **Authentication › Users › Invite** e aceite o convite;
    - rode, trocando o e-mail:
@@ -131,8 +131,8 @@ O site local roda com `npm run servir`. As funções de `/api` respondem com um 
    select o.id, u.id, 'dono' from app.organizacoes o, auth.users u
    where o.slug = 'beyon-zero' and u.email = 'SEU_EMAIL';
    ```
-6. Variáveis na Vercel, ambiente **Production** (seção 3). Publique.
-7. No **Firewall da Vercel**, crie regras de limite por IP para `POST /api/evento` (por exemplo, 30 por minuto) e para `/api/leads` (por exemplo, 60 por minuto). O freio dentro das funções vale por instância; o firewall vale para todas.
+6. Segredos no Worker de produção `beyon-zero-site` (seção 3). Publique pela promoção (PR "Promover para produção", `docs/PROCESSO.md`).
+7. Na **zona `beyonzero.com.br`** (Security › WAF › Rate limiting rules; o plano grátis tem 1 regra), crie a regra de limite por IP para todo `/api/*`: 10 pedidos em 10 s, bloqueio de 10 s. O freio dentro das funções vale por instância; a regra da zona vale para todas. No grátis nenhuma regra protege a cota diária do Worker (dois IPs a esgotam). Detalhes e valores: plano da migração, § 7.1.
 
 ### 4.4 Conferência depois de aplicar num projeto real
 
@@ -185,7 +185,7 @@ Restaurar deixa o projeto fora do ar durante o processo.
 - Instale o cliente do PostgreSQL 17 (só o `pg_dump` e o `psql`).
 - A connection string está em **Connect › Session pooler**. É um segredo: ela não vai para o repositório nem para a Vercel.
 
-- Grave o dump e o `restauracao.sql` **fora da pasta do projeto** (por exemplo, `%USERPROFILE%\BeyonZero-backup\`): um `vercel deploy` feito pela CLI envia a pasta inteira, e um arquivo ali dentro iria junto (auditoria de segurança, 20/10/2026). O `.vercelignore` e o `.gitignore` também barram `*.dump`, `*.sql` e `*.7z`, mas a pasta de fora é a garantia. Os comandos abaixo são para o **Git Bash** (onde `$USERPROFILE` funciona; no PowerShell é `$env:USERPROFILE`, e no CMD, `%USERPROFILE%`). O `pg_dump --file` não cria a pasta: crie antes.
+- Grave o dump e o `restauracao.sql` **fora da pasta do projeto** (por exemplo, `%USERPROFILE%\BeyonZero-backup\`): um deploy feito pela CLI a partir da pasta do projeto envia o que estiver nela, e um arquivo ali dentro iria junto (auditoria de segurança, 20/10/2026). O `.gitignore` (e, enquanto existir, o `.vercelignore`) também barram `*.dump`, `*.sql` e `*.7z`, mas a pasta de fora é a garantia. Os comandos abaixo são para o **Git Bash** (onde `$USERPROFILE` funciona; no PowerShell é `$env:USERPROFILE`, e no CMD, `%USERPROFILE%`). O `pg_dump --file` não cria a pasta: crie antes.
 
 ```bash
 mkdir -p "$USERPROFILE/BeyonZero-backup"
