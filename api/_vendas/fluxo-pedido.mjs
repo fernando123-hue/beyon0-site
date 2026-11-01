@@ -75,10 +75,13 @@ export function criarAcoesDoPedido({ banco, visitante, segredoFreio, env, limite
         throw e;
       }
       if (!r || r.ok !== true) {
-        if (r && (r.motivo === 'fila_cheia' || r.motivo === 'limite_hora')) await avisar(env, 'fila_cheia');   /* (aviso urgente, sem dado pessoal) */
+        if (r && (r.motivo === 'fila_cheia' || r.motivo === 'limite_hora')) {
+          console.log(JSON.stringify({ origem: 'pedido', nivel: 'aviso', request_id: requestId, evento: 'pedido recusado', motivo: r.motivo }));   /* (rastro no log: o aviso ao dono hoje não tem canal) */
+          await avisar(env, 'fila_cheia');   /* (aviso urgente, sem dado pessoal) */
+        }
         throw recusaDoMotivo(r, requestId);
       }
-      /* (o aviso nunca falha nem demora: texto fixo, sem dado do cliente; a última vaga vira o aviso urgente) */
+      /* (o pedido já está no banco e no painel; o aviso é texto fixo, sem dado do cliente, e hoje não tem canal; a última vaga vira o aviso urgente) */
       await avisar(env, r.fila_cheia ? 'fila_cheia' : 'pedido');
       return { codigo: r.codigo, status: 'confirmado' };
     }

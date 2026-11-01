@@ -131,7 +131,7 @@ async function mensagem({ env, deps, banco, cliente, corpo, chaveIp, cors, reque
     return { resposta: textoResposta, passar_para_pessoa: true, ...(url ? { whatsapp_url: url } : {}), ...extra };
   };
   if (!turno.ok) {
-    if (turno.avisar) { /* o dono é avisado UMA vez por dia, com texto fixo (sem dado pessoal) */
+    if (turno.avisar) { /* o aviso sai UMA vez por dia, com texto fixo (sem dado pessoal); hoje sem canal: o rastro fica no log e o alerta no painel */
       await (deps.avisar || avisarDono)(env, turno.avisar === 'global' ? 'atendente_global' : 'atendente_cliente');
       log('erro', { request_id: requestId, evento: 'teto de gasto do atendente batido', escopo: turno.avisar });
     }

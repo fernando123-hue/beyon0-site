@@ -2,7 +2,7 @@
    avisarDono é um no-op que devolve false; os textos fixos continuam sem dado de cliente; nada tenta rede.  npm run testar */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { avisarDono, AVISOS } from '../../api/_aviso.mjs';
 import { criarAcoesDoRecado } from '../../api/_vendas/fluxo-recado.mjs';
 
@@ -26,9 +26,12 @@ test('aviso: é no-op (devolve false, não chama envio nenhum, não faz fetch), 
 });
 
 test('aviso: o código da API não fala mais com ntfy.sh nem lê as variáveis antigas', () => {
-  for (const arq of ['../../api/_aviso.mjs', '../../api/rotinas.mjs', '../../api/atendente.mjs', '../../api/_vendas/fluxo-pedido.mjs', '../../api/_vendas/fluxo-recado.mjs']) {
-    const codigo = readFileSync(new URL(arq, import.meta.url), 'utf8');
-    assert.doesNotMatch(codigo, /ntfy\.sh|process\.env\.ALERTA|env\.ALERTA_/i, arq);
+  const raiz = new URL('../../api/', import.meta.url);
+  const arquivos = readdirSync(raiz, { recursive: true }).filter(a => String(a).endsWith('.mjs'));
+  assert.ok(arquivos.length > 10, 'a varredura achou os arquivos da API');
+  for (const arq of arquivos) {
+    const codigo = readFileSync(new URL(String(arq).split('\\').join('/'), raiz), 'utf8');
+    assert.doesNotMatch(codigo, /ntfy\.sh|process\.env\.ALERTA|env\.ALERTA_/i, String(arq));
   }
 });
 
