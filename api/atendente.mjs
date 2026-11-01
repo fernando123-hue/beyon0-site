@@ -23,7 +23,7 @@ import { reservaUsd } from './_ia/config.mjs';
 import { ambienteDe } from './_ambiente.mjs';
 import { criarFreio, ipDe } from './_freio.mjs';
 import { chaveDoIp, chaveDoIp48 } from './_vendas/ip.mjs';
-import { avisarDono } from './_ntfy.mjs';
+import { avisarDono } from './_aviso.mjs';
 import { configTurnstile, verificarHumano } from './_vendas/turnstile.mjs';
 import { ehUuid } from './_valida-app.mjs';
 import { origemPermitida, textoDoVisitante, linkWhatsapp, interruptorLigado, redigirVisitante } from './_atendente/regras.mjs';
@@ -131,7 +131,7 @@ async function mensagem({ env, deps, banco, cliente, corpo, chaveIp, cors, reque
     return { resposta: textoResposta, passar_para_pessoa: true, ...(url ? { whatsapp_url: url } : {}), ...extra };
   };
   if (!turno.ok) {
-    if (turno.avisar) { /* o dono é avisado UMA vez por dia, com texto fixo (sem dado pessoal) */
+    if (turno.avisar) { /* o aviso sai UMA vez por dia, com texto fixo (sem dado pessoal); hoje sem canal: o rastro fica no log e o alerta no painel */
       await (deps.avisar || avisarDono)(env, turno.avisar === 'global' ? 'atendente_global' : 'atendente_cliente');
       log('erro', { request_id: requestId, evento: 'teto de gasto do atendente batido', escopo: turno.avisar });
     }

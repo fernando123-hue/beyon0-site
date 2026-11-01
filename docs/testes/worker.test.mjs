@@ -146,7 +146,7 @@ test('servidor local: /api passa pelo roteador (404, 405, 413 por rota) e as pá
 
 /* ---- B6: wrangler.jsonc e package.json ---- */
 const SEGREDOS = ['SUPABASE_URL', 'SUPABASE_CHAVE_PUBLICA', 'SUPABASE_CHAVE_SECRETA', 'PAINEL_CHAVE', 'ANTHROPIC_API_KEY', 'MP_ACCESS_TOKEN', 'MP_PUBLIC_KEY',
-  'MP_WEBHOOK_SEGREDO', 'MP_USER_ID', 'CRON_SECRET', 'FREIO_SEGREDO', 'ALERTA_NTFY_TOPICO', 'ALERTA_NTFY_TOKEN', 'TURNSTILE_SITE_KEY', 'TURNSTILE_SECRET'];
+  'MP_WEBHOOK_SEGREDO', 'MP_USER_ID', 'CRON_SECRET', 'FREIO_SEGREDO', 'TURNSTILE_SITE_KEY', 'TURNSTILE_SECRET'];
 const lerWrangler = () => lerJsonc(fs.readFileSync(new URL('../../wrangler.jsonc', import.meta.url), 'utf8'));
 test('os crons do wrangler.jsonc (produção e prévia) == as chaves da AGENDA', () => {
   const cfg = lerWrangler();

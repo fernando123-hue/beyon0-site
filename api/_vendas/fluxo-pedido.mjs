@@ -4,7 +4,7 @@
    servidor o HMAC do telefone e a chave do IP (o banco nunca recebe nenhum dos dois em claro para os freios) e
    grava por app.vendas_registrar_detalhes, que aplica os freios numa transação: uma vez por conversa, IP,
    telefone e o teto da fila do dono. O pedido nasce confirmado (migration 20261030120000: sem WhatsApp e sem clique do dono) e o dono recebe o aviso
-   "Pedido novo na fila" pelo ntfy (api/_ntfy.mjs).
+   "Pedido novo na fila" pelo aviso ao dono (api/_aviso.mjs; ainda sem canal).
    ========================================================================== */
 import { Recusa } from './recusa.mjs';
 import { ErroBanco } from './transporte.mjs';
@@ -13,7 +13,7 @@ import { ambienteDe } from '../_ambiente.mjs';
 import { chaveDoIp, chaveDoIp48 } from './ip.mjs';
 import { ipDe } from '../_freio.mjs';
 import { ehUuid } from '../_valida-app.mjs';
-import { avisarDono } from '../_ntfy.mjs';
+import { avisarDono } from '../_aviso.mjs';
 
 const FORA_DA_ETAPA = 'Os detalhes vêm depois do preço e só uma vez. Se precisar mudar algo, deixe um recado para a equipe.';
 /* (a mesma frase para "pedido aberto" e "limite do dia": não diz a ninguém qual dos dois um número tem) */
@@ -75,10 +75,13 @@ export function criarAcoesDoPedido({ banco, visitante, segredoFreio, env, limite
         throw e;
       }
       if (!r || r.ok !== true) {
-        if (r && (r.motivo === 'fila_cheia' || r.motivo === 'limite_hora')) await avisar(env, 'fila_cheia');   /* (aviso urgente, sem dado pessoal) */
+        if (r && (r.motivo === 'fila_cheia' || r.motivo === 'limite_hora')) {
+          console.log(JSON.stringify({ origem: 'pedido', nivel: 'aviso', request_id: requestId, evento: 'pedido recusado', motivo: r.motivo }));   /* (rastro no log: o aviso ao dono hoje não tem canal) */
+          await avisar(env, 'fila_cheia');   /* (aviso urgente, sem dado pessoal) */
+        }
         throw recusaDoMotivo(r, requestId);
       }
-      /* (o aviso nunca falha nem demora: texto fixo, sem dado do cliente; a última vaga vira o aviso urgente) */
+      /* (o pedido já está no banco e no painel; o aviso é texto fixo, sem dado do cliente, e hoje não tem canal; a última vaga vira o aviso urgente) */
       await avisar(env, r.fila_cheia ? 'fila_cheia' : 'pedido');
       return { codigo: r.codigo, status: 'confirmado' };
     }

@@ -13,11 +13,11 @@
          D5: nada aqui muda o passo de uma entrega; o pedido parado esperando o material nunca é encerrado
      3. a SAÚDE: app.rotinas_conferir grava a execução e os alertas do dia
         (pagamento que pede uma pessoa, teto de IA, IA falhando, freio por IP,
-        rotina que falhou) e o dono recebe o resumo no celular pelo ntfy.sh
-        (grátis, sem conta: ALERTA_NTFY_TOPICO), uma vez por dia.
+        rotina que falhou). O resumo fica no log e no banco (o painel mostra); aviso no celular: ainda sem canal
+        (app próprio em desenvolvimento), então a rotina não envia nada a ninguém.
    A reconciliação de pagamentos segue no seu cron (/api/pagamentos?acao=reconciliar).
-   ORÇAMENTO (Cloudflare grátis: 50 subpedidos por invocação, api/_orcamento.mjs): cada chamada ao banco, às métricas e ao ntfy é
-   contada POR EXECUÇÃO e a rotina para em 45 (3 ficam guardados para a conferência da saúde e o aviso). A etapa que não
+   ORÇAMENTO (Cloudflare grátis: 50 subpedidos por invocação, api/_orcamento.mjs): cada chamada ao banco e às métricas é
+   contada POR EXECUÇÃO e a rotina para em 45 (1 fica guardado para a conferência da saúde). A etapa que não
    coube vira alerta (como as falhas), nunca silêncio, e o resumo diz `parcial: true`.
    Uso: GET /api/rotinas?acao=diaria  com  Authorization: Bearer <CRON_SECRET>
    ========================================================================== */
@@ -29,10 +29,9 @@ import { criarTransporte } from './_vendas/transporte.mjs';
 import { banco as bancoMetricas } from './_banco.mjs';
 import { TETOS } from './_ia/config.mjs';
 import { ORG } from './_vendas/org.mjs';
-import { ntfy, topicoDe, tokenDe } from './_ntfy.mjs';
 import { orcamentoDe, SemOrcamento, ORCAMENTO_SUBPEDIDOS } from './_orcamento.mjs';
 
-const RESERVA_FINAL = 3;   /* subpedidos guardados para o fim, que não podem faltar: rotinas_conferir, o aviso no ntfy e rotinas_avisado */
+const RESERVA_FINAL = 1;   /* subpedidos guardados para o fim, que não pode faltar: rotinas_conferir (antes eram 3, com o aviso e rotinas_avisado) */
 const RETENCAO_METRICAS_DIAS = 400;   /* ~13 meses (docs/metricas/README.md); antes rodava ao abrir o painel */
 const json = (dados, status = 200) => new Response(JSON.stringify(dados), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' } });
 const log = dados => console.log(JSON.stringify({ origem: 'rotinas', ...dados }));
@@ -50,7 +49,7 @@ export async function executar(request, env, deps = {}) {
   if (!bancoBase) { log({ nivel: 'erro', evento: 'sem banco' }); return json({ erro: 'Indisponível.' }, 503); }
 
   const gasto = orcamentoDe(deps.orcamento ?? ORCAMENTO_SUBPEDIDOS, RESERVA_FINAL);
-  const banco = gasto.contar(bancoBase);   /* (as etapas comuns; a conferência e o aviso usam a reserva) */
+  const banco = gasto.contar(bancoBase);   /* (as etapas comuns; a conferência usa a reserva) */
   const motivoDe = e => e instanceof SemOrcamento ? 'sem orçamento de subpedidos' : e && e.codigo ? 'banco ' + e.codigo : 'erro';
   let parcial = false;
 
@@ -100,15 +99,7 @@ export async function executar(request, env, deps = {}) {
     return json({ erro: 'Erro interno.' }, 500);
   }
 
-  const topico = topicoDe(env);
-  if (saude.alertas.length && saude.avisar && topico) {
-    const texto = saude.alertas.map(a => (a.nivel === 'urgente' ? '!! ' : '') + a.mensagem).join('\n') + '\nDetalhes no painel.';
-    try {
-      const token = tokenDe(env);
-      await gasto.contarReservado(deps.enviarAlerta || ntfy)(topico, texto, saude.alertas.some(a => a.nivel === 'urgente'), token);
-      await bancoFinal('rotinas_avisado', {});
-    } catch (e) { log({ nivel: 'erro', evento: 'alerta não enviado', erro: e && e.message ? e.message.slice(0, 80) : 'erro' }); }
-  }
+  /* sem canal de aviso no celular (o app próprio ainda não existe): o resumo do dia fica no log e no banco, nada é enviado */
   log({ nivel: falhas.length ? 'erro' : 'info', evento: 'diária', retencao, recados, atendente, pedidos, alertas: saude.alertas.map(a => a.tipo), material, entregas, falhas, parcial, subpedidos: gasto.gastos() });
   if (parcial) log({ nivel: 'aviso', evento: 'rotina parcial', subpedidos: gasto.gastos() });
   return json({ ok: !falhas.length, parcial, retencao, recados, atendente, pedidos, material, saude });
