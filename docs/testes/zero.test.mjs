@@ -772,3 +772,24 @@ test('painel: a rota de estado liga o filtro de nicho regulado (o nicho vale a s
   const fluxo = fs.readFileSync(new URL('../../api/_vendas/fluxo.mjs', import.meta.url), 'utf8');
   assert.match(fluxo, /montarPainel\(e\.conversa\?\.briefing,\s*\{\s*regulado:\s*!!nichoDaSessao\(\{\s*briefing:\s*e\.conversa\?\.briefing,\s*mensagens:\s*e\.mensagens\s*\}\)\s*\}\)/, 'o estado passa regulado ao painel');
 });
+
+test('passo seguinte do código: sem frase entre aspas para o modelo copiar nem o termo interno "direções" (achado do teste com o modelo real no staging, 03/11)', async () => {
+  const fonte = fs.readFileSync(new URL('../../api/_vendas/consultor.mjs', import.meta.url), 'utf8');
+  const ini = fonte.indexOf('export function proximoPasso');
+  const corpo = fonte.slice(ini, fonte.indexOf('\n}\n', ini));
+  assert.ok(corpo.length > 500, 'achou o corpo da função');
+  assert.ok(!/direç(?:ão|ões)/.test(corpo), 'o passo seguinte fala em modelos, não em direções (o Zero repete o que lê)');
+  assert.ok(!/saírem com a cara/.test(corpo), 'a fórmula de abertura que o Zero repetia em todo turno não está mais escrita');
+  assert.match(corpo, /sem fórmula de abertura repetida/, 'e o passo manda não repetir fórmula de abertura');
+});
+
+test('passo seguinte e prompt: o valor já dito não se repete nem se reestima sem mudança, e o Zero não finge conversa anterior (achados do teste com o modelo real, 03/11)', async () => {
+  const fonte = fs.readFileSync(new URL('../../api/_vendas/consultor.mjs', import.meta.url), 'utf8');
+  const ini = fonte.indexOf('export function proximoPasso');
+  const corpo = fonte.slice(ini, fonte.indexOf('\n}\n', ini));
+  assert.equal(corpo.split('O valor já foi dito: não o repita nem chame estimar de novo se formato, extras e urgência não mudaram').length - 1, 2, 'os dois passos depois da estimativa trazem a regra do valor já dito');
+  const REGRAS = JSON.parse(fs.readFileSync(new URL('../../docs/fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
+  const s = montarSistema(REGRAS, { direcoes: 'manual', metodos: ['pix'] });
+  assert.match(s, /nem finja conversa anterior/, 'o prompt proíbe fingir conversa anterior');
+  assert.ok(s.length <= 27000, 'o prompt segue dentro do limite: ' + s.length);
+});
