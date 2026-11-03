@@ -594,7 +594,7 @@ test('já dito: o ESTADO leva ja_dito quando há o que dizer e não leva quando 
 test('prompt do Zero: as palavras-bordão que o modelo copiava (rodada 4) não estão mais escritas nele', () => {
   const REGRAS = JSON.parse(fs.readFileSync(new URL('../../docs/fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
   const s = montarSistema(REGRAS, { direcoes: 'manual', metodos: ['pix'] });
-  for (const bordao of ['ponto de partida', 'maiores custam mais', 'têm outro valor', 'resolve o hoje', 'resolve o seu hoje', 'o menor que resolve', 'sem pagar nada', 'antes de pagar qualquer coisa', 'pagando só o que for pondo']) {
+  for (const bordao of ['ponto de partida', 'maiores custam mais', 'têm outro valor', 'resolve o hoje', 'resolve o seu hoje', 'o menor que resolve', 'sem pagar nada', 'antes de pagar qualquer coisa', 'pagando só o que for pondo', 'existem formatos maiores', 'o valor que ele passou']) {
     assert.ok(!s.toLowerCase().includes(bordao), 'bordão no prompt: ' + bordao);
   }
   assert.match(s, /ja_dito, lido pelo código na conversa inteira/, 'o prompt manda respeitar o ja_dito');
