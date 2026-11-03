@@ -54,14 +54,16 @@ export function hashDasPerguntas(tarefa) {
   return h.toString(16).padStart(8, '0');
 }
 
-const MARCADOR = /<<<\s*(?:DADO|FIM)\s*>>>/gi;
-/* o portão: redigir() (e-mail, telefone, documento, cartão), corte no tamanho da mensagem, marcadores do próprio texto
-   saem (ninguém fecha o bloco de dado por dentro) e a contagem do que foi mascarado, sem guardar o texto */
+/* sinais de menor e maior (inclusive os de largura total) saem do texto: sem eles nenhum marcador <<<...>>> se forma, nem reconstituído
+   depois da limpeza (revisão de segurança: "<<<<<<FIM>>>FIM>>>" virava "<<< FIM>>>") */
+const ANGULOS = /[<>＜＞]/g;
+/* o portão: redigir() (e-mail, telefone, documento, cartão), corte no tamanho da mensagem, sem sinais de menor/maior
+   (ninguém fecha o bloco de dado por dentro) e a contagem do que foi mascarado, sem guardar o texto */
 export function protegerTexto(texto) {
-  const original = String(texto ?? '');
+  const original = typeof texto === 'string' ? texto : '';
   const cortado = original.length > MSG_MAX;
-  const base = limparMensagem(semInvisiveis(original.slice(0, MSG_MAX))) ?? '';
-  const redigido = redigir(base.replace(MARCADOR, ' '));
+  const base = limparMensagem(semInvisiveis(original.slice(0, MSG_MAX)).replace(ANGULOS, ' ')) ?? '';
+  const redigido = redigir(base);
   const contar = rotulo => redigido.split('[' + rotulo + ']').length - 1;
   return {
     texto: '<<<DADO>>>\n' + redigido + '\n<<<FIM>>>',

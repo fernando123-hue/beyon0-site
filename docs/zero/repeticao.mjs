@@ -16,9 +16,11 @@ import { pedeValor } from '../../api/_vendas/zero.mjs';
 const limpa = t => normalizar(t).replace(/[^a-z0-9$%,.\s]/g, ' ').replace(/\s+/g, ' ').trim();
 
 const VALOR = /r\$\s?\d[\d.]*(?:,\d{2})?/gi;
-const AVISO_DE_IA = /\b(?:sou\s+(?:uma?\s+)?(?:ia|inteligencia artificial|robo|bot|assistente virtual)|(?:uma?\s+)?(?:ia|inteligencia artificial|assistente virtual)\s+(?:mesmo|sim)|nao\s+sou\s+(?:uma\s+)?pessoa|a ia da beyon)\b/;
+const AVISO_DE_IA = /\b(?:sou\s+(?:uma?\s+)?(?:ia|inteligencia artificial|robo|bot|assistente virtual)|(?:uma?\s+)?(?:ia|inteligencia artificial|assistente virtual)\s+(?:mesmo|sim)|nao\s+sou\s+(?:uma\s+)?pessoa|a ia da beyon|sou\b[^.!?]{0,30}?\b(?:ia|inteligencia artificial|robo|bot)\b)/;
 const PERGUNTA_SOBRE_IA = /\b(?:robo|bot|ia|inteligencia artificial|maquina|humano|pessoa de verdade|gente de verdade|automatico|real)\b/;
-const RECADO = /deixar um recado/;
+const RECADO = /deix(?:ar|e|o) (?:um |o )?recado/;
+/* o mesmo valor escrito de jeitos diferentes ("R$ 8.900," "R$ 8.900." "R$ 8.900,00") é um valor só */
+const valorNormal = v => v.replace(/r\$|\s/gi, '').replace(/[.,]+$/, '').replace(/,00$/, '').replace(/\./g, '');
 /* pediu o valor: a trava do código (pedeValor) ou qualquer menção a preço, para o juiz não acusar quem pediu de novo com outras palavras */
 const MENCIONA_VALOR = /\b(?:valor|preco|quanto|custo|custa|total|entrada|sinal|pagar|parcela)\b/;
 const pediuValor = c => pedeValor(c) || MENCIONA_VALOR.test(limpa(c));
@@ -28,7 +30,7 @@ const ABERTURAS_VAZIAS = ['entendi', 'perfeito', 'otimo', 'otima pergunta', 'cla
 export function lerConversa(texto) {
   const turnos = [];
   let cliente = '';
-  for (const linha of String(texto).split(/\r?\n/)) {
+  for (const linha of String(texto).replace(/^﻿/, '').split(/\r?\n/)) {
     const c = /^Cliente:\s*(.*)$/.exec(linha);
     if (c) { cliente = c[1]; continue; }
     const z = /^Zero:\s*(.*)$/.exec(linha);
@@ -38,7 +40,8 @@ export function lerConversa(texto) {
   return turnos;
 }
 
-const frasesDe = t => String(t).split(/[.!?;\n]+/).map(limpa).filter(f => f.split(' ').length >= 5);
+/* a frase termina em ponto, ! ou ? seguido de espaço (o ponto de "8.900" não corta), e a frase fixa do recado já é contada como recado */
+const frasesDe = t => String(t).split(/(?<=[.!?;])\s+|\n+/).map(limpa).filter(f => f.split(' ').length >= 5 && !RECADO.test(f));
 const primeiras = (t, n) => limpa(t).replace(/[.,]/g, ' ').split(' ').filter(Boolean).slice(0, n).join(' ');
 
 /* medirRepeticao(turnos) → { turnos, valor, avisoIA, recado, abertura, frase, total, detalhes } */
@@ -49,7 +52,7 @@ export function medirRepeticao(turnos) {
   const frasesVistas = new Map();
   let avisoVisto = false, recadoVisto = false;
   turnos.forEach(({ zero, cliente }, i) => {
-    const valores = (zero.match(VALOR) ?? []).map(v => v.replace(/\s/g, '').toLowerCase());
+    const valores = (zero.match(VALOR) ?? []).map(valorNormal);
     if (valores.length && valores.every(v => valoresVistos.has(v)) && !pediuValor(cliente)) marca('valor', i, valores.join(' '));
     valores.forEach(v => valoresVistos.add(v));
 

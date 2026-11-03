@@ -20,14 +20,15 @@ import { conferir } from './conferencia.mjs';
 import { decidir, VERSAO_POLITICA } from './politica.mjs';
 
 export const PRAZO_EM_LINHA_MS = 800;
+const PRAZO_MAXIMO_MS = 8000;   /* (o motor fora da linha, como o Haiku, fica em 8 s; nada passa disso) */
 export const configClassificador = () => ({ prazoMs: PRAZO_EM_LINHA_MS });
 
 const comPrazo = (p, ms) => new Promise((ok, falha) => { const t = setTimeout(() => falha(new Error('prazo')), ms); Promise.resolve(p).then(v => { clearTimeout(t); ok(v); }, e => { clearTimeout(t); falha(e); }); });
 
 /* ---------- as regras (orçamento) ---------- */
-export async function classificar(tarefa, entrada, { adaptadores = {} } = {}) {
+export async function classificar(tarefa, entrada) {
   if (!TAREFAS.includes(tarefa)) throw new Error('tarefa desconhecida: ' + tarefa);
-  return ({ regras, ...adaptadores }).regras(tarefa, entrada);
+  return regras(tarefa, entrada);
 }
 
 /* ---------- o disjuntor: 3 falhas seguidas param o classificador por 10 minutos ---------- */
@@ -44,13 +45,19 @@ export function criarDisjuntor({ falhas = 3, paraMs = 10 * 60 * 1000, agora = Da
    → { disponivel: true, sinais, decisao, fonte, versoes, cortado, mascarados }
    ou { disponivel: false, motivo, decisao, cortado, mascarados }: a decisão sem sinal é exatamente a base de código */
 export async function sinalizar(tarefa, texto, { motor = null, sinaisDeCodigo = {}, niveis = {}, limiar, prazoMs = PRAZO_EM_LINHA_MS, disjuntor = null } = {}) {
-  const { pedido, cortado, mascarados } = montarPedido(tarefa, texto);
+  const prazo = Number.isFinite(prazoMs) && prazoMs > 0 ? Math.min(prazoMs, PRAZO_MAXIMO_MS) : PRAZO_EM_LINHA_MS;
+  let montado;
+  try { montado = montarPedido(tarefa, texto); } catch {
+    /* tarefa desconhecida ou texto impossível: nunca lança, é "sem sinal" e vale só a base de código */
+    return { disponivel: false, motivo: 'entrada inválida', decisao: decidir({ tarefa, sinais: null, sinaisDeCodigo, niveis, limiar }), cortado: false, mascarados: { email: 0, telefone: 0, documento: 0 } };
+  }
+  const { pedido, cortado, mascarados } = montado;
   const semSinal = motivo => ({ disponivel: false, motivo, decisao: decidir({ tarefa, sinais: null, sinaisDeCodigo, niveis, limiar }), cortado, mascarados });
   if (typeof motor?.chamar !== 'function') return semSinal('sem motor');
   if (disjuntor?.aberto()) return semSinal('disjuntor aberto');
   let resposta;
   try {
-    resposta = await comPrazo(motor.chamar(pedido), prazoMs);
+    resposta = await comPrazo(motor.chamar(pedido), prazo);
   } catch (e) {
     disjuntor?.falhou();
     return semSinal(e?.message === 'prazo' ? 'prazo' : 'motor falhou');

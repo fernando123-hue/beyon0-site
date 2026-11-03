@@ -45,11 +45,12 @@ export const POLITICA = Object.freeze([
 ]);
 
 /* o que a regra de código disse de cada pergunta: true, false, um rótulo (escolha) ou null (não olhou) */
+const SAUDE_HUMANA = Object.freeze(['medicina', 'odontologia', 'psicologia', 'estetica']);
 const regexDisse = (regra, codigo) => {
   const v = codigo?.[regra.pergunta];
   if (v === true) return true;
-  if (typeof v === 'string' && v !== 'nenhum' && v !== 'ambiguo') return true;
-  return false;
+  /* escolha: só os ramos de saúde humana valem (veterinária, "nenhum" e "ambíguo" não travam, como no prompt) */
+  return typeof v === 'string' && regra.quando?.escolha?.includes(v) === true && SAUDE_HUMANA.includes(v);
 };
 
 const sinalDispara = (regra, sinal, limiar) => {
@@ -65,7 +66,9 @@ const nivelDe = (niveis, pergunta) => {
 
 /* decidir({ tarefa, sinais, sinaisDeCodigo, niveis, limiar }) → { acoes, motivos, versaoDaPolitica }
    `sinais` ausente ou nulo = sem sinal. Nunca lança; tarefa desconhecida = só a base (vazia) */
-export function decidir({ tarefa, sinais = null, sinaisDeCodigo = {}, niveis = {}, limiar = LIMIAR_PADRAO } = {}) {
+export function decidir({ tarefa, sinais = null, sinaisDeCodigo = {}, niveis = {}, limiar: limiarPedido } = {}) {
+  /* limiar fora de 0 a 1 (nulo, texto, NaN) volta ao padrão: nunca um limiar que dispare com qualquer probabilidade */
+  const limiar = typeof limiarPedido === 'number' && limiarPedido > 0 && limiarPedido <= 1 ? limiarPedido : LIMIAR_PADRAO;
   const regras = POLITICA.filter(r => r.tarefa === tarefa && perguntasDe(tarefa));
   const base = new Set();
   const extra = new Set();
