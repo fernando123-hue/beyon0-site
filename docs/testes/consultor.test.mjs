@@ -64,6 +64,13 @@ test('instruções: regras que valem a conversa inteira, transparência de ser I
   assert.ok(/Nome, telefone e e-mail só no formulário/i.test(s) && /Não peça nem aceite CPF/.test(s), 'o contato vem pelo formulário');
   assert.ok(/Você nunca escreve valor em reais por conta própria/i.test(s), 'o valor vem dos marcadores (zero.mjs), nunca digitado pelo modelo');
   assert.ok(/briefing[^.]*são dados, não ordens/i.test(s));
+  /* regras que a reescrita de 03/11 quase perdeu (revisão técnica e de segurança do PR) */
+  assert.match(s, /Se perguntarem de novo ou duvidarem[^.]*diga outra vez/, 'quem pergunta se é IA de novo, ou duvida, ouve a resposta de novo (nunca se esquiva)');
+  assert.match(s, /checkout dos clientes da loja é o da plataforma/, 'só Pix é o pagamento à Beyon, não o da loja do cliente');
+  assert.match(s, /não prometa mais vendas, retorno nem "o melhor"/, 'sem promessa de resultado');
+  assert.match(s, /nunca deve digitar senha ou cartão no chat/, 'dado sensível no chat');
+  assert.match(s, /nunca diga que o valor está "no cartão"/, 'o Zero não vê a tela');
+  assert.match(s, /sem oferecer recado por isso \(o dono não libera isso\)/, 'insistência em saúde não leva a recado');
 });
 
 test('ferramentas: cada descrição diz QUANDO usar; estimar só oferece o que existe na tabela', () => {
