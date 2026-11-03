@@ -1,10 +1,10 @@
 /* ==========================================================================
    O CONTRATO DO CLASSIFICADOR (spec docs/specs/2026-10-11-orcamento-sem-ia.md §8).
    O resto do sistema fala com "um classificador", nunca com um fornecedor:
-   hoje o adaptador "regras" (grátis, por tabela explícita); amanhã o JEV
-   (api/_classificador/jev.mjs), se tiver documentação, chave e medição.
-   Entrada e saída versionadas; o classificador RECOMENDA, quem calcula o
-   preço é o motor (api/_vendas/precos.mjs) e quem decide é o código.
+   hoje as regras (grátis, por tabela explícita); as perguntas fechadas sobre texto
+   (sinais) ficam em perguntas.mjs, conferencia.mjs e politica.mjs. O classificador
+   RECOMENDA ou SINALIZA; quem calcula o preço é o motor (api/_vendas/precos.mjs)
+   e quem decide é o código. Nenhum modelo escolhe o formato do site.
    ========================================================================== */
 export const VERSAO_CONTRATO = 1;
 export const TAREFAS = ['recomendar_pacote', 'triar_pedido'];
