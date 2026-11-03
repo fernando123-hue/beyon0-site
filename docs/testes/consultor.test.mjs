@@ -79,7 +79,14 @@ test('ferramentas: cada descrição diz QUANDO usar; estimar só oferece o que e
   for (const f of fs_) assert.ok(/quando|chame|use/i.test(f.description) && f.description.length > 80, f.name + ': critério de uso');
   const est = fs_.find(f => f.name === 'estimar').input_schema;
   assert.deepEqual(est.properties.formato.enum, Object.keys(REGRAS.formatos));
-  assert.deepEqual(Object.keys(est.properties.adicionais.properties), Object.keys(REGRAS.adicionais));
+  /* o que está em preparo nem aparece no esquema da ferramenta (o motor também recusaria; revisão de segurança do PR do Beyond) */
+  assert.deepEqual(Object.keys(est.properties.adicionais.properties), Object.entries(REGRAS.adicionais).filter(([, a]) => a.em_preparo !== true).map(([k]) => k));
+  assert.ok(!Object.keys(est.properties.adicionais.properties).some(k => /^atendente_ia_/.test(k)), 'o atendente de IA em preparo não é oferecido ao estimar');
+  /* a complexidade alta não cobra de novo as interações (a descrição da ferramenta segue a tabela) e a quantidade é o total */
+  const desc = fs_.find(f => f.name === 'estimar').description;
+  assert.match(desc, /complexidade "alta": só para integrações ou regras de negócio fora do padrão; animações e interações são adicionais, nunca complexidade/);
+  assert.doesNotMatch(desc, /só para animações, 3D/, 'a descrição antiga mandava marcar complexidade alta para animações: cobrança dupla');
+  assert.match(desc, /quantidade TOTAL que ela quer/);
   assert.ok(!JSON.stringify(fs_).match(/"valor"\s*:\s*\d/), 'sem valores nas ferramentas');
   assert.doesNotThrow(() => ferramentas({ adicionais: {}, formatos: {} }), 'tabela vazia não derruba');
 });
@@ -489,10 +496,17 @@ test('área que não se faz hoje sem formato: avisa e segue a descoberta; a loja
 /* TABELA v3 (dono, 2026-11-03): o Zero lê a lista da tabela ATIVA (dados), sem valores no prompt */
 test('v3: o prompt conhece o Beyond, os adicionais em qualquer formato e o atendente em preparo, sem nenhum valor', () => {
   const s = montarSistema(REGRAS, { direcoes: 'manual', metodos: ['pix'] });
-  assert.match(s, /- Beyond:[^\n]*não há suporte contínuo \(nunca prometa suporte, ajuste ou manutenção\)/, 'o Beyond e o que ele não tem');
+  assert.match(s, /- Beyond:[^\n]*não há suporte contínuo \(nunca prometa suporte pós-entrega nem manutenção; os ajustes da prévia antes da entrega são outra coisa\)/, 'o Beyond e o que ele não tem');
   assert.match(s, /valem em qualquer formato, e os de loja só na loja/, 'os adicionais valem em qualquer formato');
   assert.match(s, /O que a lista do Beyond já inclui não se soma: informe a quantidade TOTAL/, 'o incluso do Beyond não se cobra duas vezes: o Zero informa o total e o motor desconta');
   assert.match(s, /não ofereça ao Beyond o que ele já traz/, 'não oferece o que já vem incluso');
+  assert.match(s, /os textos, tantos quantas forem as páginas/, 'textos do Beyond: tantos quantas as páginas');
+  /* a tabela antiga (sem incluso_em, formato com o nome antigo) não faz o Zero falar de Beyond nem de "quantidade TOTAL" */
+  const antiga = JSON.parse(JSON.stringify(REGRAS));
+  antiga.formatos.sob_medida.nome = 'Experiência digital';
+  for (const a of Object.values(antiga.adicionais)) delete a.incluso_em;
+  const sa = montarSistema(antiga, { direcoes: 'manual', metodos: ['pix'] });
+  assert.ok(/- Experiência digital:/.test(sa) && !/Beyond/.test(sa) && !/quantidade TOTAL/.test(sa) && !/não há suporte contínuo/.test(sa), 'o prompt segue a tabela ativa');
   assert.match(s, /compare com o institucional mais as interações/, 'a comparação institucional + interações × Beyond');
   assert.match(s, /Animações de entrada e rolagem no site todo;/, 'as animações do site todo estão na lista de adicionais');
   assert.match(s, /Interação de assinatura \(/);

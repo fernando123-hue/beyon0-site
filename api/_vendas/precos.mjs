@@ -69,6 +69,7 @@ export function validarRegras(r) {
        só o que passa do incluso (nunca duas vezes o mesmo item). Só em formato que a tabela traz, quantidade inteira, e nunca em item fora do automático */
     if (x.incluso_em !== undefined) {
       if (x.fora_do_automatico === true) erros.push('adicionais.' + k + '.incluso_em: item fora do automático não tem preço para abater');
+      else if (k === 'pagina_extra') erros.push('adicionais.pagina_extra.incluso_em: as páginas incluídas são paginas_incluidas do formato');
       else if (!objeto(x.incluso_em) || !Object.keys(x.incluso_em).length) erros.push('adicionais.' + k + '.incluso_em: objeto { formato: quantidade }');
       else for (const [fk, n] of Object.entries(x.incluso_em)) {
         if (!FORMATOS.includes(fk) || !objeto(f[fk])) erros.push('adicionais.' + k + '.incluso_em.' + fk + ': formato que a tabela traz');
@@ -85,6 +86,11 @@ export function validarRegras(r) {
     if (x.requer !== undefined && (!Array.isArray(x.requer) || !x.requer.length || x.requer.some(r => !((FORMATOS.includes(r) && objeto(f[r])) || (r !== k && Object.hasOwn(a, r) && objeto(a[r]) && !a[r].fora_do_automatico))))) erros.push('adicionais.' + k + '.requer: formatos ou adicionais automáticos da tabela');
   }
   if (!a.pagina_extra || a.pagina_extra.fora_do_automatico) erros.push('adicionais.pagina_extra: obrigatório');
+  /* o que depende de um item que um formato já inclui iria inteiro para a fase seguinte (o item incluso não é cobrado, então não "entra na fase"): a tabela é recusada */
+  for (const [k, x] of Object.entries(a)) {
+    if (!objeto(x) || !Array.isArray(x.requer)) continue;
+    for (const r of x.requer) if (objeto(a[r]) && objeto(a[r].incluso_em)) erros.push('adicionais.' + k + '.requer: ' + r + ' tem incluso_em; quem depende dele iria para a fase seguinte');
+  }
   /* toda dependência precisa terminar num formato: A exige B e B exige A nunca entraria em fase nenhuma */
   if (objeto(a)) {
     const ok = new Set();
@@ -161,7 +167,7 @@ export function estimar(fatoresBrutos, regras) {
   /* o que o formato já inclui não se cobra de novo: sobra só o que passa do incluso (a quantidade pedida é o total) */
   const pedidos = Object.entries({ ...f.adicionais, ...(extras ? { pagina_extra: extras } : {}) })
     .map(([k, q]) => [k, Math.max(0, q - incluso(regras.adicionais[k], f.formato))]).filter(([, q]) => q > 0)
-    .map(([k, q]) => ({ chave: k, nome: regras.adicionais[k].nome, qtd: q, unitario: regras.adicionais[k].valor, prazo_unitario: regras.adicionais[k].prazo_dias, prioridade: regras.adicionais[k].prioridade, requer: regras.adicionais[k].requer }))
+    .map(([k, q]) => ({ chave: k, nome: regras.adicionais[k].nome, qtd: q, incluso: incluso(regras.adicionais[k], f.formato), unitario: regras.adicionais[k].valor, prazo_unitario: regras.adicionais[k].prazo_dias, prioridade: regras.adicionais[k].prioridade, requer: regras.adicionais[k].requer }))
     .sort((a, b) => a.prioridade - b.prioridade || a.chave.localeCompare(b.chave));
 
   const urg = f.urgencia ? regras.multiplicadores.urgencia : null;
@@ -200,8 +206,9 @@ export function estimar(fatoresBrutos, regras) {
     return { encaminhar_diagnostico: true, motivo: 'projeto acima do limite automático', itens_diagnostico: [] };
   }
   return {
-    formato: { chave: f.formato, nome: fmt.nome, base: fmt.base, paginas_incluidas: fmt.paginas_incluidas },
-    itens: nestaFase.map(p => ({ chave: p.chave, nome: p.nome, qtd: p.qtd, valor: p.unitario * p.qtd })),
+    /* o escopo e o contrato dizem o que o formato já inclui (inclui, só quando a tabela abate algo nele) e, no item cobrado, quanto já veio incluso */
+    formato: { chave: f.formato, nome: fmt.nome, base: fmt.base, paginas_incluidas: fmt.paginas_incluidas, ...(Object.values(regras.adicionais).some(a => incluso(a, f.formato) > 0) && Array.isArray(fmt.inclui) ? { inclui: fmt.inclui } : {}) },
+    itens: nestaFase.map(p => ({ chave: p.chave, nome: p.nome, qtd: p.qtd, valor: p.unitario * p.qtd, ...(p.incluso > 0 ? { incluso: p.incluso } : {}) })),
     multiplicadores: { urgencia: !!urg, complexidade_alta: f.complexidade === 'alta', fator: mult },
     valor_total: valor,
     sinal,

@@ -388,3 +388,30 @@ test('v3: validarFatores explica ao modelo por que o item em preparo não entra 
   /* quantidade 0 não é pedido */
   assert.ok(validarFatores({ formato: 'institucional', adicionais: { atendente_ia_profissional: 0 } }, REGRAS).dados);
 });
+
+/* ---- achados das revisões técnica e de segurança do PR do Beyond (03/11) ---- */
+test('incluso_em: o contrato diz o que o Beyond já inclui e quantos do item vieram no preço; outros formatos não mudam', async () => {
+  const { montarEscopo } = await import('../../api/_vendas/escopo.mjs');
+  const direcao = { nome_conceito: 'Clareza', estrategia: 'conversao', secoes: [{ tipo: 'hero' }] };
+  const contrato = e => montarEscopo({ estimativa: e, direcao, alteracoesAplicadas: [], briefing: { negocio: { nome: 'Estúdio' } } }).escopo;
+  const b = estimar({ formato: 'sob_medida', paginas: 8, adicionais: { textos: 8, interacao_assinatura: 3 } }, REGRAS);
+  assert.deepEqual(b.itens.map(i => [i.chave, i.qtd, i.incluso ?? null]).sort(), [['interacao_assinatura', 1, 2], ['pagina_extra', 2, null], ['textos', 2, 6]]);
+  assert.ok(b.formato.inclui.some(x => /2 interações de assinatura/.test(x)), 'o formato leva a lista do que inclui');
+  const c = contrato(b);
+  assert.match(c, /Já incluído em Beyond: Até 6 páginas/);
+  assert.match(c, /Interação de assinatura[^\n]*\(3 no total, 2 já incluídos no preço do formato\)/);
+  assert.match(c, /Textos escritos pela Beyon Zero \(por página\) \(8 no total, 6 já incluídos no preço do formato\)/);
+  const i = estimar({ formato: 'institucional', adicionais: { textos: 3 } }, REGRAS);
+  assert.equal(i.formato.inclui, undefined, 'só o formato que a tabela abate leva a lista');
+  assert.ok(!/Já incluído em/.test(contrato(i)) && /Textos escritos pela Beyon Zero \(por página\) \(3\)/.test(contrato(i)));
+  assert.ok(JSON.stringify(b).length < 16384, 'cabe no limite de 16 KB de app.estimativas.detalhes');
+});
+
+test('incluso_em: nunca em pagina_extra, e item que outro exige não pode ter incluso (iria para a fase seguinte)', () => {
+  const pe = copia(); pe.adicionais.pagina_extra.incluso_em = { sob_medida: 2 };
+  assert.ok(validarRegras(pe).erros?.some(e => /pagina_extra\.incluso_em: as páginas incluídas são paginas_incluidas/.test(e)));
+  const dep = copia(); dep.adicionais.blog.requer = ['interacao_assinatura'];
+  const v = validarRegras(dep);
+  assert.ok(v.erros?.some(e => /blog\.requer: interacao_assinatura tem incluso_em/.test(e)), JSON.stringify(v));
+  assert.deepEqual(validarRegras(REGRAS), { ok: true }, 'a tabela v3 como está continua válida');
+});
