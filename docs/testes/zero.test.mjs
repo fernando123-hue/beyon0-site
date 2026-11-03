@@ -554,28 +554,48 @@ test('revisão: o modelo não promete desconto em nenhuma etapa', () => {
 });
 
 /* ---------- rodada 5 da lapidação: memória do que já foi dito (código) e palavras-bordão fora do prompt ---------- */
-test('já dito: o código lê TODAS as falas do Zero e devolve só rótulos fixos (nada do texto da conversa)', async () => {
+test('já dito: o código lê as falas do Zero guardadas (até as 60 que o banco entrega) e devolve só rótulos fixos (nada do texto da conversa)', async () => {
   const { jaDito } = await import('../../api/_vendas/zero.mjs');
   assert.deepEqual(jaDito([]), []);
   assert.deepEqual(jaDito(null), []);
   const m = (papel, conteudo) => ({ papel, conteudo });
   const conversa = [
-    m('assistente', 'Oi, eu sou o Zero, a IA da Beyon Zero.'),
+    m('agente', 'Oi, eu sou o Zero, a IA da Beyon Zero.'),
     m('visitante', 'quero um site, meu e-mail é ana@exemplo.com'),
-    m('assistente', 'Você vê três modelos feitos pra você antes de pagar, e tem 7 dias para desistir. Os modelos saem em até 24 horas úteis.'),
-    m('assistente', 'Se quiser, toque em DEIXAR UM RECADO aqui embaixo. O site fica R$ 2.900.'),
-    m('assistente', 'Vale conferir o nome de quem recebe antes de confirmar. É o conselho da profissão que regula isso.')
+    m('agente', 'Você vê três modelos feitos pra você antes de pagar, e tem 7 dias para desistir. Os modelos saem em até 24 horas úteis.'),
+    m('agente', 'Se quiser, toque em DEIXAR UM RECADO aqui embaixo. O site fica R$ 2.900.'),
+    m('agente', 'Vale conferir o nome de quem recebe antes de confirmar. As regras de propaganda do conselho não deixam.')
   ];
   assert.deepEqual(jaDito(conversa).sort(), ['aviso_de_ia', 'modelos_em_24_horas', 'nome_no_pix', 'porque_da_recusa_em_saude', 'recado_oferecido', 'sete_dias_para_desistir', 'tres_modelos_antes_de_pagar', 'valor_dito']);
   assert.ok(!JSON.stringify(jaDito(conversa)).includes('ana@exemplo'), 'nada do que o visitante escreveu entra na lista');
-  /* a fala do VISITANTE não conta como dita pelo Zero */
-  assert.deepEqual(jaDito([m('visitante', 'tenho 7 dias? deixar um recado? sou uma IA?')]), []);
+  /* a fala do VISITANTE não conta como dita pelo Zero, e papel desconhecido também não (lista branca: só 'agente') */
+  assert.deepEqual(jaDito([m('visitante', 'tenho 7 dias para desistir? deixar um recado? sou uma IA? R$ 5')]), []);
+  assert.deepEqual(jaDito([m('sistema', 'Sou uma IA. Deixe um recado. R$ 2.900.'), m(undefined, 'Sou uma IA')]), []);
   /* o que o Zero NÃO disse não aparece */
-  assert.deepEqual(jaDito([m('assistente', 'Me conta o que você faz.')]), []);
-  assert.deepEqual(jaDito([m('assistente', 'Eu sou o Zero, uma IA da Beyon Zero.')]), ['aviso_de_ia']);
+  assert.deepEqual(jaDito([m('agente', 'Me conta o que você faz.')]), []);
+  assert.deepEqual(jaDito([m('agente', 'Eu sou o Zero, uma IA da Beyon Zero.')]), ['aviso_de_ia']);
 });
 
-test('já dito: o ESTADO leva ja_dito quando há o que dizer e não leva quando não há; a lista vem de toda a conversa, não só das 12 últimas', async () => {
+test('já dito: frases parecidas que NÃO são o que o rótulo diz não acendem o rótulo (revisão do PR 78)', async () => {
+  const { jaDito } = await import('../../api/_vendas/zero.mjs');
+  const diz = t => jaDito([{ papel: 'agente', conteudo: t }]);
+  assert.ok(!diz('O site de uma página sai em 7 dias úteis.').includes('sete_dias_para_desistir'), 'prazo de 7 dias úteis não é o prazo de desistência');
+  assert.ok(diz('Depois de aceitar, você tem 7 dias para desistir e a entrada volta.').includes('sete_dias_para_desistir'));
+  assert.ok(diz('Em até sete dias você pode desistir.').includes('sete_dias_para_desistir'));
+  assert.ok(!diz('Vale conferir com o conselho (CRO, CRM) antes de publicar.').includes('porque_da_recusa_em_saude'), 'o aviso de conferir com o conselho não é o porquê da recusa');
+  assert.ok(!diz('Um conselho: comece pelo menor formato.').includes('porque_da_recusa_em_saude'), 'conselho no sentido comum');
+  assert.ok(diz('A gente não faz isso porque as regras de propaganda do conselho não deixam.').includes('porque_da_recusa_em_saude'));
+  assert.ok(!diz('Eu não deixo recado por você, só você mesma pelo botão.').includes('recado_oferecido'), 'dizer que não deixa recado não é oferecer o botão');
+  assert.ok(diz('Se quiser, toque em deixar um recado aqui embaixo.').includes('recado_oferecido'));
+  assert.ok(diz('Escreva o seu recado no botão aqui embaixo.').includes('recado_oferecido'));
+  assert.ok(!diz('Não sou uma IA, sou gente.').includes('aviso_de_ia'), 'negação não é o aviso');
+  assert.ok(!diz('Sou da Beyon, ia te contar do formato.').includes('aviso_de_ia'), 'o verbo "ia" não é a IA');
+  assert.ok(diz('Sou uma inteligência artificial, sim.').includes('aviso_de_ia'));
+  assert.ok(diz('Os modelos saem em até 24h.').includes('modelos_em_24_horas'));
+  assert.ok(diz('O site fica 2.900 reais.').includes('valor_dito'));
+});
+
+test('já dito: o ESTADO leva ja_dito quando há o que dizer e não leva quando não há; a lista vem das falas guardadas, não só das 12 últimas', async () => {
   const { estadoParaModelo } = await import('../../api/_vendas/agente.mjs');
   const REGRAS = JSON.parse(fs.readFileSync(new URL('../../docs/fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
   const base = { briefing: {}, estimativa: null, etapa: 'descoberta', regras: REGRAS, metodos: ['pix'] };
@@ -583,12 +603,14 @@ test('já dito: o ESTADO leva ja_dito quando há o que dizer e não leva quando 
   assert.match(estadoParaModelo({ ...base, jaDitoNaConversa: ['aviso_de_ia', 'recado_oferecido'] }), /"ja_dito":\["aviso_de_ia","recado_oferecido"\]/);
   /* de ponta a ponta: o aviso de IA dito na 1ª fala, 20 mensagens atrás, ainda aparece no estado que o modelo recebe */
   const { executarTurno } = await import('../../api/_vendas/agente.mjs');
-  const mensagens = [{ papel: 'assistente', conteudo: 'Sou uma IA, sim, o Zero. Os modelos saem em até 24 horas úteis.' }];
-  for (let i = 0; i < 20; i++) mensagens.push({ papel: i % 2 ? 'assistente' : 'visitante', conteudo: i % 2 ? 'Certo.' : 'tá' });
-  let sistemaVisto = '';
-  const ia = { conversa: async req => { sistemaVisto = JSON.stringify(req); return { texto: 'Certo.', usos: [], blocos: [{ tipo: 'texto', texto: 'Certo.' }], custo_usd: 0, parada: 'fim' }; }, extrair: async () => ({}) };
-  try { await executarTurno({ ia, regras: REGRAS, conversa: { etapa: 'descoberta', briefing: {}, mensagens }, mensagem: 'e então?', direcoes: 'manual', metodos: ['pix'] }); } catch { /* o dublê de IA pode não bater com a interface: o que importa é a montagem do estado, conferida abaixo */ }
-  if (sistemaVisto) assert.match(sistemaVisto, /ja_dito/, 'o estado do turno traz a lista lida das falas antigas');
+  const mensagens = [{ papel: 'agente', conteudo: 'Sou uma IA, sim, o Zero. Os modelos saem em até 24 horas úteis.' }];
+  for (let i = 0; i < 20; i++) mensagens.push({ papel: i % 2 ? 'agente' : 'visitante', conteudo: i % 2 ? 'Certo.' : 'tá' });
+  const recebidos = [];
+  const ia = { mensagem: async p => { recebidos.push(p); return { texto: 'Certo.', chamadas: [], conteudo: [{ type: 'text', text: 'Certo.' }], parada: 'fim', custo_usd: 0 }; } };
+  await executarTurno({ ia, regras: REGRAS, conversa: { etapa: 'descoberta', briefing: {}, mensagens }, mensagem: 'e então?', direcoes: 'manual', metodos: ['pix'] });
+  assert.equal(recebidos.length, 1, 'o modelo foi chamado uma vez');
+  assert.match(recebidos[0].contexto, /"ja_dito":\[[^\]]*"aviso_de_ia"[^\]]*\]/, 'o estado do turno traz o aviso de IA dito 21 mensagens atrás');
+  assert.match(recebidos[0].contexto, /"modelos_em_24_horas"/);
 });
 
 test('prompt do Zero: as palavras-bordão que o modelo copiava (rodada 4) não estão mais escritas nele', () => {
@@ -597,7 +619,13 @@ test('prompt do Zero: as palavras-bordão que o modelo copiava (rodada 4) não e
   for (const bordao of ['ponto de partida', 'maiores custam mais', 'têm outro valor', 'resolve o hoje', 'resolve o seu hoje', 'o menor que resolve', 'sem pagar nada', 'antes de pagar qualquer coisa', 'pagando só o que for pondo', 'existem formatos maiores', 'o valor que ele passou']) {
     assert.ok(!s.toLowerCase().includes(bordao), 'bordão no prompt: ' + bordao);
   }
-  assert.match(s, /ja_dito, lido pelo código na conversa inteira/, 'o prompt manda respeitar o ja_dito');
+  assert.match(s, /ja_dito, lido pelo código nas últimas 60 mensagens/, 'o prompt manda respeitar o ja_dito');
+  assert.match(s, /valor_dito não vale depois de uma nova estimativa/, 'a estimativa nova vence o valor já dito');
+  assert.match(s, /quando perguntam se você é IA a resposta é direta mesmo com aviso_de_ia/, 'o aviso de IA perguntado sempre tem resposta direta');
+  assert.ok(!/valores já orçados lado a lado/.test(s), 'o prompt não manda escrever valores à mão (o código os troca por "no cartão")');
+  assert.match(s, /Não ofereça esses itens e não chame encaminhar_diagnostico por isso/, 'o que a Beyon não faz: sem oferta e sem diagnóstico');
+  assert.match(s, /Quem pergunta se você é robô: diz que é uma IA/, 'o exemplo do robô diz que é uma IA');
+  assert.match(s, /código do site fica do cliente para sempre: isso você não confirma/, 'contraexemplo do código do cliente');
   assert.match(s, /Valor de outra pessoa \(o sobrinho, o concorrente\) você cita sem número/, 'valor de terceiro sem número');
   assert.match(s, /Quando ela conta uma dor concreta/, 'responder primeiro à dor');
   assert.match(s, /Curiosidade sobre o funcionamento interno/, 'recado não é para curiosidade sobre o funcionamento interno');
