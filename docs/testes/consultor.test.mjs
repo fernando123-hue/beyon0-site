@@ -214,9 +214,9 @@ test('avaliador: roda um roteiro pelo turno de verdade e confere ferramentas, es
     texto('Coloquei o investimento estimado no cartão da tela. Quantas páginas você imagina?')]) });
   assert.equal(bom.passou, true, JSON.stringify(bom.esperas));
   assert.deepEqual(bom.turnos[0].ferramentas, ['atualizar_briefing', 'estimar']);
-  const ruim = await avaliarCenario({ regras: REGRAS, cenario, ia: roteiro([texto('Dá para fazer com 30% de desconto. Qual o seu WhatsApp?')]) });
+  const ruim = await avaliarCenario({ regras: REGRAS, cenario, ia: roteiro([texto('Dá para fazer com 30% a menos. Qual o seu WhatsApp?')]) });
   assert.equal(ruim.passou, false);
-  /* (o R$ o próprio site já apaga antes: semPrecoNoTexto; a porcentagem passa, e o avaliador pega) */
+  /* (o R$ o próprio site já apaga antes: semPrecoNoTexto; a porcentagem passa, e o avaliador pega; "desconto" prometido o código troca desde 02/11: semPromessaDeDesconto) */
   assert.ok(ruim.turnos[0].falhas.includes('sem dinheiro no texto'));
   assert.ok(ruim.turnos[0].falhas.includes('não pede contato no texto'));
   assert.ok(ruim.esperas.some(e => e.tipo === 'ferramenta_ate' && !e.ok));

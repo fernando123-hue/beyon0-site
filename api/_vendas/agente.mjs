@@ -18,13 +18,15 @@ import { limparAtualizacao, limparTexto, mesclar, avaliar, prontoParaEstimar } f
 import { IDENTIDADE, montarSistema, ferramentas, proximoPasso, ETAPAS_SO_DUVIDAS, FERRAMENTAS_DE_PRECO, precoAberto } from './consultor.mjs';
 import { estimar } from './precos.mjs';
 import { redigir, semPrecoNoTexto } from './seguranca.mjs';
-import { semPromessaDePagamento, motivoDaPergunta, RESPOSTAS_PAGAMENTO } from './promessa.mjs';
+import { semPromessaDePagamento, motivoDaPergunta, motivoDaTroca, RESPOSTAS_PAGAMENTO } from './promessa.mjs';
 import { ErroIA } from '../_ia/provedor.mjs';
 import {
-  ABERTURA_PADRAO, semPromessaDeRecado, nichoRegulado, pedeItemProibido, garantirRegulado, briefingSemProibidos, avisoRegulado, comMarcadores, marcadorSemValor, semNotacaoInterna, garantirValor
+  ABERTURA_PADRAO, semPromessaDeRecado, nichoRegulado, pedeItemProibido, garantirRegulado, briefingSemProibidos, avisoRegulado, comMarcadores, marcadorSemValor, semNotacaoInterna, garantirValor, cortarEmFrase, semPromessaDeDesconto
 } from './zero.mjs';
 
 const MAX_ITERACOES = 4;
+/* o texto do modelo cabe em 1.100 caracteres: sobram ~400 para o que o código acrescenta (a linha do valor, o recado fixo); o corte é antes das travas */
+const TEXTO_DO_MODELO_MAX = 1100;
 /* o modelo escreveu os marcadores de valor sem ter estimado (ou a estimativa falhou): uma volta a mais para ele estimar e escrever de novo,
    em vez de a pessoa ficar sem número. O aviso é do código, não da pessoa */
 const AVISO_VALOR = '[aviso do código da Beyon Zero, não da pessoa] Sua resposta usa os marcadores de valor, mas não há estimativa válida. Chame estimar com o formato certo e escreva a resposta de novo, com os marcadores, sem comentar este aviso.';
@@ -149,9 +151,11 @@ export async function executarTurno({ ia, regras, conversa, mensagem, direcoes, 
   }
 
   if (sugestoes.length) briefing = mesclar(briefing, { oportunidades_ia: sugestoes.map(s => s.ideia) });
-  const semPreco = semPrecoNoTexto(semNotacaoInterna(texto)).trim() || (soDuvidas ? 'Pode repetir a sua dúvida?' : 'Pode me contar um pouco mais sobre o seu negócio?');
+  const semPreco = cortarEmFrase(semPrecoNoTexto(semNotacaoInterna(texto)).trim(), TEXTO_DO_MODELO_MAX) || (soDuvidas ? 'Pode repetir a sua dúvida?' : 'Pode me contar um pouco mais sobre o seu negócio?');
   /* (o filtro olha exatamente o que vai para a tela: o corte de 1.500 vem antes) */
-  let resposta = soDuvidas ? semPromessaDePagamento(semPreco.slice(0, 1500)) : semPreco;
+  /* afirmar pagamento é proibido em qualquer etapa; o resto do filtro de pagamento (meio, link, condição) só no escopo e no sinal */
+  let resposta = soDuvidas ? semPromessaDePagamento(semPreco) : (motivoDaTroca(semPreco) === 'pagamento' ? RESPOSTAS_PAGAMENTO.pagamento : semPreco);
+  resposta = semPromessaDeDesconto(resposta).texto;
   /* as travas do Zero (api/_vendas/zero.mjs), nesta ordem, sobre o que vai para a tela:
      1) o recado: ninguém deixou, enviou ou avisou nada; o botão aparece junto da mensagem;
      2) saúde e regulados: o proibido nunca sai liberado (e o briefing não guarda depoimentos);

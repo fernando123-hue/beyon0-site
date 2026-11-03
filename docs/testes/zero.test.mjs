@@ -14,7 +14,7 @@ import { montarSistema, ferramentas, IDENTIDADE } from '../../api/_vendas/consul
 import { PAPEIS, TETOS, custoUsd, RESERVA_USD } from '../../api/_ia/config.mjs';
 import {
   RECADO_FIXO, ETIQUETA, ABERTURA_PADRAO, ABERTURAS, semPromessaDeRecado, nichoRegulado, pedeItemProibido,
-  garantirRegulado, comMarcadores, briefingSemProibidos, respostaRegulado, semNotacaoInterna, pedeValor, garantirValor
+  garantirRegulado, comMarcadores, briefingSemProibidos, respostaRegulado, semNotacaoInterna, pedeValor, garantirValor, cortarEmFrase, semPromessaDeDesconto
 } from '../../api/_vendas/zero.mjs';
 
 const REGRAS = JSON.parse(fs.readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
@@ -506,4 +506,48 @@ test('prompt: fatos decididos pelo dono em 01/11 (domínio, hospedagem, nota) e 
     assert.ok(s.includes(trecho), 'falta no prompt: ' + trecho);
   assert.doesNotMatch(s, /mensalidade, hospedagem e de quem é/, 'mensalidade e hospedagem saíram da lista do que não se confirma');
   assert.doesNotMatch(s, /R\$ ?(800|1\.900)/, 'a oferta de lançamento não entra no texto do Zero');
+});
+
+/* ---------- revisão do PR 71 (02/11): furos achados nas travas ---------- */
+test('revisão: "não" longe do verbo NÃO desfaz a promessa de recado ("Não se preocupe, deixei o recado")', () => {
+  for (const t of ['Não se preocupe, deixei o recado com ele.', 'Não tem problema, mandei pro dono sua dúvida.', 'Fique tranquilo, não precisa insistir, avisei o dono.'])
+    assert.equal(semPromessaDeRecado(t).trocou, true, t);
+  for (const t of ['Não deixei nenhum recado, quem deixa é você.', 'Eu nunca envio nada ao dono.'])
+    assert.equal(semPromessaDeRecado(t).trocou, false, t);
+});
+
+test('revisão: em saúde, "não tem problema colocar depoimentos" NÃO conta como recusa', () => {
+  const dentista = nichoRegulado('sou dentista');
+  for (const t of ['Não tem problema colocar depoimentos no site.', 'Não precisa se preocupar, vamos incluir antes e depois.'])
+    assert.equal(garantirRegulado(t, { nicho: dentista, pediuAgora: true }).trocou, true, t);
+  assert.equal(garantirRegulado('Isso a gente não coloca em site de dentista.', { nicho: dentista, pediuAgora: true }).trocou, false, 'recusa de verdade passa');
+});
+
+test('revisão: marcador desconhecido nunca vaza cru ([[valor]], [[ entrada ]], [total])', () => {
+  const est = { valor_total: 7900, sinal: 3160 };
+  for (const t of ['O site fica [[valor]].', 'A entrada é [[ entrada ]] no Pix.', 'Fica [total] no total.', 'Fica [[desconto]] hoje.']) {
+    assert.doesNotMatch(comMarcadores(t, est).texto, /\[/, 'com estimativa: ' + t);
+    assert.doesNotMatch(comMarcadores(t, null).texto, /\[/, 'sem estimativa: ' + t);
+  }
+  assert.match(comMarcadores('O site fica [[valor]] e a entrada [[entrada]].', est).texto, /R\$\s?7\.900.*R\$\s?3\.160/);
+});
+
+test('revisão: pergunta de prazo, domínio ou hospedagem não vira "o site fica R$"', () => {
+  for (const m of ['quanto é o prazo?', 'quanto custa o domínio?', 'quanto fica a hospedagem?', 'qual o valor da renovação do domínio?']) assert.equal(pedeValor(m), false, m);
+  for (const m of ['quanto fica um site?', 'qual o valor do sinal?', 'me passa o valor']) assert.equal(pedeValor(m), true, m);
+});
+
+test('revisão: o corte do texto do modelo é em fim de frase e não parte o texto fixo', () => {
+  const longa = ('Frase curta de teste aqui. ').repeat(80);
+  const c = cortarEmFrase(longa, 1100);
+  assert.ok(c.length <= 1100 && /\.$/.test(c.trim()), 'termina em ponto: ' + c.slice(-30));
+  assert.equal(cortarEmFrase('Curto.', 1100), 'Curto.');
+  assert.ok(cortarEmFrase('a'.repeat(3000), 100).length <= 100, 'sem ponto: corte duro');
+});
+
+test('revisão: o modelo não promete desconto em nenhuma etapa', () => {
+  for (const t of ['Te dou 20% de desconto se fechar hoje.', 'Posso fazer um desconto de 10% pra você.', 'Vou te dar um desconto especial.'])
+    assert.equal(semPromessaDeDesconto(t).trocou, true, t);
+  for (const t of ['Desconto eu não faço, a tabela é a mesma pra todo mundo.', 'Não existe desconto aqui.', 'O site fica mais barato se começar pela landing.'])
+    assert.equal(semPromessaDeDesconto(t).trocou, false, t);
 });

@@ -51,7 +51,9 @@ function paraBusca(frase, { soltaFinal = false } = {}) {
     .replace(/[^a-z0-9%\s]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 /* ("não deixei": o que vem negado não é promessa) */
-const negado = (frase, m) => /\b(?:nao|nunca|jamais)\b/.test(m[0]) || /\b(?:nao|nunca|jamais)\s+(?:\w+\s+){0,2}$/.test(frase.slice(0, m.index));
+/* (o "não" só vale colado ao verbo, com no máximo um pronome ou advérbio curto no meio: "não te deixei" é negação;
+   "não se preocupe, deixei" e "não tem problema, mandei" não são) */
+const negado = (frase, m) => /\b(?:nao|nunca|jamais)\b/.test(m[0]) || /\b(?:nao|nunca|jamais)\s+(?:(?:te|lhe|se|o|a|eu|ainda|mais|a gente)\s+)?$/.test(frase.slice(0, m.index));
 
 /* ---------- 1. o recado ---------- */
 const ALVO = '(?:recado|mensagem|equipe|dono|fernando|responsavel|(?:pra|para|pro|com) ele)';
@@ -160,7 +162,7 @@ export function pedeItemProibido(texto) {
 
 /* a resposta do modelo, em nicho regulado: libera o proibido ou desvia do pedido sem recusar = texto fixo */
 const LIBERA = /\b(?:pode\w*|posso|da (?:pra|para)|vamos|vou|inclu\w+|colo(?:co|camos|ca\w*)|fazemos|faco|entra\w*|cabe\w*|tranquilo|sem problema|claro|sim|com cuidado|combinado)\b/;
-const RECUSA = /\bnao\s+(?:\w+\s+){0,2}(?:colo\w+|inclu\w+|faz\w*|fazemos|aceit\w+|entra\w*|cabe\w*|trabalh\w+|public\w+|oferec\w+|poe|ponho|posso|podemos|vou|vamos|consigo|da (?:pra|para)|e (?:permitid|possivel))\w*\b|\bnunca\b|\bsem\s+(?:depoiment|antes)|\bficam? de fora\b|\bpolitica da beyon\b|\brecuso\b/;
+const RECUSA = /\bnao\s+(?:(?:a gente|eu|te|lhe|se|ainda|mais)\s+)?(?:colo\w+|inclu\w+|faz\w*|fazemos|aceit\w+|entra\w*|cabe\w*|trabalh\w+|public\w+|oferec\w+|poe|ponho|posso|podemos|vou|vamos|consigo|da (?:pra|para)|e (?:permitid|possivel))\w*\b|\bnunca\b|\bsem\s+(?:depoiment|antes)|\bficam? de fora\b|\bpolitica da beyon\b|\brecuso\b/;
 const PROIBIDO_NA_RESPOSTA = [...PEDIDOS_PROIBIDOS];
 const citaProibido = f => PROIBIDO_NA_RESPOSTA.some(r => r.test(f));
 
@@ -209,8 +211,10 @@ export function avisoRegulado(nicho, { pediuAgora = false } = {}) {
 }
 
 /* ---------- 3. o valor: os marcadores do modelo viram o número do motor ---------- */
-const MARCADOR = /\[\[\s*(total|sinal|restante)\s*\]\]/gi;
-const TEM_MARCADOR = /\[\[\s*(?:total|sinal|restante)\s*\]\]/i;
+/* o modelo às vezes escreve [[valor]], [[ entrada ]] ou [total]: sinônimos viram o número certo; qualquer outro marcador some e nunca vaza cru */
+const MARCADOR = /\[\[\s*([^\[\]\n]{1,30}?)\s*\]\]|\[\s*(total|sinal|restante)\s*\]/gi;
+const TEM_MARCADOR = /\[\[\s*[^\[\]\n]{1,30}?\s*\]\]|\[\s*(?:total|sinal|restante)\s*\]/i;
+const CAMPO = { total: 'total', valor: 'total', 'valor total': 'total', preco: 'total', 'preço': 'total', sinal: 'sinal', entrada: 'sinal', restante: 'restante', resto: 'restante' };
 const dinheiro = n => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 }).replace(/\s/g, ' ');
 function valoresDe(e) {
   const total = Number(e?.valor_total), sinal = Number(e?.sinal);
@@ -248,7 +252,7 @@ export function comMarcadores(texto, e) {
   const original = String(texto);
   if (!TEM_MARCADOR.test(original)) return { texto: original, semEstimativa: false };
   const v = valoresDe(e);
-  if (v) return { texto: original.replace(MARCADOR, (_, nome) => dinheiro(v[nome.toLowerCase()])), semEstimativa: false };
+  if (v) return { texto: original.replace(MARCADOR, (_, a, b) => { const campo = CAMPO[String(a || b).toLowerCase()]; return campo ? dinheiro(v[campo]) : ''; }).replace(/ {2,}/g, ' '), semEstimativa: false };
   let jaAvisou = false;
   const saida = [];
   for (const f of frasesDe(original)) {
@@ -268,7 +272,7 @@ const PEDE_VALOR = [
   /\b(?:q(?:uan|n)to\s+(?:e|fica|custa|sai|seria|vai ficar|ficou)|qual\s+(?:e\s+)?o\s+(?:valor|preco|total)|(?:fala|diz|manda|me passa|passa)\s+(?:o\s+)?(?:valor|preco|numero)|valor\s+(?:em\s+)?reais|em\s+reais)\b/,
   /\bcolchetes?\b|\bnao\s+(?:\w+\s+){0,2}(?:apareceu|aparece|aparecem|vi|vejo|consigo ver)\s+(?:\w+\s+){0,2}(?:valor|preco|numero|nada)\b|\bsem\s+(?:o\s+)?valor\b/
 ];
-const OUTRO_ASSUNTO = /\b(?:atendente|chat|automacao|automatizar)\b/;
+const OUTRO_ASSUNTO = /\b(?:atendente|chat|automacao|automatizar|prazo|prazos|dominio|hospedagem|mensalidade|renovacao|nota fiscal)\b/;
 export function pedeValor(mensagem) {
   const t = paraBusca(mensagem);
   return !!t && !OUTRO_ASSUNTO.test(t) && (String(mensagem).includes("[[") || PEDE_VALOR.some(r => r.test(t)));
@@ -279,4 +283,22 @@ export function garantirValor(texto, { mensagem, estimativa } = {}) {
   if (!v || /R\$/.test(original) || !pedeValor(mensagem)) return { texto: original, acrescentou: false };
   const linha = `Em resumo, o site fica ${dinheiro(v.total)}, com entrada de ${dinheiro(v.sinal)} no Pix e ${dinheiro(v.restante)} quando o site entrar no ar.`;
   return { texto: (original.trim() ? original.trimEnd() + '\n\n' : '') + linha, acrescentou: true };
+}
+
+/* ---------- 6. o corte e o desconto (revisão do PR 71, 02/11) ---------- */
+/* corta em fim de frase (nunca no meio de um marcador ou de uma frase fixa); sem ponto no trecho, corte duro */
+export function cortarEmFrase(texto, max = 1100) {
+  const t = String(texto ?? '');
+  if (t.length <= max) return t;
+  const corte = t.slice(0, max);
+  const fim = Math.max(corte.lastIndexOf('. '), corte.lastIndexOf('! '), corte.lastIndexOf('? '), corte.lastIndexOf('\n'));
+  return (fim > max * 0.4 ? corte.slice(0, fim + 1) : corte).trimEnd();
+}
+/* o modelo nunca promete desconto: a regra é "a mesma tabela para todo mundo". Só a promessa afirmativa é trocada */
+const DESCONTO = /\b(?:te|lhe|vou te|posso te|consigo te|podemos|posso|consigo|vou|damos|dou|faco|fazemos|faremos)\s+(?:\w+\s+){0,3}(?:desconto|abatimento)\b|\b\d+ ?(?:%|por cento) de desconto\b|\bdesconto de \d+/;
+export const DESCONTO_FIXO = 'Desconto eu não faço, a tabela é a mesma pra todo mundo. Mas dá pra começar menor e somar o resto depois, pagando só o que for pondo.';
+export function semPromessaDeDesconto(texto) {
+  const original = String(texto ?? '');
+  const ruim = frasesDe(original).map(f => paraBusca(f)).some(f => { const m = DESCONTO.exec(f); return m && !negado(f, m) && !/\bnao (?:existe|tem|ha) desconto\b/.test(f); });
+  return ruim ? { texto: DESCONTO_FIXO, trocou: true } : { texto: original, trocou: false };
 }
