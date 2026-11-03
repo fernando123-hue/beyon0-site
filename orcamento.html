@@ -163,15 +163,15 @@
          pode estar escondida; vazio, não ocupa espaço -->
     <div class="orc-turnstile" id="o-turnstile"></div>
 
-    <button class="btn btn--ghost btn--sm orc-conversar" type="button" id="o-conversar" hidden>Prefere conversar? Fale com o consultor</button>
+    <button class="btn btn--ghost btn--sm orc-conversar" type="button" id="o-conversar" hidden>Prefere conversar? Fale com o Zero (IA)</button>
 
     <div class="orc-mesa">
       <!-- A CONVERSA (só quando há consultor e a pessoa abre "Prefere conversar?", ou a conversa já tem mensagens) -->
       <section class="orc-conversa" id="o-conversa" data-origem="orcamento-conversa" aria-labelledby="o-conversa-titulo" hidden>
-        <h2 id="o-conversa-titulo" class="orc-rotulo">Conversa com o consultor</h2>
+        <h2 id="o-conversa-titulo" class="orc-rotulo">Zero, assistente virtual (IA) da Beyon Zero</h2>
         <div class="orc-log" id="o-log-caixa" tabindex="0" role="region" aria-label="Conversa">
           <ol class="orc-log__lista" id="o-log">
-            <li class="msg msg--agente"><p>Olá! Me conte sobre o seu negócio e o que você espera do site. Pode ser do seu jeito, sem termos técnicos.</p></li>
+            <li class="msg msg--agente"><p>Oi, eu sou o Zero, a IA da Beyon Zero. Me conta o que você faz que eu te digo qual formato de site serve pro seu negócio e quanto fica.</p></li>
           </ol>
         </div>
         <p class="orc-pensando" id="o-pensando" hidden><span class="orc-pensando__fio" aria-hidden="true"></span>Analisando o seu caso…</p>
@@ -185,7 +185,7 @@
           <textarea id="o-texto" rows="3" maxlength="2000" placeholder="Ex.: tenho uma clínica em Niterói e quero mais agendamentos" autocomplete="off"></textarea>
           <button class="btn btn--primary" type="submit" id="o-enviar">Enviar</button>
         </form>
-        <p class="orc-nota" id="o-conversa-fechada" hidden>A conversa com o consultor ficou registrada acima. Daqui em diante, o seu orçamento segue pelas etapas abaixo.</p>
+        <p class="orc-nota" id="o-conversa-fechada" hidden>A conversa com o Zero ficou registrada acima. Daqui em diante, o seu orçamento segue pelas etapas abaixo.</p>
         <p class="orc-nota">Prefere escrever antes? <a class="orc-sem-quebra" href="#recado" data-recado-abrir data-recado-origem="orcamento">Deixe um recado</a>.</p>
         <p class="orc-nota">Não escreva senhas nem dados de cartão aqui. <a href="/privacidade#orcamento">Como a conversa é tratada</a>.</p>
       </section>
@@ -360,7 +360,7 @@
       <p class="orc-bloco__lead">Confira tudo. É isto que será feito, pelo valor e no prazo abaixo.</p>
       <div class="orc-escopo" id="o-esc-texto" tabindex="0" role="region" aria-label="Texto do escopo"></div>
       <p class="orc-nota">Quer mudar algo antes de confirmar? <a href="#recado" data-recado-abrir data-recado-origem="orcamento">Deixe um recado para a equipe</a>.</p>
-      <p class="orc-nota orc-perguntar" hidden>Alguma dúvida? <a href="#o-texto" data-perguntar>Pergunte ao consultor</a>, aqui na conversa. Ele tira dúvidas, mas não muda o escopo nem o valor: vale o que está escrito aqui.</p>
+      <p class="orc-nota orc-perguntar" hidden>Alguma dúvida? <a href="#o-texto" data-perguntar>Pergunte ao Zero</a>, aqui na conversa. Ele tira dúvidas, mas não muda o escopo nem o valor: vale o que está escrito aqui.</p>
       <form class="orc-form" id="o-esc-form" novalidate>
         <label class="orc-check"><input type="checkbox" id="o-confirmo" required /> <span>Li e confirmo este escopo, o valor e o prazo.</span></label>
         <label class="orc-check"><input type="checkbox" id="o-inicio" /> <span>Peço que o trabalho comece já, dentro do prazo de 7 dias para desistir da compra (Código de Defesa do Consumidor, art. 49).</span></label>
@@ -374,7 +374,7 @@
       <h2 id="o-pag-titulo">Para começar</h2>
       <p class="orc-bloco__lead" id="o-pag-lead"></p>
       <p class="orc-nota orc-so-entrada"><a href="#o-antes">Perguntas antes de pagar</a>: posso desistir? quando fica pronto? quantos ajustes?<span id="o-atalho-fotos" hidden> como mando fotos e textos?</span><span id="o-atalho-restante" hidden> quando pago o restante?</span></p>
-      <p class="orc-nota orc-perguntar orc-so-entrada" hidden>Alguma dúvida antes de pagar? <a href="#o-texto" data-perguntar>Pergunte ao consultor</a>. Ele tira dúvidas, mas não confirma pagamento nem muda o valor: quem mostra que o pagamento entrou é esta tela.</p>
+      <p class="orc-nota orc-perguntar orc-so-entrada" hidden>Alguma dúvida antes de pagar? <a href="#o-texto" data-perguntar>Pergunte ao Zero</a>. Ele tira dúvidas, mas não confirma pagamento nem muda o valor: quem mostra que o pagamento entrou é esta tela.</p>
       <p class="orc-aviso" id="o-pag-indisponivel" hidden>O pagamento online está indisponível agora. Deixe um <a class="orc-so-entrada" href="#recado" data-recado-abrir data-recado-origem="orcamento">recado</a><a class="orc-so-restante" href="#recado" data-recado-abrir data-recado-origem="orcamento">recado</a> e a equipe envia o link do pagamento.</p>
 
       <form class="orc-form pag" id="o-pag-form" novalidate>

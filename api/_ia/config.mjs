@@ -1,5 +1,9 @@
 /* ==========================================================================
    CAMADA DE IA — configuração (um lugar só; docs/fase2/01-ARQUITETURA.md).
+   Decisão do dono (2026-10-31): o ZERO (o consultor do site) conversa com o Claude
+   Sonnet 5.5 em esforço médio; a extração do briefing, o atendente do cliente e as
+   chamadas baratas seguem no Haiku 5.5. Antes (modo econômico, 2026-10-08) a conversa
+   também era do Haiku. Os tetos abaixo foram revistos para o custo do Sonnet.
    Decisão do dono (2026-10-06): Claude Opus 5.5 com esforço alto na geração
    das 3 direções ("tão boas que se vendam sozinhas"). MODO ECONÔMICO (dono,
    2026-10-08, até haver dinheiro para a API): a conversa e a extração do
@@ -12,7 +16,7 @@
    ========================================================================== */
 import { ambienteDe } from '../_ambiente.mjs';
 export const PAPEIS = {
-  conversa: { modelo: 'claude-haiku-5-5', esforco: 'medium', max_tokens: 4000, timeout_ms: 45000 },
+  conversa: { modelo: 'claude-sonnet-5-5', esforco: 'medium', max_tokens: 4000, timeout_ms: 45000 },
   extracao: { modelo: 'claude-haiku-5-5', esforco: 'low', max_tokens: 3000, timeout_ms: 45000 },
   /* o atendente do site do cliente: resposta curta, sem pensar muito; o código confere tudo o que sai (api/_atendente/agente.mjs) */
   atendente: { modelo: 'claude-haiku-5-5', esforco: 'low', max_tokens: 800, timeout_ms: 15000, tentativas: 0 },
@@ -50,19 +54,22 @@ export const COM_FALLBACK = new Set(['claude-opus-5-5', 'claude-sonnet-5-5']);
 
 /* tetos de custo (operacionais, não comerciais): passou, o agente para com elegância e oferece o WhatsApp */
 export const TETOS = {
-  conversa_usd: 1.5,          // por conversa (descoberta + direções + alterações)
+  /* por conversa (descoberta + direções + alterações). Era 1,5 com a conversa no Haiku. Com o Sonnet 5.5 médio, uma conversa
+     longa (30 turnos de 2 rodadas, sistema em cache de ~7 mil tokens, raciocínio médio) fica perto de US$ 1,0 (docs/testes/zero.test.mjs
+     mede), e as 3 direções no Opus (US$ 0,4 a 0,7 cada geração) vêm por cima: 1,5 não sobrava. A MEDIR com chamadas reais */
+  conversa_usd: 2,
   dia_usd: 25,                // somando todas as conversas do dia
   turnos_por_conversa: 40,
   geracoes_por_conversa: 3,   // = app.vendas_iniciar_geracao (max_geracoes)
   /* conversas que USAM a IA, por IP por dia, contadas no banco (o teto do dia é global: sem isto, um IP o esgotava).
-     8 × conversa_usd = US$ 12 < dia_usd: um IP sozinho não derruba o agente para todos */
+     8 × conversa_usd (2) = US$ 16 < dia_usd: um IP sozinho não derruba o agente para todos */
   conversas_por_ip_dia: 8,
   /* o mesmo teto, agora também por /48 do IPv6 (auditoria run-1, pista 1): a casa ou a empresa recebe um /48 inteiro
      (65.536 redes /64) e trocava de /64 à vontade, fugindo do teto acima. Maior que o do /64 (mais de um aparelho por
-     casa), mas ainda abaixo do dia: 16 × conversa_usd (1,5) = US$ 24 < dia_usd (25), no limite; quem subir a
+     casa), mas ainda abaixo do dia: 12 × conversa_usd (2) = US$ 24 < dia_usd (25), no limite; quem subir a
      conversa_usd é avisado por docs/testes/auditoria-correcoes.test.mjs. Estreita, não resolve: quem tem vários IPv4
      segue de fora (Firewall da Vercel na criação da sessão e limite de gasto na Anthropic, com o dono) */
-  conversas_por_ip48_dia: 16
+  conversas_por_ip48_dia: 12
 };
 
 /* o mais caro da tabela, por item: um modelo fora da tabela (o servidor da Anthropic pode responder com outro)
@@ -75,10 +82,11 @@ const MAIS_CARO = Object.values(PRECO_POR_MILHAO).reduce((m, p) => ({
 /* o valor que se RESERVA no teto antes de cada chamada (app.vendas_reservar_custo). Realista, não o pior caso: com o
    pior caso (~US$ 0,56 por direção no Opus) a 3ª direção era recusada sempre que a conversa já tinha gastado mais de
    US$ 0,38 (revisões do PR 15). Base: o teto da estimativa de docs/fase2/00-AUDITORIA-E-ANALISE.md (3 direções no Opus
-   ~US$ 0,40 a 0,70 → até ~0,23 cada). Conversa e extração no Haiku 5.5: um turno com o sistema em cache fica na casa
-   de US$ 0,001 a 0,005; 0,01 cobre com folga. A MEDIR: com chamadas reais, trocar pelo p95 de app.ia_chamadas por
+   ~US$ 0,40 a 0,70 → até ~0,23 cada). Extração no Haiku 5.5: um turno com o sistema em cache fica na casa de US$ 0,001 a
+   0,005; 0,01 cobre com folga. Conversa no Sonnet 5.5 médio (Zero): uma rodada com o sistema em cache, o estado e o
+   raciocínio fica em ~US$ 0,02; 0,05 cobre com folga (o backlog do Zero pedia ~0,05). A MEDIR: com chamadas reais, trocar pelo p95 de app.ia_chamadas por
    papel. O que passar da reserva ainda é somado depois (o estouro fica pequeno) */
-export const RESERVA_USD = { conversa: 0.01, extracao: 0.01, atendente: 0.003, geracao: 0.25 };
+export const RESERVA_USD = { conversa: 0.05, extracao: 0.01, atendente: 0.003, geracao: 0.25 };
 export function reservaUsd(papel) {
   return RESERVA_USD[papel] ?? 0.25;
 }
