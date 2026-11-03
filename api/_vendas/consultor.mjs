@@ -44,12 +44,18 @@ const NAO_FAZ = [['area_restrita', 'área restrita com login'], ['sistema_sob_me
 const naoFazHoje = (regras, chave) => !!regras && !Object.hasOwn(regras.adicionais || {}, chave);
 const DIZ_QUE_NAO_FAZ = 'diga com honestidade, em uma frase, que a Beyon Zero não faz isso hoje, sem prometer conversa nem contato por causa disso';
 
+/* o formato maior (id interno sob_medida) pelo nome da tabela ATIVA, e se a tabela abate algo dele (incluso_em): o texto do prompt segue a tabela, não o contrário */
+const nomeDoGrande = regras => regras.formatos?.sob_medida?.nome ?? 'formato maior';
+const temIncluso = regras => Object.values(regras.adicionais || {}).some(a => a && typeof a.incluso_em === 'object' && a.incluso_em !== null);
+
 function blocoAdicionais(regras) {
   const todos = Object.values(regras.adicionais || {});
-  const automaticos = todos.filter(a => !a.fora_do_automatico).map(a => a.nome);
+  const automaticos = todos.filter(a => !a.fora_do_automatico && a.em_preparo !== true).map(a => a.nome);
   const fora = todos.filter(a => a.fora_do_automatico).map(a => a.nome);
+  /* em preparo (tabela v3, 2026-11-03): está na tabela, o consultor sabe dele, mas ainda não se vende nem se orça */
+  const emPreparo = todos.filter(a => a.em_preparo === true).map(a => a.nome);
   const naoFaz = NAO_FAZ.filter(([k]) => naoFazHoje(regras, k)).map(([, nome]) => nome);
-  return { automaticos, fora, naoFaz };
+  return { automaticos, fora, emPreparo, naoFaz };
 }
 
 /* loja e área restrita (tabela v2): só entram nas instruções se a tabela ativa as traz */
@@ -92,7 +98,7 @@ const URGENCIA_PADRAO = 30;   /* (a tabela oficial: x1,3; sem a regra na tabela,
 const pctUrgencia = regras => (regras.multiplicadores?.urgencia?.fator ? porcentoDe(regras.multiplicadores.urgencia.fator) : URGENCIA_PADRAO);
 
 function blocoTabela(regras, { direcoes, metodos }) {
-  const { automaticos, fora, naoFaz } = blocoAdicionais(regras);
+  const { automaticos, fora, emPreparo, naoFaz } = blocoAdicionais(regras);
   const mult = blocoMultiplicadores(regras);
   const prazo = blocoPrazo(regras);
   return `TABELA ATIVA (a Beyon só vende o que está aqui; o valor de cada coisa quem calcula é estimar, e você escreve com os marcadores)
@@ -103,11 +109,11 @@ O que a tabela lista como incluído é o escopo de cada formato. Domínio, hospe
 Como escolher o formato:
 - Landing page: um objetivo só (campanha, lançamento, anúncio), uma página em que cada bloco leva a uma ação.
 - Site institucional: apresentar a empresa, os serviços e por que confiar, em várias páginas, para quem chegou sem conhecer decidir procurar.
-- Experiência digital: quando o formato pronto não dá conta, com experiência visual própria, interações e animações, apresentações e interfaces fora do comum.${linhasV2(regras)}
+- ${nomeDoGrande(regras)}: o site completo e mais cuidado, para quem quer algo bonito e bem feito de ponta a ponta: direção visual própria${temIncluso(regras) ? ', e a lista dele (abaixo) já inclui textos, imagens, formulário com etapas, animações do site todo e interações de assinatura; o que passa disso soma pela tabela. Depois da entrega não há suporte contínuo (nunca prometa suporte pós-entrega nem manutenção; os ajustes da prévia antes da entrega são outra coisa) e ele é mais caro; quando fizer sentido, compare com o institucional mais as interações que ela quer' : ''}. Recomende quando o negócio vive de apresentação ou quando o formato pronto não dá conta, nunca como padrão para quem tem medo ou orçamento curto.${linhasV2(regras)}
 Se a pessoa não souber, recomende um formato com uma frase de motivo, a partir do objetivo dela.
 
-Adicionais que a tabela cobre (entram na estimativa quando a pessoa precisa): ${automaticos.join('; ')}.
-${mult.length ? lista(mult) + '\n' : ''}${fora.length ? 'Fora da estimativa automática (vão para uma conversa de diagnóstico): ' + fora.join('; ') + '.\n' : ''}${naoFaz.length ? 'A Beyon Zero não faz hoje: ' + naoFaz.join('; ') + '. Não ofereça. Se a pessoa pedir algo assim, ' + DIZ_QUE_NAO_FAZ + ' (não chame encaminhar_diagnostico por isso), e siga com o site sem esse item, se fizer sentido para ela.\n' : ''}Soluções com IA: o atendente de IA é um chat dentro do site do cliente, e ele ainda não está pronto: não prometa prazo nem valor, não fale em teste grátis e não cite preço. Automações para entidades também existem, mas não são orçadas aqui. Quem quiser saber mais deixa um recado.
+Adicionais que a tabela cobre (entram na estimativa quando a pessoa precisa; valem em qualquer formato, e os de loja só na loja): ${automaticos.join('; ')}. Ofereça os que combinam com o caso dela, uma vez e sem empurrar, e some só o que ela quiser.${temIncluso(regras) ? ` O que a lista do ${nomeDoGrande(regras)} já inclui não se soma: informe a quantidade TOTAL que ela quer (por exemplo, três interações de assinatura no total; os textos, tantos quantas forem as páginas) e o sistema desconta o que já vem; não ofereça ao ${nomeDoGrande(regras)} o que ele já traz.` : ''}
+${mult.length ? lista(mult) + '\n' : ''}${emPreparo.length ? 'Em preparo, ainda sem preço nem contratação: ' + emPreparo.join('; ') + '. A pessoa pode ter interesse (registre com sugerir_solucao_ia); você não orça, não promete prazo nem valor, e não chama estimar com eles. Mensalidade, quando existir, é cobrança recorrente à parte do pagamento único.\n' : ''}${fora.length ? 'Fora da estimativa automática (vão para uma conversa de diagnóstico): ' + fora.join('; ') + '.\n' : ''}${naoFaz.length ? 'A Beyon Zero não faz hoje: ' + naoFaz.join('; ') + '. Não ofereça. Se a pessoa pedir algo assim, ' + DIZ_QUE_NAO_FAZ + ' (não chame encaminhar_diagnostico por isso), e siga com o site sem esse item, se fizer sentido para ela.\n' : ''}Soluções com IA: o atendente de IA é um chat dentro do site do cliente, e ele ainda não está pronto: não prometa prazo nem valor, não fale em teste grátis e não cite preço. Automações para entidades também existem, mas não são orçadas aqui. Quem quiser saber mais deixa um recado.
 
 Prazo: quem calcula é estimar, pelo tamanho do trabalho, em dias úteis depois do sinal pago e do material recebido. Cada formato sozinho, sem adicionais: ${prazo.formatos}. Cada adicional soma dias: trabalho maior tem prazo maior, numa entrega só.${prazo.fase} Antes da estimativa, fale só dos dias do formato sozinho; depois dela, diga o prazo que estimar devolveu. Não prometa outro.
 
@@ -229,7 +235,7 @@ export function ferramentas(regras, { etapa, pedidoStatus } = {}) {
 
 function todasAsFerramentas(regras) {
   const adicionais = {};
-  for (const [k, v] of Object.entries(regras.adicionais || {})) adicionais[k] = { type: 'integer', description: v.nome + (v.fora_do_automatico ? ' (fora do automático: leva ao diagnóstico)' : '') };
+  for (const [k, v] of Object.entries(regras.adicionais || {})) if (v.em_preparo !== true) adicionais[k] = { type: 'integer', description: v.nome + (v.fora_do_automatico ? ' (fora do automático: leva ao diagnóstico)' : '') };
   const fora = Object.values(regras.adicionais || {}).filter(a => a.fora_do_automatico).map(a => a.nome);
   const naoFaz = NAO_FAZ.filter(([k]) => naoFazHoje(regras, k)).map(([, nome]) => nome);
   return [
@@ -237,7 +243,7 @@ function todasAsFerramentas(regras) {
       description: 'Registra no briefing o que a pessoa acabou de contar. Chame em TODO turno que trouxer informação nova ou corrigida sobre o negócio ou o projeto, antes de responder; não chame quando não houver nada novo. Envie só os campos novos ou corrigidos, com as palavras da pessoa resumidas. ' + OBJETIVOS_DESC + ' conteudo: tem / parcial / nao para textos, imagens, vídeos, depoimentos e cases. Registre o ramo logo que souber, porque saúde e regulados mudam o que você pode prometer; nesses negócios nunca registre depoimentos nem antes e depois. Nunca registre nome da pessoa, telefone, e-mail ou documento.',
       input_schema: ESQUEMA_ATUALIZACAO },
     { name: 'estimar',
-      description: 'Calcula a estimativa pela tabela da Beyon Zero. Chame assim que o ESTADO indicar que dá para estimar (negócio, objetivo e formato conhecidos) e de novo quando o escopo mudar (páginas, adicionais, urgência), até o envio dos detalhes do pedido: depois dela o pacote está fechado e esta ferramenta sai da lista. Devolve prazo, fase e itens; o valor você escreve com os marcadores [[total]], [[sinal]] e [[restante]], que o sistema troca pelo número exato do cartão. Nunca digite um valor em reais por conta própria. paginas: o total que a pessoa quer; se ela não disse, omita (vale o que o formato inclui). adicionais: só os que a pessoa pediu ou que o briefing deixa claro, com a quantidade. urgencia: só se ela pediu antes do prazo padrão. complexidade "alta": só para animações, 3D ou interações fora do padrão. Se pedir algo fora do automático, a ferramenta encaminha para o diagnóstico.',
+      description: 'Calcula a estimativa pela tabela da Beyon Zero. Chame assim que o ESTADO indicar que dá para estimar (negócio, objetivo e formato conhecidos) e de novo quando o escopo mudar (páginas, adicionais, urgência), até o envio dos detalhes do pedido: depois dela o pacote está fechado e esta ferramenta sai da lista. Devolve prazo, fase e itens; o valor você escreve com os marcadores [[total]], [[sinal]] e [[restante]], que o sistema troca pelo número exato do cartão. Nunca digite um valor em reais por conta própria. paginas: o total que a pessoa quer; se ela não disse, omita (vale o que o formato inclui). adicionais: só os que a pessoa pediu ou que o briefing deixa claro, com a quantidade' + (temIncluso(regras) ? ' TOTAL que ela quer (o sistema desconta o que o formato já inclui)' : '') + '. urgencia: só se ela pediu antes do prazo padrão. complexidade "alta": só para ' + String(regras.multiplicadores?.complexidade_alta?.descricao ?? 'animações, 3D ou interações fora do padrão').toLowerCase() + (regras.adicionais?.interacao_leve || regras.adicionais?.interacao_assinatura ? '; animações e interações são adicionais, nunca complexidade' : '') + '. Se pedir algo fora do automático, a ferramenta encaminha para o diagnóstico.',
       input_schema: { type: 'object', additionalProperties: false, required: ['formato'], properties: {
         formato: { type: 'string', enum: Object.keys(regras.formatos || {}) },
         paginas: { type: 'integer', description: 'número total de páginas' },

@@ -53,7 +53,10 @@ function todosOsExtras() {
 
 test('texto de tela: nenhum nome nem frase (extras e formatos) diz "sob medida" ou "briefing"', () => {
   const { extras, formatos } = todosOsExtras();
-  assert.equal(extras.length, Object.keys(REGRAS.adicionais).length, 'todos os extras foram conferidos');
+  /* (os em preparo, como o atendente de IA da v3, não aparecem na tela: a pessoa ainda não pode contratar) */
+  assert.equal(extras.length, Object.values(REGRAS.adicionais).filter(a => a.em_preparo !== true).length, 'todos os extras foram conferidos');
+  assert.ok(!extras.some(e => /^atendente_ia_/.test(e.chave)), 'o atendente em preparo não aparece no catálogo público');
+  assert.deepEqual(extras.filter(e => /^interacao_/.test(e.chave)).map(e => e.chave).sort(), ['interacao_assinatura', 'interacao_leve'], 'as interações aparecem em todo formato');
   for (const item of [...extras, ...formatos]) {
     assert.ok(!/sob medida|briefing/i.test(item.nome), `nome de ${item.chave}: ${item.nome}`);
     if ('frase' in item) assert.ok(!/sob medida|briefing/i.test(item.frase), `frase de ${item.chave}`);
