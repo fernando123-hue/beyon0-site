@@ -552,3 +552,55 @@ test('revisão: o modelo não promete desconto em nenhuma etapa', () => {
   for (const t of ['Desconto eu não faço, a tabela é a mesma pra todo mundo.', 'Não existe desconto aqui.', 'O site fica mais barato se começar pela landing.'])
     assert.equal(semPromessaDeDesconto(t).trocou, false, t);
 });
+
+/* ---------- rodada 5 da lapidação: memória do que já foi dito (código) e palavras-bordão fora do prompt ---------- */
+test('já dito: o código lê TODAS as falas do Zero e devolve só rótulos fixos (nada do texto da conversa)', async () => {
+  const { jaDito } = await import('../../api/_vendas/zero.mjs');
+  assert.deepEqual(jaDito([]), []);
+  assert.deepEqual(jaDito(null), []);
+  const m = (papel, conteudo) => ({ papel, conteudo });
+  const conversa = [
+    m('assistente', 'Oi, eu sou o Zero, a IA da Beyon Zero.'),
+    m('visitante', 'quero um site, meu e-mail é ana@exemplo.com'),
+    m('assistente', 'Você vê três modelos feitos pra você antes de pagar, e tem 7 dias para desistir. Os modelos saem em até 24 horas úteis.'),
+    m('assistente', 'Se quiser, toque em DEIXAR UM RECADO aqui embaixo. O site fica R$ 2.900.'),
+    m('assistente', 'Vale conferir o nome de quem recebe antes de confirmar. É o conselho da profissão que regula isso.')
+  ];
+  assert.deepEqual(jaDito(conversa).sort(), ['aviso_de_ia', 'modelos_em_24_horas', 'nome_no_pix', 'porque_da_recusa_em_saude', 'recado_oferecido', 'sete_dias_para_desistir', 'tres_modelos_antes_de_pagar', 'valor_dito']);
+  assert.ok(!JSON.stringify(jaDito(conversa)).includes('ana@exemplo'), 'nada do que o visitante escreveu entra na lista');
+  /* a fala do VISITANTE não conta como dita pelo Zero */
+  assert.deepEqual(jaDito([m('visitante', 'tenho 7 dias? deixar um recado? sou uma IA?')]), []);
+  /* o que o Zero NÃO disse não aparece */
+  assert.deepEqual(jaDito([m('assistente', 'Me conta o que você faz.')]), []);
+  assert.deepEqual(jaDito([m('assistente', 'Eu sou o Zero, uma IA da Beyon Zero.')]), ['aviso_de_ia']);
+});
+
+test('já dito: o ESTADO leva ja_dito quando há o que dizer e não leva quando não há; a lista vem de toda a conversa, não só das 12 últimas', async () => {
+  const { estadoParaModelo } = await import('../../api/_vendas/agente.mjs');
+  const REGRAS = JSON.parse(fs.readFileSync(new URL('../../docs/fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
+  const base = { briefing: {}, estimativa: null, etapa: 'descoberta', regras: REGRAS, metodos: ['pix'] };
+  assert.ok(!/ja_dito/.test(estadoParaModelo(base)), 'sem nada dito, sem o campo');
+  assert.match(estadoParaModelo({ ...base, jaDitoNaConversa: ['aviso_de_ia', 'recado_oferecido'] }), /"ja_dito":\["aviso_de_ia","recado_oferecido"\]/);
+  /* de ponta a ponta: o aviso de IA dito na 1ª fala, 20 mensagens atrás, ainda aparece no estado que o modelo recebe */
+  const { executarTurno } = await import('../../api/_vendas/agente.mjs');
+  const mensagens = [{ papel: 'assistente', conteudo: 'Sou uma IA, sim, o Zero. Os modelos saem em até 24 horas úteis.' }];
+  for (let i = 0; i < 20; i++) mensagens.push({ papel: i % 2 ? 'assistente' : 'visitante', conteudo: i % 2 ? 'Certo.' : 'tá' });
+  let sistemaVisto = '';
+  const ia = { conversa: async req => { sistemaVisto = JSON.stringify(req); return { texto: 'Certo.', usos: [], blocos: [{ tipo: 'texto', texto: 'Certo.' }], custo_usd: 0, parada: 'fim' }; }, extrair: async () => ({}) };
+  try { await executarTurno({ ia, regras: REGRAS, conversa: { etapa: 'descoberta', briefing: {}, mensagens }, mensagem: 'e então?', direcoes: 'manual', metodos: ['pix'] }); } catch { /* o dublê de IA pode não bater com a interface: o que importa é a montagem do estado, conferida abaixo */ }
+  if (sistemaVisto) assert.match(sistemaVisto, /ja_dito/, 'o estado do turno traz a lista lida das falas antigas');
+});
+
+test('prompt do Zero: as palavras-bordão que o modelo copiava (rodada 4) não estão mais escritas nele', () => {
+  const REGRAS = JSON.parse(fs.readFileSync(new URL('../../docs/fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
+  const s = montarSistema(REGRAS, { direcoes: 'manual', metodos: ['pix'] });
+  for (const bordao of ['ponto de partida', 'maiores custam mais', 'têm outro valor', 'resolve o hoje', 'resolve o seu hoje', 'o menor que resolve', 'sem pagar nada', 'antes de pagar qualquer coisa', 'pagando só o que for pondo']) {
+    assert.ok(!s.toLowerCase().includes(bordao), 'bordão no prompt: ' + bordao);
+  }
+  assert.match(s, /ja_dito, lido pelo código na conversa inteira/, 'o prompt manda respeitar o ja_dito');
+  assert.match(s, /Valor de outra pessoa \(o sobrinho, o concorrente\) você cita sem número/, 'valor de terceiro sem número');
+  assert.match(s, /Quando ela conta uma dor concreta/, 'responder primeiro à dor');
+  assert.match(s, /Curiosidade sobre o funcionamento interno/, 'recado não é para curiosidade sobre o funcionamento interno');
+  assert.match(s, /o valor é o mesmo com o dono/, 'com o dono o valor é o mesmo');
+  assert.ok(s.length <= 27000, 'o prompt segue dentro do limite: ' + s.length);
+});

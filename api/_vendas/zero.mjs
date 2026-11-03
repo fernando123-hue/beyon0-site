@@ -302,3 +302,25 @@ export function semPromessaDeDesconto(texto) {
   const ruim = frasesDe(original).map(f => paraBusca(f)).some(f => { const m = DESCONTO.exec(f); return m && !negado(f, m) && !/\bnao (?:existe|tem|ha) desconto\b/.test(f); });
   return ruim ? { texto: DESCONTO_FIXO, trocou: true } : { texto: original, trocou: false };
 }
+
+/* ---------- o que o Zero JÁ DISSE nesta conversa (memória do código, rodada 4 da lapidação) ----------
+   O modelo só vê as últimas 12 mensagens; numa conversa longa ele esquece que já falou do aviso de IA, dos três modelos, dos 7 dias
+   ou do botão do recado e repete, e as regras de "não repita" no prompt não pegaram. O código lê TODAS as falas do Zero guardadas
+   e devolve uma lista de rótulos nossos para o ESTADO ("ja_dito"); o prompt diz que o que está lá só volta se a pessoa perguntar.
+   Só rótulos fixos saem daqui: nada do texto da conversa chega ao ESTADO. Detecção por frase normalizada, como as outras travas. */
+const JA_DITO = Object.freeze([
+  ['aviso_de_ia', /\bsou\b[^.!?]{0,30}\b(?:ia|inteligencia artificial|robo|assistente virtual)\b|\ba ia da beyon\b/],
+  ['recado_oferecido', /\bdeix(?:ar|e|o) (?:um |o )?recado\b/],
+  ['tres_modelos_antes_de_pagar', /\btres modelos\b|\bmodelos feitos\b|\bver os modelos\b/],
+  ['sete_dias_para_desistir', /\b(?:7|sete) dias\b/],
+  ['nome_no_pix', /\bnome de quem recebe\b|\bnome do recebedor\b|\bconferir o nome\b/],
+  ['modelos_em_24_horas', /\b24 horas\b/],
+  ['progresso_salvo', /\bvoltar a esta pagina\b|\bprogresso (?:fica )?salvo\b/],
+  ['porque_da_recusa_em_saude', /\bconselho\b|\bregras de propaganda\b/],
+  ['valor_dito', /\br\$ ?\d/]
+]);
+export function jaDito(mensagens) {
+  if (!Array.isArray(mensagens)) return [];
+  const falas = mensagens.filter(m => m && m.papel !== 'visitante').map(m => normalizar(String(m.conteudo ?? '')));
+  return JA_DITO.filter(([, r]) => falas.some(f => r.test(f))).map(([rotulo]) => rotulo);
+}
