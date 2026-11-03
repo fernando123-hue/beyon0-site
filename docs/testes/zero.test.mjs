@@ -182,11 +182,12 @@ test('regulados: a recusa certa do modelo passa; fora de nicho regulado nada mud
   assert.equal(desvio.trocou, true);
 });
 
-test('regulados: insistência mantém em uma frase e oferece o recado', () => {
+/* (03/11: a simulação mostrou que oferecer o recado na insistência dava a entender que o dono libera o proibido: a posição fica numa frase, sem recado) */
+test('regulados: insistência mantém em uma frase, sem oferecer recado', () => {
   const n = nichoRegulado('sou dentista');
   const r = garantirRegulado('Pode incluir.', { nicho: n, pediuAgora: true, insistencia: true });
   assert.equal(r.trocou, true);
-  assert.match(r.texto, /DEIXAR UM RECADO/);
+  assert.doesNotMatch(r.texto, /RECADO/, 'o dono não libera o proibido: nada de recado aqui');
   assert.equal(r.texto.split(/[.?!]\s/).length <= 4, true, 'curta');
   assert.doesNotMatch(r.texto, /^Entendo a vontade/, 'não repete o parágrafo inteiro');
 });
@@ -238,12 +239,12 @@ test('turno: o nicho vale a sessão inteira (briefing e histórico), mesmo que a
   assert.match(r2.resposta, /CRN/);
 });
 
-test('turno: pediu de novo depois da recusa: uma frase e o recado, com o botão', async () => {
+test('turno: pediu de novo depois da recusa: uma frase, sem recado e sem botão', async () => {
   const mensagens = [{ papel: 'visitante', conteudo: 'sou dentista, quero depoimento de paciente' }, { papel: 'consultor', conteudo: respostaRegulado(nichoRegulado('dentista')) }];
   const ia = roteiro(fim('Pode incluir sim.'));
   const r = await executarTurno({ ia, regras: REGRAS, conversa: nova({ mensagens }), mensagem: 'mas eu quero mesmo o depoimento de paciente' });
-  assert.match(r.resposta, /DEIXAR UM RECADO/);
-  assert.ok(r.diagnostico, 'insistência: o botão aparece');
+  assert.doesNotMatch(r.resposta, /RECADO/);
+  assert.ok(!r.diagnostico, 'insistência em saúde: o botão não aparece (o dono não libera isso)');
 });
 
 test('turno: veterinária e estética automotiva NÃO travam (o prompt manda perguntar antes)', async () => {
@@ -412,7 +413,7 @@ test('prompt: abre como o Zero, diz que é IA, e traz os marcadores e as regras 
   const s = montarSistema(REGRAS, { direcoes: 'manual', metodos: ['pix'] });
   assert.ok(s.startsWith('VOCÊ É O ZERO'), 'abre com o nome');
   assert.ok(s.startsWith(IDENTIDADE));
-  for (const trecho of ['Sou uma IA, sim, o Zero, da Beyon Zero.', '[[total]]', '[[sinal]]', '[[restante]]', 'DEIXAR UM RECADO', 'encaminhar_diagnostico', 'contato.beyon.zero@gmail.com', 'CRO, CRM, CRP, CRN, CREFITO, OAB', 'Nunca diga "nossa equipe"', 'COMO VOCÊ SOA', 'EXEMPLOS DO QUE NÃO FAZER'])
+  for (const trecho of ['Você é uma IA e diz isso quando perguntarem', '[[total]]', '[[sinal]]', '[[restante]]', 'DEIXAR UM RECADO', 'encaminhar_diagnostico', 'contato.beyon.zero@gmail.com', 'CRO, CRM, CRP, CRN, CREFITO, OAB', 'Nunca diga "nossa equipe"', 'COMO VOCÊ SOA', 'EXEMPLOS DO QUE NÃO FAZER'])
     assert.ok(s.includes(trecho), 'falta no prompt: ' + trecho);
   assert.ok(!s.includes('{{TABELA_ATIVA}}'), 'o bloco da tabela é montado por código');
   assert.ok(!s.includes('—'), 'sem travessão (o modelo imita)');
@@ -502,7 +503,7 @@ test('tela: a página de orçamento mostra o Zero como IA (etiqueta e primeira f
 
 test('prompt: fatos decididos pelo dono em 01/11 (domínio, hospedagem, nota) e a negociação sem desconto', () => {
   const s = montarSistema(REGRAS, { direcoes: 'manual', metodos: ['pix'] });
-  for (const trecho of ['fica no nome do cliente', 'hospedado de graça na Cloudflare', 'Nota fiscal: ainda não há', 'negocie sem baixar o valor', 'pagando só o que for pondo'])
+  for (const trecho of ['fica no nome do cliente', 'hospedado de graça na Cloudflare', 'Nota fiscal: ainda não há', 'negocie sem baixar o valor', 'o resto entra depois, item a item, pela tabela'])
     assert.ok(s.includes(trecho), 'falta no prompt: ' + trecho);
   assert.doesNotMatch(s, /mensalidade, hospedagem e de quem é/, 'mensalidade e hospedagem saíram da lista do que não se confirma');
   assert.doesNotMatch(s, /R\$ ?(800|1\.900)/, 'a oferta de lançamento não entra no texto do Zero');
