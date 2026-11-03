@@ -61,6 +61,7 @@ test('fluxo normal: visitante → conversa → estimativa → contato → 3 dire
   let e = (await n.chamar('GET', 'estado', undefined, { query: '&conversa=' + c })).corpo;
   assert.equal(e.conversa.etapa, 'direcoes');
   assert.equal(e.conversa.custo_ia_usd, undefined, 'custo é métrica interna');
+  assert.ok(e.painel && e.painel.anotamos.length >= 1 && e.painel.ficha.some(f => f.rotulo === 'Segmento'), 'o estado traz o painel da conversa, derivado do briefing');
   const segunda = e.direcoes.find(d => d.numero === 2);
   assert.equal((await n.chamar('POST', 'escolher', { conversa_id: c, direcao_id: segunda.id })).status, 200);
   const cores = await n.chamar('POST', 'ajustar', { conversa_id: c, opcao: { operacao: 'usar_paleta_de', direcao: 1 } });
@@ -94,6 +95,8 @@ test('fluxo incompleto: quem abandona e volta encontra a conversa onde parou (to
   assert.equal(e.mensagens.length, 2);
   assert.equal(e.estimativa.valor_total, 2900);
   assert.equal(e.conversa.briefing.negocio.segmento, 'advocacia');
+  assert.deepEqual(e.painel.ficha.find(f => f.rotulo === 'Segmento'), { rotulo: 'Segmento', valor: 'advocacia' }, 'o painel mostra o que foi anotado, e só isso');
+  assert.deepEqual(Object.keys(e.painel).sort(), ['anotamos', 'caso', 'ficha'].filter(k => k in e.painel), 'o painel só tem chaves do esquema fechado');
   const funil = (await local.db.query('select tipo from app.eventos_funil where conversa_id = $1', [s.conversa_id])).rows.map(x => x.tipo);
   assert.ok(funil.includes('estimativa_mostrada') && !funil.includes('contato_informado'), 'parou depois da estimativa');
   assert.equal((await n.chamar('POST', 'renovar', { refresh: s.refresh })).status, 401, 'refresh usado não vale de novo');
