@@ -314,9 +314,9 @@ test('vendedor: o prompt traz a persona, as objeções e o que nunca dizer', () 
   for (const trecho of ['vizinho que entende de site', 'É caro:', 'Vou pensar:', 'Sócio, esposa, contador', 'Eu mesmo faço no Wix', 'É golpe?', 'Já tenho Instagram', 'portfólio', 'Sem urgência ou escassez inventada', 'recomende UM formato', 'Ainda não há casos publicados', 'nada de "na minha experiência" ou "já atendi"'])
     assert.ok(s.includes(trecho), 'falta no prompt: ' + trecho);
   /* decisões de 28 a 30/10: o atendente é um chat dentro do site, sem teste grátis, sem preço nas páginas e ainda não está pronto */
-  assert.ok(s.includes('o atendente de IA é um chat dentro do site do cliente') && s.includes('ainda não está pronto: não prometa prazo nem valor'), 'o atendente existe e não promete');
+  assert.ok(s.includes('o atendente de IA é um chat dentro do site do cliente') && s.includes('ainda não está pronto: sem prazo, valor, preço nem teste grátis'), 'o atendente existe e não promete');
   assert.doesNotMatch(s, /teste grátis de 10 dias|atendente de IA no WhatsApp/, 'sem teste grátis nem WhatsApp no atendente');
-  assert.match(s, /não fale em teste grátis/);
+  assert.match(s, /sem prazo, valor, preço nem teste grátis/);
   assert.match(s, /Todo o resto você não confirma: de quem fica o código \(só que os arquivos são entregues se o cliente pedir\), contrato, CNPJ, garantia, qualquer preço do atendente de IA/, 'o que o Zero não confirma (31/10)');
 });
 
@@ -496,7 +496,7 @@ test('área que não se faz hoje sem formato: avisa e segue a descoberta; a loja
 /* TABELA v3 (dono, 2026-11-03): o Zero lê a lista da tabela ATIVA (dados), sem valores no prompt */
 test('v3: o prompt conhece o Beyond, os adicionais em qualquer formato e o atendente em preparo, sem nenhum valor', () => {
   const s = montarSistema(REGRAS, { direcoes: 'manual', metodos: ['pix'] });
-  assert.match(s, /- Beyond:[^\n]*não há suporte contínuo \(nunca prometa suporte pós-entrega nem manutenção; os ajustes da prévia antes da entrega são outra coisa\)/, 'o Beyond e o que ele não tem');
+  assert.match(s, /- Beyond:[^\n]*não há suporte contínuo \(nunca prometa suporte pós-entrega nem manutenção; os ajustes da prévia são outra coisa\)/, 'o Beyond e o que ele não tem');
   assert.match(s, /valem em qualquer formato, e os de loja só na loja/, 'os adicionais valem em qualquer formato');
   assert.match(s, /O que a lista do Beyond já inclui não se soma: informe a quantidade TOTAL/, 'o incluso do Beyond não se cobra duas vezes: o Zero informa o total e o motor desconta');
   assert.match(s, /não ofereça ao Beyond o que ele já traz/, 'não oferece o que já vem incluso');
