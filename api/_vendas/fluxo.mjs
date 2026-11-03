@@ -22,6 +22,7 @@ import { criarFreio, ipDe } from '../_freio.mjs';
 import { chaveDoIp, chaveDoIp48 } from './ip.mjs';
 import { AuthIndisponivel } from '../_supabase.mjs';
 import { ETAPAS_SO_DUVIDAS, precoAberto } from './consultor.mjs';
+import { montarPainel } from './painel.mjs';
 import { classificar } from '../_classificador/index.mjs';
 import { catalogoPublico, respostasParaBriefing, nomeDeTela, landingMaxExtras } from './catalogo.mjs';
 import { limparAtualizacao } from './briefing.mjs';
@@ -349,7 +350,8 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       /* (PR 2a) a tela oferece o recado ANTES dos detalhes quando a fila do dono está cheia; o número em si é interno */
       /* (PR 3b-2, M5) a entrega só aparece com o interruptor ligado; desligado, a tela mostra a saída pelo recado */
       if (!entregaLigada(env)) delete e.entrega;
-      return { ...e, fila_cheia: Number(naFila) >= limitesPedido.fila_confirmados, modo_direcoes: modo, entrega_ligada: entregaLigada(env) };   /* (a tela troca "alguns minutos" por "até 24 horas úteis") */
+      /* (peças da conversa, fatia 1) o painel é derivado do briefing, em esquema fechado, a cada leitura: nada novo no banco */
+      return { ...e, painel: montarPainel(e.conversa?.briefing), fila_cheia: Number(naFila) >= limitesPedido.fila_confirmados, modo_direcoes: modo, entrega_ligada: entregaLigada(env) };   /* (a tela troca "alguns minutos" por "até 24 horas úteis") */
     },
 
     /* o catálogo público da tabela ativa (o "Quer ajustar?"): só com a sessão e a conversa deste visitante, antes do contato */

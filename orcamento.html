@@ -36,6 +36,7 @@
   <link rel="stylesheet" href="css/base.css" />
   <link rel="stylesheet" href="css/orcamento.css" />
   <link rel="stylesheet" href="css/orcamento-entrega.css" />
+  <link rel="stylesheet" href="css/orcamento-painel.css" />
   <link rel="stylesheet" href="css/orcamento-previa.css" />
   <link rel="stylesheet" href="css/previa.css" />
   <link rel="stylesheet" href="css/passagem.css" />
@@ -192,6 +193,7 @@
 
       <!-- O INVESTIMENTO (do motor de preço; o modelo nunca escreve estes números) -->
       <aside class="orc-painel" data-origem="orcamento-painel" aria-labelledby="o-est-titulo">
+        <div class="orc-peca" id="o-peca" role="region" aria-label="O que o Zero já entendeu do seu caso" hidden></div>
         <h2 id="o-est-titulo" class="orc-rotulo">Investimento estimado</h2>
         <div class="orc-est" id="o-est">
           <p class="orc-est__vazio" id="o-est-vazio">O preço aparece aqui assim que você responder as perguntas. Ele vem da tabela da Beyon Zero.</p>
@@ -697,6 +699,7 @@
   <script src="js/orcamento-pagamento.js" defer></script>
   <script src="js/orcamento-recibo.js" defer></script>
   <script src="js/orcamento-perguntas.js" defer></script>
+  <script src="js/orcamento-painel.js" defer></script>
   <script src="js/orcamento-detalhes.js" defer></script>
   <script src="js/orcamento-espera.js" defer></script>
   <script src="js/orcamento-retomada.js" defer></script>

@@ -170,6 +170,16 @@ try {
     await page.press('#o-texto', 'Enter');
     await page.waitForFunction(n => document.querySelectorAll('#o-log .msg--agente').length > n, respostas, { timeout: 30000 });
     ok(await page.locator('#o-log img').count() === 0, 'texto com HTML vira texto (nenhuma <img> criada)');
+    /* as peças da conversa (fatia 1): o que o Zero anotou aparece ao lado da conversa, sem HTML e sem rolagem lateral */
+    await page.waitForSelector('#o-peca:not([hidden]) .orc-peca__item', { timeout: 15000 });
+    ok(await page.locator('#o-peca .orc-peca__item').count() >= 1, 'peças: depois do 1º turno a lista "O que já anotamos" aparece');
+    ok(await page.locator('#o-peca img, #o-peca script').count() === 0 && !/[<>]/.test(await page.textContent('#o-peca')), 'peças: o HTML digitado não vira elemento nem volta com sinais de marcação');
+    ok(await semRolagemLateral(page), 'celular com as peças: sem rolagem lateral');
+    await page.locator('#o-peca').scrollIntoViewIfNeeded();
+    await foto(page, '1c-pecas-cel');
+    await page.setViewportSize({ width: 320, height: 700 });
+    ok(await semRolagemLateral(page), '320 px com as peças: sem rolagem lateral');
+    await page.setViewportSize({ width: 390, height: 844 });
     const antes = await page.locator('#o-log .msg--visitante').count();
     await page.fill('#o-texto', 'Sim, quero ver os modelos');
     await page.press('#o-texto', 'Enter');
