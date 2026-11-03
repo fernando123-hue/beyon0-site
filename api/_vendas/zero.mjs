@@ -167,7 +167,7 @@ const PROIBIDO_NA_RESPOSTA = [...PEDIDOS_PROIBIDOS];
 const citaProibido = f => PROIBIDO_NA_RESPOSTA.some(r => r.test(f));
 
 export function respostaRegulado(nicho, { insistencia = false } = {}) {
-  if (insistencia) return `Entendo, mas isso a Beyon não faz em site de ${nicho.site}, e a posição é a mesma. Se quiser falar disso com o dono, toque em DEIXAR UM RECADO aqui embaixo. Ele lê e responde por e-mail.`;
+  if (insistencia) return `Isso a Beyon não faz em site de ${nicho.site}, e isso não muda. O que cabe, a gente faz.`;
   return `Entendo a vontade. Só que em site de ${nicho.site} a Beyon não coloca depoimento, antes e depois nem preço ou promoção de ${nicho.procedimento}, e vale conferir também com ${nicho.conselhoTexto}. O que cabe bem: ${nicho.cabe}. Seguimos assim?`;
 }
 export function garantirRegulado(texto, { nicho, pediuAgora = false, insistencia = false } = {}) {

@@ -167,7 +167,6 @@ export async function executarTurno({ ia, regras, conversa, mensagem, direcoes, 
   const insistencia = pediuAgora && insistiu(conversa.mensagens);
   const regulado = garantirRegulado(resposta, { nicho: nichoFinal, pediuAgora, insistencia });
   resposta = regulado.texto;
-  if (regulado.trocou && insistencia && !diagnostico) diagnostico = 'saude_insistencia';
   if (nichoFinal) briefing = briefingSemProibidos(briefing);
   const valores = comMarcadores(resposta, estimativa || conversa.estimativa);
   resposta = valores.texto;
