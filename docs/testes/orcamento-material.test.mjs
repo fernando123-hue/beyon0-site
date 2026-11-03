@@ -128,6 +128,14 @@ test('rodada 2 (Task 19): as miniaturas são decodificadas UMA POR VEZ (o Safari
   assert.ok(/async function fazerMiniatura/.test(js) && /miniaturaDe\(/.test(js));
 });
 
+test('miniatura: a imagem vai para a linha DE AGORA, não para a <img> capturada (a linha é refeita quando o arquivo muda de estado, e a antiga fica solta; era a miniatura vazia do E2E no CI)', () => {
+  const js = semComentario(FONTE);
+  const corpo = js.slice(js.indexOf('async function miniaturaDe'), js.indexOf('function criarLinha'));
+  assert.ok(/linha\s*=\s*linhas\[it\.id\]/.test(corpo) && /linha\.img\.src\s*=/.test(corpo), 'miniaturaDe lê a linha atual no momento de gravar');
+  assert.ok(!/\bimg\.src\s*=/.test(corpo.replace(/linha\.img\.src/g, '')) && !/miniaturaDe\(it,\s*img\)/.test(js), 'nada de gravar numa <img> capturada antes');
+  assert.ok(/return \{[^}]*img: img[^}]*\}/.test(js.slice(js.indexOf('function criarLinha'), js.indexOf('function desenharArquivos'))), 'a linha guarda a sua <img>');
+});
+
 test('Task 19 (tela): a caixa de marcar fica em linha com o texto e 44 px (o CSS de .orc-mat__campo label não a vira bloco); a cidade vem do pedido; tamanho pequeno em KB', () => {
   const css = ler('css/orcamento-entrega.css');
   assert.match(css, /\.orc-mat__campo \.orc-mat__caixa[^{]*\{[^}]*display:\s*flex/);
