@@ -110,7 +110,7 @@ refresh); âncoras usam só `scroll-padding-top`.
    rAF só, via `B.add` (hoje só o medidor de fps).
 2. **Zero invenção de dado.** Nada de "+300 projetos" ou "98% de satisfação".
    Se o número não foi medido ou confirmado pelo dono, ele não existe.
-3. **A marca é Beyon Zero.** Não `beyon.0`, não `MYKER`. `Beyond` é só o nome do formato de site completo (o antigo "experiência digital"; dono, 2026-11-03), nunca a marca da empresa nem escrito `Beyon`: o risco de confusão com "Beyon" e a checagem no INPI estão com o dono antes de o nome aparecer em páginas públicas.
+3. **A marca é Beyon Zero.** Não `beyon.0`, não `MYKER`. `Cume` é só o nome do formato de site completo (o antigo "experiência digital"), nunca a marca da empresa. Ele substituiu `Beyond` em 2026-11-03 (dono: "se o nome for um problema, troque por outro forte"): na busca do INPI, BEYOND tem registro em vigor nas classes 35 e 42 (Beyond Domotics Eletrônicos, Egon Zehnder) e os pedidos de terceiros nessas classes foram indeferidos; CUME não tinha processo vivo nas classes 35, 42, 41, 9 e 38, e "Beyon Zero" não tinha resultado. A busca não é parecer jurídico: antes de depositar a marca, um agente de propriedade industrial confere.
 4. **O movimento é acréscimo, nunca substituição.** Tudo aparece inteiro
    sem JS, sem GSAP e em `prefers-reduced-motion` (loops de CSS desligados). O contrato `html.js`/`has-gsap` tem rede de
    segurança em `js/pagina.js`; `npm run acessibilidade` confere.
