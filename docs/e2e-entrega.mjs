@@ -129,6 +129,8 @@ export async function passoDaEntrega(page, { ok, espera, foto, semRolagemLateral
   ok((await page.textContent('#o-arq-contador')).trim() === '20 de 20', 'material: "20 de 20" fotos');
   await page.evaluate(() => document.getElementById('o-arq-fotos').scrollIntoView({ block: 'start', behavior: 'instant' }));
   await foto(page, '5a0-fotos20-cel');
+  /* a decodificação das miniaturas é assíncrona: medir no instante em que a última foto entrou dava naturalWidth 0 numa delas (falhou duas vezes no CI, sem relação com o conteúdo) */
+  await espera(page, () => { const l = [...document.querySelectorAll('#o-arq-fotos .orc-arq__mini img')]; return l.length === 20 && l.every(i => i.complete && i.naturalWidth > 0); }, 15000);
   const minis = await page.$$eval('#o-arq-fotos .orc-arq__mini img', l => l.map(i => ({ w: i.naturalWidth, src: i.src })));
   ok(minis.length === 20 && minis.every(m => m.w > 0 && m.w <= 96), 'material: 20 miniaturas decodificadas já pequenas (no máximo 96 px de lado), não a foto inteira (' + minis.map(m => m.w).join(',') + ')');
   /* (o tamanho do blob não se lê aqui: a CSP não deixa a página fazer fetch de blob:, o que é o certo) */
