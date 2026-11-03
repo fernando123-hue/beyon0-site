@@ -249,7 +249,7 @@ test('conteúdo (revisão de fidelidade): nada de promessa jurídica sem o advog
   assert.match(s, /valor final é o do escopo que a pessoa confirma/i, 'a ressalva do site: o valor muda se o escopo mudar antes');
   assert.ok(!s.includes('—'), 'sem travessão (o modelo imita)');
   assert.match(s, /1 página incluída\)/, 'concordância');
-  assert.ok(/Experiência digital:/.test(s), 'o formato com o nome novo (dono, 2026-10-09)');
+  assert.ok(/Beyond \(4 páginas incluídas\):/.test(s) && !/Experiência digital/.test(s), 'o formato com o nome novo: Beyond (dono, 2026-11-03; era "Experiência digital" de 2026-10-09)');
   assert.ok(!/(experiência digital|sob medida):[^\n]*lançamento/i.test(s), 'lançamento é da landing page');
   /* cada fala de exemplo do Zero cumpre as regras de voz: curta, no máximo uma pergunta, sem elogio vazio nem fórmula de robô */
   const falas = [...s.matchAll(/^Zero: (.+)$/gm)].map(m => m[1]);
@@ -461,6 +461,10 @@ test('instruções: o prazo vem da estimativa; cada formato sozinho pelos dias d
   assert.match(s, /passar de 60 dias úteis[^.]*fase 1/);
   const semLoja = JSON.parse(JSON.stringify(REGRAS)); delete semLoja.formatos.loja_plataforma;
   for (const [k, x] of Object.entries(semLoja.adicionais)) if (x.requer?.includes('loja_plataforma')) delete semLoja.adicionais[k];
+  /* (v3: o Beyond, com 15 dias de base e as interações, também passa de 60; sem a loja, sem as interações e com 10 dias de base, nada passa) */
+  assert.match(montarSistema(semLoja), /passar de 60 dias úteis[^.]*fase 1/, 'o Beyond com tudo ainda passa de 60: fala de fase');
+  for (const k of Object.keys(semLoja.adicionais)) if (/^interacao_/.test(k)) delete semLoja.adicionais[k];
+  semLoja.formatos.sob_medida.prazo_dias = 10;
   assert.doesNotMatch(montarSistema(semLoja), /fase 1|fase seguinte/, 'sem fase possível, não fala de fase');
   const teto = JSON.parse(JSON.stringify(REGRAS)); teto.prazo_max_dias = 10;
   assert.match(montarSistema(teto), /passar de 10 dias úteis[^.]*fase 1/);
@@ -480,4 +484,21 @@ test('área que não se faz hoje sem formato: avisa e segue a descoberta; a loja
   assert.match(loja, /feita do zero[^.]*não faz isso hoje/);
   assert.doesNotMatch(loja, /diagnóstico/);
   assert.match(montarSistema(comFora(REGRAS)).split('\n').find(l => l.startsWith('- Loja virtual: vender online')), /diagnóstico/, 'tabela antiga: como antes');
+});
+
+/* TABELA v3 (dono, 2026-11-03): o Zero lê a lista da tabela ATIVA (dados), sem valores no prompt */
+test('v3: o prompt conhece o Beyond, os adicionais em qualquer formato e o atendente em preparo, sem nenhum valor', () => {
+  const s = montarSistema(REGRAS, { direcoes: 'manual', metodos: ['pix'] });
+  assert.match(s, /- Beyond:[^\n]*Não tem acompanhamento depois da entrega \(nunca prometa\)/, 'o Beyond e o que ele não tem');
+  assert.match(s, /valem em qualquer formato, e os de loja só na loja/, 'os adicionais valem em qualquer formato');
+  assert.match(s, /no Beyond uma interação de assinatura já vem na base/, 'a interação do Beyond não se cobra duas vezes');
+  assert.match(s, /Interação leve \(/, 'as interações estão na lista de adicionais');
+  assert.match(s, /Interação de assinatura \(/);
+  assert.match(s, /Em preparo, ainda sem preço nem contratação: Atendente de IA no site, plano Essencial; [^\n]*Profissional; [^\n]*Avançado/, 'o atendente é conhecido, mas em preparo');
+  assert.match(s, /cobrança recorrente à parte do pagamento único/, 'mensalidade é recorrente e separada');
+  /* nenhum valor da v3 entra no texto: o número vem do motor */
+  for (const n of ['20.000', '20000', '15000', '2500', '2.500', '2400', '2.400', '3900', '4900', '1390', '1.390', '590', '890']) assert.ok(!s.includes(n), 'valor no prompt: ' + n);
+  /* o atendente em preparo não entra na lista dos que se somam */
+  const somam = s.slice(s.indexOf('Adicionais que a tabela cobre'), s.indexOf('Em preparo, ainda sem preço'));
+  assert.ok(!/Atendente de IA/.test(somam), 'o atendente em preparo não está entre os adicionais que se somam');
 });
