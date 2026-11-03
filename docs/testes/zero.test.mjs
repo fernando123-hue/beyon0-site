@@ -663,7 +663,7 @@ test('painel: o que a pessoa contou vira anotações e ficha, cada dado em um s�
   assert.deepEqual(montarPainel({ negocio: { segmento: 'confeitaria', cidade: 'Campo Grande' } }), { ficha: [{ rotulo: 'Segmento', valor: 'confeitaria' }, { rotulo: 'Cidade', valor: 'Campo Grande' }] });
 });
 
-test('painel: texto hostil sai limpo e curto; chave herdada do protótipo, formato desconhecido e id fora da lista somem; sob medida não usa o nome Beyond (INPI pendente)', async () => {
+test('painel: texto hostil sai limpo e curto; chave herdada do protótipo, formato desconhecido e id fora da lista somem; o sob medida usa o nome Cume, nunca o antigo', async () => {
   const { montarPainel, LIMITES_PAINEL } = await import('../../api/_vendas/painel.mjs');
   const longo = 'x'.repeat(500);
   const p = montarPainel({ negocio: { nome: '<img src=x onerror=alert(1)>' + longo, segmento: 'a<b>c' }, objetivos: ['inexistente'], projeto: { formato: 'qualquer_coisa' }, funcionalidades: ['hackear'] });
@@ -678,7 +678,7 @@ test('painel: texto hostil sai limpo e curto; chave herdada do protótipo, forma
   /* todo valor sai como string */
   assert.ok(montarPainel({ negocio: { nome: 'Ana' }, projeto: { formato: 'institucional' } }).ficha.every(f => typeof f.valor === 'string'));
   const sm = montarPainel({ projeto: { formato: 'sob_medida' } });
-  assert.deepEqual(sm.ficha, [{ rotulo: 'Procura', valor: 'Site sob medida' }]);
+  assert.deepEqual(sm.ficha, [{ rotulo: 'Procura', valor: 'Cume' }]);
   assert.ok(!/beyond/i.test(JSON.stringify(sm)));
   /* o prefixo não come o valor: o item inteiro cabe no limite e o valor não perde o começo */
   const curto = montarPainel({ situacao_atual: { como_chegam: 'c'.repeat(300) } });
