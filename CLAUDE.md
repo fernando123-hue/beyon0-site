@@ -110,7 +110,7 @@ refresh); âncoras usam só `scroll-padding-top`.
    rAF só, via `B.add` (hoje só o medidor de fps).
 2. **Zero invenção de dado.** Nada de "+300 projetos" ou "98% de satisfação".
    Se o número não foi medido ou confirmado pelo dono, ele não existe.
-3. **A marca é Beyon Zero.** Não `beyon.0`, não `Beyond`, não `MYKER`.
+3. **A marca é Beyon Zero.** Não `beyon.0`, não `MYKER`. `Beyond` é só o nome do formato de site completo (o antigo "experiência digital"; dono, 2026-11-03), nunca a marca da empresa nem escrito `Beyon`: o risco de confusão com "Beyon" e a checagem no INPI estão com o dono antes de o nome aparecer em páginas públicas.
 4. **O movimento é acréscimo, nunca substituição.** Tudo aparece inteiro
    sem JS, sem GSAP e em `prefers-reduced-motion` (loops de CSS desligados). O contrato `html.js`/`has-gsap` tem rede de
    segurança em `js/pagina.js`; `npm run acessibilidade` confere.

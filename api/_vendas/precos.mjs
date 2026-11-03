@@ -58,6 +58,11 @@ export function validarRegras(r) {
     /* (nulo ou não objeto: erro na lista, não TypeError — a tabela ativa inválida vira "em atualização", não 500) */
     if (!objeto(x)) { erros.push('adicionais.' + k + ': objeto'); continue; }
     if (typeof x.nome !== 'string' || !x.nome) erros.push('adicionais.' + k + '.nome');
+    /* em_preparo: o item existe na tabela (o consultor sabe dele e registra o interesse) mas ainda não se vende. mensal: cobrança
+       recorrente, que o motor, o escopo e o pagamento ainda NÃO sabem cobrar; por isso só vale junto de em_preparo (falha fechada:
+       uma tabela que ligasse o item sem o suporte seria recusada aqui, não cobraria só a implantação em silêncio) */
+    if (x.em_preparo !== undefined && typeof x.em_preparo !== 'boolean') erros.push('adicionais.' + k + '.em_preparo: sim ou não');
+    if (x.mensal !== undefined && !(numero(x.mensal, 1, 1e5) && x.em_preparo === true)) erros.push('adicionais.' + k + '.mensal: cobrança recorrente só com em_preparo (o motor ainda não cobra mensalidade)');
     if (x.fora_do_automatico === true) continue;
     if (!numero(x.valor, 0, 1e6)) erros.push('adicionais.' + k + '.valor');
     if (!numero(x.prazo_dias, 0, 30)) erros.push('adicionais.' + k + '.prazo_dias');
@@ -101,6 +106,7 @@ export function validarFatores(f, regras) {
     const def = Object.hasOwn(regras.adicionais, k) ? regras.adicionais[k] : null;   /* (constructor, toString…: não são adicionais) */
     if (!def) { erros.push('adicional desconhecido: ' + k); continue; }
     if (!(Number.isInteger(q) && q >= 0)) { erros.push('adicionais.' + k + ': quantidade inteira'); continue; }
+    if (q > 0 && def.em_preparo === true) { erros.push(k + ': ainda está em preparo e não dá para contratar agora; não orce nem prometa prazo, só registre o interesse'); continue; }
     if (q > 0) adicionais[k] = def.fora_do_automatico ? q : Math.min(q, def.max);
   }
   /* o que depende de outro item só entra com ele: o modelo recebe o motivo e ajusta (nunca preço sem a base) */
@@ -198,7 +204,7 @@ export function estimar(fatoresBrutos, regras) {
 export function prazoMaximoPossivel(regras, formato) {
   const fmt = regras?.formatos?.[formato];
   if (!objeto(fmt)) return 0;
-  const automaticos = Object.entries(regras.adicionais || {}).filter(([, a]) => objeto(a) && !a.fora_do_automatico);
+  const automaticos = Object.entries(regras.adicionais || {}).filter(([, a]) => objeto(a) && !a.fora_do_automatico && a.em_preparo !== true);
   const alcancados = new Set();
   for (let mudou = true; mudou;) {
     mudou = false;

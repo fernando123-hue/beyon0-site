@@ -46,10 +46,12 @@ const DIZ_QUE_NAO_FAZ = 'diga com honestidade, em uma frase, que a Beyon Zero n�
 
 function blocoAdicionais(regras) {
   const todos = Object.values(regras.adicionais || {});
-  const automaticos = todos.filter(a => !a.fora_do_automatico).map(a => a.nome);
+  const automaticos = todos.filter(a => !a.fora_do_automatico && a.em_preparo !== true).map(a => a.nome);
   const fora = todos.filter(a => a.fora_do_automatico).map(a => a.nome);
+  /* em preparo (tabela v3, 2026-11-03): está na tabela, o consultor sabe dele, mas ainda não se vende nem se orça */
+  const emPreparo = todos.filter(a => a.em_preparo === true).map(a => a.nome);
   const naoFaz = NAO_FAZ.filter(([k]) => naoFazHoje(regras, k)).map(([, nome]) => nome);
-  return { automaticos, fora, naoFaz };
+  return { automaticos, fora, emPreparo, naoFaz };
 }
 
 /* loja e área restrita (tabela v2): só entram nas instruções se a tabela ativa as traz */
@@ -92,7 +94,7 @@ const URGENCIA_PADRAO = 30;   /* (a tabela oficial: x1,3; sem a regra na tabela,
 const pctUrgencia = regras => (regras.multiplicadores?.urgencia?.fator ? porcentoDe(regras.multiplicadores.urgencia.fator) : URGENCIA_PADRAO);
 
 function blocoTabela(regras, { direcoes, metodos }) {
-  const { automaticos, fora, naoFaz } = blocoAdicionais(regras);
+  const { automaticos, fora, emPreparo, naoFaz } = blocoAdicionais(regras);
   const mult = blocoMultiplicadores(regras);
   const prazo = blocoPrazo(regras);
   return `TABELA ATIVA (a Beyon só vende o que está aqui; o valor de cada coisa quem calcula é estimar, e você escreve com os marcadores)
@@ -103,11 +105,11 @@ O que a tabela lista como incluído é o escopo de cada formato. Domínio, hospe
 Como escolher o formato:
 - Landing page: um objetivo só (campanha, lançamento, anúncio), uma página em que cada bloco leva a uma ação.
 - Site institucional: apresentar a empresa, os serviços e por que confiar, em várias páginas, para quem chegou sem conhecer decidir procurar.
-- Experiência digital: quando o formato pronto não dá conta, com experiência visual própria, interações e animações, apresentações e interfaces fora do comum.${linhasV2(regras)}
+- Beyond: o site completo e mais cuidado, para quem quer algo bonito e bem feito de ponta a ponta: direção visual própria, uma interação de assinatura e animações já na base, e quanto mais interação e módulos, mais soma pela tabela. Não tem acompanhamento depois da entrega (nunca prometa) e é mais caro: recomende quando o negócio vive de apresentação ou quando o formato pronto não dá conta, nunca como padrão para quem tem medo ou orçamento curto.${linhasV2(regras)}
 Se a pessoa não souber, recomende um formato com uma frase de motivo, a partir do objetivo dela.
 
-Adicionais que a tabela cobre (entram na estimativa quando a pessoa precisa): ${automaticos.join('; ')}.
-${mult.length ? lista(mult) + '\n' : ''}${fora.length ? 'Fora da estimativa automática (vão para uma conversa de diagnóstico): ' + fora.join('; ') + '.\n' : ''}${naoFaz.length ? 'A Beyon Zero não faz hoje: ' + naoFaz.join('; ') + '. Não ofereça. Se a pessoa pedir algo assim, ' + DIZ_QUE_NAO_FAZ + ' (não chame encaminhar_diagnostico por isso), e siga com o site sem esse item, se fizer sentido para ela.\n' : ''}Soluções com IA: o atendente de IA é um chat dentro do site do cliente, e ele ainda não está pronto: não prometa prazo nem valor, não fale em teste grátis e não cite preço. Automações para entidades também existem, mas não são orçadas aqui. Quem quiser saber mais deixa um recado.
+Adicionais que a tabela cobre (entram na estimativa quando a pessoa precisa; valem em qualquer formato, e os de loja só na loja): ${automaticos.join('; ')}. Ofereça os que combinam com o caso dela, uma vez e sem empurrar, e some só o que ela quiser; no Beyond uma interação de assinatura já vem na base, então só some as que passam dela.
+${mult.length ? lista(mult) + '\n' : ''}${emPreparo.length ? 'Em preparo, ainda sem preço nem contratação: ' + emPreparo.join('; ') + '. A pessoa pode ter interesse (registre com sugerir_solucao_ia); você não orça, não promete prazo nem valor, e não chama estimar com eles. Mensalidade, quando existir, é cobrança recorrente à parte do pagamento único.\n' : ''}${fora.length ? 'Fora da estimativa automática (vão para uma conversa de diagnóstico): ' + fora.join('; ') + '.\n' : ''}${naoFaz.length ? 'A Beyon Zero não faz hoje: ' + naoFaz.join('; ') + '. Não ofereça. Se a pessoa pedir algo assim, ' + DIZ_QUE_NAO_FAZ + ' (não chame encaminhar_diagnostico por isso), e siga com o site sem esse item, se fizer sentido para ela.\n' : ''}Soluções com IA: o atendente de IA é um chat dentro do site do cliente, e ele ainda não está pronto: não prometa prazo nem valor, não fale em teste grátis e não cite preço. Automações para entidades também existem, mas não são orçadas aqui. Quem quiser saber mais deixa um recado.
 
 Prazo: quem calcula é estimar, pelo tamanho do trabalho, em dias úteis depois do sinal pago e do material recebido. Cada formato sozinho, sem adicionais: ${prazo.formatos}. Cada adicional soma dias: trabalho maior tem prazo maior, numa entrega só.${prazo.fase} Antes da estimativa, fale só dos dias do formato sozinho; depois dela, diga o prazo que estimar devolveu. Não prometa outro.
 

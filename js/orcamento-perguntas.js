@@ -17,7 +17,7 @@
   if (!API || !$('o-perguntas')) return;
 
   var ESPERA_MS = 300;   /* o preço ao vivo espera a pessoa parar de marcar (o servidor freia 60 cálculos por hora por conversa) */
-  var NOMES = { landing_page: 'Site de uma página', institucional: 'Site com várias páginas', sob_medida: 'Site com visual exclusivo', loja_plataforma: 'Loja virtual' };
+  var NOMES = { landing_page: 'Site de uma página', institucional: 'Site com várias páginas', sob_medida: 'Beyond (site com visual exclusivo)', loja_plataforma: 'Loja virtual' };
   var ASSUMIDO = { ramo: 'o seu ramo', objetivos: 'o que o site precisa trazer', site_atual: 'se já tem site', material: 'se já tem logo e textos' };
   var FALHA_CALCULO = 'Não consegui calcular agora. Tente de novo ou deixe um recado.';
   var FALHA_GRAVAR = 'Não consegui guardar agora. Tente de novo.';
