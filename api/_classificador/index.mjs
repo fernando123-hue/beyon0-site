@@ -1,36 +1,77 @@
 /* ==========================================================================
-   classificar(tarefa, entrada): o ponto único. Com o JEV desligado (padrão),
-   usa as regras. Com BZ_JEV=ligado, tenta o JEV com tempo-limite e, se ele
-   falhar, demorar ou disser "indisponível", recua para as regras: o site
-   nunca para por causa do classificador.
+   O classificador, em duas portas (estudo do JEV, 03/11/2026):
+   • classificar(tarefa, entrada): o que o orçamento já usa (recomendar_pacote,
+     triar_pedido). SEMPRE as regras, por tabela. Quem escolhe o formato do site
+     é o motor de regras e o motor de preços: nenhum modelo, nem o JEV, escolhe
+     formato, preço, desconto ou adicional (o caminho antigo que deixava o JEV
+     devolver o formato saiu; era contra a regra de ouro "sinal só aumenta o cuidado").
+   • sinalizar(tarefa, texto, opcoes): perguntas fechadas sobre um texto, para
+     MEDIR e, se o dono subir o nível, ACRESCENTAR cuidado (politica.mjs). Sem
+     motor, motor fora, prazo estourado, disjuntor aberto ou resposta incoerente:
+     "sem sinal" e o resultado é o de hoje. Nenhuma função do site depende disto.
+   O motor é qualquer objeto { nome, chamar(pedido) } que devolve probabilidades
+   por pergunta; hoje não há motor real ligado (a fase 2 mede Haiku, Clef-flash
+   e Jev antes de escolher).
    ========================================================================== */
-import { TAREFAS, resultado } from './contrato.mjs';
+import { TAREFAS } from './contrato.mjs';
 import { regras } from './regras.mjs';
-import { jev } from './jev.mjs';
+import { montarPedido, VERSAO_PERGUNTAS, VERSAO_PROTECAO } from './perguntas.mjs';
+import { conferir } from './conferencia.mjs';
+import { decidir, VERSAO_POLITICA } from './politica.mjs';
 
-export const configClassificador = (env = process.env) => ({ jev: String(env.BZ_JEV || '').trim().toLowerCase() === 'ligado', prazoMs: 1500 });
+export const PRAZO_EM_LINHA_MS = 800;
+const PRAZO_MAXIMO_MS = 8000;   /* (o motor fora da linha, como o Haiku, fica em 8 s; nada passa disso) */
+export const configClassificador = () => ({ prazoMs: PRAZO_EM_LINHA_MS });
 
 const comPrazo = (p, ms) => new Promise((ok, falha) => { const t = setTimeout(() => falha(new Error('prazo')), ms); Promise.resolve(p).then(v => { clearTimeout(t); ok(v); }, e => { clearTimeout(t); falha(e); }); });
 
-const objetoSimples = v => v !== null && typeof v === 'object' && !Array.isArray(v);
-
-/* a resposta do JEV só vale se cumprir o contrato: formato da lista oferecida (nunca "sob medida" sozinho),
-   adicionais em objeto e motivo em texto. Qualquer outra coisa recua para as regras. */
-const respostaValida = (d, entrada) =>
-  objetoSimples(d)
-  && typeof d.formato === 'string' && d.formato !== 'sob_medida'
-  && Array.isArray(entrada && entrada.formatos) && entrada.formatos.includes(d.formato)
-  && (d.adicionais === undefined || objetoSimples(d.adicionais))
-  && typeof d.motivo === 'string';
-
-export async function classificar(tarefa, entrada, { cfg = configClassificador(), adaptadores = {} } = {}) {
+/* ---------- as regras (orçamento) ---------- */
+export async function classificar(tarefa, entrada) {
   if (!TAREFAS.includes(tarefa)) throw new Error('tarefa desconhecida: ' + tarefa);
-  const usar = { regras, jev, ...adaptadores };
-  if (cfg.jev) {
-    try {
-      const r = await comPrazo(usar.jev(tarefa, entrada), cfg.prazoMs);
-      if (r && r.disponivel === true && respostaValida(r.dados, entrada)) return resultado(tarefa, 'jev', r.dados);
-    } catch { /* recua para as regras */ }
+  return regras(tarefa, entrada);
+}
+
+/* ---------- o disjuntor: 3 falhas seguidas param o classificador por 10 minutos ---------- */
+export function criarDisjuntor({ falhas = 3, paraMs = 10 * 60 * 1000, agora = Date.now } = {}) {
+  let seguidas = 0, abertoAte = 0;
+  return {
+    aberto: () => agora() < abertoAte,
+    falhou() { seguidas += 1; if (seguidas >= falhas) { abertoAte = agora() + paraMs; seguidas = 0; } },
+    deuCerto() { seguidas = 0; }
+  };
+}
+
+/* sinalizar(tarefa, texto, { motor, sinaisDeCodigo, niveis, limiar, prazoMs, disjuntor })
+   → { disponivel: true, sinais, decisao, fonte, versoes, cortado, mascarados }
+   ou { disponivel: false, motivo, decisao, cortado, mascarados }: a decisão sem sinal é exatamente a base de código */
+export async function sinalizar(tarefa, texto, { motor = null, sinaisDeCodigo = {}, niveis = {}, limiar, prazoMs = PRAZO_EM_LINHA_MS, disjuntor = null } = {}) {
+  const prazo = Number.isFinite(prazoMs) && prazoMs > 0 ? Math.min(prazoMs, PRAZO_MAXIMO_MS) : PRAZO_EM_LINHA_MS;
+  let montado;
+  try { montado = montarPedido(tarefa, texto); } catch {
+    /* tarefa desconhecida ou texto impossível: nunca lança, é "sem sinal" e vale só a base de código */
+    return { disponivel: false, motivo: 'entrada inválida', decisao: decidir({ tarefa, sinais: null, sinaisDeCodigo, niveis, limiar }), cortado: false, mascarados: { email: 0, telefone: 0, documento: 0 } };
   }
-  return usar.regras(tarefa, entrada);
+  const { pedido, cortado, mascarados } = montado;
+  const semSinal = motivo => ({ disponivel: false, motivo, decisao: decidir({ tarefa, sinais: null, sinaisDeCodigo, niveis, limiar }), cortado, mascarados });
+  if (typeof motor?.chamar !== 'function') return semSinal('sem motor');
+  if (disjuntor?.aberto()) return semSinal('disjuntor aberto');
+  let resposta;
+  try {
+    resposta = await comPrazo(motor.chamar(pedido), prazo);
+  } catch (e) {
+    disjuntor?.falhou();
+    return semSinal(e?.message === 'prazo' ? 'prazo' : 'motor falhou');
+  }
+  const conferida = conferir(tarefa, resposta);
+  if (!conferida.ok) { disjuntor?.falhou(); return semSinal('resposta incoerente'); }
+  disjuntor?.deuCerto();
+  return {
+    disponivel: true,
+    sinais: conferida.sinais,
+    decisao: decidir({ tarefa, sinais: conferida.sinais, sinaisDeCodigo, niveis, limiar }),
+    fonte: String(motor.nome ?? 'motor').slice(0, 40),
+    versoes: { perguntas: VERSAO_PERGUNTAS[tarefa], protecao: VERSAO_PROTECAO, politica: VERSAO_POLITICA },
+    cortado,
+    mascarados
+  };
 }
