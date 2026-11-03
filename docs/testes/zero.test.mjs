@@ -787,7 +787,8 @@ test('passo seguinte e prompt: o valor já dito não se repete nem se reestima s
   const fonte = fs.readFileSync(new URL('../../api/_vendas/consultor.mjs', import.meta.url), 'utf8');
   const ini = fonte.indexOf('export function proximoPasso');
   const corpo = fonte.slice(ini, fonte.indexOf('\n}\n', ini));
-  assert.equal(corpo.split('O valor já foi dito: não o repita nem chame estimar de novo se formato, extras e urgência não mudaram').length - 1, 2, 'os dois passos depois da estimativa trazem a regra do valor já dito');
+  assert.equal(corpo.split('O valor já foi dito: não o repita e não chame estimar de novo enquanto formato, páginas, extras (e as quantidades), urgência e complexidade não mudarem; se algum mudou, chame estimar e diga o que mudou e o novo valor').length - 1, 2, 'os dois passos depois da estimativa trazem a regra do valor já dito, com tudo que muda o preço e o que fazer quando muda');
+  assert.ok(!/recado para a equipe/.test(corpo), 'o passo da etapa contato não manda o recado "para a equipe" (a regra 1 proíbe falar em equipe)');
   const REGRAS = JSON.parse(fs.readFileSync(new URL('../../docs/fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
   const s = montarSistema(REGRAS, { direcoes: 'manual', metodos: ['pix'] });
   assert.match(s, /nem finja conversa anterior/, 'o prompt proíbe fingir conversa anterior');
