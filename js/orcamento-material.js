@@ -302,15 +302,15 @@
     return tam + ' · ' + (it.estado === 'enviando' ? 'enviando ' + Math.round(it.progresso * 100) + '%' : 'preparando…');
   }
   var minis = {};   /* id → URL do blob pequeno (null = já tentou e não deu) */
-  var linhas = {};  /* id → { li, chave, estadoEl, bar } */
+  var linhas = {};  /* id → { li, chave, estadoEl, bar, img } */
   /* uma por vez (rodada 2, Safari): 20 fotos escolhidas juntas não decodificam 20 imagens ao mesmo tempo */
   var cadeiaDeMiniaturas = Promise.resolve();
-  async function fazerMiniatura(it, img) {
+  async function fazerMiniatura(it) {
     if (!it.arquivo || minis[it.id] !== undefined || typeof createImageBitmap !== 'function') return;
     minis[it.id] = null;   /* já tentou: não repete a cada atualização */
-    cadeiaDeMiniaturas = cadeiaDeMiniaturas.then(function () { return miniaturaDe(it, img); });
+    cadeiaDeMiniaturas = cadeiaDeMiniaturas.then(function () { return miniaturaDe(it); });
   }
-  async function miniaturaDe(it, img) {
+  async function miniaturaDe(it) {
     if (!linhas[it.id]) return;   /* a linha saiu enquanto esperava a vez */
     var bmp = null;
     try {
@@ -320,15 +320,16 @@
       c.getContext('2d').drawImage(bmp, (bmp.width - lado) / 2, (bmp.height - lado) / 2, lado, lado, 0, 0, 96, 96);
       bmp.close(); bmp = null;
       var blob = await new Promise(function (ok) { c.toBlob(ok, 'image/jpeg', 0.7); });
-      if (!blob || !linhas[it.id]) return;   /* a linha já saiu */
+      var linha = linhas[it.id];
+      if (!blob || !linha) return;   /* a linha já saiu */
       minis[it.id] = URL.createObjectURL(blob);
-      img.src = minis[it.id];
+      linha.img.src = minis[it.id];   /* a linha DE AGORA: se ela foi refeita durante a decodificação (mudou de estado), a <img> antiga já está solta da página */
     } catch (e) { if (bmp && bmp.close) bmp.close(); /* sem miniatura: a caixa fica vazia */ }
   }
   function criarLinha(it) {
     var li = el('li', 'orc-arq__item is-' + it.estado), mini = el('span', 'orc-arq__mini'), img = el('img');
     img.alt = ''; img.width = 48; img.height = 48;
-    if (minis[it.id]) img.src = minis[it.id]; else if (it.arquivo) fazerMiniatura(it, img);
+    if (minis[it.id]) img.src = minis[it.id]; else if (it.arquivo) fazerMiniatura(it);
     if (it.arquivo) mini.appendChild(img);
     li.appendChild(mini);
     var info = el('span', 'orc-arq__info'), estadoEl = el('span', 'orc-arq__estado', textoDoEstado(it)), bar = null;
@@ -340,7 +341,7 @@
     x.disabled = it.estado !== 'enviado' && it.estado !== 'erro';
     x.addEventListener('click', function () { estado.motor.remover(it.id); });
     li.appendChild(x);
-    return { li: li, chave: chaveDaLinha(it), estadoEl: estadoEl, bar: bar };
+    return { li: li, chave: chaveDaLinha(it), estadoEl: estadoEl, bar: bar, img: img };
   }
   function desenharArquivos(itens) {
     var logo = $('o-arq-logo'), fotos = $('o-arq-fotos');
