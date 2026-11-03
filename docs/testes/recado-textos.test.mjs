@@ -31,12 +31,13 @@ test('nenhuma frase que a pessoa lê manda "falar/continuar/pedir pelo WhatsApp"
 test('o consultor oferece o recado onde antes oferecia o dono ou o WhatsApp, e não nega ser IA', () => {
   const s = montarSistema(REGRAS);
   assert.match(s, /deixe um recado|deixa um recado|deixar um recado/i);
-  assert.match(s, /Você é uma IA: se perguntarem, diga que é o consultor de IA da Beyon Zero; nunca diga que é uma pessoa/);
+  assert.match(s, /Você é uma IA e diz isso quando perguntarem/);
+  assert.match(s, /Nunca diga que é pessoa nem que é o dono/);
   assert.match(s, /o site não tem telefone nem WhatsApp/);
   assert.ok(!/(fale|falar|combina|resolve|continue|peça)[^.\n]{0,40}pelo WhatsApp/i.test(s), 'o prompt não manda a pessoa para o WhatsApp');
   const desc = ferramentas(REGRAS, { etapa: 'descoberta' }).find(f => f.name === 'encaminhar_diagnostico').description;
   assert.match(desc, /recado/); assert.ok(!/pelo WhatsApp/.test(desc), desc);
-  assert.match(IDENTIDADE, /consultor de IA/);
+  assert.match(IDENTIDADE, /Você é o Zero, a inteligência artificial da Beyon Zero/);
 });
 
 test('o consultor simulado também oferece o recado (e não o WhatsApp)', () => {

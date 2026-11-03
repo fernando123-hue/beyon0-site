@@ -45,7 +45,8 @@ const PERMITIDAS = ['Posso desistir?', 'Quando fica pronto?', 'Quantos ajustes?'
 /* frases barradas: as que só entram com a parte delas (3b-2, 3b-3) ou com dado do dono, e as que o dono revisou e nunca entram (D2, D5) */
 const AINDA_NAO = [
   [/O que eu recebo/i, 'com o dado do dono (domínio e hospedagem)'],
-  [/Nota fiscal/i, 'quando a spec trouxer (há decisão de 11/10, Decisões.md: sem nota por enquanto; a spec §4 deixa a pergunta para depois)'],
+  /* (o Zero cita "nota fiscal" só na lista do que NÃO confirma, 31/10; o que fica barrado é prometer ou oferecer a nota) */
+  [/(emit\w*|damos?|fornec\w*|inclu\w*|com|faz\w*|entreg\w*)\s+(a\s+|uma\s+)?nota fiscal|nota fiscal\s+(inclu[ií]da|garantida|em todo)/i, 'quando a spec trouxer (há decisão de 11/10, Decisões.md: sem nota por enquanto; a spec §4 deixa a pergunta para depois)'],
   [/(conta|vale) como aprovad|considerad\w* (como )?aprovad|aprova(d\w*|ção)? (sozinh|automátic|automatic)|sem resposta[^.]{0,40}aprovad/i, 'NUNCA (D5, 21/10): sem resposta o projeto para; nada é aprovado sozinho'],
   [/quantos precisar|sem limite de ajustes/i, 'NUNCA (D2, 21/10): são 2 listas de ajuste'],
 ];
