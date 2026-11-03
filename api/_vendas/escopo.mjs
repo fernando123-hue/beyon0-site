@@ -67,7 +67,9 @@ export function montarEscopo({ estimativa, direcao, alteracoesAplicadas, briefin
   if (pedidosEscritos) linhas.push('', 'PEDIDOS ESCRITOS', pedidosEscritos);
   linhas.push('', 'ESCOPO');
   linhas.push('- ' + estimativa.formato.nome + ' com até ' + Math.max(estimativa.formato.paginas_incluidas, estimativa.fatores?.paginas || 0) + ' página(s).');
-  for (const i of estimativa.itens || []) if (i.chave !== 'pagina_extra') linhas.push('- ' + i.nome + (i.qtd > 1 ? ' (' + i.qtd + ')' : '') + '.');
+  /* o que o formato já inclui (a tabela abate): sem isto o contrato de um formato maior ficava ambíguo sobre o que vem no preço */
+  if (Array.isArray(estimativa.formato.inclui) && estimativa.formato.inclui.length) linhas.push('- Já incluído em ' + estimativa.formato.nome + ': ' + estimativa.formato.inclui.join('; ') + '.');
+  for (const i of estimativa.itens || []) if (i.chave !== 'pagina_extra') linhas.push('- ' + i.nome + (i.incluso > 0 ? ' (' + (i.qtd + i.incluso) + ' no total, ' + i.incluso + ' já incluído' + (i.incluso > 1 ? 's' : '') + ' no preço do formato)' : i.qtd > 1 ? ' (' + i.qtd + ')' : '') + '.');
   if (estimativa.multiplicadores?.urgencia) linhas.push('- Entrega com urgência.');
   if (estimativa.fase === 'fase1' && estimativa.fase_seguinte) {
     linhas.push('', 'FICA PARA A FASE SEGUINTE (orçada à parte, sem compromisso agora' + (estimativa.fase_seguinte.prazo_dias ? '; prazo estimado de ' + estimativa.fase_seguinte.prazo_dias + ' dias úteis' + (estimativa.fase_seguinte.fases > 1 ? ', em ' + estimativa.fase_seguinte.fases + ' fases de até ' + estimativa.fase_seguinte.prazo_max_fase + ' dias úteis cada, contados do início de cada uma' : ', contados do início dela') : '') + ')');

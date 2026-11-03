@@ -17,6 +17,11 @@ export const FRASES = {
   catalogo: 'Os seus produtos com foto, descrição e preço, sem venda online.',
   integracao: 'Os pedidos do site caem direto na sua planilha ou no seu sistema.',
   idioma: 'O site também em outro idioma.',
+  interacao_leve: 'Um efeito que dá vida a uma seção: entrada suave, rolagem ou o que acontece quando passa o mouse.',
+  interacao_assinatura: 'Uma animação interativa só sua, como as do site da Beyon Zero.',
+  atendente_ia_essencial: 'Um atendente de IA no seu site (em preparo, ainda não dá para contratar).',
+  atendente_ia_profissional: 'Um atendente de IA no seu site, plano Profissional (em preparo).',
+  atendente_ia_avancado: 'Um atendente de IA no seu site, plano Avançado (em preparo).',
   produtos_lote_25: 'Eu cadastro mais 25 produtos na loja.',
   pagamento_extra: 'Mais uma forma de pagamento na loja.',
   frete_transportadora: 'Frete calculado por transportadora.',
@@ -39,7 +44,7 @@ const NOMES = {
 /* o nome que a tela mostra para uma chave da tabela (também na lista do "fale comigo" do simular) */
 export const nomeDeTela = (chave, nome) => (Object.hasOwn(NOMES, chave) ? NOMES[chave] : nome);
 /* extras que valem para qualquer ramo, e os que valem só para certos ramos */
-const SEMPRE = ['pagina_extra', 'textos', 'imagens', 'formulario_avancado', 'idioma'];
+const SEMPRE = ['pagina_extra', 'textos', 'imagens', 'formulario_avancado', 'idioma', 'interacao_leve', 'interacao_assinatura'];
 const POR_RAMO = { agendamento: ['saude', 'beleza', 'servicos', 'educacao'], catalogo: ['comercio', 'alimentacao'], blog: ['saude', 'educacao', 'associacao', 'servicos'], integracao: ['servicos', 'comercio', 'associacao'] };
 
 /* a landing vai até 3 páginas: o motor recusa o que passa disso (precos.mjs) e o catálogo da landing nem oferece.
@@ -56,6 +61,7 @@ export function catalogoPublico(regras, { formato, ramo }) {
   const formatos = Object.entries(regras.formatos || {}).map(([chave, f]) => ({ chave, nome: nomeDeTela(chave, f.nome), a_partir_de: f.base, paginas_incluidas: f.paginas_incluidas, inclui: f.inclui || [] }));
   const principais = [], mais = [];
   for (const [chave, def] of Object.entries(regras.adicionais || {})) {
+    if (def.em_preparo === true) continue;   /* (em preparo: está na tabela, mas a pessoa ainda não pode contratar; o consultor só registra o interesse) */
     if (Array.isArray(def.requer) && def.requer.includes('loja_plataforma') && formato !== 'loja_plataforma') continue;   /* (os da loja só com a loja) */
     const doRamo = SEMPRE.includes(chave) || (POR_RAMO[chave] || []).includes(ramo) || (formato === 'loja_plataforma' && Array.isArray(def.requer) && def.requer.includes('loja_plataforma'));
     const x = extra(chave, def);
