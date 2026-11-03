@@ -26,6 +26,8 @@ const OBRIGATORIOS = ['landing_page', 'institucional', 'sob_medida'];
 export const PAGINAS_MAX = 60;   /* (validarFatores: o total de páginas que o pedido pode ter) */
 export const CHAVE = /^[a-z][a-z0-9_]{1,40}$/;   /* (o fluxo filtra o corpo com esta mesma: um padrão só) */
 const numero = (v, min, max) => typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max;
+/* quanto do adicional já vem no preço-base do formato (incluso_em); 0 sem a regra */
+const incluso = (def, formato) => (def && typeof def.incluso_em === 'object' && def.incluso_em !== null && Object.hasOwn(def.incluso_em, formato) ? def.incluso_em[formato] : 0);
 
 /* ---------- a tabela (validada antes de ativar e antes de cada uso) ---------- */
 const objeto = v => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -63,6 +65,16 @@ export function validarRegras(r) {
        uma tabela que ligasse o item sem o suporte seria recusada aqui, não cobraria só a implantação em silêncio) */
     if (x.em_preparo !== undefined && typeof x.em_preparo !== 'boolean') erros.push('adicionais.' + k + '.em_preparo: sim ou não');
     if (x.mensal !== undefined && !(numero(x.mensal, 1, 1e5) && x.em_preparo === true)) erros.push('adicionais.' + k + '.mensal: cobrança recorrente só com em_preparo (o motor ainda não cobra mensalidade)');
+    /* incluso_em: quanto do item já vem no preço-base de um formato ({ sob_medida: 2 }); a pessoa informa a quantidade TOTAL que quer e o motor cobra
+       só o que passa do incluso (nunca duas vezes o mesmo item). Só em formato que a tabela traz, quantidade inteira, e nunca em item fora do automático */
+    if (x.incluso_em !== undefined) {
+      if (x.fora_do_automatico === true) erros.push('adicionais.' + k + '.incluso_em: item fora do automático não tem preço para abater');
+      else if (!objeto(x.incluso_em) || !Object.keys(x.incluso_em).length) erros.push('adicionais.' + k + '.incluso_em: objeto { formato: quantidade }');
+      else for (const [fk, n] of Object.entries(x.incluso_em)) {
+        if (!FORMATOS.includes(fk) || !objeto(f[fk])) erros.push('adicionais.' + k + '.incluso_em.' + fk + ': formato que a tabela traz');
+        else if (!(Number.isInteger(n) && n >= 1 && n <= 100)) erros.push('adicionais.' + k + '.incluso_em.' + fk + ': inteiro de 1 a 100');
+      }
+    }
     if (x.fora_do_automatico === true) continue;
     if (!numero(x.valor, 0, 1e6)) erros.push('adicionais.' + k + '.valor');
     if (!numero(x.prazo_dias, 0, 30)) erros.push('adicionais.' + k + '.prazo_dias');
@@ -107,7 +119,8 @@ export function validarFatores(f, regras) {
     if (!def) { erros.push('adicional desconhecido: ' + k); continue; }
     if (!(Number.isInteger(q) && q >= 0)) { erros.push('adicionais.' + k + ': quantidade inteira'); continue; }
     if (q > 0 && def.em_preparo === true) { erros.push(k + ': ainda está em preparo e não dá para contratar agora; não orce nem prometa prazo, só registre o interesse'); continue; }
-    if (q > 0) adicionais[k] = def.fora_do_automatico ? q : Math.min(q, def.max);
+    /* a quantidade é o TOTAL que a pessoa quer; o teto é o que se compra (max) mais o que o formato já inclui */
+    if (q > 0) adicionais[k] = def.fora_do_automatico ? q : Math.min(q, def.max + incluso(def, f.formato));
   }
   /* o que depende de outro item só entra com ele: o modelo recebe o motivo e ajusta (nunca preço sem a base) */
   for (const k of Object.keys(adicionais)) {
@@ -145,7 +158,9 @@ export function estimar(fatoresBrutos, regras) {
 
   /* as páginas além das incluídas viram o adicional pagina_extra */
   const extras = Math.max(0, (f.paginas || fmt.paginas_incluidas) - fmt.paginas_incluidas);
+  /* o que o formato já inclui não se cobra de novo: sobra só o que passa do incluso (a quantidade pedida é o total) */
   const pedidos = Object.entries({ ...f.adicionais, ...(extras ? { pagina_extra: extras } : {}) })
+    .map(([k, q]) => [k, Math.max(0, q - incluso(regras.adicionais[k], f.formato))]).filter(([, q]) => q > 0)
     .map(([k, q]) => ({ chave: k, nome: regras.adicionais[k].nome, qtd: q, unitario: regras.adicionais[k].valor, prazo_unitario: regras.adicionais[k].prazo_dias, prioridade: regras.adicionais[k].prioridade, requer: regras.adicionais[k].requer }))
     .sort((a, b) => a.prioridade - b.prioridade || a.chave.localeCompare(b.chave));
 

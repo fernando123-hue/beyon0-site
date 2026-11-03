@@ -6,7 +6,7 @@
 import { validarRespostas, resultado } from './contrato.mjs';
 import { pareceInjecao } from '../_vendas/seguranca.mjs';
 
-const PAGINAS = { landing_page: 1, institucional: 5, loja_plataforma: 5, sob_medida: 4 };
+const PAGINAS = { landing_page: 1, institucional: 5, loja_plataforma: 5, sob_medida: 6 };
 const NOME_OBJETIVO = { pedidos_whatsapp: 'receber pedidos pelo WhatsApp', achado_google: 'ser achado no Google', agendamentos: 'agendamentos',
   vender_online: 'vender online', apresentar: 'apresentar a empresa', campanha: 'uma campanha' };
 const lista = xs => (xs.length < 2 ? xs.join('') : xs.slice(0, -1).join(', ') + ' e ' + xs[xs.length - 1]);

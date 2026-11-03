@@ -249,7 +249,7 @@ test('conteúdo (revisão de fidelidade): nada de promessa jurídica sem o advog
   assert.match(s, /valor final é o do escopo que a pessoa confirma/i, 'a ressalva do site: o valor muda se o escopo mudar antes');
   assert.ok(!s.includes('—'), 'sem travessão (o modelo imita)');
   assert.match(s, /1 página incluída\)/, 'concordância');
-  assert.ok(/Beyond \(4 páginas incluídas\):/.test(s) && !/Experiência digital/.test(s), 'o formato com o nome novo: Beyond (dono, 2026-11-03; era "Experiência digital" de 2026-10-09)');
+  assert.ok(/Beyond \(6 páginas incluídas\):/.test(s) && !/Experiência digital/.test(s), 'o formato com o nome novo: Beyond (dono, 2026-11-03; era "Experiência digital" de 2026-10-09)');
   assert.ok(!/(experiência digital|sob medida):[^\n]*lançamento/i.test(s), 'lançamento é da landing page');
   /* cada fala de exemplo do Zero cumpre as regras de voz: curta, no máximo uma pergunta, sem elogio vazio nem fórmula de robô */
   const falas = [...s.matchAll(/^Zero: (.+)$/gm)].map(m => m[1]);
@@ -489,10 +489,12 @@ test('área que não se faz hoje sem formato: avisa e segue a descoberta; a loja
 /* TABELA v3 (dono, 2026-11-03): o Zero lê a lista da tabela ATIVA (dados), sem valores no prompt */
 test('v3: o prompt conhece o Beyond, os adicionais em qualquer formato e o atendente em preparo, sem nenhum valor', () => {
   const s = montarSistema(REGRAS, { direcoes: 'manual', metodos: ['pix'] });
-  assert.match(s, /- Beyond:[^\n]*Não tem acompanhamento depois da entrega \(nunca prometa\)/, 'o Beyond e o que ele não tem');
+  assert.match(s, /- Beyond:[^\n]*não há suporte contínuo \(nunca prometa suporte, ajuste ou manutenção\)/, 'o Beyond e o que ele não tem');
   assert.match(s, /valem em qualquer formato, e os de loja só na loja/, 'os adicionais valem em qualquer formato');
-  assert.match(s, /no Beyond uma interação de assinatura já vem na base/, 'a interação do Beyond não se cobra duas vezes');
-  assert.match(s, /Interação leve \(/, 'as interações estão na lista de adicionais');
+  assert.match(s, /O que a lista do Beyond já inclui não se soma: informe a quantidade TOTAL/, 'o incluso do Beyond não se cobra duas vezes: o Zero informa o total e o motor desconta');
+  assert.match(s, /não ofereça ao Beyond o que ele já traz/, 'não oferece o que já vem incluso');
+  assert.match(s, /compare com o institucional mais as interações/, 'a comparação institucional + interações × Beyond');
+  assert.match(s, /Animações de entrada e rolagem no site todo;/, 'as animações do site todo estão na lista de adicionais');
   assert.match(s, /Interação de assinatura \(/);
   assert.match(s, /Em preparo, ainda sem preço nem contratação: Atendente de IA no site, plano Essencial; [^\n]*Profissional; [^\n]*Avançado/, 'o atendente é conhecido, mas em preparo');
   assert.match(s, /cobrança recorrente à parte do pagamento único/, 'mensalidade é recorrente e separada');
