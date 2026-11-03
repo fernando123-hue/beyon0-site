@@ -1,6 +1,6 @@
 /* A PÁGINA DE CONDIÇÕES DO LANÇAMENTO (/condicoes): texto aprovado pelo dono em 2026-10-12 (03 Projetos/captacao/docs/
    parte6/condicoes-lancamento.md), ajustado pelo coordenador em 2026-10-14. Este teste prende o que não pode derivar sem
-   ninguém ver: marcador do texto aprovado que sobrou na página, valor que não fecha (R$ 800 = 320 + 480; 40% + 60%), a
+   ninguém ver: marcador do texto aprovado que sobrou na página, valor que não fecha (R$ 1.500 = 600 + 900; 40% + 60%), a
    vigência (31/12/2026 ou 10º cliente), "Beyon Zero" no lugar do nome do vendedor, estilo embutido (a CSP bloqueia), a
    página no rodapé ou no sitemap (ela é só para quem recebe o link, com noindex), e a privacidade dizendo o que a captação
    faz (o que o código de 03 Projetos/captacao/negocios faz).  npm run testar */
@@ -51,25 +51,25 @@ test('condições: CSP sem inline e página de texto sem script próprio', () =>
 });
 
 test('condições: preço, entrada e restante fecham, e a entrada é 40%', () => {
-  const [, preco, entrada, restante] = texto.match(/R\$ (\d+) por site.*?R\$ (\d+) \(40%\) para começar.*?R\$ (\d+) \(60%\) quando o site estiver no ar/) || [];
+  const [, preco, entrada, restante] = (texto.match(/R\$ ([\d.]+) por site.*?R\$ ([\d.]+) \(40%\) para começar.*?R\$ ([\d.]+) \(60%\) quando o site estiver no ar/) || []).map(v => v && v.replace('.', ''));
   assert.ok(preco, 'não achei preço, entrada (40%) e restante (60%) no texto');
   assert.equal(Number(entrada) + Number(restante), Number(preco), 'entrada + restante diferem do preço');
   assert.equal(Number(entrada) / Number(preco), 0.4);
-  const painel = [...html.matchAll(/<dd>R\$&nbsp;(\d+)/g)].map(m => Number(m[1]));
+  const painel = [...html.matchAll(/<dd>R\$&nbsp;([\d.]+)/g)].map(m => Number(m[1].replace('.', '')));
   assert.deepEqual(painel, [Number(preco), Number(entrada), Number(restante)], 'o painel de valores diverge do texto');
 });
 
-/* fundador: landing R$ 800 e institucional R$ 1.900, nada nos outros formatos (dono, 2026-10-14) */
-test('condições: o institucional de fundador custa R$ 1.900 e também fecha em 40% + 60%', () => {
+/* fundador: landing R$ 1.500 e institucional R$ 4.500 (o piso da tabela), nada nos outros formatos (dono 2026-10-14; valores subidos em 2026-11-02, escolha delegada pelo dono) */
+test('condições: o institucional de fundador custa R$ 4.500 e também fecha em 40% + 60%', () => {
   const [, preco, entrada, restante] = texto.match(/site institucional, de até 5 páginas, por R\$ ([\d.]+), nas mesmas condições: dentro das 10 vagas e até 31\/12\/2026\..*?No institucional: R\$ ([\d.]+) \(40%\) para começar e R\$ ([\d.]+) \(60%\) com o site no ar\./) || [];
   assert.ok(preco, 'não achei o institucional (nas mesmas condições) com entrada e restante');
   const n = v => Number(v.replace('.', ''));
-  assert.deepEqual([n(preco), n(entrada), n(restante)], [1900, 760, 1140]);
+  assert.deepEqual([n(preco), n(entrada), n(restante)], [4500, 1800, 2700]);
   assert.ok(!/R\$ (4\.800|8\.900)/.test(texto), 'o preço de fundador não vale para loja nem experiência digital');
 });
 
-/* com o institucional na página, "R$ 800 por site" sozinho diria que todo site sai por 800 (revisão do PR #41) */
-test('condições: os R$ 800 são sempre "por site de uma página", inclusive na descrição e no OG', () => {
+/* com o institucional na página, "R$ 1.500 por site" sozinho diria que todo site sai por 1.500 (revisão do PR #41) */
+test('condições: os R$ 1.500 são sempre "por site de uma página", inclusive na descrição e no OG', () => {
   const todas = [...limpo(visivel.replace(/<p[^>]*\shidden[^>]*>[^]*?<\/p>/g, '')).matchAll(/por site(?! de uma página)/g)].length
     + [...html.matchAll(/content="[^"]*por site(?! de uma página)/g)].length;
   assert.equal(todas, 0, '"por site" sem "de uma página"');
@@ -171,4 +171,18 @@ test('privacidade: não afirma o que o código não faz nem o que o dono ainda n
     [/dois códigos embaralhados|um do número e outro do e-mail/, 'o código guarda um só resumo, do contato usado no envio'],
     [/trein/i, 'a opção de treino da Anthropic o dono ainda vai confirmar'],
     [/[0-9]+ anos/, 'o prazo legal de guarda de comprovantes não leva número de anos']]) assert.ok(!re.test(priv), 'privacidade ainda diz algo falso: ' + porque);
+});
+
+/* o preço de fundador nunca fica abaixo do piso que a própria tabela ativa aceita (decisão de 2026-11-02): a oferta de 10 vagas troca
+   desconto por depoimento e portfólio, mas não vende abaixo do que o sistema venderia para o último cliente */
+test('condições: o preço de fundador é o piso da tabela, nem abaixo dele nem acima do preço-base', () => {
+  const regras = JSON.parse(readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
+  const num = m => Number(((m || [])[1] || '').replace('.', ''));
+  const landing = num(texto.match(/R\$ ([\d.]+) por site de uma página, só para os 10 primeiros/));
+  const inst = num(texto.match(/site institucional, de até 5 páginas, por R\$ ([\d.]+)/));
+  assert.ok(landing && inst, 'não achei os preços de fundador');
+  for (const [nome, valor, f] of [['landing', landing, regras.formatos.landing_page], ['institucional', inst, regras.formatos.institucional]]) {
+    assert.ok(valor >= f.piso, nome + ': R$ ' + valor + ' abaixo do piso da tabela (R$ ' + f.piso + ')');
+    assert.ok(valor < f.base, nome + ': o preço de fundador tem de ser menor que o preço-base');
+  }
 });
