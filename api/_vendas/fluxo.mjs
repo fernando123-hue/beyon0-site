@@ -8,7 +8,7 @@
    Falha de IA: nada é inventado; a resposta é a recuperação elegante pedida
    na especificação, e o que a pessoa já contou continua no banco.
    ========================================================================== */
-import { executarTurno } from './agente.mjs';
+import { executarTurno, nichoDaSessao } from './agente.mjs';
 import { estimar, LANDING_GRANDE, CHAVE as CHAVE_EXTRA } from './precos.mjs';
 import { gerarDirecao } from './gerador.mjs';
 import { montarEscopo } from './escopo.mjs';
@@ -351,7 +351,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       /* (PR 3b-2, M5) a entrega só aparece com o interruptor ligado; desligado, a tela mostra a saída pelo recado */
       if (!entregaLigada(env)) delete e.entrega;
       /* (peças da conversa, fatia 1) o painel é derivado do briefing, em esquema fechado, a cada leitura: nada novo no banco */
-      return { ...e, painel: montarPainel(e.conversa?.briefing), fila_cheia: Number(naFila) >= limitesPedido.fila_confirmados, modo_direcoes: modo, entrega_ligada: entregaLigada(env) };   /* (a tela troca "alguns minutos" por "até 24 horas úteis") */
+      return { ...e, painel: montarPainel(e.conversa?.briefing, { regulado: !!nichoDaSessao({ briefing: e.conversa?.briefing, mensagens: e.mensagens }) }), fila_cheia: Number(naFila) >= limitesPedido.fila_confirmados, modo_direcoes: modo, entrega_ligada: entregaLigada(env) };   /* (a tela troca "alguns minutos" por "até 24 horas úteis") */
     },
 
     /* o catálogo público da tabela ativa (o "Quer ajustar?"): só com a sessão e a conversa deste visitante, antes do contato */

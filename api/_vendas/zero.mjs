@@ -182,6 +182,7 @@ export function garantirRegulado(texto, { nicho, pediuAgora = false, insistencia
 
 /* o briefing desses negócios nunca guarda "depoimentos" nem antes e depois (nem as direções saem com eles) */
 const TEXTO_PROIBIDO = /depoiment|testemunh|antes (?:e )?depois/;
+export const textoProibido = t => TEXTO_PROIBIDO.test(paraBusca(t));   /* (o painel da conversa não repete o proibido na voz da Beyon) */
 const semItensProibidos = lista => { const l = lista.filter(x => !TEXTO_PROIBIDO.test(paraBusca(x))); return l.length ? l : undefined; };
 export function briefingSemProibidos(briefing) {
   const b = JSON.parse(JSON.stringify(briefing || {}));

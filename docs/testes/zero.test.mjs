@@ -639,7 +639,7 @@ test('painel: sem briefing ou sem nada para mostrar, null (a tela não desenha c
   for (const b of [null, undefined, {}, [], 'texto', 7, { negocio: {} }, { objetivos: [], funcionalidades: [] }]) assert.equal(montarPainel(b), null);
 });
 
-test('painel: o que a pessoa contou vira anotações, ficha e os três quadros do caso, em esquema fechado e sem inventar nada', async () => {
+test('painel: o que a pessoa contou vira anotações e ficha, cada dado em um só bloco, em esquema fechado e sem inventar nada', async () => {
   const { montarPainel, LIMITES_PAINEL } = await import('../../api/_vendas/painel.mjs');
   const p = montarPainel({
     negocio: { nome: 'Doces da Ana', segmento: 'confeitaria', descricao: 'Vende bolos e doces por encomenda', cidade: 'Campo Grande' },
@@ -647,30 +647,56 @@ test('painel: o que a pessoa contou vira anotações, ficha e os três quadros d
     situacao_atual: { como_chegam: 'indicação e Instagram', o_que_se_perde: 'quem procura no Google não acha' },
     funcionalidades: ['whatsapp', 'galeria'], projeto: { formato: 'landing_page', urgencia: true }
   });
-  assert.deepEqual(Object.keys(p).sort(), ['anotamos', 'caso', 'ficha']);
+  assert.deepEqual(Object.keys(p).sort(), ['anotamos', 'ficha']);
+  assert.deepEqual(p.anotamos, ['Vende bolos e doces por encomenda', 'Clientes chegam por: indicação e Instagram', 'O que se perde hoje: quem procura no Google não acha', 'Quer: botão de WhatsApp, galeria de fotos']);
   assert.deepEqual(p.ficha, [
     { rotulo: 'Empresa', valor: 'Doces da Ana' }, { rotulo: 'Segmento', valor: 'confeitaria' }, { rotulo: 'Cidade', valor: 'Campo Grande' },
     { rotulo: 'O que quer resolver', valor: 'Quer parar de depender só do Instagram' }, { rotulo: 'Procura', valor: 'Site de uma página' }, { rotulo: 'Prazo', valor: 'Curto' }
   ]);
-  assert.deepEqual(p.caso, { cenario: 'Vende bolos e doces por encomenda', trava: 'quem procura no Google não acha', destino: 'Quer parar de depender só do Instagram' });
-  assert.ok(p.anotamos.length <= LIMITES_PAINEL.itens && p.anotamos.includes('Quer: botão de WhatsApp, galeria de fotos'));
-  assert.ok(p.anotamos.includes('O que se perde hoje: quem procura no Google não acha'));
+  assert.ok(p.anotamos.length <= LIMITES_PAINEL.itens && p.ficha.length <= LIMITES_PAINEL.ficha);
+  /* cada dado em um só lugar: nada que está na ficha se repete nas anotações */
+  const naFicha = p.ficha.map(f => f.valor);
+  assert.ok(p.anotamos.every(a => !naFicha.some(v => a === v)), 'sem repetição entre os blocos');
   /* nada além do que está no briefing: sem número, sem prova */
-  assert.ok(!/\d/.test(JSON.stringify(p).replace(/Doces da Ana/g, '')), 'nenhum número aparece que a pessoa não tenha dito');
+  assert.ok(!/[0-9]/.test(JSON.stringify(p).replace(/Doces da Ana/g, '')), 'nenhum número aparece que a pessoa não tenha dito');
+  /* só o segmento conhecido: a ficha mostra, as anotações não repetem */
+  assert.deepEqual(montarPainel({ negocio: { segmento: 'confeitaria', cidade: 'Campo Grande' } }), { ficha: [{ rotulo: 'Segmento', valor: 'confeitaria' }, { rotulo: 'Cidade', valor: 'Campo Grande' }] });
 });
 
-test('painel: texto hostil do briefing sai limpo e curto; formato desconhecido some; sob medida não usa o nome Beyond (INPI pendente)', async () => {
+test('painel: texto hostil sai limpo e curto; chave herdada do protótipo, formato desconhecido e id fora da lista somem; sob medida não usa o nome Beyond (INPI pendente)', async () => {
   const { montarPainel, LIMITES_PAINEL } = await import('../../api/_vendas/painel.mjs');
   const longo = 'x'.repeat(500);
-  const p = montarPainel({ negocio: { nome: '<img src=x onerror=alert(1)>' + longo, segmento: 'a<b>c' }, objetivos: ['inexistente', '__proto__'], projeto: { formato: 'qualquer_coisa' }, funcionalidades: ['hackear'] });
-  const txt = JSON.stringify(p);
-  assert.ok(!/[<>]/.test(txt), 'sem sinais de HTML');
+  const p = montarPainel({ negocio: { nome: '<img src=x onerror=alert(1)>' + longo, segmento: 'a<b>c' }, objetivos: ['inexistente'], projeto: { formato: 'qualquer_coisa' }, funcionalidades: ['hackear'] });
+  assert.ok(!/[<>]/.test(JSON.stringify(p)), 'sem sinais de HTML');
   for (const f of p.ficha) assert.ok(f.valor.length <= LIMITES_PAINEL.texto, 'valor curto: ' + f.rotulo);
-  assert.ok(!p.ficha.some(f => f.rotulo === 'Procura'), 'formato fora da lista não aparece');
-  assert.ok(!p.anotamos || !p.anotamos.some(a => /hackear|inexistente/.test(a)), 'id fora da lista fechada não vira texto');
+  assert.ok(!p.ficha.some(f => f.rotulo === 'Procura') && !p.anotamos, 'formato e ids fora da lista não aparecem');
+  /* chaves herdadas do protótipo não viram texto nem objeto (achado da revisão de segurança) */
+  for (const chave of ['__proto__', 'constructor', 'toString', 'hasOwnProperty', 'valueOf']) {
+    const q = montarPainel({ objetivos: [chave], funcionalidades: [chave], projeto: { formato: chave }, negocio: { nome: 'Ana' } });
+    assert.deepEqual(q, { ficha: [{ rotulo: 'Empresa', valor: 'Ana' }] }, 'a chave ' + chave + ' não vira rótulo');
+  }
+  /* todo valor sai como string */
+  assert.ok(montarPainel({ negocio: { nome: 'Ana' }, projeto: { formato: 'institucional' } }).ficha.every(f => typeof f.valor === 'string'));
   const sm = montarPainel({ projeto: { formato: 'sob_medida' } });
   assert.deepEqual(sm.ficha, [{ rotulo: 'Procura', valor: 'Site sob medida' }]);
   assert.ok(!/beyond/i.test(JSON.stringify(sm)));
+  /* o prefixo não come o valor: o item inteiro cabe no limite e o valor não perde o começo */
+  const curto = montarPainel({ situacao_atual: { como_chegam: 'c'.repeat(300) } });
+  assert.ok(curto.anotamos[0].length <= LIMITES_PAINEL.texto && curto.anotamos[0].startsWith('Clientes chegam por: c'));
+});
+
+test('painel: em nicho regulado o painel não repete, na voz da Beyon, o que a pessoa pediu e a Beyon não faz (depoimento, antes e depois)', async () => {
+  const { montarPainel } = await import('../../api/_vendas/painel.mjs');
+  const briefing = {
+    negocio: { nome: 'Clínica Sorriso', segmento: 'odontologia', descricao: 'Clínica odontológica com antes e depois do clareamento' },
+    objetivo_detalhe: 'Quer mostrar depoimentos de pacientes', situacao_atual: { o_que_se_perde: 'pacientes não agendam' }, funcionalidades: ['depoimentos', 'agendamento']
+  };
+  const livre = JSON.stringify(montarPainel(briefing));
+  assert.match(livre, /depoimentos de pacientes/, 'fora de nicho regulado, o painel mostra o que a pessoa contou');
+  const regulado = montarPainel(briefing, { regulado: true });
+  const txt = JSON.stringify(regulado).toLowerCase();
+  assert.ok(!/depoiment|antes (e )?depois/.test(txt), 'em nicho regulado, nada de depoimento nem antes e depois no painel: ' + txt);
+  assert.ok(regulado.anotamos.includes('O que se perde hoje: pacientes não agendam') && regulado.anotamos.includes('Quer: agendamento'), 'o resto segue');
 });
 
 test('painel na tela: valida de novo o que veio do servidor, monta só por textContent, não redesenha sem mudança e marca só o item novo', () => {
@@ -682,11 +708,10 @@ test('painel na tela: valida de novo o que veio do servidor, monta só por textC
   const { validar, _criar, LIMITES } = janela.BZPainel;
   /* validar: o que não cabe no esquema some */
   assert.equal(validar(null), null); assert.equal(validar([]), null); assert.equal(validar({ x: 1 }), null);
-  const v = validar({ anotamos: ['ok', 7, '<b>x</b>', '', 'a'.repeat(500)], ficha: [{ rotulo: 'Empresa', valor: 'Ana' }, { rotulo: 'Qualquer', valor: 'não' }, { rotulo: 'Cidade', valor: '' }], caso: { cenario: 'c', outro: 'z' }, extra: 'fora' });
-  assert.deepEqual(Object.keys(v).sort(), ['anotamos', 'caso', 'ficha']);
+  const v = validar({ anotamos: ['ok', 7, '<b>x</b>', '', 'a'.repeat(500)], ficha: [{ rotulo: 'Empresa', valor: 'Ana' }, { rotulo: 'Qualquer', valor: 'não' }, { rotulo: 'Cidade', valor: '' }, { rotulo: '__proto__', valor: 'x' }], caso: { cenario: 'c' }, extra: 'fora' });
+  assert.deepEqual(Object.keys(v).sort(), ['anotamos', 'ficha']);
   assert.ok(v.anotamos.every(a => a.length <= LIMITES.texto) && v.anotamos.length === 3 && !/[<>]/.test(JSON.stringify(v)));
   assert.deepEqual(v.ficha, [{ rotulo: 'Empresa', valor: 'Ana' }]);
-  assert.deepEqual(v.caso, { cenario: 'c' });
   /* DOM de mentira: conta elementos criados e guarda classe e texto */
   let criados = 0;
   const no = tag => ({ tag, className: '', textContent: '', children: [], hidden: false,
@@ -701,7 +726,7 @@ test('painel na tela: valida de novo o que veio do servidor, monta só por textC
   assert.ok(itens().every(i => i.className.includes('is-novo')), 'na primeira vez o item é novo');
   const depoisDoPrimeiro = criados;
   tela.atualizar({ anotamos: ['Vende bolos'], ficha: [{ rotulo: 'Empresa', valor: 'Doces da Ana' }] });
-  assert.equal(criados, depoisDoPrimeiro, 'o mesmo painel não redesenha (o foco e o DOM ficam)');
+  assert.equal(criados, depoisDoPrimeiro, 'o mesmo painel não redesenha (o DOM fica)');
   tela.atualizar({ anotamos: ['Vende bolos', 'Quer: formulário de contato'], ficha: [{ rotulo: 'Empresa', valor: 'Doces da Ana' }] });
   const [velho, novo] = itens();
   assert.ok(!velho.className.includes('is-novo') && novo.className.includes('is-novo'), 'só o item que acabou de chegar faz o fade');
@@ -709,16 +734,41 @@ test('painel na tela: valida de novo o que veio do servidor, monta só por textC
   assert.equal(raiz.hidden, true, 'sem painel o bloco some');
 });
 
+test('painel na tela: window.BZPainel.atualizar acha o #o-peca, delega ao desenho, e não quebra sem o elemento nem sem painel', () => {
+  const fonte = fs.readFileSync(new URL('../../js/orcamento-painel.js', import.meta.url), 'utf8');
+  const janela = {};
+  new Function('window', fonte)(janela);
+  const no = () => ({ className: '', textContent: '', children: [], hidden: true, appendChild(c) { this.children.push(c); return c; }, removeChild(c) { this.children.splice(this.children.indexOf(c), 1); }, get firstChild() { return this.children[0] || null; } });
+  const anterior = globalThis.document;
+  try {
+    globalThis.document = { getElementById: () => null, createElement: () => no() };
+    assert.doesNotThrow(() => janela.BZPainel.atualizar({ anotamos: ['x'] }), 'sem #o-peca na página, nada acontece');
+    const raiz = no();
+    globalThis.document = { getElementById: id => (id === 'o-peca' ? raiz : null), createElement: () => no() };
+    janela.BZPainel.atualizar({ anotamos: ['Vende bolos'] });
+    assert.equal(raiz.hidden, false, 'com painel, o bloco aparece');
+    assert.ok(raiz.children.length >= 1, 'e foi desenhado');
+    janela.BZPainel.atualizar(undefined);
+    assert.equal(raiz.hidden, true, 'E.painel undefined: o bloco some, sem erro');
+  } finally { globalThis.document = anterior; }
+});
+
 test('painel na tela: a página liga o módulo, o CSS e o ponto de montagem; o fade some em movimento reduzido; nada de blur', () => {
   const html = fs.readFileSync(new URL('../../orcamento.html', import.meta.url), 'utf8');
   assert.match(html, /<div class="orc-peca" id="o-peca"[^>]*hidden><\/div>/, 'o ponto de montagem começa escondido (sem JS ele não aparece)');
   assert.match(html, /css\/orcamento-painel\.css/); assert.match(html, /js\/orcamento-painel\.js/);
-  assert.ok(html.indexOf('js/orcamento-painel.js') > html.indexOf('js/orcamento-perguntas.js'), 'o módulo carrega antes do orcamento.js que o usa? (defer mantém a ordem)');
+  assert.ok(html.indexOf('js/orcamento-painel.js') < html.indexOf('js/orcamento.js'), 'o módulo é carregado antes do orcamento.js que o chama (defer mantém a ordem)');
   const css = fs.readFileSync(new URL('../../css/orcamento-painel.css', import.meta.url), 'utf8');
   assert.match(css, /prefers-reduced-motion: reduce\)\s*\{\s*\.orc-peca \.is-novo\s*\{\s*animation: none/, 'movimento reduzido: sem animação');
   const cssSemComentario = css.replace(/\/\*[\s\S]*?\*\//g, '');
   assert.ok(!/blur|drop-shadow|box-shadow|filter\s*:|style=/.test(cssSemComentario), 'sem desfoque nem brilho (o dono proíbe)');
   assert.ok(!/animation[^;]*infinite/.test(css), 'nenhum movimento contínuo');
+  assert.ok(!/overscroll-behavior/.test(cssSemComentario), 'a roda do mouse encadeia com a página (a coluna rolável não prende a rolagem)');
   const js = fs.readFileSync(new URL('../../js/orcamento.js', import.meta.url), 'utf8');
   assert.match(js, /window\.BZPainel\.atualizar\(E\.painel\)/, 'o render passa o painel do estado');
+});
+
+test('painel: a rota de estado liga o filtro de nicho regulado (o nicho vale a sessão: briefing e o que a pessoa disse)', () => {
+  const fluxo = fs.readFileSync(new URL('../../api/_vendas/fluxo.mjs', import.meta.url), 'utf8');
+  assert.match(fluxo, /montarPainel\(e\.conversa\?\.briefing,\s*\{\s*regulado:\s*!!nichoDaSessao\(\{\s*briefing:\s*e\.conversa\?\.briefing,\s*mensagens:\s*e\.mensagens\s*\}\)\s*\}\)/, 'o estado passa regulado ao painel');
 });

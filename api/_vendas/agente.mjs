@@ -62,7 +62,7 @@ export function estadoParaModelo({ briefing, estimativa, etapa, regras, metodos,
 
 /* o nicho regulado vale a SESSÃO: o briefing (o que o modelo registrou), o que a pessoa disse antes e o que diz agora */
 const doVisitante = mensagens => (mensagens || []).filter(m => m.papel === 'visitante').map(m => String(m.conteudo ?? ''));
-function nichoDaSessao({ briefing, mensagens, mensagem }) {
+export function nichoDaSessao({ briefing, mensagens, mensagem }) {
   const b = briefing || {};
   /* (uma fonte por vez: o detector olha até 2.000 caracteres de cada, e a mensagem de agora não pode ser cortada pelas antigas) */
   const fontes = [b.negocio?.segmento, b.negocio?.descricao, ...(Array.isArray(b.servicos) ? b.servicos : []), ...doVisitante(mensagens), mensagem];

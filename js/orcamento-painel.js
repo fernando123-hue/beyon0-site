@@ -1,5 +1,5 @@
 /* ==========================================================================
-   AS PEÇAS DA CONVERSA (fatia 1): "o que já anotamos", a ficha do pedido e os três quadros do caso, ao lado da conversa
+   AS PEÇAS DA CONVERSA (fatia 1): "o que já anotamos" e a ficha do pedido, ao lado da conversa
    com o Zero. O servidor manda `painel` no estado (api/_vendas/painel.mjs, derivado do briefing, esquema fechado); aqui o
    objeto é validado DE NOVO (o navegador não confia no formato) e o DOM é montado só por textContent: nada do que a pessoa
    contou entra como HTML. Só classes (CSP sem inline). A entrada de um item novo é um fade curto de opacidade, desligado em
@@ -9,7 +9,6 @@
 (function () {
   'use strict';
   var LIM = { itens: 5, ficha: 6, texto: 110 };
-  var QUADROS = [['cenario', 'O cenário'], ['trava', 'O que trava'], ['destino', 'Onde quer chegar']];
   var ROTULOS_DA_FICHA = ['Empresa', 'Segmento', 'Cidade', 'O que quer resolver', 'Procura', 'Prazo'];
 
   /* o mesmo corte do servidor: sem controle nem < >, espaço simples, curto */
@@ -27,9 +26,6 @@
       return f && typeof f === 'object' && ROTULOS_DA_FICHA.indexOf(f.rotulo) >= 0 ? { rotulo: f.rotulo, valor: texto(f.valor) } : null;
     }).filter(function (f) { return f && f.valor; }).slice(0, LIM.ficha) : [];
     if (ficha.length) saida.ficha = ficha;
-    var caso = {};
-    if (p.caso && typeof p.caso === 'object') QUADROS.forEach(function (q) { var v = texto(p.caso[q[0]]); if (v) caso[q[0]] = v; });
-    if (Object.keys(caso).length) saida.caso = caso;
     return Object.keys(saida).length ? saida : null;
   }
 
@@ -66,16 +62,6 @@
           marcarNovo(linha, 'f:' + f.rotulo + ':' + f.valor); dl.appendChild(linha);
         });
         b2.appendChild(dl); raiz.appendChild(b2);
-      }
-      if (p.caso) {
-        var b3 = bloco('O seu caso'), grade = el('div', 'orc-peca__caso');
-        QUADROS.forEach(function (q) {
-          if (!p.caso[q[0]]) return;
-          var quadro = el('div', 'orc-peca__quadro orc-peca__quadro--' + q[0]);
-          quadro.appendChild(el('span', 'orc-peca__rotulo', q[1])); quadro.appendChild(el('span', 'orc-peca__valor', p.caso[q[0]]));
-          marcarNovo(quadro, 'c:' + q[0] + ':' + p.caso[q[0]]); grade.appendChild(quadro);
-        });
-        b3.appendChild(grade); raiz.appendChild(b3);
       }
     }
     return {
