@@ -794,3 +794,45 @@ test('passo seguinte e prompt: o valor já dito não se repete nem se reestima s
   assert.match(s, /nem finja conversa anterior/, 'o prompt proíbe fingir conversa anterior');
   assert.ok(s.length <= 27000, 'o prompt segue dentro do limite: ' + s.length);
 });
+
+/* ---------- a pergunta que voltava com as mesmas palavras (teste com o modelo real, 03/11) ---------- */
+test('pergunta repetida: a frase com ? quase igual a uma pergunta das duas últimas falas do Zero sai; a reformulada fica', async () => {
+  const { semPerguntaRepetida } = await import('../../api/_vendas/zero.mjs');
+  const P = 'Você já tem fotos dos seus bolos pra usar?';
+  /* repetida palavra por palavra: sai, o resto fica */
+  let r = semPerguntaRepetida('Então o site pode falar com as duas coisas, com um botão de WhatsApp. ' + P, ['Fica em R$ 2.900. ' + P]);
+  assert.equal(r.trocou, true); assert.equal(r.texto, 'Então o site pode falar com as duas coisas, com um botão de WhatsApp.');
+  /* só diferença de caixa, acento e pontuação: ainda é a mesma pergunta */
+  r = semPerguntaRepetida('Certo, anotei. Voce ja tem fotos dos seus bolos pra usar??', [P]);
+  assert.equal(r.trocou, true); assert.equal(r.texto, 'Certo, anotei.');
+  /* reformulada mais curta, com outras palavras: passa */
+  r = semPerguntaRepetida('Tudo bem. Tem foto dos bolos?', [P]);
+  assert.deepEqual(r, { texto: 'Tudo bem. Tem foto dos bolos?', trocou: false });
+  /* pergunta nova: passa */
+  r = semPerguntaRepetida('Anotei. Quem costuma encomendar com você, família ou empresas?', [P]);
+  assert.equal(r.trocou, false);
+  /* se sobrasse só a pergunta repetida, o texto fica como veio (nunca resposta vazia) */
+  r = semPerguntaRepetida(P, [P]);
+  assert.deepEqual(r, { texto: P, trocou: false });
+  /* só as DUAS últimas falas contam; sem falas, nada muda; entrada estranha não quebra */
+  assert.equal(semPerguntaRepetida('Oi. ' + P, ['a', 'b', P, 'c']).trocou, true, 'a pergunta está numa das duas últimas');
+  assert.equal(semPerguntaRepetida('Oi. ' + P, [P, 'a', 'b']).trocou, false, 'a pergunta é de três falas atrás');
+  for (const x of [[], null, undefined, 'texto', [null, 7, {}]]) assert.equal(semPerguntaRepetida('Oi. ' + P, x).trocou, false);
+  assert.deepEqual(semPerguntaRepetida(undefined, [P]), { texto: '', trocou: false });
+  /* afirmação igual não é pergunta: não mexe */
+  assert.equal(semPerguntaRepetida('Fica em R$ 2.900 e leva 5 dias.', ['Fica em R$ 2.900 e leva 5 dias.']).trocou, false);
+});
+
+test('pergunta repetida: o agente aplica o filtro sobre o que vai para a tela, olhando as falas guardadas do Zero', async () => {
+  const REGRAS = JSON.parse(fs.readFileSync(new URL('../../docs/fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
+  const { executarTurno } = await import('../../api/_vendas/agente.mjs');
+  const P = 'Você já tem fotos dos seus bolos pra usar?';
+  const ia = { mensagem: async () => ({ texto: 'Então o site cobre aniversário e festa de empresa. ' + P, chamadas: [], conteudo: [{ type: 'text', text: 'x' }], parada: 'fim', custo_usd: 0 }) };
+  const mensagens = [{ papel: 'visitante', conteudo: 'oi' }, { papel: 'agente', conteudo: 'Fica em R$ 2.900. ' + P }, { papel: 'visitante', conteudo: 'mais família' }];
+  const r = await executarTurno({ ia, regras: REGRAS, conversa: { etapa: 'descoberta', briefing: {}, mensagens }, mensagem: 'e então?', direcoes: 'manual', metodos: ['pix'] });
+  assert.ok(!r.resposta.includes('fotos dos seus bolos'), 'a pergunta repetida não chega à tela: ' + r.resposta);
+  assert.match(r.resposta, /aniversário e festa de empresa/, 'o resto da resposta fica');
+  /* sem a pergunta antes, a mesma resposta passa inteira */
+  const sem = await executarTurno({ ia, regras: REGRAS, conversa: { etapa: 'descoberta', briefing: {}, mensagens: mensagens.filter(m => m.papel !== 'agente') }, mensagem: 'e então?', direcoes: 'manual', metodos: ['pix'] });
+  assert.match(sem.resposta, /fotos dos seus bolos/, 'sem a pergunta antes, ela passa');
+});

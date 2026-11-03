@@ -328,3 +328,28 @@ export function jaDito(mensagens) {
   const falas = mensagens.filter(m => m && m.papel === 'agente').map(m => normalizar(String(m.conteudo ?? '')));
   return JA_DITO.filter(([, r]) => falas.some(f => r.test(f))).map(([rotulo]) => rotulo);
 }
+
+/* ---------- a pergunta que volta com as mesmas palavras (teste com o modelo real no staging, 03/11) ----------
+   Quando a pessoa não responde a pergunta do Zero, o modelo a repete palavra por palavra no turno seguinte (viu-se três vezes
+   seguidas), apesar de o prompt mandar reformular mais curta uma vez e mudar de assunto. É o tique mais fácil de ver, então o
+   código corta: a frase com "?" que é quase igual a uma pergunta das duas últimas falas do Zero sai. Pergunta reformulada
+   (mais curta, outras palavras) passa; se sobrasse só a pergunta repetida, o texto fica como veio (nunca resposta vazia). */
+const PERGUNTA_IGUAL_MIN = 0.8;   /* Jaccard das palavras com mais de 2 letras */
+const palavrasDaFrase = f => new Set(paraBusca(f).split(' ').filter(p => p.length > 2));
+const jaccard = (a, b) => {
+  if (!a.size || !b.size) return 0;
+  let comuns = 0; for (const p of a) if (b.has(p)) comuns++;
+  return comuns / (a.size + b.size - comuns);
+};
+const ehPergunta = f => /\?\s*$/.test(f.trim());
+export function semPerguntaRepetida(texto, falasAnteriores) {
+  const original = String(texto ?? '');
+  const anteriores = (Array.isArray(falasAnteriores) ? falasAnteriores : []).slice(-2)
+    .flatMap(t => frasesDe(String(t ?? '')).filter(ehPergunta)).map(palavrasDaFrase).filter(s => s.size >= 3);
+  if (!anteriores.length) return { texto: original, trocou: false };
+  const frases = frasesDe(original);
+  const mantidas = frases.filter(f => !(ehPergunta(f) && anteriores.some(p => jaccard(palavrasDaFrase(f), p) >= PERGUNTA_IGUAL_MIN)));
+  const saida = mantidas.join('').trim();
+  if (mantidas.length === frases.length || !saida) return { texto: original, trocou: false };
+  return { texto: saida, trocou: true };
+}
