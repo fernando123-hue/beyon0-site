@@ -426,3 +426,27 @@ test('escopo e sinal: só dúvidas; estimar, pedir_contato e briefing pedidos pe
     assert.match(r.resposta, /Pix/);
   }
 });
+
+/* ---------- furo de preço: valor sem "R$" (JEV F1, 04/11) ---------- */
+test('preço sem R$: "5k", "2900", "mil e duzentos", "duas mil e novecentas pratas" e faixa por extenso saem do texto do agente', () => {
+  const CARTAO = 'o valor (no cartão da estimativa)';
+  const deveCortar = [
+    ['Ficaria em 5k.', 'Ficaria em ' + CARTAO + '.'],
+    ['A landing sai por 2900.', 'A landing sai por ' + CARTAO + '.'],
+    ['É 350 por cada página extra.', 'É ' + CARTAO + ' por cada página extra.'],
+    ['A entrada fica em mil e duzentos.', 'A entrada fica em ' + CARTAO + '.'],
+    ['Seria algo entre quatro e cinco mil.', 'Seria algo entre ' + CARTAO + '.'],
+    ['Pagamento de duas mil e novecentas pratas.', 'Pagamento de ' + CARTAO + '.'],
+    ['Fica uns 2,5k no total.', 'Fica uns ' + CARTAO + ' no total.'],
+    ['O pacote custa 2.900 à vista.', 'O pacote custa ' + CARTAO + ' à vista.'],
+    ['Sai em 10x de 290.', 'Sai em 10x de ' + CARTAO + '.']
+  ];
+  for (const [entrada, esperado] of deveCortar) assert.equal(semPrecoNoTexto(entrada), esperado, entrada);
+  /* o que NÃO é dinheiro fica como está */
+  const deveFicar = [
+    'Entrego em 8 dias úteis.', 'Dá 40% de desconto? Não, a gente não faz desconto.', 'Isso foi em 2026.', 'São 5 páginas e 3 seções.',
+    'Leva em 120 dias para o Google indexar.', 'Seu site pode ter 5 mil visitas por mês.', 'Tenho 2000 seguidores no Instagram.',
+    'Ligue de segunda a sexta, das 9 às 18 horas.', 'Fundada em 1998, a empresa tem 20 anos.', 'Passo 3 de 5.'
+  ];
+  for (const t of deveFicar) assert.equal(semPrecoNoTexto(t), t, t);
+});

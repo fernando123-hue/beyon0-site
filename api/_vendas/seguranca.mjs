@@ -95,8 +95,27 @@ const DINHEIRO = /(R\$\s?\d[\d.,]*(?:\s?(?:mil|k))?|\d[\d.,]*\s?(?:reais|mil rea
 /* (auditoria 2026-10-07) o valor por extenso também: "dois mil e quinhentos reais", "uns três mil reais" */
 const PALAVRAS = 'um|uma|dois|duas|tr[eê]s|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|treze|quatorze|catorze|quinze|dezesseis|dezessete|dezoito|dezenove|vinte|trinta|quarenta|cinquenta|sessenta|setenta|oitenta|noventa|cem|cento|duzentos|trezentos|quatrocentos|quinhentos|seiscentos|setecentos|oitocentos|novecentos|mil|milh[aã]o|milh[oõ]es';
 const POR_EXTENSO = new RegExp('\\b(?:' + PALAVRAS + ')(?:\\s+(?:e\\s+)?(?:' + PALAVRAS + '))*\\s+(?:de\\s+)?reais\\b', 'gi');
+const NO_CARTAO = 'o valor (no cartão da estimativa)';
+/* (JEV F1, 04/11) valor SEM "R$" e sem "reais": "5k", "2900", "2.900", "mil e duzentos", "entre quatro e cinco mil", "duas mil e novecentas pratas".
+   Número solto também é ano, prazo e quantidade, então só vira valor quando a palavra de antes é de preço (custa, sai, fica, por, em, de,
+   entre...) e a de depois não é unidade ("dias", "%", "páginas", "visitas"). É filtro de lista, não prova: a defesa de verdade é o prompt.
+   Furos conhecidos: valor entre 2020 e 2039 sem R$ (parece ano) e "4K" de vídeo depois de "em" (vira valor). */
+const PALAVRAS_F = PALAVRAS + '|duzentas|trezentas|quatrocentas|quinhentas|seiscentas|setecentas|oitocentas|novecentas';
+const SEQUENCIA = '(?:' + PALAVRAS_F + ')(?:\\s+(?:e\\s+)?(?:' + PALAVRAS_F + '))*';
+const ANTES_DE_PRECO = '(?<=(?<![A-Za-zÀ-ÿ0-9])(?:custa(?:m|r|ria|riam)?|sai|saem|sair|saia|fica(?:m|ria|riam)?|fecha(?:mos|ria)?|cobr(?:o|a|amos|ar|aria)|vale|valor(?:es)?|pre[cç]os?|or[cç]amento|investimento|entrada|sinal|parcelas?|por|em|de|é|são|a|até|entre|ou|e|uns|umas|cerca\\sde|mais\\sou\\smenos|só|apenas|total|mensalidade)\\s+)';
+const NAO_E_UNIDADE = '(?![\\d,]|\\.\\d)(?!\\s*(?:%|por\\s+cento|x\\b|dias?\\b|horas?\\b|minutos?\\b|mes(?:es)?\\b|m[eê]s\\b|anos?\\b|semanas?\\b|p[aá]ginas?\\b|se[cç][aãõo]es?\\b|km\\b|kg\\b|mb\\b|gb\\b|px\\b|vezes\\b|caracteres\\b|palavras\\b|clientes?\\b|pessoas?\\b|visitas?\\b|visitantes?\\b|acessos?\\b|seguidores\\b|usu[aá]rios?\\b|leads?\\b|vendas?\\b|produtos?\\b|itens\\b|fotos?\\b|imagens?\\b))';
+const NUMERO_SEM_RS = new RegExp(ANTES_DE_PRECO + '(?!20[23]\\d\\b)(?:\\d{1,3}(?:\\.\\d{3})+(?:,\\d+)?|\\d{3,}(?:,\\d+)?|\\d+(?:[.,]\\d+)?\\s?k\\b)' + NAO_E_UNIDADE, 'gi');
+const PALAVRAS_COM_MIL = new RegExp(ANTES_DE_PRECO + SEQUENCIA + NAO_E_UNIDADE, 'gi');
+const PRATAS = new RegExp('\\b' + SEQUENCIA + '\\s+(?:pratas|contos?|reais)\\b', 'gi');
+/* só os cortes com marca de dinheiro (R$, "reais"): o que a trava de condição de pagamento já enxergava antes do furo de preço */
+export function semPrecoComMarca(texto) {
+  return String(texto).replace(DINHEIRO, NO_CARTAO).replace(POR_EXTENSO, NO_CARTAO);
+}
 export function semPrecoNoTexto(texto) {
-  return String(texto).replace(DINHEIRO, 'o valor (no cartão da estimativa)').replace(POR_EXTENSO, 'o valor (no cartão da estimativa)');
+  return semPrecoComMarca(texto)
+    .replace(PRATAS, NO_CARTAO)
+    .replace(NUMERO_SEM_RS, NO_CARTAO)
+    .replace(PALAVRAS_COM_MIL, trecho => (/\bmil\b/i.test(trecho) ? NO_CARTAO : trecho));
 }
 
 const INJECAO = [

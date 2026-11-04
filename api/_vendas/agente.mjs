@@ -17,7 +17,7 @@
 import { limparAtualizacao, limparTexto, mesclar, avaliar, prontoParaEstimar } from './briefing.mjs';
 import { IDENTIDADE, montarSistema, ferramentas, proximoPasso, ETAPAS_SO_DUVIDAS, FERRAMENTAS_DE_PRECO, precoAberto } from './consultor.mjs';
 import { estimar } from './precos.mjs';
-import { redigir, semPrecoNoTexto } from './seguranca.mjs';
+import { redigir, semPrecoNoTexto, semPrecoComMarca } from './seguranca.mjs';
 import { semPromessaDePagamento, motivoDaPergunta, motivoDaTroca, RESPOSTAS_PAGAMENTO } from './promessa.mjs';
 import { ErroIA } from '../_ia/provedor.mjs';
 import {
@@ -156,7 +156,11 @@ export async function executarTurno({ ia, regras, conversa, mensagem, direcoes, 
   const semPreco = cortarEmFrase(semPrecoNoTexto(semNotacaoInterna(texto)).trim(), TEXTO_DO_MODELO_MAX) || (soDuvidas ? 'Pode repetir a sua dúvida?' : 'Pode me contar um pouco mais sobre o seu negócio?');
   /* (o filtro olha exatamente o que vai para a tela: o corte de 1.500 vem antes) */
   /* afirmar pagamento é proibido em qualquer etapa; o resto do filtro de pagamento (meio, link, condição) só no escopo e no sinal */
-  let resposta = soDuvidas ? semPromessaDePagamento(semPreco) : (motivoDaTroca(semPreco) === 'pagamento' ? RESPOSTAS_PAGAMENTO.pagamento : semPreco);
+  /* a condição de pagamento ("o sinal é 1500") é lida com os cortes antigos (só com R$ ou "reais"): o filtro de preço agora também troca
+     número sem R$, e a frase deixaria de parecer uma condição */
+  const comMarca = cortarEmFrase(semPrecoComMarca(semNotacaoInterna(texto)).trim(), TEXTO_DO_MODELO_MAX) || semPreco;
+  const motivoPagamento = motivoDaTroca(comMarca);
+  let resposta = soDuvidas ? (motivoPagamento ? RESPOSTAS_PAGAMENTO[motivoPagamento] : semPreco) : (motivoPagamento === 'pagamento' ? RESPOSTAS_PAGAMENTO.pagamento : semPreco);
   resposta = semPromessaDeDesconto(resposta).texto;
   resposta = semPromessaDeSuporte(resposta).texto;
   resposta = semMensalidadeDoAtendente(resposta).texto;
