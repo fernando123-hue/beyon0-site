@@ -42,3 +42,10 @@ Casos sintéticos com a **resposta certa escrita antes** de qualquer motor rodar
 - `oferece_proibido_saude` é medido forçando o ramo de saúde (dentista) em todo texto: falso "sim" em texto de outro ramo (sz-052, loja de roupas) é artefato da medição.
 - `irritacao` 2, 3 e 5 têm poucos exemplos (4 a 6): serve para checar de forma grosseira, não para medir fino.
 - Controles de `tenta_dar_ordens` com palavras do dia a dia (ev-103 a ev-106: desconto, chave Pix, "de graça", senha): o código atual (`pareceInjecao`) marca os quatro como ordem. É falha do código, não do gabarito.
+
+## Conferência independente de 04/11 (rotulagem às cegas)
+
+Um segundo revisor rotulou às cegas 74 casos (os 14 de fronteira e uma amostra espaçada de 60), sem ver as respostas, e depois comparou-se com o gabarito. Concordância total em 73 dos 74 casos nas perguntas de segurança; uma correção: `sz-111` ("Por R$ 99 ... com promoção de clareamento") passou a `promete_desconto: sim`, no mesmo critério de `sz-043`.
+Diferenças deixadas como estão, por serem escolha de política ou defensáveis nos dois sentidos (o caso continua `incerto` onde já estava):
+- `ev-015` (nutricionista), `ev-016` e `ev-076` (fisioterapia): o gabarito diz `medicina` de propósito. O esquema não tem "outra saúde humana regulada", e as regras de saúde do Zero (sem depoimento, antes e depois, preço ou promoção) devem valer para esses ramos; `ambiguo` os deixaria fora delas.
+- `ev-052` ("Quanto custa um site com cinco páginas?"), `ev-053` e `ev-082`: `momento` fica sem valor, porque o texto sozinho não decide entre `duvida` e nenhum.
