@@ -14,7 +14,7 @@ import { montarSistema, ferramentas, IDENTIDADE } from '../../api/_vendas/consul
 import { PAPEIS, TETOS, custoUsd, RESERVA_USD } from '../../api/_ia/config.mjs';
 import {
   RECADO_FIXO, ETIQUETA, ABERTURA_PADRAO, ABERTURAS, semPromessaDeRecado, nichoRegulado, pedeItemProibido,
-  garantirRegulado, comMarcadores, briefingSemProibidos, respostaRegulado, semNotacaoInterna, pedeValor, garantirValor, cortarEmFrase, semPromessaDeDesconto
+  garantirRegulado, comMarcadores, briefingSemProibidos, respostaRegulado, semNotacaoInterna, pedeValor, garantirValor, cortarEmFrase, semPromessaDeDesconto, semPromessaDeSuporte, semMensalidadeDoAtendente, SUPORTE_FIXO, ATENDENTE_FIXO
 } from '../../api/_vendas/zero.mjs';
 
 const REGRAS = JSON.parse(fs.readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
@@ -879,4 +879,60 @@ test('prompt do Zero: quem faz o trabalho é a Beyon ("a gente", nunca "eu monto
     assert.ok(!/falando como "a gente" ou "eu"/.test(s), direcoes + ': a recusa em saúde fala como "a gente", sem "ou eu"');
     assert.ok(s.length <= 27000, direcoes + ': o prompt segue dentro do limite: ' + s.length);
   }
+});
+
+/* ---------- pendências do #75: suporte pós-entrega e mensalidade do atendente só em frase afirmativa ---------- */
+test('trava: o modelo não promete suporte nem manutenção depois da entrega (só a promessa afirmativa é trocada)', () => {
+  for (const t of [
+    'Depois da entrega a gente dá suporte por 30 dias.',
+    'Damos suporte contínuo ao seu site.',
+    'A manutenção mensal está incluída no valor.',
+    'Oferecemos manutenção e suporte depois que o site for ao ar.',
+    'Pode ficar tranquilo: temos suporte gratuito pra qualquer problema.',
+    'DEPOIS DA ENTREGA, A GENTE CUIDA DA MANUTENÇÃO DO SITE.'
+  ]) {
+    const r = semPromessaDeSuporte(t);
+    assert.equal(r.trocou, true, t);
+    assert.equal(semPromessaDeSuporte(r.texto).trocou, false, 'o texto fixo não é, ele mesmo, uma promessa: ' + r.texto);
+    assert.equal(semMensalidadeDoAtendente(r.texto).trocou, false, 'nem cai na outra trava: ' + r.texto);
+  }
+  for (const t of [
+    'Depois da entrega não há suporte contínuo nem manutenção.',
+    'Nunca prometemos suporte depois da entrega.',
+    'Sem suporte contínuo: os ajustes da prévia são outra coisa.',
+    'A manutenção do site fica por sua conta depois da entrega.',
+    'Os ajustes da prévia cabem até você aprovar o modelo.',
+    'O site fica hospedado de graça na Cloudflare.'
+  ]) assert.equal(semPromessaDeSuporte(t).trocou, false, t);
+});
+
+test('trava: o modelo não fala em mensalidade, assinatura ou cobrança recorrente do atendente de IA como se existisse', () => {
+  for (const t of [
+    'O atendente de IA tem uma mensalidade bem acessível.',
+    'Pra ter o atendente no seu site, cobramos uma mensalidade.',
+    'O chat com IA funciona por assinatura mensal.',
+    'O atendente tem cobrança recorrente, separada do site.'
+  ]) {
+    const r = semMensalidadeDoAtendente(t);
+    assert.equal(r.trocou, true, t);
+    assert.match(r.texto, /em preparo/i, 'o texto fixo diz que ainda está em preparo: ' + r.texto);
+    assert.equal(semMensalidadeDoAtendente(r.texto).trocou, false, 'o texto fixo não é trocado de novo');
+    assert.equal(semPromessaDeSuporte(r.texto).trocou, false, 'nem cai na outra trava: ' + r.texto);
+  }
+  for (const t of [
+    'O atendente de IA ainda está em preparo, sem preço nem mensalidade definidos.',
+    'Ainda não existe mensalidade do atendente.',
+    'O site não tem mensalidade: fica hospedado de graça.',
+    'Mensalidade só existiria para o atendente, e ele ainda não está pronto.',
+    'O atendente responde as perguntas do seu cliente no site.'
+  ]) assert.equal(semMensalidadeDoAtendente(t).trocou, false, t);
+});
+
+test('turno: suporte pós-entrega e mensalidade do atendente prometidos pelo modelo saem com o texto fixo (a trava está ligada no agente)', async () => {
+  const suporte = await executarTurno({ ia: roteiro(fim('Depois da entrega a gente cuida da manutenção do seu site.')), regras: REGRAS, conversa: nova(), mensagem: 'e depois que ficar pronto?' });
+  assert.equal(suporte.resposta, SUPORTE_FIXO);
+  const atendente = await executarTurno({ ia: roteiro(fim('O atendente de IA tem uma mensalidade bem acessível.')), regras: REGRAS, conversa: nova(), mensagem: 'e o atendente, quanto custa?' });
+  assert.equal(atendente.resposta, ATENDENTE_FIXO);
+  const certo = await executarTurno({ ia: roteiro(fim('Depois da entrega não há suporte contínuo.')), regras: REGRAS, conversa: nova(), mensagem: 'e depois que ficar pronto?' });
+  assert.equal(certo.resposta, 'Depois da entrega não há suporte contínuo.');
 });

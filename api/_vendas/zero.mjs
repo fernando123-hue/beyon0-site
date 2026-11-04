@@ -304,6 +304,31 @@ export function semPromessaDeDesconto(texto) {
   return ruim ? { texto: DESCONTO_FIXO, trocou: true } : { texto: original, trocou: false };
 }
 
+/* ---------- pendências do #75: suporte pós-entrega e mensalidade do atendente ----------
+   O prompt já diz "depois da entrega não há suporte contínuo" e "o atendente ainda não tem preço nem mensalidade", mas o modelo
+   pode escorregar numa frase afirmativa (CDC art. 30 e 37: o que o Zero diz vale como promessa da empresa). Como a de desconto, a
+   trava é conservadora: só troca a frase AFIRMATIVA. Qualquer negação ou ressalva na mesma frase (não, nunca, sem, ainda, em preparo,
+   "por sua conta") deixa a resposta intacta, porque o texto fixo diria a mesma verdade e o falso positivo só cortaria conteúdo. */
+const RESSALVA = /\b(?:nao|nunca|jamais|sem|nenhum|nenhuma|nem|ainda|futuramente|quando existir|em preparo|so existiria)\b|\bpor (?:sua|tua) conta\b|\bfica com (?:voce|o cliente)\b|\be (?:do cliente|sua|seu)\b/;
+const SUPORTE_VERBO = /\b(?:damos|dou|te da|oferecemos|ofereco|temos|incluimos|inclui|prestamos|garantimos|garanto|cuidamos|cuido|continuamos|a gente (?:da|cuida|oferece|inclui|tem|garante|presta|continua))\s+(?:\w+\s+){0,4}(?:suporte|manutencao)\b/;
+const SUPORTE_ADJ = /\b(?:suporte|manutencao)\s+(?:\w+\s+){0,2}(?:incluso|inclusa|incluido|incluida|gratis|gratuito|gratuita|continuo|continua|vitalicio|vitalicia|mensal|permanente)\b|\b(?:suporte|manutencao)\s+(?:esta|ficam?|vem|vai estar|fica)\s+(?:\w+\s+){0,2}(?:incluso|inclusa|incluido|incluida|garantido|garantida)\b/;
+export const SUPORTE_FIXO = 'Depois da entrega não há suporte contínuo nem manutenção incluída: o que cabe são os ajustes da prévia, antes de você fechar. O site fica seu, e dá pra levar os arquivos pra quem você quiser.';
+const prometeSuporte = f => !RESSALVA.test(f) && (SUPORTE_VERBO.test(f) || SUPORTE_ADJ.test(f));
+export function semPromessaDeSuporte(texto) {
+  const original = String(texto ?? '');
+  const ruim = frasesDe(original).map(f => paraBusca(f)).some(prometeSuporte);
+  return ruim ? { texto: SUPORTE_FIXO, trocou: true } : { texto: original, trocou: false };
+}
+
+const ATENDENTE = /\b(?:atendente|chat(?:bot)?)\b/;
+const MENSALIDADE = /\b(?:mensalidade|assinatura|plano mensal|cobranca (?:mensal|recorrente)|recorrente)\b/;
+export const ATENDENTE_FIXO = 'O atendente de IA ainda está em preparo, sem preço, mensalidade nem prazo definidos, então não consigo te passar isso agora.';
+export function semMensalidadeDoAtendente(texto) {
+  const original = String(texto ?? '');
+  const ruim = frasesDe(original).map(f => paraBusca(f)).some(f => ATENDENTE.test(f) && MENSALIDADE.test(f) && !RESSALVA.test(f));
+  return ruim ? { texto: ATENDENTE_FIXO, trocou: true } : { texto: original, trocou: false };
+}
+
 /* ---------- o que o Zero JÁ DISSE nesta conversa (memória do código, rodada 4 da lapidação) ----------
    O modelo só vê as últimas 12 mensagens; numa conversa longa ele esquece que já falou do aviso de IA, dos três modelos, dos 7 dias
    ou do botão do recado e repete, e as regras de "não repita" no prompt não pegaram. O código lê as falas do Zero guardadas (o banco
