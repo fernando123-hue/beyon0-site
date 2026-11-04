@@ -134,8 +134,14 @@ const INJECAO = [
   /ignor(e|ar|a)\s+(as\s+|suas\s+|todas\s+as\s+)?(instru|regras|ordens)/i,
   /(mostre|revele|imprima|repita|diga)\s+(o\s+|seu\s+|suas\s+)?(prompt|instru[cç][õo]es|regras internas|system)/i,
   /(voc[eê] agora [ée]|finja que|aja como)\s/i,
-  /(desconto|de gra[cç]a|zer[ao]\s+o\s+pre[cç]o|pre[cç]o\s+(de\s+)?r?\$?\s?1\b)/i,
-  /(chave|api key|token|senha|secret|service.?role)/i,
+  /* (JEV F1, 04/11) pergunta normal de venda não é ordem: "tem desconto à vista?", "qual a chave Pix?", "o domínio sai de graça?", "preciso de uma senha para entrar?"
+     passavam por serem só palavras soltas. Agora é preciso o PEDIDO: desconto grande (50 a 100%), "faça/dê ... de graça", "sou amigo do dono"/"o dono mandou", preço zero ou R$ 1 */
+  /desconto\s+de\s+(?:[5-9]\d|100)\s?%/i,
+  /\b(?:[5-9]\d|100)\s?%\s+de\s+desconto/i,
+  /\b(?:fa[cç]a|fa[cç]am|monte|entregue|d[eê]|me\s+d[eê])\b[^.?!]{0,30}\bde\s+gra[cç]a\b/i,
+  /\b(?:sou|somos)\s+(?:amig[oa]|parente|conhecid[oa])\s+d[oe]\s+dono|\bo\s+dono\s+(?:mandou|autorizou|liberou|aprovou)\b/i,
+  /(zer[aeo]\s+o\s+pre[cç]o|pre[cç]o\s+(de\s+)?r?\$?\s?1\b)/i,
+  /(api.?key|token|secret|service.?role|chave\s+(?:secreta|privada|de\s+api|da\s+api|de\s+acesso|do\s+sistema)|senha\s+d[oae]\s+(?:admin|administrador|banco|sistema|dono|servidor))/i,
   /(outro cliente|outros clientes|projeto de outr[oa]|dados de outr)/i,
   /* (revisão final do PR 2a, B5) as de sempre em inglês */
   /\b(ignore|disregard|forget|override)\s+(all\s+|any\s+|the\s+|your\s+|my\s+)?(previous\s+|prior\s+|above\s+|earlier\s+|system\s+)?(instructions?|rules|prompts?|guidelines)\b/i,
