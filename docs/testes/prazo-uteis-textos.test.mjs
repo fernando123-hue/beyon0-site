@@ -38,5 +38,5 @@ test('o recibo, o resumo e o agente escrevem "dia útil" / "dias úteis"', () =>
 
 test('"Quando fica pronto?": dias úteis, e a regra do material parado (22/10, sem prazo de 30 dias) no lugar da antiga', () => {
   const h = semComentario(ler('orcamento.html')).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
-  assert.ok(h.includes('O prazo está no resumo do seu pedido, em dias úteis, contados do pagamento da entrada e do envio do seu material. Sábado, domingo e feriado nacional não contam. Enquanto espero a sua lista de ajustes, o prazo fica parado. Nada vai ao ar sem o seu material e a sua autorização: enquanto ele não chegar, eu aviso que estou aguardando e o projeto fica parado.'), h.slice(h.indexOf('O prazo está'), h.indexOf('O prazo está') + 240));
+  assert.ok(h.includes('O prazo está no resumo do seu pedido, em dias úteis, contados do pagamento da entrada e do envio do seu material. Sábado, domingo e feriado nacional não contam. Enquanto esperamos a sua lista de ajustes, o prazo fica parado. Nada vai ao ar sem o seu material e a sua autorização: enquanto ele não chegar, nós avisamos que estamos aguardando e o projeto fica parado.'), h.slice(h.indexOf('O prazo está'), h.indexOf('O prazo está') + 240));
 });

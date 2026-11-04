@@ -39,8 +39,8 @@ test('sinal: só porcentagem inteira (a proposta guarda inteiro; fração dava u
    restrita continua fora do automático (2026-10-14) */
 test('tabela de 2026-10-28: landing 2.900, institucional 7.900, experiência 19.900, loja 8.900, textos 350', () => {
   assert.deepEqual([REGRAS.formatos.landing_page.base, REGRAS.formatos.institucional.base, REGRAS.adicionais.textos.valor], [2900, 7900, 350]);
-  assert.deepEqual([REGRAS.formatos.loja_plataforma.base, REGRAS.formatos.sob_medida.base], [8900, 20000]);   /* (Cume, v3 de 2026-11-03; era 19.900) */
-  assert.deepEqual(Object.values(REGRAS.formatos).map(f => f.piso), [1500, 4500, 15000, 6500], 'pisos de landing, institucional, Cume e loja');
+  assert.deepEqual([REGRAS.formatos.loja_plataforma.base, REGRAS.formatos.sob_medida.base], [8900, 20000]);   /* (Atelier, v3 de 2026-11-03; era 19.900) */
+  assert.deepEqual(Object.values(REGRAS.formatos).map(f => f.piso), [1500, 4500, 15000, 6500], 'pisos de landing, institucional, Atelier e loja');
 });
 
 /* dono, 2026-10-28 (Decisões.md): saem da venda a área restrita, o sistema sob medida e a loja em código próprio */
@@ -66,7 +66,7 @@ test('casos de referência (os números do REGRAS-RASCUNHO.md)', () => {
   assert.deepEqual([g.valor_total, g.sinal, g.prazo_dias, g.fase, g.fase_seguinte], [12050, 4820, 16, 'unica', null]);
   const u = estimar({ formato: 'landing_page', urgencia: true }, REGRAS);
   assert.deepEqual([u.valor_total, u.prazo_dias], [3770, 3]);   /* 2900 × 1,3; 5 × 0,6 */
-  assert.equal(estimar({ formato: 'sob_medida', complexidade: 'alta' }, REGRAS).valor_total, 25000);   /* Cume: 20000 × 1,25 */
+  assert.equal(estimar({ formato: 'sob_medida', complexidade: 'alta' }, REGRAS).valor_total, 25000);   /* Atelier: 20000 × 1,25 */
 });
 
 /* a lógica de fases continua no motor (uma tabela ativa pode ter teto): os mesmos pedidos com o teto de 10 dias */
@@ -93,7 +93,7 @@ test('tabela de 2026-10-28: sem trava de prazo nem de valor, o projeto sai numa 
      1,5 + 1 + 2 + 3 + 3 + 4 = 32,75 → 33 dias */
   const tudo = { formato: 'sob_medida', paginas: 12, complexidade: 'alta', adicionais: { textos: 15, imagens: 1, formulario_avancado: 3, agendamento: 1, blog: 1, catalogo: 1, integracao: 3, idioma: 2 } };
   const e = estimar(tudo, REGRAS);
-  /* Cume (v3 ajustada: 6 páginas, textos de todas, 1 imagem, 1 formulário, animações e 2 assinaturas já vêm incluídos; a quantidade pedida é o TOTAL):
+  /* Atelier (v3 ajustada: 6 páginas, textos de todas, 1 imagem, 1 formulário, animações e 2 assinaturas já vêm incluídos; a quantidade pedida é o TOTAL):
      12 páginas = 6 extras × 350 = 2100; textos 15 = 9 pagos × 350 = 3150; imagens 1 = 0; formulário 3 = 2 × 300 = 600; agendamento 450; blog 900;
      catálogo 1500; integração 3 × 900 = 2700; idioma 2 × 800 = 1600; soma 20000 + 13000 = 33000, × 1,25 = 41250; prazo 15 + 3 + 2,25 + 1 + 1 + 2 + 3 + 3 + 4 = 34,25 → 35 */
   assert.deepEqual([e.valor_total, e.sinal, e.prazo_dias, e.fase, e.fase_seguinte], [41250, 16500, 35, 'unica', null]);
@@ -264,35 +264,35 @@ test('prazo máximo possível por formato: a soma de tudo no máximo, a mesma qu
   const { prazoMaximoPossivel, podeTerFaseSeguinte } = await import('../../api/_vendas/precos.mjs');
   /* loja: 8 + 55 páginas extras × 0,5 (até 60 páginas) + gerais 3,75 + 0,5 + 1,5 + 1 + 2 + 3 + 3 + 4 + loja 10 + 1 + 1 + 4 + 3 + 2 + interações (1 leve × 1 + 3 de assinatura × 2 = 7) = 82,25 */
   assert.equal(prazoMaximoPossivel(REGRAS, 'loja_plataforma'), 82.25);
-  /* Cume: 15 + 54 × 0,5 + 18,75 + 7 = 67,75 (das interações só se paga o que passa do incluso); landing: 5 + 2 páginas × 0,5 (até 3 páginas) + 18,75 + 7 = 31,75
+  /* Atelier: 15 + 54 × 0,5 + 18,75 + 7 = 67,75 (das interações só se paga o que passa do incluso); landing: 5 + 2 páginas × 0,5 (até 3 páginas) + 18,75 + 7 = 31,75
      (o atendente em preparo não conta) */
   assert.equal(prazoMaximoPossivel(REGRAS, 'sob_medida'), 67.75);
   assert.equal(prazoMaximoPossivel(REGRAS, 'landing_page'), 31.75);
   const geral = { textos: 15, imagens: 1, formulario_avancado: 3, agendamento: 1, blog: 1, catalogo: 1, integracao: 3, idioma: 2 };
   const loja = estimar({ formato: 'loja_plataforma', paginas: 60, adicionais: { ...geral, produtos_lote_25: 20, pagamento_extra: 2, frete_transportadora: 1, integracao_erp: 2, marketplace: 2, migracao_loja: 1 } }, REGRAS);
   assert.equal(loja.fase, 'fase1', 'o motor confirma: a loja com tudo passa de 60 dias');
-  /* Cume com tudo (quantidades TOTAIS: 1 leve já incluída, 5 de assinatura = 3 pagas): 15 + 27 + 2,25 + 1 + 1 + 2 + 3 + 3 + 4 + 6 = 64,25 */
+  /* Atelier com tudo (quantidades TOTAIS: 1 leve já incluída, 5 de assinatura = 3 pagas): 15 + 27 + 2,25 + 1 + 1 + 2 + 3 + 3 + 4 + 6 = 64,25 */
   const sob = estimar({ formato: 'sob_medida', paginas: 60, adicionais: { ...geral, interacao_leve: 1, interacao_assinatura: 5 } }, REGRAS);
-  assert.deepEqual([sob.fase, sob.prazo_dias], ['fase1', 60], 'o Cume (15 dias de base) com tudo também passa de 60: 64,25 (v3 de 2026-11-03; a experiência de 10 dias cabia em 57)');
-  assert.equal(podeTerFaseSeguinte(REGRAS), true, 'a loja e o Cume extremos chegam à fase seguinte');
+  assert.deepEqual([sob.fase, sob.prazo_dias], ['fase1', 60], 'o Atelier (15 dias de base) com tudo também passa de 60: 64,25 (v3 de 2026-11-03; a experiência de 10 dias cabia em 57)');
+  assert.equal(podeTerFaseSeguinte(REGRAS), true, 'a loja e o Atelier extremos chegam à fase seguinte');
   const semLoja = copia(); delete semLoja.formatos.loja_plataforma;
   for (const [k, x] of Object.entries(semLoja.adicionais)) if (x.requer?.includes('loja_plataforma')) delete semLoja.adicionais[k];
-  assert.equal(podeTerFaseSeguinte(semLoja), true, 'sem a loja o Cume ainda passa de 60 (15 dias de base mais tudo no máximo)');
+  assert.equal(podeTerFaseSeguinte(semLoja), true, 'sem a loja o Atelier ainda passa de 60 (15 dias de base mais tudo no máximo)');
   assert.ok(prazoMaximoPossivel(semLoja, 'landing_page') <= 60 && prazoMaximoPossivel(semLoja, 'institucional') > 60, 'a landing cabe em 60; o institucional com as interações e tudo no máximo não (61,25)');
   assert.equal(podeTerFaseSeguinte(MOTOR), true, 'com teto de 10, passa');
   assert.equal(prazoMaximoPossivel(REGRAS, 'nao_existe'), 0);
 });
 
-/* ==== TABELA v3 (dono, 2026-11-03, Decisões.md): o Cume substitui a experiência digital (base R$ 20.000, sem acompanhamento) e nenhum item é
+/* ==== TABELA v3 (dono, 2026-11-03, Decisões.md): o Atelier substitui a experiência digital (base R$ 20.000, sem acompanhamento) e nenhum item é
    exclusivo de um formato: as interações entram como adicionais em QUALQUER formato, e o atendente de IA no site (implantação mais mensalidade
    recorrente) está na tabela como "em preparo": o consultor sabe dele, o motor não o cobra até o produto existir. ==== */
 
-test('v3: o Cume substitui a experiência digital (id interno igual, para não mexer no banco)', () => {
+test('v3: o Atelier substitui a experiência digital (id interno igual, para não mexer no banco)', () => {
   const b = REGRAS.formatos.sob_medida;
-  assert.deepEqual([b.nome, b.base, b.piso, b.prazo_dias, b.paginas_incluidas], ['Cume', 20000, 15000, 15, 6]);
+  assert.deepEqual([b.nome, b.base, b.piso, b.prazo_dias, b.paginas_incluidas], ['Atelier', 20000, 15000, 15, 6]);
   assert.ok(b.inclui.some(x => /2 interações de assinatura/i.test(x) && /animações de entrada e rolagem no site todo/i.test(x)), 'duas interações de assinatura e as animações do site todo já vêm na base');
   assert.ok(b.inclui.some(x => /textos/i.test(x) && /todas as páginas/i.test(x)) && b.inclui.some(x => /imagens/i.test(x) && /formulário/i.test(x)), 'textos de todas as páginas, imagens e formulário com etapas já vêm na base');
-  assert.match(REGRAS.multiplicadores.complexidade_alta.descricao, /integrações ou regras de negócio/i, 'complexidade alta não cobra de novo as interações que o Cume já inclui');
+  assert.match(REGRAS.multiplicadores.complexidade_alta.descricao, /integrações ou regras de negócio/i, 'complexidade alta não cobra de novo as interações que o Atelier já inclui');
   assert.doesNotMatch(REGRAS._status, /R\$ 300\/h/, 'o relatório Lucro real não define faixa por hora: a frase saiu');
   assert.ok(!b.inclui.some(x => /acompanhamento|suporte|manuten/i.test(x)), 'sem acompanhamento pós-entrega (dono, 03/11)');
   assert.ok(!JSON.stringify(REGRAS.formatos).includes('Experiência digital'), 'o nome antigo saiu da tabela');
@@ -304,7 +304,7 @@ test('v3: as interações são adicionais de QUALQUER formato (nenhuma exige loj
   for (const k of ['interacao_leve', 'interacao_assinatura']) {
     assert.ok(REGRAS.adicionais[k] && !REGRAS.adicionais[k].requer && !REGRAS.adicionais[k].em_preparo, k + ' vale em todo formato');
     for (const formato of ['landing_page', 'institucional', 'sob_medida', 'loja_plataforma']) {
-      /* no Cume a quantidade é o total: uma além da incluída é que aparece como item pago */
+      /* no Atelier a quantidade é o total: uma além da incluída é que aparece como item pago */
       const q = 1 + (REGRAS.adicionais[k].incluso_em?.[formato] ?? 0);
       const e = estimar({ formato, adicionais: { [k]: q } }, REGRAS);
       assert.ok(!e.erros && e.itens.some(i => i.chave === k && i.qtd === 1), formato + ' aceita ' + k + ': ' + JSON.stringify(e.erros));
@@ -319,7 +319,7 @@ test('v3: a conta das interações é só a da tabela (valor × quantidade, mais
   /* institucional 7900 + 1 assinatura × 2500 = 10400; 8 + 2 = 10 dias */
   const i = estimar({ formato: 'institucional', adicionais: { interacao_assinatura: 1 } }, REGRAS);
   assert.deepEqual([i.valor_total, i.prazo_dias], [10400, 10]);
-  /* Cume: 2 de assinatura já vêm na base, então pedir 1 total não muda nada (20000, 15 dias) e pedir 3 total cobra só a terceira (22500, 17 dias) */
+  /* Atelier: 2 de assinatura já vêm na base, então pedir 1 total não muda nada (20000, 15 dias) e pedir 3 total cobra só a terceira (22500, 17 dias) */
   const b1 = estimar({ formato: 'sob_medida', adicionais: { interacao_assinatura: 1 } }, REGRAS);
   assert.deepEqual([b1.valor_total, b1.prazo_dias, b1.itens], [20000, 15, []]);
   const b3 = estimar({ formato: 'sob_medida', adicionais: { interacao_assinatura: 3 } }, REGRAS);
@@ -329,17 +329,17 @@ test('v3: a conta das interações é só a da tabela (valor × quantidade, mais
 });
 
 /* ==== incluso_em (ajuste do validador, 03/11): o que o formato já traz não se cobra de novo; a pessoa informa o TOTAL e o motor abate ==== */
-test('incluso_em: no Cume o incluso não é cobrado, só o que passa dele; em outro formato a mesma quantidade é cobrada inteira', () => {
+test('incluso_em: no Atelier o incluso não é cobrado, só o que passa dele; em outro formato a mesma quantidade é cobrada inteira', () => {
   const tudoIncluso = { textos: 6, imagens: 1, formulario_avancado: 1, interacao_leve: 1, interacao_assinatura: 2 };
   const b = estimar({ formato: 'sob_medida', adicionais: tudoIncluso }, REGRAS);
-  assert.deepEqual([b.valor_total, b.prazo_dias, b.itens], [20000, 15, []], 'tudo que a lista do Cume inclui = o preço-base');
+  assert.deepEqual([b.valor_total, b.prazo_dias, b.itens], [20000, 15, []], 'tudo que a lista do Atelier inclui = o preço-base');
   /* 8 páginas = 2 extras × 350; textos 8 no total = 2 × 350; assinatura 3 total = 1 × 2500: 20000 + 700 + 700 + 2500 = 23900; prazo 15 + 1 + 0,5 + 2 = 18,5 → 19 */
   const mais = estimar({ formato: 'sob_medida', paginas: 8, adicionais: { ...tudoIncluso, textos: 8, interacao_assinatura: 3 } }, REGRAS);
   assert.deepEqual([mais.valor_total, mais.prazo_dias], [23900, 19]);
   assert.deepEqual(mais.itens.map(i => [i.chave, i.qtd]).sort(), [['interacao_assinatura', 1], ['pagina_extra', 2], ['textos', 2]]);
   /* o teto é o que se compra mais o incluso: assinatura 99 = 5 no total = 3 pagas (R$ 7500) */
   assert.equal(estimar({ formato: 'sob_medida', adicionais: { interacao_assinatura: 99 } }, REGRAS).valor_total, 27500);
-  /* fora do Cume nada é abatido: institucional 7900 + 6 textos × 350 = 10000 */
+  /* fora do Atelier nada é abatido: institucional 7900 + 6 textos × 350 = 10000 */
   assert.equal(estimar({ formato: 'institucional', adicionais: { textos: 6 } }, REGRAS).valor_total, 10000);
 });
 
@@ -389,8 +389,8 @@ test('v3: validarFatores explica ao modelo por que o item em preparo não entra 
   assert.ok(validarFatores({ formato: 'institucional', adicionais: { atendente_ia_profissional: 0 } }, REGRAS).dados);
 });
 
-/* ---- achados das revisões técnica e de segurança do PR do Cume (03/11) ---- */
-test('incluso_em: o contrato diz o que o Cume já inclui e quantos do item vieram no preço; outros formatos não mudam', async () => {
+/* ---- achados das revisões técnica e de segurança do PR do Atelier (03/11) ---- */
+test('incluso_em: o contrato diz o que o Atelier já inclui e quantos do item vieram no preço; outros formatos não mudam', async () => {
   const { montarEscopo } = await import('../../api/_vendas/escopo.mjs');
   const direcao = { nome_conceito: 'Clareza', estrategia: 'conversao', secoes: [{ tipo: 'hero' }] };
   const contrato = e => montarEscopo({ estimativa: e, direcao, alteracoesAplicadas: [], briefing: { negocio: { nome: 'Estúdio' } } }).escopo;
@@ -398,7 +398,7 @@ test('incluso_em: o contrato diz o que o Cume já inclui e quantos do item viera
   assert.deepEqual(b.itens.map(i => [i.chave, i.qtd, i.incluso ?? null]).sort(), [['interacao_assinatura', 1, 2], ['pagina_extra', 2, null], ['textos', 2, 6]]);
   assert.ok(b.formato.inclui.some(x => /2 interações de assinatura/.test(x)), 'o formato leva a lista do que inclui');
   const c = contrato(b);
-  assert.match(c, /Já incluído em Cume: Até 6 páginas/);
+  assert.match(c, /Já incluído em Atelier: Até 6 páginas/);
   assert.match(c, /Interação de assinatura[^\n]*\(3 no total, 2 já incluídos no preço do formato\)/);
   assert.match(c, /Textos escritos pela Beyon Zero \(por página\) \(8 no total, 6 já incluídos no preço do formato\)/);
   const i = estimar({ formato: 'institucional', adicionais: { textos: 3 } }, REGRAS);

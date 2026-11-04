@@ -22,18 +22,18 @@ const CONDICOES = texto(ler('condicoes.html'));
 const TELA = texto(ler('orcamento.html')) + '\n' + fs.readdirSync(new URL('../../js/', import.meta.url)).filter(f => /^orcamento.*\.js$/.test(f)).map(f => semComentarioJs(ler('js/' + f))).join('\n');
 
 /* as frases LITERAIS da captação (1ª pessoa do dono): /condicoes as traz exatamente assim */
-const MATERIAL_1A = 'Nada vai ao ar sem o seu material e a sua autorização: enquanto ele não chegar, eu aviso que estou aguardando e o projeto fica parado.';
+const MATERIAL_1A = 'Nada vai ao ar sem o seu material e a sua autorização: enquanto ele não chegar, nós avisamos que estamos aguardando e o projeto fica parado.';
 /* captação 8fb5208 (26/10): a frase vem logo depois da do material, no mesmo parágrafo, com "também" */
-const AJUSTES_1A = "Enquanto espero a sua lista de ajustes, o prazo também fica parado.";
-const RESTANTE_1A = 'Se o restante não for pago em 3 dias depois do meu aviso de que o site está no ar, ele sai do ar até o pagamento. Antes disso eu lembro duas vezes, no segundo e no terceiro dia.';
+const AJUSTES_1A = "Enquanto esperamos a sua lista de ajustes, o prazo também fica parado.";
+const RESTANTE_1A = 'Se o restante não for pago em 3 dias depois do nosso aviso de que o site está no ar, ele sai do ar até o pagamento. Antes disso nós lembramos duas vezes, no segundo e no terceiro dia.';
 
 /* cada regra: um predicado por lugar (a mesma ideia, na voz do lugar: 1ª pessoa no contrato, em /condicoes e na tela; 3ª pessoa no consultor) */
 const REGRAS_D4 = [
-  ['prazo parado enquanto se espera a lista de ajustes', t => /(espero a sua|o cliente não manda a) lista de ajustes, o prazo (também )?fica parado./.test(t)],
-  ['material: nada vai ao ar sem material e autorização; a Beyon avisa que aguarda e o projeto fica parado (22/10)', t => /Nada vai ao ar sem (o seu material e a sua autorização|o material e a autorização do cliente): enquanto ele não chegar, (eu aviso que estou|a Beyon Zero avisa que está) aguardando e o projeto fica parado\./.test(t)],
-  ['restante: 3 dias depois do aviso de que o site está no ar ele sai do ar até o pagamento; dois lembretes antes (22/10)', t => /Se o restante não for pago em 3 dias depois d(o meu|o) aviso de que o site está no ar, ele sai do ar até o pagamento\. Antes disso (eu lembro|a Beyon Zero lembra) duas vezes, no segundo e no terceiro dia\./.test(t)],
+  ['prazo parado enquanto se espera a lista de ajustes', t => /(esperamos a sua|o cliente não manda a) lista de ajustes, o prazo (também )?fica parado./.test(t)],
+  ['material: nada vai ao ar sem material e autorização; a Beyon avisa que aguarda e o projeto fica parado (22/10)', t => /Nada vai ao ar sem (o seu material e a sua autorização|o material e a autorização do cliente): enquanto ele não chegar, (nós avisamos que estamos|a Beyon Zero avisa que está) aguardando e o projeto fica parado\./.test(t)],
+  ['restante: 3 dias depois do aviso de que o site está no ar ele sai do ar até o pagamento; dois lembretes antes (22/10)', t => /Se o restante não for pago em 3 dias depois d(o nosso|o) aviso de que o site está no ar, ele sai do ar até o pagamento\. Antes disso (nós lembramos|a Beyon Zero lembra) duas vezes, no segundo e no terceiro dia\./.test(t)],
   ['2 listas de ajuste', t => /(2|[Dd]uas) listas de ajuste/.test(t)],
-  ['atraso da Beyon devolve a entrada inteira, mesmo depois dos 7 dias', t => /entrada (é devolvida )?inteira( de volta)?,? mesmo depois dos 7 dias|devolvo a entrada inteira, mesmo depois dos 7 dias/.test(t)]
+  ['atraso da Beyon devolve a entrada inteira, mesmo depois dos 7 dias', t => /entrada (é devolvida )?inteira( de volta)?,? mesmo depois dos 7 dias|devolvemos a entrada inteira, mesmo depois dos 7 dias/.test(t)]
 ];
 for (const [nome, ok] of REGRAS_D4) {
   test('D4, ' + nome + ': aparece no contrato, no consultor, em /condicoes e na tela', () => {

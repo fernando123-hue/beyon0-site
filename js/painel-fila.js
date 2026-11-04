@@ -15,7 +15,7 @@
   var ALERTA_H = 20;   /* horas corridas: perto do prazo de 24 horas úteis */
   var NOMES = { conversao: 'conversão', autoridade: 'autoridade', experiencia: 'experiência' };
   /* os nomes de formato, os mesmos da tela de perguntas (js/orcamento-perguntas.js, NOMES) */
-  var FORMATOS = { landing_page: 'Site de uma página', institucional: 'Site com várias páginas', sob_medida: 'Cume (site com visual exclusivo)', loja_plataforma: 'Loja virtual' };
+  var FORMATOS = { landing_page: 'Site de uma página', institucional: 'Site com várias páginas', sob_medida: 'Atelier (site com visual exclusivo)', loja_plataforma: 'Loja virtual' };
 
   var idCurto = function (id) { return String(id).slice(0, 8); };
   var horasDesde = function (iso) { return Math.max(0, (Date.now() - new Date(iso).getTime()) / 36e5); };

@@ -44,7 +44,7 @@ test('os 6 textos: o link entra, valem 7 dias e abrem uma vez, sem preço, sem "
 test('o aviso prévio do apagamento (material_apagar): diz que o material parado vai ser apagado, quando (30 dias depois da mensagem), como evitar (pelo link) e o que NÃO é apagado', () => {
   const t = T.material_apagar.texto(LINK);
   assert.match(t, /^Aqui é o Fernando, da Beyon Zero\. Faz meses que o material do seu site está parado\./, 'abre dizendo o que houve, sem pressão');
-  assert.match(t, /Se você mandar ou mexer no material por este link, eu não apago nada\. Se não, eu apago o que você mandou/, 'abre pelo que o cliente pode fazer');
+  assert.match(t, /Se você mandar ou mexer no material por este link, nós não apagamos nada\. Se não, nós apagamos o que você mandou/, 'abre pelo que o cliente pode fazer');
   assert.match(t, /30 dias depois desta mensagem/);
   assert.match(t, /\(a logomarca, as fotos e os textos\)/, 'diz o que é o material, com as palavras do cliente');
   assert.doesNotMatch(t, /logo,/, 'não é "logo" solto (parece advérbio)');
@@ -228,7 +228,7 @@ test('o painel de verdade: "Preparar" pede o link de retomada da conversa do avi
   assert.deepEqual(chamadas.filter(c => c.metodo === 'POST').map(c => c.corpo), [{ link_retomada: itens[3].conversa_id }], 'o link é da conversa deste aviso');
   const msg = achar(cartao, n => n.tag === 'textarea');
   assert.ok(msg.value.startsWith('Oi, Ana! Aqui é o Fernando, da Beyon Zero.'));
-  assert.ok(msg.value.includes('https://x.test/orcamento#retomar=' + codigo) && /eu apago o que você mandou/.test(msg.value));
+  assert.ok(msg.value.includes('https://x.test/orcamento#retomar=' + codigo) && /nós apagamos o que você mandou/.test(msg.value));
   assert.equal(achar(cartao, n => n.tag === 'a').href, 'https://wa.me/5567991234530');
 });
 

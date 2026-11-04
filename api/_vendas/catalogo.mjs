@@ -9,8 +9,8 @@ import { redigir } from './seguranca.mjs';
 
 export const FRASES = {
   pagina_extra: 'Mais uma página além das que vêm no pacote.',
-  textos: 'Eu escrevo os textos de cada página a partir do que você me contar.',
-  imagens: 'Eu escolho as fotos e imagens que combinam com o seu negócio.',
+  textos: 'Nós escrevemos os textos de cada página a partir do que você nos contar.',
+  imagens: 'Nós escolhemos as fotos e imagens que combinam com o seu negócio.',
   formulario_avancado: 'Formulário em etapas ou com envio de arquivos.',
   agendamento: 'O cliente escolhe o dia e o horário pelo site.',
   blog: 'Uma área para publicar notícias e artigos.',
@@ -22,19 +22,19 @@ export const FRASES = {
   atendente_ia_essencial: 'Um atendente de IA no seu site (em preparo, ainda não dá para contratar).',
   atendente_ia_profissional: 'Um atendente de IA no seu site, plano Profissional (em preparo).',
   atendente_ia_avancado: 'Um atendente de IA no seu site, plano Avançado (em preparo).',
-  produtos_lote_25: 'Eu cadastro mais 25 produtos na loja.',
+  produtos_lote_25: 'Nós cadastramos mais 25 produtos na loja.',
   pagamento_extra: 'Mais uma forma de pagamento na loja.',
   frete_transportadora: 'Frete calculado por transportadora.',
   integracao_erp: 'A loja ligada ao seu sistema de nota fiscal.',
   marketplace: 'A loja ligada ao Mercado Livre ou à Shopee.',
-  migracao_loja: 'Eu trago os produtos da sua loja atual.',
+  migracao_loja: 'Nós trazemos os produtos da sua loja atual.',
   loja_virtual: 'Loja feita do zero, em código próprio.',
   area_restrita: 'Uma área com login para associados, alunos ou clientes.',
   area_tela_extra: 'Mais uma tela dentro da área com login.',
   area_perfil_extra: 'Mais um tipo de acesso, como associado e diretoria.',
   area_cobranca_recorrente: 'Cobrança de mensalidade ou anuidade pela área com login.',
   area_documentos: 'Documentos e certificados para cada pessoa da área com login.',
-  area_importar_usuarios: 'Eu importo a sua lista de pessoas para a área com login.',
+  area_importar_usuarios: 'Nós importamos a sua lista de pessoas para a área com login.',
   sistema_sob_medida: 'Um sistema ou painel feito para o seu caso.'
 };
 /* nomes de tela que trocam o nome da tabela (a tabela é do dono e não se mexe; a tela não diz "sob medida") */
