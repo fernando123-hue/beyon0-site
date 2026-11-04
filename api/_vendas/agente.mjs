@@ -21,7 +21,7 @@ import { redigir, semPrecoNoTexto } from './seguranca.mjs';
 import { semPromessaDePagamento, motivoDaPergunta, motivoDaTroca, RESPOSTAS_PAGAMENTO } from './promessa.mjs';
 import { ErroIA } from '../_ia/provedor.mjs';
 import {
-  ABERTURA_PADRAO, semPromessaDeRecado, nichoRegulado, pedeItemProibido, garantirRegulado, briefingSemProibidos, avisoRegulado, comMarcadores, marcadorSemValor, semNotacaoInterna, garantirValor, cortarEmFrase, semPromessaDeDesconto, jaDito
+  ABERTURA_PADRAO, semPromessaDeRecado, semPerguntaRepetida, nichoRegulado, pedeItemProibido, garantirRegulado, briefingSemProibidos, avisoRegulado, comMarcadores, marcadorSemValor, semNotacaoInterna, garantirValor, cortarEmFrase, semPromessaDeDesconto, jaDito
 } from './zero.mjs';
 
 const MAX_ITERACOES = 4;
@@ -157,6 +157,9 @@ export async function executarTurno({ ia, regras, conversa, mensagem, direcoes, 
   /* afirmar pagamento é proibido em qualquer etapa; o resto do filtro de pagamento (meio, link, condição) só no escopo e no sinal */
   let resposta = soDuvidas ? semPromessaDePagamento(semPreco) : (motivoDaTroca(semPreco) === 'pagamento' ? RESPOSTAS_PAGAMENTO.pagamento : semPreco);
   resposta = semPromessaDeDesconto(resposta).texto;
+  /* (teste com o modelo real) a pergunta ignorada não volta com as mesmas palavras; olha as duas últimas falas do Zero guardadas */
+  /* se o turno acabou de ligar um botão (formulário ou recado), o convite fica no texto mesmo repetido */
+  if (!pedirContato && !diagnostico) resposta = semPerguntaRepetida(resposta, (conversa.mensagens || []).filter(m => m && m.papel === 'agente').map(m => m.conteudo)).texto;
   /* as travas do Zero (api/_vendas/zero.mjs), nesta ordem, sobre o que vai para a tela:
      1) o recado: ninguém deixou, enviou ou avisou nada; o botão aparece junto da mensagem;
      2) saúde e regulados: o proibido nunca sai liberado (e o briefing não guarda depoimentos);
