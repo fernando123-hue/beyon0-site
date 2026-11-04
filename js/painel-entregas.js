@@ -20,20 +20,20 @@
       texto: function (link) { return QUEM + 'O seu site está no ar!\nPor este link você vê o endereço e paga o restante por Pix. Ele' + LINK_UNICO + link + '\nO restante tem 3 dias, contados desta mensagem. Sem o pagamento, o site sai do ar à meia-noite, no fim do 3º dia.'; }
     },
     material_parado: {
-      titulo: 'Material parado', rotulo: 'aviso de material parado', assunto: 'Estou aguardando o material do seu site',
-      texto: function (link) { return QUEM + 'Estou aguardando o material do seu site. Sem ele, o projeto fica parado. Nada vai ao ar sem a sua autorização.\nÉ só mandar por este link. Ele' + LINK_UNICO + link; }
+      titulo: 'Material parado', rotulo: 'aviso de material parado', assunto: 'Estamos aguardando o material do seu site',
+      texto: function (link) { return QUEM + 'Estamos aguardando o material do seu site. Sem ele, o projeto fica parado. Nada vai ao ar sem a sua autorização.\nÉ só mandar por este link. Ele' + LINK_UNICO + link; }
     },
     material_apagar: {
       titulo: 'Material parado, aviso antes de apagar', rotulo: 'aviso antes de apagar o material', assunto: 'O material parado do seu site vai ser apagado',
-      texto: function (link) { return QUEM + 'Faz meses que o material do seu site está parado.\nSe você mandar ou mexer no material por este link, eu não apago nada. Se não, eu apago o que você mandou (a logomarca, as fotos e os textos) 30 dias depois desta mensagem.\nO link' + LINK_UNICO + link + '\nO pedido e o pagamento não são apagados.'; }
+      texto: function (link) { return QUEM + 'Faz meses que o material do seu site está parado.\nSe você mandar ou mexer no material por este link, nós não apagamos nada. Se não, nós apagamos o que você mandou (a logomarca, as fotos e os textos) 30 dias depois desta mensagem.\nO link' + LINK_UNICO + link + '\nO pedido e o pagamento não são apagados.'; }
     },
     restante_lembrete_1: {
       titulo: 'Lembrete do restante (2º dia)', rotulo: 'lembrete do restante', assunto: 'Lembrete do restante do seu site',
-      texto: function (link) { return QUEM + 'Passando para lembrar do restante do seu site, que já está no ar. Você paga por Pix por este link. Ele' + LINK_UNICO + link + '\nSem o pagamento, o site sai do ar à meia-noite, no fim do 3º dia depois do meu aviso. Se você já pagou, pode ignorar esta mensagem.'; }
+      texto: function (link) { return QUEM + 'Passando para lembrar do restante do seu site, que já está no ar. Você paga por Pix por este link. Ele' + LINK_UNICO + link + '\nSem o pagamento, o site sai do ar à meia-noite, no fim do 3º dia depois do nosso aviso. Se você já pagou, pode ignorar esta mensagem.'; }
     },
     restante_lembrete_2: {
       titulo: 'Último lembrete do restante (3º dia)', rotulo: 'último lembrete do restante', assunto: 'Último lembrete do restante do seu site',
-      texto: function (link) { return QUEM + 'Esse é o último lembrete do restante do seu site. Você paga por Pix por este link. Ele' + LINK_UNICO + link + '\nSem o pagamento, o site sai do ar à meia-noite, no fim do 3º dia depois do meu aviso. Se você já pagou, pode ignorar esta mensagem.'; }
+      texto: function (link) { return QUEM + 'Esse é o último lembrete do restante do seu site. Você paga por Pix por este link. Ele' + LINK_UNICO + link + '\nSem o pagamento, o site sai do ar à meia-noite, no fim do 3º dia depois do nosso aviso. Se você já pagou, pode ignorar esta mensagem.'; }
     }
   };
   window.BZPainelEntregas = { TEXTOS: TEXTOS };   /* (exposto antes da guarda: o teste lê os textos sem o painel) */

@@ -189,9 +189,13 @@ test('condições: o preço de fundador é o piso da tabela, nem abaixo dele nem
 
 /* dono, 03/11 (opção A): as páginas e o contrato falam em "nós", nunca no "eu" de uma pessoa só.
    O "eu" do visitante ("E se eu já tenho um site?", "Quero o meu site") e o do Zero ("eu sou o Zero, a IA") não entram aqui. */
-const PAGINAS = ['index.html', 'sites.html', 'automacao.html', 'condicoes.html', 'orcamento.html', 'resumo.html'];
-const ARQUIVOS = [...PAGINAS, 'api/_vendas/escopo.mjs', 'api/_vendas/catalogo.mjs'];
+const PAGINAS = ['index.html', 'sites.html', 'automacao.html', 'condicoes.html', 'orcamento.html', 'resumo.html', 'privacidade.html', '404.html'];
+const ARQUIVOS = [...PAGINAS, 'api/_vendas/escopo.mjs', 'api/_vendas/catalogo.mjs', 'js/painel-entregas.js'];
 const EU_DA_EMPRESA = [
+  /\bvocê me (conta|contar|passa|passar|manda|mandar)\b/i,
+  /(^|[>.!?]\s*|["'])(Faço|Construo|Entrego|Confiro|Desenho|Publico|Entendo|Coloco|Conecto|Monto|Testo|Deixo|Olho|Escrevo|Cuido|Atendo)\b/m,
+  /\be (coloco|conecto|passo|confiro|construo|entrego|publico|monto|testo) (o|a|os|as|no|ao|nos|acessos|ao)\b/i,
+  /\bnão ganho\b|\bEstou aguardando\b|\bmeu computador\b/i,
   /\beu (faço|monto|testo|desenho|digo|entrego|aviso|lembro|escrevo|escolho|cadastro|trago|importo|deixo|olho|apago|uso|peço|indico|cuido)\b/i,
   /\b(meu|minha) (aviso|conta)\b/i,
   /\bdepender de mim\b/i,

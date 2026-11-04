@@ -9,7 +9,7 @@ import { redigir } from './seguranca.mjs';
 
 export const FRASES = {
   pagina_extra: 'Mais uma página além das que vêm no pacote.',
-  textos: 'Nós escrevemos os textos de cada página a partir do que você me contar.',
+  textos: 'Nós escrevemos os textos de cada página a partir do que você nos contar.',
   imagens: 'Nós escolhemos as fotos e imagens que combinam com o seu negócio.',
   formulario_avancado: 'Formulário em etapas ou com envio de arquivos.',
   agendamento: 'O cliente escolhe o dia e o horário pelo site.',
