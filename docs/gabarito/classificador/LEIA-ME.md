@@ -28,3 +28,17 @@ Casos sintéticos com a **resposta certa escrita antes** de qualquer motor rodar
 - `npm test` (arquivo `docs/testes/classificador.test.mjs`): valida o formato, os rótulos, o portão e o equilíbrio.
 - `node scripts/avaliar-codigo-no-gabarito.mjs --erros`: quanto o **código atual** já acerta (custo zero). É a base que um modelo (F2)
   precisa vencer. Perguntas "sem detector" são onde um modelo teria algo a acrescentar.
+
+## Desempate de `momento` (regra escrita na revisão do 04/11)
+
+- Objeção ou dúvida de preço **sem outro orçamento ou opção citado** ("achei caro", "é um roubo") é `duvida`. `comparando` só quando há outro orçamento, outra empresa ou outra opção na frase.
+- `momento` só é escrito quando o texto sustenta: "quero um site" ou "quanto custa" sozinhos não dizem em que ponto da decisão a pessoa está, então o caso fica sem `momento`.
+- `irritacao`: texto calmo (desconfiança, medo, "um pouco acima do esperado") é 1; irritação de verdade pede sinal no texto.
+
+## Limites conhecidos desta versão (g1)
+
+- `pede_pessoa` e `nega_ser_ia` têm detector em `api/_atendente/regras.mjs`, mas é o do **atendente do cliente**, não está ligado ao Zero, e `negaSerIA` marca como negação as apresentações do próprio Zero (sz-102, sz-107, sz-108). O script mede os dois.
+- Promessa de **suporte pós-entrega** e **mensalidade do atendente** não têm pergunta nem caso aqui: ficam cobertas por `docs/testes/travas-promessa-casos.mjs` (214 frases). Entram numa g2 se um modelo for avaliar essas perguntas.
+- `oferece_proibido_saude` é medido forçando o ramo de saúde (dentista) em todo texto: falso "sim" em texto de outro ramo (sz-052, loja de roupas) é artefato da medição.
+- `irritacao` 2, 3 e 5 têm poucos exemplos (4 a 6): serve para checar de forma grosseira, não para medir fino.
+- Controles de `tenta_dar_ordens` com palavras do dia a dia (ev-103 a ev-106: desconto, chave Pix, "de graça", senha): o código atual (`pareceInjecao`) marca os quatro como ordem. É falha do código, não do gabarito.

@@ -7,10 +7,13 @@
      node scripts/avaliar-codigo-no-gabarito.mjs --erros    mais a lista dos casos errados (id e texto)
 
    Pergunta SEM detector em código aparece como "sem detector": é onde um modelo teria algo a acrescentar.
+   Atenção: oferece_proibido_saude força o nicho de teste (dentista) em todo texto; um falso "sim" em texto de outro ramo
+   (ex.: sz-052, loja de roupas) é artefato da medição, pois em produção a trava só atua em nicho regulado.
    ========================================================================== */
 import { readFileSync } from 'node:fs';
 import { semPromessaDeDesconto, semPromessaDeRecado, garantirRegulado, nichoRegulado } from '../api/_vendas/zero.mjs';
 import { semPrecoNoTexto, pareceInjecao } from '../api/_vendas/seguranca.mjs';
+import { pedePessoa, negaSerIA } from '../api/_atendente/regras.mjs';
 
 const lerGabarito = t => JSON.parse(readFileSync(new URL('../docs/gabarito/classificador/' + t + '.json', import.meta.url), 'utf8'));
 const mostrarErros = process.argv.includes('--erros');
@@ -30,13 +33,15 @@ const DETECTORES = {
     afirma_recado: t => (semPromessaDeRecado(t).trocou ? 'sim' : 'nao'),
     oferece_proibido_saude: t => (garantirRegulado(t, { nicho: NICHO_DE_TESTE }).trocou ? 'sim' : 'nao'),
     escreve_valor: t => (semPrecoNoTexto(t) !== t ? 'sim' : 'nao'),
-    promete_resultado: null,
-    nega_ser_ia: null
+    promete_resultado: null,   /* sem detector em código */
+    /* detector do ATENDENTE do cliente (api/_atendente/regras.mjs), não ligado ao Zero: serve de base para a F2 vencer.
+       Ele marca como negação as apresentações do próprio Zero (sz-102, sz-107, sz-108): reaproveitar sem ajuste seria erro */
+    nega_ser_ia: t => (negaSerIA(t) ? 'sim' : 'nao')
   },
   entrada_do_visitante: {
     tenta_dar_ordens: t => (pareceInjecao(t) ? 'sim' : 'nao'),
     nicho_saude: t => { const n = nichoRegulado(t); return n && CHAVES_DE_SAUDE.has(n.chave) ? 'regulado' : 'livre'; },
-    pede_pessoa: null,
+    pede_pessoa: t => (pedePessoa(t) ? 'sim' : 'nao'),   /* idem: detector do atendente do cliente, não ligado ao Zero */
     irritacao: null,
     momento: null
   }
@@ -73,12 +78,12 @@ for (const tarefa of Object.keys(DETECTORES)) {
 }
 
 const pct = (a, b) => (b ? (100 * a / b).toFixed(0) + '%' : '-');
-console.log('| tarefa | pergunta | casos | acertos | falso "sim" | falso "não" |');
-console.log('|---|---|---|---|---|---|');
+console.log('| tarefa | pergunta | casos | acertos | falso "sim" | falso "não" | dos erros, em caso incerto |');
+console.log('|---|---|---|---|---|---|---|');
 for (const l of linhas) {
   console.log(l.sem
-    ? `| ${l.tarefa} | ${l.pergunta} | ${l.n} | sem detector | - | - |`
-    : `| ${l.tarefa} | ${l.pergunta} | ${l.n} | ${l.ok} (${pct(l.ok, l.n)}) | ${l.falsoSim} | ${l.falsoNao} |`);
+    ? `| ${l.tarefa} | ${l.pergunta} | ${l.n} | sem detector | - | - | - |`
+    : `| ${l.tarefa} | ${l.pergunta} | ${l.n} | ${l.ok} (${pct(l.ok, l.n)}) | ${l.falsoSim} | ${l.falsoNao} | ${l.incertosErrados} |`);
 }
 if (mostrarErros) {
   console.log('\nCasos errados:');
