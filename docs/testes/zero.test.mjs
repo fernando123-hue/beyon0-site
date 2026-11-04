@@ -936,3 +936,73 @@ test('turno: suporte pós-entrega e mensalidade do atendente prometidos pelo mod
   const certo = await executarTurno({ ia: roteiro(fim('Depois da entrega não há suporte contínuo.')), regras: REGRAS, conversa: nova(), mensagem: 'e depois que ficar pronto?' });
   assert.equal(certo.resposta, 'Depois da entrega não há suporte contínuo.');
 });
+
+test('trava de suporte (revisão do PR): negação em outra oração não libera a promessa, e as formas coloquiais são pegas', () => {
+  for (const t of [
+    'O site não tem mensalidade, mas damos suporte contínuo depois.',
+    'Não se preocupe: damos suporte contínuo.',
+    'Damos suporte, sem custo extra.',
+    'Damos suporte vitalício e seu site fica sempre no ar.',
+    'A gente ainda dá suporte pra você.',
+    'Oferecemos suporte, nunca vamos te deixar na mão.',
+    'Damos suporte, não é nada demais.',
+    'A Beyon dá suporte depois da entrega.',
+    'Daremos manutenção do site.',
+    'Vamos dar suporte depois que o site estiver no ar.',
+    'Tem suporte sim.',
+    'Ofereço manutenção do site sem custo.',
+    'Suporte por 12 meses incluso.',
+    'Você tem suporte por 12 meses.',
+    'Há suporte pós-entrega.',
+    'Você conta com nosso suporte técnico.',
+    'Manutenção sem custo.',
+    'A manutenção sai de graça.',
+    'Faço a manutenção do seu site.',
+    'Fazemos a manutenção.',
+    'Está incluído suporte e manutenção.',
+    'Nosso suporte fica à disposição.',
+    'Atualizações grátis depois da entrega.',
+    'Se der problema, a gente resolve depois da entrega.',
+    'Qualquer problema é só chamar.',
+    'Ótimo! Entendi o seu caso. Depois da entrega a gente cuida da manutenção. Qual é o seu ramo?'
+  ]) assert.equal(semPromessaDeSuporte(t).trocou, true, t);
+  for (const t of [
+    'Temos suporte para dúvidas aqui no chat.',
+    'Damos suporte na escolha dos modelos.',
+    'Temos o suporte da prévia até você aprovar.',
+    'Temos manutenção de dados no briefing.',
+    'Temos o suporte de quem faz a hospedagem.',
+    'O domínio fica no seu nome e a renovação é sua.',
+    'O site não tem mensalidade.',
+    'Depois da entrega não há suporte contínuo, mas os ajustes da prévia cabem antes de fechar.',
+    'Sem suporte contínuo depois da entrega.',
+    'O valor da hospedagem e do suporte não entra na conta.',
+    SUPORTE_FIXO
+  ]) assert.equal(semPromessaDeSuporte(t).trocou, false, t);
+});
+
+test('trava do atendente (revisão do PR): outros nomes, cobrança por mês e "não X, mas o atendente tem" são pegos; a verdade e o texto fixo passam', () => {
+  for (const t of [
+    'O assistente de IA tem mensalidade.',
+    'A IA do site tem mensalidade.',
+    'O bot tem mensalidade.',
+    'O chatbot custa 99 por mês.',
+    'O atendente custa por mês.',
+    'O atendente é cobrado mensalmente.',
+    'O atendente tem anuidade.',
+    'O atendente tem taxa mensal.',
+    'O site não tem mensalidade, mas o atendente tem.',
+    'O atendente tem mensalidade, o site não.',
+    'O atendente ainda não está pronto, mas a mensalidade é 50.',
+    'O atendente tem mensalidade, só não sei o valor ainda.'
+  ]) assert.equal(semMensalidadeDoAtendente(t).trocou, true, t);
+  for (const t of [
+    'A assinatura do domínio é anual e o chat do site ajuda.',
+    'O atendente de IA ainda não tem mensalidade definida.',
+    'O atendente não tem mensalidade.',
+    'Não existe mensalidade do atendente.',
+    'Aqui no chat eu te ajudo com o site.',
+    ATENDENTE_FIXO
+  ]) assert.equal(semMensalidadeDoAtendente(t).trocou, false, t);
+  assert.equal(semMensalidadeDoAtendente(ATENDENTE_FIXO).texto, ATENDENTE_FIXO);
+});
