@@ -43,7 +43,7 @@ test('integridade: checks de formato recusam lixo', async () => {
   assert.equal((await erroDe(db.query("insert into app.organizacoes (slug, nome) values ('Com Espaço', 'x')")))?.codigo, CHECK);
   assert.equal((await erroDe(db.query("insert into app.organizacoes (slug, nome) values ('beyon-zero', 'dup')")))?.codigo, UNICO);
   assert.equal((await erroDe(db.query(`insert into app.clientes (org_id, nome, email) values ('${O1}', 'x', 'Maiusculo@X.com')`)))?.codigo, CHECK);
-  assert.equal((await erroDe(db.query(`insert into app.clientes (org_id, nome, telefone) values ('${O1}', 'x', '21 97716-7944')`)))?.codigo, CHECK);
+  assert.equal((await erroDe(db.query(`insert into app.clientes (org_id, nome, telefone) values ('${O1}', 'x', '21 98888-0002')`)))?.codigo, CHECK);
   assert.equal((await erroDe(db.query(`insert into app.leads (org_id) values ('${O1}')`)))?.codigo, CHECK, 'lead sem nenhum contato');
   assert.equal((await erroDe(db.query(`insert into app.leads (org_id, nome, status) values ('${O1}', 'x', 'ganho')`)))?.codigo, CHECK, 'ganho sem cliente');
   assert.equal((await erroDe(db.query(`insert into app.leads (org_id, nome, codigo_visita) values ('${O1}', 'x', 'abc12')`)))?.codigo, CHECK, 'código de visita fora do alfabeto');

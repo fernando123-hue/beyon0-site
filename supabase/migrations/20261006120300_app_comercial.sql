@@ -4,7 +4,7 @@
 -- Toda tabela tem org_id e UNIQUE (org_id, id); as chaves estrangeiras entre
 -- elas são COMPOSTAS (org_id, x_id): um registro nunca aponta para o de outra
 -- organização, mesmo com o ID certo enviado de propósito.
--- Contato: e-mail minúsculo; telefone no formato E.164 (+5521977167944),
+-- Contato: e-mail minúsculo; telefone no formato E.164 (+5521988880002),
 -- normalizado pela API antes de chegar aqui.
 -- ==========================================================================
 
