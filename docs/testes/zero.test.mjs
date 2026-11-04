@@ -18,6 +18,9 @@ import {
 } from '../../api/_vendas/zero.mjs';
 import { semPromessaDeSuporte, semMensalidadeDoAtendente, SUPORTE_FIXO, ATENDENTE_FIXO } from '../../api/_vendas/travas-promessa.mjs';
 import { SUPORTE_PEGAR, SUPORTE_PASSAR, MENSALIDADE_PEGAR, MENSALIDADE_PASSAR, FUROS_CONHECIDOS } from './travas-promessa-casos.mjs';
+import { semPromessaDeResultado, semGarantia, RESULTADO_FIXO, GARANTIA_FIXO } from '../../api/_vendas/travas-resultado.mjs';
+import { RESULTADO_PEGAR, RESULTADO_PASSAR, GARANTIA_PEGAR, GARANTIA_PASSAR, FUROS_RESULTADO_CONHECIDOS } from './travas-resultado-casos.mjs';
+import { semPrecoNoTexto } from '../../api/_vendas/seguranca.mjs';
 
 const REGRAS = JSON.parse(fs.readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
 const nova = (extra = {}) => ({ etapa: 'descoberta', briefing: {}, mensagens: [], estimativa: null, ...extra });
@@ -929,4 +932,116 @@ test('turno: suporte pós-entrega e mensalidade do atendente prometidos pelo mod
   assert.equal(atendente.resposta, ATENDENTE_FIXO);
   const certo = await executarTurno({ ia: roteiro(fim('Depois da entrega não há suporte contínuo.')), regras: REGRAS, conversa: nova(), mensagem: 'e depois que ficar pronto?' });
   assert.equal(certo.resposta, 'Depois da entrega não há suporte contínuo.');
+});
+
+/* ---------- travas de RESULTADO e de GARANTIA (api/_vendas/travas-resultado.mjs) ---------- */
+/* o Zero não promete mais clientes, vendas, posição no Google nem retorno, não inventa dado de cliente e não promete garantia que a
+   empresa não ofereceu (CDC art. 30 e 37; CLAUDE.md: zero invenção de dado). As frases ficam em docs/testes/travas-resultado-casos.mjs */
+test('travas de resultado e garantia: pegam a promessa afirmativa e deixam passar a negação, a possibilidade, a pergunta e o que a empresa disse', () => {
+  const falhas = [];
+  for (const t of RESULTADO_PEGAR) if (!semPromessaDeResultado(t).trocou) falhas.push('resultado, não pegou: ' + t);
+  for (const t of RESULTADO_PASSAR) if (semPromessaDeResultado(t).trocou) falhas.push('resultado, cortou resposta boa: ' + t);
+  for (const t of GARANTIA_PEGAR) if (!semGarantia(t).trocou) falhas.push('garantia, não pegou: ' + t);
+  for (const t of GARANTIA_PASSAR) if (semGarantia(t).trocou) falhas.push('garantia, cortou resposta boa: ' + t);
+  assert.deepEqual(falhas, [], falhas.length + ' falhas:\n' + falhas.join('\n'));
+});
+
+test('travas de resultado e garantia: uma não corta o que a outra deixa passar, e nenhuma corta o que as travas de suporte e mensalidade deixam', () => {
+  const falhas = [];
+  const boas = [...RESULTADO_PASSAR, ...GARANTIA_PASSAR, ...SUPORTE_PASSAR, ...MENSALIDADE_PASSAR];
+  for (const t of boas) {
+    if (semPromessaDeResultado(t).trocou) falhas.push('resultado cortou: ' + t);
+    if (semGarantia(t).trocou) falhas.push('garantia cortou: ' + t);
+  }
+  /* (as falas fixas do Zero também não podem ser cortadas) */
+  for (const t of [ABERTURA_PADRAO, RECADO_FIXO, SUPORTE_FIXO, ATENDENTE_FIXO, ...Object.values(ABERTURAS)]) {
+    if (semPromessaDeResultado(t).trocou) falhas.push('resultado cortou o texto fixo: ' + t);
+    if (semGarantia(t).trocou) falhas.push('garantia cortou o texto fixo: ' + t);
+  }
+  assert.deepEqual(falhas, [], falhas.length + ' falhas:\n' + falhas.join('\n'));
+});
+
+test('travas de resultado e garantia: o texto fixo não dispara a si mesmo nem a outra trava, e sem promessa o texto fica intacto', () => {
+  for (const fixo of [RESULTADO_FIXO, GARANTIA_FIXO]) {
+    assert.equal(semPromessaDeResultado(fixo).trocou, false, fixo);
+    assert.equal(semGarantia(fixo).trocou, false, fixo);
+    assert.equal(semPromessaDeSuporte(fixo).trocou, false, fixo);
+    assert.equal(semMensalidadeDoAtendente(fixo).trocou, false, fixo);
+    assert.equal(semPromessaDeDesconto(fixo).trocou, false, fixo);
+    assert.equal(semPromessaDeRecado(fixo).trocou, false, fixo);
+    assert.equal(semPrecoNoTexto(fixo), fixo, 'o texto fixo não tem número que o filtro de preço troque: ' + fixo);
+    assert.match(fixo, /^[^\n]+$/, 'uma linha só');
+    assert.ok(fixo.length < 320, 'o texto fixo cabe folgado nos 400 caracteres que o código pode acrescentar: ' + fixo.length);
+  }
+  assert.equal(semPromessaDeResultado('Vai dobrar suas vendas.').texto, RESULTADO_FIXO);
+  assert.equal(semGarantia('Damos garantia de 12 meses.').texto, GARANTIA_FIXO);
+  assert.match(RESULTADO_FIXO, /não dá para garantir/, 'o texto de resultado nega a garantia de resultado');
+  assert.doesNotMatch(RESULTADO_FIXO, /mais clientes|mais vendas|primeiro lugar/i, 'o texto fixo não promete nada');
+  /* (o texto fixo de garantia só repete o que está em condicoes.html: 7 dias para desistir e a entrada de volta; devolução se a Beyon atrasar) */
+  assert.match(GARANTIA_FIXO, /7 dias para desistir/);
+  assert.match(GARANTIA_FIXO, /atrasar a entrega, devolvemos a entrada/);
+  assert.equal(semPromessaDeResultado('').trocou, false);
+  assert.equal(semGarantia(null).texto, '');
+});
+
+test('travas de resultado e garantia: troca só a frase que promete e o resto da resposta (valor, pergunta) fica', () => {
+  const a = semPromessaDeResultado('O formato fica [[total]]. Vai dobrar suas vendas, com certeza. Quer ver os modelos?');
+  assert.equal(a.trocou, true);
+  assert.equal(a.texto, 'O formato fica [[total]]. ' + RESULTADO_FIXO + ' Quer ver os modelos?');
+  const b = semGarantia('Entendi. Damos garantia de 12 meses. Qual é o seu ramo?');
+  assert.equal(b.texto, 'Entendi. ' + GARANTIA_FIXO + ' Qual é o seu ramo?');
+  /* duas promessas na mesma resposta: o texto fixo entra uma vez só */
+  const c = semPromessaDeResultado('Vai dobrar suas vendas. Seu faturamento vai subir.');
+  assert.equal(c.texto, RESULTADO_FIXO);
+});
+
+test('travas de resultado e garantia: os furos conhecidos estão documentados e continuam fora de propósito', () => {
+  const pegas = FUROS_RESULTADO_CONHECIDOS.filter(t => semPromessaDeResultado(t).trocou || semGarantia(t).trocou);
+  assert.deepEqual(pegas, [], 'estas já são pegas: tire de FUROS_RESULTADO_CONHECIDOS e ponha em PEGAR');
+  assert.ok(RESULTADO_PEGAR.length + RESULTADO_PASSAR.length + GARANTIA_PEGAR.length + GARANTIA_PASSAR.length + FUROS_RESULTADO_CONHECIDOS.length >= 150, 'pelo menos 150 frases de caso');
+});
+
+test('travas de resultado e garantia: entrada estranha não quebra nem demora (ReDoS: 50 mil caracteres patológicos)', () => {
+  const ruins = [
+    '', '   ', null, undefined, 'a'.repeat(50000), 'vai '.repeat(12500), 'vai trazer mais '.repeat(3125), 'clientes '.repeat(5500),
+    'garantia '.repeat(5500), 'nossos clientes '.repeat(3125), 'não, '.repeat(10000), 'vai vender e '.repeat(3800), 'a '.repeat(25000),
+    'primeiro lugar no '.repeat(2700), 'devolvemos o dinheiro se '.repeat(2000), 'mais '.repeat(10000) + 'clientes', ('x'.repeat(40) + ' ').repeat(1200) + 'vai dobrar'
+  ];
+  const ini = performance.now();
+  for (const c of ruins) {
+    assert.equal(typeof semPromessaDeResultado(c).trocou, 'boolean');
+    assert.equal(typeof semGarantia(c).trocou, 'boolean');
+  }
+  /* (medido no relatório do PR; a margem larga é para CI lento, o que se quer pegar é backtracking de segundos) */
+  assert.ok(performance.now() - ini < 3000, 'as duas travas respondem rápido em texto hostil: ' + (performance.now() - ini).toFixed(1) + ' ms');
+});
+
+test('travas de resultado e garantia: o gabarito do classificador (promete_resultado) — nenhum controle é cortado e os positivos ficam pegos', () => {
+  const g = JSON.parse(fs.readFileSync(new URL('../gabarito/classificador/saida_do_zero.json', import.meta.url), 'utf8'));
+  const certa = c => c.certa.promete_resultado ?? g.padrao.promete_resultado;
+  const falsosSim = g.casos.filter(c => certa(c) === 'nao' && semPromessaDeResultado(c.texto).trocou).map(c => c.id + ': ' + c.texto);
+  assert.deepEqual(falsosSim, [], 'falso "sim" no gabarito (corta resposta boa)');
+  const positivos = g.casos.filter(c => certa(c) === 'sim');
+  assert.equal(positivos.length, 14);
+  const faltam = positivos.filter(c => !semPromessaDeResultado(c.texto).trocou).map(c => c.id);
+  assert.deepEqual(faltam, [], 'positivos do gabarito que a trava não pegou');
+});
+
+test('turno: resultado e garantia prometidos pelo modelo saem com o texto fixo (as travas estão ligadas no agente), e a resposta honesta fica', async () => {
+  const r = await executarTurno({ ia: roteiro(fim('Com esse site você vai dobrar seus clientes.')), regras: REGRAS, conversa: nova(), mensagem: 'esse site traz mais clientes?' });
+  assert.equal(r.resposta, RESULTADO_FIXO);
+  const g = await executarTurno({ ia: roteiro(fim('Damos garantia de 12 meses.')), regras: REGRAS, conversa: nova(), mensagem: 'tem garantia?' });
+  assert.equal(g.resposta, GARANTIA_FIXO);
+  const certo = await executarTurno({ ia: roteiro(fim('Não prometemos mais clientes: o que eu garanto é um site claro. Qual é o seu ramo?')), regras: REGRAS, conversa: nova(), mensagem: 'esse site traz mais clientes?' });
+  assert.equal(certo.resposta, 'Não prometemos mais clientes: o que eu garanto é um site claro. Qual é o seu ramo?');
+  const desistencia = await executarTurno({ ia: roteiro(fim('Depois de aceitar, você tem 7 dias para desistir e receber a entrada de volta.')), regras: REGRAS, conversa: nova(), mensagem: 'e se eu não gostar?' });
+  assert.equal(desistencia.resposta, 'Depois de aceitar, você tem 7 dias para desistir e receber a entrada de volta.');
+  /* a promessa com número escrito pelo modelo: o filtro de preço roda antes e a trava de resultado ainda vê a promessa */
+  const num = await executarTurno({ ia: roteiro(fim('Por R$ 2.900 você vai dobrar as suas vendas.')), regras: REGRAS, conversa: nova(), mensagem: 'quanto fica?' });
+  assert.ok(num.resposta.includes(RESULTADO_FIXO), 'a promessa saiu: ' + num.resposta);
+  assert.doesNotMatch(num.resposta, /dobrar/);
+  /* o valor do motor continua entrando depois da troca */
+  const comValor = await executarTurno({ ia: roteiro(fim('O formato fica [[total]]. Vai dobrar suas vendas, com certeza.')), regras: REGRAS, conversa: nova({ estimativa: { valor_total: 2900, sinal: 1160 } }), mensagem: 'quanto fica?' });
+  assert.match(comValor.resposta, /R\$/, 'o valor do motor continua na resposta');
+  assert.ok(comValor.resposta.includes(RESULTADO_FIXO));
 });

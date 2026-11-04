@@ -24,6 +24,7 @@ import {
   ABERTURA_PADRAO, semPromessaDeRecado, semPerguntaRepetida, nichoRegulado, pedeItemProibido, garantirRegulado, briefingSemProibidos, avisoRegulado, comMarcadores, marcadorSemValor, semNotacaoInterna, garantirValor, cortarEmFrase, semPromessaDeDesconto, jaDito
 } from './zero.mjs';
 import { semPromessaDeSuporte, semMensalidadeDoAtendente } from './travas-promessa.mjs';
+import { semPromessaDeResultado, semGarantia } from './travas-resultado.mjs';
 
 const MAX_ITERACOES = 4;
 /* o texto do modelo cabe em 1.100 caracteres: sobram ~400 para o que o código acrescenta (a linha do valor, o recado fixo); o corte é antes das travas */
@@ -164,6 +165,10 @@ export async function executarTurno({ ia, regras, conversa, mensagem, direcoes, 
   resposta = semPromessaDeDesconto(resposta).texto;
   resposta = semPromessaDeSuporte(resposta).texto;
   resposta = semMensalidadeDoAtendente(resposta).texto;
+  /* resultado e garantia: depois do filtro de preço e do de pagamento (a promessa "por R$ 2.900 você vai dobrar as vendas" já chega aqui sem o número),
+     como as de suporte e mensalidade; trocam só a frase que promete, então o marcador do valor e a pergunta seguinte ficam */
+  resposta = semPromessaDeResultado(resposta).texto;
+  resposta = semGarantia(resposta).texto;
   /* (teste com o modelo real) a pergunta ignorada não volta com as mesmas palavras; olha as duas últimas falas do Zero guardadas */
   /* se o turno acabou de ligar um botão (formulário ou recado), o convite fica no texto mesmo repetido */
   if (!pedirContato && !diagnostico) resposta = semPerguntaRepetida(resposta, (conversa.mensagens || []).filter(m => m && m.papel === 'agente').map(m => m.conteudo)).texto;
