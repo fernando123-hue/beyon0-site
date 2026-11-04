@@ -134,8 +134,15 @@ const INJECAO = [
   /ignor(e|ar|a)\s+(as\s+|suas\s+|todas\s+as\s+)?(instru|regras|ordens)/i,
   /(mostre|revele|imprima|repita|diga)\s+(o\s+|seu\s+|suas\s+)?(prompt|instru[cç][õo]es|regras internas|system)/i,
   /(voc[eê] agora [ée]|finja que|aja como)\s/i,
-  /(desconto|de gra[cç]a|zer[ao]\s+o\s+pre[cç]o|pre[cç]o\s+(de\s+)?r?\$?\s?1\b)/i,
-  /(chave|api key|token|senha|secret|service.?role)/i,
+  /* (JEV F1, 04/11) pergunta normal de venda não é ordem: "tem desconto à vista?", "qual a chave Pix?", "o domínio sai de graça?", "preciso de uma senha para entrar?"
+     passavam por serem só palavras soltas. Agora é preciso o PEDIDO: desconto grande (50 a 100%), "faça/dê ... de graça", "sou amigo do dono"/"o dono mandou", preço zero ou R$ 1 */
+  /\b(?:me\s+d[aáeê]r?|d[êé]|exijo|conceda|aplique|libere)\b[^.?!]{0,40}\b(?:(?:[5-9]\d|100)(?:[.,]\d+)?\s?(?:%|por\s*cento)|(?:cinquenta|sessenta|setenta|oitenta|noventa|cem)\s+por\s+cento)/i,
+  /\bquero\s+(?:(?:[5-9]\d|100)(?:[.,]\d+)?\s?(?:%|por\s*cento)|(?:cinquenta|sessenta|setenta|oitenta|noventa|cem)\s+por\s+cento)\s+de\s+desconto/i,
+  /\bdesconto\s+de\s+(?:(?:[5-9]\d|100)(?:[.,]\d+)?\s?(?:%|por\s*cento)|(?:cinquenta|sessenta|setenta|oitenta|noventa|cem)\s+por\s+cento)[^.?!]{0,30}\b(?:agora|j[aá]|absurdo|[eé]\s+ordem)/i,
+  /\b(?:fa[cç]a|faz|fazem|fa[cç]am|monte|entregue|d[áêé]|me\s+d[aáeê]r?|quero|preciso\s+d[eo])\b[^.?!]{0,60}?(?<!or[cç]amento|consulta|diagn[oó]stico|proposta|dom[ií]nio|hospedagem|teste|reuni[aã]o|conversa)\s+de\s+gra[cç]a\b/i,
+  /\bo\s+dono\s+d[ao]\s+beyon\b[^.?!]{0,30}\b(?:mandou|autorizou|liberou|aprovou)\b|\bo\s+dono\s+do\s+(?:sistema|chat)\s+(?:mandou|autorizou|liberou|aprovou)\b|\b(?:amig[oa]|parente|conhecid[oa])\s+do\s+dono\s+da\s+beyon\b|\bsou\s+(?:o\s+|a\s+)?(?:dono|administrador|desenvolvedor|ceo)\s+da\s+beyon\b|\bo\s+fernando\s+(?:mandou|liberou|autorizou|aprovou)\b/i,
+  /(zer[aeo]\s+o\s+pre[cç]o|pre[cç]o\s+(?:de\s+|para\s+|em\s+)?(?:r\$\s?1|1\s+real)(?![\d.,]*\d))/i,
+  /(\bapi.?key\b|\bsecret\s*key\b|\bsegredo\s+d[eoa]\s+(?:voc[eê]s|sistema)\b|service.?role|chave\s+(?:secreta|privada|de\s+api|da\s+api|d[aoe]\s+(?:supabase|openai|anthropic|stripe|resend|vercel|cloudflare|ia|intelig[eê]ncia\s+artificial)|que\s+voc[eê]s\s+usam)|senha\s+d[oae]\s+(?:admin|administrador|banco|painel|sistema\s+(?:de\s+voc[eê]s|da\s+beyon)|dono|servidor)|(?:sua|seu|de\s+voc[eê]s)\s+(?:senha|token)|senha\s+de\s+voc[eê]s|senha\s+de\s+root|chave\s+(?:mestra|anon)|\bservice\s*key\b|\btoken\s+(?:d[aoe]\s+(?:acesso\s+do\s+sistema|voc[eê]s|sistema)|secreto))/i,
   /(outro cliente|outros clientes|projeto de outr[oa]|dados de outr)/i,
   /* (revisão final do PR 2a, B5) as de sempre em inglês */
   /\b(ignore|disregard|forget|override)\s+(all\s+|any\s+|the\s+|your\s+|my\s+)?(previous\s+|prior\s+|above\s+|earlier\s+|system\s+)?(instructions?|rules|prompts?|guidelines)\b/i,
