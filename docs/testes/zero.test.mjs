@@ -16,6 +16,8 @@ import {
   RECADO_FIXO, ETIQUETA, ABERTURA_PADRAO, ABERTURAS, semPromessaDeRecado, nichoRegulado, pedeItemProibido,
   garantirRegulado, comMarcadores, briefingSemProibidos, respostaRegulado, semNotacaoInterna, pedeValor, garantirValor, cortarEmFrase, semPromessaDeDesconto
 } from '../../api/_vendas/zero.mjs';
+import { semPromessaDeSuporte, semMensalidadeDoAtendente, SUPORTE_FIXO, ATENDENTE_FIXO } from '../../api/_vendas/travas-promessa.mjs';
+import { SUPORTE_PEGAR, SUPORTE_PASSAR, MENSALIDADE_PEGAR, MENSALIDADE_PASSAR, FUROS_CONHECIDOS } from './travas-promessa-casos.mjs';
 
 const REGRAS = JSON.parse(fs.readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
 const nova = (extra = {}) => ({ etapa: 'descoberta', briefing: {}, mensagens: [], estimativa: null, ...extra });
@@ -879,4 +881,52 @@ test('prompt do Zero: quem faz o trabalho é a Beyon ("a gente", nunca "eu monto
     assert.ok(!/falando como "a gente" ou "eu"/.test(s), direcoes + ': a recusa em saúde fala como "a gente", sem "ou eu"');
     assert.ok(s.length <= 27000, direcoes + ': o prompt segue dentro do limite: ' + s.length);
   }
+});
+
+/* ---------- pendências do #75: suporte pós-entrega e mensalidade do atendente (api/_vendas/travas-promessa.mjs) ---------- */
+/* as frases vêm das revisões do PR #85 (docs/testes/travas-promessa-casos.mjs); o teste mostra TODAS as falhas de uma vez */
+test('travas de promessa: pegam a promessa afirmativa de suporte e de mensalidade do atendente e deixam passar a resposta correta', () => {
+  const falhas = [];
+  for (const t of SUPORTE_PEGAR) if (!semPromessaDeSuporte(t).trocou) falhas.push('suporte, não pegou: ' + t);
+  for (const t of SUPORTE_PASSAR) if (semPromessaDeSuporte(t).trocou) falhas.push('suporte, cortou resposta boa: ' + t);
+  for (const t of MENSALIDADE_PEGAR) if (!semMensalidadeDoAtendente(t).trocou) falhas.push('atendente, não pegou: ' + t);
+  for (const t of MENSALIDADE_PASSAR) if (semMensalidadeDoAtendente(t).trocou) falhas.push('atendente, cortou resposta boa: ' + t);
+  assert.deepEqual(falhas, [], falhas.length + ' falhas:\n' + falhas.join('\n'));
+});
+
+test('travas de promessa: o texto fixo não dispara a si mesmo nem a outra trava, e a resposta trocada é exatamente o texto fixo', () => {
+  for (const fixo of [SUPORTE_FIXO, ATENDENTE_FIXO]) {
+    assert.equal(semPromessaDeSuporte(fixo).trocou, false, fixo);
+    assert.equal(semMensalidadeDoAtendente(fixo).trocou, false, fixo);
+  }
+  assert.equal(semPromessaDeSuporte('Damos suporte contínuo.').texto, SUPORTE_FIXO);
+  assert.equal(semMensalidadeDoAtendente('O atendente tem mensalidade.').texto, ATENDENTE_FIXO);
+  assert.match(SUPORTE_FIXO, /não há suporte contínuo/, 'o texto de suporte nega o suporte contínuo');
+  assert.doesNotMatch(SUPORTE_FIXO, /arquivos|seu site|fica seu/i, 'o texto fixo não afirma propriedade nem portabilidade do site (CDC): o prompt não confirma isso');
+  assert.match(ATENDENTE_FIXO, /em preparo/, 'o texto do atendente diz que ainda está em preparo');
+});
+
+test('travas de promessa: entrada estranha não quebra nem demora (texto vazio, só espaço, 1.500 letras iguais, 190 "suporte")', () => {
+  const casos = ['', '   ', null, undefined, 'a'.repeat(1500), 'suporte '.repeat(190), 'suporte, '.repeat(160), 'atendente mensalidade '.repeat(68)];
+  const ini = performance.now();
+  for (const c of casos) {
+    assert.equal(typeof semPromessaDeSuporte(c).trocou, 'boolean');
+    assert.equal(typeof semMensalidadeDoAtendente(c).trocou, 'boolean');
+  }
+  /* (medido: ~4 ms no total; a margem larga é para CI lento, o que se quer pegar é backtracking de segundos) */
+  assert.ok(performance.now() - ini < 3000, 'as duas travas respondem rápido em texto hostil: ' + (performance.now() - ini).toFixed(1) + ' ms');
+});
+
+test('travas de promessa: os furos conhecidos (paráfrases sem as palavras da lista) estão documentados e continuam fora de propósito', () => {
+  const pegas = FUROS_CONHECIDOS.filter(t => semPromessaDeSuporte(t).trocou || semMensalidadeDoAtendente(t).trocou);
+  assert.deepEqual(pegas, [], 'estas já são pegas: tire de FUROS_CONHECIDOS e ponha em PEGAR');
+});
+
+test('turno: suporte pós-entrega e mensalidade do atendente prometidos pelo modelo saem com o texto fixo (a trava está ligada no agente)', async () => {
+  const suporte = await executarTurno({ ia: roteiro(fim('Depois da entrega a gente cuida da manutenção do seu site.')), regras: REGRAS, conversa: nova(), mensagem: 'e depois que ficar pronto?' });
+  assert.equal(suporte.resposta, SUPORTE_FIXO);
+  const atendente = await executarTurno({ ia: roteiro(fim('O atendente de IA tem uma mensalidade bem acessível.')), regras: REGRAS, conversa: nova(), mensagem: 'e o atendente, quanto custa?' });
+  assert.equal(atendente.resposta, ATENDENTE_FIXO);
+  const certo = await executarTurno({ ia: roteiro(fim('Depois da entrega não há suporte contínuo.')), regras: REGRAS, conversa: nova(), mensagem: 'e depois que ficar pronto?' });
+  assert.equal(certo.resposta, 'Depois da entrega não há suporte contínuo.');
 });

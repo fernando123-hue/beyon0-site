@@ -23,6 +23,7 @@ import { ErroIA } from '../_ia/provedor.mjs';
 import {
   ABERTURA_PADRAO, semPromessaDeRecado, semPerguntaRepetida, nichoRegulado, pedeItemProibido, garantirRegulado, briefingSemProibidos, avisoRegulado, comMarcadores, marcadorSemValor, semNotacaoInterna, garantirValor, cortarEmFrase, semPromessaDeDesconto, jaDito
 } from './zero.mjs';
+import { semPromessaDeSuporte, semMensalidadeDoAtendente } from './travas-promessa.mjs';
 
 const MAX_ITERACOES = 4;
 /* o texto do modelo cabe em 1.100 caracteres: sobram ~400 para o que o código acrescenta (a linha do valor, o recado fixo); o corte é antes das travas */
@@ -157,6 +158,8 @@ export async function executarTurno({ ia, regras, conversa, mensagem, direcoes, 
   /* afirmar pagamento é proibido em qualquer etapa; o resto do filtro de pagamento (meio, link, condição) só no escopo e no sinal */
   let resposta = soDuvidas ? semPromessaDePagamento(semPreco) : (motivoDaTroca(semPreco) === 'pagamento' ? RESPOSTAS_PAGAMENTO.pagamento : semPreco);
   resposta = semPromessaDeDesconto(resposta).texto;
+  resposta = semPromessaDeSuporte(resposta).texto;
+  resposta = semMensalidadeDoAtendente(resposta).texto;
   /* (teste com o modelo real) a pergunta ignorada não volta com as mesmas palavras; olha as duas últimas falas do Zero guardadas */
   /* se o turno acabou de ligar um botão (formulário ou recado), o convite fica no texto mesmo repetido */
   if (!pedirContato && !diagnostico) resposta = semPerguntaRepetida(resposta, (conversa.mensagens || []).filter(m => m && m.papel === 'agente').map(m => m.conteudo)).texto;
