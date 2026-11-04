@@ -240,12 +240,12 @@ test('22/10: o aviso de material parado entra na fila de avisos no dia 30 (só s
 test('a lista do painel e a lista de ajustes: campos novos; a concluída com religação pendente continua à vista; o texto da lista chega como DADO', async () => {
   const c = await entregaEm(db, 'ajustes');
   const e = await um('select id, org_id from app.entregas where conversa_id = $1', [c.conversa_id]);
-  await db.query("insert into app.entrega_ajustes (org_id, entrega_id, rodada, texto, contato_whatsapp, contato_autorizado_em, contato_autorizacao_versao) values ($1, $2, 1, 'Trocar a foto da capa.', '+5521977167944', now(), '2026-10-22')", [e.org_id, e.id]);
+  await db.query("insert into app.entrega_ajustes (org_id, entrega_id, rodada, texto, contato_whatsapp, contato_autorizado_em, contato_autorizacao_versao) values ($1, $2, 1, 'Trocar a foto da capa.', '+5521988880002', now(), '2026-10-22')", [e.org_id, e.id]);
   const cod = await codigoDe(db, c);
   const item = (await rpc('vendas_entregas_lista', { org_slug: 'beyon-zero' })).itens.find(i => i.codigo === cod);
   assert.deepEqual([item.passo, item.rodadas, item.ajustes_na_fila, item.ajustes_com_contato, item.autorizacao_marcada], ['ajustes', { usadas: 0, max: 2 }, 1, 1, true]);
   const aj = await dono('vendas_ajustes_da_entrega', c);
-  assert.deepEqual(aj.ajustes.map(a => [a.rodada, a.texto, a.contato.whatsapp, a.contato.email, a.contato.autorizacao_versao]), [[1, 'Trocar a foto da capa.', '+5521977167944', null, '2026-10-22']]);
+  assert.deepEqual(aj.ajustes.map(a => [a.rodada, a.texto, a.contato.whatsapp, a.contato.email, a.contato.autorizacao_versao]), [[1, 'Trocar a foto da capa.', '+5521988880002', null, '2026-10-22']]);
   const fim = await entregaEm(db, 'no_ar');
   await forcarEntrega(db, fim, { passo: 'concluida', religar_pendente: true });
   assert.ok((await rpc('vendas_entregas_lista', { org_slug: 'beyon-zero' })).itens.some(i => i.religar_pendente === true));

@@ -134,7 +134,7 @@ async function rodar(page, { ok, espera, foto, semRolagemLateral, chave, convers
   await A.p.fill('#o-prv-lista', 'Trocar a foto da capa e pôr o horário de sábado.');
   await A.p.fill('#o-prv-wa', 'abc'); await A.p.click('#o-prv-enviar');
   ok(/WhatsApp/.test(await A.p.textContent('#o-prv-erro-form')), 'ajustes: WhatsApp fora do formato é recusado na tela');
-  await A.p.fill('#o-prv-wa', '(21) 97716-7944'); await A.p.fill('#o-prv-email', 'contato@clinicasol.com.br'); await A.p.click('#o-prv-enviar');
+  await A.p.fill('#o-prv-wa', '(21) 98888-0002'); await A.p.fill('#o-prv-email', 'contato@clinicasol.com.br'); await A.p.click('#o-prv-enviar');
   ok(/autorização/i.test(await A.p.textContent('#o-prv-erro-form')), 'ajustes: trocar o contato exige a autorização de uso');
   const frase = await A.p.evaluate(() => window.BZMaterialEsquema.AUTORIZACAO.texto);
   const fraseNaTela = (await A.p.textContent('#o-prv-autoriza-texto')).trim();
@@ -152,7 +152,7 @@ async function rodar(page, { ok, espera, foto, semRolagemLateral, chave, convers
   const lista = (await painel('GET', '?ajustes-previa=' + codigo)).corpo;
   const aj = (lista.ajustes || [])[0] || {};
   ok((lista.ajustes || []).length === 1 && aj.suspeito === false && /Trocar a foto/.test(aj.texto || ''), 'ajustes: o dono lê a lista como dado, sem selo de suspeito');
-  ok(!!aj.contato && aj.contato.whatsapp === '+5521977167944' && aj.contato.email === 'contato@clinicasol.com.br' && !!aj.contato.autorizado_em && !/97716|clinicasol/.test(aj.texto || ''), 'ajustes (M3): telefone e e-mail chegam ao dono como dado à parte do texto, com a autorização');
+  ok(!!aj.contato && aj.contato.whatsapp === '+5521988880002' && aj.contato.email === 'contato@clinicasol.com.br' && !!aj.contato.autorizado_em && !/98888|clinicasol/.test(aj.texto || ''), 'ajustes (M3): telefone e e-mail chegam ao dono como dado à parte do texto, com a autorização');
   ok((await painel('POST', '', { previa: codigo, url: PREVIA2 })).status === 200, 'o dono publica a 2ª prévia');
   await voltaAba(A.p);
   await A.p.waitForFunction(() => /Esta é a lista 2 de 2\./.test(document.getElementById('o-prv-lista-n').textContent), null, { timeout: ESPERA });
