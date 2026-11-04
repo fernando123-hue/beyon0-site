@@ -158,8 +158,8 @@ export async function executarTurno({ ia, regras, conversa, mensagem, direcoes, 
   /* afirmar pagamento é proibido em qualquer etapa; o resto do filtro de pagamento (meio, link, condição) só no escopo e no sinal */
   /* a condição de pagamento ("o sinal é 1500") é lida com os cortes antigos (só com R$ ou "reais"): o filtro de preço agora também troca
      número sem R$, e a frase deixaria de parecer uma condição */
-  const comMarca = cortarEmFrase(semPrecoComMarca(semNotacaoInterna(texto)).trim(), TEXTO_DO_MODELO_MAX) || semPreco;
-  const motivoPagamento = motivoDaTroca(comMarca);
+  /* os dois textos, sem cortar antes: o filtro de preço encolhe sequências longas, e o corte de 1.100 poderia esconder uma afirmação de pagamento que vem depois */
+  const motivoPagamento = motivoDaTroca(semPrecoComMarca(semNotacaoInterna(texto))) || motivoDaTroca(semPreco);
   let resposta = soDuvidas ? (motivoPagamento ? RESPOSTAS_PAGAMENTO[motivoPagamento] : semPreco) : (motivoPagamento === 'pagamento' ? RESPOSTAS_PAGAMENTO.pagamento : semPreco);
   resposta = semPromessaDeDesconto(resposta).texto;
   resposta = semPromessaDeSuporte(resposta).texto;

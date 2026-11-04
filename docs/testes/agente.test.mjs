@@ -8,7 +8,7 @@ import { RESPOSTAS_PAGAMENTO } from '../../api/_vendas/promessa.mjs';
 import { criarSimulada } from '../../api/_ia/simulado.mjs';
 import { comFora } from './_fora-do-automatico.mjs';
 import { ErroIA } from '../../api/_ia/provedor.mjs';
-import { redigir, semPrecoNoTexto, pareceInjecao } from '../../api/_vendas/seguranca.mjs';
+import { redigir, semPrecoNoTexto, semPrecoComMarca, pareceInjecao } from '../../api/_vendas/seguranca.mjs';
 
 const REGRAS = JSON.parse(fs.readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
 const nova = () => ({ etapa: 'descoberta', briefing: {}, mensagens: [], estimativa: null });
@@ -97,7 +97,9 @@ test('escopo e sinal: o que o consultor nunca diz sai por código, não só pelo
       'Confirmamos o seu pagamento.', 'Pagamento identificado.', 'O pagamento foi efetuado.', 'Pagamento realizado com sucesso.', 'Seu sinal foi creditado.',
       'Seu sinal foi processado.', 'Seu pix chegou.', 'Seu cartão foi cobrado.', 'Cobrança concluída.', 'Quitado!', 'Tá pago.', 'Pode considerar pago.',
       'Já anotei como pago.', 'Seu projeto já está em produção.', 'Já liberei o início do trabalho.', 'O pix foi compensado.', 'Seu sinal já está pago.',
-      'Seu pagamento. Confirmado.', 'Pagamento: confirmado.', 'Pagamento — confirmado.', 'Pagamento co­nfirmado.', 'Pagamento confirm​ado.',
+      /* revisão de segurança de 04/11: o filtro de preço encolhe a sequência, o corte de 1.100 não pode esconder a afirmação que vem depois */
+      'Fica ' + 'mil '.repeat(300) + 'pratas. Pronto, seu pagamento foi confirmado e o site já está liberado.',
+      'Seu pagamento. Confirmado.','Pagamento: confirmado.', 'Pagamento — confirmado.', 'Pagamento co­nfirmado.', 'Pagamento confirm​ado.',
       'Pagamento ｃｏｎｆｉｒｍａｄｏ.', 'P\u0430gamento confirmado.',
       /* (rodada 3) */
       'Pagamento ok.', 'Status: pago.', 'Tudo pago.', 'Recebido!', 'Obrigado pelo pagamento!', 'Agradecemos o seu pix.', 'Comprovante aprovado.', 'Sinal pago com sucesso.',
@@ -439,14 +441,33 @@ test('preço sem R$: "5k", "2900", "mil e duzentos", "duas mil e novecentas prat
     ['Pagamento de duas mil e novecentas pratas.', 'Pagamento de ' + CARTAO + '.'],
     ['Fica uns 2,5k no total.', 'Fica uns ' + CARTAO + ' no total.'],
     ['O pacote custa 2.900 à vista.', 'O pacote custa ' + CARTAO + ' à vista.'],
-    ['Sai em 10x de 290.', 'Sai em 10x de ' + CARTAO + '.']
+    ['Sai em 10x de 290.', 'Sai em 10x de ' + CARTAO + '.'],
+    /* revisões de 04/11: vírgula depois do valor, "N mil" em dígitos, dois-pontos, ano que na verdade é valor, moeda sem R$, forma larga */
+    ['Sai por 2900, parcelado.', 'Sai por ' + CARTAO + ', parcelado.'],
+    ['Fica em 2900, com entrada.', 'Fica em ' + CARTAO + ', com entrada.'],
+    ['Sai por 5 mil.', 'Sai por ' + CARTAO + '.'],
+    ['Custa 3,5 mil.', 'Custa ' + CARTAO + '.'],
+    ['Em média 5 mil por projeto.', 'Em média ' + CARTAO + ' por projeto.'],
+    ['Investimento: 2900', 'Investimento: ' + CARTAO],
+    ['Sai por 2030.', 'Sai por ' + CARTAO + '.'],
+    ['Custa RS 2900.', 'Custa ' + CARTAO + '.'],
+    ['Custa BRL 2900.', 'Custa ' + CARTAO + '.'],
+    ['Custa ２９００.', 'Custa ' + CARTAO + '.'],
+    ['Custa 29​00.', 'Custa ' + CARTAO + '.']
   ];
   for (const [entrada, esperado] of deveCortar) assert.equal(semPrecoNoTexto(entrada), esperado, entrada);
   /* o que NÃO é dinheiro fica como está */
   const deveFicar = [
     'Entrego em 8 dias úteis.', 'Dá 40% de desconto? Não, a gente não faz desconto.', 'Isso foi em 2026.', 'São 5 páginas e 3 seções.',
     'Leva em 120 dias para o Google indexar.', 'Seu site pode ter 5 mil visitas por mês.', 'Tenho 2000 seguidores no Instagram.',
-    'Ligue de segunda a sexta, das 9 às 18 horas.', 'Fundada em 1998, a empresa tem 20 anos.', 'Passo 3 de 5.'
+    'Ligue de segunda a sexta, das 9 às 18 horas.', 'Fundada em 1998, a empresa tem 20 anos.', 'Passo 3 de 5.',
+    /* revisões de 04/11: ano sem vírgula, medidas, quantidades, faixa de contagem, CEP, resolução */
+    'Fundada em 2015 e tem 20 anos.', 'Em 2019 lançamos o primeiro site.', 'Fiz de 2000 a 2010.', 'Fica a 300 metros do metrô.',
+    'O site carrega em 300 ms.', 'Atendi em 300 empresas e 500 lojas.', 'Entre 300 e 400 palavras.', 'Nosso CEP é 01310-100.',
+    'Use imagens de 1920x1080.', 'Cerca de 300 mil visitas por mês.', 'Leva de 20 a 30 dias úteis.'
   ];
   for (const t of deveFicar) assert.equal(semPrecoNoTexto(t), t, t);
+  /* a trava de condição de pagamento lê o texto só com os cortes antigos: "o sinal é 1500" precisa continuar sendo pega por ela */
+  assert.equal(semPrecoComMarca('O sinal é 1500'), 'O sinal é 1500');
+  assert.equal(semPrecoComMarca('O sinal é R$ 1500'), 'O sinal é ' + 'o valor (no cartão da estimativa)');
 });
