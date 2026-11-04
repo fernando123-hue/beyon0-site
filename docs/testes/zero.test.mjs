@@ -871,9 +871,12 @@ test('pergunta repetida: se o turno ligou um botão (recado ou diagnóstico), o 
 /* ---------- sobras da rodada 7: quem faz é a Beyon ("a gente"), e o passo 3 usa a palavra do cliente: "modelos" ---------- */
 test('prompt do Zero: quem faz o trabalho é a Beyon ("a gente", nunca "eu monto/desenho/mostro") e o processo fala em "modelos", não em "direções"', () => {
   const REGRAS = JSON.parse(fs.readFileSync(new URL('../../docs/fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
-  const s = montarSistema(REGRAS, { direcoes: 'manual', metodos: ['pix'] });
-  assert.match(s, /Quem faz é a Beyon: diga "a gente", nunca "eu monto\/desenho\/mostro"/, 'a regra da voz da empresa está no prompt');
-  assert.match(s, /\n3\. Modelos: /, 'o passo 3 do processo se chama "Modelos"');
-  assert.ok(!/\n3\. Direções: /.test(s), 'o passo 3 não usa mais a palavra "Direções" (jargão que o modelo repetia)');
-  assert.ok(s.length <= 27000, 'o prompt segue dentro do limite: ' + s.length);
+  for (const direcoes of ['api', 'manual']) {
+    const s = montarSistema(REGRAS, { direcoes, metodos: ['pix'] });
+    assert.match(s, /Quem faz é a Beyon: diga "a gente", nunca "eu monto\/desenho\/mostro"/, direcoes + ': a regra da voz da empresa está no prompt');
+    assert.match(s, /\n3\. Modelos: /, direcoes + ': o passo 3 do processo se chama "Modelos"');
+    assert.ok(!/direç(?:ão|ões)(?! visual)/i.test(s), direcoes + ': "direções" (os modelos) é jargão que o modelo repetia e não aparece no prompt; "direção visual" da tabela de preços é outra coisa e fica');
+    assert.ok(!/falando como "a gente" ou "eu"/.test(s), direcoes + ': a recusa em saúde fala como "a gente", sem "ou eu"');
+    assert.ok(s.length <= 27000, direcoes + ': o prompt segue dentro do limite: ' + s.length);
+  }
 });
