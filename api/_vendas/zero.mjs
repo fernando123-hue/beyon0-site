@@ -38,12 +38,12 @@ export const ABERTURAS = Object.freeze({
 
 /* ---------- apoio: frases e normalização ---------- */
 /* a frase com o que a separa da seguinte (espaço ou quebra), para remontar o texto sem perder parágrafo */
-function frasesDe(texto) {
+export function frasesDe(texto) {
   return String(texto).match(/(?:[^.!?\n]|(?<=\d)\.(?=\d))+(?:[.!?]+|\n)?\s*|\s+/g)?.filter(f => f.trim()) ?? [];
 }
 const DIGITO_LETRA = { 0: 'o', 1: 'i', 3: 'e', 4: 'a' };
 /* para procurar palavras: sem acento e caixa, dígito no meio de palavra vira letra, letras soltas se juntam, pontuação some */
-function paraBusca(frase, { soltaFinal = false } = {}) {
+export function paraBusca(frase, { soltaFinal = false } = {}) {
   return normalizar(frase)
     .replace(/(?<=[a-z])[0134](?=[a-z])/g, d => DIGITO_LETRA[d])
     /* ("d e i x e i o recado": a última letra pode ser a palavra "o"; a segunda leitura a deixa solta) */
@@ -302,61 +302,6 @@ export function semPromessaDeDesconto(texto) {
   const original = String(texto ?? '');
   const ruim = frasesDe(original).map(f => paraBusca(f)).some(f => { const m = DESCONTO.exec(f); return m && !negado(f, m) && !/\bnao (?:existe|tem|ha) desconto\b/.test(f); });
   return ruim ? { texto: DESCONTO_FIXO, trocou: true } : { texto: original, trocou: false };
-}
-
-/* ---------- pendências do #75: suporte pós-entrega e mensalidade do atendente ----------
-   O prompt já diz "depois da entrega não há suporte contínuo" e "o atendente ainda não tem preço nem mensalidade", mas o modelo
-   pode escorregar numa frase afirmativa (CDC art. 30 e 37: o que o Zero diz vale como promessa da empresa). Como a de desconto, a
-   trava só troca a promessa AFIRMATIVA, mas olha ORAÇÃO por oração: "o site não tem mensalidade, mas damos suporte contínuo" tem
-   uma negação e uma promessa, e a negação de uma oração não desarma a outra (revisões do PR). O falso positivo é barato (o texto
-   fixo diz a mesma verdade), o falso negativo é uma promessa na tela. */
-const PONTUACAO = /[,;:()—–]|\s-\s/;
-const CONTRASTE = /\b(?:mas|porem|so que|embora|contudo|entretanto)\b/;
-const oracoesDe = frase => String(frase).split(PONTUACAO).map(o => paraBusca(o)).flatMap(o => o.split(CONTRASTE)).map(o => o.trim()).filter(Boolean);
-/* a negação vale na própria oração: "não/nunca/nenhum", "sem ... suporte", "por sua conta" */
-const NEGA = /\b(?:nao|nunca|jamais|nenhum|nenhuma|nem)\b|\bsem (?:\w+ ){0,2}(?:suporte|manutencao|mensalidade|assinatura|cobranca|taxa)\b|\bpor (?:sua|tua) conta\b|\bfic(?:a|am) com (?:voce|o cliente)\b/;
-
-const COISA_SUPORTE = '(?:suporte|manutencao|atualizacoes?|correcoes|acompanhamento)';
-const VERBO_SUPORTE = '(?:(?:gente|beyon zero|beyon|zero|ela|empresa|te|lhe|sempre|tambem|ainda) da|dou|damos|dar|daremos|vou dar|vamos dar|tem|tenho|temos|ter|havera|ha|faco|fazemos|fazer|oferec\\w+|inclu\\w+|prest\\w+|garant\\w+|cuid\\w+|continu\\w+|mant\\w+|conta(?:r|mos)? com|contar com)';
-const SUPORTE_VERBO = new RegExp('\\b' + VERBO_SUPORTE + '\\s+(?:\\w+\\s+){0,4}' + COISA_SUPORTE + '\\b');
-const SUPORTE_FORTE = new RegExp('\\b' + COISA_SUPORTE + '\\b.*\\b(?:incluso|inclusa|incluido|incluida|gratis|gratuito|gratuita|de graca|sem custo|continuo|continua|vitalicio|vitalicia|mensal|permanente|pos entrega|depois da entrega|garantido|garantida|a disposicao|\\d+ (?:dias|meses|anos))\\b|\\b(?:incluso|inclusa|incluido|incluida|gratis|gratuito|gratuita|de graca|sem custo|vitalicio|vitalicia|permanente)\\b.*\\b' + COISA_SUPORTE + '\\b|\\b' + COISA_SUPORTE + '\\s+(?:\\w+\\s+){0,2}(?:por|durante) \\d+ (?:dias|meses|anos)\\b');
-const SUPORTE_AJUDA = /\b(?:so chamar|e so (?:chamar|falar|avisar)|a gente (?:continua|segue) (?:te )?ajudando|nunca vamos te deixar na mao|conte com a gente|a gente (?:resolve|conserta|corrige|atende))\b/;
-const SUPORTE_DEPOIS = /\b(?:qualquer (?:problema|duvida)|se (?:der|quebrar|travar|tiver) (?:algum )?(?:problema|erro)|depois (?:da entrega|que (?:o site )?(?:ficar|estiver) (?:pronto|no ar)|de pronto))\b/;
-/* "suporte pra escolher o modelo", "suporte aqui no chat", "o suporte da prévia": é a conversa de agora, não o pós-entrega */
-const SUPORTE_DE_AGORA = /\b(?:suporte|manutencao) (?:para|pra) (?:duvidas?|escolh\w+|tirar|entender|montar|decidir|o orcamento)\b|\b(?:suporte|manutencao) (?:\w+ ){0,2}(?:na|no|nos|nas|aqui|nesta|neste|durante|ate)\b|\b(?:suporte|manutencao) (?:de quem|da previa|dos? ajustes|de dados)\b|\bsuporte tecnico (?:da|do) (?:cloudflare|hospedagem|registro)\b/;
-export const SUPORTE_FIXO = 'Depois da entrega não há suporte contínuo nem manutenção incluída: o que cabe são os ajustes da prévia, antes de você fechar. Se precisar dos arquivos do site, é só pedir.';
-function oracaoPrometeSuporte(o) {
-  if (NEGA.test(o)) return false;
-  if (SUPORTE_FORTE.test(o) && !/\bde dados\b/.test(o)) return true;
-  return SUPORTE_VERBO.test(o) && !SUPORTE_DE_AGORA.test(o);
-}
-function frasePrometeSuporte(frase) {
-  const oracoes = oracoesDe(frase);
-  if (oracoes.some(oracaoPrometeSuporte)) return true;
-  /* "se der problema, a gente resolve": a condição e a ajuda ficam em orações diferentes; vale a frase inteira, só sem nenhuma negação */
-  const inteira = oracoes.join(' ');
-  return SUPORTE_AJUDA.test(inteira) && SUPORTE_DEPOIS.test(inteira) && !NEGA.test(inteira);
-}
-export function semPromessaDeSuporte(texto) {
-  const original = String(texto ?? '');
-  return frasesDe(original).some(frasePrometeSuporte) ? { texto: SUPORTE_FIXO, trocou: true } : { texto: original, trocou: false };
-}
-
-const ATENDENTE = /\b(?:atendente|chat ?bot|chat do site|chat com ia|chat de ia|assistente (?:virtual|de ia)|bot|ia do site|ia no site|atendimento (?:com|por) ia)\b/;
-const MENSALIDADE = /\b(?:mensalidade|plano mensal|assinatura (?:mensal|recorrente)|cobranca (?:mensal|recorrente)|taxa mensal|valor mensal|anuidade|mensalmente|recorrente|recorrencia|por mes|todo mes|ao mes)\b/;
-/* o atendente ainda está em preparo: dizer isso, ou falar de mensalidade "quando existir", é a verdade e passa */
-const ATENDENTE_RESSALVA = /\b(?:em preparo|quando existir|se existir|se um dia existir|existiria|futuramente|sobrestamento)\b/;
-export const ATENDENTE_FIXO = 'O atendente de IA ainda está em preparo, sem preço, mensalidade nem prazo definidos, então não consigo te passar isso agora.';
-function frasePrometeMensalidade(frase) {
-  const oracoes = oracoesDe(frase);
-  const inteira = oracoes.join(' ');
-  if (!ATENDENTE.test(inteira) || !MENSALIDADE.test(inteira) || ATENDENTE_RESSALVA.test(inteira)) return false;
-  /* a oração vale se é do assunto (fala do atendente ou da mensalidade: "o site não tem mensalidade, mas o atendente tem") e não nega */
-  return oracoes.some(o => (ATENDENTE.test(o) || MENSALIDADE.test(o)) && !NEGA.test(o));
-}
-export function semMensalidadeDoAtendente(texto) {
-  const original = String(texto ?? '');
-  return frasesDe(original).some(frasePrometeMensalidade) ? { texto: ATENDENTE_FIXO, trocou: true } : { texto: original, trocou: false };
 }
 
 /* ---------- o que o Zero JÁ DISSE nesta conversa (memória do código, rodada 4 da lapidação) ----------

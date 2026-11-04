@@ -21,8 +21,9 @@ import { redigir, semPrecoNoTexto } from './seguranca.mjs';
 import { semPromessaDePagamento, motivoDaPergunta, motivoDaTroca, RESPOSTAS_PAGAMENTO } from './promessa.mjs';
 import { ErroIA } from '../_ia/provedor.mjs';
 import {
-  ABERTURA_PADRAO, semPromessaDeRecado, semPerguntaRepetida, nichoRegulado, pedeItemProibido, garantirRegulado, briefingSemProibidos, avisoRegulado, comMarcadores, marcadorSemValor, semNotacaoInterna, garantirValor, cortarEmFrase, semPromessaDeDesconto, semPromessaDeSuporte, semMensalidadeDoAtendente, jaDito
+  ABERTURA_PADRAO, semPromessaDeRecado, semPerguntaRepetida, nichoRegulado, pedeItemProibido, garantirRegulado, briefingSemProibidos, avisoRegulado, comMarcadores, marcadorSemValor, semNotacaoInterna, garantirValor, cortarEmFrase, semPromessaDeDesconto, jaDito
 } from './zero.mjs';
+import { semPromessaDeSuporte, semMensalidadeDoAtendente } from './travas-promessa.mjs';
 
 const MAX_ITERACOES = 4;
 /* o texto do modelo cabe em 1.100 caracteres: sobram ~400 para o que o código acrescenta (a linha do valor, o recado fixo); o corte é antes das travas */

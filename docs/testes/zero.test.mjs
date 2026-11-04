@@ -14,8 +14,10 @@ import { montarSistema, ferramentas, IDENTIDADE } from '../../api/_vendas/consul
 import { PAPEIS, TETOS, custoUsd, RESERVA_USD } from '../../api/_ia/config.mjs';
 import {
   RECADO_FIXO, ETIQUETA, ABERTURA_PADRAO, ABERTURAS, semPromessaDeRecado, nichoRegulado, pedeItemProibido,
-  garantirRegulado, comMarcadores, briefingSemProibidos, respostaRegulado, semNotacaoInterna, pedeValor, garantirValor, cortarEmFrase, semPromessaDeDesconto, semPromessaDeSuporte, semMensalidadeDoAtendente, SUPORTE_FIXO, ATENDENTE_FIXO
+  garantirRegulado, comMarcadores, briefingSemProibidos, respostaRegulado, semNotacaoInterna, pedeValor, garantirValor, cortarEmFrase, semPromessaDeDesconto
 } from '../../api/_vendas/zero.mjs';
+import { semPromessaDeSuporte, semMensalidadeDoAtendente, SUPORTE_FIXO, ATENDENTE_FIXO } from '../../api/_vendas/travas-promessa.mjs';
+import { SUPORTE_PEGAR, SUPORTE_PASSAR, MENSALIDADE_PEGAR, MENSALIDADE_PASSAR } from './travas-promessa-casos.mjs';
 
 const REGRAS = JSON.parse(fs.readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
 const nova = (extra = {}) => ({ etapa: 'descoberta', briefing: {}, mensagens: [], estimativa: null, ...extra });
@@ -881,51 +883,37 @@ test('prompt do Zero: quem faz o trabalho é a Beyon ("a gente", nunca "eu monto
   }
 });
 
-/* ---------- pendências do #75: suporte pós-entrega e mensalidade do atendente só em frase afirmativa ---------- */
-test('trava: o modelo não promete suporte nem manutenção depois da entrega (só a promessa afirmativa é trocada)', () => {
-  for (const t of [
-    'Depois da entrega a gente dá suporte por 30 dias.',
-    'Damos suporte contínuo ao seu site.',
-    'A manutenção mensal está incluída no valor.',
-    'Oferecemos manutenção e suporte depois que o site for ao ar.',
-    'Pode ficar tranquilo: temos suporte gratuito pra qualquer problema.',
-    'DEPOIS DA ENTREGA, A GENTE CUIDA DA MANUTENÇÃO DO SITE.'
-  ]) {
-    const r = semPromessaDeSuporte(t);
-    assert.equal(r.trocou, true, t);
-    assert.equal(semPromessaDeSuporte(r.texto).trocou, false, 'o texto fixo não é, ele mesmo, uma promessa: ' + r.texto);
-    assert.equal(semMensalidadeDoAtendente(r.texto).trocou, false, 'nem cai na outra trava: ' + r.texto);
-  }
-  for (const t of [
-    'Depois da entrega não há suporte contínuo nem manutenção.',
-    'Nunca prometemos suporte depois da entrega.',
-    'Sem suporte contínuo: os ajustes da prévia são outra coisa.',
-    'A manutenção do site fica por sua conta depois da entrega.',
-    'Os ajustes da prévia cabem até você aprovar o modelo.',
-    'O site fica hospedado de graça na Cloudflare.'
-  ]) assert.equal(semPromessaDeSuporte(t).trocou, false, t);
+/* ---------- pendências do #75: suporte pós-entrega e mensalidade do atendente (api/_vendas/travas-promessa.mjs) ---------- */
+/* as frases vêm das revisões do PR #85 (docs/testes/travas-promessa-casos.mjs); o teste mostra TODAS as falhas de uma vez */
+test('travas de promessa: pegam a promessa afirmativa de suporte e de mensalidade do atendente e deixam passar a resposta correta', () => {
+  const falhas = [];
+  for (const t of SUPORTE_PEGAR) if (!semPromessaDeSuporte(t).trocou) falhas.push('suporte, não pegou: ' + t);
+  for (const t of SUPORTE_PASSAR) if (semPromessaDeSuporte(t).trocou) falhas.push('suporte, cortou resposta boa: ' + t);
+  for (const t of MENSALIDADE_PEGAR) if (!semMensalidadeDoAtendente(t).trocou) falhas.push('atendente, não pegou: ' + t);
+  for (const t of MENSALIDADE_PASSAR) if (semMensalidadeDoAtendente(t).trocou) falhas.push('atendente, cortou resposta boa: ' + t);
+  assert.deepEqual(falhas, [], falhas.length + ' falhas:\n' + falhas.join('\n'));
 });
 
-test('trava: o modelo não fala em mensalidade, assinatura ou cobrança recorrente do atendente de IA como se existisse', () => {
-  for (const t of [
-    'O atendente de IA tem uma mensalidade bem acessível.',
-    'Pra ter o atendente no seu site, cobramos uma mensalidade.',
-    'O chat com IA funciona por assinatura mensal.',
-    'O atendente tem cobrança recorrente, separada do site.'
-  ]) {
-    const r = semMensalidadeDoAtendente(t);
-    assert.equal(r.trocou, true, t);
-    assert.match(r.texto, /em preparo/i, 'o texto fixo diz que ainda está em preparo: ' + r.texto);
-    assert.equal(semMensalidadeDoAtendente(r.texto).trocou, false, 'o texto fixo não é trocado de novo');
-    assert.equal(semPromessaDeSuporte(r.texto).trocou, false, 'nem cai na outra trava: ' + r.texto);
+test('travas de promessa: o texto fixo não dispara a si mesmo nem a outra trava, e a resposta trocada é exatamente o texto fixo', () => {
+  for (const fixo of [SUPORTE_FIXO, ATENDENTE_FIXO]) {
+    assert.equal(semPromessaDeSuporte(fixo).trocou, false, fixo);
+    assert.equal(semMensalidadeDoAtendente(fixo).trocou, false, fixo);
   }
-  for (const t of [
-    'O atendente de IA ainda está em preparo, sem preço nem mensalidade definidos.',
-    'Ainda não existe mensalidade do atendente.',
-    'O site não tem mensalidade: fica hospedado de graça.',
-    'Mensalidade só existiria para o atendente, e ele ainda não está pronto.',
-    'O atendente responde as perguntas do seu cliente no site.'
-  ]) assert.equal(semMensalidadeDoAtendente(t).trocou, false, t);
+  assert.equal(semPromessaDeSuporte('Damos suporte contínuo.').texto, SUPORTE_FIXO);
+  assert.equal(semMensalidadeDoAtendente('O atendente tem mensalidade.').texto, ATENDENTE_FIXO);
+  assert.match(SUPORTE_FIXO, /não há suporte contínuo/, 'o texto de suporte nega o suporte contínuo');
+  assert.doesNotMatch(SUPORTE_FIXO, /arquivos|seu site|fica seu/i, 'o texto fixo não afirma propriedade nem portabilidade do site (CDC): o prompt não confirma isso');
+  assert.match(ATENDENTE_FIXO, /em preparo/, 'o texto do atendente diz que ainda está em preparo');
+});
+
+test('travas de promessa: entrada estranha não quebra nem demora (texto vazio, só espaço, 1.500 letras iguais, 190 "suporte")', () => {
+  const casos = ['', '   ', null, undefined, 'a'.repeat(1500), 'suporte '.repeat(190), 'suporte, '.repeat(160), 'atendente mensalidade '.repeat(68)];
+  const ini = performance.now();
+  for (const c of casos) {
+    assert.equal(typeof semPromessaDeSuporte(c).trocou, 'boolean');
+    assert.equal(typeof semMensalidadeDoAtendente(c).trocou, 'boolean');
+  }
+  assert.ok(performance.now() - ini < 500, 'as duas travas respondem rápido em texto hostil: ' + (performance.now() - ini).toFixed(1) + ' ms');
 });
 
 test('turno: suporte pós-entrega e mensalidade do atendente prometidos pelo modelo saem com o texto fixo (a trava está ligada no agente)', async () => {
@@ -935,74 +923,4 @@ test('turno: suporte pós-entrega e mensalidade do atendente prometidos pelo mod
   assert.equal(atendente.resposta, ATENDENTE_FIXO);
   const certo = await executarTurno({ ia: roteiro(fim('Depois da entrega não há suporte contínuo.')), regras: REGRAS, conversa: nova(), mensagem: 'e depois que ficar pronto?' });
   assert.equal(certo.resposta, 'Depois da entrega não há suporte contínuo.');
-});
-
-test('trava de suporte (revisão do PR): negação em outra oração não libera a promessa, e as formas coloquiais são pegas', () => {
-  for (const t of [
-    'O site não tem mensalidade, mas damos suporte contínuo depois.',
-    'Não se preocupe: damos suporte contínuo.',
-    'Damos suporte, sem custo extra.',
-    'Damos suporte vitalício e seu site fica sempre no ar.',
-    'A gente ainda dá suporte pra você.',
-    'Oferecemos suporte, nunca vamos te deixar na mão.',
-    'Damos suporte, não é nada demais.',
-    'A Beyon dá suporte depois da entrega.',
-    'Daremos manutenção do site.',
-    'Vamos dar suporte depois que o site estiver no ar.',
-    'Tem suporte sim.',
-    'Ofereço manutenção do site sem custo.',
-    'Suporte por 12 meses incluso.',
-    'Você tem suporte por 12 meses.',
-    'Há suporte pós-entrega.',
-    'Você conta com nosso suporte técnico.',
-    'Manutenção sem custo.',
-    'A manutenção sai de graça.',
-    'Faço a manutenção do seu site.',
-    'Fazemos a manutenção.',
-    'Está incluído suporte e manutenção.',
-    'Nosso suporte fica à disposição.',
-    'Atualizações grátis depois da entrega.',
-    'Se der problema, a gente resolve depois da entrega.',
-    'Qualquer problema é só chamar.',
-    'Ótimo! Entendi o seu caso. Depois da entrega a gente cuida da manutenção. Qual é o seu ramo?'
-  ]) assert.equal(semPromessaDeSuporte(t).trocou, true, t);
-  for (const t of [
-    'Temos suporte para dúvidas aqui no chat.',
-    'Damos suporte na escolha dos modelos.',
-    'Temos o suporte da prévia até você aprovar.',
-    'Temos manutenção de dados no briefing.',
-    'Temos o suporte de quem faz a hospedagem.',
-    'O domínio fica no seu nome e a renovação é sua.',
-    'O site não tem mensalidade.',
-    'Depois da entrega não há suporte contínuo, mas os ajustes da prévia cabem antes de fechar.',
-    'Sem suporte contínuo depois da entrega.',
-    'O valor da hospedagem e do suporte não entra na conta.',
-    SUPORTE_FIXO
-  ]) assert.equal(semPromessaDeSuporte(t).trocou, false, t);
-});
-
-test('trava do atendente (revisão do PR): outros nomes, cobrança por mês e "não X, mas o atendente tem" são pegos; a verdade e o texto fixo passam', () => {
-  for (const t of [
-    'O assistente de IA tem mensalidade.',
-    'A IA do site tem mensalidade.',
-    'O bot tem mensalidade.',
-    'O chatbot custa 99 por mês.',
-    'O atendente custa por mês.',
-    'O atendente é cobrado mensalmente.',
-    'O atendente tem anuidade.',
-    'O atendente tem taxa mensal.',
-    'O site não tem mensalidade, mas o atendente tem.',
-    'O atendente tem mensalidade, o site não.',
-    'O atendente ainda não está pronto, mas a mensalidade é 50.',
-    'O atendente tem mensalidade, só não sei o valor ainda.'
-  ]) assert.equal(semMensalidadeDoAtendente(t).trocou, true, t);
-  for (const t of [
-    'A assinatura do domínio é anual e o chat do site ajuda.',
-    'O atendente de IA ainda não tem mensalidade definida.',
-    'O atendente não tem mensalidade.',
-    'Não existe mensalidade do atendente.',
-    'Aqui no chat eu te ajudo com o site.',
-    ATENDENTE_FIXO
-  ]) assert.equal(semMensalidadeDoAtendente(t).trocou, false, t);
-  assert.equal(semMensalidadeDoAtendente(ATENDENTE_FIXO).texto, ATENDENTE_FIXO);
 });
