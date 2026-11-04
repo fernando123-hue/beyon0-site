@@ -158,7 +158,8 @@ export async function executarTurno({ ia, regras, conversa, mensagem, direcoes, 
   let resposta = soDuvidas ? semPromessaDePagamento(semPreco) : (motivoDaTroca(semPreco) === 'pagamento' ? RESPOSTAS_PAGAMENTO.pagamento : semPreco);
   resposta = semPromessaDeDesconto(resposta).texto;
   /* (teste com o modelo real) a pergunta ignorada não volta com as mesmas palavras; olha as duas últimas falas do Zero guardadas */
-  resposta = semPerguntaRepetida(resposta, (conversa.mensagens || []).filter(m => m && m.papel === 'agente').map(m => m.conteudo)).texto;
+  /* se o turno acabou de ligar um botão (formulário ou recado), o convite fica no texto mesmo repetido */
+  if (!pedirContato && !diagnostico) resposta = semPerguntaRepetida(resposta, (conversa.mensagens || []).filter(m => m && m.papel === 'agente').map(m => m.conteudo)).texto;
   /* as travas do Zero (api/_vendas/zero.mjs), nesta ordem, sobre o que vai para a tela:
      1) o recado: ninguém deixou, enviou ou avisou nada; o botão aparece junto da mensagem;
      2) saúde e regulados: o proibido nunca sai liberado (e o briefing não guarda depoimentos);

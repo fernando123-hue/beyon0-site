@@ -39,7 +39,7 @@ export const ABERTURAS = Object.freeze({
 /* ---------- apoio: frases e normalização ---------- */
 /* a frase com o que a separa da seguinte (espaço ou quebra), para remontar o texto sem perder parágrafo */
 function frasesDe(texto) {
-  return String(texto).match(/[^.!?\n]+(?:[.!?]+|\n)?\s*|\s+/g)?.filter(f => f.trim()) ?? [];
+  return String(texto).match(/(?:[^.!?\n]|(?<=\d)\.(?=\d))+(?:[.!?]+|\n)?\s*|\s+/g)?.filter(f => f.trim()) ?? [];
 }
 const DIGITO_LETRA = { 0: 'o', 1: 'i', 3: 'e', 4: 'a' };
 /* para procurar palavras: sem acento e caixa, dígito no meio de palavra vira letra, letras soltas se juntam, pontuação some */

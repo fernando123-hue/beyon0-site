@@ -836,3 +836,34 @@ test('pergunta repetida: o agente aplica o filtro sobre o que vai para a tela, o
   const sem = await executarTurno({ ia, regras: REGRAS, conversa: { etapa: 'descoberta', briefing: {}, mensagens: mensagens.filter(m => m.papel !== 'agente') }, mensagem: 'e então?', direcoes: 'manual', metodos: ['pix'] });
   assert.match(sem.resposta, /fotos dos seus bolos/, 'sem a pergunta antes, ela passa');
 });
+
+test('pergunta repetida: limiar, tamanho mínimo e número com ponto (achados da revisão)', async () => {
+  const { semPerguntaRepetida: s } = await import('../../api/_vendas/zero.mjs');
+  const P = 'Você já tem fotos dos seus bolos pra usar agora?';   /* 8 palavras: voce, tem, fotos, dos, seus, bolos, pra, usar, agora (>2 letras: 8) */
+  /* quase igual (uma palavra a mais, Jaccard ~0,89): sai */
+  assert.equal(s('Certo. Você já tem fotos dos seus bolos pra usar agora mesmo?', [P]).trocou, true);
+  /* parecida pela metade (Jaccard ~0,4): fica */
+  assert.equal(s('Certo. Você tem fotos dos bolos da vitrine para mostrar no site?', [P]).trocou, false);
+  /* pergunta curta (menos de 3 palavras com mais de 2 letras) nunca casa */
+  assert.equal(s('Entendi. Quer ver?', ['Ok. Quer ver?']).trocou, false);
+  /* número com ponto não quebra a frase: o resto nunca fica truncado em "2." */
+  const r = s('Fica em 2.900, quer ver os três modelos do seu site?', ['Fica em 2.900, quer ver os três modelos do seu site?']);
+  assert.equal(r.trocou, false, 'só havia a pergunta repetida: o texto fica inteiro');
+  assert.equal(r.texto, 'Fica em 2.900, quer ver os três modelos do seu site?');
+  const r2 = s('O prazo é 1.5 semana. Quer ver os três modelos do seu site?', ['Quer ver os três modelos do seu site?']);
+  assert.equal(r2.texto, 'O prazo é 1.5 semana.');
+});
+
+test('pergunta repetida: se o turno ligou um botão (recado ou diagnóstico), o convite fica no texto', async () => {
+  const REGRAS = JSON.parse(fs.readFileSync(new URL('../../docs/fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
+  const { executarTurno } = await import('../../api/_vendas/agente.mjs');
+  const P = 'Quer deixar um recado para a gente retornar?';
+  let rodada = 0;
+  const ia = { mensagem: async () => (rodada++ === 0
+    ? { texto: '', chamadas: [{ id: 't1', nome: 'encaminhar_diagnostico', entrada: { motivo: 'pedido' } }], conteudo: [{ type: 'tool_use', id: 't1', name: 'encaminhar_diagnostico', input: { motivo: 'pedido' } }], parada: 'ferramenta', custo_usd: 0 }
+    : { texto: 'Entendi o seu caso. ' + P, chamadas: [], conteudo: [{ type: 'text', text: 'x' }], parada: 'fim', custo_usd: 0 }) };
+  const mensagens = [{ papel: 'visitante', conteudo: 'oi' }, { papel: 'agente', conteudo: 'Certo. ' + P }, { papel: 'visitante', conteudo: 'hum' }];
+  const r = await executarTurno({ ia, regras: REGRAS, conversa: { etapa: 'descoberta', briefing: {}, mensagens }, mensagem: 'e então?', direcoes: 'manual', metodos: ['pix'] });
+  assert.ok(r.diagnostico, 'o diagnóstico foi acionado: ' + JSON.stringify(r.diagnostico));
+  assert.match(r.resposta, /recado/, 'o convite fica junto do botão: ' + r.resposta);
+});
