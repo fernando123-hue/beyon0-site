@@ -394,3 +394,99 @@ test('juiz por código: o mesmo valor escrito de jeitos diferentes conta como re
   assert.equal(r.recado, 0, 'o primeiro recado não é repetição');
   assert.equal(r.frase, 0, '"R$ 8.900, com entrada" não vira fragmentos repetidos');
 });
+
+/* ---------- F1: o gabarito do classificador (docs/gabarito/classificador) ----------
+   ~200 casos sintéticos com a resposta certa escrita ANTES de qualquer motor rodar. Estes testes só garantem que o gabarito é
+   válido e equilibrado (nenhum motor é medido aqui; a medição é a F2). O dono confere uma amostra de 30. */
+import { readFileSync } from 'node:fs';
+import { protegerTexto } from '../../api/_classificador/perguntas.mjs';
+
+const lerGabarito = tarefa => JSON.parse(readFileSync(new URL('../gabarito/classificador/' + tarefa + '.json', import.meta.url), 'utf8'));
+const ORIGENS = ['falha_real', 'parafrase', 'negacao_longe', 'injecao_na_saida', 'combinado', 'controle', 'ambiguidade', 'fronteira', 'irritacao', 'momento'];
+const GAB = Object.fromEntries(TAREFAS_DE_SINAL.map(t => [t, lerGabarito(t)]));
+/* a resposta certa de uma pergunta num caso: o que o caso escreve, ou o padrão da tarefa (irritação e momento não têm padrão) */
+const certaDe = (g, caso, pergunta) => caso.certa[pergunta] ?? g.padrao[pergunta];
+
+test('gabarito: cada tarefa tem o arquivo, a versão e uma lista de casos com id único e origem conhecida', () => {
+  let total = 0;
+  const ids = new Set();
+  for (const tarefa of TAREFAS_DE_SINAL) {
+    const g = GAB[tarefa];
+    assert.equal(g.tarefa, tarefa);
+    assert.equal(g.versao, 'g1');
+    assert.ok(g.casos.length >= 90, tarefa + ': pelo menos 90 casos (' + g.casos.length + ')');
+    for (const c of g.casos) {
+      assert.match(c.id, /^(sz|ev)-\d{3}$/, 'id: ' + c.id);
+      assert.ok(!ids.has(c.id), 'id repetido: ' + c.id);
+      ids.add(c.id);
+      assert.ok(ORIGENS.includes(c.origem), c.id + ': origem desconhecida ' + c.origem);
+    }
+    total += g.casos.length;
+  }
+  assert.ok(total >= 200, 'o plano pede ~200 casos no total: ' + total);
+});
+
+test('gabarito: as respostas certas só usam perguntas e rótulos que existem, e o texto passa limpo pelo portão (sem dado pessoal, sem cortar)', () => {
+  for (const tarefa of TAREFAS_DE_SINAL) {
+    const perguntas = perguntasDe(tarefa);
+    const g = GAB[tarefa];
+    for (const [p, r] of Object.entries(g.padrao)) assert.ok(perguntas[p]?.rotulos.includes(r), 'padrão inválido: ' + p + '=' + r);
+    const textos = new Set();
+    for (const c of g.casos) {
+      assert.equal(typeof c.texto, 'string', c.id);
+      assert.ok(c.texto.length >= 8 && c.texto.length <= 400, c.id + ': tamanho do texto ' + c.texto.length);
+      const chave = c.texto.toLowerCase();
+      assert.ok(!textos.has(chave), c.id + ': texto repetido');
+      textos.add(chave);
+      for (const [p, r] of Object.entries(c.certa)) {
+        assert.ok(perguntas[p], c.id + ': pergunta que não existe: ' + p);
+        assert.ok(perguntas[p].rotulos.includes(String(r)), c.id + ': rótulo inválido ' + p + '=' + r);
+      }
+      const portao = protegerTexto(c.texto);
+      assert.equal(portao.cortado, false, c.id + ': o portão cortaria o texto');
+      assert.deepEqual(portao.mascarados, { email: 0, telefone: 0, documento: 0 }, c.id + ': tem dado pessoal');
+      assert.ok(!/[<>]/.test(c.texto), c.id + ': sinal de menor ou maior no texto');
+      assert.ok(!/fernando/i.test(c.texto), c.id + ': nome do dono no texto (o Zero nunca o diz)');
+    }
+  }
+});
+
+test('gabarito: está equilibrado (cada pergunta tem exemplos das duas respostas e cada rótulo aparece o bastante para medir)', () => {
+  const contar = (tarefa, pergunta) => {
+    const g = GAB[tarefa];
+    const c = {};
+    for (const caso of g.casos) {
+      const r = certaDe(g, caso, pergunta);
+      if (r !== undefined) c[r] = (c[r] || 0) + 1;
+    }
+    return c;
+  };
+  for (const [pergunta, def] of Object.entries(perguntasDe('saida_do_zero'))) {
+    const c = contar('saida_do_zero', pergunta);
+    assert.ok((c.sim || 0) >= 8, 'saida ' + pergunta + ': poucos "sim" (' + (c.sim || 0) + ')');
+    assert.ok((c.nao || 0) >= 8, 'saida ' + pergunta + ': poucos "nao" (' + (c.nao || 0) + ')');
+    assert.equal(def.tipo, 'sim_ou_nao');
+  }
+  for (const p of ['pede_pessoa', 'tenta_dar_ordens']) {
+    const c = contar('entrada_do_visitante', p);
+    assert.ok((c.sim || 0) >= 8 && (c.nao || 0) >= 8, 'entrada ' + p + ': ' + JSON.stringify(c));
+  }
+  const nicho = contar('entrada_do_visitante', 'nicho_saude');
+  for (const rotulo of perguntasDe('entrada_do_visitante').nicho_saude.rotulos) assert.ok((nicho[rotulo] || 0) >= 5, 'nicho_saude ' + rotulo + ': ' + (nicho[rotulo] || 0));
+  for (const p of ['irritacao', 'momento']) {
+    const c = contar('entrada_do_visitante', p);
+    for (const rotulo of perguntasDe('entrada_do_visitante')[p].rotulos) assert.ok((c[rotulo] || 0) >= 4, p + ' ' + rotulo + ': ' + (c[rotulo] || 0));
+  }
+});
+
+test('gabarito: os casos de fronteira (incerto) são poucos, para o dono conferir, e nenhum controle esconde um "sim"', () => {
+  for (const tarefa of TAREFAS_DE_SINAL) {
+    const g = GAB[tarefa];
+    const incertos = g.casos.filter(c => c.incerto);
+    assert.ok(incertos.length <= Math.ceil(g.casos.length * 0.1), tarefa + ': muito caso incerto (' + incertos.length + ')');
+  }
+  /* controle de saída = nenhuma pergunta com "sim": é o que o nome diz */
+  for (const c of GAB.saida_do_zero.casos.filter(c => c.origem === 'controle')) {
+    assert.deepEqual(Object.values(c.certa), [], c.id + ': um controle não pode ter resposta sim');
+  }
+});
