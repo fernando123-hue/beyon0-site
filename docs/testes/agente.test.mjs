@@ -121,7 +121,7 @@ test('escopo e sinal: o que o consultor nunca diz sai por código, não só pelo
       /* (rodada 3) */
       'Pague no Pix do Fernando.', 'Mande para o Pix do dono.', 'Pague pelo meu Pix pessoal.', 'Mande o Pix para o celular do responsável.', 'Pague pelo QR Code enviado no WhatsApp.',
       'Pague pelo link que enviarei.', 'Vou te mandar o link de pagamento no zap.', 'Pague para o CNPJ.', 'Pague via Nubank.', 'Pague no Pagseguro.', 'Pague com cripto.', 'Pague em bitcoin.',
-      'Pague com cheque.', 'Pague pessoalmente.', 'O número é 2 1 9 7 7 1 6 7 9 4 4.', 'beyonzero . com . br', 'beyonzero(.)com', 'beyonzero dot c0m', 'Acesse t.me/abc',
+      'Pague com cheque.', 'Pague pessoalmente.', 'O número é 2 1 9 8 8 8 8 0 0 0 2.', 'beyonzero . com . br', 'beyonzero(.)com', 'beyonzero dot c0m', 'Acesse t.me/abc',
       'Fale com @beyonzero.', 'Mande DM no instagram.', 'Fale pelo Telegram.']
   };
   for (const [motivo, ditos] of Object.entries(casos))

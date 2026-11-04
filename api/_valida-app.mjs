@@ -17,7 +17,7 @@ const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const TEXTOS = { nome: 160, empresa: 160, origem_fonte: 80, campanha: 80, termo: 80, observacoes: 4000 };
 const CAMPOS_LEAD = ['org_id', 'nome', 'empresa', 'email', 'telefone', 'interesse', 'origem_meio', 'origem_fonte', 'campanha', 'termo', 'codigo_visita', 'observacoes'];
 
-/* E.164: "+55 (21) 97716-7944", "21977167944" e "+5521977167944" viram "+5521977167944"; sem DDI e com 10–11 dígitos = Brasil */
+/* E.164: "+55 (21) 98888-0002", "21988880002" e "+5521988880002" viram "+5521988880002"; sem DDI e com 10–11 dígitos = Brasil */
 export function normalizarTelefone(v) {
   if (typeof v !== 'string') return null;
   const mais = v.trim().startsWith('+');

@@ -97,8 +97,8 @@ test('validação: parâmetros e corpo fora da lista fechada = 400 com o campo',
 });
 
 test('validação: normaliza e confere contato', () => {
-  assert.equal(normalizarTelefone('(21) 97716-7944'), '+5521977167944');
-  assert.equal(normalizarTelefone('+55 21 97716-7944'), '+5521977167944');
+  assert.equal(normalizarTelefone('(21) 98888-0002'), '+5521988880002');
+  assert.equal(normalizarTelefone('+55 21 98888-0002'), '+5521988880002');
   assert.equal(normalizarTelefone('123'), null);
   const v = validarNovoLead({ org_id: O1.toUpperCase(), email: ' Maria@X.COM ', codigo_visita: 'k7q4m', nome: '  Maria  ' });
   assert.deepEqual(v.dados, { org_id: O1, nome: 'Maria', email: 'maria@x.com', codigo_visita: 'K7Q4M' });
@@ -112,9 +112,9 @@ test('autorização: membro da O1 lista e cria na O1; a O2 (de outro) dá 403 se
   const ok = await listar(pedido('GET', '?org=' + O1 + '&status=novo'), ENV);
   assert.equal(ok.status, 200);
   assert.equal((await ok.json()).leads.length, 1);
-  const criado = await criar(pedido('POST', '', { corpo: { org_id: O1, nome: 'Maria', telefone: '21 97716-7944' } }), ENV);
+  const criado = await criar(pedido('POST', '', { corpo: { org_id: O1, nome: 'Maria', telefone: '21 98888-0002' } }), ENV);
   assert.equal(criado.status, 201);
-  assert.equal((await criado.json()).lead.telefone, '+5521977167944');
+  assert.equal((await criado.json()).lead.telefone, '+5521988880002');
   chamadas = [];
   assert.equal((await listar(pedido('GET', '?org=' + O2), ENV)).status, 403);
   assert.equal((await criar(pedido('POST', '', { corpo: { org_id: O2, nome: 'Intruso' } }), ENV)).status, 403);

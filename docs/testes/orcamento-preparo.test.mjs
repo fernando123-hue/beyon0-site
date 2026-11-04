@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const fonte = fs.readFileSync(new URL('../../js/orcamento-preparo.js', import.meta.url), 'utf8');
-const janela = { BEYON_TEL: '5521977167944' };
+const janela = { BEYON_TEL: '5521988880002' };
 new Function('window', fonte)(janela);
 const P = janela.BZPreparo;
 const em = (a, m, d, h, min = 0) => new Date(a, m - 1, d, h, min);

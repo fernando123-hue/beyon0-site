@@ -171,12 +171,12 @@ test('suspender pelo painel (22/10): sem o aviso "no ar" registrado ou antes do 
 test('M3 (22/10): a lista de ajustes chega ao dono com o telefone e o e-mail do site como DADO estruturado, à parte do texto', async () => {
   const { n, c, codigo } = await emProducao();
   await publicar(codigo);
-  const r = await n.chamar('POST', 'previa-ajustes', { conversa_id: c, rodada_base: 0, texto: 'Trocar a foto da capa.', whatsapp: '(21) 97716-7944', email: 'contato@clinicasol.com.br', autorizo: true });
+  const r = await n.chamar('POST', 'previa-ajustes', { conversa_id: c, rodada_base: 0, texto: 'Trocar a foto da capa.', whatsapp: '(21) 98888-0002', email: 'contato@clinicasol.com.br', autorizo: true });
   assert.equal(r.status, 200, JSON.stringify(r.corpo));
   const aj = (await cen.painelGet('?ajustes-previa=' + codigo)).corpo.ajustes[0];
-  assert.deepEqual([aj.contato.whatsapp, aj.contato.email], ['+5521977167944', 'contato@clinicasol.com.br']);
+  assert.deepEqual([aj.contato.whatsapp, aj.contato.email], ['+5521988880002', 'contato@clinicasol.com.br']);
   assert.ok(aj.contato.autorizado_em && aj.contato.autorizacao_versao, 'a autorização de uso vem registrada');
-  assert.ok(!/97716|clinicasol/.test(aj.texto), 'o texto não leva o contato');
+  assert.ok(!/98888|clinicasol/.test(aj.texto), 'o texto não leva o contato');
   const item = (await cen.painelGet('?fila=entregas')).corpo.entregas.find(e => e.codigo === codigo);
   assert.equal(item.ajustes_com_contato, 1, 'o listar sabe que há troca de contato na fila');
 });
