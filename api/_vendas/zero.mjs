@@ -38,12 +38,12 @@ export const ABERTURAS = Object.freeze({
 
 /* ---------- apoio: frases e normalização ---------- */
 /* a frase com o que a separa da seguinte (espaço ou quebra), para remontar o texto sem perder parágrafo */
-function frasesDe(texto) {
+export function frasesDe(texto) {
   return String(texto).match(/(?:[^.!?\n]|(?<=\d)\.(?=\d))+(?:[.!?]+|\n)?\s*|\s+/g)?.filter(f => f.trim()) ?? [];
 }
 const DIGITO_LETRA = { 0: 'o', 1: 'i', 3: 'e', 4: 'a' };
 /* para procurar palavras: sem acento e caixa, dígito no meio de palavra vira letra, letras soltas se juntam, pontuação some */
-function paraBusca(frase, { soltaFinal = false } = {}) {
+export function paraBusca(frase, { soltaFinal = false } = {}) {
   return normalizar(frase)
     .replace(/(?<=[a-z])[0134](?=[a-z])/g, d => DIGITO_LETRA[d])
     /* ("d e i x e i o recado": a última letra pode ser a palavra "o"; a segunda leitura a deixa solta) */
