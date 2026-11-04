@@ -69,7 +69,7 @@
     <section class="orc-topo" aria-labelledby="orc-titulo">
       <p class="orc-kicker"><span class="dot" aria-hidden="true"></span>Monte seu orçamento</p>
       <h1 id="orc-titulo">Veja o seu site <em>antes</em> de fechar.</h1>
-      <p class="orc-lead">Responda umas perguntas rápidas e veja o preço na hora, sem cadastro. Depois eu desenho três modelos e você só paga se escolher um.</p>
+      <p class="orc-lead">Responda umas perguntas rápidas e veja o preço na hora, sem cadastro. Depois nós desenhamos três modelos e você só paga se escolher um.</p>
       <ol class="orc-etapas" id="o-etapas" aria-label="Etapas">
         <li data-passo="conversa" aria-current="step"><span>01</span>Perguntas</li>
         <li data-passo="estimativa"><span>02</span>Preço</li>
@@ -251,8 +251,8 @@
     <!-- OS DETALHES (spec 2026-10-11 §3): uma tela, celular primeiro; viram o pedido com código (js/orcamento-detalhes.js).
          O aceite de privacidade continua aqui e vai ao banco pelo mesmo caminho de antes (app.vendas_informar_contato) -->
     <section class="orc-bloco" id="o-contato" aria-labelledby="o-contato-titulo" hidden>
-      <h2 id="o-contato-titulo">Para quem vou desenhar?</h2>
-      <p class="orc-bloco__lead" id="o-contato-lead">Conte um pouco do seu negócio. Leva uns 2 minutos, e é com isso que eu desenho três modelos de site: um feito para trazer pedidos, um que passa confiança e um mais moderno e chamativo.</p>
+      <h2 id="o-contato-titulo">Para quem vamos desenhar?</h2>
+      <p class="orc-bloco__lead" id="o-contato-lead">Conte um pouco do seu negócio. Leva uns 2 minutos, e é com isso que nós desenhamos três modelos de site: um feito para trazer pedidos, um que passa confiança e um mais moderno e chamativo.</p>
       <p class="orc-aviso orc-fila-cheia" id="o-fila-cheia" role="status" tabindex="-1" hidden>Muita procura agora: a fila de modelos está cheia. Deixe um <a href="#recado" data-recado-abrir data-recado-origem="orcamento">recado</a> e a gente responde por e-mail.</p>
       <form class="orc-form" id="o-detalhes-form" novalidate>
         <p class="orc-nota orc-nota--aviso">Não escreva CPF, telefone ou dados de outras pessoas nos campos de texto.</p>
@@ -481,7 +481,7 @@
       <!-- D4 (21/10): as regras do lançamento valem para o orçamento; este texto é o de /condicoes (o teste de coerência confere) -->
       <details class="orc-det orc-antes__item">
         <summary>Quando fica pronto?</summary>
-        <p class="orc-antes__resposta">O prazo está no resumo do seu pedido, em dias úteis, contados do pagamento da entrada e do envio do seu material. Sábado, domingo e feriado nacional não contam. Enquanto espero a sua lista de ajustes, o prazo fica parado. Nada vai ao ar sem o seu material e a sua autorização: enquanto ele não chegar, eu aviso que estou aguardando e o projeto fica parado.</p>
+        <p class="orc-antes__resposta">O prazo está no resumo do seu pedido, em dias úteis, contados do pagamento da entrada e do envio do seu material. Sábado, domingo e feriado nacional não contam. Enquanto esperamos a sua lista de ajustes, o prazo fica parado. Nada vai ao ar sem o seu material e a sua autorização: enquanto ele não chegar, nós avisamos que estamos aguardando e o projeto fica parado.</p>
       </details>
       <!-- D2 (21/10): 2 listas de ajuste; o que passar disso é orçado à parte (revê a decisão de 11/10, Decisões.md) -->
       <details class="orc-det orc-antes__item">
@@ -492,7 +492,7 @@
       <!-- 22/10: o restante (D4; a porcentagem vem da proposta, js/orcamento-entrega.js). Promete a tela do restante: nasce escondido, como as outras promessas da entrega -->
       <details class="orc-det orc-antes__item" id="o-faq-restante" hidden>
         <summary>Quando pago o restante?</summary>
-        <p class="orc-antes__resposta">Quando o site estiver no ar: os outros <span id="o-ap-resto-pct"></span>% do total, por Pix, nesta mesma página. Se o restante não for pago em 3 dias depois do meu aviso de que o site está no ar, ele sai do ar até o pagamento. Antes disso eu lembro duas vezes, no segundo e no terceiro dia.</p>
+        <p class="orc-antes__resposta">Quando o site estiver no ar: os outros <span id="o-ap-resto-pct"></span>% do total, por Pix, nesta mesma página. Se o restante não for pago em 3 dias depois do nosso aviso de que o site está no ar, ele sai do ar até o pagamento. Antes disso nós lembramos duas vezes, no segundo e no terceiro dia.</p>
       </details>
       <details class="orc-det orc-antes__item" id="o-faq-fotos" hidden>
         <summary>Como mando fotos e textos?</summary>
@@ -596,7 +596,7 @@
         <p class="orc-nota" id="o-prv-lista-n"></p>
         <textarea id="o-prv-lista" rows="7" maxlength="1500" autocomplete="off" aria-describedby="o-prv-lista-n o-prv-prazo o-prv-aviso o-prv-contador"></textarea>
         <p class="orc-nota" id="o-prv-contador"></p>
-        <p class="orc-nota" id="o-prv-prazo">Enquanto espero a sua lista de ajustes, o prazo fica parado.</p>
+        <p class="orc-nota" id="o-prv-prazo">Enquanto esperamos a sua lista de ajustes, o prazo fica parado.</p>
         <p class="orc-nota" id="o-prv-aviso">Não escreva CPF, CNPJ nem dados de outras pessoas. Telefone e e-mail escritos aqui são apagados. Para trocar os do site, use os campos abaixo.</p>
         <!-- M3 (22/10): o telefone e o e-mail do site em campos PRÓPRIOS, conferidos aqui, no servidor e no banco; a mesma autorização de uso do material -->
         <fieldset class="orc-previa__contato" id="o-prv-contato">
@@ -627,7 +627,7 @@
       <p class="orc-noar__endereco" id="o-noar-endereco"></p>
       <div class="orc-previa__acoes"><a class="btn btn--primary" id="o-noar-abrir" target="_blank" rel="noopener noreferrer" href="#" hidden>Abrir o site<span class="sr-only"> (abre em nova aba)</span></a></div>
       <p class="orc-bloco__lead" id="o-noar-aviso" hidden></p>
-      <p class="orc-nota">Se o restante não for pago em 3 dias depois do meu aviso de que o site está no ar, o site sai do ar até o pagamento.</p>
+      <p class="orc-nota">Se o restante não for pago em 3 dias depois do nosso aviso de que o site está no ar, o site sai do ar até o pagamento.</p>
     </section>
     <!-- O FIM (PR 3b-3): pedido concluído (as duas partes pagas) ou encerrado -->
     <section class="orc-bloco orc-fim" id="o-fim" hidden>

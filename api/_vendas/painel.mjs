@@ -17,8 +17,8 @@ import { textoProibido } from './zero.mjs';
 
 export const LIMITES_PAINEL = Object.freeze({ itens: 5, ficha: 6, texto: 110 });
 
-/* rótulos públicos (o formato sob medida se chama Cume desde a troca por conflito do Beyond no INPI, 03/11) */
-const FORMATO = Object.freeze({ landing_page: 'Site de uma página', institucional: 'Site com várias páginas', sob_medida: 'Cume', loja_plataforma: 'Loja virtual' });
+/* rótulos públicos (o formato sob medida se chama Atelier desde a troca por conflito do Beyond no INPI, 03/11) */
+const FORMATO = Object.freeze({ landing_page: 'Site de uma página', institucional: 'Site com várias páginas', sob_medida: 'Atelier', loja_plataforma: 'Loja virtual' });
 const OBJETIVO = Object.freeze({ gerar_leads: 'Receber pedidos de orçamento', apresentar_empresa: 'Apresentar a empresa', vender: 'Vender pela internet', agendamentos: 'Receber agendamentos', autoridade: 'Ser visto como referência', captar_contatos: 'Juntar contatos', lancar_produto: 'Lançar um produto' });
 const FUNCIONALIDADE = Object.freeze({ whatsapp: 'botão de WhatsApp', formulario: 'formulário de contato', agendamento: 'agendamento', mapa: 'mapa', blog: 'blog', integracao: 'integração com outro sistema', ia: 'atendente de IA', area_restrita: 'área restrita', automacao: 'automação', catalogo: 'catálogo', loja: 'loja virtual', idioma: 'mais de um idioma', galeria: 'galeria de fotos', depoimentos: 'depoimentos' });
 

@@ -105,7 +105,7 @@ test('condições: desistência diz os 7 dias (CDC art. 49), a devolução intei
   assert.match(texto, /Depois dos 7 dias, a entrada paga o trabalho reservado para você e não é devolvida\. Se você desistir, não paga o restante, e o site não vai ao ar\./);
   assert.ok(!/se eu ainda não comecei|se eu já comecei/.test(texto), 'a regra antiga (depende de ter começado) sobrou');
   /* atraso da Beyon Zero devolve a entrada, mesmo depois dos 7 dias (dono, 2026-10-14; CDC arts. 51 e 53) */
-  assert.match(texto, /Se eu não entregar no prazo combinado, devolvo a entrada inteira, mesmo depois dos 7 dias\./);
+  assert.match(texto, /Se nós não entregarmos no prazo combinado, devolvemos a entrada inteira, mesmo depois dos 7 dias\./);
   assert.match(html, /Para desistir, escreva para <a href="mailto:contato.beyon.zero@gmail.com">/);
   /* (a devolução imediata é só a dos 7 dias: depois deles a entrada não volta, e o texto não pode prometer o contrário) */
   assert.match(texto, /Dentro dos 7 dias, a devolução é imediata, pelo mesmo meio do pagamento \(o Pix\), com o valor corrigido/);
@@ -123,7 +123,7 @@ test('condições: parcelar é pelo banco do cliente, com o nome permitido (Pix 
 test('condições: indicação sem pagamento; a troca do preço de fundador é depoimento e portfólio', () => {
   /* é PEDIDO, não condição do preço (dono, 2026-10-14, depois da revisão do PR #41): o consentimento da LGPD tem de ser livre */
   assert.match(html, /<h2>Um pedido<\/h2>/);
-  assert.match(texto, /Se gostar do resultado, peço um depoimento curto e a permissão de mostrar o seu site no portfólio da Beyon Zero\. E, se conhecer alguém que precisa de site, uma indicação ajuda muito \(sem obrigação\)\. Se preferir não dar, o preço não muda\./);
+  assert.match(texto, /Se gostar do resultado, pedimos um depoimento curto e a permissão de mostrar o seu site no portfólio da Beyon Zero\. E, se conhecer alguém que precisa de site, uma indicação ajuda muito \(sem obrigação\)\. Se preferir não dar, o preço não muda\./);
   assert.ok(!/em troca/i.test(texto), 'depoimento e portfólio não são contrapartida do preço');
   assert.ok(priv.includes('e o preço não depende dela'), 'a privacidade diz que o consentimento é livre');
   assert.ok(!/eu pago a você|recompensa|5%|30%/.test(texto), 'a indicação paga sobrou');
@@ -184,5 +184,39 @@ test('condições: o preço de fundador é o piso da tabela, nem abaixo dele nem
   for (const [nome, valor, f] of [['landing', landing, regras.formatos.landing_page], ['institucional', inst, regras.formatos.institucional]]) {
     assert.ok(valor >= f.piso, nome + ': R$ ' + valor + ' abaixo do piso da tabela (R$ ' + f.piso + ')');
     assert.ok(valor < f.base, nome + ': o preço de fundador tem de ser menor que o preço-base');
+  }
+});
+
+/* dono, 03/11 (opção A): as páginas e o contrato falam em "nós", nunca no "eu" de uma pessoa só.
+   O "eu" do visitante ("E se eu já tenho um site?", "Quero o meu site") e o do Zero ("eu sou o Zero, a IA") não entram aqui. */
+const PAGINAS = ['index.html', 'sites.html', 'automacao.html', 'condicoes.html', 'orcamento.html', 'resumo.html'];
+const ARQUIVOS = [...PAGINAS, 'api/_vendas/escopo.mjs', 'api/_vendas/catalogo.mjs'];
+const EU_DA_EMPRESA = [
+  /\beu (faço|monto|testo|desenho|digo|entrego|aviso|lembro|escrevo|escolho|cadastro|trago|importo|deixo|olho|apago|uso|peço|indico|cuido)\b/i,
+  /\b(meu|minha) (aviso|conta)\b/i,
+  /\bdepender de mim\b/i,
+  /\batendo todo o Brasil\b/i,
+  /\bEnquanto espero\b/i,
+  /\bSe eu (precisar|não entregar)\b/i,
+  /\bpara quem vou desenhar\b/i
+];
+
+for (const arq of ARQUIVOS) {
+  test('voz da empresa em ' + arq + ': "nós", sem o "eu" de uma pessoa só', () => {
+    const texto = readFileSync(new URL('../../' + arq, import.meta.url), 'utf8');
+    for (const re of EU_DA_EMPRESA) {
+      const m = texto.match(re);
+      assert.equal(m, null, 'voz no singular em ' + arq + ': "' + (m && m[0]) + '"');
+    }
+  });
+}
+
+test('voz da empresa: o contrato e /condicoes usam a mesma voz no plural', () => {
+  const escopo = readFileSync(new URL('../../api/_vendas/escopo.mjs', import.meta.url), 'utf8');
+  const condicoes = readFileSync(new URL('../../condicoes.html', import.meta.url), 'utf8');
+  for (const t of [escopo, condicoes]) {
+    assert.match(t, /nós avisamos que estamos aguardando/);
+    assert.match(t, /nós lembramos duas vezes/);
+    assert.match(t, /devolvemos a entrada inteira/);
   }
 });

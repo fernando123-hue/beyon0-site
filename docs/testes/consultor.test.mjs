@@ -79,7 +79,7 @@ test('ferramentas: cada descrição diz QUANDO usar; estimar só oferece o que e
   for (const f of fs_) assert.ok(/quando|chame|use/i.test(f.description) && f.description.length > 80, f.name + ': critério de uso');
   const est = fs_.find(f => f.name === 'estimar').input_schema;
   assert.deepEqual(est.properties.formato.enum, Object.keys(REGRAS.formatos));
-  /* o que está em preparo nem aparece no esquema da ferramenta (o motor também recusaria; revisão de segurança do PR do Cume) */
+  /* o que está em preparo nem aparece no esquema da ferramenta (o motor também recusaria; revisão de segurança do PR do Atelier) */
   assert.deepEqual(Object.keys(est.properties.adicionais.properties), Object.entries(REGRAS.adicionais).filter(([, a]) => a.em_preparo !== true).map(([k]) => k));
   assert.ok(!Object.keys(est.properties.adicionais.properties).some(k => /^atendente_ia_/.test(k)), 'o atendente de IA em preparo não é oferecido ao estimar');
   /* a complexidade alta não cobra de novo as interações (a descrição da ferramenta segue a tabela) e a quantidade é o total */
@@ -256,7 +256,7 @@ test('conteúdo (revisão de fidelidade): nada de promessa jurídica sem o advog
   assert.match(s, /valor final é o do escopo que a pessoa confirma/i, 'a ressalva do site: o valor muda se o escopo mudar antes');
   assert.ok(!s.includes('—'), 'sem travessão (o modelo imita)');
   assert.match(s, /1 página incluída\)/, 'concordância');
-  assert.ok(/Cume \(6 páginas incluídas\):/.test(s) && !/Experiência digital/.test(s), 'o formato com o nome novo: Cume (dono, 2026-11-03; era "Experiência digital" de 2026-10-09)');
+  assert.ok(/Atelier \(6 páginas incluídas\):/.test(s) && !/Experiência digital/.test(s), 'o formato com o nome novo: Atelier (dono, 2026-11-03; era "Experiência digital" de 2026-10-09)');
   assert.ok(!/(experiência digital|sob medida):[^\n]*lançamento/i.test(s), 'lançamento é da landing page');
   /* cada fala de exemplo do Zero cumpre as regras de voz: curta, no máximo uma pergunta, sem elogio vazio nem fórmula de robô */
   const falas = [...s.matchAll(/^Zero: (.+)$/gm)].map(m => m[1]);
@@ -468,8 +468,8 @@ test('instruções: o prazo vem da estimativa; cada formato sozinho pelos dias d
   assert.match(s, /passar de 60 dias úteis[^.]*fase 1/);
   const semLoja = JSON.parse(JSON.stringify(REGRAS)); delete semLoja.formatos.loja_plataforma;
   for (const [k, x] of Object.entries(semLoja.adicionais)) if (x.requer?.includes('loja_plataforma')) delete semLoja.adicionais[k];
-  /* (v3: o Cume, com 15 dias de base e as interações, também passa de 60; sem a loja, sem as interações e com 10 dias de base, nada passa) */
-  assert.match(montarSistema(semLoja), /passar de 60 dias úteis[^.]*fase 1/, 'o Cume com tudo ainda passa de 60: fala de fase');
+  /* (v3: o Atelier, com 15 dias de base e as interações, também passa de 60; sem a loja, sem as interações e com 10 dias de base, nada passa) */
+  assert.match(montarSistema(semLoja), /passar de 60 dias úteis[^.]*fase 1/, 'o Atelier com tudo ainda passa de 60: fala de fase');
   for (const k of Object.keys(semLoja.adicionais)) if (/^interacao_/.test(k)) delete semLoja.adicionais[k];
   semLoja.formatos.sob_medida.prazo_dias = 10;
   assert.doesNotMatch(montarSistema(semLoja), /fase 1|fase seguinte/, 'sem fase possível, não fala de fase');
@@ -494,20 +494,20 @@ test('área que não se faz hoje sem formato: avisa e segue a descoberta; a loja
 });
 
 /* TABELA v3 (dono, 2026-11-03): o Zero lê a lista da tabela ATIVA (dados), sem valores no prompt */
-test('v3: o prompt conhece o Cume, os adicionais em qualquer formato e o atendente em preparo, sem nenhum valor', () => {
+test('v3: o prompt conhece o Atelier, os adicionais em qualquer formato e o atendente em preparo, sem nenhum valor', () => {
   const s = montarSistema(REGRAS, { direcoes: 'manual', metodos: ['pix'] });
-  assert.match(s, /- Cume:[^\n]*não há suporte contínuo \(nunca prometa suporte pós-entrega nem manutenção; os ajustes da prévia são outra coisa\)/, 'o Cume e o que ele não tem');
+  assert.match(s, /- Atelier:[^\n]*não há suporte contínuo \(nunca prometa suporte pós-entrega nem manutenção; os ajustes da prévia são outra coisa\)/, 'o Atelier e o que ele não tem');
   assert.match(s, /valem em qualquer formato, e os de loja só na loja/, 'os adicionais valem em qualquer formato');
-  assert.match(s, /O que a lista do Cume já inclui não se soma: informe a quantidade TOTAL/, 'o incluso do Cume não se cobra duas vezes: o Zero informa o total e o motor desconta');
-  assert.match(s, /não ofereça ao Cume o que ele já traz/, 'não oferece o que já vem incluso');
-  assert.match(s, /os textos, tantos quantas forem as páginas/, 'textos do Cume: tantos quantas as páginas');
-  /* a tabela antiga (sem incluso_em, formato com o nome antigo) não faz o Zero falar de Cume nem de "quantidade TOTAL" */
+  assert.match(s, /O que a lista do Atelier já inclui não se soma: informe a quantidade TOTAL/, 'o incluso do Atelier não se cobra duas vezes: o Zero informa o total e o motor desconta');
+  assert.match(s, /não ofereça ao Atelier o que ele já traz/, 'não oferece o que já vem incluso');
+  assert.match(s, /os textos, tantos quantas forem as páginas/, 'textos do Atelier: tantos quantas as páginas');
+  /* a tabela antiga (sem incluso_em, formato com o nome antigo) não faz o Zero falar de Atelier nem de "quantidade TOTAL" */
   const antiga = JSON.parse(JSON.stringify(REGRAS));
   antiga.formatos.sob_medida.nome = 'Experiência digital';
   for (const a of Object.values(antiga.adicionais)) delete a.incluso_em;
   const sa = montarSistema(antiga, { direcoes: 'manual', metodos: ['pix'] });
-  assert.ok(/- Experiência digital:/.test(sa) && !/Cume/.test(sa) && !/quantidade TOTAL/.test(sa) && !/não há suporte contínuo/.test(sa), 'o prompt segue a tabela ativa');
-  assert.match(s, /compare com o institucional mais as interações/, 'a comparação institucional + interações × Cume');
+  assert.ok(/- Experiência digital:/.test(sa) && !/Atelier/.test(sa) && !/quantidade TOTAL/.test(sa) && !/não há suporte contínuo/.test(sa), 'o prompt segue a tabela ativa');
+  assert.match(s, /compare com o institucional mais as interações/, 'a comparação institucional + interações × Atelier');
   assert.match(s, /Animações de entrada e rolagem no site todo;/, 'as animações do site todo estão na lista de adicionais');
   assert.match(s, /Interação de assinatura \(/);
   assert.match(s, /Em preparo, ainda sem preço nem contratação: Atendente de IA no site, plano Essencial; [^\n]*Profissional; [^\n]*Avançado/, 'o atendente é conhecido, mas em preparo');

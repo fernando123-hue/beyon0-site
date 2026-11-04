@@ -113,7 +113,7 @@ test('a seção #o-previa: aprovar num <dialog> (nunca confirm), o campo único 
   assert.ok(s.length > 500, 'a seção existe');
   assert.match(s, /<dialog class="orc-dialogo" id="o-prv-dialogo"/); assert.ok(!/window\.confirm|\bconfirm\(/.test(semComentario(FONTE)));
   assert.match(texto(s), /Depois de aprovar, o próximo passo é pôr o site no ar\./);
-  assert.match(texto(s), /Escreva tudo de uma vez/); assert.match(texto(s), /Enquanto espero a sua lista de ajustes, o prazo fica parado\./);
+  assert.match(texto(s), /Escreva tudo de uma vez/); assert.match(texto(s), /Enquanto esperamos a sua lista de ajustes, o prazo fica parado\./);
   assert.match(texto(s), /Não escreva CPF, CNPJ nem dados de outras pessoas\./);
   assert.match(texto(s), /Telefone e e-mail escritos aqui são apagados\. Para trocar os do site, use os campos abaixo\./);   /* M3: a lista de texto livre é redigida no servidor; a tela avisa antes e aponta os campos */
   assert.equal((s.match(/id="o-prv-aviso"/g) || []).length, 1); assert.ok(!/id="o-prv-apaga"/.test(s), 'o aviso do CPF e o do telefone são UMA nota só');

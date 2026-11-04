@@ -125,7 +125,7 @@ async function rodar(page, { ok, espera, foto, semRolagemLateral, chave, convers
   /* 3. a lista de ajustes: CPF recusado antes de enviar; a boa vai, o prazo volta a correr ("Previsão") e o dono a lê como DADO */
   await A.p.click('#o-prv-ajustes');
   ok(/Esta é a lista 1 de 2\./.test(await A.p.textContent('#o-prv-lista-n')), 'ajustes: "esta é a lista 1 de 2"');
-  ok(/Enquanto espero a sua lista de ajustes, o prazo fica parado\./.test(await A.p.textContent('#o-prv-prazo')), 'ajustes: D4, o prazo fica parado');
+  ok(/Enquanto esperamos a sua lista de ajustes, o prazo fica parado\./.test(await A.p.textContent('#o-prv-prazo')), 'ajustes: D4, o prazo fica parado');
   ok(/Telefone e e-mail escritos aqui são apagados\./.test(await A.p.textContent('#o-prv-aviso')) && /use os campos abaixo\./.test(await A.p.textContent('#o-prv-aviso')), 'ajustes: M3, o aviso de que telefone e e-mail escritos na lista são apagados e a saída pelos campos');
   await A.p.fill('#o-prv-lista', 'Meu CPF é 123.456.789-09'); await A.p.click('#o-prv-enviar');
   ok(/CPF/.test(await A.p.textContent('#o-prv-erro-form')), 'ajustes: CPF recusado na tela');
@@ -203,7 +203,7 @@ async function rodar(page, { ok, espera, foto, semRolagemLateral, chave, convers
   ok(/Seu site está no ar/.test(await B.p.textContent('#o-noar-titulo')), 'no ar: o título');
   ok(await B.p.locator('#o-noar-endereco').textContent() === SITE, 'no ar: o endereço do site em texto');
   ok(await B.p.getAttribute('#o-noar-abrir', 'href') === SITE && /noopener/.test(await B.p.getAttribute('#o-noar-abrir', 'rel')) && await B.p.getAttribute('#o-noar-abrir', 'target') === '_blank', 'no ar: "Abrir o site" abre em outra aba, seguro');
-  ok(/Se o restante não for pago em 3 dias depois do meu aviso de que o site está no ar, o site sai do ar até o pagamento\./.test(await B.p.textContent('#o-noar')), 'no ar: a frase da D4 (3 dias, 22/10) exata');
+  ok(/Se o restante não for pago em 3 dias depois do nosso aviso de que o site está no ar, o site sai do ar até o pagamento\./.test(await B.p.textContent('#o-noar')), 'no ar: a frase da D4 (3 dias, 22/10) exata');
   ok(await B.p.evaluate(() => { const n = document.getElementById('o-noar'), p = document.getElementById('o-pagamento'); return !p.hidden && !!(n.compareDocumentPosition(p) & Node.DOCUMENT_POSITION_FOLLOWING); }), 'restante: o Pix vem depois do "no ar" no DOM e está visível');
   ok(await escondido(B.p, '#o-previa') && await escondido(B.p, '#o-fim'), 'no ar: a prévia e o fim não aparecem');
   ok(await escondido(B.p, '#o-pag-metodos') && await escondido(B.p, '#o-pix-trocar'), 'restante: só Pix (o seletor de cartão e o "trocar" ficam escondidos)');
