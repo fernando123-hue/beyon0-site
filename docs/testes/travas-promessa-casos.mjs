@@ -74,7 +74,20 @@ export const SUPORTE_PEGAR = [
   'Se o site cair depois da entrega, a gente resolve.',
   'Seguimos ajudando depois da entrega.',
   'Depois do site no ar, a gente segue cuidando de tudo pra você.',
-  'Ótimo! Entendi o seu caso. Depois da entrega a gente cuida da manutenção. Qual é o seu ramo?'
+  'Ótimo! Entendi o seu caso. Depois da entrega a gente cuida da manutenção. Qual é o seu ramo?',
+  'Damos suporte de 30 dias depois da entrega.',
+  'Damos suporte de qualidade depois da entrega.',
+  'Oferecemos suporte em horário comercial.',
+  'Manutenção do servidor a gente faz todo mês.',
+  'Suporte: não cobramos mensalidade e damos suporte contínuo.',
+  'Oferecemos suporte técnico por 6 meses depois da entrega.',
+  'Você vai ter suporte depois que o site estiver no ar.',
+  'A hospedagem e a manutenção ficam por nossa conta.',
+  'Prestamos assistência técnica mesmo depois de entregar o site.',
+  'Depois da entrega, o suporte é gratuito.',
+  'Pode contar com manutenção mensal sem custo adicional.',
+  'Sim, temos suporte pós-venda para todos os clientes.',
+  'Não cobramos nada: o suporte está incluído no valor.'
 ];
 
 export const SUPORTE_PASSAR = [
@@ -122,7 +135,22 @@ export const SUPORTE_PASSAR = [
   'Temos o suporte de quem faz a hospedagem.',
   'Você tem suporte da sua equipe para o conteúdo?',
   'Tem manutenção de ar condicionado? Assim o site mostra isso e a prévia é grátis.',
-  'Para quem vende serviço, o acompanhamento dos clientes é importante e a prévia é grátis.'
+  'Para quem vende serviço, o acompanhamento dos clientes é importante e a prévia é grátis.',
+  'Quer suporte contínuo? Temos como indicar um profissional.',
+  'Você precisa de suporte contínuo? Posso te explicar as opções de hospedagem.',
+  'Quer suporte contínuo? Posso explicar como funciona o orçamento.',
+  'Hoje você tem suporte para o site atual?',
+  'Sua clínica de TI oferece suporte remoto? Posso criar uma página só pra isso.',
+  'Sua academia precisa de manutenção dos aparelhos? O site mostra isso.',
+  'A assistência técnica da sua loja aparece em destaque no site.',
+  'Posso te ajudar com dúvidas sobre o orçamento agora.',
+  'O Zero não faz manutenção de sites que já existem.',
+  'A hospedagem é gratuita na Cloudflare.',
+  'Quer que eu explique como funciona a manutenção do domínio?',
+  'O site fica pronto em até 15 dias úteis e você aprova a prévia antes de pagar.',
+  'Sua clínica oferece suporte psicológico, então o site vai explicar isso com cuidado.',
+  'Se você quiser mudar algo na prévia, é só pedir aqui.',
+  'O sinal é de 40% por Pix e o restante quando o site estiver no ar.'
 ];
 
 export const MENSALIDADE_PEGAR = [
@@ -161,7 +189,17 @@ export const MENSALIDADE_PEGAR = [
   'Quando existir, o atendente terá mensalidade de 99 reais.',
   'O atendente tem mensalidade, futuramente.',
   'O site não tem mensalidade. O atendente tem.',
-  'Sem dúvida o atendente tem mensalidade.'
+  'Sem dúvida o atendente tem mensalidade.',
+  'O atendente de IA vai custar uns 50 por mês.',
+  'Atendente de IA: R$ 59 por mês.',
+  'O site não tem mensalidade e o atendente tem.',
+  'Você quer o atendente? Ele tem mensalidade de 50.',
+  'Atendimento 24h pela IA do site, 49 reais/mês.',
+  'O atendente de IA é cobrado por mensalidade, separado do site.',
+  'Para usar o atendente de IA existe uma assinatura mensal.',
+  'Sim, o bot tem cobrança mensal.',
+  'Além do site, o atendente de IA tem uma mensalidade pequena.',
+  'O atendente fica por R$ 49 ao mês.'
 ];
 
 export const MENSALIDADE_PASSAR = [
@@ -184,5 +222,23 @@ export const MENSALIDADE_PASSAR = [
   'Sua academia tem mensalidade e atendente: o site pode mostrar os planos mensais.',
   'O site da escola mostra a mensalidade dos alunos, e o atendente do colégio tira dúvidas.',
   'Quantos clientes o seu atendente atende por mês?',
-  'O atendente de IA está em preparo e ainda não tem preço, mensalidade nem prazo.'
+  'O atendente de IA está em preparo e ainda não tem preço, mensalidade nem prazo.',
+  'Se o seu negócio é academia, o atendente do seu site pode responder sobre a mensalidade dos alunos.',
+  'Para sua escola, o site pode ter um robô que responde sobre mensalidade e matrícula.',
+  'O atendente de IA é um chat dentro do site, mas ainda não está pronto.',
+  'O site é pagamento único, sem mensalidade.',
+  'Sua escola cobra mensalidade dos alunos? O site pode mostrar isso.',
+  'Posso registrar seu interesse no atendente de IA.'
+];
+
+/* Furos CONHECIDOS: paráfrases que o filtro de lista não pega (documentadas, não corrigidas de propósito: cada palavra a mais
+   na lista custa falso positivo). A defesa é o prompt (consultor.mjs) e a rodada com o modelo real; o teste confere que
+   continuam fora, para o dia em que alguém decidir pegá-las ter de mexer aqui também. */
+export const FUROS_CONHECIDOS = [
+  'Estamos sempre por aqui depois que o site estiver no ar.',
+  'Nosso time de suporte fica à sua disposição o ano todo.',
+  'Vamos acompanhar o site depois de publicado e corrigir o que aparecer.',
+  'Depois que publicar, cuidamos de tudo pra você.',
+  'Se precisar mudar um texto depois, a gente faz de graça.',
+  'Garantia de 12 meses com correções gratuitas.'
 ];

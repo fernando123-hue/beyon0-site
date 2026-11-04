@@ -15,9 +15,9 @@
 import { frasesDe, paraBusca } from './zero.mjs';
 
 /* ---------- apoio: orações ---------- */
-const PONTUACAO = /[,;:()|/—–]|\s-\s/;
+const PONTUACAO = /[,;:()|—–]|\s-\s/;
 /* (cortes no texto CRU: no normalizado o verbo "é" viraria "e" e seria cortado como conectivo) */
-const CONTRASTE = /\s(?:mas|porém|porem|só que|so que|embora|contudo|entretanto)\s/i;
+const CONTRASTE = /(?:^|\s)(?:mas|porém|porem|só que|so que|embora|contudo|entretanto)\s/i;
 const CONECTIVO = /\s(?:e|que|porque|pois)\s/i;
 /* "sem dúvida damos suporte", "não se preocupe, damos", "não fica sem suporte": a palavra de negação aqui NÃO nega o que vem depois */
 const NAO_NEGA = /\bsem duvida\b|\bnao se preocup\w*\b|\bnao e mentira\b|\bnao (?:tem|ha) problema\b|\bnao precisa se preocupar\b/g;
@@ -41,7 +41,8 @@ function unidades(texto, temAssunto) {
   for (let i = 0; i < frases.length; i++) {
     const crua = frases[i];
     const ehPergunta = /\?\s*$/.test(crua.trim());
-    if (ehPergunta && temAssunto(paraBusca(crua)) && i + 1 < frases.length) {
+    /* (a pergunta de interesse não se junta: "Quer suporte contínuo? Posso explicar o orçamento." não promete nada) */
+    if (ehPergunta && temAssunto(paraBusca(crua)) && !PERGUNTA_DE_INTERESSE.test(paraBusca(crua)) && i + 1 < frases.length) {
       saida.push({ cru: crua + ' ' + frases[i + 1], pergunta: false });
       i += 1;
     } else {
@@ -51,7 +52,7 @@ function unidades(texto, temAssunto) {
   return saida;
 }
 /* a pergunta de oferta ou interesse ("quer suporte contínuo?") não afirma nada */
-const PERGUNTA_DE_INTERESSE = /^(?:voce )?(?:quer|precisa|gostaria|deseja|pretende|procura|busca|tem interesse|ja tem|sua \w+ (?:tem|oferece|faz|presta))\b/;
+const PERGUNTA_DE_INTERESSE = /^(?:hoje |atualmente )?(?:voce )?(?:quer|precisa|gostaria|deseja|pretende|procura|busca|tem interesse|ja tem|usa|conta com|tem|sua \w+(?: \w+){0,2} (?:tem|oferece|faz|presta))\b/;
 
 /* ---------- 1. suporte e manutenção depois da entrega ---------- */
 const COISA = '(?:suporte|manutencao|assistencia tecnica|pos venda)';
@@ -62,15 +63,15 @@ const VERBO_RE = new RegExp('\\b' + VERBO + '\\b');
 const SUPORTE_VERBO = new RegExp('\\b' + VERBO + '\\s+(?:\\w+\\s+){0,4}' + COISA + '\\b');
 /* "Manutenção: a gente faz.", "Suporte? Tem sim.": o assunto vem antes do verbo */
 const SUPORTE_POSPOSTO = new RegExp('\\b' + COISA + '\\s+(?:\\w+\\s+){0,4}(?:a gente (?:faz|da|cuida|mantem)|fazemos|damos|oferecemos|cuidamos|temos sim|tem sim|damos sim)\\b');
-const CUE = '(?:incluso|inclusa|incluidos?|incluidas?|inclusos|gratis|gratuito|gratuita|de graca|sem custo|continuo|continua|vitalicio|vitalicia|mensal|permanente|pos entrega|depois da entrega|apos a entrega|garantido|garantida|a disposicao|24 ?h|24 horas|junto|no pacote|por nossa conta|com a gente|conosco|por (?:um|1|seis|doze|\\d+) (?:dias?|meses|mes|anos?)|\\d+ (?:dias|meses|anos))';
+const CUE = '(?:incluso|inclusa|incluidos?|incluidas?|inclusos|gratis|gratuito|gratuita|de graca|sem custo|sem cobrar|continuo|continua|vitalicio|vitalicia|mensal|permanente|pos entrega|depois da entrega|apos a entrega|garantido|garantida|a disposicao|24 ?h|24 horas|junto|no pacote|por nossa conta|com a gente|conosco|por (?:um|1|seis|doze|\\d+) (?:dias?|meses|mes|anos?)|\\d+ (?:dias|meses|anos))';
 const SUPORTE_FORTE = new RegExp('\\b' + COISA + '\\b(?:\\s+\\w+){0,6}?\\s+' + CUE + '\\b|\\b' + CUE + '\\s+(?:\\w+\\s+){0,5}' + COISA + '\\b|\\b\\d+ (?:dias|meses|anos) de ' + COISA + '\\b|\\b' + COISA_FRACA + '\\b(?:\\s+\\w+){0,5}?\\s+(?:depois da entrega|apos a entrega|pos entrega|todo mes|sempre|gratis|sem custo|incluidas?|incluidos?)\\b');
 const SUPORTE_SITE = /\b(?:cuidamos|cuido|atualizamos|mantemos|mantenho|acompanhamos) (?:\w+ ){0,4}site (?:\w+ ){0,3}(?:todo mes|sempre|mensalmente|depois|apos|sem custo|de graca)\b|\b(?:mantemos|mantem) (?:o|seu) site (?:\w+ ){0,3}(?:funcionando|atualizado|no ar)\b/;
 const AJUDA = /\b(?:a gente|nos|ja|vamos|seguimos|continuamos|estamos|ficamos|estaremos)\b.*\b(?:resolve\w*|conserta\w*|corrig\w+|arruma\w*|ajud\w+|atend\w+|cuid\w+|disponive\w+|a disposicao)\b/;
 const POS_ENTREGA = /\b(?:depois da entrega|apos a entrega|pos entrega|depois do site no ar|depois que o site (?:ficar|estiver) (?:pronto|no ar))\b/;
 /* a conversa de agora ou o negócio do cliente, não o pós-entrega */
-const DE_AGORA_ESTRITO = /\b(?:suporte|manutencao) (?:de quem|da previa|dos? ajustes)\b|\b(?:suporte|manutencao|assistencia tecnica) (?:tecnic[oa] )?(?:d[eoa]s?|em) (?!(?:seu|sua|o|a) (?:site|pagina)\b|site\b|pagina\b)\w+|\bsuporte (?:da|do) (?:sua|seu|proprio|propria)\b|\b(?:secao|pagina|botao|area|menu|link|canal|formulario|email) (?:de|do|para) (?:suporte|manutencao)\b/;
+const DE_AGORA_ESTRITO = /\b(?:suporte|manutencao) (?:de quem|da previa|dos? ajustes)\b|\b(?:suporte|manutencao|assistencia tecnica) (?:tecnic[oa] )?(?:de|do|da|dos|das|em) (?:ti|informatica|carros?|veiculos?|motos?|equipamentos?|maquinas?|computadores?|celulares?|ar condicionado|eletrodomesticos?|elevadores?|piscinas?|jardins?|dados)\b|\bsuporte (?:da|do) (?:sua|seu|proprio|propria)\b|\b(?:secao|pagina|botao|area|menu|link|canal|formulario|email) (?:de|do|para) (?:suporte|manutencao)\b/;
 const DE_AGORA_LARGO = /\b(?:suporte|manutencao) (?:para|pra) (?:voce )?(?:duvidas?|escolh\w+|tirar|entender|montar|decidir|o orcamento)\b|\b(?:suporte|manutencao) (?:\w+ ){0,2}(?:na|no|nos|nas|aqui|nesta|neste|durante|ate)\b/;
-const DO_CLIENTE = /\b(?:voce|voces|sua \w+|seu \w+|suas \w+|seus \w+)\s+(?:\w+\s+)?(?:oferece|oferecem|presta|prestam|faz|fazem|vende|vendem)\b/;
+const DO_CLIENTE = /\b(?:voce|voces|sua \w+|seu \w+|suas \w+|seus \w+)\s+(?:\w+\s+){0,3}(?:oferece|oferecem|presta|prestam|faz|fazem|vende|vendem)\b/;
 export const SUPORTE_FIXO = 'Depois da entrega não há suporte contínuo nem manutenção incluída: o que cabe são os ajustes da prévia, antes de você fechar.';
 
 function menorPrometeSuporte(m) {
@@ -90,11 +91,17 @@ function juntaAssuntos(maiores) {
     /* ("Isso a gente não faz: suporte contínuo." o assunto curto herda a negação; "Não cobramos nada: o suporte está incluído" não) */
     if (soAssunto && anteriorNegada && palavras(m.texto) <= 3) { continue; }
     if (soAssunto && i + 1 < maiores.length) {
+      /* o assunto vai na frente da primeira oração menor da seguinte; as outras menores seguem separadas (a negação de uma não vale para a outra) */
+      let menores = [m.texto + ' ' + maiores[i + 1].menores[0], ...maiores[i + 1].menores.slice(1)];
       let texto = m.texto + ' ' + maiores[i + 1].texto;
       let ate = i + 1;
-      if (i + 2 < maiores.length && palavras(maiores[i + 1].texto) <= 2) { texto += ' ' + maiores[i + 2].texto; ate = i + 2; }
-      saida.push({ texto, menores: [texto] });
-      anteriorNegada = negada(texto);
+      if (i + 2 < maiores.length && palavras(maiores[i + 1].texto) <= 2) {
+        menores = [m.texto + ' ' + maiores[i + 1].texto + ' ' + maiores[i + 2].menores[0], ...maiores[i + 2].menores.slice(1)];
+        texto += ' ' + maiores[i + 2].texto;
+        ate = i + 2;
+      }
+      saida.push({ texto, menores });
+      anteriorNegada = negada(menores[menores.length - 1]);
       i = ate;
       continue;
     }
@@ -120,7 +127,9 @@ export function semPromessaDeSuporte(texto) {
 /* ---------- 2. mensalidade do atendente de IA ---------- */
 /* ("seu atendente", "sua recepcionista": é o do cliente, não o nosso) */
 const ATENDENTE = /(?<!\b(?:seu|sua|seus|suas|meu|minha) )\b(?:atendente|chat ?bot|chat do site|chat do seu site|chat com ia|chat de ia|chat com inteligencia artificial|assistente (?:virtual|de ia|do site)|agente de ia|robo(?: de atendimento| do site)?|bot|ia do site|ia no site|ia do atendimento|inteligencia artificial do site|atendimento (?:com|por|automatico|automatizado)(?: ia)?)\b/;
-const MENSALIDADE = /\b(?:mensalidade|plano mensal|assinatura (?:mensal|recorrente)|cobranca (?:mensal|recorrente)|taxa mensal|valor mensal|custo mensal|anuidade|mensalmente|mensais|recorrente|recorrencia)\b|\b(?:custa|cobra\w*|paga\w*|valor|preco|sai)\b.*\b(?:por mes|todo mes|ao mes)\b/;
+const MENSALIDADE = /\b(?:mensalidade|plano mensal|assinatura (?:mensal|recorrente)|cobranca (?:mensal|recorrente)|taxa mensal|valor mensal|custo mensal|anuidade|mensalmente|mensais|recorrente|recorrencia)\b|\b(?:custa|custar|custara|cobra\w*|paga\w*|valor|preco|sai)\b.*\b(?:por mes|todo mes|ao mes)\b|\b\d+ (?:reais )?(?:por |ao )?mes\b/;
+/* a mensalidade é a dos alunos/pacientes do cliente, não a do nosso atendente */
+const MENSALIDADE_DO_CLIENTE = /\bmensalidades? (?:d[oa]s? )?(?:alunos?|pacientes?|socios?|assinantes?|clientes)\b|\bmatriculas?\b|\bplanos mensais\b/;
 const ASSINATURA = /\bassinatura\b/;
 /* a oração diz que o atendente ainda não existe/está em preparo e NÃO afirma mensalidade nela */
 const EM_PREPARO = /\b(?:em preparo|quando existir|se existir|se um dia existir|existiria)\b/;
@@ -132,7 +141,7 @@ export const ATENDENTE_FIXO = 'O atendente de IA ainda está em preparo, sem pre
 
 function menorAfirma(m) {
   const l = limpa(m);
-  if (NEGA.test(l) || DO_NEGOCIO.test(l)) return false;
+  if (NEGA.test(l) || DO_NEGOCIO.test(l) || MENSALIDADE_DO_CLIENTE.test(l)) return false;
   if (EM_PREPARO.test(l) && !ASSERTA.test(l.replace(EM_PREPARO, ' '))) return false;
   return true;
 }
@@ -140,19 +149,24 @@ const temMensalidade = m => MENSALIDADE.test(m) || (ASSINATURA.test(m) && ATENDE
 function janelaPrometeMensalidade(janela) {
   const maiores = oracoesDe(janela);
   const tudo = maiores.map(M => M.texto).join(' ');
-  if (!ATENDENTE.test(tudo) || !(MENSALIDADE.test(tudo) || (ASSINATURA.test(tudo) && ATENDENTE.test(tudo)))) return false;
+  if (!ATENDENTE.test(tudo) || !temMensalidade(tudo)) return false;
   for (let i = 0; i < maiores.length; i++) {
     const anterior = i > 0 ? maiores[i - 1].texto : '';
     const proxima = i + 1 < maiores.length ? maiores[i + 1].texto : '';
     const recentes = maiores.slice(Math.max(0, i - 2), i + 1).map(M => M.texto).join(' ');
-    for (const m of maiores[i].menores) {
+    /* "um robô que responde sobre mensalidade e matrícula": é a mensalidade da escola do cliente, na oração inteira */
+    if (MENSALIDADE_DO_CLIENTE.test(maiores[i].texto)) continue;
+    const menores = maiores[i].menores;
+    for (let j = 0; j < menores.length; j++) {
+      const m = menores[j];
       if (!menorAfirma(m)) continue;
       /* "Mensalidade do atendente? Ainda não existe.": o assunto sozinho, negado logo em seguida */
       if (!ASSERTA.test(m) && proxima && negada(proxima)) continue;
       /* a mensalidade é afirmada numa oração em que fala do atendente (ou logo depois de uma que falava) */
       if (temMensalidade(m) && atendenteNosso(recentes)) return true;
-      /* "o site não tem mensalidade, mas o atendente tem": o atendente afirma o que a oração anterior negou */
-      if (ATENDENTE.test(m) && ASSERTA.test(m) && MENSALIDADE.test(anterior) && negada(anterior)) return true;
+      /* "o site não tem mensalidade (mas / e) o atendente tem": o atendente afirma o que a oração anterior negou */
+      const antes = j > 0 ? menores[j - 1] : anterior;
+      if (ATENDENTE.test(m) && ASSERTA.test(m) && MENSALIDADE.test(antes) && negada(antes)) return true;
     }
   }
   return false;
@@ -164,9 +178,10 @@ export function semMensalidadeDoAtendente(texto) {
   const ruim = frases.some((f, i) => {
     const temProxima = i + 1 < frases.length;
     const ehPergunta = /\?\s*$/.test(f.trim());
-    /* pergunta de interesse não afirma; pergunta seguida de resposta só vale junto com a resposta */
-    if (ehPergunta && (PERGUNTA_DE_INTERESSE.test(paraBusca(f)) || temProxima)) {
-      return temProxima && !PERGUNTA_DE_INTERESSE.test(paraBusca(f)) && janelaPrometeMensalidade(semFim(f) + ', ' + frases[i + 1]);
+    /* a pergunta sozinha de interesse não afirma; a pergunta seguida de resposta só vale junto com a resposta ("Quer o atendente? Ele tem mensalidade.") */
+    if (ehPergunta) {
+      if (temProxima) return janelaPrometeMensalidade(semFim(f) + ', ' + frases[i + 1]);
+      if (PERGUNTA_DE_INTERESSE.test(paraBusca(f))) return false;
     }
     return janelaPrometeMensalidade(f) || (temProxima && janelaPrometeMensalidade(semFim(f) + ', ' + frases[i + 1]));
   });

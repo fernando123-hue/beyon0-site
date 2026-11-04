@@ -17,7 +17,7 @@ import {
   garantirRegulado, comMarcadores, briefingSemProibidos, respostaRegulado, semNotacaoInterna, pedeValor, garantirValor, cortarEmFrase, semPromessaDeDesconto
 } from '../../api/_vendas/zero.mjs';
 import { semPromessaDeSuporte, semMensalidadeDoAtendente, SUPORTE_FIXO, ATENDENTE_FIXO } from '../../api/_vendas/travas-promessa.mjs';
-import { SUPORTE_PEGAR, SUPORTE_PASSAR, MENSALIDADE_PEGAR, MENSALIDADE_PASSAR } from './travas-promessa-casos.mjs';
+import { SUPORTE_PEGAR, SUPORTE_PASSAR, MENSALIDADE_PEGAR, MENSALIDADE_PASSAR, FUROS_CONHECIDOS } from './travas-promessa-casos.mjs';
 
 const REGRAS = JSON.parse(fs.readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
 const nova = (extra = {}) => ({ etapa: 'descoberta', briefing: {}, mensagens: [], estimativa: null, ...extra });
@@ -913,7 +913,13 @@ test('travas de promessa: entrada estranha não quebra nem demora (texto vazio, 
     assert.equal(typeof semPromessaDeSuporte(c).trocou, 'boolean');
     assert.equal(typeof semMensalidadeDoAtendente(c).trocou, 'boolean');
   }
-  assert.ok(performance.now() - ini < 500, 'as duas travas respondem rápido em texto hostil: ' + (performance.now() - ini).toFixed(1) + ' ms');
+  /* (medido: ~4 ms no total; a margem larga é para CI lento, o que se quer pegar é backtracking de segundos) */
+  assert.ok(performance.now() - ini < 3000, 'as duas travas respondem rápido em texto hostil: ' + (performance.now() - ini).toFixed(1) + ' ms');
+});
+
+test('travas de promessa: os furos conhecidos (paráfrases sem as palavras da lista) estão documentados e continuam fora de propósito', () => {
+  const pegas = FUROS_CONHECIDOS.filter(t => semPromessaDeSuporte(t).trocou || semMensalidadeDoAtendente(t).trocou);
+  assert.deepEqual(pegas, [], 'estas já são pegas: tire de FUROS_CONHECIDOS e ponha em PEGAR');
 });
 
 test('turno: suporte pós-entrega e mensalidade do atendente prometidos pelo modelo saem com o texto fixo (a trava está ligada no agente)', async () => {
