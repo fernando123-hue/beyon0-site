@@ -99,7 +99,7 @@ a **planilha do funil**: contatos → respostas → reuniões → diagnósticos 
 | 1.2 | **Corrigir as respostas de edição e hospedagem** na FAQ de Sites para o que é verdade | baixo |
 | 1.3 | **Botão que diz o canal**: "Diagnóstico grátis no WhatsApp" / "Conversar no WhatsApp", com o ícone | baixo |
 | 1.4 | **Plano B no modal**: "Abrimos o WhatsApp. Não abriu? [abrir de novo] · [copiar mensagem] · número", sem fechar sozinho | médio |
-| 1.5 | **Rodapé com contato**: "(21) 97716-7944 · WhatsApp" (já público no JSON-LD), "Rio de Janeiro · atendo todo o Brasil" | baixo |
+| 1.5 | **Rodapé com contato**: "[número removido] · WhatsApp" (já público no JSON-LD), "Rio de Janeiro · atendo todo o Brasil" | baixo |
 | 1.6 | **Etiqueta de Automação** "Para associações, sindicatos, federações e cooperativas"; rótulo da cota do hero que o leigo entenda (mantendo o traço) | baixo |
 | 1.7 | **Mensagem pronta neutra com lacuna** ("Minha entidade: ___" / "Meu negócio: ___") e a do formulário em linhas (Organização / Quem sou / Desafio) | baixo |
 | 1.8 | **Botão "Encaminhar o resumo para a diretoria"** (WhatsApp sem número, com o link do resumo) | baixo |

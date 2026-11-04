@@ -29,7 +29,7 @@ test('nenhuma página de venda tem link, botão ou número de WhatsApp da Beyon 
     assert.doesNotMatch(h, /\sdata-wa(=|\s|>)/, p + ': data-wa');
     assert.doesNotMatch(h, /data-wa-padrao/, p + ': data-wa-padrao');
     assert.doesNotMatch(h, /class="(wa|barra__wa)"/, p + ': botão de WhatsApp flutuante ou da barra');
-    assert.doesNotMatch(h, /5521977167944|97716-7944/, p + ': o número do dono');
+    assert.doesNotMatch(h, /5521988880002|98888-0002/, p + ': o número do dono');
     assert.doesNotMatch(h, /<(a|button)\b[^>]*>[^<]*WhatsApp[^<]*<\/(a|button)>/, p + ': link ou botão que fala de WhatsApp');
   }
 });

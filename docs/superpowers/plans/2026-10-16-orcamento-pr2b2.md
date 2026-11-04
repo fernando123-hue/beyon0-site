@@ -796,7 +796,7 @@ E no `window.BZOrcamento`, depois de `codigoPerdido`:
   'use strict';
   var PREFIXO = '#retomar=';
   var CODIGO = /^[A-Za-z0-9_-]{32}$/;
-  var TEL = window.BEYON_TEL || '5521977167944';   /* (reserva consciente, como em js/orcamento-detalhes.js: grep 5521977167944) */
+  var TEL = window.BEYON_TEL || '5521988880002';   /* (reserva consciente, como em js/orcamento-detalhes.js: grep 5521988880002) */
   var $ = function (id) { return document.getElementById(id); };
 
   var chegou = (location.hash || '').indexOf(PREFIXO) === 0;
@@ -934,7 +934,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const fonte = fs.readFileSync(new URL('../../js/orcamento-preparo.js', import.meta.url), 'utf8');
-const janela = { BEYON_TEL: '5521977167944' };
+const janela = { BEYON_TEL: '5521988880002' };
 new Function('window', fonte)(janela);
 const P = janela.BZPreparo;
 const em = (a, m, d, h, min = 0) => new Date(a, m - 1, d, h, min);
@@ -985,7 +985,7 @@ Expected: FAIL com `ENOENT` (o arquivo não existe).
 (function () {
   'use strict';
   var HORAS_UTEIS = 24;
-  var TEL = window.BEYON_TEL || '5521977167944';   /* (reserva consciente, como em js/orcamento-detalhes.js: grep 5521977167944) */
+  var TEL = window.BEYON_TEL || '5521988880002';   /* (reserva consciente, como em js/orcamento-detalhes.js: grep 5521988880002) */
   var DIAS = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
   var SEPARAR = ['Fotos do seu negócio e do que você faz', 'A logo, se tiver', 'A lista de serviços ou produtos, com os preços',
     'O horário de atendimento', 'O endereço, se você atende no local'];

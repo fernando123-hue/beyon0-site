@@ -147,7 +147,7 @@ Landing page one-page para captar clientes que querem site.
 - **No ar:** https://beyon0-site.vercel.app
 - **Repo:** github.com/fernando123-hue/beyon0-site (privado)
 - **Deploy:** todo `git push` na `main` publica automaticamente na Vercel.
-- **Contato:** WhatsApp `5521977167944`
+- **Contato:** WhatsApp `[número removido]`
 - **Stack:** HTML + CSS + JS puro. **Sem build, sem bundler.** CSP
   `script-src 'self'`. Windows, PowerShell + Bash.
 
@@ -2312,7 +2312,7 @@ robots.txt:4    linha "Sitemap:"
 ```
 
 ### `js/tel.js` — novo, carregado antes de `js/core.js`
-`window.BEYON_TEL = '5521977167944'`. `js/dom.js` lê de lá (com fallback
+`window.BEYON_TEL = '[número removido]'`. `js/dom.js` lê de lá (com fallback
 pro valor literal se por algum motivo não carregar — nunca trava).
 `resumo.html` carrega só `js/tel.js` + `js/resumo.js` (não o `core.js`/
 `field.js`/`dom.js` inteiros, que esperam o canvas `#fx` e o DOM do site

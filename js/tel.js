@@ -1,4 +1,4 @@
-/* O número de telefone para o JS: js/pagina.js (site) e js/resumo.js (resumo)
-   leem daqui. Os links sem JS (href wa.me nos HTML) e o "telephone" do JSON-LD
-   repetem o número: ao trocar, procure 5521977167944 no projeto inteiro. */
-window.BEYON_TEL = '5521977167944';
+/* O site não tem WhatsApp da Beyon (decisão do dono, 28/10): o contato é o orçamento e o recado.
+   BEYON_TEL fica VAZIO de propósito: js/privacidade.js só monta links wa.me quando existe um número e algum
+   elemento [data-wa], e hoje não há nenhum. Nunca escreva um número pessoal aqui: este repositório é público. */
+window.BEYON_TEL = '';

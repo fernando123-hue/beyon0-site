@@ -175,10 +175,10 @@ test('M3 (22/10): o WhatsApp e o e-mail do site têm colunas PRÓPRIAS, com o fo
   for (const w of WHATSAPP_RUINS) assert.equal(await tenta({ contato_whatsapp: w, ...AUT }), '23514', 'WhatsApp ruim: ' + JSON.stringify(w));
   for (const m of EMAIL_BONS) assert.equal(await tenta({ contato_email: m, ...AUT }), null, 'e-mail bom: ' + m);
   for (const m of EMAIL_RUINS) assert.equal(await tenta({ contato_email: m, ...AUT }), '23514', 'e-mail ruim: ' + JSON.stringify(m));
-  assert.equal(await tenta({ contato_whatsapp: '+5521977167944' }), '23514', 'sem a autorização de uso, o contato não existe');
+  assert.equal(await tenta({ contato_whatsapp: '+5521988880002' }), '23514', 'sem a autorização de uso, o contato não existe');
   assert.equal(await tenta({ contato_email: 'contato@clinicasol.com.br', contato_autorizado_em: AUT.contato_autorizado_em }), '23514', 'a autorização precisa da versão');
   assert.equal(await tenta({ contato_email: 'contato@clinicasol.com.br', contato_autorizado_em: AUT.contato_autorizado_em, contato_autorizacao_versao: 'x'.repeat(21) }), '23514', 'versão grande demais');
-  assert.equal(await tenta({ contato_whatsapp: '+5521977167944', ...AUT }, ''), null, 'só o contato do site, sem texto, é uma lista válida');
+  assert.equal(await tenta({ contato_whatsapp: '+5521988880002', ...AUT }, ''), null, 'só o contato do site, sem texto, é uma lista válida');
   assert.equal(await tenta({}, ''), '23514', 'sem texto e sem contato, não');
 });
 
