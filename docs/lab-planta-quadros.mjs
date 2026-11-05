@@ -27,7 +27,7 @@ for (const larg of LARGS) {
     /* final e ajuste: movimento reduzido */
     const c1 = await nav.newContext({ viewport: { width: larg, height: alt }, deviceScaleFactor: 1, reducedMotion: 'reduce' });
     const p1 = await c1.newPage(); tela(p1);
-    await p1.goto(`${BASE}${PAGINA}?captura=1&nicho=${nicho}`, { waitUntil: 'load' });
+    await p1.goto(`${BASE}${PAGINA}?captura=1&nicho=${nicho}${process.env.EXTRA || ""}`, { waitUntil: 'load' });
     await p1.evaluate(() => document.fonts.ready);
     await espera(400);
     await p1.locator('.plv').screenshot({ path: `${PASTA}/final-${nicho}-${larg}.png` });
@@ -40,7 +40,7 @@ for (const larg of LARGS) {
     /* a entrada de verdade, em instantes de relógio */
     const c2 = await nav.newContext({ viewport: { width: larg, height: alt }, deviceScaleFactor: 1 });
     const p2 = await c2.newPage(); tela(p2);
-    await p2.goto(`${BASE}${PAGINA}?captura=1&nicho=${nicho}`, { waitUntil: 'load' });
+    await p2.goto(`${BASE}${PAGINA}?captura=1&nicho=${nicho}${process.env.EXTRA || ""}`, { waitUntil: 'load' });
     const t0 = Date.now();
     for (const t of INSTANTES) {
       const falta = t * 1000 - (Date.now() - t0);
