@@ -43,7 +43,7 @@ const altura = (l) => (ALTURAS[LARGURAS.indexOf(l)] || (l >= 1000 ? 800 : l >= 3
 const TEXTOS = {
   clinica: ['Tenho uma clínica odontológica e quero mais agendamentos, preciso de um site institucional', 'Pode seguir', 'Combinado, pode seguir'],
   loja: ['Tenho uma loja de roupas e quero vender online, preciso de uma loja virtual', 'Pode seguir', 'Combinado, pode seguir'],
-  embalagens: ['Tenho uma fábrica de embalagens e quero receber pedidos de orçamento, preciso de um site institucional', 'Pode seguir', 'Combinado, pode seguir'],
+  embalagens: ['Tenho uma fábrica de embalagens e quero captar mais clientes, preciso de um site institucional', 'Pode seguir', 'Combinado, pode seguir'],
   boa: ['Tenho uma clínica odontológica e quero mais agendamentos, preciso de um site institucional', 'planta-boa pode desenhar']
 };
 
@@ -105,6 +105,7 @@ async function rodada({ base, larg, alt, nicho, posicao, cpu, variante }) {
     await page.evaluate(() => window.scrollTo(0, 0));
     await espera(400);
   }
+  if (posicao === 'fora') { await page.evaluate(() => window.scrollTo(0, document.getElementById('o-conversa').getBoundingClientRect().top + window.scrollY - 80)); await espera(300); }   /* a conversa no alto: a base da mesa fica abaixo da tela (a posição "fora" não depende de onde o foco da caixa deixou a rolagem) */
   const antes = await page.evaluate(() => ({ t: Math.round(performance.now()), ls: window.__ls.length, longas: window.__longas.length }));
   ultimoAtraso = true;
   await turno(page, textos[textos.length - 1]);
@@ -130,7 +131,9 @@ async function rodada({ base, larg, alt, nicho, posicao, cpu, variante }) {
   await ctx.close();
   const conta = (lista, com) => +lista.filter((x) => com || !x.recente).reduce((s, x) => s + x.v, 0).toFixed(6);
   const tbt = r.longas.reduce((s, x) => s + Math.max(0, x.ms - 50), 0);
-  return { cls: conta(r.ls, false), clsBruto: conta(r.ls, true), deslocamentos: r.ls, longas: r.longas, tbt, maiorTarefa: r.longas.reduce((m, x) => Math.max(m, x.ms), 0), faixaVisivel: r.faixaVisivel, nos: r.nos, alturaFaixa: r.alturaFaixa,
+  /* o CLS que é DA planta: só os deslocamentos em que algum nó que se moveu é da faixa (#o-planta, plv-) ou do botão do chat; o resto é a página de sempre (por exemplo o bloco de contato, que aparece com a resposta do Zero também com a flag desligada) */
+  const daPlanta = r.ls.filter((x) => !x.recente && x.fontes.some((n) => /plv|o-planta/.test(n)));
+  return { cls: conta(r.ls, false), clsPlanta: conta(daPlanta, false), clsBruto: conta(r.ls, true), deslocamentos: r.ls, longas: r.longas, tbt, maiorTarefa: r.longas.reduce((m, x) => Math.max(m, x.ms), 0), faixaVisivel: r.faixaVisivel, nos: r.nos, alturaFaixa: r.alturaFaixa,
     botoes: r.botoes, recursos: r.recursos, primeiroTitulo: r.primeiroTitulo, viaGesto, erros, rolagemLateral: r.larguraDoc > r.larguraJanela + 1 };
 }
 
@@ -185,13 +188,13 @@ for (const larg of LARGURAS) for (const nicho of NICHOS) for (const posicao of P
   await Promise.all(trabalhadores);
   const col = (flag, k) => por[flag].map((x) => x[k]);
   const caso = { larg, nicho, posicao, ligada: por.ligada, desligada: por.desligada,
-    resumo: { clsLigada: mediana(col('ligada', 'cls')), clsDesligada: mediana(col('desligada', 'cls')), clsMaxLigada: Math.max(0, ...col('ligada', 'cls')), clsBrutoLigada: mediana(col('ligada', 'clsBruto')),
+    resumo: { clsLigada: mediana(col('ligada', 'cls')), clsDesligada: mediana(col('desligada', 'cls')), clsMaxLigada: Math.max(0, ...col('ligada', 'cls')), clsPlantaMax: Math.max(0, ...col('ligada', 'clsPlanta')), clsBrutoLigada: mediana(col('ligada', 'clsBruto')),
       tbtLigada: mediana(col('ligada', 'tbt')), tbtDesligada: mediana(col('desligada', 'tbt')), maiorLigada: mediana(col('ligada', 'maiorTarefa')), maiorDesligada: mediana(col('desligada', 'maiorTarefa')),
       faixaApareceu: por.ligada.filter((x) => x.faixaVisivel).length + '/' + por.ligada.length, desligadaSemFaixa: por.desligada.every((x) => !x.faixaVisivel && x.botoes === 0 && x.recursos.length === 0), nos: mediana(col('ligada', 'nos')), titulo: por.ligada[0] && por.ligada[0].primeiroTitulo } };
   caso.resumo.deltaCls = +((caso.resumo.clsLigada || 0) - (caso.resumo.clsDesligada || 0)).toFixed(6);
   resultado.casos.push(caso);
   const s = caso.resumo;
-  console.log(`${String(larg).padStart(4)} ${nicho.padEnd(10)} ${posicao.padEnd(6)} CLS lig ${s.clsLigada} (máx ${s.clsMaxLigada}, bruto ${s.clsBrutoLigada}) deslig ${s.clsDesligada} delta ${s.deltaCls} ${Math.abs(s.deltaCls) <= 0.01 ? 'ok' : 'ACIMA'} | TBT med lig ${s.tbtLigada} deslig ${s.tbtDesligada}; maior tarefa lig ${s.maiorLigada} deslig ${s.maiorDesligada} | faixa ${s.faixaApareceu}, nós ${s.nos}, deslig sem nada baixado: ${s.desligadaSemFaixa}`);
+  console.log(`${String(larg).padStart(4)} ${nicho.padEnd(10)} ${posicao.padEnd(6)} CLS lig ${s.clsLigada} (máx ${s.clsMaxLigada}, bruto ${s.clsBrutoLigada}; da planta ${s.clsPlantaMax}) deslig ${s.clsDesligada} delta ${s.deltaCls} ${Math.abs(s.deltaCls) <= 0.01 ? 'ok' : 'ACIMA'} | TBT med lig ${s.tbtLigada} deslig ${s.tbtDesligada}; maior tarefa lig ${s.maiorLigada} deslig ${s.maiorDesligada} | faixa ${s.faixaApareceu}, nós ${s.nos}, deslig sem nada baixado: ${s.desligadaSemFaixa}`);
   const erros = [].concat(...por.ligada.map((x) => x.erros), ...por.desligada.map((x) => x.erros));
   if (erros.length) console.log('   erros/avisos:', [...new Set(erros)].slice(0, 4).join(' | '));
   writeFileSync(SAIDA, JSON.stringify(resultado, null, 2));

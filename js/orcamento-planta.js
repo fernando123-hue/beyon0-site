@@ -110,7 +110,7 @@
       st.gestos = true;
       doc.addEventListener('click', aoGesto, true);
       doc.addEventListener('keydown', aoGesto, true);
-      win.addEventListener('scroll', aoRolar);
+      win.addEventListener('scroll', aoRolar, { passive: true });
       win.addEventListener('resize', aoRolar);
     }
     function esconder() {

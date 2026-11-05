@@ -514,3 +514,10 @@ test('js/orcamento.js: uma linha chama a ligação, protegida por if, no render(
   assert.ok(render.includes('BZOrcPlanta'), 'a chamada está dentro do render()');
   assert.ok(render.indexOf('conversa();') < render.indexOf('BZOrcPlanta'), 'depois de conversa() (a lista de mensagens já está refeita)');
 });
+
+/* ---------- o servidor local ---------- */
+test('docs/servidor.mjs liga BZ_PLANTA no servidor local, salvo BZ_PLANTA_LOCAL=desligada (mesmo desenho de BZ_ENTREGA_LOCAL)', () => {
+  const src = lerFonte('docs/servidor.mjs');
+  assert.match(src, /if \(process\.env\.BZ_PLANTA_LOCAL !== 'desligada'\) process\.env\.BZ_PLANTA = 'ligada'; else delete process\.env\.BZ_PLANTA;/);
+  assert.ok(src.indexOf('BZ_PLANTA_LOCAL') < src.indexOf("await import('./banco-local.mjs')"), 'a flag vale antes de o agente de vendas local subir');
+});

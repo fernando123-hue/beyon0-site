@@ -71,7 +71,7 @@ console.log('\n== flag ligada (' + ON + ') ==');
   await page.click('.plv-ver');
   await espera(900);
   const aposToque = await page.evaluate(() => ({ topo: Math.round(document.getElementById('o-planta').getBoundingClientRect().top), foco: document.activeElement.className }));
-  ok(aposToque.topo < 120 && aposToque.topo > -10, 'tocar no botão leva a faixa ao topo da tela (topo em ' + aposToque.topo + ' px)');
+  ok(aposToque.topo < 200 && aposToque.topo > 0, 'tocar no botão leva a faixa ao topo da tela, abaixo do menu fixo (topo em ' + aposToque.topo + ' px)');
   ok(aposToque.foco.includes('plv-titulo'), 'e o foco vai para o título da faixa');
   await espera(9000);
   await foto(page, 'ligada-390-planta');
