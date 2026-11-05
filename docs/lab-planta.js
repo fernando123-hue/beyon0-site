@@ -45,12 +45,22 @@
     }
   };
 
+  /* ?longo=1: os textos mais compridos que a forma deixa passar (título de 40 caracteres, rótulos de 28), para ver se algum rótulo invade uma caixa */
+  function alongar(p) {
+    p.chegada.titulo = 'Busca, mapa e indicação de amigos da rua';
+    p.fim.titulo = 'Avaliação marcada sem ninguém atender';
+    if (p.rotulo_retorno) p.rotulo_retorno = 'o site continua trabalhando';
+    if (p.rotulos_ramos) p.rotulos_ramos = ['medida de catálogo do cliente', 'sob medida com desenho'].map(function (t) { return t.slice(0, 28); });
+    p.etapas.forEach(function (e) { e.titulo = (e.titulo + ' com mais texto para quebrar').slice(0, 40).replace(/\s+\S*$/, ''); });
+    return p;
+  }
   function planoAtual() {
     var p = ler(estado.nicho);
+    if (q.get('longo') === '1') p = alongar(p);
     return estado.ajustado ? AJUSTES[estado.nicho].aplicar(clonar(p)) : p;
   }
   var opcoes = {
-    origem: 'modelo', animar: q.get('estatico') !== '1',
+    origem: q.get('origem') === 'padrao' ? 'padrao' : 'modelo', nome: q.get('nome') || undefined, animar: q.get('estatico') !== '1',
     aoCerto: function () {},
     aoAjustar: function () {
       if (estado.ajustado) return;
@@ -71,6 +81,8 @@
   Array.prototype.forEach.call(document.querySelectorAll('[data-nicho]'), function (b) { b.addEventListener('click', function () { escolher(b.getAttribute('data-nicho')); }); });
   if (q.get('captura') === '1') document.documentElement.classList.add('lab-captura');
   window.PLANTA_LAB = { escolher: escolher, estado: estado, ajustar: function () { opcoes.aoAjustar(); }, ultima: null };
+  /* ?troca=1 (com ?origem=padrao): 1,2 s depois a nota troca do plano padrão para a do modelo e o nome do negócio aparece na cota (a mesma troca que o 2c faz quando o Zero devolve o plano) */
+  if (q.get('troca') === '1') setTimeout(function () { A.atualizar(planoAtual(), { origem: 'modelo', nome: 'Clínica Sorriso Exemplo de Odontologia' }); }, 1200);
   var n = q.get('nicho');
   if (NICHOS.indexOf(n) < 0) n = 'clinica';
   if (q.get('ajuste') === '1') { escolher(n); opcoes.aoAjustar(); } else escolher(n);

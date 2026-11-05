@@ -23,12 +23,15 @@ const PROIBIDOS = [
   ["setAttribute('style'", /setAttribute\s*\(\s*['"]style['"]/], ['.cssText', /\.cssText\b/], ['setAttribute de evento (on...)', /setAttribute\s*\(\s*['"]on\w+/i],
   ['srcdoc', /\bsrcdoc\b/], ['javascript:', /javascript:/i], ['DOMParser/createContextualFragment', /DOMParser|createContextualFragment/],
   ['setTimeout/setInterval com texto', /set(Timeout|Interval)\s*\(\s*['"]/], ['querySelector montado com id', /querySelector(All)?\s*\(\s*['"][^'"]*['"]\s*\+/],
-  ['atributo id= com dado', /setAttribute\s*\(\s*['"]id['"]/]
+  ['atributo id= com dado', /setAttribute\s*\(\s*['"]id['"]/],
+  ['href/xlink:href/src por atributo', /setAttribute\s*\(\s*['"](xlink:)?(href|src|action|formaction|poster|data|background)['"]/i], ['setAttributeNS', /setAttributeNS\s*\(/],
+  ['propriedade href/src', /\.\s*(href|src|srcdoc|action|formAction|poster)\s*=[^=]/], ['propriedade on* (onclick...)', /\.\s*on[a-z]+\s*=[^=]/], ['atribuição a .style', /\.\s*style\s*=[^=]/]
 ];
 
-export function achados(src) {
+export function achados(src, nome) {
   const c = codigoComStrings(src);
-  return PROIBIDOS.filter(([, re]) => re.test(c)).map(([n]) => n);
+  /* a regra do id vale para os módulos do PLANO (peças, layout, desenho): o id do modelo nunca vira atributo id. O radar (outro PR) gera o dele (contador) para o aria-labelledby */
+  return PROIBIDOS.filter(([n, re]) => re.test(c) && !(n === 'atributo id= com dado' && nome === 'planta-radar.js')).map(([n]) => n);
 }
 
 test('há módulos planta-*.js para varrer', () => {
@@ -37,7 +40,7 @@ test('há módulos planta-*.js para varrer', () => {
 
 for (const nome of arquivos) {
   test(nome + ': nenhuma porta para HTML ou código (innerHTML, outerHTML, insertAdjacentHTML, document.write, eval, new Function, style por atributo, cssText)', () => {
-    assert.deepEqual(achados(fs.readFileSync(path.join(JS, nome), 'utf8')), [], nome);
+    assert.deepEqual(achados(fs.readFileSync(path.join(JS, nome), 'utf8'), nome), [], nome);
   });
 }
 
@@ -45,7 +48,9 @@ test('sanidade da varredura: ela enxerga cada porta (e ignora comentário)', () 
   const casos = {
     innerHTML: 'el.innerHTML = x;', outerHTML: 'el.outerHTML = x;', insertAdjacentHTML: "el.insertAdjacentHTML('beforeend', x);", 'document.write': 'document.write(x);', 'eval(': 'eval(x);',
     'new Function': "new Function('return 1');", "setAttribute('style'": "el.setAttribute('style', 'a:b');", '.cssText': 'el.style.cssText = "a:b";', srcdoc: 'f.srcdoc = x;',
-    'setAttribute de evento (on...)': "el.setAttribute('onclick', 'x()');", 'javascript:': "a.href = 'javascript:alert(1)';"
+    'setAttribute de evento (on...)': "el.setAttribute('onclick', 'x()');", 'javascript:': "a.href = 'javascript:alert(1)';",
+    'href/xlink:href/src por atributo': "el.setAttribute('xlink:href', t); el.setAttribute('href', t); img.setAttribute('src', t);", 'setAttributeNS': "el.setAttributeNS(null, 'href', t);",
+    'propriedade href/src': 'li.href = t; f.src = t;', 'propriedade on* (onclick...)': 'li.onclick = t;', 'atribuição a .style': "el.style = 'a:b';"
   };
   for (const [nome, codigo] of Object.entries(casos)) assert.ok(achados(codigo).includes(nome), 'não viu: ' + nome);
   assert.deepEqual(achados('/* innerHTML eval( */ var a = 1; // el.innerHTML = x'), []);

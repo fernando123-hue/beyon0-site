@@ -44,7 +44,8 @@ const ESPIAO = () => {
   try { new PerformanceObserver((l) => l.getEntries().forEach((e) => window.__longas.push({ ms: Math.round(e.duration), t: Math.round(e.startTime) }))).observe({ type: 'longtask', buffered: true }); } catch { /* sem longtask */ }
 };
 
-const url = (nicho) => `${BASE}${PAGINA}?nicho=${nicho}`;
+const EXTRA = process.env.EXTRA || '';   /* ex.: EXTRA='&origem=padrao&troca=1' (a nota troca de padrão para modelo no meio) ou '&longo=1' */
+const url = (nicho) => `${BASE}${PAGINA}?nicho=${nicho}${EXTRA}`;
 async function carregar(larg, alt, nicho, { cpu } = {}) {
   const ctx = await nav.newContext({ viewport: { width: larg, height: alt }, deviceScaleFactor: 1 });
   const p = await ctx.newPage();
@@ -78,14 +79,14 @@ for (const { larg, alt } of TAMANHOS) {
         const r = await p.evaluate(() => ({ ls: window.__ls, alturaQuadro: document.querySelector('.plv-quadro').getBoundingClientRect().height, ok: !!(window.PLANTA_LAB.ultima && window.PLANTA_LAB.ultima.resultado.ok) }));
         /* CLS total da página e CLS DA FAIXA: o deslocamento conta como da faixa se algum dos nós que se moveu é da planta (classe plv-) ou está dentro dela; o resto é a moldura do laboratório (título, botões de nicho) */
         const daFaixa = (s) => s.fontes.some((f) => /[.]plv|[[]/.test(f.no));
-        const soma = (lista) => +lista.filter((s) => !s.recente).reduce((a, x) => a + x.value, 0).toFixed(4);
+        const soma = (lista) => +lista.filter((s) => !s.recente).reduce((a, x) => a + x.value, 0).toFixed(6);
         const cls = soma(r.ls.filter(daFaixa)), clsTotal = soma(r.ls);
         reps.push({ cls, clsTotal, deslocamentos: r.ls, alturaQuadro: r.alturaQuadro, ok: r.ok });
         await ctx.close();
       }
       const max = Math.max.apply(null, reps.map((r) => r.cls)), maxTotal = Math.max.apply(null, reps.map((r) => r.clsTotal));
       resultado.cls.push({ larg, alt, nicho, repeticoes: reps, max, maxTotal });
-      linhas.push(`CLS  ${String(larg).padStart(4)}x${String(alt).padEnd(4)} ${nicho.padEnd(11)} faixa ${reps.map((r) => r.cls.toFixed(4)).join('  ')} (máx ${max.toFixed(4)}, ${max <= 0.01 ? 'ok' : 'ACIMA DA META'})   página inteira ${reps.map((r) => r.clsTotal.toFixed(4)).join('  ')}   quadro ${reps[0].alturaQuadro}px`);
+      linhas.push(`CLS  ${String(larg).padStart(4)}x${String(alt).padEnd(4)} ${nicho.padEnd(11)} faixa ${reps.map((r) => r.cls.toFixed(6)).join('  ')} (máx ${max.toFixed(6)}, ${max <= 0.01 ? 'ok' : 'ACIMA DA META'})   página inteira ${reps.map((r) => r.clsTotal.toFixed(6)).join('  ')}   quadro ${reps[0].alturaQuadro}px`);
       for (const r of reps) for (const s of r.deslocamentos) if (s.value > 0) linhas.push('       deslocamento ' + s.value.toFixed(4) + ' em ' + s.t + ' ms: ' + s.fontes.map((f) => f.no + ' ' + JSON.stringify(f.de) + '->' + JSON.stringify(f.para)).join(' | '));
     }
 
