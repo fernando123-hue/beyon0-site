@@ -302,6 +302,9 @@
 
     function etapasDe(g) { return g.nos.filter(function (n) { return !n.ponta; }).length; }
     function fixarStatus(txt) { inst.status.textContent = txt; }
+    /* o sucesso do "Está certo" não é anunciado (o "Analisando…" do chat cobre); só a falha e o duplicado, no status da faixa: limpa antes e escreve no tique seguinte, para a mesma frase ser lida de novo */
+    var FALHA_ENVIO = 'Não consegui enviar agora. Tente de novo.';
+    function avisar(txt) { var i = inst; if (!i) return; i.status.textContent = ''; win.setTimeout(function () { if (inst === i) i.status.textContent = txt; }, 60); }
 
     function aplicarFinal() {
       var R = inst.R;
@@ -545,10 +548,11 @@
            resposta do Zero leva segundos) e volta ao de antes se ela disser que não entrou, a menos que a luz já tenha passado para outra caixa */
         var antesTag = inst.leTag.textContent, antesTxt = inst.leTxt.textContent, r;
         try { r = typeof inst.opcoes.aoCerto === 'function' ? inst.opcoes.aoCerto() : undefined; } catch (e) { aviso(e); r = false; }
-        if (r === false) return;
+        if (r === 'duplicada') return avisar('Já enviei esta planta.');
+        if (r === false) return avisar(FALHA_ENVIO);
         leitura('Combinado', 'É esta a planta que o site vai seguir. Se mudar algo, a planta se refaz.');
         if (inst.animada && inst.R.nos.led) ondas(inst.R.nos.led.aneis, 0);
-        function desfazer() { if (inst && inst.leTag.textContent === 'Combinado') leitura(antesTag, antesTxt); }
+        function desfazer() { if (!inst) return; if (inst.leTag.textContent === 'Combinado') leitura(antesTag, antesTxt); avisar(FALHA_ENVIO); }
         if (r && typeof r.then === 'function') r.then(function (entrou) { if (entrou === false) desfazer(); }, desfazer);
       });
       btnAjuste.addEventListener('click', function () {

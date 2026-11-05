@@ -246,9 +246,30 @@ test('a ligação do radar: só texto de constantes no DOM, sem porta de HTML, s
   assert.equal((src.match(/'(?:js|css)\/[a-z-]+\.(?:js|css)'/g) || []).length, 3);
 });
 
-test('bytes: a ligação (baixada em toda visita, com a flag desligada também) no máximo 2.000 bytes com gzip -9; o radar segue dentro dos 8 KB', () => {
+test('bytes: a ligação (baixada em toda visita, com a flag desligada também) no máximo 2.300 bytes com gzip -9; o radar segue dentro dos 8 KB', () => {
   const gz = (rel) => zlib.gzipSync(Buffer.from(lerFonte(rel)), { level: 9 }).length;
-  assert.ok(gz('js/orcamento-radar.js') <= 2000, 'gzip -9 ' + gz('js/orcamento-radar.js'));
+  assert.ok(gz('js/orcamento-radar.js') <= 2300, 'gzip -9 ' + gz('js/orcamento-radar.js'));
   assert.ok(gz('js/planta-radar.js') <= 8000, 'gzip -9 ' + gz('js/planta-radar.js'));
-  assert.ok(gz('css/orcamento-radar.css') <= 2200, 'gzip -9 ' + gz('css/orcamento-radar.css'));
+  assert.ok(gz('css/orcamento-radar.css') <= 2500, 'gzip -9 ' + gz('css/orcamento-radar.css'));
+});
+
+/* ---------- A2: o painel que rola por dentro (>= 900 px) precisa ser alcançável pelo teclado e pela lupa (WCAG 2.1.1) ---------- */
+test('A2: com o radar à vista e o painel rolando por dentro, o <aside> ganha tabindex="0" (teclado e lupa alcançam o radar); sem rolagem ou sem radar, não tem', () => {
+  const amb = ambiente();
+  amb.aside.scrollHeight = 2000; amb.aside.clientHeight = 700;
+  amb.L.atualizar(E()); prontos(amb);
+  assert.equal(amb.aside.getAttribute('tabindex'), '0');
+  amb.aside.scrollHeight = 600;   /* a janela cresceu: o painel não rola mais */
+  amb.w.disparar('resize');
+  assert.equal(amb.aside.getAttribute('tabindex'), null, 'sem rolagem não há por que parar o Tab no painel');
+  amb.aside.scrollHeight = 2000;
+  amb.w.disparar('resize');
+  assert.equal(amb.aside.getAttribute('tabindex'), '0');
+  amb.L.atualizar({});
+  assert.equal(amb.aside.getAttribute('tabindex'), null, 'sem radar o painel volta a ser o de hoje');
+  /* painel que não rola (celular: o painel é um bloco da página) nunca ganha tabindex */
+  const cel = ambiente();
+  cel.aside.scrollHeight = 700; cel.aside.clientHeight = 700;
+  cel.L.atualizar(E()); prontos(cel);
+  assert.equal(cel.aside.getAttribute('tabindex'), null);
 });

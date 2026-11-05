@@ -66,9 +66,11 @@
   /* ---------- geometria (px) ---------- */
   function alturaRadar(largura) { return Math.round(limitar(larguraUtil(largura) * ALTURA_POR_100 / 100, ALTURA_MIN, ALTURA_MAX)); }
 
-  function geometria(largura) {
-    var l = larguraUtil(largura), h = alturaRadar(l), cx = l / 2, lado = limitar(Math.round(l * 0.22), 68, 92);
-    var raioH = (cx - lado - FOLGA_ROTULO) / COS_LADO;
+  /* escala: quanto a fonte do sistema passou do padrão (1 = 100%); os rótulos em volta do desenho são HTML em rem e crescem com ela, então o lado reserva mais espaço (pentágono menor) */
+  function geometria(largura, escala) {
+    var e = +escala > 1 ? Math.min(+escala, 2.5) : 1;
+    var l = larguraUtil(largura), h = alturaRadar(l), cx = l / 2, lado = limitar(Math.round(l * 0.22 * e), 68, Math.round(92 * e));
+    var raioH = Math.max(30, (cx - lado - FOLGA_ROTULO) / COS_LADO);
     var raioV = (h - MARGEM_TOPO - MARGEM_BASE) / (1 + SEN_BAIXO);   /* do topo ao fundo do pentágono: 1 + 0,809 raios */
     var raio = Math.floor(Math.min(raioH, raioV));
     var miolo = MARGEM_TOPO + (1 + SEN_BAIXO) * raio + MARGEM_BASE;
@@ -138,11 +140,14 @@
     return n;
   }
   function elSvg(doc, tag, classe) { var n = doc.createElementNS(SVG_NS, tag); n.setAttribute('class', classe); return n; }
+  function escalaDaFonte() {
+    try { var px = parseFloat(raiz.getComputedStyle(raiz.document.documentElement).fontSize); return px > 16 ? px / 16 : 1; } catch (e) { return 1; }
+  }
   function larguraDe(no) { var w = no.clientWidth; return w > 0 ? w : LARGURA_PADRAO; }
 
   /* posiciona o que depende da largura: SVG, anéis, raios, rótulos, polígono */
   function desenhar(inst, largura) {
-    var g = inst.geo = geometria(largura), svg = inst.svg, i, v;
+    var g = inst.geo = geometria(largura, escalaDaFonte()), svg = inst.svg, i, v;
     inst.largura = largura;
     svg.setAttribute('width', String(g.largura)); svg.setAttribute('height', String(g.altura));
     svg.setAttribute('viewBox', '0 0 ' + g.largura + ' ' + g.altura);
@@ -167,9 +172,8 @@
     var inst = { alvo: alvo, doc: doc, aneis: [], raios: [], pontos: [], rotulos: [], linhas: [], atual: fatoresDaLeitura(null), meta: fatoresDaLeitura(null), anim: null, noLaco: false };
     var idTitulo = 'plr-t' + (++contador), grupo = el(doc, 'div', 'plr'), quadro = el(doc, 'div', 'plr-quadro'), rots = el(doc, 'div', 'plr-rots');
     var svg = doc.createElementNS(SVG_NS, 'svg'), lista = el(doc, 'dl', 'plr-lista'), i, linha, dt;
-    var titulo = el(doc, 'p', 'plr-titulo', TITULO);
+    var titulo = el(doc, 'h3', 'plr-titulo', TITULO);   /* h3: entra na lista de títulos do leitor de tela, sob o h2 do painel */
     titulo.setAttribute('id', idTitulo);
-    grupo.setAttribute('role', 'group'); grupo.setAttribute('aria-labelledby', idTitulo);
     svg.setAttribute('class', 'plr-svg'); svg.setAttribute('aria-hidden', 'true'); svg.setAttribute('focusable', 'false');
     for (i = 0; i < 3; i++) { inst.aneis.push(elSvg(doc, 'polygon', 'plr-anel')); svg.appendChild(inst.aneis[i]); }
     for (i = 0; i < 5; i++) { inst.raios.push(elSvg(doc, 'line', 'plr-raio')); svg.appendChild(inst.raios[i]); }
@@ -182,7 +186,8 @@
       linha.no.appendChild(dt); linha.no.appendChild(linha.nivel); lista.appendChild(linha.no); inst.linhas.push(linha);
     }
     quadro.appendChild(svg); quadro.appendChild(rots);
-    grupo.appendChild(titulo); grupo.appendChild(quadro); grupo.appendChild(lista); grupo.appendChild(el(doc, 'p', 'plr-legenda', LEGENDA));
+    /* a legenda antes da lista: quem navega por leitor de tela ouve o que o radar é antes dos níveis */
+    grupo.appendChild(titulo); grupo.appendChild(quadro); grupo.appendChild(el(doc, 'p', 'plr-legenda', LEGENDA)); grupo.appendChild(lista);
     alvo.appendChild(grupo);
     inst.svg = svg; inst.quadro = quadro; inst.grupo = grupo;
     desenhar(inst, larguraDe(quadro));

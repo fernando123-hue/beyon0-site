@@ -97,7 +97,7 @@ test('ligação: aoCerto devolve false quando não vai (não editável, sem envi
   const r1 = a.cap.op.aoCerto();
   assert.ok(r1 && typeof r1.then === 'function', 'envio assíncrono: devolve a promessa');
   assert.equal(await r1, true);
-  assert.equal(a.cap.op.aoCerto(), false, 'a mesma versão de novo: já foi');
+  assert.equal(a.cap.op.aoCerto(), 'duplicada', 'a mesma versão de novo: já foi (o desenho avisa "Já enviei esta planta.")');
   assert.equal(a.enviados.length, 1);
   const b = montar((t) => Promise.resolve(false));
   assert.equal(await b.cap.op.aoCerto(), false, 'o envio disse que não entrou');
@@ -112,4 +112,36 @@ test('ligação: aoCerto devolve false quando não vai (não editável, sem envi
   const g = montar((t) => { throw new Error('x'); });
   assert.equal(g.cap.op.aoCerto(), false, 'lançou');
   void clone;
+});
+
+/* ---------- A4: o sucesso não é anunciado (o "Analisando…" do #o-voz cobre); só a falha e o duplicado, pelo plv-status do desenho ---------- */
+const FALHA = 'Não consegui enviar agora. Tente de novo.', JA = 'Já enviei esta planta.';
+const status = (a) => a.raiz.porClasse('plv-status')[0];
+test('A4: envio aceito não escreve nada no plv-status; "duplicada" diz "Já enviei esta planta."; false, promessa que diz não ou rejeição dizem "Não consegui enviar agora. Tente de novo."', async () => {
+  const ok = novo(() => Promise.resolve(true));
+  const antes = status(ok).textContent;
+  ok.certo.disparar('click'); ok.w.avancar(200); await microtarefas(); ok.w.avancar(200);
+  assert.equal(status(ok).textContent, antes, 'sucesso não é anunciado');
+  const dup = novo(() => 'duplicada');
+  dup.certo.disparar('click'); dup.w.avancar(200);
+  assert.equal(status(dup).textContent, JA);
+  assert.notEqual(dup.tag(), 'Combinado');
+  for (const fn of [() => false, () => Promise.resolve(false), () => Promise.reject(new Error('rede'))]) {
+    const a = novo(fn);
+    a.certo.disparar('click'); a.w.avancar(200); await microtarefas(); a.w.avancar(200);
+    assert.equal(status(a).textContent, FALHA);
+    assert.notEqual(a.tag(), 'Combinado');
+  }
+});
+
+test('A4: a mesma frase de falha é anunciada de novo na 2ª vez (o texto é limpo antes de escrever)', () => {
+  const a = novo(() => false);
+  a.certo.disparar('click');
+  assert.equal(status(a).textContent, '', 'limpo na hora');
+  a.w.avancar(200);
+  assert.equal(status(a).textContent, FALHA);
+  a.certo.disparar('click');
+  assert.equal(status(a).textContent, '');
+  a.w.avancar(200);
+  assert.equal(status(a).textContent, FALHA);
 });

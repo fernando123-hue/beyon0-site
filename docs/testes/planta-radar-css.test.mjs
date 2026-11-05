@@ -137,3 +137,11 @@ test('a vaga: o que o CSS reserva (lido do próprio CSS) = o que o radar montado
     assert.ok(Math.abs(reservado - montado) <= 0.5, w + ': reserva ' + reservado.toFixed(2) + ' x montado ' + montado.toFixed(2));
   }
 });
+
+test('A3 (fonte do sistema a 200%): o eixo quebra em qualquer ponto (overflow-wrap: anywhere) e, no cartão estreito, o nível vai para baixo do eixo (@container, sem media query de viewport)', () => {
+  assert.match(semComentarios, /\.plr-eixo\s*\{[^}]*overflow-wrap:\s*anywhere/);
+  const q = semComentarios.match(/@container\s*\(max-width:\s*\d+px\)\s*\{([\s\S]*?\}\s*)\}/);
+  assert.ok(q, 'falta o @container (max-width: Npx)');
+  assert.match(q[1], /\.plr-linha\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/);
+  assert.match(q[1], /\.plr-nivel\s*\{[^}]*text-align:\s*left/);
+});

@@ -190,9 +190,10 @@
     var editavel = function () { return !!st.E && st.E.planta_editavel === true; };
     /* enviar() devolve false se não aceitou (conversa ocupada) ou falhou sem gravar: só o envio aceito gasta a versão. Marca já (dois cliques = um envio) e solta se recusar,
        rejeitar ou lançar; sem retorno vale como aceito */
-    /* devolve ao desenho: false (não vai), uma promessa do envio ou true */
+    /* devolve ao desenho: false (não vai), 'duplicada', uma promessa do envio ou true */
     function aoCerto() {
-      if (!editavel() || st.certoVersao === st.versao) return false;
+      if (!editavel()) return false;
+      if (st.certoVersao === st.versao) return 'duplicada';
       if (typeof st.deps.enviar !== 'function') return false;
       var versao = st.versao, r;
       st.certoVersao = versao;
