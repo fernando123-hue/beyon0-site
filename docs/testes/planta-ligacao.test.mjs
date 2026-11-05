@@ -735,11 +735,23 @@ test('2c-B: bloco escondido ou sem altura não conta como referência (pula para
   a.L.atualizar(E, a.deps); prontos(a);
   assert.equal(a.faixa.hidden, false, 'formulário escondido: vale a mesa');
   const b = ambiente({ baixo: true });
-  b.mesa.getBoundingClientRect = () => ({ top: 0, bottom: 0, height: 0 });   /* nada visível antes da faixa (a página de retomada, por exemplo) */
+  b.mesa.getBoundingClientRect = () => ({ top: 0, bottom: 0, height: 0 });   /* nenhum bloco com altura antes da faixa (na retomada #o-retomada é visível e viraria a referência: aqui é só o caso extremo de não haver nenhum) */
   redesenharLista(b, E);
   b.L.atualizar(E, b.deps); prontos(b);
   assert.equal(b.faixa.hidden, true);
   assert.equal(botoes(b).length, 1, 'o botão do chat segue sendo o caminho');
+});
+
+test('2c-B: bloco com o atributo hidden NÃO vale como referência mesmo que o retângulo dele tenha altura (hidden manda, não só a altura)', () => {
+  /* mesa à vista (base 600) e o formulário com hidden mas com um retângulo alto e abaixo da tela (um CSS que o mostrasse apesar do hidden): se valesse, a faixa entraria já */
+  const amb = ambiente({ baixo: false });
+  amb.contato.hidden = true;
+  amb.contato.getBoundingClientRect = () => ({ top: 600, bottom: 2500, height: 1900 });
+  const E = estado(); redesenharLista(amb, E);
+  amb.L.atualizar(E, amb.deps); prontos(amb);
+  assert.equal(amb.faixa.hidden, true, 'a referência é a mesa (à vista): a faixa espera o gesto');
+  assert.equal(amb.espiao.montar.length, 0);
+  assert.equal(botoes(amb).length, 1);
 });
 
 test('2c-B: a rolagem que leva o último bloco visível para baixo da dobra insere a faixa (a referência é a do momento)', () => {

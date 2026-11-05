@@ -7,7 +7,7 @@
    de altura fixa aqui): nada na faixa muda de tamanho depois de aparecer, então nada desloca a página (CLS). O movimento é acréscimo: sem JS a
    faixa nem existe; com movimento reduzido ou html.menos-movimento tudo aparece inteiro e parado.
    ========================================================================== */
-/* a faixa na página de orçamento (PR 2c): entre a mesa e os detalhes, com o mesmo respiro dos outros blocos. [hidden] vence: sem planta ela não ocupa nada */
+/* a faixa na página de orçamento (PR 2c): a última seção do <main> (depois do formulário e de todo o fluxo; PR 2c-B), com o mesmo respiro dos outros blocos. [hidden] vence: sem planta ela não ocupa nada */
 .plv-faixa { margin-top: var(--sp-1); padding-top: var(--sp-1); border-top: 1px solid var(--line); scroll-margin-top: calc(var(--nav-h) + 1rem); }
 .plv-faixa[hidden] { display: none; }
 .plv-titulo:focus { outline: none; }
