@@ -14,6 +14,7 @@ import { SUPORTE_PASSAR, MENSALIDADE_PASSAR } from './travas-promessa-casos.mjs'
 import { RESULTADO_PASSAR, GARANTIA_PASSAR } from './travas-resultado-casos.mjs';
 import { LEVA1_PEGAR, LEVA1_PASSAR, LEVA2_PEGAR, LEVA2_PASSAR, FRONTEIRA_PEGAR, FUROS_IDENTIDADE_CONHECIDOS } from './travas-identidade-casos.mjs';
 import { LEVA3_PEGAR, LEVA3_PASSAR } from './travas-identidade-leva3.mjs';
+import { PASSAR2, PEGAR2, ENFATICAS, NEGADAS_QUE_PASSAM, DUPLICADAS } from './travas-identidade-rodada2.mjs';
 import { LEVA4_PEGAR, LEVA4_PASSAR } from './travas-identidade-leva4.mjs';
 
 const REGRAS = JSON.parse(fs.readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
@@ -76,12 +77,13 @@ test('identidade: os textos fixos são honestos, curtos, sem o nome do dono, e n
     assert.equal(motivoDaTroca(fixo), null, 'o filtro de pagamento não mexe: ' + fixo);
     assert.match(fixo, /^[^\n]+$/, 'uma linha só');
     assert.ok(fixo.length < 260, 'cabe folgado nos 400 caracteres que o código pode acrescentar: ' + fixo.length);
-    assert.match(fixo, /inteligência artificial/, 'diz que é IA');
+    assert.match(fixo, /inteligência artificial|\bIA\b/, 'diz que é IA');
     assert.doesNotMatch(fixo, /fernando/i, 'não diz o nome do dono');
     assert.doesNotMatch(fixo, /\d/, 'sem número');
   }
   assert.match(IDENTIDADE_FIXO, /dono/);
-  assert.match(IDENTIDADE_FIXO, /DEIXAR UM RECADO/, 'o texto manda para o botão que o agente liga junto');
+  assert.match(IDENTIDADE_FIXO, /deixar um recado pelo botão/, 'o texto manda para o botão que o agente liga junto');
+  assert.equal(IDENTIDADE_FIXO, 'Sou uma IA, o Zero da Beyon Zero. Quem toca a empresa é o dono; para falar com ele, é só deixar um recado pelo botão aqui embaixo.');
   assert.match(EXPERIENCIA_FIXO, /não tenho experiência própria/);
   assert.doesNotMatch(EQUIPE_FIXO, /nossa equipe/i);
 });
@@ -146,4 +148,31 @@ test('turno: o modelo que diz ser pessoa/dono ou nega ser IA sai com o texto fix
   const longo = await executarTurno({ ia: roteiro(fim(enche + 'Sou humano. Já atendi muitos clientes. Nossa equipe ajuda. Qual é o seu ramo?')), regras: REGRAS, conversa: nova(), mensagem: 'oi' });
   assert.ok(longo.resposta.length <= 1500, 'passou do teto: ' + longo.resposta.length);
   assert.match(longo.resposta, /[.!?]$/);
+});
+
+/* ---------- RODADA DE CORREÇÃO (falsos positivos e a negação enfática), escrita antes da correção ---------- */
+test('rodada 2 [falsos positivos]: o atendente de IA do produto, "fico aqui até você decidir", "sou eu, o Zero, uma IA", o conselho de site e "já volto com a estimativa" passam (' + PASSAR2.length + ' frases)', () => {
+  const cortadas = PASSAR2.filter(cortaIdentidade);
+  assert.deepEqual(cortadas, [], cortadas.length + ' de ' + PASSAR2.length + ' cortadas:\n' + cortadas.join('\n'));
+});
+test('rodada 2 [continua cortando]: a equipe humana, o horário de expediente e a pessoa de verdade como identidade (' + PEGAR2.length + ' frases)', () => {
+  const furos = PEGAR2.filter(t => !cortaIdentidade(t));
+  assert.deepEqual(furos, [], furos.length + ' não pegas:\n' + furos.join('\n'));
+});
+test('rodada 2 [furo]: a negação enfática colada antes do "sou" NÃO cancela a trava (' + ENFATICAS.length + ' frases), e a negação de verdade continua cancelando', () => {
+  const furos = ENFATICAS.filter(t => !cortaIdentidade(t));
+  assert.deepEqual(furos, [], furos.length + ' de ' + ENFATICAS.length + ' não pegas:\n' + furos.join('\n'));
+  for (const t of NEGADAS_QUE_PASSAM) assert.equal(cortaIdentidade(t), false, t);
+});
+test('rodada 2 [duplicação]: se a resposta já afirma ser IA em outra frase, a frase cortada é descartada (sem segundo texto de identidade)', () => {
+  for (const [entrada, saida] of DUPLICADAS) {
+    const r = semNegarSerIA(entrada);
+    assert.equal(r.trocou, true, entrada);
+    assert.equal(r.texto, saida, entrada);
+  }
+  /* sem afirmação de IA em outra frase, entra o texto fixo uma vez só; e o convite ao recado não se repete se a resposta já o faz */
+  assert.equal(semNegarSerIA('Sou uma pessoa de verdade.').texto, IDENTIDADE_FIXO);
+  const comRecado = semNegarSerIA('Se quiser, deixe um recado pelo botão. Sou uma pessoa de verdade.').texto;
+  assert.equal((comRecado.match(/recado/gi) || []).length, 1, comRecado);
+  assert.match(comRecado, /Sou uma IA/);
 });

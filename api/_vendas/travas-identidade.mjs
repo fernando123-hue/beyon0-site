@@ -41,7 +41,20 @@
    induz o modelo consegue produzir, e (nas amostras) quase nunca corta resposta honesta. O resto é com o prompt. Depois de medida, cada
    leva foi usada para ampliar a FAMÍLIA do padrão (não só a frase) e virou teste de regressão.
 
-   FUROS CONHECIDOS (documentados e fixados em FUROS_IDENTIDADE_CONHECIDOS): resposta elíptica sem o assunto ("Não, não sou." / "Sou sim"),
+   RODADA DE CORREÇÃO (depois de duas revisões independentes, casos em docs/testes/travas-identidade-rodada2.mjs): (1) "nosso atendente de IA" é o
+   PRODUTO, não uma equipe (só "nossos atendentes", no plural, corta); (2) "fico aqui até..." só corta com horário ("até as seis", "até tarde");
+   (3) "sou eu / quem responde sou eu / eu mesmo respondo" é ambíguo e passa quando a IA é dita na mesma frase ou numa frase vizinha ("Quem
+   responde aqui sou eu, o Zero, uma IA"); o conselho de site ("Mostre que há uma pessoa de verdade atendendo", "seu cliente precisa ver...")
+   passa; (4) a dúvida reconhece "ache/pense/pode ser que"; "desculpe a demora" e "já volto com a estimativa" não são experiência humana;
+   (5) se a resposta já afirma ser IA numa frase que não foi cortada, a frase que mente é DESCARTADA (sem segundo texto de identidade), e o
+   convite ao recado não se repete; (6) a negação ENFÁTICA colada ao "sou" ("não tenha dúvida que sou humano", "sem dúvida nenhuma sou
+   humano", "ninguém duvida que...", "pode ficar sem medo que...", "nunca te enganaria e sou uma pessoa") não cancela mais a trava: sai do trecho
+   antes de olhar a negação e a dúvida (reusa FALSA_NEGACAO de travas-resultado.mjs). Esta rodada é regressão: as frases foram escritas
+   com o código à vista, não medem recall.
+
+   FUROS CONHECIDOS (documentados e fixados em FUROS_IDENTIDADE_CONHECIDOS; esta rodada NÃO tentou fechá-los; a persona fora do "sou o X"
+   ("Como dono, posso abrir uma exceção"), a experiência sem palavra-chave ("Faço sites há muitos anos"), a quebra de linha e as letras
+   separadas por hífen ou ponto): resposta elíptica sem o assunto ("Não, não sou." / "Sou sim"),
    que depende da pergunta, a qual a trava não vê; humanização sem afirmar identidade ("te ligo amanhã", "vou pensar com carinho"); paráfrase
    sem as palavras da lista; outro idioma além do português; letras espaçadas misturadas ("s o u  h u m a n o" é tratada, mas não toda variante).
 
@@ -51,10 +64,13 @@
    travas-resultado.mjs e de PONTUACAO e limpa exportados por travas-promessa.mjs.
    ========================================================================== */
 import { limpa } from './travas-promessa.mjs';
-import { trocarFrases, preparar, desespacar } from './travas-resultado.mjs';
+import { frasesDe } from './zero.mjs';
+import { trocarFrases, preparar, desespacar, FALSA_NEGACAO } from './travas-resultado.mjs';
 
-/* o nome do dono não aparece nos textos fixos (nem em nenhum texto que o Zero fala) */
-export const IDENTIDADE_FIXO = 'Sou uma inteligência artificial, o Zero da Beyon Zero. Quem toca a empresa é o dono, e o contato com ele é por escrito, pelo botão DEIXAR UM RECADO.';
+/* o nome do dono não aparece nos textos fixos (nem em nenhum texto que o Zero fala). Uma só ideia: sou IA, quem toca é o dono, o caminho é o recado */
+export const IDENTIDADE_FIXO = 'Sou uma IA, o Zero da Beyon Zero. Quem toca a empresa é o dono; para falar com ele, é só deixar um recado pelo botão aqui embaixo.';
+/* a resposta já convida ao recado em outra frase: não se repete o convite */
+export const IDENTIDADE_SEM_RECADO = 'Sou uma IA, o Zero da Beyon Zero. Quem toca a empresa é o dono.';
 export const EXPERIENCIA_FIXO = 'Sou uma inteligência artificial, então não tenho experiência própria nem histórico com clientes. O que eu sei está na tabela e nas condições da Beyon Zero.';
 export const EQUIPE_FIXO = 'A Beyon Zero é uma operação pequena, tocada pelo dono, e eu sou a inteligência artificial que atende por aqui.';
 const FIXO_DA_CLASSE = { identidade: IDENTIDADE_FIXO, experiencia: EXPERIENCIA_FIXO, equipe: EQUIPE_FIXO };
@@ -80,25 +96,30 @@ const QUANDO = '(?:ontem|anteontem|semana passada|mes passado|ano passado|outro 
 
 /* ---------- 1. IDENTIDADE: afirma ser pessoa / dono (a negação e a dúvida colada antes desfazem) ---------- */
 const AFIRMA_PESSOA = [
-  rx`\b(?:sou|somos)\s+(?:eu\s+)?(?:(?:so|apenas|mesmo|mesma|tambem|sim|realmente|de fato|totalmente|bem|muito|tao)\s+){0,2}(?:(?:uma?|o|a)\s+)?${EU_PESSOA}\b(?!\s+(?:certa|ideal|indicada)\b)`,
+  rx`\b(?:sou|somos|sempre fui|sempre sou)\s+(?:eu\s+)?(?:(?:so|apenas|mesmo|mesma|tambem|sim|realmente|de fato|totalmente|bem|muito|tao)\s+){0,2}(?:(?:uma?|o|a)\s+)?${EU_PESSOA}\b(?!\s+(?:certa|ideal|indicada)\b)`,
   rx`\bsou\s+d[ao]\s+(?:equipe|time)\b|\bfaco parte d[ao]\s+(?:equipe|time)\b`,
   rx`\bsou\s+(?:o\s+|a\s+|um\s+|uma\s+)?(?:funcionari[oa]|colaborador\w*|empregad[oa]|contratad[oa])\b`,
   rx`\bsou\s+(?:uma?\s+)?(?:atendente|consultor\w*|vendedor\w*|assistente|representante|especialista|designer|programador\w*|desenvolvedor\w*|responsavel|administrador\w*|gerente|diretor\w*)\s+(?:humano|humana|de verdade|real|em carne e osso|de carne e osso)\b`,
   rx`\b(?:juro|pode crer|pode acreditar|garanto|prometo)\s+que\s+(?:eu\s+)?sou\s+(?:uma?\s+)?${EU_PESSOA}\b`,
-  rx`\b(?:tem|ha)\s+(?:uma\s+)?(?:pessoa|humano|humana|gente|alguem)\s+(?:de verdade|real|de carne e osso)\s+(?:aqui|ai|ae|falando|digitando|respondendo|escrevendo|atendendo|do outro lado)\b`,
-  rx`\b(?:tem|ha|existe)\s+(?:uma\s+)?(?:pessoa|humano|humana|gente|alguem)\s+(?:de verdade\s+)?(?:do outro lado|aqui|ai|ae)\b`,
   rx`\bque\s+sou\s+eu\b`,
   rx`\b(?:to|estou)\s+aqui\s+(?:digitando|escrevendo|respondendo|conversando)\b`,
   rx`\bcomo\s+(?:pessoa|humano|humana)(?:\s+${SEP})?\s+eu\b|\bcomo\s+(?:o\s+|a\s+)?(?:dono|dona|proprietari[oa]|fundador\w*)\s+d[ao]\s+(?:beyon|empresa)\b`,
   rx`\bsou\s+(?:eu\s+)?(?:o\s+|a\s+)?responsavel\s+(?:pelo|pela|por)\s+(?:o\s+|a\s+|os\s+|as\s+)?(?:atendimento|pedidos?|empresa|beyon|tudo|aqui|projetos?|equipe|vendas)\b`,
   rx`\bsou\s+(?:formad[oa]|graduad[oa]|bacharel|mestre em|doutor em|especialista em)\b`,
   rx`\baqui\s+(?:e|tem)\s+(?:so\s+)?(?:atendimento\s+(?:humano|de verdade|pessoal|feito\s+por\s+(?:pessoas|gente|humanos?|alguem))|gente(?:\s+de verdade)?|(?:uma?\s+)?(?:humano|pessoa)(?:\s+de verdade)?|conversa\s+de\s+(?:gente|pessoa|verdade))\b`,
-  rx`\b(?:pessoa|humano|humana|gente)\s+(?:de carne e osso\s+|de verdade\s+|real\s+)?que\s+(?:esta|ta)\s+(?:digitando|falando|respondendo|escrevendo|atendendo|conversando)\b`,
-  rx`\b(?:uma?\s+)?(?:pessoa|humano|humana|gente|alguem)\s+(?:de verdade\s+|real\s+)?(?:esta|ta)\s+(?:respondendo|falando|digitando|escrevendo|atendendo|conversando)\s+(?:com\s+)?voce\b`,
   rx`\b(?:falando|falo|respondo|atendo|escrevo)\s+como\s+(?:uma?\s+)?(?:pessoa|humano|humana|dono)\b`,
   rx`\bsou\s+(?:tambem\s+)?(?:um\s+|uma\s+)?(?:empreendedor\w*|empresari[oa]|pai|mae|casad[oa]|solteir[oa]|brasileir[oa]|autonom[oa]|freelancer)\b`,
   rx`\bsou\s+(?:aqui\s+)?d[eo]\s+(?:campo grande|ms|mato grosso)\b`
 ];
+/* "tem uma pessoa de verdade aqui / do outro lado": é identidade quando o Zero diz de si; é CONSELHO de site quando fala do cliente
+   ("Mostre no site que há uma pessoa de verdade atendendo", "Seu cliente precisa ver que tem uma pessoa de verdade do outro lado do WhatsApp") */
+const AFIRMA_PRESENCA = [
+  rx`\b(?:tem|ha)\s+(?:uma\s+)?(?:pessoa|humano|humana|gente|alguem)\s+(?:de verdade|real|de carne e osso)\s+(?:aqui|ai|ae|falando|digitando|respondendo|escrevendo|atendendo|do outro lado)\b`,
+  rx`\b(?:tem|ha|existe)\s+(?:uma\s+)?(?:pessoa|humano|humana|gente|alguem)\s+(?:de verdade\s+)?(?:do outro lado|aqui|ai|ae)\b`,
+  rx`\b(?:pessoa|humano|humana|gente)\s+(?:de carne e osso\s+|de verdade\s+|real\s+)?que\s+(?:esta|ta)\s+(?:digitando|falando|respondendo|escrevendo|atendendo|conversando)\b`,
+  rx`\b(?:uma?\s+)?(?:pessoa|humano|humana|gente|alguem)\s+(?:de verdade\s+|real\s+)?(?:esta|ta)\s+(?:respondendo|falando|digitando|escrevendo|atendendo|conversando)\s+(?:com\s+)?voce\b`
+];
+const CONSELHO = /\b(?:mostre|mostrar|mostra|deixe|deixar|coloque|colocar|avise|garanta|exiba|ponha|ver que|veja que|perceba|percebam|saber que|passe a ideia)\b|\b(?:seu|seus|sua|suas)\s+(?:cliente|clientes|visitante|visitantes|publico|usuario|usuarios)\b/;
 const AFIRMA_DONO = [
   rx`\bsou\s+(?:eu\s+)?(?:mesm[oa]\s+)?(?:${SEP}\s+)?(?:(?:o|a)\s+)?(?:proprio\s+|propria\s+)?(?:${DONO}|responsavel\s+(?:pela|pelo|por)\s+(?:a\s+)?(?:beyon|empresa|tudo|aqui))\b`,
   rx`\b(?:${DONO}|responsavel)\s+(?:d[ao]\s+(?:beyon\s+(?:zero\s+)?|empresa\s+|daqui\s+|negocio\s+))?sou eu\b`,
@@ -125,7 +146,7 @@ const AFIRMA_DONO = [
 ];
 /* ---------- 1b. IDENTIDADE: nega ser IA (a negação está no próprio trecho) ---------- */
 const NEGA_IA = [
-  rx`\bnao\s+(?:sou|seria|estou|era)\s+(?:(?:um|uma|nenhum|nenhuma|esse|essa|aquele|aquela|daqueles|daquelas|tipo um|tipo uma|bem)\s+){0,2}${ROBO}\b${NAO_BUSCA}`,
+  rx`\b(?:nao|nunca)\s+(?:sou|fui|seria|serei|estou|era)\s+(?:(?:um|uma|nenhum|nenhuma|esse|essa|aquele|aquela|daqueles|daquelas|tipo um|tipo uma|bem)\s+){0,2}${ROBO}\b${NAO_BUSCA}`,
   rx`(?:^|${SEP}\s|\b(?:aqui|isso|isto|esse chat|este chat|essa conversa|esta conversa|esse atendimento|este atendimento|o atendimento|quem fala|quem esta falando|quem esta escrevendo|garanto que|pode ter certeza que|pode acreditar que|saiba que|fique sabendo que|tranquilo(?:\s+que)?|tranquila(?:\s+que)?|sossegad[oa](?:\s+que)?|relaxa|calma|pode confiar|sim|claro)(?:\s+(?:aqui|ai))?\s)nao\s+(?:e|eh|ta)\s+(?:(?:um|uma|nenhum|nenhuma)\s+)?${ROBO}\b${NAO_BUSCA}`,
   rx`\b(?:aqui|isso|esse chat|este chat|essa conversa|esta conversa|o atendimento|esse atendimento)\s+(?:nao\s+(?:tem|existe|ha|usa)|e\s+sem|sem)\s+(?:nenhum\s+|nenhuma\s+|qualquer\s+)?(?:robo\w*|bots?|chat ?bots?|maquina|ia|inteligencia artificial|automacao)\b`,
   rx`\b(?:atendimento|conversa|papo|chat)\s+(?:e\s+)?sem\s+(?:nenhum\s+|nenhuma\s+)?(?:robo\w*|bots?|ia|inteligencia artificial|maquina)\b`,
@@ -147,7 +168,7 @@ const EXPERIENCIA = [
   rx`\b(?:tenho|ja tenho)\s+(?:\w+\s+){0,2}?experiencia\b|\btemos\s+(?:muita |bastante |ampla |larga |boa )experiencia\b|\b(?:me ensinaram|me ensinou)\b|\baprendi\s+(?:que|com|na|no|nesses|nestes|ao longo)\b`,
   rx`\b(?:vivo|trabalho|atuo|mexo|lido)\b(?:\s+\w+){0,3}\s+(?:ha|faz)\s+(?:${NUMW}\s+)?anos\b|\bvivo\s+disso\b`,
   rx`\b(?:tenho|ja tive)\s+(?:um|uma|meu|minha)\s+(?:negocio|loja|empresa|comercio|salao|restaurante|clinica|consultorio|oficina|academia|filho|filha|familia)\b`,
-  rx`\b(?:fico|estarei|vou estar|estou)\s+aqui\s+ate\b`,
+  rx`\b(?:fico|estarei|vou estar|estou)\s+aqui\s+ate\s+(?:(?:as?|a)\s+)?(?:\d+|um|uma|duas|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|tarde|cedo|meia noite|a noite|noite|amanha|o fim do expediente|o expediente|sexta|segunda)\b`,
   rx`\b(?:conversei|falei)\s+com\s+(?:o|a)\s+(?:pessoal|galera)\b`,
   rx`\bmeu\s+(?:socio|colega|cunhado|sogro|sogra|amigo|vizinho|professor)\b|\bminha\s+(?:socia|colega|amiga|sogra|professora)\b`,
   rx`\bmeu\s+(?:pai|filho|filha|irmao|marido|avo|tio|primo|cachorro|gato|carro|bairro|fim de semana|almoco|cafe|ultimo cliente|primeiro cliente|primeiro site|escritorio|computador|dia a dia|cotidiano|historico|percurso|tempo de (?:mercado|casa|estrada|trabalho)|emprego|antigo (?:emprego|chefe|trabalho))\b`,
@@ -162,8 +183,8 @@ const EXPERIENCIA = [
   rx`\b(?:moro|morando|resido)\b|\bsou\s+(?:formad[oa]|graduad[oa])\b|\b(?:participei|atuei|trabalhei|colaborei|estagiei)\b|\bmeu\s+primeiro\s+(?:negocio|emprego|projeto)\b|\b(?:montei|abri|criei|tive|comecei|fundei)\s+(?:o\s+)?(?:meu|minha)\b`,
   rx`\b(?:atendo|fecho|monto|faco|vendo|entrego|crio)\s+(?:\w+\s+){0,5}(?:toda semana|todo dia|todos os dias|todo mes|diariamente|semanalmente)\b`,
   rx`\bmeus?\s+(?:proprios\s+)?(?:olhos?|ouvidos?|maos?|dedos?|cabeca|corpo|coracao|estomago)\b|\bminhas?\s+(?:proprias\s+)?(?:maos?|cabeca|voz|boca|barriga)\b`,
-  rx`\bvou\s+(?:tomar|pegar)\s+(?:um\s+)?(?:cafe|agua|lanche)\b|\bvou\s+(?:almocar|jantar|dormir|ao banheiro)\b|\bja\s+volto\b(?!\s+(?:a|ao|para|pra|no|na)\b)|\bacabei de (?:falar|conversar|ligar)\b`,
-  rx`\b(?:estou|to)\s+(?:aqui\s+)?(?:no|pelo|usando o|digitando no)\s+(?:celular|computador|notebook|pc|telefone)\b|\bdesculp\w+\s+(?:a|pela|por)\s+(?:demora|ausencia|demorar)\b|\bestava\s+(?:em reuniao|almocando|jantando|ocupad[oa]|no telefone|fora|dormindo|resolvendo|atendendo|com outro|na rua|dirigindo)\b`,
+  rx`\bvou\s+(?:tomar|pegar)\s+(?:um\s+)?(?:cafe|agua|lanche)\b|\bvou\s+(?:almocar|jantar|dormir|ao banheiro)\b|\bja\s+volto\b(?!\s+(?:a|ao|para|pra|no|na|com|e)\b)|\bacabei de (?:falar|conversar|ligar)\b`,
+  rx`\b(?:estou|to)\s+(?:aqui\s+)?(?:no|pelo|usando o|digitando no)\s+(?:celular|computador|notebook|pc|telefone)\b|\bestava\s+(?:em reuniao|almocando|jantando|no telefone|dormindo|na rua|dirigindo|atendendo outro|com outro cliente|ocupad[oa] com outro)\b`,
   rx`\bquando\s+(?:eu\s+)?(?:era|fui|trabalhava|tinha|morava|estudava|abri|comecei)\b`,
   rx`\b${QUANDO}\b(?:\s+\w+){0,5}?\s+(?:eu\s+)?${VERBOS_DIA}\b`,
   rx`\b(?:eu\s+)?${VERBOS_DIA}\s+(?:\w+\s+){0,6}?${QUANDO}\b`,
@@ -179,7 +200,8 @@ const EXPERIENCIA = [
 /* ---------- 3. EQUIPE: "nossa equipe" ---------- */
 const EQUIPE = [
   rx`\b(?:nossa|nossas|minha|a nossa|da nossa|na nossa|pela nossa|com a nossa|a minha)\s+(?:equipe|equipes|time|turma|galera)\b`,
-  rx`\bnossos?\s+(?:atendentes?|consultores?|consultoras?|vendedores?|designers?|programadores?|desenvolvedores?|especialistas|profissionais|colaboradores|funcionarios|tecnicos|analistas|times|equipes|time|pessoal)\b`,
+  /* ("nosso atendente de IA" é o PRODUTO, não uma equipe: só "nossos atendentes" no plural, ou "nosso atendente humano / de verdade") */
+  rx`\bnossos?\s+(?:consultores?|consultoras?|vendedores?|designers?|programadores?|desenvolvedores?|especialistas|profissionais|colaboradores|funcionarios|tecnicos|analistas|times|equipes|time|pessoal)\b|\bnossos\s+atendentes\b|\bnosso\s+atendente\s+(?:humano|de verdade)\b`,
   rx`\b(?:vou|vamos|posso)\s+(?:passar|encaminhar|repassar|levar|mandar)\s+(?:isso\s+|seu pedido\s+|o seu caso\s+)?(?:para|pra|ao|pro)\s+(?:o\s+|a\s+)?(?:time|equipe|setor|departamento)\b|\bentre nos da equipe\b|\bnos da equipe\b`,
   rx`\bequipe\s+aqui\b|\b(?:equipe|time|pessoal)\b(?:\s+\w+){0,4}\s+tem\s+(?:\w+\s+){0,2}experiencia\b`,
   rx`\baqui\s+(?:na|da|dentro da)\s+equipe\b|\bsomos\s+(?:uma\s+|um\s+)?(?:equipe|time|grupo|turma)\b|\bmeu\s+time\b`
@@ -187,51 +209,83 @@ const EQUIPE = [
 
 /* ---------- o contexto ---------- */
 const NEGA_PERTO = /\b(?:nao|nunca|jamais|nem|nenhum|nenhuma|ninguem|sem)\b/;
-const HEDGE = /\b(?:se|caso|talvez|imagine|imagina|suponha|supondo|finja|fingir|fingindo|como se|parece|pareco|acha|acham|achar|acredita|acreditam|pensa|pensam|pensou|perguntou|pergunta|perguntar|perguntando|saber|duvida|duvidar|confunde|confundem|sera que|quem pergunta|pediu|pedir)\b/;
+const HEDGE = /\b(?:se|caso|talvez|imagine|imagina|suponha|supondo|finja|fingir|fingindo|como se|parece|pareco|acha|acham|achar|ache|achem|achando|acredita|acreditam|pensa|pensam|pense|pensando|pensou|pode ser que|perguntou|pergunta|perguntar|perguntando|saber|duvida|duvidar|confunde|confundem|sera que|quem pergunta|pediu|pedir)\b/;
+/* a ênfase colada antes do "sou" NÃO nega nada: "não tenha dúvida que sou humano", "sem dúvida nenhuma sou humano", "não duvide que sou...",
+   "ninguém duvida que...", "pode ficar sem medo que...", "eu nunca te enganaria e sou uma pessoa". Sai do trecho ANTES de olhar a negação e a dúvida */
+const ENFASE = new RegExp(FALSA_NEGACAO.source + '|\\bsem sombra de duvidas?\\b|\\bninguem duvida\\b|\\bsem medo\\b|\\bnunca te enganaria\\b|\\bnunca te enganei\\b|\\bnunca minto\\b|\\bnunca menti\\b|\\bnao vou mentir\\b|\\bnao estou (?:mentindo|brincando)\\b|\\bnao e brincadeira\\b|\\bsem brincadeira\\b|\\bsem mentira\\b|\\bnao precisa duvidar\\b', 'g');
 /* o pedaço da oração antes do trecho (a vírgula, o ponto e vírgula e o "mas" começam outra oração) */
-const antesNaOracao = (m, idx) => { const i = m.lastIndexOf(SEP, idx); return limpa(i >= 0 ? m.slice(i + SEP.length, idx) : m.slice(0, idx)); };
+const antesNaOracao = (m, idx) => { const i = m.lastIndexOf(SEP, idx); return limpa((i >= 0 ? m.slice(i + SEP.length, idx) : m.slice(0, idx)).replace(ENFASE, ' ')); };
 
-function acha(m, lista, { nega = true, hedge = true } = {}) {
+function acha(m, lista, { nega = true, hedge = true, pula = null } = {}) {
   for (const re of lista) {
     for (const x of m.matchAll(re)) {
       const seg = antesNaOracao(m, x.index);
       if (nega && NEGA_PERTO.test(ultimas(seg, 4))) continue;
       if (hedge && HEDGE.test(ultimas(seg, 5))) continue;
+      if (pula && pula(x[0])) continue;
       return true;
     }
   }
   return false;
 }
 
-/* "sou, sim, uma pessoa": o aposto curto entre vírgulas não quebra o padrão */
-const APOSTO = new RegExp('(?<=^| )' + SEP + ' (?:sim|claro|mesmo|mesma|com certeza|de fato|realmente|pode crer|pode acreditar|olha|viu|ta|ok|tambem|jura|juro|olha so|vc sabe|ne) ' + SEP + '(?= |$)', 'g');
+/* "sou, sim, uma pessoa": o aposto curto entre vírgulas não quebra o padrão (nem "sou, sem dúvida, humano") */
+const APOSTO = new RegExp('(?<=^| )' + SEP + ' (?:sim|claro|mesmo|mesma|com certeza|de fato|realmente|pode crer|pode acreditar|olha|viu|ta|ok|tambem|jura|juro|olha so|vc sabe|ne|sem duvida|sem duvida nenhuma|na verdade|sinceramente|honestamente) ' + SEP + '(?= |$)', 'g');
 const variantes = raw => {
   const base = preparar(desespacar(raw));
   return [...new Set([base, base.replace(APOSTO, ' ')])];
 };
 
-function classesDe(crua) {
+/* ---------- a afirmação HONESTA de ser IA (desarma o "sou eu" ambíguo e evita um segundo texto de identidade) ---------- */
+const AFIRMA_IA = [
+  rx`\b(?:sou|somos)\s+(?:(?:um|uma|o|a)\s+)?(?:zero|ia|i a|inteligencia artificial|assistente de ia|assistente virtual|robo|bot)\b`,
+  rx`\b(?:uma|a|essa|esta)\s+(?:ia|i a|inteligencia artificial)\b|\bo zero\b`
+];
+const afirmaIA = crua => variantes(crua).some(m => acha(m, AFIRMA_IA, { hedge: false }));
+/* o "sou eu" / "quem responde sou eu" / "eu mesmo respondo" sozinho é ambíguo: com a IA dita na frase ou ao lado, é o Zero falando */
+const AMBIGUO = /\bsou eu\b|\be eu$|\bsou eu$|^eu\s+mesm[oa]\b|\bcomigo\s+(?:mesm[oa]|diretamente|direto)\b|\b(?:eu\s+mesm[oa]|pessoalmente|em pessoa)$/;
+
+function classesDe(crua, { iaVizinha = false } = {}) {
   const achadas = new Set();
+  const iaPropria = afirmaIA(crua);
+  const desarmado = iaPropria || iaVizinha;
   for (const m of variantes(crua)) {
     const formulario = DO_FORMULARIO.test(m);
-    if (acha(m, AFIRMA_PESSOA) || acha(m, AFIRMA_DONO)) achadas.add('identidade');
+    const conselho = CONSELHO.test(m);
+    if (acha(m, AFIRMA_PESSOA) || (!conselho && acha(m, AFIRMA_PRESENCA)) || acha(m, AFIRMA_DONO, { pula: x => desarmado && AMBIGUO.test(x) })) achadas.add('identidade');
     else if (!formulario && acha(m, NEGA_IA, { nega: false })) {
       const soNada = /\bnada de\b/.test(m) && !NADA_DE_CONTEXTO.test(m);
       if (!soNada) achadas.add('identidade');
     }
     if (acha(m, EXPERIENCIA)) achadas.add('experiencia');
-    if (acha(m, EQUIPE, { hedge: false })) achadas.add('equipe');
+    if (!iaPropria && acha(m, EQUIPE, { hedge: false })) achadas.add('equipe');
   }
   return ORDEM.find(c => achadas.has(c)) ?? null;
 }
 
+const MAX_FRASES_VISTAS = 1200;
+const fala = f => /\brecado\b/.test(preparar(f));
+
 export function semNegarSerIA(texto) {
   const classes = new Set();
-  const r = trocarFrases(texto, (frases, i) => {
-    const c = classesDe(frases[i]);
+  const frases = frasesDe(String(texto ?? '')).slice(0, MAX_FRASES_VISTAS);
+  /* o que cada frase é, calculado uma vez (as vizinhas olham umas às outras) */
+  const memo = [];
+  const info = k => (memo[k] ??= (() => {
+    const f = frases[k];
+    const ia = afirmaIA(f);
+    return { ia, recado: fala(f), classe: classesDe(f, { iaVizinha: (k > 0 && afirmaIA(frases[k - 1])) || (k + 1 < frases.length && afirmaIA(frases[k + 1])) }) };
+  })());
+  let descartou = false;
+  const r = trocarFrases(texto, (todas, i) => {
+    const c = info(i).classe;
     if (!c) return null;
     classes.add(c);
-    return { n: 1, fixo: FIXO_DA_CLASSE[c] };
+    if (c !== 'identidade') return { n: 1, fixo: FIXO_DA_CLASSE[c] };
+    /* a resposta já diz que é IA numa frase que não foi cortada: some a frase que mente, sem acrescentar um segundo texto */
+    const outras = todas.map((_, k) => k).filter(k => k !== i && k < MAX_FRASES_VISTAS);
+    if (outras.some(k => info(k).ia && !info(k).classe)) { descartou = true; return { n: 1, fixo: '' }; }
+    return { n: 1, fixo: outras.some(k => !info(k).classe && info(k).recado) ? IDENTIDADE_SEM_RECADO : IDENTIDADE_FIXO };
   });
-  return { ...r, classes: ORDEM.filter(c => classes.has(c)) };
+  return { ...r, texto: descartou ? r.texto.replace(/[ \t]{2,}/g, ' ') : r.texto, classes: ORDEM.filter(c => classes.has(c)) };
 }

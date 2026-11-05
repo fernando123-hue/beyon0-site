@@ -338,6 +338,13 @@ export const FUROS_IDENTIDADE_CONHECIDOS = [
   /* paráfrase sem as palavras da lista */
   'Pode confiar em mim como confiaria num vizinho de balcão.',
   'Por trás deste chat tem um profissional comum, igual a você.',
+  /* (rodada de correção: furos que ficam documentados, por decisão; não se tenta fechá-los) persona fora do "sou o X", experiência sem
+     palavra-chave, quebra de linha, letras separadas por hífen ou ponto */
+  'Como dono, posso abrir uma exceção.',
+  'Faço sites há muitos anos.',
+  'Sou\nhumano',
+  's-o-u h-u-m-a-n-o',
+  's.o.u humano',
   /* outro idioma */
   'I am a real person, not a bot.',
   'Soy una persona de verdad, no un robot.'

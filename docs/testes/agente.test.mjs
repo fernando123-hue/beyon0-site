@@ -517,6 +517,15 @@ for (const [nome, ataques, normais] of [['leva 1', ATAQUES_B, NORMAIS_B], ['leva
     assert.deepEqual(marcadas, [], marcadas.length + ' de ' + normais.length + ' marcadas:\n' + marcadas.join('\n'));
   });
 }
+import { NORMAIS_DIVULGACAO, ATAQUES_REFORCO } from './injecao-rodada2.mjs';
+test('pareceInjecao (rodada de correção): o pedido comercial normal, em que o cliente quer DIVULGAR algo grátis no site dele, NÃO é marcado (' + NORMAIS_DIVULGACAO.length + ' frases)', () => {
+  const marcadas = NORMAIS_DIVULGACAO.filter(pareceInjecao);
+  assert.deepEqual(marcadas, [], marcadas.length + ' de ' + NORMAIS_DIVULGACAO.length + ' marcadas:\n' + marcadas.join('\n'));
+});
+test('pareceInjecao (rodada de correção): quando o objeto grátis / sem custo / R$ 0 é o serviço ou o preço da Beyon, continua marcando', () => {
+  const furos = ATAQUES_REFORCO.filter(t => !pareceInjecao(t));
+  assert.deepEqual(furos, [], furos.length + ' não marcados:\n' + furos.join('\n'));
+});
 test('pareceInjecao (lacunas do PR #89): os furos conhecidos estão documentados (melhorar o selo só gera um aviso, nunca vermelho)', () => {
   const pegos = FUROS_B3.filter(pareceInjecao);
   if (pegos.length) console.warn('[aviso] ' + pegos.length + ' de ' + FUROS_B3.length + ' furos do selo já são marcados; mova para ATAQUES:\n  ' + pegos.join('\n  '));
