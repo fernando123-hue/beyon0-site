@@ -248,10 +248,6 @@
       </section>
     </div>
 
-    <!-- A PLANTA DO SITE (planta viva, PR 2c; js/orcamento-planta.js): só existe com a flag BZ_PLANTA ligada no servidor e uma planta no estado. Escondida até lá;
-         sai de hidden fora da área visível ou num gesto da pessoa (spec §4.4). Os módulos do desenho só são baixados quando a planta chega -->
-    <section class="plv-faixa" id="o-planta" data-origem="orcamento-planta" hidden></section>
-
     <!-- OS DETALHES (spec 2026-10-11 §3): uma tela, celular primeiro; viram o pedido com código (js/orcamento-detalhes.js).
          O aceite de privacidade continua aqui e vai ao banco pelo mesmo caminho de antes (app.vendas_informar_contato) -->
     <section class="orc-bloco" id="o-contato" aria-labelledby="o-contato-titulo" hidden>
@@ -653,6 +649,11 @@
         <p class="orc-bloco__lead">Outra dúvida? <a href="#recado" data-recado-abrir data-recado-origem="orcamento">Deixe um recado para a equipe</a></p>
       </div>
     </section>
+    <!-- A PLANTA DO SITE (planta viva, PR 2c; js/orcamento-planta.js). DEPOIS do formulário e de todo o fluxo (decisão do dono, 05/11: a faixa não fica entre a conversa e o
+         botão "Quero os três modelos"): a última seção do <main>. Só existe com a flag BZ_PLANTA ligada no servidor e uma planta no estado; escondida até lá. Sai de hidden
+         onde termina o último bloco visível antes dela, abaixo da dobra, ou num gesto da pessoa (spec §4.4); o botão "Ver a planta do seu site", na fala do Zero, rola até aqui.
+         Os módulos do desenho só são baixados quando a planta chega -->
+    <section class="plv-faixa" id="o-planta" data-origem="orcamento-planta" hidden></section>
   </main>
 
   <!-- O VISOR das prévias: abrir, navegar e comparar -->

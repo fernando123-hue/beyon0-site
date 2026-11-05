@@ -68,6 +68,7 @@ console.log('\n== flag ligada (' + ON + ') ==');
   ok(await page.evaluate(() => [...document.querySelectorAll('.plv-lista li .plv-sr')].every((s) => s.textContent.length > 10)), 'cada etapa leva a frase para o leitor de tela');
   const topoAntes = await page.evaluate(() => Math.round(document.getElementById('o-planta').getBoundingClientRect().top));
   ok(topoAntes > 700, 'a faixa nasceu fora da área visível (topo em ' + topoAntes + ' px, janela de 844)');
+  ok(await page.evaluate(() => { const f = document.getElementById('o-planta'); return f.parentNode.lastElementChild === f && f.parentNode.tagName === 'MAIN' && f.getBoundingClientRect().top >= document.querySelector('.orc-mesa').getBoundingClientRect().bottom; }), 'a faixa é a última seção do <main>, depois da mesa (posição B)');
   await page.click('.plv-ver');
   await espera(900);
   const aposToque = await page.evaluate(() => ({ topo: Math.round(document.getElementById('o-planta').getBoundingClientRect().top), foco: document.activeElement.className }));
@@ -84,6 +85,7 @@ console.log('\n== flag ligada (' + ON + ') ==');
   const antes = await page.locator('#o-log .msg--visitante').count();
   await page.locator('.plv-btn', { hasText: 'Quero ajustar algo' }).click();
   ok(await page.evaluate(() => document.activeElement.id === 'o-texto' && document.getElementById('o-texto').placeholder === 'Diga o que mudar na planta.'), '"Quero ajustar algo" foca a caixa com a dica');
+  ok(await page.waitForFunction(() => { const r = document.getElementById('o-texto').getBoundingClientRect(); return r.top >= 0 && r.bottom <= window.innerHeight; }, null, { timeout: 4000 }).then(() => true, () => false), '"Quero ajustar algo" traz a caixa de texto de volta para dentro da tela (a faixa fica longe da conversa)');
   ok(await page.locator('#o-log .msg--visitante').count() === antes, '"Quero ajustar algo" não envia nada');
   /* Está certo: uma mensagem */
   await page.locator('.plv-btn', { hasText: 'Está certo' }).click();
@@ -193,6 +195,35 @@ console.log('\n== "Está certo" com a conversa ocupada e com a rede caindo ==');
 }
 
 /* ---------- 320 px e a faixa à vista ---------- */
+/* ---------- enviar o formulário com a faixa à vista logo abaixo do botão (achado da medida do 2c-B) ---------- */
+console.log('\n== enviar o formulário com a faixa abaixo do botão ==');
+{
+  const { ctx, page, erros } = await abrir(ON);
+  await turno(page, T1);
+  await turno(page, 'planta-boa pode desenhar');
+  await page.waitForSelector('#o-planta:not([hidden]) .plv-quadro');
+  const botao = page.locator('#o-detalhes-form button[type=submit]');
+  await botao.scrollIntoViewIfNeeded(); await espera(400);
+  await botao.click(); await espera(600);   /* envio RECUSADO pela própria tela (campos vazios): a faixa não se recolhe */
+  ok(await page.evaluate(() => !document.getElementById('o-planta').hidden && document.getElementById('o-contato-erro').textContent.length > 0), 'envio recusado pela tela (campos vazios): o erro aparece e a faixa NÃO se recolhe');
+  await page.fill('#o-d-negocio', 'Clínica Teste'); await page.fill('#o-d-vende', 'Consultas');
+  await page.fill('#o-tel', '(21) 9' + String(1000 + Math.floor(Math.random() * 9000)) + '-' + String(1000 + Math.floor(Math.random() * 9000))); await page.check('#o-aceite');
+  await botao.scrollIntoViewIfNeeded(); await espera(400);
+  const visivel = await page.evaluate(() => { const q = document.getElementById('o-planta').getBoundingClientRect(); return Math.round(Math.min(innerHeight, q.bottom) - Math.max(0, q.top)); });
+  ok(visivel > 100, 'antes do envio a faixa está à vista logo abaixo do botão (' + visivel + ' px)');
+  await page.evaluate(() => { window.__ls2 = []; new PerformanceObserver((l) => l.getEntries().forEach((e) => window.__ls2.push([e.value, e.hadRecentInput, (e.sources || []).map((s) => s.node && (s.node.id || s.node.className)).join('+')]))).observe({ type: 'layout-shift', buffered: false }); });
+  await page.route('**/api/vendas?acao=detalhes*', async (rr) => { await espera(1500); rr.continue(); });
+  await botao.click();
+  await espera(400); await page.mouse.click(2, 2);   /* um toque no vazio durante o envio não devolve a faixa antes da resposta */
+  await page.waitForFunction(() => document.getElementById('o-planta').hidden, null, { timeout: 3000 }).then(() => ok(true, 'ao enviar, a faixa se recolhe na hora'), () => ok(false, 'ao enviar, a faixa se recolhe na hora'));
+  await espera(6000);
+  const cls = await page.evaluate(() => window.__ls2.filter((x) => !x[1] && /plv|o-planta/.test(x[2])).reduce((s, x) => s + x[0], 0));
+  ok(cls === 0, 'a troca do bloco de cima não desloca a faixa (CLS da planta ' + cls + ')');
+  ok(await page.locator('#o-planta .plv-quadro').count() === 1, 'a faixa segue montada (só estava recolhida), sem erro: ' + erros.join(' | '));
+  ok(erros.filter((e) => !/status of 503/.test(e)).length === 0, 'nenhum erro no console (o 503 da geração dos modelos, sem IA configurada no servidor local, é do servidor e não da página)');
+  await ctx.close();
+}
+
 console.log('\n== 320 px ==');
 {
   const { ctx, page, erros } = await abrir(ON, { larg: 320, alt: 640 });
@@ -211,7 +242,8 @@ console.log('\n== faixa à vista (janela alta): espera o gesto ==');
   const { ctx, page } = await abrir(ON, { larg: 390, alt: 844 });
   await turno(page, T1);
   const fim = await page.evaluate(() => document.querySelector('.orc-mesa').getBoundingClientRect().bottom + window.scrollY);
-  await page.setViewportSize({ width: 390, height: Math.ceil(fim + 500) });
+  /* a janela alta cobre a mesa E o formulário #o-contato (a faixa vem depois dele e ele aparece com a resposta do Zero: cerca de 1.700 px): a posição da faixa fica à vista */
+  await page.setViewportSize({ width: 390, height: Math.ceil(fim + 2200) });
   await page.evaluate(() => window.scrollTo(0, 0)); await espera(300);
   await turno(page, 'planta-boa pode desenhar');
   await espera(1500);

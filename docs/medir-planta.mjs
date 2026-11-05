@@ -14,6 +14,7 @@
      --nichos a,b         (padrão clinica,loja,embalagens,boa)   --posicoes fora,dentro      --cpu N (estrangulamento, padrão 1)   --paralelo N (rodadas ao mesmo tempo, padrão 1)
      --variante base|sem-svg|sem-texto|adiar   (A/B de CPU do plano; só mexe no que o navegador recebe, nunca no repositório)
      --on 8931 --off 8932    portas dos dois servidores           --so-ligada   (sem a metade desligada)
+     --formulario            depois da planta, envia o formulário de contato e mede o CLS da faixa à vista quando o servidor troca o bloco acima dela
      --bytes                 só imprime os bytes (gzip -9 e brotli) e a distância preço -> botão do formulário (precisa dos servidores)
    O headless desenha por software: serve para COMPARAR, não como fps de aparelho. A 1ª medição de cada execução é de aquecimento e não entra. */
 import { chromium } from 'playwright';
@@ -33,6 +34,8 @@ const POSICOES = arg('posicoes', 'fora,dentro').split(',');
 const CPU = Number(arg('cpu', '1'));
 const VARIANTE = arg('variante', 'base');
 const SO_LIGADA = tem('so-ligada');
+const FORMULARIO = tem('formulario');   /* depois da planta, envia o formulário #o-contato e mede o que a troca do bloco de cima faz com a faixa à vista */
+/* --gesto-extra (com --formulario): um clique no vazio 400 ms depois do envio, dentro da janela de 1,5 s da resposta */
 const PARALELO = Number(arg('paralelo', '1'));   /* rodadas ao mesmo tempo: bom para o CLS (não depende de CPU); para tarefas longas use 1 */
 const EXEC = process.env.CHROMIUM || (process.env.LOCALAPPDATA + '/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-win64/chrome-headless-shell.exe');
 const espera = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -101,7 +104,7 @@ async function rodada({ base, larg, alt, nicho, posicao, cpu, variante }) {
   for (let i = 0; i < textos.length - 1; i++) await turno(page, textos[i]);
   if (posicao === 'dentro') {
     const fim = await page.evaluate(() => document.querySelector('.orc-mesa').getBoundingClientRect().bottom + window.scrollY);
-    await page.setViewportSize({ width: larg, height: Math.ceil(fim + 500) });
+    await page.setViewportSize({ width: larg, height: Math.ceil(fim + 2200) });
     await page.evaluate(() => window.scrollTo(0, 0));
     await espera(400);
   }
@@ -128,13 +131,31 @@ async function rodada({ base, larg, alt, nicho, posicao, cpu, variante }) {
       larguraDoc: document.documentElement.scrollWidth, larguraJanela: window.innerWidth
     };
   }, antes);
-  await ctx.close();
   const conta = (lista, com) => +lista.filter((x) => com || !x.recente).reduce((s, x) => s + x.v, 0).toFixed(6);
+  /* --formulario: o que acontece com a faixa à vista quando o servidor TROCA o que está acima dela. A pessoa preenche o formulário (a faixa vem logo abaixo do botão de enviar), envia, e a resposta
+     (atrasada 1,5 s, como a rede de verdade: sem isso cai dentro dos 500 ms que o navegador perdoa depois do clique) troca o formulário (alto) pelo "Pedido recebido" (baixo): a faixa sobe
+     sozinha. O mesmo roteiro roda com a flag desligada, onde o que está abaixo do botão é o rodapé */
+  let formulario = null;
+  if (FORMULARIO) {
+    await page.route('**/api/vendas?acao=detalhes*', async (rr) => { await espera(1500); rr.continue(); });
+    await page.fill('#o-d-negocio', 'Clínica Teste'); await page.fill('#o-d-vende', 'Consultas');
+    await page.fill('#o-tel', '(21) 9' + String(1000 + Math.floor(Math.random() * 9000)) + '-' + String(1000 + Math.floor(Math.random() * 9000))); await page.check('#o-aceite');
+    const botao = page.locator('#o-detalhes-form button[type=submit]');
+    await botao.scrollIntoViewIfNeeded();
+    await espera(400);
+    const m = await page.evaluate(() => { const f = document.getElementById('o-planta'), q = f.getBoundingClientRect(); return { marca: { ls: window.__ls.length }, faixaVisivelPx: f.hidden ? 0 : Math.max(0, Math.round(Math.min(innerHeight, q.bottom) - Math.max(0, q.top))), janela: innerHeight, topo: Math.round(q.top) }; });
+    await botao.click();
+    if (tem('gesto-extra')) { await espera(400); await page.mouse.click(2, 2); }   /* um toque no vazio DURANTE o envio (duplo toque, mão que escorrega): não pode devolver a faixa antes da resposta */
+    await espera(5000);
+    const x = await page.evaluate((a) => ({ ls: window.__ls.slice(a.ls), confirmar: !document.getElementById('o-confirmar').hidden, erroTela: document.getElementById('o-contato-erro').textContent }), m.marca);
+    formulario = { faixaVisivelPx: m.faixaVisivelPx, janela: m.janela, cls: conta(x.ls, false), clsBruto: conta(x.ls, true), clsPlanta: conta(x.ls.filter((p) => !p.recente && p.fontes.some((n) => /plv|o-planta/.test(n))), false), pedidoRecebido: x.confirmar, erroTela: x.erroTela, deslocamentos: x.ls };
+  }
+  await ctx.close();
   const tbt = r.longas.reduce((s, x) => s + Math.max(0, x.ms - 50), 0);
   /* o CLS que é DA planta: só os deslocamentos em que algum nó que se moveu é da faixa (#o-planta, plv-) ou do botão do chat; o resto é a página de sempre (por exemplo o bloco de contato, que aparece com a resposta do Zero também com a flag desligada) */
   const daPlanta = r.ls.filter((x) => !x.recente && x.fontes.some((n) => /plv|o-planta/.test(n)));
   return { cls: conta(r.ls, false), clsPlanta: conta(daPlanta, false), clsBruto: conta(r.ls, true), deslocamentos: r.ls, longas: r.longas, tbt, maiorTarefa: r.longas.reduce((m, x) => Math.max(m, x.ms), 0), faixaVisivel: r.faixaVisivel, nos: r.nos, alturaFaixa: r.alturaFaixa,
-    botoes: r.botoes, recursos: r.recursos, primeiroTitulo: r.primeiroTitulo, viaGesto, erros, rolagemLateral: r.larguraDoc > r.larguraJanela + 1 };
+    botoes: r.botoes, recursos: r.recursos, primeiroTitulo: r.primeiroTitulo, viaGesto, formulario, erros, rolagemLateral: r.larguraDoc > r.larguraJanela + 1 };
 }
 
 /* bytes do JS e do CSS da planta (o que o navegador baixa só com a planta), com gzip -9 e brotli; e a distância preço -> botão do formulário */
@@ -157,9 +178,10 @@ async function distancias(larg, alt) {
     document.getElementById('o-contato').hidden = false;   /* só para medir a geometria: o formulário aparece depois do pacote gravado */
     const y = (el) => el.getBoundingClientRect().top + window.scrollY, fundo = (el) => el.getBoundingClientRect().bottom + window.scrollY;
     const preco = document.getElementById('o-est'), botao = document.querySelector('#o-detalhes-form button[type=submit]'), faixa = document.getElementById('o-planta'), contato = document.getElementById('o-contato');
-    const A = y(botao) - fundo(preco), H = innerHeight, alturaFaixa = Math.round(faixa.getBoundingClientRect().height);
-    contato.parentNode.insertBefore(faixa, contato.nextSibling);   /* posição B: a faixa DEPOIS do formulário */
-    const B = y(botao) - fundo(preco);
+    /* a página é a posição B (a faixa é a última seção do <main>, depois do formulário); a posição A (a faixa entre a mesa e o formulário, a do PR 2c) se mede movendo a faixa para antes dele */
+    const B = y(botao) - fundo(preco), H = innerHeight, alturaFaixa = Math.round(faixa.getBoundingClientRect().height);
+    contato.parentNode.insertBefore(faixa, contato);
+    const A = y(botao) - fundo(preco);
     return { A: Math.round(A), B: Math.round(B), alturaFaixa, janela: H, A_em_telas: +(A / H).toFixed(2), B_em_telas: +(B / H).toFixed(2) };
   });
   await ctx.close();
@@ -195,6 +217,10 @@ for (const larg of LARGURAS) for (const nicho of NICHOS) for (const posicao of P
   resultado.casos.push(caso);
   const s = caso.resumo;
   console.log(`${String(larg).padStart(4)} ${nicho.padEnd(10)} ${posicao.padEnd(6)} CLS lig ${s.clsLigada} (máx ${s.clsMaxLigada}, bruto ${s.clsBrutoLigada}; da planta ${s.clsPlantaMax}) deslig ${s.clsDesligada} delta ${s.deltaCls} ${Math.abs(s.deltaCls) <= 0.01 ? 'ok' : 'ACIMA'} | TBT med lig ${s.tbtLigada} deslig ${s.tbtDesligada}; maior tarefa lig ${s.maiorLigada} deslig ${s.maiorDesligada} | faixa ${s.faixaApareceu}, nós ${s.nos}, deslig sem nada baixado: ${s.desligadaSemFaixa}`);
+  if (FORMULARIO) {
+    const fm = (flag, k) => mediana(por[flag].filter((x) => x.formulario).map((x) => x.formulario[k]));
+    console.log('     formulário enviado com a faixa abaixo do botão: faixa à vista ' + fm('ligada', 'faixaVisivelPx') + ' px de ' + fm('ligada', 'janela') + '; CLS da troca de bloco: ligada ' + fm('ligada', 'cls') + ' (bruto ' + fm('ligada', 'clsBruto') + ', DA PLANTA ' + fm('ligada', 'clsPlanta') + ', máx ' + Math.max(0, ...por.ligada.filter((x) => x.formulario).map((x) => x.formulario.cls)) + ') contra desligada ' + fm('desligada', 'cls') + ' (máx ' + Math.max(0, ...por.desligada.filter((x) => x.formulario).map((x) => x.formulario.cls)) + '); pedido recebido na tela: ' + por.ligada.filter((x) => x.formulario && x.formulario.pedidoRecebido).length + '/' + por.ligada.length);
+  }
   const erros = [].concat(...por.ligada.map((x) => x.erros), ...por.desligada.map((x) => x.erros));
   if (erros.length) console.log('   erros/avisos:', [...new Set(erros)].slice(0, 4).join(' | '));
   writeFileSync(SAIDA, JSON.stringify(resultado, null, 2));

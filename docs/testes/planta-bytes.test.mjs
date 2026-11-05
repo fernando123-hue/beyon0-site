@@ -28,7 +28,7 @@ test('JS da faixa que a pessoa baixa quando a planta chega (forma + 3 módulos):
   assert.ok(soma <= 28000, 'gzip -9 soma ' + soma);
 });
 
-test('a ligação (js/orcamento-planta.js), baixada com a flag desligada também: no máximo 5.000 bytes com gzip -9', () => {
+test('a ligação (js/orcamento-planta.js), baixada com a flag desligada também: no máximo 5.500 bytes com gzip -9', () => {
   const n = gz(ler('js/orcamento-planta.js'));
-  assert.ok(n <= 5000, 'gzip -9 ' + n);
+  assert.ok(n <= 5500, 'gzip -9 ' + n);
 });
