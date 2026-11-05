@@ -493,6 +493,11 @@ test('tetos: o turno da planta (4 voltas, 1.300 tokens de saída no plano) custa
   const cache = Math.ceil((sistema.length + planta.description.length + JSON.stringify(planta.input_schema).length) / 3);
   const rodada = saida => custoUsd('claude-sonnet-5-5', { cache_leitura: cache, entrada: 3500, saida });
   const turnoDaPlanta = rodada(300) + rodada(1300) + rodada(300) + rodada(300);   /* MAX_ITERACOES = 4: a volta do plano pesa 1.300 tokens de saída */
+  /* o pior caso: as 4 voltas gastam o max_tokens inteiro (um modelo que não para). A reserva por turno (RESERVA_USD.conversa) é UMA para até 4 chamadas, então o pior caso passa dela; a
+     proteção real são os tetos (conversa e dia). Realista: ~US$ 0,06; pior caso medido aqui: ~US$ 0,20 (a revisão estimou até ~0,26 com mais entrada). Decisão a confirmar na rodada real 8 (não mexi em config.mjs) */
+  const piorCaso = 4 * custoUsd('claude-sonnet-5-5', { cache_leitura: cache, entrada: 3500, saida: PAPEIS.conversa.max_tokens });
+  assert.ok(piorCaso < 0.3, 'pior caso de um turno da planta: US$ ' + piorCaso.toFixed(3));
+  assert.ok(piorCaso < TETOS.conversa_usd * 0.15 && piorCaso < TETOS.dia_usd * 0.02, 'o pior caso cabe com folga nos tetos da conversa e do dia');
   assert.ok(turnoDaPlanta < 2 * RESERVA_USD.conversa, 'o turno da planta (US$ ' + turnoDaPlanta.toFixed(3) + ') passou de duas reservas de conversa');
   assert.ok(turnoDaPlanta < TETOS.conversa_usd * 0.05, 'um turno da planta ocupa mais que 5% do teto da conversa');
   const normal = c => 2 * custoUsd('claude-sonnet-5-5', { cache_leitura: c, entrada: 3500, saida: 900 });
