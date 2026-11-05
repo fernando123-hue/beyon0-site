@@ -296,6 +296,41 @@ Faixa e botões funcionando com o provedor simulado nas duas variantes da flag; 
 - **5:** `st.E` é sempre o estado mais novo; se a planta some durante o download, ao chegarem os módulos nada é montado.
 - **6:** `planta-es5.test.mjs` varre também `js/orcamento-planta.js`; o registro acima passou a dar os tamanhos em bytes. A ligação ficou em 4.865 bytes (gzip -9), abaixo do teto de 5.000 do teste.
 
+### Registro do PR 2c-B: a faixa DEPOIS do formulário (decisão do dono, chat de 05/11: "tentar B e medir")
+
+**O que mudou.**
+- **Onde fica:** `<section id="o-planta">` é a ÚLTIMA seção do `<main>`, depois de `#o-contato` e de todo o resto do fluxo (pedido recebido, três modelos, ajustes, escopo, pagamento, pronto, material, prévia, no ar, fim), antes do rodapé. Foi esse o "fim natural" escolhido, e não colada logo depois de `#o-contato`: os blocos de depois do formulário aparecem em etapas seguintes do funil e a planta não pode empurrá-los nem ficar no meio do caminho do pagamento; sem eles visíveis (a fase do preço, a única em que a planta existe de fato com o preço aberto) a faixa fica logo abaixo da mesa ou do formulário, que é onde se quer. Depois do pedido a faixa segue lá embaixo, só leitura, e o botão do chat continua levando até ela.
+- **A regra de inserção** deixou de olhar a base da mesa: a referência é o ÚLTIMO BLOCO VISÍVEL antes da faixa (irmão anterior sem `hidden` e com altura): a mesa enquanto o formulário está escondido, o formulário depois. A faixa sai de `hidden` se o fim dessa referência passa da tela; senão espera um clique, uma tecla, o toque no botão ou a rolagem que a leve para baixo da dobra. O formulário aparecer (por gesto, ao gravar o pacote) empurra a faixa para baixo, e o navegador não conta o deslocamento logo depois da ação da pessoa.
+- **"Quero ajustar algo"** volta à conversa pela mesma rolagem de "Perguntar ao consultor" (`#o-form` ao meio da tela) e foca `#o-texto` com `preventScroll: true` (a faixa fica a milhares de px da caixa). É a única `scrollIntoView` do módulo.
+- O botão do chat, o `rolarAte`, o foco no título da faixa, a luz que só começa com a faixa à vista (observador do desenho) e tudo atrás da flag ficaram como no 2c. Sem mudança no desenho, no servidor nem no CSS.
+- Testes (vermelho visto antes: 6 novos em `planta-ligacao`, mais o teste da ordem no HTML; o DOM de mentira ganhou `previousElementSibling`): referência = último visível, escondido e sem altura são pulados, rolagem muda a referência, "Quero ajustar" rola e foca sem rolar de novo, a faixa é a última seção do `<main>`. `docs/e2e-planta.mjs` ganhou "a faixa é a última seção" e "a caixa de texto volta para a tela"; a janela alta do cenário "à vista" agora cobre mesa e formulário. `docs/medir-planta.mjs` mede A movendo a faixa para antes do formulário (B é a página).
+
+**Números (mesma máquina e mesmo método do 2c; headless; IA simulada com 2,5 s de atraso; carga de outros processos de 40 a 58%).**
+- **Distância do cartão de preço ao botão do formulário:** B (a página agora) 1.970 px = **2,33 telas** em 390; 2.141 px = **3,34** em 320; 1.146 px = **1,43** em 1.280. A (2c) era 4,0 / 5,6 / 2,5 telas. A faixa mede 1.374 / 1.428 / 805 px. O custo da planta na distância é zero em B.
+- **CLS, ligada menos desligada (2 rodadas por ponta, 4 em paralelo, mediana):** faixa fora da área visível (clínica, loja, embalagens e planta do modelo) e faixa à vista (clínica e planta do modelo), em 390, 320 e 1.280: **todos os deltas entre -0,008 e +0,008, todos <= 0,01**; o CLS DA planta (nó movido da faixa ou do botão) foi **0 em todas as rodadas**; o restante é a página de sempre (`#o-form`, `#o-contato`). Em A, 1.280 x 800 deixava a faixa esperando o gesto na maioria dos casos (a mesa cabia na janela); em B ela entra sozinha nos 3 tamanhos e nos 4 nichos, porque o último bloco visível termina bem abaixo da tela.
+- **Tarefas longas, 390 x 844, CPU 4x, 12 rodadas alternando as pontas:** desligada 0 de 12; ligada **7 de 12 com uma tarefa de 64 a 83 ms** (TBT mediano 18 ms, máximo 33). Em A (já com a entrada adiada) eram 7 de 12, 58 a 82 ms, TBT 10. **A meta "nenhuma tarefa longa a 4x" continua NÃO cumprida**, igual em A e B (é a renderização nativa na inserção; mover a faixa não a muda). A 1x: 0 de 12 nas duas pontas. TBT <= +50 ms: cumprida.
+- **Bytes (gzip -9 / brotli):** os 3 módulos do desenho 19.631 / 17.700; forma 8.023 / 7.238; JS da faixa 27.654 / 24.938; a ligação **4.981 / 4.462** (o que toda visita baixa; o teto do teste é 5.000, a regra nova custou ~130 bytes); CSS 4.025 / 3.591; tudo 32.635 / 29.400. Os módulos e o CSS seguem só sob demanda.
+- **Lado a lado, A (2c) e B (2c-B):**
+
+| | A (entre a mesa e o formulário) | B (depois do formulário) |
+|---|---|---|
+| preço → botão do formulário (390 / 320 / 1.280) | 4,0 / 5,6 / 2,5 telas | 2,3 / 3,3 / 1,4 telas |
+| faixa entra sozinha em 1.280 x 800 | quase nunca (espera o gesto) | sempre (fora da área visível) |
+| CLS da planta | 0 | 0 |
+| delta de CLS da página | <= 0,006 | <= 0,008 |
+| tarefa longa a 4x | 7 de 12 (58 a 82 ms) | 7 de 12 (64 a 83 ms) |
+| ligação (bytes, gzip -9) | 4.865 | 4.981 |
+| a planta atrapalha o caminho até "Quero os três modelos" | sim | não |
+| a pessoa vê a planta sem procurar | sim (logo abaixo da conversa) | só pelo botão do chat ou rolando (fica abaixo de tudo que vier) |
+
+**Leitura honesta da troca.** B zera o custo no funil (a distância volta ao que a página já tinha), e a faixa passa a entrar sozinha mesmo no computador. O que se perde: em A quem descia a página dava de cara com a planta; em B ela só aparece para quem toca em "Ver a planta do seu site" ou rola até o fim, e os blocos de depois do pedido (modelos, pagamento) vêm antes dela. A decisão de manter B depende de saber se a planta é lida: ver o fim do registro (métricas).
+
+**Métricas: o que já existe e o que faltaria (NADA foi criado nem enviado; é decisão do dono, privacidade).**
+- Existe `js/metricas.js` (coleta própria, sem cookie nem IP; `/api/evento`, `api/_valida.mjs`, tabelas do esquema `metricas`), mas está DESLIGADA (`ativo: false` até o banco estar pronto, `docs/metricas/README.md`). Ligada, ela já anota as seções vistas da página (`main section[id]` que passam pela faixa do meio da tela): `o-planta` cabe no formato aceito (`^[a-z0-9-]{1,30}$`) e entraria sozinha na lista `secoes` como "viu a planta". Sem código novo, só ligando.
+- "Tocou em Está certo" e "tocou em Quero ajustar" NÃO existem como evento: o pacote tem só `botao` do contato, `form` (`abriu` ou `enviou`) e `form_campo`; a lista de campos é fechada em `api/_valida.mjs`. Contar exigiria um campo novo na lista fechada (por exemplo `planta: viu | certo | ajustar`, sem texto), a coluna correspondente numa migration e a emissão no `js/orcamento-planta.js`.
+- Pelo lado do servidor já há dado sem coleta nova: a conversa grava a mensagem "A planta está certa." (conta de "Está certo" por mensagem exata, o visitante pode também digitá-la) e `briefing.planta` guarda `versao`, `origem`, `motivos` e `tentativas` (versão maior que 1 = pediu ajuste); `api/_vendas/fluxo.mjs` escreve uma linha de log por desenho gravado. O painel do dono já lê o briefing.
+- Decisão a tomar: ligar `metricas.js` (traz "viu a planta" de graça, mas liga a coleta de todo o site) e se vale um campo novo para os dois toques.
+
 ## PR 2d-front: módulo do radar
 
 **Nível 2.** Ramo `planta-2d-front`, a partir do Passo 1 (**independe do 2b**). Revisão: `typescript-reviewer` + `a11y-architect`.
