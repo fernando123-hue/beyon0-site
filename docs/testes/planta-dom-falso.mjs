@@ -31,6 +31,7 @@ export class No {
   remove() { if (this.pai) this.pai.removeChild(this); }
   get firstChild() { return this.filhos[0] || null; }
   get parentNode() { return this.pai; }
+  get previousElementSibling() { if (!this.pai) return null; const irmaos = this.pai.filhos.filter((f) => f.nodeType === 1), i = irmaos.indexOf(this); return i > 0 ? irmaos[i - 1] : null; }
   get children() { return this.filhos.filter((f) => f.nodeType === 1); }
   get textContent() { return this.filhos.map((f) => f.textContent).join(''); }
   set textContent(v) { this.filhos.forEach((f) => { f.pai = null; }); this.filhos = []; if (v !== '' && v != null) { const t = new Texto(v); t.pai = this; this.filhos.push(t); } }

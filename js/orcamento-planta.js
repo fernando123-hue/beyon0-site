@@ -71,7 +71,7 @@
       b.addEventListener('click', verAPlanta);
       li.appendChild(b);
       st.botao = b;
-      if (colado) caixa.scrollTop = caixa.scrollHeight;   /* o balão cresceu: quem lia o fim continua no fim */
+      if (colado) caixa.scrollTop = caixa.scrollHeight;   /* quem lia o fim continua no fim */
     }
 
     /* ---- a faixa ---- */
@@ -110,12 +110,18 @@
       if (faixa) faixa.hidden = true;
       st.naTela = false; st.pendente = false;
     }
-    /* a faixa nasceria abaixo da dobra: a base da mesa passa da tela (e a mesa existe na página) */
+    /* a faixa é o último bloco do <main>: nasce onde termina o último bloco VISÍVEL antes dela (escondido ou sem altura não conta): a mesa enquanto #o-contato está escondido */
+    function referencia() {
+      var faixa = $('o-planta'), el = faixa ? faixa.previousElementSibling : null;
+      while (el) {
+        if (!el.hidden) { var r = el.getBoundingClientRect(); if (r.height > 0) return r; }
+        el = el.previousElementSibling;
+      }
+      return null;
+    }
     function nasceFora() {
-      var mesa = doc.querySelector('.orc-mesa');
-      if (!mesa) return false;
-      var r = mesa.getBoundingClientRect(), alto = win.innerHeight || (doc.documentElement && doc.documentElement.clientHeight) || 0;
-      return r.height > 0 && r.bottom > alto;
+      var r = referencia(), alto = win.innerHeight || (doc.documentElement && doc.documentElement.clientHeight) || 0;
+      return !!r && r.bottom > alto;
     }
     function inserir() {
       var E = st.E, p = leve(E), faixa = $('o-planta');
@@ -128,7 +134,7 @@
         faixa.hidden = true;
         st.recusas++;
         if (r) aviso('montar recusou (' + (r.motivos || []).join(',') + ')');
-        /* uma recusa pode ser só uma janela sem largura; na 2a (ou se lançou) o botão que leva a uma faixa que não nasce sai, e os gestos deixam de tentar */
+        /* uma recusa pode ser só uma janela sem largura; na 2a (ou se lançou) o botão morto sai e os gestos param */
         if (!r || st.recusas >= 2) { st.valido = false; st.pendente = false; tirarBotao(); soltarGestos(); }
         return false;
       }
@@ -176,10 +182,12 @@
     }
     function aoAjustar() {
       if (!editavel()) return;
-      var t = $('o-texto');
+      var t = $('o-texto'), form = $('o-form');
       if (!t) return;
       t.placeholder = DICA_AJUSTE;
-      t.focus();
+      /* a faixa fica longe da conversa: volta pela rolagem de "Perguntar ao consultor" e foca sem rolar de novo */
+      if (form && typeof form.scrollIntoView === 'function') form.scrollIntoView({ block: 'center' });
+      t.focus({ preventScroll: true });
     }
 
     /* ---- o carregamento sob demanda ---- */
@@ -211,7 +219,7 @@
       for (i = 0; i < MODULOS.length && primeira < 0; i++) if (!st.pegos[MODULOS[i]]) primeira = i;
       if (primeira >= 0) for (i = primeira; i < MODULOS.length; i++) delete st.pegos[MODULOS[i]];
       var lista = [];
-      if (!st.pegos[CSS_DA_FAIXA]) lista.push([CSS_DA_FAIXA, 'link']);   /* o CSS vem junto, sob demanda: com a flag desligada a página não paga nem o CSS bloqueante nem os bytes */
+      if (!st.pegos[CSS_DA_FAIXA]) lista.push([CSS_DA_FAIXA, 'link']);   /* o CSS também vem sob demanda: com a flag desligada a página não o paga */
       if (primeira >= 0) for (i = primeira; i < MODULOS.length; i++) lista.push([MODULOS[i], 'script']);
       if (!lista.length) { st.carga = 'ok'; seguir(); return; }
       falta = lista.length;
@@ -242,13 +250,13 @@
         st.json = json; st.valido = !!(v && v.ok); st.recusas = 0;
         if (!st.valido) aviso('planta recusada pela forma (' + ((v && v.motivos) || []).join(',') + ')');
       }
-      if (!st.valido) return recolher();   /* a planta recusada fica anotada (st.json): esconde e cala, sem revalidar nem avisar a cada render */
+      if (!st.valido) return recolher();   /* recusada: esconde e cala (st.json lembra) */
       var versaoNova = st.naTela && p.versao !== st.versao;
       st.versao = p.versao;
       colocarBotao(E, p);
       if (st.naTela) {
         var assin = p.versao + '|' + p.origem + '|' + (E.planta_editavel === true) + '|' + json;
-        if (assin === st.assin) return;   /* nada mudou para o desenho: não o chama de novo a cada leitura do estado */
+        if (assin === st.assin) return;   /* nada mudou para o desenho */
         st.assin = assin;
         var r = win.BZPlanta.atualizar(p.plano, opcoes(E, p, versaoNova));
         if (r && r.ok === false) aviso('atualizar recusou (' + (r.motivos || []).join(',') + ')');
@@ -257,7 +265,7 @@
       st.pendente = true;
       tentar();
     }
-    /* esconde e tira o botão, mas lembra o que já foi julgado (planta recusada não é revalidada nem avisada de novo) */
+    /* esconde e tira o botão, mas lembra o julgado (planta recusada não é revalidada nem avisada de novo) */
     function recolher() { esconder(); tirarBotao(); }
     /* a planta saiu do estado: esquece tudo o que valia para ela */
     function sumir() {
@@ -269,7 +277,7 @@
       try {
         if (deps && typeof deps === 'object') st.deps = deps;
         var p = leve(E);
-        st.E = E;   /* sempre o estado mais novo: se a planta some durante o download, quando os módulos chegam não há o que montar */
+        st.E = E;   /* sempre o mais novo: se a planta some durante o download, nada é montado */
         if (!p) { if (st.naTela || st.botao || st.pendente || st.gestos || st.json) sumir(); return; }
         if (st.carga === 'falhou' && p.versao !== st.versaoFalha) st.carga = 'nao';
         if (st.carga === 'nao') { st.versao = p.versao; carregar(); return; }

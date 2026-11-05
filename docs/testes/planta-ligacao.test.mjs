@@ -39,12 +39,16 @@ function ambiente({ desenho = 'espia', baixo = true, falhaDeCarga = false, falha
   const ids = {};
   const novo = (tag, id, cls) => { const n = doc.createElement(tag); if (id) { n.attrs.id = id; ids[id] = n; } if (cls) n.className = cls; return n; };
   doc.getElementById = (id) => ids[id] || null;
-  const mesa = novo('div', null, 'orc-mesa');
+  /* o <main> do fim da página (PR 2c-B): a mesa, o formulário #o-contato (escondido até o pacote ser gravado) e, por último, a faixa. A faixa nasce onde o último bloco visível termina */
+  const main = novo('main');
+  const mesa = novo('div', null, 'orc-mesa'); main.appendChild(mesa);
   mesa.getBoundingClientRect = () => ({ top: 100, bottom: mesa.base, height: mesa.base - 100, left: 0, right: 390, width: 390 });
   mesa.base = baixo ? 1500 : 600;   /* innerHeight = 800: base 1500 = a faixa nasceria abaixo da dobra; 600 = à vista */
-  doc.querySelector = (sel) => (sel === '.orc-mesa' ? mesa : null);
+  const contato = novo('section', 'o-contato', 'orc-bloco'); contato.hidden = true; main.appendChild(contato);
+  contato.getBoundingClientRect = () => (contato.hidden ? { top: 0, bottom: 0, height: 0 } : { top: mesa.base, bottom: contato.base, height: contato.base - mesa.base });
+  contato.base = 2500;
   doc.head = novo('head');
-  const faixa = novo('section', 'o-planta'); faixa.hidden = true; faixa.clientWidth = 390;
+  const faixa = novo('section', 'o-planta'); faixa.hidden = true; faixa.clientWidth = 390; main.appendChild(faixa);
   const caixa = novo('div', 'o-log-caixa'); caixa.scrollHeight = 1000; caixa.clientHeight = 400; caixa.scrollTop = 600;
   const log = novo('ol', 'o-log');
   const abertura = novo('li', null, 'msg msg--agente'); abertura.appendChild(novo('p')); log.appendChild(abertura);
@@ -79,7 +83,7 @@ function ambiente({ desenho = 'espia', baixo = true, falhaDeCarga = false, falha
   const L = Ligacao.criar(w);
   const rolou = [], enviou = [];
   const deps = { rolarAte: (el) => rolou.push(el), enviar: (t) => { enviou.push(t); return Promise.resolve(); } };
-  return { w, doc, L, faixa, mesa, log, caixa, texto, form, abertura, espiao, baixados, avisos, rolou, enviou, deps, ids };
+  return { w, doc, L, faixa, mesa, contato, main, log, caixa, texto, form, abertura, espiao, baixados, avisos, rolou, enviou, deps, ids };
 }
 
 /* o estado do servidor com uma planta; mensagens: visitante, Zero, visitante, Zero... (a planta chegou na fala de índice n_mensagens) */
@@ -460,7 +464,7 @@ const semComentarios = FONTE.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:'"
 
 test('fonte: nada de innerHTML, eval, estilo inline, rAF, escrita de HTML; src só da lista constante', () => {
   for (const [nome, re] of [['innerHTML', /\binnerHTML\b/], ['outerHTML', /\bouterHTML\b/], ['insertAdjacentHTML', /insertAdjacentHTML/], ['document.write', /document\s*\.\s*write/], ['eval', /\beval\s*\(/], ['new Function', /new\s+Function/],
-    ['setAttribute style', /setAttribute\s*\(\s*['"]style/], ['cssText', /cssText/], ['rAF', /requestAnimationFrame/], ['scrollIntoView', /scrollIntoView/], ['querySelector com concatenação', /querySelector(All)?\s*\([^)]*\+/]]) {
+    ['setAttribute style', /setAttribute\s*\(\s*['"]style/], ['cssText', /cssText/], ['rAF', /requestAnimationFrame/], ['querySelector com concatenação', /querySelector(All)?\s*\([^)]*\+/]]) {
     assert.doesNotMatch(semComentarios, re, nome);
   }
   const srcs = semComentarios.match(/\.src\s*=[^=][^;]*/g) || [];
@@ -496,15 +500,13 @@ test('fonte: nenhum texto do estado vira HTML; textos fixos da tela são as cons
 
 /* ---------- a página ---------- */
 const HTML = lerFonte('orcamento.html');
-test('orcamento.html: a faixa é uma <section id="o-planta" hidden> entre a mesa e os detalhes, sem style="", e o script da ligação vem antes do orcamento.js', () => {
+test('orcamento.html: a faixa é uma <section id="o-planta" hidden> sem style="", e o script da ligação vem antes do orcamento.js', () => {
   const i = HTML.indexOf('id="o-planta"');
   assert.ok(i > 0 && HTML.indexOf('id="o-planta"', i + 1) < 0, 'uma faixa só');
   const tag = HTML.slice(HTML.lastIndexOf('<', i), HTML.indexOf('>', i) + 1);
   assert.match(tag, /^<section\b/);
   assert.match(tag, /\bhidden\b/);
   assert.doesNotMatch(tag, /\bstyle\s*=/);
-  const mesa = HTML.indexOf('class="orc-mesa"'), contato = HTML.indexOf('id="o-contato"');
-  assert.ok(mesa < i && i < contato, 'entre .orc-mesa e #o-contato');
   const a = HTML.indexOf('src="js/orcamento-planta.js"'), b = HTML.indexOf('src="js/orcamento.js"');
   assert.ok(a > 0 && a < b, 'a ligação carrega antes de orcamento.js');
   assert.match(HTML.slice(HTML.lastIndexOf('<script', a), HTML.indexOf('>', a) + 1), /\bdefer\b/);
@@ -702,4 +704,89 @@ test('achado 5: o estado mais novo vale quando os módulos chegam (a versão de 
   prontos(amb);
   assert.equal(amb.espiao.montar[0].plano.fecho, 'Fecho da versão três do plano.');
   assert.equal(botoes(amb)[0].pai, amb.log.filhos[5 + 1]);
+});
+
+
+/* ======================================================================================================================================================
+   PR 2c-B: a faixa vai DEPOIS do formulário (decisão do dono, 05/11). A referência da regra de inserção é o último bloco VISÍVEL antes dela.
+   ====================================================================================================================================================== */
+test('2c-B: com o formulário escondido a faixa nasce logo depois da mesa (a base da mesa decide); com ele visível, depois dele (a base dele decide)', () => {
+  /* formulário visível e abaixo da dobra, mesa à vista: a faixa nasce fora da área visível, entra na hora */
+  const a = ambiente({ baixo: false });
+  a.contato.hidden = false; a.contato.base = 2500;
+  const E = estado(); redesenharLista(a, E);
+  a.L.atualizar(E, a.deps); prontos(a);
+  assert.equal(a.faixa.hidden, false, 'o formulário (visível) termina abaixo da tela: a faixa entra');
+  assert.equal(a.espiao.montar.length, 1);
+  /* formulário visível mas terminando dentro da tela: espera o gesto */
+  const b = ambiente({ baixo: false });
+  b.contato.hidden = false; b.contato.base = 700;
+  redesenharLista(b, E);
+  b.L.atualizar(E, b.deps); prontos(b);
+  assert.equal(b.faixa.hidden, true, 'o formulário termina dentro da tela: a faixa à vista espera');
+  assert.equal(botoes(b).length, 1);
+  b.doc.disparar('click');
+  assert.equal(b.faixa.hidden, false);
+});
+
+test('2c-B: bloco escondido ou sem altura não conta como referência (pula para o anterior); sem nenhum bloco visível antes, espera', () => {
+  const a = ambiente({ baixo: true });   /* mesa abaixo da dobra, formulário escondido */
+  const E = estado(); redesenharLista(a, E);
+  a.L.atualizar(E, a.deps); prontos(a);
+  assert.equal(a.faixa.hidden, false, 'formulário escondido: vale a mesa');
+  const b = ambiente({ baixo: true });
+  b.mesa.getBoundingClientRect = () => ({ top: 0, bottom: 0, height: 0 });   /* nada visível antes da faixa (a página de retomada, por exemplo) */
+  redesenharLista(b, E);
+  b.L.atualizar(E, b.deps); prontos(b);
+  assert.equal(b.faixa.hidden, true);
+  assert.equal(botoes(b).length, 1, 'o botão do chat segue sendo o caminho');
+});
+
+test('2c-B: a rolagem que leva o último bloco visível para baixo da dobra insere a faixa (a referência é a do momento)', () => {
+  const amb = ambiente({ baixo: false });
+  amb.contato.hidden = false; amb.contato.base = 700;
+  const E = estado(); redesenharLista(amb, E);
+  amb.L.atualizar(E, amb.deps); prontos(amb);
+  assert.equal(amb.faixa.hidden, true);
+  amb.contato.base = 1900;
+  amb.w.disparar('scroll'); amb.w.avancar(400);
+  assert.equal(amb.faixa.hidden, false);
+});
+
+test('2c-B: "Quero ajustar algo" volta até a caixa de texto (que fica longe da faixa) pela mesma rolagem de "Perguntar ao consultor" e foca sem rolar de novo', () => {
+  const amb = ambiente();
+  const E = estado(); redesenharLista(amb, E);
+  amb.L.atualizar(E, amb.deps); prontos(amb);
+  const chamadas = [];
+  amb.form.scrollIntoView = (op) => chamadas.push(op);
+  let foco = null;
+  amb.texto.focus = (op) => { foco = op; amb.doc.ativo = amb.texto; };
+  amb.espiao.montar[0].op.aoAjustar();
+  assert.deepEqual(chamadas, [{ block: 'center' }], 'rola o formulário da conversa ao meio da tela');
+  assert.deepEqual(foco, { preventScroll: true }, 'e foca sem rolar de novo (o teclado do celular não puxa a tela)');
+  assert.equal(amb.texto.placeholder, 'Diga o que mudar na planta.');
+  assert.deepEqual(amb.enviou, []);
+});
+
+test('2c-B: sem o formulário na página (ou sem scrollIntoView) "Quero ajustar algo" ainda foca a caixa e não lança', () => {
+  const amb = ambiente();
+  const E = estado(); redesenharLista(amb, E);
+  amb.L.atualizar(E, amb.deps); prontos(amb);
+  assert.doesNotThrow(() => amb.espiao.montar[0].op.aoAjustar());
+  assert.equal(amb.doc.ativo, amb.texto);
+});
+
+test('2c-B (fonte): a referência é o irmão visível anterior da faixa, não mais a mesa; o único scrollIntoView é o da volta à conversa', () => {
+  assert.doesNotMatch(semComentarios, /querySelector\(\s*['"]\.orc-mesa['"]/);
+  assert.match(semComentarios, /previousElementSibling/);
+  assert.equal((semComentarios.match(/scrollIntoView/g) || []).length, 2, 'a checagem de existência e a chamada, as duas na volta à conversa');
+  assert.match(semComentarios, /\$\('o-form'\)/);
+});
+
+test('2c-B: orcamento.html: a faixa é a ÚLTIMA seção do <main>, depois do formulário e de todo o fluxo (pedido, modelos, pagamento, entrega), antes do rodapé', () => {
+  const i = HTML.indexOf('id="o-planta"'), fimMain = HTML.indexOf('</main>'), contato = HTML.indexOf('id="o-contato"'), fim = HTML.indexOf('id="o-fim"');
+  assert.ok(contato < fim && fim < i && i < fimMain, 'depois de #o-contato e de #o-fim, antes de </main>');
+  const resto = HTML.slice(HTML.indexOf('>', i) + 1, fimMain).trim();
+  assert.ok(resto.startsWith('</section>') && resto.slice('</section>'.length).trim() === '', 'nada entre a faixa e o fim do <main>: ' + resto.slice(0, 80));
+  assert.equal(HTML.slice(HTML.lastIndexOf('<', i), HTML.indexOf('>', i) + 1).includes('hidden'), true);
 });
