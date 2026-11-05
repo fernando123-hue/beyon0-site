@@ -70,6 +70,7 @@
 .plv-est--lado .plv-tit { -webkit-line-clamp: 2; line-clamp: 2; }
 .plv-est--c .plv-tit { font-size: var(--fs-ctrl); -webkit-line-clamp: 4; line-clamp: 4; }
 .plv-est--lado.plv-est--sat .plv-tit { font-size: var(--fs-ctrl); -webkit-line-clamp: 4; line-clamp: 4; }
+.plv-est.plv-lin3 .plv-tit { -webkit-line-clamp: 3; line-clamp: 3; }
 .plv-est.is-ajustado { overflow: visible; }
 .plv-etq { position: absolute; top: -9px; right: 10px; padding: 0 6px; background: var(--bg); border: 1px solid var(--ac-2); font: 500 var(--fs-rotulo)/14px var(--mono); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--ac-2); }
 .plv-verbo, .plv-tit, .plv-n, .plv-ponta > * { transition: opacity .4s var(--ease), transform .4s var(--ease), color .4s var(--ease); }
@@ -146,7 +147,7 @@
   /* a legenda grudada na base da faixa enquanto a planta está à vista: sticky, não fixed (não briga com o teclado nem com .consentimento) */
   .plv-leitura { position: sticky; bottom: 0; z-index: 2; margin-top: 0; padding: 10px 0 8px; background: var(--bg); border-top: 1px solid var(--line); height: 126px; }
 }
-@media (max-width: 339px) {
+@media (max-width: 359px) {
   .plv-tit { font-size: 12px; }
 }
 @media (min-width: 480px) {

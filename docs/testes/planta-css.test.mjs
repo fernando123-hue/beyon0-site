@@ -101,3 +101,9 @@ test('sem JS e com movimento reduzido: as regras de entrada (plv--pre) só exist
   assert.match(limpo, /prefers-reduced-motion:\s*reduce\)\s*\{[^}]*animation:\s*none\s*!important/);
   assert.match(limpo, /html\.menos-movimento/);
 });
+
+test('(b) abaixo de 360 px o título das caixas é de 12 px (13 px quebra em 3 linhas e corta); o satélite do retrato pode ter 3 linhas', () => {
+  const limpo = semComentarios(css);
+  assert.match(limpo, /@media \(max-width: 359px\)\s*\{\s*\.plv-tit\s*\{\s*font-size:\s*12px/);
+  assert.match(limpo, /\.plv-est\.plv-lin3 \.plv-tit\s*\{[^}]*line-clamp:\s*3/);
+});
