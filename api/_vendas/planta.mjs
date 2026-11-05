@@ -73,6 +73,10 @@ const DESCRICAO = 'Desenha na tela, logo abaixo da conversa, a planta do site de
   'ok com exemplo true: o código mostrou um desenho de exemplo para o tipo de negócio; diga isso e que você refaz conforme a pessoa contar mais. ' +
   'Os exemplos abaixo são modelo de forma e de voz; escreva textos novos para ESTE negócio.';
 
+/* strict NÃO está ligado (decisão do PR 2a). api/_ia/anthropic.mjs passa o objeto da ferramenta inteiro à API (pedido.tools = ferramentas), então "strict: true"
+   chegaria lá; mas sem uma chamada real não dá para provar que a API aceita este esquema (28 tipos, 34 verbos, aninhamento, regras de tamanho só na
+   descrição), e um 400 derrubaria o turno inteiro do Zero. O esquema já evita palavras que o modo estrito recusa (sem minLength, maxLength, minItems,
+   pattern): ligar é UMA linha, a fazer na rodada real 8 se mais de 30% dos planos caírem no padrão. */
 /* a ferramenta (nova a cada chamada: quem a recebe pode mexer) */
 export function ferramentaPlanta() {
   const exemplos = EXEMPLOS.map((chave, i) => '\nEXEMPLO ' + (i + 1) + ': ' + JSON.stringify(planoPadrao(chave))).join('');

@@ -172,3 +172,21 @@ test('leitura gravada: só aparece com a flag ligada, validada na forma e nos te
   await local.db.query(`update app.conversas set briefing = briefing || jsonb_build_object('leitura', '{"eixos":[]}'::jsonb) where id = $1`, [c]);
   assert.equal(JSON.parse((await n.estado(LIGADA, c)).texto).leitura, undefined);
 });
+
+test('cada desenho gravado deixa uma linha de log JSON, sem texto de ninguém (origem, versão, tentativas, motivos)', async () => {
+  const linhas = [];
+  const original = console.log;
+  console.log = (...a) => { linhas.push(a.join(' ')); };
+  try {
+    const n = navegador();
+    const c = (await n.iniciar()).conversa_id;
+    await n.json(LIGADA, 'POST', 'mensagem', { conversa_id: c, texto: FALA_INICIAL });
+    await n.json(LIGADA, 'POST', 'mensagem', { conversa_id: c, texto: 'planta-ruim' });
+    await n.json(LIGADA, 'POST', 'mensagem', { conversa_id: c, texto: 'e agora, o que mais?' });
+  } finally { console.log = original; }
+  const logs = linhas.map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(l => l && l.evento === 'planta');
+  assert.equal(logs.length, 1, 'uma linha por desenho gravado (o turno seguinte, sem desenho novo, não repete)');
+  assert.deepEqual({ origem: logs[0].origem, nivel: logs[0].nivel, planta_origem: logs[0].planta_origem, versao: logs[0].versao, tentativas: logs[0].tentativas, motivos: logs[0].motivos },
+    { origem: 'vendas', nivel: 'info', planta_origem: 'modelo', versao: 1, tentativas: 2, motivos: ['digito'] });
+  assert.deepEqual(Object.keys(logs[0]).sort(), ['evento', 'motivos', 'nivel', 'origem', 'planta_origem', 'request_id', 'tentativas', 'versao']);
+});

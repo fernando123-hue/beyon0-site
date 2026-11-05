@@ -282,6 +282,12 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     await banco('vendas_registrar_turno', { conversa_id: conversaId, visitante_id: vid, mensagem_visitante: redigir(msg), mensagem_agente: r.resposta,
       ...(soDuvidas ? {} : { briefing: r.briefing, confianca: r.confianca }), custo_usd: r.custo_usd })
       .catch(async e => { await somarCusto(conversaId, vid, r.custo_usd); throw e; });
+    /* (planta viva) o log do Worker é da Cloudflare e o agente não o alcança; mesmo assim cada desenho gravado deixa uma linha JSON, sem texto de ninguém:
+       origem, versão, tentativas e os códigos dos motivos (a medição de verdade é pelo banco, que guarda os mesmos campos) */
+    const gravada = r.briefing && r.briefing.planta;
+    if (!soDuvidas && gravada && Number(gravada.versao) > (Number(est.conversa.briefing && est.conversa.briefing.planta && est.conversa.briefing.planta.versao) || 0)) {
+      console.log(JSON.stringify({ origem: 'vendas', nivel: 'info', request_id: requestId || null, evento: 'planta', planta_origem: gravada.origem, versao: gravada.versao, tentativas: gravada.tentativas, motivos: gravada.motivos }));
+    }
     /* a estimativa e o formulário só até a confirmação do pedido (ETAPAS_COM_PRECO, e pedido ainda não confirmado: a
        conversa volta a "contato" com o pedido confirmado se as três direções falham): o agente já não os devolve depois,
        e o banco recusa a estimativa (55000); esta é a camada do meio, para o estado que o turno leu no começo */
