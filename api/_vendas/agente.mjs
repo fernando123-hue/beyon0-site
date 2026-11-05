@@ -25,6 +25,7 @@ import {
 } from './zero.mjs';
 import { semPromessaDeSuporte, semMensalidadeDoAtendente } from './travas-promessa.mjs';
 import { semPromessaDeResultado, semGarantia } from './travas-resultado.mjs';
+import { semNegarSerIA, IDENTIDADE_FIXO } from './travas-identidade.mjs';
 
 const MAX_ITERACOES = 4;
 /* o texto do modelo cabe em 1.100 caracteres: sobram ~400 para o que o código acrescenta (a linha do valor, o recado fixo); o corte é antes das travas */
@@ -169,6 +170,10 @@ export async function executarTurno({ ia, regras, conversa, mensagem, direcoes, 
      como as de suporte e mensalidade; trocam só a frase que promete, então o marcador do valor e a pergunta seguinte ficam */
   resposta = semPromessaDeResultado(resposta).texto;
   resposta = semGarantia(resposta).texto;
+  /* o Zero é uma IA e diz isso: a frase que afirma ser pessoa/dono, nega ser IA ou finge vida humana vira o texto fixo honesto (segunda camada;
+     a defesa é o prompt). O texto de identidade manda para o botão DEIXAR UM RECADO, e o botão aparece junto, como no recado fixo */
+  resposta = semNegarSerIA(resposta).texto;
+  if (resposta.includes(IDENTIDADE_FIXO) && !diagnostico) diagnostico = 'recado';
   /* (teste com o modelo real) a pergunta ignorada não volta com as mesmas palavras; olha as duas últimas falas do Zero guardadas */
   /* se o turno acabou de ligar um botão (formulário ou recado), o convite fica no texto mesmo repetido */
   if (!pedirContato && !diagnostico) resposta = semPerguntaRepetida(resposta, (conversa.mensagens || []).filter(m => m && m.papel === 'agente').map(m => m.conteudo)).texto;

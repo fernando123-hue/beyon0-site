@@ -70,14 +70,14 @@ const CONTR_G = new RegExp(CONTRASTE.source, 'gi');
 const ultimas = (s, n) => s.trim().split(' ').slice(-n).join(' ');
 
 /* o texto sem acento e caixa, com a pontuação e o contraste trocados por um marcador (%%) que sobrevive à normalização */
-const preparar = raw => paraBusca(String(raw).replace(CONTR_G, ' ' + SEP + ' ').replace(PONT_G, ' ' + SEP + ' '));
+export const preparar = raw => paraBusca(String(raw).replace(CONTR_G, ' ' + SEP + ' ').replace(PONT_G, ' ' + SEP + ' '));
 const oracoes = norm => norm.split(SEP).map(s => s.trim()).filter(Boolean);
 
 /* letras espaçadas ("v a i  d o b r a r", "v-e-n-d-a-s"): separador igual em tudo vira uma palavra só; mistura de 1 e 2 espaços
    marca a fronteira entre palavras. Só serve para PROCURAR (a resposta mostrada nunca é reescrita assim) */
 const LETRA = 'A-Za-zÀ-ÿ';
 const CORRIDA = new RegExp('(?<![' + LETRA + '])[' + LETRA + '](?:[ \\-_*]{1,2}[' + LETRA + '](?![' + LETRA + '])){2,}', 'g');
-function desespacar(raw) {
+export function desespacar(raw) {
   return String(raw).replace(CORRIDA, corrida => {
     const larguras = (corrida.match(/[ \-_*]{1,2}/g) || []).map(s => s.length);
     const maior = Math.max(...larguras);
@@ -108,7 +108,7 @@ const MAX_FRASES = 1200;
 const MAX_CARACTERES = 6000;
 
 /* troca as frases marcadas pelo texto fixo de cada uma (cada texto fixo entra uma vez só); o resto da resposta fica */
-function trocarFrases(texto, decidir) {
+export function trocarFrases(texto, decidir) {
   const original = String(texto ?? '');
   const frases = frasesDe(original);
   const marcas = new Map();
@@ -136,7 +136,7 @@ function trocarFrases(texto, decidir) {
 
 /* ---------- o contexto que desfaz (ou não) uma promessa ---------- */
 /* a negação: "sem dúvida (nenhuma)" e "não se preocupe" não negam (limpa, do molde); "não tenha dúvida", "não tem erro" também não */
-const FALSA_NEGACAO = /\bsem (?:nenhuma )?duvidas?(?: nenhuma)?\b|\bnao (?:tenha|tem|ha) duvidas?\b|\bnao duvide\b|\bnao se engane\b|\bnao tem erro\b|\bsem erro\b|\bnao e so\b/g;
+export const FALSA_NEGACAO = /\bsem (?:nenhuma )?duvidas?(?: nenhuma)?\b|\bnao (?:tenha|tem|ha) duvidas?\b|\bnao duvide\b|\bnao se engane\b|\bnao tem erro\b|\bsem erro\b|\bnao e so\b/g;
 const NEGA_PERTO = /\b(?:nao|nunca|jamais|nem|nenhum|nenhuma|ninguem)\b/;
 /* a fala negada que cobre o resto da oração: "não vou prometer que...", "não tem como garantir que...", "sem garantia de que...", "ninguém sério garante..." */
 const FRAME = /\b(?:nao|nunca|jamais)\s+(?:\w+\s+){0,3}?(?:prometer|prometo|prometemos|promete|garantir|garanto|garantimos|garantid\w+|afirmar|afirmo|dizer|digo|assegurar|asseguro|jurar|juro|cravar|posso|consigo|podemos|conseguimos|sei|saber|quer dizer|significa|implica|e verdade)\b|\bnao\s+(?:existe|ha)\b|\bnao tem (?:como|garantia|certeza)\b|\bsem (?:nenhuma )?(?:garantia|certeza|promessas?|como)\b|\bninguem\b|\b(?:impossivel|mentira|falso|duvido|dificil)\b/;

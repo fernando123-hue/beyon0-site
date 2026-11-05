@@ -1167,3 +1167,6 @@ test('rodada 2 [M2]: a folga entre o corte do agente (1.100) e o que as travas e
 test('rodada 3 [I2]: dado inventado em anedota ("um dentista que atendemos triplicou...") sai com o texto fixo próprio', () => {
   for (const t of RODADA3_DADO) assert.equal(semPromessaDeResultado(t).texto, DADO_FIXO, t);
 });
+
+/* trava "negar ser IA": os testes ficam em travas-identidade.test.mjs (este arquivo está na lista do script testar) */
+import './travas-identidade.test.mjs';

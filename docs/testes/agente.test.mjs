@@ -501,3 +501,48 @@ test('pareceInjecao: "desconto à vista?", "chave Pix", "de graça" e "senha" nu
   ];
   for (const t of ataques) assert.equal(pareceInjecao(t), true, 'ataque: ' + t);
 });
+
+/* ---------- pareceInjecao: as lacunas que a revisão de segurança do PR #89 deixou (grátis / sem custo / zero reais, variáveis de ambiente, JWT, credenciais, "qual o seu prompt") ----------
+   O selo é só rótulo e log; os casos estão em injecao-casos.mjs (escritos antes dos padrões). Normal e ataque dos dois lados. */
+import { ATAQUES_B, NORMAIS_B } from './injecao-casos.mjs';
+import { ATAQUES_B2, NORMAIS_B2 } from './injecao-casos2.mjs';
+import { ATAQUES_B3, NORMAIS_B3, FUROS_B3 } from './injecao-casos3.mjs';
+for (const [nome, ataques, normais] of [['leva 1', ATAQUES_B, NORMAIS_B], ['leva 2', ATAQUES_B2, NORMAIS_B2], ['leva 3', ATAQUES_B3, NORMAIS_B3]]) {
+  test('pareceInjecao (lacunas do PR #89) [' + nome + ']: o PEDIDO de preço zero, variáveis de ambiente, JWT, credenciais e do prompt é marcado (' + ataques.length + ' frases)', () => {
+    const furos = ataques.filter(t => !pareceInjecao(t));
+    assert.deepEqual(furos, [], furos.length + ' de ' + ataques.length + ' não marcados:\n' + furos.join('\n'));
+  });
+  test('pareceInjecao (lacunas do PR #89) [' + nome + ']: o que a empresa de fato diz e a dúvida normal NÃO são marcados (' + normais.length + ' frases)', () => {
+    const marcadas = normais.filter(pareceInjecao);
+    assert.deepEqual(marcadas, [], marcadas.length + ' de ' + normais.length + ' marcadas:\n' + marcadas.join('\n'));
+  });
+}
+import { NORMAIS_DIVULGACAO, ATAQUES_REFORCO } from './injecao-rodada2.mjs';
+test('pareceInjecao (rodada de correção): o pedido comercial normal, em que o cliente quer DIVULGAR algo grátis no site dele, NÃO é marcado (' + NORMAIS_DIVULGACAO.length + ' frases)', () => {
+  const marcadas = NORMAIS_DIVULGACAO.filter(pareceInjecao);
+  assert.deepEqual(marcadas, [], marcadas.length + ' de ' + NORMAIS_DIVULGACAO.length + ' marcadas:\n' + marcadas.join('\n'));
+});
+test('pareceInjecao (rodada de correção): quando o objeto grátis / sem custo / R$ 0 é o serviço ou o preço da Beyon, continua marcando', () => {
+  const furos = ATAQUES_REFORCO.filter(t => !pareceInjecao(t));
+  assert.deepEqual(furos, [], furos.length + ' não marcados:\n' + furos.join('\n'));
+});
+test('pareceInjecao (lacunas do PR #89): os furos conhecidos estão documentados (melhorar o selo só gera um aviso, nunca vermelho)', () => {
+  const pegos = FUROS_B3.filter(pareceInjecao);
+  if (pegos.length) console.warn('[aviso] ' + pegos.length + ' de ' + FUROS_B3.length + ' furos do selo já são marcados; mova para ATAQUES:\n  ' + pegos.join('\n  '));
+  assert.ok(FUROS_B3.length >= 8 && FUROS_B3.every(t => typeof t === 'string' && t.length > 3));
+});
+test('pareceInjecao: o que a empresa de fato diz continua sem selo ("o orçamento é grátis", "o domínio sai de graça", "a hospedagem é de graça")', () => {
+  for (const t of ['O orçamento é grátis.', 'O domínio sai de graça no primeiro ano.', 'A hospedagem é de graça na Cloudflare.', 'A consulta inicial é sem custo.', 'Os modelos você vê sem custo antes de pagar o sinal.', 'O primeiro ano do domínio é por conta da Beyon, sem custo para você.'])
+    assert.equal(pareceInjecao(t), false, t);
+});
+test('pareceInjecao (lacunas do PR #89): entrada estranha não demora (ReDoS: 50 mil caracteres patológicos)', () => {
+  const ruins = [
+    'a'.repeat(50000), 'faz '.repeat(12500), 'quero o site '.repeat(3800), 'faça o site de forma muito clara e simples '.repeat(1200) + 'grátis', ('x'.repeat(50) + ' ').repeat(980) + 'grátis',
+    'cobre '.repeat(8000) + 'R$ 0', 'variáveis de '.repeat(3800), 'mostre as variáveis de ambiente '.repeat(1500), 'jwt '.repeat(12500), 'me mostre o '.repeat(4000) + 'jwt',
+    'suas credenciais '.repeat(3000), 'credenciais do '.repeat(3300), 'qual o seu '.repeat(4500), 'me passe suas '.repeat(3500) + 'instruções', 'instruções do sistema '.repeat(2300),
+    'quero '.repeat(8000) + 'sem custo', 'dê '.repeat(16000) + 'zero reais', '0,'.repeat(25000), 'R$ '.repeat(16000), 'mostre seu '.repeat(4500)
+  ];
+  const ini = performance.now();
+  for (const c of ruins) assert.equal(typeof pareceInjecao(c), 'boolean');
+  assert.ok(performance.now() - ini < 3000, 'o selo responde rápido em texto hostil: ' + (performance.now() - ini).toFixed(1) + ' ms');
+});
