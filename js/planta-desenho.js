@@ -466,7 +466,7 @@
           var enche = e.intersectionRect && win.innerHeight && e.intersectionRect.height >= win.innerHeight * 0.4;
           if (!inst.iniciada) { if (vis && (e.intersectionRatio >= FRACAO_VISIVEL || enche) && inst.aguardando) iniciar(); return; }
           if (vis && !doc.hidden) retomarTudo(); else pausarTudo();
-        }, { threshold: [0, 0.1, 0.2, FRACAO_VISIVEL, 0.5, 0.75, 1] });
+        }, { threshold: [0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, FRACAO_VISIVEL, 0.4, 0.45, 0.5, 0.75, 1] });
         inst.io.observe(inst.quadro);
       }
     }

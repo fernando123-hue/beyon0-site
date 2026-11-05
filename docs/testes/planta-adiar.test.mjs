@@ -92,3 +92,11 @@ test('o quadro do celular pequeno começa quando ocupa 40% da altura da janela (
   b.w.mostrar(0.22, 313);
   assert.ok(b.w.rodando().length > 10, '313 px de 640: começou (era o caso do 320 x 640)');
 });
+
+test('o observador tem limiares de 5 em 5% até a metade (o quadro alto do celular: o corte de 40% da janela cai entre 30% e 35% DELE, e o navegador só chama nos limiares)', () => {
+  const { w, A, raiz } = amb();
+  A.montar(raiz, fx('clinica'), {});
+  const lim = [].concat(w.observadores[0].opcoes.threshold);
+  for (let p = 0; p <= 0.5001; p += 0.05) assert.ok(lim.some((x) => Math.abs(x - p) < 1e-9), 'falta o limiar ' + p.toFixed(2));
+  assert.ok(lim.includes(0.35) && lim.includes(1));
+});
