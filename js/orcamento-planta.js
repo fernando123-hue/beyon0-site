@@ -1,17 +1,8 @@
-/* ==========================================================================
-   A PLANTA NA PÁGINA DE ORÇAMENTO (PR 2c; spec §1.2, §1.3, §4.4). A cola entre o `estado` e os módulos do desenho (js/planta-desenho.js e os três que ele
-   usa). js/orcamento.js chama BZOrcPlanta.atualizar(E, { rolarAte, enviar }) a cada render(), depois de conversa().
-   • O `estado` só traz `planta` com a flag BZ_PLANTA ligada: sem ela (ou com planta de forma errada) nada acontece, nada é baixado, nenhum ouvinte nasce.
-   • Os 4 módulos (forma, peças, layout, desenho) e o CSS da faixa são baixados sob demanda, UMA vez, de URLs CONSTANTES (nunca src montado com dado do estado);
-     o botão e a faixa só nascem depois que tudo chegou, então nunca aparecem sem estilo.
-   • O botão "Ver a planta do seu site" mora dentro da fala do Zero de índice `planta.n_mensagens` (a abertura fixa da lista soma 1) e é recolocado a cada
-     render, porque conversa() refaz a lista inteira; um botão só, sob a fala da versão mais nova.
-   • REGRA DE INSERÇÃO (spec §4.4): a faixa só sai de `hidden` quando a posição dela nasce abaixo da área visível (a base da mesa passa da tela) ou num gesto
-     da pessoa (clique, tecla, toque no botão): o navegador não conta deslocamento logo depois de uma ação dela. Não há área vazia reservada.
-   • Falha fechada e silenciosa: qualquer erro aqui esconde a faixa, tira o botão e deixa um aviso "[beyon] planta" no console; a conversa nunca depende disto.
-   • "Está certo" manda "A planta está certa." pelo envio normal da tela (uma vez por versão); "Quero ajustar algo" só foca a caixa de texto. Os dois só valem
-     com `planta_editavel`. Texto do modelo nunca passa por aqui: quem o põe na tela é o desenho, por textContent. ES5 sintático.
-   ========================================================================== */
+/* A PLANTA NA PÁGINA DE ORÇAMENTO (PR 2c; spec §1.2, §1.3, §4.4): a cola entre o estado e os módulos do desenho. js/orcamento.js chama
+   BZOrcPlanta.atualizar(E, { rolarAte, enviar }) a cada render(), depois de conversa(). Sem E.planta (flag BZ_PLANTA desligada) nada acontece: nada é baixado nem ouvido.
+   Os 4 módulos e o CSS vêm sob demanda de URLs CONSTANTES; botão e faixa só nascem depois que tudo chegou. O botão "Ver a planta do seu site" mora na fala do Zero de índice
+   n_mensagens (a abertura fixa soma 1) e é recolocado a cada render. A faixa só sai de hidden abaixo da dobra ou num gesto da pessoa (spec §4.4: o navegador não conta o
+   deslocamento logo depois de uma ação dela). Falha fechada, com aviso "[beyon] planta". Texto do modelo nunca passa por aqui (o desenho usa textContent). ES5. */
 (function (raiz, fabrica) {
   'use strict';
   var api = fabrica();
@@ -42,7 +33,7 @@
 
   function criar(win) {
     var doc = win.document;
-    var st = { carga: 'nao', versaoFalha: 0, E: null, deps: {}, versao: 0, json: '', assin: '', valido: false, naTela: false, pendente: false, gestos: false, botao: null, certoVersao: 0, timer: 0 };
+    var st = { carga: 'nao', versaoFalha: 0, pegos: {}, elementos: {}, E: null, deps: {}, versao: 0, json: '', assin: '', valido: false, recusas: 0, avisouModulos: false, naTela: false, pendente: false, gestos: false, botao: null, certoVersao: 0, timer: 0 };
 
     var $ = function (id) { return doc.getElementById(id); };
     function aviso(e) {
@@ -54,8 +45,7 @@
       if (st.botao && st.botao.parentNode) st.botao.parentNode.removeChild(st.botao);
       st.botao = null;
     }
-    /* a fala do Zero que trouxe a versão: índice n_mensagens da lista do estado; a abertura fixa é o 1º item do DOM. Se aquela posição não é fala do Zero
-       (a fala saiu da janela de 60, posição 0), vale a mais próxima antes dela, e a 1ª depois dela se não houver antes */
+    /* a fala do Zero de índice n_mensagens (a abertura fixa é o 1º item do DOM); se aquela posição não é fala do Zero, a mais próxima antes, ou a 1ª depois */
     function falaDoZero(E, p) {
       var log = $('o-log');
       if (!log) return null;
@@ -136,8 +126,10 @@
       try { r = win.BZPlanta.montar(faixa, p.plano, opcoes(E, p, false)); } catch (e) { aviso(e); }
       if (!r || !r.ok) {
         faixa.hidden = true;
+        st.recusas++;
         if (r) aviso('montar recusou (' + (r.motivos || []).join(',') + ')');
-        else { st.valido = false; tirarBotao(); soltarGestos(); }
+        /* uma recusa pode ser só uma janela sem largura; na 2a (ou se lançou) o botão que leva a uma faixa que não nasce sai, e os gestos deixam de tentar */
+        if (!r || st.recusas >= 2) { st.valido = false; st.pendente = false; tirarBotao(); soltarGestos(); }
         return false;
       }
       st.naTela = true; st.pendente = false;
@@ -170,11 +162,17 @@
 
     /* ---- os botões da faixa ---- */
     var editavel = function () { return !!st.E && st.E.planta_editavel === true; };
+    /* enviar() devolve false se não aceitou (conversa ocupada) ou falhou sem gravar: só o envio aceito gasta a versão. Marca já (dois cliques = um envio) e solta se recusar,
+       rejeitar ou lançar; sem retorno vale como aceito */
     function aoCerto() {
       if (!editavel() || st.certoVersao === st.versao) return;
       if (typeof st.deps.enviar !== 'function') return;
-      st.certoVersao = st.versao;
-      st.deps.enviar(TEXTO_CERTO);
+      var versao = st.versao, r;
+      st.certoVersao = versao;
+      function liberar() { if (st.certoVersao === versao) st.certoVersao = 0; }
+      try { r = st.deps.enviar(TEXTO_CERTO); } catch (e) { aviso(e); liberar(); return; }
+      if (r && typeof r.then === 'function') r.then(function (aceitou) { if (aceitou === false) liberar(); }, function (e) { aviso(e); liberar(); });
+      else if (r === false) liberar();
     }
     function aoAjustar() {
       if (!editavel()) return;
@@ -185,31 +183,48 @@
     }
 
     /* ---- o carregamento sob demanda ---- */
+    /* O desenho lê os outros três ao carregar: a ordem é a da lista. Depois de uma falha só baixa o que falta (do módulo que falhou em diante e o CSS se não chegou), tirando
+       o elemento velho do <head>; a nova tentativa só começa quando todo o lote anterior se resolveu. */
+    function anexar(url, tipo, aoFim) {
+      var velho = st.elementos[url];
+      if (velho && velho.parentNode) velho.parentNode.removeChild(velho);
+      var e = doc.createElement(tipo);
+      if (tipo === 'link') {
+        e.rel = 'stylesheet';
+        e.href = CSS_DA_FAIXA;
+      } else {
+        e['async'] = false;
+        e.src = url;
+      }
+      e.addEventListener('load', function () { st.pegos[url] = true; aoFim(true); });
+      e.addEventListener('error', function () {
+        if (e.parentNode) e.parentNode.removeChild(e);
+        delete st.elementos[url];
+        aoFim(false);
+      });
+      st.elementos[url] = e;
+      doc.head.appendChild(e);
+    }
     function carregar() {
       st.carga = 'indo';
-      var falta = MODULOS.length + 1, falhou = false;
-      function chegou() { if (--falta === 0 && !falhou) { st.carga = 'ok'; seguir(); } }
-      function quebrou() {
-        if (falhou) return;
-        falhou = true; st.carga = 'falhou'; st.versaoFalha = st.versao;
-        aviso('não consegui baixar os módulos ou o CSS');
-        esconder(); tirarBotao();
+      var primeira = -1, i, falta = 0, falhou = false;
+      for (i = 0; i < MODULOS.length && primeira < 0; i++) if (!st.pegos[MODULOS[i]]) primeira = i;
+      if (primeira >= 0) for (i = primeira; i < MODULOS.length; i++) delete st.pegos[MODULOS[i]];
+      var lista = [];
+      if (!st.pegos[CSS_DA_FAIXA]) lista.push([CSS_DA_FAIXA, 'link']);   /* o CSS vem junto, sob demanda: com a flag desligada a página não paga nem o CSS bloqueante nem os bytes */
+      if (primeira >= 0) for (i = primeira; i < MODULOS.length; i++) lista.push([MODULOS[i], 'script']);
+      if (!lista.length) { st.carga = 'ok'; seguir(); return; }
+      falta = lista.length;
+      function fim(deuCerto) {
+        if (!deuCerto) falhou = true;
+        if (--falta > 0) return;
+        if (falhou) {
+          st.carga = 'falhou'; st.versaoFalha = st.versao;
+          aviso('não consegui baixar os módulos ou o CSS');
+          recolher();
+        } else { st.carga = 'ok'; seguir(); }
       }
-      /* o CSS vem junto, sob demanda: com a flag desligada a página não paga nem o CSS bloqueante nem os bytes */
-      var l = doc.createElement('link');
-      l.rel = 'stylesheet';
-      l.href = CSS_DA_FAIXA;
-      l.addEventListener('load', chegou);
-      l.addEventListener('error', quebrou);
-      doc.head.appendChild(l);
-      for (var i = 0; i < MODULOS.length; i++) {
-        var s = doc.createElement('script');
-        s.async = false;   /* a ordem de execução é a da lista: o desenho lê os outros três quando carrega */
-        s.src = MODULOS[i];
-        s.addEventListener('load', chegou);
-        s.addEventListener('error', quebrou);
-        doc.head.appendChild(s);
-      }
+      for (i = 0; i < lista.length; i++) anexar(lista[i][0], lista[i][1], fim);
     }
 
     /* ---- o fluxo ---- */
@@ -217,14 +232,17 @@
       var E = st.E, p = leve(E);
       if (!p) return sumir();
       var Forma = win.BZPlantaForma;
-      if (!Forma || !win.BZPlanta) { aviso('módulos incompletos'); return sumir(); }
+      if (!Forma || !win.BZPlanta) {
+        if (!st.avisouModulos) { st.avisouModulos = true; aviso('módulos incompletos'); }
+        return recolher();
+      }
       var json = JSON.stringify(p.plano);
       if (json !== st.json) {
         var v = Forma.validarFormaPlano(p.plano);
-        st.json = json; st.valido = !!(v && v.ok);
+        st.json = json; st.valido = !!(v && v.ok); st.recusas = 0;
         if (!st.valido) aviso('planta recusada pela forma (' + ((v && v.motivos) || []).join(',') + ')');
       }
-      if (!st.valido) return sumir();
+      if (!st.valido) return recolher();   /* a planta recusada fica anotada (st.json): esconde e cala, sem revalidar nem avisar a cada render */
       var versaoNova = st.naTela && p.versao !== st.versao;
       st.versao = p.versao;
       colocarBotao(E, p);
@@ -239,17 +257,20 @@
       st.pendente = true;
       tentar();
     }
+    /* esconde e tira o botão, mas lembra o que já foi julgado (planta recusada não é revalidada nem avisada de novo) */
+    function recolher() { esconder(); tirarBotao(); }
+    /* a planta saiu do estado: esquece tudo o que valia para ela */
     function sumir() {
-      esconder(); tirarBotao();
-      st.json = ''; st.valido = false;
+      recolher();
+      st.json = ''; st.valido = false; st.recusas = 0; st.avisouModulos = false; st.assin = '';
     }
 
     function atualizar(E, deps) {
       try {
         if (deps && typeof deps === 'object') st.deps = deps;
         var p = leve(E);
-        if (!p) { if (st.naTela || st.botao || st.pendente || st.gestos) sumir(); return; }
-        st.E = E;
+        st.E = E;   /* sempre o estado mais novo: se a planta some durante o download, quando os módulos chegam não há o que montar */
+        if (!p) { if (st.naTela || st.botao || st.pendente || st.gestos || st.json) sumir(); return; }
         if (st.carga === 'falhou' && p.versao !== st.versaoFalha) st.carga = 'nao';
         if (st.carga === 'nao') { st.versao = p.versao; carregar(); return; }
         if (st.carga === 'ok') seguir();

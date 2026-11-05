@@ -22,9 +22,9 @@ const TEXTO_CERTO = 'A planta está certa.';
 
 /* o desenho de espia: registra o que a ligação pede, sem desenhar */
 function espia() {
-  const e = { montar: [], atualizar: [], parar: 0, falha: false };
+  const e = { montar: [], atualizar: [], parar: 0, falha: false, recusar: false };
   e.api = {
-    montar(raiz, plano, op) { e.montar.push({ raiz, plano, op }); if (e.falha) throw new Error('boom'); return { ok: true, etapas: plano.etapas.length + 1 }; },
+    montar(raiz, plano, op) { e.montar.push({ raiz, plano, op }); if (e.falha) throw new Error('boom'); if (e.recusar) return { ok: false, motivos: ['sem_largura'] }; return { ok: true, etapas: plano.etapas.length + 1 }; },
     atualizar(plano, op) { e.atualizar.push({ plano, op }); return { ok: true }; },
     parar() { e.parar++; }
   };
@@ -32,7 +32,8 @@ function espia() {
 }
 
 /* A página de mentira: só o que a ligação toca. Mesa com a base onde o teste mandar; a lista de mensagens (a abertura fixa + as do estado) */
-function ambiente({ desenho = 'espia', baixo = true, falhaDeCarga = false } = {}) {
+function ambiente({ desenho = 'espia', baixo = true, falhaDeCarga = false, falhaPrimeiraVez = false, semModulos = false } = {}) {
+  let jaFalhou = false;
   const w = criarJanela({ reduzido: true, largura: 390, beyon: true });
   const doc = w.document;
   const ids = {};
@@ -51,7 +52,7 @@ function ambiente({ desenho = 'espia', baixo = true, falhaDeCarga = false } = {}
   const form = novo('form', 'o-form');
   /* o carregador: cada <script> anexado ao <head> "baixa" e roda no próximo tick; o teste escolhe o que cada URL entrega */
   const baixados = [];
-  const fonte = { 'js/orcamento-planta-forma.js': () => { w.BZPlantaForma = Forma; }, 'js/planta-pecas.js': () => { w.BZPlantaPecas = Pecas; }, 'js/planta-layout.js': () => { w.BZPlantaLayout = Layout; },
+  const fonte = { 'js/orcamento-planta-forma.js': () => { if (!semModulos) w.BZPlantaForma = Forma; }, 'js/planta-pecas.js': () => { w.BZPlantaPecas = Pecas; }, 'js/planta-layout.js': () => { w.BZPlantaLayout = Layout; },
     'js/planta-desenho.js': () => { w.BZPlanta = desenho === 'real' ? Desenho.criar(w) : espia.atual.api; } };
   const anexar = doc.head.appendChild.bind(doc.head);
   doc.head.appendChild = (s) => {
@@ -64,7 +65,7 @@ function ambiente({ desenho = 'espia', baixo = true, falhaDeCarga = false } = {}
     if (String(s.tagName).toLowerCase() !== 'script') return s;
     baixados.push(s.src);
     w.setTimeout(() => {
-      if (falhaDeCarga && s.src === 'js/planta-layout.js') { s.disparar('error'); return; }
+      if ((falhaDeCarga || (falhaPrimeiraVez && !jaFalhou)) && s.src === 'js/planta-layout.js') { jaFalhou = true; s.disparar('error'); return; }
       fonte[s.src]();
       s.disparar('load');
     }, 0);
@@ -464,11 +465,17 @@ test('fonte: nada de innerHTML, eval, estilo inline, rAF, escrita de HTML; src s
   }
   const srcs = semComentarios.match(/\.src\s*=[^=][^;]*/g) || [];
   assert.equal(srcs.length, 1, 'uma atribuição de src só');
-  assert.match(srcs[0], /\.src\s*=\s*MODULOS\[/, 'vinda da lista constante');
+  assert.match(srcs[0], /\.src\s*=\s*url$/, 'vinda do argumento de anexar()');
   const hrefs = semComentarios.match(/\.href\s*=[^=][^;]*/g) || [];
   assert.equal(hrefs.length, 1, 'uma atribuição de href só');
   assert.match(hrefs[0], /\.href\s*=\s*CSS_DA_FAIXA/, 'vinda da constante');
   assert.match(semComentarios, /var CSS_DA_FAIXA = 'css\/orcamento-planta\.css';/);
+  /* o argumento url só nasce de duas chamadas: a lista constante de módulos e a constante do CSS */
+  assert.equal((semComentarios.match(/\banexar\(/g) || []).length, 2, 'a definição e uma chamada');
+  assert.match(semComentarios, /anexar\(lista\[i\]\[0\], lista\[i\]\[1\], fim\)/);
+  assert.match(semComentarios, /lista\.push\(\[CSS_DA_FAIXA, 'link'\]\)/);
+  assert.match(semComentarios, /lista\.push\(\[MODULOS\[i\], 'script'\]\)/);
+  assert.equal((semComentarios.match(/lista\.push\(/g) || []).length, 2, 'só essas duas entradas');
   const lista = semComentarios.match(/var MODULOS = \[([^\]]*)\]/);
   assert.ok(lista, 'a lista constante existe');
   assert.deepEqual(lista[1].split(',').map((s) => s.trim().replace(/^'|'$/g, '')), MODULOS);
@@ -520,4 +527,179 @@ test('docs/servidor.mjs liga BZ_PLANTA no servidor local, salvo BZ_PLANTA_LOCAL=
   const src = lerFonte('docs/servidor.mjs');
   assert.match(src, /if \(process\.env\.BZ_PLANTA_LOCAL !== 'desligada'\) process\.env\.BZ_PLANTA = 'ligada'; else delete process\.env\.BZ_PLANTA;/);
   assert.ok(src.indexOf('BZ_PLANTA_LOCAL') < src.indexOf("await import('./banco-local.mjs')"), 'a flag vale antes de o agente de vendas local subir');
+});
+
+
+/* ======================================================================================================================================================
+   Rodada de correção depois das revisões do 2c (code-reviewer + security-reviewer, 05/11)
+   ====================================================================================================================================================== */
+const tick = async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); };
+const clicarCerto = (amb) => amb.espiao.montar[0].op.aoCerto();
+function pronto(amb, E) { redesenharLista(amb, E); amb.L.atualizar(E, amb.deps); prontos(amb); }
+
+test('achado 1: "Está certo" com a conversa ocupada (enviar recusou) NÃO gasta a versão: o próximo clique manda', async () => {
+  const amb = ambiente();
+  const respostas = [false, true];
+  amb.deps.enviar = (t) => { amb.enviou.push(t); return Promise.resolve(respostas.shift()); };
+  pronto(amb, estado());
+  clicarCerto(amb); await tick();
+  assert.equal(amb.enviou.length, 1, 'o 1º clique chamou o envio, que recusou (a conversa estava ocupada)');
+  clicarCerto(amb); await tick();
+  assert.equal(amb.enviou.length, 2, 'a versão não foi gasta: o 2º clique manda');
+  clicarCerto(amb); await tick();
+  assert.equal(amb.enviou.length, 2, 'aceito, a versão está gasta: o 3º clique não manda');
+});
+
+test('achado 1: dois cliques seguidos (o 1º ainda no ar) mandam uma vez só; falha de rede libera de novo', async () => {
+  const amb = ambiente();
+  let solta; const noAr = new Promise((r) => { solta = r; });
+  const fila = [noAr, Promise.resolve(true)];
+  amb.deps.enviar = (t) => { amb.enviou.push(t); return fila.shift(); };
+  pronto(amb, estado());
+  clicarCerto(amb); clicarCerto(amb);
+  assert.equal(amb.enviou.length, 1, 'dois cliques seguidos: um envio');
+  solta(false); await tick();   /* a rede falhou: o texto volta à caixa e o envio devolve false */
+  clicarCerto(amb); await tick();
+  assert.equal(amb.enviou.length, 2, 'depois da falha o botão manda de novo');
+  clicarCerto(amb); await tick();
+  assert.equal(amb.enviou.length, 2);
+});
+
+test('achado 1: envio que rejeita ou lança libera a versão e deixa aviso [beyon], sem estourar', async () => {
+  for (const modo of ['rejeita', 'lanca']) {
+    const amb = ambiente();
+    let n = 0;
+    amb.deps.enviar = (t) => { amb.enviou.push(t); n++; if (n === 1) { if (modo === 'lanca') throw new Error('boom'); return Promise.reject(new Error('rede')); } return Promise.resolve(true); };
+    pronto(amb, estado());
+    assert.doesNotThrow(() => clicarCerto(amb));
+    await tick();
+    assert.ok(amb.avisos.some((a) => a.startsWith('[beyon] planta')), modo + ': ' + amb.avisos.join('|'));
+    clicarCerto(amb); await tick();
+    assert.equal(amb.enviou.length, 2, modo + ': liberou');
+  }
+});
+
+test('achado 1: um envio que não devolve nada (função antiga) conta como aceito', async () => {
+  const amb = ambiente();
+  amb.deps.enviar = (t) => { amb.enviou.push(t); };
+  pronto(amb, estado());
+  clicarCerto(amb); await tick(); clicarCerto(amb); await tick();
+  assert.equal(amb.enviou.length, 1);
+});
+
+test('achado 1 (fonte): enviar() de js/orcamento.js diz se aceitou: false com a conversa ocupada e quando falhou sem gravar, true quando o turno entrou', () => {
+  const src = lerFonte('js/orcamento.js');
+  const corpo = src.slice(src.indexOf('async function enviar(texto)'), src.indexOf('async function falhaNoEnvio'));
+  assert.match(corpo, /if \(enviando\) return false;/);
+  assert.match(corpo, /return await falhaNoEnvio\(e, texto, minha, antes\);/);
+  assert.match(corpo, /\n    return true;\n  \}/, 'o fim do envio feliz devolve true');
+  const falha = src.slice(src.indexOf('async function falhaNoEnvio'), src.indexOf('async function reenviar'));
+  assert.match(falha, /var gravada = visitantesNoServidor\(\) > antes;/);
+  assert.equal((falha.match(/return gravada;/g) || []).length, 4, 'toda saída de falhaNoEnvio devolve se o turno entrou');
+  assert.doesNotMatch(falha, /return avisarSessao\(\)|return;/);
+});
+
+test('achado 2: planta recusada pela forma esconde, mas não repete o aviso a cada render', () => {
+  const amb = ambiente();
+  const E = estado(); E.planta.plano.etapas[0].titulo = '<img src=x>';
+  redesenharLista(amb, E);
+  amb.L.atualizar(E, amb.deps); prontos(amb);
+  for (let i = 0; i < 5; i++) amb.L.atualizar(E, amb.deps);
+  assert.equal(amb.avisos.filter((a) => /recusada pela forma/.test(a)).length, 1, amb.avisos.join('|'));
+  assert.equal(amb.faixa.hidden, true); assert.equal(botoes(amb).length, 0);
+  /* planta nova e boa: volta a valer */
+  const boa = estado(); boa.planta.versao = 2;
+  redesenharLista(amb, boa);
+  amb.L.atualizar(boa, amb.deps); prontos(amb);
+  assert.equal(amb.faixa.hidden, false);
+});
+
+test('achado 2: módulos incompletos avisam uma vez, não a cada render', () => {
+  const amb = ambiente({ semModulos: true });
+  const E = estado();
+  redesenharLista(amb, E);
+  amb.L.atualizar(E, amb.deps); prontos(amb);
+  for (let i = 0; i < 5; i++) amb.L.atualizar(E, amb.deps);
+  assert.equal(amb.avisos.filter((a) => /módulos incompletos/.test(a)).length, 1, amb.avisos.join('|'));
+  assert.equal(amb.faixa.hidden, true);
+});
+
+test('achado 3: montar que recusa (ok:false) duas vezes mata o botão e os ouvintes; não tenta a cada gesto', () => {
+  const amb = ambiente({ baixo: false });
+  amb.espiao.recusar = true;
+  const E = estado();
+  redesenharLista(amb, E);
+  amb.L.atualizar(E, amb.deps); prontos(amb);
+  assert.equal(botoes(amb).length, 1, 'a 1ª tentativa ainda não aconteceu: o botão está lá');
+  amb.doc.disparar('click');
+  assert.equal(amb.espiao.montar.length, 1, '1ª recusa');
+  assert.equal(botoes(amb).length, 1, 'uma recusa só: pode ser só uma janela sem largura');
+  amb.doc.disparar('click');
+  assert.equal(amb.espiao.montar.length, 2, '2ª recusa');
+  assert.equal(botoes(amb).length, 0, 'na 2ª o botão morto sai');
+  assert.equal(Object.keys(amb.doc.ouvintes).filter((k) => amb.doc.ouvintes[k].length).length, 0, 'e os ouvintes de gesto também');
+  amb.doc.disparar('click'); amb.doc.disparar('keydown'); amb.L.atualizar(E, amb.deps);
+  assert.equal(amb.espiao.montar.length, 2, 'não tenta mais');
+  assert.equal(amb.faixa.hidden, true);
+  /* uma versão nova do plano zera a conta */
+  amb.espiao.recusar = false;
+  const E2 = estado(); E2.planta.versao = 2; E2.planta.plano.fecho = 'Outro fecho, plano novo, vale tentar.';
+  redesenharLista(amb, E2);
+  amb.L.atualizar(E2, amb.deps); amb.doc.disparar('click');
+  assert.equal(amb.faixa.hidden, false);
+});
+
+test('achado 4: a nova tentativa depois de uma falha de download baixa só o que falta (do módulo que falhou em diante) e tira o elemento que falhou', () => {
+  const amb = ambiente({ falhaPrimeiraVez: true });
+  let E = estado();
+  redesenharLista(amb, E);
+  amb.L.atualizar(E, amb.deps); prontos(amb);
+  assert.equal(scripts(amb).length, 3, 'o elemento que falhou já saiu do <head>');
+  assert.equal(amb.faixa.hidden, true);
+  E = estado(); E.planta = Object.assign({}, E.planta, { versao: 2 });
+  amb.L.atualizar(E, amb.deps);
+  assert.deepEqual(amb.baixados.slice(5), ['js/planta-layout.js', 'js/planta-desenho.js'], 'só o que falhou e o que vem depois dele (o desenho lê os outros ao carregar): ' + amb.baixados.join(','));
+  assert.equal(links(amb).length, 1, 'o CSS que já chegou não vem de novo');
+  prontos(amb);
+  const srcs = scripts(amb).map((x) => x.src);
+  assert.equal(srcs.filter((x) => x === 'js/planta-layout.js').length, 1, 'o elemento que falhou saiu do <head>: ' + srcs.join(','));
+  assert.equal(srcs.filter((x) => x === 'js/orcamento-planta-forma.js').length, 1);
+  assert.equal(amb.faixa.hidden, false);
+  assert.equal(amb.espiao.montar.length, 1);
+});
+
+test('achado 4: com módulo ainda no ar, outro render não anexa nada', () => {
+  const amb = ambiente({ falhaPrimeiraVez: true });
+  let E = estado();
+  redesenharLista(amb, E);
+  amb.L.atualizar(E, amb.deps);   /* nada rodou ainda: todos no ar */
+  E = estado(); E.planta = Object.assign({}, E.planta, { versao: 2 });
+  amb.L.atualizar(E, amb.deps);
+  assert.equal(scripts(amb).length, 4, 'enquanto baixa, outro render não anexa nada');
+  prontos(amb);
+});
+
+test('achado 5: a planta some do estado enquanto os módulos baixam: ao chegarem, nada é montado e não sobra botão', () => {
+  const amb = ambiente();
+  const E = estado();
+  redesenharLista(amb, E);
+  amb.L.atualizar(E, amb.deps);
+  amb.L.atualizar(estado({ planta: undefined }), amb.deps);
+  prontos(amb);
+  assert.equal(amb.faixa.hidden, true);
+  assert.equal(amb.espiao.montar.length, 0);
+  assert.equal(botoes(amb).length, 0);
+  assert.equal(Object.keys(amb.doc.ouvintes).filter((k) => amb.doc.ouvintes[k].length).length, 0);
+});
+
+test('achado 5: o estado mais novo vale quando os módulos chegam (a versão de agora, não a do 1º render)', () => {
+  const amb = ambiente();
+  redesenharLista(amb, estado());
+  amb.L.atualizar(estado(), amb.deps);
+  const novo = estado(); novo.planta = Object.assign({}, novo.planta, { versao: 3, n_mensagens: 5 }); novo.planta.plano = Object.assign({}, novo.planta.plano, { fecho: 'Fecho da versão três do plano.' });
+  amb.L.atualizar(novo, amb.deps);
+  redesenharLista(amb, novo);
+  prontos(amb);
+  assert.equal(amb.espiao.montar[0].plano.fecho, 'Fecho da versão três do plano.');
+  assert.equal(botoes(amb)[0].pai, amb.log.filhos[5 + 1]);
 });

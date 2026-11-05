@@ -142,6 +142,56 @@ console.log('\n== ajuste e preço fechado (estado forjado na rede) ==');
   await ctx.close();
 }
 
+/* ---------- "Está certo" só gasta a versão quando o envio entrou (achado 1 das revisões) ---------- */
+console.log('\n== "Está certo" com a conversa ocupada e com a rede caindo ==');
+{
+  const { ctx, page, erros } = await abrir(ON);
+  await turno(page, T1);
+  await turno(page, 'planta-boa pode desenhar');
+  await page.waitForSelector('#o-planta:not([hidden]) .plv-quadro');
+  const visitantes = () => page.locator('#o-log .msg--visitante').count();
+  const base = await visitantes();
+  /* (a) conversa ocupada: uma mensagem normal segura o envio por 2,5 s; o clique em "Está certo" nesse meio tempo não manda nada e não gasta a versão */
+  await page.route('**/api/vendas?acao=mensagem*', async (r) => { await espera(2500); r.continue(); });
+  await page.fill('#o-texto', 'E o prazo, como fica?'); await page.press('#o-texto', 'Enter');
+  await page.waitForFunction((k) => document.querySelectorAll('#o-log .msg--visitante').length > k, base);
+  await page.locator('.plv-btn', { hasText: 'Está certo' }).click();
+  await espera(300);
+  ok(await visitantes() === base + 1, 'com a conversa ocupada, "Está certo" não manda nada (só a mensagem que já estava indo)');
+  await page.waitForSelector('#o-pensando[hidden]', { state: 'attached', timeout: 40000 });
+  await page.unroute('**/api/vendas?acao=mensagem*');
+  await page.locator('.plv-btn', { hasText: 'Está certo' }).click();
+  await page.waitForFunction((k) => document.querySelectorAll('#o-log .msg--visitante').length > k, base + 1, { timeout: 20000 });
+  await page.waitForSelector('#o-pensando[hidden]', { state: 'attached', timeout: 40000 });
+  ok(await visitantes() === base + 2 && (await page.locator('#o-log .msg--visitante').last().textContent()).trim() === 'A planta está certa.', 'a versão não foi gasta pelo clique recusado: o clique seguinte manda "A planta está certa."');
+  await page.locator('.plv-btn', { hasText: 'Está certo' }).click(); await espera(500);
+  ok(await visitantes() === base + 2, 'e agora, aceito, a versão está gasta: outro clique não manda');
+  ok(erros.filter((e) => !/Failed to load resource|ERR_FAILED/.test(e)).length === 0, 'nenhum erro de página' + (erros.length ? ': ' + erros.join(' | ') : ''));
+  await ctx.close();
+}
+{
+  const { ctx, page } = await abrir(ON);
+  await turno(page, T1);
+  await turno(page, 'planta-boa pode desenhar');
+  await page.waitForSelector('#o-planta:not([hidden]) .plv-quadro');
+  const visitantes = () => page.locator('#o-log .msg--visitante').count();
+  const base = await visitantes();
+  /* (b) a rede cai no envio: o texto volta à caixa e a versão fica livre; com a rede de volta o botão manda */
+  let derrubar = true;
+  await page.route('**/api/vendas?acao=mensagem*', (r) => (derrubar ? r.abort('failed') : r.continue()));
+  await page.locator('.plv-btn', { hasText: 'Está certo' }).click();
+  await page.waitForFunction(() => !document.getElementById('o-pensando') || document.getElementById('o-pensando').hidden, null, { timeout: 40000 });
+  await espera(1500);
+  ok(await visitantes() === base, 'a rede caiu: nenhuma mensagem fica na conversa');
+  ok(await page.inputValue('#o-texto') === 'A planta está certa.', 'e o texto voltou à caixa (o aviso da tela oferece tentar de novo)');
+  derrubar = false;
+  await page.fill('#o-texto', '');
+  await page.locator('.plv-btn', { hasText: 'Está certo' }).click();
+  await page.waitForFunction((k) => document.querySelectorAll('#o-log .msg--visitante').length > k, base, { timeout: 20000 });
+  ok(await visitantes() === base + 1, 'a rede voltou: "Está certo" manda de novo (a versão não foi gasta pela falha)');
+  await ctx.close();
+}
+
 /* ---------- 320 px e a faixa à vista ---------- */
 console.log('\n== 320 px ==');
 {
