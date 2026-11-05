@@ -66,7 +66,7 @@ const DESCRICAO = 'Desenha na tela, logo abaixo da conversa, a planta do site de
   'Escreva em português do Brasil, na voz da Beyon ("a gente"), em terceira pessoa para quem chega, no presente, sem jargão. É o desenho do que o site PODE fazer a partir do que a pessoa contou, nunca promessa: ' +
   'proibido qualquer número ou algarismo, preço, custo, prazo, resultado, garantia, suporte, marca ou nome de terceiro (vale só o nome do negócio que a pessoa deu), link, e-mail, emoji e formatação; nada de "mais clientes" nem "vende sozinho". ' +
   'Em saúde e advocacia, nada de depoimento nem de antes e depois. ' +
-  'Tamanhos: título de 3 a 40 caracteres, frase de 20 a 110, rótulo de 3 a 28; 7 ou 8 etapas (mais a chegada, 8 ou 9 caixas); títulos diferentes entre si; id de 2 a 24 letras minúsculas, números ou hífen. ' +
+  'Tamanhos: título de 3 a 40 caracteres, frase de 20 a 110, rótulo de 3 a 28; 7 ou 8 etapas (mais a chegada, 8 ou 9 caixas); títulos diferentes entre si; id de 2 a 24 letras minúsculas, números ou hífen (não use os ids reservados nucleo, led, chegada, constructor, prototype e proto); o fecho conta como frase (20 a 110 caracteres). ' +
   'Topologia: laco (o fim volta ao começo; a última etapa leva retorno true; rotulo_retorno opcional), bifurca (a conversa decide e o caminho se divide e se junta: 1 ou mais etapas de entrada, a última com decisao true; 1 a 2 etapas no ramo 0; 1 a 2 no ramo 1; 1 a 2 de saída sem ramo; rotulos_ramos com 2 rótulos), ' +
   'espinha (4 a 5 etapas de tronco e 2 a 4 satélites, cada um com satelite_de apontando para o id de uma etapa do tronco e lado cima ou baixo; no máximo um satélite por etapa e um só com laco true). ' +
   'Resultado: ok com na_tela, o desenho já está na tela: diga em uma frase que desenhou o site em planta, logo abaixo, sem descrever as etapas. ok false com erros: corrija e chame de novo UMA vez. ' +
@@ -171,19 +171,51 @@ export function fecharTurno({ briefing, turno, prefixoUsado, esgotou, nMensagens
 }
 
 /* ---------- o que o estado mostra ---------- */
+/* A posição da fala do Zero que trouxe o desenho. Na GRAVAÇÃO vale a posição ABSOLUTA na conversa (0 é a 1ª mensagem guardada; todo turno guarda 2 mensagens, e
+   `turnos` é o contador do banco): 2 * turnos + 1 é a fala do Zero do turno em curso. Na LEITURA a tela só recebe as últimas 60 mensagens (vendas_estado), então
+   a posição vira a da janela: tira as mensagens que ficaram para trás. Sem `turnos` (teste, dado antigo) vale o comprimento da lista + 1, como antes.
+   A fala de abertura fixa do Zero NÃO está no banco: quem a mostra (a tela) soma 1 à posição se a puser no começo da lista (anotado para o PR 2c). */
+export const MENSAGENS_NA_JANELA = 60;
+export function posicaoDaFala({ turnos, mensagens }) {
+  return Number.isInteger(turnos) && turnos >= 0 ? 2 * turnos + 1 : (Number.isInteger(mensagens) ? mensagens : 0) + 1;
+}
+export function posicaoNaJanela(absoluta, { turnos, mensagensNaJanela }) {
+  if (!Number.isInteger(absoluta) || absoluta < 0) return 0;
+  if (!Number.isInteger(turnos) || turnos < 0 || !Number.isInteger(mensagensNaJanela)) return absoluta;
+  return Math.max(0, absoluta - Math.max(0, 2 * turnos - mensagensNaJanela));
+}
+
+/* O estado revalida a cada leitura, e isso custava 16 a 30 ms quentes e ~330 a 550 ms frios (as regex das travas antigas): o plano grátis da Cloudflare tem 10 ms
+   de CPU. Agora o estado confere só a FORMA e a LISTA DURA (as dez travas rodam ao GRAVAR e no turno do modelo), e guarda o resultado por
+   (plano, nome do negócio, nicho regulado) no isolate: a 2ª leitura do mesmo plano é um JSON.stringify e um Map. */
+const CACHE_MAX = 64;
+const cachePlantas = new Map();
+export const limparCacheDaPlanta = () => cachePlantas.clear();
+function planoRevalidado(plano, nomeDoNegocio, regulado) {
+  let chave;
+  try { chave = JSON.stringify([regulado, nomeDoNegocio, plano]); } catch { return null; }
+  if (typeof chave !== 'string') return null;
+  if (cachePlantas.has(chave)) { const g = cachePlantas.get(chave); return g === null ? null : JSON.parse(g); }
+  const v = validarPlano(plano, { nomeDoNegocio, regulado, travas: false });
+  if (cachePlantas.size >= CACHE_MAX) cachePlantas.delete(cachePlantas.keys().next().value);
+  cachePlantas.set(chave, v.ok ? JSON.stringify(v.plano) : null);
+  return v.ok ? v.plano : null;
+}
+
 /* a planta gravada, REVALIDADA a cada leitura: { versao, origem, n_mensagens, plano } (sem motivos nem tentativas, que ficam no banco), ou null.
-   Plano gravado que deixou de ser válido sai como o padrão do nicho (origem "padrao"). */
-export function montarPlanta(briefing, { regulado = false } = {}) {
+   Plano gravado que deixou de ser válido sai como o padrão do nicho (origem "padrao"). `turnos` e `mensagensNaJanela` põem n_mensagens na janela da tela. */
+export function montarPlanta(briefing, { regulado = false, turnos, mensagensNaJanela } = {}) {
   const p = briefing && typeof briefing === 'object' ? briefing.planta : null;
   if (!p || typeof p !== 'object' || Array.isArray(p) || !Number.isInteger(p.versao) || p.versao < 1) return null;
   const nomeDoNegocio = briefing.negocio && typeof briefing.negocio.nome === 'string' ? briefing.negocio.nome : '';
-  const v = validarPlano(p.plano, { nomeDoNegocio, regulado });
-  const nMensagens = Number.isInteger(p.n_mensagens) && p.n_mensagens >= 0 ? p.n_mensagens : 0;
-  if (v.ok) return { versao: p.versao, origem: p.origem === 'modelo' ? 'modelo' : 'padrao', n_mensagens: nMensagens, plano: v.plano };
+  const plano = planoRevalidado(p.plano, nomeDoNegocio, !!regulado);
+  const nMensagens = posicaoNaJanela(Number.isInteger(p.n_mensagens) && p.n_mensagens >= 0 ? p.n_mensagens : 0, { turnos, mensagensNaJanela });
+  if (plano) return { versao: p.versao, origem: p.origem === 'modelo' ? 'modelo' : 'padrao', n_mensagens: nMensagens, plano };
   return { versao: p.versao, origem: 'padrao', n_mensagens: nMensagens, plano: planoPadrao(nichoDaPlanta(briefing)) };
 }
 
-/* a leitura do radar (2d) gravada: aqui só a forma e a lista dura (a âncora é da gravação, PR 2d). Inválida: some (nunca vira nota inventada) */
+/* a leitura do radar (2d) gravada: aqui só a forma e a lista dura (a âncora é da gravação, PR 2d). Inválida: some (nunca vira nota inventada).
+   A evidência devolvida é a NORMALIZADA (a mesma que a lista dura conferiu), nunca a crua */
 export function leituraParaTela(briefing, { regulado = false } = {}) {
   const l = briefing && typeof briefing === 'object' ? briefing.leitura : null;
   if (!l || typeof l !== 'object') return null;
@@ -192,9 +224,9 @@ export function leituraParaTela(briefing, { regulado = false } = {}) {
   /* a evidência de um eixo "não falou" nunca é desenhada (a forma a aceita em qualquer nível; quem decide mostrar é este validador) */
   const eixos = [];
   for (const e of f.leitura.eixos) {
-    const evidencia = e.nivel === 'nao_falou' ? undefined : e.evidencia;
-    if (evidencia !== undefined && !textoDoPlanoPermitido(evidencia, { regulado }).ok) return null;
-    eixos.push(evidencia === undefined ? { eixo: e.eixo, nivel: e.nivel } : { eixo: e.eixo, nivel: e.nivel, evidencia });
+    const r = e.nivel === 'nao_falou' || e.evidencia === undefined ? null : textoDoPlanoPermitido(e.evidencia, { regulado, travas: false, primeiraPessoa: true });
+    if (r && !r.ok) return null;
+    eixos.push(r ? { eixo: e.eixo, nivel: e.nivel, evidencia: r.texto } : { eixo: e.eixo, nivel: e.nivel });
   }
   return { eixos };
 }

@@ -156,13 +156,13 @@ test('com a flag ligada, o modelo que esquece duas vezes ganha o padrão do nich
 test('leitura gravada: só aparece com a flag ligada, validada na forma e nos textos; inválida some', async () => {
   const { n, c } = await conversaComPlanta();
   const leitura = { eixos: [
-    { eixo: 'volume', nivel: 'comentou', evidencia: 'tem procura todo dia' }, { eixo: 'repeticao', nivel: 'nao_falou', evidencia: 'isto não deve aparecer' },
+    { eixo: 'volume', nivel: 'comentou', evidencia: 'tem muita procura' }, { eixo: 'repeticao', nivel: 'nao_falou', evidencia: 'isto não deve aparecer' },
     { eixo: 'urgencia', nivel: 'nao_falou' }, { eixo: 'pessoas', nivel: 'deixou_claro', evidencia: 'só eu atendo' }, { eixo: 'informacao', nivel: 'nao_falou' }] };
   await local.db.query(`update app.conversas set briefing = briefing || jsonb_build_object('leitura', $2::jsonb) where id = $1`, [c, JSON.stringify(leitura)]);
   const e = JSON.parse((await n.estado(LIGADA, c)).texto);
   assert.deepEqual(e.leitura.eixos.map(x => x.eixo), ['volume', 'repeticao', 'urgencia', 'pessoas', 'informacao']);
   assert.equal(e.leitura.eixos[1].evidencia, undefined, 'evidência de eixo "não falou" não é devolvida');
-  assert.equal(e.leitura.eixos[0].evidencia, 'tem procura todo dia');
+  assert.equal(e.leitura.eixos[0].evidencia, 'tem muita procura');
   assert.equal(JSON.parse((await n.estado({}, c)).texto).leitura, undefined);
   /* evidência com número: a leitura inteira some (o radar nunca repete número) */
   leitura.eixos[0].evidencia = 'tem 30 pedidos por dia';

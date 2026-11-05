@@ -16,7 +16,7 @@
    ========================================================================== */
 import { limparAtualizacao, limparTexto, mesclar, avaliar, prontoParaEstimar } from './briefing.mjs';
 import { IDENTIDADE, montarSistema, ferramentas, proximoPasso, pedePlanta, NOME_PLANTA, ETAPAS_SO_DUVIDAS, FERRAMENTAS_DE_PRECO, precoAberto } from './consultor.mjs';
-import { resolverDesenho, fecharTurno, turnoDaPlantaInicial, semChavesDaPlanta, plantaParaModelo } from './planta.mjs';
+import { resolverDesenho, fecharTurno, turnoDaPlantaInicial, semChavesDaPlanta, plantaParaModelo, posicaoDaFala } from './planta.mjs';
 import { estimar } from './precos.mjs';
 import { redigir, semPrecoNoTexto, semPrecoComMarca } from './seguranca.mjs';
 import { semPromessaDePagamento, motivoDaPergunta, motivoDaTroca, RESPOSTAS_PAGAMENTO } from './promessa.mjs';
@@ -148,7 +148,7 @@ export async function executarTurno({ ia, regras, conversa, mensagem, direcoes, 
         saida = { ok: true, ...avaliar(briefing), proximo_passo: proximoPasso({ regras, etapa: conversa.etapa, briefing, estimativa: estimativa || conversa.estimativa, metodos, planta: planta && !!conversa.estimativa, pedidoStatus: conversa.pedido_status }) };   /* (o do ESTADO é do começo do turno) */
       } else if (ch.nome === NOME_PLANTA) {
         /* só chega aqui com a flag e o preço aberto (permitidas). O validador é do servidor; o modelo não grava a planta de outro jeito */
-        const d = resolverDesenho({ entrada: ch.entrada, briefing, turno: desenho, ctx: { estimativaNoInicio: !!conversa.estimativa, nMensagens: (conversa.mensagens || []).length + 1,
+        const d = resolverDesenho({ entrada: ch.entrada, briefing, turno: desenho, ctx: { estimativaNoInicio: !!conversa.estimativa, nMensagens: posicaoDaFala({ turnos: conversa.turnos, mensagens: (conversa.mensagens || []).length }),
           regulado: !!(nicho || nichoDaSessao({ briefing, mensagens: [], mensagem: '' })), nomeDoNegocio: typeof briefing.negocio?.nome === 'string' ? briefing.negocio.nome : '' } });
         briefing = d.briefing; desenho = d.turno; saida = d.saida;
       } else if (ch.nome === 'estimar') {
@@ -174,7 +174,7 @@ export async function executarTurno({ ia, regras, conversa, mensagem, direcoes, 
   }
 
   /* o fim do turno da planta: o padrão se a volta de correção estourou ou se o modelo esqueceu duas vezes; senão só o contador */
-  briefing = fecharTurno({ briefing, turno: desenho, prefixoUsado, esgotou: !terminouNatural, nMensagens: (conversa.mensagens || []).length + 1 });
+  briefing = fecharTurno({ briefing, turno: desenho, prefixoUsado, esgotou: !terminouNatural, nMensagens: posicaoDaFala({ turnos: conversa.turnos, mensagens: (conversa.mensagens || []).length }) });
   if (sugestoes.length) briefing = mesclar(briefing, { oportunidades_ia: sugestoes.map(s => s.ideia) });
   const semPreco = cortarEmFrase(semPrecoNoTexto(semNotacaoInterna(texto)).trim(), TEXTO_DO_MODELO_MAX) || (soDuvidas ? 'Pode repetir a sua dúvida?' : 'Pode me contar um pouco mais sobre o seu negócio?');
   /* (o filtro olha exatamente o que vai para a tela: o corte de 1.500 vem antes) */

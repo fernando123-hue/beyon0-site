@@ -1,6 +1,6 @@
 /* ==========================================================================
    O VALIDADOR DO PLANO NO SERVIDOR (spec §2.4). Servidor e tela usam a MESMA forma (js/orcamento-planta-forma.js); só os textos são do
-   servidor. validarPlano(bruto, { nomeDoNegocio, regulado }) -> { ok: true, plano, motivos: [], erros: [] } | { ok: false, motivos, erros }.
+   servidor. validarPlano(bruto, { nomeDoNegocio, regulado, travas }) -> { ok: true, plano, motivos: [], erros: [] } | { ok: false, motivos, erros }.
    Nunca lança. Os motivos são códigos (cabem no banco, sem texto do modelo ou do visitante); erros = [{ caminho, codigo }], no máximo 20.
    Ordem:
      0) o corpo grande é cortado ANTES de a forma rodar (a forma faz JSON.stringify do bruto inteiro para medir os 8 KB): uma caminhada com teto
@@ -38,7 +38,11 @@ function cabe(bruto) {
       if (fundura > FUNDURA_MAX) return 'grande';
       const proto = Object.getPrototypeOf(v);
       if (proto !== Object.prototype && proto !== Array.prototype && proto !== null) return 'nao_objeto';
-      for (const chave of Object.getOwnPropertyNames(v)) {
+      /* (o teto de nós vale ANTES de empilhar os filhos: um array de 200 mil itens não vira uma pilha de 200 mil) */
+      if (Array.isArray(v) && nos + v.length > NOS_MAX) return 'grande';
+      const chaves = Object.getOwnPropertyNames(v);
+      if (nos + chaves.length > NOS_MAX + 1) return 'grande';
+      for (const chave of chaves) {
         if (chave === 'length' && Array.isArray(v)) continue;
         caracteres += chave.length;
         const d = Object.getOwnPropertyDescriptor(v, chave);
@@ -71,7 +75,7 @@ const TAMANHOS = {
 
 export function validarPlano(bruto, opcoes) {
   try {
-    const { nomeDoNegocio = '', regulado = false } = opcoes && typeof opcoes === 'object' ? opcoes : {};
+    const { nomeDoNegocio = '', regulado = false, travas = true } = opcoes && typeof opcoes === 'object' ? opcoes : {};
     const corte = cabe(bruto);
     if (corte) return falha(corte);
     const forma = F.validarFormaPlano(bruto);
@@ -99,7 +103,7 @@ export function validarPlano(bruto, opcoes) {
     }
     /* 4) cada texto na camada de texto (o texto aceito volta normalizado; é o mesmo que já está no plano) */
     for (const c of campos) {
-      const r = textoDoPlanoPermitido(c.obj[c.chave], { nomeDoNegocio, regulado });
+      const r = textoDoPlanoPermitido(c.obj[c.chave], { nomeDoNegocio, regulado, travas });
       if (!r.ok) reprovar(c.caminho, r.motivo);
     }
     return motivos.length ? { ok: false, motivos, erros } : { ok: true, plano, motivos: [], erros: [] };
