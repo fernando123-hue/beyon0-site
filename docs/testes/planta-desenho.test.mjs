@@ -197,7 +197,8 @@ test('animado: o quadro nasce no estado de esboço, e só começa quando 35% da 
   assert.equal(r.animada, true);
   assert.ok(quadroDe(raiz)._classes.has('plv--pre'));
   assert.equal(w.observadores.length, 1);
-  assert.deepEqual([].concat(w.observadores[0].opcoes.threshold), [0, 0.35]);
+  const limiares = [].concat(w.observadores[0].opcoes.threshold);
+  assert.ok(limiares.includes(0) && limiares.includes(0.35), 'o observador acorda em 0 e em 35%');
   assert.equal(w.rodando().length, 0, 'nada rodando antes de aparecer');
   assert.equal(w.pendentes(), 0, 'nenhum temporizador antes de aparecer');
   w.mostrar(0.2);
@@ -205,6 +206,15 @@ test('animado: o quadro nasce no estado de esboço, e só começa quando 35% da 
   w.mostrar(0.4);
   assert.ok(w.rodando().length > 10, 'começou: ' + w.rodando().length);
   assert.ok(w.pendentes() > 0);
+});
+
+test('o quadro do celular é mais alto que a janela: começa também quando ele ocupa metade da altura da janela, mesmo com menos de 35% dele visível', () => {
+  const { w, A, raiz } = ambiente();
+  A.montar(raiz, fx('clinica'), {});
+  w.mostrar(0.3, 300);
+  assert.equal(w.rodando().length, 0, '300 px de 800 (e 30% do quadro) ainda não');
+  w.mostrar(0.3, 420);
+  assert.ok(w.rodando().length > 10, 'ocupa mais da metade da janela: começou');
 });
 
 test('animado de ponta a ponta: a luz acende as caixas na ordem, o ouro vem só no LED, termina com status e legenda finais', () => {

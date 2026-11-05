@@ -1,155 +1,121 @@
-/* Mede o CLS da PLANTA VIVA (laboratório) deslocamento por deslocamento, com as fontes de cada um (Passo 0 do plano da planta viva;
-   resultado em docs/superpowers/plans/planta-passo0-cls-notas.md). Diferente de uma soma de "value": para cada carregamento registra
-     - cada layout-shift com value, hadRecentInput e sources (nó, retângulo anterior e atual);
-     - uma linha do tempo por quadro (requestAnimationFrame) no 1,5 s depois do DOMContentLoaded: painel oculto?, altura do quadro,
-       largura e altura da nota, altura da lista "anotado" e da legenda, posição do quadro, fonte pronta?;
-     - marcas do JS (DOMContentLoaded, load, fonte carregada, fonts.ready, mudança do style do quadro).
-   O headless desenha por software: serve para COMPARAR variantes, não como número de aparelho real. O 1º carregamento de cada execução é
-   lento (processo de GPU subindo); por isso há um aquecimento que não entra nas medidas.
+/* Mede a PLANTA VIVA no laboratório (docs/lab-planta.html, módulos REAIS): CLS (meta do passo 0: <= 0,01 em 390x844, 320x640, 320x844 e
+   1280x800, nos 3 nichos, 3 repetições com aquecimento), fps na entrada e no repouso, quadros > 50 ms, nós do DOM e, com a CPU 4x
+   (Emulation.setCPUThrottlingRate), o tempo de montagem e as tarefas longas na entrada. Recriada para o laboratório novo a partir da
+   ferramenta do passo 0 (que registrava layout-shift com sources no protótipo; o histórico dela está no git, commit 148deab e
+   docs/superpowers/plans/planta-passo0-cls-notas.md).
+   O headless desenha por software: serve para COMPARAR, não como fps de aparelho real. O 1º carregamento de cada execução é lento
+   (processo de GPU subindo): há um aquecimento que não entra nas medidas.
 
-   Uso:  node docs/lab-planta-medir.mjs <prefixo-da-saida> [tamanhos] [variantes] [esperaMs]
-         node docs/lab-planta-medir.mjs --help
-   Ex.:  BASE=http://127.0.0.1:8899 CHROMIUM="$LOCALAPPDATA/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-win64/chrome-headless-shell.exe" \
-         node docs/lab-planta-medir.mjs medidas/cls 390x844,320x640,320x844,1280x800 base,altura+preload 4500
-   Servidor: node docs/servidor.mjs . 8899 (a pasta que tem o laboratório). */
+   Uso:  BASE=http://127.0.0.1:8917 CHROMIUM="%LOCALAPPDATA%/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-win64/chrome-headless-shell.exe" \
+         node docs/lab-planta-medir.mjs <saida.json> [tamanhos] [repeticoes] [esperaMs] [modos]
+   tamanhos   largura[xaltura], vírgula (padrão 390x844,320x640,320x844,1280x800)
+   repeticoes por caso, depois do aquecimento (padrão 3)
+   esperaMs   quanto esperar depois do load, para pegar a sequência inteira (7,6 s) e o pulso (padrão 10500)
+   modos      cls (padrão), cpu (montagem com CPU 4x e tarefas longas) e fps (fps na entrada e no repouso); vírgula
+   Saída: tabela no console e o JSON completo (com as sources de cada layout-shift) em <saida.json>. */
+import { chromium } from 'playwright';
+import { writeFileSync, mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
 
-const AJUDA = `Mede o CLS da planta viva (laboratório), deslocamento por deslocamento.
-
-Uso: node docs/lab-planta-medir.mjs <prefixo-da-saida> [tamanhos] [variantes] [esperaMs]
-
-  prefixo-da-saida  pasta e começo do nome dos arquivos (um JSON por variante: <prefixo>-<variante>.json)
-  tamanhos          largura[xaltura], separados por vírgula (padrão 390,320,1280; altura padrão 844 no celular, 640 abaixo de 380 px, 800 no computador)
-  variantes         separadas por vírgula; combináveis com "+" (padrão base):
-                      base      a página como está
-                      altura    reserva por CSS a altura que o JS vai dar ao quadro (lida do alturas.json que a variante base grava)
-                      preload   pré-carrega as duas fontes
-                      leitura   legenda com min-height de 9em
-                      anotado   a lista "anotado" nasce com a altura final (do alturas.json)
-                      painel    o painel nunca sai de hidden (ocupa o lugar com visibility hidden)
-                      semjs     esconde por CSS a lista que só aparece sem JS
-  esperaMs          quanto esperar depois do load (padrão 4500; use 10500 na variante base para pegar o deslocamento tardio da legenda)
-
-Ambiente: BASE (padrão http://127.0.0.1:8899), CHROMIUM (caminho do executável), PAGINA (padrão /docs/lab-planta.html), NICHOS (padrão clinica,embalagens,loja).
-Os seletores da página medida ficam em SEL, no começo do arquivo: ajuste-os se o laboratório mudar de classes.`;
-
-if (process.argv.includes('--help') || process.argv.includes('-h') || process.argv.length < 3) {
-  console.log(AJUDA);
+if (process.argv.includes('--help') || process.argv.length < 3) {
+  console.log('Uso: node docs/lab-planta-medir.mjs <saida.json> [tamanhos] [repeticoes] [esperaMs] [modos cls,cpu,fps]  (BASE, CHROMIUM, PAGINA, NICHOS no ambiente)');
   process.exit(0);
 }
-
-const { chromium } = await import('playwright');
-const { writeFileSync, readFileSync, mkdirSync } = await import('node:fs');
-const { dirname } = await import('node:path');
-
-const BASE = process.env.BASE || 'http://127.0.0.1:8899';
+const BASE = process.env.BASE || 'http://127.0.0.1:8917';
 const PAGINA = process.env.PAGINA || '/docs/lab-planta.html';
 const NICHOS = (process.env.NICHOS || 'clinica,embalagens,loja').split(',');
-const PREFIXO = process.argv[2];
-const TAMANHOS = (process.argv[3] || '390,320,1280').split(',').map((t) => {
-  const [l, a] = t.split('x').map(Number);
-  return { larg: l, alt: a || (l >= 1000 ? 800 : l >= 380 ? 844 : 640) };
-});
-const VARIANTES = (process.argv[4] || 'base').split(',');
-const ESPERA = Number(process.argv[5] || 4500);
-const DIR = dirname(PREFIXO);
-const ARQ_ALTURAS = DIR + '/alturas.json';
-
-/* os elementos do laboratório que a medida olha */
-const SEL = { quadro: '[data-quadro]', painel: '[data-painel]', nota: '.pl-nota', h1: '.pl-h1', leitura: '.pl-leitura', anotado: '[data-anotado]' };
-
-mkdirSync(DIR, { recursive: true });
-/* alturas que o JS do laboratório dá ao quadro e à lista "anotado" (medidas na variante base, para as variantes de reserva) */
-const ALTURAS = {}, ANOTADO = {};
-try {
-  for (const r of JSON.parse(readFileSync(ARQ_ALTURAS, 'utf8'))) { ALTURAS[r.larg + r.nicho] = r.h; ANOTADO[r.larg + r.nicho] = r.anotado; }
-} catch (e) { /* a variante base cria o arquivo */ }
-
+const SAIDA = process.argv[2];
+const TAMANHOS = (process.argv[3] || '390x844,320x640,320x844,1280x800').split(',').map((t) => { const [l, a] = t.split('x').map(Number); return { larg: l, alt: a || (l >= 1000 ? 800 : l >= 380 ? 844 : 640) }; });
+const REP = Number(process.argv[4] || 3);
+const ESPERA = Number(process.argv[5] || 10500);
+const MODOS = (process.argv[6] || 'cls').split(',');
+mkdirSync(dirname(SAIDA) === '.' ? '.' : dirname(SAIDA), { recursive: true });
 const nav = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined });
+const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 
-{ /* aquecimento: o 1º carregamento do headless é lento e não entra nas medidas */
-  const w = await (await nav.newContext({ viewport: { width: 390, height: 844 } })).newPage();
-  await w.goto(BASE + PAGINA, { waitUntil: 'load', timeout: 90000 });
-  await w.waitForTimeout(1500);
-  await w.close();
+/* registra cada layout-shift com value, quando e as fontes (nó, retângulo anterior e atual) */
+const ESPIAO = () => {
+  window.__ls = [];
+  window.__longas = [];
+  const desc = (n) => (n ? (n.nodeName + (n.className && typeof n.className === 'string' ? '.' + n.className.trim().split(/\s+/).join('.') : '') + (n.dataset && n.dataset.id ? '[' + n.dataset.id + ']' : '')) : '?');
+  new PerformanceObserver((l) => l.getEntries().forEach((e) => {
+    window.__ls.push({ value: e.value, t: Math.round(e.startTime), recente: e.hadRecentInput, fontes: (e.sources || []).map((s) => ({ no: desc(s.node), de: s.previousRect && [s.previousRect.x, s.previousRect.y, s.previousRect.width, s.previousRect.height].map(Math.round), para: s.currentRect && [s.currentRect.x, s.currentRect.y, s.currentRect.width, s.currentRect.height].map(Math.round) })) });
+  })).observe({ type: 'layout-shift', buffered: true });
+  try { new PerformanceObserver((l) => l.getEntries().forEach((e) => window.__longas.push({ ms: Math.round(e.duration), t: Math.round(e.startTime) }))).observe({ type: 'longtask', buffered: true }); } catch { /* sem longtask */ }
+};
+
+const url = (nicho) => `${BASE}${PAGINA}?nicho=${nicho}`;
+async function carregar(larg, alt, nicho, { cpu } = {}) {
+  const ctx = await nav.newContext({ viewport: { width: larg, height: alt }, deviceScaleFactor: 1 });
+  const p = await ctx.newPage();
+  await p.addInitScript(ESPIAO);
+  let cdp = null;
+  if (cpu) { cdp = await ctx.newCDPSession(p); await cdp.send('Emulation.setCPUThrottlingRate', { rate: cpu }); }
+  await p.goto(url(nicho), { waitUntil: 'load' });
+  return { ctx, p, cdp };
 }
 
-for (const variante of VARIANTES) {
-  const partes = variante.split('+');
-  const tem = (x) => partes.includes(x);
-  const saida = [];
-  for (const { larg, alt } of TAMANHOS) {
-    for (const nicho of NICHOS) {
-      /* bypassCSP: a CSP do servidor local barra <style> inline, e as variantes injetam CSS pela rota */
-      const ctx = await nav.newContext({ viewport: { width: larg, height: alt }, deviceScaleFactor: 1, bypassCSP: true });
-      const p = await ctx.newPage();
-      await p.route('**' + PAGINA + '*', async (rota) => {
-        const r = await rota.fetch();
-        let h = await r.text(), extra = '';
-        if (tem('preload')) extra += '<link rel="preload" href="/assets/fonts/sora-latin.woff2" as="font" type="font/woff2" crossorigin><link rel="preload" href="/assets/fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin>';
-        if (tem('altura') && ALTURAS[larg + nicho]) extra += '<style>' + SEL.quadro + '{height:' + ALTURAS[larg + nicho] + 'px}</style>';
-        if (tem('anotado') && ANOTADO[larg + nicho]) extra += '<style>' + SEL.anotado + '{min-height:' + ANOTADO[larg + nicho] + 'px}</style>';
-        if (tem('leitura')) extra += '<style>' + SEL.leitura + '{min-height:9em}</style>';
-        if (tem('painel')) extra += '<style>' + SEL.painel + '[hidden]{display:block !important;visibility:hidden}</style>';
-        if (tem('semjs')) extra += '<style>.pl-semjs{display:none}</style>';
-        h = h.replace('</head>', extra + '</head>');
-        await rota.fulfill({ response: r, body: h });
-      });
-      await p.addInitScript((sel) => {
-        const desc = (n) => {
-          if (!n) return '(removido)';
-          if (n.nodeType === 3) n = n.parentElement;
-          if (!n || !n.tagName) return '(?)';
-          const c = (typeof n.className === 'string' ? n.className : (n.className && n.className.baseVal) || '').trim().replace(/\s+/g, '.');
-          return n.tagName.toLowerCase() + (n.id ? '#' + n.id : '') + (c ? '.' + c : '');
-        };
-        const r = (x) => x ? [Math.round(x.x), Math.round(x.y), Math.round(x.width), Math.round(x.height)] : null;
-        const h = (el) => el ? Math.round(el.getBoundingClientRect().height) : null;
-        window.__ls = []; window.__marks = []; window.__frames = [];
-        new PerformanceObserver((l) => l.getEntries().forEach((e) => {
-          window.__ls.push({ t: Math.round(e.startTime), value: +e.value.toFixed(5), recent: e.hadRecentInput, sources: (e.sources || []).map((s) => ({ node: desc(s.node), prev: r(s.previousRect), cur: r(s.currentRect) })) });
-        })).observe({ type: 'layout-shift', buffered: true });
-        const marca = (n) => window.__marks.push({ t: Math.round(performance.now()), n });
-        document.addEventListener('DOMContentLoaded', () => {
-          marca('DOMContentLoaded');
-          if (document.fonts) {
-            document.fonts.ready.then(() => marca('fonts.ready'));
-            document.fonts.addEventListener('loadingdone', (e) => marca('fonte carregada: ' + e.fontfaces.map((f) => f.family).join(',')));
-          }
-          const quadro = document.querySelector(sel.quadro), painel = document.querySelector(sel.painel);
-          if (quadro) new MutationObserver(() => marca('quadro.style.height=' + quadro.style.height)).observe(quadro, { attributes: true, attributeFilter: ['style'] });
-          const t0 = performance.now();
-          const amostra = () => {
-            const nota = document.querySelector(sel.nota), leit = document.querySelector(sel.leitura), anot = document.querySelector(sel.anotado);
-            window.__frames.push({
-              t: Math.round(performance.now()),
-              painelOculto: painel ? painel.hidden : null,
-              quadroH: h(quadro), quadroY: quadro ? Math.round(quadro.getBoundingClientRect().y) : null,
-              notaW: nota ? Math.round(nota.getBoundingClientRect().width) : null, notaH: h(nota), h1H: h(document.querySelector(sel.h1)),
-              leituraH: painel && !painel.hidden ? h(leit) : null, anotadoH: h(anot),
-              fonteSora: document.fonts ? document.fonts.check('300 16px Sora') : null
-            });
-            if (performance.now() - t0 < 1500) requestAnimationFrame(amostra);
-          };
-          requestAnimationFrame(amostra);
-        });
-        window.addEventListener('load', () => marca('load'));
-      }, SEL);
-      await p.goto(BASE + PAGINA + '?nicho=' + encodeURIComponent(nicho), { waitUntil: 'load', timeout: 90000 });
-      await p.waitForTimeout(ESPERA);
-      const dados = await p.evaluate((sel) => {
-        const h = (s) => { const el = document.querySelector(s); return el ? Math.round(el.getBoundingClientRect().height) : null; };
-        return { ls: window.__ls, marks: window.__marks, frames: window.__frames, quadroH: h(sel.quadro), anotadoH: h(sel.anotado) };
-      }, SEL);
-      const total = +dados.ls.filter((e) => !e.recent).reduce((s, e) => s + e.value, 0).toFixed(4);
-      saida.push({ variante, larg, alt, nicho, total, ...dados });
-      console.log(`${variante} ${larg}x${alt} ${nicho}: CLS ${total} (${dados.ls.length} deslocamentos) quadro ${dados.quadroH}`);
+const amostrar = (ms) => new Promise((res) => {
+  const t = []; let ult = performance.now(); const ini = ult;
+  const f = (n) => { t.push(n - ult); ult = n; if (n - ini < ms) requestAnimationFrame(f); else { const longos = t.filter((x) => x > 50).length; t.sort((a, b) => a - b); const med = t.reduce((s, x) => s + x, 0) / t.length; res({ fps: +(1000 / med).toFixed(1), p95ms: +t[Math.floor(t.length * 0.95)].toFixed(1), quadros: t.length, longos }); } };
+  requestAnimationFrame(f);
+});
+
+const resultado = { quando: new Date().toISOString(), base: BASE, pagina: PAGINA, repeticoes: REP, espera: ESPERA, cls: [], cpu: [], fps: [] };
+const linhas = [];
+
+for (const { larg, alt } of TAMANHOS) {
+  for (const nicho of NICHOS) {
+    /* aquecimento: não entra na conta (o 1º carregamento do headless é lento e muda quem chega primeiro, fonte ou JS) */
+    const aq = await carregar(larg, alt, nicho); await espera(1500); await aq.ctx.close();
+
+    if (MODOS.includes('cls')) {
+      const reps = [];
+      for (let i = 0; i < REP; i++) {
+        const { ctx, p } = await carregar(larg, alt, nicho);
+        await p.evaluate(() => document.fonts.ready);
+        await espera(ESPERA);
+        const r = await p.evaluate(() => ({ ls: window.__ls, alturaQuadro: document.querySelector('.plv-quadro').getBoundingClientRect().height, ok: !!(window.PLANTA_LAB.ultima && window.PLANTA_LAB.ultima.resultado.ok) }));
+        /* CLS total da página e CLS DA FAIXA: o deslocamento conta como da faixa se algum dos nós que se moveu é da planta (classe plv-) ou está dentro dela; o resto é a moldura do laboratório (título, botões de nicho) */
+        const daFaixa = (s) => s.fontes.some((f) => /.plv-|.plv|[/.test(f.no));
+        const soma = (lista) => +lista.filter((s) => !s.recente).reduce((a, x) => a + x.value, 0).toFixed(4);
+        const cls = soma(r.ls.filter(daFaixa)), clsTotal = soma(r.ls);
+        reps.push({ cls, clsTotal, deslocamentos: r.ls, alturaQuadro: r.alturaQuadro, ok: r.ok });
+        await ctx.close();
+      }
+      const max = Math.max.apply(null, reps.map((r) => r.cls)), maxTotal = Math.max.apply(null, reps.map((r) => r.clsTotal));
+      resultado.cls.push({ larg, alt, nicho, repeticoes: reps, max, maxTotal });
+      linhas.push(`CLS  ${String(larg).padStart(4)}x${String(alt).padEnd(4)} ${nicho.padEnd(11)} faixa ${reps.map((r) => r.cls.toFixed(4)).join('  ')} (máx ${max.toFixed(4)}, ${max <= 0.01 ? 'ok' : 'ACIMA DA META'})   página inteira ${reps.map((r) => r.clsTotal.toFixed(4)).join('  ')}   quadro ${reps[0].alturaQuadro}px`);
+      for (const r of reps) for (const s of r.deslocamentos) if (s.value > 0) linhas.push('       deslocamento ' + s.value.toFixed(4) + ' em ' + s.t + ' ms: ' + s.fontes.map((f) => f.no + ' ' + JSON.stringify(f.de) + '->' + JSON.stringify(f.para)).join(' | '));
+    }
+
+    if (MODOS.includes('cpu')) {
+      /* CPU 4x: tempo de montagem (a faixa nasce na tarefa do script) e tarefas longas durante a entrada */
+      const { ctx, p } = await carregar(larg, alt, nicho, { cpu: 4 });
+      await espera(9000);
+      const r = await p.evaluate(() => ({ montagemMs: +window.PLANTA_LAB.ultima.ms.toFixed(1), longas: window.__longas, nos: document.querySelectorAll('.plv-quadro *').length }));
+      const naEntrada = r.longas.filter((x) => x.t > 0);
+      resultado.cpu.push({ larg, alt, nicho, montagemMs: r.montagemMs, tarefasLongas: naEntrada, nos: r.nos });
+      linhas.push(`CPU4 ${String(larg).padStart(4)}x${String(alt).padEnd(4)} ${nicho.padEnd(11)} montagem ${r.montagemMs} ms   tarefas longas (>50 ms): ${naEntrada.length ? naEntrada.map((x) => x.ms + ' ms em ' + x.t).join(', ') : 'nenhuma'}   nós do quadro ${r.nos}`);
       await ctx.close();
     }
-  }
-  writeFileSync(`${PREFIXO}-${variante.replace(/\+/g, '_')}.json`, JSON.stringify(saida, null, 1));
-  if (variante === 'base') {
-    writeFileSync(ARQ_ALTURAS, JSON.stringify(saida.map((r) => ({ larg: r.larg, nicho: r.nicho, h: r.quadroH, anotado: r.anotadoH }))));
-    for (const r of saida) { ALTURAS[r.larg + r.nicho] = r.quadroH; ANOTADO[r.larg + r.nicho] = r.anotadoH; }   /* as variantes seguintes da mesma execução já usam */
+
+    if (MODOS.includes('fps')) {
+      const { ctx, p } = await carregar(larg, alt, nicho);
+      await espera(200);
+      const entrada = await p.evaluate(`(${amostrar.toString()})(8300)`);
+      await espera(1200);
+      const repouso = await p.evaluate(`(${amostrar.toString()})(6000)`);
+      resultado.fps.push({ larg, alt, nicho, entrada, repouso });
+      linhas.push(`FPS  ${String(larg).padStart(4)}x${String(alt).padEnd(4)} ${nicho.padEnd(11)} entrada ${entrada.fps} fps (p95 ${entrada.p95ms} ms, >50 ms: ${entrada.longos})   repouso ${repouso.fps} fps (p95 ${repouso.p95ms} ms, >50 ms: ${repouso.longos})`);
+      await ctx.close();
+    }
+    console.log(linhas.splice(0).join('\n'));
   }
 }
 await nav.close();
+writeFileSync(SAIDA, JSON.stringify(resultado, null, 2));
+if (resultado.cls.length) {
+  const piores = resultado.cls.filter((c) => c.max > 0.01);
+  console.log(piores.length ? `\n${piores.length} caso(s) acima de 0,01.` : '\nTodos os casos dentro da meta (CLS <= 0,01).');
+}

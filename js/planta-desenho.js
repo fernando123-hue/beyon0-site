@@ -1,23 +1,12 @@
-/* ==========================================================================
-   PLANTA VIVA: o DESENHO e a ENTRADA. Recebe um plano (JSON do Zero) e o desenha na faixa: gráfico em SVG (traço de 1 px, nada de
-   desfoque), texto em HTML (a lista <ol> é o conteúdo; o SVG é decoração), legenda, botões e status. A luz do núcleo percorre as rotas
-   e acende cada etapa; no fim pousa no LED, o único ponto dourado.
-   Contrato:  window.BZPlanta = { montar(raiz, plano, opcoes), atualizar(plano, opcoes), parar() }.
-     montar     valida a FORMA (BZPlantaForma), mede a largura do quadro, grava a altura reservada (BZPlantaLayout.alturaReservada) NA MESMA
-                CHAMADA e constrói tudo de uma vez: nada nasce com altura zero nem espera fonte, IntersectionObserver ou o primeiro quadro.
-                { ok:false, motivos } se o plano for inválido ou a faixa estiver sem largura (ainda escondida): nada é desenhado.
-     atualizar  compara por id: só o id novo ganha "Ajustado" e as caixas que mudam de lugar deslizam; sem id em comum, refaz tudo.
-     parar      cancela animações, temporizadores, observador e ouvintes e esvazia a faixa.
-   opcoes: origem ('modelo' | 'padrao'), editavel (padrão true), nome (da cota), aoCerto, aoAjustar, animar (padrão true), largura, fala (só no atualizar).
-   MOVIMENTO (regra 1 do CLAUDE.md e spec §4.4): tudo por Web Animations API (Element.animate); nenhum requestAnimationFrame próprio e nenhuma
-   variável de CSS por quadro. O desenho das rotas e a cabeça de luz usam stroke-dashoffset UMA vez (finito). O pulso de repouso e as ondas do
-   LED usam só transform e opacity. Estados (aceso, esboço, ouro) são classes; o CSS faz as transições. O movimento é acréscimo: sem a API
-   de animação, com prefers-reduced-motion ou com html.menos-movimento a planta aparece INTEIRA e parada. A animação só começa com 35% do
-   quadro na tela e pausa fora dela e com a aba escondida.
-   SEGURANÇA: todo texto do modelo entra por textContent. Nada de innerHTML, outerHTML, insertAdjacentHTML, eval, style por atributo. O id da
-   etapa só vai em data-id e em chaves de objeto sem protótipo. A tela valida a forma de novo (BZPlantaForma), como o servidor.
-   ES5 sintático; as dependências vêm de window (tela) ou de require (testes em Node).
-   ========================================================================== */
+/* PLANTA VIVA: o DESENHO e a ENTRADA. window.BZPlanta = { montar(raiz, plano, opcoes), atualizar(plano, opcoes), parar() }.
+   montar valida a forma (BZPlantaForma), mede a largura, grava a altura reservada e constrói tudo NA MESMA CHAMADA (nada nasce com altura 0
+   nem espera fonte ou observador); { ok:false, motivos } se o plano for inválido ou a faixa estiver sem largura. atualizar compara por id: só o
+   id novo ganha "Ajustado" e as caixas deslizam; sem id em comum, refaz tudo. opcoes: origem ('modelo'|'padrao'), editavel, nome, aoCerto,
+   aoAjustar, animar, largura, fala.
+   MOVIMENTO: Web Animations API; nenhum requestAnimationFrame. stroke-dashoffset só uma vez (rotas e cabeça de luz); pulso de repouso e ondas
+   só transform/opacity. Estados são classes. Sem a API, com prefers-reduced-motion ou html.menos-movimento: quadro final, parado. A animação
+   começa com 35% do quadro na tela e pausa fora dela e com a aba escondida.
+   SEGURANÇA: todo texto do modelo entra por textContent; id só em data-id e em chaves de objeto sem protótipo; nada de innerHTML. ES5. */
 (function (raiz, fabrica) {
   'use strict';
   var dep = function (nome, arquivo) { return typeof require === 'function' ? require(arquivo) : (raiz ? raiz[nome] : undefined); };
@@ -39,13 +28,11 @@
   var dist = function (a, b) { var x = b[0] - a[0], y = b[1] - a[1]; return Math.sqrt(x * x + y * y); };
   var mesclar = function (a, b) { var o = {}, k; for (k in a) if (tem(a, k)) o[k] = a[k]; for (k in b) if (tem(b, k)) o[k] = b[k]; return o; };
 
-  /* ---------- as peças gráficas (caminhos, puros) ---------- */
   var caixaD = function (w, h, dupla) { return 'M' + CHAMFRO + ' 0H' + w + 'V' + (dupla ? h - CHAMFRO : h) + (dupla ? 'L' + (w - CHAMFRO) + ' ' + h : '') + 'H0V' + CHAMFRO + 'Z'; };
   var cantosD = function (w, h) {
     var c = 9, o = 5;
     return 'M' + (-o) + ' ' + (c - o) + 'V' + (-o) + 'H' + (c - o) + 'M' + (w + o - c) + ' ' + (-o) + 'H' + (w + o) + 'V' + (c - o) + 'M' + (w + o) + ' ' + (h + o - c) + 'V' + (h + o) + 'H' + (w + o - c) + 'M' + (c - o) + ' ' + (h + o) + 'H' + (-o) + 'V' + (h + o - c);
   };
-  /* a rota: reta com cantos arredondados (raio) */
   function rotaD(pts, raio) {
     var d = 'M' + r1(pts[0][0]) + ' ' + r1(pts[0][1]), i;
     for (i = 1; i < pts.length; i++) {
@@ -64,7 +51,6 @@
     return 'M' + r1(p1[0]) + ' ' + r1(p1[1]) + 'L' + r1(b[0]) + ' ' + r1(b[1]) + 'L' + r1(p2[0]) + ' ' + r1(p2[1]);
   }
   var comprimento = function (pts) { var s = 0, i; for (i = 1; i < pts.length; i++) s += dist(pts[i - 1], pts[i]); return s; };
-  /* a grade de fundo, num caminho só (sem pattern: pattern pede id, e o id do plano nunca vai para o DOM) */
   function gradeD(W, H) {
     var d = '', x, y;
     for (x = 24; x < W; x += 24) d += 'M' + x + ' 0V' + H;
@@ -77,7 +63,6 @@
     for (i = 0; i < g.nos.length; i++) { id = g.nos[i].id; for (j = 0; j < id.length; j++) { h ^= id.charCodeAt(j); h = (h * 16777619) % 4294967296; } }
     return h;
   }
-  /* o emaranhado: o caso entra sem estrutura. Um rabisco só, do núcleo ao LED, de passos curtos e rumo quase solto (a semente é o hash dos ids) */
   function emaranhado(g, seed) {
     var r = semente(seed), a = g.mapa.nucleo, b = g.mapa.led, N = 46, i;
     var ax = a.x + a.w / 2, ay = a.y + a.h / 2, bx = b.x + b.w / 2, by = b.y + b.h / 2;
@@ -99,8 +84,6 @@
     return d;
   }
 
-  /* ---------- o relógio: a lista de instantes (segundos) em que algo muda de classe ou de legenda. Pausa e retoma sem perder o fim.
-     (temporizador, não requestAnimationFrame: a regra 1 do CLAUDE.md) ---------- */
   function criarRelogio(win, aoErro) {
     var ev = [], prox = 0, inicio = 0, decorrido = 0, timer = 0, rodando = false, seq = 0;
     var agora = function () { return win.performance && win.performance.now ? win.performance.now() : 0; };
@@ -128,12 +111,10 @@
     };
   }
 
-  /* ==================================================================== */
   function criar(win) {
     var doc = win.document;
     var inst = null;
 
-    /* ---------- o DOM: tudo por createElement, classList e textContent ---------- */
     var classe = function (el, cls) { var p = String(cls).split(' '), i; for (i = 0; i < p.length; i++) if (p[i]) el.classList.add(p[i]); };
     function S(tag, attrs, pai, cls) {
       var e = doc.createElementNS(NS, tag), k;
@@ -158,7 +139,6 @@
     }
     var aviso = function (e) { if (win.console && win.console.warn) win.console.warn('[planta] ' + (e && e.message ? e.message : e)); };
 
-    /* ---------- peças do quadro ---------- */
     function estacao(gg, n, li, ref) {
       var mov = ref.mov;
       S('path', { d: caixaD(n.w, n.h, n.decisao) }, mov, 'plv-caixa');
@@ -168,7 +148,7 @@
       var tracos = Pecas.desenhar(n.est.tipo, n.est.n) || [];
       tracos.forEach(function (t) {
         var p = S('path', { d: t.d, pathLength: 1 }, ig, t.ac ? 'plv-ac' : '');
-        if (ic[2] !== 1) p.style.strokeWidth = String(r1(1.25 / ic[2]));   /* o traço fica com a mesma espessura depois de escalar */
+        if (ic[2] !== 1) p.style.strokeWidth = String(r1(1.25 / ic[2]));
       });
       classe(li, 'plv-est plv-est--' + n.modo + (n.modo === 'topo' && n.w < 150 ? ' plv-est--c' : '') + (n.compacto ? ' plv-est--sat' : ''));
       var hd = H('span', 'plv-hd', null, li);
@@ -176,7 +156,6 @@
       H('span', 'plv-tit', n.est.titulo, li);
       if (ref.ajustado) H('span', 'plv-etq', 'Ajustado', li);
     }
-    /* o rótulo da ponta: ao lado (retrato) ou no alto, preso à ponta por uma linha-guia (paisagem) */
     function chamada(li, n, mov, r) {
       var rot = n.rot;
       li.style.left = px(rot.x); li.style.top = px(rot.y); li.style.width = px(rot.w); li.style.textAlign = rot.al === 'r' ? 'right' : 'left';
@@ -209,7 +188,6 @@
       H('span', 'plv-verbo', 'Objetivo', li); H('span', 'plv-tit', n.est.titulo, li);
     }
 
-    /* o quadro inteiro, a partir da geometria. Devolve as referências. opc: { pre, ajustados (mapa id -> true) } */
     function construirQuadro(quadro, g, plano, opc) {
       opc = opc || {};
       limparFilhos(quadro);
@@ -245,7 +223,6 @@
         else estacao(gg, n, li, ref);
         R.nos[n.id] = ref;
       });
-      /* a lista na ordem da luz */
       var porOrd = g.nos.slice().sort(function (a, b) { return a.ord - b.ord; });
       porOrd.forEach(function (n) { lista.appendChild(R.nos[n.id].li); });
       g.rots.forEach(function (t) {
@@ -264,7 +241,6 @@
       if (x.n.ponta === 'led') { classe(x.g, 'is-ouro'); classe(x.li, 'is-ouro'); }
     }
 
-    /* ---------- a instância: a faixa montada ---------- */
     var anim = function (el, kf, op) {
       if (!el || typeof el.animate !== 'function') return null;
       try {
@@ -319,7 +295,6 @@
     function etapasDe(g) { return g.nos.filter(function (n) { return !n.ponta; }).length; }
     function fixarStatus(txt) { inst.status.textContent = txt; }
 
-    /* o quadro final (também o do movimento reduzido): tudo aceso, rotas inteiras, sem o emaranhado */
     function aplicarFinal() {
       var R = inst.R;
       inst.quadro.classList.remove('plv--pre'); inst.quadro.classList.remove('plv--aj');
@@ -329,15 +304,13 @@
     }
     function finalizar(ajuste) {
       cancelarMovimento();
-      inst.iniciada = true;   /* (o programa acabou: a partir daqui o observador só pausa e retoma o pulso) */
+      inst.iniciada = true;
       aplicarFinal();
       fixarStatus((ajuste ? 'Planta ajustada, com ' : 'Planta pronta, com ') + etapasDe(inst.R.g) + ' etapas.');
       if (!ajuste) leitura('Planta pronta', inst.plano.fecho);
       pulsoDeRepouso();
     }
 
-    /* ---------- o pulso de repouso: um ponto de traço percorre a rota de tempos em tempos (o site trabalhando sozinho).
-       SÓ transform e opacity (regra 1): a cabeça é um círculo pequeno movido por translate(), com um keyframe por vértice da polilinha. ---------- */
     function pulsoDeRepouso() {
       if (!inst || reduzido()) return;
       var R = inst.R, grupos = agrupar(R), t = 0, total = 0;
@@ -368,7 +341,6 @@
       inst.vida.forEach(function (a) { try { a.play(); } catch (e) { aviso(e); } });
     }
 
-    /* ---------- a entrada: a luz imprime a planta ---------- */
     function agrupar(R) {
       var por = criarMapa();
       R.rotas.forEach(function (x) { (por[x.r.passo] = por[x.r.passo] || []).push(x); });
@@ -385,7 +357,6 @@
         total1 += am + dg + 0.12;
       });
       var k = Math.min(1.3, Math.max(0.7, (T_ALVO - T_INTRO) / total1));
-      /* esboço: o núcleo já, o resto por ordem de luz, a 34% */
       rel.em(0, function () { classe(R.nos.nucleo.g, 'is-esboco'); classe(R.nos.nucleo.li, 'is-esboco'); });
       rel.em(0.05, function () { ligar('nucleo'); });
       ord.forEach(function (n, q) {
@@ -419,7 +390,6 @@
       void i;
     }
 
-    /* ---------- o ajuste: a planta se recompõe e a luz leva a etapa nova ---------- */
     function programaAjuste(antigos, novos, fala) {
       var R = inst.R, rel = inst.relogio, plano = inst.plano, i;
       inst.quadro.classList.add('plv--aj');
@@ -460,7 +430,6 @@
       void i; void plano;
     }
 
-    /* ---------- construção da instância ---------- */
     function ligarOuvintes(animavel) {
       inst.aoResize = function () {
         if (inst.timerResize) win.clearTimeout(inst.timerResize);
@@ -483,9 +452,10 @@
           if (!inst || !entradas || !entradas.length) return;
           var e = entradas[entradas.length - 1], vis = !!e.isIntersecting && e.intersectionRatio > 0;
           inst.visivel = vis;
-          if (!inst.iniciada) { if (vis && e.intersectionRatio >= FRACAO_VISIVEL && inst.aguardando) iniciar(); return; }
+          var enche = e.intersectionRect && win.innerHeight && e.intersectionRect.height >= win.innerHeight * 0.5;
+          if (!inst.iniciada) { if (vis && (e.intersectionRatio >= FRACAO_VISIVEL || enche) && inst.aguardando) iniciar(); return; }
           if (vis && !doc.hidden) retomarTudo(); else pausarTudo();
-        }, { threshold: [0, FRACAO_VISIVEL] });
+        }, { threshold: [0, 0.1, 0.2, FRACAO_VISIVEL, 0.5, 0.75, 1] });
         inst.io.observe(inst.quadro);
       }
     }
@@ -498,7 +468,6 @@
       [inst.btnCerto, inst.btnAjuste].forEach(function (b) { if (editavel) b.removeAttribute('disabled'); else b.setAttribute('disabled', ''); });
     }
 
-    /* (re)desenha o quadro para o plano atual. modo: 'entrada' (esboço e luz), 'final', 'ajuste' */
     function refazer(modo, antigos, novos, fala) {
       cancelarMovimento();
       var larg = medirLargura();
@@ -507,7 +476,7 @@
       var ajust = criarMapa(); (novos || []).forEach(function (id) { ajust[id] = true; });
       var animavel = !reduzido() && typeof inst.quadro.animate === 'function' && inst.opcoes.animar !== false;
       inst.larg = larg; inst.g = g;
-      inst.quadro.style.height = px(g.H);       /* a altura reservada, antes de qualquer outra coisa */
+      inst.quadro.style.height = px(g.H);
       var pre = modo === 'entrada' && animavel;
       inst.R = construirQuadro(inst.quadro, g, inst.plano, { pre: pre, ajustados: ajust });
       if (pre) inst.quadro.classList.add('plv--pre'); else inst.quadro.classList.remove('plv--pre');
@@ -528,7 +497,6 @@
       return true;
     }
 
-    /* ---------- a API ---------- */
     function validar(plano) {
       if (!Forma || !Layout || !Pecas) return { ok: false, motivos: ['modulos'] };
       var v = Forma.validarFormaPlano(plano);

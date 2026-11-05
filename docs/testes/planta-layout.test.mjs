@@ -10,7 +10,8 @@ import F from '../../js/orcamento-planta-forma.js';
 import L from '../../js/planta-layout.js';
 import { todasAsFormas, laco, bifurca, espinha } from './planta-formas.mjs';
 
-const LARGURAS = [320, 360, 390, 430, 768, 1024, 1072, 1280];
+/* a faixa mede a janela menos o respiro da página (20 px de cada lado no celular): 280 é o celular de 320 e 350 o de 390; 1.040 é o limite da paisagem e 1.072 o máximo da página */
+const LARGURAS = [280, 320, 350, 360, 390, 430, 768, 1024, 1039, 1040, 1072, 1280];
 const FORMAS = todasAsFormas();
 const caixas = (g) => g.nos.filter((n) => !n.ponta);
 const nosTodos = (g) => g.nos;

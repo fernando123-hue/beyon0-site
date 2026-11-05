@@ -1,0 +1,157 @@
+/* ==========================================================================
+   PLANTA VIVA (faixa da página de orçamento; PR 2b). Todas as classes com o prefixo plv- (pv- é das miniaturas de prévia em
+   css/orcamento.css; pl- e .planta* são da vitrine de Sites). Só tokens do site (css/tokens.css).
+   Regras que valem aqui: SEM desfoque, sem sombra, sem filtro, sem gradiente (traço de 1 px e cor chapada); estados por CLASSE (is-aceso,
+   is-esboco, is-ouro...) e transições curtas; movimento contínuo só em transform e opacity; geometria em px (nunca ch/em: a troca de fonte
+   do passo 0 mudava 58ch). O quadro e a legenda têm altura FIXA (o JS grava a altura do quadro na mesma chamada em que monta; a legenda é
+   de altura fixa aqui): nada na faixa muda de tamanho depois de aparecer, então nada desloca a página (CLS). O movimento é acréscimo: sem JS a
+   faixa nem existe; com movimento reduzido ou html.menos-movimento tudo aparece inteiro e parado.
+   ========================================================================== */
+.plv { position: relative; color: var(--t2); }
+.plv-titulo { font: 300 clamp(1.4rem, 1.1rem + 1.2vw, 2rem)/1.2 var(--sans); color: var(--t1); letter-spacing: -.01em; margin: 0 0 8px; }
+.plv-nota { margin: 0 0 14px; font-size: var(--fs-s); line-height: 1.5; color: var(--t3); }
+
+/* ---- botões ---- */
+.plv-btn {
+  min-height: 44px; padding: .6rem 1rem; border: 1px solid var(--stroke); border-radius: var(--raio-s); background: transparent; color: var(--t1);
+  font: 500 var(--fs-ctrl)/1.2 var(--mono); letter-spacing: var(--tr-ctrl); text-transform: uppercase; cursor: pointer; text-align: center;
+  transition: border-color var(--t-micro) var(--ease-micro), color var(--t-micro) var(--ease-micro);
+}
+.plv-btn:hover { border-color: var(--t2); }
+.plv-btn--primario { background: var(--ac); border-color: var(--ac); color: var(--ac-tinta); }
+.plv-btn--primario:hover { background: var(--ac-2); border-color: var(--ac-2); }
+.plv-btn--txt { border-color: transparent; color: var(--t2); }
+.plv-btn:disabled { opacity: .5; cursor: default; }
+.plv-btn:disabled:hover { border-color: var(--stroke); }
+.plv-btn--primario:disabled:hover { background: var(--ac); border-color: var(--ac); }
+
+/* ---- o quadro: a altura vem do JS (alturaReservada) no mesmo instante em que o quadro nasce ---- */
+.plv-quadro { position: relative; border: 1px solid var(--line); border-radius: var(--raio); background: var(--s1); overflow: hidden; contain: layout paint; }
+.plv-svg { position: absolute; left: 0; top: 0; max-width: none; }
+.plv-lista, .plv-rots { position: absolute; inset: 0; margin: 0; padding: 0; list-style: none; pointer-events: none; }
+.plv-grade { fill: none; stroke: rgb(205 212 212 / .05); stroke-width: 1; }
+
+.plv-tang { fill: none; stroke: var(--stroke); stroke-width: 1; }
+.plv-fantasma { fill: none; stroke: var(--line-2); stroke-width: 1; }
+.plv-limpa { fill: none; stroke: var(--ac); stroke-width: 1; }
+.plv-limpa--ret, .plv-limpa--sat { stroke: var(--ac-3); }
+.plv-seta { fill: none; stroke: var(--ac); stroke-width: 1; opacity: 0; transition: opacity .3s var(--ease); }
+.plv-seta.plv-limpa--ret, .plv-seta.plv-limpa--sat { stroke: var(--ac-3); }
+.plv-seta.is-ligada { opacity: 1; }
+.plv-cab { fill: none; stroke: var(--ac-2); stroke-width: 2; opacity: 0; }
+.plv-pulso { fill: none; stroke: var(--ac-2); stroke-width: 1.5; opacity: 0; }
+
+/* estação: caixa de 1 px com canto cortado; acende quando a luz chega */
+.plv-caixa { fill: var(--bg); stroke: var(--line-2); stroke-width: 1; transition: stroke .35s var(--ease), fill .35s var(--ease); }
+.plv-no.is-aceso .plv-caixa { stroke: var(--ac); fill: var(--s2); }
+.plv-no--dec.is-aceso .plv-caixa { stroke: var(--ac-2); }
+.plv-cantos { fill: none; stroke: var(--ac-2); stroke-width: 1; }
+.plv-icone path { fill: none; stroke: var(--ac); stroke-width: 1.25; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 0; transition: stroke-dashoffset .6s var(--ease); }
+.plv-icone .plv-ac { stroke: var(--ac-2); }
+.plv--pre .plv-no:not(.is-aceso) .plv-icone path { stroke-dashoffset: 1; }
+.plv-icone path:nth-child(2) { transition-delay: .06s; } .plv-icone path:nth-child(3) { transition-delay: .12s; }
+.plv-icone path:nth-child(4) { transition-delay: .18s; } .plv-icone path:nth-child(5) { transition-delay: .24s; }
+.plv-icone path:nth-child(6) { transition-delay: .3s; } .plv-icone path:nth-child(n+7) { transition-delay: .36s; }
+
+/* o texto da estação (HTML por cima do desenho). A caixa tem tamanho fixo em px; o título é limitado a 2 ou 3 linhas */
+.plv-est { position: absolute; display: flex; flex-direction: column; color: var(--t1); box-sizing: border-box; overflow: hidden; }
+.plv-est--topo { padding: 10px 11px 11px; justify-content: space-between; }
+.plv-est--lado { padding: 7px 10px 7px 62px; justify-content: center; }
+.plv-est--lado.plv-est--sat { padding-left: 44px; }
+.plv-est--topo.plv-est--sat { padding: 8px 8px 8px; justify-content: flex-start; }
+.plv-hd { display: flex; gap: 9px; align-items: baseline; min-width: 0; white-space: nowrap; }
+.plv-est--lado .plv-hd { margin-bottom: 3px; }
+.plv-est--topo.plv-est--sat .plv-hd { padding-right: 24px; margin-bottom: 8px; gap: 6px; overflow: hidden; }
+.plv-est--topo.plv-est--sat .plv-n, .plv-est--topo.plv-est--sat .plv-verbo { letter-spacing: .04em; }
+.plv-n { color: var(--ac-3); font: 500 var(--fs-rotulo)/1.2 var(--mono); letter-spacing: var(--tr-rotulo); }
+.plv-verbo { color: var(--t3); font: 500 var(--fs-rotulo)/1.2 var(--mono); letter-spacing: var(--tr-rotulo); text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; }
+.plv-tit { font: 400 var(--fs-s)/1.3 var(--sans); color: var(--t1); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; overflow-wrap: anywhere; }
+.plv-est--lado .plv-tit { -webkit-line-clamp: 2; line-clamp: 2; }
+.plv-est--c .plv-tit { font-size: var(--fs-ctrl); -webkit-line-clamp: 4; line-clamp: 4; }
+.plv-est--lado.plv-est--sat .plv-tit { font-size: var(--fs-ctrl); -webkit-line-clamp: 4; line-clamp: 4; }
+.plv-est.is-ajustado { overflow: visible; }
+.plv-etq { position: absolute; top: -9px; right: 10px; padding: 0 6px; background: var(--bg); border: 1px solid var(--ac-2); font: 500 var(--fs-rotulo)/14px var(--mono); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--ac-2); }
+.plv-verbo, .plv-tit, .plv-n, .plv-ponta > * { transition: opacity .4s var(--ease), transform .4s var(--ease), color .4s var(--ease); }
+.plv--pre .plv-est:not(.is-aceso) .plv-verbo, .plv--pre .plv-est:not(.is-aceso) .plv-tit { opacity: 0; transform: translateY(5px); }
+.plv--pre .plv-est:not(.is-aceso) .plv-n { color: var(--stroke); }
+.plv--pre .plv-ponta:not(.is-aceso) > * { opacity: 0; transform: translateY(5px); }
+
+.plv-ponta { position: absolute; display: flex; flex-direction: column; gap: 3px; box-sizing: border-box; }
+.plv-ponta--topo { justify-content: flex-end; }
+.plv-guia { fill: none; stroke: var(--line-2); stroke-width: 1; transition: stroke .4s var(--ease); }
+.plv-nucleo.is-aceso .plv-guia { stroke: var(--ac-3); }
+.plv-led.is-ouro .plv-guia { stroke: rgb(var(--ouro-rgb)); }
+.plv-ponta .plv-tit { color: var(--t2); }
+.plv-ponta--led.is-ouro .plv-verbo { color: rgb(var(--ouro-rgb)); }
+.plv-ponta--led.is-ouro .plv-tit { color: var(--t1); }
+
+.plv-rot { position: absolute; font: 500 var(--fs-rotulo)/1.3 var(--mono); letter-spacing: var(--tr-dado); color: var(--t3); overflow: hidden; box-sizing: border-box; }
+.plv-rot--ramo { color: var(--t2); }
+.plv-rot--ramo::before { content: "\2192\00a0"; color: var(--ac-3); }
+
+/* núcleo: o reator em miniatura (aros, 12 tempos) */
+.plv-aro { fill: none; stroke: var(--line-2); stroke-width: 1; transition: stroke .4s var(--ease); }
+.plv-aro--int { stroke-dasharray: 2 5; }
+.plv-disco { fill: var(--line-2); transition: fill .4s var(--ease); }
+.plv-ticks { fill: none; stroke: var(--ac-3); stroke-width: 1; }
+.plv-gira { transform-box: fill-box; transform-origin: center; }
+.plv-nucleo:not(.is-aceso) .plv-gira { opacity: 0; }
+.plv-nucleo.is-aceso .plv-aro { stroke: var(--ac); }
+.plv-nucleo.is-aceso .plv-aro--int { stroke: var(--ac-3); }
+.plv-nucleo.is-aceso .plv-disco { fill: var(--ac-2); }
+.plv-nucleo.is-aceso .plv-gira { animation: plv-gira 60s linear infinite; }
+.plv-onda { fill: none; stroke: var(--ac-2); stroke-width: 1; opacity: 0; transform-box: fill-box; transform-origin: center; }
+
+/* o LED: onde a luz pousa. Ouro só aqui (o estado conquistado, docs/restructure/OURO-2026-10-06.md) */
+.plv-led .plv-aro, .plv-led .plv-ticks { stroke: var(--line-2); }
+.plv-led .plv-disco { fill: none; stroke: var(--line-2); stroke-width: 1; }
+.plv-led.is-ouro .plv-aro, .plv-led.is-ouro .plv-ticks { stroke: rgb(var(--ouro-rgb)); }
+.plv-led.is-ouro .plv-disco { fill: rgb(var(--ouro-rgb)); stroke: rgb(var(--ouro-rgb)); }
+.plv-led.is-ouro .plv-aro { animation: plv-pulso 3.6s ease-in-out infinite; }
+.plv-led .plv-onda { stroke: rgb(var(--ouro-rgb)); }
+@keyframes plv-gira { to { transform: rotate(360deg); } }
+@keyframes plv-pulso { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+.plv--fora .plv-gira, .plv--fora .plv-aro { animation-play-state: paused; }
+
+/* a entrada: o esboço (as caixas a 34%) e o que acende com a luz. A camada pre só existe enquanto a animação não terminou */
+.plv--pre .plv-no { opacity: 0; transition: opacity .4s var(--ease); }
+.plv--pre .plv-no.is-esboco { opacity: .34; }
+.plv--pre .plv-no.is-aceso { opacity: 1; transition-duration: .3s; }
+.plv--pre li.plv-est, .plv--pre li.plv-ponta { opacity: 0; transition: opacity .4s var(--ease); }
+.plv--pre li.is-esboco, .plv--pre li.is-aceso { opacity: 1; }
+.plv--aj .plv-no.is-novo:not(.is-aceso), .plv--aj li.is-novo:not(.is-aceso) { opacity: 0; }
+.plv-no.is-novo, li.is-novo { transition: opacity .3s var(--ease); }
+
+/* a cota: a régua de baixo, como numa planta técnica */
+.plv-cota { display: flex; align-items: center; gap: 12px; margin: 10px 0 0; font: 500 var(--fs-rotulo)/1 var(--mono); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); }
+.plv-cota i { flex: 1; height: 9px; position: relative; }
+.plv-cota i::before { content: ""; position: absolute; left: 0; right: 0; top: 4px; height: 1px; background: var(--line-2); }
+.plv-cota i:first-child { border-left: 1px solid var(--line-2); }
+.plv-cota i:last-child { border-right: 1px solid var(--line-2); }
+.plv-cota b { font-weight: 500; color: var(--t2); }
+.plv-cota span { text-align: center; line-height: 1.3; }
+
+/* a legenda: altura FIXA (4 linhas no celular), o texto entra por textContent e nunca muda o tamanho dela */
+.plv-leitura { box-sizing: border-box; margin: 14px 0 0; height: 126px; overflow: hidden; font-size: var(--fs-s); line-height: 1.5; color: var(--t2); }
+.plv-leitura__tag { display: block; margin-bottom: 4px; font: 500 var(--fs-rotulo)/1.3 var(--mono); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--ac-3); }
+.plv-leitura__txt { display: block; max-height: 84px; overflow: hidden; }
+.plv-acoes { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+.plv-acoes .plv-btn { flex: 1 1 auto; }
+.plv-status { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+@media (max-width: 759px) {
+  /* a legenda grudada na base da faixa enquanto a planta está à vista: sticky, não fixed (não briga com o teclado nem com .consentimento) */
+  .plv-leitura { position: sticky; bottom: 0; z-index: 2; margin-top: 0; padding: 10px 0 8px; background: var(--bg); border-top: 1px solid var(--line); height: 126px; }
+}
+@media (max-width: 339px) {
+  .plv-tit { font-size: 13px; }
+}
+@media (min-width: 760px) {
+  .plv-acoes .plv-btn { flex: 0 0 auto; }
+  .plv-leitura { height: 92px; font-size: var(--fs-b); }
+  .plv-leitura__txt { max-height: 48px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .plv *, .plv *::before, .plv *::after { animation: none !important; transition: none !important; }
+}
+html.menos-movimento .plv *, html.menos-movimento .plv *::before, html.menos-movimento .plv *::after { animation: none !important; transition: none !important; }

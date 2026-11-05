@@ -1,20 +1,9 @@
-/* ==========================================================================
-   PLANTA VIVA: o LAYOUT. De um plano JÁ validado (js/orcamento-planta-forma.js) para uma geometria em px: caixas, pontas (núcleo e LED),
-   rotas e rótulos. PURO: não toca no DOM nem no relógio; roda na tela (window.BZPlantaLayout) e no Node (CommonJS), onde os testes
-   conferem sobreposição, limites e altura. ES5 sintático.
-
-   A ALTURA É RESERVADA, NÃO MEDIDA (spec §4.4, notas do passo 0, causa C1): H === alturaReservada(largura), sempre. A altura só depende
-   da largura, nunca do plano e nunca da fonte; o quadro nasce com ela, na mesma tarefa em que a faixa aparece, e o desenho se acomoda a ela
-   (as folgas verticais do retrato esticam; na paisagem o conteúdo é centrado). Toda a geometria é em px (nunca ch nem em: a troca de
-   fonte do passo 0, C2, mudava 58ch).
-     - paisagem (largura >= LARGURA_PAISAGEM): altura fixa de 456 px.
-     - retrato: a altura é a MAIOR entre todas as formas válidas (8 e 9 caixas nas três topologias) naquela largura, calculada pelo
-       próprio layout (um teste percorre todas as formas); o desenho de um plano menor estica os vãos para preencher.
-   Topologias: laco (pista de duas fileiras na paisagem: ida em cima, volta embaixo, o LED na curva), bifurca (a conversa decide; um ramo
-   em cima, outro embaixo; numa fileira só) e espinha (tronco numa fileira, satélites em cima e embaixo).
-   Cada rota carrega o passo em que a luz a percorre; a ordem da luz (ord) e a numeração (num) saem daqui.
-   Ids de etapa só viram chave de objeto sem protótipo (Object.create(null)); nunca de seletor.
-   ========================================================================== */
+/* PLANTA VIVA: o LAYOUT. Plano já validado -> geometria em px (caixas, pontas, rotas, rótulos). PURO (sem DOM nem relógio), ES5:
+   window.BZPlantaLayout na tela, CommonJS no Node. H === alturaReservada(largura), SEMPRE: a altura só depende da largura (nunca do plano nem
+   da fonte), o quadro nasce com ela e o desenho se acomoda (passo 0: o CLS vinha de o JS dar a altura depois). Paisagem (>= LARGURA_PAISAGEM):
+   456 px; retrato: a maior altura entre todas as formas válidas, e os vãos esticam para o plano menor. Tudo em px (nunca ch nem em).
+   laco = pista de duas fileiras na paisagem; bifurca = ramos em duas alturas; espinha = tronco com satélites em cima e embaixo.
+   Ids só viram chave de objeto sem protótipo. A ordem da luz (ord) e a numeração (num) saem daqui. */
 (function (raiz, fabrica) {
   'use strict';
   var api = fabrica();
@@ -23,26 +12,23 @@
 })(typeof window !== 'undefined' ? window : null, function () {
   'use strict';
 
-  /* ---------- as constantes (todas em px) ---------- */
-  var LARGURA_PAISAGEM = 1040;     /* a menor largura em que TODA forma válida cabe em paisagem (bifurca de 8 colunas, caixa >= 104 px); a faixa da página mede no máximo 1.072 */
+  var LARGURA_PAISAGEM = 1040;
   var ALTURA_PAISAGEM = 456;
-  var LARGURA_RETRATO_MAX = 480;   /* acima disso o retrato não cresce: fica centrado */
+  var LARGURA_RETRATO_MAX = 480;
   var LARGURA_MIN = 280;
   var PAD = 6;
-  var CR = 24, LR = 20;            /* raios do núcleo e do LED na paisagem */
-  var VG_MIN = 18, VG_MAX = 40;    /* vão vertical do retrato: o mínimo (caixa 68, vão 18) e o teto do esticar */
+  var CR = 24, LR = 20;
+  var VG_MIN = 18, VG_MAX = 40;
 
   var criar = function () { return Object.create(null); };
   var mesclar = function (a, b) { var o = {}, k; for (k in a) if (Object.prototype.hasOwnProperty.call(a, k)) o[k] = a[k]; for (k in b) if (Object.prototype.hasOwnProperty.call(b, k)) o[k] = b[k]; return o; };
 
-  /* ---------- pontos de ancoragem e rotas ---------- */
   var topo = function (n, dx) { return [n.x + (dx == null ? n.w / 2 : dx), n.y]; };
   var base = function (n, dx) { return [n.x + (dx == null ? n.w / 2 : dx), n.y + n.h]; };
   var esq = function (n) { return [n.x, n.y + n.h / 2]; };
   var dir = function (n) { return [n.x + n.w, n.y + n.h / 2]; };
   var igual = function (a, b) { return Math.abs(a[0] - b[0]) < 0.5 && Math.abs(a[1] - b[1]) < 0.5; };
 
-  /* tira pontos repetidos e os do meio de trechos retos */
   function limpar(pts) {
     var o = [];
     pts.forEach(function (p) { if (!o.length || !igual(o[o.length - 1], p)) o.push(p); });
@@ -52,13 +38,12 @@
       return !((Math.abs(a[0] - p[0]) < 0.5 && Math.abs(p[0] - c[0]) < 0.5) || (Math.abs(a[1] - p[1]) < 0.5 && Math.abs(p[1] - c[1]) < 0.5));
     });
   }
-  /* ligação em Z entre dois pontos (reta se estão alinhados) */
   var zV = function (a, b) { return Math.abs(a[0] - b[0]) < 0.5 ? [a, b] : [a, [a[0], (a[1] + b[1]) / 2], [b[0], (a[1] + b[1]) / 2], b]; };
 
   function nova(W) { return { W: W, H: 0, nos: [], rotas: [], rots: [], mapa: criar() }; }
   function no(g, est, x, y, w, h, modo, extra) {
     var n = { id: est.id, est: est, x: x, y: y, w: w, h: h, modo: modo, decisao: !!est.decisao, ponta: null };
-    n.ic = modo === 'lado' ? [11, (h - 40) / 2, 1] : [11, 34, 1];   /* onde o ícone de 40 x 40 vai dentro da caixa: [x, y, escala] */
+    n.ic = modo === 'lado' ? [11, (h - 40) / 2, 1] : [11, 34, 1];
     if (extra) for (var k in extra) if (Object.prototype.hasOwnProperty.call(extra, k)) n[k] = extra[k];
     g.nos.push(n); g.mapa[n.id] = n; return n;
   }
@@ -70,15 +55,14 @@
     var r = mesclar({ id: de + '>' + a, de: de, a: a, pts: limpar(pts), passo: passo, atraso: 0, alvo: a, tipo: 'tronco' }, o || {});
     g.rotas.push(r); return r;
   }
-  /* o núcleo e o LED em paisagem com rótulo no alto, preso por uma linha-guia (a linha sobe da ponta até a base do rótulo) */
   function chamadas(core, led, trunkTop, W) {
     var h = trunkTop - 12;
     core.rot = { x: core.x, y: 4, w: 130, h: h, al: 'l', topo: true }; core.guia = core.y - (trunkTop - 6);
     led.rot = { x: Math.max(0, led.x + led.w - 150), y: 4, w: Math.min(150, W), h: h, al: 'r', topo: true }; led.guia = led.y - (trunkTop - 6);
   }
+  var icTopo = function (w) { return w < 150 ? { ic: [10, 28, 0.75] } : null; };
   var alturaLado = function (W) { return W < 340 ? 80 : 68; };
 
-  /* ---------- do plano (lista plana) para a estrutura de cada topologia ---------- */
   function copia(e) { var o = {}, k; for (k in e) if (Object.prototype.hasOwnProperty.call(e, k)) o[k] = e[k]; return o; }
   function chegadaDe(plano) {
     return { id: 'chegada', tipo: 'chegada', verbo: 'Chega', titulo: plano.chegada.titulo, frase: plano.chegada.frase, n: plano.chegada.origens.length };
@@ -112,8 +96,6 @@
     return null;
   }
 
-  /* ===================== RETRATO (celular, tablet e telas estreitas) ===================== */
-  /* Cada um recebe VG, o vão vertical (18 é o mínimo; o desenho de um plano pequeno estica até a altura reservada). */
   function lacoRetrato(E, W, VG) {
     var S = E.st, n = S.length, bw = Math.min(250, W - 70), xL = 4, xR = W - 24 - bw, rail = W - 10, BH = alturaLado(W), CRr = 24, LRr = 22;
     var g = nova(W), cx = xL + bw / 2, i, y;
@@ -141,12 +123,12 @@
     y = core.y + 2 * CRr + VG;
     var Ec = ent.map(function (est) { var b = no(g, est, xC, y, cw, BH, 'lado'); y += BH + VG; return b; });
     var conv = Ec[Ec.length - 1], y0 = conv.y + conv.h + 52;
-    var ramo = function (lista, x) { return lista.map(function (est, k) { return no(g, est, x, y0 + k * (BT + VG), colW, BT, 'topo', { compacto: true, ic: [colW - 32, 6, 0.6] }); }); };
+    var ramo = function (lista, x) { return lista.map(function (est, k) { return no(g, est, x, y0 + k * (BT + VG), colW, BT, 'topo', { compacto: true, ic: [colW - 28, 8, 0.5] }); }); };
     var A = ramo(r0, xl), B = ramo(r1, xr);
     var fundo = y0 + nR * BT + (nR - 1) * VG, yPm = fundo + 22;
     y = fundo + 44;
     var M = sai.map(function (est) { var b = no(g, est, xC, y, cw, BH, 'lado'); y += BH + VG; return b; });
-    var led = ponta(g, 'led', cx - LRr, y, 2 * LRr); led.est = E.fim; led.rot = { x: cx + LRr + 12, y: led.y + LRr - 14, w: W - (cx + LRr + 12) - 4, al: 'l' };
+    var led = ponta(g, 'led', xC + 8, y, 2 * LRr); led.est = E.fim; led.rot = { x: led.x + 2 * LRr + 12, y: led.y + LRr - 14, w: W - (led.x + 2 * LRr + 12) - 4, al: 'l' };
     var p = 0;
     rota(g, 'nucleo', Ec[0].id, [base(core), topo(Ec[0])], p++);
     for (i = 1; i < Ec.length; i++) rota(g, Ec[i - 1].id, Ec[i].id, [base(Ec[i - 1]), topo(Ec[i])], p++);
@@ -162,11 +144,11 @@
       rota(g, u.id, prop.id, [base(u, OFF), [x, yPm], [cx, yPm], topo(prop)], pM, { tipo: 'ramo', atraso: b * 0.08 });
     });
     for (i = 1; i < M.length; i++) rota(g, M[i - 1].id, M[i].id, [base(M[i - 1]), topo(M[i])], pM + i);
-    rota(g, M[M.length - 1].id, 'led', [base(M[M.length - 1]), topo(led)], pM + M.length);
+    rota(g, M[M.length - 1].id, 'led', zV(base(M[M.length - 1]), topo(led)), pM + M.length);
     [[xl, 0], [xr, 1]].forEach(function (c) {
       if (E.rotulos[c[1]]) g.rots.push({ x: c[0] + OFF + 8, y: y0 - 36, w: colW - OFF - 12, h: 32, txt: E.rotulos[c[1]], al: 'l', ramo: true });
     });
-    g.H = led.y + 2 * LRr + 14;
+    g.H = led.y + 2 * LRr + 20;
     return g;
   }
 
@@ -177,7 +159,6 @@
     var prev = [RX, core.y + 2 * CRr], ant = null;
     S.forEach(function (est, i) {
       var b = no(g, est, bx, y, bw, BH, 'lado'), my = b.y + BH / 2;
-      /* a luz sai da borda da caixa anterior, desce pelo trilho da esquerda e entra de lado na seguinte */
       rota(g, i ? S[i - 1].id : 'nucleo', est.id, (ant ? [esq(ant), [RX, esq(ant)[1]]] : [prev]).concat([[RX, my], [bx, my]]), i);
       prev = [RX, my]; ant = b;
       y += BH;
@@ -196,14 +177,12 @@
     });
     var led = ponta(g, 'led', RX - LRr, y, 2 * LRr); led.est = E.fim; led.rot = { x: RX + LRr + 12, y: led.y + LRr - 14, w: W - RX - LRr - 16, al: 'l' };
     rota(g, S[n - 1].id, 'led', [esq(ant), [RX, esq(ant)[1]], [RX, led.y]], n);
-    g.H = led.y + 2 * LRr + 14;
+    g.H = led.y + 2 * LRr + 20;
     return g;
   }
 
   var RETRATOS = { laco: lacoRetrato, bifurca: bifurcaRetrato, espinha: espinhaRetrato };
 
-  /* ===================== PAISAGEM (computador; altura fixa de 456) ===================== */
-  /* largura da caixa e vão para `cols` colunas: a caixa cresce até wMax, o que sobra vira vão (até gMax), e o conjunto fica centrado */
   function colunas(W, fixo, cols, wMax, gMin, gMax) {
     var avail = W - 2 * PAD, w = Math.min(wMax, Math.floor((avail - fixo - (cols + 1) * gMin) / cols));
     var G = Math.min(gMax, Math.floor((avail - fixo - cols * w) / (cols + 1)));
@@ -211,15 +190,13 @@
     return { w: w, G: G, x0: PAD + Math.floor((avail - total) / 2) };
   }
 
-  /* LAÇO: uma pista. Ida na fileira de cima (núcleo -> caixas), o LED na curva da direita, volta na de baixo (da direita para a esquerda) e o
-     retorno sobe pela esquerda até o núcleo. */
   function lacoPaisagem(E, W) {
-    var S = E.st, total = S.length + 1, k = Math.ceil(total / 2), BH = 134, y1 = 56, y2 = y1 + BH + 104, g = nova(W), i;
+    var S = E.st, total = S.length + 1, k = Math.ceil(total / 2), BH = 144, y1 = 56, y2 = y1 + BH + 92, g = nova(W), i;
     var c = colunas(W, 2 * CR + 2 * LR, k, 176, 26, 40), w = c.w, G = c.G, x0 = c.x0;
     var colX = function (q) { return x0 + 2 * CR + G + q * (w + G); };
     var core = ponta(g, 'nucleo', x0, y1 + BH / 2 - CR, 2 * CR);
-    var cima = S.slice(0, k).map(function (est, q) { return no(g, est, colX(q), y1, w, BH, 'topo'); });
-    var abaixo = S.slice(k).concat([E.ret]).map(function (est, q) { return no(g, est, colX(k - 1 - q), y2, w, BH, 'topo'); });
+    var cima = S.slice(0, k).map(function (est, q) { return no(g, est, colX(q), y1, w, BH, 'topo', icTopo(w)); });
+    var abaixo = S.slice(k).concat([E.ret]).map(function (est, q) { return no(g, est, colX(k - 1 - q), y2, w, BH, 'topo', icTopo(w)); });
     var ledcy = (y1 + y2 + BH) / 2, led = ponta(g, 'led', colX(k - 1) + w + G, ledcy - LR, 2 * LR); led.est = E.fim;
     core.rot = { x: core.x, y: 4, w: 130, h: y1 - 12, al: 'l', topo: true }; core.guia = core.y - (y1 - 6);
     led.rot = { x: led.x - 12 - 170, y: ledcy - 16, w: 170, al: 'r' };
@@ -236,17 +213,16 @@
     return g;
   }
 
-  /* BIFURCA: numa fileira só (entrada, ramos em duas alturas, saída). A caixa vai a 104 px no pior caso (8 colunas). */
   function bifurcaPaisagem(E, W) {
     var ent = E.ent, r0 = E.r0, r1 = E.r1, sai = E.sai, nR = Math.max(r0.length, r1.length), nC = ent.length + nR + sai.length, BH = 140, g = nova(W), i, j;
     var c = colunas(W, 2 * CR + 2 * LR, nC, 164, 12, 30), w = c.w, G = c.G, x0 = c.x0;
     var colX = function (q) { return x0 + 2 * CR + G + q * (w + G); };
     var yT = 62, yB = yT + BH + 46, yM = (yT + yB + BH) / 2, trunkTop = yM - BH / 2;
     var core = ponta(g, 'nucleo', x0, yM - CR, 2 * CR);
-    var Ec = ent.map(function (est, q) { return no(g, est, colX(q), trunkTop, w, BH, 'topo'); });
-    var ramo = function (lista, yTop) { return lista.map(function (est, q) { return no(g, est, colX(ent.length + q), yTop, w, BH, 'topo'); }); };
+    var Ec = ent.map(function (est, q) { return no(g, est, colX(q), trunkTop, w, BH, 'topo', icTopo(w)); });
+    var ramo = function (lista, yTop) { return lista.map(function (est, q) { return no(g, est, colX(ent.length + q), yTop, w, BH, 'topo', icTopo(w)); }); };
     var A = ramo(r0, yT), B = ramo(r1, yB), mCol = ent.length + nR;
-    var M = sai.map(function (est, q) { return no(g, est, colX(mCol + q), trunkTop, w, BH, 'topo'); });
+    var M = sai.map(function (est, q) { return no(g, est, colX(mCol + q), trunkTop, w, BH, 'topo', icTopo(w)); });
     var led = ponta(g, 'led', M[M.length - 1].x + w + G, yM - LR, 2 * LR); led.est = E.fim;
     chamadas(core, led, trunkTop, W);
     var p = 0;
@@ -272,14 +248,12 @@
     return g;
   }
 
-  /* ESPINHA: o tronco numa fileira e os satélites em cima e embaixo, "de lado" (ícone pequeno à esquerda). O satélite do ÚLTIMO passo
-     desce sempre, para não cobrir o rótulo do objetivo (que ocupa o alto sobre a última coluna). */
   function espinhaPaisagem(E, W) {
     var S = E.st, n = S.length, BH = 140, SH = 100, GV = 22, g = nova(W), i;
     var c = colunas(W, 2 * CR + 2 * LR, n, 176, 14, 34), w = c.w, G = c.G, x0 = c.x0;
     var y0 = Math.floor((ALTURA_PAISAGEM - BH) / 2), cy = y0 + BH / 2;
     var core = ponta(g, 'nucleo', x0, cy - CR, 2 * CR);
-    var st = S.map(function (est, q) { return no(g, est, x0 + 2 * CR + G + q * (w + G), y0, w, BH, 'topo'); });
+    var st = S.map(function (est, q) { return no(g, est, x0 + 2 * CR + G + q * (w + G), y0, w, BH, 'topo', icTopo(w)); });
     var led = ponta(g, 'led', st[n - 1].x + w + G, cy - LR, 2 * LR); led.est = E.fim;
     chamadas(core, led, y0, W);
     rota(g, 'nucleo', st[0].id, [dir(core), esq(st[0])], 0);
@@ -304,7 +278,6 @@
 
   var PAISAGENS = { laco: lacoPaisagem, bifurca: bifurcaPaisagem, espinha: espinhaPaisagem };
 
-  /* ===================== a ordem da luz ===================== */
   function numerar(g) {
     var ord = 0, num = 0;
     g.nos.forEach(function (n) { n.ord = -1; n.num = 0; });
@@ -316,8 +289,6 @@
     return g;
   }
 
-  /* ===================== a altura reservada ===================== */
-  /* Todas as formas válidas, só pela contagem (8 e 9 caixas): é com elas que o retrato calcula o seu pior caso. */
   function etapasFalsas(prefixo, q) { var l = [], i; for (i = 0; i < q; i++) l.push({ id: prefixo + i }); return l; }
   function formasPossiveis() {
     var out = [], n, e, a, b, s, q, t, i, hosts;
@@ -354,7 +325,6 @@
     return W >= LARGURA_PAISAGEM ? ALTURA_PAISAGEM : alturaRetrato(Math.min(W, LARGURA_RETRATO_MAX));
   }
 
-  /* desloca tudo para a direita (o retrato mais largo que o máximo fica centrado) */
   function deslocar(g, dx) {
     if (!dx) return g;
     g.nos.forEach(function (n) { n.x += dx; if (n.rot) n.rot = mesclar(n.rot, { x: n.rot.x + dx }); });
@@ -376,7 +346,6 @@
     return deslocar(g, Math.floor((W - Wc) / 2));
   }
 
-  /* o plano (já validado) e a largura do quadro -> a geometria; null se o plano não tem a estrutura da sua topologia */
   function montarGeometria(plano, largura) {
     var W = larguraSegura(largura), E = estruturar(plano);
     if (!E) return null;

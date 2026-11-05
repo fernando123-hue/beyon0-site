@@ -77,7 +77,7 @@ export function criarJanela(opcoes) {
   doc.removeEventListener = (t, f) => { doc.ouvintes[t] = (doc.ouvintes[t] || []).filter((x) => x !== f); };
   doc.disparar = (t) => (doc.ouvintes[t] || []).slice().forEach((f) => f({ type: t }));
   /* tempo falso */
-  const w = { document: doc, agora: 0, timers: [], seq: 0, ouvintes: {}, observadores: [], innerWidth: op.largura, opcoes: op };
+  const w = { document: doc, agora: 0, timers: [], seq: 0, ouvintes: {}, observadores: [], innerWidth: op.largura, innerHeight: 800, opcoes: op };
   w.performance = { now: () => w.agora };
   w.setTimeout = (fn, ms) => { const id = ++w.seq; w.timers.push({ id, em: w.agora + Math.max(0, ms || 0), fn }); return id; };
   w.clearTimeout = (id) => { w.timers = w.timers.filter((t) => t.id !== id); };
@@ -104,7 +104,7 @@ export function criarJanela(opcoes) {
       this.disconnect = () => { this.ativo = false; this.alvos = []; };
     };
     /* o teste diz quando a faixa aparece: ratio = fração visível */
-    w.mostrar = (ratio) => w.observadores.filter((o) => o.ativo).forEach((o) => o.cb(o.alvos.map((el) => ({ target: el, isIntersecting: ratio > 0, intersectionRatio: ratio }))));
+    w.mostrar = (ratio, alturaVisivel) => w.observadores.filter((o) => o.ativo).forEach((o) => o.cb(o.alvos.map((el) => ({ target: el, isIntersecting: ratio > 0, intersectionRatio: ratio, intersectionRect: { height: alturaVisivel === undefined ? ratio * 900 : alturaVisivel } }))));
   }
   w.pendentes = () => w.timers.length;
   w.ativas = () => doc.animacoes.filter((a) => !a.cancelado);
