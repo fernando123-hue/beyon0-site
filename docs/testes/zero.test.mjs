@@ -1170,3 +1170,5 @@ test('rodada 3 [I2]: dado inventado em anedota ("um dentista que atendemos tripl
 
 /* trava "negar ser IA": os testes ficam em travas-identidade.test.mjs (este arquivo está na lista do script testar) */
 import './travas-identidade.test.mjs';
+/* a planta viva: o agregador roda todo planta-*.test.mjs sem mexer no package.json (nível 3) */
+import './planta-todos.test.mjs';
