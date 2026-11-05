@@ -157,10 +157,14 @@ export async function executarTurno({ ia, regras, conversa, mensagem, direcoes, 
         briefing = d.briefing; desenho = d.turno; saida = d.saida;
       } else if (ch.nome === NOME_LEITURA) {
         /* só chega aqui com a flag e o preço aberto (permitidas). A âncora é a fala do VISITANTE (a que o modelo viu, já redigida): a do Zero nunca vale. O modelo não grava a leitura de outro jeito */
-        const l = resolverLeitura({ entrada: ch.entrada, briefing, turno: lendo, ctx: {
-          mensagensDoVisitante: [...doVisitante(conversa.mensagens).map(redigir), redigir(mensagem)], regulado: !!(nicho || nichoDaSessao({ briefing, mensagens: [], mensagem: '' })) } });
-        briefing = l.briefing; lendo = l.turno; saida = l.saida;
-        if (l.rebaixados) rebaixos = [...rebaixos, ...l.rebaixados];
+        /* C2: no turno em que a planta é obrigatória e ainda não foi gravada, a leitura de uma volta depois da primeira é recusada: ela comeria uma das 4 rodadas e derrubaria a planta no padrão por estouro */
+        if (prefixoUsado && !desenho.gravou && i > 0) saida = { ok: false, motivo: 'neste turno a planta vem primeiro; a leitura fica para o próximo turno' };
+        else {
+          const l = resolverLeitura({ entrada: ch.entrada, briefing, turno: lendo, ctx: {
+            mensagensDoVisitante: [...doVisitante(conversa.mensagens).map(redigir), redigir(mensagem)], regulado: !!(nicho || nichoDaSessao({ briefing, mensagens: [], mensagem: '' })) } });
+          briefing = l.briefing; lendo = l.turno; saida = l.saida;
+          if (l.rebaixados) rebaixos = [...rebaixos, ...l.rebaixados];
+        }
       } else if (ch.nome === 'estimar') {
         const e = estimar(ch.entrada, regras);
         if (e.erros) saida = { ok: false, erros: e.erros };

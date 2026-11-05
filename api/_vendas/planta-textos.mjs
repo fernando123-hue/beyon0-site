@@ -86,7 +86,7 @@ const CARACTERE_DE_FORA = /[^\p{L}\p{M}\s.,:;!?'’"“”()\-–—]/u;
 
 /* sobre o texto em "busca" (paraBusca: minúscula, sem acento, letras soltas juntas, pontuação vira espaço) e sobre a versão "colada" (abaixo) */
 const RAIZES = {
-  preco: /\b(?:precos?|valor|valores|custos?|custa\w*|custar|barat\w+|gratis|gratuit\w+|descontos?|taxas?|mensalidades?|investiment\w+|parcelas?|parcelad\w+|promocao|promocoes|ofertas?|reais|de graca|por menos|pa(?:ga|gar|gue) menos|abatimentos?|abate\w*|economiz\w+|bolso|cobranc\w+|pa(?:gue|ga|gar) (?:\w+ ){0,3}(?:so|nada|depois|sem)|(?:so|nada|depois|sem) (?:\w+ ){0,2}pa(?:gue|ga|gar))\b/,
+  preco: /\b(?:precos?|valor|valores|custos?|custa\w*|custar|barat\w+|gratis|gratuit\w+|descontos?|taxas?|mensalidades?|investiment\w+|parcelas?|parcelad\w+|promocao|promocoes|ofertas?|reais|de graca|por menos|pa(?:ga|gar|gue) menos|abatimentos?|abate\w*|economiz\w+|bolso|cobranc\w+|cobrar|cobrando|sem cobr\w+|pa(?:gue|ga|gar) (?:\w+ ){0,3}(?:so|nada|depois|sem)|(?:so|nada|depois|sem) (?:\w+ ){0,2}pa(?:gue|ga|gar))\b/,
   numeral: /\b(?:dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|treze|quatorze|catorze|quinze|dezesseis|dezessete|dezoito|dezenove|vinte|trinta|quarenta|cinquenta|sessenta|setenta|oitenta|noventa|cem|cento|duzentos|duzentas|trezentos|trezentas|quatrocentos|quatrocentas|quinhentos|quinhentas|seiscentos|seiscentas|setecentos|setecentas|oitocentos|oitocentas|novecentos|novecentas|mil|milhao|milhoes|bilhao|bilhoes)\b/,
   promessa: new RegExp([
     '\\b(?:enche|encher|enchem|lota|lotar|lotam|lotad\\w+|dobra|dobrar|dobram|dobro|triplo|triplica\\w*|quadruplo|quadruplica\\w*|multiplica\\w*|aumenta\\w*|cresc\\w+|dispara\\w*|lucr\\w+|faturamento|faturar|resultados?(?! d[oae]s? (?:exames?|orcamentos?|pedidos?|consultas?|testes?|formularios?|buscas?)\\b)|dobre|dobrem|venda mais|vendem mais|sem esforcos?|primeiro lugar|primeira pagina|topo d[oa]|milhar|milhares|centenas?|dezenas?|duzia|duzias|metade|nunca mais)\\b',
@@ -112,7 +112,7 @@ const RAIZES = {
 };
 /* a evidência do radar é a fala da PESSOA, em primeira pessoa ("sou eu", "eu atendo"): o "sou" solto e o "eu <verbo>" não valem para ela, mas NEGAR ser IA vale
    ("sou humano", "não sou robô", "sou pessoa de verdade", "ninguém aqui é robô", "eu sou humano de verdade"): senão o modelo forjaria uma "citação" dessas */
-const NEGAR_IA_FORTE = /\b(?:nao sou (?:uma? )?(?:ia|robo|bot|maquina|inteligencia artificial)|sou (?:uma? )?(?:pessoa|humano|humana|gente|dono|dona)|eu sou (?:uma? )?(?:pessoa|humano|humana|gente|dono|dona)|atendente humano|pessoa de verdade|humano de verdade|humana de verdade|por gente|carne e osso|ninguem aqui e (?:robo|maquina|bot|ia))\b/;
+const NEGAR_IA_FORTE = /\b(?:nao sou (?:uma? )?(?:ia|robo|bot|maquina|inteligencia artificial)|sou (?:uma? )?(?:pessoa|humano|humana|gente|dono|dona)|eu sou (?:uma? )?(?:pessoa|humano|humana|gente|dono|dona)|atendente humano|pessoa de verdade|humano de verdade|humana de verdade|por gente|carne e osso|ninguem aqui e (?:robo|maquina|bot|ia)|nao e (?:um |uma )?(?:robo|bot|ia|maquina))\b/;
 const SEM_PRIMEIRA_PESSOA = { ...RAIZES, negar_ia: NEGAR_IA_FORTE };
 const REGULADO = {
   depoimento: /\b(?:depoiment\w*|testemunh\w*|antes (?:e |\/ )?depois|avaliacoes (?:de|dos|das) (?:pacientes|clientes)|casos? de sucesso|historias? de (?:pacientes|clientes)|fotos? de (?:pacientes|clientes)|relatos?|transformac\w+)\b/,

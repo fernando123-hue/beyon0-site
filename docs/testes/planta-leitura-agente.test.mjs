@@ -9,6 +9,7 @@ import fs from 'node:fs';
 import { montarSistema, proximoPasso, ferramentas, PREFIXO_PLANTA, PREFIXO_LEITURA, pedeLeitura } from '../../api/_vendas/consultor.mjs';
 import { executarTurno, estadoParaModelo } from '../../api/_vendas/agente.mjs';
 import { criarSimulada } from '../../api/_ia/simulado.mjs';
+import { planoPadrao } from '../../api/_vendas/planta-padrao.mjs';
 import { custoUsd, RESERVA_USD, PAPEIS, TETOS } from '../../api/_ia/config.mjs';
 
 const REGRAS = JSON.parse(fs.readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
@@ -38,7 +39,9 @@ function roteiro(...respostas) {
 }
 /* o resultado de cada ferramenta, devolvido ao modelo na rodada n */
 const voltas = (ia, n) => ia.recebidos[n].mensagens.at(-1).content.map(r => JSON.parse(r.content));
-const conversaDe = (extra = {}) => ({ etapa: 'estimativa', briefing: clone(BRIEFING), mensagens: clone(MENSAGENS), estimativa: ESTIMATIVA, ...extra });
+/* (por padrão a planta JÁ está gravada: assim a leitura é testada sozinha, sem a regra C2 do turno em que a planta é obrigatória; os testes da C2 passam o briefing sem planta) */
+const PLANTA_GRAVADA = { v: 1, versao: 1, origem: 'modelo', motivos: [], tentativas: 1, n_mensagens: 1, plano: planoPadrao('generico') };
+const conversaDe = (extra = {}) => ({ etapa: 'estimativa', briefing: { ...clone(BRIEFING), planta: clone(PLANTA_GRAVADA) }, mensagens: clone(MENSAGENS), estimativa: ESTIMATIVA, ...extra });
 const turno = (ia, extra = {}, flags = { planta: true }) => executarTurno({ ia, regras: REGRAS, conversa: conversaDe(extra.conversa), mensagem: extra.mensagem || 'Hoje a recepção anota num caderno.', ...flags });
 
 /* ---------- a lista de ferramentas ---------- */
@@ -70,7 +73,9 @@ const BASE = { etapa: 'estimativa', briefing: clone(BRIEFING), estimativa: ESTIM
 test('proximoPasso: com leitura e preço aberto o texto começa por PREFIXO_LEITURA e termina com o de hoje (comparação exata); com a planta também, depois do prefixo dela', () => {
   const hoje = proximoPasso({ ...BASE });
   assert.equal(proximoPasso({ ...BASE, leitura: true }), PREFIXO_LEITURA + hoje);
-  assert.equal(proximoPasso({ ...BASE, planta: true, leitura: true }), PREFIXO_PLANTA + PREFIXO_LEITURA + hoje);
+  assert.equal(proximoPasso({ ...BASE, planta: true, leitura: true }), PREFIXO_PLANTA + hoje, 'C2: no turno em que a planta é obrigatória o radar não é pedido (não gasta uma das 4 rodadas)');
+  const comPlanta = { ...BASE, briefing: { ...BRIEFING, planta: { v: 1, versao: 1 } } };
+  assert.equal(proximoPasso({ ...comPlanta, planta: true, leitura: true }), PREFIXO_LEITURA + proximoPasso({ ...comPlanta }), 'com a planta já gravada o radar volta a ser pedido');
   assert.equal(proximoPasso({ ...BASE, planta: true }), PREFIXO_PLANTA + hoje, 'o do 2a não muda');
   /* a leitura vale desde o 1º turno: não espera estimativa nem plano */
   assert.equal(proximoPasso({ ...BASE, estimativa: null, leitura: true }), PREFIXO_LEITURA + proximoPasso({ ...BASE, estimativa: null }));
@@ -141,7 +146,7 @@ test('âncora: a fala do ZERO não ancora (o modelo só pode citar a pessoa); ev
   });
   const ia = roteiro(resp(DUAS([chamada('ler_caso', entrada)])), resp([], 'Entendi.'));
   const { briefing } = await turno(ia);
-  assert.equal(nivelDe(briefing.leitura, 'pessoas'), 'comentou');
+  assert.equal(nivelDe(briefing.leitura, 'pessoas'), 'nao_falou');
   assert.equal(evidDe(briefing.leitura, 'pessoas'), undefined);
   assert.equal(nivelDe(briefing.leitura, 'urgencia'), 'nao_falou');
   assert.equal(nivelDe(briefing.leitura, 'volume'), 'nao_falou');
@@ -171,7 +176,7 @@ test('leitura inválida duas vezes: o que já estava na tela fica, e o turno seg
   const quatro = { eixos: leitura().eixos.slice(0, 4) };
   const antes = leitura({ volume: { nivel: 'comentou', evidencia: 'tem semana de agenda cheia' } });
   const ia = roteiro(resp([chamada('ler_caso', quatro)]), resp([chamada('ler_caso', quatro)]), resp([chamada('ler_caso', leitura())]), resp([], 'Segue.'));
-  const r = await turno(ia, { conversa: { briefing: { ...clone(BRIEFING), leitura: antes } } });
+  const r = await turno(ia, { conversa: { briefing: { ...clone(BRIEFING), planta: clone(PLANTA_GRAVADA), leitura: antes } } });
   assert.deepEqual(r.briefing.leitura, antes);
   assert.equal(voltas(ia, 2)[0].mantida, true);
   assert.equal(voltas(ia, 3)[0].ok, false, 'uma 3ª tentativa no mesmo turno é recusada');
@@ -201,7 +206,7 @@ test('conversa de saúde (nicho regulado): a leitura sobrevive ao filtro do brie
   const r = await turno(ia, { conversa: { mensagens: msgs, briefing: { negocio: { segmento: 'clínica odontológica' }, objetivos: ['agendamentos'] } }, mensagem: 'Pode ser.' });
   assert.ok(r.briefing.leitura, 'a chave leitura sobreviveu a briefingSemProibidos');
   assert.equal(nivelDe(r.briefing.leitura, 'volume'), 'comentou');
-  assert.equal(nivelDe(r.briefing.leitura, 'informacao'), 'comentou');
+  assert.equal(nivelDe(r.briefing.leitura, 'informacao'), 'nao_falou');
   assert.equal(evidDe(r.briefing.leitura, 'informacao'), undefined);
 });
 
@@ -274,7 +279,7 @@ test('simulado: o radar muda do 1º ao 3º turno (o gatilho vale na conversa int
 
 test('simulado: leitura-forjada cai de nível; leitura-ruim erra uma vez e acerta; leitura-ruim2 erra sempre e nada muda', async () => {
   const forjada = await simular(['Tenho uma clínica de odontologia. leitura-forjada']);
-  assert.equal(nivelDe(forjada.briefing.leitura, 'volume'), 'comentou');
+  assert.equal(nivelDe(forjada.briefing.leitura, 'volume'), 'nao_falou');
   assert.equal(evidDe(forjada.briefing.leitura, 'volume'), undefined);
   const ruim = await simular(['Tenho uma clínica de odontologia e tem muita procura. leitura-ruim']);
   assert.equal(nivelDe(ruim.briefing.leitura, 'volume'), 'deixou_claro');
@@ -311,8 +316,30 @@ test('executarTurno devolve leitura_rebaixos (eixo, de, para, motivo) do que o v
   });
   const ia = roteiro(resp([chamada('ler_caso', entrada)]), resp([], 'Entendi.'));
   const r = await turno(ia);
-  assert.deepEqual(r.leitura_rebaixos, [{ eixo: 'volume', de: 'deixou_claro', para: 'comentou', motivo: 'sem_ancora' }]);
+  assert.deepEqual(r.leitura_rebaixos, [{ eixo: 'volume', de: 'deixou_claro', para: 'nao_falou', motivo: 'sem_ancora' }]);
   const sem = await turno(roteiro(resp([], 'Ok.')));
   assert.deepEqual(sem.leitura_rebaixos, []);
   assert.ok(!JSON.stringify(r.leitura_rebaixos).includes('dia inteiro'), 'sem o texto do modelo');
+});
+
+/* ---------- C2: a leitura não gasta as rodadas da planta ---------- */
+const bom = () => { const p = planoPadrao('generico'); p.etapas[0].titulo = 'Página feita para o seu negócio'; return p; };
+const ruim = () => { const p = planoPadrao('generico'); p.etapas[0].titulo = 'Passo 1 da página'; return p; };
+test('C2: no turno em que a planta é obrigatória e ainda não foi gravada, ler_caso numa volta DEPOIS da primeira é recusado (a planta vem primeiro); na mesma volta, depois da planta, vale', async () => {
+  const l = leitura({ informacao: { nivel: 'comentou', evidencia: 'a recepção anota num caderno' } });
+  const ia = roteiro(resp([chamada('desenhar_planta', ruim())]), resp([chamada('ler_caso', l)]), resp([chamada('desenhar_planta', bom())]), resp([], 'Desenhei.'));
+  const r = await turno(ia, { conversa: { briefing: clone(BRIEFING) } });
+  assert.equal(voltas(ia, 2)[0].ok, false, 'a leitura da 2ª volta é recusada');
+  assert.match(voltas(ia, 2)[0].motivo, /planta vem primeiro/);
+  assert.equal(r.briefing.planta.origem, 'modelo', 'a planta do modelo foi aceita');
+  assert.equal(r.briefing.leitura, undefined);
+  /* na mesma volta, a planta primeiro e a leitura depois: as duas entram */
+  const ia2 = roteiro(resp([chamada('desenhar_planta', bom()), chamada('ler_caso', l)]), resp([], 'Desenhei.'));
+  const r2 = await turno(ia2, { conversa: { briefing: clone(BRIEFING) } });
+  assert.deepEqual(voltas(ia2, 1).map(x => x.ok), [true, true]);
+  assert.deepEqual(r2.briefing.leitura, l);
+  /* turno sem planta obrigatória (já gravada): a leitura numa 2ª volta vale */
+  const ia3 = roteiro(resp([chamada('atualizar_briefing', { objetivo_detalhe: 'x' })]), resp([chamada('ler_caso', l)]), resp([], 'Ok.'));
+  const r3 = await turno(ia3, { conversa: { briefing: { ...clone(BRIEFING), planta: { v: 1, versao: 1, origem: 'modelo', motivos: [], tentativas: 1, n_mensagens: 1, plano: bom() } } } });
+  assert.deepEqual(r3.briefing.leitura, l);
 });

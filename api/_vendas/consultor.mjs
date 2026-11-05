@@ -286,8 +286,10 @@ export function proximoPasso({ planta = false, leitura = false, pedidoStatus, ..
   const base = proximoPassoBase(resto);
   /* a planta viva (spec §1.1): no turno SEGUINTE ao da primeira estimativa, com o preço ainda aberto e sem plano gravado, o prefixo manda desenhar.
      Sem a condição, o texto é exatamente o de antes (o corpo de proximoPassoBase não mudou) */
-  const depois = (pedeLeitura({ leitura, etapa: resto.etapa, pedidoStatus }) ? PREFIXO_LEITURA : '') + base;
-  return pedePlanta({ planta, pedidoStatus, ...resto }) ? PREFIXO_PLANTA + depois : depois;
+  /* no turno em que a planta é obrigatória o radar NÃO é pedido: uma volta a mais da leitura comeria uma das 4 rodadas (MAX_ITERACOES) e a planta cairia no padrão por estouro */
+  const planta1 = pedePlanta({ planta, pedidoStatus, ...resto });
+  const depois = (!planta1 && pedeLeitura({ leitura, etapa: resto.etapa, pedidoStatus }) ? PREFIXO_LEITURA : '') + base;
+  return planta1 ? PREFIXO_PLANTA + depois : depois;
 }
 /* a condição do prefixo, em um lugar só (o proximoPasso e o agente, que conta o pedido sem resposta, usam a mesma) */
 export const pedePlanta = ({ planta = false, etapa, estimativa, briefing, pedidoStatus }) => !!(planta && estimativa && !(briefing || {}).planta && precoAberto(etapa, pedidoStatus));

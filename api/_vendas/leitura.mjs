@@ -3,8 +3,8 @@
    • ferramentaLeitura(): o esquema FECHADO de `ler_caso`, montado das listas da forma (js/orcamento-planta-forma.js), com a descrição que manda o quando e o como.
    • validarLeitura(bruto, { mensagensDoVisitante, regulado, anterior }): a GRAVAÇÃO. Forma (módulo comum: exatamente os 5 eixos, sem repetir) + lista dura e as dez
      travas sobre a evidência + ÂNCORA (a evidência tem de aparecer LITERALMENTE numa mensagem do visitante, ou ser a que a leitura anterior já tinha ancorado) e SÓ
-     REBAIXA: nenhum nível sai acima do que o modelo disse. Evidência recusada (número, marca, promessa, sem âncora...) é descartada e o nível cai um degrau; deixou_claro
-     sem evidência vira comentou; comentou sem evidência vira nao_falou; nao_falou nunca leva evidência. Nunca lança.
+     REBAIXA: nenhum nível sai acima do que o modelo disse. Evidência recusada (número, marca, promessa, sem âncora...) é descartada e o eixo vai DIRETO a nao_falou
+     (comentou e deixou_claro sempre exigem evidência; diverge da letra da spec §3.4 item 4, que parava em comentou, por coerência); nao_falou nunca leva evidência. Nunca lança.
    • montarLeitura(briefing, { regulado }): a LEITURA do `estado`. Forma + lista dura, SEM reaplicar a âncora (a retenção apaga as mensagens; a leitura guardada vale
      como gravada). Inválida: some (null), nunca vira nota inventada. É a função que o estado já usava (leituraParaTela, em planta.mjs, é este mesmo código).
    • resolverLeitura: o que o agente chama para a ferramenta (uma leitura aceita por turno; forma errada volta ao modelo uma vez; inválida nunca muda o que já está).
@@ -12,11 +12,12 @@
    ========================================================================== */
 import F from '../../js/orcamento-planta-forma.js';
 import { normalizarTexto, textoDoPlanoPermitido } from './planta-textos.mjs';
+import { paraBusca } from './zero.mjs';
+import { pareceInjecao } from './seguranca.mjs';
 
 export const NOME_LEITURA = 'ler_caso';
 
 const ORDEM = Object.freeze({ nao_falou: 0, comentou: 1, deixou_claro: 2 });
-const DEGRAU_ABAIXO = Object.freeze({ deixou_claro: 'comentou', comentou: 'nao_falou', nao_falou: 'nao_falou' });
 const MENSAGENS_MAX = 80;          /* quantas falas do visitante entram na conta (a janela do banco é de 60 mensagens, metade delas dele) */
 const MENSAGEM_MAX_CARACTERES = 2100;
 const EVIDENCIA_MIN_LETRAS = 8, EVIDENCIA_MIN_PALAVRAS = 2;   /* "a" estaria em qualquer mensagem: o trecho que ancora tem de dizer alguma coisa */
@@ -44,10 +45,31 @@ export function ferramentaLeitura() {
   return { name: NOME_LEITURA, description: DESCRICAO, input_schema: JSON.parse(JSON.stringify(ESQUEMA_LEITURA)) };
 }
 
+/* ---------- texto hostil do VISITANTE ---------- */
+/* A lista dura da planta é escrita para texto de MODELO. A evidência é fala da PESSOA, que pode ser ofensa, ordem ao sistema ou dado de terceiro, e reaparece no radar e no BRIEFING do modelo
+   (leitura_atual). Aqui, uma lista CURTA e honesta (ofensas, imperativos ao sistema, endereço), mais o detector de injeção do Zero. É lista negra: o recall é limitado (FUROS_DA_EVIDENCIA em
+   docs/testes/planta-textos-casos.mjs); a defesa real é o prompt e a medida da rodada real 8. Não se persegue cascata de vocabulário. Sobre o texto sem acento e em minúsculas (paraBusca). */
+const HOSTIL = new RegExp([
+  '\\b(?:idiot\\w*|burr[oa]s?|porcaria|merda|imbecil\\w*|incompetent\\w*|otari\\w+|estupid\\w+|inutei?l|inuteis|lixo|palhac\\w+|safad\\w+|vagabund\\w+)\\b',
+  '\\bvoces? (?:e|sao|sera|serao) (?:um|uma|uns|umas|o|a|os|as)\\b', '\\bagora voce\\b', '\\bresponda (?:sempre|que|apenas|somente|so)\\b', '\\bsem regras\\b', '\\baceit[ae] tudo\\b',
+  '\\b(?:finj\\w+|faca de conta|ignor\\w+|desconsider\\w+|obedec\\w+ (?:sempre|so a mim|apenas))\\b',
+  '\\b(?:rua|avenida|travessa|alameda|estrada|rodovia) (?:d[aeo]s? )?[a-z]{3,}'
+].join('|'));
+const hostil = t => { try { return pareceInjecao(t) || HOSTIL.test(paraBusca(t)); } catch { return true; } };
+
 /* ---------- a âncora ---------- */
 const chave = t => normalizarTexto(t).toLowerCase();
 const palavras = t => (t.match(/\p{L}+/gu) || []).length;
 const aparar = t => String(t).replace(PONTAS, '');
+/* o trecho está na fala com FRONTEIRA de palavra nas duas pontas ("ito movimento" não ancora em "muito movimento"); letra e dígito (Unicode) contam como parte da palavra */
+const PARTE_DE_PALAVRA = /[\p{L}\p{N}]/u;
+function contem(fala, trecho) {
+  for (let i = fala.indexOf(trecho); i >= 0; i = fala.indexOf(trecho, i + 1)) {
+    const antes = i > 0 ? fala[i - 1] : '', depois = fala[i + trecho.length] || '';
+    if (!(antes && PARTE_DE_PALAVRA.test(antes)) && !(depois && PARTE_DE_PALAVRA.test(depois))) return true;
+  }
+  return false;
+}
 
 /* as falas do visitante prontas para a busca (só texto, no máximo MENSAGENS_MAX, as mais recentes) */
 function falasDoVisitante(lista) {
@@ -68,14 +90,17 @@ function evidenciasAnteriores(anterior) {
 
 /* um eixo: devolve { nivel, evidencia?, rebaixo? } */
 function julgar(item, { falas, anteriores, regulado }) {
-  const baixar = motivo => ({ nivel: DEGRAU_ABAIXO[item.nivel], rebaixo: { eixo: item.eixo, de: item.nivel, para: DEGRAU_ABAIXO[item.nivel], motivo } });
+  /* comentou e deixou_claro SEMPRE exigem evidência ancorada: quem a perde (sem evidência, curta, número, marca, injeção, sem âncora) vai DIRETO a nao_falou. Um degrau só deixaria um comentou sem
+     citação que o modelo reenviaria e cairia no turno seguinte: o radar oscilaria */
+  const baixar = motivo => ({ nivel: 'nao_falou', rebaixo: { eixo: item.eixo, de: item.nivel, para: 'nao_falou', motivo } });
   if (item.nivel === 'nao_falou') return { nivel: 'nao_falou' };
   if (typeof item.evidencia !== 'string') return baixar('sem_evidencia');
+  if (hostil(item.evidencia)) return baixar('evidencia_hostil');
   const r = textoDoPlanoPermitido(aparar(item.evidencia), { regulado, travas: true, primeiraPessoa: true });
   if (!r.ok) return baixar('evidencia_' + r.motivo);
   if (r.texto.length < EVIDENCIA_MIN_LETRAS || palavras(r.texto) < EVIDENCIA_MIN_PALAVRAS) return baixar('curta');
   const k = chave(r.texto);
-  if (!(anteriores[item.eixo] === k || falas.some(f => f.includes(k)))) return baixar('sem_ancora');
+  if (!(anteriores[item.eixo] === k || falas.some(f => contem(f, k)))) return baixar('sem_ancora');
   return { nivel: item.nivel, evidencia: r.texto };
 }
 

@@ -563,7 +563,7 @@ export const SABOTAGENS = [
     de: "if (versao >= MAX_VERSOES) return recusa(", para: "if (false) return recusa(" },
   /* ---- o radar (PR 2d-ligação): a leitura do caso ---- */
   { nome: "leitura: a evidência é aceita sem ancorar (qualquer trecho vale, inclusive o inventado)", fonte: "api/_vendas/leitura.mjs", testes: ['docs/testes/planta-leitura.test.mjs'],
-    de: "if (!(anteriores[item.eixo] === k || falas.some(f => f.includes(k)))) return baixar('sem_ancora');", para: "if (false) return baixar('sem_ancora');" },
+    de: "if (!(anteriores[item.eixo] === k || falas.some(f => contem(f, k)))) return baixar('sem_ancora');", para: "if (false) return baixar('sem_ancora');" },
   { nome: "leitura: comentou sem evidência continua comentou (o nível não cai um degrau)", fonte: "api/_vendas/leitura.mjs", testes: ['docs/testes/planta-leitura.test.mjs'],
     de: "comentou: 'nao_falou', nao_falou: 'nao_falou' });", para: "comentou: 'comentou', nao_falou: 'nao_falou' });" },
   { nome: "leitura: a âncora vale também nas falas do Zero (o modelo cita a própria fala)", fonte: "api/_vendas/agente.mjs", testes: ['docs/testes/planta-leitura-agente.test.mjs'],

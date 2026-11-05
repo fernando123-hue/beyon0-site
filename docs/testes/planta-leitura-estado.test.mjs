@@ -109,7 +109,7 @@ test('evidência forjada cai de nível ponta a ponta (leitura-forjada); leitura-
   const c = await n.iniciar();
   await n.mensagem(LIGADA, c, 'Tenho uma clínica de odontologia e quero agendamentos. leitura-forjada');
   const e = await n.estado(LIGADA, c);
-  assert.equal(nivel(e.leitura, 'volume'), 'comentou', 'deixou_claro sem âncora desce');
+  assert.equal(nivel(e.leitura, 'volume'), 'nao_falou', 'deixou_claro sem âncora desce');
   assert.equal(evid(e.leitura, 'volume'), undefined);
   assert.ok(!JSON.stringify(e).includes('o dia inteiro'), 'a citação inventada não chega à tela');
   const n2 = navegador();
@@ -148,6 +148,6 @@ test('o log do Worker: a leitura que o validador desceu deixa UMA linha com os c
   } finally { console.log = original; }
   const eventos = linhas.filter((l) => l.startsWith('{') && JSON.parse(l).evento === 'leitura').map((l) => JSON.parse(l));
   assert.equal(eventos.length, 1);
-  assert.deepEqual(eventos[0].rebaixos, [['volume', 'deixou_claro', 'comentou', 'sem_ancora']]);
+  assert.deepEqual(eventos[0].rebaixos, [['volume', 'deixou_claro', 'nao_falou', 'sem_ancora']]);
   assert.ok(!JSON.stringify(eventos[0]).includes('dia inteiro'));
 });

@@ -90,7 +90,7 @@ function navegador(env) {
 }
 const FALA = 'Tenho uma clínica odontológica em Niterói e quero um site mais profissional porque hoje só tenho Instagram. Quero mais agendamentos.';
 
-test('custo: só o turno que PODE desenhar (flag ligada, preço aberto, estimativa já feita) reserva o pior caso de 4 chamadas; flag desligada reserva 0,05 de sempre', async () => {
+test('custo: todo turno com a flag ligada e o preço aberto (C4: a planta e a leitura, que pode vir já no 1º turno, dividem as rodadas) reserva o pior caso de 4 chamadas; flag desligada reserva 0,05 de sempre', async () => {
   assert.equal(RESERVA_USD.conversa, 0.05);
   assert.equal(reservaUsd('conversa'), 0.05);
   assert.equal(reservaUsd('conversa_planta'), 0.2);
@@ -98,9 +98,9 @@ test('custo: só o turno que PODE desenhar (flag ligada, preço aberto, estimati
   const on = navegador(LIGADA);
   const c = await on.iniciar();
   await on.chamar('POST', 'mensagem', { conversa_id: c, texto: FALA });
-  assert.deepEqual(reservas, [0.05], '1º turno: ainda não há estimativa, a planta não pode vir');
+  assert.deepEqual(reservas, [0.2], '1º turno: sem estimativa ainda, mas a leitura e o estimar dividem as rodadas: reserva o pior caso');
   await on.chamar('POST', 'mensagem', { conversa_id: c, texto: 'Me conta mais' });
-  assert.deepEqual(reservas, [0.05, 0.2], '2º turno: com a estimativa feita e a flag ligada');
+  assert.deepEqual(reservas, [0.2, 0.2], '2º turno: com a estimativa feita e a flag ligada');
   reservas.length = 0;
   const off = navegador({});
   const c2 = await off.iniciar();

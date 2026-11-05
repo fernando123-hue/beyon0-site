@@ -443,8 +443,8 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       if (pareceInjecao(msg)) await banco('vendas_registrar_evento', { conversa_id: corpo.conversa_id, visitante_id: vid, tipo: 'tentativa_bloqueada' }).catch(() => {});
       await reservarIa(corpo.conversa_id, vid, request);
       try {
-        /* (planta viva) o turno que pode desenhar (flag ligada, preço aberto, estimativa já feita) reserva o pior caso de 4 chamadas; os outros, a reserva de sempre */
-        const papelDaReserva = plantaLigada(env) && est.estimativa && precoAberto(est.conversa.etapa, est.pedido?.status) ? 'conversa_planta' : 'conversa';
+        /* (planta viva) todo turno com a flag ligada e o preço aberto reserva o pior caso de 4 chamadas (a planta e a leitura, que já vem no 1º turno, dividem as rodadas); os outros, a reserva de sempre */
+        const papelDaReserva = plantaLigada(env) && precoAberto(est.conversa.etapa, est.pedido?.status) ? 'conversa_planta' : 'conversa';
         return await comReserva(corpo.conversa_id, vid, papelDaReserva, () => turno(vid, corpo.conversa_id, est, regras, msg));
       } finally {
         await banco('vendas_liberar_ia', { conversa_id: corpo.conversa_id, visitante_id: vid }).catch(() => {});
