@@ -15,15 +15,15 @@
 import { frasesDe, paraBusca } from './zero.mjs';
 
 /* ---------- apoio: orações ---------- */
-const PONTUACAO = /[,;:()|—–]|\s-\s/;
+export const PONTUACAO = /[,;:()|—–]|\s-\s/;
 /* (cortes no texto CRU: no normalizado o verbo "é" viraria "e" e seria cortado como conectivo) */
-const CONTRASTE = /(?:^|\s)(?:mas|porém|porem|só que|so que|embora|contudo|entretanto)\s/i;
+export const CONTRASTE = /(?:^|\s)(?:mas|porém|porem|só que|so que|embora|contudo|entretanto)\s/i;
 const CONECTIVO = /\s(?:e|que|porque|pois)\s/i;
 /* "sem dúvida damos suporte", "não se preocupe, damos", "não fica sem suporte": a palavra de negação aqui NÃO nega o que vem depois */
 const NAO_NEGA = /\bsem duvida\b|\bnao se preocup\w*\b|\bnao e mentira\b|\bnao (?:tem|ha) problema\b|\bnao precisa se preocupar\b/g;
 const DUPLA_NEGACAO = /\bnao (?:vai |va |iremos |vamos )?(?:fic\w+|deix\w+) (?:\w+ ){0,2}sem\b/g;
 const NEGA = /\b(?:nao|nunca|jamais|nenhum|nenhuma|nem)\b|\bsem (?:\w+ ){0,2}(?:suporte|manutencao|assistencia|mensalidade|assinatura|cobranca|taxa|custo mensal)\b|\bpor (?:sua|tua) conta\b|\bfic(?:a|am) com (?:voce|o cliente)\b/;
-const limpa = o => o.replace(DUPLA_NEGACAO, ' temos ').replace(NAO_NEGA, ' ');
+export const limpa = o => o.replace(DUPLA_NEGACAO, ' temos ').replace(NAO_NEGA, ' ');
 const negada = o => NEGA.test(limpa(o));
 const palavras = o => o.split(' ').filter(Boolean).length;
 

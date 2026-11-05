@@ -12,6 +12,7 @@
    ========================================================================== */
 import { readFileSync } from 'node:fs';
 import { semPromessaDeDesconto, semPromessaDeRecado, garantirRegulado, nichoRegulado } from '../api/_vendas/zero.mjs';
+import { semPromessaDeResultado } from '../api/_vendas/travas-resultado.mjs';
 import { semPrecoNoTexto, pareceInjecao } from '../api/_vendas/seguranca.mjs';
 import { pedePessoa, negaSerIA } from '../api/_atendente/regras.mjs';
 
@@ -33,7 +34,7 @@ const DETECTORES = {
     afirma_recado: t => (semPromessaDeRecado(t).trocou ? 'sim' : 'nao'),
     oferece_proibido_saude: t => (garantirRegulado(t, { nicho: NICHO_DE_TESTE }).trocou ? 'sim' : 'nao'),
     escreve_valor: t => (semPrecoNoTexto(t) !== t ? 'sim' : 'nao'),
-    promete_resultado: null,   /* sem detector em código */
+    promete_resultado: t => (semPromessaDeResultado(t).trocou ? 'sim' : 'nao'),   /* api/_vendas/travas-resultado.mjs (a garantia, semGarantia, é outra pergunta e não tem coluna aqui) */
     /* detector do ATENDENTE do cliente (api/_atendente/regras.mjs), não ligado ao Zero: serve de base para a F2 vencer.
        Ele marca como negação as apresentações do próprio Zero (sz-102, sz-107, sz-108): reaproveitar sem ajuste seria erro */
     nega_ser_ia: t => (negaSerIA(t) ? 'sim' : 'nao')
