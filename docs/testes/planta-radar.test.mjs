@@ -323,6 +323,18 @@ test('atualizar no meio da animação parte de onde o polígono está e mantém 
   assert.equal(b.laco.length, 0);
 });
 
+test('voltar para onde o polígono já está cancela a animação que ia para outro lado', () => {
+  const b = beyonDeMentira(false);
+  const m = montado(nivelTodos('nao_falou'), { beyon: b });
+  const parado = pontosDe(m.alvo);
+  m.radar.atualizar(m.alvo, lerJson('clinica.json'));
+  assert.equal(b.laco.length, 1);
+  m.radar.atualizar(m.alvo, nivelTodos('nao_falou'));
+  assert.equal(b.laco.length, 0, 'saiu do laço');
+  b.quadro(99999);
+  assert.equal(pontosDe(m.alvo), parado);
+});
+
 test('a mesma leitura de novo não anima nem registra nada no laço', () => {
   const b = beyonDeMentira(false);
   const m = montado(lerJson('clinica.json'), { beyon: b });

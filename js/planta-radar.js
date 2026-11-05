@@ -229,7 +229,8 @@
     if (igual(meta, inst.meta) && !mudou.length) return true;
     inst.meta = meta;
     if (!comMovimento()) { sairDoLaco(inst); inst.atual = meta.slice(); pintar(inst); return true; }
-    if (!igual(meta, inst.atual)) {
+    if (igual(meta, inst.atual)) sairDoLaco(inst);   /* voltou para onde o polígono já está: cancela o que estava indo para outro lado */
+    else {
       inst.anim = { inicio: agora(), de: inst.atual.slice(), para: meta };
       if (!inst.noLaco) { inst.noLaco = true; raiz.BEYON.add(inst.nome, function (S) { passo(inst, S); }); if (typeof raiz.BEYON.iniciar === 'function') raiz.BEYON.iniciar(); }
     }
