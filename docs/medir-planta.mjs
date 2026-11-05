@@ -101,7 +101,7 @@ async function rodada({ base, larg, alt, nicho, posicao, cpu, variante }) {
   for (let i = 0; i < textos.length - 1; i++) await turno(page, textos[i]);
   if (posicao === 'dentro') {
     const fim = await page.evaluate(() => document.querySelector('.orc-mesa').getBoundingClientRect().bottom + window.scrollY);
-    await page.setViewportSize({ width: larg, height: Math.ceil(fim + 500) });
+    await page.setViewportSize({ width: larg, height: Math.ceil(fim + 2200) });
     await page.evaluate(() => window.scrollTo(0, 0));
     await espera(400);
   }
@@ -157,9 +157,10 @@ async function distancias(larg, alt) {
     document.getElementById('o-contato').hidden = false;   /* só para medir a geometria: o formulário aparece depois do pacote gravado */
     const y = (el) => el.getBoundingClientRect().top + window.scrollY, fundo = (el) => el.getBoundingClientRect().bottom + window.scrollY;
     const preco = document.getElementById('o-est'), botao = document.querySelector('#o-detalhes-form button[type=submit]'), faixa = document.getElementById('o-planta'), contato = document.getElementById('o-contato');
-    const A = y(botao) - fundo(preco), H = innerHeight, alturaFaixa = Math.round(faixa.getBoundingClientRect().height);
-    contato.parentNode.insertBefore(faixa, contato.nextSibling);   /* posição B: a faixa DEPOIS do formulário */
-    const B = y(botao) - fundo(preco);
+    /* a página é a posição B (a faixa é a última seção do <main>, depois do formulário); a posição A (a faixa entre a mesa e o formulário, a do PR 2c) se mede movendo a faixa para antes dele */
+    const B = y(botao) - fundo(preco), H = innerHeight, alturaFaixa = Math.round(faixa.getBoundingClientRect().height);
+    contato.parentNode.insertBefore(faixa, contato);
+    const A = y(botao) - fundo(preco);
     return { A: Math.round(A), B: Math.round(B), alturaFaixa, janela: H, A_em_telas: +(A / H).toFixed(2), B_em_telas: +(B / H).toFixed(2) };
   });
   await ctx.close();

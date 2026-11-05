@@ -68,6 +68,7 @@ console.log('\n== flag ligada (' + ON + ') ==');
   ok(await page.evaluate(() => [...document.querySelectorAll('.plv-lista li .plv-sr')].every((s) => s.textContent.length > 10)), 'cada etapa leva a frase para o leitor de tela');
   const topoAntes = await page.evaluate(() => Math.round(document.getElementById('o-planta').getBoundingClientRect().top));
   ok(topoAntes > 700, 'a faixa nasceu fora da área visível (topo em ' + topoAntes + ' px, janela de 844)');
+  ok(await page.evaluate(() => { const f = document.getElementById('o-planta'); return f.parentNode.lastElementChild === f && f.parentNode.tagName === 'MAIN' && f.getBoundingClientRect().top >= document.querySelector('.orc-mesa').getBoundingClientRect().bottom; }), 'a faixa é a última seção do <main>, depois da mesa (posição B)');
   await page.click('.plv-ver');
   await espera(900);
   const aposToque = await page.evaluate(() => ({ topo: Math.round(document.getElementById('o-planta').getBoundingClientRect().top), foco: document.activeElement.className }));
@@ -84,6 +85,7 @@ console.log('\n== flag ligada (' + ON + ') ==');
   const antes = await page.locator('#o-log .msg--visitante').count();
   await page.locator('.plv-btn', { hasText: 'Quero ajustar algo' }).click();
   ok(await page.evaluate(() => document.activeElement.id === 'o-texto' && document.getElementById('o-texto').placeholder === 'Diga o que mudar na planta.'), '"Quero ajustar algo" foca a caixa com a dica');
+  ok(await page.waitForFunction(() => { const r = document.getElementById('o-texto').getBoundingClientRect(); return r.top >= 0 && r.bottom <= window.innerHeight; }, null, { timeout: 4000 }).then(() => true, () => false), '"Quero ajustar algo" traz a caixa de texto de volta para dentro da tela (a faixa fica longe da conversa)');
   ok(await page.locator('#o-log .msg--visitante').count() === antes, '"Quero ajustar algo" não envia nada');
   /* Está certo: uma mensagem */
   await page.locator('.plv-btn', { hasText: 'Está certo' }).click();
@@ -211,7 +213,8 @@ console.log('\n== faixa à vista (janela alta): espera o gesto ==');
   const { ctx, page } = await abrir(ON, { larg: 390, alt: 844 });
   await turno(page, T1);
   const fim = await page.evaluate(() => document.querySelector('.orc-mesa').getBoundingClientRect().bottom + window.scrollY);
-  await page.setViewportSize({ width: 390, height: Math.ceil(fim + 500) });
+  /* a janela alta cobre a mesa E o formulário #o-contato (a faixa vem depois dele e ele aparece com a resposta do Zero: cerca de 1.700 px): a posição da faixa fica à vista */
+  await page.setViewportSize({ width: 390, height: Math.ceil(fim + 2200) });
   await page.evaluate(() => window.scrollTo(0, 0)); await espera(300);
   await turno(page, 'planta-boa pode desenhar');
   await espera(1500);
