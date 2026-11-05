@@ -107,6 +107,27 @@ Alterados:
 
 Tudo acima verde e visto vermelho antes; prompt de sistema idêntico; flag desligada = `estado` e lista de ferramentas iguais; duas revisões publicadas e achados aplicados; CI e mutação verdes; `main` conferida; nível calculado = 3.
 
+### Repassado pela revisão do Passo 1 (para o 2a conferir; o módulo de forma NÃO faz isto)
+
+O Passo 1 (`js/orcamento-planta-forma.js`) foi revisto por `code-reviewer` e `security-reviewer`. O que ficou para a camada de texto e o servidor:
+
+- **Títulos distintos** (spec §2.4, passo 3): a forma confere ids únicos, não títulos repetidos.
+- **NFKC primeiro, depois limpar e reconferir:** `validarPlano` do 2a normaliza (invisíveis + NFKC), **remove `<`, `>`, controles e invisíveis do texto normalizado e confere de novo os comprimentos** (o NFKC pode encurtar ou alongar uma frase). A forma já recusa `<`/`>` e seus equivalentes de largura total e pequenos (U+FF1C/FF1E/FE64/FE65), inclusive depois de `normalize('NFKC')`, mas isso é cinto, não a limpeza.
+- **Limite de tamanho do `input` da ferramenta ANTES de chamar a forma:** a forma faz `JSON.stringify` do bruto antes de testar os 8 KB (o tamanho é medido no texto já serializado). O 2a corta o `tool_use`/corpo grande antes (a API já limita por `max_tokens`; conferir o ramo `desenhar_planta` do `agente.mjs`).
+- **Homóglifos, espaços finos e escrita da direita para a esquerda** são da camada de texto: a forma recusa as marcas de direção e os invisíveis, mas deixa passar letras de outros alfabetos, o espaço sem quebra e os espaços finos (U+2000 a U+200A).
+- **Evidência de eixo `nao_falou` não deve ser desenhada** (radar, 2d): a forma aceita `evidencia` em qualquer nível; quem decide mostrar é o servidor/validador de leitura e o desenho.
+- **O layout ordena por referência, não por posição:** na espinha o satélite pode vir ANTES do tronco no array (a forma não exige ordem entre eles); `satelite_de` aponta por `id`.
+- **Ids só em `data-id`, `Map` ou `Object.create(null)`; nunca `#id` num seletor sem `CSS.escape`.** O regex da spec admite `--`, `00`, `a-`; a forma reserva `nucleo`, `led`, `chegada`, `constructor`, `prototype` e `proto`.
+- **Regras da forma mais estritas que a spec (decisões do Passo 1, a confirmar ou afrouxar no 2a):**
+  - `laco` só vale em satélite da espinha (como no protótipo); num satélite aceita `true` e `false`, qualquer outro valor é recusado; no tronco a chave é recusada até com `false`.
+  - `retorno` só existe na ÚLTIMA etapa do laço e vale `true`; em qualquer outra a chave é recusada (inclusive `retorno: false`), coerente com "só na última etapa" da spec.
+  - `rotulo_retorno` (só no laço) e `rotulos_ramos` (só na bifurca, exatamente 2) são opcionais; rótulo de 3 a 28 caracteres.
+  - A entrada da bifurca tem no mínimo 1 etapa e nenhum teto próprio (o total de 7 a 8 etapas limita).
+  - `leitura` do radar: no máximo 2 KB; eixos sempre devolvidos na ordem canônica de `EIXOS`.
+  - `tronco_min`/`tronco_max` decidem quase tudo na espinha; `satelites_min`/`satelites_max` são rede de segurança (com 7 a 8 etapas no total quase nunca decidem sozinhos).
+  - Texto: a forma recusa `<`, `>`, controles, invisíveis/preenchimentos (a lista de `promessa.mjs` mais U+034F, U+115F/1160, U+17B4/17B5, U+2800, U+3164, U+FFA0, U+FE00 a FE0F e as etiquetas U+E0000 a E007F) e substituto UTF-16 solto; o mínimo de comprimento só conta o texto visível (sem espaços nem esses caracteres).
+  - O retorno traz `erros: [{ caminho, codigo }]`; o nome de uma chave extra entra no caminho só se for curto e simples (`[A-Za-z0-9_$-]{1,32}`), senão `?`.
+
 ## PR 2b: o desenho (módulos do front, sem ligar ao Zero)
 
 **Nível 2.** Ramo `planta-2b`, a partir do Passo 1, com o resultado do passo 0. **Revisão técnica:** `typescript-reviewer` + `performance-optimizer` (CLS e CPU). **Acessibilidade:** `a11y-architect` com `npm run acessibilidade`. O `security-reviewer` olha só a regra de `textContent`.
