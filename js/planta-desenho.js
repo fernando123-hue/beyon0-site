@@ -154,6 +154,7 @@
       var hd = H('span', 'plv-hd', null, li);
       H('span', 'plv-n', dois(n.num), hd); H('span', 'plv-verbo', n.est.verbo, hd);
       H('span', 'plv-tit', n.est.titulo, li);
+      H('span', 'plv-sr', n.est.frase, li);
       if (ref.ajustado) H('span', 'plv-etq', 'Ajustado', li);
     }
     function chamada(li, n, mov, r) {
@@ -185,7 +186,7 @@
       S('path', { d: d }, cg, 'plv-ticks');
       classe(li, 'plv-ponta plv-ponta--led');
       chamada(li, n, ref.mov, r);
-      H('span', 'plv-verbo', 'Objetivo', li); H('span', 'plv-tit', n.est.titulo, li);
+      H('span', 'plv-verbo', 'Objetivo', li); H('span', 'plv-tit', n.est.titulo, li); H('span', 'plv-sr', n.est.frase, li);
     }
 
     function construirQuadro(quadro, g, plano, opc) {
@@ -253,7 +254,7 @@
       if (!inst) return;
       inst.relogio.encerrar();
       inst.anims.forEach(function (a) { try { a.cancel(); } catch (e) { aviso(e); } });
-      inst.anims = []; inst.pausadas = []; inst.vida = []; inst.iniciada = false;
+      inst.anims = []; inst.pausadas = []; inst.vida = []; inst.iniciada = false; inst.adiado = false;
       if (inst.R && inst.R.tang && inst.R.tang.remove) inst.R.tang.remove();
     }
     function pausarTudo() {
@@ -271,6 +272,11 @@
     }
     function iniciar() {
       if (!inst || inst.iniciada) return;
+      if (inst.adiado) {   /* o programa da entrada (~45 animações) só nasce agora, quando vai rodar: com a faixa fora da tela ele não custa nada na tarefa que monta o quadro */
+        inst.adiado = false;
+        programaEntrada();
+        inst.anims.forEach(function (a) { try { a.pause(); } catch (e) { aviso(e); } });
+      }
       inst.iniciada = true; inst.aguardando = false;
       inst.anims.forEach(function (a) { try { a.play(); } catch (e) { aviso(e); } });
       inst.relogio.iniciar();
@@ -308,7 +314,7 @@
       cancelarMovimento();
       inst.iniciada = true;
       aplicarFinal();
-      fixarStatus((ajuste ? 'Planta ajustada, com ' : 'Planta pronta, com ') + etapasDe(inst.R.g) + ' etapas.');
+      fixarStatus((ajuste ? 'Planta ajustada, com ' : 'Planta pronta, com ') + etapasDe(inst.R.g) + ' etapas. ' + inst.plano.fecho);
       if (!ajuste) leitura('Planta pronta', inst.plano.fecho);
       pulsoDeRepouso();
     }
@@ -334,6 +340,7 @@
         for (i = 1; i < pts.length; i++) { acum += dist(pts[i - 1], pts[i]); kf.push({ offset: Math.min(1, s + (e - s) * (acum / L)), opacity: 1, transform: tr(pts[i]), easing: 'linear' }); }
         kf.push({ offset: Math.min(1, e + eps), opacity: 0, transform: tr(pts[pts.length - 1]), easing: 'linear' });
         kf.push({ offset: 1, opacity: 0, transform: tr(pts[pts.length - 1]), easing: 'linear' });
+        for (i = 1; i < kf.length; i++) if (kf[i].offset < kf[i - 1].offset) kf[i].offset = kf[i - 1].offset;   /* a API recusa offset decrescente: rota longa e curta no tempo gerava o 2º ponto antes do 1º */
         var a = anim(el, kf, { duration: P, iterations: iter, easing: 'linear' });
         if (a) { inst.vida.push(a); if (!inst.visivel && inst.io) { try { a.pause(); } catch (x) { aviso(x); } } }
       });
@@ -456,10 +463,10 @@
           if (!inst || !entradas || !entradas.length) return;
           var e = entradas[entradas.length - 1], vis = !!e.isIntersecting && e.intersectionRatio > 0;
           inst.visivel = vis;
-          var enche = e.intersectionRect && win.innerHeight && e.intersectionRect.height >= win.innerHeight * 0.5;
+          var enche = e.intersectionRect && win.innerHeight && e.intersectionRect.height >= win.innerHeight * 0.4;
           if (!inst.iniciada) { if (vis && (e.intersectionRatio >= FRACAO_VISIVEL || enche) && inst.aguardando) iniciar(); return; }
           if (vis && !doc.hidden) retomarTudo(); else pausarTudo();
-        }, { threshold: [0, 0.1, 0.2, FRACAO_VISIVEL, 0.5, 0.75, 1] });
+        }, { threshold: [0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, FRACAO_VISIVEL, 0.4, 0.45, 0.5, 0.75, 1] });
         inst.io.observe(inst.quadro);
       }
     }
@@ -487,9 +494,7 @@
       inst.animada = animavel;
       inst.aguardando = false;
       if (pre) {
-        inst.aguardando = true;
-        programaEntrada();
-        inst.anims.forEach(function (a) { try { a.pause(); } catch (e) { aviso(e); } });
+        inst.aguardando = true; inst.adiado = true;
         if (!inst.io || inst.visivel) iniciar();
       } else if (modo === 'ajuste' && animavel && (!inst.io || inst.visivel)) {
         programaAjuste(antigos, novos, fala);

@@ -30,6 +30,7 @@ export class No {
   removeChild(c) { const i = this.filhos.indexOf(c); if (i >= 0) { this.filhos.splice(i, 1); c.pai = null; } return c; }
   remove() { if (this.pai) this.pai.removeChild(this); }
   get firstChild() { return this.filhos[0] || null; }
+  get parentNode() { return this.pai; }
   get children() { return this.filhos.filter((f) => f.nodeType === 1); }
   get textContent() { return this.filhos.map((f) => f.textContent).join(''); }
   set textContent(v) { this.filhos.forEach((f) => { f.pai = null; }); this.filhos = []; if (v !== '' && v != null) { const t = new Texto(v); t.pai = this; this.filhos.push(t); } }
@@ -63,6 +64,8 @@ export class No {
     return out;
   }
   porClasse(c) { return this.achar((n) => n._classes.has(c)); }
+  /* só seletor simples: tag ou .classe */
+  querySelector(sel) { return sel[0] === '.' ? this.porClasse(sel.slice(1))[0] || null : this.porTag(sel)[0] || null; }
   porTag(t) { const T = t.toLowerCase(); return this.achar((n) => String(n.tagName).toLowerCase() === T); }
 }
 

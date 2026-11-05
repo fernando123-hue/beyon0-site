@@ -19,3 +19,16 @@ test('JS do desenho: no máximo 20.000 bytes com gzip -9 (soma dos três arquivo
 test('CSS da faixa: no máximo 6.000 bytes com gzip -9', () => {
   assert.ok(gz(ler('css/orcamento-planta.css')) <= 6000);
 });
+
+/* PR 2c: o orçamento de bytes por camada (decisão [A] registrada no plano, "Registro do PR 2c"). O teto de 20 KB da spec §4.4 vale para os 3 módulos do desenho (acima);
+   a forma (compartilhada com o servidor) tem teto à parte; o que a pessoa baixa de JS da faixa (forma + 3) tem teto de 28 KB com gzip -9; a ligação, o único JS da
+   planta que toda visita baixa (com a flag desligada também), é pequena. */
+test('JS da faixa que a pessoa baixa quando a planta chega (forma + 3 módulos): no máximo 28.000 bytes com gzip -9', () => {
+  const soma = ['js/orcamento-planta-forma.js'].concat(MODULOS).reduce((s, m) => s + gz(ler(m)), 0);
+  assert.ok(soma <= 28000, 'gzip -9 soma ' + soma);
+});
+
+test('a ligação (js/orcamento-planta.js), baixada com a flag desligada também: no máximo 5.000 bytes com gzip -9', () => {
+  const n = gz(ler('js/orcamento-planta.js'));
+  assert.ok(n <= 5000, 'gzip -9 ' + n);
+});

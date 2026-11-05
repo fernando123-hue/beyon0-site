@@ -248,6 +248,10 @@
       </section>
     </div>
 
+    <!-- A PLANTA DO SITE (planta viva, PR 2c; js/orcamento-planta.js): só existe com a flag BZ_PLANTA ligada no servidor e uma planta no estado. Escondida até lá;
+         sai de hidden fora da área visível ou num gesto da pessoa (spec §4.4). Os módulos do desenho só são baixados quando a planta chega -->
+    <section class="plv-faixa" id="o-planta" data-origem="orcamento-planta" hidden></section>
+
     <!-- OS DETALHES (spec 2026-10-11 §3): uma tela, celular primeiro; viram o pedido com código (js/orcamento-detalhes.js).
          O aceite de privacidade continua aqui e vai ao banco pelo mesmo caminho de antes (app.vendas_informar_contato) -->
     <section class="orc-bloco" id="o-contato" aria-labelledby="o-contato-titulo" hidden>
@@ -711,6 +715,7 @@
   <script src="js/orcamento-previa.js" defer></script>
   <script src="js/orcamento-restante.js" defer></script>
   <script src="js/orcamento-entrega.js" defer></script>
+  <script src="js/orcamento-planta.js" defer></script>
   <script src="js/orcamento.js" defer></script>
 </body>
 </html>

@@ -60,10 +60,11 @@ test('M17: o ouro (--ouro-rgb) só aparece em regras do LED (plv-led, plv-ponta-
   for (const r of regras) assert.ok(/plv-led|plv-ponta--led/.test(r.split('{')[0]), 'ouro fora do LED: ' + r.split('{')[0].trim());
 });
 
-test('I2/I3: a nota e a cota têm altura fixa em px (a nota do modelo e a do plano padrão têm tamanhos diferentes; trocar uma pela outra não pode mover o quadro)', () => {
+test('I2/I3: a nota e a cota têm altura fixa (a nota do modelo e a do plano padrão têm tamanhos diferentes; trocar uma pela outra não pode mover o quadro). A nota em linhas de texto (em), a cota em px', () => {
   const limpo = semComentarios(css);
-  assert.match(limpo, /\.plv-nota\s*\{[^}]*\bheight:\s*\d+px[^}]*overflow:\s*hidden/, 'nota com height fixo');
-  const medias = limpo.match(/@media[^{]+\{[^@]*?\.plv-nota\s*\{[^}]*\bheight:\s*\d+px/g) || [];
+  assert.match(limpo, /\.plv-nota\s*\{[^}]*\bmin-height:\s*[\d.]+em/, 'nota com altura mínima em linhas de texto (cresce com o zoom de texto, em vez de cortar)');
+  assert.doesNotMatch(limpo.match(/\.plv-nota\s*\{[^}]*\}/)[0], /overflow:\s*hidden|[^-]height:/, 'a nota não corta nem tem altura fixa');
+  const medias = limpo.match(/@media[^{]+\{[^@]*?\.plv-nota\s*\{[^}]*\bmin-height:\s*[\d.]+em/g) || [];
   assert.ok(medias.length >= 2, 'a altura da nota muda só por largura de janela (media queries), nunca pelo texto: ' + medias.length);
   assert.match(limpo, /\.plv-cota\s*\{[^}]*\bheight:\s*\d+px[^}]*overflow:\s*hidden/, 'cota com height fixo (o nome do negócio muda)');
   assert.match(limpo, /\.plv-cota span\s*\{[^}]*white-space:\s*nowrap/, 'o nome na cota não quebra linha');
@@ -76,17 +77,32 @@ test('I1: o título do rótulo de uma ponta (núcleo, LED), quando ao lado, é l
   assert.match(limpo, /\.plv-ponta\s*\{[^}]*overflow:\s*hidden/);
 });
 
-test('geometria em px: o CSS não define left, top, width, height, inset nem min-height do quadro em ch, em ou rem', () => {
+test('geometria em px: o CSS não define left, top, width, height, inset nem min-height do quadro em ch, em ou rem (só as caixas de TEXTO corrido, que medem linhas)', () => {
+  const TEXTO_EM_LINHAS = /^\s*\.plv-(nota|leitura|leitura__txt)\s*$/;   /* a altura delas é um número de linhas de texto: em do próprio corpo, que cresce com o zoom de texto sem depender da largura do glifo (o que o ch fazia) */
   const regras = semComentarios(css).split('}');
   for (const r of regras) for (const m of r.matchAll(/(^|[{;\s])(left|top|right|bottom|(?:max-|min-)?width|(?:max-|min-)?height|inset)\s*:\s*([^;]+)/g)) {
-    assert.ok(!/\d(ch|em|rem|vw|vh)\b/.test(m[3]), 'unidade relativa em geometria: ' + m[2] + ': ' + m[3]);
+    const partes = r.split('{'), seletor = partes[partes.length - 2] || '';   /* o seletor da própria regra (dentro de @media, o que vem depois do último { de fora) */
+    if (TEXTO_EM_LINHAS.test(seletor) && /height/.test(m[2]) && /^\s*[\d.]+em\s*$/.test(m[3])) continue;
+    assert.ok(!/\d(ch|em|rem|vw|vh)\b/.test(m[3]), 'unidade relativa em geometria: ' + m[2] + ': ' + m[3] + ' em ' + seletor);
   }
 });
 
-test('o quadro e a legenda têm altura que não cresce: a legenda tem height fixo em px (celular e computador) e overflow escondido', () => {
+test('texto grande (zoom de 200%): a altura da nota e da legenda é em linhas (em) e equivale aos px de antes com corpo de 14 px e 16 px: nada muda a 100% e nada corta a 200%', () => {
   const limpo = semComentarios(css);
-  assert.match(limpo, /\.plv-leitura\s*\{[^}]*\bheight:\s*\d+px[^}]*overflow:\s*hidden/);
-  assert.match(limpo, /@media \(min-width: 760px\)\s*\{[^@]*\.plv-leitura\s*\{[^}]*height:\s*\d+px/);
+  const h = (re) => { const m = limpo.match(re); assert.ok(m, String(re)); return m[1]; };
+  assert.equal(h(/\.plv-nota\s*\{[^}]*\bheight:\s*([\d.]+em)/), '6em');
+  assert.equal(h(/@media \(min-width: 480px\)\s*\{\s*\.plv-nota\s*\{[^}]*min-height:\s*([\d.]+em)/), '4.5em');
+  assert.equal(h(/@media \(min-width: 760px\)\s*\{[^@]*?\.plv-nota\s*\{[^}]*height:\s*([\d.]+em)/), '3em');
+  assert.equal(h(/\.plv-leitura\s*\{[^}]*\bheight:\s*([\d.]+em)/), '9em');
+  assert.equal(h(/\.plv-leitura__txt\s*\{[^}]*max-height:\s*([\d.]+em)/), '6em');
+  assert.equal(h(/@media \(min-width: 760px\)\s*\{[^@]*?\.plv-leitura\s*\{[^}]*height:\s*([\d.]+em)/), '5.75em');
+  assert.equal(h(/@media \(min-width: 760px\)\s*\{[^@]*?\.plv-leitura__txt\s*\{[^}]*max-height:\s*([\d.]+em)/), '3em');
+});
+
+test('o quadro e a legenda têm altura que não cresce: a legenda tem height fixo (em linhas, celular e computador) e overflow escondido', () => {
+  const limpo = semComentarios(css);
+  assert.match(limpo, /\.plv-leitura\s*\{[^}]*\bheight:\s*[\d.]+em[^}]*overflow:\s*hidden/);
+  assert.match(limpo, /@media \(min-width: 760px\)\s*\{[^@]*\.plv-leitura\s*\{[^}]*height:\s*[\d.]+em/);
   assert.match(limpo, /\.plv-quadro\s*\{[^}]*overflow:\s*hidden/);
 });
 

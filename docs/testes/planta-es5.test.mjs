@@ -9,7 +9,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const JS = fileURLToPath(new URL('../../js/', import.meta.url));
-const arquivos = fs.readdirSync(JS).filter((n) => /^planta-.+\.js$/.test(n)).sort();
+/* os planta-*.js e a ligação com a página (orcamento-planta.js, PR 2c: roda em toda visita ao orçamento, antes de a planta existir) */
+const arquivos = fs.readdirSync(JS).filter((n) => /^planta-.+\.js$/.test(n) || n === 'orcamento-planta.js').sort();
 
 /* tira comentários e o conteúdo de strings e de expressões regulares (um passe só, sem regex gigante) */
 export function limpar(src) {

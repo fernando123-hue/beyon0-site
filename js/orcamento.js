@@ -232,7 +232,7 @@
   var visitantesNoServidor = function () { return E ? E.mensagens.filter(function (m) { return m.papel !== 'agente'; }).length : 0; };
 
   async function enviar(texto) {
-    if (enviando) return;   /* (Enter repetido não manda dois turnos) */
+    if (enviando) return false;   /* (Enter repetido não manda dois turnos) */
     limparAviso();
     var antes = visitantesNoServidor(), totalAntes = E ? E.mensagens.length : 0;
     var minha = msg('visitante', texto);
@@ -241,7 +241,7 @@
     anunciar('Analisando…');
     var r;
     try { r = await API.mensagem(texto); }
-    catch (e) { await falhaNoEnvio(e, texto, minha, antes); return; }
+    catch (e) { return await falhaNoEnvio(e, texto, minha, antes); }
     ocupado(false);
     /* a conversa no servidor agora tem +2 mensagens; se uma leitura de fundo já a redesenhou, não repete a resposta */
     var esperado = JSON.stringify(totalAntes + 2);
@@ -252,8 +252,11 @@
     if (r.diagnostico) mostrar('o-diagnostico', true);
     try { await recarregar(); } catch (e) { /* o turno já está gravado; a espera ou a próxima ação atualizam */ }
     if (r.pedir_contato && !$('o-contato').hidden) $('o-contato').scrollIntoView({ block: 'start' });   /* (sem tirar o foco: a resposta ainda está sendo lida) */
+    return true;
   }
-  /* a rede caiu ou o tempo estourou com a IA respondendo (F2): o turno pode ter sido gravado mesmo assim. A tela
+  /* enviar() devolve se o turno ENTROU (true) ou não (false: a conversa estava ocupada, ou o envio falhou sem gravar): quem manda por fora, como "Está certo" da planta
+     (js/orcamento-planta.js), só dá a ação por feita quando entrou. falhaNoEnvio devolve o mesmo.
+     A rede caiu ou o tempo estourou com a IA respondendo (F2): o turno pode ter sido gravado mesmo assim. A tela
      segue o servidor: relê o estado (render redesenha a conversa se ela mudou) e só devolve o texto à caixa se o
      turno NÃO entrou */
   async function falhaNoEnvio(e, texto, minha, antes) {
@@ -266,14 +269,15 @@
       if (minha.isConnected) minha.remove();
       if (!$('o-texto').value) $('o-texto').value = texto;
     }
-    if (sessaoTerminou(e)) { anunciar(''); return avisarSessao(); }
-    if (gravada) { anunciar(ultimaDoAgente()); return; }   /* a resposta já está na conversa: nada a refazer */
+    if (sessaoTerminou(e)) { anunciar(''); avisarSessao(); return gravada; }
+    if (gravada) { anunciar(ultimaDoAgente()); return gravada; }   /* a resposta já está na conversa: nada a refazer */
     /* o sinal caiu enquanto o consultor respondia: a tela já mostra o projeto em produção; um erro ali só assustaria
        (revisões do PR 34) */
-    if (E && CONVERSA_ABERTA.indexOf(E.conversa.etapa) < 0) { anunciar(''); return; }
+    if (E && CONVERSA_ABERTA.indexOf(E.conversa.etapa) < 0) { anunciar(''); return gravada; }
     anunciar('');
     var respondendo = e.status === 409 && /respondendo/i.test(e.message || '');   /* (a mensagem anterior ainda está com a IA) */
     avisar(mensagemDe(e), repetivel(e) || respondendo ? function () { reenviar(texto, antes); } : null);
+    return gravada;
   }
   /* antes de mandar de novo, confere se o turno anterior chegou nesse meio-tempo (senão entraria duas vezes) */
   async function reenviar(texto, antes) {
@@ -681,6 +685,7 @@
     mostrar('o-conversa-fechada', !aberta);
     if (!aberta) $('o-atalhos').hidden = true;
     window.BZDetalhes.atualizar(E);   /* os detalhes, o pedido recebido ou o pedido encerrado (js/orcamento-detalhes.js) */
+    if (window.BZOrcPlanta) window.BZOrcPlanta.atualizar(E, { rolarAte: rolarAte, enviar: enviar });   /* a planta do site (js/orcamento-planta.js): só age com E.planta (flag BZ_PLANTA); sem o módulo a tela segue igual */
     if (window.BZPainel) window.BZPainel.atualizar(E.painel);   /* as peças da conversa: notas, ficha e caso (js/orcamento-painel.js); sem o módulo a tela segue igual */
     direcoes();
     mostrar('o-ajustes', (et === 'escolhida' || et === 'alteracoes') && !descartado());
