@@ -29,8 +29,8 @@ export const CLASSES = {
   url: { codigos: ['url', 'caractere'], trechos: ['www.exemplo.com.br', 'exemplo.com.br', 'http://exemplo', 'https://exemplo.com', 'meusite.com', 'loja.net', 'clinica.org', 'exemplo.app', 'exemplo.io', 'www exemplo', 'o link bit.ly', 'exemplo ponto com ponto br'] },
   email: { codigos: ['email', 'caractere'], trechos: ['ana@exemplo.com', 'contato@clinica.com.br', 'o e-mail ana@site', 'a arroba', 'ana arroba exemplo', 'nome@dominio', 'ana (at) exemplo', 'ana [at] exemplo', 'um@b', 'ana (arroba) exemplo', 'ana ponto silva arroba site', 'ana arroba dominio'] },
   markdown: { codigos: ['markdown', 'caractere'], trechos: ['**negrito**', '_itálico_', '# título', '`código`', '[link](x)', '- item', '* item', '> citação', '~~riscado~~', '| tabela |', '```', '+ item', '• item', '{chave}', 'x = y', 'a\\b'] },
-  emoji: { codigos: ['emoji', 'caractere'], trechos: ['😀', '✅', '🚀', '⭐', '❤️', '👍', '🔥', '💰', '📞', '🎉', '©', '™', '®', '☎️', '➡️', '🇧🇷'] },
-  alfabeto: { codigos: ['alfabeto'], trechos: ['рreço', 'gаrantia', 'zerо', 'сasa', 'Ιnstagram', 'ѕite', 'ο caminho', 'аgenda', 'conversа', 'pаgina', 'cаminho', 'resроsta', 'μensagem', 'ａгenda'] }
+  emoji: { codigos: ['emoji', 'caractere'], trechos: ['😀', '✅', '🚀', '⭐', '❤\ufe0f', '👍', '🔥', '💰', '📞', '🎉', '\u00a9', '\u2122', '\u00ae', '☎\ufe0f', '➡\ufe0f', '🇧🇷'] },
+  alfabeto: { codigos: ['alfabeto'], trechos: ['рreço', 'gаrantia', 'zerо', 'сasa', 'Ιnstagram', 'ѕite', 'ο caminho', 'аgenda', 'conversа', 'pаgina', 'cаminho', 'resроsta', 'μensagem', '\uff41гenda'] }
 };
 
 /* a classe que só vale em nicho regulado (com regulado: false estas frases passam) */

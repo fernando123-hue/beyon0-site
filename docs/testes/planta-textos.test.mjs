@@ -19,12 +19,12 @@ const textosDe = (v, saida = []) => {
 const frases = trecho => MOLDURAS.map(m => m.replace('{X}', trecho));
 
 test('normalizarTexto: NFKC, sem invisíveis, "<", ">" e controles, espaço simples e aparado', () => {
-  assert.equal(normalizarTexto('  Olá mundo​ \t\n  de novo  '), 'Olá mundo de novo');
-  assert.equal(normalizarTexto('ＡＢＣ'), 'ABC', 'largura total vira ASCII (NFKC)');
+  assert.equal(normalizarTexto('  Olá\u00a0mundo\u200b \t\n  de\u2009novo  '), 'Olá mundo de novo');
+  assert.equal(normalizarTexto('\uff21\uff22\uff23'), 'ABC', 'largura total vira ASCII (NFKC)');
   assert.equal(normalizarTexto('a<b>c'), 'abc');
   assert.equal(normalizarTexto('x\u0000y\u007fz'), 'xyz');
-  assert.equal(normalizarTexto('pre­ço⁠'), 'preço');
-  assert.equal(normalizarTexto('ﬁm'), 'fim', 'a ligadura "ﬁ" vira "fi" (muda o comprimento: por isso se reconfere depois)');
+  assert.equal(normalizarTexto('pre\u00adço\u2060'), 'preço');
+  assert.equal(normalizarTexto('\ufb01m'), 'fim', 'a ligadura "\ufb01" vira "fi" (muda o comprimento: por isso se reconfere depois)');
   assert.equal(normalizarTexto(undefined), '');
   assert.equal(normalizarTexto(null), '');
   assert.equal(normalizarTexto(7), '', 'só texto');
@@ -130,7 +130,7 @@ test('as variações são pegas (normalização antes da comparação)', () => {
 });
 
 test('texto fora do tipo, vazio ou grande demais: recusa com motivo, nunca lança', () => {
-  for (const v of [undefined, null, 7, {}, [], true, '', '   ', '​']) {
+  for (const v of [undefined, null, 7, {}, [], true, '', '   ', '\u200b']) {
     const r = textoDoPlanoPermitido(v);
     assert.equal(r.ok, false);
     assert.equal(typeof r.motivo, 'string');
@@ -142,7 +142,7 @@ test('texto fora do tipo, vazio ou grande demais: recusa com motivo, nunca lanç
 });
 
 test('o texto aceito volta normalizado (é ele que vai para o banco e para a tela)', () => {
-  const r = textoDoPlanoPermitido('  A pessoa escolhe​  o horário.  ');
+  const r = textoDoPlanoPermitido('  A pessoa\u00a0escolhe\u200b  o horário.  ');
   assert.equal(r.ok, true);
   assert.equal(r.texto, 'A pessoa escolhe o horário.');
 });

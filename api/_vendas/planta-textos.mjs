@@ -42,7 +42,7 @@ export const TRAVAS = Object.freeze([
 ]);
 
 /* ---------- a normalização ---------- */
-const IGNORAVEIS = /[\p{Default_Ignorable_Code_Point}⠀]/gu;   /* (o braille em branco não está na propriedade, mas é um vazio visual) */
+const IGNORAVEIS = /[\p{Default_Ignorable_Code_Point}\u2800]/gu;   /* (o braille em branco não está na propriedade, mas é um vazio visual) */
 const QUEBRAS = /[\t\n\v\f\r\p{Zl}\p{Zp}]/gu;
 const CONTROLES = /\p{Cc}/gu;
 const ANGULOS = /[<>]/g;
@@ -76,9 +76,9 @@ const CARACTERE_DE_FORA = /[^\p{L}\p{M}\s.,:;!?'’"“”()\-–—]/u;
 /* sobre o texto em "busca" (paraBusca: minúscula, sem acento, letras soltas juntas, pontuação vira espaço) */
 const RAIZES = {
   preco: /\b(?:precos?|valor|valores|custos?|custa\w*|custar|barat\w+|gratis|gratuit\w+|descontos?|taxas?|mensalidades?|investiment\w+|parcelas?|parcelad\w+|promocao|promocoes|ofertas?|reais|de graca)\b/,
-  prazo: /\b(?:prazos?|imediat\w+|instantane\w+|minutos?|segundos|horas|dias|semanas?|mes|meses|anos?|mesmo dia|diariamente|semanalmente|mensalmente|em instantes|agora mesmo|24 ?h)\b|\bem (?:\w+ ){0,2}(?:minuto|segundo|hora)\b/,
   numeral: /\b(?:dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|treze|quatorze|catorze|quinze|dezesseis|dezessete|dezoito|dezenove|vinte|trinta|quarenta|cinquenta|sessenta|setenta|oitenta|noventa|cem|cento|duzentos|duzentas|trezentos|trezentas|quatrocentos|quatrocentas|quinhentos|quinhentas|seiscentos|seiscentas|setecentos|setecentas|oitocentos|oitocentas|novecentos|novecentas|mil|milhao|milhoes|bilhao|bilhoes|zero)\b/,
   promessa: /\b(?:enche|encher|enchem|lota|lotar|lotam|lotad\w+|dobra|dobrar|dobram|triplica\w*|quadruplica\w*|multiplica\w*|aumenta\w*|dispara\w*|lucr\w+|faturamento|faturar|resultados?|vend\w+ sozinh\w+|sem esforco|sem esforcos|primeiro lugar|primeira pagina|topo d[oa])\b|\bmais (?:\w+ )?(?:clientes|vendas|pedidos|agendamentos|contatos|consultas|pacientes|orcamentos|leads|visitas|lucros?|faturamento|movimento|seguidores|alunos|matriculas|reservas|encomendas)\b/,
+  prazo: /\b(?:prazos?|imediat\w+|instantane\w+|minutos?|segundos|horas|dias|semanas?|mes|meses|anos?|mesmo dia|diariamente|semanalmente|mensalmente|em instantes|agora mesmo|24 ?h)\b|\bem (?:\w+ ){0,2}(?:minuto|segundo|hora)\b/,
   garantia: /\b(?:garant\w*|certezas?|sem risco|reembolso|dinheiro de volta|devolv\w+ (?:o )?dinheiro|satisfacao)\b/,
   suporte: /\b(?:suporte|manutencao|assistencia|plantao|sla)\b/,
   ordem: /\b(?:ignor\w*|desconsider\w*|instruc\w*|prompts?|regras?|system|esqueca (?:tudo|as|o que))\b/,
@@ -137,7 +137,7 @@ export function textoDoPlanoPermitido(bruto, { nomeDoNegocio = '', regulado = fa
     const t = normalizarTexto(bruto);
     if (!t) return { ok: false, motivo: 'vazio' };
     if (NAO_LATINA.test(t)) return { ok: false, motivo: 'alfabeto' };
-    if (EMOJI.test(bruto) || EMOJI.test(t)) return { ok: false, motivo: 'emoji' };   /* (o bruto também: o NFKC leva "™" a "TM") */
+    if (EMOJI.test(bruto) || EMOJI.test(t)) return { ok: false, motivo: 'emoji' };   /* (o bruto também: o NFKC leva "\u2122" a "TM") */
     if (DIGITO.test(t)) return { ok: false, motivo: 'digito' };
     if (EMAIL.test(t)) return { ok: false, motivo: 'email' };
     if (URL.test(t)) return { ok: false, motivo: 'url' };
