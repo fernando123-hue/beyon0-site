@@ -118,16 +118,16 @@
 
   function bifurcaRetrato(E, W, VG) {
     var ent = E.ent, r0 = E.r0, r1 = E.r1, sai = E.sai, nR = Math.max(r0.length, r1.length), i, j;
-    var cw = Math.min(300, W - 24), xC = (W - cw) / 2, BH = alturaLado(W), BT = 96, CRr = 24, LRr = 22, cx = W / 2;
+    var cw = Math.min(300, W - 24), xC = (W - cw) / 2, BH = alturaLado(W), BT = 92, CRr = 24, LRr = 22, cx = W / 2;
     var colW = Math.floor((W - 8 - 12) / 2), xl = 4, xr = W - 4 - colW, OFF = 20, g = nova(W), y;
     var core = ponta(g, 'nucleo', cx - CRr, 4, 2 * CRr); core.rot = rotLado(core, cx + CRr + 12, W - (cx + CRr + 12) - 4, 'l');
     y = core.y + 2 * CRr + VG;
     var Ec = ent.map(function (est) { var b = no(g, est, xC, y, cw, BH, 'lado'); y += BH + VG; return b; });
-    var conv = Ec[Ec.length - 1], y0 = conv.y + conv.h + 52;
+    var conv = Ec[Ec.length - 1], y0 = conv.y + conv.h + 66;
     var ramo = function (lista, x) { return lista.map(function (est, k) { return no(g, est, x, y0 + k * (BT + VG), colW, BT, 'topo', { compacto: true, ic: [colW - 28, 8, 0.5] }); }); };
     var A = ramo(r0, xl), B = ramo(r1, xr);
-    var fundo = y0 + nR * BT + (nR - 1) * VG, yPm = fundo + 22;
-    y = fundo + 44;
+    var fundo = y0 + nR * BT + (nR - 1) * VG, yPm = fundo + 14;
+    y = fundo + 36;
     var M = sai.map(function (est) { var b = no(g, est, xC, y, cw, BH, 'lado'); y += BH + VG; return b; });
     var led = ponta(g, 'led', xC + 8, y, 2 * LRr); led.est = E.fim; led.rot = rotLado(led, led.x + 2 * LRr + 12, W - (led.x + 2 * LRr + 12) - 4, 'l');
     var p = 0;
@@ -147,14 +147,14 @@
     for (i = 1; i < M.length; i++) rota(g, M[i - 1].id, M[i].id, [base(M[i - 1]), topo(M[i])], pM + i);
     rota(g, M[M.length - 1].id, 'led', zV(base(M[M.length - 1]), topo(led)), pM + M.length);
     [[xl, 0], [xr, 1]].forEach(function (c) {
-      if (E.rotulos[c[1]]) g.rots.push({ x: c[0] + OFF + 8, y: y0 - 36, w: colW - OFF - 12, h: 32, txt: E.rotulos[c[1]], al: 'l', ramo: true });
+      if (E.rotulos[c[1]]) g.rots.push({ x: c[0] + OFF + 8, y: y0 - 50, w: colW - OFF - 12, h: 46, txt: E.rotulos[c[1]], al: 'l', ramo: true });
     });
     g.H = led.y + 2 * LRr + 20;
     return g;
   }
 
   function espinhaRetrato(E, W, VG) {
-    var S = E.st, n = S.length, RX = 24, CRr = 22, LRr = 22, bx = 54, bw = W - bx - 4, BH = alturaLado(W), SH = BH, SG = 12, g = nova(W), y;
+    var S = E.st, n = S.length, RX = 24, CRr = 22, LRr = 22, bx = 54, bw = W - bx - 4, BH = alturaLado(W), SH = 80, SG = 12, g = nova(W), y;
     var core = ponta(g, 'nucleo', RX - CRr, 4, 2 * CRr); core.rot = rotLado(core, RX + CRr + 12, W - RX - CRr - 16, 'l');
     y = core.y + 2 * CRr + VG;
     var prev = [RX, core.y + 2 * CRr], ant = null;
@@ -164,7 +164,7 @@
       prev = [RX, my]; ant = b;
       y += BH;
       (est.sat || []).forEach(function (s) {
-        var sx = bx + 30, sy = y + SG, sn = no(g, s, sx, sy, W - sx - 4, SH, 'lado', { compacto: true, ic: [9, (SH - 28) / 2, 0.7] });
+        var sx = bx + 30, sy = y + SG, sn = no(g, s, sx, sy, W - sx - 4, SH, 'lado', { compacto: true, lin: 3, ic: [9, (SH - 28) / 2, 0.7] });
         if (s.laco) {
           rota(g, est.id, s.id, [[bx + 26, b.y + BH], [bx + 26, sy + 22], [sx, sy + 22]], i + 0.5, { tipo: 'sat' });
           rota(g, s.id, est.id, [[sx, sy + SH - 22], [bx + 12, sy + SH - 22], [bx + 12, b.y + BH]], i + 0.75, { tipo: 'sat', alvo: null });

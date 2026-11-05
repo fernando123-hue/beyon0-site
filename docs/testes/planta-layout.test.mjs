@@ -274,3 +274,44 @@ test('ids hostis (nomes que um objeto comum já tem) viram chave segura no layou
     }
   }
 });
+
+test('M1: o satélite do retrato tem 80 px de altura (3 linhas de título sem cortar pela metade) e pede 3 linhas ao CSS', () => {
+  for (const W of [280, 320, 350, 390, 480]) {
+    const g = L.montarGeometria(espinha(5, [{ host: 1, lado: 'cima' }, { host: 3, lado: 'baixo' }]), W);
+    const sats = caixas(g).filter((c) => c.est.satelite_de);
+    assert.equal(sats.length, 2);
+    for (const s of sats) { assert.ok(s.h >= 80, 'satélite com ' + s.h + ' px em ' + W); assert.equal(s.lin, 3, 'o desenho recebe lin: 3'); }
+  }
+  /* na paisagem o satélite tem 100 px e 4 linhas (nada de lin) */
+  assert.ok(caixas(L.montarGeometria(espinha(5, [{ host: 1, lado: 'cima' }, { host: 3, lado: 'baixo' }]), 1280)).filter((c) => c.est.satelite_de).every((s) => s.h === 100 && !s.lin));
+});
+
+test('M2: o rótulo de ramo da bifurca no retrato (28 caracteres, 3 linhas em 280 px) tem altura de 3 linhas, passa abaixo da rota e acima das caixas dos ramos', () => {
+  for (const W of [280, 320, 350, 390, 480]) {
+    const p = bifurca(2, 2, 2, 2);
+    p.rotulos_ramos = ['medida de catálogo do client', 'sob medida com desenho feito'];
+    const g = L.montarGeometria(p, W), ramos = g.rots.filter((t) => t.ramo), primeiraDoRamo = g.mapa[p.etapas[2].id], decisao = g.mapa[p.etapas[1].id];
+    assert.equal(ramos.length, 2);
+    for (const t of ramos) {
+      assert.ok(t.h >= 46, 'altura de 3 linhas de mono 11 px em ' + W + ': ' + t.h);
+      assert.ok(t.y + t.h <= primeiraDoRamo.y - 2, 'o rótulo termina em ' + (t.y + t.h) + ' e as caixas dos ramos começam em ' + primeiraDoRamo.y + ' (' + W + ')');
+      assert.ok(t.y >= decisao.y + decisao.h + 14, 'o rótulo fica abaixo da linha de rota que sai da decisão (' + t.y + ' vs ' + (decisao.y + decisao.h + 14) + ') em ' + W);
+    }
+  }
+});
+
+test('(a) o laço no retrato usa a largura inteira que couber: caixa de 250 px, ou a faixa menos 56 px em tela estreita (texto de 2 linhas sem cortar)', () => {
+  assert.ok(caixas(L.montarGeometria(laco(8), 280)).filter((c) => c.modo === 'lado').every((c) => c.w >= 224), 'em 280: ' + caixas(L.montarGeometria(laco(8), 280))[1].w);
+  assert.ok(caixas(L.montarGeometria(laco(8), 350)).filter((c) => c.modo === 'lado').every((c) => c.w === 250));
+});
+
+test('(c) o satélite acende ENTRE a chegada no hospedeiro e a ida ao próximo do tronco: o passo da rota dele é estritamente menor (não depende do desempate por ordem de criação)', () => {
+  for (const { nome, plano } of FORMAS.filter((f) => f.plano.topologia === 'espinha')) for (const W of [350, 1280]) {
+    const g = L.montarGeometria(plano, W), tempo = (r) => r.passo + r.atraso;
+    for (const r of g.rotas.filter((x) => x.tipo === 'sat' && x.alvo)) {
+      const proxima = g.rotas.filter((x) => x.de === r.de && x.tipo === 'tronco' && x.a !== 'led')[0], entrada = g.rotas.filter((x) => x.a === r.de && x.tipo === 'tronco')[0];
+      if (proxima) assert.ok(tempo(r) < tempo(proxima), nome + ' @' + W + ': a rota do satélite (' + tempo(r) + ') deve vir antes da rota ao próximo do tronco (' + tempo(proxima) + ')');
+      assert.ok(tempo(r) > tempo(entrada), nome + ' @' + W + ': e depois da chegada no hospedeiro');
+    }
+  }
+});
