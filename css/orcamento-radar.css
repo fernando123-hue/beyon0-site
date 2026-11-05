@@ -11,7 +11,10 @@
 .plr, .plr-vaga {
   --plr-linha: calc(3 * 1.35 * var(--fs-ctrl) + 15px);   /* eixo + nível, e até 2 linhas de evidência (medido: 63,6 px no pior caso, 60 letras) */
 }
+/* container-type: o tamanho em linha do cartão não vem do conteúdo. Sem isso o aspect-ratio com min-height de 240 px dava ao quadro uma largura mínima de 311 px, o grid do painel
+   (coluna "auto") alargava até 346 px e, nos 320 px do celular, o Chrome alargava a viewport inteira (medido: 320 -> 367, regra 10 do CLAUDE.md) */
 .plr {
+  container-type: inline-size;
   box-sizing: border-box; width: 100%; max-width: 420px; padding: 16px;
   border: 1px solid var(--line); border-radius: var(--raio); background: var(--s1); color: var(--t2);
 }

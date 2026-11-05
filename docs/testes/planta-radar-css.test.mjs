@@ -50,6 +50,11 @@ test('a altura é reservada por CSS e é a mesma de alturaRadar(largura): razão
   for (let l = 250; l <= 700; l += 9) assert.equal(Math.min(320, Math.max(240, Math.round(l * 77 / 100))), R.alturaRadar(l), String(l));
 });
 
+test('o radar não alarga o contêiner: .plr tem container-type inline-size (sem isso o aspect-ratio com min-height 240 empurra a largura mínima para 311 px, o grid do painel alarga e o Chrome do celular alarga a viewport inteira)', () => {
+  const m = semComentarios.match(/\.plr\s*\{[^}]*\}/g).join(' ');
+  assert.match(m, /container-type:\s*inline-size/);
+});
+
 test('a lista e a legenda também têm altura reservada (nada nasce com altura 0 nem muda de altura quando a leitura chega)', () => {
   assert.match(semComentarios, /\.plr-linha\s*\{[^}]*min-height:/);
   assert.match(semComentarios, /\.plr-legenda\s*\{[^}]*min-height:/);
