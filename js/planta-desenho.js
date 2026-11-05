@@ -463,7 +463,7 @@
           if (!inst || !entradas || !entradas.length) return;
           var e = entradas[entradas.length - 1], vis = !!e.isIntersecting && e.intersectionRatio > 0;
           inst.visivel = vis;
-          var enche = e.intersectionRect && win.innerHeight && e.intersectionRect.height >= win.innerHeight * 0.5;
+          var enche = e.intersectionRect && win.innerHeight && e.intersectionRect.height >= win.innerHeight * 0.4;
           if (!inst.iniciada) { if (vis && (e.intersectionRatio >= FRACAO_VISIVEL || enche) && inst.aguardando) iniciar(); return; }
           if (vis && !doc.hidden) retomarTudo(); else pausarTudo();
         }, { threshold: [0, 0.1, 0.2, FRACAO_VISIVEL, 0.5, 0.75, 1] });

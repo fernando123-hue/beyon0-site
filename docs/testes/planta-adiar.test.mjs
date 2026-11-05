@@ -76,3 +76,19 @@ test('movimento reduzido: quadro final na hora, nenhuma animação (inalterado)'
   assert.equal(w.document.animacoes.length, 0);
   assert.ok(raiz.porClasse('plv-status')[0].textContent.startsWith('Planta pronta'));
 });
+
+/* Achado do 2c no navegador (320 x 640): depois de tocar em "Ver a planta do seu site" a faixa ficava com o título logo abaixo do menu e só 313 px do quadro à vista,
+   49% da janela de 640; o corte era 50% e a luz nunca começava até a pessoa rolar. O corte da janela cheia passou para 40%. */
+test('o quadro do celular pequeno começa quando ocupa 40% da altura da janela (320 x 640: 313 px já bastam), e não antes', () => {
+  const a = amb();   /* janela de 800 px de altura no DOM de mentira: 40% = 320 px */
+  a.A.montar(a.raiz, fx('clinica'), {});
+  a.w.mostrar(0.2, 310);
+  assert.equal(a.w.rodando().length, 0, '310 px de 800 (39%) ainda não');
+  a.w.mostrar(0.2, 330);
+  assert.ok(a.w.rodando().length > 10, '330 px de 800 (41%): começou');
+  const b = amb();
+  b.w.innerHeight = 640;
+  b.A.montar(b.raiz, fx('clinica'), {});
+  b.w.mostrar(0.22, 313);
+  assert.ok(b.w.rodando().length > 10, '313 px de 640: começou (era o caso do 320 x 640)');
+});
