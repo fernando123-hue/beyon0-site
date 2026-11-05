@@ -150,7 +150,7 @@
         var p = S('path', { d: t.d, pathLength: 1 }, ig, t.ac ? 'plv-ac' : '');
         if (ic[2] !== 1) p.style.strokeWidth = String(r1(1.25 / ic[2]));
       });
-      classe(li, 'plv-est plv-est--' + n.modo + (n.modo === 'topo' && n.w < 150 ? ' plv-est--c' : '') + (n.compacto ? ' plv-est--sat' : ''));
+      classe(li, 'plv-est plv-est--' + n.modo + (n.modo === 'topo' && n.w < 150 ? ' plv-est--c' : '') + (n.compacto ? ' plv-est--sat' : '') + (n.lin ? ' plv-lin' + n.lin : ''));
       var hd = H('span', 'plv-hd', null, li);
       H('span', 'plv-n', dois(n.num), hd); H('span', 'plv-verbo', n.est.verbo, hd);
       H('span', 'plv-tit', n.est.titulo, li);

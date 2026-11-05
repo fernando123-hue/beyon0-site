@@ -583,3 +583,31 @@ test('M5: ids que um objeto comum já tem (constructor, toString, valueOf, hasOw
   assert.ok(!quadro.textContent.includes('Ajustado'));
   assert.equal(quadro.achar((n) => n._classes.has('plv-no')).length, plano.etapas.length + 3);
 });
+
+test('(g) o rótulo ao lado da ponta tem altura em px (a do layout), não auto: o texto não vaza para a caixa vizinha', () => {
+  const { A, raiz } = ambiente({ reduzido: true, largura: 350 });
+  A.montar(raiz, fx('clinica'), {});
+  const g = L.montarGeometria(fx('clinica'), 350);
+  for (const id of ['nucleo', 'led']) {
+    const li = liDe(raiz, id);
+    assert.equal(li.estilo.height, g.mapa[id].rot.h + 'px', id + ': altura do rótulo em px');
+    assert.ok(li._classes.has('plv-ponta'));
+  }
+});
+
+test('os rótulos fixos (.plv-rots) e o SVG ficam fora da árvore de acessibilidade (aria-hidden)', () => {
+  const { A, raiz } = ambiente({ reduzido: true });
+  A.montar(raiz, fx('embalagens'), {});
+  assert.equal(raiz.porClasse('plv-rots')[0].attrs['aria-hidden'], 'true');
+  assert.equal(quadroDe(raiz).porTag('svg')[0].attrs['aria-hidden'], 'true');
+});
+
+test('o satélite do retrato leva a classe plv-lin3 (3 linhas de título) e o da paisagem não', () => {
+  const { A, raiz } = ambiente({ reduzido: true, largura: 350 });
+  A.montar(raiz, fx('loja'), {});
+  assert.ok(liDe(raiz, 'look')._classes.has('plv-lin3'));
+  assert.ok(!liDe(raiz, 'vitrine')._classes.has('plv-lin3'));
+  const b = ambiente({ reduzido: true, largura: 1280 });
+  b.A.montar(b.raiz, fx('loja'), {});
+  assert.ok(!liDe(b.raiz, 'look')._classes.has('plv-lin3'));
+});
