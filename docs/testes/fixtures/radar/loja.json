@@ -1,0 +1,9 @@
+{
+  "eixos": [
+    { "eixo": "volume", "nivel": "deixou_claro", "evidencia": "vendo bastante pelas mensagens" },
+    { "eixo": "repeticao", "nivel": "comentou", "evidencia": "mando as mesmas fotos" },
+    { "eixo": "urgencia", "nivel": "nao_falou" },
+    { "eixo": "pessoas", "nivel": "nao_falou" },
+    { "eixo": "informacao", "nivel": "comentou", "evidencia": "o estoque está na minha cabeça" }
+  ]
+}

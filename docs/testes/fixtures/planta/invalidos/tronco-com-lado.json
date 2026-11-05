@@ -1,0 +1,80 @@
+{
+  "_defeito": "campo_fora_da_topologia",
+  "_camada": "forma",
+  "plano": {
+    "topologia": "espinha",
+    "chegada": {
+      "origens": [
+        "rede",
+        "anuncio",
+        "busca"
+      ],
+      "titulo": "Rede social, anúncio e busca",
+      "frase": "A pessoa chega da rede social, de um anúncio ou da busca."
+    },
+    "etapas": [
+      {
+        "id": "vitrine",
+        "tipo": "vitrine",
+        "verbo": "Mostra",
+        "titulo": "Vitrine da coleção por ocasião",
+        "frase": "A vitrine agrupa a coleção por ocasião: trabalho, festa, dia a dia.",
+        "lado": "cima"
+      },
+      {
+        "id": "look",
+        "tipo": "cabide",
+        "verbo": "Combina",
+        "satelite_de": "vitrine",
+        "lado": "cima",
+        "titulo": "Sugere a peça que combina",
+        "frase": "Ao ver uma peça, sugere a que combina para levar junto."
+      },
+      {
+        "id": "peca",
+        "tipo": "produto",
+        "verbo": "Convence",
+        "titulo": "Página da peça com fotos e tamanhos",
+        "frase": "A página da peça mostra fotos, tecido e tamanhos disponíveis."
+      },
+      {
+        "id": "guia",
+        "tipo": "guia",
+        "verbo": "Mede",
+        "satelite_de": "peca",
+        "lado": "baixo",
+        "titulo": "Guia de medidas em um toque",
+        "frase": "Um toque abre o guia de medidas, para a pessoa não ficar na dúvida do tamanho."
+      },
+      {
+        "id": "sacola",
+        "tipo": "carrinho",
+        "verbo": "Reúne",
+        "titulo": "Sacola com frete calculado",
+        "frase": "A sacola junta as peças e já calcula o frete pelo endereço."
+      },
+      {
+        "id": "esquecida",
+        "tipo": "lembrete",
+        "verbo": "Lembra",
+        "satelite_de": "sacola",
+        "lado": "baixo",
+        "laco": true,
+        "titulo": "Avisa quem esqueceu a sacola",
+        "frase": "Quem deixou a sacola cheia recebe um aviso e volta para ela."
+      },
+      {
+        "id": "pagamento",
+        "tipo": "pagamento",
+        "verbo": "Cobra",
+        "titulo": "Pagamento em uma tela",
+        "frase": "O pagamento acontece numa tela só, sem cadastro longo."
+      }
+    ],
+    "fim": {
+      "titulo": "Pedido pago",
+      "frase": "O pedido entra pago e segue para a separação."
+    },
+    "fecho": "A pessoa viu, escolheu o tamanho e pagou numa tela. Quem esqueceu a sacola é lembrada."
+  }
+}

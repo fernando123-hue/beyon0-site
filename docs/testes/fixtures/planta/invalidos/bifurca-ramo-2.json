@@ -1,0 +1,87 @@
+{
+  "_defeito": "ramo",
+  "_camada": "forma",
+  "plano": {
+    "topologia": "bifurca",
+    "chegada": {
+      "origens": [
+        "busca",
+        "indicacao"
+      ],
+      "titulo": "Busca técnica e indicação",
+      "frase": "O comprador chega procurando um tipo de embalagem ou por indicação de outro cliente."
+    },
+    "etapas": [
+      {
+        "id": "familias",
+        "tipo": "caixa",
+        "verbo": "Mostra",
+        "titulo": "Famílias de embalagem e seus usos",
+        "frase": "Cada família de embalagem tem a sua página, com medidas, materiais e usos."
+      },
+      {
+        "id": "conversa",
+        "tipo": "conversa",
+        "verbo": "Decide",
+        "decisao": true,
+        "titulo": "Pergunta o uso, a medida e a quantidade",
+        "frase": "A conversa pergunta para que é, qual a medida e quanto precisa, e escolhe o caminho."
+      },
+      {
+        "id": "tabela",
+        "tipo": "tabela",
+        "verbo": "Calcula",
+        "ramo": 2,
+        "titulo": "Medida de catálogo pela tabela",
+        "frase": "Se a medida é de catálogo, a conversa consulta a tabela da fábrica e já orienta o comprador."
+      },
+      {
+        "id": "acabamento",
+        "tipo": "acabamento",
+        "verbo": "Escolhe",
+        "ramo": 0,
+        "titulo": "Acabamento e cor do catálogo",
+        "frase": "O comprador já escolhe acabamento e cor antes de pedir a proposta."
+      },
+      {
+        "id": "briefing",
+        "tipo": "briefing",
+        "verbo": "Levanta",
+        "ramo": 1,
+        "titulo": "Briefing técnico com as cotas",
+        "frase": "Se é sob medida, pede as cotas e o material, passo a passo."
+      },
+      {
+        "id": "amostra",
+        "tipo": "amostra",
+        "verbo": "Combina",
+        "ramo": 1,
+        "titulo": "Amostra antes da tiragem",
+        "frase": "Combina uma amostra para o comprador aprovar antes de produzir a tiragem."
+      },
+      {
+        "id": "proposta",
+        "tipo": "proposta",
+        "verbo": "Propõe",
+        "titulo": "Proposta escrita com as condições",
+        "frase": "Monta a proposta por escrito, com as condições, no nome da fábrica."
+      },
+      {
+        "id": "retoma",
+        "tipo": "retoma",
+        "verbo": "Retoma",
+        "titulo": "Retoma a proposta parada",
+        "frase": "Se a proposta fica sem resposta, o site volta a procurar a pessoa na hora certa."
+      }
+    ],
+    "fim": {
+      "titulo": "Pedido pronto para o comercial",
+      "frase": "O pedido chega ao comercial completo: o quê, para quando e quem decide."
+    },
+    "fecho": "O comprador foi entendido e o pedido chegou claro. A fábrica entra só para fechar.",
+    "rotulos_ramos": [
+      "medida de catálogo",
+      "sob medida"
+    ]
+  }
+}
