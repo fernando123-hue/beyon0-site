@@ -1,0 +1,32 @@
+{
+  "_defeito": "caractere",
+  "_camada": "forma",
+  "leitura": {
+    "eixos": [
+      {
+        "eixo": "volume",
+        "nivel": "comentou",
+        "evidencia": "tem semana de agenda cheia"
+      },
+      {
+        "eixo": "repeticao",
+        "nivel": "deixou_claro",
+        "evidencia": "<img src=x onerror=alert(1)>"
+      },
+      {
+        "eixo": "urgencia",
+        "nivel": "nao_falou"
+      },
+      {
+        "eixo": "pessoas",
+        "nivel": "deixou_claro",
+        "evidencia": "só a recepcionista atende"
+      },
+      {
+        "eixo": "informacao",
+        "nivel": "comentou",
+        "evidencia": "anota num caderno"
+      }
+    ]
+  }
+}
