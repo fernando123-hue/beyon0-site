@@ -49,12 +49,16 @@
     etapas_min: 7, etapas_max: 8,                      /* + a chegada = 8 ou 9 caixas */
     origens_min: 1, origens_max: 4,
     ramo_min: 1, ramo_max: 2, saida_min: 1, saida_max: 2,
+    /* (com 7 a 8 etapas no total, tronco_min e tronco_max já decidem quase tudo; satelites_min e satelites_max só valem como rede de segurança,
+       para o dia em que o limite de etapas mudar) */
     tronco_min: 4, tronco_max: 5, satelites_min: 2, satelites_max: 4,
     plano_bytes: 8192, leitura_bytes: 2048, evidencia_max: 60, erros_max: 20
   });
   /* o id vai para data-id e nunca para um seletor sem CSS.escape; "nucleo", "led" e "chegada" são das caixas fixas do desenho */
   var ID_ETAPA = /^[a-z0-9-]{2,24}$/;
-  var IDS_RESERVADOS = ['nucleo', 'led', 'chegada'];
+  /* (os ids que o desenho usa para as caixas fixas e os nomes que um objeto comum já tem. O desenho guarda o id só em data-id, num Map ou num
+     Object.create(null), e num seletor só passa por CSS.escape; o regex acima é o da spec e não muda: "--" e "00" passam nele.) */
+  var IDS_RESERVADOS = ['nucleo', 'led', 'chegada', 'constructor', 'prototype', 'proto'];
   var CHAVES_DE_PROTOTIPO = ['__proto__', 'constructor', 'prototype'];
 
   var CHAVES_RAIZ = ['topologia', 'chegada', 'etapas', 'fim', 'fecho', 'rotulo_retorno', 'rotulos_ramos'];
@@ -62,17 +66,40 @@
   var CHAVES_ETAPA = ['id', 'tipo', 'verbo', 'titulo', 'frase', 'decisao', 'ramo', 'satelite_de', 'lado', 'laco', 'retorno'];
   var OBRIGATORIAS_ETAPA = ['id', 'tipo', 'verbo', 'titulo', 'frase'];
 
-  /* "<" ">", controles C0 e C1 (inclui quebra de linha e tabulação), separadores de linha e parágrafo, e os invisíveis/de formato
-     (soft hyphen, marca de direção, espaço de largura zero, isolados bidirecionais, BOM). Espaço sem quebra e acentos passam:
-     a normalização NFKC é do servidor (PR 2a). */
-  var CARACTERE_PROIBIDO = (function () {
-    var faixas = [[0x3c, 0x3c], [0x3e, 0x3e], [0x00, 0x1f], [0x7f, 0x9f], [0xad, 0xad], [0x61c, 0x61c], [0x180e, 0x180e], [0x200b, 0x200f],
-      [0x2028, 0x202e], [0x2060, 0x206f], [0xfeff, 0xfeff], [0xfff9, 0xfffb]];
+  /* O que nunca entra num texto da planta (a forma RECUSA; quem normaliza e limpa é o servidor, PR 2a):
+       - "<" e ">" e os dois equivalentes que o NFKC leva a eles (largura total U+FF1C/FF1E e versão pequena U+FE64/FE65);
+       - controles C0 e C1 (quebra de linha e tabulação incluídas), separadores de linha e parágrafo;
+       - os que não se veem (a lista de api/_vendas/promessa.mjs, INVISIVEIS): soft hyphen, marca de direção, espaços de largura zero,
+         isolados bidirecionais, BOM, e os "preenchimentos" que parecem vazios dentro de uma palavra: U+034F, U+115F/1160, U+17B4/17B5,
+         seletores de variação U+FE00 a U+FE0F, U+3164, U+FFA0, o braille em branco U+2800 e os caracteres de etiqueta U+E0000 a U+E007F;
+       - substituto UTF-16 solto (sem par).
+     Espaço sem quebra, acentos e um par substituto válido (emoji) passam: a camada de texto do servidor decide o que fazer com eles.
+     Tudo por código numérico: o arquivo não carrega caractere invisível nenhum, e a expressão sai sem a opção "u" (ES5). */
+  var CARACTERE_PROIBIDO_G = (function () {
+    var faixas = [[0x3c, 0x3c], [0x3e, 0x3e], [0xff1c, 0xff1c], [0xff1e, 0xff1e], [0xfe64, 0xfe65], [0x00, 0x1f], [0x7f, 0x9f], [0xad, 0xad],
+      [0x34f, 0x34f], [0x61c, 0x61c], [0x115f, 0x1160], [0x17b4, 0x17b5], [0x180e, 0x180e], [0x200b, 0x200f], [0x2028, 0x202e], [0x2060, 0x206f],
+      [0x2800, 0x2800], [0x3164, 0x3164], [0xfe00, 0xfe0f], [0xfeff, 0xfeff], [0xffa0, 0xffa0], [0xfff9, 0xfffb]];
     var cod = function (n) { var h = n.toString(16); while (h.length < 4) h = '0' + h; return String.fromCharCode(92, 117) + h; };   /* barra, "u" e 4 dígitos */
+    var faixa = function (a, b) { return a === b ? cod(a) : cod(a) + '-' + cod(b); };
     var corpo = '', i;
-    for (i = 0; i < faixas.length; i++) corpo += cod(faixas[i][0]) + (faixas[i][1] === faixas[i][0] ? '' : '-' + cod(faixas[i][1]));
-    return new RegExp('[' + corpo + ']');
+    for (i = 0; i < faixas.length; i++) corpo += faixa(faixas[i][0], faixas[i][1]);
+    var alto = '[' + faixa(0xd800, 0xdbff) + ']', baixo = '[' + faixa(0xdc00, 0xdfff) + ']';
+    var etiqueta = cod(0xdb40) + '[' + faixa(0xdc00, 0xdc7f) + ']';                          /* U+E0000 a U+E007F em UTF-16 */
+    var altoSolto = alto + '(?!' + baixo + ')';                                              /* substituto alto sem o baixo logo depois */
+    var baixoSolto = '(?:^|[^' + faixa(0xd800, 0xdbff) + '])' + baixo;                       /* substituto baixo sem o alto logo antes */
+    return new RegExp('[' + corpo + ']|' + etiqueta + '|' + altoSolto + '|' + baixoSolto, 'g');
   })();
+  var CARACTERE_PROIBIDO = new RegExp(CARACTERE_PROIBIDO_G.source);
+  var proibido = function (v) {
+    if (CARACTERE_PROIBIDO.test(v)) return true;
+    /* e o texto já normalizado em NFKC (onde houver String.prototype.normalize): o que vira "<" ou ">" depois da normalização também é recusado */
+    if (typeof v.normalize === 'function') {
+      try { return CARACTERE_PROIBIDO.test(v.normalize('NFKC')); } catch (e) { return false; }
+    }
+    return false;
+  };
+  /* o nome de uma chave só entra num caminho de erro se for curto e simples; senão "?" (nunca texto livre do visitante) */
+  var NOME_DE_CHAVE = /^[A-Za-z0-9_$-]{1,32}$/;
 
   var tem = function (o, k) { return Object.prototype.hasOwnProperty.call(o, k); };
   var ehObjeto = function (v) { return v !== null && typeof v === 'object' && !Array.isArray(v); };
@@ -117,23 +144,29 @@
     return { ok: false, motivos: [codigo], erros: [{ caminho: '', codigo: codigo }] };
   }
 
+  function caminhoDaChave(caminho, chave) {
+    var nome = NOME_DE_CHAVE.test(chave) ? chave : '?';
+    return caminho ? caminho + '.' + nome : nome;
+  }
+
   /* chaves do objeto: as de protótipo são "chave_proibida"; as fora do esquema, "chave_extra"; as que faltam, "chave_faltando" */
   function conferirChaves(obj, permitidas, obrigatorias, caminho, c) {
     var chaves = Object.keys(obj), i;
     for (i = 0; i < chaves.length; i++) {
-      if (CHAVES_DE_PROTOTIPO.indexOf(chaves[i]) >= 0) c.add(caminho, 'chave_proibida');
-      else if (permitidas.indexOf(chaves[i]) < 0) c.add(caminho, 'chave_extra');
+      if (CHAVES_DE_PROTOTIPO.indexOf(chaves[i]) >= 0) c.add(caminhoDaChave(caminho, chaves[i]), 'chave_proibida');
+      else if (permitidas.indexOf(chaves[i]) < 0) c.add(caminhoDaChave(caminho, chaves[i]), 'chave_extra');
     }
     for (i = 0; i < obrigatorias.length; i++) {
       if (!tem(obj, obrigatorias[i])) c.add(caminho ? caminho + '.' + obrigatorias[i] : obrigatorias[i], 'chave_faltando');
     }
   }
 
-  /* um texto: string, sem caractere proibido, dentro do tamanho. O mínimo conta o texto aparado; o máximo, como veio. */
+  /* um texto: string, sem caractere proibido, dentro do tamanho. O mínimo conta o texto visível (aparado, sem invisíveis); o máximo, como veio. */
   function conferirTexto(v, caminho, min, max, codMin, codMax, c) {
     if (typeof v !== 'string') { c.add(caminho, 'texto'); return; }
-    if (CARACTERE_PROIBIDO.test(v)) c.add(caminho, 'caractere');
-    if (v.replace(/^\s+|\s+$/g, '').length < min) c.add(caminho, codMin);
+    if (proibido(v)) c.add(caminho, 'caractere');
+    /* o mínimo só conta o que se vê: sem espaços (trim, linear) e sem os caracteres proibidos (invisíveis, preenchimentos) */
+    if (v.replace(CARACTERE_PROIBIDO_G, '').trim().length < min) c.add(caminho, codMin);
     else if (v.length > max) c.add(caminho, codMax);
   }
   var titulo = function (v, caminho, c) { conferirTexto(v, caminho, LIMITES.titulo_min, LIMITES.titulo_max, 'titulo_curto', 'titulo_longo', c); };
@@ -204,11 +237,12 @@
     return n;
   }
 
+  /* laço: só a ÚLTIMA etapa tem a chave "retorno", e vale true. Em qualquer outra, a chave não pode existir (nem "false"). */
   function conferirLaco(etapas, c) {
     var i, ultimo = etapas.length - 1;
     for (i = 0; i < etapas.length; i++) {
       if (!ehObjeto(etapas[i])) continue;
-      if (i === ultimo ? etapas[i].retorno !== true : tem(etapas[i], 'retorno') && etapas[i].retorno !== false) c.add('etapas[' + i + '].retorno', 'retorno');
+      if (i === ultimo ? etapas[i].retorno !== true : tem(etapas[i], 'retorno')) c.add('etapas[' + i + '].retorno', 'retorno');
     }
     if (contarDecisoes(etapas) > 1) c.add('etapas', 'decisao');
   }
@@ -353,9 +387,9 @@
     try { return validarLeitura(bruto); } catch (e) { return falha('interno'); }
   }
 
-  return {
+  return Object.freeze({
     TOPOLOGIAS: TOPOLOGIAS, TIPOS: TIPOS, TIPOS_ETAPA: TIPOS_ETAPA, VERBOS: VERBOS, ORIGENS: ORIGENS, EIXOS: EIXOS, NIVEIS: NIVEIS,
     PLANTA_CHAVES: PLANTA_CHAVES, LIMITES: LIMITES, ID_ETAPA: ID_ETAPA,
     validarFormaPlano: validarFormaPlano, validarFormaLeitura: validarFormaLeitura
-  };
+  });
 });

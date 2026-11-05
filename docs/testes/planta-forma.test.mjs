@@ -102,17 +102,29 @@ test('cada inválido de forma é rejeitado com o código esperado; os de TEXTO p
     }
     forma++;
     assert.equal(r.ok, false, nome + ' deveria ser rejeitado');
-    assert.ok(r.motivos.includes(e._defeito), nome + ': esperado ' + e._defeito + ', veio ' + JSON.stringify(r.motivos));
+    assert.deepEqual(r.motivos, [e._defeito], nome + ': esperado só ' + e._defeito + ', veio ' + JSON.stringify(r.motivos));
     assert.equal(r.plano, undefined, nome + ': sem plano quando falha');
   }
   assert.ok(forma >= 40 && texto === 5, 'forma ' + forma + ', texto ' + texto);
 });
 
-test('os de um defeito só: o 9 KB responde só "grande" (e não gasta tempo olhando o resto); __proto__ e constructor são chave proibida', () => {
+test('o 9 KB responde só "grande" (e não gasta tempo olhando o resto)', () => {
   assert.deepEqual(F.validarFormaPlano(lerJson('planta/invalidos/plano-9kb.json').plano).motivos, ['grande']);
-  assert.ok(F.validarFormaPlano(lerJson('planta/invalidos/proto-na-raiz.json').plano).motivos.includes('chave_proibida'));
-  assert.ok(F.validarFormaPlano(lerJson('planta/invalidos/constructor-na-etapa.json').plano).motivos.includes('chave_proibida'));
-  assert.equal(({}).polluted, undefined, 'nada vazou para Object.prototype');
+});
+
+test('__proto__ e constructor como chave PRÓPRIA (vinda de JSON.parse) são chave proibida e não poluem Object.prototype', () => {
+  const antes = Object.getOwnPropertyNames(Object.prototype).sort().join();
+  const raiz = lerJson('planta/invalidos/proto-na-raiz.json').plano;
+  assert.ok(Object.prototype.hasOwnProperty.call(raiz, '__proto__'), 'o fixture tem a chave como propriedade própria');
+  const r1 = F.validarFormaPlano(raiz);
+  assert.deepEqual(r1.motivos, ['chave_proibida']);
+  assert.deepEqual(r1.erros, [{ caminho: '__proto__', codigo: 'chave_proibida' }]);
+  const r2 = F.validarFormaPlano(lerJson('planta/invalidos/constructor-na-etapa.json').plano);
+  assert.deepEqual(r2.motivos, ['chave_proibida']);
+  assert.deepEqual(r2.erros, [{ caminho: 'etapas[0].constructor', codigo: 'chave_proibida' }]);
+  assert.equal(Object.getOwnPropertyNames(Object.prototype).sort().join(), antes, 'Object.prototype segue com as mesmas chaves');
+  assert.equal(({}).polluted, undefined);
+  assert.equal(raiz.polluted, undefined);
 });
 
 /* ---------- 4. fronteiras ---------- */
@@ -141,24 +153,122 @@ test('fronteiras de tamanho: título 2/3 e 40/41, frase 19/20 e 110/111, rótulo
   assert.deepEqual(ramos(3, 29).motivos, ['rotulo']);
 });
 
+/* (os caracteres especiais entram por código numérico, para o arquivo de teste não carregar invisível nenhum) */
+const cp = (n) => String.fromCharCode(n);
+const dentro = (cod) => 'Página' + cp(cod) + 'forte';
+const tit = (t) => { const p = fx('clinica'); p.etapas[0].titulo = t; return F.validarFormaPlano(p); };
+
 test('o título só com espaços não vale (o mínimo conta o texto aparado); o máximo conta o texto como veio', () => {
-  const p = fx('clinica'); p.etapas[0].titulo = '    ';
-  assert.deepEqual(F.validarFormaPlano(p).motivos, ['titulo_curto']);
+  assert.deepEqual(tit('    ').motivos, ['titulo_curto']);
+  assert.deepEqual(tit(cp(0x3000).repeat(4)).motivos, ['titulo_curto'], 'espaço ideográfico também é espaço');
+  assert.deepEqual(tit(cp(0xa0).repeat(5)).motivos, ['titulo_curto'], 'espaço sem quebra também');
 });
 
-test('caracteres: "<" ">" controles, quebra de linha, separador de linha e invisíveis são recusados; espaço sem quebra e acento passam (a normalização é do PR 2a)', () => {
-  const tit = (t) => { const p = fx('clinica'); p.etapas[0].titulo = t; return F.validarFormaPlano(p); };
-  /* (os caracteres invisíveis entram por código numérico, para o arquivo de teste não carregar invisível nenhum) */
-  const com = (cod) => 'Página' + String.fromCharCode(cod) + 'forte';
-  const proibidos = ['Página <b>forte</b>', 'Página > forte', com(0x09), com(0x00), com(0x0a), com(0x7f), com(0x85), com(0x2028), com(0x2029), com(0x200b), com(0x200f), com(0x202e), com(0x2060), com(0x2066), com(0xfeff), com(0xad)];
+test('caracteres: "<" ">" isolados, controles, quebra de linha, separador de linha e invisíveis são recusados; espaço sem quebra e acento passam (a normalização é do PR 2a)', () => {
+  const proibidos = ['Página <b>forte</b>', 'Página > forte', 'a<b c', 'a>b c', dentro(0x09), dentro(0x00), dentro(0x0a), dentro(0x7f), dentro(0x85), dentro(0x2028), dentro(0x2029),
+    dentro(0x200b), dentro(0x200f), dentro(0x202e), dentro(0x2060), dentro(0x2066), dentro(0xfeff), dentro(0xad)];
   for (const t of proibidos) assert.deepEqual(tit(t).motivos, ['caractere'], JSON.stringify(t));
-  for (const t of [com(0xa0), com(0x20), 'Atendimento é ação', 'Pergunta o que incomoda']) assert.equal(tit(t).ok, true, JSON.stringify(t));
+  for (const t of [dentro(0xa0), dentro(0x20), 'Atendimento é ação', 'Pergunta o que incomoda', dentro(0xfe10)]) assert.equal(tit(t).ok, true, JSON.stringify(t));
+});
+
+test('S1: os equivalentes de "<" e ">" (largura total e versão pequena: os únicos que o NFKC leva a "<" e ">") são recusados em todo campo de texto', () => {
+  const maiorMenor = [[0xff1c, 0xff1e], [0xfe64, 0xfe65]];
+  for (const [a, b] of maiorMenor) {
+    const t = cp(a) + 'script' + cp(b);
+    assert.deepEqual(tit(t).motivos, ['caractere'], 'título ' + a.toString(16));
+    assert.deepEqual(tit(cp(a)).motivos.sort(), ['caractere', 'titulo_curto'], 'só ' + a.toString(16));
+    assert.deepEqual(tit('Página ' + cp(b) + ' forte').motivos, ['caractere'], 'só ' + b.toString(16));
+    const lugares = {
+      'frase da etapa': (p) => { p.etapas[1].frase = 'Cai na página ' + t + ' do tratamento certo.'; },
+      'frase da chegada': (p) => { p.chegada.frase = 'A pessoa chega pela busca ' + t + ' ou pelo mapa.'; },
+      'título do fim': (p) => { p.fim.titulo = 'Marcada ' + t; },
+      'fecho': (p) => { p.fecho = 'A pessoa chegou, marcou ' + t + ' e vai ser lembrada.'; },
+      'rótulo do retorno': (p) => { p.rotulo_retorno = 'o site ' + t; }
+    };
+    for (const [nome, mexer] of Object.entries(lugares)) { const p = fx('clinica'); mexer(p); assert.deepEqual(F.validarFormaPlano(p).motivos, ['caractere'], nome + ' ' + a.toString(16)); }
+    const e = fx('embalagens'); e.rotulos_ramos = ['catálogo ' + t, 'sob medida']; assert.deepEqual(F.validarFormaPlano(e).motivos, ['caractere'], 'rótulo do ramo ' + a.toString(16));
+    const l = clone(lerJson('radar/clinica.json')); l.eixos[1].evidencia = 'toda hora ' + t;
+    assert.deepEqual(F.validarFormaLeitura(l).motivos, ['caractere'], 'evidência ' + a.toString(16));
+  }
+});
+
+test('S1: sem String.prototype.normalize (navegador antigo) a forma não lança e ainda recusa a lista explícita de "<" e ">"', () => {
+  const janela = {};
+  vm.runInNewContext('delete String.prototype.normalize;\n' + fonte, { window: janela });
+  const G = janela.BZPlantaForma;
+  for (const c of [0xff1c, 0xff1e, 0xfe64, 0xfe65]) {
+    const p = fx('clinica'); p.etapas[0].titulo = 'abc' + cp(c) + 'def';
+    assert.deepEqual([...G.validarFormaPlano(p).motivos], ['caractere'], 'U+' + c.toString(16));
+  }
+  assert.equal(G.validarFormaPlano(fx('loja')).ok, true);
+});
+
+test('S2: os invisíveis e "preenchimentos" da lista de promessa.mjs, mais os de etiqueta (fora do BMP), são recusados; o que está ao lado deles passa', () => {
+  const invisiveis = [0xad, 0x34f, 0x61c, 0x115f, 0x1160, 0x17b4, 0x17b5, 0x180e, 0x200b, 0x200c, 0x200d, 0x200e, 0x200f, 0x202a, 0x202b, 0x202c, 0x202d, 0x202e,
+    0x2060, 0x2061, 0x2062, 0x2063, 0x2064, 0x2066, 0x2067, 0x2068, 0x2069, 0x206a, 0x206f, 0x2800, 0x3164, 0xfe00, 0xfe08, 0xfe0f, 0xfeff, 0xffa0, 0xfff9, 0xfffa, 0xfffb];
+  for (const c of invisiveis) assert.deepEqual(tit(dentro(c)).motivos, ['caractere'], 'U+' + c.toString(16));
+  for (const baixo of [0xdc00, 0xdc01, 0xdc41, 0xdc7f]) assert.deepEqual(tit('Página' + cp(0xdb40) + cp(baixo) + 'forte').motivos, ['caractere'], 'etiqueta ' + baixo.toString(16));
+  /* vizinhos que passam: logo antes e depois dos blocos, o emoji, a etiqueta fora do bloco e o espaço sem quebra */
+  for (const c of [0xac, 0xae, 0x34e, 0x350, 0x61b, 0x61d, 0xfdff, 0xfe10, 0xfe1f, 0x3163, 0x3165, 0xffa1, 0xfffc]) assert.equal(tit(dentro(c)).ok, true, 'U+' + c.toString(16));
+  assert.equal(tit('Página ' + cp(0xd83d) + cp(0xde00) + ' ok').ok, true, 'um emoji (par válido) passa na forma: quem o barra é a camada de texto');
+  assert.equal(tit('Página' + cp(0xdb40) + cp(0xdc80) + 'forte').ok, true, 'U+E0080 já está fora do bloco de etiquetas');
+});
+
+test('S2: o mínimo de comprimento só conta depois de descartar espaços E invisíveis (preenchimento sozinho não vale como texto)', () => {
+  assert.deepEqual(tit(cp(0x2800).repeat(3)).motivos.sort(), ['caractere', 'titulo_curto']);
+  const frase = (t) => { const p = fx('clinica'); p.etapas[2].frase = t; return F.validarFormaPlano(p); };
+  assert.deepEqual(frase(cp(0x3164).repeat(20)).motivos.sort(), ['caractere', 'frase_curta']);
+  assert.deepEqual(frase('Mostra ' + cp(0x3164).repeat(13)).motivos.sort(), ['caractere', 'frase_curta']);
+  const fecho = fx('clinica'); fecho.fecho = cp(0xffa0).repeat(25);
+  assert.deepEqual(F.validarFormaPlano(fecho).motivos.sort(), ['caractere', 'frase_curta']);
+  const rot = fx('clinica'); rot.rotulo_retorno = '  ' + cp(0x3164) + '  ';
+  assert.deepEqual(F.validarFormaPlano(rot).motivos.sort(), ['caractere', 'rotulo']);
+  const ev = clone(lerJson('radar/clinica.json')); ev.eixos[1].evidencia = cp(0x3164);
+  assert.deepEqual(F.validarFormaLeitura(ev).motivos.sort(), ['caractere', 'evidencia']);
+  const ev2 = clone(lerJson('radar/clinica.json')); ev2.eixos[1].evidencia = ' ' + cp(0x2800) + ' ';
+  assert.deepEqual(F.validarFormaLeitura(ev2).motivos.sort(), ['caractere', 'evidencia']);
+});
+
+test('S4: substituto solto (UTF-16 sem par) é recusado; o par válido (emoji) continua passando na forma', () => {
+  const soltos = ['Página' + cp(0xd800) + 'forte', 'Página' + cp(0xdbff) + 'forte', 'Página' + cp(0xdc00) + 'forte', 'Página' + cp(0xdfff) + 'forte',
+    'Página forte' + cp(0xd83d), cp(0xde00) + 'Página forte', 'Página' + cp(0xde00) + cp(0xd83d) + 'forte', 'Página' + cp(0xd83d) + cp(0xd83d) + cp(0xde00) + ' x', 'Página' + cp(0xd83d) + cp(0x41) + 'forte'];
+  for (const t of soltos) assert.deepEqual(tit(t).motivos, ['caractere'], JSON.stringify(t));
+  assert.equal(tit('Página ' + cp(0xd83d) + cp(0xde00) + ' forte').ok, true);
+  assert.equal(tit(cp(0xd83d) + cp(0xde00) + ' Página ' + cp(0xd83d) + cp(0xdc4d)).ok, true);
+});
+
+test('o tamanho em bytes vale em UTF-8 (8192 passa, 8193 é "grande"), com ASCII, 2, 3 e 4 bytes por caractere (inclui par substituto)', () => {
+  const unidades = { ascii: 'x', 'dois bytes': cp(0xe9), 'três bytes': cp(0x20ac), 'quatro bytes (par substituto)': cp(0xd83d) + cp(0xde00) };
+  const comBytes = (alvo, unidade) => {
+    const b = Buffer.byteLength(unidade, 'utf8'), p = fx('clinica');
+    p.extra = '';
+    const falta = alvo - Buffer.byteLength(JSON.stringify(p), 'utf8');
+    const n = Math.floor(falta / b);
+    p.extra = unidade.repeat(n) + 'x'.repeat(falta - n * b);
+    assert.equal(Buffer.byteLength(JSON.stringify(p), 'utf8'), alvo);
+    return p;
+  };
+  for (const [nome, u] of Object.entries(unidades)) {
+    assert.deepEqual(F.validarFormaPlano(comBytes(8192, u)).motivos, ['chave_extra'], nome + ' 8192 passa do tamanho (só a chave extra reclama)');
+    assert.deepEqual(F.validarFormaPlano(comBytes(8193, u)).motivos, ['grande'], nome + ' 8193');
+  }
+  /* o mesmo para a leitura do radar: 2048 / 2049 */
+  const leit = (alvo) => { const l = clone(lerJson('radar/clinica.json')); l.extra = ''; const falta = alvo - Buffer.byteLength(JSON.stringify(l), 'utf8'); l.extra = 'x'.repeat(falta); return l; };
+  assert.deepEqual(F.validarFormaLeitura(leit(2048)).motivos, ['chave_extra']);
+  assert.deepEqual(F.validarFormaLeitura(leit(2049)).motivos, ['grande']);
 });
 
 /* ---------- 5. regras por topologia ---------- */
 test('laço: tudo em sequência, só a última com retorno; sem campo de outra topologia; "rotulo_retorno" só no laço', () => {
   const p = fx('clinica'); p.etapas[6].retorno = false;
   assert.deepEqual(F.validarFormaPlano(p).motivos, ['retorno']);
+  /* C5: a chave "retorno" só existe na última etapa do laço; no meio, nem "false" é aceito */
+  const meio = fx('clinica'); meio.etapas[2].retorno = false;
+  assert.deepEqual(F.validarFormaPlano(meio).motivos, ['retorno']);
+  const meioV = fx('clinica'); meioV.etapas[2].retorno = true;
+  assert.deepEqual(F.validarFormaPlano(meioV).motivos, ['retorno']);
+  const naoBool = fx('clinica'); naoBool.etapas[6].retorno = 'sim';
+  assert.deepEqual(F.validarFormaPlano(naoBool).motivos, ['retorno']);
   const q = fx('clinica'); q.rotulos_ramos = ['a b c', 'd e f'];
   assert.deepEqual(F.validarFormaPlano(q).motivos, ['campo_fora_da_topologia']);
   const s = fx('clinica'); s.etapas[2].satelite_de = 'pagina'; s.etapas[2].lado = 'cima';
@@ -186,9 +296,26 @@ test('decisão: no máximo uma em qualquer topologia; na bifurca é obrigatória
 
 test('bifurca: entrada, 1 a 2 no ramo 0, 1 a 2 no ramo 1, 1 a 2 de saída; ramos contíguos e em ordem; "ramo" só 0 ou 1', () => {
   const ok = (mexer) => { const p = fx('embalagens'); mexer(p); return F.validarFormaPlano(p); };
-  /* 3 no ramo 0 (e 7 etapas no total para não cair na contagem) */
-  const tres = ok((p) => { p.etapas.splice(3, 0, clone(p.etapas[3])); p.etapas[3].id = 'acab-b'; p.etapas.splice(7, 2); });
-  assert.deepEqual(codigos(tres), ['ramo']);
+  /* C1: monta N na entrada (a última com a decisão), N no ramo 0, N no ramo 1 e N na saída, sempre com 7 ou 8 etapas, para a contagem
+     de etapas não ser o motivo da recusa */
+  const etapa = (id, extra) => Object.assign({ id, tipo: 'pagina', verbo: 'Mostra', titulo: 'Etapa ' + id, frase: 'Uma frase de teste para a etapa ' + id + ', sem nada de especial.' }, extra);
+  const bif = (entrada, r0, r1, saida) => {
+    const etapas = [];
+    for (let i = 0; i < entrada; i++) etapas.push(etapa('en' + i, i === entrada - 1 ? { decisao: true } : {}));
+    for (let i = 0; i < r0; i++) etapas.push(etapa('a' + i, { ramo: 0 }));
+    for (let i = 0; i < r1; i++) etapas.push(etapa('b' + i, { ramo: 1 }));
+    for (let i = 0; i < saida; i++) etapas.push(etapa('sa' + i));
+    const p = fx('embalagens'); p.etapas = etapas;
+    return F.validarFormaPlano(p);
+  };
+  for (const [e, a, b, sa] of [[2, 2, 2, 1], [1, 2, 2, 2], [2, 2, 2, 2], [3, 2, 2, 1], [3, 1, 1, 2], [4, 1, 1, 1], [2, 1, 2, 2], [2, 2, 1, 2]]) assert.equal(bif(e, a, b, sa).ok, true, [e, a, b, sa].join());
+  assert.deepEqual(bif(2, 3, 1, 1).motivos, ['ramo'], 'três no ramo 0');
+  assert.deepEqual(bif(2, 1, 3, 1).motivos, ['ramo'], 'três no ramo 1');
+  assert.deepEqual(bif(2, 1, 1, 3).motivos, ['ramo'], 'três na saída');
+  assert.deepEqual(bif(3, 0, 2, 2).motivos, ['ramo'], 'ramo 0 vazio');
+  assert.deepEqual(bif(3, 2, 0, 2).motivos, ['ramo'], 'ramo 1 vazio');
+  assert.deepEqual(bif(3, 2, 2, 0).motivos, ['ramo'], 'sem saída');
+  assert.deepEqual(codigos(bif(0, 3, 2, 2)), ['decisao', 'ramo'], 'sem entrada (e sem onde pôr a decisão)');
   /* saída vazia: as duas últimas viram ramo 1 */
   const semSaida = ok((p) => { p.etapas[6].ramo = 1; p.etapas[7].ramo = 1; });
   assert.ok(semSaida.motivos.includes('ramo'));
@@ -201,6 +328,8 @@ test('bifurca: entrada, 1 a 2 no ramo 0, 1 a 2 no ramo 1, 1 a 2 de saída; ramos
   assert.equal(ok((p) => { delete p.rotulos_ramos; }).ok, true);
   assert.deepEqual(ok((p) => { p.rotulos_ramos = ['só um aqui']; }).motivos, ['rotulo']);
   assert.deepEqual(ok((p) => { p.rotulos_ramos = 'texto'; }).motivos, ['rotulo']);
+  assert.deepEqual(ok((p) => { p.rotulos_ramos = ['um aqui', 'dois aqui', 'três aqui']; }).motivos, ['rotulo'], 'três rótulos');
+  assert.deepEqual(ok((p) => { p.rotulos_ramos = []; }).motivos, ['rotulo'], 'nenhum rótulo');
 });
 
 test('espinha: 4 a 5 de tronco e 2 a 4 satélites; satélite aponta para o tronco, um por etapa, lado cima/baixo, no máximo um laço', () => {
@@ -218,15 +347,21 @@ test('espinha: 4 a 5 de tronco e 2 a 4 satélites; satélite aponta para o tronc
   assert.ok(trocar(fx('loja'), ['look'], (e) => { delete e.lado; }).motivos.includes('lado'));
   /* dois laços; laço no tronco */
   assert.deepEqual(trocar(fx('loja'), ['guia'], (e) => { e.laco = true; }).motivos, ['laco']);
-  assert.ok(trocar(fx('loja'), ['vitrine'], (e) => { e.laco = true; }).motivos.includes('laco'));
+  assert.deepEqual(trocar(fx('loja'), ['vitrine'], (e) => { e.laco = true; }).motivos, ['laco'], 'laço no tronco');
+  assert.deepEqual(trocar(fx('loja'), ['vitrine'], (e) => { e.laco = false; }).motivos, ['laco'], 'C5: "laco: false" no tronco também é recusado (a chave só vale no satélite)');
+  /* "laco" que não é booleano, num satélite */
+  assert.deepEqual(trocar(fx('loja'), ['guia'], (e) => { e.laco = 'sim'; }).motivos, ['laco']);
+  assert.deepEqual(trocar(fx('loja'), ['guia'], (e) => { e.laco = 1; }).motivos, ['laco']);
+  assert.deepEqual(trocar(fx('loja'), ['esquecida'], (e) => { e.laco = null; }).motivos, ['laco']);
+  assert.equal(trocar(fx('loja'), ['guia'], (e) => { e.laco = false; }).ok, true, 'C5: "laco: false" num satélite é aceito (é o valor neutro)');
   /* tronco de 3 + 4 satélites (7 etapas) */
   const t3 = fx('loja'); t3.etapas[6].satelite_de = 'sacola'; t3.etapas[6].lado = 'cima';
-  const r3 = F.validarFormaPlano(t3); assert.ok(r3.motivos.includes('tronco') || r3.motivos.includes('satelite'), JSON.stringify(r3.motivos));
+  assert.deepEqual(codigos(F.validarFormaPlano(t3)), ['satelite', 'tronco'], 'tronco de 3 (e dois satélites na mesma etapa)');
   /* tronco de 6 + 1 satélite */
   const t6 = fx('loja'); t6.etapas = t6.etapas.filter((e) => e.id !== 'guia' && e.id !== 'esquecida');
   t6.etapas.push({ id: 'tronco-a', tipo: 'pagina', verbo: 'Mostra', titulo: 'Mais uma etapa do tronco', frase: 'Uma etapa a mais no tronco, só para testar a contagem.' },
     { id: 'tronco-b', tipo: 'pagina', verbo: 'Mostra', titulo: 'Outra etapa do tronco', frase: 'Outra etapa a mais no tronco, só para testar a contagem.' });
-  const r6 = F.validarFormaPlano(t6); assert.equal(r6.ok, false); assert.ok(r6.motivos.includes('tronco'), JSON.stringify(r6.motivos));
+  assert.deepEqual(codigos(F.validarFormaPlano(t6)), ['satelite', 'tronco'], 'tronco de 6 e um só satélite');
   /* o limite bom: 5 de tronco + 3 satélites = 8 etapas */
   const t5 = fx('loja');
   t5.etapas.push({ id: 'entrega', tipo: 'confirmacao', verbo: 'Confirma', titulo: 'Confirma a entrega', frase: 'A pessoa recebe a confirmação de que o pedido saiu.' });
@@ -258,7 +393,9 @@ test('ids: formato, repetição e nomes reservados; o id vale como texto simples
   assert.equal(id('a-1-b').ok, true);
   for (const ruim of ['a', 'a'.repeat(25), 'A1', 'a b', 'a_b', 'a.b', 'a/b', 'a"b', "a'b", '1<2', 'á', '', 7, null, ['ab']]) assert.deepEqual(id(ruim).motivos, ['id'], JSON.stringify(ruim));
   assert.deepEqual(id('pagina').motivos, ['id_repetido']);
-  for (const reservado of ['nucleo', 'led', 'chegada']) assert.deepEqual(id(reservado).motivos, ['id_reservado'], reservado);
+  for (const reservado of ['nucleo', 'led', 'chegada', 'constructor', 'prototype', 'proto']) assert.deepEqual(id(reservado).motivos, ['id_reservado'], reservado);
+  /* S3: o regex da spec não muda; quem usa o id (desenho) o guarda só em data-id / Map / Object.create(null) e passa por CSS.escape num seletor */
+  for (const estranho of ['--', '00', '-0-', 'a-', '-a']) assert.equal(id(estranho).ok, true, estranho + ' passa no regex da spec');
 });
 
 test('origens: de 1 a 4, da lista, sem repetir', () => {
@@ -303,7 +440,8 @@ test('cada erro vem com caminho legível (para o servidor montar a mensagem de v
   assert.deepEqual(r.erros.map((e) => e.caminho + ':' + e.codigo).sort(), ['etapas[2].titulo:titulo_longo', 'etapas[4].frase:frase_curta']);
   assert.deepEqual(codigos(r), ['frase_curta', 'titulo_longo']);
   const lixo = fx('clinica'); lixo.etapas.forEach((e) => { e.tipo = 'x'; e.verbo = 'y'; e.titulo = 1; e.frase = 2; e.id = 'A'; });
-  assert.ok(F.validarFormaPlano(lixo).erros.length <= F.LIMITES.erros_max);
+  assert.equal(F.validarFormaPlano(lixo).erros.length, 20, 'o teto de erros é 20 (e o de motivos não tem teto: são códigos sem repetição)');
+  assert.equal(F.LIMITES.erros_max, 20);
 });
 
 test('chaves: as que o esquema não conhece, em qualquer nível, são recusadas; as de protótipo são "chave_proibida"', () => {
@@ -315,6 +453,48 @@ test('chaves: as que o esquema não conhece, em qualquer nível, são recusadas;
   }
   const faltando = fx('clinica'); delete faltando.fim; delete faltando.etapas[0].verbo;
   assert.ok(codigos(F.validarFormaPlano(faltando)).includes('chave_faltando'));
+});
+
+test('S5: chave_extra e chave_proibida trazem o NOME da chave no caminho, só se for curto e simples; senão "?" (nunca texto livre do visitante)', () => {
+  const ex = (mexer) => { const p = fx('clinica'); mexer(p); return F.validarFormaPlano(p).erros; };
+  assert.deepEqual(ex((p) => { p.etapas[0].zzz = 1; }), [{ caminho: 'etapas[0].zzz', codigo: 'chave_extra' }]);
+  assert.deepEqual(ex((p) => { p.zzz = 1; }), [{ caminho: 'zzz', codigo: 'chave_extra' }]);
+  assert.deepEqual(ex((p) => { p.chegada.zzz = 1; }), [{ caminho: 'chegada.zzz', codigo: 'chave_extra' }]);
+  assert.deepEqual(ex((p) => { p.fim.A_b$9 = 1; }), [{ caminho: 'fim.A_b$9', codigo: 'chave_extra' }]);
+  assert.deepEqual(ex((p) => { p.etapas[1]['x'.repeat(32)] = 1; }), [{ caminho: 'etapas[1].' + 'x'.repeat(32), codigo: 'chave_extra' }], '32 caracteres ainda vale');
+  /* nome com espaço, acento, tag, ponto, barra ou comprimento 33: vira "?" */
+  for (const nome of ['x'.repeat(33), 'duas palavras', 'ação', '<img src=x>', 'a.b', 'a/b', 'ignore as regras anteriores', '']) {
+    assert.deepEqual(ex((p) => { p.etapas[2][nome] = 1; }), [{ caminho: 'etapas[2].?', codigo: 'chave_extra' }], JSON.stringify(nome));
+    assert.deepEqual(ex((p) => { p[nome] = 1; }), [{ caminho: '?', codigo: 'chave_extra' }], JSON.stringify(nome));
+  }
+  /* a chave de protótipo: o nome já é seguro */
+  const proto = JSON.parse('{"etapas": [{"constructor": 1}]}');
+  assert.deepEqual(F.validarFormaPlano(proto).erros.filter((e) => e.codigo === 'chave_proibida'), [{ caminho: 'etapas[0].constructor', codigo: 'chave_proibida' }]);
+  /* leitura */
+  const l = clone(lerJson('radar/clinica.json')); l.eixos[1].peso = 3; l.nota = 'x';
+  assert.deepEqual(F.validarFormaLeitura(l).erros.map((e) => e.caminho).sort(), ['eixos[1].peso', 'nota']);
+  const l2 = clone(lerJson('radar/clinica.json')); l2.eixos[0]['texto livre do visitante'] = 1;
+  assert.deepEqual(F.validarFormaLeitura(l2).erros, [{ caminho: 'eixos[0].?', codigo: 'chave_extra' }]);
+});
+
+test('S7: a API exportada e as listas são congeladas (nada de trocar uma função por outra em tempo de execução)', () => {
+  assert.ok(Object.isFrozen(F));
+  assert.throws(() => { F.validarFormaPlano = () => ({ ok: true }); }, TypeError);
+  assert.throws(() => { F.LIMITES.titulo_max = 999; }, TypeError);
+  assert.throws(() => { F.TIPOS.push('novo'); }, TypeError);
+  const janela = {};
+  vm.runInNewContext(fonte, { window: janela });
+  assert.ok(Object.isFrozen(janela.BZPlantaForma));
+});
+
+test('S6: o comprimento mínimo usa String.prototype.trim (linear); o código não tem mais o replace com regex de espaços nas pontas', () => {
+  const semComentarios = fonte.replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.ok(/\.trim\(\)/.test(semComentarios));
+  assert.ok(!/replace\(\/\^\\s/.test(semComentarios), 'sem o replace com regex de espaços nas pontas');
+  const longo = fx('clinica'); longo.etapas[0].titulo = ' '.repeat(5000) + 'abc';
+  const t0 = Date.now();
+  assert.deepEqual(F.validarFormaPlano(longo).motivos, ['titulo_longo']);
+  assert.ok(Date.now() - t0 < 500);
 });
 
 /* ---------- 7. o radar ---------- */
@@ -333,7 +513,7 @@ test('radar: as 3 leituras validam, em ordem canônica dos eixos, e cada inváli
     const e = lerJson('radar/invalidos/' + nome);
     const r = F.validarFormaLeitura(e.leitura);
     assert.equal(r.ok, false, nome);
-    assert.ok(r.motivos.includes(e._defeito), nome + ': esperado ' + e._defeito + ', veio ' + JSON.stringify(r.motivos));
+    assert.deepEqual(r.motivos, [e._defeito], nome + ': esperado só ' + e._defeito + ', veio ' + JSON.stringify(r.motivos));
   }
 });
 
@@ -390,7 +570,12 @@ const PROIBIDOS_ES5 = [
   [/=>/, 'seta (=>)'], [/\bconst\b/, 'const'], [/\blet\b/, 'let'], [/`/, 'crase'], [/\bclass\b/, 'class'], [/\.\.\./, 'espalhar (...)'],
   [/Object\.values/, 'Object.values'], [/Object\.entries/, 'Object.entries'], [/Object\.assign/, 'Object.assign'], [/\bpadStart\b|\bpadEnd\b/, 'padStart/padEnd'],
   [/Array\.from/, 'Array.from'], [/\.includes\(/, '.includes('], [/\basync\b|\bawait\b/, 'async/await'], [/\.startsWith\(|\.endsWith\(/, 'startsWith/endsWith'],
-  [/\.find\(|\.findIndex\(/, '.find('], [/\bSymbol\b|\bPromise\b|\bnew Map\b|\bnew Set\b|\bProxy\b/, 'Symbol/Promise/Map/Set/Proxy'], [/\byield\b|\bfunction\s*\*/, 'gerador']
+  [/\.find\(|\.findIndex\(/, '.find('], [/\bSymbol\b|\bPromise\b|\bnew Map\b|\bnew Set\b|\bProxy\b/, 'Symbol/Promise/Map/Set/Proxy'], [/\byield\b|\bfunction\s*\*/, 'gerador'],
+  [/\?\.(?!\d)/, 'encadeamento opcional (?.)'], [/\?\?/, 'coalescência (??)'], [/\*\*/, 'potência (**)'], [/\bfor\s*\([^;()]*\sof\s/, 'for...of'],
+  [/\b(?:var|let|const)\s*[\[{]/, 'desestruturação (var {..} / [..])'], [/\bfunction\s*[\w$]*\s*\(\s*[\[{]/, 'desestruturação de parâmetro'],
+  [/\bfunction\s*[\w$]*\s*\([^)]*=[^)]*\)/, 'parâmetro padrão'], [/(?:[=(:,\[]|\breturn)\s*\{\s*[A-Za-z_$][\w$]*\s*[,}]|,\s*[A-Za-z_$][\w$]*\s*\}/, 'propriedade abreviada ({ a, b })'],
+  [/\.repeat\(/, '.repeat('], [/\.fill\(/, '.fill('], [/Number\.is[A-Z]\w*/, 'Number.isXxx'], [/\.flat\(|\.flatMap\(|Array\.of\b/, 'flat/Array.of'],
+  [/\.codePointAt\(|String\.fromCodePoint|\.matchAll\(|\.replaceAll\(/, 'codePointAt/matchAll/replaceAll'], [/\bget\s+\w+\s*\(|\bset\s+\w+\s*\(/, 'get/set literal']
 ];
 const proibidosEm = (src) => PROIBIDOS_ES5.filter(([re]) => re.test(semComentariosEStrings(src))).map(([, nome]) => nome);
 
@@ -405,6 +590,31 @@ test('a varredura ES5 enxerga o que deve (seta, const, let, crase, class, espalh
   assert.deepEqual(proibidosEm('f(...a);'), ['espalhar (...)']);
   assert.deepEqual(proibidosEm('[].includes(1); Object.values(o);').sort(), ['.includes(', 'Object.values']);
   assert.deepEqual(proibidosEm('async function f() { await g(); }'), ['async/await']);
+});
+
+test('C4: a varredura ES5 também enxerga ?., ??, **, for...of, desestruturação, parâmetro padrão, propriedade abreviada, repeat, fill, Number.isXxx — e não acusa o que é ES5', () => {
+  /* (a abreviada só é pega na 1ª e na última propriedade do literal; no meio de um literal grande passaria. É uma rede, não um parser) */
+  const so = (codigo, nome) => assert.deepEqual(proibidosEm(codigo).sort(), [].concat(nome).sort(), codigo);
+  so('var x = a?.b;', 'encadeamento opcional (?.)');
+  so('var x = a ?? b;', 'coalescência (??)');
+  so('var x = a ** 2;', 'potência (**)');
+  so('for (var x of lista) { f(x); }', 'for...of');
+  so('var { a } = o;', 'desestruturação (var {..} / [..])');
+  so('var [a, b] = o;', 'desestruturação (var {..} / [..])');
+  so('function f({ a }) { return a; }', ['desestruturação de parâmetro', 'propriedade abreviada ({ a, b })']);
+  so('function f([a]) { return a; }', 'desestruturação de parâmetro');
+  so('function f(a = 1) { return a; }', 'parâmetro padrão');
+  so('var o = { a, b: 2 };', 'propriedade abreviada ({ a, b })');
+  so('var o = { b: 2, a };', 'propriedade abreviada ({ a, b })');
+  so('var s = "x".repeat(3);', '.repeat(');
+  so('var s = [].fill(0);', '.fill(');
+  so('var s = Number.isInteger(3);', 'Number.isXxx');
+  so('var s = [1].flat();', 'flat/Array.of');
+  so('var o = { get a() { return 1; } };', 'get/set literal');
+  /* ES5 legítimo: nada deve ser acusado */
+  for (const ok of ['var x = a ? .5 : 1;', 'var x = a ? b : c;', 'for (var i = 0; i < n; i++) { f(i); }', 'for (var k in o) { f(k); }', 'var o = { a: a, b: b };', 'var f = function (a, b) { return a == b; };',
+    'f(a, b); g(c, d);', 'var s = "a ** b ?. c ?? d"; // x?.y ** 2', 'var r = /a**/;', 'if (a) { b(); }', 'var x = (a, b);', 'return { ok: true, plano: p, motivos: [] };', 'var a = [1, 2], b = 3;', 'c.add(caminho, codigo); }', 'x.trim();'])
+    assert.deepEqual(proibidosEm(ok), [], ok);
 });
 
 test('o módulo de forma é ES5 sintático (sem =>, const, let, crase, class, ..., Object.values/entries, padStart, Array.from, includes, async)', () => {
