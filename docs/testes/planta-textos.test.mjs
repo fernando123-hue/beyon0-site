@@ -154,3 +154,27 @@ test('a lista de plataformas só tem nomes que o código do repositório já cit
   const fora = PLATAFORMAS.filter(p => !codigo.includes(p.toLowerCase()) && !fs.readdirSync(new URL('../../api/_vendas/', import.meta.url)).some(f => fs.readFileSync(new URL('../../api/_vendas/' + f, import.meta.url), 'utf8').toLowerCase().includes(p.toLowerCase())));
   assert.deepEqual(fora, [], 'plataforma que nenhum arquivo de api/_vendas cita');
 });
+
+/* cada uma das dez travas está LIGADA: um texto que só ela pega (a lista própria deixa passar) é recusado com o nome dela; as quatro que a lista própria
+   cobre por cima (mensalidade, desconto, preço no texto, preço com marca) são conferidas direto, para uma delas não parar de rodar sem ninguém ver */
+const SO_A_TRAVA = {
+  resultado: 'O site traz mais gente para a porta.',
+  garantia: 'Se não gostar, a gente devolve tudo.',
+  suporte: 'Depois da entrega a gente cuida do site para você.',
+  negarIA: 'Quem responde aqui é uma pessoa da equipe.',
+  recado: 'Já deixei o recado para a equipe.',
+  pagamento: 'O pagamento foi confirmado pela equipe.'
+};
+const DIRETO = { mensalidade: 'O atendente de IA custa por mês.', desconto: 'Eu te dou um desconto na hora.', precoNoTexto: 'O site sai por 2900.', precoComMarca: 'O site custa R$ 2.900.' };
+
+test('as dez travas rodam de verdade: seis pegam sozinhas, as outras quatro mudam o texto que é delas', () => {
+  for (const [nome, frase] of Object.entries(SO_A_TRAVA)) {
+    const r = textoDoPlanoPermitido(frase);
+    assert.deepEqual({ ok: r.ok, motivo: r.motivo }, { ok: false, motivo: 'trava_' + nome }, nome + ': ' + frase);
+  }
+  for (const [nome, frase] of Object.entries(DIRETO)) {
+    const t = TRAVAS.find(x => x.nome === nome);
+    assert.notEqual(t.rodar(frase), frase, nome + ' não mudou ' + frase);
+  }
+  assert.equal(Object.keys(SO_A_TRAVA).length + Object.keys(DIRETO).length, TRAVAS.length);
+});
