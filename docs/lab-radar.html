@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex" />
+  <title>Laboratório do radar "Como lemos o seu caso"</title>
+  <link rel="stylesheet" href="/css/tokens.css" />
+  <link rel="stylesheet" href="/css/orcamento-radar.css" />
+  <link rel="stylesheet" href="/docs/testes/planta-radar-lab.css" />
+  <script src="/js/core.js" defer></script>
+  <script src="/js/orcamento-planta-forma.js" defer></script>
+  <script src="/js/planta-radar.js" defer></script>
+  <script src="/docs/testes/planta-radar-lab.js" defer></script>
+</head>
+<body>
+  <!-- Laboratório (fora do deploy: docs/ não entra em cloudflare/montar-publico.mjs). O módulo do radar (PR 2d-front) com leituras de
+       TESTE (docs/testes/fixtures/radar/*.json): nenhuma frase é de cliente de verdade. Parâmetros: ?leitura=clinica|embalagens|loja|vazio|pior
+       &de=OUTRA (começa nela e troca para a de ?leitura= depois de &troca=MS, padrão 1200) &atraso=MS (monta o radar só depois disso).
+       Sem JS, a lista abaixo (noscript) mostra a leitura inteira. -->
+  <main class="plrl">
+    <header>
+      <p class="plrl-kicker">Laboratório · Radar</p>
+      <h1 class="plrl-h1">O que a conversa já entendeu do seu caso.</h1>
+      <p class="plrl-nota">Leituras de exemplo, montadas por código. É o que a pessoa contou, não uma nota do negócio dela.</p>
+    </header>
+
+    <div class="plrl-botoes" data-botoes hidden role="group" aria-label="Exemplo de leitura">
+      <button type="button" class="plrl-btn" data-leitura="clinica" aria-pressed="true">Clínica odontológica</button>
+      <button type="button" class="plrl-btn" data-leitura="embalagens" aria-pressed="false">Indústria de embalagens</button>
+      <button type="button" class="plrl-btn" data-leitura="loja" aria-pressed="false">Loja de roupas</button>
+      <button type="button" class="plrl-btn" data-leitura="vazio" aria-pressed="false">Começo da conversa</button>
+    </div>
+
+    <div class="plr-vaga" data-radar>
+      <noscript>
+        <div class="plr" role="group" aria-labelledby="plr-sem-js">
+          <p class="plr-titulo" id="plr-sem-js">Como lemos o seu caso</p>
+          <dl class="plr-lista">
+            <div class="plr-linha"><dt class="plr-eixo">Volume</dt><dd class="plr-nivel plr-nivel--comentou">comentou</dd><dd class="plr-evidencia">“tem semana de agenda cheia”</dd></div>
+            <div class="plr-linha"><dt class="plr-eixo">Repetição</dt><dd class="plr-nivel plr-nivel--deixou_claro">deixou claro</dd><dd class="plr-evidencia">“toda hora perguntam o horário”</dd></div>
+            <div class="plr-linha"><dt class="plr-eixo">Urgência</dt><dd class="plr-nivel plr-nivel--nao_falou">não falou</dd></div>
+            <div class="plr-linha"><dt class="plr-eixo">Depende de pessoas</dt><dd class="plr-nivel plr-nivel--deixou_claro">deixou claro</dd><dd class="plr-evidencia">“só a recepcionista atende”</dd></div>
+            <div class="plr-linha"><dt class="plr-eixo">Informação espalhada</dt><dd class="plr-nivel plr-nivel--comentou">comentou</dd><dd class="plr-evidencia">“anota num caderno”</dd></div>
+          </dl>
+          <p class="plr-legenda">É o que você contou, não uma nota do seu negócio.</p>
+        </div>
+      </noscript>
+    </div>
+
+    <p class="plrl-pe" data-pe>Fim da página de teste. Se este texto se mexer quando o radar entra ou troca de leitura, é deslocamento (CLS).</p>
+  </main>
+</body>
+</html>
