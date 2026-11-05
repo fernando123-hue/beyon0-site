@@ -159,7 +159,7 @@
     function chamada(li, n, mov, r) {
       var rot = n.rot;
       li.style.left = px(rot.x); li.style.top = px(rot.y); li.style.width = px(rot.w); li.style.textAlign = rot.al === 'r' ? 'right' : 'left';
-      if (rot.topo) { li.style.height = px(rot.h); classe(li, 'plv-ponta--topo'); S('path', { d: 'M' + r1(r) + ' -3V' + r1(-n.guia) }, mov, 'plv-guia'); } else li.style.height = 'auto';
+      if (rot.topo) { li.style.height = px(rot.h); classe(li, 'plv-ponta--topo'); S('path', { d: 'M' + r1(r) + ' -3V' + r1(-n.guia) }, mov, 'plv-guia'); } else li.style.height = px(rot.h);
     }
     function nucleo(gg, n, li, ref) {
       var r = n.w / 2, cg = S('g', { transform: 'translate(' + r1(r) + ' ' + r1(r) + ')' }, ref.mov), i, d = '';
@@ -170,7 +170,7 @@
       S('circle', { r: r1(r * 0.5) }, gira, 'plv-aro plv-aro--int');
       for (i = 0; i < 12; i++) { var a = i * Math.PI / 6, c0 = Math.cos(a), s0 = Math.sin(a); d += 'M' + (c0 * r * 0.88).toFixed(2) + ' ' + (s0 * r * 0.88).toFixed(2) + 'L' + (c0 * r).toFixed(2) + ' ' + (s0 * r).toFixed(2); }
       S('path', { d: d }, gira, 'plv-ticks');
-      ref.ondas = [S('circle', { r: r1(r * 0.76) }, cg, 'plv-onda')];
+      ref.aneis = [S('circle', { r: r1(r * 0.76) }, cg, 'plv-onda')];
       classe(li, 'plv-ponta plv-ponta--nucleo');
       chamada(li, n, ref.mov, r);
       H('span', 'plv-verbo', 'Zero', li); H('span', 'plv-tit', 'lê o seu caso', li);
@@ -178,7 +178,7 @@
     function led(gg, n, li, ref) {
       var r = n.w / 2, cg = S('g', { transform: 'translate(' + r1(r) + ' ' + r1(r) + ')' }, ref.mov), d = '';
       classe(gg, 'plv-led');
-      ref.ondas = [S('circle', { r: r1(r * 0.63) }, cg, 'plv-onda'), S('circle', { r: r1(r * 0.63) }, cg, 'plv-onda')];
+      ref.aneis = [S('circle', { r: r1(r * 0.63) }, cg, 'plv-onda'), S('circle', { r: r1(r * 0.63) }, cg, 'plv-onda')];
       S('circle', { r: r1(r * 0.63) }, cg, 'plv-aro');
       S('circle', { r: r1(r * 0.3) }, cg, 'plv-disco');
       [[1, 0], [0, 1], [-1, 0], [0, -1]].forEach(function (v) { d += 'M' + r1(v[0] * r * 0.78) + ' ' + r1(v[1] * r * 0.78) + 'L' + r1(v[0] * r) + ' ' + r1(v[1] * r); });
@@ -216,7 +216,7 @@
         var li = H('li', '', null);
         li.dataset.id = n.id; li.dataset.ord = String(n.ord);
         li.style.left = px(n.x); li.style.top = px(n.y); li.style.width = px(n.w); li.style.height = px(n.h);
-        var ref = { g: gg, mov: mov, li: li, n: n, ondas: [], ajustado: !!ajust[n.id] };
+        var ref = { g: gg, mov: mov, li: li, n: n, aneis: [], ajustado: !!ajust[n.id] };
         if (ref.ajustado) { classe(gg, 'is-ajustado'); classe(li, 'is-ajustado'); }
         if (n.ponta === 'nucleo') nucleo(gg, n, li, ref);
         else if (n.ponta === 'led') led(gg, n, li, ref);
@@ -258,11 +258,13 @@
     }
     function pausarTudo() {
       if (!inst) return;
+      inst.quadro.classList.add('plv--fora');   /* o CSS pausa o giro do núcleo e o pulso do LED */
       inst.relogio.pausar();
       inst.anims.forEach(function (a) { if (a.playState === 'running') { try { a.pause(); inst.pausadas.push(a); } catch (e) { aviso(e); } } });
     }
     function retomarTudo() {
       if (!inst || !inst.iniciada) return;
+      inst.quadro.classList.remove('plv--fora');
       var lista = inst.pausadas; inst.pausadas = [];
       lista.forEach(function (a) { try { a.play(); } catch (e) { aviso(e); } });
       inst.relogio.retomar();
@@ -288,8 +290,8 @@
       var x = inst.R.nos[id];
       if (!x || x.lit) return;
       x.lit = true; acender(x);
-      if (x.n.ponta === 'led') ondas(x.ondas, 0);
-      if (x.n.ponta === 'nucleo' && inst.R.volta) ondas(x.ondas, 0);
+      if (x.n.ponta === 'led') ondas(x.aneis, 0);
+      if (x.n.ponta === 'nucleo' && inst.R.volta) ondas(x.aneis, 0);
     }
 
     function etapasDe(g) { return g.nos.filter(function (n) { return !n.ponta; }).length; }
@@ -312,7 +314,7 @@
     }
 
     function pulsoDeRepouso() {
-      if (!inst || reduzido()) return;
+      if (!inst || !inst.animada) return;
       var R = inst.R, grupos = agrupar(R), t = 0, total = 0;
       var plano = [];
       grupos.forEach(function (gr) {
@@ -444,6 +446,8 @@
         if (doc.hidden) pausarTudo(); else if (inst.visivel || !inst.io) retomarTudo();
       };
       doc.addEventListener('visibilitychange', inst.aoVisibilidade);
+      inst.aoReduzir = function (sim) { if (sim && inst && inst.animada) { inst.opcoes.animar = false; inst.animada = false; finalizar(false); } };
+      if (win.BEYON && typeof win.BEYON.on === 'function') win.BEYON.on('reduzir', inst.aoReduzir);
       inst.aoToque = function () { reativarVida(); };
       inst.quadro.addEventListener('pointerdown', inst.aoToque);
       inst.quadro.addEventListener('focusin', inst.aoToque);
@@ -504,10 +508,10 @@
     }
 
     function montar(raizEl, plano, opcoes) {
-      parar();
       var v = validar(plano);
       if (!v.ok) return { ok: false, motivos: v.motivos };
       if (!raizEl) return { ok: false, motivos: ['sem_raiz'] };
+      parar();
       var wrap = H('div', 'plv'), op = mesclar({}, opcoes || {});
       limparFilhos(raizEl);
       H('h2', 'plv-titulo', 'A planta do seu site', wrap);
@@ -533,7 +537,7 @@
       btnCerto.addEventListener('click', function () {
         if (!inst || btnCerto.hasAttribute('disabled')) return;
         leitura('Combinado', 'É esta a planta que o site vai seguir. Se mudar algo, a planta se refaz.');
-        if (inst.animada && inst.R.nos.led) ondas(inst.R.nos.led.ondas, 0);
+        if (inst.animada && inst.R.nos.led) ondas(inst.R.nos.led.aneis, 0);
         if (typeof inst.opcoes.aoCerto === 'function') inst.opcoes.aoCerto();
       });
       btnAjuste.addEventListener('click', function () {
@@ -570,6 +574,7 @@
       cancelarMovimento();
       win.removeEventListener('resize', i.aoResize);
       doc.removeEventListener('visibilitychange', i.aoVisibilidade);
+      if (win.BEYON && typeof win.BEYON.off === 'function') win.BEYON.off('reduzir', i.aoReduzir);
       if (i.timerResize) win.clearTimeout(i.timerResize);
       if (i.io) i.io.disconnect();
       limparFilhos(i.raiz);

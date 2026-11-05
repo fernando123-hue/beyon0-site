@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import M from '../../js/planta-desenho.js';
 import L from '../../js/planta-layout.js';
-import { criarJanela } from './planta-dom-falso.mjs';
+import { criarJanela, chavesDeMais } from './planta-dom-falso.mjs';
 import { laco, bifurca, espinha } from './planta-formas.mjs';
 
 const fx = (n) => JSON.parse(fs.readFileSync(new URL('./fixtures/planta/' + n + '.json', import.meta.url), 'utf8'));
@@ -254,7 +254,7 @@ test('a luz acende uma caixa de cada vez, na ordem do <ol> (registro das ligaç�
 test('regra 1 do CLAUDE.md: o módulo não tem requestAnimationFrame; e o pulso de repouso só anima transform e opacity (e em nenhum caso stroke-dashoffset ou offset-distance)', () => {
   const fonte = fs.readFileSync(new URL('../../js/planta-desenho.js', import.meta.url), 'utf8');
   const semComentarios = fonte.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
-  assert.ok(!/requestAnimationFrame|cancelAnimationFrame|BEYON/.test(semComentarios), 'nenhum rAF próprio nem laço do site');
+  assert.ok(!/requestAnimationFrame|cancelAnimationFrame|BEYON\s*\.\s*(add|remove|iniciar|pausar)\b/.test(semComentarios), 'nenhum rAF próprio nem laço do site (BEYON.on(reduzir) pode)');
   assert.ok(!/offsetDistance|offset-distance|offsetPath|offset-path/.test(semComentarios));
   /* o código do pulso, lido pelo nome da função */
   const ini = semComentarios.indexOf('function pulsoDeRepouso');
@@ -460,4 +460,126 @@ test('as três topologias e ids "difíceis" (00, a-, --) montam sem erro e nunca
       assert.ok(liDe(raiz, '00') && liDe(raiz, 'a-'));
     }
   }
+});
+
+test('I4: ligar "menos movimento" DEPOIS de montar (o core do site emite reduzir) para tudo: 0 animações vivas, 0 temporizadores, quadro final', () => {
+  const { w, A, raiz } = ambiente();
+  A.montar(raiz, fx('embalagens'), {});
+  w.mostrar(1);
+  w.avancar(3000);
+  assert.ok(w.rodando().length > 5 && w.pendentes() > 0, 'estava animando');
+  w.document.documentElement.classList.add('menos-movimento');
+  w.BEYON.emit('reduzir', true);
+  assert.equal(w.ativas().length, 0, '0 animações vivas');
+  assert.equal(w.pendentes(), 0, '0 temporizadores');
+  assert.ok(!quadroDe(raiz)._classes.has('plv--pre'));
+  assert.ok(quadroDe(raiz).achar((n) => n._classes.has('plv-no')).every(aceso), 'tudo aceso, parado');
+  assert.equal(raiz.porClasse('plv-status')[0].textContent, 'Planta pronta, com 9 etapas.');
+  w.avancar(20000);
+  assert.equal(w.ativas().length, 0, 'e o pulso de repouso não volta com o tempo');
+});
+
+test('I4: reduzir=false (desligar o interruptor) não mexe; e a assinatura do reduzir sai no parar()', () => {
+  const { w, A, raiz } = ambiente();
+  A.montar(raiz, fx('loja'), {});
+  w.mostrar(1);
+  assert.equal(w.BEYON.handlers.reduzir.length, 1, 'assinou o reduzir uma vez');
+  w.BEYON.emit('reduzir', false);
+  assert.ok(w.rodando().length > 0, 'desligar o interruptor não para a animação');
+  A.parar();
+  assert.equal(w.BEYON.handlers.reduzir.length, 0, 'parar() solta a assinatura');
+  A.montar(raiz, fx('loja'), {}); A.montar(raiz, fx('clinica'), {});
+  assert.equal(w.BEYON.handlers.reduzir.length, 1, 'montar de novo não acumula assinaturas');
+});
+
+test('montar sem o laço do site (BEYON ausente) funciona igual', () => {
+  const { w, A, raiz } = ambiente({ beyon: false });
+  assert.equal(A.montar(raiz, fx('loja'), {}).ok, true);
+  A.parar();
+  assert.equal(w.pendentes(), 0);
+});
+
+test('I5: opcoes.animar === false não cria animação nenhuma, nem o pulso de repouso, nem temporizador, nem observador', () => {
+  const { w, A, raiz } = ambiente();
+  const r = A.montar(raiz, fx('embalagens'), { animar: false });
+  assert.equal(r.animada, false);
+  w.avancar(30000);
+  assert.equal(w.document.animacoes.length, 0, 'nenhuma animação criada (inclusive o pulso)');
+  assert.equal(w.pendentes(), 0);
+  assert.equal(w.observadores.length, 0);
+  assert.equal(quadroDe(raiz).achar((n) => n._classes.has('plv-pulso')).length, 0, 'nem os pontos do pulso existem');
+  raiz.porClasse('plv-acoes')[0].porTag('button')[0].disparar('click');
+  assert.equal(w.document.animacoes.length, 0, 'o clique em "Está certo" também não anima');
+  const antes = fx('embalagens');
+  A.atualizar(Object.assign(clone(antes), { etapas: antes.etapas.filter((e) => e.id !== 'acabamento') }), { fala: 'tira o acabamento' });
+  assert.equal(w.document.animacoes.length, 0, 'nem o ajuste');
+});
+
+test('montar com plano inválido NÃO apaga a faixa que já estava na tela, nem a instância (valida antes de parar)', () => {
+  const { A, raiz } = ambiente({ reduzido: true });
+  A.montar(raiz, fx('clinica'), {});
+  const ruim = fx('clinica'); ruim.etapas[0].titulo = '<b>x</b>';
+  const r = A.montar(raiz, ruim, {});
+  assert.equal(r.ok, false);
+  assert.ok(liDe(raiz, 'pagina').textContent.includes('Uma página para cada tratamento'), 'a faixa anterior continua');
+  assert.equal(raiz.porClasse('plv-quadro').length, 1);
+  assert.equal(A.atualizar(comEtapaNova(), { fala: 'x' }).ok, true, 'a instância anterior continua viva');
+});
+
+test('fora da tela o quadro ganha plv--fora (o CSS pausa o giro do núcleo e o pulso do LED) e perde ao voltar; também com a aba escondida', () => {
+  const { w, A, raiz } = ambiente();
+  A.montar(raiz, fx('clinica'), {});
+  w.mostrar(1); w.avancar(12000);
+  assert.ok(!quadroDe(raiz)._classes.has('plv--fora'));
+  w.mostrar(0);
+  assert.ok(quadroDe(raiz)._classes.has('plv--fora'), 'fora da tela');
+  w.mostrar(0.8);
+  assert.ok(!quadroDe(raiz)._classes.has('plv--fora'), 'voltou');
+  w.document.hidden = true; w.document.disparar('visibilitychange');
+  assert.ok(quadroDe(raiz)._classes.has('plv--fora'), 'aba escondida');
+  w.document.hidden = false; w.document.disparar('visibilitychange');
+  assert.ok(!quadroDe(raiz)._classes.has('plv--fora'));
+});
+
+test('M13: parar() desfaz o temporizador do resize que estava pendente', () => {
+  const { w, A, raiz } = ambiente({ reduzido: true });
+  A.montar(raiz, fx('loja'), {});
+  w.disparar('resize');
+  assert.equal(w.pendentes(), 1, 'o resize agendou a recomposição');
+  A.parar();
+  assert.equal(w.pendentes(), 0, 'parar() cancelou o temporizador do resize');
+});
+
+test('M2/M3: nenhum texto do modelo vira href, xlink:href, src, srcdoc, style, on* nem propriedade (onclick, href, title) de nó algum', () => {
+  const { w, A } = ambiente();
+  const hostil = ['javascript:alert(1)', 'data:text/html,x', '" onload="alert(1)', "' onclick='alert(1)", 'https://exemplo.test/x', '//exemplo.test/y'];
+  const plano = fx('embalagens');
+  plano.chegada.titulo = hostil[0]; plano.fim.titulo = hostil[1];
+  plano.etapas.forEach((e, i) => { e.titulo = hostil[i % hostil.length]; e.frase = hostil[(i + 1) % hostil.length]; });
+  plano.rotulos_ramos = [hostil[2], hostil[3]];
+  for (const W of [390, 1280]) {
+    const g = L.montarGeometria(plano, W), quadro = w.document.createElement('div');
+    A.interno.construirQuadro(quadro, g, plano);
+    for (const n of quadro.achar(() => true)) {
+      for (const k of Object.keys(n.attrs)) assert.ok(!/^(href|xlink:href|src|srcdoc|style|on.*|action|formaction|data|poster|background)$/i.test(k), 'atributo proibido ' + k + ' em ' + n.tagName);
+      for (const v of Object.values(n.attrs)) assert.ok(!hostil.some((h) => String(v).includes(h)), 'texto do modelo virou valor de atributo: ' + v);
+      assert.deepEqual(chavesDeMais(n), [], 'propriedade gravada à mão em ' + n.tagName + ': ' + chavesDeMais(n));
+    }
+    assert.ok(quadro.porTag('li').some((l) => l.textContent.includes('javascript:alert(1)')), 'o texto aparece, como texto');
+  }
+});
+
+test('M5: ids que um objeto comum já tem (constructor, toString, valueOf, hasOwnProperty, __proto__) montam o quadro sem falso "Ajustado" e sem perder caixa', () => {
+  const { w, A } = ambiente();
+  const nomes = ['constructor', 'toString', 'valueOf', 'hasOwnProperty', '__proto__'];
+  const plano = laco(8);
+  nomes.forEach((nome, i) => { plano.etapas[i + 1].id = nome; });
+  const g = L.montarGeometria(plano, 390), quadro = w.document.createElement('div');
+  const R = A.interno.construirQuadro(quadro, g, plano);
+  assert.equal(quadro.porTag('li').length, plano.etapas.length + 3, 'uma <li> por caixa');
+  assert.equal(Object.keys(R.nos).length, plano.etapas.length + 3, 'um nó por caixa no mapa (sem protótipo)');
+  assert.equal(Object.getPrototypeOf(R.nos), null);
+  assert.equal(quadro.achar((n) => n._classes.has('is-ajustado')).length, 0, 'ninguém é "ajustado" só porque o id existe em Object.prototype');
+  assert.ok(!quadro.textContent.includes('Ajustado'));
+  assert.equal(quadro.achar((n) => n._classes.has('plv-no')).length, plano.etapas.length + 3);
 });

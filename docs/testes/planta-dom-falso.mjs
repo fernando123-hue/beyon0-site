@@ -67,7 +67,7 @@ export class No {
 }
 
 export function criarJanela(opcoes) {
-  const op = Object.assign({ reduzido: false, largura: 390, semAnimate: false, semIO: false }, opcoes || {});
+  const op = Object.assign({ reduzido: false, largura: 390, semAnimate: false, semIO: false, beyon: true }, opcoes || {});
   const doc = { animacoes: [], todos: [], hidden: false, ouvintes: {}, ativo: null };
   doc.createElement = (t) => { const n = new No(doc, null, t); doc.todos.push(n); return n; };
   doc.createElementNS = (ns, t) => { const n = new No(doc, ns, t); doc.todos.push(n); return n; };
@@ -106,6 +106,8 @@ export function criarJanela(opcoes) {
     /* o teste diz quando a faixa aparece: ratio = fração visível */
     w.mostrar = (ratio, alturaVisivel) => w.observadores.filter((o) => o.ativo).forEach((o) => o.cb(o.alvos.map((el) => ({ target: el, isIntersecting: ratio > 0, intersectionRatio: ratio, intersectionRect: { height: alturaVisivel === undefined ? ratio * 900 : alturaVisivel } }))));
   }
+  /* o laço e o barramento do site (js/core.js): BEYON.on / off / emit; o 'reduzir' é o que o interruptor "menos movimento" emite */
+  if (op.beyon) w.BEYON = { handlers: {}, on(ev, fn) { (this.handlers[ev] = this.handlers[ev] || []).push(fn); }, off(ev, fn) { this.handlers[ev] = (this.handlers[ev] || []).filter((x) => x !== fn); }, emit(ev, v) { (this.handlers[ev] || []).slice().forEach((f) => f(v)); } };
   w.pendentes = () => w.timers.length;
   w.ativas = () => doc.animacoes.filter((a) => !a.cancelado);
   w.rodando = () => doc.animacoes.filter((a) => !a.cancelado && a.estado === 'running');
@@ -117,3 +119,7 @@ export function criarJanela(opcoes) {
 
 /* a árvore de Nó do quadro, mais fácil de procurar */
 export const textosDe = (no) => no.achar((n) => n.nodeType === 1).map((n) => n.textContent);
+
+/* as chaves próprias que um nó do DOM de mentira pode ter: qualquer outra (onclick, href, title...) é propriedade que o módulo gravou à mão */
+export const CHAVES_DO_NO = ['ownerDocument', 'namespaceURI', 'tagName', 'nodeType', 'attrs', 'filhos', 'pai', 'dataset', 'estilo', 'ouvintes', 'animacoes', '_classes', '_valor', 'classList', 'style', 'clientWidth', 'animate'];
+export const chavesDeMais = (no) => Object.keys(no).filter((k) => !CHAVES_DO_NO.includes(k));
