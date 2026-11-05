@@ -106,11 +106,11 @@ test('toda geometria em px e nunca em ch/em: nenhum valor de posição ou tamanh
 test('status final com o número de etapas (chegada incluída) e o fecho do plano na legenda', () => {
   const { A, raiz } = ambiente({ reduzido: true });
   A.montar(raiz, fx('clinica'), {});
-  assert.equal(raiz.porClasse('plv-status')[0].textContent, 'Planta pronta, com 8 etapas.');
+  assert.ok(raiz.porClasse('plv-status')[0].textContent.startsWith('Planta pronta, com 8 etapas. '), 'status: ' + raiz.porClasse('plv-status')[0].textContent);
   assert.equal(raiz.porClasse('plv-leitura__txt')[0].textContent, fx('clinica').fecho);
   const { A: A2, raiz: r2 } = ambiente({ reduzido: true });
   A2.montar(r2, fx('embalagens'), {});
-  assert.equal(r2.porClasse('plv-status')[0].textContent, 'Planta pronta, com 9 etapas.');
+  assert.ok(r2.porClasse('plv-status')[0].textContent.startsWith('Planta pronta, com 9 etapas. '), 'status: ' + r2.porClasse('plv-status')[0].textContent);
 });
 
 test('as duas notas de honestidade (spec §1.5): a do plano do modelo e a do plano padrão', () => {
@@ -234,7 +234,7 @@ test('animado de ponta a ponta: a luz acende as caixas na ordem, o ouro vem só 
   assert.ok(!quadroDe(raiz)._classes.has('plv--pre'), 'terminou: sem o estado de esboço');
   assert.ok(quadroDe(raiz).achar((n) => n._classes.has('plv-no')).every(aceso));
   assert.ok(noDe(raiz, 'led')._classes.has('is-ouro'));
-  assert.equal(raiz.porClasse('plv-status')[0].textContent, 'Planta pronta, com 8 etapas.');
+  assert.ok(raiz.porClasse('plv-status')[0].textContent.startsWith('Planta pronta, com 8 etapas. '), 'status: ' + raiz.porClasse('plv-status')[0].textContent);
   assert.equal(raiz.porClasse('plv-leitura__tag')[0].textContent, 'Planta pronta');
   assert.equal(raiz.porClasse('plv-leitura__txt')[0].textContent, plano.fecho);
   void ordemDeAcender;
@@ -375,7 +375,7 @@ test('ajuste animado: as caixas que mudam de lugar deslizam (translate), as rota
   assert.ok(raiz.porClasse('plv-leitura__txt')[0].textContent.includes('quero cobrar um sinal'));
   w.avancar(8000);
   assert.equal(raiz.porClasse('plv-leitura__tag')[0].textContent, 'Ajustado');
-  assert.equal(raiz.porClasse('plv-status')[0].textContent, 'Planta ajustada, com 8 etapas.');
+  assert.ok(raiz.porClasse('plv-status')[0].textContent.startsWith('Planta ajustada, com 8 etapas. '), 'status: ' + raiz.porClasse('plv-status')[0].textContent);
   assert.ok(quadroDe(raiz).achar((n) => n._classes.has('plv-no')).every(aceso));
 });
 
@@ -474,7 +474,7 @@ test('I4: ligar "menos movimento" DEPOIS de montar (o core do site emite reduzir
   assert.equal(w.pendentes(), 0, '0 temporizadores');
   assert.ok(!quadroDe(raiz)._classes.has('plv--pre'));
   assert.ok(quadroDe(raiz).achar((n) => n._classes.has('plv-no')).every(aceso), 'tudo aceso, parado');
-  assert.equal(raiz.porClasse('plv-status')[0].textContent, 'Planta pronta, com 9 etapas.');
+  assert.ok(raiz.porClasse('plv-status')[0].textContent.startsWith('Planta pronta, com 9 etapas. '), 'status: ' + raiz.porClasse('plv-status')[0].textContent);
   w.avancar(20000);
   assert.equal(w.ativas().length, 0, 'e o pulso de repouso não volta com o tempo');
 });

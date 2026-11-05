@@ -154,6 +154,7 @@
       var hd = H('span', 'plv-hd', null, li);
       H('span', 'plv-n', dois(n.num), hd); H('span', 'plv-verbo', n.est.verbo, hd);
       H('span', 'plv-tit', n.est.titulo, li);
+      H('span', 'plv-sr', n.est.frase, li);
       if (ref.ajustado) H('span', 'plv-etq', 'Ajustado', li);
     }
     function chamada(li, n, mov, r) {
@@ -185,7 +186,7 @@
       S('path', { d: d }, cg, 'plv-ticks');
       classe(li, 'plv-ponta plv-ponta--led');
       chamada(li, n, ref.mov, r);
-      H('span', 'plv-verbo', 'Objetivo', li); H('span', 'plv-tit', n.est.titulo, li);
+      H('span', 'plv-verbo', 'Objetivo', li); H('span', 'plv-tit', n.est.titulo, li); H('span', 'plv-sr', n.est.frase, li);
     }
 
     function construirQuadro(quadro, g, plano, opc) {
@@ -308,7 +309,7 @@
       cancelarMovimento();
       inst.iniciada = true;
       aplicarFinal();
-      fixarStatus((ajuste ? 'Planta ajustada, com ' : 'Planta pronta, com ') + etapasDe(inst.R.g) + ' etapas.');
+      fixarStatus((ajuste ? 'Planta ajustada, com ' : 'Planta pronta, com ') + etapasDe(inst.R.g) + ' etapas. ' + inst.plano.fecho);
       if (!ajuste) leitura('Planta pronta', inst.plano.fecho);
       pulsoDeRepouso();
     }
