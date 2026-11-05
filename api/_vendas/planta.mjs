@@ -13,7 +13,6 @@
 import F from '../../js/orcamento-planta-forma.js';
 import { validarPlano } from './planta-esquema.mjs';
 import { planoPadrao, nichoDaPlanta } from './planta-padrao.mjs';
-import { textoDoPlanoPermitido } from './planta-textos.mjs';
 
 export const PLANTA_CHAVES = F.PLANTA_CHAVES;
 export const plantaLigada = env => !!env && env.BZ_PLANTA === 'ligada';
@@ -217,19 +216,5 @@ export function montarPlanta(briefing, { regulado = false, turnos, mensagensNaJa
   return { versao: p.versao, origem: 'padrao', n_mensagens: nMensagens, plano: planoPadrao(nichoDaPlanta(briefing)) };
 }
 
-/* a leitura do radar (2d) gravada: aqui só a forma e a lista dura (a âncora é da gravação, PR 2d). Inválida: some (nunca vira nota inventada).
-   A evidência devolvida é a NORMALIZADA (a mesma que a lista dura conferiu), nunca a crua */
-export function leituraParaTela(briefing, { regulado = false } = {}) {
-  const l = briefing && typeof briefing === 'object' ? briefing.leitura : null;
-  if (!l || typeof l !== 'object') return null;
-  const f = F.validarFormaLeitura(l);
-  if (!f.ok) return null;
-  /* a evidência de um eixo "não falou" nunca é desenhada (a forma a aceita em qualquer nível; quem decide mostrar é este validador) */
-  const eixos = [];
-  for (const e of f.leitura.eixos) {
-    const r = e.nivel === 'nao_falou' || e.evidencia === undefined ? null : textoDoPlanoPermitido(e.evidencia, { regulado, travas: false, primeiraPessoa: true });
-    if (r && !r.ok) return null;
-    eixos.push(r ? { eixo: e.eixo, nivel: e.nivel, evidencia: r.texto } : { eixo: e.eixo, nivel: e.nivel });
-  }
-  return { eixos };
-}
+/* a leitura do radar: a lógica mora em ./leitura.mjs (PR 2d-ligação); o estado continua chamando este nome */
+export { montarLeitura as leituraParaTela } from './leitura.mjs';

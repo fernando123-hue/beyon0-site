@@ -241,7 +241,8 @@ export function textoDoPlanoPermitido(bruto, { nomeDoNegocio = '', regulado = fa
     if (regulado && pedeItemProibido(t)) return { ok: false, motivo: 'depoimento' };
     if (MARCAS_RE.test(busca) || MARCAS_RE.test(cola) || temNomeProprio(t, nome)) return { ok: false, motivo: 'marca' };
     if (regulado && textoProibido(t)) return { ok: false, motivo: 'depoimento' };
-    if (travas) for (const trava of TRAVAS) if (trava.rodar(t) !== t) return { ok: false, motivo: 'trava_' + trava.nome };
+    /* a trava negarIA é para a voz do Zero (finge vida humana: "na minha cabeça", "eu atendo"); a fala da PESSOA (primeiraPessoa) tem a regra própria NEGAR_IA_FORTE acima, que derruba "sou humano" e "não sou robô" */
+    if (travas) for (const trava of TRAVAS) if (!(primeiraPessoa && trava.nome === 'negarIA') && trava.rodar(t) !== t) return { ok: false, motivo: 'trava_' + trava.nome };
     return { ok: true, texto: t };
   } catch {
     return { ok: false, motivo: 'interno' };   /* falha fechado */

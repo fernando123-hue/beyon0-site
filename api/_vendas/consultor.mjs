@@ -21,6 +21,7 @@
 import { ESQUEMA_ATUALIZACAO, avaliar, prontoParaEstimar, LIMIAR_DIRECOES } from './briefing.mjs';
 import { podeTerFaseSeguinte } from './precos.mjs';
 import { ferramentaPlanta } from './planta.mjs';
+import { ferramentaLeitura, NOME_LEITURA } from './leitura.mjs';
 
 export const IDENTIDADE = `VOCÊ É O ZERO
 
@@ -228,15 +229,15 @@ export const precoAberto = (etapa, statusDoPedido) => ETAPAS_COM_PRECO.includes(
    A planta viva (PR 2a): 'desenhar_planta' só entra com planta:true (a flag BZ_PLANTA, que o fluxo passa) E com o preço aberto, sempre na PONTA da
    lista. A lista é prefixo de cache da API: ela liga e desliga por etapa e flag, nunca por condição do turno (ter ou não estimativa); o "agora é a hora"
    vive no proximoPasso (texto do ESTADO) e na recusa do agente */
-export function ferramentas(regras, { etapa, pedidoStatus, planta = false } = {}) {
-  const todas = todasAsFerramentas(regras, planta);
+export function ferramentas(regras, { etapa, pedidoStatus, planta = false, leitura = false } = {}) {
+  const todas = todasAsFerramentas(regras, planta, leitura);
   if (etapa === undefined) return todas;
   if (ETAPAS_SO_DUVIDAS.includes(etapa)) return [];
-  return precoAberto(etapa, pedidoStatus) ? todas : todas.filter(f => !FERRAMENTAS_DE_PRECO.includes(f.name) && f.name !== NOME_PLANTA);
+  return precoAberto(etapa, pedidoStatus) ? todas : todas.filter(f => !FERRAMENTAS_DE_PRECO.includes(f.name) && f.name !== NOME_PLANTA && f.name !== NOME_LEITURA);
 }
 export const NOME_PLANTA = 'desenhar_planta';
 
-function todasAsFerramentas(regras, planta = false) {
+function todasAsFerramentas(regras, planta = false, leitura = false) {
   const adicionais = {};
   for (const [k, v] of Object.entries(regras.adicionais || {})) if (v.em_preparo !== true) adicionais[k] = { type: 'integer', description: v.nome + (v.fora_do_automatico ? ' (fora do automático: leva ao diagnóstico)' : '') };
   const fora = Object.values(regras.adicionais || {}).filter(a => a.fora_do_automatico).map(a => a.nome);
@@ -262,7 +263,8 @@ function todasAsFerramentas(regras, planta = false) {
     { name: 'encaminhar_diagnostico',
       description: 'Faz aparecer na tela o botão DEIXAR UM RECADO; nada é enviado a ninguém: só a pessoa, tocando no botão e escrevendo, deixa um recado, e o dono lê e responde por e-mail. O resultado desta chamada é só que o botão apareceu. Chame na MESMA mensagem em que oferecer o recado: qualquer coisa fora dos fatos que você pode afirmar, pedido de falar com uma pessoa, pagamento online com problema, irritação ou dois "não entendi" seguidos, mudança de pacote depois do pedido enviado, ' + (fora.length ? 'projeto que dependa de algo fora da estimativa automática (' + fora.join(', ') + ') ' : '') + 'ou quando estimar devolver encaminhar_diagnostico. Nunca diga que deixou, enviou ou avisou o recado. Não use só porque a pessoa hesitou.' + (naoFaz.length ? ' Não chame porque a pessoa pediu algo que a Beyon Zero não faz hoje: ' + naoFaz.join(', ') + '. Isso se diz com honestidade, sem diagnóstico.' : ''),
       input_schema: { type: 'object', additionalProperties: false, required: ['motivo'], properties: { motivo: { type: 'string' } } } },
-    ...(planta ? [ferramentaPlanta()] : [])
+    ...(planta ? [ferramentaPlanta()] : []),
+    ...(leitura ? [ferramentaLeitura()] : [])   /* (PR 2d) o radar: mesma regra de etapa e flag, sempre depois da planta */
   ];
 }
 
@@ -280,14 +282,19 @@ const LOJA = 'loja', AREA = 'area_restrita';
 /* o que fazer agora, pela ordem do funil (texto para o modelo; o código decide, o modelo executa).
    Na tela, o formulário de contato aparece sozinho quando há estimativa e ainda não há contato (js/orcamento.js);
    pedir_contato só leva a pessoa até ele. Na etapa 'contato' o pedido JÁ existe (vendas_registrar_detalhes, PR 2a; confirmado na hora desde 30/10) */
-export function proximoPasso({ planta = false, pedidoStatus, ...resto }) {
+export function proximoPasso({ planta = false, leitura = false, pedidoStatus, ...resto }) {
   const base = proximoPassoBase(resto);
   /* a planta viva (spec §1.1): no turno SEGUINTE ao da primeira estimativa, com o preço ainda aberto e sem plano gravado, o prefixo manda desenhar.
      Sem a condição, o texto é exatamente o de antes (o corpo de proximoPassoBase não mudou) */
-  return pedePlanta({ planta, pedidoStatus, ...resto }) ? PREFIXO_PLANTA + base : base;
+  const depois = (pedeLeitura({ leitura, etapa: resto.etapa, pedidoStatus }) ? PREFIXO_LEITURA : '') + base;
+  return pedePlanta({ planta, pedidoStatus, ...resto }) ? PREFIXO_PLANTA + depois : depois;
 }
 /* a condição do prefixo, em um lugar só (o proximoPasso e o agente, que conta o pedido sem resposta, usam a mesma) */
 export const pedePlanta = ({ planta = false, etapa, estimativa, briefing, pedidoStatus }) => !!(planta && estimativa && !(briefing || {}).planta && precoAberto(etapa, pedidoStatus));
+/* o radar (PR 2d, spec §3): em todo turno de preço aberto o ESTADO lembra que a leitura existe; QUANDO há informação nova quem sabe é o modelo (ele lê a mensagem), o código só recusa o resto.
+   Vem depois do prefixo da planta e antes do texto de hoje, que continua inteiro no fim */
+export const pedeLeitura = ({ leitura = false, etapa, pedidoStatus }) => !!(leitura && precoAberto(etapa, pedidoStatus));
+export const PREFIXO_LEITURA = 'Se a mensagem da pessoa trouxe informação nova sobre o caso dela, chame ler_caso (uma vez, na mesma volta do atualizar_briefing) e não comente a leitura no texto. Depois: ';
 export const PREFIXO_PLANTA = 'Antes de tudo neste turno, chame desenhar_planta (uma vez) e diga em uma frase que desenhou o site em planta, logo abaixo. Depois: ';
 
 function proximoPassoBase({ etapa, briefing, estimativa, regras = null, metodos }) {
