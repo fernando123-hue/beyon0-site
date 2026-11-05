@@ -541,9 +541,15 @@
       ligarOuvintes(!reduzido() && typeof quadro.animate === 'function' && op.animar !== false);
       btnCerto.addEventListener('click', function () {
         if (!inst || btnCerto.hasAttribute('disabled')) return;
+        /* "Combinado" só fica se o envio entrou: aoCerto devolve false (não vai), uma promessa do que o envio decidiu, ou outra coisa (vai). Com a promessa o texto aparece na hora (a
+           resposta do Zero leva segundos) e volta ao de antes se ela disser que não entrou, a menos que a luz já tenha passado para outra caixa */
+        var antesTag = inst.leTag.textContent, antesTxt = inst.leTxt.textContent, r;
+        try { r = typeof inst.opcoes.aoCerto === 'function' ? inst.opcoes.aoCerto() : undefined; } catch (e) { aviso(e); r = false; }
+        if (r === false) return;
         leitura('Combinado', 'É esta a planta que o site vai seguir. Se mudar algo, a planta se refaz.');
         if (inst.animada && inst.R.nos.led) ondas(inst.R.nos.led.aneis, 0);
-        if (typeof inst.opcoes.aoCerto === 'function') inst.opcoes.aoCerto();
+        function desfazer() { if (inst && inst.leTag.textContent === 'Combinado') leitura(antesTag, antesTxt); }
+        if (r && typeof r.then === 'function') r.then(function (entrou) { if (entrou === false) desfazer(); }, desfazer);
       });
       btnAjuste.addEventListener('click', function () {
         if (!inst || btnAjuste.hasAttribute('disabled')) return;

@@ -686,6 +686,7 @@
     if (!aberta) $('o-atalhos').hidden = true;
     window.BZDetalhes.atualizar(E);   /* os detalhes, o pedido recebido ou o pedido encerrado (js/orcamento-detalhes.js) */
     if (window.BZOrcPlanta) window.BZOrcPlanta.atualizar(E, { rolarAte: rolarAte, enviar: enviar });   /* a planta do site (js/orcamento-planta.js): só age com E.planta (flag BZ_PLANTA); sem o módulo a tela segue igual */
+    if (window.BZOrcRadar) window.BZOrcRadar.atualizar(E);   /* o radar "Como lemos o seu caso" (js/orcamento-radar.js): só age com E.leitura (flag BZ_PLANTA) */
     if (window.BZPainel) window.BZPainel.atualizar(E.painel);   /* as peças da conversa: notas, ficha e caso (js/orcamento-painel.js); sem o módulo a tela segue igual */
     direcoes();
     mostrar('o-ajustes', (et === 'escolhida' || et === 'alteracoes') && !descartado());
