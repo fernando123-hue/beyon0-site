@@ -34,8 +34,8 @@ const POSICOES = arg('posicoes', 'fora,dentro').split(',');
 const CPU = Number(arg('cpu', '1'));
 const VARIANTE = arg('variante', 'base');
 const SO_LIGADA = tem('so-ligada');
-const FORMULARIO = tem('formulario');
-/* --gesto-extra (com --formulario): um clique no vazio 400 ms depois do envio, dentro da janela de 1,5 s da resposta */   /* depois da planta, envia o formulário #o-contato e mede o que a troca do bloco de cima faz com a faixa à vista */
+const FORMULARIO = tem('formulario');   /* depois da planta, envia o formulário #o-contato e mede o que a troca do bloco de cima faz com a faixa à vista */
+/* --gesto-extra (com --formulario): um clique no vazio 400 ms depois do envio, dentro da janela de 1,5 s da resposta */
 const PARALELO = Number(arg('paralelo', '1'));   /* rodadas ao mesmo tempo: bom para o CLS (não depende de CPU); para tarefas longas use 1 */
 const EXEC = process.env.CHROMIUM || (process.env.LOCALAPPDATA + '/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-win64/chrome-headless-shell.exe');
 const espera = (ms) => new Promise((r) => setTimeout(r, ms));
