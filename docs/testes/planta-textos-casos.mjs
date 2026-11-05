@@ -52,3 +52,82 @@ export const VARIACOES = [
   '\uff50\uff52\uff45\uff43\uff4f', 'em 3 dias', 'em 3\u00a0dias', 'em 3\u2009dias', '\uff12\uff19\uff10\uff10', '\u00b2', '\u2460',
   'em \u0663 dias', 'em \u0969 dias', 'dois mil', 'DOIS', 'v a l o r', 'cust0', 'val0r', 'grat1s', 'tax4'
 ];
+
+/* ---------- 2ª rodada (revisão do PR 2a) ---------- */
+/* português honesto, do jeito que um modelo escreve uma planta: TODAS têm de passar (o teste confere). Medida de falso positivo: 0 de HONESTAS.length */
+export const HONESTAS = [
+  'A pessoa chega pela busca e cai na página do serviço que procurava.',
+  'A conversa entende o que a pessoa precisa e leva para o caminho certo.',
+  'O site mostra os serviços com fotos de trabalhos feitos.',
+  'Quem tem dúvida pergunta na própria conversa e encontra a resposta.',
+  'A pessoa escolhe o horário livre e recebe a confirmação na hora da marcação.',
+  'No dia da consulta, chega o lembrete com o endereço.',
+  'O site cuida do dia a dia do atendimento, sem a pessoa precisar ligar.',
+  'Instruções de cuidado depois do atendimento chegam pela conversa.',
+  'As regras da casa ficam à vista antes da visita.',
+  'Do zero ao pedido, a conversa guia a pessoa passo a passo.',
+  'O ano letivo começa e o site avisa a turma.',
+  'O lembrete chega todo mês para quem pediu.',
+  'A pessoa escolhe e/ou combina o horário pela conversa.',
+  'Mensagem de boas-vindas para quem acabou de se matricular.',
+  'Atendimento de pós-venda para quem comprou e ficou com dúvida.',
+  'A sacola junta as peças e calcula o frete pelo endereço.',
+  'O cardápio mostra cada prato com foto e descrição.',
+  'Cada curso tem a sua página, com o conteúdo e para quem é.',
+  'O comprador escolhe o acabamento e a cor antes de pedir a proposta.',
+  'Se a medida é de catálogo, a conversa consulta a tabela da fábrica.',
+  'O pedido chega à equipe completo: o quê, para quem e como entregar.',
+  'Quem esqueceu a sacola cheia recebe um aviso e volta para ela.',
+  'A pessoa conta o que quer e o site mostra só o que combina.',
+  'Depois do atendimento, a pessoa recebe os cuidados por escrito.',
+  'O site chama de volta quem já conversou, quando chega a época da revisão.',
+  'A página explica o negócio e mostra como falar com a equipe.',
+  'Fotos e medidas chegam pelo celular, na própria conversa.',
+  'A proposta sai por escrito e a pessoa aprova pelo celular.',
+  'O aluno conhece uma aula antes de se matricular.',
+  'A matrícula é preenchida numa tela simples, com poucos campos.',
+  'Quem prefere retirar no balcão escolhe isso antes de enviar o pedido.',
+  'A confirmação chega assim que o pedido é enviado.',
+  'A visita fica marcada na agenda e a pessoa recebe o lembrete.',
+  'O site guarda o contato e o pedido num passo só.',
+  'Pergunta o serviço e o profissional que a pessoa prefere.',
+  'Mostra a vitrine por ocasião: trabalho, festa e passeio.',
+  'Avisa quando o pedido sai para a entrega.',
+  'Uma página para cada tratamento, com a resposta que a pessoa quer ler primeiro.',
+  'A equipe entra só para fechar, com o pedido já claro.',
+  'A conversa pede as cotas e o material, passo a passo.',
+  'Combina uma amostra para o comprador aprovar antes de produzir.',
+  'O pagamento acontece por Pix, numa tela só.',
+  'Se a proposta ficou parada, o site escreve de novo no momento combinado.',
+  'Cai direto na página da peça, com tamanhos e tecido.',
+  'Quem chega pelo mapa vê o endereço e como chegar.'
+];
+
+/* português honesto que a lista RECUSA de propósito (falso positivo conhecido, medido): o custo é cair no plano padrão, e a flag continua desligada.
+   Afinar isso abriria furo (os dois caminhos = numeral; resultado e garantir = promessa). Conte os motivos na rodada real 8 e afrouxe com dado */
+export const FALSOS_POSITIVOS_CONHECIDOS = [
+  'Os dois caminhos se encontram na proposta.',
+  'O resultado do orçamento chega por escrito.',
+  'A conversa garante que ninguém repita a mesma pergunta.',
+  'Uma dúzia de modelos fica à vista na vitrine.',
+  'Metade do caminho já está feita quando a pessoa chega.'
+];
+
+/* o que a lista deixa PASSAR e deveria cair (furo conhecido). Não se corre atrás de vocabulário: a defesa de verdade é o prompt (descrição da ferramenta),
+   a revisão do que aparece na tela e a rodada real 8 (contar `motivos`). Mudou o comportamento? Atualize esta lista, de propósito */
+export const FUROS_CONHECIDOS = [
+  'A casa fica sempre cheia de gente.',
+  'Pague pela chave da equipe.',
+  'A equipe acompanha o site sempre que precisar.',
+  'Atendimento sempre disponível depois da entrega.',
+  'Quem chega fica logo cheio de ideias para o negócio.',
+  'O negocio vira referencia na cidade.',
+  'A concorrência fica para trás com este site.',
+  'O telefone da equipe toca menos e o negócio rende mais.',
+  'A pessoa nem percebe o tempo passar na conversa.',
+  'O site trabalha pela equipe o tempo inteiro.',
+  'Easy online booking',
+  'Zorbax entrega o pedido para quem chegou.',
+  'Quem chega pelo mapa sai satisfeito e volta sempre.',
+  'O site responde a qualquer pergunta com educação.'
+];
