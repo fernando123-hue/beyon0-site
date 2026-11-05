@@ -61,7 +61,8 @@
     led.rot = { x: Math.max(0, led.x + led.w - 150), y: 4, w: Math.min(150, W), h: h, al: 'r', topo: true }; led.guia = led.y - (trunkTop - 6);
   }
   var icTopo = function (w) { return w < 150 ? { ic: [10, 28, 0.75] } : null; };
-  var alturaLado = function (W) { return W < 340 ? 80 : 68; };
+  var alturaLado = function () { return 68; };
+  var rotLado = function (n, x, w, al, h) { h = h || 56; return { x: x, y: Math.max(0, n.y + n.h / 2 - h / 2), w: w, h: h, al: al }; };
 
   function copia(e) { var o = {}, k; for (k in e) if (Object.prototype.hasOwnProperty.call(e, k)) o[k] = e[k]; return o; }
   function chegadaDe(plano) {
@@ -97,20 +98,20 @@
   }
 
   function lacoRetrato(E, W, VG) {
-    var S = E.st, n = S.length, bw = Math.min(250, W - 70), xL = 4, xR = W - 24 - bw, rail = W - 10, BH = alturaLado(W), CRr = 24, LRr = 22;
+    var S = E.st, n = S.length, bw = Math.min(250, W - 56), xL = 4, xR = W - 24 - bw, rail = W - 10, BH = alturaLado(W), CRr = 24, LRr = 22;
     var g = nova(W), cx = xL + bw / 2, i, y;
-    var core = ponta(g, 'nucleo', cx - CRr, 4, 2 * CRr); core.rot = { x: 4, y: 4 + CRr - 14, w: cx - CRr - 14, al: 'r' };
+    var core = ponta(g, 'nucleo', cx - CRr, 4, 2 * CRr); core.rot = rotLado(core, 4, cx - CRr - 14, 'r');
     y = core.y + 2 * CRr + VG;
     var st = S.map(function (est, k) { var b = no(g, est, k % 2 ? xR : xL, y, bw, BH, 'lado'); y += BH + VG; return b; });
     var led = ponta(g, 'led', xR + bw / 2 - LRr, y, 2 * LRr); led.est = E.fim;
-    led.rot = { x: 4, y: led.y + LRr - 14, w: led.x - 18, al: 'r' };
+    led.rot = rotLado(led, 4, led.x - 18, 'r', 74);   /* verbo + 3 linhas de título: cabe entre a caixa de antes e a de retorno (vão 18 + LED 44) */
     var ret = no(g, E.ret, xR, led.y + 2 * LRr + VG, bw, BH, 'lado');
     rota(g, 'nucleo', st[0].id, zV(base(core), topo(st[0])), 0);
     for (i = 1; i < n; i++) rota(g, st[i - 1].id, st[i].id, zV(base(st[i - 1]), topo(st[i])), i);
     rota(g, st[n - 1].id, 'led', zV(base(st[n - 1]), topo(led)), n);
     rota(g, 'led', ret.id, zV(base(led), topo(ret)), n + 1, { tipo: 'retorno' });
     rota(g, ret.id, 'nucleo', [dir(ret), [rail, dir(ret)[1]], [rail, core.y + CRr], [core.x + 2 * CRr, core.y + CRr]], n + 2, { tipo: 'retorno', alvo: 'nucleo' });
-    if (E.rotulo) g.rots.push({ x: led.x + 2 * LRr + 12, y: led.y + LRr - 8, w: rail - 12 - (led.x + 2 * LRr + 12), h: 16, txt: E.rotulo, al: 'l' });
+    if (E.rotulo) g.rots.push({ x: led.x + 2 * LRr + 12, y: led.y - 7, w: rail - 12 - (led.x + 2 * LRr + 12), h: 58, txt: E.rotulo, al: 'l' });
     g.H = ret.y + ret.h + 14;
     return g;
   }
@@ -119,7 +120,7 @@
     var ent = E.ent, r0 = E.r0, r1 = E.r1, sai = E.sai, nR = Math.max(r0.length, r1.length), i, j;
     var cw = Math.min(300, W - 24), xC = (W - cw) / 2, BH = alturaLado(W), BT = 96, CRr = 24, LRr = 22, cx = W / 2;
     var colW = Math.floor((W - 8 - 12) / 2), xl = 4, xr = W - 4 - colW, OFF = 20, g = nova(W), y;
-    var core = ponta(g, 'nucleo', cx - CRr, 4, 2 * CRr); core.rot = { x: cx + CRr + 12, y: 4 + CRr - 14, w: W - (cx + CRr + 12) - 4, al: 'l' };
+    var core = ponta(g, 'nucleo', cx - CRr, 4, 2 * CRr); core.rot = rotLado(core, cx + CRr + 12, W - (cx + CRr + 12) - 4, 'l');
     y = core.y + 2 * CRr + VG;
     var Ec = ent.map(function (est) { var b = no(g, est, xC, y, cw, BH, 'lado'); y += BH + VG; return b; });
     var conv = Ec[Ec.length - 1], y0 = conv.y + conv.h + 52;
@@ -128,7 +129,7 @@
     var fundo = y0 + nR * BT + (nR - 1) * VG, yPm = fundo + 22;
     y = fundo + 44;
     var M = sai.map(function (est) { var b = no(g, est, xC, y, cw, BH, 'lado'); y += BH + VG; return b; });
-    var led = ponta(g, 'led', xC + 8, y, 2 * LRr); led.est = E.fim; led.rot = { x: led.x + 2 * LRr + 12, y: led.y + LRr - 14, w: W - (led.x + 2 * LRr + 12) - 4, al: 'l' };
+    var led = ponta(g, 'led', xC + 8, y, 2 * LRr); led.est = E.fim; led.rot = rotLado(led, led.x + 2 * LRr + 12, W - (led.x + 2 * LRr + 12) - 4, 'l');
     var p = 0;
     rota(g, 'nucleo', Ec[0].id, [base(core), topo(Ec[0])], p++);
     for (i = 1; i < Ec.length; i++) rota(g, Ec[i - 1].id, Ec[i].id, [base(Ec[i - 1]), topo(Ec[i])], p++);
@@ -153,8 +154,8 @@
   }
 
   function espinhaRetrato(E, W, VG) {
-    var S = E.st, n = S.length, RX = 24, CRr = 22, LRr = 22, bx = 54, bw = W - bx - 4, BH = alturaLado(W), SH = BH - 4, SG = 12, g = nova(W), y;
-    var core = ponta(g, 'nucleo', RX - CRr, 4, 2 * CRr); core.rot = { x: RX + CRr + 12, y: 4 + CRr - 14, w: W - RX - CRr - 16, al: 'l' };
+    var S = E.st, n = S.length, RX = 24, CRr = 22, LRr = 22, bx = 54, bw = W - bx - 4, BH = alturaLado(W), SH = BH, SG = 12, g = nova(W), y;
+    var core = ponta(g, 'nucleo', RX - CRr, 4, 2 * CRr); core.rot = rotLado(core, RX + CRr + 12, W - RX - CRr - 16, 'l');
     y = core.y + 2 * CRr + VG;
     var prev = [RX, core.y + 2 * CRr], ant = null;
     S.forEach(function (est, i) {
@@ -163,19 +164,19 @@
       prev = [RX, my]; ant = b;
       y += BH;
       (est.sat || []).forEach(function (s) {
-        var sx = bx + 30, sy = y + SG, sn = no(g, s, sx, sy, W - sx - 4, SH, 'lado');
+        var sx = bx + 30, sy = y + SG, sn = no(g, s, sx, sy, W - sx - 4, SH, 'lado', { compacto: true, ic: [9, (SH - 28) / 2, 0.7] });
         if (s.laco) {
-          rota(g, est.id, s.id, [[bx + 26, b.y + BH], [bx + 26, sy + 22], [sx, sy + 22]], i + 1, { tipo: 'sat', atraso: 0.1 });
-          rota(g, s.id, est.id, [[sx, sy + SH - 22], [bx + 12, sy + SH - 22], [bx + 12, b.y + BH]], i + 2, { tipo: 'sat', alvo: null, atraso: 0.05 });
+          rota(g, est.id, s.id, [[bx + 26, b.y + BH], [bx + 26, sy + 22], [sx, sy + 22]], i + 0.5, { tipo: 'sat' });
+          rota(g, s.id, est.id, [[sx, sy + SH - 22], [bx + 12, sy + SH - 22], [bx + 12, b.y + BH]], i + 0.75, { tipo: 'sat', alvo: null });
         } else {
-          rota(g, est.id, s.id, [[bx + 16, b.y + BH], [bx + 16, sy + SH / 2], [sx, sy + SH / 2]], i + 1, { tipo: 'sat', atraso: 0.1 });
+          rota(g, est.id, s.id, [[bx + 16, b.y + BH], [bx + 16, sy + SH / 2], [sx, sy + SH / 2]], i + 0.5, { tipo: 'sat' });
         }
         void sn;
         y += SG + SH;
       });
       y += VG;
     });
-    var led = ponta(g, 'led', RX - LRr, y, 2 * LRr); led.est = E.fim; led.rot = { x: RX + LRr + 12, y: led.y + LRr - 14, w: W - RX - LRr - 16, al: 'l' };
+    var led = ponta(g, 'led', RX - LRr, y, 2 * LRr); led.est = E.fim; led.rot = rotLado(led, RX + LRr + 12, W - RX - LRr - 16, 'l');
     rota(g, S[n - 1].id, 'led', [esq(ant), [RX, esq(ant)[1]], [RX, led.y]], n);
     g.H = led.y + 2 * LRr + 20;
     return g;
@@ -199,7 +200,7 @@
     var abaixo = S.slice(k).concat([E.ret]).map(function (est, q) { return no(g, est, colX(k - 1 - q), y2, w, BH, 'topo', icTopo(w)); });
     var ledcy = (y1 + y2 + BH) / 2, led = ponta(g, 'led', colX(k - 1) + w + G, ledcy - LR, 2 * LR); led.est = E.fim;
     core.rot = { x: core.x, y: 4, w: 130, h: y1 - 12, al: 'l', topo: true }; core.guia = core.y - (y1 - 6);
-    led.rot = { x: led.x - 12 - 170, y: ledcy - 16, w: 170, al: 'r' };
+    led.rot = rotLado(led, led.x - 12 - 170, 170, 'r');
     var ledcx = led.x + LR, ret = abaixo[abaixo.length - 1], railX = core.x + CR;
     rota(g, 'nucleo', cima[0].id, [dir(core), esq(cima[0])], 0);
     for (i = 1; i < cima.length; i++) rota(g, cima[i - 1].id, cima[i].id, [dir(cima[i - 1]), esq(cima[i])], i);
@@ -265,10 +266,10 @@
         var sn = no(g, s, h.x, sy, w, SH, 'lado', { compacto: true, ic: [9, (SH - 28) / 2, 0.7] });
         var hx = h.x + w / 2, yh = cima ? y0 : y0 + BH, ys = cima ? sy + SH : sy;
         if (s.laco) {
-          rota(g, h.id, sn.id, [[hx - 18, yh], [hx - 18, ys]], q + 1, { tipo: 'sat', atraso: 0.1 });
-          rota(g, sn.id, h.id, [[hx + 18, ys], [hx + 18, yh]], q + 2, { tipo: 'sat', alvo: null, atraso: 0.05 });
+          rota(g, h.id, sn.id, [[hx - 18, yh], [hx - 18, ys]], q + 0.5, { tipo: 'sat' });
+          rota(g, sn.id, h.id, [[hx + 18, ys], [hx + 18, yh]], q + 0.75, { tipo: 'sat', alvo: null });
         } else {
-          rota(g, h.id, sn.id, [[hx, yh], [hx, ys]], q + 1, { tipo: 'sat', atraso: 0.1 });
+          rota(g, h.id, sn.id, [[hx, yh], [hx, ys]], q + 0.5, { tipo: 'sat' });
         }
       });
     });

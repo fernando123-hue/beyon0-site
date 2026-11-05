@@ -78,8 +78,8 @@ for (const W of LARGURAS) {
       for (let i = 0; i < ns.length; i++) for (let j = i + 1; j < ns.length; j++) assert.ok(!cruza(ns[i], ns[j], 0.5), onde + ': ' + ns[i].id + ' sobrepõe ' + ns[j].id);
       /* os rótulos fixos (núcleo, LED, ramos, retorno) não cobrem caixa */
       const rotulos = [];
-      for (const n of [g.mapa.nucleo, g.mapa.led]) if (n.rot) rotulos.push({ id: 'rótulo de ' + n.id, x: n.rot.x, y: n.rot.y, w: n.rot.w, h: n.rot.topo ? n.rot.h : 34 });
-      for (const t of g.rots) rotulos.push({ id: 'rótulo "' + t.txt + '"', x: t.x, y: t.y, w: t.w, h: 16 });
+      for (const n of [g.mapa.nucleo, g.mapa.led]) if (n.rot) rotulos.push({ id: 'rótulo de ' + n.id, x: n.rot.x, y: n.rot.y, w: n.rot.w, h: n.rot.h || 56 });   /* rótulo ao lado da ponta: verbo + 2 linhas (o CSS limita o título a 2) */
+      for (const t of g.rots) rotulos.push({ id: 'rótulo "' + t.txt + '"', x: t.x, y: t.y, w: t.w, h: t.h || 16 });
       for (const rt of rotulos) {
         assert.ok(rt.x >= -0.01 && rt.x + rt.w <= W + 0.01 && rt.y >= -0.01 && rt.y + rt.h <= H + 0.01, onde + ': ' + rt.id + ' sai do quadro ' + JSON.stringify(rt));
         for (const c of caixas(g)) assert.ok(!cruza(rt, c, 0.5), onde + ': ' + rt.id + ' cobre a caixa ' + c.id);
@@ -133,13 +133,12 @@ test('espinha na paisagem: o satélite do ÚLTIMO passo do tronco desce, para n�
   assert.ok(sat.y > ultimo.y, 'o satélite pedido em cima desceu');
 });
 
-test('retrato: a caixa é compacta (68 px, vão 18 px, 80 em 320) e o retrato mais largo que 480 fica centrado, com a mesma altura do de 480', () => {
+test('retrato: a caixa é compacta (68 px, vão 18 px, em 280, 320 e 350) e o retrato mais largo que 480 fica centrado, com a mesma altura do de 480', () => {
   const g = L.montarGeometria(laco(8), 390);
   const lado = caixas(g).filter((c) => c.modo === 'lado');
   assert.ok(lado.length >= 8);
   assert.ok(lado.every((c) => c.h === 68), 'caixa de lado com 68 px em 390');
-  const g320 = L.montarGeometria(laco(8), 320);
-  assert.ok(caixas(g320).every((c) => c.h === 80), 'caixa de lado com 80 px em 320 (o título pode ter 3 linhas)');
+  for (const W of [280, 320, 350]) assert.ok(caixas(L.montarGeometria(laco(8), W)).every((c) => c.h === 68), 'caixa de lado com 68 px em ' + W + ' (título de 2 linhas, sem reticências)');
   const larga = L.montarGeometria(laco(8), 1024), estreita = L.montarGeometria(laco(8), L.LARGURA_RETRATO_MAX);
   assert.equal(larga.H, estreita.H, 'a altura do retrato para de crescer com a largura');
   const cx = caixas(larga).concat([larga.mapa.nucleo, larga.mapa.led]);
@@ -222,5 +221,56 @@ test('nunca devolve altura diferente da reservada mesmo para largura estranha (0
     const g = L.montarGeometria(laco(8), W);
     assert.equal(g.H, h);
     assert.ok(Number.isFinite(g.W) && g.W > 0);
+  }
+});
+
+test('I1: o rótulo do LED (verbo + 3 linhas de título de até 40 caracteres) cabe antes da caixa de retorno no laço em retrato', () => {
+  for (const W of [280, 320, 350, 390, 480, 768]) {
+    const p = laco(8);
+    p.fim.titulo = 'Avaliação marcada sem ninguém atender';   /* 37 caracteres: 3 linhas na coluna estreita se o CSS não limitasse */
+    const g = L.montarGeometria(p, W), led = g.mapa.led, ret = g.mapa[p.etapas[7].id];
+    assert.ok(led.rot.h >= 74, 'o rótulo declara a altura de verbo + 3 linhas em ' + W + ': ' + led.rot.h);
+    assert.ok(led.rot.y + led.rot.h <= ret.y, 'o rótulo do LED termina em ' + (led.rot.y + led.rot.h) + ' e a caixa de retorno começa em ' + ret.y + ' (' + W + ')');
+    const antes = caixas(g).filter((c) => c.y + c.h <= led.y).sort((a, b) => b.y - a.y)[0];
+    assert.ok(led.rot.y >= antes.y + antes.h, 'o rótulo não invade a caixa de antes do LED em ' + W + ' (' + led.rot.y + ' < ' + (antes.y + antes.h) + ')');
+  }
+});
+
+test('o rótulo do retorno cabe em 4 linhas ao lado do LED mesmo em 280 px (rótulo de 28 caracteres)', () => {
+  for (const W of [280, 350]) {
+    const p = laco(8);
+    p.rotulo_retorno = 'o site continua trabalhando';
+    const g = L.montarGeometria(p, W), t = g.rots.find((r) => r.txt === p.rotulo_retorno);
+    assert.ok(t.h >= 57, 'altura para 4 linhas de mono 11 px em ' + W + ': ' + t.h);
+    assert.ok(t.y + t.h <= g.mapa[p.etapas[7].id].y, 'não invade a caixa de retorno em ' + W);
+  }
+});
+
+test('espinha: o satélite acende logo depois do hospedeiro (a numeração segue a ordem visual) nas duas posturas', () => {
+  for (const { nome, plano } of FORMAS.filter((f) => f.plano.topologia === 'espinha')) for (const W of [350, 1280]) {
+    const g = L.montarGeometria(plano, W);
+    for (const r of g.rotas.filter((x) => x.tipo === 'sat' && x.alvo)) assert.equal(g.mapa[r.a].ord, g.mapa[r.de].ord + 1, nome + ' @' + W + ': ' + r.a + ' deve acender logo depois de ' + r.de);
+  }
+});
+
+test('ids hostis (nomes que um objeto comum já tem) viram chave segura no layout: nada de TypeError, nada de falso hospedeiro', () => {
+  const nomes = ['constructor', 'toString', 'valueOf', 'hasOwnProperty', '__proto__'];
+  /* o satélite aponta para um id que NÃO é de tronco: com um objeto comum (porId = {}) o layout leria Object.prototype[nome] */
+  for (const nome of nomes) {
+    const p = espinha(5, [{ host: 1, lado: 'cima' }, { host: 3, lado: 'baixo' }]);
+    p.etapas.find((e) => e.satelite_de === 'e1').satelite_de = nome;
+    for (const W of [350, 1280]) assert.equal(L.montarGeometria(p, W), null, 'satelite_de ' + nome + ' @' + W + ' devolve null, sem lançar');
+  }
+  /* e ids hostis como ids de etapa viram chaves do mapa sem pegar emprestado do protótipo */
+  for (const nome of nomes) {
+    const p = laco(8);
+    p.etapas[2].id = nome;
+    for (const W of [350, 1280]) {
+      const g = L.montarGeometria(p, W);
+      assert.ok(g && Object.getPrototypeOf(g.mapa) === null, 'mapa sem protótipo');
+      assert.equal(Object.keys(g.mapa).length, 11, 'uma chave por caixa @' + W);
+      assert.equal(g.mapa[nome].est.id, nome);
+      assert.equal(Object.getPrototypeOf({}).polluted, undefined);
+    }
   }
 });
