@@ -49,9 +49,36 @@ test('nenhuma variável de CSS é escrita por script no desenho (regra 1): o CSS
   assert.ok(!/setProperty|style\.cssText|style\[\s*['"]--/.test(js), 'o desenho não grava variável de CSS');
 });
 
+test('M18: nenhuma unidade ch em lugar nenhum do CSS (a troca de fonte mudava 58ch; em geometria só px)', () => {
+  assert.ok(!/\d\s*ch\b/.test(semComentarios(css)), 'ch no CSS');
+  for (const b of ['.a{max-width:58ch}', '.a{min-width: 10ch}', '.a{width:2ch}']) assert.ok(/\d\s*ch\b/.test(b));
+});
+
+test('M17: o ouro (--ouro-rgb) só aparece em regras do LED (plv-led, plv-ponta--led); o resto da planta é ciano', () => {
+  const regras = semComentarios(css).split('}').filter((r) => r.includes('--ouro-rgb'));
+  assert.ok(regras.length >= 4, 'há regras de ouro');
+  for (const r of regras) assert.ok(/plv-led|plv-ponta--led/.test(r.split('{')[0]), 'ouro fora do LED: ' + r.split('{')[0].trim());
+});
+
+test('I2/I3: a nota e a cota têm altura fixa em px (a nota do modelo e a do plano padrão têm tamanhos diferentes; trocar uma pela outra não pode mover o quadro)', () => {
+  const limpo = semComentarios(css);
+  assert.match(limpo, /\.plv-nota\s*\{[^}]*\bheight:\s*\d+px[^}]*overflow:\s*hidden/, 'nota com height fixo');
+  const medias = limpo.match(/@media[^{]+\{[^@]*?\.plv-nota\s*\{[^}]*\bheight:\s*\d+px/g) || [];
+  assert.ok(medias.length >= 2, 'a altura da nota muda só por largura de janela (media queries), nunca pelo texto: ' + medias.length);
+  assert.match(limpo, /\.plv-cota\s*\{[^}]*\bheight:\s*\d+px[^}]*overflow:\s*hidden/, 'cota com height fixo (o nome do negócio muda)');
+  assert.match(limpo, /\.plv-cota span\s*\{[^}]*white-space:\s*nowrap/, 'o nome na cota não quebra linha');
+});
+
+test('I1: o título do rótulo de uma ponta (núcleo, LED), quando ao lado, é limitado a 3 linhas e a caixa do rótulo tem altura própria', () => {
+  const limpo = semComentarios(css);
+  assert.match(limpo, /\.plv-ponta:not\(\.plv-ponta--topo\) \.plv-tit\s*\{[^}]*line-clamp:\s*3/);
+  assert.match(limpo, /\.plv-rot\s*\{[^}]*overflow-wrap:\s*anywhere/, 'um rótulo com palavra comprida quebra em vez de ser cortado');
+  assert.match(limpo, /\.plv-ponta\s*\{[^}]*overflow:\s*hidden/);
+});
+
 test('geometria em px: o CSS não define left, top, width, height, inset nem min-height do quadro em ch, em ou rem', () => {
   const regras = semComentarios(css).split('}');
-  for (const r of regras) for (const m of r.matchAll(/(^|[{;\s])(left|top|right|bottom|width|height|min-height|max-height|inset)\s*:\s*([^;]+)/g)) {
+  for (const r of regras) for (const m of r.matchAll(/(^|[{;\s])(left|top|right|bottom|(?:max-|min-)?width|(?:max-|min-)?height|inset)\s*:\s*([^;]+)/g)) {
     assert.ok(!/\d(ch|em|rem|vw|vh)\b/.test(m[3]), 'unidade relativa em geometria: ' + m[2] + ': ' + m[3]);
   }
 });

@@ -9,7 +9,8 @@
    ========================================================================== */
 .plv { position: relative; color: var(--t2); }
 .plv-titulo { font: 300 clamp(1.4rem, 1.1rem + 1.2vw, 2rem)/1.2 var(--sans); color: var(--t1); letter-spacing: -.01em; margin: 0 0 8px; }
-.plv-nota { margin: 0 0 14px; font-size: var(--fs-s); line-height: 1.5; color: var(--t3); }
+/* a nota tem altura FIXA (4 linhas no celular estreito, 3 depois, 2 no computador): a do modelo e a do plano padrão têm tamanhos diferentes e uma troca não pode mover o quadro */
+.plv-nota { margin: 0 0 14px; height: 84px; overflow: hidden; font-size: var(--fs-s); line-height: 1.5; color: var(--t3); }
 
 /* ---- botões ---- */
 .plv-btn {
@@ -76,7 +77,9 @@
 .plv--pre .plv-est:not(.is-aceso) .plv-n { color: var(--stroke); }
 .plv--pre .plv-ponta:not(.is-aceso) > * { opacity: 0; transform: translateY(5px); }
 
-.plv-ponta { position: absolute; display: flex; flex-direction: column; gap: 3px; box-sizing: border-box; }
+.plv-ponta { position: absolute; display: flex; flex-direction: column; gap: 3px; box-sizing: border-box; overflow: hidden; }
+.plv-ponta:not(.plv-ponta--topo) { justify-content: center; }
+.plv-ponta:not(.plv-ponta--topo) .plv-tit { -webkit-line-clamp: 3; line-clamp: 3; }
 .plv-ponta--topo { justify-content: flex-end; }
 .plv-guia { fill: none; stroke: var(--line-2); stroke-width: 1; transition: stroke .4s var(--ease); }
 .plv-nucleo.is-aceso .plv-guia { stroke: var(--ac-3); }
@@ -85,7 +88,7 @@
 .plv-ponta--led.is-ouro .plv-verbo { color: rgb(var(--ouro-rgb)); }
 .plv-ponta--led.is-ouro .plv-tit { color: var(--t1); }
 
-.plv-rot { position: absolute; font: 500 var(--fs-rotulo)/1.3 var(--mono); letter-spacing: var(--tr-dado); color: var(--t3); overflow: hidden; box-sizing: border-box; }
+.plv-rot { position: absolute; overflow-wrap: anywhere; font: 500 var(--fs-rotulo)/1.3 var(--mono); letter-spacing: var(--tr-dado); color: var(--t3); overflow: hidden; box-sizing: border-box; }
 .plv-rot--ramo { color: var(--t2); }
 .plv-rot--ramo::before { content: "\2192\00a0"; color: var(--ac-3); }
 
@@ -123,13 +126,13 @@
 .plv-no.is-novo, li.is-novo { transition: opacity .3s var(--ease); }
 
 /* a cota: a régua de baixo, como numa planta técnica */
-.plv-cota { display: flex; align-items: center; gap: 12px; margin: 10px 0 0; font: 500 var(--fs-rotulo)/1 var(--mono); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); }
+.plv-cota { display: flex; align-items: center; gap: 12px; margin: 10px 0 0; height: 24px; overflow: hidden; font: 500 var(--fs-rotulo)/1 var(--mono); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); }
 .plv-cota i { flex: 1; height: 9px; position: relative; }
 .plv-cota i::before { content: ""; position: absolute; left: 0; right: 0; top: 4px; height: 1px; background: var(--line-2); }
 .plv-cota i:first-child { border-left: 1px solid var(--line-2); }
 .plv-cota i:last-child { border-right: 1px solid var(--line-2); }
 .plv-cota b { font-weight: 500; color: var(--t2); }
-.plv-cota span { text-align: center; line-height: 1.3; }
+.plv-cota span { text-align: center; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; max-width: 78%; }
 
 /* a legenda: altura FIXA (4 linhas no celular), o texto entra por textContent e nunca muda o tamanho dela */
 .plv-leitura { box-sizing: border-box; margin: 14px 0 0; height: 126px; overflow: hidden; font-size: var(--fs-s); line-height: 1.5; color: var(--t2); }
@@ -144,9 +147,13 @@
   .plv-leitura { position: sticky; bottom: 0; z-index: 2; margin-top: 0; padding: 10px 0 8px; background: var(--bg); border-top: 1px solid var(--line); height: 126px; }
 }
 @media (max-width: 339px) {
-  .plv-tit { font-size: 13px; }
+  .plv-tit { font-size: 12px; }
+}
+@media (min-width: 480px) {
+  .plv-nota { height: 63px; }
 }
 @media (min-width: 760px) {
+  .plv-nota { height: 42px; }
   .plv-acoes .plv-btn { flex: 0 0 auto; }
   .plv-leitura { height: 92px; font-size: var(--fs-b); }
   .plv-leitura__txt { max-height: 48px; }
