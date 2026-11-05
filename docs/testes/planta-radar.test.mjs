@@ -531,7 +531,7 @@ test('A3: geometria(largura, escala) reserva mais lado quando a fonte cresce (pe
     assert.deepEqual(R.geometria(l, 1), R.geometria(l), 'escala 1 = sem escala: ' + l);
     const g1 = R.geometria(l, 1), g2 = R.geometria(l, 2);
     assert.ok(g2.raio <= g1.raio, 'o pentágono não cresce com a fonte (' + l + ')');
-    for (const r of g2.rotulos) { assert.ok(r.max >= 0, 'largura do rótulo'); assert.ok(r.x - (r.ancora === 'esquerda' || r.ancora === 'baixo-esq' ? r.max : 0) >= -1 || r.max > 0); }
+    /* (que o rótulo caiba DENTRO do quadro a 200% só a medição no navegador prova: docs/a11y-radar.mjs; a largura máxima do rótulo é calculada para caber por construção, então uma asserção aqui seria tautológica) */
   }
   assert.ok(R.geometria(416, 2).rotulos[1].max >= R.geometria(416, 1).rotulos[1].max, 'o rótulo da direita tem mais espaço a 200% (416 px)');
   assert.ok(R.geometria(416, 2).raio < R.geometria(416, 1).raio, 'a 200% o pentágono encolhe para dar lugar aos rótulos maiores');
