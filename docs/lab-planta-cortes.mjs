@@ -7,10 +7,10 @@
 import { chromium } from 'playwright';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8917';
-const LARGS = (process.argv[2] || '320,360,390,768,1280').split(',').map(Number);
+const LARGS = (process.argv[2] || '320,340,360,390,768,1280').split(',').map(Number);
 const nav = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined });
 let achou = 0;
-for (const larg of LARGS) for (const nicho of ['clinica', 'embalagens', 'loja']) for (const longo of [0, 1]) {
+for (const larg of LARGS) for (const nicho of ['clinica', 'embalagens', 'loja']) for (const longo of [0, 1, 2]) {
   const ctx = await nav.newContext({ viewport: { width: larg, height: 900 }, reducedMotion: 'reduce' });
   const p = await ctx.newPage();
   await p.goto(`${BASE}/docs/lab-planta.html?nicho=${nicho}&longo=${longo}`, { waitUntil: 'load' });
@@ -31,11 +31,17 @@ for (const larg of LARGS) for (const nicho of ['clinica', 'embalagens', 'loja'])
       const topo = r0.top + (r0.height - alto) / 2, fim = topo + alto;
       caixas.forEach((c) => { if (r0.left < c.r.right - 1 && c.r.left < r0.right - 1 && topo < c.r.bottom - 1 && c.r.top < fim - 1) cortes.push('rótulo da ponta ' + rot(pt) + ' cobre a caixa ' + c.id); });
     });
+    /* o texto de verdade dos rótulos de ramo e de retorno (as linhas que ocupam) contra as caixas */
+    document.querySelectorAll('.plv-rot').forEach((rt) => {
+      const rg = document.createRange(); rg.selectNodeContents(rt);
+      const tr = rg.getBoundingClientRect(), r0 = rt.getBoundingClientRect(), ini = Math.max(tr.top, r0.top), fim = Math.min(tr.bottom, r0.bottom), esq = Math.max(tr.left, r0.left), dir = Math.min(tr.right, r0.right);
+      caixas.forEach((c) => { if (esq < c.r.right - 1 && c.r.left < dir - 1 && ini < c.r.bottom - 1 && c.r.top < fim - 1) cortes.push('rótulo "' + rt.textContent + '" cobre a caixa ' + c.id + ' (' + Math.round(Math.min(fim, c.r.bottom) - Math.max(ini, c.r.top)) + ' px)'); });
+    });
     return { cortes, W: document.querySelector('.plv-quadro').clientWidth };
   });
-  if (r.cortes.length) { achou += r.cortes.length; console.log(`${nicho} janela ${larg} (faixa ${r.W}) ${longo ? 'textos longos' : 'textos do plano'}:\n  ` + r.cortes.join('\n  ')); }
+  if (r.cortes.length) { achou += r.cortes.length; console.log(`${nicho} janela ${larg} (faixa ${r.W}) ${['textos do plano', 'textos longos (título de 40, rótulos de 28)', 'títulos médios de 39 caracteres com palavras compridas'][longo]}:\n  ` + r.cortes.join('\n  ')); }
   await ctx.close();
 }
-console.log(achou ? `\n${achou} corte(s) ou invasão(ões).` : '\nNenhum texto cortado e nenhum rótulo invadindo caixa (3 nichos, textos normais e longos).');
+console.log(achou ? `\n${achou} corte(s) ou invasão(ões).` : '\nNenhum texto cortado e nenhum rótulo invadindo caixa (3 nichos, textos normais, longos e médios).');
 await nav.close();
 process.exit(achou ? 1 : 0);

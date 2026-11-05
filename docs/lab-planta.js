@@ -46,7 +46,12 @@
   };
 
   /* ?longo=1: os textos mais compridos que a forma deixa passar (título de 40 caracteres, rótulos de 28), para ver se algum rótulo invade uma caixa */
-  function alongar(p) {
+  var MEDIOS = ['Mensagem automática para clientes novos', 'Confirmação extraordinária de pagamento', 'Acompanhamento personalizado do pedido', 'Reorganização automática da agenda toda', 'Apresentação detalhada das informações'];
+  function alongar(p, modo) {
+    if (modo === 2) {   /* ?longo=2: títulos "médios" (38 a 39 caracteres) de palavras compridas nos SATÉLITES da espinha */
+      p.etapas.forEach(function (e, i) { if (e.satelite_de) e.titulo = MEDIOS[i % MEDIOS.length]; });
+      return p;
+    }
     p.chegada.titulo = 'Busca, mapa e indicação de amigos da rua';
     p.fim.titulo = 'Avaliação marcada sem ninguém atender';
     if (p.rotulo_retorno) p.rotulo_retorno = 'o site continua trabalhando';
@@ -56,7 +61,7 @@
   }
   function planoAtual() {
     var p = ler(estado.nicho);
-    if (q.get('longo') === '1') p = alongar(p);
+    if (q.get('longo') === '1' || q.get('longo') === '2') p = alongar(p, Number(q.get('longo')));
     return estado.ajustado ? AJUSTES[estado.nicho].aplicar(clonar(p)) : p;
   }
   var opcoes = {
