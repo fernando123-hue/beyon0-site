@@ -9,7 +9,7 @@
    ========================================================================== */
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import { montarSistema, ferramentas } from '../../api/_vendas/consultor.mjs';
+import { montarSistema, ferramentas, PREFIXO_PLANTA } from '../../api/_vendas/consultor.mjs';
 import { estadoParaModelo } from '../../api/_vendas/agente.mjs';
 import { PAPEIS, TETOS } from '../../api/_ia/config.mjs';
 import { ABERTURAS, ETIQUETA, RECADO_FIXO } from '../../api/_vendas/zero.mjs';
@@ -39,13 +39,15 @@ const RESULTADOS = {
   estimar: 'devolve o prazo em dias úteis, a fase, os itens e o valor como instrução de usar os marcadores [[total]], [[sinal]] e [[restante]] (o número nunca chega ao modelo), mais o proximo_passo. Se faltar algo ou o pedido for inválido, devolve os erros; se o caso for grande demais ou fora da tabela, devolve encaminhar_diagnostico.',
   pedir_contato: 'devolve ok se já existe estimativa; senão pede para estimar antes. O formulário aparece na tela.',
   sugerir_solucao_ia: 'devolve ok. A ideia vai para o briefing.',
-  encaminhar_diagnostico: 'devolve só que o botão DEIXAR UM RECADO apareceu na tela e que nada foi enviado a ninguém.'
+  encaminhar_diagnostico: 'devolve só que o botão DEIXAR UM RECADO apareceu na tela e que nada foi enviado a ninguém.',
+  desenhar_planta: 'devolve ok com na_tela (o desenho já está na tela) e o número de caixas; ou ok false com uma lista curta de erros, para corrigir UMA vez; na segunda falha o código grava o desenho de exemplo do tipo de negócio e devolve ok com exemplo true. Recusa (ok false e o motivo) se já houve um desenho neste turno, antes da estimativa, depois de 4 versões ou com o pedido já confirmado.'
 };
 
 export function montarPromptEfetivo() {
   const sistema = montarSistema(REGRAS, OPCOES);
   const estado = estadoParaModelo({ briefing: {}, estimativa: null, etapa: 'descoberta', regras: REGRAS, metodos: OPCOES.metodos });
   const conv = PAPEIS.conversa;
+  const planta = ferramentas(REGRAS, { planta: true }).find(f => f.name === 'desenhar_planta');
   const ferr = ferramentas(REGRAS).map(f => `${f.name}\n${f.description}\nCampos: ${camposDe(f.input_schema)}.\nResultado: ${RESULTADOS[f.name]}`).join('\n\n');
   return `PROMPT EFETIVO DO ZERO
 Gerado por docs/zero/gerar.mjs a partir do código. Não edite à mão: o teste docs/testes/zero.test.mjs confere este arquivo.
@@ -64,6 +66,17 @@ Nos turnos seguintes, "etapa", "proximo_passo", "confianca", "ainda_falta" e "es
 ${ferr}
 ======== FIM DAS FERRAMENTAS ========
 Por etapa: até o envio dos detalhes do pedido o modelo tem as cinco ferramentas; depois dele perde estimar e pedir_contato; no escopo e no pagamento não tem nenhuma e só tira dúvidas.
+
+======== 3b. COM A PLANTA LIGADA (BZ_PLANTA=ligada; desligada por padrão: sem a flag tudo acima vale como está) ========
+Nas mesmas etapas de preço aberto (sem pedido confirmado) entra uma SEXTA ferramenta, no fim da lista, e o prompt de sistema NÃO muda. No turno seguinte ao da primeira estimativa, enquanto não há planta gravada, o campo proximo_passo do ESTADO começa por esta frase, e o texto de hoje vem inteiro depois dela:
+"${PREFIXO_PLANTA}"
+O que o modelo lê do briefing não traz a planta nem as frases dela: só uma versão compacta (id, tipo e título de cada caixa) no bloco do briefing, depois que há um desenho.
+
+${planta.name}
+${planta.description}
+Campos: ${camposDe(planta.input_schema)}.
+Resultado: ${RESULTADOS.desenhar_planta}
+======== FIM DA PLANTA ========
 
 ======== 4. O QUE O CÓDIGO FAZ COM A RESPOSTA DO MODELO (a simulação deve aplicar o mesmo) ========
 Antes de tudo: se o modelo terminar a resposta com [[total]], [[sinal]] ou [[restante]] sem ter uma estimativa válida, o código devolve a ele um aviso (uma volta a mais, uma vez) para chamar estimar e escrever de novo. O aviso não é da pessoa e ela não o vê.

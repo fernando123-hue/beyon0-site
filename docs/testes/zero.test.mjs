@@ -486,6 +486,29 @@ test('tetos: uma conversa longa de verdade, no Sonnet médio, cabe no teto da co
   assert.ok(RESERVA_USD.conversa <= 0.1);
 });
 
+test('tetos: o turno da planta (4 voltas, 1.300 tokens de saída no plano) custa pouco e uma conversa com 4 versões da planta ainda cabe no teto', () => {
+  const sistema = montarSistema(REGRAS, { direcoes: 'manual', metodos: ['pix'] });
+  const planta = ferramentas(REGRAS, { planta: true }).find(f => f.name === 'desenhar_planta');
+  /* o prefixo de cache leva o sistema E as ferramentas (a descrição da planta tem três exemplos completos) */
+  const cache = Math.ceil((sistema.length + planta.description.length + JSON.stringify(planta.input_schema).length) / 3);
+  const rodada = saida => custoUsd('claude-sonnet-5-5', { cache_leitura: cache, entrada: 3500, saida });
+  const turnoDaPlanta = rodada(300) + rodada(1300) + rodada(300) + rodada(300);   /* MAX_ITERACOES = 4: a volta do plano pesa 1.300 tokens de saída */
+  /* o pior caso: as 4 voltas gastam o max_tokens inteiro (um modelo que não para). A reserva por turno (RESERVA_USD.conversa) é UMA para até 4 chamadas, então o pior caso passa dela; a
+     proteção real são os tetos (conversa e dia). Realista: ~US$ 0,06; pior caso medido aqui: ~US$ 0,20 (a revisão estimou até ~0,26 com mais entrada). Decisão a confirmar na rodada real 8 (não mexi em config.mjs) */
+  const piorCaso = 4 * custoUsd('claude-sonnet-5-5', { cache_leitura: cache, entrada: 3500, saida: PAPEIS.conversa.max_tokens });
+  assert.ok(piorCaso < 0.3, 'pior caso de um turno da planta: US$ ' + piorCaso.toFixed(3));
+  assert.ok(piorCaso < TETOS.conversa_usd * 0.15 && piorCaso < TETOS.dia_usd * 0.02, 'o pior caso cabe com folga nos tetos da conversa e do dia');
+  assert.ok(turnoDaPlanta < 2 * RESERVA_USD.conversa, 'o turno da planta (US$ ' + turnoDaPlanta.toFixed(3) + ') passou de duas reservas de conversa');
+  assert.ok(turnoDaPlanta < TETOS.conversa_usd * 0.05, 'um turno da planta ocupa mais que 5% do teto da conversa');
+  const normal = c => 2 * custoUsd('claude-sonnet-5-5', { cache_leitura: c, entrada: 3500, saida: 900 });
+  /* uma conversa de 30 turnos com a flag ligada: todo turno de preço aberto lê as ferramentas da planta do cache, e 4 deles são turnos de desenho (26 + 4).
+     Medido em 05/11: US$ 1,07 hoje contra US$ 1,20 com a planta (+12%, sob os 65% do teto de US$ 2); o teste prende o +15% */
+  const hoje = 30 * normal(Math.ceil(sistema.length / 3)), comPlanta = 26 * normal(cache) + 4 * turnoDaPlanta;
+  assert.ok(comPlanta < hoje * 1.15, 'a planta encarece a conversa longa em mais de 15%: ' + (comPlanta / hoje).toFixed(3));
+  assert.ok(comPlanta < TETOS.conversa_usd * 0.65, 'a conversa longa com 4 desenhos passa de 65% do teto (' + comPlanta.toFixed(2) + ')');
+  assert.equal(montarSistema(REGRAS, { direcoes: 'manual', metodos: ['pix'] }), sistema, 'nada entrou no prompt de sistema');
+});
+
 /* ---------- 7. o arquivo que o time de teste usa ---------- */
 test('docs/zero: o prompt efetivo e a abertura gravados são exatamente o que o código monta', async () => {
   const { montarPromptEfetivo, montarAbertura } = await import('../zero/gerar.mjs');
@@ -780,8 +803,8 @@ test('painel: a rota de estado liga o filtro de nicho regulado (o nicho vale a s
 });
 
 test('passo seguinte do código: sem frase entre aspas para o modelo copiar nem o termo interno "direções" (achado do teste com o modelo real no staging, 03/11)', async () => {
-  const fonte = fs.readFileSync(new URL('../../api/_vendas/consultor.mjs', import.meta.url), 'utf8');
-  const ini = fonte.indexOf('export function proximoPasso');
+  const fonte = fs.readFileSync(new URL('../../api/_vendas/consultor.mjs', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const ini = fonte.indexOf('function proximoPassoBase');
   const corpo = fonte.slice(ini, fonte.indexOf('\n}\n', ini));
   assert.ok(corpo.length > 500, 'achou o corpo da função');
   assert.ok(!/direç(?:ão|ões)/.test(corpo), 'o passo seguinte fala em modelos, não em direções (o Zero repete o que lê)');
@@ -790,8 +813,8 @@ test('passo seguinte do código: sem frase entre aspas para o modelo copiar nem 
 });
 
 test('passo seguinte e prompt: o valor já dito não se repete nem se reestima sem mudança, e o Zero não finge conversa anterior (achados do teste com o modelo real, 03/11)', async () => {
-  const fonte = fs.readFileSync(new URL('../../api/_vendas/consultor.mjs', import.meta.url), 'utf8');
-  const ini = fonte.indexOf('export function proximoPasso');
+  const fonte = fs.readFileSync(new URL('../../api/_vendas/consultor.mjs', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const ini = fonte.indexOf('function proximoPassoBase');
   const corpo = fonte.slice(ini, fonte.indexOf('\n}\n', ini));
   assert.equal(corpo.split('O valor já foi dito: não o repita e não chame estimar de novo enquanto formato, páginas, extras (e as quantidades), urgência e complexidade não mudarem; se algum mudou, chame estimar e diga o que mudou e o novo valor').length - 1, 2, 'os dois passos depois da estimativa trazem a regra do valor já dito, com tudo que muda o preço e o que fazer quando muda');
   assert.ok(!/recado para a equipe/.test(corpo), 'o passo da etapa contato não manda o recado "para a equipe" (a regra 1 proíbe falar em equipe)');

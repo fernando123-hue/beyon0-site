@@ -518,3 +518,16 @@ test('v3: o prompt conhece o Atelier, os adicionais em qualquer formato e o aten
   const somam = s.slice(s.indexOf('Adicionais que a tabela cobre'), s.indexOf('Em preparo, ainda sem preço'));
   assert.ok(!/Atendente de IA/.test(somam), 'o atendente em preparo não está entre os adicionais que se somam');
 });
+
+/* a planta viva (PR 2a): a flag é um parâmetro e vale só em etapa de preço aberto; os casos completos estão em planta-ferramenta.test.mjs */
+test('ferramentas: com planta:true entra a sexta (desenhar_planta) só em etapa de preço aberto; sem a flag seguem as 5 de hoje', () => {
+  for (const etapa of ETAPAS_COM_PRECO) {
+    assert.equal(ferramentas(REGRAS, { etapa }).length, 5, etapa);
+    assert.equal(ferramentas(REGRAS, { etapa, planta: true }).length, 6, etapa);
+    assert.equal(ferramentas(REGRAS, { etapa, planta: true }).at(-1).name, 'desenhar_planta', etapa);
+  }
+  assert.equal(ferramentas(REGRAS, { etapa: 'contato', pedidoStatus: 'confirmado', planta: true }).length, 3);
+  assert.deepEqual(ferramentas(REGRAS, { etapa: 'escopo', planta: true }), []);
+  assert.equal(ferramentas(REGRAS, { planta: true }).length, 6);
+  assert.equal(ferramentas(REGRAS).length, 5);
+});
