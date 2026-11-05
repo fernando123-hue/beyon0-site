@@ -190,12 +190,15 @@ export function posicaoNaJanela(absoluta, { turnos, mensagensNaJanela }) {
    (plano, nome do negócio, nicho regulado) no isolate: a 2ª leitura do mesmo plano é um JSON.stringify e um Map. */
 const CACHE_MAX = 64;
 const cachePlantas = new Map();
-export const limparCacheDaPlanta = () => cachePlantas.clear();
+let acertos = 0, falhas = 0;
+export const limparCacheDaPlanta = () => { cachePlantas.clear(); acertos = 0; falhas = 0; };
+export const estatisticasDoCache = () => ({ tamanho: cachePlantas.size, max: CACHE_MAX, acertos, falhas });
 function planoRevalidado(plano, nomeDoNegocio, regulado) {
   let chave;
   try { chave = JSON.stringify([regulado, nomeDoNegocio, plano]); } catch { return null; }
   if (typeof chave !== 'string') return null;
-  if (cachePlantas.has(chave)) { const g = cachePlantas.get(chave); return g === null ? null : JSON.parse(g); }
+  if (cachePlantas.has(chave)) { acertos++; const g = cachePlantas.get(chave); return g === null ? null : JSON.parse(g); }
+  falhas++;
   const v = validarPlano(plano, { nomeDoNegocio, regulado, travas: false });
   if (cachePlantas.size >= CACHE_MAX) cachePlantas.delete(cachePlantas.keys().next().value);
   cachePlantas.set(chave, v.ok ? JSON.stringify(v.plano) : null);

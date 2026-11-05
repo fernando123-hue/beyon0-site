@@ -86,7 +86,9 @@ const MAIS_CARO = Object.values(PRECO_POR_MILHAO).reduce((m, p) => ({
    0,005; 0,01 cobre com folga. Conversa no Sonnet 5.5 médio (Zero): uma rodada com o sistema em cache, o estado e o
    raciocínio fica em ~US$ 0,02; 0,05 cobre com folga (o backlog do Zero pedia ~0,05). A MEDIR: com chamadas reais, trocar pelo p95 de app.ia_chamadas por
    papel. O que passar da reserva ainda é somado depois (o estouro fica pequeno) */
-export const RESERVA_USD = { conversa: 0.05, extracao: 0.01, atendente: 0.003, geracao: 0.25 };
+/* conversa_planta: o turno com a planta ligada e o preço aberto pode gastar até 4 chamadas (a reserva é UMA por turno): o pior caso medido é ~US$ 0,20 (4 voltas no max_tokens),
+   o realista ~0,06. Só esses turnos reservam 0,20; com a flag desligada vale o 'conversa' de sempre (api/_vendas/fluxo.mjs) */
+export const RESERVA_USD = { conversa: 0.05, conversa_planta: 0.2, extracao: 0.01, atendente: 0.003, geracao: 0.25 };
 export function reservaUsd(papel) {
   return RESERVA_USD[papel] ?? 0.25;
 }
