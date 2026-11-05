@@ -45,7 +45,7 @@ O funil de hoje (`api/_vendas/consultor.mjs`, `proximoPasso`) é: descobrir neg�
 
 ### 1.3 Como é e como se move (herdado do protótipo, sem reinterpretar)
 
-Elementos: núcleo (Zero); a chegada ("de onde a pessoa vem"); 8 a 9 caixas de estação com ícone em traço, número, verbo e título; rotas de 1 px com setas; LED final ("Objetivo"); legenda de leitura com a frase da estação acesa; botões "Está certo", "Quero ajustar algo", "Rever a montagem". **Todas as classes novas usam o prefixo `plv-`** (`pv-` já existe nas miniaturas de prévia, `pl-` na vitrine de Sites, `.planta*` em `css/peca-sites.css`).
+Elementos: núcleo (Zero); a chegada ("de onde a pessoa vem"); 8 a 9 caixas de estação com ícone em traço, número, verbo e título; rotas de 1 px com setas; LED final ("Objetivo"); legenda de leitura com a frase da estação acesa; botões "Está certo", "Quero ajustar algo", "Rever a montagem". **Todas as classes novas da planta usam o prefixo `plv-`** (o radar da seção 3 usa **`plr-`**) (`pv-` já existe nas miniaturas de prévia, `pl-` na vitrine de Sites, `.planta*` em `css/peca-sites.css`).
 
 Sequência (cerca de 7,6 s, a do protótipo):
 
@@ -209,7 +209,7 @@ A descrição manda: nível só pelo que a PESSOA escreveu; "deixou claro" só c
 
 ### 3.5 Desenho
 
-SVG de pentágono com 3 anéis, 5 raios e polígono de 1,5 px em ciano com preenchimento chapado de 10% (cor lisa; se o dono achar "mole", fica só o contorno). Rótulos em HTML ao redor, até 2 linhas, mínimo de 11 px. Ao mudar, os vértices se movem em 450 ms **interpolados pelo laço único `B.add`** (`window.BEYON.add`; **sem `requestAnimationFrame` próprio**, regra 1 do `CLAUDE.md`); sem `BEYON` ou em movimento reduzido, salta. Altura fixa: o módulo do radar tem a própria `alturaRadar(largura)` (300 px em 390), independente da função da planta.
+SVG de pentágono com 3 anéis, 5 raios e polígono de 1,5 px em ciano com preenchimento chapado de 10% (cor lisa; se o dono achar "mole", fica só o contorno). Rótulos em HTML ao redor, até 2 linhas, mínimo de 11 px. Ao mudar, os vértices se movem em 450 ms **interpolados pelo laço único `B.add`** (`window.BEYON.add`; **sem `requestAnimationFrame` próprio**, regra 1 do `CLAUDE.md`); sem `BEYON` ou em movimento reduzido, salta. Altura fixa: o módulo do radar tem a própria `alturaRadar(largura)` (300 px em 390), independente da função da planta. **Classes do radar com o prefixo `plr-`** (o `plv-` é da planta, seção 1.5); a altura do desenho e da lista é reservada por CSS (`css/orcamento-radar.css`), e a classe `plr-vaga` reserva o espaço antes de o JS montar. A lista `<dl>` fica sempre visível com reserva de pior caso; as decisões em aberto para a ligação (reduzir a reserva ou recolher a lista mantendo o leitor de tela, região viva, vaga sem radar, `desmontar` na troca de tela) estão no plano, "Decisões do 2d-front".
 
 **Lugar [A]: na coluna do painel, ABAIXO do cartão de investimento** (e não acima, onde empurraria o preço). A coluna é fixa na rolagem e, com as peças, rola por dentro (`css/orcamento-painel.css`). Critério de CLS: delta de CLS da página ≤ 0,01 com o radar entrando, **e** o cartão de investimento não sai da área visível do painel em 1.280 x 800.
 
