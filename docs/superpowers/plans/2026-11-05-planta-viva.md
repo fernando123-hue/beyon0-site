@@ -125,8 +125,8 @@ O Passo 1 (`js/orcamento-planta-forma.js`) foi revisto por `code-reviewer` e `se
   - A entrada da bifurca tem no mínimo 1 etapa e nenhum teto próprio (o total de 7 a 8 etapas limita).
   - `leitura` do radar: no máximo 2 KB; eixos sempre devolvidos na ordem canônica de `EIXOS`.
   - `tronco_min`/`tronco_max` decidem quase tudo na espinha; `satelites_min`/`satelites_max` são rede de segurança (com 7 a 8 etapas no total quase nunca decidem sozinhos).
-  - Texto: a forma recusa `<`, `>`, controles, invisíveis/preenchimentos (a lista de `promessa.mjs` mais U+034F, U+115F/1160, U+17B4/17B5, U+2800, U+3164, U+FFA0, U+FE00 a FE0F e as etiquetas U+E0000 a E007F) e substituto UTF-16 solto; o mínimo de comprimento só conta o texto visível (sem espaços nem esses caracteres).
-  - O retorno traz `erros: [{ caminho, codigo }]`; o nome de uma chave extra entra no caminho só se for curto e simples (`[A-Za-z0-9_$-]{1,32}`), senão `?`.
+  - Texto: a forma recusa `<`, `>` (e U+FF1C/FF1E/FE64/FE65), controles, TODA a propriedade Unicode `Default_Ignorable_Code_Point` (que inclui a lista de `promessa.mjs`, incompleta, mais U+180B a 180F, FFF0 a FFF8, 1BCA0 a 1BCA3, 1D173 a 1D17A e E0000 a E0FFF), o braille em branco U+2800 e substituto UTF-16 solto; o mínimo de comprimento só conta o texto visível (sem espaços nem esses caracteres). O teste percorre todos os code points. Se o `normalize` lançar, a forma recusa o texto (falha fechado).
+  - O retorno traz `erros: [{ caminho, codigo }]`; o nome de uma chave extra entra no caminho só se começar por letra, tiver até 24 caracteres `[A-Za-z0-9_$-]` e nenhuma sequência de 4 ou mais dígitos, senão `?` (as chaves de protótipo entram pelo nome, que é uma lista fixa).
 
 ## PR 2b: o desenho (módulos do front, sem ligar ao Zero)
 

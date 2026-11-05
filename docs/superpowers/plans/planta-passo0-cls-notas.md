@@ -7,7 +7,7 @@
 ## 1. Como foi medido (para repetir)
 
 - Protótipo servido de fora, sem editá-lo: `node docs/servidor.mjs . 8911` dentro do worktree `site-planta`; página `docs/lab-planta.html?nicho=clinica|embalagens|loja`.
-- Ferramenta: `docs/lab-planta-medir.mjs`, **commitada junto destas notas** (o protótipo tem uma de mesmo nome que só soma `value`; esta registra cada deslocamento). Uso: `node docs/lab-planta-medir.mjs <prefixo> <tamanhos> <variantes> [esperaMs]`, ou `--help`. Playwright + Chromium headless shell 1228 (Windows, desenho por software; serve para COMPARAR). Em cada carregamento registra:
+- Ferramenta: `docs/lab-planta-medir.mjs`, **commitada junto destas notas** (o protótipo tem uma de mesmo nome que só soma `value`; esta registra cada deslocamento). Uso: `node docs/lab-planta-medir.mjs <prefixo> <tamanhos> <variantes> [esperaMs]`, ou `--help`. **A página padrão (`PAGINA=/docs/lab-planta.html`) não existe nesta branch:** o laboratório é do protótipo, então a ferramenta precisa de um servidor que sirva o worktree `site-planta` (`node docs/servidor.mjs . 8911` lá, e `BASE=http://127.0.0.1:8911` aqui); o PR 2b aponta `PAGINA` e `SEL` para o laboratório novo. Playwright + Chromium headless shell 1228 (Windows, desenho por software; serve para COMPARAR). Em cada carregamento registra:
   - cada `layout-shift` com `value`, `hadRecentInput` e `sources[]` (nó, retângulo anterior e atual);
   - uma linha do tempo por quadro (`requestAnimationFrame`) do 1º ao 1,5º segundo: painel oculto?, altura do quadro, largura e altura da nota, altura da lista "anotado" e da legenda, fonte Sora pronta?;
   - marcas do JS (`DOMContentLoaded`, `load`, fonte carregada, `fonts.ready`, o instante em que o JS grava a altura do quadro).
@@ -18,7 +18,7 @@
 
 ## 2. Resultado: CLS por viewport e nicho (medida base)
 
-Faixa pedida no plano: 0,17 a 0,36. Reproduzida: **0,07 a 0,33** conforme a janela (a janela de 640 px de altura "esconde" parte do salto), com **picos de 0,619** em cargas isoladas de 390x844 (qualquer nicho) em que a troca de fonte e a altura do quadro caem no mesmo quadro, em vez de em dois.
+Faixa pedida no plano: 0,17 a 0,36. Reproduzida: **0,07 a 0,33** conforme a janela (a janela de 640 px de altura "esconde" parte do salto), com **picos de 0,619** em cargas isoladas de 390x844 (embalagens e loja) em que a troca de fonte e a altura do quadro caem no mesmo quadro, em vez de em dois.
 
 | viewport | nicho | CLS base | deslocamentos (instante: valor) |
 |---|---|---|---|
@@ -88,7 +88,7 @@ Quando a fonte chega um quadro antes da altura (clínica, 390x844) são dois des
 ```
 
 - **Mecanismo:** `escolher()` faz `anotado.textContent = ''` e acrescenta os `<li>` depois da 1ª pintura. A altura final depende da largura (as pílulas quebram em até 3 linhas no celular).
-- **Prova por A/B:** com a lista reservada (`anotado`) o pacote completo (`altura + preload + leitura + anotado`) ficou em **0 em 35 de 36 cargas** (3 repetições x 12 casos; 1 carga com 0,016, a fonte pré-carregada que chegou depois da 1ª pintura: C2). Sem ela, o pacote `altura + preload + leitura` (1 carga por caso) ainda deixou 0,043 (320x640 clínica) e 0,067 (1280 clínica); as fontes do `layout-shift` dessas duas cargas são o quadro descendo 132 px e 32 px, isto é, a lista sendo preenchida (1280 clínica também teve a nota refluindo). **Não dá para somar** as parcelas por aritmética: o mesmo caso 1280 clínica deu 0,000 na coluna `altura+preload`, e cada célula é uma carga só, sujeita à corrida com a fonte; só a coluna do pacote tem 3 repetições. Reservar só a lista (sem a altura do quadro) reduz mas não resolve (0,011 a 0,201, ver a tabela 2 da seção 4): o salto grande (C1) continua.
+- **Prova por A/B:** com a lista reservada (`anotado`) o pacote completo (`altura + preload + leitura + anotado`) ficou em **0 em 35 de 36 cargas** (3 repetições x 12 casos; 1 carga com 0,016, **provavelmente** C2 (a fonte pré-carregada ainda não estava pronta no 1º quadro e a nota refluiu); não confirmado, não isolei a causa). Sem ela, o pacote `altura + preload + leitura` (1 carga por caso) ainda deixou 0,043 (320x640 clínica) e 0,067 (1280 clínica); as fontes do `layout-shift` dessas duas cargas são o quadro descendo 132 px e 32 px, isto é, a lista sendo preenchida (1280 clínica também teve a nota refluindo). **Não dá para somar** as parcelas por aritmética: o mesmo caso 1280 clínica deu 0,000 na coluna `altura+preload`, e cada célula é uma carga só, sujeita à corrida com a fonte; só a coluna do pacote tem 3 repetições. Reservar só a lista (sem a altura do quadro) reduz mas não resolve (0,011 a 0,201, ver a tabela 2 da seção 4): o salto grande (C1) continua.
 - **No produto:** essa lista é do painel da fatia 1, não da planta. A lição vale para tudo o que a faixa tiver: nada de bloco que nasça com altura zero e seja preenchido depois.
 
 ### C4. Legenda de altura variável (CONFIRMADA; **desprezível**)
@@ -162,5 +162,5 @@ O que o desenho da planta tem de garantir (cada item é testável e vem com o n�
 
 - Chromium headless por software, em Windows, com a máquina em uso; o valor absoluto muda de uma carga para outra (390 embalagens deu 0,287 e 0,619, conforme a fonte e a altura chegassem em quadros separados ou no mesmo). Por isso os números acima são de comparação, e o critério do PR 2b usa 3 repetições.
 - A medida é do **laboratório**, não da página de orçamento. Lá a faixa vem abaixo da mesa e as fontes têm `preload`; **hipótese, não medida:** o laboratório superestima C1 e C2 em relação à página real. O PR 2c mede a página real (`docs/medir-planta.mjs`).
-- A corrida entre fonte e JS é sensível à carga da máquina: cargas de 10 a 20 s (o 1º carregamento do headless) mudam quem chega primeiro e foram descartadas pelo aquecimento. Uma das 36 cargas do pacote ainda sofreu disso (a de 0,016).
+- A corrida entre fonte e JS é sensível à carga da máquina: cargas de 10 a 20 s (o 1º carregamento do headless) mudam quem chega primeiro e foram descartadas pelo aquecimento. Uma das 36 cargas do pacote ainda sofreu algo parecido (a de 0,016, 390x844 embalagens): provavelmente C2, não confirmado.
 - Não medi CPU, fps nem nós do DOM (isso é da verificação do PR 2b).
