@@ -371,6 +371,85 @@ test('WAAPI: a linha que mudou pisca (animate com opacity); sem animate disponí
   assert.doesNotThrow(() => m2.radar.atualizar(m2.alvo, lerJson('loja.json')));
 });
 
+/* ---------- 6b. desmontar, evidência fora dos atributos, continuidade (revisão independente: I1, I2, I3) ---------- */
+test('desmontar no meio da animação: sai do laço, desliga o ResizeObserver, esvazia o contêiner e atualizar depois devolve false', () => {
+  const b = beyonDeMentira(false);
+  const m = montado(nivelTodos('nao_falou'), { beyon: b });
+  m.radar.atualizar(m.alvo, lerJson('clinica.json'));
+  assert.equal(b.laco.length, 1, 'animando');
+  const obs = m.registro.observadores[0];
+  assert.ok(obs && !obs.desligado);
+  m.inst.desmontar();
+  assert.equal(b.laco.length, 0, 'saiu do laço');
+  assert.deepEqual(b.removes, b.adds, 'cada add teve o seu remove');
+  assert.equal(obs.desligado, true, 'ResizeObserver desligado');
+  assert.equal(m.alvo.filhos.length, 0, 'contêiner vazio');
+  assert.equal(m.radar.atualizar(m.alvo, lerJson('loja.json')), false, 'por contêiner');
+  assert.equal(m.inst.atualizar(lerJson('loja.json')), false, 'pela instância');
+  assert.equal(b.laco.length, 0, 'e nada volta ao laço');
+  assert.doesNotThrow(() => m.inst.desmontar(), 'desmontar duas vezes não lança');
+});
+
+test('montar de novo no mesmo contêiner desconecta o observador e o laço da instância antiga', () => {
+  const b = beyonDeMentira(false);
+  const m = montado(nivelTodos('nao_falou'), { beyon: b });
+  m.radar.atualizar(m.alvo, lerJson('clinica.json'));
+  const antigo = m.registro.observadores[0];
+  const nova = m.radar.montar(m.alvo, lerJson('loja.json'));
+  assert.equal(antigo.desligado, true, 'o observador antigo foi desconectado');
+  const atual = m.registro.observadores[m.registro.observadores.length - 1];
+  assert.notEqual(atual, antigo); assert.ok(!atual.desligado);
+  assert.equal(b.laco.length, 1, 'só a instância nova está no laço');
+  assert.equal(b.laco[0].nome, b.adds[b.adds.length - 1]);
+  assert.equal(m.alvo.porTag('dl').length, 1);
+  assert.equal(nova.atualizar(lerJson('clinica.json')), true);
+});
+
+const todosOsAtributos = (m) => m.registro.criados.filter((n) => n.tag !== '#texto').flatMap((n) => [...Object.entries(n.atributos), ...Object.entries(n.style)]).map(([k, v]) => k + '=' + v);
+
+test('a evidência do eixo "não falou" não vai para NENHUM atributo nem estilo de nenhum elemento criado (title, aria-label, data-*...), nem depois de comentou -> nao_falou', () => {
+  const FRASE = 'frase-secreta-do-eixo-que-nao-falou';
+  const l = nivelTodos('nao_falou');
+  l.eixos[0].evidencia = FRASE;
+  const m = montado(l);
+  assert.ok(!todosOsAtributos(m).some((a) => a.includes(FRASE)), 'atributo com a evidência de "não falou"');
+  assert.ok(!m.alvo.textContent.includes(FRASE));
+  /* e a transição: primeiro comentou (com a fala), depois nao_falou (a fala sai e não vira atributo) */
+  const FALA = 'fala-que-ela-disse-antes';
+  const a = nivelTodos('nao_falou'); a.eixos[2] = { eixo: 'urgencia', nivel: 'comentou', evidencia: FALA };
+  const b2 = nivelTodos('nao_falou'); b2.eixos[2] = { eixo: 'urgencia', nivel: 'nao_falou', evidencia: FALA };
+  const m2 = montado(a);
+  assert.ok(m2.alvo.textContent.includes(FALA), 'comentou mostra a fala');
+  assert.equal(m2.radar.atualizar(m2.alvo, b2), true);
+  assert.ok(!m2.alvo.textContent.includes(FALA), 'nao_falou tira a fala da tela');
+  assert.equal(m2.alvo.porClasse('plr-evidencia').length, 0);
+  assert.ok(!todosOsAtributos(m2).some((x) => x.includes(FALA)), 'a fala nunca vai para atributo');
+  /* mesmo com a evidência de nível comentou: ela só existe como texto, nunca como atributo */
+  assert.ok(!todosOsAtributos(montado(a)).some((x) => x.includes(FALA)));
+});
+
+const lerPontos = (s) => s.split(' ').map((p) => p.split(',').map(Number));
+const distMax = (a, b) => Math.max(...lerPontos(a).map((p, i) => Math.hypot(p[0] - lerPontos(b)[i][0], p[1] - lerPontos(b)[i][1])));
+
+test('continuidade: uma segunda atualização no meio da animação parte do ponto intermediário (sem pular para o mínimo)', () => {
+  const b = beyonDeMentira(false);
+  const m = montado(nivelTodos('nao_falou'), { beyon: b });
+  const minimo = pontosDe(m.alvo);
+  m.relogio.t = 100;
+  m.radar.atualizar(m.alvo, lerJson('clinica.json'));
+  b.quadro(100 + 300);
+  const intermediario = pontosDe(m.alvo);
+  assert.ok(distMax(intermediario, minimo) >= 30, 'o intermediário já saiu do mínimo (' + distMax(intermediario, minimo).toFixed(1) + ' px)');
+  m.relogio.t = 400;
+  m.radar.atualizar(m.alvo, lerJson('loja.json'));
+  b.quadro(400 + 16);   /* um quadro depois da 2ª atualização */
+  const logo = pontosDe(m.alvo);
+  assert.ok(distMax(logo, intermediario) <= 12, 'logo depois da 2ª atualização o polígono segue perto de onde estava: ' + distMax(logo, intermediario).toFixed(1) + ' px');
+  assert.ok(distMax(logo, minimo) >= 20, 'e longe do mínimo');
+  b.quadro(400 + 450);
+  assert.equal(pontosDe(m.alvo), R.pontos(R.geometria(390), R.fatoresDaLeitura(lerJson('loja.json'))));
+});
+
 /* ---------- 7. o código ---------- */
 function semComentariosEStrings(src) {
   let out = '', i = 0, ultimo = '';

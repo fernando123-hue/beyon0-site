@@ -83,3 +83,52 @@ test('o laboratório: sem style="" nem <style> (CSP), sem script embutido, a lis
   assert.doesNotMatch(labJs, /innerHTML|insertAdjacentHTML|outerHTML|requestAnimationFrame/);
   assert.doesNotMatch(labCss, /!important/);
 });
+
+/* ---- a VAGA (.plr-vaga::before): a fórmula da altura reservada tem que casar com o que o radar montado ocupa (revisão independente, M-teste) ---- */
+const tokens = lerRaiz('css/tokens.css');
+const rem = (nome) => { const m = tokens.match(new RegExp('--' + nome + ':\\s*([\\d.]+)rem')); assert.ok(m, nome); return parseFloat(m[1]) * 16; };
+const regra = (seletor) => {
+  const m = semComentarios.match(new RegExp(seletor.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*\\{([^}]*)\\}'));
+  assert.ok(m, 'regra ' + seletor);
+  return m[1];
+};
+
+test('a vaga: o ::before reserva EXATAMENTE a fórmula (largura da vaga -> altura do radar montado), peça por peça', () => {
+  const fx = regra('.plr-vaga:not(:has(.plr))::before');
+  const h = fx.match(/height:\s*calc\(([^;]*)\);/);
+  assert.ok(h, 'height: calc(...)');
+  assert.equal(h[1].replace(/\s+/g, ' ').trim(),
+    '34px + 1.3 * var(--fs-rotulo) + 12px + 15px + 5 * var(--plr-linha) + 12px + 2 * 1.4 * var(--fs-ctrl) + clamp(240px, 77cqw - 26.18px, 320px)');
+  /* cada número da fórmula vem de uma regra do .plr montado */
+  const plr = regra('.plr');
+  assert.match(plr, /padding:\s*16px/);
+  assert.match(plr, /border:\s*1px solid/);                                         /* 34 = 2 x 16 + 2 x 1 */
+  assert.match(regra('.plr-titulo'), /font:[^;]*\/1\.3\s/);                         /* 1,3 x 11 px */
+  assert.match(regra('.plr-quadro'), /margin-top:\s*12px/);                         /* 12 */
+  assert.match(regra('.plr-lista'), /margin:\s*14px 0 0/);
+  assert.match(regra('.plr-lista'), /border-top:\s*1px/);                           /* 14 + 1 = 15 */
+  assert.match(regra('.plr-legenda'), /margin:\s*12px 0 0/);
+  assert.match(regra('.plr-legenda'), /min-height:\s*calc\(2 \* 1\.4em\)/);         /* 12 + 2 linhas */
+  assert.match(regra('.plr, .plr-vaga'), /--plr-linha:\s*calc\(3 \* 1\.35 \* var\(--fs-ctrl\) \+ 15px\)/);
+  assert.match(regra('.plr-linha'), /min-height:\s*var\(--plr-linha\)/);
+  /* 77cqw - 26,18 px é 0,77 x (largura da vaga - 34): a largura que o JS mede no quadro */
+  assert.equal(+(34 * 0.77).toFixed(2), 26.18);
+});
+
+test('a vaga: o que o CSS reserva (lido do próprio CSS) = o que o radar montado ocupa, de 250 a 420 px de largura, com folga de 0,5 px', () => {
+  const fsRotulo = rem('fs-rotulo'), fsCtrl = rem('fs-ctrl');
+  const linha = 3 * 1.35 * fsCtrl + 15;
+  const formula = regra('.plr-vaga:not(:has(.plr))::before').match(/height:\s*calc\(([^;]*)\);/)[1].replace(/\s+/g, ' ').trim();
+  const [fixo, grampo] = formula.split(' + clamp(');
+  /* a parte fixa, avaliada com os tokens reais (rem = 16 px) */
+  const resto = Function('return (' + fixo.replace(/var\(--fs-rotulo\)/g, String(fsRotulo)).replace(/var\(--fs-ctrl\)/g, String(fsCtrl)).replace(/var\(--plr-linha\)/g, String(linha)).replace(/px/g, '') + ')')();
+  assert.ok(Math.abs(resto - 438.9) < 0.01, 'resto fixo ' + resto);
+  const g = grampo.match(/^([\d.]+)px, ([\d.]+)cqw - ([\d.]+)px, ([\d.]+)px\)$/);
+  assert.ok(g, 'clamp(min, N cqw - K px, max): ' + grampo);
+  const [min, porCem, desconto, max] = [+g[1], +g[2], +g[3], +g[4]];
+  for (let w = 250; w <= 420; w += 5) {
+    const reservado = resto + Math.min(max, Math.max(min, porCem * w / 100 - desconto));   /* 1 cqw = 1% da largura w da vaga */
+    const montado = resto + R.alturaRadar(w - 34);                                          /* o radar montado: o quadro tem w - 34 */
+    assert.ok(Math.abs(reservado - montado) <= 0.5, w + ': reserva ' + reservado.toFixed(2) + ' x montado ' + montado.toFixed(2));
+  }
+});
