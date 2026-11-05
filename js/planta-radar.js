@@ -37,7 +37,7 @@
   var ALTURA_POR_100 = 77;      /* altura = 77% da largura, entre 240 e 320 px: o CSS repete estes números (aspect-ratio 100 / 77) */
   var ALTURA_MIN = 240, ALTURA_MAX = 320;
   var RAIO_EXTERNO = 0.85;      /* o anel de fora é o nível mais alto */
-  var MARGEM_TOPO = 22, MARGEM_BASE = 40, FOLGA_ROTULO = 8;
+  var MARGEM_TOPO = 22, MARGEM_BASE = 40, FOLGA_ROTULO = 8, ENCOSTO = 10;
   var COS = [0, 0, 0, 0, 0], SIN = [-1, 0, 0, 0, 0];   /* volume no topo, sentido horário; o topo é exato (sem 6e-17) */
   (function () { for (var i = 1; i < 5; i++) { var a = (-90 + 72 * i) * Math.PI / 180; COS[i] = Math.cos(a); SIN[i] = Math.sin(a); } })();
   var COS_LADO = COS[1], COS_BAIXO = COS[2], SEN_LADO = SIN[1], SEN_BAIXO = SIN[2];
@@ -67,7 +67,7 @@
   function alturaRadar(largura) { return Math.round(limitar(larguraUtil(largura) * ALTURA_POR_100 / 100, ALTURA_MIN, ALTURA_MAX)); }
 
   function geometria(largura) {
-    var l = larguraUtil(largura), h = alturaRadar(l), cx = l / 2, lado = limitar(Math.round(l * 0.22), 64, 92);
+    var l = larguraUtil(largura), h = alturaRadar(l), cx = l / 2, lado = limitar(Math.round(l * 0.22), 68, 92);
     var raioH = (cx - lado - FOLGA_ROTULO) / COS_LADO;
     var raioV = (h - MARGEM_TOPO - MARGEM_BASE) / (1 + SEN_BAIXO);   /* do topo ao fundo do pentágono: 1 + 0,809 raios */
     var raio = Math.floor(Math.min(raioH, raioV));
@@ -77,14 +77,15 @@
     var rotulos = [
       { ancora: 'cima', x: cx, y: cy - raio - FOLGA_ROTULO, max: Math.min(160, l - 4) },
       { ancora: 'direita', x: cx + xl + FOLGA_ROTULO, y: cy + SEN_LADO * raio, max: 0 },
-      { ancora: 'baixo', x: cx + xb, y: cy + yb + FOLGA_ROTULO, max: 0 },
-      { ancora: 'baixo', x: cx - xb, y: cy + yb + FOLGA_ROTULO, max: 0 },
+      { ancora: 'baixo-dir', x: cx + xb - ENCOSTO, y: cy + yb + FOLGA_ROTULO, max: 0 },
+      { ancora: 'baixo-esq', x: cx - xb + ENCOSTO, y: cy + yb + FOLGA_ROTULO, max: 0 },
       { ancora: 'esquerda', x: cx - xl - FOLGA_ROTULO, y: cy + SEN_LADO * raio, max: 0 }
     ];
-    var maxBaixo = Math.floor(Math.min(140, 2 * xb - 6, 2 * (cx - xb) - 2));
     rotulos[1].max = Math.floor(Math.min(120, l - rotulos[1].x - 2));
     rotulos[4].max = Math.floor(Math.min(120, rotulos[4].x - 2));
-    rotulos[2].max = rotulos[3].max = maxBaixo;
+    /* os de baixo crescem para fora (um para a direita, o outro para a esquerda): nunca se encontram, e há espaço até a borda */
+    rotulos[2].max = Math.floor(Math.min(140, l - rotulos[2].x - 2));
+    rotulos[3].max = Math.floor(Math.min(140, rotulos[3].x - 2));
     return {
       largura: l, altura: h, cx: cx, cy: cy, raio: raio,
       aneis: [0.15, 0.5, RAIO_EXTERNO].map(function (f) { return raio * f / RAIO_EXTERNO; }),
@@ -230,7 +231,7 @@
     if (!comMovimento()) { sairDoLaco(inst); inst.atual = meta.slice(); pintar(inst); return true; }
     if (!igual(meta, inst.atual)) {
       inst.anim = { inicio: agora(), de: inst.atual.slice(), para: meta };
-      if (!inst.noLaco) { inst.noLaco = true; raiz.BEYON.add(inst.nome, function (S) { passo(inst, S); }); }
+      if (!inst.noLaco) { inst.noLaco = true; raiz.BEYON.add(inst.nome, function (S) { passo(inst, S); }); if (typeof raiz.BEYON.iniciar === 'function') raiz.BEYON.iniciar(); }
     }
     /* a linha que mudou pisca (opacity, Web Animations API); na montagem o polígono que cresce já chama a atenção */
     if (!ehMontagem) for (i = 0; i < mudou.length; i++) {

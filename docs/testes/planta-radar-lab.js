@@ -7,7 +7,7 @@
   var params = new URLSearchParams(window.location.search);
   var vaga = document.querySelector('[data-radar]');
   var botoes = document.querySelector('[data-botoes]');
-  var estado = { pronto: false, trocou: false, leitura: null };
+  var estado = { pronto: false, trocou: false, leitura: null, montouEm: 0 };   /* montouEm: performance.now() do 1º desenho, para separar o CLS da página do CLS do radar */
   window.__radarLab = estado;
   var radar = null, leituras = {};
 
@@ -28,7 +28,7 @@
     var l = achar(nome), bs, i;
     if (!l) return;
     estado.leitura = nome;
-    if (!radar) radar = window.BZRadar.montar(vaga, l); else radar.atualizar(l);
+    if (!radar) { estado.montouEm = performance.now(); radar = window.BZRadar.montar(vaga, l); } else radar.atualizar(l);
     bs = botoes ? botoes.querySelectorAll('[data-leitura]') : [];
     for (i = 0; i < bs.length; i++) bs[i].setAttribute('aria-pressed', bs[i].getAttribute('data-leitura') === nome ? 'true' : 'false');
   }
@@ -42,7 +42,8 @@
     var atraso = +params.get('atraso') || 0, troca = +params.get('troca') || 1200;
     Promise.all(NOMES.map(carregar)).then(function () {
       if (botoes) {
-        botoes.hidden = false;
+        var bs = botoes.querySelectorAll('[data-leitura]'), k;
+        for (k = 0; k < bs.length; k++) bs[k].disabled = false;   /* os botões já ocupam o lugar no HTML: ligar não mexe no layout */
         botoes.addEventListener('click', function (e) {
           var alvo = e.target && e.target.closest ? e.target.closest('[data-leitura]') : null;
           if (alvo) mostrar(alvo.getAttribute('data-leitura'));

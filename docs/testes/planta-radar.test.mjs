@@ -83,12 +83,13 @@ test('geometria: caixa com a altura reservada, 5 vértices dentro dela, rótulos
       assert.ok(r.x >= 0 && r.x <= l && r.y >= 0 && r.y <= g.altura, l + ' âncora do rótulo ' + i);
       assert.ok(r.max >= 56, l + ' rótulo ' + i + ' tem ao menos 56 px: ' + r.max);
       /* o retângulo que o rótulo pode ocupar cabe na caixa */
-      const [x0, x1] = r.ancora === 'cima' || r.ancora === 'baixo' ? [r.x - r.max / 2, r.x + r.max / 2] : r.ancora === 'direita' ? [r.x, r.x + r.max] : [r.x - r.max, r.x];
+      const [x0, x1] = r.ancora === 'cima' ? [r.x - r.max / 2, r.x + r.max / 2] : r.ancora === 'direita' || r.ancora === 'baixo-dir' ? [r.x, r.x + r.max] : [r.x - r.max, r.x];
       assert.ok(x0 >= -0.5 && x1 <= l + 0.5, l + ' rótulo ' + i + ' [' + x0 + ',' + x1 + ']');
     }
     /* os dois de baixo não se sobrepõem */
     const [b1, b2] = [g.rotulos[2], g.rotulos[3]];
-    assert.ok(Math.abs(b1.x - b2.x) >= (b1.max + b2.max) / 2 - 0.5, l + ': rótulos de baixo se sobrepõem');
+    assert.equal(b1.ancora, 'baixo-dir'); assert.equal(b2.ancora, 'baixo-esq');
+    assert.ok(b2.x < b1.x, l + ': o de baixo à esquerda termina antes de o da direita começar');
     /* o de cima não invade os laterais */
     assert.ok(g.rotulos[0].y <= g.rotulos[1].y);
     /* os anéis são os três níveis */
@@ -328,6 +329,13 @@ test('a mesma leitura de novo não anima nem registra nada no laço', () => {
   const antes = b.adds.length;
   m.radar.atualizar(m.alvo, lerJson('clinica.json'));
   assert.equal(b.adds.length, antes);
+});
+
+test('com BEYON.iniciar disponível, o radar o chama ao entrar no laço (o laço do site só roda depois de iniciar)', () => {
+  const b = beyonDeMentira(false); let chamadas = 0; b.iniciar = () => { chamadas++; };
+  const m = montado(nivelTodos('nao_falou'), { beyon: b });
+  m.radar.atualizar(m.alvo, lerJson('clinica.json'));
+  assert.ok(chamadas >= 1);
 });
 
 test('a primeira leitura também cresce do mínimo (montar com BEYON registra o laço), e o texto já está inteiro antes do primeiro quadro', () => {

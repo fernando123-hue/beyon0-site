@@ -9,7 +9,7 @@
    ========================================================================== */
 /* medida que a vaga repete (custom property estática, não muda por quadro) */
 .plr, .plr-vaga {
-  --plr-linha: calc(3 * 1.35 * var(--fs-ctrl) + 12px);   /* eixo + nível, e até 2 linhas de evidência */
+  --plr-linha: calc(3 * 1.35 * var(--fs-ctrl) + 15px);   /* eixo + nível, e até 2 linhas de evidência (medido: 63,6 px no pior caso, 60 letras) */
 }
 .plr {
   box-sizing: border-box; width: 100%; max-width: 420px; padding: 16px;
@@ -29,9 +29,10 @@
 
 /* ---- rótulos fixos em volta (HTML, até 2 linhas, 11 px); o JS põe left/top/max-width, o CSS decide de que lado do ponto ---- */
 .plr-rots { position: absolute; inset: 0; margin: 0; pointer-events: none; }
-.plr-rot { position: absolute; width: max-content; font: 400 var(--fs-rotulo)/1.25 var(--sans); color: var(--t2); overflow-wrap: break-word; }
+.plr-rot { position: absolute; width: max-content; font: 400 var(--fs-rotulo)/1.25 var(--sans); color: var(--t2); }
 .plr-rot--cima { transform: translate(-50%, -100%); text-align: center; }
-.plr-rot--baixo { transform: translate(-50%, 0); text-align: center; }
+.plr-rot--baixo-dir { transform: translate(0, 0); text-align: left; }
+.plr-rot--baixo-esq { transform: translate(-100%, 0); text-align: right; }
 .plr-rot--direita { transform: translate(0, -50%); text-align: left; }
 .plr-rot--esquerda { transform: translate(-100%, -50%); text-align: right; }
 
@@ -49,10 +50,12 @@
 
 .plr-legenda { margin: 12px 0 0; min-height: calc(2 * 1.4em); font-size: var(--fs-ctrl); line-height: 1.4; color: var(--t3); }
 
-/* ---- a VAGA: o espaço do radar antes (e enquanto) o JS monta. Mesma altura do .plr montado, calculada só com a largura da vaga
-   (container query): quem tem coisa abaixo do radar na página põe a classe no contêiner e nada se mexe quando o radar chega. ---- */
-.plr-vaga {
-  container-type: inline-size; width: 100%; max-width: 420px;
-  --plr-resto: calc(34px + 1.3 * var(--fs-rotulo) + 12px + 15px + 5 * var(--plr-linha) + 12px + 2 * 1.4 * var(--fs-ctrl));
-  min-height: calc(var(--plr-resto) + clamp(240px, 77cqw - 26.18px, 320px));
+/* ---- a VAGA: o espaço do radar antes (e enquanto) o JS monta. O pseudo-elemento reserva a MESMA altura do .plr montado, só com a
+   largura da vaga (unidades de container query: cqw vale para filhos do contêiner, por isso é um ::before e não o min-height da
+   própria vaga). Quem tem coisa abaixo do radar na página põe a classe no contêiner e nada se mexe quando o radar chega; com o
+   radar montado (ou o <noscript> lido sem JS) a reserva sai e vale o tamanho natural. Sem suporte a :has(), a regra é ignorada. ---- */
+.plr-vaga { container-type: inline-size; width: 100%; max-width: 420px; }
+.plr-vaga:not(:has(.plr))::before {
+  content: ""; display: block;
+  height: calc(34px + 1.3 * var(--fs-rotulo) + 12px + 15px + 5 * var(--plr-linha) + 12px + 2 * 1.4 * var(--fs-ctrl) + clamp(240px, 77cqw - 26.18px, 320px));
 }

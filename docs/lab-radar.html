@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="robots" content="noindex" />
   <title>Laboratório do radar "Como lemos o seu caso"</title>
+  <link rel="preload" href="/assets/fonts/sora-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/assets/fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="/css/tokens.css" />
   <link rel="stylesheet" href="/css/orcamento-radar.css" />
   <link rel="stylesheet" href="/docs/testes/planta-radar-lab.css" />
@@ -25,11 +27,11 @@
       <p class="plrl-nota">Leituras de exemplo, montadas por código. É o que a pessoa contou, não uma nota do negócio dela.</p>
     </header>
 
-    <div class="plrl-botoes" data-botoes hidden role="group" aria-label="Exemplo de leitura">
-      <button type="button" class="plrl-btn" data-leitura="clinica" aria-pressed="true">Clínica odontológica</button>
-      <button type="button" class="plrl-btn" data-leitura="embalagens" aria-pressed="false">Indústria de embalagens</button>
-      <button type="button" class="plrl-btn" data-leitura="loja" aria-pressed="false">Loja de roupas</button>
-      <button type="button" class="plrl-btn" data-leitura="vazio" aria-pressed="false">Começo da conversa</button>
+    <div class="plrl-botoes" data-botoes role="group" aria-label="Exemplo de leitura">
+      <button type="button" class="plrl-btn" disabled data-leitura="clinica" aria-pressed="true">Clínica odontológica</button>
+      <button type="button" class="plrl-btn" disabled data-leitura="embalagens" aria-pressed="false">Indústria de embalagens</button>
+      <button type="button" class="plrl-btn" disabled data-leitura="loja" aria-pressed="false">Loja de roupas</button>
+      <button type="button" class="plrl-btn" disabled data-leitura="vazio" aria-pressed="false">Começo da conversa</button>
     </div>
 
     <div class="plr-vaga" data-radar>
