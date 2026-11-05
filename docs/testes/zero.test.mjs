@@ -803,8 +803,8 @@ test('painel: a rota de estado liga o filtro de nicho regulado (o nicho vale a s
 });
 
 test('passo seguinte do código: sem frase entre aspas para o modelo copiar nem o termo interno "direções" (achado do teste com o modelo real no staging, 03/11)', async () => {
-  const fonte = fs.readFileSync(new URL('../../api/_vendas/consultor.mjs', import.meta.url), 'utf8');
-  const ini = fonte.indexOf('export function proximoPasso');
+  const fonte = fs.readFileSync(new URL('../../api/_vendas/consultor.mjs', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const ini = fonte.indexOf('function proximoPassoBase');
   const corpo = fonte.slice(ini, fonte.indexOf('\n}\n', ini));
   assert.ok(corpo.length > 500, 'achou o corpo da função');
   assert.ok(!/direç(?:ão|ões)/.test(corpo), 'o passo seguinte fala em modelos, não em direções (o Zero repete o que lê)');
@@ -813,8 +813,8 @@ test('passo seguinte do código: sem frase entre aspas para o modelo copiar nem 
 });
 
 test('passo seguinte e prompt: o valor já dito não se repete nem se reestima sem mudança, e o Zero não finge conversa anterior (achados do teste com o modelo real, 03/11)', async () => {
-  const fonte = fs.readFileSync(new URL('../../api/_vendas/consultor.mjs', import.meta.url), 'utf8');
-  const ini = fonte.indexOf('export function proximoPasso');
+  const fonte = fs.readFileSync(new URL('../../api/_vendas/consultor.mjs', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const ini = fonte.indexOf('function proximoPassoBase');
   const corpo = fonte.slice(ini, fonte.indexOf('\n}\n', ini));
   assert.equal(corpo.split('O valor já foi dito: não o repita e não chame estimar de novo enquanto formato, páginas, extras (e as quantidades), urgência e complexidade não mudarem; se algum mudou, chame estimar e diga o que mudou e o novo valor').length - 1, 2, 'os dois passos depois da estimativa trazem a regra do valor já dito, com tudo que muda o preço e o que fazer quando muda');
   assert.ok(!/recado para a equipe/.test(corpo), 'o passo da etapa contato não manda o recado "para a equipe" (a regra 1 proíbe falar em equipe)');
