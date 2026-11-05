@@ -546,7 +546,7 @@ export const SABOTAGENS = [
     de: "ev.preventDefault(); ev.stopPropagation();", para: "return;" },
   /* ---- a planta viva (PR 2a): as travas de servidor ---- */
   { nome: "planta: o validador de texto aceita dígito", fonte: "api/_vendas/planta-textos.mjs", testes: ['docs/testes/planta-textos.test.mjs', 'docs/testes/planta-esquema.test.mjs'],
-    de: "if (DIGITO.test(t)) return { ok: false, motivo: 'digito' };", para: "" },
+    de: "if (DIGITO.test(t)) return { ok: false, motivo: 'digito' };", para: "if (false) return { ok: false, motivo: 'digito' };" },
   { nome: "planta: o plano do modelo é gravado sem validar", fonte: "api/_vendas/planta.mjs", testes: ['docs/testes/planta-ferramenta.test.mjs'],
     de: "const v = validarPlano(entrada, { nomeDoNegocio: ctx.nomeDoNegocio, regulado: ctx.regulado });", para: "const v = { ok: true, plano: entrada, motivos: [] };" },
   { nome: "planta: o estado deixa de apagar planta, leitura e planta_pedidos de conversa.briefing", fonte: "api/_vendas/fluxo.mjs", testes: ['docs/testes/planta-estado.test.mjs'],
@@ -554,11 +554,11 @@ export const SABOTAGENS = [
   { nome: "planta: uma das dez travas do Zero (o recado) deixa de rodar na camada de texto", fonte: "api/_vendas/planta-textos.mjs", testes: ['docs/testes/planta-textos.test.mjs'],
     de: "{ nome: 'recado', rodar: t => semPromessaDeRecado(t).texto },", para: "{ nome: 'recado', rodar: t => t }," },
   { nome: "planta: o corpo grande segue para a forma (o corte de antes da forma some)", fonte: "api/_vendas/planta-esquema.mjs", testes: ['docs/testes/planta-esquema.test.mjs'],
-    de: "if (corte) return falha(corte);", para: "" },
+    de: "if (corte) return falha(corte);", para: "if (false) return falha(corte);" },
   { nome: "planta: o gerador das direções lê a planta do briefing", fonte: "api/_vendas/gerador.mjs", testes: ['docs/testes/planta-geracao.test.mjs'],
     de: "export const briefingParaGeracao = b => (b && typeof b === 'object' && !Array.isArray(b) ? semChavesDaPlanta(b) : {});", para: "export const briefingParaGeracao = b => (b && typeof b === 'object' && !Array.isArray(b) ? b : {});" },
   { nome: "planta: o modelo desenha de novo no mesmo turno (o teto de um plano por turno some)", fonte: "api/_vendas/planta.mjs", testes: ['docs/testes/planta-ferramenta.test.mjs'],
-    de: "if (turno.gravou) return recusa('a planta já foi desenhada neste turno; uma por vez');", para: "" },
+    de: "if (turno.gravou) return recusa('a planta já foi desenhada neste turno; uma por vez');", para: "if (false) return recusa('a planta já foi desenhada neste turno; uma por vez');" },
   { nome: "planta: a 5ª versão é aceita (o teto de versões some)", fonte: "api/_vendas/planta.mjs", testes: ['docs/testes/planta-ferramenta.test.mjs'],
     de: "if (versao >= MAX_VERSOES) return recusa(", para: "if (false) return recusa(" },
 ];

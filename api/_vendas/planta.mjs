@@ -115,7 +115,7 @@ export function errosParaModelo(erros) {
   const lista = Array.isArray(erros) ? erros : [];
   return lista.slice(0, ERROS_AO_MODELO_MAX).map(e => {
     const codigo = e && typeof e.codigo === 'string' ? e.codigo : 'interno';
-    const regra = codigo.startsWith('trava_') ? 'tem promessa ou frase que o Zero não pode escrever' : (REGRA[codigo] || FORMA + ' (' + codigo.replace(/[^a-z_]/g, '').slice(0, 24) + ')');
+    const regra = codigo.startsWith('trava_') ? 'tem promessa ou frase que o Zero não pode escrever' : (Object.hasOwn(REGRA, codigo) ? REGRA[codigo] : FORMA);
     return lerCaminho(e && e.caminho) + ': ' + regra;
   });
 }
