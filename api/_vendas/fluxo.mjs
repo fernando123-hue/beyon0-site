@@ -37,6 +37,7 @@ import { criarAcoesDoLink } from './fluxo-link.mjs';
 import { criarAcoesDaPrevia } from './fluxo-previa.mjs';
 import { criarAcoesDoRecado } from './fluxo-recado.mjs';
 import { entregaLigada, FRASE_DESLIGADA } from '../_material/interruptor.mjs';
+import { plantaLigada, semChavesDaPlanta, montarPlanta, leituraParaTela } from './planta.mjs';
 
 import { ORG } from './org.mjs';
 export { ORG };
@@ -269,7 +270,7 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
   async function turno(vid, conversaId, est, regras, msg) {
     let r;
     try {
-      r = await executarTurno({ ia, direcoes: modo, metodos: pagamentos?.metodos, regras: regras.regras, conversa: { etapa: est.conversa.etapa, pedido_status: est.pedido?.status, briefing: est.conversa.briefing, mensagens: est.mensagens, estimativa: est.estimativa }, mensagem: msg });
+      r = await executarTurno({ ia, direcoes: modo, metodos: pagamentos?.metodos, planta: plantaLigada(env), regras: regras.regras, conversa: { etapa: est.conversa.etapa, pedido_status: est.pedido?.status, briefing: est.conversa.briefing, mensagens: est.mensagens, estimativa: est.estimativa }, mensagem: msg });
     } catch (e) {
       await somarCusto(conversaId, vid, e && e.custo_usd);   /* (as rodadas pagas antes da falha, de qualquer tipo de erro) */
       if (e instanceof ErroIA) await banco('vendas_registrar_evento', { conversa_id: conversaId, visitante_id: vid, tipo: 'ia_falhou', dados: { motivo: e.motivo } }).catch(() => {});
@@ -351,7 +352,15 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
       /* (PR 3b-2, M5) a entrega só aparece com o interruptor ligado; desligado, a tela mostra a saída pelo recado */
       if (!entregaLigada(env)) delete e.entrega;
       /* (peças da conversa, fatia 1) o painel é derivado do briefing, em esquema fechado, a cada leitura: nada novo no banco */
-      return { ...e, painel: montarPainel(e.conversa?.briefing, { regulado: !!nichoDaSessao({ briefing: e.conversa?.briefing, mensagens: e.mensagens }) }), fila_cheia: Number(naFila) >= limitesPedido.fila_confirmados, modo_direcoes: modo, entrega_ligada: entregaLigada(env) };   /* (a tela troca "alguns minutos" por "até 24 horas úteis") */
+      /* (planta viva, PR 2a) planta, leitura e planta_pedidos NUNCA saem de conversa.briefing (flag ligada ou não): plano gravado com a flag desligada não pode
+         aparecer na resposta. Com a flag ligada o estado devolve, ao lado do painel, a planta e a leitura REVALIDADAS (motivos e tentativas ficam no banco)
+         e planta_editavel (o preço ainda aberto). Sem nenhuma das chaves no briefing, o objeto é o mesmo de antes: a resposta é byte a byte a de hoje */
+      const briefingBruto = e.conversa?.briefing;
+      const briefingLimpo = semChavesDaPlanta(briefingBruto);
+      if (e.conversa && briefingLimpo !== briefingBruto) e.conversa = { ...e.conversa, briefing: briefingLimpo };
+      const planta = plantaLigada(env) ? ((regulado) => ({ planta: montarPlanta(briefingBruto, { regulado }), leitura: leituraParaTela(briefingBruto, { regulado }), planta_editavel: precoAberto(e.conversa?.etapa, e.pedido?.status) }))(!!nichoDaSessao({ briefing: e.conversa?.briefing, mensagens: e.mensagens })) : null;
+      return { ...e, painel: montarPainel(e.conversa?.briefing, { regulado: !!nichoDaSessao({ briefing: e.conversa?.briefing, mensagens: e.mensagens }) }), fila_cheia: Number(naFila) >= limitesPedido.fila_confirmados, modo_direcoes: modo, entrega_ligada: entregaLigada(env),
+        ...(planta ? { ...(planta.planta ? { planta: planta.planta } : {}), ...(planta.leitura ? { leitura: planta.leitura } : {}), planta_editavel: planta.planta_editavel } : {}) };   /* (a tela troca "alguns minutos" por "até 24 horas úteis") */
     },
 
     /* o catálogo público da tabela ativa (o "Quer ajustar?"): só com a sessão e a conversa deste visitante, antes do contato */
