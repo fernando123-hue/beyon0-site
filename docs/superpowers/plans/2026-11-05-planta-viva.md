@@ -212,9 +212,19 @@ Faixa e botões funcionando com o provedor simulado nas duas variantes da flag; 
 **Nível 2.** Ramo `planta-2d-front`, a partir do Passo 1 (**independe do 2b**). Revisão: `typescript-reviewer` + `a11y-architect`.
 
 - `js/planta-radar.js` (ES5; `window.BZRadar = { montar, atualizar, alturaRadar }`): pentágono, 3 anéis, 5 raios, polígono de 1,5 px com preenchimento chapado de 10%, rótulos em HTML, `<dl>` acessível com nível por extenso e evidência. **Interpolação de 450 ms pelo laço único `window.BEYON.add`** (sem `requestAnimationFrame` próprio); sem `BEYON` ou em movimento reduzido, salta. `alturaRadar(largura)` própria (300 em 390). Valida a forma pelo `BZPlantaForma`.
-- `css/orcamento-radar.css` (prefixo `plv-`), `docs/lab-radar.html`.
+- `css/orcamento-radar.css` (prefixo **`plr-`**; o `plv-` é só da planta, `css/orcamento-planta.css`), `docs/lab-radar.html` (o piloto e o CSS do laboratório ficam em `docs/testes/planta-radar-lab.js` e `.css`, porque o CSP não aceita script nem estilo embutido e a lista de arquivos do 2d-front só cobre `docs/testes/planta-radar*`).
 - **Testes primeiro** (`planta-radar.test.mjs`): 5 eixos exatos; níveis fechados; evidência por `textContent` (`<img onerror>` vira texto); nenhum número exibido; rótulos fixos; movimento reduzido sem `BEYON.add`; **nenhum `requestAnimationFrame` no arquivo**; `alturaRadar` constante por largura; ES5 e proibição de `innerHTML` (as varreduras de `planta-*.js` já cobrem este arquivo).
 - Verificação no laboratório: capturas 390/320/1.280 com 3 leituras diferentes (prova de que cada cliente tem o seu); polígono muda entre duas leituras; legenda "não é nota".
+
+### Decisões do 2d-front (medidas no laboratório; o que a 2d-ligação herda e decide)
+
+- **A lista `<dl>` fica sempre visível, com altura reservada para o pior caso** (5 linhas de 63,6 px: eixo + nível, mais até 2 linhas de evidência de 60 letras). O radar montado tem **~680 px no celular** (quadro de 243 a 300 px + título + lista + legenda). Escolhi reservar o pior caso a truncar a fala da pessoa, porque assim o CLS do radar é 0. **A 2d-ligação decide e mede**: ou reduz a reserva (por exemplo 2 linhas por eixo), ou recolhe a lista visualmente mantendo-a para o leitor de tela. Medir antes: o critério da spec §3.5 é o cartão de investimento continuar na área visível do painel em 1.280 x 800.
+- **`aria-live`**: o radar NÃO anuncia mudança. A região viva fica para a 2d-ligação, junto com a região viva do chat (uma só, para o leitor de tela não ouvir duas coisas ao mesmo tempo).
+- **A vaga** (`.plr-vaga`, `::before` com a mesma altura do radar montado, medida: diferença 0,0 px em 390, 320 e 1.280): some quando o `.plr` entra e **não volta** se a instância for desmontada. O que fazer quando a conversa não tem radar (esconder a vaga ou manter o espaço) **é decisão da 2d-ligação**: deixar a vaga vazia empurra o que vem abaixo; escondê-la e mostrar depois é um deslocamento.
+- **Ciclo de vida**: `BZRadar.montar` devolve uma instância (`atualizar`, `desmontar`); quem monta **deve chamar `desmontar()` ao trocar de tela ou desmontar o painel**: ela tira o radar do laço único (`BEYON.remove`) e desconecta o `ResizeObserver`. `montar` de novo no mesmo contêiner desmonta a instância antiga sozinho. Testes: `planta-radar.test.mjs` (desmontar no meio da animação).
+- O radar chama `BEYON.iniciar()` ao entrar no laço (idempotente; o laço do site só roda depois dele, e quem chama é `js/pagina.js`). Sem isso o polígono ficava parado no mínimo enquanto o texto já dizia "deixou claro".
+- No ouro (`html.is-ouro`) o radar fica dourado como todo ciano do site (usa `var(--ac)`); decisão do dono se isso é desejado.
+- Medidas: `js/planta-radar.js` 5,9 KB gzip -9 (teto 8 KB do radar dentro dos 20 KB do orçamento); CLS causado pelo radar ≤ 0,0003 em 390/320/1.280 (0 em 18 de 21 casos).
 
 ## PR 2d-ligação: o radar na conversa
 
@@ -235,7 +245,7 @@ Faixa e botões funcionando com o provedor simulado nas duas variantes da flag; 
 ## Objeções e correções à revisão (o que não foi aplicado como pedido)
 
 - **I10:** a 1ª medição desta sessão já incluía `semPrecoNoTexto` e `textoProibido` (estavam no script); o que faltava era só `semPromessaDePagamento`. Medi de novo com as dez: 0 falso positivo em 59 textos (53 + 6 do ajuste).
-- **M3:** o prefixo `pv-` já existe (`.pv-tela` em `css/orcamento.css`), então usei **`plv-`** (livre).
+- **M3:** o prefixo `pv-` já existe (`.pv-tela` em `css/orcamento.css`), então usei **`plv-`** (livre) **para a planta**; o radar usa **`plr-`** (livre também).
 - **B5:** com B3 (`planta` padrão `false`), `docs/zero/gerar.mjs` e as listas de ferramentas **não quebram**; mesmo assim o 2a atualiza o gerador, regenera `prompt-efetivo.txt` e acrescenta casos com `planta: true`.
 - **I12:** revi minha proposta de subir `MAX_ITERACOES` de 4 para 5: não sobe (o estouro cai no plano padrão), para não aumentar o pior caso contra os 90 s do navegador.
 - **I5:** `offset-path` não existe em lugar nenhum do site e `offset-distance` não é do compositor; o pulso de repouso usa keyframes de `translate` por segmento da polilinha.
