@@ -195,6 +195,30 @@ console.log('\n== "Está certo" com a conversa ocupada e com a rede caindo ==');
 }
 
 /* ---------- 320 px e a faixa à vista ---------- */
+/* ---------- enviar o formulário com a faixa à vista logo abaixo do botão (achado da medida do 2c-B) ---------- */
+console.log('\n== enviar o formulário com a faixa abaixo do botão ==');
+{
+  const { ctx, page, erros } = await abrir(ON);
+  await turno(page, T1);
+  await turno(page, 'planta-boa pode desenhar');
+  await page.waitForSelector('#o-planta:not([hidden]) .plv-quadro');
+  await page.fill('#o-d-negocio', 'Clínica Teste'); await page.fill('#o-d-vende', 'Consultas');
+  await page.fill('#o-tel', '(21) 9' + String(1000 + Math.floor(Math.random() * 9000)) + '-' + String(1000 + Math.floor(Math.random() * 9000))); await page.check('#o-aceite');
+  const botao = page.locator('#o-detalhes-form button[type=submit]');
+  await botao.scrollIntoViewIfNeeded(); await espera(400);
+  const visivel = await page.evaluate(() => { const q = document.getElementById('o-planta').getBoundingClientRect(); return Math.round(Math.min(innerHeight, q.bottom) - Math.max(0, q.top)); });
+  ok(visivel > 100, 'antes do envio a faixa está à vista logo abaixo do botão (' + visivel + ' px)');
+  await page.evaluate(() => { window.__ls2 = []; new PerformanceObserver((l) => l.getEntries().forEach((e) => window.__ls2.push([e.value, e.hadRecentInput, (e.sources || []).map((s) => s.node && (s.node.id || s.node.className)).join('+')]))).observe({ type: 'layout-shift', buffered: false }); });
+  await botao.click();
+  await page.waitForFunction(() => document.getElementById('o-planta').hidden, null, { timeout: 3000 }).then(() => ok(true, 'ao enviar, a faixa se recolhe na hora'), () => ok(false, 'ao enviar, a faixa se recolhe na hora'));
+  await espera(6000);
+  const cls = await page.evaluate(() => window.__ls2.filter((x) => !x[1] && /plv|o-planta/.test(x[2])).reduce((s, x) => s + x[0], 0));
+  ok(cls === 0, 'a troca do bloco de cima não desloca a faixa (CLS da planta ' + cls + ')');
+  ok(await page.locator('#o-planta .plv-quadro').count() === 1, 'a faixa segue montada (só estava recolhida), sem erro: ' + erros.join(' | '));
+  ok(erros.filter((e) => !/status of 503/.test(e)).length === 0, 'nenhum erro no console (o 503 da geração dos modelos, sem IA configurada no servidor local, é do servidor e não da página)');
+  await ctx.close();
+}
+
 console.log('\n== 320 px ==');
 {
   const { ctx, page, erros } = await abrir(ON, { larg: 320, alt: 640 });

@@ -802,3 +802,112 @@ test('2c-B: orcamento.html: a faixa é a ÚLTIMA seção do <main>, depois do fo
   assert.ok(resto.startsWith('</section>') && resto.slice('</section>'.length).trim() === '', 'nada entre a faixa e o fim do <main>: ' + resto.slice(0, 80));
   assert.equal(HTML.slice(HTML.lastIndexOf('<', i), HTML.indexOf('>', i) + 1).includes('hidden'), true);
 });
+
+
+/* ======================================================================================================================================================
+   2c-B, achado da medida do formulário: com a faixa à vista logo abaixo do botão "Quero os três modelos", enviar o formulário faz o servidor trocar o bloco de
+   cima (o formulário alto some, entram os modelos): a faixa pulou, CLS de 0,91 em 390 e 0,74 em 1.280 contra até 0,03 sem a faixa. A faixa se recolhe no envio
+   (a ação da pessoa: o navegador não conta o que muda logo depois) e volta, sem montar de novo, quando a posição dela fica fora da área visível ou num gesto.
+   ====================================================================================================================================================== */
+function comFormulario(opcoes) {
+  const amb = ambiente(opcoes);
+  const detalhes = amb.doc.createElement('form'); detalhes.attrs.id = 'o-detalhes-form'; amb.ids['o-detalhes-form'] = detalhes;
+  amb.contato.appendChild(detalhes);
+  amb.detalhes = detalhes;
+  return amb;
+}
+const enviarFormulario = (amb) => amb.detalhes.disparar('submit');
+
+test('envio do formulário com a faixa à vista logo abaixo do botão: ela se recolhe na hora, sem desmontar, e fica recolhida enquanto a posição dela está à vista', () => {
+  const amb = comFormulario({ baixo: true });
+  amb.contato.hidden = false; amb.contato.base = 2500;   /* a faixa nasce abaixo da dobra e entra */
+  const E = estado(); redesenharLista(amb, E);
+  amb.L.atualizar(E, amb.deps); prontos(amb);
+  assert.equal(amb.faixa.hidden, false);
+  amb.contato.base = 700; amb.mesa.base = 500;   /* o usuário rolou: o botão de enviar e a faixa logo abaixo estão na tela */
+  enviarFormulario(amb);
+  assert.equal(amb.faixa.hidden, true, 'recolhida no envio');
+  assert.equal(amb.espiao.parar, 0, 'não desmonta');
+  amb.L.atualizar(E, amb.deps); amb.L.atualizar(E, amb.deps);
+  assert.equal(amb.faixa.hidden, true, 'continua recolhida: o servidor trocou o bloco de cima e a posição dela segue à vista');
+  assert.equal(amb.espiao.atualizar.length, 0, 'e o desenho não é chamado enquanto ela está escondida (sem largura)');
+  assert.equal(amb.espiao.montar.length, 1);
+});
+
+test('recolhida: volta, sem montar de novo, quando o bloco de cima fica abaixo da tela (a posição dela fora da área visível)', () => {
+  const amb = comFormulario({ baixo: true });
+  amb.contato.hidden = false; amb.contato.base = 2500;
+  const E = estado(); redesenharLista(amb, E);
+  amb.L.atualizar(E, amb.deps); prontos(amb);
+  amb.contato.base = 700; amb.mesa.base = 500;
+  enviarFormulario(amb);
+  assert.equal(amb.faixa.hidden, true);
+  amb.contato.hidden = true; amb.mesa.base = 900;   /* o servidor trocou: o último bloco visível agora termina abaixo da tela */
+  const dir = amb.doc.createElement('section'); dir.getBoundingClientRect = () => ({ top: 900, bottom: 3000, height: 2100 }); amb.main.filhos.splice(amb.main.filhos.indexOf(amb.faixa), 0, dir); dir.pai = amb.main;
+  amb.L.atualizar(E, amb.deps);
+  assert.equal(amb.faixa.hidden, false, 'a posição dela ficou fora da área visível: volta');
+  assert.equal(amb.espiao.montar.length, 1, 'sem montar de novo');
+  assert.equal(amb.espiao.parar, 0);
+});
+
+test('recolhida: um gesto da pessoa a traz de volta mesmo com a posição à vista', () => {
+  const amb = comFormulario({ baixo: true });
+  amb.contato.hidden = false; amb.contato.base = 2500;
+  const E = estado(); redesenharLista(amb, E);
+  amb.L.atualizar(E, amb.deps); prontos(amb);
+  amb.contato.base = 700; amb.mesa.base = 500;
+  enviarFormulario(amb);
+  assert.equal(amb.faixa.hidden, true);
+  amb.doc.disparar('click');
+  assert.equal(amb.faixa.hidden, false);
+  assert.equal(amb.espiao.montar.length, 1);
+  amb.doc.disparar('click'); amb.doc.disparar('keydown');
+  assert.equal(Object.keys(amb.doc.ouvintes).filter((k) => amb.doc.ouvintes[k].length).length, 0, 'os ouvintes de gesto saem');
+});
+
+test('recolhida: tocar em "Ver a planta do seu site" mostra de novo e rola até ela', () => {
+  const amb = comFormulario({ baixo: true });
+  amb.contato.hidden = false; amb.contato.base = 2500;
+  const E = estado(); redesenharLista(amb, E);
+  amb.L.atualizar(E, amb.deps); prontos(amb);
+  amb.contato.base = 700; amb.mesa.base = 500;
+  enviarFormulario(amb);
+  botoes(amb)[0].disparar('click');
+  assert.equal(amb.faixa.hidden, false);
+  assert.deepEqual(amb.rolou, [amb.faixa]);
+  assert.equal(amb.espiao.montar.length, 1);
+});
+
+test('envio do formulário com a faixa fora da tela não deixa a faixa recolhida (nada a proteger); sem faixa montada não faz nada', () => {
+  const a = comFormulario({ baixo: true });
+  a.contato.hidden = false; a.contato.base = 2500;
+  const E = estado(); redesenharLista(a, E);
+  a.L.atualizar(E, a.deps); prontos(a);
+  enviarFormulario(a);
+  assert.equal(a.faixa.hidden, false, 'a posição dela segue abaixo da dobra: recolher e voltar na mesma tarefa');
+  const b = comFormulario({ baixo: false });   /* à vista: a faixa nem foi inserida */
+  redesenharLista(b, E);
+  b.L.atualizar(E, b.deps); prontos(b);
+  assert.doesNotThrow(() => enviarFormulario(b));
+  assert.equal(b.faixa.hidden, true);
+  assert.equal(b.espiao.montar.length, 0);
+});
+
+test('envio do formulário: a planta que some do estado enquanto recolhida sai de vez (sem ouvinte nem botão)', () => {
+  const amb = comFormulario({ baixo: true });
+  amb.contato.hidden = false; amb.contato.base = 2500;
+  const E = estado(); redesenharLista(amb, E);
+  amb.L.atualizar(E, amb.deps); prontos(amb);
+  amb.contato.base = 700; amb.mesa.base = 500;
+  enviarFormulario(amb);
+  amb.L.atualizar(estado({ planta: undefined }), amb.deps);
+  assert.equal(amb.faixa.hidden, true);
+  assert.equal(botoes(amb).length, 0);
+  assert.equal(amb.espiao.parar, 1);
+  assert.equal(Object.keys(amb.doc.ouvintes).filter((k) => amb.doc.ouvintes[k].length).length, 0);
+});
+
+test('2c-B (fonte): a ligação escuta o envio do formulário de contato (#o-detalhes-form) para recolher a faixa', () => {
+  assert.match(semComentarios, /\$\('o-detalhes-form'\)/);
+  assert.match(semComentarios, /addEventListener\('submit', aoEnviarFormulario\)/);
+});

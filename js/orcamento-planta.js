@@ -33,7 +33,7 @@
 
   function criar(win) {
     var doc = win.document;
-    var st = { carga: 'nao', versaoFalha: 0, pegos: {}, elementos: {}, E: null, deps: {}, versao: 0, json: '', assin: '', valido: false, recusas: 0, avisouModulos: false, naTela: false, pendente: false, gestos: false, botao: null, certoVersao: 0, timer: 0 };
+    var st = { carga: 'nao', versaoFalha: 0, pegos: {}, elementos: {}, E: null, deps: {}, versao: 0, json: '', assin: '', valido: false, recusas: 0, avisouModulos: false, naTela: false, recolhida: false, ouveForm: false, pendente: false, gestos: false, botao: null, certoVersao: 0, timer: 0 };
 
     var $ = function (id) { return doc.getElementById(id); };
     function aviso(e) {
@@ -108,9 +108,9 @@
       var faixa = $('o-planta');
       if (st.naTela && win.BZPlanta && win.BZPlanta.parar) { try { win.BZPlanta.parar(); } catch (e) { aviso(e); } }
       if (faixa) faixa.hidden = true;
-      st.naTela = false; st.pendente = false;
+      st.naTela = false; st.pendente = false; st.recolhida = false;
     }
-    /* a faixa é o último bloco do <main>: nasce onde termina o último bloco VISÍVEL antes dela (escondido ou sem altura não conta): a mesa enquanto #o-contato está escondido */
+    /* a faixa é o último bloco do <main>: nasce onde termina o último bloco visível antes dela (escondido ou sem altura não conta) */
     function referencia() {
       var faixa = $('o-planta'), el = faixa ? faixa.previousElementSibling : null;
       while (el) {
@@ -125,7 +125,12 @@
     }
     function inserir() {
       var E = st.E, p = leve(E), faixa = $('o-planta');
-      if (st.naTela) return true;
+      if (st.naTela && !st.recolhida) return true;
+      if (st.naTela) {   /* recolhida: volta já montada */
+        if (!faixa) return false;
+        faixa.hidden = false; st.recolhida = false; st.pendente = false; soltarGestos();
+        return true;
+      }
       if (!p || !faixa || !st.valido || !win.BZPlanta) return false;
       faixa.hidden = false;
       var r = null;
@@ -139,23 +144,24 @@
         return false;
       }
       st.naTela = true; st.pendente = false;
+      ouvirFormulario();
       st.assin = st.versao + '|' + p.origem + '|' + (E.planta_editavel === true) + '|' + st.json;
       soltarGestos();
       return true;
     }
     function tentar() {
-      if (st.naTela || !st.pendente) return;
+      if (!st.pendente || (st.naTela && !st.recolhida)) return;
       if (nasceFora()) inserir();
       else esperarGestos();
     }
-    function aoGesto() { if (st.pendente && !st.naTela) inserir(); }
+    function aoGesto() { if (st.pendente && (!st.naTela || st.recolhida)) inserir(); }
     function aoRolar() {
       if (st.timer) win.clearTimeout(st.timer);
-      st.timer = win.setTimeout(function () { st.timer = 0; try { if (st.pendente && nasceFora()) inserir(); } catch (e) { aviso(e); } }, ESPERA_ROLAGEM);
+      st.timer = win.setTimeout(function () { st.timer = 0; try { if (st.pendente && (!st.naTela || st.recolhida) && nasceFora()) inserir(); } catch (e) { aviso(e); } }, ESPERA_ROLAGEM);
     }
     function verAPlanta() {
       try {
-        if (!st.naTela && !inserir()) return;
+        if ((!st.naTela || st.recolhida) && !inserir()) return;
         var faixa = $('o-planta');
         if (typeof st.deps.rolarAte === 'function') st.deps.rolarAte(faixa);
         var titulo = faixa.querySelector('h2');
@@ -164,6 +170,18 @@
           titulo.focus({ preventScroll: true });
         }
       } catch (e) { aviso(e); }
+    }
+
+    /* Enviar o formulário troca o bloco acima da faixa (CLS 0,9 se ela estiver à vista): recolhe no envio, volta quando a posição dela sai da tela ou num gesto. */
+    function aoEnviarFormulario() {
+      var faixa = $('o-planta');
+      if (!st.naTela || st.recolhida || !faixa) return;
+      faixa.hidden = true; st.recolhida = true; st.pendente = true;
+      tentar();
+    }
+    function ouvirFormulario() {
+      var form = $('o-detalhes-form');
+      if (form && !st.ouveForm) { st.ouveForm = true; form.addEventListener('submit', aoEnviarFormulario); }
     }
 
     /* ---- os botões da faixa ---- */
@@ -185,7 +203,7 @@
       var t = $('o-texto'), form = $('o-form');
       if (!t) return;
       t.placeholder = DICA_AJUSTE;
-      /* a faixa fica longe da conversa: volta pela rolagem de "Perguntar ao consultor" e foca sem rolar de novo */
+      /* a faixa fica longe da conversa: rola como "Perguntar ao consultor" e foca sem rolar de novo */
       if (form && typeof form.scrollIntoView === 'function') form.scrollIntoView({ block: 'center' });
       t.focus({ preventScroll: true });
     }
@@ -255,6 +273,7 @@
       st.versao = p.versao;
       colocarBotao(E, p);
       if (st.naTela) {
+        if (st.recolhida) { st.pendente = true; tentar(); return; }
         var assin = p.versao + '|' + p.origem + '|' + (E.planta_editavel === true) + '|' + json;
         if (assin === st.assin) return;   /* nada mudou para o desenho: não o chama de novo a cada leitura do estado */
         st.assin = assin;
