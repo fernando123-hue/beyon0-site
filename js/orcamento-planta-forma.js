@@ -69,22 +69,25 @@
   /* O que nunca entra num texto da planta (a forma RECUSA; quem normaliza e limpa é o servidor, PR 2a):
        - "<" e ">" e os dois equivalentes que o NFKC leva a eles (largura total U+FF1C/FF1E e versão pequena U+FE64/FE65);
        - controles C0 e C1 (quebra de linha e tabulação incluídas), separadores de linha e parágrafo;
-       - os que não se veem (a lista de api/_vendas/promessa.mjs, INVISIVEIS): soft hyphen, marca de direção, espaços de largura zero,
-         isolados bidirecionais, BOM, e os "preenchimentos" que parecem vazios dentro de uma palavra: U+034F, U+115F/1160, U+17B4/17B5,
-         seletores de variação U+FE00 a U+FE0F, U+3164, U+FFA0, o braille em branco U+2800 e os caracteres de etiqueta U+E0000 a U+E007F;
+       - os que não se veem: TODA a propriedade Unicode Default_Ignorable_Code_Point (soft hyphen, marca de direção, espaços de largura zero,
+         isolados bidirecionais, BOM, U+034F, U+115F/1160, U+17B4/17B5, seletores de variação U+180B a 180F, FE00 a FE0F e E0100 a E01EF,
+         U+3164, U+FFA0, U+FFF0 a FFF8, U+1BCA0 a 1BCA3, os de formatação musical U+1D173 a 1D17A e as etiquetas U+E0000 a E0FFF), mais o
+         braille em branco U+2800, que não está na propriedade mas é um vazio visual. A lista de api/_vendas/promessa.mjs (INVISIVEIS) é
+         incompleta e NÃO é a referência: o teste percorre todos os code points com \p{Default_Ignorable_Code_Point};
        - substituto UTF-16 solto (sem par).
      Espaço sem quebra, acentos e um par substituto válido (emoji) passam: a camada de texto do servidor decide o que fazer com eles.
      Tudo por código numérico: o arquivo não carrega caractere invisível nenhum, e a expressão sai sem a opção "u" (ES5). */
   var CARACTERE_PROIBIDO_G = (function () {
     var faixas = [[0x3c, 0x3c], [0x3e, 0x3e], [0xff1c, 0xff1c], [0xff1e, 0xff1e], [0xfe64, 0xfe65], [0x00, 0x1f], [0x7f, 0x9f], [0xad, 0xad],
-      [0x34f, 0x34f], [0x61c, 0x61c], [0x115f, 0x1160], [0x17b4, 0x17b5], [0x180e, 0x180e], [0x200b, 0x200f], [0x2028, 0x202e], [0x2060, 0x206f],
-      [0x2800, 0x2800], [0x3164, 0x3164], [0xfe00, 0xfe0f], [0xfeff, 0xfeff], [0xffa0, 0xffa0], [0xfff9, 0xfffb]];
+      [0x34f, 0x34f], [0x61c, 0x61c], [0x115f, 0x1160], [0x17b4, 0x17b5], [0x180b, 0x180f], [0x200b, 0x200f], [0x2028, 0x202e], [0x2060, 0x206f],
+      [0x2800, 0x2800], [0x3164, 0x3164], [0xfe00, 0xfe0f], [0xfeff, 0xfeff], [0xffa0, 0xffa0], [0xfff0, 0xfffb]];
     var cod = function (n) { var h = n.toString(16); while (h.length < 4) h = '0' + h; return String.fromCharCode(92, 117) + h; };   /* barra, "u" e 4 dígitos */
     var faixa = function (a, b) { return a === b ? cod(a) : cod(a) + '-' + cod(b); };
     var corpo = '', i;
     for (i = 0; i < faixas.length; i++) corpo += faixa(faixas[i][0], faixas[i][1]);
     var alto = '[' + faixa(0xd800, 0xdbff) + ']', baixo = '[' + faixa(0xdc00, 0xdfff) + ']';
-    var etiqueta = cod(0xdb40) + '[' + faixa(0xdc00, 0xdc7f) + ']';                          /* U+E0000 a U+E007F em UTF-16 */
+    /* os de fora do BMP, em UTF-16 (substituto alto + baixo): U+E0000 a U+E0FFF (etiquetas e seletores de variação), U+1BCA0 a 1BCA3 e U+1D173 a 1D17A */
+    var etiqueta = '[' + faixa(0xdb40, 0xdb43) + '][' + faixa(0xdc00, 0xdfff) + ']|' + cod(0xd82f) + '[' + faixa(0xdca0, 0xdca3) + ']|' + cod(0xd834) + '[' + faixa(0xdd73, 0xdd7a) + ']';
     var altoSolto = alto + '(?!' + baixo + ')';                                              /* substituto alto sem o baixo logo depois */
     var baixoSolto = '(?:^|[^' + faixa(0xd800, 0xdbff) + '])' + baixo;                       /* substituto baixo sem o alto logo antes */
     return new RegExp('[' + corpo + ']|' + etiqueta + '|' + altoSolto + '|' + baixoSolto, 'g');
@@ -92,14 +95,18 @@
   var CARACTERE_PROIBIDO = new RegExp(CARACTERE_PROIBIDO_G.source);
   var proibido = function (v) {
     if (CARACTERE_PROIBIDO.test(v)) return true;
-    /* e o texto já normalizado em NFKC (onde houver String.prototype.normalize): o que vira "<" ou ">" depois da normalização também é recusado */
+    /* DEFESA EM PROFUNDIDADE (a lista acima já cobre os únicos equivalentes de "<" e ">" do NFKC): o texto já normalizado em NFKC, onde houver
+       String.prototype.normalize, também não pode ter nada proibido. Se o normalize lançar, a forma FALHA FECHADO: recusa o texto. */
     if (typeof v.normalize === 'function') {
-      try { return CARACTERE_PROIBIDO.test(v.normalize('NFKC')); } catch (e) { return false; }
+      try { return CARACTERE_PROIBIDO.test(v.normalize('NFKC')); } catch (e) { return true; }
     }
     return false;
   };
-  /* o nome de uma chave só entra num caminho de erro se for curto e simples; senão "?" (nunca texto livre do visitante) */
-  var NOME_DE_CHAVE = /^[A-Za-z0-9_$-]{1,32}$/;
+  /* o nome de uma chave (que vem do modelo ou do visitante) só entra num caminho de erro se começar por letra, tiver até 24 caracteres
+     [A-Za-z0-9_$-] e nenhuma sequência de 4 ou mais dígitos (nada que pareça telefone ou documento, nem frase de instrução); senão "?".
+     As chaves de protótipo, que são uma lista fixa nossa, entram pelo nome. */
+  var NOME_DE_CHAVE = /^[A-Za-z][A-Za-z0-9_$-]{0,23}$/;
+  var SEQUENCIA_DE_DIGITOS = /[0-9]{4}/;
 
   var tem = function (o, k) { return Object.prototype.hasOwnProperty.call(o, k); };
   var ehObjeto = function (v) { return v !== null && typeof v === 'object' && !Array.isArray(v); };
@@ -144,8 +151,8 @@
     return { ok: false, motivos: [codigo], erros: [{ caminho: '', codigo: codigo }] };
   }
 
-  function caminhoDaChave(caminho, chave) {
-    var nome = NOME_DE_CHAVE.test(chave) ? chave : '?';
+  function caminhoDaChave(caminho, chave, fixa) {
+    var nome = fixa || (NOME_DE_CHAVE.test(chave) && !SEQUENCIA_DE_DIGITOS.test(chave)) ? chave : '?';
     return caminho ? caminho + '.' + nome : nome;
   }
 
@@ -153,7 +160,7 @@
   function conferirChaves(obj, permitidas, obrigatorias, caminho, c) {
     var chaves = Object.keys(obj), i;
     for (i = 0; i < chaves.length; i++) {
-      if (CHAVES_DE_PROTOTIPO.indexOf(chaves[i]) >= 0) c.add(caminhoDaChave(caminho, chaves[i]), 'chave_proibida');
+      if (CHAVES_DE_PROTOTIPO.indexOf(chaves[i]) >= 0) c.add(caminhoDaChave(caminho, chaves[i], true), 'chave_proibida');
       else if (permitidas.indexOf(chaves[i]) < 0) c.add(caminhoDaChave(caminho, chaves[i]), 'chave_extra');
     }
     for (i = 0; i < obrigatorias.length; i++) {

@@ -10,7 +10,11 @@ import F from '../../js/orcamento-planta-forma.js';
 
 const ARQ = new URL('../../js/orcamento-planta-forma.js', import.meta.url);
 const fonte = fs.readFileSync(ARQ, 'utf8');
-const lerJson = (rel) => JSON.parse(fs.readFileSync(new URL('./fixtures/' + rel, import.meta.url), 'utf8'));
+const textos = new Map();
+const lerJson = (rel) => {
+  if (!textos.has(rel)) textos.set(rel, fs.readFileSync(new URL('./fixtures/' + rel, import.meta.url), 'utf8'));
+  return JSON.parse(textos.get(rel));
+};
 const lista = (pasta) => fs.readdirSync(new URL('./fixtures/' + pasta, import.meta.url)).filter((n) => n.endsWith('.json')).sort();
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const NICHOS = ['clinica', 'embalagens', 'loja'];
@@ -203,7 +207,7 @@ test('S1: sem String.prototype.normalize (navegador antigo) a forma não lança 
   assert.equal(G.validarFormaPlano(fx('loja')).ok, true);
 });
 
-test('S2: os invisíveis e "preenchimentos" da lista de promessa.mjs, mais os de etiqueta (fora do BMP), são recusados; o que está ao lado deles passa', () => {
+test('S2: os invisíveis e "preenchimentos" (os de promessa.mjs, que é incompleta, mais os de etiqueta fora do BMP) são recusados; o que está ao lado deles passa', () => {
   const invisiveis = [0xad, 0x34f, 0x61c, 0x115f, 0x1160, 0x17b4, 0x17b5, 0x180e, 0x200b, 0x200c, 0x200d, 0x200e, 0x200f, 0x202a, 0x202b, 0x202c, 0x202d, 0x202e,
     0x2060, 0x2061, 0x2062, 0x2063, 0x2064, 0x2066, 0x2067, 0x2068, 0x2069, 0x206a, 0x206f, 0x2800, 0x3164, 0xfe00, 0xfe08, 0xfe0f, 0xfeff, 0xffa0, 0xfff9, 0xfffa, 0xfffb];
   for (const c of invisiveis) assert.deepEqual(tit(dentro(c)).motivos, ['caractere'], 'U+' + c.toString(16));
@@ -211,7 +215,74 @@ test('S2: os invisíveis e "preenchimentos" da lista de promessa.mjs, mais os de
   /* vizinhos que passam: logo antes e depois dos blocos, o emoji, a etiqueta fora do bloco e o espaço sem quebra */
   for (const c of [0xac, 0xae, 0x34e, 0x350, 0x61b, 0x61d, 0xfdff, 0xfe10, 0xfe1f, 0x3163, 0x3165, 0xffa1, 0xfffc]) assert.equal(tit(dentro(c)).ok, true, 'U+' + c.toString(16));
   assert.equal(tit('Página ' + cp(0xd83d) + cp(0xde00) + ' ok').ok, true, 'um emoji (par válido) passa na forma: quem o barra é a camada de texto');
-  assert.equal(tit('Página' + cp(0xdb40) + cp(0xdc80) + 'forte').ok, true, 'U+E0080 já está fora do bloco de etiquetas');
+  assert.equal(tit('Página' + cp(0xdb44) + cp(0xdc00) + 'forte').ok, true, 'U+E1000 já está fora do bloco E0000-E0FFF');
+});
+
+test('M2: TODO code point com a propriedade Default_Ignorable_Code_Point é recusado (título de 3 repetições); nenhuma exceção deliberada', () => {
+  /* (só o TESTE usa \p{...} e a opção u; o módulo continua ES5, com os blocos escritos por código numérico) */
+  const dicp = /^\p{Default_Ignorable_Code_Point}$/u;
+  const excecoes = new Map();   /* code point -> motivo da exceção deliberada. Hoje vazio: ninguém foi deixado passar de propósito. */
+  const furos = [];
+  let total = 0;
+  for (let c = 0; c <= 0x10ffff; c++) {
+    if (c >= 0xd800 && c <= 0xdfff) continue;   /* substituto: tratado à parte (S4) */
+    const ch = String.fromCodePoint(c);
+    if (!dicp.test(ch)) continue;
+    total++;
+    if (excecoes.has(c)) continue;
+    if (!tit(ch.repeat(3)).motivos.includes('caractere')) furos.push('U+' + c.toString(16).toUpperCase());
+  }
+  assert.deepEqual(furos, [], 'passam sem ser recusados: ' + furos.slice(0, 40).join(' '));
+  assert.ok(total > 4000, 'a propriedade tem milhares de code points (veio ' + total + ')');
+  assert.equal(excecoes.size, 0);
+});
+
+test('M2: o outro lado, sem exagero: nenhuma letra, número, pontuação ou espaço comum de nenhum alfabeto é recusado só por estar numa faixa de invisíveis', () => {
+  const comum = /^[\p{L}\p{N}\p{P}\p{Zs}]$/u, dicp = /^\p{Default_Ignorable_Code_Point}$/u;
+  const candidatos = [];
+  for (let c = 0x20; c <= 0x10ffff; c++) {
+    if (c >= 0xd800 && c <= 0xdfff) continue;
+    const ch = String.fromCodePoint(c);
+    if (!comum.test(ch) || dicp.test(ch)) continue;
+    if (ch === '<' || ch === '>' || c === 0xff1c || c === 0xff1e || c === 0xfe64 || c === 0xfe65) continue;   /* os menor/maior, de propósito */
+    candidatos.push(ch);
+  }
+  assert.ok(candidatos.length > 100000, 'milhares de caracteres comuns (veio ' + candidatos.length + ')');
+  /* em lotes que cabem num título (40 unidades UTF-16); se o lote for recusado, descobre qual caractere foi */
+  const recusa = (texto) => tit(texto).motivos.includes('caractere');
+  const recusadas = [];
+  let lote = [], tamanho = 0;
+  const fechar = () => {
+    if (lote.length && recusa(lote.join(''))) for (const ch of lote) if (recusa('Aa' + ch + 'Bb')) recusadas.push('U+' + ch.codePointAt(0).toString(16).toUpperCase());
+    lote = []; tamanho = 0;
+  };
+  for (const ch of candidatos) {
+    if (tamanho + ch.length > 38) fechar();
+    lote.push(ch); tamanho += ch.length;
+  }
+  fechar();
+  assert.deepEqual(recusadas, [], 'recusadas por engano: ' + recusadas.slice(0, 40).join(' '));
+});
+
+test('M2: os blocos que faltavam, um por um (seletores de variação U+180B a 180D e 180F, U+FFF0 a FFF8, o separador de Adlam e os de música, as etiquetas até U+E0FFF)', () => {
+  const chs = [0x180b, 0x180c, 0x180d, 0x180f, 0xfff0, 0xfff4, 0xfff8, 0x1bca0, 0x1bca3, 0x1d173, 0x1d17a, 0xe0000, 0xe0001, 0xe0020, 0xe007f, 0xe0100, 0xe01ef, 0xe0800, 0xe0fff];
+  for (const c of chs) assert.deepEqual(tit('Página' + String.fromCodePoint(c) + 'forte').motivos, ['caractere'], 'U+' + c.toString(16));
+  /* e o que está ao lado dos blocos continua passando */
+  for (const c of [0x180a, 0x1810, 0xffef, 0xfffc, 0x1bc9f, 0x1bca4, 0x1d172, 0x1d17b, 0xdffff, 0xe1000, 0x10ffff]) {
+    if (c === 0x10ffff) continue;   /* (não é caractere de verdade) */
+    assert.equal(tit('Página' + String.fromCodePoint(c) + 'forte').ok, true, 'U+' + c.toString(16));
+  }
+});
+
+test('item 3: se o normalize lançar, a forma falha FECHADO (recusa o texto); o ramo do NFKC é defesa em profundidade', () => {
+  const janela = {};
+  vm.runInNewContext('String.prototype.normalize = function () { throw new RangeError("boom"); };\n' + fonte, { window: janela });
+  const G = janela.BZPlantaForma;
+  assert.doesNotThrow(() => G.validarFormaPlano(fx('clinica')));
+  const r = G.validarFormaPlano(fx('clinica'));
+  assert.equal(r.ok, false);
+  assert.ok([...r.motivos].includes('caractere'));
+  /* sem normalize nenhum, o texto limpo continua passando (testado em S1) */
 });
 
 test('S2: o mínimo de comprimento só conta depois de descartar espaços E invisíveis (preenchimento sozinho não vale como texto)', () => {
@@ -455,15 +526,17 @@ test('chaves: as que o esquema não conhece, em qualquer nível, são recusadas;
   assert.ok(codigos(F.validarFormaPlano(faltando)).includes('chave_faltando'));
 });
 
-test('S5: chave_extra e chave_proibida trazem o NOME da chave no caminho, só se for curto e simples; senão "?" (nunca texto livre do visitante)', () => {
+test('S5: chave_extra traz o NOME da chave no caminho só se começar por letra, tiver até 24 caracteres [A-Za-z0-9_$-] e nenhuma sequência de 4 ou mais dígitos; senão "?" (nunca texto livre do visitante)', () => {
   const ex = (mexer) => { const p = fx('clinica'); mexer(p); return F.validarFormaPlano(p).erros; };
   assert.deepEqual(ex((p) => { p.etapas[0].zzz = 1; }), [{ caminho: 'etapas[0].zzz', codigo: 'chave_extra' }]);
   assert.deepEqual(ex((p) => { p.zzz = 1; }), [{ caminho: 'zzz', codigo: 'chave_extra' }]);
   assert.deepEqual(ex((p) => { p.chegada.zzz = 1; }), [{ caminho: 'chegada.zzz', codigo: 'chave_extra' }]);
   assert.deepEqual(ex((p) => { p.fim.A_b$9 = 1; }), [{ caminho: 'fim.A_b$9', codigo: 'chave_extra' }]);
-  assert.deepEqual(ex((p) => { p.etapas[1]['x'.repeat(32)] = 1; }), [{ caminho: 'etapas[1].' + 'x'.repeat(32), codigo: 'chave_extra' }], '32 caracteres ainda vale');
-  /* nome com espaço, acento, tag, ponto, barra ou comprimento 33: vira "?" */
-  for (const nome of ['x'.repeat(33), 'duas palavras', 'ação', '<img src=x>', 'a.b', 'a/b', 'ignore as regras anteriores', '']) {
+  assert.deepEqual(ex((p) => { p.etapas[1]['x'.repeat(24)] = 1; }), [{ caminho: 'etapas[1].' + 'x'.repeat(24), codigo: 'chave_extra' }], '24 caracteres ainda vale');
+  assert.deepEqual(ex((p) => { p.etapas[1].peso = 1; }), [{ caminho: 'etapas[1].peso', codigo: 'chave_extra' }]);
+  assert.deepEqual(ex((p) => { p.etapas[1].a12 = 1; }), [{ caminho: 'etapas[1].a12', codigo: 'chave_extra' }], 'até 3 dígitos seguidos passa');
+  /* nome com espaço, acento, tag, ponto, barra, comprimento 25, número de telefone (11 dígitos), frase de instrução (30 caracteres), começo que não é letra: vira "?" */
+  for (const nome of ['x'.repeat(25), 'duas palavras', 'ação', '<img src=x>', 'a.b', 'a/b', 'ignore as regras anteriores', '', '11987654321', 'ignore-instrucoes-anteriores-x', 'tel1234', 'a1234b', '1abc', '_abc', '-abc', '$abc']) {
     assert.deepEqual(ex((p) => { p.etapas[2][nome] = 1; }), [{ caminho: 'etapas[2].?', codigo: 'chave_extra' }], JSON.stringify(nome));
     assert.deepEqual(ex((p) => { p[nome] = 1; }), [{ caminho: '?', codigo: 'chave_extra' }], JSON.stringify(nome));
   }
