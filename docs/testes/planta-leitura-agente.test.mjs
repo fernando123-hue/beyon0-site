@@ -302,3 +302,17 @@ test('custo: o turno com a leitura (a 1ª rodada fala 350 tokens a mais) cabe na
   assert.ok(comTudo < hoje * 1.4, 'o radar + planta encarecem mais de 40%: ' + (comTudo / hoje).toFixed(2));
   assert.ok(PAPEIS.conversa.max_tokens >= 4000);
 });
+
+/* ---------- o que o servidor registra para medir (a rodada real 8 mede por aqui: só códigos, nunca texto de ninguém) ---------- */
+test('executarTurno devolve leitura_rebaixos (eixo, de, para, motivo) do que o validador desceu; sem leitura, lista vazia', async () => {
+  const entrada = leitura({
+    volume: { nivel: 'deixou_claro', evidencia: 'recebo pedidos o dia inteiro' },     /* ninguém disse */
+    informacao: { nivel: 'comentou', evidencia: 'a recepção anota num caderno' }      /* ancorada */
+  });
+  const ia = roteiro(resp([chamada('ler_caso', entrada)]), resp([], 'Entendi.'));
+  const r = await turno(ia);
+  assert.deepEqual(r.leitura_rebaixos, [{ eixo: 'volume', de: 'deixou_claro', para: 'comentou', motivo: 'sem_ancora' }]);
+  const sem = await turno(roteiro(resp([], 'Ok.')));
+  assert.deepEqual(sem.leitura_rebaixos, []);
+  assert.ok(!JSON.stringify(r.leitura_rebaixos).includes('dia inteiro'), 'sem o texto do modelo');
+});

@@ -288,6 +288,10 @@ export function criarFluxo({ banco, ia: iaBase, visitantes, pagamentos, segredoF
     if (!soDuvidas && gravada && Number(gravada.versao) > (Number(est.conversa.briefing && est.conversa.briefing.planta && est.conversa.briefing.planta.versao) || 0)) {
       console.log(JSON.stringify({ origem: 'vendas', nivel: 'info', request_id: requestId || null, evento: 'planta', planta_origem: gravada.origem, versao: gravada.versao, tentativas: gravada.tentativas, motivos: gravada.motivos }));
     }
+    /* (radar) o que o validador desceu na leitura deste turno: só códigos (eixo, nível de e para, motivo), nunca texto de ninguém; a rodada real mede por aqui quanto o modelo infla */
+    if (!soDuvidas && r.leitura_rebaixos && r.leitura_rebaixos.length) {
+      console.log(JSON.stringify({ origem: 'vendas', nivel: 'info', request_id: requestId || null, evento: 'leitura', rebaixos: r.leitura_rebaixos.map(x => [x.eixo, x.de, x.para, x.motivo]) }));
+    }
     /* a estimativa e o formulário só até a confirmação do pedido (ETAPAS_COM_PRECO, e pedido ainda não confirmado: a
        conversa volta a "contato" com o pedido confirmado se as três direções falham): o agente já não os devolve depois,
        e o banco recusa a estimativa (55000); esta é a camada do meio, para o estado que o turno leu no começo */

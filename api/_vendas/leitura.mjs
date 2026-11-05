@@ -149,14 +149,14 @@ export function errosDaLeituraParaModelo(erros) {
 export const turnoDaLeituraInicial = () => Object.freeze({ falhas: 0, gravou: false });
 
 /* Um pedido do modelo para ler o caso. Devolve { saida (para o modelo), briefing, turno }, sem mutar nada.
-   ctx: { mensagensDoVisitante, regulado } */
+   ctx: { mensagensDoVisitante, regulado }. Aceita: também devolve `rebaixados` (eixo, de, para, motivo: só códigos), para o log e a medida da rodada real */
 export function resolverLeitura({ entrada, briefing, turno, ctx }) {
   const recusa = (motivo, extra = {}) => ({ saida: { ok: false, motivo, ...extra }, briefing, turno });
   try {
     if (turno.gravou) return recusa('a leitura já foi feita neste turno; uma por turno');
     if (turno.falhas >= 2) return recusa('já foram duas tentativas neste turno; a leitura que estava na tela continua');
     const v = validarLeitura(entrada, { mensagensDoVisitante: ctx && ctx.mensagensDoVisitante, regulado: ctx && ctx.regulado, anterior: briefing && briefing.leitura });
-    if (v.ok) return { saida: { ok: true, no_painel: true }, briefing: { ...briefing, leitura: v.leitura }, turno: { ...turno, gravou: true } };
+    if (v.ok) return { saida: { ok: true, no_painel: true }, briefing: { ...briefing, leitura: v.leitura }, turno: { ...turno, gravou: true }, rebaixados: v.rebaixados };
     const t = { ...turno, falhas: turno.falhas + 1 };
     if (t.falhas === 1) return { saida: { ok: false, erros: errosDaLeituraParaModelo(v.erros) }, briefing, turno: t };
     return { saida: { ok: false, mantida: true, motivo: 'a leitura anterior continua na tela; não chame de novo neste turno' }, briefing, turno: t };

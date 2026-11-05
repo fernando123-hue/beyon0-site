@@ -133,3 +133,21 @@ test('a leitura vai ao banco só pelo servidor: o visitante não a escreve pelo 
   assert.equal(e.leitura, undefined);
   assert.equal(e.conversa.briefing.leitura, undefined);
 });
+
+test('o log do Worker: a leitura que o validador desceu deixa UMA linha com os códigos (eixo, de, para, motivo) e nada do texto; leitura que passa inteira não loga', async () => {
+  const linhas = [];
+  const original = console.log;
+  console.log = (...a) => { linhas.push(a.join(' ')); };
+  try {
+    const n = navegador();
+    const c = await n.iniciar();
+    await n.mensagem(LIGADA, c, 'Tenho uma clínica de odontologia e quero agendamentos. leitura-forjada');
+    const n2 = navegador();
+    const c2 = await n2.iniciar();
+    await n2.mensagem(LIGADA, c2, 'Tenho uma clínica de odontologia e tem muita procura. leitura-sim');
+  } finally { console.log = original; }
+  const eventos = linhas.filter((l) => l.startsWith('{') && JSON.parse(l).evento === 'leitura').map((l) => JSON.parse(l));
+  assert.equal(eventos.length, 1);
+  assert.deepEqual(eventos[0].rebaixos, [['volume', 'deixou_claro', 'comentou', 'sem_ancora']]);
+  assert.ok(!JSON.stringify(eventos[0]).includes('dia inteiro'));
+});

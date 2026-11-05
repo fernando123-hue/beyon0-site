@@ -114,7 +114,7 @@ export async function executarTurno({ ia, regras, conversa, mensagem, direcoes, 
   const contexto = estadoParaModelo({ briefing, estimativa: conversa.estimativa, etapa: conversa.etapa, regras, metodos, regulado: nicho, pediuItemProibido: pediuAgora, jaDitoNaConversa: jaDito(conversa.mensagens), planta, leitura, pedidoStatus: conversa.pedido_status });
   /* a planta viva: o ESTADO pediu o desenho neste turno? (a mesma condição do prefixo; conta o pedido que ficou sem resposta) */
   const prefixoUsado = pedePlanta({ planta, estimativa: conversa.estimativa, briefing, etapa: conversa.etapa, pedidoStatus: conversa.pedido_status });
-  let desenho = turnoDaPlantaInicial(), terminouNatural = false, lendo = turnoDaLeituraInicial();
+  let desenho = turnoDaPlantaInicial(), terminouNatural = false, lendo = turnoDaLeituraInicial(), rebaixos = [];
   /* escopo e sinal: só dúvidas. O modelo recebe só as ferramentas da etapa, e o código recusa outra que ele invente */
   const tools = ferramentas(regras, { etapa: conversa.etapa, pedidoStatus: conversa.pedido_status, planta, leitura });
   const permitidas = new Set(tools.map(t => t.name));
@@ -160,6 +160,7 @@ export async function executarTurno({ ia, regras, conversa, mensagem, direcoes, 
         const l = resolverLeitura({ entrada: ch.entrada, briefing, turno: lendo, ctx: {
           mensagensDoVisitante: [...doVisitante(conversa.mensagens).map(redigir), redigir(mensagem)], regulado: !!(nicho || nichoDaSessao({ briefing, mensagens: [], mensagem: '' })) } });
         briefing = l.briefing; lendo = l.turno; saida = l.saida;
+        if (l.rebaixados) rebaixos = [...rebaixos, ...l.rebaixados];
       } else if (ch.nome === 'estimar') {
         const e = estimar(ch.entrada, regras);
         if (e.erros) saida = { ok: false, erros: e.erros };
@@ -226,5 +227,5 @@ export async function executarTurno({ ia, regras, conversa, mensagem, direcoes, 
   if (!soDuvidas) resposta = garantirValor(resposta, { mensagem, estimativa: estimativa || conversa.estimativa }).texto;
   const { confianca, faltam } = avaliar(briefing);
   /* o teto de 1.500 corta em fim de frase (as trocas de resultado e garantia somam até ~500 caracteres sobre os 1.100 do modelo; um corte seco deixaria meia frase na tela) */
-  return { resposta: cortarEmFrase(resposta, 1500), briefing, confianca, faltam, estimativa, pedir_contato: pedirContato, diagnostico, sugestoes_ia: sugestoes, custo_usd: custo, pronto_estimar: prontoParaEstimar(briefing) };
+  return { resposta: cortarEmFrase(resposta, 1500), briefing, confianca, faltam, estimativa, pedir_contato: pedirContato, diagnostico, sugestoes_ia: sugestoes, leitura_rebaixos: rebaixos, custo_usd: custo, pronto_estimar: prontoParaEstimar(briefing) };
 }

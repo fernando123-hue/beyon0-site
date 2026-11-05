@@ -17,6 +17,8 @@ const tem = (nome) => process.argv.includes('--' + nome);
 const portas = process.argv.slice(2).filter((a) => /^\d+$/.test(a));
 const ON = 'http://127.0.0.1:' + (portas[0] || '8931'), OFF = 'http://127.0.0.1:' + (portas[1] || '8932');
 const RODADAS = Number(arg('rodadas', '3'));
+const CPU = Number(arg('cpu', '1'));   /* estrangulamento de CPU (4 = celular modesto); as tarefas longas (> 50 ms) de cada turno saem junto do CLS */
+const LARGURAS = arg('larguras', '390,320,1280').split(',').map(Number);
 const EXEC = process.env.CHROMIUM || (process.env.LOCALAPPDATA + '/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-win64/chrome-headless-shell.exe');
 const PASTA = new URL('./olhar-radar/', import.meta.url);
 await mkdir(PASTA, { recursive: true });
@@ -35,7 +37,8 @@ const TURNOS = [
 const nav = await chromium.launch({ executablePath: EXEC });
 
 const ESPIAO = () => {
-  window.__ls = [];
+  window.__ls = []; window.__longas = [];
+  try { new PerformanceObserver((l) => l.getEntries().forEach((e) => window.__longas.push({ ms: Math.round(e.duration), t: Math.round(e.startTime) }))).observe({ type: 'longtask', buffered: true }); } catch (e) { /* sem longtask */ }
   const desc = (n) => (n ? n.nodeName + (n.id ? '#' + n.id : '') + (n.className && typeof n.className === 'string' ? '.' + n.className.trim().split(/\s+/).slice(0, 2).join('.') : '') : '?');
   new PerformanceObserver((l) => l.getEntries().forEach((e) => window.__ls.push({ v: e.value, t: Math.round(e.startTime), recente: e.hadRecentInput, fontes: (e.sources || []).map((s) => desc(s.node)) }))).observe({ type: 'layout-shift', buffered: true });
 };
@@ -50,6 +53,7 @@ async function abrir(base, { larg = 390, alt = 844, semRadar = false, atrasoNoUl
   page.on('console', (m) => { if (m.type() === 'error' || (m.type() === 'warning' && /radar|beyon/.test(m.text()))) erros.push(m.text()); });
   page.on('dialog', (d) => { erros.push('diálogo: ' + d.message()); d.dismiss(); });
   await page.addInitScript(ESPIAO);
+  if (CPU > 1) { const cdp = await ctx.newCDPSession(page); await cdp.send('Emulation.setCPUThrottlingRate', { rate: CPU }); }
   if (semRadar) await page.route('**/js/planta-radar.js', (r) => r.abort());
   const ctl = { atraso: false };
   await page.route('**/api/vendas?acao=mensagem*', async (r) => { if (ctl.atraso) await espera(2500); r.continue(); });
@@ -158,11 +162,12 @@ if (!tem('so-olhar')) {
     const out = [];
     for (let i = 0; i < TURNOS.length; i++) {
       ctl.atraso = true;
-      const marca = await page.evaluate(() => ({ n: window.__ls.length, t: Math.round(performance.now()) }));
+      const marca = await page.evaluate(() => ({ n: window.__ls.length, l: window.__longas.length, t: Math.round(performance.now()) }));
       await turno(page, TURNOS[i]);
       await espera(6000);
       const ls = await page.evaluate((m) => window.__ls.slice(m.n), marca);
-      out.push({ cls: +ls.filter((x) => !x.recente).reduce((s, x) => s + x.v, 0).toFixed(5), bruto: +ls.reduce((s, x) => s + x.v, 0).toFixed(5), do_radar: +ls.filter((x) => !x.recente && x.fontes.some((n) => /o-radar|plr/.test(n))).reduce((s, x) => s + x.v, 0).toFixed(5), fontes: [...new Set(ls.filter((x) => !x.recente).flatMap((x) => x.fontes))].slice(0, 6) });
+      const longas = await page.evaluate((m) => window.__longas.slice(m.l).map((x) => x.ms), marca);
+      out.push({ longas, cls: +ls.filter((x) => !x.recente).reduce((s, x) => s + x.v, 0).toFixed(5), bruto: +ls.reduce((s, x) => s + x.v, 0).toFixed(5), do_radar: +ls.filter((x) => !x.recente && x.fontes.some((n) => /o-radar|plr/.test(n))).reduce((s, x) => s + x.v, 0).toFixed(5), fontes: [...new Set(ls.filter((x) => !x.recente).flatMap((x) => x.fontes))].slice(0, 6) });
     }
     await ctx.close();
     return { turnos: out, erros };
@@ -170,7 +175,7 @@ if (!tem('so-olhar')) {
   console.log('\n== CLS (mediana de ' + RODADAS + ' rodadas; com radar - sem radar; desligada de referência) ==');
   await rodada(ON, 390, 844, false).catch(() => {});   /* aquecimento */
   const resumo = [];
-  for (const [larg, alt] of [[390, 844], [320, 640], [1280, 800]]) {
+  for (const [larg, alt] of [[390, 844], [320, 640], [1280, 800]].filter(([l]) => LARGURAS.includes(l))) {
     const por = { com: [], sem: [], desligada: [] };
     for (let i = 0; i < RODADAS; i++) for (const k of (i % 2 ? ['sem', 'com', 'desligada'] : ['com', 'sem', 'desligada'])) {
       try { por[k].push(await rodada(k === 'desligada' ? OFF : ON, larg, alt, k === 'sem')); } catch (e) { console.log('  rodada falhou (' + [larg, k].join(' ') + '): ' + e.message.split('\n')[0]); }
@@ -181,6 +186,8 @@ if (!tem('so-olhar')) {
       resumo.push({ larg, turno: t + 1, com: m('com', 'cls'), sem: m('sem', 'cls'), desligada: m('desligada', 'cls'), delta, vsDesligada: vsOff, doRadar: m('com', 'do_radar') });
       console.log('  ' + larg + ' px, turno ' + (t + 1) + ': com ' + m('com', 'cls') + ' | sem ' + m('sem', 'cls') + ' | desligada ' + m('desligada', 'cls') + ' | delta do radar ' + delta + ' | CLS cujo nó é do radar ' + m('com', 'do_radar'));
       ok(delta <= 0.01, 'delta de CLS do radar <= 0,01 (' + larg + ' px, turno ' + (t + 1) + ')');
+      const nl = (k) => por[k].map((r) => r.turnos[t].longas.length), ml = (k) => por[k].map((r) => Math.max(0, ...r.turnos[t].longas));
+      console.log('      tarefas longas (> 50 ms) a ' + CPU + 'x, rodadas com a tarefa / total: com ' + nl('com').filter(Boolean).length + '/' + nl('com').length + ' (maior ' + Math.max(0, ...ml('com')) + ' ms) | sem ' + nl('sem').filter(Boolean).length + '/' + nl('sem').length + ' (maior ' + Math.max(0, ...ml('sem')) + ' ms) | desligada ' + nl('desligada').filter(Boolean).length + '/' + nl('desligada').length + ' (maior ' + Math.max(0, ...ml('desligada')) + ' ms)');
     }
     const erros = [].concat(...por.com.map((r) => r.erros));
     ok(erros.length === 0, 'sem erro no console nas rodadas com radar (' + larg + ' px)');
