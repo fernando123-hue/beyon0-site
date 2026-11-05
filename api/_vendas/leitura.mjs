@@ -32,7 +32,7 @@ const DESCRICAO = 'Registra no painel, abaixo do preço, o radar "Como lemos o s
   'O nível vale só pelo que a PESSOA escreveu, nunca pelo que você acha do negócio dela: nao_falou (ainda não tocou no assunto), comentou (citou de passagem) ou deixou_claro (disse com todas as letras). ' +
   'Na dúvida, comentou; sem nada, nao_falou e sem evidencia. ' +
   'Para comentou e deixou_claro mande a evidencia: um trecho curto (até 60 caracteres, duas palavras ou mais) copiado LITERAL de uma mensagem dela, nas palavras dela, sem número, sem preço, sem prazo e sem marca. ' +
-  'O código procura o trecho nas mensagens dela; se não achar, a evidência sai e o nível desce. ' +
+  'O código procura o trecho nas mensagens dela; se não achar (ou se o trecho tiver número, preço, marca, ofensa ou ordem ao sistema), a evidência sai e o eixo volta a nao_falou. ' +
   'Se o BRIEFING já traz leitura_atual, reenvie os cinco eixos: mantenha o que continua valendo e atualize o que mudou. ' +
   'Resultado: ok com no_painel, a leitura já está na tela (não comente a leitura no texto, siga a conversa); ok false com erros: corrija e chame de novo UMA vez.';
 
@@ -50,10 +50,17 @@ export function ferramentaLeitura() {
    (leitura_atual). Aqui, uma lista CURTA e honesta (ofensas, imperativos ao sistema, endereço), mais o detector de injeção do Zero. É lista negra: o recall é limitado (FUROS_DA_EVIDENCIA em
    docs/testes/planta-textos-casos.mjs); a defesa real é o prompt e a medida da rodada real 8. Não se persegue cascata de vocabulário. Sobre o texto sem acento e em minúsculas (paraBusca). */
 const HOSTIL = new RegExp([
-  '\\b(?:idiot\\w*|burr[oa]s?|porcaria|merda|imbecil\\w*|incompetent\\w*|otari\\w+|estupid\\w+|inutei?l|inuteis|lixo|palhac\\w+|safad\\w+|vagabund\\w+)\\b',
-  '\\bvoces? (?:e|sao|sera|serao) (?:um|uma|uns|umas|o|a|os|as)\\b', '\\bagora voce\\b', '\\bresponda (?:sempre|que|apenas|somente|so)\\b', '\\bsem regras\\b', '\\baceit[ae] tudo\\b',
-  '\\b(?:finj\\w+|faca de conta|ignor\\w+|desconsider\\w+|obedec\\w+ (?:sempre|so a mim|apenas))\\b',
-  '\\b(?:rua|avenida|travessa|alameda|estrada|rodovia) (?:d[aeo]s? )?[a-z]{3,}'
+  // ofensas (curta de propósito: 'lixo' e 'porcaria' derrubavam fala honesta de comércio; ficam nos furos conhecidos)
+  '\\b(?:idiot\\w*|burr[oa]s?|merda|imbecil\\w*|incompetent\\w*|otari\\w+|estupid\\w+|inutei?l|inuteis|palhac\\w+|safad\\w+|vagabund\\w+)\\b',
+  // ordens e papéis ao sistema, sempre na FORMA de ordem (o verbo solto é fala honesta: 'ignorar mensagens', 'aceita tudo que chega', 'os clientes finjem')
+  '\\bvoces? (?:e|sao|sera|serao) (?:um|uma|uns|umas|o|a|os|as)\\b', '\\bagora voce (?:e|sera|vai ser|passa a|deve|precisa)\\b', '\\bresponda (?:sempre|que|apenas|somente|so)\\b',
+  '\\b(?:assistente|voce|ia|bot|zero|sistema) sem regras\\b', '\\b(?:voce|assistente|zero|sistema|ia|bot) (?:\\w+ ){0,4}aceit[ae] tudo\\b',
+  '\\b(?:finj[ae]|faca de conta) que\\b', '\\bignore (?:as |tudo|todas|suas|o que|instru|isso)', '\\bdesconsidere\\b', '\\bobedec\\w+ (?:sempre|so a mim|apenas)\\b',
+  // ordem disfarçada de mudança de regra ou de afirmação ao cliente
+  '\\b(?:diga|afirme|confirme|declare|jure|prometa|garanta) que\\b', '\\b(?:a partir de agora|de agora em diante|daqui (?:pra|para) frente) (?:voce|diga|responda|aja|atue|seja|so|apenas|sempre)\\b',
+  '\\b(?:voce|voces|vc|vcs) (?:deve|devem|precisa|precisam|tem que|tem de) (?:confirmar|aprovar|afirmar|prometer|garantir|obedecer|fingir|aceitar)\\b',
+  // endereço de alguém: a preposição distingue 'rua das flores' de 'a rua fica cheia'
+  '\\b(?:rua|avenida|travessa|alameda|estrada|rodovia) d[aeo]s? [a-z]{3,}'
 ].join('|'));
 const hostil = t => { try { return pareceInjecao(t) || HOSTIL.test(paraBusca(t)); } catch { return true; } };
 
@@ -62,7 +69,7 @@ const chave = t => normalizarTexto(t).toLowerCase();
 const palavras = t => (t.match(/\p{L}+/gu) || []).length;
 const aparar = t => String(t).replace(PONTAS, '');
 /* o trecho está na fala com FRONTEIRA de palavra nas duas pontas ("ito movimento" não ancora em "muito movimento"); letra e dígito (Unicode) contam como parte da palavra */
-const PARTE_DE_PALAVRA = /[\p{L}\p{N}]/u;
+const PARTE_DE_PALAVRA = /[\p{L}\p{M}\p{N}]/u;
 function contem(fala, trecho) {
   for (let i = fala.indexOf(trecho); i >= 0; i = fala.indexOf(trecho, i + 1)) {
     const antes = i > 0 ? fala[i - 1] : '', depois = fala[i + trecho.length] || '';
@@ -98,6 +105,7 @@ function julgar(item, { falas, anteriores, regulado }) {
   if (hostil(item.evidencia)) return baixar('evidencia_hostil');
   const r = textoDoPlanoPermitido(aparar(item.evidencia), { regulado, travas: true, primeiraPessoa: true });
   if (!r.ok) return baixar('evidencia_' + r.motivo);
+  if (hostil(r.texto)) return baixar('evidencia_hostil');   /* o texto NORMALIZADO, o que será gravado, passa pela mesma defesa */
   if (r.texto.length < EVIDENCIA_MIN_LETRAS || palavras(r.texto) < EVIDENCIA_MIN_PALAVRAS) return baixar('curta');
   const k = chave(r.texto);
   if (!(anteriores[item.eixo] === k || falas.some(f => contem(f, k)))) return baixar('sem_ancora');

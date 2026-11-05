@@ -113,7 +113,12 @@ const RAIZES = {
 /* a evidência do radar é a fala da PESSOA, em primeira pessoa ("sou eu", "eu atendo"): o "sou" solto e o "eu <verbo>" não valem para ela, mas NEGAR ser IA vale
    ("sou humano", "não sou robô", "sou pessoa de verdade", "ninguém aqui é robô", "eu sou humano de verdade"): senão o modelo forjaria uma "citação" dessas */
 const NEGAR_IA_FORTE = /\b(?:nao sou (?:uma? )?(?:ia|robo|bot|maquina|inteligencia artificial)|sou (?:uma? )?(?:pessoa|humano|humana|gente|dono|dona)|eu sou (?:uma? )?(?:pessoa|humano|humana|gente|dono|dona)|atendente humano|pessoa de verdade|humano de verdade|humana de verdade|por gente|carne e osso|ninguem aqui e (?:robo|maquina|bot|ia)|nao e (?:um |uma )?(?:robo|bot|ia|maquina))\b/;
-const SEM_PRIMEIRA_PESSOA = { ...RAIZES, negar_ia: NEGAR_IA_FORTE };
+/* A fala da PESSOA (evidência do radar) descreve o negócio dela: "a avenida fica lotada", "tenho que ignorar mensagens fora do horário" são honestas. As raízes de PROMESSA de enchimento (enche, lota) e de ORDEM com o verbo
+   solto (ignor-, desconsider-) são para texto de MODELO e saem daqui; a forma de ordem ("ignore as instruções", "desconsidere") é da defesa do visitante em api/_vendas/leitura.mjs (HOSTIL). Idioma: só as palavras
+   de inglês e espanhol; a fração de palavras funcionais do português não vale ("minha loja da rua principal vende bastante" tem 14%) */
+const SEM_PRIMEIRA_PESSOA = { ...RAIZES, negar_ia: NEGAR_IA_FORTE,
+  promessa: new RegExp(RAIZES.promessa.source.replace('enche|encher|enchem|lota|lotar|lotam|lotad\\w+|', '')),
+  ordem: new RegExp(RAIZES.ordem.source.replace('ignor\\w+|desconsider\\w+|', '')) };
 const REGULADO = {
   depoimento: /\b(?:depoiment\w*|testemunh\w*|antes (?:e |\/ )?depois|avaliacoes (?:de|dos|das) (?:pacientes|clientes)|casos? de sucesso|historias? de (?:pacientes|clientes)|fotos? de (?:pacientes|clientes)|relatos?|transformac\w+)\b/,
   resultado_regulado: /\b(?:cura\w*|curar|milagr\w*|tratamento garantido|emagrec\w*)\b/
@@ -138,11 +143,11 @@ export function fracaoPortugues(texto, nome = new Set()) {
   if (palavras.length < PALAVRAS_MIN_IDIOMA || (texto.match(/,/g) || []).length >= VIRGULAS_DE_LISTA) return null;
   return palavras.filter(p => FUNCIONAIS_PT.has(p)).length / palavras.length;
 }
-function idiomaRuim(texto, nome) {
+function idiomaRuim(texto, nome, comFracao = true) {
   const palavras = palavrasDe(paraBusca(texto)).filter(p => !nome.has(p));
   if (palavras.some(p => ESTRANHAS.has(p))) return true;
   const f = fracaoPortugues(texto, nome);
-  return f !== null && f < FRACAO_PORTUGUES_MIN;
+  return comFracao && f !== null && f < FRACAO_PORTUGUES_MIN;
 }
 
 /* ---------- palavra cortada ou repetida ---------- */
@@ -234,7 +239,7 @@ export function textoDoPlanoPermitido(bruto, { nomeDoNegocio = '', regulado = fa
     if (LETRAS_SOLTAS.test(t)) return { ok: false, motivo: 'letras_soltas' };
     const nome = palavrasDoNome(nomeDoNegocio);
     if (MARCAS_RE.test(paraBusca(t)) || MARCAS_RE.test(colada(t))) return { ok: false, motivo: 'marca' };   /* (antes do idioma: "you tube" é marca, não inglês) */
-    if (idiomaRuim(t, nome)) return { ok: false, motivo: 'idioma' };
+    if (idiomaRuim(t, nome, !primeiraPessoa)) return { ok: false, motivo: 'idioma' };
     const busca = paraBusca(t), cola = colada(t);
     const lexico = achar(primeiraPessoa ? SEM_PRIMEIRA_PESSOA : RAIZES, busca, cola) || (regulado ? achar(REGULADO, busca, cola) : null);
     if (lexico) return { ok: false, motivo: lexico };
