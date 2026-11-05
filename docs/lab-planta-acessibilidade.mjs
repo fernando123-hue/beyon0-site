@@ -27,7 +27,7 @@ async function quadroFinal(ctx, nicho, larg) {
 for (const nicho of ['clinica', 'embalagens', 'loja']) {
   for (const [rotulo, opcoes, antes] of [
     ['movimento reduzido', { reducedMotion: 'reduce' }, null],
-    ['interruptor "menos movimento"', {}, () => document.documentElement.classList.add('menos-movimento')]
+    ['interruptor "menos movimento"', {}, () => { const poe = () => document.documentElement && document.documentElement.classList.add('menos-movimento'); if (!poe()) new MutationObserver((m, o) => { if (poe()) o.disconnect(); }).observe(document, { childList: true }); }]
   ]) {
     const ctx = await nav.newContext({ viewport: { width: 390, height: 844 }, ...opcoes });
     if (antes) await ctx.addInitScript(antes);

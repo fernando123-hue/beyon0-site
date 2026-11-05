@@ -51,7 +51,7 @@ async function carregar(larg, alt, nicho, { cpu } = {}) {
   await p.addInitScript(ESPIAO);
   let cdp = null;
   if (cpu) { cdp = await ctx.newCDPSession(p); await cdp.send('Emulation.setCPUThrottlingRate', { rate: cpu }); }
-  await p.goto(url(nicho), { waitUntil: 'load' });
+  await p.goto(url(nicho), { waitUntil: 'load', timeout: 120000 });
   return { ctx, p, cdp };
 }
 
@@ -77,7 +77,7 @@ for (const { larg, alt } of TAMANHOS) {
         await espera(ESPERA);
         const r = await p.evaluate(() => ({ ls: window.__ls, alturaQuadro: document.querySelector('.plv-quadro').getBoundingClientRect().height, ok: !!(window.PLANTA_LAB.ultima && window.PLANTA_LAB.ultima.resultado.ok) }));
         /* CLS total da página e CLS DA FAIXA: o deslocamento conta como da faixa se algum dos nós que se moveu é da planta (classe plv-) ou está dentro dela; o resto é a moldura do laboratório (título, botões de nicho) */
-        const daFaixa = (s) => s.fontes.some((f) => /.plv-|.plv|[/.test(f.no));
+        const daFaixa = (s) => s.fontes.some((f) => /[.]plv|[[]/.test(f.no));
         const soma = (lista) => +lista.filter((s) => !s.recente).reduce((a, x) => a + x.value, 0).toFixed(4);
         const cls = soma(r.ls.filter(daFaixa)), clsTotal = soma(r.ls);
         reps.push({ cls, clsTotal, deslocamentos: r.ls, alturaQuadro: r.alturaQuadro, ok: r.ok });
@@ -94,9 +94,10 @@ for (const { larg, alt } of TAMANHOS) {
       const { ctx, p } = await carregar(larg, alt, nicho, { cpu: 4 });
       await espera(9000);
       const r = await p.evaluate(() => ({ montagemMs: +window.PLANTA_LAB.ultima.ms.toFixed(1), longas: window.__longas, nos: document.querySelectorAll('.plv-quadro *').length }));
-      const naEntrada = r.longas.filter((x) => x.t > 0);
-      resultado.cpu.push({ larg, alt, nicho, montagemMs: r.montagemMs, tarefasLongas: naEntrada, nos: r.nos });
-      linhas.push(`CPU4 ${String(larg).padStart(4)}x${String(alt).padEnd(4)} ${nicho.padEnd(11)} montagem ${r.montagemMs} ms   tarefas longas (>50 ms): ${naEntrada.length ? naEntrada.map((x) => x.ms + ' ms em ' + x.t).join(', ') : 'nenhuma'}   nós do quadro ${r.nos}`);
+      /* até ~700 ms (a 4x) está o 1º layout da PÁGINA INTEIRA do laboratório, que a medida da largura força (medirLargura) e que a página real já fez antes de a faixa chegar; a entrada é o que vem depois */
+      const naEntrada = r.longas.filter((x) => x.t > 700), antes = r.longas.filter((x) => x.t <= 700);
+      resultado.cpu.push({ larg, alt, nicho, montagemMs: r.montagemMs, tarefasLongasNaEntrada: naEntrada, tarefasLongasNoCarregamento: antes, nos: r.nos });
+      linhas.push(`CPU4 ${String(larg).padStart(4)}x${String(alt).padEnd(4)} ${nicho.padEnd(11)} montagem ${r.montagemMs} ms   tarefas longas na entrada (>50 ms, depois de 700 ms): ${naEntrada.length ? naEntrada.map((x) => x.ms + ' ms em ' + x.t).join(', ') : 'nenhuma'} (no carregamento: ${antes.map((x) => x.ms).join(', ') || '-'})   nós do quadro ${r.nos}`);
       await ctx.close();
     }
 

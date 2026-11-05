@@ -62,7 +62,9 @@
   function escolher(n) {
     estado.nicho = n; estado.ajustado = false;
     Array.prototype.forEach.call(document.querySelectorAll('[data-nicho]'), function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-nicho') === n ? 'true' : 'false'); });
-    var t0 = performance.now(), r = A.montar(raiz, planoAtual(), opcoes);
+    var plano = planoAtual();   /* (a leitura síncrona do JSON fica fora da medida: só o montar conta) */
+    void document.body.offsetHeight;   /* o 1º layout da página inteira não é custo da planta (na página real ele já aconteceu antes de a faixa chegar) */
+    var t0 = performance.now(), r = A.montar(raiz, plano, opcoes);
     window.PLANTA_LAB.ultima = { resultado: r, ms: performance.now() - t0 };
   }
 
