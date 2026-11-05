@@ -1,0 +1,502 @@
+/* A LIGAÇÃO DA PLANTA NA PÁGINA DE ORÇAMENTO (PR 2c; spec §1.2, §1.3, §2.6, §4.4; plano "PR 2c"). js/orcamento-planta.js (BZOrcPlanta) recebe o `estado`
+   a cada render(), valida a forma, carrega sob demanda os 4 módulos da planta (lista CONSTANTE de URLs), põe o botão "Ver a planta do seu site" sob a fala
+   do Zero que trouxe aquela versão, e só tira a faixa de `hidden` quando ela nasce fora da área visível (ou num gesto da pessoa).
+   Tudo num DOM de mentira (docs/testes/planta-dom-falso.mjs) com os módulos REAIS do desenho onde importa.
+   node --test docs/testes/planta-ligacao.test.mjs */
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import Forma from '../../js/orcamento-planta-forma.js';
+import Pecas from '../../js/planta-pecas.js';
+import Layout from '../../js/planta-layout.js';
+import Desenho from '../../js/planta-desenho.js';
+import Ligacao from '../../js/orcamento-planta.js';
+import { criarJanela } from './planta-dom-falso.mjs';
+
+const fx = (n) => JSON.parse(fs.readFileSync(new URL('./fixtures/planta/' + n + '.json', import.meta.url), 'utf8'));
+const clone = (o) => JSON.parse(JSON.stringify(o));
+const lerFonte = (rel) => fs.readFileSync(new URL('../../' + rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const MODULOS = ['js/orcamento-planta-forma.js', 'js/planta-pecas.js', 'js/planta-layout.js', 'js/planta-desenho.js'];
+const TEXTO_CERTO = 'A planta está certa.';
+
+/* o desenho de espia: registra o que a ligação pede, sem desenhar */
+function espia() {
+  const e = { montar: [], atualizar: [], parar: 0, falha: false };
+  e.api = {
+    montar(raiz, plano, op) { e.montar.push({ raiz, plano, op }); if (e.falha) throw new Error('boom'); return { ok: true, etapas: plano.etapas.length + 1 }; },
+    atualizar(plano, op) { e.atualizar.push({ plano, op }); return { ok: true }; },
+    parar() { e.parar++; }
+  };
+  return e;
+}
+
+/* A página de mentira: só o que a ligação toca. Mesa com a base onde o teste mandar; a lista de mensagens (a abertura fixa + as do estado) */
+function ambiente({ desenho = 'espia', baixo = true, falhaDeCarga = false } = {}) {
+  const w = criarJanela({ reduzido: true, largura: 390, beyon: true });
+  const doc = w.document;
+  const ids = {};
+  const novo = (tag, id, cls) => { const n = doc.createElement(tag); if (id) { n.attrs.id = id; ids[id] = n; } if (cls) n.className = cls; return n; };
+  doc.getElementById = (id) => ids[id] || null;
+  const mesa = novo('div', null, 'orc-mesa');
+  mesa.getBoundingClientRect = () => ({ top: 100, bottom: mesa.base, height: mesa.base - 100, left: 0, right: 390, width: 390 });
+  mesa.base = baixo ? 1500 : 600;   /* innerHeight = 800: base 1500 = a faixa nasceria abaixo da dobra; 600 = à vista */
+  doc.querySelector = (sel) => (sel === '.orc-mesa' ? mesa : null);
+  doc.head = novo('head');
+  const faixa = novo('section', 'o-planta'); faixa.hidden = true; faixa.clientWidth = 390;
+  const caixa = novo('div', 'o-log-caixa'); caixa.scrollHeight = 1000; caixa.clientHeight = 400; caixa.scrollTop = 600;
+  const log = novo('ol', 'o-log');
+  const abertura = novo('li', null, 'msg msg--agente'); abertura.appendChild(novo('p')); log.appendChild(abertura);
+  const texto = novo('textarea', 'o-texto'); texto.placeholder = 'Ex.: tenho uma clínica';
+  const form = novo('form', 'o-form');
+  /* o carregador: cada <script> anexado ao <head> "baixa" e roda no próximo tick; o teste escolhe o que cada URL entrega */
+  const baixados = [];
+  const fonte = { 'js/orcamento-planta-forma.js': () => { w.BZPlantaForma = Forma; }, 'js/planta-pecas.js': () => { w.BZPlantaPecas = Pecas; }, 'js/planta-layout.js': () => { w.BZPlantaLayout = Layout; },
+    'js/planta-desenho.js': () => { w.BZPlanta = desenho === 'real' ? Desenho.criar(w) : espia.atual.api; } };
+  const anexar = doc.head.appendChild.bind(doc.head);
+  doc.head.appendChild = (s) => {
+    anexar(s);
+    if (String(s.tagName).toLowerCase() !== 'script') return s;
+    baixados.push(s.src);
+    w.setTimeout(() => {
+      if (falhaDeCarga && s.src === 'js/planta-layout.js') { s.disparar('error'); return; }
+      fonte[s.src]();
+      s.disparar('load');
+    }, 0);
+    return s;
+  };
+  const espiao = desenho === 'espia' ? espia() : null;
+  espia.atual = espiao;
+  const avisos = [];
+  w.console = { warn: (...a) => avisos.push(a.join(' ')), log() {}, error: (...a) => avisos.push(a.join(' ')) };
+  w.innerHeight = 800;
+  const L = Ligacao.criar(w);
+  const rolou = [], enviou = [];
+  const deps = { rolarAte: (el) => rolou.push(el), enviar: (t) => { enviou.push(t); return Promise.resolve(); } };
+  return { w, doc, L, faixa, mesa, log, caixa, texto, form, abertura, espiao, baixados, avisos, rolou, enviou, deps, ids };
+}
+
+/* o estado do servidor com uma planta; mensagens: visitante, Zero, visitante, Zero... (a planta chegou na fala de índice n_mensagens) */
+function estado(extra = {}) {
+  const mensagens = [];
+  for (let i = 0; i < 6; i++) mensagens.push({ papel: i % 2 === 0 ? 'visitante' : 'agente', conteudo: 'fala ' + i });
+  return Object.assign({
+    conversa: { etapa: 'estimativa', briefing: { negocio: { nome: 'Clínica Aurora' } } },
+    mensagens,
+    planta: { versao: 1, origem: 'modelo', n_mensagens: 3, plano: fx('clinica') },
+    planta_editavel: true
+  }, extra);
+}
+/* faz o que conversa() de js/orcamento.js faz: refaz a lista inteira, mantendo só a abertura fixa */
+function redesenharLista(amb, E) {
+  [...amb.log.filhos].slice(1).forEach((f) => amb.log.removeChild(f));
+  E.mensagens.forEach((m) => { const li = amb.doc.createElement('li'); li.className = 'msg msg--' + (m.papel === 'agente' ? 'agente' : 'visitante'); const p = amb.doc.createElement('p'); p.textContent = m.conteudo; li.appendChild(p); amb.log.appendChild(li); });
+}
+const prontos = (amb) => { amb.w.avancar(50); };
+const botoes = (amb) => amb.log.achar((n) => n._classes.has('plv-ver'));
+const scripts = (amb) => amb.doc.head.porTag('script');
+
+/* ---------- 1. sem planta, a página é a de hoje ---------- */
+test('sem E.planta: a faixa fica escondida, nada é baixado, nenhum ouvinte, nenhum botão (a tela é igual à de hoje)', () => {
+  const amb = ambiente();
+  redesenharLista(amb, estado());
+  const antes = amb.w.document.todos.length;
+  for (const E of [null, undefined, {}, estado({ planta: undefined }), estado({ planta: null }), estado({ planta: 'x' }), estado({ planta: [] })]) {
+    assert.doesNotThrow(() => amb.L.atualizar(E, amb.deps));
+  }
+  prontos(amb);
+  assert.equal(amb.faixa.hidden, true);
+  assert.equal(amb.baixados.length, 0, 'nenhum JS da planta foi baixado');
+  assert.equal(scripts(amb).length, 0);
+  assert.equal(botoes(amb).length, 0);
+  assert.equal(amb.w.document.todos.length, antes, 'nenhum elemento criado');
+  assert.equal(Object.keys(amb.w.ouvintes).length, 0, 'nenhum ouvinte na janela');
+  assert.equal(Object.keys(amb.doc.ouvintes).length, 0, 'nenhum ouvinte no documento');
+  assert.equal(amb.w.pendentes(), 0, 'nenhum temporizador');
+});
+
+test('planta_editavel sozinho (flag ligada, sem planta ainda) não muda nada na tela', () => {
+  const amb = ambiente();
+  amb.L.atualizar(estado({ planta: undefined, planta_editavel: true }), amb.deps);
+  prontos(amb);
+  assert.equal(amb.faixa.hidden, true);
+  assert.equal(amb.baixados.length, 0);
+});
+
+/* ---------- 2. planta válida ---------- */
+test('planta válida: carrega os 4 módulos na ordem, pela lista constante, UMA vez; a faixa sai de hidden e monta uma vez; o botão aparece uma vez', () => {
+  const amb = ambiente();
+  const E = estado();
+  redesenharLista(amb, E);
+  amb.L.atualizar(E, amb.deps);
+  assert.equal(amb.faixa.hidden, true, 'enquanto os módulos não chegam, nada aparece');
+  assert.deepEqual(scripts(amb).map((s) => s.src), MODULOS, 'a lista constante, na ordem de dependência');
+  assert.ok(scripts(amb).every((s) => s.async === false), 'async=false: a ordem de execução é a da lista');
+  amb.L.atualizar(E, amb.deps);   /* um 2º render durante o download não baixa de novo */
+  assert.equal(scripts(amb).length, 4);
+  prontos(amb);
+  assert.equal(amb.faixa.hidden, false);
+  assert.equal(amb.espiao.montar.length, 1);
+  assert.equal(botoes(amb).length, 1);
+  for (let i = 0; i < 3; i++) amb.L.atualizar(E, amb.deps);
+  assert.equal(scripts(amb).length, 4, 'nunca baixa de novo');
+  assert.equal(amb.espiao.montar.length, 1, 'monta uma vez só');
+  assert.equal(botoes(amb).length, 1, 'o botão não duplica');
+  const m = amb.espiao.montar[0];
+  assert.equal(m.raiz, amb.faixa);
+  assert.equal(m.op.origem, 'modelo');
+  assert.equal(m.op.editavel, true);
+  assert.equal(m.op.nome, 'Clínica Aurora');
+});
+
+test('o botão é filho da fala do Zero de índice n_mensagens (a abertura fixa soma 1 à posição) e diz "Ver a planta do seu site"', () => {
+  const amb = ambiente();
+  const E = estado();   /* n_mensagens 3 = a 4ª mensagem do estado (agente) */
+  redesenharLista(amb, E);
+  amb.L.atualizar(E, amb.deps); prontos(amb);
+  const b = botoes(amb)[0];
+  assert.equal(b.textContent, 'Ver a planta do seu site');
+  assert.equal(b.attrs.type, 'button');
+  assert.equal(b.pai, amb.log.filhos[3 + 1], 'DOM: abertura + índice 3');
+  assert.equal(b.pai.textContent.includes('fala 3'), true);
+  assert.ok(b.pai._classes.has('msg--agente'));
+});
+
+test('posição 0 (a fala saiu da janela) cai na 1ª fala do Zero da lista; posição que não é fala do Zero cai na mais próxima antes dela; passar do fim cai na última', () => {
+  for (const [n, esperado] of [[0, 2], [1, 2], [2, 2], [99, 6]]) {
+    const amb = ambiente();
+    const E = estado(); E.planta.n_mensagens = n;
+    redesenharLista(amb, E);
+    amb.L.atualizar(E, amb.deps); prontos(amb);
+    const b = botoes(amb);
+    assert.equal(b.length, 1, 'n=' + n);
+    assert.equal(b[0].pai, amb.log.filhos[esperado], 'n=' + n);
+  }
+});
+
+/* ---------- 3. novo turno ---------- */
+test('depois de um novo turno a lista é refeita: o botão volta sob a mesma fala e não duplica; versão nova leva o botão para a fala nova e ajusta, sem montar de novo', () => {
+  const amb = ambiente();
+  let E = estado();
+  redesenharLista(amb, E);
+  amb.L.atualizar(E, amb.deps); prontos(amb);
+  /* turno sem planta nova: dois balões a mais, a lista inteira refeita (o botão antigo se foi junto) */
+  E = estado(); E.mensagens.push({ papel: 'visitante', conteudo: 'fala 6' }, { papel: 'agente', conteudo: 'fala 7' });
+  redesenharLista(amb, E);
+  assert.equal(botoes(amb).length, 0, 'a lista refeita levou o botão');
+  amb.L.atualizar(E, amb.deps);
+  assert.equal(botoes(amb).length, 1);
+  assert.equal(botoes(amb)[0].pai, amb.log.filhos[3 + 1], 'sob a fala da versão 1');
+  amb.L.atualizar(E, amb.deps);
+  assert.equal(botoes(amb).length, 1, 'idempotente');
+  /* versão 2 na fala 7 */
+  E.planta = { versao: 2, origem: 'modelo', n_mensagens: 7, plano: (() => { const p = fx('clinica'); p.fecho = 'Fecho novo da versão dois.'; return p; })() };
+  redesenharLista(amb, E);
+  amb.L.atualizar(E, amb.deps);
+  assert.equal(botoes(amb).length, 1, 'um botão só, não um por versão acumulado');
+  assert.equal(botoes(amb)[0].pai, amb.log.filhos[7 + 1], 'agora sob a fala da versão 2');
+  assert.equal(amb.espiao.montar.length, 1);
+  assert.equal(amb.espiao.atualizar.length, 1);
+  assert.equal(amb.espiao.atualizar[0].plano.fecho, 'Fecho novo da versão dois.');
+  assert.equal(amb.espiao.atualizar[0].op.fala, 'fala 6', 'o que a pessoa pediu (a fala do visitante antes da fala do Zero) vai para a legenda "Você pediu"');
+});
+
+test('o botão não tira a conversa do fim: se a lista estava colada no fim, continua', () => {
+  const amb = ambiente();
+  const E = estado();
+  redesenharLista(amb, E);
+  amb.caixa.scrollTop = 600;   /* 1000 - 600 - 400 = 0: colada no fim */
+  amb.L.atualizar(E, amb.deps); prontos(amb);
+  assert.equal(amb.caixa.scrollTop, amb.caixa.scrollHeight);
+});
+
+/* ---------- 4. planta inválida ---------- */
+test('planta inválida (forma errada, texto com <, versão ou origem ruins): nada aparece, nada lança, nada é montado', () => {
+  const ruim = [];
+  const comLt = estado(); comLt.planta.plano.etapas[0].titulo = '<img src=x onerror=alert(1)>'; ruim.push(comLt);
+  const semEtapas = estado(); delete semEtapas.planta.plano.etapas; ruim.push(semEtapas);
+  const versao = estado(); versao.planta.versao = '1'; ruim.push(versao);
+  const origem = estado(); origem.planta.origem = 'outra'; ruim.push(origem);
+  const semPlano = estado(); semPlano.planta.plano = 5; ruim.push(semPlano);
+  const nMsg = estado(); nMsg.planta.n_mensagens = -1; ruim.push(nMsg);
+  const extra = estado(); extra.planta.plano.campo_extra = 1; ruim.push(extra);
+  for (const E of ruim) {
+    const amb = ambiente();
+    redesenharLista(amb, E);
+    assert.doesNotThrow(() => amb.L.atualizar(E, amb.deps));
+    prontos(amb);
+    assert.equal(amb.faixa.hidden, true, JSON.stringify(E.planta).slice(0, 80));
+    assert.equal(botoes(amb).length, 0);
+    assert.equal((amb.espiao || { montar: [] }).montar.length, 0);
+    assert.equal(Object.keys(amb.doc.ouvintes).length, 0, 'sem ouvintes pendurados');
+  }
+});
+
+/* ---------- 5 e 6. editável e os botões ---------- */
+test('planta_editavel false (preço fechado): a planta aparece, mas "Está certo" e "Quero ajustar" ficam desligados e não fazem nada', () => {
+  const amb = ambiente({ desenho: 'real' });
+  const E = estado({ planta_editavel: false });
+  redesenharLista(amb, E);
+  amb.L.atualizar(E, amb.deps); prontos(amb);
+  assert.equal(amb.faixa.hidden, false, 'planta visível');
+  const [certo, ajuste] = amb.faixa.porClasse('plv-btn');
+  assert.ok(certo.hasAttribute('disabled') && ajuste.hasAttribute('disabled'));
+  certo.disparar('click'); ajuste.disparar('click');
+  assert.deepEqual(amb.enviou, [], 'nenhuma mensagem');
+  assert.equal(amb.doc.ativo, null, 'o foco não foi para a caixa de texto');
+  assert.equal(amb.texto.placeholder, 'Ex.: tenho uma clínica');
+});
+
+test('editável vira false depois (o pedido foi confirmado): os botões desligam sem refazer a planta; o callback também recusa', () => {
+  const amb = ambiente();
+  let E = estado();
+  redesenharLista(amb, E);
+  amb.L.atualizar(E, amb.deps); prontos(amb);
+  const op = amb.espiao.montar[0].op;
+  E = estado({ planta_editavel: false });
+  amb.L.atualizar(E, amb.deps);
+  assert.equal(amb.espiao.atualizar.at(-1).op.editavel, false);
+  op.aoCerto(); op.aoAjustar();
+  assert.deepEqual(amb.enviou, [], 'mesmo chamando o callback antigo, nada é enviado');
+  assert.equal(amb.doc.ativo, null);
+});
+
+test('"Está certo" manda exatamente uma mensagem ("A planta está certa.") pelo envio normal; clicar de novo na mesma versão não manda outra; versão nova libera', () => {
+  const amb = ambiente();
+  let E = estado();
+  redesenharLista(amb, E);
+  amb.L.atualizar(E, amb.deps); prontos(amb);
+  const op = amb.espiao.montar[0].op;
+  op.aoCerto(); op.aoCerto();
+  assert.deepEqual(amb.enviou, [TEXTO_CERTO]);
+  E = estado(); E.planta = Object.assign({}, E.planta, { versao: 2 });
+  E.planta.plano = Object.assign({}, E.planta.plano, { fecho: 'Outro fecho para a versão dois.' });
+  amb.L.atualizar(E, amb.deps);
+  amb.espiao.atualizar.at(-1).op.aoCerto();
+  assert.deepEqual(amb.enviou, [TEXTO_CERTO, TEXTO_CERTO]);
+});
+
+test('"Quero ajustar algo" não envia nada: foca a caixa de texto e põe a dica "Diga o que mudar na planta."', () => {
+  const amb = ambiente();
+  const E = estado();
+  redesenharLista(amb, E);
+  amb.L.atualizar(E, amb.deps); prontos(amb);
+  amb.espiao.montar[0].op.aoAjustar();
+  assert.deepEqual(amb.enviou, []);
+  assert.equal(amb.doc.ativo, amb.texto);
+  assert.equal(amb.texto.placeholder, 'Diga o que mudar na planta.');
+});
+
+test('sem a função de envio da tela, "Está certo" não lança nem finge que enviou', () => {
+  const amb = ambiente();
+  const E = estado();
+  redesenharLista(amb, E);
+  amb.L.atualizar(E, {}); prontos(amb);
+  assert.doesNotThrow(() => amb.espiao.montar[0].op.aoCerto());
+});
+
+/* ---------- 7. a regra de inserção ---------- */
+test('faixa à vista (a mesa termina dentro da tela): NÃO é inserida; o botão do chat fica disponível', () => {
+  const amb = ambiente({ baixo: false });
+  const E = estado();
+  redesenharLista(amb, E);
+  amb.L.atualizar(E, amb.deps); prontos(amb);
+  assert.equal(amb.faixa.hidden, true);
+  assert.equal(amb.espiao.montar.length, 0);
+  assert.equal(botoes(amb).length, 1, 'o botão já está no chat');
+  amb.L.atualizar(E, amb.deps); prontos(amb);
+  assert.equal(amb.faixa.hidden, true, 'novos renders não a inserem');
+});
+
+for (const gesto of [['doc', 'click'], ['doc', 'keydown']]) {
+  test('faixa à vista: o próximo gesto da pessoa (' + gesto[1] + ') insere (o navegador não conta o deslocamento logo depois de uma ação dela)', () => {
+    const amb = ambiente({ baixo: false });
+    const E = estado();
+    redesenharLista(amb, E);
+    amb.L.atualizar(E, amb.deps); prontos(amb);
+    assert.equal(amb.faixa.hidden, true);
+    amb.doc.disparar(gesto[1]);
+    assert.equal(amb.faixa.hidden, false);
+    assert.equal(amb.espiao.montar.length, 1);
+    amb.doc.disparar(gesto[1]); amb.doc.disparar('click');
+    assert.equal(amb.espiao.montar.length, 1, 'uma vez só');
+    assert.equal(Object.keys(amb.doc.ouvintes).filter((k) => amb.doc.ouvintes[k].length).length, 0, 'os ouvintes de gesto saem depois de inserir');
+  });
+}
+
+test('faixa à vista: a pessoa rola e a posição da faixa passa para baixo da dobra; ao parar de rolar ela é inserida', () => {
+  const amb = ambiente({ baixo: false });
+  const E = estado();
+  redesenharLista(amb, E);
+  amb.L.atualizar(E, amb.deps); prontos(amb);
+  amb.mesa.base = 1500;
+  amb.w.disparar('scroll');
+  assert.equal(amb.faixa.hidden, true, 'o debounce ainda não passou');
+  amb.w.avancar(400);
+  assert.equal(amb.faixa.hidden, false);
+  assert.equal(amb.espiao.montar.length, 1);
+});
+
+test('tocar em "Ver a planta do seu site": insere se preciso, rola até a faixa pela rolagem existente da tela (rolarAte) e leva o foco ao título', () => {
+  const amb = ambiente({ baixo: false, desenho: 'real' });
+  const E = estado();
+  redesenharLista(amb, E);
+  amb.L.atualizar(E, amb.deps); prontos(amb);
+  assert.equal(amb.faixa.hidden, true);
+  botoes(amb)[0].disparar('click');
+  assert.equal(amb.faixa.hidden, false);
+  assert.deepEqual(amb.rolou, [amb.faixa], 'rolarAte(faixa), uma vez');
+  const h2 = amb.faixa.porClasse('plv-titulo')[0];
+  assert.equal(amb.doc.ativo, h2);
+  assert.equal(h2.attrs.tabindex, '-1');
+  botoes(amb)[0].disparar('click');
+  assert.equal(amb.rolou.length, 2, 'com a faixa já na tela o botão só rola');
+});
+
+test('abaixo da dobra com a faixa já inserida: o botão rola e não monta de novo', () => {
+  const amb = ambiente();
+  const E = estado();
+  redesenharLista(amb, E);
+  amb.L.atualizar(E, amb.deps); prontos(amb);
+  botoes(amb)[0].disparar('click');
+  assert.equal(amb.espiao.montar.length, 1);
+  assert.equal(amb.rolou.length, 1);
+});
+
+/* ---------- 8. falha fechada ---------- */
+test('se o desenho lança ao montar: a faixa volta a hidden, o visitante não vê nada, o log tem [beyon] e o render não quebra', () => {
+  const amb = ambiente();
+  amb.espiao.falha = true;
+  const E = estado();
+  redesenharLista(amb, E);
+  assert.doesNotThrow(() => { amb.L.atualizar(E, amb.deps); prontos(amb); });
+  assert.equal(amb.faixa.hidden, true);
+  assert.equal(botoes(amb).length, 0, 'sem faixa, sem botão que leva a ela');
+  assert.ok(amb.avisos.some((a) => a.startsWith('[beyon] planta')), amb.avisos.join('|'));
+  assert.doesNotThrow(() => amb.L.atualizar(E, amb.deps));
+});
+
+test('se um módulo não carrega: nada aparece, [beyon] no log, não tenta de novo no mesmo render; versão nova tenta outra vez', () => {
+  const amb = ambiente({ falhaDeCarga: true });
+  let E = estado();
+  redesenharLista(amb, E);
+  amb.L.atualizar(E, amb.deps); prontos(amb);
+  assert.equal(amb.faixa.hidden, true);
+  assert.equal(botoes(amb).length, 0);
+  assert.ok(amb.avisos.some((a) => a.startsWith('[beyon] planta')));
+  const n = scripts(amb).length;
+  amb.L.atualizar(E, amb.deps); prontos(amb);
+  assert.equal(scripts(amb).length, n, 'a mesma versão não repete a tentativa');
+  E = estado(); E.planta = Object.assign({}, E.planta, { versao: 2 });
+  amb.L.atualizar(E, amb.deps);
+  assert.ok(scripts(amb).length > n, 'versão nova, nova tentativa');
+});
+
+test('a planta some do estado (flag desligada, conversa nova): a faixa esconde, o desenho para, o botão e os ouvintes saem', () => {
+  const amb = ambiente({ baixo: false });
+  const E = estado();
+  redesenharLista(amb, E);
+  amb.L.atualizar(E, amb.deps); prontos(amb);
+  amb.doc.disparar('click');
+  assert.equal(amb.faixa.hidden, false);
+  amb.L.atualizar(estado({ planta: undefined }), amb.deps);
+  assert.equal(amb.faixa.hidden, true);
+  assert.equal(amb.espiao.parar, 1);
+  assert.equal(botoes(amb).length, 0);
+  /* e volta a nascer se a planta volta */
+  amb.L.atualizar(estado(), amb.deps);
+  assert.equal(botoes(amb).length, 1);
+});
+
+/* ---------- integração com os módulos reais ---------- */
+test('com o desenho real: a faixa monta (título, lista, status), o texto do modelo entra por textContent e "Está certo" de verdade manda uma mensagem', () => {
+  const amb = ambiente({ desenho: 'real' });
+  const E = estado();
+  redesenharLista(amb, E);
+  amb.L.atualizar(E, amb.deps); prontos(amb);
+  assert.equal(amb.faixa.hidden, false);
+  assert.equal(amb.faixa.porClasse('plv-titulo')[0].textContent, 'A planta do seu site');
+  assert.ok(amb.faixa.porClasse('plv-quadro')[0].porTag('li').length >= 8);
+  assert.ok(amb.faixa.porClasse('plv-status')[0].textContent.startsWith('Planta pronta, com '));
+  const [certo, ajuste] = amb.faixa.porClasse('plv-btn');
+  assert.ok(!certo.hasAttribute('disabled'));
+  certo.disparar('click');
+  assert.deepEqual(amb.enviou, [TEXTO_CERTO]);
+  ajuste.disparar('click');
+  assert.equal(amb.doc.ativo, amb.texto);
+  assert.equal(amb.enviou.length, 1);
+});
+
+test('com o desenho real, o ajuste (versão 2 com etapa nova) marca só o id novo', () => {
+  const amb = ambiente({ desenho: 'real' });
+  let E = estado();
+  redesenharLista(amb, E);
+  amb.L.atualizar(E, amb.deps); prontos(amb);
+  const p2 = fx('clinica');
+  p2.etapas.splice(2, 0, Object.assign({}, p2.etapas[0], { id: 'sinal1', titulo: 'Sinal para segurar o horário', frase: 'A pessoa paga um sinal para garantir o horário.' }));
+  p2.etapas = p2.etapas.slice(0, 8);
+  E = estado(); E.mensagens.push({ papel: 'visitante', conteudo: 'quero cobrar um sinal' }, { papel: 'agente', conteudo: 'Refiz a planta.' });
+  E.planta = { versao: 2, origem: 'modelo', n_mensagens: 7, plano: p2 };
+  redesenharLista(amb, E);
+  amb.L.atualizar(E, amb.deps);
+  const novos = amb.faixa.achar((n) => n._classes.has('is-ajustado') && n.tagName.toLowerCase() === 'li');
+  assert.deepEqual(novos.map((n) => n.dataset.id), ['sinal1']);
+  assert.equal(amb.faixa.porClasse('plv-leitura__tag')[0].textContent, 'Ajustado', 'sem movimento a legenda mostra o fim; a fala vai ao desenho em opcoes.fala (teste do espião acima)');
+});
+
+/* ---------- o que o código-fonte não pode ter ---------- */
+const FONTE = lerFonte('js/orcamento-planta.js');
+const semComentarios = FONTE.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:'"\\])\/\/[^\n]*/g, '$1');
+
+test('fonte: nada de innerHTML, eval, estilo inline, rAF, escrita de HTML; src só da lista constante', () => {
+  for (const [nome, re] of [['innerHTML', /\binnerHTML\b/], ['outerHTML', /\bouterHTML\b/], ['insertAdjacentHTML', /insertAdjacentHTML/], ['document.write', /document\s*\.\s*write/], ['eval', /\beval\s*\(/], ['new Function', /new\s+Function/],
+    ['setAttribute style', /setAttribute\s*\(\s*['"]style/], ['cssText', /cssText/], ['rAF', /requestAnimationFrame/], ['scrollIntoView', /scrollIntoView/], ['querySelector com concatenação', /querySelector(All)?\s*\([^)]*\+/]]) {
+    assert.doesNotMatch(semComentarios, re, nome);
+  }
+  const srcs = semComentarios.match(/\.src\s*=[^=][^;]*/g) || [];
+  assert.equal(srcs.length, 1, 'uma atribuição de src só');
+  assert.match(srcs[0], /\.src\s*=\s*MODULOS\[/, 'vinda da lista constante');
+  const lista = semComentarios.match(/var MODULOS = \[([^\]]*)\]/);
+  assert.ok(lista, 'a lista constante existe');
+  assert.deepEqual(lista[1].split(',').map((s) => s.trim().replace(/^'|'$/g, '')), MODULOS);
+});
+
+test('fonte: ES5 sintático (sem =>, const, let, crase, classe, async)', () => {
+  for (const [nome, re] of [['seta', /=>/], ['const', /\bconst\b/], ['let', /\blet\b/], ['crase', /`/], ['class', /\bclass\b/], ['async', /(^|[^.\w])async\b/], ['await', /\bawait\b/], ['spread', /\.\.\./], ['Promise', /\bPromise\b/], ['?.', /\?\./], ['??', /\?\?/]]) {
+    assert.doesNotMatch(semComentarios.replace(/'[^'\n]*'/g, "''"), re, nome);
+  }
+});
+
+test('fonte: nenhum texto do estado vira HTML; textos fixos da tela são as constantes combinadas', () => {
+  assert.match(FONTE, /A planta está certa\./);
+  assert.match(FONTE, /Diga o que mudar na planta\./);
+  assert.match(FONTE, /Ver a planta do seu site/);
+  assert.match(FONTE, /\[beyon\] planta/);
+});
+
+/* ---------- a página ---------- */
+const HTML = lerFonte('orcamento.html');
+test('orcamento.html: a faixa é uma <section id="o-planta" hidden> entre a mesa e os detalhes, sem style="", e o script da ligação vem antes do orcamento.js', () => {
+  const i = HTML.indexOf('id="o-planta"');
+  assert.ok(i > 0 && HTML.indexOf('id="o-planta"', i + 1) < 0, 'uma faixa só');
+  const tag = HTML.slice(HTML.lastIndexOf('<', i), HTML.indexOf('>', i) + 1);
+  assert.match(tag, /^<section\b/);
+  assert.match(tag, /\bhidden\b/);
+  assert.doesNotMatch(tag, /\bstyle\s*=/);
+  const mesa = HTML.indexOf('class="orc-mesa"'), contato = HTML.indexOf('id="o-contato"');
+  assert.ok(mesa < i && i < contato, 'entre .orc-mesa e #o-contato');
+  const a = HTML.indexOf('src="js/orcamento-planta.js"'), b = HTML.indexOf('src="js/orcamento.js"');
+  assert.ok(a > 0 && a < b, 'a ligação carrega antes de orcamento.js');
+  assert.match(HTML.slice(HTML.lastIndexOf('<script', a), HTML.indexOf('>', a) + 1), /\bdefer\b/);
+  assert.match(HTML, /<link rel="stylesheet" href="css\/orcamento-planta\.css" \/>/);
+  for (const m of MODULOS) assert.ok(!HTML.includes(m), 'o HTML NÃO carrega ' + m + ': só sob demanda');
+});
+
+test('js/orcamento.js: uma linha chama a ligação, protegida por if, no render(), e passa rolarAte e enviar', () => {
+  const src = lerFonte('js/orcamento.js');
+  const linhas = src.split('\n').filter((l) => l.includes('BZOrcPlanta'));
+  assert.equal(linhas.length, 1);
+  assert.match(linhas[0], /if \(window\.BZOrcPlanta\) window\.BZOrcPlanta\.atualizar\(E, \{ rolarAte: rolarAte, enviar: enviar \}\);/);
+  const render = src.slice(src.indexOf('function render()'), src.indexOf('async function recarregar()'));
+  assert.ok(render.includes('BZOrcPlanta'), 'a chamada está dentro do render()');
+  assert.ok(render.indexOf('conversa();') < render.indexOf('BZOrcPlanta'), 'depois de conversa() (a lista de mensagens já está refeita)');
+});
