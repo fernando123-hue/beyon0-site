@@ -28,6 +28,8 @@ const TIPOS = {
    Aqui o banco é o de memória (BZ_LOCAL=1, api/_banco.mjs); a chave do painel vem de PAINEL_CHAVE. */
 process.env.BZ_LOCAL = '1';
 if (process.env.BZ_ENTREGA_LOCAL !== 'desligada') process.env.BZ_ENTREGA = 'ligada';   /* (só no servidor local: o interruptor da entrega, api/_material/interruptor.mjs; BZ_ENTREGA_LOCAL=desligada é a rodada do E2E sem a entrega) */
+/* a planta viva (PR 2c): a flag BZ_PLANTA (api/_vendas/planta.mjs) fica ligada no servidor local, para a página ser vista e medida com a faixa; BZ_PLANTA_LOCAL=desligada sobe a página como ela é com a flag desligada (a produção hoje), a outra ponta do A/B de docs/medir-planta.mjs e do E2E */
+if (process.env.BZ_PLANTA_LOCAL !== 'desligada') process.env.BZ_PLANTA = 'ligada'; else delete process.env.BZ_PLANTA;
 delete process.env.SUPABASE_URL;    /* (teste local nunca grava no banco de produção) */
 delete process.env.SUPABASE_CHAVE_SECRETA;
 delete process.env.SUPABASE_CHAVE_PUBLICA;

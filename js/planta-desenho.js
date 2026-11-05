@@ -335,6 +335,7 @@
         for (i = 1; i < pts.length; i++) { acum += dist(pts[i - 1], pts[i]); kf.push({ offset: Math.min(1, s + (e - s) * (acum / L)), opacity: 1, transform: tr(pts[i]), easing: 'linear' }); }
         kf.push({ offset: Math.min(1, e + eps), opacity: 0, transform: tr(pts[pts.length - 1]), easing: 'linear' });
         kf.push({ offset: 1, opacity: 0, transform: tr(pts[pts.length - 1]), easing: 'linear' });
+        for (i = 1; i < kf.length; i++) if (kf[i].offset < kf[i - 1].offset) kf[i].offset = kf[i - 1].offset;   /* a API recusa offset decrescente: rota longa e curta no tempo gerava o 2º ponto antes do 1º */
         var a = anim(el, kf, { duration: P, iterations: iter, easing: 'linear' });
         if (a) { inst.vida.push(a); if (!inst.visivel && inst.io) { try { a.pause(); } catch (x) { aviso(x); } } }
       });
