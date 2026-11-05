@@ -2,7 +2,8 @@
    A PLANTA NA PÁGINA DE ORÇAMENTO (PR 2c; spec §1.2, §1.3, §4.4). A cola entre o `estado` e os módulos do desenho (js/planta-desenho.js e os três que ele
    usa). js/orcamento.js chama BZOrcPlanta.atualizar(E, { rolarAte, enviar }) a cada render(), depois de conversa().
    • O `estado` só traz `planta` com a flag BZ_PLANTA ligada: sem ela (ou com planta de forma errada) nada acontece, nada é baixado, nenhum ouvinte nasce.
-   • Os 4 módulos (forma, peças, layout, desenho) são baixados sob demanda, UMA vez, de uma lista CONSTANTE de URLs (nunca src montado com dado do estado).
+   • Os 4 módulos (forma, peças, layout, desenho) e o CSS da faixa são baixados sob demanda, UMA vez, de URLs CONSTANTES (nunca src montado com dado do estado);
+     o botão e a faixa só nascem depois que tudo chegou, então nunca aparecem sem estilo.
    • O botão "Ver a planta do seu site" mora dentro da fala do Zero de índice `planta.n_mensagens` (a abertura fixa da lista soma 1) e é recolocado a cada
      render, porque conversa() refaz a lista inteira; um botão só, sob a fala da versão mais nova.
    • REGRA DE INSERÇÃO (spec §4.4): a faixa só sai de `hidden` quando a posição dela nasce abaixo da área visível (a base da mesa passa da tela) ou num gesto
@@ -20,6 +21,7 @@
   'use strict';
 
   var MODULOS = ['js/orcamento-planta-forma.js', 'js/planta-pecas.js', 'js/planta-layout.js', 'js/planta-desenho.js'];
+  var CSS_DA_FAIXA = 'css/orcamento-planta.css';
   var TEXTO_CERTO = 'A planta está certa.';
   var DICA_AJUSTE = 'Diga o que mudar na planta.';
   var ROTULO_BOTAO = 'Ver a planta do seu site';
@@ -185,14 +187,21 @@
     /* ---- o carregamento sob demanda ---- */
     function carregar() {
       st.carga = 'indo';
-      var falta = MODULOS.length, falhou = false;
+      var falta = MODULOS.length + 1, falhou = false;
       function chegou() { if (--falta === 0 && !falhou) { st.carga = 'ok'; seguir(); } }
       function quebrou() {
         if (falhou) return;
         falhou = true; st.carga = 'falhou'; st.versaoFalha = st.versao;
-        aviso('não consegui baixar os módulos');
+        aviso('não consegui baixar os módulos ou o CSS');
         esconder(); tirarBotao();
       }
+      /* o CSS vem junto, sob demanda: com a flag desligada a página não paga nem o CSS bloqueante nem os bytes */
+      var l = doc.createElement('link');
+      l.rel = 'stylesheet';
+      l.href = CSS_DA_FAIXA;
+      l.addEventListener('load', chegou);
+      l.addEventListener('error', quebrou);
+      doc.head.appendChild(l);
       for (var i = 0; i < MODULOS.length; i++) {
         var s = doc.createElement('script');
         s.async = false;   /* a ordem de execução é a da lista: o desenho lê os outros três quando carrega */

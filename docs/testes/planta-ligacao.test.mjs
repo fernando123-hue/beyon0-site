@@ -17,6 +17,7 @@ const fx = (n) => JSON.parse(fs.readFileSync(new URL('./fixtures/planta/' + n + 
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const lerFonte = (rel) => fs.readFileSync(new URL('../../' + rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const MODULOS = ['js/orcamento-planta-forma.js', 'js/planta-pecas.js', 'js/planta-layout.js', 'js/planta-desenho.js'];
+const CSS = 'css/orcamento-planta.css';
 const TEXTO_CERTO = 'A planta está certa.';
 
 /* o desenho de espia: registra o que a ligação pede, sem desenhar */
@@ -55,6 +56,11 @@ function ambiente({ desenho = 'espia', baixo = true, falhaDeCarga = false } = {}
   const anexar = doc.head.appendChild.bind(doc.head);
   doc.head.appendChild = (s) => {
     anexar(s);
+    if (String(s.tagName).toLowerCase() === 'link') {   /* o CSS da faixa: também só sob demanda */
+      baixados.push(s.href);
+      w.setTimeout(() => s.disparar('load'), 0);
+      return s;
+    }
     if (String(s.tagName).toLowerCase() !== 'script') return s;
     baixados.push(s.src);
     w.setTimeout(() => {
@@ -94,6 +100,7 @@ function redesenharLista(amb, E) {
 const prontos = (amb) => { amb.w.avancar(50); };
 const botoes = (amb) => amb.log.achar((n) => n._classes.has('plv-ver'));
 const scripts = (amb) => amb.doc.head.porTag('script');
+const links = (amb) => amb.doc.head.porTag('link');
 
 /* ---------- 1. sem planta, a página é a de hoje ---------- */
 test('sem E.planta: a faixa fica escondida, nada é baixado, nenhum ouvinte, nenhum botão (a tela é igual à de hoje)', () => {
@@ -107,6 +114,7 @@ test('sem E.planta: a faixa fica escondida, nada é baixado, nenhum ouvinte, nen
   assert.equal(amb.faixa.hidden, true);
   assert.equal(amb.baixados.length, 0, 'nenhum JS da planta foi baixado');
   assert.equal(scripts(amb).length, 0);
+  assert.equal(links(amb).length, 0, 'nem o CSS');
   assert.equal(botoes(amb).length, 0);
   assert.equal(amb.w.document.todos.length, antes, 'nenhum elemento criado');
   assert.equal(Object.keys(amb.w.ouvintes).length, 0, 'nenhum ouvinte na janela');
@@ -133,12 +141,14 @@ test('planta válida: carrega os 4 módulos na ordem, pela lista constante, UMA 
   assert.ok(scripts(amb).every((s) => s.async === false), 'async=false: a ordem de execução é a da lista');
   amb.L.atualizar(E, amb.deps);   /* um 2º render durante o download não baixa de novo */
   assert.equal(scripts(amb).length, 4);
+  assert.deepEqual(links(amb).map((l) => [l.rel, l.href]), [['stylesheet', CSS]], 'o CSS da faixa também vem sob demanda, uma vez, de URL constante');
   prontos(amb);
   assert.equal(amb.faixa.hidden, false);
   assert.equal(amb.espiao.montar.length, 1);
   assert.equal(botoes(amb).length, 1);
   for (let i = 0; i < 3; i++) amb.L.atualizar(E, amb.deps);
   assert.equal(scripts(amb).length, 4, 'nunca baixa de novo');
+  assert.equal(links(amb).length, 1, 'nem o CSS');
   assert.equal(amb.espiao.montar.length, 1, 'monta uma vez só');
   assert.equal(botoes(amb).length, 1, 'o botão não duplica');
   const m = amb.espiao.montar[0];
@@ -455,6 +465,10 @@ test('fonte: nada de innerHTML, eval, estilo inline, rAF, escrita de HTML; src s
   const srcs = semComentarios.match(/\.src\s*=[^=][^;]*/g) || [];
   assert.equal(srcs.length, 1, 'uma atribuição de src só');
   assert.match(srcs[0], /\.src\s*=\s*MODULOS\[/, 'vinda da lista constante');
+  const hrefs = semComentarios.match(/\.href\s*=[^=][^;]*/g) || [];
+  assert.equal(hrefs.length, 1, 'uma atribuição de href só');
+  assert.match(hrefs[0], /\.href\s*=\s*CSS_DA_FAIXA/, 'vinda da constante');
+  assert.match(semComentarios, /var CSS_DA_FAIXA = 'css\/orcamento-planta\.css';/);
   const lista = semComentarios.match(/var MODULOS = \[([^\]]*)\]/);
   assert.ok(lista, 'a lista constante existe');
   assert.deepEqual(lista[1].split(',').map((s) => s.trim().replace(/^'|'$/g, '')), MODULOS);
@@ -487,7 +501,7 @@ test('orcamento.html: a faixa é uma <section id="o-planta" hidden> entre a mesa
   const a = HTML.indexOf('src="js/orcamento-planta.js"'), b = HTML.indexOf('src="js/orcamento.js"');
   assert.ok(a > 0 && a < b, 'a ligação carrega antes de orcamento.js');
   assert.match(HTML.slice(HTML.lastIndexOf('<script', a), HTML.indexOf('>', a) + 1), /\bdefer\b/);
-  assert.match(HTML, /<link rel="stylesheet" href="css\/orcamento-planta\.css" \/>/);
+  assert.ok(!HTML.includes('orcamento-planta.css'), 'o CSS NÃO bloqueia a renderização da página: a ligação o baixa junto com os módulos, só quando a planta chega');
   for (const m of MODULOS) assert.ok(!HTML.includes(m), 'o HTML NÃO carrega ' + m + ': só sob demanda');
 });
 
