@@ -254,7 +254,7 @@
       if (!inst) return;
       inst.relogio.encerrar();
       inst.anims.forEach(function (a) { try { a.cancel(); } catch (e) { aviso(e); } });
-      inst.anims = []; inst.pausadas = []; inst.vida = []; inst.iniciada = false;
+      inst.anims = []; inst.pausadas = []; inst.vida = []; inst.iniciada = false; inst.adiado = false;
       if (inst.R && inst.R.tang && inst.R.tang.remove) inst.R.tang.remove();
     }
     function pausarTudo() {
@@ -272,6 +272,11 @@
     }
     function iniciar() {
       if (!inst || inst.iniciada) return;
+      if (inst.adiado) {   /* o programa da entrada (~45 animações) só nasce agora, quando vai rodar: com a faixa fora da tela ele não custa nada na tarefa que monta o quadro */
+        inst.adiado = false;
+        programaEntrada();
+        inst.anims.forEach(function (a) { try { a.pause(); } catch (e) { aviso(e); } });
+      }
       inst.iniciada = true; inst.aguardando = false;
       inst.anims.forEach(function (a) { try { a.play(); } catch (e) { aviso(e); } });
       inst.relogio.iniciar();
@@ -489,9 +494,7 @@
       inst.animada = animavel;
       inst.aguardando = false;
       if (pre) {
-        inst.aguardando = true;
-        programaEntrada();
-        inst.anims.forEach(function (a) { try { a.pause(); } catch (e) { aviso(e); } });
+        inst.aguardando = true; inst.adiado = true;
         if (!inst.io || inst.visivel) iniciar();
       } else if (modo === 'ajuste' && animavel && (!inst.io || inst.visivel)) {
         programaAjuste(antigos, novos, fala);
