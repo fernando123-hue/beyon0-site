@@ -66,7 +66,7 @@ test('o preço escrito com letras largas ou separadas não passa (a normalizaç�
     p.etapas[2].titulo = t;
     const r = validarPlano(p, {});
     assert.equal(r.ok, false, t);
-    assert.ok(r.motivos.includes('preco') || r.motivos.includes('caractere'), JSON.stringify(r.motivos));
+    assert.ok(r.motivos.includes('preco') || r.motivos.includes('caractere') || r.motivos.includes('letras_soltas'), JSON.stringify(r.motivos));
   }
 });
 

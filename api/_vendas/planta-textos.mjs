@@ -26,7 +26,7 @@ import { semNegarSerIA } from './travas-identidade.mjs';
 
 /* os textos da planta cabem em 110 caracteres; o que passa muito disso nem entra na conta (o NFKC pode alongar um caractere em poucos) */
 const TEXTO_MAX_ENTRADA = 400;
-const NOME_MAX = 60, NOME_PALAVRAS_MAX = 6;
+const NOME_MAX = 80, NOME_PALAVRAS_MAX = 8;
 
 /* as dez travas existentes, sobre o texto normalizado; "rodar" devolve o texto que a trava deixaria sair (igual ao de entrada = passou) */
 export const TRAVAS = Object.freeze([
@@ -72,6 +72,11 @@ const LETRA_FORA_DA_LISTA = /(?![A-Za-z\xC0-\xC5\xC7-\xCF\xD1-\xD6\xD9-\xDD\xE0-
 const EMOJI = /\p{Extended_Pictographic}|\p{Regional_Indicator}|\p{Me}/u;
 const MARCAS_DEMAIS = /\p{M}{3,}/u;                 /* (contada na forma decomposta: mais de 2 marcas por letra) */
 const MARCA_SOLTA = /(?:^|[^\p{L}\p{M}])\p{M}/u;    /* (marca sem letra antes: sequência só de marcas ou marca no começo) */
+/* marca combinante FORA de U+0300 a U+036F: o `normalizar()` do Zero só tira essas, e em `paraBusca` as outras (2.149 de 2.290) viram espaço e partem a palavra
+   ("d҃ois", "garan҃tia"). O português usa letra composta, não marca solta: recusa. Escrito por código numérico (o arquivo não leva caractere invisível) */
+const MARCA_FORA_DO_BLOCO = new RegExp('(?![' + String.fromCharCode(0x300) + '-' + String.fromCharCode(0x36f) + '])\\p{M}', 'u');
+/* três ou mais palavras de UMA letra seguidas ("p r e c o", "d e z", "a d o i s"): o `paraBusca` as junta, mas engole o "a/o/e" vizinho; recusa antes */
+const LETRAS_SOLTAS = /(?:^|\s)\p{L}(?:\s\p{L}){2,}(?=\s|$|[.,;:!?])/u;
 const DIGITO = /\p{Nd}/u;
 const SIMBOLO_DE_VALOR = /[%\p{Sc}‰‱]/u;
 const EMAIL = /@|\barroba\b|[(\[]\s*at\s*[)\]]/i;
@@ -81,51 +86,56 @@ const CARACTERE_DE_FORA = /[^\p{L}\p{M}\s.,:;!?'’"“”()\-–—]/u;
 
 /* sobre o texto em "busca" (paraBusca: minúscula, sem acento, letras soltas juntas, pontuação vira espaço) e sobre a versão "colada" (abaixo) */
 const RAIZES = {
-  preco: /\b(?:precos?|valor|valores|custos?|custa\w*|custar|barat\w+|gratis|gratuit\w+|descontos?|taxas?|mensalidades?|investiment\w+|parcelas?|parcelad\w+|promocao|promocoes|ofertas?|reais|de graca|por menos|pa(?:ga|gar|gue) menos|abatimentos?|abate\w*)\b/,
+  preco: /\b(?:precos?|valor|valores|custos?|custa\w*|custar|barat\w+|gratis|gratuit\w+|descontos?|taxas?|mensalidades?|investiment\w+|parcelas?|parcelad\w+|promocao|promocoes|ofertas?|reais|de graca|por menos|pa(?:ga|gar|gue) menos|abatimentos?|abate\w*|economiz\w+|bolso|cobranc\w+|pa(?:gue|ga|gar) (?:\w+ ){0,3}(?:so|nada|depois|sem)|(?:so|nada|depois|sem) (?:\w+ ){0,2}pa(?:gue|ga|gar))\b/,
   numeral: /\b(?:dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|treze|quatorze|catorze|quinze|dezesseis|dezessete|dezoito|dezenove|vinte|trinta|quarenta|cinquenta|sessenta|setenta|oitenta|noventa|cem|cento|duzentos|duzentas|trezentos|trezentas|quatrocentos|quatrocentas|quinhentos|quinhentas|seiscentos|seiscentas|setecentos|setecentas|oitocentos|oitocentas|novecentos|novecentas|mil|milhao|milhoes|bilhao|bilhoes)\b/,
   promessa: new RegExp([
-    '\\b(?:enche|encher|enchem|lota|lotar|lotam|lotad\\w+|dobra|dobrar|dobram|dobro|triplo|triplica\\w*|quadruplo|quadruplica\\w*|multiplica\\w*|aumenta\\w*|cresc\\w+|dispara\\w*|lucr\\w+|faturamento|faturar|resultados?|sem esforcos?|primeiro lugar|primeira pagina|topo d[oa]|milhar|milhares|centenas?|dezenas?|duzia|duzias|metade|nunca mais)\\b',
+    '\\b(?:enche|encher|enchem|lota|lotar|lotam|lotad\\w+|dobra|dobrar|dobram|dobro|triplo|triplica\\w*|quadruplo|quadruplica\\w*|multiplica\\w*|aumenta\\w*|cresc\\w+|dispara\\w*|lucr\\w+|faturamento|faturar|resultados?(?! d[oae]s? (?:exames?|orcamentos?|pedidos?|consultas?|testes?|formularios?|buscas?)\\b)|dobre|dobrem|venda mais|vendem mais|sem esforcos?|primeiro lugar|primeira pagina|topo d[oa]|milhar|milhares|centenas?|dezenas?|duzia|duzias|metade|nunca mais)\\b',
     '\\bvend\\w+ sozinh\\w+',
     '\\benquanto (?:\\w+ ){0,4}(?:dorme|dormem|vende|vendem|descansa|trabalha|trabalham)\\b',
     '\\b(?:client\\w*|pedidos?|vendas?|contatos?|agenda|pacientes|alunos) (?:\\w+ ){0,3}sozinh\\w+|\\bsozinh\\w+ (?:\\w+ ){0,3}(?:client\\w*|pedidos?|vendas?|contatos?|agenda|pacientes|alunos)',
     '\\bmais (?:\\w+ )?(?:clientes|vendas|pedidos|agendamentos|contatos|consultas|pacientes|orcamentos|leads|visitas|lucros?|faturamento|movimento|seguidores|alunos|matriculas|reservas|encomendas)\\b'
   ].join('|')),
   prazo: new RegExp([
-    '\\b(?:prazos?|imediat\\w+|instantane\\w+|minutos?|segundos|horas|dias|semanas?|meses|anos|mesmo dia|diariamente|semanalmente|mensalmente|em instantes|agora mesmo|hoje mesmo|ainda hoje|amanha|sem demora|numa tarde|quinzenas?|trimestres?|semestres?|a qualquer hora|de madrugada|24 ?h)\\b',
+    '\\b(?:prazos?|imediat\\w+|instantane\\w+|minutos?|segundos|horas|dias|semanas|meses|anos|mesmo dia|mesma hora|rapid\\w+|tempo real|instantes?|diariamente|semanalmente|mensalmente|em instantes|agora mesmo|hoje mesmo|ainda hoje|amanha|sem demora|numa tarde|quinzenas?|trimestres?|semestres?|a qualquer hora|de madrugada|24 ?h)\\b',
     '\\bem (?:\\w+ ){0,2}(?:minuto|segundo|hora)\\b',
     '\\b(?:em|por|de) (?:um|uma|outro|outra) (?:dia|hora|minuto|mes|ano|semana|tarde)\\b|\\b(?:num|numa) (?:dia|hora|minuto|mes|ano|semana|tarde)\\b',
-    '\\b(?:todo|cada) dia\\b|\\bpor (?:mes|ano)\\b|\\bao (?:mes|ano)\\b|\\btodo ano\\b',
+    '\\b(?:todo|cada) dia\\b|\\bpor (?:mes|ano)\\b|\\bao (?:mes|ano)\\b|\\btodo ano\\b|\\b(?:toda|cada|por) semana\\b',
     '\\bde um dia (?:pro|para o) outro\\b',
     '\\bantes de (?:segunda|terca|quarta|quinta|sexta|sabado|domingo)\\b',
     '\\bde (?:segunda|terca|quarta|quinta|sexta) a (?:terca|quarta|quinta|sexta|sabado|domingo)\\b',
-    '\\bna hora\\b(?! (?:d[aeo]s?|em que|que)\\b)'   /* ("na hora da marcação" é o momento; "chega na hora" é prazo) */
+    '\\bna hora\\b(?! (?:d[aeo]s?|em que|que|certa|exata|marcada|combinada|agendada)\\b)'   /* ("na hora da marcação" e "na hora certa" são o momento; "chega na hora" é prazo) */
   ].join('|')),
   garantia: /\b(?:garant\w*|certezas?|sem risco|reembolso|dinheiro de volta|devolv\w+ (?:o )?dinheiro|satisfacao)\b/,
   suporte: /\b(?:suporte|manutencao|assistencia|plantao|sla)\b/,
   ordem: /\b(?:ignor\w+|desconsider\w+|prompts?|system|esqueca (?:tudo|as|o que)|instrucao|instrucoes (?:do sistema|internas?|anteriores|acima)|(?:novas|suas|essas|minhas) instruc\w+|regras? (?:internas?|do sistema|acima|anteriores))\b/,
   negar_ia: /\b(?:sou|nao sou (?:uma? )?(?:ia|robo|bot|maquina|inteligencia artificial)|atendente humano|pessoa de verdade|humano de verdade|humana de verdade|por gente|carne e osso|ninguem aqui e (?:robo|maquina|bot|ia)|eu (?:respondo|atendo|escrevo|falo))\b/
 };
-/* a evidência do radar é a fala da PESSOA, em primeira pessoa ("eu atendo", "sou eu"): a regra de negar ser IA, que olha o texto do Zero, não vale para ela */
-const SEM_PRIMEIRA_PESSOA = Object.fromEntries(Object.entries(RAIZES).filter(([k]) => k !== 'negar_ia'));
+/* a evidência do radar é a fala da PESSOA, em primeira pessoa ("sou eu", "eu atendo"): o "sou" solto e o "eu <verbo>" não valem para ela, mas NEGAR ser IA vale
+   ("sou humano", "não sou robô", "sou pessoa de verdade", "ninguém aqui é robô", "eu sou humano de verdade"): senão o modelo forjaria uma "citação" dessas */
+const NEGAR_IA_FORTE = /\b(?:nao sou (?:uma? )?(?:ia|robo|bot|maquina|inteligencia artificial)|sou (?:uma? )?(?:pessoa|humano|humana|gente|dono|dona)|eu sou (?:uma? )?(?:pessoa|humano|humana|gente|dono|dona)|atendente humano|pessoa de verdade|humano de verdade|humana de verdade|por gente|carne e osso|ninguem aqui e (?:robo|maquina|bot|ia))\b/;
+const SEM_PRIMEIRA_PESSOA = { ...RAIZES, negar_ia: NEGAR_IA_FORTE };
 const REGULADO = {
   depoimento: /\b(?:depoiment\w*|testemunh\w*|antes (?:e |\/ )?depois|avaliacoes (?:de|dos|das) (?:pacientes|clientes)|casos? de sucesso|historias? de (?:pacientes|clientes)|fotos? de (?:pacientes|clientes)|relatos?|transformac\w+)\b/,
   resultado_regulado: /\b(?:cura\w*|curar|milagr\w*|tratamento garantido|emagrec\w*)\b/
 };
 
 /* ---------- idioma ---------- */
-/* palavras funcionais do português (sem acento, como a busca as vê). Texto de 8 palavras ou mais precisa ter uma fração mínima delas (títulos de 5 palavras honestos chegam a 0,17, por isso o corte é de 8); abaixo disso, ou com uma
+/* palavras funcionais do português (sem acento, como a busca as vê). Texto de 5 palavras ou mais (e que não seja uma lista de substantivos) precisa ter uma fração mínima delas (o menor texto honesto medido é 0,17; o corte é 0,15); abaixo disso, ou com uma
    palavra funcional de inglês ou espanhol que o português não tem, é "idioma". Na dúvida, recusa. O nome do negócio não conta como palavra do texto */
 const FUNCIONAIS_PT = new Set(('de da do das dos em na no nas nos ao aos a o as os um uma uns umas e ou mas se que quem como quando onde para por pela pelo pelas pelos com sem sobre entre ate ja so nao ' +
   'mais menos muito pouco ele ela eles elas seu sua seus suas lhe te me voce cada todo toda todos todas tudo nada esse essa esses essas este esta isso isto outro outra vai vao sao foi tem ter ha pode ' +
   'depois antes assim aqui ali la tambem sempre ainda so tal mesmo mesma onde porque pois qual quais ate ou').split(' '));
-const ESTRANHAS = new Set('the and with you your our from this will are is to of in on at by it free ready every first month el los las del una con muy al es y precio'.split(' '));
-export const FRACAO_PORTUGUES_MIN = 0.2;
-const PALAVRAS_MIN_IDIOMA = 8;
+/* palavras de inglês e de espanhol que o português NÃO tem (sem "for", "real", "zero", "entrega", "gratis", que também são nossas): uma só basta para recusar */
+const ESTRANHAS = new Set(('the and with you your our from this will are is to of in on at by it i am not call us now free ready every first month best cheap price ever more get risk guaranteed guarantee instant fast ' +
+  'human person being robot sales clients monthly refund offered automatically while sleeping full discount el los las del una con muy al es y precio sin costo inmediata inmediato').split(' '));
+export const FRACAO_PORTUGUES_MIN = 0.15;
+export const PALAVRAS_MIN_IDIOMA = 5;
+const VIRGULAS_DE_LISTA = 3;   /* lista de substantivos ("Cardápio, mesas, reservas, pedidos...") não tem palavra funcional e é português: a fração não vale para ela */
 const palavrasDe = busca => busca.split(' ').filter(Boolean);
-/* a fração de palavras funcionais do português, ou null se o texto tem menos de 5 palavras (fora as do nome do negócio) */
+/* a fração de palavras funcionais do português, ou null se o texto tem menos de PALAVRAS_MIN_IDIOMA palavras (fora as do nome do negócio) ou é uma lista */
 export function fracaoPortugues(texto, nome = new Set()) {
   const palavras = palavrasDe(paraBusca(texto)).filter(p => !nome.has(p));
-  if (palavras.length < PALAVRAS_MIN_IDIOMA) return null;
+  if (palavras.length < PALAVRAS_MIN_IDIOMA || (texto.match(/,/g) || []).length >= VIRGULAS_DE_LISTA) return null;
   return palavras.filter(p => FUNCIONAIS_PT.has(p)).length / palavras.length;
 }
 function idiomaRuim(texto, nome) {
@@ -136,9 +146,9 @@ function idiomaRuim(texto, nome) {
 }
 
 /* ---------- palavra cortada ou repetida ---------- */
-/* a versão "colada": sinal entre letras sai ("pre-ço", "g.r.a.t.i.s", "D.E.Z"), letra repetida 3 ou mais vezes vira uma ("preeeço"); depois, a mesma busca */
+/* a versão "colada": QUALQUER sinal entre letras sai, de hífen a parêntese ("pre-ço", "pre–ço", "pre,ço", "g(r)atis", "g.r.a.t.i.s", "D.E.Z", "gra- tis"), letra repetida 3 ou mais vezes vira uma ("preeeço"); depois, a mesma busca */
 function colada(texto) {
-  return paraBusca(texto.replace(/(?<=\p{L})[-.'’·](?=\p{L})/gu, '').replace(/(\p{L})\1{2,}/giu, '$1'));
+  return paraBusca(texto.replace(/(?<=\p{L})(?:[^\p{L}\s]+|[-–—]\s)(?=\p{L})/gu, '').replace(/(\p{L})\1{2,}/giu, '$1'));
 }
 
 /* ---------- marcas ---------- */
@@ -158,9 +168,13 @@ const COMUNS_NO_INICIO = new Set([...FUNCIONAIS_PT, ...F.VERBOS.map(v => paraBus
   'etapa fim comeco tela mensagem contato proposta orcamento catalogo cardapio curso cursos aluno turma aula fabrica comprador comercial medida material amostra acabamento sacola peca tamanho frete pagamento entrega ' +
   'retirada atendimento visita fotos foto vitrine guia busca mapa indicacao chega chegou cai vai volta fica ficou faz sai entra passa segue leva traz abre ve marca marcou pede pediu paga pagou quer precisa sabe ' +
   'fala conta ajuda resolve muda atende quem quando se cada todo toda assim depois antes entao logo a gente nenhum alguem alguns algumas varios varias outros outras primeiro primeira ultimo ultima proximo proxima ' +
-  'um uma o a os as ao na no em').split(' ')]);
+  'um uma o a os as ao na no em agora hoje tudo tambem apenas somente enfim cozinha estoque salao mesa mesas reserva reservas casa escola obra pecas tecido oficina projeto ambiente cores cor fotos ' +
+  'tratamento consulta exame exames convenio profissional paciente pacientes consultorio clinica vaga vagas matricula prato pratos balcao carrinho pix cartao nota recibo dados formulario link ' +
+  'acompanha confere separa tira usa sobe desce escreve cancela remarca fecha compara monta produz prepara cuida define decide informa gera retorna repete renova reativa lista tabela preparo ' +
+  'cuidados orientacoes instrucoes regras historico lembrancas novidades promocoes vagas vendas saida fila grupo cada nome telefone endereco bairro servico urgencia modalidade nivel inicio professor ' +
+  'professora aluna alunos equipes estilo corte cabelo unha pele sessao sessoes plano planos pacote pacotes modelo modelos amostras tamanhos cores peso medidas tiragem cotas').split(' ')]);
 
-/* o nome do negócio que a pessoa deu: só as palavras (letras), até 6, e só se o nome todo for curto E sem marca conhecida; senão ninguém tem passe */
+/* o nome do negócio que a pessoa deu: só as palavras (letras), até 8, e só se o nome todo for curto E sem marca conhecida; senão ninguém tem passe */
 function palavrasDoNome(nome) {
   const n = normalizarTexto(nome);
   if (!n || n.length > NOME_MAX) return new Set();
@@ -203,17 +217,21 @@ export function textoDoPlanoPermitido(bruto, { nomeDoNegocio = '', regulado = fa
     if (bruto.length > TEXTO_MAX_ENTRADA) return { ok: false, motivo: 'longo' };
     /* "<" e ">" não são limpos em silêncio: um texto com tag é recusado (a forma já o faz; aqui vale para quem chamar sozinho) */
     if (/[<>]/.test(bruto.normalize('NFKC'))) return { ok: false, motivo: 'markdown' };
-    const t = normalizarTexto(bruto);
+    let t = normalizarTexto(bruto);
     if (!t) return { ok: false, motivo: 'vazio' };
+    /* nome do negócio com "&" ("Estética Bella & Cia"): o nome inteiro, escrito igual, vira "Estética Bella e Cia" (o "&" solto continua proibido) */
+    const nomeComE = normalizarTexto(nomeDoNegocio);
+    if (nomeComE.length >= 3 && nomeComE.includes('&')) t = t.split(nomeComE).join(nomeComE.split('&').join('e'));
     if (LETRA_FORA_DA_LISTA.test(t)) return { ok: false, motivo: 'alfabeto' };
     if (EMOJI.test(bruto) || EMOJI.test(t)) return { ok: false, motivo: 'emoji' };   /* (o bruto também: o NFKC leva o símbolo de marca registrada a "TM") */
-    if (MARCAS_DEMAIS.test(t.normalize('NFD')) || MARCA_SOLTA.test(t)) return { ok: false, motivo: 'caractere' };
+    if (MARCAS_DEMAIS.test(t.normalize('NFD')) || MARCA_SOLTA.test(t) || MARCA_FORA_DO_BLOCO.test(t)) return { ok: false, motivo: 'caractere' };
     if (DIGITO.test(t)) return { ok: false, motivo: 'digito' };
     if (EMAIL.test(t)) return { ok: false, motivo: 'email' };
     if (URL.test(t)) return { ok: false, motivo: 'url' };
     if (SIMBOLO_DE_VALOR.test(t)) return { ok: false, motivo: 'simbolo' };
     if (MARKDOWN.test(t)) return { ok: false, motivo: 'markdown' };
     if (CARACTERE_DE_FORA.test(t)) return { ok: false, motivo: 'caractere' };
+    if (LETRAS_SOLTAS.test(t)) return { ok: false, motivo: 'letras_soltas' };
     const nome = palavrasDoNome(nomeDoNegocio);
     if (MARCAS_RE.test(paraBusca(t)) || MARCAS_RE.test(colada(t))) return { ok: false, motivo: 'marca' };   /* (antes do idioma: "you tube" é marca, não inglês) */
     if (idiomaRuim(t, nome)) return { ok: false, motivo: 'idioma' };
