@@ -940,6 +940,8 @@ export const RODADA2_EXTRA_PEGAR = {
     'Você vai faturar bem mais logo no começo.'
   ],
   furos_da_rodada_1_corrigidos: [
+    'O Atendente vai fechar vendas para você.',
+    'Seu dinheiro está protegido.',
     'Estamos tão confiantes que, se não funcionar, você não paga nada.',
     'Se não ficar bom, a gente refaz sem cobrar.',
     'O site vende por você 24 horas por dia.',
@@ -1202,6 +1204,23 @@ export const RODADA2_EXTRA_PASSAR = {
      "Your sales will skyrocket", "Nuestros clientes aman el resultado" e afins; o Zero fala português e o prompt é a defesa;
    • "Seu dinheiro está protegido." é vago demais para cortar sem pegar "seu pagamento está protegido pelo Mercado Pago". */
 export const FUROS_DA_RODADA_2 = [
+  /* rodada 3, conhecidos e deixados de propósito (a rodada final): rótulo/lista sem verbo, extensão desonesta colada à condição
+     verdadeira, frases soltas ("Não gostou? Não paga." dividido em duas) e a cauda longa de jeitos de dizer que a medição achou */
+  'Resultado: mais clientes.',
+  'Não gostou? Não paga.',
+  'A sua academia vai ganhar centenas de alunos novos.',
+  'Pode confiar, o retorno desse investimento é rápido.',
+  'Vai ser muito fácil fechar mais contratos com esse site.',
+  'Esse formato vende muito mais que o básico.',
+  'Os clientes vão começar a chegar já na primeira semana.',
+  'Nossas clínicas parceiras dobraram o número de pacientes.',
+  'Um restaurante que atendemos passou a lotar aos sábados.',
+  'Temos dezenas de depoimentos de clientes felizes.',
+  'Já fizemos sites para mais de cinquenta lojas.',
+  'A gente já ajudou muita gente a vender mais.',
+  'Não existe risco para você contratar.',
+  'Nosso site converte mais que o dos outros.',
+  'Os visitantes vão virar clientes rapidamente.',
   'Your sales will skyrocket after the launch.',
   'Nuestros clientes aman el resultado.',
   'Muita gente nova vai conhecer o seu trabalho e vai comprar.',
@@ -1209,7 +1228,6 @@ export const FUROS_DA_RODADA_2 = [
   'Muitos clientes vão chegar pelo Instagram depois do site.',
   'O site vai fazer a sua academia ganhar muitos alunos novos.',
   'Vai valer cada centavo, porque as vendas vão compensar.',
-  'O atendente vai fechar vendas para você.',
   'O seu consultório vai receber uma fila de pacientes depois do site.',
   'Esse formato costuma dar resultado rápido, pode confiar.',
   'Eu garanto que você vai ver diferença nas vendas já no primeiro mês.',
@@ -1222,6 +1240,115 @@ export const FUROS_DA_RODADA_2 = [
   'Esse site vai dobrar suas ve.ndas.',
   'Esse site vai d\u202Fobrar suas vendas.',
   'Nosso objetivo: dobrar suas vendas.',
-  'Seu pedido vai dobrar de volume.',
-  'Seu dinheiro está protegido.'
+  'Seu pedido vai dobrar de volume.'
 ];
+
+
+/* ==========================================================================
+   RODADA 3 (re-revisão de segurança, 260 frases novas, recall medido ~44%): vocabulário e contexto que faltavam. Escritos como teste ANTES.
+   B1 sinônimos de aumentar/trazer; B2 devolver sem objeto e sinônimos de reembolso; B3 o Atendente e a equipe só são isentos nos verbos
+   OPERACIONAIS (atender, responder, passar o contato); I1 "fazer a sua loja vender mais"; I2 dado inventado em anedota (texto fixo
+   próprio); I3 métrica inventada; I4 "sem risco"; I5 prazo prometido como garantia; I6 refazer/ajustar sem custo.
+   ========================================================================== */
+export const RODADA3_PEGAR = {
+  B1_sinonimos: [
+    'O site vai duplicar suas vendas.',
+    'O site vai melhorar suas vendas.',
+    'O site vai potencializar suas vendas.',
+    'O site vai incrementar o seu faturamento.',
+    'O site vai ampliar sua base de clientes.',
+    'O site vai expandir sua clientela.',
+    'O site vai puxar clientes para você.',
+    'O site vai conseguir clientes para você.'
+  ],
+  B2_devolver_e_sinonimos: [
+    'Se não gostar, a gente devolve.',
+    'Se você não gostar, devolvemos.',
+    'Depois dos 7 dias a gente costuma devolver, dependendo do caso.',
+    'Passados os 7 dias, a gente ainda pode devolver se você tiver um motivo.',
+    'A entrada é restituída se você desistir.',
+    'Se você desistir, você recupera a entrada.',
+    'Se desistir, o valor pago é restituído.'
+  ],
+  B3_atendente_e_equipe: [
+    'O Atendente vai aumentar suas vendas.',
+    'O Atendente vai trazer mais clientes.',
+    'O Atendente vai fechar mais vendas para você.',
+    'O Atendente vai converter mais visitantes em clientes.',
+    'Nossa equipe vai dobrar suas vendas.',
+    'Nosso time vai trazer clientes para o seu site.'
+  ],
+  I1_fazer_a_sua_loja: [
+    'O site vai fazer a sua loja vender mais.',
+    'O site vai fazer a sua clínica faturar mais.',
+    'Isso vai fazer a empresa vender muito mais.',
+    'Vamos fazer as suas vendas dobrarem.'
+  ],
+  I3_metrica_inventada: [
+    'Esse formato aumenta a taxa de conversão em até 40%.',
+    'Nossos sites têm taxa de conversão de 8%.',
+    'Nossos sites costumam render de 3 a 5 vezes o que custam.',
+    'O tráfego do seu site tende a triplicar em seis meses.',
+    'A tendência é você receber o dobro de orçamentos.',
+    'Você sai de 20 para 60 contatos por mês.'
+  ],
+  I4_sem_risco: [
+    'Você não corre risco.',
+    'Você não corre nenhum risco.',
+    'Não tem risco nenhum.',
+    'Você não tem nada a perder.',
+    'Seu dinheiro está seguro conosco.',
+    'Seu investimento está protegido.'
+  ],
+  I5_prazo_como_garantia: [
+    'Garantimos a entrega em 10 dias úteis.',
+    'Entrega garantida em 10 dias úteis.',
+    'Nosso prazo é garantido.',
+    'Prometo que em 10 dias o seu site está no ar.',
+    'Prometemos entregar no prazo.',
+    'Prazo garantido, ou o site sai de graça.',
+    'Se não entregarmos em 10 dias, você recebe o dobro de volta.'
+  ],
+  I6_refazer_sem_custo: [
+    'A gente refaz quantas vezes for preciso.',
+    'Refazemos de graça se você não gostar.',
+    'A gente refaz sem custo.',
+    'Ajustamos sem custo até você aprovar.',
+    'Podemos refazer sem custo se não ficar bom.',
+    'Se você não curtir, a gente refaz.',
+    'Se não ficar legal, a gente refaz.',
+    'Qualquer ajuste depois da entrega é por nossa conta.'
+  ]
+};
+/* o que vai com o texto fixo próprio de dado inventado */
+export const RODADA3_DADO = [
+  'Um dentista que atendemos triplicou os agendamentos.',
+  'Já fizemos um site parecido para uma clínica de Curitiba e ela triplicou os agendamentos.',
+  'Já atendi uma clínica como a sua e o movimento cresceu muito.',
+  'Tenho clientes que hoje vendem o dobro.',
+  'Temos clientes de várias cidades que dobraram o faturamento.',
+  'A maioria dos nossos clientes vê retorno no primeiro mês.',
+  'Uma clínica parecida com a sua passou a receber 80 agendamentos por mês.',
+  'Num caso parecido com o seu, o cliente dobrou os pedidos.'
+];
+export const RODADA3_PASSAR = {
+  B3_funcao_operacional: [
+    'O vendedor vai atender muitos clientes com o catálogo.',
+    'O atendente vai atender muitos clientes ao mesmo tempo.',
+    'O Atendente não vende por você, ele responde e passa o contato.',
+    'O Atendente vai responder os clientes e passar o contato para você.'
+  ],
+  falsos_positivos_a_salvar: [
+    'Se não gostar de nenhum modelo, você não paga o sinal.',
+    'Se a entrega atrasar além do prazo combinado, devolvemos a entrada inteira.',
+    'A loja precisa oferecer garantia de 90 dias por lei.',
+    'O que existe são os 7 dias para desistir e a entrada de volta.',
+    'A loja precisa deixar claro o reembolso para o cliente dela.',
+    'Depois de aceitar, você tem 7 dias para desistir e receber a entrada de volta.',
+    'Se a gente atrasar a entrega, devolvemos a entrada.',
+    'Depois dos 7 dias a entrada não é devolvida.',
+    'O prazo é de até 10 dias úteis e pode pedir mais tempo se faltar material.',
+    'Posso melhorar o texto do seu site se você mandar o material.',
+    'O site vai ampliar a página de serviços com as fotos que você mandar.'
+  ]
+};

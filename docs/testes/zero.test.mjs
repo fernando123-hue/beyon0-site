@@ -20,7 +20,7 @@ import { semPromessaDeSuporte, semMensalidadeDoAtendente, SUPORTE_FIXO, ATENDENT
 import { SUPORTE_PEGAR, SUPORTE_PASSAR, MENSALIDADE_PEGAR, MENSALIDADE_PASSAR, FUROS_CONHECIDOS } from './travas-promessa-casos.mjs';
 import { semPromessaDeResultado, semGarantia, RESULTADO_FIXO, GARANTIA_FIXO, DADO_FIXO } from '../../api/_vendas/travas-resultado.mjs';
 import { normalizar } from '../../api/_vendas/promessa.mjs';
-import { RESULTADO_PEGAR, RESULTADO_PASSAR, GARANTIA_PEGAR, GARANTIA_PASSAR, FUROS_RESULTADO_CONHECIDOS, FUROS_DA_RODADA_2, RODADA2_PEGAR, RODADA2_PASSAR, RODADA2_EXTRA_PEGAR, RODADA2_EXTRA_PASSAR } from './travas-resultado-casos.mjs';
+import { RESULTADO_PEGAR, RESULTADO_PASSAR, GARANTIA_PEGAR, GARANTIA_PASSAR, FUROS_RESULTADO_CONHECIDOS, FUROS_DA_RODADA_2, RODADA2_PEGAR, RODADA2_PASSAR, RODADA2_EXTRA_PEGAR, RODADA2_EXTRA_PASSAR, RODADA3_PEGAR, RODADA3_DADO, RODADA3_PASSAR } from './travas-resultado-casos.mjs';
 import { semPrecoNoTexto } from '../../api/_vendas/seguranca.mjs';
 
 const REGRAS = JSON.parse(fs.readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
@@ -1058,8 +1058,8 @@ const unir = (...mapas) => {
   for (const m of mapas) for (const [k, v] of Object.entries(m)) saida[k] = [...(saida[k] || []), ...v];
   return saida;
 };
-const PEGAR2 = unir(RODADA2_PEGAR, RODADA2_EXTRA_PEGAR);
-const PASSAR2 = unir(RODADA2_PASSAR, RODADA2_EXTRA_PASSAR);
+const PEGAR2 = unir(RODADA2_PEGAR, RODADA2_EXTRA_PEGAR, RODADA3_PEGAR);
+const PASSAR2 = unir(RODADA2_PASSAR, RODADA2_EXTRA_PASSAR, RODADA3_PASSAR);
 const corta = t => semPromessaDeResultado(t).trocou || semGarantia(t).trocou;
 
 for (const [grupo, frases] of Object.entries(PEGAR2)) {
@@ -1162,4 +1162,8 @@ test('rodada 2 [M2]: a folga entre o corte do agente (1.100) e o que as travas e
   assert.equal(semGarantia(outra).trocou, true, 'garantia depois de 360 frases curtas');
   /* e o que passa muito do limite não é examinado (é o preço de não travar a resposta): documentado, e o agente nunca entrega isso */
   assert.equal(semPromessaDeResultado('a\n'.repeat(5000) + 'Vai dobrar suas vendas.').trocou, false);
+});
+
+test('rodada 3 [I2]: dado inventado em anedota ("um dentista que atendemos triplicou...") sai com o texto fixo próprio', () => {
+  for (const t of RODADA3_DADO) assert.equal(semPromessaDeResultado(t).texto, DADO_FIXO, t);
 });

@@ -30,18 +30,19 @@
    O verbo de resultado só vale colado a um objeto de resultado (clientes, vendas...) por artigos e quantificadores, nunca por
    qualquer palavra, para "vai trazer os dados do orçamento" não ser cortado.
 
-   AVISO HONESTO SOBRE A MEDIDA: o 100% no gabarito do classificador (promete_resultado) é REGRESSÃO, não qualidade: o autor viu
-   os 14 positivos ao escrever os padrões. O número que vale é o de frases que o autor NÃO tinha visto ao escrever:
-     • revisores (283 promessas e 139 honestas): recall de ~45% antes da rodada 2; depois, 97%, mas aí o autor já viu todas
-       (viraram teste), então esse 97% também é regressão;
-     • três levas de frases novas do autor (120 promessas, 140 honestas), medidas ANTES de ajustar a trava a cada leva:
-       ~49% de recall com a trava do primeiro commit e ~60% com a da rodada 2, com ZERO frase honesta cortada nas 140.
-   Em português claro: a trava pega pouco mais da metade do que um visitante hostil ou um modelo distraído consegue dizer, e
-   quase nunca corta resposta boa. Em compensação, o que ela pega vira um texto fixo seguro. A defesa de verdade é o prompt e a rodada
-   com o modelo real; esta trava é a segunda camada. É um filtro de lista, e nenhuma lista cobre todo jeito de dizer. Por isso as
-   travas priorizam PRECISÃO: um falso positivo corta uma resposta boa. Os furos que sobram ficam em
-   docs/testes/travas-resultado-casos.mjs (FUROS_RESULTADO_CONHECIDOS e FUROS_DA_RODADA_2), com o motivo; outro idioma além do
-   conjunto mínimo de inglês e espanhol também é furo conhecido.
+   AVISO HONESTO SOBRE A MEDIDA: este filtro é a SEGUNDA camada. Fora da amostra ele pega só em torno de 50% a 70% do que se
+   consegue dizer (a revisão de segurança da rodada 3, com 260 frases novas, mediu ~44% no commit anterior); a defesa real é o prompt
+   do Zero e a rodada real com o modelo (a rodada 8). O 100% no gabarito do classificador (promete_resultado) e o ~98% nas frases dos
+   revisores são REGRESSÃO, não qualidade: o autor viu todas ao escrever os padrões (viraram teste). O número que vale é o de frases
+   que o autor NÃO tinha visto, medido antes de ajustar a trava a elas:
+     • rodada 2: três levas (120 promessas, 140 honestas): ~49% de recall no primeiro commit e ~60% depois;
+     • rodada 3: uma leva nova de 40 promessas e 40 honestas, medida antes de qualquer ajuste: 58% com a trava da rodada 2 e 68% com
+       a da rodada 3; uma honesta cortada nas 40 (já corrigida: "se não gostar de nenhum dos modelos, não paga o sinal").
+   Em português claro: a trava pega perto de dois terços do que um visitante hostil ou um modelo distraído consegue dizer e quase nunca
+   corta resposta boa; o que pega vira um texto fixo seguro. É um filtro de lista e nenhuma lista cobre todo jeito de dizer. Por isso
+   priorizam PRECISÃO: um falso positivo corta uma resposta boa. Os furos que sobram ficam em docs/testes/travas-resultado-casos.mjs
+   (FUROS_RESULTADO_CONHECIDOS e FUROS_DA_RODADA_2), com o motivo; outro idioma além do conjunto mínimo de inglês e espanhol também é
+   furo conhecido.
 
    LIMITES CONHECIDOS: (1) promessa.mjs corta cada frase em 2.000 caracteres (TETO) ao normalizar, e estas travas examinam no máximo
    1.200 frases ou 6.000 caracteres por texto (MAX_FRASES, MAX_CARACTERES: 25 mil linhas curtas custavam ~4 s): o que vier depois não
@@ -154,6 +155,11 @@ const DEPOIS_OPERACIONAL = /^\s*(?:por|via|pelo|pela)\s+(?:e mail|email|whatsapp
 const DEPOIS_CONDICIONAL = /^\s*(?:se|caso|quando|desde que|a menos que|contanto que)\b/;
 /* o vendedor/equipe/atendente fazendo o trabalho dele não é promessa do site */
 const SUJEITO_PESSOA = /\b(?:vendedor|vendedores|equipe|time|funcionario|funcionarios|gerente|atendente)\s+(?:\w+\s+){0,1}$/;
+/* (rodada 3) o Atendente, a equipe e o time são NOSSOS: só os verbos operacionais (atender, responder, passar o contato) são descrição de função;
+   "o Atendente vai aumentar suas vendas" é promessa. Vendedor e gerente do cliente fazendo o trabalho deles seguem isentos */
+const SUJEITO_BEYON = /\b(?:atendente|equipe|time)\s+(?:\w+\s+){0,1}$/;
+const OPERACIONAL = /\b(?:atend\w+|respond\w+|receb\w+|anot\w+|registr\w+|encaminh\w+|passa\w*)\b/;
+const NEGA_DENTRO = /\b(?:nao|nunca|jamais|nem)\b/;
 
 function promessasEm(m, lista, { hedge = true, negacao = true, ctx = '' } = {}) {
   for (const re of lista) {
@@ -164,7 +170,10 @@ function promessasEm(m, lista, { hedge = true, negacao = true, ctx = '' } = {}) 
       const antes = (m.slice(0, idx).trim() === '' ? ctx + ' ' : '') + m.slice(0, idx);
       const depois = m.slice(fim);
       if (DEPOIS_OPERACIONAL.test(depois) || DEPOIS_CONDICIONAL.test(depois)) continue;
-      if (REPORTADA.test(m.slice(0, fim)) || SUJEITO_PESSOA.test(antes)) continue;
+      const nosso = SUJEITO_BEYON.test(antes);
+      if (REPORTADA.test(m.slice(0, fim)) || (SUJEITO_PESSOA.test(antes) && (!nosso || OPERACIONAL.test(x[0])))) continue;
+      /* "o Atendente não vende por você": o não DENTRO do trecho casado também nega (menos o "não parar de", que é a promessa) */
+      if (negacao && NEGA_DENTRO.test(x[0].replace(/\bnao parar\b/g, ''))) continue;
       if (negacao && (negadoAntes(antes) || DEPOIS_NEGA.test(depois))) continue;
       /* (sem as expressões que só parecem negação ou dúvida: "não se preocupe" tem um "se" que não é condição) */
       if (hedge && HEDGE_PERTO.test(ultimas(limpa(antes.replace(FALSA_NEGACAO, ' ')), 4))) continue;
@@ -182,7 +191,7 @@ const VEZES = '(?:(?:\\d+(?:[.,]\\d+)?|' + NUMW + '(?: e ' + NUMW + ')?)\\s*(?:x
 const PCT = '(?:\\d+(?:[.,]\\d+)?\\s?%|' + NUMW + '(?: e ' + NUMW + ')?\\s+por\\s*cento)';
 const NUM = '(?:' + PCT + '|' + VEZES + '|o dobro|o triplo|o quadruplo|em dobro)';
 /* o que é resultado: os fortes valem com artigo ("vai trazer os clientes"); os fracos só com "mais"/quantidade ("vai trazer mais contatos") */
-const FORTE = '(?:clientes|vendas|faturamento|lucros?|receitas?|conversoes|conversao|retorno|roi|resultados|pacientes|alunos|fregueses|compradores)';
+const FORTE = '(?:clientes|vendas|faturamento|lucros?|receitas?|conversoes|conversao|retorno|roi|resultados|pacientes|alunos|fregueses|compradores|clientela)';
 const FRACO = '(?:contatos|orcamentos|pedidos|visitas|visitantes|acessos|trafego|reservas|encomendas|agendamentos|consultas|matriculas|mensagens|ligacoes|seguidores|curtidas|publico|audiencia|procura|demanda|movimento|oportunidades|indicacoes|negocios|inscricoes|cadastros|leads|gente|contratos|propostas|fechamentos)';
 const DE_RESULTADO = '(?:' + FORTE + '|' + FRACO + ')';
 const ARTIGO = '(?:mais|muito|muitos|muitas|bem|bastante|novos|novas|varios|varias|diversos|grande|grandes|bons|otimos|excelentes|maiores|melhores|bom|boa|otimo|otima|excelente|os|as|o|a|um|uns|uma|seus|suas|seu|sua|todos|todas|todo|toda|esses|essas|esse|essa|estes|estas|este|esta|milhares de|centenas de|dezenas de|mil|cem|cento|dois|duas|tres|quatro|cinco|dez|vinte|trinta|cinquenta|\\d+%?)';
@@ -193,9 +202,9 @@ const ADV = '(?:(?:ja|tambem|sim|certamente|realmente|sempre|logo|muito|bastante
 const AUXV = '(?:(?:conseguir|comecar a|voltar a|passar a)\\s+)?';
 const LEAD = AUX + '\\s+' + ADV + AUXV;
 const CL = '(?:(?:te|lhe|nos|voce|para voce|pra voce|a voce)\\s+)?';
-const SOBE_INF = '(?:dobrar|triplicar|quadruplicar|multiplicar|aumentar|elevar|impulsionar|turbinar|disparar|alavancar)';
-const SOBE_PRES = '(?:dobra|dobram|triplica|triplicam|multiplica|multiplicam|aumenta|aumentam|eleva|elevam|impulsiona|turbina|dispara|alavanca)';
-const TRAZ_INF = '(?:gerar|trazer|atrair|captar|conquistar|garantir|render|converter|dar|proporcionar|fechar)';
+const SOBE_INF = '(?:dobrar|duplicar|triplicar|quadruplicar|multiplicar|aumentar|elevar|impulsionar|turbinar|disparar|alavancar|melhorar|potencializar|incrementar|ampliar|expandir|maximizar)';
+const SOBE_PRES = '(?:dobra|dobram|duplica|duplicam|triplica|triplicam|multiplica|multiplicam|aumenta|aumentam|eleva|elevam|impulsiona|turbina|dispara|alavanca|melhora|melhoram|potencializa|incrementa|amplia|expande|maximiza)';
+const TRAZ_INF = '(?:gerar|trazer|atrair|captar|conquistar|garantir|render|converter|dar|proporcionar|fechar|puxar|conseguir)';
 const TRAZ_PRES = '(?:traz|trazem|atrai|atraem|gera|geram|rende|rendem|converte|convertem|garante|garantem|capta|conquista|fecha|fecham)';
 const GANHA_INF = '(?:ganhar|receber|ter|fechar|atender|fazer|vender|conseguir|ver|obter|alcancar)';
 const V_VENDE = '(?:vender|faturar|lucrar|converter|crescer|render|arrecadar)';
@@ -215,10 +224,10 @@ const PROMESSAS_DE_RESULTADO = [
   rx`\b${LEAD}${GANHA_INF}\s+${CL}${QUANT}(?:\w+\s+){0,1}(?:e|ou)\s+${QUANT}${DE_RESULTADO}\b`,
   rx`\b${LEAD}${V_VENDE}\s+(?:mais|muito|bastante|bem mais|o dobro|o triplo|dobrado|triplicado)\b`,
   rx`\b${LEAD}${V_VENDE}\s+(?:\w+\s+){0,1}${VEZES}\s+mais\b`,
-  rx`\b${LEAD}fazer\s+(?:(?!(?:para|pra|a|de|que|se)\s)\w+\s+){1,3}${V_VENDE}\s+(?:mais|muito|bastante|bem mais|o dobro|o triplo)\b`,
+  rx`\b${LEAD}fazer\s+(?:(?!(?:para|pra|de|que|se)\s)\w+\s+){1,3}${V_VENDE}\s+(?:mais|muito|bastante|bem mais|o dobro|o triplo)\b`,
   rx`\b${LEAD}(?:ganhar|faturar|lucrar)\s+(?:mais |muito |bastante )?(?:dinheiro|grana)\b`,
   rx`\b${LEAD}(?:converter|transformar)\s+(?:\w+\s+){0,2}em\s+(?:clientes|vendas|compradores|pacientes)\b`,
-  rx`\b${LEAD}(?:aumentar|elevar)\s+(?:o |a |os |as )?(?:numero|quantidade|volume|fluxo)\s+(?:de\s+)?${DE_RESULTADO}\b`,
+  rx`\b${LEAD}${SOBE_INF}\s+(?:(?:o|a|os|as|sua|seu|suas|seus)\s+){1,2}(?:numero|quantidade|volume|fluxo|base|carteira|lista)\s+(?:de\s+)?${DE_RESULTADO}\b`,
   rx`\b${LEAD}(?:ter|receber|atender|ganhar|fechar|vender|faturar|conseguir|alcancar|atrair|trazer|gerar|captar)\s+(?:\w+\s+){0,1}(?:o dobro|o triplo|o quadruplo)\s+d[eo]s?\s+(?:\w+\s+){0,1}${DE_RESULTADO}\b`,
   rx`\b${LEAD}(?:ter|obter|conseguir|alcancar)\s+(?:(?:mais|muito|muitos|bom|bons|otimo|otimos|um|uns|seu|seus|esse|esses)\s+){0,2}(?:retorno|lucros?)\b`,
   rx`\b${LEAD}(?:ter|obter|conseguir)\s+(?:(?:mais|muito|muitos|bom|bons|otimo|otimos|rapido|rapidos)\s+){1,2}resultados?\b`,
@@ -246,6 +255,13 @@ const PROMESSAS_DE_RESULTADO = [
   rx`\b${TRAZ_PRES}\s+(?:bons |otimos |excelentes |muitos |mais |grandes |rapidos )?resultados?\b(?!\s+(?:da|do|das|dos)\b)`,
   rx`\bclientes\s+(?:\w+\s+){0,1}(?:vai|vao|ira|irao)\s+${ADV}(?:(?:comecar a )?(?:comprar|ligar)|surgir|fechar|lotar|encher|nao parar|chegar (?:sozinhos|aos montes|de todo lado|(?:\w+\s+){0,2}(?:pelo|pelas|via) (?:google|buscas|internet)))\b`,
   rx`\b${LEAD}dar certo\b`,
+  /* (rodada 3) métricas inventadas */
+  rx`\b${SOBE_PRES}\s+(?:\w+\s+){0,3}?(?:taxa|conversao|vendas|clientes|trafego|faturamento|resultados?|contatos|pedidos|visitas|procura|leads)(?:\s+\w+){0,3}?\s+em\s+(?:ate\s+)?${PCT}`,
+  rx`\btaxa de (?:conversao|retorno|sucesso|aprovacao|fechamento)\s+(?:\w+\s+){0,3}${PCT}`,
+  rx`\b(?:costumam|costuma|tendem a|tende a)\s+(?:render|dobrar|triplicar|quadruplicar|multiplicar|aumentar|trazer|gerar)\s+(?:\w+\s+){0,6}?(?:\d+|${NUMW})\s+(?:a|ou)\s+(?:\d+|${NUMW})\s+vezes\b`,
+  rx`\b(?:tende|tendem)\s+a\s+(?:dobrar|triplicar|quadruplicar|multiplicar)\b`,
+  rx`\btendencia\s+e\s+(?:voce\s+)?(?:receber|ter|ganhar|vender|faturar)\s+(?:o dobro|o triplo|mais)\b`,
+  rx`\b(?:sai|saira|passa|passara|vai sair|vai passar)\s+de\s+\d+\s+para\s+\d+\s+${DE_RESULTADO}\b`,
   /* famílias de jeito de dizer que a medição independente mostrou faltar */
   rx`\b${LEAD}fazer\s+(?:(?!(?:para|pra|a|de|que|se)\s)\w+\s+){1,4}(?:ganhar|receber|ter|atrair|fechar)\s+${QUANT}${DE_RESULTADO}\b`,
   rx`\bchegar\s+(?:cliente|clientes|pedidos|gente|contatos)\s+(?:de todo lado|aos montes|todo dia|toda hora)\b`,
@@ -299,14 +315,18 @@ const PROMESSAS_DE_RESULTADO = [
 /* o dado inventado sobre os clientes da Beyon (ela não tem casos publicados). Fora do filtro de possibilidade: "ajudamos dezenas de
    empresas" é afirmação mesmo com o verbo "ajudar"; a negação ("não atendemos dezenas de clientes") continua valendo */
 const SATISF = '(?:satisfeit\\w+|feliz|felizes|encantad\\w+|contentes?)';
-const RAMOS = '(?:clientes|empresas|negocios|clinicas|restaurantes|dentistas|advogados|lojas|escritorios|saloes|academias|oficinas|empreendedores|profissionais|varias|diversas|muitos|muitas|dezenas|centenas)';
+const RAMOS = '(?:clientes?|empresas?|negocios?|clinicas?|restaurantes?|dentistas?|advogados?|lojas?|escritorios?|saloes|salao|academias?|oficinas?|empreendedores?|profissionais|profissional|varias|diversas|muitos|muitas|dezenas|centenas)';
 const DADO_INVENTADO = [
-  rx`\b(?:nossos|nossas) (?:\w+ ){0,1}clientes\s+(?:\w+\s+){0,5}(?:cresc\w+|aument\w+|dobr\w+|triplic\w+|multiplic\w+|vendem|venderam|vend\w+ mais|fatur\w+|lucr\w+|ganh\w+ (?:\w+ ){0,1}(?:dinheiro|clientes|vendas|mais|visibilidade|destaque)|conquist\w+|bateram|superaram|tiveram (?:\w+ ){0,1}(?:resultado\w*|retorno|aumento|crescimento|sucesso)|tem (?:\w+ ){0,1}(?:resultado\w*|retorno|sucesso)|(?:sairam|ficaram|estao|ficam|saem) (?:\w+ ){0,1}${SATISF}|amam|adoram|aprovam|recomendam|elogiam|indicam)\b`,
+  rx`\b(?:nossos|nossas) (?:\w+ ){0,1}clientes\s+(?:\w+\s+){0,5}(?:cresc\w+|aument\w+|dobr\w+|triplic\w+|multiplic\w+|vendem|venderam|vend\w+ mais|fatur\w+|lucr\w+|ganh\w+ (?:\w+ ){0,1}(?:dinheiro|clientes|vendas|mais|visibilidade|destaque)|conquist\w+|bateram|superaram|tiveram (?:\w+ ){0,1}(?:resultado\w*|retorno|aumento|crescimento|sucesso)|tem (?:\w+ ){0,1}(?:resultado\w*|retorno|sucesso)|(?:sairam|ficaram|estao|ficam|saem) (?:\w+ ){0,1}${SATISF}|amam|adoram|aprovam|recomendam|elogiam|indicam|(?:ve|veem|relatam|obtem|conseguem|recebem|sentem|percebem) (?:\w+ ){0,2}(?:retorno|resultados?|aumento|crescimento|vendas|clientes|lucro))\b`,
   rx`\b(?:clientes da beyon|clientes da beyon zero|quem ja (?:fez|fechou|contratou) (?:\w+ ){0,2}(?:com a gente|conosco|com a beyon)|todo cliente nosso|cada cliente nosso)\s+(?:\w+\s+){0,4}(?:cresc\w+|aument\w+|dobr\w+|triplic\w+|multiplic\w+|vendem|venderam|vend\w+ mais|fatur\w+|lucr\w+|conquist\w+|tiveram (?:\w+ ){0,1}(?:resultado\w*|retorno|aumento|crescimento|sucesso)|(?:ficam|ficaram|estao) (?:\w+ ){0,1}${SATISF})\b`,
   rx`\b(?:fizemos|ajudamos|entregamos|atendemos|criamos|produzimos|desenvolvemos|montamos|publicamos|fechamos|temos|tivemos)\s+(?:\w+\s+){0,1}?(?:\d+|dezenas|centenas|milhares|dezena|centena|varios|diversos|muitos|muitas|mais de \w+)\s+(?:de\s+)?(?:\w+\s+){0,1}(?:sites?|clientes?|projetos?|empresas|negocios|empreendedores|marcas|lojas)\b`,
   rx`\b(?:fizemos|fiz|criamos|entregamos|produzimos|desenvolvemos|montamos|publicamos)\s+(?:\w+\s+){0,1}(?:sites?|paginas|projetos)\s+(?:para|de|pra)\s+(?:\w+\s+){0,1}${RAMOS}\b`,
-  rx`\b(?:atendemos|atendi|ajudamos|ajudei|trabalhamos com|trabalhei com)\s+(?:\w+\s+){0,2}${RAMOS}\b`,
-  rx`\b(?:temos|tivemos|tenho|tive)\s+(?:\w+\s+){0,2}(?:casos?|cases?|exemplos?|historias?|clientes?)\s+(?:\w+\s+){0,2}(?:de sucesso|que (?:dobraram|cresceram|aumentaram|triplicaram|venderam|faturaram|multiplicaram)|${SATISF})\b`,
+  rx`\b(?:atendemos|atendi|ajudamos|ajudei|trabalhamos com|trabalhei com)\s+(?:(?!(?:sua|seu|suas|seus|voce)\s)\w+\s+){0,2}${RAMOS}\b`,
+  rx`\bque (?:atendemos|atendi|ajudamos|ajudei|temos|tivemos|fizemos)\s+(?:\w+\s+){0,3}?(?:triplic\w+|dobr\w+|multiplic\w+|cresc\w+|aument\w+|vend\w+|fatur\w+|lucr\w+|ganh\w+)\b`,
+  rx`\b(?:fizemos|fiz|entregamos|criamos)\s+(?:um|uma)\s+(?:site|pagina|projeto)\s+(?:parecid\w+|igual|semelhante|similar)\b`,
+  rx`\b(?:parecid[oa]s?|igual|semelhante|similar|como)\s+(?:com |a |ao )?(?:a |o )?(?:sua|seu)\s+(?:\w+\s+){0,3}(?:passou|dobrou|triplicou|cresceu|aumentou|vendeu|faturou|recebeu|ganhou|conseguiu)\b`,
+  rx`\b(?:num|em um|em)\s+caso\s+(?:parecid\w+|igual|semelhante|similar)\s+(?:com|ao|a)\s+(?:o|a)\s+(?:seu|sua)\b`,
+  rx`\b(?:temos|tivemos|tenho|tive)\s+(?:\w+\s+){0,2}(?:casos?|cases?|exemplos?|historias?|clientes?)\s+(?:\w+\s+){0,4}(?:de sucesso|que (?:hoje |agora |ja )?(?:dobraram|cresceram|aumentaram|triplicaram|venderam|vendem|faturaram|faturam|multiplicaram)|${SATISF})\b`,
   rx`\bclientes que (?:atendemos|temos|ja atendemos|ja fizemos)\s+(?:\w+\s+){0,2}(?:recomend\w+|ador\w+|aprov\w+|gost\w+|indic\w+|elogi\w+)\b`,
   rx`\b(?:temos|tenho|tivemos)\s+(?:\w+\s+){0,1}(?:depoimentos|avaliacoes|cases|casos|portfolio)\b`,
   rx`\btodos\s+(?:\w+\s+){0,1}(?:ficam|ficaram|estao|saem|sairam)\s+(?:muito |bem |super )?${SATISF}\b`
@@ -408,27 +428,42 @@ const PROMESSAS_DE_GARANTIA = [
   rx`\b${GARANTE}\s+que\s+(?:o site|seu site|tudo)\s+(?:vai|va|ira|vao)\s+(?:funcionar|dar certo|ficar (?:perfeit\w+|lind\w+|incrivel))\b`,
   rx`\b(?:satisfacao|qualidade|funcionamento|reembolso|devolucao|dinheiro de volta)\s+(?:\w+\s+){0,1}garantid[oa]s?\b`,
   rx`\b100 ?%? (?:de )?(?:garantid\w+|satisfeit\w+|satisfacao)\b`,
-  rx`\b(?:risco zero|zero risco|sem risco(?: nenhum)?)\b`
+  rx`\b(?:risco zero|zero risco|sem risco(?: nenhum)?)\b`,
+  /* (rodada 3) "sem risco" por outras palavras */
+  rx`\bnao\s+corre\w*\s+(?:nenhum\s+|qualquer\s+)?risco\b`,
+  rx`\bnao\s+(?:tem|ha)\s+(?:nenhum\s+)?risco(?:\s+nenhum)?\b`,
+  rx`\bnao\s+tem\s+nada\s+a\s+perder\b`,
+  rx`\b(?:dinheiro|investimento|pagamento|sinal|entrada)\s+(?:\w+\s+){0,1}(?:esta|fica|sera|e)\s+(?:\w+\s+){0,1}(?:seguro|segura|protegid[oa]|resguardad[oa]|garantid[oa])\b`,
+  /* (rodada 3) prazo prometido como garantia: o orçamento só diz "até N dias úteis" e o prazo anda se faltar material */
+  rx`\b${GARANTE}\s+(?:a |o |no |de |com )?(?:entrega|prazo)\b`,
+  rx`\b${GARANTE}\s+(?:\w+\s+){0,1}entregar\b`,
+  rx`\b${GARANTE}\s+que\s+(?:\w+\s+){0,3}(?:entregamos|entrego|sera entregue|fica pronto|vai ficar pronto|estara pronto)\b`,
+  rx`\b${GARANTE}\s+que\s+(?:\w+\s+){0,7}(?:esta|fica|vai ficar|estara|vai estar|sai|vai sair)\s+(?:\w+\s+){0,2}(?:no ar|pronto|publicado)\b`,
+  rx`\b(?:entrega|prazo)\s+(?:\w+\s+){0,1}garantid[oa]s?\b`,
+  rx`\b(?:ou|senao)\s+(?:o )?(?:site|servico|trabalho)\s+(?:sai|e|fica)\s+(?:de graca|gratis|gratuito)\b`
 ];
 /* devolver o dinheiro: só vale a forma exata da empresa (7 dias para desistir; devolução se a Beyon atrasar), tirada antes por mascarar() */
-const ENTRADA = '(?:(?:devolv\\w+|devolucao d[ao])\\s+(?:(?:o |a )?(?:valor|dinheiro) d[ae]\\s+)?(?:a |o |sua |seu |toda a |todo o )?(?:entrada|sinal)(?: inteir[ao]| toda| total| integral)?(?:\\s+e\\s+(?:o |a )?(?:entrada|sinal))?|(?:recebe\\w*|receber|ter|tem|tera)\\s+(?:de volta\\s+)?(?:(?:o |a )?(?:valor|dinheiro) d[ae]\\s+)?(?:a |sua |toda a )?entrada(?: inteir[ao]| toda)?(?: de volta)?|(?:a |sua |toda a |o )?(?:entrada|sinal)(?: de \\d+ ?%)?(?: inteir[ao])? (?:volta|retorna|e devolvid[ao]|sera devolvid[ao]|devolvid[ao]|de volta)(?: inteir[ao])?)';
+const ENTRADA = '(?:(?:devolv\\w+|restitu\\w+|reembols\\w+|devolucao d[ao])\\s+(?:(?:o |a )?(?:valor|dinheiro) d[ae]\\s+)?(?:a |o |sua |seu |toda a |todo o )?(?:entrada|sinal)(?: inteir[ao]| toda| total| integral)?(?:\\s+e\\s+(?:o |a )?(?:entrada|sinal))?|(?:recebe\\w*|receber|ter|tem|tera|recuper\\w+|reav\\w+)\\s+(?:de volta\\s+)?(?:(?:o |a )?(?:valor|dinheiro) d[ae]\\s+)?(?:a |sua |toda a )?entrada(?: inteir[ao]| toda)?(?: de volta)?|(?:a |sua |toda a |o )?(?:entrada|sinal)(?: de \\d+ ?%)?(?: inteir[ao])? (?:volta|retorna|e devolvid[ao]|sera devolvid[ao]|devolvid[ao]|e restituid[ao]|sera restituid[ao]|restituid[ao]|de volta)(?: inteir[ao])?)';
 const TUDO_DE_VOLTA = '(?:devolv\\w+\\s+(?:o |todo o |tudo o |toda a )?(?:tudo|dinheiro|valor|que voce pagou)|recebe\\w*\\s+(?:de volta\\s+)?(?:tudo|todo o (?:valor|dinheiro)|o dinheiro|o valor)(?: de volta)?)';
 const DES7 = '(?:(?:voce )?(?:tem|tera|pode|podera|possui) )?(?:(?:ate|em ate|dentro d[eo]s?) )?(?:7|sete) dias(?: de garantia(?: legal)?)? (?:para|pra) (?:voce |vc )?(?:desistir|se arrepender)|desist\\w+ (?:' + W + ' ){0,4}?(?:em ate|em|dentro d[eo]s?|ate) (?:7|sete) dias';
 const ATRASO = '(?:atras\\w+|nao entreg\\w+|nao cumpr\\w+)(?: a entrega| o prazo| no prazo(?: combinado)?| do prazo)?';
 const FOLGA = '(?:(?!(?:devolv|reembols|dinheiro|tudo|todo|gost|satisf|qualquer|quiser|momento|depois|mesmo|alem|apos|\\d{2,}))' + W + ' ){0,8}';
+const FOLGA_A = '(?:(?!(?:devolv|reembols|dinheiro|tudo|todo|gost|satisf|qualquer|quiser|momento|\\d{2,}))' + W + ' ){0,8}';
 const MASCARAS = [
   rx`\b(?:${DES7}) ${FOLGA}(?:${ENTRADA}|${TUDO_DE_VOLTA})`,
   rx`\b(?:${ENTRADA}|${TUDO_DE_VOLTA}) ${FOLGA}(?:${DES7})`,
-  rx`\b(?:se |caso |quando )?(?:a gente |nos |a beyon |eu )?${ATRASO} ${FOLGA}${ENTRADA}`,
-  rx`\b${ENTRADA} ${FOLGA}(?:se |caso |quando )?(?:a gente |nos |a beyon |eu )?${ATRASO}`,
+  rx`\b(?:se |caso |quando )?(?:a gente |nos |a beyon |eu )?${ATRASO} ${FOLGA_A}${ENTRADA}`,
+  rx`\b${ENTRADA} ${FOLGA_A}(?:se |caso |quando )?(?:a gente |nos |a beyon |eu )?${ATRASO}`,
   /* por último: dizer só que há 7 dias para desistir é a verdade (o que vem junto e não é a entrada de volta continua sendo olhado) */
   rx`\b(?:${DES7})`
 ];
 const mascarar = norm => MASCARAS.reduce((t, re) => t.replace(re, ' ' + SEP + ' '), norm);
 /* o que a empresa NÃO diz: outro prazo, "a qualquer momento", "quando quiser", "não gostou, não paga", "refaz sem custo" */
-const NAO_GOSTAR = '(?:nao\\s+(?:gostar|gostou|gosta|ficar (?:satisfeit\\w+|bom|bem|do jeito (?:que )?(?:voce )?(?:quer|queria|gosta))|agradar|aprovar|servir|funcionar|atender|resolver))';
+const NAO_GOSTAR = '(?:nao\\s+(?:gostar|gostou|gosta|curti\\w*|ficar (?:legal|certo|perfeito|ok)|ficar (?:satisfeit\\w+|bom|bem|do jeito (?:que )?(?:voce )?(?:quer|queria|gosta))|agradar|aprovar|servir|funcionar|atender|resolver))';
 const PROMESSAS_DE_REEMBOLSO = [
-  rx`\b(?:reembols\w+|estorn\w+|ressarc\w+)\b`,
+  rx`\b(?:reembols\w+|estorn\w+|ressarc\w+|restitu\w+|reaver|reavem)\b`,
+  rx`\b(?:valor|dinheiro|quantia|pagamento)(?:\s+pago)?\s+(?:e\s+|sera\s+)?(?:restituid[oa]|devolvid[oa])\b`,
+  rx`\b(?:o dobro|o triplo)\s+de\s+volta\b|\brecebe\w*\s+(?:o dobro|o triplo)\b`,
   rx`\b(?:devolv\w+|devolucao)\s+(?:\w+\s+){0,3}${DINHEIRO}\b`,
   rx`\bdinheiro (?:de volta|volta)\b`,
   rx`\bvolta (?:o |seu )?dinheiro\b`,
@@ -445,13 +480,25 @@ const PROMESSAS_DE_REEMBOLSO = [
 ];
 /* promessas condicionais que atravessam a vírgula ("se não gostar, não paga", "você não paga nada se não gostar", "se não funcionar, a gente refaz sem custo"):
    olhadas na frase inteira, sem o filtro de negação (o \"não\" faz parte da promessa). \"não gostar dos modelos\" é antes de pagar: verdade */
-const SEM_PAGAR = '(?:nao paga\\w*|nao precisa pagar|nao cobramos|nao cobra|nao ha custo|nao tem custo|nao devolve nada|(?:a gente |nos )?(?:refaz\\w*|refazemos|refaco)|sem custo|de graca)';
+const SEM_PAGAR = '(?:nao paga\\w*|nao precisa pagar|nao cobramos|nao cobra|nao ha custo|nao tem custo|nao devolve nada|(?:a gente |nos )?(?:refaz\\w*|refazemos|refaco|refazer|devolv\\w+|devolve|restitu\\w+)|sem custo|de graca)';
 const PROMESSAS_CONDICIONAIS = [
-  rx`\b(?:se|caso)\s+(?:${W}\s+){0,3}?${NAO_GOSTAR}\b(?!\s+(?:${W}\s+){0,2}?(?:modelos|previas?|propostas|opcoes|rascunhos|layouts))(?:\s+${W}){0,4}?\s+(?:voce\s+)?${SEM_PAGAR}\b`,
-  rx`\b(?:nao paga\w*|nao precisa pagar|nao cobramos)\s+(?:nada\s+)?(?:${W}\s+){0,2}?(?:se|caso)\s+(?:${W}\s+){0,3}?${NAO_GOSTAR}\b(?!\s+(?:${W}\s+){0,2}?(?:modelos|previas?|propostas|opcoes|rascunhos|layouts))`
+  rx`\b(?:se|caso)\s+(?:${W}\s+){0,3}?${NAO_GOSTAR}\b(?!\s+(?:${W}\s+){0,3}?(?:modelos?|previas?|propostas?|opcoes?|rascunhos?|layouts?))(?:\s+${W}){0,4}?\s+(?:voce\s+)?${SEM_PAGAR}\b`,
+  rx`\b(?:${SEM_PAGAR})\s+(?:nada\s+)?(?:${W}\s+){0,2}?(?:se|caso)\s+(?:${W}\s+){0,3}?${NAO_GOSTAR}\b(?!\s+(?:${W}\s+){0,3}?(?:modelos?|previas?|propostas?|opcoes?|rascunhos?|layouts?))`
 ];
+/* depois dos 7 dias a Beyon NÃO devolve: "depois dos 7 dias a gente costuma devolver" é promessa (a negação logo depois salva a frase verdadeira) */
+PROMESSAS_CONDICIONAIS.push(rx`\b(?:depois d[eo]s?|passad[oa]s?(?: os)?|apos|alem d[eo]s?|mesmo depois d[eo]s?)\s+(?:7|sete) dias\b(?:(?!\bnao\b|\bnunca\b)[^]){0,60}?\b(?:devolv\w+|restitu\w+|reembols\w+|recuper\w+|volta)\b`);
+/* refazer/ajustar sem custo: só vale fora do que a Beyon já diz (a prévia e os modelos, antes de fechar) */
+const SEM_CUSTO_SEM_PREVIA = [
+  rx`\b(?:refaz\w*|refazemos|refaco|refazer|ajustamos|ajustar|ajusto|corrigimos|corrigir|consertamos|consertar)\b[^]{0,25}?\b(?:sem custo|sem cobrar|de graca|gratis|gratuit\w+)\b`,
+  rx`\brefaz\w*\s+(?:\w+\s+){0,2}quantas vezes\b`,
+  rx`\bajustes?\s+(?:\w+\s+){0,5}(?:por nossa conta|sem custo|de graca|gratis)\b`
+];
+const DA_PREVIA = /\b(?:previa|antes de (?:voce )?(?:fechar|pagar|aceitar|contratar)|modelos?)\b/;
 /* o reembolso dos clientes DELE ("o reembolso dos seus clientes na sua loja") e o "devolveu o valor" da ferramenta de preço não são promessa nossa */
-const REEMBOLSO_DO_CLIENTE = /\b(?:de|dos|das|aos|para os) (?:seus|suas) (?:clientes|alunos|pacientes|compradores|consumidores|fregueses)\b|\b(?:da|na|de) sua (?:loja|empresa|clinica|oficina|academia|escola)\b|\b(?:do|no|de) seu (?:negocio|comercio|restaurante|consultorio|escritorio)\b/;
+const REEMBOLSO_DO_CLIENTE = /\b(?:de|dos|das|aos|para os) (?:seus|suas) (?:clientes|alunos|pacientes|compradores|consumidores|fregueses)\b|\b(?:da|na|de) sua (?:loja|empresa|clinica|oficina|academia|escola)\b|\b(?:do|no|de) seu (?:negocio|comercio|restaurante|consultorio|escritorio)\b|\bclientes? (?:dela|dele|deles|delas)\b/;
+/* a loja do cliente "precisa" ou "deve" dar garantia por lei: é obrigação dele, não oferta nossa */
+const OBRIGACAO = /\b(?:precisa|precisam|deve|devem|obrigad[oa]s?)\b/;
+const POR_LEI = /^\s*(?:\w+\s+){0,2}por lei\b/;
 const REEMBOLSO_DE_FERRAMENTA = /\b(?:ferramenta|estimativa|tabela|sistema|calculo|motor|resumo|tela|cartao|simulacao)\b/;
 /* a garantia do negócio do CLIENTE é lista FECHADA do que é dele; todo o resto ("seu pedido", "sua compra", "seu atendimento") é nosso e corta */
 const CLI_N = '(?:loja|lojas|empresa|empresas|negocio|negocios|produtos?|servicos?|marca|clinica|restaurante|oficina|consultorio|escritorio|comercio|salao|academia|fabricante|fornecedor|equipamentos?|pecas?|moveis|mercadorias?|clientes?|alunos?|pacientes?|marcenaria|padaria)';
@@ -477,6 +524,7 @@ function promessasEmG(m, lista) {
       const depois = m.slice(x.index + x[0].length);
       if (DEPOIS_OPERACIONAL.test(depois) || REPORTADA.test(m.slice(0, x.index + x[0].length))) continue;
       if (negadoAntesG(antes) || DEPOIS_NEGA.test(depois)) continue;
+      if (OBRIGACAO.test(ultimas(antes, 4)) || POR_LEI.test(depois)) continue;
       return true;
     }
   }
@@ -496,8 +544,9 @@ const PROMESSAS_GARANTIA_OUTRO_IDIOMA = [
 function frasePrometeGarantia(crua) {
   return variantes(crua).some(v => {
     if (oracoes(mascarar(v)).some(oracaoPrometeGarantia)) return true;
-    const inteiro = v.replace(SEP_G, ' ');
+    const inteiro = mascarar(v).replace(SEP_G, ' ');
     if (PROMESSAS_CONDICIONAIS.some(re => tem(re, inteiro))) return true;
+    if (!DA_PREVIA.test(inteiro) && SEM_CUSTO_SEM_PREVIA.some(re => tem(re, inteiro))) return true;
     return !OUTRO_IDIOMA_NEGA.test(inteiro) && PROMESSAS_GARANTIA_OUTRO_IDIOMA.some(re => tem(re, inteiro));
   });
 }
