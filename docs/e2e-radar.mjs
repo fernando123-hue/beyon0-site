@@ -167,7 +167,7 @@ if (!tem('so-olhar')) {
       await espera(6000);
       const ls = await page.evaluate((m) => window.__ls.slice(m.n), marca);
       const longas = await page.evaluate((m) => window.__longas.slice(m.l).map((x) => x.ms), marca);
-      out.push({ longas, cls: +ls.filter((x) => !x.recente).reduce((s, x) => s + x.v, 0).toFixed(5), bruto: +ls.reduce((s, x) => s + x.v, 0).toFixed(5), do_radar: +ls.filter((x) => !x.recente && x.fontes.some((n) => /o-radar|plr/.test(n))).reduce((s, x) => s + x.v, 0).toFixed(5), fontes: [...new Set(ls.filter((x) => !x.recente).flatMap((x) => x.fontes))].slice(0, 6) });
+      out.push({ desl: ls.filter((x) => !x.recente && x.v > 0.005).map((x) => x.v.toFixed(3) + '@' + x.t + ' ' + x.fontes.slice(0, 3).join('+')), longas, cls: +ls.filter((x) => !x.recente).reduce((s, x) => s + x.v, 0).toFixed(5), bruto: +ls.reduce((s, x) => s + x.v, 0).toFixed(5), do_radar: +ls.filter((x) => !x.recente && x.fontes.some((n) => /o-radar|plr/.test(n))).reduce((s, x) => s + x.v, 0).toFixed(5), fontes: [...new Set(ls.filter((x) => !x.recente).flatMap((x) => x.fontes))].slice(0, 6) });
     }
     await ctx.close();
     return { turnos: out, erros };
@@ -185,10 +185,15 @@ if (!tem('so-olhar')) {
       const delta = +(m('com', 'cls') - m('sem', 'cls')).toFixed(5), vsOff = +(m('com', 'cls') - m('desligada', 'cls')).toFixed(5);
       resumo.push({ larg, turno: t + 1, com: m('com', 'cls'), sem: m('sem', 'cls'), desligada: m('desligada', 'cls'), delta, vsDesligada: vsOff, doRadar: m('com', 'do_radar') });
       console.log('  ' + larg + ' px, turno ' + (t + 1) + ': com ' + m('com', 'cls') + ' | sem ' + m('sem', 'cls') + ' | desligada ' + m('desligada', 'cls') + ' | delta do radar ' + delta + ' | CLS cujo nó é do radar ' + m('com', 'do_radar'));
-      ok(delta <= 0.01, 'delta de CLS do radar <= 0,01 (' + larg + ' px, turno ' + (t + 1) + ')');
+      if (delta > 0.01) console.log('      (delta por turno acima de 0,01: confira o total; o deslocamento da página cai ora numa janela, ora noutra)');
+      if (tem('detalhe')) for (const k of ['com', 'sem', 'desligada']) console.log('      deslocamentos > 0,005 (' + k + '): ' + JSON.stringify(por[k].map((r) => r.turnos[t].desl)));
       const nl = (k) => por[k].map((r) => r.turnos[t].longas.length), ml = (k) => por[k].map((r) => Math.max(0, ...r.turnos[t].longas));
       console.log('      tarefas longas (> 50 ms) a ' + CPU + 'x, rodadas com a tarefa / total: com ' + nl('com').filter(Boolean).length + '/' + nl('com').length + ' (maior ' + Math.max(0, ...ml('com')) + ' ms) | sem ' + nl('sem').filter(Boolean).length + '/' + nl('sem').length + ' (maior ' + Math.max(0, ...ml('sem')) + ' ms) | desligada ' + nl('desligada').filter(Boolean).length + '/' + nl('desligada').length + ' (maior ' + Math.max(0, ...ml('desligada')) + ' ms)');
     }
+    /* o total dos 3 turnos: o mesmo deslocamento da página (o cartão de preço, por exemplo) cai ora na janela de um turno, ora na do outro; a soma não depende disso */
+    const tot = (k) => mediana(por[k].map((r) => +r.turnos.reduce((a, x) => a + x.cls, 0).toFixed(5))), totRadar = mediana(por.com.map((r) => +r.turnos.reduce((a, x) => a + x.do_radar, 0).toFixed(5)));
+    console.log('  ' + larg + ' px, total dos 3 turnos: com ' + tot('com') + ' | sem ' + tot('sem') + ' | desligada ' + tot('desligada') + ' | delta do radar ' + +(tot('com') - tot('sem')).toFixed(5) + ' | CLS cujo nó é do radar ' + totRadar);
+    ok(tot('com') - tot('sem') <= 0.01 && totRadar <= 0.01, 'delta de CLS do radar no total dos 3 turnos <= 0,01 (' + larg + ' px)');
     const erros = [].concat(...por.com.map((r) => r.erros));
     ok(erros.length === 0, 'sem erro no console nas rodadas com radar (' + larg + ' px)');
   }
