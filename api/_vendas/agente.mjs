@@ -190,5 +190,6 @@ export async function executarTurno({ ia, regras, conversa, mensagem, direcoes, 
   /* (rodada 3) a pessoa pediu o valor e a resposta não o traz: o código acrescenta os números do motor; no escopo e no sinal os filtros próprios mandam */
   if (!soDuvidas) resposta = garantirValor(resposta, { mensagem, estimativa: estimativa || conversa.estimativa }).texto;
   const { confianca, faltam } = avaliar(briefing);
-  return { resposta: resposta.slice(0, 1500), briefing, confianca, faltam, estimativa, pedir_contato: pedirContato, diagnostico, sugestoes_ia: sugestoes, custo_usd: custo, pronto_estimar: prontoParaEstimar(briefing) };
+  /* o teto de 1.500 corta em fim de frase (as trocas de resultado e garantia somam até ~500 caracteres sobre os 1.100 do modelo; um corte seco deixaria meia frase na tela) */
+  return { resposta: cortarEmFrase(resposta, 1500), briefing, confianca, faltam, estimativa, pedir_contato: pedirContato, diagnostico, sugestoes_ia: sugestoes, custo_usd: custo, pronto_estimar: prontoParaEstimar(briefing) };
 }
