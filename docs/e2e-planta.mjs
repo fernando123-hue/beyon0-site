@@ -202,14 +202,19 @@ console.log('\n== enviar o formulário com a faixa abaixo do botão ==');
   await turno(page, T1);
   await turno(page, 'planta-boa pode desenhar');
   await page.waitForSelector('#o-planta:not([hidden]) .plv-quadro');
+  const botao = page.locator('#o-detalhes-form button[type=submit]');
+  await botao.scrollIntoViewIfNeeded(); await espera(400);
+  await botao.click(); await espera(600);   /* envio RECUSADO pela própria tela (campos vazios): a faixa não se recolhe */
+  ok(await page.evaluate(() => !document.getElementById('o-planta').hidden && document.getElementById('o-contato-erro').textContent.length > 0), 'envio recusado pela tela (campos vazios): o erro aparece e a faixa NÃO se recolhe');
   await page.fill('#o-d-negocio', 'Clínica Teste'); await page.fill('#o-d-vende', 'Consultas');
   await page.fill('#o-tel', '(21) 9' + String(1000 + Math.floor(Math.random() * 9000)) + '-' + String(1000 + Math.floor(Math.random() * 9000))); await page.check('#o-aceite');
-  const botao = page.locator('#o-detalhes-form button[type=submit]');
   await botao.scrollIntoViewIfNeeded(); await espera(400);
   const visivel = await page.evaluate(() => { const q = document.getElementById('o-planta').getBoundingClientRect(); return Math.round(Math.min(innerHeight, q.bottom) - Math.max(0, q.top)); });
   ok(visivel > 100, 'antes do envio a faixa está à vista logo abaixo do botão (' + visivel + ' px)');
   await page.evaluate(() => { window.__ls2 = []; new PerformanceObserver((l) => l.getEntries().forEach((e) => window.__ls2.push([e.value, e.hadRecentInput, (e.sources || []).map((s) => s.node && (s.node.id || s.node.className)).join('+')]))).observe({ type: 'layout-shift', buffered: false }); });
+  await page.route('**/api/vendas?acao=detalhes*', async (rr) => { await espera(1500); rr.continue(); });
   await botao.click();
+  await espera(400); await page.mouse.click(2, 2);   /* um toque no vazio durante o envio não devolve a faixa antes da resposta */
   await page.waitForFunction(() => document.getElementById('o-planta').hidden, null, { timeout: 3000 }).then(() => ok(true, 'ao enviar, a faixa se recolhe na hora'), () => ok(false, 'ao enviar, a faixa se recolhe na hora'));
   await espera(6000);
   const cls = await page.evaluate(() => window.__ls2.filter((x) => !x[1] && /plv|o-planta/.test(x[2])).reduce((s, x) => s + x[0], 0));

@@ -816,7 +816,10 @@ function comFormulario(opcoes) {
   amb.detalhes = detalhes;
   return amb;
 }
-const enviarFormulario = (amb) => amb.detalhes.disparar('submit');
+/* o handler de js/orcamento-detalhes.js roda ANTES (foi registrado no carregamento) e, se aceita o envio, marca aria-busy="true" de forma síncrona; se recusa (campo vazio), não marca */
+const enviarFormulario = (amb) => { amb.detalhes.setAttribute('aria-busy', 'true'); amb.detalhes.disparar('submit'); };
+const enviarRecusado = (amb) => { amb.detalhes.removeAttribute('aria-busy'); amb.detalhes.disparar('submit'); };
+const respostaChegou = (amb) => amb.detalhes.removeAttribute('aria-busy');
 
 test('envio do formulário com a faixa à vista logo abaixo do botão: ela se recolhe na hora, sem desmontar, e fica recolhida enquanto a posição dela está à vista', () => {
   const amb = comFormulario({ baixo: true });
@@ -858,6 +861,7 @@ test('recolhida: um gesto da pessoa a traz de volta mesmo com a posição à vis
   amb.contato.base = 700; amb.mesa.base = 500;
   enviarFormulario(amb);
   assert.equal(amb.faixa.hidden, true);
+  respostaChegou(amb);
   amb.doc.disparar('click');
   assert.equal(amb.faixa.hidden, false);
   assert.equal(amb.espiao.montar.length, 1);
@@ -910,4 +914,95 @@ test('envio do formulário: a planta que some do estado enquanto recolhida sai d
 test('2c-B (fonte): a ligação escuta o envio do formulário de contato (#o-detalhes-form) para recolher a faixa', () => {
   assert.match(semComentarios, /\$\('o-detalhes-form'\)/);
   assert.match(semComentarios, /addEventListener\('submit', aoEnviarFormulario\)/);
+});
+
+
+/* ======================================================================================================================================================
+   Re-revisão do 2c-B (M1, M2, M3)
+   ====================================================================================================================================================== */
+function recolhida(opcoes) {
+  const amb = comFormulario(opcoes);
+  amb.contato.hidden = false; amb.contato.base = 2500;
+  const E = estado(); redesenharLista(amb, E);
+  amb.L.atualizar(E, amb.deps); prontos(amb);
+  amb.contato.base = 700; amb.mesa.base = 500;
+  return { amb, E };
+}
+
+test('M1: envio RECUSADO pela própria tela (campo vazio: o handler de detalhes não marca aria-busy) NÃO recolhe a faixa; o aceito recolhe', () => {
+  const { amb } = recolhida({ baixo: true });
+  enviarRecusado(amb);
+  assert.equal(amb.faixa.hidden, false, 'recusado: a faixa fica onde está');
+  assert.equal(amb.espiao.parar, 0);
+  enviarFormulario(amb);
+  assert.equal(amb.faixa.hidden, true, 'aceito (aria-busy): recolhe');
+});
+
+test('M2: ao voltar de recolhida a faixa é reconciliada com o estado: planta_editavel que virou false desliga os botões (uma chamada ao desenho, só depois de voltar)', () => {
+  const { amb, E } = recolhida({ baixo: true });
+  enviarFormulario(amb);
+  assert.equal(amb.faixa.hidden, true);
+  const E2 = estado({ planta_editavel: false }); E2.planta = E.planta;
+  amb.L.atualizar(E2, amb.deps);
+  assert.equal(amb.espiao.atualizar.length, 0, 'escondida (largura 0): o desenho não é chamado');
+  respostaChegou(amb);
+  amb.doc.disparar('click');
+  assert.equal(amb.faixa.hidden, false);
+  assert.equal(amb.espiao.atualizar.length, 1, 'na volta o desenho recebe o estado de agora');
+  assert.equal(amb.espiao.atualizar[0].op.editavel, false);
+  assert.equal(amb.espiao.montar.length, 1);
+  amb.L.atualizar(E2, amb.deps);
+  assert.equal(amb.espiao.atualizar.length, 1, 'e não repete');
+});
+
+test('M2: versão nova que chegou enquanto recolhida chega ao desenho como ajuste (com a fala da pessoa) quando a faixa volta, e o botão do chat acompanha', () => {
+  const { amb } = recolhida({ baixo: true });
+  enviarFormulario(amb);
+  const E2 = estado(); E2.mensagens.push({ papel: 'visitante', conteudo: 'quero cobrar um sinal' }, { papel: 'agente', conteudo: 'Refiz.' });
+  E2.planta = { versao: 2, origem: 'modelo', n_mensagens: 7, plano: (() => { const p = fx('clinica'); p.fecho = 'Fecho da versão dois, depois do envio.'; return p; })() };
+  redesenharLista(amb, E2);
+  amb.L.atualizar(E2, amb.deps);
+  assert.equal(amb.espiao.atualizar.length, 0);
+  assert.equal(botoes(amb)[0].pai, amb.log.filhos[7 + 1], 'o botão do chat já acompanha a versão nova');
+  respostaChegou(amb);
+  amb.doc.disparar('click');
+  assert.equal(amb.espiao.atualizar.length, 1);
+  assert.equal(amb.espiao.atualizar[0].plano.fecho, 'Fecho da versão dois, depois do envio.');
+  assert.equal(amb.espiao.atualizar[0].op.fala, 'quero cobrar um sinal', 'a versão nova ainda é "nova" para o desenho: marca o ajustado e leva a fala');
+});
+
+test('M2: voltar por "Ver a planta do seu site" também reconcilia', () => {
+  const { amb, E } = recolhida({ baixo: true });
+  enviarFormulario(amb);
+  const E2 = estado({ planta_editavel: false }); E2.planta = E.planta;
+  amb.L.atualizar(E2, amb.deps);
+  botoes(amb)[0].disparar('click');
+  assert.equal(amb.faixa.hidden, false);
+  assert.equal(amb.espiao.atualizar.length, 1);
+  assert.equal(amb.espiao.atualizar[0].op.editavel, false);
+});
+
+test('M3: um gesto DURANTE o envio (duplo toque, clique no vazio) não devolve a faixa antes da resposta; depois da resposta, o gesto devolve', () => {
+  const { amb } = recolhida({ baixo: true });
+  enviarFormulario(amb);
+  amb.doc.disparar('click'); amb.doc.disparar('keydown'); amb.doc.disparar('click');
+  assert.equal(amb.faixa.hidden, true, 'enviando: continua recolhida');
+  respostaChegou(amb);
+  amb.doc.disparar('click');
+  assert.equal(amb.faixa.hidden, false);
+  assert.equal(amb.espiao.montar.length, 1);
+});
+
+test('M3: durante o envio o botão do chat segue sendo a saída explícita (mostra e rola)', () => {
+  const { amb } = recolhida({ baixo: true });
+  enviarFormulario(amb);
+  botoes(amb)[0].disparar('click');
+  assert.equal(amb.faixa.hidden, false);
+  assert.deepEqual(amb.rolou, [amb.faixa]);
+});
+
+test('M1 e M3 (fonte): a dependência da ordem dos ouvintes está escrita, e a checagem usa aria-busy do formulário', () => {
+  assert.match(FONTE, /aria-busy/);
+  assert.match(FONTE, /orcamento-detalhes\.js/);
+  assert.match(semComentarios, /getAttribute\('aria-busy'\) === 'true'/);
 });

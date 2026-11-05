@@ -34,7 +34,8 @@ const POSICOES = arg('posicoes', 'fora,dentro').split(',');
 const CPU = Number(arg('cpu', '1'));
 const VARIANTE = arg('variante', 'base');
 const SO_LIGADA = tem('so-ligada');
-const FORMULARIO = tem('formulario');   /* depois da planta, envia o formulário #o-contato e mede o que a troca do bloco de cima faz com a faixa à vista */
+const FORMULARIO = tem('formulario');
+/* --gesto-extra (com --formulario): um clique no vazio 400 ms depois do envio, dentro da janela de 1,5 s da resposta */   /* depois da planta, envia o formulário #o-contato e mede o que a troca do bloco de cima faz com a faixa à vista */
 const PARALELO = Number(arg('paralelo', '1'));   /* rodadas ao mesmo tempo: bom para o CLS (não depende de CPU); para tarefas longas use 1 */
 const EXEC = process.env.CHROMIUM || (process.env.LOCALAPPDATA + '/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-win64/chrome-headless-shell.exe');
 const espera = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -144,6 +145,7 @@ async function rodada({ base, larg, alt, nicho, posicao, cpu, variante }) {
     await espera(400);
     const m = await page.evaluate(() => { const f = document.getElementById('o-planta'), q = f.getBoundingClientRect(); return { marca: { ls: window.__ls.length }, faixaVisivelPx: f.hidden ? 0 : Math.max(0, Math.round(Math.min(innerHeight, q.bottom) - Math.max(0, q.top))), janela: innerHeight, topo: Math.round(q.top) }; });
     await botao.click();
+    if (tem('gesto-extra')) { await espera(400); await page.mouse.click(2, 2); }   /* um toque no vazio DURANTE o envio (duplo toque, mão que escorrega): não pode devolver a faixa antes da resposta */
     await espera(5000);
     const x = await page.evaluate((a) => ({ ls: window.__ls.slice(a.ls), confirmar: !document.getElementById('o-confirmar').hidden, erroTela: document.getElementById('o-contato-erro').textContent }), m.marca);
     formulario = { faixaVisivelPx: m.faixaVisivelPx, janela: m.janela, cls: conta(x.ls, false), clsBruto: conta(x.ls, true), clsPlanta: conta(x.ls.filter((p) => !p.recente && p.fontes.some((n) => /plv|o-planta/.test(n))), false), pedidoRecebido: x.confirmar, erroTela: x.erroTela, deslocamentos: x.ls };
