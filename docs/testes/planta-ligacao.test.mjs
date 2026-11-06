@@ -1006,3 +1006,65 @@ test('M1 e M3 (fonte): a dependência da ordem dos ouvintes está escrita, e a c
   assert.match(FONTE, /orcamento-detalhes\.js/);
   assert.match(semComentarios, /getAttribute\('aria-busy'\) === 'true'/);
 });
+
+/* ======================================================================================================================================================
+   Ajustes pós-radar (05/11): "A planta está certa." duplicada na releitura. O servidor já tem a mensagem do botão DEPOIS da fala da planta: a versão está confirmada, mesmo que
+   a página nunca tenha visto o envio terminar (F5, rede que voltou, outra aba). A ligação lê isso do estado; não depende só da memória do clique.
+   ====================================================================================================================================================== */
+const comConfirmacao = (indice, texto = TEXTO_CERTO, papel = 'visitante') => {
+  const E = estado();
+  E.mensagens[indice] = { papel, conteudo: texto };
+  return E;
+};
+
+test('pós-radar: o servidor já tem "A planta está certa." depois da fala da planta (página recarregada): o clique devolve "duplicada" e NÃO manda', async () => {
+  const amb = ambiente();
+  pronto(amb, comConfirmacao(4));   /* n_mensagens 3; a confirmação é a mensagem 4 */
+  assert.equal(clicarCerto(amb), 'duplicada');
+  await tick();
+  assert.equal(amb.enviou.length, 0, 'não reenviou a mesma versão');
+});
+
+test('pós-radar: a confirmação só vale para a versão em que foi dita (a de antes da fala da planta, ou outra pessoa/papel, não conta)', async () => {
+  for (const [rotulo, E] of [['antes da planta', comConfirmacao(2)], ['no lugar da própria fala da planta', comConfirmacao(3, TEXTO_CERTO, 'agente')], ['fala do Zero repetindo a frase', comConfirmacao(5, TEXTO_CERTO, 'agente')],
+    ['outra frase', comConfirmacao(4, 'A planta está errada.')], ['só parecida', comConfirmacao(4, 'A planta está certa, mas troque a ordem.')]]) {
+    const amb = ambiente();
+    pronto(amb, E);
+    clicarCerto(amb); await tick();
+    assert.equal(amb.enviou.length, 1, rotulo + ': manda');
+  }
+});
+
+test('pós-radar: versão NOVA da planta (ajuste) depois da confirmação antiga: o botão volta a valer', async () => {
+  const amb = ambiente();
+  const E = comConfirmacao(4); E.mensagens.push({ papel: 'visitante', conteudo: 'troque a ordem' }, { papel: 'agente', conteudo: 'Troquei.' });
+  E.planta.versao = 2; E.planta.n_mensagens = 7;
+  pronto(amb, E);
+  clicarCerto(amb); await tick();
+  assert.equal(amb.enviou.length, 1);
+});
+
+test('pós-radar: o envio falhou sem a página saber se entrou (devolveu false, versão liberada); o estado relido mostra que entrou: o clique seguinte é "duplicada"', async () => {
+  const amb = ambiente();
+  amb.deps.enviar = (t) => { amb.enviou.push(t); return Promise.resolve(false); };
+  pronto(amb, estado());
+  clicarCerto(amb); await tick();
+  assert.equal(amb.enviou.length, 1);
+  amb.L.atualizar(comConfirmacao(4), amb.deps);   /* a rede voltou: a leitura de fundo traz o turno que tinha entrado */
+  assert.equal(clicarCerto(amb), 'duplicada');
+  await tick();
+  assert.equal(amb.enviou.length, 1, 'não mandou de novo');
+});
+
+test('pós-radar: "duplicada" só vale com a planta editável (preço fechado continua devolvendo false)', () => {
+  const amb = ambiente();
+  const E = comConfirmacao(4); E.planta_editavel = false;
+  pronto(amb, E);
+  assert.equal(clicarCerto(amb), false);
+});
+
+test('pós-radar (fonte): a ligação lê as mensagens do estado e compara com o texto do botão', () => {
+  const src = lerFonte('js/orcamento-planta.js');
+  assert.match(src, /function jaConfirmada\(/);
+  assert.match(src, /if \(st\.certoVersao === st\.versao \|\| jaConfirmada\(\)\) return 'duplicada';/);
+});
