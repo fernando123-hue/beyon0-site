@@ -168,9 +168,9 @@ test('com-chave --todos: injeta todos os segredos da pasta (só arquivos de nome
 
 test('com-chave: segredo já definido no ambiente vence o do arquivo (e então nem precisa existir arquivo)', () => {
   const casa = novaCasa();
-  const r = comChave(casa, ['--so', 'TESTE_SEGREDO_X', process.execPath, '-e', 'process.stdout.write(process.env.TESTE_SEGREDO_X || "")'], { TESTE_SEGREDO_X: 'do-ambiente' });
+  const r = comChave(casa, ['--so', 'TESTE_SEGREDO_X', process.execPath, '-e', 'process.stdout.write(String((process.env.TESTE_SEGREDO_X || "").length))'], { TESTE_SEGREDO_X: 'do-ambiente' });
   assert.equal(r.status, 0, r.stderr);
-  assert.equal(r.stdout, 'do-ambiente');
+  assert.equal(r.stdout, String('do-ambiente'.length), 'o filho viu o valor do ambiente (só o tamanho foi impresso)');
 });
 
 test('redação best-effort: o valor que o comando imprimir vira *** (inclusive cortado entre dois pedaços de saída), no stdout e no stderr', () => {
