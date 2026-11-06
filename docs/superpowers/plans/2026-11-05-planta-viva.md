@@ -477,6 +477,11 @@ Faixa e botões funcionando com o provedor simulado nas duas variantes da flag; 
 2. **Dono vê no celular** (staging com `BZ_PLANTA=ligada`) e decide a produção.
 3. 2ª rodada, só se pedirem: etiqueta "combinar no orçamento" por tipo, ícones e topologias novos, evento de métrica no banco (pede migration).
 
+### Harness da rodada real 8 (06/11; `docs/avaliacao/planta.mjs`, roteiros em `planta-cenarios.mjs`, teste `docs/testes/planta-rodada-real.test.mjs`)
+
+Roda 12 conversas inventadas (clínica, loja, restaurante, advogada, academia, oficina, salão, escola, indústria B2B, fotógrafa, imobiliária que tenta manipular, serviço local vago) pelo mesmo `executarTurno` com `planta: true`, modelo real, regras de `docs/fase2/regras-rascunho-v1.json`. Mede por roteiro e no agregado: válidos de primeira, padrão e `motivos`, rodadas e estouros no turno da planta, tokens, custo por turno e por plano, tempo de parede (meta 60 s), leitura do radar (níveis finais, evidências, rebaixos, `ler_caso` por conta própria nos turnos da planta), textos pelas travas do servidor e eventos de segurança. O JSON traz os textos gerados para o dono ler. Teto `--teto` (padrão 1, máximo 3) e parada após 2 roteiros seguidos com erro. Se faltar estimativa no fim do roteiro, entram até 2 falas neutras ("Pode seguir...") e isso consta no relatório.
+Comando: `node scripts/com-chave.mjs --so ANTHROPIC_API_KEY node docs/avaliacao/planta.mjs --teto 3`. Prova (1 roteiro, `clinica-fisio`): US$ 0,29 em 6 turnos (US$ 0,048 por turno; US$ 0,082 no turno da planta, 3 rodadas, 25,5 s, plano do modelo na 2ª tentativa por `promessa` e `numeral`; 3 evidências aceitas, 0 rebaixos, `ler_caso` chamado no turno da planta). Extrapolação para 12 roteiros: ~US$ 3,2 a 3,6, acima do que resta do teto de US$ 3.
+
 ## Objeções e correções à revisão (o que não foi aplicado como pedido)
 
 - **I10:** a 1ª medição desta sessão já incluía `semPrecoNoTexto` e `textoProibido` (estavam no script); o que faltava era só `semPromessaDePagamento`. Medi de novo com as dez: 0 falso positivo em 59 textos (53 + 6 do ajuste).
