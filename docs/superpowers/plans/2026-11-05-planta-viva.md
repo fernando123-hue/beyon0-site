@@ -492,6 +492,19 @@ Comando: `node scripts/com-chave.mjs --so ANTHROPIC_API_KEY node docs/avaliacao/
 - **M9:** conferido que `api/_ia/anthropic.mjs` **não repassa `strict`** hoje; entra como avaliação no 2a, sem bloquear.
 - **M1:** confirmado (vários arquivos do site usam `=>`/`async`); virou "decisão desta frente".
 
+### Rodada real 8: resultado e ajustes (06/11)
+
+- **Rodada completa (12 roteiros, modelo real, US$ 2,39 no total, 0,067 por plano, turno da planta 21 s em média, máx 26 s):** planos válidos de primeira 16,7% (2 de 12); **plano padrão 33,3% (4 de 12), acima do limite de 30%**. Motivos de recusa (todas as tentativas): marca 7, prazo 4, campo_fora_da_topologia 2, trava_pagamento 1, frase_longa 1, trava_negarIA 1, numeral 1. O relatório não guardava o texto recusado: o harness passou a gravar, só no relatório local, cada pedido do modelo, o texto recusado e o trecho que bateu (`pedidos_de_desenho`).
+- **Re-rodada de prova (3 dos 4 roteiros que caíram no padrão; US$ 0,54; o 4º, salao-beleza, ficou de fora pelo teto de US$ 0,60 do trabalho):** 3 de 3 saíram do modelo, 2 de 3 de primeira (oficina-mecanica e servico-local-vago), advogado-familia na 2ª tentativa. É amostra de 3 roteiros, ruído enorme: o mesmo roteiro caiu no padrão na rodada 8 e passou de primeira agora. Esta re-rodada rodou ANTES dos ajustes (serviu para capturar o texto recusado), então NÃO prova o efeito deles.
+- **Análise por motivo, nos textos reais do advogado-familia (única recusa capturada):**
+  - `marca` "OAB" ("o número da OAB"): falso positivo (conselho profissional, não é marca). **Afrouxado:** só as 10 siglas de conselho em `SIGLAS_DE_CONSELHO`, em caixa alta e inteiras; "CRM" fica de fora (é também software), BMW, IBM, SEBRAE, CNPJ, "Oab", "OABX" seguem marca.
+  - `marca` "Curitiba": falso positivo (cidade que a pessoa deu). **Afrouxado:** `negocio.cidade` do briefing passa como o nome do negócio (curta, até 8 palavras, sem marca conhecida), da gravação do desenho à releitura do estado; outra cidade ou marca não passa.
+  - `marca` "WhatsApp": erro real do modelo (marca de terceiro; o prompt já proíbe). Mantido; a mensagem de recusa agora manda trocar por "aplicativo de mensagens".
+  - `prazo` "sem prometer resposta imediata": a frase é honesta, mas aceitar negação abre "sem demora, resposta imediata". Mantido; a mensagem avisa que negar também cai e lista as palavras.
+  - Dos outros motivos da rodada 8 (prazo em oficina e salão, trava_pagamento, frase_longa, numeral, trava_negarIA, campo_fora_da_topologia) NÃO tenho o texto: não afrouxei nada por palpite. `frase_longa` agora diz quantos caracteres a frase tem (só o número); `campo_fora_da_topologia` diz quais campos cada topologia usa e que false também conta.
+- **Antes/depois offline (pedido real do advogado-familia, 1ª tentativa):** 4 erros de texto -> 2 (sobram WhatsApp e "imediata", erros do modelo); o plano continua recusado na 1ª tentativa, a 2ª (aceita) segue aceita. Aceitação de 1ª tentativa nessa amostra: 0 de 1 antes e depois. Os testes novos (`planta-textos4`, `planta-orientacao`) provam cada porta aberta e o ataque equivalente que segue fechado (marca/sigla qualquer, "Oab", garantia, desconto, prazo, Instagram ao lado da OAB, marca como "cidade", cidade gigante).
+- **NÃO resolvido:** (1) o 33% da rodada 8 pode ser sobretudo ruído de amostra pequena (3 de 3 saíram do modelo agora); falta rodada maior depois dos ajustes (custa uns US$ 2,4). (2) `strict` não ligado e esquema não simplificado: sem o texto das outras recusas, não há evidência de que o esquema seja o problema. (3) A orientação nova da recusa não foi medida com o modelo real (orçamento). (4) O prazo "dias e horários" etc. pode estar dando falso positivo; sem texto, não mexi.
+
 ## Riscos de execução
 
 - A `main` anda (outras frentes mesclam em `api/_vendas/`): `git fetch` antes de mesclar, juntar e re-testar.
