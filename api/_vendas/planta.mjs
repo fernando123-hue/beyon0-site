@@ -87,9 +87,9 @@ const REGRA = {
   titulo_curto: 'título curto demais (3 a 40 caracteres)', titulo_longo: 'título longo demais (3 a 40 caracteres)',
   frase_curta: 'frase curta demais (20 a 110 caracteres)', frase_longa: 'frase longa demais (20 a 110 caracteres)', rotulo: 'rótulo fora de 3 a 28 caracteres',
   titulo_repetido: 'título igual ao de outra caixa (use títulos diferentes)',
-  digito: 'tem número ou algarismo (escreva sem números)', simbolo: 'tem símbolo de valor ou porcentagem', preco: 'fala de preço, custo ou valor', prazo: 'fala de prazo ou de tempo',
+  digito: 'tem número ou algarismo (escreva sem números)', simbolo: 'tem símbolo de valor ou porcentagem', preco: 'fala de preço, custo ou valor', prazo: 'fala de prazo ou de tempo, mesmo negando ("sem prometer resposta imediata" também cai): tire palavras como imediata, rápido, hoje, agora, dias, horas, na hora, toda semana e descreva só o passo',
   numeral: 'tem número por extenso (de dois em diante)', promessa: 'promete resultado', garantia: 'fala de garantia', suporte: 'fala de suporte ou manutenção',
-  ordem: 'tem instrução ao sistema', negar_ia: 'fala em primeira pessoa como se fosse gente', marca: 'cita marca ou nome de terceiro (só vale o nome do negócio que a pessoa deu)',
+  ordem: 'tem instrução ao sistema', negar_ia: 'fala em primeira pessoa como se fosse gente', marca: 'cita marca ou nome de terceiro: troque WhatsApp, Instagram, Google e afins por palavra comum (rede social, aplicativo de mensagens, busca, mapa); só vale o nome do negócio e a cidade que a pessoa deu, Pix e sigla de conselho como OAB ou CREFITO',
   url: 'tem link', email: 'tem e-mail ou arroba', markdown: 'tem formatação ou sinal de tag', emoji: 'tem emoji', alfabeto: 'tem letra fora do alfabeto latino',
   caractere: 'tem caractere que não é de texto corrido', depoimento: 'tem depoimento ou antes e depois (proibido neste ramo)', resultado_regulado: 'promete cura ou resultado (proibido neste ramo)',
   texto: 'não é texto', vazio: 'vazio', longo: 'longo demais', interno: 'não foi possível conferir',
@@ -99,7 +99,7 @@ const REGRA = {
   id_reservado: 'id reservado (use outro)', id_repetido: 'id repetido', tipo: 'tipo fora da lista', verbo: 'verbo fora da lista', origens: 'origens fora da lista, repetidas ou fora de 1 a 4',
   ramo: 'ramos da bifurcação fora da regra', decisao: 'a decisão precisa ser uma só, e a última da entrada na bifurcação', retorno: 'o retorno é só da última etapa do laço',
   satelite: 'satélite fora da regra (preso a uma etapa do tronco, um por etapa)', lado: 'lado precisa ser cima ou baixo', laco: 'laço curto só num satélite, e um só', tronco: 'o tronco precisa ter 4 ou 5 etapas',
-  campo_fora_da_topologia: 'campo que não é desta topologia', chegada: 'chegada fora do formato', fim: 'fim fora do formato', etapa: 'etapa fora do formato', evidencia: 'evidência fora do formato'
+  campo_fora_da_topologia: 'campo que não é desta topologia (laco usa retorno; bifurca usa ramo e decisao; espinha usa satelite_de, lado e laco): tire o campo, mesmo com false', chegada: 'chegada fora do formato', fim: 'fim fora do formato', etapa: 'etapa fora do formato', evidencia: 'evidência fora do formato'
 };
 const FORMA = 'fora da forma do esquema';
 function lerCaminho(c) {
@@ -109,13 +109,21 @@ function lerCaminho(c) {
   if (!c) return 'plano';
   return String(c).replace(/^chegada\./, 'chegada, ').replace(/^fim\./, 'fim, ');
 }
+/* só o NÚMERO de caracteres do texto recusado por tamanho (nunca o texto): o modelo erra a conta de 110 */
+function tamanhoDoTexto(codigo, caminho, plano) {
+  if (!/^(?:titulo|frase)_(?:curt|long)[oa]$/.test(codigo) || typeof caminho !== 'string' || !plano || typeof plano !== 'object') return '';
+  try {
+    const v = caminho.replace(/\[(\d+)\]/g, '.$1').split('.').filter(Boolean).reduce((o, k) => (o == null || typeof o !== 'object' || !Object.hasOwn(o, k) ? undefined : o[k]), plano);
+    return typeof v === 'string' ? ' (tem ' + v.trim().length + ' caracteres)' : '';
+  } catch { return ''; }
+}
 /* erros do validador -> frases curtas para o modelo (no máximo 6) */
-export function errosParaModelo(erros) {
+export function errosParaModelo(erros, plano = null) {
   const lista = Array.isArray(erros) ? erros : [];
   return lista.slice(0, ERROS_AO_MODELO_MAX).map(e => {
     const codigo = e && typeof e.codigo === 'string' ? e.codigo : 'interno';
     const regra = codigo.startsWith('trava_') ? 'tem promessa ou frase que o Zero não pode escrever' : (Object.hasOwn(REGRA, codigo) ? REGRA[codigo] : FORMA);
-    return lerCaminho(e && e.caminho) + ': ' + regra;
+    return lerCaminho(e && e.caminho) + ': ' + regra + tamanhoDoTexto(codigo, e && e.caminho, plano);
   });
 }
 
@@ -145,7 +153,7 @@ export function resolverDesenho({ entrada, briefing, turno, ctx }) {
     return { saida: { ok: true, na_tela: true, etapas: caixas(v.plano) }, briefing: novo, turno: { ...turno, gravou: true } };
   }
   const t = { ...turno, falhas: turno.falhas + 1, motivos: uniao(turno.motivos, v.motivos) };
-  if (t.falhas === 1) return { saida: { ok: false, erros: errosParaModelo(v.erros) }, briefing, turno: t };
+  if (t.falhas === 1) return { saida: { ok: false, erros: errosParaModelo(v.erros, entrada) }, briefing, turno: t };
   /* a 2ª falha: sem planta ainda, o servidor grava o padrão do nicho; com uma planta já na tela, ela fica (o padrão é só para quem não tem desenho) */
   if (versao > 0) return { saida: { ok: false, mantida: true, motivo: 'o desenho anterior continua na tela; não desenhe de novo neste turno' }, briefing, turno: t };
   const plano = planoPadrao(nichoDaPlanta(briefing));
