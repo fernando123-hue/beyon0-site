@@ -2,6 +2,7 @@
 node_modules/
 
 # local / máquina
+.beyon-segredos/
 .claude/settings.local.json
 .claude/worktrees/
 .superpowers/
