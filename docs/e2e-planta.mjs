@@ -194,6 +194,44 @@ console.log('\n== "Está certo" com a conversa ocupada e com a rede caindo ==');
   await ctx.close();
 }
 
+/* ---------- ajustes pós-radar: o turno ENTROU no servidor, a resposta se perdeu e a releitura também; a pessoa clica "Está certo" de novo ---------- */
+console.log('\n== "Está certo" depois de um envio que entrou sem a página saber ==');
+{
+  const { ctx, page, erros } = await abrir(ON);
+  await turno(page, T1);
+  await turno(page, 'planta-boa pode desenhar');
+  await page.waitForSelector('#o-planta:not([hidden]) .plv-quadro');
+  const visitantes = () => page.locator('#o-log .msg--visitante').count();
+  const base = await visitantes();
+  let semRede = true, noServidor = 0;
+  await page.route('**/api/vendas?acao=mensagem*', async (r) => {
+    if (!semRede) { noServidor++; return r.continue(); }
+    await r.fetch(); noServidor++;   /* o servidor grava o turno... */
+    r.abort('failed');               /* ...e a resposta nunca chega */
+  });
+  await page.route('**/api/vendas?acao=estado*', (r) => (semRede ? r.abort('failed') : r.continue()));
+  await page.locator('.plv-btn', { hasText: 'Está certo' }).click();
+  await page.waitForFunction(() => document.getElementById('o-pensando').hidden, null, { timeout: 40000 });
+  await espera(1500);
+  ok(noServidor === 1 && await visitantes() === base, 'a mensagem entrou no servidor, a tela não sabe (nenhuma mensagem nova na conversa)');
+  semRede = false;
+  await page.locator('.plv-btn', { hasText: 'Está certo' }).click();
+  await page.waitForFunction(() => document.getElementById('o-pensando').hidden, null, { timeout: 40000 });
+  await espera(1500);
+  ok(noServidor === 1, 'a rede voltou e a pessoa clicou de novo: a tela relê antes e NÃO manda a mesma versão pela 2a vez (chegaram ' + noServidor + ')');
+  ok(await visitantes() === base + 1 && (await page.locator('#o-log .msg--visitante').last().textContent()).trim() === 'A planta está certa.', 'a conversa mostra o turno uma vez só');
+  /* recarregar a página: o estado do servidor sozinho já diz que a versão foi confirmada */
+  await page.reload({ waitUntil: 'load' });
+  await page.waitForSelector('#o-planta:not([hidden]) .plv-quadro', { timeout: 20000 });
+  const antesF5 = noServidor;
+  await page.locator('.plv-btn', { hasText: 'Está certo' }).click();
+  await espera(1200);
+  ok(noServidor === antesF5, 'depois do F5: "Está certo" não manda de novo');
+  ok(await page.locator('.plv-status', { hasText: 'Já enviei esta planta.' }).count() >= 1 || (await page.evaluate(() => document.body.textContent)).includes('Já enviei esta planta.'), 'e diz "Já enviei esta planta."');
+  ok(erros.filter((e) => !/Failed to load resource|ERR_FAILED/.test(e)).length === 0, 'nenhum erro de página' + (erros.length ? ': ' + erros.join(' | ') : ''));
+  await ctx.close();
+}
+
 /* ---------- 320 px e a faixa à vista ---------- */
 /* ---------- enviar o formulário com a faixa à vista logo abaixo do botão (achado da medida do 2c-B) ---------- */
 console.log('\n== enviar o formulário com a faixa abaixo do botão ==');

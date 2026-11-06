@@ -24,12 +24,9 @@
       try { win.console.warn('[beyon] radar: ' + (e && e.message ? e.message : e)); } catch (x) { /* sem console */ }
     }
 
-    /* o painel que rola por dentro (>= 900 px) e tem o radar: tabindex="0" no <aside> (já tem nome), para o teclado e a lupa alcançarem o <dl>; sem rolagem ou sem radar, sem tabindex */
-    function focavel() {
-      var c = doc.getElementById('o-radar'), a = c && c.parentNode;
-      if (!a || !a.setAttribute) return;
-      if (st.inst && a.scrollHeight > a.clientHeight + 1) a.setAttribute('tabindex', '0'); else a.removeAttribute('tabindex');
-    }
+    /* o radar mudou o tamanho do painel: ele reavalia se rola por dentro (e precisa de tabindex para o teclado e a lupa; a regra é do js/orcamento-painel.js).
+       DEPENDÊNCIA: o BZPainel, que o orcamento.html carrega antes deste arquivo; sem ele nada acontece (o teclado perde o atalho ao radar, a página segue) */
+    function focavel() { if (win.BZPainel && win.BZPainel.focavel) win.BZPainel.focavel(); }
 
     /* o radar sai do laço único do site, o contêiner some e a ligação esquece */
     function sumir() {
@@ -45,8 +42,7 @@
       if (!l || !c) return sumir();
       json = JSON.stringify(l);
       if (st.inst) {
-        if (json !== st.json) { st.json = json; try { st.inst.atualizar(l); } catch (e) { aviso(e); } }
-        focavel();
+        if (json !== st.json) { st.json = json; try { st.inst.atualizar(l); } catch (e) { aviso(e); } }   /* (o render chama o painel logo depois: ele reavalia a rolagem) */
         return;
       }
       if (json === st.recusada) return;   /* a leitura que não deu certo não é tentada a cada render */
@@ -62,7 +58,6 @@
       if (!st.pagina) {   /* sai com a página (e volta se ela voltar do cache) */
         st.pagina = true;
         win.addEventListener('pagehide', sumir);
-        win.addEventListener('resize', focavel);
         win.addEventListener('pageshow', function () { if (!st.inst && st.E) seguir(); });
       }
     }
