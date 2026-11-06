@@ -231,9 +231,19 @@
 
   var visitantesNoServidor = function () { return E ? E.mensagens.filter(function (m) { return m.papel !== 'agente'; }).length : 0; };
 
+  /* o último envio que falhou SEM a releitura confirmar se entrou (rede ainda fora): { texto, antes }. O mesmo texto, mandado de novo (pela caixa ou por "Está certo"), relê antes: se o turno entrou, não repete */
+  var incerta = null;
   async function enviar(texto) {
     if (enviando) return false;   /* (Enter repetido não manda dois turnos) */
     limparAviso();
+    if (incerta && incerta.texto === texto) {
+      var velha = incerta;
+      incerta = null;
+      ocupado(true);
+      try { await recarregar(); } catch (x) { /* a rede ainda não voltou: o envio diz */ }
+      ocupado(false);
+      if (visitantesNoServidor() > velha.antes) { if ($('o-texto').value === texto) $('o-texto').value = ''; return true; }   /* (o render já redesenhou a conversa com o turno) */
+    }
     var antes = visitantesNoServidor(), totalAntes = E ? E.mensagens.length : 0;
     var minha = msg('visitante', texto);
     esconderAtalhos();
@@ -262,9 +272,11 @@
   async function falhaNoEnvio(e, texto, minha, antes) {
     /* a tela segue ocupada DURANTE a releitura (que tem limite de 15 s, js/orcamento-api.js): um segundo envio
        nesse meio tempo poderia duplicar o turno se o primeiro tinha entrado */
-    try { await recarregar(); } catch (x) { /* sem conexão: decide pelo que já se sabe */ }
+    var leu = true;
+    try { await recarregar(); } catch (x) { leu = false; /* sem conexão: decide pelo que já se sabe */ }
     ocupado(false);
     var gravada = visitantesNoServidor() > antes;
+    incerta = !gravada && !leu && repetivel(e) ? { texto: texto, antes: antes } : null;
     if (!gravada) {
       if (minha.isConnected) minha.remove();
       if (!$('o-texto').value) $('o-texto').value = texto;
@@ -672,6 +684,7 @@
   function render() {
     var et = E.conversa.etapa;
     identificar();
+    if (incerta && visitantesNoServidor() > incerta.antes) incerta = null;   /* (o estado já mostra o turno: a dúvida acabou) */
     etapas();
     /* a conversa segue o servidor: redesenha quando o número de mensagens mudou (F2: resposta gravada com a rede caída) */
     if (mudou('conversa', E.mensagens.length)) conversa();

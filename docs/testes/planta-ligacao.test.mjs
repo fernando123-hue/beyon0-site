@@ -1068,3 +1068,16 @@ test('pós-radar (fonte): a ligação lê as mensagens do estado e compara com o
   assert.match(src, /function jaConfirmada\(/);
   assert.match(src, /if \(st\.certoVersao === st\.versao \|\| jaConfirmada\(\)\) return 'duplicada';/);
 });
+
+test('pós-radar (fonte): enviar() de js/orcamento.js, depois de um envio que falhou SEM a releitura confirmar se entrou, relê antes de mandar o mesmo texto de novo (o comportamento real está em docs/e2e-planta.mjs)', () => {
+  const src = lerFonte('js/orcamento.js');
+  const corpo = src.slice(src.indexOf('async function enviar(texto)'), src.indexOf('async function falhaNoEnvio'));
+  assert.match(corpo, /if \(incerta && incerta\.texto === texto\)/, 'o mesmo texto depois de uma falha incerta');
+  assert.match(corpo, /await recarregar\(\)/, 'relê o estado antes de mandar');
+  assert.match(corpo, /visitantesNoServidor\(\) > velha\.antes/, 'compara com a contagem de antes do envio incerto');
+  assert.ok(corpo.indexOf('incerta.texto') < corpo.indexOf('API.mensagem('), 'a conferência vem antes do envio');
+  const falha = src.slice(src.indexOf('async function falhaNoEnvio'), src.indexOf('async function reenviar'));
+  assert.match(falha, /leu = false/, 'sabe se a releitura falhou');
+  assert.match(falha, /incerta = !gravada && !leu && repetivel\(e\) \? \{ texto: texto, antes: antes \} : null;/);
+  assert.match(src, /if \(incerta && visitantesNoServidor\(\) > incerta\.antes\) incerta = null;/, 'o render solta a dúvida quando o estado mostra o turno');
+});
