@@ -17,7 +17,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { executarTurno, nichoDaSessao } from '../../api/_vendas/agente.mjs';
 import { pedePlanta } from '../../api/_vendas/consultor.mjs';
-import { textoDoPlanoPermitido, normalizarTexto } from '../../api/_vendas/planta-textos.mjs';
+import { textoDoPlanoPermitido, normalizarTexto, cidadeValida } from '../../api/_vendas/planta-textos.mjs';
 import { validarPlano } from '../../api/_vendas/planta-esquema.mjs';
 import { pareceInjecao } from '../../api/_vendas/seguranca.mjs';
 import { IDENTIDADE_FIXO, IDENTIDADE_SEM_RECADO, EXPERIENCIA_FIXO, EQUIPE_FIXO } from '../../api/_vendas/travas-identidade.mjs';
@@ -57,11 +57,11 @@ export function coletarTextos(plano) {
 }
 
 /* passa cada texto pela lista dura + as dez travas do servidor, e por uma lista extra (preço, "pessoa real"...) */
-export function conferirTextos(plano, { nomeDoNegocio = '', regulado = false } = {}) {
+export function conferirTextos(plano, { nomeDoNegocio = '', regulado = false, cidade = '' } = {}) {
   const itens = coletarTextos(plano);
   const reprovados = [];
   for (const it of itens) {
-    const r = textoDoPlanoPermitido(it.texto, { nomeDoNegocio, regulado, travas: true });
+    const r = textoDoPlanoPermitido(it.texto, { nomeDoNegocio, regulado, cidade, travas: true });
     if (!r.ok) reprovados.push({ campo: it.campo, motivo: r.motivo });
     else if (EXTRAS_PROIBIDOS.test(it.texto)) reprovados.push({ campo: it.campo, motivo: 'extra' });
   }
@@ -98,10 +98,10 @@ const niveisDe = leitura => (leitura && Array.isArray(leitura.eixos) ? Object.fr
 const evidenciasDe = leitura => (leitura && Array.isArray(leitura.eixos) ? leitura.eixos.filter(e => e.evidencia).length : 0);
 
 /* ---------- um roteiro inteiro ---------- */
-export async function avaliarCenario({ ia, regras, cenario, relogio = () => Date.now() }) {
+export async function avaliarCenario({ ia, regras, cenario, relogio = () => Date.now(), tetoRestante = Infinity }) {
   const s = { etapa: 'descoberta', briefing: {}, mensagens: [], estimativa: null, turnos: 0, custo: 0 };
   const turnos = [], plantas = [];
-  let extras = 0;
+  let extras = 0, parouPorTeto = false;
   const falas = [...cenario.mensagens];
   for (let i = 0; i < falas.length; i++) {
     const mensagem = falas[i];
@@ -139,13 +139,13 @@ export async function avaliarCenario({ ia, regras, cenario, relogio = () => Date
     if (pedidos.length) {
       const nome = typeof r.briefing.negocio?.nome === 'string' ? r.briefing.negocio.nome : '';
       const regulado = !!nichoDaSessao({ briefing: r.briefing, mensagens: s.mensagens, mensagem: '' });
-      turno.pedidos_de_desenho = pedidos.map((e, k) => diagnosticarPedido(e, k + 1, { nomeDoNegocio: nome, regulado }));
+      turno.pedidos_de_desenho = pedidos.map((e, k) => diagnosticarPedido(e, k + 1, { nomeDoNegocio: nome, regulado, cidade: cidadeValida(r.briefing.negocio?.cidade) }));
     }
     turnos.push(turno);
     if (desenhou) {
       const regulado = !!nichoDaSessao({ briefing: r.briefing, mensagens: s.mensagens, mensagem: '' });
       const nome = typeof r.briefing.negocio?.nome === 'string' ? r.briefing.negocio.nome : '';
-      const q = conferirTextos(p.plano, { nomeDoNegocio: nome, regulado });
+      const q = conferirTextos(p.plano, { nomeDoNegocio: nome, regulado, cidade: cidadeValida(r.briefing.negocio?.cidade) });
       plantas.push({
         turno: s.turnos, versao: p.versao, origem: p.origem, tentativas: p.tentativas, motivos: p.motivos || [],
         valida_de_primeira: p.origem === 'modelo' && p.tentativas === 1, topologia: p.plano?.topologia || null,
@@ -153,13 +153,15 @@ export async function avaliarCenario({ ia, regras, cenario, relogio = () => Date
         textos: { total: q.total, reprovados: q.reprovados, lista: q.itens }, fala_do_zero: r.resposta
       });
     }
+    /* o teto vale por turno: passou do que resta, o roteiro para aqui (o relatório diz) */
+    if (s.custo >= tetoRestante && i < falas.length - 1) { parouPorTeto = true; break; }
     /* sem planta ainda, mas com estimativa: até EXTRAS_MAX falas neutras para o Zero chegar ao desenho */
     if (i === falas.length - 1 && s.estimativa && !(s.briefing.planta && s.briefing.planta.versao) && extras < EXTRAS_MAX) { falas.push(MENSAGEM_EXTRA); extras++; }
   }
   const desenhadas = plantas.length > 0;
   return {
     id: cenario.id, nicho: cenario.nicho, sobre: cenario.sobre, dificil: cenario.dificil || null,
-    estimou: !!s.estimativa, chegou_a_planta: desenhadas, mensagens_extras: extras,
+    parou_por_teto: parouPorTeto, estimou: !!s.estimativa, chegou_a_planta: desenhadas, mensagens_extras: extras,
     turnos, plantas, leitura_final: niveisDe(s.briefing.leitura), evidencias_aceitas: evidenciasDe(s.briefing.leitura),
     custo_usd: s.custo
   };
@@ -202,16 +204,18 @@ export function agregar(resultados) {
 }
 
 /* ---------- a rodada ---------- */
-export async function executarRodada({ ia, regras, cenarios = CENARIOS, teto = 1, log = () => {}, relogio }) {
+export async function executarRodada({ ia, regras, cenarios = CENARIOS, teto = 1, log = () => {}, relogio, aoTerminarRoteiro = () => {} }) {
   const resultados = [];
   let seguidos = 0, parou = null;
   for (const cenario of cenarios) {
     const gasto = resultados.reduce((n, r) => n + (r.custo_usd || 0), 0);
     if (gasto >= teto) { parou = 'teto'; log('PAROU no teto de US$ ' + teto.toFixed(2) + ' (gasto US$ ' + gasto.toFixed(4) + '): faltaram ' + (cenarios.length - resultados.length) + ' roteiros'); break; }
     if (seguidos >= ERROS_SEGUIDOS_MAX) { parou = 'erros'; log('PAROU: ' + seguidos + ' roteiros seguidos com erro'); break; }
-    try { resultados.push(await avaliarCenario({ ia, regras, cenario, relogio })); seguidos = 0; }
+    try { resultados.push(await avaliarCenario({ ia, regras, cenario, relogio, tetoRestante: teto - gasto })); seguidos = 0; }
     catch (e) { seguidos++; resultados.push({ id: cenario.id, nicho: cenario.nicho, erro: (e && (e.motivo || e.message)) || String(e), custo_usd: e?.custo_usd || 0 }); }
+    aoTerminarRoteiro(resultados);
     log(linha(resultados.at(-1)));
+    if (resultados.at(-1).parou_por_teto) { parou = 'teto'; log('PAROU no teto de US$ ' + teto.toFixed(2) + ' (gasto US$ ' + resultados.reduce((n, r) => n + (r.custo_usd || 0), 0).toFixed(4) + ', no meio do roteiro ' + cenario.id + '): faltaram ' + (cenarios.length - resultados.length) + ' roteiros'); break; }
   }
   return { resultados, agregado: agregar(resultados), parou, ignorados: cenarios.slice(resultados.length).map(c => c.id) };
 }
@@ -273,10 +277,17 @@ export async function rodar({ argv = process.argv.slice(2), env = process.env, c
   if (!lista.length || (ids && lista.length !== ids.length)) { erro('--cenario: id desconhecido. Válidos: ' + CENARIOS.map(c => c.id).join(', ')); return 2; }
   const regras = JSON.parse(fs.readFileSync(arquivoRegras, 'utf8'));
   const ia = criarIA ? criarIA(env, esforco) : await (async () => { const { criarAnthropic } = await import('../../api/_ia/anthropic.mjs'); return criarAnthropic(env, undefined, esforco ? { conversa: { esforco } } : {}); })();
-  const rodada = await executarRodada({ ia, regras, cenarios: lista, teto, log: escrever });
-  escrever(resumoLegivel(rodada));
   const saida = arg('saida', path.join(os.tmpdir(), 'avaliacao-planta-' + new Date().toISOString().replace(/[:.]/g, '-') + '.json'));
-  fs.writeFileSync(saida, JSON.stringify({ quando: new Date().toISOString(), esforco: esforco || 'padrão', teto, parou: rodada.parou, ignorados: rodada.ignorados, agregado: rodada.agregado, resultados: rodada.resultados }, null, 2), { mode: 0o600 });
+  const quando = new Date().toISOString();
+  /* grava depois de CADA roteiro (uma exceção adiante não perde o gasto já feito); o modo 0600 vale também onde o `mode` do writeFile é ignorado */
+  const gravar = (rodada, completo) => {
+    fs.writeFileSync(saida, JSON.stringify({ quando, esforco: esforco || 'padrão', teto, completo, parou: rodada.parou, ignorados: rodada.ignorados, agregado: rodada.agregado, resultados: rodada.resultados }, null, 2), { mode: 0o600 });
+    try { fs.chmodSync(saida, 0o600); } catch { /* (Windows não tem esse modo) */ }
+  };
+  const rodada = await executarRodada({ ia, regras, cenarios: lista, teto, log: escrever,
+    aoTerminarRoteiro: parciais => gravar({ resultados: parciais, agregado: agregar(parciais), parou: null, ignorados: lista.slice(parciais.length).map(c => c.id) }, false) });
+  escrever(resumoLegivel(rodada));
+  gravar(rodada, true);
   escrever('\nrelatório: ' + saida);
   return rodada.resultados.some(r => r.erro) ? 1 : 0;
 }

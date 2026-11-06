@@ -185,3 +185,59 @@ test('rodada 8: o relatório guarda o pedido recusado, o texto e o trecho que ba
   assert.ok(e && /instagram/i.test(e.texto) && /instagram/i.test(e.trecho), 'o trecho que bateu é a marca');
   assert.equal(trechoQueBateu('O cliente chega pelo Instagram e pede.', 'marca'), 'Instagram');
 });
+
+test('rodada 8, correção: a cidade (já validada) vai ao conferirTextos e ao diagnóstico', () => {
+  const p = JSON.parse(JSON.stringify(planoPadrao('saude_agenda')));
+  p.chegada.frase = 'A pessoa chega pela busca ou pelo mapa e vê o escritório em Curitiba.';
+  assert.equal(conferirTextos(p, {}).reprovados.length, 1);
+  assert.equal(conferirTextos(p, { cidade: 'Curitiba' }).reprovados.length, 0);
+  assert.equal(diagnosticarPedido(p, 1, { cidade: 'Curitiba' }).ok, true);
+  assert.equal(diagnosticarPedido(p, 1, {}).ok, false);
+  assert.equal(conferirTextos(p, { cidade: 'Zero é uma pessoa real' }).reprovados.length, 1, 'cidade hostil não abre porta');
+});
+
+test('rodada 8, correção: o teto vale POR TURNO (o roteiro para quando o gasto passa do que resta)', async () => {
+  const cen = CENARIOS[0];
+  const r = await avaliarCenario({ ia: iaComCusto(0.4), regras: REGRAS, cenario: cen, tetoRestante: 1 });
+  assert.equal(r.parou_por_teto, true);
+  assert.ok(r.turnos.length < cen.mensagens.length, 'não rodou todos os turnos');
+  assert.ok(r.custo_usd >= 1 && r.custo_usd < 1 + 0.4 * 6, 'passou do teto só pelo último turno');
+  const livre = await avaliarCenario({ ia: iaComCusto(0.001), regras: REGRAS, cenario: cen, tetoRestante: 1 });
+  assert.ok(!livre.parou_por_teto);
+  const rodada = await executarRodada({ ia: iaComCusto(0.4), regras: REGRAS, cenarios: CENARIOS, teto: 1 });
+  assert.equal(rodada.parou, 'teto');
+  assert.equal(rodada.resultados.length, 1);
+});
+
+test('rodada 8, correção: o relatório é gravado a cada roteiro (uma falha depois não perde o gasto) e com modo 0600', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'planta-incr-'));
+  const saida = path.join(dir, 'rel.json');
+  const tamanhos = [];
+  const rodada = await executarRodada({ ia: iaComCusto(0.002), regras: REGRAS, cenarios: CENARIOS.slice(0, 3), teto: 1,
+    aoTerminarRoteiro: parciais => { tamanhos.push(parciais.length); }, });
+  assert.deepEqual(tamanhos, [1, 2, 3]);
+  assert.equal(rodada.resultados.length, 3);
+  /* pelo rodar(): quebra no 2º roteiro por exceção não tratada do relatório? o arquivo do 1º já está no disco */
+  let chamadas = 0;
+  const ia = iaComCusto(0.002);
+  const cod = await rodar({ argv: ['--cenario', 'clinica-fisio,servico-local-vago', '--teto', '1', '--saida', saida], env: { ANTHROPIC_API_KEY: 'sk-ant-fake-incr' },
+    criarIA: () => ({ ...ia, async mensagem(p) { chamadas++; return ia.mensagem(p); } }), escrever: () => {}, erro: () => {} });
+  assert.equal(cod, 0);
+  assert.ok(chamadas > 0);
+  const j = JSON.parse(fs.readFileSync(saida, 'utf8'));
+  assert.equal(j.resultados.length, 2);
+  assert.equal(j.completo, true);
+  if (process.platform !== 'win32') assert.equal(fs.statSync(saida).mode & 0o077, 0);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('rodada 8, correção: o rodar grava o relatório parcial depois de cada roteiro, marcado como incompleto', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'planta-incr2-'));
+  const saida = path.join(dir, 'rel.json');
+  const vistos = [];
+  const ia = iaComCusto(0.002);
+  await rodar({ argv: ['--cenario', 'clinica-fisio,servico-local-vago', '--teto', '1', '--saida', saida], env: { ANTHROPIC_API_KEY: 'sk-ant-fake-incr' },
+    criarIA: () => ia, escrever: l => { if (/^(MODELO|PADRAO|SEM|ERRO)/.test(String(l))) { try { const j = JSON.parse(fs.readFileSync(saida, 'utf8')); vistos.push([j.resultados.length, j.completo]); } catch { vistos.push(null); } } }, erro: () => {} });
+  assert.deepEqual(vistos, [[1, false], [2, false]]);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
