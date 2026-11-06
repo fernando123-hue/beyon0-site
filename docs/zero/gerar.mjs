@@ -9,7 +9,7 @@
    ========================================================================== */
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import { montarSistema, ferramentas, PREFIXO_PLANTA } from '../../api/_vendas/consultor.mjs';
+import { montarSistema, ferramentas, PREFIXO_PLANTA, PREFIXO_LEITURA } from '../../api/_vendas/consultor.mjs';
 import { estadoParaModelo } from '../../api/_vendas/agente.mjs';
 import { PAPEIS, TETOS } from '../../api/_ia/config.mjs';
 import { ABERTURAS, ETIQUETA, RECADO_FIXO } from '../../api/_vendas/zero.mjs';
@@ -40,6 +40,7 @@ const RESULTADOS = {
   pedir_contato: 'devolve ok se já existe estimativa; senão pede para estimar antes. O formulário aparece na tela.',
   sugerir_solucao_ia: 'devolve ok. A ideia vai para o briefing.',
   encaminhar_diagnostico: 'devolve só que o botão DEIXAR UM RECADO apareceu na tela e que nada foi enviado a ninguém.',
+  ler_caso: 'devolve ok com no_painel (a leitura já está no painel, abaixo do preço); ou ok false com uma lista curta de erros (cinco eixos exatos, sem repetir), para corrigir UMA vez; na segunda falha a leitura que estava na tela fica. Evidência que não é trecho literal de uma fala da pessoa, ou que tem número, preço, prazo, marca ou promessa, o código descarta sozinho e baixa o nível (sem avisar o modelo). Recusa (ok false e o motivo) se já houve uma leitura neste turno ou com o pedido já confirmado.',
   desenhar_planta: 'devolve ok com na_tela (o desenho já está na tela) e o número de caixas; ou ok false com uma lista curta de erros, para corrigir UMA vez; na segunda falha o código grava o desenho de exemplo do tipo de negócio e devolve ok com exemplo true. Recusa (ok false e o motivo) se já houve um desenho neste turno, antes da estimativa, depois de 4 versões ou com o pedido já confirmado.'
 };
 
@@ -48,6 +49,7 @@ export function montarPromptEfetivo() {
   const estado = estadoParaModelo({ briefing: {}, estimativa: null, etapa: 'descoberta', regras: REGRAS, metodos: OPCOES.metodos });
   const conv = PAPEIS.conversa;
   const planta = ferramentas(REGRAS, { planta: true }).find(f => f.name === 'desenhar_planta');
+  const leitura = ferramentas(REGRAS, { leitura: true }).find(f => f.name === 'ler_caso');
   const ferr = ferramentas(REGRAS).map(f => `${f.name}\n${f.description}\nCampos: ${camposDe(f.input_schema)}.\nResultado: ${RESULTADOS[f.name]}`).join('\n\n');
   return `PROMPT EFETIVO DO ZERO
 Gerado por docs/zero/gerar.mjs a partir do código. Não edite à mão: o teste docs/testes/zero.test.mjs confere este arquivo.
@@ -77,6 +79,17 @@ ${planta.description}
 Campos: ${camposDe(planta.input_schema)}.
 Resultado: ${RESULTADOS.desenhar_planta}
 ======== FIM DA PLANTA ========
+
+======== 3c. COM O RADAR LIGADO (a mesma flag BZ_PLANTA; o radar "Como lemos o seu caso" aparece abaixo do preço, no painel) ========
+Nas mesmas etapas de preço aberto entra mais uma ferramenta, no fim da lista (depois de desenhar_planta, quando ela também entra), e o prompt de sistema NÃO muda. Em todo turno de preço aberto o campo proximo_passo do ESTADO começa por esta frase (depois do prefixo da planta, quando há), e o texto de hoje vem inteiro depois dela:
+"${PREFIXO_LEITURA}"
+O que o modelo lê do briefing não traz a leitura crua: só a leitura de agora (leitura_atual: eixo, nível e as palavras da própria pessoa) no bloco do briefing, para ele reenviar os cinco eixos mantendo o que continua valendo. O código só grava a evidência que for trecho LITERAL de uma fala do visitante (a fala do Zero nunca vale) e só rebaixa nível, nunca eleva.
+
+${leitura.name}
+${leitura.description}
+Campos: ${camposDe(leitura.input_schema)}.
+Resultado: ${RESULTADOS.ler_caso}
+======== FIM DO RADAR ========
 
 ======== 4. O QUE O CÓDIGO FAZ COM A RESPOSTA DO MODELO (a simulação deve aplicar o mesmo) ========
 Antes de tudo: se o modelo terminar a resposta com [[total]], [[sinal]] ou [[restante]] sem ter uma estimativa válida, o código devolve a ele um aviso (uma volta a mais, uma vez) para chamar estimar e escrever de novo. O aviso não é da pessoa e ela não o vê.

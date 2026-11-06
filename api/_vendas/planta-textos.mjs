@@ -86,7 +86,7 @@ const CARACTERE_DE_FORA = /[^\p{L}\p{M}\s.,:;!?'’"“”()\-–—]/u;
 
 /* sobre o texto em "busca" (paraBusca: minúscula, sem acento, letras soltas juntas, pontuação vira espaço) e sobre a versão "colada" (abaixo) */
 const RAIZES = {
-  preco: /\b(?:precos?|valor|valores|custos?|custa\w*|custar|barat\w+|gratis|gratuit\w+|descontos?|taxas?|mensalidades?|investiment\w+|parcelas?|parcelad\w+|promocao|promocoes|ofertas?|reais|de graca|por menos|pa(?:ga|gar|gue) menos|abatimentos?|abate\w*|economiz\w+|bolso|cobranc\w+|pa(?:gue|ga|gar) (?:\w+ ){0,3}(?:so|nada|depois|sem)|(?:so|nada|depois|sem) (?:\w+ ){0,2}pa(?:gue|ga|gar))\b/,
+  preco: /\b(?:precos?|valor|valores|custos?|custa\w*|custar|barat\w+|gratis|gratuit\w+|descontos?|taxas?|mensalidades?|investiment\w+|parcelas?|parcelad\w+|promocao|promocoes|ofertas?|reais|de graca|por menos|pa(?:ga|gar|gue) menos|abatimentos?|abate\w*|economiz\w+|bolso|cobranc\w+|cobrar|cobrando|sem cobr\w+|pa(?:gue|ga|gar) (?:\w+ ){0,3}(?:so|nada|depois|sem)|(?:so|nada|depois|sem) (?:\w+ ){0,2}pa(?:gue|ga|gar))\b/,
   numeral: /\b(?:dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|treze|quatorze|catorze|quinze|dezesseis|dezessete|dezoito|dezenove|vinte|trinta|quarenta|cinquenta|sessenta|setenta|oitenta|noventa|cem|cento|duzentos|duzentas|trezentos|trezentas|quatrocentos|quatrocentas|quinhentos|quinhentas|seiscentos|seiscentas|setecentos|setecentas|oitocentos|oitocentas|novecentos|novecentas|mil|milhao|milhoes|bilhao|bilhoes)\b/,
   promessa: new RegExp([
     '\\b(?:enche|encher|enchem|lota|lotar|lotam|lotad\\w+|dobra|dobrar|dobram|dobro|triplo|triplica\\w*|quadruplo|quadruplica\\w*|multiplica\\w*|aumenta\\w*|cresc\\w+|dispara\\w*|lucr\\w+|faturamento|faturar|resultados?(?! d[oae]s? (?:exames?|orcamentos?|pedidos?|consultas?|testes?|formularios?|buscas?)\\b)|dobre|dobrem|venda mais|vendem mais|sem esforcos?|primeiro lugar|primeira pagina|topo d[oa]|milhar|milhares|centenas?|dezenas?|duzia|duzias|metade|nunca mais)\\b',
@@ -112,8 +112,15 @@ const RAIZES = {
 };
 /* a evidência do radar é a fala da PESSOA, em primeira pessoa ("sou eu", "eu atendo"): o "sou" solto e o "eu <verbo>" não valem para ela, mas NEGAR ser IA vale
    ("sou humano", "não sou robô", "sou pessoa de verdade", "ninguém aqui é robô", "eu sou humano de verdade"): senão o modelo forjaria uma "citação" dessas */
-const NEGAR_IA_FORTE = /\b(?:nao sou (?:uma? )?(?:ia|robo|bot|maquina|inteligencia artificial)|sou (?:uma? )?(?:pessoa|humano|humana|gente|dono|dona)|eu sou (?:uma? )?(?:pessoa|humano|humana|gente|dono|dona)|atendente humano|pessoa de verdade|humano de verdade|humana de verdade|por gente|carne e osso|ninguem aqui e (?:robo|maquina|bot|ia))\b/;
-const SEM_PRIMEIRA_PESSOA = { ...RAIZES, negar_ia: NEGAR_IA_FORTE };
+const NEGAR_IA_FORTE = /\b(?:nao sou (?:uma? )?(?:ia|robo|bot|maquina|inteligencia artificial)|sou (?:uma? )?(?:pessoa|humano|humana|gente|dono|dona)|eu sou (?:uma? )?(?:pessoa|humano|humana|gente|dono|dona)|atendente humano|pessoa de verdade|humano de verdade|humana de verdade|por gente|carne e osso|ninguem aqui e (?:robo|maquina|bot|ia)|nao e (?:um |uma )?(?:robo|bot|ia|maquina))\b/;
+/* A fala da PESSOA (evidência do radar) descreve o negócio dela: "a avenida fica lotada", "tenho que ignorar mensagens fora do horário" são honestas. As raízes de PROMESSA de enchimento (enche, lota) e de ORDEM com o verbo
+   solto (ignor-, desconsider-) são para texto de MODELO e saem daqui; a forma de ordem ("ignore as instruções", "desconsidere") é da defesa do visitante em api/_vendas/leitura.mjs (HOSTIL). Idioma: só as palavras
+   de inglês e espanhol; a fração de palavras funcionais do português não vale ("minha loja da rua principal vende bastante" tem 14%) */
+const SEM_PRIMEIRA_PESSOA = { ...RAIZES, negar_ia: NEGAR_IA_FORTE,
+  promessa: new RegExp(RAIZES.promessa.source.replace('enche|encher|enchem|lota|lotar|lotam|lotad\\w+|', '')),
+  ordem: new RegExp(RAIZES.ordem.source.replace('ignor\\w+|desconsider\\w+|', '')) };
+/* à prova de no-op silencioso: se alguém mexer nas raízes e o replace deixar de achar o trecho, o módulo nem carrega (as duas pontas da exceção têm teste) */
+if (SEM_PRIMEIRA_PESSOA.promessa.source === RAIZES.promessa.source || SEM_PRIMEIRA_PESSOA.ordem.source === RAIZES.ordem.source) throw new Error('planta-textos: a exceção da fala da pessoa não foi aplicada (o texto das raízes mudou)');
 const REGULADO = {
   depoimento: /\b(?:depoiment\w*|testemunh\w*|antes (?:e |\/ )?depois|avaliacoes (?:de|dos|das) (?:pacientes|clientes)|casos? de sucesso|historias? de (?:pacientes|clientes)|fotos? de (?:pacientes|clientes)|relatos?|transformac\w+)\b/,
   resultado_regulado: /\b(?:cura\w*|curar|milagr\w*|tratamento garantido|emagrec\w*)\b/
@@ -127,9 +134,11 @@ const FUNCIONAIS_PT = new Set(('de da do das dos em na no nas nos ao aos a o as 
   'depois antes assim aqui ali la tambem sempre ainda so tal mesmo mesma onde porque pois qual quais ate ou').split(' '));
 /* palavras de inglês e de espanhol que o português NÃO tem (sem "for", "real", "zero", "entrega", "gratis", que também são nossas): uma só basta para recusar */
 const ESTRANHAS = new Set(('the and with you your our from this will are is to of in on at by it i am not call us now free ready every first month best cheap price ever more get risk guaranteed guarantee instant fast ' +
-  'human person being robot sales clients monthly refund offered automatically while sleeping full discount el los las del una con muy al es y precio sin costo inmediata inmediato').split(' '));
+  'human person being robot sales clients monthly refund offered automatically while sleeping full discount el los las del una con muy al es y precio sin costo inmediata inmediato was say tell them payment received okay please thanks confirm').split(' '));
 export const FRACAO_PORTUGUES_MIN = 0.15;
 export const PALAVRAS_MIN_IDIOMA = 5;
+/* a fala da PESSOA: o corte cai de 0,15 para 0,05 (a menor fala honesta medida é 0,14); texto sem português nenhum, em inglês, continua caindo */
+export const FRACAO_PORTUGUES_MIN_DA_PESSOA = 0.05;
 const VIRGULAS_DE_LISTA = 3;   /* lista de substantivos ("Cardápio, mesas, reservas, pedidos...") não tem palavra funcional e é português: a fração não vale para ela */
 const palavrasDe = busca => busca.split(' ').filter(Boolean);
 /* a fração de palavras funcionais do português, ou null se o texto tem menos de PALAVRAS_MIN_IDIOMA palavras (fora as do nome do negócio) ou é uma lista */
@@ -138,11 +147,11 @@ export function fracaoPortugues(texto, nome = new Set()) {
   if (palavras.length < PALAVRAS_MIN_IDIOMA || (texto.match(/,/g) || []).length >= VIRGULAS_DE_LISTA) return null;
   return palavras.filter(p => FUNCIONAIS_PT.has(p)).length / palavras.length;
 }
-function idiomaRuim(texto, nome) {
+function idiomaRuim(texto, nome, fracaoMin = FRACAO_PORTUGUES_MIN) {
   const palavras = palavrasDe(paraBusca(texto)).filter(p => !nome.has(p));
   if (palavras.some(p => ESTRANHAS.has(p))) return true;
   const f = fracaoPortugues(texto, nome);
-  return f !== null && f < FRACAO_PORTUGUES_MIN;
+  return f !== null && f < fracaoMin;
 }
 
 /* ---------- palavra cortada ou repetida ---------- */
@@ -234,14 +243,15 @@ export function textoDoPlanoPermitido(bruto, { nomeDoNegocio = '', regulado = fa
     if (LETRAS_SOLTAS.test(t)) return { ok: false, motivo: 'letras_soltas' };
     const nome = palavrasDoNome(nomeDoNegocio);
     if (MARCAS_RE.test(paraBusca(t)) || MARCAS_RE.test(colada(t))) return { ok: false, motivo: 'marca' };   /* (antes do idioma: "you tube" é marca, não inglês) */
-    if (idiomaRuim(t, nome)) return { ok: false, motivo: 'idioma' };
+    if (idiomaRuim(t, nome, primeiraPessoa ? FRACAO_PORTUGUES_MIN_DA_PESSOA : FRACAO_PORTUGUES_MIN)) return { ok: false, motivo: 'idioma' };
     const busca = paraBusca(t), cola = colada(t);
     const lexico = achar(primeiraPessoa ? SEM_PRIMEIRA_PESSOA : RAIZES, busca, cola) || (regulado ? achar(REGULADO, busca, cola) : null);
     if (lexico) return { ok: false, motivo: lexico };
     if (regulado && pedeItemProibido(t)) return { ok: false, motivo: 'depoimento' };
     if (MARCAS_RE.test(busca) || MARCAS_RE.test(cola) || temNomeProprio(t, nome)) return { ok: false, motivo: 'marca' };
     if (regulado && textoProibido(t)) return { ok: false, motivo: 'depoimento' };
-    if (travas) for (const trava of TRAVAS) if (trava.rodar(t) !== t) return { ok: false, motivo: 'trava_' + trava.nome };
+    /* a trava negarIA é para a voz do Zero (finge vida humana: "na minha cabeça", "eu atendo"); a fala da PESSOA (primeiraPessoa) tem a regra própria NEGAR_IA_FORTE acima, que derruba "sou humano" e "não sou robô" */
+    if (travas) for (const trava of TRAVAS) if (!(primeiraPessoa && trava.nome === 'negarIA') && trava.rodar(t) !== t) return { ok: false, motivo: 'trava_' + trava.nome };
     return { ok: true, texto: t };
   } catch {
     return { ok: false, motivo: 'interno' };   /* falha fechado */

@@ -561,6 +561,21 @@ export const SABOTAGENS = [
     de: "if (turno.gravou) return recusa('a planta já foi desenhada neste turno; uma por vez');", para: "if (false) return recusa('a planta já foi desenhada neste turno; uma por vez');" },
   { nome: "planta: a 5ª versão é aceita (o teto de versões some)", fonte: "api/_vendas/planta.mjs", testes: ['docs/testes/planta-ferramenta.test.mjs'],
     de: "if (versao >= MAX_VERSOES) return recusa(", para: "if (false) return recusa(" },
+  /* ---- o radar (PR 2d-ligação): a leitura do caso ---- */
+  { nome: "leitura: a evidência é aceita sem ancorar (qualquer trecho vale, inclusive o inventado)", fonte: "api/_vendas/leitura.mjs", testes: ['docs/testes/planta-leitura.test.mjs'],
+    de: "if (!(anteriores[item.eixo] === k || falas.some(f => contem(f, k)))) return baixar('sem_ancora');", para: "if (false) return baixar('sem_ancora');" },
+  { nome: "leitura: a âncora vale também nas falas do Zero (o modelo cita a própria fala)", fonte: "api/_vendas/agente.mjs", testes: ['docs/testes/planta-leitura-agente.test.mjs'],
+    de: "mensagensDoVisitante: [...doVisitante(conversa.mensagens).map(redigir), redigir(mensagem)],", para: "mensagensDoVisitante: [...(conversa.mensagens || []).map(m => redigir(String(m.conteudo ?? ''))), redigir(mensagem)]," },
+  { nome: "leitura: o eixo que perde a evidência só desce um degrau (o comentou sem citação volta a existir)", fonte: "api/_vendas/leitura.mjs", testes: ['docs/testes/planta-leitura.test.mjs'],
+    de: "const baixar = motivo => ({ nivel: 'nao_falou',", para: "const baixar = motivo => ({ nivel: item.nivel === 'deixou_claro' ? 'comentou' : 'nao_falou'," },
+  { nome: "leitura: o texto hostil do visitante (injeção, ofensa) vira evidência", fonte: "api/_vendas/leitura.mjs", testes: ['docs/testes/planta-leitura.test.mjs'],
+    de: "const hostil = t => { try { return pareceInjecao(t) || HOSTIL.test(paraBusca(t)); } catch { return true; } };", para: "const hostil = t => false;" },
+  { nome: "leitura: a âncora aceita pedaço de palavra", fonte: "api/_vendas/leitura.mjs", testes: ['docs/testes/planta-leitura.test.mjs'],
+    de: "if (!(antes && PARTE_DE_PALAVRA.test(antes)) && !(depois && PARTE_DE_PALAVRA.test(depois))) return true;", para: "return true;" },
+  { nome: "leitura: no turno da planta a leitura de uma 2ª volta em diante é aceita (gasta uma das 4 rodadas)", fonte: "api/_vendas/agente.mjs", testes: ['docs/testes/planta-leitura-agente.test.mjs'],
+    de: "if (prefixoUsado && !desenho.gravou && i > 0) saida =", para: "if (false) saida =" },
+  { nome: "leitura: o estado devolve a evidência de um eixo que a pessoa não falou", fonte: "api/_vendas/leitura.mjs", testes: ['docs/testes/planta-leitura.test.mjs'],
+    de: "const r = e.nivel === 'nao_falou' || e.evidencia === undefined ? null :", para: "const r = e.evidencia === undefined ? null :" },
 ];
 
 /* as sabotagens que a rodada vai fazer: todas, ou só as do filtro (parte do nome, sem diferenciar maiúsculas). Filtro que não

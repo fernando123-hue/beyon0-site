@@ -30,7 +30,8 @@ function roteiro(...respostas) {
 }
 const volta = (ia, n) => JSON.parse(ia.recebidos[n].mensagens.at(-1).content[0].content);   /* o resultado da 1ª ferramenta devolvido ao modelo na rodada n */
 const conversaDe = (extra = {}) => ({ etapa: 'estimativa', briefing: clone(BRIEFING), mensagens: clone(MENSAGENS), estimativa: ESTIMATIVA, ...extra });
-const turno = (ia, extra = {}, planta = true) => executarTurno({ ia, regras: REGRAS, conversa: conversaDe(extra.conversa), mensagem: extra.mensagem || 'ok', planta });
+/* (a planta SOZINHA: o radar, que segue a mesma flag no fluxo, tem os testes dele em planta-leitura-agente.test.mjs; aqui leitura: false mantém os testes do 2a isolados) */
+const turno = (ia, extra = {}, planta = true) => executarTurno({ ia, regras: REGRAS, conversa: conversaDe(extra.conversa), mensagem: extra.mensagem || 'ok', planta, leitura: false });
 
 /* ---------- a lista de ferramentas ---------- */
 test('ferramentas: desenhar_planta só entra com planta:true E preço aberto; sem a flag a lista é a de hoje', () => {

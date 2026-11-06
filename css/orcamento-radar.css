@@ -11,7 +11,10 @@
 .plr, .plr-vaga {
   --plr-linha: calc(3 * 1.35 * var(--fs-ctrl) + 15px);   /* eixo + nível, e até 2 linhas de evidência (medido: 63,6 px no pior caso, 60 letras) */
 }
+/* container-type: o tamanho em linha do cartão não vem do conteúdo. Sem isso o aspect-ratio com min-height de 240 px dava ao quadro uma largura mínima de 311 px, o grid do painel
+   (coluna "auto") alargava até 346 px e, nos 320 px do celular, o Chrome alargava a viewport inteira (medido: 320 -> 367, regra 10 do CLAUDE.md) */
 .plr {
+  container-type: inline-size;
   box-sizing: border-box; width: 100%; max-width: 420px; padding: 16px;
   border: 1px solid var(--line); border-radius: var(--raio); background: var(--s1); color: var(--t2);
 }
@@ -42,11 +45,18 @@
   display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; align-content: start; align-items: baseline;
   min-height: var(--plr-linha); padding: 6px 0; border-bottom: 1px solid var(--line); font-size: var(--fs-ctrl); line-height: 1.35;
 }
-.plr-eixo { margin: 0; color: var(--t1); }
+.plr-eixo { margin: 0; color: var(--t1); overflow-wrap: anywhere; }
 .plr-nivel { margin: 0; font: 500 var(--fs-rotulo)/1.35 var(--mono); letter-spacing: var(--tr-dado); color: var(--t3); text-align: right; }
 .plr-nivel--comentou { color: var(--t1); }
 .plr-nivel--deixou_claro { color: var(--ac); }
 .plr-evidencia { grid-column: 1 / -1; margin: 2px 0 0; color: var(--t2); overflow-wrap: anywhere; }
+
+/* A3: no cartão estreito (celular, ou fonte do sistema a 200%) o nível vai para baixo do eixo, à esquerda, em vez de espremer o nome; a linha reserva 4 linhas (eixo, nível, 2 de evidência).
+   Container query do próprio cartão (container-type no .plr): não depende da largura da viewport */
+@container (max-width: 300px) {
+  .plr-linha { grid-template-columns: minmax(0, 1fr); min-height: calc(4 * 1.35 * var(--fs-ctrl) + 15px); }
+  .plr-nivel { text-align: left; }
+}
 
 .plr-legenda { margin: 12px 0 0; min-height: calc(2 * 1.4em); font-size: var(--fs-ctrl); line-height: 1.4; color: var(--t3); }
 

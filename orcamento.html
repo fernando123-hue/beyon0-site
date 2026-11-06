@@ -237,6 +237,9 @@
           <button class="btn btn--ghost" type="button" id="o-ajustar-abrir" aria-expanded="false" aria-controls="o-ajustar">Quer ajustar?</button>
           <button class="orc-p__naosei" type="button" id="o-p-refazer">Mudar as respostas</button>
         </div>
+        <!-- O RADAR "Como lemos o seu caso" (js/orcamento-radar.js): abaixo do cartão de investimento e dos controles do preço, escondido até a conversa ter uma leitura (BZ_PLANTA).
+             <section> e não <div>: a regra .orc-painel > div é de cartão e daria borda dupla; o módulo do radar traz o próprio cartão. Sem região viva: a única é o #o-voz -->
+        <section id="o-radar" hidden></section>
       </aside>
 
       <!-- QUER AJUSTAR? (spec §3): os extras da tabela ativa, com o preço ao vivo pelo servidor (simular, não grava) -->
@@ -717,6 +720,7 @@
   <script src="js/orcamento-restante.js" defer></script>
   <script src="js/orcamento-entrega.js" defer></script>
   <script src="js/orcamento-planta.js" defer></script>
+  <script src="js/orcamento-radar.js" defer></script>
   <script src="js/orcamento.js" defer></script>
 </body>
 </html>

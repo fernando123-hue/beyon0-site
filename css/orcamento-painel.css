@@ -23,5 +23,5 @@
 
 @media (min-width: 900px) {
   /* a coluna da direita fica presa ao rolar (orcamento.css); com as peças ela pode passar da tela, então rola por dentro */
-  .orc-painel:has(> .orc-peca:not([hidden])) { max-height: calc(100vh - var(--nav-h) - 2rem); overflow-y: auto; }
+  .orc-painel:has(> .orc-peca:not([hidden]), > #o-radar:not([hidden])) { max-height: calc(100vh - var(--nav-h) - 2rem); overflow-y: auto; }
 }

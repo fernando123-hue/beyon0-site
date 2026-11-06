@@ -233,9 +233,15 @@ test('o desenho é decorativo (aria-hidden) e a lista <dl> é o que o leitor de 
   assert.equal(svg.getAttribute('focusable'), 'false');
   for (const r of m.alvo.porClasse('plr-rot')) assert.equal(r.getAttribute('aria-hidden'), 'true');
   const raiz = m.alvo.porClasse('plr')[0];
-  assert.equal(raiz.getAttribute('role'), 'group');
-  const rotulo = raiz.getAttribute('aria-labelledby');
-  assert.ok(rotulo && m.alvo.todos((n) => n.getAttribute && n.getAttribute('id') === rotulo).length === 1, 'aria-labelledby aponta para o título');
+  /* A1 (revisão a11y do 2d): o título é um <h3> (aparece na lista de títulos do leitor de tela, sob o h2 do painel), com o id; sem role="group" nem aria-labelledby (o nome duplicava o título) */
+  const titulo = m.alvo.porClasse('plr-titulo')[0];
+  assert.equal(titulo.tag, 'h3');
+  assert.ok(titulo.getAttribute('id'), 'o id do título fica');
+  assert.equal(raiz.getAttribute('role'), null);
+  assert.equal(raiz.getAttribute('aria-labelledby'), null);
+  /* A5: a legenda ("É o que você contou, não uma nota...") vem ANTES da lista: quem navega por leitor de tela ouve o que o radar é antes de ouvir os níveis */
+  const filhos = raiz.children.map((n) => n.atributos['class'] || '');
+  assert.ok(filhos.indexOf('plr-legenda') >= 0 && filhos.indexOf('plr-legenda') < filhos.indexOf('plr-lista'), 'legenda antes da lista: ' + filhos.join(' | '));
   for (const dt of m.alvo.porTag('dt')) assert.ok(dt.pai.tag === 'div' && dt.pai.pai.tag === 'dl');
 });
 
@@ -516,4 +522,21 @@ test('o arquivo carrega como script clássico (window.BZRadar) e como CommonJS, 
 test('peso: ≤ 8 KB gzip -9 (o radar pode usar até 8 dos 20 KB do orçamento dividido com o 2b)', () => {
   const gz = zlib.gzipSync(fs.readFileSync(ARQ), { level: 9 }).length;
   assert.ok(gz <= 8 * 1024, 'gzip -9: ' + gz + ' bytes');
+});
+
+/* A3 (revisão a11y do 2d): com a fonte do sistema a 200% os rótulos em volta do desenho (HTML, em rem) crescem e passavam da borda do cartão. A geometria ganha a escala da fonte:
+   mais espaço dos lados, pentágono menor; sem escala (100%) é exatamente a de antes */
+test('A3: geometria(largura, escala) reserva mais lado quando a fonte cresce (pentágono menor, rótulos dentro do quadro); sem escala é a de sempre', () => {
+  for (const l of [246, 316, 346, 416]) {
+    assert.deepEqual(R.geometria(l, 1), R.geometria(l), 'escala 1 = sem escala: ' + l);
+    const g1 = R.geometria(l, 1), g2 = R.geometria(l, 2);
+    assert.ok(g2.raio <= g1.raio, 'o pentágono não cresce com a fonte (' + l + ')');
+    /* (que o rótulo caiba DENTRO do quadro a 200% só a medição no navegador prova: docs/a11y-radar.mjs; a largura máxima do rótulo é calculada para caber por construção, então uma asserção aqui seria tautológica) */
+  }
+  assert.ok(R.geometria(416, 2).rotulos[1].max >= R.geometria(416, 1).rotulos[1].max, 'o rótulo da direita tem mais espaço a 200% (416 px)');
+  assert.ok(R.geometria(416, 2).raio < R.geometria(416, 1).raio, 'a 200% o pentágono encolhe para dar lugar aos rótulos maiores');
+  assert.ok(R.geometria(416, 2).raio >= 30, 'o pentágono nunca some');
+  assert.deepEqual(R.geometria(390, undefined), R.geometria(390));
+  assert.deepEqual(R.geometria(390, NaN), R.geometria(390));
+  assert.deepEqual(R.geometria(390, 0.5), R.geometria(390), 'fonte menor que a padrão não encolhe a reserva');
 });
