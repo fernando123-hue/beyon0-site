@@ -24,7 +24,8 @@
       try { win.console.warn('[beyon] radar: ' + (e && e.message ? e.message : e)); } catch (x) { /* sem console */ }
     }
 
-    /* o radar mudou o tamanho do painel: ele reavalia se rola por dentro (e precisa de tabindex para o teclado e a lupa; a regra é do js/orcamento-painel.js) */
+    /* o radar mudou o tamanho do painel: ele reavalia se rola por dentro (e precisa de tabindex para o teclado e a lupa; a regra é do js/orcamento-painel.js).
+       DEPENDÊNCIA: o BZPainel, que o orcamento.html carrega antes deste arquivo; sem ele nada acontece (o teclado perde o atalho ao radar, a página segue) */
     function focavel() { if (win.BZPainel && win.BZPainel.focavel) win.BZPainel.focavel(); }
 
     /* o radar sai do laço único do site, o contêiner some e a ligação esquece */

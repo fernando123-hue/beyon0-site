@@ -188,8 +188,6 @@
 
     /* ---- os botões da faixa ---- */
     var editavel = function () { return !!st.E && st.E.planta_editavel === true; };
-    /* enviar() devolve false se não aceitou (conversa ocupada) ou falhou sem gravar: só o envio aceito gasta a versão. Marca já (dois cliques = um envio) e solta se recusar,
-       rejeitar ou lançar; sem retorno vale como aceito */
     /* o servidor já tem o texto do botão DEPOIS da fala desta planta: a versão está confirmada, mesmo que esta página nunca tenha visto o envio acabar (F5, rede que voltou, releitura de fundo) */
     function jaConfirmada() {
       var p = leve(st.E), m = p && st.E.mensagens, i;
@@ -197,6 +195,8 @@
       for (i = p.n_mensagens + 1; i < m.length; i++) if (m[i] && m[i].papel !== 'agente' && limpo(m[i].conteudo, 60) === TEXTO_CERTO) return true;
       return false;
     }
+    /* enviar() devolve false se não aceitou (conversa ocupada) ou falhou sem gravar: só o envio aceito gasta a versão. Marca já (dois cliques = um envio) e solta se recusar,
+       rejeitar ou lançar; sem retorno vale como aceito */
     /* devolve ao desenho: false (não vai), 'duplicada', uma promessa do envio ou true */
     function aoCerto() {
       if (!editavel()) return false;

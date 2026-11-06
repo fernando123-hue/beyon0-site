@@ -78,13 +78,14 @@
   }
 
   /* A coluna do painel (o <aside>) rola por dentro em >= 900 px quando tem as peças ou o radar (css/orcamento-painel.css). Sem filho focável o teclado e a lupa não alcançam o que fica
-     abaixo da dobra dela (WCAG 2.1.1): enquanto ela de fato rola ganha tabindex="0" (o nome é o do próprio <aside>); quando não rola (celular, coluna curta) não tem. Chamada a cada render,
+     abaixo da dobra dela (WCAG 2.1.1): enquanto ela de fato rola (a altura passa E o overflow-y calculado é auto ou scroll: conteúdo que só vaza de um painel sem rolagem não conta) ganha tabindex="0" (o nome é o do próprio <aside>); quando não rola (celular, coluna curta) não tem. Chamada a cada render,
      no resize e pelo radar ao montar ou sumir (js/orcamento-radar.js). A regra mora só aqui. */
   var ouveJanela = false;
   function focavel() {
     var raiz = document.getElementById('o-peca'), a = raiz && raiz.parentNode;
     if (!a || !a.setAttribute) return;
-    if (a.scrollHeight > a.clientHeight + 1) a.setAttribute('tabindex', '0'); else a.removeAttribute('tabindex');
+    var ov = typeof window.getComputedStyle === 'function' ? window.getComputedStyle(a).overflowY : 'auto';   /* (sem a função: vale só a altura) */
+    if (a.scrollHeight > a.clientHeight + 1 && (ov === 'auto' || ov === 'scroll')) a.setAttribute('tabindex', '0'); else a.removeAttribute('tabindex');
   }
 
   window.BZPainel = {

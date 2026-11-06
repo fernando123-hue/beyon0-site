@@ -95,3 +95,31 @@ test('B6 (fonte): o radar não tem mais tabindex nem resize próprios; delega ao
   assert.match(painel, /setAttribute\('tabindex', '0'\)/);
   assert.match(painel, /removeAttribute\('tabindex'\)/);
 });
+
+test('B3: só conta a rolagem de um painel que de fato rola por dentro (overflow-y computado auto ou scroll); conteúdo que vaza de um painel com overflow visible não ganha tabindex', () => {
+  for (const [overflowY, esperado] of [['auto', '0'], ['scroll', '0'], ['visible', null], ['hidden', null], ['clip', null]]) {
+    const amb = ambiente();
+    amb.janela.getComputedStyle = () => ({ overflowY });
+    comDocumento(amb, () => amb.janela.BZPainel.atualizar({ anotamos: ['a'] }));
+    assert.equal(amb.aside.getAttribute('tabindex'), esperado, 'overflow-y ' + overflowY);
+  }
+  /* o estilo muda (a janela estreita: a regra de >= 900 px deixa de valer) e a mesma altura deixa de contar */
+  const amb = ambiente();
+  let ov = 'auto';
+  amb.janela.getComputedStyle = () => ({ overflowY: ov });
+  comDocumento(amb, () => amb.janela.BZPainel.atualizar({ anotamos: ['a'] }));
+  assert.equal(amb.aside.getAttribute('tabindex'), '0');
+  ov = 'visible';
+  comDocumento(amb, () => amb.janela.BZPainel.focavel());
+  assert.equal(amb.aside.getAttribute('tabindex'), null);
+  /* sem getComputedStyle (navegador antigo): vale a altura */
+  const antigo = ambiente();
+  comDocumento(antigo, () => antigo.janela.BZPainel.atualizar({ anotamos: ['a'] }));
+  assert.equal(antigo.aside.getAttribute('tabindex'), '0');
+});
+
+test('B4: o orcamento.html carrega o painel ANTES do radar (o radar depende do BZPainel.focavel) e o radar registra a dependência', () => {
+  const html = lerFonte('orcamento.html');
+  assert.ok(html.indexOf('src="js/orcamento-painel.js"') > 0 && html.indexOf('src="js/orcamento-painel.js"') < html.indexOf('src="js/orcamento-radar.js"'));
+  assert.match(lerFonte('js/orcamento-radar.js'), /DEPENDÊNCIA: o BZPainel/);
+});
