@@ -231,18 +231,31 @@
 
   var visitantesNoServidor = function () { return E ? E.mensagens.filter(function (m) { return m.papel !== 'agente'; }).length : 0; };
 
-  /* o último envio que falhou SEM a releitura confirmar se entrou (rede ainda fora): { texto, antes }. O mesmo texto, mandado de novo (pela caixa ou por "Está certo"), relê antes: se o turno entrou, não repete */
+  /* o último envio que falhou sem a tela saber se o turno entrou: { texto, antes } (antes = quantas falas do visitante o estado tinha). O MESMO texto, mandado de novo (pela caixa, por
+     "Tentar de novo" ou por "Está certo"), relê antes e só dá o turno por entrado se o servidor tem, depois desse ponto, uma fala do visitante com o mesmo texto: a contagem sozinha não
+     basta (outra aba ou aparelho também escreve). Outro texto desarma a dúvida. Releitura que falha de novo: não reenvia (avisa e guarda o texto) */
   var incerta = null;
+  var AVISO_INCERTO = 'Não consegui confirmar se a sua mensagem foi. Confira a conversa antes de mandar de novo.';
+  function entrouComTexto(velha) {
+    var igual = velha.texto.trim();
+    return !!E && E.mensagens.filter(function (m) { return m.papel !== 'agente'; }).slice(velha.antes).some(function (m) { return String(m.conteudo).trim() === igual; });
+  }
   async function enviar(texto) {
     if (enviando) return false;   /* (Enter repetido não manda dois turnos) */
     limparAviso();
-    if (incerta && incerta.texto === texto) {
-      var velha = incerta;
-      incerta = null;
+    if (incerta && incerta.texto !== texto) incerta = null;
+    if (incerta) {
+      var velha = incerta, leu = true;
       ocupado(true);
-      try { await recarregar(); } catch (x) { /* a rede ainda não voltou: o envio diz */ }
+      try { await recarregar(); } catch (x) { leu = false; /* a rede ainda não voltou */ }
       ocupado(false);
-      if (visitantesNoServidor() > velha.antes) { if ($('o-texto').value === texto) $('o-texto').value = ''; return true; }   /* (o render já redesenhou a conversa com o turno) */
+      if (!leu) {   /* não dá para saber se entrou: não manda de novo, e o texto não se perde */
+        if (!$('o-texto').value) $('o-texto').value = texto;
+        avisar(AVISO_INCERTO, function () { reenviar(texto); });
+        return false;
+      }
+      incerta = null;
+      if (entrouComTexto(velha)) { if ($('o-texto').value === texto) $('o-texto').value = ''; return true; }   /* (o render já redesenhou a conversa com o turno) */
     }
     var antes = visitantesNoServidor(), totalAntes = E ? E.mensagens.length : 0;
     var minha = msg('visitante', texto);
@@ -272,11 +285,11 @@
   async function falhaNoEnvio(e, texto, minha, antes) {
     /* a tela segue ocupada DURANTE a releitura (que tem limite de 15 s, js/orcamento-api.js): um segundo envio
        nesse meio tempo poderia duplicar o turno se o primeiro tinha entrado */
-    var leu = true;
-    try { await recarregar(); } catch (x) { leu = false; /* sem conexão: decide pelo que já se sabe */ }
+    try { await recarregar(); } catch (x) { /* sem conexão: decide pelo que já se sabe */ }
     ocupado(false);
     var gravada = visitantesNoServidor() > antes;
-    incerta = !gravada && !leu && repetivel(e) ? { texto: texto, antes: antes } : null;
+    var respondendo = e.status === 409 && /respondendo/i.test(e.message || '');   /* (a mensagem anterior ainda está com a IA) */
+    incerta = !gravada && (repetivel(e) || respondendo) ? { texto: texto, antes: antes } : null;
     if (!gravada) {
       if (minha.isConnected) minha.remove();
       if (!$('o-texto').value) $('o-texto').value = texto;
@@ -287,16 +300,13 @@
        (revisões do PR 34) */
     if (E && CONVERSA_ABERTA.indexOf(E.conversa.etapa) < 0) { anunciar(''); return gravada; }
     anunciar('');
-    var respondendo = e.status === 409 && /respondendo/i.test(e.message || '');   /* (a mensagem anterior ainda está com a IA) */
-    avisar(mensagemDe(e), repetivel(e) || respondendo ? function () { reenviar(texto, antes); } : null);
+    avisar(mensagemDe(e), repetivel(e) || respondendo ? function () { reenviar(texto); } : null);
     return gravada;
   }
-  /* antes de mandar de novo, confere se o turno anterior chegou nesse meio-tempo (senão entraria duas vezes) */
-  async function reenviar(texto, antes) {
-    try { await recarregar(); } catch (x) { /* o envio diz se a rede voltou */ }
+  /* "Tentar de novo": o enviar() acima já confere se o turno anterior chegou nesse meio-tempo (senão entraria duas vezes), com uma releitura só */
+  async function reenviar(texto) {
     if ($('o-texto').value === texto) $('o-texto').value = '';
-    if (visitantesNoServidor() > antes) return;
-    enviar(texto);
+    return enviar(texto);
   }
   /* Safari < 16 não tem requestSubmit (F14): o clique no botão de envio faz o mesmo caminho */
   function submeter(form, botaoEnvio) { if (typeof form.requestSubmit === 'function') form.requestSubmit(); else botaoEnvio.click(); }
@@ -684,7 +694,7 @@
   function render() {
     var et = E.conversa.etapa;
     identificar();
-    if (incerta && visitantesNoServidor() > incerta.antes) incerta = null;   /* (o estado já mostra o turno: a dúvida acabou) */
+    if (incerta && entrouComTexto(incerta)) incerta = null;   /* (o estado já mostra o turno: a dúvida acabou) */
     etapas();
     /* a conversa segue o servidor: redesenha quando o número de mensagens mudou (F2: resposta gravada com a rede caída) */
     if (mudou('conversa', E.mensagens.length)) conversa();

@@ -1069,15 +1069,18 @@ test('pós-radar (fonte): a ligação lê as mensagens do estado e compara com o
   assert.match(src, /if \(st\.certoVersao === st\.versao \|\| jaConfirmada\(\)\) return 'duplicada';/);
 });
 
-test('pós-radar (fonte): enviar() de js/orcamento.js, depois de um envio que falhou SEM a releitura confirmar se entrou, relê antes de mandar o mesmo texto de novo (o comportamento real está em docs/e2e-planta.mjs)', () => {
+test('pós-radar (fonte): o envio incerto de js/orcamento.js (comportamento real em orcamento-reenvio.test.mjs e em docs/e2e-planta.mjs): relê antes, compara o TEXTO, outro texto desarma, "Tentar de novo" só delega', () => {
   const src = lerFonte('js/orcamento.js');
   const corpo = src.slice(src.indexOf('async function enviar(texto)'), src.indexOf('async function falhaNoEnvio'));
-  assert.match(corpo, /if \(incerta && incerta\.texto === texto\)/, 'o mesmo texto depois de uma falha incerta');
+  assert.match(corpo, /if \(incerta && incerta\.texto !== texto\) incerta = null;/, 'outro texto descarta a dúvida');
   assert.match(corpo, /await recarregar\(\)/, 'relê o estado antes de mandar');
-  assert.match(corpo, /visitantesNoServidor\(\) > velha\.antes/, 'compara com a contagem de antes do envio incerto');
-  assert.ok(corpo.indexOf('incerta.texto') < corpo.indexOf('API.mensagem('), 'a conferência vem antes do envio');
+  assert.match(corpo, /entrouComTexto\(velha\)/, 'só dá por entrado com o mesmo texto');
+  assert.ok(corpo.indexOf('entrouComTexto(velha)') < corpo.indexOf('API.mensagem('), 'a conferência vem antes do envio');
+  assert.match(src, /\.slice\(velha\.antes\)\.some\(function \(m\) \{ return String\(m\.conteudo\)\.trim\(\) === igual; \}\)/, 'as falas do visitante depois do ponto de antes, texto igual (a contagem sozinha não basta)');
+  assert.match(corpo, /if \(!leu\) \{[\s\S]*?return false;/, 'releitura que falha: não reenvia');
   const falha = src.slice(src.indexOf('async function falhaNoEnvio'), src.indexOf('async function reenviar'));
-  assert.match(falha, /leu = false/, 'sabe se a releitura falhou');
-  assert.match(falha, /incerta = !gravada && !leu && repetivel\(e\) \? \{ texto: texto, antes: antes \} : null;/);
-  assert.match(src, /if \(incerta && visitantesNoServidor\(\) > incerta\.antes\) incerta = null;/, 'o render solta a dúvida quando o estado mostra o turno');
+  assert.match(falha, /incerta = !gravada && \(repetivel\(e\) \|\| respondendo\) \? \{ texto: texto, antes: antes \} : null;/);
+  const re = src.slice(src.indexOf('async function reenviar'), src.indexOf('/* Safari < 16'));
+  assert.ok(!/recarregar\(/.test(re), '"Tentar de novo" não relê por conta própria: o enviar() já relê (sem releitura dupla)');
+  assert.match(src, /if \(incerta && entrouComTexto\(incerta\)\) incerta = null;/, 'o render solta a dúvida quando o estado mostra o turno com o texto');
 });
