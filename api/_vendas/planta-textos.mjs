@@ -119,6 +119,8 @@ const NEGAR_IA_FORTE = /\b(?:nao sou (?:uma? )?(?:ia|robo|bot|maquina|inteligenc
 const SEM_PRIMEIRA_PESSOA = { ...RAIZES, negar_ia: NEGAR_IA_FORTE,
   promessa: new RegExp(RAIZES.promessa.source.replace('enche|encher|enchem|lota|lotar|lotam|lotad\\w+|', '')),
   ordem: new RegExp(RAIZES.ordem.source.replace('ignor\\w+|desconsider\\w+|', '')) };
+/* à prova de no-op silencioso: se alguém mexer nas raízes e o replace deixar de achar o trecho, o módulo nem carrega (as duas pontas da exceção têm teste) */
+if (SEM_PRIMEIRA_PESSOA.promessa.source === RAIZES.promessa.source || SEM_PRIMEIRA_PESSOA.ordem.source === RAIZES.ordem.source) throw new Error('planta-textos: a exceção da fala da pessoa não foi aplicada (o texto das raízes mudou)');
 const REGULADO = {
   depoimento: /\b(?:depoiment\w*|testemunh\w*|antes (?:e |\/ )?depois|avaliacoes (?:de|dos|das) (?:pacientes|clientes)|casos? de sucesso|historias? de (?:pacientes|clientes)|fotos? de (?:pacientes|clientes)|relatos?|transformac\w+)\b/,
   resultado_regulado: /\b(?:cura\w*|curar|milagr\w*|tratamento garantido|emagrec\w*)\b/
@@ -132,9 +134,11 @@ const FUNCIONAIS_PT = new Set(('de da do das dos em na no nas nos ao aos a o as 
   'depois antes assim aqui ali la tambem sempre ainda so tal mesmo mesma onde porque pois qual quais ate ou').split(' '));
 /* palavras de inglês e de espanhol que o português NÃO tem (sem "for", "real", "zero", "entrega", "gratis", que também são nossas): uma só basta para recusar */
 const ESTRANHAS = new Set(('the and with you your our from this will are is to of in on at by it i am not call us now free ready every first month best cheap price ever more get risk guaranteed guarantee instant fast ' +
-  'human person being robot sales clients monthly refund offered automatically while sleeping full discount el los las del una con muy al es y precio sin costo inmediata inmediato').split(' '));
+  'human person being robot sales clients monthly refund offered automatically while sleeping full discount el los las del una con muy al es y precio sin costo inmediata inmediato was say tell them payment received okay please thanks confirm').split(' '));
 export const FRACAO_PORTUGUES_MIN = 0.15;
 export const PALAVRAS_MIN_IDIOMA = 5;
+/* a fala da PESSOA: o corte cai de 0,15 para 0,05 (a menor fala honesta medida é 0,14); texto sem português nenhum, em inglês, continua caindo */
+export const FRACAO_PORTUGUES_MIN_DA_PESSOA = 0.05;
 const VIRGULAS_DE_LISTA = 3;   /* lista de substantivos ("Cardápio, mesas, reservas, pedidos...") não tem palavra funcional e é português: a fração não vale para ela */
 const palavrasDe = busca => busca.split(' ').filter(Boolean);
 /* a fração de palavras funcionais do português, ou null se o texto tem menos de PALAVRAS_MIN_IDIOMA palavras (fora as do nome do negócio) ou é uma lista */
@@ -143,11 +147,11 @@ export function fracaoPortugues(texto, nome = new Set()) {
   if (palavras.length < PALAVRAS_MIN_IDIOMA || (texto.match(/,/g) || []).length >= VIRGULAS_DE_LISTA) return null;
   return palavras.filter(p => FUNCIONAIS_PT.has(p)).length / palavras.length;
 }
-function idiomaRuim(texto, nome, comFracao = true) {
+function idiomaRuim(texto, nome, fracaoMin = FRACAO_PORTUGUES_MIN) {
   const palavras = palavrasDe(paraBusca(texto)).filter(p => !nome.has(p));
   if (palavras.some(p => ESTRANHAS.has(p))) return true;
   const f = fracaoPortugues(texto, nome);
-  return comFracao && f !== null && f < FRACAO_PORTUGUES_MIN;
+  return f !== null && f < fracaoMin;
 }
 
 /* ---------- palavra cortada ou repetida ---------- */
@@ -239,7 +243,7 @@ export function textoDoPlanoPermitido(bruto, { nomeDoNegocio = '', regulado = fa
     if (LETRAS_SOLTAS.test(t)) return { ok: false, motivo: 'letras_soltas' };
     const nome = palavrasDoNome(nomeDoNegocio);
     if (MARCAS_RE.test(paraBusca(t)) || MARCAS_RE.test(colada(t))) return { ok: false, motivo: 'marca' };   /* (antes do idioma: "you tube" é marca, não inglês) */
-    if (idiomaRuim(t, nome, !primeiraPessoa)) return { ok: false, motivo: 'idioma' };
+    if (idiomaRuim(t, nome, primeiraPessoa ? FRACAO_PORTUGUES_MIN_DA_PESSOA : FRACAO_PORTUGUES_MIN)) return { ok: false, motivo: 'idioma' };
     const busca = paraBusca(t), cola = colada(t);
     const lexico = achar(primeiraPessoa ? SEM_PRIMEIRA_PESSOA : RAIZES, busca, cola) || (regulado ? achar(REGULADO, busca, cola) : null);
     if (lexico) return { ok: false, motivo: lexico };

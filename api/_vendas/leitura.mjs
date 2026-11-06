@@ -50,17 +50,25 @@ export function ferramentaLeitura() {
    (leitura_atual). Aqui, uma lista CURTA e honesta (ofensas, imperativos ao sistema, endereço), mais o detector de injeção do Zero. É lista negra: o recall é limitado (FUROS_DA_EVIDENCIA em
    docs/testes/planta-textos-casos.mjs); a defesa real é o prompt e a medida da rodada real 8. Não se persegue cascata de vocabulário. Sobre o texto sem acento e em minúsculas (paraBusca). */
 const HOSTIL = new RegExp([
-  // ofensas (curta de propósito: 'lixo' e 'porcaria' derrubavam fala honesta de comércio; ficam nos furos conhecidos)
-  '\\b(?:idiot\\w*|burr[oa]s?|merda|imbecil\\w*|incompetent\\w*|otari\\w+|estupid\\w+|inutei?l|inuteis|palhac\\w+|safad\\w+|vagabund\\w+)\\b',
-  // ordens e papéis ao sistema, sempre na FORMA de ordem (o verbo solto é fala honesta: 'ignorar mensagens', 'aceita tudo que chega', 'os clientes finjem')
-  '\\bvoces? (?:e|sao|sera|serao) (?:um|uma|uns|umas|o|a|os|as)\\b', '\\bagora voce (?:e|sera|vai ser|passa a|deve|precisa)\\b', '\\bresponda (?:sempre|que|apenas|somente|so)\\b',
-  '\\b(?:assistente|voce|ia|bot|zero|sistema) sem regras\\b', '\\b(?:voce|assistente|zero|sistema|ia|bot) (?:\\w+ ){0,4}aceit[ae] tudo\\b',
-  '\\b(?:finj[ae]|faca de conta) que\\b', '\\bignore (?:as |tudo|todas|suas|o que|instru|isso)', '\\bdesconsidere\\b', '\\bobedec\\w+ (?:sempre|so a mim|apenas)\\b',
-  // ordem disfarçada de mudança de regra ou de afirmação ao cliente
-  '\\b(?:diga|afirme|confirme|declare|jure|prometa|garanta) que\\b', '\\b(?:a partir de agora|de agora em diante|daqui (?:pra|para) frente) (?:voce|diga|responda|aja|atue|seja|so|apenas|sempre)\\b',
-  '\\b(?:voce|voces|vc|vcs) (?:deve|devem|precisa|precisam|tem que|tem de) (?:confirmar|aprovar|afirmar|prometer|garantir|obedecer|fingir|aceitar)\\b',
-  // endereço de alguém: a preposição distingue 'rua das flores' de 'a rua fica cheia'
-  '\\b(?:rua|avenida|travessa|alameda|estrada|rodovia) d[aeo]s? [a-z]{3,}'
+  /* ofensas (curta de propósito: 'lixo' e 'porcaria' derrubavam fala honesta de comércio; ficam nos furos conhecidos) */
+  String.raw`\b(?:idiot\w*|burr[oa]s?|merda|imbecil\w*|incompetent\w*|otari\w+|estupid\w+|inutei?l|inuteis|palhac\w+|safad\w+|vagabund\w+)\b`,
+  /* ordem de ESQUECER as regras ou de FINGIR, sempre na forma de ordem: 'ignorar mensagens fora do horário' e 'os clientes finjem que não viram' passam; 'meu filho ignora as regras da loja' cai (custo aceito) */
+  String.raw`\b(?:ignor(?:e|em|a|ar|ando)|desconsider(?:e|em|a|ar|ando)) (?:\w+ ){0,2}(?:regras?|instruc\w+|prompts?|ordens|orientac\w+|avisos|tudo|anterior\w*|sistema|limites?|que (?:voce|vc)|o que (?:disseram|foi|te))\b`,
+  String.raw`\bfin(?:j[ae]m?|ge|gir|gindo) (?:que |ser |como )?(?:voce|vc|e|sou|ser|uma?|humano|pessoa|gente)\b`, String.raw`\bfaca de conta que\b`,
+  String.raw`\baceite tudo\b`, String.raw`^(?:e )?aceita tudo\b`, String.raw`\b(?:voce|assistente|zero|sistema|ia|bot) (?:\w+ ){0,4}aceit[ae] tudo\b`,
+  String.raw`\b(?:assistente|voce|ia|bot|zero|sistema) sem regras\b`, String.raw`\bobedec\w+ (?:sempre|so a mim|apenas)\b`,
+  /* papel: quem o sistema é, e como responder */
+  String.raw`\bvoces? (?:e|sao|sera|serao) (?:um|uma|uns|umas|o|a|os|as)\b`, String.raw`\b(?:agora|so) (?:voce|vc|tu|ce) (?:e|sera|vai ser|passa a|deve|precisa)\b`,
+  String.raw`\b(?:voce|vc|tu) (?:e|es) (?:um |uma )?(?:humano|humana|pessoa|gente)\b`, String.raw`\b(?:responda|aja|fale|atue|escreva) como (?:se fosse |se for |um |uma )?(?:humano|humana|pessoa|gente)\b`,
+  String.raw`\bnegue ser\b`, String.raw`\bresponda (?:sempre|apenas|somente|so)\b`,
+  /* ordem de AFIRMAR ou CONFIRMAR algo (um verbo de ordem + 'que', com o destinatário no meio) e de liberar pagamento; 'eu aviso que o horário mudou' e 'o cliente diz que o pedido foi pago' passam */
+  String.raw`\b(?:diga|digam|fale|falem|avise|informe|afirme|confirme|declare|jure|prometa|garanta|responda|negue|escreva|assuma) (?:(?:ao|aos|a|para|pra|pro|todos|todo mundo|cliente|clientes) ){0,3}(?:que|q)\b`,
+  String.raw`\b(?:confirme|confirmem|aprove|libere|pode ir (?:confirmando|aprovando|liberando)|va confirmando) (?:\w+ ){0,2}(?:o |a )?(?:pagamento|pedido|pix|sinal|orcamento)\b`,
+  /* mudança de regra no tempo, só quando o complemento é de ordem ('daqui pra frente a loja abre mais cedo' é fala honesta) */
+  String.raw`\b(?:a partir de agora|de agora em diante|daqui (?:pra|para) frente) (?:voce|diga|responda|aja|atue|seja|so|apenas|sempre)\b`,
+  String.raw`\b(?:voce|voces|vc|vcs) (?:deve|devem|precisa|precisam|tem que|tem de) (?:confirmar|aprovar|afirmar|prometer|garantir|obedecer|fingir|aceitar)\b`,
+  /* endereço de alguém: a preposição distingue 'rua das flores' de 'a rua fica cheia' */
+  String.raw`\b(?:rua|avenida|travessa|alameda|estrada|rodovia) d[aeo]s? [a-z]{3,}`
 ].join('|'));
 const hostil = t => { try { return pareceInjecao(t) || HOSTIL.test(paraBusca(t)); } catch { return true; } };
 
@@ -145,7 +153,7 @@ export function montarLeitura(briefing, { regulado = false } = {}) {
     const eixos = [];
     for (const e of f.leitura.eixos) {
       const r = e.nivel === 'nao_falou' || e.evidencia === undefined ? null : textoDoPlanoPermitido(e.evidencia, { regulado: !!regulado, travas: false, primeiraPessoa: true });
-      if (r && !r.ok) return null;
+      if (r && (!r.ok || hostil(r.texto))) return null;   /* defesa em profundidade: o que já estava gravado passa pela mesma defesa do visitante */
       eixos.push(r ? { eixo: e.eixo, nivel: e.nivel, evidencia: r.texto } : { eixo: e.eixo, nivel: e.nivel });
     }
     return { eixos };
