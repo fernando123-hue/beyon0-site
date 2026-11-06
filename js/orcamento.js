@@ -236,9 +236,48 @@
      basta (outra aba ou aparelho também escreve). Outro texto desarma a dúvida. Releitura que falha de novo: não reenvia (avisa e guarda o texto) */
   var incerta = null;
   var AVISO_INCERTO = 'Não consegui confirmar se a sua mensagem foi. Confira a conversa antes de mandar de novo.';
+  /* O servidor grava a fala REDIGIDA, não o texto enviado (api/_vendas/seguranca.mjs: limparMensagem + redigir): tira bytes de controle e invisíveis, troca dígitos de outros alfabetos pelos
+     comuns e troca e-mail, telefone, documento, número longo e dados de cartão por marcadores. A conferência tolera exatamente isso: igualdade simples, ou, se a fala guardada tem marcador,
+     o texto enviado tem de bater com o resto E ter, no lugar de cada marcador, algo do tipo que o marcador esconde (uma fala só de "[telefone]" não casa qualquer texto).
+     Sem regex com quantificador aninhado: busca por pedaços literais, com teto de passos (a mensagem tem até 2.000 caracteres). */
+  var MARCADOR = /\[(?:e-mail|telefone|documento|número|cartão)\]/g;
+  var DIGITOS_DE_FORA = [0x660, 0x6f0, 0x966, 0x9e6, 0xff10];
+  function normalizarFala(t) {
+    return String(t).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '').replace(/[\u00ad\u200b-\u200f\u202a-\u202e\u2060-\u2069\ufeff\ue000-\uf8ff]/g, '')
+      .replace(/[\u0660-\u0669\u06f0-\u06f9\u0966-\u096f\u09e6-\u09ef\uff10-\uff19\uff20]/g, function (c) {
+        var n = c.charCodeAt(0), i;
+        if (n === 0xff20) return '@';
+        for (i = 0; i < DIGITOS_DE_FORA.length; i++) if (n >= DIGITOS_DE_FORA[i] && n <= DIGITOS_DE_FORA[i] + 9) return String(n - DIGITOS_DE_FORA[i]);
+        return c;
+      }).trim();
+  }
+  function comDigitos(minimo) { return function (trecho) { return trecho.replace(/\D/g, '').length >= minimo; }; }
+  var ESCONDE = { '[e-mail]': function (trecho) { return /@|arroba|\bat\b/i.test(trecho); }, '[telefone]': comDigitos(9), '[documento]': comDigitos(11), '[número]': comDigitos(10), '[cartão]': comDigitos(2) };
+  function falaConfere(guardada, enviada) {
+    var g = normalizarFala(guardada), e = normalizarFala(enviada), marcas = g.match(MARCADOR), pedacos, i, passos = 0, visto = {};
+    if (g === e) return true;
+    if (!marcas || marcas.length > 20) return false;
+    pedacos = g.split(MARCADOR);
+    for (i = 0; i < marcas.length; i++) if (marcas[i] === '[cartão]' && /\s$/.test(pedacos[i])) pedacos[i] = pedacos[i].slice(0, -1);   /* (o servidor põe um espaço antes do marcador do cartão) */
+    if (e.indexOf(pedacos[0]) !== 0) return false;
+    function casa(j, pos) {   /* o marcador j cobre e[pos..fim), com pelo menos 1 caractere, e o pedaço j+1 vem logo depois */
+      var p = pedacos[j + 1], fim;
+      if (visto[j + ':' + pos]) return false;
+      visto[j + ':' + pos] = true;
+      if (j === marcas.length - 1) {
+        fim = e.length - p.length;
+        return fim > pos && e.slice(fim) === p && ESCONDE[marcas[j]](e.slice(pos, fim));
+      }
+      for (fim = e.indexOf(p, pos + 1); fim >= 0; fim = e.indexOf(p, fim + 1)) {
+        if (++passos > 20000) return false;
+        if (ESCONDE[marcas[j]](e.slice(pos, fim)) && casa(j + 1, fim + p.length)) return true;
+      }
+      return false;
+    }
+    return casa(0, pedacos[0].length);
+  }
   function entrouComTexto(velha) {
-    var igual = velha.texto.trim();
-    return !!E && E.mensagens.filter(function (m) { return m.papel !== 'agente'; }).slice(velha.antes).some(function (m) { return String(m.conteudo).trim() === igual; });
+    return !!E && E.mensagens.filter(function (m) { return m.papel !== 'agente'; }).slice(velha.antes).some(function (m) { return falaConfere(m.conteudo, velha.texto); });
   }
   async function enviar(texto) {
     if (enviando) return false;   /* (Enter repetido não manda dois turnos) */
@@ -305,6 +344,7 @@
   }
   /* "Tentar de novo": o enviar() acima já confere se o turno anterior chegou nesse meio-tempo (senão entraria duas vezes), com uma releitura só */
   async function reenviar(texto) {
+    if (enviando) return false;   /* (a conversa está ocupada: não mexe na caixa, o que a pessoa escreve fica) */
     if ($('o-texto').value === texto) $('o-texto').value = '';
     return enviar(texto);
   }

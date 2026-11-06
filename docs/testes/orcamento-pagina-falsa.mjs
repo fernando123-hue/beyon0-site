@@ -3,6 +3,7 @@
    Só o que o enviar toca é conferido; o resto da tela não é o assunto aqui.  Usado por docs/testes/orcamento-reenvio.test.mjs. */
 import fs from 'node:fs';
 import vm from 'node:vm';
+import { redigir, limparMensagem } from '../../api/_vendas/seguranca.mjs';
 
 const FONTE = fs.readFileSync(new URL('../../js/orcamento.js', import.meta.url), 'utf8');
 
@@ -42,7 +43,9 @@ export function criarPagina(inicial = {}) {
     /* a mensagem entra no servidor (se `entra`) e a resposta chega ou se perde (se `rede` é falso) */
     mensagem: (texto) => {
       servidor.chamadasMensagem.push(texto);
-      if (servidor.entra) servidor.mensagens.push({ papel: 'visitante', conteudo: texto }, { papel: 'agente', conteudo: 'Resposta ao: ' + texto });
+      if (servidor.erro) return Promise.reject(Object.assign(new Error(servidor.erro.message), { status: servidor.erro.status, dados: {} }));
+      /* o servidor GRAVA a fala redigida (api/_vendas/fluxo.mjs: redigir(limparMensagem(texto))): a mesma função, para o teste não inventar o formato */
+      if (servidor.entra) servidor.mensagens.push({ papel: 'visitante', conteudo: redigir(limparMensagem(texto) || '') }, { papel: 'agente', conteudo: 'Resposta ao: ' + texto });
       return servidor.rede ? Promise.resolve({ resposta: 'Resposta ao: ' + texto }) : Promise.reject(falha('Sem conexão. Confira a internet e tente de novo.'));
     }
   };

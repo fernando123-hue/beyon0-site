@@ -1076,7 +1076,7 @@ test('pós-radar (fonte): o envio incerto de js/orcamento.js (comportamento real
   assert.match(corpo, /await recarregar\(\)/, 'relê o estado antes de mandar');
   assert.match(corpo, /entrouComTexto\(velha\)/, 'só dá por entrado com o mesmo texto');
   assert.ok(corpo.indexOf('entrouComTexto(velha)') < corpo.indexOf('API.mensagem('), 'a conferência vem antes do envio');
-  assert.match(src, /\.slice\(velha\.antes\)\.some\(function \(m\) \{ return String\(m\.conteudo\)\.trim\(\) === igual; \}\)/, 'as falas do visitante depois do ponto de antes, texto igual (a contagem sozinha não basta)');
+  assert.match(src, /\.slice\(velha\.antes\)\.some\(function \(m\) \{ return falaConfere\(m\.conteudo, velha\.texto\); \}\)/, 'as falas do visitante depois do ponto de antes, conferidas contra a fala REDIGIDA que o servidor grava (docs/testes/orcamento-reenvio-redigido.test.mjs)');
   assert.match(corpo, /if \(!leu\) \{[\s\S]*?return false;/, 'releitura que falha: não reenvia');
   const falha = src.slice(src.indexOf('async function falhaNoEnvio'), src.indexOf('async function reenviar'));
   assert.match(falha, /incerta = !gravada && \(repetivel\(e\) \|\| respondendo\) \? \{ texto: texto, antes: antes \} : null;/);
