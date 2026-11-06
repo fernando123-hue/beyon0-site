@@ -17,7 +17,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { executarTurno, nichoDaSessao } from '../../api/_vendas/agente.mjs';
 import { pedePlanta } from '../../api/_vendas/consultor.mjs';
-import { textoDoPlanoPermitido } from '../../api/_vendas/planta-textos.mjs';
+import { textoDoPlanoPermitido, normalizarTexto } from '../../api/_vendas/planta-textos.mjs';
+import { validarPlano } from '../../api/_vendas/planta-esquema.mjs';
 import { pareceInjecao } from '../../api/_vendas/seguranca.mjs';
 import { IDENTIDADE_FIXO, IDENTIDADE_SEM_RECADO, EXPERIENCIA_FIXO, EQUIPE_FIXO } from '../../api/_vendas/travas-identidade.mjs';
 import { CENARIOS, MENSAGEM_EXTRA, EXTRAS_MAX } from './planta-cenarios.mjs';
@@ -67,6 +68,32 @@ export function conferirTextos(plano, { nomeDoNegocio = '', regulado = false } =
   return { total: itens.length, reprovados, itens };
 }
 
+/* ---------- os pedidos recusados (rodada 8: o relatório não guardava o texto recusado) ---------- */
+const TROCA = 'casa';
+const valorEm = (obj, caminho) => caminho.replace(/\[(\d+)\]/g, '.$1').split('.').filter(Boolean).reduce((o, k) => (o == null ? o : o[k]), obj);
+/* o trecho que bateu: tira uma palavra por vez (troca por "casa") e vê qual retira o motivo; vazio se for regra de forma ou de tamanho */
+export function trechoQueBateu(texto, motivo, opcoes = {}) {
+  const palavras = String(texto).split(' '), achados = [];
+  for (let i = 0; i < palavras.length; i++) {
+    const t = palavras.map((p, j) => (j === i ? TROCA : p)).join(' ');
+    const r = textoDoPlanoPermitido(t, { ...opcoes, travas: true });
+    if (r.ok || r.motivo !== motivo) achados.push(palavras[i]);
+  }
+  return achados.length && achados.length < palavras.length ? achados.join(' ') : null;
+}
+/* cada pedido de desenho do modelo, reaplicado ao validador: { tentativa, ok, motivos, erros: [{ caminho, codigo, texto, trecho }], entrada } (só no relatório local) */
+export function diagnosticarPedido(entrada, tentativa, opcoes = {}) {
+  const v = validarPlano(entrada, opcoes);
+  if (v.ok) return { tentativa, ok: true, motivos: [], erros: [], entrada };
+  const erros = v.erros.map(e => {
+    const bruto = valorEm(entrada, e.caminho);
+    const texto = typeof bruto === 'string' ? normalizarTexto(bruto) : null;
+    const trecho = texto && !/^(titulo|frase)_/.test(e.codigo) ? trechoQueBateu(texto, e.codigo, opcoes) : null;
+    return { caminho: e.caminho, codigo: e.codigo, texto, trecho, tamanho: texto ? texto.length : null };
+  });
+  return { tentativa, ok: false, motivos: v.motivos, erros, entrada };
+}
+
 const niveisDe = leitura => (leitura && Array.isArray(leitura.eixos) ? Object.fromEntries(leitura.eixos.map(e => [e.eixo, e.nivel])) : null);
 const evidenciasDe = leitura => (leitura && Array.isArray(leitura.eixos) ? leitura.eixos.filter(e => e.evidencia).length : 0);
 
@@ -80,8 +107,8 @@ export async function avaliarCenario({ ia, regras, cenario, relogio = () => Date
     const mensagem = falas[i];
     const eraPlanta = pedePlanta({ planta: true, estimativa: s.estimativa, briefing: s.briefing, etapa: s.etapa });
     const antes = s.briefing;
-    const chamadas = [], rodada = { n: 0, uso: usoZero(), ultima: null };
-    const espiao = { ...ia, mensagem: async p => { const r = await ia.mensagem(p); rodada.n++; rodada.ultima = r.parada; rodada.uso = soma(rodada.uso, r.uso); chamadas.push(...(r.chamadas || []).map(c => c.nome)); return r; } };
+    const chamadas = [], pedidos = [], rodada = { n: 0, uso: usoZero(), ultima: null };
+    const espiao = { ...ia, mensagem: async p => { const r = await ia.mensagem(p); rodada.n++; rodada.ultima = r.parada; rodada.uso = soma(rodada.uso, r.uso); chamadas.push(...(r.chamadas || []).map(c => c.nome)); pedidos.push(...(r.chamadas || []).filter(c => c.nome === 'desenhar_planta').map(c => c.entrada)); return r; } };
     const t0 = relogio();
     let r;
     try {
@@ -109,6 +136,11 @@ export async function avaliarCenario({ ia, regras, cenario, relogio = () => Date
         prometeu_desconto: PROMETE_DESCONTO.test(r.resposta)
       }
     };
+    if (pedidos.length) {
+      const nome = typeof r.briefing.negocio?.nome === 'string' ? r.briefing.negocio.nome : '';
+      const regulado = !!nichoDaSessao({ briefing: r.briefing, mensagens: s.mensagens, mensagem: '' });
+      turno.pedidos_de_desenho = pedidos.map((e, k) => diagnosticarPedido(e, k + 1, { nomeDoNegocio: nome, regulado }));
+    }
     turnos.push(turno);
     if (desenhou) {
       const regulado = !!nichoDaSessao({ briefing: r.briefing, mensagens: s.mensagens, mensagem: '' });

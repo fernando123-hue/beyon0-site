@@ -9,7 +9,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { criarSimulada } from '../../api/_ia/simulado.mjs';
 import { CENARIOS } from '../avaliacao/planta-cenarios.mjs';
-import { avaliarCenario, agregar, executarRodada, rodar, conferirTextos, coletarTextos, resumoLegivel, MAX_RODADAS } from '../avaliacao/planta.mjs';
+import { avaliarCenario, agregar, executarRodada, rodar, conferirTextos, coletarTextos, diagnosticarPedido, trechoQueBateu, resumoLegivel, MAX_RODADAS } from '../avaliacao/planta.mjs';
 import { planoPadrao } from '../../api/_vendas/planta-padrao.mjs';
 
 const REGRAS = JSON.parse(fs.readFileSync(new URL('../fase2/regras-rascunho-v1.json', import.meta.url), 'utf8'));
@@ -171,4 +171,17 @@ test('o código do harness nunca lê ~/.beyon-segredos nem imprime o ambiente', 
     assert.ok(!/readFile\w*\([^)]*segredos/i.test(fonte) && !/homedir/.test(fonte), arq);
     assert.ok(!/console\.\w+\([^)]*process\.env/.test(fonte) && !/JSON\.stringify\(\s*(process\.)?env\b/.test(fonte), arq);
   }
+});
+
+test('rodada 8: o relatório guarda o pedido recusado, o texto e o trecho que bateu (só no relatório local)', async () => {
+  const ruim = await avaliarCenario({ ia: iaComCusto(), regras: REGRAS, cenario: roteiroDeTeste('t2', 'planta-ruim') });
+  const pedidos = ruim.turnos.flatMap(t => t.pedidos_de_desenho || []);
+  assert.ok(pedidos.length >= 2, 'a recusa e o aceite ficam no relatório');
+  assert.equal(pedidos[0].ok, false);
+  assert.equal(pedidos.at(-1).ok, true);
+  assert.ok(pedidos[0].erros.length > 0 && pedidos[0].entrada);
+  const d = diagnosticarPedido(JSON.parse(fs.readFileSync(new URL('./fixtures/planta/invalidos/texto-marca.json', import.meta.url), 'utf8')).plano, 1);
+  const e = d.erros.find(x => x.codigo === 'marca');
+  assert.ok(e && /instagram/i.test(e.texto) && /instagram/i.test(e.trecho), 'o trecho que bateu é a marca');
+  assert.equal(trechoQueBateu('O cliente chega pelo Instagram e pede.', 'marca'), 'Instagram');
 });
