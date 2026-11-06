@@ -10,6 +10,7 @@ test('marca: diz o que trocar (rede social, aplicativo de mensagens) e o que val
   assert.match(m, /rede social/);
   assert.match(m, /aplicativo de mensagens/);
   assert.match(m, /OAB/);
+  assert.match(m, /só a sigla, sem estado nem número/);
 });
 
 test('prazo: vale mesmo negando e lista as palavras de tempo', () => {

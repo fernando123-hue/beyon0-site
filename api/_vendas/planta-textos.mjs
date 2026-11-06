@@ -172,6 +172,38 @@ const MARCAS_RE = new RegExp('\\b(?:' + [...PLATAFORMAS, ...APELIDOS_E_MARCAS].m
    "CRM" fica de fora de propósito (é também o software de relacionamento) e qualquer outra sigla continua marca */
 export const SIGLAS_DE_CONSELHO = Object.freeze(['OAB', 'CREFITO', 'CRO', 'CRP', 'CRN', 'CREA', 'CREF', 'CRF', 'CRMV', 'CRECI']);
 const SIGLAS_PERMITIDAS = new Set(SIGLAS_DE_CONSELHO);
+/* "OAB-SP", "CRO-PR": a sigla de conselho com a UF (as 27) depois de hífen. Com barra ("OAB/SP") ou número ("CREFITO 3") a regra de caractere e de dígito do esquema segue recusando: a mensagem pede só a sigla */
+const UFS = new Set('AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO'.split(' '));
+function siglaComUF(p) { const m = /^([A-Z]+)-([A-Z]{2})$/.exec(p); return !!m && SIGLAS_PERMITIDAS.has(m[1]) && UFS.has(m[2]); }
+
+/* A CIDADE vem do briefing, que é DADO DO VISITANTE (passa pelo modelo): sem validação própria ela viraria exceção livre ("Zero é uma pessoa real" como "cidade").
+   Vale só: até 40 caracteres, 1 a 4 palavras, só letras (com acento) e hífen, cada palavra com inicial maiúscula ou conectivo (de, do, da, dos, das, e), nenhuma palavra
+   funcional, comum, de marca, de serviço, estranha ao português, "pessoa", "real", "zero" ou "beyon". Fora disso é '' (o comportamento antigo: nome próprio é marca).
+   Limite conhecido: um sobrenome ou nome próprio curto ("Silva") passa como cidade; ele só abre o nome próprio, nunca idioma nem as outras listas. */
+const CIDADE_PALAVRAS_MAX = 4, CIDADE_MAX = 40;
+const CONECTIVOS_DE_CIDADE = new Set(['de', 'do', 'da', 'dos', 'das', 'e']);
+const FORA_DE_CIDADE = new Set(('pessoa real zero beyon voce site pagina concorrente aviso importante pagamento advocacia advogado advogada escritorio consultoria consultorio agencia academia barbearia ' +
+  'imobiliaria restaurante lanchonete padaria mercado supermercado farmacia studio estudio ltda eireli mei sobre cliente atendente atendimento orcamento empresa grupo').split(' '));
+export function cidadeValida(bruta) {
+  if (typeof bruta !== 'string' || bruta.length > 4 * CIDADE_MAX) return '';
+  const t = normalizarTexto(bruta);
+  if (!t || t.length > CIDADE_MAX) return '';
+  if (t !== bruta.trim().replace(/\s+/g, ' ')) return '';   /* (o que a normalização mudou, como um '<' no meio, não é cidade) */
+  const palavras = t.split(' ');
+  if (palavras.length > CIDADE_PALAVRAS_MAX) return '';
+  const busca = paraBusca(t), cola = colada(t);
+  if (MARCAS_RE.test(busca) || MARCAS_RE.test(cola) || achar(RAIZES, busca, cola)) return '';
+  for (let i = 0; i < palavras.length; i++) {
+    const p = palavras[i], b = paraBusca(p);
+    if (!/^\p{L}+(?:-\p{L}+)*$/u.test(p) || LETRA_FORA_DA_LISTA.test(p)) return '';
+    if (CONECTIVOS_DE_CIDADE.has(b)) { if (i === 0 || i === palavras.length - 1 || p !== p.toLowerCase()) return ''; continue; }
+    if (p.charAt(0) === p.charAt(0).toLowerCase() || p === p.toUpperCase()) return '';
+    const sao = i === 0 && b === 'sao' && palavras.length > 1;   /* ("são" é palavra funcional, mas "São Paulo" é cidade) */
+    if (!sao && (FUNCIONAIS_PT.has(b) || COMUNS_NO_INICIO.has(b) || ESTRANHAS.has(b))) return '';
+    if (b.split('-').some(x => FORA_DE_CIDADE.has(x))) return '';
+  }
+  return t;
+}
 const MEIO_DE_PAGAMENTO = new Set(['pix']);   /* o Pix é o meio de pagamento da Beyon Zero: passa em maiúscula e em caixa alta */
 
 /* palavras comuns que podem abrir uma 2ª frase (ou mais) com inicial maiúscula: funcionais, verbos da ferramenta e os substantivos e verbos que uma planta usa.
@@ -206,7 +238,7 @@ function temNomeProprio(t, permitidas) {
     const p = m[0], busca = paraBusca(p);
     if (MEIO_DE_PAGAMENTO.has(busca) || permitidas.has(busca)) continue;
     const ehSigla = p.length >= 2 && p === p.toUpperCase() && p !== p.toLowerCase();
-    if (ehSigla) { if (SIGLAS_PERMITIDAS.has(p)) continue; return true; }
+    if (ehSigla) { if (SIGLAS_PERMITIDAS.has(p) || siglaComUF(p)) continue; return true; }
     const inicial = p.charAt(0);
     if (inicial === inicial.toLowerCase()) continue;
     const antes = t.slice(0, m.index);
@@ -246,14 +278,15 @@ export function textoDoPlanoPermitido(bruto, { nomeDoNegocio = '', regulado = fa
     if (CARACTERE_DE_FORA.test(t)) return { ok: false, motivo: 'caractere' };
     if (LETRAS_SOLTAS.test(t)) return { ok: false, motivo: 'letras_soltas' };
     /* o nome do negócio e a cidade que a PESSOA deu (mesmas regras: curtos, sem marca conhecida) valem como nome próprio; nada além */
-    const nome = new Set([...palavrasDoNome(nomeDoNegocio), ...palavrasDoNome(cidade)]);
+    const nome = palavrasDoNome(nomeDoNegocio);
+    const permitidas = new Set([...nome, ...cidadeValida(cidade).split(' ').map(p => paraBusca(p))]);   /* (a cidade abre só o nome próprio; o idioma e as listas não a conhecem) */
     if (MARCAS_RE.test(paraBusca(t)) || MARCAS_RE.test(colada(t))) return { ok: false, motivo: 'marca' };   /* (antes do idioma: "you tube" é marca, não inglês) */
     if (idiomaRuim(t, nome, primeiraPessoa ? FRACAO_PORTUGUES_MIN_DA_PESSOA : FRACAO_PORTUGUES_MIN)) return { ok: false, motivo: 'idioma' };
     const busca = paraBusca(t), cola = colada(t);
     const lexico = achar(primeiraPessoa ? SEM_PRIMEIRA_PESSOA : RAIZES, busca, cola) || (regulado ? achar(REGULADO, busca, cola) : null);
     if (lexico) return { ok: false, motivo: lexico };
     if (regulado && pedeItemProibido(t)) return { ok: false, motivo: 'depoimento' };
-    if (MARCAS_RE.test(busca) || MARCAS_RE.test(cola) || temNomeProprio(t, nome)) return { ok: false, motivo: 'marca' };
+    if (MARCAS_RE.test(busca) || MARCAS_RE.test(cola) || temNomeProprio(t, permitidas)) return { ok: false, motivo: 'marca' };
     if (regulado && textoProibido(t)) return { ok: false, motivo: 'depoimento' };
     /* a trava negarIA é para a voz do Zero (finge vida humana: "na minha cabeça", "eu atendo"); a fala da PESSOA (primeiraPessoa) tem a regra própria NEGAR_IA_FORTE acima, que derruba "sou humano" e "não sou robô" */
     if (travas) for (const trava of TRAVAS) if (!(primeiraPessoa && trava.nome === 'negarIA') && trava.rodar(t) !== t) return { ok: false, motivo: 'trava_' + trava.nome };

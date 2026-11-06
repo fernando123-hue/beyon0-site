@@ -12,6 +12,7 @@
    ========================================================================== */
 import F from '../../js/orcamento-planta-forma.js';
 import { validarPlano } from './planta-esquema.mjs';
+import { cidadeValida } from './planta-textos.mjs';
 import { planoPadrao, nichoDaPlanta } from './planta-padrao.mjs';
 
 export const PLANTA_CHAVES = F.PLANTA_CHAVES;
@@ -89,7 +90,7 @@ const REGRA = {
   titulo_repetido: 'título igual ao de outra caixa (use títulos diferentes)',
   digito: 'tem número ou algarismo (escreva sem números)', simbolo: 'tem símbolo de valor ou porcentagem', preco: 'fala de preço, custo ou valor', prazo: 'fala de prazo ou de tempo, mesmo negando ("sem prometer resposta imediata" também cai): tire palavras como imediata, rápido, hoje, agora, dias, horas, na hora, toda semana e descreva só o passo',
   numeral: 'tem número por extenso (de dois em diante)', promessa: 'promete resultado', garantia: 'fala de garantia', suporte: 'fala de suporte ou manutenção',
-  ordem: 'tem instrução ao sistema', negar_ia: 'fala em primeira pessoa como se fosse gente', marca: 'cita marca ou nome de terceiro: troque WhatsApp, Instagram, Google e afins por palavra comum (rede social, aplicativo de mensagens, busca, mapa); só vale o nome do negócio e a cidade que a pessoa deu, Pix e sigla de conselho como OAB ou CREFITO',
+  ordem: 'tem instrução ao sistema', negar_ia: 'fala em primeira pessoa como se fosse gente', marca: 'cita marca ou nome de terceiro: troque WhatsApp, Instagram, Google e afins por palavra comum (rede social, aplicativo de mensagens, busca, mapa); só vale o nome do negócio e a cidade que a pessoa deu, Pix e sigla de conselho como OAB ou CREFITO (escreva só a sigla, sem estado nem número)',
   url: 'tem link', email: 'tem e-mail ou arroba', markdown: 'tem formatação ou sinal de tag', emoji: 'tem emoji', alfabeto: 'tem letra fora do alfabeto latino',
   caractere: 'tem caractere que não é de texto corrido', depoimento: 'tem depoimento ou antes e depois (proibido neste ramo)', resultado_regulado: 'promete cura ou resultado (proibido neste ramo)',
   texto: 'não é texto', vazio: 'vazio', longo: 'longo demais', interno: 'não foi possível conferir',
@@ -147,7 +148,7 @@ export function resolverDesenho({ entrada, briefing, turno, ctx }) {
   const versao = briefing.planta && Number.isInteger(briefing.planta.versao) ? briefing.planta.versao : 0;
   if (versao >= MAX_VERSOES) return recusa('limite de ' + MAX_VERSOES + ' versões da planta nesta conversa');
   if (turno.falhas >= 2) return recusa('já foram duas tentativas neste turno; o desenho que estava na tela continua');
-  const v = validarPlano(entrada, { nomeDoNegocio: ctx.nomeDoNegocio, regulado: ctx.regulado, cidade: ctx.cidade });
+  const v = validarPlano(entrada, { nomeDoNegocio: ctx.nomeDoNegocio, regulado: ctx.regulado, cidade: cidadeValida(ctx.cidade) });
   if (v.ok) {
     const novo = gravarPlanta(briefing, { plano: v.plano, origem: 'modelo', motivos: turno.motivos, tentativas: turno.falhas + 1, nMensagens: ctx.nMensagens });
     return { saida: { ok: true, na_tela: true, etapas: caixas(v.plano) }, briefing: novo, turno: { ...turno, gravou: true } };
@@ -218,7 +219,7 @@ export function montarPlanta(briefing, { regulado = false, turnos, mensagensNaJa
   const p = briefing && typeof briefing === 'object' ? briefing.planta : null;
   if (!p || typeof p !== 'object' || Array.isArray(p) || !Number.isInteger(p.versao) || p.versao < 1) return null;
   const nomeDoNegocio = briefing.negocio && typeof briefing.negocio.nome === 'string' ? briefing.negocio.nome : '';
-  const cidade = briefing.negocio && typeof briefing.negocio.cidade === 'string' ? briefing.negocio.cidade : '';
+  const cidade = cidadeValida(briefing.negocio && briefing.negocio.cidade);   /* (dado do visitante: só entra no cache e nas travas depois de validada) */
   const plano = planoRevalidado(p.plano, nomeDoNegocio, !!regulado, cidade);
   const nMensagens = posicaoNaJanela(Number.isInteger(p.n_mensagens) && p.n_mensagens >= 0 ? p.n_mensagens : 0, { turnos, mensagensNaJanela });
   if (plano) return { versao: p.versao, origem: p.origem === 'modelo' ? 'modelo' : 'padrao', n_mensagens: nMensagens, plano };
