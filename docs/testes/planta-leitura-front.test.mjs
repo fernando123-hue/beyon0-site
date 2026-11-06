@@ -253,7 +253,7 @@ test('bytes: a ligação (baixada em toda visita, com a flag desligada também) 
   assert.ok(gz('css/orcamento-radar.css') <= 2500, 'gzip -9 ' + gz('css/orcamento-radar.css'));
 });
 
-/* ---------- A2 (generalizado em B6, docs/testes/painel-foco.test.mjs): a regra do tabindex do painel que rola por dentro mora em js/orcamento-painel.js; o radar só avisa ---------- */
+/* ---------- A2 (generalizado em B6, docs/testes/planta-painel-foco.test.mjs): a regra do tabindex do painel que rola por dentro mora em js/orcamento-painel.js; o radar só avisa ---------- */
 test('A2/B6: o radar avisa o painel (BZPainel.focavel) quando monta e quando some, e não mexe em tabindex nem ouve o resize', () => {
   const amb = ambiente();
   let avisos = 0;

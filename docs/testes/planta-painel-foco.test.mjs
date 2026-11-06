@@ -1,7 +1,7 @@
 /* O PAINEL QUE ROLA POR DENTRO É ALCANÇÁVEL PELO TECLADO E PELA LUPA (pendência B6 do 2d; WCAG 2.1.1). Em >= 900 px a coluna do painel (.orc-painel) rola por dentro quando tem
    peças ou o radar (css/orcamento-painel.css); sem filho focável o Tab não chega no que está abaixo da dobra dela. A lógica mora num lugar só, em js/orcamento-painel.js
    (BZPainel.focavel): o <aside> ganha tabindex="0" quando de fato rola (scrollHeight > clientHeight), a cada render e no resize, e nunca quando não rola. O radar só avisa
-   o painel quando monta ou some (js/orcamento-radar.js).  node --test docs/testes/painel-foco.test.mjs */
+   o painel quando monta ou some (js/orcamento-radar.js).  node --test docs/testes/planta-painel-foco.test.mjs */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

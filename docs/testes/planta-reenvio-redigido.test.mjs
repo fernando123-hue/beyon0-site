@@ -1,11 +1,11 @@
 /* N1 (duas revisões independentes, ajustes pós-radar): o servidor grava a fala REDIGIDA ("me chama em [e-mail]"), não o texto enviado (api/_vendas/fluxo.mjs: redigir(limparMensagem(texto))).
    A conferência do envio incerto (js/orcamento.js) tem de tolerar EXATAMENTE o que o servidor altera, senão a releitura mostra o turno, não bate, e a mensagem sai de novo
    (turno duplicado, IA paga duas vezes). A página falsa grava com o `redigir` REAL do servidor, para o teste não inventar o formato.
-   Também aqui: N2 e N3 (caminhos de "Tentar de novo").  node --test docs/testes/orcamento-reenvio-redigido.test.mjs */
+   Também aqui: N2 e N3 (caminhos de "Tentar de novo").  node --test docs/testes/planta-reenvio-redigido.test.mjs */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { criarPagina } from './orcamento-pagina-falsa.mjs';
+import { criarPagina } from './planta-pagina-falsa.mjs';
 import { redigir, limparMensagem } from '../../api/_vendas/seguranca.mjs';
 
 const calar = () => new Promise((r) => setImmediate(r));

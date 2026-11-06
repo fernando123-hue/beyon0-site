@@ -1,6 +1,6 @@
 /* A PÁGINA DE ORÇAMENTO DE MENTIRA, para testar o js/orcamento.js REAL (o enviar e o que ele faz quando a rede falha) sem navegador: um `document` permissivo (cada
    elemento guarda o que a página escreve nele), uma API falsa que o teste controla (o "servidor" e a rede) e os outros módulos da página como "pó" (aceitam qualquer chamada).
-   Só o que o enviar toca é conferido; o resto da tela não é o assunto aqui.  Usado por docs/testes/orcamento-reenvio.test.mjs. */
+   Só o que o enviar toca é conferido; o resto da tela não é o assunto aqui.  Usado por docs/testes/planta-reenvio.test.mjs. */
 import fs from 'node:fs';
 import vm from 'node:vm';
 import { redigir, limparMensagem } from '../../api/_vendas/seguranca.mjs';

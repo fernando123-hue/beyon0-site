@@ -1,11 +1,11 @@
 /* O ENVIO INCERTO DE js/orcamento.js (ajustes pós-radar): a rede cai com a IA respondendo, o turno PODE ter entrado no servidor, a releitura pode falhar também. Roda o arquivo
-   REAL numa página de mentira (docs/testes/orcamento-pagina-falsa.mjs) com um servidor e uma rede que o teste controla.
+   REAL numa página de mentira (docs/testes/planta-pagina-falsa.mjs) com um servidor e uma rede que o teste controla.
    Regra: o mesmo texto, de novo, relê antes e só dá o turno por entrado se o servidor tem, DEPOIS do ponto de antes, uma fala do visitante com o MESMO texto (a contagem sozinha não
    basta: outra aba ou aparelho também escreve); releitura que falha de novo = não reenvia, avisa e guarda o texto; outro texto desarma a dúvida.
-   node --test docs/testes/orcamento-reenvio.test.mjs */
+   node --test docs/testes/planta-reenvio.test.mjs */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { criarPagina } from './orcamento-pagina-falsa.mjs';
+import { criarPagina } from './planta-pagina-falsa.mjs';
 
 const CERTO = 'A planta está certa.';
 const calar = () => new Promise((r) => setImmediate(r));
