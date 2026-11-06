@@ -253,23 +253,18 @@ test('bytes: a ligação (baixada em toda visita, com a flag desligada também) 
   assert.ok(gz('css/orcamento-radar.css') <= 2500, 'gzip -9 ' + gz('css/orcamento-radar.css'));
 });
 
-/* ---------- A2: o painel que rola por dentro (>= 900 px) precisa ser alcançável pelo teclado e pela lupa (WCAG 2.1.1) ---------- */
-test('A2: com o radar à vista e o painel rolando por dentro, o <aside> ganha tabindex="0" (teclado e lupa alcançam o radar); sem rolagem ou sem radar, não tem', () => {
+/* ---------- A2 (generalizado em B6, docs/testes/painel-foco.test.mjs): a regra do tabindex do painel que rola por dentro mora em js/orcamento-painel.js; o radar só avisa ---------- */
+test('A2/B6: o radar avisa o painel (BZPainel.focavel) quando monta e quando some, e não mexe em tabindex nem ouve o resize', () => {
   const amb = ambiente();
-  amb.aside.scrollHeight = 2000; amb.aside.clientHeight = 700;
+  let avisos = 0;
+  amb.w.BZPainel = { focavel: () => { avisos++; } };
   amb.L.atualizar(E()); prontos(amb);
-  assert.equal(amb.aside.getAttribute('tabindex'), '0');
-  amb.aside.scrollHeight = 600;   /* a janela cresceu: o painel não rola mais */
-  amb.w.disparar('resize');
-  assert.equal(amb.aside.getAttribute('tabindex'), null, 'sem rolagem não há por que parar o Tab no painel');
-  amb.aside.scrollHeight = 2000;
-  amb.w.disparar('resize');
-  assert.equal(amb.aside.getAttribute('tabindex'), '0');
+  assert.ok(avisos >= 1, 'montou: o painel reavalia se passou a rolar');
+  assert.equal(amb.aside.getAttribute('tabindex'), null, 'o radar não decide o tabindex');
+  assert.equal((amb.w.ouvintes.resize || []).length, 0, 'o resize é do painel');
+  const n = avisos;
   amb.L.atualizar({});
-  assert.equal(amb.aside.getAttribute('tabindex'), null, 'sem radar o painel volta a ser o de hoje');
-  /* painel que não rola (celular: o painel é um bloco da página) nunca ganha tabindex */
-  const cel = ambiente();
-  cel.aside.scrollHeight = 700; cel.aside.clientHeight = 700;
-  cel.L.atualizar(E()); prontos(cel);
-  assert.equal(cel.aside.getAttribute('tabindex'), null);
+  assert.ok(avisos > n, 'sumiu: o painel reavalia de novo');
+  const sem = ambiente();   /* sem o módulo do painel (página antiga) nada lança */
+  assert.doesNotThrow(() => { sem.L.atualizar(E()); prontos(sem); sem.L.atualizar({}); });
 });
