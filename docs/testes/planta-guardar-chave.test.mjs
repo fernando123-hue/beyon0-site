@@ -216,4 +216,23 @@ test('a pasta .beyon-segredos não existe no repositório e está no .gitignore 
   assert.match(cab, /npm.*npx.*\.cmd.*node arquivo\.mjs/s);
 });
 
+test('N4: o segredo que JÁ estava no ambiente (e por isso não é lido do arquivo) também é escondido da saída do comando', () => {
+  const casa = novaCasa();
+  const noAmbiente = 'valor-ja-no-ambiente-7788';
+  const r = comChave(casa, ['--so', 'TESTE_SEGREDO_X', process.execPath, '-e', 'process.stdout.write("v=" + process.env.TESTE_SEGREDO_X + " fim")'], { TESTE_SEGREDO_X: noAmbiente });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.stdout, 'v=*** fim');
+  assert.ok(!r.stdout.includes(noAmbiente));
+});
+
+test('comando que não existe: a mensagem de erro não repete o argumento (que pode ser a chave colada no lugar do comando) e sai com código 1', () => {
+  const casa = novaCasa();
+  const colada = 'sk-ant-api03-ChaveColadaNoLugarDoComando';
+  const r = comChave(casa, ['--so', 'TESTE_SEGREDO_X', colada], { TESTE_SEGREDO_X: 'valor-no-ambiente-1234' });
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /não consegui rodar o comando/);
+  assert.ok(!r.stderr.includes('ChaveColada') && !r.stderr.includes('sk-ant') && !r.stdout.includes('sk-ant'), 'ecoou o argumento: ' + r.stderr);
+  assert.ok(!/ENOENT|spawn /.test(r.stderr) || !r.stderr.includes(colada));
+});
+
 test.after(() => { for (const c of casas) fs.rmSync(c, { recursive: true, force: true }); });

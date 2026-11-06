@@ -35,8 +35,9 @@ function lerSegredo(nome) {
   return valor;
 }
 
+/* devolve { injetar: o que entra no ambiente (lido dos arquivos), valores: tudo o que a saída do comando deve esconder (inclusive o que já estava no ambiente e por isso não foi lido) } */
 export function carregarSegredos(pedido) {
-  const env = {};
+  const injetar = {}, valores = [];
   let nomes;
   if (pedido === TODOS) {
     let arquivos = [];
@@ -48,10 +49,11 @@ export function carregarSegredos(pedido) {
   nomes.forEach((nome, i) => {
     /* (um nome fora do padrão pode ser a própria chave colada no lugar do nome: não é repetido) */
     if (!nomeValido(nome)) throw new ErroDeUso('o item ' + (i + 1) + ' de --so não é um nome de segredo válido (MAIÚSCULAS, números e _). Nada foi rodado.');
-    if (process.env[nome]) return;
-    env[nome] = lerSegredo(nome);
+    if (process.env[nome]) { valores.push(process.env[nome]); return; }
+    injetar[nome] = lerSegredo(nome);
+    valores.push(injetar[nome]);
   });
-  return env;
+  return { injetar, valores };
 }
 
 /* separa --so/--todos do comando; lança ErroDeUso */
@@ -99,8 +101,8 @@ if (executadoDireto) {
     console.error(e instanceof ErroDeUso ? e.message : 'não consegui preparar os segredos (' + (e && e.code ? e.code : 'erro') + '). Nada foi rodado.');
     process.exit(2);
   }
-  const valores = Object.values(segredos);
-  const filho = spawn(plano.comando[0], plano.comando.slice(1), { stdio: ['inherit', 'pipe', 'pipe'], env: { ...process.env, ...segredos }, shell: false });
+  const valores = segredos.valores;
+  const filho = spawn(plano.comando[0], plano.comando.slice(1), { stdio: ['inherit', 'pipe', 'pipe'], env: { ...process.env, ...segredos.injetar }, shell: false });
   for (const [fluxo, destino] of [[filho.stdout, process.stdout], [filho.stderr, process.stderr]]) {
     const redator = criarRedator(valores);
     fluxo.setEncoding('utf8');
@@ -108,5 +110,6 @@ if (executadoDireto) {
     fluxo.on('end', () => { destino.write(redator.fim()); });
   }
   filho.on('close', (codigo) => process.exit(codigo ?? 1));
-  filho.on('error', (e) => { console.error('não consegui rodar o comando: ' + e.message); process.exit(1); });
+  /* (o e.message do spawn repete o comando: "spawn <comando> ENOENT", e o "comando" pode ser a chave colada no lugar dele; só o código) */
+  filho.on('error', (e) => { console.error('não consegui rodar o comando (' + (e && e.code === 'ENOENT' ? 'comando não encontrado' : (e && e.code) || 'erro') + '). Use node arquivo.mjs, do próprio repositório.'); process.exit(1); });
 }
