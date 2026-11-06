@@ -168,6 +168,10 @@ export const PLATAFORMAS = Object.freeze(['whatsapp', 'instagram', 'facebook', '
 export const APELIDOS_E_MARCAS = Object.freeze(['insta', 'zap', 'zapzap', 'wpp', 'whats', 'tik tok', 'you tube', 'ifood', 'uber', 'itau', 'bradesco', 'santander', 'rolex', 'nike', 'adidas', 'shopee',
   'canva', 'gmail', 'hotmail', 'outlook', 'twitter', 'kwai', 'pinterest', 'snapchat', 'netflix', 'spotify', 'amazon', 'apple', 'samsung', 'magalu', 'shein', 'olx', 'hotmart', 'stripe', 'skype', 'slack']);
 const MARCAS_RE = new RegExp('\\b(?:' + [...PLATAFORMAS, ...APELIDOS_E_MARCAS].map(p => p.replace(/ /g, ' ?')).join('|') + ')\\b');
+/* siglas de CONSELHO profissional (não são marca de ninguém): a rodada real 8 recusou "o número da OAB" e "o CREFITO" em plano honesto. Só estas, em caixa alta e escritas inteiras;
+   "CRM" fica de fora de propósito (é também o software de relacionamento) e qualquer outra sigla continua marca */
+export const SIGLAS_DE_CONSELHO = Object.freeze(['OAB', 'CREFITO', 'CRO', 'CRP', 'CRN', 'CREA', 'CREF', 'CRF', 'CRMV', 'CRECI']);
+const SIGLAS_PERMITIDAS = new Set(SIGLAS_DE_CONSELHO);
 const MEIO_DE_PAGAMENTO = new Set(['pix']);   /* o Pix é o meio de pagamento da Beyon Zero: passa em maiúscula e em caixa alta */
 
 /* palavras comuns que podem abrir uma 2ª frase (ou mais) com inicial maiúscula: funcionais, verbos da ferramenta e os substantivos e verbos que uma planta usa.
@@ -202,7 +206,7 @@ function temNomeProprio(t, permitidas) {
     const p = m[0], busca = paraBusca(p);
     if (MEIO_DE_PAGAMENTO.has(busca) || permitidas.has(busca)) continue;
     const ehSigla = p.length >= 2 && p === p.toUpperCase() && p !== p.toLowerCase();
-    if (ehSigla) return true;
+    if (ehSigla) { if (SIGLAS_PERMITIDAS.has(p)) continue; return true; }
     const inicial = p.charAt(0);
     if (inicial === inicial.toLowerCase()) continue;
     const antes = t.slice(0, m.index);
@@ -220,7 +224,7 @@ function achar(mapa, ...buscas) {
 
 /* texto -> { ok: true, texto } | { ok: false, motivo }. A ordem é a do motivo mais útil para quem corrige.
    travas: false roda só a lista dura (o `estado` revalida a cada leitura; as dez travas rodam ao GRAVAR, no turno do modelo: elas custam centenas de ms a frio) */
-export function textoDoPlanoPermitido(bruto, { nomeDoNegocio = '', regulado = false, travas = true, primeiraPessoa = false } = {}) {
+export function textoDoPlanoPermitido(bruto, { nomeDoNegocio = '', regulado = false, travas = true, primeiraPessoa = false, cidade = '' } = {}) {
   try {
     if (typeof bruto !== 'string') return { ok: false, motivo: 'texto' };
     if (bruto.length > TEXTO_MAX_ENTRADA) return { ok: false, motivo: 'longo' };
@@ -241,7 +245,8 @@ export function textoDoPlanoPermitido(bruto, { nomeDoNegocio = '', regulado = fa
     if (MARKDOWN.test(t)) return { ok: false, motivo: 'markdown' };
     if (CARACTERE_DE_FORA.test(t)) return { ok: false, motivo: 'caractere' };
     if (LETRAS_SOLTAS.test(t)) return { ok: false, motivo: 'letras_soltas' };
-    const nome = palavrasDoNome(nomeDoNegocio);
+    /* o nome do negócio e a cidade que a PESSOA deu (mesmas regras: curtos, sem marca conhecida) valem como nome próprio; nada além */
+    const nome = new Set([...palavrasDoNome(nomeDoNegocio), ...palavrasDoNome(cidade)]);
     if (MARCAS_RE.test(paraBusca(t)) || MARCAS_RE.test(colada(t))) return { ok: false, motivo: 'marca' };   /* (antes do idioma: "you tube" é marca, não inglês) */
     if (idiomaRuim(t, nome, primeiraPessoa ? FRACAO_PORTUGUES_MIN_DA_PESSOA : FRACAO_PORTUGUES_MIN)) return { ok: false, motivo: 'idioma' };
     const busca = paraBusca(t), cola = colada(t);

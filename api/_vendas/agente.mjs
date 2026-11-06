@@ -153,7 +153,7 @@ export async function executarTurno({ ia, regras, conversa, mensagem, direcoes, 
       } else if (ch.nome === NOME_PLANTA) {
         /* só chega aqui com a flag e o preço aberto (permitidas). O validador é do servidor; o modelo não grava a planta de outro jeito */
         const d = resolverDesenho({ entrada: ch.entrada, briefing, turno: desenho, ctx: { estimativaNoInicio: !!conversa.estimativa, nMensagens: posicaoDaFala({ turnos: conversa.turnos, mensagens: (conversa.mensagens || []).length }),
-          regulado: !!(nicho || nichoDaSessao({ briefing, mensagens: [], mensagem: '' })), nomeDoNegocio: typeof briefing.negocio?.nome === 'string' ? briefing.negocio.nome : '' } });
+          regulado: !!(nicho || nichoDaSessao({ briefing, mensagens: [], mensagem: '' })), nomeDoNegocio: typeof briefing.negocio?.nome === 'string' ? briefing.negocio.nome : '', cidade: typeof briefing.negocio?.cidade === 'string' ? briefing.negocio.cidade : '' } });
         briefing = d.briefing; desenho = d.turno; saida = d.saida;
       } else if (ch.nome === NOME_LEITURA) {
         /* só chega aqui com a flag e o preço aberto (permitidas). A âncora é a fala do VISITANTE (a que o modelo viu, já redigida): a do Zero nunca vale. O modelo não grava a leitura de outro jeito */

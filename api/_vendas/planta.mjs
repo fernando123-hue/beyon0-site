@@ -139,7 +139,7 @@ export function resolverDesenho({ entrada, briefing, turno, ctx }) {
   const versao = briefing.planta && Number.isInteger(briefing.planta.versao) ? briefing.planta.versao : 0;
   if (versao >= MAX_VERSOES) return recusa('limite de ' + MAX_VERSOES + ' versões da planta nesta conversa');
   if (turno.falhas >= 2) return recusa('já foram duas tentativas neste turno; o desenho que estava na tela continua');
-  const v = validarPlano(entrada, { nomeDoNegocio: ctx.nomeDoNegocio, regulado: ctx.regulado });
+  const v = validarPlano(entrada, { nomeDoNegocio: ctx.nomeDoNegocio, regulado: ctx.regulado, cidade: ctx.cidade });
   if (v.ok) {
     const novo = gravarPlanta(briefing, { plano: v.plano, origem: 'modelo', motivos: turno.motivos, tentativas: turno.falhas + 1, nMensagens: ctx.nMensagens });
     return { saida: { ok: true, na_tela: true, etapas: caixas(v.plano) }, briefing: novo, turno: { ...turno, gravou: true } };
@@ -192,13 +192,13 @@ const cachePlantas = new Map();
 let acertos = 0, falhas = 0;
 export const limparCacheDaPlanta = () => { cachePlantas.clear(); acertos = 0; falhas = 0; };
 export const estatisticasDoCache = () => ({ tamanho: cachePlantas.size, max: CACHE_MAX, acertos, falhas });
-function planoRevalidado(plano, nomeDoNegocio, regulado) {
+function planoRevalidado(plano, nomeDoNegocio, regulado, cidade = '') {
   let chave;
-  try { chave = JSON.stringify([regulado, nomeDoNegocio, plano]); } catch { return null; }
+  try { chave = JSON.stringify([regulado, nomeDoNegocio, cidade, plano]); } catch { return null; }
   if (typeof chave !== 'string') return null;
   if (cachePlantas.has(chave)) { acertos++; const g = cachePlantas.get(chave); return g === null ? null : JSON.parse(g); }
   falhas++;
-  const v = validarPlano(plano, { nomeDoNegocio, regulado, travas: false });
+  const v = validarPlano(plano, { nomeDoNegocio, regulado, cidade, travas: false });
   if (cachePlantas.size >= CACHE_MAX) cachePlantas.delete(cachePlantas.keys().next().value);
   cachePlantas.set(chave, v.ok ? JSON.stringify(v.plano) : null);
   return v.ok ? v.plano : null;
@@ -210,7 +210,8 @@ export function montarPlanta(briefing, { regulado = false, turnos, mensagensNaJa
   const p = briefing && typeof briefing === 'object' ? briefing.planta : null;
   if (!p || typeof p !== 'object' || Array.isArray(p) || !Number.isInteger(p.versao) || p.versao < 1) return null;
   const nomeDoNegocio = briefing.negocio && typeof briefing.negocio.nome === 'string' ? briefing.negocio.nome : '';
-  const plano = planoRevalidado(p.plano, nomeDoNegocio, !!regulado);
+  const cidade = briefing.negocio && typeof briefing.negocio.cidade === 'string' ? briefing.negocio.cidade : '';
+  const plano = planoRevalidado(p.plano, nomeDoNegocio, !!regulado, cidade);
   const nMensagens = posicaoNaJanela(Number.isInteger(p.n_mensagens) && p.n_mensagens >= 0 ? p.n_mensagens : 0, { turnos, mensagensNaJanela });
   if (plano) return { versao: p.versao, origem: p.origem === 'modelo' ? 'modelo' : 'padrao', n_mensagens: nMensagens, plano };
   return { versao: p.versao, origem: 'padrao', n_mensagens: nMensagens, plano: planoPadrao(nichoDaPlanta(briefing)) };
