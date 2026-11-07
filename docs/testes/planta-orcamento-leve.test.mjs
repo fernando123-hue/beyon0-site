@@ -77,6 +77,27 @@ test('o CSS mostra as perguntas só com a classe; o HTML segue com hidden (sem J
   assert.match(html, /<script src="js\/ancoras\.js" data-orcamento><\/script>/);
 });
 
+/* 3. A 1ª tela do celular: as etapas numa linha só (os números e o nome da etapa atual); os seis nomes seguem no DOM para o leitor de tela */
+test('etapas: cada uma com o número e o nome em <span> próprios; os seis nomes no HTML', () => {
+  const html = ler('orcamento.html');
+  const ol = html.match(/<ol class="orc-etapas" id="o-etapas"[^>]*>([\s\S]*?)<\/ol>/)[1];
+  const itens = [...ol.matchAll(/<li data-passo="(\w+)"[^>]*><span class="orc-etapas__n">(\d\d)<\/span><span class="orc-etapas__nome">([^<]+)<\/span><\/li>/g)].map((m) => m[1] + ':' + m[2] + ':' + m[3]);
+  assert.deepEqual(itens, ['conversa:01:Perguntas', 'estimativa:02:Preço', 'direcoes:03:Modelos', 'ajustes:04:Ajustes', 'escopo:05:Resumo', 'pagamento:06:Entrada']);
+  assert.match(ol, /<li data-passo="conversa" aria-current="step">/, 'a 1ª etapa nasce atual (o E2E do CI lê #o-etapas [aria-current])');
+});
+test('etapas no celular: o nome das outras etapas sai da VISTA, não do leitor de tela (clip, nunca display:none/visibility)', () => {
+  const css = semComentarios(ler('css/orcamento.css'));
+  const bloco = css.match(/@media \(max-width: 599px\) \{([\s\S]*?)\n\}/);
+  assert.ok(bloco, 'o bloco do celular das etapas');
+  const regra = bloco[1].match(/\.orc-etapas li:not\(\[aria-current="step"\]\) \.orc-etapas__nome \{([^}]*)\}/);
+  assert.ok(regra, 'a regra que esconde o nome das outras etapas');
+  assert.match(regra[1], /clip: rect\(0 0 0 0\)/);
+  assert.match(regra[1], /position: absolute/);
+  assert.doesNotMatch(regra[1], /display:\s*none|visibility:\s*hidden/);
+  assert.match(bloco[1], /\.orc-etapas \{[^}]*flex-wrap: wrap/, 'uma linha (o flex da régua), e quebra em vez de passar da tela (fonte grande)');
+  assert.doesNotMatch(bloco[1], /\.orc-etapas \{[^}]*display: grid/, 'nada de 3 colunas × 2 linhas');
+});
+
 test('o js/orcamento.js tira a classe ao assumir, ANTES da guarda dos scripts (sem módulo, as perguntas mortas não ficam à vista)', () => {
   const js = semComentarios(ler('js/orcamento.js'));
   const tira = js.indexOf("classList.remove('orc-nova')");
