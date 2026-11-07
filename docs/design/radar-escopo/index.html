@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Prévia: radar do escopo</title>
+  <link rel="stylesheet" href="/css/tokens.css" />
+  <link rel="stylesheet" href="/css/base.css" />
+  <link rel="stylesheet" href="mock.css" />
+</head>
+<body>
+  <main class="prancha">
+    <p class="prancha__kicker">Prévia para aprovação · 07/11 · v2</p>
+    <h1 class="prancha__titulo">O radar do escopo, no lugar do radar atual</h1>
+
+    <div class="mesa">
+      <div class="coluna">
+        <h2 class="prancha__sec">Computador: a coluna da direita do orçamento</h2>
+        <p class="prancha__leg">O radar vira a primeira coisa do painel. O preço fica no centro e o botão principal logo abaixo, sem rolar. Cada quarto do anel é uma parte do projeto: grafite quando falta, ciano quando o Zero identificou, branco quando ficou confirmado no pedido.</p>
+        <section class="cartao cartao--radar" aria-label="Radar do seu projeto">
+          <p class="cartao__rot"><span>Radar do seu projeto</span><span class="cartao__selo">Estimativa preliminar</span></p>
+          <div data-estado="estimativa"></div>
+          <button class="rde-abrir" type="button">Ver como o valor é formado</button>
+        </section>
+        <div class="cta"><a class="btn btn--primary" href="#">Quero os três modelos</a><a class="btn btn--ghost" href="#">Quer ajustar?</a></div>
+      </div>
+      <div class="coluna">
+        <h2 class="prancha__sec">Ao abrir: como o valor é formado</h2>
+        <p class="prancha__leg">Só números da tabela. O que ainda falta saber aparece separado, com honestidade.</p>
+        <section class="cartao" aria-label="Detalhes do orçamento">
+          <p class="cartao__rot"><span>Detalhes do orçamento</span></p>
+          <p class="det__formato">Site institucional</p>
+          <p class="det__nota">Você quer agendamentos: um site com várias páginas apresenta o seu negócio e leva o cliente até marcar o horário.</p>
+          <ul class="det__linhas">
+            <li><span>Formato</span><b>Site institucional</b></li>
+            <li class="is-extra"><span>Agendamento online</span></li>
+            <li><span>Prazo</span><b>9 dias úteis</b></li>
+            <li><span>Para começar</span><b>R$ 3.340</b></li>
+            <li><span>Com o site no ar</span><b>R$ 5.010</b></li>
+          </ul>
+          <p class="det__total"><span>Investimento total</span><b>R$ 8.350</b></p>
+          <p class="det__fino">Você não paga nada até escolher um modelo e confirmar o resumo.</p>
+          <div class="det__grupo"><h3>Já vem no pacote</h3><ul><li>Até 5 páginas</li><li>Celular primeiro</li><li>WhatsApp, formulário e mapa</li><li>SEO básico e medição</li></ul></div>
+          <div class="det__grupo det__grupo--pendente"><h3>Ainda a confirmar</h3><ul><li>Já tem logo e textos (você respondeu que sim)</li></ul></div>
+          <div class="det__grupo"><h3>O que pode mudar o valor</h3><ul><li>Precisar antes do prazo (acréscimo da tabela)</li><li>Mais páginas ou extras que você escolher em “Quer ajustar?”</li></ul></div>
+        </section>
+      </div>
+    </div>
+
+    <h2 class="prancha__sec">Celular: a barra do escopo fica presa no alto durante a conversa</h2>
+    <p class="prancha__leg">No celular o radar inteiro não cabe ao lado da conversa. Então uma barra fina mostra o anel, o estado e o valor enquanto a pessoa conversa; tocar em “Ver” abre o radar completo.</p>
+    <div class="mesa">
+      <div class="cel">
+        <div class="cel__nav">Beyon Zero</div>
+        <div class="cbar">
+          <svg class="cbar__anel" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="17" stroke="rgb(205 212 212 / .18)" /><circle cx="20" cy="20" r="17" stroke="#49E5DD" stroke-dasharray="53.4 106.8" transform="rotate(-90 20 20)" /></svg>
+          <div class="cbar__txt"><span class="cbar__estado">Estimativa preliminar</span><span class="cbar__valor">R$ 8.350</span></div>
+          <span class="cbar__ver">Ver radar</span>
+        </div>
+        <div class="cel__chat">
+          <p class="voce">Toda hora perguntam o horário e só a recepcionista atende.</p>
+          <p>Entendi. Com agendamento online o cliente marca sozinho. Já coloquei no seu orçamento.</p>
+        </div>
+      </div>
+      <section class="cartao cartao--radar" aria-label="Radar no celular">
+        <p class="cartao__rot"><span>Radar do seu projeto</span><span class="cartao__selo">Escopo em análise</span></p>
+        <div data-estado="analise"></div>
+      </section>
+    </div>
+
+    <h2 class="prancha__sec">A evolução: cada mudança vem de algo que aconteceu de verdade</h2>
+    <ol class="evo">
+      <li class="evo__item"><div data-estado="aguardando" data-compacto></div><p class="evo__nome">Aguardando briefing</p><p class="evo__nota">Nada respondido ainda. Tudo em grafite, parado.</p></li>
+      <li class="evo__item"><div data-estado="identificando" data-compacto></div><p class="evo__nome">Identificando</p><p class="evo__nota">O ponteiro só gira enquanto o Zero pensa.</p></li>
+      <li class="evo__item"><div data-estado="analise" data-compacto></div><p class="evo__nome">Escopo em análise</p><p class="evo__nota">Cada parte que o Zero identifica acende.</p></li>
+      <li class="evo__item"><div data-estado="estimativa" data-compacto></div><p class="evo__nome">Estimativa preliminar</p><p class="evo__nota">O preço da tabela aparece no centro.</p></li>
+      <li class="evo__item"><div data-estado="proposta" data-compacto></div><p class="evo__nome">Proposta configurada</p><p class="evo__nota">Pacote salvo: as partes ficam brancas.</p></li>
+      <li class="evo__item is-ouro"><div data-estado="confirmada" data-compacto></div><p class="evo__nome">Proposta confirmada</p><p class="evo__nota">Resumo confirmado: o único ouro do radar.</p></li>
+    </ol>
+    <p class="prancha__leg">E quando o preço muda (um extra, o prazo, outra resposta), o número conta até o novo valor e aparece “Proposta atualizada” por um instante.</p>
+
+    <h2 class="prancha__sec">O que eu não trouxe da referência (e por quê)</h2>
+    <ul class="recusas">
+      <li>Brilho, névoa, desfoque e vidro embaçado: proibidos no site. A profundidade vem das camadas e do traço de 1 px.</li>
+      <li>O nome “beyon.0”: a marca é Beyon Zero.</li>
+      <li>A faixa “R$ 8.000 – 12.000” e os itens com valor inventado: só números reais da tabela.</li>
+      <li>O GSAP nesta página: seriam 71 KB a mais na página de venda. As transições usam o que o navegador já tem, com as mesmas curvas.</li>
+    </ul>
+  </main>
+  <script src="mock.js"></script>
+</body>
+</html>
