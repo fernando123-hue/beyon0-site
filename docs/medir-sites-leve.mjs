@@ -11,7 +11,8 @@
                    moldura no tempo (a demonstração parou e voltou de onde estava?)
      modo olhar    screenshots dos dois lados nas mesmas posições de rolagem (--larguras 390,320,1280,1440)
      modo comparar % de pixels diferentes entre <rótulo A>-*.png e <rótulo B>-*.png da --pasta
-     --portas 8941,8942  --rotulos agora,antes  --rodadas 3  --tamanho 390x844|1440x900  --cpu 4  --rede 4g
+     modo pausa    a demonstração sai de vista no meio do deslize e volta (--aba: aba escondida); imprime as larguras
+     --portas 8941,8942 ("8941-sem": com o js/peca-sites.js bloqueado)  --rotulos agora,antes  --rodadas 3  --tamanho 390x844|1440x900  --cpu 4  --rede 4g
      --espera 11000 (cls: quanto esperar depois do load)  --ate 15000  --fora 3200  --volta 9000  --json saida.json
    O headless desenha por software: serve para COMPARAR, não como número de aparelho. */
 import { chromium } from 'playwright';
@@ -19,11 +20,11 @@ import { writeFileSync } from 'node:fs';
 
 const arg = (nome, padrao) => { const i = process.argv.indexOf('--' + nome); return i < 0 ? padrao : (process.argv[i + 1] || ''); };
 const MODO = process.argv[2];
-if (!['cls', 'ocioso', 'olhar', 'comparar'].includes(MODO)) { console.log('Uso: node docs/medir-sites-leve.mjs cls|ocioso|olhar|comparar [--larguras 390,320,1280,1440 --pasta docs/olhar-sites-leve --portas 8941,8942 --rotulos agora,antes --rodadas 3 --tamanho 390x844 --cpu 4 --rede 4g --espera 11000 --ate 15000 --fora 3200 --volta 9000 --json saida.json]'); process.exit(0); }
+if (!['cls', 'ocioso', 'olhar', 'comparar', 'pausa'].includes(MODO)) { console.log('Uso: node docs/medir-sites-leve.mjs cls|ocioso|olhar|comparar|pausa [--aba --corte 1000 --ms 3000 --larguras 390,320,1280,1440 --pasta docs/olhar-sites-leve --portas 8941,8942 --rotulos agora,antes --rodadas 3 --tamanho 390x844 --cpu 4 --rede 4g --espera 11000 --ate 15000 --fora 3200 --volta 9000 --json saida.json]'); process.exit(0); }
 const PORTAS = arg('portas', '8941,8942').split(',');
 const ROTULOS = arg('rotulos', 'agora,antes').split(',');
 const RODADAS = Number(arg('rodadas', '3'));
-const [LARG, ALT] = arg('tamanho', MODO === 'ocioso' ? '1440x900' : '390x844').split('x').map(Number);
+const [LARG, ALT] = arg('tamanho', MODO === 'cls' ? '390x844' : '1440x900').split('x').map(Number);
 const CPU = Number(arg('cpu', '1'));
 const REDE = arg('rede', '');
 const ESPERA = Number(arg('espera', '11000'));
@@ -62,7 +63,10 @@ async function abrir(nav, porta) {
   if (REDE === '4g') { await cdp.send('Network.enable'); await cdp.send('Network.emulateNetworkConditions', REDE_4G); }
   const erros = [];
   page.on('pageerror', e => erros.push(e.message));
-  await page.goto('http://127.0.0.1:' + porta + '/sites.html', { waitUntil: 'load', timeout: 120000 });
+  /* "8943-sem": o mesmo servidor com o js/peca-sites.js bloqueado (a planta parada, sem a peça viva) */
+  const [numero, sem] = String(porta).split('-');
+  if (sem) await page.route('**/js/peca-sites.js', r => r.abort());
+  await page.goto('http://127.0.0.1:' + numero + '/sites.html', { waitUntil: 'load', timeout: 120000 });
   return { ctx, page, cdp, erros, t0: Date.now() };
 }
 const metricas = async cdp => Object.fromEntries((await cdp.send('Performance.getMetrics')).metrics.map(m => [m.name, m.value]));
@@ -150,9 +154,48 @@ async function comparar(nav) {
   }
 }
 
+/* modo pausa: a demonstração sai de vista (rolagem; com --aba, a aba "escondida" por document.hidden + visibilitychange)
+   no meio do 1º deslize (largura < --corte px) por --ms ms e volta. Imprime a largura da moldura antes, durante e depois:
+   parada durante, e ao voltar segue do mesmo ponto (sem pulo) até pousar na tela de quem vê, impressa */
+async function pausa(nav) {
+  /* aquecimento: na 1ª carga fria o fps cai e a peça trata o aparelho como lento (pousa sem demonstração, de propósito) */
+  const frio = await nav.newContext(OPCOES);
+  await (await frio.newPage()).goto('http://127.0.0.1:' + PORTAS[0] + '/sites.html', { waitUntil: 'load', timeout: 120000 });
+  await frio.close();
+  for (let k = 0; k < PORTAS.length; k++) {
+    const ctx = await nav.newContext(OPCOES), page = await ctx.newPage();
+    await page.goto('http://127.0.0.1:' + PORTAS[k] + '/sites.html', { waitUntil: 'load', timeout: 120000 });
+    await page.evaluate(() => {
+      const m = document.querySelector('.planta__moldura'), r = document.querySelector('.planta');
+      window.__l = []; const t0 = performance.now();
+      setInterval(() => window.__l.push([Math.round(performance.now() - t0), parseFloat(m.style.width) || 0, r.classList.contains('is-tracando') ? 'T' : r.classList.contains('is-impressa') ? 'I' : '-']), 40);
+    });
+    await page.waitForFunction(c => (parseFloat(document.querySelector('.planta__moldura').style.width) || 1280) < c, Number(arg('corte', '1000')), { timeout: 30000, polling: 10 });
+    const aba = process.argv.includes('--aba');
+    const sair = aba
+      ? () => { Object.defineProperty(document, 'hidden', { configurable: true, get: () => true }); document.dispatchEvent(new Event('visibilitychange')); }
+      : () => window.scrollTo(0, document.querySelector('.planta__palco').getBoundingClientRect().bottom + window.scrollY + 200);
+    const voltar = aba
+      ? () => { delete document.hidden; document.dispatchEvent(new Event('visibilitychange')); }
+      : () => window.scrollTo(0, 0);
+    const tSai = await page.evaluate(f => { (0, eval)('(' + f + ')')(); return window.__l.length; }, sair.toString());
+    await page.waitForTimeout(Number(arg('ms', '3000')));
+    const tVolta = await page.evaluate(f => { (0, eval)('(' + f + ')')(); return window.__l.length; }, voltar.toString());
+    await page.waitForTimeout(8000);
+    const l = await page.evaluate(() => window.__l);
+    await ctx.close();
+    const fmt = a => a.map(x => x[1] + x[2]).join(' ');
+    console.log(ROTULOS[k], aba ? '(aba escondida)' : '(fora da tela)');
+    console.log('  antes de sair :', fmt(l.slice(Math.max(0, tSai - 8), tSai)));
+    console.log('  fora          :', [...new Set(l.slice(tSai + 2, tVolta).map(x => x[1] + x[2]))].join(' '), '(' + (tVolta - tSai) + ' amostras, larguras distintas acima)');
+    console.log('  ao voltar     :', fmt(l.slice(tVolta, tVolta + 14)));
+    console.log('  fim           :', fmt(l.slice(-3)));
+  }
+}
+
 const mediana = v => { const s = [...v].sort((x, y) => x - y); return s.length ? s[Math.floor((s.length - 1) / 2)] : NaN; };
 const nav = await chromium.launch({ executablePath: process.env.CHROMIUM, args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
-if (MODO === 'olhar' || MODO === 'comparar') { await (MODO === 'olhar' ? olhar : comparar)(nav); await nav.close(); process.exit(0); }
+if (['olhar', 'comparar', 'pausa'].includes(MODO)) { await ({ olhar, comparar, pausa })[MODO](nav); await nav.close(); process.exit(0); }
 const rodar = MODO === 'cls' ? rodadaCls : rodadaOcioso;
 for (const p of PORTAS) await rodar(nav, p);   /* aquecimento de cada lado (não entra) */
 const res = Object.fromEntries(ROTULOS.map(r => [r, []]));
