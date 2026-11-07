@@ -7,6 +7,9 @@
    O CLS é o da métrica (sem deslocamento logo depois de ação da pessoa), da navegação até 2,5 s depois do load.
    --salvo: a mesma medida com um pedido SALVO no aparelho (as perguntas respondidas até o preço, que cria a sessão): a retomada não pode
      mostrar as perguntas nem saltar. Imprime também se as perguntas apareceram em algum quadro.
+   --ab a,b,c: A/B na mesma sessão, rodadas alternadas: B recebe js/a.js, js/b.js... VAZIOS (o teto do ganho de não baixá-los na carga, sem custo de
+     carregador nenhum). Sai também o tempo de script e de tarefas até o load (CDP Performance.getMetrics), que sofre menos com a máquina ocupada que o
+     DCL de relógio. Na máquina do dono com outros agentes rodando o DCL variou de 1,5 a 70 s: use 7+ rodadas e olhe o script.
    --fotos <rotulo>: em vez de medir, tira as capturas da 1ª tela (390 x 844, 320 x 640: a pergunta e quantas opções cabem sem rolar) e da
      mesa com o preço e a conversa fechada (1.280 x 800 e 1.440 x 900, com e sem "Quer ajustar?"), em docs/olhar-orcamento-leve/ (no .gitignore).
      ABRA e OLHE. */
@@ -21,6 +24,7 @@ const LARGURAS = arg('larguras', '390,1440').split(',').map(Number);
 const RODADAS = Number(arg('rodadas', '3'));
 const CPU = Number(arg('cpu', '4'));
 const SALVO = process.argv.includes('--salvo');
+const AB = arg('ab', '').split(',').filter(Boolean);   /* A/B na mesma sessão: a variante B recebe estes js/<nome>.js VAZIOS (o teto do ganho de não baixá-los na carga) */
 const FOTOS = arg('fotos', '');
 const EXEC = process.env.CHROMIUM || (process.env.LOCALAPPDATA + '/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-win64/chrome-headless-shell.exe');
 const ALTURAS = { 320: 640, 390: 844, 768: 1024, 1280: 800, 1440: 900 };
@@ -72,15 +76,20 @@ async function pedidoSalvo(larg) {
   return estado;
 }
 
-async function medir(larg, armazenamento) {
+async function medir(larg, armazenamento, vazios = []) {
   const ctx = await contexto(larg, armazenamento);
   const page = await ctx.newPage();
   const erros = [];
   page.on('pageerror', (e) => erros.push(String(e)));
   page.on('console', (m) => { if (m.type() === 'error') erros.push(m.text()); });
   await page.addInitScript(ESPIAO);
-  if (larg < 500 && CPU > 1) { const cdp = await ctx.newCDPSession(page); await cdp.send('Emulation.setCPUThrottlingRate', { rate: CPU }); }
+  for (const n of vazios) await page.route('**/js/' + n + '.js', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: '' }));
+  /* o tempo de SCRIPT e de tarefas do processo da página até o load (Performance.getMetrics): menos sensível à máquina ocupada que o DCL de relógio */
+  const cdp = await ctx.newCDPSession(page);
+  await cdp.send('Performance.enable');
+  if (larg < 500 && CPU > 1) await cdp.send('Emulation.setCPUThrottlingRate', { rate: CPU });
   await page.goto(BASE + '/orcamento', { waitUntil: 'load', timeout: 90000 });
+  const met = Object.fromEntries((await cdp.send('Performance.getMetrics')).metrics.map((x) => [x.name, x.value]));
   await espera(2500);
   const m = await page.evaluate(() => {
     const n = performance.getEntriesByType('navigation')[0];
@@ -97,6 +106,7 @@ async function medir(larg, armazenamento) {
     };
   });
   m.erros = erros;
+  m.scriptMs = Math.round(met.ScriptDuration * 1000); m.tarefasMs = Math.round(met.TaskDuration * 1000);
   await ctx.close();
   return m;
 }
@@ -154,11 +164,16 @@ if (FOTOS) {
   await medir(LARGURAS[0]);   /* (aquecimento: não entra) */
   for (const larg of LARGURAS) {
     const armazenamento = SALVO ? await pedidoSalvo(larg) : undefined;
-    const r = [];
-    for (let i = 0; i < RODADAS; i++) r.push(await medir(larg, armazenamento));
+    const variantes = AB.length ? [['A (como está)', []], ['B (vazios: ' + AB.join(',') + ')', AB]] : [['', []]];
+    const r = variantes.map(() => []);
+    for (let i = 0; i < RODADAS; i++) for (let v = 0; v < variantes.length; v++) r[v].push(await medir(larg, armazenamento, variantes[v][1]));   /* (alternadas: a deriva da máquina cai nos dois lados) */
     console.log('\n== ' + larg + ' x ' + (ALTURAS[larg] || 844) + (larg < 500 && CPU > 1 ? ', CPU ' + CPU + 'x' : '') + (SALVO ? ', pedido salvo' : ', visita nova') + ' ==');
-    r.forEach((x, i) => console.log('  rodada ' + (i + 1) + ': CLS ' + x.cls.toFixed(4) + ' | FCP ' + x.fcp + ' | DCL ' + x.dcl + ' | usáveis ' + x.usavel + ' | load ' + x.load + ' | JS ' + x.scripts + ' arquivos, ' + x.kb + ' KB | perguntas vistas: ' + x.vistas + (x.maior ? ' | maior: ' + x.maior : '') + (x.erros.length ? ' | ERROS: ' + x.erros.join(' / ') : '')));
-    console.log('  MEDIANA: CLS ' + mediana(r.map((x) => x.cls)).toFixed(4) + ' | FCP ' + mediana(r.map((x) => x.fcp)) + ' | DCL ' + mediana(r.map((x) => x.dcl)) + ' | usáveis ' + mediana(r.map((x) => x.usavel)) + ' | JS ' + mediana(r.map((x) => x.kb)) + ' KB');
+    variantes.forEach((va, v) => {
+      if (va[0]) console.log(' ' + va[0]);
+      r[v].forEach((x, i) => console.log('  rodada ' + (i + 1) + ': CLS ' + x.cls.toFixed(4) + ' | FCP ' + x.fcp + ' | DCL ' + x.dcl + ' | usáveis ' + x.usavel + ' | script ' + x.scriptMs + ' | tarefas ' + x.tarefasMs + ' | load ' + x.load + ' | JS ' + x.scripts + ' arquivos, ' + x.kb + ' KB | perguntas vistas: ' + x.vistas + (x.maior ? ' | maior: ' + x.maior : '') + (x.erros.length ? ' | ERROS: ' + x.erros.join(' / ') : '')));
+      console.log('  MEDIANA: CLS ' + mediana(r[v].map((x) => x.cls)).toFixed(4) + ' | FCP ' + mediana(r[v].map((x) => x.fcp)) + ' | DCL ' + mediana(r[v].map((x) => x.dcl)) + ' | usáveis ' + mediana(r[v].map((x) => x.usavel)) + ' | script ' + mediana(r[v].map((x) => x.scriptMs)) + ' | tarefas ' + mediana(r[v].map((x) => x.tarefasMs)) + ' | JS ' + mediana(r[v].map((x) => x.kb)) + ' KB');
+    });
+    if (AB.length) console.log('  DELTA da mediana (B - A): DCL ' + (mediana(r[1].map((x) => x.dcl)) - mediana(r[0].map((x) => x.dcl))) + ' ms | usáveis ' + (mediana(r[1].map((x) => x.usavel)) - mediana(r[0].map((x) => x.usavel))) + ' ms | script ' + (mediana(r[1].map((x) => x.scriptMs)) - mediana(r[0].map((x) => x.scriptMs))) + ' ms | tarefas ' + (mediana(r[1].map((x) => x.tarefasMs)) - mediana(r[0].map((x) => x.tarefasMs))) + ' ms');
   }
 }
 await nav.close();
