@@ -40,7 +40,7 @@ const ESPIAO = () => {
   new PerformanceObserver((l) => l.getEntries().forEach((e) => {
     if (e.hadRecentInput) return;
     const noRadar = (e.sources || []).some((s) => s.node && s.node.closest && s.node.closest('#o-rde, .rde-barra'));
-    window.__ls.push({ v: e.value, noRadar });
+    window.__ls.push({ v: e.value, noRadar, t: e.startTime });
   })).observe({ type: 'layout-shift', buffered: true });
 };
 async function abrir({ larg = 390, alt = ALTURAS[larg] || 844, reduzido = false, semEscopo = false } = {}) {
@@ -80,7 +80,9 @@ const radar = (page) => page.evaluate(() => {
 });
 const niveis = (r) => Object.values(r.cantos).map((c) => c.nivel).join('');
 const lateral = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1 && document.documentElement.clientWidth === window.innerWidth);
-const cls = (page) => page.evaluate(() => ({ total: window.__ls.reduce((s, x) => s + x.v, 0), radar: window.__ls.filter((x) => x.noRadar).reduce((s, x) => s + x.v, 0) }));
+/* total: a sessão inteira; uso: do 1º toque nas perguntas em diante (a carga tem um deslocamento da .orc-mesa que já existe na main e aparece ou não
+   conforme o tempo, nas duas variantes: medido 0 ou 0,36 sem nada a ver com o radar); radar: o que tem fonte no cartão ou na barra, na sessão inteira */
+const cls = (page) => page.evaluate(() => ({ total: window.__ls.reduce((s, x) => s + x.v, 0), uso: window.__ls.filter((x) => x.t >= window.__t0).reduce((s, x) => s + x.v, 0), radar: window.__ls.filter((x) => x.noRadar).reduce((s, x) => s + x.v, 0) }));
 /* enquanto a conta (ou o Zero) está em voo: o radar marca atividade e o ponteiro existe */
 async function emVoo(page, disparar, ctl, chave) {
   ctl[chave] = 1500;
@@ -289,6 +291,8 @@ if (!SO_CLS) {
   console.log('\n== CLS (390), ' + RODADAS + ' rodadas ==');
   const medir = async (semEscopo) => {
     const { ctx, page } = await abrir({ larg: 390, semEscopo });
+    await espera(1500);
+    await page.evaluate(() => { window.__t0 = performance.now(); });
     await perguntas(page);
     await page.waitForSelector('#o-est-cheio:not([hidden])', { timeout: 20000 });
     await espera(1500);
@@ -301,8 +305,9 @@ if (!SO_CLS) {
   };
   const com = [], sem = [];
   for (let i = 0; i < RODADAS; i++) { com.push(await medir(false)); sem.push(await medir(true)); }
-  const delta = mediana(com.map((x) => x.total)) - mediana(sem.map((x) => x.total));
-  console.log('  CLS total com o radar: ' + com.map((x) => x.total.toFixed(4)).join(', ') + ' | sem: ' + sem.map((x) => x.total.toFixed(4)).join(', ') + ' | delta da mediana: ' + delta.toFixed(4));
+  const delta = mediana(com.map((x) => x.uso)) - mediana(sem.map((x) => x.uso));
+  console.log('  CLS total (com a carga) com o radar: ' + com.map((x) => x.total.toFixed(4)).join(', ') + ' | sem: ' + sem.map((x) => x.total.toFixed(4)).join(', '));
+  console.log('  CLS do uso (perguntas, preço, extra) com o radar: ' + com.map((x) => x.uso.toFixed(4)).join(', ') + ' | sem: ' + sem.map((x) => x.uso.toFixed(4)).join(', ') + ' | delta da mediana: ' + delta.toFixed(4));
   console.log('  deslocamentos com fonte no radar (com o módulo): ' + com.map((x) => x.radar.toFixed(4)).join(', '));
   ok(delta <= 0.01, 'o radar não piora o CLS (delta ' + delta.toFixed(4) + ' <= 0,01)');
   ok(Math.max.apply(null, com.map((x) => x.radar)) <= 0.01, 'nenhum deslocamento que venha do radar passa de 0,01');
