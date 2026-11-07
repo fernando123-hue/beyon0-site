@@ -151,7 +151,10 @@
   }
 
   /* ---------- o preço (servidor) ---------- */
-  function ocupado(sim) { if (sim) $('o-est').setAttribute('aria-busy', 'true'); else $('o-est').removeAttribute('aria-busy'); }
+  function ocupado(sim) {
+    if (sim) $('o-est').setAttribute('aria-busy', 'true'); else $('o-est').removeAttribute('aria-busy');
+    document.dispatchEvent(new CustomEvent('bz:calculando', { detail: { ativo: sim } }));   /* (o radar do escopo varre só com a conta em voo) */
+  }
   /* uma conta por vez vale: a resposta de um pedido mais velho que o último é descartada. Devolve se deu certo */
   function calcular() {
     var meu = ++seq;
@@ -178,7 +181,7 @@
         }
         mostrado = escolhas;
         valido = res.estimativa ? { pedido: pedido, versao: res.versao } : null;
-        desenhar(res);
+        desenhar(res, pedido.urgencia);
         return true;
       } catch (e) {
         if (meu === seq) contaFalhou(e);
@@ -208,7 +211,7 @@
     return deu;
   }
 
-  function desenhar(res) {
+  function desenhar(res, comUrgencia) {
     if (gravado) return;   /* (o pacote já foi gravado: uma conta atrasada não reabre os controles) */
     var rec = res.recomendacao;
     var atual = formato || rec.formato;   /* (a recomendar: o da recomendação) */
@@ -217,8 +220,11 @@
     var assumidos = (rec.assumido || []).map(function (k) { return ASSUMIDO[k]; }).filter(Boolean);
     $('o-est-assumido').hidden = !assumidos.length;
     $('o-est-assumido').textContent = assumidos.length ? 'Escolhi por você: ' + assumidos.join(', ') + '. Dá para trocar em "Mudar as respostas".' : '';
-    /* o cartão (e o pacote que pede conversa) é desenhado por js/orcamento.js, o mesmo do resto da página */
-    document.dispatchEvent(new CustomEvent('bz:preco', { detail: { estimativa: res.estimativa, diagnostico: res.diagnostico } }));
+    /* o cartão (e o pacote que pede conversa) é desenhado por js/orcamento.js, o mesmo do resto da página; o radar do escopo
+       (js/orcamento-escopo.js) lê também a recomendação, o formato da tela, a urgência DESTA conta e o que o catálogo diz do formato */
+    var fmtCat = catalogo ? catalogo.formatos.filter(function (x) { return x.chave === atual; })[0] : null;
+    document.dispatchEvent(new CustomEvent('bz:preco', { detail: { estimativa: res.estimativa, diagnostico: res.diagnostico, recomendacao: rec, formato: atual, urgencia: comUrgencia,
+      paginas_incluidas: fmtCat ? fmtCat.paginas_incluidas : null, urgencia_pct: catalogo && catalogo.urgencia ? catalogo.urgencia.acrescimo_percentual : null } }));
     if (res.estimativa && NOMES[atual]) $('o-est-formato').textContent = NOMES[atual];   /* (as palavras da tela, as mesmas dos vizinhos) */
     vizinhos(rec, atual);
     incluidos(atual);

@@ -214,6 +214,7 @@
   /* (aria-disabled, não disabled: o botão desligado com o foco nele jogava o foco no body, A3; o "enviando" já protege) */
   function ocupado(sim) {
     enviando = sim; mostrar('o-pensando', sim); $('o-form').setAttribute('aria-busy', String(sim));
+    document.dispatchEvent(new CustomEvent('bz:pensando', { detail: { ativo: sim } }));   /* (o radar do escopo varre só enquanto o Zero pensa de verdade) */
     if (sim) $('o-enviar').setAttribute('aria-disabled', 'true'); else $('o-enviar').removeAttribute('aria-disabled');
   }
   /* o chip de atalho some depois da 1ª mensagem: se o foco estava nele, passa antes para outro lugar (A3).
@@ -749,7 +750,7 @@
     if (!aberta) $('o-atalhos').hidden = true;
     window.BZDetalhes.atualizar(E);   /* os detalhes, o pedido recebido ou o pedido encerrado (js/orcamento-detalhes.js) */
     if (window.BZOrcPlanta) window.BZOrcPlanta.atualizar(E, { rolarAte: rolarAte, enviar: enviar });   /* a planta do site (js/orcamento-planta.js): só age com E.planta (flag BZ_PLANTA); sem o módulo a tela segue igual */
-    if (window.BZOrcRadar) window.BZOrcRadar.atualizar(E);   /* o radar "Como lemos o seu caso" (js/orcamento-radar.js): só age com E.leitura (flag BZ_PLANTA) */
+    if (window.BZOrcEscopo) window.BZOrcEscopo.atualizar(E);   /* o radar do escopo (js/orcamento-escopo.js): só lê o estado; sem o módulo a tela segue igual */
     if (window.BZPainel) window.BZPainel.atualizar(E.painel);   /* as peças da conversa: notas, ficha e caso (js/orcamento-painel.js); sem o módulo a tela segue igual */
     direcoes();
     mostrar('o-ajustes', (et === 'escolhida' || et === 'alteracoes') && !descartado());

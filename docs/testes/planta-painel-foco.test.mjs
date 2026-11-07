@@ -1,7 +1,7 @@
 /* O PAINEL QUE ROLA POR DENTRO É ALCANÇÁVEL PELO TECLADO E PELA LUPA (pendência B6 do 2d; WCAG 2.1.1). Em >= 900 px a coluna do painel (.orc-painel) rola por dentro quando tem
    peças ou o radar (css/orcamento-painel.css); sem filho focável o Tab não chega no que está abaixo da dobra dela. A lógica mora num lugar só, em js/orcamento-painel.js
-   (BZPainel.focavel): o <aside> ganha tabindex="0" quando de fato rola (scrollHeight > clientHeight), a cada render e no resize, e nunca quando não rola. O radar só avisa
-   o painel quando monta ou some (js/orcamento-radar.js).  node --test docs/testes/planta-painel-foco.test.mjs */
+   (BZPainel.focavel): o <aside> ganha tabindex="0" quando de fato rola (scrollHeight > clientHeight), a cada render e no resize, e nunca quando não rola. O radar do
+   escopo (js/orcamento-escopo.js) só avisa o painel quando muda de altura.  node --test docs/testes/planta-painel-foco.test.mjs */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -85,9 +85,9 @@ test('B6: robusto sem a página (sem #o-peca, sem pai, sem addEventListener): na
   } finally { globalThis.document = anterior; }
 });
 
-test('B6 (fonte): o radar não tem mais tabindex nem resize próprios; delega ao painel', () => {
-  const radar = lerFonte('js/orcamento-radar.js').replace(/\/\*[\s\S]*?\*\//g, ' ');
-  assert.ok(!/tabindex/.test(radar), 'a regra do tabindex é do painel');
+test('B6 (fonte): o radar do escopo não decide o tabindex do painel nem ouve o resize; delega ao painel', () => {
+  const radar = lerFonte('js/orcamento-escopo.js').replace(/\/\*[\s\S]*?\*\//g, ' ');
+  assert.ok(!/orc-painel/.test(radar) && !/tabindex['"],\s*['"]0/.test(radar), 'a regra do tabindex do painel é do painel (o radar só põe tabindex -1 no próprio título, para o foco do "Ver radar")');
   assert.ok(!/['"]resize['"]/.test(radar), 'o resize é do painel');
   assert.match(radar, /BZPainel/, 'avisa o painel');
   const painel = FONTE.replace(/\/\*[\s\S]*?\*\//g, ' ');
@@ -118,8 +118,8 @@ test('B3: só conta a rolagem de um painel que de fato rola por dentro (overflow
   assert.equal(antigo.aside.getAttribute('tabindex'), '0');
 });
 
-test('B4: o orcamento.html carrega o painel ANTES do radar (o radar depende do BZPainel.focavel) e o radar registra a dependência', () => {
+test('B4: o orcamento.html carrega o painel ANTES do radar do escopo (o radar depende do BZPainel.focavel) e o radar registra a dependência', () => {
   const html = lerFonte('orcamento.html');
-  assert.ok(html.indexOf('src="js/orcamento-painel.js"') > 0 && html.indexOf('src="js/orcamento-painel.js"') < html.indexOf('src="js/orcamento-radar.js"'));
-  assert.match(lerFonte('js/orcamento-radar.js'), /DEPENDÊNCIA: o BZPainel/);
+  assert.ok(html.indexOf('src="js/orcamento-painel.js"') > 0 && html.indexOf('src="js/orcamento-painel.js"') < html.indexOf('src="js/orcamento-escopo.js"'));
+  assert.match(lerFonte('js/orcamento-escopo.js'), /DEPENDÊNCIA: o BZPainel/);
 });
