@@ -20,11 +20,14 @@
 
    4. O ouro entre páginas: com o reinado em curso (bz-ouro-ate na sessão), a página nasce em `html.is-ouro`.
 
+   5. O orçamento numa visita nova (`<script ... data-orcamento>`): as perguntas já na 1ª pintura (`html.orc-nova`).
+
    A CSP é `script-src 'self'`: por isso é um arquivo, não um script inline.
    ========================================================================== */
 (function () {
   'use strict';
   var html = document.documentElement;
+  var eu = document.currentScript;   /* (lido já: só existe enquanto este script roda) */
   html.classList.add('js');
   /* `tem-menu` também ANTES de pintar: sem ela o menu do celular nasce no
      fluxo (links em linha, ~213 px) e, quando o js/pagina.js (defer) a
@@ -43,6 +46,23 @@
     /* rede: se o js/orcamento-retomada.js nunca chegar (rede, bloqueio), a classe sai no load; sem isso a página
        ficaria só com o título, porque o bloco "Abrir o seu pedido" nasce hidden e só ele o script mostra */
     window.addEventListener('load', function () { if (!window.BZRetomada) html.classList.remove('orc-retomando'); });
+  }
+  /* (5) o orçamento numa visita NOVA: as perguntas já na 1ª pintura (html.orc-nova, css/orcamento.css). Elas nascem hidden e só o
+     js/orcamento.js (o último dos scripts defer) as abria: num celular lento a 1ª pintura vinha antes e a mesa pulava para baixo (CLS 0,36
+     medido em 390 px). Nova = sem o link da retomada e sem pedido salvo, lido como o js/orcamento-api.js lê (a mesma chave e a conversa
+     esquecida: se mudar lá, mude aqui). Com pedido salvo nada muda: quem decide é o render. O js/orcamento.js tira a classe ao assumir;
+     a rede: se ele não abriu as perguntas até o load (não carregou), ela sai e o hidden volta a valer. Sem JS, o HTML segue como é */
+  if (eu && eu.hasAttribute('data-orcamento') && !retomando && !temPedidoSalvo()) {
+    html.classList.add('orc-nova');
+    window.addEventListener('load', function () {
+      var p = document.getElementById('o-perguntas');
+      if (!p || p.hidden) html.classList.remove('orc-nova');
+    });
+  }
+  function temPedidoSalvo() {
+    var s = null, esquecida = null;
+    try { s = JSON.parse(localStorage.getItem('bz-orcamento') || 'null'); esquecida = localStorage.getItem('bz-orcamento-esquecida'); } catch (e) { return false; }
+    return !!(s && s.conversa_id) && s.conversa_id !== esquecida;
   }
   try {
     if (localStorage.getItem('bz-menos-movimento') === '1') html.classList.add('menos-movimento');
@@ -129,7 +149,6 @@
     if (origem && origem.via === 'anuncio') html.classList.add('via-anuncio');
   } catch (e) { /* sem armazenamento ou URL estranha: segue como visita comum */ }
 
-  var eu = document.currentScript;
   if (!eu || !location.hash) return;
   var ids = (eu.getAttribute('data-ancoras') || '').split(/\s+/);
   var destino = eu.getAttribute('data-destino');
