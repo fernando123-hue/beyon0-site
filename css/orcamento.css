@@ -45,7 +45,7 @@
 .orc-aviso__acoes { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .8rem; }
 
 /* ---------- a mesa: conversa + investimento ---------- */
-.orc-mesa { display: grid; gap: 1.2rem; margin-top: 2rem; }
+.orc-mesa { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.2rem; margin-top: 2rem; }   /* (minmax(0): o que não quebra dentro de um bloco não alarga a coluna nem a tela) */
 .orc-rotulo { max-width: none; letter-spacing: var(--tr-rotulo); line-height: 1.4; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); font-weight: 500; margin-bottom: .8rem; }
 .orc-conversa, .orc-painel > div { border: 1px solid var(--line); background: var(--s1); border-radius: var(--raio); padding: 1rem; }
 .orc-painel { display: flex; flex-direction: column; gap: 1.2rem; }
@@ -97,19 +97,34 @@
 /* ---------- o investimento (dado: o ciano é permitido aqui) ---------- */
 .orc-est__vazio { color: var(--t2); font-size: var(--fs-s); line-height: 1.6; }
 .orc-est__formato { font-family: var(--mono); font-size: var(--fs-ctrl); letter-spacing: var(--tr-ctrl); text-transform: uppercase; color: var(--t2); }
-.orc-est__valor { font-family: var(--mono); font-size: clamp(2rem, 1.4rem + 2.4vw, 2.6rem); font-weight: 500; color: var(--ac); letter-spacing: -.02em; margin: .3rem 0 .9rem; font-variant-numeric: tabular-nums; }
+/* o total, compacto: o valor grande mora no núcleo do radar do escopo (css/orcamento-escopo.css); aqui é a linha do total */
+.orc-est__total { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: .2rem .8rem; margin: .9rem 0 0; color: var(--t1); }
+.orc-est__valor { font-family: var(--mono); font-size: 1.4rem; font-weight: 400; color: var(--ac); letter-spacing: -.02em; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .orc-est__valor.is-novo { animation: orc-valor .6s var(--ease); }
 @keyframes orc-valor { from { opacity: 0; transform: translateY(6px); } }
-.orc-est__dados { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.orc-est__dados { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 5rem), 1fr));   /* (3 colunas; com a fonte grande, uma embaixo da outra) */ border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .orc-est__dados div { padding: .7rem 0; }
 .orc-est__dados div + div { padding-left: .7rem; border-left: 1px solid var(--line); }
 .orc-est__dados dt { font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); }
 .orc-est__dados dd { margin: .2rem 0 0; font-family: var(--mono); font-size: var(--fs-s); color: var(--t1); font-variant-numeric: tabular-nums; }
-.orc-est__itens, .orc-est__fase ul { list-style: none; margin: .9rem 0 0; padding: 0; display: flex; flex-direction: column; gap: .35rem; font-size: var(--fs-s); color: var(--t2); }
+.orc-est__itens, .orc-est__fase ul { list-style: none; margin: .7rem 0 .7rem; padding: 0; display: flex; flex-direction: column; gap: .35rem; font-size: var(--fs-s); color: var(--t2); }
 .orc-est__itens li::before, .orc-est__fase li::before { content: "+ "; font-family: var(--mono); color: var(--t3); }
 .orc-est__fase { margin-top: 1rem; padding-top: .9rem; border-top: 1px dashed var(--line-2); font-size: var(--fs-s); color: var(--t2); }
+.orc-est__mais > .orc-est__fase { border-top-style: dashed; border-top-color: var(--line-2); }
 .orc-est__fase .orc-rotulo { margin-bottom: .2rem; }
-.orc-est__nota { margin-top: 1rem; font-size: var(--fs-s); color: var(--t3); }
+.orc-est__nota { margin-top: .6rem; font-size: var(--fs-s); color: var(--t3); }
+/* "Ver como o valor é formado" (o botão mora no radar): os grupos; "Ainda a confirmar" só existe quando as perguntas assumiram algo */
+.orc-est__mais { margin-top: 1rem; }
+.orc-est__mais > div { margin-top: 1rem; padding-top: .9rem; border-top: 1px solid var(--line); }
+.orc-est__mais > div:first-child { margin-top: 0; }
+.orc-est__mais h3.orc-rotulo { margin: 0 0 .4rem; }
+.orc-est__grupo:has(> .orc-est__assumido[hidden]) { display: none; }
+.orc-est__grupo .orc-est__assumido { margin-top: 0; }
+.orc-est__grupo ul { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: .35rem; font-size: var(--fs-s); line-height: 1.5; color: var(--t2); }
+.orc-est__grupo--pendente .orc-est__assumido { font-size: var(--fs-s); }
+.orc-est__grupo ul.orc-est__contou { list-style: none; padding-left: 0; gap: .6rem; }
+.orc-est__eixo { display: block; font-family: var(--mono); font-size: var(--fs-rotulo); letter-spacing: var(--tr-rotulo); text-transform: uppercase; color: var(--t3); }
+.orc-est__evidencia { color: var(--t1); overflow-wrap: anywhere; }
 .orc-sugestao__ideia { font-weight: 500; color: var(--t1); margin-bottom: .3rem; }
 .orc-sugestao p:last-child, .orc-diagnostico p { font-size: var(--fs-s); color: var(--t2); }
 .orc-diagnostico .btn { margin-top: .8rem; }
@@ -476,9 +491,10 @@ html.menos-movimento .orc-log { scroll-behavior: auto; }
 .orc-conversar { margin-top: 1.4rem; }
 
 /* o preço: o motivo, o que vem no pacote, sem risco, os vizinhos e as ações */
-.orc-est__motivo { margin: -.3rem 0 .9rem; font-size: var(--fs-b); line-height: 1.5; color: var(--t1); }
-.orc-est__assumido, .orc-est__sem-risco { margin-top: .9rem; font-size: var(--fs-b); line-height: 1.5; color: var(--t2); }
+.orc-est__motivo { margin: .4rem 0 0; font-size: var(--fs-s); line-height: 1.5; color: var(--t2); }
+.orc-est__assumido, .orc-est__sem-risco { margin-top: .6rem; font-size: var(--fs-b); line-height: 1.5; color: var(--t2); }
 .orc-est__inclui { margin-top: 1rem; padding-top: .9rem; border-top: 1px solid var(--line); }
+.orc-est__mais .orc-est__inclui ul { font-size: var(--fs-s); }
 .orc-est__inclui .orc-rotulo { margin-bottom: .4rem; }
 .orc-est__inclui ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .35rem; font-size: var(--fs-b); color: var(--t2); }
 .orc-est__inclui li::before { content: "✓ "; font-family: var(--mono); color: var(--t3); }

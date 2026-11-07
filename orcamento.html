@@ -37,6 +37,7 @@
   <link rel="stylesheet" href="css/orcamento.css" />
   <link rel="stylesheet" href="css/orcamento-entrega.css" />
   <link rel="stylesheet" href="css/orcamento-painel.css" />
+  <link rel="stylesheet" href="css/orcamento-escopo.css" />
   <link rel="stylesheet" href="css/orcamento-previa.css" />
   <link rel="stylesheet" href="css/previa.css" />
   <link rel="stylesheet" href="css/passagem.css" />
@@ -191,31 +192,79 @@
         <p class="orc-nota">Não escreva senhas nem dados de cartão aqui. <a href="/privacidade#orcamento">Como a conversa é tratada</a>.</p>
       </section>
 
-      <!-- O INVESTIMENTO (do motor de preço; o modelo nunca escreve estes números) -->
+      <!-- O INVESTIMENTO (do motor de preço; o modelo nunca escreve estes números). O painel abre pelo RADAR DO ESCOPO (js/orcamento-escopo.js;
+           docs/design/radar-escopo-2026-11-07.md): o progresso real do pedido, as 4 dimensões e o valor; logo abaixo a ação principal e os detalhes -->
       <aside class="orc-painel" data-origem="orcamento-painel" aria-labelledby="o-est-titulo">
-        <div class="orc-peca" id="o-peca" role="region" aria-label="O que o Zero já entendeu do seu caso" hidden></div>
-        <h2 id="o-est-titulo" class="orc-rotulo">Investimento estimado</h2>
+        <!-- <section> e não <div>: a regra .orc-painel > div é de cartão; o radar traz o próprio. Sem região viva: a única é o #o-voz. A altura é
+             reservada em css/orcamento-escopo.css; o desenho (SVG, decorativo) entra no #o-rde-desenho. O texto de verdade são os cantos, o selo e o valor -->
+        <section class="rde" id="o-rde" data-estado="aguardando">
+          <div class="rde__topo">
+            <h2 id="o-est-titulo" class="rde__titulo">Radar do seu projeto</h2>
+            <p class="rde__selo" id="o-rde-selo">Aguardando briefing</p>
+          </div>
+          <div class="rde-caixa">
+            <div class="rde-desenho" id="o-rde-desenho">
+              <div class="rde-miolo" aria-hidden="true">
+                <span class="rde-miolo__rot">Investimento estimado</span>
+                <span class="rde-miolo__valor is-vazio" id="o-rde-valor">—</span>
+                <span class="rde-miolo__estado" id="o-rde-estado">Aguardando briefing</span>
+              </div>
+              <p class="sr-only" id="o-rde-valor-sr">Investimento estimado: ainda sem valor.</p>
+            </div>
+            <p class="rde-canto rde-canto--entrega" id="o-rde-entrega"><span class="rde-canto__nome">Entrega</span> <span class="rde-canto__valor">A definir</span><span class="sr-only"> (pendente)</span></p>
+            <p class="rde-canto rde-canto--escopo" id="o-rde-escopo"><span class="rde-canto__nome">Escopo</span> <span class="rde-canto__valor">A definir</span><span class="sr-only"> (pendente)</span></p>
+            <p class="rde-canto rde-canto--prazo" id="o-rde-prazo"><span class="rde-canto__nome">Prazo</span> <span class="rde-canto__valor">A definir</span><span class="sr-only"> (pendente)</span></p>
+            <p class="rde-canto rde-canto--integracoes" id="o-rde-integracoes"><span class="rde-canto__nome">Integrações</span> <span class="rde-canto__valor">A definir</span><span class="sr-only"> (pendente)</span></p>
+          </div>
+          <ol class="rde-trilha" aria-label="Andamento do pedido">
+            <li class="is-agora"><span class="rde-trilha__marca" aria-hidden="true"></span><span class="rde-trilha__nome">Briefing</span><span class="sr-only"> (agora)</span></li>
+            <li><span class="rde-trilha__marca" aria-hidden="true"></span><span class="rde-trilha__nome">Análise</span><span class="sr-only"></span></li>
+            <li><span class="rde-trilha__marca" aria-hidden="true"></span><span class="rde-trilha__nome">Estimativa</span><span class="sr-only"></span></li>
+            <li><span class="rde-trilha__marca" aria-hidden="true"></span><span class="rde-trilha__nome">Proposta</span><span class="sr-only"></span></li>
+            <li><span class="rde-trilha__marca" aria-hidden="true"></span><span class="rde-trilha__nome">Confirmada</span><span class="sr-only"></span></li>
+          </ol>
+          <button class="rde-abrir is-vazio" type="button" id="o-rde-abrir" aria-expanded="false" aria-controls="o-est-mais" disabled><span>Ver como o valor é formado</span><span class="rde-abrir__nota" id="o-rde-abrir-nota"></span></button>
+        </section>
+        <!-- os controles do preço (js/orcamento-perguntas.js): só enquanto o pacote não foi gravado. Ficam fora do cartão cheio para valerem também
+             quando o pacote pede conversa (sem valor), inclusive no 1º preço. A ação principal vem primeiro (no 1.280 x 800 ela cabe sem rolar o painel) -->
+        <div class="orc-est__acoes" id="o-est-acoes" hidden>
+          <p class="orc-erro" id="o-est-erro" role="alert"></p>
+          <button class="btn btn--ghost" type="button" id="o-est-sugerido" hidden></button>
+          <button class="btn btn--primary" type="button" id="o-quero-modelos">Quero os três modelos</button>
+          <button class="btn btn--ghost" type="button" id="o-ajustar-abrir" aria-expanded="false" aria-controls="o-ajustar">Quer ajustar?</button>
+          <div class="orc-vizinhos" id="o-vizinhos"></div>
+          <button class="orc-p__naosei" type="button" id="o-p-refazer">Mudar as respostas</button>
+        </div>
+        <div class="orc-diagnostico" id="o-diagnostico" hidden>
+          <p>Esse pedido não tem valor automático na tabela. Deixe um recado e a equipe responde por e-mail.</p>
+          <a class="btn btn--sm btn--primary" href="#recado" data-recado-abrir data-recado-origem="orcamento">Deixar um recado</a>
+        </div>
         <div class="orc-est" id="o-est">
           <p class="orc-est__vazio" id="o-est-vazio">O preço aparece aqui assim que você responder as perguntas. Ele vem da tabela da Beyon Zero.</p>
+          <!-- os detalhes, compactos: só números da tabela (quem escreve é o script da página, orcamento.js). "Ver como o valor é formado" (no radar) abre o #o-est-mais -->
           <div id="o-est-cheio" hidden>
             <p class="orc-est__formato" id="o-est-formato"></p>
-            <p class="orc-est__valor" id="o-est-valor"></p>
             <p class="orc-est__motivo" id="o-est-motivo"></p>
+            <ul class="orc-est__itens" id="o-est-itens"></ul>
             <dl class="orc-est__dados">
               <div><dt>Prazo</dt><dd id="o-est-prazo"></dd></div>
               <div><dt>Para começar</dt><dd id="o-est-sinal"></dd></div>
               <div><dt>Com o site no ar</dt><dd id="o-est-resto"></dd></div>
             </dl>
-            <p class="orc-est__assumido" id="o-est-assumido" hidden></p>
-            <ul class="orc-est__itens" id="o-est-itens"></ul>
-            <div class="orc-est__fase" id="o-est-fase" hidden>
-              <p class="orc-rotulo">Fica para uma fase seguinte</p>
-              <ul id="o-est-fase-itens"></ul>
-              <p id="o-est-fase-valor"></p>
-            </div>
-            <div class="orc-est__inclui" id="o-est-inclui-caixa" hidden><p class="orc-rotulo">Já vem no pacote</p><ul id="o-est-inclui"></ul></div>
+            <p class="orc-est__total"><span>Investimento total</span> <b class="orc-est__valor" id="o-est-valor"></b></p>
             <p class="orc-est__sem-risco" id="o-est-sem-risco">Você não paga nada até escolher um modelo e confirmar o resumo.</p>
             <p class="orc-est__nota">O valor final é o do resumo do que será feito, que você confirma antes de pagar qualquer coisa.</p>
+            <div class="orc-est__mais" id="o-est-mais" hidden>
+              <div class="orc-est__inclui" id="o-est-inclui-caixa" hidden><h3 class="orc-rotulo">Já vem no pacote</h3><ul id="o-est-inclui"></ul></div>
+              <div class="orc-est__grupo orc-est__grupo--pendente"><h3 class="orc-rotulo">Ainda a confirmar</h3><p class="orc-est__assumido" id="o-est-assumido" hidden></p></div>
+              <div class="orc-est__grupo" id="o-est-muda" hidden><h3 class="orc-rotulo">O que pode mudar o valor</h3><ul id="o-est-muda-itens"></ul></div>
+              <div class="orc-est__fase" id="o-est-fase" hidden>
+                <h3 class="orc-rotulo">Fica para uma fase seguinte</h3>
+                <ul id="o-est-fase-itens"></ul>
+                <p id="o-est-fase-valor"></p>
+              </div>
+              <div class="orc-est__grupo" id="o-est-contou" hidden><h3 class="orc-rotulo">O que você nos contou</h3><ul class="orc-est__contou" id="o-est-contou-itens"></ul></div>
+            </div>
           </div>
         </div>
         <div class="orc-sugestao" id="o-sugestao" hidden>
@@ -223,23 +272,7 @@
           <p class="orc-sugestao__ideia" id="o-sugestao-ideia"></p>
           <p id="o-sugestao-motivo"></p>
         </div>
-        <div class="orc-diagnostico" id="o-diagnostico" hidden>
-          <p>Esse pedido não tem valor automático na tabela. Deixe um recado e a equipe responde por e-mail.</p>
-          <a class="btn btn--sm btn--primary" href="#recado" data-recado-abrir data-recado-origem="orcamento">Deixar um recado</a>
-        </div>
-        <!-- os controles do preço (js/orcamento-perguntas.js): só enquanto o pacote não foi gravado. Ficam fora do cartão
-             cheio para valerem também quando o pacote pede conversa (sem valor), inclusive no 1º preço -->
-        <div class="orc-est__acoes" id="o-est-acoes" hidden>
-          <div class="orc-vizinhos" id="o-vizinhos"></div>
-          <p class="orc-erro" id="o-est-erro" role="alert"></p>
-          <button class="btn btn--ghost" type="button" id="o-est-sugerido" hidden></button>
-          <button class="btn btn--primary" type="button" id="o-quero-modelos">Quero os três modelos</button>
-          <button class="btn btn--ghost" type="button" id="o-ajustar-abrir" aria-expanded="false" aria-controls="o-ajustar">Quer ajustar?</button>
-          <button class="orc-p__naosei" type="button" id="o-p-refazer">Mudar as respostas</button>
-        </div>
-        <!-- O RADAR "Como lemos o seu caso" (js/orcamento-radar.js): abaixo do cartão de investimento e dos controles do preço, escondido até a conversa ter uma leitura (BZ_PLANTA).
-             <section> e não <div>: a regra .orc-painel > div é de cartão e daria borda dupla; o módulo do radar traz o próprio cartão. Sem região viva: a única é o #o-voz -->
-        <section id="o-radar" hidden></section>
+        <div class="orc-peca" id="o-peca" role="region" aria-label="O que o Zero já entendeu do seu caso" hidden></div>
       </aside>
 
       <!-- QUER AJUSTAR? (spec §3): os extras da tabela ativa, com o preço ao vivo pelo servidor (simular, não grava) -->
@@ -720,7 +753,10 @@
   <script src="js/orcamento-restante.js" defer></script>
   <script src="js/orcamento-entrega.js" defer></script>
   <script src="js/orcamento-planta.js" defer></script>
-  <script src="js/orcamento-radar.js" defer></script>
+  <script src="js/orcamento-escopo-estado.js" defer></script>
+  <script src="js/orcamento-escopo-desenho.js" defer></script>
+  <script src="js/orcamento-escopo-barra.js" defer></script>
+  <script src="js/orcamento-escopo.js" defer></script>
   <script src="js/orcamento.js" defer></script>
 </body>
 </html>

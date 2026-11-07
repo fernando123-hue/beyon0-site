@@ -9,8 +9,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const JS = fileURLToPath(new URL('../../js/', import.meta.url));
-/* os planta-*.js e a ligação com a página (orcamento-planta.js, PR 2c, e orcamento-radar.js, PR 2d: roda em toda visita ao orçamento, antes de a planta existir) */
-const arquivos = fs.readdirSync(JS).filter((n) => /^planta-.+\.js$/.test(n) || n === 'orcamento-planta.js' || n === 'orcamento-radar.js').sort();
+/* os planta-*.js, a ligação com a página (orcamento-planta.js, PR 2c) e o radar do escopo (orcamento-escopo*.js: roda em toda visita ao orçamento) */
+const arquivos = fs.readdirSync(JS).filter((n) => /^planta-.+\.js$/.test(n) || n === 'orcamento-planta.js' || /^orcamento-escopo(-[a-z]+)?\.js$/.test(n)).sort();
 
 /* tira comentários e o conteúdo de strings e de expressões regulares (um passe só, sem regex gigante) */
 export function limpar(src) {
@@ -49,8 +49,9 @@ export function violacoes(src) {
   return PROIBIDOS.filter(([, re]) => re.test(limpo)).map(([nome]) => nome);
 }
 
-test('há módulos js/planta-*.js para varrer (pecas, layout, desenho)', () => {
+test('há módulos js/planta-*.js para varrer (pecas, layout, desenho) e os 4 do radar do escopo', () => {
   assert.equal(arquivos.filter((n) => ['planta-pecas.js', 'planta-layout.js', 'planta-desenho.js'].includes(n)).length, 3);
+  assert.deepEqual(arquivos.filter((n) => /^orcamento-escopo/.test(n)), ['orcamento-escopo-barra.js', 'orcamento-escopo-desenho.js', 'orcamento-escopo-estado.js', 'orcamento-escopo.js']);
 });
 
 for (const nome of arquivos) {

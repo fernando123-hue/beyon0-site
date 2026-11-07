@@ -22,6 +22,7 @@
 @media (prefers-reduced-motion: reduce) { .orc-peca .is-novo { animation: none; } }
 
 @media (min-width: 900px) {
-  /* a coluna da direita fica presa ao rolar (orcamento.css); com as peças ela pode passar da tela, então rola por dentro */
-  .orc-painel:has(> .orc-peca:not([hidden]), > #o-radar:not([hidden])) { max-height: calc(100vh - var(--nav-h) - 2rem); overflow-y: auto; }
+  /* a coluna da direita fica presa ao rolar (orcamento.css) e abre pelo radar do escopo (css/orcamento-escopo.css): com os detalhes e as peças
+     ela passa da tela, então rola por dentro (o tabindex de quando rola é do BZPainel.focavel) */
+  .orc-painel { max-height: calc(100vh - var(--nav-h) - 2rem); overflow-y: auto; }
 }

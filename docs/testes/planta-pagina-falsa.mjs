@@ -52,7 +52,7 @@ export function criarPagina(inicial = {}) {
   const els = {};
   const doc = {
     getElementById: (id) => els[id] || (els[id] = elemento(id)), querySelectorAll: () => [], querySelector: () => null, createElement: (t) => elemento(t),
-    addEventListener() {}, documentElement: { classList: { contains: () => false } }, activeElement: null
+    addEventListener() {}, dispatchEvent() { return true; }, documentElement: { classList: { contains: () => false } }, activeElement: null
   };
   const capturado = {};
   const win = {
@@ -60,7 +60,8 @@ export function criarPagina(inicial = {}) {
     BZOrcPlanta: { atualizar(E, deps) { capturado.deps = deps; } },
     addEventListener() {}, matchMedia: undefined, BEYON: undefined, document: doc
   };
-  const ctx = { window: win, document: doc, location: { reload() {} }, setTimeout, clearTimeout, console, sessionStorage: undefined };
+  /* (a página avisa a atividade do Zero ao radar do escopo por um CustomEvent: aqui ninguém escuta) */
+  const ctx = { window: win, document: doc, location: { reload() {} }, setTimeout, clearTimeout, console, sessionStorage: undefined, CustomEvent: function (tipo, o) { this.type = tipo; this.detail = o && o.detail; } };
   vm.runInNewContext(FONTE, ctx, { filename: 'js/orcamento.js' });
   const pagina = {
     servidor, els, doc,

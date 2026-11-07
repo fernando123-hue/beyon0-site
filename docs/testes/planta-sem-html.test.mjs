@@ -10,7 +10,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const JS = fileURLToPath(new URL('../../js/', import.meta.url));
-const arquivos = fs.readdirSync(JS).filter((n) => /^planta-.+\.js$/.test(n)).sort();
+/* (e os do radar do escopo: o texto que o servidor e a pessoa escreveram passa por eles) */
+const arquivos = fs.readdirSync(JS).filter((n) => /^planta-.+\.js$/.test(n) || /^orcamento-escopo(-[a-z]+)?\.js$/.test(n)).sort();
 
 /* o código sem comentários, mas COM o texto das strings (setAttribute('style') e 'onclick' moram em strings) */
 function codigoComStrings(src) {
@@ -30,12 +31,13 @@ const PROIBIDOS = [
 
 export function achados(src, nome) {
   const c = codigoComStrings(src);
-  /* a regra do id vale para os módulos do PLANO (peças, layout, desenho): o id do modelo nunca vira atributo id. O radar (outro PR) gera o dele (contador) para o aria-labelledby */
-  return PROIBIDOS.filter(([n, re]) => re.test(c) && !(n === 'atributo id= com dado' && nome === 'planta-radar.js')).map(([n]) => n);
+  /* a regra do id vale para todos: o id do modelo nunca vira atributo id */
+  return PROIBIDOS.filter(([n, re]) => re.test(c)).map(([n]) => n);
 }
 
-test('há módulos planta-*.js para varrer', () => {
+test('há módulos planta-*.js e orcamento-escopo*.js para varrer', () => {
   assert.ok(arquivos.length >= 3, arquivos.join(','));
+  assert.equal(arquivos.filter((n) => /^orcamento-escopo/.test(n)).length, 4, arquivos.join(','));
 });
 
 for (const nome of arquivos) {
