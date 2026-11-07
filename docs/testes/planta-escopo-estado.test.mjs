@@ -113,8 +113,39 @@ test('simulação sem valor (o pacote pede conversa): o formato recomendado fica
   assert.ok(r.detalhes.aConfirmar.some((t) => /Sistema ou painel para o seu caso/.test(t)));
 });
 
-test('proposta configurada: o pedido salvo (E.estimativa) é nível 2 em tudo e vence a simulação', () => {
-  const E = estado({ etapa: 'contato' }, { estimativa: salvo() });
+test('estimativa que o Zero gravou, com a etapa ainda em descoberta/estimativa/contato sem contato: "estimativa" (marco 2), nível 1 (ciano), o valor do servidor', () => {
+  for (const conversa of [{ etapa: 'estimativa' }, { etapa: 'descoberta' }, { etapa: 'contato', tem_contato: false }]) {
+    const r = estadoDoEscopo(estado(conversa, { estimativa: salvo() }), null, {});
+    assert.equal(r.estado, 'estimativa', conversa.etapa);
+    assert.equal(r.rotulo, 'Estimativa preliminar');
+    assert.equal(r.marco, 2);
+    assert.equal(r.valor, 8600);
+    assert.deepEqual(NIVEIS_DE(r), { entrega: 1, escopo: 1, integracoes: 1, prazo: 1 }, 'identificado, não confirmado: a pessoa ainda não confirmou o pacote');
+    assert.equal(r.dims.escopo.texto, 'Até 5 páginas · 1 extra');
+  }
+});
+
+test('proposta configurada só quando a pessoa confirmou o pacote: com contato (tem_contato) ou nas etapas gerando, direcoes, escolhida, alteracoes (as mesmas do passoAtual de js/orcamento.js)', () => {
+  for (const conversa of [{ etapa: 'estimativa', tem_contato: true }, { etapa: 'contato', tem_contato: true }, { etapa: 'gerando' }, { etapa: 'direcoes' }, { etapa: 'escolhida' }, { etapa: 'alteracoes' }]) {
+    const r = estadoDoEscopo(estado(conversa, { estimativa: salvo() }), null, {});
+    assert.equal(r.estado, 'proposta', JSON.stringify(conversa));
+    assert.deepEqual(NIVEIS_DE(r), { entrega: 2, escopo: 2, integracoes: 2, prazo: 2 });
+  }
+  const js = ler('js/orcamento.js');
+  assert.match(js, /if \(et === 'gerando' \|\| et === 'direcoes' \|\| E\.conversa\.tem_contato\) return 'direcoes';/, 'o passoAtual que esta regra acompanha');
+  assert.match(js, /if \(et === 'escolhida' \|\| et === 'alteracoes'\) return 'ajustes';/);
+});
+
+test('o mesmo dado de novo não muda nada: o estado é o mesmo e a transição não anima nem volta o selo', () => {
+  for (const [E, s] of [[estado({ etapa: 'estimativa' }, { estimativa: salvo() }), null], [null, simulado()], [estado({ etapa: 'direcoes', tem_contato: true }, { estimativa: salvo() }), null]]) {
+    const a = estadoDoEscopo(E, s, {}), b = estadoDoEscopo(JSON.parse(JSON.stringify(E)), s && JSON.parse(JSON.stringify(s)), {});
+    assert.deepEqual(b, a);
+    assert.deepEqual(transicao(a, b), { atualizada: false, subiram: [], desceram: [], marcoMudou: false, virouOuro: false });
+  }
+});
+
+test('proposta configurada: o pacote confirmado (E.estimativa e contato) é nível 2 em tudo e vence a simulação', () => {
+  const E = estado({ etapa: 'contato', tem_contato: true }, { estimativa: salvo() });
   const r = estadoDoEscopo(E, simulado(), {});
   assert.equal(r.estado, 'proposta');
   assert.equal(r.rotulo, 'Proposta configurada');
@@ -192,7 +223,7 @@ test('mudar as respostas (a simulação sai): as dimensões voltam a pendente e 
   assert.deepEqual(t.subiram, []);
   const s = transicao(b, a);
   assert.deepEqual(s.subiram.sort(), ['entrega', 'escopo', 'integracoes', 'prazo']);
-  const c = transicao(a, estadoDoEscopo(estado({ etapa: 'contato' }, { estimativa: salvo() }), null, {}));
+  const c = transicao(a, estadoDoEscopo(estado({ etapa: 'contato', tem_contato: true }, { estimativa: salvo() }), null, {}));
   assert.deepEqual(c.subiram.sort(), ['entrega', 'escopo', 'integracoes', 'prazo'], 'de identificado (1) a confirmado (2) também sobe');
   assert.equal(c.marcoMudou, true);
   assert.equal(c.virouOuro, false);

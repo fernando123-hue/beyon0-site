@@ -182,13 +182,22 @@ if (!SO_CLS) {
   ok(await lateral(page), 'sem rolagem lateral com a barra');
   await foto(page, '390-4-conversa');
   await foto(page.locator('#o-rde'), '390-4-radar-conversa');
-  /* o pacote gravado: proposta configurada, tudo branco */
-  if (await page.locator('#o-quero-modelos').isVisible()) {
-    await page.click('#o-quero-modelos');
-    await page.waitForFunction(() => document.getElementById('o-rde').getAttribute('data-estado') === 'proposta', null, { timeout: 20000 });
-  }
+  /* "Quero os três modelos" grava o pacote, mas a etapa segue "estimativa" até o contato: o radar NÃO fica branco nem volta atrás */
+  const antesDoQuero = await radar(page);
+  await page.click('#o-quero-modelos');
+  await page.waitForSelector('#o-contato:not([hidden])', { timeout: 20000 });
+  await espera(800);
   r = await radar(page);
-  ok(r.estado === 'proposta' && r.selo === 'Proposta configurada' && niveis(r) === '2222' && r.agora === 'Proposta', 'pedido salvo: proposta configurada, as 4 dimensões confirmadas (branco) (' + r.estado + ' ' + niveis(r) + ')');
+  ok(r.estado === 'estimativa' && niveis(r) === '1111' && r.selo === antesDoQuero.selo && r.valor === antesDoQuero.valor && JSON.stringify(r.cantos) === JSON.stringify(antesDoQuero.cantos), 'pacote gravado, sem contato ainda: segue "estimativa" (ciano), igual a antes (' + r.estado + ' ' + niveis(r) + ')');
+  /* os detalhes (o contato): agora a pessoa confirmou; proposta configurada, tudo branco */
+  await page.fill('#o-d-negocio', 'Clínica Radar E2E');
+  await page.click('#o-d-sugestoes .chip >> nth=0');
+  await page.fill('#o-tel', '(21) 9' + String(1000 + Math.floor(Math.random() * 9000)) + '-' + String(1000 + Math.floor(Math.random() * 9000)));
+  await page.check('#o-aceite');
+  await page.click('#o-detalhes-form button[type=submit]');
+  await page.waitForFunction(() => document.getElementById('o-rde').getAttribute('data-estado') === 'proposta', null, { timeout: 20000 }).catch(() => {});
+  r = await radar(page);
+  ok(r.estado === 'proposta' && r.selo === 'Proposta configurada' && niveis(r) === '2222' && r.agora === 'Proposta', 'com o contato (a pessoa confirmou): proposta configurada, as 4 dimensões confirmadas (branco) (' + r.estado + ' ' + niveis(r) + ')');
   await page.locator('#o-rde').scrollIntoViewIfNeeded();
   await foto(page.locator('#o-rde'), '390-5-proposta');
   /* o ouro: um estado sintético (a etapa real exige o pagamento), só para ver o desenho; o próximo render volta ao real */

@@ -69,7 +69,7 @@ test('com a derivação de verdade: da página nova ao pedido salvo, o desenho a
   const inst = D.montar(w.document);
   D.aplicar(inst, M.estadoDoEscopo(null, null, {}));
   assert.ok(Object.values(inst.dims).every((d) => classe(d.arco) === 'rde-dim'));
-  D.aplicar(inst, M.estadoDoEscopo({ conversa: { etapa: 'contato' }, estimativa: { valor_total: 8350, prazo_dias: 9, detalhes: { formato: { chave: 'institucional', paginas_incluidas: 5 }, itens: [] } } }, null, {}));
+  D.aplicar(inst, M.estadoDoEscopo({ conversa: { etapa: 'contato', tem_contato: true }, estimativa: { valor_total: 8350, prazo_dias: 9, detalhes: { formato: { chave: 'institucional', paginas_incluidas: 5 }, itens: [] } } }, null, {}));
   assert.ok(Object.values(inst.dims).every((d) => classe(d.arco) === 'rde-dim is-confirmada'));
   assert.equal(inst.progresso.getAttribute('stroke-dashoffset'), '0.4');
 });

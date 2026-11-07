@@ -5,8 +5,9 @@
 
    O que não se negocia (provado em docs/testes/planta-escopo-estado.test.mjs):
    - Nenhum número é calculado aqui. O valor é o valor_total que o servidor mandou, ou nada.
-   - Nível 1 (identificado) = a simulação ou o que o Zero anotou no briefing; nível 2 (confirmado) = o pedido salvo (E.estimativa).
-     Com o pedido salvo, a simulação (velha) não conta.
+   - Nível 1 (identificado) = a simulação, o que o Zero anotou no briefing ou a estimativa que ele gravou; nível 2 (confirmado) = o
+     pacote que a PESSOA confirmou (E.estimativa com contato, ou as etapas de depois: as mesmas do passoAtual de js/orcamento.js).
+     Com uma estimativa gravada, a simulação (velha) não conta.
    - Mudar as respostas tira a simulação: o que só ela sabia volta a pendente. Contar mensagens não avança nada.
    - "confirmada" (o único ouro) só pela etapa real do pedido; "confirmacao" é a etapa do resumo (escopo).
    - Os textos dos cantos são curtos (cabem em 2 linhas a 320 px): "Agendamento online +2", nunca a lista inteira.
@@ -28,6 +29,9 @@
   });
   var MARCO = congelar({ aguardando: 0, identificando: 0, analise: 1, estimativa: 2, proposta: 3, confirmacao: 4, confirmada: 4 });
   var ETAPAS_CONFIRMADAS = ['aguardando_pagamento', 'em_producao'];
+  /* a pessoa confirmou o pacote: deixou o contato (tem_contato) ou o pedido já andou (passoAtual: direcoes, ajustes, escopo, pagamento).
+     Só E.estimativa não basta: o Zero também grava estimativa, com a etapa ainda em descoberta/estimativa */
+  var ETAPAS_DO_PACOTE = ['gerando', 'direcoes', 'escolhida', 'alteracoes', 'escopo', 'aguardando_pagamento', 'em_producao'];
   var PENDENTE = 'A definir', MAX_TEXTO = 24;
 
   /* os mesmos nomes da tela das perguntas (js/orcamento-perguntas.js, NOMES; o teste prende os dois juntos) */
@@ -66,13 +70,14 @@
   function dim(nivel, texto) { return texto ? { nivel: nivel, texto: texto } : null; }
 
   /* ---------- as fontes: o pedido salvo, a simulação, o briefing ---------- */
+  function pacoteConfirmado(E) { return objeto(E) && objeto(E.conversa) && (E.conversa.tem_contato === true || naLista(ETAPAS_DO_PACOTE, E.conversa.etapa)); }
   function doSalvo(E) {
     var e = objeto(E) && objeto(E.estimativa) ? E.estimativa : null;
     if (!e) return null;
     var d = objeto(e.detalhes) ? e.detalhes : e, f = objeto(d.formato) ? d.formato : {};
     var m = objeto(d.multiplicadores) ? d.multiplicadores : {};
     return {
-      nivel: 2, chave: typeof f.chave === 'string' ? f.chave : null, nome: typeof f.nome === 'string' ? f.nome : (typeof d.formato === 'string' ? d.formato : null),
+      nivel: pacoteConfirmado(E) ? 2 : 1, comValor: true, chave: typeof f.chave === 'string' ? f.chave : null, nome: typeof f.nome === 'string' ? f.nome : (typeof d.formato === 'string' ? d.formato : null),
       paginas: numero(f.paginas_incluidas), itens: lista(d.itens), urgencia: m.urgencia === true,
       prazo: numero(proprio(e, 'prazo_dias') ? e.prazo_dias : d.prazo_dias), valor: numero(proprio(e, 'valor_total') ? e.valor_total : d.valor_total)
     };
@@ -196,13 +201,13 @@
     }
     var estado = naLista(ETAPAS_CONFIRMADAS, et) || (et === 'encerrada' && !!E.entrega) ? 'confirmada'
       : et === 'escopo' ? 'confirmacao'
-        : salvo ? 'proposta'
-          : sim && sim.valor !== null ? 'estimativa'
+        : salvo && salvo.nivel === 2 ? 'proposta'
+          : (salvo || sim) && (salvo || sim).valor !== null ? 'estimativa'
             : algum ? 'analise' : ativo ? 'identificando' : 'aguardando';
     var valor = null;
     if (estado === 'confirmada' || estado === 'confirmacao') valor = objeto(E.proposta) && numero(E.proposta.valor_total) !== null ? numero(E.proposta.valor_total) : salvo ? salvo.valor : null;
     else if (estado === 'proposta') valor = salvo.valor;
-    else if (estado === 'estimativa') valor = sim.valor;
+    else if (estado === 'estimativa') valor = (salvo || sim).valor;
     return {
       estado: estado, rotulo: ROTULOS[estado], marco: MARCO[estado], valor: valor, ouro: estado === 'confirmada', ativo: ativo, dims: dims,
       detalhes: { aConfirmar: aConfirmar(sim), podeMudar: estado === 'estimativa' ? podeMudar(sim) : [], contou: contou(E) }
