@@ -395,6 +395,7 @@
       imprimir(REIMPRIME_MS);
     }
     emDemo = true;
+    pausaDaDemo();   /* (a aba pode ter sido escondida antes da demo começar: nasce pausada e o 1º deslize não pula) */
     depois(ENTRADA_MS + 400, function () {
       if (mexeu) { emDemo = false; return; }
       desmontar();

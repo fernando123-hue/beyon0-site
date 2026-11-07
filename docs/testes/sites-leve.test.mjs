@@ -99,6 +99,12 @@ test('a peça usa o relógio: o deslize e os passos da demo pausam fora da tela 
   assert.match(io, /pausaDaDemo\(\)/);
 });
 
+test('a demo nasce pausada se a aba já estiver escondida (o 1º deslize não pula ao voltar)', () => {
+  const inicio = (semComentarios(js).match(/emDemo = true;[\s\S]*?depois\(ENTRADA_MS/) || [''])[0];
+  assert.ok(inicio, 'o início da demo');
+  assert.match(inicio, /pausaDaDemo\(\)/, 'pausaDaDemo() antes de agendar o 1º passo');
+});
+
 test('display:none antes do is-viva só sem JS (html:not(.js)): com JS nada some do fluxo e volta', () => {
   for (const r of regrasDormindo.filter(x => /display:\s*none/.test(x.corpo))) assert.match(r.sel, /html:not\(\.js\)/, r.sel);
   const semJs = regrasDormindo.filter(r => /html:not\(\.js\)/.test(r.sel) && /display:\s*none/.test(r.corpo));
