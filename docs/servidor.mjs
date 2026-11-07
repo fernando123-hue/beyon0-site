@@ -4,11 +4,15 @@ import http2 from 'node:http2';
 import { readFile, stat } from 'node:fs/promises';
 import { join, extname, resolve, relative, isAbsolute } from 'node:path';
 import { gzipSync } from 'node:zlib';
+import { createHash } from 'node:crypto';
 import { lerHeaders, cabecalhosPara } from '../cloudflare/cabecalhos.mjs';
 
 const RAIZ = resolve(process.argv[2] || process.cwd());
 const PORTA = +(process.argv[3] || 8899);
 const COMPRIMIR = process.env.COMPRIMIR === '1';
+/* CACHE=1: como o Worker da Cloudflare serve os assets (ETag + max-age=0, must-revalidate): o navegador guarda, revalida
+   com 304 e monta o cache de código do V8. Sem isso (no-store) toda travessia baixa e compila tudo de novo, pior que a real */
+const CACHE = process.env.CACHE === '1';
 const COMPRIMIVEL = /^(text\/|application\/(json|xml)|image\/svg)/;
 /* paridade com o deploy: os cabeçalhos das páginas vêm do _headers (a fonte única, a mesma que a Cloudflare aplica),
    lido pelo mesmo leitor dos testes (cloudflare/cabecalhos.mjs): CSP como header, nosniff, frame-ancestors… */
@@ -92,6 +96,11 @@ async function atender(req, res) {
     const dados = await readFile(alvo);
     const tipo = TIPOS[extname(alvo)] || 'application/octet-stream';
     const extra = { 'content-type': tipo, 'cache-control': 'no-store' };
+    if (CACHE) {
+      extra['cache-control'] = (tipo.startsWith('text/html') && process.env.CACHE_HTML_CC) || process.env.CACHE_CC || 'public, max-age=0, must-revalidate';
+      extra.etag = '"' + createHash('sha1').update(dados).digest('hex').slice(0, 16) + '"';
+      if (req.headers['if-none-match'] === extra.etag) { res.writeHead(304, Object.assign(cabecalhos(caminho), extra)); return res.end(); }
+    }
     /* COMPRIMIR=1: gzip como a Vercel (que serve brotli/gzip). Sem isso, rede lenta simulada pesa os bytes crus
        (o JS comentado ~3x maior) e a medição de carga sai pior que a real (docs/medir-carga.mjs) */
     if (COMPRIMIR && COMPRIMIVEL.test(tipo) && /\bgzip\b/.test(req.headers['accept-encoding'] || '')) {
