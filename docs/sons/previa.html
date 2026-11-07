@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Beyon Zero · prévia dos sons</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#0a0c0d; --linha:#22292b; --texto:#e6eceb; --suave:#8d9a99; --ac:#49e5dd; --ouro:#ffbe3c; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; background:var(--bg); color:var(--texto); font-family:Sora,system-ui,sans-serif; font-weight:300; -webkit-tap-highlight-color:transparent; }
+  main { max-width:720px; margin:0 auto; padding:28px 18px 80px; }
+  .mono { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--suave); }
+  h1 { font-weight:300; font-size:28px; line-height:1.15; margin:10px 0 12px; }
+  h1 em { font-style:normal; color:var(--ac); }
+  p { color:var(--suave); line-height:1.55; margin:0 0 12px; font-size:15px; }
+  section { border-top:1px solid var(--linha); padding:22px 0 8px; }
+  h2 { font-weight:400; font-size:19px; margin:6px 0 6px; }
+  .quando { font-size:14px; color:var(--suave); margin-bottom:14px; }
+  .linha { display:flex; flex-wrap:wrap; gap:10px; margin:10px 0 14px; }
+  button { font:inherit; color:var(--texto); background:transparent; border:1px solid var(--linha); border-radius:2px; padding:12px 16px; min-height:46px; cursor:pointer; text-align:left; touch-action:manipulation; }
+  button .mono { display:block; margin-bottom:3px; }
+  button:hover { border-color:#3a4648; }
+  button:focus-visible { outline:1px solid var(--ac); outline-offset:3px; }
+  button.prop { border-color:#2b5654; }
+  button.prop .mono { color:var(--ac); }
+  button.ouro { border-color:#5c4a23; }
+  button.ouro .mono { color:var(--ouro); }
+  button.tocando { border-color:var(--ac); }
+  button.ouro.tocando { border-color:var(--ouro); }
+  .cards { display:grid; grid-template-columns:repeat(5,1fr); gap:6px; margin:10px 0 6px; }
+  .card { border:1px solid var(--linha); height:64px; display:flex; align-items:flex-end; padding:6px; touch-action:none; user-select:none; -webkit-user-select:none; position:relative; }
+  .card .mono { font-size:10px; }
+  .card.ativo { border-color:var(--ac); }
+  .card .barra { position:absolute; left:0; bottom:0; height:2px; width:0; background:var(--ac); }
+  .card.cheio { border-color:var(--ac); }
+  .seletor { display:flex; gap:0; margin:6px 0 10px; }
+  .seletor button { border-radius:0; padding:8px 12px; min-height:38px; }
+  .seletor button[aria-pressed="true"] { border-color:var(--ac); color:var(--ac); }
+  .nivel { display:flex; align-items:center; gap:12px; margin:14px 0 4px; }
+  input[type=range] { flex:1; accent-color:var(--ac); }
+  .aviso { border:1px solid var(--linha); padding:12px 14px; margin:16px 0 8px; font-size:14px; color:var(--suave); }
+  .aviso b { color:var(--texto); font-weight:400; }
+  footer { margin-top:26px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="mono">Beyon Zero · prévia para ouvir</div>
+  <h1>Os sons do site, <em>hoje e a proposta</em></h1>
+  <p>Toque em cada botão e compare. Tudo é gerado na hora pelo navegador, sem arquivo de áudio: o site não fica mais pesado.</p>
+  <div class="aviso"><b>Ouça no celular, com o volume normal.</b> É onde a maioria das pessoas vai ouvir. Se tiver fone, ouça também com ele: a proposta usa um pouco de espaço (eco curto) que o fone mostra melhor.</div>
+
+  <div class="nivel"><span class="mono">Intensidade</span><input id="nivel" type="range" min="50" max="150" step="10" value="100" aria-label="Intensidade da proposta"><span id="nivel-v" class="mono">100%</span></div>
+  <p class="quando">Se a proposta parecer alta ou baixa demais, mexa aqui e me diga o número.</p>
+
+  <section>
+    <div class="mono">01 · o pulso</div>
+    <h2>A batida do reator</h2>
+    <div class="quando">A cada respiração do AI Core (de 7 em 7 segundos), quando a onda sai do núcleo e quando a energia chega a ele.</div>
+    <div class="linha">
+      <button data-som="hoje.pulso"><span class="mono">hoje</span>Só a respiração do fundo</button>
+      <button class="prop" data-som="prop.pulso"><span class="mono">proposta A</span>Batida grave</button>
+      <button class="prop" data-som="prop.pulsoSuave"><span class="mono">proposta B</span>Pulso de vidro</button>
+    </div>
+  </section>
+
+  <section>
+    <div class="mono">02 · cursor em cima do card</div>
+    <h2>Passar pelos cards</h2>
+    <div class="quando">No computador, o mouse entra num card ou botão. Cada card tem a sua nota: passar por uma fileira toca uma pequena escala. No celular, toque nos cards.</div>
+    <div class="seletor" role="group" aria-label="Qual versão tocar nos cards">
+      <button data-versao="hoje" aria-pressed="false">Hoje</button>
+      <button data-versao="prop" aria-pressed="true">Proposta A · vidro</button>
+      <button data-versao="propB" aria-pressed="false">Proposta B · seco</button>
+    </div>
+    <div class="cards" id="cards-passar">
+      <div class="card"><span class="mono">01</span></div><div class="card"><span class="mono">02</span></div><div class="card"><span class="mono">03</span></div><div class="card"><span class="mono">04</span></div><div class="card"><span class="mono">05</span></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="mono">03 · manter o cursor</div>
+    <h2>Carregar o card até 100%</h2>
+    <div class="quando">No computador, com o cursor parado em cima, o card carrega até 100% e fecha a moldura. Aqui: segure o dedo (ou o clique) num card. Solte antes do fim para ouvir a descarga.</div>
+    <div class="seletor" role="group" aria-label="Qual versão tocar ao carregar">
+      <button data-versao2="hoje" aria-pressed="false">Hoje</button>
+      <button data-versao2="prop" aria-pressed="true">Proposta</button>
+    </div>
+    <div class="cards" id="cards-carga">
+      <div class="card"><span class="mono">segure</span><i class="barra"></i></div><div class="card"><span class="mono">segure</span><i class="barra"></i></div><div class="card"><span class="mono">segure</span><i class="barra"></i></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="mono">04 · o clique</div>
+    <h2>Clicar num botão, link ou card</h2>
+    <div class="quando">Qualquer toque ou clique em algo que responde.</div>
+    <div class="linha">
+      <button data-som="hoje.clique"><span class="mono">hoje</span>Clique</button>
+      <button class="prop" data-som="prop.clique"><span class="mono">proposta</span>Tecla</button>
+    </div>
+  </section>
+
+  <section>
+    <div class="mono">05 · o estado dourado</div>
+    <h2>A transformação em ouro</h2>
+    <div class="quando">Carga (1,8 s), ignição, o reinado dourado e o resfriamento. No site o reinado dura 30 s com um acorde baixinho por baixo; aqui ele foi encurtado para 5 s.</div>
+    <div class="linha">
+      <button data-som="hoje.ouro"><span class="mono">hoje</span>Silêncio</button>
+      <button class="ouro" data-som="prop.ouro"><span class="mono">proposta A</span>Ignição completa</button>
+      <button class="ouro" data-som="prop.ouroContido"><span class="mono">proposta B</span>Ignição contida</button>
+    </div>
+  </section>
+
+  <section>
+    <div class="mono">06 · troca de página</div>
+    <h2>A travessia</h2>
+    <div class="quando">A página sai e a próxima chega. Sugestão minha, você não pediu: diga se quer.</div>
+    <div class="linha">
+      <button data-som="hoje.passagem"><span class="mono">hoje</span>Só o clique</button>
+      <button class="prop" data-som="prop.passagem"><span class="mono">proposta</span>Passagem</button>
+    </div>
+  </section>
+
+  <section>
+    <div class="mono">07 · tudo junto</div>
+    <h2>Uma visita em 15 segundos</h2>
+    <div class="quando">Clique, troca de página, passar por três cards, carregar um, dois pulsos e a ignição dourada.</div>
+    <div class="linha">
+      <button data-som="hoje.visita"><span class="mono">hoje</span>Visita</button>
+      <button class="prop" data-som="prop.visita"><span class="mono">proposta</span>Visita</button>
+    </div>
+  </section>
+
+  <footer><p class="mono">Fundo do reator ligado durante a prévia, como no site.</p></footer>
+</main>
+<script>
+(function () {
+  'use strict';
+  var ctx = null, motor = null, nivel = 1;
+  /* calibrado por medida (pico dBFS): fundo de hoje -21; card -22; clique -18; pulso A -14, B -18; carga+trava -13;
+     ouro -9 (o clímax); travessia -18. Hoje: card -32, clique -28, sino -22 */
+  window.__VOL = { pulso: 0.22, pulsoSuave: 0.66, tic: 0.8, ticSeco: 1.4, carga: 1.5, trava: 0.25, clique: 0.32, ouro: 0.34, passagem: 1.5 };
+
+  /* ---------- o motor: as vozes de hoje (iguais a js/som.js) e as da proposta ---------- */
+  function criarMotor(c, destino) {
+    var PISO = 0.0001;
+    var ruidoBuf = (function () {
+      var n = Math.round(c.sampleRate * 2), b = c.createBuffer(1, n, c.sampleRate), d = b.getChannelData(0);
+      for (var i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+      return b;
+    })();
+    /* hoje: o mestre do site, sem compressor nem espaço */
+    var mestreHoje = c.createGain(); mestreHoje.gain.value = 1; mestreHoje.connect(destino);
+    /* proposta: mestre -> saída (sem compressor: o do Chrome soma ganho sozinho e deixava tudo alto); um envio para
+       um espaço curto (eco gerado, escuro). VOL: o ganho de cada voz, calibrado por medida (pico e RMS de 50 ms) */
+    var VOL = window.__VOL;
+    var mestre = c.createGain(); mestre.gain.value = nivel;
+    mestre.connect(destino);
+    var espaco = c.createConvolver();
+    espaco.buffer = (function (dura, queda) {
+      var n = Math.round(c.sampleRate * dura), b = c.createBuffer(2, n, c.sampleRate);
+      for (var ch = 0; ch < 2; ch++) { var d = b.getChannelData(ch); for (var i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, queda); }
+      return b;
+    })(1.6, 3);
+    var escuro = c.createBiquadFilter(); escuro.type = 'lowpass'; escuro.frequency.value = 4200;
+    var envio = c.createGain(); envio.gain.value = 0.5;
+    envio.connect(espaco); espaco.connect(escuro); escuro.connect(mestre);
+    var curva = (function () { var n = 1024, k = new Float32Array(n); for (var i = 0; i < n; i++) { var x = i / (n - 1) * 2 - 1; k[i] = Math.tanh(2.2 * x) / Math.tanh(2.2); } return k; })();
+
+    function saida(molhado, pan, voz) {
+      var g = c.createGain(), no = g;
+      g.gain.value = voz ? VOL[voz] : 1;
+      if (c.createStereoPanner && pan) { var p = c.createStereoPanner(); p.pan.value = pan; g.connect(p); no = p; }
+      no.connect(mestre);
+      if (molhado) { var s = c.createGain(); s.gain.value = molhado; no.connect(s); s.connect(envio); }
+      return g;
+    }
+    function saturado(destinoNo) { var w = c.createWaveShaper(); w.curve = curva; w.oversample = '2x'; w.connect(destinoNo); return w; }
+    function env(g, t, ataque, pico, queda) {
+      g.gain.setValueAtTime(PISO, t);
+      g.gain.exponentialRampToValueAtTime(Math.max(pico, PISO * 2), t + ataque);
+      g.gain.exponentialRampToValueAtTime(PISO, t + ataque + queda);
+    }
+    function osc(tipo, f, t, ataque, pico, queda, para, fFim) {
+      var o = c.createOscillator(), g = c.createGain();
+      o.type = tipo; o.frequency.setValueAtTime(f, t);
+      if (fFim) o.frequency.exponentialRampToValueAtTime(fFim, t + ataque + queda);
+      env(g, t, ataque, pico, queda); o.connect(g); g.connect(para);
+      o.start(t); o.stop(t + ataque + queda + 0.05);
+    }
+    function ruido(t, ataque, pico, queda, para, filtro) {
+      var s = c.createBufferSource(), fl = c.createBiquadFilter(), g = c.createGain();
+      s.buffer = ruidoBuf; fl.type = filtro.tipo || 'bandpass'; fl.frequency.setValueAtTime(filtro.f, t); fl.Q.value = filtro.q || 1;
+      if (filtro.fFim) fl.frequency.exponentialRampToValueAtTime(filtro.fFim, t + ataque + queda);
+      env(g, t, ataque, pico, queda); s.connect(fl); fl.connect(g); g.connect(para);
+      s.start(t, Math.random()); s.stop(t + ataque + queda + 0.05);
+    }
+
+    /* ----- HOJE (cópia fiel de js/som.js com o mestre já no alto) ----- */
+    function tomHoje(t, freq, ate, dura, vol) {
+      var o = c.createOscillator(), g = c.createGain();
+      o.frequency.setValueAtTime(freq, t); if (ate) o.frequency.exponentialRampToValueAtTime(ate, t + dura);
+      g.gain.setValueAtTime(PISO, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.005); g.gain.exponentialRampToValueAtTime(PISO, t + dura);
+      o.connect(g); g.connect(mestreHoje); o.start(t); o.stop(t + dura + 0.02);
+    }
+    var hoje = {
+      tic: function (t) { tomHoje(t, 1800, 1530, 0.03, 0.025); },
+      ticBotao: function (t) { tomHoje(t, 2200, 1870, 0.03, 0.03); },
+      sino: function (t) { tomHoje(t, 880, 0, 0.45, 0.07); tomHoje(t + 0.06, 1320, 0, 0.4, 0.056); },
+      clique: function (t) {
+        var s = c.createBufferSource(), b = c.createBiquadFilter(), g = c.createGain();
+        s.buffer = ruidoBuf; b.type = 'bandpass'; b.frequency.value = 2500; b.Q.value = 1;
+        g.gain.setValueAtTime(0.08, t); g.gain.exponentialRampToValueAtTime(PISO, t + 0.012);
+        s.connect(b); b.connect(g); g.connect(mestreHoje); s.start(t); s.stop(t + 0.03);
+        tomHoje(t, 160, 90, 0.04, 0.048);
+      },
+      pulso: function () { return 0; },
+      ouro: function () { return 0; },
+      passagem: function (t) { hoje.clique(t); return 0.9; }
+    };
+
+    /* ----- PROPOSTA ----- */
+    var NOTAS = [1568, 1760, 2093, 2349, 2637];   /* G6 A6 C7 D7 E7: uma escala sem tensão, de cards vizinhos */
+    var prop = {
+      /* A: batida grave. Corpo que cai de 120 para 55 Hz, saturado para ganhar harmônicos que o alto-falante do celular toca */
+      pulso: function (t) {
+        var out = saida(0.22, 0, 'pulso');
+        var sat = c.createGain(); sat.gain.value = 1; var w = saturado(out); sat.connect(w);
+        osc('sine', 120, t, 0.006, 0.55, 0.5, sat, 55);
+        osc('triangle', 240, t, 0.004, 0.10, 0.22, out, 120);
+        ruido(t, 0.002, 0.10, 0.045, out, { f: 1400, q: 0.8 });
+        return 0.7;
+      },
+      /* B: pulso de vidro. Sobe devagar e some, como a onda que sai do núcleo */
+      pulsoSuave: function (t) {
+        var out = saida(0.45, 0, 'pulsoSuave');
+        osc('sine', 220, t, 0.05, 0.16, 0.9, out, 196);
+        osc('sine', 440, t, 0.04, 0.05, 0.6, out, 392);
+        ruido(t, 0.08, 0.035, 0.5, out, { tipo: 'lowpass', f: 900, q: 0.5, fFim: 300 });
+        return 1.1;
+      },
+      /* passar por um card: vidro, com a nota do card e o lado da tela */
+      tic: function (t, i, pan) {
+        var f = NOTAS[(i || 0) % NOTAS.length], out = saida(0.28, pan || 0, 'tic');
+        osc('sine', f, t, 0.002, 0.075, 0.13, out);
+        osc('sine', f * 2.01, t, 0.002, 0.018, 0.05, out);
+        ruido(t, 0.001, 0.025, 0.012, out, { tipo: 'highpass', f: 6000, q: 0.7 });
+      },
+      ticSeco: function (t, i, pan) {
+        var f = NOTAS[(i || 0) % NOTAS.length] / 1.5, out = saida(0.08, pan || 0, 'ticSeco');
+        ruido(t, 0.001, 0.12, 0.016, out, { f: 3600, q: 2 });
+        osc('triangle', f, t, 0.002, 0.05, 0.035, out, f * 0.8);
+      },
+      /* manter o cursor: a carga sobe uma quinta e abre o filtro; cheia, trava com um sino; solta antes, desce */
+      carga: function (t, dura) {
+        var out = saida(0.25, 0, 'carga'), fl = c.createBiquadFilter(), g = c.createGain();
+        fl.type = 'lowpass'; fl.frequency.setValueAtTime(380, t); fl.frequency.exponentialRampToValueAtTime(2600, t + dura); fl.Q.value = 2;
+        g.gain.setValueAtTime(PISO, t); g.gain.exponentialRampToValueAtTime(0.06, t + dura);
+        fl.connect(g); g.connect(out);
+        var os = [['sine', 330], ['triangle', 331.5]].map(function (v) {
+          var o = c.createOscillator(); o.type = v[0]; o.frequency.setValueAtTime(v[1], t); o.frequency.exponentialRampToValueAtTime(v[1] * 1.5, t + dura);
+          o.connect(fl); o.start(t); return o;
+        });
+        /* onde a carga está em tt, calculado (ler .value fora do áudio devolve o valor errado) */
+        function k(tt) { return Math.max(0, Math.min(1, (tt - t) / dura)); }
+        function ganhoEm(tt) { return PISO * Math.pow(0.06 / PISO, k(tt)); }
+        function descer(tt, em) { g.gain.cancelScheduledValues(tt); g.gain.setValueAtTime(Math.max(ganhoEm(tt), PISO), tt); g.gain.exponentialRampToValueAtTime(PISO, tt + em); }
+        return {
+          soltar: function (tt) {
+            descer(tt, 0.18);
+            os.forEach(function (o, i) { var f = [330, 331.5][i] * Math.pow(1.5, k(tt)); o.frequency.cancelScheduledValues(tt); o.frequency.setValueAtTime(f, tt); o.frequency.exponentialRampToValueAtTime(f * 0.7, tt + 0.18); o.stop(tt + 0.25); });
+          },
+          cheio: function (tt) {
+            descer(tt, 0.06);
+            os.forEach(function (o) { o.stop(tt + 0.1); });
+            prop.trava(tt);
+          }
+        };
+      },
+      trava: function (t) {
+        var out = saida(0.45, 0, 'trava');
+        osc('sine', 1318.5, t, 0.003, 0.08, 0.9, out);
+        osc('sine', 1975.5, t + 0.025, 0.003, 0.05, 0.7, out);
+        osc('sine', 2637, t + 0.05, 0.003, 0.018, 0.4, out);
+        var w = saturado(out); osc('sine', 170, t, 0.003, 0.22, 0.12, w, 85);
+      },
+      /* clique: tecla. Toque curto, corpo e um brilho mínimo de confirmação */
+      clique: function (t) {
+        var out = saida(0.12, 0, 'clique'), w = saturado(out);
+        ruido(t, 0.001, 0.22, 0.009, out, { f: 3200, q: 1.2 });
+        osc('triangle', 240, t, 0.002, 0.22, 0.07, w, 120);
+        osc('sine', 2093, t + 0.012, 0.002, 0.028, 0.05, out);
+        return 0.3;
+      },
+      /* o ouro: carga (1,8 s), ignição, reinado (aqui 5 s), resfriamento (2,2 s) */
+      ouro: function (t, contido) {
+        var CARGA = 1.8, REINA = 5, ESFRIA = 2.2, tI = t + CARGA;
+        if (!contido) {
+          var out = saida(0.3, 0, 'ouro'), fl = c.createBiquadFilter(), g = c.createGain();
+          fl.type = 'lowpass'; fl.frequency.setValueAtTime(250, t); fl.frequency.exponentialRampToValueAtTime(3200, tI); fl.Q.value = 3;
+          g.gain.setValueAtTime(PISO, t); g.gain.exponentialRampToValueAtTime(0.1, tI - 0.02); g.gain.exponentialRampToValueAtTime(PISO, tI + 0.04);
+          fl.connect(g); g.connect(out);
+          [110, 110.8].forEach(function (f) { var o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * 2, tI); o.connect(fl); o.start(t); o.stop(tI + 0.06); });
+          var s = c.createBufferSource(), fr = c.createBiquadFilter(), gr = c.createGain();
+          s.buffer = ruidoBuf; fr.type = 'bandpass'; fr.Q.value = 1.4; fr.frequency.setValueAtTime(400, t); fr.frequency.exponentialRampToValueAtTime(4200, tI);
+          gr.gain.setValueAtTime(PISO, t); gr.gain.exponentialRampToValueAtTime(0.06, tI - 0.02); gr.gain.exponentialRampToValueAtTime(PISO, tI + 0.03);
+          s.connect(fr); fr.connect(gr); gr.connect(out); s.start(t); s.stop(tI + 0.05);
+        } else {
+          var outC = saida(0.4, 0, 'ouro'); osc('sine', 523.25, t + 0.6, 1.1, 0.03, 0.15, outC);
+        }
+        /* ignição: o impacto e o acorde dourado */
+        var imp = saida(0.5, 0, 'ouro'), wi = saturado(imp);
+        osc('sine', 90, tI, 0.004, contido ? 0.35 : 0.6, 0.9, wi, 40);
+        ruido(tI, 0.002, contido ? 0.08 : 0.18, 0.28, imp, { tipo: 'lowpass', f: 3000, q: 0.5 });
+        var acorde = saida(0.6, 0, 'ouro');
+        [[523.25, 0.09], [783.99, 0.07], [1046.5, 0.06], [1318.5, 0.04], [1444.2, 0.018]].forEach(function (n, i) {
+          osc('sine', n[0], tI + i * 0.012, 0.004, n[1] * (contido ? 0.8 : 1), 2.8, acorde);
+        });
+        /* reinado: um acorde baixinho por baixo, que respira */
+        var tR = tI + 0.3, tE = tR + REINA, pad = saida(0.35, 0, 'ouro'), pf = c.createBiquadFilter(), pg = c.createGain();
+        pf.type = 'lowpass'; pf.frequency.setValueAtTime(1800, tR); pf.frequency.setValueAtTime(1800, tE); pf.frequency.exponentialRampToValueAtTime(280, tE + ESFRIA);
+        pg.gain.setValueAtTime(PISO, tR); pg.gain.exponentialRampToValueAtTime(0.05, tR + 1.6); pg.gain.setValueAtTime(0.05, tE); pg.gain.exponentialRampToValueAtTime(PISO, tE + ESFRIA);
+        pf.connect(pg); pg.connect(pad);
+        var lfo = c.createOscillator(), lg = c.createGain(); lfo.frequency.value = 0.14; lg.gain.value = 0.012; lfo.connect(lg); lg.connect(pg.gain); lfo.start(tR); lfo.stop(tE + ESFRIA + 0.1);
+        [261.63, 392, 523.25].forEach(function (f) {
+          var o = c.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(f, tR);
+          o.detune.setValueAtTime(0, tE); o.detune.linearRampToValueAtTime(-40, tE + ESFRIA);
+          o.connect(pf); o.start(tR); o.stop(tE + ESFRIA + 0.1);
+        });
+        /* resfriamento: três notas que descem e esfriam */
+        var res = saida(0.6, 0, 'ouro');
+        [1046.5, 783.99, 523.25].forEach(function (f, i) { osc('sine', f, tE + i * 0.5, 0.004, 0.03, 0.7, res); });
+        return CARGA + 0.3 + REINA + ESFRIA + 0.4;
+      },
+      ouroContido: function (t) { return prop.ouro(t, true); },
+      /* travessia: o ar que passa de um lado ao outro em 0,6 s e a página que pousa */
+      passagem: function (t) {
+        prop.clique(t);
+        var out = c.createGain(), p = c.createStereoPanner ? c.createStereoPanner() : null;
+        if (p) { p.pan.setValueAtTime(-0.7, t); p.pan.linearRampToValueAtTime(0.7, t + 0.65); out.connect(p); p.connect(mestre); var s = c.createGain(); s.gain.value = 0.25; p.connect(s); s.connect(envio); }
+        else out.connect(mestre);
+        var fl = c.createBiquadFilter(), g = c.createGain(), src = c.createBufferSource();
+        src.buffer = ruidoBuf; fl.type = 'bandpass'; fl.Q.value = 1.2; fl.frequency.setValueAtTime(300, t); fl.frequency.exponentialRampToValueAtTime(2600, t + 0.6);
+        g.gain.setValueAtTime(PISO, t); g.gain.exponentialRampToValueAtTime(0.14, t + 0.45); g.gain.exponentialRampToValueAtTime(PISO, t + 0.68);
+        src.connect(fl); fl.connect(g); g.connect(out); out.gain.value = VOL.passagem; src.start(t); src.stop(t + 0.72);
+        var pouso = saida(0.5, 0, 'passagem');
+        osc('sine', 392, t + 0.82, 0.01, 0.035, 0.5, pouso);
+        osc('sine', 587.33, t + 0.84, 0.01, 0.025, 0.45, pouso);
+        return 1.4;
+      }
+    };
+
+    /* o fundo de hoje (o zumbido do reator), igual ao site */
+    function fundo() {
+      var saidaF = c.createGain(), filtro = c.createBiquadFilter();
+      saidaF.gain.value = 0.0001; filtro.type = 'lowpass'; filtro.frequency.value = 600; filtro.Q.value = 0.7;
+      filtro.connect(saidaF); saidaF.connect(destino);
+      [[110, 'triangle', 1, 0], [165, 'sine', 0.5, 3], [220, 'sine', 0.35, -4]].forEach(function (n) {
+        var o = c.createOscillator(), g = c.createGain(); o.type = n[1]; o.frequency.value = n[0]; o.detune.value = n[3]; g.gain.value = n[2];
+        o.connect(g); g.connect(filtro); o.start();
+      });
+      saidaF.gain.exponentialRampToValueAtTime(0.05, c.currentTime + 2);
+      return { filtro: filtro, saida: saidaF };
+    }
+
+    return { hoje: hoje, prop: prop, fundo: fundo, mestre: mestre, NOTAS: NOTAS };
+  }
+
+  /* ---------- a página ---------- */
+  function acordar() {
+    if (!ctx) {
+      var Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return false;
+      ctx = new Ctx();
+      motor = criarMotor(ctx, ctx.destination);
+      motor.fundo();
+    }
+    if (ctx.state !== 'running') ctx.resume().catch(function () {});
+    return true;
+  }
+
+  function visita(lado, t) {
+    var m = motor[lado], d = 0;
+    if (lado === 'hoje') {
+      m.clique(t); d += 0.9;
+      [0, 1, 2].forEach(function (i) { m.tic(t + d + i * 0.22); }); d += 1.0;
+      m.sino(t + d + 0.5); d += 1.6;
+      d += 4; return d + 0.5;
+    }
+    m.passagem(t); d += 1.4;
+    [0, 1, 2].forEach(function (i) { m.tic(t + d + i * 0.22, i, -0.4 + i * 0.4); }); d += 1.0;
+    var cg = m.carga(t + d, 0.55); cg.cheio(t + d + 0.55); d += 1.6;
+    m.pulso(t + d); d += 2.2;
+    m.pulso(t + d); d += 1.6;
+    d += m.ouro(t + d);
+    return d;
+  }
+
+  document.querySelectorAll('[data-som]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      if (!acordar()) return;
+      var p = b.getAttribute('data-som').split('.'), t = ctx.currentTime + 0.03, dura;
+      if (p[1] === 'visita') dura = visita(p[0], t);
+      else dura = motor[p[0]][p[1]](t) || 0.4;
+      b.classList.add('tocando');
+      setTimeout(function () { b.classList.remove('tocando'); }, Math.max(300, dura * 1000));
+    });
+  });
+
+  function marcar(grupo, attr, valor) { grupo.forEach(function (x) { x.setAttribute('aria-pressed', x.getAttribute(attr) === valor ? 'true' : 'false'); }); }
+  var versao = 'prop', versao2 = 'prop';
+  var sel1 = [].slice.call(document.querySelectorAll('[data-versao]')), sel2 = [].slice.call(document.querySelectorAll('[data-versao2]'));
+  sel1.forEach(function (b) { b.addEventListener('click', function () { versao = b.getAttribute('data-versao'); marcar(sel1, 'data-versao', versao); }); });
+  sel2.forEach(function (b) { b.addEventListener('click', function () { versao2 = b.getAttribute('data-versao2'); marcar(sel2, 'data-versao2', versao2); }); });
+
+  /* passar pelos cards */
+  [].slice.call(document.querySelectorAll('#cards-passar .card')).forEach(function (card, i) {
+    function tocar(e) {
+      if (!acordar()) return;
+      var r = card.getBoundingClientRect(), pan = ((r.left + r.width / 2) / window.innerWidth) * 1.2 - 0.6, t = ctx.currentTime + 0.01;
+      if (versao === 'hoje') motor.hoje.tic(t);
+      else if (versao === 'propB') motor.prop.ticSeco(t, i, pan);
+      else motor.prop.tic(t, i, pan);
+      card.classList.add('ativo'); setTimeout(function () { card.classList.remove('ativo'); }, 180);
+    }
+    card.addEventListener('pointerenter', function (e) { if (e.pointerType === 'mouse' && ctx) tocar(e); });
+    card.addEventListener('pointerdown', tocar);
+  });
+
+  /* carregar segurando */
+  var DURA_CARGA = 0.6;
+  [].slice.call(document.querySelectorAll('#cards-carga .card')).forEach(function (card) {
+    var barra = card.querySelector('.barra'), voz = null, timer = 0, inicio = 0, raf = 0;
+    function desenhar() { var k = Math.min(1, (performance.now() - inicio) / (DURA_CARGA * 1000)); barra.style.width = (k * 100) + '%'; if (k < 1) raf = requestAnimationFrame(desenhar); }
+    function comecar(e) {
+      e.preventDefault(); if (!acordar()) return;
+      try { card.setPointerCapture(e.pointerId); } catch (erro) { /* sem captura: soltar fora do card não é ouvido, o pointercancel cobre */ }
+      card.classList.remove('cheio'); inicio = performance.now(); desenhar();
+      var t = ctx.currentTime + 0.01;
+      if (versao2 === 'prop') voz = motor.prop.carga(t, DURA_CARGA);
+      timer = setTimeout(function () {
+        timer = 0; card.classList.add('cheio');
+        if (voz) { voz.cheio(ctx.currentTime); voz = null; } else motor.hoje.sino(ctx.currentTime);
+      }, DURA_CARGA * 1000);
+    }
+    function soltar() {
+      cancelAnimationFrame(raf);
+      if (timer) { clearTimeout(timer); timer = 0; if (voz) { voz.soltar(ctx.currentTime); voz = null; } }
+      setTimeout(function () { barra.style.width = '0'; card.classList.remove('cheio'); }, 700);
+    }
+    card.addEventListener('pointerdown', comecar);
+    card.addEventListener('pointerup', soltar);
+    card.addEventListener('pointercancel', soltar);
+    card.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+  });
+
+  var faixa = document.getElementById('nivel'), rotulo = document.getElementById('nivel-v');
+  faixa.addEventListener('input', function () {
+    nivel = faixa.value / 100; rotulo.textContent = faixa.value + '%';
+    if (motor) motor.mestre.gain.setTargetAtTime(nivel, ctx.currentTime, 0.05);
+  });
+
+  window.__criarMotor = criarMotor;   /* para medir o nível de cada som sem tocar (OfflineAudioContext) */
+})();
+</script>
+</body>
+</html>
