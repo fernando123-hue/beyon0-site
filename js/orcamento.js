@@ -13,6 +13,9 @@
   'use strict';
   var API = window.BZOrcamento, PV = window.BZPrevia;
   var $ = function (id) { return document.getElementById(id); };
+  /* as perguntas da 1ª pintura (html.orc-nova, js/ancoras.js): daqui em diante quem as mostra e esconde é este script. Sai antes da guarda: sem um
+     módulo, as perguntas (sem botão funcionando) não ficam à vista. Numa visita nova o retomar() abaixo as abre na mesma tarefa: nenhum quadro sem elas */
+  document.documentElement.classList.remove('orc-nova');
   /* um script não chegou (rede, bloqueador): sem isso a página ficava morta sem dizer nada (auditoria 2026-10-09, F19) */
   if (!API || !PV || !window.BZVisor || !window.BZPerguntas || !window.BZDetalhes || !window.BZEspera || !window.BZAjustes) { semScripts(); return; }
   function semScripts() {
@@ -406,6 +409,18 @@
     }
     return dinheiro(c.valor_total);
   }
+  /* "Já vem no pacote" do pedido salvo: com as perguntas abertas quem enche é o js/orcamento-perguntas.js (pelo catálogo); depois de recarregar
+     não há catálogo, e a fonte é a estimativa gravada (detalhes.formato.inclui, api/_vendas/precos.mjs: a mesma lista da tabela). Sem a lista, não
+     mexe em nada (nada inventado); só texto vira item */
+  function jaVemNoPacote(est) {
+    var d = est.detalhes || est, f = d && d.formato;
+    var inclui = f && Array.isArray(f.inclui) ? f.inclui.filter(function (t) { return typeof t === 'string' && t.trim() !== ''; }) : [];
+    if (!inclui.length || !mudou('inclui', inclui)) return;
+    var ul = $('o-est-inclui');
+    ul.textContent = '';
+    inclui.forEach(function (t) { ul.appendChild(el('li', '', t)); });
+    mostrar('o-est-inclui-caixa', true);
+  }
   function sugestao(s) {
     $('o-sugestao-ideia').textContent = s.ideia;
     $('o-sugestao-motivo').textContent = s.motivo || '';
@@ -742,7 +757,7 @@
     verConversa();
     /* as perguntas: só numa conversa nova; com o preço gravado (ou a conversa já andando), ficam escondidas */
     if (!E.estimativa && E.mensagens.length === 0) iniciarPerguntas(); else mostrar('o-perguntas', false);
-    if (E.estimativa) investimento(E.estimativa, false);
+    if (E.estimativa) { investimento(E.estimativa, false); jaVemNoPacote(E.estimativa); }
     var aberta = CONVERSA_ABERTA.indexOf(et) >= 0;
     mostrar('o-form', aberta);
     $('o-texto').placeholder = Object.prototype.hasOwnProperty.call(DICA_DUVIDA, et) ? DICA_DUVIDA[et] : dicaPadrao;
