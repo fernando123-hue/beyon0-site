@@ -196,12 +196,16 @@ test('"Ver o preço": as perguntas saem NO TOQUE (antes da resposta) e o foco va
 
 test('"Ver o preço" que FALHA: as perguntas voltam como hoje, com a mensagem de sempre no lugar de sempre e o foco no botão', async () => {
   const p = paginaDasPerguntas();
+  /* o #o-p-erro é role="alert": escrito com as perguntas ainda escondidas, o leitor de tela não anuncia. Registra se elas estavam à vista quando a mensagem entrou */
+  const alerta = p.$('o-p-erro'); let texto = '', escritoEscondido = null;
+  Object.defineProperty(alerta, 'textContent', { get: () => texto, set: (v) => { texto = String(v); if (texto) escritoEscondido = p.$('o-perguntas').hidden; } });
   const clique = p.$('o-p-ver-preco').clicar();
   assert.equal(p.$('o-perguntas').hidden, true);
   p.servidor.pendente.falha(Object.assign(new Error('Sem conexão. Confira a internet e tente de novo.'), { status: 0 }));
   await clique; await p.assentar();
   assert.equal(p.$('o-perguntas').hidden, false, 'as perguntas voltam');
   assert.equal(p.$('o-p-erro').textContent, 'Sem conexão. Confira a internet e tente de novo.', 'a mensagem nas perguntas, como hoje');
+  assert.equal(escritoEscondido, false, 'a mensagem entra com as perguntas já à vista (o role="alert" é anunciado)');
   assert.equal(p.$('o-est-erro').textContent, '', 'nada no cartão (que nem está à vista)');
   assert.equal(p.foco(), 'o-p-ver-preco', 'o foco volta ao botão');
   assert.equal(p.$('o-p-ver-preco').getAttribute('aria-disabled'), null, 'o botão volta a funcionar');

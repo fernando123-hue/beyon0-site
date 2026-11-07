@@ -31,7 +31,7 @@
   var extras = {}, iniciais = {};     /* chave → quantidade; iniciais: a quantidade que a recomendação trouxe */
   var conhecidos = false;             /* a tela já sabe quais extras a recomendação traz (veio um preço com valor no formato recomendado) */
   var urgencia = false, catalogo = null, catalogoDe = null;
-  var seq = 0, emVoo = null, adiado = null, gravando = false, gravado = false, opcoes = {};
+  var seq = 0, ultimaDeu = false, emVoo = null, adiado = null, gravando = false, gravado = false, opcoes = {};
   var mostrado = null;   /* as escolhas do último preço que deu certo ({formato, extras, urgencia}): para onde a tela volta se a conta falhar */
   var valido = null;     /* o pedido e a versão do último preço mostrado; null sem preço ou com diagnóstico. É o que "Quero" grava */
   var sugerido = null;   /* o formato que o servidor indicou na recusa (a landing grande demais) */
@@ -108,11 +108,15 @@
   /* o erro vai para onde a pessoa está olhando: as perguntas ou o cartão do preço. No cartão, a recusa que indica outro
      formato (a landing passou de 3 páginas) ganha o botão para ver esse formato */
   function erro(msg, formatoIndicado) {
-    var noCartao = $('o-perguntas').hidden && !perguntandoPreco;   /* (o 1º preço em voo: as perguntas saíram só por enquanto, a falha volta a elas) */
-    $('o-p-erro').textContent = noCartao ? '' : msg;
-    $('o-est-erro').textContent = noCartao ? msg : '';
+    /* (o 1º preço em voo: as perguntas saíram só por enquanto e a falha volta a elas. A mensagem fica guardada e o "Ver o preço" a escreve quando
+       elas estiverem à vista: o #o-p-erro é role="alert", e um alerta escrito num bloco escondido não é anunciado pelo leitor de tela) */
+    erroGuardado = perguntandoPreco ? msg : '';
+    var texto = perguntandoPreco ? '' : msg;
+    var noCartao = $('o-perguntas').hidden && !perguntandoPreco;
+    $('o-p-erro').textContent = noCartao ? '' : texto;
+    $('o-est-erro').textContent = noCartao ? texto : '';
     /* (a conta que falhou já devolveu a tela ao formato mostrado: se é o indicado, o botão não levaria a lugar nenhum) */
-    sugerido = noCartao && msg && NOMES[formatoIndicado] && formatoIndicado !== formato ? formatoIndicado : null;
+    sugerido = noCartao && texto && NOMES[formatoIndicado] && formatoIndicado !== formato ? formatoIndicado : null;
     $('o-est-sugerido').hidden = !sugerido;
     if (sugerido) $('o-est-sugerido').textContent = 'Ver o ' + NOMES[sugerido].toLowerCase();
   }
@@ -165,11 +169,12 @@
     emVoo = (async function () {
       try {
         var res = await API.simular(pedido);
-        if (meu !== seq) return false;
+        /* (superada por outra conta: responde o que a ÚLTIMA responder, para quem espera não tratar como falha uma conta que só foi trocada) */
+        if (meu !== seq) return emVoo || ultimaDeu;
         var fmt = formato || res.recomendacao.formato;
         if (catalogoDe !== fmt) {
           var cat = await API.catalogo(fmt, r.ramo);
-          if (meu !== seq) return false;
+          if (meu !== seq) return emVoo || ultimaDeu;
           catalogo = cat; catalogoDe = fmt;
           if ($('o-ajustar').hidden === false) montarExtras();
         }
@@ -182,9 +187,12 @@
         mostrado = escolhas;
         valido = res.estimativa ? { pedido: pedido, versao: res.versao } : null;
         desenhar(res, pedido.urgencia);
+        ultimaDeu = true;
         return true;
       } catch (e) {
-        if (meu === seq) contaFalhou(e);
+        if (meu !== seq) return emVoo || ultimaDeu;
+        contaFalhou(e);
+        ultimaDeu = false;
         return false;
       } finally { if (meu === seq) { ocupado(false); emVoo = null; } }
     })();
@@ -307,7 +315,7 @@
      saíssem só com a resposta, um servidor lento (> 500 ms, o perdão do navegador depois de uma ação) fazia a mesa subir sem toque recente: CLS 0,32
      a 0,43 medido com 900 ms de atraso. Na falha, tudo volta como antes: as perguntas, a mensagem de sempre nelas (o `perguntandoPreco` faz o erro()
      escrever lá, e não no cartão) e o foco no botão */
-  var perguntandoPreco = false;
+  var perguntandoPreco = false, erroGuardado = '';
   $('o-p-ver-preco').addEventListener('click', async function () {
     var b = this;
     if (b.getAttribute('aria-disabled') === 'true') return;
@@ -333,6 +341,8 @@
     b.textContent = 'Ver o preço';
     if (deu) return;
     $('o-perguntas').hidden = false;
+    $('o-p-erro').textContent = erroGuardado;   /* (com as perguntas já à vista: o alerta é anunciado) */
+    erroGuardado = '';
     b.scrollIntoView({ block: 'center' });
     b.focus({ preventScroll: true });
   });
