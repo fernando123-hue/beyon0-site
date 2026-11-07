@@ -74,7 +74,7 @@
   var grosso = window.matchMedia('(pointer: coarse)');
   function reduzido() { return mq.matches || html.classList.contains('menos-movimento'); }
 
-  var largura = 1280, escala = 1, tween = 0, passos = [], mexeu = false, impressa = false, visivel = false;
+  var largura = 1280, escala = 1, tween = 0, mexeu = false, impressa = false, visivel = false;
   var nicho = 'padrao', nome = '', formato = 'institucional';
   /* medidas do palco e da régua, lidas só quando o tamanho muda (ler a cada passo, logo depois de escrever a
      largura da moldura, forçava layout no meio do quadro) */
@@ -210,21 +210,31 @@
     io: function (k) { return k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2; },
     saida: function (k) { return 1 - Math.pow(1 - k, 4); }
   };
-  function parar() { cancelAnimationFrame(tween); tween = 0; passos.forEach(clearTimeout); passos = []; }
+  /* o tempo dos deslizes e dos passos da demonstração (relogioDaDemo, no fim): pausa com a peça fora da tela ou a aba
+     escondida e segue de onde estava. Sem pausa, é o performance.now() e o requestAnimationFrame de sempre */
+  var relogio = relogioDaDemo({
+    agora: function () { return performance.now(); },
+    setTimeout: function (fn, ms) { return window.setTimeout(fn, ms); },
+    clearTimeout: function (id) { window.clearTimeout(id); },
+    raf: function (fn) { return window.requestAnimationFrame(fn); },
+    caf: function (id) { window.cancelAnimationFrame(id); }
+  });
+  function pararDeslize() { relogio.cancelarQuadro(); tween = 0; }
+  function parar() { relogio.limpar(); relogio.seguir(); tween = 0; }
   var alvoDoDeslize = 0;
   function irPara(alvo, ms, curva, fim) {
-    cancelAnimationFrame(tween); tween = 0;
+    pararDeslize();
     if (reduzido() || !ms) { aplicar(alvo, false, true); if (fim) fim(); return; }
-    var de = largura, t0 = performance.now(), f = CURVAS[curva] || CURVAS.io;
+    var de = largura, t0 = relogio.agora(), f = CURVAS[curva] || CURVAS.io;
     alvoDoDeslize = alvo;
     (function passo(t) {
-      var k = Math.min(1, (t - t0) / ms);
+      var k = Math.min(1, (relogio.agora(t) - t0) / ms);
       aplicar(de + (alvo - de) * f(k), true, k === 1);
-      if (k < 1) tween = requestAnimationFrame(passo);
+      if (k < 1) { tween = 1; relogio.quadro(passo); }
       else { tween = 0; if (fim) fim(); }
-    })(t0);
+    })();
   }
-  function depois(ms, fn) { passos.push(setTimeout(fn, ms)); }
+  function depois(ms, fn) { relogio.depois(ms, fn); }
 
   var arrastando = false, desmontada = false, pendente = null, pedido = 0, ultimoX = 0, esquerda = 0, x0 = 0;
   function xNa(ev) { return ev.clientX - esquerda; }
@@ -265,7 +275,7 @@
     }
     if (!arrastando) return;
     ultimoX = xNa(ev);
-    if (!desmontada && Math.abs(ev.clientX - x0) > 8) { cancelAnimationFrame(tween); tween = 0; desmontar(); }
+    if (!desmontada && Math.abs(ev.clientX - x0) > 8) { pararDeslize(); desmontar(); }
     if (!desmontada && !reduzido()) return;   /* no movimento reduzido não desmonta, mas arrasta igual */
     if (!pedido) pedido = requestAnimationFrame(function () { pedido = 0; aplicar(valorEm(ultimoX), true); });
   });
@@ -385,6 +395,7 @@
       imprimir(REIMPRIME_MS);
     }
     emDemo = true;
+    pausaDaDemo();   /* (a aba pode ter sido escondida antes da demo começar: nasce pausada e o 1º deslize não pula) */
     depois(ENTRADA_MS + 400, function () {
       if (mexeu) { emDemo = false; return; }
       desmontar();
@@ -498,7 +509,7 @@
   if (window.ResizeObserver) new ResizeObserver(function () { marcar(); }).observe(palco);
   else window.addEventListener('resize', marcar);
   /* entra com a peça bem visível e a rolagem parada (a 40% e no meio da rolagem, o gesto da marca acontecia
-     fora de vista); se sair da tela no meio da demonstração, ela pousa no fim e para */
+     fora de vista); se sair da tela (ou a aba for escondida) no meio da demonstração, ela pausa e segue ao voltar */
   var parada = 0, entrou = false;
   /* no hero, a arte nasce invisível e aparece quando o feixe do boot passa por ela (js/anima.js avisa 'arte-impressa');
      a entrada espera esse instante, senão a luz imprimiria uma peça que ninguém vê. A arte ainda desliza 24 px depois
@@ -516,11 +527,57 @@
     clearTimeout(parada);
     parada = setTimeout(function () { if (visivel && liberada && !entrou) { entrou = true; window.removeEventListener('scroll', talvezEntrar); entrar(); } }, 150);
   }
+  /* fora da tela (ou com a aba escondida) a demonstração PAUSA e, de volta, segue do ponto e do estado em que estava
+     (desmontada no meio de um deslize, por exemplo): antes ela era cortada e pousava no fim, e quem voltava não via o
+     resto; com a aba escondida o navegador parava os quadros, e o deslize pulava para o fim ao voltar */
+  function pausaDaDemo() {
+    if (emDemo && (!visivel || document.hidden)) relogio.pausar();
+    else relogio.seguir();
+  }
+  document.addEventListener('visibilitychange', pausaDaDemo);
   new IntersectionObserver(function (es) {
     visivel = es[0].isIntersecting;
     raiz.classList.toggle('is-fora', !visivel);   /* (o giro da experiência digital para fora da tela) */
     if (visivel && !entrou) { window.addEventListener('scroll', talvezEntrar, { passive: true }); talvezEntrar(); }
     else if (!visivel) window.removeEventListener('scroll', talvezEntrar);   /* passou rápido: nada escuta a rolagem fora da tela */
-    if (!visivel && emDemo) { parar(); cortarDemo(); aplicar(telaNaRegua(), false, true); }
+    pausaDaDemo();
   }, { threshold: 0.6 }).observe(palco);
+
+  /* o RELÓGIO DA DEMO (2026-11-07): o tempo dos deslizes e dos passos da demonstração, que pausa e segue sem pular nem
+     recomeçar. agora(t) desconta as pausas (t: o carimbo do quadro; sem ele, o relógio de parede); depois(ms, fn) é um
+     setTimeout que guarda o que falta ao pausar; quadro(fn) é um requestAnimationFrame que espera a pausa acabar.
+     Testado em docs/testes/sites-leve.test.mjs (tempo de mentira) */
+  function relogioDaDemo(env) {
+    var pausas = 0, desde = -1, agenda = [], quadroFn = null, quadroId = 0;
+    function agora(t) { return (desde >= 0 ? desde : (t === undefined ? env.agora() : t)) - pausas; }
+    function tirar(item) { var i = agenda.indexOf(item); if (i >= 0) agenda.splice(i, 1); }
+    function armar(item) { item.id = env.setTimeout(function () { tirar(item); item.fn(); }, Math.max(0, item.fim - agora())); }
+    function desarmar() { agenda.forEach(function (item) { env.clearTimeout(item.id); }); }
+    function cancelarQuadro() { if (quadroId) env.caf(quadroId); quadroId = 0; quadroFn = null; }
+    function quadro(fn) {
+      quadroFn = fn;
+      if (desde >= 0 || quadroId) return;
+      quadroId = env.raf(function (t) { var f = quadroFn; quadroId = 0; quadroFn = null; if (f) f(t); });
+    }
+    return {
+      agora: agora,
+      pausado: function () { return desde >= 0; },
+      depois: function (ms, fn) { var item = { fn: fn, fim: agora() + ms, id: 0 }; agenda.push(item); if (desde < 0) armar(item); },
+      quadro: quadro,
+      cancelarQuadro: cancelarQuadro,
+      limpar: function () { desarmar(); agenda = []; cancelarQuadro(); },
+      pausar: function () {
+        if (desde >= 0) return;
+        desde = env.agora(); desarmar();
+        if (quadroId) { env.caf(quadroId); quadroId = 0; }   /* (o quadroFn fica: é ele que segue) */
+      },
+      seguir: function () {
+        if (desde < 0) return;
+        pausas += env.agora() - desde; desde = -1;
+        agenda.forEach(armar);
+        if (quadroFn) quadro(quadroFn);
+      }
+    };
+  }
+  /* fim do relógio da demo */
 })();
