@@ -504,7 +504,9 @@
       else if (f === 'reinado') { pararSubida(); if (!saindo) reinar(); }
       else if (f === 'esfria') {
         var r = ouro.reina; ouro.reina = null;
-        if (r && ctx) r.esfriar(ctx.currentTime + ADIANTE, tempoOuro('esfria'));
+        /* (com a aba escondida o relógio do áudio está parado e o ouro segue no relógio real: a queda longa tocaria
+           inteira na volta, com o ouro já apagado; ali o acorde só fecha) */
+        if (r && ctx) { if (document.hidden) r.parar(ctx.currentTime + ADIANTE); else r.esfriar(ctx.currentTime + ADIANTE, tempoOuro('esfria')); }
         soa('ouroEsfria', function (t) { motor.ouroEsfria(t); });
       } else if (f === 'fim') pararOuro();
     });

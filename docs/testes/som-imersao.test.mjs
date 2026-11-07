@@ -18,7 +18,7 @@ function param(v) {
 }
 function criarCtx(e) {
   const ctx = {
-    state: e.nasceSuspenso ? 'suspended' : 'running', sampleRate: 24000, inicios: 0, suspensoes: 0,
+    state: e.nasceSuspenso ? 'suspended' : 'running', sampleRate: 24000, inicios: 0, suspensoes: 0, paradas: [],
     get currentTime() { return e.t; },
     resume() { if (!e.nasceSuspenso) ctx.state = 'running'; return Promise.resolve(); },
     suspend() { ctx.state = 'suspended'; ctx.suspensoes++; return Promise.resolve(); },
@@ -27,7 +27,7 @@ function criarCtx(e) {
     createBuffer: (ch, n) => { const d = Array.from({ length: ch }, () => new Float32Array(n)); return { numberOfChannels: ch, length: n, getChannelData: i => d[i] }; }
   };
   const no = () => ({
-    connect: d => d, disconnect() {}, start() { ctx.inicios++; }, stop() {}, addEventListener() {},
+    connect: d => d, disconnect() {}, start() { ctx.inicios++; }, stop(t) { ctx.paradas.push(t); }, addEventListener() {},
     gain: param(1), frequency: param(440), detune: param(0), Q: param(1), pan: param(0), type: '', buffer: null, curve: null, oversample: 'none'
   });
   for (const m of ['createGain', 'createOscillator', 'createBiquadFilter', 'createBufferSource', 'createConvolver', 'createStereoPanner', 'createWaveShaper']) ctx[m] = no;
@@ -229,4 +229,19 @@ test('desligar no meio do reinado para o acorde do ouro; religar com o ouro aind
   e.alternar(); e.andar(4);
   e.alternar(); e.andar(6);
   assert.equal(e.vozes().ouroReinado, 2, 'religado no reinado, o acorde não voltou');
+});
+
+test('o ouro esfria com a aba escondida: o acorde fecha curto, não faz a queda longa quando a pessoa voltar', () => {
+  /* (escondida, o relógio do áudio para e o js/ouro.js segue no relógio real: a queda de 2,2 s agendada ali tocaria
+     inteira na volta, com o ouro já apagado) */
+  const e = navegador();
+  e.B.ouro = { estado: 'frio', T: { carga: 1.8, ignicao: 1.6, reinado: 12, esfria: 2.2 } };
+  e.gesto(); e.andar(0.5);
+  e.B.ouro.estado = 'reinado'; e.B.emit('ouro', { fase: 'reinado' }); e.andar(2);
+  e.document.hidden = true; e.disparar('visibilitychange', {});
+  const ctx = e.contextos[0], antes = ctx.paradas.length;
+  e.B.ouro.estado = 'esfria'; e.B.emit('ouro', { fase: 'esfria' });
+  const novas = ctx.paradas.slice(antes);
+  assert.ok(novas.length > 0, 'o acorde não foi fechado');
+  assert.ok(Math.max(...novas) < e.t + 1, 'o acorde ficou com a queda longa agendada: ' + Math.max(...novas).toFixed(2) + ' s');
 });
