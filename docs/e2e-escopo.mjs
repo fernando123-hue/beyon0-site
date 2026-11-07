@@ -118,12 +118,17 @@ if (!SO_CLS) {
   ok(await lateral(page), 'sem rolagem lateral');
   /* um extra: o valor conta até o novo e o selo diz "Proposta atualizada" */
   await page.click('#o-ajustar-abrir');
+  /* cada texto que o núcleo mostra até assentar: com a contagem de verdade, há números entre 8.350 e 8.600 (antes da revisão, a conta que
+     terminava no mesmo tique cancelava a contagem e o número saltava) */
+  await page.evaluate(() => { window.__valores = []; new MutationObserver(() => window.__valores.push(document.getElementById('o-rde-valor').textContent.replace(/\D/g, ''))).observe(document.getElementById('o-rde-valor'), { childList: true, characterData: true, subtree: true }); });
   await page.check('#o-x-imagens');
   await page.waitForFunction(() => document.getElementById('o-rde-selo').textContent === 'Proposta atualizada', null, { timeout: 15000 });
+  await page.waitForFunction(() => /8\.600$/.test(document.getElementById('o-rde-valor').textContent), null, { timeout: 4000 });
+  const valores = await page.evaluate(() => window.__valores.map(Number));
+  const meio = valores.filter((v) => v > 8350 && v < 8600);
+  ok(meio.length >= 3 && (await radar(page)).selo === 'Proposta atualizada', 'extra: o número CONTA de 8.350 a 8.600 (' + meio.length + ' valores no meio) e o selo segue "Proposta atualizada" depois que a conta terminou');
   r = await radar(page);
   ok(r.sr === 'Investimento estimado: R$ 8.600.', 'extra: o leitor de tela ouve o valor final (' + r.sr + ')');
-  ok(await page.evaluate(() => document.getAnimations().length > 0), 'extra: há animação (o número conta, o selo, o arco)');
-  await page.waitForFunction(() => /8.600$/.test(document.getElementById('o-rde-valor').textContent), null, { timeout: 3000 });
   r = await radar(page);
   ok(r.cantos.escopo.texto === 'Até 5 páginas · 1 extra', 'extra: o escopo diz "1 extra" (' + r.cantos.escopo.texto + ')');
   await espera(2800);
@@ -132,7 +137,7 @@ if (!SO_CLS) {
   await page.waitForFunction(() => /com urgência/.test(document.getElementById('o-rde-prazo').textContent), null, { timeout: 15000 });
   ok(true, 'urgência: o prazo diz "com urgência" (' + (await radar(page)).cantos.prazo.texto + ')');
   await page.uncheck('#o-x-urgencia'); await page.uncheck('#o-x-imagens');
-  await page.waitForFunction(() => /8.350$/.test(document.getElementById('o-rde-valor').textContent) && !/urgência/.test(document.getElementById('o-rde-prazo').textContent), null, { timeout: 15000 });
+  await page.waitForFunction(() => /8\.350$/.test(document.getElementById('o-rde-valor').textContent) &&!/urgência/.test(document.getElementById('o-rde-prazo').textContent), null, { timeout: 15000 });
   /* "Mudar as respostas": as dimensões voltam a pendente */
   await page.click('#o-p-refazer');
   await espera(300);
@@ -179,6 +184,18 @@ if (!SO_CLS) {
   await espera(800);
   ok(await page.evaluate(() => document.activeElement && document.activeElement.id === 'o-est-titulo' && document.getElementById('o-rde').getBoundingClientRect().top < innerHeight / 2), '"Ver radar": rola até o cartão e o foco vai para o título dele');
   ok(!(await barra()).visivel, 'com o radar à vista a barra sai');
+  /* o foco do teclado não fica atrás da barra: um botão logo abaixo do menu (o radar já saiu por cima) desce para a vista ao receber o foco */
+  await page.evaluate(() => { const q = document.getElementById('o-quero-modelos'); window.scrollTo(0, q.getBoundingClientRect().top + window.scrollY - 72); });
+  await espera(700);
+  const antesDoFoco = await barra();
+  await page.focus('#o-quero-modelos');
+  await espera(400);
+  const foco = await page.evaluate(() => { const q = document.getElementById('o-quero-modelos').getBoundingClientRect(), b = document.querySelector('.rde-barra').getBoundingClientRect(); return { topo: Math.round(q.top), barra: Math.round(b.bottom), visivel: document.querySelector('.rde-barra').classList.contains('is-visivel') }; });
+  ok(antesDoFoco.visivel && (!foco.visivel || foco.topo >= foco.barra), 'foco num botão que estava atrás da barra: ele desce para a vista (' + JSON.stringify(foco) + ')');
+  await page.focus('#o-texto');
+  await espera(300);
+  ok(!(await barra()).visivel, 'foco num campo de escrever: a barra sai');
+  await page.evaluate(() => document.activeElement.blur());
   ok(await lateral(page), 'sem rolagem lateral com a barra');
   await foto(page, '390-4-conversa');
   await foto(page.locator('#o-rde'), '390-4-radar-conversa');

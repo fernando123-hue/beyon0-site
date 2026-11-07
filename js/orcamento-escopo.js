@@ -88,8 +88,10 @@
   }
 
   /* ---------- o selo: o nome do estado; "Proposta atualizada" por um instante quando o valor do servidor mudou ---------- */
-  function escreverSelo(st, atualizada) {
-    if (st.valor === null && seloAte !== null) { W.clearTimeout(seloAte); seloAte = null; }   /* (sem valor não há o que dizer "atualizada") */
+  function escreverSelo(st, pedeAtualizada) {
+    /* sem valor não há o que dizer "atualizada"; no ouro o selo diz "Proposta confirmada", nunca "atualizada" */
+    var atualizada = pedeAtualizada && !st.ouro;
+    if (st.ouro || (st.valor === null && seloAte !== null)) { W.clearTimeout(seloAte); seloAte = null; }
     if (atualizada) {
       W.clearTimeout(seloAte);
       seloAte = W.setTimeout(function () { seloAte = null; if (ultimo) escreverSelo(ultimo, false); }, ATUALIZADA_MS);
@@ -98,6 +100,9 @@
     selo.textContent = mostrando ? ATUALIZADA : st.rotulo;
     selo.className = 'rde__selo' + (st.ouro ? ' is-ouro' : '') + (mostrando ? ' is-atualizada' : '');
   }
+
+  /* movimento reduzido ligado no meio: o "Proposta atualizada" sai na hora */
+  function largarSelo() { if (seloAte === null) return; W.clearTimeout(seloAte); seloAte = null; if (ultimo) escreverSelo(ultimo, false); }
 
   /* ---------- os textos (HTML de verdade: o que o leitor de tela e a lupa leem) ---------- */
   function textos(st, tr) {
@@ -165,6 +170,15 @@
     if (ass === assinatura) return;
     assinatura = ass;
     tr = Estado.transicao(antes, st);
+    /* só a atividade mudou (o preço chegou e a conta terminou no mesmo instante): troca o ponteiro e segue; a contagem, os arcos e o
+       selo que acabaram de começar continuam (revisão técnica: antes eram cancelados no mesmo tique) */
+    if (tr.soAtividade) {
+      Desenho.aplicar(desenho, st);
+      raiz.classList.toggle('is-ativo', st.ativo);
+      ultimo = st;
+      if (barra) barra.atualizar(st, conversaAtiva());
+      return;
+    }
     pararAnimacoes();
     Desenho.aplicar(desenho, st);
     textos(st, tr);
@@ -200,7 +214,7 @@
   doc.addEventListener('bz:calculando', atividade('preco'));
   doc.addEventListener('bz:preco', function (ev) { sim = ev && ev.detail ? ev.detail : null; desenhar(); });
   doc.addEventListener('bz:perguntas', function () { sim = null; desenhar(); });
-  if (W.BEYON && W.BEYON.on) W.BEYON.on('reduzir', function (sim3) { if (sim3) pararAnimacoes(); });
+  if (W.BEYON && W.BEYON.on) W.BEYON.on('reduzir', function (sim3) { if (sim3) { pararAnimacoes(); largarSelo(); } });
 
   W.BZOrcEscopo = { atualizar: function (novo) { E = novo || null; desenhar(); } };
   desenhar();

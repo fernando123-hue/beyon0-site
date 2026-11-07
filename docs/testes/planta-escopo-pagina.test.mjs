@@ -120,3 +120,13 @@ test('a ligação: js/orcamento.js chama o radar numa linha só, no render(), an
   assert.match(p, /new CustomEvent\('bz:preco', \{ detail: \{ estimativa: res\.estimativa, diagnostico: res\.diagnostico, recomendacao: rec, formato: atual, urgencia: comUrgencia,/);
   assert.match(p, /desenhar\(res, pedido\.urgencia\);/, 'a urgência é a da conta que voltou, não a da tela agora');
 });
+
+test('revisão: quando só a atividade muda, a tela troca o ponteiro e NÃO cancela a contagem nem os arcos; o ouro e o "reduzir" largam o "Proposta atualizada"', () => {
+  const ramo = VIEW.slice(VIEW.indexOf('if (tr.soAtividade)'));
+  assert.ok(VIEW.indexOf('if (tr.soAtividade)') > 0, 'há o caminho de "só a atividade"');
+  const so = ramo.slice(0, ramo.indexOf('}'));
+  assert.doesNotMatch(so, /pararAnimacoes|textos\(|movimento\(/, 'nesse caminho nada de dado é redesenhado nem cancelado');
+  assert.ok(VIEW.indexOf('if (tr.soAtividade)') < VIEW.indexOf('pararAnimacoes();\n    Desenho.aplicar'), 'decide antes de cancelar');
+  assert.match(VIEW, /if \(st\.ouro \|\| \(st\.valor === null && seloAte !== null\)\) \{ W\.clearTimeout\(seloAte\); seloAte = null; \}/);
+  assert.match(VIEW, /W\.BEYON\.on\('reduzir', function \(sim3\) \{ if \(sim3\) \{ pararAnimacoes\(\); largarSelo\(\); \} \}\)/);
+});

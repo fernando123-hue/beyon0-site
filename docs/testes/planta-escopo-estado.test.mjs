@@ -140,7 +140,7 @@ test('o mesmo dado de novo não muda nada: o estado é o mesmo e a transição n
   for (const [E, s] of [[estado({ etapa: 'estimativa' }, { estimativa: salvo() }), null], [null, simulado()], [estado({ etapa: 'direcoes', tem_contato: true }, { estimativa: salvo() }), null]]) {
     const a = estadoDoEscopo(E, s, {}), b = estadoDoEscopo(JSON.parse(JSON.stringify(E)), s && JSON.parse(JSON.stringify(s)), {});
     assert.deepEqual(b, a);
-    assert.deepEqual(transicao(a, b), { atualizada: false, subiram: [], desceram: [], marcoMudou: false, virouOuro: false });
+    assert.deepEqual(transicao(a, b), { atualizada: false, soAtividade: false, subiram: [], desceram: [], marcoMudou: false, virouOuro: false });
   }
 });
 
@@ -297,4 +297,46 @@ test('os nomes dos formatos são os mesmos da tela das perguntas (js/orcamento-p
   assert.deepEqual([...M.NIVEIS], [...Forma.NIVEIS]);
   assert.deepEqual([...M.DIMENSOES], ['entrega', 'escopo', 'integracoes', 'prazo']);
   assert.deepEqual([...M.MARCOS], ['Briefing', 'Análise', 'Estimativa', 'Proposta', 'Confirmada']);
+});
+
+/* ---------- revisão técnica e de segurança (rodada 1) ---------- */
+test('só a atividade mudou (a conta acabou logo depois do preço): a transição diz soAtividade e nada de dado muda (a tela não cancela a animação do valor)', () => {
+  const em = estadoDoEscopo(null, simulado(), { preco: true }), fim = estadoDoEscopo(null, simulado(), { preco: false });
+  const t = transicao(em, fim);
+  assert.equal(t.soAtividade, true);
+  assert.equal(t.atualizada, false);
+  assert.equal(transicao(fim, em).soAtividade, true);
+  assert.equal(transicao(fim, fim).soAtividade, false, 'nada mudou: não é "só a atividade"');
+  const outroValor = estadoDoEscopo(null, simulado({ estimativa: Object.assign({}, simulado().estimativa, { valor_total: 8600 }) }), { preco: false });
+  assert.equal(transicao(em, outroValor).soAtividade, false, 'mudou o dado também');
+  assert.equal(transicao(null, fim).soAtividade, false);
+});
+
+test('"Proposta atualizada" só quando a MESMA fonte mudou de valor; trocar de fonte (simulação -> estimativa gravada -> proposta) mostra o valor novo sem o selo', () => {
+  const sim = estadoDoEscopo(null, simulado(), {});
+  const gravada = estadoDoEscopo(estado({ etapa: 'estimativa' }, { estimativa: salvo() }), null, {});
+  assert.equal(sim.fonteValor, 'simulacao');
+  assert.equal(gravada.fonteValor, 'estimativa');
+  assert.equal(transicao(sim, gravada).atualizada, false, '8.350 da simulação -> 8.600 gravado: outra fonte');
+  const resumo = (v) => estadoDoEscopo(estado({ etapa: 'escopo', tem_contato: true }, { estimativa: salvo(), proposta: { valor_total: v } }), null, {});
+  assert.equal(resumo(8700).fonteValor, 'proposta');
+  const contato = estadoDoEscopo(estado({ etapa: 'direcoes', tem_contato: true }, { estimativa: salvo() }), null, {});
+  assert.equal(transicao(contato, resumo(8700)).atualizada, false, 'a proposta (outra fonte) com valor diferente da estimativa: sem "atualizada"');
+  assert.equal(transicao(resumo(8700), resumo(8900)).atualizada, true, 'a mesma fonte mudou');
+  const zero2 = estadoDoEscopo(estado({ etapa: 'estimativa' }, { estimativa: salvo({ valor_total: 9100 }) }), null, {});
+  assert.equal(transicao(gravada, zero2).atualizada, true, 'o Zero refez a estimativa gravada');
+  assert.equal(estadoDoEscopo(null, null, {}).fonteValor, null);
+});
+
+test('segurança: prazo e percentual fora do plausível (0 a 1000) não viram texto', () => {
+  const longe = estadoDoEscopo(null, simulado({ estimativa: Object.assign({}, simulado().estimativa, { prazo_dias: 5000 }) }), {});
+  assert.equal(longe.dims.prazo.nivel, 0);
+  assert.equal(longe.dims.prazo.texto, 'A definir');
+  for (const pct of [5000, -3, 0, 'abc']) {
+    const r = estadoDoEscopo(null, simulado({ urgencia_pct: pct }), {});
+    assert.ok(r.detalhes.podeMudar.includes('Precisar antes do prazo (acréscimo da tabela)'), String(pct));
+  }
+  assert.ok(estadoDoEscopo(null, simulado({ urgencia_pct: 1000 }), {}).detalhes.podeMudar.includes('Precisar antes do prazo: +1000% no valor'));
+  const paginas = estadoDoEscopo(null, simulado({ paginas_incluidas: 100000 }), {});
+  assert.ok(!/100000/.test(paginas.dims.escopo.texto), paginas.dims.escopo.texto);
 });

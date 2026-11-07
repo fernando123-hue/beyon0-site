@@ -64,6 +64,9 @@
     var n = Number(v);
     return isFinite(n) ? n : null;
   }
+  /* um número do servidor dentro do plausível (prazo, páginas, percentual): fora disso não vira texto (revisão de segurança) */
+  var PLAUSIVEL = 1000;
+  function plausivel(v) { var n = numero(v); return n !== null && n > 0 && n <= PLAUSIVEL ? n : null; }
   function curto(t) { return t.length > MAX_TEXTO ? t.slice(0, MAX_TEXTO - 1) + '…' : t; }
   function primeiroMais(nomes) { return nomes.length ? curto(nomes[0]) + (nomes.length > 1 ? ' +' + (nomes.length - 1) : '') : ''; }
   function dias(n) { return n === 1 ? '1 dia útil' : n + ' dias úteis'; }
@@ -78,8 +81,8 @@
     var m = objeto(d.multiplicadores) ? d.multiplicadores : {};
     return {
       nivel: pacoteConfirmado(E) ? 2 : 1, comValor: true, chave: typeof f.chave === 'string' ? f.chave : null, nome: typeof f.nome === 'string' ? f.nome : (typeof d.formato === 'string' ? d.formato : null),
-      paginas: numero(f.paginas_incluidas), itens: lista(d.itens), urgencia: m.urgencia === true,
-      prazo: numero(proprio(e, 'prazo_dias') ? e.prazo_dias : d.prazo_dias), valor: numero(proprio(e, 'valor_total') ? e.valor_total : d.valor_total)
+      paginas: plausivel(f.paginas_incluidas), itens: lista(d.itens), urgencia: m.urgencia === true,
+      prazo: plausivel(proprio(e, 'prazo_dias') ? e.prazo_dias : d.prazo_dias), valor: numero(proprio(e, 'valor_total') ? e.valor_total : d.valor_total)
     };
   }
   function daSimulacao(s) {
@@ -88,16 +91,16 @@
     return {
       nivel: 1, chave: typeof s.formato === 'string' ? s.formato : (typeof rec.formato === 'string' ? rec.formato : null),
       nome: est && typeof est.formato === 'string' ? est.formato : null, comValor: !!est,
-      paginas: est ? numero(s.paginas_incluidas) : null, itens: est ? lista(est.itens) : null, urgencia: s.urgencia === true,
-      prazo: est ? numero(est.prazo_dias) : null, valor: est ? numero(est.valor_total) : null,
-      assumido: lista(rec.assumido) || [], diagnostico: objeto(s.diagnostico) ? lista(s.diagnostico.itens) || [] : [], urgenciaPct: numero(s.urgencia_pct)
+      paginas: est ? plausivel(s.paginas_incluidas) : null, itens: est ? lista(est.itens) : null, urgencia: s.urgencia === true,
+      prazo: est ? plausivel(est.prazo_dias) : null, valor: est ? numero(est.valor_total) : null,
+      assumido: lista(rec.assumido) || [], diagnostico: objeto(s.diagnostico) ? lista(s.diagnostico.itens) || [] : [], urgenciaPct: plausivel(s.urgencia_pct)
     };
   }
   function doBriefing(E) {
     var b = objeto(E) && objeto(E.conversa) && objeto(E.conversa.briefing) ? E.conversa.briefing : null;
     if (!b) return null;
     var p = objeto(b.projeto) ? b.projeto : {};
-    return { formato: typeof p.formato === 'string' ? p.formato : null, paginas: numero(p.paginas), urgencia: p.urgencia === true, funcs: lista(b.funcionalidades) || [] };
+    return { formato: typeof p.formato === 'string' ? p.formato : null, paginas: plausivel(p.paginas), urgencia: p.urgencia === true, funcs: lista(b.funcionalidades) || [] };
   }
 
   /* ---------- as 4 dimensões, cada uma pela 1ª fonte que sabe ---------- */
@@ -204,16 +207,19 @@
         : salvo && salvo.nivel === 2 ? 'proposta'
           : (salvo || sim) && (salvo || sim).valor !== null ? 'estimativa'
             : algum ? 'analise' : ativo ? 'identificando' : 'aguardando';
-    var valor = null;
-    if (estado === 'confirmada' || estado === 'confirmacao') valor = objeto(E.proposta) && numero(E.proposta.valor_total) !== null ? numero(E.proposta.valor_total) : salvo ? salvo.valor : null;
-    else if (estado === 'proposta') valor = salvo.valor;
-    else if (estado === 'estimativa') valor = (salvo || sim).valor;
+    /* o valor e DE ONDE ele veio: "Proposta atualizada" só compara valores da mesma fonte (trocar de fonte não é atualizar) */
+    var valor = null, fonte = null, daProposta = objeto(E) && objeto(E.proposta) ? numero(E.proposta.valor_total) : null;
+    if ((estado === 'confirmada' || estado === 'confirmacao') && daProposta !== null) { valor = daProposta; fonte = 'proposta'; }
+    else if (salvo && estado !== 'aguardando' && estado !== 'identificando' && estado !== 'analise') { valor = salvo.valor; fonte = 'estimativa'; }
+    else if (estado === 'estimativa') { valor = sim.valor; fonte = 'simulacao'; }
+    if (valor === null) fonte = null;
     return {
-      estado: estado, rotulo: ROTULOS[estado], marco: MARCO[estado], valor: valor, ouro: estado === 'confirmada', ativo: ativo, dims: dims,
+      estado: estado, rotulo: ROTULOS[estado], marco: MARCO[estado], valor: valor, fonteValor: fonte, ouro: estado === 'confirmada', ativo: ativo, dims: dims,
       detalhes: { aConfirmar: aConfirmar(sim), podeMudar: estado === 'estimativa' ? podeMudar(sim) : [], contou: contou(E) }
     };
   }
 
+  function semAtividade(st) { var c = {}, k; for (k in st) if (proprio(st, k) && k !== 'ativo') c[k] = st[k]; return c; }
   /* o que mudou de um desenho para o outro (o que a tela anima); sem anterior (a 1ª vez, a volta à página), nada anima */
   function transicao(a, b) {
     var subiram = [], desceram = [], i, q;
@@ -225,8 +231,10 @@
       }
     }
     var tem = objeto(a) && objeto(b);
+    /* só a atividade mudou (o preço chegou e, no mesmo instante, a conta terminou): a tela troca o ponteiro e não mexe no resto */
+    var soAtividade = tem && a.ativo !== b.ativo && JSON.stringify(semAtividade(a)) === JSON.stringify(semAtividade(b));
     return {
-      atualizada: tem && a.valor !== null && b.valor !== null && a.valor !== b.valor,
+      atualizada: tem && a.valor !== null && b.valor !== null && a.valor !== b.valor && a.fonteValor === b.fonteValor, soAtividade: soAtividade,
       subiram: subiram, desceram: desceram, marcoMudou: tem && a.marco !== b.marco, virouOuro: tem && !a.ouro && b.ouro === true
     };
   }
