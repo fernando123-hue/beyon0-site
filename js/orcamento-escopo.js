@@ -177,6 +177,7 @@
       raiz.classList.toggle('is-ativo', st.ativo);
       ultimo = st;
       if (barra) barra.atualizar(st, conversaAtiva());
+      focavel();   /* (a conta acabou: as ações do preço acabaram de aparecer e o painel pode ter passado a rolar por dentro) */
       return;
     }
     pararAnimacoes();
