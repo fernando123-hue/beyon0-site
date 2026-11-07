@@ -532,9 +532,11 @@ html.orc-nova #o-perguntas[hidden] { display: block !important; }   /* (!importa
   .orc-p__seguir { display: inline-flex; width: auto; min-width: 14rem; }
   .orc-ajustar { padding: 1.4rem; }
 }
-/* desktop sem a conversa: o preço e o "Quer ajustar?" dividem a mesa ao meio */
+/* desktop sem a conversa: o preço e o "Quer ajustar?" dividem a mesa ao meio. Com o "Quer ajustar?" fechado (ele nasce hidden), o painel fica
+   sozinho numa coluna da largura das perguntas (760 px, a mesma margem esquerda): antes ele ocupava meia mesa e a outra metade ficava vazia */
 @media (min-width: 900px) {
   .orc-mesa:has(> .orc-conversa[hidden]) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .orc-mesa:has(> .orc-conversa[hidden]):has(> .orc-ajustar[hidden]) { grid-template-columns: minmax(0, 1fr); max-width: 760px; }
 }
 
 /* OS DETALHES E A CONFIRMAÇÃO PELO WHATSAPP (orçamento sem IA, PR 2a): celular primeiro; texto que importa ≥ 16px;

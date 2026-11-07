@@ -125,12 +125,16 @@ async function fotos(rotulo) {
     const page = await ctx.newPage();
     await page.goto(BASE + '/orcamento', { waitUntil: 'load', timeout: 90000 });
     await page.waitForSelector('#o-perguntas:not([hidden])');
+    const q = await page.evaluate(() => { const r = document.getElementById('o-perguntas').getBoundingClientRect(); return Math.round(r.left) + '..' + Math.round(r.right); });
+    console.log('  ' + larg + ': as perguntas em x=' + q);
+    await espera(400);
+    await salvar(page, larg + '-perguntas');
     await perguntas(page);
     await espera(1500);
     const mesa = () => page.evaluate(() => {
-      const m = document.querySelector('.orc-mesa'), p = document.querySelector('.orc-painel').getBoundingClientRect(), q = document.querySelector('.orc-perguntas, .orc-topo').getBoundingClientRect();
+      const m = document.querySelector('.orc-mesa'), p = document.querySelector('.orc-painel').getBoundingClientRect();
       window.scrollTo(0, m.getBoundingClientRect().top + window.scrollY - 80);
-      return { colunas: getComputedStyle(m).gridTemplateColumns, painel: Math.round(p.left) + '..' + Math.round(p.right), topo: Math.round(q.left) + '..' + Math.round(q.right) };
+      return { colunas: getComputedStyle(m).gridTemplateColumns, painel: Math.round(p.left) + '..' + Math.round(p.right) };
     });
     console.log('  ' + larg + ' sem "Quer ajustar?": ' + JSON.stringify(await mesa()));
     await espera(400);
