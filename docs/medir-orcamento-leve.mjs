@@ -12,7 +12,9 @@
      DCL de relógio. Na máquina do dono com outros agentes rodando o DCL variou de 1,5 a 70 s: use 7+ rodadas e olhe o script.
    --fotos <rotulo>: em vez de medir, tira as capturas da 1ª tela (390 x 844, 320 x 640: a pergunta e quantas opções cabem sem rolar) e da
      mesa com o preço e a conversa fechada (1.280 x 800 e 1.440 x 900, com e sem "Quer ajustar?"), em docs/olhar-orcamento-leve/ (no .gitignore).
-     ABRA e OLHE. */
+     ABRA e OLHE.
+   --preco <ms> [--outra <porta>]: o CLS do USO (das perguntas ao preço) com o simular atrasado <ms> (um servidor lento: passa dos 500 ms que o
+     navegador perdoa depois do toque em "Ver o preço"). Com --outra, alterna as rodadas entre este servidor e o outro (ex.: a base numa worktree). */
 import { chromium } from 'playwright';
 import { mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -26,6 +28,8 @@ const CPU = Number(arg('cpu', '4'));
 const SALVO = process.argv.includes('--salvo');
 const AB = arg('ab', '').split(',').filter(Boolean);   /* A/B na mesma sessão: a variante B recebe estes js/<nome>.js VAZIOS (o teto do ganho de não baixá-los na carga) */
 const FOTOS = arg('fotos', '');
+const PRECO = Number(arg('preco', '0'));
+const OUTRA = arg('outra', '');
 const EXEC = process.env.CHROMIUM || (process.env.LOCALAPPDATA + '/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-win64/chrome-headless-shell.exe');
 const ALTURAS = { 320: 640, 390: 844, 768: 1024, 1280: 800, 1440: 900 };
 const PASTA = new URL('./olhar-orcamento-leve/', import.meta.url);
@@ -158,7 +162,34 @@ async function fotos(rotulo) {
   }
 }
 
-if (FOTOS) {
+/* o CLS do uso: do 1º toque nas perguntas até 1,5 s depois do preço na tela, com o simular atrasado */
+async function medirPreco(larg, base) {
+  const ctx = await contexto(larg);
+  const page = await ctx.newPage();
+  await page.addInitScript(ESPIAO);
+  await page.route('**/api/vendas?acao=simular*', async (r) => { await espera(PRECO); r.continue(); });
+  if (larg < 500 && CPU > 1) { const cdp = await ctx.newCDPSession(page); await cdp.send('Emulation.setCPUThrottlingRate', { rate: CPU }); }
+  await page.goto(base + '/orcamento', { waitUntil: 'load', timeout: 90000 });
+  await page.waitForSelector('#o-perguntas:not([hidden])');
+  await espera(1500);
+  await page.evaluate(() => { window.__t0 = performance.now(); });
+  await perguntas(page);
+  await espera(1500);
+  const r = await page.evaluate(() => { const ls = window.__ls.filter((x) => x.t >= window.__t0); const m = ls.slice().sort((a, b) => b.v - a.v)[0]; return { cls: ls.reduce((s, x) => s + x.v, 0), maior: m ? m.v.toFixed(4) + ' ' + m.fontes.slice(0, 3).join(',') : '' }; });
+  await ctx.close();
+  return r;
+}
+
+if (PRECO) {
+  const lados = [['este (' + porta + ')', BASE]].concat(OUTRA ? [['outro (' + OUTRA + ')', 'http://127.0.0.1:' + OUTRA]] : []);
+  await medir(LARGURAS[0]);   /* (aquecimento: não entra) */
+  for (const larg of LARGURAS) {
+    const r = lados.map(() => []);
+    for (let i = 0; i < RODADAS; i++) for (let v = 0; v < lados.length; v++) r[v].push(await medirPreco(larg, lados[v][1]));
+    console.log('\n== CLS do uso, simular +' + PRECO + ' ms, ' + larg + ' x ' + (ALTURAS[larg] || 844) + (larg < 500 && CPU > 1 ? ', CPU ' + CPU + 'x' : '') + ' ==');
+    lados.forEach((l, v) => console.log('  ' + l[0] + ': ' + r[v].map((x) => x.cls.toFixed(4)).join(', ') + ' | mediana ' + mediana(r[v].map((x) => x.cls)).toFixed(4) + (r[v].some((x) => x.maior) ? ' | maior: ' + r[v].map((x) => x.maior).filter(Boolean)[0] : '')));
+  }
+} else if (FOTOS) {
   await fotos(FOTOS);
 } else {
   await medir(LARGURAS[0]);   /* (aquecimento: não entra) */

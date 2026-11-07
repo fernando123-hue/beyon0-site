@@ -133,3 +133,82 @@ test('o js/orcamento.js tira a classe ao assumir, ANTES da guarda dos scripts (s
   const guarda = js.indexOf('semScripts(); return;');
   assert.ok(tira > 0 && guarda > 0 && tira < guarda, 'remove antes da guarda');
 });
+
+/* 6. "Ver o preço" com o servidor lento: as perguntas saem NO TOQUE (dentro da janela de 500 ms que o navegador perdoa depois de uma ação), e o painel
+   com o radar ("Identificando", pelo bz:calculando) é o que a pessoa vê enquanto a conta voa. Antes elas só saíam com a resposta: com mais de 500 ms, a
+   mesa subia sem toque recente e o CLS ia a 0,32 (base) / 0,43 (com as etapas compactas), medido com 900 ms de atraso. Na FALHA, tudo volta como hoje:
+   as perguntas à vista, a mensagem de sempre no #o-p-erro e o foco no botão. Roda o js/orcamento-perguntas.js REAL numa página de mentira. */
+function paginaDasPerguntas() {
+  const fonte = ler('js/orcamento-perguntas.js');
+  const els = {}, ouvintes = {}, eventos = [];
+  let foco = null;
+  const el = (id) => {
+    const escutas = {};
+    const e = {
+      id, hidden: false, textContent: '', value: '', disabled: false, tabIndex: 0, attrs: {}, children: [], classes: new Set(),
+      classList: { add: (c) => e.classes.add(c), remove: (c) => e.classes.delete(c), contains: (c) => e.classes.has(c) },
+      addEventListener: (t, f) => { (escutas[t] = escutas[t] || []).push(f); },
+      clicar() { return Promise.all((escutas.click || []).map((f) => f.call(e, { preventDefault() {} }))); },
+      setAttribute(k, v) { e.attrs[k] = String(v); }, getAttribute: (k) => (k in e.attrs ? e.attrs[k] : null), removeAttribute(k) { delete e.attrs[k]; }, hasAttribute: (k) => k in e.attrs,
+      focus() { foco = e.id; }, scrollIntoView() {}, appendChild(c) { e.children.push(c); return c; }, remove() {},
+      closest: () => $('o-painel-falso'), querySelector: () => el('h2-falso'), querySelectorAll: () => []
+    };
+    return e;
+  };
+  const $ = (id) => els[id] || (els[id] = el(id));
+  ['o-perguntas', 'o-ajustar', 'o-est-acoes', 'o-diagnostico', 'o-est-inclui-caixa'].forEach((id) => { $(id); });
+  $('o-ajustar').hidden = true; $('o-est-acoes').hidden = true;
+  const telas = [1, 2, 3].map((n) => { const t = el('tela' + n); t.attrs['data-p'] = String(n); t.hidden = n !== 3; return t; });
+  const servidor = { pendente: null };
+  const API = {
+    simular: () => new Promise((ok, falha) => { servidor.pendente = { ok, falha }; }),
+    catalogo: () => Promise.resolve({ formatos: [{ chave: 'institucional', nome: 'Site institucional', a_partir_de: 7900, paginas_incluidas: 5, inclui: ['Até 5 páginas'] }], extras: { principais: [], mais: [] }, urgencia: null })
+  };
+  const doc = {
+    getElementById: $, createElement: () => el('novo'),
+    querySelectorAll: (s) => (s === '#o-perguntas .orc-p' ? telas : []), querySelector: () => null,
+    dispatchEvent: (ev) => { eventos.push(ev.type + (ev.detail && 'ativo' in ev.detail ? ':' + ev.detail.ativo : '')); (ouvintes[ev.type] || []).forEach((f) => f(ev)); return true; },
+    addEventListener: (t, f) => { (ouvintes[t] = ouvintes[t] || []).push(f); }
+  };
+  const painel = { focavel: 0 };
+  const win = { BZOrcamento: API, document: doc, BZPainel: { focavel: () => { painel.focavel++; } } };
+  win.window = win;
+  vm.runInNewContext(fonte, { window: win, document: doc, setTimeout, clearTimeout, console, Object, Number, String, JSON, CustomEvent: function (tipo, o) { this.type = tipo; this.detail = o && o.detail; } });
+  return { $, eventos, servidor, painel, foco: () => foco, assentar: async () => { for (let i = 0; i < 20; i++) await new Promise((r) => setImmediate(r)); } };
+}
+const RESPOSTA = { estimativa: { valor_total: 8350, sinal: 3340, prazo_dias: 9, itens: [] }, recomendacao: { formato: 'institucional', motivo: 'm', assumido: [] }, versao: 1 };
+
+test('"Ver o preço": as perguntas saem NO TOQUE (antes da resposta) e o foco vai para o título do painel, com o radar calculando', async () => {
+  const p = paginaDasPerguntas();
+  const clique = p.$('o-p-ver-preco').clicar();
+  assert.equal(p.$('o-perguntas').hidden, true, 'escondidas antes de o servidor responder');
+  assert.equal(p.foco(), 'o-est-titulo', 'o foco não cai no body: vai ao título do painel');
+  assert.ok(p.eventos.includes('bz:calculando:true'), 'o radar recebe a conta em voo');
+  assert.ok(p.$('o-painel-falso').classList.contains('is-1o-preco') && p.$('o-est').hidden, 'em voo: o painel guarda a altura da tela e o cartão de baixo sai (o preço entra no vão)');
+  p.servidor.pendente.ok(RESPOSTA);
+  await clique; await p.assentar();
+  assert.equal(p.$('o-perguntas').hidden, true);
+  assert.equal(p.$('o-est-acoes').hidden, false, 'o preço chegou: as ações do preço aparecem');
+  assert.ok(!p.$('o-painel-falso').classList.contains('is-1o-preco') && !p.$('o-est').hidden, 'o cartão volta e a reserva de altura sai');
+  assert.ok(p.painel.focavel > 0, 'a altura mudou: o tabindex do painel que rola por dentro é refeito (BZPainel.focavel)');
+  assert.equal(p.$('o-p-ver-preco').textContent, 'Ver o preço');
+});
+
+test('"Ver o preço" que FALHA: as perguntas voltam como hoje, com a mensagem de sempre no lugar de sempre e o foco no botão', async () => {
+  const p = paginaDasPerguntas();
+  const clique = p.$('o-p-ver-preco').clicar();
+  assert.equal(p.$('o-perguntas').hidden, true);
+  p.servidor.pendente.falha(Object.assign(new Error('Sem conexão. Confira a internet e tente de novo.'), { status: 0 }));
+  await clique; await p.assentar();
+  assert.equal(p.$('o-perguntas').hidden, false, 'as perguntas voltam');
+  assert.equal(p.$('o-p-erro').textContent, 'Sem conexão. Confira a internet e tente de novo.', 'a mensagem nas perguntas, como hoje');
+  assert.equal(p.$('o-est-erro').textContent, '', 'nada no cartão (que nem está à vista)');
+  assert.equal(p.foco(), 'o-p-ver-preco', 'o foco volta ao botão');
+  assert.equal(p.$('o-p-ver-preco').getAttribute('aria-disabled'), null, 'o botão volta a funcionar');
+  assert.equal(p.$('o-p-ver-preco').textContent, 'Ver o preço');
+  assert.ok(p.eventos.includes('bz:calculando:false'), 'o radar para de varrer');
+  assert.ok(!p.$('o-painel-falso').classList.contains('is-1o-preco') && !p.$('o-est').hidden, 'o painel volta como era');
+});
+test('a reserva de altura do 1º preço existe no CSS (sem ela o rodapé sobe e desce de novo)', () => {
+  assert.match(semComentarios(ler('css/orcamento.css')), /\.orc-painel\.is-1o-preco \{ min-height: 100vh; \}/);
+});

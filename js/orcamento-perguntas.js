@@ -108,7 +108,7 @@
   /* o erro vai para onde a pessoa está olhando: as perguntas ou o cartão do preço. No cartão, a recusa que indica outro
      formato (a landing passou de 3 páginas) ganha o botão para ver esse formato */
   function erro(msg, formatoIndicado) {
-    var noCartao = $('o-perguntas').hidden;
+    var noCartao = $('o-perguntas').hidden && !perguntandoPreco;   /* (o 1º preço em voo: as perguntas saíram só por enquanto, a falha volta a elas) */
     $('o-p-erro').textContent = noCartao ? '' : msg;
     $('o-est-erro').textContent = noCartao ? msg : '';
     /* (a conta que falhou já devolveu a tela ao formato mostrado: se é o indicado, o botão não levaria a lugar nenhum) */
@@ -303,20 +303,38 @@
   }
 
   /* ---------- os botões ---------- */
+  /* "Ver o preço": as perguntas saem NO TOQUE e o painel (o radar "Identificando", pelo bz:calculando) fica à vista enquanto a conta voa. Se elas
+     saíssem só com a resposta, um servidor lento (> 500 ms, o perdão do navegador depois de uma ação) fazia a mesa subir sem toque recente: CLS 0,32
+     a 0,43 medido com 900 ms de atraso. Na falha, tudo volta como antes: as perguntas, a mensagem de sempre nelas (o `perguntandoPreco` faz o erro()
+     escrever lá, e não no cartão) e o foco no botão */
+  var perguntandoPreco = false;
   $('o-p-ver-preco').addEventListener('click', async function () {
     var b = this;
     if (b.getAttribute('aria-disabled') === 'true') return;
     b.setAttribute('aria-disabled', 'true');
     b.textContent = 'Calculando…';
-    var deu = await calcular();
-    b.removeAttribute('aria-disabled');
-    b.textContent = 'Ver o preço';
-    if (!deu) return;
+    perguntandoPreco = true;
     $('o-perguntas').hidden = true;
-    var t = $('o-est-titulo');
-    t.closest('.orc-painel').scrollIntoView({ block: 'start' });
+    var t = $('o-est-titulo'), painel = t.closest('.orc-painel');
+    /* enquanto a 1ª conta voa: o cartão de baixo ("o preço aparece aqui") sai e o painel guarda a altura da tela (css/orcamento.css, .is-1o-preco).
+       Assim, quando o preço chega, as ações e o cartão cheio ENTRAM no espaço vazio, sem empurrar nada que já estava à vista (o cartão e o
+       rodapé desciam: CLS 0,15 a 390 px com 900 ms de atraso) */
+    painel.classList.add('is-1o-preco');
+    $('o-est').hidden = true;
+    painel.scrollIntoView({ block: 'start' });
     t.setAttribute('tabindex', '-1');
     t.focus({ preventScroll: true });
+    var deu = await calcular();
+    perguntandoPreco = false;
+    painel.classList.remove('is-1o-preco');
+    $('o-est').hidden = false;
+    if (window.BZPainel && typeof window.BZPainel.focavel === 'function') window.BZPainel.focavel();   /* (a altura do painel mudou: no computador ele pode passar a rolar por dentro, e o tabindex segue isso) */
+    b.removeAttribute('aria-disabled');
+    b.textContent = 'Ver o preço';
+    if (deu) return;
+    $('o-perguntas').hidden = false;
+    b.scrollIntoView({ block: 'center' });
+    b.focus({ preventScroll: true });
   });
   $('o-ajustar-abrir').addEventListener('click', function () {
     var abrir = $('o-ajustar').hidden;

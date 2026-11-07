@@ -98,6 +98,24 @@ try {
   await page.click('.orc-p:not([hidden]) .orc-p__seguir');
   await page.click('[data-site-atual="instagram"]');
   await page.click('[data-material="tenho"]');
+  /* (orçamento leve) "Ver o preço" que FALHA: as perguntas saem no toque (o radar calcula) e voltam como antes, com a mensagem de sempre nelas e o
+     foco no botão. O 503 é lento (900 ms), como um servidor ruim de verdade */
+  {
+    falhaForcada = true;
+    const lento503 = async route => { await new Promise(r => setTimeout(r, 900)); await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ erro: 'O serviço está lento agora.' }) }); };
+    await page.route(SIMULAR, lento503);
+    await page.click('#o-p-ver-preco');
+    ok(await page.evaluate(() => document.getElementById('o-perguntas').hidden && document.activeElement && document.activeElement.id === 'o-est-titulo'), '"Ver o preço": as perguntas saem no toque e o foco vai ao título do painel');
+    await page.waitForFunction(() => !document.getElementById('o-perguntas').hidden, null, { timeout: 15000 });
+    /* (a rolagem de volta ao botão é suave no celular, html { scroll-behavior: smooth }: espera ela assentar antes de conferir o que está à vista) */
+    await espera(page, () => { const r = document.getElementById('o-p-erro').getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; }, 3000);
+    const falha = await page.evaluate(() => ({ erro: document.getElementById('o-p-erro').textContent, cartao: document.getElementById('o-est-erro').textContent, foco: document.activeElement && document.activeElement.id,
+      botao: document.getElementById('o-p-ver-preco').textContent, vista: (() => { const r = document.getElementById('o-p-erro').getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; })() }));
+    ok(falha.erro.length > 0 && !falha.cartao && falha.foco === 'o-p-ver-preco' && falha.botao === 'Ver o preço' && falha.vista, '"Ver o preço" que falha: as perguntas voltam, a mensagem nelas e à vista, o foco no botão ' + JSON.stringify(falha));
+    await foto(page, '1a-preco-falhou-cel');
+    await page.unroute(SIMULAR, lento503);
+    falhaForcada = false;
+  }
   await page.click('#o-p-ver-preco');
   await page.waitForSelector('#o-est-cheio:not([hidden])', { timeout: 15000 });
   ok((await page.textContent('#o-est-valor')).includes('8.350'), 'preço pela tabela: R$ 8.350 (institucional 7.900 + agendamento 450, tabela de 28/10)');

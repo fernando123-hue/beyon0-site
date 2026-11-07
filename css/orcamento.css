@@ -53,6 +53,9 @@
 .orc-conversa, .orc-painel > div { border: 1px solid var(--line); background: var(--s1); border-radius: var(--raio); padding: 1rem; }
 .orc-painel { display: flex; flex-direction: column; gap: 1.2rem; }
 .orc-painel > .orc-rotulo { margin-bottom: -.6rem; }
+/* o 1º preço em voo (js/orcamento-perguntas.js): o painel guarda a altura da tela; o preço entra no vão sem empurrar o rodapé (sem CLS com servidor lento) */
+.orc-painel.is-1o-preco { min-height: 100vh; }
+@media (min-width: 900px) { .orc-painel.is-1o-preco { min-height: calc(100vh - var(--nav-h) - 2rem); } }   /* (no computador o painel rola por dentro até essa altura: css/orcamento-painel.css) */
 
 /* a caixa rolável é uma região focável (A17: no Safari, sem foco, o teclado não rola); a lista fica dentro */
 .orc-log { max-height: min(56vh, 520px); overflow-y: auto; overscroll-behavior: contain; scroll-behavior: smooth; }
