@@ -40,7 +40,7 @@
 .orc-codigo b { font-weight: 500; color: var(--t2); }
 
 /* ---------- aviso de falha (a recuperação elegante) ---------- */
-.orc-aviso { margin: 1.6rem 0 0; padding: 1rem 1.1rem; border: 1px solid var(--line-2); border-left: 2px solid rgb(var(--ouro-rgb)); background: var(--s1); color: var(--t1); }
+.orc-aviso { margin: 1.6rem 0 0; padding: 1rem 1.1rem; border: 1px solid var(--line-2); border-left: 2px solid rgb(var(--aviso-rgb)); background: var(--s1); color: var(--t1); }
 .orc-aviso a:not(.btn) { color: var(--t1); text-decoration: underline; text-decoration-color: var(--line-hi); text-underline-offset: 4px; }
 .orc-aviso__acoes { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .8rem; }
 
@@ -131,10 +131,10 @@ html.orc-retomando .orc-lead, html.orc-retomando .orc-etapas, html.orc-retomando
 .orc-form { display: flex; flex-direction: column; gap: .5rem; max-width: 520px; }
 .orc-form label:not(.orc-check) { font-size: var(--fs-s); color: var(--t2); margin-top: .6rem; }
 .orc-opcional { color: var(--t3); }
-.orc-form input[aria-invalid="true"] { border-color: rgb(var(--ouro-rgb)); }
+.orc-form input[aria-invalid="true"] { border-color: rgb(var(--aviso-rgb)); }
 .orc-check { display: flex; gap: .7rem; align-items: flex-start; margin-top: .9rem; font-size: var(--fs-s); color: var(--t2); line-height: 1.5; cursor: pointer; }
 .orc-check input { flex: none; width: 22px; height: 22px; margin: 0; accent-color: var(--ac); }
-.orc-erro { min-height: 1.4em; color: rgb(var(--ouro-rgb)); font-size: var(--fs-s); }
+.orc-erro { min-height: 1.4em; color: rgb(var(--aviso-rgb)); font-size: var(--fs-s); }
 .orc-form .btn { margin-top: .4rem; align-self: flex-start; }
 
 /* as direções: cartões com a miniatura viva */
@@ -416,7 +416,7 @@ html.menos-movimento .orc-log { scroll-behavior: auto; }
 .pag-campo { height: 52px; padding: 0 .9rem; border: 1px solid var(--stroke); border-radius: var(--raio-s); background: var(--bg); }
 .pag-campo:focus-within { border-color: var(--ac); outline: 2px solid var(--ac); outline-offset: 1px; }
 .pag-campo iframe { width: 100%; height: 100%; border: 0; }
-.pag-local { border-left: 2px solid rgb(var(--ouro-rgb)); padding-left: .7rem; }
+.pag-local { border-left: 2px solid rgb(var(--aviso-rgb)); padding-left: .7rem; }
 .pag .btn[type="submit"] { width: 100%; margin-top: .8rem; }
 
 /* ---------- O PIX (PR 3b-1, spec 2026-10-21 §4): uma coluna desde 390 px; o QR fica em "Pagar por outro aparelho" ---------- */

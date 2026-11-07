@@ -28,16 +28,29 @@
    Gatilhos: estação em sobrecarga por uma volta da onda (desktop); segurar o
    núcleo 1,3 s ou o cursor parado no miolo 2,5 s (ouvido no hero: .nucleo não recebe
    eventos); sozinho, uma vez por visita, aos 42 s de atenção somados entre
-   as páginas. Intervalo mínimo de 30 s entre o fim de um e o próximo. Movimento reduzido: não existe;
+   as páginas. Intervalo mínimo de 30 s entre o fim de um e o próximo (entre páginas também). Movimento reduzido: não existe;
    ligado no meio, apaga na hora. API: B.ouro.acender(y?) / .k / .h / .carga /
-   .estado; evento 'ouro' { fase, y }.
+   .estado / .resta(); evento 'ouro' { fase, y, retomado? }.
+
+   ENTRE PÁGINAS (2026-11-07; dono: "quando trocamos de página ele simplesmente some, deve ser algo natural no site
+   inteiro"). O ouro é da VISITA, não da página: o prazo do reinado é um instante absoluto (Date.now()) guardado na
+   sessão (bz-ouro-ate) ao acender e no começo do reinado; o fim, em bz-ouro-fim (o intervalo mínimo). A página seguinte
+   já nasce em html.is-ouro (js/ancoras.js, no <head>) e aqui retoma o REINADO com o tempo que falta (quem saiu na
+   carga ou na ignição chega no reinado: os cinco atos não se repetem). O resfriamento acontece na página onde o prazo
+   vence. No clique de uma travessia (js/passagem.js, 'passagem') o ouro que acendia assenta no reinado e o que esfriava
+   termina: a viagem de saída já tem a cor da chegada. No orçamento (data-ouro="retoma" no <script>) o ouro só retoma:
+   ali a pessoa preenche um pedido. Voltar pelo histórico (bfcache) acerta o relógio com a sessão.
    ========================================================================== */
 (function () {
   'use strict';
   var B = window.BEYON;
   if (!B) return;
   var html = document.documentElement, reduz = window.matchMedia('(prefers-reduced-motion: reduce)');
-  if (B.reduced || reduz.matches || !document.body) return;
+  /* (sem ouro aqui: tira o que o <head> tenha pintado e avisa o js/ancoras.js que esta página já decidiu, com `dono`) */
+  if (B.reduced || reduz.matches || !document.body) { html.classList.remove('is-ouro'); if (B.ouro) { B.ouro.k = 0; B.ouro.h = 0; B.ouro.dono = true; } return; }
+  /* o prazo na sessão: o mesmo teto e a mesma leitura do js/ancoras.js (OURO_TETO_MS); acima do teto é lixo */
+  var PRAZO = 'bz-ouro-ate', FIM = 'bz-ouro-fim', TETO_MS = 35000;
+  var soRetoma = !!(document.currentScript && document.currentScript.getAttribute('data-ouro') === 'retoma');
   /* s por ato; intervalo mínimo; o sozinho (s de atenção) e o que conta como atenção; segurar; mira; a volta da
      onda numa estação em sobrecarga; quanto a leitura fica no reinado */
   var T = { carga: 1.8, ignicao: 1.6, reinado: 30, esfria: 2.2, minimo: 30, auto: 42, atencao: 15, segura: 1.3, mira: 2.5, volta: 10, leitura: 3.2 };
@@ -47,10 +60,31 @@
   /* (.marca: a logo — aro, lente, luz e "Zero" pintam por --ac/--ac-3, então viram ouro na vez da linha) */
   var PORTADORES = '.hero__title em, .kicker b, .nav__brand b, .marca, .hero__status .dot, .btn, .servico__link, .celula__link, .servico__n, .celula__n, .laudo__n, .carga__pct, .tem-carga, .footer__motion, .prova__val, .console__v, .instrumento__val, .hero__cota-rot, .rumo-leitura, .nav__links a, .console__led, .instrumento__led';
   var FASES = ['is-ouro-carga', 'is-ouro-ignicao', 'is-ouro-esfria', 'is-ouro-linha'];
-  var estado = 'frio', t = 0, origemY = 0, ultimoFim = -1e9, vezes = 0, fila = [], filaI = 0, filaFn = null, marcados = [], fimTroca = 0;
+  var estado = 'frio', t = 0, origemY = 0, ultimoFim = 0, prazo = 0, retomado = false, fila = [], filaI = 0, filaFn = null, marcados = [], fimTroca = 0;
   /* (estende o B.ouro do core.js — B.tom lê k e h DESSE objeto) */
   var ouro = B.ouro || (B.ouro = { k: 0, h: 0, carga: 0, estado: 'frio' });
   ouro.acender = acender; ouro.T = T;
+  ouro.resta = function () { return estado === 'reinado' ? Math.max(0, prazo - Date.now()) : 0; };
+  ouro.dono = true;   /* (o js/ancoras.js vê que esta página comanda o ouro e não o tira sozinho) */
+
+  /* ms que faltam do reinado guardado; 0 sem prazo válido (o vencido e o malformado saem da sessão) */
+  function lerPrazo() {
+    try {
+      var v = sessionStorage.getItem(PRAZO);
+      if (v === null) return 0;
+      var resta = +v - Date.now();
+      if (resta > 0 && resta <= TETO_MS) return resta;
+      sessionStorage.removeItem(PRAZO);
+    } catch (e) { /* sem armazenamento */ }
+    return 0;
+  }
+  function lerFim() {
+    try { var f = +sessionStorage.getItem(FIM); if (f > 0 && f <= Date.now()) return f; } catch (e) { /* sem armazenamento */ }
+    return 0;
+  }
+  function guardar(chave, v) {
+    try { if (v === null) sessionStorage.removeItem(chave); else sessionStorage.setItem(chave, String(v)); } catch (e) { /* sem armazenamento: o ouro fica só nesta página */ }
+  }
 
   function suave(x) { x = x < 0 ? 0 : x > 1 ? 1 : x; return x * x * (3 - 2 * x); }
   function limitar(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
@@ -106,7 +140,9 @@
   function avancar(ate) { while (filaI < fila.length && fila[filaI].t <= ate) filaFn(fila[filaI++].el); }
   function cancelar() { fila = []; filaI = 0; filaFn = null; }
   function brasa(el) { el.classList.remove('is-frio'); el.classList.add('is-brasa'); marcados.push(el); }
-  function frio(el) { if (el.classList.contains('is-brasa')) { el.classList.remove('is-brasa'); el.classList.add('is-frio'); } }
+  /* (também quem não passou pela ignição nesta página: na página que retomou o ouro, nenhuma peça é brasa, e é o
+     .is-frio na vez da linha que a devolve ao ciano antes do resto) */
+  function frio(el) { if (!el.classList.contains('is-brasa')) marcados.push(el); el.classList.remove('is-brasa'); el.classList.add('is-frio'); }
   function limparPecas() { for (var i = 0; i < marcados.length; i++) marcados[i].classList.remove('is-brasa', 'is-frio'); marcados = []; }
   /* a troca na raiz: os que não são portadores transitam numa janela de especificidade zero (css/tokens.css) */
   function troca() { clearTimeout(fimTroca); html.classList.add('is-ouro-fim'); fimTroca = setTimeout(function () { html.classList.remove('is-ouro-fim'); }, 900); }
@@ -118,10 +154,13 @@
     return window.innerHeight / 2;
   }
   function acender(origem) {
-    if (estado !== 'frio' || B.reduced || document.hidden) return false;
-    if (vezes > 0 && performance.now() - ultimoFim < T.minimo * 1000) return false;
+    if (estado !== 'frio' || B.reduced || document.hidden || soRetoma) return false;
+    var fim = Math.max(ultimoFim, lerFim());
+    if (fim && Date.now() - fim < T.minimo * 1000) return false;
     origemY = naTela(typeof origem === 'number' ? origem : origemPadrao());
-    estado = ouro.estado = 'carga'; t = 0; vezes++;
+    estado = ouro.estado = 'carga'; t = 0; retomado = false;
+    /* (quem sair na carga ou na ignição chega à página seguinte no reinado: o prazo já vale desde agora) */
+    guardar(PRAZO, Date.now() + Math.round((T.carga + T.ignicao + T.reinado) * 1000));
     html.classList.add('is-ouro-carga', 'is-ouro-linha');
     linhas(0, window.innerHeight);
     porLeitura(origemY);
@@ -138,9 +177,12 @@
     ler('IGNIÇÃO');
     B.emit('ouro', { fase: 'ignicao', y: origemY });
   }
-  function reinado() {
+  /* `ate`: o prazo que já existe (voltou pelo histórico no meio da carga); sem ele, os 30 s contam de agora */
+  function reinado(ate) {
     avancar(Infinity);   /* (quem ficou para trás na fila da ignição) */
     estado = ouro.estado = 'reinado'; t = 0;
+    prazo = ate || Date.now() + T.reinado * 1000; guardar(PRAZO, prazo);
+    ouro.k = 1; ouro.h = 0.1; ouro.carga = 0;   /* (já no instante da troca: na travessia o laço está pausado) */
     html.classList.add('is-ouro');
     troca();
     html.classList.remove('is-ouro-carga', 'is-ouro-ignicao', 'is-ouro-linha', 'is-ouro-varre');
@@ -150,6 +192,10 @@
   }
   function esfriar() {
     estado = ouro.estado = 'esfria'; t = 0;
+    /* resfriando: a página seguinte já abre em ciano, e o fim já fica anotado (quem sair agora pelo histórico ou por
+       um link sem travessia leva o intervalo mínimo junto; o apagar() regrava com o fim de verdade, 2,2 s depois) */
+    guardar(PRAZO, null); guardar(FIM, Date.now());
+    if (retomado) origemY = origemPadrao();   /* (retomado: as linhas voltam ao reator desta página, ou ao meio da tela) */
     html.classList.add('is-ouro-esfria', 'is-ouro-linha', 'is-ouro-varre');
     /* as linhas voltam das bordas: a peça a f do alcance é recolhida quando 1 − suave(r) = f */
     porVez(function (f) { return f >= 1 ? 0 : T.esfria * invSuave(1 - f); }, frio);
@@ -164,7 +210,8 @@
     for (var i = 0; i < FASES.length; i++) html.classList.remove(FASES[i]);
     troca();
     limparPecas();
-    estado = ouro.estado = 'frio'; ouro.k = 0; ouro.h = 0; ouro.carga = 0; ultimoFim = performance.now();
+    estado = ouro.estado = 'frio'; ouro.k = 0; ouro.h = 0; ouro.carga = 0; ultimoFim = Date.now(); retomado = false;
+    guardar(PRAZO, null); guardar(FIM, ultimoFim);
     linhas(-9999, -9999);
     ler('');
     B.emit('ouro', { fase: 'fim', y: origemY });
@@ -193,7 +240,7 @@
       ouro.k = 1; ouro.carga = 0;
       ouro.h = 0.1 + 0.06 * Math.sin(t * 2.3) + 0.04 * Math.sin(t * 5.1 + 1.3);
       if (t >= T.leitura && ultimoTexto) ler('');
-      if (t >= T.reinado) esfriar();
+      if (Date.now() >= prazo) esfriar();   /* (o prazo é de parede: o mesmo em todas as páginas da visita) */
     } else if (estado === 'esfria') {
       var r = limitar(t / T.esfria), s = suave(r), dist = (1 - s) * R;
       linhas(origemY - dist, origemY + dist);
@@ -204,6 +251,40 @@
   });
   /* menos movimento no meio: o ouro termina na hora */
   B.on('reduzir', function (sim) { if (sim && estado !== 'frio') apagar(); });
+
+  /* ---------- entre páginas ---------- */
+  /* a página que chega no meio do ouro: direto no reinado, com o tempo que falta (no máximo um reinado). Se a
+     página estava ciano (voltou pelo histórico), passa pela troca (comTroca); vinda do <head> ela já nasceu dourada */
+  function retomar(resta, comTroca) {
+    estado = ouro.estado = 'reinado'; t = 0; retomado = true;
+    prazo = Date.now() + Math.min(resta, T.reinado * 1000); guardar(PRAZO, prazo);
+    origemY = origemPadrao();
+    ouro.k = 1; ouro.h = 0.1; ouro.carga = 0;
+    if (comTroca) troca();
+    html.classList.add('is-ouro');
+    B.emit('ouro', { fase: 'reinado', y: origemY, retomado: true });
+    if (B.iniciar) B.iniciar();   /* (páginas sem o js/pagina.js não ligam o laço) */
+  }
+  /* o clique de uma travessia (js/passagem.js): a saída já tem a cor da chegada */
+  B.on('passagem', function () {
+    if (estado === 'carga' || estado === 'ignicao') reinado();
+    else if (estado === 'esfria') apagar();
+  });
+  /* voltou pelo histórico (bfcache): o relógio desta página parou; quem manda é a sessão. Na carga ou na ignição, com
+     prazo: assenta no reinado dele; sem prazo (o ouro acabou em outra página): termina, sem repetir o evento */
+  window.addEventListener('pageshow', function (e) {
+    if (!e.persisted || estado === 'esfria') return;
+    var resta = lerPrazo(), ate = Date.now() + Math.min(resta, T.reinado * 1000);
+    if (estado === 'frio') { if (resta > 0) retomar(resta, true); }
+    else if (!(resta > 0)) { if (estado === 'reinado') esfriar(); else apagar(); }
+    else if (estado === 'reinado') prazo = ate;
+    else reinado(ate);
+  });
+  /* a chegada. Nasceu dourada (o <head> pintou) mas o prazo venceu antes de este script rodar (aparelho lento): o
+     resfriamento acontece aqui, em vez de a página ficar dourada para sempre com o laço parado */
+  var restaAoChegar = lerPrazo();
+  if (restaAoChegar > 0) retomar(restaAoChegar, !html.classList.contains('is-ouro'));
+  else if (html.classList.contains('is-ouro')) retomar(1, false);
 
   /* ---------- gatilhos ---------- */
   /* 1. a estação em sobrecarga por uma volta inteira da onda: o ouro nasce nela (se ela estiver na tela) */
@@ -256,7 +337,7 @@
      páginas da visita */
   var jaVeio = false, atencao = 0;
   try { jaVeio = sessionStorage.getItem('bz-ouro') === '1'; atencao = +sessionStorage.getItem('bz-atencao') || 0; } catch (e) { /* sem armazenamento */ }
-  if (!jaVeio && !deAnuncio()) {
+  if (!jaVeio && !deAnuncio() && !soRetoma) {
     var ultimoGesto = performance.now();
     var gesto = function () { ultimoGesto = performance.now(); };
     var GESTOS = ['pointermove', 'scroll', 'touchstart', 'keydown', 'wheel'];
