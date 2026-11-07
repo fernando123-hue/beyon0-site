@@ -148,6 +148,19 @@ export function validarFatores(f, regras) {
 
 const arredondar = (v, passo) => Math.round(v / passo) * passo;
 
+/* "Já vem no pacote" (dono, 07/11, opção A): a lista que a tela mostra depois de recarregar o pedido salvo, gravada com cada estimativa em
+   app.estimativas.detalhes (formato.no_pacote). Sai SÓ do inclui da tabela ativa (nunca do corpo do navegador) e é limitada antes de gravar:
+   só texto, sem espaço nas pontas, sem item vazio ou longo demais (descartado inteiro, nunca cortado no meio), no máximo PACOTE_MAX_ITENS.
+   É outro campo, e não formato.inclui, porque formato.inclui também escreve "Já incluído em…" no contrato (api/_vendas/escopo.mjs), e lá ele
+   continua só no formato em que a tabela abate algo: o contrato dos outros formatos fica igual */
+export const PACOTE_MAX_ITENS = 12;
+export const PACOTE_MAX_CARACTERES = 160;
+export function listaDoPacote(inclui) {
+  if (!Array.isArray(inclui)) return [];
+  return inclui.filter(t => typeof t === 'string').map(t => t.trim())
+    .filter(t => t !== '' && t.length <= PACOTE_MAX_CARACTERES).slice(0, PACOTE_MAX_ITENS);
+}
+
 /* ---------- o cálculo ---------- */
 export function estimar(fatoresBrutos, regras) {
   const vr = validarRegras(regras);
@@ -205,9 +218,13 @@ export function estimar(fatoresBrutos, regras) {
   if (regras.limites.valor_max_projeto !== undefined && valor + valorFase2 > regras.limites.valor_max_projeto) {
     return { encaminhar_diagnostico: true, motivo: 'projeto acima do limite automático', itens_diagnostico: [] };
   }
+  /* o escopo e o contrato dizem o que o formato já inclui (inclui, só quando a tabela abate algo nele) e, no item cobrado, quanto já veio incluso;
+     a tela, depois de recarregar, mostra no_pacote (em todo formato que tem a lista na tabela) */
+  const tabelaAbate = Object.values(regras.adicionais).some(a => incluso(a, f.formato) > 0);
+  const doContrato = tabelaAbate && Array.isArray(fmt.inclui) ? { inclui: fmt.inclui } : {};
+  const noPacote = listaDoPacote(fmt.inclui);
   return {
-    /* o escopo e o contrato dizem o que o formato já inclui (inclui, só quando a tabela abate algo nele) e, no item cobrado, quanto já veio incluso */
-    formato: { chave: f.formato, nome: fmt.nome, base: fmt.base, paginas_incluidas: fmt.paginas_incluidas, ...(Object.values(regras.adicionais).some(a => incluso(a, f.formato) > 0) && Array.isArray(fmt.inclui) ? { inclui: fmt.inclui } : {}) },
+    formato: { chave: f.formato, nome: fmt.nome, base: fmt.base, paginas_incluidas: fmt.paginas_incluidas, ...doContrato, ...(noPacote.length ? { no_pacote: noPacote } : {}) },
     itens: nestaFase.map(p => ({ chave: p.chave, nome: p.nome, qtd: p.qtd, valor: p.unitario * p.qtd, ...(p.incluso > 0 ? { incluso: p.incluso } : {}) })),
     multiplicadores: { urgencia: !!urg, complexidade_alta: f.complexidade === 'alta', fator: mult },
     valor_total: valor,

@@ -122,6 +122,15 @@ test('pedido salvo SEM a lista na estimativa (a tabela não abate nada no format
   const vazia = await paginaSalva({ ...DETALHES, formato: { ...DETALHES.formato, inclui: [] } });
   assert.equal(vazia.doc.getElementById('o-est-inclui-caixa').hidden, true, 'lista vazia: idem');
 });
+test('a lista gravada em todo formato (formato.no_pacote, 07/11) vence a do contrato (formato.inclui); a estimativa antiga só com inclui segue igual', async () => {
+  const p = await paginaSalva({ ...DETALHES, formato: { ...DETALHES.formato, inclui: ['Do contrato'], no_pacote: ['Até 5 páginas', 'Celular primeiro'] } });
+  assert.deepEqual(textos(p.doc.getElementById('o-est-inclui')), ['Até 5 páginas', 'Celular primeiro']);
+  const so = await paginaSalva({ ...DETALHES, formato: { chave: 'institucional', nome: 'Site institucional', paginas_incluidas: 5, no_pacote: ['Até 5 páginas', 7, ''] } });
+  assert.deepEqual(textos(so.doc.getElementById('o-est-inclui')), ['Até 5 páginas'], 'só texto vira item');
+  assert.equal(so.doc.getElementById('o-est-inclui-caixa').hidden, false);
+  const vazia = await paginaSalva({ ...DETALHES, formato: { ...DETALHES.formato, inclui: ['  Até 5 páginas  '], no_pacote: [] } });
+  assert.deepEqual(textos(vazia.doc.getElementById('o-est-inclui')), ['Até 5 páginas'], 'no_pacote vazio não apaga a lista antiga, e o item sai sem espaço nas pontas');
+});
 test('a lista da estimativa só aceita texto (lixo no dado não vira item na tela)', async () => {
   const p = await paginaSalva({ ...DETALHES, formato: { ...DETALHES.formato, inclui: ['Até 5 páginas', 42, null, '  ', { x: 1 }] } });
   assert.deepEqual(textos(p.doc.getElementById('o-est-inclui')), ['Até 5 páginas']);

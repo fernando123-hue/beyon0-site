@@ -16,6 +16,17 @@ test('nada interno sai: prioridade, prazo por item, piso, limites, descontos', (
   assert.ok(c.formatos.find(f => f.chave === 'institucional').inclui.length > 0, 'o que já vem no pacote');
 });
 
+test('"Já vem no pacote" do catálogo é a mesma lista gravada com a estimativa (a tela não muda ao recarregar), já limpa', async () => {
+  const { estimar } = await import('../../api/_vendas/precos.mjs');
+  const r = JSON.parse(JSON.stringify(REGRAS));
+  r.formatos.institucional.inclui = [' Até 5 páginas ', 7, '', 'x'.repeat(500), 'Celular primeiro'];
+  const cat = catalogoPublico(r, { formato: 'institucional', ramo: 'saude' }).formatos.find(f => f.chave === 'institucional').inclui;
+  assert.deepEqual(cat, ['Até 5 páginas', 'Celular primeiro']);
+  assert.deepEqual(estimar({ formato: 'institucional' }, r).formato.no_pacote, cat);
+  const sem = JSON.parse(JSON.stringify(REGRAS)); delete sem.formatos.institucional.inclui;
+  assert.deepEqual(catalogoPublico(sem, { formato: 'institucional', ramo: 'saude' }).formatos.find(f => f.chave === 'institucional').inclui, [], 'sem lista: vazia, como antes');
+});
+
 test('extras: os do ramo nos principais; os da loja só com a loja; dependentes com requer; fora do automático = fale comigo', () => {
   const saude = catalogoPublico(REGRAS, { formato: 'institucional', ramo: 'saude' });
   const chaves = l => l.map(e => e.chave);
