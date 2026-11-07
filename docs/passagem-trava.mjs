@@ -7,6 +7,7 @@
    um observador de classe da <html>: bz:clique, bz:solta, bz:chegou. Rodadas alternam a ordem das variantes.
    Variáveis:
      WARM=1       visita destino e origem duas vezes antes (cache HTTP e cache de código do V8 quentes: quem já conhece o site)
+     ESPERA=<ms>  quanto a pessoa fica na origem antes do toque (padrão 4000; > max-age do JS/CSS = quem leu a página)
      NET=<ms>     rede de celular simulada (latência de ida e volta, 1,6 Mb/s) do clique em diante
      GPU=0        sem a GPU da máquina (SwiftShader); o padrão usa a GPU de verdade (ANGLE/D3D11)
      TAREFAS=1    + tarefas longas do fio principal com o tempo próprio por tipo de evento (rastreio pesado: só diagnóstico)
@@ -147,7 +148,7 @@ async function uma(base, de, alvo, largura) {
   /* NET=<ms>: rede de celular simulada (latência de ida e volta em ms, 1,6 Mb/s); vale do clique em diante */
   if (process.env.NET) await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: Number(process.env.NET), downloadThroughput: 1.6e6 / 8, uploadThroughput: 0.75e6 / 8 });
   await p.goto(base + de, { waitUntil: 'load', timeout: 90000 });
-  await p.waitForTimeout(4000);
+  await p.waitForTimeout(Number(process.env.ESPERA) || 4000);
   if (cel) { const t = p.locator('.nav__toggle'); if (await t.isVisible()) { await t.tap(); await p.waitForTimeout(600); } }
   const seletor = alvo === '/' ? '.nav__logo' : `.nav a[href="${alvo}"]`;
   const caixa = await p.locator(seletor).first().boundingBox();

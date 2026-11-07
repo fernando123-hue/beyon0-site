@@ -97,7 +97,8 @@ async function atender(req, res) {
     const tipo = TIPOS[extname(alvo)] || 'application/octet-stream';
     const extra = { 'content-type': tipo, 'cache-control': 'no-store' };
     if (CACHE) {
-      extra['cache-control'] = (tipo.startsWith('text/html') && process.env.CACHE_HTML_CC) || process.env.CACHE_CC || 'public, max-age=0, must-revalidate';
+      /* sem CACHE_CC/CACHE_HTML_CC vale o Cache-Control do _headers (a Cloudflare o aplica por cima do padrão dela) */
+      extra['cache-control'] = (tipo.startsWith('text/html') && process.env.CACHE_HTML_CC) || process.env.CACHE_CC || cabecalhos(caminho)['cache-control'] || 'public, max-age=0, must-revalidate';
       extra.etag = '"' + createHash('sha1').update(dados).digest('hex').slice(0, 16) + '"';
       if (req.headers['if-none-match'] === extra.etag) { res.writeHead(304, Object.assign(cabecalhos(caminho), extra)); return res.end(); }
     }

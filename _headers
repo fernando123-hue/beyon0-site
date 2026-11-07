@@ -3,6 +3,8 @@
 # o _headers não vale para resposta do Worker; os cabeçalhos dela vêm de cloudflare/rotas.mjs.
 # Mais de uma regra para o mesmo cabeçalho SOMA os valores: por isso as regras específicas começam com "! Nome"
 # (tira o que veio da regra geral) e põem o valor próprio.
+# Exceção à paridade: o Cache-Control de /js/* e /css/* só vale aqui (a montagem da Cloudflare põe o ?v=<hash> no HTML; a
+# Vercel, legado, não tem essa montagem e segue sem ele).
 
 /*
   Content-Security-Policy: default-src 'self'; script-src 'self' https://www.googletagmanager.com https://www.googleadservices.com https://www.google.com; style-src 'self'; font-src 'self'; img-src 'self' data: https://*.google-analytics.com https://*.googletagmanager.com https://*.g.doubleclick.net https://www.google.com https://www.google.com.br https://www.googleadservices.com; connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.g.doubleclick.net https://www.google.com https://www.google.com.br https://www.googleadservices.com https://pagead2.googlesyndication.com; frame-src https://td.doubleclick.net; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests
@@ -12,11 +14,6 @@
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Resource-Policy: same-origin
-
-# O balão do atendente é carregado por <script> em site de OUTRA origem: só este arquivo (nunca /js/*) sai com CORP cross-origin
-/js/atendente-balao.js
-  ! Cross-Origin-Resource-Policy
-  Cross-Origin-Resource-Policy: cross-origin
 
 /
   ! Content-Security-Policy
@@ -45,3 +42,22 @@
 
 /vendor/*
   Cache-Control: public, max-age=604800
+
+# JS e CSS com cache curto (a trava da travessia, docs/testes/travessia-cache.test.mjs): com max-age=0 cada troca de página
+# revalidava ~37 arquivos com o servidor antes de pintar (o vão de ~900 ms no celular). O HTML montado pede cada um com
+# ?v=<hash do conteúdo> (cloudflare/montar-publico.mjs): o HTML novo nunca usa JS/CSS velho. 300 s, não um ano, porque há
+# módulos pedidos por JS SEM ?v (lista fechada no teste): no pior caso, por até 5 min depois de publicar, um deles vem velho.
+/js/*
+  Cache-Control: public, max-age=300
+
+/css/*
+  Cache-Control: public, max-age=300
+
+# O balão do atendente é carregado por <script> em site de OUTRA origem: só este arquivo (nunca /js/*) sai com CORP cross-origin.
+# E revalida sempre (depois do /js/*, para o "! Cache-Control" tirar o cache curto): a URL é fixa no site do cliente, sem ?v,
+# então uma correção do balão chega no próximo carregamento de lá
+/js/atendente-balao.js
+  ! Cross-Origin-Resource-Policy
+  Cross-Origin-Resource-Policy: cross-origin
+  ! Cache-Control
+  Cache-Control: public, max-age=0, must-revalidate
