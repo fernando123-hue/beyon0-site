@@ -83,6 +83,9 @@
       var resta = +v - Date.now();
       if (resta > 0 && resta <= OURO_TETO_MS) return resta;
       sessionStorage.removeItem('bz-ouro-ate');
+      /* VENCIDO (o reinado acabou com a aba oculta e o laço parado, ninguém anotou o fim): o fim é o próprio prazo,
+         senão o intervalo mínimo se perdia. Malformado não vira fim */
+      if (resta <= 0 && +v > 0 && !(+sessionStorage.getItem('bz-ouro-fim') >= +v)) sessionStorage.setItem('bz-ouro-fim', String(+v));
     } catch (e) { /* sem armazenamento: cada página começa ciano */ }
     return 0;
   }
@@ -91,6 +94,9 @@
   function ouroSai(noPrazo) {
     html.classList.add('is-ouro-fim');
     html.classList.remove('is-ouro');
+    /* uma página com o core.js e sem o ouro.js nasceria com B.ouro.k = 1 e ficaria com os canvases dourados */
+    var B = window.BEYON;
+    if (B && B.ouro) { B.ouro.k = 0; B.ouro.h = 0; }
     setTimeout(function () { html.classList.remove('is-ouro-fim'); }, 900);
     if (noPrazo) try { sessionStorage.removeItem('bz-ouro-ate'); sessionStorage.setItem('bz-ouro-fim', String(Date.now())); } catch (e) { /* sem armazenamento */ }
   }

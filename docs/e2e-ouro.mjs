@@ -41,7 +41,8 @@ async function contexto(larg, extra = {}) {
 }
 const estado = (page) => page.evaluate(() => ({
   estado: window.BEYON && BEYON.ouro && BEYON.ouro.estado, k: window.BEYON && BEYON.ouro && BEYON.ouro.k,
-  resta: window.BEYON && BEYON.ouro && BEYON.ouro.resta ? BEYON.ouro.resta() : null,
+  resta: sessionStorage.getItem('bz-ouro-ate') === null ? null : +sessionStorage.getItem('bz-ouro-ate') - Date.now(),
+  selecao: getComputedStyle(document.querySelector('main p') || document.body, '::selection').backgroundColor,
   ouro: document.documentElement.classList.contains('is-ouro'), cl: window.__cl, prazo: sessionStorage.getItem('bz-ouro-ate')
 }));
 const foto = (page, nome) => page.screenshot({ path: fileURLToPath(new URL(nome + '.png', PASTA)) });
@@ -71,6 +72,7 @@ for (const larg of LARGURAS) {
     ok(/\bis-ouro\b/.test(e.cl.q1 || '') && /\bis-ouro\b/.test(e.cl.dcl || ''), nome + ': html.is-ouro no 1º quadro e no DOMContentLoaded (' + (e.cl.q1 || '?') + ')');
     ok(e.estado === 'reinado' && e.k === 1, nome + ': reinado retomado, k = 1 (' + e.estado + ', k ' + e.k + ')');
     ok(e.resta > 0 && e.resta < antes, nome + ': o tempo que falta diminui (' + antes + ' → ' + e.resta + ' ms)');
+    ok(/255, 190, 60/.test(e.selecao), nome + ': a seleção de texto é dourada (' + e.selecao + ')');
     antes = e.resta;
     await espera(1200);
     await foto(page, larg + '-' + nome + '-chegou');
@@ -87,12 +89,22 @@ for (const larg of LARGURAS) {
   ok(e.prazo === null, 'resfriando: o prazo saiu da sessão');
   await page.waitForFunction(() => BEYON.ouro.estado === 'frio', null, { timeout: 8000 });
   e = await estado(page);
-  ok(!e.ouro && e.k === 0, 'depois do resfriamento: ciano, k = 0');
+  ok(!e.ouro && e.k === 0 && /73, 229, 221/.test(e.selecao), 'depois do resfriamento: ciano, k = 0, seleção ciano');
   await foto(page, larg + '-6-automacao-frio');
   /* a página seguinte abre ciano */
   await atravessar(page, '/sites', larg + '-7-sites-depois');
   e = await estado(page);
   ok(!/\bis-ouro\b/.test(e.cl.q1 || '') && e.estado === 'frio', 'a página seguinte ao fim abre em ciano');
+  /* orçamento: o prazo vence ali e o ouro sai em silêncio (sem as linhas do resfriamento sobre o formulário) */
+  await page.evaluate(() => { sessionStorage.removeItem('bz-ouro-fim'); sessionStorage.setItem('bz-ouro-ate', String(Date.now() + 3000)); });
+  await page.goto(BASE + '/orcamento', { waitUntil: 'load' });
+  await page.evaluate(() => { window.__fases = []; new MutationObserver(() => window.__fases.push(document.documentElement.className)).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] }); });
+  await page.waitForFunction(() => !document.documentElement.classList.contains('is-ouro'), null, { timeout: 8000 });
+  await espera(300);
+  await foto(page, larg + '-7b-orcamento-saiu');
+  const fases = await page.evaluate(() => window.__fases);
+  ok(!fases.some((c) => /is-ouro-(linha|esfria)/.test(c)) && fases.some((c) => /is-ouro-fim/.test(c)), 'orçamento: o ouro sai em silêncio, pela troca de cor (' + fases.length + ' trocas de classe)');
+  ok((await estado(page)).estado === 'frio', 'orçamento: frio depois do prazo');
   /* privacidade (sem o ouro.js): nasce em ouro e sai em silêncio no prazo */
   await page.evaluate(() => sessionStorage.setItem('bz-ouro-ate', String(Date.now() + 5000)));
   await page.goto(BASE + '/privacidade', { waitUntil: 'load' });

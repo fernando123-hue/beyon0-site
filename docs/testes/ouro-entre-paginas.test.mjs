@@ -95,6 +95,8 @@ function navegador({ sessao = {}, local = {}, reduz = false, quebrado = false, h
 const cabeca = (op) => { const n = navegador({ B: false, ...op }); n.rodar(ANCORAS); return n; };
 const pagina = (op) => { const n = navegador(op); n.rodar(OURO); return n; };
 const prazo = (n) => n.sessao.get('bz-ouro-ate');
+/* o tempo que falta, lido da sessão (o B.ouro não expõe um resta(): quem precisa lê o prazo, como a página seguinte) */
+const resta = (n) => +prazo(n) - n.relogio.agora;
 
 /* ---------- o prazo ---------- */
 test('o prazo do ouro: guardado ao acender e no reinado, lido na página seguinte; o vencido e o malformado saem', () => {
@@ -162,11 +164,12 @@ test('a retomada: a página nova abre no reinado com o tempo que falta, e o resf
   assert.equal(o.estado, 'reinado'); assert.equal(o.k, 1, 'B.ouro.k = 1 desde o 1º quadro (canvases e reator)');
   assert.ok(n.html.contains('is-ouro'));
   assert.ok(!n.html.contains('is-ouro-carga') && !n.html.contains('is-ouro-ignicao'), 'os cinco atos não se repetem na chegada');
-  assert.ok(Math.abs(o.resta() - 12000) <= 50, 'resta ' + o.resta());
+  assert.ok(Math.abs(resta(n) - 12000) <= 50, 'resta ' + resta(n));
+  assert.equal(o.resta, undefined, 'sem API que só os testes usam');
   assert.ok(n.win.BEYON.iniciou > 0, 'o laço é ligado (páginas sem js/pagina.js)');
   assert.ok(n.win.BEYON.emitidos.some(([ev, d]) => ev === 'ouro' && d.fase === 'reinado' && d.retomado), 'avisa o reinado retomado');
   n.passar(6000);
-  assert.ok(Math.abs(o.resta() - 6000) <= 100, 'o tempo que falta diminui: ' + o.resta());
+  assert.ok(Math.abs(resta(n) - 6000) <= 100, 'o tempo que falta diminui: ' + resta(n));
   n.passar(6100);
   assert.equal(o.estado, 'esfria', 'no prazo, o resfriamento nesta página');
   assert.equal(prazo(n), undefined, 'resfriando: a página seguinte já abre em ciano');
@@ -181,8 +184,7 @@ test('saiu na carga ou na ignição: a página seguinte abre no reinado (sem rep
   assert.equal(a.win.BEYON.ouro.estado, 'carga');
   const b = pagina({ sessao: { 'bz-ouro-ate': prazo(a) } });
   assert.equal(b.win.BEYON.ouro.estado, 'reinado');
-  assert.ok(b.win.BEYON.ouro.resta() <= 30000, 'o reinado retomado nunca passa de 30 s: ' + b.win.BEYON.ouro.resta());
-  assert.ok(+prazo(b) - b.relogio.agora <= 30000, 'e o prazo guardado concorda');
+  assert.ok(resta(b) <= 30000, 'o reinado retomado nunca passa de 30 s: ' + resta(b));
 });
 
 test('na travessia (clique num link do site): o ouro que acendia assenta no reinado; o que esfriava termina', () => {
@@ -254,6 +256,46 @@ test('página sem o ouro.js, de volta pelo histórico: o relógio é a sessão',
   assert.equal(c.sessao.get('bz-ouro-fim'), undefined, 'e não anota um fim que não foi aqui');
   c.passar(5000);
   assert.equal(c.sessao.get('bz-ouro-fim'), undefined, 'o timer velho não apaga nem anota nada');
+});
+
+test('o <head> tira o ouro e zera o B.ouro de uma página com core.js sem ouro.js (a armadilha do k = 1 para sempre)', () => {
+  const c = cabeca({ sessao: { 'bz-ouro-ate': String(T0 + 3000) } });
+  c.win.BEYON = { ouro: { k: 1, h: 0.1, estado: 'frio' } };   /* o core.js nasceu dourado; nenhum ouro.js assumiu */
+  c.disparar('load'); c.passar(3100);
+  assert.ok(!c.html.contains('is-ouro'));
+  assert.equal(c.win.BEYON.ouro.k, 0, 'k ficou 1: os canvases seguiriam dourados');
+  assert.equal(c.win.BEYON.ouro.h, 0);
+});
+
+test('prazo VENCIDO (aba oculta, laço parado) vira o fim na sessão; o malformado não', () => {
+  for (const [nome, ler1] of [['cabeça', cabeca], ['ouro.js', pagina]]) {
+    const v = ler1({ sessao: { 'bz-ouro-ate': String(T0 - 5000) } });
+    assert.equal(prazo(v), undefined, nome);
+    assert.equal(v.sessao.get('bz-ouro-fim'), String(T0 - 5000), nome + ': o fim é o próprio prazo vencido');
+    for (const lixo of ['abc', String(T0 + 3600000)]) {
+      const m = ler1({ sessao: { 'bz-ouro-ate': lixo } });
+      assert.equal(m.sessao.get('bz-ouro-fim'), undefined, nome + ': lixo não vira fim (' + lixo + ')');
+    }
+    const novo = ler1({ sessao: { 'bz-ouro-ate': String(T0 - 5000), 'bz-ouro-fim': String(T0 - 1000) } });
+    assert.equal(novo.sessao.get('bz-ouro-fim'), String(T0 - 1000), nome + ': um fim mais novo fica');
+  }
+  assert.equal(pagina({ sessao: { 'bz-ouro-ate': String(T0 - 5000) } }).win.BEYON.ouro.acender(), false, 'o intervalo mínimo segue valendo');
+});
+
+test('no orçamento o ouro termina em silêncio: a troca de cor, sem linhas varrendo o formulário', () => {
+  const n = pagina({ dataOuro: 'retoma', sessao: { 'bz-ouro-ate': String(T0 + 1000) }, html: ['is-ouro'] });
+  n.passar(1100);
+  const o = n.win.BEYON.ouro;
+  assert.equal(o.estado, 'frio', 'sem resfriamento com linhas');
+  assert.ok(!n.html.contains('is-ouro') && n.html.contains('is-ouro-fim'), 'sai pela transição da troca');
+  assert.ok(!n.win.BEYON.emitidos.some(([ev, d]) => ev === 'ouro' && d.fase === 'esfria'), 'não houve resfriamento');
+  assert.equal(o.k, 0); assert.equal(prazo(n), undefined); assert.ok(+n.sessao.get('bz-ouro-fim') > 0);
+});
+
+test('a seleção de texto acompanha o ouro (os tokens moram no <body>; a regra não depende de como o motor herda o ::selection)', () => {
+  const tokens = semComentarios(ler('css/tokens.css'));
+  assert.match(tokens, /::selection \{ background: rgb\(var\(--ac-rgb\) \/ \.3\)/, 'fora do ouro, ciano');
+  assert.match(tokens, /html\.is-ouro ::selection \{ background: rgb\(var\(--ouro-rgb\) \/ \.3\)/, 'no ouro, dourado');
 });
 
 test('as páginas que ganharam a cabeça só pelo ouro não escondem nada sob html.js (o contrato de revelação mora no motion.css)', () => {

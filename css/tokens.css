@@ -182,6 +182,9 @@ img, svg { display: block; max-width: 100%; }
 a { color: inherit; text-decoration: none; }
 button { font: inherit; color: inherit; }
 ::selection { background: rgb(var(--ac-rgb) / .3); color: var(--t1); }
+/* no ouro a seleção é dourada. O Chrome resolve o var() do ::selection na peça selecionada (já dourada pelos tokens no
+   <body>, medido), mas a herança dos realces mudou entre motores: com o --ouro-rgb (fixo no :root) não depende disso */
+html.is-ouro ::selection { background: rgb(var(--ouro-rgb) / .3); }
 :focus-visible { outline: 2px solid var(--ac); outline-offset: 3px; }
 .btn--primary:focus-visible { outline-color: var(--prata); }
 

@@ -30,7 +30,7 @@
    eventos); sozinho, uma vez por visita, aos 42 s de atenção somados entre
    as páginas. Intervalo mínimo de 30 s entre o fim de um e o próximo (entre páginas também). Movimento reduzido: não existe;
    ligado no meio, apaga na hora. API: B.ouro.acender(y?) / .k / .h / .carga /
-   .estado / .resta(); evento 'ouro' { fase, y, retomado? }.
+   .estado; evento 'ouro' { fase, y, retomado? }.
 
    ENTRE PÁGINAS (2026-11-07; dono: "quando trocamos de página ele simplesmente some, deve ser algo natural no site
    inteiro"). O ouro é da VISITA, não da página: o prazo do reinado é um instante absoluto (Date.now()) guardado na
@@ -38,8 +38,9 @@
    já nasce em html.is-ouro (js/ancoras.js, no <head>) e aqui retoma o REINADO com o tempo que falta (quem saiu na
    carga ou na ignição chega no reinado: os cinco atos não se repetem). O resfriamento acontece na página onde o prazo
    vence. No clique de uma travessia (js/passagem.js, 'passagem') o ouro que acendia assenta no reinado e o que esfriava
-   termina: a viagem de saída já tem a cor da chegada. No orçamento (data-ouro="retoma" no <script>) o ouro só retoma:
-   ali a pessoa preenche um pedido. Voltar pelo histórico (bfcache) acerta o relógio com a sessão.
+   termina: a viagem de saída já tem a cor da chegada. No orçamento (data-ouro="retoma" no <script>) o ouro só retoma
+   e termina em silêncio (só a troca de cor, sem linhas): ali a pessoa preenche um pedido. Voltar pelo histórico
+   (bfcache) acerta o relógio com a sessão.
    ========================================================================== */
 (function () {
   'use strict';
@@ -64,7 +65,6 @@
   /* (estende o B.ouro do core.js — B.tom lê k e h DESSE objeto) */
   var ouro = B.ouro || (B.ouro = { k: 0, h: 0, carga: 0, estado: 'frio' });
   ouro.acender = acender; ouro.T = T;
-  ouro.resta = function () { return estado === 'reinado' ? Math.max(0, prazo - Date.now()) : 0; };
   ouro.dono = true;   /* (o js/ancoras.js vê que esta página comanda o ouro e não o tira sozinho) */
 
   /* ms que faltam do reinado guardado; 0 sem prazo válido (o vencido e o malformado saem da sessão) */
@@ -75,6 +75,9 @@
       var resta = +v - Date.now();
       if (resta > 0 && resta <= TETO_MS) return resta;
       sessionStorage.removeItem(PRAZO);
+      /* VENCIDO (acabou com a aba oculta e o laço parado, ninguém anotou o fim): o fim é o próprio prazo, senão o
+         intervalo mínimo se perdia. Malformado não vira fim. (O mesmo do js/ancoras.js) */
+      if (resta <= 0 && +v > 0 && !(+sessionStorage.getItem(FIM) >= +v)) sessionStorage.setItem(FIM, String(+v));
     } catch (e) { /* sem armazenamento */ }
     return 0;
   }
@@ -203,6 +206,9 @@
     ler('RESFRIANDO');
     B.emit('ouro', { fase: 'esfria', y: origemY });
   }
+  /* o fim do reinado: o resfriamento com as linhas; no orçamento (soRetoma), em silêncio, só a troca de cor (apagar):
+     nada varre um formulário que a pessoa está preenchendo */
+  function acabar() { if (soRetoma) apagar(); else esfriar(); }
   function apagar() {
     if (filaFn) avancar(Infinity);
     cancelar();
@@ -240,7 +246,7 @@
       ouro.k = 1; ouro.carga = 0;
       ouro.h = 0.1 + 0.06 * Math.sin(t * 2.3) + 0.04 * Math.sin(t * 5.1 + 1.3);
       if (t >= T.leitura && ultimoTexto) ler('');
-      if (Date.now() >= prazo) esfriar();   /* (o prazo é de parede: o mesmo em todas as páginas da visita) */
+      if (Date.now() >= prazo) acabar();   /* (o prazo é de parede: o mesmo em todas as páginas da visita) */
     } else if (estado === 'esfria') {
       var r = limitar(t / T.esfria), s = suave(r), dist = (1 - s) * R;
       linhas(origemY - dist, origemY + dist);
@@ -276,7 +282,7 @@
     if (!e.persisted || estado === 'esfria') return;
     var resta = lerPrazo(), ate = Date.now() + Math.min(resta, T.reinado * 1000);
     if (estado === 'frio') { if (resta > 0) retomar(resta, true); }
-    else if (!(resta > 0)) { if (estado === 'reinado') esfriar(); else apagar(); }
+    else if (!(resta > 0)) { if (estado === 'reinado') acabar(); else apagar(); }
     else if (estado === 'reinado') prazo = ate;
     else reinado(ate);
   });
