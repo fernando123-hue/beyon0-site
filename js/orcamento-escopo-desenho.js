@@ -100,7 +100,8 @@
   function montarAnel(doc) {
     var svg = el(doc, 'svg', { viewBox: '0 0 40 40', 'class': 'rde-anel', 'aria-hidden': 'true', focusable: 'false' });
     el(doc, 'circle', { cx: 20, cy: 20, r: 17, 'class': 'rde-anel__trilho' }, svg);
-    var p = el(doc, 'path', { d: 'M20 3A17 17 0 1 1 19.99 3Z', 'class': 'rde-anel__progresso', pathLength: 1, 'stroke-dasharray': '1 1', 'stroke-dashoffset': 1 }, svg);
+    /* (círculo girado -90°: começa no topo e anda no sentido horário, como o aro do radar) */
+    var p = el(doc, 'circle', { cx: 20, cy: 20, r: 17, transform: 'rotate(-90 20 20)', 'class': 'rde-anel__progresso', pathLength: 1, 'stroke-dasharray': '1 1', 'stroke-dashoffset': 1 }, svg);
     return { svg: svg, progresso: p };
   }
   function aplicarAnel(anel, st) {

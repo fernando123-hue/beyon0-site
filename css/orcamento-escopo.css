@@ -48,7 +48,7 @@
 
 /* ---- o núcleo: o investimento em HTML por cima do desenho (cqi = a largura do desenho) ---- */
 .rde-miolo { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.4cqi; text-align: center; pointer-events: none; }
-.rde-miolo__rot { font: 500 max(9px, 3.1cqi)/1.2 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--t3); }
+.rde-miolo__rot { font: 500 max(9px, 3.1cqi)/1.2 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--t3); }
 .rde-miolo__valor { font: 300 max(18px, 9cqi)/1.1 var(--mono); letter-spacing: -.02em; color: var(--t1); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .rde-miolo__valor.is-vazio { color: var(--t3); }
 .rde-miolo__estado { max-width: 46cqi; font: 500 max(9px, 2.9cqi)/1.25 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ac); }
