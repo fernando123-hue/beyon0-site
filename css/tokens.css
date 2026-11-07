@@ -85,6 +85,9 @@
   --ouro-2-rgb: 255 226 150;   /* #FFE296 */
   --ouro-3-rgb: 232 140 30;    /* #E88C1E: no preto 8,2:1, no grafite 7,1:1 */
   --brasa-rgb:  255 250 235;   /* #FFFAEB: o branco do metal em brasa (o instante da ignição) */
+  /* o AVISO (erro de campo, campo inválido, aviso do orçamento e do recado): fora do ouro é o ouro, a cor que
+     destoa do ciano; no ouro (html.is-ouro > body, abaixo) troca para a que destoa do ouro */
+  --aviso-rgb: var(--ouro-rgb);
 
   /* ---- O METAL: o brilho frio das arestas (prata) e a atmosfera (#565656).
      A prata é o reflexo numa aresta, no anel da lente do reator, num painel
@@ -179,6 +182,9 @@ img, svg { display: block; max-width: 100%; }
 a { color: inherit; text-decoration: none; }
 button { font: inherit; color: inherit; }
 ::selection { background: rgb(var(--ac-rgb) / .3); color: var(--t1); }
+/* no ouro a seleção é dourada. O Chrome resolve o var() do ::selection na peça selecionada (já dourada pelos tokens no
+   <body>, medido), mas a herança dos realces mudou entre motores: com o --ouro-rgb (fixo no :root) não depende disso */
+html.is-ouro ::selection { background: rgb(var(--ouro-rgb) / .3); }
 :focus-visible { outline: 2px solid var(--ac); outline-offset: 3px; }
 .btn--primary:focus-visible { outline-color: var(--prata); }
 
@@ -198,8 +204,11 @@ button { font: inherit; color: inherit; }
    e esfria até o ouro), REINADO (ouro incandescente), RESFRIAMENTO. Só as cores de energia trocam; prata, metal,
    branco e cinzas ficam. Contraste: #FFBE3C no preto 12,7:1; a tinta #2A1500 sobre ele 10,5:1; #E88C1E no preto
    8,2:1 e no grafite 7,1:1. Nada aqui muda por quadro: classes por fase e por peça. ---- */
-/* o ouro incandescente: no html (reinado) ou numa peça que a linha já atravessou (.is-brasa) */
-html.is-ouro, .is-brasa {
+/* o ouro incandescente: no reinado (html.is-ouro) ou numa peça que a linha já atravessou (.is-brasa).
+   Os tokens moram no <body>, não no <html> (2026-11-07, o ouro entre páginas): a página que nasce no meio do ouro
+   tem html.is-ouro desde o <head>, e quem lê a paleta de getComputedStyle(<html>) no boot (core.js para o B.tom,
+   rede, mini, estações, heros) precisa ler o CIANO; lendo o ouro, o canvas ficaria dourado depois do fim */
+html.is-ouro > body, .is-brasa {
   --ac: #FFBE3C; --ac-rgb: 255 190 60;
   --ac-2: #FFE296; --ac-2-rgb: 255 226 150;
   --ac-3: #E88C1E; --ac-3-rgb: 232 140 30;
@@ -209,6 +218,9 @@ html.is-ouro, .is-brasa {
   --letra-acesa-t: #FFF4DC; --letra-acesa-p: #EBDDC6;
   --logo-entrada: #9A5508; --logo-nucleo: #FFFAEB;
 }
+/* no ouro o aviso não pode ser a cor da energia (um campo inválido sumiria entre os dourados): fica com o ciano,
+   a cor que destoa do ouro (no preto 13,5:1). Só na página inteira: uma peça em brasa não carrega aviso */
+html.is-ouro > body { --aviso-rgb: 73 229 221; }
 /* a CARGA: a energia esquenta antes de virar ouro (ciano clareando para o branco) */
 html.is-ouro-carga {
   --ac: #A9FBF6; --ac-rgb: 169 251 246;
