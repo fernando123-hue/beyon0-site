@@ -465,6 +465,9 @@ html.menos-movimento .orc-log { scroll-behavior: auto; }
    com 16px ou mais; botões em frase normal (não caixa alta). Sem desfoque e sem animação nova ---------- */
 .orc-perguntas, .orc-ajustar { scroll-margin-top: calc(var(--nav-h) + 1rem); }
 .orc-perguntas { margin-top: var(--sp-1); max-width: 760px; }
+/* visita nova: as perguntas desde a 1ª pintura (o js/ancoras.js põe a classe no <head>; o js/orcamento.js a tira ao assumir). Sem isso a mesa
+   nascia logo abaixo das etapas e pulava quando o script as abria (CLS 0,36 em 390 px). Sem JS a classe não existe e o hidden do HTML vale */
+html.orc-nova #o-perguntas[hidden] { display: block !important; }   /* (!important: o [hidden] de css/tokens.css também é) */
 .orc-perguntas__passo { font-size: var(--fs-b); color: var(--t2); }
 .orc-p h2 { font-weight: 300; font-size: clamp(1.5rem, 1.1rem + 2vw, 1.9rem); letter-spacing: -.01em; line-height: 1.2; margin: .5rem 0 1rem; }
 .orc-p h2 + .orc-p__nota { margin: -.6rem 0 1rem; }

@@ -86,6 +86,8 @@ try {
 
   /* orçamento sem IA (spec 2026-10-11): 4 perguntas → preço → ajustar → quero os três modelos */
   await page.waitForSelector('#o-perguntas:not([hidden])');
+  /* (orçamento leve) as perguntas da 1ª pintura (html.orc-nova, js/ancoras.js): o js/orcamento.js assumiu e tirou a classe */
+  ok(await page.evaluate(() => !document.documentElement.classList.contains('orc-nova')), 'visita nova: depois que a página assume, a classe da 1ª pintura (orc-nova) sai');
   ok(await page.locator('#o-conversa').isHidden(), 'sem IA: a conversa com o consultor não aparece');
   await page.locator('#o-perguntas').scrollIntoViewIfNeeded();
   await foto(page, '1a-perguntas-cel');
@@ -242,8 +244,16 @@ try {
   await page.unroute(DETALHES, detalhesRecusado);
   falhaForcada = false;
   /* o formulário volta com a recarga (nada digitado fica guardado, D7): preenche de novo e envia de verdade */
+  /* (orçamento leve) a retomada de um pedido SALVO: a cabeça (js/ancoras.js) não marca visita nova, e as perguntas não aparecem em quadro nenhum */
+  await page.addInitScript(() => {
+    window.__perguntasVistas = false;
+    const olhar = () => { const p = document.getElementById('o-perguntas'); if (p && p.getClientRects().length) window.__perguntasVistas = true; if (performance.now() < 6000) requestAnimationFrame(olhar); };
+    requestAnimationFrame(olhar);
+  });
   await page.reload({ waitUntil: 'load' });
   await page.waitForSelector('#o-contato:not([hidden])', { timeout: 30000 });
+  ok(await page.evaluate(() => !document.documentElement.classList.contains('orc-nova') && !window.__perguntasVistas && document.getElementById('o-perguntas').hidden),
+    'retomada com pedido salvo: sem a classe de visita nova e as perguntas em nenhum quadro da carga');
   await page.fill('#o-d-negocio', 'Clínica Teste E2E');
   await page.click('#o-d-sugestoes .chip >> nth=0');
   await page.fill('#o-tel', TELEFONE);

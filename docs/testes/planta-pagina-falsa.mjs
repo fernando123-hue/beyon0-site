@@ -52,7 +52,7 @@ export function criarPagina(inicial = {}) {
   const els = {};
   const doc = {
     getElementById: (id) => els[id] || (els[id] = elemento(id)), querySelectorAll: () => [], querySelector: () => null, createElement: (t) => elemento(t),
-    addEventListener() {}, dispatchEvent() { return true; }, documentElement: { classList: { contains: () => false } }, activeElement: null
+    addEventListener() {}, dispatchEvent() { return true; }, documentElement: { classList: { contains: () => false, add() {}, remove() {} } }, activeElement: null
   };
   const capturado = {};
   const win = {

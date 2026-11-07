@@ -13,6 +13,9 @@
   'use strict';
   var API = window.BZOrcamento, PV = window.BZPrevia;
   var $ = function (id) { return document.getElementById(id); };
+  /* as perguntas da 1ª pintura (html.orc-nova, js/ancoras.js): daqui em diante quem as mostra e esconde é este script. Sai antes da guarda: sem um
+     módulo, as perguntas (sem botão funcionando) não ficam à vista. Numa visita nova o retomar() abaixo as abre na mesma tarefa: nenhum quadro sem elas */
+  document.documentElement.classList.remove('orc-nova');
   /* um script não chegou (rede, bloqueador): sem isso a página ficava morta sem dizer nada (auditoria 2026-10-09, F19) */
   if (!API || !PV || !window.BZVisor || !window.BZPerguntas || !window.BZDetalhes || !window.BZEspera || !window.BZAjustes) { semScripts(); return; }
   function semScripts() {
