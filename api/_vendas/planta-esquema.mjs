@@ -75,7 +75,7 @@ const TAMANHOS = {
 
 export function validarPlano(bruto, opcoes) {
   try {
-    const { nomeDoNegocio = '', regulado = false, travas = true } = opcoes && typeof opcoes === 'object' ? opcoes : {};
+    const { nomeDoNegocio = '', regulado = false, travas = true, cidade = '' } = opcoes && typeof opcoes === 'object' ? opcoes : {};
     const corte = cabe(bruto);
     if (corte) return falha(corte);
     const forma = F.validarFormaPlano(bruto);
@@ -103,7 +103,7 @@ export function validarPlano(bruto, opcoes) {
     }
     /* 4) cada texto na camada de texto (o texto aceito volta normalizado; é o mesmo que já está no plano) */
     for (const c of campos) {
-      const r = textoDoPlanoPermitido(c.obj[c.chave], { nomeDoNegocio, regulado, travas });
+      const r = textoDoPlanoPermitido(c.obj[c.chave], { nomeDoNegocio, regulado, travas, cidade });
       if (!r.ok) reprovar(c.caminho, r.motivo);
     }
     return motivos.length ? { ok: false, motivos, erros } : { ok: true, plano, motivos: [], erros: [] };

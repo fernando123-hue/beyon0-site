@@ -548,7 +548,7 @@ export const SABOTAGENS = [
   { nome: "planta: o validador de texto aceita dígito", fonte: "api/_vendas/planta-textos.mjs", testes: ['docs/testes/planta-textos.test.mjs', 'docs/testes/planta-esquema.test.mjs'],
     de: "if (DIGITO.test(t)) return { ok: false, motivo: 'digito' };", para: "if (false) return { ok: false, motivo: 'digito' };" },
   { nome: "planta: o plano do modelo é gravado sem validar", fonte: "api/_vendas/planta.mjs", testes: ['docs/testes/planta-ferramenta.test.mjs'],
-    de: "const v = validarPlano(entrada, { nomeDoNegocio: ctx.nomeDoNegocio, regulado: ctx.regulado });", para: "const v = { ok: true, plano: entrada, motivos: [] };" },
+    de: "const v = validarPlano(entrada, { nomeDoNegocio: ctx.nomeDoNegocio, regulado: ctx.regulado, cidade: cidadeValida(ctx.cidade) });", para: "const v = { ok: true, plano: entrada, motivos: [] };" },
   { nome: "planta: o estado deixa de apagar planta, leitura e planta_pedidos de conversa.briefing", fonte: "api/_vendas/fluxo.mjs", testes: ['docs/testes/planta-estado.test.mjs'],
     de: "const briefingLimpo = semChavesDaPlanta(briefingBruto);", para: "const briefingLimpo = briefingBruto;" },
   { nome: "planta: uma das dez travas do Zero (o recado) deixa de rodar na camada de texto", fonte: "api/_vendas/planta-textos.mjs", testes: ['docs/testes/planta-textos.test.mjs'],
