@@ -409,6 +409,18 @@
     }
     return dinheiro(c.valor_total);
   }
+  /* "Já vem no pacote" do pedido salvo: com as perguntas abertas quem enche é o js/orcamento-perguntas.js (pelo catálogo); depois de recarregar
+     não há catálogo, e a fonte é a estimativa gravada (detalhes.formato.inclui, api/_vendas/precos.mjs: a mesma lista da tabela). Sem a lista, não
+     mexe em nada (nada inventado); só texto vira item */
+  function jaVemNoPacote(est) {
+    var d = est.detalhes || est, f = d && d.formato;
+    var inclui = f && Array.isArray(f.inclui) ? f.inclui.filter(function (t) { return typeof t === 'string' && t.trim() !== ''; }) : [];
+    if (!inclui.length || !mudou('inclui', inclui)) return;
+    var ul = $('o-est-inclui');
+    ul.textContent = '';
+    inclui.forEach(function (t) { ul.appendChild(el('li', '', t)); });
+    mostrar('o-est-inclui-caixa', true);
+  }
   function sugestao(s) {
     $('o-sugestao-ideia').textContent = s.ideia;
     $('o-sugestao-motivo').textContent = s.motivo || '';
@@ -745,7 +757,7 @@
     verConversa();
     /* as perguntas: só numa conversa nova; com o preço gravado (ou a conversa já andando), ficam escondidas */
     if (!E.estimativa && E.mensagens.length === 0) iniciarPerguntas(); else mostrar('o-perguntas', false);
-    if (E.estimativa) investimento(E.estimativa, false);
+    if (E.estimativa) { investimento(E.estimativa, false); jaVemNoPacote(E.estimativa); }
     var aberta = CONVERSA_ABERTA.indexOf(et) >= 0;
     mostrar('o-form', aberta);
     $('o-texto').placeholder = Object.prototype.hasOwnProperty.call(DICA_DUVIDA, et) ? DICA_DUVIDA[et] : dicaPadrao;

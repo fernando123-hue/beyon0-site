@@ -98,6 +98,35 @@ test('etapas no celular: o nome das outras etapas sai da VISTA, não do leitor d
   assert.doesNotMatch(bloco[1], /\.orc-etapas \{[^}]*display: grid/, 'nada de 3 colunas × 2 linhas');
 });
 
+/* 5. "Já vem no pacote" depois de recarregar um pedido salvo: antes só as perguntas o enchiam (pelo catálogo, js/orcamento-perguntas.js incluidos()).
+   Com o pacote gravado, a fonte é a estimativa salva: E.estimativa.detalhes.formato.inclui (api/_vendas/precos.mjs; a mesma lista fmt.inclui da tabela
+   que o catálogo devolve). Sem a lista na estimativa, nada é inventado: a caixa segue como estava. Roda o js/orcamento.js REAL na página falsa. */
+const DETALHES = { formato: { chave: 'institucional', nome: 'Site institucional', paginas_incluidas: 5, inclui: ['Até 5 páginas', 'Formulário de contato'] }, itens: [{ chave: 'agendamento', nome: 'Agendamento online', qtd: 1, valor: 450 }], valor_total: 8350, sinal: 4175, prazo_dias: 9 };
+const textos = (el) => el.children.map((li) => li.textContent);
+async function paginaSalva(detalhes) {
+  const { criarPagina } = await import('./planta-pagina-falsa.mjs');
+  const p = criarPagina({ estimativa: { valor_total: detalhes.valor_total, prazo_dias: detalhes.prazo_dias, detalhes }, escondidos: ['o-est-inclui-caixa'] });
+  assert.ok(await p.pronta(), 'a página leu o estado e desenhou');
+  return p;
+}
+test('pedido salvo recarregado: "Já vem no pacote" vem da estimativa salva (formato.inclui), na ordem dela', async () => {
+  const p = await paginaSalva(DETALHES);
+  assert.deepEqual(textos(p.doc.getElementById('o-est-inclui')), ['Até 5 páginas', 'Formulário de contato']);
+  assert.equal(p.doc.getElementById('o-est-inclui-caixa').hidden, false);
+});
+test('pedido salvo SEM a lista na estimativa (a tabela não abate nada no formato): nada inventado, a caixa segue escondida', async () => {
+  const semLista = { ...DETALHES, formato: { chave: 'institucional', nome: 'Site institucional', paginas_incluidas: 5 } };
+  const p = await paginaSalva(semLista);
+  assert.deepEqual(textos(p.doc.getElementById('o-est-inclui')), []);
+  assert.equal(p.doc.getElementById('o-est-inclui-caixa').hidden, true);
+  const vazia = await paginaSalva({ ...DETALHES, formato: { ...DETALHES.formato, inclui: [] } });
+  assert.equal(vazia.doc.getElementById('o-est-inclui-caixa').hidden, true, 'lista vazia: idem');
+});
+test('a lista da estimativa só aceita texto (lixo no dado não vira item na tela)', async () => {
+  const p = await paginaSalva({ ...DETALHES, formato: { ...DETALHES.formato, inclui: ['Até 5 páginas', 42, null, '  ', { x: 1 }] } });
+  assert.deepEqual(textos(p.doc.getElementById('o-est-inclui')), ['Até 5 páginas']);
+});
+
 test('o js/orcamento.js tira a classe ao assumir, ANTES da guarda dos scripts (sem módulo, as perguntas mortas não ficam à vista)', () => {
   const js = semComentarios(ler('js/orcamento.js'));
   const tira = js.indexOf("classList.remove('orc-nova')");

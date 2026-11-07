@@ -35,7 +35,7 @@ function elemento(id) {
 export function criarPagina(inicial = {}) {
   const servidor = { mensagens: (inicial.mensagens || []).map((m) => ({ ...m })), rede: true, redeParaLer: true, entra: true, chamadasMensagem: [], leituras: 0 };
   const falha = (msg) => Object.assign(new Error(msg), { status: 0, dados: {} });
-  const estado = () => ({ conversa: { etapa: 'estimativa', briefing: {}, tem_contato: false }, mensagens: servidor.mensagens.map((m) => ({ ...m })), estimativa: null, direcoes: [], proposta: null, pedido: null, painel: null, ajustes: [] });
+  const estado = () => ({ conversa: { etapa: 'estimativa', briefing: {}, tem_contato: false }, mensagens: servidor.mensagens.map((m) => ({ ...m })), estimativa: inicial.estimativa || null, direcoes: [], proposta: null, pedido: null, painel: null, ajustes: [] });
   const API = {
     temSessao: () => true, perdeuSessao: () => false, codigo: () => 'abc123', codigoPerdido: () => null, esquecer() {}, abrirRecado: () => Promise.resolve(),
     sessaoConfig: () => Promise.resolve({ consultor: true }),
@@ -50,6 +50,8 @@ export function criarPagina(inicial = {}) {
     }
   };
   const els = {};
+  /* (o que o HTML faz nascer escondido e o teste quer ver aparecer: inicial.escondidos) */
+  (inicial.escondidos || []).forEach((id) => { els[id] = elemento(id); els[id].hidden = true; });
   const doc = {
     getElementById: (id) => els[id] || (els[id] = elemento(id)), querySelectorAll: () => [], querySelector: () => null, createElement: (t) => elemento(t),
     addEventListener() {}, dispatchEvent() { return true; }, documentElement: { classList: { contains: () => false, add() {}, remove() {} } }, activeElement: null
