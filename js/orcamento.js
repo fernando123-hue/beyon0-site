@@ -410,11 +410,12 @@
     return dinheiro(c.valor_total);
   }
   /* "Já vem no pacote" do pedido salvo: com as perguntas abertas quem enche é o js/orcamento-perguntas.js (pelo catálogo); depois de recarregar
-     não há catálogo, e a fonte é a estimativa gravada (detalhes.formato.inclui, api/_vendas/precos.mjs: a mesma lista da tabela). Sem a lista, não
-     mexe em nada (nada inventado); só texto vira item */
+     não há catálogo, e a fonte é a estimativa gravada (detalhes.formato.no_pacote, api/_vendas/precos.mjs listaDoPacote: a lista da tabela, em todo
+     formato; a estimativa gravada antes dela só tem formato.inclui, e só no Atelier). Sem a lista, não mexe em nada (nada inventado); só texto vira item */
   function jaVemNoPacote(est) {
     var d = est.detalhes || est, f = d && d.formato;
-    var inclui = f && Array.isArray(f.inclui) ? f.inclui.filter(function (t) { return typeof t === 'string' && t.trim() !== ''; }) : [];
+    var fonte = f ? (Array.isArray(f.no_pacote) && f.no_pacote.length ? f.no_pacote : f.inclui) : null;
+    var inclui = Array.isArray(fonte) ? fonte.filter(function (t) { return typeof t === 'string' && t.trim() !== ''; }).map(function (t) { return t.trim(); }) : [];
     if (!inclui.length || !mudou('inclui', inclui)) return;
     var ul = $('o-est-inclui');
     ul.textContent = '';
