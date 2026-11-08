@@ -24,9 +24,18 @@ const REVALIDA = 'public, max-age=0, must-revalidate';
 const PAGINAS = ['/', '/sites', '/automacao', '/orcamento', '/condicoes', '/privacidade', '/resumo', '/qualquer-coisa'];
 
 /* ---------- (a) o _headers ---------- */
-test('cache: /js/* e /css/* (também os módulos sem ?v, como /js/nucleo/*) com max-age curto, um valor só', () => {
-  for (const c of ['/js/core.js', '/js/passagem.js', '/js/nucleo/boot.js', '/js/nucleo/cena.js', '/js/recado.js', '/js/planta-pecas.js', '/css/base.css', '/css/passagem.css', '/css/recado.css'])
+test('cache: /js/* e /css/* com max-age curto, um valor só', () => {
+  for (const c of ['/js/core.js', '/js/passagem.js', '/js/nucleo/boot.js', '/js/recado.js', '/js/orcamento-planta.js', '/css/base.css', '/css/passagem.css', '/css/recado.css'])
     assert.equal(cc(c), CACHE_CURTO, c);
+});
+/* os módulos que outro JS pede sem ?v e que quebram a página se vierem de outra versão (2ª revisão: boot novo com cena
+   velha, planta nova com peça velha): revalidam sempre, como antes da mudança */
+const SO_COM_O_PAI = ['/js/nucleo/cena.js', '/js/nucleo/gesto.js', '/js/nucleo/spec.js', '/js/nucleo/pecas.js', '/js/nucleo/coroa.js',
+  '/js/nucleo/shaders.js', '/js/orcamento-planta-forma.js', '/js/planta-pecas.js', '/js/planta-layout.js', '/js/planta-desenho.js', '/css/orcamento-planta.css'];
+test('cache: os módulos do reator 3D e da planta (pedidos por JS sem ?v) revalidam sempre: nunca peça velha com página nova', () => {
+  for (const c of SO_COM_O_PAI) assert.equal(cc(c), REVALIDA, c);
+  for (const a of versionados().filter(a => /^js\/nucleo\/.+\.js$/.test(a) && !/\/(boot|lab)\.js$/.test(a)))
+    assert.ok(SO_COM_O_PAI.includes('/' + a), 'módulo novo do núcleo sem regra de revalidar: /' + a);
 });
 test('cache: nada em /js ou /css fica preso por muito tempo (sem immutable, max-age ≤ 300): há módulos pedidos sem ?v', () => {
   for (const c of ['/js/core.js', '/js/nucleo/cena.js', '/css/tokens.css', '/js/atendente-balao.js']) {
@@ -148,8 +157,9 @@ test('montagem: referência a JS/CSS local que não sobe é erro de montagem (se
 });
 
 /* ---------- os caminhos pedidos SEM ?v (por JS, não pelo HTML): lista fechada ----------
-   Cada um vive com o max-age curto acima: por até 300 s depois de uma publicação, quem já tinha o arquivo pode juntar o
-   módulo velho com a página nova. Um carregamento novo por JS entra aqui de propósito, pensando nesse risco. */
+   Os do reator 3D e da planta revalidam sempre (SO_COM_O_PAI, acima). Os outros vivem com o max-age curto: por até 300 s
+   depois de uma publicação, quem já tinha o arquivo pode juntar o módulo velho com a página nova (recado, turnstile: o
+   servidor valida o que importa). Um carregamento novo por JS entra aqui de propósito, pensando nesse risco. */
 const SEM_V = [
   'js/nucleo/boot.js → /js/nucleo/{cena,gesto,spec,pecas,coroa,shaders}.js (import() e modulepreload) e /vendor/three/three-nucleo.min.js',
   'js/nucleo/{cena,gesto,pecas}.js → ./spec.js ./pecas.js ./coroa.js ./shaders.js ../../vendor/three/three-nucleo.min.js (import estático)',

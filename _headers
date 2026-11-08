@@ -53,6 +53,53 @@
 /css/*
   Cache-Control: public, max-age=300
 
+# Módulos que outro JS pede SEM ?v e que quebram a página se vierem de uma versão diferente da de quem os pede (o reator
+# 3D da Início e a planta do orçamento): revalidam sempre, como antes, para nunca juntar peça velha com página nova. Os
+# dois são pedidos depois da página pronta (import() depois do load; a planta sob demanda): não entram no vão da travessia.
+/js/nucleo/cena.js
+  ! Cache-Control
+  Cache-Control: public, max-age=0, must-revalidate
+
+/js/nucleo/gesto.js
+  ! Cache-Control
+  Cache-Control: public, max-age=0, must-revalidate
+
+/js/nucleo/spec.js
+  ! Cache-Control
+  Cache-Control: public, max-age=0, must-revalidate
+
+/js/nucleo/pecas.js
+  ! Cache-Control
+  Cache-Control: public, max-age=0, must-revalidate
+
+/js/nucleo/coroa.js
+  ! Cache-Control
+  Cache-Control: public, max-age=0, must-revalidate
+
+/js/nucleo/shaders.js
+  ! Cache-Control
+  Cache-Control: public, max-age=0, must-revalidate
+
+/js/orcamento-planta-forma.js
+  ! Cache-Control
+  Cache-Control: public, max-age=0, must-revalidate
+
+/js/planta-pecas.js
+  ! Cache-Control
+  Cache-Control: public, max-age=0, must-revalidate
+
+/js/planta-layout.js
+  ! Cache-Control
+  Cache-Control: public, max-age=0, must-revalidate
+
+/js/planta-desenho.js
+  ! Cache-Control
+  Cache-Control: public, max-age=0, must-revalidate
+
+/css/orcamento-planta.css
+  ! Cache-Control
+  Cache-Control: public, max-age=0, must-revalidate
+
 # O balão do atendente é carregado por <script> em site de OUTRA origem: só este arquivo (nunca /js/*) sai com CORP cross-origin.
 # E revalida sempre (depois do /js/*, para o "! Cache-Control" tirar o cache curto): a URL é fixa no site do cliente, sem ?v,
 # então uma correção do balão chega no próximo carregamento de lá
