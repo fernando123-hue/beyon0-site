@@ -44,13 +44,42 @@ export function cabecalhosDeAcesso(env = process.env, base = env.BASE || env.BZ_
    mandaria o token também a terceiros que a página chama (Turnstile, Mercado Pago, Google). Nunca route.continue, que
    segue o redirecionamento COM o token (o staging redireciona para o login do Access, em outro host quando o token
    expira): busca sem seguir e entrega a resposta; o navegador segue sozinho e o pedido seguinte só leva o token se for
-   da própria origem. Devolve se instalou. */
+   da própria origem. Devolve se instalou.
+   Redirecionamento na MESMA origem (o staging manda /index.html → 307 /): o Playwright só chama a rota no 1º endereço,
+   e o pedido seguinte saía sem o token e caía no login do Access. Por isso a rota segue aqui, com o token, só enquanto
+   o destino for a própria origem (até MAX_SALTOS); destino em outro host é entregue como veio, sem seguir. */
+const MAX_SALTOS = 5;
+const ehRedirecionamento = status => status >= 300 && status < 400;
+/* o contexto fechado com um pedido ainda em voo (fim de um alvo do verificar) não é falha do site: só esse erro é ignorado */
+const ehContextoFechado = e => e?.name === 'TargetClosedError' || /context disposed|has been closed/i.test(String(e?.message));
+
+/* urlAtual é função: o endereço só é lido quando há um Location para resolver */
+function destinoNaOrigem(resposta, urlAtual, origem) {
+  const local = typeof resposta.headers === 'function' ? resposta.headers().location : undefined;
+  if (!ehRedirecionamento(resposta.status()) || !local) return null;
+  const destino = new URL(local, urlAtual());
+  return destino.origin === origem ? destino.href : null;
+}
+
 export async function autorizarContexto(ctx, base, env = process.env, sub = SUB_CONTA) {
   const cabecalhos = cabecalhosDeAcesso(env, base, sub);
   if (Object.keys(cabecalhos).length === 0) return false;
-  await ctx.route(new URL(base).origin + '/**', async route => {
-    const resposta = await route.fetch({ headers: { ...route.request().headers(), ...cabecalhos }, maxRedirects: 0 });
-    await route.fulfill({ response: resposta });
+  const origem = new URL(base).origin;
+  await ctx.route(origem + '/**', async route => {
+    try {
+      const headers = { ...route.request().headers(), ...cabecalhos };
+      let resposta = await route.fetch({ headers, maxRedirects: 0 });
+      let url = null;
+      for (let salto = 0; salto < MAX_SALTOS; salto++) {
+        const destino = destinoNaOrigem(resposta, () => url ?? route.request().url(), origem);
+        if (!destino) break;
+        url = destino;
+        resposta = await route.fetch({ url, headers, maxRedirects: 0 });
+      }
+      await route.fulfill({ response: resposta });
+    } catch (e) {
+      if (!ehContextoFechado(e)) throw e;
+    }
   });
   return true;
 }
