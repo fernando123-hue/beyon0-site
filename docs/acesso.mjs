@@ -47,17 +47,23 @@ export function cabecalhosDeAcesso(env = process.env, base = env.BASE || env.BZ_
    da própria origem. Devolve se instalou.
    Redirecionamento na MESMA origem (o staging manda /index.html → 307 /): o Playwright só chama a rota no 1º endereço,
    e o pedido seguinte saía sem o token e caía no login do Access. Por isso a rota segue aqui, com o token, só enquanto
-   o destino for a própria origem (até MAX_SALTOS); destino em outro host é entregue como veio, sem seguir. */
+   o destino for a própria origem (até MAX_SALTOS); destino em outro host é entregue como veio, sem seguir.
+   Só GET/HEAD seguem (o verificador só faz GET; num POST o navegador trocaria o método, e aqui o corpo iria junto):
+   outro método recebe o 3xx como veio. Location malformado também: entregue como veio, nunca derruba a rota. */
 const MAX_SALTOS = 5;
+const METODOS_QUE_SEGUEM = new Set(['GET', 'HEAD']);
 const ehRedirecionamento = status => status >= 300 && status < 400;
-/* o contexto fechado com um pedido ainda em voo (fim de um alvo do verificar) não é falha do site: só esse erro é ignorado */
-const ehContextoFechado = e => e?.name === 'TargetClosedError' || /context disposed|has been closed/i.test(String(e?.message));
+/* o contexto fechado com um pedido ainda em voo (fim de um alvo do verificar) não é falha do site: só esse erro é
+   ignorado, pelo nome ou pelas duas mensagens exatas do Playwright (nunca um "socket has been closed" da rede) */
+const ehContextoFechado = e => e?.name === 'TargetClosedError' ||
+  /Request context disposed|Target (?:page, context or browser )?has been closed/.test(String(e?.message));
 
 /* urlAtual é função: o endereço só é lido quando há um Location para resolver */
 function destinoNaOrigem(resposta, urlAtual, origem) {
   const local = typeof resposta.headers === 'function' ? resposta.headers().location : undefined;
   if (!ehRedirecionamento(resposta.status()) || !local) return null;
-  const destino = new URL(local, urlAtual());
+  let destino;
+  try { destino = new URL(local, urlAtual()); } catch { return null; }   /* malformado: o navegador recebe o 3xx como veio */
   return destino.origin === origem ? destino.href : null;
 }
 
@@ -72,7 +78,7 @@ export async function autorizarContexto(ctx, base, env = process.env, sub = SUB_
       let url = null;
       for (let salto = 0; salto < MAX_SALTOS; salto++) {
         const destino = destinoNaOrigem(resposta, () => url ?? route.request().url(), origem);
-        if (!destino) break;
+        if (!destino || !METODOS_QUE_SEGUEM.has(route.request().method())) break;
         url = destino;
         resposta = await route.fetch({ url, headers, maxRedirects: 0 });
       }
