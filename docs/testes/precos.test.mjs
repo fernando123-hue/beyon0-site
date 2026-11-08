@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { estimar, validarRegras, validarFatores } from '../../api/_vendas/precos.mjs';
+import { estimar, validarRegras, validarFatores, listaDoPacote } from '../../api/_vendas/precos.mjs';
 import { comArea } from './_area-v2.mjs';
 import { comFases } from './_motor-fases.mjs';
 import { comFora } from './_fora-do-automatico.mjs';
@@ -405,6 +405,38 @@ test('incluso_em: o contrato diz o que o Atelier já inclui e quantos do item vi
   assert.equal(i.formato.inclui, undefined, 'só o formato que a tabela abate leva a lista');
   assert.ok(!/Já incluído em/.test(contrato(i)) && /Textos escritos pela Beyon Zero \(por página\) \(3\)/.test(contrato(i)));
   assert.ok(JSON.stringify(b).length < 16384, 'cabe no limite de 16 KB de app.estimativas.detalhes');
+});
+
+/* "Já vem no pacote" gravado com cada estimativa (dono, 07/11, opção A): a lista da tabela em todo formato, limitada; o contrato não muda */
+test('no_pacote: todo formato leva a lista da tabela; formato.inclui (o do contrato) segue só no formato que a tabela abate', async () => {
+  const { montarEscopo } = await import('../../api/_vendas/escopo.mjs');
+  for (const [chave, fmt] of Object.entries(REGRAS.formatos)) {
+    const e = estimar({ formato: chave }, REGRAS);
+    if (e.encaminhar_diagnostico) continue;
+    assert.ok(fmt.inclui.length > 0 && e.formato.no_pacote.length > 0, chave + ': a tabela real tem a lista');
+    assert.deepEqual(e.formato.no_pacote, listaDoPacote(fmt.inclui), chave);
+  }
+  const i = estimar({ formato: 'institucional' }, REGRAS);
+  assert.equal(i.formato.inclui, undefined, 'o contrato do institucional não ganha "Já incluído em"');
+  const contrato = montarEscopo({ estimativa: i, direcao: { nome_conceito: 'Clareza', estrategia: 'conversao', secoes: [{ tipo: 'hero' }] }, alteracoesAplicadas: [], briefing: { negocio: { nome: 'Estúdio' } } }).escopo;
+  assert.doesNotMatch(contrato, /Já incluído em/);
+});
+
+test('no_pacote: só texto, sem pontas, sem vazio, item longo demais sai inteiro (nunca cortado), no máximo PACOTE_MAX_ITENS; tabela sem lista: sem o campo', async () => {
+  const { PACOTE_MAX_ITENS, PACOTE_MAX_CARACTERES } = await import('../../api/_vendas/precos.mjs');
+  const r = copia();
+  r.formatos.institucional.inclui = ['  Até 5 páginas  ', 42, null, '', '   ', { x: 1 }, ['a'], 'x'.repeat(PACOTE_MAX_CARACTERES + 1), 'x'.repeat(PACOTE_MAX_CARACTERES),
+    ...Array.from({ length: 30 }, (_, n) => 'Item ' + n)];
+  const lista = estimar({ formato: 'institucional' }, r).formato.no_pacote;
+  assert.equal(lista.length, PACOTE_MAX_ITENS);
+  assert.deepEqual(lista.slice(0, 3), ['Até 5 páginas', 'x'.repeat(PACOTE_MAX_CARACTERES), 'Item 0']);
+  assert.ok(lista.every(t => typeof t === 'string' && t.length <= PACOTE_MAX_CARACTERES));
+  for (const ruim of [undefined, 'Até 5 páginas', { 0: 'a' }, [], [1, null]]) {
+    const s = copia(); s.formatos.institucional.inclui = ruim;
+    assert.ok(!('no_pacote' in estimar({ formato: 'institucional' }, s).formato), JSON.stringify(ruim) + ': sem lista, sem o campo');
+  }
+  const cheia = copia(); cheia.formatos.sob_medida.inclui = Array.from({ length: 50 }, () => 'y'.repeat(PACOTE_MAX_CARACTERES));
+  assert.ok(JSON.stringify(estimar({ formato: 'sob_medida', paginas: 60, adicionais: { textos: 60, interacao_assinatura: 3 } }, cheia)).length < 16384, 'no pior caso cabe nos 16 KB de app.estimativas.detalhes');
 });
 
 test('incluso_em: nunca em pagina_extra, e item que outro exige não pode ter incluso (iria para a fase seguinte)', () => {

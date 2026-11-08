@@ -4,7 +4,7 @@
    prazo por item, piso, limites, descontos). As frases são texto de tela,
    revisado no PR 4 (linguagem); sem "sob medida".
    ========================================================================== */
-import { LANDING_MAX_PAGINAS } from './precos.mjs';
+import { LANDING_MAX_PAGINAS, listaDoPacote } from './precos.mjs';
 import { redigir } from './seguranca.mjs';
 
 export const FRASES = {
@@ -58,7 +58,8 @@ function extra(chave, def) {
 }
 
 export function catalogoPublico(regras, { formato, ramo }) {
-  const formatos = Object.entries(regras.formatos || {}).map(([chave, f]) => ({ chave, nome: nomeDeTela(chave, f.nome), a_partir_de: f.base, paginas_incluidas: f.paginas_incluidas, inclui: f.inclui || [] }));
+  /* inclui = "Já vem no pacote": a mesma lista limpa que vai gravada com a estimativa (listaDoPacote), para a tela não mudar ao recarregar */
+  const formatos = Object.entries(regras.formatos || {}).map(([chave, f]) => ({ chave, nome: nomeDeTela(chave, f.nome), a_partir_de: f.base, paginas_incluidas: f.paginas_incluidas, inclui: listaDoPacote(f.inclui) }));
   const principais = [], mais = [];
   for (const [chave, def] of Object.entries(regras.adicionais || {})) {
     if (def.em_preparo === true) continue;   /* (em preparo: está na tabela, mas a pessoa ainda não pode contratar; o consultor só registra o interesse) */
