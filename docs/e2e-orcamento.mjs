@@ -272,6 +272,9 @@ try {
   await page.waitForSelector('#o-contato:not([hidden])', { timeout: 30000 });
   ok(await page.evaluate(() => !document.documentElement.classList.contains('orc-nova') && !window.__perguntasVistas && document.getElementById('o-perguntas').hidden),
     'retomada com pedido salvo: sem a classe de visita nova e as perguntas em nenhum quadro da carga');
+  /* (07/11, opção A) "Já vem no pacote" volta depois de recarregar também no site institucional: a lista gravada com a estimativa (formato.no_pacote) */
+  ok(await espera(page, () => !document.getElementById('o-est-inclui-caixa').hidden && document.querySelectorAll('#o-est-inclui li').length > 0),
+    'retomada com pedido salvo (institucional): "Já vem no pacote" volta, com a lista da tabela');
   await page.fill('#o-d-negocio', 'Clínica Teste E2E');
   await page.click('#o-d-sugestoes .chip >> nth=0');
   await page.fill('#o-tel', TELEFONE);
