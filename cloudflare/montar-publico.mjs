@@ -14,17 +14,25 @@ const NEGADOS = [/^js\/nucleo\/lab\.js$/, /^vendor\/three\/(entrada\.js|README\.
 export const ehPublico = arq => PERMITIDOS.some(r => r.test(arq)) && !NEGADOS.some(r => r.test(arq));
 
 const TAMANHO_DO_HASH = 10;
-/* src/href com caminho local (sem esquema, sem //) terminado em .js/.css, sem query: só esses levam o ?v */
-const REFERENCIA = /\b(src|href)="(\/?)([a-z0-9_][a-z0-9_./-]*\.(?:js|css))"/g;
+/* atributo src/href (não data-src) com caminho local (sem esquema, sem //), entre aspas, terminado em .js/.css, sem query */
+const REFERENCIA = /(\s)(src|href)=(["'])(\.\/)?(\/?)([a-z0-9_][a-z0-9_./-]*\.(?:js|css))\3/g;
+/* depois da troca, qualquer src/href local de JS/CSS sem ?v (fora vendor/) é erro: a montagem nunca o deixa passar calada */
+const QUALQUER = /\s(?:src|href)\s*=\s*["']?([^"'\s>]+)/gi;
+const externa = u => /^[a-z][a-z0-9+.-]*:|^\/\//i.test(u);
 
 function versionarHtml(html, pagina, { destino, publicos, hashes }) {
-  return html.replace(REFERENCIA, (inteira, atributo, barra, caminho) => {
+  const saida = html.replace(REFERENCIA, (inteira, espaco, atributo, aspas, ponto, barra, caminho) => {
     const arquivo = barra ? caminho : path.posix.join(path.posix.dirname(pagina), caminho);
     if (arquivo.startsWith('vendor/')) return inteira;
     if (!publicos.has(arquivo)) throw new Error('montar-publico: ' + pagina + ' pede ' + barra + caminho + ', que não sobe (seria 404 no ar)');
     if (!hashes.has(arquivo)) hashes.set(arquivo, createHash('sha256').update(fs.readFileSync(path.join(destino, arquivo))).digest('hex').slice(0, TAMANHO_DO_HASH));
-    return atributo + '="' + barra + caminho + '?v=' + hashes.get(arquivo) + '"';
+    return espaco + atributo + '=' + aspas + (ponto || '') + barra + caminho + '?v=' + hashes.get(arquivo) + aspas;
   });
+  for (const [, u] of saida.matchAll(QUALQUER)) {
+    if (externa(u) || !/\.(js|css)([?#]|$)/i.test(u) || /^(\.\/|\/)?vendor\//.test(u) || /\?v=[0-9a-f]+$/.test(u)) continue;
+    throw new Error('montar-publico: ' + pagina + ' pede ' + u + ' sem ?v (a montagem só versiona "js/x.js", "/css/x.css", "./x.css" entre aspas, sem query)');
+  }
+  return saida;
 }
 
 export function montarPublico({ raiz, destino, arquivos }) {

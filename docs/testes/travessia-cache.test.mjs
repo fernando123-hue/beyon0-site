@@ -122,6 +122,24 @@ test('montagem: o hash muda quando o conteúdo do JS muda (e só o dele)', () =>
   assert.notEqual(v(a, 'js/a.js'), v(b, 'js/a.js'));
   assert.equal(v(a, 'css/a.css'), v(b, 'css/a.css'));
 });
+test('montagem: aspas simples e "./" também levam ?v; data-src/data-href (não são endereço) ficam intactos', () => {
+  const { raiz, arquivos } = miniRepo('um()');
+  fs.writeFileSync(path.join(raiz, 'index.html'), "<script src='js/a.js'></script><script src=\"./js/a.js\"></script><div data-src=\"js/a.js\" data-href=\"css/a.css\"></div>");
+  try {
+    montarPublico({ raiz, destino: path.join(raiz, 'publico'), arquivos });
+    const s = fs.readFileSync(path.join(raiz, 'publico', 'index.html'), 'utf8'), h = hash(Buffer.from('um()'));
+    assert.ok(s.includes(`src='js/a.js?v=${h}'`) && s.includes(`src="./js/a.js?v=${h}"`), s);
+    assert.ok(s.includes('data-src="js/a.js"') && s.includes('data-href="css/a.css"'), s);
+  } finally { fs.rmSync(raiz, { recursive: true, force: true }); }
+});
+test('montagem: JS/CSS local que a montagem não sabe versionar é erro (nunca sobe sem ?v calado)', () => {
+  for (const ref of ['<script src="js/a.js?x=1"></script>', '<script src="JS/A.js"></script>', '<link href=css/a.css rel="stylesheet">']) {
+    const { raiz, arquivos } = miniRepo('x');
+    fs.writeFileSync(path.join(raiz, 'index.html'), ref);
+    try { assert.throws(() => montarPublico({ raiz, destino: path.join(raiz, 'publico'), arquivos }), /sem \?v/, ref); }
+    finally { fs.rmSync(raiz, { recursive: true, force: true }); }
+  }
+});
 test('montagem: referência a JS/CSS local que não sobe é erro de montagem (seria 404 no ar)', () => {
   const { raiz, arquivos } = miniRepo('x');
   fs.writeFileSync(path.join(raiz, 'index.html'), '<script src="js/falta.js"></script>');

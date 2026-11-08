@@ -14,7 +14,8 @@
      TRACE=arq    guarda o rastreio da última rodada
      BUSY=<ms>    trava o fio principal por esse tempo 300 ms depois de a chegada soltar (prova que o voo não depende dele)
      EXTRACSS=... CSS extra por folha construída (A/B de uma regra sem editar o arquivo; a CSP não bloqueia)
-   Servidor: docs/servidor.mjs com CACHE=1 serve como o Worker da Cloudflare (ETag + max-age=0, must-revalidate);
+   Servidor: docs/servidor.mjs com CACHE=1 serve como o Worker da Cloudflare (ETag + o Cache-Control do _headers ou max-age=0,
+   must-revalidate; sirva a pasta montada, com o ?v);
    CACHE_CC e CACHE_HTML_CC trocam o Cache-Control; TLS_CERT/TLS_CHAVE dão HTTP/2.
    Fidelidade: GPU de verdade, CPU 4x só no celular (afeta o fio principal do renderizador, não a GPU nem o raster). Não é
    um celular de verdade: vale para comparar antes/depois, não pelo valor absoluto. */
@@ -148,7 +149,7 @@ async function uma(base, de, alvo, largura) {
   /* NET=<ms>: rede de celular simulada (latência de ida e volta em ms, 1,6 Mb/s); vale do clique em diante */
   if (process.env.NET) await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: Number(process.env.NET), downloadThroughput: 1.6e6 / 8, uploadThroughput: 0.75e6 / 8 });
   await p.goto(base + de, { waitUntil: 'load', timeout: 90000 });
-  await p.waitForTimeout(Number(process.env.ESPERA) || 4000);
+  await p.waitForTimeout((process.env.ESPERA ? Number(process.env.ESPERA) : 4000));
   if (cel) { const t = p.locator('.nav__toggle'); if (await t.isVisible()) { await t.tap(); await p.waitForTimeout(600); } }
   const seletor = alvo === '/' ? '.nav__logo' : `.nav a[href="${alvo}"]`;
   const caixa = await p.locator(seletor).first().boundingBox();
