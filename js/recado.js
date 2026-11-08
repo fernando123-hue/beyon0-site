@@ -224,7 +224,7 @@
 
   /* ---------- a janela e a montagem ---------- */
   function puxarEstilo() {
-    if (document.querySelector('link[href$="recado.css"]')) return;
+    if (document.querySelector('link[href*="css/recado.css"]')) return;
     var l = document.createElement('link');
     l.rel = 'stylesheet'; l.href = '/css/recado.css';
     document.head.appendChild(l);
