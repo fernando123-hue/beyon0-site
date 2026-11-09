@@ -337,6 +337,11 @@ main[tabindex="-1"]:focus { outline: none; }   /* o alvo do skip-link recebe o f
 .marca__saida, .marca__zero { fill: var(--ac); }
 .marca__nucleo { fill: var(--logo-nucleo); }
 .marca__nome { fill: var(--t1); }
+/* o nome em prata (dono 09/11, opção C): metade de cima branca, de baixo prata, corte reto, sem brilho borrado;
+   cada SVG da logo traz o seu degradê (defs), a cor lisa fica de reserva */
+.marca--nav .marca__nome { fill: url(#marca-prata-nav) var(--t1); }
+.marca--rodape .marca__nome { fill: url(#marca-prata-rodape) var(--t1); }
+.marca--pagina .marca__nome { fill: url(#marca-prata-pagina) var(--t1); }
 .marca__aro, .marca__lente, .marca__entrada, .marca__saida, .marca__zero, .marca__nucleo { transition: fill .8s var(--ease); }
 .marca__pulso-in { fill: var(--ac); opacity: 0; }
 .marca__pulso-out { fill: var(--t1); opacity: 0; }
