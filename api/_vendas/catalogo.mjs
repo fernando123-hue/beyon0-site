@@ -4,11 +4,12 @@
    prazo por item, piso, limites, descontos). As frases são texto de tela,
    revisado no PR 4 (linguagem); sem "sob medida".
    ========================================================================== */
-import { LANDING_MAX_PAGINAS, listaDoPacote } from './precos.mjs';
+import { LANDING_MAX_PAGINAS, listaDoPacote, FORMATOS } from './precos.mjs';
 import { redigir } from './seguranca.mjs';
 
 export const FRASES = {
   pagina_extra: 'Mais uma página além das que vêm no pacote.',
+  visual_exclusivo: 'Nós desenhamos o visual do seu site do zero, só para a sua marca, sem partir de um modelo.',
   textos: 'Nós escrevemos os textos de cada página a partir do que você nos contar.',
   imagens: 'Nós escolhemos as fotos e imagens que combinam com o seu negócio.',
   formulario_avancado: 'Formulário em etapas ou com envio de arquivos.',
@@ -63,8 +64,10 @@ export function catalogoPublico(regras, { formato, ramo }) {
   const principais = [], mais = [];
   for (const [chave, def] of Object.entries(regras.adicionais || {})) {
     if (def.em_preparo === true) continue;   /* (em preparo: está na tabela, mas a pessoa ainda não pode contratar; o consultor só registra o interesse) */
-    if (Array.isArray(def.requer) && def.requer.includes('loja_plataforma') && formato !== 'loja_plataforma') continue;   /* (os da loja só com a loja) */
-    const doRamo = SEMPRE.includes(chave) || (POR_RAMO[chave] || []).includes(ramo) || (formato === 'loja_plataforma' && Array.isArray(def.requer) && def.requer.includes('loja_plataforma'));
+    /* o que só existe em certos formatos (os da loja, o visual exclusivo do institucional) só aparece neles, e neles é principal */
+    const soEmFormatos = Array.isArray(def.requer) && def.requer.length > 0 && def.requer.every(r => FORMATOS.includes(r));
+    if (soEmFormatos && !def.requer.includes(formato)) continue;
+    const doRamo = SEMPRE.includes(chave) || (POR_RAMO[chave] || []).includes(ramo) || soEmFormatos;
     const x = extra(chave, def);
     const limitado = chave === 'pagina_extra' && formato === 'landing_page' && x.max != null ? { ...x, max: Math.min(x.max, landingMaxExtras(regras.formatos?.landing_page)) } : x;
     (doRamo && !def.fora_do_automatico ? principais : mais).push(limitado);

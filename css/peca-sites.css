@@ -5,7 +5,7 @@
    desenhado como planta, que a luz imprime (a assinatura do site, "a luz passa e imprime").
    - 2026-10-28: a peça foi para o HERO de /sites, ao lado da frase (dono: "adicione ele ao lado da frase do
      hero"), e os quatro cartões de formato viraram o seletor de TIPO DE SITE dentro dela (dono: "integrar isso
-     de forma interativa no elemento"): institucional, landing page, experiência digital e loja trocam o site
+     de forma interativa no elemento"): institucional, landing page e loja trocam o site (a experiência digital/Atelier saiu em 2026-11-08)
      de exemplo inteiro, e a luz imprime o tipo novo.
    - O visitante põe o NOME do negócio e escolhe o tipo de negócio: o site de exemplo vira o dele, e a luz
      atravessa e imprime o nome.
@@ -52,10 +52,9 @@ html.js .planta:not(.is-viva) :is(.planta__formatos, .planta__frase, .planta__re
 .planta:not(.is-viva) .planta__moldura { transform: translate(-50%, -50%) scale(.28); }
 @media (max-width: 720px) { .planta:not(.is-viva) .planta__moldura { transform: translate(-50%, -50%) scale(.19); } }
 
-/* ---------- o tipo de site: quatro abas sobre uma linha só; a escolhida acende a luz embaixo ---------- */
-/* (as quatro numa linha a partir de 380 px de cartão: "Experiência digital" quebra em duas linhas antes de faltar
-   lugar; abaixo disso, 2 × 2) */
-.planta__formatos { display: grid; grid-template-columns: max-content max-content minmax(min-content, 1fr) max-content; column-gap: 14px; border-bottom: 1px solid var(--line-2); }
+/* ---------- o tipo de site: três abas sobre uma linha só; a escolhida acende a luz embaixo ---------- */
+/* (eram quatro até 2026-11-08, com a experiência digital/Atelier; com três, a linha só cabe em todo tamanho de cartão) */
+.planta__formatos { display: grid; grid-template-columns: repeat(3, max-content); column-gap: 14px; border-bottom: 1px solid var(--line-2); }
 .planta__formato {
   position: relative; display: flex; flex-direction: column; justify-content: flex-start; align-items: flex-start; gap: 4px;
   min-height: 44px; padding: 2px 0 9px; border: 0; background: none; cursor: pointer;
@@ -70,11 +69,10 @@ html.js .planta:not(.is-viva) :is(.planta__formatos, .planta__frase, .planta__re
 .planta__formato[aria-pressed="true"] b { color: var(--t1); }
 .planta__formato[aria-pressed="true"]::after { transform: scaleX(1); }
 .planta__formato:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; border-radius: var(--raio-s); }
-/* cartão estreito (celular): 2 × 2, o número ao lado do nome, cada aba com a sua linha (em quatro colunas apertadas
-   "Institucional" encostava em "Landing") */
+/* cartão estreito (celular): cada aba do tamanho do próprio nome, espalhadas na largura; se faltar lugar, "Landing page" e
+   "Loja virtual" quebram em duas linhas (em colunas iguais, "Institucional" encostava em "Landing" a 320 px) */
 @container planta-ui (max-width: 379px) {
-  .planta__formatos { grid-template-columns: repeat(2, minmax(0, 1fr)); border-bottom: 0; }
-  .planta__formato { flex-direction: row; align-items: center; gap: 8px; padding: 6px 0 8px; border-bottom: 1px solid var(--line-2); }
+  .planta__formatos { grid-template-columns: repeat(3, auto); justify-content: space-between; column-gap: 12px; }
 }
 /* a frase do tipo: duas linhas reservadas (trocar de tipo não sacode a peça) */
 .planta-cartao p.planta__frase { max-width: none; min-height: calc(2 * 1.45em); margin: 0; font-size: var(--fs-s); line-height: 1.45; color: var(--t2); text-wrap: pretty; }
@@ -183,7 +181,7 @@ html.js .planta:not(.is-viva) :is(.planta__formatos, .planta__frase, .planta__re
 .pl-recursos .pl-barra { width: 70%; opacity: .7; }
 
 /* as peças dos outros tipos de site (abaixo, por .planta[data-tipo]) ficam fora do institucional */
-.pl-busca, .pl-sacola, .pl-form, .pl-arte, .pl-produtos { display: none; }
+.pl-busca, .pl-sacola, .pl-form, .pl-produtos { display: none; }
 
 /* tablet: os links viram menu, o hero aperta em duas colunas (a foto acompanha a altura do texto), os recursos
    numa linha só, sem a barra de texto (medido: empilhado, o site passava 400 px do pé da moldura) */
@@ -251,31 +249,6 @@ html.js .planta:not(.is-viva) :is(.planta__formatos, .planta__frase, .planta__re
   .planta[data-tipo="landing_page"] .pl-btn--form { height: 88px; font-size: 26px; letter-spacing: .02em; }
   .planta[data-tipo="landing_page"] .pl-titulo.is-longo { font-size: 34px; }   /* (nome longo: o botão do formulário passava do pé a 360) */
 }
-
-/* experiência digital */
-.planta[data-tipo="sob_medida"] :is(.pl-links, .pl-cta, .pl-foto, .pl-recursos) { display: none; }
-.planta[data-tipo="sob_medida"] .pl-menu { display: flex; margin-left: auto; }
-.planta[data-tipo="sob_medida"] .pl-hero { flex: 1; min-height: 0; align-items: stretch; grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); gap: 32px; padding-bottom: 56px; }
-.planta[data-tipo="sob_medida"] .pl-texto { align-self: center; gap: 26px; }
-.planta[data-tipo="sob_medida"] .pl-titulo { max-width: none; font-size: 84px; line-height: .98; letter-spacing: -.045em; }
-.planta[data-tipo="sob_medida"] .pl-par .pl-barra:nth-child(3), .planta[data-tipo="sob_medida"] .pl-acoes .pl-barra { display: none; }
-.planta[data-tipo="sob_medida"] .pl-btn { background: transparent; border: 2px solid var(--ac); color: var(--ac); }
-.planta[data-tipo="sob_medida"] .pl-arte { display: block; position: relative; min-height: 0; }
-.pl-arte svg { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
-.pl-giro { position: absolute; inset: 0; display: block; animation: pl-gira 16s linear infinite; }
-.pl-giro--dentro { animation-duration: 11s; animation-direction: reverse; }
-.pl-arco { fill: none; stroke: var(--ac); stroke-width: 2; stroke-linecap: round; vector-effect: non-scaling-stroke; }
-.pl-ponto { fill: var(--ac); }
-@keyframes pl-gira { to { transform: rotate(360deg); } }
-.planta.is-fora .pl-giro { animation-play-state: paused; }   /* (fora da tela, o giro para) */
-@container planta (min-width: 900px) { .planta[data-tipo="sob_medida"] .pl-titulo { font-size: min(84px, 6.6cqi); } .planta[data-tipo="sob_medida"] .pl-titulo.is-longo { font-size: min(64px, 5cqi); } }
-@container planta (max-width: 899px) { .planta[data-tipo="sob_medida"] .pl-titulo { font-size: 58px; } .planta[data-tipo="sob_medida"] .pl-titulo.is-longo { font-size: 44px; } }
-@container planta (max-width: 759px) {
-  .planta[data-tipo="sob_medida"] .pl-hero { padding-bottom: 0; gap: 20px; }
-  .planta[data-tipo="sob_medida"] .pl-arte { flex: 1; }
-  .planta[data-tipo="sob_medida"] .pl-par { display: none; }
-}
-@container planta (max-width: 599px) { .planta[data-tipo="sob_medida"] .pl-titulo { font-size: 56px; } .planta[data-tipo="sob_medida"] .pl-titulo.is-longo { font-size: 44px; } }
 
 /* loja virtual */
 .planta[data-tipo="loja_plataforma"] :is(.pl-cta, .pl-foto, .pl-recursos, .pl-par, .pl-acoes) { display: none; }
@@ -446,7 +419,6 @@ html.js .planta:not(.is-viva) :is(.planta__formatos, .planta__frase, .planta__re
 }
 
 /* movimento reduzido: ao cruzar 600 px a moldura, a barra e a câmera trocam de uma vez (o JS já não liga a luz nem o
-   deslize); o giro da experiência digital fica parado */
-@media (prefers-reduced-motion: reduce) { .planta__moldura, .planta__barra, .planta__camera, .planta__formato::after { transition: none; } .pl-giro { animation: none; } }
+   deslize) */
+@media (prefers-reduced-motion: reduce) { .planta__moldura, .planta__barra, .planta__camera, .planta__formato::after { transition: none; } }
 html.menos-movimento :is(.planta__moldura, .planta__barra, .planta__camera), html.menos-movimento .planta__formato::after { transition: none; }
-html.menos-movimento .pl-giro { animation: none; }

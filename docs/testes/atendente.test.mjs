@@ -121,13 +121,13 @@ test('as medições contam recado e orçamento, não clique de WhatsApp da Beyon
   assert.doesNotMatch(m.replace(/\/\*[\s\S]*?\*\//g, ''), /lead-modal/, 'o modal do diagnóstico saiu');
 });
 
-test('limpeza do #65 (MEDIUM): sem sessionStorage "bz-formato" sem leitor, sem --luz-x/--luz-w mortos, o Início fala dos 4 formatos de /sites', () => {
+test('limpeza do #65 (MEDIUM): sem sessionStorage "bz-formato" sem leitor, sem --luz-x/--luz-w mortos, o Início fala dos 3 formatos de /sites (eram 4 até o Atelier sair, dono 2026-11-08)', () => {
   const sites = ler('js/peca-sites.js');
   assert.doesNotMatch(sites, /bz-formato/);
   assert.doesNotMatch(ler('css/cartoes.css'), /--luz-x|--luz-w/);
   const inicio = semComentarios(ler('index.html'));
   assert.match(inicio, /<ul class="servico__formatos"[\s\S]*?<\/ul>/);
-  assert.equal((inicio.match(/<ul class="servico__formatos"[\s\S]*?<\/ul>/)[0].match(/<li>/g) || []).length, 4, 'os 4 formatos de /sites');
+  assert.equal((inicio.match(/<ul class="servico__formatos"[\s\S]*?<\/ul>/)[0].match(/<li>/g) || []).length, 3, 'os 3 formatos de /sites');
 });
 
 test('a página do atendente não promete o valor "no orçamento" (o orçamento só calcula sites) e o botão principal abre o recado', () => {

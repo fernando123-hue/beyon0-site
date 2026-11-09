@@ -21,8 +21,10 @@ export const FORMATOS = ['landing_page', 'institucional', 'sob_medida', 'loja_pl
 export const LANDING_MAX_PAGINAS = 3;
 export const LANDING_GRANDE = 'A landing page vai até 3 páginas. Para 4 ou mais, escolha o site com várias páginas.';
 /* a loja (tabela v2, 2026-10-09) é OPCIONAL: uma tabela ativa anterior, sem ela, continua válida; se o código subir antes
-   da v2 ser ativada, o orçamento segue funcionando com os três formatos (revisão de segurança) */
-const OBRIGATORIOS = ['landing_page', 'institucional', 'sob_medida'];
+   da v2 ser ativada, o orçamento segue funcionando com os três formatos (revisão de segurança).
+   O sob_medida (Atelier) também é OPCIONAL desde a tabela v4 (dono, 2026-11-08: "pode excluir o Atelier"): a v4 não o traz,
+   e as tabelas v1 a v3, que o trazem, continuam válidas (o código sobe antes da v4 ser ativada, e pedidos antigos seguem abrindo) */
+const OBRIGATORIOS = ['landing_page', 'institucional'];
 export const PAGINAS_MAX = 60;   /* (validarFatores: o total de páginas que o pedido pode ter) */
 export const CHAVE = /^[a-z][a-z0-9_]{1,40}$/;   /* (o fluxo filtra o corpo com esta mesma: um padrão só) */
 const numero = (v, min, max) => typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max;

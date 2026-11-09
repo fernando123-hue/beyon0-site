@@ -19,7 +19,7 @@
    Fato novo sobre a empresa só entra aqui depois de aprovado pelo dono.
    ========================================================================== */
 import { ESQUEMA_ATUALIZACAO, avaliar, prontoParaEstimar, LIMIAR_DIRECOES } from './briefing.mjs';
-import { podeTerFaseSeguinte } from './precos.mjs';
+import { podeTerFaseSeguinte, FORMATOS } from './precos.mjs';
 import { ferramentaPlanta } from './planta.mjs';
 import { ferramentaLeitura, NOME_LEITURA } from './leitura.mjs';
 
@@ -46,9 +46,22 @@ const NAO_FAZ = [['area_restrita', 'área restrita com login'], ['sistema_sob_me
 const naoFazHoje = (regras, chave) => !!regras && !Object.hasOwn(regras.adicionais || {}, chave);
 const DIZ_QUE_NAO_FAZ = 'diga com honestidade, em uma frase, que a Beyon Zero não faz isso hoje, sem prometer conversa nem contato por causa disso';
 
-/* o formato maior (id interno sob_medida) pelo nome da tabela ATIVA, e se a tabela abate algo dele (incluso_em): o texto do prompt segue a tabela, não o contrário */
+/* o formato maior (id interno sob_medida) pelo nome da tabela ATIVA, e se a tabela abate algo dele (incluso_em): o texto do prompt segue a tabela, não o contrário.
+   Desde a tabela v4 (dono, 2026-11-08) ele não existe: sem o formato na tabela, o prompt não fala dele (linhaDoGrande vazia) */
 const nomeDoGrande = regras => regras.formatos?.sob_medida?.nome ?? 'formato maior';
 const temIncluso = regras => Object.values(regras.adicionais || {}).some(a => a && typeof a.incluso_em === 'object' && a.incluso_em !== null);
+const NAO_E_PADRAO = 'Recomende quando o negócio vive de apresentação ou o formato pronto não dá conta, nunca como padrão para quem tem medo ou orçamento curto.';
+
+/* a linha do "como escolher" para quem quer tudo feito sob medida: o Atelier, se a tabela ainda o traz (v1 a v3); senão, o adicional de
+   visual exclusivo do institucional (v4, dono 2026-11-08: nada é exclusivo de um plano, o cliente monta com adicionais); sem nenhum dos dois, nada */
+function linhaDoGrande(regras) {
+  if (regras.formatos?.sob_medida) {
+    return `\n- ${nomeDoGrande(regras)}: o site completo e mais cuidado, para quem quer algo bonito e bem feito de ponta a ponta: direção visual própria${temIncluso(regras) ? ', e a lista dele (acima) já inclui textos, imagens, formulário, animações e interações de assinatura. Depois da entrega não há suporte contínuo (nunca prometa suporte pós-entrega nem manutenção; os ajustes da prévia são outra coisa); quando fizer sentido, compare com o institucional mais as interações que ela quer' : ''}. ${NAO_E_PADRAO}`;
+  }
+  const visual = regras.adicionais?.visual_exclusivo;
+  if (!visual || visual.fora_do_automatico || visual.em_preparo === true) return '';
+  return `\n- Quem quer um site só dele, com o visual desenhado do zero e nada de modelo: o site institucional com o adicional "${visual.nome}", somando só os outros adicionais que o caso pedir (textos, imagens, animações, interações). ${NAO_E_PADRAO}`;
+}
 
 function blocoAdicionais(regras) {
   const todos = Object.values(regras.adicionais || {});
@@ -57,7 +70,11 @@ function blocoAdicionais(regras) {
   /* em preparo (tabela v3, 2026-11-03): está na tabela, o consultor sabe dele, mas ainda não se vende nem se orça */
   const emPreparo = todos.filter(a => a.em_preparo === true).map(a => a.nome);
   const naoFaz = NAO_FAZ.filter(([k]) => naoFazHoje(regras, k)).map(([, nome]) => nome);
-  return { automaticos, fora, emPreparo, naoFaz };
+  /* o que só existe num formato que não é a loja (os da loja já são ditos "só na loja"), ex.: o visual exclusivo só no institucional (v4) */
+  const soNoFormato = todos.filter(a => !a.fora_do_automatico && a.em_preparo !== true && Array.isArray(a.requer) && a.requer.length
+    && a.requer.every(r => FORMATOS.includes(r) && regras.formatos?.[r]) && !a.requer.includes('loja_plataforma'))
+    .map(a => a.nome + ' só com o formato ' + a.requer.map(r => regras.formatos[r].nome).join(' ou '));
+  return { automaticos, fora, emPreparo, naoFaz, soNoFormato };
 }
 
 /* loja e área restrita (tabela v2): só entram nas instruções se a tabela ativa as traz */
@@ -100,7 +117,7 @@ const URGENCIA_PADRAO = 30;   /* (a tabela oficial: x1,3; sem a regra na tabela,
 const pctUrgencia = regras => (regras.multiplicadores?.urgencia?.fator ? porcentoDe(regras.multiplicadores.urgencia.fator) : URGENCIA_PADRAO);
 
 function blocoTabela(regras, { direcoes, metodos }) {
-  const { automaticos, fora, emPreparo, naoFaz } = blocoAdicionais(regras);
+  const { automaticos, fora, emPreparo, naoFaz, soNoFormato } = blocoAdicionais(regras);
   const mult = blocoMultiplicadores(regras);
   const prazo = blocoPrazo(regras);
   return `TABELA ATIVA (a Beyon só vende o que está aqui; o valor de cada coisa quem calcula é estimar, e você escreve com os marcadores)
@@ -110,11 +127,10 @@ O que a tabela lista como incluído é o escopo de cada formato. Domínio, hospe
 
 Como escolher o formato:
 - Landing page: um objetivo só (campanha, lançamento, anúncio), uma página em que cada bloco leva a uma ação.
-- Site institucional: apresentar a empresa, os serviços e por que confiar, em várias páginas, para quem chegou sem conhecer decidir procurar.
-- ${nomeDoGrande(regras)}: o site completo e mais cuidado, para quem quer algo bonito e bem feito de ponta a ponta: direção visual própria${temIncluso(regras) ? ', e a lista dele (acima) já inclui textos, imagens, formulário, animações e interações de assinatura. Depois da entrega não há suporte contínuo (nunca prometa suporte pós-entrega nem manutenção; os ajustes da prévia são outra coisa); quando fizer sentido, compare com o institucional mais as interações que ela quer' : ''}. Recomende quando o negócio vive de apresentação ou o formato pronto não dá conta, nunca como padrão para quem tem medo ou orçamento curto.${linhasV2(regras)}
+- Site institucional: apresentar a empresa, os serviços e por que confiar, em várias páginas, para quem chegou sem conhecer decidir procurar.${linhaDoGrande(regras)}${linhasV2(regras)}
 Se a pessoa não souber, recomende um formato com uma frase de motivo, a partir do objetivo dela.
 
-Adicionais que a tabela cobre (entram na estimativa quando a pessoa precisa; valem em qualquer formato, e os de loja só na loja): ${automaticos.join('; ')}. Ofereça os que combinam com o caso dela, uma vez e sem empurrar.${temIncluso(regras) ? ` O que a lista do ${nomeDoGrande(regras)} já inclui não se soma: informe a quantidade TOTAL que ela quer (por exemplo, três interações de assinatura no total; os textos, tantos quantas forem as páginas) e o sistema desconta o que já vem; não ofereça ao ${nomeDoGrande(regras)} o que ele já traz.` : ''}
+Adicionais que a tabela cobre (entram na estimativa quando a pessoa precisa; valem em qualquer formato, e os de loja só na loja): ${automaticos.join('; ')}.${soNoFormato.length ? ' Exceção: ' + soNoFormato.join('; ') + '.' : ''} Ofereça os que combinam com o caso dela, uma vez e sem empurrar.${temIncluso(regras) ? ` O que a lista do ${nomeDoGrande(regras)} já inclui não se soma: informe a quantidade TOTAL que ela quer (por exemplo, três interações de assinatura no total; os textos, tantos quantas forem as páginas) e o sistema desconta o que já vem; não ofereça ao ${nomeDoGrande(regras)} o que ele já traz.` : ''}
 ${mult.length ? lista(mult) + '\n' : ''}${emPreparo.length ? 'Em preparo, ainda sem preço nem contratação: ' + emPreparo.join('; ') + '. A pessoa pode ter interesse (registre com sugerir_solucao_ia); você não orça, não promete prazo nem valor, e não chama estimar com eles. Mensalidade, quando existir, é cobrança recorrente à parte do pagamento único.\n' : ''}${fora.length ? 'Fora da estimativa automática (vão para uma conversa de diagnóstico): ' + fora.join('; ') + '.\n' : ''}${naoFaz.length ? 'A Beyon Zero não faz hoje: ' + naoFaz.join('; ') + '. Não ofereça esses itens e não chame encaminhar_diagnostico por isso. Se a pessoa pedir algo assim, ' + DIZ_QUE_NAO_FAZ + ', e siga com o site sem esse item.\n' : ''}Soluções com IA: o atendente de IA é um chat dentro do site do cliente e ainda não está pronto: sem prazo, valor, preço nem teste grátis. Automações para entidades existem, mas não são orçadas aqui; quem quiser saber mais deixa um recado.
 
 Prazo: quem calcula é estimar, pelo tamanho do trabalho, em dias úteis depois do sinal pago e do material recebido. Cada formato sozinho, sem adicionais: ${prazo.formatos}. Cada adicional soma dias: trabalho maior tem prazo maior, numa entrega só.${prazo.fase} Antes da estimativa, fale só dos dias do formato sozinho; depois dela, diga o prazo que estimar devolveu. Não prometa outro.
@@ -268,7 +284,7 @@ function todasAsFerramentas(regras, planta = false, leitura = false) {
   ];
 }
 
-const NOMES_FALTA = { negocio: 'o que o negócio faz e para quem', objetivo: 'o objetivo do site', formato: 'o formato (landing page, institucional, loja virtual ou experiência digital)',
+const NOMES_FALTA = { negocio: 'o que o negócio faz e para quem', objetivo: 'o objetivo do site', formato: 'o formato (landing page, institucional ou loja virtual)',
   publico: 'o público', servicos: 'os serviços ou produtos que devem aparecer', conteudo: 'o material que já existe (textos, fotos, depoimentos)',
   identidade_visual: 'a identidade visual (logo, cores)', funcionalidades: 'as funcionalidades (WhatsApp, formulário, agendamento…)',
   posicionamento: 'como quer ser percebido e os diferenciais', referencias: 'referências de sites que gosta', restricoes: 'o que não quer' };

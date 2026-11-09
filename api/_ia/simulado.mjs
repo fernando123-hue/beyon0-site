@@ -130,7 +130,12 @@ function conversa({ mensagens, contexto, ferramentas = [] }) {
     if (lojaDoZero && lojaNaTabela) adicionais.loja_virtual = 1;
     if ((b.funcionalidades || []).includes('agendamento')) adicionais.agendamento = 1;
     if ((b.funcionalidades || []).includes('blog')) adicionais.blog = 1;
-    if (!lojaDoZero || lojaNaTabela) chamadas.push({ id: id(), nome: 'estimar', entrada: { formato: b.projeto.formato, ...(b.projeto.paginas ? { paginas: b.projeto.paginas } : {}), adicionais } });
+    /* sem o Atelier na tabela (v4, dono 2026-11-08), o pedido de site sob medida vira o institucional com o visual exclusivo, como o Zero faria */
+    const esquema = ferramentas.find(f => f.name === 'estimar')?.input_schema?.properties;
+    const semAtelier = b.projeto.formato === 'sob_medida' && Array.isArray(esquema?.formato?.enum) && !esquema.formato.enum.includes('sob_medida');
+    if (semAtelier && esquema.adicionais?.properties?.visual_exclusivo) adicionais.visual_exclusivo = 1;
+    const formato = semAtelier ? 'institucional' : b.projeto.formato;
+    if (!lojaDoZero || lojaNaTabela) chamadas.push({ id: id(), nome: 'estimar', entrada: { formato, ...(b.projeto.paginas ? { paginas: b.projeto.paginas } : {}), adicionais } });
   }
   if (/atendimento|responder (os )?clientes|whats(app)? cheio/i.test(texto)) chamadas.push({ id: id(), nome: 'sugerir_solucao_ia', entrada: { ideia: 'Atendente com IA no WhatsApp', motivo: 'Responder dúvidas comuns e agendar fora do horário' } });
   const leitura = gatilhoDeLeitura(mensagens);
