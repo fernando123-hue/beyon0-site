@@ -16,7 +16,7 @@
       (sessionStorage) se a pessoa clicar em "Quero o meu site". Também fica em sessionStorage ('bz-negocio',
       só o nome) para o atendente de /automacao. (O link do WhatsApp saiu: dono, 2026-10-28, site sem WhatsApp.)
    5. O TIPO DE SITE (2026-10-28: a peça foi para o hero e engoliu os quatro cartões de formato): institucional,
-      landing page, experiência digital ou loja. Escolher um troca o site de exemplo inteiro (o CSS lê
+      landing page ou loja (o Atelier saiu em 2026-11-08). Escolher um troca o site de exemplo inteiro (o CSS lê
       .planta[data-tipo]) e a luz desce e IMPRIME o tipo novo; a frase do tipo troca junto (aria-live).
    Texto trocado sempre pelo nó de texto (nodeValue): um nó novo acionaria o MutationObserver da rede
    (js/rede.js), que remede a página inteira. Movimento reduzido: tudo pronto e parado, e funcionando.
@@ -67,7 +67,6 @@
   var FORMATOS = {
     institucional: 'O site completo: quem você é, o que faz e por que confiar em você.',
     landing_page: 'Uma página só, para uma ação: pedir orçamento, se inscrever ou comprar.',
-    sob_medida: 'Visual e movimento criados só para a sua marca, quando um modelo pronto não basta.',
     loja_plataforma: 'Loja pronta (Nuvemshop ou Shopify) com a sua marca e até 30 produtos.'
   };
   var mq = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -537,7 +536,6 @@
   document.addEventListener('visibilitychange', pausaDaDemo);
   new IntersectionObserver(function (es) {
     visivel = es[0].isIntersecting;
-    raiz.classList.toggle('is-fora', !visivel);   /* (o giro da experiência digital para fora da tela) */
     if (visivel && !entrou) { window.addEventListener('scroll', talvezEntrar, { passive: true }); talvezEntrar(); }
     else if (!visivel) window.removeEventListener('scroll', talvezEntrar);   /* passou rápido: nada escuta a rolagem fora da tela */
     pausaDaDemo();

@@ -112,3 +112,26 @@ test('texto livre do formulário: telefone e e-mail viram marcadores no briefing
   assert.equal(b.negocio.cidade, '[e-mail]');
   assert.equal(respostasParaBriefing({ ramo: 'outro', outro: 'Doceria', cidade: 'Campo Grande', objetivos: [] }, 'landing_page').negocio.cidade, 'Campo Grande', 'texto comum fica igual');
 });
+
+/* tabela v4 (dono, 2026-11-08): o adicional que só existe num formato (visual exclusivo, só no institucional) aparece só nele, como principal;
+   o filtro é o mesmo da loja, generalizado, e com a v3 arquivada (sem o adicional) o catálogo fica como era */
+test('v4: o visual exclusivo aparece só no institucional, como principal; na landing, na loja e sem formato, some', () => {
+  const todas = c => [...c.extras.principais, ...c.extras.mais].map(e => e.chave);
+  const inst = catalogoPublico(REGRAS, { formato: 'institucional', ramo: 'outro' });
+  const visual = inst.extras.principais.find(e => e.chave === 'visual_exclusivo');
+  assert.ok(visual, 'principal no institucional, em qualquer ramo');
+  assert.deepEqual([visual.valor, visual.max, visual.requer, visual.frase], [3200, 1, ['institucional'], FRASES.visual_exclusivo]);
+  for (const formato of ['landing_page', 'loja_plataforma', undefined]) {
+    assert.ok(!todas(catalogoPublico(REGRAS, { formato, ramo: 'servicos' })).includes('visual_exclusivo'), String(formato));
+  }
+  assert.ok(!inst.formatos.some(f => f.chave === 'sob_medida'), 'o Atelier não é mais formato vizinho');
+  /* a v3 arquivada: mesmos extras de antes (o filtro novo não muda a loja nem os outros) */
+  const V3 = JSON.parse(fs.readFileSync(new URL('../fase2/regras-v3-atelier-arquivada.json', import.meta.url), 'utf8'));
+  for (const [formato, ramo] of [['institucional', 'saude'], ['landing_page', 'comercio'], ['loja_plataforma', 'comercio'], ['sob_medida', 'servicos']]) {
+    const c = catalogoPublico(V3, { formato, ramo });
+    const daLoja = Object.entries(V3.adicionais).filter(([, a]) => a.requer?.includes('loja_plataforma')).map(([k]) => k);
+    assert.equal(daLoja.every(k => todas(c).includes(k)), formato === 'loja_plataforma', formato + ': os da loja só na loja');
+    assert.ok(daLoja.every(k => formato !== 'loja_plataforma' || c.extras.principais.some(e => e.chave === k)), formato + ': na loja, principais');
+  }
+  assert.ok(catalogoPublico(V3, { formato: 'institucional', ramo: 'saude' }).formatos.some(f => f.chave === 'sob_medida'), 'com a v3, o Atelier segue vizinho');
+});
